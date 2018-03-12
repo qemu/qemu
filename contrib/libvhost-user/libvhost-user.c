@@ -454,7 +454,7 @@ vu_set_mem_table_exec_postcopy(VuDev *dev, VhostUserMsg *vmsg)
     int i;
     VhostUserMemory *memory = &vmsg->payload.memory;
     dev->nregions = memory->nregions;
-    /* TODO: Postcopy specific code */
+
     DPRINT("Nregions: %d\n", memory->nregions);
     for (i = 0; i < dev->nregions; i++) {
         void *mmap_addr;
@@ -478,9 +478,12 @@ vu_set_mem_table_exec_postcopy(VuDev *dev, VhostUserMsg *vmsg)
 
         /* We don't use offset argument of mmap() since the
          * mapped address has to be page aligned, and we use huge
-         * pages.  */
+         * pages.
+         * In postcopy we're using PROT_NONE here to catch anyone
+         * accessing it before we userfault
+         */
         mmap_addr = mmap(0, dev_region->size + dev_region->mmap_offset,
-                         PROT_READ | PROT_WRITE, MAP_SHARED,
+                         PROT_NONE, MAP_SHARED,
                          vmsg->fds[i], 0);
 
         if (mmap_addr == MAP_FAILED) {
@@ -519,12 +522,38 @@ vu_set_mem_table_exec_postcopy(VuDev *dev, VhostUserMsg *vmsg)
     /* OK, now we can go and register the memory and generate faults */
     for (i = 0; i < dev->nregions; i++) {
         VuDevRegion *dev_region = &dev->regions[i];
+        int ret;
 #ifdef UFFDIO_REGISTER
         /* We should already have an open ufd. Mark each memory
          * range as ufd.
-         * Note: Do we need any madvises? Well it's not been accessed
-         * yet, still probably need no THP to be safe, discard to be safe?
+         * Discard any mapping we have here; note I can't use MADV_REMOVE
+         * or fallocate to make the hole since I don't want to lose
+         * data that's already arrived in the shared process.
+         * TODO: How to do hugepage
          */
+        ret = madvise((void *)dev_region->mmap_addr,
+                      dev_region->size + dev_region->mmap_offset,
+                      MADV_DONTNEED);
+        if (ret) {
+            fprintf(stderr,
+                    "%s: Failed to madvise(DONTNEED) region %d: %s\n",
+                    __func__, i, strerror(errno));
+        }
+        /* Turn off transparent hugepages so we dont get lose wakeups
+         * in neighbouring pages.
+         * TODO: Turn this backon later.
+         */
+        ret = madvise((void *)dev_region->mmap_addr,
+                      dev_region->size + dev_region->mmap_offset,
+                      MADV_NOHUGEPAGE);
+        if (ret) {
+            /* Note: This can happen legally on kernels that are configured
+             * without madvise'able hugepages
+             */
+            fprintf(stderr,
+                    "%s: Failed to madvise(NOHUGEPAGE) region %d: %s\n",
+                    __func__, i, strerror(errno));
+        }
         struct uffdio_register reg_struct;
         reg_struct.range.start = (uintptr_t)dev_region->mmap_addr;
         reg_struct.range.len = dev_region->size + dev_region->mmap_offset;
@@ -546,6 +575,14 @@ vu_set_mem_table_exec_postcopy(VuDev *dev, VhostUserMsg *vmsg)
         }
         DPRINT("%s: region %d: Registered userfault for %llx + %llx\n",
                 __func__, i, reg_struct.range.start, reg_struct.range.len);
+        /* Now it's registered we can let the client at it */
+        if (mprotect((void *)dev_region->mmap_addr,
+                     dev_region->size + dev_region->mmap_offset,
+                     PROT_READ | PROT_WRITE)) {
+            vu_panic(dev, "failed to mprotect region %d for postcopy (%s)",
+                     i, strerror(errno));
+            return false;
+        }
         /* TODO: Stash 'zero' support flags somewhere */
 #endif
     }
