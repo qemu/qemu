@@ -1,6 +1,6 @@
 #!/bin/bash -e
 #
-# Compile and check with clang & --enable-debug.
+# Compile and check with clang & --enable-debug --enable-sanitizers.
 #
 # Copyright (c) 2016-2018 Red Hat Inc.
 #
@@ -19,8 +19,8 @@ requires clang asan
 cd "$BUILD_DIR"
 
 OPTS="--cxx=clang++ --cc=clang --host-cc=clang"
-OPTS="--enable-debug $OPTS"
+OPTS="--enable-debug --enable-sanitizers $OPTS"
 
 build_qemu $OPTS
-make $MAKEFLAGS check
+make $MAKEFLAGS V=1 check
 install_qemu
