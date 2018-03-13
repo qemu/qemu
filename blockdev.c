@@ -2118,6 +2118,9 @@ static void block_dirty_bitmap_clear_prepare(BlkActionState *common,
     if (bdrv_dirty_bitmap_frozen(state->bitmap)) {
         error_setg(errp, "Cannot modify a frozen bitmap");
         return;
+    } else if (bdrv_dirty_bitmap_qmp_locked(state->bitmap)) {
+        error_setg(errp, "Cannot modify a locked bitmap");
+        return;
     } else if (!bdrv_dirty_bitmap_enabled(state->bitmap)) {
         error_setg(errp, "Cannot clear a disabled bitmap");
         return;
@@ -2862,6 +2865,11 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
                    "Bitmap '%s' is currently frozen and cannot be removed",
                    name);
         return;
+    } else if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently locked and cannot be removed",
+                   name);
+        return;
     }
 
     if (bdrv_dirty_bitmap_get_persistance(bitmap)) {
@@ -2894,6 +2902,11 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
     if (bdrv_dirty_bitmap_frozen(bitmap)) {
         error_setg(errp,
                    "Bitmap '%s' is currently frozen and cannot be modified",
+                   name);
+        return;
+    } else if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently locked and cannot be modified",
                    name);
         return;
     } else if (!bdrv_dirty_bitmap_enabled(bitmap)) {
@@ -3368,6 +3381,12 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
         if (!bmap) {
             error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
             bdrv_unref(target_bs);
+            goto out;
+        }
+        if (bdrv_dirty_bitmap_qmp_locked(bmap)) {
+            error_setg(errp,
+                       "Bitmap '%s' is currently locked and cannot be used for "
+                       "backup", backup->bitmap);
             goto out;
         }
     }
