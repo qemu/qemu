@@ -23,6 +23,19 @@
 /* "QA7" (Pi2) interrupt controller and mailboxes etc. */
 #define BCM2836_CONTROL_BASE    0x40000000
 
+struct BCM283XInfo {
+    const char *name;
+};
+
+static const BCM283XInfo bcm283x_socs[] = {
+    {
+        .name = TYPE_BCM2836,
+    },
+    {
+        .name = TYPE_BCM2837,
+    },
+};
+
 static void bcm2836_init(Object *obj)
 {
     BCM283XState *s = BCM283X(obj);
@@ -156,25 +169,39 @@ static Property bcm2836_props[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-static void bcm2836_class_init(ObjectClass *oc, void *data)
+static void bcm283x_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    BCM283XClass *bc = BCM283X_CLASS(oc);
 
-    dc->props = bcm2836_props;
+    bc->info = data;
     dc->realize = bcm2836_realize;
+    dc->props = bcm2836_props;
 }
 
-static const TypeInfo bcm2836_type_info = {
+static const TypeInfo bcm283x_type_info = {
     .name = TYPE_BCM283X,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(BCM283XState),
     .instance_init = bcm2836_init,
-    .class_init = bcm2836_class_init,
+    .class_size = sizeof(BCM283XClass),
+    .abstract = true,
 };
 
 static void bcm2836_register_types(void)
 {
-    type_register_static(&bcm2836_type_info);
+    int i;
+
+    type_register_static(&bcm283x_type_info);
+    for (i = 0; i < ARRAY_SIZE(bcm283x_socs); i++) {
+        TypeInfo ti = {
+            .name = bcm283x_socs[i].name,
+            .parent = TYPE_BCM283X,
+            .class_init = bcm283x_class_init,
+            .class_data = (void *) &bcm283x_socs[i],
+        };
+        type_register(&ti);
+    }
 }
 
 type_init(bcm2836_register_types)

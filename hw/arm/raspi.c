@@ -136,7 +136,8 @@ static void raspi_init(MachineState *machine, int version)
     BusState *bus;
     DeviceState *carddev;
 
-    object_initialize(&s->soc, sizeof(s->soc), TYPE_BCM283X);
+    object_initialize(&s->soc, sizeof(s->soc),
+                      version == 3 ? TYPE_BCM2837 : TYPE_BCM2836);
     object_property_add_child(OBJECT(machine), "soc", OBJECT(&s->soc),
                               &error_abort);
 
