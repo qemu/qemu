@@ -1693,6 +1693,8 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
 
     trace_loadvm_postcopy_handle_run_vmstart();
 
+    dirty_bitmap_mig_before_vm_start();
+
     if (autostart) {
         /* Hold onto your hats, starting the CPU */
         vm_start();

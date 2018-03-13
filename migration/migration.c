@@ -157,6 +157,9 @@ MigrationIncomingState *migration_incoming_get_current(void)
         memset(&mis_current, 0, sizeof(MigrationIncomingState));
         qemu_mutex_init(&mis_current.rp_mutex);
         qemu_event_init(&mis_current.main_thread_load_event, false);
+
+        init_dirty_bitmap_incoming_migration();
+
         once = true;
     }
     return &mis_current;
@@ -319,6 +322,8 @@ static void process_incoming_migration_bh(void *opaque)
     /* If global state section was not received or we are in running
        state, we need to obey autostart. Any other state is set with
        runstate_set. */
+
+    dirty_bitmap_mig_before_vm_start();
 
     if (!global_state_received() ||
         global_state_get_runstate() == RUN_STATE_RUNNING) {

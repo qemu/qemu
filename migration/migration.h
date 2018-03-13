@@ -235,4 +235,7 @@ void migrate_send_rp_pong(MigrationIncomingState *mis,
 int migrate_send_rp_req_pages(MigrationIncomingState *mis, const char* rbname,
                               ram_addr_t start, size_t len);
 
+void dirty_bitmap_mig_before_vm_start(void);
+void init_dirty_bitmap_incoming_migration(void);
+
 #endif
