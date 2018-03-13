@@ -487,7 +487,7 @@ static int block_job_finalize_single(BlockJob *job)
     return 0;
 }
 
-static void block_job_cancel_async(BlockJob *job)
+static void block_job_cancel_async(BlockJob *job, bool force)
 {
     if (job->iostatus != BLOCK_DEVICE_IO_STATUS_OK) {
         block_job_iostatus_reset(job);
@@ -498,6 +498,8 @@ static void block_job_cancel_async(BlockJob *job)
         job->pause_count--;
     }
     job->cancelled = true;
+    /* To prevent 'force == false' overriding a previous 'force == true' */
+    job->force |= force;
 }
 
 static int block_job_txn_apply(BlockJobTxn *txn, int fn(BlockJob *), bool lock)
@@ -581,7 +583,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
      * on the caller, so leave it. */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
         if (other_job != job) {
-            block_job_cancel_async(other_job);
+            block_job_cancel_async(other_job, false);
         }
     }
     while (!QLIST_EMPTY(&txn->jobs)) {
@@ -747,13 +749,13 @@ void block_job_user_resume(BlockJob *job, Error **errp)
     block_job_resume(job);
 }
 
-void block_job_cancel(BlockJob *job)
+void block_job_cancel(BlockJob *job, bool force)
 {
     if (job->status == BLOCK_JOB_STATUS_CONCLUDED) {
         block_job_do_dismiss(job);
         return;
     }
-    block_job_cancel_async(job);
+    block_job_cancel_async(job, force);
     if (!block_job_started(job)) {
         block_job_completed(job, -ECANCELED);
     } else if (job->deferred_to_main_loop) {
@@ -763,12 +765,12 @@ void block_job_cancel(BlockJob *job)
     }
 }
 
-void block_job_user_cancel(BlockJob *job, Error **errp)
+void block_job_user_cancel(BlockJob *job, bool force, Error **errp)
 {
     if (block_job_apply_verb(job, BLOCK_JOB_VERB_CANCEL, errp)) {
         return;
     }
-    block_job_cancel(job);
+    block_job_cancel(job, force);
 }
 
 /* A wrapper around block_job_cancel() taking an Error ** parameter so it may be
@@ -776,7 +778,7 @@ void block_job_user_cancel(BlockJob *job, Error **errp)
  * function pointer casts there. */
 static void block_job_cancel_err(BlockJob *job, Error **errp)
 {
-    block_job_cancel(job);
+    block_job_cancel(job, false);
 }
 
 int block_job_cancel_sync(BlockJob *job)

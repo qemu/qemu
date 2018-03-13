@@ -2207,8 +2207,9 @@
 #          the name of the parameter), but since QEMU 2.7 it can have
 #          other values.
 #
-# @force: whether to allow cancellation of a paused job (default
-#         false).  Since 1.3.
+# @force: If true, and the job has already emitted the event BLOCK_JOB_READY,
+#         abandon the job immediately (even if it is paused) instead of waiting
+#         for the destination to complete its final synchronization (since 1.3)
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
