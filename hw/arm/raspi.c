@@ -82,10 +82,19 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
     binfo.board_id = raspi_boardid[version];
     binfo.ram_size = ram_size;
     binfo.nb_cpus = smp_cpus;
-    binfo.board_setup_addr = BOARDSETUP_ADDR;
-    binfo.write_board_setup = write_board_setup;
-    binfo.secure_board_setup = true;
-    binfo.secure_boot = true;
+
+    if (version <= 2) {
+        /* The rpi1 and 2 require some custom setup code to run in Secure
+         * mode before booting a kernel (to set up the SMC vectors so
+         * that we get a no-op SMC; this is used by Linux to call the
+         * firmware for some cache maintenance operations.
+         * The rpi3 doesn't need this.
+         */
+        binfo.board_setup_addr = BOARDSETUP_ADDR;
+        binfo.write_board_setup = write_board_setup;
+        binfo.secure_board_setup = true;
+        binfo.secure_boot = true;
+    }
 
     /* Pi2 and Pi3 requires SMP setup */
     if (version >= 2) {
