@@ -15,12 +15,12 @@
 #include "hw/arm/bcm2835_peripherals.h"
 #include "hw/intc/bcm2836_control.h"
 
-#define TYPE_BCM2836 "bcm2836"
-#define BCM2836(obj) OBJECT_CHECK(BCM2836State, (obj), TYPE_BCM2836)
+#define TYPE_BCM283X "bcm283x"
+#define BCM283X(obj) OBJECT_CHECK(BCM283XState, (obj), TYPE_BCM283X)
 
-#define BCM2836_NCPUS 4
+#define BCM283X_NCPUS 4
 
-typedef struct BCM2836State {
+typedef struct BCM283XState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
@@ -28,9 +28,9 @@ typedef struct BCM2836State {
     char *cpu_type;
     uint32_t enabled_cpus;
 
-    ARMCPU cpus[BCM2836_NCPUS];
+    ARMCPU cpus[BCM283X_NCPUS];
     BCM2836ControlState control;
     BCM2835PeripheralState peripherals;
-} BCM2836State;
+} BCM283XState;
 
 #endif /* BCM2836_H */

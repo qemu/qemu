@@ -25,7 +25,7 @@
 
 static void bcm2836_init(Object *obj)
 {
-    BCM2836State *s = BCM2836(obj);
+    BCM283XState *s = BCM283X(obj);
 
     object_initialize(&s->control, sizeof(s->control), TYPE_BCM2836_CONTROL);
     object_property_add_child(obj, "control", OBJECT(&s->control), NULL);
@@ -44,7 +44,7 @@ static void bcm2836_init(Object *obj)
 
 static void bcm2836_realize(DeviceState *dev, Error **errp)
 {
-    BCM2836State *s = BCM2836(dev);
+    BCM283XState *s = BCM283X(dev);
     Object *obj;
     Error *err = NULL;
     int n;
@@ -52,7 +52,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     /* common peripherals from bcm2835 */
 
     obj = OBJECT(dev);
-    for (n = 0; n < BCM2836_NCPUS; n++) {
+    for (n = 0; n < BCM283X_NCPUS; n++) {
         object_initialize(&s->cpus[n], sizeof(s->cpus[n]),
                           s->cpu_type);
         object_property_add_child(obj, "cpu[*]", OBJECT(&s->cpus[n]),
@@ -102,7 +102,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 1,
         qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-fiq", 0));
 
-    for (n = 0; n < BCM2836_NCPUS; n++) {
+    for (n = 0; n < BCM283X_NCPUS; n++) {
         /* Mirror bcm2836, which has clusterid set to 0xf
          * TODO: this should be converted to a property of ARM_CPU
          */
@@ -150,8 +150,9 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 }
 
 static Property bcm2836_props[] = {
-    DEFINE_PROP_STRING("cpu-type", BCM2836State, cpu_type),
-    DEFINE_PROP_UINT32("enabled-cpus", BCM2836State, enabled_cpus, BCM2836_NCPUS),
+    DEFINE_PROP_STRING("cpu-type", BCM283XState, cpu_type),
+    DEFINE_PROP_UINT32("enabled-cpus", BCM283XState, enabled_cpus,
+                       BCM283X_NCPUS),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -164,9 +165,9 @@ static void bcm2836_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo bcm2836_type_info = {
-    .name = TYPE_BCM2836,
+    .name = TYPE_BCM283X,
     .parent = TYPE_DEVICE,
-    .instance_size = sizeof(BCM2836State),
+    .instance_size = sizeof(BCM283XState),
     .instance_init = bcm2836_init,
     .class_init = bcm2836_class_init,
 };
