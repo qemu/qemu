@@ -165,7 +165,7 @@ static void bcm2836_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo bcm2836_type_info = {
     .name = TYPE_BCM2836,
-    .parent = TYPE_SYS_BUS_DEVICE,
+    .parent = TYPE_DEVICE,
     .instance_size = sizeof(BCM2836State),
     .instance_init = bcm2836_init,
     .class_init = bcm2836_class_init,
