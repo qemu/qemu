@@ -1,0 +1,118 @@
+#!/usr/bin/env python
+#
+# Tests for dirty bitmaps postcopy migration.
+#
+# Copyright (c) 2016-2017 Virtuozzo International GmbH. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+import time
+from iotests import qemu_img
+
+disk_a = os.path.join(iotests.test_dir, 'disk_a')
+disk_b = os.path.join(iotests.test_dir, 'disk_b')
+size = '256G'
+fifo = os.path.join(iotests.test_dir, 'mig_fifo')
+
+class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
+
+    def tearDown(self):
+        self.vm_a.shutdown()
+        self.vm_b.shutdown()
+        os.remove(disk_a)
+        os.remove(disk_b)
+        os.remove(fifo)
+
+    def setUp(self):
+        os.mkfifo(fifo)
+        qemu_img('create', '-f', iotests.imgfmt, disk_a, size)
+        qemu_img('create', '-f', iotests.imgfmt, disk_b, size)
+        self.vm_a = iotests.VM(path_suffix='a').add_drive(disk_a)
+        self.vm_b = iotests.VM(path_suffix='b').add_drive(disk_b)
+        self.vm_b.add_incoming("exec: cat '" + fifo + "'")
+        self.vm_a.launch()
+        self.vm_b.launch()
+
+    def test_postcopy(self):
+        write_size = 0x40000000
+        granularity = 512
+        chunk = 4096
+
+        result = self.vm_a.qmp('block-dirty-bitmap-add', node='drive0',
+                               name='bitmap', granularity=granularity)
+        self.assert_qmp(result, 'return', {});
+
+        s = 0
+        while s < write_size:
+            self.vm_a.hmp_qemu_io('drive0', 'write %d %d' % (s, chunk))
+            s += 0x10000
+        s = 0x8000
+        while s < write_size:
+            self.vm_a.hmp_qemu_io('drive0', 'write %d %d' % (s, chunk))
+            s += 0x10000
+
+        result = self.vm_a.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive0', name='bitmap')
+        sha256 = result['return']['sha256']
+
+        result = self.vm_a.qmp('block-dirty-bitmap-clear', node='drive0',
+                               name='bitmap')
+        self.assert_qmp(result, 'return', {});
+        s = 0
+        while s < write_size:
+            self.vm_a.hmp_qemu_io('drive0', 'write %d %d' % (s, chunk))
+            s += 0x10000
+
+        bitmaps_cap = {'capability': 'dirty-bitmaps', 'state': True}
+        events_cap = {'capability': 'events', 'state': True}
+
+        result = self.vm_a.qmp('migrate-set-capabilities',
+                               capabilities=[bitmaps_cap, events_cap])
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm_b.qmp('migrate-set-capabilities',
+                               capabilities=[bitmaps_cap])
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm_a.qmp('migrate', uri='exec:cat>' + fifo)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm_a.qmp('migrate-start-postcopy')
+        self.assert_qmp(result, 'return', {})
+
+        while True:
+            event = self.vm_a.event_wait('MIGRATION')
+            if event['data']['status'] == 'completed':
+                break
+
+        s = 0x8000
+        while s < write_size:
+            self.vm_b.hmp_qemu_io('drive0', 'write %d %d' % (s, chunk))
+            s += 0x10000
+
+        result = self.vm_b.qmp('query-block');
+        while len(result['return'][0]['dirty-bitmaps']) > 1:
+            time.sleep(2)
+            result = self.vm_b.qmp('query-block');
+
+        result = self.vm_b.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive0', name='bitmap')
+
+        self.assert_qmp(result, 'return/sha256', sha256);
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'], supported_cache_modes=['none'])
