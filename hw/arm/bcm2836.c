@@ -25,14 +25,17 @@
 
 struct BCM283XInfo {
     const char *name;
+    int clusterid;
 };
 
 static const BCM283XInfo bcm283x_socs[] = {
     {
         .name = TYPE_BCM2836,
+        .clusterid = 0xf,
     },
     {
         .name = TYPE_BCM2837,
+        .clusterid = 0x0,
     },
 };
 
@@ -58,6 +61,8 @@ static void bcm2836_init(Object *obj)
 static void bcm2836_realize(DeviceState *dev, Error **errp)
 {
     BCM283XState *s = BCM283X(dev);
+    BCM283XClass *bc = BCM283X_GET_CLASS(dev);
+    const BCM283XInfo *info = bc->info;
     Object *obj;
     Error *err = NULL;
     int n;
@@ -116,10 +121,8 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-fiq", 0));
 
     for (n = 0; n < BCM283X_NCPUS; n++) {
-        /* Mirror bcm2836, which has clusterid set to 0xf
-         * TODO: this should be converted to a property of ARM_CPU
-         */
-        s->cpus[n].mp_affinity = 0xF00 | n;
+        /* TODO: this should be converted to a property of ARM_CPU */
+        s->cpus[n].mp_affinity = (info->clusterid << 8) | n;
 
         /* set periphbase/CBAR value for CPU-local registers */
         object_property_set_int(OBJECT(&s->cpus[n]),
