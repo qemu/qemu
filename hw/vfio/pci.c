@@ -1581,6 +1581,19 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
      */
     memory_region_set_enabled(&vdev->pdev.msix_pba_mmio, false);
 
+    /*
+     * The emulated machine may provide a paravirt interface for MSIX setup
+     * so it is not strictly necessary to emulate MSIX here. This becomes
+     * helpful when frequently accessed MMIO registers are located in
+     * subpages adjacent to the MSIX table but the MSIX data containing page
+     * cannot be mapped because of a host page size bigger than the MSIX table
+     * alignment.
+     */
+    if (object_property_get_bool(OBJECT(qdev_get_machine()),
+                                 "vfio-no-msix-emulation", NULL)) {
+        memory_region_set_enabled(&vdev->pdev.msix_table_mmio, false);
+    }
+
     return 0;
 }
 
