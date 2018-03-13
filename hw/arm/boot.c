@@ -729,6 +729,11 @@ static void do_cpu_reset(void *opaque)
                     assert(!info->secure_board_setup);
                 }
 
+                if (arm_feature(env, ARM_FEATURE_EL2)) {
+                    /* If we have EL2 then Linux expects the HVC insn to work */
+                    env->cp15.scr_el3 |= SCR_HCE;
+                }
+
                 /* Set to non-secure if not a secure boot */
                 if (!info->secure_boot &&
                     (cs != first_cpu || !info->secure_board_setup)) {
