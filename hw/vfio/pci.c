@@ -1295,6 +1295,15 @@ static void vfio_pci_fixup_msix_region(VFIOPCIDevice *vdev)
     VFIORegion *region = &vdev->bars[vdev->msix->table_bar].region;
 
     /*
+     * If the host driver allows mapping of a MSIX data, we are going to
+     * do map the entire BAR and emulate MSIX table on top of that.
+     */
+    if (vfio_has_region_cap(&vdev->vbasedev, region->nr,
+                            VFIO_REGION_INFO_CAP_MSIX_MAPPABLE)) {
+        return;
+    }
+
+    /*
      * We expect to find a single mmap covering the whole BAR, anything else
      * means it's either unsupported or already setup.
      */
