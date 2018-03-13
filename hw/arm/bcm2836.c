@@ -25,23 +25,38 @@
 
 struct BCM283XInfo {
     const char *name;
+    const char *cpu_type;
     int clusterid;
 };
 
 static const BCM283XInfo bcm283x_socs[] = {
     {
         .name = TYPE_BCM2836,
+        .cpu_type = ARM_CPU_TYPE_NAME("cortex-a15"),
         .clusterid = 0xf,
     },
+#ifdef TARGET_AARCH64
     {
         .name = TYPE_BCM2837,
+        .cpu_type = ARM_CPU_TYPE_NAME("cortex-a53"),
         .clusterid = 0x0,
     },
+#endif
 };
 
 static void bcm2836_init(Object *obj)
 {
     BCM283XState *s = BCM283X(obj);
+    BCM283XClass *bc = BCM283X_GET_CLASS(obj);
+    const BCM283XInfo *info = bc->info;
+    int n;
+
+    for (n = 0; n < BCM283X_NCPUS; n++) {
+        object_initialize(&s->cpus[n], sizeof(s->cpus[n]),
+                          info->cpu_type);
+        object_property_add_child(obj, "cpu[*]", OBJECT(&s->cpus[n]),
+                                  &error_abort);
+    }
 
     object_initialize(&s->control, sizeof(s->control), TYPE_BCM2836_CONTROL);
     object_property_add_child(obj, "control", OBJECT(&s->control), NULL);
@@ -68,14 +83,6 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     int n;
 
     /* common peripherals from bcm2835 */
-
-    obj = OBJECT(dev);
-    for (n = 0; n < BCM283X_NCPUS; n++) {
-        object_initialize(&s->cpus[n], sizeof(s->cpus[n]),
-                          s->cpu_type);
-        object_property_add_child(obj, "cpu[*]", OBJECT(&s->cpus[n]),
-                                  &error_abort);
-    }
 
     obj = object_property_get_link(OBJECT(dev), "ram", &err);
     if (obj == NULL) {
@@ -166,7 +173,6 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 }
 
 static Property bcm2836_props[] = {
-    DEFINE_PROP_STRING("cpu-type", BCM283XState, cpu_type),
     DEFINE_PROP_UINT32("enabled-cpus", BCM283XState, enabled_cpus,
                        BCM283X_NCPUS),
     DEFINE_PROP_END_OF_LIST()
