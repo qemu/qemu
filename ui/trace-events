@@ -2,6 +2,8 @@
 
 # ui/console.c
 console_gfx_new(void) ""
+console_gfx_reuse(int index) "%d"
+console_gfx_close(int index) "%d"
 console_putchar_csi(int esc_param0, int esc_param1, int ch, int nb_esc_params) "escape sequence CSI%d;%d%c, %d parameters"
 console_putchar_unhandled(int ch) "unhandled escape character '%c'"
 console_txt_new(int w, int h) "%dx%d"
