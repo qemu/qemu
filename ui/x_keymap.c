@@ -17,6 +17,7 @@
 #include "ui/input.h"
 
 #include <X11/XKBlib.h>
+#include <X11/Xutil.h>
 
 static gboolean check_for_xwin(Display *dpy)
 {
@@ -87,11 +88,13 @@ const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen)
         trace_xkeymap_keymap("xquartz");
         *maplen = qemu_input_map_xorgxquartz_to_qcode_len;
         return qemu_input_map_xorgxquartz_to_qcode;
-    } else if (keycodes && g_str_has_prefix(keycodes, "evdev")) {
+    } else if ((keycodes && g_str_has_prefix(keycodes, "evdev")) ||
+               (XKeysymToKeycode(dpy, XK_Page_Up) == 0x70)) {
         trace_xkeymap_keymap("evdev");
         *maplen = qemu_input_map_xorgevdev_to_qcode_len;
         return qemu_input_map_xorgevdev_to_qcode;
-    } else if (keycodes && g_str_has_prefix(keycodes, "xfree86")) {
+    } else if ((keycodes && g_str_has_prefix(keycodes, "xfree86")) ||
+               (XKeysymToKeycode(dpy, XK_Page_Up) == 0x63)) {
         trace_xkeymap_keymap("kbd");
         *maplen = qemu_input_map_xorgkbd_to_qcode_len;
         return qemu_input_map_xorgkbd_to_qcode;
