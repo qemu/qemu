@@ -26,6 +26,15 @@ typedef struct SaveVMHandlers {
     bool (*is_active)(void *opaque);
     bool (*has_postcopy)(void *opaque);
 
+    /* is_active_iterate
+     * If it is not NULL then qemu_savevm_state_iterate will skip iteration if
+     * it returns false. For example, it is needed for only-postcopy-states,
+     * which needs to be handled by qemu_savevm_state_setup and
+     * qemu_savevm_state_pending, but do not need iterations until not in
+     * postcopy stage.
+     */
+    bool (*is_active_iterate)(void *opaque);
+
     /* This runs outside the iothread lock in the migration case, and
      * within the lock in the savevm case.  The callback had better only
      * use data that is local to the migration thread or protected
