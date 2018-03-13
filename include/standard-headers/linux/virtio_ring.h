@@ -78,7 +78,7 @@ struct vring_avail {
 	__virtio16 ring[];
 };
 
-/* u32 is used here for ids for padding reasons. */
+/* uint32_t is used here for ids for padding reasons. */
 struct vring_used_elem {
 	/* Index of start of used descriptor chain. */
 	__virtio32 id;

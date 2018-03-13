@@ -56,6 +56,7 @@ cp_portable() {
         -e 's/__bitwise//' \
         -e 's/__attribute__((packed))/QEMU_PACKED/' \
         -e 's/__inline__/inline/' \
+        -e 's/__BITS_PER_LONG/HOST_LONG_BITS/' \
         -e '/sys\/ioctl.h/d' \
         -e 's/SW_MAX/SW_MAX_/' \
         -e 's/atomic_t/int/' \
@@ -99,6 +100,8 @@ for arch in $ARCHLIST; do
     mkdir -p "$output/include/standard-headers/asm-$arch"
     if [ $arch = s390 ]; then
         cp_portable "$tmpdir/include/asm/virtio-ccw.h" "$output/include/standard-headers/asm-s390/"
+        cp "$tmpdir/include/asm/unistd_32.h" "$output/linux-headers/asm-s390/"
+        cp "$tmpdir/include/asm/unistd_64.h" "$output/linux-headers/asm-s390/"
     fi
     if [ $arch = arm ]; then
         cp "$tmpdir/include/asm/unistd-eabi.h" "$output/linux-headers/asm-arm/"
