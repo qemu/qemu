@@ -26,6 +26,7 @@
 #include "exec/memory.h"
 #include "qemu/queue.h"
 #include "qemu/notify.h"
+#include "ui/console.h"
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 #endif
@@ -142,12 +143,25 @@ typedef struct VFIOGroup {
     QLIST_ENTRY(VFIOGroup) container_next;
 } VFIOGroup;
 
+typedef struct VFIODMABuf {
+    QemuDmaBuf buf;
+    uint32_t pos_x, pos_y, pos_updates;
+    uint32_t hot_x, hot_y, hot_updates;
+    int dmabuf_id;
+    QTAILQ_ENTRY(VFIODMABuf) next;
+} VFIODMABuf;
+
 typedef struct VFIODisplay {
     QemuConsole *con;
     struct {
         VFIORegion buffer;
         DisplaySurface *surface;
     } region;
+    struct {
+        QTAILQ_HEAD(, VFIODMABuf) bufs;
+        VFIODMABuf *primary;
+        VFIODMABuf *cursor;
+    } dmabuf;
 } VFIODisplay;
 
 void vfio_put_base_device(VFIODevice *vbasedev);
