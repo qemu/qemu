@@ -41,6 +41,51 @@ def out(*lines, **kwargs):
     lines = [ l % kwargs for l in lines ]
     sys.stdout.writelines("\n".join(lines) + "\n")
 
+# We only want to allow standard C types or fixed sized
+# integer types. We don't want QEMU specific types
+# as we can't assume trace backends can resolve all the
+# typedefs
+ALLOWED_TYPES = [
+    "int",
+    "long",
+    "short",
+    "char",
+    "bool",
+    "unsigned",
+    "signed",
+    "float",
+    "double",
+    "int8_t",
+    "uint8_t",
+    "int16_t",
+    "uint16_t",
+    "int32_t",
+    "uint32_t",
+    "int64_t",
+    "uint64_t",
+    "void",
+    "size_t",
+    "ssize_t",
+    "uintptr_t",
+    "ptrdiff_t",
+    # Magic substitution is done by tracetool
+    "TCGv",
+]
+
+def validate_type(name):
+    bits = name.split(" ")
+    for bit in bits:
+        bit = re.sub("\*", "", bit)
+        if bit == "":
+            continue
+        if bit == "const":
+            continue
+        if bit not in ALLOWED_TYPES:
+            raise ValueError("Argument type '%s' is not in whitelist. "
+                             "Only standard C types and fixed size integer "
+                             "types should be used. struct, union, and "
+                             "other complex pointer types should be "
+                             "declared as 'void *'" % name)
 
 class Arguments:
     """Event arguments description."""
@@ -87,6 +132,7 @@ class Arguments:
             else:
                 arg_type, identifier = arg.rsplit(None, 1)
 
+            validate_type(arg_type)
             res.append((arg_type, identifier))
         return Arguments(res)
 
@@ -291,13 +337,15 @@ class Event(object):
                      self)
 
 
-def read_events(fobj):
+def read_events(fobj, fname):
     """Generate the output for the given (format, backends) pair.
 
     Parameters
     ----------
     fobj : file
         Event description file.
+    fname : str
+        Name of event file
 
     Returns a list of Event objects
     """
@@ -312,7 +360,7 @@ def read_events(fobj):
         try:
             event = Event.build(line)
         except ValueError as e:
-            arg0 = 'Error on line %d: %s' % (lineno, e.args[0])
+            arg0 = 'Error at %s:%d: %s' % (fname, lineno, e.args[0])
             e.args = (arg0,) + e.args[1:]
             raise
 

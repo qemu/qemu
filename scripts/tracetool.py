@@ -142,7 +142,7 @@ def main(args):
     events = []
     for arg in args:
         with open(arg, "r") as fh:
-            events.extend(tracetool.read_events(fh))
+            events.extend(tracetool.read_events(fh, arg))
 
     try:
         tracetool.generate(events, arg_group, arg_format, arg_backends,
