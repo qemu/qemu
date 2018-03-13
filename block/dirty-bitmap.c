@@ -242,6 +242,51 @@ void bdrv_dirty_bitmap_enable_successor(BdrvDirtyBitmap *bitmap)
     qemu_mutex_unlock(bitmap->mutex);
 }
 
+/* Called within bdrv_dirty_bitmap_lock..unlock */
+static void bdrv_do_release_matching_dirty_bitmap_locked(
+    BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
+    bool (*cond)(BdrvDirtyBitmap *bitmap))
+{
+    BdrvDirtyBitmap *bm, *next;
+
+    QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
+        if ((!bitmap || bm == bitmap) && (!cond || cond(bm))) {
+            assert(!bm->active_iterators);
+            assert(!bdrv_dirty_bitmap_frozen(bm));
+            assert(!bm->meta);
+            QLIST_REMOVE(bm, list);
+            hbitmap_free(bm->bitmap);
+            g_free(bm->name);
+            g_free(bm);
+
+            if (bitmap) {
+                return;
+            }
+        }
+    }
+
+    if (bitmap) {
+        abort();
+    }
+}
+
+/* Called with BQL taken.  */
+static void bdrv_do_release_matching_dirty_bitmap(
+    BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
+    bool (*cond)(BdrvDirtyBitmap *bitmap))
+{
+    bdrv_dirty_bitmaps_lock(bs);
+    bdrv_do_release_matching_dirty_bitmap_locked(bs, bitmap, cond);
+    bdrv_dirty_bitmaps_unlock(bs);
+}
+
+/* Called within bdrv_dirty_bitmap_lock..unlock */
+static void bdrv_release_dirty_bitmap_locked(BlockDriverState *bs,
+                                             BdrvDirtyBitmap *bitmap)
+{
+    bdrv_do_release_matching_dirty_bitmap_locked(bs, bitmap, NULL);
+}
+
 /**
  * For a bitmap with a successor, yield our name to the successor,
  * delete the old bitmap, and return a handle to the new bitmap.
@@ -281,7 +326,11 @@ BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap(BlockDriverState *bs,
                                            BdrvDirtyBitmap *parent,
                                            Error **errp)
 {
-    BdrvDirtyBitmap *successor = parent->successor;
+    BdrvDirtyBitmap *successor;
+
+    qemu_mutex_lock(parent->mutex);
+
+    successor = parent->successor;
 
     if (!successor) {
         error_setg(errp, "Cannot reclaim a successor when none is present");
@@ -292,8 +341,10 @@ BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap(BlockDriverState *bs,
         error_setg(errp, "Merging of parent and successor bitmap failed");
         return NULL;
     }
-    bdrv_release_dirty_bitmap(bs, successor);
+    bdrv_release_dirty_bitmap_locked(bs, successor);
     parent->successor = NULL;
+
+    qemu_mutex_unlock(parent->mutex);
 
     return parent;
 }
@@ -319,36 +370,6 @@ void bdrv_dirty_bitmap_truncate(BlockDriverState *bs, int64_t bytes)
 static bool bdrv_dirty_bitmap_has_name(BdrvDirtyBitmap *bitmap)
 {
     return !!bdrv_dirty_bitmap_name(bitmap);
-}
-
-/* Called with BQL taken.  */
-static void bdrv_do_release_matching_dirty_bitmap(
-    BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
-    bool (*cond)(BdrvDirtyBitmap *bitmap))
-{
-    BdrvDirtyBitmap *bm, *next;
-    bdrv_dirty_bitmaps_lock(bs);
-    QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
-        if ((!bitmap || bm == bitmap) && (!cond || cond(bm))) {
-            assert(!bm->active_iterators);
-            assert(!bdrv_dirty_bitmap_frozen(bm));
-            assert(!bm->meta);
-            QLIST_REMOVE(bm, list);
-            hbitmap_free(bm->bitmap);
-            g_free(bm->name);
-            g_free(bm);
-
-            if (bitmap) {
-                goto out;
-            }
-        }
-    }
-    if (bitmap) {
-        abort();
-    }
-
-out:
-    bdrv_dirty_bitmaps_unlock(bs);
 }
 
 /* Called with BQL taken.  */
