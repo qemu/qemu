@@ -786,21 +786,13 @@ static gboolean gd_window_close(GtkWidget *widget, GdkEvent *event,
 {
     GtkDisplayState *s = opaque;
     bool allow_close = true;
-    int i;
 
     if (s->opts->has_window_close && !s->opts->window_close) {
         allow_close = false;
     }
 
     if (allow_close) {
-        for (i = 0; i < s->nb_vcs; i++) {
-            if (s->vc[i].type != GD_VC_GFX) {
-                continue;
-            }
-            unregister_displaychangelistener(&s->vc[i].gfx.dcl);
-        }
         qmp_quit(NULL);
-        return FALSE;
     }
 
     return TRUE;
