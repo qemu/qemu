@@ -1278,9 +1278,9 @@ static int whpx_accel_init(MachineState *ms)
     }
 
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
-    prop.PropertyCode = WHvPartitionPropertyCodeProcessorCount;
     prop.ProcessorCount = smp_cpus;
     hr = WHvSetPartitionProperty(whpx->partition,
+                                 WHvPartitionPropertyCodeProcessorCount,
                                  &prop,
                                  sizeof(WHV_PARTITION_PROPERTY));
 
