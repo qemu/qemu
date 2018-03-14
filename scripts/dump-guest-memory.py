@@ -16,7 +16,12 @@ the COPYING file in the top-level directory.
 import ctypes
 import struct
 
-UINTPTR_T = gdb.lookup_type("uintptr_t")
+try:
+    UINTPTR_T = gdb.lookup_type("uintptr_t")
+except Exception as inst:
+    raise gdb.GdbError("Symbols must be loaded prior to sourcing dump-guest-memory.\n"
+                       "Symbols may be loaded by 'attach'ing a QEMU process id or by "
+                       "'load'ing a QEMU binary.")
 
 TARGET_PAGE_SIZE = 0x1000
 TARGET_PAGE_MASK = 0xFFFFFFFFFFFFF000
