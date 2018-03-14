@@ -34,7 +34,7 @@ run_qemu() {
         -device isa-debugcon,chardev=stdio \
         -chardev file,path=test.out,id=stdio \
         -device isa-debug-exit,iobase=0xf4,iosize=0x4 \
-        "$@"
+        "$@" >> test.log 2>&1
     ret=$?
 
     cat test.out >> test.log
@@ -67,9 +67,15 @@ modules() {
     run_qemu modules.elf -initrd "module.txt,module.txt argument,module.txt"
 }
 
+aout_kludge() {
+    for i in $(seq 1 9); do
+        run_qemu aout_kludge_$i.bin
+    done
+}
+
 make all
 
-for t in mmap modules; do
+for t in mmap modules aout_kludge; do
 
     echo > test.log
     pass=1
