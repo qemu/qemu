@@ -1254,6 +1254,7 @@ static int whpx_accel_init(MachineState *ms)
     int ret;
     HRESULT hr;
     WHV_CAPABILITY whpx_cap;
+    UINT32 whpx_cap_size;
     WHV_PARTITION_PROPERTY prop;
 
     whpx = &whpx_global;
@@ -1262,7 +1263,7 @@ static int whpx_accel_init(MachineState *ms)
     whpx->mem_quota = ms->ram_size;
 
     hr = WHvGetCapability(WHvCapabilityCodeHypervisorPresent, &whpx_cap,
-                          sizeof(whpx_cap));
+                          sizeof(whpx_cap), &whpx_cap_size);
     if (FAILED(hr) || !whpx_cap.HypervisorPresent) {
         error_report("WHPX: No accelerator found, hr=%08lx", hr);
         ret = -ENOSPC;
