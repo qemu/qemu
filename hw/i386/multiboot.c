@@ -247,6 +247,10 @@ int load_multiboot(FWCfgState *fw_cfg,
             }
             mb_load_size = kernel_file_size - mb_kernel_text_offset;
         }
+        if (mb_load_size > UINT32_MAX - mh_load_addr) {
+            error_report("kernel does not fit in address space");
+            exit(1);
+        }
         if (mh_bss_end_addr) {
             if (mh_bss_end_addr < (mh_load_addr + mb_load_size)) {
                 error_report("invalid bss_end_addr address");
