@@ -4526,7 +4526,7 @@ static void gen_tlbie(DisasContext *ctx)
     TCGv_i32 t1;
 
     if (ctx->gtse) {
-        CHK_SV; /* If gtse is set then tblie is supervisor privileged */
+        CHK_SV; /* If gtse is set then tlbie is supervisor privileged */
     } else {
         CHK_HV; /* Else hypervisor privileged */
     }
@@ -4553,7 +4553,12 @@ static void gen_tlbsync(DisasContext *ctx)
 #if defined(CONFIG_USER_ONLY)
     GEN_PRIV;
 #else
-    CHK_HV;
+
+    if (ctx->gtse) {
+        CHK_SV; /* If gtse is set then tlbsync is supervisor privileged */
+    } else {
+        CHK_HV; /* Else hypervisor privileged */
+    }
 
     /* BookS does both ptesync and tlbsync make tlbsync a nop for server */
     if (ctx->insns_flags & PPC_BOOKE) {
