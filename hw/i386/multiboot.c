@@ -229,6 +229,10 @@ int load_multiboot(FWCfgState *fw_cfg,
             error_report("invalid load_addr address");
             exit(1);
         }
+        if (mh_header_addr - mh_load_addr > i) {
+            error_report("invalid header_addr address");
+            exit(1);
+        }
 
         uint32_t mb_kernel_text_offset = i - (mh_header_addr - mh_load_addr);
         uint32_t mb_load_size = 0;
