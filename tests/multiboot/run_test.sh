@@ -38,6 +38,17 @@ run_qemu() {
     ret=$?
 
     cat test.out >> test.log
+
+    debugexit=$((ret & 0x1))
+    ret=$((ret >> 1))
+
+    if [ $debugexit != 1 ]; then
+        printf %b "\e[31m ?? \e[0m $kernel $* (no debugexit used, exit code $ret)\n"
+        pass=0
+    elif [ $ret != 0 ]; then
+        printf %b "\e[31mFAIL\e[0m $kernel $* (exit code $ret)\n"
+        pass=0
+    fi
 }
 
 mmap() {
@@ -61,19 +72,8 @@ make all
 for t in mmap modules; do
 
     echo > test.log
-    $t
-
-    debugexit=$((ret & 0x1))
-    ret=$((ret >> 1))
     pass=1
-
-    if [ $debugexit != 1 ]; then
-        printf %b "\e[31m ?? \e[0m $t (no debugexit used, exit code $ret)\n"
-        pass=0
-    elif [ $ret != 0 ]; then
-        printf %b "\e[31mFAIL\e[0m $t (exit code $ret)\n"
-        pass=0
-    fi
+    $t
 
     if ! diff $t.out test.log > /dev/null 2>&1; then
         printf %b "\e[31mFAIL\e[0m $t (output difference)\n"
