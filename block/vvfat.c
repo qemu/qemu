@@ -3129,7 +3129,7 @@ static void vvfat_qcow_options(int *child_flags, QDict *child_options,
                                int parent_flags, QDict *parent_options)
 {
     qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "off");
-    *child_flags = BDRV_O_NO_FLUSH;
+    qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 }
 
 static const BdrvChildRole child_vvfat_qcow = {
