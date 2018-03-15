@@ -298,6 +298,115 @@ static int check_strtox_error(const char *nptr, char *ep,
 }
 
 /**
+ * Convert string @nptr to an integer, and store it in @result.
+ *
+ * This is a wrapper around strtol() that is harder to misuse.
+ * Semantics of @nptr, @endptr, @base match strtol() with differences
+ * noted below.
+ *
+ * @nptr may be null, and no conversion is performed then.
+ *
+ * If no conversion is performed, store @nptr in *@endptr and return
+ * -EINVAL.
+ *
+ * If @endptr is null, and the string isn't fully converted, return
+ * -EINVAL.  This is the case when the pointer that would be stored in
+ * a non-null @endptr points to a character other than '\0'.
+ *
+ * If the conversion overflows @result, store INT_MAX in @result,
+ * and return -ERANGE.
+ *
+ * If the conversion underflows @result, store INT_MIN in @result,
+ * and return -ERANGE.
+ *
+ * Else store the converted value in @result, and return zero.
+ */
+int qemu_strtoi(const char *nptr, const char **endptr, int base,
+                int *result)
+{
+    char *ep;
+    long long lresult;
+
+    if (!nptr) {
+        if (endptr) {
+            *endptr = nptr;
+        }
+        return -EINVAL;
+    }
+
+    errno = 0;
+    lresult = strtoll(nptr, &ep, base);
+    if (lresult < INT_MIN) {
+        *result = INT_MIN;
+        errno = ERANGE;
+    } else if (lresult > INT_MAX) {
+        *result = INT_MAX;
+        errno = ERANGE;
+    } else {
+        *result = lresult;
+    }
+    return check_strtox_error(nptr, ep, endptr, errno);
+}
+
+/**
+ * Convert string @nptr to an unsigned integer, and store it in @result.
+ *
+ * This is a wrapper around strtoul() that is harder to misuse.
+ * Semantics of @nptr, @endptr, @base match strtoul() with differences
+ * noted below.
+ *
+ * @nptr may be null, and no conversion is performed then.
+ *
+ * If no conversion is performed, store @nptr in *@endptr and return
+ * -EINVAL.
+ *
+ * If @endptr is null, and the string isn't fully converted, return
+ * -EINVAL.  This is the case when the pointer that would be stored in
+ * a non-null @endptr points to a character other than '\0'.
+ *
+ * If the conversion overflows @result, store UINT_MAX in @result,
+ * and return -ERANGE.
+ *
+ * Else store the converted value in @result, and return zero.
+ *
+ * Note that a number with a leading minus sign gets converted without
+ * the minus sign, checked for overflow (see above), then negated (in
+ * @result's type).  This is exactly how strtoul() works.
+ */
+int qemu_strtoui(const char *nptr, const char **endptr, int base,
+                 unsigned int *result)
+{
+    char *ep;
+    long long lresult;
+
+    if (!nptr) {
+        if (endptr) {
+            *endptr = nptr;
+        }
+        return -EINVAL;
+    }
+
+    errno = 0;
+    lresult = strtoull(nptr, &ep, base);
+
+    /* Windows returns 1 for negative out-of-range values.  */
+    if (errno == ERANGE) {
+        *result = -1;
+    } else {
+        if (lresult > UINT_MAX) {
+            *result = UINT_MAX;
+            errno = ERANGE;
+        } else if (lresult < INT_MIN) {
+            *result = UINT_MAX;
+            errno = ERANGE;
+        } else {
+            *result = lresult;
+        }
+    }
+    return check_strtox_error(nptr, ep, endptr, errno);
+}
+
+/**
  * Convert string @nptr to a long integer, and store it in @result.
  *
  * This is a wrapper around strtol() that is harder to misuse.

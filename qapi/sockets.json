@@ -123,6 +123,13 @@
 #
 # @unix:  Unix domain socket
 #
+# @vsock: VMCI address
+#
+# @fd: decimal is for file descriptor number, otherwise a file descriptor name.
+#      Named file descriptors are permitted in monitor commands, in combination
+#      with the 'getfd' command. Decimal file descriptors are permitted at
+#      startup or other contexts where no monitor context is active.
+#
 # Since: 2.9
 ##
 { 'enum': 'SocketAddressType',
