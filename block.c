@@ -3679,12 +3679,12 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
         GSList *ignore_children = g_slist_prepend(NULL, c);
         bdrv_check_update_perm(base, NULL, c->perm, c->shared_perm,
                                ignore_children, &local_err);
+        g_slist_free(ignore_children);
         if (local_err) {
             ret = -EPERM;
             error_report_err(local_err);
             goto exit;
         }
-        g_slist_free(ignore_children);
 
         /* If so, update the backing file path in the image file */
         if (c->role->update_filename) {
