@@ -1,10 +1,10 @@
 #!/bin/sh
-# enable automatic i386/ARM/M68K/MIPS/SPARC/PPC/s390/HPPA
+# enable automatic i386/ARM/M68K/MIPS/SPARC/PPC/s390/HPPA/Xtensa
 # program execution by the kernel
 
 qemu_target_list="i386 i486 alpha arm armeb sparc32plus ppc ppc64 ppc64le m68k \
 mips mipsel mipsn32 mipsn32el mips64 mips64el \
-sh4 sh4eb s390x aarch64 aarch64_be hppa riscv32 riscv64"
+sh4 sh4eb s390x aarch64 aarch64_be hppa riscv32 riscv64 xtensa xtensaeb"
 
 i386_magic='\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x03\x00'
 i386_mask='\xff\xff\xff\xff\xff\xfe\xfe\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff'
@@ -108,6 +108,14 @@ riscv64_magic='\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x
 riscv64_mask='\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff'
 riscv64_family=riscv
 
+xtensa_magic='\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x5e\x00'
+xtensa_mask='\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff'
+xtensa_family=xtensa
+
+xtensaeb_magic='\x7fELF\x01\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x5e'
+xtensaeb_mask='\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff'
+xtensaeb_family=xtensaeb
+
 qemu_get_family() {
     cpu=${HOST_ARCH:-$(uname -m)}
     case "$cpu" in
@@ -154,7 +162,8 @@ Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
                      instead generate update-binfmts templates
        --systemd:    don't write into /proc,
                      instead generate file for systemd-binfmt.service
-                     for the given CPU
+                     for the given CPU. If CPU is "ALL", generate a
+                     file for all known cpus
        --exportdir:  define where to write configuration files
                      (default: $SYSTEMDDIR or $DEBIANDIR)
        --credential: if yes, credential and security tokens are
@@ -301,18 +310,20 @@ while true ; do
         EXPORTDIR=${EXPORTDIR:-$SYSTEMDDIR}
         shift
         # check given cpu is in the supported CPU list
-        for cpu in ${qemu_target_list} ; do
-            if [ "$cpu" = "$1" ] ; then
-                break
-            fi
-        done
+        if [ "$1" != "ALL" ] ; then
+            for cpu in ${qemu_target_list} ; do
+                if [ "$cpu" = "$1" ] ; then
+                    break
+                fi
+            done
 
-        if [ "$cpu" = "$1" ] ; then
-            qemu_target_list="$1"
-        else
-            echo "ERROR: unknown CPU \"$1\"" 1>&2
-            usage
-            exit 1
+            if [ "$cpu" = "$1" ] ; then
+                qemu_target_list="$1"
+            else
+                echo "ERROR: unknown CPU \"$1\"" 1>&2
+                usage
+                exit 1
+            fi
         fi
         ;;
     -Q|--qemu-path)
