@@ -18,10 +18,21 @@
 
 /*
  * The event structure itself
+ * Note that __USE_TIME_BITS64 is defined by libc based on
+ * application's request to use 64 bit time_t.
  */
 
 struct input_event {
+#if (HOST_LONG_BITS != 32 || !defined(__USE_TIME_BITS64)) && !defined(__KERNEL)
 	struct timeval time;
+#define input_event_sec time.tv_sec
+#define input_event_usec time.tv_usec
+#else
+	__kernel_ulong_t __sec;
+	__kernel_ulong_t __usec;
+#define input_event_sec  __sec
+#define input_event_usec __usec
+#endif
 	uint16_t type;
 	uint16_t code;
 	int32_t value;

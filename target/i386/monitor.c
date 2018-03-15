@@ -29,7 +29,11 @@
 #include "qapi/qmp/qdict.h"
 #include "hw/i386/pc.h"
 #include "sysemu/kvm.h"
+#include "sysemu/sev.h"
 #include "hmp.h"
+#include "qapi/error.h"
+#include "sev_i386.h"
+#include "qapi/qapi-commands-misc.h"
 
 
 static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
@@ -660,4 +664,66 @@ void hmp_info_io_apic(Monitor *mon, const QDict *qdict)
     } else {
         ioapic_dump_state(mon, qdict);
     }
+}
+
+SevInfo *qmp_query_sev(Error **errp)
+{
+    SevInfo *info;
+
+    info = sev_get_info();
+    if (!info) {
+        error_setg(errp, "SEV feature is not available");
+        return NULL;
+    }
+
+    return info;
+}
+
+void hmp_info_sev(Monitor *mon, const QDict *qdict)
+{
+    SevInfo *info = sev_get_info();
+
+    if (info && info->enabled) {
+        monitor_printf(mon, "handle: %d\n", info->handle);
+        monitor_printf(mon, "state: %s\n", SevState_str(info->state));
+        monitor_printf(mon, "build: %d\n", info->build_id);
+        monitor_printf(mon, "api version: %d.%d\n",
+                       info->api_major, info->api_minor);
+        monitor_printf(mon, "debug: %s\n",
+                       info->policy & SEV_POLICY_NODBG ? "off" : "on");
+        monitor_printf(mon, "key-sharing: %s\n",
+                       info->policy & SEV_POLICY_NOKS ? "off" : "on");
+    } else {
+        monitor_printf(mon, "SEV is not enabled\n");
+    }
+}
+
+SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
+{
+    char *data;
+    SevLaunchMeasureInfo *info;
+
+    data = sev_get_launch_measurement();
+    if (!data) {
+        error_setg(errp, "Measurement is not available");
+        return NULL;
+    }
+
+    info = g_malloc0(sizeof(*info));
+    info->data = data;
+
+    return info;
+}
+
+SevCapability *qmp_query_sev_capabilities(Error **errp)
+{
+    SevCapability *data;
+
+    data = sev_get_capabilities();
+    if (!data) {
+        error_setg(errp, "SEV feature is not available");
+        return NULL;
+    }
+
+    return data;
 }
