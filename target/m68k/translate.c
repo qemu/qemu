@@ -5042,6 +5042,9 @@ DISAS_INSN(fpu)
     case 1: /* fint */
         gen_helper_firound(cpu_env, cpu_dest, cpu_src);
         break;
+    case 2: /* fsinh */
+        gen_helper_fsinh(cpu_env, cpu_dest, cpu_src);
+        break;
     case 3: /* fintrz */
         gen_helper_fitrunc(cpu_env, cpu_dest, cpu_src);
         break;
@@ -5056,6 +5059,24 @@ DISAS_INSN(fpu)
         break;
     case 0x06: /* flognp1 */
         gen_helper_flognp1(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x09: /* ftanh */
+        gen_helper_ftanh(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x0a: /* fatan */
+        gen_helper_fatan(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x0c: /* fasin */
+        gen_helper_fasin(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x0d: /* fatanh */
+        gen_helper_fatanh(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x0e: /* fsin */
+        gen_helper_fsin(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x0f: /* ftan */
+        gen_helper_ftan(cpu_env, cpu_dest, cpu_src);
         break;
     case 0x10: /* fetox */
         gen_helper_fetox(cpu_env, cpu_dest, cpu_src);
@@ -5084,6 +5105,9 @@ DISAS_INSN(fpu)
     case 0x5c: /* fdabs */
         gen_helper_fdabs(cpu_env, cpu_dest, cpu_src);
         break;
+    case 0x19: /* fcosh */
+        gen_helper_fcosh(cpu_env, cpu_dest, cpu_src);
+        break;
     case 0x1a: /* fneg */
         gen_helper_fneg(cpu_env, cpu_dest, cpu_src);
         break;
@@ -5092,6 +5116,12 @@ DISAS_INSN(fpu)
         break;
     case 0x5e: /* fdneg */
         gen_helper_fdneg(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x1c: /* facos */
+        gen_helper_facos(cpu_env, cpu_dest, cpu_src);
+        break;
+    case 0x1d: /* fcos */
+        gen_helper_fcos(cpu_env, cpu_dest, cpu_src);
         break;
     case 0x1e: /* fgetexp */
         gen_helper_fgetexp(cpu_env, cpu_dest, cpu_src);
@@ -5149,6 +5179,14 @@ DISAS_INSN(fpu)
         break;
     case 0x6c: /* fdsub */
         gen_helper_fdsub(cpu_env, cpu_dest, cpu_src, cpu_dest);
+        break;
+    case 0x30: case 0x31: case 0x32:
+    case 0x33: case 0x34: case 0x35:
+    case 0x36: case 0x37: {
+            TCGv_ptr cpu_dest2 = gen_fp_ptr(REG(ext, 0));
+            gen_helper_fsincos(cpu_env, cpu_dest, cpu_dest2, cpu_src);
+            tcg_temp_free_ptr(cpu_dest2);
+        }
         break;
     case 0x38: /* fcmp */
         gen_helper_fcmp(cpu_env, cpu_src, cpu_dest);

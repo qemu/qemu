@@ -34,4 +34,15 @@ floatx80 floatx80_log2(floatx80 a, float_status *status);
 floatx80 floatx80_etox(floatx80 a, float_status *status);
 floatx80 floatx80_twotox(floatx80 a, float_status *status);
 floatx80 floatx80_tentox(floatx80 a, float_status *status);
+floatx80 floatx80_tan(floatx80 a, float_status *status);
+floatx80 floatx80_sin(floatx80 a, float_status *status);
+floatx80 floatx80_cos(floatx80 a, float_status *status);
+floatx80 floatx80_atan(floatx80 a, float_status *status);
+floatx80 floatx80_asin(floatx80 a, float_status *status);
+floatx80 floatx80_acos(floatx80 a, float_status *status);
+floatx80 floatx80_atanh(floatx80 a, float_status *status);
+floatx80 floatx80_etoxm1(floatx80 a, float_status *status);
+floatx80 floatx80_tanh(floatx80 a, float_status *status);
+floatx80 floatx80_sinh(floatx80 a, float_status *status);
+floatx80 floatx80_cosh(floatx80 a, float_status *status);
 #endif
