@@ -49,9 +49,10 @@ env:
     - TEST_CMD="make check"
     - MAKEFLAGS="-j3"
   matrix:
-    - CONFIG=""
-    - CONFIG="--enable-debug --enable-debug-tcg --enable-trace-backends=log"
-    - CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb"
+    - CONFIG="--disable-system"
+    - CONFIG="--disable-user"
+    - CONFIG="--enable-debug --enable-debug-tcg"
+    - CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb --disable-user"
     - CONFIG="--enable-modules --disable-linux-user"
     - CONFIG="--with-coroutine=ucontext --disable-linux-user"
     - CONFIG="--with-coroutine=sigaltstack --disable-linux-user"
