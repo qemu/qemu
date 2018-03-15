@@ -56,16 +56,24 @@ static const VMStateDescription vmstate_imx_serial = {
 
 static void imx_update(IMXSerialState *s)
 {
-    uint32_t flags;
+    uint32_t usr1;
+    uint32_t usr2;
+    uint32_t mask;
 
-    flags = (s->usr1 & s->ucr1) & (USR1_TRDY|USR1_RRDY);
-    if (s->ucr1 & UCR1_TXMPTYEN) {
-        flags |= (s->uts1 & UTS1_TXEMPTY);
-    } else {
-        flags &= ~USR1_TRDY;
-    }
+    /*
+     * Lucky for us TRDY and RRDY has the same offset in both USR1 and
+     * UCR1, so we can get away with something as simple as the
+     * following:
+     */
+    usr1 = s->usr1 & s->ucr1 & (USR1_TRDY | USR1_RRDY);
+    /*
+     * Bits that we want in USR2 are not as conveniently laid out,
+     * unfortunately.
+     */
+    mask = (s->ucr1 & UCR1_TXMPTYEN) ? USR2_TXFE : 0;
+    usr2 = s->usr2 & mask;
 
-    qemu_set_irq(s->irq, !!flags);
+    qemu_set_irq(s->irq, usr1 || usr2);
 }
 
 static void imx_serial_reset(IMXSerialState *s)
