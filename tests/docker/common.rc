@@ -30,7 +30,9 @@ build_qemu()
                  $@"
     echo "Configure options:"
     echo $config_opts
-    $QEMU_SRC/configure $config_opts && make $MAKEFLAGS
+    $QEMU_SRC/configure $config_opts || \
+        { cat config.log && test_fail "Failed to run 'configure'"; }
+    make $MAKEFLAGS
 }
 
 test_fail()
