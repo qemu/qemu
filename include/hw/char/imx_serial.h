@@ -67,6 +67,8 @@
 #define UCR2_RXEN       (1<<1)    /* Receiver enable */
 #define UCR2_SRST       (1<<0)    /* Reset complete */
 
+#define UCR4_TCEN       BIT(3)    /* TX complete interrupt enable */
+
 #define UTS1_TXEMPTY    (1<<6)
 #define UTS1_RXEMPTY    (1<<5)
 #define UTS1_TXFULL     (1<<4)
@@ -95,6 +97,7 @@ typedef struct IMXSerialState {
     uint32_t ubmr;
     uint32_t ubrc;
     uint32_t ucr3;
+    uint32_t ucr4;
 
     qemu_irq irq;
     CharBackend chr;
