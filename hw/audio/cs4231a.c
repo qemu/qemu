@@ -28,6 +28,7 @@
 #include "hw/isa/isa.h"
 #include "hw/qdev.h"
 #include "qemu/timer.h"
+#include "qapi/error.h"
 
 /*
   Missing features:
@@ -663,8 +664,13 @@ static void cs4231a_realizefn (DeviceState *dev, Error **errp)
     CSState *s = CS4231A (dev);
     IsaDmaClass *k;
 
-    isa_init_irq (d, &s->pic, s->irq);
     s->isa_dma = isa_get_dma(isa_bus_from_device(d), s->dma);
+    if (!s->isa_dma) {
+        error_setg(errp, "ISA controller does not support DMA");
+        return;
+    }
+
+    isa_init_irq(d, &s->pic, s->irq);
     k = ISADMA_GET_CLASS(s->isa_dma);
     k->register_channel(s->isa_dma, s->dma, cs_dma_read, s);
 
