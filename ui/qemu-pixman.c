@@ -6,6 +6,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "ui/console.h"
+#include "standard-headers/drm/drm_fourcc.h"
 
 PixelFormat qemu_pixelformat_from_pixman(pixman_format_code_t format)
 {
@@ -83,6 +84,27 @@ pixman_format_code_t qemu_default_pixman_format(int bpp, bool native_endian)
         case 32:
             return PIXMAN_b8g8r8x8;
         break;
+        }
+    }
+    return 0;
+}
+
+/* Note: drm is little endian, pixman is native endian */
+pixman_format_code_t qemu_drm_format_to_pixman(uint32_t drm_format)
+{
+    static const struct {
+        uint32_t drm_format;
+        pixman_format_code_t pixman;
+    } map[] = {
+        { DRM_FORMAT_RGB888,   PIXMAN_LE_r8g8b8   },
+        { DRM_FORMAT_ARGB8888, PIXMAN_LE_a8r8g8b8 },
+        { DRM_FORMAT_XRGB8888, PIXMAN_LE_x8r8g8b8 }
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(map); i++) {
+        if (drm_format == map[i].drm_format) {
+            return map[i].pixman;
         }
     }
     return 0;

@@ -1282,11 +1282,16 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
     s->console_type = console_type;
 
     consoles = g_realloc(consoles, sizeof(*consoles) * (nb_consoles+1));
-    if (console_type != GRAPHIC_CONSOLE) {
+    if (console_type != GRAPHIC_CONSOLE || qdev_hotplug) {
         s->index = nb_consoles;
         consoles[nb_consoles++] = s;
     } else {
-        /* HACK: Put graphical consoles before text consoles.  */
+        /*
+         * HACK: Put graphical consoles before text consoles.
+         *
+         * Only do that for coldplugged devices.  After initial device
+         * initialization we will not renumber the consoles any more.
+         */
         for (i = nb_consoles; i > 0; i--) {
             if (consoles[i - 1]->console_type == GRAPHIC_CONSOLE)
                 break;
@@ -1874,19 +1879,59 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
     int height = 480;
     QemuConsole *s;
     DisplayState *ds;
+    DisplaySurface *surface;
 
     ds = get_alloc_displaystate();
-    trace_console_gfx_new();
-    s = new_console(ds, GRAPHIC_CONSOLE, head);
-    s->ui_timer = timer_new_ms(QEMU_CLOCK_REALTIME, dpy_set_ui_info_timer, s);
+    s = qemu_console_lookup_unused();
+    if (s) {
+        trace_console_gfx_reuse(s->index);
+        if (s->surface) {
+            width = surface_width(s->surface);
+            height = surface_height(s->surface);
+        }
+    } else {
+        trace_console_gfx_new();
+        s = new_console(ds, GRAPHIC_CONSOLE, head);
+        s->ui_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
+                                   dpy_set_ui_info_timer, s);
+    }
     graphic_console_set_hwops(s, hw_ops, opaque);
     if (dev) {
         object_property_set_link(OBJECT(s), OBJECT(dev), "device",
                                  &error_abort);
     }
 
-    s->surface = qemu_create_message_surface(width, height, noinit);
+    surface = qemu_create_message_surface(width, height, noinit);
+    dpy_gfx_replace_surface(s, surface);
     return s;
+}
+
+static const GraphicHwOps unused_ops = {
+    /* no callbacks */
+};
+
+void graphic_console_close(QemuConsole *con)
+{
+    static const char unplugged[] =
+        "Guest display has been unplugged";
+    DisplaySurface *surface;
+    int width = 640;
+    int height = 480;
+
+    if (con->surface) {
+        width = surface_width(con->surface);
+        height = surface_height(con->surface);
+    }
+
+    trace_console_gfx_close(con->index);
+    object_property_set_link(OBJECT(con), NULL, "device", &error_abort);
+    graphic_console_set_hwops(con, &unused_ops, NULL);
+
+    if (con->gl) {
+        dpy_gl_scanout_disable(con);
+    }
+    surface = qemu_create_message_surface(width, height, unplugged);
+    dpy_gfx_replace_surface(con, surface);
 }
 
 QemuConsole *qemu_console_lookup_by_index(unsigned int index)
@@ -1943,6 +1988,28 @@ QemuConsole *qemu_console_lookup_by_device_name(const char *device_id,
     }
 
     return con;
+}
+
+QemuConsole *qemu_console_lookup_unused(void)
+{
+    Object *obj;
+    int i;
+
+    for (i = 0; i < nb_consoles; i++) {
+        if (!consoles[i]) {
+            continue;
+        }
+        if (consoles[i]->hw_ops != &unused_ops) {
+            continue;
+        }
+        obj = object_property_get_link(OBJECT(consoles[i]),
+                                       "device", &error_abort);
+        if (obj != NULL) {
+            continue;
+        }
+        return consoles[i];
+    }
+    return NULL;
 }
 
 bool qemu_console_is_visible(QemuConsole *con)

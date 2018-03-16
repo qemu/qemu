@@ -133,6 +133,7 @@ typedef struct VFIOPCIDevice {
 #define VFIO_FEATURE_ENABLE_IGD_OPREGION_BIT 2
 #define VFIO_FEATURE_ENABLE_IGD_OPREGION \
                                 (1 << VFIO_FEATURE_ENABLE_IGD_OPREGION_BIT)
+    OnOffAuto display;
     int32_t bootindex;
     uint32_t igd_gms;
     OffAutoPCIBAR msix_relo;
@@ -147,6 +148,7 @@ typedef struct VFIOPCIDevice {
     bool no_kvm_msi;
     bool no_kvm_msix;
     bool no_geforce_quirks;
+    VFIODisplay *dpy;
 } VFIOPCIDevice;
 
 uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
@@ -173,5 +175,8 @@ int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp);
 int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
                                struct vfio_region_info *info,
                                Error **errp);
+
+int vfio_display_probe(VFIOPCIDevice *vdev, Error **errp);
+void vfio_display_finalize(VFIOPCIDevice *vdev);
 
 #endif /* HW_VFIO_VFIO_PCI_H */
