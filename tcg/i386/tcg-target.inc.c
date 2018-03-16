@@ -2696,6 +2696,12 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_x86_packus_vec:
         insn = packus_insn[vece];
         goto gen_simd;
+#if TCG_TARGET_REG_BITS == 32
+    case INDEX_op_dup2_vec:
+        /* Constraints have already placed both 32-bit inputs in xmm regs.  */
+        insn = OPC_PUNPCKLDQ;
+        goto gen_simd;
+#endif
     gen_simd:
         tcg_debug_assert(insn != OPC_UD2);
         if (type == TCG_TYPE_V256) {
@@ -3045,6 +3051,9 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_x86_vperm2i128_vec:
     case INDEX_op_x86_punpckl_vec:
     case INDEX_op_x86_punpckh_vec:
+#if TCG_TARGET_REG_BITS == 32
+    case INDEX_op_dup2_vec:
+#endif
         return &x_x_x;
     case INDEX_op_dup_vec:
     case INDEX_op_shli_vec:
