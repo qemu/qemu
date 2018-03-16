@@ -228,6 +228,48 @@ static int nbd_parse_offset_hole_payload(NBDStructuredReplyChunk *chunk,
     return 0;
 }
 
+/* nbd_parse_blockstatus_payload
+ * support only one extent in reply and only for
+ * base:allocation context
+ */
+static int nbd_parse_blockstatus_payload(NBDClientSession *client,
+                                         NBDStructuredReplyChunk *chunk,
+                                         uint8_t *payload, uint64_t orig_length,
+                                         NBDExtent *extent, Error **errp)
+{
+    uint32_t context_id;
+
+    if (chunk->length != sizeof(context_id) + sizeof(extent)) {
+        error_setg(errp, "Protocol error: invalid payload for "
+                         "NBD_REPLY_TYPE_BLOCK_STATUS");
+        return -EINVAL;
+    }
+
+    context_id = payload_advance32(&payload);
+    if (client->info.meta_base_allocation_id != context_id) {
+        error_setg(errp, "Protocol error: unexpected context id %d for "
+                         "NBD_REPLY_TYPE_BLOCK_STATUS, when negotiated context "
+                         "id is %d", context_id,
+                         client->info.meta_base_allocation_id);
+        return -EINVAL;
+    }
+
+    extent->length = payload_advance32(&payload);
+    extent->flags = payload_advance32(&payload);
+
+    if (extent->length == 0 ||
+        (client->info.min_block && !QEMU_IS_ALIGNED(extent->length,
+                                                    client->info.min_block)) ||
+        extent->length > orig_length)
+    {
+        error_setg(errp, "Protocol error: server sent status chunk with "
+                   "invalid length");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 /* nbd_parse_error_payload
  * on success @errp contains message describing nbd error reply
  */
@@ -481,6 +523,7 @@ static coroutine_fn int nbd_co_receive_one_chunk(
 
 typedef struct NBDReplyChunkIter {
     int ret;
+    bool fatal;
     Error *err;
     bool done, only_structured;
 } NBDReplyChunkIter;
@@ -490,11 +533,12 @@ static void nbd_iter_error(NBDReplyChunkIter *iter, bool fatal,
 {
     assert(ret < 0);
 
-    if (fatal || iter->ret == 0) {
+    if ((fatal && !iter->fatal) || iter->ret == 0) {
         if (iter->ret != 0) {
             error_free(iter->err);
             iter->err = NULL;
         }
+        iter->fatal = fatal;
         iter->ret = ret;
         error_propagate(&iter->err, *local_err);
     } else {
@@ -636,6 +680,68 @@ static int nbd_co_receive_cmdread_reply(NBDClientSession *s, uint64_t handle,
         payload = NULL;
     }
 
+    error_propagate(errp, iter.err);
+    return iter.ret;
+}
+
+static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
+                                            uint64_t handle, uint64_t length,
+                                            NBDExtent *extent, Error **errp)
+{
+    NBDReplyChunkIter iter;
+    NBDReply reply;
+    void *payload = NULL;
+    Error *local_err = NULL;
+    bool received = false;
+
+    assert(!extent->length);
+    NBD_FOREACH_REPLY_CHUNK(s, iter, handle, s->info.structured_reply,
+                            NULL, &reply, &payload)
+    {
+        int ret;
+        NBDStructuredReplyChunk *chunk = &reply.structured;
+
+        assert(nbd_reply_is_structured(&reply));
+
+        switch (chunk->type) {
+        case NBD_REPLY_TYPE_BLOCK_STATUS:
+            if (received) {
+                s->quit = true;
+                error_setg(&local_err, "Several BLOCK_STATUS chunks in reply");
+                nbd_iter_error(&iter, true, -EINVAL, &local_err);
+            }
+            received = true;
+
+            ret = nbd_parse_blockstatus_payload(s, &reply.structured,
+                                                payload, length, extent,
+                                                &local_err);
+            if (ret < 0) {
+                s->quit = true;
+                nbd_iter_error(&iter, true, ret, &local_err);
+            }
+            break;
+        default:
+            if (!nbd_reply_type_is_error(chunk->type)) {
+                s->quit = true;
+                error_setg(&local_err,
+                           "Unexpected reply type: %d (%s) "
+                           "for CMD_BLOCK_STATUS",
+                           chunk->type, nbd_reply_type_lookup(chunk->type));
+                nbd_iter_error(&iter, true, -EINVAL, &local_err);
+            }
+        }
+
+        g_free(payload);
+        payload = NULL;
+    }
+
+    if (!extent->length && !iter.err) {
+        error_setg(&iter.err,
+                   "Server did not reply with any status extents");
+        if (!iter.ret) {
+            iter.ret = -EIO;
+        }
+    }
     error_propagate(errp, iter.err);
     return iter.ret;
 }
@@ -782,6 +888,51 @@ int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
     return nbd_co_request(bs, &request, NULL);
 }
 
+int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
+                                            bool want_zero,
+                                            int64_t offset, int64_t bytes,
+                                            int64_t *pnum, int64_t *map,
+                                            BlockDriverState **file)
+{
+    int64_t ret;
+    NBDExtent extent = { 0 };
+    NBDClientSession *client = nbd_get_client_session(bs);
+    Error *local_err = NULL;
+
+    NBDRequest request = {
+        .type = NBD_CMD_BLOCK_STATUS,
+        .from = offset,
+        .len = MIN(MIN_NON_ZERO(QEMU_ALIGN_DOWN(INT_MAX,
+                                                bs->bl.request_alignment),
+                                client->info.max_block), bytes),
+        .flags = NBD_CMD_FLAG_REQ_ONE,
+    };
+
+    if (!client->info.base_allocation) {
+        *pnum = bytes;
+        return BDRV_BLOCK_DATA;
+    }
+
+    ret = nbd_co_send_request(bs, &request, NULL);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = nbd_co_receive_blockstatus_reply(client, request.handle, bytes,
+                                           &extent, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+    }
+    if (ret < 0) {
+        return ret;
+    }
+
+    assert(extent.length);
+    *pnum = extent.length;
+    return (extent.flags & NBD_STATE_HOLE ? 0 : BDRV_BLOCK_DATA) |
+           (extent.flags & NBD_STATE_ZERO ? BDRV_BLOCK_ZERO : 0);
+}
+
 void nbd_client_detach_aio_context(BlockDriverState *bs)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
@@ -826,6 +977,7 @@ int nbd_client_init(BlockDriverState *bs,
 
     client->info.request_sizes = true;
     client->info.structured_reply = true;
+    client->info.base_allocation = true;
     ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
                                 tlscreds, hostname,
                                 &client->ioc, &client->info, errp);

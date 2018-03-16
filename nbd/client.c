@@ -595,6 +595,111 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     return QIO_CHANNEL(tioc);
 }
 
+/* nbd_negotiate_simple_meta_context:
+ * Set one meta context. Simple means that reply must contain zero (not
+ * negotiated) or one (negotiated) contexts. More contexts would be considered
+ * as a protocol error. It's also implied that meta-data query equals queried
+ * context name, so, if server replies with something different then @context,
+ * it considered as error too.
+ * return 1 for successful negotiation, context_id is set
+ *        0 if operation is unsupported,
+ *        -1 with errp set for any other error
+ */
+static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
+                                             const char *export,
+                                             const char *context,
+                                             uint32_t *context_id,
+                                             Error **errp)
+{
+    int ret;
+    NBDOptionReply reply;
+    uint32_t received_id;
+    bool received;
+    uint32_t export_len = strlen(export);
+    uint32_t context_len = strlen(context);
+    uint32_t data_len = sizeof(export_len) + export_len +
+                        sizeof(uint32_t) + /* number of queries */
+                        sizeof(context_len) + context_len;
+    char *data = g_malloc(data_len);
+    char *p = data;
+
+    stl_be_p(p, export_len);
+    memcpy(p += sizeof(export_len), export, export_len);
+    stl_be_p(p += export_len, 1);
+    stl_be_p(p += sizeof(uint32_t), context_len);
+    memcpy(p += sizeof(context_len), context, context_len);
+
+    ret = nbd_send_option_request(ioc, NBD_OPT_SET_META_CONTEXT, data_len, data,
+                                  errp);
+    g_free(data);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (nbd_receive_option_reply(ioc, NBD_OPT_SET_META_CONTEXT, &reply,
+                                 errp) < 0)
+    {
+        return -1;
+    }
+
+    ret = nbd_handle_reply_err(ioc, &reply, errp);
+    if (ret <= 0) {
+        return ret;
+    }
+
+    if (reply.type == NBD_REP_META_CONTEXT) {
+        char *name;
+        size_t len;
+
+        if (nbd_read(ioc, &received_id, sizeof(received_id), errp) < 0) {
+            return -1;
+        }
+        be32_to_cpus(&received_id);
+
+        len = reply.length - sizeof(received_id);
+        name = g_malloc(len + 1);
+        if (nbd_read(ioc, name, len, errp) < 0) {
+            g_free(name);
+            return -1;
+        }
+        name[len] = '\0';
+        if (strcmp(context, name)) {
+            error_setg(errp, "Failed to negotiate meta context '%s', server "
+                       "answered with different context '%s'", context,
+                       name);
+            g_free(name);
+            return -1;
+        }
+        g_free(name);
+
+        received = true;
+
+        /* receive NBD_REP_ACK */
+        if (nbd_receive_option_reply(ioc, NBD_OPT_SET_META_CONTEXT, &reply,
+                                     errp) < 0)
+        {
+            return -1;
+        }
+
+        ret = nbd_handle_reply_err(ioc, &reply, errp);
+        if (ret <= 0) {
+            return ret;
+        }
+    }
+
+    if (reply.type != NBD_REP_ACK) {
+        error_setg(errp, "Unexpected reply type %" PRIx32 " expected %x",
+                   reply.type, NBD_REP_ACK);
+        return -1;
+    }
+
+    if (received) {
+        *context_id = received_id;
+        return 1;
+    }
+
+    return 0;
+}
 
 int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
                           QCryptoTLSCreds *tlscreds, const char *hostname,
@@ -606,10 +711,12 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
     int rc;
     bool zeroes = true;
     bool structured_reply = info->structured_reply;
+    bool base_allocation = info->base_allocation;
 
     trace_nbd_receive_negotiate(tlscreds, hostname ? hostname : "<null>");
 
     info->structured_reply = false;
+    info->base_allocation = false;
     rc = -EINVAL;
 
     if (outioc) {
@@ -698,6 +805,16 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
                     goto fail;
                 }
                 info->structured_reply = result == 1;
+            }
+
+            if (info->structured_reply && base_allocation) {
+                result = nbd_negotiate_simple_meta_context(
+                        ioc, name, "base:allocation",
+                        &info->meta_base_allocation_id, errp);
+                if (result < 0) {
+                    goto fail;
+                }
+                info->base_allocation = result == 1;
             }
 
             /* Try NBD_OPT_GO first - if it works, we are done (it
