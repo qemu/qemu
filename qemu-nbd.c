@@ -130,7 +130,7 @@ QEMU_HELP_BOTTOM "\n"
 static void version(const char *name)
 {
     printf(
-"%s " QEMU_VERSION QEMU_PKGVERSION "\n"
+"%s " QEMU_FULL_VERSION "\n"
 "Written by Anthony Liguori.\n"
 "\n"
 QEMU_COPYRIGHT "\n"

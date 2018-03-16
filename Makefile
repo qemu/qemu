@@ -438,21 +438,23 @@ all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all modules
 qemu-version.h: FORCE
 	$(call quiet-command, \
 		(cd $(SRC_PATH); \
-		printf '#define QEMU_PKGVERSION '; \
 		if test -n "$(PKGVERSION)"; then \
-			printf '"$(PKGVERSION)"\n'; \
+			pkgvers="$(PKGVERSION)"; \
 		else \
 			if test -d .git; then \
-				printf '" ('; \
-				git describe --match 'v*' 2>/dev/null | tr -d '\n'; \
+				pkgvers=$$(git describe --match 'v*' 2>/dev/null | tr -d '\n');\
 				if ! git diff-index --quiet HEAD &>/dev/null; then \
-					printf -- '-dirty'; \
+					pkgvers="$${pkgvers}-dirty"; \
 				fi; \
-				printf ')"\n'; \
-			else \
-				printf '""\n'; \
 			fi; \
-		fi) > $@.tmp)
+		fi; \
+		printf "#define QEMU_PKGVERSION \"$${pkgvers}\"\n"; \
+		if test -n "$${pkgvers}"; then \
+			printf '#define QEMU_FULL_VERSION QEMU_VERSION " (" QEMU_PKGVERSION ")"\n'; \
+		else \
+			printf '#define QEMU_FULL_VERSION QEMU_VERSION\n'; \
+		fi; \
+		) > $@.tmp)
 	$(call quiet-command, if ! cmp -s $@ $@.tmp; then \
 	  mv $@.tmp $@; \
 	 else \
@@ -1050,6 +1052,9 @@ include $(SRC_PATH)/tests/vm/Makefile.include
 help:
 	@echo  'Generic targets:'
 	@echo  '  all             - Build all'
+ifdef CONFIG_MODULES
+	@echo  '  modules         - Build all modules'
+endif
 	@echo  '  dir/file.o      - Build specified target only'
 	@echo  '  install         - Install QEMU, documentation and tools'
 	@echo  '  ctags/TAGS      - Generate tags file for editors'

@@ -27,10 +27,6 @@ typedef struct Event {
 } Event;
 
 static QTAILQ_HEAD(, Event) events_list = QTAILQ_HEAD_INITIALIZER(events_list);
-static unsigned int read_event_kind = -1;
-static uint64_t read_id = -1;
-static int read_checkpoint = -1;
-
 static bool events_enabled;
 
 /* Functions */
@@ -67,7 +63,9 @@ static void replay_run_event(Event *event)
 
 void replay_enable_events(void)
 {
-    events_enabled = true;
+    if (replay_mode != REPLAY_MODE_NONE) {
+        events_enabled = true;
+    }
 }
 
 bool replay_has_events(void)
@@ -77,16 +75,14 @@ bool replay_has_events(void)
 
 void replay_flush_events(void)
 {
-    replay_mutex_lock();
+    g_assert(replay_mutex_locked());
+
     while (!QTAILQ_EMPTY(&events_list)) {
         Event *event = QTAILQ_FIRST(&events_list);
-        replay_mutex_unlock();
         replay_run_event(event);
-        replay_mutex_lock();
         QTAILQ_REMOVE(&events_list, event, events);
         g_free(event);
     }
-    replay_mutex_unlock();
 }
 
 void replay_disable_events(void)
@@ -100,14 +96,14 @@ void replay_disable_events(void)
 
 void replay_clear_events(void)
 {
-    replay_mutex_lock();
+    g_assert(replay_mutex_locked());
+
     while (!QTAILQ_EMPTY(&events_list)) {
         Event *event = QTAILQ_FIRST(&events_list);
         QTAILQ_REMOVE(&events_list, event, events);
 
         g_free(event);
     }
-    replay_mutex_unlock();
 }
 
 /*! Adds specified async event to the queue */
@@ -134,14 +130,13 @@ void replay_add_event(ReplayAsyncEventKind event_kind,
     event->opaque2 = opaque2;
     event->id = id;
 
-    replay_mutex_lock();
+    g_assert(replay_mutex_locked());
     QTAILQ_INSERT_TAIL(&events_list, event, events);
-    replay_mutex_unlock();
 }
 
 void replay_bh_schedule_event(QEMUBH *bh)
 {
-    if (replay_mode != REPLAY_MODE_NONE && events_enabled) {
+    if (events_enabled) {
         uint64_t id = replay_get_current_step();
         replay_add_event(REPLAY_ASYNC_EVENT_BH, bh, NULL, id);
     } else {
@@ -161,7 +156,7 @@ void replay_add_input_sync_event(void)
 
 void replay_block_event(QEMUBH *bh, uint64_t id)
 {
-    if (replay_mode != REPLAY_MODE_NONE && events_enabled) {
+    if (events_enabled) {
         replay_add_event(REPLAY_ASYNC_EVENT_BLOCK, bh, NULL, id);
     } else {
         qemu_bh_schedule(bh);
@@ -205,13 +200,12 @@ static void replay_save_event(Event *event, int checkpoint)
 /* Called with replay mutex locked */
 void replay_save_events(int checkpoint)
 {
+    g_assert(replay_mutex_locked());
+    g_assert(checkpoint != CHECKPOINT_CLOCK_WARP_START);
     while (!QTAILQ_EMPTY(&events_list)) {
         Event *event = QTAILQ_FIRST(&events_list);
         replay_save_event(event, checkpoint);
-
-        replay_mutex_unlock();
         replay_run_event(event);
-        replay_mutex_lock();
         QTAILQ_REMOVE(&events_list, event, events);
         g_free(event);
     }
@@ -220,58 +214,60 @@ void replay_save_events(int checkpoint)
 static Event *replay_read_event(int checkpoint)
 {
     Event *event;
-    if (read_event_kind == -1) {
-        read_checkpoint = replay_get_byte();
-        read_event_kind = replay_get_byte();
-        read_id = -1;
+    if (replay_state.read_event_kind == -1) {
+        replay_state.read_event_checkpoint = replay_get_byte();
+        replay_state.read_event_kind = replay_get_byte();
+        replay_state.read_event_id = -1;
         replay_check_error();
     }
 
-    if (checkpoint != read_checkpoint) {
+    if (checkpoint != replay_state.read_event_checkpoint) {
         return NULL;
     }
 
     /* Events that has not to be in the queue */
-    switch (read_event_kind) {
+    switch (replay_state.read_event_kind) {
     case REPLAY_ASYNC_EVENT_BH:
-        if (read_id == -1) {
-            read_id = replay_get_qword();
+        if (replay_state.read_event_id == -1) {
+            replay_state.read_event_id = replay_get_qword();
         }
         break;
     case REPLAY_ASYNC_EVENT_INPUT:
         event = g_malloc0(sizeof(Event));
-        event->event_kind = read_event_kind;
+        event->event_kind = replay_state.read_event_kind;
         event->opaque = replay_read_input_event();
         return event;
     case REPLAY_ASYNC_EVENT_INPUT_SYNC:
         event = g_malloc0(sizeof(Event));
-        event->event_kind = read_event_kind;
+        event->event_kind = replay_state.read_event_kind;
         event->opaque = 0;
         return event;
     case REPLAY_ASYNC_EVENT_CHAR_READ:
         event = g_malloc0(sizeof(Event));
-        event->event_kind = read_event_kind;
+        event->event_kind = replay_state.read_event_kind;
         event->opaque = replay_event_char_read_load();
         return event;
     case REPLAY_ASYNC_EVENT_BLOCK:
-        if (read_id == -1) {
-            read_id = replay_get_qword();
+        if (replay_state.read_event_id == -1) {
+            replay_state.read_event_id = replay_get_qword();
         }
         break;
     case REPLAY_ASYNC_EVENT_NET:
         event = g_malloc0(sizeof(Event));
-        event->event_kind = read_event_kind;
+        event->event_kind = replay_state.read_event_kind;
         event->opaque = replay_event_net_load();
         return event;
     default:
-        error_report("Unknown ID %d of replay event", read_event_kind);
+        error_report("Unknown ID %d of replay event",
+            replay_state.read_event_kind);
         exit(1);
         break;
     }
 
     QTAILQ_FOREACH(event, &events_list, events) {
-        if (event->event_kind == read_event_kind
-            && (read_id == -1 || read_id == event->id)) {
+        if (event->event_kind == replay_state.read_event_kind
+            && (replay_state.read_event_id == -1
+                || replay_state.read_event_id == event->id)) {
             break;
         }
     }
@@ -290,24 +286,23 @@ static Event *replay_read_event(int checkpoint)
 /* Called with replay mutex locked */
 void replay_read_events(int checkpoint)
 {
+    g_assert(replay_mutex_locked());
     while (replay_state.data_kind == EVENT_ASYNC) {
         Event *event = replay_read_event(checkpoint);
         if (!event) {
             break;
         }
-        replay_mutex_unlock();
+        replay_finish_event();
+        replay_state.read_event_kind = -1;
         replay_run_event(event);
-        replay_mutex_lock();
 
         g_free(event);
-        replay_finish_event();
-        read_event_kind = -1;
     }
 }
 
 void replay_init_events(void)
 {
-    read_event_kind = -1;
+    replay_state.read_event_kind = -1;
 }
 
 void replay_finish_events(void)

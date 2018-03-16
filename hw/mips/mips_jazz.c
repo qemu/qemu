@@ -27,7 +27,9 @@
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/i386/pc.h"
+#include "hw/dma/i8257.h"
 #include "hw/char/serial.h"
+#include "hw/char/parallel.h"
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
 #include "sysemu/sysemu.h"
@@ -41,7 +43,7 @@
 #include "hw/timer/i8254.h"
 #include "hw/display/vga.h"
 #include "hw/audio/pcspk.h"
-#include "sysemu/block-backend.h"
+#include "hw/input/i8042.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
@@ -147,6 +149,7 @@ static void mips_jazz_init(MachineState *machine,
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     MemoryRegion *bios2 = g_new(MemoryRegion, 1);
+    ESPState *esp;
 
     /* init CPUs */
     cpu = MIPS_CPU(cpu_create(machine->cpu_type));
@@ -219,7 +222,7 @@ static void mips_jazz_init(MachineState *machine,
     /* ISA devices */
     i8259 = i8259_init(isa_bus, env->irq[4]);
     isa_bus_irqs(isa_bus, i8259);
-    DMA_init(isa_bus, 0);
+    i8257_dma_init(isa_bus, 0);
     pit = i8254_pit_init(isa_bus, 0x40, 0, NULL);
     pcspk_init(isa_bus, pit);
 
@@ -278,9 +281,9 @@ static void mips_jazz_init(MachineState *machine,
     }
 
     /* SCSI adapter */
-    esp_init(0x80002000, 0,
-             rc4030_dma_read, rc4030_dma_write, dmas[0],
-             qdev_get_gpio_in(rc4030, 5), &esp_reset, &dma_enable);
+    esp = esp_init(0x80002000, 0, rc4030_dma_read, rc4030_dma_write, dmas[0],
+                   qdev_get_gpio_in(rc4030, 5), &esp_reset, &dma_enable);
+    scsi_bus_legacy_handle_cmdline(&esp->bus);
 
     /* Floppy */
     for (n = 0; n < MAX_FD; n++) {

@@ -27,10 +27,6 @@
 #include "hw/isa/pc87312.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/sysemu.h"
-#include "chardev/char.h"
 #include "trace.h"
 
 
@@ -64,22 +60,25 @@
 
 /* Parallel port */
 
-static inline bool is_parallel_enabled(PC87312State *s)
+static bool is_parallel_enabled(ISASuperIODevice *sio, uint8_t index)
 {
-    return s->regs[REG_FER] & FER_PARALLEL_EN;
+    PC87312State *s = PC87312(sio);
+    return index ? false : s->regs[REG_FER] & FER_PARALLEL_EN;
 }
 
-static const uint32_t parallel_base[] = { 0x378, 0x3bc, 0x278, 0x00 };
+static const uint16_t parallel_base[] = { 0x378, 0x3bc, 0x278, 0x00 };
 
-static inline uint32_t get_parallel_iobase(PC87312State *s)
+static uint16_t get_parallel_iobase(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
     return parallel_base[s->regs[REG_FAR] & FAR_PARALLEL_ADDR];
 }
 
-static const uint32_t parallel_irq[] = { 5, 7, 5, 0 };
+static const unsigned int parallel_irq[] = { 5, 7, 5, 0 };
 
-static inline uint32_t get_parallel_irq(PC87312State *s)
+static unsigned int get_parallel_irq(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
     int idx;
     idx = (s->regs[REG_FAR] & FAR_PARALLEL_ADDR);
     if (idx == 0) {
@@ -92,13 +91,14 @@ static inline uint32_t get_parallel_irq(PC87312State *s)
 
 /* UARTs */
 
-static const uint32_t uart_base[2][4] = {
+static const uint16_t uart_base[2][4] = {
     { 0x3e8, 0x338, 0x2e8, 0x220 },
     { 0x2e8, 0x238, 0x2e0, 0x228 }
 };
 
-static inline uint32_t get_uart_iobase(PC87312State *s, int i)
+static uint16_t get_uart_iobase(ISASuperIODevice *sio, uint8_t i)
 {
+    PC87312State *s = PC87312(sio);
     int idx;
     idx = (s->regs[REG_FAR] >> (2 * i + 2)) & 0x3;
     if (idx == 0) {
@@ -110,44 +110,68 @@ static inline uint32_t get_uart_iobase(PC87312State *s, int i)
     }
 }
 
-static inline uint32_t get_uart_irq(PC87312State *s, int i)
+static unsigned int get_uart_irq(ISASuperIODevice *sio, uint8_t i)
 {
+    PC87312State *s = PC87312(sio);
     int idx;
     idx = (s->regs[REG_FAR] >> (2 * i + 2)) & 0x3;
     return (idx & 1) ? 3 : 4;
 }
 
-static inline bool is_uart_enabled(PC87312State *s, int i)
+static bool is_uart_enabled(ISASuperIODevice *sio, uint8_t i)
 {
+    PC87312State *s = PC87312(sio);
     return s->regs[REG_FER] & (FER_UART1_EN << i);
 }
 
 
 /* Floppy controller */
 
-static inline bool is_fdc_enabled(PC87312State *s)
+static bool is_fdc_enabled(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
+    assert(!index);
     return s->regs[REG_FER] & FER_FDC_EN;
 }
 
-static inline uint32_t get_fdc_iobase(PC87312State *s)
+static uint16_t get_fdc_iobase(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
+    assert(!index);
     return (s->regs[REG_FER] & FER_FDC_ADDR) ? 0x370 : 0x3f0;
+}
+
+static unsigned int get_fdc_irq(ISASuperIODevice *sio, uint8_t index)
+{
+    assert(!index);
+    return 6;
 }
 
 
 /* IDE controller */
 
-static inline bool is_ide_enabled(PC87312State *s)
+static bool is_ide_enabled(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
+
     return s->regs[REG_FER] & FER_IDE_EN;
 }
 
-static inline uint32_t get_ide_iobase(PC87312State *s)
+static uint16_t get_ide_iobase(ISASuperIODevice *sio, uint8_t index)
 {
+    PC87312State *s = PC87312(sio);
+
+    if (index == 1) {
+        return get_ide_iobase(sio, 0) + 0x206;
+    }
     return (s->regs[REG_FER] & FER_IDE_ADDR) ? 0x170 : 0x1f0;
 }
 
+static unsigned int get_ide_irq(ISASuperIODevice *sio, uint8_t index)
+{
+    assert(index == 0);
+    return 14;
+}
 
 static void reconfigure_devices(PC87312State *s)
 {
@@ -265,90 +289,18 @@ static void pc87312_reset(DeviceState *d)
 static void pc87312_realize(DeviceState *dev, Error **errp)
 {
     PC87312State *s;
-    DeviceState *d;
     ISADevice *isa;
-    ISABus *bus;
-    Chardev *chr;
-    DriveInfo *drive;
-    char name[5];
-    int i;
+    Error *local_err = NULL;
 
     s = PC87312(dev);
     isa = ISA_DEVICE(dev);
-    bus = isa_bus_from_device(isa);
     isa_register_ioport(isa, &s->io, s->iobase);
     pc87312_hard_reset(s);
 
-    if (is_parallel_enabled(s)) {
-        /* FIXME use a qdev chardev prop instead of parallel_hds[] */
-        chr = parallel_hds[0];
-        if (chr == NULL) {
-            chr = qemu_chr_new("par0", "null");
-        }
-        isa = isa_create(bus, "isa-parallel");
-        d = DEVICE(isa);
-        qdev_prop_set_uint32(d, "index", 0);
-        qdev_prop_set_uint32(d, "iobase", get_parallel_iobase(s));
-        qdev_prop_set_uint32(d, "irq", get_parallel_irq(s));
-        qdev_prop_set_chr(d, "chardev", chr);
-        qdev_init_nofail(d);
-        s->parallel.dev = isa;
-        trace_pc87312_info_parallel(get_parallel_iobase(s),
-                                    get_parallel_irq(s));
-    }
-
-    for (i = 0; i < 2; i++) {
-        if (is_uart_enabled(s, i)) {
-            /* FIXME use a qdev chardev prop instead of serial_hds[] */
-            chr = serial_hds[i];
-            if (chr == NULL) {
-                snprintf(name, sizeof(name), "ser%d", i);
-                chr = qemu_chr_new(name, "null");
-            }
-            isa = isa_create(bus, "isa-serial");
-            d = DEVICE(isa);
-            qdev_prop_set_uint32(d, "index", i);
-            qdev_prop_set_uint32(d, "iobase", get_uart_iobase(s, i));
-            qdev_prop_set_uint32(d, "irq", get_uart_irq(s, i));
-            qdev_prop_set_chr(d, "chardev", chr);
-            qdev_init_nofail(d);
-            s->uart[i].dev = isa;
-            trace_pc87312_info_serial(i, get_uart_iobase(s, i),
-                                      get_uart_irq(s, i));
-        }
-    }
-
-    if (is_fdc_enabled(s)) {
-        isa = isa_create(bus, "isa-fdc");
-        d = DEVICE(isa);
-        qdev_prop_set_uint32(d, "iobase", get_fdc_iobase(s));
-        qdev_prop_set_uint32(d, "irq", 6);
-        /* FIXME use a qdev drive property instead of drive_get() */
-        drive = drive_get(IF_FLOPPY, 0, 0);
-        if (drive != NULL) {
-            qdev_prop_set_drive(d, "driveA", blk_by_legacy_dinfo(drive),
-                                &error_fatal);
-        }
-        /* FIXME use a qdev drive property instead of drive_get() */
-        drive = drive_get(IF_FLOPPY, 0, 1);
-        if (drive != NULL) {
-            qdev_prop_set_drive(d, "driveB", blk_by_legacy_dinfo(drive),
-                                &error_fatal);
-        }
-        qdev_init_nofail(d);
-        s->fdc.dev = isa;
-        trace_pc87312_info_floppy(get_fdc_iobase(s));
-    }
-
-    if (is_ide_enabled(s)) {
-        isa = isa_create(bus, "isa-ide");
-        d = DEVICE(isa);
-        qdev_prop_set_uint32(d, "iobase", get_ide_iobase(s));
-        qdev_prop_set_uint32(d, "iobase2", get_ide_iobase(s) + 0x206);
-        qdev_prop_set_uint32(d, "irq", 14);
-        qdev_init_nofail(d);
-        s->ide.dev = isa;
-        trace_pc87312_info_ide(get_ide_iobase(s));
+    ISA_SUPERIO_GET_CLASS(dev)->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 }
 
@@ -373,7 +325,7 @@ static const VMStateDescription vmstate_pc87312 = {
 };
 
 static Property pc87312_properties[] = {
-    DEFINE_PROP_UINT32("iobase", PC87312State, iobase, 0x398),
+    DEFINE_PROP_UINT16("iobase", PC87312State, iobase, 0x398),
     DEFINE_PROP_UINT8("config", PC87312State, config, 1),
     DEFINE_PROP_END_OF_LIST()
 };
@@ -381,21 +333,47 @@ static Property pc87312_properties[] = {
 static void pc87312_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
 
+    sc->parent_realize = dc->realize;
     dc->realize = pc87312_realize;
     dc->reset = pc87312_reset;
     dc->vmsd = &vmstate_pc87312;
     dc->props = pc87312_properties;
-    /* Reason: Uses parallel_hds[0] in realize(), so it can't be used twice */
-    dc->user_creatable = false;
+
+    sc->parallel = (ISASuperIOFuncs){
+        .count = 1,
+        .is_enabled = is_parallel_enabled,
+        .get_iobase = get_parallel_iobase,
+        .get_irq    = get_parallel_irq,
+    };
+    sc->serial = (ISASuperIOFuncs){
+        .count = 2,
+        .is_enabled = is_uart_enabled,
+        .get_iobase = get_uart_iobase,
+        .get_irq    = get_uart_irq,
+    };
+    sc->floppy = (ISASuperIOFuncs){
+        .count = 1,
+        .is_enabled = is_fdc_enabled,
+        .get_iobase = get_fdc_iobase,
+        .get_irq    = get_fdc_irq,
+    };
+    sc->ide = (ISASuperIOFuncs){
+        .count = 1,
+        .is_enabled = is_ide_enabled,
+        .get_iobase = get_ide_iobase,
+        .get_irq    = get_ide_irq,
+    };
 }
 
 static const TypeInfo pc87312_type_info = {
-    .name          = TYPE_PC87312,
-    .parent        = TYPE_ISA_DEVICE,
+    .name          = TYPE_PC87312_SUPERIO,
+    .parent        = TYPE_ISA_SUPERIO,
     .instance_size = sizeof(PC87312State),
     .instance_init = pc87312_initfn,
     .class_init    = pc87312_class_init,
+    /* FIXME use a qdev drive property instead of drive_get() */
 };
 
 static void pc87312_register_types(void)

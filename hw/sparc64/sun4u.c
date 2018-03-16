@@ -34,7 +34,9 @@
 #include "hw/pci-host/sabre.h"
 #include "hw/i386/pc.h"
 #include "hw/char/serial.h"
+#include "hw/char/parallel.h"
 #include "hw/timer/m48t59.h"
+#include "hw/input/i8042.h"
 #include "hw/block/fdc.h"
 #include "net/net.h"
 #include "qemu/timer.h"
@@ -88,10 +90,6 @@ typedef struct EbusState {
 
 #define TYPE_EBUS "ebus"
 #define EBUS(obj) OBJECT_CHECK(EbusState, (obj), TYPE_EBUS)
-
-void DMA_init(ISABus *bus, int high_page_enable)
-{
-}
 
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)

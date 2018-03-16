@@ -914,6 +914,17 @@ GSList *object_class_get_list(const char *implements_type,
                               bool include_abstract);
 
 /**
+ * object_class_get_list_sorted:
+ * @implements_type: The type to filter for, including its derivatives.
+ * @include_abstract: Whether to include abstract classes.
+ *
+ * Returns: A singly-linked list of the classes in alphabetical
+ * case-insensitive order.
+ */
+GSList *object_class_get_list_sorted(const char *implements_type,
+                              bool include_abstract);
+
+/**
  * object_ref:
  * @obj: the object
  *

@@ -704,6 +704,21 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                         page_code);
                 return -1;
             }
+            if (s->qdev.type == TYPE_DISK) {
+                int max_transfer_blk = blk_get_max_transfer(s->qdev.conf.blk);
+                int max_io_sectors_blk =
+                    max_transfer_blk / s->qdev.blocksize;
+
+                max_io_sectors =
+                    MIN_NON_ZERO(max_io_sectors_blk, max_io_sectors);
+
+                /* min_io_size and opt_io_size can't be greater than
+                 * max_io_sectors */
+                min_io_size =
+                    MIN_NON_ZERO(min_io_size, max_io_sectors);
+                opt_io_size =
+                    MIN_NON_ZERO(opt_io_size, max_io_sectors);
+            }
             /* required VPD size with unmap support */
             buflen = 0x40;
             memset(outbuf + 4, 0, buflen - 4);
@@ -1792,7 +1807,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
         return;
     }
 
-    if (buffer_is_zero(inbuf, s->qdev.blocksize)) {
+    if ((req->cmd.buf[1] & 0x1) || buffer_is_zero(inbuf, s->qdev.blocksize)) {
         int flags = (req->cmd.buf[1] & 0x8) ? BDRV_REQ_MAY_UNMAP : 0;
 
         /* The request is used as the AIO opaque value, so add a ref.  */

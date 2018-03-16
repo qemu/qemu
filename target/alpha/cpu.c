@@ -71,18 +71,6 @@ static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
     acc->parent_realize(dev, errp);
 }
 
-/* Sort alphabetically by type name. */
-static gint alpha_cpu_list_compare(gconstpointer a, gconstpointer b)
-{
-    ObjectClass *class_a = (ObjectClass *)a;
-    ObjectClass *class_b = (ObjectClass *)b;
-    const char *name_a, *name_b;
-
-    name_a = object_class_get_name(class_a);
-    name_b = object_class_get_name(class_b);
-    return strcmp(name_a, name_b);
-}
-
 static void alpha_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
@@ -100,8 +88,7 @@ void alpha_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     };
     GSList *list;
 
-    list = object_class_get_list(TYPE_ALPHA_CPU, false);
-    list = g_slist_sort(list, alpha_cpu_list_compare);
+    list = object_class_get_list_sorted(TYPE_ALPHA_CPU, false);
     (*cpu_fprintf)(f, "Available CPUs:\n");
     g_slist_foreach(list, alpha_cpu_list_entry, &s);
     g_slist_free(list);

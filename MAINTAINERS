@@ -127,7 +127,6 @@ Alpha
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: target/alpha/
-F: hw/alpha/
 F: tests/tcg/alpha/
 F: disas/alpha.c
 
@@ -412,6 +411,12 @@ F: */*win32*
 F: include/*/*win32*
 X: qga/*win32*
 F: qemu.nsi
+
+Alpha Machines
+M: Richard Henderson <rth@twiddle.net>
+S: Maintained
+F: hw/alpha/
+F: hw/isa/smc37c669-superio.c
 
 ARM Machines
 ------------
@@ -700,6 +705,8 @@ Fulong 2E
 M: Yongbok Kim <yongbok.kim@mips.com>
 S: Odd Fixes
 F: hw/mips/mips_fulong2e.c
+F: hw/isa/vt82c686.c
+F: include/hw/isa/vt82c686.h
 
 Boston
 M: Paul Burton <paul.burton@mips.com>
@@ -776,9 +783,10 @@ F: hw/ppc/prep_systemio.c
 F: hw/ppc/rs6000_mc.c
 F: hw/pci-host/prep.[hc]
 F: hw/isa/i82378.c
-F: hw/isa/pc87312.[hc]
+F: hw/isa/pc87312.c
 F: hw/dma/i82374.c
 F: hw/timer/m48t59-isa.c
+F: include/hw/isa/pc87312.h
 F: include/hw/timer/m48t59.h
 F: pc-bios/ppc_rom.bin
 
@@ -924,7 +932,7 @@ M: Michael S. Tsirkin <mst@redhat.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Supported
 F: hw/char/debugcon.c
-F: hw/char/parallel.c
+F: hw/char/parallel*
 F: hw/char/serial*
 F: hw/dma/i8257*
 F: hw/i2c/pm_smbus.c
@@ -932,6 +940,7 @@ F: hw/input/pckbd.c
 F: hw/intc/apic*
 F: hw/intc/ioapic*
 F: hw/intc/i8259*
+F: hw/isa/isa-superio.c
 F: hw/misc/debugexit.c
 F: hw/misc/pc-testdev.c
 F: hw/timer/hpet*
@@ -939,8 +948,11 @@ F: hw/timer/i8254*
 F: hw/timer/mc146818rtc*
 F: hw/watchdog/wdt_ib700.c
 F: include/hw/display/vga.h
+F: include/hw/char/parallel.h
+F: include/hw/dma/i8257.h
 F: include/hw/i2c/pm_smbus.h
-F: include/hw/isa/i8257.h
+F: include/hw/input/i8042.h
+F: include/hw/isa/superio.h
 F: include/hw/timer/hpet.h
 F: include/hw/timer/i8254*
 F: include/hw/timer/mc146818rtc*

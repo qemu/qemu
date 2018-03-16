@@ -28,7 +28,7 @@
 #include "chardev/char-parallel.h"
 #include "chardev/char-fe.h"
 #include "hw/isa/isa.h"
-#include "hw/i386/pc.h"
+#include "hw/char/parallel.h"
 #include "sysemu/sysemu.h"
 
 //#define DEBUG_PARALLEL

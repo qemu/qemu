@@ -19,7 +19,8 @@
 #include "hw/timer/mc146818rtc.h"
 #include "hw/ide.h"
 #include "hw/timer/i8254.h"
-#include "hw/char/serial.h"
+#include "hw/isa/superio.h"
+#include "hw/dma/i8257.h"
 #include "qemu/cutils.h"
 
 #define MAX_IDE_BUS 2
@@ -81,18 +82,20 @@ static void clipper_init(MachineState *machine)
     mc146818_rtc_init(isa_bus, 1900, rtc_irq);
 
     i8254_pit_init(isa_bus, 0x40, 0, NULL);
-    isa_create_simple(isa_bus, "i8042");
 
     /* VGA setup.  Don't bother loading the bios.  */
     pci_vga_init(pci_bus);
-
-    /* Serial code setup.  */
-    serial_hds_isa_init(isa_bus, 0, MAX_SERIAL_PORTS);
 
     /* Network setup.  e1000 is good enough, failing Tulip support.  */
     for (i = 0; i < nb_nics; i++) {
         pci_nic_init_nofail(&nd_table[i], pci_bus, "e1000", NULL);
     }
+
+    /* 2 82C37 (dma) */
+    isa_create_simple(isa_bus, "i82374");
+
+    /* Super I/O */
+    isa_create_simple(isa_bus, TYPE_SMC37C669_SUPERIO);
 
     /* IDE disk setup.  */
     {

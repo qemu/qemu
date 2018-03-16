@@ -1,6 +1,10 @@
 #ifndef HW_I8257_H
 #define HW_I8257_H
 
+#include "hw/hw.h"
+#include "hw/isa/isa.h"
+#include "exec/ioport.h"
+
 #define TYPE_I8257 "i8257"
 
 typedef struct I8257Regs {
@@ -39,5 +43,7 @@ typedef struct I8257State {
     PortioList portio_page;
     PortioList portio_pageh;
 } I8257State;
+
+void i8257_dma_init(ISABus *bus, bool high_page_enable);
 
 #endif

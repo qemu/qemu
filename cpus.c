@@ -1317,6 +1317,8 @@ static void prepare_icount_for_run(CPUState *cpu)
         insns_left = MIN(0xffff, cpu->icount_budget);
         cpu->icount_decr.u16.low = insns_left;
         cpu->icount_extra = cpu->icount_budget - insns_left;
+
+        replay_mutex_lock();
     }
 }
 
@@ -1332,6 +1334,8 @@ static void process_icount_data(CPUState *cpu)
         cpu->icount_budget = 0;
 
         replay_account_executed_instructions();
+
+        replay_mutex_unlock();
     }
 }
 
@@ -1346,11 +1350,9 @@ static int tcg_cpu_exec(CPUState *cpu)
 #ifdef CONFIG_PROFILER
     ti = profile_getclock();
 #endif
-    qemu_mutex_unlock_iothread();
     cpu_exec_start(cpu);
     ret = cpu_exec(cpu);
     cpu_exec_end(cpu);
-    qemu_mutex_lock_iothread();
 #ifdef CONFIG_PROFILER
     tcg_time += profile_getclock() - ti;
 #endif
@@ -1417,6 +1419,9 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
     cpu->exit_request = 1;
 
     while (1) {
+        qemu_mutex_unlock_iothread();
+        replay_mutex_lock();
+        qemu_mutex_lock_iothread();
         /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
         qemu_account_warp_timer();
 
@@ -1424,6 +1429,8 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
          * waking up the I/O thread and waiting for completion.
          */
         handle_icount_deadline();
+
+        replay_mutex_unlock();
 
         if (!cpu) {
             cpu = first_cpu;
@@ -1440,11 +1447,13 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
             if (cpu_can_run(cpu)) {
                 int r;
 
+                qemu_mutex_unlock_iothread();
                 prepare_icount_for_run(cpu);
 
                 r = tcg_cpu_exec(cpu);
 
                 process_icount_data(cpu);
+                qemu_mutex_lock_iothread();
 
                 if (r == EXCP_DEBUG) {
                     cpu_handle_guest_debug(cpu);
@@ -1634,7 +1643,9 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     while (1) {
         if (cpu_can_run(cpu)) {
             int r;
+            qemu_mutex_unlock_iothread();
             r = tcg_cpu_exec(cpu);
+            qemu_mutex_lock_iothread();
             switch (r) {
             case EXCP_DEBUG:
                 cpu_handle_guest_debug(cpu);
@@ -1781,12 +1792,21 @@ void pause_all_vcpus(void)
         }
     }
 
+    /* We need to drop the replay_lock so any vCPU threads woken up
+     * can finish their replay tasks
+     */
+    replay_mutex_unlock();
+
     while (!all_vcpus_paused()) {
         qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
         CPU_FOREACH(cpu) {
             qemu_cpu_kick(cpu);
         }
     }
+
+    qemu_mutex_unlock_iothread();
+    replay_mutex_lock();
+    qemu_mutex_lock_iothread();
 }
 
 void cpu_resume(CPUState *cpu)

@@ -12,7 +12,7 @@
  *
  */
 
-
+/* Any changes to order/number of events will need to bump REPLAY_VERSION */
 enum ReplayEvents {
     /* for instruction event */
     EVENT_INSTRUCTION,
@@ -78,6 +78,14 @@ typedef struct ReplayState {
         This counter is global, because requests from different
         block devices should not get overlapping ids. */
     uint64_t block_request_id;
+    /*! Prior value of the host clock */
+    uint64_t host_clock_last;
+    /*! Asynchronous event type read from the log */
+    int32_t read_event_kind;
+    /*! Asynchronous event id read from the log */
+    uint64_t read_event_id;
+    /*! Asynchronous event checkpoint id read from the log */
+    int32_t read_event_checkpoint;
 } ReplayState;
 extern ReplayState replay_state;
 
@@ -98,12 +106,11 @@ int64_t replay_get_qword(void);
 void replay_get_array(uint8_t *buf, size_t *size);
 void replay_get_array_alloc(uint8_t **buf, size_t *size);
 
-/* Mutex functions for protecting replay log file */
+/* Mutex functions for protecting replay log file and ensuring
+ * synchronisation between vCPU and main-loop threads. */
 
 void replay_mutex_init(void);
-void replay_mutex_destroy(void);
-void replay_mutex_lock(void);
-void replay_mutex_unlock(void);
+bool replay_mutex_locked(void);
 
 /*! Checks error status of the file. */
 void replay_check_error(void);

@@ -238,7 +238,6 @@ long long rcu_stress_count[RCU_STRESS_PIPE_LEN + 1];
 static void *rcu_read_stress_test(void *arg)
 {
     int i;
-    int itercnt = 0;
     struct rcu_stress *p;
     int pc;
     long long n_reads_local = 0;
@@ -269,9 +268,6 @@ static void *rcu_read_stress_test(void *arg)
         }
         rcu_stress_local[pc]++;
         n_reads_local++;
-        if ((++itercnt % 0x1000) == 0) {
-            synchronize_rcu();
-        }
     }
     qemu_mutex_lock(&counts_mutex);
     n_reads += n_reads_local;

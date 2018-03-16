@@ -7,14 +7,10 @@ See the COPYING file in the top-level directory.
 Record/replay
 -------------
 
-Record/replay functions are used for the reverse execution and deterministic
-replay of qemu execution. This implementation of deterministic replay can
-be used for deterministic debugging of guest code through a gdb remote
-interface.
-
+Record/replay functions are used for the deterministic replay of qemu execution.
 Execution recording writes a non-deterministic events log, which can be later
 used for replaying the execution anywhere and for unlimited number of times.
-It also supports checkpointing for faster rewinding during reverse debugging.
+It also supports checkpointing for faster rewind to the specific replay moment.
 Execution replaying reads the log and replays all non-deterministic events
 including external input, hardware clocks, and interrupts.
 
@@ -28,16 +24,36 @@ Deterministic replay has the following features:
    input devices.
 
 Usage of the record/replay:
- * First, record the execution, by adding the following arguments to the command line:
-   '-icount shift=7,rr=record,rrfile=replay.bin -net none'.
-   Block devices' images are not actually changed in the recording mode,
+ * First, record the execution with the following command line:
+    qemu-system-i386 \
+     -icount shift=7,rr=record,rrfile=replay.bin \
+     -drive file=disk.qcow2,if=none,id=img-direct \
+     -drive driver=blkreplay,if=none,image=img-direct,id=img-blkreplay \
+     -device ide-hd,drive=img-blkreplay \
+     -netdev user,id=net1 -device rtl8139,netdev=net1 \
+     -object filter-replay,id=replay,netdev=net1
+ * After recording, you can replay it by using another command line:
+    qemu-system-i386 \
+     -icount shift=7,rr=replay,rrfile=replay.bin \
+     -drive file=disk.qcow2,if=none,id=img-direct \
+     -drive driver=blkreplay,if=none,image=img-direct,id=img-blkreplay \
+     -device ide-hd,drive=img-blkreplay \
+     -netdev user,id=net1 -device rtl8139,netdev=net1 \
+     -object filter-replay,id=replay,netdev=net1
+   The only difference with recording is changing the rr option
+   from record to replay.
+ * Block device images are not actually changed in the recording mode,
    because all of the changes are written to the temporary overlay file.
- * Then you can replay it by using another command
-   line option: '-icount shift=7,rr=replay,rrfile=replay.bin -net none'
- * '-net none' option should also be specified if network replay patches
-   are not applied.
+   This behavior is enabled by using blkreplay driver. It should be used
+   for every enabled block device, as described in 'Block devices' section.
+ * '-net none' option should be specified when network is not used,
+   because QEMU adds network card by default. When network is needed,
+   it should be configured explicitly with replay filter, as described
+   in 'Network devices' section.
+ * Interaction with audio devices and serial ports are recorded and replayed
+   automatically when such devices are enabled.
 
-Papers with description of deterministic replay implementation:
+Academic papers with description of deterministic replay implementation:
 http://www.computer.org/csdl/proceedings/csmr/2012/4666/00/4666a553-abs.html
 http://dl.acm.org/citation.cfm?id=2786805.2803179
 
@@ -46,8 +62,33 @@ Modifications of qemu include:
  * saving different asynchronous events (e.g. system shutdown) into the log
  * synchronization of the bottom halves execution
  * synchronization of the threads from thread pool
- * recording/replaying user input (mouse and keyboard)
+ * recording/replaying user input (mouse, keyboard, and microphone)
  * adding internal checkpoints for cpu and io synchronization
+ * network filter for recording and replaying the packets
+ * block driver for making block layer deterministic
+ * serial port input record and replay
+
+Locking and thread synchronisation
+----------------------------------
+
+Previously the synchronisation of the main thread and the vCPU thread
+was ensured by the holding of the BQL. However the trend has been to
+reduce the time the BQL was held across the system including under TCG
+system emulation. As it is important that batches of events are kept
+in sequence (e.g. expiring timers and checkpoints in the main thread
+while instruction checkpoints are written by the vCPU thread) we need
+another lock to keep things in lock-step. This role is now handled by
+the replay_mutex_lock. It used to be held only for each event being
+written but now it is held for a whole execution period. This results
+in a deterministic ping-pong between the two main threads.
+
+As the BQL is now a finer grained lock than the replay_lock it is almost
+certainly a bug, and a source of deadlocks, to take the
+replay_mutex_lock while the BQL is held. This is enforced by an assert.
+While the unlocks are usually in the reverse order, this is not
+necessary; you can drop the replay_lock while holding the BQL, without
+doing a more complicated unlock_iothread/replay_unlock/lock_iothread
+sequence.
 
 Non-deterministic events
 ------------------------
@@ -55,12 +96,11 @@ Non-deterministic events
 Our record/replay system is based on saving and replaying non-deterministic
 events (e.g. keyboard input) and simulating deterministic ones (e.g. reading
 from HDD or memory of the VM). Saving only non-deterministic events makes
-log file smaller, simulation faster, and allows using reverse debugging even
-for realtime applications.
+log file smaller and simulation faster.
 
 The following non-deterministic data from peripheral devices is saved into
 the log: mouse and keyboard input, network packets, audio controller input,
-USB packets, serial port input, and hardware clocks (they are non-deterministic
+serial port input, and hardware clocks (they are non-deterministic
 too, because their values are taken from the host machine). Inputs from
 simulated hardware, memory of VM, software interrupts, and execution of
 instructions are not saved into the log, because they are deterministic and
@@ -183,7 +223,7 @@ Block devices record/replay module intercepts calls of
 bdrv coroutine functions at the top of block drivers stack.
 To record and replay block operations the drive must be configured
 as following:
- -drive file=disk.qcow,if=none,id=img-direct
+ -drive file=disk.qcow2,if=none,id=img-direct
  -drive driver=blkreplay,if=none,image=img-direct,id=img-blkreplay
  -device ide-hd,drive=img-blkreplay
 
@@ -212,6 +252,12 @@ This snapshot is created at start of recording and restored at start
 of replaying. It also can be loaded while replaying to roll back
 the execution.
 
+Use QEMU monitor to create additional snapshots. 'savevm <name>' command
+created the snapshot and 'loadvm <name>' restores it. To prevent corruption
+of the original disk image, use overlay files linked to the original images.
+Therefore all new snapshots (including the starting one) will be saved in
+overlays and the original image remains unchanged.
+
 Network devices
 ---------------
 
@@ -232,3 +278,80 @@ Audio devices
 Audio data is recorded and replay automatically. The command line for recording
 and replaying must contain identical specifications of audio hardware, e.g.:
  -soundhw ac97
+
+Serial ports
+------------
+
+Serial ports input is recorded and replay automatically. The command lines
+for recording and replaying must contain identical number of ports in record
+and replay modes, but their backends may differ.
+E.g., '-serial stdio' in record mode, and '-serial null' in replay mode.
+
+Replay log format
+-----------------
+
+Record/replay log consits of the header and the sequence of execution
+events. The header includes 4-byte replay version id and 8-byte reserved
+field. Version is updated every time replay log format changes to prevent
+using replay log created by another build of qemu.
+
+The sequence of the events describes virtual machine state changes.
+It includes all non-deterministic inputs of VM, synchronization marks and
+instruction counts used to correctly inject inputs at replay.
+
+Synchronization marks (checkpoints) are used for synchronizing qemu threads
+that perform operations with virtual hardware. These operations may change
+system's state (e.g., change some register or generate interrupt) and
+therefore should execute synchronously with CPU thread.
+
+Every event in the log includes 1-byte event id and optional arguments.
+When argument is an array, it is stored as 4-byte array length
+and corresponding number of bytes with data.
+Here is the list of events that are written into the log:
+
+ - EVENT_INSTRUCTION. Instructions executed since last event.
+   Argument: 4-byte number of executed instructions.
+ - EVENT_INTERRUPT. Used to synchronize interrupt processing.
+ - EVENT_EXCEPTION. Used to synchronize exception handling.
+ - EVENT_ASYNC. This is a group of events. They are always processed
+   together with checkpoints. When such an event is generated, it is
+   stored in the queue and processed only when checkpoint occurs.
+   Every such event is followed by 1-byte checkpoint id and 1-byte
+   async event id from the following list:
+     - REPLAY_ASYNC_EVENT_BH. Bottom-half callback. This event synchronizes
+       callbacks that affect virtual machine state, but normally called
+       asyncronously.
+       Argument: 8-byte operation id.
+     - REPLAY_ASYNC_EVENT_INPUT. Input device event. Contains
+       parameters of keyboard and mouse input operations
+       (key press/release, mouse pointer movement).
+       Arguments: 9-16 bytes depending of input event.
+     - REPLAY_ASYNC_EVENT_INPUT_SYNC. Internal input synchronization event.
+     - REPLAY_ASYNC_EVENT_CHAR_READ. Character (e.g., serial port) device input
+       initiated by the sender.
+       Arguments: 1-byte character device id.
+                  Array with bytes were read.
+     - REPLAY_ASYNC_EVENT_BLOCK. Block device operation. Used to synchronize
+       operations with disk and flash drives with CPU.
+       Argument: 8-byte operation id.
+     - REPLAY_ASYNC_EVENT_NET. Incoming network packet.
+       Arguments: 1-byte network adapter id.
+                  4-byte packet flags.
+                  Array with packet bytes.
+ - EVENT_SHUTDOWN. Occurs when user sends shutdown event to qemu,
+   e.g., by closing the window.
+ - EVENT_CHAR_WRITE. Used to synchronize character output operations.
+   Arguments: 4-byte output function return value.
+              4-byte offset in the output array.
+ - EVENT_CHAR_READ_ALL. Used to synchronize character input operations,
+   initiated by qemu.
+   Argument: Array with bytes that were read.
+ - EVENT_CHAR_READ_ALL_ERROR. Unsuccessful character input operation,
+   initiated by qemu.
+   Argument: 4-byte error code.
+ - EVENT_CLOCK + clock_id. Group of events for host clock read operations.
+   Argument: 8-byte clock value.
+ - EVENT_CHECKPOINT + checkpoint_id. Checkpoint for synchronization of
+   CPU, internal threads, and asynchronous input events. May be followed
+   by one or more EVENT_ASYNC events.
+ - EVENT_END. Last event in the log.
