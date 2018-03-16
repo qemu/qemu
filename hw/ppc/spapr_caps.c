@@ -27,6 +27,7 @@
 #include "qapi/visitor.h"
 #include "sysemu/hw_accel.h"
 #include "target/ppc/cpu.h"
+#include "target/ppc/mmu-hash64.h"
 #include "cpu-models.h"
 #include "kvm_ppc.h"
 
@@ -142,6 +143,42 @@ static void spapr_cap_set_string(Object *obj, Visitor *v, const char *name,
                cap->name);
 out:
     g_free(val);
+}
+
+static void spapr_cap_get_pagesize(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    sPAPRCapabilityInfo *cap = opaque;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    uint8_t val = spapr_get_cap(spapr, cap->index);
+    uint64_t pagesize = (1ULL << val);
+
+    visit_type_size(v, name, &pagesize, errp);
+}
+
+static void spapr_cap_set_pagesize(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    sPAPRCapabilityInfo *cap = opaque;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    uint64_t pagesize;
+    uint8_t val;
+    Error *local_err = NULL;
+
+    visit_type_size(v, name, &pagesize, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (!is_power_of_2(pagesize)) {
+        error_setg(errp, "cap-%s must be a power of 2", cap->name);
+        return;
+    }
+
+    val = ctz64(pagesize);
+    spapr->cmd_line_caps[cap->index] = true;
+    spapr->eff.caps[cap->index] = val;
 }
 
 static void cap_htm_apply(sPAPRMachineState *spapr, uint8_t val, Error **errp)
@@ -267,6 +304,16 @@ static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
 
 #define VALUE_DESC_TRISTATE     " (broken, workaround, fixed)"
 
+static void cap_hpt_maxpagesize_apply(sPAPRMachineState *spapr,
+                                      uint8_t val, Error **errp)
+{
+    if (val < 12) {
+        error_setg(errp, "Require at least 4kiB hpt-max-page-size");
+    } else if (val < 16) {
+        warn_report("Many guests require at least 64kiB hpt-max-page-size");
+    }
+}
+
 sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
@@ -325,6 +372,15 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "string",
         .possible = &cap_ibs_possible,
         .apply = cap_safe_indirect_branch_apply,
+    },
+    [SPAPR_CAP_HPT_MAXPAGESIZE] = {
+        .name = "hpt-max-page-size",
+        .description = "Maximum page size for Hash Page Table guests",
+        .index = SPAPR_CAP_HPT_MAXPAGESIZE,
+        .get = spapr_cap_get_pagesize,
+        .set = spapr_cap_set_pagesize,
+        .type = "int",
+        .apply = cap_hpt_maxpagesize_apply,
     },
 };
 

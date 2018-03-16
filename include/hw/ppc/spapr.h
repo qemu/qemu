@@ -66,8 +66,10 @@ typedef enum {
 #define SPAPR_CAP_SBBC                  0x04
 /* Indirect Branch Serialisation */
 #define SPAPR_CAP_IBS                   0x05
+/* HPT Maximum Page Size (encoded as a shift) */
+#define SPAPR_CAP_HPT_MAXPAGESIZE       0x06
 /* Num Caps */
-#define SPAPR_CAP_NUM                   (SPAPR_CAP_IBS + 1)
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_HPT_MAXPAGESIZE + 1)
 
 /*
  * Capability Values

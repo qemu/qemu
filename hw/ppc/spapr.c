@@ -63,6 +63,7 @@
 #include "hw/virtio/vhost-scsi-common.h"
 
 #include "exec/address-spaces.h"
+#include "exec/ram_addr.h"
 #include "hw/usb.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
@@ -4015,6 +4016,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     smc->default_caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_BROKEN;
     smc->default_caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_BROKEN;
     smc->default_caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_BROKEN;
+    smc->default_caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE] = 16; /* 64kiB */
     spapr_caps_add_properties(smc, &error_abort);
 }
 
@@ -4103,8 +4105,18 @@ static void spapr_machine_2_12_instance_options(MachineState *machine)
 
 static void spapr_machine_2_12_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    uint8_t mps;
+
     spapr_machine_3_0_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_12);
+
+    if (kvmppc_hpt_needs_host_contiguous_pages()) {
+        mps = ctz64(qemu_getrampagesize());
+    } else {
+        mps = 34; /* allow everything up to 16GiB, i.e. everything */
+    }
+    smc->default_caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE] = mps;
 }
 
 DEFINE_SPAPR_MACHINE(2_12, "2.12", false);
