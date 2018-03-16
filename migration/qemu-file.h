@@ -174,4 +174,6 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
                              ram_addr_t offset, size_t size,
                              uint64_t *bytes_sent);
 
+void qemu_put_counted_string(QEMUFile *f, const char *name);
+
 #endif

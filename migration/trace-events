@@ -86,7 +86,7 @@ migrate_fd_cleanup(void) ""
 migrate_fd_error(const char *error_desc) "error=%s"
 migrate_fd_cancel(void) ""
 migrate_handle_rp_req_pages(const char *rbname, size_t start, size_t len) "in %s at 0x%zx len 0x%zx"
-migrate_pending(uint64_t size, uint64_t max, uint64_t post, uint64_t nonpost) "pending size %" PRIu64 " max %" PRIu64 " (post=%" PRIu64 " nonpost=%" PRIu64 ")"
+migrate_pending(uint64_t size, uint64_t max, uint64_t pre, uint64_t compat, uint64_t post) "pending size %" PRIu64 " max %" PRIu64 " (pre = %" PRIu64 " compat=%" PRIu64 " post=%" PRIu64 ")"
 migrate_send_rp_message(int msg_type, uint16_t len) "%d: len %d"
 migration_completion_file_err(void) ""
 migration_completion_postcopy_end(void) ""
@@ -227,3 +227,17 @@ colo_vm_state_change(const char *old, const char *new) "Change '%s' => '%s'"
 colo_send_message(const char *msg) "Send '%s' message"
 colo_receive_message(const char *msg) "Receive '%s' message"
 colo_failover_set_state(const char *new_state) "new state %s"
+
+# migration/block-dirty-bitmap.c
+send_bitmap_header_enter(void) ""
+send_bitmap_bits(uint32_t flags, uint64_t start_sector, uint32_t nr_sectors, uint64_t data_size) "flags: 0x%x, start_sector: %" PRIu64 ", nr_sectors: %" PRIu32 ", data_size: %" PRIu64
+dirty_bitmap_save_iterate(int in_postcopy) "in postcopy: %d"
+dirty_bitmap_save_complete_enter(void) ""
+dirty_bitmap_save_complete_finish(void) ""
+dirty_bitmap_save_pending(uint64_t pending, uint64_t max_size) "pending %" PRIu64 " max: %" PRIu64
+dirty_bitmap_load_complete(void) ""
+dirty_bitmap_load_bits_enter(uint64_t first_sector, uint32_t nr_sectors) "chunk: %" PRIu64 " %" PRIu32
+dirty_bitmap_load_bits_zeroes(void) ""
+dirty_bitmap_load_header(uint32_t flags) "flags 0x%x"
+dirty_bitmap_load_enter(void) ""
+dirty_bitmap_load_success(void) ""

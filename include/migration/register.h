@@ -26,6 +26,15 @@ typedef struct SaveVMHandlers {
     bool (*is_active)(void *opaque);
     bool (*has_postcopy)(void *opaque);
 
+    /* is_active_iterate
+     * If it is not NULL then qemu_savevm_state_iterate will skip iteration if
+     * it returns false. For example, it is needed for only-postcopy-states,
+     * which needs to be handled by qemu_savevm_state_setup and
+     * qemu_savevm_state_pending, but do not need iterations until not in
+     * postcopy stage.
+     */
+    bool (*is_active_iterate)(void *opaque);
+
     /* This runs outside the iothread lock in the migration case, and
      * within the lock in the savevm case.  The callback had better only
      * use data that is local to the migration thread or protected
@@ -37,8 +46,21 @@ typedef struct SaveVMHandlers {
     int (*save_setup)(QEMUFile *f, void *opaque);
     void (*save_live_pending)(QEMUFile *f, void *opaque,
                               uint64_t threshold_size,
-                              uint64_t *non_postcopiable_pending,
-                              uint64_t *postcopiable_pending);
+                              uint64_t *res_precopy_only,
+                              uint64_t *res_compatible,
+                              uint64_t *res_postcopy_only);
+    /* Note for save_live_pending:
+     * - res_precopy_only is for data which must be migrated in precopy phase
+     *     or in stopped state, in other words - before target vm start
+     * - res_compatible is for data which may be migrated in any phase
+     * - res_postcopy_only is for data which must be migrated in postcopy phase
+     *     or in stopped state, in other words - after source vm stop
+     *
+     * Sum of res_postcopy_only, res_compatible and res_postcopy_only is the
+     * whole amount of pending data.
+     */
+
+
     LoadStateHandler *load_state;
     int (*load_setup)(QEMUFile *f, void *opaque);
     int (*load_cleanup)(void *opaque);

@@ -426,10 +426,13 @@
 # @active: The bitmap is actively monitoring for new writes, and can be cleared,
 #          deleted, or used for backup operations.
 #
+# @locked: The bitmap is currently in-use by some operation and can not be
+#          cleared, deleted, or used for backup operations. (Since 2.12)
+#
 # Since: 2.4
 ##
 { 'enum': 'DirtyBitmapStatus',
-  'data': ['active', 'disabled', 'frozen'] }
+  'data': ['active', 'disabled', 'frozen', 'locked'] }
 
 ##
 # @BlockDirtyInfo:

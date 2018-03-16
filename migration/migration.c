@@ -157,6 +157,9 @@ MigrationIncomingState *migration_incoming_get_current(void)
         memset(&mis_current, 0, sizeof(MigrationIncomingState));
         qemu_mutex_init(&mis_current.rp_mutex);
         qemu_event_init(&mis_current.main_thread_load_event, false);
+
+        init_dirty_bitmap_incoming_migration();
+
         once = true;
     }
     return &mis_current;
@@ -319,6 +322,8 @@ static void process_incoming_migration_bh(void *opaque)
     /* If global state section was not received or we are in running
        state, we need to obey autostart. Any other state is set with
        runstate_set. */
+
+    dirty_bitmap_mig_before_vm_start();
 
     if (!global_state_received() ||
         global_state_get_runstate() == RUN_STATE_RUNNING) {
@@ -1022,7 +1027,7 @@ void qmp_migrate_start_postcopy(Error **errp)
 {
     MigrationState *s = migrate_get_current();
 
-    if (!migrate_postcopy_ram()) {
+    if (!migrate_postcopy()) {
         error_setg(errp, "Enable postcopy with migrate_set_capability before"
                          " the start of migration");
         return;
@@ -1508,7 +1513,7 @@ bool migrate_postcopy_ram(void)
 
 bool migrate_postcopy(void)
 {
-    return migrate_postcopy_ram();
+    return migrate_postcopy_ram() || migrate_dirty_bitmaps();
 }
 
 bool migrate_auto_converge(void)
@@ -1563,6 +1568,15 @@ int migrate_decompress_threads(void)
     s = migrate_get_current();
 
     return s->parameters.decompress_threads;
+}
+
+bool migrate_dirty_bitmaps(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_DIRTY_BITMAPS];
 }
 
 bool migrate_use_events(void)
@@ -2242,20 +2256,20 @@ typedef enum {
  */
 static MigIterateState migration_iteration_run(MigrationState *s)
 {
-    uint64_t pending_size, pend_post, pend_nonpost;
+    uint64_t pending_size, pend_pre, pend_compat, pend_post;
     bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
 
-    qemu_savevm_state_pending(s->to_dst_file, s->threshold_size,
-                              &pend_nonpost, &pend_post);
-    pending_size = pend_nonpost + pend_post;
+    qemu_savevm_state_pending(s->to_dst_file, s->threshold_size, &pend_pre,
+                              &pend_compat, &pend_post);
+    pending_size = pend_pre + pend_compat + pend_post;
 
     trace_migrate_pending(pending_size, s->threshold_size,
-                          pend_post, pend_nonpost);
+                          pend_pre, pend_compat, pend_post);
 
     if (pending_size && pending_size >= s->threshold_size) {
         /* Still a significant amount to transfer */
         if (migrate_postcopy() && !in_postcopy &&
-            pend_nonpost <= s->threshold_size &&
+            pend_pre <= s->threshold_size &&
             atomic_read(&s->start_postcopy)) {
             if (postcopy_start(s)) {
                 error_report("%s: postcopy failed to start", __func__);
