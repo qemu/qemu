@@ -211,10 +211,10 @@ float128 uint64_to_float128(uint64_t, float_status *status);
 /*----------------------------------------------------------------------------
 | Software half-precision conversion routines.
 *----------------------------------------------------------------------------*/
-float16 float32_to_float16(float32, flag, float_status *status);
-float32 float16_to_float32(float16, flag, float_status *status);
-float16 float64_to_float16(float64 a, flag ieee, float_status *status);
-float64 float16_to_float64(float16 a, flag ieee, float_status *status);
+float16 float32_to_float16(float32, bool ieee, float_status *status);
+float32 float16_to_float32(float16, bool ieee, float_status *status);
+float16 float64_to_float16(float64 a, bool ieee, float_status *status);
+float64 float16_to_float64(float16 a, bool ieee, float_status *status);
 int16_t float16_to_int16(float16, float_status *status);
 uint16_t float16_to_uint16(float16 a, float_status *status);
 int16_t float16_to_int16_round_to_zero(float16, float_status *status);

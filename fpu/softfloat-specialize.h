@@ -378,46 +378,6 @@ float16 float16_maybe_silence_nan(float16 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
-| Returns the result of converting the half-precision floating-point NaN
-| `a' to the canonical NaN format.  If `a' is a signaling NaN, the invalid
-| exception is raised.
-*----------------------------------------------------------------------------*/
-
-static commonNaNT float16ToCommonNaN(float16 a, float_status *status)
-{
-    commonNaNT z;
-
-    if (float16_is_signaling_nan(a, status)) {
-        float_raise(float_flag_invalid, status);
-    }
-    z.sign = float16_val(a) >> 15;
-    z.low = 0;
-    z.high = ((uint64_t) float16_val(a)) << 54;
-    return z;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the canonical NaN `a' to the half-
-| precision floating-point format.
-*----------------------------------------------------------------------------*/
-
-static float16 commonNaNToFloat16(commonNaNT a, float_status *status)
-{
-    uint16_t mantissa = a.high >> 54;
-
-    if (status->default_nan_mode) {
-        return float16_default_nan(status);
-    }
-
-    if (mantissa) {
-        return make_float16(((((uint16_t) a.sign) << 15)
-                             | (0x1F << 10) | mantissa));
-    } else {
-        return float16_default_nan(status);
-    }
-}
-
-/*----------------------------------------------------------------------------
 | Returns 1 if the single-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
