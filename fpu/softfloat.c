@@ -1054,24 +1054,6 @@ float16 QEMU_FLATTEN float16_add(float16 a, float16 b, float_status *status)
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 QEMU_FLATTEN float32_add(float32 a, float32 b, float_status *status)
-{
-    FloatParts pa = float32_unpack_canonical(a, status);
-    FloatParts pb = float32_unpack_canonical(b, status);
-    FloatParts pr = addsub_floats(pa, pb, false, status);
-
-    return float32_round_pack_canonical(pr, status);
-}
-
-float64 QEMU_FLATTEN float64_add(float64 a, float64 b, float_status *status)
-{
-    FloatParts pa = float64_unpack_canonical(a, status);
-    FloatParts pb = float64_unpack_canonical(b, status);
-    FloatParts pr = addsub_floats(pa, pb, false, status);
-
-    return float64_round_pack_canonical(pr, status);
-}
-
 float16 QEMU_FLATTEN float16_sub(float16 a, float16 b, float_status *status)
 {
     FloatParts pa = float16_unpack_canonical(a, status);
@@ -1081,22 +1063,119 @@ float16 QEMU_FLATTEN float16_sub(float16 a, float16 b, float_status *status)
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 QEMU_FLATTEN float32_sub(float32 a, float32 b, float_status *status)
+static float32 QEMU_SOFTFLOAT_ATTR
+soft_f32_addsub(float32 a, float32 b, bool subtract, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pb = float32_unpack_canonical(b, status);
-    FloatParts pr = addsub_floats(pa, pb, true, status);
+    FloatParts pr = addsub_floats(pa, pb, subtract, status);
 
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 QEMU_FLATTEN float64_sub(float64 a, float64 b, float_status *status)
+static inline float32 soft_f32_add(float32 a, float32 b, float_status *status)
+{
+    return soft_f32_addsub(a, b, false, status);
+}
+
+static inline float32 soft_f32_sub(float32 a, float32 b, float_status *status)
+{
+    return soft_f32_addsub(a, b, true, status);
+}
+
+static float64 QEMU_SOFTFLOAT_ATTR
+soft_f64_addsub(float64 a, float64 b, bool subtract, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pb = float64_unpack_canonical(b, status);
-    FloatParts pr = addsub_floats(pa, pb, true, status);
+    FloatParts pr = addsub_floats(pa, pb, subtract, status);
 
     return float64_round_pack_canonical(pr, status);
+}
+
+static inline float64 soft_f64_add(float64 a, float64 b, float_status *status)
+{
+    return soft_f64_addsub(a, b, false, status);
+}
+
+static inline float64 soft_f64_sub(float64 a, float64 b, float_status *status)
+{
+    return soft_f64_addsub(a, b, true, status);
+}
+
+static float hard_f32_add(float a, float b)
+{
+    return a + b;
+}
+
+static float hard_f32_sub(float a, float b)
+{
+    return a - b;
+}
+
+static double hard_f64_add(double a, double b)
+{
+    return a + b;
+}
+
+static double hard_f64_sub(double a, double b)
+{
+    return a - b;
+}
+
+static bool f32_addsub_post(union_float32 a, union_float32 b)
+{
+    if (QEMU_HARDFLOAT_2F32_USE_FP) {
+        return !(fpclassify(a.h) == FP_ZERO && fpclassify(b.h) == FP_ZERO);
+    }
+    return !(float32_is_zero(a.s) && float32_is_zero(b.s));
+}
+
+static bool f64_addsub_post(union_float64 a, union_float64 b)
+{
+    if (QEMU_HARDFLOAT_2F64_USE_FP) {
+        return !(fpclassify(a.h) == FP_ZERO && fpclassify(b.h) == FP_ZERO);
+    } else {
+        return !(float64_is_zero(a.s) && float64_is_zero(b.s));
+    }
+}
+
+static float32 float32_addsub(float32 a, float32 b, float_status *s,
+                              hard_f32_op2_fn hard, soft_f32_op2_fn soft)
+{
+    return float32_gen2(a, b, s, hard, soft,
+                        f32_is_zon2, f32_addsub_post, NULL, NULL);
+}
+
+static float64 float64_addsub(float64 a, float64 b, float_status *s,
+                              hard_f64_op2_fn hard, soft_f64_op2_fn soft)
+{
+    return float64_gen2(a, b, s, hard, soft,
+                        f64_is_zon2, f64_addsub_post, NULL, NULL);
+}
+
+float32 QEMU_FLATTEN
+float32_add(float32 a, float32 b, float_status *s)
+{
+    return float32_addsub(a, b, s, hard_f32_add, soft_f32_add);
+}
+
+float32 QEMU_FLATTEN
+float32_sub(float32 a, float32 b, float_status *s)
+{
+    return float32_addsub(a, b, s, hard_f32_sub, soft_f32_sub);
+}
+
+float64 QEMU_FLATTEN
+float64_add(float64 a, float64 b, float_status *s)
+{
+    return float64_addsub(a, b, s, hard_f64_add, soft_f64_add);
+}
+
+float64 QEMU_FLATTEN
+float64_sub(float64 a, float64 b, float_status *s)
+{
+    return float64_addsub(a, b, s, hard_f64_sub, soft_f64_sub);
 }
 
 /*
