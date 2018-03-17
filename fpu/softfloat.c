@@ -1518,8 +1518,9 @@ float16 QEMU_FLATTEN float16_muladd(float16 a, float16 b, float16 c,
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 QEMU_FLATTEN float32_muladd(float32 a, float32 b, float32 c,
-                                                int flags, float_status *status)
+static float32 QEMU_SOFTFLOAT_ATTR
+soft_f32_muladd(float32 a, float32 b, float32 c, int flags,
+                float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pb = float32_unpack_canonical(b, status);
@@ -1529,8 +1530,9 @@ float32 QEMU_FLATTEN float32_muladd(float32 a, float32 b, float32 c,
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 QEMU_FLATTEN float64_muladd(float64 a, float64 b, float64 c,
-                                                int flags, float_status *status)
+static float64 QEMU_SOFTFLOAT_ATTR
+soft_f64_muladd(float64 a, float64 b, float64 c, int flags,
+                float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pb = float64_unpack_canonical(b, status);
@@ -1538,6 +1540,128 @@ float64 QEMU_FLATTEN float64_muladd(float64 a, float64 b, float64 c,
     FloatParts pr = muladd_floats(pa, pb, pc, flags, status);
 
     return float64_round_pack_canonical(pr, status);
+}
+
+float32 QEMU_FLATTEN
+float32_muladd(float32 xa, float32 xb, float32 xc, int flags, float_status *s)
+{
+    union_float32 ua, ub, uc, ur;
+
+    ua.s = xa;
+    ub.s = xb;
+    uc.s = xc;
+
+    if (unlikely(!can_use_fpu(s))) {
+        goto soft;
+    }
+    if (unlikely(flags & float_muladd_halve_result)) {
+        goto soft;
+    }
+
+    float32_input_flush3(&ua.s, &ub.s, &uc.s, s);
+    if (unlikely(!f32_is_zon3(ua, ub, uc))) {
+        goto soft;
+    }
+    /*
+     * When (a || b) == 0, there's no need to check for under/over flow,
+     * since we know the addend is (normal || 0) and the product is 0.
+     */
+    if (float32_is_zero(ua.s) || float32_is_zero(ub.s)) {
+        union_float32 up;
+        bool prod_sign;
+
+        prod_sign = float32_is_neg(ua.s) ^ float32_is_neg(ub.s);
+        prod_sign ^= !!(flags & float_muladd_negate_product);
+        up.s = float32_set_sign(float32_zero, prod_sign);
+
+        if (flags & float_muladd_negate_c) {
+            uc.h = -uc.h;
+        }
+        ur.h = up.h + uc.h;
+    } else {
+        if (flags & float_muladd_negate_product) {
+            ua.h = -ua.h;
+        }
+        if (flags & float_muladd_negate_c) {
+            uc.h = -uc.h;
+        }
+
+        ur.h = fmaf(ua.h, ub.h, uc.h);
+
+        if (unlikely(f32_is_inf(ur))) {
+            s->float_exception_flags |= float_flag_overflow;
+        } else if (unlikely(fabsf(ur.h) <= FLT_MIN)) {
+            goto soft;
+        }
+    }
+    if (flags & float_muladd_negate_result) {
+        return float32_chs(ur.s);
+    }
+    return ur.s;
+
+ soft:
+    return soft_f32_muladd(ua.s, ub.s, uc.s, flags, s);
+}
+
+float64 QEMU_FLATTEN
+float64_muladd(float64 xa, float64 xb, float64 xc, int flags, float_status *s)
+{
+    union_float64 ua, ub, uc, ur;
+
+    ua.s = xa;
+    ub.s = xb;
+    uc.s = xc;
+
+    if (unlikely(!can_use_fpu(s))) {
+        goto soft;
+    }
+    if (unlikely(flags & float_muladd_halve_result)) {
+        goto soft;
+    }
+
+    float64_input_flush3(&ua.s, &ub.s, &uc.s, s);
+    if (unlikely(!f64_is_zon3(ua, ub, uc))) {
+        goto soft;
+    }
+    /*
+     * When (a || b) == 0, there's no need to check for under/over flow,
+     * since we know the addend is (normal || 0) and the product is 0.
+     */
+    if (float64_is_zero(ua.s) || float64_is_zero(ub.s)) {
+        union_float64 up;
+        bool prod_sign;
+
+        prod_sign = float64_is_neg(ua.s) ^ float64_is_neg(ub.s);
+        prod_sign ^= !!(flags & float_muladd_negate_product);
+        up.s = float64_set_sign(float64_zero, prod_sign);
+
+        if (flags & float_muladd_negate_c) {
+            uc.h = -uc.h;
+        }
+        ur.h = up.h + uc.h;
+    } else {
+        if (flags & float_muladd_negate_product) {
+            ua.h = -ua.h;
+        }
+        if (flags & float_muladd_negate_c) {
+            uc.h = -uc.h;
+        }
+
+        ur.h = fma(ua.h, ub.h, uc.h);
+
+        if (unlikely(f64_is_inf(ur))) {
+            s->float_exception_flags |= float_flag_overflow;
+        } else if (unlikely(fabs(ur.h) <= FLT_MIN)) {
+            goto soft;
+        }
+    }
+    if (flags & float_muladd_negate_result) {
+        return float64_chs(ur.s);
+    }
+    return ur.s;
+
+ soft:
+    return soft_f64_muladd(ua.s, ub.s, uc.s, flags, s);
 }
 
 /*
