@@ -3044,18 +3044,74 @@ float16 QEMU_FLATTEN float16_sqrt(float16 a, float_status *status)
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 QEMU_FLATTEN float32_sqrt(float32 a, float_status *status)
+static float32 QEMU_SOFTFLOAT_ATTR
+soft_f32_sqrt(float32 a, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pr = sqrt_float(pa, status, &float32_params);
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 QEMU_FLATTEN float64_sqrt(float64 a, float_status *status)
+static float64 QEMU_SOFTFLOAT_ATTR
+soft_f64_sqrt(float64 a, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pr = sqrt_float(pa, status, &float64_params);
     return float64_round_pack_canonical(pr, status);
+}
+
+float32 QEMU_FLATTEN float32_sqrt(float32 xa, float_status *s)
+{
+    union_float32 ua, ur;
+
+    ua.s = xa;
+    if (unlikely(!can_use_fpu(s))) {
+        goto soft;
+    }
+
+    float32_input_flush1(&ua.s, s);
+    if (QEMU_HARDFLOAT_1F32_USE_FP) {
+        if (unlikely(!(fpclassify(ua.h) == FP_NORMAL ||
+                       fpclassify(ua.h) == FP_ZERO) ||
+                     signbit(ua.h))) {
+            goto soft;
+        }
+    } else if (unlikely(!float32_is_zero_or_normal(ua.s) ||
+                        float32_is_neg(ua.s))) {
+        goto soft;
+    }
+    ur.h = sqrtf(ua.h);
+    return ur.s;
+
+ soft:
+    return soft_f32_sqrt(ua.s, s);
+}
+
+float64 QEMU_FLATTEN float64_sqrt(float64 xa, float_status *s)
+{
+    union_float64 ua, ur;
+
+    ua.s = xa;
+    if (unlikely(!can_use_fpu(s))) {
+        goto soft;
+    }
+
+    float64_input_flush1(&ua.s, s);
+    if (QEMU_HARDFLOAT_1F64_USE_FP) {
+        if (unlikely(!(fpclassify(ua.h) == FP_NORMAL ||
+                       fpclassify(ua.h) == FP_ZERO) ||
+                     signbit(ua.h))) {
+            goto soft;
+        }
+    } else if (unlikely(!float64_is_zero_or_normal(ua.s) ||
+                        float64_is_neg(ua.s))) {
+        goto soft;
+    }
+    ur.h = sqrt(ua.h);
+    return ur.s;
+
+ soft:
+    return soft_f64_sqrt(ua.s, s);
 }
 
 /*----------------------------------------------------------------------------
