@@ -1628,7 +1628,8 @@ float16 float16_div(float16 a, float16 b, float_status *status)
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 float32_div(float32 a, float32 b, float_status *status)
+static float32 QEMU_SOFTFLOAT_ATTR
+soft_f32_div(float32 a, float32 b, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pb = float32_unpack_canonical(b, status);
@@ -1637,13 +1638,72 @@ float32 float32_div(float32 a, float32 b, float_status *status)
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 float64_div(float64 a, float64 b, float_status *status)
+static float64 QEMU_SOFTFLOAT_ATTR
+soft_f64_div(float64 a, float64 b, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pb = float64_unpack_canonical(b, status);
     FloatParts pr = div_floats(pa, pb, status);
 
     return float64_round_pack_canonical(pr, status);
+}
+
+static float hard_f32_div(float a, float b)
+{
+    return a / b;
+}
+
+static double hard_f64_div(double a, double b)
+{
+    return a / b;
+}
+
+static bool f32_div_pre(union_float32 a, union_float32 b)
+{
+    if (QEMU_HARDFLOAT_2F32_USE_FP) {
+        return (fpclassify(a.h) == FP_NORMAL || fpclassify(a.h) == FP_ZERO) &&
+               fpclassify(b.h) == FP_NORMAL;
+    }
+    return float32_is_zero_or_normal(a.s) && float32_is_normal(b.s);
+}
+
+static bool f64_div_pre(union_float64 a, union_float64 b)
+{
+    if (QEMU_HARDFLOAT_2F64_USE_FP) {
+        return (fpclassify(a.h) == FP_NORMAL || fpclassify(a.h) == FP_ZERO) &&
+               fpclassify(b.h) == FP_NORMAL;
+    }
+    return float64_is_zero_or_normal(a.s) && float64_is_normal(b.s);
+}
+
+static bool f32_div_post(union_float32 a, union_float32 b)
+{
+    if (QEMU_HARDFLOAT_2F32_USE_FP) {
+        return fpclassify(a.h) != FP_ZERO;
+    }
+    return !float32_is_zero(a.s);
+}
+
+static bool f64_div_post(union_float64 a, union_float64 b)
+{
+    if (QEMU_HARDFLOAT_2F64_USE_FP) {
+        return fpclassify(a.h) != FP_ZERO;
+    }
+    return !float64_is_zero(a.s);
+}
+
+float32 QEMU_FLATTEN
+float32_div(float32 a, float32 b, float_status *s)
+{
+    return float32_gen2(a, b, s, hard_f32_div, soft_f32_div,
+                        f32_div_pre, f32_div_post, NULL, NULL);
+}
+
+float64 QEMU_FLATTEN
+float64_div(float64 a, float64 b, float_status *s)
+{
+    return float64_gen2(a, b, s, hard_f64_div, soft_f64_div,
+                        f64_div_pre, f64_div_post, NULL, NULL);
 }
 
 /*
