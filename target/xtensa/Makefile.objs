@@ -1,10 +1,9 @@
-obj-y += xtensa-semi.o
 obj-y += core-dc232b.o
 obj-y += core-dc233c.o
 obj-y += core-de212.o
 obj-y += core-fsf.o
 obj-y += core-sample_controller.o
-obj-$(CONFIG_SOFTMMU) += monitor.o
+obj-$(CONFIG_SOFTMMU) += monitor.o xtensa-semi.o
 obj-y += xtensa-isa.o
 obj-y += translate.o op_helper.o helper.o cpu.o
 obj-y += gdbstub.o

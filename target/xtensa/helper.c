@@ -88,19 +88,31 @@ static void init_libisa(XtensaConfig *config)
 
 void xtensa_finalize_config(XtensaConfig *config)
 {
-    unsigned i, n = 0;
-
     if (config->isa_internal) {
         init_libisa(config);
     }
-    if (config->gdb_regmap.num_regs) {
-        return;
-    }
 
-    for (i = 0; config->gdb_regmap.reg[i].targno >= 0; ++i) {
-        n += (config->gdb_regmap.reg[i].type != 6);
+    if (config->gdb_regmap.num_regs == 0 ||
+        config->gdb_regmap.num_core_regs == 0) {
+        unsigned i;
+        unsigned n_regs = 0;
+        unsigned n_core_regs = 0;
+
+        for (i = 0; config->gdb_regmap.reg[i].targno >= 0; ++i) {
+            if (config->gdb_regmap.reg[i].type != 6) {
+                ++n_regs;
+                if ((config->gdb_regmap.reg[i].flags & 0x1) == 0) {
+                    ++n_core_regs;
+                }
+            }
+        }
+        if (config->gdb_regmap.num_regs == 0) {
+            config->gdb_regmap.num_regs = n_regs;
+        }
+        if (config->gdb_regmap.num_core_regs == 0) {
+            config->gdb_regmap.num_core_regs = n_core_regs;
+        }
     }
-    config->gdb_regmap.num_regs = n;
 }
 
 void xtensa_register_core(XtensaConfigList *node)
@@ -161,6 +173,7 @@ void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 
 hwaddr xtensa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
+#ifndef CONFIG_USER_ONLY
     XtensaCPU *cpu = XTENSA_CPU(cs);
     uint32_t paddr;
     uint32_t page_size;
@@ -175,7 +188,12 @@ hwaddr xtensa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         return paddr;
     }
     return ~0;
+#else
+    return addr;
+#endif
 }
+
+#ifndef CONFIG_USER_ONLY
 
 static uint32_t relocated_vector(CPUXtensaState *env, uint32_t vector)
 {
@@ -286,6 +304,11 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
     }
     check_interrupts(env);
 }
+#else
+void xtensa_cpu_do_interrupt(CPUState *cs)
+{
+}
+#endif
 
 bool xtensa_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
@@ -296,6 +319,25 @@ bool xtensa_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     }
     return false;
 }
+
+#ifdef CONFIG_USER_ONLY
+
+int xtensa_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
+                                int mmu_idx)
+{
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
+
+    qemu_log_mask(CPU_LOG_INT,
+                  "%s: rw = %d, address = 0x%08" VADDR_PRIx ", size = %d\n",
+                  __func__, rw, address, size);
+    env->sregs[EXCVADDR] = address;
+    env->sregs[EXCCAUSE] = rw ? STORE_PROHIBITED_CAUSE : LOAD_PROHIBITED_CAUSE;
+    cs->exception_index = EXC_USER;
+    return 1;
+}
+
+#else
 
 static void reset_tlb_mmu_all_ways(CPUXtensaState *env,
         const xtensa_tlb *tlb, xtensa_tlb_entry entry[][MAX_TLB_WAY_SIZE])
@@ -757,3 +799,4 @@ void xtensa_runstall(CPUXtensaState *env, bool runstall)
         cpu_reset_interrupt(cpu, CPU_INTERRUPT_HALT);
     }
 }
+#endif
