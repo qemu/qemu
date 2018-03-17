@@ -2903,27 +2903,108 @@ static int compare_floats(FloatParts a, FloatParts b, bool is_quiet,
     }
 }
 
-#define COMPARE(sz)                                                     \
-int float ## sz ## _compare(float ## sz a, float ## sz b,               \
-                            float_status *s)                            \
+#define COMPARE(name, attr, sz)                                         \
+static int attr                                                         \
+name(float ## sz a, float ## sz b, bool is_quiet, float_status *s)      \
 {                                                                       \
     FloatParts pa = float ## sz ## _unpack_canonical(a, s);             \
     FloatParts pb = float ## sz ## _unpack_canonical(b, s);             \
-    return compare_floats(pa, pb, false, s);                            \
-}                                                                       \
-int float ## sz ## _compare_quiet(float ## sz a, float ## sz b,         \
-                                  float_status *s)                      \
-{                                                                       \
-    FloatParts pa = float ## sz ## _unpack_canonical(a, s);             \
-    FloatParts pb = float ## sz ## _unpack_canonical(b, s);             \
-    return compare_floats(pa, pb, true, s);                             \
+    return compare_floats(pa, pb, is_quiet, s);                         \
 }
 
-COMPARE(16)
-COMPARE(32)
-COMPARE(64)
+COMPARE(soft_f16_compare, QEMU_FLATTEN, 16)
+COMPARE(soft_f32_compare, QEMU_SOFTFLOAT_ATTR, 32)
+COMPARE(soft_f64_compare, QEMU_SOFTFLOAT_ATTR, 64)
 
 #undef COMPARE
+
+int float16_compare(float16 a, float16 b, float_status *s)
+{
+    return soft_f16_compare(a, b, false, s);
+}
+
+int float16_compare_quiet(float16 a, float16 b, float_status *s)
+{
+    return soft_f16_compare(a, b, true, s);
+}
+
+static int QEMU_FLATTEN
+f32_compare(float32 xa, float32 xb, bool is_quiet, float_status *s)
+{
+    union_float32 ua, ub;
+
+    ua.s = xa;
+    ub.s = xb;
+
+    if (QEMU_NO_HARDFLOAT) {
+        goto soft;
+    }
+
+    float32_input_flush2(&ua.s, &ub.s, s);
+    if (isgreaterequal(ua.h, ub.h)) {
+        if (isgreater(ua.h, ub.h)) {
+            return float_relation_greater;
+        }
+        return float_relation_equal;
+    }
+    if (likely(isless(ua.h, ub.h))) {
+        return float_relation_less;
+    }
+    /* The only condition remaining is unordered.
+     * Fall through to set flags.
+     */
+ soft:
+    return soft_f32_compare(ua.s, ub.s, is_quiet, s);
+}
+
+int float32_compare(float32 a, float32 b, float_status *s)
+{
+    return f32_compare(a, b, false, s);
+}
+
+int float32_compare_quiet(float32 a, float32 b, float_status *s)
+{
+    return f32_compare(a, b, true, s);
+}
+
+static int QEMU_FLATTEN
+f64_compare(float64 xa, float64 xb, bool is_quiet, float_status *s)
+{
+    union_float64 ua, ub;
+
+    ua.s = xa;
+    ub.s = xb;
+
+    if (QEMU_NO_HARDFLOAT) {
+        goto soft;
+    }
+
+    float64_input_flush2(&ua.s, &ub.s, s);
+    if (isgreaterequal(ua.h, ub.h)) {
+        if (isgreater(ua.h, ub.h)) {
+            return float_relation_greater;
+        }
+        return float_relation_equal;
+    }
+    if (likely(isless(ua.h, ub.h))) {
+        return float_relation_less;
+    }
+    /* The only condition remaining is unordered.
+     * Fall through to set flags.
+     */
+ soft:
+    return soft_f64_compare(ua.s, ub.s, is_quiet, s);
+}
+
+int float64_compare(float64 a, float64 b, float_status *s)
+{
+    return f64_compare(a, b, false, s);
+}
+
+int float64_compare_quiet(float64 a, float64 b, float_status *s)
+{
+    return f64_compare(a, b, true, s);
+}
 
 /* Multiply A by 2 raised to the power N.  */
 static FloatParts scalbn_decomposed(FloatParts a, int n, float_status *s)
