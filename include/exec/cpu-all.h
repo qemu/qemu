@@ -175,7 +175,7 @@ extern unsigned long reserved_va;
 #define TARGET_ENDIANNESS
 #include "exec/memory_ldst.inc.h"
 
-#define SUFFIX       _cached
+#define SUFFIX       _cached_slow
 #define ARG1         cache
 #define ARG1_DECL    MemoryRegionCache *cache
 #define TARGET_ENDIANNESS
@@ -192,6 +192,10 @@ static inline void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val
 #define ARG1_DECL    AddressSpace *as
 #define TARGET_ENDIANNESS
 #include "exec/memory_ldst_phys.inc.h"
+
+/* Inline fast path for direct RAM access.  */
+#define ENDIANNESS
+#include "exec/memory_ldst_cached.inc.h"
 
 #define SUFFIX       _cached
 #define ARG1         cache

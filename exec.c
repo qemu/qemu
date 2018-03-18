@@ -3641,33 +3641,130 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
                                  hwaddr len,
                                  bool is_write)
 {
-    cache->len = len;
-    cache->as = as;
-    cache->xlat = addr;
-    return len;
+    AddressSpaceDispatch *d;
+    hwaddr l;
+    MemoryRegion *mr;
+
+    assert(len > 0);
+
+    l = len;
+    cache->fv = address_space_get_flatview(as);
+    d = flatview_to_dispatch(cache->fv);
+    cache->mrs = *address_space_translate_internal(d, addr, &cache->xlat, &l, true);
+
+    mr = cache->mrs.mr;
+    memory_region_ref(mr);
+    if (memory_access_is_direct(mr, is_write)) {
+        l = flatview_extend_translation(cache->fv, addr, len, mr,
+                                        cache->xlat, l, is_write);
+        cache->ptr = qemu_ram_ptr_length(mr->ram_block, cache->xlat, &l, true);
+    } else {
+        cache->ptr = NULL;
+    }
+
+    cache->len = l;
+    cache->is_write = is_write;
+    return l;
 }
 
 void address_space_cache_invalidate(MemoryRegionCache *cache,
                                     hwaddr addr,
                                     hwaddr access_len)
 {
+    assert(cache->is_write);
+    if (likely(cache->ptr)) {
+        invalidate_and_set_dirty(cache->mrs.mr, addr + cache->xlat, access_len);
+    }
 }
 
 void address_space_cache_destroy(MemoryRegionCache *cache)
 {
-    cache->as = NULL;
+    if (!cache->mrs.mr) {
+        return;
+    }
+
+    if (xen_enabled()) {
+        xen_invalidate_map_cache_entry(cache->ptr);
+    }
+    memory_region_unref(cache->mrs.mr);
+    flatview_unref(cache->fv);
+    cache->mrs.mr = NULL;
+    cache->fv = NULL;
+}
+
+/* Called from RCU critical section.  This function has the same
+ * semantics as address_space_translate, but it only works on a
+ * predefined range of a MemoryRegion that was mapped with
+ * address_space_cache_init.
+ */
+static inline MemoryRegion *address_space_translate_cached(
+    MemoryRegionCache *cache, hwaddr addr, hwaddr *xlat,
+    hwaddr *plen, bool is_write)
+{
+    MemoryRegionSection section;
+    MemoryRegion *mr;
+    IOMMUMemoryRegion *iommu_mr;
+    AddressSpace *target_as;
+
+    assert(!cache->ptr);
+    *xlat = addr + cache->xlat;
+
+    mr = cache->mrs.mr;
+    iommu_mr = memory_region_get_iommu(mr);
+    if (!iommu_mr) {
+        /* MMIO region.  */
+        return mr;
+    }
+
+    section = address_space_translate_iommu(iommu_mr, xlat, plen,
+                                            NULL, is_write, true,
+                                            &target_as);
+    return section.mr;
+}
+
+/* Called from RCU critical section. address_space_read_cached uses this
+ * out of line function when the target is an MMIO or IOMMU region.
+ */
+void
+address_space_read_cached_slow(MemoryRegionCache *cache, hwaddr addr,
+                                   void *buf, int len)
+{
+    hwaddr addr1, l;
+    MemoryRegion *mr;
+
+    l = len;
+    mr = address_space_translate_cached(cache, addr, &addr1, &l, false);
+    flatview_read_continue(cache->fv,
+                           addr, MEMTXATTRS_UNSPECIFIED, buf, len,
+                           addr1, l, mr);
+}
+
+/* Called from RCU critical section. address_space_write_cached uses this
+ * out of line function when the target is an MMIO or IOMMU region.
+ */
+void
+address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
+                                    const void *buf, int len)
+{
+    hwaddr addr1, l;
+    MemoryRegion *mr;
+
+    l = len;
+    mr = address_space_translate_cached(cache, addr, &addr1, &l, true);
+    flatview_write_continue(cache->fv,
+                            addr, MEMTXATTRS_UNSPECIFIED, buf, len,
+                            addr1, l, mr);
 }
 
 #define ARG1_DECL                MemoryRegionCache *cache
 #define ARG1                     cache
-#define SUFFIX                   _cached
-#define TRANSLATE(addr, ...)     \
-    address_space_translate(cache->as, cache->xlat + (addr), __VA_ARGS__)
-#define IS_DIRECT(mr, is_write)  true
-#define MAP_RAM(mr, ofs)         qemu_map_ram_ptr((mr)->ram_block, ofs)
+#define SUFFIX                   _cached_slow
+#define TRANSLATE(...)           address_space_translate_cached(cache, __VA_ARGS__)
+#define IS_DIRECT(mr, is_write)  memory_access_is_direct(mr, is_write)
+#define MAP_RAM(mr, ofs)         (cache->ptr + (ofs - cache->xlat))
 #define INVALIDATE(mr, ofs, len) invalidate_and_set_dirty(mr, ofs, len)
-#define RCU_READ_LOCK()          rcu_read_lock()
-#define RCU_READ_UNLOCK()        rcu_read_unlock()
+#define RCU_READ_LOCK()          ((void)0)
+#define RCU_READ_UNLOCK()        ((void)0)
 #include "memory_ldst.inc.c"
 
 /* virtual memory access for debug (includes writing to ROM) */

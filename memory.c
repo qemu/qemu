@@ -298,7 +298,7 @@ static bool flatview_ref(FlatView *view)
     return atomic_fetch_inc_nonzero(&view->ref) > 0;
 }
 
-static void flatview_unref(FlatView *view)
+void flatview_unref(FlatView *view)
 {
     if (atomic_fetch_dec(&view->ref) == 1) {
         trace_flatview_destroy_rcu(view, view->root);
@@ -822,7 +822,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
     }
 }
 
-static FlatView *address_space_get_flatview(AddressSpace *as)
+FlatView *address_space_get_flatview(AddressSpace *as)
 {
     FlatView *view;
 

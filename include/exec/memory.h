@@ -1688,12 +1688,16 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
 #include "exec/memory_ldst_phys.inc.h"
 
 struct MemoryRegionCache {
+    void *ptr;
     hwaddr xlat;
     hwaddr len;
-    AddressSpace *as;
+    FlatView *fv;
+    MemoryRegionSection mrs;
+    bool is_write;
 };
 
-#define MEMORY_REGION_CACHE_INVALID ((MemoryRegionCache) { .as = NULL })
+#define MEMORY_REGION_CACHE_INVALID ((MemoryRegionCache) { .mrs.mr = NULL })
+
 
 /* address_space_ld*_cached: load from a cached #MemoryRegion
  * address_space_st*_cached: store into a cached #MemoryRegion
@@ -1719,10 +1723,39 @@ struct MemoryRegionCache {
  *   if NULL, this information is discarded
  */
 
-#define SUFFIX       _cached
+#define SUFFIX       _cached_slow
 #define ARG1         cache
 #define ARG1_DECL    MemoryRegionCache *cache
 #include "exec/memory_ldst.inc.h"
+
+/* Inline fast path for direct RAM access.  */
+static inline uint8_t address_space_ldub_cached(MemoryRegionCache *cache,
+    hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
+{
+    assert(addr < cache->len);
+    if (likely(cache->ptr)) {
+        return ldub_p(cache->ptr + addr);
+    } else {
+        return address_space_ldub_cached_slow(cache, addr, attrs, result);
+    }
+}
+
+static inline void address_space_stb_cached(MemoryRegionCache *cache,
+    hwaddr addr, uint32_t val, MemTxAttrs attrs, MemTxResult *result)
+{
+    assert(addr < cache->len);
+    if (likely(cache->ptr)) {
+        stb_p(cache->ptr + addr, val);
+    } else {
+        address_space_stb_cached_slow(cache, addr, val, attrs, result);
+    }
+}
+
+#define ENDIANNESS   _le
+#include "exec/memory_ldst_cached.inc.h"
+
+#define ENDIANNESS   _be
+#include "exec/memory_ldst_cached.inc.h"
 
 #define SUFFIX       _cached
 #define ARG1         cache
@@ -1860,6 +1893,13 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                                    MemoryRegion *mr);
 void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr);
 
+/* Internal functions, part of the implementation of address_space_read_cached
+ * and address_space_write_cached.  */
+void address_space_read_cached_slow(MemoryRegionCache *cache,
+                                    hwaddr addr, void *buf, int len);
+void address_space_write_cached_slow(MemoryRegionCache *cache,
+                                     hwaddr addr, const void *buf, int len);
+
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 {
     if (is_write) {
@@ -1928,7 +1968,11 @@ address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
                           void *buf, int len)
 {
     assert(addr < cache->len && len <= cache->len - addr);
-    address_space_read(cache->as, cache->xlat + addr, MEMTXATTRS_UNSPECIFIED, buf, len);
+    if (likely(cache->ptr)) {
+        memcpy(buf, cache->ptr + addr, len);
+    } else {
+        address_space_read_cached_slow(cache, addr, buf, len);
+    }
 }
 
 /**
@@ -1944,7 +1988,11 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
                            void *buf, int len)
 {
     assert(addr < cache->len && len <= cache->len - addr);
-    address_space_write(cache->as, cache->xlat + addr, MEMTXATTRS_UNSPECIFIED, buf, len);
+    if (likely(cache->ptr)) {
+        memcpy(cache->ptr + addr, buf, len);
+    } else {
+        address_space_write_cached_slow(cache, addr, buf, len);
+    }
 }
 
 #endif
