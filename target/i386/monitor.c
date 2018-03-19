@@ -696,6 +696,8 @@ void hmp_info_sev(Monitor *mon, const QDict *qdict)
     } else {
         monitor_printf(mon, "SEV is not enabled\n");
     }
+
+    qapi_free_SevInfo(info);
 }
 
 SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
