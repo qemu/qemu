@@ -28,6 +28,7 @@
 #include "block/block.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
+#include "block/trace.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-block-core.h"
@@ -40,6 +41,64 @@
  * and job->sleep_timer, such as concurrent calls to block_job_do_yield and
  * block_job_enter. */
 static QemuMutex block_job_mutex;
+
+/* BlockJob State Transition Table */
+bool BlockJobSTT[BLOCK_JOB_STATUS__MAX][BLOCK_JOB_STATUS__MAX] = {
+                                          /* U, C, R, P, Y, S, W, D, X, E, N */
+    /* U: */ [BLOCK_JOB_STATUS_UNDEFINED] = {0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    /* C: */ [BLOCK_JOB_STATUS_CREATED]   = {0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1},
+    /* R: */ [BLOCK_JOB_STATUS_RUNNING]   = {0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0},
+    /* P: */ [BLOCK_JOB_STATUS_PAUSED]    = {0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+    /* Y: */ [BLOCK_JOB_STATUS_READY]     = {0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0},
+    /* S: */ [BLOCK_JOB_STATUS_STANDBY]   = {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+    /* W: */ [BLOCK_JOB_STATUS_WAITING]   = {0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
+    /* D: */ [BLOCK_JOB_STATUS_PENDING]   = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0},
+    /* X: */ [BLOCK_JOB_STATUS_ABORTING]  = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0},
+    /* E: */ [BLOCK_JOB_STATUS_CONCLUDED] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    /* N: */ [BLOCK_JOB_STATUS_NULL]      = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+};
+
+bool BlockJobVerbTable[BLOCK_JOB_VERB__MAX][BLOCK_JOB_STATUS__MAX] = {
+                                          /* U, C, R, P, Y, S, W, D, X, E, N */
+    [BLOCK_JOB_VERB_CANCEL]               = {0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0},
+    [BLOCK_JOB_VERB_PAUSE]                = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+    [BLOCK_JOB_VERB_RESUME]               = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+    [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+    [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+    [BLOCK_JOB_VERB_FINALIZE]             = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+    [BLOCK_JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+};
+
+static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
+{
+    BlockJobStatus s0 = job->status;
+    assert(s1 >= 0 && s1 <= BLOCK_JOB_STATUS__MAX);
+    trace_block_job_state_transition(job, job->ret, BlockJobSTT[s0][s1] ?
+                                     "allowed" : "disallowed",
+                                     qapi_enum_lookup(&BlockJobStatus_lookup,
+                                                      s0),
+                                     qapi_enum_lookup(&BlockJobStatus_lookup,
+                                                      s1));
+    assert(BlockJobSTT[s0][s1]);
+    job->status = s1;
+}
+
+static int block_job_apply_verb(BlockJob *job, BlockJobVerb bv, Error **errp)
+{
+    assert(bv >= 0 && bv <= BLOCK_JOB_VERB__MAX);
+    trace_block_job_apply_verb(job, qapi_enum_lookup(&BlockJobStatus_lookup,
+                                                     job->status),
+                               qapi_enum_lookup(&BlockJobVerb_lookup, bv),
+                               BlockJobVerbTable[bv][job->status] ?
+                               "allowed" : "prohibited");
+    if (BlockJobVerbTable[bv][job->status]) {
+        return 0;
+    }
+    error_setg(errp, "Job '%s' in state '%s' cannot accept command verb '%s'",
+               job->id, qapi_enum_lookup(&BlockJobStatus_lookup, job->status),
+               qapi_enum_lookup(&BlockJobVerb_lookup, bv));
+    return -EPERM;
+}
 
 static void block_job_lock(void)
 {
@@ -58,6 +117,7 @@ static void __attribute__((__constructor__)) block_job_init(void)
 
 static void block_job_event_cancelled(BlockJob *job);
 static void block_job_event_completed(BlockJob *job, const char *msg);
+static int block_job_event_pending(BlockJob *job);
 static void block_job_enter_cond(BlockJob *job, bool(*fn)(BlockJob *job));
 
 /* Transactional group of block jobs */
@@ -171,6 +231,7 @@ static void block_job_detach_aio_context(void *opaque);
 void block_job_unref(BlockJob *job)
 {
     if (--job->refcnt == 0) {
+        assert(job->status == BLOCK_JOB_STATUS_NULL);
         BlockDriverState *bs = blk_bs(job->blk);
         QLIST_REMOVE(job, job_list);
         bs->job = NULL;
@@ -320,25 +381,88 @@ void block_job_start(BlockJob *job)
     job->pause_count--;
     job->busy = true;
     job->paused = false;
+    block_job_state_transition(job, BLOCK_JOB_STATUS_RUNNING);
     bdrv_coroutine_enter(blk_bs(job->blk), job->co);
 }
 
-static void block_job_completed_single(BlockJob *job)
+static void block_job_decommission(BlockJob *job)
 {
-    assert(job->completed);
+    assert(job);
+    job->completed = true;
+    job->busy = false;
+    job->paused = false;
+    job->deferred_to_main_loop = true;
+    block_job_state_transition(job, BLOCK_JOB_STATUS_NULL);
+    block_job_unref(job);
+}
 
-    if (!job->ret) {
-        if (job->driver->commit) {
-            job->driver->commit(job);
-        }
-    } else {
-        if (job->driver->abort) {
-            job->driver->abort(job);
-        }
+static void block_job_do_dismiss(BlockJob *job)
+{
+    block_job_decommission(job);
+}
+
+static void block_job_conclude(BlockJob *job)
+{
+    block_job_state_transition(job, BLOCK_JOB_STATUS_CONCLUDED);
+    if (job->auto_dismiss || !block_job_started(job)) {
+        block_job_do_dismiss(job);
     }
+}
+
+static void block_job_update_rc(BlockJob *job)
+{
+    if (!job->ret && block_job_is_cancelled(job)) {
+        job->ret = -ECANCELED;
+    }
+    if (job->ret) {
+        block_job_state_transition(job, BLOCK_JOB_STATUS_ABORTING);
+    }
+}
+
+static int block_job_prepare(BlockJob *job)
+{
+    if (job->ret == 0 && job->driver->prepare) {
+        job->ret = job->driver->prepare(job);
+    }
+    return job->ret;
+}
+
+static void block_job_commit(BlockJob *job)
+{
+    assert(!job->ret);
+    if (job->driver->commit) {
+        job->driver->commit(job);
+    }
+}
+
+static void block_job_abort(BlockJob *job)
+{
+    assert(job->ret);
+    if (job->driver->abort) {
+        job->driver->abort(job);
+    }
+}
+
+static void block_job_clean(BlockJob *job)
+{
     if (job->driver->clean) {
         job->driver->clean(job);
     }
+}
+
+static int block_job_finalize_single(BlockJob *job)
+{
+    assert(job->completed);
+
+    /* Ensure abort is called for late-transactional failures */
+    block_job_update_rc(job);
+
+    if (!job->ret) {
+        block_job_commit(job);
+    } else {
+        block_job_abort(job);
+    }
+    block_job_clean(job);
 
     if (job->cb) {
         job->cb(job->opaque, job->ret);
@@ -357,14 +481,13 @@ static void block_job_completed_single(BlockJob *job)
         }
     }
 
-    if (job->txn) {
-        QLIST_REMOVE(job, txn_list);
-        block_job_txn_unref(job->txn);
-    }
-    block_job_unref(job);
+    QLIST_REMOVE(job, txn_list);
+    block_job_txn_unref(job->txn);
+    block_job_conclude(job);
+    return 0;
 }
 
-static void block_job_cancel_async(BlockJob *job)
+static void block_job_cancel_async(BlockJob *job, bool force)
 {
     if (job->iostatus != BLOCK_DEVICE_IO_STATUS_OK) {
         block_job_iostatus_reset(job);
@@ -375,6 +498,30 @@ static void block_job_cancel_async(BlockJob *job)
         job->pause_count--;
     }
     job->cancelled = true;
+    /* To prevent 'force == false' overriding a previous 'force == true' */
+    job->force |= force;
+}
+
+static int block_job_txn_apply(BlockJobTxn *txn, int fn(BlockJob *), bool lock)
+{
+    AioContext *ctx;
+    BlockJob *job, *next;
+    int rc = 0;
+
+    QLIST_FOREACH_SAFE(job, &txn->jobs, txn_list, next) {
+        if (lock) {
+            ctx = blk_get_aio_context(job->blk);
+            aio_context_acquire(ctx);
+        }
+        rc = fn(job);
+        if (lock) {
+            aio_context_release(ctx);
+        }
+        if (rc) {
+            break;
+        }
+    }
+    return rc;
 }
 
 static int block_job_finish_sync(BlockJob *job,
@@ -436,7 +583,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
      * on the caller, so leave it. */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
         if (other_job != job) {
-            block_job_cancel_async(other_job);
+            block_job_cancel_async(other_job, false);
         }
     }
     while (!QLIST_EMPTY(&txn->jobs)) {
@@ -446,18 +593,39 @@ static void block_job_completed_txn_abort(BlockJob *job)
             assert(other_job->cancelled);
             block_job_finish_sync(other_job, NULL, NULL);
         }
-        block_job_completed_single(other_job);
+        block_job_finalize_single(other_job);
         aio_context_release(ctx);
     }
 
     block_job_txn_unref(txn);
 }
 
+static int block_job_needs_finalize(BlockJob *job)
+{
+    return !job->auto_finalize;
+}
+
+static void block_job_do_finalize(BlockJob *job)
+{
+    int rc;
+    assert(job && job->txn);
+
+    /* prepare the transaction to complete */
+    rc = block_job_txn_apply(job->txn, block_job_prepare, true);
+    if (rc) {
+        block_job_completed_txn_abort(job);
+    } else {
+        block_job_txn_apply(job->txn, block_job_finalize_single, true);
+    }
+}
+
 static void block_job_completed_txn_success(BlockJob *job)
 {
-    AioContext *ctx;
     BlockJobTxn *txn = job->txn;
-    BlockJob *other_job, *next;
+    BlockJob *other_job;
+
+    block_job_state_transition(job, BLOCK_JOB_STATUS_WAITING);
+
     /*
      * Successful completion, see if there are other running jobs in this
      * txn.
@@ -466,14 +634,14 @@ static void block_job_completed_txn_success(BlockJob *job)
         if (!other_job->completed) {
             return;
         }
-    }
-    /* We are the last completed job, commit the transaction. */
-    QLIST_FOREACH_SAFE(other_job, &txn->jobs, txn_list, next) {
-        ctx = blk_get_aio_context(other_job->blk);
-        aio_context_acquire(ctx);
         assert(other_job->ret == 0);
-        block_job_completed_single(other_job);
-        aio_context_release(ctx);
+    }
+
+    block_job_txn_apply(txn, block_job_event_pending, false);
+
+    /* If no jobs need manual finalization, automatically do so */
+    if (block_job_txn_apply(txn, block_job_needs_finalize, false) == 0) {
+        block_job_do_finalize(job);
     }
 }
 
@@ -492,6 +660,9 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
         error_setg(errp, QERR_UNSUPPORTED);
         return;
     }
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_SET_SPEED, errp)) {
+        return;
+    }
     job->driver->set_speed(job, speed, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -499,7 +670,7 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     }
 
     job->speed = speed;
-    if (speed <= old_speed) {
+    if (speed && speed <= old_speed) {
         return;
     }
 
@@ -511,8 +682,10 @@ void block_job_complete(BlockJob *job, Error **errp)
 {
     /* Should not be reachable via external interface for internal jobs */
     assert(job->id);
-    if (job->pause_count || job->cancelled ||
-        !block_job_started(job) || !job->driver->complete) {
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_COMPLETE, errp)) {
+        return;
+    }
+    if (job->pause_count || job->cancelled || !job->driver->complete) {
         error_setg(errp, "The active block job '%s' cannot be completed",
                    job->id);
         return;
@@ -521,8 +694,37 @@ void block_job_complete(BlockJob *job, Error **errp)
     job->driver->complete(job, errp);
 }
 
-void block_job_user_pause(BlockJob *job)
+void block_job_finalize(BlockJob *job, Error **errp)
 {
+    assert(job && job->id && job->txn);
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_FINALIZE, errp)) {
+        return;
+    }
+    block_job_do_finalize(job);
+}
+
+void block_job_dismiss(BlockJob **jobptr, Error **errp)
+{
+    BlockJob *job = *jobptr;
+    /* similarly to _complete, this is QMP-interface only. */
+    assert(job->id);
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_DISMISS, errp)) {
+        return;
+    }
+
+    block_job_do_dismiss(job);
+    *jobptr = NULL;
+}
+
+void block_job_user_pause(BlockJob *job, Error **errp)
+{
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_PAUSE, errp)) {
+        return;
+    }
+    if (job->user_paused) {
+        error_setg(errp, "Job is already paused");
+        return;
+    }
     job->user_paused = true;
     block_job_pause(job);
 }
@@ -532,23 +734,43 @@ bool block_job_user_paused(BlockJob *job)
     return job->user_paused;
 }
 
-void block_job_user_resume(BlockJob *job)
+void block_job_user_resume(BlockJob *job, Error **errp)
 {
-    if (job && job->user_paused && job->pause_count > 0) {
-        block_job_iostatus_reset(job);
-        job->user_paused = false;
-        block_job_resume(job);
+    assert(job);
+    if (!job->user_paused || job->pause_count <= 0) {
+        error_setg(errp, "Can't resume a job that was not paused");
+        return;
+    }
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_RESUME, errp)) {
+        return;
+    }
+    block_job_iostatus_reset(job);
+    job->user_paused = false;
+    block_job_resume(job);
+}
+
+void block_job_cancel(BlockJob *job, bool force)
+{
+    if (job->status == BLOCK_JOB_STATUS_CONCLUDED) {
+        block_job_do_dismiss(job);
+        return;
+    }
+    block_job_cancel_async(job, force);
+    if (!block_job_started(job)) {
+        block_job_completed(job, -ECANCELED);
+    } else if (job->deferred_to_main_loop) {
+        block_job_completed_txn_abort(job);
+    } else {
+        block_job_enter(job);
     }
 }
 
-void block_job_cancel(BlockJob *job)
+void block_job_user_cancel(BlockJob *job, bool force, Error **errp)
 {
-    if (block_job_started(job)) {
-        block_job_cancel_async(job);
-        block_job_enter(job);
-    } else {
-        block_job_completed(job, -ECANCELED);
+    if (block_job_apply_verb(job, BLOCK_JOB_VERB_CANCEL, errp)) {
+        return;
     }
+    block_job_cancel(job, force);
 }
 
 /* A wrapper around block_job_cancel() taking an Error ** parameter so it may be
@@ -556,7 +778,7 @@ void block_job_cancel(BlockJob *job)
  * function pointer casts there. */
 static void block_job_cancel_err(BlockJob *job, Error **errp)
 {
-    block_job_cancel(job);
+    block_job_cancel(job, false);
 }
 
 int block_job_cancel_sync(BlockJob *job)
@@ -600,6 +822,9 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->speed     = job->speed;
     info->io_status = job->iostatus;
     info->ready     = job->ready;
+    info->status    = job->status;
+    info->auto_finalize = job->auto_finalize;
+    info->auto_dismiss  = job->auto_dismiss;
     return info;
 }
 
@@ -641,13 +866,24 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
                                         &error_abort);
 }
 
+static int block_job_event_pending(BlockJob *job)
+{
+    block_job_state_transition(job, BLOCK_JOB_STATUS_PENDING);
+    if (!job->auto_finalize && !block_job_is_internal(job)) {
+        qapi_event_send_block_job_pending(job->driver->job_type,
+                                          job->id,
+                                          &error_abort);
+    }
+    return 0;
+}
+
 /*
  * API for block job drivers and the block layer.  These functions are
  * declared in blockjob_int.h.
  */
 
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockDriverState *bs, uint64_t perm,
+                       BlockJobTxn *txn, BlockDriverState *bs, uint64_t perm,
                        uint64_t shared_perm, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp)
 {
@@ -702,6 +938,9 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->paused        = true;
     job->pause_count   = 1;
     job->refcnt        = 1;
+    job->auto_finalize = !(flags & BLOCK_JOB_MANUAL_FINALIZE);
+    job->auto_dismiss  = !(flags & BLOCK_JOB_MANUAL_DISMISS);
+    block_job_state_transition(job, BLOCK_JOB_STATUS_CREATED);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
                    QEMU_CLOCK_REALTIME, SCALE_NS,
                    block_job_sleep_timer_cb, job);
@@ -724,11 +963,22 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
         block_job_set_speed(job, speed, &local_err);
         if (local_err) {
-            block_job_unref(job);
+            block_job_early_fail(job);
             error_propagate(errp, local_err);
             return NULL;
         }
     }
+
+    /* Single jobs are modeled as single-job transactions for sake of
+     * consolidating the job management logic */
+    if (!txn) {
+        txn = block_job_txn_new();
+        block_job_txn_add_job(txn, job);
+        block_job_txn_unref(txn);
+    } else {
+        block_job_txn_add_job(txn, job);
+    }
+
     return job;
 }
 
@@ -747,18 +997,19 @@ void block_job_pause_all(void)
 
 void block_job_early_fail(BlockJob *job)
 {
-    block_job_unref(job);
+    assert(job->status == BLOCK_JOB_STATUS_CREATED);
+    block_job_decommission(job);
 }
 
 void block_job_completed(BlockJob *job, int ret)
 {
+    assert(job && job->txn && !job->completed);
     assert(blk_bs(job->blk)->job == job);
-    assert(!job->completed);
     job->completed = true;
     job->ret = ret;
-    if (!job->txn) {
-        block_job_completed_single(job);
-    } else if (ret < 0 || block_job_is_cancelled(job)) {
+    block_job_update_rc(job);
+    trace_block_job_completed(job, ret, job->ret);
+    if (job->ret) {
         block_job_completed_txn_abort(job);
     } else {
         block_job_completed_txn_success(job);
@@ -806,9 +1057,14 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
     }
 
     if (block_job_should_pause(job) && !block_job_is_cancelled(job)) {
+        BlockJobStatus status = job->status;
+        block_job_state_transition(job, status == BLOCK_JOB_STATUS_READY ? \
+                                   BLOCK_JOB_STATUS_STANDBY :           \
+                                   BLOCK_JOB_STATUS_PAUSED);
         job->paused = true;
         block_job_do_yield(job, -1);
         job->paused = false;
+        block_job_state_transition(job, status);
     }
 
     if (job->driver->resume) {
@@ -914,6 +1170,7 @@ void block_job_iostatus_reset(BlockJob *job)
 
 void block_job_event_ready(BlockJob *job)
 {
+    block_job_state_transition(job, BLOCK_JOB_STATUS_READY);
     job->ready = true;
 
     if (block_job_is_internal(job)) {
@@ -957,8 +1214,9 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         action, &error_abort);
     }
     if (action == BLOCK_ERROR_ACTION_STOP) {
+        block_job_pause(job);
         /* make the pause user visible, which will be resumed from QMP. */
-        block_job_user_pause(job);
+        job->user_paused = true;
         block_job_iostatus_set_err(job, error);
     }
     return action;

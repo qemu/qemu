@@ -86,11 +86,9 @@ class TestSingleDrive(iotests.QMPTestCase):
                              target=target, sync='full')
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('block-job-pause', device='drive0')
-        self.assert_qmp(result, 'return', {})
-
+        self.pause_job('drive0', wait=False)
         self.vm.resume_drive('drive0')
-        self.pause_job('drive0')
+        self.pause_wait('drive0')
 
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')
@@ -303,13 +301,12 @@ class TestSingleTransaction(iotests.QMPTestCase):
         ])
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('block-job-pause', device='drive0')
-        self.assert_qmp(result, 'return', {})
+        self.pause_job('drive0', wait=False)
 
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
         self.assert_qmp(result, 'return', {})
 
-        self.pause_job('drive0')
+        self.pause_wait('drive0')
 
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')
@@ -534,11 +531,9 @@ class TestDriveCompression(iotests.QMPTestCase):
         result = self.vm.qmp(cmd, device='drive0', sync='full', compress=True, **args)
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('block-job-pause', device='drive0')
-        self.assert_qmp(result, 'return', {})
-
+        self.pause_job('drive0', wait=False)
         self.vm.resume_drive('drive0')
-        self.pause_job('drive0')
+        self.pause_wait('drive0')
 
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')

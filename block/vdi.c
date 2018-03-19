@@ -51,6 +51,9 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qapi-visit-block-core.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
@@ -139,6 +142,8 @@
     ((unsigned)((INT_MAX + 1u - BDRV_SECTOR_SIZE) / sizeof(uint32_t)))
 #define VDI_DISK_SIZE_MAX        ((uint64_t)VDI_BLOCKS_IN_IMAGE_MAX * \
                                   (uint64_t)DEFAULT_CLUSTER_SIZE)
+
+static QemuOptsList vdi_create_opts;
 
 typedef struct {
     char text[0x40];
@@ -716,36 +721,46 @@ nonallocating_write:
     return ret;
 }
 
-static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
-                                           Error **errp)
+static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
+                                         size_t block_size, Error **errp)
 {
+    BlockdevCreateOptionsVdi *vdi_opts;
     int ret = 0;
     uint64_t bytes = 0;
     uint32_t blocks;
-    size_t block_size = DEFAULT_CLUSTER_SIZE;
     uint32_t image_type = VDI_TYPE_DYNAMIC;
     VdiHeader header;
     size_t i;
     size_t bmap_size;
     int64_t offset = 0;
-    Error *local_err = NULL;
+    BlockDriverState *bs_file = NULL;
     BlockBackend *blk = NULL;
     uint32_t *bmap = NULL;
 
+    assert(create_options->driver == BLOCKDEV_DRIVER_VDI);
+    vdi_opts = &create_options->u.vdi;
+
     logout("\n");
 
-    /* Read out options. */
-    bytes = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                     BDRV_SECTOR_SIZE);
-#if defined(CONFIG_VDI_BLOCK_SIZE)
-    /* TODO: Additional checks (SECTOR_SIZE * 2^n, ...). */
-    block_size = qemu_opt_get_size_del(opts,
-                                       BLOCK_OPT_CLUSTER_SIZE,
-                                       DEFAULT_CLUSTER_SIZE);
-#endif
-#if defined(CONFIG_VDI_STATIC_IMAGE)
-    if (qemu_opt_get_bool_del(opts, BLOCK_OPT_STATIC, false)) {
+    /* Validate options and set default values */
+    bytes = vdi_opts->size;
+    if (vdi_opts->q_static) {
         image_type = VDI_TYPE_STATIC;
+    }
+#ifndef CONFIG_VDI_STATIC_IMAGE
+    if (image_type == VDI_TYPE_STATIC) {
+        ret = -ENOTSUP;
+        error_setg(errp, "Statically allocated images cannot be created in "
+                   "this build");
+        goto exit;
+    }
+#endif
+#ifndef CONFIG_VDI_BLOCK_SIZE
+    if (block_size != DEFAULT_CLUSTER_SIZE) {
+        ret = -ENOTSUP;
+        error_setg(errp,
+                   "A non-default cluster size is not supported in this build");
+        goto exit;
     }
 #endif
 
@@ -757,18 +772,16 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
         goto exit;
     }
 
-    ret = bdrv_create_file(filename, opts, &local_err);
-    if (ret < 0) {
-        error_propagate(errp, local_err);
+    /* Create BlockBackend to write to the image */
+    bs_file = bdrv_open_blockdev_ref(vdi_opts->file, errp);
+    if (!bs_file) {
+        ret = -EIO;
         goto exit;
     }
 
-    blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
-                       &local_err);
-    if (blk == NULL) {
-        error_propagate(errp, local_err);
-        ret = -EIO;
+    blk = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
+    ret = blk_insert_bs(blk, bs_file, errp);
+    if (ret < 0) {
         goto exit;
     }
 
@@ -805,7 +818,7 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
     vdi_header_to_le(&header);
     ret = blk_pwrite(blk, offset, &header, sizeof(header), 0);
     if (ret < 0) {
-        error_setg(errp, "Error writing header to %s", filename);
+        error_setg(errp, "Error writing header");
         goto exit;
     }
     offset += sizeof(header);
@@ -826,7 +839,7 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
         }
         ret = blk_pwrite(blk, offset, bmap, bmap_size, 0);
         if (ret < 0) {
-            error_setg(errp, "Error writing bmap to %s", filename);
+            error_setg(errp, "Error writing bmap");
             goto exit;
         }
         offset += bmap_size;
@@ -836,14 +849,93 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
         ret = blk_truncate(blk, offset + blocks * block_size,
                            PREALLOC_MODE_OFF, errp);
         if (ret < 0) {
-            error_prepend(errp, "Failed to statically allocate %s", filename);
+            error_prepend(errp, "Failed to statically allocate file");
             goto exit;
         }
     }
 
 exit:
     blk_unref(blk);
+    bdrv_unref(bs_file);
     g_free(bmap);
+    return ret;
+}
+
+static int coroutine_fn vdi_co_create(BlockdevCreateOptions *create_options,
+                                      Error **errp)
+{
+    return vdi_co_do_create(create_options, DEFAULT_CLUSTER_SIZE, errp);
+}
+
+static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
+                                           Error **errp)
+{
+    QDict *qdict = NULL;
+    BlockdevCreateOptions *create_options = NULL;
+    BlockDriverState *bs_file = NULL;
+    uint64_t block_size = DEFAULT_CLUSTER_SIZE;
+    Visitor *v;
+    Error *local_err = NULL;
+    int ret;
+
+    /* Parse options and convert legacy syntax.
+     *
+     * Since CONFIG_VDI_BLOCK_SIZE is disabled by default,
+     * cluster-size is not part of the QAPI schema; therefore we have
+     * to parse it before creating the QAPI object. */
+#if defined(CONFIG_VDI_BLOCK_SIZE)
+    block_size = qemu_opt_get_size_del(opts,
+                                       BLOCK_OPT_CLUSTER_SIZE,
+                                       DEFAULT_CLUSTER_SIZE);
+    if (block_size < BDRV_SECTOR_SIZE || block_size > UINT32_MAX ||
+        !is_power_of_2(block_size))
+    {
+        error_setg(errp, "Invalid cluster size");
+        ret = -EINVAL;
+        goto done;
+    }
+#endif
+
+    qdict = qemu_opts_to_qdict_filtered(opts, NULL, &vdi_create_opts, true);
+
+    /* Create and open the file (protocol layer) */
+    ret = bdrv_create_file(filename, opts, errp);
+    if (ret < 0) {
+        goto done;
+    }
+
+    bs_file = bdrv_open(filename, NULL, NULL,
+                        BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
+    if (!bs_file) {
+        ret = -EIO;
+        goto done;
+    }
+
+    qdict_put_str(qdict, "driver", "vdi");
+    qdict_put_str(qdict, "file", bs_file->node_name);
+
+    /* Get the QAPI object */
+    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
+    visit_free(v);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto done;
+    }
+
+    /* Silently round up size */
+    assert(create_options->driver == BLOCKDEV_DRIVER_VDI);
+    create_options->u.vdi.size = ROUND_UP(create_options->u.vdi.size,
+                                          BDRV_SECTOR_SIZE);
+
+    /* Create the vdi image (format layer) */
+    ret = vdi_co_do_create(create_options, block_size, errp);
+done:
+    QDECREF(qdict);
+    qapi_free_BlockdevCreateOptions(create_options);
+    bdrv_unref(bs_file);
     return ret;
 }
 
@@ -895,6 +987,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_close = vdi_close,
     .bdrv_reopen_prepare = vdi_reopen_prepare,
     .bdrv_child_perm          = bdrv_format_default_perms,
+    .bdrv_co_create      = vdi_co_create,
     .bdrv_co_create_opts = vdi_co_create_opts,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_block_status = vdi_co_block_status,

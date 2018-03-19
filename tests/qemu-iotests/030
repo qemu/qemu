@@ -86,11 +86,9 @@ class TestSingleDrive(iotests.QMPTestCase):
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('block-job-pause', device='drive0')
-        self.assert_qmp(result, 'return', {})
-
+        self.pause_job('drive0', wait=False)
         self.vm.resume_drive('drive0')
-        self.pause_job('drive0')
+        self.pause_wait('drive0')
 
         result = self.vm.qmp('query-block-jobs')
         offset = self.dictpath(result, 'return[0]/offset')

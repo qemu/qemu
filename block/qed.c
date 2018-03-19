@@ -20,6 +20,11 @@
 #include "trace.h"
 #include "qed.h"
 #include "sysemu/block-backend.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qapi-visit-block-core.h"
+
+static QemuOptsList qed_create_opts;
 
 static int bdrv_qed_probe(const uint8_t *buf, int buf_size,
                           const char *filename)
@@ -594,43 +599,78 @@ static void bdrv_qed_close(BlockDriverState *bs)
     qemu_vfree(s->l1_table);
 }
 
-static int qed_create(const char *filename, uint32_t cluster_size,
-                      uint64_t image_size, uint32_t table_size,
-                      const char *backing_file, const char *backing_fmt,
-                      QemuOpts *opts, Error **errp)
+static int coroutine_fn bdrv_qed_co_create(BlockdevCreateOptions *opts,
+                                           Error **errp)
 {
-    QEDHeader header = {
-        .magic = QED_MAGIC,
-        .cluster_size = cluster_size,
-        .table_size = table_size,
-        .header_size = 1,
-        .features = 0,
-        .compat_features = 0,
-        .l1_table_offset = cluster_size,
-        .image_size = image_size,
-    };
+    BlockdevCreateOptionsQed *qed_opts;
+    BlockBackend *blk = NULL;
+    BlockDriverState *bs = NULL;
+
+    QEDHeader header;
     QEDHeader le_header;
     uint8_t *l1_table = NULL;
-    size_t l1_size = header.cluster_size * header.table_size;
-    Error *local_err = NULL;
+    size_t l1_size;
     int ret = 0;
-    BlockBackend *blk;
 
-    ret = bdrv_create_file(filename, opts, &local_err);
-    if (ret < 0) {
-        error_propagate(errp, local_err);
-        return ret;
+    assert(opts->driver == BLOCKDEV_DRIVER_QED);
+    qed_opts = &opts->u.qed;
+
+    /* Validate options and set default values */
+    if (!qed_opts->has_cluster_size) {
+        qed_opts->cluster_size = QED_DEFAULT_CLUSTER_SIZE;
+    }
+    if (!qed_opts->has_table_size) {
+        qed_opts->table_size = QED_DEFAULT_TABLE_SIZE;
     }
 
-    blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
-                       &local_err);
-    if (blk == NULL) {
-        error_propagate(errp, local_err);
+    if (!qed_is_cluster_size_valid(qed_opts->cluster_size)) {
+        error_setg(errp, "QED cluster size must be within range [%u, %u] "
+                         "and power of 2",
+                   QED_MIN_CLUSTER_SIZE, QED_MAX_CLUSTER_SIZE);
+        return -EINVAL;
+    }
+    if (!qed_is_table_size_valid(qed_opts->table_size)) {
+        error_setg(errp, "QED table size must be within range [%u, %u] "
+                         "and power of 2",
+                   QED_MIN_TABLE_SIZE, QED_MAX_TABLE_SIZE);
+        return -EINVAL;
+    }
+    if (!qed_is_image_size_valid(qed_opts->size, qed_opts->cluster_size,
+                                 qed_opts->table_size))
+    {
+        error_setg(errp, "QED image size must be a non-zero multiple of "
+                         "cluster size and less than %" PRIu64 " bytes",
+                   qed_max_image_size(qed_opts->cluster_size,
+                                      qed_opts->table_size));
+        return -EINVAL;
+    }
+
+    /* Create BlockBackend to write to the image */
+    bs = bdrv_open_blockdev_ref(qed_opts->file, errp);
+    if (bs == NULL) {
         return -EIO;
     }
 
+    blk = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        goto out;
+    }
     blk_set_allow_write_beyond_eof(blk, true);
+
+    /* Prepare image format */
+    header = (QEDHeader) {
+        .magic = QED_MAGIC,
+        .cluster_size = qed_opts->cluster_size,
+        .table_size = qed_opts->table_size,
+        .header_size = 1,
+        .features = 0,
+        .compat_features = 0,
+        .l1_table_offset = qed_opts->cluster_size,
+        .image_size = qed_opts->size,
+    };
+
+    l1_size = header.cluster_size * header.table_size;
 
     /* File must start empty and grow, check truncate is supported */
     ret = blk_truncate(blk, 0, PREALLOC_MODE_OFF, errp);
@@ -638,13 +678,16 @@ static int qed_create(const char *filename, uint32_t cluster_size,
         goto out;
     }
 
-    if (backing_file) {
+    if (qed_opts->has_backing_file) {
         header.features |= QED_F_BACKING_FILE;
         header.backing_filename_offset = sizeof(le_header);
-        header.backing_filename_size = strlen(backing_file);
+        header.backing_filename_size = strlen(qed_opts->backing_file);
 
-        if (qed_fmt_is_raw(backing_fmt)) {
-            header.features |= QED_F_BACKING_FORMAT_NO_PROBE;
+        if (qed_opts->has_backing_fmt) {
+            const char *backing_fmt = BlockdevDriver_str(qed_opts->backing_fmt);
+            if (qed_fmt_is_raw(backing_fmt)) {
+                header.features |= QED_F_BACKING_FORMAT_NO_PROBE;
+            }
         }
     }
 
@@ -653,7 +696,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
     if (ret < 0) {
         goto out;
     }
-    ret = blk_pwrite(blk, sizeof(le_header), backing_file,
+    ret = blk_pwrite(blk, sizeof(le_header), qed_opts->backing_file,
                      header.backing_filename_size, 0);
     if (ret < 0) {
         goto out;
@@ -669,6 +712,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
 out:
     g_free(l1_table);
     blk_unref(blk);
+    bdrv_unref(bs);
     return ret;
 }
 
@@ -676,51 +720,78 @@ static int coroutine_fn bdrv_qed_co_create_opts(const char *filename,
                                                 QemuOpts *opts,
                                                 Error **errp)
 {
-    uint64_t image_size = 0;
-    uint32_t cluster_size = QED_DEFAULT_CLUSTER_SIZE;
-    uint32_t table_size = QED_DEFAULT_TABLE_SIZE;
-    char *backing_file = NULL;
-    char *backing_fmt = NULL;
+    BlockdevCreateOptions *create_options = NULL;
+    QDict *qdict = NULL;
+    QObject *qobj;
+    Visitor *v;
+    BlockDriverState *bs = NULL;
+    Error *local_err = NULL;
     int ret;
 
-    image_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                          BDRV_SECTOR_SIZE);
-    backing_file = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FILE);
-    backing_fmt = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FMT);
-    cluster_size = qemu_opt_get_size_del(opts,
-                                         BLOCK_OPT_CLUSTER_SIZE,
-                                         QED_DEFAULT_CLUSTER_SIZE);
-    table_size = qemu_opt_get_size_del(opts, BLOCK_OPT_TABLE_SIZE,
-                                       QED_DEFAULT_TABLE_SIZE);
+    static const QDictRenames opt_renames[] = {
+        { BLOCK_OPT_BACKING_FILE,       "backing-file" },
+        { BLOCK_OPT_BACKING_FMT,        "backing-fmt" },
+        { BLOCK_OPT_CLUSTER_SIZE,       "cluster-size" },
+        { BLOCK_OPT_TABLE_SIZE,         "table-size" },
+        { NULL, NULL },
+    };
 
-    if (!qed_is_cluster_size_valid(cluster_size)) {
-        error_setg(errp, "QED cluster size must be within range [%u, %u] "
-                         "and power of 2",
-                   QED_MIN_CLUSTER_SIZE, QED_MAX_CLUSTER_SIZE);
+    /* Parse options and convert legacy syntax */
+    qdict = qemu_opts_to_qdict_filtered(opts, NULL, &qed_create_opts, true);
+
+    if (!qdict_rename_keys(qdict, opt_renames, errp)) {
         ret = -EINVAL;
-        goto finish;
-    }
-    if (!qed_is_table_size_valid(table_size)) {
-        error_setg(errp, "QED table size must be within range [%u, %u] "
-                         "and power of 2",
-                   QED_MIN_TABLE_SIZE, QED_MAX_TABLE_SIZE);
-        ret = -EINVAL;
-        goto finish;
-    }
-    if (!qed_is_image_size_valid(image_size, cluster_size, table_size)) {
-        error_setg(errp, "QED image size must be a non-zero multiple of "
-                         "cluster size and less than %" PRIu64 " bytes",
-                   qed_max_image_size(cluster_size, table_size));
-        ret = -EINVAL;
-        goto finish;
+        goto fail;
     }
 
-    ret = qed_create(filename, cluster_size, image_size, table_size,
-                     backing_file, backing_fmt, opts, errp);
+    /* Create and open the file (protocol layer) */
+    ret = bdrv_create_file(filename, opts, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        goto fail;
+    }
 
-finish:
-    g_free(backing_file);
-    g_free(backing_fmt);
+    bs = bdrv_open(filename, NULL, NULL,
+                   BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
+    if (bs == NULL) {
+        ret = -EIO;
+        goto fail;
+    }
+
+    /* Now get the QAPI type BlockdevCreateOptions */
+    qdict_put_str(qdict, "driver", "qed");
+    qdict_put_str(qdict, "file", bs->node_name);
+
+    qobj = qdict_crumple(qdict, errp);
+    QDECREF(qdict);
+    qdict = qobject_to_qdict(qobj);
+    if (qdict == NULL) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
+    visit_free(v);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* Silently round up size */
+    assert(create_options->driver == BLOCKDEV_DRIVER_QED);
+    create_options->u.qed.size =
+        ROUND_UP(create_options->u.qed.size, BDRV_SECTOR_SIZE);
+
+    /* Create the qed image (format layer) */
+    ret = bdrv_qed_co_create(create_options, errp);
+
+fail:
+    QDECREF(qdict);
+    bdrv_unref(bs);
+    qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }
 
@@ -1602,6 +1673,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_close               = bdrv_qed_close,
     .bdrv_reopen_prepare      = bdrv_qed_reopen_prepare,
     .bdrv_child_perm          = bdrv_format_default_perms,
+    .bdrv_co_create           = bdrv_qed_co_create,
     .bdrv_co_create_opts      = bdrv_qed_co_create_opts,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
     .bdrv_co_block_status     = bdrv_qed_co_block_status,

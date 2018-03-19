@@ -332,7 +332,7 @@ _img_info()
 
     discard=0
     regex_json_spec_start='^ *"format-specific": \{'
-    $QEMU_IMG info "$@" "$TEST_IMG" 2>&1 | \
+    $QEMU_IMG info $QEMU_IMG_EXTRA_ARGS "$@" "$TEST_IMG" 2>&1 | \
         sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGFMT#IMGFMT#g" \

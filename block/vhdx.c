@@ -26,6 +26,9 @@
 #include "block/vhdx.h"
 #include "migration/blocker.h"
 #include "qemu/uuid.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qapi-visit-block-core.h"
 
 /* Options for VHDX creation */
 
@@ -38,6 +41,8 @@ typedef enum VHDXImageType {
     VHDX_TYPE_FIXED,
     VHDX_TYPE_DIFFERENCING,   /* Currently unsupported */
 } VHDXImageType;
+
+static QemuOptsList vhdx_create_opts;
 
 /* Several metadata and region table data entries are identified by
  * guids in  a MS-specific GUID format. */
@@ -1792,59 +1797,71 @@ exit:
  *    .---- ~ ----------- ~ ------------ ~ ---------------- ~ -----------.
  *   1MB
  */
-static int coroutine_fn vhdx_co_create_opts(const char *filename, QemuOpts *opts,
-                                            Error **errp)
+static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
+                                       Error **errp)
 {
+    BlockdevCreateOptionsVhdx *vhdx_opts;
+    BlockBackend *blk = NULL;
+    BlockDriverState *bs = NULL;
+
     int ret = 0;
-    uint64_t image_size = (uint64_t) 2 * GiB;
-    uint32_t log_size   = 1 * MiB;
-    uint32_t block_size = 0;
+    uint64_t image_size;
+    uint32_t log_size;
+    uint32_t block_size;
     uint64_t signature;
     uint64_t metadata_offset;
     bool use_zero_blocks = false;
 
     gunichar2 *creator = NULL;
     glong creator_items;
-    BlockBackend *blk;
-    char *type = NULL;
     VHDXImageType image_type;
-    Error *local_err = NULL;
 
-    image_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                          BDRV_SECTOR_SIZE);
-    log_size = qemu_opt_get_size_del(opts, VHDX_BLOCK_OPT_LOG_SIZE, 0);
-    block_size = qemu_opt_get_size_del(opts, VHDX_BLOCK_OPT_BLOCK_SIZE, 0);
-    type = qemu_opt_get_del(opts, BLOCK_OPT_SUBFMT);
-    use_zero_blocks = qemu_opt_get_bool_del(opts, VHDX_BLOCK_OPT_ZERO, true);
+    assert(opts->driver == BLOCKDEV_DRIVER_VHDX);
+    vhdx_opts = &opts->u.vhdx;
 
+    /* Validate options and set default values */
+    image_size = vhdx_opts->size;
     if (image_size > VHDX_MAX_IMAGE_SIZE) {
         error_setg_errno(errp, EINVAL, "Image size too large; max of 64TB");
-        ret = -EINVAL;
-        goto exit;
+        return -EINVAL;
     }
 
-    if (type == NULL) {
-        type = g_strdup("dynamic");
-    }
-
-    if (!strcmp(type, "dynamic")) {
-        image_type = VHDX_TYPE_DYNAMIC;
-    } else if (!strcmp(type, "fixed")) {
-        image_type = VHDX_TYPE_FIXED;
-    } else if (!strcmp(type, "differencing")) {
-        error_setg_errno(errp, ENOTSUP,
-                         "Differencing files not yet supported");
-        ret = -ENOTSUP;
-        goto exit;
+    if (!vhdx_opts->has_log_size) {
+        log_size = DEFAULT_LOG_SIZE;
     } else {
-        error_setg(errp, "Invalid subformat '%s'", type);
-        ret = -EINVAL;
-        goto exit;
+        log_size = vhdx_opts->log_size;
+    }
+    if (log_size < MiB || (log_size % MiB) != 0) {
+        error_setg_errno(errp, EINVAL, "Log size must be a multiple of 1 MB");
+        return -EINVAL;
+    }
+
+    if (!vhdx_opts->has_block_state_zero) {
+        use_zero_blocks = true;
+    } else {
+        use_zero_blocks = vhdx_opts->block_state_zero;
+    }
+
+    if (!vhdx_opts->has_subformat) {
+        vhdx_opts->subformat = BLOCKDEV_VHDX_SUBFORMAT_DYNAMIC;
+    }
+
+    switch (vhdx_opts->subformat) {
+    case BLOCKDEV_VHDX_SUBFORMAT_DYNAMIC:
+        image_type = VHDX_TYPE_DYNAMIC;
+        break;
+    case BLOCKDEV_VHDX_SUBFORMAT_FIXED:
+        image_type = VHDX_TYPE_FIXED;
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     /* These are pretty arbitrary, and mainly designed to keep the BAT
      * size reasonable to load into RAM */
-    if (block_size == 0) {
+    if (vhdx_opts->has_block_size) {
+        block_size = vhdx_opts->block_size;
+    } else {
         if (image_size > 32 * TiB) {
             block_size = 64 * MiB;
         } else if (image_size > (uint64_t) 100 * GiB) {
@@ -1856,30 +1873,27 @@ static int coroutine_fn vhdx_co_create_opts(const char *filename, QemuOpts *opts
         }
     }
 
+    if (block_size < MiB || (block_size % MiB) != 0) {
+        error_setg_errno(errp, EINVAL, "Block size must be a multiple of 1 MB");
+        return -EINVAL;
+    }
+    if (block_size > VHDX_BLOCK_SIZE_MAX) {
+        error_setg_errno(errp, EINVAL, "Block size must not exceed %d",
+                         VHDX_BLOCK_SIZE_MAX);
+        return -EINVAL;
+    }
 
-    /* make the log size close to what was specified, but must be
-     * min 1MB, and multiple of 1MB */
-    log_size = ROUND_UP(log_size, MiB);
+    /* Create BlockBackend to write to the image */
+    bs = bdrv_open_blockdev_ref(vhdx_opts->file, errp);
+    if (bs == NULL) {
+        return -EIO;
+    }
 
-    block_size = ROUND_UP(block_size, MiB);
-    block_size = block_size > VHDX_BLOCK_SIZE_MAX ? VHDX_BLOCK_SIZE_MAX :
-                                                    block_size;
-
-    ret = bdrv_create_file(filename, opts, &local_err);
+    blk = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
+    ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {
-        error_propagate(errp, local_err);
-        goto exit;
+        goto delete_and_exit;
     }
-
-    blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
-                       &local_err);
-    if (blk == NULL) {
-        error_propagate(errp, local_err);
-        ret = -EIO;
-        goto exit;
-    }
-
     blk_set_allow_write_beyond_eof(blk, true);
 
     /* Create (A) */
@@ -1931,9 +1945,106 @@ static int coroutine_fn vhdx_co_create_opts(const char *filename, QemuOpts *opts
 
 delete_and_exit:
     blk_unref(blk);
-exit:
-    g_free(type);
+    bdrv_unref(bs);
     g_free(creator);
+    return ret;
+}
+
+static int coroutine_fn vhdx_co_create_opts(const char *filename,
+                                            QemuOpts *opts,
+                                            Error **errp)
+{
+    BlockdevCreateOptions *create_options = NULL;
+    QDict *qdict = NULL;
+    QObject *qobj;
+    Visitor *v;
+    BlockDriverState *bs = NULL;
+    Error *local_err = NULL;
+    int ret;
+
+    static const QDictRenames opt_renames[] = {
+        { VHDX_BLOCK_OPT_LOG_SIZE,      "log-size" },
+        { VHDX_BLOCK_OPT_BLOCK_SIZE,    "block-size" },
+        { VHDX_BLOCK_OPT_ZERO,          "block-state-zero" },
+        { NULL, NULL },
+    };
+
+    /* Parse options and convert legacy syntax */
+    qdict = qemu_opts_to_qdict_filtered(opts, NULL, &vhdx_create_opts, true);
+
+    if (!qdict_rename_keys(qdict, opt_renames, errp)) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* Create and open the file (protocol layer) */
+    ret = bdrv_create_file(filename, opts, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        goto fail;
+    }
+
+    bs = bdrv_open(filename, NULL, NULL,
+                   BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
+    if (bs == NULL) {
+        ret = -EIO;
+        goto fail;
+    }
+
+    /* Now get the QAPI type BlockdevCreateOptions */
+    qdict_put_str(qdict, "driver", "vhdx");
+    qdict_put_str(qdict, "file", bs->node_name);
+
+    qobj = qdict_crumple(qdict, errp);
+    QDECREF(qdict);
+    qdict = qobject_to_qdict(qobj);
+    if (qdict == NULL) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
+    visit_free(v);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* Silently round up sizes:
+     * The image size is rounded to 512 bytes. Make the block and log size
+     * close to what was specified, but must be at least 1MB, and a multiple of
+     * 1 MB. Also respect VHDX_BLOCK_SIZE_MAX for block sizes. block_size = 0
+     * means auto, which is represented by a missing key in QAPI. */
+    assert(create_options->driver == BLOCKDEV_DRIVER_VHDX);
+    create_options->u.vhdx.size =
+        ROUND_UP(create_options->u.vhdx.size, BDRV_SECTOR_SIZE);
+
+    if (create_options->u.vhdx.has_log_size) {
+        create_options->u.vhdx.log_size =
+            ROUND_UP(create_options->u.vhdx.log_size, MiB);
+    }
+    if (create_options->u.vhdx.has_block_size) {
+        create_options->u.vhdx.block_size =
+            ROUND_UP(create_options->u.vhdx.block_size, MiB);
+
+        if (create_options->u.vhdx.block_size == 0) {
+            create_options->u.vhdx.has_block_size = false;
+        }
+        if (create_options->u.vhdx.block_size > VHDX_BLOCK_SIZE_MAX) {
+            create_options->u.vhdx.block_size = VHDX_BLOCK_SIZE_MAX;
+        }
+    }
+
+    /* Create the vhdx image (format layer) */
+    ret = vhdx_co_create(create_options, errp);
+
+fail:
+    QDECREF(qdict);
+    bdrv_unref(bs);
+    qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }
 
@@ -2005,6 +2116,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_child_perm        = bdrv_format_default_perms,
     .bdrv_co_readv          = vhdx_co_readv,
     .bdrv_co_writev         = vhdx_co_writev,
+    .bdrv_co_create         = vhdx_co_create,
     .bdrv_co_create_opts    = vhdx_co_create_opts,
     .bdrv_get_info          = vhdx_get_info,
     .bdrv_co_check          = vhdx_co_check,

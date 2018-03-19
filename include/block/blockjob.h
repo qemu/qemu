@@ -63,6 +63,12 @@ typedef struct BlockJob {
     bool cancelled;
 
     /**
+     * Set to true if the job should abort immediately without waiting
+     * for data to be in sync.
+     */
+    bool force;
+
+    /**
      * Counter for pause request. If non-zero, the block job is either paused,
      * or if busy == true will pause itself as soon as possible.
      */
@@ -127,12 +133,10 @@ typedef struct BlockJob {
     /** Reference count of the block job */
     int refcnt;
 
-    /* True if this job has reported completion by calling block_job_completed.
-     */
+    /** True when job has reported completion by calling block_job_completed. */
     bool completed;
 
-    /* ret code passed to block_job_completed.
-     */
+    /** ret code passed to block_job_completed. */
     int ret;
 
     /**
@@ -141,14 +145,28 @@ typedef struct BlockJob {
      */
     QEMUTimer sleep_timer;
 
-    /** Non-NULL if this job is part of a transaction */
+    /** Current state; See @BlockJobStatus for details. */
+    BlockJobStatus status;
+
+    /** True if this job should automatically finalize itself */
+    bool auto_finalize;
+
+    /** True if this job should automatically dismiss itself */
+    bool auto_dismiss;
+
     BlockJobTxn *txn;
     QLIST_ENTRY(BlockJob) txn_list;
 } BlockJob;
 
 typedef enum BlockJobCreateFlags {
+    /* Default behavior */
     BLOCK_JOB_DEFAULT = 0x00,
+    /* BlockJob is not QMP-created and should not send QMP events */
     BLOCK_JOB_INTERNAL = 0x01,
+    /* BlockJob requires manual finalize step */
+    BLOCK_JOB_MANUAL_FINALIZE = 0x02,
+    /* BlockJob requires manual dismiss step */
+    BLOCK_JOB_MANUAL_DISMISS = 0x04,
 } BlockJobCreateFlags;
 
 /**
@@ -218,10 +236,11 @@ void block_job_start(BlockJob *job);
 /**
  * block_job_cancel:
  * @job: The job to be canceled.
+ * @force: Quit a job without waiting for data to be in sync.
  *
  * Asynchronously cancel the specified job.
  */
-void block_job_cancel(BlockJob *job);
+void block_job_cancel(BlockJob *job, bool force);
 
 /**
  * block_job_complete:
@@ -231,6 +250,32 @@ void block_job_cancel(BlockJob *job);
  * Asynchronously complete the specified job.
  */
 void block_job_complete(BlockJob *job, Error **errp);
+
+
+/**
+ * block_job_finalize:
+ * @job: The job to fully commit and finish.
+ * @errp: Error object.
+ *
+ * For jobs that have finished their work and are pending
+ * awaiting explicit acknowledgement to commit their work,
+ * This will commit that work.
+ *
+ * FIXME: Make the below statement universally true:
+ * For jobs that support the manual workflow mode, all graph
+ * changes that occur as a result will occur after this command
+ * and before a successful reply.
+ */
+void block_job_finalize(BlockJob *job, Error **errp);
+
+/**
+ * block_job_dismiss:
+ * @job: The job to be dismissed.
+ * @errp: Error object.
+ *
+ * Remove a concluded job from the query list.
+ */
+void block_job_dismiss(BlockJob **job, Error **errp);
 
 /**
  * block_job_query:
@@ -247,7 +292,7 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp);
  * Asynchronously pause the specified job.
  * Do not allow a resume until a matching call to block_job_user_resume.
  */
-void block_job_user_pause(BlockJob *job);
+void block_job_user_pause(BlockJob *job, Error **errp);
 
 /**
  * block_job_paused:
@@ -264,7 +309,17 @@ bool block_job_user_paused(BlockJob *job);
  * Resume the specified job.
  * Must be paired with a preceding block_job_user_pause.
  */
-void block_job_user_resume(BlockJob *job);
+void block_job_user_resume(BlockJob *job, Error **errp);
+
+/**
+ * block_job_user_cancel:
+ * @job: The job to be cancelled.
+ * @force: Quit a job without waiting for data to be in sync.
+ *
+ * Cancels the specified job, but may refuse to do so if the
+ * operation isn't currently meaningful.
+ */
+void block_job_user_cancel(BlockJob *job, bool force, Error **errp);
 
 /**
  * block_job_cancel_sync:

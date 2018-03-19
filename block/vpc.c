@@ -32,6 +32,9 @@
 #include "migration/blocker.h"
 #include "qemu/bswap.h"
 #include "qemu/uuid.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qobject-input-visitor.h"
+#include "qapi/qapi-visit-block-core.h"
 
 /**************************************************************/
 
@@ -165,6 +168,8 @@ static QemuOptsList vpc_runtime_opts = {
         { /* end of list */ }
     }
 };
+
+static QemuOptsList vpc_create_opts;
 
 static uint32_t vpc_checksum(uint8_t* buf, size_t size)
 {
@@ -897,60 +902,19 @@ static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
     return ret;
 }
 
-static int coroutine_fn vpc_co_create_opts(const char *filename, QemuOpts *opts,
-                                           Error **errp)
+static int calculate_rounded_image_size(BlockdevCreateOptionsVpc *vpc_opts,
+                                        uint16_t *out_cyls,
+                                        uint8_t *out_heads,
+                                        uint8_t *out_secs_per_cyl,
+                                        int64_t *out_total_sectors,
+                                        Error **errp)
 {
-    uint8_t buf[1024];
-    VHDFooter *footer = (VHDFooter *) buf;
-    char *disk_type_param;
-    int i;
+    int64_t total_size = vpc_opts->size;
     uint16_t cyls = 0;
     uint8_t heads = 0;
     uint8_t secs_per_cyl = 0;
     int64_t total_sectors;
-    int64_t total_size;
-    int disk_type;
-    int ret = -EIO;
-    bool force_size;
-    Error *local_err = NULL;
-    BlockBackend *blk = NULL;
-
-    /* Read out options */
-    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
-                          BDRV_SECTOR_SIZE);
-    disk_type_param = qemu_opt_get_del(opts, BLOCK_OPT_SUBFMT);
-    if (disk_type_param) {
-        if (!strcmp(disk_type_param, "dynamic")) {
-            disk_type = VHD_DYNAMIC;
-        } else if (!strcmp(disk_type_param, "fixed")) {
-            disk_type = VHD_FIXED;
-        } else {
-            error_setg(errp, "Invalid disk type, %s", disk_type_param);
-            ret = -EINVAL;
-            goto out;
-        }
-    } else {
-        disk_type = VHD_DYNAMIC;
-    }
-
-    force_size = qemu_opt_get_bool_del(opts, VPC_OPT_FORCE_SIZE, false);
-
-    ret = bdrv_create_file(filename, opts, &local_err);
-    if (ret < 0) {
-        error_propagate(errp, local_err);
-        goto out;
-    }
-
-    blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
-                       &local_err);
-    if (blk == NULL) {
-        error_propagate(errp, local_err);
-        ret = -EIO;
-        goto out;
-    }
-
-    blk_set_allow_write_beyond_eof(blk, true);
+    int i;
 
     /*
      * Calculate matching total_size and geometry. Increase the number of
@@ -961,7 +925,7 @@ static int coroutine_fn vpc_co_create_opts(const char *filename, QemuOpts *opts,
      * we set the geometry to 65535 x 16 x 255 (CxHxS) sectors and use
      * the image size from the VHD footer to calculate total_sectors.
      */
-    if (force_size) {
+    if (vpc_opts->force_size) {
         /* This will force the use of total_size for sector count, below */
         cyls         = VHD_CHS_MAX_C;
         heads        = VHD_CHS_MAX_H;
@@ -978,19 +942,95 @@ static int coroutine_fn vpc_co_create_opts(const char *filename, QemuOpts *opts,
         /* Allow a maximum disk size of 2040 GiB */
         if (total_sectors > VHD_MAX_SECTORS) {
             error_setg(errp, "Disk size is too large, max size is 2040 GiB");
-            ret = -EFBIG;
-            goto out;
+            return -EFBIG;
         }
     } else {
-        total_sectors = (int64_t)cyls * heads * secs_per_cyl;
-        total_size = total_sectors * BDRV_SECTOR_SIZE;
+        total_sectors = (int64_t) cyls * heads * secs_per_cyl;
+    }
+
+    *out_total_sectors = total_sectors;
+    if (out_cyls) {
+        *out_cyls = cyls;
+        *out_heads = heads;
+        *out_secs_per_cyl = secs_per_cyl;
+    }
+
+    return 0;
+}
+
+static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
+                                      Error **errp)
+{
+    BlockdevCreateOptionsVpc *vpc_opts;
+    BlockBackend *blk = NULL;
+    BlockDriverState *bs = NULL;
+
+    uint8_t buf[1024];
+    VHDFooter *footer = (VHDFooter *) buf;
+    uint16_t cyls = 0;
+    uint8_t heads = 0;
+    uint8_t secs_per_cyl = 0;
+    int64_t total_sectors;
+    int64_t total_size;
+    int disk_type;
+    int ret = -EIO;
+
+    assert(opts->driver == BLOCKDEV_DRIVER_VPC);
+    vpc_opts = &opts->u.vpc;
+
+    /* Validate options and set default values */
+    total_size = vpc_opts->size;
+
+    if (!vpc_opts->has_subformat) {
+        vpc_opts->subformat = BLOCKDEV_VPC_SUBFORMAT_DYNAMIC;
+    }
+    switch (vpc_opts->subformat) {
+    case BLOCKDEV_VPC_SUBFORMAT_DYNAMIC:
+        disk_type = VHD_DYNAMIC;
+        break;
+    case BLOCKDEV_VPC_SUBFORMAT_FIXED:
+        disk_type = VHD_FIXED;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    /* Create BlockBackend to write to the image */
+    bs = bdrv_open_blockdev_ref(vpc_opts->file, errp);
+    if (bs == NULL) {
+        return -EIO;
+    }
+
+    blk = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        goto out;
+    }
+    blk_set_allow_write_beyond_eof(blk, true);
+
+    /* Get geometry and check that it matches the image size*/
+    ret = calculate_rounded_image_size(vpc_opts, &cyls, &heads, &secs_per_cyl,
+                                       &total_sectors, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+    if (total_size != total_sectors * BDRV_SECTOR_SIZE) {
+        error_setg(errp, "The requested image size cannot be represented in "
+                         "CHS geometry");
+        error_append_hint(errp, "Try size=%llu or force-size=on (the "
+                                "latter makes the image incompatible with "
+                                "Virtual PC)",
+                          total_sectors * BDRV_SECTOR_SIZE);
+        ret = -EINVAL;
+        goto out;
     }
 
     /* Prepare the Hard Disk Footer */
     memset(buf, 0, 1024);
 
     memcpy(footer->creator, "conectix", 8);
-    if (force_size) {
+    if (vpc_opts->force_size) {
         memcpy(footer->creator_app, "qem2", 4);
     } else {
         memcpy(footer->creator_app, "qemu", 4);
@@ -1032,9 +1072,97 @@ static int coroutine_fn vpc_co_create_opts(const char *filename, QemuOpts *opts,
 
 out:
     blk_unref(blk);
-    g_free(disk_type_param);
+    bdrv_unref(bs);
     return ret;
 }
+
+static int coroutine_fn vpc_co_create_opts(const char *filename,
+                                           QemuOpts *opts, Error **errp)
+{
+    BlockdevCreateOptions *create_options = NULL;
+    QDict *qdict = NULL;
+    QObject *qobj;
+    Visitor *v;
+    BlockDriverState *bs = NULL;
+    Error *local_err = NULL;
+    int ret;
+
+    static const QDictRenames opt_renames[] = {
+        { VPC_OPT_FORCE_SIZE,           "force-size" },
+        { NULL, NULL },
+    };
+
+    /* Parse options and convert legacy syntax */
+    qdict = qemu_opts_to_qdict_filtered(opts, NULL, &vpc_create_opts, true);
+
+    if (!qdict_rename_keys(qdict, opt_renames, errp)) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* Create and open the file (protocol layer) */
+    ret = bdrv_create_file(filename, opts, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        goto fail;
+    }
+
+    bs = bdrv_open(filename, NULL, NULL,
+                   BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
+    if (bs == NULL) {
+        ret = -EIO;
+        goto fail;
+    }
+
+    /* Now get the QAPI type BlockdevCreateOptions */
+    qdict_put_str(qdict, "driver", "vpc");
+    qdict_put_str(qdict, "file", bs->node_name);
+
+    qobj = qdict_crumple(qdict, errp);
+    QDECREF(qdict);
+    qdict = qobject_to_qdict(qobj);
+    if (qdict == NULL) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
+    visit_free(v);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    /* Silently round up size */
+    assert(create_options->driver == BLOCKDEV_DRIVER_VPC);
+    create_options->u.vpc.size =
+        ROUND_UP(create_options->u.vpc.size, BDRV_SECTOR_SIZE);
+
+    if (!create_options->u.vpc.force_size) {
+        int64_t total_sectors;
+        ret = calculate_rounded_image_size(&create_options->u.vpc, NULL, NULL,
+                                           NULL, &total_sectors, errp);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        create_options->u.vpc.size = total_sectors * BDRV_SECTOR_SIZE;
+    }
+
+
+    /* Create the vpc image (format layer) */
+    ret = vpc_co_create(create_options, errp);
+
+fail:
+    QDECREF(qdict);
+    bdrv_unref(bs);
+    qapi_free_BlockdevCreateOptions(create_options);
+    return ret;
+}
+
 
 static int vpc_has_zero_init(BlockDriverState *bs)
 {
@@ -1096,6 +1224,7 @@ static BlockDriver bdrv_vpc = {
     .bdrv_close             = vpc_close,
     .bdrv_reopen_prepare    = vpc_reopen_prepare,
     .bdrv_child_perm        = bdrv_format_default_perms,
+    .bdrv_co_create         = vpc_co_create,
     .bdrv_co_create_opts    = vpc_co_create_opts,
 
     .bdrv_co_preadv             = vpc_co_preadv,
