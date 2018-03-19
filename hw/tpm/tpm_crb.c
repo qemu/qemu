@@ -145,8 +145,6 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
                              beenSeized, 0);
             ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
                              locAssigned, 1);
-            ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
-                             tpmRegValidSts, 1);
             break;
         }
         break;
@@ -210,6 +208,8 @@ static void tpm_crb_reset(void *dev)
 
     tpm_backend_reset(s->tpmbe);
 
+    ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
+                     tpmRegValidSts, 1);
     ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
                      InterfaceType, CRB_INTF_TYPE_CRB_ACTIVE);
     ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
