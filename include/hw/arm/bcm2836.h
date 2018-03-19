@@ -15,12 +15,19 @@
 #include "hw/arm/bcm2835_peripherals.h"
 #include "hw/intc/bcm2836_control.h"
 
+#define TYPE_BCM283X "bcm283x"
+#define BCM283X(obj) OBJECT_CHECK(BCM283XState, (obj), TYPE_BCM283X)
+
+#define BCM283X_NCPUS 4
+
+/* These type names are for specific SoCs; other than instantiating
+ * them, code using these devices should always handle them via the
+ * BCM283x base class, so they have no BCM2836(obj) etc macros.
+ */
 #define TYPE_BCM2836 "bcm2836"
-#define BCM2836(obj) OBJECT_CHECK(BCM2836State, (obj), TYPE_BCM2836)
+#define TYPE_BCM2837 "bcm2837"
 
-#define BCM2836_NCPUS 4
-
-typedef struct BCM2836State {
+typedef struct BCM283XState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
@@ -28,9 +35,21 @@ typedef struct BCM2836State {
     char *cpu_type;
     uint32_t enabled_cpus;
 
-    ARMCPU cpus[BCM2836_NCPUS];
+    ARMCPU cpus[BCM283X_NCPUS];
     BCM2836ControlState control;
     BCM2835PeripheralState peripherals;
-} BCM2836State;
+} BCM283XState;
+
+typedef struct BCM283XInfo BCM283XInfo;
+
+typedef struct BCM283XClass {
+    DeviceClass parent_class;
+    const BCM283XInfo *info;
+} BCM283XClass;
+
+#define BCM283X_CLASS(klass) \
+    OBJECT_CLASS_CHECK(BCM283XClass, (klass), TYPE_BCM283X)
+#define BCM283X_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(BCM283XClass, (obj), TYPE_BCM283X)
 
 #endif /* BCM2836_H */

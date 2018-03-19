@@ -1609,10 +1609,18 @@ static void vmcoreinfo_update_phys_base(DumpState *s)
 
     lines = g_strsplit((char *)vmci, "\n", -1);
     for (i = 0; lines[i]; i++) {
-        if (g_str_has_prefix(lines[i], "NUMBER(phys_base)=")) {
-            if (qemu_strtou64(lines[i] + 18, NULL, 16,
+        const char *prefix = NULL;
+
+        if (s->dump_info.d_machine == EM_X86_64) {
+            prefix = "NUMBER(phys_base)=";
+        } else if (s->dump_info.d_machine == EM_AARCH64) {
+            prefix = "NUMBER(PHYS_OFFSET)=";
+        }
+
+        if (prefix && g_str_has_prefix(lines[i], prefix)) {
+            if (qemu_strtou64(lines[i] + strlen(prefix), NULL, 16,
                               &phys_base) < 0) {
-                warn_report("Failed to read NUMBER(phys_base)=");
+                warn_report("Failed to read %s", prefix);
             } else {
                 s->dump_info.phys_base = phys_base;
             }
