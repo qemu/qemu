@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
@@ -286,8 +287,9 @@ static void ppc440_pcix_reg_write4(void *opaque, hwaddr addr,
         break;
 
     default:
-        error_report("%s: unhandled PCI internal register 0x%lx", __func__,
-                     (unsigned long)addr);
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: unhandled PCI internal register 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
         break;
     }
 }
@@ -377,8 +379,9 @@ static uint64_t ppc440_pcix_reg_read4(void *opaque, hwaddr addr,
         break;
 
     default:
-        error_report("%s: invalid PCI internal register 0x%lx", __func__,
-                     (unsigned long)addr);
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: invalid PCI internal register 0x%" HWADDR_PRIx "\n",
+                      __func__, addr);
         val = 0;
     }
 

@@ -1009,6 +1009,10 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     }
 
     cur_base = loadaddr + payload_size;
+    if (cur_base < (32 * 1024 * 1024)) {
+        /* u-boot occupies memory up to 32MB, so load blobs above */
+        cur_base = (32 * 1024 * 1024);
+    }
 
     /* Load bare kernel only if no bios/u-boot has been provided */
     if (machine->kernel_filename && !kernel_as_payload) {
@@ -1023,11 +1027,6 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
         }
 
         cur_base += kernel_size;
-    }
-
-    if (cur_base < (32 * 1024 * 1024)) {
-        /* u-boot occupies memory up to 32MB, so load blobs above */
-        cur_base = (32 * 1024 * 1024);
     }
 
     /* Load initrd. */
