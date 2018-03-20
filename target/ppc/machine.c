@@ -190,7 +190,15 @@ static int cpu_pre_save(void *opaque)
 
     /* Hacks for migration compatibility between 2.6, 2.7 & 2.8 */
     if (cpu->pre_2_8_migration) {
-        cpu->mig_msr_mask = env->msr_mask;
+        /* Mask out bits that got added to msr_mask since the versions
+         * which stupidly included it in the migration stream. */
+        target_ulong metamask = 0
+#if defined(TARGET_PPC64)
+            | (1ULL << MSR_TS0)
+            | (1ULL << MSR_TS1)
+#endif
+            ;
+        cpu->mig_msr_mask = env->msr_mask & ~metamask;
         cpu->mig_insns_flags = env->insns_flags & insns_compat_mask;
         cpu->mig_insns_flags2 = env->insns_flags2 & insns_compat_mask2;
         cpu->mig_nb_BATs = env->nb_BATs;
