@@ -360,5 +360,6 @@
 #define __NR_s390_guarded_storage 378
 #define __NR_statx 379
 #define __NR_s390_sthyi 380
+#define __NR_kexec_file_load 381
 
 #endif /* _ASM_S390_UNISTD_32_H */
