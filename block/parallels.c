@@ -526,6 +526,11 @@ static int coroutine_fn parallels_co_create(BlockdevCreateOptions* opts,
         cl_size = DEFAULT_CLUSTER_SIZE;
     }
 
+    /* XXX What is the real limit here? This is an insanely large maximum. */
+    if (cl_size >= INT64_MAX / MAX_PARALLELS_IMAGE_FACTOR) {
+        error_setg(errp, "Cluster size is too large");
+        return -EINVAL;
+    }
     if (total_size >= MAX_PARALLELS_IMAGE_FACTOR * cl_size) {
         error_setg(errp, "Image size is too large for this cluster size");
         return -E2BIG;
