@@ -27,6 +27,7 @@
 
 #include "qemu/timed-average.h"
 #include "qemu/thread.h"
+#include "qapi/qapi-builtin-types.h"
 
 typedef struct BlockAcctTimedStats BlockAcctTimedStats;
 typedef struct BlockAcctStats BlockAcctStats;
@@ -45,6 +46,36 @@ struct BlockAcctTimedStats {
     QSLIST_ENTRY(BlockAcctTimedStats) entries;
 };
 
+typedef struct BlockLatencyHistogram {
+    /* The following histogram is represented like this:
+     *
+     * 5|           *
+     * 4|           *
+     * 3| *         *
+     * 2| *         *    *
+     * 1| *    *    *    *
+     *  +------------------
+     *      10   50   100
+     *
+     * BlockLatencyHistogram histogram = {
+     *     .nbins = 4,
+     *     .boundaries = {10, 50, 100},
+     *     .bins = {3, 1, 5, 2},
+     * };
+     *
+     * @boundaries array define histogram intervals as follows:
+     * [0, boundaries[0]), [boundaries[0], boundaries[1]), ...
+     * [boundaries[nbins-2], +inf)
+     *
+     * So, for example above, histogram intervals are:
+     * [0, 10), [10, 50), [50, 100), [100, +inf)
+     */
+    int nbins;
+    uint64_t *boundaries; /* @nbins-1 numbers here
+                             (all boundaries, except 0 and +inf) */
+    uint64_t *bins;
+} BlockLatencyHistogram;
+
 struct BlockAcctStats {
     QemuMutex lock;
     uint64_t nr_bytes[BLOCK_MAX_IOTYPE];
@@ -57,6 +88,7 @@ struct BlockAcctStats {
     QSLIST_HEAD(, BlockAcctTimedStats) intervals;
     bool account_invalid;
     bool account_failed;
+    BlockLatencyHistogram latency_histogram[BLOCK_MAX_IOTYPE];
 };
 
 typedef struct BlockAcctCookie {
@@ -82,5 +114,8 @@ void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
 int64_t block_acct_idle_time_ns(BlockAcctStats *stats);
 double block_acct_queue_depth(BlockAcctTimedStats *stats,
                               enum BlockAcctType type);
+int block_latency_histogram_set(BlockAcctStats *stats, enum BlockAcctType type,
+                                uint64List *boundaries);
+void block_latency_histograms_clear(BlockAcctStats *stats);
 
 #endif

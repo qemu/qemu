@@ -1120,7 +1120,7 @@ static int coroutine_fn vpc_co_create_opts(const char *filename,
 
     qobj = qdict_crumple(qdict, errp);
     QDECREF(qdict);
-    qdict = qobject_to_qdict(qobj);
+    qdict = qobject_to(QDict, qobj);
     if (qdict == NULL) {
         ret = -EINVAL;
         goto fail;

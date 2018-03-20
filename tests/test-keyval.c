@@ -195,7 +195,7 @@ static void check_list012(QList *qlist)
 
     g_assert(qlist);
     for (i = 0; i < ARRAY_SIZE(expected); i++) {
-        qstr = qobject_to_qstring(qlist_pop(qlist));
+        qstr = qobject_to(QString, qlist_pop(qlist));
         g_assert(qstr);
         g_assert_cmpstr(qstring_get_str(qstr), ==, expected[i]);
         QDECREF(qstr);
@@ -654,12 +654,12 @@ static void test_keyval_visit_any(void)
     QDECREF(qdict);
     visit_start_struct(v, NULL, NULL, 0, &error_abort);
     visit_type_any(v, "a", &any, &error_abort);
-    qlist = qobject_to_qlist(any);
+    qlist = qobject_to(QList, any);
     g_assert(qlist);
-    qstr = qobject_to_qstring(qlist_pop(qlist));
+    qstr = qobject_to(QString, qlist_pop(qlist));
     g_assert_cmpstr(qstring_get_str(qstr), ==, "null");
     QDECREF(qstr);
-    qstr = qobject_to_qstring(qlist_pop(qlist));
+    qstr = qobject_to(QString, qlist_pop(qlist));
     g_assert_cmpstr(qstring_get_str(qstr), ==, "1");
     g_assert(qlist_empty(qlist));
     QDECREF(qstr);

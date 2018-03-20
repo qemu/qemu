@@ -20,8 +20,9 @@ typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
 
 typedef enum QmpCommandOptions
 {
-    QCO_NO_OPTIONS = 0x0,
-    QCO_NO_SUCCESS_RESP = 0x1,
+    QCO_NO_OPTIONS            =  0x0,
+    QCO_NO_SUCCESS_RESP       =  (1U << 0),
+    QCO_ALLOW_OOB             =  (1U << 1),
 } QmpCommandOptions;
 
 typedef struct QmpCommand
@@ -47,6 +48,8 @@ bool qmp_command_is_enabled(const QmpCommand *cmd);
 const char *qmp_command_name(const QmpCommand *cmd);
 bool qmp_has_success_response(const QmpCommand *cmd);
 QObject *qmp_build_error_object(Error *err);
+QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp);
+bool qmp_is_oob(QDict *dict);
 
 typedef void (*qmp_cmd_callback_fn)(QmpCommand *cmd, void *opaque);
 

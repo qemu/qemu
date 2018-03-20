@@ -454,6 +454,106 @@
            'status': 'DirtyBitmapStatus'} }
 
 ##
+# @BlockLatencyHistogramInfo:
+#
+# Block latency histogram.
+#
+# @boundaries: list of interval boundary values in nanoseconds, all greater
+#              than zero and in ascending order.
+#              For example, the list [10, 50, 100] produces the following
+#              histogram intervals: [0, 10), [10, 50), [50, 100), [100, +inf).
+#
+# @bins: list of io request counts corresponding to histogram intervals.
+#        len(@bins) = len(@boundaries) + 1
+#        For the example above, @bins may be something like [3, 1, 5, 2],
+#        and corresponding histogram looks like:
+#
+#        5|           *
+#        4|           *
+#        3| *         *
+#        2| *         *    *
+#        1| *    *    *    *
+#         +------------------
+#             10   50   100
+#
+# Since: 2.12
+##
+{ 'struct': 'BlockLatencyHistogramInfo',
+  'data': {'boundaries': ['uint64'], 'bins': ['uint64'] } }
+
+##
+# @x-block-latency-histogram-set:
+#
+# Manage read, write and flush latency histograms for the device.
+#
+# If only @device parameter is specified, remove all present latency histograms
+# for the device. Otherwise, add/reset some of (or all) latency histograms.
+#
+# @device: device name to set latency histogram for.
+#
+# @boundaries: list of interval boundary values (see description in
+#              BlockLatencyHistogramInfo definition). If specified, all
+#              latency histograms are removed, and empty ones created for all
+#              io types with intervals corresponding to @boundaries (except for
+#              io types, for which specific boundaries are set through the
+#              following parameters).
+#
+# @boundaries-read: list of interval boundary values for read latency
+#                   histogram. If specified, old read latency histogram is
+#                   removed, and empty one created with intervals
+#                   corresponding to @boundaries-read. The parameter has higher
+#                   priority then @boundaries.
+#
+# @boundaries-write: list of interval boundary values for write latency
+#                    histogram.
+#
+# @boundaries-flush: list of interval boundary values for flush latency
+#                    histogram.
+#
+# Returns: error if device is not found or any boundary arrays are invalid.
+#
+# Since: 2.12
+#
+# Example: set new histograms for all io types with intervals
+# [0, 10), [10, 50), [50, 100), [100, +inf):
+#
+# -> { "execute": "block-latency-histogram-set",
+#      "arguments": { "device": "drive0",
+#                     "boundaries": [10, 50, 100] } }
+# <- { "return": {} }
+#
+# Example: set new histogram only for write, other histograms will remain
+# not changed (or not created):
+#
+# -> { "execute": "block-latency-histogram-set",
+#      "arguments": { "device": "drive0",
+#                     "boundaries-write": [10, 50, 100] } }
+# <- { "return": {} }
+#
+# Example: set new histograms with the following intervals:
+#   read, flush: [0, 10), [10, 50), [50, 100), [100, +inf)
+#   write: [0, 1000), [1000, 5000), [5000, +inf)
+#
+# -> { "execute": "block-latency-histogram-set",
+#      "arguments": { "device": "drive0",
+#                     "boundaries": [10, 50, 100],
+#                     "boundaries-write": [1000, 5000] } }
+# <- { "return": {} }
+#
+# Example: remove all latency histograms:
+#
+# -> { "execute": "block-latency-histogram-set",
+#      "arguments": { "device": "drive0" } }
+# <- { "return": {} }
+##
+{ 'command': 'x-block-latency-histogram-set',
+  'data': {'device': 'str',
+           '*boundaries': ['uint64'],
+           '*boundaries-read': ['uint64'],
+           '*boundaries-write': ['uint64'],
+           '*boundaries-flush': ['uint64'] } }
+
+##
 # @BlockInfo:
 #
 # Block device information.  This structure describes a virtual device and
@@ -733,6 +833,12 @@
 # @timed_stats: Statistics specific to the set of previously defined
 #               intervals of time (Since 2.5)
 #
+# @x_rd_latency_histogram: @BlockLatencyHistogramInfo. (Since 2.12)
+#
+# @x_wr_latency_histogram: @BlockLatencyHistogramInfo. (Since 2.12)
+#
+# @x_flush_latency_histogram: @BlockLatencyHistogramInfo. (Since 2.12)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'BlockDeviceStats',
@@ -745,7 +851,10 @@
            'failed_flush_operations': 'int', 'invalid_rd_operations': 'int',
            'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int',
            'account_invalid': 'bool', 'account_failed': 'bool',
-           'timed_stats': ['BlockDeviceTimedStats'] } }
+           'timed_stats': ['BlockDeviceTimedStats'],
+           '*x_rd_latency_histogram': 'BlockLatencyHistogramInfo',
+           '*x_wr_latency_histogram': 'BlockLatencyHistogramInfo',
+           '*x_flush_latency_histogram': 'BlockLatencyHistogramInfo' } }
 
 ##
 # @BlockStats:
@@ -1174,7 +1283,7 @@
 # @overlay: reference to the existing block device that will become
 #           the overlay of @node, as part of creating the snapshot.
 #           It must not have a current backing file (this can be
-#           achieved by passing "backing": "" to blockdev-add).
+#           achieved by passing "backing": null to blockdev-add).
 #
 # Since: 2.5
 ##
@@ -1347,7 +1456,7 @@
 #                     "node-name": "node1534",
 #                     "file": { "driver": "file",
 #                               "filename": "hd1.qcow2" },
-#                     "backing": "" } }
+#                     "backing": null } }
 #
 # <- { "return": {} }
 #

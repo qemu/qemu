@@ -607,7 +607,7 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
     g_assert(s && parser);
 
     g_debug("process_event: called");
-    qdict = qobject_to_qdict(json_parser_parse_err(tokens, NULL, &err));
+    qdict = qobject_to(QDict, json_parser_parse_err(tokens, NULL, &err));
     if (err || !qdict) {
         QDECREF(qdict);
         qdict = qdict_new();

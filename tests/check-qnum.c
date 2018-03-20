@@ -126,11 +126,11 @@ static void qobject_to_qnum_test(void)
     QNum *qn;
 
     qn = qnum_from_int(0);
-    g_assert(qobject_to_qnum(QOBJECT(qn)) == qn);
+    g_assert(qobject_to(QNum, QOBJECT(qn)) == qn);
     QDECREF(qn);
 
     qn = qnum_from_double(0);
-    g_assert(qobject_to_qnum(QOBJECT(qn)) == qn);
+    g_assert(qobject_to(QNum, QOBJECT(qn)) == qn);
     QDECREF(qn);
 }
 

@@ -3125,7 +3125,7 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
     /* Now get the QAPI type BlockdevCreateOptions */
     qobj = qdict_crumple(qdict, errp);
     QDECREF(qdict);
-    qdict = qobject_to_qdict(qobj);
+    qdict = qobject_to(QDict, qobj);
     if (qdict == NULL) {
         ret = -EINVAL;
         goto finish;

@@ -10,21 +10,47 @@
 #
 # Enable QMP capabilities.
 #
-# Arguments: None.
+# Arguments:
+#
+# @enable:   An optional list of QMPCapability values to enable.  The
+#            client must not enable any capability that is not
+#            mentioned in the QMP greeting message.  If the field is not
+#            provided, it means no QMP capabilities will be enabled.
+#            (since 2.12)
 #
 # Example:
 #
-# -> { "execute": "qmp_capabilities" }
+# -> { "execute": "qmp_capabilities",
+#      "arguments": { "enable": [ "oob" ] } }
 # <- { "return": {} }
 #
 # Notes: This command is valid exactly when first connecting: it must be
 # issued before any other command will be accepted, and will fail once the
 # monitor is accepting other commands. (see qemu docs/interop/qmp-spec.txt)
 #
+# The QMP client needs to explicitly enable QMP capabilities, otherwise
+# all the QMP capabilities will be turned off by default.
+#
 # Since: 0.13
 #
 ##
-{ 'command': 'qmp_capabilities' }
+{ 'command': 'qmp_capabilities',
+  'data': { '*enable': [ 'QMPCapability' ] } }
+
+##
+# @QMPCapability:
+#
+# Enumeration of capabilities to be advertised during initial client
+# connection, used for agreeing on particular QMP extension behaviors.
+#
+# @oob:   QMP ability to support Out-Of-Band requests.
+#         (Please refer to qmp-spec.txt for more information on OOB)
+#
+# Since: 2.12
+#
+##
+{ 'enum': 'QMPCapability',
+  'data': [ 'oob' ] }
 
 ##
 # @VersionTriple:
@@ -3364,3 +3390,58 @@
 #
 ##
 { 'command': 'query-sev-capabilities', 'returns': 'SevCapability' }
+
+##
+# @CommandDropReason:
+#
+# Reasons that caused one command to be dropped.
+#
+# @queue-full: the command queue is full. This can only occur when
+#              the client sends a new non-oob command before the
+#              response to the previous non-oob command has been
+#              received.
+#
+# Since: 2.12
+##
+{ 'enum': 'CommandDropReason',
+  'data': [ 'queue-full' ] }
+
+##
+# @COMMAND_DROPPED:
+#
+# Emitted when a command is dropped due to some reason.  Commands can
+# only be dropped when the oob capability is enabled.
+#
+# @id: The dropped command's "id" field.
+#
+# @reason: The reason why the command is dropped.
+#
+# Since: 2.12
+#
+# Example:
+#
+# { "event": "COMMAND_DROPPED",
+#   "data": {"result": {"id": "libvirt-102",
+#                       "reason": "queue-full" } } }
+#
+##
+{ 'event': 'COMMAND_DROPPED' ,
+  'data': { 'id': 'any', 'reason': 'CommandDropReason' } }
+
+##
+# @x-oob-test:
+#
+# Test OOB functionality.  When sending this command with lock=true,
+# it'll try to hang the dispatcher.  When sending it with lock=false,
+# it'll try to notify the locked thread to continue.  Note: it should
+# only be used by QMP test program rather than anything else.
+#
+# Since: 2.12
+#
+# Example:
+#
+# { "execute": "x-oob-test",
+#   "arguments": { "lock": true } }
+##
+{ 'command': 'x-oob-test', 'data' : { 'lock': 'bool' },
+  'allow-oob': true }

@@ -275,7 +275,7 @@ static void qobject_is_equal_dict_test(void)
                   dict_different_null_key, dict_longer, dict_shorter,
                   dict_nested);
 
-    dict_crumpled = qobject_to_qdict(qdict_crumple(dict_1, &local_err));
+    dict_crumpled = qobject_to(QDict, qdict_crumple(dict_1, &local_err));
     g_assert(!local_err);
     check_equal(dict_crumpled, dict_nested);
 

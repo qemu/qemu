@@ -743,8 +743,8 @@ Reference to or definition of the data source block driver node
 
 @item backing
 Reference to or definition of the backing file block device (default is taken
-from the image file). It is allowed to pass an empty string here in order to
-disable the default backing file.
+from the image file). It is allowed to pass @code{null} here in order to disable
+the default backing file.
 
 @item lazy-refcounts
 Whether to enable the lazy refcounts feature (on/off; default is taken from the

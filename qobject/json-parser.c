@@ -276,7 +276,8 @@ static void parser_context_free(JSONParserContext *ctxt)
  */
 static int parse_pair(JSONParserContext *ctxt, QDict *dict, va_list *ap)
 {
-    QObject *key = NULL, *value;
+    QObject *value;
+    QString *key = NULL;
     JSONToken *peek, *token;
 
     peek = parser_context_peek_token(ctxt);
@@ -285,8 +286,8 @@ static int parse_pair(JSONParserContext *ctxt, QDict *dict, va_list *ap)
         goto out;
     }
 
-    key = parse_value(ctxt, ap);
-    if (!key || qobject_type(key) != QTYPE_QSTRING) {
+    key = qobject_to(QString, parse_value(ctxt, ap));
+    if (!key) {
         parse_error(ctxt, peek, "key is not a string in object");
         goto out;
     }
@@ -308,14 +309,14 @@ static int parse_pair(JSONParserContext *ctxt, QDict *dict, va_list *ap)
         goto out;
     }
 
-    qdict_put_obj(dict, qstring_get_str(qobject_to_qstring(key)), value);
+    qdict_put_obj(dict, qstring_get_str(key), value);
 
-    qobject_decref(key);
+    QDECREF(key);
 
     return 0;
 
 out:
-    qobject_decref(key);
+    QDECREF(key);
 
     return -1;
 }

@@ -479,7 +479,7 @@ static void test_visitor_in_any(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "-42");
     visit_type_any(v, NULL, &res, &error_abort);
-    qnum = qobject_to_qnum(res);
+    qnum = qobject_to(QNum, res);
     g_assert(qnum);
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, -42);
@@ -487,22 +487,22 @@ static void test_visitor_in_any(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo' }");
     visit_type_any(v, NULL, &res, &error_abort);
-    qdict = qobject_to_qdict(res);
+    qdict = qobject_to(QDict, res);
     g_assert(qdict && qdict_size(qdict) == 3);
     qobj = qdict_get(qdict, "integer");
     g_assert(qobj);
-    qnum = qobject_to_qnum(qobj);
+    qnum = qobject_to(QNum, qobj);
     g_assert(qnum);
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, -42);
     qobj = qdict_get(qdict, "boolean");
     g_assert(qobj);
-    qbool = qobject_to_qbool(qobj);
+    qbool = qobject_to(QBool, qobj);
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == true);
     qobj = qdict_get(qdict, "string");
     g_assert(qobj);
-    qstring = qobject_to_qstring(qobj);
+    qstring = qobject_to(QString, qobj);
     g_assert(qstring);
     g_assert_cmpstr(qstring_get_str(qstring), ==, "foo");
     qobject_decref(res);
@@ -1250,24 +1250,27 @@ static void test_visitor_in_fail_alternate(TestInputVisitorData *data,
 }
 
 static void do_test_visitor_in_qmp_introspect(TestInputVisitorData *data,
-                                              const char *schema_json)
+                                              const QLitObject *qlit)
 {
     SchemaInfoList *schema = NULL;
+    QObject *obj = qobject_from_qlit(qlit);
     Visitor *v;
 
-    v = visitor_input_test_init_raw(data, schema_json);
+    v = qobject_input_visitor_new(obj);
 
     visit_type_SchemaInfoList(v, NULL, &schema, &error_abort);
     g_assert(schema);
 
     qapi_free_SchemaInfoList(schema);
+    qobject_decref(obj);
+    visit_free(v);
 }
 
 static void test_visitor_in_qmp_introspect(TestInputVisitorData *data,
                                            const void *unused)
 {
-    do_test_visitor_in_qmp_introspect(data, test_qmp_schema_json);
-    do_test_visitor_in_qmp_introspect(data, qmp_schema_json);
+    do_test_visitor_in_qmp_introspect(data, &test_qmp_schema_qlit);
+    do_test_visitor_in_qmp_introspect(data, &qmp_schema_qlit);
 }
 
 int main(int argc, char **argv)

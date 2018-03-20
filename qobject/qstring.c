@@ -106,17 +106,6 @@ void qstring_append_chr(QString *qstring, int c)
 }
 
 /**
- * qobject_to_qstring(): Convert a QObject to a QString
- */
-QString *qobject_to_qstring(const QObject *obj)
-{
-    if (!obj || qobject_type(obj) != QTYPE_QSTRING) {
-        return NULL;
-    }
-    return container_of(obj, QString, base);
-}
-
-/**
  * qstring_get_str(): Return a pointer to the stored string
  *
  * NOTE: Should be used with caution, if the object is deallocated
@@ -128,12 +117,33 @@ const char *qstring_get_str(const QString *qstring)
 }
 
 /**
+ * qstring_get_try_str(): Return a pointer to the stored string
+ *
+ * NOTE: will return NULL if qstring is not provided.
+ */
+const char *qstring_get_try_str(const QString *qstring)
+{
+    return qstring ? qstring_get_str(qstring) : NULL;
+}
+
+/**
+ * qobject_get_try_str(): Return a pointer to the corresponding string
+ *
+ * NOTE: the string will only be returned if the object is valid, and
+ * its type is QString, otherwise NULL is returned.
+ */
+const char *qobject_get_try_str(const QObject *qstring)
+{
+    return qstring_get_try_str(qobject_to(QString, qstring));
+}
+
+/**
  * qstring_is_equal(): Test whether the two QStrings are equal
  */
 bool qstring_is_equal(const QObject *x, const QObject *y)
 {
-    return !strcmp(qobject_to_qstring(x)->string,
-                   qobject_to_qstring(y)->string);
+    return !strcmp(qobject_to(QString, x)->string,
+                   qobject_to(QString, y)->string);
 }
 
 /**
@@ -145,7 +155,7 @@ void qstring_destroy_obj(QObject *obj)
     QString *qs;
 
     assert(obj != NULL);
-    qs = qobject_to_qstring(obj);
+    qs = qobject_to(QString, obj);
     g_free(qs->string);
     g_free(qs);
 }

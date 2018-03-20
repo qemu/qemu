@@ -82,14 +82,20 @@
         int:(x) ? -1 : 1; \
     }
 
+/* QEMU_BUILD_BUG_MSG() emits the message given if _Static_assert is
+ * supported; otherwise, it will be omitted from the compiler error
+ * message (but as it remains present in the source code, it can still
+ * be useful when debugging). */
 #if defined(CONFIG_STATIC_ASSERT)
-#define QEMU_BUILD_BUG_ON(x) _Static_assert(!(x), "not expecting: " #x)
+#define QEMU_BUILD_BUG_MSG(x, msg) _Static_assert(!(x), msg)
 #elif defined(__COUNTER__)
-#define QEMU_BUILD_BUG_ON(x) typedef QEMU_BUILD_BUG_ON_STRUCT(x) \
+#define QEMU_BUILD_BUG_MSG(x, msg) typedef QEMU_BUILD_BUG_ON_STRUCT(x) \
     glue(qemu_build_bug_on__, __COUNTER__) __attribute__((unused))
 #else
-#define QEMU_BUILD_BUG_ON(x)
+#define QEMU_BUILD_BUG_MSG(x, msg)
 #endif
+
+#define QEMU_BUILD_BUG_ON(x) QEMU_BUILD_BUG_MSG(x, "not expecting: " #x)
 
 #define QEMU_BUILD_BUG_ON_ZERO(x) (sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)) - \
                                    sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)))

@@ -554,9 +554,12 @@ following example objects:
 
 === Commands ===
 
+--- General Command Layout ---
+
 Usage: { 'command': STRING, '*data': COMPLEX-TYPE-NAME-OR-DICT,
          '*returns': TYPE-NAME, '*boxed': true,
-         '*gen': false, '*success-response': false }
+         '*gen': false, '*success-response': false,
+         '*allow-oob': true }
 
 Commands are defined by using a dictionary containing several members,
 where three members are most common.  The 'command' member is a
@@ -636,6 +639,49 @@ possible, the command expression should include the optional key
 'success-response' with boolean value false.  So far, only QGA makes
 use of this member.
 
+A command can be declared to support Out-Of-Band (OOB) execution.  By
+default, commands do not support OOB.  To declare a command that
+supports it, the schema includes an extra 'allow-oob' field.  For
+example:
+
+ { 'command': 'migrate_recover',
+   'data': { 'uri': 'str' }, 'allow-oob': true }
+
+To execute a command with out-of-band priority, the client specifies
+the "control" field in the request, with "run-oob" set to
+true. Example:
+
+ => { "execute": "command-support-oob",
+      "arguments": { ... },
+      "control": { "run-oob": true } }
+ <= { "return": { } }
+
+Without it, even the commands that support out-of-band execution will
+still be run in-band.
+
+Under normal QMP command execution, the following apply to each
+command:
+
+- They are executed in order,
+- They run only in main thread of QEMU,
+- They have the BQL taken during execution.
+
+When a command is executed with OOB, the following changes occur:
+
+- They can be completed before a pending in-band command,
+- They run in a dedicated monitor thread,
+- They do not take the BQL during execution.
+
+OOB command handlers must satisfy the following conditions:
+
+- It executes extremely fast,
+- It does not take any lock, or, it can take very small locks if all
+  critical regions also follow the rules for OOB command handler code,
+- It does not invoke system calls that may block,
+- It does not access guest RAM that may block when userfaultfd is
+  enabled for postcopy live migration.
+
+If in doubt, do not implement OOB execution support.
 
 === Events ===
 
@@ -739,10 +785,12 @@ references by name.
 QAPI schema definitions not reachable that way are omitted.
 
 The SchemaInfo for a command has meta-type "command", and variant
-members "arg-type" and "ret-type".  On the wire, the "arguments"
-member of a client's "execute" command must conform to the object type
-named by "arg-type".  The "return" member that the server passes in a
-success response conforms to the type named by "ret-type".
+members "arg-type", "ret-type" and "allow-oob".  On the wire, the
+"arguments" member of a client's "execute" command must conform to the
+object type named by "arg-type".  The "return" member that the server
+passes in a success response conforms to the type named by
+"ret-type".  When "allow-oob" is set, it means the command supports
+out-of-band execution.
 
 If the command takes no arguments, "arg-type" names an object type
 without members.  Likewise, if the command returns nothing, "ret-type"
@@ -1319,18 +1367,27 @@ Example:
     #ifndef EXAMPLE_QMP_INTROSPECT_H
     #define EXAMPLE_QMP_INTROSPECT_H
 
-    extern const char example_qmp_schema_json[];
+    extern const QLitObject qmp_schema_qlit;
 
     #endif
     $ cat qapi-generated/example-qapi-introspect.c
 [Uninteresting stuff omitted...]
 
-    const char example_qmp_schema_json[] = "["
-        "{\"arg-type\": \"0\", \"meta-type\": \"event\", \"name\": \"MY_EVENT\"}, "
-        "{\"arg-type\": \"1\", \"meta-type\": \"command\", \"name\": \"my-command\", \"ret-type\": \"2\"}, "
-        "{\"members\": [], \"meta-type\": \"object\", \"name\": \"0\"}, "
-        "{\"members\": [{\"name\": \"arg1\", \"type\": \"[2]\"}], \"meta-type\": \"object\", \"name\": \"1\"}, "
-        "{\"members\": [{\"name\": \"integer\", \"type\": \"int\"}, {\"default\": null, \"name\": \"string\", \"type\": \"str\"}], \"meta-type\": \"object\", \"name\": \"2\"}, "
-        "{\"element-type\": \"2\", \"meta-type\": \"array\", \"name\": \"[2]\"}, "
-        "{\"json-type\": \"int\", \"meta-type\": \"builtin\", \"name\": \"int\"}, "
-        "{\"json-type\": \"string\", \"meta-type\": \"builtin\", \"name\": \"str\"}]";
+    const QLitObject example_qmp_schema_qlit = QLIT_QLIST(((QLitObject[]) {
+        QLIT_QDICT(((QLitDictEntry[]) {
+            { "arg-type", QLIT_QSTR("0") },
+            { "meta-type", QLIT_QSTR("event") },
+            { "name", QLIT_QSTR("Event") },
+            { }
+        })),
+        QLIT_QDICT(((QLitDictEntry[]) {
+            { "members", QLIT_QLIST(((QLitObject[]) {
+                { }
+            })) },
+            { "meta-type", QLIT_QSTR("object") },
+            { "name", QLIT_QSTR("0") },
+            { }
+        })),
+        ...
+        { }
+    }));

@@ -134,10 +134,9 @@ def texi_enum_value(value):
 def texi_member(member, suffix=''):
     """Format a table of members item for an object type member"""
     typ = member.type.doc_type()
-    return '@item @code{%s%s%s}%s%s\n' % (
-        member.name,
-        ': ' if typ else '',
-        typ if typ else '',
+    membertype = ': ' + typ if typ else ''
+    return '@item @code{%s%s}%s%s\n' % (
+        member.name, membertype,
         ' (optional)' if member.optional else '',
         suffix)
 
@@ -228,7 +227,7 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
                                body=texi_entity(doc, 'Members')))
 
     def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed):
+                      gen, success_response, boxed, allow_oob):
         doc = self.cur_doc
         if boxed:
             body = texi_body(doc)

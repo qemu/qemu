@@ -79,7 +79,7 @@ static void qobject_to_qstring_test(void)
     QString *qstring;
 
     qstring = qstring_from_str("foo");
-    g_assert(qobject_to_qstring(QOBJECT(qstring)) == qstring);
+    g_assert(qobject_to(QString, QOBJECT(qstring)) == qstring);
 
     QDECREF(qstring);
 }

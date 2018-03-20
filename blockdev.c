@@ -334,7 +334,8 @@ static bool parse_stats_intervals(BlockAcctStats *stats, QList *intervals,
 
         case QTYPE_QSTRING: {
             unsigned long long length;
-            const char *str = qstring_get_str(qobject_to_qstring(entry->value));
+            const char *str = qstring_get_str(qobject_to(QString,
+                                                         entry->value));
             if (parse_uint_full(str, &length, 10) == 0 &&
                 length > 0 && length <= UINT_MAX) {
                 block_acct_add_interval(stats, (unsigned) length);
@@ -346,7 +347,7 @@ static bool parse_stats_intervals(BlockAcctStats *stats, QList *intervals,
         }
 
         case QTYPE_QNUM: {
-            int64_t length = qnum_get_int(qobject_to_qnum(entry->value));
+            int64_t length = qnum_get_int(qobject_to(QNum, entry->value));
 
             if (length > 0 && length <= UINT_MAX) {
                 block_acct_add_interval(stats, (unsigned) length);
@@ -4044,7 +4045,6 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
     QDict *qdict;
-    const QDictEntry *ent;
     Error *local_err = NULL;
 
     visit_type_BlockdevOptions(v, NULL, &options, &local_err);
@@ -4054,22 +4054,9 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
     }
 
     visit_complete(v, &obj);
-    qdict = qobject_to_qdict(obj);
+    qdict = qobject_to(QDict, obj);
 
     qdict_flatten(qdict);
-
-    /*
-     * Rewrite "backing": null to "backing": ""
-     * TODO Rewrite "" to null instead, and perhaps not even here
-     */
-    for (ent = qdict_first(qdict); ent; ent = qdict_next(qdict, ent)) {
-        char *dot = strrchr(ent->key, '.');
-
-        if (!strcmp(dot ? dot + 1 : ent->key, "backing")
-            && qobject_type(ent->value) == QTYPE_QNULL) {
-            qdict_put(qdict, ent->key, qstring_new());
-        }
-    }
 
     if (!qdict_get_try_str(qdict, "node-name")) {
         error_setg(errp, "'node-name' must be specified for the root node");
@@ -4250,6 +4237,49 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
     bdrv_set_aio_context(bs, new_context);
 
     aio_context_release(old_context);
+}
+
+void qmp_x_block_latency_histogram_set(
+    const char *device,
+    bool has_boundaries, uint64List *boundaries,
+    bool has_boundaries_read, uint64List *boundaries_read,
+    bool has_boundaries_write, uint64List *boundaries_write,
+    bool has_boundaries_flush, uint64List *boundaries_flush,
+    Error **errp)
+{
+    BlockBackend *blk = blk_by_name(device);
+    BlockAcctStats *stats;
+
+    if (!blk) {
+        error_setg(errp, "Device '%s' not found", device);
+        return;
+    }
+    stats = blk_get_stats(blk);
+
+    if (!has_boundaries && !has_boundaries_read && !has_boundaries_write &&
+        !has_boundaries_flush)
+    {
+        block_latency_histograms_clear(stats);
+        return;
+    }
+
+    if (has_boundaries || has_boundaries_read) {
+        block_latency_histogram_set(
+            stats, BLOCK_ACCT_READ,
+            has_boundaries_read ? boundaries_read : boundaries);
+    }
+
+    if (has_boundaries || has_boundaries_write) {
+        block_latency_histogram_set(
+            stats, BLOCK_ACCT_WRITE,
+            has_boundaries_write ? boundaries_write : boundaries);
+    }
+
+    if (has_boundaries || has_boundaries_flush) {
+        block_latency_histogram_set(
+            stats, BLOCK_ACCT_FLUSH,
+            has_boundaries_flush ? boundaries_flush : boundaries);
+    }
 }
 
 QemuOptsList qemu_common_drive_opts = {

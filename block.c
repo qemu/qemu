@@ -33,6 +33,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qapi-visit-block-core.h"
@@ -1457,7 +1458,7 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
         return NULL;
     }
 
-    options = qobject_to_qdict(options_obj);
+    options = qobject_to(QDict, options_obj);
     if (!options) {
         qobject_decref(options_obj);
         error_setg(errp, "Invalid JSON object given");
@@ -2433,7 +2434,7 @@ BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
         }
         visit_complete(v, &obj);
 
-        qdict = qobject_to_qdict(obj);
+        qdict = qobject_to(QDict, obj);
         qdict_flatten(qdict);
 
         /* bdrv_open_inherit() defaults to the values in bdrv_flags (for
@@ -2645,7 +2646,13 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
     /* See cautionary note on accessing @options above */
     backing = qdict_get_try_str(options, "backing");
-    if (backing && *backing == '\0') {
+    if (qobject_to(QNull, qdict_get(options, "backing")) != NULL ||
+        (backing && *backing == '\0'))
+    {
+        if (backing) {
+            warn_report("Use of \"backing\": \"\" is deprecated; "
+                        "use \"backing\": null instead");
+        }
         flags |= BDRV_O_NO_BACKING;
         qdict_del(options, "backing");
     }

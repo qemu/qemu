@@ -3066,7 +3066,6 @@ int main(int argc, char **argv, char **envp)
     qemu_init_exec_dir(argv[0]);
 
     module_call_init(MODULE_INIT_QOM);
-    monitor_init_qmp_commands();
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
@@ -4536,6 +4535,12 @@ int main(int argc, char **argv, char **envp)
                   CDROM_OPTS);
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
     default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
+
+    /*
+     * Note: qtest_enabled() (which is used in monitor_qapi_event_init())
+     * depends on configure_accelerator() above.
+     */
+    monitor_init_globals();
 
     if (qemu_opts_foreach(qemu_find_opts("mon"),
                           mon_init_func, NULL, NULL)) {
