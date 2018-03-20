@@ -3943,16 +3943,15 @@
 #
 # @file             Node to create the image format on
 # @size             Size of the virtual disk in bytes
-# @static           Whether to create a statically (true) or
-#                   dynamically (false) allocated image
-#                   (default: false, i.e. dynamic)
+# @preallocation    Preallocation mode for the new image (allowed values: off,
+#                   metadata; default: off)
 #
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsVdi',
   'data': { 'file':             'BlockdevRef',
             'size':             'size',
-            '*static':          'bool' } }
+            '*preallocation':   'PreallocMode' } }
 
 ##
 # @BlockdevVhdxSubformat:

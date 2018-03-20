@@ -728,7 +728,7 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
     int ret = 0;
     uint64_t bytes = 0;
     uint32_t blocks;
-    uint32_t image_type = VDI_TYPE_DYNAMIC;
+    uint32_t image_type;
     VdiHeader header;
     size_t i;
     size_t bmap_size;
@@ -744,9 +744,22 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
 
     /* Validate options and set default values */
     bytes = vdi_opts->size;
-    if (vdi_opts->q_static) {
-        image_type = VDI_TYPE_STATIC;
+
+    if (!vdi_opts->has_preallocation) {
+        vdi_opts->preallocation = PREALLOC_MODE_OFF;
     }
+    switch (vdi_opts->preallocation) {
+    case PREALLOC_MODE_OFF:
+        image_type = VDI_TYPE_DYNAMIC;
+        break;
+    case PREALLOC_MODE_METADATA:
+        image_type = VDI_TYPE_STATIC;
+        break;
+    default:
+        error_setg(errp, "Preallocation mode not supported for vdi");
+        return -EINVAL;
+    }
+
 #ifndef CONFIG_VDI_STATIC_IMAGE
     if (image_type == VDI_TYPE_STATIC) {
         ret = -ENOTSUP;
@@ -874,6 +887,7 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
     BlockdevCreateOptions *create_options = NULL;
     BlockDriverState *bs_file = NULL;
     uint64_t block_size = DEFAULT_CLUSTER_SIZE;
+    bool is_static = false;
     Visitor *v;
     Error *local_err = NULL;
     int ret;
@@ -895,6 +909,9 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
         goto done;
     }
 #endif
+    if (qemu_opt_get_bool_del(opts, BLOCK_OPT_STATIC, false)) {
+        is_static = true;
+    }
 
     qdict = qemu_opts_to_qdict_filtered(opts, NULL, &vdi_create_opts, true);
 
@@ -913,6 +930,9 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
 
     qdict_put_str(qdict, "driver", "vdi");
     qdict_put_str(qdict, "file", bs_file->node_name);
+    if (is_static) {
+        qdict_put_str(qdict, "preallocation", "metadata");
+    }
 
     /* Get the QAPI object */
     v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
