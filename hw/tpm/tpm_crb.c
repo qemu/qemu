@@ -208,6 +208,8 @@ static void tpm_crb_reset(void *dev)
 
     tpm_backend_reset(s->tpmbe);
 
+    memset(s->regs, 0, sizeof(s->regs));
+
     ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
                      tpmRegValidSts, 1);
     ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
