@@ -612,7 +612,6 @@ void qemu_purge_queued_packets(NetClientState *nc)
     qemu_net_queue_purge(nc->peer->incoming_queue, nc);
 }
 
-static
 void qemu_flush_or_purge_queued_packets(NetClientState *nc, bool purge)
 {
     nc->receive_disabled = 0;

@@ -422,6 +422,7 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
 static void virtio_net_reset(VirtIODevice *vdev)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
+    int i;
 
     /* Reset back to compatibility mode */
     n->promisc = 1;
@@ -445,6 +446,16 @@ static void virtio_net_reset(VirtIODevice *vdev)
     memcpy(&n->mac[0], &n->nic->conf->macaddr, sizeof(n->mac));
     qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
     memset(n->vlans, 0, MAX_VLAN >> 3);
+
+    /* Flush any async TX */
+    for (i = 0;  i < n->max_queues; i++) {
+        NetClientState *nc = qemu_get_subqueue(n->nic, i);
+
+        if (nc->peer) {
+            qemu_flush_or_purge_queued_packets(nc->peer, true);
+            assert(!virtio_net_get_subqueue(nc)->async_tx.elem);
+        }
+    }
 }
 
 static void peer_test_vnet_hdr(VirtIONet *n)
