@@ -1877,6 +1877,10 @@ static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
         error_setg_errno(errp, EINVAL, "Block size must be a multiple of 1 MB");
         return -EINVAL;
     }
+    if (!is_power_of_2(block_size)) {
+        error_setg(errp, "Block size must be a power of two");
+        return -EINVAL;
+    }
     if (block_size > VHDX_BLOCK_SIZE_MAX) {
         error_setg_errno(errp, EINVAL, "Block size must not exceed %d",
                          VHDX_BLOCK_SIZE_MAX);
