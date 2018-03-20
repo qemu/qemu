@@ -103,6 +103,8 @@ int gdbserver_start(int);
 int gdbserver_start(const char *port);
 #endif
 
+void gdbserver_cleanup(void);
+
 /**
  * gdb_has_xml:
  * This is an ugly hack to cope with both new and old gdb.

@@ -4733,6 +4733,8 @@ int main(int argc, char **argv, char **envp)
 
     main_loop();
 
+    gdbserver_cleanup();
+
     /* No more vcpu or device emulation activity beyond this point */
     vm_shutdown();
 
