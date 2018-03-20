@@ -38,7 +38,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 . ./common.pattern
 
-_supported_fmt raw qcow2 qed
+_supported_fmt raw qcow2 qed luks
 _supported_proto file sheepdog rbd nfs
 _supported_os Linux
 
@@ -61,6 +61,13 @@ truncate $big_size
 length
 EOF
 _check_test_img
+
+# bdrv_truncate() doesn't zero the new space, so we need to do that explicitly.
+# We still want to test automatic zeroing for other formats even though
+# bdrv_truncate() doesn't guarantee it.
+if [ "$IMGFMT" == "luks" ]; then
+    $QEMU_IO -c "write -z $small_size $((big_size - small_size))" "$TEST_IMG" > /dev/null
+fi
 
 echo
 echo "=== Verifying image size after reopen"
