@@ -290,6 +290,15 @@ Once the source has finished migration, rings will be stopped by
 the source. No further update must be done before rings are
 restarted.
 
+In postcopy migration the slave is started before all the memory has been
+received from the source host, and care must be taken to avoid accessing pages
+that have yet to be received.  The slave opens a 'userfault'-fd and registers
+the memory with it; this fd is then passed back over to the master.
+The master services requests on the userfaultfd for pages that are accessed
+and when the page is available it performs WAKE ioctl's on the userfaultfd
+to wake the stalled slave.  The client indicates support for this via the
+VHOST_USER_PROTOCOL_F_PAGEFAULT feature.
+
 Memory access
 -------------
 
@@ -369,6 +378,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
 #define VHOST_USER_PROTOCOL_F_CROSS_ENDIAN   6
 #define VHOST_USER_PROTOCOL_F_CRYPTO_SESSION 7
+#define VHOST_USER_PROTOCOL_F_PAGEFAULT      8
 
 Master message types
 --------------------
@@ -445,11 +455,20 @@ Master message types
       Id: 5
       Equivalent ioctl: VHOST_SET_MEM_TABLE
       Master payload: memory regions description
+      Slave payload: (postcopy only) memory regions description
 
       Sets the memory map regions on the slave so it can translate the vring
       addresses. In the ancillary data there is an array of file descriptors
       for each memory mapped region. The size and ordering of the fds matches
       the number and ordering of memory regions.
+
+      When VHOST_USER_POSTCOPY_LISTEN has been received, SET_MEM_TABLE replies with
+      the bases of the memory mapped regions to the master.  The slave must
+      have mmap'd the regions but not yet accessed them and should not yet generate
+      a userfault event. Note NEED_REPLY_MASK is not set in this case.
+      QEMU will then reply back to the list of mappings with an empty
+      VHOST_USER_SET_MEM_TABLE as an acknowledgment; only upon reception of this
+      message may the guest start accessing the memory and generating faults.
 
  * VHOST_USER_SET_LOG_BASE
 
@@ -688,6 +707,39 @@ Master message types
      This request should be sent only when VHOST_USER_PROTOCOL_F_CRYPTO_SESSION
      feature has been successfully negotiated.
      It's a required feature for crypto devices.
+
+ * VHOST_USER_POSTCOPY_ADVISE
+      Id: 28
+      Master payload: N/A
+      Slave payload: userfault fd
+
+      When VHOST_USER_PROTOCOL_F_PAGEFAULT is supported, the
+      master advises slave that a migration with postcopy enabled is underway,
+      the slave must open a userfaultfd for later use.
+      Note that at this stage the migration is still in precopy mode.
+
+ * VHOST_USER_POSTCOPY_LISTEN
+      Id: 29
+      Master payload: N/A
+
+      Master advises slave that a transition to postcopy mode has happened.
+      The slave must ensure that shared memory is registered with userfaultfd
+      to cause faulting of non-present pages.
+
+      This is always sent sometime after a VHOST_USER_POSTCOPY_ADVISE, and
+      thus only when VHOST_USER_PROTOCOL_F_PAGEFAULT is supported.
+
+ * VHOST_USER_POSTCOPY_END
+      Id: 30
+      Slave payload: u64
+
+      Master advises that postcopy migration has now completed.  The
+      slave must disable the userfaultfd. The response is an acknowledgement
+      only.
+      When VHOST_USER_PROTOCOL_F_PAGEFAULT is supported, this message
+      is sent at the end of the migration, after VHOST_USER_POSTCOPY_LISTEN
+      was previously sent.
+      The value returned is an error indication; 0 is success.
 
 Slave message types
 -------------------

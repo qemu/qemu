@@ -18,11 +18,15 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "sysemu/cryptodev.h"
+#include "migration/migration.h"
+#include "migration/postcopy-ram.h"
+#include "trace.h"
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <linux/vhost.h>
+#include <linux/userfaultfd.h>
 
 #define VHOST_MEMORY_MAX_NREGIONS    8
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
@@ -41,7 +45,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_SLAVE_REQ = 5,
     VHOST_USER_PROTOCOL_F_CROSS_ENDIAN = 6,
     VHOST_USER_PROTOCOL_F_CRYPTO_SESSION = 7,
-
+    VHOST_USER_PROTOCOL_F_PAGEFAULT = 8,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -76,6 +80,9 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_CONFIG = 25,
     VHOST_USER_CREATE_CRYPTO_SESSION = 26,
     VHOST_USER_CLOSE_CRYPTO_SESSION = 27,
+    VHOST_USER_POSTCOPY_ADVISE  = 28,
+    VHOST_USER_POSTCOPY_LISTEN  = 29,
+    VHOST_USER_POSTCOPY_END     = 30,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -164,8 +171,23 @@ static VhostUserMsg m __attribute__ ((unused));
 #define VHOST_USER_VERSION    (0x1)
 
 struct vhost_user {
+    struct vhost_dev *dev;
     CharBackend *chr;
     int slave_fd;
+    NotifierWithReturn postcopy_notifier;
+    struct PostCopyFD  postcopy_fd;
+    uint64_t           postcopy_client_bases[VHOST_MEMORY_MAX_NREGIONS];
+    /* Length of the region_rb and region_rb_offset arrays */
+    size_t             region_rb_len;
+    /* RAMBlock associated with a given region */
+    RAMBlock         **region_rb;
+    /* The offset from the start of the RAMBlock to the start of the
+     * vhost region.
+     */
+    ram_addr_t        *region_rb_offset;
+
+    /* True once we've entered postcopy_listen */
+    bool               postcopy_listen;
 };
 
 static bool ioeventfd_enabled(void)
@@ -330,14 +352,167 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
     return 0;
 }
 
-static int vhost_user_set_mem_table(struct vhost_dev *dev,
-                                    struct vhost_memory *mem)
+static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
+                                             struct vhost_memory *mem)
 {
+    struct vhost_user *u = dev->opaque;
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     int i, fd;
     size_t fd_num = 0;
     bool reply_supported = virtio_has_feature(dev->protocol_features,
                                               VHOST_USER_PROTOCOL_F_REPLY_ACK);
+    VhostUserMsg msg_reply;
+    int region_i, msg_i;
+
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_SET_MEM_TABLE,
+        .hdr.flags = VHOST_USER_VERSION,
+    };
+
+    if (reply_supported) {
+        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
+    if (u->region_rb_len < dev->mem->nregions) {
+        u->region_rb = g_renew(RAMBlock*, u->region_rb, dev->mem->nregions);
+        u->region_rb_offset = g_renew(ram_addr_t, u->region_rb_offset,
+                                      dev->mem->nregions);
+        memset(&(u->region_rb[u->region_rb_len]), '\0',
+               sizeof(RAMBlock *) * (dev->mem->nregions - u->region_rb_len));
+        memset(&(u->region_rb_offset[u->region_rb_len]), '\0',
+               sizeof(ram_addr_t) * (dev->mem->nregions - u->region_rb_len));
+        u->region_rb_len = dev->mem->nregions;
+    }
+
+    for (i = 0; i < dev->mem->nregions; ++i) {
+        struct vhost_memory_region *reg = dev->mem->regions + i;
+        ram_addr_t offset;
+        MemoryRegion *mr;
+
+        assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
+        mr = memory_region_from_host((void *)(uintptr_t)reg->userspace_addr,
+                                     &offset);
+        fd = memory_region_get_fd(mr);
+        if (fd > 0) {
+            trace_vhost_user_set_mem_table_withfd(fd_num, mr->name,
+                                                  reg->memory_size,
+                                                  reg->guest_phys_addr,
+                                                  reg->userspace_addr, offset);
+            u->region_rb_offset[i] = offset;
+            u->region_rb[i] = mr->ram_block;
+            msg.payload.memory.regions[fd_num].userspace_addr =
+                reg->userspace_addr;
+            msg.payload.memory.regions[fd_num].memory_size  = reg->memory_size;
+            msg.payload.memory.regions[fd_num].guest_phys_addr =
+                reg->guest_phys_addr;
+            msg.payload.memory.regions[fd_num].mmap_offset = offset;
+            assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
+            fds[fd_num++] = fd;
+        } else {
+            u->region_rb_offset[i] = 0;
+            u->region_rb[i] = NULL;
+        }
+    }
+
+    msg.payload.memory.nregions = fd_num;
+
+    if (!fd_num) {
+        error_report("Failed initializing vhost-user memory map, "
+                     "consider using -object memory-backend-file share=on");
+        return -1;
+    }
+
+    msg.hdr.size = sizeof(msg.payload.memory.nregions);
+    msg.hdr.size += sizeof(msg.payload.memory.padding);
+    msg.hdr.size += fd_num * sizeof(VhostUserMemoryRegion);
+
+    if (vhost_user_write(dev, &msg, fds, fd_num) < 0) {
+        return -1;
+    }
+
+    if (vhost_user_read(dev, &msg_reply) < 0) {
+        return -1;
+    }
+
+    if (msg_reply.hdr.request != VHOST_USER_SET_MEM_TABLE) {
+        error_report("%s: Received unexpected msg type."
+                     "Expected %d received %d", __func__,
+                     VHOST_USER_SET_MEM_TABLE, msg_reply.hdr.request);
+        return -1;
+    }
+    /* We're using the same structure, just reusing one of the
+     * fields, so it should be the same size.
+     */
+    if (msg_reply.hdr.size != msg.hdr.size) {
+        error_report("%s: Unexpected size for postcopy reply "
+                     "%d vs %d", __func__, msg_reply.hdr.size, msg.hdr.size);
+        return -1;
+    }
+
+    memset(u->postcopy_client_bases, 0,
+           sizeof(uint64_t) * VHOST_MEMORY_MAX_NREGIONS);
+
+    /* They're in the same order as the regions that were sent
+     * but some of the regions were skipped (above) if they
+     * didn't have fd's
+    */
+    for (msg_i = 0, region_i = 0;
+         region_i < dev->mem->nregions;
+        region_i++) {
+        if (msg_i < fd_num &&
+            msg_reply.payload.memory.regions[msg_i].guest_phys_addr ==
+            dev->mem->regions[region_i].guest_phys_addr) {
+            u->postcopy_client_bases[region_i] =
+                msg_reply.payload.memory.regions[msg_i].userspace_addr;
+            trace_vhost_user_set_mem_table_postcopy(
+                msg_reply.payload.memory.regions[msg_i].userspace_addr,
+                msg.payload.memory.regions[msg_i].userspace_addr,
+                msg_i, region_i);
+            msg_i++;
+        }
+    }
+    if (msg_i != fd_num) {
+        error_report("%s: postcopy reply not fully consumed "
+                     "%d vs %zd",
+                     __func__, msg_i, fd_num);
+        return -1;
+    }
+    /* Now we've registered this with the postcopy code, we ack to the client,
+     * because now we're in the position to be able to deal with any faults
+     * it generates.
+     */
+    /* TODO: Use this for failure cases as well with a bad value */
+    msg.hdr.size = sizeof(msg.payload.u64);
+    msg.payload.u64 = 0; /* OK */
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    if (reply_supported) {
+        return process_message_reply(dev, &msg);
+    }
+
+    return 0;
+}
+
+static int vhost_user_set_mem_table(struct vhost_dev *dev,
+                                    struct vhost_memory *mem)
+{
+    struct vhost_user *u = dev->opaque;
+    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int i, fd;
+    size_t fd_num = 0;
+    bool do_postcopy = u->postcopy_listen && u->postcopy_fd.handler;
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                          VHOST_USER_PROTOCOL_F_REPLY_ACK) &&
+                                          !do_postcopy;
+
+    if (do_postcopy) {
+        /* Postcopy has enough differences that it's best done in it's own
+         * version
+         */
+        return vhost_user_set_mem_table_postcopy(dev, mem);
+    }
 
     VhostUserMsg msg = {
         .hdr.request = VHOST_USER_SET_MEM_TABLE,
@@ -362,9 +537,11 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
                 error_report("Failed preparing vhost-user memory table msg");
                 return -1;
             }
-            msg.payload.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
+            msg.payload.memory.regions[fd_num].userspace_addr =
+                reg->userspace_addr;
             msg.payload.memory.regions[fd_num].memory_size  = reg->memory_size;
-            msg.payload.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
+            msg.payload.memory.regions[fd_num].guest_phys_addr =
+                reg->guest_phys_addr;
             msg.payload.memory.regions[fd_num].mmap_offset = offset;
             fds[fd_num++] = fd;
         }
@@ -791,6 +968,219 @@ out:
     return ret;
 }
 
+/*
+ * Called back from the postcopy fault thread when a fault is received on our
+ * ufd.
+ * TODO: This is Linux specific
+ */
+static int vhost_user_postcopy_fault_handler(struct PostCopyFD *pcfd,
+                                             void *ufd)
+{
+    struct vhost_dev *dev = pcfd->data;
+    struct vhost_user *u = dev->opaque;
+    struct uffd_msg *msg = ufd;
+    uint64_t faultaddr = msg->arg.pagefault.address;
+    RAMBlock *rb = NULL;
+    uint64_t rb_offset;
+    int i;
+
+    trace_vhost_user_postcopy_fault_handler(pcfd->idstr, faultaddr,
+                                            dev->mem->nregions);
+    for (i = 0; i < MIN(dev->mem->nregions, u->region_rb_len); i++) {
+        trace_vhost_user_postcopy_fault_handler_loop(i,
+                u->postcopy_client_bases[i], dev->mem->regions[i].memory_size);
+        if (faultaddr >= u->postcopy_client_bases[i]) {
+            /* Ofset of the fault address in the vhost region */
+            uint64_t region_offset = faultaddr - u->postcopy_client_bases[i];
+            if (region_offset < dev->mem->regions[i].memory_size) {
+                rb_offset = region_offset + u->region_rb_offset[i];
+                trace_vhost_user_postcopy_fault_handler_found(i,
+                        region_offset, rb_offset);
+                rb = u->region_rb[i];
+                return postcopy_request_shared_page(pcfd, rb, faultaddr,
+                                                    rb_offset);
+            }
+        }
+    }
+    error_report("%s: Failed to find region for fault %" PRIx64,
+                 __func__, faultaddr);
+    return -1;
+}
+
+static int vhost_user_postcopy_waker(struct PostCopyFD *pcfd, RAMBlock *rb,
+                                     uint64_t offset)
+{
+    struct vhost_dev *dev = pcfd->data;
+    struct vhost_user *u = dev->opaque;
+    int i;
+
+    trace_vhost_user_postcopy_waker(qemu_ram_get_idstr(rb), offset);
+
+    if (!u) {
+        return 0;
+    }
+    /* Translate the offset into an address in the clients address space */
+    for (i = 0; i < MIN(dev->mem->nregions, u->region_rb_len); i++) {
+        if (u->region_rb[i] == rb &&
+            offset >= u->region_rb_offset[i] &&
+            offset < (u->region_rb_offset[i] +
+                      dev->mem->regions[i].memory_size)) {
+            uint64_t client_addr = (offset - u->region_rb_offset[i]) +
+                                   u->postcopy_client_bases[i];
+            trace_vhost_user_postcopy_waker_found(client_addr);
+            return postcopy_wake_shared(pcfd, client_addr, rb);
+        }
+    }
+
+    trace_vhost_user_postcopy_waker_nomatch(qemu_ram_get_idstr(rb), offset);
+    return 0;
+}
+
+/*
+ * Called at the start of an inbound postcopy on reception of the
+ * 'advise' command.
+ */
+static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
+{
+    struct vhost_user *u = dev->opaque;
+    CharBackend *chr = u->chr;
+    int ufd;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_POSTCOPY_ADVISE,
+        .hdr.flags = VHOST_USER_VERSION,
+    };
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        error_setg(errp, "Failed to send postcopy_advise to vhost");
+        return -1;
+    }
+
+    if (vhost_user_read(dev, &msg) < 0) {
+        error_setg(errp, "Failed to get postcopy_advise reply from vhost");
+        return -1;
+    }
+
+    if (msg.hdr.request != VHOST_USER_POSTCOPY_ADVISE) {
+        error_setg(errp, "Unexpected msg type. Expected %d received %d",
+                     VHOST_USER_POSTCOPY_ADVISE, msg.hdr.request);
+        return -1;
+    }
+
+    if (msg.hdr.size) {
+        error_setg(errp, "Received bad msg size.");
+        return -1;
+    }
+    ufd = qemu_chr_fe_get_msgfd(chr);
+    if (ufd < 0) {
+        error_setg(errp, "%s: Failed to get ufd", __func__);
+        return -1;
+    }
+    fcntl(ufd, F_SETFL, O_NONBLOCK);
+
+    /* register ufd with userfault thread */
+    u->postcopy_fd.fd = ufd;
+    u->postcopy_fd.data = dev;
+    u->postcopy_fd.handler = vhost_user_postcopy_fault_handler;
+    u->postcopy_fd.waker = vhost_user_postcopy_waker;
+    u->postcopy_fd.idstr = "vhost-user"; /* Need to find unique name */
+    postcopy_register_shared_ufd(&u->postcopy_fd);
+    return 0;
+}
+
+/*
+ * Called at the switch to postcopy on reception of the 'listen' command.
+ */
+static int vhost_user_postcopy_listen(struct vhost_dev *dev, Error **errp)
+{
+    struct vhost_user *u = dev->opaque;
+    int ret;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_POSTCOPY_LISTEN,
+        .hdr.flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+    };
+    u->postcopy_listen = true;
+    trace_vhost_user_postcopy_listen();
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        error_setg(errp, "Failed to send postcopy_listen to vhost");
+        return -1;
+    }
+
+    ret = process_message_reply(dev, &msg);
+    if (ret) {
+        error_setg(errp, "Failed to receive reply to postcopy_listen");
+        return ret;
+    }
+
+    return 0;
+}
+
+/*
+ * Called at the end of postcopy
+ */
+static int vhost_user_postcopy_end(struct vhost_dev *dev, Error **errp)
+{
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_POSTCOPY_END,
+        .hdr.flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+    };
+    int ret;
+    struct vhost_user *u = dev->opaque;
+
+    trace_vhost_user_postcopy_end_entry();
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        error_setg(errp, "Failed to send postcopy_end to vhost");
+        return -1;
+    }
+
+    ret = process_message_reply(dev, &msg);
+    if (ret) {
+        error_setg(errp, "Failed to receive reply to postcopy_end");
+        return ret;
+    }
+    postcopy_unregister_shared_ufd(&u->postcopy_fd);
+    u->postcopy_fd.handler = NULL;
+
+    trace_vhost_user_postcopy_end_exit();
+
+    return 0;
+}
+
+static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
+                                        void *opaque)
+{
+    struct PostcopyNotifyData *pnd = opaque;
+    struct vhost_user *u = container_of(notifier, struct vhost_user,
+                                         postcopy_notifier);
+    struct vhost_dev *dev = u->dev;
+
+    switch (pnd->reason) {
+    case POSTCOPY_NOTIFY_PROBE:
+        if (!virtio_has_feature(dev->protocol_features,
+                                VHOST_USER_PROTOCOL_F_PAGEFAULT)) {
+            /* TODO: Get the device name into this error somehow */
+            error_setg(pnd->errp,
+                       "vhost-user backend not capable of postcopy");
+            return -ENOENT;
+        }
+        break;
+
+    case POSTCOPY_NOTIFY_INBOUND_ADVISE:
+        return vhost_user_postcopy_advise(dev, pnd->errp);
+
+    case POSTCOPY_NOTIFY_INBOUND_LISTEN:
+        return vhost_user_postcopy_listen(dev, pnd->errp);
+
+    case POSTCOPY_NOTIFY_INBOUND_END:
+        return vhost_user_postcopy_end(dev, pnd->errp);
+
+    default:
+        /* We ignore notifications we don't know */
+        break;
+    }
+
+    return 0;
+}
+
 static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 {
     uint64_t features, protocol_features;
@@ -802,6 +1192,7 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
     u = g_new0(struct vhost_user, 1);
     u->chr = opaque;
     u->slave_fd = -1;
+    u->dev = dev;
     dev->opaque = u;
 
     err = vhost_user_get_features(dev, &features);
@@ -858,6 +1249,9 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
         return err;
     }
 
+    u->postcopy_notifier.notify = vhost_user_postcopy_notifier;
+    postcopy_add_notifier(&u->postcopy_notifier);
+
     return 0;
 }
 
@@ -868,11 +1262,20 @@ static int vhost_user_cleanup(struct vhost_dev *dev)
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
     u = dev->opaque;
+    if (u->postcopy_notifier.notify) {
+        postcopy_remove_notifier(&u->postcopy_notifier);
+        u->postcopy_notifier.notify = NULL;
+    }
     if (u->slave_fd >= 0) {
         qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
         close(u->slave_fd);
         u->slave_fd = -1;
     }
+    g_free(u->region_rb);
+    u->region_rb = NULL;
+    g_free(u->region_rb_offset);
+    u->region_rb_offset = NULL;
+    u->region_rb_len = 0;
     g_free(u);
     dev->opaque = 0;
 

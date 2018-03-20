@@ -23,6 +23,8 @@
 #include "savevm.h"
 #include "postcopy-ram.h"
 #include "ram.h"
+#include "qapi/error.h"
+#include "qemu/notify.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/balloon.h"
 #include "qemu/error-report.h"
@@ -44,6 +46,33 @@ struct PostcopyDiscardState {
     unsigned int nsentwords;
     unsigned int nsentcmds;
 };
+
+static NotifierWithReturnList postcopy_notifier_list;
+
+void postcopy_infrastructure_init(void)
+{
+    notifier_with_return_list_init(&postcopy_notifier_list);
+}
+
+void postcopy_add_notifier(NotifierWithReturn *nn)
+{
+    notifier_with_return_list_add(&postcopy_notifier_list, nn);
+}
+
+void postcopy_remove_notifier(NotifierWithReturn *n)
+{
+    notifier_with_return_remove(n);
+}
+
+int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp)
+{
+    struct PostcopyNotifyData pnd;
+    pnd.reason = reason;
+    pnd.errp = errp;
+
+    return notifier_with_return_list_notify(&postcopy_notifier_list,
+                                            &pnd);
+}
 
 /* Postcopy needs to detect accesses to pages that haven't yet been copied
  * across, and efficiently map new pages in, the techniques for doing this
@@ -186,12 +215,6 @@ static int test_ramblock_postcopiable(const char *block_name, void *host_addr,
     RAMBlock *rb = qemu_ram_block_by_name(block_name);
     size_t pagesize = qemu_ram_pagesize(rb);
 
-    if (qemu_ram_is_shared(rb)) {
-        error_report("Postcopy on shared RAM (%s) is not yet supported",
-                     block_name);
-        return 1;
-    }
-
     if (length % pagesize) {
         error_report("Postcopy requires RAM blocks to be a page size multiple,"
                      " block %s is 0x" RAM_ADDR_FMT " bytes with a "
@@ -215,6 +238,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
     struct uffdio_register reg_struct;
     struct uffdio_range range_struct;
     uint64_t feature_mask;
+    Error *local_err = NULL;
 
     if (qemu_target_page_size() > pagesize) {
         error_report("Target page size bigger than host page size");
@@ -225,6 +249,12 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
     if (ufd == -1) {
         error_report("%s: userfaultfd not available: %s", __func__,
                      strerror(errno));
+        goto out;
+    }
+
+    /* Give devices a chance to object */
+    if (postcopy_notify(POSTCOPY_NOTIFY_PROBE, &local_err)) {
+        error_report_err(local_err);
         goto out;
     }
 
@@ -377,6 +407,13 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
     trace_postcopy_ram_incoming_cleanup_entry();
 
     if (mis->have_fault_thread) {
+        Error *local_err = NULL;
+
+        if (postcopy_notify(POSTCOPY_NOTIFY_INBOUND_END, &local_err)) {
+            error_report_err(local_err);
+            return -1;
+        }
+
         if (qemu_ram_foreach_block(cleanup_range, mis)) {
             return -1;
         }
@@ -481,7 +518,60 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
         error_report("%s userfault: Region doesn't support COPY", __func__);
         return -1;
     }
+    if (reg_struct.ioctls & ((__u64)1 << _UFFDIO_ZEROPAGE)) {
+        RAMBlock *rb = qemu_ram_block_by_name(block_name);
+        qemu_ram_set_uf_zeroable(rb);
+    }
 
+    return 0;
+}
+
+int postcopy_wake_shared(struct PostCopyFD *pcfd,
+                         uint64_t client_addr,
+                         RAMBlock *rb)
+{
+    size_t pagesize = qemu_ram_pagesize(rb);
+    struct uffdio_range range;
+    int ret;
+    trace_postcopy_wake_shared(client_addr, qemu_ram_get_idstr(rb));
+    range.start = client_addr & ~(pagesize - 1);
+    range.len = pagesize;
+    ret = ioctl(pcfd->fd, UFFDIO_WAKE, &range);
+    if (ret) {
+        error_report("%s: Failed to wake: %zx in %s (%s)",
+                     __func__, (size_t)client_addr, qemu_ram_get_idstr(rb),
+                     strerror(errno));
+    }
+    return ret;
+}
+
+/*
+ * Callback from shared fault handlers to ask for a page,
+ * the page must be specified by a RAMBlock and an offset in that rb
+ * Note: Only for use by shared fault handlers (in fault thread)
+ */
+int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
+                                 uint64_t client_addr, uint64_t rb_offset)
+{
+    size_t pagesize = qemu_ram_pagesize(rb);
+    uint64_t aligned_rbo = rb_offset & ~(pagesize - 1);
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    trace_postcopy_request_shared_page(pcfd->idstr, qemu_ram_get_idstr(rb),
+                                       rb_offset);
+    if (ramblock_recv_bitmap_test_byte_offset(rb, aligned_rbo)) {
+        trace_postcopy_request_shared_page_present(pcfd->idstr,
+                                        qemu_ram_get_idstr(rb), rb_offset);
+        return postcopy_wake_shared(pcfd, client_addr, rb);
+    }
+    if (rb != mis->last_rb) {
+        mis->last_rb = rb;
+        migrate_send_rp_req_pages(mis, qemu_ram_get_idstr(rb),
+                                  aligned_rbo, pagesize);
+    } else {
+        /* Save some space */
+        migrate_send_rp_req_pages(mis, NULL, aligned_rbo, pagesize);
+    }
     return 0;
 }
 
@@ -493,29 +583,44 @@ static void *postcopy_ram_fault_thread(void *opaque)
     MigrationIncomingState *mis = opaque;
     struct uffd_msg msg;
     int ret;
+    size_t index;
     RAMBlock *rb = NULL;
-    RAMBlock *last_rb = NULL; /* last RAMBlock we sent part of */
 
     trace_postcopy_ram_fault_thread_entry();
+    mis->last_rb = NULL; /* last RAMBlock we sent part of */
     qemu_sem_post(&mis->fault_thread_sem);
+
+    struct pollfd *pfd;
+    size_t pfd_len = 2 + mis->postcopy_remote_fds->len;
+
+    pfd = g_new0(struct pollfd, pfd_len);
+
+    pfd[0].fd = mis->userfault_fd;
+    pfd[0].events = POLLIN;
+    pfd[1].fd = mis->userfault_event_fd;
+    pfd[1].events = POLLIN; /* Waiting for eventfd to go positive */
+    trace_postcopy_ram_fault_thread_fds_core(pfd[0].fd, pfd[1].fd);
+    for (index = 0; index < mis->postcopy_remote_fds->len; index++) {
+        struct PostCopyFD *pcfd = &g_array_index(mis->postcopy_remote_fds,
+                                                 struct PostCopyFD, index);
+        pfd[2 + index].fd = pcfd->fd;
+        pfd[2 + index].events = POLLIN;
+        trace_postcopy_ram_fault_thread_fds_extra(2 + index, pcfd->idstr,
+                                                  pcfd->fd);
+    }
 
     while (true) {
         ram_addr_t rb_offset;
-        struct pollfd pfd[2];
+        int poll_result;
 
         /*
          * We're mainly waiting for the kernel to give us a faulting HVA,
          * however we can be told to quit via userfault_quit_fd which is
          * an eventfd
          */
-        pfd[0].fd = mis->userfault_fd;
-        pfd[0].events = POLLIN;
-        pfd[0].revents = 0;
-        pfd[1].fd = mis->userfault_event_fd;
-        pfd[1].events = POLLIN; /* Waiting for eventfd to go positive */
-        pfd[1].revents = 0;
 
-        if (poll(pfd, 2, -1 /* Wait forever */) == -1) {
+        poll_result = poll(pfd, pfd_len, -1 /* Wait forever */);
+        if (poll_result == -1) {
             error_report("%s: userfault poll: %s", __func__, strerror(errno));
             break;
         }
@@ -535,57 +640,117 @@ static void *postcopy_ram_fault_thread(void *opaque)
             }
         }
 
-        ret = read(mis->userfault_fd, &msg, sizeof(msg));
-        if (ret != sizeof(msg)) {
-            if (errno == EAGAIN) {
-                /*
-                 * if a wake up happens on the other thread just after
-                 * the poll, there is nothing to read.
-                 */
-                continue;
+        if (pfd[0].revents) {
+            poll_result--;
+            ret = read(mis->userfault_fd, &msg, sizeof(msg));
+            if (ret != sizeof(msg)) {
+                if (errno == EAGAIN) {
+                    /*
+                     * if a wake up happens on the other thread just after
+                     * the poll, there is nothing to read.
+                     */
+                    continue;
+                }
+                if (ret < 0) {
+                    error_report("%s: Failed to read full userfault "
+                                 "message: %s",
+                                 __func__, strerror(errno));
+                    break;
+                } else {
+                    error_report("%s: Read %d bytes from userfaultfd "
+                                 "expected %zd",
+                                 __func__, ret, sizeof(msg));
+                    break; /* Lost alignment, don't know what we'd read next */
+                }
             }
-            if (ret < 0) {
-                error_report("%s: Failed to read full userfault message: %s",
-                             __func__, strerror(errno));
+            if (msg.event != UFFD_EVENT_PAGEFAULT) {
+                error_report("%s: Read unexpected event %ud from userfaultfd",
+                             __func__, msg.event);
+                continue; /* It's not a page fault, shouldn't happen */
+            }
+
+            rb = qemu_ram_block_from_host(
+                     (void *)(uintptr_t)msg.arg.pagefault.address,
+                     true, &rb_offset);
+            if (!rb) {
+                error_report("postcopy_ram_fault_thread: Fault outside guest: %"
+                             PRIx64, (uint64_t)msg.arg.pagefault.address);
                 break;
-            } else {
-                error_report("%s: Read %d bytes from userfaultfd expected %zd",
-                             __func__, ret, sizeof(msg));
-                break; /* Lost alignment, don't know what we'd read next */
             }
-        }
-        if (msg.event != UFFD_EVENT_PAGEFAULT) {
-            error_report("%s: Read unexpected event %ud from userfaultfd",
-                         __func__, msg.event);
-            continue; /* It's not a page fault, shouldn't happen */
-        }
 
-        rb = qemu_ram_block_from_host(
-                 (void *)(uintptr_t)msg.arg.pagefault.address,
-                 true, &rb_offset);
-        if (!rb) {
-            error_report("postcopy_ram_fault_thread: Fault outside guest: %"
-                         PRIx64, (uint64_t)msg.arg.pagefault.address);
-            break;
-        }
-
-        rb_offset &= ~(qemu_ram_pagesize(rb) - 1);
-        trace_postcopy_ram_fault_thread_request(msg.arg.pagefault.address,
+            rb_offset &= ~(qemu_ram_pagesize(rb) - 1);
+            trace_postcopy_ram_fault_thread_request(msg.arg.pagefault.address,
                                                 qemu_ram_get_idstr(rb),
                                                 rb_offset);
+            /*
+             * Send the request to the source - we want to request one
+             * of our host page sizes (which is >= TPS)
+             */
+            if (rb != mis->last_rb) {
+                mis->last_rb = rb;
+                migrate_send_rp_req_pages(mis, qemu_ram_get_idstr(rb),
+                                         rb_offset, qemu_ram_pagesize(rb));
+            } else {
+                /* Save some space */
+                migrate_send_rp_req_pages(mis, NULL,
+                                         rb_offset, qemu_ram_pagesize(rb));
+            }
+        }
 
-        /*
-         * Send the request to the source - we want to request one
-         * of our host page sizes (which is >= TPS)
-         */
-        if (rb != last_rb) {
-            last_rb = rb;
-            migrate_send_rp_req_pages(mis, qemu_ram_get_idstr(rb),
-                                     rb_offset, qemu_ram_pagesize(rb));
-        } else {
-            /* Save some space */
-            migrate_send_rp_req_pages(mis, NULL,
-                                     rb_offset, qemu_ram_pagesize(rb));
+        /* Now handle any requests from external processes on shared memory */
+        /* TODO: May need to handle devices deregistering during postcopy */
+        for (index = 2; index < pfd_len && poll_result; index++) {
+            if (pfd[index].revents) {
+                struct PostCopyFD *pcfd =
+                    &g_array_index(mis->postcopy_remote_fds,
+                                   struct PostCopyFD, index - 2);
+
+                poll_result--;
+                if (pfd[index].revents & POLLERR) {
+                    error_report("%s: POLLERR on poll %zd fd=%d",
+                                 __func__, index, pcfd->fd);
+                    pfd[index].events = 0;
+                    continue;
+                }
+
+                ret = read(pcfd->fd, &msg, sizeof(msg));
+                if (ret != sizeof(msg)) {
+                    if (errno == EAGAIN) {
+                        /*
+                         * if a wake up happens on the other thread just after
+                         * the poll, there is nothing to read.
+                         */
+                        continue;
+                    }
+                    if (ret < 0) {
+                        error_report("%s: Failed to read full userfault "
+                                     "message: %s (shared) revents=%d",
+                                     __func__, strerror(errno),
+                                     pfd[index].revents);
+                        /*TODO: Could just disable this sharer */
+                        break;
+                    } else {
+                        error_report("%s: Read %d bytes from userfaultfd "
+                                     "expected %zd (shared)",
+                                     __func__, ret, sizeof(msg));
+                        /*TODO: Could just disable this sharer */
+                        break; /*Lost alignment,don't know what we'd read next*/
+                    }
+                }
+                if (msg.event != UFFD_EVENT_PAGEFAULT) {
+                    error_report("%s: Read unexpected event %ud "
+                                 "from userfaultfd (shared)",
+                                 __func__, msg.event);
+                    continue; /* It's not a page fault, shouldn't happen */
+                }
+                /* Call the device handler registered with us */
+                ret = pcfd->handler(pcfd, &msg);
+                if (ret) {
+                    error_report("%s: Failed to resolve shared fault on %zd/%s",
+                                 __func__, index, pcfd->idstr);
+                    /* TODO: Fail? Disable this sharer? */
+                }
+            }
         }
     }
     trace_postcopy_ram_fault_thread_exit();
@@ -667,6 +832,22 @@ static int qemu_ufd_copy_ioctl(int userfault_fd, void *host_addr,
     return ret;
 }
 
+int postcopy_notify_shared_wake(RAMBlock *rb, uint64_t offset)
+{
+    int i;
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    GArray *pcrfds = mis->postcopy_remote_fds;
+
+    for (i = 0; i < pcrfds->len; i++) {
+        struct PostCopyFD *cur = &g_array_index(pcrfds, struct PostCopyFD, i);
+        int ret = cur->waker(cur, rb, offset);
+        if (ret) {
+            return ret;
+        }
+    }
+    return 0;
+}
+
 /*
  * Place a host page (from) at (host) atomically
  * returns 0 on success
@@ -690,7 +871,8 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
     }
 
     trace_postcopy_place_page(host);
-    return 0;
+    return postcopy_notify_shared_wake(rb,
+                                       qemu_ram_block_host_offset(rb, host));
 }
 
 /*
@@ -700,17 +882,23 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
 int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
                              RAMBlock *rb)
 {
+    size_t pagesize = qemu_ram_pagesize(rb);
     trace_postcopy_place_page_zero(host);
 
-    if (qemu_ram_pagesize(rb) == getpagesize()) {
-        if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, NULL, getpagesize(),
-                                rb)) {
+    /* Normal RAMBlocks can zero a page using UFFDIO_ZEROPAGE
+     * but it's not available for everything (e.g. hugetlbpages)
+     */
+    if (qemu_ram_is_uf_zeroable(rb)) {
+        if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, NULL, pagesize, rb)) {
             int e = errno;
             error_report("%s: %s zero host: %p",
                          __func__, strerror(e), host);
 
             return -e;
         }
+        return postcopy_notify_shared_wake(rb,
+                                           qemu_ram_block_host_offset(rb,
+                                                                      host));
     } else {
         /* The kernel can't use UFFDIO_ZEROPAGE for hugepages */
         if (!mis->postcopy_tmp_zero_page) {
@@ -730,8 +918,6 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
         return postcopy_place_page(mis, host, mis->postcopy_tmp_zero_page,
                                    rb);
     }
-
-    return 0;
 }
 
 /*
@@ -784,6 +970,13 @@ int postcopy_ram_prepare_discard(MigrationIncomingState *mis)
     return -1;
 }
 
+int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
+                                 uint64_t client_addr, uint64_t rb_offset)
+{
+    assert(0);
+    return -1;
+}
+
 int postcopy_ram_enable_notify(MigrationIncomingState *mis)
 {
     assert(0);
@@ -810,6 +1003,13 @@ void *postcopy_get_tmp_page(MigrationIncomingState *mis)
     return NULL;
 }
 
+int postcopy_wake_shared(struct PostCopyFD *pcfd,
+                         uint64_t client_addr,
+                         RAMBlock *rb)
+{
+    assert(0);
+    return -1;
+}
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -926,4 +1126,32 @@ PostcopyState  postcopy_state_get(void)
 PostcopyState postcopy_state_set(PostcopyState new_state)
 {
     return atomic_xchg(&incoming_postcopy_state, new_state);
+}
+
+/* Register a handler for external shared memory postcopy
+ * called on the destination.
+ */
+void postcopy_register_shared_ufd(struct PostCopyFD *pcfd)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    mis->postcopy_remote_fds = g_array_append_val(mis->postcopy_remote_fds,
+                                                  *pcfd);
+}
+
+/* Unregister a handler for external shared memory postcopy
+ */
+void postcopy_unregister_shared_ufd(struct PostCopyFD *pcfd)
+{
+    guint i;
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    GArray *pcrfds = mis->postcopy_remote_fds;
+
+    for (i = 0; i < pcrfds->len; i++) {
+        struct PostCopyFD *cur = &g_array_index(pcrfds, struct PostCopyFD, i);
+        if (cur->fd == pcfd->fd) {
+            mis->postcopy_remote_fds = g_array_remove_index(pcrfds, i);
+            return;
+        }
+    }
 }

@@ -78,6 +78,15 @@ typedef enum {
 } AmlUpdateRule;
 
 typedef enum {
+    AML_AS_SYSTEM_MEMORY = 0X00,
+    AML_AS_SYSTEM_IO = 0X01,
+    AML_AS_PCI_CONFIG = 0X02,
+    AML_AS_EMBEDDED_CTRL = 0X03,
+    AML_AS_SMBUS = 0X04,
+    AML_AS_FFH = 0X7F,
+} AmlAddressSpace;
+
+typedef enum {
     AML_SYSTEM_MEMORY = 0X00,
     AML_SYSTEM_IO = 0X01,
     AML_PCI_CONFIG = 0X02,
@@ -389,8 +398,22 @@ int
 build_append_named_dword(GArray *array, const char *name_format, ...)
 GCC_FMT_ATTR(2, 3);
 
+void build_append_gas(GArray *table, AmlAddressSpace as,
+                      uint8_t bit_width, uint8_t bit_offset,
+                      uint8_t access_width, uint64_t address);
+
+static inline void
+build_append_gas_from_struct(GArray *table, const struct AcpiGenericAddress *s)
+{
+    build_append_gas(table, s->space_id, s->bit_width, s->bit_offset,
+                     s->access_width, s->address);
+}
+
 void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
                        uint64_t len, int node, MemoryAffinityFlags flags);
 
 void build_slit(GArray *table_data, BIOSLinker *linker);
+
+void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
+                const char *oem_id, const char *oem_table_id);
 #endif
