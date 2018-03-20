@@ -235,7 +235,6 @@ static void vdi_header_to_le(VdiHeader *header)
     qemu_uuid_bswap(&header->uuid_parent);
 }
 
-#if defined(CONFIG_VDI_DEBUG)
 static void vdi_header_print(VdiHeader *header)
 {
     char uuid[37];
@@ -257,16 +256,15 @@ static void vdi_header_print(VdiHeader *header)
     logout("block extra 0x%04x\n", header->block_extra);
     logout("blocks tot. 0x%04x\n", header->blocks_in_image);
     logout("blocks all. 0x%04x\n", header->blocks_allocated);
-    uuid_unparse(header->uuid_image, uuid);
+    qemu_uuid_unparse(&header->uuid_image, uuid);
     logout("uuid image  %s\n", uuid);
-    uuid_unparse(header->uuid_last_snap, uuid);
+    qemu_uuid_unparse(&header->uuid_last_snap, uuid);
     logout("uuid snap   %s\n", uuid);
-    uuid_unparse(header->uuid_link, uuid);
+    qemu_uuid_unparse(&header->uuid_link, uuid);
     logout("uuid link   %s\n", uuid);
-    uuid_unparse(header->uuid_parent, uuid);
+    qemu_uuid_unparse(&header->uuid_parent, uuid);
     logout("uuid parent %s\n", uuid);
 }
-#endif
 
 static int coroutine_fn vdi_co_check(BlockDriverState *bs, BdrvCheckResult *res,
                                      BdrvCheckMode fix)
@@ -387,9 +385,9 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     vdi_header_to_cpu(&header);
-#if defined(CONFIG_VDI_DEBUG)
-    vdi_header_print(&header);
-#endif
+    if (VDI_DEBUG) {
+        vdi_header_print(&header);
+    }
 
     if (header.disk_size > VDI_DISK_SIZE_MAX) {
         error_setg(errp, "Unsupported VDI image size (size is 0x%" PRIx64
@@ -825,9 +823,9 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
     qemu_uuid_generate(&header.uuid_image);
     qemu_uuid_generate(&header.uuid_last_snap);
     /* There is no need to set header.uuid_link or header.uuid_parent here. */
-#if defined(CONFIG_VDI_DEBUG)
-    vdi_header_print(&header);
-#endif
+    if (VDI_DEBUG) {
+        vdi_header_print(&header);
+    }
     vdi_header_to_le(&header);
     ret = blk_pwrite(blk, offset, &header, sizeof(header), 0);
     if (ret < 0) {
