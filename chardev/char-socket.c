@@ -550,12 +550,10 @@ static void tcp_chr_connect(void *opaque)
         s->is_listen, s->is_telnet);
 
     s->connected = 1;
-    if (s->ioc) {
-        chr->gsource = io_add_watch_poll(chr, s->ioc,
-                                           tcp_chr_read_poll,
-                                           tcp_chr_read,
-                                           chr, chr->gcontext);
-    }
+    chr->gsource = io_add_watch_poll(chr, s->ioc,
+                                       tcp_chr_read_poll,
+                                       tcp_chr_read,
+                                       chr, chr->gcontext);
 
     s->hup_source = qio_channel_create_watch(s->ioc, G_IO_HUP);
     g_source_set_callback(s->hup_source, (GSourceFunc)tcp_chr_hup,
