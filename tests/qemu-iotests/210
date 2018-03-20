@@ -204,6 +204,43 @@ run_qemu -blockdev driver=file,filename="$TEST_IMG_FILE",node-name=node0 \
 { "execute": "quit" }
 EOF
 
+echo
+echo "=== Resize image with invalid sizes ==="
+echo
+
+run_qemu -blockdev driver=file,filename="$TEST_IMG_FILE",node-name=node0 \
+         -blockdev driver=luks,file=node0,key-secret=keysec0,node-name=node1 \
+         -object secret,id=keysec0,data="foo" <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "block_resize",
+  "arguments": {
+      "node-name": "node1",
+      "size": 9223372036854775296
+  }
+}
+{ "execute": "block_resize",
+  "arguments": {
+      "node-name": "node1",
+      "size": 9223372036854775808
+  }
+}
+{ "execute": "block_resize",
+  "arguments": {
+      "node-name": "node1",
+      "size": 18446744073709551104
+  }
+}
+{ "execute": "block_resize",
+  "arguments": {
+      "node-name": "node1",
+      "size": -9223372036854775808
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info | _filter_img_info
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
