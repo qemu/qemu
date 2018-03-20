@@ -453,6 +453,24 @@ int rdma_rm_modify_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
     return 0;
 }
 
+int rdma_rm_query_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
+                     uint32_t qp_handle, struct ibv_qp_attr *attr,
+                     int attr_mask, struct ibv_qp_init_attr *init_attr)
+{
+    RdmaRmQP *qp;
+
+    pr_dbg("qpn=%d\n", qp_handle);
+
+    qp = rdma_rm_get_qp(dev_res, qp_handle);
+    if (!qp) {
+        return -EINVAL;
+    }
+
+    pr_dbg("qp_type=%d\n", qp->qp_type);
+
+    return rdma_backend_query_qp(&qp->backend_qp, attr, attr_mask, init_attr);
+}
+
 void rdma_rm_dealloc_qp(RdmaDeviceResources *dev_res, uint32_t qp_handle)
 {
     RdmaRmQP *qp;

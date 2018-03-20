@@ -646,6 +646,18 @@ int rdma_backend_qp_state_rts(RdmaBackendQP *qp, uint8_t qp_type,
     return 0;
 }
 
+int rdma_backend_query_qp(RdmaBackendQP *qp, struct ibv_qp_attr *attr,
+                          int attr_mask, struct ibv_qp_init_attr *init_attr)
+{
+    if (!qp->ibqp) {
+        pr_dbg("QP1\n");
+        attr->qp_state = IBV_QPS_RTS;
+        return 0;
+    }
+
+    return ibv_query_qp(qp->ibqp, attr, attr_mask, init_attr);
+}
+
 void rdma_backend_destroy_qp(RdmaBackendQP *qp)
 {
     if (qp->ibqp) {

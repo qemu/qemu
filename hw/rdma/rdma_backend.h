@@ -83,6 +83,8 @@ int rdma_backend_qp_state_rtr(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
                               bool use_qkey);
 int rdma_backend_qp_state_rts(RdmaBackendQP *qp, uint8_t qp_type,
                               uint32_t sq_psn, uint32_t qkey, bool use_qkey);
+int rdma_backend_query_qp(RdmaBackendQP *qp, struct ibv_qp_attr *attr,
+                          int attr_mask, struct ibv_qp_init_attr *init_attr);
 void rdma_backend_destroy_qp(RdmaBackendQP *qp);
 
 void rdma_backend_post_send(RdmaBackendDev *backend_dev,
