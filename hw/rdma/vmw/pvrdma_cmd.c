@@ -515,6 +515,28 @@ static int modify_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
     return rsp->hdr.err;
 }
 
+static int query_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
+                     union pvrdma_cmd_resp *rsp)
+{
+    struct pvrdma_cmd_query_qp *cmd = &req->query_qp;
+    struct pvrdma_cmd_query_qp_resp *resp = &rsp->query_qp_resp;
+    struct ibv_qp_init_attr init_attr;
+
+    pr_dbg("qp_handle=%d\n", cmd->qp_handle);
+
+    memset(rsp, 0, sizeof(*rsp));
+    rsp->hdr.response = cmd->hdr.response;
+    rsp->hdr.ack = PVRDMA_CMD_QUERY_QP_RESP;
+
+    rsp->hdr.err = rdma_rm_query_qp(&dev->rdma_dev_res, &dev->backend_dev,
+                                    cmd->qp_handle,
+                                    (struct ibv_qp_attr *)&resp->attrs, -1,
+                                    &init_attr);
+
+    pr_dbg("ret=%d\n", rsp->hdr.err);
+    return rsp->hdr.err;
+}
+
 static int destroy_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
                       union pvrdma_cmd_resp *rsp)
 {
@@ -636,7 +658,7 @@ static struct cmd_handler cmd_handlers[] = {
     {PVRDMA_CMD_DESTROY_CQ, destroy_cq},
     {PVRDMA_CMD_CREATE_QP, create_qp},
     {PVRDMA_CMD_MODIFY_QP, modify_qp},
-    {PVRDMA_CMD_QUERY_QP, NULL},
+    {PVRDMA_CMD_QUERY_QP, query_qp},
     {PVRDMA_CMD_DESTROY_QP, destroy_qp},
     {PVRDMA_CMD_CREATE_UC, create_uc},
     {PVRDMA_CMD_DESTROY_UC, destroy_uc},
