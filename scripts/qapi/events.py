@@ -180,8 +180,9 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
                              types=types))
 
     def visit_end(self):
-        self._genh.add(gen_enum(self._enum_name, self._event_names))
-        self._genc.add(gen_enum_lookup(self._enum_name, self._event_names))
+        (genc, genh) = self._module[self._main_module]
+        genh.add(gen_enum(self._enum_name, self._event_names))
+        genc.add(gen_enum_lookup(self._enum_name, self._event_names))
 
     def visit_event(self, name, info, arg_type, boxed):
         self._genh.add(gen_event_send_decl(name, arg_type, boxed))
