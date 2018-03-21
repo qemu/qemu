@@ -90,6 +90,8 @@ void sdl2_process_key(struct sdl2_console *scon,
     }
 
     if (!qemu_console_is_graphic(con)) {
+        bool ctrl = (modifiers_state[SDL_SCANCODE_LCTRL] ||
+                     modifiers_state[SDL_SCANCODE_RCTRL]);
         if (ev->type == SDL_KEYDOWN) {
             switch (ev->keysym.scancode) {
             case SDL_SCANCODE_RETURN:
@@ -99,7 +101,7 @@ void sdl2_process_key(struct sdl2_console *scon,
                 kbd_put_keysym_console(con, QEMU_KEY_BACKSPACE);
                 break;
             default:
-                kbd_put_qcode_console(con, qcode, false);
+                kbd_put_qcode_console(con, qcode, ctrl);
                 break;
             }
         }
