@@ -11,9 +11,9 @@ $(call set-vpath, $(SRC_PATH):$(BUILD_DIR))
 ifdef CONFIG_LINUX
 QEMU_CFLAGS += -I../linux-headers
 endif
-QEMU_CFLAGS += -I.. -I$(SRC_PATH)/target/$(TARGET_BASE_ARCH) -DNEED_CPU_H
+QEMU_CFLAGS += -iquote .. -iquote $(SRC_PATH)/target/$(TARGET_BASE_ARCH) -DNEED_CPU_H
 
-QEMU_CFLAGS+=-I$(SRC_PATH)/include
+QEMU_CFLAGS+=-iquote $(SRC_PATH)/include
 
 ifdef CONFIG_USER_ONLY
 # user emulator name
