@@ -62,14 +62,6 @@ void sdl2_process_key(struct sdl2_console *scon,
 
     /* modifier state tracking */
     switch (ev->keysym.scancode) {
-#if 0
-    case SDL_SCANCODE_NUMLOCKCLEAR:
-    case SDL_SCANCODE_CAPSLOCK:
-        /* SDL does not send the key up event, so we generate it */
-        qemu_input_event_send_key_qcode(con, qcode, true);
-        qemu_input_event_send_key_qcode(con, qcode, false);
-        return;
-#endif
     case SDL_SCANCODE_LCTRL:
     case SDL_SCANCODE_LSHIFT:
     case SDL_SCANCODE_LALT:
