@@ -73,7 +73,7 @@ static void *pvrdma_map_to_pdir(PCIDevice *pdev, uint64_t pdir_dma,
     tbl_idx = 1;
     addr_idx = 1;
     while (addr_idx < nchunks) {
-        if ((tbl_idx == (TARGET_PAGE_SIZE / sizeof(uint64_t)))) {
+        if (tbl_idx == TARGET_PAGE_SIZE / sizeof(uint64_t)) {
             tbl_idx = 0;
             dir_idx++;
             pr_dbg("Mapping to table %d\n", dir_idx);
@@ -507,7 +507,8 @@ static int modify_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
     rsp->hdr.err = rdma_rm_modify_qp(&dev->rdma_dev_res, &dev->backend_dev,
                                  cmd->qp_handle, cmd->attr_mask,
                                  (union ibv_gid *)&cmd->attrs.ah_attr.grh.dgid,
-                                 cmd->attrs.dest_qp_num, cmd->attrs.qp_state,
+                                 cmd->attrs.dest_qp_num,
+                                 (enum ibv_qp_state)cmd->attrs.qp_state,
                                  cmd->attrs.qkey, cmd->attrs.rq_psn,
                                  cmd->attrs.sq_psn);
 

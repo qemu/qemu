@@ -91,7 +91,7 @@ static int init_dev_ring(PvrdmaRing *ring, struct pvrdma_ring **ring_state,
         goto out_free_tbl;
     }
     /* RX ring is the second */
-    (struct pvrdma_ring *)(*ring_state)++;
+    (*ring_state)++;
     rc = pvrdma_ring_init(ring, name, pci_dev,
                           (struct pvrdma_ring *)*ring_state,
                           (num_pages - 1) * TARGET_PAGE_SIZE /
@@ -292,7 +292,7 @@ static void init_ports(PVRDMADev *dev, Error **errp)
     memset(dev->rdma_dev_res.ports, 0, sizeof(dev->rdma_dev_res.ports));
 
     for (i = 0; i < MAX_PORTS; i++) {
-        dev->rdma_dev_res.ports[i].state = PVRDMA_PORT_DOWN;
+        dev->rdma_dev_res.ports[i].state = IBV_PORT_DOWN;
 
         dev->rdma_dev_res.ports[i].pkey_tbl =
             g_malloc0(sizeof(*dev->rdma_dev_res.ports[i].pkey_tbl) *
