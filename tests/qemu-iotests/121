@@ -93,6 +93,26 @@ $QEMU_IO -c 'write 63M 130K' "$TEST_IMG" | _filter_qemu_io
 
 _check_test_img
 
+echo
+echo '=== Allocating a new refcount block must not leave holes in the image ==='
+echo
+
+IMGOPTS='cluster_size=512,refcount_bits=16' _make_test_img 1M
+
+# This results in an image with 256 used clusters: the qcow2 header,
+# the refcount table, one refcount block, the L1 table, four L2 tables
+# and 248 data clusters
+$QEMU_IO -c 'write 0 124k' "$TEST_IMG" | _filter_qemu_io
+
+# 256 clusters of 512 bytes each give us a 128K image
+stat -c "size=%s (expected 131072)" $TEST_IMG
+
+# All 256 entries of the refcount block are used, so writing a new
+# data cluster also allocates a new refcount block
+$QEMU_IO -c 'write 124k 512' "$TEST_IMG" | _filter_qemu_io
+
+# Two more clusters, the image size should be 129K now
+stat -c "size=%s (expected 132096)" $TEST_IMG
 
 # success, all done
 echo
