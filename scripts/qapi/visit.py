@@ -293,7 +293,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
 #include "qapi/qmp/qerror.h"
 #include "%(visit)s.h"
 ''',
-                                      visit=visit, prefix=self._prefix))
+                                      visit=visit))
         self._genh.preamble_add(mcgen('''
 #include "qapi/qapi-builtin-visit.h"
 #include "%(types)s.h"
