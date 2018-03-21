@@ -13,14 +13,14 @@
  *
  */
 
-#include <qemu/osdep.h>
+#include "qemu/osdep.h"
 
 #include "../rdma_utils.h"
 #include "../rdma_rm.h"
 #include "../rdma_backend.h"
 
 #include "pvrdma.h"
-#include <standard-headers/rdma/vmw_pvrdma-abi.h>
+#include "standard-headers/rdma/vmw_pvrdma-abi.h"
 #include "pvrdma_qp_ops.h"
 
 typedef struct CompHandlerCtx {

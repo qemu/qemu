@@ -13,16 +13,16 @@
  *
  */
 
-#include <qemu/osdep.h>
-#include <qapi/error.h>
-#include <hw/hw.h>
-#include <hw/pci/pci.h>
-#include <hw/pci/pci_ids.h>
-#include <hw/pci/msi.h>
-#include <hw/pci/msix.h>
-#include <hw/qdev-core.h>
-#include <hw/qdev-properties.h>
-#include <cpu.h>
+#include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_ids.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
+#include "hw/qdev-core.h"
+#include "hw/qdev-properties.h"
+#include "cpu.h"
 #include "trace.h"
 
 #include "../rdma_rm.h"
@@ -31,8 +31,8 @@
 
 #include <infiniband/verbs.h>
 #include "pvrdma.h"
-#include <standard-headers/rdma/vmw_pvrdma-abi.h>
-#include <standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h>
+#include "standard-headers/rdma/vmw_pvrdma-abi.h"
+#include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h"
 #include "pvrdma_qp_ops.h"
 
 static Property pvrdma_dev_properties[] = {

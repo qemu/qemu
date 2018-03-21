@@ -13,9 +13,9 @@
  *
  */
 
-#include <qemu/osdep.h>
-#include <qemu/error-report.h>
-#include <qapi/error.h>
+#include "qemu/osdep.h"
+#include "qemu/error-report.h"
+#include "qapi/error.h"
 
 #include <infiniband/verbs.h>
 

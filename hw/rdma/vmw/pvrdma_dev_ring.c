@@ -13,12 +13,12 @@
  *
  */
 
-#include <qemu/osdep.h>
-#include <hw/pci/pci.h>
-#include <cpu.h>
+#include "qemu/osdep.h"
+#include "hw/pci/pci.h"
+#include "cpu.h"
 
 #include "../rdma_utils.h"
-#include <standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_ring.h>
+#include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_ring.h"
 #include "pvrdma_dev_ring.h"
 
 int pvrdma_ring_init(PvrdmaRing *ring, const char *name, PCIDevice *dev,

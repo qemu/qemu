@@ -13,9 +13,9 @@
  *
  */
 
-#include <qemu/osdep.h>
-#include <qapi/error.h>
-#include <cpu.h>
+#include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "cpu.h"
 
 #include "rdma_utils.h"
 #include "rdma_backend.h"

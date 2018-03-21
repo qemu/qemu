@@ -13,9 +13,9 @@
  *
  */
 
-#include <qemu/osdep.h>
-#include <qemu/error-report.h>
-#include <cpu.h>
+#include "qemu/osdep.h"
+#include "qemu/error-report.h"
+#include "cpu.h"
 #include <linux/types.h>
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
@@ -26,7 +26,7 @@
 #include "../rdma_utils.h"
 
 #include "pvrdma.h"
-#include <standard-headers/rdma/vmw_pvrdma-abi.h>
+#include "standard-headers/rdma/vmw_pvrdma-abi.h"
 
 static void *pvrdma_map_to_pdir(PCIDevice *pdev, uint64_t pdir_dma,
                                 uint32_t nchunks, size_t length)

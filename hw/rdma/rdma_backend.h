@@ -16,7 +16,7 @@
 #ifndef RDMA_BACKEND_H
 #define RDMA_BACKEND_H
 
-#include <qapi/error.h>
+#include "qapi/error.h"
 #include "rdma_rm_defs.h"
 #include "rdma_backend_defs.h"
 
