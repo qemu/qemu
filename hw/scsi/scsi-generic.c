@@ -500,9 +500,10 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
     /* check we are using a driver managing SG_IO (version 3 and after */
     rc = blk_ioctl(s->conf.blk, SG_GET_VERSION_NUM, &sg_version);
     if (rc < 0) {
-        error_setg(errp, "cannot get SG_IO version number: %s.  "
-                         "Is this a SCSI device?",
-                         strerror(-rc));
+        error_setg_errno(errp, -rc, "cannot get SG_IO version number");
+        if (rc != -EPERM) {
+            error_append_hint(errp, "Is this a SCSI device?\n");
+        }
         return;
     }
     if (sg_version < 30000) {
