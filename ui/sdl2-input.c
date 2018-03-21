@@ -70,7 +70,7 @@ void sdl2_process_key(struct sdl2_console *scon,
                 kbd_put_keysym_console(con, QEMU_KEY_BACKSPACE);
                 break;
             default:
-                kbd_put_qcode_console(con, qcode);
+                kbd_put_qcode_console(con, qcode, false);
                 break;
             }
         }

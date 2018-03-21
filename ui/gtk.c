@@ -1197,12 +1197,12 @@ static gboolean gd_text_key_down(GtkWidget *widget,
     QemuConsole *con = vc->gfx.dcl.con;
 
     if (key->keyval == GDK_KEY_Delete) {
-        kbd_put_qcode_console(con, Q_KEY_CODE_DELETE);
+        kbd_put_qcode_console(con, Q_KEY_CODE_DELETE, false);
     } else if (key->length) {
         kbd_put_string_console(con, key->string, key->length);
     } else {
         int qcode = gd_map_keycode(key->hardware_keycode);
-        kbd_put_qcode_console(con, qcode);
+        kbd_put_qcode_console(con, qcode, false);
     }
     return TRUE;
 }
