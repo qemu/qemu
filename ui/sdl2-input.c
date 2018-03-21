@@ -97,9 +97,6 @@ void sdl2_process_key(struct sdl2_console *scon,
             case SDL_SCANCODE_RETURN:
                 kbd_put_keysym_console(con, '\n');
                 break;
-            case SDL_SCANCODE_BACKSPACE:
-                kbd_put_keysym_console(con, QEMU_KEY_BACKSPACE);
-                break;
             default:
                 kbd_put_qcode_console(con, qcode, ctrl);
                 break;
