@@ -249,8 +249,7 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
     BdrvCoDrainData data;
 
     /* Calling bdrv_drain() from a BH ensures the current coroutine yields and
-     * other coroutines run if they were queued from
-     * qemu_co_queue_run_restart(). */
+     * other coroutines run if they were queued by aio_co_enter(). */
 
     assert(qemu_in_coroutine());
     data = (BdrvCoDrainData) {
