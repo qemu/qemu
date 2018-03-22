@@ -13,9 +13,10 @@
 #include "hw/ppc/fdt.h"
 
 #if defined(TARGET_PPC64)
-size_t ppc_create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
-                                     size_t maxsize)
+size_t ppc_create_page_sizes_prop(PowerPCCPU *cpu, uint32_t *prop,
+                                  size_t maxsize)
 {
+    CPUPPCState *env = &cpu->env;
     size_t maxcells = maxsize / sizeof(uint32_t);
     int i, j, count;
     uint32_t *p = prop;

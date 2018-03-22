@@ -23,7 +23,7 @@
         }                                                          \
     } while (0)
 
-size_t ppc_create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
+size_t ppc_create_page_sizes_prop(PowerPCCPU *cpu, uint32_t *prop,
                                   size_t maxsize);
 
 #endif /* PPC_FDT_H */
