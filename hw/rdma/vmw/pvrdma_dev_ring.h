@@ -32,7 +32,7 @@ typedef struct PvrdmaRing {
 
 int pvrdma_ring_init(PvrdmaRing *ring, const char *name, PCIDevice *dev,
                      struct pvrdma_ring *ring_state, uint32_t max_elems,
-                     size_t elem_sz, dma_addr_t *tbl, dma_addr_t npages);
+                     size_t elem_sz, dma_addr_t *tbl, uint32_t npages);
 void *pvrdma_ring_next_elem_read(PvrdmaRing *ring);
 void pvrdma_ring_read_inc(PvrdmaRing *ring);
 void *pvrdma_ring_next_elem_write(PvrdmaRing *ring);

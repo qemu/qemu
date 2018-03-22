@@ -236,7 +236,7 @@ static void init_dsr_dev_caps(PVRDMADev *dev)
     dsr = dev->dsr_info.dsr;
 
     dsr->caps.fw_ver = PVRDMA_FW_VERSION;
-    pr_dbg("fw_ver=0x%lx\n", dsr->caps.fw_ver);
+    pr_dbg("fw_ver=0x%" PRIx64 "\n", dsr->caps.fw_ver);
 
     dsr->caps.mode = PVRDMA_DEVICE_MODE_ROCE;
     pr_dbg("mode=%d\n", dsr->caps.mode);
@@ -261,11 +261,10 @@ static void init_dsr_dev_caps(PVRDMADev *dev)
     pr_dbg("gid_tbl_len=%d\n", dsr->caps.gid_tbl_len);
 
     dsr->caps.sys_image_guid = 0;
-    pr_dbg("sys_image_guid=%lx\n", dsr->caps.sys_image_guid);
+    pr_dbg("sys_image_guid=%" PRIx64 "\n", dsr->caps.sys_image_guid);
 
     dsr->caps.node_guid = cpu_to_be64(dev->node_guid);
-    pr_dbg("node_guid=%llx\n",
-           (long long unsigned int)be64_to_cpu(dsr->caps.node_guid));
+    pr_dbg("node_guid=%" PRIx64 "\n", be64_to_cpu(dsr->caps.node_guid));
 
     dsr->caps.phys_port_cnt = MAX_PORTS;
     pr_dbg("phys_port_cnt=%d\n", dsr->caps.phys_port_cnt);
@@ -343,8 +342,8 @@ static void regs_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     /* pr_dbg("addr=0x%lx, val=0x%x, size=%d\n", addr, (uint32_t)val, size); */
 
     if (set_reg_val(dev, addr, val)) {
-        pr_err("Error trying to set REG value, addr=0x%lx, val=0x%lx\n",
-               (uint64_t)addr, val);
+        pr_err("Fail to set REG value, addr=0x%" PRIx64 ", val=0x%" PRIx64 "\n",
+               addr, val);
         return;
     }
 
@@ -373,7 +372,7 @@ static void regs_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         }
     break;
     case PVRDMA_REG_IMR:
-        pr_dbg("Interrupt mask=0x%lx\n", val);
+        pr_dbg("Interrupt mask=0x%" PRIx64 "\n", val);
         dev->interrupt_mask = val;
         break;
     case PVRDMA_REG_REQUEST:
@@ -404,7 +403,8 @@ static void uar_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 
     switch (addr & 0xFFF) { /* Mask with 0xFFF as each UC gets page */
     case PVRDMA_UAR_QP_OFFSET:
-        pr_dbg("UAR QP command, addr=0x%x, val=0x%lx\n", (uint32_t)addr, val);
+        pr_dbg("UAR QP command, addr=0x%" PRIx64 ", val=0x%" PRIx64 "\n",
+               (uint64_t)addr, val);
         if (val & PVRDMA_UAR_QP_SEND) {
             pvrdma_qp_send(dev, val & PVRDMA_UAR_HANDLE_MASK);
         }
@@ -420,16 +420,17 @@ static void uar_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
                                   !!(val & PVRDMA_UAR_CQ_ARM_SOL));
         }
         if (val & PVRDMA_UAR_CQ_ARM_SOL) {
-            pr_dbg("UAR_CQ_ARM_SOL (%ld)\n", val & PVRDMA_UAR_HANDLE_MASK);
+            pr_dbg("UAR_CQ_ARM_SOL (%" PRIx64 ")\n",
+                   val & PVRDMA_UAR_HANDLE_MASK);
         }
         if (val & PVRDMA_UAR_CQ_POLL) {
-            pr_dbg("UAR_CQ_POLL (%ld)\n", val & PVRDMA_UAR_HANDLE_MASK);
+            pr_dbg("UAR_CQ_POLL (%" PRIx64 ")\n", val & PVRDMA_UAR_HANDLE_MASK);
             pvrdma_cq_poll(&dev->rdma_dev_res, val & PVRDMA_UAR_HANDLE_MASK);
         }
         break;
     default:
-        pr_err("Unsupported command, addr=0x%lx, val=0x%lx\n",
-               (uint64_t)addr, val);
+        pr_err("Unsupported command, addr=0x%" PRIx64 ", val=0x%" PRIx64 "\n",
+               addr, val);
         break;
     }
 }

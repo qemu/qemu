@@ -170,9 +170,9 @@ int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
         mr->user_mr.host_virt = host_virt;
         pr_dbg("host_virt=0x%p\n", mr->user_mr.host_virt);
         mr->user_mr.length = guest_length;
-        pr_dbg("length=0x%lx\n", guest_length);
+        pr_dbg("length=%zu\n", guest_length);
         mr->user_mr.guest_start = guest_start;
-        pr_dbg("guest_start=0x%lx\n", mr->user_mr.guest_start);
+        pr_dbg("guest_start=0x%" PRIx64 "\n", mr->user_mr.guest_start);
 
         length = mr->user_mr.length;
         addr = mr->user_mr.host_virt;

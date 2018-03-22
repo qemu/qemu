@@ -85,7 +85,7 @@ static void *pvrdma_map_to_pdir(PCIDevice *pdev, uint64_t pdir_dma,
             }
         }
 
-        pr_dbg("guest_dma[%d]=0x%lx\n", addr_idx, tbl[tbl_idx]);
+        pr_dbg("guest_dma[%d]=0x%" PRIx64 "\n", addr_idx, tbl[tbl_idx]);
 
         curr_page = rdma_pci_dma_map(pdev, (dma_addr_t)tbl[tbl_idx],
                                      TARGET_PAGE_SIZE);
@@ -285,7 +285,7 @@ static int create_cq_ring(PCIDevice *pci_dev , PvrdmaRing **ring,
         goto out_free_ring;
     }
 
-    sprintf(ring_name, "cq_ring_%lx", pdir_dma);
+    sprintf(ring_name, "cq_ring_%" PRIx64, pdir_dma);
     rc = pvrdma_ring_init(r, ring_name, pci_dev, &r->ring_state[1],
                           cqe, sizeof(struct pvrdma_cqe),
                           /* first page is ring state */
@@ -415,7 +415,7 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
     wqe_sz = pow2ceil(sizeof(struct pvrdma_sq_wqe_hdr) +
                       sizeof(struct pvrdma_sge) * smax_sge - 1);
 
-    sprintf(ring_name, "qp_sring_%lx", pdir_dma);
+    sprintf(ring_name, "qp_sring_%" PRIx64, pdir_dma);
     rc = pvrdma_ring_init(sr, ring_name, pci_dev, sr->ring_state,
                           scqe, wqe_sz, (dma_addr_t *)&tbl[1], spages);
     if (rc) {
@@ -426,7 +426,7 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
     rr->ring_state = &sr->ring_state[1];
     wqe_sz = pow2ceil(sizeof(struct pvrdma_rq_wqe_hdr) +
                       sizeof(struct pvrdma_sge) * rmax_sge - 1);
-    sprintf(ring_name, "qp_rring_%lx", pdir_dma);
+    sprintf(ring_name, "qp_rring_%" PRIx64, pdir_dma);
     rc = pvrdma_ring_init(rr, ring_name, pci_dev, rr->ring_state,
                           rcqe, wqe_sz, (dma_addr_t *)&tbl[1 + spages], rpages);
     if (rc) {
