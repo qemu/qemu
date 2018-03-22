@@ -156,6 +156,13 @@
 #              @status is 'failed'. Clients should not attempt to parse the
 #              error strings. (Since 2.7)
 #
+# @postcopy-blocktime: total time when all vCPU were blocked during postcopy
+#           live migration (Since 2.13)
+#
+# @postcopy-vcpu-blocktime: list of the postcopy blocktime per vCPU (Since 2.13)
+#
+
+#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationInfo',
@@ -167,7 +174,9 @@
            '*downtime': 'int',
            '*setup-time': 'int',
            '*cpu-throttle-percentage': 'int',
-           '*error-desc': 'str'} }
+           '*error-desc': 'str',
+           '*postcopy-blocktime' : 'uint32',
+           '*postcopy-vcpu-blocktime': ['uint32']} }
 
 ##
 # @query-migrate:
