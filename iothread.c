@@ -31,11 +31,15 @@ typedef ObjectClass IOThreadClass;
 #define IOTHREAD_CLASS(klass) \
    OBJECT_CLASS_CHECK(IOThreadClass, klass, TYPE_IOTHREAD)
 
+#ifdef CONFIG_POSIX
 /* Benchmark results from 2016 on NVMe SSD drives show max polling times around
  * 16-32 microseconds yield IOPS improvements for both iodepth=1 and iodepth=32
  * workloads.
  */
 #define IOTHREAD_POLL_MAX_NS_DEFAULT 32768ULL
+#else
+#define IOTHREAD_POLL_MAX_NS_DEFAULT 0ULL
+#endif
 
 static __thread IOThread *my_iothread;
 
