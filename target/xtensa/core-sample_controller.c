@@ -36,13 +36,13 @@
 #include "overlay_tool.h"
 
 #define xtensa_modules xtensa_modules_sample_controller
-#include "core-sample_controller/xtensa-modules.c"
+#include "core-sample_controller/xtensa-modules.inc.c"
 
 static XtensaConfig sample_controller __attribute__((unused)) = {
     .name = "sample_controller",
     .gdb_regmap = {
         .reg = {
-#include "core-sample_controller/gdb-config.c"
+#include "core-sample_controller/gdb-config.inc.c"
         }
     },
     .isa_internal = &xtensa_modules,
