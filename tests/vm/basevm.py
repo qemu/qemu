@@ -107,10 +107,7 @@ class BaseVM(object):
         assert not isinstance(cmd, str)
         ssh_cmd += ["%s@127.0.0.1" % user] + list(cmd)
         logging.debug("ssh_cmd: %s", " ".join(ssh_cmd))
-        r = subprocess.call(ssh_cmd,
-                            stdin=sys.stdin if interactive else self._devnull,
-                            stdout=sys.stdout if interactive else self._stdout,
-                            stderr=sys.stderr if interactive else self._stderr)
+        r = subprocess.call(ssh_cmd)
         if check and r != 0:
             raise Exception("SSH command failed: %s" % cmd)
         return r
