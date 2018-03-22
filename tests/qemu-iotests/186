@@ -133,10 +133,6 @@ check_info_block -drive if=ide,driver=null-co
 check_info_block -drive if=ide,media=cdrom
 check_info_block -drive if=ide,driver=null-co,media=cdrom
 
-check_info_block -drive if=scsi,driver=null-co
-check_info_block -drive if=scsi,media=cdrom
-check_info_block -drive if=scsi,driver=null-co,media=cdrom
-
 check_info_block -drive if=virtio,driver=null-co
 
 check_info_block -drive if=pflash,driver=null-co,size=1M

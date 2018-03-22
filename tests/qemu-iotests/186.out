@@ -442,34 +442,6 @@ ide0-cd0 (NODE_NAME): null-co:// (null-co, read-only)
     Cache mode:       writeback
 (qemu) quit
 
-Testing: -drive if=scsi,driver=null-co
-QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive if=scsi,driver=null-co: warning: bus=0,unit=0 is deprecated with this machine type
-info block
-scsi0-hd0 (NODE_NAME): null-co:// (null-co)
-    Attached to:      /machine/unattached/device[27]/scsi.0/legacy[0]
-    Cache mode:       writeback
-(qemu) quit
-
-Testing: -drive if=scsi,media=cdrom
-QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive if=scsi,media=cdrom: warning: bus=0,unit=0 is deprecated with this machine type
-info block
-scsi0-cd0: [not inserted]
-    Attached to:      /machine/unattached/device[27]/scsi.0/legacy[0]
-    Removable device: not locked, tray closed
-(qemu) quit
-
-Testing: -drive if=scsi,driver=null-co,media=cdrom
-QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive if=scsi,driver=null-co,media=cdrom: warning: bus=0,unit=0 is deprecated with this machine type
-info block
-scsi0-cd0 (NODE_NAME): null-co:// (null-co, read-only)
-    Attached to:      /machine/unattached/device[27]/scsi.0/legacy[0]
-    Removable device: not locked, tray closed
-    Cache mode:       writeback
-(qemu) quit
-
 Testing: -drive if=virtio,driver=null-co
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
