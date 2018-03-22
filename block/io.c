@@ -219,38 +219,6 @@ static bool bdrv_drain_poll_top_level(BlockDriverState *bs,
     return bdrv_drain_poll(bs, ignore_parent);
 }
 
-static bool bdrv_drain_recurse(BlockDriverState *bs, BdrvChild *parent)
-{
-    BdrvChild *child, *tmp;
-    bool waited;
-
-    /* Wait for drained requests to finish */
-    waited = BDRV_POLL_WHILE(bs, bdrv_drain_poll_top_level(bs, parent));
-
-    QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
-        BlockDriverState *bs = child->bs;
-        bool in_main_loop =
-            qemu_get_current_aio_context() == qemu_get_aio_context();
-        assert(bs->refcnt > 0);
-        if (in_main_loop) {
-            /* In case the recursive bdrv_drain_recurse processes a
-             * block_job_defer_to_main_loop BH and modifies the graph,
-             * let's hold a reference to bs until we are done.
-             *
-             * IOThread doesn't have such a BH, and it is not safe to call
-             * bdrv_unref without BQL, so skip doing it there.
-             */
-            bdrv_ref(bs);
-        }
-        waited |= bdrv_drain_recurse(bs, child);
-        if (in_main_loop) {
-            bdrv_unref(bs);
-        }
-    }
-
-    return waited;
-}
-
 static void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
                                   BdrvChild *parent);
 static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
@@ -318,7 +286,9 @@ void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
 
     bdrv_parent_drained_begin(bs, parent);
     bdrv_drain_invoke(bs, true);
-    bdrv_drain_recurse(bs, parent);
+
+    /* Wait for drained requests to finish */
+    BDRV_POLL_WHILE(bs, bdrv_drain_poll_top_level(bs, parent));
 
     if (recursive) {
         bs->recursive_quiesce_counter++;
