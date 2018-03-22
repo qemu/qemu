@@ -8975,8 +8975,8 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
     env->spr[SPR_AMOR] = amor->default_value = 0xffffffffffffffffull;
 
     /* Update some env bits based on new LPCR value */
-    ppc_hash64_update_rmls(env);
-    ppc_hash64_update_vrma(env);
+    ppc_hash64_update_rmls(cpu);
+    ppc_hash64_update_vrma(cpu);
 
     /* Tell KVM that we're in PAPR mode */
     if (kvm_enabled()) {

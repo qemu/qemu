@@ -633,9 +633,9 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
     return 0;
 }
 
-static void ppc_hash64_set_isi(CPUState *cs, CPUPPCState *env,
-                               uint64_t error_code)
+static void ppc_hash64_set_isi(CPUState *cs, uint64_t error_code)
 {
+    CPUPPCState *env = &POWERPC_CPU(cs)->env;
     bool vpm;
 
     if (msr_ir) {
@@ -659,9 +659,9 @@ static void ppc_hash64_set_isi(CPUState *cs, CPUPPCState *env,
     env->error_code = error_code;
 }
 
-static void ppc_hash64_set_dsi(CPUState *cs, CPUPPCState *env, uint64_t dar,
-                               uint64_t dsisr)
+static void ppc_hash64_set_dsi(CPUState *cs, uint64_t dar, uint64_t dsisr)
 {
+    CPUPPCState *env = &POWERPC_CPU(cs)->env;
     bool vpm;
 
     if (msr_dr) {
@@ -741,13 +741,13 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
             } else {
                 /* The access failed, generate the approriate interrupt */
                 if (rwx == 2) {
-                    ppc_hash64_set_isi(cs, env, SRR1_PROTFAULT);
+                    ppc_hash64_set_isi(cs, SRR1_PROTFAULT);
                 } else {
                     int dsisr = DSISR_PROTFAULT;
                     if (rwx == 1) {
                         dsisr |= DSISR_ISSTORE;
                     }
-                    ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
+                    ppc_hash64_set_dsi(cs, eaddr, dsisr);
                 }
                 return 1;
             }
@@ -783,7 +783,7 @@ skip_slb_search:
 
     /* 3. Check for segment level no-execute violation */
     if ((rwx == 2) && (slb->vsid & SLB_VSID_N)) {
-        ppc_hash64_set_isi(cs, env, SRR1_NOEXEC_GUARD);
+        ppc_hash64_set_isi(cs, SRR1_NOEXEC_GUARD);
         return 1;
     }
 
@@ -791,13 +791,13 @@ skip_slb_search:
     ptex = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte, &apshift);
     if (ptex == -1) {
         if (rwx == 2) {
-            ppc_hash64_set_isi(cs, env, SRR1_NOPTE);
+            ppc_hash64_set_isi(cs, SRR1_NOPTE);
         } else {
             int dsisr = DSISR_NOPTE;
             if (rwx == 1) {
                 dsisr |= DSISR_ISSTORE;
             }
-            ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
+            ppc_hash64_set_dsi(cs, eaddr, dsisr);
         }
         return 1;
     }
@@ -824,7 +824,7 @@ skip_slb_search:
             if (PAGE_EXEC & ~amr_prot) {
                 srr1 |= SRR1_IAMR; /* Access violates virt pg class key prot */
             }
-            ppc_hash64_set_isi(cs, env, srr1);
+            ppc_hash64_set_isi(cs, srr1);
         } else {
             int dsisr = 0;
             if (need_prot[rwx] & ~pp_prot) {
@@ -836,7 +836,7 @@ skip_slb_search:
             if (need_prot[rwx] & ~amr_prot) {
                 dsisr |= DSISR_AMR;
             }
-            ppc_hash64_set_dsi(cs, env, eaddr, dsisr);
+            ppc_hash64_set_dsi(cs, eaddr, dsisr);
         }
         return 1;
     }
@@ -942,8 +942,9 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
     cpu->env.tlb_need_flush = TLB_NEED_GLOBAL_FLUSH | TLB_NEED_LOCAL_FLUSH;
 }
 
-void ppc_hash64_update_rmls(CPUPPCState *env)
+void ppc_hash64_update_rmls(PowerPCCPU *cpu)
 {
+    CPUPPCState *env = &cpu->env;
     uint64_t lpcr = env->spr[SPR_LPCR];
 
     /*
@@ -976,8 +977,9 @@ void ppc_hash64_update_rmls(CPUPPCState *env)
     }
 }
 
-void ppc_hash64_update_vrma(CPUPPCState *env)
+void ppc_hash64_update_vrma(PowerPCCPU *cpu)
 {
+    CPUPPCState *env = &cpu->env;
     const struct ppc_one_seg_page_size *sps = NULL;
     target_ulong esid, vsid, lpcr;
     ppc_slb_t *slb = &env->vrma_slb;
@@ -1002,7 +1004,7 @@ void ppc_hash64_update_vrma(CPUPPCState *env)
     vsid |= (vrmasd << 4) & (SLB_VSID_L | SLB_VSID_LP);
     esid = SLB_ESID_V;
 
-   for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
+    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
         const struct ppc_one_seg_page_size *sps1 = &env->sps.sps[i];
 
         if (!sps1->page_shift) {
@@ -1028,6 +1030,7 @@ void ppc_hash64_update_vrma(CPUPPCState *env)
 
 void helper_store_lpcr(CPUPPCState *env, target_ulong val)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     uint64_t lpcr = 0;
 
     /* Filter out bits */
@@ -1089,6 +1092,6 @@ void helper_store_lpcr(CPUPPCState *env, target_ulong val)
         ;
     }
     env->spr[SPR_LPCR] = lpcr;
-    ppc_hash64_update_rmls(env);
-    ppc_hash64_update_vrma(env);
+    ppc_hash64_update_rmls(cpu);
+    ppc_hash64_update_vrma(cpu);
 }
