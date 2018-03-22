@@ -47,6 +47,8 @@
 #define VMDK4_FLAG_MARKER (1 << 17)
 #define VMDK4_GD_AT_END 0xffffffffffffffffULL
 
+#define VMDK_EXTENT_MAX_SECTORS (1ULL << 32)
+
 #define VMDK_GTE_ZEROED 0x1
 
 /* VMDK internal error codes */
@@ -1248,6 +1250,10 @@ static int get_cluster_offset(BlockDriverState *bs,
     if (!cluster_sector || zeroed) {
         if (!allocate) {
             return zeroed ? VMDK_ZEROED : VMDK_UNALLOC;
+        }
+
+        if (extent->next_cluster_sector >= VMDK_EXTENT_MAX_SECTORS) {
+            return VMDK_ERROR;
         }
 
         cluster_sector = extent->next_cluster_sector;
