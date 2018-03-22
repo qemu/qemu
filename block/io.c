@@ -182,13 +182,22 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
     BDRV_POLL_WHILE(bs, !data.done);
 }
 
+/* Returns true if BDRV_POLL_WHILE() should go into a blocking aio_poll() */
+static bool bdrv_drain_poll(BlockDriverState *bs)
+{
+    /* Execute pending BHs first and check everything else only after the BHs
+     * have executed. */
+    while (aio_poll(bs->aio_context, false));
+    return atomic_read(&bs->in_flight);
+}
+
 static bool bdrv_drain_recurse(BlockDriverState *bs)
 {
     BdrvChild *child, *tmp;
     bool waited;
 
     /* Wait for drained requests to finish */
-    waited = BDRV_POLL_WHILE(bs, atomic_read(&bs->in_flight) > 0);
+    waited = BDRV_POLL_WHILE(bs, bdrv_drain_poll(bs));
 
     QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
         BlockDriverState *bs = child->bs;

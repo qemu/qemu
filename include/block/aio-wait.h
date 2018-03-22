@@ -73,29 +73,23 @@ typedef struct {
  */
 #define AIO_WAIT_WHILE(wait, ctx, cond) ({                         \
     bool waited_ = false;                                          \
-    bool busy_ = true;                                             \
     AioWait *wait_ = (wait);                                       \
     AioContext *ctx_ = (ctx);                                      \
     if (in_aio_context_home_thread(ctx_)) {                        \
-        while ((cond) || busy_) {                                  \
-            busy_ = aio_poll(ctx_, (cond));                        \
-            waited_ |= !!(cond) | busy_;                           \
+        while ((cond)) {                                           \
+            aio_poll(ctx_, true);                                  \
+            waited_ = true;                                        \
         }                                                          \
     } else {                                                       \
         assert(qemu_get_current_aio_context() ==                   \
                qemu_get_aio_context());                            \
         /* Increment wait_->num_waiters before evaluating cond. */ \
         atomic_inc(&wait_->num_waiters);                           \
-        while (busy_) {                                            \
-            if ((cond)) {                                          \
-                waited_ = busy_ = true;                            \
-                aio_context_release(ctx_);                         \
-                aio_poll(qemu_get_aio_context(), true);            \
-                aio_context_acquire(ctx_);                         \
-            } else {                                               \
-                busy_ = aio_poll(ctx_, false);                     \
-                waited_ |= busy_;                                  \
-            }                                                      \
+        while ((cond)) {                                           \
+            aio_context_release(ctx_);                             \
+            aio_poll(qemu_get_aio_context(), true);                \
+            aio_context_acquire(ctx_);                             \
+            waited_ = true;                                        \
         }                                                          \
         atomic_dec(&wait_->num_waiters);                           \
     }                                                              \
