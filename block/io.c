@@ -69,6 +69,23 @@ void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore)
     }
 }
 
+static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore)
+{
+    BdrvChild *c, *next;
+    bool busy = false;
+
+    QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
+        if (c == ignore) {
+            continue;
+        }
+        if (c->role->drained_poll) {
+            busy |= c->role->drained_poll(c);
+        }
+    }
+
+    return busy;
+}
+
 static void bdrv_merge_limits(BlockLimits *dst, const BlockLimits *src)
 {
     dst->opt_transfer = MAX(dst->opt_transfer, src->opt_transfer);
@@ -183,21 +200,32 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
 }
 
 /* Returns true if BDRV_POLL_WHILE() should go into a blocking aio_poll() */
-static bool bdrv_drain_poll(BlockDriverState *bs)
+bool bdrv_drain_poll(BlockDriverState *bs, BdrvChild *ignore_parent)
+{
+    if (bdrv_parent_drained_poll(bs, ignore_parent)) {
+        return true;
+    }
+
+    return atomic_read(&bs->in_flight);
+}
+
+static bool bdrv_drain_poll_top_level(BlockDriverState *bs,
+                                      BdrvChild *ignore_parent)
 {
     /* Execute pending BHs first and check everything else only after the BHs
      * have executed. */
     while (aio_poll(bs->aio_context, false));
-    return atomic_read(&bs->in_flight);
+
+    return bdrv_drain_poll(bs, ignore_parent);
 }
 
-static bool bdrv_drain_recurse(BlockDriverState *bs)
+static bool bdrv_drain_recurse(BlockDriverState *bs, BdrvChild *parent)
 {
     BdrvChild *child, *tmp;
     bool waited;
 
     /* Wait for drained requests to finish */
-    waited = BDRV_POLL_WHILE(bs, bdrv_drain_poll(bs));
+    waited = BDRV_POLL_WHILE(bs, bdrv_drain_poll_top_level(bs, parent));
 
     QLIST_FOREACH_SAFE(child, &bs->children, next, tmp) {
         BlockDriverState *bs = child->bs;
@@ -214,7 +242,7 @@ static bool bdrv_drain_recurse(BlockDriverState *bs)
              */
             bdrv_ref(bs);
         }
-        waited |= bdrv_drain_recurse(bs);
+        waited |= bdrv_drain_recurse(bs, child);
         if (in_main_loop) {
             bdrv_unref(bs);
         }
@@ -290,7 +318,7 @@ void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
 
     bdrv_parent_drained_begin(bs, parent);
     bdrv_drain_invoke(bs, true);
-    bdrv_drain_recurse(bs);
+    bdrv_drain_recurse(bs, parent);
 
     if (recursive) {
         bs->recursive_quiesce_counter++;
