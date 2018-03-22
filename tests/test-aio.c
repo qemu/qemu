@@ -16,6 +16,8 @@
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
+#include "qemu/coroutine.h"
+#include "qemu/main-loop.h"
 
 static AioContext *ctx;
 
@@ -827,24 +829,59 @@ static void test_source_timer_schedule(void)
     timer_del(&data.timer);
 }
 
+/*
+ * Check that aio_co_enter() can chain many times
+ *
+ * Two coroutines should be able to invoke each other via aio_co_enter() many
+ * times without hitting a limit like stack exhaustion.  In other words, the
+ * calls should be chained instead of nested.
+ */
+
+typedef struct {
+    Coroutine *other;
+    unsigned i;
+    unsigned max;
+} ChainData;
+
+static void coroutine_fn chain(void *opaque)
+{
+    ChainData *data = opaque;
+
+    for (data->i = 0; data->i < data->max; data->i++) {
+        /* Queue up the other coroutine... */
+        aio_co_enter(ctx, data->other);
+
+        /* ...and give control to it */
+        qemu_coroutine_yield();
+    }
+}
+
+static void test_queue_chaining(void)
+{
+    /* This number of iterations hit stack exhaustion in the past: */
+    ChainData data_a = { .max = 25000 };
+    ChainData data_b = { .max = 25000 };
+
+    data_b.other = qemu_coroutine_create(chain, &data_a);
+    data_a.other = qemu_coroutine_create(chain, &data_b);
+
+    qemu_coroutine_enter(data_b.other);
+
+    g_assert_cmpint(data_a.i, ==, data_a.max);
+    g_assert_cmpint(data_b.i, ==, data_b.max - 1);
+
+    /* Allow the second coroutine to terminate */
+    qemu_coroutine_enter(data_a.other);
+
+    g_assert_cmpint(data_b.i, ==, data_b.max);
+}
 
 /* End of tests.  */
 
 int main(int argc, char **argv)
 {
-    Error *local_error = NULL;
-    GSource *src;
-
-    init_clocks(NULL);
-
-    ctx = aio_context_new(&local_error);
-    if (!ctx) {
-        error_reportf_err(local_error, "Failed to create AIO Context: ");
-        exit(1);
-    }
-    src = aio_get_g_source(ctx);
-    g_source_attach(src, NULL);
-    g_source_unref(src);
+    qemu_init_main_loop(&error_fatal);
+    ctx = qemu_get_aio_context();
 
     while (g_main_context_iteration(NULL, false));
 
@@ -863,6 +900,8 @@ int main(int argc, char **argv)
     g_test_add_func("/aio/event/flush",             test_flush_event_notifier);
     g_test_add_func("/aio/external-client",         test_aio_external_client);
     g_test_add_func("/aio/timer/schedule",          test_timer_schedule);
+
+    g_test_add_func("/aio/coroutine/queue-chaining", test_queue_chaining);
 
     g_test_add_func("/aio-gsource/flush",                   test_source_flush);
     g_test_add_func("/aio-gsource/bh/schedule",             test_source_bh_schedule);
