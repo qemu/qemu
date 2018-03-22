@@ -146,7 +146,7 @@ int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
     RdmaRmMR *mr;
     int ret = 0;
     RdmaRmPD *pd;
-    uint64_t addr;
+    void *addr;
     size_t length;
 
     pd = rdma_rm_get_pd(dev_res, pd_handle);
@@ -165,10 +165,10 @@ int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
         /* TODO: This is my guess but not so sure that this needs to be
          * done */
         length = TARGET_PAGE_SIZE;
-        addr = (uint64_t)g_malloc(length);
+        addr = g_malloc(length);
     } else {
-        mr->user_mr.host_virt = (uint64_t) host_virt;
-        pr_dbg("host_virt=0x%lx\n", mr->user_mr.host_virt);
+        mr->user_mr.host_virt = host_virt;
+        pr_dbg("host_virt=0x%p\n", mr->user_mr.host_virt);
         mr->user_mr.length = guest_length;
         pr_dbg("length=0x%lx\n", guest_length);
         mr->user_mr.guest_start = guest_start;
@@ -216,7 +216,7 @@ void rdma_rm_dealloc_mr(RdmaDeviceResources *dev_res, uint32_t mr_handle)
 
     if (mr) {
         rdma_backend_destroy_mr(&mr->backend_mr);
-        munmap((void *)mr->user_mr.host_virt, mr->user_mr.length);
+        munmap(mr->user_mr.host_virt, mr->user_mr.length);
         res_tbl_dealloc(&dev_res->mr_tbl, mr_handle);
     }
 }

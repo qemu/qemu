@@ -222,7 +222,7 @@ static int build_host_sge_array(RdmaDeviceResources *rdma_dev_res,
             return VENDOR_ERR_INVLKEY | ssge[ssge_idx].lkey;
         }
 
-        dsge->addr = mr->user_mr.host_virt + ssge[ssge_idx].addr -
+        dsge->addr = (uintptr_t)mr->user_mr.host_virt + ssge[ssge_idx].addr -
                      mr->user_mr.guest_start;
         dsge->length = ssge[ssge_idx].length;
         dsge->lkey = rdma_backend_mr_lkey(&mr->backend_mr);
@@ -401,12 +401,12 @@ void rdma_backend_destroy_pd(RdmaBackendPD *pd)
     }
 }
 
-int rdma_backend_create_mr(RdmaBackendMR *mr, RdmaBackendPD *pd, uint64_t addr,
+int rdma_backend_create_mr(RdmaBackendMR *mr, RdmaBackendPD *pd, void *addr,
                            size_t length, int access)
 {
-    pr_dbg("addr=0x%lx\n", addr);
+    pr_dbg("addr=0x%p\n", addr);
     pr_dbg("len=%ld\n", length);
-    mr->ibmr = ibv_reg_mr(pd->ibpd, (void *)addr, length, access);
+    mr->ibmr = ibv_reg_mr(pd->ibpd, addr, length, access);
     if (mr->ibmr) {
         pr_dbg("lkey=0x%x\n", mr->ibmr->lkey);
         pr_dbg("rkey=0x%x\n", mr->ibmr->rkey);
