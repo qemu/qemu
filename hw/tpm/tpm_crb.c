@@ -84,6 +84,12 @@ static uint64_t tpm_crb_mmio_read(void *opaque, hwaddr addr,
     unsigned offset = addr & 3;
     uint32_t val = *(uint32_t *)regs >> (8 * offset);
 
+    switch (addr) {
+    case A_CRB_LOC_STATE:
+        val |= !tpm_backend_get_tpm_established_flag(s->tpmbe);
+        break;
+    }
+
     trace_tpm_crb_mmio_read(addr, size, val);
 
     return val;
@@ -137,6 +143,8 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
             /* not loc 3 or 4 */
             break;
         case CRB_LOC_CTRL_RELINQUISH:
+            ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
+                             locAssigned, 0);
             break;
         case CRB_LOC_CTRL_REQUEST_ACCESS:
             ARRAY_FIELD_DP32(s->regs, CRB_LOC_STS,
@@ -145,8 +153,6 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
                              beenSeized, 0);
             ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
                              locAssigned, 1);
-            ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
-                             tpmRegValidSts, 1);
             break;
         }
         break;
@@ -210,6 +216,10 @@ static void tpm_crb_reset(void *dev)
 
     tpm_backend_reset(s->tpmbe);
 
+    memset(s->regs, 0, sizeof(s->regs));
+
+    ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
+                     tpmRegValidSts, 1);
     ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
                      InterfaceType, CRB_INTF_TYPE_CRB_ACTIVE);
     ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
