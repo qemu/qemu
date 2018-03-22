@@ -229,6 +229,10 @@ int load_multiboot(FWCfgState *fw_cfg,
             error_report("invalid load_addr address");
             exit(1);
         }
+        if (mh_header_addr - mh_load_addr > i) {
+            error_report("invalid header_addr address");
+            exit(1);
+        }
 
         uint32_t mb_kernel_text_offset = i - (mh_header_addr - mh_load_addr);
         uint32_t mb_load_size = 0;
@@ -246,6 +250,10 @@ int load_multiboot(FWCfgState *fw_cfg,
                 exit(1);
             }
             mb_load_size = kernel_file_size - mb_kernel_text_offset;
+        }
+        if (mb_load_size > UINT32_MAX - mh_load_addr) {
+            error_report("kernel does not fit in address space");
+            exit(1);
         }
         if (mh_bss_end_addr) {
             if (mh_bss_end_addr < (mh_load_addr + mb_load_size)) {

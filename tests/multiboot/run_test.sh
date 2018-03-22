@@ -34,10 +34,21 @@ run_qemu() {
         -device isa-debugcon,chardev=stdio \
         -chardev file,path=test.out,id=stdio \
         -device isa-debug-exit,iobase=0xf4,iosize=0x4 \
-        "$@"
+        "$@" >> test.log 2>&1
     ret=$?
 
     cat test.out >> test.log
+
+    debugexit=$((ret & 0x1))
+    ret=$((ret >> 1))
+
+    if [ $debugexit != 1 ]; then
+        printf %b "\e[31m ?? \e[0m $kernel $* (no debugexit used, exit code $ret)\n"
+        pass=0
+    elif [ $ret != 0 ]; then
+        printf %b "\e[31mFAIL\e[0m $kernel $* (exit code $ret)\n"
+        pass=0
+    fi
 }
 
 mmap() {
@@ -56,24 +67,19 @@ modules() {
     run_qemu modules.elf -initrd "module.txt,module.txt argument,module.txt"
 }
 
+aout_kludge() {
+    for i in $(seq 1 9); do
+        run_qemu aout_kludge_$i.bin
+    done
+}
+
 make all
 
-for t in mmap modules; do
+for t in mmap modules aout_kludge; do
 
     echo > test.log
-    $t
-
-    debugexit=$((ret & 0x1))
-    ret=$((ret >> 1))
     pass=1
-
-    if [ $debugexit != 1 ]; then
-        printf %b "\e[31m ?? \e[0m $t (no debugexit used, exit code $ret)\n"
-        pass=0
-    elif [ $ret != 0 ]; then
-        printf %b "\e[31mFAIL\e[0m $t (exit code $ret)\n"
-        pass=0
-    fi
+    $t
 
     if ! diff $t.out test.log > /dev/null 2>&1; then
         printf %b "\e[31mFAIL\e[0m $t (output difference)\n"
