@@ -33,6 +33,7 @@ tar -xf "$OVERLAY" -O binutils/xtensa-modules.c | \
         -e '/^uint32 \*bypass_entry(int i)/,/}/d' \
         -e '/^#include "ansidecl.h"/d' \
         -e '/^Slot_[a-zA-Z0-9_]\+_decode (const xtensa_insnbuf insn)/,/^}/s/^  return 0;$/  return XTENSA_UNDEFINED;/' \
+        -e 's/#include <xtensa-isa.h>/#include "xtensa-isa.h"/' \
     > "$TARGET"/xtensa-modules.inc.c
 
 cat <<EOF > "${TARGET}.c"
