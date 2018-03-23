@@ -156,12 +156,8 @@ void exynos4210_write_secondary(ARMCPU *cpu,
 
 static uint64_t exynos4210_calc_affinity(int cpu)
 {
-    uint64_t mp_affinity;
-
     /* Exynos4210 has 0x9 as cluster ID */
-    mp_affinity = (0x9 << ARM_AFF1_SHIFT) | cpu;
-
-    return mp_affinity;
+    return (0x9 << ARM_AFF1_SHIFT) | cpu;
 }
 
 Exynos4210State *exynos4210_init(MemoryRegion *system_mem)

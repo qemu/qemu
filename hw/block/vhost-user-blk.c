@@ -196,7 +196,6 @@ static uint64_t vhost_user_blk_get_features(VirtIODevice *vdev,
                                             Error **errp)
 {
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
-    uint64_t get_features;
 
     /* Turn on pre-defined features */
     virtio_add_feature(&features, VIRTIO_BLK_F_SEG_MAX);
@@ -215,9 +214,7 @@ static uint64_t vhost_user_blk_get_features(VirtIODevice *vdev,
         virtio_add_feature(&features, VIRTIO_BLK_F_MQ);
     }
 
-    get_features = vhost_get_features(&s->dev, user_feature_bits, features);
-
-    return get_features;
+    return vhost_get_features(&s->dev, user_feature_bits, features);
 }
 
 static void vhost_user_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)

@@ -644,11 +644,8 @@ static inline void *alloc_code_gen_buffer(void)
 static inline void *alloc_code_gen_buffer(void)
 {
     size_t size = tcg_ctx->code_gen_buffer_size;
-    void *buf;
-
-    buf = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT,
+    return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT,
                         PAGE_EXECUTE_READWRITE);
-    return buf;
 }
 #else
 static inline void *alloc_code_gen_buffer(void)

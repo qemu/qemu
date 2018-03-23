@@ -25,11 +25,7 @@
 
 QIONetListener *qio_net_listener_new(void)
 {
-    QIONetListener *ret;
-
-    ret = QIO_NET_LISTENER(object_new(TYPE_QIO_NET_LISTENER));
-
-    return ret;
+    return QIO_NET_LISTENER(object_new(TYPE_QIO_NET_LISTENER));
 }
 
 void qio_net_listener_set_name(QIONetListener *listener,

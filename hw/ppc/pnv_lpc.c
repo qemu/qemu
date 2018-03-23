@@ -125,25 +125,17 @@ static int pnv_lpc_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 static bool opb_read(PnvLpcController *lpc, uint32_t addr, uint8_t *data,
                      int sz)
 {
-    bool success;
-
     /* XXX Handle access size limits and FW read caching here */
-    success = !address_space_rw(&lpc->opb_as, addr, MEMTXATTRS_UNSPECIFIED,
-                                data, sz, false);
-
-    return success;
+    return !address_space_rw(&lpc->opb_as, addr, MEMTXATTRS_UNSPECIFIED,
+                             data, sz, false);
 }
 
 static bool opb_write(PnvLpcController *lpc, uint32_t addr, uint8_t *data,
                       int sz)
 {
-    bool success;
-
     /* XXX Handle access size limits here */
-    success = !address_space_rw(&lpc->opb_as, addr, MEMTXATTRS_UNSPECIFIED,
-                                data, sz, true);
-
-    return success;
+    return !address_space_rw(&lpc->opb_as, addr, MEMTXATTRS_UNSPECIFIED,
+                             data, sz, true);
 }
 
 #define ECCB_CTL_READ           PPC_BIT(15)

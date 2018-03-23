@@ -257,10 +257,7 @@ int hax_host_setup_vcpu_channel(struct hax_vcpu_state *vcpu)
 
 int hax_vcpu_run(struct hax_vcpu_state *vcpu)
 {
-    int ret;
-
-    ret = ioctl(vcpu->fd, HAX_VCPU_IOCTL_RUN, NULL);
-    return ret;
+    return ioctl(vcpu->fd, HAX_VCPU_IOCTL_RUN, NULL);
 }
 
 int hax_sync_fpu(CPUArchState *env, struct fx_layout *fl, int set)
@@ -315,13 +312,12 @@ int hax_sync_vcpu_state(CPUArchState *env, struct vcpu_state_t *state, int set)
 
 int hax_inject_interrupt(CPUArchState *env, int vector)
 {
-    int ret, fd;
+    int fd;
 
     fd = hax_vcpu_get_fd(env);
     if (fd <= 0) {
         return -1;
     }
 
-    ret = ioctl(fd, HAX_VCPU_IOCTL_INTERRUPT, &vector);
-    return ret;
+    return ioctl(fd, HAX_VCPU_IOCTL_INTERRUPT, &vector);
 }
