@@ -880,7 +880,8 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
  * If @detach_instead_of_delete is set, the BDS is not going to be
  * deleted but will only detach all of its children.
  */
-static void do_test_delete_by_drain(bool detach_instead_of_delete)
+static void do_test_delete_by_drain(bool detach_instead_of_delete,
+                                    enum drain_type drain_type)
 {
     BlockBackend *blk;
     BlockDriverState *bs, *child_bs, *null_bs;
@@ -936,9 +937,23 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete)
      * test_co_delete_by_drain() resuming.  Thus, @bs will be deleted
      * and the coroutine will exit while this drain operation is still
      * in progress. */
-    bdrv_ref(child_bs);
-    bdrv_drain(child_bs);
-    bdrv_unref(child_bs);
+    switch (drain_type) {
+    case BDRV_DRAIN:
+        bdrv_ref(child_bs);
+        bdrv_drain(child_bs);
+        bdrv_unref(child_bs);
+        break;
+    case BDRV_SUBTREE_DRAIN:
+        /* Would have to ref/unref bs here for !detach_instead_of_delete, but
+         * then the whole test becomes pointless because the graph changes
+         * don't occur during the drain any more. */
+        assert(detach_instead_of_delete);
+        bdrv_subtree_drained_begin(bs);
+        bdrv_subtree_drained_end(bs);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 
     while (!dbdd.done) {
         aio_poll(qemu_get_aio_context(), true);
@@ -951,15 +966,19 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete)
     }
 }
 
-
 static void test_delete_by_drain(void)
 {
-    do_test_delete_by_drain(false);
+    do_test_delete_by_drain(false, BDRV_DRAIN);
 }
 
 static void test_detach_by_drain(void)
 {
-    do_test_delete_by_drain(true);
+    do_test_delete_by_drain(true, BDRV_DRAIN);
+}
+
+static void test_detach_by_drain_subtree(void)
+{
+    do_test_delete_by_drain(true, BDRV_SUBTREE_DRAIN);
 }
 
 
@@ -1010,8 +1029,9 @@ int main(int argc, char **argv)
     g_test_add_func("/bdrv-drain/blockjob/drain_subtree",
                     test_blockjob_drain_subtree);
 
-    g_test_add_func("/bdrv-drain/deletion", test_delete_by_drain);
-    g_test_add_func("/bdrv-drain/detach", test_detach_by_drain);
+    g_test_add_func("/bdrv-drain/deletion/drain", test_delete_by_drain);
+    g_test_add_func("/bdrv-drain/detach/drain", test_detach_by_drain);
+    g_test_add_func("/bdrv-drain/detach/drain_subtree", test_detach_by_drain_subtree);
 
     ret = g_test_run();
     qemu_event_destroy(&done_event);
