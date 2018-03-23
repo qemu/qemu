@@ -1266,7 +1266,7 @@ static void mmu6xx_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
 {
-    switch (POWERPC_MMU_VER(env->mmu_model)) {
+    switch (env->mmu_model) {
     case POWERPC_MMU_BOOKE:
         mmubooke_dump_mmu(f, cpu_fprintf, env);
         break;
@@ -1278,13 +1278,13 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
         mmu6xx_dump_mmu(f, cpu_fprintf, env);
         break;
 #if defined(TARGET_PPC64)
-    case POWERPC_MMU_VER_64B:
-    case POWERPC_MMU_VER_2_03:
-    case POWERPC_MMU_VER_2_06:
-    case POWERPC_MMU_VER_2_07:
+    case POWERPC_MMU_64B:
+    case POWERPC_MMU_2_03:
+    case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_07:
         dump_slb(f, cpu_fprintf, ppc_env_get_cpu(env));
         break;
-    case POWERPC_MMU_VER_3_00:
+    case POWERPC_MMU_3_00:
         if (ppc64_radix_guest(ppc_env_get_cpu(env))) {
             /* TODO - Unsupported */
         } else {
@@ -1423,14 +1423,14 @@ hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     CPUPPCState *env = &cpu->env;
     mmu_ctx_t ctx;
 
-    switch (POWERPC_MMU_VER(env->mmu_model)) {
+    switch (env->mmu_model) {
 #if defined(TARGET_PPC64)
-    case POWERPC_MMU_VER_64B:
-    case POWERPC_MMU_VER_2_03:
-    case POWERPC_MMU_VER_2_06:
-    case POWERPC_MMU_VER_2_07:
+    case POWERPC_MMU_64B:
+    case POWERPC_MMU_2_03:
+    case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_07:
         return ppc_hash64_get_phys_page_debug(cpu, addr);
-    case POWERPC_MMU_VER_3_00:
+    case POWERPC_MMU_3_00:
         if (ppc64_radix_guest(ppc_env_get_cpu(env))) {
             return ppc_radix64_get_phys_page_debug(cpu, addr);
         } else {
