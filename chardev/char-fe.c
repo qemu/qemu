@@ -198,19 +198,21 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp)
 {
     int tag = 0;
 
-    if (CHARDEV_IS_MUX(s)) {
-        MuxChardev *d = MUX_CHARDEV(s);
+    if (s) {
+        if (CHARDEV_IS_MUX(s)) {
+            MuxChardev *d = MUX_CHARDEV(s);
 
-        if (d->mux_cnt >= MAX_MUX) {
+            if (d->mux_cnt >= MAX_MUX) {
+                goto unavailable;
+            }
+
+            d->backends[d->mux_cnt] = b;
+            tag = d->mux_cnt++;
+        } else if (s->be) {
             goto unavailable;
+        } else {
+            s->be = b;
         }
-
-        d->backends[d->mux_cnt] = b;
-        tag = d->mux_cnt++;
-    } else if (s->be) {
-        goto unavailable;
-    } else {
-        s->be = b;
     }
 
     b->fe_open = false;
