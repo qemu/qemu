@@ -5,7 +5,7 @@ CROSS=xtensa-$(CORE)-elf-
 
 ifndef XT
 SIM = ../../../xtensa-softmmu/qemu-system-xtensa
-SIMFLAGS = -M sim -cpu $(CORE) -nographic -semihosting -icount 7 $(EXTFLAGS) -kernel
+SIMFLAGS = -M sim -cpu $(CORE) -nographic -semihosting -icount 6 $(EXTFLAGS) -kernel
 SIMDEBUG = -s -S
 else
 SIM = xt-run

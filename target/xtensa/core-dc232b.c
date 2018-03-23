@@ -47,7 +47,7 @@ static XtensaConfig dc232b __attribute__((unused)) = {
         }
     },
     .isa_internal = &xtensa_modules,
-    .clock_freq_khz = 10000,
+    .clock_freq_khz = (NANOSECONDS_PER_SECOND / 64) / 1000,
     DEFAULT_SECTIONS
 };
 
