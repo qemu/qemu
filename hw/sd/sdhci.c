@@ -1474,7 +1474,7 @@ static void sdhci_pci_realize(PCIDevice *dev, Error **errp)
     Error *local_err = NULL;
 
     sdhci_initfn(s);
-    sdhci_common_realize(s, errp);
+    sdhci_common_realize(s, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1556,7 +1556,7 @@ static void sdhci_sysbus_realize(DeviceState *dev, Error ** errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     Error *local_err = NULL;
 
-    sdhci_common_realize(s, errp);
+    sdhci_common_realize(s, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
