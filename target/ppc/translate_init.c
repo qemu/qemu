@@ -8392,7 +8392,6 @@ static void init_proc_POWER7(CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
-    env->ci_large_pages = true;
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
 
@@ -8547,7 +8546,6 @@ static void init_proc_POWER8(CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
-    env->ci_large_pages = true;
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
 
@@ -8748,7 +8746,6 @@ static void init_proc_POWER9(CPUPPCState *env)
 #if !defined(CONFIG_USER_ONLY)
     env->slb_nr = 32;
 #endif
-    env->ci_large_pages = true;
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
 

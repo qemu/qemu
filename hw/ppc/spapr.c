@@ -263,7 +263,6 @@ static void spapr_populate_pa_features(sPAPRMachineState *spapr,
                                        void *fdt, int offset,
                                        bool legacy_guest)
 {
-    CPUPPCState *env = &cpu->env;
     uint8_t pa_features_206[] = { 6, 0,
         0xf6, 0x1f, 0xc7, 0x00, 0x80, 0xc0 };
     uint8_t pa_features_207[] = { 24, 0,
@@ -315,7 +314,7 @@ static void spapr_populate_pa_features(sPAPRMachineState *spapr,
         return;
     }
 
-    if (env->ci_large_pages) {
+    if (ppc_hash64_has(cpu, PPC_HASH64_CI_LARGEPAGE)) {
         /*
          * Note: we keep CI large pages off by default because a 64K capable
          * guest provisioned with large pages might otherwise try to map a qemu

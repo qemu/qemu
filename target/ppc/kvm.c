@@ -448,7 +448,11 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
      * host page size is smaller than 64K.
      */
     if (smmu_info.flags & KVM_PPC_PAGE_SIZES_REAL) {
-        env->ci_large_pages = getpagesize() >= 0x10000;
+        if (getpagesize() >= 0x10000) {
+            cpu->hash64_opts->flags |= PPC_HASH64_CI_LARGEPAGE;
+        } else {
+            cpu->hash64_opts->flags &= ~PPC_HASH64_CI_LARGEPAGE;
+        }
     }
 
     /*

@@ -1128,7 +1128,7 @@ const PPCHash64Options ppc_hash64_opts_basic = {
 };
 
 const PPCHash64Options ppc_hash64_opts_POWER7 = {
-    .flags = PPC_HASH64_1TSEG | PPC_HASH64_AMR,
+    .flags = PPC_HASH64_1TSEG | PPC_HASH64_AMR | PPC_HASH64_CI_LARGEPAGE,
     .sps = {
         {
             .page_shift = 12, /* 4K */
