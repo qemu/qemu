@@ -308,6 +308,9 @@ static void imx_put_data(void *opaque, uint32_t value)
     s->usr2 |= USR2_RDR;
     s->uts1 &= ~UTS1_RXEMPTY;
     s->readbuff = value;
+    if (value & URXD_BRK) {
+        s->usr2 |= USR2_BRCD;
+    }
     imx_update(s);
 }
 
@@ -319,7 +322,7 @@ static void imx_receive(void *opaque, const uint8_t *buf, int size)
 static void imx_event(void *opaque, int event)
 {
     if (event == CHR_EVENT_BREAK) {
-        imx_put_data(opaque, URXD_BRK);
+        imx_put_data(opaque, URXD_BRK | URXD_FRMERR | URXD_ERR);
     }
 }
 
