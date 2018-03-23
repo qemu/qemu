@@ -136,6 +136,28 @@ static inline uint64_t ppc_hash64_hpte1(PowerPCCPU *cpu,
     return ldq_p(&(hptes[i].pte1));
 }
 
+/*
+ * MMU Options
+ */
+
+struct PPCHash64PageSize {
+    uint32_t page_shift;  /* Page shift (or 0) */
+    uint32_t pte_enc;     /* Encoding in the HPTE (>>12) */
+};
+typedef struct PPCHash64PageSize PPCHash64PageSize;
+
+struct PPCHash64SegmentPageSizes {
+    uint32_t page_shift;  /* Base page shift of segment (or 0) */
+    uint32_t slb_enc;     /* SLB encoding for BookS */
+    PPCHash64PageSize enc[PPC_PAGE_SIZES_MAX_SZ];
+};
+
+struct PPCHash64Options {
+    PPCHash64SegmentPageSizes sps[PPC_PAGE_SIZES_MAX_SZ];
+};
+
+extern const PPCHash64Options ppc_hash64_opts_POWER7;
+
 #endif /* CONFIG_USER_ONLY */
 
 #if defined(CONFIG_USER_ONLY) || !defined(TARGET_PPC64)

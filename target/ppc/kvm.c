@@ -442,7 +442,7 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     }
 
     /* Convert to QEMU form */
-    memset(&env->sps, 0, sizeof(env->sps));
+    memset(cpu->hash64_opts->sps, 0, sizeof(*cpu->hash64_opts->sps));
 
     /* If we have HV KVM, we need to forbid CI large pages if our
      * host page size is smaller than 64K.
@@ -456,7 +456,7 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
      *     the selected CPU has with the capabilities that KVM supports.
      */
     for (ik = iq = 0; ik < KVM_PPC_PAGE_SIZES_MAX_SZ; ik++) {
-        struct ppc_one_seg_page_size *qsps = &env->sps.sps[iq];
+        PPCHash64SegmentPageSizes *qsps = &cpu->hash64_opts->sps[iq];
         struct kvm_ppc_one_seg_page_size *ksps = &smmu_info.sps[ik];
 
         if (!kvm_valid_page_size(smmu_info.flags, max_cpu_page_size,

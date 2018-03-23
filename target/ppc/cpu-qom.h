@@ -160,7 +160,7 @@ enum powerpc_input_t {
     PPC_FLAGS_INPUT_RCPU,
 };
 
-struct ppc_segment_page_sizes;
+typedef struct PPCHash64Options PPCHash64Options;
 
 /**
  * PowerPCCPUClass:
@@ -194,7 +194,7 @@ typedef struct PowerPCCPUClass {
     uint32_t flags;
     int bfd_mach;
     uint32_t l1_dcache_size, l1_icache_size;
-    const struct ppc_segment_page_sizes *sps;
+    const PPCHash64Options *hash64_opts;
     struct ppc_radix_page_info *radix_page_info;
     void (*init_proc)(CPUPPCState *env);
     int  (*check_pow)(CPUPPCState *env);
