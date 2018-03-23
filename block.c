@@ -824,7 +824,7 @@ static void bdrv_child_cb_drained_begin(BdrvChild *child)
 static bool bdrv_child_cb_drained_poll(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
-    return bdrv_drain_poll(bs, NULL);
+    return bdrv_drain_poll(bs, false, NULL);
 }
 
 static void bdrv_child_cb_drained_end(BdrvChild *child)
