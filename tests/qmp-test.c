@@ -164,70 +164,6 @@ static void test_qmp_protocol(void)
     qtest_quit(qts);
 }
 
-/* Tests for Out-Of-Band support. */
-static void test_qmp_oob(void)
-{
-    QDict *resp;
-    int acks = 0;
-    const char *cmd_id;
-
-    global_qtest = qtest_init_without_qmp_handshake(common_args);
-
-    /* Ignore the greeting message. */
-    resp = qmp_receive();
-    g_assert(qdict_get_qdict(resp, "QMP"));
-    QDECREF(resp);
-
-    /* Try a fake capability, it should fail. */
-    resp = qmp("{ 'execute': 'qmp_capabilities', "
-               "  'arguments': { 'enable': [ 'cap-does-not-exist' ] } }");
-    g_assert(qdict_haskey(resp, "error"));
-    QDECREF(resp);
-
-    /* Now, enable OOB in current QMP session, it should succeed. */
-    resp = qmp("{ 'execute': 'qmp_capabilities', "
-               "  'arguments': { 'enable': [ 'oob' ] } }");
-    g_assert(qdict_haskey(resp, "return"));
-    QDECREF(resp);
-
-    /*
-     * Try any command that does not support OOB but with OOB flag. We
-     * should get failure.
-     */
-    resp = qmp("{ 'execute': 'query-cpus',"
-               "  'control': { 'run-oob': true } }");
-    g_assert(qdict_haskey(resp, "error"));
-    QDECREF(resp);
-
-    /*
-     * First send the "x-oob-test" command with lock=true and
-     * oob=false, it should hang the dispatcher and main thread;
-     * later, we send another lock=false with oob=true to continue
-     * that thread processing.  Finally we should receive replies from
-     * both commands.
-     */
-    qmp_async("{ 'execute': 'x-oob-test',"
-              "  'arguments': { 'lock': true }, "
-              "  'id': 'lock-cmd'}");
-    qmp_async("{ 'execute': 'x-oob-test', "
-              "  'arguments': { 'lock': false }, "
-              "  'control': { 'run-oob': true }, "
-              "  'id': 'unlock-cmd' }");
-
-    /* Ignore all events.  Wait for 2 acks */
-    while (acks < 2) {
-        resp = qmp_receive();
-        cmd_id = qdict_get_str(resp, "id");
-        if (!g_strcmp0(cmd_id, "lock-cmd") ||
-            !g_strcmp0(cmd_id, "unlock-cmd")) {
-            acks++;
-        }
-        QDECREF(resp);
-    }
-
-    qtest_end();
-}
-
 static int query_error_class(const char *cmd)
 {
     static struct {
@@ -412,7 +348,6 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("qmp/protocol", test_qmp_protocol);
-    qtest_add_func("qmp/oob", test_qmp_oob);
     qmp_schema_init(&schema);
     add_query_tests(&schema);
 
