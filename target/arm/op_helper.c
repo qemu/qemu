@@ -1330,11 +1330,7 @@ void arm_debug_excp_handler(CPUState *cs)
 
             cs->watchpoint_hit = NULL;
 
-            if (extended_addresses_enabled(env)) {
-                env->exception.fsr = (1 << 9) | 0x22;
-            } else {
-                env->exception.fsr = 0x2;
-            }
+            env->exception.fsr = arm_debug_exception_fsr(env);
             env->exception.vaddress = wp_hit->hitaddr;
             raise_exception(env, EXCP_DATA_ABORT,
                     syn_watchpoint(same_el, 0, wnr),
@@ -1354,11 +1350,7 @@ void arm_debug_excp_handler(CPUState *cs)
             return;
         }
 
-        if (extended_addresses_enabled(env)) {
-            env->exception.fsr = (1 << 9) | 0x22;
-        } else {
-            env->exception.fsr = 0x2;
-        }
+        env->exception.fsr = arm_debug_exception_fsr(env);
         /* FAR is UNKNOWN, so doesn't need setting */
         raise_exception(env, EXCP_PREFETCH_ABORT,
                         syn_breakpoint(same_el),
