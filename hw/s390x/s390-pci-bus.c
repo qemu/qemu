@@ -816,6 +816,11 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         PCIBridge *pb = PCI_BRIDGE(dev);
         PCIDevice *pdev = PCI_DEVICE(dev);
 
+        if (pdev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION) {
+            error_setg(errp, "multifunction not supported in s390");
+            return;
+        }
+
         pci_bridge_map_irq(pb, dev->id, s390_pci_map_irq);
         pci_setup_iommu(&pb->sec_bus, s390_pci_dma_iommu, s);
 
@@ -834,6 +839,11 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         pdev = PCI_DEVICE(dev);
+
+        if (pdev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION) {
+            error_setg(errp, "multifunction not supported in s390");
+            return;
+        }
 
         if (!dev->id) {
             /* In the case the PCI device does not define an id */
