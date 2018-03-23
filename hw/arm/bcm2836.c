@@ -32,7 +32,7 @@ struct BCM283XInfo {
 static const BCM283XInfo bcm283x_socs[] = {
     {
         .name = TYPE_BCM2836,
-        .cpu_type = ARM_CPU_TYPE_NAME("cortex-a15"),
+        .cpu_type = ARM_CPU_TYPE_NAME("cortex-a7"),
         .clusterid = 0xf,
     },
 #ifdef TARGET_AARCH64
