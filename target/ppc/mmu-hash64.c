@@ -1100,31 +1100,31 @@ void ppc_hash64_init(PowerPCCPU *cpu)
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
-    if (pcc->hash64_opts) {
-        cpu->hash64_opts = g_memdup(pcc->hash64_opts,
-                                    sizeof(*cpu->hash64_opts));
-    } else if (env->mmu_model & POWERPC_MMU_64) {
-        /* Use default sets of page sizes. We don't support MPSS */
-        static const PPCHash64Options defopts = {
-            .sps = {
-                { .page_shift = 12, /* 4K */
-                  .slb_enc = 0,
-                  .enc = { { .page_shift = 12, .pte_enc = 0 } }
-                },
-                { .page_shift = 24, /* 16M */
-                  .slb_enc = 0x100,
-                  .enc = { { .page_shift = 24, .pte_enc = 0 } }
-                },
-            },
-        };
-        cpu->hash64_opts = g_memdup(&defopts, sizeof(*cpu->hash64_opts));
+    if (!pcc->hash64_opts) {
+        assert(!(env->mmu_model & POWERPC_MMU_64));
+        return;
     }
+
+    cpu->hash64_opts = g_memdup(pcc->hash64_opts, sizeof(*cpu->hash64_opts));
 }
 
 void ppc_hash64_finalize(PowerPCCPU *cpu)
 {
     g_free(cpu->hash64_opts);
 }
+
+const PPCHash64Options ppc_hash64_opts_basic = {
+    .sps = {
+        { .page_shift = 12, /* 4K */
+          .slb_enc = 0,
+          .enc = { { .page_shift = 12, .pte_enc = 0 } }
+        },
+        { .page_shift = 24, /* 16M */
+          .slb_enc = 0x100,
+          .enc = { { .page_shift = 24, .pte_enc = 0 } }
+        },
+    },
+};
 
 const PPCHash64Options ppc_hash64_opts_POWER7 = {
     .sps = {
