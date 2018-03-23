@@ -1095,3 +1095,32 @@ void helper_store_lpcr(CPUPPCState *env, target_ulong val)
     ppc_hash64_update_rmls(cpu);
     ppc_hash64_update_vrma(cpu);
 }
+
+void ppc_hash64_init(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+
+    if (pcc->sps) {
+        env->sps = *pcc->sps;
+    } else if (env->mmu_model & POWERPC_MMU_64) {
+        /* Use default sets of page sizes. We don't support MPSS */
+        static const struct ppc_segment_page_sizes defsps = {
+            .sps = {
+                { .page_shift = 12, /* 4K */
+                  .slb_enc = 0,
+                  .enc = { { .page_shift = 12, .pte_enc = 0 } }
+                },
+                { .page_shift = 24, /* 16M */
+                  .slb_enc = 0x100,
+                  .enc = { { .page_shift = 24, .pte_enc = 0 } }
+                },
+            },
+        };
+        env->sps = defsps;
+    }
+}
+
+void ppc_hash64_finalize(PowerPCCPU *cpu)
+{
+}

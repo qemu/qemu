@@ -10464,26 +10464,14 @@ static void ppc_cpu_instance_init(Object *obj)
     env->has_hv_mode = !!(env->msr_mask & MSR_HVB);
 #endif
 
-#if defined(TARGET_PPC64)
-    if (pcc->sps) {
-        env->sps = *pcc->sps;
-    } else if (env->mmu_model & POWERPC_MMU_64) {
-        /* Use default sets of page sizes. We don't support MPSS */
-        static const struct ppc_segment_page_sizes defsps = {
-            .sps = {
-                { .page_shift = 12, /* 4K */
-                  .slb_enc = 0,
-                  .enc = { { .page_shift = 12, .pte_enc = 0 } }
-                },
-                { .page_shift = 24, /* 16M */
-                  .slb_enc = 0x100,
-                  .enc = { { .page_shift = 24, .pte_enc = 0 } }
-                },
-            },
-        };
-        env->sps = defsps;
-    }
-#endif /* defined(TARGET_PPC64) */
+    ppc_hash64_init(cpu);
+}
+
+static void ppc_cpu_instance_finalize(Object *obj)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(obj);
+
+    ppc_hash64_finalize(cpu);
 }
 
 static bool ppc_pvr_match_default(PowerPCCPUClass *pcc, uint32_t pvr)
@@ -10601,6 +10589,7 @@ static const TypeInfo ppc_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(PowerPCCPU),
     .instance_init = ppc_cpu_instance_init,
+    .instance_finalize = ppc_cpu_instance_finalize,
     .abstract = true,
     .class_size = sizeof(PowerPCCPUClass),
     .class_init = ppc_cpu_class_init,

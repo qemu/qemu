@@ -19,6 +19,8 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
                                           uint64_t pte0, uint64_t pte1);
 void ppc_hash64_update_vrma(PowerPCCPU *cpu);
 void ppc_hash64_update_rmls(PowerPCCPU *cpu);
+void ppc_hash64_init(PowerPCCPU *cpu);
+void ppc_hash64_finalize(PowerPCCPU *cpu);
 #endif
 
 /*
@@ -135,5 +137,14 @@ static inline uint64_t ppc_hash64_hpte1(PowerPCCPU *cpu,
 }
 
 #endif /* CONFIG_USER_ONLY */
+
+#if defined(CONFIG_USER_ONLY) || !defined(TARGET_PPC64)
+static inline void ppc_hash64_init(PowerPCCPU *cpu)
+{
+}
+static inline void ppc_hash64_finalize(PowerPCCPU *cpu)
+{
+}
+#endif
 
 #endif /* MMU_HASH64_H */
