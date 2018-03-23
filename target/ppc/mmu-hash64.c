@@ -160,7 +160,7 @@ int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
     if (vsid & (SLB_VSID_B & ~SLB_VSID_B_1T)) {
         return -1; /* Bad segment size */
     }
-    if ((vsid & SLB_VSID_B) && !(env->mmu_model & POWERPC_MMU_1TSEG)) {
+    if ((vsid & SLB_VSID_B) && !(ppc_hash64_has(cpu, PPC_HASH64_1TSEG))) {
         return -1; /* 1T segment on MMU that doesn't support it */
     }
 
@@ -369,7 +369,7 @@ static int ppc_hash64_amr_prot(PowerPCCPU *cpu, ppc_hash_pte64_t pte)
     int prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 
     /* Only recent MMUs implement Virtual Page Class Key Protection */
-    if (!(env->mmu_model & POWERPC_MMU_AMR)) {
+    if (!ppc_hash64_has(cpu, PPC_HASH64_AMR)) {
         return prot;
     }
 
@@ -1114,6 +1114,7 @@ void ppc_hash64_finalize(PowerPCCPU *cpu)
 }
 
 const PPCHash64Options ppc_hash64_opts_basic = {
+    .flags = 0,
     .sps = {
         { .page_shift = 12, /* 4K */
           .slb_enc = 0,
@@ -1127,6 +1128,7 @@ const PPCHash64Options ppc_hash64_opts_basic = {
 };
 
 const PPCHash64Options ppc_hash64_opts_POWER7 = {
+    .flags = PPC_HASH64_1TSEG | PPC_HASH64_AMR,
     .sps = {
         {
             .page_shift = 12, /* 4K */

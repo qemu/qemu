@@ -302,7 +302,7 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
         /* HV KVM has backing store size restrictions */
         info->flags = KVM_PPC_PAGE_SIZES_REAL;
 
-        if (env->mmu_model & POWERPC_MMU_1TSEG) {
+        if (ppc_hash64_has(cpu, PPC_HASH64_1TSEG)) {
             info->flags |= KVM_PPC_1T_SEGMENTS;
         }
 
@@ -482,7 +482,7 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     }
     env->slb_nr = smmu_info.slb_size;
     if (!(smmu_info.flags & KVM_PPC_1T_SEGMENTS)) {
-        env->mmu_model &= ~POWERPC_MMU_1TSEG;
+        cpu->hash64_opts->flags &= ~PPC_HASH64_1TSEG;
     }
 }
 

@@ -36,6 +36,7 @@
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
 #include "hw/ipmi/ipmi.h"
+#include "target/ppc/mmu-hash64.h"
 
 #include "hw/ppc/xics.h"
 #include "hw/ppc/pnv_xscom.h"
@@ -187,7 +188,7 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
         _FDT((fdt_setprop(fdt, offset, "ibm,purr", NULL, 0)));
     }
 
-    if (env->mmu_model & POWERPC_MMU_1TSEG) {
+    if (ppc_hash64_has(cpu, PPC_HASH64_1TSEG)) {
         _FDT((fdt_setprop(fdt, offset, "ibm,processor-segment-sizes",
                            segs, sizeof(segs))));
     }

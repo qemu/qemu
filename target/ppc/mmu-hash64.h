@@ -153,11 +153,19 @@ struct PPCHash64SegmentPageSizes {
 };
 
 struct PPCHash64Options {
+#define PPC_HASH64_1TSEG        0x00001
+#define PPC_HASH64_AMR          0x00002
+    unsigned flags;
     PPCHash64SegmentPageSizes sps[PPC_PAGE_SIZES_MAX_SZ];
 };
 
 extern const PPCHash64Options ppc_hash64_opts_basic;
 extern const PPCHash64Options ppc_hash64_opts_POWER7;
+
+static inline bool ppc_hash64_has(PowerPCCPU *cpu, unsigned feature)
+{
+    return !!(cpu->hash64_opts->flags & feature);
+}
 
 #endif /* CONFIG_USER_ONLY */
 
