@@ -761,7 +761,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     slb = slb_lookup(cpu, eaddr);
     if (!slb) {
         /* No entry found, check if in-memory segment tables are in use */
-        if ((env->mmu_model & POWERPC_MMU_V3) && ppc64_use_proc_tbl(cpu)) {
+        if (ppc64_use_proc_tbl(cpu)) {
             /* TODO - Unsupported */
             error_report("Segment Table Support Unimplemented");
             exit(1);

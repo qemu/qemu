@@ -68,7 +68,6 @@ enum powerpc_mmu_t {
     /* PowerPC 601 MMU model (specific BATs format)            */
     POWERPC_MMU_601        = 0x0000000A,
 #define POWERPC_MMU_64       0x00010000
-#define POWERPC_MMU_V3       0x00100000 /* ISA V3.00 MMU Support */
     /* 64 bits PowerPC MMU                                     */
     POWERPC_MMU_64B        = POWERPC_MMU_64 | 0x00000001,
     /* Architecture 2.03 and later (has LPCR) */
@@ -78,8 +77,7 @@ enum powerpc_mmu_t {
     /* Architecture 2.07 variant                               */
     POWERPC_MMU_2_07       = POWERPC_MMU_64 | 0x00000004,
     /* Architecture 3.00 variant                               */
-    POWERPC_MMU_3_00       = POWERPC_MMU_64 | POWERPC_MMU_V3
-                             | 0x00000005,
+    POWERPC_MMU_3_00       = POWERPC_MMU_64 | 0x00000005,
 };
 #define POWERPC_MMU_VER(x) ((x) & (POWERPC_MMU_64 | 0xFFFF))
 #define POWERPC_MMU_VER_64B POWERPC_MMU_VER(POWERPC_MMU_64B)
