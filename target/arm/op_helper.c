@@ -490,6 +490,11 @@ void HELPER(exception_bkpt_insn)(CPUARMState *env, uint32_t syndrome)
 {
     /* FSR will only be used if the debug target EL is AArch32. */
     env->exception.fsr = arm_debug_exception_fsr(env);
+    /* FAR is UNKNOWN: clear vaddress to avoid potentially exposing
+     * values to the guest that it shouldn't be able to see at its
+     * exception/security level.
+     */
+    env->exception.vaddress = 0;
     raise_exception(env, EXCP_BKPT, syndrome, arm_debug_target_el(env));
 }
 
@@ -1353,7 +1358,11 @@ void arm_debug_excp_handler(CPUState *cs)
         }
 
         env->exception.fsr = arm_debug_exception_fsr(env);
-        /* FAR is UNKNOWN, so doesn't need setting */
+        /* FAR is UNKNOWN: clear vaddress to avoid potentially exposing
+         * values to the guest that it shouldn't be able to see at its
+         * exception/security level.
+         */
+        env->exception.vaddress = 0;
         raise_exception(env, EXCP_PREFETCH_ABORT,
                         syn_breakpoint(same_el),
                         arm_debug_target_el(env));
