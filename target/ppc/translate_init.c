@@ -10469,7 +10469,7 @@ static void ppc_cpu_instance_init(Object *obj)
         env->sps = *pcc->sps;
     } else if (env->mmu_model & POWERPC_MMU_64) {
         /* Use default sets of page sizes. We don't support MPSS */
-        static const struct ppc_segment_page_sizes defsps_4k = {
+        static const struct ppc_segment_page_sizes defsps = {
             .sps = {
                 { .page_shift = 12, /* 4K */
                   .slb_enc = 0,
@@ -10481,23 +10481,7 @@ static void ppc_cpu_instance_init(Object *obj)
                 },
             },
         };
-        static const struct ppc_segment_page_sizes defsps_64k = {
-            .sps = {
-                { .page_shift = 12, /* 4K */
-                  .slb_enc = 0,
-                  .enc = { { .page_shift = 12, .pte_enc = 0 } }
-                },
-                { .page_shift = 16, /* 64K */
-                  .slb_enc = 0x110,
-                  .enc = { { .page_shift = 16, .pte_enc = 1 } }
-                },
-                { .page_shift = 24, /* 16M */
-                  .slb_enc = 0x100,
-                  .enc = { { .page_shift = 24, .pte_enc = 0 } }
-                },
-            },
-        };
-        env->sps = (env->mmu_model & POWERPC_MMU_64K) ? defsps_64k : defsps_4k;
+        env->sps = defsps;
     }
 #endif /* defined(TARGET_PPC64) */
 }

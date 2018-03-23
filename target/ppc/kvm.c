@@ -425,7 +425,6 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     static bool has_smmu_info;
     CPUPPCState *env = &cpu->env;
     int iq, ik, jq, jk;
-    bool has_64k_pages = false;
 
     /* We only handle page sizes for 64-bit server guests for now */
     if (!(env->mmu_model & POWERPC_MMU_64)) {
@@ -471,9 +470,6 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
                                      ksps->enc[jk].page_shift)) {
                 continue;
             }
-            if (ksps->enc[jk].page_shift == 16) {
-                has_64k_pages = true;
-            }
             qsps->enc[jq].page_shift = ksps->enc[jk].page_shift;
             qsps->enc[jq].pte_enc = ksps->enc[jk].pte_enc;
             if (++jq >= PPC_PAGE_SIZES_MAX_SZ) {
@@ -487,9 +483,6 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     env->slb_nr = smmu_info.slb_size;
     if (!(smmu_info.flags & KVM_PPC_1T_SEGMENTS)) {
         env->mmu_model &= ~POWERPC_MMU_1TSEG;
-    }
-    if (!has_64k_pages) {
-        env->mmu_model &= ~POWERPC_MMU_64K;
     }
 }
 
