@@ -182,22 +182,40 @@ static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
 
     /* Set data->done before reading bs->wakeup.  */
     atomic_mb_set(&data->done, true);
-    bdrv_wakeup(bs);
+    bdrv_dec_in_flight(bs);
+
+    if (data->begin) {
+        g_free(data);
+    }
 }
 
 /* Recursively call BlockDriver.bdrv_co_drain_begin/end callbacks */
 static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
 {
-    BdrvCoDrainData data = { .bs = bs, .done = false, .begin = begin};
+    BdrvCoDrainData *data;
 
     if (!bs->drv || (begin && !bs->drv->bdrv_co_drain_begin) ||
             (!begin && !bs->drv->bdrv_co_drain_end)) {
         return;
     }
 
-    data.co = qemu_coroutine_create(bdrv_drain_invoke_entry, &data);
-    bdrv_coroutine_enter(bs, data.co);
-    BDRV_POLL_WHILE(bs, !data.done);
+    data = g_new(BdrvCoDrainData, 1);
+    *data = (BdrvCoDrainData) {
+        .bs = bs,
+        .done = false,
+        .begin = begin
+    };
+
+    /* Make sure the driver callback completes during the polling phase for
+     * drain_begin. */
+    bdrv_inc_in_flight(bs);
+    data->co = qemu_coroutine_create(bdrv_drain_invoke_entry, data);
+    aio_co_schedule(bdrv_get_aio_context(bs), data->co);
+
+    if (!begin) {
+        BDRV_POLL_WHILE(bs, !data->done);
+        g_free(data);
+    }
 }
 
 /* Returns true if BDRV_POLL_WHILE() should go into a blocking aio_poll() */
