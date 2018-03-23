@@ -82,7 +82,6 @@ static void test_qmp_protocol(void)
     QTestState *qts;
     const QListEntry *entry;
     QString *qstr;
-    int i;
 
     qts = qtest_init_without_qmp_handshake(common_args);
 
@@ -139,27 +138,6 @@ static void test_qmp_protocol(void)
     g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
     g_assert_cmpint(qdict_get_int(resp, "id"), ==, 2);
     QDECREF(resp);
-
-    /*
-     * Test command batching.  In current test OOB is not enabled, we
-     * should be able to run as many commands in batch as we like.
-     * Using 16 (>8, which is OOB queue length) to make sure OOB won't
-     * break existing clients.  Note: this test does not control the
-     * scheduling of QEMU's QMP command processing threads so it may
-     * not really trigger batching inside QEMU.  This is just a
-     * best-effort test.
-     */
-    for (i = 0; i < 16; i++) {
-        qtest_async_qmp(qts, "{ 'execute': 'query-version' }");
-    }
-    /* Verify the replies to make sure no command is dropped. */
-    for (i = 0; i < 16; i++) {
-        resp = qtest_qmp_receive(qts);
-        /* It should never be dropped.  Each of them should be a reply. */
-        g_assert(qdict_haskey(resp, "return"));
-        g_assert(!qdict_haskey(resp, "event"));
-        QDECREF(resp);
-    }
 
     qtest_quit(qts);
 }
