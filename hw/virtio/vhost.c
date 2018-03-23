@@ -595,10 +595,15 @@ static void vhost_region_add_section(struct vhost_dev *dev,
                                         prev_sec->offset_within_address_space,
                                         prev_sec->offset_within_region);
             } else {
-                error_report("%s: Overlapping but not coherent sections "
-                             "at %"PRIx64,
-                             __func__, mrs_gpa);
-                return;
+                /* adjoining regions are fine, but overlapping ones with
+                 * different blocks/offsets shouldn't happen
+                 */
+                if (mrs_gpa != prev_gpa_end + 1) {
+                    error_report("%s: Overlapping but not coherent sections "
+                                 "at %"PRIx64,
+                                 __func__, mrs_gpa);
+                    return;
+                }
             }
         }
     }
