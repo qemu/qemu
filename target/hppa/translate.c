@@ -1909,9 +1909,6 @@ static DisasJumpType do_ibranch(DisasContext *ctx, TCGv_reg dest,
  */
 static TCGv_reg do_ibranch_priv(DisasContext *ctx, TCGv_reg offset)
 {
-#ifdef CONFIG_USER_ONLY
-    return offset;
-#else
     TCGv_reg dest;
     switch (ctx->privilege) {
     case 0:
@@ -1931,7 +1928,6 @@ static TCGv_reg do_ibranch_priv(DisasContext *ctx, TCGv_reg offset)
         break;
     }
     return dest;
-#endif
 }
 
 #ifdef CONFIG_USER_ONLY
@@ -1967,7 +1963,7 @@ static DisasJumpType do_page_zero(DisasContext *ctx)
         goto do_sigill;
     }
 
-    switch (ctx->iaoq_f) {
+    switch (ctx->iaoq_f & -4) {
     case 0x00: /* Null pointer call */
         gen_excp_1(EXCP_IMP);
         return DISAS_NORETURN;
@@ -1978,7 +1974,7 @@ static DisasJumpType do_page_zero(DisasContext *ctx)
 
     case 0xe0: /* SET_THREAD_POINTER */
         tcg_gen_st_reg(cpu_gr[26], cpu_env, offsetof(CPUHPPAState, cr[27]));
-        tcg_gen_mov_reg(cpu_iaoq_f, cpu_gr[31]);
+        tcg_gen_ori_reg(cpu_iaoq_f, cpu_gr[31], 3);
         tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
         return DISAS_IAQ_N_UPDATED;
 
@@ -4697,8 +4693,8 @@ static int hppa_tr_init_disas_context(DisasContextBase *dcbase,
 #ifdef CONFIG_USER_ONLY
     ctx->privilege = MMU_USER_IDX;
     ctx->mmu_idx = MMU_USER_IDX;
-    ctx->iaoq_f = ctx->base.pc_first;
-    ctx->iaoq_b = ctx->base.tb->cs_base;
+    ctx->iaoq_f = ctx->base.pc_first | MMU_USER_IDX;
+    ctx->iaoq_b = ctx->base.tb->cs_base | MMU_USER_IDX;
 #else
     ctx->privilege = (ctx->tb_flags >> TB_FLAG_PRIV_SHIFT) & 3;
     ctx->mmu_idx = (ctx->tb_flags & PSW_D ? ctx->privilege : MMU_PHYS_IDX);
