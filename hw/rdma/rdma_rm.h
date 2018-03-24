@@ -16,7 +16,7 @@
 #ifndef RDMA_RM_H
 #define RDMA_RM_H
 
-#include <qapi/error.h>
+#include "qapi/error.h"
 #include "rdma_backend_defs.h"
 #include "rdma_rm_defs.h"
 
@@ -59,6 +59,9 @@ int rdma_rm_modify_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
                       union ibv_gid *dgid, uint32_t dqpn,
                       enum ibv_qp_state qp_state, uint32_t qkey,
                       uint32_t rq_psn, uint32_t sq_psn);
+int rdma_rm_query_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
+                     uint32_t qp_handle, struct ibv_qp_attr *attr,
+                     int attr_mask, struct ibv_qp_init_attr *init_attr);
 void rdma_rm_dealloc_qp(RdmaDeviceResources *dev_res, uint32_t qp_handle);
 
 int rdma_rm_alloc_cqe_ctx(RdmaDeviceResources *dev_res, uint32_t *cqe_ctx_id,

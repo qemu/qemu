@@ -17,7 +17,7 @@
 #define RDMA_BACKEND_DEFS_H
 
 #include <infiniband/verbs.h>
-#include <qemu/thread.h>
+#include "qemu/thread.h"
 
 typedef struct RdmaDeviceResources RdmaDeviceResources;
 

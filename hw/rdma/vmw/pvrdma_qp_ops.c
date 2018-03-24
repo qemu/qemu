@@ -13,14 +13,14 @@
  *
  */
 
-#include <qemu/osdep.h>
+#include "qemu/osdep.h"
 
 #include "../rdma_utils.h"
 #include "../rdma_rm.h"
 #include "../rdma_backend.h"
 
 #include "pvrdma.h"
-#include <standard-headers/rdma/vmw_pvrdma-abi.h>
+#include "standard-headers/rdma/vmw_pvrdma-abi.h"
 #include "pvrdma_qp_ops.h"
 
 typedef struct CompHandlerCtx {
@@ -102,7 +102,7 @@ static void pvrdma_qp_ops_comp_handler(int status, unsigned int vendor_err,
     CompHandlerCtx *comp_ctx = (CompHandlerCtx *)ctx;
 
     pr_dbg("cq_handle=%d\n", comp_ctx->cq_handle);
-    pr_dbg("wr_id=%ld\n", comp_ctx->cqe.wr_id);
+    pr_dbg("wr_id=%" PRIx64 "\n", comp_ctx->cqe.wr_id);
     pr_dbg("status=%d\n", status);
     pr_dbg("vendor_err=0x%x\n", vendor_err);
     comp_ctx->cqe.status = status;
@@ -143,7 +143,7 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
     while (wqe) {
         CompHandlerCtx *comp_ctx;
 
-        pr_dbg("wr_id=%ld\n", wqe->hdr.wr_id);
+        pr_dbg("wr_id=%" PRIx64 "\n", wqe->hdr.wr_id);
 
         /* Prepare CQE */
         comp_ctx = g_malloc(sizeof(CompHandlerCtx));
@@ -187,7 +187,7 @@ int pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
     while (wqe) {
         CompHandlerCtx *comp_ctx;
 
-        pr_dbg("wr_id=%ld\n", wqe->hdr.wr_id);
+        pr_dbg("wr_id=%" PRIx64 "\n", wqe->hdr.wr_id);
 
         /* Prepare CQE */
         comp_ctx = g_malloc(sizeof(CompHandlerCtx));

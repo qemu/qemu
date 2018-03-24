@@ -13,9 +13,9 @@
  *
  */
 
-#include <qemu/osdep.h>
-#include <qemu/error-report.h>
-#include <qapi/error.h>
+#include "qemu/osdep.h"
+#include "qemu/error-report.h"
+#include "qapi/error.h"
 
 #include <infiniband/verbs.h>
 
@@ -62,12 +62,13 @@ static void poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
         pr_dbg("Got %d completion(s) from cq %p\n", ne, ibcq);
 
         for (i = 0; i < ne; i++) {
-            pr_dbg("wr_id=0x%lx\n", wc[i].wr_id);
+            pr_dbg("wr_id=0x%" PRIx64 "\n", wc[i].wr_id);
             pr_dbg("status=%d\n", wc[i].status);
 
             bctx = rdma_rm_get_cqe_ctx(rdma_dev_res, wc[i].wr_id);
             if (unlikely(!bctx)) {
-                pr_dbg("Error: Failed to find ctx for req %ld\n", wc[i].wr_id);
+                pr_dbg("Error: Failed to find ctx for req %" PRId64 "\n",
+                       wc[i].wr_id);
                 continue;
             }
             pr_dbg("Processing %s CQE\n", bctx->is_tx_req ? "send" : "recv");
@@ -176,7 +177,7 @@ static struct ibv_ah *create_ah(RdmaBackendDev *backend_dev, struct ibv_pd *pd,
             g_hash_table_insert(ah_hash, ah_key, ah);
         } else {
             g_bytes_unref(ah_key);
-            pr_dbg("ibv_create_ah failed for gid <%lx %lx>\n",
+            pr_dbg("Fail to create AH for gid <0x%" PRIx64 ", 0x%" PRIx64 ">\n",
                     be64_to_cpu(dgid->global.subnet_prefix),
                     be64_to_cpu(dgid->global.interface_id));
         }
@@ -222,13 +223,13 @@ static int build_host_sge_array(RdmaDeviceResources *rdma_dev_res,
             return VENDOR_ERR_INVLKEY | ssge[ssge_idx].lkey;
         }
 
-        dsge->addr = mr->user_mr.host_virt + ssge[ssge_idx].addr -
+        dsge->addr = (uintptr_t)mr->user_mr.host_virt + ssge[ssge_idx].addr -
                      mr->user_mr.guest_start;
         dsge->length = ssge[ssge_idx].length;
         dsge->lkey = rdma_backend_mr_lkey(&mr->backend_mr);
 
-        pr_dbg("ssge->addr=0x%lx\n", (uint64_t)ssge[ssge_idx].addr);
-        pr_dbg("dsge->addr=0x%lx\n", dsge->addr);
+        pr_dbg("ssge->addr=0x%" PRIx64 "\n", ssge[ssge_idx].addr);
+        pr_dbg("dsge->addr=0x%" PRIx64 "\n", dsge->addr);
         pr_dbg("dsge->length=%d\n", dsge->length);
         pr_dbg("dsge->lkey=0x%x\n", dsge->lkey);
 
@@ -401,12 +402,12 @@ void rdma_backend_destroy_pd(RdmaBackendPD *pd)
     }
 }
 
-int rdma_backend_create_mr(RdmaBackendMR *mr, RdmaBackendPD *pd, uint64_t addr,
+int rdma_backend_create_mr(RdmaBackendMR *mr, RdmaBackendPD *pd, void *addr,
                            size_t length, int access)
 {
-    pr_dbg("addr=0x%lx\n", addr);
-    pr_dbg("len=%ld\n", length);
-    mr->ibmr = ibv_reg_mr(pd->ibpd, (void *)addr, length, access);
+    pr_dbg("addr=0x%p\n", addr);
+    pr_dbg("len=%zu\n", length);
+    mr->ibmr = ibv_reg_mr(pd->ibpd, addr, length, access);
     if (mr->ibmr) {
         pr_dbg("lkey=0x%x\n", mr->ibmr->lkey);
         pr_dbg("rkey=0x%x\n", mr->ibmr->rkey);
@@ -562,7 +563,7 @@ int rdma_backend_qp_state_rtr(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
 
     switch (qp_type) {
     case IBV_QPT_RC:
-        pr_dbg("dgid=0x%lx,%lx\n",
+        pr_dbg("dgid=0x%" PRIx64 ",%" PRIx64 "\n",
                be64_to_cpu(ibv_gid.global.subnet_prefix),
                be64_to_cpu(ibv_gid.global.interface_id));
         pr_dbg("dqpn=0x%x\n", dqpn);
@@ -646,6 +647,18 @@ int rdma_backend_qp_state_rts(RdmaBackendQP *qp, uint8_t qp_type,
     return 0;
 }
 
+int rdma_backend_query_qp(RdmaBackendQP *qp, struct ibv_qp_attr *attr,
+                          int attr_mask, struct ibv_qp_init_attr *init_attr)
+{
+    if (!qp->ibqp) {
+        pr_dbg("QP1\n");
+        attr->qp_state = IBV_QPS_RTS;
+        return 0;
+    }
+
+    return ibv_query_qp(qp->ibqp, attr, attr_mask, init_attr);
+}
+
 void rdma_backend_destroy_qp(RdmaBackendQP *qp)
 {
     if (qp->ibqp) {
@@ -656,8 +669,8 @@ void rdma_backend_destroy_qp(RdmaBackendQP *qp)
 #define CHK_ATTR(req, dev, member, fmt) ({ \
     pr_dbg("%s="fmt","fmt"\n", #member, dev.member, req->member); \
     if (req->member > dev.member) { \
-        warn_report("%s = 0x%lx is higher than host device capability 0x%lx", \
-                    #member, (uint64_t)req->member, (uint64_t)dev.member); \
+        warn_report("%s = "fmt" is higher than host device capability "fmt, \
+                    #member, req->member, dev.member); \
         req->member = dev.member; \
     } \
     pr_dbg("%s="fmt"\n", #member, req->member); })
@@ -669,7 +682,7 @@ static int init_device_caps(RdmaBackendDev *backend_dev,
         return -EIO;
     }
 
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_mr_size, "%ld");
+    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_mr_size, "%" PRId64);
     CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp, "%d");
     CHK_ATTR(dev_attr, backend_dev->dev_attr, max_sge, "%d");
     CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp_wr, "%d");
@@ -782,9 +795,9 @@ int rdma_backend_init(RdmaBackendDev *backend_dev,
         ret = -EIO;
         goto out_destroy_comm_channel;
     }
-    pr_dbg("subnet_prefix=0x%lx\n",
+    pr_dbg("subnet_prefix=0x%" PRIx64 "\n",
            be64_to_cpu(backend_dev->gid.global.subnet_prefix));
-    pr_dbg("interface_id=0x%lx\n",
+    pr_dbg("interface_id=0x%" PRIx64 "\n",
            be64_to_cpu(backend_dev->gid.global.interface_id));
 
     snprintf(thread_name, sizeof(thread_name), "rdma_comp_%s",

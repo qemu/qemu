@@ -13,9 +13,9 @@
  *
  */
 
-#include <qemu/osdep.h>
-#include <qemu/error-report.h>
-#include <cpu.h>
+#include "qemu/osdep.h"
+#include "qemu/error-report.h"
+#include "cpu.h"
 #include <linux/types.h>
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
@@ -26,7 +26,7 @@
 #include "../rdma_utils.h"
 
 #include "pvrdma.h"
-#include <standard-headers/rdma/vmw_pvrdma-abi.h>
+#include "standard-headers/rdma/vmw_pvrdma-abi.h"
 
 static void *pvrdma_map_to_pdir(PCIDevice *pdev, uint64_t pdir_dma,
                                 uint32_t nchunks, size_t length)
@@ -73,7 +73,7 @@ static void *pvrdma_map_to_pdir(PCIDevice *pdev, uint64_t pdir_dma,
     tbl_idx = 1;
     addr_idx = 1;
     while (addr_idx < nchunks) {
-        if ((tbl_idx == (TARGET_PAGE_SIZE / sizeof(uint64_t)))) {
+        if (tbl_idx == TARGET_PAGE_SIZE / sizeof(uint64_t)) {
             tbl_idx = 0;
             dir_idx++;
             pr_dbg("Mapping to table %d\n", dir_idx);
@@ -85,7 +85,7 @@ static void *pvrdma_map_to_pdir(PCIDevice *pdev, uint64_t pdir_dma,
             }
         }
 
-        pr_dbg("guest_dma[%d]=0x%lx\n", addr_idx, tbl[tbl_idx]);
+        pr_dbg("guest_dma[%d]=0x%" PRIx64 "\n", addr_idx, tbl[tbl_idx]);
 
         curr_page = rdma_pci_dma_map(pdev, (dma_addr_t)tbl[tbl_idx],
                                      TARGET_PAGE_SIZE);
@@ -285,7 +285,7 @@ static int create_cq_ring(PCIDevice *pci_dev , PvrdmaRing **ring,
         goto out_free_ring;
     }
 
-    sprintf(ring_name, "cq_ring_%lx", pdir_dma);
+    sprintf(ring_name, "cq_ring_%" PRIx64, pdir_dma);
     rc = pvrdma_ring_init(r, ring_name, pci_dev, &r->ring_state[1],
                           cqe, sizeof(struct pvrdma_cqe),
                           /* first page is ring state */
@@ -415,7 +415,7 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
     wqe_sz = pow2ceil(sizeof(struct pvrdma_sq_wqe_hdr) +
                       sizeof(struct pvrdma_sge) * smax_sge - 1);
 
-    sprintf(ring_name, "qp_sring_%lx", pdir_dma);
+    sprintf(ring_name, "qp_sring_%" PRIx64, pdir_dma);
     rc = pvrdma_ring_init(sr, ring_name, pci_dev, sr->ring_state,
                           scqe, wqe_sz, (dma_addr_t *)&tbl[1], spages);
     if (rc) {
@@ -426,7 +426,7 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
     rr->ring_state = &sr->ring_state[1];
     wqe_sz = pow2ceil(sizeof(struct pvrdma_rq_wqe_hdr) +
                       sizeof(struct pvrdma_sge) * rmax_sge - 1);
-    sprintf(ring_name, "qp_rring_%lx", pdir_dma);
+    sprintf(ring_name, "qp_rring_%" PRIx64, pdir_dma);
     rc = pvrdma_ring_init(rr, ring_name, pci_dev, rr->ring_state,
                           rcqe, wqe_sz, (dma_addr_t *)&tbl[1 + spages], rpages);
     if (rc) {
@@ -507,9 +507,32 @@ static int modify_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
     rsp->hdr.err = rdma_rm_modify_qp(&dev->rdma_dev_res, &dev->backend_dev,
                                  cmd->qp_handle, cmd->attr_mask,
                                  (union ibv_gid *)&cmd->attrs.ah_attr.grh.dgid,
-                                 cmd->attrs.dest_qp_num, cmd->attrs.qp_state,
+                                 cmd->attrs.dest_qp_num,
+                                 (enum ibv_qp_state)cmd->attrs.qp_state,
                                  cmd->attrs.qkey, cmd->attrs.rq_psn,
                                  cmd->attrs.sq_psn);
+
+    pr_dbg("ret=%d\n", rsp->hdr.err);
+    return rsp->hdr.err;
+}
+
+static int query_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
+                     union pvrdma_cmd_resp *rsp)
+{
+    struct pvrdma_cmd_query_qp *cmd = &req->query_qp;
+    struct pvrdma_cmd_query_qp_resp *resp = &rsp->query_qp_resp;
+    struct ibv_qp_init_attr init_attr;
+
+    pr_dbg("qp_handle=%d\n", cmd->qp_handle);
+
+    memset(rsp, 0, sizeof(*rsp));
+    rsp->hdr.response = cmd->hdr.response;
+    rsp->hdr.ack = PVRDMA_CMD_QUERY_QP_RESP;
+
+    rsp->hdr.err = rdma_rm_query_qp(&dev->rdma_dev_res, &dev->backend_dev,
+                                    cmd->qp_handle,
+                                    (struct ibv_qp_attr *)&resp->attrs, -1,
+                                    &init_attr);
 
     pr_dbg("ret=%d\n", rsp->hdr.err);
     return rsp->hdr.err;
@@ -636,7 +659,7 @@ static struct cmd_handler cmd_handlers[] = {
     {PVRDMA_CMD_DESTROY_CQ, destroy_cq},
     {PVRDMA_CMD_CREATE_QP, create_qp},
     {PVRDMA_CMD_MODIFY_QP, modify_qp},
-    {PVRDMA_CMD_QUERY_QP, NULL},
+    {PVRDMA_CMD_QUERY_QP, query_qp},
     {PVRDMA_CMD_DESTROY_QP, destroy_qp},
     {PVRDMA_CMD_CREATE_UC, create_uc},
     {PVRDMA_CMD_DESTROY_UC, destroy_uc},

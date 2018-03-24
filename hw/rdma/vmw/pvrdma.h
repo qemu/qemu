@@ -16,14 +16,14 @@
 #ifndef PVRDMA_PVRDMA_H
 #define PVRDMA_PVRDMA_H
 
-#include <hw/pci/pci.h>
-#include <hw/pci/msix.h>
+#include "hw/pci/pci.h"
+#include "hw/pci/msix.h"
 
 #include "../rdma_backend_defs.h"
 #include "../rdma_rm_defs.h"
 
-#include <standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_ring.h>
-#include <standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h>
+#include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_ring.h"
+#include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h"
 #include "pvrdma_dev_ring.h"
 
 /* BARs */

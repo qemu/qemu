@@ -16,7 +16,7 @@
 #ifndef RDMA_BACKEND_H
 #define RDMA_BACKEND_H
 
-#include <qapi/error.h>
+#include "qapi/error.h"
 #include "rdma_rm_defs.h"
 #include "rdma_backend_defs.h"
 
@@ -61,7 +61,7 @@ int rdma_backend_query_port(RdmaBackendDev *backend_dev,
 int rdma_backend_create_pd(RdmaBackendDev *backend_dev, RdmaBackendPD *pd);
 void rdma_backend_destroy_pd(RdmaBackendPD *pd);
 
-int rdma_backend_create_mr(RdmaBackendMR *mr, RdmaBackendPD *pd, uint64_t addr,
+int rdma_backend_create_mr(RdmaBackendMR *mr, RdmaBackendPD *pd, void *addr,
                            size_t length, int access);
 void rdma_backend_destroy_mr(RdmaBackendMR *mr);
 
@@ -83,6 +83,8 @@ int rdma_backend_qp_state_rtr(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
                               bool use_qkey);
 int rdma_backend_qp_state_rts(RdmaBackendQP *qp, uint8_t qp_type,
                               uint32_t sq_psn, uint32_t qkey, bool use_qkey);
+int rdma_backend_query_qp(RdmaBackendQP *qp, struct ibv_qp_attr *attr,
+                          int attr_mask, struct ibv_qp_init_attr *init_attr);
 void rdma_backend_destroy_qp(RdmaBackendQP *qp);
 
 void rdma_backend_post_send(RdmaBackendDev *backend_dev,

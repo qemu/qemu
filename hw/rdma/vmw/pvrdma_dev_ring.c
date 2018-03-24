@@ -13,17 +13,17 @@
  *
  */
 
-#include <qemu/osdep.h>
-#include <hw/pci/pci.h>
-#include <cpu.h>
+#include "qemu/osdep.h"
+#include "hw/pci/pci.h"
+#include "cpu.h"
 
 #include "../rdma_utils.h"
-#include <standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_ring.h>
+#include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_ring.h"
 #include "pvrdma_dev_ring.h"
 
 int pvrdma_ring_init(PvrdmaRing *ring, const char *name, PCIDevice *dev,
                      struct pvrdma_ring *ring_state, uint32_t max_elems,
-                     size_t elem_sz, dma_addr_t *tbl, dma_addr_t npages)
+                     size_t elem_sz, dma_addr_t *tbl, uint32_t npages)
 {
     int i;
     int rc = 0;
@@ -35,8 +35,8 @@ int pvrdma_ring_init(PvrdmaRing *ring, const char *name, PCIDevice *dev,
     ring->ring_state = ring_state;
     ring->max_elems = max_elems;
     ring->elem_sz = elem_sz;
-    pr_dbg("ring->elem_sz=%ld\n", ring->elem_sz);
-    pr_dbg("npages=%ld\n", npages);
+    pr_dbg("ring->elem_sz=%zu\n", ring->elem_sz);
+    pr_dbg("npages=%d\n", npages);
     /* TODO: Give a moment to think if we want to redo driver settings
     atomic_set(&ring->ring_state->prod_tail, 0);
     atomic_set(&ring->ring_state->cons_head, 0);

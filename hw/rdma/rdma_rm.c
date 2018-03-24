@@ -13,9 +13,9 @@
  *
  */
 
-#include <qemu/osdep.h>
-#include <qapi/error.h>
-#include <cpu.h>
+#include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "cpu.h"
 
 #include "rdma_utils.h"
 #include "rdma_backend.h"
@@ -146,7 +146,7 @@ int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
     RdmaRmMR *mr;
     int ret = 0;
     RdmaRmPD *pd;
-    uint64_t addr;
+    void *addr;
     size_t length;
 
     pd = rdma_rm_get_pd(dev_res, pd_handle);
@@ -165,14 +165,14 @@ int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
         /* TODO: This is my guess but not so sure that this needs to be
          * done */
         length = TARGET_PAGE_SIZE;
-        addr = (uint64_t)g_malloc(length);
+        addr = g_malloc(length);
     } else {
-        mr->user_mr.host_virt = (uint64_t) host_virt;
-        pr_dbg("host_virt=0x%lx\n", mr->user_mr.host_virt);
+        mr->user_mr.host_virt = host_virt;
+        pr_dbg("host_virt=0x%p\n", mr->user_mr.host_virt);
         mr->user_mr.length = guest_length;
-        pr_dbg("length=0x%lx\n", guest_length);
+        pr_dbg("length=%zu\n", guest_length);
         mr->user_mr.guest_start = guest_start;
-        pr_dbg("guest_start=0x%lx\n", mr->user_mr.guest_start);
+        pr_dbg("guest_start=0x%" PRIx64 "\n", mr->user_mr.guest_start);
 
         length = mr->user_mr.length;
         addr = mr->user_mr.host_virt;
@@ -216,7 +216,7 @@ void rdma_rm_dealloc_mr(RdmaDeviceResources *dev_res, uint32_t mr_handle)
 
     if (mr) {
         rdma_backend_destroy_mr(&mr->backend_mr);
-        munmap((void *)mr->user_mr.host_virt, mr->user_mr.length);
+        munmap(mr->user_mr.host_virt, mr->user_mr.length);
         res_tbl_dealloc(&dev_res->mr_tbl, mr_handle);
     }
 }
@@ -451,6 +451,24 @@ int rdma_rm_modify_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
     }
 
     return 0;
+}
+
+int rdma_rm_query_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
+                     uint32_t qp_handle, struct ibv_qp_attr *attr,
+                     int attr_mask, struct ibv_qp_init_attr *init_attr)
+{
+    RdmaRmQP *qp;
+
+    pr_dbg("qpn=%d\n", qp_handle);
+
+    qp = rdma_rm_get_qp(dev_res, qp_handle);
+    if (!qp) {
+        return -EINVAL;
+    }
+
+    pr_dbg("qp_type=%d\n", qp->qp_type);
+
+    return rdma_backend_query_qp(&qp->backend_qp, attr, attr_mask, init_attr);
 }
 
 void rdma_rm_dealloc_qp(RdmaDeviceResources *dev_res, uint32_t qp_handle)
