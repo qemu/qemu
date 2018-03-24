@@ -37,6 +37,7 @@
 #define MAX_IS_ALLOCATED_SEARCH (65536 * BDRV_SECTOR_SIZE)
 
 #define MAX_IO_BUFFERS 512
+#define MAX_PARALLEL_IO 16
 
 //#define DEBUG_BLK_MIGRATION
 
@@ -772,9 +773,9 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
 
     /* control the rate of transfer */
     blk_mig_lock();
-    while ((block_mig_state.submitted +
-            block_mig_state.read_done) * BLOCK_SIZE <
+    while (block_mig_state.read_done * BLOCK_SIZE <
            qemu_file_get_rate_limit(f) &&
+           block_mig_state.submitted < MAX_PARALLEL_IO &&
            (block_mig_state.submitted + block_mig_state.read_done) <
            MAX_IO_BUFFERS) {
         blk_mig_unlock();
