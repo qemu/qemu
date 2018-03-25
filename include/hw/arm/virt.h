@@ -85,6 +85,7 @@ typedef struct {
     bool no_its;
     bool no_pmu;
     bool claim_edge_triggered_timers;
+    bool smbios_old_sys_ver;
 } VirtMachineClass;
 
 typedef struct {
