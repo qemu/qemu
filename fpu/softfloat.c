@@ -1236,7 +1236,8 @@ float16 QEMU_FLATTEN float16_mul(float16 a, float16 b, float_status *status)
     return float16_round_pack_canonical(pr, status);
 }
 
-float32 QEMU_FLATTEN float32_mul(float32 a, float32 b, float_status *status)
+static float32 QEMU_SOFTFLOAT_ATTR
+soft_f32_mul(float32 a, float32 b, float_status *status)
 {
     FloatParts pa = float32_unpack_canonical(a, status);
     FloatParts pb = float32_unpack_canonical(b, status);
@@ -1245,13 +1246,62 @@ float32 QEMU_FLATTEN float32_mul(float32 a, float32 b, float_status *status)
     return float32_round_pack_canonical(pr, status);
 }
 
-float64 QEMU_FLATTEN float64_mul(float64 a, float64 b, float_status *status)
+static float64 QEMU_SOFTFLOAT_ATTR
+soft_f64_mul(float64 a, float64 b, float_status *status)
 {
     FloatParts pa = float64_unpack_canonical(a, status);
     FloatParts pb = float64_unpack_canonical(b, status);
     FloatParts pr = mul_floats(pa, pb, status);
 
     return float64_round_pack_canonical(pr, status);
+}
+
+static float hard_f32_mul(float a, float b)
+{
+    return a * b;
+}
+
+static double hard_f64_mul(double a, double b)
+{
+    return a * b;
+}
+
+static bool f32_mul_fast_test(union_float32 a, union_float32 b)
+{
+    return float32_is_zero(a.s) || float32_is_zero(b.s);
+}
+
+static bool f64_mul_fast_test(union_float64 a, union_float64 b)
+{
+    return float64_is_zero(a.s) || float64_is_zero(b.s);
+}
+
+static float32 f32_mul_fast_op(float32 a, float32 b, float_status *s)
+{
+    bool signbit = float32_is_neg(a) ^ float32_is_neg(b);
+
+    return float32_set_sign(float32_zero, signbit);
+}
+
+static float64 f64_mul_fast_op(float64 a, float64 b, float_status *s)
+{
+    bool signbit = float64_is_neg(a) ^ float64_is_neg(b);
+
+    return float64_set_sign(float64_zero, signbit);
+}
+
+float32 QEMU_FLATTEN
+float32_mul(float32 a, float32 b, float_status *s)
+{
+    return float32_gen2(a, b, s, hard_f32_mul, soft_f32_mul,
+                        f32_is_zon2, NULL, f32_mul_fast_test, f32_mul_fast_op);
+}
+
+float64 QEMU_FLATTEN
+float64_mul(float64 a, float64 b, float_status *s)
+{
+    return float64_gen2(a, b, s, hard_f64_mul, soft_f64_mul,
+                        f64_is_zon2, NULL, f64_mul_fast_test, f64_mul_fast_op);
 }
 
 /*
