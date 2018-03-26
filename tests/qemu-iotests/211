@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Test luks and file image creation
+# Test VDI and file image creation
 #
 # Copyright (C) 2018 Red Hat, Inc.
 #
@@ -31,7 +31,7 @@ status=1	# failure is the default!
 . ./common.rc
 . ./common.filter
 
-_supported_fmt luks
+_supported_fmt vdi
 _supported_proto file
 _supported_os Linux
 
@@ -55,12 +55,12 @@ echo
 
 size=$((128 * 1024 * 1024))
 
-run_qemu -object secret,id=keysec0,data="foo" <<EOF
+run_qemu <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "x-blockdev-create",
   "arguments": {
       "driver": "file",
-      "filename": "$TEST_IMG_FILE",
+      "filename": "$TEST_IMG",
       "size": 0
   }
 }
@@ -68,36 +68,35 @@ run_qemu -object secret,id=keysec0,data="foo" <<EOF
   "arguments": {
       "driver": "file",
       "node-name": "imgfile",
-      "filename": "$TEST_IMG_FILE"
+      "filename": "$TEST_IMG"
   }
 }
 { "execute": "x-blockdev-create",
   "arguments": {
       "driver": "$IMGFMT",
       "file": "imgfile",
-      "key-secret": "keysec0",
-      "size": $size,
-      "iter-time": 10
+      "size": $size
   }
 }
 { "execute": "quit" }
 EOF
 
 _img_info --format-specific | _filter_img_info --format-specific
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 echo
-echo "=== Successful image creation (with non-default options) ==="
+echo "=== Successful image creation (explicit defaults) ==="
 echo
 
 # Choose a different size to show that we got a new image
 size=$((64 * 1024 * 1024))
 
-run_qemu -object secret,id=keysec0,data="foo" <<EOF
+run_qemu <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "x-blockdev-create",
   "arguments": {
       "driver": "file",
-      "filename": "$TEST_IMG_FILE",
+      "filename": "$TEST_IMG",
       "size": 0
   }
 }
@@ -106,22 +105,50 @@ run_qemu -object secret,id=keysec0,data="foo" <<EOF
       "driver": "$IMGFMT",
       "file": {
           "driver": "file",
-          "filename": "$TEST_IMG_FILE"
+          "filename": "$TEST_IMG"
       },
       "size": $size,
-      "key-secret": "keysec0",
-      "cipher-alg": "twofish-128",
-      "cipher-mode": "ctr",
-      "ivgen-alg": "plain64",
-      "ivgen-hash-alg": "md5",
-      "hash-alg": "sha1",
-      "iter-time": 10
+      "preallocation": "off"
   }
 }
 { "execute": "quit" }
 EOF
 
 _img_info --format-specific | _filter_img_info --format-specific
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+echo "=== Successful image creation (with non-default options) ==="
+echo
+
+# Choose a different size to show that we got a new image
+size=$((32 * 1024 * 1024))
+
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "file",
+      "filename": "$TEST_IMG",
+      "size": 0
+  }
+}
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "file": {
+          "driver": "file",
+          "filename": "$TEST_IMG"
+      },
+      "size": $size,
+      "preallocation": "metadata"
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info --format-specific | _filter_img_info --format-specific
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 echo
 echo "=== Invalid BlockdevRef ==="
@@ -143,16 +170,13 @@ echo
 echo "=== Zero size ==="
 echo
 
-run_qemu -blockdev driver=file,filename="$TEST_IMG_FILE",node-name=node0 \
-         -object secret,id=keysec0,data="foo" <<EOF
+run_qemu -blockdev driver=file,filename="$TEST_IMG",node-name=node0 <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "x-blockdev-create",
   "arguments": {
       "driver": "$IMGFMT",
       "file": "node0",
-      "key-secret": "keysec0",
-      "size": 0,
-      "iter-time": 10
+      "size": 0
   }
 }
 { "execute": "quit" }
@@ -160,6 +184,23 @@ EOF
 
 _img_info | _filter_img_info
 
+echo
+echo "=== Maximum size ==="
+echo
+
+run_qemu -blockdev driver=file,filename="$TEST_IMG",node-name=node0 <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "x-blockdev-create",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "file": "node0",
+      "size": 562949819203584
+  }
+}
+{ "execute": "quit" }
+EOF
+
+_img_info | _filter_img_info
 
 echo
 echo "=== Invalid sizes ==="
@@ -171,17 +212,14 @@ echo
 
 # 1. 2^64 - 512
 # 2. 2^63 = 8 EB (qemu-img enforces image sizes less than this)
-# 3. 2^63 - 512 (generally valid, but with the crypto header the file will
-#                exceed 63 bits)
+# 3. 0x1fffff8000001 (one byte more than maximum image size for VDI)
 
-run_qemu -blockdev driver=file,filename="$TEST_IMG_FILE",node-name=node0 \
-         -object secret,id=keysec0,data="foo" <<EOF
+run_qemu -blockdev driver=file,filename="$TEST_IMG",node-name=node0 <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "x-blockdev-create",
   "arguments": {
       "driver": "$IMGFMT",
       "file": "node0",
-      "key-secret": "keysec0",
       "size": 18446744073709551104
   }
 }
@@ -189,7 +227,6 @@ run_qemu -blockdev driver=file,filename="$TEST_IMG_FILE",node-name=node0 \
   "arguments": {
       "driver": "$IMGFMT",
       "file": "node0",
-      "key-secret": "keysec0",
       "size": 9223372036854775808
   }
 }
@@ -197,49 +234,11 @@ run_qemu -blockdev driver=file,filename="$TEST_IMG_FILE",node-name=node0 \
   "arguments": {
       "driver": "$IMGFMT",
       "file": "node0",
-      "key-secret": "keysec0",
-      "size": 9223372036854775296
+      "size": 562949819203585
   }
 }
 { "execute": "quit" }
 EOF
-
-echo
-echo "=== Resize image with invalid sizes ==="
-echo
-
-run_qemu -blockdev driver=file,filename="$TEST_IMG_FILE",node-name=node0 \
-         -blockdev driver=luks,file=node0,key-secret=keysec0,node-name=node1 \
-         -object secret,id=keysec0,data="foo" <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "block_resize",
-  "arguments": {
-      "node-name": "node1",
-      "size": 9223372036854775296
-  }
-}
-{ "execute": "block_resize",
-  "arguments": {
-      "node-name": "node1",
-      "size": 9223372036854775808
-  }
-}
-{ "execute": "block_resize",
-  "arguments": {
-      "node-name": "node1",
-      "size": 18446744073709551104
-  }
-}
-{ "execute": "block_resize",
-  "arguments": {
-      "node-name": "node1",
-      "size": -9223372036854775808
-  }
-}
-{ "execute": "quit" }
-EOF
-
-_img_info | _filter_img_info
 
 # success, all done
 echo "*** done"

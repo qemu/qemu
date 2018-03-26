@@ -357,7 +357,11 @@ static int block_crypto_truncate(BlockDriverState *bs, int64_t offset,
     BlockCrypto *crypto = bs->opaque;
     uint64_t payload_offset =
         qcrypto_block_get_payload_offset(crypto->block);
-    assert(payload_offset < (INT64_MAX - offset));
+
+    if (payload_offset > INT64_MAX - offset) {
+        error_setg(errp, "The requested file size is too large");
+        return -EFBIG;
+    }
 
     offset += payload_offset;
 

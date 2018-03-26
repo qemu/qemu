@@ -133,4 +133,20 @@ QMP_VERSION
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
+
+=== Resize image with invalid sizes ===
+
+Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0 -blockdev driver=IMGFMT,file=node0,key-secret=keysec0,node-name=node1 -object secret,id=keysec0,data=foo
+QMP_VERSION
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "The requested file size is too large"}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter type for 'size', expected: integer"}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter type for 'size', expected: integer"}}
+{"error": {"class": "GenericError", "desc": "Parameter 'size' expects a >0 size"}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}, "key-secret": "keysec0"}
+file format: IMGFMT
+virtual size: 0 (0 bytes)
 *** done

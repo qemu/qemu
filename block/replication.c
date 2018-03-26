@@ -703,7 +703,6 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
 
 BlockDriver bdrv_replication = {
     .format_name                = "replication",
-    .protocol_name              = "replication",
     .instance_size              = sizeof(BDRVReplicationState),
 
     .bdrv_open                  = replication_open,

@@ -839,6 +839,13 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
                 qcow2_cache_put(s->refcount_block_cache, &refcount_block);
             }
             ret = alloc_refcount_block(bs, cluster_index, &refcount_block);
+            /* If the caller needs to restart the search for free clusters,
+             * try the same ones first to see if they're still free. */
+            if (ret == -EAGAIN) {
+                if (s->free_cluster_index > (start >> s->cluster_bits)) {
+                    s->free_cluster_index = (start >> s->cluster_bits);
+                }
+            }
             if (ret < 0) {
                 goto fail;
             }

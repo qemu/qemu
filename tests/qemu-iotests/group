@@ -167,7 +167,7 @@
 159 rw auto quick
 160 rw auto quick
 162 auto quick
-163 rw auto quick
+163 rw auto
 165 rw auto quick
 169 rw auto quick
 170 rw auto quick
@@ -209,3 +209,6 @@
 208 rw auto quick
 209 rw auto quick
 210 rw auto
+211 rw auto quick
+212 rw auto quick
+213 rw auto quick

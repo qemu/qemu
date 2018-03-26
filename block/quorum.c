@@ -1098,11 +1098,10 @@ static void quorum_refresh_filename(BlockDriverState *bs, QDict *options)
 
 static BlockDriver bdrv_quorum = {
     .format_name                        = "quorum",
-    .protocol_name                      = "quorum",
 
     .instance_size                      = sizeof(BDRVQuorumState),
 
-    .bdrv_file_open                     = quorum_open,
+    .bdrv_open                          = quorum_open,
     .bdrv_close                         = quorum_close,
     .bdrv_refresh_filename              = quorum_refresh_filename,
 

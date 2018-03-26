@@ -1822,17 +1822,21 @@ static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
     /* Validate options and set default values */
     image_size = vhdx_opts->size;
     if (image_size > VHDX_MAX_IMAGE_SIZE) {
-        error_setg_errno(errp, EINVAL, "Image size too large; max of 64TB");
+        error_setg(errp, "Image size too large; max of 64TB");
         return -EINVAL;
     }
 
     if (!vhdx_opts->has_log_size) {
         log_size = DEFAULT_LOG_SIZE;
     } else {
+        if (vhdx_opts->log_size > UINT32_MAX) {
+            error_setg(errp, "Log size must be smaller than 4 GB");
+            return -EINVAL;
+        }
         log_size = vhdx_opts->log_size;
     }
     if (log_size < MiB || (log_size % MiB) != 0) {
-        error_setg_errno(errp, EINVAL, "Log size must be a multiple of 1 MB");
+        error_setg(errp, "Log size must be a multiple of 1 MB");
         return -EINVAL;
     }
 
@@ -1874,12 +1878,15 @@ static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
     }
 
     if (block_size < MiB || (block_size % MiB) != 0) {
-        error_setg_errno(errp, EINVAL, "Block size must be a multiple of 1 MB");
+        error_setg(errp, "Block size must be a multiple of 1 MB");
+        return -EINVAL;
+    }
+    if (!is_power_of_2(block_size)) {
+        error_setg(errp, "Block size must be a power of two");
         return -EINVAL;
     }
     if (block_size > VHDX_BLOCK_SIZE_MAX) {
-        error_setg_errno(errp, EINVAL, "Block size must not exceed %d",
-                         VHDX_BLOCK_SIZE_MAX);
+        error_setg(errp, "Block size must not exceed %d", VHDX_BLOCK_SIZE_MAX);
         return -EINVAL;
     }
 

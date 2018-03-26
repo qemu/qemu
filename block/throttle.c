@@ -215,10 +215,9 @@ static void coroutine_fn throttle_co_drain_end(BlockDriverState *bs)
 
 static BlockDriver bdrv_throttle = {
     .format_name                        =   "throttle",
-    .protocol_name                      =   "throttle",
     .instance_size                      =   sizeof(ThrottleGroupMember),
 
-    .bdrv_file_open                     =   throttle_open,
+    .bdrv_open                          =   throttle_open,
     .bdrv_close                         =   throttle_close,
     .bdrv_co_flush                      =   throttle_co_flush,
 
