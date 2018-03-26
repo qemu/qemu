@@ -381,8 +381,8 @@ foreach my $file (@ARGV) {
 	##if $file is a directory and it lacks a trailing slash, add one
 	if ((-d $file)) {
 	    $file =~ s@([^/])$@$1/@;
-	} elsif (!(-f $file)) {
-	    die "$P: file '${file}' not found\n";
+	} elsif (!(stat $file)) {
+	    die "$P: file '${file}' not found: $!\n";
 	}
     }
     if ($from_filename) {

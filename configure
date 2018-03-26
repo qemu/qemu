@@ -2496,7 +2496,9 @@ if test "$whpx" != "no" ; then
 #include <WinHvEmulation.h>
 int main(void) {
     WHV_CAPABILITY whpx_cap;
-    WHvGetCapability(WHvCapabilityCodeFeatures, &whpx_cap, sizeof(whpx_cap));
+    UINT32 writtenSize;
+    WHvGetCapability(WHvCapabilityCodeFeatures, &whpx_cap, sizeof(whpx_cap),
+                     &writtenSize);
     return 0;
 }
 EOF

@@ -1371,6 +1371,13 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
     SB16State *s = SB16 (dev);
     IsaDmaClass *k;
 
+    s->isa_hdma = isa_get_dma(isa_bus_from_device(isadev), s->hdma);
+    s->isa_dma = isa_get_dma(isa_bus_from_device(isadev), s->dma);
+    if (!s->isa_dma || !s->isa_hdma) {
+        error_setg(errp, "ISA controller does not support DMA");
+        return;
+    }
+
     isa_init_irq (isadev, &s->pic, s->irq);
 
     s->mixer_regs[0x80] = magic_of_irq (s->irq);
@@ -1389,11 +1396,9 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
     isa_register_portio_list(isadev, &s->portio_list, s->port,
                              sb16_ioport_list, s, "sb16");
 
-    s->isa_hdma = isa_get_dma(isa_bus_from_device(isadev), s->hdma);
     k = ISADMA_GET_CLASS(s->isa_hdma);
     k->register_channel(s->isa_hdma, s->hdma, SB_read_DMA, s);
 
-    s->isa_dma = isa_get_dma(isa_bus_from_device(isadev), s->dma);
     k = ISADMA_GET_CLASS(s->isa_dma);
     k->register_channel(s->isa_dma, s->dma, SB_read_DMA, s);
 

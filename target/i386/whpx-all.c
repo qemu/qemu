@@ -153,7 +153,7 @@ struct whpx_vcpu {
     bool interruptable;
     uint64_t tpr;
     uint64_t apic_base;
-    WHV_X64_PENDING_INTERRUPTION_REGISTER interrupt_in_flight;
+    bool interruption_pending;
 
     /* Must be the last field as it may have a tail */
     WHV_RUN_VP_EXIT_CONTEXT exit_ctx;
@@ -695,7 +695,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     qemu_mutex_lock_iothread();
 
     /* Inject NMI */
-    if (!vcpu->interrupt_in_flight.InterruptionPending &&
+    if (!vcpu->interruption_pending &&
         cpu->interrupt_request & (CPU_INTERRUPT_NMI | CPU_INTERRUPT_SMI)) {
         if (cpu->interrupt_request & CPU_INTERRUPT_NMI) {
             cpu->interrupt_request &= ~CPU_INTERRUPT_NMI;
@@ -724,7 +724,7 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     }
 
     /* Get pending hard interruption or replay one that was overwritten */
-    if (!vcpu->interrupt_in_flight.InterruptionPending &&
+    if (!vcpu->interruption_pending &&
         vcpu->interruptable && (env->eflags & IF_MASK)) {
         assert(!new_int.InterruptionPending);
         if (cpu->interrupt_request & CPU_INTERRUPT_HARD) {
@@ -781,44 +781,25 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
 
 static void whpx_vcpu_post_run(CPUState *cpu)
 {
-    HRESULT hr;
-    struct whpx_state *whpx = &whpx_global;
     struct whpx_vcpu *vcpu = get_whpx_vcpu(cpu);
     struct CPUX86State *env = (CPUArchState *)(cpu->env_ptr);
     X86CPU *x86_cpu = X86_CPU(cpu);
-    WHV_REGISTER_VALUE reg_values[4];
-    const WHV_REGISTER_NAME reg_names[4] = {
-        WHvX64RegisterRflags,
-        WHvX64RegisterCr8,
-        WHvRegisterPendingInterruption,
-        WHvRegisterInterruptState,
-    };
 
-    hr = WHvGetVirtualProcessorRegisters(whpx->partition, cpu->cpu_index,
-                                         reg_names, 4, reg_values);
-    if (FAILED(hr)) {
-        error_report("WHPX: Failed to get interrupt state regusters,"
-                     " hr=%08lx", hr);
-        vcpu->interruptable = false;
-        return;
-    }
+    env->eflags = vcpu->exit_ctx.VpContext.Rflags;
 
-    assert(reg_names[0] == WHvX64RegisterRflags);
-    env->eflags = reg_values[0].Reg64;
-
-    assert(reg_names[1] == WHvX64RegisterCr8);
-    if (vcpu->tpr != reg_values[1].Reg64) {
-        vcpu->tpr = reg_values[1].Reg64;
+    uint64_t tpr = vcpu->exit_ctx.VpContext.Cr8;
+    if (vcpu->tpr != tpr) {
+        vcpu->tpr = tpr;
         qemu_mutex_lock_iothread();
         cpu_set_apic_tpr(x86_cpu->apic_state, vcpu->tpr);
         qemu_mutex_unlock_iothread();
     }
 
-    assert(reg_names[2] == WHvRegisterPendingInterruption);
-    vcpu->interrupt_in_flight = reg_values[2].PendingInterruption;
+    vcpu->interruption_pending =
+        vcpu->exit_ctx.VpContext.ExecutionState.InterruptionPending;
 
-    assert(reg_names[3] == WHvRegisterInterruptState);
-    vcpu->interruptable = !reg_values[3].InterruptState.InterruptShadow;
+    vcpu->interruptable =
+        !vcpu->exit_ctx.VpContext.ExecutionState.InterruptShadow;
 
     return;
 }
@@ -1254,6 +1235,7 @@ static int whpx_accel_init(MachineState *ms)
     int ret;
     HRESULT hr;
     WHV_CAPABILITY whpx_cap;
+    UINT32 whpx_cap_size;
     WHV_PARTITION_PROPERTY prop;
 
     whpx = &whpx_global;
@@ -1262,7 +1244,7 @@ static int whpx_accel_init(MachineState *ms)
     whpx->mem_quota = ms->ram_size;
 
     hr = WHvGetCapability(WHvCapabilityCodeHypervisorPresent, &whpx_cap,
-                          sizeof(whpx_cap));
+                          sizeof(whpx_cap), &whpx_cap_size);
     if (FAILED(hr) || !whpx_cap.HypervisorPresent) {
         error_report("WHPX: No accelerator found, hr=%08lx", hr);
         ret = -ENOSPC;
@@ -1277,9 +1259,9 @@ static int whpx_accel_init(MachineState *ms)
     }
 
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
-    prop.PropertyCode = WHvPartitionPropertyCodeProcessorCount;
     prop.ProcessorCount = smp_cpus;
     hr = WHvSetPartitionProperty(whpx->partition,
+                                 WHvPartitionPropertyCodeProcessorCount,
                                  &prop,
                                  sizeof(WHV_PARTITION_PROPERTY));
 

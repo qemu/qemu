@@ -866,6 +866,10 @@ int can_sja_connect_to_bus(CanSJA1000State *s, CanBusState *bus)
 {
     s->bus_client.info = &can_sja_bus_client_info;
 
+    if (!bus) {
+        return -EINVAL;
+    }
+
     if (can_bus_insert_client(bus, &s->bus_client) < 0) {
         return -1;
     }

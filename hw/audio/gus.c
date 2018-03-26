@@ -241,6 +241,12 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     IsaDmaClass *k;
     struct audsettings as;
 
+    s->isa_dma = isa_get_dma(isa_bus_from_device(d), s->emu.gusdma);
+    if (!s->isa_dma) {
+        error_setg(errp, "ISA controller does not support DMA");
+        return;
+    }
+
     AUD_register_card ("gus", &s->card);
 
     as.freq = s->freq;
@@ -272,7 +278,6 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     isa_register_portio_list(d, &s->portio_list2, (s->port + 0x100) & 0xf00,
                              gus_portio_list2, s, "gus");
 
-    s->isa_dma = isa_get_dma(isa_bus_from_device(d), s->emu.gusdma);
     k = ISADMA_GET_CLASS(s->isa_dma);
     k->register_channel(s->isa_dma, s->emu.gusdma, GUS_read_DMA, s);
     s->emu.himemaddr = s->himem;
