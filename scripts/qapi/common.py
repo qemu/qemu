@@ -872,7 +872,7 @@ def check_keys(expr_elem, meta, required, optional=[]):
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use false value"
                                % (key, meta, name))
-        if key == 'boxed' and value is not True:
+        if (key == 'boxed' or key == 'allow-oob') and value is not True:
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use true value"
                                % (key, meta, name))
