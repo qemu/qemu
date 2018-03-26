@@ -36,6 +36,7 @@
 #include "net/slirp.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-io.h"
+#include "chardev/char-mux.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/numa.h"
 #include "monitor/monitor.h"
@@ -4562,12 +4563,26 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
 void monitor_init(Chardev *chr, int flags)
 {
     Monitor *mon = g_malloc(sizeof(*mon));
+    bool use_readline = flags & MONITOR_USE_READLINE;
+    bool use_oob = flags & MONITOR_USE_OOB;
 
-    monitor_data_init(mon, false, false);
+    if (use_oob) {
+        if (CHARDEV_IS_MUX(chr)) {
+            error_report("Monitor Out-Of-Band is not supported with "
+                         "MUX typed chardev backend");
+            exit(1);
+        }
+        if (use_readline) {
+            error_report("Monitor Out-Of-band is only supported by QMP");
+            exit(1);
+        }
+    }
+
+    monitor_data_init(mon, false, use_oob);
 
     qemu_chr_fe_init(&mon->chr, chr, &error_abort);
     mon->flags = flags;
-    if (flags & MONITOR_USE_READLINE) {
+    if (use_readline) {
         mon->rs = readline_init(monitor_readline_printf,
                                 monitor_readline_flush,
                                 mon,
@@ -4662,6 +4677,9 @@ QemuOptsList qemu_mon_opts = {
             .type = QEMU_OPT_STRING,
         },{
             .name = "pretty",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "x-oob",
             .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
