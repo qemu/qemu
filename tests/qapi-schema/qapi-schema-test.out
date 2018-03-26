@@ -166,6 +166,8 @@ command boxed-struct UserDefZero -> None
    gen=True success_response=True boxed=True oob=False
 command boxed-union UserDefNativeListUnion -> None
    gen=True success_response=True boxed=True oob=False
+command an-oob-command None -> None
+   gen=True success_response=True boxed=False oob=True
 object UserDefOptions
     member i64: intList optional=True
     member u64: uint64List optional=True
