@@ -1203,8 +1203,14 @@ static bool qmp_cmd_oob_check(Monitor *mon, QDict *req, Error **errp)
 
     cmd = qmp_find_command(mon->qmp.commands, command);
     if (!cmd) {
-        error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
-                  "The command %s has not been found", command);
+        if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
+            error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
+                      "Expecting capabilities negotiation "
+                      "with 'qmp_capabilities'");
+        } else {
+            error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
+                      "The command %s has not been found", command);
+        }
         return false;
     }
 
@@ -4027,7 +4033,6 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
 {
     Monitor *mon, *old_mon;
     QObject *req, *rsp = NULL, *id;
-    QDict *qdict = NULL;
     bool need_resume;
 
     req = req_obj->req;
@@ -4049,18 +4054,6 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     rsp = qmp_dispatch(mon->qmp.commands, req);
 
     cur_mon = old_mon;
-
-    if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
-        qdict = qdict_get_qdict(qobject_to(QDict, rsp), "error");
-        if (qdict
-            && !g_strcmp0(qdict_get_try_str(qdict, "class"),
-                    QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
-            /* Provide a more useful error message */
-            qdict_del(qdict, "desc");
-            qdict_put_str(qdict, "desc", "Expecting capabilities negotiation"
-                          " with 'qmp_capabilities'");
-        }
-    }
 
     /* Respond if necessary */
     monitor_qmp_respond(mon, rsp, NULL, id);
