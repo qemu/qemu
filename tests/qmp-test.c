@@ -90,6 +90,7 @@ static void test_qmp_protocol(void)
     test_version(qdict_get(q, "version"));
     capabilities = qdict_get_qlist(q, "capabilities");
     g_assert(capabilities && qlist_empty(capabilities));
+    QDECREF(resp);
 
     /* Test valid command before handshake */
     resp = qtest_qmp(qts, "{ 'execute': 'query-version' }");
