@@ -3041,7 +3041,7 @@ static Property scsi_block_properties[] = {
     DEFINE_PROP_BOOL("share-rw", SCSIDiskState, qdev.conf.share_rw, false),
     DEFINE_PROP_UINT16("rotation_rate", SCSIDiskState, rotation_rate, 0),
     DEFINE_PROP_INT32("scsi_version", SCSIDiskState, qdev.default_scsi_version,
-                      5),
+                      -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
