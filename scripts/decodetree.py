@@ -972,6 +972,7 @@ def main():
     global input_file
     global insnwidth
     global insntype
+    global insnmask
 
     decode_function = 'decode'
     decode_scope = 'static '
