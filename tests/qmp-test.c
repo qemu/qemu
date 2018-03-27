@@ -81,7 +81,7 @@ static void test_qmp_protocol(void)
     QList *capabilities;
     QTestState *qts;
 
-    qts = qtest_init_without_qmp_handshake(common_args);
+    qts = qtest_init_without_qmp_handshake(false, common_args);
 
     /* Test greeting */
     resp = qtest_qmp_receive(qts);

@@ -56,11 +56,14 @@ QTestState *qtest_init(const char *extra_args);
 
 /**
  * qtest_init_without_qmp_handshake:
- * @extra_args: other arguments to pass to QEMU.
+ * @use_oob: true to have the server advertise OOB support
+ * @extra_args: other arguments to pass to QEMU.  CAUTION: these
+ * arguments are subject to word splitting and shell evaluation.
  *
  * Returns: #QTestState instance.
  */
-QTestState *qtest_init_without_qmp_handshake(const char *extra_args);
+QTestState *qtest_init_without_qmp_handshake(bool use_oob,
+                                             const char *extra_args);
 
 /**
  * qtest_quit:
