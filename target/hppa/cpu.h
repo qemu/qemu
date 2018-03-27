@@ -305,8 +305,8 @@ static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, target_ulong *pc,
        incomplete virtual address.  This also means that we must separate
        out current cpu priviledge from the low bits of IAOQ_F.  */
 #ifdef CONFIG_USER_ONLY
-    *pc = env->iaoq_f;
-    *cs_base = env->iaoq_b;
+    *pc = env->iaoq_f & -4;
+    *cs_base = env->iaoq_b & -4;
 #else
     /* ??? E, T, H, L, B, P bits need to be here, when implemented.  */
     flags |= env->psw & (PSW_W | PSW_C | PSW_D);
