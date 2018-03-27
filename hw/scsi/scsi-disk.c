@@ -714,10 +714,12 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
                 /* min_io_size and opt_io_size can't be greater than
                  * max_io_sectors */
-                min_io_size =
-                    MIN_NON_ZERO(min_io_size, max_io_sectors);
-                opt_io_size =
-                    MIN_NON_ZERO(opt_io_size, max_io_sectors);
+                if (min_io_size) {
+                    min_io_size = MIN(min_io_size, max_io_sectors);
+                }
+                if (opt_io_size) {
+                    opt_io_size = MIN(opt_io_size, max_io_sectors);
+                }
             }
             /* required VPD size with unmap support */
             buflen = 0x40;
