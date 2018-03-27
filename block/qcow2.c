@@ -1480,7 +1480,22 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         s->autoclear_features &= QCOW2_AUTOCLEAR_MASK;
     }
 
-    if (qcow2_load_dirty_bitmaps(bs, &local_err)) {
+    if (bdrv_dirty_bitmap_next(bs, NULL)) {
+        /* It's some kind of reopen with already existing dirty bitmaps. There
+         * are no known cases where we need loading bitmaps in such situation,
+         * so it's safer don't load them.
+         *
+         * Moreover, if we have some readonly bitmaps and we are reopening for
+         * rw we should reopen bitmaps correspondingly.
+         */
+        if (bdrv_has_readonly_bitmaps(bs) &&
+            !bdrv_is_read_only(bs) && !(bdrv_get_flags(bs) & BDRV_O_INACTIVE))
+        {
+            bool header_updated = false;
+            qcow2_reopen_bitmaps_rw_hint(bs, &header_updated, &local_err);
+            update_header = update_header && !header_updated;
+        }
+    } else if (qcow2_load_dirty_bitmaps(bs, &local_err)) {
         update_header = false;
     }
     if (local_err != NULL) {

@@ -140,16 +140,14 @@ def inject_test_case(klass, name, method, *args, **kwargs):
     mc = operator.methodcaller(method, *args, **kwargs)
     setattr(klass, 'test_' + name, new.instancemethod(mc, None, klass))
 
-for cmb in list(itertools.product((True, False), repeat=3)):
+for cmb in list(itertools.product((True, False), repeat=4)):
     name = ('_' if cmb[0] else '_not_') + 'persistent_'
     name += ('_' if cmb[1] else '_not_') + 'migbitmap_'
     name += '_online' if cmb[2] else '_offline'
-
-    # TODO fix shared-storage bitmap migration and enable cases for it
-    args = list(cmb) + [False]
+    name += '_shared' if cmb[3] else '_nonshared'
 
     inject_test_case(TestDirtyBitmapMigration, name, 'do_test_migration',
-                     *args)
+                     *list(cmb))
 
 
 if __name__ == '__main__':
