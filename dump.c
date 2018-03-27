@@ -814,7 +814,7 @@ static void create_header32(DumpState *s, Error **errp)
     size = sizeof(DiskDumpHeader32);
     dh = g_malloc0(size);
 
-    strncpy(dh->signature, KDUMP_SIGNATURE, strlen(KDUMP_SIGNATURE));
+    memcpy(dh->signature, KDUMP_SIGNATURE, SIG_LEN);
     dh->header_version = cpu_to_dump32(s, 6);
     block_size = s->dump_info.page_size;
     dh->block_size = cpu_to_dump32(s, block_size);
@@ -926,7 +926,7 @@ static void create_header64(DumpState *s, Error **errp)
     size = sizeof(DiskDumpHeader64);
     dh = g_malloc0(size);
 
-    strncpy(dh->signature, KDUMP_SIGNATURE, strlen(KDUMP_SIGNATURE));
+    memcpy(dh->signature, KDUMP_SIGNATURE, SIG_LEN);
     dh->header_version = cpu_to_dump32(s, 6);
     block_size = s->dump_info.page_size;
     dh->block_size = cpu_to_dump32(s, block_size);
