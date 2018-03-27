@@ -22,7 +22,7 @@ mkdir -p "$TARGET"
 tar -xf "$OVERLAY" -C "$TARGET" --strip-components=1 \
     --xform='s/core/core-isa/' config/core.h
 tar -xf "$OVERLAY" -O gdb/xtensa-config.c | \
-    sed -n '1,/*\//p;/XTREG/,/XTREG_END/p' > "$TARGET"/gdb-config.c
+    sed -n '1,/*\//p;/XTREG/,/XTREG_END/p' > "$TARGET"/gdb-config.inc.c
 #
 # Fix up known issues in the xtensa-modules.c
 #
@@ -33,7 +33,8 @@ tar -xf "$OVERLAY" -O binutils/xtensa-modules.c | \
         -e '/^uint32 \*bypass_entry(int i)/,/}/d' \
         -e '/^#include "ansidecl.h"/d' \
         -e '/^Slot_[a-zA-Z0-9_]\+_decode (const xtensa_insnbuf insn)/,/^}/s/^  return 0;$/  return XTENSA_UNDEFINED;/' \
-    > "$TARGET"/xtensa-modules.c
+        -e 's/#include <xtensa-isa.h>/#include "xtensa-isa.h"/' \
+    > "$TARGET"/xtensa-modules.inc.c
 
 cat <<EOF > "${TARGET}.c"
 #include "qemu/osdep.h"
@@ -47,13 +48,13 @@ cat <<EOF > "${TARGET}.c"
 #include "overlay_tool.h"
 
 #define xtensa_modules xtensa_modules_$NAME
-#include "core-$NAME/xtensa-modules.c"
+#include "core-$NAME/xtensa-modules.inc.c"
 
 static XtensaConfig $NAME __attribute__((unused)) = {
     .name = "$NAME",
     .gdb_regmap = {
         .reg = {
-#include "core-$NAME/gdb-config.c"
+#include "core-$NAME/gdb-config.inc.c"
         }
     },
     .isa_internal = &xtensa_modules,

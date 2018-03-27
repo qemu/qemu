@@ -35,7 +35,7 @@
 #include "overlay_tool.h"
 
 #define xtensa_modules xtensa_modules_dc232b
-#include "core-dc232b/xtensa-modules.c"
+#include "core-dc232b/xtensa-modules.inc.c"
 
 static XtensaConfig dc232b __attribute__((unused)) = {
     .name = "dc232b",
@@ -43,11 +43,11 @@ static XtensaConfig dc232b __attribute__((unused)) = {
         .num_regs = 120,
         .num_core_regs = 52,
         .reg = {
-#include "core-dc232b/gdb-config.c"
+#include "core-dc232b/gdb-config.inc.c"
         }
     },
     .isa_internal = &xtensa_modules,
-    .clock_freq_khz = 10000,
+    .clock_freq_khz = (NANOSECONDS_PER_SECOND / 64) / 1000,
     DEFAULT_SECTIONS
 };
 
