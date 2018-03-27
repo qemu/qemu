@@ -75,10 +75,8 @@ static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
     assert(s1 >= 0 && s1 <= BLOCK_JOB_STATUS__MAX);
     trace_block_job_state_transition(job, job->ret, BlockJobSTT[s0][s1] ?
                                      "allowed" : "disallowed",
-                                     qapi_enum_lookup(&BlockJobStatus_lookup,
-                                                      s0),
-                                     qapi_enum_lookup(&BlockJobStatus_lookup,
-                                                      s1));
+                                     BlockJobStatus_str(s0),
+                                     BlockJobStatus_str(s1));
     assert(BlockJobSTT[s0][s1]);
     job->status = s1;
 }
@@ -86,17 +84,15 @@ static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
 static int block_job_apply_verb(BlockJob *job, BlockJobVerb bv, Error **errp)
 {
     assert(bv >= 0 && bv <= BLOCK_JOB_VERB__MAX);
-    trace_block_job_apply_verb(job, qapi_enum_lookup(&BlockJobStatus_lookup,
-                                                     job->status),
-                               qapi_enum_lookup(&BlockJobVerb_lookup, bv),
+    trace_block_job_apply_verb(job, BlockJobStatus_str(job->status),
+                               BlockJobVerb_str(bv),
                                BlockJobVerbTable[bv][job->status] ?
                                "allowed" : "prohibited");
     if (BlockJobVerbTable[bv][job->status]) {
         return 0;
     }
     error_setg(errp, "Job '%s' in state '%s' cannot accept command verb '%s'",
-               job->id, qapi_enum_lookup(&BlockJobStatus_lookup, job->status),
-               qapi_enum_lookup(&BlockJobVerb_lookup, bv));
+               job->id, BlockJobStatus_str(job->status), BlockJobVerb_str(bv));
     return -EPERM;
 }
 
