@@ -324,6 +324,14 @@ struct {                                                                \
     }                                                                   \
 } while (/*CONSTCOND*/0)
 
+#define QSIMPLEQ_PREPEND(head1, head2) do {                             \
+    if (!QSIMPLEQ_EMPTY((head2))) {                                     \
+        *(head2)->sqh_last = (head1)->sqh_first;                        \
+        (head1)->sqh_first = (head2)->sqh_first;                          \
+        QSIMPLEQ_INIT((head2));                                         \
+    }                                                                   \
+} while (/*CONSTCOND*/0)
+
 #define QSIMPLEQ_LAST(head, type, field)                                \
     (QSIMPLEQ_EMPTY((head)) ?                                           \
         NULL :                                                          \
