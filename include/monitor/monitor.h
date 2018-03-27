@@ -13,6 +13,7 @@ extern Monitor *cur_mon;
 #define MONITOR_USE_READLINE  0x02
 #define MONITOR_USE_CONTROL   0x04
 #define MONITOR_USE_PRETTY    0x08
+#define MONITOR_USE_OOB       0x10
 
 bool monitor_cur_is_qmp(void);
 

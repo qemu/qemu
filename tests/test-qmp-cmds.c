@@ -16,6 +16,10 @@ void qmp_user_def_cmd(Error **errp)
 {
 }
 
+void qmp_an_oob_command(Error **errp)
+{
+}
+
 Empty2 *qmp_user_def_cmd0(Error **errp)
 {
     return g_new0(Empty2, 1);

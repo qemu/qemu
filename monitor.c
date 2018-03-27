@@ -36,6 +36,7 @@
 #include "net/slirp.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-io.h"
+#include "chardev/char-mux.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/numa.h"
 #include "monitor/monitor.h"
@@ -234,6 +235,22 @@ static struct {
     QEMUBH *qmp_respond_bh;
 } mon_global;
 
+struct QMPRequest {
+    /* Owner of the request */
+    Monitor *mon;
+    /* "id" field of the request */
+    QObject *id;
+    /* Request object to be handled */
+    QObject *req;
+    /*
+     * Whether we need to resume the monitor afterward.  This flag is
+     * used to emulate the old QMP server behavior that the current
+     * command must be completed before execution of the next one.
+     */
+    bool need_resume;
+};
+typedef struct QMPRequest QMPRequest;
+
 /* QMP checker flags */
 #define QMP_ACCEPT_UNKNOWNS 1
 
@@ -309,6 +326,38 @@ int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
         return -ENOTTY;
     }
 }
+
+static void qmp_request_free(QMPRequest *req)
+{
+    qobject_decref(req->id);
+    qobject_decref(req->req);
+    g_free(req);
+}
+
+/* Must with the mon->qmp.qmp_queue_lock held */
+static void monitor_qmp_cleanup_req_queue_locked(Monitor *mon)
+{
+    while (!g_queue_is_empty(mon->qmp.qmp_requests)) {
+        qmp_request_free(g_queue_pop_head(mon->qmp.qmp_requests));
+    }
+}
+
+/* Must with the mon->qmp.qmp_queue_lock held */
+static void monitor_qmp_cleanup_resp_queue_locked(Monitor *mon)
+{
+    while (!g_queue_is_empty(mon->qmp.qmp_responses)) {
+        qobject_decref(g_queue_pop_head(mon->qmp.qmp_responses));
+    }
+}
+
+static void monitor_qmp_cleanup_queues(Monitor *mon)
+{
+    qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
+    monitor_qmp_cleanup_req_queue_locked(mon);
+    monitor_qmp_cleanup_resp_queue_locked(mon);
+    qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
+}
+
 
 static void monitor_flush_locked(Monitor *mon);
 
@@ -701,6 +750,8 @@ static void monitor_data_destroy(Monitor *mon)
     QDECREF(mon->outbuf);
     qemu_mutex_destroy(&mon->out_lock);
     qemu_mutex_destroy(&mon->qmp.qmp_queue_lock);
+    monitor_qmp_cleanup_req_queue_locked(mon);
+    monitor_qmp_cleanup_resp_queue_locked(mon);
     g_queue_free(mon->qmp.qmp_requests);
     g_queue_free(mon->qmp.qmp_responses);
 }
@@ -1203,8 +1254,14 @@ static bool qmp_cmd_oob_check(Monitor *mon, QDict *req, Error **errp)
 
     cmd = qmp_find_command(mon->qmp.commands, command);
     if (!cmd) {
-        error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
-                  "The command %s has not been found", command);
+        if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
+            error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
+                      "Expecting capabilities negotiation "
+                      "with 'qmp_capabilities'");
+        } else {
+            error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
+                      "The command %s has not been found", command);
+        }
         return false;
     }
 
@@ -4003,22 +4060,6 @@ static void monitor_qmp_respond(Monitor *mon, QObject *rsp,
     qobject_decref(rsp);
 }
 
-struct QMPRequest {
-    /* Owner of the request */
-    Monitor *mon;
-    /* "id" field of the request */
-    QObject *id;
-    /* Request object to be handled */
-    QObject *req;
-    /*
-     * Whether we need to resume the monitor afterward.  This flag is
-     * used to emulate the old QMP server behavior that the current
-     * command must be completed before execution of the next one.
-     */
-    bool need_resume;
-};
-typedef struct QMPRequest QMPRequest;
-
 /*
  * Dispatch one single QMP request. The function will free the req_obj
  * and objects inside it before return.
@@ -4027,7 +4068,6 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
 {
     Monitor *mon, *old_mon;
     QObject *req, *rsp = NULL, *id;
-    QDict *qdict = NULL;
     bool need_resume;
 
     req = req_obj->req;
@@ -4049,18 +4089,6 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     rsp = qmp_dispatch(mon->qmp.commands, req);
 
     cur_mon = old_mon;
-
-    if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
-        qdict = qdict_get_qdict(qobject_to(QDict, rsp), "error");
-        if (qdict
-            && !g_strcmp0(qdict_get_try_str(qdict, "class"),
-                    QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
-            /* Provide a more useful error message */
-            qdict_del(qdict, "desc");
-            qdict_put_str(qdict, "desc", "Expecting capabilities negotiation"
-                          " with 'qmp_capabilities'");
-        }
-    }
 
     /* Respond if necessary */
     monitor_qmp_respond(mon, rsp, NULL, id);
@@ -4198,9 +4226,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
             qapi_event_send_command_dropped(id,
                                             COMMAND_DROP_REASON_QUEUE_FULL,
                                             &error_abort);
-            qobject_decref(id);
-            qobject_decref(req);
-            g_free(req_obj);
+            qmp_request_free(req_obj);
             return;
         }
     }
@@ -4315,7 +4341,7 @@ static QObject *get_qmp_greeting(Monitor *mon)
             /* Monitors that are not using IOThread won't support OOB */
             continue;
         }
-        qlist_append(cap_list, qstring_from_str(QMPCapability_str(cap)));
+        qlist_append_str(cap_list, QMPCapability_str(cap));
     }
 
     return qobject_from_jsonf("{'QMP': {'version': %p, 'capabilities': %p}}",
@@ -4342,6 +4368,7 @@ static void monitor_qmp_event(void *opaque, int event)
         mon_refcount++;
         break;
     case CHR_EVENT_CLOSED:
+        monitor_qmp_cleanup_queues(mon);
         json_message_parser_destroy(&mon->qmp.parser);
         json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
         mon_refcount--;
@@ -4536,12 +4563,26 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
 void monitor_init(Chardev *chr, int flags)
 {
     Monitor *mon = g_malloc(sizeof(*mon));
+    bool use_readline = flags & MONITOR_USE_READLINE;
+    bool use_oob = flags & MONITOR_USE_OOB;
 
-    monitor_data_init(mon, false, false);
+    if (use_oob) {
+        if (CHARDEV_IS_MUX(chr)) {
+            error_report("Monitor Out-Of-Band is not supported with "
+                         "MUX typed chardev backend");
+            exit(1);
+        }
+        if (use_readline) {
+            error_report("Monitor Out-Of-band is only supported by QMP");
+            exit(1);
+        }
+    }
+
+    monitor_data_init(mon, false, use_oob);
 
     qemu_chr_fe_init(&mon->chr, chr, &error_abort);
     mon->flags = flags;
-    if (flags & MONITOR_USE_READLINE) {
+    if (use_readline) {
         mon->rs = readline_init(monitor_readline_printf,
                                 monitor_readline_flush,
                                 mon,
@@ -4636,6 +4677,9 @@ QemuOptsList qemu_mon_opts = {
             .type = QEMU_OPT_STRING,
         },{
             .name = "pretty",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "x-oob",
             .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }

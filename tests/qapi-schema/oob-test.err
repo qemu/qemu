@@ -1,0 +1,1 @@
+tests/qapi-schema/oob-test.json:2: 'allow-oob' of command 'oob-command-1' should only use true value
