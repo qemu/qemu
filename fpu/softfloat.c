@@ -336,8 +336,8 @@ static inline float64 float64_pack_raw(FloatParts p)
 #include "softfloat-specialize.h"
 
 /* Canonicalize EXP and FRAC, setting CLS.  */
-static FloatParts canonicalize(FloatParts part, const FloatFmt *parm,
-                               float_status *status)
+static FloatParts sf_canonicalize(FloatParts part, const FloatFmt *parm,
+                                  float_status *status)
 {
     if (part.exp == parm->exp_max && !parm->arm_althp) {
         if (part.frac == 0) {
@@ -513,7 +513,7 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
 static FloatParts float16a_unpack_canonical(float16 f, float_status *s,
                                             const FloatFmt *params)
 {
-    return canonicalize(float16_unpack_raw(f), params, s);
+    return sf_canonicalize(float16_unpack_raw(f), params, s);
 }
 
 static FloatParts float16_unpack_canonical(float16 f, float_status *s)
@@ -534,7 +534,7 @@ static float16 float16_round_pack_canonical(FloatParts p, float_status *s)
 
 static FloatParts float32_unpack_canonical(float32 f, float_status *s)
 {
-    return canonicalize(float32_unpack_raw(f), &float32_params, s);
+    return sf_canonicalize(float32_unpack_raw(f), &float32_params, s);
 }
 
 static float32 float32_round_pack_canonical(FloatParts p, float_status *s)
@@ -544,7 +544,7 @@ static float32 float32_round_pack_canonical(FloatParts p, float_status *s)
 
 static FloatParts float64_unpack_canonical(float64 f, float_status *s)
 {
-    return canonicalize(float64_unpack_raw(f), &float64_params, s);
+    return sf_canonicalize(float64_unpack_raw(f), &float64_params, s);
 }
 
 static float64 float64_round_pack_canonical(FloatParts p, float_status *s)
