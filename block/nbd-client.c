@@ -239,7 +239,7 @@ static int nbd_parse_blockstatus_payload(NBDClientSession *client,
 {
     uint32_t context_id;
 
-    if (chunk->length != sizeof(context_id) + sizeof(extent)) {
+    if (chunk->length != sizeof(context_id) + sizeof(*extent)) {
         error_setg(errp, "Protocol error: invalid payload for "
                          "NBD_REPLY_TYPE_BLOCK_STATUS");
         return -EINVAL;
