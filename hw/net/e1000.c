@@ -123,9 +123,11 @@ typedef struct E1000State_st {
 #define E1000_FLAG_AUTONEG_BIT 0
 #define E1000_FLAG_MIT_BIT 1
 #define E1000_FLAG_MAC_BIT 2
+#define E1000_FLAG_TSO_BIT 3
 #define E1000_FLAG_AUTONEG (1 << E1000_FLAG_AUTONEG_BIT)
 #define E1000_FLAG_MIT (1 << E1000_FLAG_MIT_BIT)
 #define E1000_FLAG_MAC (1 << E1000_FLAG_MAC_BIT)
+#define E1000_FLAG_TSO (1 << E1000_FLAG_TSO_BIT)
     uint32_t compat_flags;
     bool received_tx_tso;
 } E1000State;
@@ -1422,6 +1424,13 @@ static bool e1000_full_mac_needed(void *opaque)
     return chkflag(MAC);
 }
 
+static bool e1000_tso_state_needed(void *opaque)
+{
+    E1000State *s = opaque;
+
+    return chkflag(TSO);
+}
+
 static const VMStateDescription vmstate_e1000_mit_state = {
     .name = "e1000/mit_state",
     .version_id = 1,
@@ -1452,6 +1461,7 @@ static const VMStateDescription vmstate_e1000_tx_tso_state = {
     .name = "e1000/tx_tso_state",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = e1000_tso_state_needed,
     .post_load = e1000_tx_tso_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(tx.tso_props.ipcss, E1000State),
@@ -1677,6 +1687,8 @@ static Property e1000_properties[] = {
                     compat_flags, E1000_FLAG_MIT_BIT, true),
     DEFINE_PROP_BIT("extra_mac_registers", E1000State,
                     compat_flags, E1000_FLAG_MAC_BIT, true),
+    DEFINE_PROP_BIT("migrate_tso_props", E1000State,
+                    compat_flags, E1000_FLAG_TSO_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
