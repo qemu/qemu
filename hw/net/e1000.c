@@ -127,6 +127,7 @@ typedef struct E1000State_st {
 #define E1000_FLAG_MIT (1 << E1000_FLAG_MIT_BIT)
 #define E1000_FLAG_MAC (1 << E1000_FLAG_MAC_BIT)
     uint32_t compat_flags;
+    bool received_tx_tso;
 } E1000State;
 
 #define chkflag(x)     (s->compat_flags & E1000_FLAG_##x)
@@ -1390,6 +1391,20 @@ static int e1000_post_load(void *opaque, int version_id)
                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
 
+    if (!s->received_tx_tso) {
+        /* We received only one set of offload data (tx.props)
+         * and haven't got tx.tso_props.  The best we can do
+         * is dupe the data.
+         */
+        s->tx.tso_props = s->tx.props;
+    }
+    return 0;
+}
+
+static int e1000_tx_tso_post_load(void *opaque, int version_id)
+{
+    E1000State *s = opaque;
+    s->received_tx_tso = true;
     return 0;
 }
 
@@ -1437,6 +1452,7 @@ static const VMStateDescription vmstate_e1000_tx_tso_state = {
     .name = "e1000/tx_tso_state",
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = e1000_tx_tso_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(tx.tso_props.ipcss, E1000State),
         VMSTATE_UINT8(tx.tso_props.ipcso, E1000State),
