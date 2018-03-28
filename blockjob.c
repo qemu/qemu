@@ -204,6 +204,15 @@ void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job)
     block_job_txn_ref(txn);
 }
 
+static void block_job_txn_del_job(BlockJob *job)
+{
+    if (job->txn) {
+        QLIST_REMOVE(job, txn_list);
+        block_job_txn_unref(job->txn);
+        job->txn = NULL;
+    }
+}
+
 static void block_job_pause(BlockJob *job)
 {
     job->pause_count++;
@@ -232,6 +241,7 @@ void block_job_unref(BlockJob *job)
 {
     if (--job->refcnt == 0) {
         assert(job->status == BLOCK_JOB_STATUS_NULL);
+        assert(!job->txn);
         BlockDriverState *bs = blk_bs(job->blk);
         QLIST_REMOVE(job, job_list);
         bs->job = NULL;
@@ -392,6 +402,7 @@ static void block_job_decommission(BlockJob *job)
     job->busy = false;
     job->paused = false;
     job->deferred_to_main_loop = true;
+    block_job_txn_del_job(job);
     block_job_state_transition(job, BLOCK_JOB_STATUS_NULL);
     block_job_unref(job);
 }
@@ -481,8 +492,7 @@ static int block_job_finalize_single(BlockJob *job)
         }
     }
 
-    QLIST_REMOVE(job, txn_list);
-    block_job_txn_unref(job->txn);
+    block_job_txn_del_job(job);
     block_job_conclude(job);
     return 0;
 }
