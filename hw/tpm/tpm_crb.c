@@ -145,6 +145,8 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
         case CRB_LOC_CTRL_RELINQUISH:
             ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
                              locAssigned, 0);
+            ARRAY_FIELD_DP32(s->regs, CRB_LOC_STS,
+                             Granted, 0);
             break;
         case CRB_LOC_CTRL_REQUEST_ACCESS:
             ARRAY_FIELD_DP32(s->regs, CRB_LOC_STS,
