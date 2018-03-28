@@ -7094,52 +7094,45 @@ static abi_ulong get_sigframe(struct target_sigaction *sa,
 
 static int flush_window_regs(CPUXtensaState *env)
 {
-    const uint32_t nareg_mask = env->config->nareg - 1;
     uint32_t wb = env->sregs[WINDOW_BASE];
-    uint32_t ws = (xtensa_replicate_windowstart(env) >> (wb + 1)) &
-        ((1 << env->config->nareg / 4) - 1);
-    uint32_t d = ctz32(ws) + 1;
-    uint32_t sp;
-    abi_long ret = 0;
+    uint32_t ws = xtensa_replicate_windowstart(env) >> (wb + 1);
+    unsigned d = ctz32(ws) + 1;
+    unsigned i;
+    int ret = 0;
 
-    wb += d;
-    ws >>= d;
+    for (i = d; i < env->config->nareg / 4; i += d) {
+        uint32_t ssp, osp;
+        unsigned j;
 
-    xtensa_sync_phys_from_window(env);
-    sp = env->phys_regs[(wb * 4 + 1) & nareg_mask];
-
-    while (ws && ret == 0) {
-        int d;
-        int i;
-        int idx;
+        ws >>= d;
+        xtensa_rotate_window(env, d);
 
         if (ws & 0x1) {
-            ws >>= 1;
+            ssp = env->regs[5];
             d = 1;
         } else if (ws & 0x2) {
-            ws >>= 2;
+            ssp = env->regs[9];
+            ret |= get_user_ual(osp, env->regs[1] - 12);
+            osp -= 32;
             d = 2;
-            for (i = 0; i < 4; ++i) {
-                idx = (wb * 4 + 4 + i) & nareg_mask;
-                ret |= put_user_ual(env->phys_regs[idx], sp + (i - 12) * 4);
-            }
         } else if (ws & 0x4) {
-            ws >>= 3;
+            ssp = env->regs[13];
+            ret |= get_user_ual(osp, env->regs[1] - 12);
+            osp -= 48;
             d = 3;
-            for (i = 0; i < 8; ++i) {
-                idx = (wb * 4 + 4 + i) & nareg_mask;
-                ret |= put_user_ual(env->phys_regs[idx], sp + (i - 16) * 4);
-            }
         } else {
             g_assert_not_reached();
         }
-        sp = env->phys_regs[((wb + d) * 4 + 1) & nareg_mask];
-        for (i = 0; i < 4; ++i) {
-            idx = (wb * 4 + i) & nareg_mask;
-            ret |= put_user_ual(env->phys_regs[idx], sp + (i - 4) * 4);
+
+        for (j = 0; j < 4; ++j) {
+            ret |= put_user_ual(env->regs[j], ssp - 16 + j * 4);
         }
-        wb += d;
+        for (j = 4; j < d * 4; ++j) {
+            ret |= put_user_ual(env->regs[j], osp - 16 + j * 4);
+        }
     }
+    xtensa_rotate_window(env, d);
+    g_assert(env->sregs[WINDOW_BASE] == wb);
     return ret == 0;
 }
 
