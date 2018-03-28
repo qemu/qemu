@@ -14,6 +14,10 @@
         .driver   = "vhost-user-blk-pci",\
         .property = "vectors",\
         .value    = "2",\
+    },{\
+        .driver   = "e1000",\
+        .property = "migrate_tso_props",\
+        .value    = "off",\
     },
 
 #define HW_COMPAT_2_10 \
