@@ -130,6 +130,7 @@ typedef struct E1000State_st {
 #define E1000_FLAG_TSO (1 << E1000_FLAG_TSO_BIT)
     uint32_t compat_flags;
     bool received_tx_tso;
+    bool use_tso_for_migration;
     e1000x_txd_props mig_props;
 } E1000State;
 
@@ -622,9 +623,11 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     if (dtype == E1000_TXD_CMD_DEXT) {    /* context descriptor */
         if (le32_to_cpu(xp->cmd_and_length) & E1000_TXD_CMD_TSE) {
             e1000x_read_tx_ctx_descr(xp, &tp->tso_props);
+            s->use_tso_for_migration = 1;
             tp->tso_frames = 0;
         } else {
             e1000x_read_tx_ctx_descr(xp, &tp->props);
+            s->use_tso_for_migration = 0;
         }
         return;
     } else if (dtype == (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D)) {
@@ -1366,7 +1369,20 @@ static int e1000_pre_save(void *opaque)
         s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
     }
 
-    s->mig_props = s->tx.props;
+    /* Decide which set of props to migrate in the main structure */
+    if (chkflag(TSO) || !s->use_tso_for_migration) {
+        /* Either we're migrating with the extra subsection, in which
+         * case the mig_props is always 'props' OR
+         * we've not got the subsection, but 'props' was the last
+         * updated.
+         */
+        s->mig_props = s->tx.props;
+    } else {
+        /* We're not using the subsection, and 'tso_props' was
+         * the last updated.
+         */
+        s->mig_props = s->tx.tso_props;
+    }
     return 0;
 }
 
