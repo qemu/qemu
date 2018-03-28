@@ -421,6 +421,7 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
                                  Error **errp);
 bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base);
 BlockDriverState *bdrv_next_node(BlockDriverState *bs);
+BlockDriverState *bdrv_next_all_states(BlockDriverState *bs);
 
 typedef struct BdrvNextIterator {
     enum {

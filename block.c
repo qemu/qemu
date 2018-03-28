@@ -333,6 +333,10 @@ BlockDriverState *bdrv_new(void)
 
     qemu_co_queue_init(&bs->flush_queue);
 
+    for (i = 0; i < bdrv_drain_all_count; i++) {
+        bdrv_drained_begin(bs);
+    }
+
     QTAILQ_INSERT_TAIL(&all_bdrv_states, bs, bs_list);
 
     return bs;
@@ -1164,7 +1168,7 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
                             int open_flags, Error **errp)
 {
     Error *local_err = NULL;
-    int ret;
+    int i, ret;
 
     bdrv_assign_node_name(bs, node_name, &local_err);
     if (local_err) {
@@ -1211,6 +1215,12 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
     assert(bdrv_opt_mem_align(bs) != 0);
     assert(bdrv_min_mem_align(bs) != 0);
     assert(is_power_of_2(bs->bl.request_alignment));
+
+    for (i = 0; i < bs->quiesce_counter; i++) {
+        if (drv->bdrv_co_drain_begin) {
+            drv->bdrv_co_drain_begin(bs);
+        }
+    }
 
     return 0;
 open_failed:
@@ -2033,7 +2043,12 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
             child->role->detach(child);
         }
         if (old_bs->quiesce_counter && child->role->drained_end) {
-            for (i = 0; i < old_bs->quiesce_counter; i++) {
+            int num = old_bs->quiesce_counter;
+            if (child->role->parent_is_bds) {
+                num -= bdrv_drain_all_count;
+            }
+            assert(num >= 0);
+            for (i = 0; i < num; i++) {
                 child->role->drained_end(child);
             }
         }
@@ -2045,7 +2060,12 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     if (new_bs) {
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
         if (new_bs->quiesce_counter && child->role->drained_begin) {
-            for (i = 0; i < new_bs->quiesce_counter; i++) {
+            int num = new_bs->quiesce_counter;
+            if (child->role->parent_is_bds) {
+                num -= bdrv_drain_all_count;
+            }
+            assert(num >= 0);
+            for (i = 0; i < num; i++) {
                 child->role->drained_begin(child);
             }
         }
@@ -4047,6 +4067,14 @@ BlockDriverState *bdrv_next_node(BlockDriverState *bs)
         return QTAILQ_FIRST(&graph_bdrv_states);
     }
     return QTAILQ_NEXT(bs, node_list);
+}
+
+BlockDriverState *bdrv_next_all_states(BlockDriverState *bs)
+{
+    if (!bs) {
+        return QTAILQ_FIRST(&all_bdrv_states);
+    }
+    return QTAILQ_NEXT(bs, bs_list);
 }
 
 const char *bdrv_get_node_name(const BlockDriverState *bs)
