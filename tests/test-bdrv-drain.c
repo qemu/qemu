@@ -452,7 +452,7 @@ static void test_multiparent(void)
     blk_unref(blk_b);
 }
 
-static void test_graph_change(void)
+static void test_graph_change_drain_subtree(void)
 {
     BlockBackend *blk_a, *blk_b;
     BlockDriverState *bs_a, *bs_b, *backing;
@@ -528,6 +528,63 @@ static void test_graph_change(void)
     bdrv_unref(bs_a);
     bdrv_unref(bs_b);
     blk_unref(blk_a);
+    blk_unref(blk_b);
+}
+
+static void test_graph_change_drain_all(void)
+{
+    BlockBackend *blk_a, *blk_b;
+    BlockDriverState *bs_a, *bs_b;
+    BDRVTestState *a_s, *b_s;
+
+    /* Create node A with a BlockBackend */
+    blk_a = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    bs_a = bdrv_new_open_driver(&bdrv_test, "test-node-a", BDRV_O_RDWR,
+                                &error_abort);
+    a_s = bs_a->opaque;
+    blk_insert_bs(blk_a, bs_a, &error_abort);
+
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
+    g_assert_cmpint(a_s->drain_count, ==, 0);
+
+    /* Call bdrv_drain_all_begin() */
+    bdrv_drain_all_begin();
+
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 1);
+    g_assert_cmpint(a_s->drain_count, ==, 1);
+
+    /* Create node B with a BlockBackend */
+    blk_b = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    bs_b = bdrv_new_open_driver(&bdrv_test, "test-node-b", BDRV_O_RDWR,
+                                &error_abort);
+    b_s = bs_b->opaque;
+    blk_insert_bs(blk_b, bs_b, &error_abort);
+
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 1);
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 1);
+    g_assert_cmpint(a_s->drain_count, ==, 1);
+    g_assert_cmpint(b_s->drain_count, ==, 1);
+
+    /* Unref and finally delete node A */
+    blk_unref(blk_a);
+
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 1);
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 1);
+    g_assert_cmpint(a_s->drain_count, ==, 1);
+    g_assert_cmpint(b_s->drain_count, ==, 1);
+
+    bdrv_unref(bs_a);
+
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 1);
+    g_assert_cmpint(b_s->drain_count, ==, 1);
+
+    /* End the drained section */
+    bdrv_drain_all_end();
+
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
+    g_assert_cmpint(b_s->drain_count, ==, 0);
+
+    bdrv_unref(bs_b);
     blk_unref(blk_b);
 }
 
@@ -971,6 +1028,10 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
         bdrv_subtree_drained_begin(bs);
         bdrv_subtree_drained_end(bs);
         break;
+    case BDRV_DRAIN_ALL:
+        bdrv_drain_all_begin();
+        bdrv_drain_all_end();
+        break;
     default:
         g_assert_not_reached();
     }
@@ -989,6 +1050,11 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
 static void test_delete_by_drain(void)
 {
     do_test_delete_by_drain(false, BDRV_DRAIN);
+}
+
+static void test_detach_by_drain_all(void)
+{
+    do_test_delete_by_drain(true, BDRV_DRAIN_ALL);
 }
 
 static void test_detach_by_drain(void)
@@ -1219,7 +1285,11 @@ int main(int argc, char **argv)
 
     g_test_add_func("/bdrv-drain/nested", test_nested);
     g_test_add_func("/bdrv-drain/multiparent", test_multiparent);
-    g_test_add_func("/bdrv-drain/graph-change", test_graph_change);
+
+    g_test_add_func("/bdrv-drain/graph-change/drain_subtree",
+                    test_graph_change_drain_subtree);
+    g_test_add_func("/bdrv-drain/graph-change/drain_all",
+                    test_graph_change_drain_all);
 
     g_test_add_func("/bdrv-drain/iothread/drain_all", test_iothread_drain_all);
     g_test_add_func("/bdrv-drain/iothread/drain", test_iothread_drain);
@@ -1232,6 +1302,7 @@ int main(int argc, char **argv)
                     test_blockjob_drain_subtree);
 
     g_test_add_func("/bdrv-drain/deletion/drain", test_delete_by_drain);
+    g_test_add_func("/bdrv-drain/detach/drain_all", test_detach_by_drain_all);
     g_test_add_func("/bdrv-drain/detach/drain", test_detach_by_drain);
     g_test_add_func("/bdrv-drain/detach/drain_subtree", test_detach_by_drain_subtree);
     g_test_add_func("/bdrv-drain/detach/parent_cb", test_detach_by_parent_cb);
