@@ -28,6 +28,10 @@ static void tpm_crb_test(const void *data)
     uint64_t caddr = readq(TPM_CRB_ADDR_BASE + A_CRB_CTRL_CMD_LADDR);
     uint32_t rsize = readl(TPM_CRB_ADDR_BASE + A_CRB_CTRL_RSP_SIZE);
     uint64_t raddr = readq(TPM_CRB_ADDR_BASE + A_CRB_CTRL_RSP_ADDR);
+    uint8_t locstate = readb(TPM_CRB_ADDR_BASE + A_CRB_LOC_STATE);
+    uint32_t locctrl = readl(TPM_CRB_ADDR_BASE + A_CRB_LOC_CTRL);
+    uint32_t locsts = readl(TPM_CRB_ADDR_BASE + A_CRB_LOC_STS);
+    uint32_t sts = readl(TPM_CRB_ADDR_BASE + A_CRB_CTRL_STS);
 
     g_assert_cmpint(FIELD_EX32(intfid, CRB_INTF_ID, InterfaceType), ==, 1);
     g_assert_cmpint(FIELD_EX32(intfid, CRB_INTF_ID, InterfaceVersion), ==, 1);
@@ -45,9 +49,47 @@ static void tpm_crb_test(const void *data)
     g_assert_cmpint(caddr, >, TPM_CRB_ADDR_BASE);
     g_assert_cmpint(raddr, >, TPM_CRB_ADDR_BASE);
 
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, tpmEstablished), ==, 1);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, locAssigned), ==, 0);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, activeLocality), ==, 0);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, reserved), ==, 0);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, tpmRegValidSts), ==, 1);
+
+    g_assert_cmpint(locctrl, ==, 0);
+
+    g_assert_cmpint(FIELD_EX32(locsts, CRB_LOC_STS, Granted), ==, 0);
+    g_assert_cmpint(FIELD_EX32(locsts, CRB_LOC_STS, beenSeized), ==, 0);
+
+    g_assert_cmpint(FIELD_EX32(sts, CRB_CTRL_STS, tpmIdle), ==, 1);
+    g_assert_cmpint(FIELD_EX32(sts, CRB_CTRL_STS, tpmSts), ==, 0);
+
+    /* request access to locality 0 */
+    writeb(TPM_CRB_ADDR_BASE + A_CRB_LOC_CTRL, 1);
+
+    /* granted bit must be set now */
+    locsts = readl(TPM_CRB_ADDR_BASE + A_CRB_LOC_STS);
+    g_assert_cmpint(FIELD_EX32(locsts, CRB_LOC_STS, Granted), ==, 1);
+    g_assert_cmpint(FIELD_EX32(locsts, CRB_LOC_STS, beenSeized), ==, 0);
+
+    /* we must have an assigned locality */
+    locstate = readb(TPM_CRB_ADDR_BASE + A_CRB_LOC_STATE);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, tpmEstablished), ==, 1);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, locAssigned), ==, 1);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, activeLocality), ==, 0);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, reserved), ==, 0);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, tpmRegValidSts), ==, 1);
+
+    /* set into ready state */
+    writel(TPM_CRB_ADDR_BASE + A_CRB_CTRL_REQ, 1);
+
+    /* TPM must not be in the idle state */
+    sts = readl(TPM_CRB_ADDR_BASE + A_CRB_CTRL_STS);
+    g_assert_cmpint(FIELD_EX32(sts, CRB_CTRL_STS, tpmIdle), ==, 0);
+    g_assert_cmpint(FIELD_EX32(sts, CRB_CTRL_STS, tpmSts), ==, 0);
+
     memwrite(caddr, TPM_CMD, sizeof(TPM_CMD));
 
-    uint32_t sts, start = 1;
+    uint32_t start = 1;
     uint64_t end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
     writel(TPM_CRB_ADDR_BASE + A_CRB_CTRL_START, start);
     do {
@@ -58,12 +100,40 @@ static void tpm_crb_test(const void *data)
     } while (g_get_monotonic_time() < end_time);
     start = readl(TPM_CRB_ADDR_BASE + A_CRB_CTRL_START);
     g_assert_cmpint(start & 1, ==, 0);
+
+    /* TPM must still not be in the idle state */
     sts = readl(TPM_CRB_ADDR_BASE + A_CRB_CTRL_STS);
-    g_assert_cmpint(sts & 1, ==, 0);
+    g_assert_cmpint(FIELD_EX32(sts, CRB_CTRL_STS, tpmIdle), ==, 0);
+    g_assert_cmpint(FIELD_EX32(sts, CRB_CTRL_STS, tpmSts), ==, 0);
 
     struct tpm_hdr tpm_msg;
     memread(raddr, &tpm_msg, sizeof(tpm_msg));
     g_assert_cmpmem(&tpm_msg, sizeof(tpm_msg), s->tpm_msg, sizeof(*s->tpm_msg));
+
+    /* set TPM into idle state */
+    writel(TPM_CRB_ADDR_BASE + A_CRB_CTRL_REQ, 2);
+
+    /* idle state must be indicated now */
+    sts = readl(TPM_CRB_ADDR_BASE + A_CRB_CTRL_STS);
+    g_assert_cmpint(FIELD_EX32(sts, CRB_CTRL_STS, tpmIdle), ==, 1);
+    g_assert_cmpint(FIELD_EX32(sts, CRB_CTRL_STS, tpmSts), ==, 0);
+
+    /* relinquish locality */
+    writel(TPM_CRB_ADDR_BASE + A_CRB_LOC_CTRL, 2);
+
+    /* Granted flag must be cleared */
+    sts = readl(TPM_CRB_ADDR_BASE + A_CRB_LOC_STS);
+    g_assert_cmpint(FIELD_EX32(sts, CRB_LOC_STS, Granted), ==, 0);
+    g_assert_cmpint(FIELD_EX32(sts, CRB_LOC_STS, beenSeized), ==, 0);
+
+    /* no locality may be assigned */
+    locstate = readb(TPM_CRB_ADDR_BASE + A_CRB_LOC_STATE);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, tpmEstablished), ==, 1);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, locAssigned), ==, 0);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, activeLocality), ==, 0);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, reserved), ==, 0);
+    g_assert_cmpint(FIELD_EX32(locstate, CRB_LOC_STATE, tpmRegValidSts), ==, 1);
+
 }
 
 int main(int argc, char **argv)
