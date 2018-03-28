@@ -1433,9 +1433,29 @@ static const VMStateDescription vmstate_e1000_full_mac_state = {
     }
 };
 
+static const VMStateDescription vmstate_e1000_tx_tso_state = {
+    .name = "e1000/tx_tso_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(tx.tso_props.ipcss, E1000State),
+        VMSTATE_UINT8(tx.tso_props.ipcso, E1000State),
+        VMSTATE_UINT16(tx.tso_props.ipcse, E1000State),
+        VMSTATE_UINT8(tx.tso_props.tucss, E1000State),
+        VMSTATE_UINT8(tx.tso_props.tucso, E1000State),
+        VMSTATE_UINT16(tx.tso_props.tucse, E1000State),
+        VMSTATE_UINT32(tx.tso_props.paylen, E1000State),
+        VMSTATE_UINT8(tx.tso_props.hdr_len, E1000State),
+        VMSTATE_UINT16(tx.tso_props.mss, E1000State),
+        VMSTATE_INT8(tx.tso_props.ip, E1000State),
+        VMSTATE_INT8(tx.tso_props.tcp, E1000State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_e1000 = {
     .name = "e1000",
-    .version_id = 3,
+    .version_id = 2,
     .minimum_version_id = 1,
     .pre_save = e1000_pre_save,
     .post_load = e1000_post_load,
@@ -1508,22 +1528,12 @@ static const VMStateDescription vmstate_e1000 = {
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, RA, 32),
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, MTA, 128),
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, VFTA, 128),
-        VMSTATE_UINT8_V(tx.tso_props.ipcss, E1000State, 3),
-        VMSTATE_UINT8_V(tx.tso_props.ipcso, E1000State, 3),
-        VMSTATE_UINT16_V(tx.tso_props.ipcse, E1000State, 3),
-        VMSTATE_UINT8_V(tx.tso_props.tucss, E1000State, 3),
-        VMSTATE_UINT8_V(tx.tso_props.tucso, E1000State, 3),
-        VMSTATE_UINT16_V(tx.tso_props.tucse, E1000State, 3),
-        VMSTATE_UINT32_V(tx.tso_props.paylen, E1000State, 3),
-        VMSTATE_UINT8_V(tx.tso_props.hdr_len, E1000State, 3),
-        VMSTATE_UINT16_V(tx.tso_props.mss, E1000State, 3),
-        VMSTATE_INT8_V(tx.tso_props.ip, E1000State, 3),
-        VMSTATE_INT8_V(tx.tso_props.tcp, E1000State, 3),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_e1000_mit_state,
         &vmstate_e1000_full_mac_state,
+        &vmstate_e1000_tx_tso_state,
         NULL
     }
 };
