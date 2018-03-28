@@ -220,6 +220,8 @@ static void tpm_crb_reset(void *dev)
 
     ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
                      tpmRegValidSts, 1);
+    ARRAY_FIELD_DP32(s->regs, CRB_CTRL_STS,
+                     tpmIdle, 1);
     ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
                      InterfaceType, CRB_INTF_TYPE_CRB_ACTIVE);
     ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
