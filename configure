@@ -5054,6 +5054,14 @@ static S2 c2;
 static S4 c4;
 static S8 c8;
 static int i;
+void helper(void *d, void *a, int shift, int i);
+void helper(void *d, void *a, int shift, int i)
+{
+  *(U1 *)(d + i) = *(U1 *)(a + i) << shift;
+  *(U2 *)(d + i) = *(U2 *)(a + i) << shift;
+  *(U4 *)(d + i) = *(U4 *)(a + i) << shift;
+  *(U8 *)(d + i) = *(U8 *)(a + i) << shift;
+}
 int main(void)
 {
   a1 += b1; a2 += b2; a4 += b4; a8 += b8;
