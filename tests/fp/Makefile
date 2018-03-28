@@ -553,7 +553,7 @@ TF_OBJS_LIB += $(TF_OBJS_WRITECASE)
 TF_OBJS_LIB += testLoops_common.o
 TF_OBJS_LIB += $(TF_OBJS_TEST)
 
-BINARIES := fp-test$(EXESUF)
+BINARIES := fp-test$(EXESUF) fp-bench$(EXESUF)
 
 # everything depends on config-host.h because platform.h includes it
 all: $(BUILD_DIR)/config-host.h
@@ -590,10 +590,13 @@ $(TF_OBJS_LIB) slowfloat.o: %.o: $(TF_SOURCE_DIR)/%.c
 
 libtestfloat.a: $(TF_OBJS_LIB)
 
+fp-bench$(EXESUF): fp-bench.o $(QEMU_SOFTFLOAT_OBJ) $(LIBQEMUUTIL)
+
 clean:
 	rm -f *.o *.d $(BINARIES)
 	rm -f *.gcno *.gcda *.gcov
 	rm -f fp-test$(EXESUF)
+	rm -f fp-bench$(EXESUF)
 	rm -f libsoftfloat.a
 	rm -f libtestfloat.a
 
