@@ -59,6 +59,8 @@ typedef struct sPAPRCapabilityInfo {
     sPAPRCapPossible *possible;
     /* Make sure the virtual hardware can support this capability */
     void (*apply)(sPAPRMachineState *spapr, uint8_t val, Error **errp);
+    void (*cpu_apply)(sPAPRMachineState *spapr, PowerPCCPU *cpu,
+                      uint8_t val, Error **errp);
 } sPAPRCapabilityInfo;
 
 static void spapr_cap_get_bool(Object *obj, Visitor *v, const char *name,
@@ -469,6 +471,23 @@ void spapr_caps_apply(sPAPRMachineState *spapr)
          * fatal, it should cause that.
          */
         info->apply(spapr, spapr->eff.caps[i], &error_fatal);
+    }
+}
+
+void spapr_caps_cpu_apply(sPAPRMachineState *spapr, PowerPCCPU *cpu)
+{
+    int i;
+
+    for (i = 0; i < SPAPR_CAP_NUM; i++) {
+        sPAPRCapabilityInfo *info = &capability_table[i];
+
+        /*
+         * If the apply function can't set the desired level and thinks it's
+         * fatal, it should cause that.
+         */
+        if (info->cpu_apply) {
+            info->cpu_apply(spapr, cpu, spapr->eff.caps[i], &error_fatal);
+        }
     }
 }
 
