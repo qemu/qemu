@@ -4006,6 +4006,9 @@ void cpu_loop(CPUXtensaState *env)
                     break;
 
                 case -TARGET_ERESTARTSYS:
+                    env->pc -= 3;
+                    break;
+
                 case -TARGET_QEMU_ESIGRETURN:
                     break;
                 }
