@@ -130,6 +130,7 @@ typedef struct E1000State_st {
 #define E1000_FLAG_TSO (1 << E1000_FLAG_TSO_BIT)
     uint32_t compat_flags;
     bool received_tx_tso;
+    e1000x_txd_props mig_props;
 } E1000State;
 
 #define chkflag(x)     (s->compat_flags & E1000_FLAG_##x)
@@ -1365,6 +1366,7 @@ static int e1000_pre_save(void *opaque)
         s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
     }
 
+    s->mig_props = s->tx.props;
     return 0;
 }
 
@@ -1393,12 +1395,13 @@ static int e1000_post_load(void *opaque, int version_id)
                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
 
+    s->tx.props = s->mig_props;
     if (!s->received_tx_tso) {
         /* We received only one set of offload data (tx.props)
          * and haven't got tx.tso_props.  The best we can do
          * is dupe the data.
          */
-        s->tx.tso_props = s->tx.props;
+        s->tx.tso_props = s->mig_props;
     }
     return 0;
 }
@@ -1496,20 +1499,20 @@ static const VMStateDescription vmstate_e1000 = {
         VMSTATE_UINT16(eecd_state.bitnum_out, E1000State),
         VMSTATE_UINT16(eecd_state.reading, E1000State),
         VMSTATE_UINT32(eecd_state.old_eecd, E1000State),
-        VMSTATE_UINT8(tx.props.ipcss, E1000State),
-        VMSTATE_UINT8(tx.props.ipcso, E1000State),
-        VMSTATE_UINT16(tx.props.ipcse, E1000State),
-        VMSTATE_UINT8(tx.props.tucss, E1000State),
-        VMSTATE_UINT8(tx.props.tucso, E1000State),
-        VMSTATE_UINT16(tx.props.tucse, E1000State),
-        VMSTATE_UINT32(tx.props.paylen, E1000State),
-        VMSTATE_UINT8(tx.props.hdr_len, E1000State),
-        VMSTATE_UINT16(tx.props.mss, E1000State),
+        VMSTATE_UINT8(mig_props.ipcss, E1000State),
+        VMSTATE_UINT8(mig_props.ipcso, E1000State),
+        VMSTATE_UINT16(mig_props.ipcse, E1000State),
+        VMSTATE_UINT8(mig_props.tucss, E1000State),
+        VMSTATE_UINT8(mig_props.tucso, E1000State),
+        VMSTATE_UINT16(mig_props.tucse, E1000State),
+        VMSTATE_UINT32(mig_props.paylen, E1000State),
+        VMSTATE_UINT8(mig_props.hdr_len, E1000State),
+        VMSTATE_UINT16(mig_props.mss, E1000State),
         VMSTATE_UINT16(tx.size, E1000State),
         VMSTATE_UINT16(tx.tso_frames, E1000State),
         VMSTATE_UINT8(tx.sum_needed, E1000State),
-        VMSTATE_INT8(tx.props.ip, E1000State),
-        VMSTATE_INT8(tx.props.tcp, E1000State),
+        VMSTATE_INT8(mig_props.ip, E1000State),
+        VMSTATE_INT8(mig_props.tcp, E1000State),
         VMSTATE_BUFFER(tx.header, E1000State),
         VMSTATE_BUFFER(tx.data, E1000State),
         VMSTATE_UINT16_ARRAY(eeprom_data, E1000State, 64),
