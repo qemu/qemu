@@ -1025,7 +1025,6 @@ struct CPUPPCState {
 #if defined(TARGET_PPC64)
     /* PowerPC 64 SLB area */
     ppc_slb_t slb[MAX_SLB_ENTRIES];
-    int32_t slb_nr;
     /* tcg TLB needs flush (deferred slb inval instruction typically) */
 #endif
     /* segment registers */
@@ -1216,6 +1215,8 @@ struct PowerPCCPU {
     uint64_t mig_insns_flags2;
     uint32_t mig_nb_BATs;
     bool pre_2_10_migration;
+    bool pre_2_13_migration;
+    int32_t mig_slb_nr;
 };
 
 static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)

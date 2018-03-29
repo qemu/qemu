@@ -484,7 +484,7 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
             break;
         }
     }
-    env->slb_nr = smmu_info.slb_size;
+    cpu->hash64_opts->slb_size = smmu_info.slb_size;
     if (!(smmu_info.flags & KVM_PPC_1T_SEGMENTS)) {
         cpu->hash64_opts->flags &= ~PPC_HASH64_1TSEG;
     }

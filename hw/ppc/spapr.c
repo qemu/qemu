@@ -547,8 +547,8 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
 
     _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));
     _FDT((fdt_setprop_cell(fdt, offset, "clock-frequency", cpufreq)));
-    _FDT((fdt_setprop_cell(fdt, offset, "slb-size", env->slb_nr)));
-    _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", env->slb_nr)));
+    _FDT((fdt_setprop_cell(fdt, offset, "slb-size", cpu->hash64_opts->slb_size)));
+    _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", cpu->hash64_opts->slb_size)));
     _FDT((fdt_setprop_string(fdt, offset, "status", "okay")));
     _FDT((fdt_setprop(fdt, offset, "64-bit", NULL, 0)));
 
@@ -3958,7 +3958,12 @@ DEFINE_SPAPR_MACHINE(2_13, "2.13", true);
  * pseries-2.12
  */
 #define SPAPR_COMPAT_2_12                                              \
-    HW_COMPAT_2_12
+    HW_COMPAT_2_12                                                     \
+    {                                                                  \
+        .driver = TYPE_POWERPC_CPU,                                    \
+        .property = "pre-2.13-migration",                              \
+        .value    = "on",                                              \
+    },
 
 static void spapr_machine_2_12_instance_options(MachineState *machine)
 {

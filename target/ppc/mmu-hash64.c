@@ -52,7 +52,7 @@ static ppc_slb_t *slb_lookup(PowerPCCPU *cpu, target_ulong eaddr)
     esid_256M = (eaddr & SEGMENT_MASK_256M) | SLB_ESID_V;
     esid_1T = (eaddr & SEGMENT_MASK_1T) | SLB_ESID_V;
 
-    for (n = 0; n < env->slb_nr; n++) {
+    for (n = 0; n < cpu->hash64_opts->slb_size; n++) {
         ppc_slb_t *slb = &env->slb[n];
 
         LOG_SLB("%s: slot %d %016" PRIx64 " %016"
@@ -80,7 +80,7 @@ void dump_slb(FILE *f, fprintf_function cpu_fprintf, PowerPCCPU *cpu)
     cpu_synchronize_state(CPU(cpu));
 
     cpu_fprintf(f, "SLB\tESID\t\t\tVSID\n");
-    for (i = 0; i < env->slb_nr; i++) {
+    for (i = 0; i < cpu->hash64_opts->slb_size; i++) {
         slbe = env->slb[i].esid;
         slbv = env->slb[i].vsid;
         if (slbe == 0 && slbv == 0) {
@@ -93,10 +93,11 @@ void dump_slb(FILE *f, fprintf_function cpu_fprintf, PowerPCCPU *cpu)
 
 void helper_slbia(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int n;
 
     /* XXX: Warning: slbia never invalidates the first segment */
-    for (n = 1; n < env->slb_nr; n++) {
+    for (n = 1; n < cpu->hash64_opts->slb_size; n++) {
         ppc_slb_t *slb = &env->slb[n];
 
         if (slb->esid & SLB_ESID_V) {
@@ -151,7 +152,7 @@ int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
     const PPCHash64SegmentPageSizes *sps = NULL;
     int i;
 
-    if (slot >= env->slb_nr) {
+    if (slot >= cpu->hash64_opts->slb_size) {
         return -1; /* Bad slot number */
     }
     if (esid & ~(SLB_ESID_ESID | SLB_ESID_V)) {
@@ -202,7 +203,7 @@ static int ppc_load_slb_esid(PowerPCCPU *cpu, target_ulong rb,
     int slot = rb & 0xfff;
     ppc_slb_t *slb = &env->slb[slot];
 
-    if (slot >= env->slb_nr) {
+    if (slot >= cpu->hash64_opts->slb_size) {
         return -1;
     }
 
@@ -217,7 +218,7 @@ static int ppc_load_slb_vsid(PowerPCCPU *cpu, target_ulong rb,
     int slot = rb & 0xfff;
     ppc_slb_t *slb = &env->slb[slot];
 
-    if (slot >= env->slb_nr) {
+    if (slot >= cpu->hash64_opts->slb_size) {
         return -1;
     }
 
@@ -1115,6 +1116,7 @@ void ppc_hash64_finalize(PowerPCCPU *cpu)
 
 const PPCHash64Options ppc_hash64_opts_basic = {
     .flags = 0,
+    .slb_size = 64,
     .sps = {
         { .page_shift = 12, /* 4K */
           .slb_enc = 0,
@@ -1129,6 +1131,7 @@ const PPCHash64Options ppc_hash64_opts_basic = {
 
 const PPCHash64Options ppc_hash64_opts_POWER7 = {
     .flags = PPC_HASH64_1TSEG | PPC_HASH64_AMR | PPC_HASH64_CI_LARGEPAGE,
+    .slb_size = 32,
     .sps = {
         {
             .page_shift = 12, /* 4K */

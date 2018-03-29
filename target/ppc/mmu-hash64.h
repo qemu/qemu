@@ -157,6 +157,7 @@ struct PPCHash64Options {
 #define PPC_HASH64_AMR          0x00002
 #define PPC_HASH64_CI_LARGEPAGE 0x00004
     unsigned flags;
+    unsigned slb_size;
     PPCHash64SegmentPageSizes sps[PPC_PAGE_SIZES_MAX_SZ];
 };
 

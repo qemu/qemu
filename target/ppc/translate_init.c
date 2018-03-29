@@ -8195,9 +8195,6 @@ static void init_proc_970(CPUPPCState *env)
     gen_spr_970_dbg(env);
 
     /* env variables */
-#if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 64;
-#endif
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
 
@@ -8272,9 +8269,6 @@ static void init_proc_power5plus(CPUPPCState *env)
     gen_spr_power5p_ear(env);
 
     /* env variables */
-#if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 64;
-#endif
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
 
@@ -8389,9 +8383,6 @@ static void init_proc_POWER7(CPUPPCState *env)
     gen_spr_power7_book4(env);
 
     /* env variables */
-#if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 32;
-#endif
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
 
@@ -8543,9 +8534,6 @@ static void init_proc_POWER8(CPUPPCState *env)
     gen_spr_power8_rpr(env);
 
     /* env variables */
-#if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 32;
-#endif
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
 
@@ -8743,9 +8731,6 @@ static void init_proc_POWER9(CPUPPCState *env)
                         KVM_REG_PPC_PSSCR, 0);
 
     /* env variables */
-#if !defined(CONFIG_USER_ONLY)
-    env->slb_nr = 32;
-#endif
     env->dcache_line_size = 128;
     env->icache_line_size = 128;
 
@@ -10485,6 +10470,8 @@ static void ppc_disas_set_info(CPUState *cs, disassemble_info *info)
 static Property ppc_cpu_properties[] = {
     DEFINE_PROP_BOOL("pre-2.8-migration", PowerPCCPU, pre_2_8_migration, false),
     DEFINE_PROP_BOOL("pre-2.10-migration", PowerPCCPU, pre_2_10_migration,
+                     false),
+    DEFINE_PROP_BOOL("pre-2.13-migration", PowerPCCPU, pre_2_13_migration,
                      false),
     DEFINE_PROP_END_OF_LIST(),
 };
