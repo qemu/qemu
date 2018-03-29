@@ -6,9 +6,9 @@
  * Author: Paolo Bonzini <pbonzini@redhat.com>
  */
 
-#include <qemu/osdep.h>
-#include <qemu/sys_membarrier.h>
-#include <qemu/error-report.h>
+#include "qemu/osdep.h"
+#include "qemu/sys_membarrier.h"
+#include "qemu/error-report.h"
 
 #ifdef CONFIG_LINUX
 #include <linux/membarrier.h>
