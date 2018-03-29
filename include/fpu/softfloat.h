@@ -474,6 +474,11 @@ static inline bool float32_is_denormal(float32 a)
     return float32_is_zero_or_denormal(a) && !float32_is_zero(a);
 }
 
+static inline bool float32_is_zero_or_normal(float32 a)
+{
+    return float32_is_normal(a) || float32_is_zero(a);
+}
+
 static inline float32 float32_set_sign(float32 a, int sign)
 {
     return make_float32((float32_val(a) & 0x7fffffff) | (sign << 31));
@@ -623,6 +628,11 @@ static inline bool float64_is_normal(float64 a)
 static inline bool float64_is_denormal(float64 a)
 {
     return float64_is_zero_or_denormal(a) && !float64_is_zero(a);
+}
+
+static inline bool float64_is_zero_or_normal(float64 a)
+{
+    return float64_is_normal(a) || float64_is_zero(a);
 }
 
 static inline float64 float64_set_sign(float64 a, int sign)
