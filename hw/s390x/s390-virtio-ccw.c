@@ -671,6 +671,9 @@ bool css_migration_enabled(void)
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
+#define CCW_COMPAT_2_12 \
+        HW_COMPAT_2_12
+
 #define CCW_COMPAT_2_11 \
         HW_COMPAT_2_11 \
         {\
@@ -756,14 +759,26 @@ bool css_migration_enabled(void)
             .value    = "0",\
         },
 
+static void ccw_machine_2_13_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_2_13_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE(2_13, "2.13", true);
+
 static void ccw_machine_2_12_instance_options(MachineState *machine)
 {
+    ccw_machine_2_13_instance_options(machine);
 }
 
 static void ccw_machine_2_12_class_options(MachineClass *mc)
 {
+    ccw_machine_2_13_class_options(mc);
+    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_12);
 }
-DEFINE_CCW_MACHINE(2_12, "2.12", true);
+DEFINE_CCW_MACHINE(2_12, "2.12", false);
 
 static void ccw_machine_2_11_instance_options(MachineState *machine)
 {
