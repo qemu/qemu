@@ -748,9 +748,11 @@ sev_guest_init(const char *id)
     if (s->sev_fd < 0) {
         error_report("%s: Failed to open %s '%s'", __func__,
                      devname, strerror(errno));
-        goto err;
     }
     g_free(devname);
+    if (s->sev_fd < 0) {
+        goto err;
+    }
 
     ret = sev_platform_ioctl(s->sev_fd, SEV_PLATFORM_STATUS, &status,
                              &fw_error);
