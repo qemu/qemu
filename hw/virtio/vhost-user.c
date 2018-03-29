@@ -46,6 +46,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_CROSS_ENDIAN = 6,
     VHOST_USER_PROTOCOL_F_CRYPTO_SESSION = 7,
     VHOST_USER_PROTOCOL_F_PAGEFAULT = 8,
+    VHOST_USER_PROTOCOL_F_CONFIG = 9,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -1211,6 +1212,17 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 
         dev->protocol_features =
             protocol_features & VHOST_USER_PROTOCOL_FEATURE_MASK;
+
+        if (!dev->config_ops || !dev->config_ops->vhost_dev_config_notifier) {
+            /* Don't acknowledge CONFIG feature if device doesn't support it */
+            dev->protocol_features &= ~(1ULL << VHOST_USER_PROTOCOL_F_CONFIG);
+        } else if (!(protocol_features &
+                    (1ULL << VHOST_USER_PROTOCOL_F_CONFIG))) {
+            error_report("Device expects VHOST_USER_PROTOCOL_F_CONFIG "
+                    "but backend does not support it.");
+            return -1;
+        }
+
         err = vhost_user_set_protocol_features(dev, dev->protocol_features);
         if (err < 0) {
             return err;
@@ -1405,6 +1417,11 @@ static int vhost_user_get_config(struct vhost_dev *dev, uint8_t *config,
         .hdr.size = VHOST_USER_CONFIG_HDR_SIZE + config_len,
     };
 
+    if (!virtio_has_feature(dev->protocol_features,
+                VHOST_USER_PROTOCOL_F_CONFIG)) {
+        return -1;
+    }
+
     if (config_len > VHOST_USER_MAX_CONFIG_SIZE) {
         return -1;
     }
@@ -1447,6 +1464,11 @@ static int vhost_user_set_config(struct vhost_dev *dev, const uint8_t *data,
         .hdr.flags = VHOST_USER_VERSION,
         .hdr.size = VHOST_USER_CONFIG_HDR_SIZE + size,
     };
+
+    if (!virtio_has_feature(dev->protocol_features,
+                VHOST_USER_PROTOCOL_F_CONFIG)) {
+        return -1;
+    }
 
     if (reply_supported) {
         msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
