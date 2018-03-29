@@ -14,7 +14,7 @@
 #include "virtio-scsi.h"
 #include "bswap.h"
 
-#define VRING_WAIT_REPLY_TIMEOUT 3
+#define VRING_WAIT_REPLY_TIMEOUT 30
 
 static VRing block[VIRTIO_MAX_VQS];
 static char ring_area[VIRTIO_RING_SIZE * VIRTIO_MAX_VQS]
