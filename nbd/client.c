@@ -599,8 +599,8 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
  * Set one meta context. Simple means that reply must contain zero (not
  * negotiated) or one (negotiated) contexts. More contexts would be considered
  * as a protocol error. It's also implied that meta-data query equals queried
- * context name, so, if server replies with something different then @context,
- * it considered as error too.
+ * context name, so, if server replies with something different than @context,
+ * it is considered an error too.
  * return 1 for successful negotiation, context_id is set
  *        0 if operation is unsupported,
  *        -1 with errp set for any other error
@@ -649,25 +649,33 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
 
     if (reply.type == NBD_REP_META_CONTEXT) {
         char *name;
-        size_t len;
+
+        if (reply.length != sizeof(received_id) + context_len) {
+            error_setg(errp, "Failed to negotiate meta context '%s', server "
+                       "answered with unexpected length %" PRIu32, context,
+                       reply.length);
+            nbd_send_opt_abort(ioc);
+            return -1;
+        }
 
         if (nbd_read(ioc, &received_id, sizeof(received_id), errp) < 0) {
             return -1;
         }
         be32_to_cpus(&received_id);
 
-        len = reply.length - sizeof(received_id);
-        name = g_malloc(len + 1);
-        if (nbd_read(ioc, name, len, errp) < 0) {
+        reply.length -= sizeof(received_id);
+        name = g_malloc(reply.length + 1);
+        if (nbd_read(ioc, name, reply.length, errp) < 0) {
             g_free(name);
             return -1;
         }
-        name[len] = '\0';
+        name[reply.length] = '\0';
         if (strcmp(context, name)) {
             error_setg(errp, "Failed to negotiate meta context '%s', server "
                        "answered with different context '%s'", context,
                        name);
             g_free(name);
+            nbd_send_opt_abort(ioc);
             return -1;
         }
         g_free(name);
@@ -690,6 +698,12 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
     if (reply.type != NBD_REP_ACK) {
         error_setg(errp, "Unexpected reply type %" PRIx32 " expected %x",
                    reply.type, NBD_REP_ACK);
+        nbd_send_opt_abort(ioc);
+        return -1;
+    }
+    if (reply.length) {
+        error_setg(errp, "Unexpected length to ACK response");
+        nbd_send_opt_abort(ioc);
         return -1;
     }
 
