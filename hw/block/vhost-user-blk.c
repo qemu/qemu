@@ -259,6 +259,8 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     s->dev.vq_index = 0;
     s->dev.backend_features = 0;
 
+    vhost_dev_set_config_notifier(&s->dev, &blk_ops);
+
     ret = vhost_dev_init(&s->dev, &s->chardev, VHOST_BACKEND_TYPE_USER, 0);
     if (ret < 0) {
         error_setg(errp, "vhost-user-blk: vhost initialization failed: %s",
@@ -276,8 +278,6 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     if (s->blkcfg.num_queues != s->num_queues) {
         s->blkcfg.num_queues = s->num_queues;
     }
-
-    vhost_dev_set_config_notifier(&s->dev, &blk_ops);
 
     return;
 
