@@ -2537,7 +2537,7 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker)
                              (1UL << 7),  /* PPRSup       */
                              1);
     /* IVHD length */
-    build_append_int_noprefix(table_data, 0x24, 2);
+    build_append_int_noprefix(table_data, 28, 2);
     /* DeviceID */
     build_append_int_noprefix(table_data, s->devid, 2);
     /* Capability offset */
