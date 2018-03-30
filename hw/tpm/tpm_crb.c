@@ -76,6 +76,8 @@ enum crb_cancel {
     CRB_CANCEL_INVOKE = BIT(0),
 };
 
+#define TPM_CRB_NO_LOCALITY 0xff
+
 static uint64_t tpm_crb_mmio_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
@@ -95,10 +97,19 @@ static uint64_t tpm_crb_mmio_read(void *opaque, hwaddr addr,
     return val;
 }
 
+static uint8_t tpm_crb_get_active_locty(CRBState *s)
+{
+    if (!ARRAY_FIELD_EX32(s->regs, CRB_LOC_STATE, locAssigned)) {
+        return TPM_CRB_NO_LOCALITY;
+    }
+    return ARRAY_FIELD_EX32(s->regs, CRB_LOC_STATE, activeLocality);
+}
+
 static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     CRBState *s = CRB(opaque);
+    uint8_t locty =  addr >> 12;
 
     trace_tpm_crb_mmio_write(addr, size, val);
 
@@ -123,7 +134,8 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
         break;
     case A_CRB_CTRL_START:
         if (val == CRB_START_INVOKE &&
-            !(s->regs[R_CRB_CTRL_START] & CRB_START_INVOKE)) {
+            !(s->regs[R_CRB_CTRL_START] & CRB_START_INVOKE) &&
+            tpm_crb_get_active_locty(s) == locty) {
             void *mem = memory_region_get_ram_ptr(&s->cmdmem);
 
             s->regs[R_CRB_CTRL_START] |= CRB_START_INVOKE;
@@ -145,6 +157,8 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
         case CRB_LOC_CTRL_RELINQUISH:
             ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
                              locAssigned, 0);
+            ARRAY_FIELD_DP32(s->regs, CRB_LOC_STS,
+                             Granted, 0);
             break;
         case CRB_LOC_CTRL_REQUEST_ACCESS:
             ARRAY_FIELD_DP32(s->regs, CRB_LOC_STS,
@@ -220,6 +234,8 @@ static void tpm_crb_reset(void *dev)
 
     ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
                      tpmRegValidSts, 1);
+    ARRAY_FIELD_DP32(s->regs, CRB_CTRL_STS,
+                     tpmIdle, 1);
     ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
                      InterfaceType, CRB_INTF_TYPE_CRB_ACTIVE);
     ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
