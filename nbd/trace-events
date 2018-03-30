@@ -10,6 +10,8 @@ nbd_receive_query_exports_start(const char *wantname) "Querying export list for 
 nbd_receive_query_exports_success(const char *wantname) "Found desired export name '%s'"
 nbd_receive_starttls_new_client(void) "Setting up TLS"
 nbd_receive_starttls_tls_handshake(void) "Starting TLS handshake"
+nbd_opt_meta_request(const char *context, const char *export) "Requesting to set meta context %s for export %s"
+nbd_opt_meta_reply(const char *context, uint32_t id) "Received mapping of context %s to id %" PRIu32
 nbd_receive_negotiate(void *tlscreds, const char *hostname) "Receiving negotiation tlscreds=%p hostname=%s"
 nbd_receive_negotiate_magic(uint64_t magic) "Magic is 0x%" PRIx64
 nbd_receive_negotiate_server_flags(uint32_t globalflags) "Global flags are 0x%" PRIx32
@@ -44,6 +46,10 @@ nbd_negotiate_handle_info_request(int request, const char *name) "Client request
 nbd_negotiate_handle_info_block_size(uint32_t minimum, uint32_t preferred, uint32_t maximum) "advertising minimum 0x%" PRIx32 ", preferred 0x%" PRIx32 ", maximum 0x%" PRIx32
 nbd_negotiate_handle_starttls(void) "Setting up TLS"
 nbd_negotiate_handle_starttls_handshake(void) "Starting TLS handshake"
+nbd_negotiate_meta_context(const char *optname, const char *export, uint32_t queries) "Client requested %s for export %s, with %" PRIu32 " queries"
+nbd_negotiate_meta_query_skip(const char *reason) "Skipping meta query: %s"
+nbd_negotiate_meta_query_parse(const char *query) "Parsed meta query '%s'"
+nbd_negotiate_meta_query_reply(const char *context, uint32_t id) "Replying with meta context '%s' id %" PRIu32
 nbd_negotiate_options_flags(uint32_t flags) "Received client flags 0x%" PRIx32
 nbd_negotiate_options_check_magic(uint64_t magic) "Checking opts magic 0x%" PRIx64
 nbd_negotiate_options_check_option(uint32_t option, const char *name) "Checking option %" PRIu32 " (%s)"

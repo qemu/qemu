@@ -623,6 +623,7 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
     char *data = g_malloc(data_len);
     char *p = data;
 
+    trace_nbd_opt_meta_request(context, export);
     stl_be_p(p, export_len);
     memcpy(p += sizeof(export_len), export, export_len);
     stl_be_p(p += export_len, 1);
@@ -680,6 +681,7 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
         }
         g_free(name);
 
+        trace_nbd_opt_meta_reply(context, received_id);
         received = true;
 
         /* receive NBD_REP_ACK */

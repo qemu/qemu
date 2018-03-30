@@ -726,6 +726,7 @@ static int nbd_negotiate_send_meta_context(NBDClient *client,
         context_id = 0;
     }
 
+    trace_nbd_negotiate_meta_query_reply(context, context_id);
     set_be_option_rep(&opt.h, client->opt, NBD_REP_META_CONTEXT,
                       sizeof(opt) - sizeof(opt.h) + iov[1].iov_len);
     stl_be_p(&opt.context_id, context_id);
@@ -752,10 +753,12 @@ static int nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
         if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
             meta->base_allocation = true;
         }
+        trace_nbd_negotiate_meta_query_parse("base:");
         return 1;
     }
 
     if (len != alen) {
+        trace_nbd_negotiate_meta_query_skip("not base:allocation");
         return nbd_opt_skip(client, len, errp);
     }
 
@@ -768,6 +771,7 @@ static int nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
         meta->base_allocation = true;
     }
 
+    trace_nbd_negotiate_meta_query_parse("base:allocation");
     return 1;
 }
 
@@ -800,6 +804,7 @@ static int nbd_negotiate_meta_query(NBDClient *client,
     /* The only supported namespace for now is 'base'. So query should start
      * with 'base:'. Otherwise, we can ignore it and skip the remainder. */
     if (len < baselen) {
+        trace_nbd_negotiate_meta_query_skip("length too short");
         return nbd_opt_skip(client, len, errp);
     }
 
@@ -809,6 +814,7 @@ static int nbd_negotiate_meta_query(NBDClient *client,
         return ret;
     }
     if (strncmp(query, "base:", baselen) != 0) {
+        trace_nbd_negotiate_meta_query_skip("not for base: namespace");
         return nbd_opt_skip(client, len, errp);
     }
 
@@ -858,6 +864,8 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
         return ret;
     }
     cpu_to_be32s(&nb_queries);
+    trace_nbd_negotiate_meta_context(nbd_opt_lookup(client->opt),
+                                     meta->export_name, nb_queries);
 
     if (client->opt == NBD_OPT_LIST_META_CONTEXT && !nb_queries) {
         /* enable all known contexts */
