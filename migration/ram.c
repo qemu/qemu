@@ -1038,15 +1038,8 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
     trace_ram_save_page(block->idstr, (uint64_t)offset, p);
 
     XBZRLE_cache_lock();
-    pages = save_zero_page(rs, block, offset);
-    if (pages > 0) {
-        /* Must let xbzrle know, otherwise a previous (now 0'd) cached
-         * page would be stale
-         */
-        xbzrle_cache_zero_page(rs, current_addr);
-        ram_release_pages(block->idstr, offset, pages);
-    } else if (!rs->ram_bulk_stage &&
-               !migration_in_postcopy() && migrate_use_xbzrle()) {
+    if (!rs->ram_bulk_stage && !migration_in_postcopy() &&
+        migrate_use_xbzrle()) {
         pages = save_xbzrle_page(rs, &p, current_addr, block,
                                  offset, last_stage);
         if (!last_stage) {
@@ -1194,40 +1187,23 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
 
     p = block->host + offset;
 
-    /* When starting the process of a new block, the first page of
-     * the block should be sent out before other pages in the same
-     * block, and all the pages in last block should have been sent
-     * out, keeping this order is important, because the 'cont' flag
-     * is used to avoid resending the block name.
-     */
     if (block != rs->last_sent_block) {
-        flush_compressed_data(rs);
-        pages = save_zero_page(rs, block, offset);
-        if (pages > 0) {
-            ram_release_pages(block->idstr, offset, pages);
-        } else {
-            /*
-             * Make sure the first page is sent out before other pages.
-             *
-             * we post it as normal page as compression will take much
-             * CPU resource.
-             */
-            ram_counters.transferred += save_page_header(rs, rs->f, block,
-                                            offset | RAM_SAVE_FLAG_PAGE);
-            qemu_put_buffer_async(rs->f, p, TARGET_PAGE_SIZE,
-                                  migrate_release_ram() &
-                                  migration_in_postcopy());
-            ram_counters.transferred += TARGET_PAGE_SIZE;
-            ram_counters.normal++;
-            pages = 1;
-        }
+        /*
+         * Make sure the first page is sent out before other pages.
+         *
+         * we post it as normal page as compression will take much
+         * CPU resource.
+         */
+        ram_counters.transferred += save_page_header(rs, rs->f, block,
+                                        offset | RAM_SAVE_FLAG_PAGE);
+        qemu_put_buffer_async(rs->f, p, TARGET_PAGE_SIZE,
+                              migrate_release_ram() &
+                              migration_in_postcopy());
+        ram_counters.transferred += TARGET_PAGE_SIZE;
+        ram_counters.normal++;
+        pages = 1;
     } else {
-        pages = save_zero_page(rs, block, offset);
-        if (pages == -1) {
-            pages = compress_page_with_multi_thread(rs, block, offset);
-        } else {
-            ram_release_pages(block->idstr, offset, pages);
-        }
+        pages = compress_page_with_multi_thread(rs, block, offset);
     }
 
     return pages;
@@ -1469,6 +1445,24 @@ err:
     return -1;
 }
 
+static bool save_page_use_compression(RAMState *rs)
+{
+    if (!migrate_use_compression()) {
+        return false;
+    }
+
+    /*
+     * If xbzrle is on, stop using the data compression after first
+     * round of migration even if compression is enabled. In theory,
+     * xbzrle can do better than compression.
+     */
+    if (rs->ram_bulk_stage || !migrate_use_xbzrle()) {
+        return true;
+    }
+
+    return false;
+}
+
 /**
  * ram_save_target_page: save one target page
  *
@@ -1490,12 +1484,31 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
     }
 
     /*
-     * If xbzrle is on, stop using the data compression after first
-     * round of migration even if compression is enabled. In theory,
-     * xbzrle can do better than compression.
+     * When starting the process of a new block, the first page of
+     * the block should be sent out before other pages in the same
+     * block, and all the pages in last block should have been sent
+     * out, keeping this order is important, because the 'cont' flag
+     * is used to avoid resending the block name.
      */
-    if (migrate_use_compression() &&
-        (rs->ram_bulk_stage || !migrate_use_xbzrle())) {
+    if (block != rs->last_sent_block && save_page_use_compression(rs)) {
+            flush_compressed_data(rs);
+    }
+
+    res = save_zero_page(rs, block, offset);
+    if (res > 0) {
+        /* Must let xbzrle know, otherwise a previous (now 0'd) cached
+         * page would be stale
+         */
+        if (!save_page_use_compression(rs)) {
+            XBZRLE_cache_lock();
+            xbzrle_cache_zero_page(rs, block->offset + offset);
+            XBZRLE_cache_unlock();
+        }
+        ram_release_pages(block->idstr, offset, res);
+        return res;
+    }
+
+    if (save_page_use_compression(rs)) {
         return ram_save_compressed_page(rs, pss, last_stage);
     }
 
