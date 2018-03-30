@@ -1137,7 +1137,7 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
     int pages = -1;
     uint64_t bytes_xmit = 0;
     uint8_t *p;
-    int ret, blen;
+    int ret;
     RAMBlock *block = pss->block;
     ram_addr_t offset = pss->page << TARGET_PAGE_BITS;
 
@@ -1167,23 +1167,23 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
         if (block != rs->last_sent_block) {
             flush_compressed_data(rs);
             pages = save_zero_page(rs, block, offset);
-            if (pages == -1) {
-                /* Make sure the first page is sent out before other pages */
-                bytes_xmit = save_page_header(rs, rs->f, block, offset |
-                                              RAM_SAVE_FLAG_COMPRESS_PAGE);
-                blen = qemu_put_compression_data(rs->f, p, TARGET_PAGE_SIZE,
-                                                 migrate_compress_level());
-                if (blen > 0) {
-                    ram_counters.transferred += bytes_xmit + blen;
-                    ram_counters.normal++;
-                    pages = 1;
-                } else {
-                    qemu_file_set_error(rs->f, blen);
-                    error_report("compressed data failed!");
-                }
-            }
             if (pages > 0) {
                 ram_release_pages(block->idstr, offset, pages);
+            } else {
+                /*
+                 * Make sure the first page is sent out before other pages.
+                 *
+                 * we post it as normal page as compression will take much
+                 * CPU resource.
+                 */
+                ram_counters.transferred += save_page_header(rs, rs->f, block,
+                                                offset | RAM_SAVE_FLAG_PAGE);
+                qemu_put_buffer_async(rs->f, p, TARGET_PAGE_SIZE,
+                                      migrate_release_ram() &
+                                      migration_in_postcopy());
+                ram_counters.transferred += TARGET_PAGE_SIZE;
+                ram_counters.normal++;
+                pages = 1;
             }
         } else {
             pages = save_zero_page(rs, block, offset);
