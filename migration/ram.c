@@ -1037,10 +1037,6 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
     p = block->host + offset;
     trace_ram_save_page(block->idstr, (uint64_t)offset, p);
 
-    if (control_save_page(rs, block, offset, &pages)) {
-        return pages;
-    }
-
     XBZRLE_cache_lock();
     pages = save_zero_page(rs, block, offset);
     if (pages > 0) {
@@ -1197,10 +1193,6 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
     ram_addr_t offset = pss->page << TARGET_PAGE_BITS;
 
     p = block->host + offset;
-
-    if (control_save_page(rs, block, offset, &pages)) {
-        return pages;
-    }
 
     /* When starting the process of a new block, the first page of
      * the block should be sent out before other pages in the same
@@ -1489,6 +1481,14 @@ err:
 static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
                                 bool last_stage)
 {
+    RAMBlock *block = pss->block;
+    ram_addr_t offset = pss->page << TARGET_PAGE_BITS;
+    int res;
+
+    if (control_save_page(rs, block, offset, &res)) {
+        return res;
+    }
+
     /*
      * If xbzrle is on, stop using the data compression after first
      * round of migration even if compression is enabled. In theory,
