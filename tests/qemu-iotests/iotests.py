@@ -553,7 +553,8 @@ def verify_quorum():
     if not supports_quorum():
         notrun('quorum support missing')
 
-def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[]):
+def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[],
+         unsupported_fmts=[]):
     '''Run tests'''
 
     global debug
@@ -568,7 +569,7 @@ def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[]):
 
     debug = '-d' in sys.argv
     verbosity = 1
-    verify_image_format(supported_fmts)
+    verify_image_format(supported_fmts, unsupported_fmts)
     verify_platform(supported_oses)
     verify_cache_mode(supported_cache_modes)
 
