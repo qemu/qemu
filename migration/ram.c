@@ -974,6 +974,44 @@ static void ram_release_pages(const char *rbname, uint64_t offset, int pages)
     ram_discard_range(rbname, offset, pages << TARGET_PAGE_BITS);
 }
 
+/*
+ * @pages: the number of pages written by the control path,
+ *        < 0 - error
+ *        > 0 - number of pages written
+ *
+ * Return true if the pages has been saved, otherwise false is returned.
+ */
+static bool control_save_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
+                              int *pages)
+{
+    uint64_t bytes_xmit = 0;
+    int ret;
+
+    *pages = -1;
+    ret = ram_control_save_page(rs->f, block->offset, offset, TARGET_PAGE_SIZE,
+                                &bytes_xmit);
+    if (ret == RAM_SAVE_CONTROL_NOT_SUPP) {
+        return false;
+    }
+
+    if (bytes_xmit) {
+        ram_counters.transferred += bytes_xmit;
+        *pages = 1;
+    }
+
+    if (ret == RAM_SAVE_CONTROL_DELAYED) {
+        return true;
+    }
+
+    if (bytes_xmit > 0) {
+        ram_counters.normal++;
+    } else if (bytes_xmit == 0) {
+        ram_counters.duplicate++;
+    }
+
+    return true;
+}
+
 /**
  * ram_save_page: send the given page to the stream
  *
@@ -990,56 +1028,36 @@ static void ram_release_pages(const char *rbname, uint64_t offset, int pages)
 static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
 {
     int pages = -1;
-    uint64_t bytes_xmit;
-    ram_addr_t current_addr;
     uint8_t *p;
-    int ret;
     bool send_async = true;
     RAMBlock *block = pss->block;
     ram_addr_t offset = pss->page << TARGET_PAGE_BITS;
+    ram_addr_t current_addr = block->offset + offset;
 
     p = block->host + offset;
     trace_ram_save_page(block->idstr, (uint64_t)offset, p);
 
-    /* In doubt sent page as normal */
-    bytes_xmit = 0;
-    ret = ram_control_save_page(rs->f, block->offset,
-                           offset, TARGET_PAGE_SIZE, &bytes_xmit);
-    if (bytes_xmit) {
-        ram_counters.transferred += bytes_xmit;
-        pages = 1;
+    if (control_save_page(rs, block, offset, &pages)) {
+        return pages;
     }
 
     XBZRLE_cache_lock();
-
-    current_addr = block->offset + offset;
-
-    if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
-        if (ret != RAM_SAVE_CONTROL_DELAYED) {
-            if (bytes_xmit > 0) {
-                ram_counters.normal++;
-            } else if (bytes_xmit == 0) {
-                ram_counters.duplicate++;
-            }
-        }
-    } else {
-        pages = save_zero_page(rs, block, offset);
-        if (pages > 0) {
-            /* Must let xbzrle know, otherwise a previous (now 0'd) cached
-             * page would be stale
+    pages = save_zero_page(rs, block, offset);
+    if (pages > 0) {
+        /* Must let xbzrle know, otherwise a previous (now 0'd) cached
+         * page would be stale
+         */
+        xbzrle_cache_zero_page(rs, current_addr);
+        ram_release_pages(block->idstr, offset, pages);
+    } else if (!rs->ram_bulk_stage &&
+               !migration_in_postcopy() && migrate_use_xbzrle()) {
+        pages = save_xbzrle_page(rs, &p, current_addr, block,
+                                 offset, last_stage);
+        if (!last_stage) {
+            /* Can't send this cached data async, since the cache page
+             * might get updated before it gets to the wire
              */
-            xbzrle_cache_zero_page(rs, current_addr);
-            ram_release_pages(block->idstr, offset, pages);
-        } else if (!rs->ram_bulk_stage &&
-                   !migration_in_postcopy() && migrate_use_xbzrle()) {
-            pages = save_xbzrle_page(rs, &p, current_addr, block,
-                                     offset, last_stage);
-            if (!last_stage) {
-                /* Can't send this cached data async, since the cache page
-                 * might get updated before it gets to the wire
-                 */
-                send_async = false;
-            }
+            send_async = false;
         }
     }
 
@@ -1174,63 +1192,49 @@ static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
                                     bool last_stage)
 {
     int pages = -1;
-    uint64_t bytes_xmit = 0;
     uint8_t *p;
-    int ret;
     RAMBlock *block = pss->block;
     ram_addr_t offset = pss->page << TARGET_PAGE_BITS;
 
     p = block->host + offset;
 
-    ret = ram_control_save_page(rs->f, block->offset,
-                                offset, TARGET_PAGE_SIZE, &bytes_xmit);
-    if (bytes_xmit) {
-        ram_counters.transferred += bytes_xmit;
-        pages = 1;
+    if (control_save_page(rs, block, offset, &pages)) {
+        return pages;
     }
-    if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
-        if (ret != RAM_SAVE_CONTROL_DELAYED) {
-            if (bytes_xmit > 0) {
-                ram_counters.normal++;
-            } else if (bytes_xmit == 0) {
-                ram_counters.duplicate++;
-            }
+
+    /* When starting the process of a new block, the first page of
+     * the block should be sent out before other pages in the same
+     * block, and all the pages in last block should have been sent
+     * out, keeping this order is important, because the 'cont' flag
+     * is used to avoid resending the block name.
+     */
+    if (block != rs->last_sent_block) {
+        flush_compressed_data(rs);
+        pages = save_zero_page(rs, block, offset);
+        if (pages > 0) {
+            ram_release_pages(block->idstr, offset, pages);
+        } else {
+            /*
+             * Make sure the first page is sent out before other pages.
+             *
+             * we post it as normal page as compression will take much
+             * CPU resource.
+             */
+            ram_counters.transferred += save_page_header(rs, rs->f, block,
+                                            offset | RAM_SAVE_FLAG_PAGE);
+            qemu_put_buffer_async(rs->f, p, TARGET_PAGE_SIZE,
+                                  migrate_release_ram() &
+                                  migration_in_postcopy());
+            ram_counters.transferred += TARGET_PAGE_SIZE;
+            ram_counters.normal++;
+            pages = 1;
         }
     } else {
-        /* When starting the process of a new block, the first page of
-         * the block should be sent out before other pages in the same
-         * block, and all the pages in last block should have been sent
-         * out, keeping this order is important, because the 'cont' flag
-         * is used to avoid resending the block name.
-         */
-        if (block != rs->last_sent_block) {
-            flush_compressed_data(rs);
-            pages = save_zero_page(rs, block, offset);
-            if (pages > 0) {
-                ram_release_pages(block->idstr, offset, pages);
-            } else {
-                /*
-                 * Make sure the first page is sent out before other pages.
-                 *
-                 * we post it as normal page as compression will take much
-                 * CPU resource.
-                 */
-                ram_counters.transferred += save_page_header(rs, rs->f, block,
-                                                offset | RAM_SAVE_FLAG_PAGE);
-                qemu_put_buffer_async(rs->f, p, TARGET_PAGE_SIZE,
-                                      migrate_release_ram() &
-                                      migration_in_postcopy());
-                ram_counters.transferred += TARGET_PAGE_SIZE;
-                ram_counters.normal++;
-                pages = 1;
-            }
+        pages = save_zero_page(rs, block, offset);
+        if (pages == -1) {
+            pages = compress_page_with_multi_thread(rs, block, offset);
         } else {
-            pages = save_zero_page(rs, block, offset);
-            if (pages == -1) {
-                pages = compress_page_with_multi_thread(rs, block, offset);
-            } else {
-                ram_release_pages(block->idstr, offset, pages);
-            }
+            ram_release_pages(block->idstr, offset, pages);
         }
     }
 
