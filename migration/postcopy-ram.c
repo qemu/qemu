@@ -754,6 +754,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
         }
     }
     trace_postcopy_ram_fault_thread_exit();
+    g_free(pfd);
     return NULL;
 }
 
