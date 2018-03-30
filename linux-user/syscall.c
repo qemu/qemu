@@ -6346,6 +6346,10 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
 
         ts = g_new0(TaskState, 1);
         init_task_state(ts);
+
+        /* Grab a mutex so that thread setup appears atomic.  */
+        pthread_mutex_lock(&clone_lock);
+
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
         /* Init regs that differ from the parent.  */
@@ -6363,9 +6367,6 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         if (flags & CLONE_SETTLS) {
             cpu_set_tls (new_env, newtls);
         }
-
-        /* Grab a mutex so that thread setup appears atomic.  */
-        pthread_mutex_lock(&clone_lock);
 
         memset(&info, 0, sizeof(info));
         pthread_mutex_init(&info.mutex, NULL);
