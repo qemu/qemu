@@ -1185,41 +1185,6 @@ static int compress_page_with_multi_thread(RAMState *rs, RAMBlock *block,
 }
 
 /**
- * ram_save_compressed_page: compress the given page and send it to the stream
- *
- * Returns the number of pages written.
- *
- * @rs: current RAM state
- * @block: block that contains the page we want to send
- * @offset: offset inside the block for the page
- * @last_stage: if we are at the completion stage
- */
-static int ram_save_compressed_page(RAMState *rs, PageSearchStatus *pss,
-                                    bool last_stage)
-{
-    int pages = -1;
-    uint8_t *p;
-    RAMBlock *block = pss->block;
-    ram_addr_t offset = pss->page << TARGET_PAGE_BITS;
-
-    p = block->host + offset;
-
-    if (block != rs->last_sent_block) {
-        /*
-         * Make sure the first page is sent out before other pages.
-         *
-         * we post it as normal page as compression will take much
-         * CPU resource.
-         */
-        pages = save_normal_page(rs, block, offset, p, true);
-    } else {
-        pages = compress_page_with_multi_thread(rs, block, offset);
-    }
-
-    return pages;
-}
-
-/**
  * find_dirty_block: find the next dirty page and update any state
  * associated with the search process.
  *
@@ -1518,8 +1483,14 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
         return res;
     }
 
-    if (save_page_use_compression(rs)) {
-        return ram_save_compressed_page(rs, pss, last_stage);
+    /*
+     * Make sure the first page is sent out before other pages.
+     *
+     * we post it as normal page as compression will take much
+     * CPU resource.
+     */
+    if (block == rs->last_sent_block && save_page_use_compression(rs)) {
+        res = compress_page_with_multi_thread(rs, block, offset);
     }
 
     return ram_save_page(rs, pss, last_stage);
