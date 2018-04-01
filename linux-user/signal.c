@@ -6367,7 +6367,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
                    &frame->retcode[1]);
         __put_user(INSN_CALLSYS, &frame->retcode[2]);
         /* imb() */
-        r26 = frame_addr;
+        r26 = frame_addr + offsetof(struct target_sigframe, retcode);
     }
 
     unlock_user_struct(frame, frame_addr, 1);
@@ -6424,7 +6424,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
                    &frame->retcode[1]);
         __put_user(INSN_CALLSYS, &frame->retcode[2]);
         /* imb(); */
-        r26 = frame_addr;
+        r26 = frame_addr + offsetof(struct target_sigframe, retcode);
     }
 
     if (err) {
