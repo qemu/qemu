@@ -2920,8 +2920,8 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     env->pc = ka->_sa_handler;
     env->npc = (env->pc + 4);
     /* 5. return to kernel instructions */
-    if (ka->sa_restorer) {
-        env->regwptr[UREG_I7] = ka->sa_restorer;
+    if (ka->ka_restorer) {
+        env->regwptr[UREG_I7] = ka->ka_restorer;
     } else {
         uint32_t val32;
 
