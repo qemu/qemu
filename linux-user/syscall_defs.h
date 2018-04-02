@@ -2565,6 +2565,7 @@ struct target_statfs64 {
 #define TARGET_O_CLOEXEC      0x400000
 #define TARGET___O_SYNC       0x800000
 #define TARGET_O_PATH        0x1000000
+#define TARGET___O_TMPFILE   0x2000000
 #endif
 
 /* <asm-generic/fcntl.h> values follow.  */
