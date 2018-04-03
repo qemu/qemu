@@ -9,7 +9,7 @@
  */
 
 #include "qemu/osdep.h"
-#include <cacard/vscard_common.h>
+#include <libcacard.h>
 #include "chardev/char-fe.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
