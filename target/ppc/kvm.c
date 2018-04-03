@@ -496,11 +496,7 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path)
 {
     Object *mem_obj = object_resolve_path(obj_path, NULL);
-    char *mempath = object_property_get_str(mem_obj, "mem-path", NULL);
-    long pagesize;
-
-    pagesize = qemu_mempath_getpagesize(mempath);
-    g_free(mempath);
+    long pagesize = host_memory_backend_pagesize(MEMORY_BACKEND(mem_obj));
 
     return pagesize >= max_cpu_page_size;
 }
