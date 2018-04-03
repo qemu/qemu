@@ -6346,6 +6346,10 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
 
         ts = g_new0(TaskState, 1);
         init_task_state(ts);
+
+        /* Grab a mutex so that thread setup appears atomic.  */
+        pthread_mutex_lock(&clone_lock);
+
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
         /* Init regs that differ from the parent.  */
@@ -6363,9 +6367,6 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         if (flags & CLONE_SETTLS) {
             cpu_set_tls (new_env, newtls);
         }
-
-        /* Grab a mutex so that thread setup appears atomic.  */
-        pthread_mutex_lock(&clone_lock);
 
         memset(&info, 0, sizeof(info));
         pthread_mutex_init(&info.mutex, NULL);
@@ -11508,7 +11509,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
 #ifdef TARGET_NR_fadvise64_64
     case TARGET_NR_fadvise64_64:
-#if defined(TARGET_PPC)
+#if defined(TARGET_PPC) || defined(TARGET_XTENSA)
         /* 6 args: fd, advice, offset (high, low), len (high, low) */
         ret = arg2;
         arg2 = arg3;
@@ -11877,13 +11878,25 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         goto unimplemented_nowarn;
 #endif
 
+#ifdef TARGET_NR_clock_settime
+    case TARGET_NR_clock_settime:
+    {
+        struct timespec ts;
+
+        ret = target_to_host_timespec(&ts, arg2);
+        if (!is_error(ret)) {
+            ret = get_errno(clock_settime(arg1, &ts));
+        }
+        break;
+    }
+#endif
 #ifdef TARGET_NR_clock_gettime
     case TARGET_NR_clock_gettime:
     {
         struct timespec ts;
         ret = get_errno(clock_gettime(arg1, &ts));
         if (!is_error(ret)) {
-            host_to_target_timespec(arg2, &ts);
+            ret = host_to_target_timespec(arg2, &ts);
         }
         break;
     }
@@ -12091,15 +12104,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             struct mq_attr posix_mq_attr_in, posix_mq_attr_out;
             ret = 0;
-            if (arg3 != 0) {
-                ret = mq_getattr(arg1, &posix_mq_attr_out);
-                copy_to_user_mq_attr(arg3, &posix_mq_attr_out);
-            }
             if (arg2 != 0) {
                 copy_from_user_mq_attr(&posix_mq_attr_in, arg2);
-                ret |= mq_setattr(arg1, &posix_mq_attr_in, &posix_mq_attr_out);
+                ret = get_errno(mq_setattr(arg1, &posix_mq_attr_in,
+                                           &posix_mq_attr_out));
+            } else if (arg3 != 0) {
+                ret = get_errno(mq_getattr(arg1, &posix_mq_attr_out));
             }
-
+            if (ret == 0 && arg3 != 0) {
+                copy_to_user_mq_attr(arg3, &posix_mq_attr_out);
+            }
         }
         break;
 #endif
