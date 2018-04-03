@@ -1337,6 +1337,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             ret = true;
         } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
                    !(env->hflags2 & HF2_NMI_MASK)) {
+            cpu_svm_check_intercept_param(env, SVM_EXIT_NMI, 0, 0);
             cs->interrupt_request &= ~CPU_INTERRUPT_NMI;
             env->hflags2 |= HF2_NMI_MASK;
             do_interrupt_x86_hardirq(env, EXCP02_NMI, 1);
