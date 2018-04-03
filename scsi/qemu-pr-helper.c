@@ -924,6 +924,7 @@ int main(int argc, char **argv)
     Error *local_err = NULL;
     char *trace_file = NULL;
     bool daemonize = false;
+    bool pidfile_specified = false;
     unsigned socket_activation;
 
     struct sigaction sa_sigterm;
@@ -954,6 +955,7 @@ int main(int argc, char **argv)
         case 'f':
             g_free(pidfile);
             pidfile = g_strdup(optarg);
+            pidfile_specified = true;
             break;
 #ifdef CONFIG_LIBCAP
         case 'u': {
@@ -1086,8 +1088,10 @@ int main(int argc, char **argv)
             error_report("Failed to daemonize: %s", strerror(errno));
             exit(EXIT_FAILURE);
         }
-        write_pidfile();
     }
+
+    if (daemonize || pidfile_specified)
+        write_pidfile();
 
 #ifdef CONFIG_LIBCAP
     if (drop_privileges() < 0) {
