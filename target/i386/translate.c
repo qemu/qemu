@@ -7444,8 +7444,9 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 break;
             }
             gen_update_cc_op(s);
-            gen_jmp_im(pc_start - s->cs_base);
             gen_helper_stgi(cpu_env);
+            gen_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
             break;
 
         case 0xdd: /* CLGI */
