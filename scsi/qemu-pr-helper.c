@@ -1081,13 +1081,6 @@ int main(int argc, char **argv)
                                          accept_client,
                                          NULL, NULL);
 
-#ifdef CONFIG_LIBCAP
-    if (drop_privileges() < 0) {
-        error_report("Failed to drop privileges: %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-#endif
-
     if (daemonize) {
         if (daemon(0, 0) < 0) {
             error_report("Failed to daemonize: %s", strerror(errno));
@@ -1095,6 +1088,13 @@ int main(int argc, char **argv)
         }
         write_pidfile();
     }
+
+#ifdef CONFIG_LIBCAP
+    if (drop_privileges() < 0) {
+        error_report("Failed to drop privileges: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+#endif
 
     state = RUNNING;
     do {
