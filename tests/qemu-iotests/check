@@ -538,8 +538,8 @@ if [ -z "$QEMU_PROG" ]
 then
     if [ -x "$build_iotests/qemu" ]; then
         export QEMU_PROG="$build_iotests/qemu"
-    elif [ -x "$build_root/$arch-softmmu/qemu-system-$arch" ]; then
-        export QEMU_PROG="$build_root/$arch-softmmu/qemu-system-$arch"
+    elif [ -x "$build_root/${qemu_arch}-softmmu/qemu-system-${qemu_arch}" ]; then
+        export QEMU_PROG="$build_root/${qemu_arch}-softmmu/qemu-system-${qemu_arch}"
     else
         pushd "$build_root" > /dev/null
         for binary in *-softmmu/qemu-system-*
