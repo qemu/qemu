@@ -32,8 +32,6 @@
 #include "ui/sdl2.h"
 #include "sysemu/sysemu.h"
 
-#include <epoxy/gl.h>
-
 static void sdl2_set_scanout_mode(struct sdl2_console *scon, bool scanout)
 {
     if (scon->scanout_mode == scanout) {
