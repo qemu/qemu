@@ -233,6 +233,11 @@ static void test_drv_cb_drain_subtree(void)
     test_drv_cb_common(BDRV_SUBTREE_DRAIN, true);
 }
 
+static void test_drv_cb_co_drain_all(void)
+{
+    call_in_coroutine(test_drv_cb_drain_all);
+}
+
 static void test_drv_cb_co_drain(void)
 {
     call_in_coroutine(test_drv_cb_drain);
@@ -287,6 +292,11 @@ static void test_quiesce_drain(void)
 static void test_quiesce_drain_subtree(void)
 {
     test_quiesce_common(BDRV_SUBTREE_DRAIN, true);
+}
+
+static void test_quiesce_co_drain_all(void)
+{
+    call_in_coroutine(test_quiesce_drain_all);
 }
 
 static void test_quiesce_co_drain(void)
@@ -800,7 +810,8 @@ int main(int argc, char **argv)
     g_test_add_func("/bdrv-drain/driver-cb/drain_subtree",
                     test_drv_cb_drain_subtree);
 
-    // XXX bdrv_drain_all() doesn't work in coroutine context
+    g_test_add_func("/bdrv-drain/driver-cb/co/drain_all",
+                    test_drv_cb_co_drain_all);
     g_test_add_func("/bdrv-drain/driver-cb/co/drain", test_drv_cb_co_drain);
     g_test_add_func("/bdrv-drain/driver-cb/co/drain_subtree",
                     test_drv_cb_co_drain_subtree);
@@ -811,7 +822,8 @@ int main(int argc, char **argv)
     g_test_add_func("/bdrv-drain/quiesce/drain_subtree",
                     test_quiesce_drain_subtree);
 
-    // XXX bdrv_drain_all() doesn't work in coroutine context
+    g_test_add_func("/bdrv-drain/quiesce/co/drain_all",
+                    test_quiesce_co_drain_all);
     g_test_add_func("/bdrv-drain/quiesce/co/drain", test_quiesce_co_drain);
     g_test_add_func("/bdrv-drain/quiesce/co/drain_subtree",
                     test_quiesce_co_drain_subtree);
