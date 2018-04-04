@@ -548,12 +548,11 @@ static void vfio_listener_region_add(MemoryListener *listener,
         hwaddr pgmask = (1ULL << ctz64(hostwin->iova_pgsizes)) - 1;
 
         if ((iova & pgmask) || (int128_get64(llsize) & pgmask)) {
-            error_report("Region 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx
-                         " is not aligned to 0x%"HWADDR_PRIx
-                         " and cannot be mapped for DMA",
-                         section->offset_within_region,
-                         int128_getlo(section->size),
-                         pgmask + 1);
+            trace_vfio_listener_region_add_no_dma_map(
+                memory_region_name(section->mr),
+                section->offset_within_address_space,
+                int128_getlo(section->size),
+                pgmask + 1);
             return;
         }
     }
