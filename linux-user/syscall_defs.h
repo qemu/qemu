@@ -435,6 +435,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SA_NODEFER      0x20u
 #define TARGET_SA_RESETHAND    4u
 #define TARGET_ARCH_HAS_SA_RESTORER 1
+#define TARGET_ARCH_HAS_KA_RESTORER 1
 #elif defined(TARGET_MIPS)
 #define TARGET_SA_NOCLDSTOP	0x00000001
 #define TARGET_SA_NOCLDWAIT	0x00010000
@@ -742,6 +743,9 @@ struct target_sigaction {
         abi_ulong sa_restorer;
 #endif
         target_sigset_t sa_mask;
+#ifdef TARGET_ARCH_HAS_KA_RESTORER
+        abi_ulong ka_restorer;
+#endif
 };
 #endif
 
@@ -2561,6 +2565,7 @@ struct target_statfs64 {
 #define TARGET_O_CLOEXEC      0x400000
 #define TARGET___O_SYNC       0x800000
 #define TARGET_O_PATH        0x1000000
+#define TARGET___O_TMPFILE   0x2000000
 #endif
 
 /* <asm-generic/fcntl.h> values follow.  */

@@ -8700,6 +8700,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 target_siginitset(&act.sa_mask, old_act->sa_mask);
                 act.sa_flags = old_act->sa_flags;
                 act.sa_restorer = old_act->sa_restorer;
+#ifdef TARGET_ARCH_HAS_KA_RESTORER
+                act.ka_restorer = 0;
+#endif
                 unlock_user_struct(old_act, arg2, 0);
                 pact = &act;
             } else {
@@ -8774,8 +8777,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 if (!lock_user_struct(VERIFY_READ, act, arg2, 1)) {
                     goto efault;
                 }
-#ifdef TARGET_SPARC
-                act->sa_restorer = restorer;
+#ifdef TARGET_ARCH_HAS_KA_RESTORER
+                act->ka_restorer = restorer;
 #endif
             } else {
                 act = NULL;
