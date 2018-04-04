@@ -32,6 +32,11 @@ _filter_generated_node_ids()
      sed -re 's/\#block[0-9]{3,}/NODE_NAME/'
 }
 
+_filter_qom_path()
+{
+    sed -e 's#\(Attached to: *\) /.*#\1 PATH#'
+}
+
 # replace occurrences of the actual TEST_DIR value with TEST_DIR
 _filter_testdir()
 {

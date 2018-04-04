@@ -117,19 +117,9 @@ Testing: -drive if=ide,media=cdrom
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) quit
 
-Testing: -drive if=scsi,media=cdrom
-QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive if=scsi,media=cdrom: warning: bus=0,unit=0 is deprecated with this machine type
-quit
-
 Testing: -drive if=ide
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: Initialization of device ide-hd failed: Device needs media, but drive is empty
-
-Testing: -drive if=scsi
-QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive if=scsi: warning: bus=0,unit=0 is deprecated with this machine type
-QEMU_PROG: -drive if=scsi: Device needs media, but drive is empty
 
 Testing: -drive if=virtio
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -170,19 +160,9 @@ Testing: -drive file=TEST_DIR/t.qcow2,if=ide,media=cdrom,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) quit
 
-Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,media=cdrom,readonly=on
-QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=scsi,media=cdrom,readonly=on: warning: bus=0,unit=0 is deprecated with this machine type
-quit
-
 Testing: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: Initialization of device ide-hd failed: Block node is read-only
-
-Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,readonly=on
-QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=scsi,readonly=on: warning: bus=0,unit=0 is deprecated with this machine type
-quit
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
