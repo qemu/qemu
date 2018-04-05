@@ -8940,14 +8940,10 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
     /* We should be followed by a CPU reset but update the active value
      * just in case...
      */
-    env->spr[SPR_LPCR] = lpcr->default_value;
+    ppc_store_lpcr(cpu, lpcr->default_value);
 
     /* Set a full AMOR so guest can use the AMR as it sees fit */
     env->spr[SPR_AMOR] = amor->default_value = 0xffffffffffffffffull;
-
-    /* Update some env bits based on new LPCR value */
-    ppc_hash64_update_rmls(cpu);
-    ppc_hash64_update_vrma(cpu);
 
     /* Tell KVM that we're in PAPR mode */
     if (kvm_enabled()) {
