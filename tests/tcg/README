@@ -3,17 +3,6 @@ regression testing. Tests are either multi-arch, meaning they can be
 built for all guest architectures that support linux-user executable,
 or they are architecture specific.
 
-
-
-MIPS
-====
-
-hello-mips
-----------
-
-hello-mipsel
-------------
-
 CRIS
 ====
 The testsuite for CRIS is in tests/tcg/cris.  You can run it
