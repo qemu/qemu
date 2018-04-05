@@ -54,27 +54,16 @@ static void spapr_cpu_reset(void *opaque)
      * Clearing VPM0 will also cause us to use RMOR in mmu-hash64.c for
      * real mode accesses, which thankfully defaults to 0 and isn't
      * accessible in guest mode.
+     *
+     * Disable Power-saving mode Exit Cause exceptions for the CPU, so
+     * we don't get spurious wakups before an RTAS start-cpu call.
      */
-    lpcr &= ~(LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_KBV);
+    lpcr &= ~(LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_KBV | pcc->lpcr_pm);
     lpcr |= LPCR_LPES0 | LPCR_LPES1;
 
     /* Set RMLS to the max (ie, 16G) */
     lpcr &= ~LPCR_RMLS;
     lpcr |= 1ull << LPCR_RMLS_SHIFT;
-
-    /* Only enable Power-saving mode Exit Cause exceptions on the boot
-     * CPU. The RTAS command start-cpu will enable them on secondaries.
-     */
-    if (cs == first_cpu) {
-        lpcr |= pcc->lpcr_pm;
-    }
-
-    /* Disable Power-saving mode Exit Cause exceptions for the CPU.
-     * This can cause issues when rebooting the guest if a secondary
-     * is awaken */
-    if (cs != first_cpu) {
-        lpcr &= ~pcc->lpcr_pm;
-    }
 
     ppc_store_lpcr(cpu, lpcr);
 
@@ -84,11 +73,14 @@ static void spapr_cpu_reset(void *opaque)
 
 void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip, target_ulong r3)
 {
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
 
     env->nip = nip;
     env->gpr[3] = r3;
     CPU(cpu)->halted = 0;
+    /* Enable Power-saving mode Exit Cause exceptions */
+    ppc_store_lpcr(cpu, env->spr[SPR_LPCR] | pcc->lpcr_pm);
 }
 
 static void spapr_cpu_destroy(PowerPCCPU *cpu)
