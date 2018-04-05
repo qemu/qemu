@@ -69,7 +69,7 @@ int mb_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
 
     /* Translate if the MMU is available and enabled.  */
     if (mmu_available && (env->sregs[SR_MSR] & MSR_VM)) {
-        target_ulong vaddr, paddr;
+        uint32_t vaddr, paddr;
         struct microblaze_mmu_lookup lu;
 
         hit = mmu_translate(&env->mmu, &lu, address, rw, mmu_idx);
