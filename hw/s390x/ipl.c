@@ -279,44 +279,52 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
     *timeout = cpu_to_be32(splash_time);
 }
 
-static bool s390_gen_initial_iplb(S390IPLState *ipl)
+static CcwDevice *s390_get_ccw_device(DeviceState *dev_st)
 {
-    DeviceState *dev_st;
+    CcwDevice *ccw_dev = NULL;
 
-    dev_st = get_boot_device(0);
     if (dev_st) {
         VirtioCcwDevice *virtio_ccw_dev = (VirtioCcwDevice *)
             object_dynamic_cast(OBJECT(qdev_get_parent_bus(dev_st)->parent),
-                TYPE_VIRTIO_CCW_DEVICE);
+                                TYPE_VIRTIO_CCW_DEVICE);
+        if (virtio_ccw_dev) {
+            ccw_dev = CCW_DEVICE(virtio_ccw_dev);
+        } else {
+            SCSIDevice *sd = (SCSIDevice *)
+                object_dynamic_cast(OBJECT(dev_st),
+                                    TYPE_SCSI_DEVICE);
+            if (sd) {
+                SCSIBus *bus = scsi_bus_from_device(sd);
+                VirtIOSCSI *vdev = container_of(bus, VirtIOSCSI, bus);
+                VirtIOSCSICcw *scsi_ccw = container_of(vdev, VirtIOSCSICcw,
+                                                       vdev);
+
+                ccw_dev = (CcwDevice *)object_dynamic_cast(OBJECT(scsi_ccw),
+                                                           TYPE_CCW_DEVICE);
+            }
+        }
+    }
+    return ccw_dev;
+}
+
+static bool s390_gen_initial_iplb(S390IPLState *ipl)
+{
+    DeviceState *dev_st;
+    CcwDevice *ccw_dev = NULL;
+
+    dev_st = get_boot_device(0);
+    if (dev_st) {
+        ccw_dev = s390_get_ccw_device(dev_st);
+    }
+
+    /*
+     * Currently allow IPL only from CCW devices.
+     */
+    if (ccw_dev) {
         SCSIDevice *sd = (SCSIDevice *) object_dynamic_cast(OBJECT(dev_st),
                                                             TYPE_SCSI_DEVICE);
-        VirtIONet *vn = (VirtIONet *) object_dynamic_cast(OBJECT(dev_st),
-                                                          TYPE_VIRTIO_NET);
 
-        if (vn) {
-            ipl->netboot = true;
-        }
-        if (virtio_ccw_dev) {
-            CcwDevice *ccw_dev = CCW_DEVICE(virtio_ccw_dev);
-
-            ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_CCW_LEN);
-            ipl->iplb.blk0_len =
-                cpu_to_be32(S390_IPLB_MIN_CCW_LEN - S390_IPLB_HEADER_LEN);
-            ipl->iplb.pbt = S390_IPL_TYPE_CCW;
-            ipl->iplb.ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
-            ipl->iplb.ccw.ssid = ccw_dev->sch->ssid & 3;
-        } else if (sd) {
-            SCSIBus *bus = scsi_bus_from_device(sd);
-            VirtIOSCSI *vdev = container_of(bus, VirtIOSCSI, bus);
-            VirtIOSCSICcw *scsi_ccw = container_of(vdev, VirtIOSCSICcw, vdev);
-            CcwDevice *ccw_dev;
-
-            ccw_dev = (CcwDevice *)object_dynamic_cast(OBJECT(scsi_ccw),
-                                                       TYPE_CCW_DEVICE);
-            if (!ccw_dev) {       /* It might be a PCI device instead */
-                return false;
-            }
-
+        if (sd) {
             ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_QEMU_SCSI_LEN);
             ipl->iplb.blk0_len =
                 cpu_to_be32(S390_IPLB_MIN_QEMU_SCSI_LEN - S390_IPLB_HEADER_LEN);
@@ -327,12 +335,25 @@ static bool s390_gen_initial_iplb(S390IPLState *ipl)
             ipl->iplb.scsi.devno = cpu_to_be16(ccw_dev->sch->devno);
             ipl->iplb.scsi.ssid = ccw_dev->sch->ssid & 3;
         } else {
-            return false; /* unknown device */
+            VirtIONet *vn = (VirtIONet *) object_dynamic_cast(OBJECT(dev_st),
+                                                              TYPE_VIRTIO_NET);
+
+            ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_CCW_LEN);
+            ipl->iplb.blk0_len =
+                cpu_to_be32(S390_IPLB_MIN_CCW_LEN - S390_IPLB_HEADER_LEN);
+            ipl->iplb.pbt = S390_IPL_TYPE_CCW;
+            ipl->iplb.ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
+            ipl->iplb.ccw.ssid = ccw_dev->sch->ssid & 3;
+
+            if (vn) {
+                ipl->netboot = true;
+            }
         }
 
         if (!s390_ipl_set_loadparm(ipl->iplb.loadparm)) {
             ipl->iplb.flags |= DIAG308_FLAGS_LP_VALID;
         }
+
         return true;
     }
 
