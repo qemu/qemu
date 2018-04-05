@@ -303,6 +303,10 @@ F: target/tricore/
 F: hw/tricore/
 F: include/hw/tricore/
 
+Multiarch Linux User Tests
+M: Alex Bennée <alex.bennee@linaro.org>
+F: tests/tcg/multiarch/
+
 Guest CPU Cores (KVM):
 ----------------------
 
