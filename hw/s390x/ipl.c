@@ -427,7 +427,8 @@ unref_mr:
     return img_size;
 }
 
-static bool is_virtio_net_device(IplParameterBlock *iplb)
+static bool is_virtio_ccw_device_of_type(IplParameterBlock *iplb,
+                                         int virtio_id)
 {
     uint8_t cssid;
     uint8_t ssid;
@@ -447,11 +448,21 @@ static bool is_virtio_net_device(IplParameterBlock *iplb)
             sch = css_find_subch(1, cssid, ssid, schid);
 
             if (sch && sch->devno == devno) {
-                return sch->id.cu_model == VIRTIO_ID_NET;
+                return sch->id.cu_model == virtio_id;
             }
         }
     }
     return false;
+}
+
+static bool is_virtio_net_device(IplParameterBlock *iplb)
+{
+    return is_virtio_ccw_device_of_type(iplb, VIRTIO_ID_NET);
+}
+
+static bool is_virtio_scsi_device(IplParameterBlock *iplb)
+{
+    return is_virtio_ccw_device_of_type(iplb, VIRTIO_ID_SCSI);
 }
 
 void s390_ipl_update_diag308(IplParameterBlock *iplb)
@@ -478,6 +489,22 @@ void s390_reipl_request(void)
     S390IPLState *ipl = get_ipl_device();
 
     ipl->reipl_requested = true;
+    if (ipl->iplb_valid &&
+        !ipl->netboot &&
+        ipl->iplb.pbt == S390_IPL_TYPE_CCW &&
+        is_virtio_scsi_device(&ipl->iplb)) {
+        CcwDevice *ccw_dev = s390_get_ccw_device(get_boot_device(0));
+
+        if (ccw_dev &&
+            cpu_to_be16(ccw_dev->sch->devno) == ipl->iplb.ccw.devno &&
+            (ccw_dev->sch->ssid & 3) == ipl->iplb.ccw.ssid) {
+            /*
+             * this is the original boot device's SCSI
+             * so restore IPL parameter info from it
+             */
+            ipl->iplb_valid = s390_gen_initial_iplb(ipl);
+        }
+    }
     qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
 }
 
