@@ -97,16 +97,27 @@ extern QemuIplParameters qipl;
 #define S390_IPL_TYPE_CCW 0x02
 #define S390_IPL_TYPE_QEMU_SCSI 0xff
 
-static inline bool store_iplb(IplParameterBlock *iplb)
+static inline bool manage_iplb(IplParameterBlock *iplb, bool store)
 {
     register unsigned long addr asm("0") = (unsigned long) iplb;
     register unsigned long rc asm("1") = 0;
 
     asm volatile ("diag %0,%2,0x308\n"
                   : "+d" (addr), "+d" (rc)
-                  : "d" (6)
+                  : "d" (store ? 6 : 5)
                   : "memory", "cc");
     return rc == 0x01;
+}
+
+
+static inline bool store_iplb(IplParameterBlock *iplb)
+{
+    return manage_iplb(iplb, true);
+}
+
+static inline bool set_iplb(IplParameterBlock *iplb)
+{
+    return manage_iplb(iplb, false);
 }
 
 #endif /* IPLB_H */
