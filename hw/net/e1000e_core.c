@@ -2023,6 +2023,7 @@ e1000e_msix_notify_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
     effective_eiac = core->mac[EIAC] & cause;
 
     core->mac[ICR] &= ~effective_eiac;
+    core->msi_causes_pending &= ~effective_eiac;
 
     if (!(core->mac[CTRL_EXT] & E1000_CTRL_EXT_IAME)) {
         core->mac[IMS] &= ~effective_eiac;
@@ -2119,6 +2120,13 @@ e1000e_send_msi(E1000ECore *core, bool msix)
 {
     uint32_t causes = core->mac[ICR] & core->mac[IMS] & ~E1000_ICR_ASSERTED;
 
+    core->msi_causes_pending &= causes;
+    causes ^= core->msi_causes_pending;
+    if (causes == 0) {
+        return;
+    }
+    core->msi_causes_pending |= causes;
+
     if (msix) {
         e1000e_msix_notify(core, causes);
     } else {
@@ -2156,6 +2164,9 @@ e1000e_update_interrupt_state(E1000ECore *core)
     core->mac[ICS] = core->mac[ICR];
 
     interrupts_pending = (core->mac[IMS] & core->mac[ICR]) ? true : false;
+    if (!interrupts_pending) {
+        core->msi_causes_pending = 0;
+    }
 
     trace_e1000e_irq_pending_interrupts(core->mac[ICR] & core->mac[IMS],
                                         core->mac[ICR], core->mac[IMS]);
