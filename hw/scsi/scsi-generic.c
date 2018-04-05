@@ -474,6 +474,7 @@ static void scsi_generic_reset(DeviceState *dev)
 {
     SCSIDevice *s = SCSI_DEVICE(dev);
 
+    s->scsi_version = s->default_scsi_version;
     scsi_device_purge_requests(s, SENSE_CODE(RESET));
 }
 
