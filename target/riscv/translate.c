@@ -1390,6 +1390,7 @@ static void gen_system(CPURISCVState *env, DisasContext *ctx, uint32_t opc,
         break;
     default:
         tcg_gen_movi_tl(imm_rs1, rs1);
+        gen_io_start();
         switch (opc) {
         case OPC_RISC_CSRRW:
             gen_helper_csrrw(dest, cpu_env, source1, csr_store);
@@ -1413,6 +1414,7 @@ static void gen_system(CPURISCVState *env, DisasContext *ctx, uint32_t opc,
             gen_exception_illegal(ctx);
             return;
         }
+        gen_io_end();
         gen_set_gpr(rd, dest);
         /* end tb since we may be changing priv modes, to get mmu_index right */
         tcg_gen_movi_tl(cpu_pc, ctx->next_pc);
