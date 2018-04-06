@@ -52,10 +52,28 @@ _in_fd=4
 # response is not echoed out.
 # If $mismatch_only is set, only non-matching responses will
 # be echoed.
+#
+# If $success_or_failure is set, the meaning of the arguments is
+# changed as follows:
+# $2: A string to search for in the response; if found, this indicates
+#     success and ${QEMU_STATUS[$1]} is set to 0.
+# $3: A string to search for in the response; if found, this indicates
+#     failure and the test is either aborted (if $qemu_error_no_exit
+#     is not set) or ${QEMU_STATUS[$1]} is set to -1 (otherwise).
 function _timed_wait_for()
 {
     local h=${1}
     shift
+
+    if [ -z "${success_or_failure}" ]; then
+        success_match=${*}
+        failure_match=
+    else
+        success_match=${1}
+        failure_match=${2}
+    fi
+
+    timeout=yes
 
     QEMU_STATUS[$h]=0
     while IFS= read -t ${QEMU_COMM_TIMEOUT} resp <&${QEMU_OUT[$h]}
@@ -64,10 +82,18 @@ function _timed_wait_for()
             echo "${resp}" | _filter_testdir | _filter_qemu \
                            | _filter_qemu_io | _filter_qmp | _filter_hmp
         fi
-        grep -q "${*}" < <(echo "${resp}")
+        if [ -n "${failure_match}" ]; then
+            grep -q "${failure_match}" < <(echo "${resp}")
+            if [ $? -eq 0 ]; then
+                timeout=
+                break
+            fi
+        fi
+        grep -q "${success_match}" < <(echo "${resp}")
         if [ $? -eq 0 ]; then
             return
-        elif [ -z "${silent}" ] && [ -n "${mismatch_only}" ]; then
+        fi
+        if [ -z "${silent}" ] && [ -n "${mismatch_only}" ]; then
             echo "${resp}" | _filter_testdir | _filter_qemu \
                            | _filter_qemu_io | _filter_qmp | _filter_hmp
         fi
@@ -75,8 +101,12 @@ function _timed_wait_for()
     done
     QEMU_STATUS[$h]=-1
     if [ -z "${qemu_error_no_exit}" ]; then
-        echo "Timeout waiting for ${*} on handle ${h}"
-        exit 1  # Timeout means the test failed
+        if [ -n "${timeout}" ]; then
+            echo "Timeout waiting for ${success_match} on handle ${h}"
+        else
+            echo "Wrong response matching ${failure_match} on handle ${h}"
+        fi
+        exit 1  # Timeout or wrong match mean the test failed
     fi
 }
 
@@ -96,6 +126,11 @@ function _timed_wait_for()
 # If $qemu_error_no_exit is set, then even if the expected response
 # is not seen, we will not exit.  $QEMU_STATUS[$1] will be set it -1 in
 # that case.
+#
+# If $success_or_failure is set, then the last two strings are the
+# strings the response will be scanned for.  The first of the two
+# indicates success, the latter indicates failure.  Failure is handled
+# like a timeout.
 function _send_qemu_cmd()
 {
     local h=${1}
@@ -109,14 +144,23 @@ function _send_qemu_cmd()
         use_error="no"
     fi
     # This array element extraction is done to accommodate pathnames with spaces
-    cmd=${@: 1:${#@}-1}
-    shift $(($# - 1))
+    if [ -z "${success_or_failure}" ]; then
+        cmd=${@: 1:${#@}-1}
+        shift $(($# - 1))
+    else
+        cmd=${@: 1:${#@}-2}
+        shift $(($# - 2))
+    fi
 
     while [ ${count} -gt 0 ]
     do
         echo "${cmd}" >&${QEMU_IN[${h}]}
         if [ -n "${1}" ]; then
-            qemu_error_no_exit=${use_error} _timed_wait_for ${h} "${1}"
+            if [ -z "${success_or_failure}" ]; then
+                qemu_error_no_exit=${use_error} _timed_wait_for ${h} "${1}"
+            else
+                qemu_error_no_exit=${use_error} _timed_wait_for ${h} "${1}" "${2}"
+            fi
             if [ ${QEMU_STATUS[$h]} -eq 0 ]; then
                 return
             fi
