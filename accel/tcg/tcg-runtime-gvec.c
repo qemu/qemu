@@ -705,7 +705,7 @@ void HELPER(NAME)(void *d, void *a, void *b, uint32_t desc)                \
 {                                                                          \
     intptr_t oprsz = simd_oprsz(desc);                                     \
     intptr_t i;                                                            \
-    for (i = 0; i < oprsz; i += sizeof(vec64)) {                           \
+    for (i = 0; i < oprsz; i += sizeof(TYPE)) {                            \
         *(TYPE *)(d + i) = DO_CMP0(*(TYPE *)(a + i) OP *(TYPE *)(b + i));  \
     }                                                                      \
     clear_high(d, oprsz, desc);                                            \
