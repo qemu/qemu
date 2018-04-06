@@ -75,6 +75,7 @@ static QCryptoTLSCreds *test_tls_creds_create(QCryptoTLSCredsEndpoint endpoint,
                      "server" : "client"),
         "dir", certdir,
         "verify-peer", "yes",
+        "priority", "NORMAL",
         /* We skip initial sanity checks here because we
          * want to make sure that problems are being
          * detected at the TLS session validation stage,
