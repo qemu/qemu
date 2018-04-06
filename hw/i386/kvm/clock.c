@@ -242,6 +242,19 @@ static const VMStateDescription kvmclock_reliable_get_clock = {
 };
 
 /*
+ * When migrating, assume the source has an unreliable
+ * KVM_GET_CLOCK unless told otherwise.
+ */
+static int kvmclock_pre_load(void *opaque)
+{
+    KVMClockState *s = opaque;
+
+    s->clock_is_reliable = false;
+
+    return 0;
+}
+
+/*
  * When migrating, read the clock just before migration,
  * so that the guest clock counts during the events
  * between:
@@ -268,6 +281,7 @@ static const VMStateDescription kvmclock_vmsd = {
     .name = "kvmclock",
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_load = kvmclock_pre_load,
     .pre_save = kvmclock_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(clock, KVMClockState),
