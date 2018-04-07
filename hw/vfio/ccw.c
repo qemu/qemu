@@ -357,11 +357,13 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
         if (strcmp(vbasedev->name, vcdev->vdev.name) == 0) {
             error_setg(&err, "vfio: subchannel %s has already been attached",
                        vcdev->vdev.name);
+            g_free(vcdev->vdev.name);
             goto out_device_err;
         }
     }
 
     if (vfio_get_device(group, cdev->mdevid, &vcdev->vdev, &err)) {
+        g_free(vcdev->vdev.name);
         goto out_device_err;
     }
 
