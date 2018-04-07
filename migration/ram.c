@@ -445,17 +445,45 @@ typedef struct {
     uint8_t id;
 } __attribute__((packed)) MultiFDInit_t;
 
-struct MultiFDSendParams {
+typedef struct {
+    /* this fields are not changed once the thread is created */
+    /* channel number */
     uint8_t id;
+    /* channel thread name */
     char *name;
+    /* channel thread id */
     QemuThread thread;
+    /* communication channel */
     QIOChannel *c;
+    /* sem where to wait for more work */
     QemuSemaphore sem;
+    /* this mutex protects the following parameters */
     QemuMutex mutex;
+    /* is this channel thread running */
     bool running;
+    /* should this thread finish */
     bool quit;
-};
-typedef struct MultiFDSendParams MultiFDSendParams;
+}  MultiFDSendParams;
+
+typedef struct {
+    /* this fields are not changed once the thread is created */
+    /* channel number */
+    uint8_t id;
+    /* channel thread name */
+    char *name;
+    /* channel thread id */
+    QemuThread thread;
+    /* communication channel */
+    QIOChannel *c;
+    /* sem where to wait for more work */
+    QemuSemaphore sem;
+    /* this mutex protects the following parameters */
+    QemuMutex mutex;
+    /* is this channel thread running */
+    bool running;
+    /* should this thread finish */
+    bool quit;
+} MultiFDRecvParams;
 
 static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
 {
@@ -656,18 +684,6 @@ int multifd_save_setup(void)
     }
     return 0;
 }
-
-struct MultiFDRecvParams {
-    uint8_t id;
-    char *name;
-    QemuThread thread;
-    QIOChannel *c;
-    QemuSemaphore sem;
-    QemuMutex mutex;
-    bool running;
-    bool quit;
-};
-typedef struct MultiFDRecvParams MultiFDRecvParams;
 
 struct {
     MultiFDRecvParams *params;
