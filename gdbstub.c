@@ -515,6 +515,7 @@ static inline int tohex(int v)
         return v - 10 + 'a';
 }
 
+/* writes 2*len+1 bytes in buf */
 static void memtohex(char *buf, const uint8_t *mem, int len)
 {
     int i, c;
@@ -970,8 +971,8 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     const char *p;
     uint32_t thread;
     int ch, reg_size, type, res;
-    char buf[MAX_PACKET_LENGTH];
     uint8_t mem_buf[MAX_PACKET_LENGTH];
+    char buf[sizeof(mem_buf) + 1 /* trailing NUL */];
     uint8_t *registers;
     target_ulong addr, len;
 
