@@ -225,11 +225,19 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
         qemu_log_mask(LOG_UNIMP, "CSR_MCYCLEH: write not implemented");
         goto do_illegal;
     case CSR_MUCOUNTEREN:
-        env->mucounteren = val_to_write;
-        break;
+        if (env->priv_ver <= PRIV_VERSION_1_09_1) {
+            env->scounteren = val_to_write;
+            break;
+        } else {
+            goto do_illegal;
+        }
     case CSR_MSCOUNTEREN:
-        env->mscounteren = val_to_write;
-        break;
+        if (env->priv_ver <= PRIV_VERSION_1_09_1) {
+            env->mcounteren = val_to_write;
+            break;
+        } else {
+            goto do_illegal;
+        }
     case CSR_SSTATUS: {
         target_ulong ms = env->mstatus;
         target_ulong mask = SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_UIE
@@ -286,8 +294,12 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
         env->stvec = val_to_write >> 2 << 2;
         break;
     case CSR_SCOUNTEREN:
-        env->scounteren = val_to_write;
-        break;
+        if (env->priv_ver >= PRIV_VERSION_1_10_0) {
+            env->scounteren = val_to_write;
+            break;
+        } else {
+            goto do_illegal;
+        }
     case CSR_SSCRATCH:
         env->sscratch = val_to_write;
         break;
@@ -308,8 +320,12 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
         env->mtvec = val_to_write >> 2 << 2;
         break;
     case CSR_MCOUNTEREN:
-        env->mcounteren = val_to_write;
-        break;
+        if (env->priv_ver >= PRIV_VERSION_1_10_0) {
+            env->mcounteren = val_to_write;
+            break;
+        } else {
+            goto do_illegal;
+        }
     case CSR_MSCRATCH:
         env->mscratch = val_to_write;
         break;
@@ -347,6 +363,8 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
     case CSR_PMPADDR15:
        pmpaddr_csr_write(env, csrno - CSR_PMPADDR0, val_to_write);
        break;
+#endif
+#if !defined(CONFIG_USER_ONLY)
     do_illegal:
 #endif
     default:
@@ -362,8 +380,8 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
 target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
 {
 #ifndef CONFIG_USER_ONLY
-    target_ulong ctr_en = env->priv == PRV_U ? env->mucounteren :
-                   env->priv == PRV_S ? env->mscounteren : -1U;
+    target_ulong ctr_en = env->priv == PRV_U ? env->scounteren :
+                          env->priv == PRV_S ? env->mcounteren : -1U;
 #else
     target_ulong ctr_en = -1;
 #endif
@@ -438,9 +456,17 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
 #endif
         break;
     case CSR_MUCOUNTEREN:
-        return env->mucounteren;
+        if (env->priv_ver <= PRIV_VERSION_1_09_1) {
+            return env->scounteren;
+        } else {
+            break; /* illegal instruction */
+        }
     case CSR_MSCOUNTEREN:
-        return env->mscounteren;
+        if (env->priv_ver <= PRIV_VERSION_1_09_1) {
+            return env->mcounteren;
+        } else {
+            break; /* illegal instruction */
+        }
     case CSR_SSTATUS: {
         target_ulong mask = SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_UIE
             | SSTATUS_UPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS
@@ -465,7 +491,11 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
     case CSR_STVEC:
         return env->stvec;
     case CSR_SCOUNTEREN:
-        return env->scounteren;
+        if (env->priv_ver >= PRIV_VERSION_1_10_0) {
+            return env->scounteren;
+        } else {
+            break; /* illegal instruction */
+        }
     case CSR_SCAUSE:
         return env->scause;
     case CSR_SATP: /* CSR_SPTBR */
@@ -510,7 +540,11 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
     case CSR_MTVEC:
         return env->mtvec;
     case CSR_MCOUNTEREN:
-        return env->mcounteren;
+        if (env->priv_ver >= PRIV_VERSION_1_10_0) {
+            return env->mcounteren;
+        } else {
+            break; /* illegal instruction */
+        }
     case CSR_MEDELEG:
         return env->medeleg;
     case CSR_MIDELEG:

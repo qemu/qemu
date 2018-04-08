@@ -151,10 +151,8 @@ struct CPURISCVState {
     target_ulong mcause;
     target_ulong mtval;  /* since: priv-1.10.0 */
 
-    uint32_t mucounteren;
-    uint32_t mscounteren;
-    target_ulong scounteren; /* since: priv-1.10.0 */
-    target_ulong mcounteren; /* since: priv-1.10.0 */
+    target_ulong scounteren;
+    target_ulong mcounteren;
 
     target_ulong sscratch;
     target_ulong mscratch;
