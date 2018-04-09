@@ -117,16 +117,26 @@ static void iothread_instance_finalize(Object *obj)
     IOThread *iothread = IOTHREAD(obj);
 
     iothread_stop(iothread);
+    /*
+     * Before glib2 2.33.10, there is a glib2 bug that GSource context
+     * pointer may not be cleared even if the context has already been
+     * destroyed (while it should).  Here let's free the AIO context
+     * earlier to bypass that glib bug.
+     *
+     * We can remove this comment after the minimum supported glib2
+     * version boosts to 2.33.10.  Before that, let's free the
+     * GSources first before destroying any GMainContext.
+     */
+    if (iothread->ctx) {
+        aio_context_unref(iothread->ctx);
+        iothread->ctx = NULL;
+    }
     if (iothread->worker_context) {
         g_main_context_unref(iothread->worker_context);
         iothread->worker_context = NULL;
     }
     qemu_cond_destroy(&iothread->init_done_cond);
     qemu_mutex_destroy(&iothread->init_done_lock);
-    if (!iothread->ctx) {
-        return;
-    }
-    aio_context_unref(iothread->ctx);
 }
 
 static void iothread_complete(UserCreatable *obj, Error **errp)
