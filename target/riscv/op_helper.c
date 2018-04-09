@@ -234,7 +234,10 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
         target_ulong ms = env->mstatus;
         target_ulong mask = SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_UIE
             | SSTATUS_UPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS
-            | SSTATUS_SUM | SSTATUS_MXR | SSTATUS_SD;
+            | SSTATUS_SUM | SSTATUS_SD;
+        if (env->priv_ver >= PRIV_VERSION_1_10_0) {
+            mask |= SSTATUS_MXR;
+        }
         ms = (ms & ~mask) | (val_to_write & mask);
         csr_write_helper(env, ms, CSR_MSTATUS);
         break;
@@ -441,7 +444,7 @@ target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno)
     case CSR_SSTATUS: {
         target_ulong mask = SSTATUS_SIE | SSTATUS_SPIE | SSTATUS_UIE
             | SSTATUS_UPIE | SSTATUS_SPP | SSTATUS_FS | SSTATUS_XS
-            | SSTATUS_SUM |  SSTATUS_SD;
+            | SSTATUS_SUM | SSTATUS_SD;
         if (env->priv_ver >= PRIV_VERSION_1_10_0) {
             mask |= SSTATUS_MXR;
         }
