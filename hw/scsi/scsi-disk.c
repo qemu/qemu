@@ -714,10 +714,12 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
                 /* min_io_size and opt_io_size can't be greater than
                  * max_io_sectors */
-                min_io_size =
-                    MIN_NON_ZERO(min_io_size, max_io_sectors);
-                opt_io_size =
-                    MIN_NON_ZERO(opt_io_size, max_io_sectors);
+                if (min_io_size) {
+                    min_io_size = MIN(min_io_size, max_io_sectors);
+                }
+                if (opt_io_size) {
+                    opt_io_size = MIN(opt_io_size, max_io_sectors);
+                }
             }
             /* required VPD size with unmap support */
             buflen = 0x40;
@@ -823,7 +825,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
      * block characteristics VPD page by default.  Not all of SPC-3
      * is actually implemented, but we're good enough.
      */
-    outbuf[2] = 5;
+    outbuf[2] = s->qdev.default_scsi_version;
     outbuf[3] = 2 | 0x10; /* Format 2, HiSup */
 
     if (buflen > 36) {
@@ -2191,7 +2193,11 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
     case READ_12:
     case READ_16:
         DPRINTF("Read (sector %" PRId64 ", count %u)\n", r->req.cmd.lba, len);
-        if (r->req.cmd.buf[1] & 0xe0) {
+        /* Protection information is not supported.  For SCSI versions 2 and
+         * older (as determined by snooping the guest's INQUIRY commands),
+         * there is no RD/WR/VRPROTECT, so skip this check in these versions.
+         */
+        if (s->qdev.scsi_version > 2 && (r->req.cmd.buf[1] & 0xe0)) {
             goto illegal_request;
         }
         if (!check_lba_range(s, r->req.cmd.lba, len)) {
@@ -2222,7 +2228,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
          * As far as DMA is concerned, we can treat it the same as a write;
          * scsi_block_do_sgio will send VERIFY commands.
          */
-        if (r->req.cmd.buf[1] & 0xe0) {
+        if (s->qdev.scsi_version > 2 && (r->req.cmd.buf[1] & 0xe0)) {
             goto illegal_request;
         }
         if (!check_lba_range(s, r->req.cmd.lba, len)) {
@@ -2268,6 +2274,8 @@ static void scsi_disk_reset(DeviceState *dev)
     /* reset tray statuses */
     s->tray_locked = 0;
     s->tray_open = 0;
+
+    s->qdev.scsi_version = s->qdev.default_scsi_version;
 }
 
 static void scsi_disk_resize_cb(void *opaque)
@@ -2812,6 +2820,8 @@ static bool scsi_block_is_passthrough(SCSIDiskState *s, uint8_t *buf)
 static int32_t scsi_block_dma_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIBlockReq *r = (SCSIBlockReq *)req;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+
     r->cmd = req->cmd.buf[0];
     switch (r->cmd >> 5) {
     case 0:
@@ -2837,8 +2847,11 @@ static int32_t scsi_block_dma_command(SCSIRequest *req, uint8_t *buf)
         abort();
     }
 
-    if (r->cdb1 & 0xe0) {
-        /* Protection information is not supported.  */
+    /* Protection information is not supported.  For SCSI versions 2 and
+     * older (as determined by snooping the guest's INQUIRY commands),
+     * there is no RD/WR/VRPROTECT, so skip this check in these versions.
+     */
+    if (s->qdev.scsi_version > 2 && (req->cmd.buf[1] & 0xe0)) {
         scsi_check_condition(&r->req, SENSE_CODE(INVALID_FIELD));
         return 0;
     }
@@ -2950,6 +2963,8 @@ static Property scsi_hd_properties[] = {
     DEFINE_PROP_UINT64("max_io_size", SCSIDiskState, max_io_size,
                        DEFAULT_MAX_IO_SIZE),
     DEFINE_PROP_UINT16("rotation_rate", SCSIDiskState, rotation_rate, 0),
+    DEFINE_PROP_INT32("scsi_version", SCSIDiskState, qdev.default_scsi_version,
+                      5),
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -2995,6 +3010,8 @@ static Property scsi_cd_properties[] = {
     DEFINE_PROP_UINT16("port_index", SCSIDiskState, port_index, 0),
     DEFINE_PROP_UINT64("max_io_size", SCSIDiskState, max_io_size,
                        DEFAULT_MAX_IO_SIZE),
+    DEFINE_PROP_INT32("scsi_version", SCSIDiskState, qdev.default_scsi_version,
+                      5),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -3023,6 +3040,8 @@ static Property scsi_block_properties[] = {
     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.blk),
     DEFINE_PROP_BOOL("share-rw", SCSIDiskState, qdev.conf.share_rw, false),
     DEFINE_PROP_UINT16("rotation_rate", SCSIDiskState, rotation_rate, 0),
+    DEFINE_PROP_INT32("scsi_version", SCSIDiskState, qdev.default_scsi_version,
+                      -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -3063,6 +3082,8 @@ static Property scsi_disk_properties[] = {
                        DEFAULT_MAX_UNMAP_SIZE),
     DEFINE_PROP_UINT64("max_io_size", SCSIDiskState, max_io_size,
                        DEFAULT_MAX_IO_SIZE),
+    DEFINE_PROP_INT32("scsi_version", SCSIDiskState, qdev.default_scsi_version,
+                      5),
     DEFINE_PROP_END_OF_LIST(),
 };
 

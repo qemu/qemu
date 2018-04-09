@@ -911,12 +911,62 @@ static int whpx_vcpu_run(CPUState *cpu)
             ret = 1;
             break;
 
+        case WHvRunVpExitReasonX64Cpuid: {
+            WHV_REGISTER_VALUE reg_values[5] = {0};
+            WHV_REGISTER_NAME reg_names[5];
+            UINT32 reg_count = 5;
+            UINT64 rip, rax, rcx, rdx, rbx;
+
+            rip = vcpu->exit_ctx.VpContext.Rip +
+                  vcpu->exit_ctx.VpContext.InstructionLength;
+            switch (vcpu->exit_ctx.CpuidAccess.Rax) {
+            case 1:
+                rax = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
+                /* Advertise that we are running on a hypervisor */
+                rcx =
+                    vcpu->exit_ctx.CpuidAccess.DefaultResultRcx |
+                    CPUID_EXT_HYPERVISOR;
+
+                rdx = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
+                rbx = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+                break;
+            default:
+                rax = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
+                rcx = vcpu->exit_ctx.CpuidAccess.DefaultResultRcx;
+                rdx = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
+                rbx = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+            }
+
+            reg_names[0] = WHvX64RegisterRip;
+            reg_names[1] = WHvX64RegisterRax;
+            reg_names[2] = WHvX64RegisterRcx;
+            reg_names[3] = WHvX64RegisterRdx;
+            reg_names[4] = WHvX64RegisterRbx;
+
+            reg_values[0].Reg64 = rip;
+            reg_values[1].Reg64 = rax;
+            reg_values[2].Reg64 = rcx;
+            reg_values[3].Reg64 = rdx;
+            reg_values[4].Reg64 = rbx;
+
+            hr = WHvSetVirtualProcessorRegisters(whpx->partition,
+                                                 cpu->cpu_index,
+                                                 reg_names,
+                                                 reg_count,
+                                                 reg_values);
+
+            if (FAILED(hr)) {
+                error_report("WHPX: Failed to set CpuidAccess state registers,"
+                             " hr=%08lx", hr);
+            }
+            ret = 0;
+            break;
+        }
         case WHvRunVpExitReasonNone:
         case WHvRunVpExitReasonUnrecoverableException:
         case WHvRunVpExitReasonInvalidVpRegisterValue:
         case WHvRunVpExitReasonUnsupportedFeature:
         case WHvRunVpExitReasonX64MsrAccess:
-        case WHvRunVpExitReasonX64Cpuid:
         case WHvRunVpExitReasonException:
         default:
             error_report("WHPX: Unexpected VP exit code %d",
@@ -1268,6 +1318,33 @@ static int whpx_accel_init(MachineState *ms)
     if (FAILED(hr)) {
         error_report("WHPX: Failed to set partition core count to %d,"
                      " hr=%08lx", smp_cores, hr);
+        ret = -EINVAL;
+        goto error;
+    }
+
+    memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
+    prop.ExtendedVmExits.X64CpuidExit = 1;
+    hr = WHvSetPartitionProperty(whpx->partition,
+                                 WHvPartitionPropertyCodeExtendedVmExits,
+                                 &prop,
+                                 sizeof(WHV_PARTITION_PROPERTY));
+
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to enable partition extended X64CpuidExit"
+                     " hr=%08lx", hr);
+        ret = -EINVAL;
+        goto error;
+    }
+
+    UINT32 cpuidExitList[] = {1};
+    hr = WHvSetPartitionProperty(whpx->partition,
+                                 WHvPartitionPropertyCodeCpuidExitList,
+                                 cpuidExitList,
+                                 RTL_NUMBER_OF(cpuidExitList) * sizeof(UINT32));
+
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to set partition CpuidExitList hr=%08lx",
+                     hr);
         ret = -EINVAL;
         goto error;
     }
