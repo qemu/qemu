@@ -2540,19 +2540,18 @@ fi
 ##########################################
 # GTK probe
 
-if test "$gtkabi" = ""; then
-    # The GTK ABI was not specified explicitly, so try whether 3.0 is available.
-    # Use 2.0 as a fallback if that is available.
-    if $pkg_config --exists "gtk+-3.0 >= 3.0.0"; then
-        gtkabi=3.0
-    elif $pkg_config --exists "gtk+-2.0 >= 2.18.0"; then
-        gtkabi=2.0
-    else
-        gtkabi=3.0
-    fi
-fi
-
 if test "$gtk" != "no"; then
+    if test "$gtkabi" = ""; then
+        # The GTK ABI was not specified explicitly, so try whether 3.0 is available.
+        # Use 2.0 as a fallback if that is available.
+        if $pkg_config --exists "gtk+-3.0 >= 3.0.0"; then
+            gtkabi=3.0
+        elif $pkg_config --exists "gtk+-2.0 >= 2.18.0"; then
+            gtkabi=2.0
+        else
+            gtkabi=3.0
+        fi
+    fi
     gtkpackage="gtk+-$gtkabi"
     gtkx11package="gtk+-x11-$gtkabi"
     if test "$gtkabi" = "3.0" ; then
