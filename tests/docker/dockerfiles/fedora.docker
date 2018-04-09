@@ -1,9 +1,16 @@
 FROM fedora:27
 ENV PACKAGES \
     ccache gettext git tar PyYAML sparse flex bison python3 bzip2 hostname \
-    glib2-devel pixman-devel zlib-devel SDL-devel libfdt-devel \
-    gcc gcc-c++ llvm clang make perl which bc findutils libaio-devel \
-    nettle-devel libasan libubsan \
+    gcc gcc-c++ llvm clang make perl which bc findutils glib2-devel \
+    libaio-devel pixman-devel zlib-devel libfdt-devel libasan libubsan \
+    bluez-libs-devel brlapi-devel bzip2-devel \
+    device-mapper-multipath-devel glusterfs-api-devel gnutls-devel \
+    gtk3-devel libattr-devel libcap-devel libcap-ng-devel libcurl-devel \
+    libjpeg-devel libpng-devel librbd-devel libssh2-devel libusbx-devel \
+    libxml2-devel lzo-devel ncurses-devel nettle-devel nss-devel \
+    numactl-devel SDL2-devel snappy-devel spice-server-devel \
+    systemtap-sdt-devel usbredir-devel virglrenderer-devel vte3-devel \
+    xen-devel \
     mingw32-pixman mingw32-glib2 mingw32-gmp mingw32-SDL mingw32-pkg-config \
     mingw32-gtk2 mingw32-gtk3 mingw32-gnutls mingw32-nettle mingw32-libtasn1 \
     mingw32-libjpeg-turbo mingw32-libpng mingw32-curl mingw32-libssh2 \
