@@ -168,7 +168,7 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
     }
 
     /* Now we have a real cpu fault.  */
-    cpu_restore_state(cpu, pc);
+    cpu_restore_state(cpu, pc, true);
 
     sigprocmask(SIG_SETMASK, old_set, NULL);
     cpu_loop_exit(cpu);

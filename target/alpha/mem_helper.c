@@ -34,7 +34,7 @@ void alpha_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     uint64_t pc;
     uint32_t insn;
 
-    cpu_restore_state(cs, retaddr);
+    cpu_restore_state(cs, retaddr, true);
 
     pc = env->pc;
     insn = cpu_ldl_code(env, pc);
@@ -56,13 +56,11 @@ void alpha_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     AlphaCPU *cpu = ALPHA_CPU(cs);
     CPUAlphaState *env = &cpu->env;
 
-    cpu_restore_state(cs, retaddr);
-
     env->trap_arg0 = addr;
     env->trap_arg1 = access_type == MMU_DATA_STORE ? 1 : 0;
     cs->exception_index = EXCP_MCHK;
     env->error_code = 0;
-    cpu_loop_exit(cs);
+    cpu_loop_exit_restore(cs, retaddr);
 }
 
 /* try to fill the TLB and return an exception if error. If retaddr is

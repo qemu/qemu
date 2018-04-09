@@ -704,7 +704,6 @@ int cpu_exec(CPUState *cpu)
         g_assert(cpu == current_cpu);
         g_assert(cc == CPU_GET_CLASS(cpu));
 #endif /* buggy compiler */
-        cpu->can_do_io = 1;
         tb_lock_reset();
         if (qemu_mutex_iothread_locked()) {
             qemu_mutex_unlock_iothread();

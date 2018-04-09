@@ -52,7 +52,7 @@ void xtensa_cpu_do_unaligned_access(CPUState *cs,
 
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_UNALIGNED_EXCEPTION) &&
             !xtensa_option_enabled(env->config, XTENSA_OPTION_HW_ALIGNMENT)) {
-        cpu_restore_state(CPU(cpu), retaddr);
+        cpu_restore_state(CPU(cpu), retaddr, true);
         HELPER(exception_cause_vaddr)(env,
                 env->pc, LOAD_STORE_ALIGNMENT_CAUSE, addr);
     }
@@ -78,7 +78,7 @@ void tlb_fill(CPUState *cs, target_ulong vaddr, int size,
                      paddr & TARGET_PAGE_MASK,
                      access, mmu_idx, page_size);
     } else {
-        cpu_restore_state(cs, retaddr);
+        cpu_restore_state(cs, retaddr, true);
         HELPER(exception_cause_vaddr)(env, env->pc, ret, vaddr);
     }
 }

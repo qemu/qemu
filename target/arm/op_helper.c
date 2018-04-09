@@ -180,7 +180,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int size,
         ARMCPU *cpu = ARM_CPU(cs);
 
         /* now we have a real cpu fault */
-        cpu_restore_state(cs, retaddr);
+        cpu_restore_state(cs, retaddr, true);
 
         deliver_fault(cpu, addr, access_type, mmu_idx, &fi);
     }
@@ -195,7 +195,7 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     ARMMMUFaultInfo fi = {};
 
     /* now we have a real cpu fault */
-    cpu_restore_state(cs, retaddr);
+    cpu_restore_state(cs, retaddr, true);
 
     fi.type = ARMFault_Alignment;
     deliver_fault(cpu, vaddr, access_type, mmu_idx, &fi);
@@ -215,7 +215,7 @@ void arm_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     ARMMMUFaultInfo fi = {};
 
     /* now we have a real cpu fault */
-    cpu_restore_state(cs, retaddr);
+    cpu_restore_state(cs, retaddr, true);
 
     fi.ea = arm_extabort_type(response);
     fi.type = ARMFault_SyncExternal;

@@ -584,7 +584,7 @@ void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1,
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
 
-    cpu_restore_state(cs, retaddr);
+    cpu_restore_state(cs, retaddr, true);
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmexit(%08x, %016" PRIx64 ", %016"
                   PRIx64 ", " TARGET_FMT_lx ")!\n",
