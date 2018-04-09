@@ -23,7 +23,7 @@ typedef struct target_sigaltstack {
 
 static inline abi_ulong get_sp_from_cpustate(CPUMBState *state)
 {
-    return state->regs[14];
+    return state->regs[1];
 }
 
 
