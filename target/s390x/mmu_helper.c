@@ -325,7 +325,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
 
     r = mmu_translate_region(env, vaddr, asc, asce, level, raddr, flags, rw,
                              exc);
-    if (rw == MMU_DATA_STORE && !(*flags & PAGE_WRITE)) {
+    if (!r && rw == MMU_DATA_STORE && !(*flags & PAGE_WRITE)) {
         trigger_prot_fault(env, vaddr, asc, rw, exc);
         return -1;
     }

@@ -1778,6 +1778,8 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 
     qemu_mutex_lock_iothread();
 
+    cpu_synchronize_state(cs);
+
     switch (run->exit_reason) {
         case KVM_EXIT_S390_SIEIC:
             ret = handle_intercept(cpu);
