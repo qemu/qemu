@@ -60,32 +60,8 @@ void sdl2_process_key(struct sdl2_console *scon,
 
     qcode = qemu_input_map_usb_to_qcode[ev->keysym.scancode];
 
-    if (!qemu_console_is_graphic(con)) {
-        if (ev->type == SDL_KEYDOWN) {
-            switch (ev->keysym.scancode) {
-            case SDL_SCANCODE_RETURN:
-                kbd_put_keysym_console(con, '\n');
-                break;
-            case SDL_SCANCODE_BACKSPACE:
-                kbd_put_keysym_console(con, QEMU_KEY_BACKSPACE);
-                break;
-            default:
-                kbd_put_qcode_console(con, qcode);
-                break;
-            }
-        }
-        return;
-    }
-
+    /* modifier state tracking */
     switch (ev->keysym.scancode) {
-#if 0
-    case SDL_SCANCODE_NUMLOCKCLEAR:
-    case SDL_SCANCODE_CAPSLOCK:
-        /* SDL does not send the key up event, so we generate it */
-        qemu_input_event_send_key_qcode(con, qcode, true);
-        qemu_input_event_send_key_qcode(con, qcode, false);
-        return;
-#endif
     case SDL_SCANCODE_LCTRL:
     case SDL_SCANCODE_LSHIFT:
     case SDL_SCANCODE_LALT:
@@ -99,8 +75,26 @@ void sdl2_process_key(struct sdl2_console *scon,
         } else {
             modifiers_state[ev->keysym.scancode] = 1;
         }
-        /* fall though */
+        break;
     default:
+        /* nothing */
+        break;
+    }
+
+    if (!qemu_console_is_graphic(con)) {
+        bool ctrl = (modifiers_state[SDL_SCANCODE_LCTRL] ||
+                     modifiers_state[SDL_SCANCODE_RCTRL]);
+        if (ev->type == SDL_KEYDOWN) {
+            switch (ev->keysym.scancode) {
+            case SDL_SCANCODE_RETURN:
+                kbd_put_keysym_console(con, '\n');
+                break;
+            default:
+                kbd_put_qcode_console(con, qcode, ctrl);
+                break;
+            }
+        }
+    } else {
         qemu_input_event_send_key_qcode(con, qcode,
                                         ev->type == SDL_KEYDOWN);
     }
