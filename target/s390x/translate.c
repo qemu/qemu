@@ -6163,7 +6163,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     CPUS390XState *env = cs->env_ptr;
     DisasContext dc;
     target_ulong pc_start;
-    uint64_t next_page_start;
+    uint64_t page_start;
     int num_insns, max_insns;
     ExitStatus status;
     bool do_debug;
@@ -6181,7 +6181,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     dc.ex_value = tb->cs_base;
     do_debug = dc.singlestep_enabled = cs->singlestep_enabled;
 
-    next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+    page_start = pc_start & TARGET_PAGE_MASK;
 
     num_insns = 0;
     max_insns = tb_cflags(tb) & CF_COUNT_MASK;
@@ -6218,7 +6218,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         /* If we reach a page boundary, are single stepping,
            or exhaust instruction count, stop generation.  */
         if (status == NO_EXIT
-            && (dc.pc >= next_page_start
+            && (dc.pc - page_start >= TARGET_PAGE_SIZE
                 || tcg_op_buf_full()
                 || num_insns >= max_insns
                 || singlestep
