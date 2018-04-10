@@ -1061,8 +1061,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     int insn_count = 0;
     int max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     uint32_t pc_start = tb->pc;
-    uint32_t next_page_start =
-        (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+    uint32_t page_start = pc_start & TARGET_PAGE_MASK;
 
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
@@ -1162,9 +1161,9 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
         }
     } while (dc.is_jmp == DISAS_NEXT &&
             insn_count < max_insns &&
-            dc.pc < next_page_start &&
-            dc.pc + xtensa_insn_len(env, &dc) <= next_page_start &&
-            !tcg_op_buf_full());
+            dc.pc - page_start < TARGET_PAGE_SIZE &&
+            dc.pc - page_start + xtensa_insn_len(env, &dc) <= TARGET_PAGE_SIZE
+            && !tcg_op_buf_full());
 done:
     reset_sar_tracker(&dc);
     if (dc.icount) {
