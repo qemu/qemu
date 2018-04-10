@@ -118,7 +118,7 @@ static void disas_set_insn_syndrome(DisasContext *s, uint32_t syn)
 
     /* We check and clear insn_start_idx to catch multiple updates.  */
     assert(s->insn_start_idx != 0);
-    tcg_set_insn_param(s->insn_start_idx, 2, syn);
+    tcg_set_insn_start_param(s->insn_start_idx, 2, syn);
     s->insn_start_idx = 0;
 }
 

@@ -783,6 +783,16 @@ static inline void tcg_set_insn_param(int op_idx, int arg, TCGArg v)
     tcg_ctx->gen_op_buf[op_idx].args[arg] = v;
 }
 
+static inline void tcg_set_insn_start_param(int op_idx, int arg, target_ulong v)
+{
+#if TARGET_LONG_BITS <= TCG_TARGET_REG_BITS
+    tcg_set_insn_param(op_idx, arg, v);
+#else
+    tcg_set_insn_param(op_idx, arg * 2, v);
+    tcg_set_insn_param(op_idx, arg * 2 + 1, v >> 32);
+#endif
+}
+
 /* The number of opcodes emitted so far.  */
 static inline int tcg_op_buf_count(void)
 {
