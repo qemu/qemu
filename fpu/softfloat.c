@@ -1486,8 +1486,8 @@ uint ## isz ## _t float ## fsz ## _to_uint ## isz ## _round_to_zero     \
  (float ## fsz a, float_status *s)                                      \
 {                                                                       \
     FloatParts p = float ## fsz ## _unpack_canonical(a, s);             \
-    return round_to_uint_and_pack(p, s->float_rounding_mode,            \
-                                 UINT ## isz ## _MAX, s);               \
+    return round_to_uint_and_pack(p, float_round_to_zero,               \
+                                  UINT ## isz ## _MAX, s);              \
 }
 
 FLOAT_TO_UINT(16, 16)
