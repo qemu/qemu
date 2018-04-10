@@ -15,6 +15,7 @@
 #include "qemu/log.h"
 #include "sysemu/blockdev.h"
 #include "hw/sd/bcm2835_sdhost.h"
+#include "trace.h"
 
 #define TYPE_BCM2835_SDHOST_BUS "bcm2835-sdhost-bus"
 #define BCM2835_SDHOST_BUS(obj) \
@@ -99,6 +100,7 @@ static void bcm2835_sdhost_update_irq(BCM2835SDHostState *s)
 {
     uint32_t irq = s->status &
         (SDHSTS_BUSY_IRPT | SDHSTS_BLOCK_IRPT | SDHSTS_SDIO_IRPT);
+    trace_bcm2835_sdhost_update_irq(irq);
     qemu_set_irq(s->irq, !!irq);
 }
 
@@ -211,6 +213,7 @@ static void bcm2835_sdhost_fifo_run(BCM2835SDHostState *s)
 
         s->edm &= ~0xf;
         s->edm |= SDEDM_FSM_DATAMODE;
+        trace_bcm2835_sdhost_edm_change("datacnt 0", s->edm);
 
         if (s->config & SDHCFG_DATA_IRPT_EN) {
             s->status |= SDHSTS_SDIO_IRPT;
@@ -229,6 +232,7 @@ static void bcm2835_sdhost_fifo_run(BCM2835SDHostState *s)
 
     s->edm &= ~(0x1f << 4);
     s->edm |= ((s->fifo_len & 0x1f) << 4);
+    trace_bcm2835_sdhost_edm_change("fifo run", s->edm);
 }
 
 static uint64_t bcm2835_sdhost_read(void *opaque, hwaddr offset,
@@ -280,6 +284,8 @@ static uint64_t bcm2835_sdhost_read(void *opaque, hwaddr offset,
         break;
     }
 
+    trace_bcm2835_sdhost_read(offset, res, size);
+
     return res;
 }
 
@@ -287,6 +293,8 @@ static void bcm2835_sdhost_write(void *opaque, hwaddr offset,
     uint64_t value, unsigned size)
 {
     BCM2835SDHostState *s = (BCM2835SDHostState *)opaque;
+
+    trace_bcm2835_sdhost_write(offset, value, size);
 
     switch (offset) {
     case SDCMD:
@@ -314,6 +322,7 @@ static void bcm2835_sdhost_write(void *opaque, hwaddr offset,
             value &= ~0xf;
         }
         s->edm = value;
+        trace_bcm2835_sdhost_edm_change("guest register write", s->edm);
         break;
     case SDHCFG:
         s->config = value;
@@ -390,6 +399,7 @@ static void bcm2835_sdhost_reset(DeviceState *dev)
     s->cmd = 0;
     s->cmdarg = 0;
     s->edm = 0x0000c60f;
+    trace_bcm2835_sdhost_edm_change("device reset", s->edm);
     s->config = 0;
     s->hbct = 0;
     s->hblc = 0;
