@@ -33,5 +33,21 @@ test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S test-i386.h test-i386
 run-runcom: runcom pi_10.com
 	$(call quiet-command, $(QEMU) ./runcom $(I386_SRC)/pi_10.com > runcom.out, "TEST", "$< on $(TARGET_NAME)")
 
+ifeq ($(SPEED), slow)
+
+test-i386-fprem.ref: test-i386-fprem
+	$(call quiet-command, ./$< > $@,"GENREF","generating $@")
+
+run-test-i386-fprem: TIMEOUT=60
+run-test-i386-fprem: test-i386-fprem
+	$(call quiet-command, \
+		$(QEMU) $< > $<.out && \
+		diff -u $(I386_SRC)/$<.ref $<.out, \
+		"TEST", "$< (default) on $(TARGET_NAME)")
+else
+run-test-i386-fprem: test-i386-fprem
+	$(call quiet-command, /bin/true, "SLOW TEST", "$< SKIPPED on $(TARGET_NAME)")
+endif
+
 # On i386 and x86_64 Linux only supports 4k pages (large pages are a different hack)
 EXTRA_RUNS+=run-test-mmap-4096
