@@ -21,7 +21,7 @@
 
 import iotests
 
-iotests.verify_image_format(supported_fmts=['qcow2', 'qed', 'raw', 'dmg'])
+iotests.verify_image_format(supported_fmts=['qcow2', 'qed', 'raw'])
 iotests.verify_platform(['linux'])
 
 with iotests.FilePath('source.img') as source_img_path, \
