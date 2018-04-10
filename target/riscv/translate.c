@@ -1850,11 +1850,11 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     CPURISCVState *env = cs->env_ptr;
     DisasContext ctx;
     target_ulong pc_start;
-    target_ulong next_page_start;
+    target_ulong page_start;
     int num_insns;
     int max_insns;
     pc_start = tb->pc;
-    next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+    page_start = pc_start & TARGET_PAGE_MASK;
     ctx.pc = pc_start;
 
     /* once we have GDB, the rest of the translate.c implementation should be
@@ -1904,7 +1904,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
         if (cs->singlestep_enabled) {
             break;
         }
-        if (ctx.pc >= next_page_start) {
+        if (ctx.pc - page_start >= TARGET_PAGE_SIZE) {
             break;
         }
         if (tcg_op_buf_full()) {
