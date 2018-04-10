@@ -37,13 +37,7 @@ static void fsl_imx6_init(Object *obj)
     char name[NAME_SIZE];
     int i;
 
-    if (smp_cpus > FSL_IMX6_NUM_CPUS) {
-        error_report("%s: Only %d CPUs are supported (%d requested)",
-                     TYPE_FSL_IMX6, FSL_IMX6_NUM_CPUS, smp_cpus);
-        exit(1);
-    }
-
-    for (i = 0; i < smp_cpus; i++) {
+    for (i = 0; i < MIN(smp_cpus, FSL_IMX6_NUM_CPUS); i++) {
         object_initialize(&s->cpu[i], sizeof(s->cpu[i]),
                           "cortex-a9-" TYPE_ARM_CPU);
         snprintf(name, NAME_SIZE, "cpu%d", i);
@@ -118,6 +112,12 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
     FslIMX6State *s = FSL_IMX6(dev);
     uint16_t i;
     Error *err = NULL;
+
+    if (smp_cpus > FSL_IMX6_NUM_CPUS) {
+        error_setg(errp, "%s: Only %d CPUs are supported (%d requested)",
+                   TYPE_FSL_IMX6, FSL_IMX6_NUM_CPUS, smp_cpus);
+        return;
+    }
 
     for (i = 0; i < smp_cpus; i++) {
 
