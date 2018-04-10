@@ -9237,11 +9237,14 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                             }
                         }
                         tcg_temp_free_i32(addr);
-                    } else {
+                    } else if ((insn & 0x00300f00) == 0) {
+                        /* 0bcccc_0001_0x00_xxxx_xxxx_0000_1001_xxxx
+                        *  - SWP, SWPB
+                        */
+
                         TCGv taddr;
                         TCGMemOp opc = s->be_data;
 
-                        /* SWP instruction */
                         rm = (insn) & 0xf;
 
                         if (insn & (1 << 22)) {
@@ -9259,6 +9262,8 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                                                 get_mem_index(s), opc);
                         tcg_temp_free(taddr);
                         store_reg(s, rd, tmp);
+                    } else {
+                        goto illegal_op;
                     }
                 }
             } else {

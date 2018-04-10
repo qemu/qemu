@@ -825,6 +825,16 @@ static inline void tcg_set_insn_param(TCGOp *op, int arg, TCGArg v)
     op->args[arg] = v;
 }
 
+static inline void tcg_set_insn_start_param(TCGOp *op, int arg, target_ulong v)
+{
+#if TARGET_LONG_BITS <= TCG_TARGET_REG_BITS
+    tcg_set_insn_param(op, arg, v);
+#else
+    tcg_set_insn_param(op, arg * 2, v);
+    tcg_set_insn_param(op, arg * 2 + 1, v >> 32);
+#endif
+}
+
 /* The last op that was emitted.  */
 static inline TCGOp *tcg_last_op(void)
 {

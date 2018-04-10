@@ -38,11 +38,6 @@ static void aw_a10_init(Object *obj)
 
     object_initialize(&s->emac, sizeof(s->emac), TYPE_AW_EMAC);
     qdev_set_parent_bus(DEVICE(&s->emac), sysbus_get_default());
-    /* FIXME use qdev NIC properties instead of nd_table[] */
-    if (nd_table[0].used) {
-        qemu_check_nic_model(&nd_table[0], TYPE_AW_EMAC);
-        qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
-    }
 
     object_initialize(&s->sata, sizeof(s->sata), TYPE_ALLWINNER_AHCI);
     qdev_set_parent_bus(DEVICE(&s->sata), sysbus_get_default());
@@ -91,6 +86,11 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(sysbusdev, 4, s->irq[67]);
     sysbus_connect_irq(sysbusdev, 5, s->irq[68]);
 
+    /* FIXME use qdev NIC properties instead of nd_table[] */
+    if (nd_table[0].used) {
+        qemu_check_nic_model(&nd_table[0], TYPE_AW_EMAC);
+        qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
+    }
     object_property_set_bool(OBJECT(&s->emac), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
@@ -118,7 +118,7 @@ static void aw_a10_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = aw_a10_realize;
-    /* Reason: Uses serial_hds in realize and nd_table in instance_init */
+    /* Reason: Uses serial_hds and nd_table in realize function */
     dc->user_creatable = false;
 }
 

@@ -35,13 +35,8 @@ static void fsl_imx7_init(Object *obj)
     char name[NAME_SIZE];
     int i;
 
-    if (smp_cpus > FSL_IMX7_NUM_CPUS) {
-        error_report("%s: Only %d CPUs are supported (%d requested)",
-                     TYPE_FSL_IMX7, FSL_IMX7_NUM_CPUS, smp_cpus);
-        exit(1);
-    }
 
-    for (i = 0; i < smp_cpus; i++) {
+    for (i = 0; i < MIN(smp_cpus, FSL_IMX7_NUM_CPUS); i++) {
         object_initialize(&s->cpu[i], sizeof(s->cpu[i]),
                           ARM_CPU_TYPE_NAME("cortex-a7"));
         snprintf(name, NAME_SIZE, "cpu%d", i);
@@ -196,6 +191,12 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     int i;
     qemu_irq irq;
     char name[NAME_SIZE];
+
+    if (smp_cpus > FSL_IMX7_NUM_CPUS) {
+        error_setg(errp, "%s: Only %d CPUs are supported (%d requested)",
+                   TYPE_FSL_IMX7, FSL_IMX7_NUM_CPUS, smp_cpus);
+        return;
+    }
 
     for (i = 0; i < smp_cpus; i++) {
         o = OBJECT(&s->cpu[i]);
