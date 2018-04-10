@@ -264,11 +264,16 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     Coroutine *co = data->co;
     BlockDriverState *bs = data->bs;
 
-    bdrv_dec_in_flight(bs);
-    if (data->begin) {
-        bdrv_do_drained_begin(bs, data->recursive, data->parent, data->poll);
+    if (bs) {
+        bdrv_dec_in_flight(bs);
+        if (data->begin) {
+            bdrv_do_drained_begin(bs, data->recursive, data->parent, data->poll);
+        } else {
+            bdrv_do_drained_end(bs, data->recursive, data->parent);
+        }
     } else {
-        bdrv_do_drained_end(bs, data->recursive, data->parent);
+        assert(data->begin);
+        bdrv_drain_all_begin();
     }
 
     data->done = true;
@@ -294,7 +299,9 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
         .parent = parent,
         .poll = poll,
     };
-    bdrv_inc_in_flight(bs);
+    if (bs) {
+        bdrv_inc_in_flight(bs);
+    }
     aio_bh_schedule_oneshot(bdrv_get_aio_context(bs),
                             bdrv_co_drain_bh_cb, &data);
 
@@ -463,6 +470,11 @@ void bdrv_drain_all_begin(void)
 {
     BlockDriverState *bs;
     BdrvNextIterator it;
+
+    if (qemu_in_coroutine()) {
+        bdrv_co_yield_to_drain(NULL, true, false, NULL, true);
+        return;
+    }
 
     /* BDRV_POLL_WHILE() for a node can only be called from its own I/O thread
      * or the main loop AioContext. We potentially use BDRV_POLL_WHILE() on
