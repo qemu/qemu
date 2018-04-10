@@ -2540,19 +2540,18 @@ fi
 ##########################################
 # GTK probe
 
-if test "$gtkabi" = ""; then
-    # The GTK ABI was not specified explicitly, so try whether 3.0 is available.
-    # Use 2.0 as a fallback if that is available.
-    if $pkg_config --exists "gtk+-3.0 >= 3.0.0"; then
-        gtkabi=3.0
-    elif $pkg_config --exists "gtk+-2.0 >= 2.18.0"; then
-        gtkabi=2.0
-    else
-        gtkabi=3.0
-    fi
-fi
-
 if test "$gtk" != "no"; then
+    if test "$gtkabi" = ""; then
+        # The GTK ABI was not specified explicitly, so try whether 3.0 is available.
+        # Use 2.0 as a fallback if that is available.
+        if $pkg_config --exists "gtk+-3.0 >= 3.0.0"; then
+            gtkabi=3.0
+        elif $pkg_config --exists "gtk+-2.0 >= 2.18.0"; then
+            gtkabi=2.0
+        else
+            gtkabi=3.0
+        fi
+    fi
     gtkpackage="gtk+-$gtkabi"
     gtkx11package="gtk+-x11-$gtkabi"
     if test "$gtkabi" = "3.0" ; then
@@ -2836,49 +2835,52 @@ fi
 # Look for sdl configuration program (pkg-config or sdl-config).  Try
 # sdl-config even without cross prefix, and favour pkg-config over sdl-config.
 
-if test "$sdlabi" = ""; then
-    if $pkg_config --exists "sdl2"; then
-        sdlabi=2.0
-    elif $pkg_config --exists "sdl"; then
-        sdlabi=1.2
-    else
-        sdlabi=2.0
-    fi
-fi
-
-if test $sdlabi = "2.0"; then
-    sdl_config=$sdl2_config
-    sdlname=sdl2
-    sdlconfigname=sdl2_config
-elif test $sdlabi = "1.2"; then
-    sdlname=sdl
-    sdlconfigname=sdl_config
-else
-    error_exit "Unknown sdlabi $sdlabi, must be 1.2 or 2.0"
-fi
-
-if test "$(basename $sdl_config)" != $sdlconfigname && ! has ${sdl_config}; then
-  sdl_config=$sdlconfigname
-fi
-
-if $pkg_config $sdlname --exists; then
-  sdlconfig="$pkg_config $sdlname"
-  sdlversion=$($sdlconfig --modversion 2>/dev/null)
-elif has ${sdl_config}; then
-  sdlconfig="$sdl_config"
-  sdlversion=$($sdlconfig --version)
-else
-  if test "$sdl" = "yes" ; then
-    feature_not_found "sdl" "Install SDL2-devel"
+sdl_probe ()
+{
+  sdl_too_old=no
+  if test "$sdlabi" = ""; then
+      if $pkg_config --exists "sdl2"; then
+          sdlabi=2.0
+      elif $pkg_config --exists "sdl"; then
+          sdlabi=1.2
+      else
+          sdlabi=2.0
+      fi
   fi
-  sdl=no
-fi
-if test -n "$cross_prefix" && test "$(basename "$sdlconfig")" = sdl-config; then
-  echo warning: using "\"$sdlconfig\"" to detect cross-compiled sdl >&2
-fi
 
-sdl_too_old=no
-if test "$sdl" != "no" ; then
+  if test $sdlabi = "2.0"; then
+      sdl_config=$sdl2_config
+      sdlname=sdl2
+      sdlconfigname=sdl2_config
+  elif test $sdlabi = "1.2"; then
+      sdlname=sdl
+      sdlconfigname=sdl_config
+  else
+      error_exit "Unknown sdlabi $sdlabi, must be 1.2 or 2.0"
+  fi
+
+  if test "$(basename $sdl_config)" != $sdlconfigname && ! has ${sdl_config}; then
+    sdl_config=$sdlconfigname
+  fi
+
+  if $pkg_config $sdlname --exists; then
+    sdlconfig="$pkg_config $sdlname"
+    sdlversion=$($sdlconfig --modversion 2>/dev/null)
+  elif has ${sdl_config}; then
+    sdlconfig="$sdl_config"
+    sdlversion=$($sdlconfig --version)
+  else
+    if test "$sdl" = "yes" ; then
+      feature_not_found "sdl" "Install SDL2-devel"
+    fi
+    sdl=no
+    # no need to do the rest
+    return
+  fi
+  if test -n "$cross_prefix" && test "$(basename "$sdlconfig")" = sdl-config; then
+    echo warning: using "\"$sdlconfig\"" to detect cross-compiled sdl >&2
+  fi
+
   cat > $TMPC << EOF
 #include <SDL.h>
 #undef main /* We don't want SDL to override our main() */
@@ -2920,6 +2922,10 @@ EOF
     fi
     sdl=no
   fi # sdl compile test
+}
+
+if test "$sdl" != "no" ; then
+  sdl_probe
 fi
 
 if test "$sdl" = "yes" ; then
