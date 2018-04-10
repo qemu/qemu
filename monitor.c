@@ -4467,7 +4467,7 @@ static void monitor_iothread_init(void)
      * have assumption to be run on main loop thread.  It would be
      * nice that one day we can remove this assumption in the future.
      */
-    mon_global.qmp_dispatcher_bh = aio_bh_new(qemu_get_aio_context(),
+    mon_global.qmp_dispatcher_bh = aio_bh_new(iohandler_get_aio_context(),
                                               monitor_qmp_bh_dispatcher,
                                               NULL);
 
