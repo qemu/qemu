@@ -654,39 +654,6 @@ target_ulong helper_csrrc(CPURISCVState *env, target_ulong src,
 
 #ifndef CONFIG_USER_ONLY
 
-/* iothread_mutex must be held */
-uint32_t riscv_cpu_update_mip(RISCVCPU *cpu, uint32_t mask, uint32_t value)
-{
-    CPURISCVState *env = &cpu->env;
-    uint32_t old, new, cmp = atomic_read(&env->mip);
-
-    do {
-        old = cmp;
-        new = (old & ~mask) | (value & mask);
-        cmp = atomic_cmpxchg(&env->mip, old, new);
-    } while (old != cmp);
-
-    if (new && !old) {
-        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-    } else if (!new && old) {
-        cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-    }
-
-    return old;
-}
-
-void riscv_set_mode(CPURISCVState *env, target_ulong newpriv)
-{
-    if (newpriv > PRV_M) {
-        g_assert_not_reached();
-    }
-    if (newpriv == PRV_H) {
-        newpriv = PRV_U;
-    }
-    /* tlb_flush is unnecessary as mode is contained in mmu_idx */
-    env->priv = newpriv;
-}
-
 target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
 {
     if (!(env->priv >= PRV_S)) {
@@ -736,7 +703,6 @@ target_ulong helper_mret(CPURISCVState *env, target_ulong cpu_pc_deb)
 
     return retpc;
 }
-
 
 void helper_wfi(CPURISCVState *env)
 {
