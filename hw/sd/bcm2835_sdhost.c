@@ -137,6 +137,12 @@ static void bcm2835_sdhost_send_command(BCM2835SDHostState *s)
         }
 #undef RWORD
     }
+    /* We never really delay commands, so if this was a 'busywait' command
+     * then we've completed it now and can raise the interrupt.
+     */
+    if ((s->cmd & SDCMD_BUSYWAIT) && (s->config & SDHCFG_BUSY_IRPT_EN)) {
+        s->status |= SDHSTS_BUSY_IRPT;
+    }
     return;
 
 error:
@@ -187,18 +193,27 @@ static void bcm2835_sdhost_fifo_run(BCM2835SDHostState *s)
                 n++;
                 if (n == 4) {
                     bcm2835_sdhost_fifo_push(s, value);
+                    s->status |= SDHSTS_DATA_FLAG;
+                    if (s->config & SDHCFG_DATA_IRPT_EN) {
+                        s->status |= SDHSTS_SDIO_IRPT;
+                    }
                     n = 0;
                     value = 0;
                 }
             }
             if (n != 0) {
                 bcm2835_sdhost_fifo_push(s, value);
+                s->status |= SDHSTS_DATA_FLAG;
             }
         } else { /* write */
             n = 0;
             while (s->datacnt > 0 && (s->fifo_len > 0 || n > 0)) {
                 if (n == 0) {
                     value = bcm2835_sdhost_fifo_pop(s);
+                    s->status |= SDHSTS_DATA_FLAG;
+                    if (s->config & SDHCFG_DATA_IRPT_EN) {
+                        s->status |= SDHSTS_SDIO_IRPT;
+                    }
                     n = 4;
                 }
                 n--;
@@ -207,28 +222,19 @@ static void bcm2835_sdhost_fifo_run(BCM2835SDHostState *s)
                 value >>= 8;
             }
         }
+        if (s->datacnt == 0) {
+            s->edm &= ~SDEDM_FSM_MASK;
+            s->edm |= SDEDM_FSM_DATAMODE;
+            trace_bcm2835_sdhost_edm_change("datacnt 0", s->edm);
+
+            if ((s->cmd & SDCMD_WRITE_CMD) &&
+                (s->config & SDHCFG_BLOCK_IRPT_EN)) {
+                s->status |= SDHSTS_BLOCK_IRPT;
+            }
+        }
     }
-    if (s->datacnt == 0) {
-        s->status |= SDHSTS_DATA_FLAG;
 
-        s->edm &= ~0xf;
-        s->edm |= SDEDM_FSM_DATAMODE;
-        trace_bcm2835_sdhost_edm_change("datacnt 0", s->edm);
-
-        if (s->config & SDHCFG_DATA_IRPT_EN) {
-            s->status |= SDHSTS_SDIO_IRPT;
-        }
-
-        if ((s->cmd & SDCMD_BUSYWAIT) && (s->config & SDHCFG_BUSY_IRPT_EN)) {
-            s->status |= SDHSTS_BUSY_IRPT;
-        }
-
-        if ((s->cmd & SDCMD_WRITE_CMD) && (s->config & SDHCFG_BLOCK_IRPT_EN)) {
-            s->status |= SDHSTS_BLOCK_IRPT;
-        }
-
-        bcm2835_sdhost_update_irq(s);
-    }
+    bcm2835_sdhost_update_irq(s);
 
     s->edm &= ~(0x1f << 4);
     s->edm |= ((s->fifo_len & 0x1f) << 4);
