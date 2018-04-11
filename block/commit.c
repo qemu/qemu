@@ -202,6 +202,8 @@ static void coroutine_fn commit_run(void *opaque)
 
         if (copy && s->common.speed) {
             delay_ns = ratelimit_calculate_delay(&s->limit, n);
+        } else {
+            delay_ns = 0;
         }
     }
 

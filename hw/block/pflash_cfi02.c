@@ -83,7 +83,6 @@ struct pflash_t {
     uint16_t ident3;
     uint16_t unlock_addr0;
     uint16_t unlock_addr1;
-    uint8_t cfi_len;
     uint8_t cfi_table[0x52];
     QEMUTimer *timer;
     /* The device replicates the flash memory across its memory space.  Emulate
@@ -235,10 +234,11 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
         break;
     case 0x98:
         /* CFI query mode */
-        if (boff > pfl->cfi_len)
-            ret = 0;
-        else
+        if (boff < sizeof(pfl->cfi_table)) {
             ret = pfl->cfi_table[boff];
+        } else {
+            ret = 0;
+        }
         break;
     }
 
@@ -663,7 +663,6 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->cmd = 0;
     pfl->status = 0;
     /* Hardcoded CFI table (mostly from SG29 Spansion flash) */
-    pfl->cfi_len = 0x52;
     /* Standard "QRY" string */
     pfl->cfi_table[0x10] = 'Q';
     pfl->cfi_table[0x11] = 'R';

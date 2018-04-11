@@ -153,4 +153,4 @@ class TestNbdServerRemove(iotests.QMPTestCase):
 
 
 if __name__ == '__main__':
-    iotests.main()
+    iotests.main(supported_fmts=['generic'])
