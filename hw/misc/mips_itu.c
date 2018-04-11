@@ -174,10 +174,9 @@ static void wake_blocked_threads(ITCStorageCell *c)
 static void QEMU_NORETURN block_thread_and_exit(ITCStorageCell *c)
 {
     c->blocked_threads |= 1ULL << current_cpu->cpu_index;
-    cpu_restore_state(current_cpu, current_cpu->mem_io_pc);
     current_cpu->halted = 1;
     current_cpu->exception_index = EXCP_HLT;
-    cpu_loop_exit(current_cpu);
+    cpu_loop_exit_restore(current_cpu, current_cpu->mem_io_pc);
 }
 
 /* ITC Bypass View */

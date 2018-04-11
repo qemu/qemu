@@ -27,10 +27,8 @@ bool tcg_allowed;
 /* exit the current TB, but without causing any exception to be raised */
 void cpu_loop_exit_noexc(CPUState *cpu)
 {
-    /* XXX: restore cpu registers saved in host registers */
-
     cpu->exception_index = -1;
-    siglongjmp(cpu->jmp_env, 1);
+    cpu_loop_exit(cpu);
 }
 
 #if defined(CONFIG_SOFTMMU)
@@ -65,15 +63,17 @@ void cpu_reloading_memory_map(void)
 
 void cpu_loop_exit(CPUState *cpu)
 {
+    /* Undo the setting in cpu_tb_exec.  */
+    cpu->can_do_io = 1;
     siglongjmp(cpu->jmp_env, 1);
 }
 
 void cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc)
 {
     if (pc) {
-        cpu_restore_state(cpu, pc);
+        cpu_restore_state(cpu, pc, true);
     }
-    siglongjmp(cpu->jmp_env, 1);
+    cpu_loop_exit(cpu);
 }
 
 void cpu_loop_exit_atomic(CPUState *cpu, uintptr_t pc)

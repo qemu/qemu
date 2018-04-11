@@ -1056,7 +1056,7 @@ void HELPER(chk)(CPUM68KState *env, int32_t val, int32_t ub)
         CPUState *cs = CPU(m68k_env_get_cpu(env));
 
         /* Recover PC and CC_OP for the beginning of the insn.  */
-        cpu_restore_state(cs, GETPC());
+        cpu_restore_state(cs, GETPC(), true);
 
         /* flags have been modified by gen_flush_flags() */
         env->cc_op = CC_OP_FLAGS;
@@ -1087,7 +1087,7 @@ void HELPER(chk2)(CPUM68KState *env, int32_t val, int32_t lb, int32_t ub)
         CPUState *cs = CPU(m68k_env_get_cpu(env));
 
         /* Recover PC and CC_OP for the beginning of the insn.  */
-        cpu_restore_state(cs, GETPC());
+        cpu_restore_state(cs, GETPC(), true);
 
         /* flags have been modified by gen_flush_flags() */
         env->cc_op = CC_OP_FLAGS;
