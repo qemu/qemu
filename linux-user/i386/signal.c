@@ -283,16 +283,14 @@ get_sigframe(struct target_sigaction *ka, CPUX86State *env, size_t frame_size)
     unsigned long esp;
 
     /* Default to using normal stack */
-    esp = env->regs[R_ESP];
+    esp = get_sp_from_cpustate(env);
 #ifdef TARGET_X86_64
     esp -= 128; /* this is the redzone */
 #endif
 
     /* This is the X/Open sanctioned signal stack switching.  */
     if (ka->sa_flags & TARGET_SA_ONSTACK) {
-        if (sas_ss_flags(esp) == 0) {
-            esp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-        }
+        esp = target_sigsp(esp, ka);
     } else {
 #ifndef TARGET_X86_64
         /* This is the legacy signal stack switching. */
@@ -404,11 +402,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     /* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
     __put_user(0, &frame->uc.tuc_link);
-    __put_user(target_sigaltstack_used.ss_sp, &frame->uc.tuc_stack.ss_sp);
-    __put_user(sas_ss_flags(get_sp_from_cpustate(env)),
-               &frame->uc.tuc_stack.ss_flags);
-    __put_user(target_sigaltstack_used.ss_size,
-               &frame->uc.tuc_stack.ss_size);
+    target_save_altstack(&frame->uc.tuc_stack, env);
     setup_sigcontext(&frame->uc.tuc_mcontext, &frame->fpstate, env,
             set->sig[0], frame_addr + offsetof(struct rt_sigframe, fpstate));
 

@@ -113,11 +113,9 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     struct target_rt_sigframe *frame;
     int i;
 
-    sp = env->gr[30];
-    if (ka->sa_flags & TARGET_SA_ONSTACK) {
-        if (sas_ss_flags(sp) == 0) {
-            sp = (target_sigaltstack_used.ss_sp + 0x7f) & ~0x3f;
-        }
+    sp = get_sp_from_cpustate(env);
+    if ((ka->sa_flags & TARGET_SA_ONSTACK) && !sas_ss_flags(sp)) {
+        sp = (target_sigaltstack_used.ss_sp + 0x7f) & ~0x3f;
     }
     frame_addr = QEMU_ALIGN_UP(sp, 64);
     sp = frame_addr + PARISC_RT_SIGFRAME_SIZE32;
@@ -132,11 +130,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     frame->uc.tuc_flags = 0;
     frame->uc.tuc_link = 0;
 
-    __put_user(target_sigaltstack_used.ss_sp, &frame->uc.tuc_stack.ss_sp);
-    __put_user(sas_ss_flags(get_sp_from_cpustate(env)),
-               &frame->uc.tuc_stack.ss_flags);
-    __put_user(target_sigaltstack_used.ss_size,
-               &frame->uc.tuc_stack.ss_size);
+    target_save_altstack(&frame->uc.tuc_stack, env);
 
     for (i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]);

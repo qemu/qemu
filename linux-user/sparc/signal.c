@@ -123,18 +123,28 @@ static inline abi_ulong get_sigframe(struct target_sigaction *sa,
                                      CPUSPARCState *env,
                                      unsigned long framesize)
 {
-    abi_ulong sp;
+    abi_ulong sp = get_sp_from_cpustate(env);
 
-    sp = env->regwptr[UREG_FP];
+    /*
+     * If we are on the alternate signal stack and would overflow it, don't.
+     * Return an always-bogus address instead so we will die with SIGSEGV.
+         */
+    if (on_sig_stack(sp) && !likely(on_sig_stack(sp - framesize))) {
+            return -1;
+    }
 
     /* This is the X/Open sanctioned signal stack switching.  */
-    if (sa->sa_flags & TARGET_SA_ONSTACK) {
-        if (!on_sig_stack(sp)
-                && !((target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size) & 7)) {
-            sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-        }
-    }
-    return sp - framesize;
+    sp = target_sigsp(sp, sa) - framesize;
+
+    /* Always align the stack frame.  This handles two cases.  First,
+     * sigaltstack need not be mindful of platform specific stack
+     * alignment.  Second, if we took this signal because the stack
+     * is not aligned properly, we'd like to take the signal cleanly
+     * and report that.
+     */
+    sp &= ~15UL;
+
+    return sp;
 }
 
 static int

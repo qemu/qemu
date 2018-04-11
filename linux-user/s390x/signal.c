@@ -86,14 +86,11 @@ get_sigframe(struct target_sigaction *ka, CPUS390XState *env, size_t frame_size)
     abi_ulong sp;
 
     /* Default to using normal stack */
-    sp = env->regs[15];
+    sp = get_sp_from_cpustate(env);
 
     /* This is the X/Open sanctioned signal stack switching.  */
     if (ka->sa_flags & TARGET_SA_ONSTACK) {
-        if (!sas_ss_flags(sp)) {
-            sp = target_sigaltstack_used.ss_sp +
-                 target_sigaltstack_used.ss_size;
-        }
+        sp = target_sigsp(sp, ka);
     }
 
     /* This is the legacy signal stack switching. */
@@ -205,10 +202,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     /* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
     __put_user((abi_ulong)0, (abi_ulong *)&frame->uc.tuc_link);
-    __put_user(target_sigaltstack_used.ss_sp, &frame->uc.tuc_stack.ss_sp);
-    __put_user(sas_ss_flags(get_sp_from_cpustate(env)),
-               &frame->uc.tuc_stack.ss_flags);
-    __put_user(target_sigaltstack_used.ss_size, &frame->uc.tuc_stack.ss_size);
+    target_save_altstack(&frame->uc.tuc_stack, env);
     save_sigregs(env, &frame->uc.tuc_mcontext);
     for (i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user((abi_ulong)set->sig[i],

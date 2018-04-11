@@ -201,14 +201,9 @@ setup_sigcontext(struct target_sigcontext *sc, /*struct _fpstate *fpstate,*/
 static inline abi_ulong
 get_sigframe(struct target_sigaction *ka, CPUARMState *regs, int framesize)
 {
-    unsigned long sp = regs->regs[13];
+    unsigned long sp;
 
-    /*
-     * This is the X/Open sanctioned signal stack switching.
-     */
-    if ((ka->sa_flags & TARGET_SA_ONSTACK) && !sas_ss_flags(sp)) {
-        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-    }
+    sp = target_sigsp(get_sp_from_cpustate(regs), ka);
     /*
      * ATPCS B01 mandates 8-byte alignment
      */
@@ -346,9 +341,7 @@ static void setup_sigframe_v2(struct target_ucontext_v2 *uc,
     memset(uc, 0, offsetof(struct target_ucontext_v2, tuc_mcontext));
 
     memset(&stack, 0, sizeof(stack));
-    __put_user(target_sigaltstack_used.ss_sp, &stack.ss_sp);
-    __put_user(target_sigaltstack_used.ss_size, &stack.ss_size);
-    __put_user(sas_ss_flags(get_sp_from_cpustate(env)), &stack.ss_flags);
+    target_save_altstack(&stack, env);
     memcpy(&uc->tuc_stack, &stack, sizeof(stack));
 
     setup_sigcontext(&uc->tuc_mcontext, env, set->sig[0]);
@@ -461,9 +454,7 @@ static void setup_rt_frame_v1(int usig, struct target_sigaction *ka,
     memset(&frame->uc, 0, offsetof(struct target_ucontext_v1, tuc_mcontext));
 
     memset(&stack, 0, sizeof(stack));
-    __put_user(target_sigaltstack_used.ss_sp, &stack.ss_sp);
-    __put_user(target_sigaltstack_used.ss_size, &stack.ss_size);
-    __put_user(sas_ss_flags(get_sp_from_cpustate(env)), &stack.ss_flags);
+    target_save_altstack(&stack, env);
     memcpy(&frame->uc.tuc_stack, &stack, sizeof(stack));
 
     setup_sigcontext(&frame->uc.tuc_mcontext, env, set->sig[0]);

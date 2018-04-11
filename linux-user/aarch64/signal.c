@@ -120,9 +120,7 @@ static void target_setup_general_frame(struct target_rt_sigframe *sf,
     __put_user(0, &sf->uc.tuc_flags);
     __put_user(0, &sf->uc.tuc_link);
 
-    __put_user(target_sigaltstack_used.ss_sp, &sf->uc.tuc_stack.ss_sp);
-    __put_user(sas_ss_flags(env->xregs[31]), &sf->uc.tuc_stack.ss_flags);
-    __put_user(target_sigaltstack_used.ss_size, &sf->uc.tuc_stack.ss_size);
+    target_save_altstack(&sf->uc.tuc_stack, env);
 
     for (i = 0; i < 31; i++) {
         __put_user(env->xregs[i], &sf->uc.tuc_mcontext.regs[i]);
@@ -372,14 +370,7 @@ static abi_ulong get_sigframe(struct target_sigaction *ka,
 {
     abi_ulong sp;
 
-    sp = env->xregs[31];
-
-    /*
-     * This is the X/Open sanctioned signal stack switching.
-     */
-    if ((ka->sa_flags & TARGET_SA_ONSTACK) && !sas_ss_flags(sp)) {
-        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-    }
+    sp = target_sigsp(get_sp_from_cpustate(env), ka);
 
     sp = (sp - size) & ~15;
 

@@ -78,9 +78,7 @@ struct target_rt_sigframe
 static abi_ulong get_sigframe(struct target_sigaction *ka,
                               unsigned long sp, size_t frame_size)
 {
-    if ((ka->sa_flags & TARGET_SA_ONSTACK) && (sas_ss_flags(sp) == 0)) {
-        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-    }
+    sp = target_sigsp(sp, ka);
 
     return (sp - frame_size) & -8ul;
 }
@@ -238,12 +236,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     /* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
     __put_user(0, (unsigned long *)&frame->uc.tuc_link);
-    __put_user((unsigned long)target_sigaltstack_used.ss_sp,
-               &frame->uc.tuc_stack.ss_sp);
-    __put_user(sas_ss_flags(regs->gregs[15]),
-               &frame->uc.tuc_stack.ss_flags);
-    __put_user(target_sigaltstack_used.ss_size,
-               &frame->uc.tuc_stack.ss_size);
+    target_save_altstack(&frame->uc.tuc_stack, regs);
     setup_sigcontext(&frame->uc.tuc_mcontext,
                      regs, set->sig[0]);
     for(i = 0; i < TARGET_NSIG_WORDS; i++) {

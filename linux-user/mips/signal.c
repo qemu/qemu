@@ -179,20 +179,12 @@ get_sigframe(struct target_sigaction *ka, CPUMIPSState *regs, size_t frame_size)
 {
     unsigned long sp;
 
-    /* Default to using normal stack */
-    sp = regs->active_tc.gpr[29];
-
     /*
      * FPU emulator may have its own trampoline active just
      * above the user stack, 16-bytes before the next lowest
      * 16 byte boundary.  Try to avoid trashing it.
      */
-    sp -= 32;
-
-    /* This is the X/Open sanctioned signal stack switching.  */
-    if ((ka->sa_flags & TARGET_SA_ONSTACK) && (sas_ss_flags (sp) == 0)) {
-        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-    }
+    sp = target_sigsp(get_sp_from_cpustate(regs) - 32, ka);
 
     return (sp - frame_size) & ~7;
 }
@@ -323,10 +315,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     __put_user(0, &frame->rs_uc.tuc_flags);
     __put_user(0, &frame->rs_uc.tuc_link);
-    __put_user(target_sigaltstack_used.ss_sp, &frame->rs_uc.tuc_stack.ss_sp);
-    __put_user(target_sigaltstack_used.ss_size, &frame->rs_uc.tuc_stack.ss_size);
-    __put_user(sas_ss_flags(get_sp_from_cpustate(env)),
-               &frame->rs_uc.tuc_stack.ss_flags);
+    target_save_altstack(&frame->rs_uc.tuc_stack, env);
 
     setup_sigcontext(env, &frame->rs_uc.tuc_mcontext);
 
