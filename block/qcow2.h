@@ -298,6 +298,7 @@ typedef struct BDRVQcow2State {
     uint32_t nb_bitmaps;
     uint64_t bitmap_directory_size;
     uint64_t bitmap_directory_offset;
+    bool dirty_bitmaps_loaded;
 
     int flags;
     int qcow_version;
