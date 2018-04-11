@@ -17,10 +17,4 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/osdep.h"
-#include "qemu.h"
-#include "cpu_loop-common.h"
-
-void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
-{
-}
+#include "../mips/cpu_loop.c"
