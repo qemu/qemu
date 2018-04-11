@@ -3719,9 +3719,8 @@ int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
     ICSState *ics = spapr->ics;
     int irq;
 
-    if (!ics) {
-        return -1;
-    }
+    assert(ics);
+
     if (irq_hint) {
         if (!ICS_IRQ_FREE(ics, irq_hint - ics->offset)) {
             error_setg(errp, "can't allocate IRQ %d: already in use", irq_hint);
@@ -3753,9 +3752,7 @@ int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
     ICSState *ics = spapr->ics;
     int i, first = -1;
 
-    if (!ics) {
-        return -1;
-    }
+    assert(ics);
 
     /*
      * MSIMesage::data is used for storing VIRQ so
