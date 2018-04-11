@@ -1440,21 +1440,6 @@ void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
     }
 }
 
-static void find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
-{
-    bool matched = false;
-
-    if (object_dynamic_cast(OBJECT(sbdev), TYPE_SPAPR_PCI_HOST_BRIDGE)) {
-        matched = true;
-    }
-
-    if (!matched) {
-        error_report("Device %s is not supported by this machine yet.",
-                     qdev_fw_name(DEVICE(sbdev)));
-        exit(1);
-    }
-}
-
 static int spapr_reset_drcs(Object *child, void *opaque)
 {
     sPAPRDRConnector *drc =
@@ -1477,9 +1462,6 @@ static void spapr_machine_reset(void)
     hwaddr rtas_addr, fdt_addr;
     void *fdt;
     int rc;
-
-    /* Check for unknown sysbus devices */
-    foreach_dynamic_sysbus_device(find_unknown_sysbus_device, NULL);
 
     spapr_caps_reset(spapr);
 
