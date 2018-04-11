@@ -20343,7 +20343,8 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     } else {
         switch (ctx.bstate) {
         case BS_STOP:
-            gen_goto_tb(&ctx, 0, ctx.pc);
+            gen_save_pc(ctx.pc);
+            tcg_gen_lookup_and_goto_ptr();
             break;
         case BS_NONE:
             save_cpu_state(&ctx, 0);
