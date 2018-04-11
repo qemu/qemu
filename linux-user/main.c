@@ -555,89 +555,6 @@ void cpu_loop(CPUARMState *env)
         process_pending_signals(env);
     }
 }
-
-#else
-
-/* AArch64 main loop */
-void cpu_loop(CPUARMState *env)
-{
-    CPUState *cs = CPU(arm_env_get_cpu(env));
-    int trapnr, sig;
-    abi_long ret;
-    target_siginfo_t info;
-
-    for (;;) {
-        cpu_exec_start(cs);
-        trapnr = cpu_exec(cs);
-        cpu_exec_end(cs);
-        process_queued_cpu_work(cs);
-
-        switch (trapnr) {
-        case EXCP_SWI:
-            ret = do_syscall(env,
-                             env->xregs[8],
-                             env->xregs[0],
-                             env->xregs[1],
-                             env->xregs[2],
-                             env->xregs[3],
-                             env->xregs[4],
-                             env->xregs[5],
-                             0, 0);
-            if (ret == -TARGET_ERESTARTSYS) {
-                env->pc -= 4;
-            } else if (ret != -TARGET_QEMU_ESIGRETURN) {
-                env->xregs[0] = ret;
-            }
-            break;
-        case EXCP_INTERRUPT:
-            /* just indicate that signals should be handled asap */
-            break;
-        case EXCP_UDEF:
-            info.si_signo = TARGET_SIGILL;
-            info.si_errno = 0;
-            info.si_code = TARGET_ILL_ILLOPN;
-            info._sifields._sigfault._addr = env->pc;
-            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-            break;
-        case EXCP_PREFETCH_ABORT:
-        case EXCP_DATA_ABORT:
-            info.si_signo = TARGET_SIGSEGV;
-            info.si_errno = 0;
-            /* XXX: check env->error_code */
-            info.si_code = TARGET_SEGV_MAPERR;
-            info._sifields._sigfault._addr = env->exception.vaddress;
-            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-            break;
-        case EXCP_DEBUG:
-        case EXCP_BKPT:
-            sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-            if (sig) {
-                info.si_signo = sig;
-                info.si_errno = 0;
-                info.si_code = TARGET_TRAP_BRKPT;
-                queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-            }
-            break;
-        case EXCP_SEMIHOST:
-            env->xregs[0] = do_arm_semihosting(env);
-            break;
-        case EXCP_YIELD:
-            /* nothing to do here for user-mode, just resume guest code */
-            break;
-        case EXCP_ATOMIC:
-            cpu_exec_step_atomic(cs);
-            break;
-        default:
-            EXCP_DUMP(env, "qemu: unhandled CPU exception 0x%x - aborting\n", trapnr);
-            abort();
-        }
-        process_pending_signals(env);
-        /* Exception return on AArch64 always clears the exclusive monitor,
-         * so any return to running guest code implies this.
-         */
-        env->exclusive_addr = -1;
-    }
-}
 #endif /* ndef TARGET_ABI32 */
 
 #endif
@@ -4495,29 +4412,7 @@ int main(int argc, char **argv, char **envp)
 
     target_cpu_copy_regs(env, regs);
 
-#if defined(TARGET_AARCH64)
-    {
-        int i;
-
-        if (!(arm_feature(env, ARM_FEATURE_AARCH64))) {
-            fprintf(stderr,
-                    "The selected ARM CPU does not support 64 bit mode\n");
-            exit(EXIT_FAILURE);
-        }
-
-        for (i = 0; i < 31; i++) {
-            env->xregs[i] = regs->regs[i];
-        }
-        env->pc = regs->pc;
-        env->xregs[31] = regs->sp;
-#ifdef TARGET_WORDS_BIGENDIAN
-        env->cp15.sctlr_el[1] |= SCTLR_E0E;
-        for (i = 1; i < 4; ++i) {
-            env->cp15.sctlr_el[i] |= SCTLR_EE;
-        }
-#endif
-    }
-#elif defined(TARGET_ARM)
+#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
     {
         int i;
         cpsr_write(env, regs->uregs[16], CPSR_USER | CPSR_EXEC,
@@ -4772,7 +4667,7 @@ int main(int argc, char **argv, char **envp)
     }
 #endif
 
-#if defined(TARGET_ARM) || defined(TARGET_M68K)
+#if (defined(TARGET_ARM) && !defined(TARGET_AARCH64)) || defined(TARGET_M68K)
     ts->stack_base = info->start_stack;
     ts->heap_base = info->brk;
     /* This will be filled in on the first SYS_HEAPINFO call.  */
