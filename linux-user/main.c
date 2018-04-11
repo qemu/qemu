@@ -33,9 +33,9 @@
 #include "qemu/timer.h"
 #include "qemu/envlist.h"
 #include "elf.h"
-#include "exec/log.h"
 #include "trace/control.h"
 #include "target_elf.h"
+#include "cpu_loop-common.h"
 
 char *exec_path;
 
@@ -49,17 +49,6 @@ static const char *cpu_type;
 unsigned long mmap_min_addr;
 unsigned long guest_base;
 int have_guest_base;
-
-#define EXCP_DUMP(env, fmt, ...)                                        \
-do {                                                                    \
-    CPUState *cs = ENV_GET_CPU(env);                                    \
-    fprintf(stderr, fmt , ## __VA_ARGS__);                              \
-    cpu_dump_state(cs, stderr, fprintf, 0);                             \
-    if (qemu_log_separate()) {                                          \
-        qemu_log(fmt, ## __VA_ARGS__);                                  \
-        log_cpu_state(cs, 0);                                           \
-    }                                                                   \
-} while (0)
 
 /*
  * When running 32-on-64 we should make sure we can fit all of the possible
@@ -4736,6 +4725,8 @@ int main(int argc, char **argv, char **envp)
     tcg_prologue_init(tcg_ctx);
     tcg_region_init();
 
+    target_cpu_copy_regs(env, regs);
+
 #if defined(TARGET_I386)
     env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
     env->hflags |= HF_PE_MASK | HF_CPL_MASK;
@@ -5125,8 +5116,6 @@ int main(int argc, char **argv, char **envp)
         env->sregs[WINDOW_START] = regs->windowstart;
         env->pc = regs->pc;
     }
-#else
-#error unsupported target CPU
 #endif
 
 #if defined(TARGET_ARM) || defined(TARGET_M68K)
