@@ -3478,28 +3478,6 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
             return;
         }
 
-        /*
-         * Currently PowerPC kernel doesn't allow hot-adding memory to
-         * memory-less node, but instead will silently add the memory
-         * to the first node that has some memory. This causes two
-         * unexpected behaviours for the user.
-         *
-         * - Memory gets hotplugged to a different node than what the user
-         *   specified.
-         * - Since pc-dimm subsystem in QEMU still thinks that memory belongs
-         *   to memory-less node, a reboot will set things accordingly
-         *   and the previously hotplugged memory now ends in the right node.
-         *   This appears as if some memory moved from one node to another.
-         *
-         * So until kernel starts supporting memory hotplug to memory-less
-         * nodes, just prevent such attempts upfront in QEMU.
-         */
-        if (nb_numa_nodes && !numa_info[node].node_mem) {
-            error_setg(errp, "Can't hotplug memory to memory-less node %d",
-                       node);
-            return;
-        }
-
         spapr_memory_plug(hotplug_dev, dev, node, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
         spapr_core_plug(hotplug_dev, dev, errp);
