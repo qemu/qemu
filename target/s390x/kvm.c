@@ -1081,7 +1081,6 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
     uint32_t code;
     int r = 0;
 
-    cpu_synchronize_state(CPU(cpu));
     sccb = env->regs[ipbh0 & 0xf];
     code = env->regs[(ipbh0 & 0xf0) >> 4];
 
@@ -1100,8 +1099,6 @@ static int handle_b2(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
     CPUS390XState *env = &cpu->env;
     int rc = 0;
     uint16_t ipbh0 = (run->s390_sieic.ipb & 0xffff0000) >> 16;
-
-    cpu_synchronize_state(CPU(cpu));
 
     switch (ipa1) {
     case PRIV_B2_XSCH:
@@ -1248,7 +1245,6 @@ static int kvm_stpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t ar;
 
     if (s390_has_feat(S390_FEAT_ZPCI)) {
-        cpu_synchronize_state(CPU(cpu));
         fiba = get_base_disp_rxy(cpu, run, &ar);
 
         return stpcifc_service_call(cpu, r1, fiba, ar, RA_IGNORED);
@@ -1266,7 +1262,6 @@ static int kvm_sic_service_call(S390CPU *cpu, struct kvm_run *run)
     uint16_t mode;
     int r;
 
-    cpu_synchronize_state(CPU(cpu));
     mode = env->regs[r1] & 0xffff;
     isc = (env->regs[r3] >> 27) & 0x7;
     r = css_do_sic(env, isc, mode);
@@ -1297,7 +1292,6 @@ static int kvm_pcistb_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t ar;
 
     if (s390_has_feat(S390_FEAT_ZPCI)) {
-        cpu_synchronize_state(CPU(cpu));
         gaddr = get_base_disp_rsy(cpu, run, &ar);
 
         return pcistb_service_call(cpu, r1, r3, gaddr, ar, RA_IGNORED);
@@ -1313,7 +1307,6 @@ static int kvm_mpcifc_service_call(S390CPU *cpu, struct kvm_run *run)
     uint8_t ar;
 
     if (s390_has_feat(S390_FEAT_ZPCI)) {
-        cpu_synchronize_state(CPU(cpu));
         fiba = get_base_disp_rxy(cpu, run, &ar);
 
         return mpcifc_service_call(cpu, r1, fiba, ar, RA_IGNORED);
@@ -1401,7 +1394,6 @@ static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
     CPUS390XState *env = &cpu->env;
     int ret;
 
-    cpu_synchronize_state(CPU(cpu));
     ret = s390_virtio_hypercall(env);
     if (ret == -EINVAL) {
         kvm_s390_program_interrupt(cpu, PGM_SPECIFICATION);
@@ -1416,7 +1408,6 @@ static void kvm_handle_diag_288(S390CPU *cpu, struct kvm_run *run)
     uint64_t r1, r3;
     int rc;
 
-    cpu_synchronize_state(CPU(cpu));
     r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
     r3 = run->s390_sieic.ipa & 0x000f;
     rc = handle_diag_288(&cpu->env, r1, r3);
@@ -1429,7 +1420,6 @@ static void kvm_handle_diag_308(S390CPU *cpu, struct kvm_run *run)
 {
     uint64_t r1, r3;
 
-    cpu_synchronize_state(CPU(cpu));
     r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
     r3 = run->s390_sieic.ipa & 0x000f;
     handle_diag_308(&cpu->env, r1, r3, RA_IGNORED);
@@ -1439,8 +1429,6 @@ static int handle_sw_breakpoint(S390CPU *cpu, struct kvm_run *run)
 {
     CPUS390XState *env = &cpu->env;
     unsigned long pc;
-
-    cpu_synchronize_state(CPU(cpu));
 
     pc = env->psw.addr - sw_bp_ilen;
     if (kvm_find_sw_breakpoint(CPU(cpu), pc)) {
@@ -1492,8 +1480,6 @@ static int kvm_s390_handle_sigp(S390CPU *cpu, uint8_t ipa1, uint32_t ipb)
     const uint8_t r3 = ipa1 & 0x0f;
     int ret;
     uint8_t order;
-
-    cpu_synchronize_state(CPU(cpu));
 
     /* get order code */
     order = decode_basedisp_rs(env, ipb, NULL) & SIGP_ORDER_MASK;
@@ -1556,7 +1542,6 @@ static int handle_oper_loop(S390CPU *cpu, struct kvm_run *run)
     CPUState *cs = CPU(cpu);
     PSW oldpsw, newpsw;
 
-    cpu_synchronize_state(cs);
     newpsw.mask = ldq_phys(cs->as, cpu->env.psa +
                            offsetof(LowCore, program_new_psw));
     newpsw.addr = ldq_phys(cs->as, cpu->env.psa +
@@ -1609,7 +1594,6 @@ static int handle_intercept(S390CPU *cpu)
             break;
         case ICPT_WAITPSW:
             /* disabled wait, since enabled wait is handled in kernel */
-            cpu_synchronize_state(cs);
             s390_handle_wait(cpu);
             r = EXCP_HALTED;
             break;
@@ -1650,8 +1634,6 @@ static int handle_tsch(S390CPU *cpu)
     CPUState *cs = CPU(cpu);
     struct kvm_run *run = cs->kvm_run;
     int ret;
-
-    cpu_synchronize_state(cs);
 
     ret = ioinst_handle_tsch(cpu, cpu->env.regs[1], run->s390_tsch.ipb,
                              RA_IGNORED);
@@ -1778,7 +1760,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 
     qemu_mutex_lock_iothread();
 
-    cpu_synchronize_state(cs);
+    kvm_cpu_synchronize_state(cs);
 
     switch (run->exit_reason) {
         case KVM_EXIT_S390_SIEIC:
