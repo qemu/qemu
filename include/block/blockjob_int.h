@@ -35,8 +35,8 @@
  * A class type for block job driver.
  */
 struct BlockJobDriver {
-    /** Derived BlockJob struct size */
-    size_t instance_size;
+    /** Generic JobDriver callbacks and settings */
+    JobDriver job_driver;
 
     /** String describing the operation, part of query-block-jobs QMP API */
     BlockJobType job_type;

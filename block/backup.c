@@ -523,7 +523,9 @@ static void coroutine_fn backup_run(void *opaque)
 }
 
 static const BlockJobDriver backup_job_driver = {
-    .instance_size          = sizeof(BackupBlockJob),
+    .job_driver = {
+        .instance_size          = sizeof(BackupBlockJob),
+    },
     .job_type               = BLOCK_JOB_TYPE_BACKUP,
     .start                  = backup_run,
     .commit                 = backup_commit,

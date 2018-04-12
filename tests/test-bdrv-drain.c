@@ -520,7 +520,9 @@ static void test_job_complete(BlockJob *job, Error **errp)
 }
 
 BlockJobDriver test_job_driver = {
-    .instance_size  = sizeof(TestBlockJob),
+    .job_driver = {
+        .instance_size  = sizeof(TestBlockJob),
+    },
     .start          = test_job_start,
     .complete       = test_job_complete,
 };

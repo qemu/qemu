@@ -26,6 +26,7 @@
 #ifndef BLOCKJOB_H
 #define BLOCKJOB_H
 
+#include "qemu/job.h"
 #include "block/block.h"
 #include "qemu/ratelimit.h"
 
@@ -40,16 +41,14 @@ typedef struct BlockJobTxn BlockJobTxn;
  * Long-running operation on a BlockDriverState.
  */
 typedef struct BlockJob {
+    /** Data belonging to the generic Job infrastructure */
+    Job job;
+
     /** The job type, including the job vtable.  */
     const BlockJobDriver *driver;
 
     /** The block device on which the job is operating.  */
     BlockBackend *blk;
-
-    /**
-     * The ID of the block job. May be NULL for internal jobs.
-     */
-    char *id;
 
     /**
      * The coroutine that executes the job.  If not NULL, it is

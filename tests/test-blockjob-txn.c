@@ -74,7 +74,9 @@ static void test_block_job_cb(void *opaque, int ret)
 }
 
 static const BlockJobDriver test_block_job_driver = {
-    .instance_size = sizeof(TestBlockJob),
+    .job_driver = {
+        .instance_size = sizeof(TestBlockJob),
+    },
     .start = test_block_job_run,
 };
 

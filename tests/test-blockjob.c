@@ -17,7 +17,9 @@
 #include "sysemu/block-backend.h"
 
 static const BlockJobDriver test_block_job_driver = {
-    .instance_size = sizeof(BlockJob),
+    .job_driver = {
+        .instance_size = sizeof(BlockJob),
+    },
 };
 
 static void block_job_cb(void *opaque, int ret)
@@ -38,9 +40,9 @@ static BlockJob *mk_job(BlockBackend *blk, const char *id,
         g_assert_null(errp);
         g_assert_nonnull(job);
         if (id) {
-            g_assert_cmpstr(job->id, ==, id);
+            g_assert_cmpstr(job->job.id, ==, id);
         } else {
-            g_assert_cmpstr(job->id, ==, blk_name(blk));
+            g_assert_cmpstr(job->job.id, ==, blk_name(blk));
         }
     } else {
         g_assert_nonnull(errp);
@@ -192,7 +194,9 @@ static void coroutine_fn cancel_job_start(void *opaque)
 }
 
 static const BlockJobDriver test_cancel_driver = {
-    .instance_size = sizeof(CancelJob),
+    .job_driver = {
+        .instance_size = sizeof(CancelJob),
+    },
     .start         = cancel_job_start,
     .complete      = cancel_job_complete,
 };

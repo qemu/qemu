@@ -34,7 +34,6 @@
 #include "qapi/qapi-events-block-core.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/coroutine.h"
-#include "qemu/id.h"
 #include "qemu/timer.h"
 
 /* Right now, this mutex is only needed to synchronize accesses to job->busy
@@ -92,7 +91,8 @@ static int block_job_apply_verb(BlockJob *job, BlockJobVerb bv, Error **errp)
         return 0;
     }
     error_setg(errp, "Job '%s' in state '%s' cannot accept command verb '%s'",
-               job->id, BlockJobStatus_str(job->status), BlockJobVerb_str(bv));
+               job->job.id, BlockJobStatus_str(job->status),
+               BlockJobVerb_str(bv));
     return -EPERM;
 }
 
@@ -159,7 +159,7 @@ BlockJob *block_job_get(const char *id)
     BlockJob *job;
 
     QLIST_FOREACH(job, &block_jobs, job_list) {
-        if (job->id && !strcmp(id, job->id)) {
+        if (job->job.id && !strcmp(id, job->job.id)) {
             return job;
         }
     }
@@ -261,7 +261,7 @@ void block_job_unref(BlockJob *job)
                                         block_job_detach_aio_context, job);
         blk_unref(job->blk);
         error_free(job->blocker);
-        g_free(job->id);
+        g_free(job->job.id);
         assert(!timer_pending(&job->sleep_timer));
         g_free(job);
     }
@@ -311,7 +311,7 @@ static char *child_job_get_parent_desc(BdrvChild *c)
     BlockJob *job = c->opaque;
     return g_strdup_printf("%s job '%s'",
                            BlockJobType_str(job->driver->job_type),
-                           job->id);
+                           job->job.id);
 }
 
 static void child_job_drained_begin(BdrvChild *c)
@@ -365,7 +365,7 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
 
 bool block_job_is_internal(BlockJob *job)
 {
-    return (job->id == NULL);
+    return (job->job.id == NULL);
 }
 
 static bool block_job_started(BlockJob *job)
@@ -705,13 +705,13 @@ int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
 void block_job_complete(BlockJob *job, Error **errp)
 {
     /* Should not be reachable via external interface for internal jobs */
-    assert(job->id);
+    assert(job->job.id);
     if (block_job_apply_verb(job, BLOCK_JOB_VERB_COMPLETE, errp)) {
         return;
     }
     if (job->pause_count || job->cancelled || !job->driver->complete) {
         error_setg(errp, "The active block job '%s' cannot be completed",
-                   job->id);
+                   job->job.id);
         return;
     }
 
@@ -720,7 +720,7 @@ void block_job_complete(BlockJob *job, Error **errp)
 
 void block_job_finalize(BlockJob *job, Error **errp)
 {
-    assert(job && job->id);
+    assert(job && job->job.id);
     if (block_job_apply_verb(job, BLOCK_JOB_VERB_FINALIZE, errp)) {
         return;
     }
@@ -731,7 +731,7 @@ void block_job_dismiss(BlockJob **jobptr, Error **errp)
 {
     BlockJob *job = *jobptr;
     /* similarly to _complete, this is QMP-interface only. */
-    assert(job->id);
+    assert(job->job.id);
     if (block_job_apply_verb(job, BLOCK_JOB_VERB_DISMISS, errp)) {
         return;
     }
@@ -848,7 +848,7 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     }
     info = g_new0(BlockJobInfo, 1);
     info->type      = g_strdup(BlockJobType_str(job->driver->job_type));
-    info->device    = g_strdup(job->id);
+    info->device    = g_strdup(job->job.id);
     info->len       = job->len;
     info->busy      = atomic_read(&job->busy);
     info->paused    = job->pause_count > 0;
@@ -879,7 +879,7 @@ static void block_job_event_cancelled(BlockJob *job)
     }
 
     qapi_event_send_block_job_cancelled(job->driver->job_type,
-                                        job->id,
+                                        job->job.id,
                                         job->len,
                                         job->offset,
                                         job->speed,
@@ -893,7 +893,7 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
     }
 
     qapi_event_send_block_job_completed(job->driver->job_type,
-                                        job->id,
+                                        job->job.id,
                                         job->len,
                                         job->offset,
                                         job->speed,
@@ -907,7 +907,7 @@ static int block_job_event_pending(BlockJob *job)
     block_job_state_transition(job, BLOCK_JOB_STATUS_PENDING);
     if (!job->auto_finalize && !block_job_is_internal(job)) {
         qapi_event_send_block_job_pending(job->driver->job_type,
-                                          job->id,
+                                          job->job.id,
                                           &error_abort);
     }
     return 0;
@@ -945,12 +945,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
             error_setg(errp, "Cannot specify job ID for internal block job");
             return NULL;
         }
-
-        if (!id_wellformed(job_id)) {
-            error_setg(errp, "Invalid job ID '%s'", job_id);
-            return NULL;
-        }
-
         if (block_job_get(job_id)) {
             error_setg(errp, "Job ID '%s' already in use", job_id);
             return NULL;
@@ -964,9 +958,13 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         return NULL;
     }
 
-    job = g_malloc0(driver->instance_size);
+    job = job_create(job_id, &driver->job_driver, errp);
+    if (job == NULL) {
+        blk_unref(blk);
+        return NULL;
+    }
+
     job->driver        = driver;
-    job->id            = g_strdup(job_id);
     job->blk           = blk;
     job->cb            = cb;
     job->opaque        = opaque;
@@ -1187,7 +1185,7 @@ void block_job_event_ready(BlockJob *job)
     }
 
     qapi_event_send_block_job_ready(job->driver->job_type,
-                                    job->id,
+                                    job->job.id,
                                     job->len,
                                     job->offset,
                                     job->speed, &error_abort);
@@ -1217,7 +1215,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
         abort();
     }
     if (!block_job_is_internal(job)) {
-        qapi_event_send_block_job_error(job->id,
+        qapi_event_send_block_job_error(job->job.id,
                                         is_read ? IO_OPERATION_TYPE_READ :
                                         IO_OPERATION_TYPE_WRITE,
                                         action, &error_abort);
