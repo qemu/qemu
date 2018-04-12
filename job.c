@@ -29,6 +29,16 @@
 #include "qemu/job.h"
 #include "qemu/id.h"
 
+JobType job_type(const Job *job)
+{
+    return job->driver->job_type;
+}
+
+const char *job_type_str(const Job *job)
+{
+    return JobType_str(job_type(job));
+}
+
 void *job_create(const char *job_id, const JobDriver *driver, Error **errp)
 {
     Job *job;

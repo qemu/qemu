@@ -309,9 +309,7 @@ static void block_job_detach_aio_context(void *opaque)
 static char *child_job_get_parent_desc(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
-    return g_strdup_printf("%s job '%s'",
-                           JobType_str(job->driver->job_type),
-                           job->job.id);
+    return g_strdup_printf("%s job '%s'", job_type_str(&job->job), job->job.id);
 }
 
 static void child_job_drained_begin(BdrvChild *c)
@@ -847,7 +845,7 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
         return NULL;
     }
     info = g_new0(BlockJobInfo, 1);
-    info->type      = g_strdup(JobType_str(job->driver->job_type));
+    info->type      = g_strdup(job_type_str(&job->job));
     info->device    = g_strdup(job->job.id);
     info->len       = job->len;
     info->busy      = atomic_read(&job->busy);
@@ -878,7 +876,7 @@ static void block_job_event_cancelled(BlockJob *job)
         return;
     }
 
-    qapi_event_send_block_job_cancelled(job->driver->job_type,
+    qapi_event_send_block_job_cancelled(job_type(&job->job),
                                         job->job.id,
                                         job->len,
                                         job->offset,
@@ -892,7 +890,7 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
         return;
     }
 
-    qapi_event_send_block_job_completed(job->driver->job_type,
+    qapi_event_send_block_job_completed(job_type(&job->job),
                                         job->job.id,
                                         job->len,
                                         job->offset,
@@ -906,7 +904,7 @@ static int block_job_event_pending(BlockJob *job)
 {
     block_job_state_transition(job, BLOCK_JOB_STATUS_PENDING);
     if (!job->auto_finalize && !block_job_is_internal(job)) {
-        qapi_event_send_block_job_pending(job->driver->job_type,
+        qapi_event_send_block_job_pending(job_type(&job->job),
                                           job->job.id,
                                           &error_abort);
     }
@@ -980,7 +978,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
                    block_job_sleep_timer_cb, job);
 
     error_setg(&job->blocker, "block device is in use by block job: %s",
-               JobType_str(driver->job_type));
+               job_type_str(&job->job));
     block_job_add_bdrv(job, "main node", bs, 0, BLK_PERM_ALL, &error_abort);
     bs->job = job;
 
@@ -1184,7 +1182,7 @@ void block_job_event_ready(BlockJob *job)
         return;
     }
 
-    qapi_event_send_block_job_ready(job->driver->job_type,
+    qapi_event_send_block_job_ready(job_type(&job->job),
                                     job->job.id,
                                     job->len,
                                     job->offset,

@@ -26,6 +26,8 @@
 #ifndef JOB_H
 #define JOB_H
 
+#include "qapi/qapi-types-block-core.h"
+
 typedef struct JobDriver JobDriver;
 
 /**
@@ -45,6 +47,9 @@ typedef struct Job {
 struct JobDriver {
     /** Derived Job struct size */
     size_t instance_size;
+
+    /** Enum describing the operation */
+    JobType job_type;
 };
 
 
@@ -56,5 +61,11 @@ struct JobDriver {
  * @errp: Error object.
  */
 void *job_create(const char *job_id, const JobDriver *driver, Error **errp);
+
+/** Returns the JobType of a given Job. */
+JobType job_type(const Job *job);
+
+/** Returns the enum string for the JobType of a given Job. */
+const char *job_type_str(const Job *job);
 
 #endif

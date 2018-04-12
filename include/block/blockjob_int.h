@@ -38,9 +38,6 @@ struct BlockJobDriver {
     /** Generic JobDriver callbacks and settings */
     JobDriver job_driver;
 
-    /** String describing the operation, part of query-block-jobs QMP API */
-    JobType job_type;
-
     /** Mandatory: Entrypoint for the Coroutine. */
     CoroutineEntry *start;
 
