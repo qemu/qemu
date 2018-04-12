@@ -56,3 +56,9 @@ void *job_create(const char *job_id, const JobDriver *driver, Error **errp)
 
     return job;
 }
+
+void job_delete(Job *job)
+{
+    g_free(job->id);
+    g_free(job);
+}

@@ -62,6 +62,9 @@ struct JobDriver {
  */
 void *job_create(const char *job_id, const JobDriver *driver, Error **errp);
 
+/** Frees the @job object. */
+void job_delete(Job *job);
+
 /** Returns the JobType of a given Job. */
 JobType job_type(const Job *job);
 

@@ -261,9 +261,8 @@ void block_job_unref(BlockJob *job)
                                         block_job_detach_aio_context, job);
         blk_unref(job->blk);
         error_free(job->blocker);
-        g_free(job->job.id);
         assert(!timer_pending(&job->sleep_timer));
-        g_free(job);
+        job_delete(&job->job);
     }
 }
 
