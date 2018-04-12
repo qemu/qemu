@@ -29,6 +29,8 @@
 #include "qemu/job.h"
 #include "qemu/id.h"
 
+static QLIST_HEAD(, Job) jobs = QLIST_HEAD_INITIALIZER(jobs);
+
 JobType job_type(const Job *job)
 {
     return job->driver->job_type;
@@ -37,6 +39,27 @@ JobType job_type(const Job *job)
 const char *job_type_str(const Job *job)
 {
     return JobType_str(job_type(job));
+}
+
+Job *job_next(Job *job)
+{
+    if (!job) {
+        return QLIST_FIRST(&jobs);
+    }
+    return QLIST_NEXT(job, job_list);
+}
+
+Job *job_get(const char *id)
+{
+    Job *job;
+
+    QLIST_FOREACH(job, &jobs, job_list) {
+        if (job->id && !strcmp(id, job->id)) {
+            return job;
+        }
+    }
+
+    return NULL;
 }
 
 void *job_create(const char *job_id, const JobDriver *driver, Error **errp)
@@ -48,17 +71,25 @@ void *job_create(const char *job_id, const JobDriver *driver, Error **errp)
             error_setg(errp, "Invalid job ID '%s'", job_id);
             return NULL;
         }
+        if (job_get(job_id)) {
+            error_setg(errp, "Job ID '%s' already in use", job_id);
+            return NULL;
+        }
     }
 
     job = g_malloc0(driver->instance_size);
     job->driver        = driver;
     job->id            = g_strdup(job_id);
 
+    QLIST_INSERT_HEAD(&jobs, job, job_list);
+
     return job;
 }
 
 void job_delete(Job *job)
 {
+    QLIST_REMOVE(job, job_list);
+
     g_free(job->id);
     g_free(job);
 }

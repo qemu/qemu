@@ -105,9 +105,6 @@ typedef struct BlockJob {
      */
     bool deferred_to_main_loop;
 
-    /** Element of the list of block jobs */
-    QLIST_ENTRY(BlockJob) job_list;
-
     /** Status that is published by the query-block-jobs QMP API */
     BlockDeviceIoStatus iostatus;
 

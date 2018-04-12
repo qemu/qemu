@@ -129,8 +129,6 @@ struct BlockJobTxn {
     int refcnt;
 };
 
-static QLIST_HEAD(, BlockJob) block_jobs = QLIST_HEAD_INITIALIZER(block_jobs);
-
 /*
  * The block job API is composed of two categories of functions.
  *
@@ -146,25 +144,34 @@ static QLIST_HEAD(, BlockJob) block_jobs = QLIST_HEAD_INITIALIZER(block_jobs);
  * blockjob_int.h.
  */
 
-BlockJob *block_job_next(BlockJob *job)
+static bool is_block_job(Job *job)
 {
-    if (!job) {
-        return QLIST_FIRST(&block_jobs);
-    }
-    return QLIST_NEXT(job, job_list);
+    return job_type(job) == JOB_TYPE_BACKUP ||
+           job_type(job) == JOB_TYPE_COMMIT ||
+           job_type(job) == JOB_TYPE_MIRROR ||
+           job_type(job) == JOB_TYPE_STREAM;
+}
+
+BlockJob *block_job_next(BlockJob *bjob)
+{
+    Job *job = bjob ? &bjob->job : NULL;
+
+    do {
+        job = job_next(job);
+    } while (job && !is_block_job(job));
+
+    return job ? container_of(job, BlockJob, job) : NULL;
 }
 
 BlockJob *block_job_get(const char *id)
 {
-    BlockJob *job;
+    Job *job = job_get(id);
 
-    QLIST_FOREACH(job, &block_jobs, job_list) {
-        if (job->job.id && !strcmp(id, job->job.id)) {
-            return job;
-        }
+    if (job && is_block_job(job)) {
+        return container_of(job, BlockJob, job);
+    } else {
+        return NULL;
     }
-
-    return NULL;
 }
 
 BlockJobTxn *block_job_txn_new(void)
@@ -253,7 +260,6 @@ void block_job_unref(BlockJob *job)
         assert(job->status == BLOCK_JOB_STATUS_NULL);
         assert(!job->txn);
         BlockDriverState *bs = blk_bs(job->blk);
-        QLIST_REMOVE(job, job_list);
         bs->job = NULL;
         block_job_remove_all_bdrv(job);
         blk_remove_aio_context_notifier(job->blk,
@@ -812,7 +818,7 @@ void block_job_cancel_sync_all(void)
     BlockJob *job;
     AioContext *aio_context;
 
-    while ((job = QLIST_FIRST(&block_jobs))) {
+    while ((job = block_job_next(NULL))) {
         aio_context = blk_get_aio_context(job->blk);
         aio_context_acquire(aio_context);
         block_job_cancel_sync(job);
@@ -942,10 +948,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
             error_setg(errp, "Cannot specify job ID for internal block job");
             return NULL;
         }
-        if (block_job_get(job_id)) {
-            error_setg(errp, "Job ID '%s' already in use", job_id);
-            return NULL;
-        }
     }
 
     blk = blk_new(perm, shared_perm);
@@ -960,6 +962,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         blk_unref(blk);
         return NULL;
     }
+
+    assert(is_block_job(&job->job));
 
     job->driver        = driver;
     job->blk           = blk;
@@ -982,8 +986,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     bs->job = job;
 
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
-
-    QLIST_INSERT_HEAD(&block_jobs, job, job_list);
 
     blk_add_aio_context_notifier(blk, block_job_attached_aio_context,
                                  block_job_detach_aio_context, job);

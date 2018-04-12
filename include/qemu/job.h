@@ -27,6 +27,7 @@
 #define JOB_H
 
 #include "qapi/qapi-types-block-core.h"
+#include "qemu/queue.h"
 
 typedef struct JobDriver JobDriver;
 
@@ -39,6 +40,9 @@ typedef struct Job {
 
     /** The type of this job. */
     const JobDriver *driver;
+
+    /** Element of the list of jobs */
+    QLIST_ENTRY(Job) job_list;
 } Job;
 
 /**
@@ -70,5 +74,20 @@ JobType job_type(const Job *job);
 
 /** Returns the enum string for the JobType of a given Job. */
 const char *job_type_str(const Job *job);
+
+/**
+ * Get the next element from the list of block jobs after @job, or the
+ * first one if @job is %NULL.
+ *
+ * Returns the requested job, or %NULL if there are no more jobs left.
+ */
+Job *job_next(Job *job);
+
+/**
+ * Get the job identified by @id (which must not be %NULL).
+ *
+ * Returns the requested job, or %NULL if it doesn't exist.
+ */
+Job *job_get(const char *id);
 
 #endif
