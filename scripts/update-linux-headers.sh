@@ -118,9 +118,6 @@ for arch in $ARCHLIST; do
         cp "$tmpdir/include/asm/unistd-common.h" "$output/linux-headers/asm-arm/"
     fi
     if [ $arch = x86 ]; then
-        cat <<-EOF >"$output/include/standard-headers/asm-x86/hyperv.h"
-        /* this is a temporary placeholder until kvm_para.h stops including it */
-EOF
         cp "$tmpdir/include/asm/unistd_32.h" "$output/linux-headers/asm-x86/"
         cp "$tmpdir/include/asm/unistd_x32.h" "$output/linux-headers/asm-x86/"
         cp "$tmpdir/include/asm/unistd_64.h" "$output/linux-headers/asm-x86/"
@@ -144,9 +141,6 @@ else
     cp "$linux/COPYING" "$output/linux-headers"
 fi
 
-cat <<EOF >$output/linux-headers/asm-x86/hyperv.h
-#include "standard-headers/asm-x86/hyperv.h"
-EOF
 cat <<EOF >$output/linux-headers/linux/virtio_config.h
 #include "standard-headers/linux/virtio_config.h"
 EOF
