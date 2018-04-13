@@ -54,7 +54,7 @@
 
 static TCGv env_debug;
 static TCGv cpu_R[32];
-static TCGv cpu_SR[18];
+static TCGv cpu_SR[14];
 static TCGv env_imm;
 static TCGv env_btaken;
 static TCGv env_btarget;
@@ -106,8 +106,7 @@ static const char *regnames[] =
 static const char *special_regnames[] =
 {
     "rpc", "rmsr", "sr2", "sr3", "sr4", "sr5", "sr6", "sr7",
-    "sr8", "sr9", "sr10", "sr11", "sr12", "sr13", "sr14", "sr15",
-    "sr16", "sr17", "sr18"
+    "sr8", "sr9", "sr10", "sr11", "sr12", "sr13"
 };
 
 static inline void t_sync_flags(DisasContext *dc)
