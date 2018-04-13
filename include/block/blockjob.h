@@ -147,9 +147,6 @@ typedef struct BlockJob {
      */
     QEMUTimer sleep_timer;
 
-    /** Current state; See @BlockJobStatus for details. */
-    BlockJobStatus status;
-
     /** True if this job should automatically finalize itself */
     bool auto_finalize;
 

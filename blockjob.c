@@ -41,61 +41,6 @@
  * block_job_enter. */
 static QemuMutex block_job_mutex;
 
-/* BlockJob State Transition Table */
-bool BlockJobSTT[BLOCK_JOB_STATUS__MAX][BLOCK_JOB_STATUS__MAX] = {
-                                          /* U, C, R, P, Y, S, W, D, X, E, N */
-    /* U: */ [BLOCK_JOB_STATUS_UNDEFINED] = {0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* C: */ [BLOCK_JOB_STATUS_CREATED]   = {0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1},
-    /* R: */ [BLOCK_JOB_STATUS_RUNNING]   = {0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0},
-    /* P: */ [BLOCK_JOB_STATUS_PAUSED]    = {0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* Y: */ [BLOCK_JOB_STATUS_READY]     = {0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0},
-    /* S: */ [BLOCK_JOB_STATUS_STANDBY]   = {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
-    /* W: */ [BLOCK_JOB_STATUS_WAITING]   = {0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-    /* D: */ [BLOCK_JOB_STATUS_PENDING]   = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0},
-    /* X: */ [BLOCK_JOB_STATUS_ABORTING]  = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0},
-    /* E: */ [BLOCK_JOB_STATUS_CONCLUDED] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    /* N: */ [BLOCK_JOB_STATUS_NULL]      = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-};
-
-bool BlockJobVerbTable[BLOCK_JOB_VERB__MAX][BLOCK_JOB_STATUS__MAX] = {
-                                          /* U, C, R, P, Y, S, W, D, X, E, N */
-    [BLOCK_JOB_VERB_CANCEL]               = {0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0},
-    [BLOCK_JOB_VERB_PAUSE]                = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
-    [BLOCK_JOB_VERB_RESUME]               = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
-    [BLOCK_JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
-    [BLOCK_JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
-    [BLOCK_JOB_VERB_FINALIZE]             = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-    [BLOCK_JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
-};
-
-static void block_job_state_transition(BlockJob *job, BlockJobStatus s1)
-{
-    BlockJobStatus s0 = job->status;
-    assert(s1 >= 0 && s1 <= BLOCK_JOB_STATUS__MAX);
-    trace_block_job_state_transition(job, job->ret, BlockJobSTT[s0][s1] ?
-                                     "allowed" : "disallowed",
-                                     BlockJobStatus_str(s0),
-                                     BlockJobStatus_str(s1));
-    assert(BlockJobSTT[s0][s1]);
-    job->status = s1;
-}
-
-static int block_job_apply_verb(BlockJob *job, BlockJobVerb bv, Error **errp)
-{
-    assert(bv >= 0 && bv <= BLOCK_JOB_VERB__MAX);
-    trace_block_job_apply_verb(job, BlockJobStatus_str(job->status),
-                               BlockJobVerb_str(bv),
-                               BlockJobVerbTable[bv][job->status] ?
-                               "allowed" : "prohibited");
-    if (BlockJobVerbTable[bv][job->status]) {
-        return 0;
-    }
-    error_setg(errp, "Job '%s' in state '%s' cannot accept command verb '%s'",
-               job->job.id, BlockJobStatus_str(job->status),
-               BlockJobVerb_str(bv));
-    return -EPERM;
-}
-
 static void block_job_lock(void)
 {
     qemu_mutex_lock(&block_job_mutex);
@@ -257,7 +202,7 @@ static void block_job_detach_aio_context(void *opaque);
 void block_job_unref(BlockJob *job)
 {
     if (--job->refcnt == 0) {
-        assert(job->status == BLOCK_JOB_STATUS_NULL);
+        assert(job->job.status == JOB_STATUS_NULL);
         assert(!job->txn);
         BlockDriverState *bs = blk_bs(job->blk);
         bs->job = NULL;
@@ -409,7 +354,7 @@ void block_job_start(BlockJob *job)
     job->pause_count--;
     job->busy = true;
     job->paused = false;
-    block_job_state_transition(job, BLOCK_JOB_STATUS_RUNNING);
+    job_state_transition(&job->job, JOB_STATUS_RUNNING);
     bdrv_coroutine_enter(blk_bs(job->blk), job->co);
 }
 
@@ -421,7 +366,7 @@ static void block_job_decommission(BlockJob *job)
     job->paused = false;
     job->deferred_to_main_loop = true;
     block_job_txn_del_job(job);
-    block_job_state_transition(job, BLOCK_JOB_STATUS_NULL);
+    job_state_transition(&job->job, JOB_STATUS_NULL);
     block_job_unref(job);
 }
 
@@ -432,7 +377,7 @@ static void block_job_do_dismiss(BlockJob *job)
 
 static void block_job_conclude(BlockJob *job)
 {
-    block_job_state_transition(job, BLOCK_JOB_STATUS_CONCLUDED);
+    job_state_transition(&job->job, JOB_STATUS_CONCLUDED);
     if (job->auto_dismiss || !block_job_started(job)) {
         block_job_do_dismiss(job);
     }
@@ -444,7 +389,7 @@ static void block_job_update_rc(BlockJob *job)
         job->ret = -ECANCELED;
     }
     if (job->ret) {
-        block_job_state_transition(job, BLOCK_JOB_STATUS_ABORTING);
+        job_state_transition(&job->job, JOB_STATUS_ABORTING);
     }
 }
 
@@ -652,7 +597,7 @@ static void block_job_completed_txn_success(BlockJob *job)
     BlockJobTxn *txn = job->txn;
     BlockJob *other_job;
 
-    block_job_state_transition(job, BLOCK_JOB_STATUS_WAITING);
+    job_state_transition(&job->job, JOB_STATUS_WAITING);
 
     /*
      * Successful completion, see if there are other running jobs in this
@@ -677,7 +622,7 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     int64_t old_speed = job->speed;
 
-    if (block_job_apply_verb(job, BLOCK_JOB_VERB_SET_SPEED, errp)) {
+    if (job_apply_verb(&job->job, JOB_VERB_SET_SPEED, errp)) {
         return;
     }
     if (speed < 0) {
@@ -709,7 +654,7 @@ void block_job_complete(BlockJob *job, Error **errp)
 {
     /* Should not be reachable via external interface for internal jobs */
     assert(job->job.id);
-    if (block_job_apply_verb(job, BLOCK_JOB_VERB_COMPLETE, errp)) {
+    if (job_apply_verb(&job->job, JOB_VERB_COMPLETE, errp)) {
         return;
     }
     if (job->pause_count || job->cancelled || !job->driver->complete) {
@@ -724,7 +669,7 @@ void block_job_complete(BlockJob *job, Error **errp)
 void block_job_finalize(BlockJob *job, Error **errp)
 {
     assert(job && job->job.id);
-    if (block_job_apply_verb(job, BLOCK_JOB_VERB_FINALIZE, errp)) {
+    if (job_apply_verb(&job->job, JOB_VERB_FINALIZE, errp)) {
         return;
     }
     block_job_do_finalize(job);
@@ -735,7 +680,7 @@ void block_job_dismiss(BlockJob **jobptr, Error **errp)
     BlockJob *job = *jobptr;
     /* similarly to _complete, this is QMP-interface only. */
     assert(job->job.id);
-    if (block_job_apply_verb(job, BLOCK_JOB_VERB_DISMISS, errp)) {
+    if (job_apply_verb(&job->job, JOB_VERB_DISMISS, errp)) {
         return;
     }
 
@@ -745,7 +690,7 @@ void block_job_dismiss(BlockJob **jobptr, Error **errp)
 
 void block_job_user_pause(BlockJob *job, Error **errp)
 {
-    if (block_job_apply_verb(job, BLOCK_JOB_VERB_PAUSE, errp)) {
+    if (job_apply_verb(&job->job, JOB_VERB_PAUSE, errp)) {
         return;
     }
     if (job->user_paused) {
@@ -768,7 +713,7 @@ void block_job_user_resume(BlockJob *job, Error **errp)
         error_setg(errp, "Can't resume a job that was not paused");
         return;
     }
-    if (block_job_apply_verb(job, BLOCK_JOB_VERB_RESUME, errp)) {
+    if (job_apply_verb(&job->job, JOB_VERB_RESUME, errp)) {
         return;
     }
     block_job_iostatus_reset(job);
@@ -778,7 +723,7 @@ void block_job_user_resume(BlockJob *job, Error **errp)
 
 void block_job_cancel(BlockJob *job, bool force)
 {
-    if (job->status == BLOCK_JOB_STATUS_CONCLUDED) {
+    if (job->job.status == JOB_STATUS_CONCLUDED) {
         block_job_do_dismiss(job);
         return;
     }
@@ -794,7 +739,7 @@ void block_job_cancel(BlockJob *job, bool force)
 
 void block_job_user_cancel(BlockJob *job, bool force, Error **errp)
 {
-    if (block_job_apply_verb(job, BLOCK_JOB_VERB_CANCEL, errp)) {
+    if (job_apply_verb(&job->job, JOB_VERB_CANCEL, errp)) {
         return;
     }
     block_job_cancel(job, force);
@@ -859,7 +804,7 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->speed     = job->speed;
     info->io_status = job->iostatus;
     info->ready     = job->ready;
-    info->status    = job->status;
+    info->status    = job->job.status;
     info->auto_finalize = job->auto_finalize;
     info->auto_dismiss  = job->auto_dismiss;
     info->has_error = job->ret != 0;
@@ -907,7 +852,7 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
 
 static int block_job_event_pending(BlockJob *job)
 {
-    block_job_state_transition(job, BLOCK_JOB_STATUS_PENDING);
+    job_state_transition(&job->job, JOB_STATUS_PENDING);
     if (!job->auto_finalize && !block_job_is_internal(job)) {
         qapi_event_send_block_job_pending(job_type(&job->job),
                                           job->job.id,
@@ -975,7 +920,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->refcnt        = 1;
     job->auto_finalize = !(flags & BLOCK_JOB_MANUAL_FINALIZE);
     job->auto_dismiss  = !(flags & BLOCK_JOB_MANUAL_DISMISS);
-    block_job_state_transition(job, BLOCK_JOB_STATUS_CREATED);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
                    QEMU_CLOCK_REALTIME, SCALE_NS,
                    block_job_sleep_timer_cb, job);
@@ -1017,7 +961,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
 void block_job_early_fail(BlockJob *job)
 {
-    assert(job->status == BLOCK_JOB_STATUS_CREATED);
+    assert(job->job.status == JOB_STATUS_CREATED);
     block_job_decommission(job);
 }
 
@@ -1077,14 +1021,14 @@ void coroutine_fn block_job_pause_point(BlockJob *job)
     }
 
     if (block_job_should_pause(job) && !block_job_is_cancelled(job)) {
-        BlockJobStatus status = job->status;
-        block_job_state_transition(job, status == BLOCK_JOB_STATUS_READY ? \
-                                   BLOCK_JOB_STATUS_STANDBY :           \
-                                   BLOCK_JOB_STATUS_PAUSED);
+        JobStatus status = job->job.status;
+        job_state_transition(&job->job, status == JOB_STATUS_READY
+                                        ? JOB_STATUS_STANDBY
+                                        : JOB_STATUS_PAUSED);
         job->paused = true;
         block_job_do_yield(job, -1);
         job->paused = false;
-        block_job_state_transition(job, status);
+        job_state_transition(&job->job, status);
     }
 
     if (job->driver->resume) {
@@ -1176,7 +1120,7 @@ void block_job_iostatus_reset(BlockJob *job)
 
 void block_job_event_ready(BlockJob *job)
 {
-    block_job_state_transition(job, BLOCK_JOB_STATUS_READY);
+    job_state_transition(&job->job, JOB_STATUS_READY);
     job->ready = true;
 
     if (block_job_is_internal(job)) {

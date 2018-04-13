@@ -28,8 +28,62 @@
 #include "qapi/error.h"
 #include "qemu/job.h"
 #include "qemu/id.h"
+#include "trace-root.h"
 
 static QLIST_HEAD(, Job) jobs = QLIST_HEAD_INITIALIZER(jobs);
+
+/* Job State Transition Table */
+bool JobSTT[JOB_STATUS__MAX][JOB_STATUS__MAX] = {
+                                    /* U, C, R, P, Y, S, W, D, X, E, N */
+    /* U: */ [JOB_STATUS_UNDEFINED] = {0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    /* C: */ [JOB_STATUS_CREATED]   = {0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1},
+    /* R: */ [JOB_STATUS_RUNNING]   = {0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0},
+    /* P: */ [JOB_STATUS_PAUSED]    = {0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+    /* Y: */ [JOB_STATUS_READY]     = {0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0},
+    /* S: */ [JOB_STATUS_STANDBY]   = {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+    /* W: */ [JOB_STATUS_WAITING]   = {0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
+    /* D: */ [JOB_STATUS_PENDING]   = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0},
+    /* X: */ [JOB_STATUS_ABORTING]  = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0},
+    /* E: */ [JOB_STATUS_CONCLUDED] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    /* N: */ [JOB_STATUS_NULL]      = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+};
+
+bool JobVerbTable[JOB_VERB__MAX][JOB_STATUS__MAX] = {
+                                    /* U, C, R, P, Y, S, W, D, X, E, N */
+    [JOB_VERB_CANCEL]               = {0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0},
+    [JOB_VERB_PAUSE]                = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+    [JOB_VERB_RESUME]               = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+    [JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+    [JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+    [JOB_VERB_FINALIZE]             = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+    [JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+};
+
+/* TODO Make static once the whole state machine is in job.c */
+void job_state_transition(Job *job, JobStatus s1)
+{
+    JobStatus s0 = job->status;
+    assert(s1 >= 0 && s1 <= JOB_STATUS__MAX);
+    trace_job_state_transition(job, /* TODO re-enable: job->ret */ 0,
+                               JobSTT[s0][s1] ? "allowed" : "disallowed",
+                               JobStatus_str(s0), JobStatus_str(s1));
+    assert(JobSTT[s0][s1]);
+    job->status = s1;
+}
+
+int job_apply_verb(Job *job, JobVerb verb, Error **errp)
+{
+    JobStatus s0 = job->status;
+    assert(verb >= 0 && verb <= JOB_VERB__MAX);
+    trace_job_apply_verb(job, JobStatus_str(s0), JobVerb_str(verb),
+                         JobVerbTable[verb][s0] ? "allowed" : "prohibited");
+    if (JobVerbTable[verb][s0]) {
+        return 0;
+    }
+    error_setg(errp, "Job '%s' in state '%s' cannot accept command verb '%s'",
+               job->id, JobStatus_str(s0), JobVerb_str(verb));
+    return -EPERM;
+}
 
 JobType job_type(const Job *job)
 {
@@ -80,6 +134,8 @@ void *job_create(const char *job_id, const JobDriver *driver, Error **errp)
     job = g_malloc0(driver->instance_size);
     job->driver        = driver;
     job->id            = g_strdup(job_id);
+
+    job_state_transition(job, JOB_STATUS_CREATED);
 
     QLIST_INSERT_HEAD(&jobs, job, job_list);
 

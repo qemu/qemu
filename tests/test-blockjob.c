@@ -211,7 +211,7 @@ static CancelJob *create_common(BlockJob **pjob)
     job = mk_job(blk, "Steve", &test_cancel_driver, true,
                  BLOCK_JOB_MANUAL_FINALIZE | BLOCK_JOB_MANUAL_DISMISS);
     block_job_ref(job);
-    assert(job->status == BLOCK_JOB_STATUS_CREATED);
+    assert(job->job.status == JOB_STATUS_CREATED);
     s = container_of(job, CancelJob, common);
     s->blk = blk;
 
@@ -223,15 +223,14 @@ static void cancel_common(CancelJob *s)
 {
     BlockJob *job = &s->common;
     BlockBackend *blk = s->blk;
-    BlockJobStatus sts = job->status;
+    JobStatus sts = job->job.status;
 
     block_job_cancel_sync(job);
-    if ((sts != BLOCK_JOB_STATUS_CREATED) &&
-        (sts != BLOCK_JOB_STATUS_CONCLUDED)) {
+    if (sts != JOB_STATUS_CREATED && sts != JOB_STATUS_CONCLUDED) {
         BlockJob *dummy = job;
         block_job_dismiss(&dummy, &error_abort);
     }
-    assert(job->status == BLOCK_JOB_STATUS_NULL);
+    assert(job->job.status == JOB_STATUS_NULL);
     block_job_unref(job);
     destroy_blk(blk);
 }
@@ -253,7 +252,7 @@ static void test_cancel_running(void)
     s = create_common(&job);
 
     block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     cancel_common(s);
 }
@@ -266,11 +265,11 @@ static void test_cancel_paused(void)
     s = create_common(&job);
 
     block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     block_job_user_pause(job, &error_abort);
     block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_PAUSED);
+    assert(job->job.status == JOB_STATUS_PAUSED);
 
     cancel_common(s);
 }
@@ -283,11 +282,11 @@ static void test_cancel_ready(void)
     s = create_common(&job);
 
     block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
     block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_READY);
+    assert(job->job.status == JOB_STATUS_READY);
 
     cancel_common(s);
 }
@@ -300,15 +299,15 @@ static void test_cancel_standby(void)
     s = create_common(&job);
 
     block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
     block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_READY);
+    assert(job->job.status == JOB_STATUS_READY);
 
     block_job_user_pause(job, &error_abort);
     block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_STANDBY);
+    assert(job->job.status == JOB_STATUS_STANDBY);
 
     cancel_common(s);
 }
@@ -321,18 +320,18 @@ static void test_cancel_pending(void)
     s = create_common(&job);
 
     block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
     block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_READY);
+    assert(job->job.status == JOB_STATUS_READY);
 
     block_job_complete(job, &error_abort);
     block_job_enter(job);
     while (!s->completed) {
         aio_poll(qemu_get_aio_context(), true);
     }
-    assert(job->status == BLOCK_JOB_STATUS_PENDING);
+    assert(job->job.status == JOB_STATUS_PENDING);
 
     cancel_common(s);
 }
@@ -345,21 +344,21 @@ static void test_cancel_concluded(void)
     s = create_common(&job);
 
     block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
     block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_READY);
+    assert(job->job.status == JOB_STATUS_READY);
 
     block_job_complete(job, &error_abort);
     block_job_enter(job);
     while (!s->completed) {
         aio_poll(qemu_get_aio_context(), true);
     }
-    assert(job->status == BLOCK_JOB_STATUS_PENDING);
+    assert(job->job.status == JOB_STATUS_PENDING);
 
     block_job_finalize(job, &error_abort);
-    assert(job->status == BLOCK_JOB_STATUS_CONCLUDED);
+    assert(job->job.status == JOB_STATUS_CONCLUDED);
 
     cancel_common(s);
 }
