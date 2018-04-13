@@ -2144,6 +2144,10 @@ static void parse_display(const char *p)
                 dpy.has_gl = true;
                 if (strstart(opts, "on", &nextopt)) {
                     dpy.gl = DISPLAYGL_MODE_ON;
+                } else if (strstart(opts, "core", &nextopt)) {
+                    dpy.gl = DISPLAYGL_MODE_CORE;
+                } else if (strstart(opts, "es", &nextopt)) {
+                    dpy.gl = DISPLAYGL_MODE_ES;
                 } else if (strstart(opts, "off", &nextopt)) {
                     dpy.gl = DISPLAYGL_MODE_OFF;
                 } else {
