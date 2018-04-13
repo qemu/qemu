@@ -203,6 +203,7 @@ typedef struct CPUMBState CPUMBState;
 
 /* Target family PVR mask */
 #define PVR10_TARGET_FAMILY_MASK        0xFF000000
+#define PVR10_ASIZE_SHIFT               18
 
 /* MMU descrtiption */
 #define PVR11_USE_MMU                   0xC0000000
@@ -297,6 +298,7 @@ struct MicroBlazeCPU {
     struct {
         bool stackprot;
         uint32_t base_vectors;
+        uint8_t addr_size;
         uint8_t use_fpu;
         uint8_t use_hw_mul;
         bool use_barrel;

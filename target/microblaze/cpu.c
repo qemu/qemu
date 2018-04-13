@@ -154,6 +154,13 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (cpu->cfg.addr_size != 32) {
+        error_setg(errp, "addr-size %d is out of range. "
+                   "Only 32bit is supported.",
+                   cpu->cfg.addr_size);
+        return;
+    }
+
     qemu_init_vcpu(cs);
 
     env->pvr.regs[0] = PVR0_USE_EXC_MASK \
@@ -200,7 +207,8 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     env->pvr.regs[5] |= cpu->cfg.dcache_writeback ?
                                         PVR5_DCACHE_WRITEBACK_MASK : 0;
 
-    env->pvr.regs[10] = 0x0c000000; /* Default to spartan 3a dsp family.  */
+    env->pvr.regs[10] = 0x0c000000 | /* Default to spartan 3a dsp family.  */
+                        (cpu->cfg.addr_size - 32) << PVR10_ASIZE_SHIFT;
     env->pvr.regs[11] = (cpu->cfg.use_mmu ? PVR11_USE_MMU : 0) |
                         16 << 17;
 
@@ -232,6 +240,14 @@ static Property mb_properties[] = {
     DEFINE_PROP_UINT32("base-vectors", MicroBlazeCPU, cfg.base_vectors, 0),
     DEFINE_PROP_BOOL("use-stack-protection", MicroBlazeCPU, cfg.stackprot,
                      false),
+    /*
+     * This is the C_ADDR_SIZE synth-time configuration option of the
+     * MicroBlaze cores. Supported values range between 32 and 64.
+     *
+     * When set to > 32, 32bit MicroBlaze can emit load/stores
+     * with extended addressing.
+     */
+    DEFINE_PROP_UINT8("addr-size", MicroBlazeCPU, cfg.addr_size, 32),
     /* If use-fpu > 0 - FPU is enabled
      * If use-fpu = 2 - Floating point conversion and square root instructions
      *                  are enabled

@@ -824,7 +824,7 @@ static void dec_imm(DisasContext *dc)
     dc->clear_imm = 0;
 }
 
-static inline void compute_ldst_addr(DisasContext *dc, TCGv t)
+static inline void compute_ldst_addr(DisasContext *dc, bool ea, TCGv t)
 {
     bool extimm = dc->tb_flags & IMM_FLAG;
     /* Should be set to true if r1 is used by loadstores.  */
@@ -838,6 +838,22 @@ static inline void compute_ldst_addr(DisasContext *dc, TCGv t)
 
     /* Treat the common cases first.  */
     if (!dc->type_b) {
+        if (ea) {
+            int addr_size = dc->cpu->cfg.addr_size;
+
+            if (addr_size == 32) {
+                tcg_gen_extu_i32_tl(t, cpu_R[dc->rb]);
+                return;
+            }
+
+            tcg_gen_concat_i32_i64(t, cpu_R[dc->rb], cpu_R[dc->ra]);
+            if (addr_size < 64) {
+                /* Mask off out of range bits.  */
+                tcg_gen_andi_i64(t, t, MAKE_64BIT_MASK(0, addr_size));
+            }
+            return;
+        }
+
         /* If any of the regs is r0, set t to the value of the other reg.  */
         if (dc->ra == 0) {
             tcg_gen_extu_i32_tl(t, cpu_R[dc->rb]);
@@ -887,12 +903,14 @@ static void dec_load(DisasContext *dc)
     TCGv_i32 v;
     TCGv addr;
     unsigned int size;
-    bool rev = false, ex = false;
+    bool rev = false, ex = false, ea = false;
+    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
     TCGMemOp mop;
 
     mop = dc->opcode & 3;
     size = 1 << mop;
     if (!dc->type_b) {
+        ea = extract32(dc->ir, 7, 1);
         rev = extract32(dc->ir, 9, 1);
         ex = extract32(dc->ir, 10, 1);
     }
@@ -905,12 +923,19 @@ static void dec_load(DisasContext *dc)
         return;
     }
 
-    LOG_DIS("l%d%s%s%s\n", size, dc->type_b ? "i" : "", rev ? "r" : "",
-                                                        ex ? "x" : "");
+    if (trap_userspace(dc, ea)) {
+        return;
+    }
+
+    LOG_DIS("l%d%s%s%s%s\n", size, dc->type_b ? "i" : "", rev ? "r" : "",
+                                                        ex ? "x" : "",
+                                                        ea ? "ea" : "");
 
     t_sync_flags(dc);
     addr = tcg_temp_new();
-    compute_ldst_addr(dc, addr);
+    compute_ldst_addr(dc, ea, addr);
+    /* Extended addressing bypasses the MMU.  */
+    mem_index = ea ? MMU_NOMMU_IDX : mem_index;
 
     /*
      * When doing reverse accesses we need to do two things.
@@ -964,7 +989,7 @@ static void dec_load(DisasContext *dc)
      * address and if that succeeds we write into the destination reg.
      */
     v = tcg_temp_new_i32();
-    tcg_gen_qemu_ld_i32(v, addr, cpu_mmu_index(&dc->cpu->env, false), mop);
+    tcg_gen_qemu_ld_i32(v, addr, mem_index, mop);
 
     if ((dc->cpu->env.pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
         tcg_gen_movi_i64(cpu_SR[SR_PC], dc->pc);
@@ -994,12 +1019,14 @@ static void dec_store(DisasContext *dc)
     TCGv addr;
     TCGLabel *swx_skip = NULL;
     unsigned int size;
-    bool rev = false, ex = false;
+    bool rev = false, ex = false, ea = false;
+    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
     TCGMemOp mop;
 
     mop = dc->opcode & 3;
     size = 1 << mop;
     if (!dc->type_b) {
+        ea = extract32(dc->ir, 7, 1);
         rev = extract32(dc->ir, 9, 1);
         ex = extract32(dc->ir, 10, 1);
     }
@@ -1012,14 +1039,19 @@ static void dec_store(DisasContext *dc)
         return;
     }
 
-    LOG_DIS("s%d%s%s%s\n", size, dc->type_b ? "i" : "", rev ? "r" : "",
-                                                        ex ? "x" : "");
+    trap_userspace(dc, ea);
+
+    LOG_DIS("s%d%s%s%s%s\n", size, dc->type_b ? "i" : "", rev ? "r" : "",
+                                                        ex ? "x" : "",
+                                                        ea ? "ea" : "");
     t_sync_flags(dc);
     /* If we get a fault on a dslot, the jmpstate better be in sync.  */
     sync_jmpstate(dc);
     /* SWX needs a temp_local.  */
     addr = ex ? tcg_temp_local_new() : tcg_temp_new();
-    compute_ldst_addr(dc, addr);
+    compute_ldst_addr(dc, ea, addr);
+    /* Extended addressing bypasses the MMU.  */
+    mem_index = ea ? MMU_NOMMU_IDX : mem_index;
 
     if (ex) { /* swx */
         TCGv_i32 tval;
@@ -1074,8 +1106,7 @@ static void dec_store(DisasContext *dc)
                 break;
         }
     }
-    tcg_gen_qemu_st_i32(cpu_R[dc->rd], addr,
-                        cpu_mmu_index(&dc->cpu->env, false), mop);
+    tcg_gen_qemu_st_i32(cpu_R[dc->rd], addr, mem_index, mop);
 
     /* Verify alignment if needed.  */
     if ((dc->cpu->env.pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
