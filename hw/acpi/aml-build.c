@@ -627,7 +627,7 @@ Aml *aml_notify(Aml *arg1, Aml *arg2)
     return var;
 }
 
-/* helper to call method with 1 argument */
+/* helper to call method without argument */
 Aml *aml_call0(const char *method)
 {
     Aml *var = aml_alloc();
