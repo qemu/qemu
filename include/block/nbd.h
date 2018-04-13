@@ -135,6 +135,7 @@ typedef struct NBDExtent {
 #define NBD_FLAG_SEND_TRIM         (1 << 5) /* Send TRIM (discard) */
 #define NBD_FLAG_SEND_WRITE_ZEROES (1 << 6) /* Send WRITE_ZEROES */
 #define NBD_FLAG_SEND_DF           (1 << 7) /* Send DF (Do not Fragment) */
+#define NBD_FLAG_SEND_CACHE        (1 << 8) /* Send CACHE (prefetch) */
 
 /* New-style handshake (global) flags, sent from server to client, and
    control what will happen during handshake phase. */
@@ -195,7 +196,7 @@ enum {
     NBD_CMD_DISC = 2,
     NBD_CMD_FLUSH = 3,
     NBD_CMD_TRIM = 4,
-    /* 5 reserved for failed experiment NBD_CMD_CACHE */
+    NBD_CMD_CACHE = 5,
     NBD_CMD_WRITE_ZEROES = 6,
     NBD_CMD_BLOCK_STATUS = 7,
 };

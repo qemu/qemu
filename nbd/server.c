@@ -1252,7 +1252,7 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
     int ret;
     const uint16_t myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
                               NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA |
-                              NBD_FLAG_SEND_WRITE_ZEROES);
+                              NBD_FLAG_SEND_WRITE_ZEROES | NBD_FLAG_SEND_CACHE);
     bool oldStyle;
 
     /* Old style negotiation header, no room for options
@@ -2034,7 +2034,9 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         return -EIO;
     }
 
-    if (request->type == NBD_CMD_READ || request->type == NBD_CMD_WRITE) {
+    if (request->type == NBD_CMD_READ || request->type == NBD_CMD_WRITE ||
+        request->type == NBD_CMD_CACHE)
+    {
         if (request->len > NBD_MAX_BUFFER_SIZE) {
             error_setg(errp, "len (%" PRIu32" ) is larger than max len (%u)",
                        request->len, NBD_MAX_BUFFER_SIZE);
@@ -2119,7 +2121,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
     int ret;
     NBDExport *exp = client->exp;
 
-    assert(request->type == NBD_CMD_READ);
+    assert(request->type == NBD_CMD_READ || request->type == NBD_CMD_CACHE);
 
     /* XXX: NBD Protocol only documents use of FUA with WRITE */
     if (request->flags & NBD_CMD_FLAG_FUA) {
@@ -2138,7 +2140,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
 
     ret = blk_pread(exp->blk, request->from + exp->dev_offset, data,
                     request->len);
-    if (ret < 0) {
+    if (ret < 0 || request->type == NBD_CMD_CACHE) {
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "reading from file failed", errp);
     }
@@ -2171,6 +2173,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
 
     switch (request->type) {
     case NBD_CMD_READ:
+    case NBD_CMD_CACHE:
         return nbd_do_cmd_read(client, request, data, errp);
 
     case NBD_CMD_WRITE:
