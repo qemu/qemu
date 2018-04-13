@@ -8874,12 +8874,11 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
 
     cpu->vhyp = vhyp;
 
-    /* PAPR always has exception vectors in RAM not ROM. To ensure this,
-     * MSR[IP] should never be set.
-     *
-     * We also disallow setting of MSR_HV
+    /*
+     * With a virtual hypervisor mode we never allow the CPU to go
+     * hypervisor mode itself
      */
-    env->msr_mask &= ~((1ull << MSR_EP) | MSR_HVB);
+    env->msr_mask &= ~MSR_HVB;
 
     /* Set emulated LPCR to not send interrupts to hypervisor. Note that
      * under KVM, the actual HW LPCR will be set differently by KVM itself,
