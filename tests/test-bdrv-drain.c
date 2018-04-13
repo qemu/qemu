@@ -524,8 +524,8 @@ BlockJobDriver test_job_driver = {
     .job_driver = {
         .instance_size  = sizeof(TestBlockJob),
         .free           = block_job_free,
+        .start          = test_job_start,
     },
-    .start          = test_job_start,
     .complete       = test_job_complete,
 };
 
@@ -549,47 +549,47 @@ static void test_blockjob_common(enum drain_type drain_type)
     job = block_job_create("job0", &test_job_driver, NULL, src, 0, BLK_PERM_ALL,
                            0, 0, NULL, NULL, &error_abort);
     block_job_add_bdrv(job, "target", target, 0, BLK_PERM_ALL, &error_abort);
-    block_job_start(job);
+    job_start(&job->job);
 
-    g_assert_cmpint(job->pause_count, ==, 0);
-    g_assert_false(job->paused);
-    g_assert_false(job->busy); /* We're in block_job_sleep_ns() */
+    g_assert_cmpint(job->job.pause_count, ==, 0);
+    g_assert_false(job->job.paused);
+    g_assert_false(job->job.busy); /* We're in block_job_sleep_ns() */
 
     do_drain_begin(drain_type, src);
 
     if (drain_type == BDRV_DRAIN_ALL) {
         /* bdrv_drain_all() drains both src and target */
-        g_assert_cmpint(job->pause_count, ==, 2);
+        g_assert_cmpint(job->job.pause_count, ==, 2);
     } else {
-        g_assert_cmpint(job->pause_count, ==, 1);
+        g_assert_cmpint(job->job.pause_count, ==, 1);
     }
     /* XXX We don't wait until the job is actually paused. Is this okay? */
-    /* g_assert_true(job->paused); */
-    g_assert_false(job->busy); /* The job is paused */
+    /* g_assert_true(job->job.paused); */
+    g_assert_false(job->job.busy); /* The job is paused */
 
     do_drain_end(drain_type, src);
 
-    g_assert_cmpint(job->pause_count, ==, 0);
-    g_assert_false(job->paused);
-    g_assert_false(job->busy); /* We're in block_job_sleep_ns() */
+    g_assert_cmpint(job->job.pause_count, ==, 0);
+    g_assert_false(job->job.paused);
+    g_assert_false(job->job.busy); /* We're in block_job_sleep_ns() */
 
     do_drain_begin(drain_type, target);
 
     if (drain_type == BDRV_DRAIN_ALL) {
         /* bdrv_drain_all() drains both src and target */
-        g_assert_cmpint(job->pause_count, ==, 2);
+        g_assert_cmpint(job->job.pause_count, ==, 2);
     } else {
-        g_assert_cmpint(job->pause_count, ==, 1);
+        g_assert_cmpint(job->job.pause_count, ==, 1);
     }
     /* XXX We don't wait until the job is actually paused. Is this okay? */
-    /* g_assert_true(job->paused); */
-    g_assert_false(job->busy); /* The job is paused */
+    /* g_assert_true(job->job.paused); */
+    g_assert_false(job->job.busy); /* The job is paused */
 
     do_drain_end(drain_type, target);
 
-    g_assert_cmpint(job->pause_count, ==, 0);
-    g_assert_false(job->paused);
-    g_assert_false(job->busy); /* We're in block_job_sleep_ns() */
+    g_assert_cmpint(job->job.pause_count, ==, 0);
+    g_assert_false(job->job.paused);
+    g_assert_false(job->job.busy); /* We're in block_job_sleep_ns() */
 
     ret = block_job_complete_sync(job, &error_abort);
     g_assert_cmpint(ret, ==, 0);

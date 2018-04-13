@@ -213,8 +213,8 @@ static const BlockJobDriver stream_job_driver = {
         .instance_size = sizeof(StreamBlockJob),
         .job_type      = JOB_TYPE_STREAM,
         .free          = block_job_free,
+        .start         = stream_run,
     },
-    .start         = stream_run,
 };
 
 void stream_start(const char *job_id, BlockDriverState *bs,
@@ -262,7 +262,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
 
     s->on_error = on_error;
     trace_stream_start(bs, base, s);
-    block_job_start(&s->common);
+    job_start(&s->common.job);
     return;
 
 fail:

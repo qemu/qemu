@@ -126,7 +126,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
     g_free(op);
 
     if (s->waiting_for_io) {
-        qemu_coroutine_enter(s->common.co);
+        qemu_coroutine_enter(s->common.job.co);
     }
 }
 
@@ -345,7 +345,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         mirror_wait_for_io(s);
     }
 
-    block_job_pause_point(&s->common);
+    job_pause_point(&s->common.job);
 
     /* Find the number of consective dirty chunks following the first dirty
      * one, and wait for in flight requests in them. */
@@ -597,7 +597,7 @@ static void mirror_throttle(MirrorBlockJob *s)
         s->last_pause_ns = now;
         block_job_sleep_ns(&s->common, 0);
     } else {
-        block_job_pause_point(&s->common);
+        job_pause_point(&s->common.job);
     }
 }
 
@@ -786,7 +786,7 @@ static void coroutine_fn mirror_run(void *opaque)
             goto immediate_exit;
         }
 
-        block_job_pause_point(&s->common);
+        job_pause_point(&s->common.job);
 
         cnt = bdrv_get_dirty_count(s->dirty_bitmap);
         /* cnt is the number of dirty bytes remaining and s->bytes_in_flight is
@@ -957,9 +957,9 @@ static void mirror_complete(BlockJob *job, Error **errp)
     block_job_enter(&s->common);
 }
 
-static void mirror_pause(BlockJob *job)
+static void mirror_pause(Job *job)
 {
-    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
 
     mirror_wait_for_all_io(s);
 }
@@ -991,10 +991,10 @@ static const BlockJobDriver mirror_job_driver = {
         .instance_size          = sizeof(MirrorBlockJob),
         .job_type               = JOB_TYPE_MIRROR,
         .free                   = block_job_free,
+        .start                  = mirror_run,
+        .pause                  = mirror_pause,
     },
-    .start                  = mirror_run,
     .complete               = mirror_complete,
-    .pause                  = mirror_pause,
     .attached_aio_context   = mirror_attached_aio_context,
     .drain                  = mirror_drain,
 };
@@ -1004,10 +1004,10 @@ static const BlockJobDriver commit_active_job_driver = {
         .instance_size          = sizeof(MirrorBlockJob),
         .job_type               = JOB_TYPE_COMMIT,
         .free                   = block_job_free,
+        .start                  = mirror_run,
+        .pause                  = mirror_pause,
     },
-    .start                  = mirror_run,
     .complete               = mirror_complete,
-    .pause                  = mirror_pause,
     .attached_aio_context   = mirror_attached_aio_context,
     .drain                  = mirror_drain,
 };
@@ -1244,7 +1244,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     }
 
     trace_mirror_start(bs, s, opaque);
-    block_job_start(&s->common);
+    job_start(&s->common.job);
     return;
 
 fail:

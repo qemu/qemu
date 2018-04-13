@@ -78,8 +78,8 @@ static const BlockJobDriver test_block_job_driver = {
     .job_driver = {
         .instance_size = sizeof(TestBlockJob),
         .free          = block_job_free,
+        .start         = test_block_job_run,
     },
-    .start = test_block_job_run,
 };
 
 /* Create a block job that completes with a given return code after a given
@@ -125,7 +125,7 @@ static void test_single_job(int expected)
 
     txn = block_job_txn_new();
     job = test_block_job_start(1, true, expected, &result, txn);
-    block_job_start(job);
+    job_start(&job->job);
 
     if (expected == -ECANCELED) {
         block_job_cancel(job, false);
@@ -165,8 +165,8 @@ static void test_pair_jobs(int expected1, int expected2)
     txn = block_job_txn_new();
     job1 = test_block_job_start(1, true, expected1, &result1, txn);
     job2 = test_block_job_start(2, true, expected2, &result2, txn);
-    block_job_start(job1);
-    block_job_start(job2);
+    job_start(&job1->job);
+    job_start(&job2->job);
 
     /* Release our reference now to trigger as many nice
      * use-after-free bugs as possible.
@@ -227,8 +227,8 @@ static void test_pair_jobs_fail_cancel_race(void)
     txn = block_job_txn_new();
     job1 = test_block_job_start(1, true, -ECANCELED, &result1, txn);
     job2 = test_block_job_start(2, false, 0, &result2, txn);
-    block_job_start(job1);
-    block_job_start(job2);
+    job_start(&job1->job);
+    job_start(&job2->job);
 
     block_job_cancel(job1, false);
 

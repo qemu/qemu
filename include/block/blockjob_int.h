@@ -38,9 +38,6 @@ struct BlockJobDriver {
     /** Generic JobDriver callbacks and settings */
     JobDriver job_driver;
 
-    /** Mandatory: Entrypoint for the Coroutine. */
-    CoroutineEntry *start;
-
     /**
      * Optional callback for job types whose completion must be triggered
      * manually.
@@ -84,20 +81,6 @@ struct BlockJobDriver {
      * belong to a transaction group.
      */
     void (*clean)(BlockJob *job);
-
-    /**
-     * If the callback is not NULL, it will be invoked when the job transitions
-     * into the paused state.  Paused jobs must not perform any asynchronous
-     * I/O or event loop activity.  This callback is used to quiesce jobs.
-     */
-    void coroutine_fn (*pause)(BlockJob *job);
-
-    /**
-     * If the callback is not NULL, it will be invoked when the job transitions
-     * out of the paused state.  Any asynchronous I/O or event loop activity
-     * should be restarted from this callback.
-     */
-    void coroutine_fn (*resume)(BlockJob *job);
 
     /*
      * If the callback is not NULL, it will be invoked before the job is
@@ -194,15 +177,6 @@ void block_job_early_fail(BlockJob *job);
  * free @job.
  */
 void block_job_completed(BlockJob *job, int ret);
-
-/**
- * block_job_pause_point:
- * @job: The job that is ready to pause.
- *
- * Pause now if block_job_pause() has been called.  Block jobs that perform
- * lots of I/O must call this between requests so that the job can be paused.
- */
-void coroutine_fn block_job_pause_point(BlockJob *job);
 
 /**
  * block_job_enter:

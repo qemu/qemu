@@ -576,7 +576,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             aio_context_release(aio_context);
             return;
         }
-        block_job_start(job);
+        job_start(&job->job);
         break;
     default:
         aio_context_release(aio_context);

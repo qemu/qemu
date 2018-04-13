@@ -51,41 +51,16 @@ typedef struct BlockJob {
     BlockBackend *blk;
 
     /**
-     * The coroutine that executes the job.  If not NULL, it is
-     * reentered when busy is false and the job is cancelled.
-     */
-    Coroutine *co;
-
-    /**
      * Set to true if the job should abort immediately without waiting
      * for data to be in sync.
      */
     bool force;
 
     /**
-     * Counter for pause request. If non-zero, the block job is either paused,
-     * or if busy == true will pause itself as soon as possible.
-     */
-    int pause_count;
-
-    /**
      * Set to true if the job is paused by user.  Can be unpaused with the
      * block-job-resume QMP command.
      */
     bool user_paused;
-
-    /**
-     * Set to false by the job while the coroutine has yielded and may be
-     * re-entered by block_job_enter().  There may still be I/O or event loop
-     * activity pending.  Accessed under block_job_mutex (in blockjob.c).
-     */
-    bool busy;
-
-    /**
-     * Set to true by the job while it is in a quiescent state, where
-     * no I/O or event loop activity is pending.
-     */
-    bool paused;
 
     /**
      * Set to true when the job is ready to be completed.
@@ -124,12 +99,6 @@ typedef struct BlockJob {
 
     /** ret code passed to block_job_completed. */
     int ret;
-
-    /**
-     * Timer that is used by @block_job_sleep_ns. Accessed under
-     * block_job_mutex (in blockjob.c).
-     */
-    QEMUTimer sleep_timer;
 
     /** True if this job should automatically finalize itself */
     bool auto_finalize;
@@ -206,15 +175,6 @@ void block_job_remove_all_bdrv(BlockJob *job);
  * vary depending on the job type.
  */
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
-
-/**
- * block_job_start:
- * @job: A job that has not yet been started.
- *
- * Begins execution of a block job.
- * Takes ownership of one reference to the job object.
- */
-void block_job_start(BlockJob *job);
 
 /**
  * block_job_cancel:

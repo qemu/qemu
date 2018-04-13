@@ -199,8 +199,8 @@ static const BlockJobDriver test_cancel_driver = {
     .job_driver = {
         .instance_size = sizeof(CancelJob),
         .free          = block_job_free,
+        .start         = cancel_job_start,
     },
-    .start         = cancel_job_start,
     .complete      = cancel_job_complete,
 };
 
@@ -254,7 +254,7 @@ static void test_cancel_running(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
+    job_start(&job->job);
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     cancel_common(s);
@@ -267,7 +267,7 @@ static void test_cancel_paused(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
+    job_start(&job->job);
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     block_job_user_pause(job, &error_abort);
@@ -284,7 +284,7 @@ static void test_cancel_ready(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
+    job_start(&job->job);
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
@@ -301,7 +301,7 @@ static void test_cancel_standby(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
+    job_start(&job->job);
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
@@ -322,7 +322,7 @@ static void test_cancel_pending(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
+    job_start(&job->job);
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
@@ -346,7 +346,7 @@ static void test_cancel_concluded(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
+    job_start(&job->job);
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;

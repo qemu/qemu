@@ -220,8 +220,8 @@ static const BlockJobDriver commit_job_driver = {
         .instance_size = sizeof(CommitBlockJob),
         .job_type      = JOB_TYPE_COMMIT,
         .free          = block_job_free,
+        .start         = commit_run,
     },
-    .start         = commit_run,
 };
 
 static int coroutine_fn bdrv_commit_top_preadv(BlockDriverState *bs,
@@ -371,7 +371,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     s->on_error = on_error;
 
     trace_commit_start(bs, base, top, s);
-    block_job_start(&s->common);
+    job_start(&s->common.job);
     return;
 
 fail:

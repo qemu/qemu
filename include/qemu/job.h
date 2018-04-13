@@ -28,6 +28,7 @@
 
 #include "qapi/qapi-types-block-core.h"
 #include "qemu/queue.h"
+#include "qemu/coroutine.h"
 
 typedef struct JobDriver JobDriver;
 
@@ -49,6 +50,37 @@ typedef struct Job {
 
     /** AioContext to run the job coroutine in */
     AioContext *aio_context;
+
+    /**
+     * The coroutine that executes the job.  If not NULL, it is reentered when
+     * busy is false and the job is cancelled.
+     */
+    Coroutine *co;
+
+    /**
+     * Timer that is used by @block_job_sleep_ns. Accessed under job_mutex (in
+     * job.c).
+     */
+    QEMUTimer sleep_timer;
+
+    /**
+     * Counter for pause request. If non-zero, the block job is either paused,
+     * or if busy == true will pause itself as soon as possible.
+     */
+    int pause_count;
+
+    /**
+     * Set to false by the job while the coroutine has yielded and may be
+     * re-entered by block_job_enter().  There may still be I/O or event loop
+     * activity pending.  Accessed under block_job_mutex (in blockjob.c).
+     */
+    bool busy;
+
+    /**
+     * Set to true by the job while it is in a quiescent state, where
+     * no I/O or event loop activity is pending.
+     */
+    bool paused;
 
     /**
      * Set to true if the job should cancel itself.  The flag must
@@ -74,6 +106,23 @@ struct JobDriver {
 
     /** Enum describing the operation */
     JobType job_type;
+
+    /** Mandatory: Entrypoint for the Coroutine. */
+    CoroutineEntry *start;
+
+    /**
+     * If the callback is not NULL, it will be invoked when the job transitions
+     * into the paused state.  Paused jobs must not perform any asynchronous
+     * I/O or event loop activity.  This callback is used to quiesce jobs.
+     */
+    void coroutine_fn (*pause)(Job *job);
+
+    /**
+     * If the callback is not NULL, it will be invoked when the job transitions
+     * out of the paused state.  Any asynchronous I/O or event loop activity
+     * should be restarted from this callback.
+     */
+    void coroutine_fn (*resume)(Job *job);
 
     /** Called when the job is freed */
     void (*free)(Job *job);
@@ -102,6 +151,30 @@ void job_ref(Job *job);
  * job_create(). If it's the last reference to the object, it will be freed.
  */
 void job_unref(Job *job);
+
+/**
+ * Conditionally enter the job coroutine if the job is ready to run, not
+ * already busy and fn() returns true. fn() is called while under the job_lock
+ * critical section.
+ */
+void job_enter_cond(Job *job, bool(*fn)(Job *job));
+
+/**
+ * @job: A job that has not yet been started.
+ *
+ * Begins execution of a job.
+ * Takes ownership of one reference to the job object.
+ */
+void job_start(Job *job);
+
+/**
+ * @job: The job that is ready to pause.
+ *
+ * Pause now if job_pause() has been called. Jobs that perform lots of I/O
+ * must call this between requests so that the job can be paused.
+ */
+void coroutine_fn job_pause_point(Job *job);
+
 
 /** Returns the JobType of a given Job. */
 JobType job_type(const Job *job);
@@ -153,5 +226,8 @@ void job_defer_to_main_loop(Job *job, JobDeferToMainLoopFn *fn, void *opaque);
 
 /* TODO To be removed from the public interface */
 void job_state_transition(Job *job, JobStatus s1);
+void coroutine_fn job_do_yield(Job *job, uint64_t ns);
+bool job_should_pause(Job *job);
+bool job_started(Job *job);
 
 #endif
