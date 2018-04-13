@@ -526,6 +526,7 @@ static const BlockJobDriver backup_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(BackupBlockJob),
         .job_type               = JOB_TYPE_BACKUP,
+        .free                   = block_job_free,
     },
     .start                  = backup_run,
     .commit                 = backup_commit,

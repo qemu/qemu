@@ -19,6 +19,7 @@
 static const BlockJobDriver test_block_job_driver = {
     .job_driver = {
         .instance_size = sizeof(BlockJob),
+        .free          = block_job_free,
     },
 };
 
@@ -196,6 +197,7 @@ static void coroutine_fn cancel_job_start(void *opaque)
 static const BlockJobDriver test_cancel_driver = {
     .job_driver = {
         .instance_size = sizeof(CancelJob),
+        .free          = block_job_free,
     },
     .start         = cancel_job_start,
     .complete      = cancel_job_complete,
@@ -210,7 +212,7 @@ static CancelJob *create_common(BlockJob **pjob)
     blk = create_blk(NULL);
     job = mk_job(blk, "Steve", &test_cancel_driver, true,
                  BLOCK_JOB_MANUAL_FINALIZE | BLOCK_JOB_MANUAL_DISMISS);
-    block_job_ref(job);
+    job_ref(&job->job);
     assert(job->job.status == JOB_STATUS_CREATED);
     s = container_of(job, CancelJob, common);
     s->blk = blk;
@@ -231,7 +233,7 @@ static void cancel_common(CancelJob *s)
         block_job_dismiss(&dummy, &error_abort);
     }
     assert(job->job.status == JOB_STATUS_NULL);
-    block_job_unref(job);
+    job_unref(&job->job);
     destroy_blk(blk);
 }
 

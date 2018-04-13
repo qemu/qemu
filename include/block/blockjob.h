@@ -132,9 +132,6 @@ typedef struct BlockJob {
     /** The opaque value that is passed to the completion function.  */
     void *opaque;
 
-    /** Reference count of the block job */
-    int refcnt;
-
     /** True when job has reported completion by calling block_job_completed. */
     bool completed;
 
@@ -398,24 +395,6 @@ void block_job_iostatus_reset(BlockJob *job);
  * cancels all jobs in the transaction.
  */
 BlockJobTxn *block_job_txn_new(void);
-
-/**
- * block_job_ref:
- *
- * Add a reference to BlockJob refcnt, it will be decreased with
- * block_job_unref, and then be freed if it comes to be the last
- * reference.
- */
-void block_job_ref(BlockJob *job);
-
-/**
- * block_job_unref:
- *
- * Release a reference that was previously acquired with block_job_ref
- * or block_job_create. If it's the last reference to the object, it will be
- * freed.
- */
-void block_job_unref(BlockJob *job);
 
 /**
  * block_job_txn_unref:

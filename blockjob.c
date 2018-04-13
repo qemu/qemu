@@ -190,31 +190,25 @@ static void block_job_resume(BlockJob *job)
     block_job_enter_cond(job, block_job_timer_not_pending);
 }
 
-void block_job_ref(BlockJob *job)
-{
-    ++job->refcnt;
-}
-
 static void block_job_attached_aio_context(AioContext *new_context,
                                            void *opaque);
 static void block_job_detach_aio_context(void *opaque);
 
-void block_job_unref(BlockJob *job)
+void block_job_free(Job *job)
 {
-    if (--job->refcnt == 0) {
-        assert(job->job.status == JOB_STATUS_NULL);
-        assert(!job->txn);
-        BlockDriverState *bs = blk_bs(job->blk);
-        bs->job = NULL;
-        block_job_remove_all_bdrv(job);
-        blk_remove_aio_context_notifier(job->blk,
-                                        block_job_attached_aio_context,
-                                        block_job_detach_aio_context, job);
-        blk_unref(job->blk);
-        error_free(job->blocker);
-        assert(!timer_pending(&job->sleep_timer));
-        job_delete(&job->job);
-    }
+    BlockJob *bjob = container_of(job, BlockJob, job);
+    BlockDriverState *bs = blk_bs(bjob->blk);
+
+    assert(!bjob->txn);
+
+    bs->job = NULL;
+    block_job_remove_all_bdrv(bjob);
+    blk_remove_aio_context_notifier(bjob->blk,
+                                    block_job_attached_aio_context,
+                                    block_job_detach_aio_context, bjob);
+    blk_unref(bjob->blk);
+    error_free(bjob->blocker);
+    assert(!timer_pending(&bjob->sleep_timer));
 }
 
 static void block_job_attached_aio_context(AioContext *new_context,
@@ -245,7 +239,7 @@ static void block_job_detach_aio_context(void *opaque)
     BlockJob *job = opaque;
 
     /* In case the job terminates during aio_poll()... */
-    block_job_ref(job);
+    job_ref(&job->job);
 
     block_job_pause(job);
 
@@ -253,7 +247,7 @@ static void block_job_detach_aio_context(void *opaque)
         block_job_drain(job);
     }
 
-    block_job_unref(job);
+    job_unref(&job->job);
 }
 
 static char *child_job_get_parent_desc(BdrvChild *c)
@@ -367,7 +361,7 @@ static void block_job_decommission(BlockJob *job)
     job->deferred_to_main_loop = true;
     block_job_txn_del_job(job);
     job_state_transition(&job->job, JOB_STATUS_NULL);
-    block_job_unref(job);
+    job_unref(&job->job);
 }
 
 static void block_job_do_dismiss(BlockJob *job)
@@ -506,14 +500,14 @@ static int block_job_finish_sync(BlockJob *job,
 
     assert(blk_bs(job->blk)->job == job);
 
-    block_job_ref(job);
+    job_ref(&job->job);
 
     if (finish) {
         finish(job, &local_err);
     }
     if (local_err) {
         error_propagate(errp, local_err);
-        block_job_unref(job);
+        job_unref(&job->job);
         return -EBUSY;
     }
     /* block_job_drain calls block_job_enter, and it should be enough to
@@ -526,7 +520,7 @@ static int block_job_finish_sync(BlockJob *job,
         aio_poll(qemu_get_aio_context(), true);
     }
     ret = (job->cancelled && job->ret == 0) ? -ECANCELED : job->ret;
-    block_job_unref(job);
+    job_unref(&job->job);
     return ret;
 }
 
@@ -909,6 +903,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     }
 
     assert(is_block_job(&job->job));
+    assert(job->job.driver->free == &block_job_free);
 
     job->driver        = driver;
     job->blk           = blk;
@@ -917,7 +912,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->busy          = false;
     job->paused        = true;
     job->pause_count   = 1;
-    job->refcnt        = 1;
     job->auto_finalize = !(flags & BLOCK_JOB_MANUAL_FINALIZE);
     job->auto_dismiss  = !(flags & BLOCK_JOB_MANUAL_DISMISS);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,

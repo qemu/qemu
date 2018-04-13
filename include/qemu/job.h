@@ -41,6 +41,9 @@ typedef struct Job {
     /** The type of this job. */
     const JobDriver *driver;
 
+    /** Reference count of the block job */
+    int refcnt;
+
     /** Current state; See @JobStatus for details. */
     JobStatus status;
 
@@ -57,6 +60,9 @@ struct JobDriver {
 
     /** Enum describing the operation */
     JobType job_type;
+
+    /** Called when the job is freed */
+    void (*free)(Job *job);
 };
 
 
@@ -69,8 +75,17 @@ struct JobDriver {
  */
 void *job_create(const char *job_id, const JobDriver *driver, Error **errp);
 
-/** Frees the @job object. */
-void job_delete(Job *job);
+/**
+ * Add a reference to Job refcnt, it will be decreased with job_unref, and then
+ * be freed if it comes to be the last reference.
+ */
+void job_ref(Job *job);
+
+/**
+ * Release a reference that was previously acquired with job_ref() or
+ * job_create(). If it's the last reference to the object, it will be freed.
+ */
+void job_unref(Job *job);
 
 /** Returns the JobType of a given Job. */
 JobType job_type(const Job *job);

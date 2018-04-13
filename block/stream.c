@@ -212,6 +212,7 @@ static const BlockJobDriver stream_job_driver = {
     .job_driver = {
         .instance_size = sizeof(StreamBlockJob),
         .job_type      = JOB_TYPE_STREAM,
+        .free          = block_job_free,
     },
     .start         = stream_run,
 };

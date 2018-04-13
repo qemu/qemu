@@ -134,6 +134,7 @@ void *job_create(const char *job_id, const JobDriver *driver, Error **errp)
     job = g_malloc0(driver->instance_size);
     job->driver        = driver;
     job->id            = g_strdup(job_id);
+    job->refcnt        = 1;
 
     job_state_transition(job, JOB_STATUS_CREATED);
 
@@ -142,10 +143,23 @@ void *job_create(const char *job_id, const JobDriver *driver, Error **errp)
     return job;
 }
 
-void job_delete(Job *job)
+void job_ref(Job *job)
 {
-    QLIST_REMOVE(job, job_list);
+    ++job->refcnt;
+}
 
-    g_free(job->id);
-    g_free(job);
+void job_unref(Job *job)
+{
+    if (--job->refcnt == 0) {
+        assert(job->status == JOB_STATUS_NULL);
+
+        if (job->driver->free) {
+            job->driver->free(job);
+        }
+
+        QLIST_REMOVE(job, job_list);
+
+        g_free(job->id);
+        g_free(job);
+    }
 }

@@ -989,6 +989,7 @@ static const BlockJobDriver mirror_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(MirrorBlockJob),
         .job_type               = JOB_TYPE_MIRROR,
+        .free                   = block_job_free,
     },
     .start                  = mirror_run,
     .complete               = mirror_complete,
@@ -1001,6 +1002,7 @@ static const BlockJobDriver commit_active_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(MirrorBlockJob),
         .job_type               = JOB_TYPE_COMMIT,
+        .free                   = block_job_free,
     },
     .start                  = mirror_run,
     .complete               = mirror_complete,

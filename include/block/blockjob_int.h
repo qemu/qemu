@@ -144,6 +144,13 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
                        BlockCompletionFunc *cb, void *opaque, Error **errp);
 
 /**
+ * block_job_free:
+ * Callback to be used for JobDriver.free in all block jobs. Frees block job
+ * specific resources in @job.
+ */
+void block_job_free(Job *job);
+
+/**
  * block_job_sleep_ns:
  * @job: The job that calls the function.
  * @ns: How many nanoseconds to stop for.

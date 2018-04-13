@@ -218,6 +218,7 @@ static const BlockJobDriver commit_job_driver = {
     .job_driver = {
         .instance_size = sizeof(CommitBlockJob),
         .job_type      = JOB_TYPE_COMMIT,
+        .free          = block_job_free,
     },
     .start         = commit_run,
 };
