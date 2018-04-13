@@ -201,7 +201,8 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                                         PVR5_DCACHE_WRITEBACK_MASK : 0;
 
     env->pvr.regs[10] = 0x0c000000; /* Default to spartan 3a dsp family.  */
-    env->pvr.regs[11] = PVR11_USE_MMU | (16 << 17);
+    env->pvr.regs[11] = (cpu->cfg.use_mmu ? PVR11_USE_MMU : 0) |
+                        16 << 17;
 
     mcc->parent_realize(dev, errp);
 }
