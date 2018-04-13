@@ -848,7 +848,7 @@ static void dec_imm(DisasContext *dc)
     dc->clear_imm = 0;
 }
 
-static inline void compute_ldst_addr(DisasContext *dc, TCGv_i32 *t)
+static inline void compute_ldst_addr(DisasContext *dc, TCGv_i32 t)
 {
     bool extimm = dc->tb_flags & IMM_FLAG;
     /* Should be set to true if r1 is used by loadstores.  */
@@ -863,10 +863,10 @@ static inline void compute_ldst_addr(DisasContext *dc, TCGv_i32 *t)
     if (!dc->type_b) {
         /* If any of the regs is r0, set t to the value of the other reg.  */
         if (dc->ra == 0) {
-            tcg_gen_mov_i32(*t, cpu_R[dc->rb]);
+            tcg_gen_mov_i32(t, cpu_R[dc->rb]);
             return;
         } else if (dc->rb == 0) {
-            tcg_gen_mov_i32(*t, cpu_R[dc->ra]);
+            tcg_gen_mov_i32(t, cpu_R[dc->ra]);
             return;
         }
 
@@ -874,27 +874,27 @@ static inline void compute_ldst_addr(DisasContext *dc, TCGv_i32 *t)
             stackprot = true;
         }
 
-        tcg_gen_add_i32(*t, cpu_R[dc->ra], cpu_R[dc->rb]);
+        tcg_gen_add_i32(t, cpu_R[dc->ra], cpu_R[dc->rb]);
 
         if (stackprot) {
-            gen_helper_stackprot(cpu_env, *t);
+            gen_helper_stackprot(cpu_env, t);
         }
         return;
     }
     /* Immediate.  */
     if (!extimm) {
         if (dc->imm == 0) {
-            tcg_gen_mov_i32(*t, cpu_R[dc->ra]);
+            tcg_gen_mov_i32(t, cpu_R[dc->ra]);
             return;
         }
-        tcg_gen_movi_i32(*t, (int32_t)((int16_t)dc->imm));
-        tcg_gen_add_i32(*t, cpu_R[dc->ra], *t);
+        tcg_gen_movi_i32(t, (int32_t)((int16_t)dc->imm));
+        tcg_gen_add_i32(t, cpu_R[dc->ra], t);
     } else {
-        tcg_gen_add_i32(*t, cpu_R[dc->ra], *(dec_alu_op_b(dc)));
+        tcg_gen_add_i32(t, cpu_R[dc->ra], *(dec_alu_op_b(dc)));
     }
 
     if (stackprot) {
-        gen_helper_stackprot(cpu_env, *t);
+        gen_helper_stackprot(cpu_env, t);
     }
     return;
 }
@@ -929,7 +929,7 @@ static void dec_load(DisasContext *dc)
 
     t_sync_flags(dc);
     addr = tcg_temp_new_i32();
-    compute_ldst_addr(dc, &addr);
+    compute_ldst_addr(dc, addr);
 
     /*
      * When doing reverse accesses we need to do two things.
@@ -1041,7 +1041,7 @@ static void dec_store(DisasContext *dc)
     sync_jmpstate(dc);
     /* SWX needs a temp_local.  */
     addr = ex ? tcg_temp_local_new_i32() : tcg_temp_new_i32();
-    compute_ldst_addr(dc, &addr);
+    compute_ldst_addr(dc, addr);
 
     if (ex) { /* swx */
         TCGv_i32 tval;
