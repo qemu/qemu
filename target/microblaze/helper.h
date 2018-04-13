@@ -29,8 +29,8 @@ DEF_HELPER_2(mmu_read, i32, env, i32)
 DEF_HELPER_3(mmu_write, void, env, i32, i32)
 #endif
 
-DEF_HELPER_5(memalign, void, env, i32, i32, i32, i32)
-DEF_HELPER_2(stackprot, void, env, i32)
+DEF_HELPER_5(memalign, void, env, tl, i32, i32, i32)
+DEF_HELPER_2(stackprot, void, env, tl)
 
 DEF_HELPER_2(get, i32, i32, i32)
 DEF_HELPER_3(put, void, i32, i32, i32)

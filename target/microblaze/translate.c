@@ -59,7 +59,7 @@ static TCGv_i32 env_imm;
 static TCGv_i32 env_btaken;
 static TCGv_i32 env_btarget;
 static TCGv_i32 env_iflags;
-static TCGv_i32 env_res_addr;
+static TCGv env_res_addr;
 static TCGv_i32 env_res_val;
 
 #include "exec/gen-icount.h"
@@ -848,11 +848,12 @@ static void dec_imm(DisasContext *dc)
     dc->clear_imm = 0;
 }
 
-static inline void compute_ldst_addr(DisasContext *dc, TCGv_i32 t)
+static inline void compute_ldst_addr(DisasContext *dc, TCGv t)
 {
     bool extimm = dc->tb_flags & IMM_FLAG;
     /* Should be set to true if r1 is used by loadstores.  */
     bool stackprot = false;
+    TCGv_i32 t32;
 
     /* All load/stores use ra.  */
     if (dc->ra == 1 && dc->cpu->cfg.stackprot) {
@@ -863,10 +864,10 @@ static inline void compute_ldst_addr(DisasContext *dc, TCGv_i32 t)
     if (!dc->type_b) {
         /* If any of the regs is r0, set t to the value of the other reg.  */
         if (dc->ra == 0) {
-            tcg_gen_mov_i32(t, cpu_R[dc->rb]);
+            tcg_gen_extu_i32_tl(t, cpu_R[dc->rb]);
             return;
         } else if (dc->rb == 0) {
-            tcg_gen_mov_i32(t, cpu_R[dc->ra]);
+            tcg_gen_extu_i32_tl(t, cpu_R[dc->ra]);
             return;
         }
 
@@ -874,7 +875,10 @@ static inline void compute_ldst_addr(DisasContext *dc, TCGv_i32 t)
             stackprot = true;
         }
 
-        tcg_gen_add_i32(t, cpu_R[dc->ra], cpu_R[dc->rb]);
+        t32 = tcg_temp_new_i32();
+        tcg_gen_add_i32(t32, cpu_R[dc->ra], cpu_R[dc->rb]);
+        tcg_gen_extu_i32_tl(t, t32);
+        tcg_temp_free_i32(t32);
 
         if (stackprot) {
             gen_helper_stackprot(cpu_env, t);
@@ -882,16 +886,19 @@ static inline void compute_ldst_addr(DisasContext *dc, TCGv_i32 t)
         return;
     }
     /* Immediate.  */
+    t32 = tcg_temp_new_i32();
     if (!extimm) {
         if (dc->imm == 0) {
-            tcg_gen_mov_i32(t, cpu_R[dc->ra]);
-            return;
+            tcg_gen_mov_i32(t32, cpu_R[dc->ra]);
+        } else {
+            tcg_gen_movi_i32(t32, (int32_t)((int16_t)dc->imm));
+            tcg_gen_add_i32(t32, cpu_R[dc->ra], t32);
         }
-        tcg_gen_movi_i32(t, (int32_t)((int16_t)dc->imm));
-        tcg_gen_add_i32(t, cpu_R[dc->ra], t);
     } else {
-        tcg_gen_add_i32(t, cpu_R[dc->ra], *(dec_alu_op_b(dc)));
+        tcg_gen_add_i32(t32, cpu_R[dc->ra], *(dec_alu_op_b(dc)));
     }
+    tcg_gen_extu_i32_tl(t, t32);
+    tcg_temp_free_i32(t32);
 
     if (stackprot) {
         gen_helper_stackprot(cpu_env, t);
@@ -901,7 +908,8 @@ static inline void compute_ldst_addr(DisasContext *dc, TCGv_i32 t)
 
 static void dec_load(DisasContext *dc)
 {
-    TCGv_i32 v, addr;
+    TCGv_i32 v;
+    TCGv addr;
     unsigned int size;
     bool rev = false, ex = false;
     TCGMemOp mop;
@@ -928,7 +936,7 @@ static void dec_load(DisasContext *dc)
                                                         ex ? "x" : "");
 
     t_sync_flags(dc);
-    addr = tcg_temp_new_i32();
+    addr = tcg_temp_new();
     compute_ldst_addr(dc, addr);
 
     /*
@@ -946,20 +954,20 @@ static void dec_load(DisasContext *dc)
                    01 -> 10
                    10 -> 10
                    11 -> 00 */
-                TCGv_i32 low = tcg_temp_new_i32();
+                TCGv low = tcg_temp_new();
 
-                tcg_gen_andi_i32(low, addr, 3);
-                tcg_gen_sub_i32(low, tcg_const_i32(3), low);
-                tcg_gen_andi_i32(addr, addr, ~3);
-                tcg_gen_or_i32(addr, addr, low);
-                tcg_temp_free_i32(low);
+                tcg_gen_andi_tl(low, addr, 3);
+                tcg_gen_sub_tl(low, tcg_const_tl(3), low);
+                tcg_gen_andi_tl(addr, addr, ~3);
+                tcg_gen_or_tl(addr, addr, low);
+                tcg_temp_free(low);
                 break;
             }
 
             case 2:
                 /* 00 -> 10
                    10 -> 00.  */
-                tcg_gen_xori_i32(addr, addr, 2);
+                tcg_gen_xori_tl(addr, addr, 2);
                 break;
             default:
                 cpu_abort(CPU(dc->cpu), "Invalid reverse size\n");
@@ -969,7 +977,7 @@ static void dec_load(DisasContext *dc)
 
     /* lwx does not throw unaligned access errors, so force alignment */
     if (ex) {
-        tcg_gen_andi_i32(addr, addr, ~3);
+        tcg_gen_andi_tl(addr, addr, ~3);
     }
 
     /* If we get a fault on a dslot, the jmpstate better be in sync.  */
@@ -992,7 +1000,7 @@ static void dec_load(DisasContext *dc)
     }
 
     if (ex) {
-        tcg_gen_mov_i32(env_res_addr, addr);
+        tcg_gen_mov_tl(env_res_addr, addr);
         tcg_gen_mov_i32(env_res_val, v);
     }
     if (dc->rd) {
@@ -1005,12 +1013,12 @@ static void dec_load(DisasContext *dc)
         write_carryi(dc, 0);
     }
 
-    tcg_temp_free_i32(addr);
+    tcg_temp_free(addr);
 }
 
 static void dec_store(DisasContext *dc)
 {
-    TCGv_i32 addr;
+    TCGv addr;
     TCGLabel *swx_skip = NULL;
     unsigned int size;
     bool rev = false, ex = false;
@@ -1040,18 +1048,18 @@ static void dec_store(DisasContext *dc)
     /* If we get a fault on a dslot, the jmpstate better be in sync.  */
     sync_jmpstate(dc);
     /* SWX needs a temp_local.  */
-    addr = ex ? tcg_temp_local_new_i32() : tcg_temp_new_i32();
+    addr = ex ? tcg_temp_local_new() : tcg_temp_new();
     compute_ldst_addr(dc, addr);
 
     if (ex) { /* swx */
         TCGv_i32 tval;
 
         /* swx does not throw unaligned access errors, so force alignment */
-        tcg_gen_andi_i32(addr, addr, ~3);
+        tcg_gen_andi_tl(addr, addr, ~3);
 
         write_carryi(dc, 1);
         swx_skip = gen_new_label();
-        tcg_gen_brcond_i32(TCG_COND_NE, env_res_addr, addr, swx_skip);
+        tcg_gen_brcond_tl(TCG_COND_NE, env_res_addr, addr, swx_skip);
 
         /* Compare the value loaded at lwx with current contents of
            the reserved location.
@@ -1075,13 +1083,13 @@ static void dec_store(DisasContext *dc)
                    01 -> 10
                    10 -> 10
                    11 -> 00 */
-                TCGv_i32 low = tcg_temp_new_i32();
+                TCGv low = tcg_temp_new();
 
-                tcg_gen_andi_i32(low, addr, 3);
-                tcg_gen_sub_i32(low, tcg_const_i32(3), low);
-                tcg_gen_andi_i32(addr, addr, ~3);
-                tcg_gen_or_i32(addr, addr, low);
-                tcg_temp_free_i32(low);
+                tcg_gen_andi_tl(low, addr, 3);
+                tcg_gen_sub_tl(low, tcg_const_tl(3), low);
+                tcg_gen_andi_tl(addr, addr, ~3);
+                tcg_gen_or_tl(addr, addr, low);
+                tcg_temp_free(low);
                 break;
             }
 
@@ -1089,7 +1097,7 @@ static void dec_store(DisasContext *dc)
                 /* 00 -> 10
                    10 -> 00.  */
                 /* Force addr into the temp.  */
-                tcg_gen_xori_i32(addr, addr, 2);
+                tcg_gen_xori_tl(addr, addr, 2);
                 break;
             default:
                 cpu_abort(CPU(dc->cpu), "Invalid reverse size\n");
@@ -1116,7 +1124,7 @@ static void dec_store(DisasContext *dc)
         gen_set_label(swx_skip);
     }
 
-    tcg_temp_free_i32(addr);
+    tcg_temp_free(addr);
 }
 
 static inline void eval_cc(DisasContext *dc, unsigned int cc,
@@ -1834,7 +1842,7 @@ void mb_tcg_init(void)
     env_btaken = tcg_global_mem_new_i32(cpu_env,
                      offsetof(CPUMBState, btaken),
                      "btaken");
-    env_res_addr = tcg_global_mem_new_i32(cpu_env,
+    env_res_addr = tcg_global_mem_new(cpu_env,
                      offsetof(CPUMBState, res_addr),
                      "res_addr");
     env_res_val = tcg_global_mem_new_i32(cpu_env,

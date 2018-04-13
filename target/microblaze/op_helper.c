@@ -439,12 +439,14 @@ uint32_t helper_pcmpbf(uint32_t a, uint32_t b)
     return 0;
 }
 
-void helper_memalign(CPUMBState *env, uint32_t addr, uint32_t dr, uint32_t wr,
+void helper_memalign(CPUMBState *env, target_ulong addr,
+                     uint32_t dr, uint32_t wr,
                      uint32_t mask)
 {
     if (addr & mask) {
             qemu_log_mask(CPU_LOG_INT,
-                          "unaligned access addr=%x mask=%x, wr=%d dr=r%d\n",
+                          "unaligned access addr=" TARGET_FMT_lx
+                          " mask=%x, wr=%d dr=r%d\n",
                           addr, mask, wr, dr);
             env->sregs[SR_EAR] = addr;
             env->sregs[SR_ESR] = ESR_EC_UNALIGNED_DATA | (wr << 10) \
@@ -459,10 +461,11 @@ void helper_memalign(CPUMBState *env, uint32_t addr, uint32_t dr, uint32_t wr,
     }
 }
 
-void helper_stackprot(CPUMBState *env, uint32_t addr)
+void helper_stackprot(CPUMBState *env, target_ulong addr)
 {
     if (addr < env->slr || addr > env->shr) {
-        qemu_log_mask(CPU_LOG_INT, "Stack protector violation at %x %x %x\n",
+        qemu_log_mask(CPU_LOG_INT, "Stack protector violation at "
+                      TARGET_FMT_lx " %x %x\n",
                       addr, env->slr, env->shr);
         env->sregs[SR_EAR] = addr;
         env->sregs[SR_ESR] = ESR_EC_STACKPROT;

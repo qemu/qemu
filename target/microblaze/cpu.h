@@ -250,7 +250,7 @@ struct CPUMBState {
 
     /* lwx/swx reserved address */
 #define RES_ADDR_NONE 0xffffffff /* Use 0xffffffff to indicate no reservation */
-    uint32_t res_addr;
+    target_ulong res_addr;
     uint32_t res_val;
 
     /* Internal flags.  */
