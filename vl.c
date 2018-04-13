@@ -2143,9 +2143,9 @@ static void parse_display(const char *p)
                 opts = nextopt;
                 dpy.has_gl = true;
                 if (strstart(opts, "on", &nextopt)) {
-                    dpy.gl = true;
+                    dpy.gl = DISPLAYGL_MODE_ON;
                 } else if (strstart(opts, "off", &nextopt)) {
-                    dpy.gl = false;
+                    dpy.gl = DISPLAYGL_MODE_OFF;
                 } else {
                     goto invalid_sdl_args;
                 }
@@ -2186,9 +2186,9 @@ static void parse_display(const char *p)
                 opts = nextopt;
                 dpy.has_gl = true;
                 if (strstart(opts, "on", &nextopt)) {
-                    dpy.gl = true;
+                    dpy.gl = DISPLAYGL_MODE_ON;
                 } else if (strstart(opts, "off", &nextopt)) {
-                    dpy.gl = false;
+                    dpy.gl = DISPLAYGL_MODE_OFF;
                 } else {
                     goto invalid_gtk_args;
                 }
@@ -4356,7 +4356,7 @@ int main(int argc, char **argv, char **envp)
     qemu_display_early_init(&dpy);
     qemu_console_early_init();
 
-    if (dpy.has_gl && dpy.gl && display_opengl == 0) {
+    if (dpy.has_gl && dpy.gl != DISPLAYGL_MODE_OFF && display_opengl == 0) {
 #if defined(CONFIG_OPENGL)
         error_report("OpenGL is not supported by the display");
 #else
