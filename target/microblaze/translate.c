@@ -952,7 +952,6 @@ static void dec_load(DisasContext *dc)
                 tcg_gen_sub_tl(low, tcg_const_tl(3), low);
                 tcg_gen_andi_tl(t, t, ~3);
                 tcg_gen_or_tl(t, t, low);
-                tcg_gen_mov_tl(env_imm, t);
                 tcg_temp_free(low);
                 break;
             }
@@ -1104,7 +1103,6 @@ static void dec_store(DisasContext *dc)
                 tcg_gen_sub_tl(low, tcg_const_tl(3), low);
                 tcg_gen_andi_tl(t, t, ~3);
                 tcg_gen_or_tl(t, t, low);
-                tcg_gen_mov_tl(env_imm, t);
                 tcg_temp_free(low);
                 break;
             }
