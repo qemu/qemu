@@ -1229,13 +1229,10 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg base, TCGReg addrl,
     tcg_out_opc_reg(s, ALIAS_PADD, TCG_REG_A0, TCG_REG_A0, TCG_AREG0);
 
     /* Compensate for very large offsets.  */
-    if (add_off >= 0x8000) {
-        /* Most target env are smaller than 32k; none are larger than 64k.
-           Simplify the logic here merely to offset by 0x7ff0, giving us a
-           range just shy of 64k.  Check this assumption.  */
-        QEMU_BUILD_BUG_ON(offsetof(CPUArchState,
-                                   tlb_table[NB_MMU_MODES - 1][1])
-                          > 0x7ff0 + 0x7fff);
+    while (add_off >= 0x8000) {
+        /* Most target env are smaller than 32k, but a few are larger than 64k,
+         * so handle an arbitrarily large offset.
+         */
         tcg_out_opc_imm(s, ALIAS_PADDI, TCG_REG_A0, TCG_REG_A0, 0x7ff0);
         cmp_off -= 0x7ff0;
         add_off -= 0x7ff0;
