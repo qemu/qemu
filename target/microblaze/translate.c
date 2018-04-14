@@ -458,17 +458,20 @@ static void dec_msr(DisasContext *dc)
 {
     CPUState *cs = CPU(dc->cpu);
     TCGv_i32 t0, t1;
-    unsigned int sr, to, rn;
+    unsigned int sr, rn;
+    bool to, clrset;
 
-    sr = dc->imm & ((1 << 14) - 1);
-    to = dc->imm & (1 << 14);
+    sr = extract32(dc->imm, 0, 14);
+    to = extract32(dc->imm, 14, 1);
+    clrset = extract32(dc->imm, 15, 1) == 0;
     dc->type_b = 1;
-    if (to)
+    if (to) {
         dc->cpustate_changed = 1;
+    }
 
     /* msrclr and msrset.  */
-    if (!(dc->imm & (1 << 15))) {
-        unsigned int clr = dc->ir & (1 << 16);
+    if (clrset) {
+        bool clr = extract32(dc->ir, 16, 1);
 
         LOG_DIS("msr%s r%d imm=%x\n", clr ? "clr" : "set",
                 dc->rd, dc->imm);
