@@ -533,10 +533,8 @@ static void dec_msr(DisasContext *dc)
                 break;
             case SR_EAR:
             case SR_ESR:
+            case SR_FSR:
                 tcg_gen_mov_i32(cpu_SR[sr], cpu_R[dc->ra]);
-                break;
-            case 0x7:
-                tcg_gen_andi_i32(cpu_SR[SR_FSR], cpu_R[dc->ra], 31);
                 break;
             case 0x800:
                 tcg_gen_st_i32(cpu_R[dc->ra],
