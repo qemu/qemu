@@ -531,11 +531,9 @@ static void dec_msr(DisasContext *dc)
             case 1:
                 msr_write(dc, cpu_R[dc->ra]);
                 break;
-            case 0x3:
-                tcg_gen_mov_i32(cpu_SR[SR_EAR], cpu_R[dc->ra]);
-                break;
-            case 0x5:
-                tcg_gen_mov_i32(cpu_SR[SR_ESR], cpu_R[dc->ra]);
+            case SR_EAR:
+            case SR_ESR:
+                tcg_gen_mov_i32(cpu_SR[sr], cpu_R[dc->ra]);
                 break;
             case 0x7:
                 tcg_gen_andi_i32(cpu_SR[SR_FSR], cpu_R[dc->ra], 31);
@@ -562,17 +560,11 @@ static void dec_msr(DisasContext *dc)
             case 1:
                 msr_read(dc, cpu_R[dc->rd]);
                 break;
-            case 0x3:
-                tcg_gen_mov_i32(cpu_R[dc->rd], cpu_SR[SR_EAR]);
-                break;
-            case 0x5:
-                tcg_gen_mov_i32(cpu_R[dc->rd], cpu_SR[SR_ESR]);
-                break;
-             case 0x7:
-                tcg_gen_mov_i32(cpu_R[dc->rd], cpu_SR[SR_FSR]);
-                break;
-            case 0xb:
-                tcg_gen_mov_i32(cpu_R[dc->rd], cpu_SR[SR_BTR]);
+            case SR_EAR:
+            case SR_ESR:
+            case SR_FSR:
+            case SR_BTR:
+                tcg_gen_mov_i32(cpu_R[dc->rd], cpu_SR[sr]);
                 break;
             case 0x800:
                 tcg_gen_ld_i32(cpu_R[dc->rd],
@@ -582,19 +574,7 @@ static void dec_msr(DisasContext *dc)
                 tcg_gen_ld_i32(cpu_R[dc->rd],
                                cpu_env, offsetof(CPUMBState, shr));
                 break;
-            case 0x2000:
-            case 0x2001:
-            case 0x2002:
-            case 0x2003:
-            case 0x2004:
-            case 0x2005:
-            case 0x2006:
-            case 0x2007:
-            case 0x2008:
-            case 0x2009:
-            case 0x200a:
-            case 0x200b:
-            case 0x200c:
+            case 0x2000 ... 0x200c:
                 rn = sr & 0xf;
                 tcg_gen_ld_i32(cpu_R[dc->rd],
                               cpu_env, offsetof(CPUMBState, pvr.regs[rn]));
