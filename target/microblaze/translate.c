@@ -54,7 +54,7 @@
 
 static TCGv_i32 env_debug;
 static TCGv_i32 cpu_R[32];
-static TCGv_i32 cpu_SR[14];
+static TCGv_i64 cpu_SR[14];
 static TCGv_i32 env_imm;
 static TCGv_i32 env_btaken;
 static TCGv_i32 env_btarget;
@@ -123,7 +123,7 @@ static inline void t_gen_raise_exception(DisasContext *dc, uint32_t index)
     TCGv_i32 tmp = tcg_const_i32(index);
 
     t_sync_flags(dc);
-    tcg_gen_movi_i32(cpu_SR[SR_PC], dc->pc);
+    tcg_gen_movi_i64(cpu_SR[SR_PC], dc->pc);
     gen_helper_raise_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
     dc->is_jmp = DISAS_UPDATE;
@@ -142,17 +142,18 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 {
     if (use_goto_tb(dc, dest)) {
         tcg_gen_goto_tb(n);
-        tcg_gen_movi_i32(cpu_SR[SR_PC], dest);
+        tcg_gen_movi_i64(cpu_SR[SR_PC], dest);
         tcg_gen_exit_tb((uintptr_t)dc->tb + n);
     } else {
-        tcg_gen_movi_i32(cpu_SR[SR_PC], dest);
+        tcg_gen_movi_i64(cpu_SR[SR_PC], dest);
         tcg_gen_exit_tb(0);
     }
 }
 
 static void read_carry(DisasContext *dc, TCGv_i32 d)
 {
-    tcg_gen_shri_i32(d, cpu_SR[SR_MSR], 31);
+    tcg_gen_extrl_i64_i32(d, cpu_SR[SR_MSR]);
+    tcg_gen_shri_i32(d, d, 31);
 }
 
 /*
@@ -161,14 +162,12 @@ static void read_carry(DisasContext *dc, TCGv_i32 d)
  */
 static void write_carry(DisasContext *dc, TCGv_i32 v)
 {
-    TCGv_i32 t0 = tcg_temp_new_i32();
-    tcg_gen_shli_i32(t0, v, 31);
-    tcg_gen_sari_i32(t0, t0, 31);
-    tcg_gen_andi_i32(t0, t0, (MSR_C | MSR_CC));
-    tcg_gen_andi_i32(cpu_SR[SR_MSR], cpu_SR[SR_MSR],
-                    ~(MSR_C | MSR_CC));
-    tcg_gen_or_i32(cpu_SR[SR_MSR], cpu_SR[SR_MSR], t0);
-    tcg_temp_free_i32(t0);
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(t0, v);
+    /* Deposit bit 0 into MSR_C and the alias MSR_CC.  */
+    tcg_gen_deposit_i64(cpu_SR[SR_MSR], cpu_SR[SR_MSR], t0, 2, 1);
+    tcg_gen_deposit_i64(cpu_SR[SR_MSR], cpu_SR[SR_MSR], t0, 31, 1);
+    tcg_temp_free_i64(t0);
 }
 
 static void write_carryi(DisasContext *dc, bool carry)
@@ -187,7 +186,7 @@ static bool trap_illegal(DisasContext *dc, bool cond)
 {
     if (cond && (dc->tb_flags & MSR_EE_FLAG)
         && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
+        tcg_gen_movi_i64(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }
     return cond;
@@ -203,7 +202,7 @@ static bool trap_userspace(DisasContext *dc, bool cond)
     bool cond_user = cond && mem_index == MMU_USER_IDX;
 
     if (cond_user && (dc->tb_flags & MSR_EE_FLAG)) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_PRIVINSN);
+        tcg_gen_movi_i64(cpu_SR[SR_ESR], ESR_EC_PRIVINSN);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }
     return cond_user;
@@ -438,20 +437,21 @@ static void dec_xor(DisasContext *dc)
 
 static inline void msr_read(DisasContext *dc, TCGv_i32 d)
 {
-    tcg_gen_mov_i32(d, cpu_SR[SR_MSR]);
+    tcg_gen_extrl_i64_i32(d, cpu_SR[SR_MSR]);
 }
 
 static inline void msr_write(DisasContext *dc, TCGv_i32 v)
 {
-    TCGv_i32 t;
+    TCGv_i64 t;
 
-    t = tcg_temp_new_i32();
+    t = tcg_temp_new_i64();
     dc->cpustate_changed = 1;
     /* PVR bit is not writable.  */
-    tcg_gen_andi_i32(t, v, ~MSR_PVR);
-    tcg_gen_andi_i32(cpu_SR[SR_MSR], cpu_SR[SR_MSR], MSR_PVR);
-    tcg_gen_or_i32(cpu_SR[SR_MSR], cpu_SR[SR_MSR], t);
-    tcg_temp_free(t);
+    tcg_gen_extu_i32_i64(t, v);
+    tcg_gen_andi_i64(t, t, ~MSR_PVR);
+    tcg_gen_andi_i64(cpu_SR[SR_MSR], cpu_SR[SR_MSR], MSR_PVR);
+    tcg_gen_or_i64(cpu_SR[SR_MSR], cpu_SR[SR_MSR], t);
+    tcg_temp_free_i64(t);
 }
 
 static void dec_msr(DisasContext *dc)
@@ -501,7 +501,7 @@ static void dec_msr(DisasContext *dc)
         msr_write(dc, t0);
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);
-        tcg_gen_movi_i32(cpu_SR[SR_PC], dc->pc + 4);
+        tcg_gen_movi_i64(cpu_SR[SR_PC], dc->pc + 4);
         dc->is_jmp = DISAS_UPDATE;
         return;
     }
@@ -534,7 +534,7 @@ static void dec_msr(DisasContext *dc)
             case SR_EAR:
             case SR_ESR:
             case SR_FSR:
-                tcg_gen_mov_i32(cpu_SR[sr], cpu_R[dc->ra]);
+                tcg_gen_extu_i32_i64(cpu_SR[sr], cpu_R[dc->ra]);
                 break;
             case 0x800:
                 tcg_gen_st_i32(cpu_R[dc->ra],
@@ -562,7 +562,7 @@ static void dec_msr(DisasContext *dc)
             case SR_ESR:
             case SR_FSR:
             case SR_BTR:
-                tcg_gen_mov_i32(cpu_R[dc->rd], cpu_SR[sr]);
+                tcg_gen_extrl_i64_i32(cpu_R[dc->rd], cpu_SR[sr]);
                 break;
             case 0x800:
                 tcg_gen_ld_i32(cpu_R[dc->rd],
@@ -735,7 +735,8 @@ static void dec_bit(DisasContext *dc)
             t0 = tcg_temp_new_i32();
 
             LOG_DIS("src r%d r%d\n", dc->rd, dc->ra);
-            tcg_gen_andi_i32(t0, cpu_SR[SR_MSR], MSR_CC);
+            tcg_gen_extrl_i64_i32(t0, cpu_SR[SR_MSR]);
+            tcg_gen_andi_i32(t0, t0, MSR_CC);
             write_carry(dc, cpu_R[dc->ra]);
             if (dc->rd) {
                 tcg_gen_shri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 1);
@@ -966,7 +967,7 @@ static void dec_load(DisasContext *dc)
     tcg_gen_qemu_ld_i32(v, addr, cpu_mmu_index(&dc->cpu->env, false), mop);
 
     if ((dc->cpu->env.pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
-        tcg_gen_movi_i32(cpu_SR[SR_PC], dc->pc);
+        tcg_gen_movi_i64(cpu_SR[SR_PC], dc->pc);
         gen_helper_memalign(cpu_env, addr, tcg_const_i32(dc->rd),
                             tcg_const_i32(0), tcg_const_i32(size - 1));
     }
@@ -1078,7 +1079,7 @@ static void dec_store(DisasContext *dc)
 
     /* Verify alignment if needed.  */
     if ((dc->cpu->env.pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
-        tcg_gen_movi_i32(cpu_SR[SR_PC], dc->pc);
+        tcg_gen_movi_i64(cpu_SR[SR_PC], dc->pc);
         /* FIXME: if the alignment is wrong, we should restore the value
          *        in memory. One possible way to achieve this is to probe
          *        the MMU prior to the memaccess, thay way we could put
@@ -1124,13 +1125,13 @@ static inline void eval_cc(DisasContext *dc, unsigned int cc,
     }
 }
 
-static void eval_cond_jmp(DisasContext *dc, TCGv_i32 pc_true, TCGv_i32 pc_false)
+static void eval_cond_jmp(DisasContext *dc, TCGv_i32 pc_true, TCGv_i64 pc_false)
 {
     TCGLabel *l1 = gen_new_label();
     /* Conditional jmp.  */
-    tcg_gen_mov_i32(cpu_SR[SR_PC], pc_false);
+    tcg_gen_mov_i64(cpu_SR[SR_PC], pc_false);
     tcg_gen_brcondi_i32(TCG_COND_EQ, env_btaken, 0, l1);
-    tcg_gen_mov_i32(cpu_SR[SR_PC], pc_true);
+    tcg_gen_extu_i32_i64(cpu_SR[SR_PC], pc_true);
     gen_set_label(l1);
 }
 
@@ -1187,7 +1188,7 @@ static void dec_br(DisasContext *dc)
             tcg_gen_st_i32(tmp_1, cpu_env,
                            -offsetof(MicroBlazeCPU, env)
                            +offsetof(CPUState, halted));
-            tcg_gen_movi_i32(cpu_SR[SR_PC], dc->pc + 4);
+            tcg_gen_movi_i64(cpu_SR[SR_PC], dc->pc + 4);
             gen_helper_raise_exception(cpu_env, tmp_hlt);
             tcg_temp_free_i32(tmp_hlt);
             tcg_temp_free_i32(tmp_1);
@@ -1246,8 +1247,9 @@ static inline void do_rti(DisasContext *dc)
     TCGv_i32 t0, t1;
     t0 = tcg_temp_new_i32();
     t1 = tcg_temp_new_i32();
-    tcg_gen_shri_i32(t0, cpu_SR[SR_MSR], 1);
-    tcg_gen_ori_i32(t1, cpu_SR[SR_MSR], MSR_IE);
+    tcg_gen_extrl_i64_i32(t1, cpu_SR[SR_MSR]);
+    tcg_gen_shri_i32(t0, t1, 1);
+    tcg_gen_ori_i32(t1, t1, MSR_IE);
     tcg_gen_andi_i32(t0, t0, (MSR_VM | MSR_UM));
 
     tcg_gen_andi_i32(t1, t1, ~(MSR_VM | MSR_UM));
@@ -1263,7 +1265,8 @@ static inline void do_rtb(DisasContext *dc)
     TCGv_i32 t0, t1;
     t0 = tcg_temp_new_i32();
     t1 = tcg_temp_new_i32();
-    tcg_gen_andi_i32(t1, cpu_SR[SR_MSR], ~MSR_BIP);
+    tcg_gen_extrl_i64_i32(t1, cpu_SR[SR_MSR]);
+    tcg_gen_andi_i32(t1, t1, ~MSR_BIP);
     tcg_gen_shri_i32(t0, t1, 1);
     tcg_gen_andi_i32(t0, t0, (MSR_VM | MSR_UM));
 
@@ -1281,7 +1284,8 @@ static inline void do_rte(DisasContext *dc)
     t0 = tcg_temp_new_i32();
     t1 = tcg_temp_new_i32();
 
-    tcg_gen_ori_i32(t1, cpu_SR[SR_MSR], MSR_EE);
+    tcg_gen_extrl_i64_i32(t1, cpu_SR[SR_MSR]);
+    tcg_gen_ori_i32(t1, t1, MSR_EE);
     tcg_gen_andi_i32(t1, t1, ~MSR_EIP);
     tcg_gen_shri_i32(t0, t1, 1);
     tcg_gen_andi_i32(t0, t0, (MSR_VM | MSR_UM));
@@ -1331,7 +1335,7 @@ static void dec_rts(DisasContext *dc)
 static int dec_check_fpuv2(DisasContext *dc)
 {
     if ((dc->cpu->cfg.use_fpu != 2) && (dc->tb_flags & MSR_EE_FLAG)) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_FPU);
+        tcg_gen_movi_i64(cpu_SR[SR_ESR], ESR_EC_FPU);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }
     return (dc->cpu->cfg.use_fpu == 2) ? 0 : PVR2_USE_FPU2_MASK;
@@ -1596,7 +1600,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 
 #if SIM_COMPAT
         if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-            tcg_gen_movi_i32(cpu_SR[SR_PC], dc->pc);
+            tcg_gen_movi_i64(cpu_SR[SR_PC], dc->pc);
             gen_helper_debug();
         }
 #endif
@@ -1638,7 +1642,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
                 dc->tb_flags &= ~D_FLAG;
                 /* If it is a direct jump, try direct chaining.  */
                 if (dc->jmp == JMP_INDIRECT) {
-                    eval_cond_jmp(dc, env_btarget, tcg_const_i32(dc->pc));
+                    eval_cond_jmp(dc, env_btarget, tcg_const_i64(dc->pc));
                     dc->is_jmp = DISAS_JUMP;
                 } else if (dc->jmp == JMP_DIRECT) {
                     t_sync_flags(dc);
@@ -1671,7 +1675,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     if (dc->jmp == JMP_DIRECT || dc->jmp == JMP_DIRECT_CC) {
         if (dc->tb_flags & D_FLAG) {
             dc->is_jmp = DISAS_UPDATE;
-            tcg_gen_movi_i32(cpu_SR[SR_PC], npc);
+            tcg_gen_movi_i64(cpu_SR[SR_PC], npc);
             sync_jmpstate(dc);
         } else
             npc = dc->jmp_pc;
@@ -1683,7 +1687,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     if (dc->is_jmp == DISAS_NEXT
         && (dc->cpustate_changed || org_flags != dc->tb_flags)) {
         dc->is_jmp = DISAS_UPDATE;
-        tcg_gen_movi_i32(cpu_SR[SR_PC], npc);
+        tcg_gen_movi_i64(cpu_SR[SR_PC], npc);
     }
     t_sync_flags(dc);
 
@@ -1691,7 +1695,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
 
         if (dc->is_jmp != DISAS_JUMP) {
-            tcg_gen_movi_i32(cpu_SR[SR_PC], npc);
+            tcg_gen_movi_i64(cpu_SR[SR_PC], npc);
         }
         gen_helper_raise_exception(cpu_env, tmp);
         tcg_temp_free_i32(tmp);
@@ -1741,17 +1745,18 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     if (!env || !f)
         return;
 
-    cpu_fprintf(f, "IN: PC=%x %s\n",
+    cpu_fprintf(f, "IN: PC=%" PRIx64 " %s\n",
                 env->sregs[SR_PC], lookup_symbol(env->sregs[SR_PC]));
-    cpu_fprintf(f, "rmsr=%x resr=%x rear=%x debug=%x imm=%x iflags=%x fsr=%x\n",
+    cpu_fprintf(f, "rmsr=%" PRIx64 " resr=%" PRIx64 " rear=%" PRIx64 " "
+                   "debug=%x imm=%x iflags=%x fsr=%" PRIx64 "\n",
              env->sregs[SR_MSR], env->sregs[SR_ESR], env->sregs[SR_EAR],
              env->debug, env->imm, env->iflags, env->sregs[SR_FSR]);
     cpu_fprintf(f, "btaken=%d btarget=%x mode=%s(saved=%s) eip=%d ie=%d\n",
              env->btaken, env->btarget,
              (env->sregs[SR_MSR] & MSR_UM) ? "user" : "kernel",
              (env->sregs[SR_MSR] & MSR_UMS) ? "user" : "kernel",
-             (env->sregs[SR_MSR] & MSR_EIP),
-             (env->sregs[SR_MSR] & MSR_IE));
+             (bool)(env->sregs[SR_MSR] & MSR_EIP),
+             (bool)(env->sregs[SR_MSR] & MSR_IE));
 
     for (i = 0; i < 32; i++) {
         cpu_fprintf(f, "r%2.2d=%8.8x ", i, env->regs[i]);
@@ -1792,7 +1797,7 @@ void mb_tcg_init(void)
                           regnames[i]);
     }
     for (i = 0; i < ARRAY_SIZE(cpu_SR); i++) {
-        cpu_SR[i] = tcg_global_mem_new_i32(cpu_env,
+        cpu_SR[i] = tcg_global_mem_new_i64(cpu_env,
                           offsetof(CPUMBState, sregs[i]),
                           special_regnames[i]);
     }

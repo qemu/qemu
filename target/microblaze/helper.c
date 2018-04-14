@@ -143,7 +143,8 @@ void mb_cpu_do_interrupt(CPUState *cs)
             env->sregs[SR_MSR] |= MSR_EIP;
 
             qemu_log_mask(CPU_LOG_INT,
-                          "hw exception at pc=%x ear=%x esr=%x iflags=%x\n",
+                          "hw exception at pc=%" PRIx64 " ear=%" PRIx64 " "
+                          "esr=%" PRIx64 " iflags=%x\n",
                           env->sregs[SR_PC], env->sregs[SR_EAR],
                           env->sregs[SR_ESR], env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
@@ -166,7 +167,8 @@ void mb_cpu_do_interrupt(CPUState *cs)
                 /* was the branch immprefixed?.  */
                 if (env->bimm) {
                     qemu_log_mask(CPU_LOG_INT,
-                                  "bimm exception at pc=%x iflags=%x\n",
+                                  "bimm exception at pc=%" PRIx64 " "
+                                  "iflags=%x\n",
                                   env->sregs[SR_PC], env->iflags);
                     env->regs[17] -= 4;
                     log_cpu_state_mask(CPU_LOG_INT, cs, 0);
@@ -184,7 +186,8 @@ void mb_cpu_do_interrupt(CPUState *cs)
             env->sregs[SR_MSR] |= MSR_EIP;
 
             qemu_log_mask(CPU_LOG_INT,
-                          "exception at pc=%x ear=%x iflags=%x\n",
+                          "exception at pc=%" PRIx64 " ear=%" PRIx64 " "
+                          "iflags=%x\n",
                           env->sregs[SR_PC], env->sregs[SR_EAR], env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->iflags &= ~(IMM_FLAG | D_FLAG);
@@ -221,7 +224,8 @@ void mb_cpu_do_interrupt(CPUState *cs)
             }
 #endif
             qemu_log_mask(CPU_LOG_INT,
-                         "interrupt at pc=%x msr=%x %x iflags=%x\n",
+                         "interrupt at pc=%" PRIx64 " msr=%" PRIx64 " %x "
+                         "iflags=%x\n",
                          env->sregs[SR_PC], env->sregs[SR_MSR], t, env->iflags);
 
             env->sregs[SR_MSR] &= ~(MSR_VMS | MSR_UMS | MSR_VM \
@@ -239,7 +243,8 @@ void mb_cpu_do_interrupt(CPUState *cs)
             assert(!(env->iflags & D_FLAG));
             t = (env->sregs[SR_MSR] & (MSR_VM | MSR_UM)) << 1;
             qemu_log_mask(CPU_LOG_INT,
-                        "break at pc=%x msr=%x %x iflags=%x\n",
+                        "break at pc=%" PRIx64 " msr=%" PRIx64 " %x "
+                        "iflags=%x\n",
                         env->sregs[SR_PC], env->sregs[SR_MSR], t, env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             env->sregs[SR_MSR] &= ~(MSR_VMS | MSR_UMS | MSR_VM | MSR_UM);
