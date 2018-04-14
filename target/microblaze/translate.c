@@ -180,6 +180,20 @@ static void write_carryi(DisasContext *dc, bool carry)
 }
 
 /*
+ * Returns true if the insn an illegal operation.
+ * If exceptions are enabled, an exception is raised.
+ */
+static bool trap_illegal(DisasContext *dc, bool cond)
+{
+    if (cond && (dc->tb_flags & MSR_EE_FLAG)
+        && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
+        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
+        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+    }
+    return cond;
+}
+
+/*
  * Returns true if the insn is illegal in userspace.
  * If exceptions are enabled, an exception is raised.
  */
@@ -344,11 +358,8 @@ static void dec_pattern(DisasContext *dc)
 {
     unsigned int mode;
 
-    if ((dc->tb_flags & MSR_EE_FLAG)
-          && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-          && !dc->cpu->cfg.use_pcmp_instr) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+    if (trap_illegal(dc, !dc->cpu->cfg.use_pcmp_instr)) {
+        return;
     }
 
     mode = dc->opcode & 3;
@@ -602,11 +613,7 @@ static void dec_mul(DisasContext *dc)
     TCGv_i32 tmp;
     unsigned int subcode;
 
-    if ((dc->tb_flags & MSR_EE_FLAG)
-         && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-         && !dc->cpu->cfg.use_hw_mul) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+    if (trap_illegal(dc, !dc->cpu->cfg.use_hw_mul)) {
         return;
     }
 
@@ -658,10 +665,8 @@ static void dec_div(DisasContext *dc)
     u = dc->imm & 2; 
     LOG_DIS("div\n");
 
-    if ((dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-          && !dc->cpu->cfg.use_div) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+    if (trap_illegal(dc, !dc->cpu->cfg.use_div)) {
+        return;
     }
 
     if (u)
@@ -680,11 +685,7 @@ static void dec_barrel(DisasContext *dc)
     unsigned int imm_w, imm_s;
     bool s, t, e = false, i = false;
 
-    if ((dc->tb_flags & MSR_EE_FLAG)
-          && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-          && !dc->cpu->cfg.use_barrel) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+    if (trap_illegal(dc, !dc->cpu->cfg.use_barrel)) {
         return;
     }
 
@@ -798,11 +799,8 @@ static void dec_bit(DisasContext *dc)
             trap_userspace(dc, true);
             break;
         case 0xe0:
-            if ((dc->tb_flags & MSR_EE_FLAG)
-                && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-                && !dc->cpu->cfg.use_pcmp_instr) {
-                tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
-                t_gen_raise_exception(dc, EXCP_HW_EXCP);
+            if (trap_illegal(dc, !dc->cpu->cfg.use_pcmp_instr)) {
+                return;
             }
             if (dc->cpu->cfg.use_pcmp_instr) {
                 tcg_gen_clzi_i32(cpu_R[dc->rd], cpu_R[dc->ra], 32);
@@ -921,10 +919,7 @@ static void dec_load(DisasContext *dc)
         mop ^= MO_BSWAP;
     }
 
-    if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
-          && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+    if (trap_illegal(dc, size > 4)) {
         return;
     }
 
@@ -1031,10 +1026,7 @@ static void dec_store(DisasContext *dc)
         mop ^= MO_BSWAP;
     }
 
-    if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
-          && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+    if (trap_illegal(dc, size > 4)) {
         return;
     }
 
@@ -1368,11 +1360,7 @@ static void dec_fpu(DisasContext *dc)
 {
     unsigned int fpu_insn;
 
-    if ((dc->tb_flags & MSR_EE_FLAG)
-          && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-          && !dc->cpu->cfg.use_fpu) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+    if (trap_illegal(dc, !dc->cpu->cfg.use_fpu)) {
         return;
     }
 
@@ -1471,10 +1459,7 @@ static void dec_fpu(DisasContext *dc)
 
 static void dec_null(DisasContext *dc)
 {
-    if ((dc->tb_flags & MSR_EE_FLAG)
-          && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)) {
-        tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
-        t_gen_raise_exception(dc, EXCP_HW_EXCP);
+    if (trap_illegal(dc, true)) {
         return;
     }
     qemu_log_mask(LOG_GUEST_ERROR, "unknown insn pc=%x opc=%x\n", dc->pc, dc->opcode);
@@ -1552,13 +1537,7 @@ static inline void decode(DisasContext *dc, uint32_t ir)
     if (dc->ir)
         dc->nr_nops = 0;
     else {
-        if ((dc->tb_flags & MSR_EE_FLAG)
-              && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-              && (dc->cpu->env.pvr.regs[2] & PVR2_OPCODE_0x0_ILL_MASK)) {
-            tcg_gen_movi_i32(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
-            t_gen_raise_exception(dc, EXCP_HW_EXCP);
-            return;
-        }
+        trap_illegal(dc, dc->cpu->env.pvr.regs[2] & PVR2_OPCODE_0x0_ILL_MASK);
 
         LOG_DIS("nr_nops=%d\t", dc->nr_nops);
         dc->nr_nops++;
