@@ -424,7 +424,7 @@ static inline void msr_write(DisasContext *dc, TCGv v)
     /* PVR bit is not writable.  */
     tcg_gen_andi_tl(t, v, ~MSR_PVR);
     tcg_gen_andi_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR], MSR_PVR);
-    tcg_gen_or_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR], v);
+    tcg_gen_or_tl(cpu_SR[SR_MSR], cpu_SR[SR_MSR], t);
     tcg_temp_free(t);
 }
 
