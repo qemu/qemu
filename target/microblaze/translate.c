@@ -105,8 +105,8 @@ static const char *regnames[] =
 
 static const char *special_regnames[] =
 {
-    "rpc", "rmsr", "sr2", "sr3", "sr4", "sr5", "sr6", "sr7",
-    "sr8", "sr9", "sr10", "sr11", "sr12", "sr13"
+    "rpc", "rmsr", "sr2", "rear", "sr4", "resr", "sr6", "rfsr",
+    "sr8", "sr9", "sr10", "rbtr", "sr12", "redr"
 };
 
 static inline void t_sync_flags(DisasContext *dc)
