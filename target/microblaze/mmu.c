@@ -273,6 +273,10 @@ void mmu_write(CPUMBState *env, uint32_t rn, uint32_t v)
                 env->mmu.regs[rn] = v;
             }
             break;
+        case MMU_R_TLBX:
+            /* Bit 31 is read-only.  */
+            env->mmu.regs[rn] = deposit32(env->mmu.regs[rn], 0, 31, v);
+            break;
         case MMU_R_TLBSX:
         {
             struct microblaze_mmu_lookup lu;
