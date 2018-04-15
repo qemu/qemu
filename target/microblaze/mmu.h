@@ -54,6 +54,10 @@
 #define TLB_M                 0x00000002 /* Memory is coherent */
 #define TLB_G                 0x00000001 /* Memory is guarded from prefetch */
 
+/* TLBX  */
+#define R_TBLX_MISS_SHIFT 31
+#define R_TBLX_MISS_MASK (1U << R_TBLX_MISS_SHIFT)
+
 #define TLB_ENTRIES    64
 
 struct microblaze_mmu

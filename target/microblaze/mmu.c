@@ -292,8 +292,9 @@ void mmu_write(CPUMBState *env, uint32_t rn, uint32_t v)
                                 v & TLB_EPN_MASK, 0, cpu_mmu_index(env, false));
             if (hit) {
                 env->mmu.regs[MMU_R_TLBX] = lu.idx;
-            } else
-                env->mmu.regs[MMU_R_TLBX] |= 0x80000000;
+            } else {
+                env->mmu.regs[MMU_R_TLBX] |= R_TBLX_MISS_MASK;
+            }
             break;
         }
         default:
