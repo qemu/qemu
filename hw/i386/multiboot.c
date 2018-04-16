@@ -291,12 +291,16 @@ int load_multiboot(FWCfgState *fw_cfg,
     cmdline_len = strlen(kernel_filename) + 1;
     cmdline_len += strlen(kernel_cmdline) + 1;
     if (initrd_filename) {
-        const char *r = initrd_filename;
+        const char *r = get_opt_value(initrd_filename, NULL);
         cmdline_len += strlen(r) + 1;
         mbs.mb_mods_avail = 1;
-        while (*(r = get_opt_value(NULL, 0, r))) {
-           mbs.mb_mods_avail++;
-           r++;
+        while (1) {
+            mbs.mb_mods_avail++;
+            r = get_opt_value(r, NULL);
+            if (!*r) {
+                break;
+            }
+            r++;
         }
     }
 
@@ -313,7 +317,8 @@ int load_multiboot(FWCfgState *fw_cfg,
 
     if (initrd_filename) {
         const char *next_initrd;
-        char not_last, tmpbuf[strlen(initrd_filename) + 1];
+        char not_last;
+        char *one_file = NULL;
 
         mbs.offset_mods = mbs.mb_buf_size;
 
@@ -322,24 +327,26 @@ int load_multiboot(FWCfgState *fw_cfg,
             int mb_mod_length;
             uint32_t offs = mbs.mb_buf_size;
 
-            next_initrd = get_opt_value(tmpbuf, sizeof(tmpbuf), initrd_filename);
+            next_initrd = get_opt_value(initrd_filename, &one_file);
             not_last = *next_initrd;
             /* if a space comes after the module filename, treat everything
                after that as parameters */
-            hwaddr c = mb_add_cmdline(&mbs, tmpbuf);
-            if ((next_space = strchr(tmpbuf, ' ')))
+            hwaddr c = mb_add_cmdline(&mbs, one_file);
+            next_space = strchr(one_file, ' ');
+            if (next_space) {
                 *next_space = '\0';
-            mb_debug("multiboot loading module: %s", tmpbuf);
-            mb_mod_length = get_image_size(tmpbuf);
+            }
+            mb_debug("multiboot loading module: %s", one_file);
+            mb_mod_length = get_image_size(one_file);
             if (mb_mod_length < 0) {
-                error_report("Failed to open file '%s'", tmpbuf);
+                error_report("Failed to open file '%s'", one_file);
                 exit(1);
             }
 
             mbs.mb_buf_size = TARGET_PAGE_ALIGN(mb_mod_length + mbs.mb_buf_size);
             mbs.mb_buf = g_realloc(mbs.mb_buf, mbs.mb_buf_size);
 
-            load_image(tmpbuf, (unsigned char *)mbs.mb_buf + offs);
+            load_image(one_file, (unsigned char *)mbs.mb_buf + offs);
             mb_add_mod(&mbs, mbs.mb_buf_phys + offs,
                        mbs.mb_buf_phys + offs + mb_mod_length, c);
 
@@ -347,6 +354,8 @@ int load_multiboot(FWCfgState *fw_cfg,
                      (char *)mbs.mb_buf + offs,
                      (char *)mbs.mb_buf + offs + mb_mod_length, c);
             initrd_filename = next_initrd+1;
+            g_free(one_file);
+            one_file = NULL;
         } while (not_last);
     }
 

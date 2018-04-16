@@ -28,7 +28,7 @@
 
 #include "qemu/queue.h"
 
-const char *get_opt_value(char *buf, int buf_size, const char *p);
+const char *get_opt_value(const char *p, char **value);
 
 void parse_option_size(const char *name, const char *value,
                        uint64_t *ret, Error **errp);
