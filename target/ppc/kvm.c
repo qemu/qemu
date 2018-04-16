@@ -419,93 +419,93 @@ bool kvmppc_hpt_needs_host_contiguous_pages(void)
     return !!(smmu_info.flags & KVM_PPC_PAGE_SIZES_REAL);
 }
 
-static bool kvm_valid_page_size(uint32_t flags, long rampgsize, uint32_t shift)
+void kvm_check_mmu(PowerPCCPU *cpu, Error **errp)
 {
-    if (!kvmppc_hpt_needs_host_contiguous_pages()) {
-        return true;
-    }
-
-    return (1ul << shift) <= rampgsize;
-}
-
-static long max_cpu_page_size;
-
-static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
-{
-    static struct kvm_ppc_smmu_info smmu_info;
-    static bool has_smmu_info;
-    CPUPPCState *env = &cpu->env;
+    struct kvm_ppc_smmu_info smmu_info;
     int iq, ik, jq, jk;
 
-    /* We only handle page sizes for 64-bit server guests for now */
-    if (!(env->mmu_model & POWERPC_MMU_64)) {
+    /* For now, we only have anything to check on hash64 MMUs */
+    if (!cpu->hash64_opts || !kvm_enabled()) {
         return;
     }
 
-    /* Collect MMU info from kernel if not already */
-    if (!has_smmu_info) {
-        kvm_get_smmu_info(cpu, &smmu_info);
-        has_smmu_info = true;
+    kvm_get_smmu_info(cpu, &smmu_info);
+
+    if (ppc_hash64_has(cpu, PPC_HASH64_1TSEG)
+        && !(smmu_info.flags & KVM_PPC_1T_SEGMENTS)) {
+        error_setg(errp,
+                   "KVM does not support 1TiB segments which guest expects");
+        return;
     }
 
-    if (!max_cpu_page_size) {
-        max_cpu_page_size = qemu_getrampagesize();
-    }
-
-    /* Convert to QEMU form */
-    memset(cpu->hash64_opts->sps, 0, sizeof(*cpu->hash64_opts->sps));
-
-    /* If we have HV KVM, we need to forbid CI large pages if our
-     * host page size is smaller than 64K.
-     */
-    if (kvmppc_hpt_needs_host_contiguous_pages()) {
-        if (getpagesize() >= 0x10000) {
-            cpu->hash64_opts->flags |= PPC_HASH64_CI_LARGEPAGE;
-        } else {
-            cpu->hash64_opts->flags &= ~PPC_HASH64_CI_LARGEPAGE;
-        }
+    if (smmu_info.slb_size < cpu->hash64_opts->slb_size) {
+        error_setg(errp, "KVM only supports %u SLB entries, but guest needs %u",
+                   smmu_info.slb_size, cpu->hash64_opts->slb_size);
+        return;
     }
 
     /*
-     * XXX This loop should be an entry wide AND of the capabilities that
-     *     the selected CPU has with the capabilities that KVM supports.
+     * Verify that every pagesize supported by the cpu model is
+     * supported by KVM with the same encodings
      */
-    for (ik = iq = 0; ik < KVM_PPC_PAGE_SIZES_MAX_SZ; ik++) {
+    for (iq = 0; iq < ARRAY_SIZE(cpu->hash64_opts->sps); iq++) {
         PPCHash64SegmentPageSizes *qsps = &cpu->hash64_opts->sps[iq];
-        struct kvm_ppc_one_seg_page_size *ksps = &smmu_info.sps[ik];
+        struct kvm_ppc_one_seg_page_size *ksps;
 
-        if (!kvm_valid_page_size(smmu_info.flags, max_cpu_page_size,
-                                 ksps->page_shift)) {
-            continue;
-        }
-        qsps->page_shift = ksps->page_shift;
-        qsps->slb_enc = ksps->slb_enc;
-        for (jk = jq = 0; jk < KVM_PPC_PAGE_SIZES_MAX_SZ; jk++) {
-            if (!kvm_valid_page_size(smmu_info.flags, max_cpu_page_size,
-                                     ksps->enc[jk].page_shift)) {
-                continue;
-            }
-            qsps->enc[jq].page_shift = ksps->enc[jk].page_shift;
-            qsps->enc[jq].pte_enc = ksps->enc[jk].pte_enc;
-            if (++jq >= PPC_PAGE_SIZES_MAX_SZ) {
+        for (ik = 0; ik < ARRAY_SIZE(smmu_info.sps); ik++) {
+            if (qsps->page_shift == smmu_info.sps[ik].page_shift) {
                 break;
             }
         }
-        if (++iq >= PPC_PAGE_SIZES_MAX_SZ) {
-            break;
+        if (ik >= ARRAY_SIZE(smmu_info.sps)) {
+            error_setg(errp, "KVM doesn't support for base page shift %u",
+                       qsps->page_shift);
+            return;
+        }
+
+        ksps = &smmu_info.sps[ik];
+        if (ksps->slb_enc != qsps->slb_enc) {
+            error_setg(errp,
+"KVM uses SLB encoding 0x%x for page shift %u, but guest expects 0x%x",
+                       ksps->slb_enc, ksps->page_shift, qsps->slb_enc);
+            return;
+        }
+
+        for (jq = 0; jq < ARRAY_SIZE(qsps->enc); jq++) {
+            for (jk = 0; jk < ARRAY_SIZE(ksps->enc); jk++) {
+                if (qsps->enc[jq].page_shift == ksps->enc[jk].page_shift) {
+                    break;
+                }
+            }
+
+            if (jk >= ARRAY_SIZE(ksps->enc)) {
+                error_setg(errp, "KVM doesn't support page shift %u/%u",
+                           qsps->enc[jq].page_shift, qsps->page_shift);
+                return;
+            }
+            if (qsps->enc[jq].pte_enc != ksps->enc[jk].pte_enc) {
+                error_setg(errp,
+"KVM uses PTE encoding 0x%x for page shift %u/%u, but guest expects 0x%x",
+                           ksps->enc[jk].pte_enc, qsps->enc[jq].page_shift,
+                           qsps->page_shift, qsps->enc[jq].pte_enc);
+                return;
+            }
         }
     }
-    cpu->hash64_opts->slb_size = smmu_info.slb_size;
-    if (!(smmu_info.flags & KVM_PPC_1T_SEGMENTS)) {
-        cpu->hash64_opts->flags &= ~PPC_HASH64_1TSEG;
+
+    if (ppc_hash64_has(cpu, PPC_HASH64_CI_LARGEPAGE)) {
+        /* Mostly what guest pagesizes we can use are related to the
+         * host pages used to map guest RAM, which is handled in the
+         * platform code. Cache-Inhibited largepages (64k) however are
+         * used for I/O, so if they're mapped to the host at all it
+         * will be a normal mapping, not a special hugepage one used
+         * for RAM. */
+        if (getpagesize() < 0x10000) {
+            error_setg(errp,
+                       "KVM can't supply 64kiB CI pages, which guest expects");
+        }
     }
 }
-#else /* defined (TARGET_PPC64) */
-
-static inline void kvm_fixup_page_sizes(PowerPCCPU *cpu)
-{
-}
-
 #endif /* !defined (TARGET_PPC64) */
 
 unsigned long kvm_arch_vcpu_id(CPUState *cpu)
@@ -550,9 +550,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *cenv = &cpu->env;
     int ret;
-
-    /* Gather server mmu info from KVM and update the CPU state */
-    kvm_fixup_page_sizes(cpu);
 
     /* Synchronize sregs with kvm */
     ret = kvm_arch_sync_sregs(cpu);

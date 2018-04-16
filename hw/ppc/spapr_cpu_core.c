@@ -78,6 +78,8 @@ static void spapr_cpu_reset(void *opaque)
     spapr_cpu->dtl_size = 0;
 
     spapr_caps_cpu_apply(SPAPR_MACHINE(qdev_get_machine()), cpu);
+
+    kvm_check_mmu(cpu, &error_fatal);
 }
 
 void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip, target_ulong r3)
