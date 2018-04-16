@@ -1146,15 +1146,15 @@ static FloatParts div_floats(FloatParts a, FloatParts b, float_status *s)
         a.cls = float_class_dnan;
         return a;
     }
+    /* Inf / x or 0 / x */
+    if (a.cls == float_class_inf || a.cls == float_class_zero) {
+        a.sign = sign;
+        return a;
+    }
     /* Div 0 => Inf */
     if (b.cls == float_class_zero) {
         s->float_exception_flags |= float_flag_divbyzero;
         a.cls = float_class_inf;
-        a.sign = sign;
-        return a;
-    }
-    /* Inf / x or 0 / x */
-    if (a.cls == float_class_inf || a.cls == float_class_zero) {
         a.sign = sign;
         return a;
     }
