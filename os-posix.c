@@ -167,20 +167,20 @@ static void change_process_uid(void)
 {
     if (user_pwd) {
         if (setgid(user_pwd->pw_gid) < 0) {
-            fprintf(stderr, "Failed to setgid(%d)\n", user_pwd->pw_gid);
+            error_report("Failed to setgid(%d)", user_pwd->pw_gid);
             exit(1);
         }
         if (initgroups(user_pwd->pw_name, user_pwd->pw_gid) < 0) {
-            fprintf(stderr, "Failed to initgroups(\"%s\", %d)\n",
-                    user_pwd->pw_name, user_pwd->pw_gid);
+            error_report("Failed to initgroups(\"%s\", %d)",
+                         user_pwd->pw_name, user_pwd->pw_gid);
             exit(1);
         }
         if (setuid(user_pwd->pw_uid) < 0) {
-            fprintf(stderr, "Failed to setuid(%d)\n", user_pwd->pw_uid);
+            error_report("Failed to setuid(%d)", user_pwd->pw_uid);
             exit(1);
         }
         if (setuid(0) != -1) {
-            fprintf(stderr, "Dropping privileges failed\n");
+            error_report("Dropping privileges failed");
             exit(1);
         }
     }
