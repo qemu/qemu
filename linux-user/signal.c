@@ -1858,7 +1858,8 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
 
     frame_addr = get_sigframe(ka, env, layout.total_size);
     trace_user_setup_frame(env, frame_addr);
-    if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
+    frame = lock_user(VERIFY_WRITE, frame_addr, layout.total_size, 0);
+    if (!frame) {
         goto give_sigsegv;
     }
 
@@ -1904,11 +1905,11 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
         env->xregs[2] = frame_addr + offsetof(struct target_rt_sigframe, uc);
     }
 
-    unlock_user_struct(frame, frame_addr, 1);
+    unlock_user(frame, frame_addr, layout.total_size);
     return;
 
  give_sigsegv:
-    unlock_user_struct(frame, frame_addr, 1);
+    unlock_user(frame, frame_addr, layout.total_size);
     force_sigsegv(usig);
 }
 
