@@ -565,6 +565,8 @@ static void ipl_scsi(void)
     int program_table_entries = 0;
     BootMapTable *prog_table = (void *)sec;
     unsigned int loadparm = get_loadparm_index();
+    bool valid_entries[MAX_BOOT_ENTRIES] = {false};
+    size_t i;
 
     /* Grab the MBR */
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -585,18 +587,18 @@ static void ipl_scsi(void)
     read_block(mbr->pt.blockno, sec, "Error reading Program Table");
     IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic in PT");
 
-    while (program_table_entries < MAX_BOOT_ENTRIES) {
-        if (!prog_table->entry[program_table_entries].scsi.blockno) {
-            break;
+    for (i = 0; i < MAX_BOOT_ENTRIES; i++) {
+        if (prog_table->entry[i].scsi.blockno) {
+            valid_entries[i] = true;
+            program_table_entries++;
         }
-        program_table_entries++;
     }
 
     debug_print_int("program table entries", program_table_entries);
     IPL_assert(program_table_entries != 0, "Empty Program Table");
 
     if (menu_is_enabled_enum()) {
-        loadparm = menu_get_enum_boot_index(program_table_entries);
+        loadparm = menu_get_enum_boot_index(valid_entries);
     }
 
     debug_print_int("loadparm", loadparm);
