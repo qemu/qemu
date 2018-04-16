@@ -94,6 +94,8 @@ bool menu_is_enabled_zipl(void);
 int menu_get_enum_boot_index(int entries);
 bool menu_is_enabled_enum(void);
 
+#define MAX_BOOT_ENTRIES  31
+
 static inline void fill_hex(char *out, unsigned char val)
 {
     const char hex[] = "0123456789abcdef";

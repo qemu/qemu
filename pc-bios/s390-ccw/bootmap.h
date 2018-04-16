@@ -57,8 +57,6 @@ typedef union BootMapPointer {
     ExtEckdBlockPtr xeckd;
 } __attribute__ ((packed)) BootMapPointer;
 
-#define MAX_TABLE_ENTRIES  30
-
 /* aka Program Table */
 typedef struct BootMapTable {
     uint8_t magic[4];

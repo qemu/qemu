@@ -297,7 +297,7 @@ static void run_eckd_boot_script(block_number_t bmt_block_nr,
     }
 
     debug_print_int("loadparm", loadparm);
-    IPL_assert(loadparm <= MAX_TABLE_ENTRIES, "loadparm value greater than"
+    IPL_assert(loadparm < MAX_BOOT_ENTRIES, "loadparm value greater than"
                " maximum number of boot entries allowed");
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
@@ -585,7 +585,7 @@ static void ipl_scsi(void)
     read_block(mbr->pt.blockno, sec, "Error reading Program Table");
     IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic in PT");
 
-    while (program_table_entries <= MAX_TABLE_ENTRIES) {
+    while (program_table_entries < MAX_BOOT_ENTRIES) {
         if (!prog_table->entry[program_table_entries].scsi.blockno) {
             break;
         }
@@ -600,7 +600,7 @@ static void ipl_scsi(void)
     }
 
     debug_print_int("loadparm", loadparm);
-    IPL_assert(loadparm <= MAX_TABLE_ENTRIES, "loadparm value greater than"
+    IPL_assert(loadparm < MAX_BOOT_ENTRIES, "loadparm value greater than"
                " maximum number of boot entries allowed");
 
     zipl_run(&prog_table->entry[loadparm].scsi); /* no return */
