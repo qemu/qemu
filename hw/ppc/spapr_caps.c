@@ -335,6 +335,39 @@ static void cap_hpt_maxpagesize_apply(sPAPRMachineState *spapr,
     spapr_check_pagesize(spapr, qemu_getrampagesize(), errp);
 }
 
+static bool spapr_pagesize_cb(void *opaque, uint32_t seg_pshift,
+                              uint32_t pshift)
+{
+    unsigned maxshift = *((unsigned *)opaque);
+
+    assert(pshift >= seg_pshift);
+
+    /* Don't allow the guest to use pages bigger than the configured
+     * maximum size */
+    if (pshift > maxshift) {
+        return false;
+    }
+
+    /* For whatever reason, KVM doesn't allow multiple pagesizes
+     * within a segment, *except* for the case of 16M pages in a 4k or
+     * 64k segment.  Always exclude other cases, so that TCG and KVM
+     * guests see a consistent environment */
+    if ((pshift != seg_pshift) && (pshift != 24)) {
+        return false;
+    }
+
+    return true;
+}
+
+static void cap_hpt_maxpagesize_cpu_apply(sPAPRMachineState *spapr,
+                                          PowerPCCPU *cpu,
+                                          uint8_t val, Error **errp)
+{
+    unsigned maxshift = val;
+
+    ppc_hash64_filter_pagesizes(cpu, spapr_pagesize_cb, &maxshift);
+}
+
 sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
@@ -402,6 +435,7 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_pagesize,
         .type = "int",
         .apply = cap_hpt_maxpagesize_apply,
+        .cpu_apply = cap_hpt_maxpagesize_cpu_apply,
     },
 };
 
