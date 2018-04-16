@@ -43,27 +43,23 @@
  * first byte of the option name)
  *
  * The option name is delimited by delim (usually , or =) or the string end
- * and is copied into buf. If the option name is longer than buf_size, it is
- * truncated. buf is always zero terminated.
+ * and is copied into option. The caller is responsible for free'ing option
+ * when no longer required.
  *
  * The return value is the position of the delimiter/zero byte after the option
  * name in p.
  */
-static const char *get_opt_name(char *buf, int buf_size, const char *p,
-                                char delim)
+static const char *get_opt_name(const char *p, char **option, char delim)
 {
-    char *q;
+    char *offset = strchr(p, delim);
 
-    q = buf;
-    while (*p != '\0' && *p != delim) {
-        if (q && (q - buf) < buf_size - 1)
-            *q++ = *p;
-        p++;
+    if (offset) {
+        *option = g_strndup(p, offset - p);
+        return offset;
+    } else {
+        *option = g_strdup(p);
+        return p + strlen(p);
     }
-    if (q)
-        *q = '\0';
-
-    return p;
 }
 
 /*
@@ -758,7 +754,8 @@ void qemu_opts_print(QemuOpts *opts, const char *separator)
 static void opts_do_parse(QemuOpts *opts, const char *params,
                           const char *firstname, bool prepend, Error **errp)
 {
-    char option[128], value[1024];
+    char *option = NULL;
+    char value[1024];
     const char *p,*pe,*pc;
     Error *local_err = NULL;
 
@@ -769,11 +766,11 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
             /* found "foo,more" */
             if (p == params && firstname) {
                 /* implicitly named first option */
-                pstrcpy(option, sizeof(option), firstname);
+                option = g_strdup(firstname);
                 p = get_opt_value(value, sizeof(value), p);
             } else {
                 /* option without value, probably a flag */
-                p = get_opt_name(option, sizeof(option), p, ',');
+                p = get_opt_name(p, &option, ',');
                 if (strncmp(option, "no", 2) == 0) {
                     memmove(option, option+2, strlen(option+2)+1);
                     pstrcpy(value, sizeof(value), "off");
@@ -783,10 +780,8 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
             }
         } else {
             /* found "foo=bar,more" */
-            p = get_opt_name(option, sizeof(option), p, '=');
-            if (*p != '=') {
-                break;
-            }
+            p = get_opt_name(p, &option, '=');
+            assert(*p == '=');
             p++;
             p = get_opt_value(value, sizeof(value), p);
         }
@@ -795,13 +790,18 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
             opt_set(opts, option, value, prepend, &local_err);
             if (local_err) {
                 error_propagate(errp, local_err);
-                return;
+                goto cleanup;
             }
         }
         if (*p != ',') {
             break;
         }
+        g_free(option);
+        option = NULL;
     }
+
+ cleanup:
+    g_free(option);
 }
 
 /**
