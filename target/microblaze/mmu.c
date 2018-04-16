@@ -164,6 +164,7 @@ unsigned int mmu_translate(struct microblaze_mmu *mmu,
             tlb_rpn = d & TLB_RPN_MASK;
 
             lu->vaddr = tlb_tag;
+            lu->paddr = tlb_rpn & mmu->c_addr_mask;
             lu->paddr = tlb_rpn;
             lu->size = tlb_size;
             lu->err = ERR_HIT;

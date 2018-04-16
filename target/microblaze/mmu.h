@@ -72,6 +72,7 @@ struct microblaze_mmu
     int c_mmu;
     int c_mmu_tlb_access;
     int c_mmu_zones;
+    uint64_t c_addr_mask; /* Mask to apply to physical addresses.  */
 };
 
 struct microblaze_mmu_lookup

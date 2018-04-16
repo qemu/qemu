@@ -128,6 +128,7 @@ static void mb_cpu_reset(CPUState *s)
     env->mmu.c_mmu = 3;
     env->mmu.c_mmu_tlb_access = 3;
     env->mmu.c_mmu_zones = 16;
+    env->mmu.c_addr_mask = MAKE_64BIT_MASK(0, cpu->cfg.addr_size);
 #endif
 }
 
