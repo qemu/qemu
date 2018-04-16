@@ -180,13 +180,17 @@ done:
 }
 
 /* Writes/reads to the MMU's special regs end up here.  */
-uint32_t mmu_read(CPUMBState *env, uint32_t rn)
+uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
 {
     unsigned int i;
     uint32_t r = 0;
 
     if (env->mmu.c_mmu < 2 || !env->mmu.c_mmu_tlb_access) {
         qemu_log_mask(LOG_GUEST_ERROR, "MMU access on MMU-less system\n");
+        return 0;
+    }
+    if (ext && rn != MMU_R_TLBLO) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Extended access only to TLBLO.\n");
         return 0;
     }
 
@@ -200,7 +204,7 @@ uint32_t mmu_read(CPUMBState *env, uint32_t rn)
             }
 
             i = env->mmu.regs[MMU_R_TLBX] & 0xff;
-            r = env->mmu.rams[rn & 1][i];
+            r = extract64(env->mmu.rams[rn & 1][i], ext * 32, 32);
             if (rn == MMU_R_TLBHI)
                 env->mmu.regs[MMU_R_PID] = env->mmu.tids[i];
             break;
@@ -226,14 +230,19 @@ uint32_t mmu_read(CPUMBState *env, uint32_t rn)
     return r;
 }
 
-void mmu_write(CPUMBState *env, uint32_t rn, uint32_t v)
+void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
 {
     MicroBlazeCPU *cpu = mb_env_get_cpu(env);
+    uint64_t tmp64;
     unsigned int i;
     D(qemu_log("%s rn=%d=%x old=%x\n", __func__, rn, v, env->mmu.regs[rn]));
 
     if (env->mmu.c_mmu < 2 || !env->mmu.c_mmu_tlb_access) {
         qemu_log_mask(LOG_GUEST_ERROR, "MMU access on MMU-less system\n");
+        return;
+    }
+    if (ext && rn != MMU_R_TLBLO) {
+        qemu_log_mask(LOG_GUEST_ERROR, "Extended access only to TLBLO.\n");
         return;
     }
 
@@ -250,7 +259,8 @@ void mmu_write(CPUMBState *env, uint32_t rn, uint32_t v)
                 env->mmu.tids[i] = env->mmu.regs[MMU_R_PID] & 0xff;
                 mmu_flush_idx(env, i);
             }
-            env->mmu.rams[rn & 1][i] = v;
+            tmp64 = env->mmu.rams[rn & 1][i];
+            env->mmu.rams[rn & 1][i] = deposit64(tmp64, ext * 32, 32, v);
 
             D(qemu_log("%s ram[%d][%d]=%x\n", __func__, rn & 1, i, v));
             break;

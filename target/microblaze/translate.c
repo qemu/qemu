@@ -459,7 +459,7 @@ static void dec_msr(DisasContext *dc)
     CPUState *cs = CPU(dc->cpu);
     TCGv_i32 t0, t1;
     unsigned int sr, rn;
-    bool to, clrset, extended;
+    bool to, clrset, extended = false;
 
     sr = extract32(dc->imm, 0, 14);
     to = extract32(dc->imm, 14, 1);
@@ -467,9 +467,14 @@ static void dec_msr(DisasContext *dc)
     dc->type_b = 1;
     if (to) {
         dc->cpustate_changed = 1;
-        extended = extract32(dc->imm, 24, 1);
-    } else {
-        extended = extract32(dc->imm, 19, 1);
+    }
+
+    /* Extended MSRs are only available if addr_size > 32.  */
+    if (dc->cpu->cfg.addr_size > 32) {
+        /* The E-bit is encoded differently for To/From MSR.  */
+        static const unsigned int e_bit[] = { 19, 24 };
+
+        extended = extract32(dc->imm, e_bit[to], 1);
     }
 
     /* msrclr and msrset.  */
@@ -516,17 +521,19 @@ static void dec_msr(DisasContext *dc)
 #if !defined(CONFIG_USER_ONLY)
     /* Catch read/writes to the mmu block.  */
     if ((sr & ~0xff) == 0x1000) {
+        TCGv_i32 tmp_ext = tcg_const_i32(extended);
         TCGv_i32 tmp_sr;
 
         sr &= 7;
         tmp_sr = tcg_const_i32(sr);
         LOG_DIS("m%ss sr%d r%d imm=%x\n", to ? "t" : "f", sr, dc->ra, dc->imm);
         if (to) {
-            gen_helper_mmu_write(cpu_env, tmp_sr, cpu_R[dc->ra]);
+            gen_helper_mmu_write(cpu_env, tmp_ext, tmp_sr, cpu_R[dc->ra]);
         } else {
-            gen_helper_mmu_read(cpu_R[dc->rd], cpu_env, tmp_sr);
+            gen_helper_mmu_read(cpu_R[dc->rd], cpu_env, tmp_ext, tmp_sr);
         }
         tcg_temp_free_i32(tmp_sr);
+        tcg_temp_free_i32(tmp_ext);
         return;
     }
 #endif
