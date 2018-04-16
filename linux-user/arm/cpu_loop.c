@@ -347,6 +347,9 @@ void cpu_loop(CPUARMState *env)
                         case ARM_NR_breakpoint:
                             env->regs[15] -= env->thumb ? 2 : 4;
                             goto excp_debug;
+                        case ARM_NR_get_tls:
+                            env->regs[0] = cpu_get_tls(env);
+                            break;
                         default:
                             gemu_log("qemu: Unsupported ARM syscall: 0x%x\n",
                                      n);
