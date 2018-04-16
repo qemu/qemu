@@ -28,7 +28,7 @@
 #define RAM_TAG      0
 
 /* Tag portion */
-#define TLB_EPN_MASK          0xFFFFFC00 /* Effective Page Number */
+#define TLB_EPN_MASK          MAKE_64BIT_MASK(10, 64 - 10)
 #define TLB_PAGESZ_MASK       0x00000380
 #define TLB_PAGESZ(x)         (((x) & 0x7) << 7)
 #define PAGESZ_1K             0
@@ -42,7 +42,7 @@
 #define TLB_VALID             0x00000040 /* Entry is valid */
 
 /* Data portion */
-#define TLB_RPN_MASK          0xFFFFFC00 /* Real Page Number */
+#define TLB_RPN_MASK          MAKE_64BIT_MASK(10, 64 - 10)
 #define TLB_PERM_MASK         0x00000300
 #define TLB_EX                0x00000200 /* Instruction execution allowed */
 #define TLB_WR                0x00000100 /* Writes permitted */
@@ -63,7 +63,7 @@
 struct microblaze_mmu
 {
     /* Data and tag brams.  */
-    uint32_t rams[2][TLB_ENTRIES];
+    uint64_t rams[2][TLB_ENTRIES];
     /* We keep a separate ram for the tids to avoid the 48 bit tag width.  */
     uint8_t tids[TLB_ENTRIES];
     /* Control flops.  */

@@ -81,16 +81,16 @@ unsigned int mmu_translate(struct microblaze_mmu *mmu,
 {
     unsigned int i, hit = 0;
     unsigned int tlb_ex = 0, tlb_wr = 0, tlb_zsel;
-    unsigned int tlb_size;
-    uint32_t tlb_tag, tlb_rpn, mask, t0;
+    uint64_t tlb_tag, tlb_rpn, mask;
+    uint32_t tlb_size, t0;
 
     lu->err = ERR_MISS;
     for (i = 0; i < ARRAY_SIZE(mmu->rams[RAM_TAG]); i++) {
-        uint32_t t, d;
+        uint64_t t, d;
 
         /* Lookup and decode.  */
         t = mmu->rams[RAM_TAG][i];
-        D(qemu_log("TLB %d valid=%d\n", i, t & TLB_VALID));
+        D(qemu_log("TLB %d valid=%" PRId64 "\n", i, t & TLB_VALID));
         if (t & TLB_VALID) {
             tlb_size = tlb_decode_size((t & TLB_PAGESZ_MASK) >> 7);
             if (tlb_size < TARGET_PAGE_SIZE) {
@@ -98,10 +98,10 @@ unsigned int mmu_translate(struct microblaze_mmu *mmu,
                 abort();
             }
 
-            mask = ~(tlb_size - 1);
+            mask = ~((uint64_t)tlb_size - 1);
             tlb_tag = t & TLB_EPN_MASK;
             if ((vaddr & mask) != (tlb_tag & mask)) {
-                D(qemu_log("TLB %d vaddr=%x != tag=%x\n",
+                D(qemu_log("TLB %d vaddr=%" PRIx64 " != tag=%" PRIx64 "\n",
                            i, vaddr & mask, tlb_tag & mask));
                 continue;
             }
@@ -173,7 +173,7 @@ unsigned int mmu_translate(struct microblaze_mmu *mmu,
         }
     }
 done:
-    D(qemu_log("MMU vaddr=%x rw=%d tlb_wr=%d tlb_ex=%d hit=%d\n",
+    D(qemu_log("MMU vaddr=%" PRIx64 " rw=%d tlb_wr=%d tlb_ex=%d hit=%d\n",
               vaddr, rw, tlb_wr, tlb_ex, hit));
     return hit;
 }
