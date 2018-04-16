@@ -49,7 +49,8 @@
  * The return value is the position of the delimiter/zero byte after the option
  * name in p.
  */
-const char *get_opt_name(char *buf, int buf_size, const char *p, char delim)
+static const char *get_opt_name(char *buf, int buf_size, const char *p,
+                                char delim)
 {
     char *q;
 

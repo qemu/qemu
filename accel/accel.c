@@ -70,8 +70,8 @@ static int accel_init_machine(AccelClass *acc, MachineState *ms)
 
 void configure_accelerator(MachineState *ms)
 {
-    const char *accel, *p;
-    char buf[10];
+    const char *accel;
+    char **accel_list, **tmp;
     int ret;
     bool accel_initialised = false;
     bool init_failed = false;
@@ -83,13 +83,10 @@ void configure_accelerator(MachineState *ms)
         accel = "tcg";
     }
 
-    p = accel;
-    while (!accel_initialised && *p != '\0') {
-        if (*p == ':') {
-            p++;
-        }
-        p = get_opt_name(buf, sizeof(buf), p, ':');
-        acc = accel_find(buf);
+    accel_list = g_strsplit(accel, ":", 0);
+
+    for (tmp = accel_list; !accel_initialised && tmp && *tmp; tmp++) {
+        acc = accel_find(*tmp);
         if (!acc) {
             continue;
         }
@@ -107,6 +104,7 @@ void configure_accelerator(MachineState *ms)
             accel_initialised = true;
         }
     }
+    g_strfreev(accel_list);
 
     if (!accel_initialised) {
         if (!init_failed) {
