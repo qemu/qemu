@@ -155,9 +155,8 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (cpu->cfg.addr_size != 32) {
-        error_setg(errp, "addr-size %d is out of range. "
-                   "Only 32bit is supported.",
+    if (cpu->cfg.addr_size < 32 || cpu->cfg.addr_size > 64) {
+        error_setg(errp, "addr-size %d is out of range (32 - 64)",
                    cpu->cfg.addr_size);
         return;
     }
