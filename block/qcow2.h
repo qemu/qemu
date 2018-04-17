@@ -77,10 +77,6 @@
 #define DEFAULT_L2_CACHE_CLUSTERS 8 /* clusters */
 #define DEFAULT_L2_CACHE_BYTE_SIZE 1048576 /* bytes */
 
-/* The refblock cache needs only a fourth of the L2 cache size to cover as many
- * clusters */
-#define DEFAULT_L2_REFCOUNT_SIZE_RATIO 4
-
 #define DEFAULT_CLUSTER_SIZE 65536
 
 
