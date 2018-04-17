@@ -216,6 +216,7 @@ static void block_job_attached_aio_context(AioContext *new_context,
 {
     BlockJob *job = opaque;
 
+    job->job.aio_context = new_context;
     if (job->driver->attached_aio_context) {
         job->driver->attached_aio_context(job, new_context);
     }
@@ -247,6 +248,7 @@ static void block_job_detach_aio_context(void *opaque)
         block_job_drain(job);
     }
 
+    job->job.aio_context = NULL;
     job_unref(&job->job);
 }
 
@@ -899,7 +901,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         return NULL;
     }
 
-    job = job_create(job_id, &driver->job_driver, errp);
+    job = job_create(job_id, &driver->job_driver, blk_get_aio_context(blk),
+                     errp);
     if (job == NULL) {
         blk_unref(blk);
         return NULL;

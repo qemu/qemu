@@ -47,6 +47,9 @@ typedef struct Job {
     /** Current state; See @JobStatus for details. */
     JobStatus status;
 
+    /** AioContext to run the job coroutine in */
+    AioContext *aio_context;
+
     /**
      * Set to true if the job should cancel itself.  The flag must
      * always be tested just before toggling the busy flag from false
@@ -79,9 +82,11 @@ struct JobDriver {
  *
  * @job_id: The id of the newly-created job, or %NULL for internal jobs
  * @driver: The class object for the newly-created job.
+ * @ctx: The AioContext to run the job coroutine in.
  * @errp: Error object.
  */
-void *job_create(const char *job_id, const JobDriver *driver, Error **errp);
+void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
+                 Error **errp);
 
 /**
  * Add a reference to Job refcnt, it will be decreased with job_unref, and then

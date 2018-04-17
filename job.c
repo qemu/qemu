@@ -121,7 +121,8 @@ Job *job_get(const char *id)
     return NULL;
 }
 
-void *job_create(const char *job_id, const JobDriver *driver, Error **errp)
+void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
+                 Error **errp)
 {
     Job *job;
 
@@ -140,6 +141,7 @@ void *job_create(const char *job_id, const JobDriver *driver, Error **errp)
     job->driver        = driver;
     job->id            = g_strdup(job_id);
     job->refcnt        = 1;
+    job->aio_context   = ctx;
 
     job_state_transition(job, JOB_STATUS_CREATED);
 
