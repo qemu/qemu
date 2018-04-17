@@ -678,13 +678,13 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
                         /* continue; */
                     } else {
                         ret = sowrite(so);
+                        if (ret > 0) {
+                            /* Call tcp_output in case we need to send a window
+                             * update to the guest, otherwise it will be stuck
+                             * until it sends a window probe. */
+                            tcp_output(sototcpcb(so));
+                        }
                     }
-                    /*
-                     * XXXXX If we wrote something (a lot), there
-                     * could be a need for a window update.
-                     * In the worst case, the remote will send
-                     * a window probe to get things going again
-                     */
                 }
 
                 /*
