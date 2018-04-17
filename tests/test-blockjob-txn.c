@@ -29,7 +29,7 @@ static void test_block_job_complete(BlockJob *job, void *opaque)
     BlockDriverState *bs = blk_bs(job->blk);
     int rc = (intptr_t)opaque;
 
-    if (block_job_is_cancelled(job)) {
+    if (job_is_cancelled(&job->job)) {
         rc = -ECANCELED;
     }
 
@@ -49,7 +49,7 @@ static void coroutine_fn test_block_job_run(void *opaque)
             block_job_yield(job);
         }
 
-        if (block_job_is_cancelled(job)) {
+        if (job_is_cancelled(&job->job)) {
             break;
         }
     }
@@ -66,7 +66,7 @@ typedef struct {
 static void test_block_job_cb(void *opaque, int ret)
 {
     TestBlockJobCBData *data = opaque;
-    if (!ret && block_job_is_cancelled(&data->job->common)) {
+    if (!ret && job_is_cancelled(&data->job->common.job)) {
         ret = -ECANCELED;
     }
     *data->result = ret;

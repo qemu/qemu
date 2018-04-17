@@ -47,6 +47,14 @@ typedef struct Job {
     /** Current state; See @JobStatus for details. */
     JobStatus status;
 
+    /**
+     * Set to true if the job should cancel itself.  The flag must
+     * always be tested just before toggling the busy flag from false
+     * to true.  After a job has been cancelled, it should only yield
+     * if #aio_poll will ("sooner or later") reenter the coroutine.
+     */
+    bool cancelled;
+
     /** Element of the list of jobs */
     QLIST_ENTRY(Job) job_list;
 } Job;
@@ -92,6 +100,9 @@ JobType job_type(const Job *job);
 
 /** Returns the enum string for the JobType of a given Job. */
 const char *job_type_str(const Job *job);
+
+/** Returns whether the job is scheduled for cancellation. */
+bool job_is_cancelled(Job *job);
 
 /**
  * Get the next element from the list of block jobs after @job, or the

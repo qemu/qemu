@@ -90,7 +90,7 @@ static void commit_complete(BlockJob *job, void *opaque)
      * the normal backing chain can be restored. */
     blk_unref(s->base);
 
-    if (!block_job_is_cancelled(&s->common) && ret == 0) {
+    if (!job_is_cancelled(&s->common.job) && ret == 0) {
         /* success */
         ret = bdrv_drop_intermediate(s->commit_top_bs, base,
                                      s->backing_file_str);
@@ -172,7 +172,7 @@ static void coroutine_fn commit_run(void *opaque)
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
         block_job_sleep_ns(&s->common, delay_ns);
-        if (block_job_is_cancelled(&s->common)) {
+        if (job_is_cancelled(&s->common.job)) {
             break;
         }
         /* Copy if allocated above the base */

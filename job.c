@@ -95,6 +95,11 @@ const char *job_type_str(const Job *job)
     return JobType_str(job_type(job));
 }
 
+bool job_is_cancelled(Job *job)
+{
+    return job->cancelled;
+}
+
 Job *job_next(Job *job)
 {
     if (!job) {

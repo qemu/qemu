@@ -329,7 +329,7 @@ static bool coroutine_fn yield_and_check(BackupBlockJob *job)
 {
     uint64_t delay_ns;
 
-    if (block_job_is_cancelled(&job->common)) {
+    if (job_is_cancelled(&job->common.job)) {
         return true;
     }
 
@@ -339,7 +339,7 @@ static bool coroutine_fn yield_and_check(BackupBlockJob *job)
     job->bytes_read = 0;
     block_job_sleep_ns(&job->common, delay_ns);
 
-    if (block_job_is_cancelled(&job->common)) {
+    if (job_is_cancelled(&job->common.job)) {
         return true;
     }
 
@@ -441,7 +441,7 @@ static void coroutine_fn backup_run(void *opaque)
     if (job->sync_mode == MIRROR_SYNC_MODE_NONE) {
         /* All bits are set in copy_bitmap to allow any cluster to be copied.
          * This does not actually require them to be copied. */
-        while (!block_job_is_cancelled(&job->common)) {
+        while (!job_is_cancelled(&job->common.job)) {
             /* Yield until the job is cancelled.  We just let our before_write
              * notify callback service CoW requests. */
             block_job_yield(&job->common);

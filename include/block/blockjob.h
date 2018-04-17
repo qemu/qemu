@@ -57,14 +57,6 @@ typedef struct BlockJob {
     Coroutine *co;
 
     /**
-     * Set to true if the job should cancel itself.  The flag must
-     * always be tested just before toggling the busy flag from false
-     * to true.  After a job has been cancelled, it should only yield
-     * if #aio_poll will ("sooner or later") reenter the coroutine.
-     */
-    bool cancelled;
-
-    /**
      * Set to true if the job should abort immediately without waiting
      * for data to be in sync.
      */

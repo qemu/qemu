@@ -179,7 +179,7 @@ static void coroutine_fn cancel_job_start(void *opaque)
     CancelJob *s = opaque;
 
     while (!s->should_complete) {
-        if (block_job_is_cancelled(&s->common)) {
+        if (job_is_cancelled(&s->common.job)) {
             goto defer;
         }
 

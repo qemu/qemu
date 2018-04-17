@@ -196,14 +196,6 @@ void block_job_early_fail(BlockJob *job);
 void block_job_completed(BlockJob *job, int ret);
 
 /**
- * block_job_is_cancelled:
- * @job: The job being queried.
- *
- * Returns whether the job is scheduled for cancellation.
- */
-bool block_job_is_cancelled(BlockJob *job);
-
-/**
  * block_job_pause_point:
  * @job: The job that is ready to pause.
  *

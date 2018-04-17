@@ -66,7 +66,7 @@ static void stream_complete(BlockJob *job, void *opaque)
     BlockDriverState *base = s->base;
     Error *local_err = NULL;
 
-    if (!block_job_is_cancelled(&s->common) && bs->backing &&
+    if (!job_is_cancelled(&s->common.job) && bs->backing &&
         data->ret == 0) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
@@ -141,7 +141,7 @@ static void coroutine_fn stream_run(void *opaque)
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
         block_job_sleep_ns(&s->common, delay_ns);
-        if (block_job_is_cancelled(&s->common)) {
+        if (job_is_cancelled(&s->common.job)) {
             break;
         }
 
