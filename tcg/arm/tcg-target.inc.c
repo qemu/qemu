@@ -159,8 +159,8 @@ typedef enum {
     INSN_STRD_IMM  = 0x004000f0,
     INSN_STRD_REG  = 0x000000f0,
 
-    INSN_DMB_ISH   = 0x5bf07ff5,
-    INSN_DMB_MCR   = 0xba0f07ee,
+    INSN_DMB_ISH   = 0xf57ff05b,
+    INSN_DMB_MCR   = 0xee070fba,
 
     /* Architected nop introduced in v6k.  */
     /* ??? This is an MSR (imm) 0,0,0 insn.  Anyone know if this
