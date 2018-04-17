@@ -304,7 +304,6 @@ void mux_set_focus(Chardev *chr, int focus)
     }
 
     d->focus = focus;
-    chr->be = d->backends[focus];
     mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_IN);
 }
 
