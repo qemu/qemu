@@ -22,7 +22,6 @@
 #ifdef NEED_CPU_H
 # ifdef CONFIG_KVM
 #  include <linux/kvm.h>
-#  include <linux/kvm_para.h>
 #  define CONFIG_KVM_IS_POSSIBLE
 # endif
 #else

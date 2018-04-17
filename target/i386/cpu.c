@@ -40,9 +40,7 @@
 #include "qom/qom-qobject.h"
 #include "sysemu/arch_init.h"
 
-#if defined(CONFIG_KVM)
-#include <linux/kvm_para.h>
-#endif
+#include "standard-headers/asm-x86/kvm_para.h"
 
 #include "sysemu/sysemu.h"
 #include "hw/qdev-properties.h"
