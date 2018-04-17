@@ -431,6 +431,14 @@ double-word product T0.  The later is returned in two single-word outputs.
 
 Similar to mulu2, except the two inputs T1 and T2 are signed.
 
+* mulsh_i32/i64 t0, t1, t2
+* muluh_i32/i64 t0, t1, t2
+
+Provide the high part of a signed or unsigned multiply, respectively.
+If mulu2/muls2 are not provided by the backend, the tcg-op generator
+can obtain the same results can be obtained by emitting a pair of
+opcodes, mul+muluh/mulsh.
+
 ********* Memory Barrier support
 
 * mb <$arg>
