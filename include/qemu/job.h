@@ -58,6 +58,9 @@ typedef struct Job {
      */
     bool cancelled;
 
+    /** Set to true when the job has deferred work to the main loop. */
+    bool deferred_to_main_loop;
+
     /** Element of the list of jobs */
     QLIST_ENTRY(Job) job_list;
 } Job;
@@ -130,6 +133,23 @@ Job *job_get(const char *id);
  * returned.
  */
 int job_apply_verb(Job *job, JobVerb verb, Error **errp);
+
+typedef void JobDeferToMainLoopFn(Job *job, void *opaque);
+
+/**
+ * @job: The job
+ * @fn: The function to run in the main loop
+ * @opaque: The opaque value that is passed to @fn
+ *
+ * This function must be called by the main job coroutine just before it
+ * returns.  @fn is executed in the main loop with the job AioContext acquired.
+ *
+ * Block jobs must call bdrv_unref(), bdrv_close(), and anything that uses
+ * bdrv_drain_all() in the main loop.
+ *
+ * The @job AioContext is held while @fn executes.
+ */
+void job_defer_to_main_loop(Job *job, JobDeferToMainLoopFn *fn, void *opaque);
 
 /* TODO To be removed from the public interface */
 void job_state_transition(Job *job, JobStatus s1);

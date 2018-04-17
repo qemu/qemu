@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "qemu/job.h"
 #include "qemu/id.h"
+#include "qemu/main-loop.h"
 #include "trace-root.h"
 
 static QLIST_HEAD(, Job) jobs = QLIST_HEAD_INITIALIZER(jobs);
@@ -169,4 +170,35 @@ void job_unref(Job *job)
         g_free(job->id);
         g_free(job);
     }
+}
+
+typedef struct {
+    Job *job;
+    JobDeferToMainLoopFn *fn;
+    void *opaque;
+} JobDeferToMainLoopData;
+
+static void job_defer_to_main_loop_bh(void *opaque)
+{
+    JobDeferToMainLoopData *data = opaque;
+    Job *job = data->job;
+    AioContext *aio_context = job->aio_context;
+
+    aio_context_acquire(aio_context);
+    data->fn(data->job, data->opaque);
+    aio_context_release(aio_context);
+
+    g_free(data);
+}
+
+void job_defer_to_main_loop(Job *job, JobDeferToMainLoopFn *fn, void *opaque)
+{
+    JobDeferToMainLoopData *data = g_malloc(sizeof(*data));
+    data->job = job;
+    data->fn = fn;
+    data->opaque = opaque;
+    job->deferred_to_main_loop = true;
+
+    aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                            job_defer_to_main_loop_bh, data);
 }

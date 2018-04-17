@@ -58,16 +58,16 @@ typedef struct {
     int ret;
 } StreamCompleteData;
 
-static void stream_complete(BlockJob *job, void *opaque)
+static void stream_complete(Job *job, void *opaque)
 {
-    StreamBlockJob *s = container_of(job, StreamBlockJob, common);
+    StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
+    BlockJob *bjob = &s->common;
     StreamCompleteData *data = opaque;
-    BlockDriverState *bs = blk_bs(job->blk);
+    BlockDriverState *bs = blk_bs(bjob->blk);
     BlockDriverState *base = s->base;
     Error *local_err = NULL;
 
-    if (!job_is_cancelled(&s->common.job) && bs->backing &&
-        data->ret == 0) {
+    if (!job_is_cancelled(job) && bs->backing && data->ret == 0) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
             base_id = s->backing_file_str;
@@ -88,7 +88,7 @@ out:
     /* Reopen the image back in read-only mode if necessary */
     if (s->bs_flags != bdrv_get_flags(bs)) {
         /* Give up write permissions before making it read-only */
-        blk_set_perm(job->blk, 0, BLK_PERM_ALL, &error_abort);
+        blk_set_perm(bjob->blk, 0, BLK_PERM_ALL, &error_abort);
         bdrv_reopen(bs, s->bs_flags, NULL);
     }
 
@@ -205,7 +205,7 @@ out:
     /* Modify backing chain and close BDSes in main loop */
     data = g_malloc(sizeof(*data));
     data->ret = ret;
-    block_job_defer_to_main_loop(&s->common, stream_complete, data);
+    job_defer_to_main_loop(&s->common.job, stream_complete, data);
 }
 
 static const BlockJobDriver stream_job_driver = {

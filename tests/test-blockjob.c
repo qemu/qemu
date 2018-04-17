@@ -161,11 +161,12 @@ typedef struct CancelJob {
     bool completed;
 } CancelJob;
 
-static void cancel_job_completed(BlockJob *job, void *opaque)
+static void cancel_job_completed(Job *job, void *opaque)
 {
+    BlockJob *bjob = container_of(job, BlockJob, job);
     CancelJob *s = opaque;
     s->completed = true;
-    block_job_completed(job, 0);
+    block_job_completed(bjob, 0);
 }
 
 static void cancel_job_complete(BlockJob *job, Error **errp)
@@ -191,7 +192,7 @@ static void coroutine_fn cancel_job_start(void *opaque)
     }
 
  defer:
-    block_job_defer_to_main_loop(&s->common, cancel_job_completed, s);
+    job_defer_to_main_loop(&s->common.job, cancel_job_completed, s);
 }
 
 static const BlockJobDriver test_cancel_driver = {

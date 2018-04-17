@@ -92,11 +92,6 @@ typedef struct BlockJob {
      */
     bool ready;
 
-    /**
-     * Set to true when the job has deferred work to the main loop.
-     */
-    bool deferred_to_main_loop;
-
     /** Status that is published by the query-block-jobs QMP API */
     BlockDeviceIoStatus iostatus;
 

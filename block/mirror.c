@@ -484,9 +484,10 @@ typedef struct {
     int ret;
 } MirrorExitData;
 
-static void mirror_exit(BlockJob *job, void *opaque)
+static void mirror_exit(Job *job, void *opaque)
 {
-    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
+    BlockJob *bjob = &s->common;
     MirrorExitData *data = opaque;
     AioContext *replace_aio_context = NULL;
     BlockDriverState *src = s->source;
@@ -568,7 +569,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
      * the blockers on the intermediate nodes so that the resulting state is
      * valid. Also give up permissions on mirror_top_bs->backing, which might
      * block the removal. */
-    block_job_remove_all_bdrv(job);
+    block_job_remove_all_bdrv(bjob);
     bdrv_child_try_set_perm(mirror_top_bs->backing, 0, BLK_PERM_ALL,
                             &error_abort);
     bdrv_replace_node(mirror_top_bs, backing_bs(mirror_top_bs), &error_abort);
@@ -576,9 +577,9 @@ static void mirror_exit(BlockJob *job, void *opaque)
     /* We just changed the BDS the job BB refers to (with either or both of the
      * bdrv_replace_node() calls), so switch the BB back so the cleanup does
      * the right thing. We don't need any permissions any more now. */
-    blk_remove_bs(job->blk);
-    blk_set_perm(job->blk, 0, BLK_PERM_ALL, &error_abort);
-    blk_insert_bs(job->blk, mirror_top_bs, &error_abort);
+    blk_remove_bs(bjob->blk);
+    blk_set_perm(bjob->blk, 0, BLK_PERM_ALL, &error_abort);
+    blk_insert_bs(bjob->blk, mirror_top_bs, &error_abort);
 
     block_job_completed(&s->common, data->ret);
 
@@ -901,7 +902,7 @@ immediate_exit:
     if (need_drain) {
         bdrv_drained_begin(bs);
     }
-    block_job_defer_to_main_loop(&s->common, mirror_exit, data);
+    job_defer_to_main_loop(&s->common.job, mirror_exit, data);
 }
 
 static void mirror_complete(BlockJob *job, Error **errp)

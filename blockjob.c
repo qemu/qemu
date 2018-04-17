@@ -360,7 +360,7 @@ static void block_job_decommission(BlockJob *job)
     job->completed = true;
     job->busy = false;
     job->paused = false;
-    job->deferred_to_main_loop = true;
+    job->job.deferred_to_main_loop = true;
     block_job_txn_del_job(job);
     job_state_transition(&job->job, JOB_STATUS_NULL);
     job_unref(&job->job);
@@ -515,7 +515,7 @@ static int block_job_finish_sync(BlockJob *job,
     /* block_job_drain calls block_job_enter, and it should be enough to
      * induce progress until the job completes or moves to the main thread.
     */
-    while (!job->deferred_to_main_loop && !job->completed) {
+    while (!job->job.deferred_to_main_loop && !job->completed) {
         block_job_drain(job);
     }
     while (!job->completed) {
@@ -729,7 +729,7 @@ void block_job_cancel(BlockJob *job, bool force)
     block_job_cancel_async(job, force);
     if (!block_job_started(job)) {
         block_job_completed(job, -ECANCELED);
-    } else if (job->deferred_to_main_loop) {
+    } else if (job->job.deferred_to_main_loop) {
         block_job_completed_txn_abort(job);
     } else {
         block_job_enter(job);
@@ -1045,7 +1045,7 @@ static void block_job_enter_cond(BlockJob *job, bool(*fn)(BlockJob *job))
     if (!block_job_started(job)) {
         return;
     }
-    if (job->deferred_to_main_loop) {
+    if (job->job.deferred_to_main_loop) {
         return;
     }
 
@@ -1060,7 +1060,7 @@ static void block_job_enter_cond(BlockJob *job, bool(*fn)(BlockJob *job))
         return;
     }
 
-    assert(!job->deferred_to_main_loop);
+    assert(!job->job.deferred_to_main_loop);
     timer_del(&job->sleep_timer);
     job->busy = true;
     block_job_unlock();
@@ -1165,51 +1165,4 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
         block_job_iostatus_set_err(job, error);
     }
     return action;
-}
-
-typedef struct {
-    BlockJob *job;
-    AioContext *aio_context;
-    BlockJobDeferToMainLoopFn *fn;
-    void *opaque;
-} BlockJobDeferToMainLoopData;
-
-static void block_job_defer_to_main_loop_bh(void *opaque)
-{
-    BlockJobDeferToMainLoopData *data = opaque;
-    AioContext *aio_context;
-
-    /* Prevent race with block_job_defer_to_main_loop() */
-    aio_context_acquire(data->aio_context);
-
-    /* Fetch BDS AioContext again, in case it has changed */
-    aio_context = blk_get_aio_context(data->job->blk);
-    if (aio_context != data->aio_context) {
-        aio_context_acquire(aio_context);
-    }
-
-    data->fn(data->job, data->opaque);
-
-    if (aio_context != data->aio_context) {
-        aio_context_release(aio_context);
-    }
-
-    aio_context_release(data->aio_context);
-
-    g_free(data);
-}
-
-void block_job_defer_to_main_loop(BlockJob *job,
-                                  BlockJobDeferToMainLoopFn *fn,
-                                  void *opaque)
-{
-    BlockJobDeferToMainLoopData *data = g_malloc(sizeof(*data));
-    data->job = job;
-    data->aio_context = blk_get_aio_context(job->blk);
-    data->fn = fn;
-    data->opaque = opaque;
-    job->deferred_to_main_loop = true;
-
-    aio_bh_schedule_oneshot(qemu_get_aio_context(),
-                            block_job_defer_to_main_loop_bh, data);
 }

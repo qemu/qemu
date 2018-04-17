@@ -24,16 +24,17 @@ typedef struct {
     int *result;
 } TestBlockJob;
 
-static void test_block_job_complete(BlockJob *job, void *opaque)
+static void test_block_job_complete(Job *job, void *opaque)
 {
-    BlockDriverState *bs = blk_bs(job->blk);
+    BlockJob *bjob = container_of(job, BlockJob, job);
+    BlockDriverState *bs = blk_bs(bjob->blk);
     int rc = (intptr_t)opaque;
 
-    if (job_is_cancelled(&job->job)) {
+    if (job_is_cancelled(job)) {
         rc = -ECANCELED;
     }
 
-    block_job_completed(job, rc);
+    block_job_completed(bjob, rc);
     bdrv_unref(bs);
 }
 
@@ -54,8 +55,8 @@ static void coroutine_fn test_block_job_run(void *opaque)
         }
     }
 
-    block_job_defer_to_main_loop(job, test_block_job_complete,
-                                 (void *)(intptr_t)s->rc);
+    job_defer_to_main_loop(&job->job, test_block_job_complete,
+                           (void *)(intptr_t)s->rc);
 }
 
 typedef struct {

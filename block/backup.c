@@ -317,11 +317,12 @@ typedef struct {
     int ret;
 } BackupCompleteData;
 
-static void backup_complete(BlockJob *job, void *opaque)
+static void backup_complete(Job *job, void *opaque)
 {
+    BlockJob *bjob = container_of(job, BlockJob, job);
     BackupCompleteData *data = opaque;
 
-    block_job_completed(job, data->ret);
+    block_job_completed(bjob, data->ret);
     g_free(data);
 }
 
@@ -519,7 +520,7 @@ static void coroutine_fn backup_run(void *opaque)
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
-    block_job_defer_to_main_loop(&job->common, backup_complete, data);
+    job_defer_to_main_loop(&job->common.job, backup_complete, data);
 }
 
 static const BlockJobDriver backup_job_driver = {

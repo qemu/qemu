@@ -496,9 +496,10 @@ typedef struct TestBlockJob {
     bool should_complete;
 } TestBlockJob;
 
-static void test_job_completed(BlockJob *job, void *opaque)
+static void test_job_completed(Job *job, void *opaque)
 {
-    block_job_completed(job, 0);
+    BlockJob *bjob = container_of(job, BlockJob, job);
+    block_job_completed(bjob, 0);
 }
 
 static void coroutine_fn test_job_start(void *opaque)
@@ -510,7 +511,7 @@ static void coroutine_fn test_job_start(void *opaque)
         block_job_sleep_ns(&s->common, 100000);
     }
 
-    block_job_defer_to_main_loop(&s->common, test_job_completed, NULL);
+    job_defer_to_main_loop(&s->common.job, test_job_completed, NULL);
 }
 
 static void test_job_complete(BlockJob *job, Error **errp)

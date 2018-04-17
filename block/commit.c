@@ -72,9 +72,10 @@ typedef struct {
     int ret;
 } CommitCompleteData;
 
-static void commit_complete(BlockJob *job, void *opaque)
+static void commit_complete(Job *job, void *opaque)
 {
-    CommitBlockJob *s = container_of(job, CommitBlockJob, common);
+    CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
+    BlockJob *bjob = &s->common;
     CommitCompleteData *data = opaque;
     BlockDriverState *top = blk_bs(s->top);
     BlockDriverState *base = blk_bs(s->base);
@@ -90,7 +91,7 @@ static void commit_complete(BlockJob *job, void *opaque)
      * the normal backing chain can be restored. */
     blk_unref(s->base);
 
-    if (!job_is_cancelled(&s->common.job) && ret == 0) {
+    if (!job_is_cancelled(job) && ret == 0) {
         /* success */
         ret = bdrv_drop_intermediate(s->commit_top_bs, base,
                                      s->backing_file_str);
@@ -114,7 +115,7 @@ static void commit_complete(BlockJob *job, void *opaque)
      * block_job_finish_sync()), block_job_completed() won't free it and
      * therefore the blockers on the intermediate nodes remain. This would
      * cause bdrv_set_backing_hd() to fail. */
-    block_job_remove_all_bdrv(job);
+    block_job_remove_all_bdrv(bjob);
 
     block_job_completed(&s->common, ret);
     g_free(data);
@@ -211,7 +212,7 @@ out:
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
-    block_job_defer_to_main_loop(&s->common, commit_complete, data);
+    job_defer_to_main_loop(&s->common.job, commit_complete, data);
 }
 
 static const BlockJobDriver commit_job_driver = {

@@ -233,23 +233,4 @@ void block_job_event_ready(BlockJob *job);
 BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         int is_read, int error);
 
-typedef void BlockJobDeferToMainLoopFn(BlockJob *job, void *opaque);
-
-/**
- * block_job_defer_to_main_loop:
- * @job: The job
- * @fn: The function to run in the main loop
- * @opaque: The opaque value that is passed to @fn
- *
- * This function must be called by the main job coroutine just before it
- * returns.  @fn is executed in the main loop with the BlockDriverState
- * AioContext acquired.  Block jobs must call bdrv_unref(), bdrv_close(), and
- * anything that uses bdrv_drain_all() in the main loop.
- *
- * The @job AioContext is held while @fn executes.
- */
-void block_job_defer_to_main_loop(BlockJob *job,
-                                  BlockJobDeferToMainLoopFn *fn,
-                                  void *opaque);
-
 #endif
