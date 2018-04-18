@@ -134,6 +134,13 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 void block_job_free(Job *job);
 
 /**
+ * block_job_user_resume:
+ * Callback to be used for JobDriver.user_resume in all block jobs. Resets the
+ * iostatus when the user resumes @job.
+ */
+void block_job_user_resume(Job *job);
+
+/**
  * block_job_yield:
  * @job: The job that calls the function.
  *

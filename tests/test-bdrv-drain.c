@@ -524,6 +524,7 @@ BlockJobDriver test_job_driver = {
     .job_driver = {
         .instance_size  = sizeof(TestBlockJob),
         .free           = block_job_free,
+        .user_resume    = block_job_user_resume,
         .start          = test_job_start,
     },
     .complete       = test_job_complete,

@@ -140,29 +140,6 @@ static void block_job_txn_del_job(BlockJob *job)
     }
 }
 
-/* Assumes the job_mutex is held */
-static bool job_timer_not_pending(Job *job)
-{
-    return !timer_pending(&job->sleep_timer);
-}
-
-static void block_job_pause(BlockJob *job)
-{
-    job->job.pause_count++;
-}
-
-static void block_job_resume(BlockJob *job)
-{
-    assert(job->job.pause_count > 0);
-    job->job.pause_count--;
-    if (job->job.pause_count) {
-        return;
-    }
-
-    /* kick only if no timer is pending */
-    job_enter_cond(&job->job, job_timer_not_pending);
-}
-
 static void block_job_attached_aio_context(AioContext *new_context,
                                            void *opaque);
 static void block_job_detach_aio_context(void *opaque);
@@ -193,7 +170,7 @@ static void block_job_attached_aio_context(AioContext *new_context,
         job->driver->attached_aio_context(job, new_context);
     }
 
-    block_job_resume(job);
+    job_resume(&job->job);
 }
 
 static void block_job_drain(BlockJob *job)
@@ -214,7 +191,7 @@ static void block_job_detach_aio_context(void *opaque)
     /* In case the job terminates during aio_poll()... */
     job_ref(&job->job);
 
-    block_job_pause(job);
+    job_pause(&job->job);
 
     while (!job->job.paused && !job->completed) {
         block_job_drain(job);
@@ -233,13 +210,13 @@ static char *child_job_get_parent_desc(BdrvChild *c)
 static void child_job_drained_begin(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
-    block_job_pause(job);
+    job_pause(&job->job);
 }
 
 static void child_job_drained_end(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
-    block_job_resume(job);
+    job_resume(&job->job);
 }
 
 static const BdrvChildRole child_job = {
@@ -396,9 +373,9 @@ static void block_job_cancel_async(BlockJob *job, bool force)
     if (job->iostatus != BLOCK_DEVICE_IO_STATUS_OK) {
         block_job_iostatus_reset(job);
     }
-    if (job->user_paused) {
+    if (job->job.user_paused) {
         /* Do not call block_job_enter here, the caller will handle it.  */
-        job->user_paused = false;
+        job->job.user_paused = false;
         job->job.pause_count--;
     }
     job->job.cancelled = true;
@@ -628,39 +605,6 @@ void block_job_dismiss(BlockJob **jobptr, Error **errp)
     *jobptr = NULL;
 }
 
-void block_job_user_pause(BlockJob *job, Error **errp)
-{
-    if (job_apply_verb(&job->job, JOB_VERB_PAUSE, errp)) {
-        return;
-    }
-    if (job->user_paused) {
-        error_setg(errp, "Job is already paused");
-        return;
-    }
-    job->user_paused = true;
-    block_job_pause(job);
-}
-
-bool block_job_user_paused(BlockJob *job)
-{
-    return job->user_paused;
-}
-
-void block_job_user_resume(BlockJob *job, Error **errp)
-{
-    assert(job);
-    if (!job->user_paused || job->job.pause_count <= 0) {
-        error_setg(errp, "Can't resume a job that was not paused");
-        return;
-    }
-    if (job_apply_verb(&job->job, JOB_VERB_RESUME, errp)) {
-        return;
-    }
-    block_job_iostatus_reset(job);
-    job->user_paused = false;
-    block_job_resume(job);
-}
-
 void block_job_cancel(BlockJob *job, bool force)
 {
     if (job->job.status == JOB_STATUS_CONCLUDED) {
@@ -851,6 +795,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
     assert(is_block_job(&job->job));
     assert(job->job.driver->free == &block_job_free);
+    assert(job->job.driver->user_resume == &block_job_user_resume);
 
     job->driver        = driver;
     job->blk           = blk;
@@ -941,8 +886,14 @@ void block_job_iostatus_reset(BlockJob *job)
     if (job->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
         return;
     }
-    assert(job->user_paused && job->job.pause_count > 0);
+    assert(job->job.user_paused && job->job.pause_count > 0);
     job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+}
+
+void block_job_user_resume(Job *job)
+{
+    BlockJob *bjob = container_of(job, BlockJob, job);
+    block_job_iostatus_reset(bjob);
 }
 
 void block_job_event_ready(BlockJob *job)
@@ -991,9 +942,9 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         action, &error_abort);
     }
     if (action == BLOCK_ERROR_ACTION_STOP) {
-        block_job_pause(job);
+        job_pause(&job->job);
         /* make the pause user visible, which will be resumed from QMP. */
-        job->user_paused = true;
+        job->job.user_paused = true;
         block_job_iostatus_set_err(job, error);
     }
     return action;

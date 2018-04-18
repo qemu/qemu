@@ -83,6 +83,12 @@ typedef struct Job {
     bool paused;
 
     /**
+     * Set to true if the job is paused by user.  Can be unpaused with the
+     * block-job-resume QMP command.
+     */
+    bool user_paused;
+
+    /**
      * Set to true if the job should cancel itself.  The flag must
      * always be tested just before toggling the busy flag from false
      * to true.  After a job has been cancelled, it should only yield
@@ -123,6 +129,12 @@ struct JobDriver {
      * should be restarted from this callback.
      */
     void coroutine_fn (*resume)(Job *job);
+
+    /**
+     * Called when the job is resumed by the user (i.e. user_paused becomes
+     * false). .user_resume is called before .resume.
+     */
+    void (*user_resume)(Job *job);
 
     /** Called when the job is freed */
     void (*free)(Job *job);
@@ -201,6 +213,31 @@ const char *job_type_str(const Job *job);
 
 /** Returns whether the job is scheduled for cancellation. */
 bool job_is_cancelled(Job *job);
+
+/**
+ * Request @job to pause at the next pause point. Must be paired with
+ * job_resume(). If the job is supposed to be resumed by user action, call
+ * job_user_pause() instead.
+ */
+void job_pause(Job *job);
+
+/** Resumes a @job paused with job_pause. */
+void job_resume(Job *job);
+
+/**
+ * Asynchronously pause the specified @job.
+ * Do not allow a resume until a matching call to job_user_resume.
+ */
+void job_user_pause(Job *job, Error **errp);
+
+/** Returns true if the job is user-paused. */
+bool job_user_paused(Job *job);
+
+/**
+ * Resume the specified @job.
+ * Must be paired with a preceding job_user_pause.
+ */
+void job_user_resume(Job *job, Error **errp);
 
 /**
  * Get the next element from the list of block jobs after @job, or the

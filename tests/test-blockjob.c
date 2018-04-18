@@ -20,6 +20,7 @@ static const BlockJobDriver test_block_job_driver = {
     .job_driver = {
         .instance_size = sizeof(BlockJob),
         .free          = block_job_free,
+        .user_resume   = block_job_user_resume,
     },
 };
 
@@ -199,6 +200,7 @@ static const BlockJobDriver test_cancel_driver = {
     .job_driver = {
         .instance_size = sizeof(CancelJob),
         .free          = block_job_free,
+        .user_resume   = block_job_user_resume,
         .start         = cancel_job_start,
     },
     .complete      = cancel_job_complete,
@@ -270,7 +272,7 @@ static void test_cancel_paused(void)
     job_start(&job->job);
     assert(job->job.status == JOB_STATUS_RUNNING);
 
-    block_job_user_pause(job, &error_abort);
+    job_user_pause(&job->job, &error_abort);
     block_job_enter(job);
     assert(job->job.status == JOB_STATUS_PAUSED);
 
@@ -308,7 +310,7 @@ static void test_cancel_standby(void)
     block_job_enter(job);
     assert(job->job.status == JOB_STATUS_READY);
 
-    block_job_user_pause(job, &error_abort);
+    job_user_pause(&job->job, &error_abort);
     block_job_enter(job);
     assert(job->job.status == JOB_STATUS_STANDBY);
 

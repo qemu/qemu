@@ -57,12 +57,6 @@ typedef struct BlockJob {
     bool force;
 
     /**
-     * Set to true if the job is paused by user.  Can be unpaused with the
-     * block-job-resume QMP command.
-     */
-    bool user_paused;
-
-    /**
      * Set to true when the job is ready to be completed.
      */
     bool ready;
@@ -246,32 +240,6 @@ void block_job_progress_set_remaining(BlockJob *job, uint64_t remaining);
  * Return information about a job.
  */
 BlockJobInfo *block_job_query(BlockJob *job, Error **errp);
-
-/**
- * block_job_user_pause:
- * @job: The job to be paused.
- *
- * Asynchronously pause the specified job.
- * Do not allow a resume until a matching call to block_job_user_resume.
- */
-void block_job_user_pause(BlockJob *job, Error **errp);
-
-/**
- * block_job_paused:
- * @job: The job to query.
- *
- * Returns true if the job is user-paused.
- */
-bool block_job_user_paused(BlockJob *job);
-
-/**
- * block_job_user_resume:
- * @job: The job to be resumed.
- *
- * Resume the specified job.
- * Must be paired with a preceding block_job_user_pause.
- */
-void block_job_user_resume(BlockJob *job, Error **errp);
 
 /**
  * block_job_user_cancel:
