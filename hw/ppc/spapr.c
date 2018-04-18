@@ -3192,11 +3192,13 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                   Error **errp)
 {
     const sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(hotplug_dev);
+    sPAPRMachineState *spapr = SPAPR_MACHINE(hotplug_dev);
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr;
     uint64_t size;
-    char *mem_dev;
+    Object *memdev;
+    hwaddr pagesize;
 
     if (!smc->dr_lmb_enabled) {
         error_setg(errp, "Memory hotplug not supported for this machine");
@@ -3215,15 +3217,10 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    mem_dev = object_property_get_str(OBJECT(dimm), PC_DIMM_MEMDEV_PROP, NULL);
-    if (mem_dev && !kvmppc_is_mem_backend_page_size_ok(mem_dev)) {
-        error_setg(errp, "Memory backend has bad page size. "
-                   "Use 'memory-backend-file' with correct mem-path.");
-        goto out;
-    }
-
-out:
-    g_free(mem_dev);
+    memdev = object_property_get_link(OBJECT(dimm), PC_DIMM_MEMDEV_PROP,
+                                      &error_abort);
+    pagesize = host_memory_backend_pagesize(MEMORY_BACKEND(memdev));
+    spapr_check_pagesize(spapr, pagesize, errp);
 }
 
 struct sPAPRDIMMState {

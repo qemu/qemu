@@ -806,4 +806,7 @@ void spapr_caps_cpu_apply(sPAPRMachineState *spapr, PowerPCCPU *cpu);
 void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp);
 int spapr_caps_post_migration(sPAPRMachineState *spapr);
 
+void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
+                          Error **errp);
+
 #endif /* HW_SPAPR_H */

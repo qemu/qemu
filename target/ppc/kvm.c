@@ -500,24 +500,10 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
         cpu->hash64_opts->flags &= ~PPC_HASH64_1TSEG;
     }
 }
-
-bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path)
-{
-    Object *mem_obj = object_resolve_path(obj_path, NULL);
-    long pagesize = host_memory_backend_pagesize(MEMORY_BACKEND(mem_obj));
-
-    return pagesize >= max_cpu_page_size;
-}
-
 #else /* defined (TARGET_PPC64) */
 
 static inline void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 {
-}
-
-bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path)
-{
-    return true;
 }
 
 #endif /* !defined (TARGET_PPC64) */

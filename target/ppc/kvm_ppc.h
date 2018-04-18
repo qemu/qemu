@@ -71,7 +71,6 @@ int kvmppc_resize_hpt_commit(PowerPCCPU *cpu, target_ulong flags, int shift);
 bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu);
 
 bool kvmppc_hpt_needs_host_contiguous_pages(void);
-bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path);
 
 #else
 
@@ -226,11 +225,6 @@ static inline uint64_t kvmppc_rma_size(uint64_t current_size,
 static inline bool kvmppc_hpt_needs_host_contiguous_pages(void)
 {
     return false;
-}
-
-static inline bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path)
-{
-    return true;
 }
 
 static inline bool kvmppc_has_cap_spapr_vfio(void)
