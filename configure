@@ -300,6 +300,24 @@ then
 else
     git_update=no
     git_submodules=""
+
+    if ! test -f "$source_path/ui/keycodemapdb/README"
+    then
+        echo
+        echo "ERROR: missing file $source_path/ui/keycodemapdb/README"
+        echo
+        echo "This is not a GIT checkout but module content appears to"
+        echo "be missing. Do not use 'git archive' or GitHub download links"
+        echo "to acquire QEMU source archives. Non-GIT builds are only"
+        echo "supported with source archives linked from:"
+        echo
+        echo "  https://www.qemu.org/download/"
+        echo
+        echo "Developers working with GIT can use scripts/archive-source.sh"
+        echo "if they need to create valid source archives."
+        echo
+        exit 1
+    fi
 fi
 git="git"
 
