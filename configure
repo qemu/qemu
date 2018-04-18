@@ -5207,6 +5207,21 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# check if we have libdrm available
+have_libdrm=no
+cat > $TMPC << EOF
+#include <libdrm/drm.h>
+#include <libdrm/i915_drm.h>
+#include <libdrm/radeon_drm.h>
+int main(void) {
+  return DRM_IOCTL_PRIME_FD_TO_HANDLE | DRM_IOCTL_I915_GET_RESET_STATS;
+}
+EOF
+if compile_prog "" "" ; then
+    have_libdrm=yes
+fi
+
+##########################################
 # check for usable AF_VSOCK environment
 have_af_vsock=no
 cat > $TMPC << EOF
@@ -5805,6 +5820,7 @@ echo "PIE               $pie"
 echo "vde support       $vde"
 echo "netmap support    $netmap"
 echo "Linux AIO support $linux_aio"
+echo "Linux drm support (i915, radeon) $have_libdrm"
 echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
@@ -6574,6 +6590,10 @@ if test "$libxml2" = "yes" ; then
   echo "CONFIG_LIBXML2=y" >> $config_host_mak
   echo "LIBXML2_CFLAGS=$libxml2_cflags" >> $config_host_mak
   echo "LIBXML2_LIBS=$libxml2_libs" >> $config_host_mak
+fi
+
+if test "$have_libdrm" = "yes" ; then
+  echo "CONFIG_LIBDRM=y" >> $config_host_mak
 fi
 
 if test "$replication" = "yes" ; then
