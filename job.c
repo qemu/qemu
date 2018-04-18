@@ -152,6 +152,13 @@ Job *job_get(const char *id)
     return NULL;
 }
 
+static void job_sleep_timer_cb(void *opaque)
+{
+    Job *job = opaque;
+
+    job_enter(job);
+}
+
 void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
                  Error **errp)
 {
@@ -178,6 +185,9 @@ void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
     job->pause_count   = 1;
 
     job_state_transition(job, JOB_STATUS_CREATED);
+    aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
+                   QEMU_CLOCK_REALTIME, SCALE_NS,
+                   job_sleep_timer_cb, job);
 
     QLIST_INSERT_HEAD(&jobs, job, job_list);
 
@@ -193,6 +203,7 @@ void job_unref(Job *job)
 {
     if (--job->refcnt == 0) {
         assert(job->status == JOB_STATUS_NULL);
+        assert(!timer_pending(&job->sleep_timer));
 
         if (job->driver->free) {
             job->driver->free(job);
@@ -230,6 +241,11 @@ void job_enter_cond(Job *job, bool(*fn)(Job *job))
     job->busy = true;
     job_unlock();
     aio_co_wake(job->co);
+}
+
+void job_enter(Job *job)
+{
+    job_enter_cond(job, NULL);
 }
 
 /* Yield, and schedule a timer to reenter the coroutine after @ns nanoseconds.
@@ -281,6 +297,22 @@ void coroutine_fn job_pause_point(Job *job)
     if (job->driver->resume) {
         job->driver->resume(job);
     }
+}
+
+void coroutine_fn job_sleep_ns(Job *job, int64_t ns)
+{
+    assert(job->busy);
+
+    /* Check cancellation *before* setting busy = false, too!  */
+    if (job_is_cancelled(job)) {
+        return;
+    }
+
+    if (!job_should_pause(job)) {
+        job_do_yield(job, qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + ns);
+    }
+
+    job_pause_point(job);
 }
 
 /**

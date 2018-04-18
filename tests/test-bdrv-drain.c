@@ -508,7 +508,7 @@ static void coroutine_fn test_job_start(void *opaque)
 
     block_job_event_ready(&s->common);
     while (!s->should_complete) {
-        block_job_sleep_ns(&s->common, 100000);
+        job_sleep_ns(&s->common.job, 100000);
     }
 
     job_defer_to_main_loop(&s->common.job, test_job_completed, NULL);
@@ -553,7 +553,7 @@ static void test_blockjob_common(enum drain_type drain_type)
 
     g_assert_cmpint(job->job.pause_count, ==, 0);
     g_assert_false(job->job.paused);
-    g_assert_false(job->job.busy); /* We're in block_job_sleep_ns() */
+    g_assert_false(job->job.busy); /* We're in job_sleep_ns() */
 
     do_drain_begin(drain_type, src);
 
@@ -571,7 +571,7 @@ static void test_blockjob_common(enum drain_type drain_type)
 
     g_assert_cmpint(job->job.pause_count, ==, 0);
     g_assert_false(job->job.paused);
-    g_assert_false(job->job.busy); /* We're in block_job_sleep_ns() */
+    g_assert_false(job->job.busy); /* We're in job_sleep_ns() */
 
     do_drain_begin(drain_type, target);
 
@@ -589,7 +589,7 @@ static void test_blockjob_common(enum drain_type drain_type)
 
     g_assert_cmpint(job->job.pause_count, ==, 0);
     g_assert_false(job->job.paused);
-    g_assert_false(job->job.busy); /* We're in block_job_sleep_ns() */
+    g_assert_false(job->job.busy); /* We're in job_sleep_ns() */
 
     ret = block_job_complete_sync(job, &error_abort);
     g_assert_cmpint(ret, ==, 0);

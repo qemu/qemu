@@ -188,7 +188,7 @@ static void coroutine_fn cancel_job_start(void *opaque)
             block_job_event_ready(&s->common);
         }
 
-        block_job_sleep_ns(&s->common, 100000);
+        job_sleep_ns(&s->common.job, 100000);
     }
 
  defer:

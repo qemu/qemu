@@ -595,7 +595,7 @@ static void mirror_throttle(MirrorBlockJob *s)
 
     if (now - s->last_pause_ns > BLOCK_JOB_SLICE_TIME) {
         s->last_pause_ns = now;
-        block_job_sleep_ns(&s->common, 0);
+        job_sleep_ns(&s->common.job, 0);
     } else {
         job_pause_point(&s->common.job);
     }
@@ -869,7 +869,7 @@ static void coroutine_fn mirror_run(void *opaque)
                         cnt == 0 ? BLOCK_JOB_SLICE_TIME : 0);
         }
         trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
-        block_job_sleep_ns(&s->common, delay_ns);
+        job_sleep_ns(&s->common.job, delay_ns);
         if (job_is_cancelled(&s->common.job) &&
             (!s->synced || s->common.force))
         {

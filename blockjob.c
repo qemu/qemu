@@ -181,7 +181,6 @@ void block_job_free(Job *job)
                                     block_job_detach_aio_context, bjob);
     blk_unref(bjob->blk);
     error_free(bjob->blocker);
-    assert(!timer_pending(&bjob->job.sleep_timer));
 }
 
 static void block_job_attached_aio_context(AioContext *new_context,
@@ -288,13 +287,6 @@ bool block_job_is_internal(BlockJob *job)
 const BlockJobDriver *block_job_driver(BlockJob *job)
 {
     return job->driver;
-}
-
-static void block_job_sleep_timer_cb(void *opaque)
-{
-    BlockJob *job = opaque;
-
-    block_job_enter(job);
 }
 
 static void block_job_decommission(BlockJob *job)
@@ -866,9 +858,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->opaque        = opaque;
     job->auto_finalize = !(flags & BLOCK_JOB_MANUAL_FINALIZE);
     job->auto_dismiss  = !(flags & BLOCK_JOB_MANUAL_DISMISS);
-    aio_timer_init(qemu_get_aio_context(), &job->job.sleep_timer,
-                   QEMU_CLOCK_REALTIME, SCALE_NS,
-                   block_job_sleep_timer_cb, job);
 
     error_setg(&job->blocker, "block device is in use by block job: %s",
                job_type_str(&job->job));
@@ -929,22 +918,6 @@ void block_job_completed(BlockJob *job, int ret)
 void block_job_enter(BlockJob *job)
 {
     job_enter_cond(&job->job, NULL);
-}
-
-void block_job_sleep_ns(BlockJob *job, int64_t ns)
-{
-    assert(job->job.busy);
-
-    /* Check cancellation *before* setting busy = false, too!  */
-    if (job_is_cancelled(&job->job)) {
-        return;
-    }
-
-    if (!job_should_pause(&job->job)) {
-        job_do_yield(&job->job, qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + ns);
-    }
-
-    job_pause_point(&job->job);
 }
 
 void block_job_yield(BlockJob *job)
