@@ -61,9 +61,8 @@ struct QObject {
 QEMU_BUILD_BUG_MSG(QTYPE__MAX != 7,
                    "The QTYPE_CAST_TO_* list needs to be extended");
 
-#define qobject_to(type, obj) ({ \
-    QObject *_tmp = qobject_check_type(obj, glue(QTYPE_CAST_TO_, type)); \
-    _tmp ? container_of(_tmp, type, base) : (type *)NULL; })
+#define qobject_to(type, obj)                                       \
+    ((type *)qobject_check_type(obj, glue(QTYPE_CAST_TO_, type)))
 
 /* Initialize an object to default values */
 static inline void qobject_init(QObject *obj, QType type)

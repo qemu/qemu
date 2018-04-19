@@ -16,6 +16,15 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
 
+QEMU_BUILD_BUG_MSG(
+    offsetof(QNull, base) != 0 ||
+    offsetof(QNum, base) != 0 ||
+    offsetof(QString, base) != 0 ||
+    offsetof(QDict, base) != 0 ||
+    offsetof(QList, base) != 0 ||
+    offsetof(QBool, base) != 0,
+    "base qobject must be at offset 0");
+
 static void (*qdestroy[QTYPE__MAX])(QObject *) = {
     [QTYPE_NONE] = NULL,               /* No such object exists */
     [QTYPE_QNULL] = NULL,              /* qnull_ is indestructible */
