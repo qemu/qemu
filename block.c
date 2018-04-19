@@ -5134,8 +5134,8 @@ static bool append_open_options(QDict *d, BlockDriverState *bs)
             continue;
         }
 
-        qobject_ref(qdict_entry_value(entry));
-        qdict_put_obj(d, qdict_entry_key(entry), qdict_entry_value(entry));
+        qdict_put_obj(d, qdict_entry_key(entry),
+                      qobject_ref(qdict_entry_value(entry)));
         found_any = true;
     }
 
@@ -5207,8 +5207,8 @@ void bdrv_refresh_filename(BlockDriverState *bs)
          * suffices without querying the (exact_)filename of this BDS. */
         if (bs->file->bs->full_open_options) {
             qdict_put_str(opts, "driver", drv->format_name);
-            qobject_ref(bs->file->bs->full_open_options);
-            qdict_put(opts, "file", bs->file->bs->full_open_options);
+            qdict_put(opts, "file",
+                      qobject_ref(bs->file->bs->full_open_options));
 
             bs->full_open_options = opts;
         } else {

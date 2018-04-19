@@ -588,8 +588,7 @@ static void qobject_input_type_any(Visitor *v, const char *name, QObject **obj,
         return;
     }
 
-    qobject_ref(qobj);
-    *obj = qobj;
+    *obj = qobject_ref(qobj);
 }
 
 static void qobject_input_type_null(Visitor *v, const char *name,
@@ -677,8 +676,7 @@ static QObjectInputVisitor *qobject_input_visitor_base_new(QObject *obj)
     v->visitor.optional = qobject_input_optional;
     v->visitor.free = qobject_input_free;
 
-    v->root = obj;
-    qobject_ref(obj);
+    v->root = qobject_ref(obj);
 
     return v;
 }

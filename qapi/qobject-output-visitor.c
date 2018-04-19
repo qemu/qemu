@@ -188,8 +188,8 @@ static void qobject_output_type_any(Visitor *v, const char *name,
                                     QObject **obj, Error **errp)
 {
     QObjectOutputVisitor *qov = to_qov(v);
-    qobject_ref(*obj);
-    qobject_output_add_obj(qov, name, *obj);
+
+    qobject_output_add_obj(qov, name, qobject_ref(*obj));
 }
 
 static void qobject_output_type_null(Visitor *v, const char *name,
@@ -210,8 +210,7 @@ static void qobject_output_complete(Visitor *v, void *opaque)
     assert(qov->root && QSLIST_EMPTY(&qov->stack));
     assert(opaque == qov->result);
 
-    qobject_ref(qov->root);
-    *qov->result = qov->root;
+    *qov->result = qobject_ref(qov->root);
     qov->result = NULL;
 }
 

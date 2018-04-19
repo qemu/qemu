@@ -494,9 +494,8 @@ static void monitor_json_emitter(Monitor *mon, QObject *data)
          * caller won't free the data (which will be finally freed in
          * responder thread).
          */
-        qobject_ref(data);
         qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
-        g_queue_push_tail(mon->qmp.qmp_responses, data);
+        g_queue_push_tail(mon->qmp.qmp_responses, qobject_ref(data));
         qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
         qemu_bh_schedule(mon_global.qmp_respond_bh);
     } else {
@@ -614,8 +613,7 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
              * replacing a prior stored event if any.
              */
             qobject_unref(evstate->qdict);
-            evstate->qdict = qdict;
-            qobject_ref(evstate->qdict);
+            evstate->qdict = qobject_ref(qdict);
         } else {
             /*
              * Last send was (at least) evconf->rate ns ago.
@@ -629,8 +627,7 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
 
             evstate = g_new(MonitorQAPIEventState, 1);
             evstate->event = event;
-            evstate->data = data;
-            qobject_ref(evstate->data);
+            evstate->data = qobject_ref(data);
             evstate->qdict = NULL;
             evstate->timer = timer_new_ns(event_clock_type,
                                           monitor_qapi_event_handler,
@@ -4048,9 +4045,7 @@ static void monitor_qmp_respond(Monitor *mon, QObject *rsp,
 
     if (rsp) {
         if (id) {
-            /* This is for the qdict below. */
-            qobject_ref(id);
-            qdict_put_obj(qobject_to(QDict, rsp), "id", id);
+            qdict_put_obj(qobject_to(QDict, rsp), "id", qobject_ref(id));
         }
 
         monitor_json_emitter(mon, rsp);
@@ -4190,14 +4185,13 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err;
     }
 
-    qobject_ref(id);
-    qdict_del(qdict, "id");
-
     req_obj = g_new0(QMPRequest, 1);
     req_obj->mon = mon;
-    req_obj->id = id;
+    req_obj->id = qobject_ref(id);
     req_obj->req = req;
     req_obj->need_resume = false;
+
+    qdict_del(qdict, "id");
 
     if (qmp_is_oob(qdict)) {
         /* Out-Of-Band (OOB) requests are executed directly in parser. */

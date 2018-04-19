@@ -23,8 +23,7 @@ extern QNull qnull_;
 
 static inline QNull *qnull(void)
 {
-    qobject_ref(&qnull_);
-    return &qnull_;
+    return qobject_ref(&qnull_);
 }
 
 bool qnull_is_equal(const QObject *x, const QObject *y);

@@ -1082,8 +1082,8 @@ static void quorum_refresh_filename(BlockDriverState *bs, QDict *options)
 
     children = qlist_new();
     for (i = 0; i < s->num_children; i++) {
-        qobject_ref(s->children[i]->bs->full_open_options);
-        qlist_append(children, s->children[i]->bs->full_open_options);
+        qlist_append(children,
+                     qobject_ref(s->children[i]->bs->full_open_options));
     }
 
     opts = qdict_new();

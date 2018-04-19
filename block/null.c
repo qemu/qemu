@@ -244,7 +244,6 @@ static int coroutine_fn null_co_block_status(BlockDriverState *bs,
 
 static void null_refresh_filename(BlockDriverState *bs, QDict *opts)
 {
-    qobject_ref(opts);
     qdict_del(opts, "filename");
 
     if (!qdict_size(opts)) {
@@ -253,7 +252,7 @@ static void null_refresh_filename(BlockDriverState *bs, QDict *opts)
     }
 
     qdict_put_str(opts, "driver", bs->drv->format_name);
-    bs->full_open_options = opts;
+    bs->full_open_options = qobject_ref(opts);
 }
 
 static BlockDriver bdrv_null_co = {
