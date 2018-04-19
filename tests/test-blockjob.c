@@ -128,11 +128,11 @@ static void test_job_ids(void)
     job[1] = do_test_id(blk[1], "id0", false);
 
     /* But once job[0] finishes we can reuse its ID */
-    block_job_early_fail(job[0]);
+    job_early_fail(&job[0]->job);
     job[1] = do_test_id(blk[1], "id0", true);
 
     /* No job ID specified, defaults to the backend name ('drive1') */
-    block_job_early_fail(job[1]);
+    job_early_fail(&job[1]->job);
     job[1] = do_test_id(blk[1], NULL, true);
 
     /* Duplicate job ID */
@@ -145,9 +145,9 @@ static void test_job_ids(void)
     /* This one is valid */
     job[2] = do_test_id(blk[2], "id_2", true);
 
-    block_job_early_fail(job[0]);
-    block_job_early_fail(job[1]);
-    block_job_early_fail(job[2]);
+    job_early_fail(&job[0]->job);
+    job_early_fail(&job[1]->job);
+    job_early_fail(&job[2]->job);
 
     destroy_blk(blk[0]);
     destroy_blk(blk[1]);

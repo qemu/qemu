@@ -127,7 +127,7 @@ void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job)
     block_job_txn_ref(txn);
 }
 
-static void block_job_txn_del_job(BlockJob *job)
+void block_job_txn_del_job(BlockJob *job)
 {
     if (job->txn) {
         QLIST_REMOVE(job, txn_list);
@@ -262,101 +262,12 @@ const BlockJobDriver *block_job_driver(BlockJob *job)
     return job->driver;
 }
 
-static void block_job_decommission(BlockJob *job)
-{
-    assert(job);
-    job->job.busy = false;
-    job->job.paused = false;
-    job->job.deferred_to_main_loop = true;
-    block_job_txn_del_job(job);
-    job_state_transition(&job->job, JOB_STATUS_NULL);
-    job_unref(&job->job);
-}
-
-static void block_job_do_dismiss(BlockJob *job)
-{
-    block_job_decommission(job);
-}
-
-static void block_job_conclude(BlockJob *job)
-{
-    job_state_transition(&job->job, JOB_STATUS_CONCLUDED);
-    if (job->job.auto_dismiss || !job_started(&job->job)) {
-        block_job_do_dismiss(job);
-    }
-}
-
-static void block_job_update_rc(BlockJob *job)
-{
-    if (!job->ret && job_is_cancelled(&job->job)) {
-        job->ret = -ECANCELED;
-    }
-    if (job->ret) {
-        job_state_transition(&job->job, JOB_STATUS_ABORTING);
-    }
-}
-
 static int block_job_prepare(BlockJob *job)
 {
-    if (job->ret == 0 && job->driver->prepare) {
-        job->ret = job->driver->prepare(job);
+    if (job->job.ret == 0 && job->driver->prepare) {
+        job->job.ret = job->driver->prepare(job);
     }
-    return job->ret;
-}
-
-static void block_job_commit(BlockJob *job)
-{
-    assert(!job->ret);
-    if (job->driver->commit) {
-        job->driver->commit(job);
-    }
-}
-
-static void block_job_abort(BlockJob *job)
-{
-    assert(job->ret);
-    if (job->driver->abort) {
-        job->driver->abort(job);
-    }
-}
-
-static void block_job_clean(BlockJob *job)
-{
-    if (job->driver->clean) {
-        job->driver->clean(job);
-    }
-}
-
-static int block_job_finalize_single(BlockJob *job)
-{
-    assert(job_is_completed(&job->job));
-
-    /* Ensure abort is called for late-transactional failures */
-    block_job_update_rc(job);
-
-    if (!job->ret) {
-        block_job_commit(job);
-    } else {
-        block_job_abort(job);
-    }
-    block_job_clean(job);
-
-    if (job->cb) {
-        job->cb(job->opaque, job->ret);
-    }
-
-    /* Emit events only if we actually started */
-    if (job_started(&job->job)) {
-        if (job_is_cancelled(&job->job)) {
-            job_event_cancelled(&job->job);
-        } else {
-            job_event_completed(&job->job);
-        }
-    }
-
-    block_job_txn_del_job(job);
-    block_job_conclude(job);
-    return 0;
+    return job->job.ret;
 }
 
 static void block_job_cancel_async(BlockJob *job, bool force)
@@ -424,8 +335,8 @@ static int block_job_finish_sync(BlockJob *job,
     while (!job_is_completed(&job->job)) {
         aio_poll(qemu_get_aio_context(), true);
     }
-    ret = (job_is_cancelled(&job->job) && job->ret == 0)
-          ? -ECANCELED : job->ret;
+    ret = (job_is_cancelled(&job->job) && job->job.ret == 0)
+          ? -ECANCELED : job->job.ret;
     job_unref(&job->job);
     return ret;
 }
@@ -466,7 +377,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
             assert(job_is_cancelled(&other_job->job));
             block_job_finish_sync(other_job, NULL, NULL);
         }
-        block_job_finalize_single(other_job);
+        job_finalize_single(&other_job->job);
         aio_context_release(ctx);
     }
 
@@ -476,6 +387,11 @@ static void block_job_completed_txn_abort(BlockJob *job)
 static int block_job_needs_finalize(BlockJob *job)
 {
     return !job->job.auto_finalize;
+}
+
+static int block_job_finalize_single(BlockJob *job)
+{
+    return job_finalize_single(&job->job);
 }
 
 static void block_job_do_finalize(BlockJob *job)
@@ -516,7 +432,7 @@ static void block_job_completed_txn_success(BlockJob *job)
         if (!job_is_completed(&other_job->job)) {
             return;
         }
-        assert(other_job->ret == 0);
+        assert(other_job->job.ret == 0);
     }
 
     block_job_txn_apply(txn, block_job_transition_to_pending, false);
@@ -601,14 +517,14 @@ void block_job_dismiss(BlockJob **jobptr, Error **errp)
         return;
     }
 
-    block_job_do_dismiss(job);
+    job_do_dismiss(&job->job);
     *jobptr = NULL;
 }
 
 void block_job_cancel(BlockJob *job, bool force)
 {
     if (job->job.status == JOB_STATUS_CONCLUDED) {
-        block_job_do_dismiss(job);
+        job_do_dismiss(&job->job);
         return;
     }
     block_job_cancel_async(job, force);
@@ -691,8 +607,8 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->status    = job->job.status;
     info->auto_finalize = job->job.auto_finalize;
     info->auto_dismiss  = job->job.auto_dismiss;
-    info->has_error = job->ret != 0;
-    info->error     = job->ret ? g_strdup(strerror(-job->ret)) : NULL;
+    info->has_error = job->job.ret != 0;
+    info->error     = job->job.ret ? g_strdup(strerror(-job->job.ret)) : NULL;
     return info;
 }
 
@@ -729,8 +645,8 @@ static void block_job_event_completed(Notifier *n, void *opaque)
         return;
     }
 
-    if (job->ret < 0) {
-        msg = strerror(-job->ret);
+    if (job->job.ret < 0) {
+        msg = strerror(-job->job.ret);
     }
 
     qapi_event_send_block_job_completed(job_type(&job->job),
@@ -787,7 +703,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     }
 
     job = job_create(job_id, &driver->job_driver, blk_get_aio_context(blk),
-                     flags, errp);
+                     flags, cb, opaque, errp);
     if (job == NULL) {
         blk_unref(blk);
         return NULL;
@@ -799,8 +715,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
     job->driver        = driver;
     job->blk           = blk;
-    job->cb            = cb;
-    job->opaque        = opaque;
 
     job->finalize_cancelled_notifier.notify = block_job_event_cancelled;
     job->finalize_completed_notifier.notify = block_job_event_completed;
@@ -828,7 +742,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
         block_job_set_speed(job, speed, &local_err);
         if (local_err) {
-            block_job_early_fail(job);
+            job_early_fail(&job->job);
             error_propagate(errp, local_err);
             return NULL;
         }
@@ -847,20 +761,14 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     return job;
 }
 
-void block_job_early_fail(BlockJob *job)
-{
-    assert(job->job.status == JOB_STATUS_CREATED);
-    block_job_decommission(job);
-}
-
 void block_job_completed(BlockJob *job, int ret)
 {
     assert(job && job->txn && !job_is_completed(&job->job));
     assert(blk_bs(job->blk)->job == job);
-    job->ret = ret;
-    block_job_update_rc(job);
-    trace_block_job_completed(job, ret, job->ret);
-    if (job->ret) {
+    job->job.ret = ret;
+    job_update_rc(&job->job);
+    trace_block_job_completed(job, ret, job->job.ret);
+    if (job->job.ret) {
         block_job_completed_txn_abort(job);
     } else {
         block_job_completed_txn_success(job);

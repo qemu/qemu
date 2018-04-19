@@ -54,34 +54,6 @@ struct BlockJobDriver {
      */
     int (*prepare)(BlockJob *job);
 
-    /**
-     * If the callback is not NULL, it will be invoked when all the jobs
-     * belonging to the same transaction complete; or upon this job's
-     * completion if it is not in a transaction. Skipped if NULL.
-     *
-     * All jobs will complete with a call to either .commit() or .abort() but
-     * never both.
-     */
-    void (*commit)(BlockJob *job);
-
-    /**
-     * If the callback is not NULL, it will be invoked when any job in the
-     * same transaction fails; or upon this job's failure (due to error or
-     * cancellation) if it is not in a transaction. Skipped if NULL.
-     *
-     * All jobs will complete with a call to either .commit() or .abort() but
-     * never both.
-     */
-    void (*abort)(BlockJob *job);
-
-    /**
-     * If the callback is not NULL, it will be invoked after a call to either
-     * .commit() or .abort(). Regardless of which callback is invoked after
-     * completion, .clean() will always be called, even if the job does not
-     * belong to a transaction group.
-     */
-    void (*clean)(BlockJob *job);
-
     /*
      * If the callback is not NULL, it will be invoked before the job is
      * resumed in a new AioContext.  This is the place to move any resources
@@ -154,14 +126,6 @@ void block_job_yield(BlockJob *job);
  * of ratelimit_calculate_delay() for details.
  */
 int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n);
-
-/**
- * block_job_early_fail:
- * @bs: The block device.
- *
- * The block job could not be started, free it.
- */
-void block_job_early_fail(BlockJob *job);
 
 /**
  * block_job_completed:

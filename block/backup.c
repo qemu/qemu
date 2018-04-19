@@ -207,25 +207,25 @@ static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
     }
 }
 
-static void backup_commit(BlockJob *job)
+static void backup_commit(Job *job)
 {
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
     if (s->sync_bitmap) {
         backup_cleanup_sync_bitmap(s, 0);
     }
 }
 
-static void backup_abort(BlockJob *job)
+static void backup_abort(Job *job)
 {
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
     if (s->sync_bitmap) {
         backup_cleanup_sync_bitmap(s, -1);
     }
 }
 
-static void backup_clean(BlockJob *job)
+static void backup_clean(Job *job)
 {
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
     assert(s->target);
     blk_unref(s->target);
     s->target = NULL;
@@ -530,10 +530,10 @@ static const BlockJobDriver backup_job_driver = {
         .free                   = block_job_free,
         .user_resume            = block_job_user_resume,
         .start                  = backup_run,
+        .commit                 = backup_commit,
+        .abort                  = backup_abort,
+        .clean                  = backup_clean,
     },
-    .commit                 = backup_commit,
-    .abort                  = backup_abort,
-    .clean                  = backup_clean,
     .attached_aio_context   = backup_attached_aio_context,
     .drain                  = backup_drain,
 };
@@ -678,8 +678,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         bdrv_reclaim_dirty_bitmap(bs, sync_bitmap, NULL);
     }
     if (job) {
-        backup_clean(&job->common);
-        block_job_early_fail(&job->common);
+        backup_clean(&job->common.job);
+        job_early_fail(&job->common.job);
     }
 
     return NULL;

@@ -76,9 +76,6 @@ typedef struct BlockJob {
     /** Rate limiting data structure for implementing @speed. */
     RateLimit limit;
 
-    /** The completion function that will be called when the job completes.  */
-    BlockCompletionFunc *cb;
-
     /** Block other operations when block job is running */
     Error *blocker;
 
@@ -93,12 +90,6 @@ typedef struct BlockJob {
 
     /** BlockDriverStates that are involved in this block job */
     GSList *nodes;
-
-    /** The opaque value that is passed to the completion function.  */
-    void *opaque;
-
-    /** ret code passed to block_job_completed. */
-    int ret;
 
     BlockJobTxn *txn;
     QLIST_ENTRY(BlockJob) txn_list;

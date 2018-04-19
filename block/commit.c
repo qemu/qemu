@@ -385,7 +385,7 @@ fail:
     if (commit_top_bs) {
         bdrv_replace_node(commit_top_bs, top, &error_abort);
     }
-    block_job_early_fail(&s->common);
+    job_early_fail(&s->common.job);
 }
 
 

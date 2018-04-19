@@ -29,6 +29,7 @@
 #include "qapi/qapi-types-block-core.h"
 #include "qemu/queue.h"
 #include "qemu/coroutine.h"
+#include "block/aio.h"
 
 typedef struct JobDriver JobDriver;
 
@@ -105,6 +106,15 @@ typedef struct Job {
     /** True if this job should automatically dismiss itself */
     bool auto_dismiss;
 
+    /** ret code passed to block_job_completed. */
+    int ret;
+
+    /** The completion function that will be called when the job completes.  */
+    BlockCompletionFunc *cb;
+
+    /** The opaque value that is passed to the completion function.  */
+    void *opaque;
+
     /** Notifiers called when a cancelled job is finalised */
     NotifierList on_finalize_cancelled;
 
@@ -151,6 +161,35 @@ struct JobDriver {
      */
     void (*user_resume)(Job *job);
 
+    /**
+     * If the callback is not NULL, it will be invoked when all the jobs
+     * belonging to the same transaction complete; or upon this job's
+     * completion if it is not in a transaction. Skipped if NULL.
+     *
+     * All jobs will complete with a call to either .commit() or .abort() but
+     * never both.
+     */
+    void (*commit)(Job *job);
+
+    /**
+     * If the callback is not NULL, it will be invoked when any job in the
+     * same transaction fails; or upon this job's failure (due to error or
+     * cancellation) if it is not in a transaction. Skipped if NULL.
+     *
+     * All jobs will complete with a call to either .commit() or .abort() but
+     * never both.
+     */
+    void (*abort)(Job *job);
+
+    /**
+     * If the callback is not NULL, it will be invoked after a call to either
+     * .commit() or .abort(). Regardless of which callback is invoked after
+     * completion, .clean() will always be called, even if the job does not
+     * belong to a transaction group.
+     */
+    void (*clean)(Job *job);
+
+
     /** Called when the job is freed */
     void (*free)(Job *job);
 };
@@ -174,10 +213,12 @@ typedef enum JobCreateFlags {
  * @driver: The class object for the newly-created job.
  * @ctx: The AioContext to run the job coroutine in.
  * @flags: Creation flags for the job. See @JobCreateFlags.
+ * @cb: Completion function for the job.
+ * @opaque: Opaque pointer value passed to @cb.
  * @errp: Error object.
  */
 void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
-                 int flags, Error **errp);
+                 int flags, BlockCompletionFunc *cb, void *opaque, Error **errp);
 
 /**
  * Add a reference to Job refcnt, it will be decreased with job_unref, and then
@@ -300,6 +341,10 @@ Job *job_get(const char *id);
  */
 int job_apply_verb(Job *job, JobVerb verb, Error **errp);
 
+/** The @job could not be started, free it. */
+void job_early_fail(Job *job);
+
+
 typedef void JobDeferToMainLoopFn(Job *job, void *opaque);
 
 /**
@@ -322,5 +367,11 @@ void job_state_transition(Job *job, JobStatus s1);
 void coroutine_fn job_do_yield(Job *job, uint64_t ns);
 bool job_should_pause(Job *job);
 bool job_started(Job *job);
+void job_do_dismiss(Job *job);
+int job_finalize_single(Job *job);
+void job_update_rc(Job *job);
+
+typedef struct BlockJob BlockJob;
+void block_job_txn_del_job(BlockJob *job);
 
 #endif
