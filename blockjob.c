@@ -193,7 +193,7 @@ static void block_job_detach_aio_context(void *opaque)
 
     job_pause(&job->job);
 
-    while (!job->job.paused && !job->completed) {
+    while (!job->job.paused && !job_is_completed(&job->job)) {
         block_job_drain(job);
     }
 
@@ -269,7 +269,6 @@ const BlockJobDriver *block_job_driver(BlockJob *job)
 static void block_job_decommission(BlockJob *job)
 {
     assert(job);
-    job->completed = true;
     job->job.busy = false;
     job->job.paused = false;
     job->job.deferred_to_main_loop = true;
@@ -334,7 +333,7 @@ static void block_job_clean(BlockJob *job)
 
 static int block_job_finalize_single(BlockJob *job)
 {
-    assert(job->completed);
+    assert(job_is_completed(&job->job));
 
     /* Ensure abort is called for late-transactional failures */
     block_job_update_rc(job);
@@ -427,10 +426,10 @@ static int block_job_finish_sync(BlockJob *job,
     /* block_job_drain calls block_job_enter, and it should be enough to
      * induce progress until the job completes or moves to the main thread.
     */
-    while (!job->job.deferred_to_main_loop && !job->completed) {
+    while (!job->job.deferred_to_main_loop && !job_is_completed(&job->job)) {
         block_job_drain(job);
     }
-    while (!job->completed) {
+    while (!job_is_completed(&job->job)) {
         aio_poll(qemu_get_aio_context(), true);
     }
     ret = (job_is_cancelled(&job->job) && job->ret == 0)
@@ -471,7 +470,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
     while (!QLIST_EMPTY(&txn->jobs)) {
         other_job = QLIST_FIRST(&txn->jobs);
         ctx = blk_get_aio_context(other_job->blk);
-        if (!other_job->completed) {
+        if (!job_is_completed(&other_job->job)) {
             assert(job_is_cancelled(&other_job->job));
             block_job_finish_sync(other_job, NULL, NULL);
         }
@@ -513,7 +512,7 @@ static void block_job_completed_txn_success(BlockJob *job)
      * txn.
      */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
-        if (!other_job->completed) {
+        if (!job_is_completed(&other_job->job)) {
             return;
         }
         assert(other_job->ret == 0);
@@ -847,9 +846,8 @@ void block_job_early_fail(BlockJob *job)
 
 void block_job_completed(BlockJob *job, int ret)
 {
-    assert(job && job->txn && !job->completed);
+    assert(job && job->txn && !job_is_completed(&job->job));
     assert(blk_bs(job->blk)->job == job);
-    job->completed = true;
     job->ret = ret;
     block_job_update_rc(job);
     trace_block_job_completed(job, ret, job->ret);

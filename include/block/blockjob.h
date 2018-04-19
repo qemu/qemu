@@ -88,9 +88,6 @@ typedef struct BlockJob {
     /** The opaque value that is passed to the completion function.  */
     void *opaque;
 
-    /** True when job has reported completion by calling block_job_completed. */
-    bool completed;
-
     /** ret code passed to block_job_completed. */
     int ret;
 
