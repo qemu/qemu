@@ -88,7 +88,7 @@ static void test_machine_cpu_cli(void)
 
     response = qmp("{ 'execute': 'quit' }");
     g_assert(qdict_haskey(response, "return"));
-    QDECREF(response);
+    qobject_unref(response);
 
     qtest_quit(global_qtest);
 }

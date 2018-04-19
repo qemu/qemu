@@ -763,7 +763,7 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
     if (!usbif->ports[port - 1].dev) {
         goto err;
     }
-    QDECREF(qdict);
+    qobject_unref(qdict);
     speed = usbif->ports[port - 1].dev->speed;
     switch (speed) {
     case USB_SPEED_LOW:
@@ -796,7 +796,7 @@ static void usbback_portid_add(struct usbback_info *usbif, unsigned port,
     return;
 
 err:
-    QDECREF(qdict);
+    qobject_unref(qdict);
     xen_pv_printf(&usbif->xendev, 0, "device %s could not be opened\n", busid);
 }
 

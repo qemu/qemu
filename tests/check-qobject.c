@@ -80,7 +80,7 @@ static void do_free_all(int _, ...)
 
     va_start(ap, _);
     while ((obj = va_arg(ap, QObject *)) != NULL) {
-        qobject_decref(obj);
+        qobject_unref(obj);
     }
     va_end(ap);
 }

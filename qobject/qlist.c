@@ -39,7 +39,7 @@ static void qlist_copy_elem(QObject *obj, void *opaque)
 {
     QList *dst = opaque;
 
-    qobject_incref(obj);
+    qobject_ref(obj);
     qlist_append_obj(dst, obj);
 }
 
@@ -196,7 +196,7 @@ void qlist_destroy_obj(QObject *obj)
 
     QTAILQ_FOREACH_SAFE(entry, &qlist->head, next, next_entry) {
         QTAILQ_REMOVE(&qlist->head, entry, next);
-        qobject_decref(entry->value);
+        qobject_unref(entry->value);
         g_free(entry);
     }
 

@@ -279,7 +279,7 @@ static BlockBackend *img_open_opts(const char *optstr,
         if (qdict_haskey(options, BDRV_OPT_FORCE_SHARE)
             && !qdict_get_bool(options, BDRV_OPT_FORCE_SHARE)) {
             error_report("--force-share/-U conflicts with image options");
-            QDECREF(options);
+            qobject_unref(options);
             return NULL;
         }
         qdict_put_bool(options, BDRV_OPT_FORCE_SHARE, true);
@@ -561,9 +561,9 @@ static void dump_json_image_check(ImageCheck *check, bool quiet)
     str = qobject_to_json_pretty(obj);
     assert(str != NULL);
     qprintf(quiet, "%s\n", qstring_get_str(str));
-    qobject_decref(obj);
+    qobject_unref(obj);
     visit_free(v);
-    QDECREF(str);
+    qobject_unref(str);
 }
 
 static void dump_human_image_check(ImageCheck *check, bool quiet)
@@ -2384,9 +2384,9 @@ static void dump_json_image_info_list(ImageInfoList *list)
     str = qobject_to_json_pretty(obj);
     assert(str != NULL);
     printf("%s\n", qstring_get_str(str));
-    qobject_decref(obj);
+    qobject_unref(obj);
     visit_free(v);
-    QDECREF(str);
+    qobject_unref(str);
 }
 
 static void dump_json_image_info(ImageInfo *info)
@@ -2400,9 +2400,9 @@ static void dump_json_image_info(ImageInfo *info)
     str = qobject_to_json_pretty(obj);
     assert(str != NULL);
     printf("%s\n", qstring_get_str(str));
-    qobject_decref(obj);
+    qobject_unref(obj);
     visit_free(v);
-    QDECREF(str);
+    qobject_unref(str);
 }
 
 static void dump_human_image_info_list(ImageInfoList *list)
@@ -4457,9 +4457,9 @@ static void dump_json_block_measure_info(BlockMeasureInfo *info)
     str = qobject_to_json_pretty(obj);
     assert(str != NULL);
     printf("%s\n", qstring_get_str(str));
-    qobject_decref(obj);
+    qobject_unref(obj);
     visit_free(v);
-    QDECREF(str);
+    qobject_unref(str);
 }
 
 static int img_measure(int argc, char **argv)

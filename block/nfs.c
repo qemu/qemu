@@ -567,7 +567,7 @@ static BlockdevOptionsNfs *nfs_options_qdict_to_qapi(QDict *options,
     v = qobject_input_visitor_new_keyval(crumpled);
     visit_type_BlockdevOptionsNfs(v, NULL, &opts, &local_err);
     visit_free(v);
-    qobject_decref(crumpled);
+    qobject_unref(crumpled);
 
     if (local_err) {
         return NULL;
@@ -683,7 +683,7 @@ static int coroutine_fn nfs_file_co_create_opts(const char *url, QemuOpts *opts,
 
     ret = 0;
 out:
-    QDECREF(options);
+    qobject_unref(options);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }

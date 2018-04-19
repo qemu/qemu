@@ -244,7 +244,7 @@ static int coroutine_fn null_co_block_status(BlockDriverState *bs,
 
 static void null_refresh_filename(BlockDriverState *bs, QDict *opts)
 {
-    QINCREF(opts);
+    qobject_ref(opts);
     qdict_del(opts, "filename");
 
     if (!qdict_size(opts)) {

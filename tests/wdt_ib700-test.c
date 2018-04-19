@@ -16,7 +16,7 @@ static void qmp_check_no_event(QTestState *s)
 {
     QDict *resp = qtest_qmp(s, "{'execute':'query-status'}");
     g_assert(qdict_haskey(resp, "return"));
-    QDECREF(resp);
+    qobject_unref(resp);
 }
 
 static QDict *ib700_program_and_wait(QTestState *s)
@@ -48,8 +48,8 @@ static QDict *ib700_program_and_wait(QTestState *s)
     qtest_clock_step(s, 2 * NANOSECONDS_PER_SECOND);
     event = qtest_qmp_eventwait_ref(s, "WATCHDOG");
     data = qdict_get_qdict(event, "data");
-    QINCREF(data);
-    QDECREF(event);
+    qobject_ref(data);
+    qobject_unref(event);
     return data;
 }
 
@@ -62,7 +62,7 @@ static void ib700_pause(void)
     qtest_irq_intercept_in(s, "ioapic");
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "pause"));
-    QDECREF(d);
+    qobject_unref(d);
     qtest_qmp_eventwait(s, "STOP");
     qtest_quit(s);
 }
@@ -75,7 +75,7 @@ static void ib700_reset(void)
     qtest_irq_intercept_in(s, "ioapic");
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "reset"));
-    QDECREF(d);
+    qobject_unref(d);
     qtest_qmp_eventwait(s, "RESET");
     qtest_quit(s);
 }
@@ -89,7 +89,7 @@ static void ib700_shutdown(void)
     qtest_irq_intercept_in(s, "ioapic");
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "reset"));
-    QDECREF(d);
+    qobject_unref(d);
     qtest_qmp_eventwait(s, "SHUTDOWN");
     qtest_quit(s);
 }
@@ -102,7 +102,7 @@ static void ib700_none(void)
     qtest_irq_intercept_in(s, "ioapic");
     d = ib700_program_and_wait(s);
     g_assert(!strcmp(qdict_get_str(d, "action"), "none"));
-    QDECREF(d);
+    qobject_unref(d);
     qtest_quit(s);
 }
 

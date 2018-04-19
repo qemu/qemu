@@ -3,11 +3,11 @@
 expression Obj, Key, E;
 @@
 (
-- qobject_incref(QOBJECT(E));
-+ QINCREF(E);
+- qobject_ref(QOBJECT(E));
++ qobject_ref(E);
 |
-- qobject_decref(QOBJECT(E));
-+ QDECREF(E);
+- qobject_unref(QOBJECT(E));
++ qobject_unref(E);
 |
 - qdict_put_obj(Obj, Key, QOBJECT(E));
 + qdict_put(Obj, Key, E);

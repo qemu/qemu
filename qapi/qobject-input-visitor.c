@@ -588,7 +588,7 @@ static void qobject_input_type_any(Visitor *v, const char *name, QObject **obj,
         return;
     }
 
-    qobject_incref(qobj);
+    qobject_ref(qobj);
     *obj = qobj;
 }
 
@@ -652,7 +652,7 @@ static void qobject_input_free(Visitor *v)
         qobject_input_stack_object_free(tos);
     }
 
-    qobject_decref(qiv->root);
+    qobject_unref(qiv->root);
     if (qiv->errname) {
         g_string_free(qiv->errname, TRUE);
     }
@@ -678,7 +678,7 @@ static QObjectInputVisitor *qobject_input_visitor_base_new(QObject *obj)
     v->visitor.free = qobject_input_free;
 
     v->root = obj;
-    qobject_incref(obj);
+    qobject_ref(obj);
 
     return v;
 }
@@ -744,7 +744,7 @@ Visitor *qobject_input_visitor_new_str(const char *str,
         }
         v = qobject_input_visitor_new_keyval(QOBJECT(args));
     }
-    QDECREF(args);
+    qobject_unref(args);
 
     return v;
 }

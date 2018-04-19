@@ -1073,7 +1073,7 @@ static int nvme_reopen_prepare(BDRVReopenState *reopen_state,
 
 static void nvme_refresh_filename(BlockDriverState *bs, QDict *opts)
 {
-    QINCREF(opts);
+    qobject_ref(opts);
     qdict_del(opts, "filename");
 
     if (!qdict_size(opts)) {

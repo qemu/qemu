@@ -15,17 +15,17 @@
  * ------------------------------------
  *
  *  - Returning references: A function that returns an object may
- *  return it as either a weak or a strong reference.  If the reference
- *  is strong, you are responsible for calling QDECREF() on the reference
- *  when you are done.
+ *  return it as either a weak or a strong reference.  If the
+ *  reference is strong, you are responsible for calling
+ *  qobject_unref() on the reference when you are done.
  *
  *  If the reference is weak, the owner of the reference may free it at
  *  any time in the future.  Before storing the reference anywhere, you
- *  should call QINCREF() to make the reference strong.
+ *  should call qobject_ref() to make the reference strong.
  *
  *  - Transferring ownership: when you transfer ownership of a reference
  *  by calling a function, you are no longer responsible for calling
- *  QDECREF() when the reference is no longer needed.  In other words,
+ *  qobject_unref() when the reference is no longer needed.  In other words,
  *  when the function returns you must behave as if the reference to the
  *  passed object was weak.
  */
@@ -50,14 +50,6 @@ struct QObject {
     _obj ? container_of(&(_obj)->base, QObject, base) : NULL;   \
 })
 
-/* High-level interface for qobject_incref() */
-#define QINCREF(obj)      \
-    qobject_incref(QOBJECT(obj))
-
-/* High-level interface for qobject_decref() */
-#define QDECREF(obj)              \
-    qobject_decref(obj ? QOBJECT(obj) : NULL)
-
 /* Required for qobject_to() */
 #define QTYPE_CAST_TO_QNull     QTYPE_QNULL
 #define QTYPE_CAST_TO_QNum      QTYPE_QNUM
@@ -80,10 +72,7 @@ static inline void qobject_init(QObject *obj, QType type)
     obj->base.type = type;
 }
 
-/**
- * qobject_incref(): Increment QObject's reference count
- */
-static inline void qobject_incref(QObject *obj)
+static inline void qobject_ref_impl(QObject *obj)
 {
     if (obj) {
         obj->base.refcnt++;
@@ -104,17 +93,24 @@ bool qobject_is_equal(const QObject *x, const QObject *y);
  */
 void qobject_destroy(QObject *obj);
 
-/**
- * qobject_decref(): Decrement QObject's reference count, deallocate
- * when it reaches zero
- */
-static inline void qobject_decref(QObject *obj)
+static inline void qobject_unref_impl(QObject *obj)
 {
     assert(!obj || obj->base.refcnt);
     if (obj && --obj->base.refcnt == 0) {
         qobject_destroy(obj);
     }
 }
+
+/**
+ * qobject_ref(): Increment QObject's reference count
+ */
+#define qobject_ref(obj) qobject_ref_impl(QOBJECT(obj))
+
+/**
+ * qobject_unref(): Decrement QObject's reference count, deallocate
+ * when it reaches zero
+ */
+#define qobject_unref(obj) qobject_unref_impl(QOBJECT(obj))
 
 /**
  * qobject_type(): Return the QObject's type

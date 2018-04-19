@@ -396,7 +396,7 @@ static int vxhs_open(BlockDriverState *bs, QDict *options,
 
 out:
     g_free(of_vsa_addr);
-    QDECREF(backing_options);
+    qobject_unref(backing_options);
     qemu_opts_del(tcp_opts);
     qemu_opts_del(opts);
     g_free(cacert);

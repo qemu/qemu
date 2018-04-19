@@ -1227,9 +1227,9 @@ BlockDriverState *bdrv_new_open_driver(BlockDriver *drv, const char *node_name,
 
     ret = bdrv_open_driver(bs, drv, node_name, bs->options, flags, errp);
     if (ret < 0) {
-        QDECREF(bs->explicit_options);
+        qobject_unref(bs->explicit_options);
         bs->explicit_options = NULL;
-        QDECREF(bs->options);
+        qobject_unref(bs->options);
         bs->options = NULL;
         bdrv_unref(bs);
         return NULL;
@@ -1460,7 +1460,7 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
 
     options = qobject_to(QDict, options_obj);
     if (!options) {
-        qobject_decref(options_obj);
+        qobject_unref(options_obj);
         error_setg(errp, "Invalid JSON object given");
         return NULL;
     }
@@ -1490,7 +1490,7 @@ static void parse_json_protocol(QDict *options, const char **pfilename,
     /* Options given in the filename have lower priority than options
      * specified directly */
     qdict_join(options, json_options, false);
-    QDECREF(json_options);
+    qobject_unref(json_options);
     *pfilename = NULL;
 }
 
@@ -2273,7 +2273,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     if (reference || qdict_haskey(options, "file.filename")) {
         backing_filename[0] = '\0';
     } else if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
-        QDECREF(options);
+        qobject_unref(options);
         goto free_exit;
     } else {
         bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX,
@@ -2281,7 +2281,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
         if (local_err) {
             ret = -EINVAL;
             error_propagate(errp, local_err);
-            QDECREF(options);
+            qobject_unref(options);
             goto free_exit;
         }
     }
@@ -2289,7 +2289,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     if (!bs->drv || !bs->drv->supports_backing) {
         ret = -EINVAL;
         error_setg(errp, "Driver doesn't support backing files");
-        QDECREF(options);
+        qobject_unref(options);
         goto free_exit;
     }
 
@@ -2323,7 +2323,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
 
 free_exit:
     g_free(backing_filename);
-    QDECREF(tmp_parent_options);
+    qobject_unref(tmp_parent_options);
     return ret;
 }
 
@@ -2356,7 +2356,7 @@ bdrv_open_child_bs(const char *filename, QDict *options, const char *bdref_key,
             error_setg(errp, "A block device must be specified for \"%s\"",
                        bdref_key);
         }
-        QDECREF(image_options);
+        qobject_unref(image_options);
         goto done;
     }
 
@@ -2449,7 +2449,7 @@ BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
     obj = NULL;
 
 fail:
-    qobject_decref(obj);
+    qobject_unref(obj);
     visit_free(v);
     return bs;
 }
@@ -2519,7 +2519,7 @@ static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
     }
 
 out:
-    QDECREF(snapshot_options);
+    qobject_unref(snapshot_options);
     g_free(tmp_filename);
     return bs_snapshot;
 }
@@ -2530,7 +2530,7 @@ out:
  * options is a QDict of options to pass to the block drivers, or NULL for an
  * empty set of options. The reference to the QDict belongs to the block layer
  * after the call (even on failure), so if the caller intends to reuse the
- * dictionary, it needs to use QINCREF() before calling bdrv_open.
+ * dictionary, it needs to use qobject_ref() before calling bdrv_open.
  *
  * If *pbs is NULL, a new BDS will be created with a pointer to it stored there.
  * If it is not NULL, the referenced BDS will be reused.
@@ -2561,7 +2561,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
     if (reference) {
         bool options_non_empty = options ? qdict_size(options) : false;
-        QDECREF(options);
+        qobject_unref(options);
 
         if (filename || options_non_empty) {
             error_setg(errp, "Cannot reference an existing block device with "
@@ -2752,7 +2752,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
     bdrv_parent_cb_change_media(bs, true);
 
-    QDECREF(options);
+    qobject_unref(options);
 
     /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
      * temporary snapshot afterwards. */
@@ -2776,10 +2776,10 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 
 fail:
     blk_unref(file);
-    QDECREF(snapshot_options);
-    QDECREF(bs->explicit_options);
-    QDECREF(bs->options);
-    QDECREF(options);
+    qobject_unref(snapshot_options);
+    qobject_unref(bs->explicit_options);
+    qobject_unref(bs->options);
+    qobject_unref(options);
     bs->options = NULL;
     bs->explicit_options = NULL;
     bdrv_unref(bs);
@@ -2788,8 +2788,8 @@ fail:
 
 close_and_fail:
     bdrv_unref(bs);
-    QDECREF(snapshot_options);
-    QDECREF(options);
+    qobject_unref(snapshot_options);
+    qobject_unref(options);
     error_propagate(errp, local_err);
     return NULL;
 }
@@ -2884,7 +2884,7 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         old_options = qdict_clone_shallow(bs->explicit_options);
     }
     bdrv_join_options(bs, options, old_options);
-    QDECREF(old_options);
+    qobject_unref(old_options);
 
     explicit_options = qdict_clone_shallow(options);
 
@@ -2899,13 +2899,13 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         qemu_opts_absorb_qdict(opts, options_copy, NULL);
         update_flags_from_options(&flags, opts);
         qemu_opts_del(opts);
-        QDECREF(options_copy);
+        qobject_unref(options_copy);
     }
 
     /* Old values are used for options that aren't set yet */
     old_options = qdict_clone_shallow(bs->options);
     bdrv_join_options(bs, options, old_options);
-    QDECREF(old_options);
+    qobject_unref(old_options);
 
     /* bdrv_open_inherit() sets and clears some additional flags internally */
     flags &= ~BDRV_O_PROTOCOL;
@@ -2917,8 +2917,8 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         bs_entry = g_new0(BlockReopenQueueEntry, 1);
         QSIMPLEQ_INSERT_TAIL(bs_queue, bs_entry, entry);
     } else {
-        QDECREF(bs_entry->state.options);
-        QDECREF(bs_entry->state.explicit_options);
+        qobject_unref(bs_entry->state.options);
+        qobject_unref(bs_entry->state.explicit_options);
     }
 
     bs_entry->state.bs = bs;
@@ -3008,9 +3008,9 @@ cleanup:
         if (ret && bs_entry->prepared) {
             bdrv_reopen_abort(&bs_entry->state);
         } else if (ret) {
-            QDECREF(bs_entry->state.explicit_options);
+            qobject_unref(bs_entry->state.explicit_options);
         }
-        QDECREF(bs_entry->state.options);
+        qobject_unref(bs_entry->state.options);
         g_free(bs_entry);
     }
     g_free(bs_queue);
@@ -3253,7 +3253,7 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     }
 
     /* set BDS specific flags now */
-    QDECREF(bs->explicit_options);
+    qobject_unref(bs->explicit_options);
 
     bs->explicit_options   = reopen_state->explicit_options;
     bs->open_flags         = reopen_state->flags;
@@ -3296,7 +3296,7 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
         drv->bdrv_reopen_abort(reopen_state);
     }
 
-    QDECREF(reopen_state->explicit_options);
+    qobject_unref(reopen_state->explicit_options);
 
     bdrv_abort_perm_update(reopen_state->bs);
 }
@@ -3343,11 +3343,11 @@ static void bdrv_close(BlockDriverState *bs)
     bs->total_sectors = 0;
     bs->encrypted = false;
     bs->sg = false;
-    QDECREF(bs->options);
-    QDECREF(bs->explicit_options);
+    qobject_unref(bs->options);
+    qobject_unref(bs->explicit_options);
     bs->options = NULL;
     bs->explicit_options = NULL;
-    QDECREF(bs->full_open_options);
+    qobject_unref(bs->full_open_options);
     bs->full_open_options = NULL;
 
     bdrv_release_named_dirty_bitmaps(bs);
@@ -5134,7 +5134,7 @@ static bool append_open_options(QDict *d, BlockDriverState *bs)
             continue;
         }
 
-        qobject_incref(qdict_entry_value(entry));
+        qobject_ref(qdict_entry_value(entry));
         qdict_put_obj(d, qdict_entry_key(entry), qdict_entry_value(entry));
         found_any = true;
     }
@@ -5174,21 +5174,21 @@ void bdrv_refresh_filename(BlockDriverState *bs)
          * information before refreshing it */
         bs->exact_filename[0] = '\0';
         if (bs->full_open_options) {
-            QDECREF(bs->full_open_options);
+            qobject_unref(bs->full_open_options);
             bs->full_open_options = NULL;
         }
 
         opts = qdict_new();
         append_open_options(opts, bs);
         drv->bdrv_refresh_filename(bs, opts);
-        QDECREF(opts);
+        qobject_unref(opts);
     } else if (bs->file) {
         /* Try to reconstruct valid information from the underlying file */
         bool has_open_options;
 
         bs->exact_filename[0] = '\0';
         if (bs->full_open_options) {
-            QDECREF(bs->full_open_options);
+            qobject_unref(bs->full_open_options);
             bs->full_open_options = NULL;
         }
 
@@ -5207,12 +5207,12 @@ void bdrv_refresh_filename(BlockDriverState *bs)
          * suffices without querying the (exact_)filename of this BDS. */
         if (bs->file->bs->full_open_options) {
             qdict_put_str(opts, "driver", drv->format_name);
-            QINCREF(bs->file->bs->full_open_options);
+            qobject_ref(bs->file->bs->full_open_options);
             qdict_put(opts, "file", bs->file->bs->full_open_options);
 
             bs->full_open_options = opts;
         } else {
-            QDECREF(opts);
+            qobject_unref(opts);
         }
     } else if (!bs->full_open_options && qdict_size(bs->options)) {
         /* There is no underlying file BDS (at least referenced by BDS.file),
@@ -5246,7 +5246,7 @@ void bdrv_refresh_filename(BlockDriverState *bs)
         QString *json = qobject_to_json(QOBJECT(bs->full_open_options));
         snprintf(bs->filename, sizeof(bs->filename), "json:%s",
                  qstring_get_str(json));
-        QDECREF(json);
+        qobject_unref(json);
     }
 }
 

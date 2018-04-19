@@ -133,7 +133,7 @@ static void event_prepare(TestEventData *data,
 static void event_teardown(TestEventData *data,
                            const void *unused)
 {
-    QDECREF(data->expect);
+    qobject_unref(data->expect);
     test_event_data = NULL;
 
     g_mutex_unlock(&test_event_lock);

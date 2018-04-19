@@ -305,7 +305,7 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
 
     ret = 0;
  cleanup:
-    QDECREF(cryptoopts);
+    qobject_unref(cryptoopts);
     qapi_free_QCryptoBlockOpenOptions(open_opts);
     return ret;
 }
@@ -635,7 +635,7 @@ static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
 fail:
     bdrv_unref(bs);
     qapi_free_QCryptoBlockCreateOptions(create_opts);
-    QDECREF(cryptoopts);
+    qobject_unref(cryptoopts);
     return ret;
 }
 

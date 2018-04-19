@@ -226,7 +226,7 @@ static void qemu_rbd_parse_filename(const char *filename, QDict *options,
 
 done:
     g_free(buf);
-    QDECREF(keypairs);
+    qobject_unref(keypairs);
     return;
 }
 
@@ -275,17 +275,17 @@ static int qemu_rbd_set_keypairs(rados_t cluster, const char *keypairs_json,
         key = qstring_get_str(name);
 
         ret = rados_conf_set(cluster, key, qstring_get_str(value));
-        QDECREF(value);
+        qobject_unref(value);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "invalid conf option %s", key);
-            QDECREF(name);
+            qobject_unref(name);
             ret = -EINVAL;
             break;
         }
-        QDECREF(name);
+        qobject_unref(name);
     }
 
-    QDECREF(keypairs);
+    qobject_unref(keypairs);
     return ret;
 }
 
@@ -449,7 +449,7 @@ static int coroutine_fn qemu_rbd_co_create_opts(const char *filename,
     }
 
 exit:
-    QDECREF(options);
+    qobject_unref(options);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }
@@ -664,7 +664,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     v = qobject_input_visitor_new_keyval(crumpled);
     visit_type_BlockdevOptionsRbd(v, NULL, &opts, &local_err);
     visit_free(v);
-    qobject_decref(crumpled);
+    qobject_unref(crumpled);
 
     if (local_err) {
         error_propagate(errp, local_err);

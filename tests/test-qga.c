@@ -180,7 +180,7 @@ static void test_qga_sync_delimited(gconstpointer fix)
     v = qdict_get_int(ret, "return");
     g_assert_cmpint(r, ==, v);
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_sync(gconstpointer fix)
@@ -212,7 +212,7 @@ static void test_qga_sync(gconstpointer fix)
     v = qdict_get_int(ret, "return");
     g_assert_cmpint(r, ==, v);
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_ping(gconstpointer fix)
@@ -224,7 +224,7 @@ static void test_qga_ping(gconstpointer fix)
     g_assert_nonnull(ret);
     qmp_assert_no_error(ret);
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_invalid_args(gconstpointer fix)
@@ -244,7 +244,7 @@ static void test_qga_invalid_args(gconstpointer fix)
     g_assert_cmpstr(class, ==, "GenericError");
     g_assert_cmpstr(desc, ==, "Parameter 'foo' is unexpected");
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_invalid_cmd(gconstpointer fix)
@@ -263,7 +263,7 @@ static void test_qga_invalid_cmd(gconstpointer fix)
     g_assert_cmpstr(class, ==, "CommandNotFound");
     g_assert_cmpint(strlen(desc), >, 0);
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_info(gconstpointer fix)
@@ -280,7 +280,7 @@ static void test_qga_info(gconstpointer fix)
     version = qdict_get_try_str(val, "version");
     g_assert_cmpstr(version, ==, QEMU_VERSION);
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_get_vcpus(gconstpointer fix)
@@ -300,7 +300,7 @@ static void test_qga_get_vcpus(gconstpointer fix)
     g_assert(qdict_haskey(qobject_to(QDict, entry->value), "online"));
     g_assert(qdict_haskey(qobject_to(QDict, entry->value), "logical-id"));
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_get_fsinfo(gconstpointer fix)
@@ -324,7 +324,7 @@ static void test_qga_get_fsinfo(gconstpointer fix)
         g_assert(qdict_haskey(qobject_to(QDict, entry->value), "disk"));
     }
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_get_memory_block_info(gconstpointer fix)
@@ -344,7 +344,7 @@ static void test_qga_get_memory_block_info(gconstpointer fix)
         g_assert_cmpint(size, >, 0);
     }
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_get_memory_blocks(gconstpointer fix)
@@ -369,7 +369,7 @@ static void test_qga_get_memory_blocks(gconstpointer fix)
         }
     }
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_network_get_interfaces(gconstpointer fix)
@@ -388,7 +388,7 @@ static void test_qga_network_get_interfaces(gconstpointer fix)
     entry = qlist_first(list);
     g_assert(qdict_haskey(qobject_to(QDict, entry->value), "name"));
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_file_ops(gconstpointer fix)
@@ -410,7 +410,7 @@ static void test_qga_file_ops(gconstpointer fix)
     g_assert_nonnull(ret);
     qmp_assert_no_error(ret);
     id = qdict_get_int(ret, "return");
-    QDECREF(ret);
+    qobject_unref(ret);
 
     enc = g_base64_encode(helloworld, sizeof(helloworld));
     /* write */
@@ -426,7 +426,7 @@ static void test_qga_file_ops(gconstpointer fix)
     eof = qdict_get_bool(val, "eof");
     g_assert_cmpint(count, ==, sizeof(helloworld));
     g_assert_cmpint(eof, ==, 0);
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 
     /* flush */
@@ -434,7 +434,7 @@ static void test_qga_file_ops(gconstpointer fix)
                           " 'arguments': {'handle': %" PRId64 "} }",
                           id);
     ret = qmp_fd(fixture->fd, cmd);
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 
     /* close */
@@ -442,7 +442,7 @@ static void test_qga_file_ops(gconstpointer fix)
                           " 'arguments': {'handle': %" PRId64 "} }",
                           id);
     ret = qmp_fd(fixture->fd, cmd);
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 
     /* check content */
@@ -462,7 +462,7 @@ static void test_qga_file_ops(gconstpointer fix)
     g_assert_nonnull(ret);
     qmp_assert_no_error(ret);
     id = qdict_get_int(ret, "return");
-    QDECREF(ret);
+    qobject_unref(ret);
 
     /* read */
     cmd = g_strdup_printf("{'execute': 'guest-file-read',"
@@ -477,7 +477,7 @@ static void test_qga_file_ops(gconstpointer fix)
     g_assert(eof);
     g_assert_cmpstr(b64, ==, enc);
 
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
     g_free(enc);
 
@@ -493,7 +493,7 @@ static void test_qga_file_ops(gconstpointer fix)
     g_assert_cmpint(count, ==, 0);
     g_assert(eof);
     g_assert_cmpstr(b64, ==, "");
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 
     /* seek */
@@ -508,7 +508,7 @@ static void test_qga_file_ops(gconstpointer fix)
     eof = qdict_get_bool(val, "eof");
     g_assert_cmpint(count, ==, 6);
     g_assert(!eof);
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 
     /* partial read */
@@ -527,7 +527,7 @@ static void test_qga_file_ops(gconstpointer fix)
     g_assert_cmpmem(dec, count, helloworld + 6, sizeof(helloworld) - 6);
     g_free(dec);
 
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 
     /* close */
@@ -535,7 +535,7 @@ static void test_qga_file_ops(gconstpointer fix)
                           " 'arguments': {'handle': %" PRId64 "} }",
                           id);
     ret = qmp_fd(fixture->fd, cmd);
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 }
 
@@ -555,7 +555,7 @@ static void test_qga_file_write_read(gconstpointer fix)
     g_assert_nonnull(ret);
     qmp_assert_no_error(ret);
     id = qdict_get_int(ret, "return");
-    QDECREF(ret);
+    qobject_unref(ret);
 
     enc = g_base64_encode(helloworld, sizeof(helloworld));
     /* write */
@@ -571,7 +571,7 @@ static void test_qga_file_write_read(gconstpointer fix)
     eof = qdict_get_bool(val, "eof");
     g_assert_cmpint(count, ==, sizeof(helloworld));
     g_assert_cmpint(eof, ==, 0);
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 
     /* read (check implicit flush) */
@@ -586,7 +586,7 @@ static void test_qga_file_write_read(gconstpointer fix)
     g_assert_cmpint(count, ==, 0);
     g_assert(eof);
     g_assert_cmpstr(b64, ==, "");
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 
     /* seek to 0 */
@@ -601,7 +601,7 @@ static void test_qga_file_write_read(gconstpointer fix)
     eof = qdict_get_bool(val, "eof");
     g_assert_cmpint(count, ==, 0);
     g_assert(!eof);
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 
     /* read */
@@ -616,7 +616,7 @@ static void test_qga_file_write_read(gconstpointer fix)
     g_assert_cmpint(count, ==, sizeof(helloworld));
     g_assert(eof);
     g_assert_cmpstr(b64, ==, enc);
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
     g_free(enc);
 
@@ -625,7 +625,7 @@ static void test_qga_file_write_read(gconstpointer fix)
                           " 'arguments': {'handle': %" PRId64 "} }",
                           id);
     ret = qmp_fd(fixture->fd, cmd);
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(cmd);
 }
 
@@ -642,7 +642,7 @@ static void test_qga_get_time(gconstpointer fix)
     time = qdict_get_int(ret, "return");
     g_assert_cmpint(time, >, 0);
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_blacklist(gconstpointer data)
@@ -661,7 +661,7 @@ static void test_qga_blacklist(gconstpointer data)
     desc = qdict_get_try_str(error, "desc");
     g_assert_cmpstr(class, ==, "GenericError");
     g_assert_nonnull(g_strstr_len(desc, -1, "has been disabled"));
-    QDECREF(ret);
+    qobject_unref(ret);
 
     ret = qmp_fd(fix.fd, "{'execute': 'guest-get-time'}");
     g_assert_nonnull(ret);
@@ -670,12 +670,12 @@ static void test_qga_blacklist(gconstpointer data)
     desc = qdict_get_try_str(error, "desc");
     g_assert_cmpstr(class, ==, "GenericError");
     g_assert_nonnull(g_strstr_len(desc, -1, "has been disabled"));
-    QDECREF(ret);
+    qobject_unref(ret);
 
     /* check something work */
     ret = qmp_fd(fix.fd, "{'execute': 'guest-get-fsinfo'}");
     qmp_assert_no_error(ret);
-    QDECREF(ret);
+    qobject_unref(ret);
 
     fixture_tear_down(&fix, NULL);
 }
@@ -772,7 +772,7 @@ static void test_qga_fsfreeze_status(gconstpointer fix)
     status = qdict_get_try_str(ret, "return");
     g_assert_cmpstr(status, ==, "thawed");
 
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_guest_exec(gconstpointer fix)
@@ -795,7 +795,7 @@ static void test_qga_guest_exec(gconstpointer fix)
     val = qdict_get_qdict(ret, "return");
     pid = qdict_get_int(val, "pid");
     g_assert_cmpint(pid, >, 0);
-    QDECREF(ret);
+    qobject_unref(ret);
 
     /* wait for completion */
     now = g_get_monotonic_time();
@@ -807,7 +807,7 @@ static void test_qga_guest_exec(gconstpointer fix)
         val = qdict_get_qdict(ret, "return");
         exited = qdict_get_bool(val, "exited");
         if (!exited) {
-            QDECREF(ret);
+            qobject_unref(ret);
         }
     } while (!exited &&
              g_get_monotonic_time() < now + 5 * G_TIME_SPAN_SECOND);
@@ -822,7 +822,7 @@ static void test_qga_guest_exec(gconstpointer fix)
     g_assert_cmpint(len, ==, 12);
     g_assert_cmpstr((char *)decoded, ==, "\" test_str \"");
     g_free(decoded);
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_guest_exec_invalid(gconstpointer fix)
@@ -841,7 +841,7 @@ static void test_qga_guest_exec_invalid(gconstpointer fix)
     desc = qdict_get_str(error, "desc");
     g_assert_cmpstr(class, ==, "GenericError");
     g_assert_cmpint(strlen(desc), >, 0);
-    QDECREF(ret);
+    qobject_unref(ret);
 
     /* invalid pid */
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-exec-status',"
@@ -853,7 +853,7 @@ static void test_qga_guest_exec_invalid(gconstpointer fix)
     desc = qdict_get_str(error, "desc");
     g_assert_cmpstr(class, ==, "GenericError");
     g_assert_cmpint(strlen(desc), >, 0);
-    QDECREF(ret);
+    qobject_unref(ret);
 }
 
 static void test_qga_guest_get_osinfo(gconstpointer data)
@@ -905,7 +905,7 @@ static void test_qga_guest_get_osinfo(gconstpointer data)
     g_assert_nonnull(str);
     g_assert_cmpstr(str, ==, "unit-test");
 
-    QDECREF(ret);
+    qobject_unref(ret);
     g_free(env[0]);
     fixture_tear_down(&fixture, NULL);
 }

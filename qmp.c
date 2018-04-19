@@ -710,7 +710,7 @@ void qmp_object_add(const char *type, const char *id,
             error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
             return;
         }
-        QINCREF(pdict);
+        qobject_ref(pdict);
     } else {
         pdict = qdict_new();
     }
@@ -721,7 +721,7 @@ void qmp_object_add(const char *type, const char *id,
     if (obj) {
         object_unref(obj);
     }
-    QDECREF(pdict);
+    qobject_unref(pdict);
 }
 
 void qmp_object_del(const char *id, Error **errp)

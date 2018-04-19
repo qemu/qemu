@@ -109,7 +109,7 @@ static void test_smram_lock(void)
     response = qmp("{'execute': 'system_reset', 'arguments': {} }");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     /* check open is settable again */
     smram_set_bit(pcidev, MCH_HOST_BRIDGE_SMRAM_D_OPEN, false);

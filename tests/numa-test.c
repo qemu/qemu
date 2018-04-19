@@ -111,10 +111,10 @@ static void test_query_cpus(const void *data)
         } else {
             g_assert_cmpint(node, ==, 1);
         }
-        qobject_decref(e);
+        qobject_unref(e);
     }
 
-    QDECREF(resp);
+    qobject_unref(resp);
     qtest_end();
     g_free(cli);
 }
@@ -164,10 +164,10 @@ static void pc_numa_cpu(const void *data)
         } else {
             g_assert(false);
         }
-        qobject_decref(e);
+        qobject_unref(e);
     }
 
-    QDECREF(resp);
+    qobject_unref(resp);
     qtest_end();
     g_free(cli);
 }
@@ -209,10 +209,10 @@ static void spapr_numa_cpu(const void *data)
         } else {
             g_assert(false);
         }
-        qobject_decref(e);
+        qobject_unref(e);
     }
 
-    QDECREF(resp);
+    qobject_unref(resp);
     qtest_end();
     g_free(cli);
 }
@@ -252,10 +252,10 @@ static void aarch64_numa_cpu(const void *data)
         } else {
             g_assert(false);
         }
-        qobject_decref(e);
+        qobject_unref(e);
     }
 
-    QDECREF(resp);
+    qobject_unref(resp);
     qtest_end();
     g_free(cli);
 }

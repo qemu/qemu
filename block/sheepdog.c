@@ -567,8 +567,8 @@ static SocketAddress *sd_server_config(QDict *options, Error **errp)
 
 done:
     visit_free(iv);
-    qobject_decref(crumpled_server);
-    QDECREF(server);
+    qobject_unref(crumpled_server);
+    qobject_unref(server);
     return saddr;
 }
 
@@ -1883,7 +1883,7 @@ static int sd_create_prealloc(BlockdevOptionsSheepdog *location, int64_t size,
 
     if (local_err) {
         error_propagate(errp, local_err);
-        qobject_decref(obj);
+        qobject_unref(obj);
         return -EINVAL;
     }
 
@@ -1901,7 +1901,7 @@ static int sd_create_prealloc(BlockdevOptionsSheepdog *location, int64_t size,
     ret = sd_prealloc(bs, 0, size, errp);
 fail:
     bdrv_unref(bs);
-    QDECREF(qdict);
+    qobject_unref(qdict);
     return ret;
 }
 
@@ -2226,7 +2226,7 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
     v = qobject_input_visitor_new_keyval(crumpled);
     visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
     visit_free(v);
-    qobject_decref(crumpled);
+    qobject_unref(crumpled);
 
     if (local_err) {
         error_propagate(errp, local_err);
@@ -2252,7 +2252,7 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
     ret = sd_co_create(create_options, errp);
 fail:
     qapi_free_BlockdevCreateOptions(create_options);
-    QDECREF(qdict);
+    qobject_unref(qdict);
     return ret;
 }
 

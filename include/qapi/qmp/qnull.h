@@ -23,7 +23,7 @@ extern QNull qnull_;
 
 static inline QNull *qnull(void)
 {
-    QINCREF(&qnull_);
+    qobject_ref(&qnull_);
     return &qnull_;
 }
 

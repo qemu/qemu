@@ -31,7 +31,7 @@ static void qstring_from_str_test(void)
     g_assert(strcmp(str, qstring->string) == 0);
     g_assert(qobject_type(QOBJECT(qstring)) == QTYPE_QSTRING);
 
-    QDECREF(qstring);
+    qobject_unref(qstring);
 }
 
 static void qstring_get_str_test(void)
@@ -44,7 +44,7 @@ static void qstring_get_str_test(void)
     ret_str = qstring_get_str(qstring);
     g_assert(strcmp(ret_str, str) == 0);
 
-    QDECREF(qstring);
+    qobject_unref(qstring);
 }
 
 static void qstring_append_chr_test(void)
@@ -59,7 +59,7 @@ static void qstring_append_chr_test(void)
         qstring_append_chr(qstring, str[i]);
 
     g_assert(strcmp(str, qstring_get_str(qstring)) == 0);
-    QDECREF(qstring);
+    qobject_unref(qstring);
 }
 
 static void qstring_from_substr_test(void)
@@ -70,7 +70,7 @@ static void qstring_from_substr_test(void)
     g_assert(qs != NULL);
     g_assert(strcmp(qstring_get_str(qs), "tualiza") == 0);
 
-    QDECREF(qs);
+    qobject_unref(qs);
 }
 
 
@@ -81,7 +81,7 @@ static void qobject_to_qstring_test(void)
     qstring = qstring_from_str("foo");
     g_assert(qobject_to(QString, QOBJECT(qstring)) == qstring);
 
-    QDECREF(qstring);
+    qobject_unref(qstring);
 }
 
 int main(int argc, char **argv)

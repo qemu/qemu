@@ -1040,14 +1040,14 @@ void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
     /* TODO Rewrite "" to null instead */
     if (params->has_tls_creds
         && params->tls_creds->type == QTYPE_QNULL) {
-        QDECREF(params->tls_creds->u.n);
+        qobject_unref(params->tls_creds->u.n);
         params->tls_creds->type = QTYPE_QSTRING;
         params->tls_creds->u.s = strdup("");
     }
     /* TODO Rewrite "" to null instead */
     if (params->has_tls_hostname
         && params->tls_hostname->type == QTYPE_QNULL) {
-        QDECREF(params->tls_hostname->u.n);
+        qobject_unref(params->tls_hostname->u.n);
         params->tls_hostname->type = QTYPE_QSTRING;
         params->tls_hostname->u.s = strdup("");
     }

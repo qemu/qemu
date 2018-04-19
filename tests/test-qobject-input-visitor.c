@@ -35,7 +35,7 @@ typedef struct TestInputVisitorData {
 static void visitor_input_teardown(TestInputVisitorData *data,
                                    const void *unused)
 {
-    qobject_decref(data->obj);
+    qobject_unref(data->obj);
     data->obj = NULL;
 
     if (data->qiv) {
@@ -483,7 +483,7 @@ static void test_visitor_in_any(TestInputVisitorData *data,
     g_assert(qnum);
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, -42);
-    qobject_decref(res);
+    qobject_unref(res);
 
     v = visitor_input_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo' }");
     visit_type_any(v, NULL, &res, &error_abort);
@@ -505,7 +505,7 @@ static void test_visitor_in_any(TestInputVisitorData *data,
     qstring = qobject_to(QString, qobj);
     g_assert(qstring);
     g_assert_cmpstr(qstring_get_str(qstring), ==, "foo");
-    qobject_decref(res);
+    qobject_unref(res);
 }
 
 static void test_visitor_in_null(TestInputVisitorData *data,
@@ -530,7 +530,7 @@ static void test_visitor_in_null(TestInputVisitorData *data,
     visit_start_struct(v, NULL, NULL, 0, &error_abort);
     visit_type_null(v, "a", &null, &error_abort);
     g_assert(qobject_type(QOBJECT(null)) == QTYPE_QNULL);
-    QDECREF(null);
+    qobject_unref(null);
     visit_type_null(v, "b", &null, &err);
     error_free_or_abort(&err);
     g_assert(!null);
@@ -1262,7 +1262,7 @@ static void do_test_visitor_in_qmp_introspect(TestInputVisitorData *data,
     g_assert(schema);
 
     qapi_free_SchemaInfoList(schema);
-    qobject_decref(obj);
+    qobject_unref(obj);
     visit_free(v);
 }
 

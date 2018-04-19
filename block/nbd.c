@@ -293,8 +293,8 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options,
     }
 
 done:
-    QDECREF(addr);
-    qobject_decref(crumpled_addr);
+    qobject_unref(addr);
+    qobject_unref(crumpled_addr);
     visit_free(iv);
     return saddr;
 }

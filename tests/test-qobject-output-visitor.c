@@ -40,7 +40,7 @@ static void visitor_output_teardown(TestOutputVisitorData *data,
 {
     visit_free(data->ov);
     data->ov = NULL;
-    qobject_decref(data->obj);
+    qobject_unref(data->obj);
     data->obj = NULL;
 }
 
@@ -346,7 +346,7 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     g_assert(qnum);
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, -42);
-    qobject_decref(qobj);
+    qobject_unref(qobj);
 
     visitor_reset(data);
     qdict = qdict_new();
@@ -355,7 +355,7 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     qdict_put_str(qdict, "string", "foo");
     qobj = QOBJECT(qdict);
     visit_type_any(data->ov, NULL, &qobj, &error_abort);
-    qobject_decref(qobj);
+    qobject_unref(qobj);
     qdict = qobject_to(QDict, visitor_get(data));
     g_assert(qdict);
     qnum = qobject_to(QNum, qdict_get(qdict, "integer"));
@@ -630,7 +630,7 @@ static void check_native_list(QObject *qobj,
             qvalue = qobject_to(QNum, tmp);
             g_assert(qnum_get_try_uint(qvalue, &val));
             g_assert_cmpint(val, ==, i);
-            qobject_decref(qlist_pop(qlist));
+            qobject_unref(qlist_pop(qlist));
         }
         break;
 
@@ -654,7 +654,7 @@ static void check_native_list(QObject *qobj,
             qvalue = qobject_to(QNum, tmp);
             g_assert(qnum_get_try_int(qvalue, &val));
             g_assert_cmpint(val, ==, i);
-            qobject_decref(qlist_pop(qlist));
+            qobject_unref(qlist_pop(qlist));
         }
         break;
     case USER_DEF_NATIVE_LIST_UNION_KIND_BOOLEAN:
@@ -665,7 +665,7 @@ static void check_native_list(QObject *qobj,
             g_assert(tmp);
             qvalue = qobject_to(QBool, tmp);
             g_assert_cmpint(qbool_get_bool(qvalue), ==, i % 3 == 0);
-            qobject_decref(qlist_pop(qlist));
+            qobject_unref(qlist_pop(qlist));
         }
         break;
     case USER_DEF_NATIVE_LIST_UNION_KIND_STRING:
@@ -678,7 +678,7 @@ static void check_native_list(QObject *qobj,
             qvalue = qobject_to(QString, tmp);
             sprintf(str, "%d", i);
             g_assert_cmpstr(qstring_get_str(qvalue), ==, str);
-            qobject_decref(qlist_pop(qlist));
+            qobject_unref(qlist_pop(qlist));
         }
         break;
     case USER_DEF_NATIVE_LIST_UNION_KIND_NUMBER:
@@ -695,7 +695,7 @@ static void check_native_list(QObject *qobj,
             g_string_printf(double_actual, "%.6f", qnum_get_double(qvalue));
             g_assert_cmpstr(double_actual->str, ==, double_expected->str);
 
-            qobject_decref(qlist_pop(qlist));
+            qobject_unref(qlist_pop(qlist));
             g_string_free(double_expected, true);
             g_string_free(double_actual, true);
         }
@@ -703,7 +703,7 @@ static void check_native_list(QObject *qobj,
     default:
         g_assert_not_reached();
     }
-    QDECREF(qlist);
+    qobject_unref(qlist);
 }
 
 static void test_native_list(TestOutputVisitorData *data,

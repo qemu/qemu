@@ -30,7 +30,7 @@ static void qnull_ref_test(void)
     g_assert(obj == QOBJECT(&qnull_));
     g_assert(qnull_.base.refcnt == 2);
     g_assert(qobject_type(obj) == QTYPE_QNULL);
-    qobject_decref(obj);
+    qobject_unref(obj);
     g_assert(qnull_.base.refcnt == 1);
 }
 
@@ -49,10 +49,10 @@ static void qnull_visit_test(void)
     g_assert(qnull_.base.refcnt == 1);
     obj = QOBJECT(qnull());
     v = qobject_input_visitor_new(obj);
-    qobject_decref(obj);
+    qobject_unref(obj);
     visit_type_null(v, NULL, &null, &error_abort);
     g_assert(obj == QOBJECT(&qnull_));
-    QDECREF(null);
+    qobject_unref(null);
     visit_free(v);
 
     null = NULL;
@@ -60,8 +60,8 @@ static void qnull_visit_test(void)
     visit_type_null(v, NULL, &null, &error_abort);
     visit_complete(v, &obj);
     g_assert(obj == QOBJECT(&qnull_));
-    QDECREF(null);
-    qobject_decref(obj);
+    qobject_unref(null);
+    qobject_unref(obj);
     visit_free(v);
 
     g_assert(qnull_.base.refcnt == 1);

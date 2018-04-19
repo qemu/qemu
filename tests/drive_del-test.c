@@ -41,7 +41,7 @@ static void device_del(void)
     response = qmp_receive();
     g_assert(response);
     g_assert(qdict_haskey(response, "return"));
-    QDECREF(response);
+    qobject_unref(response);
 }
 
 static void test_drive_without_dev(void)
@@ -78,7 +78,7 @@ static void test_after_failed_device_add(void)
     g_assert(response);
     error = qdict_get_qdict(response, "error");
     g_assert_cmpstr(qdict_get_try_str(error, "class"), ==, "GenericError");
-    QDECREF(response);
+    qobject_unref(response);
 
     /* Delete the drive */
     drive_del();
