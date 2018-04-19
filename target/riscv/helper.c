@@ -35,28 +35,18 @@ int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
 }
 
 #ifndef CONFIG_USER_ONLY
-/*
- * Return RISC-V IRQ number if an interrupt should be taken, else -1.
- * Used in cpu-exec.c
- *
- * Adapted from Spike's processor_t::take_interrupt()
- */
-static int riscv_cpu_hw_interrupts_pending(CPURISCVState *env)
+static int riscv_cpu_local_irq_pending(CPURISCVState *env)
 {
-    target_ulong pending_interrupts = atomic_read(&env->mip) & env->mie;
+    target_ulong mstatus_mie = get_field(env->mstatus, MSTATUS_MIE);
+    target_ulong mstatus_sie = get_field(env->mstatus, MSTATUS_SIE);
+    target_ulong pending = atomic_read(&env->mip) & env->mie;
+    target_ulong mie = env->priv < PRV_M || (env->priv == PRV_M && mstatus_mie);
+    target_ulong sie = env->priv < PRV_S || (env->priv == PRV_S && mstatus_sie);
+    target_ulong irqs = (pending & ~env->mideleg & -mie) |
+                        (pending &  env->mideleg & -sie);
 
-    target_ulong mie = get_field(env->mstatus, MSTATUS_MIE);
-    target_ulong m_enabled = env->priv < PRV_M || (env->priv == PRV_M && mie);
-    target_ulong enabled_interrupts = pending_interrupts &
-                                      ~env->mideleg & -m_enabled;
-
-    target_ulong sie = get_field(env->mstatus, MSTATUS_SIE);
-    target_ulong s_enabled = env->priv < PRV_S || (env->priv == PRV_S && sie);
-    enabled_interrupts |= pending_interrupts & env->mideleg &
-                          -s_enabled;
-
-    if (enabled_interrupts) {
-        return ctz64(enabled_interrupts); /* since non-zero */
+    if (irqs) {
+        return ctz64(irqs); /* since non-zero */
     } else {
         return EXCP_NONE; /* indicates no pending interrupt */
     }
@@ -69,7 +59,7 @@ bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     if (interrupt_request & CPU_INTERRUPT_HARD) {
         RISCVCPU *cpu = RISCV_CPU(cs);
         CPURISCVState *env = &cpu->env;
-        int interruptno = riscv_cpu_hw_interrupts_pending(env);
+        int interruptno = riscv_cpu_local_irq_pending(env);
         if (interruptno >= 0) {
             cs->exception_index = RISCV_EXCP_INT_FLAG | interruptno;
             riscv_cpu_do_interrupt(cs);
