@@ -547,7 +547,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BlockdevOnError on_target_error,
                   int creation_flags,
                   BlockCompletionFunc *cb, void *opaque,
-                  BlockJobTxn *txn, Error **errp)
+                  JobTxn *txn, Error **errp)
 {
     int64_t len;
     BlockDriverInfo bdi;

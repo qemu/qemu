@@ -93,7 +93,7 @@ static const BlockJobDriver test_block_job_driver = {
  */
 static BlockJob *test_block_job_start(unsigned int iterations,
                                       bool use_timer,
-                                      int rc, int *result, BlockJobTxn *txn)
+                                      int rc, int *result, JobTxn *txn)
 {
     BlockDriverState *bs;
     TestBlockJob *s;
@@ -122,7 +122,7 @@ static BlockJob *test_block_job_start(unsigned int iterations,
 static void test_single_job(int expected)
 {
     BlockJob *job;
-    BlockJobTxn *txn;
+    JobTxn *txn;
     int result = -EINPROGRESS;
 
     txn = block_job_txn_new();
@@ -160,7 +160,7 @@ static void test_pair_jobs(int expected1, int expected2)
 {
     BlockJob *job1;
     BlockJob *job2;
-    BlockJobTxn *txn;
+    JobTxn *txn;
     int result1 = -EINPROGRESS;
     int result2 = -EINPROGRESS;
 
@@ -222,7 +222,7 @@ static void test_pair_jobs_fail_cancel_race(void)
 {
     BlockJob *job1;
     BlockJob *job2;
-    BlockJobTxn *txn;
+    JobTxn *txn;
     int result1 = -EINPROGRESS;
     int result2 = -EINPROGRESS;
 

@@ -132,6 +132,9 @@ typedef struct Job {
 
     /** Element of the list of jobs */
     QLIST_ENTRY(Job) job_list;
+
+    /** Element of the list of jobs in a job transaction */
+    QLIST_ENTRY(Job) txn_list;
 } Job;
 
 /**

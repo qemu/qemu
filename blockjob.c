@@ -37,13 +37,13 @@
 #include "qemu/timer.h"
 
 /* Transactional group of block jobs */
-struct BlockJobTxn {
+struct JobTxn {
 
     /* Is this txn being cancelled? */
     bool aborting;
 
     /* List of jobs */
-    QLIST_HEAD(, BlockJob) jobs;
+    QLIST_HEAD(, Job) jobs;
 
     /* Reference count */
     int refcnt;
@@ -94,27 +94,27 @@ BlockJob *block_job_get(const char *id)
     }
 }
 
-BlockJobTxn *block_job_txn_new(void)
+JobTxn *block_job_txn_new(void)
 {
-    BlockJobTxn *txn = g_new0(BlockJobTxn, 1);
+    JobTxn *txn = g_new0(JobTxn, 1);
     QLIST_INIT(&txn->jobs);
     txn->refcnt = 1;
     return txn;
 }
 
-static void block_job_txn_ref(BlockJobTxn *txn)
+static void block_job_txn_ref(JobTxn *txn)
 {
     txn->refcnt++;
 }
 
-void block_job_txn_unref(BlockJobTxn *txn)
+void block_job_txn_unref(JobTxn *txn)
 {
     if (txn && --txn->refcnt == 0) {
         g_free(txn);
     }
 }
 
-void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job)
+void block_job_txn_add_job(JobTxn *txn, BlockJob *job)
 {
     if (!txn) {
         return;
@@ -123,14 +123,14 @@ void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job)
     assert(!job->txn);
     job->txn = txn;
 
-    QLIST_INSERT_HEAD(&txn->jobs, job, txn_list);
+    QLIST_INSERT_HEAD(&txn->jobs, &job->job, txn_list);
     block_job_txn_ref(txn);
 }
 
 void block_job_txn_del_job(BlockJob *job)
 {
     if (job->txn) {
-        QLIST_REMOVE(job, txn_list);
+        QLIST_REMOVE(&job->job, txn_list);
         block_job_txn_unref(job->txn);
         job->txn = NULL;
     }
@@ -285,18 +285,22 @@ static void job_cancel_async(Job *job, bool force)
     job->force_cancel |= force;
 }
 
-static int block_job_txn_apply(BlockJobTxn *txn, int fn(BlockJob *), bool lock)
+static int block_job_txn_apply(JobTxn *txn, int fn(BlockJob *), bool lock)
 {
     AioContext *ctx;
-    BlockJob *job, *next;
+    Job *job, *next;
+    BlockJob *bjob;
     int rc = 0;
 
     QLIST_FOREACH_SAFE(job, &txn->jobs, txn_list, next) {
+        assert(is_block_job(job));
+        bjob = container_of(job, BlockJob, job);
+
         if (lock) {
-            ctx = blk_get_aio_context(job->blk);
+            ctx = job->aio_context;
             aio_context_acquire(ctx);
         }
-        rc = fn(job);
+        rc = fn(bjob);
         if (lock) {
             aio_context_release(ctx);
         }
@@ -310,8 +314,8 @@ static int block_job_txn_apply(BlockJobTxn *txn, int fn(BlockJob *), bool lock)
 static void block_job_completed_txn_abort(BlockJob *job)
 {
     AioContext *ctx;
-    BlockJobTxn *txn = job->txn;
-    BlockJob *other_job;
+    JobTxn *txn = job->txn;
+    Job *other_job;
 
     if (txn->aborting) {
         /*
@@ -324,7 +328,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
 
     /* We are the first failed job. Cancel other jobs. */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
-        ctx = blk_get_aio_context(other_job->blk);
+        ctx = other_job->aio_context;
         aio_context_acquire(ctx);
     }
 
@@ -332,18 +336,18 @@ static void block_job_completed_txn_abort(BlockJob *job)
      * them; this job, however, may or may not be cancelled, depending
      * on the caller, so leave it. */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
-        if (other_job != job) {
-            job_cancel_async(&other_job->job, false);
+        if (other_job != &job->job) {
+            job_cancel_async(other_job, false);
         }
     }
     while (!QLIST_EMPTY(&txn->jobs)) {
         other_job = QLIST_FIRST(&txn->jobs);
-        ctx = blk_get_aio_context(other_job->blk);
-        if (!job_is_completed(&other_job->job)) {
-            assert(job_is_cancelled(&other_job->job));
-            job_finish_sync(&other_job->job, NULL, NULL);
+        ctx = other_job->aio_context;
+        if (!job_is_completed(other_job)) {
+            assert(job_is_cancelled(other_job));
+            job_finish_sync(other_job, NULL, NULL);
         }
-        job_finalize_single(&other_job->job);
+        job_finalize_single(other_job);
         aio_context_release(ctx);
     }
 
@@ -385,8 +389,8 @@ static int block_job_transition_to_pending(BlockJob *job)
 
 static void block_job_completed_txn_success(BlockJob *job)
 {
-    BlockJobTxn *txn = job->txn;
-    BlockJob *other_job;
+    JobTxn *txn = job->txn;
+    Job *other_job;
 
     job_state_transition(&job->job, JOB_STATUS_WAITING);
 
@@ -395,10 +399,10 @@ static void block_job_completed_txn_success(BlockJob *job)
      * txn.
      */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
-        if (!job_is_completed(&other_job->job)) {
+        if (!job_is_completed(other_job)) {
             return;
         }
-        assert(other_job->job.ret == 0);
+        assert(other_job->ret == 0);
     }
 
     block_job_txn_apply(txn, block_job_transition_to_pending, false);
@@ -628,7 +632,7 @@ static void block_job_event_pending(Notifier *n, void *opaque)
  */
 
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
-                       BlockJobTxn *txn, BlockDriverState *bs, uint64_t perm,
+                       JobTxn *txn, BlockDriverState *bs, uint64_t perm,
                        uint64_t shared_perm, int64_t speed, int flags,
                        BlockCompletionFunc *cb, void *opaque, Error **errp)
 {

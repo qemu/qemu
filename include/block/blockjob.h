@@ -33,7 +33,7 @@
 #define BLOCK_JOB_SLICE_TIME 100000000ULL /* ns */
 
 typedef struct BlockJobDriver BlockJobDriver;
-typedef struct BlockJobTxn BlockJobTxn;
+typedef struct JobTxn JobTxn;
 
 /**
  * BlockJob:
@@ -85,8 +85,7 @@ typedef struct BlockJob {
     /** BlockDriverStates that are involved in this block job */
     GSList *nodes;
 
-    BlockJobTxn *txn;
-    QLIST_ENTRY(BlockJob) txn_list;
+    JobTxn *txn;
 } BlockJob;
 
 /**
@@ -273,7 +272,7 @@ void block_job_iostatus_reset(BlockJob *job);
  * group.  Jobs wait for each other before completing.  Cancelling one job
  * cancels all jobs in the transaction.
  */
-BlockJobTxn *block_job_txn_new(void);
+JobTxn *block_job_txn_new(void);
 
 /**
  * block_job_txn_unref:
@@ -282,7 +281,7 @@ BlockJobTxn *block_job_txn_new(void);
  * or block_job_txn_new. If it's the last reference to the object, it will be
  * freed.
  */
-void block_job_txn_unref(BlockJobTxn *txn);
+void block_job_txn_unref(JobTxn *txn);
 
 /**
  * block_job_txn_add_job:
@@ -293,7 +292,7 @@ void block_job_txn_unref(BlockJobTxn *txn);
  * The caller must call either block_job_txn_unref() or block_job_completed()
  * to release the reference that is automatically grabbed here.
  */
-void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job);
+void block_job_txn_add_job(JobTxn *txn, BlockJob *job);
 
 /**
  * block_job_is_internal:
