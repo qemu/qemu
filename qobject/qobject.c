@@ -37,9 +37,9 @@ static void (*qdestroy[QTYPE__MAX])(QObject *) = {
 
 void qobject_destroy(QObject *obj)
 {
-    assert(!obj->refcnt);
-    assert(QTYPE_QNULL < obj->type && obj->type < QTYPE__MAX);
-    qdestroy[obj->type](obj);
+    assert(!obj->base.refcnt);
+    assert(QTYPE_QNULL < obj->base.type && obj->base.type < QTYPE__MAX);
+    qdestroy[obj->base.type](obj);
 }
 
 
@@ -62,11 +62,11 @@ bool qobject_is_equal(const QObject *x, const QObject *y)
         return true;
     }
 
-    if (!x || !y || x->type != y->type) {
+    if (!x || !y || x->base.type != y->base.type) {
         return false;
     }
 
-    assert(QTYPE_NONE < x->type && x->type < QTYPE__MAX);
+    assert(QTYPE_NONE < x->base.type && x->base.type < QTYPE__MAX);
 
-    return qis_equal[x->type](x, y);
+    return qis_equal[x->base.type](x, y);
 }

@@ -570,11 +570,11 @@ static void qdict_join_test(void)
         }
 
         /* Check the references */
-        g_assert(qdict_get(dict1, "foo")->refcnt == 1);
-        g_assert(qdict_get(dict1, "bar")->refcnt == 1);
+        g_assert(qdict_get(dict1, "foo")->base.refcnt == 1);
+        g_assert(qdict_get(dict1, "bar")->base.refcnt == 1);
 
         if (!overwrite) {
-            g_assert(qdict_get(dict2, "foo")->refcnt == 1);
+            g_assert(qdict_get(dict2, "foo")->base.refcnt == 1);
         }
 
         /* Clean up */
