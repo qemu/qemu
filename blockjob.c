@@ -285,7 +285,7 @@ static void block_job_do_dismiss(BlockJob *job)
 static void block_job_conclude(BlockJob *job)
 {
     job_state_transition(&job->job, JOB_STATUS_CONCLUDED);
-    if (job->auto_dismiss || !job_started(&job->job)) {
+    if (job->job.auto_dismiss || !job_started(&job->job)) {
         block_job_do_dismiss(job);
     }
 }
@@ -483,7 +483,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
 
 static int block_job_needs_finalize(BlockJob *job)
 {
-    return !job->auto_finalize;
+    return !job->job.auto_finalize;
 }
 
 static void block_job_do_finalize(BlockJob *job)
@@ -688,8 +688,8 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->io_status = job->iostatus;
     info->ready     = job->ready;
     info->status    = job->job.status;
-    info->auto_finalize = job->auto_finalize;
-    info->auto_dismiss  = job->auto_dismiss;
+    info->auto_finalize = job->job.auto_finalize;
+    info->auto_dismiss  = job->job.auto_dismiss;
     info->has_error = job->ret != 0;
     info->error     = job->ret ? g_strdup(strerror(-job->ret)) : NULL;
     return info;
@@ -736,7 +736,7 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
 static int block_job_event_pending(BlockJob *job)
 {
     job_state_transition(&job->job, JOB_STATUS_PENDING);
-    if (!job->auto_finalize && !block_job_is_internal(job)) {
+    if (!job->job.auto_finalize && !block_job_is_internal(job)) {
         qapi_event_send_block_job_pending(job_type(&job->job),
                                           job->job.id,
                                           &error_abort);
@@ -763,19 +763,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         return NULL;
     }
 
-    if (job_id == NULL && !(flags & BLOCK_JOB_INTERNAL)) {
+    if (job_id == NULL && !(flags & JOB_INTERNAL)) {
         job_id = bdrv_get_device_name(bs);
-        if (!*job_id) {
-            error_setg(errp, "An explicit job ID is required for this node");
-            return NULL;
-        }
-    }
-
-    if (job_id) {
-        if (flags & BLOCK_JOB_INTERNAL) {
-            error_setg(errp, "Cannot specify job ID for internal block job");
-            return NULL;
-        }
     }
 
     blk = blk_new(perm, shared_perm);
@@ -786,7 +775,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     }
 
     job = job_create(job_id, &driver->job_driver, blk_get_aio_context(blk),
-                     errp);
+                     flags, errp);
     if (job == NULL) {
         blk_unref(blk);
         return NULL;
@@ -800,8 +789,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->blk           = blk;
     job->cb            = cb;
     job->opaque        = opaque;
-    job->auto_finalize = !(flags & BLOCK_JOB_MANUAL_FINALIZE);
-    job->auto_dismiss  = !(flags & BLOCK_JOB_MANUAL_DISMISS);
 
     error_setg(&job->blocker, "block device is in use by block job: %s",
                job_type_str(&job->job));

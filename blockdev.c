@@ -3244,7 +3244,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
             goto out;
         }
         commit_active_start(has_job_id ? job_id : NULL, bs, base_bs,
-                            BLOCK_JOB_DEFAULT, speed, on_error,
+                            JOB_DEFAULT, speed, on_error,
                             filter_node_name, NULL, NULL, false, &local_err);
     } else {
         BlockDriverState *overlay_bs = bdrv_find_overlay(bs, top_bs);
@@ -3275,7 +3275,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
     AioContext *aio_context;
     QDict *options = NULL;
     Error *local_err = NULL;
-    int flags, job_flags = BLOCK_JOB_DEFAULT;
+    int flags, job_flags = JOB_DEFAULT;
     int64_t size;
     bool set_backing_hd = false;
 
@@ -3398,10 +3398,10 @@ static BlockJob *do_drive_backup(DriveBackup *backup, BlockJobTxn *txn,
         }
     }
     if (!backup->auto_finalize) {
-        job_flags |= BLOCK_JOB_MANUAL_FINALIZE;
+        job_flags |= JOB_MANUAL_FINALIZE;
     }
     if (!backup->auto_dismiss) {
-        job_flags |= BLOCK_JOB_MANUAL_DISMISS;
+        job_flags |= JOB_MANUAL_DISMISS;
     }
 
     job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
@@ -3442,7 +3442,7 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
     Error *local_err = NULL;
     AioContext *aio_context;
     BlockJob *job = NULL;
-    int job_flags = BLOCK_JOB_DEFAULT;
+    int job_flags = JOB_DEFAULT;
 
     if (!backup->has_speed) {
         backup->speed = 0;
@@ -3491,10 +3491,10 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, BlockJobTxn *txn,
         }
     }
     if (!backup->auto_finalize) {
-        job_flags |= BLOCK_JOB_MANUAL_FINALIZE;
+        job_flags |= JOB_MANUAL_FINALIZE;
     }
     if (!backup->auto_dismiss) {
-        job_flags |= BLOCK_JOB_MANUAL_DISMISS;
+        job_flags |= JOB_MANUAL_DISMISS;
     }
     job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
                             backup->sync, NULL, backup->compress,

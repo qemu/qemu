@@ -59,7 +59,7 @@ static BlockJob *do_test_id(BlockBackend *blk, const char *id,
                             bool should_succeed)
 {
     return mk_job(blk, id, &test_block_job_driver,
-                  should_succeed, BLOCK_JOB_DEFAULT);
+                  should_succeed, JOB_DEFAULT);
 }
 
 /* This creates a BlockBackend (optionally with a name) with a
@@ -214,7 +214,7 @@ static CancelJob *create_common(BlockJob **pjob)
 
     blk = create_blk(NULL);
     job = mk_job(blk, "Steve", &test_cancel_driver, true,
-                 BLOCK_JOB_MANUAL_FINALIZE | BLOCK_JOB_MANUAL_DISMISS);
+                 JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
     job_ref(&job->job);
     assert(job->job.status == JOB_STATUS_CREATED);
     s = container_of(job, CancelJob, common);

@@ -99,6 +99,12 @@ typedef struct Job {
     /** Set to true when the job has deferred work to the main loop. */
     bool deferred_to_main_loop;
 
+    /** True if this job should automatically finalize itself */
+    bool auto_finalize;
+
+    /** True if this job should automatically dismiss itself */
+    bool auto_dismiss;
+
     /** Element of the list of jobs */
     QLIST_ENTRY(Job) job_list;
 } Job;
@@ -140,6 +146,17 @@ struct JobDriver {
     void (*free)(Job *job);
 };
 
+typedef enum JobCreateFlags {
+    /* Default behavior */
+    JOB_DEFAULT = 0x00,
+    /* Job is not QMP-created and should not send QMP events */
+    JOB_INTERNAL = 0x01,
+    /* Job requires manual finalize step */
+    JOB_MANUAL_FINALIZE = 0x02,
+    /* Job requires manual dismiss step */
+    JOB_MANUAL_DISMISS = 0x04,
+} JobCreateFlags;
+
 
 /**
  * Create a new long-running job and return it.
@@ -147,10 +164,11 @@ struct JobDriver {
  * @job_id: The id of the newly-created job, or %NULL for internal jobs
  * @driver: The class object for the newly-created job.
  * @ctx: The AioContext to run the job coroutine in.
+ * @flags: Creation flags for the job. See @JobCreateFlags.
  * @errp: Error object.
  */
 void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
-                 Error **errp);
+                 int flags, Error **errp);
 
 /**
  * Add a reference to Job refcnt, it will be decreased with job_unref, and then

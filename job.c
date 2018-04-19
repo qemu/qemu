@@ -182,11 +182,15 @@ static void job_sleep_timer_cb(void *opaque)
 }
 
 void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
-                 Error **errp)
+                 int flags, Error **errp)
 {
     Job *job;
 
     if (job_id) {
+        if (flags & JOB_INTERNAL) {
+            error_setg(errp, "Cannot specify job ID for internal job");
+            return NULL;
+        }
         if (!id_wellformed(job_id)) {
             error_setg(errp, "Invalid job ID '%s'", job_id);
             return NULL;
@@ -195,6 +199,9 @@ void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
             error_setg(errp, "Job ID '%s' already in use", job_id);
             return NULL;
         }
+    } else if (!(flags & JOB_INTERNAL)) {
+        error_setg(errp, "An explicit job ID is required");
+        return NULL;
     }
 
     job = g_malloc0(driver->instance_size);
@@ -205,6 +212,8 @@ void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
     job->busy          = false;
     job->paused        = true;
     job->pause_count   = 1;
+    job->auto_finalize = !(flags & JOB_MANUAL_FINALIZE);
+    job->auto_dismiss  = !(flags & JOB_MANUAL_DISMISS);
 
     job_state_transition(job, JOB_STATUS_CREATED);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,

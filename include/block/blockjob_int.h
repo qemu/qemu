@@ -106,8 +106,7 @@ struct BlockJobDriver {
  * @bs: The block
  * @perm, @shared_perm: Permissions to request for @bs
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
- * @flags: Creation flags for the Block Job.
- *         See @BlockJobCreateFlags
+ * @flags: Creation flags for the Block Job. See @JobCreateFlags.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
  * @errp: Error object.

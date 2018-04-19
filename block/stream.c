@@ -242,7 +242,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
                          BLK_PERM_GRAPH_MOD,
                          BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
                          BLK_PERM_WRITE,
-                         speed, BLOCK_JOB_DEFAULT, NULL, NULL, errp);
+                         speed, JOB_DEFAULT, NULL, NULL, errp);
     if (!s) {
         goto fail;
     }

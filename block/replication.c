@@ -568,7 +568,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         job = backup_job_create(NULL, s->secondary_disk->bs, s->hidden_disk->bs,
                                 0, MIRROR_SYNC_MODE_NONE, NULL, false,
                                 BLOCKDEV_ON_ERROR_REPORT,
-                                BLOCKDEV_ON_ERROR_REPORT, BLOCK_JOB_INTERNAL,
+                                BLOCKDEV_ON_ERROR_REPORT, JOB_INTERNAL,
                                 backup_job_completed, bs, NULL, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
@@ -693,7 +693,7 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
 
         s->stage = BLOCK_REPLICATION_FAILOVER;
         commit_active_start(NULL, s->active_disk->bs, s->secondary_disk->bs,
-                            BLOCK_JOB_INTERNAL, 0, BLOCKDEV_ON_ERROR_REPORT,
+                            JOB_INTERNAL, 0, BLOCKDEV_ON_ERROR_REPORT,
                             NULL, replication_done, bs, true, errp);
         break;
     default:
