@@ -298,7 +298,7 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
                        0, NULL, 115200, serial_hd(i), DEVICE_BIG_ENDIAN);
         i++;
     }
-    serial_hds_isa_init(s->isa_bus, i, MAX_SERIAL_PORTS);
+    serial_hds_isa_init(s->isa_bus, i, MAX_ISA_SERIAL_PORTS);
 
     /* Parallel ports */
     parallel_hds_isa_init(s->isa_bus, MAX_PARALLEL_PORTS);

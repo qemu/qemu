@@ -648,7 +648,7 @@ static void pnv_init(MachineState *machine)
     pnv->isa_bus = pnv_isa_create(pnv->chips[0]);
 
     /* Create serial port */
-    serial_hds_isa_init(pnv->isa_bus, 0, MAX_SERIAL_PORTS);
+    serial_hds_isa_init(pnv->isa_bus, 0, MAX_ISA_SERIAL_PORTS);
 
     /* Create an RTC ISA device too */
     mc146818_rtc_init(pnv->isa_bus, 2000, NULL);
