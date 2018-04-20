@@ -125,7 +125,7 @@ petalogix_ml605_init(MachineState *machine)
     }
 
     serial_mm_init(address_space_mem, UART16550_BASEADDR + 0x1000, 2,
-                   irq[UART16550_IRQ], 115200, serial_hds[0],
+                   irq[UART16550_IRQ], 115200, serial_hd(0),
                    DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */

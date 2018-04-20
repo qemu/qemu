@@ -233,7 +233,7 @@ static void spike_v1_10_0_board_init(MachineState *machine)
         s->fdt, s->fdt_size);
 
     /* initialize HTIF using symbols found in load_kernel */
-    htif_mm_init(system_memory, boot_rom, &s->soc.harts[0].env, serial_hds[0]);
+    htif_mm_init(system_memory, boot_rom, &s->soc.harts[0].env, serial_hd(0));
 
     /* Core Local Interruptor (timer and IPI) */
     sifive_clint_create(memmap[SPIKE_CLINT].base, memmap[SPIKE_CLINT].size,
@@ -330,7 +330,7 @@ static void spike_v1_09_1_board_init(MachineState *machine)
         config_string, config_string_len);
 
     /* initialize HTIF using symbols found in load_kernel */
-    htif_mm_init(system_memory, boot_rom, &s->soc.harts[0].env, serial_hds[0]);
+    htif_mm_init(system_memory, boot_rom, &s->soc.harts[0].env, serial_hd(0));
 
     /* Core Local Interruptor (timer and IPI) */
     sifive_clint_create(memmap[SPIKE_CLINT].base, memmap[SPIKE_CLINT].size,

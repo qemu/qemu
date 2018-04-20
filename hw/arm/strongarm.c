@@ -1622,7 +1622,7 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
 
     for (i = 0; sa_serial[i].io_base; i++) {
         DeviceState *dev = qdev_create(NULL, TYPE_STRONGARM_UART);
-        qdev_prop_set_chr(dev, "chardev", serial_hds[i]);
+        qdev_prop_set_chr(dev, "chardev", serial_hd(i));
         qdev_init_nofail(dev);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
                 sa_serial[i].io_base);

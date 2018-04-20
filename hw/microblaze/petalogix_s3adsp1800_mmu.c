@@ -103,7 +103,7 @@ petalogix_s3adsp1800_init(MachineState *machine)
     }
 
     xilinx_uartlite_create(UARTLITE_BASEADDR, irq[UARTLITE_IRQ],
-                           serial_hds[0]);
+                           serial_hd(0));
 
     /* 2 timers at irq 2 @ 62 Mhz.  */
     dev = qdev_create(NULL, "xlnx.xps-timer");

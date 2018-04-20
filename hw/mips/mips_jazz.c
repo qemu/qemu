@@ -303,15 +303,15 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_add_subregion(address_space, 0x80005000, i8042);
 
     /* Serial ports */
-    if (serial_hds[0]) {
+    if (serial_hd(0)) {
         serial_mm_init(address_space, 0x80006000, 0,
                        qdev_get_gpio_in(rc4030, 8), 8000000/16,
-                       serial_hds[0], DEVICE_NATIVE_ENDIAN);
+                       serial_hd(0), DEVICE_NATIVE_ENDIAN);
     }
-    if (serial_hds[1]) {
+    if (serial_hd(1)) {
         serial_mm_init(address_space, 0x80007000, 0,
                        qdev_get_gpio_in(rc4030, 9), 8000000/16,
-                       serial_hds[1], DEVICE_NATIVE_ENDIAN);
+                       serial_hd(1), DEVICE_NATIVE_ENDIAN);
     }
 
     /* Parallel port */

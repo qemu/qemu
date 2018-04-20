@@ -206,8 +206,8 @@ static void leon3_generic_hw_init(MachineState *machine)
     grlib_gptimer_create(0x80000300, 2, CPU_CLK, cpu_irqs, 6);
 
     /* Allocate uart */
-    if (serial_hds[0]) {
-        grlib_apbuart_create(0x80000100, serial_hds[0], cpu_irqs[3]);
+    if (serial_hd(0)) {
+        grlib_apbuart_create(0x80000100, serial_hd(0), cpu_irqs[3]);
     }
 }
 

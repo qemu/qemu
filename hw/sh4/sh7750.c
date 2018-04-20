@@ -773,7 +773,7 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
     cpu->env.intc_handle = &s->intc;
 
     sh_serial_init(sysmem, 0x1fe00000,
-                   0, s->periph_freq, serial_hds[0],
+                   0, s->periph_freq, serial_hd(0),
                    s->intc.irqs[SCI1_ERI],
                    s->intc.irqs[SCI1_RXI],
                    s->intc.irqs[SCI1_TXI],
@@ -781,7 +781,7 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
                    NULL);
     sh_serial_init(sysmem, 0x1fe80000,
                    SH_SERIAL_FEAT_SCIF,
-                   s->periph_freq, serial_hds[1],
+                   s->periph_freq, serial_hd(1),
                    s->intc.irqs[SCIF_ERI],
                    s->intc.irqs[SCIF_RXI],
                    s->intc.irqs[SCIF_TXI],

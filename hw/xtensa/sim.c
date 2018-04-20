@@ -90,8 +90,8 @@ static void xtensa_sim_init(MachineState *machine)
                                      get_system_memory());
     }
 
-    if (serial_hds[0]) {
-        xtensa_sim_open_console(serial_hds[0]);
+    if (serial_hd(0)) {
+        xtensa_sim_open_console(serial_hd(0));
     }
     if (kernel_filename) {
         uint64_t elf_entry;

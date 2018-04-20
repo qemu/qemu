@@ -166,7 +166,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     sysbus_pass_irq(SYS_BUS_DEVICE(s), SYS_BUS_DEVICE(&s->ic));
 
     /* UART0 */
-    qdev_prop_set_chr(DEVICE(s->uart0), "chardev", serial_hds[0]);
+    qdev_prop_set_chr(DEVICE(s->uart0), "chardev", serial_hd(0));
     object_property_set_bool(OBJECT(s->uart0), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
@@ -179,7 +179,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
                                INTERRUPT_UART));
     /* AUX / UART1 */
-    qdev_prop_set_chr(DEVICE(&s->aux), "chardev", serial_hds[1]);
+    qdev_prop_set_chr(DEVICE(&s->aux), "chardev", serial_hd(1));
 
     object_property_set_bool(OBJECT(&s->aux), true, "realized", &err);
     if (err) {

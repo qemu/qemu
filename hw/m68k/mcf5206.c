@@ -543,8 +543,8 @@ qemu_irq *mcf5206_init(MemoryRegion *sysmem, uint32_t base, M68kCPU *cpu)
     pic = qemu_allocate_irqs(m5206_mbar_set_irq, s, 14);
     s->timer[0] = m5206_timer_init(pic[9]);
     s->timer[1] = m5206_timer_init(pic[10]);
-    s->uart[0] = mcf_uart_init(pic[12], serial_hds[0]);
-    s->uart[1] = mcf_uart_init(pic[13], serial_hds[1]);
+    s->uart[0] = mcf_uart_init(pic[12], serial_hd(0));
+    s->uart[1] = mcf_uart_init(pic[13], serial_hd(1));
     s->cpu = cpu;
 
     m5206_mbar_reset(s);

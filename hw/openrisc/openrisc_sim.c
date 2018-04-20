@@ -164,7 +164,7 @@ static void openrisc_sim_init(MachineState *machine)
     }
 
     serial_mm_init(get_system_memory(), 0x90000000, 0, serial_irq,
-                   115200, serial_hds[0], DEVICE_NATIVE_ENDIAN);
+                   115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 
     openrisc_load_kernel(ram_size, kernel_filename);
 }

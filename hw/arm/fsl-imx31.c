@@ -107,7 +107,7 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
         };
 
         if (i < MAX_SERIAL_PORTS) {
-            qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hds[i]);
+            qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
         }
 
         object_property_set_bool(OBJECT(&s->uart[i]), true, "realized", &err);

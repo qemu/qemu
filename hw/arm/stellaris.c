@@ -1353,7 +1353,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         if (board->dc2 & (1 << i)) {
             pl011_luminary_create(0x4000c000 + i * 0x1000,
                                   qdev_get_gpio_in(nvic, uart_irq[i]),
-                                  serial_hds[i]);
+                                  serial_hd(i));
         }
     }
     if (board->dc2 & (1 << 4)) {

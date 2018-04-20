@@ -172,7 +172,7 @@ static MemoryRegion *make_uart(MPS2TZMachineState *mms, void *opaque,
 {
     CMSDKAPBUART *uart = opaque;
     int i = uart - &mms->uart[0];
-    Chardev *uartchr = i < MAX_SERIAL_PORTS ? serial_hds[i] : NULL;
+    Chardev *uartchr = i < MAX_SERIAL_PORTS ? serial_hd(i) : NULL;
     int rxirqno = i * 2;
     int txirqno = i * 2 + 1;
     int combirqno = i + 10;

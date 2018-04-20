@@ -141,8 +141,8 @@ void serial_hds_isa_init(ISABus *bus, int from, int to)
     assert(to <= MAX_SERIAL_PORTS);
 
     for (i = from; i < to; ++i) {
-        if (serial_hds[i]) {
-            serial_isa_init(bus, i, serial_hds[i]);
+        if (serial_hd(i)) {
+            serial_isa_init(bus, i, serial_hd(i));
         }
     }
 }

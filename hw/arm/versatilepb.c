@@ -283,10 +283,10 @@ static void versatile_init(MachineState *machine, int board_id)
         n--;
     }
 
-    pl011_create(0x101f1000, pic[12], serial_hds[0]);
-    pl011_create(0x101f2000, pic[13], serial_hds[1]);
-    pl011_create(0x101f3000, pic[14], serial_hds[2]);
-    pl011_create(0x10009000, sic[6], serial_hds[3]);
+    pl011_create(0x101f1000, pic[12], serial_hd(0));
+    pl011_create(0x101f2000, pic[13], serial_hd(1));
+    pl011_create(0x101f3000, pic[14], serial_hd(2));
+    pl011_create(0x10009000, sic[6], serial_hd(3));
 
     sysbus_create_simple("pl080", 0x10130000, pic[17]);
     sysbus_create_simple("sp804", 0x101e2000, pic[4]);

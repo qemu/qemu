@@ -228,11 +228,11 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->scu), 0, ASPEED_SOC_SCU_BASE);
 
     /* UART - attach an 8250 to the IO space as our UART5 */
-    if (serial_hds[0]) {
+    if (serial_hd(0)) {
         qemu_irq uart5 = qdev_get_gpio_in(DEVICE(&s->vic), uart_irqs[4]);
         serial_mm_init(get_system_memory(),
                        ASPEED_SOC_IOMEM_BASE + ASPEED_SOC_UART_5_BASE, 2,
-                       uart5, 38400, serial_hds[0], DEVICE_LITTLE_ENDIAN);
+                       uart5, 38400, serial_hd(0), DEVICE_LITTLE_ENDIAN);
     }
 
     /* I2C */

@@ -81,8 +81,8 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             break;
         }
         if (!k->serial.is_enabled || k->serial.is_enabled(sio, i)) {
-            /* FIXME use a qdev chardev prop instead of serial_hds[] */
-            chr = serial_hds[i];
+            /* FIXME use a qdev chardev prop instead of serial_hd() */
+            chr = serial_hd(i);
             if (chr == NULL || chr->be) {
                 name = g_strdup_printf("discarding-serial%d", i);
                 chr = qemu_chr_new(name, "null");

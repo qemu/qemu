@@ -138,10 +138,10 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     system_clock_scale = NANOSECONDS_PER_SECOND / s->m3clk;
 
     for (i = 0; i < MSF2_NUM_UARTS; i++) {
-        if (serial_hds[i]) {
+        if (serial_hd(i)) {
             serial_mm_init(get_system_memory(), uart_addr[i], 2,
                            qdev_get_gpio_in(armv7m, uart_irq[i]),
-                           115200, serial_hds[i], DEVICE_NATIVE_ENDIAN);
+                           115200, serial_hd(i), DEVICE_NATIVE_ENDIAN);
         }
     }
 

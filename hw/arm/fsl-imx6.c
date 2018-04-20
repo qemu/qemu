@@ -189,7 +189,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
         };
 
         if (i < MAX_SERIAL_PORTS) {
-            qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hds[i]);
+            qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
         }
 
         object_property_set_bool(OBJECT(&s->uart[i]), true, "realized", &err);
@@ -438,7 +438,7 @@ static void fsl_imx6_class_init(ObjectClass *oc, void *data)
 
     dc->realize = fsl_imx6_realize;
     dc->desc = "i.MX6 SOC";
-    /* Reason: Uses serial_hds[] in the realize() function */
+    /* Reason: Uses serial_hd() in the realize() function */
     dc->user_creatable = false;
 }
 

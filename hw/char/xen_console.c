@@ -201,7 +201,7 @@ static int con_init(struct XenDevice *xendev)
     /* no Xen override, use qemu output device */
     if (output == NULL) {
         if (con->xendev.dev) {
-            qemu_chr_fe_init(&con->chr, serial_hds[con->xendev.dev],
+            qemu_chr_fe_init(&con->chr, serial_hd(con->xendev.dev),
                              &error_abort);
         }
     } else {

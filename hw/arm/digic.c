@@ -85,7 +85,7 @@ static void digic_realize(DeviceState *dev, Error **errp)
         sysbus_mmio_map(sbd, 0, DIGIC4_TIMER_BASE(i));
     }
 
-    qdev_prop_set_chr(DEVICE(&s->uart), "chardev", serial_hds[0]);
+    qdev_prop_set_chr(DEVICE(&s->uart), "chardev", serial_hd(0));
     object_property_set_bool(OBJECT(&s->uart), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);

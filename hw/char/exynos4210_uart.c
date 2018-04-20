@@ -600,7 +600,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
                          MAX_SERIAL_PORTS);
             exit(1);
         }
-        chr = serial_hds[channel];
+        chr = serial_hd(channel);
         if (!chr) {
             snprintf(label, ARRAY_SIZE(label), "%s%d", chr_name, channel);
             chr = qemu_chr_new(label, "null");

@@ -456,12 +456,12 @@ static int ppce500_load_device_tree(MachineState *machine,
      * device it finds in the dt as serial output device. And we generate
      * devices in reverse order to the dt.
      */
-    if (serial_hds[1]) {
+    if (serial_hd(1)) {
         dt_serial_create(fdt, MPC8544_SERIAL1_REGS_OFFSET,
                          soc, mpic, "serial1", 1, false);
     }
 
-    if (serial_hds[0]) {
+    if (serial_hd(0)) {
         dt_serial_create(fdt, MPC8544_SERIAL0_REGS_OFFSET,
                          soc, mpic, "serial0", 0, true);
     }
@@ -875,16 +875,16 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     mpicdev = ppce500_init_mpic(machine, params, ccsr_addr_space, irqs);
 
     /* Serial */
-    if (serial_hds[0]) {
+    if (serial_hd(0)) {
         serial_mm_init(ccsr_addr_space, MPC8544_SERIAL0_REGS_OFFSET,
                        0, qdev_get_gpio_in(mpicdev, 42), 399193,
-                       serial_hds[0], DEVICE_BIG_ENDIAN);
+                       serial_hd(0), DEVICE_BIG_ENDIAN);
     }
 
-    if (serial_hds[1]) {
+    if (serial_hd(1)) {
         serial_mm_init(ccsr_addr_space, MPC8544_SERIAL1_REGS_OFFSET,
                        0, qdev_get_gpio_in(mpicdev, 42), 399193,
-                       serial_hds[1], DEVICE_BIG_ENDIAN);
+                       serial_hd(1), DEVICE_BIG_ENDIAN);
     }
 
     /* General Utility device */

@@ -125,12 +125,12 @@ static void lm32_evr_init(MachineState *machine)
         irq[i] = qdev_get_gpio_in(env->pic_state, i);
     }
 
-    lm32_uart_create(uart0_base, irq[uart0_irq], serial_hds[0]);
+    lm32_uart_create(uart0_base, irq[uart0_irq], serial_hd(0));
     sysbus_create_simple("lm32-timer", timer0_base, irq[timer0_irq]);
     sysbus_create_simple("lm32-timer", timer1_base, irq[timer1_irq]);
 
     /* make sure juart isn't the first chardev */
-    env->juart_state = lm32_juart_init(serial_hds[1]);
+    env->juart_state = lm32_juart_init(serial_hd(1));
 
     reset_info->bootstrap_pc = flash_base;
 
@@ -217,13 +217,13 @@ static void lm32_uclinux_init(MachineState *machine)
         irq[i] = qdev_get_gpio_in(env->pic_state, i);
     }
 
-    lm32_uart_create(uart0_base, irq[uart0_irq], serial_hds[0]);
+    lm32_uart_create(uart0_base, irq[uart0_irq], serial_hd(0));
     sysbus_create_simple("lm32-timer", timer0_base, irq[timer0_irq]);
     sysbus_create_simple("lm32-timer", timer1_base, irq[timer1_irq]);
     sysbus_create_simple("lm32-timer", timer2_base, irq[timer2_irq]);
 
     /* make sure juart isn't the first chardev */
-    env->juart_state = lm32_juart_init(serial_hds[1]);
+    env->juart_state = lm32_juart_init(serial_hd(1));
 
     reset_info->bootstrap_pc = flash_base;
 
