@@ -189,18 +189,7 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
         };
 
         if (i < MAX_SERIAL_PORTS) {
-            Chardev *chr;
-
-            chr = serial_hds[i];
-
-            if (!chr) {
-                char *label = g_strdup_printf("imx6.uart%d", i + 1);
-                chr = qemu_chr_new(label, "null");
-                g_free(label);
-                serial_hds[i] = chr;
-            }
-
-            qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", chr);
+            qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hds[i]);
         }
 
         object_property_set_bool(OBJECT(&s->uart[i]), true, "realized", &err);
