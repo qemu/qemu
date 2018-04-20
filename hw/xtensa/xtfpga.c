@@ -278,10 +278,6 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
                 xtensa_get_extint(env, 1), nd_table);
     }
 
-    if (!serial_hds[0]) {
-        serial_hds[0] = qemu_chr_new("serial0", "null");
-    }
-
     serial_mm_init(system_io, 0x0d050020, 2, xtensa_get_extint(env, 0),
             115200, serial_hds[0], DEVICE_NATIVE_ENDIAN);
 
