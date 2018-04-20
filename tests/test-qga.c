@@ -854,6 +854,54 @@ static void test_qga_guest_exec_invalid(gconstpointer fix)
     qobject_unref(ret);
 }
 
+static void test_qga_guest_get_host_name(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    QDict *ret, *val;
+
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-host-name'}");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+
+    val = qdict_get_qdict(ret, "return");
+    g_assert(qdict_haskey(val, "host-name"));
+
+    qobject_unref(ret);
+}
+
+static void test_qga_guest_get_timezone(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    QDict *ret, *val;
+
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-timezone'}");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+
+    /* Make sure there's at least offset */
+    val = qdict_get_qdict(ret, "return");
+    g_assert(qdict_haskey(val, "offset"));
+
+    qobject_unref(ret);
+}
+
+static void test_qga_guest_get_users(gconstpointer fix)
+{
+    const TestFixture *fixture = fix;
+    QDict *ret;
+    QList *val;
+
+    ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-users'}");
+    g_assert_nonnull(ret);
+    qmp_assert_no_error(ret);
+
+    /* There is not much to test here */
+    val = qdict_get_qlist(ret, "return");
+    g_assert_nonnull(val);
+
+    qobject_unref(ret);
+}
+
 static void test_qga_guest_get_osinfo(gconstpointer data)
 {
     TestFixture fixture;
@@ -946,6 +994,12 @@ int main(int argc, char **argv)
                          test_qga_guest_exec_invalid);
     g_test_add_data_func("/qga/guest-get-osinfo", &fix,
                          test_qga_guest_get_osinfo);
+    g_test_add_data_func("/qga/guest-get-host-name", &fix,
+                         test_qga_guest_get_host_name);
+    g_test_add_data_func("/qga/guest-get-timezone", &fix,
+                         test_qga_guest_get_timezone);
+    g_test_add_data_func("/qga/guest-get-users", &fix,
+                         test_qga_guest_get_users);
 
     ret = g_test_run();
 
