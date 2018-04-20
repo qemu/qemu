@@ -589,27 +589,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     DeviceState  *dev;
     SysBusDevice *bus;
 
-    const char chr_name[] = "serial";
-    char label[ARRAY_SIZE(chr_name) + 1];
-
     dev = qdev_create(NULL, TYPE_EXYNOS4210_UART);
-
-    if (!chr) {
-        if (channel >= MAX_SERIAL_PORTS) {
-            error_report("Only %d serial ports are supported by QEMU",
-                         MAX_SERIAL_PORTS);
-            exit(1);
-        }
-        chr = serial_hd(channel);
-        if (!chr) {
-            snprintf(label, ARRAY_SIZE(label), "%s%d", chr_name, channel);
-            chr = qemu_chr_new(label, "null");
-            if (!(chr)) {
-                error_report("Can't assign serial port to UART%d", channel);
-                exit(1);
-            }
-        }
-    }
 
     qdev_prop_set_chr(dev, "chardev", chr);
     qdev_prop_set_uint32(dev, "channel", channel);
