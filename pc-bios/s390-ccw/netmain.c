@@ -283,6 +283,15 @@ void panic(const char *string)
     }
 }
 
+void write_subsystem_identification(void)
+{
+    SubChannelId *schid = (SubChannelId *) 184;
+    uint32_t *zeroes = (uint32_t *) 188;
+
+    *schid = net_schid;
+    *zeroes = 0;
+}
+
 static bool find_net_dev(Schib *schib, int dev_no)
 {
     int i, r;
@@ -365,7 +374,7 @@ void main(void)
 
     if (rc > 0) {
         sclp_print("Network loading done, starting kernel...\n");
-        asm volatile (" lpsw 0(%0) " : : "r"(0) : "memory");
+        jump_to_low_kernel();
     }
 
     panic("Failed to load OS from network\n");

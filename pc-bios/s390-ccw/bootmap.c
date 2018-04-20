@@ -29,14 +29,6 @@
 /* Scratch space */
 static uint8_t sec[MAX_SECTOR_SIZE*4] __attribute__((__aligned__(PAGE_SIZE)));
 
-typedef struct ResetInfo {
-    uint32_t ipl_mask;
-    uint32_t ipl_addr;
-    uint32_t ipl_continue;
-} ResetInfo;
-
-static ResetInfo save;
-
 const uint8_t el_torito_magic[] = "EL TORITO SPECIFICATION"
                                   "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
@@ -55,53 +47,6 @@ static inline bool is_iso_vd_valid(IsoVolDesc *vd)
     return !memcmp(&vd->ident[0], vol_desc_magic, 5) &&
            vd->version == 0x1 &&
            vd->type <= VOL_DESC_TYPE_PARTITION;
-}
-
-static void jump_to_IPL_2(void)
-{
-    ResetInfo *current = 0;
-
-    void (*ipl)(void) = (void *) (uint64_t) current->ipl_continue;
-    *current = save;
-    ipl(); /* should not return */
-}
-
-static void jump_to_IPL_code(uint64_t address)
-{
-    /* store the subsystem information _after_ the bootmap was loaded */
-    write_subsystem_identification();
-
-    /* prevent unknown IPL types in the guest */
-    if (iplb.pbt == S390_IPL_TYPE_QEMU_SCSI) {
-        iplb.pbt = S390_IPL_TYPE_CCW;
-        set_iplb(&iplb);
-    }
-
-    /*
-     * The IPL PSW is at address 0. We also must not overwrite the
-     * content of non-BIOS memory after we loaded the guest, so we
-     * save the original content and restore it in jump_to_IPL_2.
-     */
-    ResetInfo *current = 0;
-
-    save = *current;
-    current->ipl_addr = (uint32_t) (uint64_t) &jump_to_IPL_2;
-    current->ipl_continue = address & 0x7fffffff;
-
-    debug_print_int("set IPL addr to", current->ipl_continue);
-
-    /* Ensure the guest output starts fresh */
-    sclp_print("\n");
-
-    /*
-     * HACK ALERT.
-     * We use the load normal reset to keep r15 unchanged. jump_to_IPL_2
-     * can then use r15 as its stack pointer.
-     */
-    asm volatile("lghi 1,1\n\t"
-                 "diag 1,1,0x308\n\t"
-                 : : : "1", "memory");
-    panic("\n! IPL returns !\n");
 }
 
 /***********************************************************************
@@ -729,13 +674,7 @@ static void load_iso_bc_entry(IsoBcSection *load)
                         (void *)((uint64_t)bswap16(s.load_segment)),
                         blks_to_load);
 
-    /* Trying to get PSW at zero address */
-    if (*((uint64_t *)0) & IPL_PSW_MASK) {
-        jump_to_IPL_code((*((uint64_t *)0)) & 0x7fffffff);
-    }
-
-    /* Try default linux start address */
-    jump_to_IPL_code(KERN_IMAGE_START);
+    jump_to_low_kernel();
 }
 
 static uint32_t find_iso_bc(void)
