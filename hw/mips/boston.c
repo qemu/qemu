@@ -505,10 +505,6 @@ static void boston_mach_init(MachineState *machine)
                           "boston-platregs", 0x1000);
     memory_region_add_subregion_overlap(sys_mem, 0x17ffd000, platreg, 0);
 
-    if (!serial_hds[0]) {
-        serial_hds[0] = qemu_chr_new("serial0", "null");
-    }
-
     s->uart = serial_mm_init(sys_mem, 0x17ffe000, 2,
                              get_cps_irq(s->cps, 3), 10000000,
                              serial_hds[0], DEVICE_NATIVE_ENDIAN);
