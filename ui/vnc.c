@@ -1539,13 +1539,14 @@ gboolean vnc_client_io(QIOChannel *ioc G_GNUC_UNUSED,
     VncState *vs = opaque;
     if (condition & G_IO_IN) {
         if (vnc_client_read(vs) < 0) {
-            goto end;
+            /* vs is free()ed here */
+            return TRUE;
         }
     }
     if (condition & G_IO_OUT) {
         vnc_client_write(vs);
     }
-end:
+
     if (vs->disconnecting) {
         if (vs->ioc_tag != 0) {
             g_source_remove(vs->ioc_tag);
