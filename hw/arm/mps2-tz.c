@@ -172,7 +172,6 @@ static MemoryRegion *make_uart(MPS2TZMachineState *mms, void *opaque,
 {
     CMSDKAPBUART *uart = opaque;
     int i = uart - &mms->uart[0];
-    Chardev *uartchr = i < MAX_SERIAL_PORTS ? serial_hd(i) : NULL;
     int rxirqno = i * 2;
     int txirqno = i * 2 + 1;
     int combirqno = i + 10;
@@ -182,7 +181,7 @@ static MemoryRegion *make_uart(MPS2TZMachineState *mms, void *opaque,
 
     init_sysbus_child(OBJECT(mms), name, uart,
                       sizeof(mms->uart[0]), TYPE_CMSDK_APB_UART);
-    qdev_prop_set_chr(DEVICE(uart), "chardev", uartchr);
+    qdev_prop_set_chr(DEVICE(uart), "chardev", serial_hd(i));
     qdev_prop_set_uint32(DEVICE(uart), "pclk-frq", SYSCLK_FRQ);
     object_property_set_bool(OBJECT(uart), true, "realized", &error_fatal);
     s = SYS_BUS_DEVICE(uart);
