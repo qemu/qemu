@@ -65,6 +65,10 @@ struct BlockJobDriver {
      * If the callback is not NULL, it will be invoked when the job has to be
      * synchronously cancelled or completed; it should drain BlockDriverStates
      * as required to ensure progress.
+     *
+     * Block jobs must use the default implementation for job_driver.drain,
+     * which will in turn call this callback after doing generic block job
+     * stuff.
      */
     void (*drain)(BlockJob *job);
 };
@@ -110,6 +114,14 @@ void block_job_free(Job *job);
  * iostatus when the user resumes @job.
  */
 void block_job_user_resume(Job *job);
+
+/**
+ * block_job_drain:
+ * Callback to be used for JobDriver.drain in all block jobs. Drains the main
+ * block node associated with the block jobs and calls BlockJobDriver.drain for
+ * job-specific actions.
+ */
+void block_job_drain(Job *job);
 
 /**
  * block_job_yield:

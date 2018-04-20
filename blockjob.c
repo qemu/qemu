@@ -169,14 +169,13 @@ static void block_job_attached_aio_context(AioContext *new_context,
     job_resume(&job->job);
 }
 
-static void block_job_drain(BlockJob *job)
+void block_job_drain(Job *job)
 {
-    /* If job is !job->job.busy this kicks it into the next pause point. */
-    block_job_enter(job);
+    BlockJob *bjob = container_of(job, BlockJob, job);
 
-    blk_drain(job->blk);
-    if (job->driver->drain) {
-        job->driver->drain(job);
+    blk_drain(bjob->blk);
+    if (bjob->driver->drain) {
+        bjob->driver->drain(bjob);
     }
 }
 
@@ -190,7 +189,7 @@ static void block_job_detach_aio_context(void *opaque)
     job_pause(&job->job);
 
     while (!job->job.paused && !job_is_completed(&job->job)) {
-        block_job_drain(job);
+        job_drain(&job->job);
     }
 
     job->job.aio_context = NULL;
@@ -327,11 +326,11 @@ static int block_job_finish_sync(BlockJob *job,
         job_unref(&job->job);
         return -EBUSY;
     }
-    /* block_job_drain calls block_job_enter, and it should be enough to
-     * induce progress until the job completes or moves to the main thread.
+    /* job_drain calls job_enter, and it should be enough to induce progress
+     * until the job completes or moves to the main thread.
     */
     while (!job->job.deferred_to_main_loop && !job_is_completed(&job->job)) {
-        block_job_drain(job);
+        job_drain(&job->job);
     }
     while (!job_is_completed(&job->job)) {
         aio_poll(qemu_get_aio_context(), true);
@@ -713,6 +712,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     assert(is_block_job(&job->job));
     assert(job->job.driver->free == &block_job_free);
     assert(job->job.driver->user_resume == &block_job_user_resume);
+    assert(job->job.driver->drain == &block_job_drain);
 
     job->driver        = driver;
     job->blk           = blk;

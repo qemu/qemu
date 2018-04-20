@@ -367,6 +367,17 @@ void coroutine_fn job_sleep_ns(Job *job, int64_t ns)
     job_pause_point(job);
 }
 
+void job_drain(Job *job)
+{
+    /* If job is !busy this kicks it into the next pause point. */
+    job_enter(job);
+
+    if (job->driver->drain) {
+        job->driver->drain(job);
+    }
+}
+
+
 /**
  * All jobs must allow a pause point before entering their job proper. This
  * ensures that jobs can be paused prior to being started, then resumed later.

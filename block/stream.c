@@ -215,6 +215,7 @@ static const BlockJobDriver stream_job_driver = {
         .free          = block_job_free,
         .start         = stream_run,
         .user_resume   = block_job_user_resume,
+        .drain         = block_job_drain,
     },
 };
 
