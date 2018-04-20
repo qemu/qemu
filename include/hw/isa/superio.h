@@ -22,13 +22,15 @@
 #define ISA_SUPERIO_CLASS(klass) \
     OBJECT_CLASS_CHECK(ISASuperIOClass, (klass), TYPE_ISA_SUPERIO)
 
+#define SUPERIO_MAX_SERIAL_PORTS 4
+
 typedef struct ISASuperIODevice {
     /*< private >*/
     ISADevice parent_obj;
     /*< public >*/
 
     ISADevice *parallel[MAX_PARALLEL_PORTS];
-    ISADevice *serial[MAX_SERIAL_PORTS];
+    ISADevice *serial[SUPERIO_MAX_SERIAL_PORTS];
     ISADevice *floppy;
     ISADevice *kbc;
     ISADevice *ide;
