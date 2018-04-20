@@ -871,7 +871,7 @@ static void coroutine_fn mirror_run(void *opaque)
         trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
         job_sleep_ns(&s->common.job, delay_ns);
         if (job_is_cancelled(&s->common.job) &&
-            (!s->synced || s->common.force))
+            (!s->synced || s->common.job.force_cancel))
         {
             break;
         }
@@ -884,7 +884,7 @@ immediate_exit:
          * or it was cancelled prematurely so that we do not guarantee that
          * the target is a copy of the source.
          */
-        assert(ret < 0 || ((s->common.force || !s->synced) &&
+        assert(ret < 0 || ((s->common.job.force_cancel || !s->synced) &&
                job_is_cancelled(&s->common.job)));
         assert(need_drain);
         mirror_wait_for_all_io(s);

@@ -97,6 +97,12 @@ typedef struct Job {
      */
     bool cancelled;
 
+    /**
+     * Set to true if the job should abort immediately without waiting
+     * for data to be in sync.
+     */
+    bool force_cancel;
+
     /** Set to true when the job has deferred work to the main loop. */
     bool deferred_to_main_loop;
 

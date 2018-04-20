@@ -51,12 +51,6 @@ typedef struct BlockJob {
     BlockBackend *blk;
 
     /**
-     * Set to true if the job should abort immediately without waiting
-     * for data to be in sync.
-     */
-    bool force;
-
-    /**
      * Set to true when the job is ready to be completed.
      */
     bool ready;

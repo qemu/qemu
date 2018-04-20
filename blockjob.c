@@ -270,19 +270,20 @@ static int block_job_prepare(BlockJob *job)
     return job->job.ret;
 }
 
-static void block_job_cancel_async(BlockJob *job, bool force)
+static void job_cancel_async(Job *job, bool force)
 {
-    if (job->iostatus != BLOCK_DEVICE_IO_STATUS_OK) {
-        block_job_iostatus_reset(job);
+    if (job->user_paused) {
+        /* Do not call job_enter here, the caller will handle it.  */
+        job->user_paused = false;
+        if (job->driver->user_resume) {
+            job->driver->user_resume(job);
+        }
+        assert(job->pause_count > 0);
+        job->pause_count--;
     }
-    if (job->job.user_paused) {
-        /* Do not call block_job_enter here, the caller will handle it.  */
-        job->job.user_paused = false;
-        job->job.pause_count--;
-    }
-    job->job.cancelled = true;
+    job->cancelled = true;
     /* To prevent 'force == false' overriding a previous 'force == true' */
-    job->force |= force;
+    job->force_cancel |= force;
 }
 
 static int block_job_txn_apply(BlockJobTxn *txn, int fn(BlockJob *), bool lock)
@@ -367,7 +368,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
      * on the caller, so leave it. */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
         if (other_job != job) {
-            block_job_cancel_async(other_job, false);
+            job_cancel_async(&other_job->job, false);
         }
     }
     while (!QLIST_EMPTY(&txn->jobs)) {
@@ -527,7 +528,7 @@ void block_job_cancel(BlockJob *job, bool force)
         job_do_dismiss(&job->job);
         return;
     }
-    block_job_cancel_async(job, force);
+    job_cancel_async(&job->job, force);
     if (!job_started(&job->job)) {
         block_job_completed(job, -ECANCELED);
     } else if (job->job.deferred_to_main_loop) {
