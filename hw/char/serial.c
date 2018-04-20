@@ -923,11 +923,6 @@ static int serial_be_change(void *opaque)
 
 void serial_realize_core(SerialState *s, Error **errp)
 {
-    if (!qemu_chr_fe_backend_connected(&s->chr)) {
-        error_setg(errp, "Can't create serial device, empty char device");
-        return;
-    }
-
     s->modem_status_poll = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) serial_update_msl, s);
 
     s->fifo_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) fifo_timeout_int, s);
