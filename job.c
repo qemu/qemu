@@ -603,3 +603,31 @@ void job_defer_to_main_loop(Job *job, JobDeferToMainLoopFn *fn, void *opaque)
     aio_bh_schedule_oneshot(qemu_get_aio_context(),
                             job_defer_to_main_loop_bh, data);
 }
+
+int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
+{
+    Error *local_err = NULL;
+    int ret;
+
+    job_ref(job);
+
+    if (finish) {
+        finish(job, &local_err);
+    }
+    if (local_err) {
+        error_propagate(errp, local_err);
+        job_unref(job);
+        return -EBUSY;
+    }
+    /* job_drain calls job_enter, and it should be enough to induce progress
+     * until the job completes or moves to the main thread. */
+    while (!job->deferred_to_main_loop && !job_is_completed(job)) {
+        job_drain(job);
+    }
+    while (!job_is_completed(job)) {
+        aio_poll(qemu_get_aio_context(), true);
+    }
+    ret = (job_is_cancelled(job) && job->ret == 0) ? -ECANCELED : job->ret;
+    job_unref(job);
+    return ret;
+}

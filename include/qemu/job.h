@@ -389,6 +389,15 @@ typedef void JobDeferToMainLoopFn(Job *job, void *opaque);
  */
 void job_defer_to_main_loop(Job *job, JobDeferToMainLoopFn *fn, void *opaque);
 
+/**
+ * Synchronously finishes the given @job. If @finish is given, it is called to
+ * trigger completion or cancellation of the job.
+ *
+ * Returns 0 if the job is successfully completed, -ECANCELED if the job was
+ * cancelled before completing, and -errno in other error cases.
+ */
+int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp);
+
 /* TODO To be removed from the public interface */
 void job_state_transition(Job *job, JobStatus s1);
 void coroutine_fn job_do_yield(Job *job, uint64_t ns);

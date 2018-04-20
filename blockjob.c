@@ -307,40 +307,6 @@ static int block_job_txn_apply(BlockJobTxn *txn, int fn(BlockJob *), bool lock)
     return rc;
 }
 
-static int block_job_finish_sync(BlockJob *job,
-                                 void (*finish)(BlockJob *, Error **errp),
-                                 Error **errp)
-{
-    Error *local_err = NULL;
-    int ret;
-
-    assert(blk_bs(job->blk)->job == job);
-
-    job_ref(&job->job);
-
-    if (finish) {
-        finish(job, &local_err);
-    }
-    if (local_err) {
-        error_propagate(errp, local_err);
-        job_unref(&job->job);
-        return -EBUSY;
-    }
-    /* job_drain calls job_enter, and it should be enough to induce progress
-     * until the job completes or moves to the main thread.
-    */
-    while (!job->job.deferred_to_main_loop && !job_is_completed(&job->job)) {
-        job_drain(&job->job);
-    }
-    while (!job_is_completed(&job->job)) {
-        aio_poll(qemu_get_aio_context(), true);
-    }
-    ret = (job_is_cancelled(&job->job) && job->job.ret == 0)
-          ? -ECANCELED : job->job.ret;
-    job_unref(&job->job);
-    return ret;
-}
-
 static void block_job_completed_txn_abort(BlockJob *job)
 {
     AioContext *ctx;
@@ -375,7 +341,7 @@ static void block_job_completed_txn_abort(BlockJob *job)
         ctx = blk_get_aio_context(other_job->blk);
         if (!job_is_completed(&other_job->job)) {
             assert(job_is_cancelled(&other_job->job));
-            block_job_finish_sync(other_job, NULL, NULL);
+            job_finish_sync(&other_job->job, NULL, NULL);
         }
         job_finalize_single(&other_job->job);
         aio_context_release(ctx);
@@ -528,16 +494,18 @@ void block_job_user_cancel(BlockJob *job, bool force, Error **errp)
 }
 
 /* A wrapper around block_job_cancel() taking an Error ** parameter so it may be
- * used with block_job_finish_sync() without the need for (rather nasty)
- * function pointer casts there. */
-static void block_job_cancel_err(BlockJob *job, Error **errp)
+ * used with job_finish_sync() without the need for (rather nasty) function
+ * pointer casts there. */
+static void block_job_cancel_err(Job *job, Error **errp)
 {
-    block_job_cancel(job, false);
+    BlockJob *bjob = container_of(job, BlockJob, job);
+    assert(is_block_job(job));
+    block_job_cancel(bjob, false);
 }
 
 int block_job_cancel_sync(BlockJob *job)
 {
-    return block_job_finish_sync(job, &block_job_cancel_err, NULL);
+    return job_finish_sync(&job->job, &block_job_cancel_err, NULL);
 }
 
 void block_job_cancel_sync_all(void)
@@ -553,14 +521,9 @@ void block_job_cancel_sync_all(void)
     }
 }
 
-static void block_job_complete(BlockJob *job, Error **errp)
-{
-    job_complete(&job->job, errp);
-}
-
 int block_job_complete_sync(BlockJob *job, Error **errp)
 {
-    return block_job_finish_sync(job, &block_job_complete, errp);
+    return job_finish_sync(&job->job, job_complete, errp);
 }
 
 void block_job_progress_update(BlockJob *job, uint64_t done)
