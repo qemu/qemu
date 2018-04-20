@@ -1056,11 +1056,6 @@ void mips_malta_init(MachineState *machine)
 
     /* FPGA */
 
-    /* Make sure the second serial port is associated with a device. */
-    if (!serial_hds[2]) {
-        serial_hds[2] = qemu_chr_new("fpga-uart", "null");
-    }
-
     /* The CBUS UART is attached to the MIPS CPU INT2 pin, ie interrupt 4 */
     malta_fpga_init(system_memory, FPGA_ADDRESS, cbus_irq, serial_hds[2]);
 
