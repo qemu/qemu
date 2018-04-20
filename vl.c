@@ -2516,6 +2516,15 @@ static int serial_parse(const char *devname)
     return 0;
 }
 
+Chardev *serial_hd(int i)
+{
+    assert(i >= 0);
+    if (i < ARRAY_SIZE(serial_hds)) {
+        return serial_hds[i];
+    }
+    return NULL;
+}
+
 static int parallel_parse(const char *devname)
 {
     static int index = 0;
