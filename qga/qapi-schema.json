@@ -1173,10 +1173,10 @@
 #
 # @kernel-release:
 #     * POSIX: release field returned by uname(2)
-#     * Windows: version number of the OS
+#     * Windows: build number of the OS
 # @kernel-version:
 #     * POSIX: version field returned by uname(2)
-#     * Windows: build number of the OS
+#     * Windows: version number of the OS
 # @machine:
 #     * POSIX: machine field returned by uname(2)
 #     * Windows: one of x86, x86_64, arm, ia64
