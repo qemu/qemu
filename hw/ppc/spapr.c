@@ -2589,7 +2589,7 @@ static void spapr_machine_init(MachineState *machine)
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
 
-    for (i = 0; i < MAX_SERIAL_PORTS; i++) {
+    for (i = 0; i < serial_max_hds(); i++) {
         if (serial_hd(i)) {
             spapr_vty_create(spapr->vio_bus, serial_hd(i));
         }
