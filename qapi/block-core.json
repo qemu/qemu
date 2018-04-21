@@ -2510,11 +2510,12 @@
 # @vxhs: Since 2.10
 # @throttle: Since 2.11
 # @nvme: Since 2.12
+# @copy-on-read: Since 2.13
 #
 # Since: 2.9
 ##
 { 'enum': 'BlockdevDriver',
-  'data': [ 'blkdebug', 'blkverify', 'bochs', 'cloop',
+  'data': [ 'blkdebug', 'blkverify', 'bochs', 'cloop', 'copy-on-read',
             'dmg', 'file', 'ftp', 'ftps', 'gluster', 'host_cdrom',
             'host_device', 'http', 'https', 'iscsi', 'luks', 'nbd', 'nfs',
             'null-aio', 'null-co', 'nvme', 'parallels', 'qcow', 'qcow2', 'qed',
@@ -3531,6 +3532,7 @@
       'blkverify':  'BlockdevOptionsBlkverify',
       'bochs':      'BlockdevOptionsGenericFormat',
       'cloop':      'BlockdevOptionsGenericFormat',
+      'copy-on-read':'BlockdevOptionsGenericFormat',
       'dmg':        'BlockdevOptionsGenericFormat',
       'file':       'BlockdevOptionsFile',
       'ftp':        'BlockdevOptionsCurlFtp',
@@ -4058,6 +4060,7 @@
       'blkverify':      'BlockdevCreateNotSupported',
       'bochs':          'BlockdevCreateNotSupported',
       'cloop':          'BlockdevCreateNotSupported',
+      'copy-on-read':   'BlockdevCreateNotSupported',
       'dmg':            'BlockdevCreateNotSupported',
       'file':           'BlockdevCreateOptionsFile',
       'ftp':            'BlockdevCreateNotSupported',
