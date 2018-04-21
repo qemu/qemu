@@ -44,6 +44,7 @@ esac
 _cleanup()
 {
     _cleanup_test_img
+    rm -f "$TEST_WRAP"
     rm -f "$BLKDBG_CONF"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
