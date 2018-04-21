@@ -1118,13 +1118,15 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
                 /* FIXME: Should we (perhaps conditionally) be setting
                  * BDRV_REQ_MAY_UNMAP, if it will allow for a sparser copy
                  * that still correctly reads as zero? */
-                ret = bdrv_co_do_pwrite_zeroes(bs, cluster_offset, pnum, 0);
+                ret = bdrv_co_do_pwrite_zeroes(bs, cluster_offset, pnum,
+                                               BDRV_REQ_WRITE_UNCHANGED);
             } else {
                 /* This does not change the data on the disk, it is not
                  * necessary to flush even in cache=writethrough mode.
                  */
                 ret = bdrv_driver_pwritev(bs, cluster_offset, pnum,
-                                          &local_qiov, 0);
+                                          &local_qiov,
+                                          BDRV_REQ_WRITE_UNCHANGED);
             }
 
             if (ret < 0) {
