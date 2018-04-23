@@ -1374,11 +1374,10 @@ void pc_memory_init(PCMachineState *pcms,
     /* always allocate the device memory information */
     machine->device_memory = g_malloc0(sizeof(*machine->device_memory));
 
-    /* initialize hotplug memory address space */
+    /* initialize device memory address space */
     if (pcmc->has_reserved_memory &&
         (machine->ram_size < machine->maxram_size)) {
-        ram_addr_t hotplug_mem_size =
-            machine->maxram_size - machine->ram_size;
+        ram_addr_t device_mem_size = machine->maxram_size - machine->ram_size;
 
         if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
             error_report("unsupported amount of memory slots: %"PRIu64,
@@ -1397,19 +1396,19 @@ void pc_memory_init(PCMachineState *pcms,
             ROUND_UP(0x100000000ULL + pcms->above_4g_mem_size, 1ULL << 30);
 
         if (pcmc->enforce_aligned_dimm) {
-            /* size hotplug region assuming 1G page max alignment per slot */
-            hotplug_mem_size += (1ULL << 30) * machine->ram_slots;
+            /* size device region assuming 1G page max alignment per slot */
+            device_mem_size += (1ULL << 30) * machine->ram_slots;
         }
 
-        if ((machine->device_memory->base + hotplug_mem_size) <
-            hotplug_mem_size) {
+        if ((machine->device_memory->base + device_mem_size) <
+            device_mem_size) {
             error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
                          machine->maxram_size);
             exit(EXIT_FAILURE);
         }
 
         memory_region_init(&machine->device_memory->mr, OBJECT(pcms),
-                           "hotplug-memory", hotplug_mem_size);
+                           "device-memory", device_mem_size);
         memory_region_add_subregion(system_memory, machine->device_memory->base,
                                     &machine->device_memory->mr);
     }
@@ -2064,9 +2063,9 @@ static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
 }
 
 static void
-pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v,
-                                          const char *name, void *opaque,
-                                          Error **errp)
+pc_machine_get_device_memory_region_size(Object *obj, Visitor *v,
+                                         const char *name, void *opaque,
+                                         Error **errp)
 {
     MachineState *ms = MACHINE(obj);
     int64_t value = memory_region_size(&ms->device_memory->mr);
@@ -2373,8 +2372,8 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     nc->nmi_monitor_handler = x86_nmi;
     mc->default_cpu_type = TARGET_DEFAULT_CPU_TYPE;
 
-    object_class_property_add(oc, PC_MACHINE_MEMHP_REGION_SIZE, "int",
-        pc_machine_get_hotplug_memory_region_size, NULL,
+    object_class_property_add(oc, PC_MACHINE_DEVMEM_REGION_SIZE, "int",
+        pc_machine_get_device_memory_region_size, NULL,
         NULL, NULL, &error_abort);
 
     object_class_property_add(oc, PC_MACHINE_MAX_RAM_BELOW_4G, "size",
