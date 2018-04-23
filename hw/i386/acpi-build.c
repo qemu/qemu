@@ -46,6 +46,7 @@
 #include "hw/acpi/vmgenid.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
+#include "hw/mem/memory-device.h"
 #include "sysemu/numa.h"
 
 /* Supported chipsets: */
@@ -2253,7 +2254,7 @@ build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
 static void build_srat_hotpluggable_memory(GArray *table_data, uint64_t base,
                                            uint64_t len, int default_node)
 {
-    MemoryDeviceInfoList *info_list = qmp_pc_dimm_device_list();
+    MemoryDeviceInfoList *info_list = qmp_memory_device_list();
     MemoryDeviceInfoList *info;
     MemoryDeviceInfo *mi;
     PCDIMMDeviceInfo *di;

@@ -74,6 +74,7 @@
 #include "hw/compat.h"
 #include "qemu/cutils.h"
 #include "hw/ppc/spapr_cpu_core.h"
+#include "hw/mem/memory-device.h"
 
 #include <libfdt.h>
 
@@ -887,7 +888,7 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     }
 
     /* ibm,dynamic-memory or ibm,dynamic-memory-v2 */
-    dimms = qmp_pc_dimm_device_list();
+    dimms = qmp_memory_device_list();
     if (spapr_ovec_test(spapr->ov5_cas, OV5_DRMEM_V2)) {
         ret = spapr_populate_drmem_v2(spapr, fdt, offset, dimms);
     } else {

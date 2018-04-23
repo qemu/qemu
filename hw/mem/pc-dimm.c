@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/mem/memory-device.h"
 #include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qapi/visitor.h"
@@ -158,11 +159,6 @@ uint64_t pc_existing_dimms_capacity(Error **errp)
     return cap.size;
 }
 
-uint64_t get_plugged_memory_size(void)
-{
-    return pc_existing_dimms_capacity(&error_abort);
-}
-
 static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
 {
     unsigned long *bitmap = opaque;
@@ -236,57 +232,6 @@ static int pc_dimm_built_list(Object *obj, void *opaque)
 
     object_child_foreach(obj, pc_dimm_built_list, opaque);
     return 0;
-}
-
-MemoryDeviceInfoList *qmp_pc_dimm_device_list(void)
-{
-    GSList *dimms = NULL, *item;
-    MemoryDeviceInfoList *list = NULL, *prev = NULL;
-
-    object_child_foreach(qdev_get_machine(), pc_dimm_built_list, &dimms);
-
-    for (item = dimms; item; item = g_slist_next(item)) {
-        PCDIMMDevice *dimm = PC_DIMM(item->data);
-        Object *obj = OBJECT(dimm);
-        MemoryDeviceInfoList *elem = g_new0(MemoryDeviceInfoList, 1);
-        MemoryDeviceInfo *info = g_new0(MemoryDeviceInfo, 1);
-        PCDIMMDeviceInfo *di = g_new0(PCDIMMDeviceInfo, 1);
-        bool is_nvdimm = object_dynamic_cast(obj, TYPE_NVDIMM);
-        DeviceClass *dc = DEVICE_GET_CLASS(obj);
-        DeviceState *dev = DEVICE(obj);
-
-        if (dev->id) {
-            di->has_id = true;
-            di->id = g_strdup(dev->id);
-        }
-        di->hotplugged = dev->hotplugged;
-        di->hotpluggable = dc->hotpluggable;
-        di->addr = dimm->addr;
-        di->slot = dimm->slot;
-        di->node = dimm->node;
-        di->size = object_property_get_uint(obj, PC_DIMM_SIZE_PROP, NULL);
-        di->memdev = object_get_canonical_path(OBJECT(dimm->hostmem));
-
-        if (!is_nvdimm) {
-            info->u.dimm.data = di;
-            info->type = MEMORY_DEVICE_INFO_KIND_DIMM;
-        } else {
-            info->u.nvdimm.data = di;
-            info->type = MEMORY_DEVICE_INFO_KIND_NVDIMM;
-        }
-        elem->value = info;
-        elem->next = NULL;
-        if (prev) {
-            prev->next = elem;
-        } else {
-            list = elem;
-        }
-        prev = elem;
-    }
-
-    g_slist_free(dimms);
-
-    return list;
 }
 
 uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
@@ -445,10 +390,63 @@ static MemoryRegion *pc_dimm_get_vmstate_memory_region(PCDIMMDevice *dimm)
     return host_memory_backend_get_memory(dimm->hostmem, &error_abort);
 }
 
+static uint64_t pc_dimm_md_get_addr(const MemoryDeviceState *md)
+{
+    const PCDIMMDevice *dimm = PC_DIMM(md);
+
+    return dimm->addr;
+}
+
+static uint64_t pc_dimm_md_get_region_size(const MemoryDeviceState *md)
+{
+    /* dropping const here is fine as we don't touch the memory region */
+    PCDIMMDevice *dimm = PC_DIMM(md);
+    const PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(md);
+    MemoryRegion *mr;
+
+    mr = ddc->get_memory_region(dimm, &error_abort);
+    if (!mr) {
+        return 0;
+    }
+
+    return memory_region_size(mr);
+}
+
+static void pc_dimm_md_fill_device_info(const MemoryDeviceState *md,
+                                        MemoryDeviceInfo *info)
+{
+    PCDIMMDeviceInfo *di = g_new0(PCDIMMDeviceInfo, 1);
+    const DeviceClass *dc = DEVICE_GET_CLASS(md);
+    const PCDIMMDevice *dimm = PC_DIMM(md);
+    const DeviceState *dev = DEVICE(md);
+
+    if (dev->id) {
+        di->has_id = true;
+        di->id = g_strdup(dev->id);
+    }
+    di->hotplugged = dev->hotplugged;
+    di->hotpluggable = dc->hotpluggable;
+    di->addr = dimm->addr;
+    di->slot = dimm->slot;
+    di->node = dimm->node;
+    di->size = object_property_get_uint(OBJECT(dimm), PC_DIMM_SIZE_PROP,
+                                        NULL);
+    di->memdev = object_get_canonical_path(OBJECT(dimm->hostmem));
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
+        info->u.nvdimm.data = di;
+        info->type = MEMORY_DEVICE_INFO_KIND_NVDIMM;
+    } else {
+        info->u.dimm.data = di;
+        info->type = MEMORY_DEVICE_INFO_KIND_DIMM;
+    }
+}
+
 static void pc_dimm_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCDIMMDeviceClass *ddc = PC_DIMM_CLASS(oc);
+    MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(oc);
 
     dc->realize = pc_dimm_realize;
     dc->unrealize = pc_dimm_unrealize;
@@ -457,6 +455,12 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
 
     ddc->get_memory_region = pc_dimm_get_memory_region;
     ddc->get_vmstate_memory_region = pc_dimm_get_vmstate_memory_region;
+
+    mdc->get_addr = pc_dimm_md_get_addr;
+    /* for a dimm plugged_size == region_size */
+    mdc->get_plugged_size = pc_dimm_md_get_region_size;
+    mdc->get_region_size = pc_dimm_md_get_region_size;
+    mdc->fill_device_info = pc_dimm_md_fill_device_info;
 }
 
 static TypeInfo pc_dimm_info = {
@@ -466,6 +470,10 @@ static TypeInfo pc_dimm_info = {
     .instance_init = pc_dimm_init,
     .class_init    = pc_dimm_class_init,
     .class_size    = sizeof(PCDIMMDeviceClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_MEMORY_DEVICE },
+        { }
+    },
 };
 
 static void pc_dimm_register_types(void)

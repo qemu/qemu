@@ -14,6 +14,7 @@
 #include "kvm_ppc.h"
 #include "hw/ppc/spapr_ovec.h"
 #include "mmu-book3s-v3.h"
+#include "hw/mem/memory-device.h"
 
 struct LPCRSyncState {
     target_ulong value;
