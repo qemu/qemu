@@ -38,7 +38,7 @@
 
 static void block_job_event_cancelled(BlockJob *job);
 static void block_job_event_completed(BlockJob *job, const char *msg);
-static int block_job_event_pending(BlockJob *job);
+static void block_job_event_pending(BlockJob *job);
 
 /* Transactional group of block jobs */
 struct BlockJobTxn {
@@ -500,6 +500,15 @@ static void block_job_do_finalize(BlockJob *job)
     }
 }
 
+static int block_job_transition_to_pending(BlockJob *job)
+{
+    job_state_transition(&job->job, JOB_STATUS_PENDING);
+    if (!job->job.auto_finalize) {
+        block_job_event_pending(job);
+    }
+    return 0;
+}
+
 static void block_job_completed_txn_success(BlockJob *job)
 {
     BlockJobTxn *txn = job->txn;
@@ -518,7 +527,7 @@ static void block_job_completed_txn_success(BlockJob *job)
         assert(other_job->ret == 0);
     }
 
-    block_job_txn_apply(txn, block_job_event_pending, false);
+    block_job_txn_apply(txn, block_job_transition_to_pending, false);
 
     /* If no jobs need manual finalization, automatically do so */
     if (block_job_txn_apply(txn, block_job_needs_finalize, false) == 0) {
@@ -733,15 +742,15 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
                                         &error_abort);
 }
 
-static int block_job_event_pending(BlockJob *job)
+static void block_job_event_pending(BlockJob *job)
 {
-    job_state_transition(&job->job, JOB_STATUS_PENDING);
-    if (!job->job.auto_finalize && !block_job_is_internal(job)) {
-        qapi_event_send_block_job_pending(job_type(&job->job),
-                                          job->job.id,
-                                          &error_abort);
+    if (block_job_is_internal(job)) {
+        return;
     }
-    return 0;
+
+    qapi_event_send_block_job_pending(job_type(&job->job),
+                                      job->job.id,
+                                      &error_abort);
 }
 
 /*
