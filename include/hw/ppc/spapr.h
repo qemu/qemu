@@ -162,7 +162,6 @@ struct sPAPRMachineState {
 
     /*< public >*/
     char *kvm_type;
-    MemoryHotplugState hotplug_memory;
 
     const char *icp_type;
 

@@ -67,7 +67,7 @@ static inline bool valid_ptex(PowerPCCPU *cpu, target_ulong ptex)
 static bool is_ram_address(sPAPRMachineState *spapr, hwaddr addr)
 {
     MachineState *machine = MACHINE(spapr);
-    MemoryHotplugState *hpms = &spapr->hotplug_memory;
+    MemoryHotplugState *hpms = machine->device_memory;
 
     if (addr < machine->ram_size) {
         return true;

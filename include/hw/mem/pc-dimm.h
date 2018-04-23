@@ -19,6 +19,7 @@
 #include "exec/memory.h"
 #include "sysemu/hostmem.h"
 #include "hw/qdev.h"
+#include "hw/boards.h"
 
 #define TYPE_PC_DIMM "pc-dimm"
 #define PC_DIMM(obj) \
@@ -74,17 +75,6 @@ typedef struct PCDIMMDeviceClass {
     MemoryRegion *(*get_memory_region)(PCDIMMDevice *dimm, Error **errp);
     MemoryRegion *(*get_vmstate_memory_region)(PCDIMMDevice *dimm);
 } PCDIMMDeviceClass;
-
-/**
- * MemoryHotplugState:
- * @base: address in guest physical address space where hotplug memory
- * address space begins.
- * @mr: hotplug memory address space container
- */
-typedef struct MemoryHotplugState {
-    hwaddr base;
-    MemoryRegion mr;
-} MemoryHotplugState;
 
 uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
                                uint64_t address_space_size,

@@ -122,7 +122,7 @@ static void rtas_ibm_query_pe_dma_window(PowerPCCPU *cpu,
     if (machine->ram_size == machine->maxram_size) {
         max_window_size = machine->ram_size;
     } else {
-        MemoryHotplugState *hpms = &spapr->hotplug_memory;
+        MemoryHotplugState *hpms = machine->device_memory;
 
         max_window_size = hpms->base + memory_region_size(&hpms->mr);
     }
