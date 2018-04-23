@@ -125,7 +125,7 @@ static void test_single_job(int expected)
     JobTxn *txn;
     int result = -EINPROGRESS;
 
-    txn = block_job_txn_new();
+    txn = job_txn_new();
     job = test_block_job_start(1, true, expected, &result, txn);
     job_start(&job->job);
 
@@ -138,7 +138,7 @@ static void test_single_job(int expected)
     }
     g_assert_cmpint(result, ==, expected);
 
-    block_job_txn_unref(txn);
+    job_txn_unref(txn);
 }
 
 static void test_single_job_success(void)
@@ -164,7 +164,7 @@ static void test_pair_jobs(int expected1, int expected2)
     int result1 = -EINPROGRESS;
     int result2 = -EINPROGRESS;
 
-    txn = block_job_txn_new();
+    txn = job_txn_new();
     job1 = test_block_job_start(1, true, expected1, &result1, txn);
     job2 = test_block_job_start(2, true, expected2, &result2, txn);
     job_start(&job1->job);
@@ -173,7 +173,7 @@ static void test_pair_jobs(int expected1, int expected2)
     /* Release our reference now to trigger as many nice
      * use-after-free bugs as possible.
      */
-    block_job_txn_unref(txn);
+    job_txn_unref(txn);
 
     if (expected1 == -ECANCELED) {
         block_job_cancel(job1, false);
@@ -226,7 +226,7 @@ static void test_pair_jobs_fail_cancel_race(void)
     int result1 = -EINPROGRESS;
     int result2 = -EINPROGRESS;
 
-    txn = block_job_txn_new();
+    txn = job_txn_new();
     job1 = test_block_job_start(1, true, -ECANCELED, &result1, txn);
     job2 = test_block_job_start(2, false, 0, &result2, txn);
     job_start(&job1->job);
@@ -247,7 +247,7 @@ static void test_pair_jobs_fail_cancel_race(void)
     g_assert_cmpint(result1, ==, -ECANCELED);
     g_assert_cmpint(result2, ==, -ECANCELED);
 
-    block_job_txn_unref(txn);
+    job_txn_unref(txn);
 }
 
 int main(int argc, char **argv)

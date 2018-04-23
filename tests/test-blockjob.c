@@ -364,7 +364,7 @@ static void test_cancel_concluded(void)
     }
     assert(job->job.status == JOB_STATUS_PENDING);
 
-    block_job_finalize(job, &error_abort);
+    job_finalize(&job->job, &error_abort);
     assert(job->job.status == JOB_STATUS_CONCLUDED);
 
     cancel_common(s);

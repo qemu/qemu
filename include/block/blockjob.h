@@ -33,7 +33,6 @@
 #define BLOCK_JOB_SLICE_TIME 100000000ULL /* ns */
 
 typedef struct BlockJobDriver BlockJobDriver;
-typedef struct JobTxn JobTxn;
 
 /**
  * BlockJob:
@@ -84,8 +83,6 @@ typedef struct BlockJob {
 
     /** BlockDriverStates that are involved in this block job */
     GSList *nodes;
-
-    JobTxn *txn;
 } BlockJob;
 
 /**
@@ -151,22 +148,6 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
  * Asynchronously cancel the specified job.
  */
 void block_job_cancel(BlockJob *job, bool force);
-
-/**
- * block_job_finalize:
- * @job: The job to fully commit and finish.
- * @errp: Error object.
- *
- * For jobs that have finished their work and are pending
- * awaiting explicit acknowledgement to commit their work,
- * This will commit that work.
- *
- * FIXME: Make the below statement universally true:
- * For jobs that support the manual workflow mode, all graph
- * changes that occur as a result will occur after this command
- * and before a successful reply.
- */
-void block_job_finalize(BlockJob *job, Error **errp);
 
 /**
  * block_job_dismiss:
@@ -258,41 +239,6 @@ int block_job_complete_sync(BlockJob *job, Error **errp);
  * other than job->blk.
  */
 void block_job_iostatus_reset(BlockJob *job);
-
-/**
- * block_job_txn_new:
- *
- * Allocate and return a new block job transaction.  Jobs can be added to the
- * transaction using block_job_txn_add_job().
- *
- * The transaction is automatically freed when the last job completes or is
- * cancelled.
- *
- * All jobs in the transaction either complete successfully or fail/cancel as a
- * group.  Jobs wait for each other before completing.  Cancelling one job
- * cancels all jobs in the transaction.
- */
-JobTxn *block_job_txn_new(void);
-
-/**
- * block_job_txn_unref:
- *
- * Release a reference that was previously acquired with block_job_txn_add_job
- * or block_job_txn_new. If it's the last reference to the object, it will be
- * freed.
- */
-void block_job_txn_unref(JobTxn *txn);
-
-/**
- * block_job_txn_add_job:
- * @txn: The transaction (may be NULL)
- * @job: Job to add to the transaction
- *
- * Add @job to the transaction.  The @job must not already be in a transaction.
- * The caller must call either block_job_txn_unref() or block_job_completed()
- * to release the reference that is automatically grabbed here.
- */
-void block_job_txn_add_job(JobTxn *txn, BlockJob *job);
 
 /**
  * block_job_is_internal:

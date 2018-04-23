@@ -2255,7 +2255,7 @@ void qmp_transaction(TransactionActionList *dev_list,
      */
     props = get_transaction_properties(props);
     if (props->completion_mode != ACTION_COMPLETION_MODE_INDIVIDUAL) {
-        block_job_txn = block_job_txn_new();
+        block_job_txn = job_txn_new();
     }
 
     /* drain all i/o before any operations */
@@ -2314,7 +2314,7 @@ exit:
     if (!has_props) {
         qapi_free_TransactionProperties(props);
     }
-    block_job_txn_unref(block_job_txn);
+    job_txn_unref(block_job_txn);
 }
 
 void qmp_eject(bool has_device, const char *device,
@@ -3908,7 +3908,7 @@ void qmp_block_job_finalize(const char *id, Error **errp)
     }
 
     trace_qmp_block_job_finalize(job);
-    block_job_finalize(job, errp);
+    job_finalize(&job->job, errp);
     aio_context_release(aio_context);
 }
 

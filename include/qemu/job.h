@@ -32,6 +32,8 @@
 #include "block/aio.h"
 
 typedef struct JobDriver JobDriver;
+typedef struct JobTxn JobTxn;
+
 
 /**
  * Long-running operation.
@@ -133,6 +135,9 @@ typedef struct Job {
     /** Element of the list of jobs */
     QLIST_ENTRY(Job) job_list;
 
+    /** Transaction this job is part of */
+    JobTxn *txn;
+
     /** Element of the list of jobs in a job transaction */
     QLIST_ENTRY(Job) txn_list;
 } Job;
@@ -184,6 +189,16 @@ struct JobDriver {
     void (*drain)(Job *job);
 
     /**
+     * If the callback is not NULL, prepare will be invoked when all the jobs
+     * belonging to the same transaction complete; or upon this job's completion
+     * if it is not in a transaction.
+     *
+     * This callback will not be invoked if the job has already failed.
+     * If it fails, abort and then clean will be called.
+     */
+    int (*prepare)(Job *job);
+
+    /**
      * If the callback is not NULL, it will be invoked when all the jobs
      * belonging to the same transaction complete; or upon this job's
      * completion if it is not in a transaction. Skipped if NULL.
@@ -227,20 +242,52 @@ typedef enum JobCreateFlags {
     JOB_MANUAL_DISMISS = 0x04,
 } JobCreateFlags;
 
+/**
+ * Allocate and return a new job transaction. Jobs can be added to the
+ * transaction using job_txn_add_job().
+ *
+ * The transaction is automatically freed when the last job completes or is
+ * cancelled.
+ *
+ * All jobs in the transaction either complete successfully or fail/cancel as a
+ * group.  Jobs wait for each other before completing.  Cancelling one job
+ * cancels all jobs in the transaction.
+ */
+JobTxn *job_txn_new(void);
+
+/**
+ * Release a reference that was previously acquired with job_txn_add_job or
+ * job_txn_new. If it's the last reference to the object, it will be freed.
+ */
+void job_txn_unref(JobTxn *txn);
+
+/**
+ * @txn: The transaction (may be NULL)
+ * @job: Job to add to the transaction
+ *
+ * Add @job to the transaction.  The @job must not already be in a transaction.
+ * The caller must call either job_txn_unref() or block_job_completed() to
+ * release the reference that is automatically grabbed here.
+ *
+ * If @txn is NULL, the function does nothing.
+ */
+void job_txn_add_job(JobTxn *txn, Job *job);
 
 /**
  * Create a new long-running job and return it.
  *
  * @job_id: The id of the newly-created job, or %NULL for internal jobs
  * @driver: The class object for the newly-created job.
+ * @txn: The transaction this job belongs to, if any. %NULL otherwise.
  * @ctx: The AioContext to run the job coroutine in.
  * @flags: Creation flags for the job. See @JobCreateFlags.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
  * @errp: Error object.
  */
-void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
-                 int flags, BlockCompletionFunc *cb, void *opaque, Error **errp);
+void *job_create(const char *job_id, const JobDriver *driver, JobTxn *txn,
+                 AioContext *ctx, int flags, BlockCompletionFunc *cb,
+                 void *opaque, Error **errp);
 
 /**
  * Add a reference to Job refcnt, it will be decreased with job_unref, and then
@@ -259,9 +306,6 @@ void job_event_cancelled(Job *job);
 
 /** To be called when a successfully completed job is finalised. */
 void job_event_completed(Job *job);
-
-/** To be called when the job transitions to PENDING */
-void job_event_pending(Job *job);
 
 /**
  * Conditionally enter the job coroutine if the job is ready to run, not
@@ -375,6 +419,16 @@ void job_early_fail(Job *job);
 /** Asynchronously complete the specified @job. */
 void job_complete(Job *job, Error **errp);;
 
+/**
+ * For a @job that has finished its work and is pending awaiting explicit
+ * acknowledgement to commit its work, this will commit that work.
+ *
+ * FIXME: Make the below statement universally true:
+ * For jobs that support the manual workflow mode, all graph changes that occur
+ * as a result will occur after this command and before a successful reply.
+ */
+void job_finalize(Job *job, Error **errp);
+
 typedef void JobDeferToMainLoopFn(Job *job, void *opaque);
 
 /**
@@ -407,10 +461,9 @@ void coroutine_fn job_do_yield(Job *job, uint64_t ns);
 bool job_should_pause(Job *job);
 bool job_started(Job *job);
 void job_do_dismiss(Job *job);
-int job_finalize_single(Job *job);
 void job_update_rc(Job *job);
-
-typedef struct BlockJob BlockJob;
-void block_job_txn_del_job(BlockJob *job);
+void job_cancel_async(Job *job, bool force);
+void job_completed_txn_abort(Job *job);
+void job_completed_txn_success(Job *job);
 
 #endif
