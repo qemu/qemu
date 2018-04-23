@@ -1715,8 +1715,7 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    pc_dimm_memory_plug(dev, MACHINE(pcms)->device_memory, mr, align,
-                        &local_err);
+    pc_dimm_memory_plug(dev, MACHINE(pcms)->device_memory, align, &local_err);
     if (local_err) {
         goto out;
     }
@@ -1766,16 +1765,8 @@ static void pc_dimm_unplug(HotplugHandler *hotplug_dev,
                            DeviceState *dev, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
-    PCDIMMDevice *dimm = PC_DIMM(dev);
-    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
-    MemoryRegion *mr;
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
-
-    mr = ddc->get_memory_region(dimm, &local_err);
-    if (local_err) {
-        goto out;
-    }
 
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
     hhc->unplug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
@@ -1784,7 +1775,7 @@ static void pc_dimm_unplug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    pc_dimm_memory_unplug(dev, MACHINE(pcms)->device_memory, mr);
+    pc_dimm_memory_unplug(dev, MACHINE(pcms)->device_memory);
     object_unparent(OBJECT(dev));
 
  out:

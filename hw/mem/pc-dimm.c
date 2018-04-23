@@ -37,7 +37,7 @@ typedef struct pc_dimms_capacity {
 } pc_dimms_capacity;
 
 void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
-                         MemoryRegion *mr, uint64_t align, Error **errp)
+                         uint64_t align, Error **errp)
 {
     int slot;
     MachineState *machine = MACHINE(qdev_get_machine());
@@ -46,7 +46,13 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
     Error *local_err = NULL;
     uint64_t existing_dimms_capacity = 0;
+    MemoryRegion *mr;
     uint64_t addr;
+
+    mr = ddc->get_memory_region(dimm, &local_err);
+    if (local_err) {
+        goto out;
+    }
 
     addr = object_property_get_uint(OBJECT(dimm),
                                     PC_DIMM_ADDR_PROP, &local_err);
@@ -116,12 +122,12 @@ out:
     error_propagate(errp, local_err);
 }
 
-void pc_dimm_memory_unplug(DeviceState *dev, MemoryHotplugState *hpms,
-                           MemoryRegion *mr)
+void pc_dimm_memory_unplug(DeviceState *dev, MemoryHotplugState *hpms)
 {
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
+    MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
 
     memory_region_del_subregion(&hpms->mr, mr);
     vmstate_unregister_ram(vmstate_mr, dev);
