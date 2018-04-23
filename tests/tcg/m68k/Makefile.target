@@ -1,0 +1,7 @@
+# -*- Mode: makefile -*-
+#
+# m68k specific tweaks - specifically masking out broken tests
+#
+
+# On m68k Linux supports 4k and 8k pages (but 8k is currently broken)
+EXTRA_RUNS+=run-test-mmap-4096 # run-test-mmap-8192
