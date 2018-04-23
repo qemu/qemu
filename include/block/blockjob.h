@@ -82,6 +82,15 @@ typedef struct BlockJob {
     /** Block other operations when block job is running */
     Error *blocker;
 
+    /** Called when a cancelled job is finalised. */
+    Notifier finalize_cancelled_notifier;
+
+    /** Called when a successfully completed job is finalised. */
+    Notifier finalize_completed_notifier;
+
+    /** Called when the job transitions to PENDING */
+    Notifier pending_notifier;
+
     /** BlockDriverStates that are involved in this block job */
     GSList *nodes;
 

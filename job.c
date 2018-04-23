@@ -215,6 +215,10 @@ void *job_create(const char *job_id, const JobDriver *driver, AioContext *ctx,
     job->auto_finalize = !(flags & JOB_MANUAL_FINALIZE);
     job->auto_dismiss  = !(flags & JOB_MANUAL_DISMISS);
 
+    notifier_list_init(&job->on_finalize_cancelled);
+    notifier_list_init(&job->on_finalize_completed);
+    notifier_list_init(&job->on_pending);
+
     job_state_transition(job, JOB_STATUS_CREATED);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
                    QEMU_CLOCK_REALTIME, SCALE_NS,
@@ -245,6 +249,21 @@ void job_unref(Job *job)
         g_free(job->id);
         g_free(job);
     }
+}
+
+void job_event_cancelled(Job *job)
+{
+    notifier_list_notify(&job->on_finalize_cancelled, job);
+}
+
+void job_event_completed(Job *job)
+{
+    notifier_list_notify(&job->on_finalize_completed, job);
+}
+
+void job_event_pending(Job *job)
+{
+    notifier_list_notify(&job->on_pending, job);
 }
 
 void job_enter_cond(Job *job, bool(*fn)(Job *job))

@@ -36,10 +36,6 @@
 #include "qemu/coroutine.h"
 #include "qemu/timer.h"
 
-static void block_job_event_cancelled(BlockJob *job);
-static void block_job_event_completed(BlockJob *job, const char *msg);
-static void block_job_event_pending(BlockJob *job);
-
 /* Transactional group of block jobs */
 struct BlockJobTxn {
 
@@ -352,13 +348,9 @@ static int block_job_finalize_single(BlockJob *job)
     /* Emit events only if we actually started */
     if (job_started(&job->job)) {
         if (job_is_cancelled(&job->job)) {
-            block_job_event_cancelled(job);
+            job_event_cancelled(&job->job);
         } else {
-            const char *msg = NULL;
-            if (job->ret < 0) {
-                msg = strerror(-job->ret);
-            }
-            block_job_event_completed(job, msg);
+            job_event_completed(&job->job);
         }
     }
 
@@ -504,7 +496,7 @@ static int block_job_transition_to_pending(BlockJob *job)
 {
     job_state_transition(&job->job, JOB_STATUS_PENDING);
     if (!job->job.auto_finalize) {
-        block_job_event_pending(job);
+        job_event_pending(&job->job);
     }
     return 0;
 }
@@ -712,8 +704,10 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
     }
 }
 
-static void block_job_event_cancelled(BlockJob *job)
+static void block_job_event_cancelled(Notifier *n, void *opaque)
 {
+    BlockJob *job = opaque;
+
     if (block_job_is_internal(job)) {
         return;
     }
@@ -726,10 +720,17 @@ static void block_job_event_cancelled(BlockJob *job)
                                         &error_abort);
 }
 
-static void block_job_event_completed(BlockJob *job, const char *msg)
+static void block_job_event_completed(Notifier *n, void *opaque)
 {
+    BlockJob *job = opaque;
+    const char *msg = NULL;
+
     if (block_job_is_internal(job)) {
         return;
+    }
+
+    if (job->ret < 0) {
+        msg = strerror(-job->ret);
     }
 
     qapi_event_send_block_job_completed(job_type(&job->job),
@@ -742,8 +743,10 @@ static void block_job_event_completed(BlockJob *job, const char *msg)
                                         &error_abort);
 }
 
-static void block_job_event_pending(BlockJob *job)
+static void block_job_event_pending(Notifier *n, void *opaque)
 {
+    BlockJob *job = opaque;
+
     if (block_job_is_internal(job)) {
         return;
     }
@@ -798,6 +801,16 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->blk           = blk;
     job->cb            = cb;
     job->opaque        = opaque;
+
+    job->finalize_cancelled_notifier.notify = block_job_event_cancelled;
+    job->finalize_completed_notifier.notify = block_job_event_completed;
+    job->pending_notifier.notify = block_job_event_pending;
+
+    notifier_list_add(&job->job.on_finalize_cancelled,
+                      &job->finalize_cancelled_notifier);
+    notifier_list_add(&job->job.on_finalize_completed,
+                      &job->finalize_completed_notifier);
+    notifier_list_add(&job->job.on_pending, &job->pending_notifier);
 
     error_setg(&job->blocker, "block device is in use by block job: %s",
                job_type_str(&job->job));

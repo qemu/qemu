@@ -105,6 +105,15 @@ typedef struct Job {
     /** True if this job should automatically dismiss itself */
     bool auto_dismiss;
 
+    /** Notifiers called when a cancelled job is finalised */
+    NotifierList on_finalize_cancelled;
+
+    /** Notifiers called when a successfully completed job is finalised */
+    NotifierList on_finalize_completed;
+
+    /** Notifiers called when the job transitions to PENDING */
+    NotifierList on_pending;
+
     /** Element of the list of jobs */
     QLIST_ENTRY(Job) job_list;
 } Job;
@@ -181,6 +190,15 @@ void job_ref(Job *job);
  * job_create(). If it's the last reference to the object, it will be freed.
  */
 void job_unref(Job *job);
+
+/** To be called when a cancelled job is finalised. */
+void job_event_cancelled(Job *job);
+
+/** To be called when a successfully completed job is finalised. */
+void job_event_completed(Job *job);
+
+/** To be called when the job transitions to PENDING */
+void job_event_pending(Job *job);
 
 /**
  * Conditionally enter the job coroutine if the job is ready to run, not
