@@ -167,6 +167,12 @@ struct JobDriver {
      */
     void (*user_resume)(Job *job);
 
+    /**
+     * Optional callback for job types whose completion must be triggered
+     * manually.
+     */
+    void (*complete)(Job *job, Error **errp);
+
     /*
      * If the callback is not NULL, it will be invoked when the job has to be
      * synchronously cancelled or completed; it should drain any activities
@@ -363,6 +369,8 @@ int job_apply_verb(Job *job, JobVerb verb, Error **errp);
 /** The @job could not be started, free it. */
 void job_early_fail(Job *job);
 
+/** Asynchronously complete the specified @job. */
+void job_complete(Job *job, Error **errp);;
 
 typedef void JobDeferToMainLoopFn(Job *job, void *opaque);
 

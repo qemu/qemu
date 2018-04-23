@@ -3894,7 +3894,7 @@ void qmp_block_job_complete(const char *device, Error **errp)
     }
 
     trace_qmp_block_job_complete(job);
-    block_job_complete(job, errp);
+    job_complete(&job->job, errp);
     aio_context_release(aio_context);
 }
 

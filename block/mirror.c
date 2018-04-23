@@ -905,16 +905,16 @@ immediate_exit:
     job_defer_to_main_loop(&s->common.job, mirror_exit, data);
 }
 
-static void mirror_complete(BlockJob *job, Error **errp)
+static void mirror_complete(Job *job, Error **errp)
 {
-    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockDriverState *target;
 
     target = blk_bs(s->target);
 
     if (!s->synced) {
         error_setg(errp, "The active block job '%s' cannot be completed",
-                   job->job.id);
+                   job->id);
         return;
     }
 
@@ -995,8 +995,8 @@ static const BlockJobDriver mirror_job_driver = {
         .drain                  = block_job_drain,
         .start                  = mirror_run,
         .pause                  = mirror_pause,
+        .complete               = mirror_complete,
     },
-    .complete               = mirror_complete,
     .attached_aio_context   = mirror_attached_aio_context,
     .drain                  = mirror_drain,
 };
@@ -1010,8 +1010,8 @@ static const BlockJobDriver commit_active_job_driver = {
         .drain                  = block_job_drain,
         .start                  = mirror_run,
         .pause                  = mirror_pause,
+        .complete               = mirror_complete,
     },
-    .complete               = mirror_complete,
     .attached_aio_context   = mirror_attached_aio_context,
     .drain                  = mirror_drain,
 };

@@ -514,9 +514,9 @@ static void coroutine_fn test_job_start(void *opaque)
     job_defer_to_main_loop(&s->common.job, test_job_completed, NULL);
 }
 
-static void test_job_complete(BlockJob *job, Error **errp)
+static void test_job_complete(Job *job, Error **errp)
 {
-    TestBlockJob *s = container_of(job, TestBlockJob, common);
+    TestBlockJob *s = container_of(job, TestBlockJob, common.job);
     s->should_complete = true;
 }
 
@@ -527,8 +527,8 @@ BlockJobDriver test_job_driver = {
         .user_resume    = block_job_user_resume,
         .drain          = block_job_drain,
         .start          = test_job_start,
+        .complete       = test_job_complete,
     },
-    .complete       = test_job_complete,
 };
 
 static void test_blockjob_common(enum drain_type drain_type)

@@ -39,12 +39,6 @@ struct BlockJobDriver {
     JobDriver job_driver;
 
     /**
-     * Optional callback for job types whose completion must be triggered
-     * manually.
-     */
-    void (*complete)(BlockJob *job, Error **errp);
-
-    /**
      * If the callback is not NULL, prepare will be invoked when all the jobs
      * belonging to the same transaction complete; or upon this job's completion
      * if it is not in a transaction.

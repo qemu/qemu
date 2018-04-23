@@ -481,24 +481,6 @@ int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
     return ratelimit_calculate_delay(&job->limit, n);
 }
 
-void block_job_complete(BlockJob *job, Error **errp)
-{
-    /* Should not be reachable via external interface for internal jobs */
-    assert(job->job.id);
-    if (job_apply_verb(&job->job, JOB_VERB_COMPLETE, errp)) {
-        return;
-    }
-    if (job->job.pause_count || job_is_cancelled(&job->job) ||
-        !job->driver->complete)
-    {
-        error_setg(errp, "The active block job '%s' cannot be completed",
-                   job->job.id);
-        return;
-    }
-
-    job->driver->complete(job, errp);
-}
-
 void block_job_finalize(BlockJob *job, Error **errp)
 {
     assert(job && job->job.id);
@@ -569,6 +551,11 @@ void block_job_cancel_sync_all(void)
         block_job_cancel_sync(job);
         aio_context_release(aio_context);
     }
+}
+
+static void block_job_complete(BlockJob *job, Error **errp)
+{
+    job_complete(&job->job, errp);
 }
 
 int block_job_complete_sync(BlockJob *job, Error **errp)

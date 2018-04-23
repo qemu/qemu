@@ -556,6 +556,22 @@ int job_finalize_single(Job *job)
     return 0;
 }
 
+void job_complete(Job *job, Error **errp)
+{
+    /* Should not be reachable via external interface for internal jobs */
+    assert(job->id);
+    if (job_apply_verb(job, JOB_VERB_COMPLETE, errp)) {
+        return;
+    }
+    if (job->pause_count || job_is_cancelled(job) || !job->driver->complete) {
+        error_setg(errp, "The active block job '%s' cannot be completed",
+                   job->id);
+        return;
+    }
+
+    job->driver->complete(job, errp);
+}
+
 
 typedef struct {
     Job *job;

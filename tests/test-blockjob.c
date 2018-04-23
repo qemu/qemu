@@ -171,9 +171,9 @@ static void cancel_job_completed(Job *job, void *opaque)
     block_job_completed(bjob, 0);
 }
 
-static void cancel_job_complete(BlockJob *job, Error **errp)
+static void cancel_job_complete(Job *job, Error **errp)
 {
-    CancelJob *s = container_of(job, CancelJob, common);
+    CancelJob *s = container_of(job, CancelJob, common.job);
     s->should_complete = true;
 }
 
@@ -204,8 +204,8 @@ static const BlockJobDriver test_cancel_driver = {
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
         .start         = cancel_job_start,
+        .complete      = cancel_job_complete,
     },
-    .complete      = cancel_job_complete,
 };
 
 static CancelJob *create_common(BlockJob **pjob)
@@ -333,7 +333,7 @@ static void test_cancel_pending(void)
     block_job_enter(job);
     assert(job->job.status == JOB_STATUS_READY);
 
-    block_job_complete(job, &error_abort);
+    job_complete(&job->job, &error_abort);
     block_job_enter(job);
     while (!s->completed) {
         aio_poll(qemu_get_aio_context(), true);
@@ -357,7 +357,7 @@ static void test_cancel_concluded(void)
     block_job_enter(job);
     assert(job->job.status == JOB_STATUS_READY);
 
-    block_job_complete(job, &error_abort);
+    job_complete(&job->job, &error_abort);
     block_job_enter(job);
     while (!s->completed) {
         aio_poll(qemu_get_aio_context(), true);

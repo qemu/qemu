@@ -154,16 +154,6 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
 void block_job_cancel(BlockJob *job, bool force);
 
 /**
- * block_job_complete:
- * @job: The job to be completed.
- * @errp: Error object.
- *
- * Asynchronously complete the specified job.
- */
-void block_job_complete(BlockJob *job, Error **errp);
-
-
-/**
  * block_job_finalize:
  * @job: The job to fully commit and finish.
  * @errp: Error object.
