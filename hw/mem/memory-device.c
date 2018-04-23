@@ -243,6 +243,24 @@ uint64_t get_plugged_memory_size(void)
     return size;
 }
 
+void memory_device_plug_region(MachineState *ms, MemoryRegion *mr,
+                               uint64_t addr)
+{
+    /* we expect a previous call to memory_device_get_free_addr() */
+    g_assert(ms->device_memory);
+
+    memory_region_add_subregion(&ms->device_memory->mr,
+                                addr - ms->device_memory->base, mr);
+}
+
+void memory_device_unplug_region(MachineState *ms, MemoryRegion *mr)
+{
+    /* we expect a previous call to memory_device_get_free_addr() */
+    g_assert(ms->device_memory);
+
+    memory_region_del_subregion(&ms->device_memory->mr, mr);
+}
+
 static const TypeInfo memory_device_info = {
     .name          = TYPE_MEMORY_DEVICE,
     .parent        = TYPE_INTERFACE,

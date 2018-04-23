@@ -36,7 +36,6 @@ void pc_dimm_memory_plug(DeviceState *dev, MachineState *machine,
                          uint64_t align, Error **errp)
 {
     int slot;
-    MemoryHotplugState *hpms = machine->device_memory;
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
@@ -83,7 +82,7 @@ void pc_dimm_memory_plug(DeviceState *dev, MachineState *machine,
     }
     trace_mhp_pc_dimm_assigned_slot(slot);
 
-    memory_region_add_subregion(&hpms->mr, addr - hpms->base, mr);
+    memory_device_plug_region(machine, mr, addr);
     vmstate_register_ram(vmstate_mr, dev);
 
 out:
@@ -97,7 +96,7 @@ void pc_dimm_memory_unplug(DeviceState *dev, MachineState *machine)
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
     MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
 
-    memory_region_del_subregion(&machine->device_memory->mr, mr);
+    memory_device_unplug_region(machine, mr);
     vmstate_unregister_ram(vmstate_mr, dev);
 }
 
