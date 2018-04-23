@@ -15,6 +15,8 @@
 #include "qapi/error.h"
 #include "hw/boards.h"
 #include "qemu/range.h"
+#include "hw/virtio/vhost.h"
+#include "sysemu/kvm.h"
 
 static gint memory_device_addr_sort(gconstpointer a, gconstpointer b)
 {
@@ -48,6 +50,50 @@ static int memory_device_build_list(Object *obj, void *opaque)
     return 0;
 }
 
+static int memory_device_used_region_size(Object *obj, void *opaque)
+{
+    uint64_t *size = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_MEMORY_DEVICE)) {
+        const DeviceState *dev = DEVICE(obj);
+        const MemoryDeviceState *md = MEMORY_DEVICE(obj);
+        const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(obj);
+
+        if (dev->realized) {
+            *size += mdc->get_region_size(md);
+        }
+    }
+
+    object_child_foreach(obj, memory_device_used_region_size, opaque);
+    return 0;
+}
+
+static void memory_device_check_addable(MachineState *ms, uint64_t size,
+                                        Error **errp)
+{
+    uint64_t used_region_size = 0;
+
+    /* we will need a new memory slot for kvm and vhost */
+    if (kvm_enabled() && !kvm_has_free_slot(ms)) {
+        error_setg(errp, "hypervisor has no free memory slots left");
+        return;
+    }
+    if (!vhost_has_free_slot()) {
+        error_setg(errp, "a used vhost backend has no free memory slots left");
+        return;
+    }
+
+    /* will we exceed the total amount of memory specified */
+    memory_device_used_region_size(OBJECT(ms), &used_region_size);
+    if (used_region_size + size > ms->maxram_size - ms->ram_size) {
+        error_setg(errp, "not enough space, currently 0x%" PRIx64
+                   " in use of total hot pluggable 0x" RAM_ADDR_FMT,
+                   used_region_size, ms->maxram_size - ms->ram_size);
+        return;
+    }
+
+}
+
 uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
                                      uint64_t align, uint64_t size,
                                      Error **errp)
@@ -72,6 +118,11 @@ uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
                         memory_region_size(&ms->device_memory->mr);
     g_assert(QEMU_ALIGN_UP(address_space_start, align) == address_space_start);
     g_assert(address_space_end >= address_space_start);
+
+    memory_device_check_addable(ms, size, errp);
+    if (*errp) {
+        return 0;
+    }
 
     if (hint && QEMU_ALIGN_UP(*hint, align) != *hint) {
         error_setg(errp, "address must be aligned to 0x%" PRIx64 " bytes",
