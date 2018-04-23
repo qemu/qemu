@@ -2043,7 +2043,6 @@ int vm_stop(RunState state)
 int vm_prepare_start(void)
 {
     RunState requested;
-    int res = 0;
 
     qemu_vmstop_requested(&requested);
     if (runstate_is_running() && requested == RUN_STATE__MAX) {
@@ -2057,17 +2056,18 @@ int vm_prepare_start(void)
      */
     if (runstate_is_running()) {
         qapi_event_send_stop(&error_abort);
-        res = -1;
-    } else {
-        replay_enable_events();
-        cpu_enable_ticks();
-        runstate_set(RUN_STATE_RUNNING);
-        vm_state_notify(1, RUN_STATE_RUNNING);
+        qapi_event_send_resume(&error_abort);
+        return -1;
     }
 
     /* We are sending this now, but the CPUs will be resumed shortly later */
     qapi_event_send_resume(&error_abort);
-    return res;
+
+    replay_enable_events();
+    cpu_enable_ticks();
+    runstate_set(RUN_STATE_RUNNING);
+    vm_state_notify(1, RUN_STATE_RUNNING);
+    return 0;
 }
 
 void vm_start(void)
