@@ -1715,7 +1715,7 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    pc_dimm_memory_plug(dev, MACHINE(pcms)->device_memory, align, &local_err);
+    pc_dimm_memory_plug(dev, MACHINE(pcms), align, &local_err);
     if (local_err) {
         goto out;
     }
@@ -1775,7 +1775,7 @@ static void pc_dimm_unplug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    pc_dimm_memory_unplug(dev, MACHINE(pcms)->device_memory);
+    pc_dimm_memory_unplug(dev, MACHINE(pcms));
     object_unparent(OBJECT(dev));
 
  out:
