@@ -1,0 +1,6 @@
+# -*- Mode: makefile -*-
+#
+# Alpha specific tweaks
+
+# On Alpha Linux only supports 8k pages
+EXTRA_RUNS+=run-test-mmap-8192

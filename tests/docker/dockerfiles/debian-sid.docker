@@ -1,0 +1,32 @@
+#
+# Debian Sid Base
+#
+# A number of our guests exist as ports only. We can either use the
+# ports repo or get everything from Sid. However Sid is a rolling
+# distro which may be broken at any particular time. If you are
+# unlucky and try and build your images while gcc is in the process of
+# being uploaded this can fail. Your only recourse is to try again in
+# a few hours when the repos have re-synced. Once built however you
+# won't be affected by repo changes unless the docker recipies are
+# updated and trigger a re-build.
+#
+
+FROM debian:sid-slim
+
+# Duplicate deb line as deb-src
+RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
+
+# Install common build utilities
+RUN apt update
+RUN DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
+        bison \
+        build-essential \
+        ca-certificates \
+        flex \
+        git \
+        pkg-config \
+        psmisc \
+        python \
+        texinfo || { echo "Failed to build - see debian-sid.docker notes"; exit 1; }
