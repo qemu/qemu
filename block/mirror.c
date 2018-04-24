@@ -731,7 +731,7 @@ static void coroutine_fn mirror_run(void *opaque)
         block_job_event_ready(&s->common);
         s->synced = true;
         while (!job_is_cancelled(&s->common.job) && !s->should_complete) {
-            block_job_yield(&s->common);
+            job_yield(&s->common.job);
         }
         s->common.job.cancelled = false;
         goto immediate_exit;

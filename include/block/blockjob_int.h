@@ -108,14 +108,6 @@ void block_job_user_resume(Job *job);
 void block_job_drain(Job *job);
 
 /**
- * block_job_yield:
- * @job: The job that calls the function.
- *
- * Yield the block job coroutine.
- */
-void block_job_yield(BlockJob *job);
-
-/**
  * block_job_ratelimit_get_delay:
  *
  * Calculate and return delay for the next request in ns. See the documentation

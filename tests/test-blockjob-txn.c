@@ -47,7 +47,7 @@ static void coroutine_fn test_block_job_run(void *opaque)
         if (s->use_timer) {
             job_sleep_ns(&job->job, 0);
         } else {
-            block_job_yield(job);
+            job_yield(&job->job);
         }
 
         if (job_is_cancelled(&job->job)) {

@@ -226,7 +226,7 @@ static bool job_started(Job *job)
     return job->co;
 }
 
-bool job_should_pause(Job *job)
+static bool job_should_pause(Job *job)
 {
     return job->pause_count > 0;
 }
@@ -396,7 +396,7 @@ void job_enter(Job *job)
  *
  * If @ns is (uint64_t) -1, no timer is scheduled and job_enter() must be
  * called explicitly. */
-void coroutine_fn job_do_yield(Job *job, uint64_t ns)
+static void coroutine_fn job_do_yield(Job *job, uint64_t ns)
 {
     job_lock();
     if (ns != -1) {
@@ -439,6 +439,22 @@ void coroutine_fn job_pause_point(Job *job)
     if (job->driver->resume) {
         job->driver->resume(job);
     }
+}
+
+void job_yield(Job *job)
+{
+    assert(job->busy);
+
+    /* Check cancellation *before* setting busy = false, too!  */
+    if (job_is_cancelled(job)) {
+        return;
+    }
+
+    if (!job_should_pause(job)) {
+        job_do_yield(job, -1);
+    }
+
+    job_pause_point(job);
 }
 
 void coroutine_fn job_sleep_ns(Job *job, int64_t ns)

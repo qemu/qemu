@@ -444,7 +444,7 @@ static void coroutine_fn backup_run(void *opaque)
         while (!job_is_cancelled(&job->common.job)) {
             /* Yield until the job is cancelled.  We just let our before_write
              * notify callback service CoW requests. */
-            block_job_yield(&job->common);
+            job_yield(&job->common.job);
         }
     } else if (job->sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         ret = backup_run_incremental(job);
