@@ -26,9 +26,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUM68KState *state)
     return state->aregs[7];
 }
 
-void setup_frame(int sig, struct target_sigaction *ka,
-                 target_sigset_t *set, CPUM68KState *env);
-void setup_rt_frame(int sig, struct target_sigaction *ka,
-                    target_siginfo_t *info,
-                    target_sigset_t *set, CPUM68KState *env);
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* M68K_TARGET_SIGNAL_H */

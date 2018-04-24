@@ -47,4 +47,11 @@ void tswap_siginfo(target_siginfo_t *tinfo,
 void set_sigmask(const sigset_t *set);
 void force_sig(int sig);
 void force_sigsegv(int oldsig);
+#if defined(TARGET_ARCH_HAS_SETUP_FRAME)
+void setup_frame(int sig, struct target_sigaction *ka,
+                 target_sigset_t *set, CPUArchState *env);
+#endif
+void setup_rt_frame(int sig, struct target_sigaction *ka,
+                    target_siginfo_t *info,
+                    target_sigset_t *set, CPUArchState *env);
 #endif

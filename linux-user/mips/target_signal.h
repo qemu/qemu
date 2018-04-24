@@ -26,12 +26,8 @@ static inline abi_ulong get_sp_from_cpustate(CPUMIPSState *state)
     return state->active_tc.gpr[29];
 }
 
-# if defined(TARGET_ABI_MIPSO32)
+#if defined(TARGET_ABI_MIPSO32)
 /* compare linux/arch/mips/kernel/signal.c:setup_frame() */
-void setup_frame(int sig, struct target_sigaction * ka,
-                 target_sigset_t *set, CPUMIPSState *regs);
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif
-void setup_rt_frame(int sig, struct target_sigaction *ka,
-                    target_siginfo_t *info,
-                    target_sigset_t *set, CPUMIPSState *env);
 #endif /* MIPS_TARGET_SIGNAL_H */

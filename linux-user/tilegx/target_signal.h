@@ -24,8 +24,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUTLGState *state)
 {
     return state->regs[TILEGX_R_SP];
 }
-
-void setup_rt_frame(int sig, struct target_sigaction *ka,
-                    target_siginfo_t *info,
-                    target_sigset_t *set, CPUArchState *env);
 #endif /* TILEGX_TARGET_SIGNAL_H */

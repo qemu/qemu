@@ -873,18 +873,15 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
         }
 #endif
         /* prepare the stack frame of the virtual CPU */
-#if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64) \
-        || defined(TARGET_OPENRISC) || defined(TARGET_TILEGX) \
-        || defined(TARGET_PPC64) || defined(TARGET_HPPA) \
-        || defined(TARGET_NIOS2) || defined(TARGET_X86_64) \
-        || defined(TARGET_RISCV) || defined(TARGET_XTENSA)
+#if defined(TARGET_ARCH_HAS_SETUP_FRAME)
+        if (sa->sa_flags & TARGET_SA_SIGINFO) {
+            setup_rt_frame(sig, sa, &k->info, &target_old_set, cpu_env);
+        } else {
+            setup_frame(sig, sa, &target_old_set, cpu_env);
+        }
+#else
         /* These targets do not have traditional signals.  */
         setup_rt_frame(sig, sa, &k->info, &target_old_set, cpu_env);
-#else
-        if (sa->sa_flags & TARGET_SA_SIGINFO)
-            setup_rt_frame(sig, sa, &k->info, &target_old_set, cpu_env);
-        else
-            setup_frame(sig, sa, &target_old_set, cpu_env);
 #endif
         if (sa->sa_flags & TARGET_SA_RESETHAND) {
             sa->_sa_handler = TARGET_SIG_DFL;

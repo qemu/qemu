@@ -19,8 +19,4 @@ static inline abi_ulong get_sp_from_cpustate(CPURISCVState *state)
 {
    return state->gpr[xSP];
 }
-
-void setup_rt_frame(int sig, struct target_sigaction *ka,
-                    target_siginfo_t *info,
-                    target_sigset_t *set, CPURISCVState *env);
 #endif /* TARGET_SIGNAL_H */

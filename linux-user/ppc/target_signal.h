@@ -27,10 +27,6 @@ static inline abi_ulong get_sp_from_cpustate(CPUPPCState *state)
 }
 
 #if !defined(TARGET_PPC64)
-void setup_frame(int sig, struct target_sigaction *ka,
-                 target_sigset_t *set, CPUPPCState *env);
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif
-void setup_rt_frame(int sig, struct target_sigaction *ka,
-                    target_siginfo_t *info,
-                    target_sigset_t *set, CPUPPCState *env);
 #endif /* PPC_TARGET_SIGNAL_H */

@@ -26,9 +26,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUARMState *state)
    return state->xregs[31];
 }
 
-void setup_frame(int sig, struct target_sigaction *ka,
-                 target_sigset_t *set, CPUARMState *env);
-void setup_rt_frame(int sig, struct target_sigaction *ka,
-                    target_siginfo_t *info, target_sigset_t *set,
-                    CPUARMState *env);
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* AARCH64_TARGET_SIGNAL_H */
