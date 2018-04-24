@@ -25,4 +25,7 @@ static inline abi_ulong get_sp_from_cpustate(CPUXtensaState *state)
     return state->regs[1];
 }
 
+void setup_rt_frame(int sig, struct target_sigaction *ka,
+                    target_siginfo_t *info,
+                    target_sigset_t *set, CPUXtensaState *env);
 #endif
