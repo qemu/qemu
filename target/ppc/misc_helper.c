@@ -88,6 +88,18 @@ void helper_store_sdr1(CPUPPCState *env, target_ulong val)
     }
 }
 
+#if defined(TARGET_PPC64)
+void helper_store_ptcr(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    if (env->spr[SPR_PTCR] != val) {
+        ppc_store_ptcr(env, val);
+        tlb_flush(CPU(cpu));
+    }
+}
+#endif /* defined(TARGET_PPC64) */
+
 void helper_store_pidr(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
