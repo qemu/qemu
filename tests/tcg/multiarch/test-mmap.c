@@ -36,7 +36,7 @@
 do                                                             \
 {                                                              \
   if (!(x)) {                                                  \
-    fprintf (stderr, "FAILED at %s:%d\n", __FILE__, __LINE__); \
+    fprintf(stderr, "FAILED at %s:%d\n", __FILE__, __LINE__); \
     exit (EXIT_FAILURE);                                       \
   }                                                            \
 } while (0)
@@ -57,7 +57,7 @@ void check_aligned_anonymous_unfixed_mmaps(void)
 	uintptr_t p;
 	int i;
 
-	fprintf (stderr, "%s", __func__);
+	fprintf(stdout, "%s", __func__);
 	for (i = 0; i < 0x1fff; i++)
 	{
 		size_t len;
@@ -106,7 +106,7 @@ void check_aligned_anonymous_unfixed_mmaps(void)
 		munmap (p4, len);
 		munmap (p5, len);
 	}
-	fprintf (stderr, " passed\n");
+	fprintf(stdout, " passed\n");
 }
 
 void check_large_anonymous_unfixed_mmap(void)
@@ -115,7 +115,7 @@ void check_large_anonymous_unfixed_mmap(void)
 	uintptr_t p;
 	size_t len;
 
-	fprintf (stderr, "%s", __func__);
+	fprintf(stdout, "%s", __func__);
 
 	len = 0x02000000;
 	p1 = mmap(NULL, len, PROT_READ, 
@@ -130,7 +130,7 @@ void check_large_anonymous_unfixed_mmap(void)
 	/* Make sure we can read from the entire area.  */
 	memcpy (dummybuf, p1, pagesize);
 	munmap (p1, len);
-	fprintf (stderr, " passed\n");
+	fprintf(stdout, " passed\n");
 }
 
 void check_aligned_anonymous_unfixed_colliding_mmaps(void)
@@ -141,7 +141,7 @@ void check_aligned_anonymous_unfixed_colliding_mmaps(void)
 	uintptr_t p;
 	int i;
 
-	fprintf (stderr, "%s", __func__);
+	fprintf(stdout, "%s", __func__);
 	for (i = 0; i < 0x2fff; i++)
 	{
 		int nlen;
@@ -180,7 +180,7 @@ void check_aligned_anonymous_unfixed_colliding_mmaps(void)
 		munmap (p2, pagesize);
 		munmap (p3, nlen);
 	}
-	fprintf (stderr, " passed\n");
+	fprintf(stdout, " passed\n");
 }
 
 void check_aligned_anonymous_fixed_mmaps(void)
@@ -194,7 +194,7 @@ void check_aligned_anonymous_fixed_mmaps(void)
 	addr = mmap(NULL, pagesize * 40, PROT_READ | PROT_WRITE, 
 		    MAP_PRIVATE | MAP_ANONYMOUS,
 		    -1, 0);
-	fprintf (stderr, "%s addr=%p", __func__, addr);
+	fprintf(stdout, "%s addr=%p", __func__, addr);
 	fail_unless (addr != MAP_FAILED);
 
 	for (i = 0; i < 40; i++)
@@ -212,7 +212,7 @@ void check_aligned_anonymous_fixed_mmaps(void)
 		munmap (p1, pagesize);
 		addr += pagesize;
 	}
-	fprintf (stderr, " passed\n");
+	fprintf(stdout, " passed\n");
 }
 
 void check_aligned_anonymous_fixed_mmaps_collide_with_host(void)
@@ -225,8 +225,8 @@ void check_aligned_anonymous_fixed_mmaps_collide_with_host(void)
 	/* Find a suitable address to start with.  Right were the x86 hosts
 	 stack is.  */
 	addr = ((void *)0x80000000);
-	fprintf (stderr, "%s addr=%p", __func__, addr);
-	fprintf (stderr, "FIXME: QEMU fails to track pages used by the host.");
+	fprintf(stdout, "%s addr=%p", __func__, addr);
+	fprintf(stdout, "FIXME: QEMU fails to track pages used by the host.");
 
 	for (i = 0; i < 20; i++)
 	{
@@ -243,7 +243,7 @@ void check_aligned_anonymous_fixed_mmaps_collide_with_host(void)
 		munmap (p1, pagesize);
 		addr += pagesize;
 	}
-	fprintf (stderr, " passed\n");
+	fprintf(stdout, " passed\n");
 }
 
 void check_file_unfixed_mmaps(void)
@@ -252,7 +252,7 @@ void check_file_unfixed_mmaps(void)
 	uintptr_t p;
 	int i;
 
-	fprintf (stderr, "%s", __func__);
+	fprintf(stdout, "%s", __func__);
 	for (i = 0; i < 0x10; i++)
 	{
 		size_t len;
@@ -294,7 +294,7 @@ void check_file_unfixed_mmaps(void)
 		munmap (p2, len);
 		munmap (p3, len);
 	}
-	fprintf (stderr, " passed\n");
+	fprintf(stdout, " passed\n");
 }
 
 void check_file_unfixed_eof_mmaps(void)
@@ -304,7 +304,7 @@ void check_file_unfixed_eof_mmaps(void)
 	uintptr_t p;
 	int i;
 
-	fprintf (stderr, "%s", __func__);
+	fprintf(stdout, "%s", __func__);
 	for (i = 0; i < 0x10; i++)
 	{
 		p1 = mmap(NULL, pagesize, PROT_READ, 
@@ -327,7 +327,7 @@ void check_file_unfixed_eof_mmaps(void)
 		fail_unless (cp[pagesize - 4] == 0);
 		munmap (p1, pagesize);
 	}
-	fprintf (stderr, " passed\n");
+	fprintf(stdout, " passed\n");
 }
 
 void check_file_fixed_eof_mmaps(void)
@@ -343,7 +343,7 @@ void check_file_fixed_eof_mmaps(void)
 		    MAP_PRIVATE | MAP_ANONYMOUS,
 		    -1, 0);
 
-	fprintf (stderr, "%s addr=%p", __func__, (void *)addr);
+	fprintf(stdout, "%s addr=%p", __func__, (void *)addr);
 	fail_unless (addr != MAP_FAILED);
 
 	for (i = 0; i < 0x10; i++)
@@ -371,7 +371,7 @@ void check_file_fixed_eof_mmaps(void)
 		munmap (p1, pagesize);
 		addr += pagesize;
 	}
-	fprintf (stderr, " passed\n");
+	fprintf(stdout, " passed\n");
 }
 
 void check_file_fixed_mmaps(void)
@@ -384,7 +384,7 @@ void check_file_fixed_mmaps(void)
 	addr = mmap(NULL, pagesize * 40 * 4, PROT_READ, 
 		    MAP_PRIVATE | MAP_ANONYMOUS,
 		    -1, 0);
-	fprintf (stderr, "%s addr=%p", __func__, (void *)addr);
+	fprintf(stdout, "%s addr=%p", __func__, (void *)addr);
 	fail_unless (addr != MAP_FAILED);
 
 	for (i = 0; i < 40; i++)
@@ -426,7 +426,7 @@ void check_file_fixed_mmaps(void)
 		munmap (p4, pagesize);
 		addr += pagesize * 4;
 	}
-	fprintf (stderr, " passed\n");
+	fprintf(stdout, " passed\n");
 }
 
 void checked_write(int fd, const void *buf, size_t count)
