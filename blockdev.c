@@ -150,7 +150,7 @@ void blockdev_mark_auto_del(BlockBackend *blk)
         aio_context_acquire(aio_context);
 
         if (bs->job) {
-            block_job_cancel(bs->job, false);
+            job_cancel(&bs->job->job, false);
         }
 
         aio_context_release(aio_context);
@@ -1925,7 +1925,7 @@ static void drive_backup_abort(BlkActionState *common)
         aio_context = bdrv_get_aio_context(state->bs);
         aio_context_acquire(aio_context);
 
-        block_job_cancel_sync(state->job);
+        job_cancel_sync(&state->job->job);
 
         aio_context_release(aio_context);
     }
@@ -2023,7 +2023,7 @@ static void blockdev_backup_abort(BlkActionState *common)
         aio_context = bdrv_get_aio_context(state->bs);
         aio_context_acquire(aio_context);
 
-        block_job_cancel_sync(state->job);
+        job_cancel_sync(&state->job->job);
 
         aio_context_release(aio_context);
     }
@@ -3851,7 +3851,7 @@ void qmp_block_job_cancel(const char *device,
     }
 
     trace_qmp_block_job_cancel(job);
-    block_job_user_cancel(job, force, errp);
+    job_user_cancel(&job->job, force, errp);
 out:
     aio_context_release(aio_context);
 }

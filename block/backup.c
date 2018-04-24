@@ -319,10 +319,9 @@ typedef struct {
 
 static void backup_complete(Job *job, void *opaque)
 {
-    BlockJob *bjob = container_of(job, BlockJob, job);
     BackupCompleteData *data = opaque;
 
-    block_job_completed(bjob, data->ret);
+    job_completed(job, data->ret);
     g_free(data);
 }
 

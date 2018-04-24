@@ -34,7 +34,7 @@ static void test_block_job_complete(Job *job, void *opaque)
         rc = -ECANCELED;
     }
 
-    block_job_completed(bjob, rc);
+    job_completed(job, rc);
     bdrv_unref(bs);
 }
 
@@ -130,7 +130,7 @@ static void test_single_job(int expected)
     job_start(&job->job);
 
     if (expected == -ECANCELED) {
-        block_job_cancel(job, false);
+        job_cancel(&job->job, false);
     }
 
     while (result == -EINPROGRESS) {
@@ -176,10 +176,10 @@ static void test_pair_jobs(int expected1, int expected2)
     job_txn_unref(txn);
 
     if (expected1 == -ECANCELED) {
-        block_job_cancel(job1, false);
+        job_cancel(&job1->job, false);
     }
     if (expected2 == -ECANCELED) {
-        block_job_cancel(job2, false);
+        job_cancel(&job2->job, false);
     }
 
     while (result1 == -EINPROGRESS || result2 == -EINPROGRESS) {
@@ -232,13 +232,13 @@ static void test_pair_jobs_fail_cancel_race(void)
     job_start(&job1->job);
     job_start(&job2->job);
 
-    block_job_cancel(job1, false);
+    job_cancel(&job1->job, false);
 
     /* Now make job2 finish before the main loop kicks jobs.  This simulates
      * the race between a pending kick and another job completing.
      */
-    block_job_enter(job2);
-    block_job_enter(job2);
+    job_enter(&job2->job);
+    job_enter(&job2->job);
 
     while (result1 == -EINPROGRESS || result2 == -EINPROGRESS) {
         aio_poll(qemu_get_aio_context(), true);

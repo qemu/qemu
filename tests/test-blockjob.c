@@ -165,10 +165,9 @@ typedef struct CancelJob {
 
 static void cancel_job_completed(Job *job, void *opaque)
 {
-    BlockJob *bjob = container_of(job, BlockJob, job);
     CancelJob *s = opaque;
     s->completed = true;
-    block_job_completed(bjob, 0);
+    job_completed(job, 0);
 }
 
 static void cancel_job_complete(Job *job, Error **errp)
@@ -232,7 +231,7 @@ static void cancel_common(CancelJob *s)
     BlockBackend *blk = s->blk;
     JobStatus sts = job->job.status;
 
-    block_job_cancel_sync(job);
+    job_cancel_sync(&job->job);
     if (sts != JOB_STATUS_CREATED && sts != JOB_STATUS_CONCLUDED) {
         BlockJob *dummy = job;
         block_job_dismiss(&dummy, &error_abort);
@@ -275,7 +274,7 @@ static void test_cancel_paused(void)
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     job_user_pause(&job->job, &error_abort);
-    block_job_enter(job);
+    job_enter(&job->job);
     assert(job->job.status == JOB_STATUS_PAUSED);
 
     cancel_common(s);
@@ -292,7 +291,7 @@ static void test_cancel_ready(void)
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    block_job_enter(job);
+    job_enter(&job->job);
     assert(job->job.status == JOB_STATUS_READY);
 
     cancel_common(s);
@@ -309,11 +308,11 @@ static void test_cancel_standby(void)
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    block_job_enter(job);
+    job_enter(&job->job);
     assert(job->job.status == JOB_STATUS_READY);
 
     job_user_pause(&job->job, &error_abort);
-    block_job_enter(job);
+    job_enter(&job->job);
     assert(job->job.status == JOB_STATUS_STANDBY);
 
     cancel_common(s);
@@ -330,11 +329,11 @@ static void test_cancel_pending(void)
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    block_job_enter(job);
+    job_enter(&job->job);
     assert(job->job.status == JOB_STATUS_READY);
 
     job_complete(&job->job, &error_abort);
-    block_job_enter(job);
+    job_enter(&job->job);
     while (!s->completed) {
         aio_poll(qemu_get_aio_context(), true);
     }
@@ -354,11 +353,11 @@ static void test_cancel_concluded(void)
     assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    block_job_enter(job);
+    job_enter(&job->job);
     assert(job->job.status == JOB_STATUS_READY);
 
     job_complete(&job->job, &error_abort);
-    block_job_enter(job);
+    job_enter(&job->job);
     while (!s->completed) {
         aio_poll(qemu_get_aio_context(), true);
     }

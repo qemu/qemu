@@ -498,8 +498,7 @@ typedef struct TestBlockJob {
 
 static void test_job_completed(Job *job, void *opaque)
 {
-    BlockJob *bjob = container_of(job, BlockJob, job);
-    block_job_completed(bjob, 0);
+    job_completed(job, 0);
 }
 
 static void coroutine_fn test_job_start(void *opaque)
@@ -593,7 +592,7 @@ static void test_blockjob_common(enum drain_type drain_type)
     g_assert_false(job->job.paused);
     g_assert_false(job->job.busy); /* We're in job_sleep_ns() */
 
-    ret = block_job_complete_sync(job, &error_abort);
+    ret = job_complete_sync(&job->job, &error_abort);
     g_assert_cmpint(ret, ==, 0);
 
     blk_unref(blk_src);

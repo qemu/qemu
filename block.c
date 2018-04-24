@@ -3362,7 +3362,9 @@ static void bdrv_close(BlockDriverState *bs)
 
 void bdrv_close_all(void)
 {
-    block_job_cancel_sync_all();
+    /* TODO We do want to cancel all jobs instead of just block jobs on
+     * shutdown, but bdrv_close_all() isn't the right place any more. */
+    job_cancel_sync_all();
     nbd_export_close_all();
 
     /* Drop references from requests still in flight, such as canceled block

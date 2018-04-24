@@ -112,12 +112,12 @@ static void commit_complete(Job *job, void *opaque)
     blk_unref(s->top);
 
     /* If there is more than one reference to the job (e.g. if called from
-     * job_finish_sync()), block_job_completed() won't free it and therefore
-     * the blockers on the intermediate nodes remain. This would cause
+     * job_finish_sync()), job_completed() won't free it and therefore the
+     * blockers on the intermediate nodes remain. This would cause
      * bdrv_set_backing_hd() to fail. */
     block_job_remove_all_bdrv(bjob);
 
-    block_job_completed(&s->common, ret);
+    job_completed(job, ret);
     g_free(data);
 
     /* If bdrv_drop_intermediate() didn't already do that, remove the commit

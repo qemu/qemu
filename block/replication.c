@@ -145,7 +145,7 @@ static void replication_close(BlockDriverState *bs)
         replication_stop(s->rs, false, NULL);
     }
     if (s->stage == BLOCK_REPLICATION_FAILOVER) {
-        block_job_cancel_sync(s->active_disk->bs->job);
+        job_cancel_sync(&s->active_disk->bs->job->job);
     }
 
     if (s->mode == REPLICATION_MODE_SECONDARY) {
@@ -681,7 +681,7 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
          * disk, secondary disk in backup_job_completed().
          */
         if (s->secondary_disk->bs->job) {
-            block_job_cancel_sync(s->secondary_disk->bs->job);
+            job_cancel_sync(&s->secondary_disk->bs->job->job);
         }
 
         if (!failover) {

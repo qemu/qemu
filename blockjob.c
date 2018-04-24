@@ -255,63 +255,6 @@ void block_job_dismiss(BlockJob **jobptr, Error **errp)
     *jobptr = NULL;
 }
 
-void block_job_cancel(BlockJob *job, bool force)
-{
-    if (job->job.status == JOB_STATUS_CONCLUDED) {
-        job_do_dismiss(&job->job);
-        return;
-    }
-    job_cancel_async(&job->job, force);
-    if (!job_started(&job->job)) {
-        block_job_completed(job, -ECANCELED);
-    } else if (job->job.deferred_to_main_loop) {
-        job_completed_txn_abort(&job->job);
-    } else {
-        block_job_enter(job);
-    }
-}
-
-void block_job_user_cancel(BlockJob *job, bool force, Error **errp)
-{
-    if (job_apply_verb(&job->job, JOB_VERB_CANCEL, errp)) {
-        return;
-    }
-    block_job_cancel(job, force);
-}
-
-/* A wrapper around block_job_cancel() taking an Error ** parameter so it may be
- * used with job_finish_sync() without the need for (rather nasty) function
- * pointer casts there. */
-static void block_job_cancel_err(Job *job, Error **errp)
-{
-    BlockJob *bjob = container_of(job, BlockJob, job);
-    assert(is_block_job(job));
-    block_job_cancel(bjob, false);
-}
-
-int block_job_cancel_sync(BlockJob *job)
-{
-    return job_finish_sync(&job->job, &block_job_cancel_err, NULL);
-}
-
-void block_job_cancel_sync_all(void)
-{
-    BlockJob *job;
-    AioContext *aio_context;
-
-    while ((job = block_job_next(NULL))) {
-        aio_context = blk_get_aio_context(job->blk);
-        aio_context_acquire(aio_context);
-        block_job_cancel_sync(job);
-        aio_context_release(aio_context);
-    }
-}
-
-int block_job_complete_sync(BlockJob *job, Error **errp)
-{
-    return job_finish_sync(&job->job, job_complete, errp);
-}
-
 void block_job_progress_update(BlockJob *job, uint64_t done)
 {
     job->offset += done;
@@ -486,25 +429,6 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     }
 
     return job;
-}
-
-void block_job_completed(BlockJob *job, int ret)
-{
-    assert(job && job->job.txn && !job_is_completed(&job->job));
-    assert(blk_bs(job->blk)->job == job);
-    job->job.ret = ret;
-    job_update_rc(&job->job);
-    trace_block_job_completed(job, ret, job->job.ret);
-    if (job->job.ret) {
-        job_completed_txn_abort(&job->job);
-    } else {
-        job_completed_txn_success(&job->job);
-    }
-}
-
-void block_job_enter(BlockJob *job)
-{
-    job_enter_cond(&job->job, NULL);
 }
 
 void block_job_yield(BlockJob *job)

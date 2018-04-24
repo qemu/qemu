@@ -74,8 +74,8 @@ typedef struct Job {
 
     /**
      * Set to false by the job while the coroutine has yielded and may be
-     * re-entered by block_job_enter().  There may still be I/O or event loop
-     * activity pending.  Accessed under block_job_mutex (in blockjob.c).
+     * re-entered by job_enter(). There may still be I/O or event loop activity
+     * pending. Accessed under block_job_mutex (in blockjob.c).
      */
     bool busy;
 
@@ -114,7 +114,7 @@ typedef struct Job {
     /** True if this job should automatically dismiss itself */
     bool auto_dismiss;
 
-    /** ret code passed to block_job_completed. */
+    /** ret code passed to job_completed. */
     int ret;
 
     /** The completion function that will be called when the job completes.  */
@@ -266,8 +266,8 @@ void job_txn_unref(JobTxn *txn);
  * @job: Job to add to the transaction
  *
  * Add @job to the transaction.  The @job must not already be in a transaction.
- * The caller must call either job_txn_unref() or block_job_completed() to
- * release the reference that is automatically grabbed here.
+ * The caller must call either job_txn_unref() or job_completed() to release
+ * the reference that is automatically grabbed here.
  *
  * If @txn is NULL, the function does nothing.
  */
@@ -416,8 +416,59 @@ int job_apply_verb(Job *job, JobVerb verb, Error **errp);
 /** The @job could not be started, free it. */
 void job_early_fail(Job *job);
 
+/**
+ * @job: The job being completed.
+ * @ret: The status code.
+ *
+ * Marks @job as completed. If @ret is non-zero, the job transaction it is part
+ * of is aborted. If @ret is zero, the job moves into the WAITING state. If it
+ * is the last job to complete in its transaction, all jobs in the transaction
+ * move from WAITING to PENDING.
+ */
+void job_completed(Job *job, int ret);
+
 /** Asynchronously complete the specified @job. */
-void job_complete(Job *job, Error **errp);;
+void job_complete(Job *job, Error **errp);
+
+/**
+ * Asynchronously cancel the specified @job. If @force is true, the job should
+ * be cancelled immediately without waiting for a consistent state.
+ */
+void job_cancel(Job *job, bool force);
+
+/**
+ * Cancels the specified job like job_cancel(), but may refuse to do so if the
+ * operation isn't meaningful in the current state of the job.
+ */
+void job_user_cancel(Job *job, bool force, Error **errp);
+
+/**
+ * Synchronously cancel the @job.  The completion callback is called
+ * before the function returns.  The job may actually complete
+ * instead of canceling itself; the circumstances under which this
+ * happens depend on the kind of job that is active.
+ *
+ * Returns the return value from the job if the job actually completed
+ * during the call, or -ECANCELED if it was canceled.
+ */
+int job_cancel_sync(Job *job);
+
+/** Synchronously cancels all jobs using job_cancel_sync(). */
+void job_cancel_sync_all(void);
+
+/**
+ * @job: The job to be completed.
+ * @errp: Error object which may be set by job_complete(); this is not
+ *        necessarily set on every error, the job return value has to be
+ *        checked as well.
+ *
+ * Synchronously complete the job.  The completion callback is called before the
+ * function returns, unless it is NULL (which is permissible when using this
+ * function).
+ *
+ * Returns the return value from the job.
+ */
+int job_complete_sync(Job *job, Error **errp);
 
 /**
  * For a @job that has finished its work and is pending awaiting explicit
@@ -459,11 +510,6 @@ int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
 void job_state_transition(Job *job, JobStatus s1);
 void coroutine_fn job_do_yield(Job *job, uint64_t ns);
 bool job_should_pause(Job *job);
-bool job_started(Job *job);
 void job_do_dismiss(Job *job);
-void job_update_rc(Job *job);
-void job_cancel_async(Job *job, bool force);
-void job_completed_txn_abort(Job *job);
-void job_completed_txn_success(Job *job);
 
 #endif

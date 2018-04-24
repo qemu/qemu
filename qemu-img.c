@@ -869,7 +869,7 @@ static void run_block_job(BlockJob *job, Error **errp)
     } while (!job->ready && !job_is_completed(&job->job));
 
     if (!job_is_completed(&job->job)) {
-        ret = block_job_complete_sync(job, errp);
+        ret = job_complete_sync(&job->job, errp);
     } else {
         ret = job->job.ret;
     }

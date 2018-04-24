@@ -93,7 +93,7 @@ out:
     }
 
     g_free(s->backing_file_str);
-    block_job_completed(&s->common, data->ret);
+    job_completed(job, data->ret);
     g_free(data);
 }
 

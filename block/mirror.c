@@ -498,7 +498,7 @@ static void mirror_exit(Job *job, void *opaque)
     bdrv_release_dirty_bitmap(src, s->dirty_bitmap);
 
     /* Make sure that the source BDS doesn't go away before we called
-     * block_job_completed(). */
+     * job_completed(). */
     bdrv_ref(src);
     bdrv_ref(mirror_top_bs);
     bdrv_ref(target_bs);
@@ -581,7 +581,7 @@ static void mirror_exit(Job *job, void *opaque)
     blk_set_perm(bjob->blk, 0, BLK_PERM_ALL, &error_abort);
     blk_insert_bs(bjob->blk, mirror_top_bs, &error_abort);
 
-    block_job_completed(&s->common, data->ret);
+    job_completed(job, data->ret);
 
     g_free(data);
     bdrv_drained_end(src);
@@ -954,7 +954,7 @@ static void mirror_complete(Job *job, Error **errp)
     }
 
     s->should_complete = true;
-    block_job_enter(&s->common);
+    job_enter(job);
 }
 
 static void mirror_pause(Job *job)

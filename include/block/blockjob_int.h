@@ -124,24 +124,6 @@ void block_job_yield(BlockJob *job);
 int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n);
 
 /**
- * block_job_completed:
- * @job: The job being completed.
- * @ret: The status code.
- *
- * Call the completion function that was registered at creation time, and
- * free @job.
- */
-void block_job_completed(BlockJob *job, int ret);
-
-/**
- * block_job_enter:
- * @job: The job to enter.
- *
- * Continue the specified job by entering the coroutine.
- */
-void block_job_enter(BlockJob *job);
-
-/**
  * block_job_event_ready:
  * @job: The job which is now ready to be completed.
  *

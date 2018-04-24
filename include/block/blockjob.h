@@ -141,15 +141,6 @@ void block_job_remove_all_bdrv(BlockJob *job);
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
 
 /**
- * block_job_cancel:
- * @job: The job to be canceled.
- * @force: Quit a job without waiting for data to be in sync.
- *
- * Asynchronously cancel the specified job.
- */
-void block_job_cancel(BlockJob *job, bool force);
-
-/**
  * block_job_dismiss:
  * @job: The job to be dismissed.
  * @errp: Error object.
@@ -184,52 +175,6 @@ void block_job_progress_set_remaining(BlockJob *job, uint64_t remaining);
  * Return information about a job.
  */
 BlockJobInfo *block_job_query(BlockJob *job, Error **errp);
-
-/**
- * block_job_user_cancel:
- * @job: The job to be cancelled.
- * @force: Quit a job without waiting for data to be in sync.
- *
- * Cancels the specified job, but may refuse to do so if the
- * operation isn't currently meaningful.
- */
-void block_job_user_cancel(BlockJob *job, bool force, Error **errp);
-
-/**
- * block_job_cancel_sync:
- * @job: The job to be canceled.
- *
- * Synchronously cancel the job.  The completion callback is called
- * before the function returns.  The job may actually complete
- * instead of canceling itself; the circumstances under which this
- * happens depend on the kind of job that is active.
- *
- * Returns the return value from the job if the job actually completed
- * during the call, or -ECANCELED if it was canceled.
- */
-int block_job_cancel_sync(BlockJob *job);
-
-/**
- * block_job_cancel_sync_all:
- *
- * Synchronously cancels all jobs using block_job_cancel_sync().
- */
-void block_job_cancel_sync_all(void);
-
-/**
- * block_job_complete_sync:
- * @job: The job to be completed.
- * @errp: Error object which may be set by block_job_complete(); this is not
- *        necessarily set on every error, the job return value has to be
- *        checked as well.
- *
- * Synchronously complete the job.  The completion callback is called before the
- * function returns, unless it is NULL (which is permissible when using this
- * function).
- *
- * Returns the return value from the job.
- */
-int block_job_complete_sync(BlockJob *job, Error **errp);
 
 /**
  * block_job_iostatus_reset:
