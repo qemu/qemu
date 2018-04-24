@@ -251,7 +251,11 @@ static void raw_probe_alignment(BlockDriverState *bs, Error **errp)
                          &dg.Geometry.BytesPerSector,
                          &freeClusters, &totalClusters);
         bs->bl.request_alignment = dg.Geometry.BytesPerSector;
+        return;
     }
+
+    /* XXX Does Windows support AIO on less than 512-byte alignment? */
+    bs->bl.request_alignment = 512;
 }
 
 static void raw_parse_flags(int flags, bool use_aio, int *access_flags,
@@ -410,32 +414,32 @@ fail:
     return ret;
 }
 
-static BlockAIOCB *raw_aio_readv(BlockDriverState *bs,
-                         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-                         BlockCompletionFunc *cb, void *opaque)
+static BlockAIOCB *raw_aio_preadv(BlockDriverState *bs,
+                                  uint64_t offset, uint64_t bytes,
+                                  QEMUIOVector *qiov, int flags,
+                                  BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
     if (s->aio) {
-        return win32_aio_submit(bs, s->aio, s->hfile, sector_num, qiov,
-                                nb_sectors, cb, opaque, QEMU_AIO_READ);
+        return win32_aio_submit(bs, s->aio, s->hfile, offset, bytes, qiov,
+                                cb, opaque, QEMU_AIO_READ);
     } else {
-        return paio_submit(bs, s->hfile, sector_num << BDRV_SECTOR_BITS, qiov,
-                           nb_sectors << BDRV_SECTOR_BITS,
+        return paio_submit(bs, s->hfile, offset, qiov, bytes,
                            cb, opaque, QEMU_AIO_READ);
     }
 }
 
-static BlockAIOCB *raw_aio_writev(BlockDriverState *bs,
-                          int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-                          BlockCompletionFunc *cb, void *opaque)
+static BlockAIOCB *raw_aio_pwritev(BlockDriverState *bs,
+                                   uint64_t offset, uint64_t bytes,
+                                   QEMUIOVector *qiov, int flags,
+                                   BlockCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
     if (s->aio) {
-        return win32_aio_submit(bs, s->aio, s->hfile, sector_num, qiov,
-                                nb_sectors, cb, opaque, QEMU_AIO_WRITE);
+        return win32_aio_submit(bs, s->aio, s->hfile, offset, bytes, qiov,
+                                cb, opaque, QEMU_AIO_WRITE);
     } else {
-        return paio_submit(bs, s->hfile, sector_num << BDRV_SECTOR_BITS, qiov,
-                           nb_sectors << BDRV_SECTOR_BITS,
+        return paio_submit(bs, s->hfile, offset, qiov, bytes,
                            cb, opaque, QEMU_AIO_WRITE);
     }
 }
@@ -632,8 +636,8 @@ BlockDriver bdrv_file = {
     .bdrv_co_create_opts = raw_co_create_opts,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
 
-    .bdrv_aio_readv     = raw_aio_readv,
-    .bdrv_aio_writev    = raw_aio_writev,
+    .bdrv_aio_preadv    = raw_aio_preadv,
+    .bdrv_aio_pwritev   = raw_aio_pwritev,
     .bdrv_aio_flush     = raw_aio_flush,
 
     .bdrv_truncate	= raw_truncate,
@@ -706,6 +710,12 @@ static void hdev_parse_filename(const char *filename, QDict *options,
                                 Error **errp)
 {
     bdrv_parse_filename_strip_prefix(filename, "host_device:", options);
+}
+
+static void hdev_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    /* XXX Does Windows support AIO on less than 512-byte alignment? */
+    bs->bl.request_alignment = 512;
 }
 
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
@@ -793,9 +803,10 @@ static BlockDriver bdrv_host_device = {
     .bdrv_probe_device	= hdev_probe_device,
     .bdrv_file_open	= hdev_open,
     .bdrv_close		= raw_close,
+    .bdrv_refresh_limits = hdev_refresh_limits,
 
-    .bdrv_aio_readv     = raw_aio_readv,
-    .bdrv_aio_writev    = raw_aio_writev,
+    .bdrv_aio_preadv    = raw_aio_preadv,
+    .bdrv_aio_pwritev   = raw_aio_pwritev,
     .bdrv_aio_flush     = raw_aio_flush,
 
     .bdrv_detach_aio_context = raw_detach_aio_context,

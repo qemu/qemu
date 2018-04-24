@@ -57,7 +57,7 @@ void win32_aio_cleanup(QEMUWin32AIOState *aio);
 int win32_aio_attach(QEMUWin32AIOState *aio, HANDLE hfile);
 BlockAIOCB *win32_aio_submit(BlockDriverState *bs,
         QEMUWin32AIOState *aio, HANDLE hfile,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        uint64_t offset, uint64_t bytes, QEMUIOVector *qiov,
         BlockCompletionFunc *cb, void *opaque, int type);
 void win32_aio_detach_aio_context(QEMUWin32AIOState *aio,
                                   AioContext *old_context);
