@@ -62,6 +62,7 @@ PCI devices (other than virtio):
 1b36:000a  PCI-PCI bridge (multiseat)
 1b36:000b  PCIe Expander Bridge (-device pxb-pcie)
 1b36:000d  PCI xhci usb host adapter
+1b36:000f  mdpy (mdev sample device), linux/samples/vfio-mdev/mdpy.c
 
 All these devices are documented in docs/specs.
 
