@@ -102,6 +102,9 @@ void ppc_hash64_finalize(PowerPCCPU *cpu);
 
 static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
 {
+    if (cpu->vhyp) {
+        return 0;
+    }
     return cpu->env.spr[SPR_SDR1] & SDR_64_HTABORG;
 }
 
