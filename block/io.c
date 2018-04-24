@@ -925,31 +925,14 @@ static int coroutine_fn bdrv_driver_preadv(BlockDriverState *bs,
         return drv->bdrv_co_preadv(bs, offset, bytes, qiov, flags);
     }
 
-    /* FIXME - no need to calculate these if .bdrv_aio_preadv exists */
-    sector_num = offset >> BDRV_SECTOR_BITS;
-    nb_sectors = bytes >> BDRV_SECTOR_BITS;
-
-    if (!drv->bdrv_aio_preadv) {
-        assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
-        assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
-        assert((bytes >> BDRV_SECTOR_BITS) <= BDRV_REQUEST_MAX_SECTORS);
-    }
-
-    if (drv->bdrv_co_readv) {
-        return drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
-    } else {
+    if (drv->bdrv_aio_preadv) {
         BlockAIOCB *acb;
         CoroutineIOCompletion co = {
             .coroutine = qemu_coroutine_self(),
         };
 
-        if (drv->bdrv_aio_preadv) {
-            acb = drv->bdrv_aio_preadv(bs, offset, bytes, qiov, flags,
-                                       bdrv_co_io_em_complete, &co);
-        } else {
-            acb = drv->bdrv_aio_readv(bs, sector_num, qiov, nb_sectors,
-                                      bdrv_co_io_em_complete, &co);
-        }
+        acb = drv->bdrv_aio_preadv(bs, offset, bytes, qiov, flags,
+                                   bdrv_co_io_em_complete, &co);
         if (acb == NULL) {
             return -EIO;
         } else {
@@ -957,6 +940,16 @@ static int coroutine_fn bdrv_driver_preadv(BlockDriverState *bs,
             return co.ret;
         }
     }
+
+    sector_num = offset >> BDRV_SECTOR_BITS;
+    nb_sectors = bytes >> BDRV_SECTOR_BITS;
+
+    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes >> BDRV_SECTOR_BITS) <= BDRV_REQUEST_MAX_SECTORS);
+    assert(drv->bdrv_co_readv);
+
+    return drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
 }
 
 static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
@@ -981,45 +974,40 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
         goto emulate_flags;
     }
 
-    /* FIXME - no need to calculate these if .bdrv_aio_pwritev exists */
-    sector_num = offset >> BDRV_SECTOR_BITS;
-    nb_sectors = bytes >> BDRV_SECTOR_BITS;
-
-    if (!drv->bdrv_aio_pwritev) {
-        assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
-        assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
-        assert((bytes >> BDRV_SECTOR_BITS) <= BDRV_REQUEST_MAX_SECTORS);
-    }
-
-    if (drv->bdrv_co_writev_flags) {
-        ret = drv->bdrv_co_writev_flags(bs, sector_num, nb_sectors, qiov,
-                                        flags & bs->supported_write_flags);
-        flags &= ~bs->supported_write_flags;
-    } else if (drv->bdrv_co_writev) {
-        assert(!bs->supported_write_flags);
-        ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
-    } else {
+    if (drv->bdrv_aio_pwritev) {
         BlockAIOCB *acb;
         CoroutineIOCompletion co = {
             .coroutine = qemu_coroutine_self(),
         };
 
-        if (drv->bdrv_aio_pwritev) {
-            acb = drv->bdrv_aio_pwritev(bs, offset, bytes, qiov,
-                                        flags & bs->supported_write_flags,
-                                        bdrv_co_io_em_complete, &co);
-            flags &= ~bs->supported_write_flags;
-        } else {
-            assert(!bs->supported_write_flags);
-            acb = drv->bdrv_aio_writev(bs, sector_num, qiov, nb_sectors,
-                                       bdrv_co_io_em_complete, &co);
-        }
+        acb = drv->bdrv_aio_pwritev(bs, offset, bytes, qiov,
+                                    flags & bs->supported_write_flags,
+                                    bdrv_co_io_em_complete, &co);
+        flags &= ~bs->supported_write_flags;
         if (acb == NULL) {
             ret = -EIO;
         } else {
             qemu_coroutine_yield();
             ret = co.ret;
         }
+        goto emulate_flags;
+    }
+
+    sector_num = offset >> BDRV_SECTOR_BITS;
+    nb_sectors = bytes >> BDRV_SECTOR_BITS;
+
+    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert((bytes >> BDRV_SECTOR_BITS) <= BDRV_REQUEST_MAX_SECTORS);
+
+    if (drv->bdrv_co_writev_flags) {
+        ret = drv->bdrv_co_writev_flags(bs, sector_num, nb_sectors, qiov,
+                                        flags & bs->supported_write_flags);
+        flags &= ~bs->supported_write_flags;
+    } else {
+        assert(drv->bdrv_co_writev);
+        assert(!bs->supported_write_flags);
+        ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
     }
 
 emulate_flags:
