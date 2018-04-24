@@ -169,20 +169,6 @@ void block_job_sleep_ns(BlockJob *job, int64_t ns);
 void block_job_yield(BlockJob *job);
 
 /**
- * block_job_pause_all:
- *
- * Asynchronously pause all jobs.
- */
-void block_job_pause_all(void);
-
-/**
- * block_job_resume_all:
- *
- * Resume all block jobs.  Must be paired with a preceding block_job_pause_all.
- */
-void block_job_resume_all(void);
-
-/**
  * block_job_early_fail:
  * @bs: The block device.
  *
