@@ -26,5 +26,9 @@ static inline abi_ulong get_sp_from_cpustate(CPUCRISState *state)
     return state->regs[14];
 }
 
-
+void setup_frame(int sig, struct target_sigaction *ka,
+                 target_sigset_t *set, CPUCRISState *env);
+void setup_rt_frame(int sig, struct target_sigaction *ka,
+                    target_siginfo_t *info,
+                     target_sigset_t *set, CPUCRISState *env);
 #endif /* CRIS_TARGET_SIGNAL_H */
