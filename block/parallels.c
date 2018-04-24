@@ -311,13 +311,15 @@ static int coroutine_fn parallels_co_block_status(BlockDriverState *bs,
 }
 
 static coroutine_fn int parallels_co_writev(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
+                                            int64_t sector_num, int nb_sectors,
+                                            QEMUIOVector *qiov, int flags)
 {
     BDRVParallelsState *s = bs->opaque;
     uint64_t bytes_done = 0;
     QEMUIOVector hd_qiov;
     int ret = 0;
 
+    assert(!flags);
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
     while (nb_sectors > 0) {

@@ -2614,13 +2614,15 @@ static void sd_aio_complete(SheepdogAIOCB *acb)
 }
 
 static coroutine_fn int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
-                        int nb_sectors, QEMUIOVector *qiov)
+                                     int nb_sectors, QEMUIOVector *qiov,
+                                     int flags)
 {
     SheepdogAIOCB acb;
     int ret;
     int64_t offset = (sector_num + nb_sectors) * BDRV_SECTOR_SIZE;
     BDRVSheepdogState *s = bs->opaque;
 
+    assert(!flags);
     if (offset > s->inode.vdi_size) {
         ret = sd_truncate(bs, offset, PREALLOC_MODE_OFF, NULL);
         if (ret < 0) {

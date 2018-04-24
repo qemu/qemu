@@ -556,8 +556,8 @@ static inline bool iscsi_allocmap_is_valid(IscsiLun *iscsilun,
 }
 
 static int coroutine_fn
-iscsi_co_writev_flags(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
-                      QEMUIOVector *iov, int flags)
+iscsi_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+                QEMUIOVector *iov, int flags)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct IscsiTask iTask;
@@ -2220,7 +2220,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_co_pdiscard      = iscsi_co_pdiscard,
     .bdrv_co_pwrite_zeroes = iscsi_co_pwrite_zeroes,
     .bdrv_co_readv         = iscsi_co_readv,
-    .bdrv_co_writev_flags  = iscsi_co_writev_flags,
+    .bdrv_co_writev        = iscsi_co_writev,
     .bdrv_co_flush_to_disk = iscsi_co_flush,
 
 #ifdef __linux__
@@ -2255,7 +2255,7 @@ static BlockDriver bdrv_iser = {
     .bdrv_co_pdiscard      = iscsi_co_pdiscard,
     .bdrv_co_pwrite_zeroes = iscsi_co_pwrite_zeroes,
     .bdrv_co_readv         = iscsi_co_readv,
-    .bdrv_co_writev_flags  = iscsi_co_writev_flags,
+    .bdrv_co_writev        = iscsi_co_writev,
     .bdrv_co_flush_to_disk = iscsi_co_flush,
 
 #ifdef __linux__

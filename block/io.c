@@ -1000,15 +1000,10 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert((bytes >> BDRV_SECTOR_BITS) <= BDRV_REQUEST_MAX_SECTORS);
 
-    if (drv->bdrv_co_writev_flags) {
-        ret = drv->bdrv_co_writev_flags(bs, sector_num, nb_sectors, qiov,
-                                        flags & bs->supported_write_flags);
-        flags &= ~bs->supported_write_flags;
-    } else {
-        assert(drv->bdrv_co_writev);
-        assert(!bs->supported_write_flags);
-        ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
-    }
+    assert(drv->bdrv_co_writev);
+    ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov,
+                              flags & bs->supported_write_flags);
+    flags &= ~bs->supported_write_flags;
 
 emulate_flags:
     if (ret == 0 && (flags & BDRV_REQ_FUA)) {

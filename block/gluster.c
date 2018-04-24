@@ -1194,8 +1194,10 @@ static coroutine_fn int qemu_gluster_co_readv(BlockDriverState *bs,
 static coroutine_fn int qemu_gluster_co_writev(BlockDriverState *bs,
                                                int64_t sector_num,
                                                int nb_sectors,
-                                               QEMUIOVector *qiov)
+                                               QEMUIOVector *qiov,
+                                               int flags)
 {
+    assert(!flags);
     return qemu_gluster_co_rw(bs, sector_num, nb_sectors, qiov, 1);
 }
 

@@ -720,7 +720,8 @@ static coroutine_fn int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
 }
 
 static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
-                          int nb_sectors, QEMUIOVector *qiov)
+                                       int nb_sectors, QEMUIOVector *qiov,
+                                       int flags)
 {
     BDRVQcowState *s = bs->opaque;
     int index_in_cluster;
@@ -731,6 +732,7 @@ static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
     uint8_t *buf;
     void *orig_buf;
 
+    assert(!flags);
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
     /* We must always copy the iov when encrypting, so we
@@ -1110,7 +1112,7 @@ qcow_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
         ret = qcow_co_writev(bs, offset >> BDRV_SECTOR_BITS,
-                             bytes >> BDRV_SECTOR_BITS, qiov);
+                             bytes >> BDRV_SECTOR_BITS, qiov, 0);
         if (ret < 0) {
             goto fail;
         }
