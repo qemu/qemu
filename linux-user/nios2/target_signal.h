@@ -23,4 +23,8 @@ static inline abi_ulong get_sp_from_cpustate(CPUNios2State *state)
     return state->regs[R_SP];
 }
 
+void setup_rt_frame(int sig, struct target_sigaction *ka,
+                    target_siginfo_t *info,
+                    target_sigset_t *set,
+                    CPUNios2State *env);
 #endif /* TARGET_SIGNAL_H */
