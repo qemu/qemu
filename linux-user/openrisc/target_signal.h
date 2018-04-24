@@ -23,5 +23,7 @@ static inline abi_ulong get_sp_from_cpustate(CPUOpenRISCState *state)
     return cpu_get_gpr(state, 1);
 }
 
-
+void setup_rt_frame(int sig, struct target_sigaction *ka,
+                    target_siginfo_t *info,
+                    target_sigset_t *set, CPUOpenRISCState *env);
 #endif /* OPENRISC_TARGET_SIGNAL_H */
