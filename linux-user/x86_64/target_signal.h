@@ -26,4 +26,7 @@ static inline abi_ulong get_sp_from_cpustate(CPUX86State *state)
     return state->regs[R_ESP];
 }
 
+void setup_rt_frame(int sig, struct target_sigaction *ka,
+                    target_siginfo_t *info,
+                    target_sigset_t *set, CPUX86State *env);
 #endif /* X86_64_TARGET_SIGNAL_H */
