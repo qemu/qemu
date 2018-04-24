@@ -25,8 +25,9 @@
 #include "qemu-common.h"
 #include "target_signal.h"
 #include "trace.h"
+#include "signal-common.h"
 
-static struct target_sigaltstack target_sigaltstack_used = {
+struct target_sigaltstack target_sigaltstack_used = {
     .ss_sp = 0,
     .ss_size = 0,
     .ss_flags = TARGET_SS_DISABLE,
@@ -82,18 +83,6 @@ static uint8_t host_to_target_signal_table[_NSIG] = {
 };
 static uint8_t target_to_host_signal_table[_NSIG];
 
-static inline int on_sig_stack(unsigned long sp)
-{
-    return (sp - target_sigaltstack_used.ss_sp
-            < target_sigaltstack_used.ss_size);
-}
-
-static inline int sas_ss_flags(unsigned long sp)
-{
-    return (target_sigaltstack_used.ss_size == 0 ? SS_DISABLE
-            : on_sig_stack(sp) ? SS_ONSTACK : 0);
-}
-
 int host_to_target_signal(int sig)
 {
     if (sig < 0 || sig >= _NSIG)
@@ -106,11 +95,6 @@ int target_to_host_signal(int sig)
     if (sig < 0 || sig >= _NSIG)
         return sig;
     return target_to_host_signal_table[sig];
-}
-
-static inline void target_sigemptyset(target_sigset_t *set)
-{
-    memset(set, 0, sizeof(*set));
 }
 
 static inline void target_sigaddset(target_sigset_t *set, int signum)
@@ -127,8 +111,8 @@ static inline int target_sigismember(const target_sigset_t *set, int signum)
     return ((set->sig[signum / TARGET_NSIG_BPW] & mask) != 0);
 }
 
-static void host_to_target_sigset_internal(target_sigset_t *d,
-                                           const sigset_t *s)
+void host_to_target_sigset_internal(target_sigset_t *d,
+                                    const sigset_t *s)
 {
     int i;
     target_sigemptyset(d);
@@ -149,8 +133,8 @@ void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
         d->sig[i] = tswapal(d1.sig[i]);
 }
 
-static void target_to_host_sigset_internal(sigset_t *d,
-                                           const target_sigset_t *s)
+void target_to_host_sigset_internal(sigset_t *d,
+                                    const target_sigset_t *s)
 {
     int i;
     sigemptyset(d);
@@ -257,7 +241,7 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
 /* Just set the guest's signal mask to the specified value; the
  * caller is assumed to have called block_signals() already.
  */
-static void set_sigmask(const sigset_t *set)
+void set_sigmask(const sigset_t *set)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
 
@@ -344,8 +328,8 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
     tinfo->si_code = deposit32(si_code, 16, 16, si_type);
 }
 
-static void tswap_siginfo(target_siginfo_t *tinfo,
-                          const target_siginfo_t *info)
+void tswap_siginfo(target_siginfo_t *tinfo,
+                   const target_siginfo_t *info)
 {
     int si_type = extract32(info->si_code, 16, 16);
     int si_code = sextract32(info->si_code, 0, 16);
@@ -515,7 +499,7 @@ void signal_init(void)
  * also forces the signal to "not blocked, not ignored", but for QEMU
  * that work is done in process_pending_signals().
  */
-static void force_sig(int sig)
+void force_sig(int sig)
 {
     CPUState *cpu = thread_cpu;
     CPUArchState *env = cpu->env_ptr;
@@ -534,7 +518,7 @@ static void force_sig(int sig)
  * at the point of failure.
  */
 #if !defined(TARGET_RISCV)
-static void force_sigsegv(int oldsig)
+void force_sigsegv(int oldsig)
 {
     if (oldsig == SIGSEGV) {
         /* Make sure we don't try to deliver the signal again; this will
@@ -7301,9 +7285,6 @@ badframe:
     force_sig(TARGET_SIGSEGV);
     return -TARGET_QEMU_ESIGRETURN;
 }
-
-#else
-#error Target needs to add support for signal handling
 #endif
 
 static void handle_pending_signal(CPUArchState *cpu_env, int sig,
