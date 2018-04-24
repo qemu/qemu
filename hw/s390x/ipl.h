@@ -87,7 +87,17 @@ int s390_ipl_set_loadparm(uint8_t *loadparm);
 void s390_ipl_update_diag308(IplParameterBlock *iplb);
 void s390_ipl_prepare_cpu(S390CPU *cpu);
 IplParameterBlock *s390_ipl_get_iplb(void);
-void s390_reipl_request(void);
+
+enum s390_reset {
+    /* default is a reset not triggered by a CPU e.g. issued by QMP */
+    S390_RESET_EXTERNAL = 0,
+    S390_RESET_REIPL,
+    S390_RESET_MODIFIED_CLEAR,
+    S390_RESET_LOAD_NORMAL,
+};
+void s390_ipl_reset_request(CPUState *cs, enum s390_reset reset_type);
+void s390_ipl_get_reset_request(CPUState **cs, enum s390_reset *reset_type);
+void s390_ipl_clear_reset_request(void);
 
 #define QIPL_ADDRESS  0xcc
 
@@ -129,9 +139,11 @@ struct S390IPLState {
     bool enforce_bios;
     IplParameterBlock iplb;
     bool iplb_valid;
-    bool reipl_requested;
     bool netboot;
     QemuIplParameters qipl;
+    /* reset related properties don't have to be migrated or reset */
+    enum s390_reset reset_type;
+    int reset_cpu_index;
 
     /*< public >*/
     char *kernel;
