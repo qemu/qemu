@@ -242,19 +242,6 @@ int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
     return ratelimit_calculate_delay(&job->limit, n);
 }
 
-void block_job_dismiss(BlockJob **jobptr, Error **errp)
-{
-    BlockJob *job = *jobptr;
-    /* similarly to _complete, this is QMP-interface only. */
-    assert(job->job.id);
-    if (job_apply_verb(&job->job, JOB_VERB_DISMISS, errp)) {
-        return;
-    }
-
-    job_do_dismiss(&job->job);
-    *jobptr = NULL;
-}
-
 void block_job_progress_update(BlockJob *job, uint64_t done)
 {
     job->offset += done;

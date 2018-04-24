@@ -3915,14 +3915,16 @@ void qmp_block_job_finalize(const char *id, Error **errp)
 void qmp_block_job_dismiss(const char *id, Error **errp)
 {
     AioContext *aio_context;
-    BlockJob *job = find_block_job(id, &aio_context, errp);
+    BlockJob *bjob = find_block_job(id, &aio_context, errp);
+    Job *job;
 
-    if (!job) {
+    if (!bjob) {
         return;
     }
 
-    trace_qmp_block_job_dismiss(job);
-    block_job_dismiss(&job, errp);
+    trace_qmp_block_job_dismiss(bjob);
+    job = &bjob->job;
+    job_dismiss(&job, errp);
     aio_context_release(aio_context);
 }
 

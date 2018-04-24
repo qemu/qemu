@@ -141,15 +141,6 @@ void block_job_remove_all_bdrv(BlockJob *job);
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
 
 /**
- * block_job_dismiss:
- * @job: The job to be dismissed.
- * @errp: Error object.
- *
- * Remove a concluded job from the query list.
- */
-void block_job_dismiss(BlockJob **job, Error **errp);
-
-/**
  * block_job_progress_update:
  * @job: The job that has made progress
  * @done: How much progress the job made

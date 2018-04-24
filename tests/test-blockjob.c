@@ -233,8 +233,8 @@ static void cancel_common(CancelJob *s)
 
     job_cancel_sync(&job->job);
     if (sts != JOB_STATUS_CREATED && sts != JOB_STATUS_CONCLUDED) {
-        BlockJob *dummy = job;
-        block_job_dismiss(&dummy, &error_abort);
+        Job *dummy = &job->job;
+        job_dismiss(&dummy, &error_abort);
     }
     assert(job->job.status == JOB_STATUS_NULL);
     job_unref(&job->job);

@@ -568,7 +568,7 @@ void job_user_resume(Job *job, Error **errp)
     job_resume(job);
 }
 
-void job_do_dismiss(Job *job)
+static void job_do_dismiss(Job *job)
 {
     assert(job);
     job->busy = false;
@@ -579,6 +579,19 @@ void job_do_dismiss(Job *job)
 
     job_state_transition(job, JOB_STATUS_NULL);
     job_unref(job);
+}
+
+void job_dismiss(Job **jobptr, Error **errp)
+{
+    Job *job = *jobptr;
+    /* similarly to _complete, this is QMP-interface only. */
+    assert(job->id);
+    if (job_apply_verb(job, JOB_VERB_DISMISS, errp)) {
+        return;
+    }
+
+    job_do_dismiss(job);
+    *jobptr = NULL;
 }
 
 void job_early_fail(Job *job)
