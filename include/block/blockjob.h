@@ -49,11 +49,6 @@ typedef struct BlockJob {
     /** The block device on which the job is operating.  */
     BlockBackend *blk;
 
-    /**
-     * Set to true when the job is ready to be completed.
-     */
-    bool ready;
-
     /** Status that is published by the query-block-jobs QMP API */
     BlockDeviceIoStatus iostatus;
 

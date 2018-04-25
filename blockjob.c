@@ -269,7 +269,7 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->offset    = job->offset;
     info->speed     = job->speed;
     info->io_status = job->iostatus;
-    info->ready     = job->ready;
+    info->ready     = job_is_ready(&job->job),
     info->status    = job->job.status;
     info->auto_finalize = job->job.auto_finalize;
     info->auto_dismiss  = job->job.auto_dismiss;
@@ -436,7 +436,6 @@ void block_job_user_resume(Job *job)
 void block_job_event_ready(BlockJob *job)
 {
     job_state_transition(&job->job, JOB_STATUS_READY);
-    job->ready = true;
 
     if (block_job_is_internal(job)) {
         return;

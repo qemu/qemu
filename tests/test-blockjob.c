@@ -185,7 +185,7 @@ static void coroutine_fn cancel_job_start(void *opaque)
             goto defer;
         }
 
-        if (!s->common.ready && s->should_converge) {
+        if (!job_is_ready(&s->common.job) && s->should_converge) {
             block_job_event_ready(&s->common);
         }
 
