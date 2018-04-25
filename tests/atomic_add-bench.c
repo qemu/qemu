@@ -8,6 +8,7 @@ struct thread_info {
 } QEMU_ALIGNED(64);
 
 struct count {
+    QemuMutex lock;
     unsigned long val;
 } QEMU_ALIGNED(64);
 
@@ -18,11 +19,13 @@ static unsigned int n_ready_threads;
 static struct count *counts;
 static unsigned int duration = 1;
 static unsigned int range = 1024;
+static bool use_mutex;
 static bool test_start;
 static bool test_stop;
 
 static const char commands_string[] =
     " -n = number of threads\n"
+    " -m = use mutexes instead of atomic increments\n"
     " -d = duration in seconds\n"
     " -r = range (will be rounded up to pow2)";
 
@@ -59,7 +62,13 @@ static void *thread_func(void *arg)
 
         info->r = xorshift64star(info->r);
         index = info->r & (range - 1);
-        atomic_inc(&counts[index].val);
+        if (use_mutex) {
+            qemu_mutex_lock(&counts[index].lock);
+            counts[index].val += 1;
+            qemu_mutex_unlock(&counts[index].lock);
+        } else {
+            atomic_inc(&counts[index].val);
+        }
     }
     return NULL;
 }
@@ -91,6 +100,9 @@ static void create_threads(void)
     th_info = g_new(struct thread_info, n_threads);
     counts = qemu_memalign(64, sizeof(*counts) * range);
     memset(counts, 0, sizeof(*counts) * range);
+    for (i = 0; i < range; i++) {
+        qemu_mutex_init(&counts[i].lock);
+    }
 
     for (i = 0; i < n_threads; i++) {
         struct thread_info *info = &th_info[i];
@@ -131,7 +143,7 @@ static void parse_args(int argc, char *argv[])
     int c;
 
     for (;;) {
-        c = getopt(argc, argv, "hd:n:r:");
+        c = getopt(argc, argv, "hd:n:mr:");
         if (c < 0) {
             break;
         }
@@ -144,6 +156,9 @@ static void parse_args(int argc, char *argv[])
             break;
         case 'n':
             n_threads = atoi(optarg);
+            break;
+        case 'm':
+            use_mutex = true;
             break;
         case 'r':
             range = pow2ceil(atoi(optarg));
