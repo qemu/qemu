@@ -86,6 +86,8 @@ typedef struct XenPhysmap {
     QLIST_ENTRY(XenPhysmap) list;
 } XenPhysmap;
 
+static QLIST_HEAD(, XenPhysmap) xen_physmap;
+
 typedef struct XenIOState {
     ioservid_t ioservid;
     shared_iopage_t *shared_page;
@@ -107,7 +109,6 @@ typedef struct XenIOState {
     MemoryListener memory_listener;
     MemoryListener io_listener;
     DeviceListener device_listener;
-    QLIST_HEAD(, XenPhysmap) physmap;
     hwaddr free_phys_offset;
     const XenPhysmap *log_for_dirtybit;
 
@@ -274,14 +275,13 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr,
     g_free(pfn_list);
 }
 
-static XenPhysmap *get_physmapping(XenIOState *state,
-                                   hwaddr start_addr, ram_addr_t size)
+static XenPhysmap *get_physmapping(hwaddr start_addr, ram_addr_t size)
 {
     XenPhysmap *physmap = NULL;
 
     start_addr &= TARGET_PAGE_MASK;
 
-    QLIST_FOREACH(physmap, &state->physmap, list) {
+    QLIST_FOREACH(physmap, &xen_physmap, list) {
         if (range_covers_byte(physmap->start_addr, physmap->size, start_addr)) {
             return physmap;
         }
@@ -289,23 +289,21 @@ static XenPhysmap *get_physmapping(XenIOState *state,
     return NULL;
 }
 
-#ifdef XEN_COMPAT_PHYSMAP
-static hwaddr xen_phys_offset_to_gaddr(hwaddr start_addr,
-                                                   ram_addr_t size, void *opaque)
+static hwaddr xen_phys_offset_to_gaddr(hwaddr phys_offset, ram_addr_t size)
 {
-    hwaddr addr = start_addr & TARGET_PAGE_MASK;
-    XenIOState *xen_io_state = opaque;
+    hwaddr addr = phys_offset & TARGET_PAGE_MASK;
     XenPhysmap *physmap = NULL;
 
-    QLIST_FOREACH(physmap, &xen_io_state->physmap, list) {
+    QLIST_FOREACH(physmap, &xen_physmap, list) {
         if (range_covers_byte(physmap->phys_offset, physmap->size, addr)) {
-            return physmap->start_addr;
+            return physmap->start_addr + (phys_offset - physmap->phys_offset);
         }
     }
 
-    return start_addr;
+    return phys_offset;
 }
 
+#ifdef XEN_COMPAT_PHYSMAP
 static int xen_save_physmap(XenIOState *state, XenPhysmap *physmap)
 {
     char path[80], value[17];
@@ -355,7 +353,7 @@ static int xen_add_to_physmap(XenIOState *state,
     hwaddr phys_offset = memory_region_get_ram_addr(mr);
     const char *mr_name;
 
-    if (get_physmapping(state, start_addr, size)) {
+    if (get_physmapping(start_addr, size)) {
         return 0;
     }
     if (size <= 0) {
@@ -384,7 +382,7 @@ go_physmap:
     physmap->name = mr_name;
     physmap->phys_offset = phys_offset;
 
-    QLIST_INSERT_HEAD(&state->physmap, physmap, list);
+    QLIST_INSERT_HEAD(&xen_physmap, physmap, list);
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         /* Now when we have a physmap entry we can replace a dummy mapping with
@@ -428,7 +426,7 @@ static int xen_remove_from_physmap(XenIOState *state,
     XenPhysmap *physmap = NULL;
     hwaddr phys_offset = 0;
 
-    physmap = get_physmapping(state, start_addr, size);
+    physmap = get_physmapping(start_addr, size);
     if (physmap == NULL) {
         return -1;
     }
@@ -597,7 +595,7 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
     int rc, i, j;
     const XenPhysmap *physmap = NULL;
 
-    physmap = get_physmapping(state, start_addr, size);
+    physmap = get_physmapping(start_addr, size);
     if (physmap == NULL) {
         /* not handled */
         return;
@@ -1222,7 +1220,7 @@ static void xen_read_physmap(XenIOState *state)
                 xen_domid, entries[i]);
         physmap->name = xs_read(state->xenstore, 0, path, &len);
 
-        QLIST_INSERT_HEAD(&state->physmap, physmap, list);
+        QLIST_INSERT_HEAD(&xen_physmap, physmap, list);
     }
     free(entries);
 }
@@ -1374,7 +1372,6 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 
     state->memory_listener = xen_memory_listener;
-    QLIST_INIT(&state->physmap);
     memory_listener_register(&state->memory_listener, &address_space_memory);
     state->log_for_dirtybit = NULL;
 
@@ -1390,6 +1387,8 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
         goto err;
     }
     xen_be_register_common();
+
+    QLIST_INIT(&xen_physmap);
     xen_read_physmap(state);
 
     /* Disable ACPI build because Xen handles it */
@@ -1460,6 +1459,8 @@ void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
     if (unlikely(xen_in_migration)) {
         int rc;
         ram_addr_t start_pfn, nb_pages;
+
+        start = xen_phys_offset_to_gaddr(start, length);
 
         if (length == 0) {
             length = TARGET_PAGE_SIZE;
