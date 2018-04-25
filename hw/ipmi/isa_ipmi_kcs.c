@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/ipmi/ipmi.h"
@@ -422,24 +423,69 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(isadev, &iik->kcs.io, iik->kcs.io_base);
 }
 
-const VMStateDescription vmstate_ISAIPMIKCSDevice = {
+static int ipmi_kcs_vmstate_post_load(void *opaque, int version)
+{
+    IPMIKCS *ik = opaque;
+
+    /* Make sure all the values are sane. */
+    if (ik->outpos >= MAX_IPMI_MSG_SIZE || ik->outlen >= MAX_IPMI_MSG_SIZE ||
+        ik->outpos >= ik->outlen) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "ipmi:kcs: vmstate transfer received bad out values: %d %d\n",
+                      ik->outpos, ik->outlen);
+        ik->outpos = 0;
+        ik->outlen = 0;
+    }
+
+    if (ik->inlen >= MAX_IPMI_MSG_SIZE) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "ipmi:kcs: vmstate transfer received bad in value: %d\n",
+                      ik->inlen);
+        ik->inlen = 0;
+    }
+
+    return 0;
+}
+
+static bool vmstate_kcs_before_version2(void *opaque, int version)
+{
+    return version <= 1;
+}
+
+static const VMStateDescription vmstate_IPMIKCS = {
+    .name = TYPE_IPMI_INTERFACE_PREFIX "kcs",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .post_load = ipmi_kcs_vmstate_post_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_BOOL(obf_irq_set, IPMIKCS),
+        VMSTATE_BOOL(atn_irq_set, IPMIKCS),
+        VMSTATE_UNUSED_TEST(vmstate_kcs_before_version2, 1), /* Was use_irq */
+        VMSTATE_BOOL(irqs_enabled, IPMIKCS),
+        VMSTATE_UINT32(outpos, IPMIKCS),
+        VMSTATE_UINT32_V(outlen, IPMIKCS, 2),
+        VMSTATE_UINT8_ARRAY(outmsg, IPMIKCS, MAX_IPMI_MSG_SIZE),
+        VMSTATE_UINT32_V(inlen, IPMIKCS, 2),
+        VMSTATE_UINT8_ARRAY(inmsg, IPMIKCS, MAX_IPMI_MSG_SIZE),
+        VMSTATE_BOOL(write_end, IPMIKCS),
+        VMSTATE_UINT8(status_reg, IPMIKCS),
+        VMSTATE_UINT8(data_out_reg, IPMIKCS),
+        VMSTATE_INT16(data_in_reg, IPMIKCS),
+        VMSTATE_INT16(cmd_reg, IPMIKCS),
+        VMSTATE_UINT8(waiting_rsp, IPMIKCS),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_ISAIPMIKCSDevice = {
     .name = TYPE_IPMI_INTERFACE,
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields      = (VMStateField[]) {
-        VMSTATE_BOOL(kcs.obf_irq_set, ISAIPMIKCSDevice),
-        VMSTATE_BOOL(kcs.atn_irq_set, ISAIPMIKCSDevice),
-        VMSTATE_BOOL(kcs.use_irq, ISAIPMIKCSDevice),
-        VMSTATE_BOOL(kcs.irqs_enabled, ISAIPMIKCSDevice),
-        VMSTATE_UINT32(kcs.outpos, ISAIPMIKCSDevice),
-        VMSTATE_UINT8_ARRAY(kcs.outmsg, ISAIPMIKCSDevice, MAX_IPMI_MSG_SIZE),
-        VMSTATE_UINT8_ARRAY(kcs.inmsg, ISAIPMIKCSDevice, MAX_IPMI_MSG_SIZE),
-        VMSTATE_BOOL(kcs.write_end, ISAIPMIKCSDevice),
-        VMSTATE_UINT8(kcs.status_reg, ISAIPMIKCSDevice),
-        VMSTATE_UINT8(kcs.data_out_reg, ISAIPMIKCSDevice),
-        VMSTATE_INT16(kcs.data_in_reg, ISAIPMIKCSDevice),
-        VMSTATE_INT16(kcs.cmd_reg, ISAIPMIKCSDevice),
-        VMSTATE_UINT8(kcs.waiting_rsp, ISAIPMIKCSDevice),
+        VMSTATE_VSTRUCT_TEST(kcs, ISAIPMIKCSDevice, vmstate_kcs_before_version2,
+                             0, vmstate_IPMIKCS, IPMIKCS, 1),
+        VMSTATE_VSTRUCT_V(kcs, ISAIPMIKCSDevice, 2, vmstate_IPMIKCS,
+                          IPMIKCS, 2),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -450,6 +496,11 @@ static void isa_ipmi_kcs_init(Object *obj)
 
     ipmi_bmc_find_and_link(obj, (Object **) &iik->kcs.bmc);
 
+    /*
+     * Version 1 had an incorrect name, it clashed with the BT
+     * IPMI device, so receive it, but transmit a different
+     * version.
+     */
     vmstate_register(NULL, 0, &vmstate_ISAIPMIKCSDevice, iik);
 }
 
