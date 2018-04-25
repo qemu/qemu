@@ -14,7 +14,7 @@
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
 #include "qemu/notify.h"
-#include "trace.h"
+#include "qemu-thread-common.h"
 
 static bool name_threads;
 
@@ -43,7 +43,7 @@ void qemu_mutex_init(QemuMutex *mutex)
     err = pthread_mutex_init(&mutex->lock, NULL);
     if (err)
         error_exit(err, __func__);
-    mutex->initialized = true;
+    qemu_mutex_post_init(mutex);
 }
 
 void qemu_mutex_destroy(QemuMutex *mutex)
@@ -62,13 +62,11 @@ void qemu_mutex_lock_impl(QemuMutex *mutex, const char *file, const int line)
     int err;
 
     assert(mutex->initialized);
-    trace_qemu_mutex_lock(mutex, file, line);
-
+    qemu_mutex_pre_lock(mutex, file, line);
     err = pthread_mutex_lock(&mutex->lock);
     if (err)
         error_exit(err, __func__);
-
-    trace_qemu_mutex_locked(mutex, file, line);
+    qemu_mutex_post_lock(mutex, file, line);
 }
 
 int qemu_mutex_trylock_impl(QemuMutex *mutex, const char *file, const int line)
@@ -78,7 +76,7 @@ int qemu_mutex_trylock_impl(QemuMutex *mutex, const char *file, const int line)
     assert(mutex->initialized);
     err = pthread_mutex_trylock(&mutex->lock);
     if (err == 0) {
-        trace_qemu_mutex_locked(mutex, file, line);
+        qemu_mutex_post_lock(mutex, file, line);
         return 0;
     }
     if (err != EBUSY) {
@@ -92,11 +90,10 @@ void qemu_mutex_unlock_impl(QemuMutex *mutex, const char *file, const int line)
     int err;
 
     assert(mutex->initialized);
+    qemu_mutex_pre_unlock(mutex, file, line);
     err = pthread_mutex_unlock(&mutex->lock);
     if (err)
         error_exit(err, __func__);
-
-    trace_qemu_mutex_unlock(mutex, file, line);
 }
 
 void qemu_rec_mutex_init(QemuRecMutex *mutex)
@@ -160,9 +157,9 @@ void qemu_cond_wait_impl(QemuCond *cond, QemuMutex *mutex, const char *file, con
     int err;
 
     assert(cond->initialized);
-    trace_qemu_mutex_unlock(mutex, file, line);
+    qemu_mutex_pre_unlock(mutex, file, line);
     err = pthread_cond_wait(&cond->cond, &mutex->lock);
-    trace_qemu_mutex_locked(mutex, file, line);
+    qemu_mutex_post_lock(mutex, file, line);
     if (err)
         error_exit(err, __func__);
 }
