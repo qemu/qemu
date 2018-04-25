@@ -116,14 +116,6 @@ void block_job_drain(Job *job);
 int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n);
 
 /**
- * block_job_event_ready:
- * @job: The job which is now ready to be completed.
- *
- * Send a BLOCK_JOB_READY event for the specified job.
- */
-void block_job_event_ready(BlockJob *job);
-
-/**
  * block_job_error_action:
  * @job: The job to signal an error for.
  * @on_err: The error action setting.

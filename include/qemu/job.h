@@ -132,6 +132,9 @@ typedef struct Job {
     /** Notifiers called when the job transitions to PENDING */
     NotifierList on_pending;
 
+    /** Notifiers called when the job transitions to READY */
+    NotifierList on_ready;
+
     /** Element of the list of jobs */
     QLIST_ENTRY(Job) job_list;
 
@@ -426,6 +429,9 @@ int job_apply_verb(Job *job, JobVerb verb, Error **errp);
 /** The @job could not be started, free it. */
 void job_early_fail(Job *job);
 
+/** Moves the @job from RUNNING to READY */
+void job_transition_to_ready(Job *job);
+
 /**
  * @job: The job being completed.
  * @ret: The status code.
@@ -521,8 +527,5 @@ void job_defer_to_main_loop(Job *job, JobDeferToMainLoopFn *fn, void *opaque);
  * cancelled before completing, and -errno in other error cases.
  */
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp);
-
-/* TODO To be removed from the public interface */
-void job_state_transition(Job *job, JobStatus s1);
 
 #endif

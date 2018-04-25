@@ -727,8 +727,8 @@ static void coroutine_fn mirror_run(void *opaque)
     }
 
     if (s->bdev_length == 0) {
-        /* Report BLOCK_JOB_READY and wait for complete. */
-        block_job_event_ready(&s->common);
+        /* Transition to the READY state and wait for complete. */
+        job_transition_to_ready(&s->common.job);
         s->synced = true;
         while (!job_is_cancelled(&s->common.job) && !s->should_complete) {
             job_yield(&s->common.job);
@@ -824,7 +824,7 @@ static void coroutine_fn mirror_run(void *opaque)
                  * report completion.  This way, block-job-cancel will leave
                  * the target in a consistent state.
                  */
-                block_job_event_ready(&s->common);
+                job_transition_to_ready(&s->common.job);
                 s->synced = true;
             }
 

@@ -76,6 +76,9 @@ typedef struct BlockJob {
     /** Called when the job transitions to PENDING */
     Notifier pending_notifier;
 
+    /** Called when the job transitions to READY */
+    Notifier ready_notifier;
+
     /** BlockDriverStates that are involved in this block job */
     GSList *nodes;
 } BlockJob;

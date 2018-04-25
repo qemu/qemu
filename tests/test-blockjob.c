@@ -186,7 +186,7 @@ static void coroutine_fn cancel_job_start(void *opaque)
         }
 
         if (!job_is_ready(&s->common.job) && s->should_converge) {
-            block_job_event_ready(&s->common);
+            job_transition_to_ready(&s->common.job);
         }
 
         job_sleep_ns(&s->common.job, 100000);

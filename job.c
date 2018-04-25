@@ -157,9 +157,7 @@ static int job_txn_apply(JobTxn *txn, int fn(Job *), bool lock)
     return rc;
 }
 
-
-/* TODO Make static once the whole state machine is in job.c */
-void job_state_transition(Job *job, JobStatus s1)
+static void job_state_transition(Job *job, JobStatus s1)
 {
     JobStatus s0 = job->status;
     assert(s1 >= 0 && s1 <= JOB_STATUS__MAX);
@@ -321,6 +319,7 @@ void *job_create(const char *job_id, const JobDriver *driver, JobTxn *txn,
     notifier_list_init(&job->on_finalize_cancelled);
     notifier_list_init(&job->on_finalize_completed);
     notifier_list_init(&job->on_pending);
+    notifier_list_init(&job->on_ready);
 
     job_state_transition(job, JOB_STATUS_CREATED);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
@@ -378,6 +377,11 @@ void job_event_completed(Job *job)
 static void job_event_pending(Job *job)
 {
     notifier_list_notify(&job->on_pending, job);
+}
+
+static void job_event_ready(Job *job)
+{
+    notifier_list_notify(&job->on_ready, job);
 }
 
 void job_enter_cond(Job *job, bool(*fn)(Job *job))
@@ -797,6 +801,12 @@ static int job_transition_to_pending(Job *job)
         job_event_pending(job);
     }
     return 0;
+}
+
+void job_transition_to_ready(Job *job)
+{
+    job_state_transition(job, JOB_STATUS_READY);
+    job_event_ready(job);
 }
 
 static void job_completed_txn_success(Job *job)

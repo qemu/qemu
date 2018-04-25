@@ -338,6 +338,22 @@ static void block_job_event_pending(Notifier *n, void *opaque)
                                       &error_abort);
 }
 
+static void block_job_event_ready(Notifier *n, void *opaque)
+{
+    BlockJob *job = opaque;
+
+    if (block_job_is_internal(job)) {
+        return;
+    }
+
+    qapi_event_send_block_job_ready(job_type(&job->job),
+                                    job->job.id,
+                                    job->len,
+                                    job->offset,
+                                    job->speed, &error_abort);
+}
+
+
 /*
  * API for block job drivers and the block layer.  These functions are
  * declared in blockjob_int.h.
@@ -386,12 +402,14 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->finalize_cancelled_notifier.notify = block_job_event_cancelled;
     job->finalize_completed_notifier.notify = block_job_event_completed;
     job->pending_notifier.notify = block_job_event_pending;
+    job->ready_notifier.notify = block_job_event_ready;
 
     notifier_list_add(&job->job.on_finalize_cancelled,
                       &job->finalize_cancelled_notifier);
     notifier_list_add(&job->job.on_finalize_completed,
                       &job->finalize_completed_notifier);
     notifier_list_add(&job->job.on_pending, &job->pending_notifier);
+    notifier_list_add(&job->job.on_ready, &job->ready_notifier);
 
     error_setg(&job->blocker, "block device is in use by block job: %s",
                job_type_str(&job->job));
@@ -431,21 +449,6 @@ void block_job_user_resume(Job *job)
 {
     BlockJob *bjob = container_of(job, BlockJob, job);
     block_job_iostatus_reset(bjob);
-}
-
-void block_job_event_ready(BlockJob *job)
-{
-    job_state_transition(&job->job, JOB_STATUS_READY);
-
-    if (block_job_is_internal(job)) {
-        return;
-    }
-
-    qapi_event_send_block_job_ready(job_type(&job->job),
-                                    job->job.id,
-                                    job->len,
-                                    job->offset,
-                                    job->speed, &error_abort);
 }
 
 BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
