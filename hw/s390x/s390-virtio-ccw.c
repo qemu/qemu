@@ -288,6 +288,15 @@ static void s390_create_virtio_net(BusState *bus, const char *name)
     }
 }
 
+static void s390_create_sclpconsole(const char *type, Chardev *chardev)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(sclp_get_event_facility_bus(), type);
+    qdev_prop_set_chr(dev, "chardev", chardev);
+    qdev_init_nofail(dev);
+}
+
 static void ccw_init(MachineState *machine)
 {
     int ret;
@@ -345,6 +354,14 @@ static void ccw_init(MachineState *machine)
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
+
+    /* init consoles */
+    if (serial_hd(0)) {
+        s390_create_sclpconsole("sclpconsole", serial_hd(0));
+    }
+    if (serial_hd(1)) {
+        s390_create_sclpconsole("sclplmconsole", serial_hd(1));
+    }
 
     /* Register savevm handler for guest TOD clock */
     register_savevm_live(NULL, "todclock", 0, 1, &savevm_gtod, NULL);
@@ -470,10 +487,8 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
     mc->no_floppy = 1;
-    mc->no_serial = 1;
     mc->no_parallel = 1;
     mc->no_sdcard = 1;
-    mc->use_sclp = 1;
     mc->max_cpus = S390_MAX_CPUS;
     mc->has_hotpluggable_cpus = true;
     mc->get_hotplug_handler = s390_get_hotplug_handler;

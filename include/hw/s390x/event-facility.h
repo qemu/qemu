@@ -210,4 +210,6 @@ typedef struct SCLPEventFacilityClass {
     bool (*event_pending)(SCLPEventFacility *ef);
 } SCLPEventFacilityClass;
 
+BusState *sclp_get_event_facility_bus(void);
+
 #endif
