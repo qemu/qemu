@@ -90,6 +90,103 @@ int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp)
 #include <sys/eventfd.h>
 #include <linux/userfaultfd.h>
 
+typedef struct PostcopyBlocktimeContext {
+    /* time when page fault initiated per vCPU */
+    uint32_t *page_fault_vcpu_time;
+    /* page address per vCPU */
+    uintptr_t *vcpu_addr;
+    uint32_t total_blocktime;
+    /* blocktime per vCPU */
+    uint32_t *vcpu_blocktime;
+    /* point in time when last page fault was initiated */
+    uint32_t last_begin;
+    /* number of vCPU are suspended */
+    int smp_cpus_down;
+    uint64_t start_time;
+
+    /*
+     * Handler for exit event, necessary for
+     * releasing whole blocktime_ctx
+     */
+    Notifier exit_notifier;
+} PostcopyBlocktimeContext;
+
+static void destroy_blocktime_context(struct PostcopyBlocktimeContext *ctx)
+{
+    g_free(ctx->page_fault_vcpu_time);
+    g_free(ctx->vcpu_addr);
+    g_free(ctx->vcpu_blocktime);
+    g_free(ctx);
+}
+
+static void migration_exit_cb(Notifier *n, void *data)
+{
+    PostcopyBlocktimeContext *ctx = container_of(n, PostcopyBlocktimeContext,
+                                                 exit_notifier);
+    destroy_blocktime_context(ctx);
+}
+
+static struct PostcopyBlocktimeContext *blocktime_context_new(void)
+{
+    PostcopyBlocktimeContext *ctx = g_new0(PostcopyBlocktimeContext, 1);
+    ctx->page_fault_vcpu_time = g_new0(uint32_t, smp_cpus);
+    ctx->vcpu_addr = g_new0(uintptr_t, smp_cpus);
+    ctx->vcpu_blocktime = g_new0(uint32_t, smp_cpus);
+
+    ctx->exit_notifier.notify = migration_exit_cb;
+    ctx->start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    qemu_add_exit_notifier(&ctx->exit_notifier);
+    return ctx;
+}
+
+static uint32List *get_vcpu_blocktime_list(PostcopyBlocktimeContext *ctx)
+{
+    uint32List *list = NULL, *entry = NULL;
+    int i;
+
+    for (i = smp_cpus - 1; i >= 0; i--) {
+        entry = g_new0(uint32List, 1);
+        entry->value = ctx->vcpu_blocktime[i];
+        entry->next = list;
+        list = entry;
+    }
+
+    return list;
+}
+
+/*
+ * This function just populates MigrationInfo from postcopy's
+ * blocktime context. It will not populate MigrationInfo,
+ * unless postcopy-blocktime capability was set.
+ *
+ * @info: pointer to MigrationInfo to populate
+ */
+void fill_destination_postcopy_migration_info(MigrationInfo *info)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    PostcopyBlocktimeContext *bc = mis->blocktime_ctx;
+
+    if (!bc) {
+        return;
+    }
+
+    info->has_postcopy_blocktime = true;
+    info->postcopy_blocktime = bc->total_blocktime;
+    info->has_postcopy_vcpu_blocktime = true;
+    info->postcopy_vcpu_blocktime = get_vcpu_blocktime_list(bc);
+}
+
+static uint32_t get_postcopy_total_blocktime(void)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    PostcopyBlocktimeContext *bc = mis->blocktime_ctx;
+
+    if (!bc) {
+        return 0;
+    }
+
+    return bc->total_blocktime;
+}
 
 /**
  * receive_ufd_features: check userfault fd features, to request only supported
@@ -181,6 +278,19 @@ static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis)
             return false;
         }
     }
+
+#ifdef UFFD_FEATURE_THREAD_ID
+    if (migrate_postcopy_blocktime() && mis &&
+        UFFD_FEATURE_THREAD_ID & supported_features) {
+        /* kernel supports that feature */
+        /* don't create blocktime_context if it exists */
+        if (!mis->blocktime_ctx) {
+            mis->blocktime_ctx = blocktime_context_new();
+        }
+
+        asked_features |= UFFD_FEATURE_THREAD_ID;
+    }
+#endif
 
     /*
      * request features, even if asked_features is 0, due to
@@ -451,6 +561,9 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
         munmap(mis->postcopy_tmp_zero_page, mis->largest_page_size);
         mis->postcopy_tmp_zero_page = NULL;
     }
+    trace_postcopy_ram_incoming_cleanup_blocktime(
+            get_postcopy_total_blocktime());
+
     trace_postcopy_ram_incoming_cleanup_exit();
     return 0;
 }
@@ -575,6 +688,148 @@ int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
     return 0;
 }
 
+static int get_mem_fault_cpu_index(uint32_t pid)
+{
+    CPUState *cpu_iter;
+
+    CPU_FOREACH(cpu_iter) {
+        if (cpu_iter->thread_id == pid) {
+            trace_get_mem_fault_cpu_index(cpu_iter->cpu_index, pid);
+            return cpu_iter->cpu_index;
+        }
+    }
+    trace_get_mem_fault_cpu_index(-1, pid);
+    return -1;
+}
+
+static uint32_t get_low_time_offset(PostcopyBlocktimeContext *dc)
+{
+    int64_t start_time_offset = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) -
+                                    dc->start_time;
+    return start_time_offset < 1 ? 1 : start_time_offset & UINT32_MAX;
+}
+
+/*
+ * This function is being called when pagefault occurs. It
+ * tracks down vCPU blocking time.
+ *
+ * @addr: faulted host virtual address
+ * @ptid: faulted process thread id
+ * @rb: ramblock appropriate to addr
+ */
+static void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
+                                          RAMBlock *rb)
+{
+    int cpu, already_received;
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    PostcopyBlocktimeContext *dc = mis->blocktime_ctx;
+    uint32_t low_time_offset;
+
+    if (!dc || ptid == 0) {
+        return;
+    }
+    cpu = get_mem_fault_cpu_index(ptid);
+    if (cpu < 0) {
+        return;
+    }
+
+    low_time_offset = get_low_time_offset(dc);
+    if (dc->vcpu_addr[cpu] == 0) {
+        atomic_inc(&dc->smp_cpus_down);
+    }
+
+    atomic_xchg(&dc->last_begin, low_time_offset);
+    atomic_xchg(&dc->page_fault_vcpu_time[cpu], low_time_offset);
+    atomic_xchg(&dc->vcpu_addr[cpu], addr);
+
+    /* check it here, not at the begining of the function,
+     * due to, check could accur early than bitmap_set in
+     * qemu_ufd_copy_ioctl */
+    already_received = ramblock_recv_bitmap_test(rb, (void *)addr);
+    if (already_received) {
+        atomic_xchg(&dc->vcpu_addr[cpu], 0);
+        atomic_xchg(&dc->page_fault_vcpu_time[cpu], 0);
+        atomic_dec(&dc->smp_cpus_down);
+    }
+    trace_mark_postcopy_blocktime_begin(addr, dc, dc->page_fault_vcpu_time[cpu],
+                                        cpu, already_received);
+}
+
+/*
+ *  This function just provide calculated blocktime per cpu and trace it.
+ *  Total blocktime is calculated in mark_postcopy_blocktime_end.
+ *
+ *
+ * Assume we have 3 CPU
+ *
+ *      S1        E1           S1               E1
+ * -----***********------------xxx***************------------------------> CPU1
+ *
+ *             S2                E2
+ * ------------****************xxx---------------------------------------> CPU2
+ *
+ *                         S3            E3
+ * ------------------------****xxx********-------------------------------> CPU3
+ *
+ * We have sequence S1,S2,E1,S3,S1,E2,E3,E1
+ * S2,E1 - doesn't match condition due to sequence S1,S2,E1 doesn't include CPU3
+ * S3,S1,E2 - sequence includes all CPUs, in this case overlap will be S1,E2 -
+ *            it's a part of total blocktime.
+ * S1 - here is last_begin
+ * Legend of the picture is following:
+ *              * - means blocktime per vCPU
+ *              x - means overlapped blocktime (total blocktime)
+ *
+ * @addr: host virtual address
+ */
+static void mark_postcopy_blocktime_end(uintptr_t addr)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    PostcopyBlocktimeContext *dc = mis->blocktime_ctx;
+    int i, affected_cpu = 0;
+    bool vcpu_total_blocktime = false;
+    uint32_t read_vcpu_time, low_time_offset;
+
+    if (!dc) {
+        return;
+    }
+
+    low_time_offset = get_low_time_offset(dc);
+    /* lookup cpu, to clear it,
+     * that algorithm looks straighforward, but it's not
+     * optimal, more optimal algorithm is keeping tree or hash
+     * where key is address value is a list of  */
+    for (i = 0; i < smp_cpus; i++) {
+        uint32_t vcpu_blocktime = 0;
+
+        read_vcpu_time = atomic_fetch_add(&dc->page_fault_vcpu_time[i], 0);
+        if (atomic_fetch_add(&dc->vcpu_addr[i], 0) != addr ||
+            read_vcpu_time == 0) {
+            continue;
+        }
+        atomic_xchg(&dc->vcpu_addr[i], 0);
+        vcpu_blocktime = low_time_offset - read_vcpu_time;
+        affected_cpu += 1;
+        /* we need to know is that mark_postcopy_end was due to
+         * faulted page, another possible case it's prefetched
+         * page and in that case we shouldn't be here */
+        if (!vcpu_total_blocktime &&
+            atomic_fetch_add(&dc->smp_cpus_down, 0) == smp_cpus) {
+            vcpu_total_blocktime = true;
+        }
+        /* continue cycle, due to one page could affect several vCPUs */
+        dc->vcpu_blocktime[i] += vcpu_blocktime;
+    }
+
+    atomic_sub(&dc->smp_cpus_down, affected_cpu);
+    if (vcpu_total_blocktime) {
+        dc->total_blocktime += low_time_offset - atomic_fetch_add(
+                &dc->last_begin, 0);
+    }
+    trace_mark_postcopy_blocktime_end(addr, dc, dc->total_blocktime,
+                                      affected_cpu);
+}
+
 /*
  * Handle faults detected by the USERFAULT markings
  */
@@ -681,7 +936,12 @@ static void *postcopy_ram_fault_thread(void *opaque)
             rb_offset &= ~(qemu_ram_pagesize(rb) - 1);
             trace_postcopy_ram_fault_thread_request(msg.arg.pagefault.address,
                                                 qemu_ram_get_idstr(rb),
-                                                rb_offset);
+                                                rb_offset,
+                                                msg.arg.pagefault.feat.ptid);
+            mark_postcopy_blocktime_begin(
+                    (uintptr_t)(msg.arg.pagefault.address),
+                                msg.arg.pagefault.feat.ptid, rb);
+
             /*
              * Send the request to the source - we want to request one
              * of our host page sizes (which is >= TPS)
@@ -829,6 +1089,8 @@ static int qemu_ufd_copy_ioctl(int userfault_fd, void *host_addr,
     if (!ret) {
         ramblock_recv_bitmap_set_range(rb, host_addr,
                                        pagesize / qemu_target_page_size());
+        mark_postcopy_blocktime_end((uintptr_t)host_addr);
+
     }
     return ret;
 }
@@ -947,6 +1209,10 @@ void *postcopy_get_tmp_page(MigrationIncomingState *mis)
 
 #else
 /* No target OS support, stubs just fail */
+void fill_destination_postcopy_migration_info(MigrationInfo *info)
+{
+}
+
 bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
 {
     error_report("%s: No OS support", __func__);
