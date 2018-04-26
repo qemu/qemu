@@ -4548,7 +4548,13 @@ static void gen_rfe(DisasContext *s, TCGv_i32 pc, TCGv_i32 cpsr)
      * appropriately depending on the new Thumb bit, so it must
      * be called after storing the new PC.
      */
+    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_helper_cpsr_write_eret(cpu_env, cpsr);
+    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
+        gen_io_end();
+    }
     tcg_temp_free_i32(cpsr);
     /* Must exit loop to check un-masked IRQs */
     s->base.is_jmp = DISAS_EXIT;
@@ -9843,7 +9849,13 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 if (exc_return) {
                     /* Restore CPSR from SPSR.  */
                     tmp = load_cpu_field(spsr);
+                    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
+                        gen_io_start();
+                    }
                     gen_helper_cpsr_write_eret(cpu_env, tmp);
+                    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
+                        gen_io_end();
+                    }
                     tcg_temp_free_i32(tmp);
                     /* Must exit loop to check un-masked IRQs */
                     s->base.is_jmp = DISAS_EXIT;
