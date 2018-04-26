@@ -632,12 +632,17 @@ typedef struct CPUARMState {
 } CPUARMState;
 
 /**
- * ARMELChangeHook:
+ * ARMELChangeHookFn:
  * type of a function which can be registered via arm_register_el_change_hook()
  * to get callbacks when the CPU changes its exception level or mode.
  */
-typedef void ARMELChangeHook(ARMCPU *cpu, void *opaque);
-
+typedef void ARMELChangeHookFn(ARMCPU *cpu, void *opaque);
+typedef struct ARMELChangeHook ARMELChangeHook;
+struct ARMELChangeHook {
+    ARMELChangeHookFn *hook;
+    void *opaque;
+    QLIST_ENTRY(ARMELChangeHook) node;
+};
 
 /* These values map onto the return values for
  * QEMU_PSCI_0_2_FN_AFFINITY_INFO */
@@ -826,8 +831,7 @@ struct ARMCPU {
      */
     bool cfgend;
 
-    ARMELChangeHook *el_change_hook;
-    void *el_change_hook_opaque;
+    QLIST_HEAD(, ARMELChangeHook) el_change_hooks;
 
     int32_t node_id; /* NUMA node this CPU belongs to */
 
@@ -2894,12 +2898,8 @@ static inline AddressSpace *arm_addressspace(CPUState *cs, MemTxAttrs attrs)
  * CPU changes exception level or mode. The hook function will be
  * passed a pointer to the ARMCPU and the opaque data pointer passed
  * to this function when the hook was registered.
- *
- * Note that we currently only support registering a single hook function,
- * and will assert if this function is called twice.
- * This facility is intended for the use of the GICv3 emulation.
  */
-void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHook *hook,
+void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook,
                                  void *opaque);
 
 /**
