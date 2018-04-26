@@ -19,13 +19,25 @@
 #ifndef HW_SIFIVE_U_H
 #define HW_SIFIVE_U_H
 
+#define TYPE_RISCV_U_SOC "riscv.sifive.u.soc"
+#define RISCV_U_SOC(obj) \
+    OBJECT_CHECK(SiFiveUSoCState, (obj), TYPE_RISCV_U_SOC)
+
+typedef struct SiFiveUSoCState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+
+    /*< public >*/
+    RISCVHartArrayState cpus;
+    DeviceState *plic;
+} SiFiveUSoCState;
+
 typedef struct SiFiveUState {
     /*< private >*/
     SysBusDevice parent_obj;
 
     /*< public >*/
-    RISCVHartArrayState soc;
-    DeviceState *plic;
+    SiFiveUSoCState soc;
     void *fdt;
     int fdt_size;
 } SiFiveUState;
