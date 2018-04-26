@@ -187,13 +187,14 @@ static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
     sifive_mmio_emulate(sys_mem, "riscv.sifive.e.gpio0",
         memmap[SIFIVE_E_GPIO0].base, memmap[SIFIVE_E_GPIO0].size);
     sifive_uart_create(sys_mem, memmap[SIFIVE_E_UART0].base,
-        serial_hd(0), SIFIVE_PLIC(s->plic)->irqs[SIFIVE_E_UART0_IRQ]);
+        serial_hd(0), qdev_get_gpio_in(DEVICE(s->plic), SIFIVE_E_UART0_IRQ));
     sifive_mmio_emulate(sys_mem, "riscv.sifive.e.qspi0",
         memmap[SIFIVE_E_QSPI0].base, memmap[SIFIVE_E_QSPI0].size);
     sifive_mmio_emulate(sys_mem, "riscv.sifive.e.pwm0",
         memmap[SIFIVE_E_PWM0].base, memmap[SIFIVE_E_PWM0].size);
     /* sifive_uart_create(sys_mem, memmap[SIFIVE_E_UART1].base,
-        serial_hd(1), SIFIVE_PLIC(s->plic)->irqs[SIFIVE_E_UART1_IRQ]); */
+        serial_hd(1), qdev_get_gpio_in(DEVICE(s->plic),
+                                       SIFIVE_E_UART1_IRQ)); */
     sifive_mmio_emulate(sys_mem, "riscv.sifive.e.qspi1",
         memmap[SIFIVE_E_QSPI1].base, memmap[SIFIVE_E_QSPI1].size);
     sifive_mmio_emulate(sys_mem, "riscv.sifive.e.pwm1",
