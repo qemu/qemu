@@ -2903,16 +2903,6 @@ void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHook *hook,
                                  void *opaque);
 
 /**
- * arm_get_el_change_hook_opaque:
- * Return the opaque data that will be used by the el_change_hook
- * for this CPU.
- */
-static inline void *arm_get_el_change_hook_opaque(ARMCPU *cpu)
-{
-    return cpu->el_change_hook_opaque;
-}
-
-/**
  * aa32_vfp_dreg:
  * Return a pointer to the Dn register within env in 32-bit mode.
  */
