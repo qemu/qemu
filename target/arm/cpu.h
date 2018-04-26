@@ -831,6 +831,7 @@ struct ARMCPU {
      */
     bool cfgend;
 
+    QLIST_HEAD(, ARMELChangeHook) pre_el_change_hooks;
     QLIST_HEAD(, ARMELChangeHook) el_change_hooks;
 
     int32_t node_id; /* NUMA node this CPU belongs to */
@@ -2893,14 +2894,29 @@ static inline AddressSpace *arm_addressspace(CPUState *cs, MemTxAttrs attrs)
 #endif
 
 /**
- * arm_register_el_change_hook:
- * Register a hook function which will be called back whenever this
+ * arm_register_pre_el_change_hook:
+ * Register a hook function which will be called immediately before this
  * CPU changes exception level or mode. The hook function will be
  * passed a pointer to the ARMCPU and the opaque data pointer passed
  * to this function when the hook was registered.
+ *
+ * Note that if a pre-change hook is called, any registered post-change hooks
+ * are guaranteed to subsequently be called.
  */
-void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook,
+void arm_register_pre_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook,
                                  void *opaque);
+/**
+ * arm_register_el_change_hook:
+ * Register a hook function which will be called immediately after this
+ * CPU changes exception level or mode. The hook function will be
+ * passed a pointer to the ARMCPU and the opaque data pointer passed
+ * to this function when the hook was registered.
+ *
+ * Note that any registered hooks registered here are guaranteed to be called
+ * if pre-change hooks have been.
+ */
+void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook, void
+        *opaque);
 
 /**
  * aa32_vfp_dreg:
