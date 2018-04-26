@@ -504,7 +504,7 @@ static const VMStateDescription vmstate_aspeed_timer_state = {
         VMSTATE_UINT32(ctrl, AspeedTimerCtrlState),
         VMSTATE_UINT32(ctrl2, AspeedTimerCtrlState),
         VMSTATE_STRUCT_ARRAY(timers, AspeedTimerCtrlState,
-                             ASPEED_TIMER_NR_TIMERS, 2, vmstate_aspeed_timer,
+                             ASPEED_TIMER_NR_TIMERS, 1, vmstate_aspeed_timer,
                              AspeedTimer),
         VMSTATE_END_OF_LIST()
     }
