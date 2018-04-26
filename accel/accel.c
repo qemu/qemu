@@ -126,6 +126,15 @@ void accel_register_compat_props(AccelState *accel)
     register_compat_props_array(class->global_props);
 }
 
+void accel_setup_post(MachineState *ms)
+{
+    AccelState *accel = ms->accelerator;
+    AccelClass *acc = ACCEL_GET_CLASS(accel);
+    if (acc->setup_post) {
+        acc->setup_post(ms, accel);
+    }
+}
+
 static void register_accel_types(void)
 {
     type_register_static(&accel_type);
