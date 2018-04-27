@@ -573,7 +573,7 @@
             'mips': 'CpuInfoOther',
             'tricore': 'CpuInfoOther',
             's390': 'CpuInfoS390',
-            'riscv': 'CpuInfoRISCV',
+            'riscv': 'CpuInfoOther',
             'other': 'CpuInfoOther' } }
 
 ##
