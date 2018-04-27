@@ -162,11 +162,13 @@
 #              error strings. (Since 2.7)
 #
 # @postcopy-blocktime: total time when all vCPU were blocked during postcopy
-#           live migration (Since 2.13)
+#           live migration. This is only present when the postcopy-blocktime
+#           migration capability is enabled. (Since 2.13)
 #
-# @postcopy-vcpu-blocktime: list of the postcopy blocktime per vCPU (Since 2.13)
+# @postcopy-vcpu-blocktime: list of the postcopy blocktime per vCPU.  This is
+#           only present when the postcopy-blocktime migration capability
+#           is enabled. (Since 2.13)
 #
-
 #
 # Since: 0.14.0
 ##
@@ -367,7 +369,6 @@
 #          state and before disabling block IO (since 2.11)
 #
 # @x-multifd: Use more than one fd for migration (since 2.11)
-#
 #
 # @dirty-bitmaps: If enabled, QEMU will migrate named dirty bitmaps.
 #                 (since 2.12)
