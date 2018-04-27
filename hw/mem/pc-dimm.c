@@ -118,9 +118,16 @@ static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
 
 int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp)
 {
-    unsigned long *bitmap = bitmap_new(max_slots);
+    unsigned long *bitmap;
     int slot = 0;
 
+    if (max_slots <= 0) {
+        error_setg(errp, "no slots where allocated, please specify "
+                   "the 'slots' option");
+        return slot;
+    }
+
+    bitmap = bitmap_new(max_slots);
     object_child_foreach(qdev_get_machine(), pc_dimm_slot2bitmap, bitmap);
 
     /* check if requested slot is not occupied */
