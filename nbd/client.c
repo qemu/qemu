@@ -613,8 +613,8 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
 {
     int ret;
     NBDOptionReply reply;
-    uint32_t received_id;
-    bool received;
+    uint32_t received_id = 0;
+    bool received = false;
     uint32_t export_len = strlen(export);
     uint32_t context_len = strlen(context);
     uint32_t data_len = sizeof(export_len) + export_len +
