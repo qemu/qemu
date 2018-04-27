@@ -198,6 +198,17 @@ static void vfio_display_dmabuf_exit(VFIODisplay *dpy)
 }
 
 /* ---------------------------------------------------------------------- */
+void vfio_display_reset(VFIOPCIDevice *vdev)
+{
+    if (!vdev || !vdev->dpy || !vdev->dpy->con ||
+        !vdev->dpy->dmabuf.primary) {
+        return;
+    }
+
+    dpy_gl_scanout_disable(vdev->dpy->con);
+    vfio_display_dmabuf_exit(vdev->dpy);
+    dpy_gfx_update_full(vdev->dpy->con);
+}
 
 static void vfio_display_region_update(void *opaque)
 {

@@ -3103,6 +3103,10 @@ static void vfio_pci_reset(DeviceState *dev)
 
     vfio_pci_pre_reset(vdev);
 
+    if (vdev->display != ON_OFF_AUTO_OFF) {
+        vfio_display_reset(vdev);
+    }
+
     if (vdev->resetfn && !vdev->resetfn(vdev)) {
         goto post_reset;
     }
