@@ -5,6 +5,8 @@
 # = Miscellanea
 ##
 
+{ 'include': 'common.json' }
+
 ##
 # @qmp_capabilities:
 #
@@ -2449,12 +2451,12 @@
 #
 # Information describing the QEMU target.
 #
-# @arch: the target architecture (eg "x86_64", "i386", etc)
+# @arch: the target architecture
 #
 # Since: 1.2.0
 ##
 { 'struct': 'TargetInfo',
-  'data': { 'arch': 'str' } }
+  'data': { 'arch': 'SysEmuTarget' } }
 
 ##
 # @query-target:
