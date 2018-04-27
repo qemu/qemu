@@ -14,6 +14,7 @@
 struct sdl2_console {
     DisplayChangeListener dcl;
     DisplaySurface *surface;
+    DisplayOptions *opts;
     SDL_Texture *texture;
     SDL_Window *real_window;
     SDL_Renderer *real_renderer;

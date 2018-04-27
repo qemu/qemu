@@ -1019,6 +1019,24 @@
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*grab-on-hover' : 'bool' } }
 
+ ##
+ # @DisplayGLMode:
+ #
+ # Display OpenGL mode.
+ #
+ # @off: Disable OpenGL (default).
+ # @on: Use OpenGL, pick context type automatically.
+ #      Would better be named 'auto' but is called 'on' for backward
+ #      compatibility with bool type.
+ # @core: Use OpenGL with Core (desktop) Context.
+ # @es: Use OpenGL with ES (embedded systems) Context.
+ #
+ # Since: 2.13
+ #
+ ##
+ { 'enum'    : 'DisplayGLMode',
+   'data'    : [ 'off', 'on', 'core', 'es' ] }
+
 ##
 # @DisplayType:
 #
@@ -1048,7 +1066,7 @@
   'base'    : { 'type'           : 'DisplayType',
                 '*full-screen'   : 'bool',
                 '*window-close'  : 'bool',
-                '*gl'            : 'bool' },
+                '*gl'            : 'DisplayGLMode' },
   'discriminator' : 'type',
   'data'    : { 'default'        : 'DisplayNoOpts',
                 'none'           : 'DisplayNoOpts',

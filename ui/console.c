@@ -1574,6 +1574,16 @@ void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h)
     }
 }
 
+void dpy_gfx_update_full(QemuConsole *con)
+{
+    if (!con->surface) {
+        return;
+    }
+    dpy_gfx_update(con, 0, 0,
+                   surface_width(con->surface),
+                   surface_height(con->surface));
+}
+
 void dpy_gfx_replace_surface(QemuConsole *con,
                              DisplaySurface *surface)
 {
