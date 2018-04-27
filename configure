@@ -4478,7 +4478,7 @@ fi
 
 # check for smartcard support
 if test "$smartcard" != "no"; then
-    if $pkg_config libcacard; then
+    if $pkg_config --atleast-version=2.5.1 libcacard; then
         libcacard_cflags=$($pkg_config --cflags libcacard)
         libcacard_libs=$($pkg_config --libs libcacard)
         smartcard="yes"
