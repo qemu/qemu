@@ -2236,6 +2236,49 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
     return ret | BDRV_BLOCK_OFFSET_VALID;
 }
 
+static void coroutine_fn raw_co_invalidate_cache(BlockDriverState *bs,
+                                                 Error **errp)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    ret = fd_open(bs);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "The file descriptor is not open");
+        return;
+    }
+
+    if (s->open_flags & O_DIRECT) {
+        return; /* No host kernel page cache */
+    }
+
+#if defined(__linux__)
+    /* This sets the scene for the next syscall... */
+    ret = bdrv_co_flush(bs);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "flush failed");
+        return;
+    }
+
+    /* Linux does not invalidate pages that are dirty, locked, or mmapped by a
+     * process.  These limitations are okay because we just fsynced the file,
+     * we don't use mmap, and the file should not be in use by other processes.
+     */
+    ret = posix_fadvise(s->fd, 0, 0, POSIX_FADV_DONTNEED);
+    if (ret != 0) { /* the return value is a positive errno */
+        error_setg_errno(errp, ret, "fadvise failed");
+        return;
+    }
+#else /* __linux__ */
+    /* Do nothing.  Live migration to a remote host with cache.direct=off is
+     * unsupported on other host operating systems.  Cache consistency issues
+     * may occur but no error is reported here, partly because that's the
+     * historical behavior and partly because it's hard to differentiate valid
+     * configurations that should not cause errors.
+     */
+#endif /* !__linux__ */
+}
+
 static coroutine_fn BlockAIOCB *raw_aio_pdiscard(BlockDriverState *bs,
     int64_t offset, int bytes,
     BlockCompletionFunc *cb, void *opaque)
@@ -2328,6 +2371,7 @@ BlockDriver bdrv_file = {
     .bdrv_co_create_opts = raw_co_create_opts,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_block_status = raw_co_block_status,
+    .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
     .bdrv_co_pwrite_zeroes = raw_co_pwrite_zeroes,
 
     .bdrv_co_preadv         = raw_co_preadv,
@@ -2805,6 +2849,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_co_create_opts = hdev_co_create_opts,
     .create_opts         = &raw_create_opts,
+    .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
     .bdrv_co_pwrite_zeroes = hdev_co_pwrite_zeroes,
 
     .bdrv_co_preadv         = raw_co_preadv,
@@ -2927,6 +2972,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_co_create_opts = hdev_co_create_opts,
     .create_opts         = &raw_create_opts,
+    .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
 
 
     .bdrv_co_preadv         = raw_co_preadv,
