@@ -558,11 +558,11 @@
 # @props: properties describing to which node/socket/core/thread
 #         virtual CPU belongs to, provided if supported by board
 #
-# @arch: base architecture of the cpu
+# @arch: base architecture of the cpu; deprecated since 2.13.0 in favor
+#        of @target
 #
-# @target: the QEMU system emulation target, which is more specific than
-#          @arch and determines which additional fields will be listed
-#          (since 2.13)
+# @target: the QEMU system emulation target, which determines which
+#          additional fields will be listed (since 2.13)
 #
 # Since: 2.12
 #

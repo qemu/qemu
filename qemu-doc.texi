@@ -2949,6 +2949,11 @@ from qcow2 images.
 
 The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
 
+@subsection query-cpus-fast "arch" output member (since 2.13.0)
+
+The ``arch'' output member of the ``query-cpus-fast'' command is
+replaced by the ``target'' output member.
+
 @section System emulator devices
 
 @subsection ivshmem (since 2.6.0)
