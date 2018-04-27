@@ -970,6 +970,13 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
     }
 
     dc->next_pc = dc->pc + len;
+    if (xtensa_option_enabled(dc->config, XTENSA_OPTION_LOOP) &&
+        dc->lbeg == dc->pc &&
+        ((dc->pc ^ (dc->next_pc - 1)) & -dc->config->inst_fetch_width)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "unaligned first instruction of a loop (pc = %08x)\n",
+                      dc->pc);
+    }
     for (i = 1; i < len; ++i) {
         b[i] = cpu_ldub_code(env, dc->pc + i);
     }

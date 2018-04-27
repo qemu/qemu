@@ -369,6 +369,7 @@ struct XtensaConfig {
     unsigned nareg;
     int excm_level;
     int ndepc;
+    unsigned inst_fetch_width;
     uint32_t vecbase;
     uint32_t exception_vector[EXC_MAX];
     unsigned ninterrupt;
