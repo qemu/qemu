@@ -263,7 +263,6 @@ static void spapr_populate_pa_features(sPAPRMachineState *spapr,
                                        void *fdt, int offset,
                                        bool legacy_guest)
 {
-    CPUPPCState *env = &cpu->env;
     uint8_t pa_features_206[] = { 6, 0,
         0xf6, 0x1f, 0xc7, 0x00, 0x80, 0xc0 };
     uint8_t pa_features_207[] = { 24, 0,
@@ -315,7 +314,7 @@ static void spapr_populate_pa_features(sPAPRMachineState *spapr,
         return;
     }
 
-    if (env->ci_large_pages) {
+    if (ppc_hash64_has(cpu, PPC_HASH64_CI_LARGEPAGE)) {
         /*
          * Note: we keep CI large pages off by default because a 64K capable
          * guest provisioned with large pages might otherwise try to map a qemu
@@ -548,8 +547,8 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
 
     _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));
     _FDT((fdt_setprop_cell(fdt, offset, "clock-frequency", cpufreq)));
-    _FDT((fdt_setprop_cell(fdt, offset, "slb-size", env->slb_nr)));
-    _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", env->slb_nr)));
+    _FDT((fdt_setprop_cell(fdt, offset, "slb-size", cpu->hash64_opts->slb_size)));
+    _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", cpu->hash64_opts->slb_size)));
     _FDT((fdt_setprop_string(fdt, offset, "status", "okay")));
     _FDT((fdt_setprop(fdt, offset, "64-bit", NULL, 0)));
 
@@ -557,7 +556,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
         _FDT((fdt_setprop(fdt, offset, "ibm,purr", NULL, 0)));
     }
 
-    if (env->mmu_model & POWERPC_MMU_1TSEG) {
+    if (ppc_hash64_has(cpu, PPC_HASH64_1TSEG)) {
         _FDT((fdt_setprop(fdt, offset, "ibm,processor-segment-sizes",
                           segs, sizeof(segs))));
     }
@@ -581,8 +580,8 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
         _FDT((fdt_setprop_cell(fdt, offset, "ibm,dfp", 1)));
     }
 
-    page_sizes_prop_size = ppc_create_page_sizes_prop(env, page_sizes_prop,
-                                                  sizeof(page_sizes_prop));
+    page_sizes_prop_size = ppc_create_page_sizes_prop(cpu, page_sizes_prop,
+                                                      sizeof(page_sizes_prop));
     if (page_sizes_prop_size) {
         _FDT((fdt_setprop(fdt, offset, "ibm,segment-page-sizes",
                           page_sizes_prop, page_sizes_prop_size)));
@@ -669,63 +668,137 @@ static uint32_t spapr_pc_dimm_node(MemoryDeviceInfoList *list, ram_addr_t addr)
     return -1;
 }
 
-/*
- * Adds ibm,dynamic-reconfiguration-memory node.
- * Refer to docs/specs/ppc-spapr-hotplug.txt for the documentation
- * of this device tree node.
- */
-static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
+struct sPAPRDrconfCellV2 {
+     uint32_t seq_lmbs;
+     uint64_t base_addr;
+     uint32_t drc_index;
+     uint32_t aa_index;
+     uint32_t flags;
+} QEMU_PACKED;
+
+typedef struct DrconfCellQueue {
+    struct sPAPRDrconfCellV2 cell;
+    QSIMPLEQ_ENTRY(DrconfCellQueue) entry;
+} DrconfCellQueue;
+
+static DrconfCellQueue *
+spapr_get_drconf_cell(uint32_t seq_lmbs, uint64_t base_addr,
+                      uint32_t drc_index, uint32_t aa_index,
+                      uint32_t flags)
 {
-    MachineState *machine = MACHINE(spapr);
-    int ret, i, offset;
+    DrconfCellQueue *elem;
+
+    elem = g_malloc0(sizeof(*elem));
+    elem->cell.seq_lmbs = cpu_to_be32(seq_lmbs);
+    elem->cell.base_addr = cpu_to_be64(base_addr);
+    elem->cell.drc_index = cpu_to_be32(drc_index);
+    elem->cell.aa_index = cpu_to_be32(aa_index);
+    elem->cell.flags = cpu_to_be32(flags);
+
+    return elem;
+}
+
+/* ibm,dynamic-memory-v2 */
+static int spapr_populate_drmem_v2(sPAPRMachineState *spapr, void *fdt,
+                                   int offset, MemoryDeviceInfoList *dimms)
+{
+    uint8_t *int_buf, *cur_index, buf_len;
+    int ret;
     uint64_t lmb_size = SPAPR_MEMORY_BLOCK_SIZE;
-    uint32_t prop_lmb_size[] = {0, cpu_to_be32(lmb_size)};
+    uint64_t addr, cur_addr, size;
+    uint32_t nr_boot_lmbs = (spapr->hotplug_memory.base / lmb_size);
+    uint64_t mem_end = spapr->hotplug_memory.base +
+                       memory_region_size(&spapr->hotplug_memory.mr);
+    uint32_t node, nr_entries = 0;
+    sPAPRDRConnector *drc;
+    DrconfCellQueue *elem, *next;
+    MemoryDeviceInfoList *info;
+    QSIMPLEQ_HEAD(, DrconfCellQueue) drconf_queue
+        = QSIMPLEQ_HEAD_INITIALIZER(drconf_queue);
+
+    /* Entry to cover RAM and the gap area */
+    elem = spapr_get_drconf_cell(nr_boot_lmbs, 0, 0, -1,
+                                 SPAPR_LMB_FLAGS_RESERVED |
+                                 SPAPR_LMB_FLAGS_DRC_INVALID);
+    QSIMPLEQ_INSERT_TAIL(&drconf_queue, elem, entry);
+    nr_entries++;
+
+    cur_addr = spapr->hotplug_memory.base;
+    for (info = dimms; info; info = info->next) {
+        PCDIMMDeviceInfo *di = info->value->u.dimm.data;
+
+        addr = di->addr;
+        size = di->size;
+        node = di->node;
+
+        /* Entry for hot-pluggable area */
+        if (cur_addr < addr) {
+            drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB, cur_addr / lmb_size);
+            g_assert(drc);
+            elem = spapr_get_drconf_cell((addr - cur_addr) / lmb_size,
+                                         cur_addr, spapr_drc_index(drc), -1, 0);
+            QSIMPLEQ_INSERT_TAIL(&drconf_queue, elem, entry);
+            nr_entries++;
+        }
+
+        /* Entry for DIMM */
+        drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB, addr / lmb_size);
+        g_assert(drc);
+        elem = spapr_get_drconf_cell(size / lmb_size, addr,
+                                     spapr_drc_index(drc), node,
+                                     SPAPR_LMB_FLAGS_ASSIGNED);
+        QSIMPLEQ_INSERT_TAIL(&drconf_queue, elem, entry);
+        nr_entries++;
+        cur_addr = addr + size;
+    }
+
+    /* Entry for remaining hotpluggable area */
+    if (cur_addr < mem_end) {
+        drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB, cur_addr / lmb_size);
+        g_assert(drc);
+        elem = spapr_get_drconf_cell((mem_end - cur_addr) / lmb_size,
+                                     cur_addr, spapr_drc_index(drc), -1, 0);
+        QSIMPLEQ_INSERT_TAIL(&drconf_queue, elem, entry);
+        nr_entries++;
+    }
+
+    buf_len = nr_entries * sizeof(struct sPAPRDrconfCellV2) + sizeof(uint32_t);
+    int_buf = cur_index = g_malloc0(buf_len);
+    *(uint32_t *)int_buf = cpu_to_be32(nr_entries);
+    cur_index += sizeof(nr_entries);
+
+    QSIMPLEQ_FOREACH_SAFE(elem, &drconf_queue, entry, next) {
+        memcpy(cur_index, &elem->cell, sizeof(elem->cell));
+        cur_index += sizeof(elem->cell);
+        QSIMPLEQ_REMOVE(&drconf_queue, elem, DrconfCellQueue, entry);
+        g_free(elem);
+    }
+
+    ret = fdt_setprop(fdt, offset, "ibm,dynamic-memory-v2", int_buf, buf_len);
+    g_free(int_buf);
+    if (ret < 0) {
+        return -1;
+    }
+    return 0;
+}
+
+/* ibm,dynamic-memory */
+static int spapr_populate_drmem_v1(sPAPRMachineState *spapr, void *fdt,
+                                   int offset, MemoryDeviceInfoList *dimms)
+{
+    int i, ret;
+    uint64_t lmb_size = SPAPR_MEMORY_BLOCK_SIZE;
     uint32_t hotplug_lmb_start = spapr->hotplug_memory.base / lmb_size;
     uint32_t nr_lmbs = (spapr->hotplug_memory.base +
                        memory_region_size(&spapr->hotplug_memory.mr)) /
                        lmb_size;
     uint32_t *int_buf, *cur_index, buf_len;
-    int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
-    MemoryDeviceInfoList *dimms = NULL;
-
-    /*
-     * Don't create the node if there is no hotpluggable memory
-     */
-    if (machine->ram_size == machine->maxram_size) {
-        return 0;
-    }
 
     /*
      * Allocate enough buffer size to fit in ibm,dynamic-memory
-     * or ibm,associativity-lookup-arrays
      */
-    buf_len = MAX(nr_lmbs * SPAPR_DR_LMB_LIST_ENTRY_SIZE + 1, nr_nodes * 4 + 2)
-              * sizeof(uint32_t);
+    buf_len = (nr_lmbs * SPAPR_DR_LMB_LIST_ENTRY_SIZE + 1) * sizeof(uint32_t);
     cur_index = int_buf = g_malloc0(buf_len);
-
-    offset = fdt_add_subnode(fdt, 0, "ibm,dynamic-reconfiguration-memory");
-
-    ret = fdt_setprop(fdt, offset, "ibm,lmb-size", prop_lmb_size,
-                    sizeof(prop_lmb_size));
-    if (ret < 0) {
-        goto out;
-    }
-
-    ret = fdt_setprop_cell(fdt, offset, "ibm,memory-flags-mask", 0xff);
-    if (ret < 0) {
-        goto out;
-    }
-
-    ret = fdt_setprop_cell(fdt, offset, "ibm,memory-preservation-time", 0x0);
-    if (ret < 0) {
-        goto out;
-    }
-
-    if (hotplug_lmb_start) {
-        dimms = qmp_pc_dimm_device_list();
-    }
-
-    /* ibm,dynamic-memory */
     int_buf[0] = cpu_to_be32(nr_lmbs);
     cur_index++;
     for (i = 0; i < nr_lmbs; i++) {
@@ -765,13 +838,71 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
 
         cur_index += SPAPR_DR_LMB_LIST_ENTRY_SIZE;
     }
-    qapi_free_MemoryDeviceInfoList(dimms);
     ret = fdt_setprop(fdt, offset, "ibm,dynamic-memory", int_buf, buf_len);
+    g_free(int_buf);
     if (ret < 0) {
-        goto out;
+        return -1;
+    }
+    return 0;
+}
+
+/*
+ * Adds ibm,dynamic-reconfiguration-memory node.
+ * Refer to docs/specs/ppc-spapr-hotplug.txt for the documentation
+ * of this device tree node.
+ */
+static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
+{
+    MachineState *machine = MACHINE(spapr);
+    int ret, i, offset;
+    uint64_t lmb_size = SPAPR_MEMORY_BLOCK_SIZE;
+    uint32_t prop_lmb_size[] = {0, cpu_to_be32(lmb_size)};
+    uint32_t *int_buf, *cur_index, buf_len;
+    int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
+    MemoryDeviceInfoList *dimms = NULL;
+
+    /*
+     * Don't create the node if there is no hotpluggable memory
+     */
+    if (machine->ram_size == machine->maxram_size) {
+        return 0;
+    }
+
+    offset = fdt_add_subnode(fdt, 0, "ibm,dynamic-reconfiguration-memory");
+
+    ret = fdt_setprop(fdt, offset, "ibm,lmb-size", prop_lmb_size,
+                    sizeof(prop_lmb_size));
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = fdt_setprop_cell(fdt, offset, "ibm,memory-flags-mask", 0xff);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = fdt_setprop_cell(fdt, offset, "ibm,memory-preservation-time", 0x0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* ibm,dynamic-memory or ibm,dynamic-memory-v2 */
+    dimms = qmp_pc_dimm_device_list();
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_DRMEM_V2)) {
+        ret = spapr_populate_drmem_v2(spapr, fdt, offset, dimms);
+    } else {
+        ret = spapr_populate_drmem_v1(spapr, fdt, offset, dimms);
+    }
+    qapi_free_MemoryDeviceInfoList(dimms);
+
+    if (ret < 0) {
+        return ret;
     }
 
     /* ibm,associativity-lookup-arrays */
+    buf_len = (nr_nodes * 4 + 2) * sizeof(uint32_t);
+    cur_index = int_buf = g_malloc0(buf_len);
+
     cur_index = int_buf;
     int_buf[0] = cpu_to_be32(nr_nodes);
     int_buf[1] = cpu_to_be32(4); /* Number of entries per associativity list */
@@ -788,8 +919,8 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     }
     ret = fdt_setprop(fdt, offset, "ibm,associativity-lookup-arrays", int_buf,
             (cur_index - int_buf) * sizeof(uint32_t));
-out:
     g_free(int_buf);
+
     return ret;
 }
 
@@ -910,6 +1041,13 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
         0, cpu_to_be32(SPAPR_MEMORY_BLOCK_SIZE),
         cpu_to_be32(max_cpus / smp_threads),
     };
+    uint32_t maxdomains[] = {
+        cpu_to_be32(4),
+        cpu_to_be32(0),
+        cpu_to_be32(0),
+        cpu_to_be32(0),
+        cpu_to_be32(nb_numa_nodes ? nb_numa_nodes - 1 : 0),
+    };
 
     _FDT(rtas = fdt_add_subnode(fdt, 0, "rtas"));
 
@@ -945,6 +1083,9 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
 
     _FDT(fdt_setprop(fdt, rtas, "ibm,associativity-reference-points",
                      refpoints, sizeof(refpoints)));
+
+    _FDT(fdt_setprop(fdt, rtas, "ibm,max-associativity-domains",
+                     maxdomains, sizeof(maxdomains)));
 
     _FDT(fdt_setprop_cell(fdt, rtas, "rtas-error-log-max",
                           RTAS_ERROR_LOG_MAX));
@@ -1440,21 +1581,6 @@ void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
     }
 }
 
-static void find_unknown_sysbus_device(SysBusDevice *sbdev, void *opaque)
-{
-    bool matched = false;
-
-    if (object_dynamic_cast(OBJECT(sbdev), TYPE_SPAPR_PCI_HOST_BRIDGE)) {
-        matched = true;
-    }
-
-    if (!matched) {
-        error_report("Device %s is not supported by this machine yet.",
-                     qdev_fw_name(DEVICE(sbdev)));
-        exit(1);
-    }
-}
-
 static int spapr_reset_drcs(Object *child, void *opaque)
 {
     sPAPRDRConnector *drc =
@@ -1477,9 +1603,6 @@ static void spapr_machine_reset(void)
     hwaddr rtas_addr, fdt_addr;
     void *fdt;
     int rc;
-
-    /* Check for unknown sysbus devices */
-    foreach_dynamic_sysbus_device(find_unknown_sysbus_device, NULL);
 
     spapr_caps_reset(spapr);
 
@@ -2500,6 +2623,9 @@ static void spapr_machine_init(MachineState *machine)
         spapr_ovec_set(spapr->ov5, OV5_HPT_RESIZE);
     }
 
+    /* advertise support for ibm,dyamic-memory-v2 */
+    spapr_ovec_set(spapr->ov5, OV5_DRMEM_V2);
+
     /* init CPUs */
     spapr_init_cpus(spapr);
 
@@ -2927,7 +3053,6 @@ static void spapr_instance_init(Object *obj)
                                     " place of standard EPOW events when possible"
                                     " (required for memory hot-unplug support)",
                                     NULL);
-
     ppc_compat_add_property(obj, "max-cpu-compat", &spapr->max_compat_pvr,
                             "Maximum permitted CPU compatibility mode",
                             &error_fatal);
@@ -3478,28 +3603,6 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
             return;
         }
 
-        /*
-         * Currently PowerPC kernel doesn't allow hot-adding memory to
-         * memory-less node, but instead will silently add the memory
-         * to the first node that has some memory. This causes two
-         * unexpected behaviours for the user.
-         *
-         * - Memory gets hotplugged to a different node than what the user
-         *   specified.
-         * - Since pc-dimm subsystem in QEMU still thinks that memory belongs
-         *   to memory-less node, a reboot will set things accordingly
-         *   and the previously hotplugged memory now ends in the right node.
-         *   This appears as if some memory moved from one node to another.
-         *
-         * So until kernel starts supporting memory hotplug to memory-less
-         * nodes, just prevent such attempts upfront in QEMU.
-         */
-        if (nb_numa_nodes && !numa_info[node].node_mem) {
-            error_setg(errp, "Can't hotplug memory to memory-less node %d",
-                       node);
-            return;
-        }
-
         spapr_memory_plug(hotplug_dev, dev, node, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
         spapr_core_plug(hotplug_dev, dev, errp);
@@ -3719,9 +3822,8 @@ int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
     ICSState *ics = spapr->ics;
     int irq;
 
-    if (!ics) {
-        return -1;
-    }
+    assert(ics);
+
     if (irq_hint) {
         if (!ICS_IRQ_FREE(ics, irq_hint - ics->offset)) {
             error_setg(errp, "can't allocate IRQ %d: already in use", irq_hint);
@@ -3753,9 +3855,7 @@ int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
     ICSState *ics = spapr->ics;
     int i, first = -1;
 
-    if (!ics) {
-        return -1;
-    }
+    assert(ics);
 
     /*
      * MSIMesage::data is used for storing VIRQ so
@@ -3985,18 +4085,42 @@ static const TypeInfo spapr_machine_info = {
     type_init(spapr_machine_register_##suffix)
 
 /*
- * pseries-2.12
+ * pseries-2.13
  */
-static void spapr_machine_2_12_instance_options(MachineState *machine)
+static void spapr_machine_2_13_instance_options(MachineState *machine)
 {
 }
 
-static void spapr_machine_2_12_class_options(MachineClass *mc)
+static void spapr_machine_2_13_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
 }
 
-DEFINE_SPAPR_MACHINE(2_12, "2.12", true);
+DEFINE_SPAPR_MACHINE(2_13, "2.13", true);
+
+/*
+ * pseries-2.12
+ */
+#define SPAPR_COMPAT_2_12                                              \
+    HW_COMPAT_2_12                                                     \
+    {                                                                  \
+        .driver = TYPE_POWERPC_CPU,                                    \
+        .property = "pre-2.13-migration",                              \
+        .value    = "on",                                              \
+    },
+
+static void spapr_machine_2_12_instance_options(MachineState *machine)
+{
+    spapr_machine_2_13_instance_options(machine);
+}
+
+static void spapr_machine_2_12_class_options(MachineClass *mc)
+{
+    spapr_machine_2_13_class_options(mc);
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_12);
+}
+
+DEFINE_SPAPR_MACHINE(2_12, "2.12", false);
 
 static void spapr_machine_2_12_sxxm_instance_options(MachineState *machine)
 {

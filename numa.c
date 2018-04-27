@@ -469,6 +469,7 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
             /* Legacy behavior: if allocation failed, fall back to
              * regular RAM allocation.
              */
+            mem_path = NULL;
             memory_region_init_ram_nomigrate(mr, owner, name, ram_size, &error_fatal);
         }
 #else

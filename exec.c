@@ -1488,19 +1488,13 @@ void ram_block_dump(Monitor *mon)
  */
 static int find_max_supported_pagesize(Object *obj, void *opaque)
 {
-    char *mem_path;
     long *hpsize_min = opaque;
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
-        mem_path = object_property_get_str(obj, "mem-path", NULL);
-        if (mem_path) {
-            long hpsize = qemu_mempath_getpagesize(mem_path);
-            g_free(mem_path);
-            if (hpsize < *hpsize_min) {
-                *hpsize_min = hpsize;
-            }
-        } else {
-            *hpsize_min = getpagesize();
+        long hpsize = host_memory_backend_pagesize(MEMORY_BACKEND(obj));
+
+        if (hpsize < *hpsize_min) {
+            *hpsize_min = hpsize;
         }
     }
 
@@ -1513,11 +1507,7 @@ long qemu_getrampagesize(void)
     long mainrampagesize;
     Object *memdev_root;
 
-    if (mem_path) {
-        mainrampagesize = qemu_mempath_getpagesize(mem_path);
-    } else {
-        mainrampagesize = getpagesize();
-    }
+    mainrampagesize = qemu_mempath_getpagesize(mem_path);
 
     /* it's possible we have memory-backend objects with
      * hugepage-backed RAM. these may get mapped into system

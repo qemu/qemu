@@ -36,6 +36,7 @@
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
 #include "hw/ipmi/ipmi.h"
+#include "target/ppc/mmu-hash64.h"
 
 #include "hw/ppc/xics.h"
 #include "hw/ppc/pnv_xscom.h"
@@ -179,7 +180,7 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
 
     _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));
     _FDT((fdt_setprop_cell(fdt, offset, "clock-frequency", cpufreq)));
-    _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", env->slb_nr)));
+    _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", cpu->hash64_opts->slb_size)));
     _FDT((fdt_setprop_string(fdt, offset, "status", "okay")));
     _FDT((fdt_setprop(fdt, offset, "64-bit", NULL, 0)));
 
@@ -187,7 +188,7 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
         _FDT((fdt_setprop(fdt, offset, "ibm,purr", NULL, 0)));
     }
 
-    if (env->mmu_model & POWERPC_MMU_1TSEG) {
+    if (ppc_hash64_has(cpu, PPC_HASH64_1TSEG)) {
         _FDT((fdt_setprop(fdt, offset, "ibm,processor-segment-sizes",
                            segs, sizeof(segs))));
     }
@@ -209,8 +210,8 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
         _FDT((fdt_setprop_cell(fdt, offset, "ibm,dfp", 1)));
     }
 
-    page_sizes_prop_size = ppc_create_page_sizes_prop(env, page_sizes_prop,
-                                                  sizeof(page_sizes_prop));
+    page_sizes_prop_size = ppc_create_page_sizes_prop(cpu, page_sizes_prop,
+                                                      sizeof(page_sizes_prop));
     if (page_sizes_prop_size) {
         _FDT((fdt_setprop(fdt, offset, "ibm,segment-page-sizes",
                            page_sizes_prop, page_sizes_prop_size)));

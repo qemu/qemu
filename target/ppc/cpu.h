@@ -327,11 +327,13 @@ union ppc_tlb_t {
 #define TLB_MAS                3
 #endif
 
+typedef struct PPCHash64SegmentPageSizes PPCHash64SegmentPageSizes;
+
 typedef struct ppc_slb_t ppc_slb_t;
 struct ppc_slb_t {
     uint64_t esid;
     uint64_t vsid;
-    const struct ppc_one_seg_page_size *sps;
+    const PPCHash64SegmentPageSizes *sps;
 };
 
 #define MAX_SLB_ENTRIES         64
@@ -948,27 +950,7 @@ enum {
 
 #define DBELL_PROCIDTAG_MASK           PPC_BITMASK(44, 63)
 
-/*****************************************************************************/
-/* Segment page size information, used by recent hash MMUs
- * The format of this structure mirrors kvm_ppc_smmu_info
- */
-
 #define PPC_PAGE_SIZES_MAX_SZ   8
-
-struct ppc_one_page_size {
-    uint32_t page_shift;  /* Page shift (or 0) */
-    uint32_t pte_enc;     /* Encoding in the HPTE (>>12) */
-};
-
-struct ppc_one_seg_page_size {
-    uint32_t page_shift;  /* Base page shift of segment (or 0) */
-    uint32_t slb_enc;     /* SLB encoding for BookS */
-    struct ppc_one_page_size enc[PPC_PAGE_SIZES_MAX_SZ];
-};
-
-struct ppc_segment_page_sizes {
-    struct ppc_one_seg_page_size sps[PPC_PAGE_SIZES_MAX_SZ];
-};
 
 struct ppc_radix_page_info {
     uint32_t count;
@@ -1043,7 +1025,6 @@ struct CPUPPCState {
 #if defined(TARGET_PPC64)
     /* PowerPC 64 SLB area */
     ppc_slb_t slb[MAX_SLB_ENTRIES];
-    int32_t slb_nr;
     /* tcg TLB needs flush (deferred slb inval instruction typically) */
 #endif
     /* segment registers */
@@ -1106,10 +1087,8 @@ struct CPUPPCState {
     uint64_t insns_flags;
     uint64_t insns_flags2;
 #if defined(TARGET_PPC64)
-    struct ppc_segment_page_sizes sps;
     ppc_slb_t vrma_slb;
     target_ulong rmls;
-    bool ci_large_pages;
 #endif
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
@@ -1227,6 +1206,7 @@ struct PowerPCCPU {
     PPCVirtualHypervisor *vhyp;
     Object *intc;
     int32_t node_id; /* NUMA node this CPU belongs to */
+    PPCHash64Options *hash64_opts;
 
     /* Fields related to migration compatibility hacks */
     bool pre_2_8_migration;
@@ -1235,6 +1215,8 @@ struct PowerPCCPU {
     uint64_t mig_insns_flags2;
     uint32_t mig_nb_BATs;
     bool pre_2_10_migration;
+    bool pre_2_13_migration;
+    int32_t mig_slb_nr;
 };
 
 static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)

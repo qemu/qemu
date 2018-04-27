@@ -302,12 +302,12 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
         /* HV KVM has backing store size restrictions */
         info->flags = KVM_PPC_PAGE_SIZES_REAL;
 
-        if (env->mmu_model & POWERPC_MMU_1TSEG) {
+        if (ppc_hash64_has(cpu, PPC_HASH64_1TSEG)) {
             info->flags |= KVM_PPC_1T_SEGMENTS;
         }
 
-        if (POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_06 ||
-           POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_07) {
+        if (env->mmu_model == POWERPC_MMU_2_06 ||
+            env->mmu_model == POWERPC_MMU_2_07) {
             info->slb_size = 32;
         } else {
             info->slb_size = 64;
@@ -321,8 +321,8 @@ static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
         i++;
 
         /* 64K on MMU 2.06 and later */
-        if (POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_06 ||
-            POWERPC_MMU_VER(env->mmu_model) == POWERPC_MMU_VER_2_07) {
+        if (env->mmu_model == POWERPC_MMU_2_06 ||
+            env->mmu_model == POWERPC_MMU_2_07) {
             info->sps[i].page_shift = 16;
             info->sps[i].slb_enc = 0x110;
             info->sps[i].enc[0].page_shift = 16;
@@ -425,7 +425,6 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     static bool has_smmu_info;
     CPUPPCState *env = &cpu->env;
     int iq, ik, jq, jk;
-    bool has_64k_pages = false;
 
     /* We only handle page sizes for 64-bit server guests for now */
     if (!(env->mmu_model & POWERPC_MMU_64)) {
@@ -443,13 +442,17 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     }
 
     /* Convert to QEMU form */
-    memset(&env->sps, 0, sizeof(env->sps));
+    memset(cpu->hash64_opts->sps, 0, sizeof(*cpu->hash64_opts->sps));
 
     /* If we have HV KVM, we need to forbid CI large pages if our
      * host page size is smaller than 64K.
      */
     if (smmu_info.flags & KVM_PPC_PAGE_SIZES_REAL) {
-        env->ci_large_pages = getpagesize() >= 0x10000;
+        if (getpagesize() >= 0x10000) {
+            cpu->hash64_opts->flags |= PPC_HASH64_CI_LARGEPAGE;
+        } else {
+            cpu->hash64_opts->flags &= ~PPC_HASH64_CI_LARGEPAGE;
+        }
     }
 
     /*
@@ -457,7 +460,7 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
      *     the selected CPU has with the capabilities that KVM supports.
      */
     for (ik = iq = 0; ik < KVM_PPC_PAGE_SIZES_MAX_SZ; ik++) {
-        struct ppc_one_seg_page_size *qsps = &env->sps.sps[iq];
+        PPCHash64SegmentPageSizes *qsps = &cpu->hash64_opts->sps[iq];
         struct kvm_ppc_one_seg_page_size *ksps = &smmu_info.sps[ik];
 
         if (!kvm_valid_page_size(smmu_info.flags, max_cpu_page_size,
@@ -471,9 +474,6 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
                                      ksps->enc[jk].page_shift)) {
                 continue;
             }
-            if (ksps->enc[jk].page_shift == 16) {
-                has_64k_pages = true;
-            }
             qsps->enc[jq].page_shift = ksps->enc[jk].page_shift;
             qsps->enc[jq].pte_enc = ksps->enc[jk].pte_enc;
             if (++jq >= PPC_PAGE_SIZES_MAX_SZ) {
@@ -484,27 +484,16 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
             break;
         }
     }
-    env->slb_nr = smmu_info.slb_size;
+    cpu->hash64_opts->slb_size = smmu_info.slb_size;
     if (!(smmu_info.flags & KVM_PPC_1T_SEGMENTS)) {
-        env->mmu_model &= ~POWERPC_MMU_1TSEG;
-    }
-    if (!has_64k_pages) {
-        env->mmu_model &= ~POWERPC_MMU_64K;
+        cpu->hash64_opts->flags &= ~PPC_HASH64_1TSEG;
     }
 }
 
 bool kvmppc_is_mem_backend_page_size_ok(const char *obj_path)
 {
     Object *mem_obj = object_resolve_path(obj_path, NULL);
-    char *mempath = object_property_get_str(mem_obj, "mem-path", NULL);
-    long pagesize;
-
-    if (mempath) {
-        pagesize = qemu_mempath_getpagesize(mempath);
-        g_free(mempath);
-    } else {
-        pagesize = getpagesize();
-    }
+    long pagesize = host_memory_backend_pagesize(MEMORY_BACKEND(mem_obj));
 
     return pagesize >= max_cpu_page_size;
 }

@@ -56,7 +56,6 @@ typedef struct OldWorldMacIOState {
     /*< public >*/
 
     HeathrowState *pic;
-    qemu_irq irqs[7];
 
     MacIONVRAMState nvram;
     MACIOIDEState ide[2];

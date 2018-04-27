@@ -145,13 +145,12 @@ static void ppc_core99_init(MachineState *machine)
     CPUPPCState *env = NULL;
     char *filename;
     qemu_irq *pic, **openpic_irqs;
-    MemoryRegion *isa = g_new(MemoryRegion, 1);
     MemoryRegion *unin_memory = g_new(MemoryRegion, 1);
-    MemoryRegion *unin2_memory = g_new(MemoryRegion, 1);
     int linux_boot, i, j, k;
     MemoryRegion *ram = g_new(MemoryRegion, 1), *bios = g_new(MemoryRegion, 1);
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
+    UNINHostState *uninorth_pci;
     PCIBus *pci_bus;
     NewWorldMacIOState *macio;
     MACIOIDEState *macio_ide;
@@ -273,17 +272,9 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    /* Register 8 MB of ISA IO space */
-    memory_region_init_alias(isa, NULL, "isa_mmio",
-                             get_system_io(), 0, 0x00800000);
-    memory_region_add_subregion(get_system_memory(), 0xf2000000, isa);
-
     /* UniN init: XXX should be a real device */
     memory_region_init_io(unin_memory, NULL, &unin_ops, token, "unin", 0x1000);
     memory_region_add_subregion(get_system_memory(), 0xf8000000, unin_memory);
-
-    memory_region_init_io(unin2_memory, NULL, &unin_ops, token, "unin", 0x1000);
-    memory_region_add_subregion(get_system_memory(), 0xf3000000, unin2_memory);
 
     openpic_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     openpic_irqs[0] =
@@ -348,13 +339,61 @@ static void ppc_core99_init(MachineState *machine)
 
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
         /* 970 gets a U3 bus */
-        pci_bus = pci_pmac_u3_init(pic, get_system_memory(), get_system_io());
+        /* Uninorth AGP bus */
+        dev = qdev_create(NULL, TYPE_U3_AGP_HOST_BRIDGE);
+        object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
+                                 &error_abort);
+        qdev_init_nofail(dev);
+        uninorth_pci = U3_AGP_HOST_BRIDGE(dev);
+        s = SYS_BUS_DEVICE(dev);
+        /* PCI hole */
+        memory_region_add_subregion(get_system_memory(), 0x80000000ULL,
+                                    sysbus_mmio_get_region(s, 2));
+        /* Register 8 MB of ISA IO space */
+        memory_region_add_subregion(get_system_memory(), 0xf2000000,
+                                    sysbus_mmio_get_region(s, 3));
+        sysbus_mmio_map(s, 0, 0xf0800000);
+        sysbus_mmio_map(s, 1, 0xf0c00000);
+
         machine_arch = ARCH_MAC99_U3;
     } else {
-        pci_bus = pci_pmac_init(pic, get_system_memory(), get_system_io());
+        /* Use values found on a real PowerMac */
+        /* Uninorth AGP bus */
+        dev = qdev_create(NULL, TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
+        object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
+                                 &error_abort);
+        qdev_init_nofail(dev);
+        s = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(s, 0, 0xf0800000);
+        sysbus_mmio_map(s, 1, 0xf0c00000);
+
+        /* Uninorth internal bus */
+        dev = qdev_create(NULL, TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE);
+        object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
+                                 &error_abort);
+        qdev_init_nofail(dev);
+        s = SYS_BUS_DEVICE(dev);
+        sysbus_mmio_map(s, 0, 0xf4800000);
+        sysbus_mmio_map(s, 1, 0xf4c00000);
+
+        /* Uninorth main bus */
+        dev = qdev_create(NULL, TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
+        object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
+                                 &error_abort);
+        qdev_init_nofail(dev);
+        uninorth_pci = UNI_NORTH_PCI_HOST_BRIDGE(dev);
+        s = SYS_BUS_DEVICE(dev);
+        /* PCI hole */
+        memory_region_add_subregion(get_system_memory(), 0x80000000ULL,
+                                    sysbus_mmio_get_region(s, 2));
+        /* Register 8 MB of ISA IO space */
+        memory_region_add_subregion(get_system_memory(), 0xf2000000,
+                                    sysbus_mmio_get_region(s, 3));
+        sysbus_mmio_map(s, 0, 0xf2800000);
+        sysbus_mmio_map(s, 1, 0xf2c00000);
+
         machine_arch = ARCH_MAC99;
     }
-    object_property_set_bool(OBJECT(pci_bus), true, "realized", &error_abort);
 
     machine->usb |= defaults_enabled() && !machine->usb_disabled;
 
@@ -364,6 +403,9 @@ static void ppc_core99_init(MachineState *machine)
     } else {
         tbfreq = TBFREQ;
     }
+
+    /* init basic PC hardware */
+    pci_bus = PCI_HOST_BRIDGE(uninorth_pci)->bus;
 
     /* MacIO */
     macio = NEWWORLD_MACIO(pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO));

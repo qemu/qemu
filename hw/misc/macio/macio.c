@@ -152,10 +152,9 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
 {
     MacIOState *s = MACIO(d);
     OldWorldMacIOState *os = OLDWORLD_MACIO(d);
+    DeviceState *pic_dev = DEVICE(os->pic);
     Error *err = NULL;
     SysBusDevice *sysbus_dev;
-    int i;
-    int cur_irq = 0;
 
     macio_common_realize(d, &err);
     if (err) {
@@ -164,11 +163,14 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
     }
 
     sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
-    sysbus_connect_irq(sysbus_dev, 0, os->irqs[cur_irq++]);
+    sysbus_connect_irq(sysbus_dev, 0, qdev_get_gpio_in(pic_dev,
+                                                       OLDWORLD_CUDA_IRQ));
 
     sysbus_dev = SYS_BUS_DEVICE(&s->escc);
-    sysbus_connect_irq(sysbus_dev, 0, os->irqs[cur_irq++]);
-    sysbus_connect_irq(sysbus_dev, 1, os->irqs[cur_irq++]);
+    sysbus_connect_irq(sysbus_dev, 0, qdev_get_gpio_in(pic_dev,
+                                                       OLDWORLD_ESCCB_IRQ));
+    sysbus_connect_irq(sysbus_dev, 1, qdev_get_gpio_in(pic_dev,
+                                                       OLDWORLD_ESCCA_IRQ));
 
     object_property_set_bool(OBJECT(&os->nvram), true, "realized", &err);
     if (err) {
@@ -186,15 +188,22 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
                                 sysbus_mmio_get_region(sysbus_dev, 0));
 
     /* IDE buses */
-    for (i = 0; i < ARRAY_SIZE(os->ide); i++) {
-        qemu_irq irq0 = os->irqs[cur_irq++];
-        qemu_irq irq1 = os->irqs[cur_irq++];
+    macio_realize_ide(s, &os->ide[0],
+                      qdev_get_gpio_in(pic_dev, OLDWORLD_IDE0_IRQ),
+                      qdev_get_gpio_in(pic_dev, OLDWORLD_IDE0_DMA_IRQ),
+                      0x16, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 
-        macio_realize_ide(s, &os->ide[i], irq0, irq1, 0x16 + (i * 4), &err);
-        if (err) {
-            error_propagate(errp, err);
-            return;
-        }
+    macio_realize_ide(s, &os->ide[1],
+                      qdev_get_gpio_in(pic_dev, OLDWORLD_IDE1_IRQ),
+                      qdev_get_gpio_in(pic_dev, OLDWORLD_IDE1_DMA_IRQ),
+                      0x1a, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
     }
 }
 
@@ -218,8 +227,6 @@ static void macio_oldworld_init(Object *obj)
     OldWorldMacIOState *os = OLDWORLD_MACIO(obj);
     DeviceState *dev;
     int i;
-
-    qdev_init_gpio_out(DEVICE(obj), os->irqs, ARRAY_SIZE(os->irqs));
 
     object_property_add_link(obj, "pic", TYPE_HEATHROW,
                              (Object **) &os->pic,

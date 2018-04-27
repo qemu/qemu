@@ -31,6 +31,8 @@
 #include "hw/ide/internal.h"
 #include "hw/input/adb.h"
 #include "hw/misc/mos6522.h"
+#include "hw/pci/pci_host.h"
+#include "hw/pci-host/uninorth.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -45,6 +47,14 @@
 
 #define ESCC_CLOCK 3686400
 
+/* Old World IRQs */
+#define OLDWORLD_CUDA_IRQ      0x12
+#define OLDWORLD_ESCCB_IRQ     0x10
+#define OLDWORLD_ESCCA_IRQ     0xf
+#define OLDWORLD_IDE0_IRQ      0xd
+#define OLDWORLD_IDE0_DMA_IRQ  0x2
+#define OLDWORLD_IDE1_IRQ      0xe
+#define OLDWORLD_IDE1_DMA_IRQ  0x3
 
 /* MacIO */
 #define TYPE_MACIO_IDE "macio-ide"
@@ -75,23 +85,14 @@ void macio_ide_register_dma(MACIOIDEState *ide);
 void macio_init(PCIDevice *dev,
                 MemoryRegion *pic_mem);
 
-/* Heathrow PIC */
-DeviceState *heathrow_pic_init(int nb_cpus, qemu_irq **irqs,
-                               qemu_irq **pic_irqs);
-
 /* Grackle PCI */
 #define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
-PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
-                         MemoryRegion *address_space_mem,
-                         MemoryRegion *address_space_io);
 
 /* UniNorth PCI */
-PCIBus *pci_pmac_init(qemu_irq *pic,
-                      MemoryRegion *address_space_mem,
-                      MemoryRegion *address_space_io);
-PCIBus *pci_pmac_u3_init(qemu_irq *pic,
-                         MemoryRegion *address_space_mem,
-                         MemoryRegion *address_space_io);
+UNINHostState *pci_pmac_init(qemu_irq *pic,
+                             MemoryRegion *address_space_mem);
+UNINHostState *pci_pmac_u3_init(qemu_irq *pic,
+                                MemoryRegion *address_space_mem);
 
 /* Mac NVRAM */
 #define TYPE_MACIO_NVRAM "macio-nvram"

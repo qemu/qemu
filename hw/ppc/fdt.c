@@ -9,19 +9,20 @@
 
 #include "qemu/osdep.h"
 #include "target/ppc/cpu.h"
+#include "target/ppc/mmu-hash64.h"
 
 #include "hw/ppc/fdt.h"
 
 #if defined(TARGET_PPC64)
-size_t ppc_create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
-                                     size_t maxsize)
+size_t ppc_create_page_sizes_prop(PowerPCCPU *cpu, uint32_t *prop,
+                                  size_t maxsize)
 {
     size_t maxcells = maxsize / sizeof(uint32_t);
     int i, j, count;
     uint32_t *p = prop;
 
     for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
-        struct ppc_one_seg_page_size *sps = &env->sps.sps[i];
+        PPCHash64SegmentPageSizes *sps = &cpu->hash64_opts->sps[i];
 
         if (!sps->page_shift) {
             break;
