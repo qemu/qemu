@@ -315,7 +315,7 @@ static void mcf5208evb_init(MachineState *machine)
 
 static void mcf5208evb_machine_init(MachineClass *mc)
 {
-    mc->desc = "MCF5206EVB";
+    mc->desc = "MCF5208EVB";
     mc->init = mcf5208evb_init;
     mc->is_default = 1;
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m5208");
