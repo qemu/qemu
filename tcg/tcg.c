@@ -3297,7 +3297,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     s->code_ptr = tb->tc.ptr;
 
 #ifdef TCG_TARGET_NEED_LDST_LABELS
-    s->ldst_labels = NULL;
+    QSIMPLEQ_INIT(&s->ldst_labels);
 #endif
 #ifdef TCG_TARGET_NEED_POOL_LABELS
     s->pool_labels = NULL;

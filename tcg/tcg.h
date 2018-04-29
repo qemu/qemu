@@ -699,7 +699,7 @@ struct TCGContext {
 
     /* These structures are private to tcg-target.inc.c.  */
 #ifdef TCG_TARGET_NEED_LDST_LABELS
-    struct TCGLabelQemuLdst *ldst_labels;
+    QSIMPLEQ_HEAD(ldst_labels, TCGLabelQemuLdst) ldst_labels;
 #endif
 #ifdef TCG_TARGET_NEED_POOL_LABELS
     struct TCGLabelPoolData *pool_labels;
