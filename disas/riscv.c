@@ -1470,8 +1470,9 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             if (isa == rv128) {
                 op = rv_op_c_sqsp;
             } else {
-                op = rv_op_c_fsdsp; break;
+                op = rv_op_c_fsdsp;
             }
+            break;
         case 6: op = rv_op_c_swsp; break;
         case 7:
             if (isa == rv32) {
