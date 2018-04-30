@@ -21,7 +21,7 @@
 #define MAX_PORTS             1
 #define MAX_PORT_GIDS         1
 #define MAX_PORT_PKEYS        1
-#define MAX_PKEYS             1
+#define MAX_PKEYS             MAX_PORT_PKEYS
 #define MAX_GIDS              2048
 #define MAX_UCS               512
 #define MAX_MR_SIZE           (1UL << 27)
@@ -87,7 +87,6 @@ typedef struct RdmaRmQP {
 typedef struct RdmaRmPort {
     union ibv_gid gid_tbl[MAX_PORT_GIDS];
     enum ibv_port_state state;
-    int *pkey_tbl; /* TODO: Not yet supported */
 } RdmaRmPort;
 
 typedef struct RdmaDeviceResources {

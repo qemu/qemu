@@ -275,15 +275,6 @@ static void init_dsr_dev_caps(PVRDMADev *dev)
     pr_dbg("Initialized\n");
 }
 
-static void free_ports(PVRDMADev *dev)
-{
-    int i;
-
-    for (i = 0; i < MAX_PORTS; i++) {
-        g_free(dev->rdma_dev_res.ports[i].gid_tbl);
-    }
-}
-
 static void init_ports(PVRDMADev *dev, Error **errp)
 {
     int i;
@@ -292,10 +283,6 @@ static void init_ports(PVRDMADev *dev, Error **errp)
 
     for (i = 0; i < MAX_PORTS; i++) {
         dev->rdma_dev_res.ports[i].state = IBV_PORT_DOWN;
-
-        dev->rdma_dev_res.ports[i].pkey_tbl =
-            g_malloc0(sizeof(*dev->rdma_dev_res.ports[i].pkey_tbl) *
-                      MAX_PORT_PKEYS);
     }
 }
 
@@ -621,8 +608,6 @@ static void pvrdma_exit(PCIDevice *pdev)
            PCI_FUNC(pdev->devfn));
 
     pvrdma_qp_ops_fini();
-
-    free_ports(dev);
 
     rdma_rm_fini(&dev->rdma_dev_res);
 
