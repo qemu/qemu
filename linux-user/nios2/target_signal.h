@@ -22,5 +22,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUNios2State *state)
 {
     return state->regs[R_SP];
 }
-
 #endif /* TARGET_SIGNAL_H */

@@ -22,6 +22,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUOpenRISCState *state)
 {
     return cpu_get_gpr(state, 1);
 }
-
-
 #endif /* OPENRISC_TARGET_SIGNAL_H */

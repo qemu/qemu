@@ -25,5 +25,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUX86State *state)
 {
     return state->regs[R_ESP];
 }
-
 #endif /* X86_64_TARGET_SIGNAL_H */

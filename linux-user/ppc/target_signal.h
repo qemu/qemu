@@ -26,5 +26,7 @@ static inline abi_ulong get_sp_from_cpustate(CPUPPCState *state)
     return state->gpr[1];
 }
 
-
+#if !defined(TARGET_PPC64)
+#define TARGET_ARCH_HAS_SETUP_FRAME
+#endif
 #endif /* PPC_TARGET_SIGNAL_H */

@@ -26,4 +26,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUX86State *state)
     return state->regs[R_ESP];
 }
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* I386_TARGET_SIGNAL_H */

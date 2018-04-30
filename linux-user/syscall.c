@@ -259,10 +259,22 @@ static int gettid(void) {
     return -ENOSYS;
 }
 #endif
-#if defined(TARGET_NR_getdents) && defined(__NR_getdents)
+
+/* For the 64-bit guest on 32-bit host case we must emulate
+ * getdents using getdents64, because otherwise the host
+ * might hand us back more dirent records than we can fit
+ * into the guest buffer after structure format conversion.
+ * Otherwise we emulate getdents with getdents if the host has it.
+ */
+#if defined(__NR_getdents) && HOST_LONG_BITS >= TARGET_ABI_BITS
+#define EMULATE_GETDENTS_WITH_GETDENTS
+#endif
+
+#if defined(TARGET_NR_getdents) && defined(EMULATE_GETDENTS_WITH_GETDENTS)
 _syscall3(int, sys_getdents, uint, fd, struct linux_dirent *, dirp, uint, count);
 #endif
-#if !defined(__NR_getdents) || \
+#if (defined(TARGET_NR_getdents) && \
+      !defined(EMULATE_GETDENTS_WITH_GETDENTS)) || \
     (defined(TARGET_NR_getdents64) && defined(__NR_getdents64))
 _syscall3(int, sys_getdents64, uint, fd, struct linux_dirent64 *, dirp, uint, count);
 #endif
@@ -10163,7 +10175,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_getdents
     case TARGET_NR_getdents:
-#ifdef __NR_getdents
+#ifdef EMULATE_GETDENTS_WITH_GETDENTS
 #if TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64
         {
             struct target_dirent *target_dirp;

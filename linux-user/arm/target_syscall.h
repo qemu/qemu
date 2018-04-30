@@ -16,6 +16,7 @@ struct target_pt_regs {
 #define ARM_NR_breakpoint (ARM_NR_BASE + 1)
 #define ARM_NR_cacheflush (ARM_NR_BASE + 2)
 #define ARM_NR_set_tls	  (ARM_NR_BASE + 5)
+#define ARM_NR_get_tls    (ARM_NR_BASE + 6)
 
 #define ARM_NR_semihosting	  0x123456
 #define ARM_NR_thumb_semihosting  0xAB

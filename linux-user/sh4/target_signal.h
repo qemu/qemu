@@ -26,5 +26,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUSH4State *state)
     return state->gregs[15];
 }
 
-
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* SH4_TARGET_SIGNAL_H */

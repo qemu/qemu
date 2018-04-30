@@ -23,5 +23,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUS390XState *state)
    return state->regs[15];
 }
 
-
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* S390X_TARGET_SIGNAL_H */

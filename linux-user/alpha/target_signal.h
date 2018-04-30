@@ -55,4 +55,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUAlphaState *state)
 #define TARGET_GEN_SUBRNG6     -24
 #define TARGET_GEN_SUBRNG7     -25
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* ALPHA_TARGET_SIGNAL_H */

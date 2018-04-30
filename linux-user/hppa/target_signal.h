@@ -25,5 +25,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUHPPAState *state)
 {
     return state->gr[30];
 }
-
 #endif /* HPPA_TARGET_SIGNAL_H */

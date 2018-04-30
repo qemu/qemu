@@ -26,5 +26,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUCRISState *state)
     return state->regs[14];
 }
 
-
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* CRIS_TARGET_SIGNAL_H */

@@ -26,4 +26,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUARMState *state)
    return state->xregs[31];
 }
 
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* AARCH64_TARGET_SIGNAL_H */

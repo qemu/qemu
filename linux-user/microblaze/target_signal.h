@@ -26,5 +26,5 @@ static inline abi_ulong get_sp_from_cpustate(CPUMBState *state)
     return state->regs[1];
 }
 
-
+#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* MICROBLAZE_TARGET_SIGNAL_H */

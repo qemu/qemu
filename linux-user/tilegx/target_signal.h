@@ -24,6 +24,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUTLGState *state)
 {
     return state->regs[TILEGX_R_SP];
 }
-
-
 #endif /* TILEGX_TARGET_SIGNAL_H */

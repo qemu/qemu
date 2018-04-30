@@ -25,6 +25,4 @@ static inline abi_ulong get_sp_from_cpustate(CPUMIPSState *state)
 {
     return state->active_tc.gpr[29];
 }
-
-
 #endif /* MIPS64_TARGET_SIGNAL_H */
