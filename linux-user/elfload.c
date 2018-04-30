@@ -1681,11 +1681,18 @@ static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
     }
 }
 
+#ifdef TARGET_ARM
+static int elf_is_fdpic(struct elfhdr *exec)
+{
+    return exec->e_ident[EI_OSABI] == ELFOSABI_ARM_FDPIC;
+}
+#else
 /* Default implementation, always false.  */
 static int elf_is_fdpic(struct elfhdr *exec)
 {
     return 0;
 }
+#endif
 
 static abi_ulong loader_build_fdpic_loadmap(struct image_info *info, abi_ulong sp)
 {
