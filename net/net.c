@@ -1502,11 +1502,12 @@ static int net_param_nic(void *dummy, QemuOpts *opts, Error **errp)
         g_free(mac);
         if (ret) {
             error_setg(errp, "invalid syntax for ethernet address");
-            return -1;
+            goto out;
         }
         if (is_multicast_ether_addr(ni->macaddr.a)) {
             error_setg(errp, "NIC cannot have multicast MAC address");
-            return -1;
+            ret = -1;
+            goto out;
         }
     }
     qemu_macaddr_default_if_unset(&ni->macaddr);
@@ -1518,6 +1519,7 @@ static int net_param_nic(void *dummy, QemuOpts *opts, Error **errp)
         nb_nics++;
     }
 
+out:
     g_free(nd_id);
     return ret;
 }
