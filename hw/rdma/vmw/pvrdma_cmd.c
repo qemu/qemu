@@ -232,7 +232,7 @@ static int create_mr(PVRDMADev *dev, union pvrdma_cmd_req *req,
                                      cmd->start, cmd->length, host_virt,
                                      cmd->access_flags, &resp->mr_handle,
                                      &resp->lkey, &resp->rkey);
-    if (!resp->hdr.err) {
+    if (host_virt && !resp->hdr.err) {
         munmap(host_virt, cmd->length);
     }
 
