@@ -78,6 +78,11 @@ enum {
  */
 #define personality(pers)       (pers & PER_MASK)
 
+int info_is_fdpic(struct image_info *info)
+{
+    return info->personality == PER_LINUX_FDPIC;
+}
+
 /* this flag is uneffective under linux too, should be deleted */
 #ifndef MAP_DENYWRITE
 #define MAP_DENYWRITE 0
@@ -287,6 +292,25 @@ static inline void init_thread(struct target_pt_regs *regs,
     /* For uClinux PIC binaries.  */
     /* XXX: Linux does this only on ARM with no MMU (do we care ?) */
     regs->uregs[10] = infop->start_data;
+
+    /* Support ARM FDPIC.  */
+    if (info_is_fdpic(infop)) {
+        /* As described in the ABI document, r7 points to the loadmap info
+         * prepared by the kernel. If an interpreter is needed, r8 points
+         * to the interpreter loadmap and r9 points to the interpreter
+         * PT_DYNAMIC info. If no interpreter is needed, r8 is zero, and
+         * r9 points to the main program PT_DYNAMIC info.
+         */
+        regs->uregs[7] = infop->loadmap_addr;
+        if (infop->interpreter_loadmap_addr) {
+            /* Executable is dynamically loaded.  */
+            regs->uregs[8] = infop->interpreter_loadmap_addr;
+            regs->uregs[9] = infop->interpreter_pt_dynamic_addr;
+        } else {
+            regs->uregs[8] = 0;
+            regs->uregs[9] = infop->pt_dynamic_addr;
+        }
+    }
 }
 
 #define ELF_NREG    18
@@ -1745,6 +1769,11 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
         if (interp_info) {
             interp_info->other_info = info;
             sp = loader_build_fdpic_loadmap(interp_info, sp);
+            info->interpreter_loadmap_addr = interp_info->loadmap_addr;
+            info->interpreter_pt_dynamic_addr = interp_info->pt_dynamic_addr;
+        } else {
+            info->interpreter_loadmap_addr = 0;
+            info->interpreter_pt_dynamic_addr = 0;
         }
     }
 
