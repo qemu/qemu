@@ -1681,7 +1681,12 @@ static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
     }
 }
 
-#ifdef CONFIG_USE_FDPIC
+/* Default implementation, always false.  */
+static int elf_is_fdpic(struct elfhdr *exec)
+{
+    return 0;
+}
+
 static abi_ulong loader_build_fdpic_loadmap(struct image_info *info, abi_ulong sp)
 {
     uint16_t n;
@@ -1706,7 +1711,6 @@ static abi_ulong loader_build_fdpic_loadmap(struct image_info *info, abi_ulong s
 
     return sp;
 }
-#endif
 
 static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
                                    struct elfhdr *exec,
@@ -1725,7 +1729,6 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 
     sp = p;
 
-#ifdef CONFIG_USE_FDPIC
     /* Needs to be before we load the env/argc/... */
     if (elf_is_fdpic(exec)) {
         /* Need 4 byte alignment for these structs */
@@ -1737,7 +1740,6 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
             sp = loader_build_fdpic_loadmap(interp_info, sp);
         }
     }
-#endif
 
     u_platform = 0;
     k_platform = ELF_PLATFORM;
@@ -2153,10 +2155,8 @@ static void load_elf_image(const char *image_name, int image_fd,
     }
     bswap_phdr(phdr, ehdr->e_phnum);
 
-#ifdef CONFIG_USE_FDPIC
     info->nsegs = 0;
     info->pt_dynamic_addr = 0;
-#endif
 
     mmap_lock();
 
@@ -2173,9 +2173,7 @@ static void load_elf_image(const char *image_name, int image_fd,
             if (a > hiaddr) {
                 hiaddr = a;
             }
-#ifdef CONFIG_USE_FDPIC
             ++info->nsegs;
-#endif
         }
     }
 
@@ -2200,8 +2198,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     }
     load_bias = load_addr - loaddr;
 
-#ifdef CONFIG_USE_FDPIC
-    {
+    if (elf_is_fdpic(ehdr)) {
         struct elf32_fdpic_loadseg *loadsegs = info->loadsegs =
             g_malloc(sizeof(*loadsegs) * info->nsegs);
 
@@ -2219,7 +2216,6 @@ static void load_elf_image(const char *image_name, int image_fd,
             }
         }
     }
-#endif
 
     info->load_bias = load_bias;
     info->load_addr = load_addr;
