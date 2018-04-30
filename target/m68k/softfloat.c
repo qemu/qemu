@@ -334,7 +334,8 @@ floatx80 floatx80_lognp1(floatx80 a, float_status *status)
     if (aSign && aExp >= one_exp) {
         if (aExp == one_exp && aSig == one_sig) {
             float_raise(float_flag_divbyzero, status);
-            packFloatx80(aSign, floatx80_infinity.high, floatx80_infinity.low);
+            return packFloatx80(aSign, floatx80_infinity.high,
+                                floatx80_infinity.low);
         }
         float_raise(float_flag_invalid, status);
         return floatx80_default_nan(status);
