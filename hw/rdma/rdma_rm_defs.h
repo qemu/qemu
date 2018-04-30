@@ -34,9 +34,9 @@
 #define MAX_QP_INIT_RD_ATOM   16
 #define MAX_AH                64
 
-#define MAX_RMRESTBL_NAME_SZ 16
+#define MAX_RM_TBL_NAME 16
 typedef struct RdmaRmResTbl {
-    char name[MAX_RMRESTBL_NAME_SZ];
+    char name[MAX_RM_TBL_NAME];
     QemuMutex lock;
     unsigned long *bitmap;
     size_t tbl_sz;

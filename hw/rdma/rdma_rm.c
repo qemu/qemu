@@ -21,8 +21,6 @@
 #include "rdma_backend.h"
 #include "rdma_rm.h"
 
-#define MAX_RM_TBL_NAME 16
-
 /* Page directory and page tables */
 #define PG_DIR_SZ { TARGET_PAGE_SIZE / sizeof(__u64) }
 #define PG_TBL_SZ { TARGET_PAGE_SIZE / sizeof(__u64) }
