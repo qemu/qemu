@@ -464,6 +464,9 @@ class QMPTestCase(unittest.TestCase):
                     self.assert_qmp(event, 'data/device', drive)
                     result = event
                     cancelled = True
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', drive)
+
 
         self.assert_no_active_block_jobs()
         return result
@@ -479,6 +482,8 @@ class QMPTestCase(unittest.TestCase):
                         self.assert_qmp(event, 'data/offset', event['data']['len'])
                     self.assert_no_active_block_jobs()
                     return event
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', drive)
 
     def wait_ready(self, drive='drive0'):
         '''Wait until a block job BLOCK_JOB_READY event'''

@@ -445,6 +445,8 @@ new_state = "1"
                     self.assert_qmp(event, 'data/device', 'drive0')
                     self.assert_qmp(event, 'data/error', 'Input/output error')
                     completed = True
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', 'drive0')
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
@@ -457,6 +459,10 @@ new_state = "1"
         self.assert_qmp(result, 'return', {})
 
         event = self.vm.get_qmp_event(wait=True)
+        while event['event'] == 'JOB_STATUS_CHANGE':
+            self.assert_qmp(event, 'data/id', 'drive0')
+            event = self.vm.get_qmp_event(wait=True)
+
         self.assertEquals(event['event'], 'BLOCK_JOB_ERROR')
         self.assert_qmp(event, 'data/device', 'drive0')
         self.assert_qmp(event, 'data/operation', 'read')
@@ -478,6 +484,10 @@ new_state = "1"
         self.assert_qmp(result, 'return', {})
 
         event = self.vm.get_qmp_event(wait=True)
+        while event['event'] == 'JOB_STATUS_CHANGE':
+            self.assert_qmp(event, 'data/id', 'drive0')
+            event = self.vm.get_qmp_event(wait=True)
+
         self.assertEquals(event['event'], 'BLOCK_JOB_ERROR')
         self.assert_qmp(event, 'data/device', 'drive0')
         self.assert_qmp(event, 'data/operation', 'read')
@@ -608,7 +618,7 @@ new_state = "1"
                              on_target_error='ignore')
         self.assert_qmp(result, 'return', {})
 
-        event = self.vm.get_qmp_event(wait=True)
+        event = self.vm.event_wait(name='BLOCK_JOB_ERROR')
         self.assertEquals(event['event'], 'BLOCK_JOB_ERROR')
         self.assert_qmp(event, 'data/device', 'drive0')
         self.assert_qmp(event, 'data/operation', 'write')
@@ -784,7 +794,12 @@ class TestGranularity(iotests.QMPTestCase):
                              sync='full', target=target_img,
                              mode='absolute-paths', granularity=8192)
         self.assert_qmp(result, 'return', {})
+
         event = self.vm.get_qmp_event(wait=60.0)
+        while event['event'] == 'JOB_STATUS_CHANGE':
+            self.assert_qmp(event, 'data/id', 'drive0')
+            event = self.vm.get_qmp_event(wait=60.0)
+
         # Failures will manifest as COMPLETED/ERROR.
         self.assert_qmp(event, 'event', 'BLOCK_JOB_READY')
         self.complete_and_wait(drive='drive0', wait_ready=False)

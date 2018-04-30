@@ -30,6 +30,7 @@
 #include "qemu/id.h"
 #include "qemu/main-loop.h"
 #include "trace-root.h"
+#include "qapi/qapi-events-job.h"
 
 static QLIST_HEAD(, Job) jobs = QLIST_HEAD_INITIALIZER(jobs);
 
@@ -157,6 +158,11 @@ static int job_txn_apply(JobTxn *txn, int fn(Job *), bool lock)
     return rc;
 }
 
+static bool job_is_internal(Job *job)
+{
+    return (job->id == NULL);
+}
+
 static void job_state_transition(Job *job, JobStatus s1)
 {
     JobStatus s0 = job->status;
@@ -166,6 +172,10 @@ static void job_state_transition(Job *job, JobStatus s1)
                                JobStatus_str(s0), JobStatus_str(s1));
     assert(JobSTT[s0][s1]);
     job->status = s1;
+
+    if (!job_is_internal(job) && s1 != s0) {
+        qapi_event_send_job_status_change(job->id, job->status, &error_abort);
+    }
 }
 
 int job_apply_verb(Job *job, JobVerb verb, Error **errp)

@@ -93,7 +93,7 @@ _send_qemu_cmd $h "{ 'execute': 'block-job-complete',
                                 'arguments': {
                                                 'device': 'virtio0'
                                               }
-                   }" "COMPLETED"
+                   }" '"status": "null"'
 
 echo
 echo === Performing Live Snapshot 2 ===

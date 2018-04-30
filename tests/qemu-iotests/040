@@ -162,6 +162,8 @@ class TestSingleDrive(ImageCommitTestCase):
                 elif event['event'] == 'BLOCK_JOB_CANCELLED':
                     self.assert_qmp(event, 'data/device', 'drive0')
                     cancelled = True
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', 'drive0')
                 else:
                     self.fail("Unexpected event %s" % (event['event']))
 

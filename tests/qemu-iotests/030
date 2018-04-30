@@ -304,8 +304,7 @@ class TestParallelOps(iotests.QMPTestCase):
         result = self.vm.qmp('block-stream', device='node5', base=self.imgs[3], job_id='stream-node6')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-        event = self.vm.get_qmp_event(wait=True)
-        self.assertEqual(event['event'], 'BLOCK_JOB_READY')
+        event = self.vm.event_wait(name='BLOCK_JOB_READY')
         self.assert_qmp(event, 'data/device', 'commit-drive0')
         self.assert_qmp(event, 'data/type', 'commit')
         self.assert_qmp_absent(event, 'data/error')
@@ -565,6 +564,8 @@ class TestEIO(TestErrors):
                     self.assert_qmp(event, 'data/offset', self.STREAM_BUFFER_SIZE)
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', 'drive0')
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
@@ -596,6 +597,8 @@ class TestEIO(TestErrors):
                     self.assert_qmp(event, 'data/offset', self.image_len)
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', 'drive0')
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
@@ -637,6 +640,8 @@ class TestEIO(TestErrors):
                     self.assert_qmp(event, 'data/offset', self.image_len)
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', 'drive0')
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
@@ -663,6 +668,8 @@ class TestEIO(TestErrors):
                     self.assert_qmp(event, 'data/offset', self.STREAM_BUFFER_SIZE)
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', 'drive0')
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
@@ -722,6 +729,8 @@ class TestENOSPC(TestErrors):
                     self.assert_qmp(event, 'data/offset', self.image_len)
                     self.assert_qmp(event, 'data/len', self.image_len)
                     completed = True
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', 'drive0')
 
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
@@ -751,7 +760,9 @@ class TestStreamStop(iotests.QMPTestCase):
 
         time.sleep(0.1)
         events = self.vm.get_qmp_events(wait=False)
-        self.assertEqual(events, [], 'unexpected QMP event: %s' % events)
+        for e in events:
+            self.assert_qmp(e, 'event', 'JOB_STATUS_CHANGE')
+            self.assert_qmp(e, 'data/id', 'drive0')
 
         self.cancel_and_wait(resume=True)
 

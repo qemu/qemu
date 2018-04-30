@@ -72,7 +72,7 @@ _send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" "return"
 
 _send_qemu_cmd $h "{ 'execute': 'block-commit',
                                  'arguments': { 'device': 'test',
-                                 'top': '"${TEST_IMG}.snp1"' } }" "BLOCK_JOB_COMPLETED"
+                                 'top': '"${TEST_IMG}.snp1"' } }" '"status": "null"'
 
 _cleanup_qemu
 

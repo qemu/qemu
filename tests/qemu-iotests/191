@@ -81,7 +81,7 @@ _send_qemu_cmd $h \
                       'device': 'top',
                       'base':'$TEST_IMG.base',
                       'top': '$TEST_IMG.mid' } }" \
-    "BLOCK_JOB_COMPLETED"
+    '"status": "null"'
 _send_qemu_cmd $h "" "^}"
 
 echo
@@ -129,7 +129,7 @@ _send_qemu_cmd $h \
                       'device': 'top',
                       'base':'$TEST_IMG.base',
                       'top': '$TEST_IMG.mid' } }" \
-    "BLOCK_JOB_COMPLETED"
+    '"status": "null"'
 _send_qemu_cmd $h "" "^}"
 
 echo

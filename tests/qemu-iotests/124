@@ -151,10 +151,17 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
         return self.wait_qmp_backup(kwargs['device'], error)
 
 
+    def ignore_job_status_change_events(self):
+        while True:
+            e = self.vm.event_wait(name="JOB_STATUS_CHANGE")
+            if e['data']['status'] == 'null':
+                break
+
     def wait_qmp_backup(self, device, error='Input/output error'):
         event = self.vm.event_wait(name="BLOCK_JOB_COMPLETED",
                                    match={'data': {'device': device}})
         self.assertNotEqual(event, None)
+        self.ignore_job_status_change_events()
 
         try:
             failure = self.dictpath(event, 'data/error')
@@ -172,6 +179,7 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
         event = self.vm.event_wait(name='BLOCK_JOB_CANCELLED',
                                    match={'data': {'device': device}})
         self.assertNotEqual(event, None)
+        self.ignore_job_status_change_events()
 
 
     def create_anchor_backup(self, drive=None):

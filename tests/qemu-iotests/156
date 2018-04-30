@@ -119,7 +119,7 @@ _send_qemu_cmd $QEMU_HANDLE \
 
 _send_qemu_cmd $QEMU_HANDLE \
     '' \
-    'BLOCK_JOB_COMPLETED'
+    '"status": "null"'
 
 # Remove the source images
 rm -f "$TEST_IMG{,.backing,.overlay}"

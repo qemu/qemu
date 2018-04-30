@@ -92,3 +92,17 @@
 { 'enum': 'JobVerb',
   'data': ['cancel', 'pause', 'resume', 'set-speed', 'complete', 'dismiss',
            'finalize' ] }
+
+##
+# @JOB_STATUS_CHANGE:
+#
+# Emitted when a job transitions to a different status.
+#
+# @id: The job identifier
+# @status: The new job status
+#
+# Since: 2.13
+##
+{ 'event': 'JOB_STATUS_CHANGE',
+  'data': { 'id': 'str',
+            'status': 'JobStatus' } }
