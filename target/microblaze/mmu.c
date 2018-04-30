@@ -182,7 +182,7 @@ done:
 uint32_t mmu_read(CPUMBState *env, uint32_t rn)
 {
     unsigned int i;
-    uint32_t r;
+    uint32_t r = 0;
 
     if (env->mmu.c_mmu < 2 || !env->mmu.c_mmu_tlb_access) {
         qemu_log_mask(LOG_GUEST_ERROR, "MMU access on MMU-less system\n");
@@ -210,6 +210,9 @@ uint32_t mmu_read(CPUMBState *env, uint32_t rn)
                 return 0;
             }
             r = env->mmu.regs[rn];
+            break;
+        case MMU_R_TLBSX:
+            qemu_log_mask(LOG_GUEST_ERROR, "TLBSX is write-only.\n");
             break;
         default:
             r = env->mmu.regs[rn];
@@ -269,6 +272,10 @@ void mmu_write(CPUMBState *env, uint32_t rn, uint32_t v)
                 mmu_change_pid(env, v);
                 env->mmu.regs[rn] = v;
             }
+            break;
+        case MMU_R_TLBX:
+            /* Bit 31 is read-only.  */
+            env->mmu.regs[rn] = deposit32(env->mmu.regs[rn], 0, 31, v);
             break;
         case MMU_R_TLBSX:
         {
