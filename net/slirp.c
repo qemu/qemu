@@ -415,7 +415,7 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *hub_id,
         if (hub_id) {
             nc = net_hub_find_client_by_name(strtol(hub_id, NULL, 0), name);
             if (!nc) {
-                monitor_printf(mon, "unrecognized (vlan-id, stackname) pair\n");
+                monitor_printf(mon, "unrecognized (hub-id, stackname) pair\n");
                 return NULL;
             }
         } else {
@@ -870,9 +870,9 @@ void hmp_info_usernet(Monitor *mon, const QDict *qdict)
 
     QTAILQ_FOREACH(s, &slirp_stacks, entry) {
         int id;
-        bool got_vlan_id = net_hub_id_for_client(&s->nc, &id) == 0;
-        monitor_printf(mon, "VLAN %d (%s):\n",
-                       got_vlan_id ? id : -1,
+        bool got_hub_id = net_hub_id_for_client(&s->nc, &id) == 0;
+        monitor_printf(mon, "Hub %d (%s):\n",
+                       got_hub_id ? id : -1,
                        s->nc.name);
         slirp_connection_info(s->slirp, mon);
     }
