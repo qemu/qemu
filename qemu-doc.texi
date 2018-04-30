@@ -2855,15 +2855,6 @@ with ``-device ...,netdev=x''), or ``-nic user,smb=/some/dir''
 (for embedded NICs). The new syntax allows different settings to be
 provided per NIC.
 
-@subsection -net vlan (since 2.9.0)
-
-The ``-net vlan=NN'' argument was mostly used to attach separate
-network backends to different virtual NICs.  This is the default
-behavior for ``-netdev'' and ``-nic''.  You can connect multiple
-``-netdev'' and ``-nic'' devices to the same network using the
-"hubport" network backend, created with ``-netdev hubport,hubid=NN,...''
-and ``-nic hubport,hubid=NN''.
-
 @subsection -drive cyls=...,heads=...,secs=...,trans=... (since 2.10.0)
 
 The drive geometry arguments are replaced by the the geometry arguments

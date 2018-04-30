@@ -2003,7 +2003,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                configure a vhost-user network, backed by a chardev 'dev'\n"
 #endif
     "-netdev hubport,id=str,hubid=n[,netdev=nd]\n"
-    "                configure a hub port on QEMU VLAN 'n'\n", QEMU_ARCH_ALL)
+    "                configure a hub port on the hub with ID 'n'\n", QEMU_ARCH_ALL)
 DEF("nic", HAS_ARG, QEMU_OPTION_nic,
     "--nic [tap|bridge|"
 #ifdef CONFIG_SLIRP
@@ -2028,10 +2028,9 @@ DEF("nic", HAS_ARG, QEMU_OPTION_nic,
     "                provided a 'user' network connection)\n",
     QEMU_ARCH_ALL)
 DEF("net", HAS_ARG, QEMU_OPTION_net,
-    "-net nic[,vlan=n][,netdev=nd][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
+    "-net nic[,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
     "                configure or create an on-board (or machine default) NIC and\n"
-    "                connect it either to VLAN 'n' or the netdev 'nd' (for pluggable\n"
-    "                NICs please use '-device devtype,netdev=nd' instead)\n"
+    "                connect it to hub 0 (please use -nic unless you need a hub)\n"
     "-net ["
 #ifdef CONFIG_SLIRP
     "user|"
@@ -2044,7 +2043,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
 #ifdef CONFIG_NETMAP
     "netmap|"
 #endif
-    "socket][,vlan=n][,option][,option][,...]\n"
+    "socket][,option][,option][,...]\n"
     "                old way to initialize a host network interface\n"
     "                (use the -netdev option if possible instead)\n", QEMU_ARCH_ALL)
 STEXI
@@ -2462,17 +2461,14 @@ qemu -m 512 -object memory-backend-file,id=mem,size=512M,mem-path=/hugetlbfs,sha
 Create a hub port on the emulated hub with ID @var{hubid}.
 
 The hubport netdev lets you connect a NIC to a QEMU emulated hub instead of a
-single netdev. @code{-net} and @code{-device} with the parameter @option{vlan}
-(deprecated), or @code{-nic hubport} can also be used to connect a
-network device or a NIC to a hub. Alternatively, you can also connect the
-hubport to another netdev with ID @var{nd} by using the @option{netdev=@var{nd}}
-option.
+single netdev. Alternatively, you can also connect the hubport to another
+netdev with ID @var{nd} by using the @option{netdev=@var{nd}} option.
 
-@item -net nic[,vlan=@var{n}][,netdev=@var{nd}][,macaddr=@var{mac}][,model=@var{type}] [,name=@var{name}][,addr=@var{addr}][,vectors=@var{v}]
+@item -net nic[,netdev=@var{nd}][,macaddr=@var{mac}][,model=@var{type}] [,name=@var{name}][,addr=@var{addr}][,vectors=@var{v}]
 @findex -net
 Legacy option to configure or create an on-board (or machine default) Network
-Interface Card(NIC) and connect it either to the emulated hub port ("vlan")
-with number @var{n} (@var{n} = 0 is the default), or to the netdev @var{nd}.
+Interface Card(NIC) and connect it either to the emulated hub with ID 0 (i.e.
+the default hub), or to the netdev @var{nd}.
 The NIC is an e1000 by default on the PC target. Optionally, the MAC address
 can be changed to @var{mac}, the device address set to @var{addr} (PCI cards
 only), and a @var{name} can be assigned for use in monitor commands.
@@ -2482,11 +2478,10 @@ that the card should have; this option currently only affects virtio cards; set
 NIC is created.  QEMU can emulate several different models of network card.
 Use @code{-net nic,model=help} for a list of available devices for your target.
 
-@item -net user|tap|bridge|socket|l2tpv3|vde[,...][,vlan=@var{n}][,name=@var{name}]
+@item -net user|tap|bridge|socket|l2tpv3|vde[,...][,name=@var{name}]
 Configure a host network backend (with the options corresponding to the same
-@option{-netdev} option) and connect it to the emulated hub ("vlan") with the
-number @var{n} (default is number 0). Use @var{name} to specify the name of the
-hub port.
+@option{-netdev} option) and connect it to the emulated hub 0 (the default
+hub). Use @var{name} to specify the name of the hub port.
 ETEXI
 
 STEXI
