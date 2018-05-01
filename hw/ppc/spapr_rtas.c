@@ -120,27 +120,6 @@ static void rtas_query_cpu_stopped_state(PowerPCCPU *cpu_,
     rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
 }
 
-/*
- * Set the timebase offset of the CPU to that of first CPU.
- * This helps hotplugged CPU to have the correct timebase offset.
- */
-static void spapr_cpu_update_tb_offset(PowerPCCPU *cpu)
-{
-    PowerPCCPU *fcpu = POWERPC_CPU(first_cpu);
-
-    cpu->env.tb_env->tb_offset = fcpu->env.tb_env->tb_offset;
-}
-
-static void spapr_cpu_set_endianness(PowerPCCPU *cpu)
-{
-    PowerPCCPU *fcpu = POWERPC_CPU(first_cpu);
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(fcpu);
-
-    if (!pcc->interrupts_big_endian(fcpu)) {
-        cpu->env.spr[SPR_LPCR] |= LPCR_ILE;
-    }
-}
-
 static void rtas_start_cpu(PowerPCCPU *callcpu, sPAPRMachineState *spapr,
                            uint32_t token, uint32_t nargs,
                            target_ulong args,
@@ -150,6 +129,7 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, sPAPRMachineState *spapr,
     PowerPCCPU *newcpu;
     CPUPPCState *env;
     PowerPCCPUClass *pcc;
+    target_ulong lpcr;
 
     if (nargs != 3 || nret != 1) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -178,10 +158,20 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, sPAPRMachineState *spapr,
     cpu_synchronize_state(CPU(newcpu));
 
     env->msr = (1ULL << MSR_SF) | (1ULL << MSR_ME);
-    spapr_cpu_set_endianness(newcpu);
-    spapr_cpu_update_tb_offset(newcpu);
+
     /* Enable Power-saving mode Exit Cause exceptions for the new CPU */
-    ppc_store_lpcr(newcpu, env->spr[SPR_LPCR] | pcc->lpcr_pm);
+    lpcr = env->spr[SPR_LPCR] | pcc->lpcr_pm;
+    if (!pcc->interrupts_big_endian(callcpu)) {
+        lpcr |= LPCR_ILE;
+    }
+    ppc_store_lpcr(newcpu, lpcr);
+
+    /*
+     * Set the timebase offset of the new CPU to that of the invoking
+     * CPU.  This helps hotplugged CPU to have the correct timebase
+     * offset.
+     */
+    newcpu->env.tb_env->tb_offset = callcpu->env.tb_env->tb_offset;
 
     env->nip = start;
     env->gpr[3] = r3;
