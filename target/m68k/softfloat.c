@@ -334,7 +334,8 @@ floatx80 floatx80_lognp1(floatx80 a, float_status *status)
     if (aSign && aExp >= one_exp) {
         if (aExp == one_exp && aSig == one_sig) {
             float_raise(float_flag_divbyzero, status);
-            packFloatx80(aSign, floatx80_infinity.high, floatx80_infinity.low);
+            return packFloatx80(aSign, floatx80_infinity.high,
+                                floatx80_infinity.low);
         }
         float_raise(float_flag_invalid, status);
         return floatx80_default_nan(status);
@@ -1496,7 +1497,7 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
     int32_t compact, l, n, j;
     floatx80 fp0, fp1, fp2, fp3, fp4, fp5, x, invtwopi, twopi1, twopi2;
     float32 posneg1, twoto63;
-    flag adjn, endflag;
+    flag endflag;
 
     aSig = extractFloatx80Frac(a);
     aExp = extractFloatx80Exp(a);
@@ -1513,8 +1514,6 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
     if (aExp == 0 && aSig == 0) {
         return packFloatx80(aSign, 0, 0);
     }
-
-    adjn = 0;
 
     user_rnd_mode = status->float_rounding_mode;
     user_rnd_prec = status->floatx80_rounding_precision;
@@ -1590,14 +1589,8 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
             status->float_rounding_mode = user_rnd_mode;
             status->floatx80_rounding_precision = user_rnd_prec;
 
-            if (adjn) {
-                /* COSTINY */
-                a = floatx80_sub(fp0, float32_to_floatx80(
-                                 make_float32(0x00800000), status), status);
-            } else {
-                /* SINTINY */
-                a = floatx80_move(a, status);
-            }
+            /* SINTINY */
+            a = floatx80_move(a, status);
             float_raise(float_flag_inexact, status);
 
             return a;
@@ -1615,7 +1608,7 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
                            status); /* FP0 IS R = (X-Y1)-Y2 */
 
     sincont:
-        if ((n + adjn) & 1) {
+        if (n & 1) {
             /* COSPOLY */
             fp0 = floatx80_mul(fp0, fp0, status); /* FP0 IS S */
             fp1 = floatx80_mul(fp0, fp0, status); /* FP1 IS T */
@@ -1628,7 +1621,7 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
             xExp = extractFloatx80Exp(fp0);
             xSig = extractFloatx80Frac(fp0);
 
-            if (((n + adjn) >> 1) & 1) {
+            if ((n >> 1) & 1) {
                 xSign ^= 1;
                 posneg1 = make_float32(0xBF800000); /* -1 */
             } else {
@@ -1680,7 +1673,7 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
             xExp = extractFloatx80Exp(fp0);
             xSig = extractFloatx80Frac(fp0);
 
-            xSign ^= ((n + adjn) >> 1) & 1; /* X IS NOW R'= SGN*R */
+            xSign ^= (n >> 1) & 1; /* X IS NOW R'= SGN*R */
 
             fp0 = floatx80_mul(fp0, fp0, status); /* FP0 IS S */
             fp1 = floatx80_mul(fp0, fp0, status); /* FP1 IS T */
@@ -1743,7 +1736,7 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
     int32_t compact, l, n, j;
     floatx80 fp0, fp1, fp2, fp3, fp4, fp5, x, invtwopi, twopi1, twopi2;
     float32 posneg1, twoto63;
-    flag adjn, endflag;
+    flag endflag;
 
     aSig = extractFloatx80Frac(a);
     aExp = extractFloatx80Exp(a);
@@ -1760,8 +1753,6 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
     if (aExp == 0 && aSig == 0) {
         return packFloatx80(0, one_exp, one_sig);
     }
-
-    adjn = 1;
 
     user_rnd_mode = status->float_rounding_mode;
     user_rnd_prec = status->floatx80_rounding_precision;
@@ -1836,15 +1827,10 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
             status->float_rounding_mode = user_rnd_mode;
             status->floatx80_rounding_precision = user_rnd_prec;
 
-            if (adjn) {
-                /* COSTINY */
-                a = floatx80_sub(fp0, float32_to_floatx80(
-                                 make_float32(0x00800000), status),
-                                 status);
-            } else {
-                /* SINTINY */
-                a = floatx80_move(a, status);
-            }
+            /* COSTINY */
+            a = floatx80_sub(fp0, float32_to_floatx80(
+                             make_float32(0x00800000), status),
+                             status);
             float_raise(float_flag_inexact, status);
 
             return a;
@@ -1862,7 +1848,7 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
                            status); /* FP0 IS R = (X-Y1)-Y2 */
 
     sincont:
-        if ((n + adjn) & 1) {
+        if ((n + 1) & 1) {
             /* COSPOLY */
             fp0 = floatx80_mul(fp0, fp0, status); /* FP0 IS S */
             fp1 = floatx80_mul(fp0, fp0, status); /* FP1 IS T */
@@ -1875,7 +1861,7 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
             xExp = extractFloatx80Exp(fp0);
             xSig = extractFloatx80Frac(fp0);
 
-            if (((n + adjn) >> 1) & 1) {
+            if (((n + 1) >> 1) & 1) {
                 xSign ^= 1;
                 posneg1 = make_float32(0xBF800000); /* -1 */
             } else {
@@ -1926,7 +1912,7 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
             xExp = extractFloatx80Exp(fp0);
             xSig = extractFloatx80Frac(fp0);
 
-            xSign ^= ((n + adjn) >> 1) & 1; /* X IS NOW R'= SGN*R */
+            xSign ^= ((n + 1) >> 1) & 1; /* X IS NOW R'= SGN*R */
 
             fp0 = floatx80_mul(fp0, fp0, status); /* FP0 IS S */
             fp1 = floatx80_mul(fp0, fp0, status); /* FP1 IS T */
