@@ -28,6 +28,24 @@ read 3145728/3145728 bytes at offset 0
 read 3145728/3145728 bytes at offset 0
 3 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
+=== Converting to an overlay larger than its backing file ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=268435456
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=805306368 backing_file=TEST_DIR/t.IMGFMT.base
+Offset          Length          File
+
+wrote 1048576/1048576 bytes at offset 267386880
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1048576/1048576 bytes at offset 629145600
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          File
+0xff00000       0x100000        TEST_DIR/t.IMGFMT.base
+0x25800000      0x100000        TEST_DIR/t.IMGFMT.orig
+read 1048576/1048576 bytes at offset 267386880
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 629145600
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
 === Concatenate multiple source images ===
 
 Formatting 'TEST_DIR/t.IMGFMT.1', fmt=IMGFMT size=4194304
