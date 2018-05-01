@@ -47,6 +47,7 @@
 #include "trace.h"
 #include "hw/ppc/fdt.h"
 #include "target/ppc/mmu-hash64.h"
+#include "target/ppc/mmu-book3s-v3.h"
 
 static void rtas_display_character(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                    uint32_t token, uint32_t nargs,
@@ -164,6 +165,17 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, sPAPRMachineState *spapr,
     lpcr = env->spr[SPR_LPCR] | pcc->lpcr_pm;
     if (!pcc->interrupts_big_endian(callcpu)) {
         lpcr |= LPCR_ILE;
+    }
+    if (env->mmu_model == POWERPC_MMU_3_00) {
+        /*
+         * New cpus are expected to start in the same radix/hash mode
+         * as the existing CPUs
+         */
+        if (ppc64_radix_guest(callcpu)) {
+            lpcr |= LPCR_UPRT | LPCR_GTSE;
+        } else {
+            lpcr &= ~(LPCR_UPRT | LPCR_GTSE);
+        }
     }
     ppc_store_lpcr(newcpu, lpcr);
 

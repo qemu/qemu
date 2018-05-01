@@ -8914,22 +8914,6 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
     lpcr->default_value &= ~LPCR_RMLS;
     lpcr->default_value |= 1ull << LPCR_RMLS_SHIFT;
 
-    if (env->mmu_model == POWERPC_MMU_3_00) {
-        /* By default we choose legacy mode and switch to new hash or radix
-         * when a register process table hcall is made. So disable process
-         * tables and guest translation shootdown by default
-         *
-         * Hot-plugged CPUs inherit from the guest radix setting under
-         * KVM but not under TCG. Update the default LPCR to keep new
-         * CPUs in sync when radix is enabled.
-         */
-        if (ppc64_radix_guest(cpu)) {
-            lpcr->default_value |= LPCR_UPRT | LPCR_GTSE;
-        } else {
-            lpcr->default_value &= ~(LPCR_UPRT | LPCR_GTSE);
-        }
-    }
-
     /* Only enable Power-saving mode Exit Cause exceptions on the boot
      * CPU. The RTAS command start-cpu will enable them on secondaries.
      */
