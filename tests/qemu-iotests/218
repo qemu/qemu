@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+#
+# This test covers what happens when a mirror block job is cancelled
+# in various phases of its existence.
+#
+# Note that this test only checks the emitted events (i.e.
+# BLOCK_JOB_COMPLETED vs. BLOCK_JOB_CANCELLED), it does not compare
+# whether the target is in sync with the source when the
+# BLOCK_JOB_COMPLETED event occurs.  This is covered by other tests
+# (such as 041).
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Max Reitz <mreitz@redhat.com>
+
+import iotests
+from iotests import log
+
+iotests.verify_platform(['linux'])
+
+
+# Launches the VM, adds two null-co nodes (source and target), and
+# starts a blockdev-mirror job on them.
+#
+# Either both or none of speed and buf_size must be given.
+
+def start_mirror(vm, speed=None, buf_size=None):
+    vm.launch()
+
+    ret = vm.qmp('blockdev-add',
+                     node_name='source',
+                     driver='null-co',
+                     size=1048576)
+    assert ret['return'] == {}
+
+    ret = vm.qmp('blockdev-add',
+                     node_name='target',
+                     driver='null-co',
+                     size=1048576)
+    assert ret['return'] == {}
+
+    if speed is not None:
+        ret = vm.qmp('blockdev-mirror',
+                         job_id='mirror',
+                         device='source',
+                         target='target',
+                         sync='full',
+                         speed=speed,
+                         buf_size=buf_size)
+    else:
+        ret = vm.qmp('blockdev-mirror',
+                         job_id='mirror',
+                         device='source',
+                         target='target',
+                         sync='full')
+
+    assert ret['return'] == {}
+
+
+log('')
+log('=== Cancel mirror job before convergence ===')
+log('')
+
+log('--- force=false ---')
+log('')
+
+with iotests.VM() as vm:
+    # Low speed so it does not converge
+    start_mirror(vm, 65536, 65536)
+
+    log('Cancelling job')
+    log(vm.qmp('block-job-cancel', device='mirror', force=False))
+
+    log(vm.event_wait('BLOCK_JOB_CANCELLED'),
+        filters=[iotests.filter_qmp_event])
+
+log('')
+log('--- force=true ---')
+log('')
+
+with iotests.VM() as vm:
+    # Low speed so it does not converge
+    start_mirror(vm, 65536, 65536)
+
+    log('Cancelling job')
+    log(vm.qmp('block-job-cancel', device='mirror', force=True))
+
+    log(vm.event_wait('BLOCK_JOB_CANCELLED'),
+        filters=[iotests.filter_qmp_event])
+
+
+log('')
+log('=== Cancel mirror job after convergence ===')
+log('')
+
+log('--- force=false ---')
+log('')
+
+with iotests.VM() as vm:
+    start_mirror(vm)
+
+    log(vm.event_wait('BLOCK_JOB_READY'),
+        filters=[iotests.filter_qmp_event])
+
+    log('Cancelling job')
+    log(vm.qmp('block-job-cancel', device='mirror', force=False))
+
+    log(vm.event_wait('BLOCK_JOB_COMPLETED'),
+        filters=[iotests.filter_qmp_event])
+
+log('')
+log('--- force=true ---')
+log('')
+
+with iotests.VM() as vm:
+    start_mirror(vm)
+
+    log(vm.event_wait('BLOCK_JOB_READY'),
+        filters=[iotests.filter_qmp_event])
+
+    log('Cancelling job')
+    log(vm.qmp('block-job-cancel', device='mirror', force=True))
+
+    log(vm.event_wait('BLOCK_JOB_CANCELLED'),
+        filters=[iotests.filter_qmp_event])

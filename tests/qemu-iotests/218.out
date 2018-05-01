@@ -1,0 +1,30 @@
+
+=== Cancel mirror job before convergence ===
+
+--- force=false ---
+
+Cancelling job
+{u'return': {}}
+{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'device': u'mirror', u'type': u'mirror', u'speed': 65536, u'len': 1048576, u'offset': 65536}, u'event': u'BLOCK_JOB_CANCELLED'}
+
+--- force=true ---
+
+Cancelling job
+{u'return': {}}
+{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'device': u'mirror', u'type': u'mirror', u'speed': 65536, u'len': 1048576, u'offset': 65536}, u'event': u'BLOCK_JOB_CANCELLED'}
+
+=== Cancel mirror job after convergence ===
+
+--- force=false ---
+
+{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'device': u'mirror', u'type': u'mirror', u'speed': 0, u'len': 1048576, u'offset': 1048576}, u'event': u'BLOCK_JOB_READY'}
+Cancelling job
+{u'return': {}}
+{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'device': u'mirror', u'type': u'mirror', u'speed': 0, u'len': 1048576, u'offset': 1048576}, u'event': u'BLOCK_JOB_COMPLETED'}
+
+--- force=true ---
+
+{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'device': u'mirror', u'type': u'mirror', u'speed': 0, u'len': 1048576, u'offset': 1048576}, u'event': u'BLOCK_JOB_READY'}
+Cancelling job
+{u'return': {}}
+{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'device': u'mirror', u'type': u'mirror', u'speed': 0, u'len': 1048576, u'offset': 1048576}, u'event': u'BLOCK_JOB_CANCELLED'}
