@@ -874,7 +874,9 @@ static void coroutine_fn mirror_run(void *opaque)
         }
         trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
         block_job_sleep_ns(&s->common, delay_ns);
-        if (block_job_is_cancelled(&s->common) && s->common.force) {
+        if (block_job_is_cancelled(&s->common) &&
+            (!s->synced || s->common.force))
+        {
             break;
         }
         s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
