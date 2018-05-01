@@ -37,6 +37,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/spapr_rtas.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/ppc.h"
 #include "hw/boards.h"
 
@@ -173,10 +174,7 @@ static void rtas_start_cpu(PowerPCCPU *callcpu, sPAPRMachineState *spapr,
      */
     newcpu->env.tb_env->tb_offset = callcpu->env.tb_env->tb_offset;
 
-    env->nip = start;
-    env->gpr[3] = r3;
-
-    CPU(newcpu)->halted = 0;
+    spapr_cpu_set_entry_state(newcpu, start, r3);
 
     qemu_cpu_kick(CPU(newcpu));
 

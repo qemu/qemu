@@ -52,6 +52,15 @@ static void spapr_cpu_reset(void *opaque)
 
 }
 
+void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip, target_ulong r3)
+{
+    CPUPPCState *env = &cpu->env;
+
+    env->nip = nip;
+    env->gpr[3] = r3;
+    CPU(cpu)->halted = 0;
+}
+
 static void spapr_cpu_destroy(PowerPCCPU *cpu)
 {
     qemu_unregister_reset(spapr_cpu_reset, cpu);

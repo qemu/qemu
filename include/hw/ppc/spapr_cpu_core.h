@@ -12,6 +12,7 @@
 #include "hw/qdev.h"
 #include "hw/cpu/core.h"
 #include "target/ppc/cpu-qom.h"
+#include "target/ppc/cpu.h"
 
 #define TYPE_SPAPR_CPU_CORE "spapr-cpu-core"
 #define SPAPR_CPU_CORE(obj) \
@@ -38,4 +39,6 @@ typedef struct sPAPRCPUCoreClass {
 } sPAPRCPUCoreClass;
 
 const char *spapr_get_cpu_core_type(const char *cpu_type);
+void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip, target_ulong r3);
+
 #endif
