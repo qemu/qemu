@@ -32,7 +32,7 @@
 #include "hw/qdev.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/cpus.h"
-#include "sysemu/kvm.h"
+#include "sysemu/hw_accel.h"
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
@@ -45,6 +45,7 @@
 #include "qemu/cutils.h"
 #include "trace.h"
 #include "hw/ppc/fdt.h"
+#include "target/ppc/mmu-hash64.h"
 
 static void rtas_display_character(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                    uint32_t token, uint32_t nargs,
@@ -140,13 +141,15 @@ static void spapr_cpu_set_endianness(PowerPCCPU *cpu)
     }
 }
 
-static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPRMachineState *spapr,
+static void rtas_start_cpu(PowerPCCPU *callcpu, sPAPRMachineState *spapr,
                            uint32_t token, uint32_t nargs,
                            target_ulong args,
                            uint32_t nret, target_ulong rets)
 {
     target_ulong id, start, r3;
-    PowerPCCPU *cpu;
+    PowerPCCPU *newcpu;
+    CPUPPCState *env;
+    PowerPCCPUClass *pcc;
 
     if (nargs != 3 || nret != 1) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -157,41 +160,37 @@ static void rtas_start_cpu(PowerPCCPU *cpu_, sPAPRMachineState *spapr,
     start = rtas_ld(args, 1);
     r3 = rtas_ld(args, 2);
 
-    cpu = spapr_find_cpu(id);
-    if (cpu != NULL) {
-        CPUState *cs = CPU(cpu);
-        CPUPPCState *env = &cpu->env;
-        PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-
-        if (!cs->halted) {
-            rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
-            return;
-        }
-
-        /* This will make sure qemu state is up to date with kvm, and
-         * mark it dirty so our changes get flushed back before the
-         * new cpu enters */
-        kvm_cpu_synchronize_state(cs);
-
-        env->msr = (1ULL << MSR_SF) | (1ULL << MSR_ME);
-
-        /* Enable Power-saving mode Exit Cause exceptions for the new CPU */
-        env->spr[SPR_LPCR] |= pcc->lpcr_pm;
-
-        env->nip = start;
-        env->gpr[3] = r3;
-        cs->halted = 0;
-        spapr_cpu_set_endianness(cpu);
-        spapr_cpu_update_tb_offset(cpu);
-
-        qemu_cpu_kick(cs);
-
-        rtas_st(rets, 0, RTAS_OUT_SUCCESS);
+    newcpu = spapr_find_cpu(id);
+    if (!newcpu) {
+        /* Didn't find a matching cpu */
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
 
-    /* Didn't find a matching cpu */
-    rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+    env = &newcpu->env;
+    pcc = POWERPC_CPU_GET_CLASS(newcpu);
+
+    if (!CPU(newcpu)->halted) {
+        rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
+        return;
+    }
+
+    cpu_synchronize_state(CPU(newcpu));
+
+    env->msr = (1ULL << MSR_SF) | (1ULL << MSR_ME);
+    spapr_cpu_set_endianness(newcpu);
+    spapr_cpu_update_tb_offset(newcpu);
+    /* Enable Power-saving mode Exit Cause exceptions for the new CPU */
+    ppc_store_lpcr(newcpu, env->spr[SPR_LPCR] | pcc->lpcr_pm);
+
+    env->nip = start;
+    env->gpr[3] = r3;
+
+    CPU(newcpu)->halted = 0;
+
+    qemu_cpu_kick(CPU(newcpu));
+
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
 static void rtas_stop_self(PowerPCCPU *cpu, sPAPRMachineState *spapr,
@@ -203,13 +202,12 @@ static void rtas_stop_self(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
-    cs->halted = 1;
-    qemu_cpu_kick(cs);
-
     /* Disable Power-saving mode Exit Cause exceptions for the CPU.
      * This could deliver an interrupt on a dying CPU and crash the
      * guest */
-    env->spr[SPR_LPCR] &= ~pcc->lpcr_pm;
+    ppc_store_lpcr(cpu, env->spr[SPR_LPCR] & ~pcc->lpcr_pm);
+    cs->halted = 1;
+    qemu_cpu_kick(cs);
 }
 
 static inline int sysparm_st(target_ulong addr, target_ulong len,
