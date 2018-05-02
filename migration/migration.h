@@ -194,6 +194,9 @@ struct MigrationState
     bool send_configuration;
     /* Whether we send section footer during migration */
     bool send_section_footer;
+
+    /* Needed by postcopy-pause state */
+    QemuSemaphore postcopy_pause_sem;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
