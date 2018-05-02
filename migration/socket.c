@@ -190,9 +190,10 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
         return;
     }
 
-    qio_net_listener_set_client_func(listener,
-                                     socket_accept_incoming_migration,
-                                     NULL, NULL);
+    qio_net_listener_set_client_func_full(listener,
+                                          socket_accept_incoming_migration,
+                                          NULL, NULL,
+                                          g_main_context_get_thread_default());
 }
 
 void tcp_start_incoming_migration(const char *host_port, Error **errp)
