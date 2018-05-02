@@ -190,6 +190,70 @@ void ramblock_recv_bitmap_set_range(RAMBlock *rb, void *host_addr,
                       nr);
 }
 
+#define  RAMBLOCK_RECV_BITMAP_ENDING  (0x0123456789abcdefULL)
+
+/*
+ * Format: bitmap_size (8 bytes) + whole_bitmap (N bytes).
+ *
+ * Returns >0 if success with sent bytes, or <0 if error.
+ */
+int64_t ramblock_recv_bitmap_send(QEMUFile *file,
+                                  const char *block_name)
+{
+    RAMBlock *block = qemu_ram_block_by_name(block_name);
+    unsigned long *le_bitmap, nbits;
+    uint64_t size;
+
+    if (!block) {
+        error_report("%s: invalid block name: %s", __func__, block_name);
+        return -1;
+    }
+
+    nbits = block->used_length >> TARGET_PAGE_BITS;
+
+    /*
+     * Make sure the tmp bitmap buffer is big enough, e.g., on 32bit
+     * machines we may need 4 more bytes for padding (see below
+     * comment). So extend it a bit before hand.
+     */
+    le_bitmap = bitmap_new(nbits + BITS_PER_LONG);
+
+    /*
+     * Always use little endian when sending the bitmap. This is
+     * required that when source and destination VMs are not using the
+     * same endianess. (Note: big endian won't work.)
+     */
+    bitmap_to_le(le_bitmap, block->receivedmap, nbits);
+
+    /* Size of the bitmap, in bytes */
+    size = nbits / 8;
+
+    /*
+     * size is always aligned to 8 bytes for 64bit machines, but it
+     * may not be true for 32bit machines. We need this padding to
+     * make sure the migration can survive even between 32bit and
+     * 64bit machines.
+     */
+    size = ROUND_UP(size, 8);
+
+    qemu_put_be64(file, size);
+    qemu_put_buffer(file, (const uint8_t *)le_bitmap, size);
+    /*
+     * Mark as an end, in case the middle part is screwed up due to
+     * some "misterious" reason.
+     */
+    qemu_put_be64(file, RAMBLOCK_RECV_BITMAP_ENDING);
+    qemu_fflush(file);
+
+    free(le_bitmap);
+
+    if (qemu_file_get_error(file)) {
+        return qemu_file_get_error(file);
+    }
+
+    return size + sizeof(size);
+}
+
 /*
  * An outstanding page request, on the source, having been received
  * and queued
@@ -3298,6 +3362,86 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 static bool ram_has_postcopy(void *opaque)
 {
     return migrate_postcopy_ram();
+}
+
+/*
+ * Read the received bitmap, revert it as the initial dirty bitmap.
+ * This is only used when the postcopy migration is paused but wants
+ * to resume from a middle point.
+ */
+int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block)
+{
+    int ret = -EINVAL;
+    QEMUFile *file = s->rp_state.from_dst_file;
+    unsigned long *le_bitmap, nbits = block->used_length >> TARGET_PAGE_BITS;
+    uint64_t local_size = nbits / 8;
+    uint64_t size, end_mark;
+
+    trace_ram_dirty_bitmap_reload_begin(block->idstr);
+
+    if (s->state != MIGRATION_STATUS_POSTCOPY_RECOVER) {
+        error_report("%s: incorrect state %s", __func__,
+                     MigrationStatus_str(s->state));
+        return -EINVAL;
+    }
+
+    /*
+     * Note: see comments in ramblock_recv_bitmap_send() on why we
+     * need the endianess convertion, and the paddings.
+     */
+    local_size = ROUND_UP(local_size, 8);
+
+    /* Add paddings */
+    le_bitmap = bitmap_new(nbits + BITS_PER_LONG);
+
+    size = qemu_get_be64(file);
+
+    /* The size of the bitmap should match with our ramblock */
+    if (size != local_size) {
+        error_report("%s: ramblock '%s' bitmap size mismatch "
+                     "(0x%"PRIx64" != 0x%"PRIx64")", __func__,
+                     block->idstr, size, local_size);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    size = qemu_get_buffer(file, (uint8_t *)le_bitmap, local_size);
+    end_mark = qemu_get_be64(file);
+
+    ret = qemu_file_get_error(file);
+    if (ret || size != local_size) {
+        error_report("%s: read bitmap failed for ramblock '%s': %d"
+                     " (size 0x%"PRIx64", got: 0x%"PRIx64")",
+                     __func__, block->idstr, ret, local_size, size);
+        ret = -EIO;
+        goto out;
+    }
+
+    if (end_mark != RAMBLOCK_RECV_BITMAP_ENDING) {
+        error_report("%s: ramblock '%s' end mark incorrect: 0x%"PRIu64,
+                     __func__, block->idstr, end_mark);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    /*
+     * Endianess convertion. We are during postcopy (though paused).
+     * The dirty bitmap won't change. We can directly modify it.
+     */
+    bitmap_from_le(block->bmap, le_bitmap, nbits);
+
+    /*
+     * What we received is "received bitmap". Revert it as the initial
+     * dirty bitmap for this ramblock.
+     */
+    bitmap_complement(block->bmap, block->bmap, nbits);
+
+    trace_ram_dirty_bitmap_reload_complete(block->idstr);
+
+    ret = 0;
+out:
+    free(le_bitmap);
+    return ret;
 }
 
 static SaveVMHandlers savevm_ram_handlers = {

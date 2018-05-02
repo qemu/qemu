@@ -1852,7 +1852,7 @@ static int loadvm_handle_recv_bitmap(MigrationIncomingState *mis,
         return -EINVAL;
     }
 
-    /* TODO: send the bitmap back to source */
+    migrate_send_rp_recv_bitmap(mis, block_name);
 
     trace_loadvm_handle_recv_bitmap(block_name);
 
