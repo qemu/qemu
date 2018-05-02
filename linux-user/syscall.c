@@ -6600,10 +6600,10 @@ typedef abi_long from_flock64_fn(struct flock64 *fl, abi_ulong target_addr);
 typedef abi_long to_flock64_fn(abi_ulong target_addr, const struct flock64 *fl);
 
 #if defined(TARGET_ARM) && TARGET_ABI_BITS == 32
-static inline abi_long copy_from_user_eabi_flock64(struct flock64 *fl,
+static inline abi_long copy_from_user_oabi_flock64(struct flock64 *fl,
                                                    abi_ulong target_flock_addr)
 {
-    struct target_eabi_flock64 *target_fl;
+    struct target_oabi_flock64 *target_fl;
     short l_type;
 
     if (!lock_user_struct(VERIFY_READ, target_fl, target_flock_addr, 1)) {
@@ -6620,10 +6620,10 @@ static inline abi_long copy_from_user_eabi_flock64(struct flock64 *fl,
     return 0;
 }
 
-static inline abi_long copy_to_user_eabi_flock64(abi_ulong target_flock_addr,
+static inline abi_long copy_to_user_oabi_flock64(abi_ulong target_flock_addr,
                                                  const struct flock64 *fl)
 {
-    struct target_eabi_flock64 *target_fl;
+    struct target_oabi_flock64 *target_fl;
     short l_type;
 
     if (!lock_user_struct(VERIFY_WRITE, target_fl, target_flock_addr, 0)) {
@@ -11629,9 +11629,9 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         to_flock64_fn *copyto = copy_to_user_flock64;
 
 #ifdef TARGET_ARM
-        if (((CPUARMState *)cpu_env)->eabi) {
-            copyfrom = copy_from_user_eabi_flock64;
-            copyto = copy_to_user_eabi_flock64;
+        if (!((CPUARMState *)cpu_env)->eabi) {
+            copyfrom = copy_from_user_oabi_flock64;
+            copyto = copy_to_user_oabi_flock64;
         }
 #endif
 
