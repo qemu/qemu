@@ -91,6 +91,8 @@
 #
 # @postcopy-paused: during postcopy but paused. (since 2.13)
 #
+# @postcopy-recover: trying to recover from a paused postcopy. (since 2.13)
+#
 # @completed: migration is finished.
 #
 # @failed: some error occurred during migration process.
@@ -109,7 +111,7 @@
 { 'enum': 'MigrationStatus',
   'data': [ 'none', 'setup', 'cancelling', 'cancelled',
             'active', 'postcopy-active', 'postcopy-paused',
-            'completed', 'failed', 'colo',
+            'postcopy-recover', 'completed', 'failed', 'colo',
             'pre-switchover', 'device' ] }
 
 ##

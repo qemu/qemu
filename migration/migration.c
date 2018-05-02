@@ -577,6 +577,7 @@ static bool migration_is_setup_or_active(int state)
     case MIGRATION_STATUS_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
+    case MIGRATION_STATUS_POSTCOPY_RECOVER:
     case MIGRATION_STATUS_SETUP:
     case MIGRATION_STATUS_PRE_SWITCHOVER:
     case MIGRATION_STATUS_DEVICE:
@@ -658,6 +659,7 @@ static void fill_source_migration_info(MigrationInfo *info)
     case MIGRATION_STATUS_PRE_SWITCHOVER:
     case MIGRATION_STATUS_DEVICE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
+    case MIGRATION_STATUS_POSTCOPY_RECOVER:
          /* TODO add some postcopy stats */
         info->has_status = true;
         info->has_total_time = true;
@@ -2318,6 +2320,13 @@ typedef enum MigThrError {
     MIG_THR_ERR_FATAL = 2,
 } MigThrError;
 
+/* Return zero if success, or <0 for error */
+static int postcopy_do_resume(MigrationState *s)
+{
+    /* TODO: do the resume logic */
+    return 0;
+}
+
 /*
  * We don't return until we are in a safe state to continue current
  * postcopy migration.  Returns MIG_THR_ERR_RECOVERED if recovered, or
@@ -2326,29 +2335,55 @@ typedef enum MigThrError {
 static MigThrError postcopy_pause(MigrationState *s)
 {
     assert(s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
-    migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
-                      MIGRATION_STATUS_POSTCOPY_PAUSED);
 
-    /* Current channel is possibly broken. Release it. */
-    assert(s->to_dst_file);
-    qemu_file_shutdown(s->to_dst_file);
-    qemu_fclose(s->to_dst_file);
-    s->to_dst_file = NULL;
+    while (true) {
+        migrate_set_state(&s->state, s->state,
+                          MIGRATION_STATUS_POSTCOPY_PAUSED);
 
-    error_report("Detected IO failure for postcopy. "
-                 "Migration paused.");
+        /* Current channel is possibly broken. Release it. */
+        assert(s->to_dst_file);
+        qemu_file_shutdown(s->to_dst_file);
+        qemu_fclose(s->to_dst_file);
+        s->to_dst_file = NULL;
 
-    /*
-     * We wait until things fixed up. Then someone will setup the
-     * status back for us.
-     */
-    while (s->state == MIGRATION_STATUS_POSTCOPY_PAUSED) {
-        qemu_sem_wait(&s->postcopy_pause_sem);
+        error_report("Detected IO failure for postcopy. "
+                     "Migration paused.");
+
+        /*
+         * We wait until things fixed up. Then someone will setup the
+         * status back for us.
+         */
+        while (s->state == MIGRATION_STATUS_POSTCOPY_PAUSED) {
+            qemu_sem_wait(&s->postcopy_pause_sem);
+        }
+
+        if (s->state == MIGRATION_STATUS_POSTCOPY_RECOVER) {
+            /* Woken up by a recover procedure. Give it a shot */
+
+            /*
+             * Firstly, let's wake up the return path now, with a new
+             * return path channel.
+             */
+            qemu_sem_post(&s->postcopy_pause_rp_sem);
+
+            /* Do the resume logic */
+            if (postcopy_do_resume(s) == 0) {
+                /* Let's continue! */
+                trace_postcopy_pause_continued();
+                return MIG_THR_ERR_RECOVERED;
+            } else {
+                /*
+                 * Something wrong happened during the recovery, let's
+                 * pause again. Pause is always better than throwing
+                 * data away.
+                 */
+                continue;
+            }
+        } else {
+            /* This is not right... Time to quit. */
+            return MIG_THR_ERR_FATAL;
+        }
     }
-
-    trace_postcopy_pause_continued();
-
-    return MIG_THR_ERR_RECOVERED;
 }
 
 static MigThrError migration_detect_error(MigrationState *s)
@@ -2668,7 +2703,10 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     }
 
     if (resume) {
-        /* TODO: do the resume logic */
+        /* Wakeup the main migration thread to do the recovery */
+        migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_PAUSED,
+                          MIGRATION_STATUS_POSTCOPY_RECOVER);
+        qemu_sem_post(&s->postcopy_pause_sem);
         return;
     }
 
