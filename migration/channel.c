@@ -74,8 +74,9 @@ void migration_channel_connect(MigrationState *s,
         } else {
             QEMUFile *f = qemu_fopen_channel_output(ioc);
 
+            qemu_mutex_lock(&s->qemu_file_lock);
             s->to_dst_file = f;
-
+            qemu_mutex_unlock(&s->qemu_file_lock);
         }
     }
     migrate_fd_connect(s, error);

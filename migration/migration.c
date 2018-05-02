@@ -1234,6 +1234,7 @@ static void migrate_fd_cleanup(void *opaque)
 
     if (s->to_dst_file) {
         Error *local_err = NULL;
+        QEMUFile *tmp;
 
         trace_migrate_fd_cleanup();
         qemu_mutex_unlock_iothread();
@@ -1246,8 +1247,15 @@ static void migrate_fd_cleanup(void *opaque)
         if (multifd_save_cleanup(&local_err) != 0) {
             error_report_err(local_err);
         }
-        qemu_fclose(s->to_dst_file);
+        qemu_mutex_lock(&s->qemu_file_lock);
+        tmp = s->to_dst_file;
         s->to_dst_file = NULL;
+        qemu_mutex_unlock(&s->qemu_file_lock);
+        /*
+         * Close the file handle without the lock to make sure the
+         * critical section won't block for long.
+         */
+        qemu_fclose(tmp);
     }
 
     assert((s->state != MIGRATION_STATUS_ACTIVE) &&
@@ -2531,14 +2539,20 @@ static MigThrError postcopy_pause(MigrationState *s)
     assert(s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 
     while (true) {
+        QEMUFile *file;
+
         migrate_set_state(&s->state, s->state,
                           MIGRATION_STATUS_POSTCOPY_PAUSED);
 
         /* Current channel is possibly broken. Release it. */
         assert(s->to_dst_file);
-        qemu_file_shutdown(s->to_dst_file);
-        qemu_fclose(s->to_dst_file);
+        qemu_mutex_lock(&s->qemu_file_lock);
+        file = s->to_dst_file;
         s->to_dst_file = NULL;
+        qemu_mutex_unlock(&s->qemu_file_lock);
+
+        qemu_file_shutdown(file);
+        qemu_fclose(file);
 
         error_report("Detected IO failure for postcopy. "
                      "Migration paused.");
@@ -3007,6 +3021,7 @@ static void migration_instance_finalize(Object *obj)
     MigrationParameters *params = &ms->parameters;
 
     qemu_mutex_destroy(&ms->error_mutex);
+    qemu_mutex_destroy(&ms->qemu_file_lock);
     g_free(params->tls_hostname);
     g_free(params->tls_creds);
     qemu_sem_destroy(&ms->pause_sem);
@@ -3046,6 +3061,7 @@ static void migration_instance_init(Object *obj)
     qemu_sem_init(&ms->postcopy_pause_sem, 0);
     qemu_sem_init(&ms->postcopy_pause_rp_sem, 0);
     qemu_sem_init(&ms->rp_state.rp_sem, 0);
+    qemu_mutex_init(&ms->qemu_file_lock);
 }
 
 /*

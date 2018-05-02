@@ -114,6 +114,12 @@ struct MigrationState
     QemuThread thread;
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
+    /*
+     * Protects to_dst_file pointer.  We need to make sure we won't
+     * yield or hang during the critical section, since this lock will
+     * be used in OOB command handler.
+     */
+    QemuMutex qemu_file_lock;
 
     /* bytes already send at the beggining of current interation */
     uint64_t iteration_initial_bytes;
