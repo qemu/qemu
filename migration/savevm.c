@@ -81,6 +81,7 @@ enum qemu_vm_cmd {
                                       were previously sent during
                                       precopy but are dirty. */
     MIG_CMD_PACKAGED,          /* Send a wrapped stream within this stream */
+    MIG_CMD_RECV_BITMAP,       /* Request for recved bitmap on dst */
     MIG_CMD_MAX
 };
 
@@ -98,6 +99,7 @@ static struct mig_cmd_args {
     [MIG_CMD_POSTCOPY_RAM_DISCARD] = {
                                    .len = -1, .name = "POSTCOPY_RAM_DISCARD" },
     [MIG_CMD_PACKAGED]         = { .len =  4, .name = "PACKAGED" },
+    [MIG_CMD_RECV_BITMAP]      = { .len = -1, .name = "RECV_BITMAP" },
     [MIG_CMD_MAX]              = { .len = -1, .name = "MAX" },
 };
 
@@ -956,6 +958,19 @@ void qemu_savevm_send_postcopy_run(QEMUFile *f)
     qemu_savevm_command_send(f, MIG_CMD_POSTCOPY_RUN, 0, NULL);
 }
 
+void qemu_savevm_send_recv_bitmap(QEMUFile *f, char *block_name)
+{
+    size_t len;
+    char buf[256];
+
+    trace_savevm_send_recv_bitmap(block_name);
+
+    buf[0] = len = strlen(block_name);
+    memcpy(buf + 1, block_name, len);
+
+    qemu_savevm_command_send(f, MIG_CMD_RECV_BITMAP, len + 1, (uint8_t *)buf);
+}
+
 bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
@@ -1802,6 +1817,49 @@ static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis)
 }
 
 /*
+ * Handle request that source requests for recved_bitmap on
+ * destination. Payload format:
+ *
+ * len (1 byte) + ramblock_name (<255 bytes)
+ */
+static int loadvm_handle_recv_bitmap(MigrationIncomingState *mis,
+                                     uint16_t len)
+{
+    QEMUFile *file = mis->from_src_file;
+    RAMBlock *rb;
+    char block_name[256];
+    size_t cnt;
+
+    cnt = qemu_get_counted_string(file, block_name);
+    if (!cnt) {
+        error_report("%s: failed to read block name", __func__);
+        return -EINVAL;
+    }
+
+    /* Validate before using the data */
+    if (qemu_file_get_error(file)) {
+        return qemu_file_get_error(file);
+    }
+
+    if (len != cnt + 1) {
+        error_report("%s: invalid payload length (%d)", __func__, len);
+        return -EINVAL;
+    }
+
+    rb = qemu_ram_block_by_name(block_name);
+    if (!rb) {
+        error_report("%s: block '%s' not found", __func__, block_name);
+        return -EINVAL;
+    }
+
+    /* TODO: send the bitmap back to source */
+
+    trace_loadvm_handle_recv_bitmap(block_name);
+
+    return 0;
+}
+
+/*
  * Process an incoming 'QEMU_VM_COMMAND'
  * 0           just a normal return
  * LOADVM_QUIT All good, but exit the loop
@@ -1874,6 +1932,9 @@ static int loadvm_process_command(QEMUFile *f)
 
     case MIG_CMD_POSTCOPY_RAM_DISCARD:
         return loadvm_postcopy_ram_handle_discard(mis, len);
+
+    case MIG_CMD_RECV_BITMAP:
+        return loadvm_handle_recv_bitmap(mis, len);
     }
 
     return 0;
