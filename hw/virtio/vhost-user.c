@@ -1115,7 +1115,7 @@ static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
         error_setg(errp, "%s: Failed to get ufd", __func__);
         return -1;
     }
-    fcntl(ufd, F_SETFL, O_NONBLOCK);
+    qemu_set_nonblock(ufd);
 
     /* register ufd with userfault thread */
     u->postcopy_fd.fd = ufd;
