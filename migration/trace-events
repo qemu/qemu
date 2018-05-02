@@ -88,6 +88,7 @@ ram_dirty_bitmap_reload_complete(char *str) "%s"
 ram_dirty_bitmap_sync_start(void) ""
 ram_dirty_bitmap_sync_wait(void) ""
 ram_dirty_bitmap_sync_complete(void) ""
+ram_state_resume_prepare(uint64_t v) "%" PRId64
 
 # migration/migration.c
 await_return_path_close_on_source_close(void) ""

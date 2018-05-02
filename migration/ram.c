@@ -2491,6 +2491,41 @@ static int ram_init_all(RAMState **rsp)
     return 0;
 }
 
+static void ram_state_resume_prepare(RAMState *rs, QEMUFile *out)
+{
+    RAMBlock *block;
+    uint64_t pages = 0;
+
+    /*
+     * Postcopy is not using xbzrle/compression, so no need for that.
+     * Also, since source are already halted, we don't need to care
+     * about dirty page logging as well.
+     */
+
+    RAMBLOCK_FOREACH(block) {
+        pages += bitmap_count_one(block->bmap,
+                                  block->used_length >> TARGET_PAGE_BITS);
+    }
+
+    /* This may not be aligned with current bitmaps. Recalculate. */
+    rs->migration_dirty_pages = pages;
+
+    rs->last_seen_block = NULL;
+    rs->last_sent_block = NULL;
+    rs->last_page = 0;
+    rs->last_version = ram_list.version;
+    /*
+     * Disable the bulk stage, otherwise we'll resend the whole RAM no
+     * matter what we have sent.
+     */
+    rs->ram_bulk_stage = false;
+
+    /* Update RAMState cache of output QEMUFile */
+    rs->f = out;
+
+    trace_ram_state_resume_prepare(pages);
+}
+
 /*
  * Each of ram_save_setup, ram_save_iterate and ram_save_complete has
  * long-running RCU critical section.  When rcu-reclaims in the code
@@ -3486,8 +3521,16 @@ out:
 static int ram_resume_prepare(MigrationState *s, void *opaque)
 {
     RAMState *rs = *(RAMState **)opaque;
+    int ret;
 
-    return ram_dirty_bitmap_sync_all(s, rs);
+    ret = ram_dirty_bitmap_sync_all(s, rs);
+    if (ret) {
+        return ret;
+    }
+
+    ram_state_resume_prepare(rs, s->to_dst_file);
+
+    return 0;
 }
 
 static SaveVMHandlers savevm_ram_handlers = {
