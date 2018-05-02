@@ -2967,6 +2967,7 @@ static void migration_instance_finalize(Object *obj)
     qemu_sem_destroy(&ms->pause_sem);
     qemu_sem_destroy(&ms->postcopy_pause_sem);
     qemu_sem_destroy(&ms->postcopy_pause_rp_sem);
+    qemu_sem_destroy(&ms->rp_state.rp_sem);
     error_free(ms->error);
 }
 
@@ -2999,6 +3000,7 @@ static void migration_instance_init(Object *obj)
 
     qemu_sem_init(&ms->postcopy_pause_sem, 0);
     qemu_sem_init(&ms->postcopy_pause_rp_sem, 0);
+    qemu_sem_init(&ms->rp_state.rp_sem, 0);
 }
 
 /*
