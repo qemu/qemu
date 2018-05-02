@@ -159,6 +159,7 @@ MigrationIncomingState *migration_incoming_get_current(void)
                                                    sizeof(struct PostCopyFD));
         qemu_mutex_init(&mis_current.rp_mutex);
         qemu_event_init(&mis_current.main_thread_load_event, false);
+        qemu_sem_init(&mis_current.postcopy_pause_sem_dst, 0);
 
         init_dirty_bitmap_incoming_migration();
 

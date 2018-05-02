@@ -73,6 +73,9 @@ struct MigrationIncomingState {
      * live migration, to calculate vCPU block time
      * */
     struct PostcopyBlocktimeContext *blocktime_ctx;
+
+    /* notify PAUSED postcopy incoming migrations to try to continue */
+    QemuSemaphore postcopy_pause_sem_dst;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
