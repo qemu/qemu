@@ -2454,7 +2454,25 @@ typedef enum MigThrError {
 /* Return zero if success, or <0 for error */
 static int postcopy_do_resume(MigrationState *s)
 {
-    /* TODO: do the resume logic */
+    int ret;
+
+    /*
+     * Call all the resume_prepare() hooks, so that modules can be
+     * ready for the migration resume.
+     */
+    ret = qemu_savevm_state_resume_prepare(s);
+    if (ret) {
+        error_report("%s: resume_prepare() failure detected: %d",
+                     __func__, ret);
+        return ret;
+    }
+
+    /*
+     * TODO: handshake with dest using MIG_CMD_RESUME,
+     * MIG_RP_MSG_RESUME_ACK, then switch source state to
+     * "postcopy-active"
+     */
+
     return 0;
 }
 

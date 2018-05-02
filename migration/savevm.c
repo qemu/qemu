@@ -1031,6 +1031,31 @@ void qemu_savevm_state_setup(QEMUFile *f)
     }
 }
 
+int qemu_savevm_state_resume_prepare(MigrationState *s)
+{
+    SaveStateEntry *se;
+    int ret;
+
+    trace_savevm_state_resume_prepare();
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->ops || !se->ops->resume_prepare) {
+            continue;
+        }
+        if (se->ops && se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
+        ret = se->ops->resume_prepare(s, se->opaque);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 /*
  * this function has three return values:
  *   negative: there was one error, and we have -errno.
