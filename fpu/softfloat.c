@@ -220,8 +220,10 @@ typedef struct {
  *   frac_shift: shift to normalise the fraction with DECOMPOSED_BINARY_POINT
  * The following are computed based the size of fraction
  *   frac_lsb: least significant bit of fraction
- *   fram_lsbm1: the bit bellow the least significant bit (for rounding)
+ *   frac_lsbm1: the bit below the least significant bit (for rounding)
  *   round_mask/roundeven_mask: masks used for rounding
+ * The following optional modifiers are available:
+ *   arm_althp: handle ARM Alternative Half Precision
  */
 typedef struct {
     int exp_size;
@@ -233,6 +235,7 @@ typedef struct {
     uint64_t frac_lsbm1;
     uint64_t round_mask;
     uint64_t roundeven_mask;
+    bool arm_althp;
 } FloatFmt;
 
 /* Expand fields based on the size of exponent and fraction */
@@ -324,7 +327,7 @@ static inline float64 float64_pack_raw(FloatParts p)
 static FloatParts canonicalize(FloatParts part, const FloatFmt *parm,
                                float_status *status)
 {
-    if (part.exp == parm->exp_max) {
+    if (part.exp == parm->exp_max && !parm->arm_althp) {
         if (part.frac == 0) {
             part.cls = float_class_inf;
         } else {
@@ -413,7 +416,15 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
             }
             frac >>= frac_shift;
 
-            if (unlikely(exp >= exp_max)) {
+            if (parm->arm_althp) {
+                /* ARM Alt HP eschews Inf and NaN for a wider exponent.  */
+                if (unlikely(exp > exp_max)) {
+                    /* Overflow.  Return the maximum normal.  */
+                    flags = float_flag_invalid;
+                    exp = exp_max;
+                    frac = -1;
+                }
+            } else if (unlikely(exp >= exp_max)) {
                 flags |= float_flag_overflow | float_flag_inexact;
                 if (overflow_norm) {
                     exp = exp_max - 1;
@@ -464,12 +475,14 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
 
     case float_class_inf:
     do_inf:
+        assert(!parm->arm_althp);
         exp = exp_max;
         frac = 0;
         break;
 
     case float_class_qnan:
     case float_class_snan:
+        assert(!parm->arm_althp);
         exp = exp_max;
         frac >>= parm->frac_shift;
         break;
