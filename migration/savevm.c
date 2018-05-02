@@ -1795,7 +1795,8 @@ static int loadvm_postcopy_handle_resume(MigrationIncomingState *mis)
 
     trace_loadvm_postcopy_handle_resume();
 
-    /* TODO: Tell source that "we are ready" */
+    /* Tell source that "we are ready" */
+    migrate_send_rp_resume_ack(mis, MIGRATION_RESUME_ACK_VALUE);
 
     return 0;
 }
