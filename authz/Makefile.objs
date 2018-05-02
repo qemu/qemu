@@ -1,1 +1,2 @@
 authz-obj-y += base.o
+authz-obj-y += simple.o
