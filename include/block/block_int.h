@@ -656,10 +656,24 @@ struct BlockDriverState {
     /* I/O Limits */
     BlockLimits bl;
 
-    /* Flags honored during pwrite (so far: BDRV_REQ_FUA) */
+    /* Flags honored during pwrite (so far: BDRV_REQ_FUA,
+     * BDRV_REQ_WRITE_UNCHANGED).
+     * If a driver does not support BDRV_REQ_WRITE_UNCHANGED, those
+     * writes will be issued as normal writes without the flag set.
+     * This is important to note for drivers that do not explicitly
+     * request a WRITE permission for their children and instead take
+     * the same permissions as their parent did (this is commonly what
+     * block filters do).  Such drivers have to be aware that the
+     * parent may have taken a WRITE_UNCHANGED permission only and is
+     * issuing such requests.  Drivers either must make sure that
+     * these requests do not result in plain WRITE accesses (usually
+     * by supporting BDRV_REQ_WRITE_UNCHANGED, and then forwarding
+     * every incoming write request as-is, including potentially that
+     * flag), or they have to explicitly take the WRITE permission for
+     * their children. */
     unsigned int supported_write_flags;
     /* Flags honored during pwrite_zeroes (so far: BDRV_REQ_FUA,
-     * BDRV_REQ_MAY_UNMAP) */
+     * BDRV_REQ_MAY_UNMAP, BDRV_REQ_WRITE_UNCHANGED) */
     unsigned int supported_zero_flags;
 
     /* the following member gives a name to every node on the bs graph. */
