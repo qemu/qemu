@@ -114,7 +114,7 @@ static void ppc_core99_init(MachineState *machine)
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
-    qemu_irq *pic, **openpic_irqs;
+    qemu_irq **openpic_irqs;
     int linux_boot, i, j, k;
     MemoryRegion *ram = g_new(MemoryRegion, 1), *bios = g_new(MemoryRegion, 1);
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
@@ -291,8 +291,6 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    pic = g_new0(qemu_irq, 64);
-
     pic_dev = qdev_create(NULL, TYPE_OPENPIC);
     qdev_prop_set_uint32(pic_dev, "model", OPENPIC_MODEL_KEYLARGO);
     qdev_init_nofail(pic_dev);
@@ -302,10 +300,6 @@ static void ppc_core99_init(MachineState *machine)
         for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
             sysbus_connect_irq(s, k++, openpic_irqs[i][j]);
         }
-    }
-
-    for (i = 0; i < 64; i++) {
-        pic[i] = qdev_get_gpio_in(pic_dev, i);
     }
 
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
@@ -381,13 +375,20 @@ static void ppc_core99_init(MachineState *machine)
     /* MacIO */
     macio = NEWWORLD_MACIO(pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO));
     dev = DEVICE(macio);
-    qdev_connect_gpio_out(dev, 0, pic[0x19]); /* CUDA */
-    qdev_connect_gpio_out(dev, 1, pic[0x24]); /* ESCC-B */
-    qdev_connect_gpio_out(dev, 2, pic[0x25]); /* ESCC-A */
-    qdev_connect_gpio_out(dev, 3, pic[0x0d]); /* IDE */
-    qdev_connect_gpio_out(dev, 4, pic[0x02]); /* IDE DMA */
-    qdev_connect_gpio_out(dev, 5, pic[0x0e]); /* IDE */
-    qdev_connect_gpio_out(dev, 6, pic[0x03]); /* IDE DMA */
+    qdev_connect_gpio_out(dev, 0,
+        qdev_get_gpio_in(pic_dev, NEWWORLD_CUDA_IRQ));
+    qdev_connect_gpio_out(dev, 1,
+        qdev_get_gpio_in(pic_dev, NEWWORLD_ESCCB_IRQ));
+    qdev_connect_gpio_out(dev, 2,
+        qdev_get_gpio_in(pic_dev, NEWWORLD_ESCCA_IRQ));
+    qdev_connect_gpio_out(dev, 3,
+        qdev_get_gpio_in(pic_dev, NEWWORLD_IDE0_IRQ));
+    qdev_connect_gpio_out(dev, 4,
+        qdev_get_gpio_in(pic_dev, NEWWORLD_IDE0_DMA_IRQ));
+    qdev_connect_gpio_out(dev, 5,
+        qdev_get_gpio_in(pic_dev, NEWWORLD_IDE1_IRQ));
+    qdev_connect_gpio_out(dev, 6,
+        qdev_get_gpio_in(pic_dev, NEWWORLD_IDE1_DMA_IRQ));
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
                              &error_abort);
