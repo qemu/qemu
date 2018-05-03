@@ -1948,16 +1948,17 @@ static void usb_mtp_realize(USBDevice *dev, Error **errp)
             return;
         }
         s->desc = strrchr(s->root, '/');
-        /* Mark store as RW */
-        if (!s->readonly) {
-            s->flags |= (1 << MTP_FLAG_WRITABLE);
-        }
         if (s->desc && s->desc[0]) {
             s->desc = g_strdup(s->desc + 1);
         } else {
             s->desc = g_strdup("none");
         }
     }
+    /* Mark store as RW */
+    if (!s->readonly) {
+        s->flags |= (1 << MTP_FLAG_WRITABLE);
+    }
+
 }
 
 static const VMStateDescription vmstate_usb_mtp = {
