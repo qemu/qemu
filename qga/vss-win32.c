@@ -14,9 +14,9 @@
 #include <windows.h>
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "qga/guest-agent-core.h"
-#include "qga/vss-win32.h"
-#include "qga/vss-win32/requester.h"
+#include "guest-agent-core.h"
+#include "vss-win32.h"
+#include "vss-win32/requester.h"
 
 #define QGA_VSS_DLL "qga-vss.dll"
 

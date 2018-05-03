@@ -10,7 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
-#include "qga/guest-agent-core.h"
+#include "guest-agent-core.h"
 
 struct GACommandState {
     GSList *groups;

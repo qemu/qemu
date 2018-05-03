@@ -32,8 +32,8 @@
 #include <wtsapi32.h>
 #include <wininet.h>
 
-#include "qga/guest-agent-core.h"
-#include "qga/vss-win32.h"
+#include "guest-agent-core.h"
+#include "vss-win32.h"
 #include "qga-qapi-commands.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"

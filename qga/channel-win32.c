@@ -1,8 +1,8 @@
 #include "qemu/osdep.h"
 #include <windows.h>
 #include <io.h>
-#include "qga/guest-agent-core.h"
-#include "qga/channel.h"
+#include "guest-agent-core.h"
+#include "channel.h"
 
 typedef struct GAChannelReadState {
     guint thread_id;
