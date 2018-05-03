@@ -31,7 +31,7 @@
 #include "sysemu/dma.h"
 #include "hw/ide/internal.h"
 #include "hw/ide/pci.h"
-#include "hw/ide/ahci_internal.h"
+#include "ahci_internal.h"
 
 #include "trace.h"
 
