@@ -29,7 +29,7 @@
 #include "hw/hw.h"
 #include "ui/console.h"
 #include "hw/usb.h"
-#include "hw/usb/desc.h"
+#include "desc.h"
 
 /* Interface requests */
 #define WACOM_GET_REPORT	0x2101

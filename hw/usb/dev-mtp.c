@@ -24,7 +24,7 @@
 #include "qemu/iov.h"
 #include "trace.h"
 #include "hw/usb.h"
-#include "hw/usb/desc.h"
+#include "desc.h"
 
 /* ----------------------------------------------------------------------- */
 
