@@ -20,7 +20,7 @@
 #include "hw/ppc/ppc.h"
 #include "hw/pci/pci.h"
 #include "sysemu/block-backend.h"
-#include "hw/ppc/ppc440.h"
+#include "ppc440.h"
 
 /*****************************************************************************/
 /* L2 Cache as SRAM */
