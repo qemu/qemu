@@ -275,15 +275,6 @@ static void init_dsr_dev_caps(PVRDMADev *dev)
     pr_dbg("Initialized\n");
 }
 
-static void free_ports(PVRDMADev *dev)
-{
-    int i;
-
-    for (i = 0; i < MAX_PORTS; i++) {
-        g_free(dev->rdma_dev_res.ports[i].gid_tbl);
-    }
-}
-
 static void init_ports(PVRDMADev *dev, Error **errp)
 {
     int i;
@@ -292,10 +283,6 @@ static void init_ports(PVRDMADev *dev, Error **errp)
 
     for (i = 0; i < MAX_PORTS; i++) {
         dev->rdma_dev_res.ports[i].state = IBV_PORT_DOWN;
-
-        dev->rdma_dev_res.ports[i].pkey_tbl =
-            g_malloc0(sizeof(*dev->rdma_dev_res.ports[i].pkey_tbl) *
-                      MAX_PORT_PKEYS);
     }
 }
 
@@ -462,14 +449,14 @@ static void init_bars(PCIDevice *pdev)
     /* BAR 1 - Registers */
     memset(&dev->regs_data, 0, sizeof(dev->regs_data));
     memory_region_init_io(&dev->regs, OBJECT(dev), &regs_ops, dev,
-                          "pvrdma-regs", RDMA_BAR1_REGS_SIZE);
+                          "pvrdma-regs", sizeof(dev->regs_data));
     pci_register_bar(pdev, RDMA_REG_BAR_IDX, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      &dev->regs);
 
     /* BAR 2 - UAR */
     memset(&dev->uar_data, 0, sizeof(dev->uar_data));
     memory_region_init_io(&dev->uar, OBJECT(dev), &uar_ops, dev, "rdma-uar",
-                          RDMA_BAR2_UAR_SIZE);
+                          sizeof(dev->uar_data));
     pci_register_bar(pdev, RDMA_UAR_BAR_IDX, PCI_BASE_ADDRESS_SPACE_MEMORY,
                      &dev->uar);
 }
@@ -621,8 +608,6 @@ static void pvrdma_exit(PCIDevice *pdev)
            PCI_FUNC(pdev->devfn));
 
     pvrdma_qp_ops_fini();
-
-    free_ports(dev);
 
     rdma_rm_fini(&dev->rdma_dev_res);
 

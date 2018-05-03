@@ -20,9 +20,9 @@
 
 #define MAX_PORTS             1
 #define MAX_PORT_GIDS         1
+#define MAX_GIDS              MAX_PORT_GIDS
 #define MAX_PORT_PKEYS        1
-#define MAX_PKEYS             1
-#define MAX_GIDS              2048
+#define MAX_PKEYS             MAX_PORT_PKEYS
 #define MAX_UCS               512
 #define MAX_MR_SIZE           (1UL << 27)
 #define MAX_QP                1024
@@ -34,9 +34,9 @@
 #define MAX_QP_INIT_RD_ATOM   16
 #define MAX_AH                64
 
-#define MAX_RMRESTBL_NAME_SZ 16
+#define MAX_RM_TBL_NAME 16
 typedef struct RdmaRmResTbl {
-    char name[MAX_RMRESTBL_NAME_SZ];
+    char name[MAX_RM_TBL_NAME];
     QemuMutex lock;
     unsigned long *bitmap;
     size_t tbl_sz;
@@ -87,7 +87,6 @@ typedef struct RdmaRmQP {
 typedef struct RdmaRmPort {
     union ibv_gid gid_tbl[MAX_PORT_GIDS];
     enum ibv_port_state state;
-    int *pkey_tbl; /* TODO: Not yet supported */
 } RdmaRmPort;
 
 typedef struct RdmaDeviceResources {

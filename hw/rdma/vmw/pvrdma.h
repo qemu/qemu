@@ -31,7 +31,7 @@
 #define RDMA_REG_BAR_IDX     1
 #define RDMA_UAR_BAR_IDX     2
 #define RDMA_BAR0_MSIX_SIZE  (16 * 1024)
-#define RDMA_BAR1_REGS_SIZE  256
+#define RDMA_BAR1_REGS_SIZE  64
 #define RDMA_BAR2_UAR_SIZE   (0x1000 * MAX_UCS) /* each uc gets page */
 
 /* MSIX */
@@ -86,7 +86,7 @@ static inline int get_reg_val(PVRDMADev *dev, hwaddr addr, uint32_t *val)
 {
     int idx = addr >> 2;
 
-    if (idx > RDMA_BAR1_REGS_SIZE) {
+    if (idx >= RDMA_BAR1_REGS_SIZE) {
         return -EINVAL;
     }
 
@@ -99,7 +99,7 @@ static inline int set_reg_val(PVRDMADev *dev, hwaddr addr, uint32_t val)
 {
     int idx = addr >> 2;
 
-    if (idx > RDMA_BAR1_REGS_SIZE) {
+    if (idx >= RDMA_BAR1_REGS_SIZE) {
         return -EINVAL;
     }
 

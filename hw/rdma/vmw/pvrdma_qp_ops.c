@@ -216,6 +216,7 @@ void pvrdma_cq_poll(RdmaDeviceResources *dev_res, uint32_t cq_handle)
     cq = rdma_rm_get_cq(dev_res, cq_handle);
     if (!cq) {
         pr_dbg("Invalid CQ# %d\n", cq_handle);
+        return;
     }
 
     rdma_backend_poll_cq(dev_res, &cq->backend_cq);

@@ -774,7 +774,7 @@ int rdma_backend_init(RdmaBackendDev *backend_dev,
         goto out_destroy_comm_channel;
     }
 
-    if (backend_dev->backend_gid_idx > port_attr.gid_tbl_len) {
+    if (backend_dev->backend_gid_idx >= port_attr.gid_tbl_len) {
         error_setg(errp, "Invalid backend_gid_idx, should be less than %d",
                    port_attr.gid_tbl_len);
         goto out_destroy_comm_channel;

@@ -232,7 +232,7 @@ static int create_mr(PVRDMADev *dev, union pvrdma_cmd_req *req,
                                      cmd->start, cmd->length, host_virt,
                                      cmd->access_flags, &resp->mr_handle,
                                      &resp->lkey, &resp->rkey);
-    if (!resp->hdr.err) {
+    if (host_virt && !resp->hdr.err) {
         munmap(host_virt, cmd->length);
     }
 
@@ -576,7 +576,7 @@ static int create_bind(PVRDMADev *dev, union pvrdma_cmd_req *req,
 
     pr_dbg("index=%d\n", cmd->index);
 
-    if (cmd->index > MAX_PORT_GIDS) {
+    if (cmd->index >= MAX_PORT_GIDS) {
         return -EINVAL;
     }
 
@@ -603,7 +603,11 @@ static int destroy_bind(PVRDMADev *dev, union pvrdma_cmd_req *req,
 {
     struct pvrdma_cmd_destroy_bind *cmd = &req->destroy_bind;
 
-    pr_dbg("clear index %d\n", cmd->index);
+    pr_dbg("index=%d\n", cmd->index);
+
+    if (cmd->index >= MAX_PORT_GIDS) {
+        return -EINVAL;
+    }
 
     memset(dev->rdma_dev_res.ports[0].gid_tbl[cmd->index].raw, 0,
            sizeof(dev->rdma_dev_res.ports[0].gid_tbl[cmd->index].raw));
