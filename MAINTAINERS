@@ -1370,6 +1370,7 @@ S: Supported
 F: blockjob.c
 F: include/block/blockjob.h
 F: job.c
+F: job-qmp.c
 F: include/block/job.h
 F: block/backup.c
 F: block/commit.c

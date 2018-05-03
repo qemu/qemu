@@ -106,3 +106,102 @@
 { 'event': 'JOB_STATUS_CHANGE',
   'data': { 'id': 'str',
             'status': 'JobStatus' } }
+
+##
+# @job-pause:
+#
+# Pause an active job.
+#
+# This command returns immediately after marking the active job for pausing.
+# Pausing an already paused job is an error.
+#
+# The job will pause as soon as possible, which means transitioning into the
+# PAUSED state if it was RUNNING, or into STANDBY if it was READY. The
+# corresponding JOB_STATUS_CHANGE event will be emitted.
+#
+# Cancelling a paused job automatically resumes it.
+#
+# @id: The job identifier.
+#
+# Since: 2.13
+##
+{ 'command': 'job-pause', 'data': { 'id': 'str' } }
+
+##
+# @job-resume:
+#
+# Resume a paused job.
+#
+# This command returns immediately after resuming a paused job. Resuming an
+# already running job is an error.
+#
+# @id : The job identifier.
+#
+# Since: 2.13
+##
+{ 'command': 'job-resume', 'data': { 'id': 'str' } }
+
+##
+# @job-cancel:
+#
+# Instruct an active background job to cancel at the next opportunity.
+# This command returns immediately after marking the active job for
+# cancellation.
+#
+# The job will cancel as soon as possible and then emit a JOB_STATUS_CHANGE
+# event. Usually, the status will change to ABORTING, but it is possible that
+# a job successfully completes (e.g. because it was almost done and there was
+# no opportunity to cancel earlier than completing the job) and transitions to
+# PENDING instead.
+#
+# @id: The job identifier.
+#
+# Since: 2.13
+##
+{ 'command': 'job-cancel', 'data': { 'id': 'str' } }
+
+
+##
+# @job-complete:
+#
+# Manually trigger completion of an active job in the READY state.
+#
+# @id: The job identifier.
+#
+# Since: 2.13
+##
+{ 'command': 'job-complete', 'data': { 'id': 'str' } }
+
+##
+# @job-dismiss:
+#
+# Deletes a job that is in the CONCLUDED state. This command only needs to be
+# run explicitly for jobs that don't have automatic dismiss enabled.
+#
+# This command will refuse to operate on any job that has not yet reached its
+# terminal state, JOB_STATUS_CONCLUDED. For jobs that make use of JOB_READY
+# event, job-cancel or job-complete will still need to be used as appropriate.
+#
+# @id: The job identifier.
+#
+# Since: 2.13
+##
+{ 'command': 'job-dismiss', 'data': { 'id': 'str' } }
+
+##
+# @job-finalize:
+#
+# Instructs all jobs in a transaction (or a single job if it is not part of any
+# transaction) to finalize any graph changes and do any necessary cleanup. This
+# command requires that all involved jobs are in the PENDING state.
+#
+# For jobs in a transaction, instructing one job to finalize will force
+# ALL jobs in the transaction to finalize, so it is only necessary to instruct
+# a single member job to finalize.
+#
+# @id: The identifier of any job in the transaction, or of a job that is not
+#      part of any transaction.
+#
+# Since: 2.13
+##
+{ 'command': 'job-finalize', 'data': { 'id': 'str' } }
