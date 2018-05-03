@@ -1849,10 +1849,12 @@ static bool spapr_ov5_cas_needed(void *opaque)
      *
      * Thus, for any cases where the set of available CAS-negotiatable
      * options extends beyond OV5_FORM1_AFFINITY and OV5_DRCONF_MEMORY, we
-     * include the CAS-negotiated options in the migration stream.
+     * include the CAS-negotiated options in the migration stream, unless
+     * if they affect boot time behaviour only.
      */
     spapr_ovec_set(ov5_mask, OV5_FORM1_AFFINITY);
     spapr_ovec_set(ov5_mask, OV5_DRCONF_MEMORY);
+    spapr_ovec_set(ov5_mask, OV5_DRMEM_V2);
 
     /* spapr_ovec_diff returns true if bits were removed. we avoid using
      * the mask itself since in the future it's possible "legacy" bits may be
