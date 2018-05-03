@@ -259,12 +259,16 @@ static int nbd_parse_blockstatus_payload(NBDClientSession *client,
 
     if (extent->length == 0 ||
         (client->info.min_block && !QEMU_IS_ALIGNED(extent->length,
-                                                    client->info.min_block)) ||
-        extent->length > orig_length)
-    {
+                                                    client->info.min_block))) {
         error_setg(errp, "Protocol error: server sent status chunk with "
                    "invalid length");
         return -EINVAL;
+    }
+
+    /* The server is allowed to send us extra information on the final
+     * extent; just clamp it to the length we requested. */
+    if (extent->length > orig_length) {
+        extent->length = orig_length;
     }
 
     return 0;
