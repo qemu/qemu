@@ -1195,6 +1195,10 @@ static void coroutine_fn v9fs_setattr(void *opaque)
         goto out_nofid;
     }
 
+    trace_v9fs_setattr(pdu->tag, pdu->id, fid,
+                       v9iattr.valid, v9iattr.mode, v9iattr.uid, v9iattr.gid,
+                       v9iattr.size, v9iattr.atime_sec, v9iattr.mtime_sec);
+
     fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -EINVAL;
@@ -1259,6 +1263,7 @@ static void coroutine_fn v9fs_setattr(void *opaque)
         }
     }
     err = offset;
+    trace_v9fs_setattr_return(pdu->tag, pdu->id);
 out:
     put_fid(pdu, fidp);
 out_nofid:
