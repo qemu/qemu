@@ -6,6 +6,9 @@ HXCOMM DEF(command, callback, arg_string) is used to construct
 HXCOMM command structures and help message.
 HXCOMM HXCOMM can be used for comments, discarded from both texi and C
 
+HXCOMM When amending the TEXI sections, please remember to copy the usage
+HXCOMM over to the per-command sections in qemu-img.texi.
+
 STEXI
 @table @option
 ETEXI
