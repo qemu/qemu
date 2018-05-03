@@ -18,7 +18,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
-#include "migration/page_cache.h"
+#include "page_cache.h"
 
 #ifdef DEBUG_CACHE
 #define DPRINTF(fmt, ...) \
