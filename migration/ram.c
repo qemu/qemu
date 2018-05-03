@@ -2881,7 +2881,7 @@ static void *do_data_decompress(void *opaque)
 
             ret = qemu_uncompress_data(&param->stream, des, pagesize,
                                        param->compbuf, len);
-            if (ret < 0) {
+            if (ret < 0 && migrate_get_current()->decompress_error_check) {
                 error_report("decompress data failed");
                 qemu_file_set_error(decomp_file, ret);
             }

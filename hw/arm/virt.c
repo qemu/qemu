@@ -1693,6 +1693,9 @@ static void machvirt_machine_init(void)
 }
 type_init(machvirt_machine_init);
 
+#define VIRT_COMPAT_2_12 \
+    HW_COMPAT_2_12
+
 static void virt_2_12_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -1763,6 +1766,7 @@ static void virt_2_12_instance_init(Object *obj)
 
 static void virt_machine_2_12_options(MachineClass *mc)
 {
+    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_12);
 }
 DEFINE_VIRT_MACHINE_AS_LATEST(2, 12)
 

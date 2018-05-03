@@ -312,6 +312,7 @@ static void pc_q35_3_0_machine_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
     m->alias = "q35";
+    SET_MACHINE_COMPAT(m, PC_COMPAT_2_12);
 }
 
 DEFINE_Q35_MACHINE(v3_0, "pc-q35-3.0", NULL,
