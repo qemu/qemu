@@ -980,7 +980,7 @@ TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
     return ts;
 }
 
-static TCGTemp *tcg_temp_new_internal(TCGType type, int temp_local)
+TCGTemp *tcg_temp_new_internal(TCGType type, bool temp_local)
 {
     TCGContext *s = tcg_ctx;
     TCGTemp *ts;
@@ -1025,18 +1025,6 @@ static TCGTemp *tcg_temp_new_internal(TCGType type, int temp_local)
     return ts;
 }
 
-TCGv_i32 tcg_temp_new_internal_i32(int temp_local)
-{
-    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I32, temp_local);
-    return temp_tcgv_i32(t);
-}
-
-TCGv_i64 tcg_temp_new_internal_i64(int temp_local)
-{
-    TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_I64, temp_local);
-    return temp_tcgv_i64(t);
-}
-
 TCGv_vec tcg_temp_new_vec(TCGType type)
 {
     TCGTemp *t;
@@ -1072,7 +1060,7 @@ TCGv_vec tcg_temp_new_vec_matching(TCGv_vec match)
     return temp_tcgv_vec(t);
 }
 
-static void tcg_temp_free_internal(TCGTemp *ts)
+void tcg_temp_free_internal(TCGTemp *ts)
 {
     TCGContext *s = tcg_ctx;
     int k, idx;
@@ -1091,21 +1079,6 @@ static void tcg_temp_free_internal(TCGTemp *ts)
     idx = temp_idx(ts);
     k = ts->base_type + (ts->temp_local ? TCG_TYPE_COUNT : 0);
     set_bit(idx, s->free_temps[k].l);
-}
-
-void tcg_temp_free_i32(TCGv_i32 arg)
-{
-    tcg_temp_free_internal(tcgv_i32_temp(arg));
-}
-
-void tcg_temp_free_i64(TCGv_i64 arg)
-{
-    tcg_temp_free_internal(tcgv_i64_temp(arg));
-}
-
-void tcg_temp_free_vec(TCGv_vec arg)
-{
-    tcg_temp_free_internal(tcgv_vec_temp(arg));
 }
 
 TCGv_i32 tcg_const_i32(int32_t val)
@@ -3324,7 +3297,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     s->code_ptr = tb->tc.ptr;
 
 #ifdef TCG_TARGET_NEED_LDST_LABELS
-    s->ldst_labels = NULL;
+    QSIMPLEQ_INIT(&s->ldst_labels);
 #endif
 #ifdef TCG_TARGET_NEED_POOL_LABELS
     s->pool_labels = NULL;
