@@ -10,7 +10,7 @@
 #include "hw/i386/pc.h"
 #include "hw/irq.h"
 
-#include "hw/hppa/hppa_hardware.h"
+#include "hppa_hardware.h"
 
 PCIBus *dino_init(MemoryRegion *, qemu_irq *, qemu_irq *);
 
