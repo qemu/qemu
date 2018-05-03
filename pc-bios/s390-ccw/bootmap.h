@@ -57,8 +57,6 @@ typedef union BootMapPointer {
     ExtEckdBlockPtr xeckd;
 } __attribute__ ((packed)) BootMapPointer;
 
-#define MAX_TABLE_ENTRIES  30
-
 /* aka Program Table */
 typedef struct BootMapTable {
     uint8_t magic[4];
@@ -355,10 +353,6 @@ static inline uint32_t iso_733_to_u32(uint64_t x)
 #define ISO_SECTOR_SIZE 2048
 /* El Torito specifies boot image size in 512 byte blocks */
 #define ET_SECTOR_SHIFT 2
-#define KERN_IMAGE_START 0x010000UL
-#define PSW_MASK_64 0x0000000100000000ULL
-#define PSW_MASK_32 0x0000000080000000ULL
-#define IPL_PSW_MASK (PSW_MASK_32 | PSW_MASK_64)
 
 #define ISO_PRIMARY_VD_SECTOR 16
 

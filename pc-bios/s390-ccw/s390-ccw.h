@@ -87,12 +87,18 @@ ulong get_second(void);
 /* bootmap.c */
 void zipl_load(void);
 
+/* jump2ipl.c */
+void jump_to_IPL_code(uint64_t address);
+void jump_to_low_kernel(void);
+
 /* menu.c */
 void menu_set_parms(uint8_t boot_menu_flag, uint32_t boot_menu_timeout);
 int menu_get_zipl_boot_index(const char *menu_data);
 bool menu_is_enabled_zipl(void);
-int menu_get_enum_boot_index(int entries);
+int menu_get_enum_boot_index(bool *valid_entries);
 bool menu_is_enabled_enum(void);
+
+#define MAX_BOOT_ENTRIES  31
 
 static inline void fill_hex(char *out, unsigned char val)
 {
