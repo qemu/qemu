@@ -102,6 +102,7 @@ struct USBHostDevice {
     /* callbacks & friends */
     QEMUBH                           *bh_nodev;
     QEMUBH                           *bh_postld;
+    bool                             bh_postld_pending;
     Notifier                         exit;
 
     /* request queues */
@@ -870,6 +871,10 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
     int rc;
     Error *local_err = NULL;
 
+    if (s->bh_postld_pending) {
+        return -1;
+    }
+
     trace_usb_host_open_started(bus_num, addr);
 
     if (s->dh != NULL) {
@@ -1528,6 +1533,7 @@ static void usb_host_post_load_bh(void *opaque)
     if (udev->attached) {
         usb_device_detach(udev);
     }
+    dev->bh_postld_pending = false;
     usb_host_auto_check(NULL);
 }
 
@@ -1539,6 +1545,7 @@ static int usb_host_post_load(void *opaque, int version_id)
         dev->bh_postld = qemu_bh_new(usb_host_post_load_bh, dev);
     }
     qemu_bh_schedule(dev->bh_postld);
+    dev->bh_postld_pending = true;
     return 0;
 }
 
