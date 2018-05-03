@@ -27,7 +27,7 @@
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
 #include <zlib.h>
-#include "block/qcow2.h"
+#include "qcow2.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-block-core.h"
@@ -39,7 +39,7 @@
 #include "qemu/bswap.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-block-core.h"
-#include "block/crypto.h"
+#include "crypto.h"
 
 /*
   Differences with QCOW:

@@ -19,7 +19,7 @@
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "qemu/bswap.h"
-#include "block/vhdx.h"
+#include "vhdx.h"
 
 /*
  * All the VHDX formats on disk are little endian - the following
