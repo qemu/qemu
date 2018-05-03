@@ -27,7 +27,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 
-#include "crypto/block-qcow.h"
+#include "block-qcow.h"
 #include "crypto/secret.h"
 
 #define QCRYPTO_BLOCK_QCOW_SECTOR_SIZE 512

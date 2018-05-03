@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"
-#include "crypto/ivgen-essiv.h"
+#include "ivgen-essiv.h"
 
 typedef struct QCryptoIVGenESSIV QCryptoIVGenESSIV;
 struct QCryptoIVGenESSIV {

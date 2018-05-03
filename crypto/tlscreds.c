@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "crypto/tlscredspriv.h"
+#include "tlscredspriv.h"
 #include "trace.h"
 
 #define DH_BITS 2048

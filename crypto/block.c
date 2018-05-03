@@ -20,9 +20,9 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "crypto/blockpriv.h"
-#include "crypto/block-qcow.h"
-#include "crypto/block-luks.h"
+#include "blockpriv.h"
+#include "block-qcow.h"
+#include "block-luks.h"
 
 static const QCryptoBlockDriver *qcrypto_block_drivers[] = {
     [Q_CRYPTO_BLOCK_FORMAT_QCOW] = &qcrypto_block_driver_qcow,
