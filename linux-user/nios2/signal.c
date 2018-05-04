@@ -42,18 +42,6 @@ struct target_rt_sigframe {
     struct target_ucontext uc;
 };
 
-static unsigned long sigsp(unsigned long sp, struct target_sigaction *ka)
-{
-    if (unlikely((ka->sa_flags & SA_ONSTACK)) && !sas_ss_flags(sp)) {
-#ifdef CONFIG_STACK_GROWSUP
-        return target_sigaltstack_used.ss_sp;
-#else
-        return target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-#endif
-    }
-    return sp;
-}
-
 static int rt_setup_ucontext(struct target_ucontext *uc, CPUNios2State *env)
 {
     unsigned long *gregs = uc->tuc_mcontext.gregs;
@@ -158,11 +146,8 @@ static void *get_sigframe(struct target_sigaction *ka, CPUNios2State *env,
 {
     unsigned long usp;
 
-    /* Default to using normal stack.  */
-    usp = env->regs[R_SP];
-
     /* This is the X/Open sanctioned signal stack switching.  */
-    usp = sigsp(usp, ka);
+    usp = target_sigsp(get_sp_from_cpustate(env), ka);
 
     /* Verify, is it 32 or 64 bit aligned */
     return (void *)((usp - frame_size) & -8UL);
@@ -185,9 +170,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     /* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
     __put_user(0, &frame->uc.tuc_link);
-    __put_user(target_sigaltstack_used.ss_sp, &frame->uc.tuc_stack.ss_sp);
-    __put_user(sas_ss_flags(env->regs[R_SP]), &frame->uc.tuc_stack.ss_flags);
-    __put_user(target_sigaltstack_used.ss_size, &frame->uc.tuc_stack.ss_size);
+    target_save_altstack(&frame->uc.tuc_stack, env);
     err |= rt_setup_ucontext(&frame->uc, env);
     for (i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user((abi_ulong)set->sig[i],

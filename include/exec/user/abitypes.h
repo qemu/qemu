@@ -15,7 +15,7 @@
 #define ABI_LLONG_ALIGNMENT 2
 #endif
 
-#if defined(TARGET_I386) && !defined(TARGET_X86_64)
+#if (defined(TARGET_I386) && !defined(TARGET_X86_64)) || defined(TARGET_SH4)
 #define ABI_LLONG_ALIGNMENT 4
 #endif
 

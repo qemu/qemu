@@ -117,14 +117,10 @@ static inline abi_ulong
 get_sigframe(struct target_sigaction *ka, CPUM68KState *regs,
              size_t frame_size)
 {
-    unsigned long sp;
+    abi_ulong sp;
 
-    sp = regs->aregs[7];
+    sp = target_sigsp(get_sp_from_cpustate(regs), ka);
 
-    /* This is the X/Open sanctioned signal stack switching.  */
-    if ((ka->sa_flags & TARGET_SA_ONSTACK) && (sas_ss_flags (sp) == 0)) {
-        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-    }
 
     return ((sp - frame_size) & -8UL);
 }
@@ -318,12 +314,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     __put_user(0, &frame->uc.tuc_flags);
     __put_user(0, &frame->uc.tuc_link);
-    __put_user(target_sigaltstack_used.ss_sp,
-               &frame->uc.tuc_stack.ss_sp);
-    __put_user(sas_ss_flags(env->aregs[7]),
-            &frame->uc.tuc_stack.ss_flags);
-    __put_user(target_sigaltstack_used.ss_size,
-               &frame->uc.tuc_stack.ss_size);
+    target_save_altstack(&frame->uc.tuc_stack, env);
     err |= target_rt_setup_ucontext(&frame->uc, env);
 
     if (err)

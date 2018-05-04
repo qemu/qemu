@@ -86,17 +86,13 @@ static void restore_sigcontext(CPUTLGState *env, struct target_sigcontext *sc)
 static abi_ulong get_sigframe(struct target_sigaction *ka, CPUArchState *env,
                               size_t frame_size)
 {
-    unsigned long sp = env->regs[TILEGX_R_SP];
+    unsigned long sp = get_sp_from_cpustate(env);
 
     if (on_sig_stack(sp) && !likely(on_sig_stack(sp - frame_size))) {
         return -1UL;
     }
 
-    if ((ka->sa_flags & SA_ONSTACK) && !sas_ss_flags(sp)) {
-        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-    }
-
-    sp -= frame_size;
+    sp = target_sigsp(sp, ka) - frame_size;
     sp &= -16UL;
     return sp;
 }
@@ -127,10 +123,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     /* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
     __put_user(0, &frame->uc.tuc_link);
-    __put_user(target_sigaltstack_used.ss_sp, &frame->uc.tuc_stack.ss_sp);
-    __put_user(sas_ss_flags(env->regs[TILEGX_R_SP]),
-               &frame->uc.tuc_stack.ss_flags);
-    __put_user(target_sigaltstack_used.ss_size, &frame->uc.tuc_stack.ss_size);
+    target_save_altstack(&frame->uc.tuc_stack, env);
     setup_sigcontext(&frame->uc.tuc_mcontext, env, info->si_signo);
 
     if (ka->sa_flags & TARGET_SA_RESTORER) {

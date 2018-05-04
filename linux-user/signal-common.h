@@ -21,17 +21,10 @@
 #define SIGNAL_COMMON_H
 extern struct target_sigaltstack target_sigaltstack_used;
 
-static inline int on_sig_stack(unsigned long sp)
-{
-    return (sp - target_sigaltstack_used.ss_sp
-            < target_sigaltstack_used.ss_size);
-}
-
-static inline int sas_ss_flags(unsigned long sp)
-{
-    return (target_sigaltstack_used.ss_size == 0 ? SS_DISABLE
-            : on_sig_stack(sp) ? SS_ONSTACK : 0);
-}
+int on_sig_stack(unsigned long sp);
+int sas_ss_flags(unsigned long sp);
+abi_ulong target_sigsp(abi_ulong sp, struct target_sigaction *ka);
+void target_save_altstack(target_stack_t *uss, CPUArchState *env);
 
 static inline void target_sigemptyset(target_sigset_t *set)
 {

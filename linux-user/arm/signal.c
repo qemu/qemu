@@ -102,13 +102,13 @@ struct sigframe_v1
 {
     struct target_sigcontext sc;
     abi_ulong extramask[TARGET_NSIG_WORDS-1];
-    abi_ulong retcode;
+    abi_ulong retcode[4];
 };
 
 struct sigframe_v2
 {
     struct target_ucontext_v2 uc;
-    abi_ulong retcode;
+    abi_ulong retcode[4];
 };
 
 struct rt_sigframe_v1
@@ -117,14 +117,14 @@ struct rt_sigframe_v1
     abi_ulong puc;
     struct target_siginfo info;
     struct target_ucontext_v1 uc;
-    abi_ulong retcode;
+    abi_ulong retcode[4];
 };
 
 struct rt_sigframe_v2
 {
     struct target_siginfo info;
     struct target_ucontext_v2 uc;
-    abi_ulong retcode;
+    abi_ulong retcode[4];
 };
 
 #define TARGET_CONFIG_CPU_32 1
@@ -147,6 +147,21 @@ static const abi_ulong retcodes[4] = {
         SWI_SYS_RT_SIGRETURN,   SWI_THUMB_RT_SIGRETURN
 };
 
+/*
+ * Stub needed to make sure the FD register (r9) contains the right
+ * value.
+ */
+static const unsigned long sigreturn_fdpic_codes[3] = {
+    0xe59fc004, /* ldr r12, [pc, #4] to read function descriptor */
+    0xe59c9004, /* ldr r9, [r12, #4] to setup GOT */
+    0xe59cf000  /* ldr pc, [r12] to jump into restorer */
+};
+
+static const unsigned long sigreturn_fdpic_thumb_codes[3] = {
+    0xc008f8df, /* ldr r12, [pc, #8] to read function descriptor */
+    0x9004f8dc, /* ldr r9, [r12, #4] to setup GOT */
+    0xf000f8dc  /* ldr pc, [r12] to jump into restorer */
+};
 
 static inline int valid_user_regs(CPUARMState *regs)
 {
@@ -186,27 +201,42 @@ setup_sigcontext(struct target_sigcontext *sc, /*struct _fpstate *fpstate,*/
 static inline abi_ulong
 get_sigframe(struct target_sigaction *ka, CPUARMState *regs, int framesize)
 {
-    unsigned long sp = regs->regs[13];
+    unsigned long sp;
 
-    /*
-     * This is the X/Open sanctioned signal stack switching.
-     */
-    if ((ka->sa_flags & TARGET_SA_ONSTACK) && !sas_ss_flags(sp)) {
-        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-    }
+    sp = target_sigsp(get_sp_from_cpustate(regs), ka);
     /*
      * ATPCS B01 mandates 8-byte alignment
      */
     return (sp - framesize) & ~7;
 }
 
-static void
+static int
 setup_return(CPUARMState *env, struct target_sigaction *ka,
              abi_ulong *rc, abi_ulong frame_addr, int usig, abi_ulong rc_addr)
 {
-    abi_ulong handler = ka->_sa_handler;
+    abi_ulong handler = 0;
+    abi_ulong handler_fdpic_GOT = 0;
     abi_ulong retcode;
-    int thumb = handler & 1;
+
+    int thumb;
+    int is_fdpic = info_is_fdpic(((TaskState *)thread_cpu->opaque)->info);
+
+    if (is_fdpic) {
+        /* In FDPIC mode, ka->_sa_handler points to a function
+         * descriptor (FD). The first word contains the address of the
+         * handler. The second word contains the value of the PIC
+         * register (r9).  */
+        abi_ulong funcdesc_ptr = ka->_sa_handler;
+        if (get_user_ual(handler, funcdesc_ptr)
+            || get_user_ual(handler_fdpic_GOT, funcdesc_ptr + 4)) {
+            return 1;
+        }
+    } else {
+        handler = ka->_sa_handler;
+    }
+
+    thumb = handler & 1;
+
     uint32_t cpsr = cpsr_read(env);
 
     cpsr &= ~CPSR_IT;
@@ -217,7 +247,28 @@ setup_return(CPUARMState *env, struct target_sigaction *ka,
     }
 
     if (ka->sa_flags & TARGET_SA_RESTORER) {
-        retcode = ka->sa_restorer;
+        if (is_fdpic) {
+            /* For FDPIC we ensure that the restorer is called with a
+             * correct r9 value.  For that we need to write code on
+             * the stack that sets r9 and jumps back to restorer
+             * value.
+             */
+            if (thumb) {
+                __put_user(sigreturn_fdpic_thumb_codes[0], rc);
+                __put_user(sigreturn_fdpic_thumb_codes[1], rc + 1);
+                __put_user(sigreturn_fdpic_thumb_codes[2], rc + 2);
+                __put_user((abi_ulong)ka->sa_restorer, rc + 3);
+            } else {
+                __put_user(sigreturn_fdpic_codes[0], rc);
+                __put_user(sigreturn_fdpic_codes[1], rc + 1);
+                __put_user(sigreturn_fdpic_codes[2], rc + 2);
+                __put_user((abi_ulong)ka->sa_restorer, rc + 3);
+            }
+
+            retcode = rc_addr + thumb;
+        } else {
+            retcode = ka->sa_restorer;
+        }
     } else {
         unsigned int idx = thumb;
 
@@ -231,10 +282,15 @@ setup_return(CPUARMState *env, struct target_sigaction *ka,
     }
 
     env->regs[0] = usig;
+    if (is_fdpic) {
+        env->regs[9] = handler_fdpic_GOT;
+    }
     env->regs[13] = frame_addr;
     env->regs[14] = retcode;
     env->regs[15] = handler & (thumb ? ~1 : ~3);
     cpsr_write(env, cpsr, CPSR_IT | CPSR_T, CPSRWriteByInstr);
+
+    return 0;
 }
 
 static abi_ulong *setup_sigframe_v2_vfp(abi_ulong *regspace, CPUARMState *env)
@@ -285,9 +341,7 @@ static void setup_sigframe_v2(struct target_ucontext_v2 *uc,
     memset(uc, 0, offsetof(struct target_ucontext_v2, tuc_mcontext));
 
     memset(&stack, 0, sizeof(stack));
-    __put_user(target_sigaltstack_used.ss_sp, &stack.ss_sp);
-    __put_user(target_sigaltstack_used.ss_size, &stack.ss_size);
-    __put_user(sas_ss_flags(get_sp_from_cpustate(env)), &stack.ss_flags);
+    target_save_altstack(&stack, env);
     memcpy(&uc->tuc_stack, &stack, sizeof(stack));
 
     setup_sigcontext(&uc->tuc_mcontext, env, set->sig[0]);
@@ -327,12 +381,15 @@ static void setup_frame_v1(int usig, struct target_sigaction *ka,
         __put_user(set->sig[i], &frame->extramask[i - 1]);
     }
 
-    setup_return(regs, ka, &frame->retcode, frame_addr, usig,
-                 frame_addr + offsetof(struct sigframe_v1, retcode));
+    if (setup_return(regs, ka, frame->retcode, frame_addr, usig,
+                     frame_addr + offsetof(struct sigframe_v1, retcode))) {
+        goto sigsegv;
+    }
 
     unlock_user_struct(frame, frame_addr, 1);
     return;
 sigsegv:
+    unlock_user_struct(frame, frame_addr, 1);
     force_sigsegv(usig);
 }
 
@@ -349,12 +406,15 @@ static void setup_frame_v2(int usig, struct target_sigaction *ka,
 
     setup_sigframe_v2(&frame->uc, set, regs);
 
-    setup_return(regs, ka, &frame->retcode, frame_addr, usig,
-                 frame_addr + offsetof(struct sigframe_v2, retcode));
+    if (setup_return(regs, ka, frame->retcode, frame_addr, usig,
+                     frame_addr + offsetof(struct sigframe_v2, retcode))) {
+        goto sigsegv;
+    }
 
     unlock_user_struct(frame, frame_addr, 1);
     return;
 sigsegv:
+    unlock_user_struct(frame, frame_addr, 1);
     force_sigsegv(usig);
 }
 
@@ -394,9 +454,7 @@ static void setup_rt_frame_v1(int usig, struct target_sigaction *ka,
     memset(&frame->uc, 0, offsetof(struct target_ucontext_v1, tuc_mcontext));
 
     memset(&stack, 0, sizeof(stack));
-    __put_user(target_sigaltstack_used.ss_sp, &stack.ss_sp);
-    __put_user(target_sigaltstack_used.ss_size, &stack.ss_size);
-    __put_user(sas_ss_flags(get_sp_from_cpustate(env)), &stack.ss_flags);
+    target_save_altstack(&stack, env);
     memcpy(&frame->uc.tuc_stack, &stack, sizeof(stack));
 
     setup_sigcontext(&frame->uc.tuc_mcontext, env, set->sig[0]);
@@ -404,8 +462,10 @@ static void setup_rt_frame_v1(int usig, struct target_sigaction *ka,
         __put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]);
     }
 
-    setup_return(env, ka, &frame->retcode, frame_addr, usig,
-                 frame_addr + offsetof(struct rt_sigframe_v1, retcode));
+    if (setup_return(env, ka, frame->retcode, frame_addr, usig,
+                     frame_addr + offsetof(struct rt_sigframe_v1, retcode))) {
+        goto sigsegv;
+    }
 
     env->regs[1] = info_addr;
     env->regs[2] = uc_addr;
@@ -413,6 +473,7 @@ static void setup_rt_frame_v1(int usig, struct target_sigaction *ka,
     unlock_user_struct(frame, frame_addr, 1);
     return;
 sigsegv:
+    unlock_user_struct(frame, frame_addr, 1);
     force_sigsegv(usig);
 }
 
@@ -435,8 +496,10 @@ static void setup_rt_frame_v2(int usig, struct target_sigaction *ka,
 
     setup_sigframe_v2(&frame->uc, set, env);
 
-    setup_return(env, ka, &frame->retcode, frame_addr, usig,
-                 frame_addr + offsetof(struct rt_sigframe_v2, retcode));
+    if (setup_return(env, ka, frame->retcode, frame_addr, usig,
+                     frame_addr + offsetof(struct rt_sigframe_v2, retcode))) {
+        goto sigsegv;
+    }
 
     env->regs[1] = info_addr;
     env->regs[2] = uc_addr;
@@ -444,6 +507,7 @@ static void setup_rt_frame_v2(int usig, struct target_sigaction *ka,
     unlock_user_struct(frame, frame_addr, 1);
     return;
 sigsegv:
+    unlock_user_struct(frame, frame_addr, 1);
     force_sigsegv(usig);
 }
 

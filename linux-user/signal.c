@@ -249,6 +249,38 @@ void set_sigmask(const sigset_t *set)
 }
 #endif
 
+/* sigaltstack management */
+
+int on_sig_stack(unsigned long sp)
+{
+    return (sp - target_sigaltstack_used.ss_sp
+            < target_sigaltstack_used.ss_size);
+}
+
+int sas_ss_flags(unsigned long sp)
+{
+    return (target_sigaltstack_used.ss_size == 0 ? SS_DISABLE
+            : on_sig_stack(sp) ? SS_ONSTACK : 0);
+}
+
+abi_ulong target_sigsp(abi_ulong sp, struct target_sigaction *ka)
+{
+    /*
+     * This is the X/Open sanctioned signal stack switching.
+     */
+    if ((ka->sa_flags & TARGET_SA_ONSTACK) && !sas_ss_flags(sp)) {
+        return target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
+    }
+    return sp;
+}
+
+void target_save_altstack(target_stack_t *uss, CPUArchState *env)
+{
+    __put_user(target_sigaltstack_used.ss_sp, &uss->ss_sp);
+    __put_user(sas_ss_flags(get_sp_from_cpustate(env)), &uss->ss_flags);
+    __put_user(target_sigaltstack_used.ss_size, &uss->ss_size);
+}
+
 /* siginfo conversion */
 
 static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,

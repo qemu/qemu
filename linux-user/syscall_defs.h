@@ -2649,29 +2649,12 @@ struct target_flock {
 };
 
 struct target_flock64 {
-    short  l_type;
-    short  l_whence;
-#if defined(TARGET_PPC) || defined(TARGET_X86_64) || defined(TARGET_MIPS) \
-    || defined(TARGET_SPARC) || defined(TARGET_HPPA) \
-    || defined(TARGET_MICROBLAZE) || defined(TARGET_TILEGX) \
-    || defined(TARGET_XTENSA)
-    int __pad;
-#endif
+    abi_short l_type;
+    abi_short l_whence;
     abi_llong l_start;
     abi_llong l_len;
-    int  l_pid;
-} QEMU_PACKED;
-
-#ifdef TARGET_ARM
-struct target_eabi_flock64 {
-    short  l_type;
-    short  l_whence;
-    int __pad;
-    abi_llong l_start;
-    abi_llong l_len;
-    int  l_pid;
-} QEMU_PACKED;
-#endif
+    abi_int   l_pid;
+};
 
 struct target_f_owner_ex {
         int type;	/* Owner type of ID.  */

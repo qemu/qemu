@@ -54,23 +54,19 @@ struct target_rt_sigframe {
 static abi_ulong get_sigframe(struct target_sigaction *ka,
                               CPURISCVState *regs, size_t framesize)
 {
-    abi_ulong sp = regs->gpr[xSP];
-    int onsigstack = on_sig_stack(sp);
-
-    /* redzone */
-    /* This is the X/Open sanctioned signal stack switching.  */
-    if ((ka->sa_flags & TARGET_SA_ONSTACK) != 0 && !onsigstack) {
-        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
-    }
-
-    sp -= framesize;
-    sp &= ~3UL; /* align sp on 4-byte boundary */
+    abi_ulong sp = get_sp_from_cpustate(regs);
 
     /* If we are on the alternate signal stack and would overflow it, don't.
        Return an always-bogus address instead so we will die with SIGSEGV. */
-    if (onsigstack && !likely(on_sig_stack(sp))) {
+    if (on_sig_stack(sp) && !likely(on_sig_stack(sp - framesize))) {
         return -1L;
     }
+
+    /* This is the X/Open sanctioned signal stack switching.  */
+    sp = target_sigsp(sp, ka) - framesize;
+
+    /* XXX: kernel aligns with 0xf ? */
+    sp &= ~3UL; /* align sp on 4-byte boundary */
 
     return sp;
 }
@@ -95,16 +91,10 @@ static void setup_sigcontext(struct target_sigcontext *sc, CPURISCVState *env)
 static void setup_ucontext(struct target_ucontext *uc,
                            CPURISCVState *env, target_sigset_t *set)
 {
-    abi_ulong ss_sp = (target_ulong)target_sigaltstack_used.ss_sp;
-    abi_ulong ss_flags = sas_ss_flags(env->gpr[xSP]);
-    abi_ulong ss_size = target_sigaltstack_used.ss_size;
-
     __put_user(0,    &(uc->uc_flags));
     __put_user(0,    &(uc->uc_link));
 
-    __put_user(ss_sp,    &(uc->uc_stack.ss_sp));
-    __put_user(ss_flags, &(uc->uc_stack.ss_flags));
-    __put_user(ss_size,  &(uc->uc_stack.ss_size));
+    target_save_altstack(&uc->uc_stack, env);
 
     int i;
     for (i = 0; i < TARGET_NSIG_WORDS; i++) {
