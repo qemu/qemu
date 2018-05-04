@@ -32,14 +32,6 @@
 #include <linux/virtio_net.h>
 #include <sys/vfs.h>
 
-/* GLIB version compatibility flags */
-#if !GLIB_CHECK_VERSION(2, 26, 0)
-#define G_TIME_SPAN_SECOND              (G_GINT64_CONSTANT(1000000))
-#endif
-
-#if GLIB_CHECK_VERSION(2, 28, 0)
-#define HAVE_MONOTONIC_TIME
-#endif
 
 #define QEMU_CMD_MEM    " -m %d -object memory-backend-file,id=mem,size=%dM," \
                         "mem-path=%s,share=on -numa node,memdev=mem"
@@ -150,8 +142,8 @@ typedef struct TestServer {
     int fds_num;
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     VhostUserMemory memory;
-    CompatGMutex data_mutex;
-    CompatGCond data_cond;
+    GMutex data_mutex;
+    GCond data_cond;
     int log_fd;
     uint64_t rings;
     bool test_fail;
@@ -642,21 +634,7 @@ test_migrate_source_check(GSource *source)
     return FALSE;
 }
 
-#if !GLIB_CHECK_VERSION(2,36,0)
-/* this callback is unnecessary with glib >2.36, the default
- * prepare for the source does the same */
-static gboolean
-test_migrate_source_prepare(GSource *source, gint *timeout)
-{
-    *timeout = -1;
-    return FALSE;
-}
-#endif
-
 GSourceFuncs test_migrate_source_funcs = {
-#if !GLIB_CHECK_VERSION(2,36,0)
-    .prepare = test_migrate_source_prepare,
-#endif
     .check = test_migrate_source_check,
 };
 

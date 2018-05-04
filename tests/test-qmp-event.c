@@ -32,7 +32,7 @@ typedef struct QDictCmpData {
 } QDictCmpData;
 
 TestEventData *test_event_data;
-static CompatGMutex test_event_lock;
+static GMutex test_event_lock;
 
 /* Only compares bool, int, string */
 static
@@ -242,12 +242,6 @@ static void test_event_d(TestEventData *data,
 
 int main(int argc, char **argv)
 {
-#if !GLIB_CHECK_VERSION(2, 31, 0)
-    if (!g_thread_supported()) {
-       g_thread_init(NULL);
-    }
-#endif
-
     qmp_event_set_func_emit(event_test_emit);
 
     g_test_init(&argc, &argv, NULL);
