@@ -120,4 +120,12 @@ typedef struct {
 #define ARM_SMMU_GET_CLASS(obj)                              \
     OBJECT_GET_CLASS(SMMUBaseClass, (obj), TYPE_ARM_SMMU)
 
+/* Return the SMMUPciBus handle associated to a PCI bus number */
+SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num);
+
+/* Return the stream ID of an SMMU device */
+static inline uint16_t smmu_get_sid(SMMUDevice *sdev)
+{
+    return PCI_BUILD_BDF(pci_bus_num(sdev->bus), sdev->devfn);
+}
 #endif  /* HW_ARM_SMMU_COMMON */
