@@ -153,4 +153,167 @@ static inline bool smmuv3_gerror_irq_enabled(SMMUv3State *s)
 void smmuv3_trigger_irq(SMMUv3State *s, SMMUIrq irq, uint32_t gerror_mask);
 void smmuv3_write_gerrorn(SMMUv3State *s, uint32_t gerrorn);
 
+/* Queue Handling */
+
+#define Q_BASE(q)          ((q)->base & SMMU_BASE_ADDR_MASK)
+#define WRAP_MASK(q)       (1 << (q)->log2size)
+#define INDEX_MASK(q)      (((1 << (q)->log2size)) - 1)
+#define WRAP_INDEX_MASK(q) ((1 << ((q)->log2size + 1)) - 1)
+
+#define Q_CONS(q) ((q)->cons & INDEX_MASK(q))
+#define Q_PROD(q) ((q)->prod & INDEX_MASK(q))
+
+#define Q_CONS_ENTRY(q)  (Q_BASE(q) + (q)->entry_size * Q_CONS(q))
+#define Q_PROD_ENTRY(q)  (Q_BASE(q) + (q)->entry_size * Q_PROD(q))
+
+#define Q_CONS_WRAP(q) (((q)->cons & WRAP_MASK(q)) >> (q)->log2size)
+#define Q_PROD_WRAP(q) (((q)->prod & WRAP_MASK(q)) >> (q)->log2size)
+
+static inline bool smmuv3_q_full(SMMUQueue *q)
+{
+    return ((q->cons ^ q->prod) & WRAP_INDEX_MASK(q)) == WRAP_MASK(q);
+}
+
+static inline bool smmuv3_q_empty(SMMUQueue *q)
+{
+    return (q->cons & WRAP_INDEX_MASK(q)) == (q->prod & WRAP_INDEX_MASK(q));
+}
+
+static inline void queue_prod_incr(SMMUQueue *q)
+{
+    q->prod = (q->prod + 1) & WRAP_INDEX_MASK(q);
+}
+
+static inline void queue_cons_incr(SMMUQueue *q)
+{
+    /*
+     * We have to use deposit for the CONS registers to preserve
+     * the ERR field in the high bits.
+     */
+    q->cons = deposit32(q->cons, 0, q->log2size + 1, q->cons + 1);
+}
+
+static inline bool smmuv3_cmdq_enabled(SMMUv3State *s)
+{
+    return FIELD_EX32(s->cr[0], CR0, CMDQEN);
+}
+
+static inline bool smmuv3_eventq_enabled(SMMUv3State *s)
+{
+    return FIELD_EX32(s->cr[0], CR0, EVENTQEN);
+}
+
+static inline void smmu_write_cmdq_err(SMMUv3State *s, uint32_t err_type)
+{
+    s->cmdq.cons = FIELD_DP32(s->cmdq.cons, CMDQ_CONS, ERR, err_type);
+}
+
+void smmuv3_write_eventq(SMMUv3State *s, Evt *evt);
+
+/* Commands */
+
+typedef enum SMMUCommandType {
+    SMMU_CMD_NONE            = 0x00,
+    SMMU_CMD_PREFETCH_CONFIG       ,
+    SMMU_CMD_PREFETCH_ADDR,
+    SMMU_CMD_CFGI_STE,
+    SMMU_CMD_CFGI_STE_RANGE,
+    SMMU_CMD_CFGI_CD,
+    SMMU_CMD_CFGI_CD_ALL,
+    SMMU_CMD_CFGI_ALL,
+    SMMU_CMD_TLBI_NH_ALL     = 0x10,
+    SMMU_CMD_TLBI_NH_ASID,
+    SMMU_CMD_TLBI_NH_VA,
+    SMMU_CMD_TLBI_NH_VAA,
+    SMMU_CMD_TLBI_EL3_ALL    = 0x18,
+    SMMU_CMD_TLBI_EL3_VA     = 0x1a,
+    SMMU_CMD_TLBI_EL2_ALL    = 0x20,
+    SMMU_CMD_TLBI_EL2_ASID,
+    SMMU_CMD_TLBI_EL2_VA,
+    SMMU_CMD_TLBI_EL2_VAA,
+    SMMU_CMD_TLBI_S12_VMALL  = 0x28,
+    SMMU_CMD_TLBI_S2_IPA     = 0x2a,
+    SMMU_CMD_TLBI_NSNH_ALL   = 0x30,
+    SMMU_CMD_ATC_INV         = 0x40,
+    SMMU_CMD_PRI_RESP,
+    SMMU_CMD_RESUME          = 0x44,
+    SMMU_CMD_STALL_TERM,
+    SMMU_CMD_SYNC,
+} SMMUCommandType;
+
+static const char *cmd_stringify[] = {
+    [SMMU_CMD_PREFETCH_CONFIG] = "SMMU_CMD_PREFETCH_CONFIG",
+    [SMMU_CMD_PREFETCH_ADDR]   = "SMMU_CMD_PREFETCH_ADDR",
+    [SMMU_CMD_CFGI_STE]        = "SMMU_CMD_CFGI_STE",
+    [SMMU_CMD_CFGI_STE_RANGE]  = "SMMU_CMD_CFGI_STE_RANGE",
+    [SMMU_CMD_CFGI_CD]         = "SMMU_CMD_CFGI_CD",
+    [SMMU_CMD_CFGI_CD_ALL]     = "SMMU_CMD_CFGI_CD_ALL",
+    [SMMU_CMD_CFGI_ALL]        = "SMMU_CMD_CFGI_ALL",
+    [SMMU_CMD_TLBI_NH_ALL]     = "SMMU_CMD_TLBI_NH_ALL",
+    [SMMU_CMD_TLBI_NH_ASID]    = "SMMU_CMD_TLBI_NH_ASID",
+    [SMMU_CMD_TLBI_NH_VA]      = "SMMU_CMD_TLBI_NH_VA",
+    [SMMU_CMD_TLBI_NH_VAA]     = "SMMU_CMD_TLBI_NH_VAA",
+    [SMMU_CMD_TLBI_EL3_ALL]    = "SMMU_CMD_TLBI_EL3_ALL",
+    [SMMU_CMD_TLBI_EL3_VA]     = "SMMU_CMD_TLBI_EL3_VA",
+    [SMMU_CMD_TLBI_EL2_ALL]    = "SMMU_CMD_TLBI_EL2_ALL",
+    [SMMU_CMD_TLBI_EL2_ASID]   = "SMMU_CMD_TLBI_EL2_ASID",
+    [SMMU_CMD_TLBI_EL2_VA]     = "SMMU_CMD_TLBI_EL2_VA",
+    [SMMU_CMD_TLBI_EL2_VAA]    = "SMMU_CMD_TLBI_EL2_VAA",
+    [SMMU_CMD_TLBI_S12_VMALL]  = "SMMU_CMD_TLBI_S12_VMALL",
+    [SMMU_CMD_TLBI_S2_IPA]     = "SMMU_CMD_TLBI_S2_IPA",
+    [SMMU_CMD_TLBI_NSNH_ALL]   = "SMMU_CMD_TLBI_NSNH_ALL",
+    [SMMU_CMD_ATC_INV]         = "SMMU_CMD_ATC_INV",
+    [SMMU_CMD_PRI_RESP]        = "SMMU_CMD_PRI_RESP",
+    [SMMU_CMD_RESUME]          = "SMMU_CMD_RESUME",
+    [SMMU_CMD_STALL_TERM]      = "SMMU_CMD_STALL_TERM",
+    [SMMU_CMD_SYNC]            = "SMMU_CMD_SYNC",
+};
+
+static inline const char *smmu_cmd_string(SMMUCommandType type)
+{
+    if (type > SMMU_CMD_NONE && type < ARRAY_SIZE(cmd_stringify)) {
+        return cmd_stringify[type] ? cmd_stringify[type] : "UNKNOWN";
+    } else {
+        return "INVALID";
+    }
+}
+
+/* CMDQ fields */
+
+typedef enum {
+    SMMU_CERROR_NONE = 0,
+    SMMU_CERROR_ILL,
+    SMMU_CERROR_ABT,
+    SMMU_CERROR_ATC_INV_SYNC,
+} SMMUCmdError;
+
+enum { /* Command completion notification */
+    CMD_SYNC_SIG_NONE,
+    CMD_SYNC_SIG_IRQ,
+    CMD_SYNC_SIG_SEV,
+};
+
+#define CMD_TYPE(x)         extract32((x)->word[0], 0 , 8)
+#define CMD_SSEC(x)         extract32((x)->word[0], 10, 1)
+#define CMD_SSV(x)          extract32((x)->word[0], 11, 1)
+#define CMD_RESUME_AC(x)    extract32((x)->word[0], 12, 1)
+#define CMD_RESUME_AB(x)    extract32((x)->word[0], 13, 1)
+#define CMD_SYNC_CS(x)      extract32((x)->word[0], 12, 2)
+#define CMD_SSID(x)         extract32((x)->word[0], 12, 20)
+#define CMD_SID(x)          ((x)->word[1])
+#define CMD_VMID(x)         extract32((x)->word[1], 0 , 16)
+#define CMD_ASID(x)         extract32((x)->word[1], 16, 16)
+#define CMD_RESUME_STAG(x)  extract32((x)->word[2], 0 , 16)
+#define CMD_RESP(x)         extract32((x)->word[2], 11, 2)
+#define CMD_LEAF(x)         extract32((x)->word[2], 0 , 1)
+#define CMD_STE_RANGE(x)    extract32((x)->word[2], 0 , 5)
+#define CMD_ADDR(x) ({                                        \
+            uint64_t high = (uint64_t)(x)->word[3];           \
+            uint64_t low = extract32((x)->word[2], 12, 20);    \
+            uint64_t addr = high << 32 | (low << 12);         \
+            addr;                                             \
+        })
+
+int smmuv3_cmdq_consume(SMMUv3State *s);
+
 #endif
