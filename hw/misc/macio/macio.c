@@ -279,11 +279,10 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
 {
     MacIOState *s = MACIO(d);
     NewWorldMacIOState *ns = NEWWORLD_MACIO(d);
+    DeviceState *pic_dev = DEVICE(ns->pic);
     Error *err = NULL;
     SysBusDevice *sysbus_dev;
     MemoryRegion *timer_memory = NULL;
-    int i;
-    int cur_irq = 0;
 
     macio_common_realize(d, &err);
     if (err) {
@@ -292,11 +291,14 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
     }
 
     sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
-    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[cur_irq++]);
+    sysbus_connect_irq(sysbus_dev, 0, qdev_get_gpio_in(pic_dev,
+                                                       NEWWORLD_CUDA_IRQ));
 
     sysbus_dev = SYS_BUS_DEVICE(&s->escc);
-    sysbus_connect_irq(sysbus_dev, 0, ns->irqs[cur_irq++]);
-    sysbus_connect_irq(sysbus_dev, 1, ns->irqs[cur_irq++]);
+    sysbus_connect_irq(sysbus_dev, 0, qdev_get_gpio_in(pic_dev,
+                                                       NEWWORLD_ESCCB_IRQ));
+    sysbus_connect_irq(sysbus_dev, 1, qdev_get_gpio_in(pic_dev,
+                                                       NEWWORLD_ESCCA_IRQ));
 
     /* OpenPIC */
     sysbus_dev = SYS_BUS_DEVICE(ns->pic);
@@ -304,15 +306,22 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
                                 sysbus_mmio_get_region(sysbus_dev, 0));
 
     /* IDE buses */
-    for (i = 0; i < ARRAY_SIZE(ns->ide); i++) {
-        qemu_irq irq0 = ns->irqs[cur_irq++];
-        qemu_irq irq1 = ns->irqs[cur_irq++];
+    macio_realize_ide(s, &ns->ide[0],
+                      qdev_get_gpio_in(pic_dev, NEWWORLD_IDE0_IRQ),
+                      qdev_get_gpio_in(pic_dev, NEWWORLD_IDE0_DMA_IRQ),
+                      0x16, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 
-        macio_realize_ide(s, &ns->ide[i], irq0, irq1, 0x16 + (i * 4), &err);
-        if (err) {
-            error_propagate(errp, err);
-            return;
-        }
+    macio_realize_ide(s, &ns->ide[1],
+                      qdev_get_gpio_in(pic_dev, NEWWORLD_IDE1_IRQ),
+                      qdev_get_gpio_in(pic_dev, NEWWORLD_IDE1_DMA_IRQ),
+                      0x1a, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
     }
 
     /* Timer */
@@ -327,8 +336,6 @@ static void macio_newworld_init(Object *obj)
     MacIOState *s = MACIO(obj);
     NewWorldMacIOState *ns = NEWWORLD_MACIO(obj);
     int i;
-
-    qdev_init_gpio_out(DEVICE(obj), ns->irqs, ARRAY_SIZE(ns->irqs));
 
     object_property_add_link(obj, "pic", TYPE_OPENPIC,
                              (Object **) &ns->pic,

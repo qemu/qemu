@@ -420,6 +420,11 @@ static void spr_write_hior(DisasContext *ctx, int sprn, int gprn)
     tcg_gen_st_tl(t0, cpu_env, offsetof(CPUPPCState, excp_prefix));
     tcg_temp_free(t0);
 }
+static void spr_write_ptcr(DisasContext *ctx, int sprn, int gprn)
+{
+    gen_helper_store_ptcr(cpu_env, cpu_gpr[gprn]);
+}
+
 #endif
 #endif
 
@@ -8167,6 +8172,18 @@ static void gen_spr_power8_rpr(CPUPPCState *env)
 #endif
 }
 
+static void gen_spr_power9_mmu(CPUPPCState *env)
+{
+#if !defined(CONFIG_USER_ONLY)
+    /* Partition Table Control */
+    spr_register_hv(env, SPR_PTCR, "PTCR",
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    SPR_NOACCESS, SPR_NOACCESS,
+                    &spr_read_generic, &spr_write_ptcr,
+                    0x00000000);
+#endif
+}
+
 static void init_proc_book3s_common(CPUPPCState *env)
 {
     gen_spr_ne_601(env);
@@ -8719,6 +8736,7 @@ static void init_proc_POWER9(CPUPPCState *env)
     gen_spr_power8_ic(env);
     gen_spr_power8_book4(env);
     gen_spr_power8_rpr(env);
+    gen_spr_power9_mmu(env);
 
     /* POWER9 Specific registers */
     spr_register_kvm(env, SPR_TIDR, "TIDR", NULL, NULL,
@@ -8864,13 +8882,9 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
+void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
 {
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     CPUPPCState *env = &cpu->env;
-    ppc_spr_t *lpcr = &env->spr_cb[SPR_LPCR];
-    ppc_spr_t *amor = &env->spr_cb[SPR_AMOR];
-    CPUState *cs = CPU(cpu);
 
     cpu->vhyp = vhyp;
 
@@ -8879,62 +8893,6 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
      * hypervisor mode itself
      */
     env->msr_mask &= ~MSR_HVB;
-
-    /* Set emulated LPCR to not send interrupts to hypervisor. Note that
-     * under KVM, the actual HW LPCR will be set differently by KVM itself,
-     * the settings below ensure proper operations with TCG in absence of
-     * a real hypervisor.
-     *
-     * Clearing VPM0 will also cause us to use RMOR in mmu-hash64.c for
-     * real mode accesses, which thankfully defaults to 0 and isn't
-     * accessible in guest mode.
-     */
-    lpcr->default_value &= ~(LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_KBV);
-    lpcr->default_value |= LPCR_LPES0 | LPCR_LPES1;
-
-    /* Set RMLS to the max (ie, 16G) */
-    lpcr->default_value &= ~LPCR_RMLS;
-    lpcr->default_value |= 1ull << LPCR_RMLS_SHIFT;
-
-    if (env->mmu_model == POWERPC_MMU_3_00) {
-        /* By default we choose legacy mode and switch to new hash or radix
-         * when a register process table hcall is made. So disable process
-         * tables and guest translation shootdown by default
-         *
-         * Hot-plugged CPUs inherit from the guest radix setting under
-         * KVM but not under TCG. Update the default LPCR to keep new
-         * CPUs in sync when radix is enabled.
-         */
-        if (ppc64_radix_guest(cpu)) {
-            lpcr->default_value |= LPCR_UPRT | LPCR_GTSE;
-        } else {
-            lpcr->default_value &= ~(LPCR_UPRT | LPCR_GTSE);
-        }
-    }
-
-    /* Only enable Power-saving mode Exit Cause exceptions on the boot
-     * CPU. The RTAS command start-cpu will enable them on secondaries.
-     */
-    if (cs == first_cpu) {
-        lpcr->default_value |= pcc->lpcr_pm;
-    }
-
-    /* We should be followed by a CPU reset but update the active value
-     * just in case...
-     */
-    env->spr[SPR_LPCR] = lpcr->default_value;
-
-    /* Set a full AMOR so guest can use the AMR as it sees fit */
-    env->spr[SPR_AMOR] = amor->default_value = 0xffffffffffffffffull;
-
-    /* Update some env bits based on new LPCR value */
-    ppc_hash64_update_rmls(cpu);
-    ppc_hash64_update_vrma(cpu);
-
-    /* Tell KVM that we're in PAPR mode */
-    if (kvm_enabled()) {
-        kvmppc_set_papr(cpu);
-    }
 }
 
 #endif /* !defined(CONFIG_USER_ONLY) */

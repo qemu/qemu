@@ -53,4 +53,15 @@ typedef struct UNINHostState {
     MemoryRegion pci_io;
 } UNINHostState;
 
+typedef struct UNINState {
+    SysBusDevice parent_obj;
+
+    MemoryRegion mem;
+    int token[1];
+} UNINState;
+
+#define TYPE_UNI_NORTH "uni-north"
+#define UNI_NORTH(obj) \
+    OBJECT_CHECK(UNINState, (obj), TYPE_UNI_NORTH)
+
 #endif /* UNINORTH_H */

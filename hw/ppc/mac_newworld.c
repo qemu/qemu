@@ -82,36 +82,6 @@
 
 #define NDRV_VGA_FILENAME "qemu_vga.ndrv"
 
-/* UniN device */
-static void unin_write(void *opaque, hwaddr addr, uint64_t value,
-                       unsigned size)
-{
-    trace_mac99_uninorth_write(addr, value);
-    if (addr == 0x0) {
-        *(int*)opaque = value;
-    }
-}
-
-static uint64_t unin_read(void *opaque, hwaddr addr, unsigned size)
-{
-    uint32_t value;
-
-    value = 0;
-    switch (addr) {
-    case 0:
-        value = *(int*)opaque;
-    }
-
-    trace_mac99_uninorth_read(addr, value);
-
-    return value;
-}
-
-static const MemoryRegionOps unin_ops = {
-    .read = unin_read,
-    .write = unin_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
 
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
@@ -144,8 +114,7 @@ static void ppc_core99_init(MachineState *machine)
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
-    qemu_irq *pic, **openpic_irqs;
-    MemoryRegion *unin_memory = g_new(MemoryRegion, 1);
+    qemu_irq **openpic_irqs;
     int linux_boot, i, j, k;
     MemoryRegion *ram = g_new(MemoryRegion, 1), *bios = g_new(MemoryRegion, 1);
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
@@ -164,7 +133,6 @@ static void ppc_core99_init(MachineState *machine)
     int machine_arch;
     SysBusDevice *s;
     DeviceState *dev, *pic_dev;
-    int *token = g_new(int, 1);
     hwaddr nvram_addr = 0xFFF04000;
     uint64_t tbfreq;
 
@@ -272,9 +240,12 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    /* UniN init: XXX should be a real device */
-    memory_region_init_io(unin_memory, NULL, &unin_ops, token, "unin", 0x1000);
-    memory_region_add_subregion(get_system_memory(), 0xf8000000, unin_memory);
+    /* UniN init */
+    dev = qdev_create(NULL, TYPE_UNI_NORTH);
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+    memory_region_add_subregion(get_system_memory(), 0xf8000000,
+                                sysbus_mmio_get_region(s, 0));
 
     openpic_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     openpic_irqs[0] =
@@ -320,8 +291,6 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    pic = g_new0(qemu_irq, 64);
-
     pic_dev = qdev_create(NULL, TYPE_OPENPIC);
     qdev_prop_set_uint32(pic_dev, "model", OPENPIC_MODEL_KEYLARGO);
     qdev_init_nofail(pic_dev);
@@ -331,10 +300,6 @@ static void ppc_core99_init(MachineState *machine)
         for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
             sysbus_connect_irq(s, k++, openpic_irqs[i][j]);
         }
-    }
-
-    for (i = 0; i < 64; i++) {
-        pic[i] = qdev_get_gpio_in(pic_dev, i);
     }
 
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
@@ -410,13 +375,6 @@ static void ppc_core99_init(MachineState *machine)
     /* MacIO */
     macio = NEWWORLD_MACIO(pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO));
     dev = DEVICE(macio);
-    qdev_connect_gpio_out(dev, 0, pic[0x19]); /* CUDA */
-    qdev_connect_gpio_out(dev, 1, pic[0x24]); /* ESCC-B */
-    qdev_connect_gpio_out(dev, 2, pic[0x25]); /* ESCC-A */
-    qdev_connect_gpio_out(dev, 3, pic[0x0d]); /* IDE */
-    qdev_connect_gpio_out(dev, 4, pic[0x02]); /* IDE DMA */
-    qdev_connect_gpio_out(dev, 5, pic[0x0e]); /* IDE */
-    qdev_connect_gpio_out(dev, 6, pic[0x03]); /* IDE DMA */
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
                              &error_abort);

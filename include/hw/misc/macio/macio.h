@@ -71,7 +71,6 @@ typedef struct NewWorldMacIOState {
     /*< public >*/
 
     OpenPICState *pic;
-    qemu_irq irqs[7];
     MACIOIDEState ide[2];
 } NewWorldMacIOState;
 

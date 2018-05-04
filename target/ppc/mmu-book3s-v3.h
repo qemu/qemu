@@ -22,6 +22,12 @@
 
 #ifndef CONFIG_USER_ONLY
 
+/*
+ * Partition table definitions
+ */
+#define PTCR_PATB               0x0FFFFFFFFFFFF000ULL /* Partition Table Base */
+#define PTCR_PATS               0x000000000000001FULL /* Partition Table Size */
+
 /* Partition Table Entry Fields */
 #define PATBE1_GR 0x8000000000000000
 

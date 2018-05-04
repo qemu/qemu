@@ -942,7 +942,7 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
     cpu->env.tlb_need_flush = TLB_NEED_GLOBAL_FLUSH | TLB_NEED_LOCAL_FLUSH;
 }
 
-void ppc_hash64_update_rmls(PowerPCCPU *cpu)
+static void ppc_hash64_update_rmls(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
     uint64_t lpcr = env->spr[SPR_LPCR];
@@ -977,7 +977,7 @@ void ppc_hash64_update_rmls(PowerPCCPU *cpu)
     }
 }
 
-void ppc_hash64_update_vrma(PowerPCCPU *cpu)
+static void ppc_hash64_update_vrma(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
     const PPCHash64SegmentPageSizes *sps = NULL;
@@ -1028,9 +1028,9 @@ void ppc_hash64_update_vrma(PowerPCCPU *cpu)
     slb->sps = sps;
 }
 
-void helper_store_lpcr(CPUPPCState *env, target_ulong val)
+void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUPPCState *env = &cpu->env;
     uint64_t lpcr = 0;
 
     /* Filter out bits */
@@ -1094,6 +1094,13 @@ void helper_store_lpcr(CPUPPCState *env, target_ulong val)
     env->spr[SPR_LPCR] = lpcr;
     ppc_hash64_update_rmls(cpu);
     ppc_hash64_update_vrma(cpu);
+}
+
+void helper_store_lpcr(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    ppc_store_lpcr(cpu, val);
 }
 
 void ppc_hash64_init(PowerPCCPU *cpu)

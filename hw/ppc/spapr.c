@@ -1668,10 +1668,8 @@ static void spapr_machine_reset(void)
     g_free(fdt);
 
     /* Set up the entry state */
-    first_ppc_cpu->env.gpr[3] = fdt_addr;
+    spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT, fdt_addr);
     first_ppc_cpu->env.gpr[5] = 0;
-    first_cpu->halted = 0;
-    first_ppc_cpu->env.nip = SPAPR_ENTRY_POINT;
 
     spapr->cas_reboot = false;
 }
@@ -1851,10 +1849,12 @@ static bool spapr_ov5_cas_needed(void *opaque)
      *
      * Thus, for any cases where the set of available CAS-negotiatable
      * options extends beyond OV5_FORM1_AFFINITY and OV5_DRCONF_MEMORY, we
-     * include the CAS-negotiated options in the migration stream.
+     * include the CAS-negotiated options in the migration stream, unless
+     * if they affect boot time behaviour only.
      */
     spapr_ovec_set(ov5_mask, OV5_FORM1_AFFINITY);
     spapr_ovec_set(ov5_mask, OV5_DRCONF_MEMORY);
+    spapr_ovec_set(ov5_mask, OV5_DRMEM_V2);
 
     /* spapr_ovec_diff returns true if bits were removed. we avoid using
      * the mask itself since in the future it's possible "legacy" bits may be
@@ -2508,13 +2508,11 @@ static void spapr_machine_init(MachineState *machine)
     int i;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    MemoryRegion *rma_region;
-    void *rma = NULL;
-    hwaddr rma_alloc_size;
     hwaddr node0_size = spapr_node0_size(machine);
     long load_limit, fw_size;
     char *filename;
     Error *resize_hpt_err = NULL;
+    PowerPCCPU *first_ppc_cpu;
 
     msi_nonbroken = true;
 
@@ -2549,40 +2547,28 @@ static void spapr_machine_init(MachineState *machine)
         exit(1);
     }
 
-    /* Allocate RMA if necessary */
-    rma_alloc_size = kvmppc_alloc_rma(&rma);
+    spapr->rma_size = node0_size;
 
-    if (rma_alloc_size == -1) {
-        error_report("Unable to create RMA");
-        exit(1);
+    /* With KVM, we don't actually know whether KVM supports an
+     * unbounded RMA (PR KVM) or is limited by the hash table size
+     * (HV KVM using VRMA), so we always assume the latter
+     *
+     * In that case, we also limit the initial allocations for RTAS
+     * etc... to 256M since we have no way to know what the VRMA size
+     * is going to be as it depends on the size of the hash table
+     * which isn't determined yet.
+     */
+    if (kvm_enabled()) {
+        spapr->vrma_adjust = 1;
+        spapr->rma_size = MIN(spapr->rma_size, 0x10000000);
     }
 
-    if (rma_alloc_size && (rma_alloc_size < node0_size)) {
-        spapr->rma_size = rma_alloc_size;
-    } else {
-        spapr->rma_size = node0_size;
-
-        /* With KVM, we don't actually know whether KVM supports an
-         * unbounded RMA (PR KVM) or is limited by the hash table size
-         * (HV KVM using VRMA), so we always assume the latter
-         *
-         * In that case, we also limit the initial allocations for RTAS
-         * etc... to 256M since we have no way to know what the VRMA size
-         * is going to be as it depends on the size of the hash table
-         * isn't determined yet.
-         */
-        if (kvm_enabled()) {
-            spapr->vrma_adjust = 1;
-            spapr->rma_size = MIN(spapr->rma_size, 0x10000000);
-        }
-
-        /* Actually we don't support unbounded RMA anymore since we
-         * added proper emulation of HV mode. The max we can get is
-         * 16G which also happens to be what we configure for PAPR
-         * mode so make sure we don't do anything bigger than that
-         */
-        spapr->rma_size = MIN(spapr->rma_size, 0x400000000ull);
-    }
+    /* Actually we don't support unbounded RMA anymore since we added
+     * proper emulation of HV mode. The max we can get is 16G which
+     * also happens to be what we configure for PAPR mode so make sure
+     * we don't do anything bigger than that
+     */
+    spapr->rma_size = MIN(spapr->rma_size, 0x400000000ull);
 
     if (spapr->rma_size > node0_size) {
         error_report("Numa node 0 has to span the RMA (%#08"HWADDR_PRIx")",
@@ -2607,11 +2593,6 @@ static void spapr_machine_init(MachineState *machine)
     }
 
     spapr_ovec_set(spapr->ov5, OV5_FORM1_AFFINITY);
-    if (!kvm_enabled() || kvmppc_has_cap_mmu_radix()) {
-        /* KVM and TCG always allow GTSE with radix... */
-        spapr_ovec_set(spapr->ov5, OV5_MMU_RADIX_GTSE);
-    }
-    /* ... but not with hash (currently). */
 
     /* advertise support for dedicated HP event source to guests */
     if (spapr->use_hotplug_event_source) {
@@ -2629,6 +2610,15 @@ static void spapr_machine_init(MachineState *machine)
     /* init CPUs */
     spapr_init_cpus(spapr);
 
+    first_ppc_cpu = POWERPC_CPU(first_cpu);
+    if ((!kvm_enabled() || kvmppc_has_cap_mmu_radix()) &&
+        ppc_check_compat(first_ppc_cpu, CPU_POWERPC_LOGICAL_3_00, 0,
+                         spapr->max_compat_pvr)) {
+        /* KVM and TCG always allow GTSE with radix... */
+        spapr_ovec_set(spapr->ov5, OV5_MMU_RADIX_GTSE);
+    }
+    /* ... but not with hash (currently). */
+
     if (kvm_enabled()) {
         /* Enable H_LOGICAL_CI_* so SLOF can talk to in-kernel devices */
         kvmppc_enable_logical_ci_hcalls();
@@ -2642,14 +2632,6 @@ static void spapr_machine_init(MachineState *machine)
     memory_region_allocate_system_memory(ram, NULL, "ppc_spapr.ram",
                                          machine->ram_size);
     memory_region_add_subregion(sysmem, 0, ram);
-
-    if (rma_alloc_size && rma) {
-        rma_region = g_new(MemoryRegion, 1);
-        memory_region_init_ram_ptr(rma_region, NULL, "ppc_spapr.rma",
-                                   rma_alloc_size, rma);
-        vmstate_register_ram_global(rma_region);
-        memory_region_add_subregion(sysmem, 0, rma_region);
-    }
 
     /* initialize hotplug memory address space */
     if (machine->ram_size < machine->maxram_size) {

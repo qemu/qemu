@@ -519,6 +519,62 @@ static const TypeInfo pci_unin_internal_info = {
     .class_init    = pci_unin_internal_class_init,
 };
 
+/* UniN device */
+static void unin_write(void *opaque, hwaddr addr, uint64_t value,
+                       unsigned size)
+{
+    trace_unin_write(addr, value);
+    if (addr == 0x0) {
+        *(int *)opaque = value;
+    }
+}
+
+static uint64_t unin_read(void *opaque, hwaddr addr, unsigned size)
+{
+    uint32_t value;
+
+    value = 0;
+    switch (addr) {
+    case 0:
+        value = *(int *)opaque;
+    }
+
+    trace_unin_read(addr, value);
+
+    return value;
+}
+
+static const MemoryRegionOps unin_ops = {
+    .read = unin_read,
+    .write = unin_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void unin_init(Object *obj)
+{
+    UNINState *s = UNI_NORTH(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    memory_region_init_io(&s->mem, obj, &unin_ops, &s->token, "unin", 0x1000);
+
+    sysbus_init_mmio(sbd, &s->mem);
+}
+
+static void unin_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+}
+
+static const TypeInfo unin_info = {
+    .name          = TYPE_UNI_NORTH,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(UNINState),
+    .instance_init = unin_init,
+    .class_init    = unin_class_init,
+};
+
 static void unin_register_types(void)
 {
     type_register_static(&unin_main_pci_host_info);
@@ -530,6 +586,8 @@ static void unin_register_types(void)
     type_register_static(&pci_u3_agp_info);
     type_register_static(&pci_unin_agp_info);
     type_register_static(&pci_unin_internal_info);
+
+    type_register_static(&unin_info);
 }
 
 type_init(unin_register_types)
