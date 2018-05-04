@@ -458,4 +458,164 @@ typedef struct SMMUEventInfo {
 
 void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *event);
 
+/* Configuration Data */
+
+/* STE Level 1 Descriptor */
+typedef struct STEDesc {
+    uint32_t word[2];
+} STEDesc;
+
+/* CD Level 1 Descriptor */
+typedef struct CDDesc {
+    uint32_t word[2];
+} CDDesc;
+
+/* Stream Table Entry(STE) */
+typedef struct STE {
+    uint32_t word[16];
+} STE;
+
+/* Context Descriptor(CD) */
+typedef struct CD {
+    uint32_t word[16];
+} CD;
+
+/* STE fields */
+
+#define STE_VALID(x)   extract32((x)->word[0], 0, 1)
+
+#define STE_CONFIG(x)  extract32((x)->word[0], 1, 3)
+#define STE_CFG_S1_ENABLED(config) (config & 0x1)
+#define STE_CFG_S2_ENABLED(config) (config & 0x2)
+#define STE_CFG_ABORT(config)      (!(config & 0x4))
+#define STE_CFG_BYPASS(config)     (config == 0x4)
+
+#define STE_S1FMT(x)       extract32((x)->word[0], 4 , 2)
+#define STE_S1CDMAX(x)     extract32((x)->word[1], 27, 5)
+#define STE_S1STALLD(x)    extract32((x)->word[2], 27, 1)
+#define STE_EATS(x)        extract32((x)->word[2], 28, 2)
+#define STE_STRW(x)        extract32((x)->word[2], 30, 2)
+#define STE_S2VMID(x)      extract32((x)->word[4], 0 , 16)
+#define STE_S2T0SZ(x)      extract32((x)->word[5], 0 , 6)
+#define STE_S2SL0(x)       extract32((x)->word[5], 6 , 2)
+#define STE_S2TG(x)        extract32((x)->word[5], 14, 2)
+#define STE_S2PS(x)        extract32((x)->word[5], 16, 3)
+#define STE_S2AA64(x)      extract32((x)->word[5], 19, 1)
+#define STE_S2HD(x)        extract32((x)->word[5], 24, 1)
+#define STE_S2HA(x)        extract32((x)->word[5], 25, 1)
+#define STE_S2S(x)         extract32((x)->word[5], 26, 1)
+#define STE_CTXPTR(x)                                           \
+    ({                                                          \
+        unsigned long addr;                                     \
+        addr = (uint64_t)extract32((x)->word[1], 0, 16) << 32;  \
+        addr |= (uint64_t)((x)->word[0] & 0xffffffc0);          \
+        addr;                                                   \
+    })
+
+#define STE_S2TTB(x)                                            \
+    ({                                                          \
+        unsigned long addr;                                     \
+        addr = (uint64_t)extract32((x)->word[7], 0, 16) << 32;  \
+        addr |= (uint64_t)((x)->word[6] & 0xfffffff0);          \
+        addr;                                                   \
+    })
+
+static inline int oas2bits(int oas_field)
+{
+    switch (oas_field) {
+    case 0:
+        return 32;
+    case 1:
+        return 36;
+    case 2:
+        return 40;
+    case 3:
+        return 42;
+    case 4:
+        return 44;
+    case 5:
+        return 48;
+    }
+    return -1;
+}
+
+static inline int pa_range(STE *ste)
+{
+    int oas_field = MIN(STE_S2PS(ste), SMMU_IDR5_OAS);
+
+    if (!STE_S2AA64(ste)) {
+        return 40;
+    }
+
+    return oas2bits(oas_field);
+}
+
+#define MAX_PA(ste) ((1 << pa_range(ste)) - 1)
+
+/* CD fields */
+
+#define CD_VALID(x)   extract32((x)->word[0], 30, 1)
+#define CD_ASID(x)    extract32((x)->word[1], 16, 16)
+#define CD_TTB(x, sel)                                      \
+    ({                                                      \
+        uint64_t hi, lo;                                    \
+        hi = extract32((x)->word[(sel) * 2 + 3], 0, 19);    \
+        hi <<= 32;                                          \
+        lo = (x)->word[(sel) * 2 + 2] & ~0xfULL;            \
+        hi | lo;                                            \
+    })
+
+#define CD_TSZ(x, sel)   extract32((x)->word[0], (16 * (sel)) + 0, 6)
+#define CD_TG(x, sel)    extract32((x)->word[0], (16 * (sel)) + 6, 2)
+#define CD_EPD(x, sel)   extract32((x)->word[0], (16 * (sel)) + 14, 1)
+#define CD_ENDI(x)       extract32((x)->word[0], 15, 1)
+#define CD_IPS(x)        extract32((x)->word[1], 0 , 3)
+#define CD_TBI(x)        extract32((x)->word[1], 6 , 2)
+#define CD_HD(x)         extract32((x)->word[1], 10 , 1)
+#define CD_HA(x)         extract32((x)->word[1], 11 , 1)
+#define CD_S(x)          extract32((x)->word[1], 12, 1)
+#define CD_R(x)          extract32((x)->word[1], 13, 1)
+#define CD_A(x)          extract32((x)->word[1], 14, 1)
+#define CD_AARCH64(x)    extract32((x)->word[1], 9 , 1)
+
+#define CDM_VALID(x)    ((x)->word[0] & 0x1)
+
+static inline int is_cd_valid(SMMUv3State *s, STE *ste, CD *cd)
+{
+    return CD_VALID(cd);
+}
+
+/**
+ * tg2granule - Decodes the CD translation granule size field according
+ * to the ttbr in use
+ * @bits: TG0/1 fields
+ * @ttbr: ttbr index in use
+ */
+static inline int tg2granule(int bits, int ttbr)
+{
+    switch (bits) {
+    case 0:
+        return ttbr ? 0  : 12;
+    case 1:
+        return ttbr ? 14 : 16;
+    case 2:
+        return ttbr ? 12 : 14;
+    case 3:
+        return ttbr ? 16 :  0;
+    default:
+        return 0;
+    }
+}
+
+static inline uint64_t l1std_l2ptr(STEDesc *desc)
+{
+    uint64_t hi, lo;
+
+    hi = desc->word[1];
+    lo = desc->word[0] & ~0x1fULL;
+    return hi << 32 | lo;
+}
+
+#define L1STD_SPAN(stm) (extract32((stm)->word[0], 0, 4))
+
 #endif
