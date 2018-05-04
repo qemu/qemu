@@ -63,7 +63,7 @@ uint64_t atoui(const char *str)
  */
 char *uitoa(uint64_t num, char *str, size_t len)
 {
-    size_t num_idx = 1; /* account for NUL */
+    long num_idx = 1; /* account for NUL */
     uint64_t tmp = num;
 
     IPL_assert(str != NULL, "uitoa: no space allocated to store string");

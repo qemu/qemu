@@ -26,11 +26,23 @@ typedef struct SCLPEventsBus {
     BusState qbus;
 } SCLPEventsBus;
 
+/* we need to save 32 bit chunks for compatibility */
+#ifdef HOST_WORDS_BIGENDIAN
+#define RECV_MASK_LOWER 1
+#define RECV_MASK_UPPER 0
+#else /* little endian host */
+#define RECV_MASK_LOWER 0
+#define RECV_MASK_UPPER 1
+#endif
+
 struct SCLPEventFacility {
     SysBusDevice parent_obj;
     SCLPEventsBus sbus;
     /* guest's receive mask */
-    sccb_mask_t receive_mask;
+    union {
+        uint32_t receive_mask_pieces[2];
+        sccb_mask_t receive_mask;
+    };
     /*
      * when false, we keep the same broken, backwards compatible behaviour as
      * before, allowing only masks of size exactly 4; when true, we implement
@@ -262,7 +274,7 @@ static void read_event_data(SCLPEventFacility *ef, SCCB *sccb)
     case SCLP_SELECTIVE_READ:
         copy_mask((uint8_t *)&sclp_active_selection_mask, (uint8_t *)&red->mask,
                   sizeof(sclp_active_selection_mask), ef->mask_length);
-        sclp_active_selection_mask = be32_to_cpu(sclp_active_selection_mask);
+        sclp_active_selection_mask = be64_to_cpu(sclp_active_selection_mask);
         if (!sclp_cp_receive_mask ||
             (sclp_active_selection_mask & ~sclp_cp_receive_mask)) {
             sccb->h.response_code =
@@ -294,21 +306,22 @@ static void write_event_mask(SCLPEventFacility *ef, SCCB *sccb)
     }
 
     /*
-     * Note: We currently only support masks up to 4 byte length;
-     *       the remainder is filled up with zeroes. Linux uses
-     *       a 4 byte mask length.
+     * Note: We currently only support masks up to 8 byte length;
+     *       the remainder is filled up with zeroes. Older Linux
+     *       kernels use a 4 byte mask length, newer ones can use both
+     *       8 or 4 depending on what is available on the host.
      */
 
     /* keep track of the guest's capability masks */
     copy_mask((uint8_t *)&tmp_mask, WEM_CP_RECEIVE_MASK(we_mask, mask_length),
               sizeof(tmp_mask), mask_length);
-    ef->receive_mask = be32_to_cpu(tmp_mask);
+    ef->receive_mask = be64_to_cpu(tmp_mask);
 
     /* return the SCLP's capability masks to the guest */
-    tmp_mask = cpu_to_be32(get_host_receive_mask(ef));
+    tmp_mask = cpu_to_be64(get_host_receive_mask(ef));
     copy_mask(WEM_RECEIVE_MASK(we_mask, mask_length), (uint8_t *)&tmp_mask,
               mask_length, sizeof(tmp_mask));
-    tmp_mask = cpu_to_be32(get_host_send_mask(ef));
+    tmp_mask = cpu_to_be64(get_host_send_mask(ef));
     copy_mask(WEM_SEND_MASK(we_mask, mask_length), (uint8_t *)&tmp_mask,
               mask_length, sizeof(tmp_mask));
 
@@ -369,12 +382,30 @@ static void command_handler(SCLPEventFacility *ef, SCCB *sccb, uint64_t code)
     }
 }
 
+static bool vmstate_event_facility_mask64_needed(void *opaque)
+{
+    SCLPEventFacility *ef = opaque;
+
+    return (ef->receive_mask & 0xFFFFFFFF) != 0;
+}
+
 static bool vmstate_event_facility_mask_length_needed(void *opaque)
 {
     SCLPEventFacility *ef = opaque;
 
     return ef->allow_all_mask_sizes;
 }
+
+static const VMStateDescription vmstate_event_facility_mask64 = {
+    .name = "vmstate-event-facility/mask64",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .needed = vmstate_event_facility_mask64_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(receive_mask_pieces[RECV_MASK_LOWER], SCLPEventFacility),
+        VMSTATE_END_OF_LIST()
+     }
+};
 
 static const VMStateDescription vmstate_event_facility_mask_length = {
     .name = "vmstate-event-facility/mask_length",
@@ -392,10 +423,11 @@ static const VMStateDescription vmstate_event_facility = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(receive_mask, SCLPEventFacility),
+        VMSTATE_UINT32(receive_mask_pieces[RECV_MASK_UPPER], SCLPEventFacility),
         VMSTATE_END_OF_LIST()
      },
     .subsections = (const VMStateDescription * []) {
+        &vmstate_event_facility_mask64,
         &vmstate_event_facility_mask_length,
         NULL
      }
@@ -511,3 +543,17 @@ static void register_types(void)
 }
 
 type_init(register_types)
+
+BusState *sclp_get_event_facility_bus(void)
+{
+    Object *busobj;
+    SCLPEventsBus *sbus;
+
+    busobj = object_resolve_path_type("", TYPE_SCLP_EVENTS_BUS, NULL);
+    sbus = OBJECT_CHECK(SCLPEventsBus, busobj, TYPE_SCLP_EVENTS_BUS);
+    if (!sbus) {
+        return NULL;
+    }
+
+    return &sbus->qbus;
+}

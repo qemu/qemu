@@ -288,6 +288,15 @@ static void s390_create_virtio_net(BusState *bus, const char *name)
     }
 }
 
+static void s390_create_sclpconsole(const char *type, Chardev *chardev)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(sclp_get_event_facility_bus(), type);
+    qdev_prop_set_chr(dev, "chardev", chardev);
+    qdev_init_nofail(dev);
+}
+
 static void ccw_init(MachineState *machine)
 {
     int ret;
@@ -345,6 +354,14 @@ static void ccw_init(MachineState *machine)
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
+
+    /* init consoles */
+    if (serial_hd(0)) {
+        s390_create_sclpconsole("sclpconsole", serial_hd(0));
+    }
+    if (serial_hd(1)) {
+        s390_create_sclpconsole("sclplmconsole", serial_hd(1));
+    }
 
     /* Register savevm handler for guest TOD clock */
     register_savevm_live(NULL, "todclock", 0, 1, &savevm_gtod, NULL);
@@ -470,10 +487,8 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
     mc->no_floppy = 1;
-    mc->no_serial = 1;
     mc->no_parallel = 1;
     mc->no_sdcard = 1;
-    mc->use_sclp = 1;
     mc->max_cpus = S390_MAX_CPUS;
     mc->has_hotpluggable_cpus = true;
     mc->get_hotplug_handler = s390_get_hotplug_handler;
@@ -671,6 +686,9 @@ bool css_migration_enabled(void)
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
+#define CCW_COMPAT_2_12 \
+        HW_COMPAT_2_12
+
 #define CCW_COMPAT_2_11 \
         HW_COMPAT_2_11 \
         {\
@@ -756,14 +774,26 @@ bool css_migration_enabled(void)
             .value    = "0",\
         },
 
+static void ccw_machine_2_13_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_2_13_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE(2_13, "2.13", true);
+
 static void ccw_machine_2_12_instance_options(MachineState *machine)
 {
+    ccw_machine_2_13_instance_options(machine);
 }
 
 static void ccw_machine_2_12_class_options(MachineClass *mc)
 {
+    ccw_machine_2_13_class_options(mc);
+    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_12);
 }
-DEFINE_CCW_MACHINE(2_12, "2.12", true);
+DEFINE_CCW_MACHINE(2_12, "2.12", false);
 
 static void ccw_machine_2_11_instance_options(MachineState *machine)
 {

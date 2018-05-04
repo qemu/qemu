@@ -39,8 +39,12 @@
 
 extern char _start[];
 
+#define KERNEL_ADDR             ((void *)0L)
+#define KERNEL_MAX_SIZE         ((long)_start)
+
 char stack[PAGE_SIZE * 8] __attribute__((aligned(PAGE_SIZE)));
 IplParameterBlock iplb __attribute__((aligned(PAGE_SIZE)));
+static char cfgbuf[2048];
 
 static SubChannelId net_schid = { .one = 1 };
 static int ip_version = 4;
@@ -128,17 +132,23 @@ static void seed_rng(uint8_t mac[])
     srand(seed);
 }
 
-static int tftp_load(filename_ip_t *fnip, void *buffer, int len,
-                     unsigned int retries, int ip_vers)
+static int tftp_load(filename_ip_t *fnip, void *buffer, int len)
 {
     tftp_err_t tftp_err;
     int rc;
 
-    rc = tftp(fnip, buffer, len, retries, &tftp_err, 1, 1428, ip_vers);
+    rc = tftp(fnip, buffer, len, DEFAULT_TFTP_RETRIES, &tftp_err, 1, 1428,
+              ip_version);
 
-    if (rc > 0) {
-        printf("  TFTP: Received %s (%d KBytes)\n", fnip->filename,
-               rc / 1024);
+    if (rc < 0) {
+        /* Make sure that error messages are put into a new line */
+        printf("\n  ");
+    }
+
+    if (rc > 1024) {
+        printf("  TFTP: Received %s (%d KBytes)\n", fnip->filename, rc / 1024);
+    } else if (rc > 0) {
+        printf("  TFTP: Received %s (%d Bytes)\n", fnip->filename, rc);
     } else if (rc == -1) {
         puts("unknown TFTP error");
     } else if (rc == -2) {
@@ -199,20 +209,19 @@ static int tftp_load(filename_ip_t *fnip, void *buffer, int len,
     return rc;
 }
 
-static int net_load(char *buffer, int len)
+static int net_init(filename_ip_t *fn_ip)
 {
-    filename_ip_t fn_ip;
     uint8_t mac[6];
     int rc;
 
-    memset(&fn_ip, 0, sizeof(filename_ip_t));
+    memset(fn_ip, 0, sizeof(filename_ip_t));
 
     rc = virtio_net_init(mac);
     if (rc < 0) {
         puts("Could not initialize network device");
         return -101;
     }
-    fn_ip.fd = rc;
+    fn_ip->fd = rc;
 
     printf("  Using MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -220,10 +229,10 @@ static int net_load(char *buffer, int len)
     set_mac_address(mac);    /* init ethernet layer */
     seed_rng(mac);
 
-    rc = dhcp(&fn_ip, DEFAULT_BOOT_RETRIES);
+    rc = dhcp(fn_ip, DEFAULT_BOOT_RETRIES);
     if (rc >= 0) {
         if (ip_version == 4) {
-            set_ipv4_address(fn_ip.own_ip);
+            set_ipv4_address(fn_ip->own_ip);
         }
     } else {
         puts("Could not get IP address");
@@ -232,18 +241,18 @@ static int net_load(char *buffer, int len)
 
     if (ip_version == 4) {
         printf("  Using IPv4 address: %d.%d.%d.%d\n",
-              (fn_ip.own_ip >> 24) & 0xFF, (fn_ip.own_ip >> 16) & 0xFF,
-              (fn_ip.own_ip >>  8) & 0xFF, fn_ip.own_ip & 0xFF);
+              (fn_ip->own_ip >> 24) & 0xFF, (fn_ip->own_ip >> 16) & 0xFF,
+              (fn_ip->own_ip >>  8) & 0xFF, fn_ip->own_ip & 0xFF);
     } else if (ip_version == 6) {
         char ip6_str[40];
-        ipv6_to_str(fn_ip.own_ip6.addr, ip6_str);
+        ipv6_to_str(fn_ip->own_ip6.addr, ip6_str);
         printf("  Using IPv6 address: %s\n", ip6_str);
     }
 
     if (rc == -2) {
         printf("ARP request to TFTP server (%d.%d.%d.%d) failed\n",
-               (fn_ip.server_ip >> 24) & 0xFF, (fn_ip.server_ip >> 16) & 0xFF,
-               (fn_ip.server_ip >>  8) & 0xFF, fn_ip.server_ip & 0xFF);
+               (fn_ip->server_ip >> 24) & 0xFF, (fn_ip->server_ip >> 16) & 0xFF,
+               (fn_ip->server_ip >>  8) & 0xFF, fn_ip->server_ip & 0xFF);
         return -102;
     }
     if (rc == -4 || rc == -3) {
@@ -251,24 +260,104 @@ static int net_load(char *buffer, int len)
         return -107;
     }
 
+    printf("  Using TFTP server: ");
     if (ip_version == 4) {
-        printf("  Requesting file \"%s\" via TFTP from %d.%d.%d.%d\n",
-               fn_ip.filename,
-               (fn_ip.server_ip >> 24) & 0xFF, (fn_ip.server_ip >> 16) & 0xFF,
-               (fn_ip.server_ip >>  8) & 0xFF, fn_ip.server_ip & 0xFF);
+        printf("%d.%d.%d.%d\n",
+               (fn_ip->server_ip >> 24) & 0xFF, (fn_ip->server_ip >> 16) & 0xFF,
+               (fn_ip->server_ip >>  8) & 0xFF, fn_ip->server_ip & 0xFF);
     } else if (ip_version == 6) {
         char ip6_str[40];
-        printf("  Requesting file \"%s\" via TFTP from ", fn_ip.filename);
-        ipv6_to_str(fn_ip.server_ip6.addr, ip6_str);
+        ipv6_to_str(fn_ip->server_ip6.addr, ip6_str);
         printf("%s\n", ip6_str);
     }
 
-    /* Do the TFTP load and print error message if necessary */
-    rc = tftp_load(&fn_ip, buffer, len, DEFAULT_TFTP_RETRIES, ip_version);
-
-    if (ip_version == 4) {
-        dhcp_send_release(fn_ip.fd);
+    if (strlen((char *)fn_ip->filename) > 0) {
+        printf("  Bootfile name: '%s'\n", fn_ip->filename);
     }
+
+    return rc;
+}
+
+static void net_release(filename_ip_t *fn_ip)
+{
+    if (ip_version == 4) {
+        dhcp_send_release(fn_ip->fd);
+    }
+}
+
+/**
+ * Load via information from a .INS file (which can be found on CD-ROMs
+ * for example)
+ */
+static int handle_ins_cfg(filename_ip_t *fn_ip, char *cfg, int cfgsize)
+{
+    char *ptr;
+    int rc = -1, llen;
+    void *destaddr;
+    char *insbuf = cfg;
+
+    ptr = strchr(insbuf, '\n');
+    if (!ptr) {
+        puts("Does not seem to be a valid .INS file");
+        return -1;
+    }
+
+    *ptr = 0;
+    printf("\nParsing .INS file:\n %s\n", &insbuf[2]);
+
+    insbuf = ptr + 1;
+    while (*insbuf && insbuf < cfg + cfgsize) {
+        ptr = strchr(insbuf, '\n');
+        if (ptr) {
+            *ptr = 0;
+        }
+        llen = strlen(insbuf);
+        if (!llen) {
+            insbuf = ptr + 1;
+            continue;
+        }
+        ptr = strchr(insbuf, ' ');
+        if (!ptr) {
+            puts("Missing space separator in .INS file");
+            return -1;
+        }
+        *ptr = 0;
+        strncpy((char *)fn_ip->filename, insbuf, sizeof(fn_ip->filename));
+        destaddr = (char *)atol(ptr + 1);
+        rc = tftp_load(fn_ip, destaddr, (long)_start - (long)destaddr);
+        if (rc <= 0) {
+            break;
+        }
+        insbuf += llen + 1;
+    }
+
+    return rc;
+}
+
+static int net_try_direct_tftp_load(filename_ip_t *fn_ip)
+{
+    int rc;
+    void *loadaddr = (void *)0x2000;  /* Load right after the low-core */
+
+    rc = tftp_load(fn_ip, loadaddr, KERNEL_MAX_SIZE - (long)loadaddr);
+    if (rc < 0) {
+        return rc;
+    } else if (rc < 8) {
+        printf("'%s' is too small (%i bytes only).\n", fn_ip->filename, rc);
+        return -1;
+    }
+
+    /* Check whether it is a configuration file instead of a kernel */
+    if (rc < sizeof(cfgbuf) - 1) {
+        memcpy(cfgbuf, loadaddr, rc);
+        cfgbuf[rc] = 0;    /* Make sure that it is NUL-terminated */
+        if (!strncmp("* ", cfgbuf, 2)) {
+            return handle_ins_cfg(fn_ip, cfgbuf, rc);
+        }
+    }
+
+    /* Move kernel to right location */
+    memmove(KERNEL_ADDR, loadaddr, rc);
 
     return rc;
 }
@@ -279,6 +368,15 @@ void panic(const char *string)
     for (;;) {
         disabled_wait();
     }
+}
+
+void write_subsystem_identification(void)
+{
+    SubChannelId *schid = (SubChannelId *) 184;
+    uint32_t *zeroes = (uint32_t *) 188;
+
+    *schid = net_schid;
+    *zeroes = 0;
 }
 
 static bool find_net_dev(Schib *schib, int dev_no)
@@ -344,17 +442,29 @@ static void virtio_setup(void)
 
 void main(void)
 {
-    int rc;
+    filename_ip_t fn_ip;
+    int rc, fnlen;
 
     sclp_setup();
     sclp_print("Network boot starting...\n");
 
     virtio_setup();
 
-    rc = net_load(NULL, (long)_start);
+    rc = net_init(&fn_ip);
+    if (rc) {
+        panic("Network initialization failed. Halting.\n");
+    }
+
+    fnlen = strlen((char *)fn_ip.filename);
+    if (fnlen > 0 && fn_ip.filename[fnlen - 1] != '/') {
+        rc = net_try_direct_tftp_load(&fn_ip);
+    }
+
+    net_release(&fn_ip);
+
     if (rc > 0) {
         sclp_print("Network loading done, starting kernel...\n");
-        asm volatile (" lpsw 0(%0) " : : "r"(0) : "memory");
+        jump_to_low_kernel();
     }
 
     panic("Failed to load OS from network\n");
