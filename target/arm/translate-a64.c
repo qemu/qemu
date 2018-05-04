@@ -9019,11 +9019,7 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
         unallocated_encoding(s);
         return;
     }
-
-    if (size > 3 && !is_q) {
-        unallocated_encoding(s);
-        return;
-    }
+    tcg_debug_assert(size <= 3);
 
     if (!fp_access_check(s)) {
         return;
