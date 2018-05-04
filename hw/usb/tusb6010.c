@@ -641,11 +641,43 @@ static void tusb_async_writew(void *opaque, hwaddr addr,
     }
 }
 
+static uint64_t tusb_async_readfn(void *opaque, hwaddr addr, unsigned size)
+{
+    switch (size) {
+    case 1:
+        return tusb_async_readb(opaque, addr);
+    case 2:
+        return tusb_async_readh(opaque, addr);
+    case 4:
+        return tusb_async_readw(opaque, addr);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tusb_async_writefn(void *opaque, hwaddr addr,
+                               uint64_t value, unsigned size)
+{
+    switch (size) {
+    case 1:
+        tusb_async_writeb(opaque, addr, value);
+        break;
+    case 2:
+        tusb_async_writeh(opaque, addr, value);
+        break;
+    case 4:
+        tusb_async_writew(opaque, addr, value);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static const MemoryRegionOps tusb_async_ops = {
-    .old_mmio = {
-        .read = { tusb_async_readb, tusb_async_readh, tusb_async_readw, },
-        .write =  { tusb_async_writeb, tusb_async_writeh, tusb_async_writew, },
-    },
+    .read = tusb_async_readfn,
+    .write = tusb_async_writefn,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
