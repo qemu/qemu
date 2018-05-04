@@ -128,4 +128,18 @@ static inline uint16_t smmu_get_sid(SMMUDevice *sdev)
 {
     return PCI_BUILD_BDF(pci_bus_num(sdev->bus), sdev->devfn);
 }
+
+/**
+ * smmu_ptw - Perform the page table walk for a given iova / access flags
+ * pair, according to @cfg translation config
+ */
+int smmu_ptw(SMMUTransCfg *cfg, dma_addr_t iova, IOMMUAccessFlags perm,
+             IOMMUTLBEntry *tlbe, SMMUPTWEventInfo *info);
+
+/**
+ * select_tt - compute which translation table shall be used according to
+ * the input iova and translation config and return the TT specific info
+ */
+SMMUTransTableInfo *select_tt(SMMUTransCfg *cfg, dma_addr_t iova);
+
 #endif  /* HW_ARM_SMMU_COMMON */
