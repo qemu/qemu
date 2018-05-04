@@ -338,14 +338,10 @@ void numa_default_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
     nodes[i].node_mem = size - usedmem;
 }
 
-void parse_numa_opts(MachineState *ms)
+void numa_complete_configuration(MachineState *ms)
 {
     int i;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
-
-    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
-        exit(1);
-    }
 
     /*
      * If memory hotplug is enabled (slots > 0) but without '-numa'
@@ -430,6 +426,13 @@ void parse_numa_opts(MachineState *ms)
             /* Validation succeeded, now fill in any missing distances. */
             complete_init_numa_distance();
         }
+    }
+}
+
+void parse_numa_opts(MachineState *ms)
+{
+    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
+        exit(1);
     }
 }
 

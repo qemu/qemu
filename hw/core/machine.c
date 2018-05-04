@@ -737,7 +737,7 @@ static char *cpu_slot_to_string(const CPUArchId *cpu)
     return g_string_free(s, false);
 }
 
-static void machine_numa_finish_init(MachineState *machine)
+static void machine_numa_finish_cpu_init(MachineState *machine)
 {
     int i;
     bool default_mapping;
@@ -792,7 +792,8 @@ void machine_run_board_init(MachineState *machine)
     MachineClass *machine_class = MACHINE_GET_CLASS(machine);
 
     if (nb_numa_nodes) {
-        machine_numa_finish_init(machine);
+        numa_complete_configuration(machine);
+        machine_numa_finish_cpu_init(machine);
     }
 
     /* If the machine supports the valid_cpu_types check and the user
