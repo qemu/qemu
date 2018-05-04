@@ -165,7 +165,7 @@ static bool os_parse_runas_uid_gid(const char *optarg)
  * Parse OS specific command line options.
  * return 0 if option handled, -1 otherwise
  */
-void os_parse_cmd_args(int index, const char *optarg)
+int os_parse_cmd_args(int index, const char *optarg)
 {
     switch (index) {
 #ifdef CONFIG_SLIRP
@@ -199,7 +199,11 @@ void os_parse_cmd_args(int index, const char *optarg)
         fips_set_state(true);
         break;
 #endif
+    default:
+        return -1;
     }
+
+    return 0;
 }
 
 static void change_process_uid(void)

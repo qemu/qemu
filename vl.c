@@ -4033,7 +4033,10 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             default:
-                os_parse_cmd_args(popt->index, optarg);
+                if (os_parse_cmd_args(popt->index, optarg)) {
+                    error_report("Option not supported in this build");
+                    exit(1);
+                }
             }
         }
     }
