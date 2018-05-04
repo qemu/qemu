@@ -618,6 +618,14 @@ void css_inject_io_interrupt(SubchDev *sch)
 void css_conditional_io_interrupt(SubchDev *sch)
 {
     /*
+     * If the subchannel is not enabled, it is not made status pending
+     * (see PoP p. 16-17, "Status Control").
+     */
+    if (!(sch->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ENA)) {
+        return;
+    }
+
+    /*
      * If the subchannel is not currently status pending, make it pending
      * with alert status.
      */
