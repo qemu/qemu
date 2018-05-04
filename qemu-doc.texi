@@ -2931,6 +2931,11 @@ The @code{-localtime} option has been replaced by @code{-rtc base=localtime}.
 
 The @code{-startdate} option has been replaced by @code{-rtc base=@var{date}}.
 
+@subsection -virtioconsole (since 2.13.0)
+
+Option @option{-virtioconsole} has been replaced by
+@option{-device virtconsole}.
+
 @section qemu-img command line arguments
 
 @subsection convert -s (since 2.0.0)
