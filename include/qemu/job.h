@@ -392,6 +392,9 @@ JobType job_type(const Job *job);
 /** Returns the enum string for the JobType of a given Job. */
 const char *job_type_str(const Job *job);
 
+/** Returns true if the job should not be visible to the management layer. */
+bool job_is_internal(Job *job);
+
 /** Returns whether the job is scheduled for cancellation. */
 bool job_is_cancelled(Job *job);
 

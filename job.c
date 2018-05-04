@@ -158,7 +158,7 @@ static int job_txn_apply(JobTxn *txn, int fn(Job *), bool lock)
     return rc;
 }
 
-static bool job_is_internal(Job *job)
+bool job_is_internal(Job *job)
 {
     return (job->id == NULL);
 }

@@ -132,3 +132,57 @@ void qmp_job_dismiss(const char *id, Error **errp)
     job_dismiss(&job, errp);
     aio_context_release(aio_context);
 }
+
+static JobInfo *job_query_single(Job *job, Error **errp)
+{
+    JobInfo *info;
+    const char *errmsg = NULL;
+
+    assert(!job_is_internal(job));
+
+    if (job->ret < 0) {
+        errmsg = strerror(-job->ret);
+    }
+
+    info = g_new(JobInfo, 1);
+    *info = (JobInfo) {
+        .id                 = g_strdup(job->id),
+        .type               = job_type(job),
+        .status             = job->status,
+        .current_progress   = job->progress_current,
+        .total_progress     = job->progress_total,
+        .has_error          = !!errmsg,
+        .error              = g_strdup(errmsg),
+    };
+
+    return info;
+}
+
+JobInfoList *qmp_query_jobs(Error **errp)
+{
+    JobInfoList *head = NULL, **p_next = &head;
+    Job *job;
+
+    for (job = job_next(NULL); job; job = job_next(job)) {
+        JobInfoList *elem;
+        AioContext *aio_context;
+
+        if (job_is_internal(job)) {
+            continue;
+        }
+        elem = g_new0(JobInfoList, 1);
+        aio_context = job->aio_context;
+        aio_context_acquire(aio_context);
+        elem->value = job_query_single(job, errp);
+        aio_context_release(aio_context);
+        if (!elem->value) {
+            g_free(elem);
+            qapi_free_JobInfoList(head);
+            return NULL;
+        }
+        *p_next = elem;
+        p_next = &elem->next;
+    }
+
+    return head;
+}
