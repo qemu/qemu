@@ -119,7 +119,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
             bitmap_set(s->cow_bitmap, chunk_num, nb_chunks);
         }
         if (!s->initial_zeroing_ongoing) {
-            block_job_progress_update(&s->common, op->bytes);
+            job_progress_update(&s->common.job, op->bytes);
         }
     }
     qemu_iovec_destroy(&op->qiov);
@@ -792,7 +792,7 @@ static void coroutine_fn mirror_run(void *opaque)
         /* cnt is the number of dirty bytes remaining and s->bytes_in_flight is
          * the number of bytes currently being processed; together those are
          * the current remaining operation length */
-        block_job_progress_set_remaining(&s->common, s->bytes_in_flight + cnt);
+        job_progress_set_remaining(&s->common.job, s->bytes_in_flight + cnt);
 
         /* Note that even when no rate limit is applied we need to yield
          * periodically with no pending I/O so that bdrv_drain_all() returns.

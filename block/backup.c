@@ -160,7 +160,7 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
          * offset field is an opaque progress value, it is not a disk offset.
          */
         job->bytes_read += n;
-        block_job_progress_update(&job->common, n);
+        job_progress_update(&job->common.job, n);
     }
 
 out:
@@ -406,8 +406,8 @@ static void backup_incremental_init_copy_bitmap(BackupBlockJob *job)
         bdrv_set_dirty_iter(dbi, next_cluster * job->cluster_size);
     }
 
-    /* TODO block_job_progress_set_remaining() would make more sense */
-    block_job_progress_update(&job->common,
+    /* TODO job_progress_set_remaining() would make more sense */
+    job_progress_update(&job->common.job,
         job->len - hbitmap_count(job->copy_bitmap) * job->cluster_size);
 
     bdrv_dirty_iter_free(dbi);
@@ -425,7 +425,7 @@ static void coroutine_fn backup_run(void *opaque)
     qemu_co_rwlock_init(&job->flush_rwlock);
 
     nb_clusters = DIV_ROUND_UP(job->len, job->cluster_size);
-    block_job_progress_set_remaining(&job->common, job->len);
+    job_progress_set_remaining(&job->common.job, job->len);
 
     job->copy_bitmap = hbitmap_alloc(nb_clusters, 0);
     if (job->sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {

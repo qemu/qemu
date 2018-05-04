@@ -863,9 +863,13 @@ static void run_block_job(BlockJob *job, Error **errp)
     aio_context_acquire(aio_context);
     job_ref(&job->job);
     do {
+        float progress = 0.0f;
         aio_poll(aio_context, true);
-        qemu_progress_print(job->len ?
-                            ((float)job->offset / job->len * 100.f) : 0.0f, 0);
+        if (job->job.progress_total) {
+            progress = (float)job->job.progress_current /
+                       job->job.progress_total * 100.f;
+        }
+        qemu_progress_print(progress, 0);
     } while (!job_is_ready(&job->job) && !job_is_completed(&job->job));
 
     if (!job_is_completed(&job->job)) {

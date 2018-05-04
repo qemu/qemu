@@ -150,7 +150,7 @@ static void coroutine_fn commit_run(void *opaque)
     if (len < 0) {
         goto out;
     }
-    block_job_progress_set_remaining(&s->common, len);
+    job_progress_set_remaining(&s->common.job, len);
 
     ret = base_len = blk_getlength(s->base);
     if (base_len < 0) {
@@ -196,7 +196,7 @@ static void coroutine_fn commit_run(void *opaque)
             }
         }
         /* Publish progress */
-        block_job_progress_update(&s->common, n);
+        job_progress_update(&s->common.job, n);
 
         if (copy) {
             delay_ns = block_job_ratelimit_get_delay(&s->common, n);

@@ -114,6 +114,16 @@ typedef struct Job {
     /** True if this job should automatically dismiss itself */
     bool auto_dismiss;
 
+    /**
+     * Current progress. The unit is arbitrary as long as the ratio between
+     * progress_current and progress_total represents the estimated percentage
+     * of work already done.
+     */
+    int64_t progress_current;
+
+    /** Estimated progress_current value at the completion of the job */
+    int64_t progress_total;
+
     /** ret code passed to job_completed. */
     int ret;
 
@@ -303,6 +313,24 @@ void job_ref(Job *job);
  * job_create(). If it's the last reference to the object, it will be freed.
  */
 void job_unref(Job *job);
+
+/**
+ * @job: The job that has made progress
+ * @done: How much progress the job made since the last call
+ *
+ * Updates the progress counter of the job.
+ */
+void job_progress_update(Job *job, uint64_t done);
+
+/**
+ * @job: The job whose expected progress end value is set
+ * @remaining: Missing progress (on top of the current progress counter value)
+ *             until the new expected end value is reached
+ *
+ * Sets the expected end value of the progress counter of a job so that a
+ * completion percentage can be calculated when the progress is updated.
+ */
+void job_progress_set_remaining(Job *job, uint64_t remaining);
 
 /** To be called when a cancelled job is finalised. */
 void job_event_cancelled(Job *job);

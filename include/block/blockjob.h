@@ -52,12 +52,6 @@ typedef struct BlockJob {
     /** Status that is published by the query-block-jobs QMP API */
     BlockDeviceIoStatus iostatus;
 
-    /** Offset that is published by the query-block-jobs QMP API */
-    int64_t offset;
-
-    /** Length that is published by the query-block-jobs QMP API */
-    int64_t len;
-
     /** Speed that was set with @block_job_set_speed.  */
     int64_t speed;
 
@@ -137,25 +131,6 @@ void block_job_remove_all_bdrv(BlockJob *job);
  * vary depending on the job type.
  */
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
-
-/**
- * block_job_progress_update:
- * @job: The job that has made progress
- * @done: How much progress the job made
- *
- * Updates the progress counter of the job.
- */
-void block_job_progress_update(BlockJob *job, uint64_t done);
-
-/**
- * block_job_progress_set_remaining:
- * @job: The job whose expected progress end value is set
- * @remaining: Expected end value of the progress counter of the job
- *
- * Sets the expected end value of the progress counter of a job so that a
- * completion percentage can be calculated when the progress is updated.
- */
-void block_job_progress_set_remaining(BlockJob *job, uint64_t remaining);
 
 /**
  * block_job_query:
