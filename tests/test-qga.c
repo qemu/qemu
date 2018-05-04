@@ -744,12 +744,10 @@ static void test_qga_config(gconstpointer data)
 
     strv = g_key_file_get_string_list(kf, "general", "blacklist", &n, &error);
     g_assert_cmpint(n, ==, 2);
-#if GLIB_CHECK_VERSION(2, 44, 0)
     g_assert_true(g_strv_contains((const char * const *)strv,
                                   "guest-ping"));
     g_assert_true(g_strv_contains((const char * const *)strv,
                                   "guest-get-time"));
-#endif
     g_assert_no_error(error);
     g_strfreev(strv);
 
