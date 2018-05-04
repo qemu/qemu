@@ -5347,7 +5347,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             for (r = id_cp_reginfo; r->type != ARM_CP_SENTINEL; r++) {
                 r->access = PL1_RW;
             }
-            id_tlbtr_reginfo.access = PL1_RW;
+            id_mpuir_reginfo.access = PL1_RW;
             id_tlbtr_reginfo.access = PL1_RW;
         }
         if (arm_feature(env, ARM_FEATURE_V8)) {

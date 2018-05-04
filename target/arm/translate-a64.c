@@ -9019,11 +9019,7 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
         unallocated_encoding(s);
         return;
     }
-
-    if (size > 3 && !is_q) {
-        unallocated_encoding(s);
-        return;
-    }
+    tcg_debug_assert(size <= 3);
 
     if (!fp_access_check(s)) {
         return;
@@ -11477,7 +11473,11 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         /* All 64-bit element operations can be shared with scalar 2misc */
         int pass;
 
-        for (pass = 0; pass < (is_q ? 2 : 1); pass++) {
+        /* Coverity claims (size == 3 && !is_q) has been eliminated
+         * from all paths leading to here.
+         */
+        tcg_debug_assert(is_q);
+        for (pass = 0; pass < 2; pass++) {
             TCGv_i64 tcg_op = tcg_temp_new_i64();
             TCGv_i64 tcg_res = tcg_temp_new_i64();
 
