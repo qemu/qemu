@@ -1063,7 +1063,7 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
 
     ret = 0;
 fail:
-    QDECREF(encryptopts);
+    qobject_unref(encryptopts);
     qemu_opts_del(opts);
     opts = NULL;
     return ret;
@@ -2183,7 +2183,7 @@ static void coroutine_fn qcow2_co_invalidate_cache(BlockDriverState *bs,
     qemu_co_mutex_lock(&s->lock);
     ret = qcow2_do_open(bs, options, flags, &local_err);
     qemu_co_mutex_unlock(&s->lock);
-    QDECREF(options);
+    qobject_unref(options);
     if (local_err) {
         error_propagate(errp, local_err);
         error_prepend(errp, "Could not reopen qcow2 layer: ");
@@ -3139,7 +3139,7 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
 
     /* Now get the QAPI type BlockdevCreateOptions */
     qobj = qdict_crumple(qdict, errp);
-    QDECREF(qdict);
+    qobject_unref(qdict);
     qdict = qobject_to(QDict, qobj);
     if (qdict == NULL) {
         ret = -EINVAL;
@@ -3168,7 +3168,7 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
 
     ret = 0;
 finish:
-    QDECREF(qdict);
+    qobject_unref(qdict);
     bdrv_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;

@@ -727,7 +727,7 @@ static void test_migrate(void)
     rsp = qmp("{ 'execute': 'migrate_set_speed',"
               "'arguments': { 'value': 10 } }");
     g_assert(qdict_haskey(rsp, "return"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
 
     cmd = g_strdup_printf("{ 'execute': 'migrate',"
                           "'arguments': { 'uri': '%s' } }",
@@ -735,7 +735,7 @@ static void test_migrate(void)
     rsp = qmp(cmd);
     g_free(cmd);
     g_assert(qdict_haskey(rsp, "return"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
 
     wait_for_log_fd(s);
 
@@ -751,7 +751,7 @@ static void test_migrate(void)
     rsp = qmp("{ 'execute': 'migrate_set_speed',"
               "'arguments': { 'value': 0 } }");
     g_assert(qdict_haskey(rsp, "return"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
 
     qmp_eventwait("STOP");
 

@@ -563,7 +563,7 @@ static int send_response(GAState *s, QObject *payload)
         response_qstr = qstring_new();
         qstring_append_chr(response_qstr, QGA_SENTINEL_BYTE);
         qstring_append(response_qstr, qstring_get_str(payload_qstr));
-        QDECREF(payload_qstr);
+        qobject_unref(payload_qstr);
     } else {
         response_qstr = payload_qstr;
     }
@@ -571,7 +571,7 @@ static int send_response(GAState *s, QObject *payload)
     qstring_append_chr(response_qstr, '\n');
     buf = qstring_get_str(response_qstr);
     status = ga_channel_write_all(s->channel, buf, strlen(buf));
-    QDECREF(response_qstr);
+    qobject_unref(response_qstr);
     if (status != G_IO_STATUS_NORMAL) {
         return -EIO;
     }
@@ -592,7 +592,7 @@ static void process_command(GAState *s, QDict *req)
         if (ret < 0) {
             g_warning("error sending response: %s", strerror(-ret));
         }
-        qobject_decref(rsp);
+        qobject_unref(rsp);
     }
 }
 
@@ -609,7 +609,7 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
     g_debug("process_event: called");
     qdict = qobject_to(QDict, json_parser_parse_err(tokens, NULL, &err));
     if (err || !qdict) {
-        QDECREF(qdict);
+        qobject_unref(qdict);
         qdict = qdict_new();
         if (!err) {
             g_warning("failed to parse event: unknown error");
@@ -626,7 +626,7 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
         process_command(s, qdict);
     } else {
         if (!qdict_haskey(qdict, "error")) {
-            QDECREF(qdict);
+            qobject_unref(qdict);
             qdict = qdict_new();
             g_warning("unrecognized payload format");
             error_setg(&err, QERR_UNSUPPORTED);
@@ -639,7 +639,7 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
         }
     }
 
-    QDECREF(qdict);
+    qobject_unref(qdict);
 }
 
 /* false return signals GAChannel to close the current client connection */

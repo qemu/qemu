@@ -8364,7 +8364,7 @@ static void getset_compat_deprecated(Object *obj, Visitor *v, const char *name,
                      "use max-cpu-compat machine property instead");
     }
     visit_type_null(v, name, &null, NULL);
-    QDECREF(null);
+    qobject_unref(null);
 }
 
 static const PropertyInfo ppc_compat_deprecated_propinfo = {

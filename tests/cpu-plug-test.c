@@ -42,7 +42,7 @@ static void test_plug_with_cpu_add(gconstpointer data)
                        "  'arguments': { 'id': %d } }", i);
         g_assert(response);
         g_assert(!qdict_haskey(response, "error"));
-        QDECREF(response);
+        qobject_unref(response);
     }
 
     qtest_end();
@@ -66,7 +66,7 @@ static void test_plug_without_cpu_add(gconstpointer data)
                    s->sockets * s->cores * s->threads);
     g_assert(response);
     g_assert(qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     qtest_end();
     g_free(args);

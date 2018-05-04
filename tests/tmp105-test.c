@@ -74,7 +74,7 @@ static int qmp_tmp105_get_temperature(const char *id)
                    "'property': 'temperature' } }", id);
     g_assert(qdict_haskey(response, "return"));
     ret = qdict_get_int(response, "return");
-    QDECREF(response);
+    qobject_unref(response);
     return ret;
 }
 
@@ -85,7 +85,7 @@ static void qmp_tmp105_set_temperature(const char *id, int value)
     response = qmp("{ 'execute': 'qom-set', 'arguments': { 'path': %s, "
                    "'property': 'temperature', 'value': %d } }", id, value);
     g_assert(qdict_haskey(response, "return"));
-    QDECREF(response);
+    qobject_unref(response);
 }
 
 #define TMP105_PRECISION (1000/16)

@@ -170,7 +170,7 @@ void qpci_unplug_acpi_device_test(const char *id, uint8_t slot)
     g_free(cmd);
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     outb(ACPI_PCIHP_ADDR + PCI_EJ_BASE, 1 << slot);
 

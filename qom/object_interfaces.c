@@ -140,7 +140,7 @@ Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
     qemu_opts_set_id(opts, (char *) id);
     qemu_opt_set(opts, "qom-type", type, &error_abort);
     g_free(type);
-    QDECREF(pdict);
+    qobject_unref(pdict);
     return obj;
 }
 

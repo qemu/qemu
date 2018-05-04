@@ -315,7 +315,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    QDECREF(encryptopts);
+    qobject_unref(encryptopts);
     qapi_free_QCryptoBlockOpenOptions(crypto_opts);
     qemu_co_mutex_init(&s->lock);
     return 0;
@@ -326,7 +326,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     g_free(s->cluster_cache);
     g_free(s->cluster_data);
     qcrypto_block_free(s->crypto);
-    QDECREF(encryptopts);
+    qobject_unref(encryptopts);
     qapi_free_QCryptoBlockOpenOptions(crypto_opts);
     return ret;
 }
@@ -995,7 +995,7 @@ static int coroutine_fn qcow_co_create_opts(const char *filename,
     qdict_put_str(qdict, "file", bs->node_name);
 
     qobj = qdict_crumple(qdict, errp);
-    QDECREF(qdict);
+    qobject_unref(qdict);
     qdict = qobject_to(QDict, qobj);
     if (qdict == NULL) {
         ret = -EINVAL;
@@ -1025,7 +1025,7 @@ static int coroutine_fn qcow_co_create_opts(const char *filename,
 
     ret = 0;
 fail:
-    QDECREF(qdict);
+    qobject_unref(qdict);
     bdrv_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;

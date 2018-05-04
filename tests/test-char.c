@@ -322,7 +322,7 @@ static void char_socket_test_common(Chardev *chr)
     qdict = qobject_to(QDict, addr);
     port = qdict_get_str(qdict, "port");
     tmp = g_strdup_printf("tcp:127.0.0.1:%s", port);
-    QDECREF(qdict);
+    qobject_unref(qdict);
 
     qemu_chr_fe_init(&be, chr, &error_abort);
     qemu_chr_fe_set_handlers(&be, socket_can_read, socket_read,

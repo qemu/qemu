@@ -195,7 +195,7 @@ static QDict *wait_command(QTestState *who, const char *command)
         if (!strcmp(event_string, "STOP")) {
             got_stop = true;
         }
-        QDECREF(response);
+        qobject_unref(response);
         response = qtest_qmp_receive(who);
     }
     return response;
@@ -221,7 +221,7 @@ static uint64_t get_migration_pass(QTestState *who)
         rsp_ram = qdict_get_qdict(rsp_return, "ram");
         result = qdict_get_try_int(rsp_ram, "dirty-sync-count", 0);
     }
-    QDECREF(rsp);
+    qobject_unref(rsp);
     return result;
 }
 
@@ -232,7 +232,7 @@ static void read_blocktime(QTestState *who)
     rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
     rsp_return = qdict_get_qdict(rsp, "return");
     g_assert(qdict_haskey(rsp_return, "postcopy-blocktime"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
 }
 
 static void wait_for_migration_complete(QTestState *who)
@@ -247,7 +247,7 @@ static void wait_for_migration_complete(QTestState *who)
         status = qdict_get_str(rsp_return, "status");
         completed = strcmp(status, "completed") == 0;
         g_assert_cmpstr(status, !=,  "failed");
-        QDECREF(rsp);
+        qobject_unref(rsp);
         if (completed) {
             return;
         }
@@ -334,7 +334,7 @@ static void migrate_check_parameter(QTestState *who, const char *parameter,
                              qdict_get_try_int(rsp_return,  parameter, -1));
     g_assert_cmpstr(result, ==, value);
     g_free(result);
-    QDECREF(rsp);
+    qobject_unref(rsp);
 }
 
 static void migrate_set_parameter(QTestState *who, const char *parameter,
@@ -349,7 +349,7 @@ static void migrate_set_parameter(QTestState *who, const char *parameter,
     rsp = qtest_qmp(who, cmd);
     g_free(cmd);
     g_assert(qdict_haskey(rsp, "return"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
     migrate_check_parameter(who, parameter, value);
 }
 
@@ -367,7 +367,7 @@ static void migrate_set_capability(QTestState *who, const char *capability,
     rsp = qtest_qmp(who, cmd);
     g_free(cmd);
     g_assert(qdict_haskey(rsp, "return"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
 }
 
 static void migrate(QTestState *who, const char *uri)
@@ -381,7 +381,7 @@ static void migrate(QTestState *who, const char *uri)
     rsp = qtest_qmp(who, cmd);
     g_free(cmd);
     g_assert(qdict_haskey(rsp, "return"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
 }
 
 static void migrate_start_postcopy(QTestState *who)
@@ -390,7 +390,7 @@ static void migrate_start_postcopy(QTestState *who)
 
     rsp = wait_command(who, "{ 'execute': 'migrate-start-postcopy' }");
     g_assert(qdict_haskey(rsp, "return"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
 }
 
 static void test_migrate_start(QTestState **from, QTestState **to,
@@ -503,7 +503,7 @@ static void deprecated_set_downtime(QTestState *who, const double value)
     rsp = qtest_qmp(who, cmd);
     g_free(cmd);
     g_assert(qdict_haskey(rsp, "return"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
     result_int = value * 1000L;
     expected = g_strdup_printf("%" PRId64, result_int);
     migrate_check_parameter(who, "downtime-limit", expected);
@@ -520,7 +520,7 @@ static void deprecated_set_speed(QTestState *who, const char *value)
     rsp = qtest_qmp(who, cmd);
     g_free(cmd);
     g_assert(qdict_haskey(rsp, "return"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
     migrate_check_parameter(who, "max-bandwidth", value);
 }
 
@@ -597,7 +597,7 @@ static void test_baddest(void)
 
         g_assert(!strcmp(status, "setup") || !(strcmp(status, "failed")));
         failed = !strcmp(status, "failed");
-        QDECREF(rsp);
+        qobject_unref(rsp);
     } while (!failed);
 
     /* Is the machine currently running? */
@@ -606,7 +606,7 @@ static void test_baddest(void)
     rsp_return = qdict_get_qdict(rsp, "return");
     g_assert(qdict_haskey(rsp_return, "running"));
     g_assert(qdict_get_bool(rsp_return, "running"));
-    QDECREF(rsp);
+    qobject_unref(rsp);
 
     test_migrate_end(from, to, false);
 }

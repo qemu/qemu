@@ -773,7 +773,7 @@ void bdrv_image_info_specific_dump(fprintf_function func_fprintf, void *f,
     visit_complete(v, &obj);
     data = qdict_get(qobject_to(QDict, obj), "data");
     dump_qobject(func_fprintf, f, 1, data);
-    qobject_decref(obj);
+    qobject_unref(obj);
     visit_free(v);
 }
 

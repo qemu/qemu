@@ -887,7 +887,7 @@ static void test_opts_to_qdict_basic(void)
     g_assert_cmpstr(qdict_get_str(dict, "number1"), ==, "42");
     g_assert_false(qdict_haskey(dict, "number2"));
 
-    QDECREF(dict);
+    qobject_unref(dict);
     qemu_opts_del(opts);
 }
 
@@ -914,7 +914,7 @@ static void test_opts_to_qdict_filtered(void)
     g_assert_cmpstr(qdict_get_str(dict, "number1"), ==, "42");
     g_assert_false(qdict_haskey(dict, "number2"));
     g_assert_false(qdict_haskey(dict, "bool1"));
-    QDECREF(dict);
+    qobject_unref(dict);
 
     dict = qemu_opts_to_qdict_filtered(opts, NULL, &opts_list_02, false);
     g_assert(dict != NULL);
@@ -924,7 +924,7 @@ static void test_opts_to_qdict_filtered(void)
     g_assert_false(qdict_haskey(dict, "str3"));
     g_assert_false(qdict_haskey(dict, "number1"));
     g_assert_false(qdict_haskey(dict, "number2"));
-    QDECREF(dict);
+    qobject_unref(dict);
 
     /* Now delete converted options from opts */
     dict = qemu_opts_to_qdict_filtered(opts, NULL, &opts_list_01, true);
@@ -935,7 +935,7 @@ static void test_opts_to_qdict_filtered(void)
     g_assert_cmpstr(qdict_get_str(dict, "number1"), ==, "42");
     g_assert_false(qdict_haskey(dict, "number2"));
     g_assert_false(qdict_haskey(dict, "bool1"));
-    QDECREF(dict);
+    qobject_unref(dict);
 
     dict = qemu_opts_to_qdict_filtered(opts, NULL, &opts_list_02, true);
     g_assert(dict != NULL);
@@ -945,7 +945,7 @@ static void test_opts_to_qdict_filtered(void)
     g_assert_false(qdict_haskey(dict, "str3"));
     g_assert_false(qdict_haskey(dict, "number1"));
     g_assert_false(qdict_haskey(dict, "number2"));
-    QDECREF(dict);
+    qobject_unref(dict);
 
     g_assert_true(QTAILQ_EMPTY(&opts->head));
 
@@ -978,13 +978,13 @@ static void test_opts_to_qdict_duplicates(void)
     dict = qemu_opts_to_qdict(opts, NULL);
     g_assert(dict != NULL);
     g_assert_cmpstr(qdict_get_str(dict, "foo"), ==, "b");
-    QDECREF(dict);
+    qobject_unref(dict);
 
     /* The last one still wins if entries are deleted, and both are deleted */
     dict = qemu_opts_to_qdict_filtered(opts, NULL, NULL, true);
     g_assert(dict != NULL);
     g_assert_cmpstr(qdict_get_str(dict, "foo"), ==, "b");
-    QDECREF(dict);
+    qobject_unref(dict);
 
     g_assert_true(QTAILQ_EMPTY(&opts->head));
 

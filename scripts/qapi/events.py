@@ -142,7 +142,7 @@ out:
 ''')
     ret += mcgen('''
     error_propagate(errp, err);
-    QDECREF(qmp);
+    qobject_unref(qmp);
 }
 ''')
     return ret

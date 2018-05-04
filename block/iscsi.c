@@ -2143,7 +2143,7 @@ static int coroutine_fn iscsi_co_create_opts(const char *filename, QemuOpts *opt
     } else {
         ret = iscsi_open(bs, bs_options, 0, NULL);
     }
-    QDECREF(bs_options);
+    qobject_unref(bs_options);
 
     if (ret != 0) {
         goto out;

@@ -16,6 +16,15 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
 
+QEMU_BUILD_BUG_MSG(
+    offsetof(QNull, base) != 0 ||
+    offsetof(QNum, base) != 0 ||
+    offsetof(QString, base) != 0 ||
+    offsetof(QDict, base) != 0 ||
+    offsetof(QList, base) != 0 ||
+    offsetof(QBool, base) != 0,
+    "base qobject must be at offset 0");
+
 static void (*qdestroy[QTYPE__MAX])(QObject *) = {
     [QTYPE_NONE] = NULL,               /* No such object exists */
     [QTYPE_QNULL] = NULL,              /* qnull_ is indestructible */
@@ -28,9 +37,9 @@ static void (*qdestroy[QTYPE__MAX])(QObject *) = {
 
 void qobject_destroy(QObject *obj)
 {
-    assert(!obj->refcnt);
-    assert(QTYPE_QNULL < obj->type && obj->type < QTYPE__MAX);
-    qdestroy[obj->type](obj);
+    assert(!obj->base.refcnt);
+    assert(QTYPE_QNULL < obj->base.type && obj->base.type < QTYPE__MAX);
+    qdestroy[obj->base.type](obj);
 }
 
 
@@ -53,11 +62,11 @@ bool qobject_is_equal(const QObject *x, const QObject *y)
         return true;
     }
 
-    if (!x || !y || x->type != y->type) {
+    if (!x || !y || x->base.type != y->base.type) {
         return false;
     }
 
-    assert(QTYPE_NONE < x->type && x->type < QTYPE__MAX);
+    assert(QTYPE_NONE < x->base.type && x->base.type < QTYPE__MAX);
 
-    return qis_equal[x->type](x, y);
+    return qis_equal[x->base.type](x, y);
 }

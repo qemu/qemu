@@ -638,7 +638,7 @@ static BlockdevOptionsSsh *ssh_parse_options(QDict *options, Error **errp)
     v = qobject_input_visitor_new(crumpled);
     visit_type_BlockdevOptionsSsh(v, NULL, &result, &local_err);
     visit_free(v);
-    qobject_decref(crumpled);
+    qobject_unref(crumpled);
 
     if (local_err) {
         error_propagate(errp, local_err);
@@ -917,7 +917,7 @@ static int coroutine_fn ssh_co_create_opts(const char *filename, QemuOpts *opts,
     ret = ssh_co_create(create_options, errp);
 
  out:
-    QDECREF(uri_options);
+    qobject_unref(uri_options);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }

@@ -29,7 +29,7 @@ static void add_one_netfilter(void)
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     response = qmp("{'execute': 'object-del',"
                    " 'arguments': {"
@@ -37,7 +37,7 @@ static void add_one_netfilter(void)
                    "}}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 }
 
 /* add a netfilter to a netdev and then remove the netdev */
@@ -57,7 +57,7 @@ static void remove_netdev_with_one_netfilter(void)
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     response = qmp("{'execute': 'netdev_del',"
                    " 'arguments': {"
@@ -65,7 +65,7 @@ static void remove_netdev_with_one_netfilter(void)
                    "}}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     /* add back the netdev */
     response = qmp("{'execute': 'netdev_add',"
@@ -75,7 +75,7 @@ static void remove_netdev_with_one_netfilter(void)
                    "}}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 }
 
 /* add multi(2) netfilters to a netdev and then remove them */
@@ -95,7 +95,7 @@ static void add_multi_netfilter(void)
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     response = qmp("{'execute': 'object-add',"
                    " 'arguments': {"
@@ -109,7 +109,7 @@ static void add_multi_netfilter(void)
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     response = qmp("{'execute': 'object-del',"
                    " 'arguments': {"
@@ -117,7 +117,7 @@ static void add_multi_netfilter(void)
                    "}}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     response = qmp("{'execute': 'object-del',"
                    " 'arguments': {"
@@ -125,7 +125,7 @@ static void add_multi_netfilter(void)
                    "}}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 }
 
 /* add multi(2) netfilters to a netdev and then remove the netdev */
@@ -145,7 +145,7 @@ static void remove_netdev_with_multi_netfilter(void)
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     response = qmp("{'execute': 'object-add',"
                    " 'arguments': {"
@@ -159,7 +159,7 @@ static void remove_netdev_with_multi_netfilter(void)
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     response = qmp("{'execute': 'netdev_del',"
                    " 'arguments': {"
@@ -167,7 +167,7 @@ static void remove_netdev_with_multi_netfilter(void)
                    "}}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 
     /* add back the netdev */
     response = qmp("{'execute': 'netdev_add',"
@@ -177,7 +177,7 @@ static void remove_netdev_with_multi_netfilter(void)
                    "}}");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
-    QDECREF(response);
+    qobject_unref(response);
 }
 
 int main(int argc, char **argv)

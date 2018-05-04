@@ -188,8 +188,8 @@ static void qobject_output_type_any(Visitor *v, const char *name,
                                     QObject **obj, Error **errp)
 {
     QObjectOutputVisitor *qov = to_qov(v);
-    qobject_incref(*obj);
-    qobject_output_add_obj(qov, name, *obj);
+
+    qobject_output_add_obj(qov, name, qobject_ref(*obj));
 }
 
 static void qobject_output_type_null(Visitor *v, const char *name,
@@ -201,7 +201,7 @@ static void qobject_output_type_null(Visitor *v, const char *name,
 
 /* Finish building, and return the root object.
  * The root object is never null. The caller becomes the object's
- * owner, and should use qobject_decref() when done with it.  */
+ * owner, and should use qobject_unref() when done with it.  */
 static void qobject_output_complete(Visitor *v, void *opaque)
 {
     QObjectOutputVisitor *qov = to_qov(v);
@@ -210,8 +210,7 @@ static void qobject_output_complete(Visitor *v, void *opaque)
     assert(qov->root && QSLIST_EMPTY(&qov->stack));
     assert(opaque == qov->result);
 
-    qobject_incref(qov->root);
-    *qov->result = qov->root;
+    *qov->result = qobject_ref(qov->root);
     qov->result = NULL;
 }
 
@@ -226,7 +225,7 @@ static void qobject_output_free(Visitor *v)
         g_free(e);
     }
 
-    qobject_decref(qov->root);
+    qobject_unref(qov->root);
     g_free(qov);
 }
 

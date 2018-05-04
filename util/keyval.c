@@ -126,7 +126,7 @@ static int key_to_index(const char *key, const char **end)
  * Else, fail because we have conflicting needs on how to map
  * @key_in_cur.
  * In any case, take over the reference to @value, i.e. if the caller
- * wants to hold on to a reference, it needs to QINCREF().
+ * wants to hold on to a reference, it needs to qobject_ref().
  * Use @key up to @key_cursor to identify the key in error messages.
  * On success, return the mapped value.
  * On failure, store an error through @errp and return NULL.
@@ -143,7 +143,7 @@ static QObject *keyval_parse_put(QDict *cur,
         if (qobject_type(old) != (value ? QTYPE_QSTRING : QTYPE_QDICT)) {
             error_setg(errp, "Parameters '%.*s.*' used inconsistently",
                        (int)(key_cursor - key), key);
-            QDECREF(value);
+            qobject_unref(value);
             return NULL;
         }
         if (!value) {
@@ -375,10 +375,10 @@ static QObject *keyval_listify(QDict *cur, GSList *key_of_cur, Error **errp)
             error_setg(errp, "Parameter '%s%d' missing", key, i);
             g_free(key);
             g_free(elt);
-            QDECREF(list);
+            qobject_unref(list);
             return NULL;
         }
-        qobject_incref(elt[i]);
+        qobject_ref(elt[i]);
         qlist_append_obj(list, elt[i]);
     }
 
@@ -404,7 +404,7 @@ QDict *keyval_parse(const char *params, const char *implied_key,
     while (*s) {
         s = keyval_parse_one(qdict, s, implied_key, errp);
         if (!s) {
-            QDECREF(qdict);
+            qobject_unref(qdict);
             return NULL;
         }
         implied_key = NULL;
@@ -412,7 +412,7 @@ QDict *keyval_parse(const char *params, const char *implied_key,
 
     listified = keyval_listify(qdict, NULL, errp);
     if (!listified) {
-        QDECREF(qdict);
+        qobject_unref(qdict);
         return NULL;
     }
     assert(listified == QOBJECT(qdict));

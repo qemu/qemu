@@ -105,7 +105,7 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
         args = qdict_new();
     } else {
         args = qdict_get_qdict(dict, "arguments");
-        QINCREF(args);
+        qobject_ref(args);
     }
 
     cmd->fn(args, &ret, &local_err);
@@ -117,7 +117,7 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
         ret = QOBJECT(qdict_new());
     }
 
-    QDECREF(args);
+    qobject_unref(args);
 
     return ret;
 }
@@ -166,7 +166,7 @@ QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request)
     } else if (ret) {
         qdict_put_obj(rsp, "return", ret);
     } else {
-        QDECREF(rsp);
+        qobject_unref(rsp);
         return NULL;
     }
 

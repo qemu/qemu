@@ -173,7 +173,7 @@ static void rx_stop_cont_test(QVirtioDevice *dev,
     qvirtqueue_kick(dev, vq, free_head);
 
     rsp = qmp("{ 'execute' : 'stop'}");
-    QDECREF(rsp);
+    qobject_unref(rsp);
 
     ret = iov_send(socket, iov, 2, 0, sizeof(len) + sizeof(test));
     g_assert_cmpint(ret, ==, sizeof(test) + sizeof(len));
@@ -182,9 +182,9 @@ static void rx_stop_cont_test(QVirtioDevice *dev,
      * ensure the packet data gets queued in QEMU, before we do 'cont'.
      */
     rsp = qmp("{ 'execute' : 'query-status'}");
-    QDECREF(rsp);
+    qobject_unref(rsp);
     rsp = qmp("{ 'execute' : 'cont'}");
-    QDECREF(rsp);
+    qobject_unref(rsp);
 
     qvirtio_wait_used_elem(dev, vq, free_head, NULL, QVIRTIO_NET_TIMEOUT_US);
     memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));

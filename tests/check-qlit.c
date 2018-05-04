@@ -62,7 +62,7 @@ static void qlit_equal_qobject_test(void)
     qdict_put(qobject_to(QDict, qobj), "bee", qlist_new());
     g_assert(!qlit_equal_qobject(&qlit, qobj));
 
-    qobject_decref(qobj);
+    qobject_unref(qobj);
 }
 
 static void qobject_from_qlit_test(void)
@@ -79,15 +79,15 @@ static void qobject_from_qlit_test(void)
     bee = qdict_get_qlist(qdict, "bee");
     obj = qlist_pop(bee);
     g_assert_cmpint(qnum_get_int(qobject_to(QNum, obj)), ==, 43);
-    qobject_decref(obj);
+    qobject_unref(obj);
     obj = qlist_pop(bee);
     g_assert_cmpint(qnum_get_int(qobject_to(QNum, obj)), ==, 44);
-    qobject_decref(obj);
+    qobject_unref(obj);
     obj = qlist_pop(bee);
     g_assert(qbool_get_bool(qobject_to(QBool, obj)));
-    qobject_decref(obj);
+    qobject_unref(obj);
 
-    qobject_decref(qobj);
+    qobject_unref(qobj);
 }
 
 int main(int argc, char **argv)

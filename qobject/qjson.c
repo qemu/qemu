@@ -104,7 +104,7 @@ static void to_json_dict_iter(const char *key, QObject *obj, void *opaque)
 
     qkey = qstring_from_str(key);
     to_json(QOBJECT(qkey), s->str, s->pretty, s->indent);
-    QDECREF(qkey);
+    qobject_unref(qkey);
 
     qstring_append(s->str, ": ");
     to_json(obj, s->str, s->pretty, s->indent);

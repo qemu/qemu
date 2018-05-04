@@ -763,7 +763,7 @@ static int coroutine_fn bdrv_qed_co_create_opts(const char *filename,
     qdict_put_str(qdict, "file", bs->node_name);
 
     qobj = qdict_crumple(qdict, errp);
-    QDECREF(qdict);
+    qobject_unref(qdict);
     qdict = qobject_to(QDict, qobj);
     if (qdict == NULL) {
         ret = -EINVAL;
@@ -789,7 +789,7 @@ static int coroutine_fn bdrv_qed_co_create_opts(const char *filename,
     ret = bdrv_qed_co_create(create_options, errp);
 
 fail:
-    QDECREF(qdict);
+    qobject_unref(qdict);
     bdrv_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;

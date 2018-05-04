@@ -125,7 +125,7 @@ static void read_guid_from_monitor(QemuUUID *guid)
         guid_str = qdict_get_str(rsp_ret, "guid");
         g_assert(qemu_uuid_parse(guid_str, guid) == 0);
     }
-    QDECREF(rsp);
+    qobject_unref(rsp);
 }
 
 static char disk[] = "tests/vmgenid-test-disk-XXXXXX";

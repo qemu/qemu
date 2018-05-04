@@ -5,6 +5,8 @@
 # = Miscellanea
 ##
 
+{ 'include': 'common.json' }
+
 ##
 # @qmp_capabilities:
 #
@@ -556,25 +558,55 @@
 # @props: properties describing to which node/socket/core/thread
 #         virtual CPU belongs to, provided if supported by board
 #
-# @arch: architecture of the cpu, which determines which additional fields
-#        will be listed
+# @arch: base architecture of the cpu; deprecated since 2.13.0 in favor
+#        of @target
+#
+# @target: the QEMU system emulation target, which determines which
+#          additional fields will be listed (since 2.13)
 #
 # Since: 2.12
 #
 ##
-{ 'union': 'CpuInfoFast',
-  'base': {'cpu-index': 'int', 'qom-path': 'str',
-           'thread-id': 'int', '*props': 'CpuInstanceProperties',
-           'arch': 'CpuInfoArch' },
-  'discriminator': 'arch',
-  'data': { 'x86': 'CpuInfoOther',
-            'sparc': 'CpuInfoOther',
-            'ppc': 'CpuInfoOther',
-            'mips': 'CpuInfoOther',
-            'tricore': 'CpuInfoOther',
-            's390': 'CpuInfoS390',
-            'riscv': 'CpuInfoRISCV',
-            'other': 'CpuInfoOther' } }
+{ 'union'         : 'CpuInfoFast',
+  'base'          : { 'cpu-index'    : 'int',
+                      'qom-path'     : 'str',
+                      'thread-id'    : 'int',
+                      '*props'       : 'CpuInstanceProperties',
+                      'arch'         : 'CpuInfoArch',
+                      'target'       : 'SysEmuTarget' },
+  'discriminator' : 'target',
+  'data'          : { 'aarch64'      : 'CpuInfoOther',
+                      'alpha'        : 'CpuInfoOther',
+                      'arm'          : 'CpuInfoOther',
+                      'cris'         : 'CpuInfoOther',
+                      'hppa'         : 'CpuInfoOther',
+                      'i386'         : 'CpuInfoOther',
+                      'lm32'         : 'CpuInfoOther',
+                      'm68k'         : 'CpuInfoOther',
+                      'microblaze'   : 'CpuInfoOther',
+                      'microblazeel' : 'CpuInfoOther',
+                      'mips'         : 'CpuInfoOther',
+                      'mips64'       : 'CpuInfoOther',
+                      'mips64el'     : 'CpuInfoOther',
+                      'mipsel'       : 'CpuInfoOther',
+                      'moxie'        : 'CpuInfoOther',
+                      'nios2'        : 'CpuInfoOther',
+                      'or1k'         : 'CpuInfoOther',
+                      'ppc'          : 'CpuInfoOther',
+                      'ppc64'        : 'CpuInfoOther',
+                      'ppcemb'       : 'CpuInfoOther',
+                      'riscv32'      : 'CpuInfoOther',
+                      'riscv64'      : 'CpuInfoOther',
+                      's390x'        : 'CpuInfoS390',
+                      'sh4'          : 'CpuInfoOther',
+                      'sh4eb'        : 'CpuInfoOther',
+                      'sparc'        : 'CpuInfoOther',
+                      'sparc64'      : 'CpuInfoOther',
+                      'tricore'      : 'CpuInfoOther',
+                      'unicore32'    : 'CpuInfoOther',
+                      'x86_64'       : 'CpuInfoOther',
+                      'xtensa'       : 'CpuInfoOther',
+                      'xtensaeb'     : 'CpuInfoOther' } }
 
 ##
 # @query-cpus-fast:
@@ -600,6 +632,7 @@
 #             },
 #             "qom-path": "/machine/unattached/device[0]",
 #             "arch":"x86",
+#             "target":"x86_64",
 #             "cpu-index": 0
 #         },
 #         {
@@ -611,6 +644,7 @@
 #             },
 #             "qom-path": "/machine/unattached/device[2]",
 #             "arch":"x86",
+#             "target":"x86_64",
 #             "cpu-index": 1
 #         }
 #     ]
@@ -2449,12 +2483,12 @@
 #
 # Information describing the QEMU target.
 #
-# @arch: the target architecture (eg "x86_64", "i386", etc)
+# @arch: the target architecture
 #
 # Since: 1.2.0
 ##
 { 'struct': 'TargetInfo',
-  'data': { 'arch': 'str' } }
+  'data': { 'arch': 'SysEmuTarget' } }
 
 ##
 # @query-target:
