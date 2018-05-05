@@ -22,8 +22,6 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 
-#define D(x)
-
 static unsigned int tlb_decode_size(unsigned int f)
 {
     static const unsigned int sizes[] = {
@@ -90,25 +88,20 @@ unsigned int mmu_translate(struct microblaze_mmu *mmu,
 
         /* Lookup and decode.  */
         t = mmu->rams[RAM_TAG][i];
-        D(qemu_log("TLB %d valid=%" PRId64 "\n", i, t & TLB_VALID));
         if (t & TLB_VALID) {
             tlb_size = tlb_decode_size((t & TLB_PAGESZ_MASK) >> 7);
             if (tlb_size < TARGET_PAGE_SIZE) {
-                qemu_log("%d pages not supported\n", tlb_size);
+                qemu_log_mask(LOG_UNIMP, "%d pages not supported\n", tlb_size);
                 abort();
             }
 
             mask = ~((uint64_t)tlb_size - 1);
             tlb_tag = t & TLB_EPN_MASK;
             if ((vaddr & mask) != (tlb_tag & mask)) {
-                D(qemu_log("TLB %d vaddr=%" PRIx64 " != tag=%" PRIx64 "\n",
-                           i, vaddr & mask, tlb_tag & mask));
                 continue;
             }
             if (mmu->tids[i]
                 && ((mmu->regs[MMU_R_PID] & 0xff) != mmu->tids[i])) {
-                D(qemu_log("TLB %d pid=%x != tid=%x\n",
-                           i, mmu->regs[MMU_R_PID], mmu->tids[i]));
                 continue;
             }
 
@@ -123,7 +116,8 @@ unsigned int mmu_translate(struct microblaze_mmu *mmu,
             t0 &= 0x3;
 
             if (tlb_zsel > mmu->c_mmu_zones) {
-                qemu_log_mask(LOG_GUEST_ERROR, "tlb zone select out of range! %d\n", tlb_zsel);
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "tlb zone select out of range! %d\n", tlb_zsel);
                 t0 = 1; /* Ignore.  */
             }
 
@@ -174,8 +168,9 @@ unsigned int mmu_translate(struct microblaze_mmu *mmu,
         }
     }
 done:
-    D(qemu_log("MMU vaddr=%" PRIx64 " rw=%d tlb_wr=%d tlb_ex=%d hit=%d\n",
-              vaddr, rw, tlb_wr, tlb_ex, hit));
+    qemu_log_mask(CPU_LOG_MMU,
+                  "MMU vaddr=%" PRIx64 " rw=%d tlb_wr=%d tlb_ex=%d hit=%d\n",
+                  vaddr, rw, tlb_wr, tlb_ex, hit);
     return hit;
 }
 
@@ -199,7 +194,8 @@ uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
         case MMU_R_TLBLO:
         case MMU_R_TLBHI:
             if (!(env->mmu.c_mmu_tlb_access & 1)) {
-                qemu_log_mask(LOG_GUEST_ERROR, "Invalid access to MMU reg %d\n", rn);
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Invalid access to MMU reg %d\n", rn);
                 return 0;
             }
 
@@ -211,7 +207,8 @@ uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
         case MMU_R_PID:
         case MMU_R_ZPR:
             if (!(env->mmu.c_mmu_tlb_access & 1)) {
-                qemu_log_mask(LOG_GUEST_ERROR, "Invalid access to MMU reg %d\n", rn);
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Invalid access to MMU reg %d\n", rn);
                 return 0;
             }
             r = env->mmu.regs[rn];
@@ -226,7 +223,7 @@ uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
             qemu_log_mask(LOG_GUEST_ERROR, "Invalid MMU register %d.\n", rn);
             break;
     }
-    D(qemu_log("%s rn=%d=%x\n", __func__, rn, r));
+    qemu_log_mask(CPU_LOG_MMU, "%s rn=%d=%x\n", __func__, rn, r);
     return r;
 }
 
@@ -235,7 +232,8 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
     MicroBlazeCPU *cpu = mb_env_get_cpu(env);
     uint64_t tmp64;
     unsigned int i;
-    D(qemu_log("%s rn=%d=%x old=%x\n", __func__, rn, v, env->mmu.regs[rn]));
+    qemu_log_mask(CPU_LOG_MMU,
+                  "%s rn=%d=%x old=%x\n", __func__, rn, v, env->mmu.regs[rn]);
 
     if (env->mmu.c_mmu < 2 || !env->mmu.c_mmu_tlb_access) {
         qemu_log_mask(LOG_GUEST_ERROR, "MMU access on MMU-less system\n");
@@ -261,12 +259,11 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
             }
             tmp64 = env->mmu.rams[rn & 1][i];
             env->mmu.rams[rn & 1][i] = deposit64(tmp64, ext * 32, 32, v);
-
-            D(qemu_log("%s ram[%d][%d]=%x\n", __func__, rn & 1, i, v));
             break;
         case MMU_R_ZPR:
             if (env->mmu.c_mmu_tlb_access <= 1) {
-                qemu_log_mask(LOG_GUEST_ERROR, "Invalid access to MMU reg %d\n", rn);
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Invalid access to MMU reg %d\n", rn);
                 return;
             }
 
@@ -279,7 +276,8 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
             break;
         case MMU_R_PID:
             if (env->mmu.c_mmu_tlb_access <= 1) {
-                qemu_log_mask(LOG_GUEST_ERROR, "Invalid access to MMU reg %d\n", rn);
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Invalid access to MMU reg %d\n", rn);
                 return;
             }
 
@@ -298,7 +296,8 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
             int hit;
 
             if (env->mmu.c_mmu_tlb_access <= 1) {
-                qemu_log_mask(LOG_GUEST_ERROR, "Invalid access to MMU reg %d\n", rn);
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "Invalid access to MMU reg %d\n", rn);
                 return;
             }
 
