@@ -899,12 +899,7 @@ static inline void compute_ldst_addr(DisasContext *dc, bool ea, TCGv t)
     /* Immediate.  */
     t32 = tcg_temp_new_i32();
     if (!extimm) {
-        if (dc->imm == 0) {
-            tcg_gen_mov_i32(t32, cpu_R[dc->ra]);
-        } else {
-            tcg_gen_movi_i32(t32, (int32_t)((int16_t)dc->imm));
-            tcg_gen_add_i32(t32, cpu_R[dc->ra], t32);
-        }
+        tcg_gen_addi_i32(t32, cpu_R[dc->ra], (int16_t)dc->imm);
     } else {
         tcg_gen_add_i32(t32, cpu_R[dc->ra], *(dec_alu_op_b(dc)));
     }
