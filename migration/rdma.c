@@ -708,6 +708,9 @@ static int rdma_delete_block(RDMAContext *rdma, RDMALocalBlock *block)
             memcpy(local->block + block->index, old + (block->index + 1),
                 sizeof(RDMALocalBlock) *
                     (local->nb_blocks - (block->index + 1)));
+            for (x = block->index; x < local->nb_blocks - 1; x++) {
+                local->block[x].index--;
+            }
         }
     } else {
         assert(block == local->block);
@@ -3246,6 +3249,10 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
             qsort(rdma->local_ram_blocks.block,
                   rdma->local_ram_blocks.nb_blocks,
                   sizeof(RDMALocalBlock), dest_ram_sort_func);
+            for (i = 0; i < local->nb_blocks; i++) {
+                local->block[i].index = i;
+            }
+
             if (rdma->pin_all) {
                 ret = qemu_rdma_reg_whole_ram_blocks(rdma);
                 if (ret) {
