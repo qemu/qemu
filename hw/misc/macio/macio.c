@@ -32,6 +32,7 @@
 #include "hw/char/escc.h"
 #include "hw/misc/macio/macio.h"
 #include "hw/intc/heathrow_pic.h"
+#include "trace.h"
 
 /* Note: this code is strongly inspirated from the corresponding code
  * in PearPC */
@@ -246,6 +247,7 @@ static void macio_oldworld_init(Object *obj)
 static void timer_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
+    trace_macio_timer_write(addr, size, value);
 }
 
 static uint64_t timer_read(void *opaque, hwaddr addr, unsigned size)
@@ -266,6 +268,7 @@ static uint64_t timer_read(void *opaque, hwaddr addr, unsigned size)
         break;
     }
 
+    trace_macio_timer_read(addr, size, value);
     return value;
 }
 
