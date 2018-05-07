@@ -2484,7 +2484,7 @@ static void early_gtk_display_init(DisplayOptions *opts)
         if (GDK_IS_WAYLAND_DISPLAY(gdk_display_get_default())) {
             gtk_use_gl_area = true;
             gtk_gl_area_init();
-        }
+        } else
 #endif
         {
             gtk_egl_init();
