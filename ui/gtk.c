@@ -2478,7 +2478,11 @@ static void early_gtk_display_init(DisplayOptions *opts)
     }
 
     assert(opts->type == DISPLAY_TYPE_GTK);
-    if (opts->has_gl && opts->gl) {
+    if (opts->has_gl && opts->gl != DISPLAYGL_MODE_OFF) {
+        if (opts->gl == DISPLAYGL_MODE_ES) {
+            error_report("gtk: opengl es not supported");
+            return;
+        }
 #if defined(CONFIG_OPENGL)
 #if defined(CONFIG_GTK_GL) && defined(GDK_WINDOWING_WAYLAND)
         if (GDK_IS_WAYLAND_DISPLAY(gdk_display_get_default())) {
