@@ -82,6 +82,7 @@ VncJob *vnc_job_new(VncState *vs)
 {
     VncJob *job = g_new0(VncJob, 1);
 
+    assert(vs->magic == VNC_MAGIC);
     job->vs = vs;
     vnc_lock_queue(queue);
     QLIST_INIT(&job->rectangles);
@@ -214,6 +215,7 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
     /* Here job can only be NULL if queue->exit is true */
     job = QTAILQ_FIRST(&queue->jobs);
     vnc_unlock_queue(queue);
+    assert(job->vs->magic == VNC_MAGIC);
 
     if (queue->exit) {
         return -1;
@@ -236,6 +238,7 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
 
     /* Make a local copy of vs and switch output buffers */
     vnc_async_encoding_start(job->vs, &vs);
+    vs.magic = VNC_MAGIC;
 
     /* Start sending rectangles */
     n_rectangles = 0;
@@ -289,6 +292,7 @@ disconnected:
     vnc_unlock_queue(queue);
     qemu_cond_broadcast(&queue->cond);
     g_free(job);
+    vs.magic = 0;
     return 0;
 }
 
