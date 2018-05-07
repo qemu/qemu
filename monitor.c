@@ -3431,6 +3431,7 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
 {
     QDict *qdict;
     const mon_cmd_t *cmd;
+    const char *cmd_start = cmdline;
 
     trace_handle_hmp_command(mon, cmdline);
 
@@ -3447,8 +3448,11 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
 
     qdict = monitor_parse_arguments(mon, &cmdline, cmd);
     if (!qdict) {
-        monitor_printf(mon, "Try \"help %s\" for more information\n",
-                       cmd->name);
+        while (cmdline > cmd_start && qemu_isspace(cmdline[-1])) {
+            cmdline--;
+        }
+        monitor_printf(mon, "Try \"help %.*s\" for more information\n",
+                       (int)(cmdline - cmd_start), cmd_start);
         return;
     }
 
