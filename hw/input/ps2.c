@@ -232,6 +232,11 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
     uint16_t keycode = 0;
     int mod;
 
+    /* do not process events while disabled to prevent stream corruption */
+    if (!s->scan_enabled) {
+        return;
+    }
+
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     assert(evt->type == INPUT_EVENT_KIND_KEY);
     qcode = qemu_input_key_value_to_qcode(key->key);
@@ -673,6 +678,11 @@ static void ps2_mouse_sync(DeviceState *dev)
 {
     PS2MouseState *s = (PS2MouseState *)dev;
 
+    /* do not sync while disabled to prevent stream corruption */
+    if (!(s->mouse_status & MOUSE_STATUS_ENABLED)) {
+        return;
+    }
+
     if (s->mouse_buttons) {
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     }
@@ -776,6 +786,7 @@ void ps2_write_mouse(void *opaque, int val)
             s->mouse_resolution = 2;
             s->mouse_status = 0;
             s->mouse_type = 0;
+            ps2_reset_queue(&s->common);
             ps2_queue(&s->common, AUX_ACK);
             ps2_queue(&s->common, 0xaa);
             ps2_queue(&s->common, s->mouse_type);
