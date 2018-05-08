@@ -1987,6 +1987,7 @@ static SheepdogRedundancy *parse_redundancy_str(const char *opt)
     } else {
         ret = qemu_strtol(n2, NULL, 10, &parity);
         if (ret < 0) {
+            g_free(redundancy);
             return NULL;
         }
 
@@ -2183,7 +2184,7 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
     QDict *qdict, *location_qdict;
     QObject *crumpled;
     Visitor *v;
-    const char *redundancy;
+    char *redundancy;
     Error *local_err = NULL;
     int ret;
 
@@ -2253,6 +2254,7 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
 fail:
     qapi_free_BlockdevCreateOptions(create_options);
     qobject_unref(qdict);
+    g_free(redundancy);
     return ret;
 }
 
