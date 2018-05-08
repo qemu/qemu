@@ -101,14 +101,11 @@ echo
 # command to be received (after receiving the command, the rest runs
 # synchronously, so jobs can arbitrarily continue or complete).
 #
-# Jobs present while QEMU is terminating iterate once more due to
-# bdrv_drain_all().
-#
 # The buffer size for commit and streaming is 512k (waiting for 8 seconds after
 # the first request), for active commit and mirror it's large enough to cover
 # the full 4M, and for backup it's the qcow2 cluster size, which we know is
 # 64k. As all of these are at least as large as the speed, we are sure that the
-# offset advances exactly twice before qemu exits.
+# offset advances exactly once before qemu exits.
 
 _send_qemu_cmd $h \
     "{ 'execute': 'block-commit',

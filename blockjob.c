@@ -209,6 +209,18 @@ static void block_job_txn_del_job(BlockJob *job)
     }
 }
 
+/* Assumes the block_job_mutex is held */
+static bool block_job_timer_pending(BlockJob *job)
+{
+    return timer_pending(&job->sleep_timer);
+}
+
+/* Assumes the block_job_mutex is held */
+static bool block_job_timer_not_pending(BlockJob *job)
+{
+    return !block_job_timer_pending(job);
+}
+
 static void block_job_pause(BlockJob *job)
 {
     job->pause_count++;
@@ -221,7 +233,9 @@ static void block_job_resume(BlockJob *job)
     if (job->pause_count) {
         return;
     }
-    block_job_enter(job);
+
+    /* kick only if no timer is pending */
+    block_job_enter_cond(job, block_job_timer_not_pending);
 }
 
 void block_job_ref(BlockJob *job)
@@ -654,12 +668,6 @@ static void block_job_completed_txn_success(BlockJob *job)
     if (block_job_txn_apply(txn, block_job_needs_finalize, false) == 0) {
         block_job_do_finalize(job);
     }
-}
-
-/* Assumes the block_job_mutex is held */
-static bool block_job_timer_pending(BlockJob *job)
-{
-    return timer_pending(&job->sleep_timer);
 }
 
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
