@@ -122,9 +122,8 @@ static void rtas_ibm_query_pe_dma_window(PowerPCCPU *cpu,
     if (machine->ram_size == machine->maxram_size) {
         max_window_size = machine->ram_size;
     } else {
-        MemoryHotplugState *hpms = &spapr->hotplug_memory;
-
-        max_window_size = hpms->base + memory_region_size(&hpms->mr);
+        max_window_size = machine->device_memory->base +
+                          memory_region_size(&machine->device_memory->mr);
     }
 
     avail = SPAPR_PCI_DMA_MAX_WINDOWS - spapr_phb_get_active_win_num(sphb);

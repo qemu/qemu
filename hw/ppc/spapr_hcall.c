@@ -14,6 +14,7 @@
 #include "kvm_ppc.h"
 #include "hw/ppc/spapr_ovec.h"
 #include "mmu-book3s-v3.h"
+#include "hw/mem/memory-device.h"
 
 struct LPCRSyncState {
     target_ulong value;
@@ -66,13 +67,13 @@ static inline bool valid_ptex(PowerPCCPU *cpu, target_ulong ptex)
 static bool is_ram_address(sPAPRMachineState *spapr, hwaddr addr)
 {
     MachineState *machine = MACHINE(spapr);
-    MemoryHotplugState *hpms = &spapr->hotplug_memory;
+    DeviceMemoryState *dms = machine->device_memory;
 
     if (addr < machine->ram_size) {
         return true;
     }
-    if ((addr >= hpms->base)
-        && ((addr - hpms->base) < memory_region_size(&hpms->mr))) {
+    if ((addr >= dms->base)
+        && ((addr - dms->base) < memory_region_size(&dms->mr))) {
         return true;
     }
 

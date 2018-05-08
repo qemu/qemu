@@ -162,7 +162,6 @@ struct sPAPRMachineState {
 
     /*< public >*/
     char *kvm_type;
-    MemoryHotplugState hotplug_memory;
 
     const char *icp_type;
 
@@ -748,8 +747,8 @@ int spapr_rng_populate_dt(void *fdt);
  */
 #define SPAPR_MAX_RAM_SLOTS     32
 
-/* 1GB alignment for hotplug memory region */
-#define SPAPR_HOTPLUG_MEM_ALIGN (1ULL << 30)
+/* 1GB alignment for device memory region */
+#define SPAPR_DEVICE_MEM_ALIGN (1ULL << 30)
 
 /*
  * Number of 32 bit words in each LMB list entry in ibm,dynamic-memory

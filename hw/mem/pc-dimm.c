@@ -21,31 +21,32 @@
 #include "qemu/osdep.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/mem/memory-device.h"
 #include "qapi/error.h"
-#include "qemu/config-file.h"
 #include "qapi/visitor.h"
-#include "qemu/range.h"
 #include "sysemu/numa.h"
-#include "sysemu/kvm.h"
 #include "trace.h"
-#include "hw/virtio/vhost.h"
 
 typedef struct pc_dimms_capacity {
      uint64_t size;
      Error    **errp;
 } pc_dimms_capacity;
 
-void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
-                         MemoryRegion *mr, uint64_t align, Error **errp)
+void pc_dimm_memory_plug(DeviceState *dev, MachineState *machine,
+                         uint64_t align, Error **errp)
 {
     int slot;
-    MachineState *machine = MACHINE(qdev_get_machine());
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
     Error *local_err = NULL;
-    uint64_t existing_dimms_capacity = 0;
+    MemoryRegion *mr;
     uint64_t addr;
+
+    mr = ddc->get_memory_region(dimm, &local_err);
+    if (local_err) {
+        goto out;
+    }
 
     addr = object_property_get_uint(OBJECT(dimm),
                                     PC_DIMM_ADDR_PROP, &local_err);
@@ -53,25 +54,9 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
         goto out;
     }
 
-    addr = pc_dimm_get_free_addr(hpms->base,
-                                 memory_region_size(&hpms->mr),
-                                 !addr ? NULL : &addr, align,
-                                 memory_region_size(mr), &local_err);
+    addr = memory_device_get_free_addr(machine, !addr ? NULL : &addr, align,
+                                       memory_region_size(mr), &local_err);
     if (local_err) {
-        goto out;
-    }
-
-    existing_dimms_capacity = pc_existing_dimms_capacity(&local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    if (existing_dimms_capacity + memory_region_size(mr) >
-        machine->maxram_size - machine->ram_size) {
-        error_setg(&local_err, "not enough space, currently 0x%" PRIx64
-                   " in use of total hot pluggable 0x" RAM_ADDR_FMT,
-                   existing_dimms_capacity,
-                   machine->maxram_size - machine->ram_size);
         goto out;
     }
 
@@ -97,70 +82,22 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
     }
     trace_mhp_pc_dimm_assigned_slot(slot);
 
-    if (kvm_enabled() && !kvm_has_free_slot(machine)) {
-        error_setg(&local_err, "hypervisor has no free memory slots left");
-        goto out;
-    }
-
-    if (!vhost_has_free_slot()) {
-        error_setg(&local_err, "a used vhost backend has no free"
-                               " memory slots left");
-        goto out;
-    }
-
-    memory_region_add_subregion(&hpms->mr, addr - hpms->base, mr);
+    memory_device_plug_region(machine, mr, addr);
     vmstate_register_ram(vmstate_mr, dev);
 
 out:
     error_propagate(errp, local_err);
 }
 
-void pc_dimm_memory_unplug(DeviceState *dev, MemoryHotplugState *hpms,
-                           MemoryRegion *mr)
+void pc_dimm_memory_unplug(DeviceState *dev, MachineState *machine)
 {
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm);
+    MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
 
-    memory_region_del_subregion(&hpms->mr, mr);
+    memory_device_unplug_region(machine, mr);
     vmstate_unregister_ram(vmstate_mr, dev);
-}
-
-static int pc_existing_dimms_capacity_internal(Object *obj, void *opaque)
-{
-    pc_dimms_capacity *cap = opaque;
-    uint64_t *size = &cap->size;
-
-    if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
-        DeviceState *dev = DEVICE(obj);
-
-        if (dev->realized) {
-            (*size) += object_property_get_uint(obj, PC_DIMM_SIZE_PROP,
-                cap->errp);
-        }
-
-        if (cap->errp && *cap->errp) {
-            return 1;
-        }
-    }
-    object_child_foreach(obj, pc_existing_dimms_capacity_internal, opaque);
-    return 0;
-}
-
-uint64_t pc_existing_dimms_capacity(Error **errp)
-{
-    pc_dimms_capacity cap;
-
-    cap.size = 0;
-    cap.errp = errp;
-
-    pc_existing_dimms_capacity_internal(qdev_get_machine(), &cap);
-    return cap.size;
-}
-
-uint64_t get_plugged_memory_size(void)
-{
-    return pc_existing_dimms_capacity(&error_abort);
 }
 
 static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
@@ -207,158 +144,6 @@ int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp)
 out:
     g_free(bitmap);
     return slot;
-}
-
-static gint pc_dimm_addr_sort(gconstpointer a, gconstpointer b)
-{
-    PCDIMMDevice *x = PC_DIMM(a);
-    PCDIMMDevice *y = PC_DIMM(b);
-    Int128 diff = int128_sub(int128_make64(x->addr), int128_make64(y->addr));
-
-    if (int128_lt(diff, int128_zero())) {
-        return -1;
-    } else if (int128_gt(diff, int128_zero())) {
-        return 1;
-    }
-    return 0;
-}
-
-static int pc_dimm_built_list(Object *obj, void *opaque)
-{
-    GSList **list = opaque;
-
-    if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
-        DeviceState *dev = DEVICE(obj);
-        if (dev->realized) { /* only realized DIMMs matter */
-            *list = g_slist_insert_sorted(*list, dev, pc_dimm_addr_sort);
-        }
-    }
-
-    object_child_foreach(obj, pc_dimm_built_list, opaque);
-    return 0;
-}
-
-MemoryDeviceInfoList *qmp_pc_dimm_device_list(void)
-{
-    GSList *dimms = NULL, *item;
-    MemoryDeviceInfoList *list = NULL, *prev = NULL;
-
-    object_child_foreach(qdev_get_machine(), pc_dimm_built_list, &dimms);
-
-    for (item = dimms; item; item = g_slist_next(item)) {
-        PCDIMMDevice *dimm = PC_DIMM(item->data);
-        Object *obj = OBJECT(dimm);
-        MemoryDeviceInfoList *elem = g_new0(MemoryDeviceInfoList, 1);
-        MemoryDeviceInfo *info = g_new0(MemoryDeviceInfo, 1);
-        PCDIMMDeviceInfo *di = g_new0(PCDIMMDeviceInfo, 1);
-        bool is_nvdimm = object_dynamic_cast(obj, TYPE_NVDIMM);
-        DeviceClass *dc = DEVICE_GET_CLASS(obj);
-        DeviceState *dev = DEVICE(obj);
-
-        if (dev->id) {
-            di->has_id = true;
-            di->id = g_strdup(dev->id);
-        }
-        di->hotplugged = dev->hotplugged;
-        di->hotpluggable = dc->hotpluggable;
-        di->addr = dimm->addr;
-        di->slot = dimm->slot;
-        di->node = dimm->node;
-        di->size = object_property_get_uint(obj, PC_DIMM_SIZE_PROP, NULL);
-        di->memdev = object_get_canonical_path(OBJECT(dimm->hostmem));
-
-        if (!is_nvdimm) {
-            info->u.dimm.data = di;
-            info->type = MEMORY_DEVICE_INFO_KIND_DIMM;
-        } else {
-            info->u.nvdimm.data = di;
-            info->type = MEMORY_DEVICE_INFO_KIND_NVDIMM;
-        }
-        elem->value = info;
-        elem->next = NULL;
-        if (prev) {
-            prev->next = elem;
-        } else {
-            list = elem;
-        }
-        prev = elem;
-    }
-
-    g_slist_free(dimms);
-
-    return list;
-}
-
-uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
-                               uint64_t address_space_size,
-                               uint64_t *hint, uint64_t align, uint64_t size,
-                               Error **errp)
-{
-    GSList *list = NULL, *item;
-    uint64_t new_addr, ret = 0;
-    uint64_t address_space_end = address_space_start + address_space_size;
-
-    g_assert(QEMU_ALIGN_UP(address_space_start, align) == address_space_start);
-
-    if (!address_space_size) {
-        error_setg(errp, "memory hotplug is not enabled, "
-                         "please add maxmem option");
-        goto out;
-    }
-
-    if (hint && QEMU_ALIGN_UP(*hint, align) != *hint) {
-        error_setg(errp, "address must be aligned to 0x%" PRIx64 " bytes",
-                   align);
-        goto out;
-    }
-
-    if (QEMU_ALIGN_UP(size, align) != size) {
-        error_setg(errp, "backend memory size must be multiple of 0x%"
-                   PRIx64, align);
-        goto out;
-    }
-
-    assert(address_space_end > address_space_start);
-    object_child_foreach(qdev_get_machine(), pc_dimm_built_list, &list);
-
-    if (hint) {
-        new_addr = *hint;
-    } else {
-        new_addr = address_space_start;
-    }
-
-    /* find address range that will fit new DIMM */
-    for (item = list; item; item = g_slist_next(item)) {
-        PCDIMMDevice *dimm = item->data;
-        uint64_t dimm_size = object_property_get_uint(OBJECT(dimm),
-                                                      PC_DIMM_SIZE_PROP,
-                                                      errp);
-        if (errp && *errp) {
-            goto out;
-        }
-
-        if (ranges_overlap(dimm->addr, dimm_size, new_addr, size)) {
-            if (hint) {
-                DeviceState *d = DEVICE(dimm);
-                error_setg(errp, "address range conflicts with '%s'", d->id);
-                goto out;
-            }
-            new_addr = QEMU_ALIGN_UP(dimm->addr + dimm_size, align);
-        }
-    }
-    ret = new_addr;
-
-    if (new_addr < address_space_start) {
-        error_setg(errp, "can't add memory [0x%" PRIx64 ":0x%" PRIx64
-                   "] at 0x%" PRIx64, new_addr, size, address_space_start);
-    } else if ((new_addr + size) > address_space_end) {
-        error_setg(errp, "can't add memory [0x%" PRIx64 ":0x%" PRIx64
-                   "] beyond 0x%" PRIx64, new_addr, size, address_space_end);
-    }
-
-out:
-    g_slist_free(list);
-    return ret;
 }
 
 static Property pc_dimm_properties[] = {
@@ -445,10 +230,63 @@ static MemoryRegion *pc_dimm_get_vmstate_memory_region(PCDIMMDevice *dimm)
     return host_memory_backend_get_memory(dimm->hostmem, &error_abort);
 }
 
+static uint64_t pc_dimm_md_get_addr(const MemoryDeviceState *md)
+{
+    const PCDIMMDevice *dimm = PC_DIMM(md);
+
+    return dimm->addr;
+}
+
+static uint64_t pc_dimm_md_get_region_size(const MemoryDeviceState *md)
+{
+    /* dropping const here is fine as we don't touch the memory region */
+    PCDIMMDevice *dimm = PC_DIMM(md);
+    const PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(md);
+    MemoryRegion *mr;
+
+    mr = ddc->get_memory_region(dimm, &error_abort);
+    if (!mr) {
+        return 0;
+    }
+
+    return memory_region_size(mr);
+}
+
+static void pc_dimm_md_fill_device_info(const MemoryDeviceState *md,
+                                        MemoryDeviceInfo *info)
+{
+    PCDIMMDeviceInfo *di = g_new0(PCDIMMDeviceInfo, 1);
+    const DeviceClass *dc = DEVICE_GET_CLASS(md);
+    const PCDIMMDevice *dimm = PC_DIMM(md);
+    const DeviceState *dev = DEVICE(md);
+
+    if (dev->id) {
+        di->has_id = true;
+        di->id = g_strdup(dev->id);
+    }
+    di->hotplugged = dev->hotplugged;
+    di->hotpluggable = dc->hotpluggable;
+    di->addr = dimm->addr;
+    di->slot = dimm->slot;
+    di->node = dimm->node;
+    di->size = object_property_get_uint(OBJECT(dimm), PC_DIMM_SIZE_PROP,
+                                        NULL);
+    di->memdev = object_get_canonical_path(OBJECT(dimm->hostmem));
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
+        info->u.nvdimm.data = di;
+        info->type = MEMORY_DEVICE_INFO_KIND_NVDIMM;
+    } else {
+        info->u.dimm.data = di;
+        info->type = MEMORY_DEVICE_INFO_KIND_DIMM;
+    }
+}
+
 static void pc_dimm_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCDIMMDeviceClass *ddc = PC_DIMM_CLASS(oc);
+    MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(oc);
 
     dc->realize = pc_dimm_realize;
     dc->unrealize = pc_dimm_unrealize;
@@ -457,6 +295,12 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
 
     ddc->get_memory_region = pc_dimm_get_memory_region;
     ddc->get_vmstate_memory_region = pc_dimm_get_vmstate_memory_region;
+
+    mdc->get_addr = pc_dimm_md_get_addr;
+    /* for a dimm plugged_size == region_size */
+    mdc->get_plugged_size = pc_dimm_md_get_region_size;
+    mdc->get_region_size = pc_dimm_md_get_region_size;
+    mdc->fill_device_info = pc_dimm_md_fill_device_info;
 }
 
 static TypeInfo pc_dimm_info = {
@@ -466,6 +310,10 @@ static TypeInfo pc_dimm_info = {
     .instance_init = pc_dimm_init,
     .class_init    = pc_dimm_class_init,
     .class_size    = sizeof(PCDIMMDeviceClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_MEMORY_DEVICE },
+        { }
+    },
 };
 
 static void pc_dimm_register_types(void)
