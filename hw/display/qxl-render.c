@@ -169,7 +169,8 @@ void qxl_render_update(PCIQXLDevice *qxl)
 
     qemu_mutex_lock(&qxl->ssd.lock);
 
-    if (!runstate_is_running() || !qxl->guest_primary.commands) {
+    if (!runstate_is_running() || !qxl->guest_primary.commands ||
+        qxl->mode == QXL_MODE_UNDEFINED) {
         qxl_render_update_area_unlocked(qxl);
         qemu_mutex_unlock(&qxl->ssd.lock);
         return;
