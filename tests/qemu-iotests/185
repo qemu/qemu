@@ -118,6 +118,9 @@ _send_qemu_cmd $h \
                       'speed': 65536 } }" \
     "return"
 
+# If we don't sleep here 'quit' command races with disk I/O
+sleep 0.5
+
 _send_qemu_cmd $h "{ 'execute': 'quit' }" "return"
 wait=1 _cleanup_qemu
 
@@ -136,6 +139,9 @@ _send_qemu_cmd $h \
                       'base':'$TEST_IMG.base',
                       'speed': 65536 } }" \
     "return"
+
+# If we don't sleep here 'quit' command races with disk I/O
+sleep 0.5
 
 _send_qemu_cmd $h "{ 'execute': 'quit' }" "return"
 wait=1 _cleanup_qemu
@@ -183,6 +189,9 @@ _send_qemu_cmd $h \
                       'speed': 65536 } }" \
     "return"
 
+# If we don't sleep here 'quit' command races with disk I/O
+sleep 0.5
+
 _send_qemu_cmd $h "{ 'execute': 'quit' }" "return"
 wait=1 _cleanup_qemu
 
@@ -200,6 +209,9 @@ _send_qemu_cmd $h \
        'arguments': { 'device': 'disk',
                       'speed': 65536 } }" \
     "return"
+
+# If we don't sleep here 'quit' command races with disk I/O
+sleep 0.5
 
 _send_qemu_cmd $h "{ 'execute': 'quit' }" "return"
 wait=1 _cleanup_qemu
