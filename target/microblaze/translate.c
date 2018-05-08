@@ -1171,12 +1171,16 @@ static inline void eval_cc(DisasContext *dc, unsigned int cc,
 
 static void eval_cond_jmp(DisasContext *dc, TCGv_i64 pc_true, TCGv_i64 pc_false)
 {
-    TCGLabel *l1 = gen_new_label();
-    /* Conditional jmp.  */
-    tcg_gen_mov_i64(cpu_SR[SR_PC], pc_false);
-    tcg_gen_brcondi_i32(TCG_COND_EQ, env_btaken, 0, l1);
-    tcg_gen_mov_i64(cpu_SR[SR_PC], pc_true);
-    gen_set_label(l1);
+    TCGv_i64 tmp_btaken = tcg_temp_new_i64();
+    TCGv_i64 tmp_zero = tcg_const_i64(0);
+
+    tcg_gen_extu_i32_i64(tmp_btaken, env_btaken);
+    tcg_gen_movcond_i64(TCG_COND_NE, cpu_SR[SR_PC],
+                        tmp_btaken, tmp_zero,
+                        pc_true, pc_false);
+
+    tcg_temp_free_i64(tmp_btaken);
+    tcg_temp_free_i64(tmp_zero);
 }
 
 static void dec_bcc(DisasContext *dc)
