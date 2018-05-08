@@ -63,7 +63,7 @@ class BaseClass(iotests.QMPTestCase):
                     'driver': iotests.imgfmt,
                     'file': {'driver': 'file',
                              'filename': source_img}}
-        self.vm.add_blockdev(self.qmp_to_opts(blockdev))
+        self.vm.add_blockdev(self.vm.qmp_to_opts(blockdev))
         self.vm.add_device('virtio-blk,id=qdev0,drive=source')
         self.vm.launch()
 

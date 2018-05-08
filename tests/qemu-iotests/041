@@ -1030,9 +1030,9 @@ class TestOrphanedSource(iotests.QMPTestCase):
                  'read-only': 'on' }
 
         self.vm = iotests.VM()
-        self.vm.add_blockdev(self.qmp_to_opts(blk0))
-        self.vm.add_blockdev(self.qmp_to_opts(blk1))
-        self.vm.add_blockdev(self.qmp_to_opts(blk2))
+        self.vm.add_blockdev(self.vm.qmp_to_opts(blk0))
+        self.vm.add_blockdev(self.vm.qmp_to_opts(blk1))
+        self.vm.add_blockdev(self.vm.qmp_to_opts(blk2))
         self.vm.launch()
 
     def tearDown(self):
