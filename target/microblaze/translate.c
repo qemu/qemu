@@ -1143,7 +1143,7 @@ static void dec_store(DisasContext *dc)
 }
 
 static inline void eval_cc(DisasContext *dc, unsigned int cc,
-                           TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+                           TCGv_i32 d, TCGv_i32 a)
 {
     static const int mb_to_tcg_cc[] = {
         [CC_EQ] = TCG_COND_EQ,
@@ -1161,7 +1161,7 @@ static inline void eval_cc(DisasContext *dc, unsigned int cc,
     case CC_LE:
     case CC_GE:
     case CC_GT:
-        tcg_gen_setcond_i32(mb_to_tcg_cc[cc], d, a, b);
+        tcg_gen_setcondi_i32(mb_to_tcg_cc[cc], d, a, 0);
         break;
     default:
         cpu_abort(CPU(dc->cpu), "Unknown condition code %x.\n", cc);
@@ -1207,7 +1207,7 @@ static void dec_bcc(DisasContext *dc)
         tcg_gen_movi_i32(env_btarget, dc->pc);
         tcg_gen_add_i32(env_btarget, env_btarget, *(dec_alu_op_b(dc)));
     }
-    eval_cc(dc, cc, env_btaken, cpu_R[dc->ra], tcg_const_i32(0));
+    eval_cc(dc, cc, env_btaken, cpu_R[dc->ra]);
 }
 
 static void dec_br(DisasContext *dc)
