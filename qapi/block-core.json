@@ -1172,6 +1172,9 @@
 # @auto-dismiss: Job will dismiss itself when CONCLUDED, moving to the NULL
 #                state and disappearing from the query list. (since 2.12)
 #
+# @error: Error information if the job did not complete successfully.
+#         Not set if the job completed successfully. (since 2.12.1)
+#
 # Since: 1.1
 ##
 { 'struct': 'BlockJobInfo',
@@ -1179,7 +1182,8 @@
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
            'io-status': 'BlockDeviceIoStatus', 'ready': 'bool',
            'status': 'BlockJobStatus',
-           'auto-finalize': 'bool', 'auto-dismiss': 'bool' } }
+           'auto-finalize': 'bool', 'auto-dismiss': 'bool',
+           '*error': 'str' } }
 
 ##
 # @query-block-jobs:
