@@ -866,6 +866,7 @@ void tcg_func_start(TCGContext *s)
     /* No temps have been previously allocated for size or locality.  */
     memset(s->free_temps, 0, sizeof(s->free_temps));
 
+    s->nb_ops = 0;
     s->nb_labels = 0;
     s->current_frame_offset = s->frame_start;
 
@@ -1956,6 +1957,7 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
 {
     QTAILQ_REMOVE(&s->ops, op, link);
     QTAILQ_INSERT_TAIL(&s->free_ops, op, link);
+    s->nb_ops--;
 
 #ifdef CONFIG_PROFILER
     atomic_set(&s->prof.del_op_count, s->prof.del_op_count + 1);
@@ -1975,6 +1977,7 @@ static TCGOp *tcg_op_alloc(TCGOpcode opc)
     }
     memset(op, 0, offsetof(TCGOp, link));
     op->opc = opc;
+    s->nb_ops++;
 
     return op;
 }
