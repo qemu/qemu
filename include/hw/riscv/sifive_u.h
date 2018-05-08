@@ -19,11 +19,6 @@
 #ifndef HW_SIFIVE_U_H
 #define HW_SIFIVE_U_H
 
-#define TYPE_SIFIVE_U "riscv.sifive_u"
-
-#define SIFIVE_U(obj) \
-    OBJECT_CHECK(SiFiveUState, (obj), TYPE_SIFIVE_U)
-
 typedef struct SiFiveUState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -48,6 +43,10 @@ enum {
 enum {
     SIFIVE_U_UART0_IRQ = 3,
     SIFIVE_U_UART1_IRQ = 4
+};
+
+enum {
+    SIFIVE_U_CLOCK_FREQ = 1000000000
 };
 
 #define SIFIVE_U_PLIC_HART_CONFIG "MS"

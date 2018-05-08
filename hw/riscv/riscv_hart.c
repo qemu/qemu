@@ -68,16 +68,10 @@ static void riscv_harts_class_init(ObjectClass *klass, void *data)
     dc->realize = riscv_harts_realize;
 }
 
-static void riscv_harts_init(Object *obj)
-{
-    /* RISCVHartArrayState *s = SIFIVE_COREPLEX(obj); */
-}
-
 static const TypeInfo riscv_harts_info = {
     .name          = TYPE_RISCV_HART_ARRAY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RISCVHartArrayState),
-    .instance_init = riscv_harts_init,
     .class_init    = riscv_harts_class_init,
 };
 

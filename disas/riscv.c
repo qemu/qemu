@@ -1470,8 +1470,9 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             if (isa == rv128) {
                 op = rv_op_c_sqsp;
             } else {
-                op = rv_op_c_fsdsp; break;
+                op = rv_op_c_fsdsp;
             }
+            break;
         case 6: op = rv_op_c_swsp; break;
         case 7:
             if (isa == rv32) {
@@ -2769,25 +2770,6 @@ static void format_inst(char *buf, size_t buflen, size_t tab, rv_decode *dec)
     char tmp[64];
     const char *fmt;
 
-    if (dec->op == rv_op_illegal) {
-        size_t len = inst_length(dec->inst);
-        switch (len) {
-        case 2:
-            snprintf(buf, buflen, "(0x%04" PRIx64 ")", dec->inst);
-            break;
-        case 4:
-            snprintf(buf, buflen, "(0x%08" PRIx64 ")", dec->inst);
-            break;
-        case 6:
-            snprintf(buf, buflen, "(0x%012" PRIx64 ")", dec->inst);
-            break;
-        default:
-            snprintf(buf, buflen, "(0x%016" PRIx64 ")", dec->inst);
-            break;
-        }
-        return;
-    }
-
     fmt = opcode_data[dec->op].format;
     while (*fmt) {
         switch (*fmt) {
@@ -3004,6 +2986,11 @@ disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst)
     format_inst(buf, buflen, 16, &dec);
 }
 
+#define INST_FMT_2 "%04" PRIx64 "              "
+#define INST_FMT_4 "%08" PRIx64 "          "
+#define INST_FMT_6 "%012" PRIx64 "      "
+#define INST_FMT_8 "%016" PRIx64 "  "
+
 static int
 print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
 {
@@ -3029,6 +3016,21 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
         if (n == 0) {
             len = inst_length(inst);
         }
+    }
+
+    switch (len) {
+    case 2:
+        (*info->fprintf_func)(info->stream, INST_FMT_2, inst);
+        break;
+    case 4:
+        (*info->fprintf_func)(info->stream, INST_FMT_4, inst);
+        break;
+    case 6:
+        (*info->fprintf_func)(info->stream, INST_FMT_6, inst);
+        break;
+    default:
+        (*info->fprintf_func)(info->stream, INST_FMT_8, inst);
+        break;
     }
 
     disasm_inst(buf, sizeof(buf), isa, memaddr, inst);

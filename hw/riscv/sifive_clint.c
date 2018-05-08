@@ -26,13 +26,10 @@
 #include "hw/riscv/sifive_clint.h"
 #include "qemu/timer.h"
 
-/* See: riscv-pk/machine/sbi_entry.S and arch/riscv/kernel/time.c */
-#define TIMER_FREQ (10 * 1000 * 1000)
-
 static uint64_t cpu_riscv_read_rtc(void)
 {
-    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), TIMER_FREQ,
-                    NANOSECONDS_PER_SECOND);
+    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+        SIFIVE_CLINT_TIMEBASE_FREQ, NANOSECONDS_PER_SECOND);
 }
 
 /*
@@ -59,7 +56,7 @@ static void sifive_clint_write_timecmp(RISCVCPU *cpu, uint64_t value)
     diff = cpu->env.timecmp - rtc_r;
     /* back to ns (note args switched in muldiv64) */
     next = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-        muldiv64(diff, NANOSECONDS_PER_SECOND, TIMER_FREQ);
+        muldiv64(diff, NANOSECONDS_PER_SECOND, SIFIVE_CLINT_TIMEBASE_FREQ);
     timer_mod(cpu->env.timer, next);
 }
 

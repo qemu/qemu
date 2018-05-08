@@ -34,7 +34,6 @@
 
 #define TCG_GUEST_DEFAULT_MO 0
 
-#define ELF_MACHINE EM_RISCV
 #define CPUArchState struct CPURISCVState
 
 #include "qemu-common.h"
@@ -72,6 +71,7 @@
 #define RV(x) ((target_ulong)1 << (x - 'A'))
 
 #define RVI RV('I')
+#define RVE RV('E') /* E and I are mutually exclusive */
 #define RVM RV('M')
 #define RVA RV('A')
 #define RVF RV('F')
@@ -151,10 +151,8 @@ struct CPURISCVState {
     target_ulong mcause;
     target_ulong mtval;  /* since: priv-1.10.0 */
 
-    uint32_t mucounteren;
-    uint32_t mscounteren;
-    target_ulong scounteren; /* since: priv-1.10.0 */
-    target_ulong mcounteren; /* since: priv-1.10.0 */
+    target_ulong scounteren;
+    target_ulong mcounteren;
 
     target_ulong sscratch;
     target_ulong mscratch;

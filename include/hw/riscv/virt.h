@@ -1,5 +1,5 @@
 /*
- * SiFive VirtIO Board
+ * QEMU RISC-V VirtIO machine interface
  *
  * Copyright (c) 2017 SiFive, Inc.
  *
@@ -16,14 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_VIRT_H
-#define HW_VIRT_H
-
-#define TYPE_RISCV_VIRT_BOARD "riscv.virt"
-#define VIRT(obj) \
-    OBJECT_CHECK(RISCVVirtState, (obj), TYPE_RISCV_VIRT_BOARD)
-
-enum { ROM_BASE = 0x1000 };
+#ifndef HW_RISCV_VIRT_H
+#define HW_RISCV_VIRT_H
 
 typedef struct {
     /*< private >*/
@@ -47,12 +41,15 @@ enum {
     VIRT_DRAM
 };
 
-
 enum {
     UART0_IRQ = 10,
     VIRTIO_IRQ = 1, /* 1 to 8 */
     VIRTIO_COUNT = 8,
     VIRTIO_NDEV = 10
+};
+
+enum {
+    VIRT_CLOCK_FREQ = 1000000000
 };
 
 #define VIRT_PLIC_HART_CONFIG "MS"
