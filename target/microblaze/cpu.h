@@ -239,7 +239,7 @@ typedef struct CPUMBState CPUMBState;
 struct CPUMBState {
     uint32_t debug;
     uint32_t btaken;
-    uint32_t btarget;
+    uint64_t btarget;
     uint32_t bimm;
 
     uint32_t imm;
