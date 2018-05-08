@@ -831,6 +831,8 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->status    = job->status;
     info->auto_finalize = job->auto_finalize;
     info->auto_dismiss  = job->auto_dismiss;
+    info->has_error = job->ret != 0;
+    info->error     = job->ret ? g_strdup(strerror(-job->ret)) : NULL;
     return info;
 }
 
