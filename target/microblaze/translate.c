@@ -1145,28 +1145,27 @@ static void dec_store(DisasContext *dc)
 static inline void eval_cc(DisasContext *dc, unsigned int cc,
                            TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
+    static const int mb_to_tcg_cc[] = {
+        [CC_EQ] = TCG_COND_EQ,
+        [CC_NE] = TCG_COND_NE,
+        [CC_LT] = TCG_COND_LT,
+        [CC_LE] = TCG_COND_LE,
+        [CC_GE] = TCG_COND_GE,
+        [CC_GT] = TCG_COND_GT,
+    };
+
     switch (cc) {
-        case CC_EQ:
-            tcg_gen_setcond_i32(TCG_COND_EQ, d, a, b);
-            break;
-        case CC_NE:
-            tcg_gen_setcond_i32(TCG_COND_NE, d, a, b);
-            break;
-        case CC_LT:
-            tcg_gen_setcond_i32(TCG_COND_LT, d, a, b);
-            break;
-        case CC_LE:
-            tcg_gen_setcond_i32(TCG_COND_LE, d, a, b);
-            break;
-        case CC_GE:
-            tcg_gen_setcond_i32(TCG_COND_GE, d, a, b);
-            break;
-        case CC_GT:
-            tcg_gen_setcond_i32(TCG_COND_GT, d, a, b);
-            break;
-        default:
-            cpu_abort(CPU(dc->cpu), "Unknown condition code %x.\n", cc);
-            break;
+    case CC_EQ:
+    case CC_NE:
+    case CC_LT:
+    case CC_LE:
+    case CC_GE:
+    case CC_GT:
+        tcg_gen_setcond_i32(mb_to_tcg_cc[cc], d, a, b);
+        break;
+    default:
+        cpu_abort(CPU(dc->cpu), "Unknown condition code %x.\n", cc);
+        break;
     }
 }
 
