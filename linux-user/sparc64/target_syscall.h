@@ -12,7 +12,7 @@ struct target_pt_regs {
 	abi_ulong fprs;
 };
 
-#define UNAME_MACHINE "sun4u"
+#define UNAME_MACHINE "sparc64"
 #define UNAME_MINIMUM_RELEASE "2.6.32"
 
 /* SPARC kernels don't define this in their Kconfig, but they have the
