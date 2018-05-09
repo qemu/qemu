@@ -29,9 +29,14 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	_cleanup_test_img
-	rm -f "$TEST_DIR/t.$IMGFMT.base_old"
-	rm -f "$TEST_DIR/t.$IMGFMT.base_new"
+    _cleanup_test_img
+    rm -f "$TEST_DIR/t.$IMGFMT.base_old"
+    rm -f "$TEST_DIR/t.$IMGFMT.base_new"
+
+    rm -f "$TEST_DIR/subdir/t.$IMGFMT"
+    rm -f "$TEST_DIR/subdir/t.$IMGFMT.base_old"
+    rm -f "$TEST_DIR/subdir/t.$IMGFMT.base_new"
+    rmdir "$TEST_DIR/subdir" 2> /dev/null
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -122,6 +127,77 @@ io_pattern readv $((12 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
 io_pattern readv $((13 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
 io_pattern readv $((14 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
 io_pattern readv $((15 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+
+echo
+echo "=== Test rebase in a subdirectory of the working directory ==="
+echo
+
+# Clean up the old images beforehand so they do not interfere with
+# this test
+_cleanup
+
+mkdir "$TEST_DIR/subdir"
+
+# Relative to the overlay
+BASE_OLD_OREL="t.$IMGFMT.base_old"
+BASE_NEW_OREL="t.$IMGFMT.base_new"
+
+# Relative to $TEST_DIR (which is going to be our working directory)
+OVERLAY_WREL="subdir/t.$IMGFMT"
+
+BASE_OLD="$TEST_DIR/subdir/$BASE_OLD_OREL"
+BASE_NEW="$TEST_DIR/subdir/$BASE_NEW_OREL"
+OVERLAY="$TEST_DIR/$OVERLAY_WREL"
+
+# Test done here:
+#
+# Backing (old): 11 11 -- 11
+# Backing (new): -- 22 22 11
+# Overlay:       -- -- -- --
+#
+# Rebasing works, we have verified that above.  Here, we just want to
+# see that rebasing is done for the correct target backing file.
+
+TEST_IMG=$BASE_OLD _make_test_img 1M
+TEST_IMG=$BASE_NEW _make_test_img 1M
+TEST_IMG=$OVERLAY _make_test_img -b "$BASE_OLD_OREL" 1M
+
+echo
+
+$QEMU_IO "$BASE_OLD" \
+    -c "write -P 0x11 $((0 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "write -P 0x11 $((3 * CLUSTER_SIZE)) $((1 * CLUSTER_SIZE))" \
+    | _filter_qemu_io
+
+$QEMU_IO "$BASE_NEW" \
+    -c "write -P 0x22 $((1 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "write -P 0x11 $((3 * CLUSTER_SIZE)) $((1 * CLUSTER_SIZE))" \
+    | _filter_qemu_io
+
+echo
+
+pushd "$TEST_DIR" >/dev/null
+$QEMU_IMG rebase -f "$IMGFMT" -b "$BASE_NEW_OREL" "$OVERLAY_WREL"
+popd >/dev/null
+
+# Verify the backing path is correct
+TEST_IMG=$OVERLAY _img_info | grep '^backing file'
+
+echo
+
+# Verify the data is correct
+$QEMU_IO "$OVERLAY" \
+    -c "read -P 0x11 $((0 * CLUSTER_SIZE)) $CLUSTER_SIZE" \
+    -c "read -P 0x11 $((1 * CLUSTER_SIZE)) $CLUSTER_SIZE" \
+    -c "read -P 0x00 $((2 * CLUSTER_SIZE)) $CLUSTER_SIZE" \
+    -c "read -P 0x11 $((3 * CLUSTER_SIZE)) $CLUSTER_SIZE" \
+    | _filter_qemu_io
+
+echo
+
+# Verify that cluster #3 is not allocated (because it is the same in
+# $BASE_OLD and $BASE_NEW)
+$QEMU_IMG map "$OVERLAY" | _filter_qemu_img_map
 
 
 # success, all done
