@@ -97,6 +97,9 @@ run_qemu_img create -f $IMGFMT -o backing_file="$TEST_IMG" -o ,, -o help "$TEST_
 run_qemu_img create -f $IMGFMT -o help
 run_qemu_img create -o help
 
+# Try help option for a format that does not support creation
+run_qemu_img create -f bochs -o help
+
 echo
 echo === convert: Options specified more than once ===
 
@@ -151,6 +154,9 @@ run_qemu_img convert -O $IMGFMT -o backing_file="$TEST_IMG" -o ,, -o help "$TEST
 run_qemu_img convert -O $IMGFMT -o help
 run_qemu_img convert -o help
 
+# Try help option for a format that does not support creation
+run_qemu_img convert -O bochs -o help
+
 echo
 echo === amend: Options specified more than once ===
 
@@ -200,6 +206,9 @@ run_qemu_img amend -f $IMGFMT -o backing_file="$TEST_IMG" -o ,, -o help "$TEST_I
 # Leave out everything that isn't needed
 run_qemu_img amend -f $IMGFMT -o help
 run_qemu_img convert -o help
+
+# Try help option for a format that does not support amendment
+run_qemu_img amend -f bochs -o help
 
 # success, all done
 echo "*** done"

@@ -249,6 +249,9 @@ Testing: create -o help
 Supported options:
 size             Virtual disk size
 
+Testing: create -f bochs -o help
+qemu-img: Format driver 'bochs' does not support image creation
+
 === convert: Options specified more than once ===
 
 Testing: create -f qcow2 TEST_DIR/t.qcow2 128M
@@ -501,6 +504,9 @@ refcount_bits    Width of a reference count entry in bits
 Testing: convert -o help
 Supported options:
 size             Virtual disk size
+
+Testing: convert -O bochs -o help
+qemu-img: Format driver 'bochs' does not support image creation
 
 === amend: Options specified more than once ===
 
@@ -763,4 +769,7 @@ Note that not all of these options may be amendable.
 Testing: convert -o help
 Supported options:
 size             Virtual disk size
+
+Testing: amend -f bochs -o help
+qemu-img: Format driver 'bochs' does not support option amendment
 *** done
