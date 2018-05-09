@@ -249,12 +249,22 @@ static int print_block_option_help(const char *filename, const char *fmt)
         return 1;
     }
 
+    if (!drv->create_opts) {
+        error_report("Format driver '%s' does not support image creation", fmt);
+        return 1;
+    }
+
     create_opts = qemu_opts_append(create_opts, drv->create_opts);
     if (filename) {
         proto_drv = bdrv_find_protocol(filename, true, &local_err);
         if (!proto_drv) {
             error_report_err(local_err);
             qemu_opts_free(create_opts);
+            return 1;
+        }
+        if (!proto_drv->create_opts) {
+            error_report("Protocal driver '%s' does not support image creation",
+                         proto_drv->format_name);
             return 1;
         }
         create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
