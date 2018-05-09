@@ -1,6 +1,8 @@
 #ifndef SPARC_TARGET_SYSCALL_H
 #define SPARC_TARGET_SYSCALL_H
 
+#include "target_errno.h"
+
 struct target_pt_regs {
 	abi_ulong psr;
 	abi_ulong pc;
