@@ -400,17 +400,21 @@ static void prep_fetchline(void *opaque)
     *fetchable= 1;
 }
 
-static void command_loop(void)
+static int command_loop(void)
 {
     int i, fetchable = 0, prompted = 0;
+    int ret, last_error = 0;
     char *input;
 
     for (i = 0; !quit_qemu_io && i < ncmdline; i++) {
-        qemuio_command(qemuio_blk, cmdline[i]);
+        ret = qemuio_command(qemuio_blk, cmdline[i]);
+        if (ret < 0) {
+            last_error = ret;
+        }
     }
     if (cmdline) {
         g_free(cmdline);
-        return;
+        return last_error;
     }
 
     while (!quit_qemu_io) {
@@ -431,13 +435,19 @@ static void command_loop(void)
         if (input == NULL) {
             break;
         }
-        qemuio_command(qemuio_blk, input);
+        ret = qemuio_command(qemuio_blk, input);
         g_free(input);
+
+        if (ret < 0) {
+            last_error = ret;
+        }
 
         prompted = 0;
         fetchable = 0;
     }
     qemu_set_fd_handler(STDIN_FILENO, NULL, NULL, NULL);
+
+    return last_error;
 }
 
 static void add_user_command(char *optarg)
@@ -502,6 +512,7 @@ int main(int argc, char **argv)
     int c;
     int opt_index = 0;
     int flags = BDRV_O_UNMAP;
+    int ret;
     bool writethrough = true;
     Error *local_error = NULL;
     QDict *opts = NULL;
@@ -663,7 +674,7 @@ int main(int argc, char **argv)
             }
         }
     }
-    command_loop();
+    ret = command_loop();
 
     /*
      * Make sure all outstanding requests complete before the program exits.
@@ -672,5 +683,10 @@ int main(int argc, char **argv)
 
     blk_unref(qemuio_blk);
     g_free(readline_state);
-    return 0;
+
+    if (ret < 0) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
