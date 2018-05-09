@@ -92,6 +92,11 @@ _qemu_img_wrapper bench -w -c 1 TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
 Is another process using the image?
 
+_qemu_img_wrapper create -f qcow2 TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+qemu-img: TEST_DIR/t.qcow2: Failed to get "write" lock
+Is another process using the image?
+file format: IMGFMT
+
 == Running utility commands -U ==
 
 _qemu_io_wrapper -U -c read 0 512 TEST_DIR/t.qcow2
@@ -209,6 +214,11 @@ _qemu_img_wrapper bench -w -c 1 TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
 Is another process using the image?
 
+_qemu_img_wrapper create -f qcow2 TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+qemu-img: TEST_DIR/t.qcow2: Failed to get "write" lock
+Is another process using the image?
+file format: IMGFMT
+
 == Running utility commands -U ==
 
 _qemu_io_wrapper -U -c read 0 512 TEST_DIR/t.qcow2
@@ -308,6 +318,9 @@ _qemu_img_wrapper dd if=TEST_DIR/t.qcow2 of=TEST_DIR/t.qcow2.convert bs=512 coun
 _qemu_img_wrapper bench -c 1 TEST_DIR/t.qcow2
 
 _qemu_img_wrapper bench -w -c 1 TEST_DIR/t.qcow2
+
+_qemu_img_wrapper create -f qcow2 TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
+file format: IMGFMT
 
 == Running utility commands -U ==
 
