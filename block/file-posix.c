@@ -2076,6 +2076,7 @@ static int raw_co_create(BlockdevCreateOptions *options, Error **errp)
 {
     BlockdevCreateOptionsFile *file_opts;
     int fd;
+    int perm, shared;
     int result = 0;
 
     /* Validate options and set default values */
@@ -2090,12 +2091,42 @@ static int raw_co_create(BlockdevCreateOptions *options, Error **errp)
     }
 
     /* Create file */
-    fd = qemu_open(file_opts->filename, O_RDWR | O_CREAT | O_TRUNC | O_BINARY,
-                   0644);
+    fd = qemu_open(file_opts->filename, O_RDWR | O_CREAT | O_BINARY, 0644);
     if (fd < 0) {
         result = -errno;
         error_setg_errno(errp, -result, "Could not create file");
         goto out;
+    }
+
+    /* Take permissions: We want to discard everything, so we need
+     * BLK_PERM_WRITE; and truncation to the desired size requires
+     * BLK_PERM_RESIZE.
+     * On the other hand, we cannot share the RESIZE permission
+     * because we promise that after this function, the file has the
+     * size given in the options.  If someone else were to resize it
+     * concurrently, we could not guarantee that.
+     * Note that after this function, we can no longer guarantee that
+     * the file is not touched by a third party, so it may be resized
+     * then. */
+    perm = BLK_PERM_WRITE | BLK_PERM_RESIZE;
+    shared = BLK_PERM_ALL & ~BLK_PERM_RESIZE;
+
+    /* Step one: Take locks */
+    result = raw_apply_lock_bytes(fd, perm, shared, false, errp);
+    if (result < 0) {
+        goto out_close;
+    }
+
+    /* Step two: Check that nobody else has taken conflicting locks */
+    result = raw_check_lock_bytes(fd, perm, shared, errp);
+    if (result < 0) {
+        goto out_close;
+    }
+
+    /* Clear the file by truncating it to 0 */
+    result = raw_regular_truncate(fd, 0, PREALLOC_MODE_OFF, errp);
+    if (result < 0) {
+        goto out_close;
     }
 
     if (file_opts->nocow) {
@@ -2113,6 +2144,8 @@ static int raw_co_create(BlockdevCreateOptions *options, Error **errp)
 #endif
     }
 
+    /* Resize and potentially preallocate the file to the desired
+     * final size */
     result = raw_regular_truncate(fd, file_opts->size, file_opts->preallocation,
                                   errp);
     if (result < 0) {
