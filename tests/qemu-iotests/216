@@ -20,7 +20,7 @@
 # Creator/Owner: Max Reitz <mreitz@redhat.com>
 
 import iotests
-from iotests import log, qemu_img_pipe, qemu_io, filter_qemu_io
+from iotests import log, qemu_img, qemu_io_silent
 
 # Need backing file support
 iotests.verify_image_format(supported_fmts=['qcow2', 'qcow', 'qed', 'vmdk'])
@@ -50,14 +50,13 @@ with iotests.FilePath('base.img') as base_img_path, \
     log('--- Setting up images ---')
     log('')
 
-    qemu_img_pipe('create', '-f', iotests.imgfmt, base_img_path, '64M')
+    assert qemu_img('create', '-f', iotests.imgfmt, base_img_path, '64M') == 0
+    assert qemu_io_silent(base_img_path, '-c', 'write -P 1 0M 1M') == 0
+    assert qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
+                    top_img_path) == 0
+    assert qemu_io_silent(top_img_path,  '-c', 'write -P 2 1M 1M') == 0
 
-    log(filter_qemu_io(qemu_io(base_img_path, '-c', 'write -P 1 0M 1M')))
-
-    qemu_img_pipe('create', '-f', iotests.imgfmt, '-b', base_img_path,
-                  top_img_path)
-
-    log(filter_qemu_io(qemu_io(top_img_path,  '-c', 'write -P 2 1M 1M')))
+    log('Done')
 
     log('')
     log('--- Doing COR ---')
@@ -110,6 +109,8 @@ with iotests.FilePath('base.img') as base_img_path, \
     log('--- Checking COR result ---')
     log('')
 
-    log(filter_qemu_io(qemu_io(base_img_path, '-c', 'discard 0 64M')))
-    log(filter_qemu_io(qemu_io(top_img_path,  '-c', 'read -P 1 0M 1M')))
-    log(filter_qemu_io(qemu_io(top_img_path,  '-c', 'read -P 2 1M 1M')))
+    assert qemu_io_silent(base_img_path, '-c', 'discard 0 64M') == 0
+    assert qemu_io_silent(top_img_path,  '-c', 'read -P 1 0M 1M') == 0
+    assert qemu_io_silent(top_img_path,  '-c', 'read -P 2 1M 1M') == 0
+
+    log('Done')
