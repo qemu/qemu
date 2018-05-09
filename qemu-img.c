@@ -3789,12 +3789,15 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    if (!bs->drv->create_opts) {
-        error_report("Format driver '%s' does not support any options to amend",
+    if (!bs->drv->bdrv_amend_options) {
+        error_report("Format driver '%s' does not support option amendment",
                      fmt);
         ret = -1;
         goto out;
     }
+
+    /* Every driver supporting amendment must have create_opts */
+    assert(bs->drv->create_opts);
 
     create_opts = qemu_opts_append(create_opts, bs->drv->create_opts);
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
