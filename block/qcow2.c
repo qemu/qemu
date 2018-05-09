@@ -4215,22 +4215,21 @@ static int qcow2_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
  * have to be removed.
  */
 static int qcow2_downgrade(BlockDriverState *bs, int target_version,
-                           BlockDriverAmendStatusCB *status_cb, void *cb_opaque)
+                           BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
+                           Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     int current_version = s->qcow_version;
     int ret;
 
-    if (target_version == current_version) {
-        return 0;
-    } else if (target_version > current_version) {
-        return -EINVAL;
-    } else if (target_version != 2) {
-        return -EINVAL;
-    }
+    /* This is qcow2_downgrade(), not qcow2_upgrade() */
+    assert(target_version < current_version);
+
+    /* There are no other versions (now) that you can downgrade to */
+    assert(target_version == 2);
 
     if (s->refcount_order != 4) {
-        error_report("compat=0.10 requires refcount_bits=16");
+        error_setg(errp, "compat=0.10 requires refcount_bits=16");
         return -ENOTSUP;
     }
 
@@ -4238,6 +4237,7 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
     if (s->incompatible_features & QCOW2_INCOMPAT_DIRTY) {
         ret = qcow2_mark_clean(bs);
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to make the image clean");
             return ret;
         }
     }
@@ -4247,6 +4247,8 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
      * best thing to do anyway */
 
     if (s->incompatible_features) {
+        error_setg(errp, "Cannot downgrade an image with incompatible features "
+                   "%#" PRIx64 " set", s->incompatible_features);
         return -ENOTSUP;
     }
 
@@ -4260,6 +4262,7 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
 
     ret = qcow2_expand_zero_clusters(bs, status_cb, cb_opaque);
     if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to turn zero into data clusters");
         return ret;
     }
 
@@ -4267,6 +4270,7 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
     ret = qcow2_update_header(bs);
     if (ret < 0) {
         s->qcow_version = current_version;
+        error_setg_errno(errp, -ret, "Failed to update the image header");
         return ret;
     }
     return 0;
@@ -4344,7 +4348,8 @@ static void qcow2_amend_helper_cb(BlockDriverState *bs,
 
 static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                                BlockDriverAmendStatusCB *status_cb,
-                               void *cb_opaque)
+                               void *cb_opaque,
+                               Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     int old_version = s->qcow_version, new_version = old_version;
@@ -4356,7 +4361,6 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     bool encrypt;
     int encformat;
     int refcount_bits = s->refcount_bits;
-    Error *local_err = NULL;
     int ret;
     QemuOptDesc *desc = opts->list->desc;
     Qcow2AmendHelperCBInfo helper_cb_info;
@@ -4377,11 +4381,11 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             } else if (!strcmp(compat, "1.1")) {
                 new_version = 3;
             } else {
-                error_report("Unknown compatibility level %s", compat);
+                error_setg(errp, "Unknown compatibility level %s", compat);
                 return -EINVAL;
             }
         } else if (!strcmp(desc->name, BLOCK_OPT_PREALLOC)) {
-            error_report("Cannot change preallocation mode");
+            error_setg(errp, "Cannot change preallocation mode");
             return -ENOTSUP;
         } else if (!strcmp(desc->name, BLOCK_OPT_SIZE)) {
             new_size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 0);
@@ -4394,7 +4398,8 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                                         !!s->crypto);
 
             if (encrypt != !!s->crypto) {
-                error_report("Changing the encryption flag is not supported");
+                error_setg(errp,
+                           "Changing the encryption flag is not supported");
                 return -ENOTSUP;
             }
         } else if (!strcmp(desc->name, BLOCK_OPT_ENCRYPT_FORMAT)) {
@@ -4402,17 +4407,19 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                 qemu_opt_get(opts, BLOCK_OPT_ENCRYPT_FORMAT));
 
             if (encformat != s->crypt_method_header) {
-                error_report("Changing the encryption format is not supported");
+                error_setg(errp,
+                           "Changing the encryption format is not supported");
                 return -ENOTSUP;
             }
         } else if (g_str_has_prefix(desc->name, "encrypt.")) {
-            error_report("Changing the encryption parameters is not supported");
+            error_setg(errp,
+                       "Changing the encryption parameters is not supported");
             return -ENOTSUP;
         } else if (!strcmp(desc->name, BLOCK_OPT_CLUSTER_SIZE)) {
             cluster_size = qemu_opt_get_size(opts, BLOCK_OPT_CLUSTER_SIZE,
                                              cluster_size);
             if (cluster_size != s->cluster_size) {
-                error_report("Changing the cluster size is not supported");
+                error_setg(errp, "Changing the cluster size is not supported");
                 return -ENOTSUP;
             }
         } else if (!strcmp(desc->name, BLOCK_OPT_LAZY_REFCOUNTS)) {
@@ -4425,8 +4432,8 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             if (refcount_bits <= 0 || refcount_bits > 64 ||
                 !is_power_of_2(refcount_bits))
             {
-                error_report("Refcount width must be a power of two and may "
-                             "not exceed 64 bits");
+                error_setg(errp, "Refcount width must be a power of two and "
+                           "may not exceed 64 bits");
                 return -EINVAL;
             }
         } else {
@@ -4451,6 +4458,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
         ret = qcow2_update_header(bs);
         if (ret < 0) {
             s->qcow_version = old_version;
+            error_setg_errno(errp, -ret, "Failed to update the image header");
             return ret;
         }
     }
@@ -4459,18 +4467,17 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
         int refcount_order = ctz32(refcount_bits);
 
         if (new_version < 3 && refcount_bits != 16) {
-            error_report("Different refcount widths than 16 bits require "
-                         "compatibility level 1.1 or above (use compat=1.1 or "
-                         "greater)");
+            error_setg(errp, "Refcount widths other than 16 bits require "
+                       "compatibility level 1.1 or above (use compat=1.1 or "
+                       "greater)");
             return -EINVAL;
         }
 
         helper_cb_info.current_operation = QCOW2_CHANGING_REFCOUNT_ORDER;
         ret = qcow2_change_refcount_order(bs, refcount_order,
                                           &qcow2_amend_helper_cb,
-                                          &helper_cb_info, &local_err);
+                                          &helper_cb_info, errp);
         if (ret < 0) {
-            error_report_err(local_err);
             return ret;
         }
     }
@@ -4480,6 +4487,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                     backing_file ?: s->image_backing_file,
                     backing_format ?: s->image_backing_format);
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to change the backing file");
             return ret;
         }
     }
@@ -4487,14 +4495,16 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     if (s->use_lazy_refcounts != lazy_refcounts) {
         if (lazy_refcounts) {
             if (new_version < 3) {
-                error_report("Lazy refcounts only supported with compatibility "
-                             "level 1.1 and above (use compat=1.1 or greater)");
+                error_setg(errp, "Lazy refcounts only supported with "
+                           "compatibility level 1.1 and above (use compat=1.1 "
+                           "or greater)");
                 return -EINVAL;
             }
             s->compatible_features |= QCOW2_COMPAT_LAZY_REFCOUNTS;
             ret = qcow2_update_header(bs);
             if (ret < 0) {
                 s->compatible_features &= ~QCOW2_COMPAT_LAZY_REFCOUNTS;
+                error_setg_errno(errp, -ret, "Failed to update the image header");
                 return ret;
             }
             s->use_lazy_refcounts = true;
@@ -4502,6 +4512,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             /* make image clean first */
             ret = qcow2_mark_clean(bs);
             if (ret < 0) {
+                error_setg_errno(errp, -ret, "Failed to make the image clean");
                 return ret;
             }
             /* now disallow lazy refcounts */
@@ -4509,6 +4520,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             ret = qcow2_update_header(bs);
             if (ret < 0) {
                 s->compatible_features |= QCOW2_COMPAT_LAZY_REFCOUNTS;
+                error_setg_errno(errp, -ret, "Failed to update the image header");
                 return ret;
             }
             s->use_lazy_refcounts = false;
@@ -4517,17 +4529,15 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
 
     if (new_size) {
         BlockBackend *blk = blk_new(BLK_PERM_RESIZE, BLK_PERM_ALL);
-        ret = blk_insert_bs(blk, bs, &local_err);
+        ret = blk_insert_bs(blk, bs, errp);
         if (ret < 0) {
-            error_report_err(local_err);
             blk_unref(blk);
             return ret;
         }
 
-        ret = blk_truncate(blk, new_size, PREALLOC_MODE_OFF, &local_err);
+        ret = blk_truncate(blk, new_size, PREALLOC_MODE_OFF, errp);
         blk_unref(blk);
         if (ret < 0) {
-            error_report_err(local_err);
             return ret;
         }
     }
@@ -4536,7 +4546,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     if (new_version < old_version) {
         helper_cb_info.current_operation = QCOW2_DOWNGRADING;
         ret = qcow2_downgrade(bs, new_version, &qcow2_amend_helper_cb,
-                              &helper_cb_info);
+                              &helper_cb_info, errp);
         if (ret < 0) {
             return ret;
         }

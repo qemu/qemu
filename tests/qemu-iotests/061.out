@@ -358,18 +358,12 @@ No errors were found on the image.
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 qemu-img: Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
-qemu-img: Error while amending options: Invalid argument
 qemu-img: Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
-qemu-img: Error while amending options: Invalid argument
 qemu-img: Unknown compatibility level 0.42
-qemu-img: Error while amending options: Invalid argument
 qemu-img: Invalid parameter 'foo'
 qemu-img: Changing the cluster size is not supported
-qemu-img: Error while amending options: Operation not supported
 qemu-img: Changing the encryption flag is not supported
-qemu-img: Error while amending options: Operation not supported
 qemu-img: Cannot change preallocation mode
-qemu-img: Error while amending options: Operation not supported
 
 === Testing correct handling of unset value ===
 
@@ -377,7 +371,6 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Should work:
 Should not work:
 qemu-img: Changing the cluster size is not supported
-qemu-img: Error while amending options: Operation not supported
 
 === Testing zero expansion on inactive clusters ===
 

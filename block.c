@@ -4996,15 +4996,19 @@ void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
 }
 
 int bdrv_amend_options(BlockDriverState *bs, QemuOpts *opts,
-                       BlockDriverAmendStatusCB *status_cb, void *cb_opaque)
+                       BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
+                       Error **errp)
 {
     if (!bs->drv) {
+        error_setg(errp, "Node is ejected");
         return -ENOMEDIUM;
     }
     if (!bs->drv->bdrv_amend_options) {
+        error_setg(errp, "Block driver '%s' does not support option amendment",
+                   bs->drv->format_name);
         return -ENOTSUP;
     }
-    return bs->drv->bdrv_amend_options(bs, opts, status_cb, cb_opaque);
+    return bs->drv->bdrv_amend_options(bs, opts, status_cb, cb_opaque, errp);
 }
 
 /* This function will be called by the bdrv_recurse_is_first_non_filter method

@@ -3810,10 +3810,10 @@ static int img_amend(int argc, char **argv)
 
     /* In case the driver does not call amend_status_cb() */
     qemu_progress_print(0.f, 0);
-    ret = bdrv_amend_options(bs, opts, &amend_status_cb, NULL);
+    ret = bdrv_amend_options(bs, opts, &amend_status_cb, NULL, &err);
     qemu_progress_print(100.f, 0);
     if (ret < 0) {
-        error_report("Error while amending options: %s", strerror(-ret));
+        error_report_err(err);
         goto out;
     }
 

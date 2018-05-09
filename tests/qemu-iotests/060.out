@@ -129,7 +129,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qcow2: Marking image as corrupt: L2 table offset 0x42a00 unaligned (L1 index: 0); further corruption events will be suppressed
-qemu-img: Error while amending options: Input/output error
+qemu-img: Failed to turn zero into data clusters: Input/output error
 
 === Testing unaligned L2 entry ===
 
@@ -145,7 +145,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qcow2: Marking image as corrupt: Cluster allocation offset 0x52a00 unaligned (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
-qemu-img: Error while amending options: Input/output error
+qemu-img: Failed to turn zero into data clusters: Input/output error
 
 === Testing unaligned reftable entry ===
 
