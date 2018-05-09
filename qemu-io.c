@@ -37,6 +37,7 @@
 static char *progname;
 
 static BlockBackend *qemuio_blk;
+static bool quit_qemu_io;
 
 /* qemu-io commands passed using -c */
 static int ncmdline;
@@ -65,11 +66,10 @@ static int get_eof_char(void)
 #endif
 }
 
-static int close_f(BlockBackend *blk, int argc, char **argv)
+static void close_f(BlockBackend *blk, int argc, char **argv)
 {
     blk_unref(qemuio_blk);
     qemuio_blk = NULL;
-    return 0;
 }
 
 static const cmdinfo_t close_cmd = {
@@ -136,7 +136,7 @@ static void open_help(void)
 "\n");
 }
 
-static int open_f(BlockBackend *blk, int argc, char **argv);
+static void open_f(BlockBackend *blk, int argc, char **argv);
 
 static const cmdinfo_t open_cmd = {
     .name       = "open",
@@ -160,7 +160,7 @@ static QemuOptsList empty_opts = {
     },
 };
 
-static int open_f(BlockBackend *blk, int argc, char **argv)
+static void open_f(BlockBackend *blk, int argc, char **argv)
 {
     int flags = BDRV_O_UNMAP;
     int readonly = 0;
@@ -192,25 +192,25 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
             if (bdrv_parse_cache_mode(optarg, &flags, &writethrough) < 0) {
                 error_report("Invalid cache option: %s", optarg);
                 qemu_opts_reset(&empty_opts);
-                return 0;
+                return;
             }
             break;
         case 'd':
             if (bdrv_parse_discard_flags(optarg, &flags) < 0) {
                 error_report("Invalid discard option: %s", optarg);
                 qemu_opts_reset(&empty_opts);
-                return 0;
+                return;
             }
             break;
         case 'o':
             if (imageOpts) {
                 printf("--image-opts and 'open -o' are mutually exclusive\n");
                 qemu_opts_reset(&empty_opts);
-                return 0;
+                return;
             }
             if (!qemu_opts_parse_noisily(&empty_opts, optarg, false)) {
                 qemu_opts_reset(&empty_opts);
-                return 0;
+                return;
             }
             break;
         case 'U':
@@ -218,7 +218,8 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
             break;
         default:
             qemu_opts_reset(&empty_opts);
-            return qemuio_command_usage(&open_cmd);
+            qemuio_command_usage(&open_cmd);
+            return;
         }
     }
 
@@ -229,7 +230,7 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
     if (imageOpts && (optind == argc - 1)) {
         if (!qemu_opts_parse_noisily(&empty_opts, argv[optind], false)) {
             qemu_opts_reset(&empty_opts);
-            return 0;
+            return;
         }
         optind++;
     }
@@ -246,12 +247,11 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
         qobject_unref(opts);
         qemuio_command_usage(&open_cmd);
     }
-    return 0;
 }
 
-static int quit_f(BlockBackend *blk, int argc, char **argv)
+static void quit_f(BlockBackend *blk, int argc, char **argv)
 {
-    return 1;
+    quit_qemu_io = true;
 }
 
 static const cmdinfo_t quit_cmd = {
@@ -392,18 +392,18 @@ static void prep_fetchline(void *opaque)
 
 static void command_loop(void)
 {
-    int i, done = 0, fetchable = 0, prompted = 0;
+    int i, fetchable = 0, prompted = 0;
     char *input;
 
-    for (i = 0; !done && i < ncmdline; i++) {
-        done = qemuio_command(qemuio_blk, cmdline[i]);
+    for (i = 0; !quit_qemu_io && i < ncmdline; i++) {
+        qemuio_command(qemuio_blk, cmdline[i]);
     }
     if (cmdline) {
         g_free(cmdline);
         return;
     }
 
-    while (!done) {
+    while (!quit_qemu_io) {
         if (!prompted) {
             printf("%s", get_prompt());
             fflush(stdout);
@@ -421,7 +421,7 @@ static void command_loop(void)
         if (input == NULL) {
             break;
         }
-        done = qemuio_command(qemuio_blk, input);
+        qemuio_command(qemuio_blk, input);
         g_free(input);
 
         prompted = 0;
