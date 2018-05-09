@@ -66,10 +66,11 @@ static int get_eof_char(void)
 #endif
 }
 
-static void close_f(BlockBackend *blk, int argc, char **argv)
+static int close_f(BlockBackend *blk, int argc, char **argv)
 {
     blk_unref(qemuio_blk);
     qemuio_blk = NULL;
+    return 0;
 }
 
 static const cmdinfo_t close_cmd = {
@@ -136,7 +137,7 @@ static void open_help(void)
 "\n");
 }
 
-static void open_f(BlockBackend *blk, int argc, char **argv);
+static int open_f(BlockBackend *blk, int argc, char **argv);
 
 static const cmdinfo_t open_cmd = {
     .name       = "open",
@@ -160,12 +161,13 @@ static QemuOptsList empty_opts = {
     },
 };
 
-static void open_f(BlockBackend *blk, int argc, char **argv)
+static int open_f(BlockBackend *blk, int argc, char **argv)
 {
     int flags = BDRV_O_UNMAP;
     int readonly = 0;
     bool writethrough = true;
     int c;
+    int ret;
     QemuOpts *qopts;
     QDict *opts;
     bool force_share = false;
@@ -192,25 +194,25 @@ static void open_f(BlockBackend *blk, int argc, char **argv)
             if (bdrv_parse_cache_mode(optarg, &flags, &writethrough) < 0) {
                 error_report("Invalid cache option: %s", optarg);
                 qemu_opts_reset(&empty_opts);
-                return;
+                return -EINVAL;
             }
             break;
         case 'd':
             if (bdrv_parse_discard_flags(optarg, &flags) < 0) {
                 error_report("Invalid discard option: %s", optarg);
                 qemu_opts_reset(&empty_opts);
-                return;
+                return -EINVAL;
             }
             break;
         case 'o':
             if (imageOpts) {
                 printf("--image-opts and 'open -o' are mutually exclusive\n");
                 qemu_opts_reset(&empty_opts);
-                return;
+                return -EINVAL;
             }
             if (!qemu_opts_parse_noisily(&empty_opts, optarg, false)) {
                 qemu_opts_reset(&empty_opts);
-                return;
+                return -EINVAL;
             }
             break;
         case 'U':
@@ -219,7 +221,7 @@ static void open_f(BlockBackend *blk, int argc, char **argv)
         default:
             qemu_opts_reset(&empty_opts);
             qemuio_command_usage(&open_cmd);
-            return;
+            return -EINVAL;
         }
     }
 
@@ -230,7 +232,7 @@ static void open_f(BlockBackend *blk, int argc, char **argv)
     if (imageOpts && (optind == argc - 1)) {
         if (!qemu_opts_parse_noisily(&empty_opts, argv[optind], false)) {
             qemu_opts_reset(&empty_opts);
-            return;
+            return -EINVAL;
         }
         optind++;
     }
@@ -240,18 +242,26 @@ static void open_f(BlockBackend *blk, int argc, char **argv)
     qemu_opts_reset(&empty_opts);
 
     if (optind == argc - 1) {
-        openfile(argv[optind], flags, writethrough, force_share, opts);
+        ret = openfile(argv[optind], flags, writethrough, force_share, opts);
     } else if (optind == argc) {
-        openfile(NULL, flags, writethrough, force_share, opts);
+        ret = openfile(NULL, flags, writethrough, force_share, opts);
     } else {
         qobject_unref(opts);
         qemuio_command_usage(&open_cmd);
+        return -EINVAL;
     }
+
+    if (ret) {
+        return -EINVAL;
+    }
+
+    return 0;
 }
 
-static void quit_f(BlockBackend *blk, int argc, char **argv)
+static int quit_f(BlockBackend *blk, int argc, char **argv)
 {
     quit_qemu_io = true;
+    return 0;
 }
 
 static const cmdinfo_t quit_cmd = {

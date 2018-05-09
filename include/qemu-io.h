@@ -22,7 +22,12 @@
 
 #define CMD_FLAG_GLOBAL ((int)0x80000000) /* don't iterate "args" */
 
-typedef void (*cfunc_t)(BlockBackend *blk, int argc, char **argv);
+/* Implement a qemu-io command.
+ * Operate on @blk using @argc/@argv as the command's arguments, and
+ * return 0 on success or negative errno on failure.
+ */
+typedef int (*cfunc_t)(BlockBackend *blk, int argc, char **argv);
+
 typedef void (*helpfunc_t)(void);
 
 typedef struct cmdinfo {
@@ -41,7 +46,7 @@ typedef struct cmdinfo {
 
 extern bool qemuio_misalign;
 
-void qemuio_command(BlockBackend *blk, const char *cmd);
+int qemuio_command(BlockBackend *blk, const char *cmd);
 
 void qemuio_add_command(const cmdinfo_t *ci);
 void qemuio_command_usage(const cmdinfo_t *ci);
