@@ -3658,6 +3658,32 @@ static void amend_status_cb(BlockDriverState *bs,
     qemu_progress_print(100.f * offset / total_work_size, 0);
 }
 
+static int print_amend_option_help(const char *format)
+{
+    BlockDriver *drv;
+
+    /* Find driver and parse its options */
+    drv = bdrv_find_format(format);
+    if (!drv) {
+        error_report("Unknown file format '%s'", format);
+        return 1;
+    }
+
+    if (!drv->bdrv_amend_options) {
+        error_report("Format driver '%s' does not support option amendment",
+                     format);
+        return 1;
+    }
+
+    /* Every driver supporting amendment must have create_opts */
+    assert(drv->create_opts);
+
+    printf("Creation options for '%s':\n", format);
+    qemu_opts_print_help(drv->create_opts);
+    printf("\nNote that not all of these options may be amendable.\n");
+    return 0;
+}
+
 static int img_amend(int argc, char **argv)
 {
     Error *err = NULL;
@@ -3757,7 +3783,7 @@ static int img_amend(int argc, char **argv)
     if (fmt && has_help_option(options)) {
         /* If a format is explicitly specified (and possibly no filename is
          * given), print option help here */
-        ret = print_block_option_help(filename, fmt);
+        ret = print_amend_option_help(fmt);
         goto out;
     }
 
@@ -3786,7 +3812,7 @@ static int img_amend(int argc, char **argv)
 
     if (has_help_option(options)) {
         /* If the format was auto-detected, print option help here */
-        ret = print_block_option_help(filename, fmt);
+        ret = print_amend_option_help(fmt);
         goto out;
     }
 
