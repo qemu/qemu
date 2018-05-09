@@ -250,9 +250,9 @@ static void riscv_sifive_u_init(MachineState *machine)
 
     /* boot rom */
     memory_region_init_ram(boot_rom, NULL, "riscv.sifive.u.mrom",
-                           memmap[SIFIVE_U_MROM].base, &error_fatal);
-    memory_region_set_readonly(boot_rom, true);
-    memory_region_add_subregion(sys_memory, 0x0, boot_rom);
+                           memmap[SIFIVE_U_MROM].size, &error_fatal);
+    memory_region_add_subregion(sys_memory, memmap[SIFIVE_U_MROM].base,
+                                boot_rom);
 
     if (machine->kernel_filename) {
         load_kernel(machine->kernel_filename);
@@ -282,6 +282,7 @@ static void riscv_sifive_u_init(MachineState *machine)
     qemu_fdt_dumpdtb(s->fdt, s->fdt_size);
     cpu_physical_memory_write(memmap[SIFIVE_U_MROM].base +
         sizeof(reset_vec), s->fdt, s->fdt_size);
+    memory_region_set_readonly(boot_rom, true);
 
     /* MMIO */
     s->plic = sifive_plic_create(memmap[SIFIVE_U_PLIC].base,
