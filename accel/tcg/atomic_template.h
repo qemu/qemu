@@ -25,18 +25,22 @@
 #elif DATA_SIZE == 8
 # define SUFFIX     q
 # define DATA_TYPE  uint64_t
+# define SDATA_TYPE int64_t
 # define BSWAP      bswap64
 #elif DATA_SIZE == 4
 # define SUFFIX     l
 # define DATA_TYPE  uint32_t
+# define SDATA_TYPE int32_t
 # define BSWAP      bswap32
 #elif DATA_SIZE == 2
 # define SUFFIX     w
 # define DATA_TYPE  uint16_t
+# define SDATA_TYPE int16_t
 # define BSWAP      bswap16
 #elif DATA_SIZE == 1
 # define SUFFIX     b
 # define DATA_TYPE  uint8_t
+# define SDATA_TYPE int8_t
 # define BSWAP
 #else
 # error unsupported data size
@@ -118,6 +122,39 @@ GEN_ATOMIC_HELPER(or_fetch)
 GEN_ATOMIC_HELPER(xor_fetch)
 
 #undef GEN_ATOMIC_HELPER
+
+/* These helpers are, as a whole, full barriers.  Within the helper,
+ * the leading barrier is explicit and the trailing barrier is within
+ * cmpxchg primitive.
+ */
+#define GEN_ATOMIC_HELPER_FN(X, FN, XDATA_TYPE, RET)                \
+ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, target_ulong addr,       \
+                        ABI_TYPE xval EXTRA_ARGS)                   \
+{                                                                   \
+    ATOMIC_MMU_DECLS;                                               \
+    XDATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;                          \
+    XDATA_TYPE cmp, old, new, val = xval;                           \
+    smp_mb();                                                       \
+    cmp = atomic_read__nocheck(haddr);                              \
+    do {                                                            \
+        old = cmp; new = FN(old, val);                              \
+        cmp = atomic_cmpxchg__nocheck(haddr, old, new);             \
+    } while (cmp != old);                                           \
+    ATOMIC_MMU_CLEANUP;                                             \
+    return RET;                                                     \
+}
+
+GEN_ATOMIC_HELPER_FN(fetch_smin, MIN, SDATA_TYPE, old)
+GEN_ATOMIC_HELPER_FN(fetch_umin, MIN,  DATA_TYPE, old)
+GEN_ATOMIC_HELPER_FN(fetch_smax, MAX, SDATA_TYPE, old)
+GEN_ATOMIC_HELPER_FN(fetch_umax, MAX,  DATA_TYPE, old)
+
+GEN_ATOMIC_HELPER_FN(smin_fetch, MIN, SDATA_TYPE, new)
+GEN_ATOMIC_HELPER_FN(umin_fetch, MIN,  DATA_TYPE, new)
+GEN_ATOMIC_HELPER_FN(smax_fetch, MAX, SDATA_TYPE, new)
+GEN_ATOMIC_HELPER_FN(umax_fetch, MAX,  DATA_TYPE, new)
+
+#undef GEN_ATOMIC_HELPER_FN
 #endif /* DATA SIZE >= 16 */
 
 #undef END
@@ -233,6 +270,39 @@ ABI_TYPE ATOMIC_NAME(add_fetch)(CPUArchState *env, target_ulong addr,
         ldo = ldn;
     }
 }
+
+/* These helpers are, as a whole, full barriers.  Within the helper,
+ * the leading barrier is explicit and the trailing barrier is within
+ * cmpxchg primitive.
+ */
+#define GEN_ATOMIC_HELPER_FN(X, FN, XDATA_TYPE, RET)                \
+ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, target_ulong addr,       \
+                        ABI_TYPE xval EXTRA_ARGS)                   \
+{                                                                   \
+    ATOMIC_MMU_DECLS;                                               \
+    XDATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;                          \
+    XDATA_TYPE ldo, ldn, old, new, val = xval;                      \
+    smp_mb();                                                       \
+    ldn = atomic_read__nocheck(haddr);                              \
+    do {                                                            \
+        ldo = ldn; old = BSWAP(ldo); new = FN(old, val);            \
+        ldn = atomic_cmpxchg__nocheck(haddr, ldo, BSWAP(new));      \
+    } while (ldo != ldn);                                           \
+    ATOMIC_MMU_CLEANUP;                                             \
+    return RET;                                                     \
+}
+
+GEN_ATOMIC_HELPER_FN(fetch_smin, MIN, SDATA_TYPE, old)
+GEN_ATOMIC_HELPER_FN(fetch_umin, MIN,  DATA_TYPE, old)
+GEN_ATOMIC_HELPER_FN(fetch_smax, MAX, SDATA_TYPE, old)
+GEN_ATOMIC_HELPER_FN(fetch_umax, MAX,  DATA_TYPE, old)
+
+GEN_ATOMIC_HELPER_FN(smin_fetch, MIN, SDATA_TYPE, new)
+GEN_ATOMIC_HELPER_FN(umin_fetch, MIN,  DATA_TYPE, new)
+GEN_ATOMIC_HELPER_FN(smax_fetch, MAX, SDATA_TYPE, new)
+GEN_ATOMIC_HELPER_FN(umax_fetch, MAX,  DATA_TYPE, new)
+
+#undef GEN_ATOMIC_HELPER_FN
 #endif /* DATA_SIZE >= 16 */
 
 #undef END
@@ -241,5 +311,6 @@ ABI_TYPE ATOMIC_NAME(add_fetch)(CPUArchState *env, target_ulong addr,
 #undef BSWAP
 #undef ABI_TYPE
 #undef DATA_TYPE
+#undef SDATA_TYPE
 #undef SUFFIX
 #undef DATA_SIZE
