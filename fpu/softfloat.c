@@ -580,8 +580,7 @@ static FloatParts pick_nan(FloatParts a, FloatParts b, float_status *s)
     if (s->default_nan_mode) {
         return parts_default_nan(s);
     } else {
-        if (pickNaN(is_qnan(a.cls), is_snan(a.cls),
-                    is_qnan(b.cls), is_snan(b.cls),
+        if (pickNaN(a.cls, b.cls,
                     a.frac > b.frac ||
                     (a.frac == b.frac && a.sign < b.sign))) {
             a = b;
