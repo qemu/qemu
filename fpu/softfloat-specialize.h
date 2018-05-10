@@ -102,6 +102,43 @@ static bool parts_is_snan_frac(uint64_t frac, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| The pattern for a default generated deconstructed floating-point NaN.
+*----------------------------------------------------------------------------*/
+
+static FloatParts parts_default_nan(float_status *status)
+{
+    bool sign = 0;
+    uint64_t frac;
+
+#if defined(TARGET_SPARC) || defined(TARGET_M68K)
+    frac = (1ULL << DECOMPOSED_BINARY_POINT) - 1;
+#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA) || \
+      defined(TARGET_S390X) || defined(TARGET_RISCV)
+    frac = 1ULL << (DECOMPOSED_BINARY_POINT - 1);
+#elif defined(TARGET_HPPA)
+    frac = 1ULL << (DECOMPOSED_BINARY_POINT - 2);
+#else
+    if (status->snan_bit_is_one) {
+        frac = (1ULL << (DECOMPOSED_BINARY_POINT - 1)) - 1;
+    } else {
+#if defined(TARGET_MIPS)
+        frac = 1ULL << (DECOMPOSED_BINARY_POINT - 1);
+#else
+        frac = 1ULL << (DECOMPOSED_BINARY_POINT - 1);
+        sign = 1;
+#endif
+    }
+#endif
+
+    return (FloatParts) {
+        .cls = float_class_qnan,
+        .sign = sign,
+        .exp = INT_MAX,
+        .frac = frac
+    };
+}
+
+/*----------------------------------------------------------------------------
 | The pattern for a default generated half-precision NaN.
 *----------------------------------------------------------------------------*/
 float16 float16_default_nan(float_status *status)
