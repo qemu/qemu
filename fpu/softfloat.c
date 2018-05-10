@@ -331,16 +331,8 @@ static FloatParts canonicalize(FloatParts part, const FloatFmt *parm,
             part.cls = float_class_inf;
         } else {
             part.frac <<= parm->frac_shift;
-#ifdef NO_SIGNALING_NANS
-            part.cls = float_class_qnan;
-#else
-            int64_t msb = part.frac << 2;
-            if ((msb < 0) == status->snan_bit_is_one) {
-                part.cls = float_class_snan;
-            } else {
-                part.cls = float_class_qnan;
-            }
-#endif
+            part.cls = (parts_is_snan_frac(part.frac, status)
+                        ? float_class_snan : float_class_qnan);
         }
     } else if (part.exp == 0) {
         if (likely(part.frac == 0)) {

@@ -87,6 +87,21 @@ this code that are retained.
 #endif
 
 /*----------------------------------------------------------------------------
+| For the deconstructed floating-point with fraction FRAC, return true
+| if the fraction represents a signalling NaN; otherwise false.
+*----------------------------------------------------------------------------*/
+
+static bool parts_is_snan_frac(uint64_t frac, float_status *status)
+{
+#ifdef NO_SIGNALING_NANS
+    return false;
+#else
+    flag msb = extract64(frac, DECOMPOSED_BINARY_POINT - 1, 1);
+    return msb == status->snan_bit_is_one;
+#endif
+}
+
+/*----------------------------------------------------------------------------
 | The pattern for a default generated half-precision NaN.
 *----------------------------------------------------------------------------*/
 float16 float16_default_nan(float_status *status)
