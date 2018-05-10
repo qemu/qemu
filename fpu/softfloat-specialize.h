@@ -498,7 +498,7 @@ static float32 commonNaNToFloat32(commonNaNT a, float_status *status)
 | The routine is passed various bits of information about the
 | two NaNs and should return 0 to select NaN a and 1 for NaN b.
 | Note that signalling NaNs are always squashed to quiet NaNs
-| by the caller, by calling floatXX_maybe_silence_nan() before
+| by the caller, by calling floatXX_silence_nan() before
 | returning them.
 |
 | aIsLargerSignificand is only valid if both a and b are NaNs
@@ -536,7 +536,7 @@ static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
 {
     /* According to MIPS specifications, if one of the two operands is
      * a sNaN, a new qNaN has to be generated. This is done in
-     * floatXX_maybe_silence_nan(). For qNaN inputs the specifications
+     * floatXX_silence_nan(). For qNaN inputs the specifications
      * says: "When possible, this QNaN result is one of the operand QNaN
      * values." In practice it seems that most implementations choose
      * the first operand if both operands are qNaN. In short this gives
@@ -788,9 +788,15 @@ static float32 propagateFloat32NaN(float32 a, float32 b, float_status *status)
 
     if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
-        return float32_maybe_silence_nan(b, status);
+        if (bIsSignalingNaN) {
+            return float32_silence_nan(b, status);
+        }
+        return b;
     } else {
-        return float32_maybe_silence_nan(a, status);
+        if (aIsSignalingNaN) {
+            return float32_silence_nan(a, status);
+        }
+        return a;
     }
 }
 
@@ -950,9 +956,15 @@ static float64 propagateFloat64NaN(float64 a, float64 b, float_status *status)
 
     if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
-        return float64_maybe_silence_nan(b, status);
+        if (bIsSignalingNaN) {
+            return float64_silence_nan(b, status);
+        }
+        return b;
     } else {
-        return float64_maybe_silence_nan(a, status);
+        if (aIsSignalingNaN) {
+            return float64_silence_nan(a, status);
+        }
+        return a;
     }
 }
 
@@ -1121,9 +1133,15 @@ floatx80 propagateFloatx80NaN(floatx80 a, floatx80 b, float_status *status)
 
     if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
-        return floatx80_maybe_silence_nan(b, status);
+        if (bIsSignalingNaN) {
+            return floatx80_silence_nan(b, status);
+        }
+        return b;
     } else {
-        return floatx80_maybe_silence_nan(a, status);
+        if (aIsSignalingNaN) {
+            return floatx80_silence_nan(a, status);
+        }
+        return a;
     }
 }
 
@@ -1270,8 +1288,14 @@ static float128 propagateFloat128NaN(float128 a, float128 b,
 
     if (pickNaN(aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
                 aIsLargerSignificand)) {
-        return float128_maybe_silence_nan(b, status);
+        if (bIsSignalingNaN) {
+            return float128_silence_nan(b, status);
+        }
+        return b;
     } else {
-        return float128_maybe_silence_nan(a, status);
+        if (aIsSignalingNaN) {
+            return float128_silence_nan(a, status);
+        }
+        return a;
     }
 }
