@@ -517,6 +517,7 @@ static void iotkit_realize(DeviceState *dev, Error **errp)
                               qdev_get_gpio_in(DEVICE(&s->ppc_irq_orgate), i));
         qdev_connect_gpio_out_named(DEVICE(ppc), "irq", 0,
                                     qdev_get_gpio_in(devs, 0));
+        g_free(gpioname);
     }
 
     iotkit_forward_sec_resp_cfg(s);
