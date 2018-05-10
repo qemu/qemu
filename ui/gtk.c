@@ -145,6 +145,7 @@
 #define GDK_KEY_2 GDK_2
 #define GDK_KEY_f GDK_f
 #define GDK_KEY_g GDK_g
+#define GDK_KEY_m GDK_m
 #define GDK_KEY_q GDK_q
 #define GDK_KEY_plus GDK_plus
 #define GDK_KEY_equal GDK_equal
@@ -208,6 +209,7 @@ struct GtkDisplayState {
 
     GtkWidget *show_tabs_item;
     GtkWidget *untabify_item;
+    GtkWidget *show_menubar_item;
 
     GtkWidget *vbox;
     GtkWidget *notebook;
@@ -1387,6 +1389,30 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
     }
 }
 
+static void gd_menu_show_menubar(GtkMenuItem *item, void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    VirtualConsole *vc = gd_vc_find_current(s);
+
+    if (s->full_screen) {
+        return;
+    }
+
+    if (gtk_check_menu_item_get_active(
+                GTK_CHECK_MENU_ITEM(s->show_menubar_item))) {
+        gtk_widget_show(s->menu_bar);
+    } else {
+        gtk_widget_hide(s->menu_bar);
+    }
+    gd_update_windowsize(vc);
+}
+
+static void gd_accel_show_menubar(void *opaque)
+{
+    GtkDisplayState *s = opaque;
+    gtk_menu_item_activate(GTK_MENU_ITEM(s->show_menubar_item));
+}
+
 static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
@@ -1403,7 +1429,10 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
     } else {
         gtk_window_unfullscreen(GTK_WINDOW(s->window));
         gd_menu_show_tabs(GTK_MENU_ITEM(s->show_tabs_item), s);
-        gtk_widget_show(s->menu_bar);
+        if (gtk_check_menu_item_get_active(
+                    GTK_CHECK_MENU_ITEM(s->show_menubar_item))) {
+            gtk_widget_show(s->menu_bar);
+        }
         s->full_screen = FALSE;
         if (vc->type == GD_VC_GFX) {
             vc->gfx.scale_x = 1.0;
@@ -2036,6 +2065,8 @@ static void gd_connect_signals(GtkDisplayState *s)
                      G_CALLBACK(gd_menu_show_tabs), s);
     g_signal_connect(s->untabify_item, "activate",
                      G_CALLBACK(gd_menu_untabify), s);
+    g_signal_connect(s->show_menubar_item, "activate",
+                     G_CALLBACK(gd_menu_show_menubar), s);
 
     g_signal_connect(s->window, "delete-event",
                      G_CALLBACK(gd_window_close), s);
@@ -2271,6 +2302,19 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s)
 
     s->untabify_item = gtk_menu_item_new_with_mnemonic(_("Detach Tab"));
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->untabify_item);
+
+    s->show_menubar_item = gtk_check_menu_item_new_with_mnemonic(
+            _("Show Menubar"));
+    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->show_menubar_item),
+                                   TRUE);
+    gtk_accel_group_connect(s->accel_group, GDK_KEY_m, HOTKEY_MODIFIERS, 0,
+            g_cclosure_new_swap(G_CALLBACK(gd_accel_show_menubar), s, NULL));
+#if GTK_CHECK_VERSION(3, 8, 0)
+    gtk_accel_label_set_accel(
+            GTK_ACCEL_LABEL(gtk_bin_get_child(GTK_BIN(s->show_menubar_item))),
+            GDK_KEY_m, HOTKEY_MODIFIERS);
+#endif
+    gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->show_menubar_item);
 
     return view_menu;
 }
