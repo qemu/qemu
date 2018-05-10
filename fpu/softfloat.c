@@ -601,10 +601,7 @@ static FloatParts pick_nan_muladd(FloatParts a, FloatParts b, FloatParts c,
         s->float_exception_flags |= float_flag_invalid;
     }
 
-    which = pickNaNMulAdd(is_qnan(a.cls), is_snan(a.cls),
-                          is_qnan(b.cls), is_snan(b.cls),
-                          is_qnan(c.cls), is_snan(c.cls),
-                          inf_zero, s);
+    which = pickNaNMulAdd(a.cls, b.cls, c.cls, inf_zero, s);
 
     if (s->default_nan_mode) {
         /* Note that this check is after pickNaNMulAdd so that function
