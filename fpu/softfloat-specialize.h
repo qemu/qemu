@@ -139,6 +139,29 @@ static FloatParts parts_default_nan(float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Returns a quiet NaN from a signalling NaN for the deconstructed
+| floating-point parts.
+*----------------------------------------------------------------------------*/
+
+static FloatParts parts_silence_nan(FloatParts a, float_status *status)
+{
+#ifdef NO_SIGNALING_NANS
+    g_assert_not_reached();
+#elif defined(TARGET_HPPA)
+    a.frac &= ~(1ULL << (DECOMPOSED_BINARY_POINT - 1));
+    a.frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 2);
+#else
+    if (status->snan_bit_is_one) {
+        return parts_default_nan(status);
+    } else {
+        a.frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 1);
+    }
+#endif
+    a.cls = float_class_qnan;
+    return a;
+}
+
+/*----------------------------------------------------------------------------
 | The pattern for a default generated half-precision NaN.
 *----------------------------------------------------------------------------*/
 float16 float16_default_nan(float_status *status)

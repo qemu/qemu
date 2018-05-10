@@ -188,7 +188,6 @@ typedef enum __attribute__ ((__packed__)) {
     float_class_inf,
     float_class_qnan,  /* all NaNs from here */
     float_class_snan,
-    float_class_msnan, /* maybe silenced */
 } FloatClass;
 
 /*
@@ -492,14 +491,7 @@ static FloatParts float16_unpack_canonical(float16 f, float_status *s)
 
 static float16 float16_round_pack_canonical(FloatParts p, float_status *s)
 {
-    switch (p.cls) {
-    case float_class_msnan:
-        p.frac >>= float16_params.frac_shift;
-        return float16_maybe_silence_nan(float16_pack_raw(p), s);
-    default:
-        p = round_canonical(p, s, &float16_params);
-        return float16_pack_raw(p);
-    }
+    return float16_pack_raw(round_canonical(p, s, &float16_params));
 }
 
 static FloatParts float32_unpack_canonical(float32 f, float_status *s)
@@ -509,14 +501,7 @@ static FloatParts float32_unpack_canonical(float32 f, float_status *s)
 
 static float32 float32_round_pack_canonical(FloatParts p, float_status *s)
 {
-    switch (p.cls) {
-    case float_class_msnan:
-        p.frac >>= float32_params.frac_shift;
-        return float32_maybe_silence_nan(float32_pack_raw(p), s);
-    default:
-        p = round_canonical(p, s, &float32_params);
-        return float32_pack_raw(p);
-    }
+    return float32_pack_raw(round_canonical(p, s, &float32_params));
 }
 
 static FloatParts float64_unpack_canonical(float64 f, float_status *s)
@@ -526,14 +511,7 @@ static FloatParts float64_unpack_canonical(float64 f, float_status *s)
 
 static float64 float64_round_pack_canonical(FloatParts p, float_status *s)
 {
-    switch (p.cls) {
-    case float_class_msnan:
-        p.frac >>= float64_params.frac_shift;
-        return float64_maybe_silence_nan(float64_pack_raw(p), s);
-    default:
-        p = round_canonical(p, s, &float64_params);
-        return float64_pack_raw(p);
-    }
+    return float64_pack_raw(round_canonical(p, s, &float64_params));
 }
 
 /* Simple helpers for checking if what NaN we have */
@@ -555,7 +533,7 @@ static FloatParts return_nan(FloatParts a, float_status *s)
     switch (a.cls) {
     case float_class_snan:
         s->float_exception_flags |= float_flag_invalid;
-        a.cls = float_class_msnan;
+        a = parts_silence_nan(a, s);
         /* fall through */
     case float_class_qnan:
         if (s->default_nan_mode) {
@@ -584,7 +562,9 @@ static FloatParts pick_nan(FloatParts a, FloatParts b, float_status *s)
                     (a.frac == b.frac && a.sign < b.sign))) {
             a = b;
         }
-        a.cls = float_class_msnan;
+        if (is_snan(a.cls)) {
+            return parts_silence_nan(a, s);
+        }
     }
     return a;
 }
@@ -624,8 +604,10 @@ static FloatParts pick_nan_muladd(FloatParts a, FloatParts b, FloatParts c,
     default:
         g_assert_not_reached();
     }
-    a.cls = float_class_msnan;
 
+    if (is_snan(a.cls)) {
+        return parts_silence_nan(a, s);
+    }
     return a;
 }
 
@@ -1334,7 +1316,6 @@ static int64_t round_to_int_and_pack(FloatParts in, int rmode,
     switch (p.cls) {
     case float_class_snan:
     case float_class_qnan:
-    case float_class_msnan:
         s->float_exception_flags = orig_flags | float_flag_invalid;
         return max;
     case float_class_inf:
@@ -1425,7 +1406,6 @@ static uint64_t round_to_uint_and_pack(FloatParts in, int rmode, uint64_t max,
     switch (p.cls) {
     case float_class_snan:
     case float_class_qnan:
-    case float_class_msnan:
         s->float_exception_flags = orig_flags | float_flag_invalid;
         return max;
     case float_class_inf:
