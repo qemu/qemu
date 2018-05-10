@@ -103,7 +103,6 @@ static void plaform_bus_refresh_irqs(PlatformBusDevice *pbus)
 {
     bitmap_zero(pbus->used_irqs, pbus->num_irqs);
     foreach_dynamic_sysbus_device(platform_bus_count_irqs, pbus);
-    pbus->done_gathering = true;
 }
 
 static void platform_bus_map_irq(PlatformBusDevice *pbus, SysBusDevice *sbdev,
@@ -163,12 +162,11 @@ static void platform_bus_map_mmio(PlatformBusDevice *pbus, SysBusDevice *sbdev,
 }
 
 /*
- * For each sysbus device, look for unassigned IRQ lines as well as
- * unassociated MMIO regions. Connect them to the platform bus if available.
+ * Look for unassigned IRQ lines as well as unassociated MMIO regions.
+ * Connect them to the platform bus if available.
  */
-static void link_sysbus_device(SysBusDevice *sbdev, void *opaque)
+void platform_bus_link_device(PlatformBusDevice *pbus, SysBusDevice *sbdev)
 {
-    PlatformBusDevice *pbus = opaque;
     int i;
 
     for (i = 0; sysbus_has_irq(sbdev, i); i++) {
@@ -178,19 +176,6 @@ static void link_sysbus_device(SysBusDevice *sbdev, void *opaque)
     for (i = 0; sysbus_has_mmio(sbdev, i); i++) {
         platform_bus_map_mmio(pbus, sbdev, i);
     }
-}
-
-static void platform_bus_init_notify(Notifier *notifier, void *data)
-{
-    PlatformBusDevice *pb = container_of(notifier, PlatformBusDevice, notifier);
-
-    /*
-     * Generate a bitmap of used IRQ lines, as the user might have specified
-     * them on the command line.
-     */
-    plaform_bus_refresh_irqs(pb);
-
-    foreach_dynamic_sysbus_device(link_sysbus_device, pb);
 }
 
 static void platform_bus_realize(DeviceState *dev, Error **errp)
@@ -211,12 +196,8 @@ static void platform_bus_realize(DeviceState *dev, Error **errp)
         sysbus_init_irq(d, &pbus->irqs[i]);
     }
 
-    /*
-     * Register notifier that allows us to gather dangling devices once the
-     * machine is completely assembled
-     */
-    pbus->notifier.notify = platform_bus_init_notify;
-    qemu_add_machine_init_done_notifier(&pbus->notifier);
+    /* some devices might be initialized before so update used IRQs map */
+    plaform_bus_refresh_irqs(pbus);
 }
 
 static Property platform_bus_properties[] = {

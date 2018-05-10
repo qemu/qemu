@@ -506,9 +506,6 @@ static void add_all_platform_bus_fdt_nodes(ARMPlatformBusFDTParams *fdt_params)
     dev = qdev_find_recursive(sysbus_get_default(), TYPE_PLATFORM_BUS_DEVICE);
     pbus = PLATFORM_BUS_DEVICE(dev);
 
-    /* We can only create dt nodes for dynamic devices when they're ready */
-    assert(pbus->done_gathering);
-
     PlatformBusFDTData data = {
         .fdt = fdt,
         .irq_start = irq_start,
