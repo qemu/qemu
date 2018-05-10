@@ -272,21 +272,34 @@ int float16_is_signaling_nan(float16 a_, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Returns a quiet NaN from a signalling NaN for the half-precision
+| floating point value `a'.
+*----------------------------------------------------------------------------*/
+
+float16 float16_silence_nan(float16 a, float_status *status)
+{
+#ifdef NO_SIGNALING_NANS
+    g_assert_not_reached();
+#else
+    if (status->snan_bit_is_one) {
+        return float16_default_nan(status);
+    } else {
+        return a | (1 << 9);
+    }
+#endif
+}
+
+/*----------------------------------------------------------------------------
 | Returns a quiet NaN if the half-precision floating point value `a' is a
 | signaling NaN; otherwise returns `a'.
 *----------------------------------------------------------------------------*/
-float16 float16_maybe_silence_nan(float16 a_, float_status *status)
+
+float16 float16_maybe_silence_nan(float16 a, float_status *status)
 {
-    if (float16_is_signaling_nan(a_, status)) {
-        if (status->snan_bit_is_one) {
-            return float16_default_nan(status);
-        } else {
-            uint16_t a = float16_val(a_);
-            a |= (1 << 9);
-            return make_float16(a);
-        }
+    if (float16_is_signaling_nan(a, status)) {
+        return float16_silence_nan(a, status);
     }
-    return a_;
+    return a;
 }
 
 /*----------------------------------------------------------------------------
@@ -368,29 +381,39 @@ int float32_is_signaling_nan(float32 a_, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Returns a quiet NaN from a signalling NaN for the single-precision
+| floating point value `a'.
+*----------------------------------------------------------------------------*/
+
+float32 float32_silence_nan(float32 a, float_status *status)
+{
+#ifdef NO_SIGNALING_NANS
+    g_assert_not_reached();
+#else
+    if (status->snan_bit_is_one) {
+# ifdef TARGET_HPPA
+        a &= ~0x00400000;
+        a |=  0x00200000;
+        return a;
+# else
+        return float32_default_nan(status);
+# endif
+    } else {
+        return a | (1 << 22);
+    }
+#endif
+}
+/*----------------------------------------------------------------------------
 | Returns a quiet NaN if the single-precision floating point value `a' is a
 | signaling NaN; otherwise returns `a'.
 *----------------------------------------------------------------------------*/
 
-float32 float32_maybe_silence_nan(float32 a_, float_status *status)
+float32 float32_maybe_silence_nan(float32 a, float_status *status)
 {
-    if (float32_is_signaling_nan(a_, status)) {
-        if (status->snan_bit_is_one) {
-#ifdef TARGET_HPPA
-            uint32_t a = float32_val(a_);
-            a &= ~0x00400000;
-            a |=  0x00200000;
-            return make_float32(a);
-#else
-            return float32_default_nan(status);
-#endif
-        } else {
-            uint32_t a = float32_val(a_);
-            a |= (1 << 22);
-            return make_float32(a);
-        }
+    if (float32_is_signaling_nan(a, status)) {
+        return float32_silence_nan(a, status);
     }
-    return a_;
+    return a;
 }
 
 /*----------------------------------------------------------------------------
@@ -777,29 +800,40 @@ int float64_is_signaling_nan(float64 a_, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Returns a quiet NaN from a signalling NaN for the double-precision
+| floating point value `a'.
+*----------------------------------------------------------------------------*/
+
+float64 float64_silence_nan(float64 a, float_status *status)
+{
+#ifdef NO_SIGNALING_NANS
+    g_assert_not_reached();
+#else
+    if (status->snan_bit_is_one) {
+# ifdef TARGET_HPPA
+        a &= ~0x0008000000000000ULL;
+        a |=  0x0004000000000000ULL;
+        return a;
+# else
+        return float64_default_nan(status);
+# endif
+    } else {
+        return a | LIT64(0x0008000000000000);
+    }
+#endif
+}
+
+/*----------------------------------------------------------------------------
 | Returns a quiet NaN if the double-precision floating point value `a' is a
 | signaling NaN; otherwise returns `a'.
 *----------------------------------------------------------------------------*/
 
-float64 float64_maybe_silence_nan(float64 a_, float_status *status)
+float64 float64_maybe_silence_nan(float64 a, float_status *status)
 {
-    if (float64_is_signaling_nan(a_, status)) {
-        if (status->snan_bit_is_one) {
-#ifdef TARGET_HPPA
-            uint64_t a = float64_val(a_);
-            a &= ~0x0008000000000000ULL;
-            a |=  0x0004000000000000ULL;
-            return make_float64(a);
-#else
-            return float64_default_nan(status);
-#endif
-        } else {
-            uint64_t a = float64_val(a_);
-            a |= LIT64(0x0008000000000000);
-            return make_float64(a);
-        }
+    if (float64_is_signaling_nan(a, status)) {
+        return float64_silence_nan(a, status);
     }
-    return a_;
+    return a;
 }
 
 /*----------------------------------------------------------------------------
@@ -938,6 +972,25 @@ int floatx80_is_signaling_nan(floatx80 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Returns a quiet NaN from a signalling NaN for the extended double-precision
+| floating point value `a'.
+*----------------------------------------------------------------------------*/
+
+floatx80 floatx80_silence_nan(floatx80 a, float_status *status)
+{
+#ifdef NO_SIGNALING_NANS
+    g_assert_not_reached();
+#else
+    if (status->snan_bit_is_one) {
+        return floatx80_default_nan(status);
+    } else {
+        a.low |= LIT64(0xC000000000000000);
+        return a;
+    }
+#endif
+}
+
+/*----------------------------------------------------------------------------
 | Returns a quiet NaN if the extended double-precision floating point value
 | `a' is a signaling NaN; otherwise returns `a'.
 *----------------------------------------------------------------------------*/
@@ -945,12 +998,7 @@ int floatx80_is_signaling_nan(floatx80 a, float_status *status)
 floatx80 floatx80_maybe_silence_nan(floatx80 a, float_status *status)
 {
     if (floatx80_is_signaling_nan(a, status)) {
-        if (status->snan_bit_is_one) {
-            a = floatx80_default_nan(status);
-        } else {
-            a.low |= LIT64(0xC000000000000000);
-            return a;
-        }
+        return floatx80_silence_nan(a, status);
     }
     return a;
 }
@@ -1085,6 +1133,25 @@ int float128_is_signaling_nan(float128 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Returns a quiet NaN from a signalling NaN for the quadruple-precision
+| floating point value `a'.
+*----------------------------------------------------------------------------*/
+
+float128 float128_silence_nan(float128 a, float_status *status)
+{
+#ifdef NO_SIGNALING_NANS
+    g_assert_not_reached();
+#else
+    if (status->snan_bit_is_one) {
+        return float128_default_nan(status);
+    } else {
+        a.high |= LIT64(0x0000800000000000);
+        return a;
+    }
+#endif
+}
+
+/*----------------------------------------------------------------------------
 | Returns a quiet NaN if the quadruple-precision floating point value `a' is
 | a signaling NaN; otherwise returns `a'.
 *----------------------------------------------------------------------------*/
@@ -1092,12 +1159,7 @@ int float128_is_signaling_nan(float128 a, float_status *status)
 float128 float128_maybe_silence_nan(float128 a, float_status *status)
 {
     if (float128_is_signaling_nan(a, status)) {
-        if (status->snan_bit_is_one) {
-            a = float128_default_nan(status);
-        } else {
-            a.high |= LIT64(0x0000800000000000);
-            return a;
-        }
+        return float128_silence_nan(a, status);
     }
     return a;
 }
