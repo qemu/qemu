@@ -229,48 +229,6 @@ GEN_ATOMIC_HELPER(xor_fetch)
 
 #undef GEN_ATOMIC_HELPER
 
-/* Note that for addition, we need to use a separate cmpxchg loop instead
-   of bswaps for the reverse-host-endian helpers.  */
-ABI_TYPE ATOMIC_NAME(fetch_add)(CPUArchState *env, target_ulong addr,
-                         ABI_TYPE val EXTRA_ARGS)
-{
-    ATOMIC_MMU_DECLS;
-    DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
-    DATA_TYPE ldo, ldn, ret, sto;
-
-    ldo = atomic_read__nocheck(haddr);
-    while (1) {
-        ret = BSWAP(ldo);
-        sto = BSWAP(ret + val);
-        ldn = atomic_cmpxchg__nocheck(haddr, ldo, sto);
-        if (ldn == ldo) {
-            ATOMIC_MMU_CLEANUP;
-            return ret;
-        }
-        ldo = ldn;
-    }
-}
-
-ABI_TYPE ATOMIC_NAME(add_fetch)(CPUArchState *env, target_ulong addr,
-                         ABI_TYPE val EXTRA_ARGS)
-{
-    ATOMIC_MMU_DECLS;
-    DATA_TYPE *haddr = ATOMIC_MMU_LOOKUP;
-    DATA_TYPE ldo, ldn, ret, sto;
-
-    ldo = atomic_read__nocheck(haddr);
-    while (1) {
-        ret = BSWAP(ldo) + val;
-        sto = BSWAP(ret);
-        ldn = atomic_cmpxchg__nocheck(haddr, ldo, sto);
-        if (ldn == ldo) {
-            ATOMIC_MMU_CLEANUP;
-            return ret;
-        }
-        ldo = ldn;
-    }
-}
-
 /* These helpers are, as a whole, full barriers.  Within the helper,
  * the leading barrier is explicit and the trailing barrier is within
  * cmpxchg primitive.
@@ -301,6 +259,13 @@ GEN_ATOMIC_HELPER_FN(smin_fetch, MIN, SDATA_TYPE, new)
 GEN_ATOMIC_HELPER_FN(umin_fetch, MIN,  DATA_TYPE, new)
 GEN_ATOMIC_HELPER_FN(smax_fetch, MAX, SDATA_TYPE, new)
 GEN_ATOMIC_HELPER_FN(umax_fetch, MAX,  DATA_TYPE, new)
+
+/* Note that for addition, we need to use a separate cmpxchg loop instead
+   of bswaps for the reverse-host-endian helpers.  */
+#define ADD(X, Y)   (X + Y)
+GEN_ATOMIC_HELPER_FN(fetch_add, ADD, DATA_TYPE, old)
+GEN_ATOMIC_HELPER_FN(add_fetch, ADD, DATA_TYPE, new)
+#undef ADD
 
 #undef GEN_ATOMIC_HELPER_FN
 #endif /* DATA_SIZE >= 16 */
