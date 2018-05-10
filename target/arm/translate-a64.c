@@ -7263,9 +7263,9 @@ static void handle_simd_shift_fpint_conv(DisasContext *s, bool is_scalar,
         switch (size) {
         case MO_16:
             if (is_u) {
-                fn = gen_helper_vfp_toulh;
+                fn = gen_helper_vfp_touhh;
             } else {
-                fn = gen_helper_vfp_toslh;
+                fn = gen_helper_vfp_toshh;
             }
             break;
         case MO_32:
