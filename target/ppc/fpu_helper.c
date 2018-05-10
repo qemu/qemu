@@ -3382,7 +3382,6 @@ void helper_xssqrtqp(CPUPPCState *env, uint32_t opcode)
             xt.f128 = xb.f128;
         } else if (float128_is_neg(xb.f128) && !float128_is_zero(xb.f128)) {
             float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
-            set_snan_bit_is_one(0, &env->fp_status);
             xt.f128 = float128_default_nan(&env->fp_status);
         }
     }

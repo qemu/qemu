@@ -79,12 +79,30 @@ this code that are retained.
  * version 2 or later. See the COPYING file in the top-level directory.
  */
 
-#if defined(TARGET_XTENSA)
 /* Define for architectures which deviate from IEEE in not supporting
  * signaling NaNs (so all NaNs are treated as quiet).
  */
+#if defined(TARGET_XTENSA)
 #define NO_SIGNALING_NANS 1
 #endif
+
+/* Define how the architecture discriminates signaling NaNs.
+ * This done with the most significant bit of the fraction.
+ * In IEEE 754-1985 this was implementation defined, but in IEEE 754-2008
+ * the msb must be zero.  MIPS is (so far) unique in supporting both the
+ * 2008 revision and backward compatibility with their original choice.
+ * Thus for MIPS we must make the choice at runtime.
+ */
+static inline flag snan_bit_is_one(float_status *status)
+{
+#if defined(TARGET_MIPS)
+    return status->snan_bit_is_one;
+#elif defined(TARGET_HPPA) || defined(TARGET_UNICORE32) || defined(TARGET_SH4)
+    return 1;
+#else
+    return 0;
+#endif
+}
 
 /*----------------------------------------------------------------------------
 | For the deconstructed floating-point with fraction FRAC, return true
@@ -97,7 +115,7 @@ static bool parts_is_snan_frac(uint64_t frac, float_status *status)
     return false;
 #else
     flag msb = extract64(frac, DECOMPOSED_BINARY_POINT - 1, 1);
-    return msb == status->snan_bit_is_one;
+    return msb == snan_bit_is_one(status);
 #endif
 }
 
@@ -118,7 +136,7 @@ static FloatParts parts_default_nan(float_status *status)
 #elif defined(TARGET_HPPA)
     frac = 1ULL << (DECOMPOSED_BINARY_POINT - 2);
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         frac = (1ULL << (DECOMPOSED_BINARY_POINT - 1)) - 1;
     } else {
 #if defined(TARGET_MIPS)
@@ -151,7 +169,7 @@ static FloatParts parts_silence_nan(FloatParts a, float_status *status)
     a.frac &= ~(1ULL << (DECOMPOSED_BINARY_POINT - 1));
     a.frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 2);
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return parts_default_nan(status);
     } else {
         a.frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 1);
@@ -169,7 +187,7 @@ float16 float16_default_nan(float_status *status)
 #if defined(TARGET_ARM)
     return const_float16(0x7E00);
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return const_float16(0x7DFF);
     } else {
 #if defined(TARGET_MIPS)
@@ -195,7 +213,7 @@ float32 float32_default_nan(float_status *status)
 #elif defined(TARGET_HPPA)
     return const_float32(0x7FA00000);
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return const_float32(0x7FBFFFFF);
     } else {
 #if defined(TARGET_MIPS)
@@ -220,7 +238,7 @@ float64 float64_default_nan(float_status *status)
 #elif defined(TARGET_HPPA)
     return const_float64(LIT64(0x7FF4000000000000));
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return const_float64(LIT64(0x7FF7FFFFFFFFFFFF));
     } else {
 #if defined(TARGET_MIPS)
@@ -242,7 +260,7 @@ floatx80 floatx80_default_nan(float_status *status)
     r.low = LIT64(0xFFFFFFFFFFFFFFFF);
     r.high = 0x7FFF;
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         r.low = LIT64(0xBFFFFFFFFFFFFFFF);
         r.high = 0x7FFF;
     } else {
@@ -274,7 +292,7 @@ float128 float128_default_nan(float_status *status)
 {
     float128 r;
 
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         r.low = LIT64(0xFFFFFFFFFFFFFFFF);
         r.high = LIT64(0x7FFF7FFFFFFFFFFF);
     } else {
@@ -319,7 +337,7 @@ int float16_is_quiet_nan(float16 a_, float_status *status)
     return float16_is_any_nan(a_);
 #else
     uint16_t a = float16_val(a_);
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return (((a >> 9) & 0x3F) == 0x3E) && (a & 0x1FF);
     } else {
         return ((a & ~0x8000) >= 0x7C80);
@@ -338,7 +356,7 @@ int float16_is_signaling_nan(float16 a_, float_status *status)
     return 0;
 #else
     uint16_t a = float16_val(a_);
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return ((a & ~0x8000) >= 0x7C80);
     } else {
         return (((a >> 9) & 0x3F) == 0x3E) && (a & 0x1FF);
@@ -356,7 +374,7 @@ float16 float16_silence_nan(float16 a, float_status *status)
 #ifdef NO_SIGNALING_NANS
     g_assert_not_reached();
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return float16_default_nan(status);
     } else {
         return a | (1 << 9);
@@ -375,7 +393,7 @@ int float32_is_quiet_nan(float32 a_, float_status *status)
     return float32_is_any_nan(a_);
 #else
     uint32_t a = float32_val(a_);
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return (((a >> 22) & 0x1FF) == 0x1FE) && (a & 0x003FFFFF);
     } else {
         return ((uint32_t)(a << 1) >= 0xFF800000);
@@ -394,7 +412,7 @@ int float32_is_signaling_nan(float32 a_, float_status *status)
     return 0;
 #else
     uint32_t a = float32_val(a_);
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return ((uint32_t)(a << 1) >= 0xFF800000);
     } else {
         return (((a >> 22) & 0x1FF) == 0x1FE) && (a & 0x003FFFFF);
@@ -412,7 +430,7 @@ float32 float32_silence_nan(float32 a, float_status *status)
 #ifdef NO_SIGNALING_NANS
     g_assert_not_reached();
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
 # ifdef TARGET_HPPA
         a &= ~0x00400000;
         a |=  0x00200000;
@@ -651,7 +669,7 @@ static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
         return 3;
     }
 
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         /* Prefer sNaN over qNaN, in the a, b, c order. */
         if (aIsSNaN) {
             return 0;
@@ -786,7 +804,7 @@ int float64_is_quiet_nan(float64 a_, float_status *status)
     return float64_is_any_nan(a_);
 #else
     uint64_t a = float64_val(a_);
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return (((a >> 51) & 0xFFF) == 0xFFE)
             && (a & 0x0007FFFFFFFFFFFFULL);
     } else {
@@ -806,7 +824,7 @@ int float64_is_signaling_nan(float64 a_, float_status *status)
     return 0;
 #else
     uint64_t a = float64_val(a_);
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return ((a << 1) >= 0xFFF0000000000000ULL);
     } else {
         return (((a >> 51) & 0xFFF) == 0xFFE)
@@ -825,7 +843,7 @@ float64 float64_silence_nan(float64 a, float_status *status)
 #ifdef NO_SIGNALING_NANS
     g_assert_not_reached();
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
 # ifdef TARGET_HPPA
         a &= ~0x0008000000000000ULL;
         a |=  0x0004000000000000ULL;
@@ -942,7 +960,7 @@ int floatx80_is_quiet_nan(floatx80 a, float_status *status)
 #ifdef NO_SIGNALING_NANS
     return floatx80_is_any_nan(a);
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         uint64_t aLow;
 
         aLow = a.low & ~0x4000000000000000ULL;
@@ -967,7 +985,7 @@ int floatx80_is_signaling_nan(floatx80 a, float_status *status)
 #ifdef NO_SIGNALING_NANS
     return 0;
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return ((a.high & 0x7FFF) == 0x7FFF)
             && ((a.low << 1) >= 0x8000000000000000ULL);
     } else {
@@ -991,7 +1009,7 @@ floatx80 floatx80_silence_nan(floatx80 a, float_status *status)
 #ifdef NO_SIGNALING_NANS
     g_assert_not_reached();
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return floatx80_default_nan(status);
     } else {
         a.low |= LIT64(0xC000000000000000);
@@ -1105,7 +1123,7 @@ int float128_is_quiet_nan(float128 a, float_status *status)
 #ifdef NO_SIGNALING_NANS
     return float128_is_any_nan(a);
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return (((a.high >> 47) & 0xFFFF) == 0xFFFE)
             && (a.low || (a.high & 0x00007FFFFFFFFFFFULL));
     } else {
@@ -1125,7 +1143,7 @@ int float128_is_signaling_nan(float128 a, float_status *status)
 #ifdef NO_SIGNALING_NANS
     return 0;
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return ((a.high << 1) >= 0xFFFF000000000000ULL)
             && (a.low || (a.high & 0x0000FFFFFFFFFFFFULL));
     } else {
@@ -1145,7 +1163,7 @@ float128 float128_silence_nan(float128 a, float_status *status)
 #ifdef NO_SIGNALING_NANS
     g_assert_not_reached();
 #else
-    if (status->snan_bit_is_one) {
+    if (snan_bit_is_one(status)) {
         return float128_default_nan(status);
     } else {
         a.high |= LIT64(0x0000800000000000);
