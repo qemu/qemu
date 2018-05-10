@@ -74,6 +74,7 @@ static void e500plat_machine_class_init(ObjectClass *oc, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
+    assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = e500plat_machine_get_hotpug_handler;
     hc->plug = e500plat_machine_device_plug_cb;
 
