@@ -330,10 +330,11 @@ static FloatParts canonicalize(FloatParts part, const FloatFmt *parm,
         if (part.frac == 0) {
             part.cls = float_class_inf;
         } else {
+            part.frac <<= parm->frac_shift;
 #ifdef NO_SIGNALING_NANS
             part.cls = float_class_qnan;
 #else
-            int64_t msb = part.frac << (parm->frac_shift + 2);
+            int64_t msb = part.frac << 2;
             if ((msb < 0) == status->snan_bit_is_one) {
                 part.cls = float_class_snan;
             } else {
@@ -480,6 +481,7 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
     case float_class_qnan:
     case float_class_snan:
         exp = exp_max;
+        frac >>= parm->frac_shift;
         break;
 
     default:
@@ -503,6 +505,7 @@ static float16 float16_round_pack_canonical(FloatParts p, float_status *s)
     case float_class_dnan:
         return float16_default_nan(s);
     case float_class_msnan:
+        p.frac >>= float16_params.frac_shift;
         return float16_maybe_silence_nan(float16_pack_raw(p), s);
     default:
         p = round_canonical(p, s, &float16_params);
@@ -521,6 +524,7 @@ static float32 float32_round_pack_canonical(FloatParts p, float_status *s)
     case float_class_dnan:
         return float32_default_nan(s);
     case float_class_msnan:
+        p.frac >>= float32_params.frac_shift;
         return float32_maybe_silence_nan(float32_pack_raw(p), s);
     default:
         p = round_canonical(p, s, &float32_params);
@@ -539,6 +543,7 @@ static float64 float64_round_pack_canonical(FloatParts p, float_status *s)
     case float_class_dnan:
         return float64_default_nan(s);
     case float_class_msnan:
+        p.frac >>= float64_params.frac_shift;
         return float64_maybe_silence_nan(float64_pack_raw(p), s);
     default:
         p = round_canonical(p, s, &float64_params);
