@@ -2147,62 +2147,98 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
     int rt = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
     int rt2 = extract32(insn, 10, 5);
-    int is_lasr = extract32(insn, 15, 1);
     int rs = extract32(insn, 16, 5);
-    int is_pair = extract32(insn, 21, 1);
-    int is_store = !extract32(insn, 22, 1);
-    int is_excl = !extract32(insn, 23, 1);
+    int is_lasr = extract32(insn, 15, 1);
+    int o2_L_o1_o0 = extract32(insn, 21, 3) * 2 | is_lasr;
     int size = extract32(insn, 30, 2);
     TCGv_i64 tcg_addr;
 
-    if ((!is_excl && !is_pair && !is_lasr) ||
-        (!is_excl && is_pair) ||
-        (is_pair && size < 2)) {
-        unallocated_encoding(s);
+    switch (o2_L_o1_o0) {
+    case 0x0: /* STXR */
+    case 0x1: /* STLXR */
+        if (rn == 31) {
+            gen_check_sp_alignment(s);
+        }
+        if (is_lasr) {
+            tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+        }
+        tcg_addr = read_cpu_reg_sp(s, rn, 1);
+        gen_store_exclusive(s, rs, rt, rt2, tcg_addr, size, false);
         return;
-    }
 
-    if (rn == 31) {
-        gen_check_sp_alignment(s);
-    }
-    tcg_addr = read_cpu_reg_sp(s, rn, 1);
-
-    /* Note that since TCG is single threaded load-acquire/store-release
-     * semantics require no extra if (is_lasr) { ... } handling.
-     */
-
-    if (is_excl) {
-        if (!is_store) {
-            s->is_ldex = true;
-            gen_load_exclusive(s, rt, rt2, tcg_addr, size, is_pair);
-            if (is_lasr) {
-                tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
-            }
-        } else {
-            if (is_lasr) {
-                tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
-            }
-            gen_store_exclusive(s, rs, rt, rt2, tcg_addr, size, is_pair);
+    case 0x4: /* LDXR */
+    case 0x5: /* LDAXR */
+        if (rn == 31) {
+            gen_check_sp_alignment(s);
         }
-    } else {
-        TCGv_i64 tcg_rt = cpu_reg(s, rt);
-        bool iss_sf = disas_ldst_compute_iss_sf(size, false, 0);
+        tcg_addr = read_cpu_reg_sp(s, rn, 1);
+        s->is_ldex = true;
+        gen_load_exclusive(s, rt, rt2, tcg_addr, size, false);
+        if (is_lasr) {
+            tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+        }
+        return;
 
+    case 0x9: /* STLR */
         /* Generate ISS for non-exclusive accesses including LASR.  */
-        if (is_store) {
+        if (rn == 31) {
+            gen_check_sp_alignment(s);
+        }
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+        tcg_addr = read_cpu_reg_sp(s, rn, 1);
+        do_gpr_st(s, cpu_reg(s, rt), tcg_addr, size, true, rt,
+                  disas_ldst_compute_iss_sf(size, false, 0), is_lasr);
+        return;
+
+    case 0xd: /* LDAR */
+        /* Generate ISS for non-exclusive accesses including LASR.  */
+        if (rn == 31) {
+            gen_check_sp_alignment(s);
+        }
+        tcg_addr = read_cpu_reg_sp(s, rn, 1);
+        do_gpr_ld(s, cpu_reg(s, rt), tcg_addr, size, false, false, true, rt,
+                  disas_ldst_compute_iss_sf(size, false, 0), is_lasr);
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+        return;
+
+    case 0x2: case 0x3: /* CASP / STXP */
+        if (size & 2) { /* STXP / STLXP */
+            if (rn == 31) {
+                gen_check_sp_alignment(s);
+            }
             if (is_lasr) {
                 tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
             }
-            do_gpr_st(s, tcg_rt, tcg_addr, size,
-                      true, rt, iss_sf, is_lasr);
-        } else {
-            do_gpr_ld(s, tcg_rt, tcg_addr, size, false, false,
-                      true, rt, iss_sf, is_lasr);
+            tcg_addr = read_cpu_reg_sp(s, rn, 1);
+            gen_store_exclusive(s, rs, rt, rt2, tcg_addr, size, true);
+            return;
+        }
+        /* CASP / CASPL */
+        break;
+
+    case 0x6: case 0x7: /* CASP / LDXP */
+        if (size & 2) { /* LDXP / LDAXP */
+            if (rn == 31) {
+                gen_check_sp_alignment(s);
+            }
+            tcg_addr = read_cpu_reg_sp(s, rn, 1);
+            s->is_ldex = true;
+            gen_load_exclusive(s, rt, rt2, tcg_addr, size, true);
             if (is_lasr) {
                 tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
             }
+            return;
         }
+        /* CASPA / CASPAL */
+        break;
+
+    case 0xa: /* CAS */
+    case 0xb: /* CASL */
+    case 0xe: /* CASA */
+    case 0xf: /* CASAL */
+        break;
     }
+    unallocated_encoding(s);
 }
 
 /*
@@ -2715,6 +2751,55 @@ static void disas_ldst_reg_unsigned_imm(DisasContext *s, uint32_t insn,
     }
 }
 
+/* Atomic memory operations
+ *
+ *  31  30      27  26    24    22  21   16   15    12    10    5     0
+ * +------+-------+---+-----+-----+---+----+----+-----+-----+----+-----+
+ * | size | 1 1 1 | V | 0 0 | A R | 1 | Rs | o3 | opc | 0 0 | Rn |  Rt |
+ * +------+-------+---+-----+-----+--------+----+-----+-----+----+-----+
+ *
+ * Rt: the result register
+ * Rn: base address or SP
+ * Rs: the source register for the operation
+ * V: vector flag (always 0 as of v8.3)
+ * A: acquire flag
+ * R: release flag
+ */
+static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
+                              int size, int rt, bool is_vector)
+{
+    int rs = extract32(insn, 16, 5);
+    int rn = extract32(insn, 5, 5);
+    int o3_opc = extract32(insn, 12, 4);
+    int feature = ARM_FEATURE_V8_ATOMICS;
+
+    if (is_vector) {
+        unallocated_encoding(s);
+        return;
+    }
+    switch (o3_opc) {
+    case 000: /* LDADD */
+    case 001: /* LDCLR */
+    case 002: /* LDEOR */
+    case 003: /* LDSET */
+    case 004: /* LDSMAX */
+    case 005: /* LDSMIN */
+    case 006: /* LDUMAX */
+    case 007: /* LDUMIN */
+    case 010: /* SWP */
+    default:
+        unallocated_encoding(s);
+        return;
+    }
+    if (!arm_dc_feature(s, feature)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    (void)rs;
+    (void)rn;
+}
+
 /* Load/store register (all forms) */
 static void disas_ldst_reg(DisasContext *s, uint32_t insn)
 {
@@ -2725,23 +2810,28 @@ static void disas_ldst_reg(DisasContext *s, uint32_t insn)
 
     switch (extract32(insn, 24, 2)) {
     case 0:
-        if (extract32(insn, 21, 1) == 1 && extract32(insn, 10, 2) == 2) {
-            disas_ldst_reg_roffset(s, insn, opc, size, rt, is_vector);
-        } else {
+        if (extract32(insn, 21, 1) == 0) {
             /* Load/store register (unscaled immediate)
              * Load/store immediate pre/post-indexed
              * Load/store register unprivileged
              */
             disas_ldst_reg_imm9(s, insn, opc, size, rt, is_vector);
+            return;
+        }
+        switch (extract32(insn, 10, 2)) {
+        case 0:
+            disas_ldst_atomic(s, insn, size, rt, is_vector);
+            return;
+        case 2:
+            disas_ldst_reg_roffset(s, insn, opc, size, rt, is_vector);
+            return;
         }
         break;
     case 1:
         disas_ldst_reg_unsigned_imm(s, insn, opc, size, rt, is_vector);
-        break;
-    default:
-        unallocated_encoding(s);
-        break;
+        return;
     }
+    unallocated_encoding(s);
 }
 
 /* AdvSIMD load/store multiple structures
