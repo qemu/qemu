@@ -11348,20 +11348,12 @@ FLOAT_CONVS(ui, d, 64, u)
 /* floating point conversion */
 float64 VFP_HELPER(fcvtd, s)(float32 x, CPUARMState *env)
 {
-    float64 r = float32_to_float64(x, &env->vfp.fp_status);
-    /* ARM requires that S<->D conversion of any kind of NaN generates
-     * a quiet NaN by forcing the most significant frac bit to 1.
-     */
-    return float64_maybe_silence_nan(r, &env->vfp.fp_status);
+    return float32_to_float64(x, &env->vfp.fp_status);
 }
 
 float32 VFP_HELPER(fcvts, d)(float64 x, CPUARMState *env)
 {
-    float32 r =  float64_to_float32(x, &env->vfp.fp_status);
-    /* ARM requires that S<->D conversion of any kind of NaN generates
-     * a quiet NaN by forcing the most significant frac bit to 1.
-     */
-    return float32_maybe_silence_nan(r, &env->vfp.fp_status);
+    return float64_to_float32(x, &env->vfp.fp_status);
 }
 
 /* VFP3 fixed point conversion.  */
