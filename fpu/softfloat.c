@@ -181,6 +181,22 @@ typedef enum __attribute__ ((__packed__)) {
     float_class_snan,
 } FloatClass;
 
+/* Simple helpers for checking if, or what kind of, NaN we have */
+static inline __attribute__((unused)) bool is_nan(FloatClass c)
+{
+    return unlikely(c >= float_class_qnan);
+}
+
+static inline __attribute__((unused)) bool is_snan(FloatClass c)
+{
+    return c == float_class_snan;
+}
+
+static inline __attribute__((unused)) bool is_qnan(FloatClass c)
+{
+    return c == float_class_qnan;
+}
+
 /*
  * Structure holding all of the decomposed parts of a float. The
  * exponent is unbiased and the fraction is normalized. All
@@ -534,20 +550,6 @@ static FloatParts float64_unpack_canonical(float64 f, float_status *s)
 static float64 float64_round_pack_canonical(FloatParts p, float_status *s)
 {
     return float64_pack_raw(round_canonical(p, s, &float64_params));
-}
-
-/* Simple helpers for checking if what NaN we have */
-static bool is_nan(FloatClass c)
-{
-    return unlikely(c >= float_class_qnan);
-}
-static bool is_snan(FloatClass c)
-{
-    return c == float_class_snan;
-}
-static bool is_qnan(FloatClass c)
-{
-    return c == float_class_qnan;
 }
 
 static FloatParts return_nan(FloatParts a, float_status *s)
