@@ -2101,7 +2101,9 @@ void uc32_cpu_dump_state(CPUState *cs, FILE *f,
                 psr & (1 << 28) ? 'V' : '-',
                 cpu_mode_names[psr & 0xf]);
 
-    cpu_dump_state_ucf64(env, f, cpu_fprintf, flags);
+    if (flags & CPU_DUMP_FPU) {
+        cpu_dump_state_ucf64(env, f, cpu_fprintf, flags);
+    }
 }
 
 void restore_state_to_opc(CPUUniCore32State *env, TranslationBlock *tb,
