@@ -139,8 +139,8 @@
 { 'command': 'boxed-struct', 'boxed': true, 'data': 'UserDefZero' }
 { 'command': 'boxed-union', 'data': 'UserDefNativeListUnion', 'boxed': true }
 
-# Smoke test on Out-Of-Band
-{ 'command': 'an-oob-command', 'allow-oob': true }
+# Smoke test on Out-Of-Band and allow-preconfig-test
+{ 'command': 'test-flags-command', 'allow-oob': true, 'allow-preconfig': true }
 
 # For testing integer range flattening in opts-visitor. The following schema
 # corresponds to the option format:

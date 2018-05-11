@@ -16,7 +16,7 @@ object Empty1
 object Empty2
     base Empty1
 command user_def_cmd0 Empty2 -> Empty2
-   gen=True success_response=True boxed=False oob=False
+   gen=True success_response=True boxed=False oob=False preconfig=False
 enum QEnumTwo ['value1', 'value2']
     prefix QENUM_TWO
 object UserDefOne
@@ -143,31 +143,31 @@ object UserDefNativeListUnion
     case sizes: q_obj_sizeList-wrapper
     case any: q_obj_anyList-wrapper
 command user_def_cmd None -> None
-   gen=True success_response=True boxed=False oob=False
+   gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_user_def_cmd1-arg
     member ud1a: UserDefOne optional=False
 command user_def_cmd1 q_obj_user_def_cmd1-arg -> None
-   gen=True success_response=True boxed=False oob=False
+   gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_user_def_cmd2-arg
     member ud1a: UserDefOne optional=False
     member ud1b: UserDefOne optional=True
 command user_def_cmd2 q_obj_user_def_cmd2-arg -> UserDefTwo
-   gen=True success_response=True boxed=False oob=False
+   gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_guest-get-time-arg
     member a: int optional=False
     member b: int optional=True
 command guest-get-time q_obj_guest-get-time-arg -> int
-   gen=True success_response=True boxed=False oob=False
+   gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_guest-sync-arg
     member arg: any optional=False
 command guest-sync q_obj_guest-sync-arg -> any
-   gen=True success_response=True boxed=False oob=False
+   gen=True success_response=True boxed=False oob=False preconfig=False
 command boxed-struct UserDefZero -> None
-   gen=True success_response=True boxed=True oob=False
+   gen=True success_response=True boxed=True oob=False preconfig=False
 command boxed-union UserDefNativeListUnion -> None
-   gen=True success_response=True boxed=True oob=False
-command an-oob-command None -> None
-   gen=True success_response=True boxed=False oob=True
+   gen=True success_response=True boxed=True oob=False preconfig=False
+command test-flags-command None -> None
+   gen=True success_response=True boxed=False oob=True preconfig=True
 object UserDefOptions
     member i64: intList optional=True
     member u64: uint64List optional=True
@@ -231,4 +231,4 @@ object q_obj___org.qemu_x-command-arg
     member c: __org.qemu_x-Union2 optional=False
     member d: __org.qemu_x-Alt optional=False
 command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> __org.qemu_x-Union1
-   gen=True success_response=True boxed=False oob=False
+   gen=True success_response=True boxed=False oob=False preconfig=False

@@ -1,0 +1,1 @@
+tests/qapi-schema/allow-preconfig-test.json:2: 'allow-preconfig' of command 'allow-preconfig-test' should only use true value
