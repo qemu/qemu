@@ -36,8 +36,8 @@
 #define ARM64_TEXT_OFFSET_OFFSET    8
 #define ARM64_MAGIC_OFFSET          56
 
-static AddressSpace *arm_boot_address_space(ARMCPU *cpu,
-                                            const struct arm_boot_info *info)
+AddressSpace *arm_boot_address_space(ARMCPU *cpu,
+                                     const struct arm_boot_info *info)
 {
     /* Return the address space to use for bootloader reads and writes.
      * We prefer the secure address space if the CPU has it and we're
@@ -486,29 +486,8 @@ static void fdt_add_psci_node(void *fdt)
     qemu_fdt_setprop_cell(fdt, "/psci", "migrate", migrate_fn);
 }
 
-/**
- * load_dtb() - load a device tree binary image into memory
- * @addr:       the address to load the image at
- * @binfo:      struct describing the boot environment
- * @addr_limit: upper limit of the available memory area at @addr
- * @as:         address space to load image to
- *
- * Load a device tree supplied by the machine or by the user  with the
- * '-dtb' command line option, and put it at offset @addr in target
- * memory.
- *
- * If @addr_limit contains a meaningful value (i.e., it is strictly greater
- * than @addr), the device tree is only loaded if its size does not exceed
- * the limit.
- *
- * Returns: the size of the device tree image on success,
- *          0 if the image size exceeds the limit,
- *          -1 on errors.
- *
- * Note: Must not be called unless have_dtb(binfo) is true.
- */
-static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
-                    hwaddr addr_limit, AddressSpace *as)
+int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
+                 hwaddr addr_limit, AddressSpace *as)
 {
     void *fdt = NULL;
     int size, rc;
@@ -935,7 +914,7 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
     return size;
 }
 
-static void arm_load_kernel_notify(Notifier *notifier, void *data)
+void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 {
     CPUState *cs;
     int kernel_size;
@@ -945,11 +924,6 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
     int elf_machine;
     hwaddr entry;
     static const ARMInsnFixup *primary_loader;
-    ArmLoadKernelNotifier *n = DO_UPCAST(ArmLoadKernelNotifier,
-                                         notifier, notifier);
-    ARMCPU *cpu = n->cpu;
-    struct arm_boot_info *info =
-        container_of(n, struct arm_boot_info, load_kernel_notifier);
     AddressSpace *as = arm_boot_address_space(cpu, info);
 
     /* The board code is not supposed to set secure_board_setup unless
@@ -959,6 +933,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
     assert(!(info->secure_board_setup && kvm_enabled()));
 
     info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
+    info->dtb_limit = 0;
 
     /* Load the kernel.  */
     if (!info->kernel_filename || info->firmware_loaded) {
@@ -968,9 +943,7 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
              * the kernel is supposed to be loaded by the bootloader), copy the
              * DTB to the base of RAM for the bootloader to pick up.
              */
-            if (load_dtb(info->loader_start, info, 0, as) < 0) {
-                exit(1);
-            }
+            info->dtb_start = info->loader_start;
         }
 
         if (info->kernel_filename) {
@@ -1050,15 +1023,14 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
          */
         if (elf_low_addr > info->loader_start
             || elf_high_addr < info->loader_start) {
-            /* Pass elf_low_addr as address limit to load_dtb if it may be
+            /* Set elf_low_addr as address limit for arm_load_dtb if it may be
              * pointing into RAM, otherwise pass '0' (no limit)
              */
             if (elf_low_addr < info->loader_start) {
                 elf_low_addr = 0;
             }
-            if (load_dtb(info->loader_start, info, elf_low_addr, as) < 0) {
-                exit(1);
-            }
+            info->dtb_start = info->loader_start;
+            info->dtb_limit = elf_low_addr;
         }
     }
     entry = elf_entry;
@@ -1116,7 +1088,6 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
          */
         if (have_dtb(info)) {
             hwaddr align;
-            hwaddr dtb_start;
 
             if (elf_machine == EM_AARCH64) {
                 /*
@@ -1136,11 +1107,9 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
             }
 
             /* Place the DTB after the initrd in memory with alignment. */
-            dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size, align);
-            if (load_dtb(dtb_start, info, 0, as) < 0) {
-                exit(1);
-            }
-            fixupcontext[FIXUP_ARGPTR] = dtb_start;
+            info->dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size,
+                                           align);
+            fixupcontext[FIXUP_ARGPTR] = info->dtb_start;
         } else {
             fixupcontext[FIXUP_ARGPTR] = info->loader_start + KERNEL_ARGS_ADDR;
             if (info->ram_size >= (1ULL << 32)) {
@@ -1173,15 +1142,6 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
     for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
         ARM_CPU(cs)->env.boot_info = info;
     }
-}
-
-void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
-{
-    CPUState *cs;
-
-    info->load_kernel_notifier.cpu = cpu;
-    info->load_kernel_notifier.notifier.notify = arm_load_kernel_notify;
-    qemu_add_machine_init_done_notifier(&info->load_kernel_notifier.notifier);
 
     /* CPU objects (unlike devices) are not automatically reset on system
      * reset, so we must always register a handler to do so. If we're
@@ -1190,6 +1150,12 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
      */
     for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
         qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
+    }
+
+    if (!info->skip_dtb_autoload && have_dtb(info)) {
+        if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as) < 0) {
+            exit(1);
+        }
     }
 }
 

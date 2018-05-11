@@ -43,12 +43,40 @@ static void e500plat_init(MachineState *machine)
     ppce500_init(machine);
 }
 
+static void e500plat_machine_device_plug_cb(HotplugHandler *hotplug_dev,
+                                            DeviceState *dev, Error **errp)
+{
+    PPCE500MachineState *pms = PPCE500_MACHINE(hotplug_dev);
+
+    if (pms->pbus_dev) {
+        if (object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE)) {
+            platform_bus_link_device(pms->pbus_dev, SYS_BUS_DEVICE(dev));
+        }
+    }
+}
+
+static
+HotplugHandler *e500plat_machine_get_hotpug_handler(MachineState *machine,
+                                                    DeviceState *dev)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE)) {
+        return HOTPLUG_HANDLER(machine);
+    }
+
+    return NULL;
+}
+
 #define TYPE_E500PLAT_MACHINE  MACHINE_TYPE_NAME("ppce500")
 
 static void e500plat_machine_class_init(ObjectClass *oc, void *data)
 {
     PPCE500MachineClass *pmc = PPCE500_MACHINE_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
+
+    assert(!mc->get_hotplug_handler);
+    mc->get_hotplug_handler = e500plat_machine_get_hotpug_handler;
+    hc->plug = e500plat_machine_device_plug_cb;
 
     pmc->pci_first_slot = 0x1;
     pmc->pci_nr_slots = PCI_SLOT_MAX - 1;
@@ -77,6 +105,10 @@ static const TypeInfo e500plat_info = {
     .name          = TYPE_E500PLAT_MACHINE,
     .parent        = TYPE_PPCE500_MACHINE,
     .class_init    = e500plat_machine_class_init,
+    .interfaces    = (InterfaceInfo[]) {
+         { TYPE_HOTPLUG_HANDLER },
+         { }
+    }
 };
 
 static void e500plat_register_types(void)

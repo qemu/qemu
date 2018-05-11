@@ -2,11 +2,16 @@
 #define PPCE500_H
 
 #include "hw/boards.h"
+#include "hw/platform-bus.h"
 
 typedef struct PPCE500MachineState {
     /*< private >*/
     MachineState parent_obj;
 
+    /* points to instance of TYPE_PLATFORM_BUS_DEVICE if
+     * board supports dynamic sysbus devices
+     */
+    PlatformBusDevice *pbus_dev;
 } PPCE500MachineState;
 
 typedef struct PPCE500MachineClass {

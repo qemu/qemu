@@ -94,8 +94,6 @@
 
 #define PLATFORM_BUS_NUM_IRQS 64
 
-static ARMPlatformBusSystemParams platform_bus_params;
-
 /* RAM limit in GB. Since VIRT_MEM starts at the 1GB mark, this means
  * RAM can go up to the 256GB mark, leaving 256GB of the physical
  * address space unallocated and free for future use between 256G and 512G.
@@ -1126,39 +1124,23 @@ static void create_platform_bus(VirtMachineState *vms, qemu_irq *pic)
     DeviceState *dev;
     SysBusDevice *s;
     int i;
-    ARMPlatformBusFDTParams *fdt_params = g_new(ARMPlatformBusFDTParams, 1);
     MemoryRegion *sysmem = get_system_memory();
-
-    platform_bus_params.platform_bus_base = vms->memmap[VIRT_PLATFORM_BUS].base;
-    platform_bus_params.platform_bus_size = vms->memmap[VIRT_PLATFORM_BUS].size;
-    platform_bus_params.platform_bus_first_irq = vms->irqmap[VIRT_PLATFORM_BUS];
-    platform_bus_params.platform_bus_num_irqs = PLATFORM_BUS_NUM_IRQS;
-
-    fdt_params->system_params = &platform_bus_params;
-    fdt_params->binfo = &vms->bootinfo;
-    fdt_params->intc = "/intc";
-    /*
-     * register a machine init done notifier that creates the device tree
-     * nodes of the platform bus and its children dynamic sysbus devices
-     */
-    arm_register_platform_bus_fdt_creator(fdt_params);
 
     dev = qdev_create(NULL, TYPE_PLATFORM_BUS_DEVICE);
     dev->id = TYPE_PLATFORM_BUS_DEVICE;
-    qdev_prop_set_uint32(dev, "num_irqs",
-        platform_bus_params.platform_bus_num_irqs);
-    qdev_prop_set_uint32(dev, "mmio_size",
-        platform_bus_params.platform_bus_size);
+    qdev_prop_set_uint32(dev, "num_irqs", PLATFORM_BUS_NUM_IRQS);
+    qdev_prop_set_uint32(dev, "mmio_size", vms->memmap[VIRT_PLATFORM_BUS].size);
     qdev_init_nofail(dev);
-    s = SYS_BUS_DEVICE(dev);
+    vms->platform_bus_dev = dev;
 
-    for (i = 0; i < platform_bus_params.platform_bus_num_irqs; i++) {
-        int irqn = platform_bus_params.platform_bus_first_irq + i;
+    s = SYS_BUS_DEVICE(dev);
+    for (i = 0; i < PLATFORM_BUS_NUM_IRQS; i++) {
+        int irqn = vms->irqmap[VIRT_PLATFORM_BUS] + i;
         sysbus_connect_irq(s, i, pic[irqn]);
     }
 
     memory_region_add_subregion(sysmem,
-                                platform_bus_params.platform_bus_base,
+                                vms->memmap[VIRT_PLATFORM_BUS].base,
                                 sysbus_mmio_get_region(s, 0));
 }
 
@@ -1229,6 +1211,26 @@ void virt_machine_done(Notifier *notifier, void *data)
 {
     VirtMachineState *vms = container_of(notifier, VirtMachineState,
                                          machine_done);
+    ARMCPU *cpu = ARM_CPU(first_cpu);
+    struct arm_boot_info *info = &vms->bootinfo;
+    AddressSpace *as = arm_boot_address_space(cpu, info);
+
+    /*
+     * If the user provided a dtb, we assume the dynamic sysbus nodes
+     * already are integrated there. This corresponds to a use case where
+     * the dynamic sysbus nodes are complex and their generation is not yet
+     * supported. In that case the user can take charge of the guest dt
+     * while qemu takes charge of the qom stuff.
+     */
+    if (info->dtb_filename == NULL) {
+        platform_bus_add_all_fdt_nodes(vms->fdt, "/intc",
+                                       vms->memmap[VIRT_PLATFORM_BUS].base,
+                                       vms->memmap[VIRT_PLATFORM_BUS].size,
+                                       vms->irqmap[VIRT_PLATFORM_BUS]);
+    }
+    if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as) < 0) {
+        exit(1);
+    }
 
     virt_acpi_setup(vms);
     virt_build_smbios(vms);
@@ -1456,8 +1458,7 @@ static void machvirt_init(MachineState *machine)
     vms->fw_cfg = create_fw_cfg(vms, &address_space_memory);
     rom_set_fw(vms->fw_cfg);
 
-    vms->machine_done.notify = virt_machine_done;
-    qemu_add_machine_init_done_notifier(&vms->machine_done);
+    create_platform_bus(vms, pic);
 
     vms->bootinfo.ram_size = machine->ram_size;
     vms->bootinfo.kernel_filename = machine->kernel_filename;
@@ -1467,16 +1468,12 @@ static void machvirt_init(MachineState *machine)
     vms->bootinfo.board_id = -1;
     vms->bootinfo.loader_start = vms->memmap[VIRT_MEM].base;
     vms->bootinfo.get_dtb = machvirt_dtb;
+    vms->bootinfo.skip_dtb_autoload = true;
     vms->bootinfo.firmware_loaded = firmware_loaded;
     arm_load_kernel(ARM_CPU(first_cpu), &vms->bootinfo);
 
-    /*
-     * arm_load_kernel machine init done notifier registration must
-     * happen before the platform_bus_create call. In this latter,
-     * another notifier is registered which adds platform bus nodes.
-     * Notifiers are executed in registration reverse order.
-     */
-    create_platform_bus(vms, pic);
+    vms->machine_done.notify = virt_machine_done;
+    qemu_add_machine_init_done_notifier(&vms->machine_done);
 }
 
 static bool virt_get_secure(Object *obj, Error **errp)
@@ -1627,9 +1624,33 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
     return ms->possible_cpus;
 }
 
+static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
+                                        DeviceState *dev, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
+
+    if (vms->platform_bus_dev) {
+        if (object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE)) {
+            platform_bus_link_device(PLATFORM_BUS_DEVICE(vms->platform_bus_dev),
+                                     SYS_BUS_DEVICE(dev));
+        }
+    }
+}
+
+static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
+                                                        DeviceState *dev)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_SYS_BUS_DEVICE)) {
+        return HOTPLUG_HANDLER(machine);
+    }
+
+    return NULL;
+}
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     mc->init = machvirt_init;
     /* Start max_cpus at the maximum QEMU supports. We'll further restrict
@@ -1648,6 +1669,9 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a15");
     mc->get_default_cpu_node_id = virt_get_default_cpu_node_id;
+    assert(!mc->get_hotplug_handler);
+    mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
+    hc->plug = virt_machine_device_plug_cb;
 }
 
 static const TypeInfo virt_machine_info = {
@@ -1657,6 +1681,10 @@ static const TypeInfo virt_machine_info = {
     .instance_size = sizeof(VirtMachineState),
     .class_size    = sizeof(VirtMachineClass),
     .class_init    = virt_machine_class_init,
+    .interfaces = (InterfaceInfo[]) {
+         { TYPE_HOTPLUG_HANDLER },
+         { }
+    },
 };
 
 static void machvirt_machine_init(void)

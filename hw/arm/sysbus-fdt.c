@@ -49,15 +49,6 @@ typedef struct PlatformBusFDTData {
     PlatformBusDevice *pbus;
 } PlatformBusFDTData;
 
-/*
- * struct used when calling the machine init done notifier
- * that constructs the fdt nodes of platform bus devices
- */
-typedef struct PlatformBusFDTNotifierParams {
-    Notifier notifier;
-    ARMPlatformBusFDTParams *fdt_params;
-} PlatformBusFDTNotifierParams;
-
 /* struct that associates a device type name and a node creation function */
 typedef struct NodeCreationPair {
     const char *typename;
@@ -453,42 +444,17 @@ static void add_fdt_node(SysBusDevice *sbdev, void *opaque)
     exit(1);
 }
 
-/**
- * add_all_platform_bus_fdt_nodes - create all the platform bus nodes
- *
- * builds the parent platform bus node and all the nodes of dynamic
- * sysbus devices attached to it.
- */
-static void add_all_platform_bus_fdt_nodes(ARMPlatformBusFDTParams *fdt_params)
+void platform_bus_add_all_fdt_nodes(void *fdt, const char *intc, hwaddr addr,
+                                    hwaddr bus_size, int irq_start)
 {
     const char platcomp[] = "qemu,platform\0simple-bus";
     PlatformBusDevice *pbus;
     DeviceState *dev;
     gchar *node;
-    uint64_t addr, size;
-    int irq_start, dtb_size;
-    struct arm_boot_info *info = fdt_params->binfo;
-    const ARMPlatformBusSystemParams *params = fdt_params->system_params;
-    const char *intc = fdt_params->intc;
-    void *fdt = info->get_dtb(info, &dtb_size);
-
-    /*
-     * If the user provided a dtb, we assume the dynamic sysbus nodes
-     * already are integrated there. This corresponds to a use case where
-     * the dynamic sysbus nodes are complex and their generation is not yet
-     * supported. In that case the user can take charge of the guest dt
-     * while qemu takes charge of the qom stuff.
-     */
-    if (info->dtb_filename) {
-        return;
-    }
 
     assert(fdt);
 
-    node = g_strdup_printf("/platform@%"PRIx64, params->platform_bus_base);
-    addr = params->platform_bus_base;
-    size = params->platform_bus_size;
-    irq_start = params->platform_bus_first_irq;
+    node = g_strdup_printf("/platform@%"PRIx64, addr);
 
     /* Create a /platform node that we can put all devices into */
     qemu_fdt_add_subnode(fdt, node);
@@ -499,15 +465,12 @@ static void add_all_platform_bus_fdt_nodes(ARMPlatformBusFDTParams *fdt_params)
      */
     qemu_fdt_setprop_cells(fdt, node, "#size-cells", 1);
     qemu_fdt_setprop_cells(fdt, node, "#address-cells", 1);
-    qemu_fdt_setprop_cells(fdt, node, "ranges", 0, addr >> 32, addr, size);
+    qemu_fdt_setprop_cells(fdt, node, "ranges", 0, addr >> 32, addr, bus_size);
 
     qemu_fdt_setprop_phandle(fdt, node, "interrupt-parent", intc);
 
     dev = qdev_find_recursive(sysbus_get_default(), TYPE_PLATFORM_BUS_DEVICE);
     pbus = PLATFORM_BUS_DEVICE(dev);
-
-    /* We can only create dt nodes for dynamic devices when they're ready */
-    assert(pbus->done_gathering);
 
     PlatformBusFDTData data = {
         .fdt = fdt,
@@ -520,23 +483,4 @@ static void add_all_platform_bus_fdt_nodes(ARMPlatformBusFDTParams *fdt_params)
     foreach_dynamic_sysbus_device(add_fdt_node, &data);
 
     g_free(node);
-}
-
-static void platform_bus_fdt_notify(Notifier *notifier, void *data)
-{
-    PlatformBusFDTNotifierParams *p = DO_UPCAST(PlatformBusFDTNotifierParams,
-                                                notifier, notifier);
-
-    add_all_platform_bus_fdt_nodes(p->fdt_params);
-    g_free(p->fdt_params);
-    g_free(p);
-}
-
-void arm_register_platform_bus_fdt_creator(ARMPlatformBusFDTParams *fdt_params)
-{
-    PlatformBusFDTNotifierParams *p = g_new(PlatformBusFDTNotifierParams, 1);
-
-    p->fdt_params = fdt_params;
-    p->notifier.notify = platform_bus_fdt_notify;
-    qemu_add_machine_init_done_notifier(&p->notifier);
 }
