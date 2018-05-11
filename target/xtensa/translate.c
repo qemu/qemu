@@ -1243,7 +1243,8 @@ void xtensa_cpu_dump_state(CPUState *cs, FILE *f,
         }
     }
 
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_FP_COPROCESSOR)) {
+    if ((flags & CPU_DUMP_FPU) &&
+        xtensa_option_enabled(env->config, XTENSA_OPTION_FP_COPROCESSOR)) {
         cpu_fprintf(f, "\n");
 
         for (i = 0; i < 16; ++i) {
