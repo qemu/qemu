@@ -1,3 +1,4 @@
 authz-obj-y += base.o
 authz-obj-y += simple.o
 authz-obj-y += list.o
+authz-obj-y += listfile.o

@@ -9,3 +9,7 @@ qauthz_simple_is_allowed(void *authz, const char *wantidentity, const char *goti
 # auth/list.c
 qauthz_list_check_rule(void *authz, const char *identity, const char *rule, int format, int policy) "AuthZ list %p check rule=%s identity=%s format=%d policy=%d"
 qauthz_list_default_policy(void *authz, const char *identity, int policy) "AuthZ list %p default identity=%s policy=%d"
+
+# auth/listfile.c
+qauthz_list_file_load(void *authz, const char *filename) "AuthZ file %p load filename=%s"
+qauthz_list_file_refresh(void *authz, const char *filename, int success) "AuthZ file %p load filename=%s success=%d"
