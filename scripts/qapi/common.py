@@ -872,7 +872,8 @@ def check_keys(expr_elem, meta, required, optional=[]):
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use false value"
                                % (key, meta, name))
-        if (key == 'boxed' or key == 'allow-oob') and value is not True:
+        if (key == 'boxed' or key == 'allow-oob' or
+            key == 'allow-preconfig') and value is not True:
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use true value"
                                % (key, meta, name))
@@ -922,7 +923,7 @@ def check_exprs(exprs):
             meta = 'command'
             check_keys(expr_elem, 'command', [],
                        ['data', 'returns', 'gen', 'success-response',
-                        'boxed', 'allow-oob'])
+                        'boxed', 'allow-oob', 'allow-preconfig'])
         elif 'event' in expr:
             meta = 'event'
             check_keys(expr_elem, 'event', [], ['data', 'boxed'])
@@ -1044,8 +1045,8 @@ class QAPISchemaVisitor(object):
     def visit_alternate_type(self, name, info, variants):
         pass
 
-    def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed, allow_oob):
+    def visit_command(self, name, info, arg_type, ret_type, gen,
+                      success_response, boxed, allow_oob, allow_preconfig):
         pass
 
     def visit_event(self, name, info, arg_type, boxed):
@@ -1422,7 +1423,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
 class QAPISchemaCommand(QAPISchemaEntity):
     def __init__(self, name, info, doc, arg_type, ret_type,
-                 gen, success_response, boxed, allow_oob):
+                 gen, success_response, boxed, allow_oob, allow_preconfig):
         QAPISchemaEntity.__init__(self, name, info, doc)
         assert not arg_type or isinstance(arg_type, str)
         assert not ret_type or isinstance(ret_type, str)
@@ -1434,6 +1435,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
         self.success_response = success_response
         self.boxed = boxed
         self.allow_oob = allow_oob
+        self.allow_preconfig = allow_preconfig
 
     def check(self, schema):
         if self._arg_type_name:
@@ -1458,7 +1460,8 @@ class QAPISchemaCommand(QAPISchemaEntity):
         visitor.visit_command(self.name, self.info,
                               self.arg_type, self.ret_type,
                               self.gen, self.success_response,
-                              self.boxed, self.allow_oob)
+                              self.boxed, self.allow_oob,
+                              self.allow_preconfig)
 
 
 class QAPISchemaEvent(QAPISchemaEntity):
@@ -1678,6 +1681,7 @@ class QAPISchema(object):
         success_response = expr.get('success-response', True)
         boxed = expr.get('boxed', False)
         allow_oob = expr.get('allow-oob', False)
+        allow_preconfig = expr.get('allow-preconfig', False)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
                 name, info, doc, 'arg', self._make_members(data, info))
@@ -1686,7 +1690,7 @@ class QAPISchema(object):
             rets = self._make_array_type(rets[0], info)
         self._def_entity(QAPISchemaCommand(name, info, doc, data, rets,
                                            gen, success_response,
-                                           boxed, allow_oob))
+                                           boxed, allow_oob, allow_preconfig))
 
     def _def_event(self, expr, info, doc):
         name = expr['event']

@@ -23,6 +23,7 @@ typedef enum QmpCommandOptions
     QCO_NO_OPTIONS            =  0x0,
     QCO_NO_SUCCESS_RESP       =  (1U << 0),
     QCO_ALLOW_OOB             =  (1U << 1),
+    QCO_ALLOW_PRECONFIG       =  (1U << 2),
 } QmpCommandOptions;
 
 typedef struct QmpCommand

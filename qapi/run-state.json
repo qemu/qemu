@@ -94,7 +94,8 @@
 #                  "status": "running" } }
 #
 ##
-{ 'command': 'query-status', 'returns': 'StatusInfo' }
+{ 'command': 'query-status', 'returns': 'StatusInfo',
+  'allow-preconfig': true }
 
 ##
 # @SHUTDOWN:
