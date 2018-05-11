@@ -854,11 +854,11 @@ static void tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
         switch (vece) {
         case MO_8:
             /* ??? With zero in a register, use PSHUFB.  */
-            tcg_out_vex_modrm(s, OPC_PUNPCKLBW, r, 0, a);
+            tcg_out_vex_modrm(s, OPC_PUNPCKLBW, r, a, a);
             a = r;
             /* FALLTHRU */
         case MO_16:
-            tcg_out_vex_modrm(s, OPC_PUNPCKLWD, r, 0, a);
+            tcg_out_vex_modrm(s, OPC_PUNPCKLWD, r, a, a);
             a = r;
             /* FALLTHRU */
         case MO_32:
@@ -867,7 +867,7 @@ static void tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
             tcg_out8(s, 0);
             break;
         case MO_64:
-            tcg_out_vex_modrm(s, OPC_PUNPCKLQDQ, r, 0, a);
+            tcg_out_vex_modrm(s, OPC_PUNPCKLQDQ, r, a, a);
             break;
         default:
             g_assert_not_reached();
