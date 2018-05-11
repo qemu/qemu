@@ -1875,7 +1875,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     CPUUniCore32State *env = cs->env_ptr;
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_start;
-    uint32_t next_page_start;
+    uint32_t page_start;
     int num_insns;
     int max_insns;
 
@@ -1894,7 +1894,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     cpu_F1s = tcg_temp_new_i32();
     cpu_F0d = tcg_temp_new_i64();
     cpu_F1d = tcg_temp_new_i64();
-    next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+    page_start = pc_start & TARGET_PAGE_MASK;
     num_insns = 0;
     max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
@@ -1951,7 +1951,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     } while (!dc->is_jmp && !tcg_op_buf_full() &&
              !cs->singlestep_enabled &&
              !singlestep &&
-             dc->pc < next_page_start &&
+             dc->pc - page_start < TARGET_PAGE_SIZE &&
              num_insns < max_insns);
 
     if (tb_cflags(tb) & CF_LAST_IO) {

@@ -1055,7 +1055,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     LM32CPU *cpu = lm32_env_get_cpu(env);
     struct DisasContext ctx, *dc = &ctx;
     uint32_t pc_start;
-    uint32_t next_page_start;
+    uint32_t page_start;
     int num_insns;
     int max_insns;
 
@@ -1075,7 +1075,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
         pc_start &= ~3;
     }
 
-    next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+    page_start = pc_start & TARGET_PAGE_MASK;
     num_insns = 0;
     max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
@@ -1115,7 +1115,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
          && !tcg_op_buf_full()
          && !cs->singlestep_enabled
          && !singlestep
-         && (dc->pc < next_page_start)
+         && (dc->pc - page_start < TARGET_PAGE_SIZE)
          && num_insns < max_insns);
 
     if (tb_cflags(tb) & CF_LAST_IO) {

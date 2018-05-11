@@ -3091,7 +3091,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     unsigned int insn_len;
     struct DisasContext ctx;
     struct DisasContext *dc = &ctx;
-    uint32_t next_page_start;
+    uint32_t page_start;
     target_ulong npc;
     int num_insns;
     int max_insns;
@@ -3138,7 +3138,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 
     dc->cpustate_changed = 0;
 
-    next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+    page_start = pc_start & TARGET_PAGE_MASK;
     num_insns = 0;
     max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     if (max_insns == 0) {
@@ -3234,7 +3234,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     } while (!dc->is_jmp && !dc->cpustate_changed
             && !tcg_op_buf_full()
             && !singlestep
-            && (dc->pc < next_page_start)
+            && (dc->pc - page_start < TARGET_PAGE_SIZE)
             && num_insns < max_insns);
 
     if (dc->clear_locked_irq) {

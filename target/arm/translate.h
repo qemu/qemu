@@ -9,7 +9,7 @@ typedef struct DisasContext {
     DisasContextBase base;
 
     target_ulong pc;
-    target_ulong next_page_start;
+    target_ulong page_start;
     uint32_t insn;
     /* Nonzero if this instruction has been conditionally skipped.  */
     int condjmp;
