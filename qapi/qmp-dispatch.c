@@ -18,6 +18,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qbool.h"
+#include "sysemu/sysemu.h"
 
 QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 {
@@ -98,6 +99,13 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
     if (!cmd->enabled) {
         error_setg(errp, "The command %s has been disabled for this instance",
                    command);
+        return NULL;
+    }
+
+    if (runstate_check(RUN_STATE_PRECONFIG) &&
+        !(cmd->options & QCO_ALLOW_PRECONFIG)) {
+        error_setg(errp, "The command '%s' isn't permitted in '%s' state",
+                   cmd->name, RunState_str(RUN_STATE_PRECONFIG));
         return NULL;
     }
 
