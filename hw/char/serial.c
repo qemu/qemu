@@ -150,12 +150,9 @@ static void serial_update_irq(SerialState *s)
 
 static void serial_update_parameters(SerialState *s)
 {
-    int speed, parity, data_bits, stop_bits, frame_size;
+    float speed;
+    int parity, data_bits, stop_bits, frame_size;
     QEMUSerialSetParams ssp;
-
-    if (s->divider == 0 || s->divider > s->baudbase) {
-        return;
-    }
 
     /* Start bit. */
     frame_size = 1;
@@ -169,14 +166,16 @@ static void serial_update_parameters(SerialState *s)
     } else {
             parity = 'N';
     }
-    if (s->lcr & 0x04)
+    if (s->lcr & 0x04) {
         stop_bits = 2;
-    else
+    } else {
         stop_bits = 1;
+    }
 
     data_bits = (s->lcr & 0x03) + 5;
     frame_size += data_bits + stop_bits;
-    speed = s->baudbase / s->divider;
+    /* Zero divisor should give about 3500 baud */
+    speed = (s->divider == 0) ? 3500 : (float) s->baudbase / s->divider;
     ssp.speed = speed;
     ssp.parity = parity;
     ssp.data_bits = data_bits;
@@ -184,7 +183,7 @@ static void serial_update_parameters(SerialState *s)
     s->char_transmit_time =  (NANOSECONDS_PER_SECOND / speed) * frame_size;
     qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 
-    DPRINTF("speed=%d parity=%c data=%d stop=%d\n",
+    DPRINTF("speed=%.2f parity=%c data=%d stop=%d\n",
            speed, parity, data_bits, stop_bits);
 }
 
@@ -341,7 +340,11 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
     default:
     case 0:
         if (s->lcr & UART_LCR_DLAB) {
-            s->divider = (s->divider & 0xff00) | val;
+            if (size == 2) {
+                s->divider = (s->divider & 0xff00) | val;
+            } else if (size == 4) {
+                s->divider = val;
+            }
             serial_update_parameters(s);
         } else {
             s->thr = (uint8_t) val;
