@@ -6139,8 +6139,11 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
             update_cc_op(dc);
             gen_jmp_tb(dc, 0, dc->pc);
             break;
-        default:
         case DISAS_JUMP:
+            /* We updated CC_OP and PC in gen_jmp/gen_jmp_im.  */
+            tcg_gen_lookup_and_goto_ptr();
+            break;
+        default:
         case DISAS_UPDATE:
             update_cc_op(dc);
             /* indicate that the hash table must be used to find the next TB */
