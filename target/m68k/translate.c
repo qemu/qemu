@@ -6105,9 +6105,25 @@ static void m68k_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     disas_m68k_insn(cpu->env_ptr, dc);
     dc->base.pc_next = dc->pc;
 
-    if (dc->base.is_jmp == DISAS_NEXT
-        && dc->pc - dc->base.pc_first >= TARGET_PAGE_SIZE - 32) {
-        dc->base.is_jmp = DISAS_TOO_MANY;
+    if (dc->base.is_jmp == DISAS_NEXT) {
+        /* Stop translation when the next insn might touch a new page.
+         * This ensures that prefetch aborts at the right place.
+         *
+         * We cannot determine the size of the next insn without
+         * completely decoding it.  However, the maximum insn size
+         * is 32 bytes, so end if we do not have that much remaining.
+         * This may produce several small TBs at the end of each page,
+         * but they will all be linked with goto_tb.
+         *
+         * ??? ColdFire maximum is 4 bytes; MC68000's maximum is also
+         * smaller than MC68020's.
+         */
+        target_ulong start_page_offset
+            = dc->pc - (dc->base.pc_first & TARGET_PAGE_MASK);
+
+        if (start_page_offset >= TARGET_PAGE_SIZE - 32) {
+            dc->base.is_jmp = DISAS_TOO_MANY;
+        }
     }
 }
 
