@@ -1355,7 +1355,7 @@ static bool vhost_user_requires_shm_log(struct vhost_dev *dev)
 
 static int vhost_user_migration_done(struct vhost_dev *dev, char* mac_addr)
 {
-    VhostUserMsg msg = { 0 };
+    VhostUserMsg msg = { };
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
