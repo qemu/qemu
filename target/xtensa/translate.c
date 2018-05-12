@@ -47,9 +47,6 @@
 #include "exec/log.h"
 
 
-/* is_jmp field values */
-#define DISAS_UPDATE  DISAS_TARGET_0 /* cpu state was modified dynamically */
-
 struct DisasContext {
     const XtensaConfig *config;
     TranslationBlock *tb;
@@ -317,7 +314,7 @@ static void gen_exception_cause(DisasContext *dc, uint32_t cause)
     tcg_temp_free(tcause);
     if (cause == ILLEGAL_INSTRUCTION_CAUSE ||
             cause == SYSCALL_CAUSE) {
-        dc->is_jmp = DISAS_UPDATE;
+        dc->is_jmp = DISAS_NORETURN;
     }
 }
 
@@ -339,7 +336,7 @@ static void gen_debug_exception(DisasContext *dc, uint32_t cause)
     tcg_temp_free(tpc);
     tcg_temp_free(tcause);
     if (cause & (DEBUGCAUSE_IB | DEBUGCAUSE_BI | DEBUGCAUSE_BN)) {
-        dc->is_jmp = DISAS_UPDATE;
+        dc->is_jmp = DISAS_NORETURN;
     }
 }
 
@@ -351,7 +348,7 @@ static bool gen_check_privilege(DisasContext *dc)
     }
 #endif
     gen_exception_cause(dc, PRIVILEGED_CAUSE);
-    dc->is_jmp = DISAS_UPDATE;
+    dc->is_jmp = DISAS_NORETURN;
     return false;
 }
 
@@ -360,7 +357,7 @@ static bool gen_check_cpenable(DisasContext *dc, unsigned cp)
     if (option_enabled(dc, XTENSA_OPTION_COPROCESSOR) &&
             !(dc->cpenable & (1 << cp))) {
         gen_exception_cause(dc, COPROCESSOR0_DISABLED + cp);
-        dc->is_jmp = DISAS_UPDATE;
+        dc->is_jmp = DISAS_NORETURN;
         return false;
     }
     return true;
@@ -382,7 +379,7 @@ static void gen_jump_slot(DisasContext *dc, TCGv dest, int slot)
             tcg_gen_exit_tb(NULL, 0);
         }
     }
-    dc->is_jmp = DISAS_UPDATE;
+    dc->is_jmp = DISAS_NORETURN;
 }
 
 static void gen_jump(DisasContext *dc, TCGv dest)
@@ -918,7 +915,7 @@ static bool gen_window_check1(DisasContext *dc, unsigned r1)
         TCGv_i32 w = tcg_const_i32(r1 / 4);
 
         gen_helper_window_check(cpu_env, pc, w);
-        dc->is_jmp = DISAS_UPDATE;
+        dc->is_jmp = DISAS_NORETURN;
         return false;
     }
     return true;
@@ -1110,14 +1107,14 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
         tcg_gen_insn_start(dc.pc);
         ++insn_count;
         gen_exception(&dc, EXCP_YIELD);
-        dc.is_jmp = DISAS_UPDATE;
+        dc.is_jmp = DISAS_NORETURN;
         goto done;
     }
     if (tb->flags & XTENSA_TBFLAG_EXCEPTION) {
         tcg_gen_insn_start(dc.pc);
         ++insn_count;
         gen_exception(&dc, EXCP_DEBUG);
-        dc.is_jmp = DISAS_UPDATE;
+        dc.is_jmp = DISAS_NORETURN;
         goto done;
     }
 
@@ -1128,7 +1125,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
         if (unlikely(cpu_breakpoint_test(cs, dc.pc, BP_ANY))) {
             tcg_gen_movi_i32(cpu_pc, dc.pc);
             gen_exception(&dc, EXCP_DEBUG);
-            dc.is_jmp = DISAS_UPDATE;
+            dc.is_jmp = DISAS_NORETURN;
             /* The address covered by the breakpoint must be included in
                [tb->pc, tb->pc + tb->size) in order to for it to be
                properly cleared -- thus we increment the PC here so that
