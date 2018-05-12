@@ -199,7 +199,6 @@ static void do_writebacks(DisasContext *s)
 /* is_jmp field values */
 #define DISAS_JUMP      DISAS_TARGET_0 /* only pc was modified dynamically */
 #define DISAS_UPDATE    DISAS_TARGET_1 /* cpu state was modified dynamically */
-#define DISAS_TB_JUMP   DISAS_TARGET_2 /* only pc was modified statically */
 #define DISAS_JUMP_NEXT DISAS_TARGET_3
 
 #if defined(CONFIG_USER_ONLY)
@@ -1496,7 +1495,7 @@ static void gen_jmp_tb(DisasContext *s, int n, uint32_t dest)
         gen_jmp_im(s, dest);
         tcg_gen_exit_tb(NULL, 0);
     }
-    s->is_jmp = DISAS_TB_JUMP;
+    s->is_jmp = DISAS_NORETURN;
 }
 
 DISAS_INSN(scc)
@@ -6148,7 +6147,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
             /* indicate that the hash table must be used to find the next TB */
             tcg_gen_exit_tb(NULL, 0);
             break;
-        case DISAS_TB_JUMP:
         case DISAS_NORETURN:
             /* nothing more to generate */
             break;
