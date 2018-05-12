@@ -1058,7 +1058,7 @@ static void gen_ibreak_check(CPUXtensaState *env, DisasContext *dc)
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
 {
     CPUXtensaState *env = cs->env_ptr;
-    DisasContext dc;
+    DisasContext dc1, *dc = &dc1;
     int insn_count = 0;
     int max_insns = tb_cflags(tb) & CF_COUNT_MASK;
     uint32_t pc_start = tb->pc;
@@ -1071,63 +1071,63 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
         max_insns = TCG_MAX_INSNS;
     }
 
-    dc.config = env->config;
-    dc.base.singlestep_enabled = cs->singlestep_enabled;
-    dc.base.tb = tb;
-    dc.pc = pc_start;
-    dc.ring = tb->flags & XTENSA_TBFLAG_RING_MASK;
-    dc.cring = (tb->flags & XTENSA_TBFLAG_EXCM) ? 0 : dc.ring;
-    dc.lbeg = env->sregs[LBEG];
-    dc.lend = env->sregs[LEND];
-    dc.base.is_jmp = DISAS_NEXT;
-    dc.debug = tb->flags & XTENSA_TBFLAG_DEBUG;
-    dc.icount = tb->flags & XTENSA_TBFLAG_ICOUNT;
-    dc.cpenable = (tb->flags & XTENSA_TBFLAG_CPENABLE_MASK) >>
+    dc->config = env->config;
+    dc->base.singlestep_enabled = cs->singlestep_enabled;
+    dc->base.tb = tb;
+    dc->pc = pc_start;
+    dc->ring = tb->flags & XTENSA_TBFLAG_RING_MASK;
+    dc->cring = (tb->flags & XTENSA_TBFLAG_EXCM) ? 0 : dc->ring;
+    dc->lbeg = env->sregs[LBEG];
+    dc->lend = env->sregs[LEND];
+    dc->base.is_jmp = DISAS_NEXT;
+    dc->debug = tb->flags & XTENSA_TBFLAG_DEBUG;
+    dc->icount = tb->flags & XTENSA_TBFLAG_ICOUNT;
+    dc->cpenable = (tb->flags & XTENSA_TBFLAG_CPENABLE_MASK) >>
         XTENSA_TBFLAG_CPENABLE_SHIFT;
-    dc.window = ((tb->flags & XTENSA_TBFLAG_WINDOW_MASK) >>
+    dc->window = ((tb->flags & XTENSA_TBFLAG_WINDOW_MASK) >>
                  XTENSA_TBFLAG_WINDOW_SHIFT);
 
-    if (dc.config->isa) {
-        dc.insnbuf = xtensa_insnbuf_alloc(dc.config->isa);
-        dc.slotbuf = xtensa_insnbuf_alloc(dc.config->isa);
+    if (dc->config->isa) {
+        dc->insnbuf = xtensa_insnbuf_alloc(dc->config->isa);
+        dc->slotbuf = xtensa_insnbuf_alloc(dc->config->isa);
     }
 
-    init_sar_tracker(&dc);
-    if (dc.icount) {
-        dc.next_icount = tcg_temp_local_new_i32();
+    init_sar_tracker(dc);
+    if (dc->icount) {
+        dc->next_icount = tcg_temp_local_new_i32();
     }
 
     gen_tb_start(tb);
 
     if ((tb_cflags(tb) & CF_USE_ICOUNT) &&
         (tb->flags & XTENSA_TBFLAG_YIELD)) {
-        tcg_gen_insn_start(dc.pc);
+        tcg_gen_insn_start(dc->pc);
         ++insn_count;
-        gen_exception(&dc, EXCP_YIELD);
-        dc.base.is_jmp = DISAS_NORETURN;
+        gen_exception(dc, EXCP_YIELD);
+        dc->base.is_jmp = DISAS_NORETURN;
         goto done;
     }
     if (tb->flags & XTENSA_TBFLAG_EXCEPTION) {
-        tcg_gen_insn_start(dc.pc);
+        tcg_gen_insn_start(dc->pc);
         ++insn_count;
-        gen_exception(&dc, EXCP_DEBUG);
-        dc.base.is_jmp = DISAS_NORETURN;
+        gen_exception(dc, EXCP_DEBUG);
+        dc->base.is_jmp = DISAS_NORETURN;
         goto done;
     }
 
     do {
-        tcg_gen_insn_start(dc.pc);
+        tcg_gen_insn_start(dc->pc);
         ++insn_count;
 
-        if (unlikely(cpu_breakpoint_test(cs, dc.pc, BP_ANY))) {
-            tcg_gen_movi_i32(cpu_pc, dc.pc);
-            gen_exception(&dc, EXCP_DEBUG);
-            dc.base.is_jmp = DISAS_NORETURN;
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            tcg_gen_movi_i32(cpu_pc, dc->pc);
+            gen_exception(dc, EXCP_DEBUG);
+            dc->base.is_jmp = DISAS_NORETURN;
             /* The address covered by the breakpoint must be included in
                [tb->pc, tb->pc + tb->size) in order to for it to be
                properly cleared -- thus we increment the PC here so that
                the logic setting tb->size below does the right thing.  */
-            dc.pc += 2;
+            dc->pc += 2;
             break;
         }
 
@@ -1135,52 +1135,52 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
             gen_io_start();
         }
 
-        if (dc.icount) {
+        if (dc->icount) {
             TCGLabel *label = gen_new_label();
 
-            tcg_gen_addi_i32(dc.next_icount, cpu_SR[ICOUNT], 1);
-            tcg_gen_brcondi_i32(TCG_COND_NE, dc.next_icount, 0, label);
-            tcg_gen_mov_i32(dc.next_icount, cpu_SR[ICOUNT]);
-            if (dc.debug) {
-                gen_debug_exception(&dc, DEBUGCAUSE_IC);
+            tcg_gen_addi_i32(dc->next_icount, cpu_SR[ICOUNT], 1);
+            tcg_gen_brcondi_i32(TCG_COND_NE, dc->next_icount, 0, label);
+            tcg_gen_mov_i32(dc->next_icount, cpu_SR[ICOUNT]);
+            if (dc->debug) {
+                gen_debug_exception(dc, DEBUGCAUSE_IC);
             }
             gen_set_label(label);
         }
 
-        if (dc.debug) {
-            gen_ibreak_check(env, &dc);
+        if (dc->debug) {
+            gen_ibreak_check(env, dc);
         }
 
-        disas_xtensa_insn(env, &dc);
-        if (dc.icount) {
-            tcg_gen_mov_i32(cpu_SR[ICOUNT], dc.next_icount);
+        disas_xtensa_insn(env, dc);
+        if (dc->icount) {
+            tcg_gen_mov_i32(cpu_SR[ICOUNT], dc->next_icount);
         }
-        if (cs->singlestep_enabled) {
-            tcg_gen_movi_i32(cpu_pc, dc.pc);
-            gen_exception(&dc, EXCP_DEBUG);
+        if (dc->base.singlestep_enabled) {
+            tcg_gen_movi_i32(cpu_pc, dc->pc);
+            gen_exception(dc, EXCP_DEBUG);
             break;
         }
-    } while (dc.base.is_jmp == DISAS_NEXT &&
-            insn_count < max_insns &&
-            dc.pc - page_start < TARGET_PAGE_SIZE &&
-            dc.pc - page_start + xtensa_insn_len(env, &dc) <= TARGET_PAGE_SIZE
-            && !tcg_op_buf_full());
+    } while (dc->base.is_jmp == DISAS_NEXT &&
+             insn_count < max_insns &&
+             dc->pc - page_start < TARGET_PAGE_SIZE &&
+             dc->pc - page_start + xtensa_insn_len(env, dc) <= TARGET_PAGE_SIZE
+             && !tcg_op_buf_full());
 done:
-    reset_sar_tracker(&dc);
-    if (dc.icount) {
-        tcg_temp_free(dc.next_icount);
+    reset_sar_tracker(dc);
+    if (dc->icount) {
+        tcg_temp_free(dc->next_icount);
     }
-    if (dc.config->isa) {
-        xtensa_insnbuf_free(dc.config->isa, dc.insnbuf);
-        xtensa_insnbuf_free(dc.config->isa, dc.slotbuf);
+    if (dc->config->isa) {
+        xtensa_insnbuf_free(dc->config->isa, dc->insnbuf);
+        xtensa_insnbuf_free(dc->config->isa, dc->slotbuf);
     }
 
     if (tb_cflags(tb) & CF_LAST_IO) {
         gen_io_end();
     }
 
-    if (dc.base.is_jmp == DISAS_NEXT) {
-        gen_jumpi(&dc, dc.pc, 0);
+    if (dc->base.is_jmp == DISAS_NEXT) {
+        gen_jumpi(dc, dc->pc, 0);
     }
     gen_tb_end(tb, insn_count);
 
@@ -1190,12 +1190,12 @@ done:
         qemu_log_lock();
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, dc.pc - pc_start);
+        log_target_disas(cs, pc_start, dc->pc - pc_start);
         qemu_log("\n");
         qemu_log_unlock();
     }
 #endif
-    tb->size = dc.pc - pc_start;
+    tb->size = dc->pc - pc_start;
     tb->icount = insn_count;
 }
 
