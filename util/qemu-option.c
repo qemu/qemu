@@ -75,20 +75,16 @@ const char *get_opt_value(const char *p, char **value)
     size_t capacity = 0, length;
     const char *offset;
 
-    if (value) {
-        *value = NULL;
-    }
+    *value = NULL;
     while (1) {
         offset = qemu_strchrnul(p, ',');
         length = offset - p;
         if (*offset != '\0' && *(offset + 1) == ',') {
             length++;
         }
-        if (value) {
-            *value = g_renew(char, *value, capacity + length + 1);
-            strncpy(*value + capacity, p, length);
-            (*value)[capacity + length] = '\0';
-        }
+        *value = g_renew(char, *value, capacity + length + 1);
+        strncpy(*value + capacity, p, length);
+        (*value)[capacity + length] = '\0';
         capacity += length;
         if (*offset == '\0' ||
             *(offset + 1) != ',') {
