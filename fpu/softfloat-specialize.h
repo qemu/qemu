@@ -129,22 +129,29 @@ static FloatParts parts_default_nan(float_status *status)
     uint64_t frac;
 
 #if defined(TARGET_SPARC) || defined(TARGET_M68K)
+    /* !snan_bit_is_one, set all bits */
     frac = (1ULL << DECOMPOSED_BINARY_POINT) - 1;
-#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA) || \
-      defined(TARGET_S390X) || defined(TARGET_RISCV)
+#elif defined(TARGET_I386) || defined(TARGET_X86_64) \
+    || defined(TARGET_MICROBLAZE)
+    /* !snan_bit_is_one, set sign and msb */
     frac = 1ULL << (DECOMPOSED_BINARY_POINT - 1);
+    sign = 1;
 #elif defined(TARGET_HPPA)
+    /* snan_bit_is_one, set msb-1.  */
     frac = 1ULL << (DECOMPOSED_BINARY_POINT - 2);
 #else
+    /* This case is true for Alpha, ARM, MIPS, OpenRISC, PPC, RISC-V,
+     * S390, SH4, TriCore, and Xtensa.  I cannot find documentation
+     * for Unicore32; the choice from the original commit is unchanged.
+     * Our other supported targets, CRIS, LM32, Moxie, Nios2, and Tile,
+     * do not have floating-point.
+     */
     if (snan_bit_is_one(status)) {
+        /* set all bits other than msb */
         frac = (1ULL << (DECOMPOSED_BINARY_POINT - 1)) - 1;
     } else {
-#if defined(TARGET_MIPS)
+        /* set msb */
         frac = 1ULL << (DECOMPOSED_BINARY_POINT - 1);
-#else
-        frac = 1ULL << (DECOMPOSED_BINARY_POINT - 1);
-        sign = 1;
-#endif
     }
 #endif
 
