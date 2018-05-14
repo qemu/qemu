@@ -43,9 +43,6 @@ typedef struct BlockJob {
     /** Data belonging to the generic Job infrastructure */
     Job job;
 
-    /** The job type, including the job vtable.  */
-    const BlockJobDriver *driver;
-
     /** The block device on which the job is operating.  */
     BlockBackend *blk;
 

@@ -103,10 +103,12 @@ static void block_job_attached_aio_context(AioContext *new_context,
                                            void *opaque)
 {
     BlockJob *job = opaque;
+    const JobDriver *drv = job->job.driver;
+    BlockJobDriver *bjdrv = container_of(drv, BlockJobDriver, job_driver);
 
     job->job.aio_context = new_context;
-    if (job->driver->attached_aio_context) {
-        job->driver->attached_aio_context(job, new_context);
+    if (bjdrv->attached_aio_context) {
+        bjdrv->attached_aio_context(job, new_context);
     }
 
     job_resume(&job->job);
@@ -115,10 +117,12 @@ static void block_job_attached_aio_context(AioContext *new_context,
 void block_job_drain(Job *job)
 {
     BlockJob *bjob = container_of(job, BlockJob, job);
+    const JobDriver *drv = job->driver;
+    BlockJobDriver *bjdrv = container_of(drv, BlockJobDriver, job_driver);
 
     blk_drain(bjob->blk);
-    if (bjob->driver->drain) {
-        bjob->driver->drain(bjob);
+    if (bjdrv->drain) {
+        bjdrv->drain(bjob);
     }
 }
 
@@ -201,7 +205,7 @@ bool block_job_is_internal(BlockJob *job)
 
 const BlockJobDriver *block_job_driver(BlockJob *job)
 {
-    return job->driver;
+    return container_of(job->job.driver, BlockJobDriver, job_driver);
 }
 
 /* Assumes the job_mutex is held */
@@ -386,8 +390,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     assert(job->job.driver->user_resume == &block_job_user_resume);
     assert(job->job.driver->drain == &block_job_drain);
 
-    job->driver        = driver;
-    job->blk           = blk;
+    job->blk = blk;
 
     job->finalize_cancelled_notifier.notify = block_job_event_cancelled;
     job->finalize_completed_notifier.notify = block_job_event_completed;
