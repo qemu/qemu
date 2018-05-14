@@ -292,8 +292,7 @@ int load_multiboot(FWCfgState *fw_cfg,
     cmdline_len += strlen(kernel_cmdline) + 1;
     if (initrd_filename) {
         const char *r = get_opt_value(initrd_filename, NULL);
-        cmdline_len += strlen(r) + 1;
-        mbs.mb_mods_avail = 1;
+        cmdline_len += strlen(initrd_filename) + 1;
         while (1) {
             mbs.mb_mods_avail++;
             r = get_opt_value(r, NULL);
