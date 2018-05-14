@@ -1480,13 +1480,28 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 
     s->get_resolution(s, &width, &height);
     disp_width = width;
+    depth = s->get_bpp(s);
 
     region_start = (s->start_addr * 4);
     region_end = region_start + (ram_addr_t)s->line_offset * height;
-    region_end += width * s->get_bpp(s) / 8; /* scanline length */
+    region_end += width * depth / 8; /* scanline length */
     region_end -= s->line_offset;
-    if (region_end > s->vbe_size) {
-        /* wraps around (can happen with cirrus vbe modes) */
+    if (region_end > s->vbe_size || depth == 0 || depth == 15) {
+        /*
+         * We land here on:
+         *  - wraps around (can happen with cirrus vbe modes)
+         *  - depth == 0 (256 color palette video mode)
+         *  - depth == 15
+         *
+         * Take the safe and slow route:
+         *   - create a dirty bitmap snapshot for all vga memory.
+         *   - force shadowing (so all vga memory access goes
+         *     through vga_read_*() helpers).
+         *
+         * Given this affects only vga features which are pretty much
+         * unused by modern guests there should be no performance
+         * impact.
+         */
         region_start = 0;
         region_end = s->vbe_size;
         force_shadow = true;
@@ -1519,8 +1534,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             disp_width <<= 1;
         }
     }
-
-    depth = s->get_bpp(s);
 
     /*
      * Check whether we can share the surface with the backend
