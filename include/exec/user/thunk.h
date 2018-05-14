@@ -135,7 +135,7 @@ static inline int thunk_type_size(const argtype *type_ptr, int is_host)
         se = struct_entries + type_ptr[1];
         return se->size[is_host];
     default:
-        return -1;
+        g_assert_not_reached();
     }
 }
 
@@ -185,7 +185,7 @@ static inline int thunk_type_align(const argtype *type_ptr, int is_host)
         se = struct_entries + type_ptr[1];
         return se->align[is_host];
     default:
-        return -1;
+        g_assert_not_reached();
     }
 }
 
