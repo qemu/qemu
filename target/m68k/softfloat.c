@@ -103,6 +103,7 @@ floatx80 floatx80_mod(floatx80 a, floatx80 b, float_status *status)
         mul64To128(bSig, qTemp, &term0, &term1);
         sub128(aSig0, aSig1, term0, term1, &aSig0, &aSig1);
         shortShift128Left(aSig0, aSig1, 62, &aSig0, &aSig1);
+        expDiff -= 62;
     }
     expDiff += 64;
     if (0 < expDiff) {
