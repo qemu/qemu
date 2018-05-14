@@ -298,6 +298,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_2_12 \
     HW_COMPAT_2_12 \
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "legacy-cache",\
+        .value    = "on",\
+    },
 
 #define PC_COMPAT_2_11 \
     HW_COMPAT_2_11 \
