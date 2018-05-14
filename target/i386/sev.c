@@ -430,7 +430,8 @@ static int
 sev_get_pdh_info(int fd, guchar **pdh, size_t *pdh_len, guchar **cert_chain,
                  size_t *cert_chain_len)
 {
-    guchar *pdh_data, *cert_chain_data;
+    guchar *pdh_data = NULL;
+    guchar *cert_chain_data = NULL;
     struct sev_user_data_pdh_cert_export export = {};
     int err, r;
 
@@ -471,8 +472,9 @@ e_free:
 SevCapability *
 sev_get_capabilities(void)
 {
-    SevCapability *cap;
-    guchar *pdh_data, *cert_chain_data;
+    SevCapability *cap = NULL;
+    guchar *pdh_data = NULL;
+    guchar *cert_chain_data = NULL;
     size_t pdh_len = 0, cert_chain_len = 0;
     uint32_t ebx;
     int fd;
@@ -486,7 +488,7 @@ sev_get_capabilities(void)
 
     if (sev_get_pdh_info(fd, &pdh_data, &pdh_len,
                          &cert_chain_data, &cert_chain_len)) {
-        return NULL;
+        goto out;
     }
 
     cap = g_new0(SevCapability, 1);
@@ -502,9 +504,9 @@ sev_get_capabilities(void)
      */
     cap->reduced_phys_bits = 1;
 
+out:
     g_free(pdh_data);
     g_free(cert_chain_data);
-
     close(fd);
     return cap;
 }
@@ -530,7 +532,7 @@ sev_launch_start(SEVState *s)
 {
     gsize sz;
     int ret = 1;
-    int fw_error;
+    int fw_error, rc;
     QSevGuestInfo *sev = s->sev_info;
     struct kvm_sev_launch_start *start;
     guchar *session = NULL, *dh_cert = NULL;
@@ -543,7 +545,7 @@ sev_launch_start(SEVState *s)
                                             &error_abort);
     if (sev->session_file) {
         if (sev_read_file_base64(sev->session_file, &session, &sz) < 0) {
-            return 1;
+            goto out;
         }
         start->session_uaddr = (unsigned long)session;
         start->session_len = sz;
@@ -551,18 +553,18 @@ sev_launch_start(SEVState *s)
 
     if (sev->dh_cert_file) {
         if (sev_read_file_base64(sev->dh_cert_file, &dh_cert, &sz) < 0) {
-            return 1;
+            goto out;
         }
         start->dh_uaddr = (unsigned long)dh_cert;
         start->dh_len = sz;
     }
 
     trace_kvm_sev_launch_start(start->policy, session, dh_cert);
-    ret = sev_ioctl(s->sev_fd, KVM_SEV_LAUNCH_START, start, &fw_error);
-    if (ret < 0) {
+    rc = sev_ioctl(s->sev_fd, KVM_SEV_LAUNCH_START, start, &fw_error);
+    if (rc < 0) {
         error_report("%s: LAUNCH_START ret=%d fw_error=%d '%s'",
                 __func__, ret, fw_error, fw_error_to_str(fw_error));
-        return 1;
+        goto out;
     }
 
     object_property_set_int(OBJECT(sev), start->handle, "handle",
@@ -570,12 +572,13 @@ sev_launch_start(SEVState *s)
     sev_set_guest_state(SEV_STATE_LAUNCH_UPDATE);
     s->handle = start->handle;
     s->policy = start->policy;
+    ret = 0;
 
+out:
     g_free(start);
     g_free(session);
     g_free(dh_cert);
-
-    return 0;
+    return ret;
 }
 
 static int
@@ -712,7 +715,7 @@ sev_guest_init(const char *id)
     uint32_t host_cbitpos;
     struct sev_user_data_status status = {};
 
-    s = g_new0(SEVState, 1);
+    sev_state = s = g_new0(SEVState, 1);
     s->sev_info = lookup_sev_guest_info(id);
     if (!s->sev_info) {
         error_report("%s: '%s' is not a valid '%s' object",
@@ -720,7 +723,6 @@ sev_guest_init(const char *id)
         goto err;
     }
 
-    sev_state = s;
     s->state = SEV_STATE_UNINIT;
 
     host_cpuid(0x8000001F, 0, NULL, &ebx, NULL, NULL);

@@ -20500,7 +20500,7 @@ void mips_tcg_init(void)
                                        "fcr31");
 }
 
-#include "translate_init.c"
+#include "translate_init.inc.c"
 
 void cpu_mips_realize_env(CPUMIPSState *env)
 {

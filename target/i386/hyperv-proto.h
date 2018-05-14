@@ -35,7 +35,7 @@
 #define HV_RESET_AVAILABLE           (1u << 7)
 #define HV_REFERENCE_TSC_AVAILABLE   (1u << 9)
 #define HV_ACCESS_FREQUENCY_MSRS     (1u << 11)
-
+#define HV_ACCESS_REENLIGHTENMENTS_CONTROL  (1u << 13)
 
 /*
  * HV_CPUID_FEATURES.EDX bits
@@ -128,6 +128,13 @@
 #define HV_CRASH_PARAMS    (HV_X64_MSR_CRASH_P4 - HV_X64_MSR_CRASH_P0 + 1)
 #define HV_X64_MSR_CRASH_CTL                    0x40000105
 #define HV_CRASH_CTL_NOTIFY                     (1ull << 63)
+
+/*
+ * Reenlightenment notification MSRs
+ */
+#define HV_X64_MSR_REENLIGHTENMENT_CONTROL      0x40000106
+#define HV_X64_MSR_TSC_EMULATION_CONTROL        0x40000107
+#define HV_X64_MSR_TSC_EMULATION_STATUS         0x40000108
 
 /*
  * Hypercall status code

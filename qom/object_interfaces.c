@@ -65,12 +65,6 @@ Object *user_creatable_add_type(const char *type, const char *id,
 
     assert(qdict);
     obj = object_new(type);
-    if (object_property_find(obj, "id", NULL)) {
-        object_property_set_str(obj, id, "id", &local_err);
-        if (local_err) {
-            goto out;
-        }
-    }
     visit_start_struct(v, NULL, NULL, 0, &local_err);
     if (local_err) {
         goto out;

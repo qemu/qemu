@@ -459,8 +459,6 @@ static void test_opts_parse(void)
 {
     Error *err = NULL;
     QemuOpts *opts;
-    char long_key[129];
-    char *params;
 
     /* Nothing */
     opts = qemu_opts_parse(&opts_list_03, "", false, &error_abort);
@@ -470,22 +468,6 @@ static void test_opts_parse(void)
     opts = qemu_opts_parse(&opts_list_03, "=val", false, &error_abort);
     g_assert_cmpuint(opts_count(opts), ==, 1);
     g_assert_cmpstr(qemu_opt_get(opts, ""), ==, "val");
-
-    /* Long key */
-    memset(long_key, 'a', 127);
-    long_key[127] = 'z';
-    long_key[128] = 0;
-    params = g_strdup_printf("%s=v", long_key);
-    opts = qemu_opts_parse(&opts_list_03, params + 1, NULL, &error_abort);
-    g_assert_cmpuint(opts_count(opts), ==, 1);
-    g_assert_cmpstr(qemu_opt_get(opts, long_key + 1), ==, "v");
-
-    /* Overlong key gets truncated */
-    opts = qemu_opts_parse(&opts_list_03, params, NULL, &error_abort);
-    g_assert(opts_count(opts) == 1);
-    long_key[127] = 0;
-    g_assert_cmpstr(qemu_opt_get(opts, long_key), ==, "v");
-    g_free(params);
 
     /* Multiple keys, last one wins */
     opts = qemu_opts_parse(&opts_list_03, "a=1,b=2,,x,a=3",
