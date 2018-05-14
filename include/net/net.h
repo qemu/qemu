@@ -37,7 +37,6 @@ typedef struct NICConf {
 
 #define DEFINE_NIC_PROPERTIES(_state, _conf)                            \
     DEFINE_PROP_MACADDR("mac",   _state, _conf.macaddr),                \
-    DEFINE_PROP_VLAN("vlan",     _state, _conf.peers),                   \
     DEFINE_PROP_NETDEV("netdev", _state, _conf.peers)
 
 

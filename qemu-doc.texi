@@ -715,20 +715,12 @@ state is not saved or restored properly (in particular USB).
 @node pcsys_network
 @section Network emulation
 
-QEMU can simulate several network cards (PCI or ISA cards on the PC
-target) and can connect them to an arbitrary number of Virtual Local
-Area Networks (VLANs). Host TAP devices can be connected to any QEMU
-VLAN. VLAN can be connected between separate instances of QEMU to
-simulate large networks. For simpler usage, a non privileged user mode
-network stack can replace the TAP device to have a basic network
-connection.
-
-@subsection VLANs
-
-QEMU simulates several VLANs. A VLAN can be symbolised as a virtual
-connection between several network devices. These devices can be for
-example QEMU virtual Ethernet cards or virtual Host ethernet devices
-(TAP devices).
+QEMU can simulate several network cards (e.g. PCI or ISA cards on the PC
+target) and can connect them to a network backend on the host or an emulated
+hub. The various host network backends can either be used to connect the NIC of
+the guest to a real network (e.g. by using a TAP devices or the non-privileged
+user mode network stack), or to other guest instances running in another QEMU
+process (e.g. by using the socket host network backend).
 
 @subsection Using TAP network interfaces
 
@@ -764,7 +756,7 @@ network). The virtual network configuration is the following:
 
 @example
 
-         QEMU VLAN      <------>  Firewall/DHCP server <-----> Internet
+     guest (10.0.2.15)  <------>  Firewall/DHCP server <-----> Internet
                            |          (10.0.2.2)
                            |
                            ---->  DNS server (10.0.2.3)
@@ -799,11 +791,23 @@ When using the @option{'-netdev user,hostfwd=...'} option, TCP or UDP
 connections can be redirected from the host to the guest. It allows for
 example to redirect X11, telnet or SSH connections.
 
-@subsection Connecting VLANs between QEMU instances
+@subsection Hubs
 
-Using the @option{-net socket} option, it is possible to make VLANs
-that span several QEMU instances. See @ref{sec_invocation} to have a
-basic example.
+QEMU can simulate several hubs. A hub can be thought of as a virtual connection
+between several network devices. These devices can be for example QEMU virtual
+ethernet cards or virtual Host ethernet devices (TAP devices). You can connect
+guest NICs or host network backends to such a hub using the @option{-netdev
+hubport} or @option{-nic hubport} options. The legacy @option{-net} option
+also connects the given device to the emulated hub with ID 0 (i.e. the default
+hub) unless you specify a netdev with @option{-net nic,netdev=xxx} here.
+
+@subsection Connecting emulated networks between QEMU instances
+
+Using the @option{-netdev socket} (or @option{-nic socket} or
+@option{-net socket}) option, it is possible to create emulated
+networks that span several QEMU instances.
+See the description of the @option{-netdev socket} option in the
+@ref{sec_invocation,,Invocation chapter} to have a basic example.
 
 @node pcsys_other_devs
 @section Other Devices
@@ -2845,15 +2849,6 @@ The ``-smb /some/dir'' argument is replaced by either
 with ``-device ...,netdev=x''), or ``-nic user,smb=/some/dir''
 (for embedded NICs). The new syntax allows different settings to be
 provided per NIC.
-
-@subsection -net vlan (since 2.9.0)
-
-The ``-net vlan=NN'' argument was mostly used to attach separate
-network backends to different virtual NICs.  This is the default
-behavior for ``-netdev'' and ``-nic''.  You can connect multiple
-``-netdev'' and ``-nic'' devices to the same network using the
-"hubport" network backend, created with ``-netdev hubport,hubid=NN,...''
-and ``-nic hubport,hubid=NN''.
 
 @subsection -drive cyls=...,heads=...,secs=...,trans=... (since 2.10.0)
 
