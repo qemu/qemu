@@ -180,93 +180,21 @@ static FloatParts parts_silence_nan(FloatParts a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
-| The pattern for a default generated half-precision NaN.
-*----------------------------------------------------------------------------*/
-float16 float16_default_nan(float_status *status)
-{
-#if defined(TARGET_ARM)
-    return const_float16(0x7E00);
-#else
-    if (snan_bit_is_one(status)) {
-        return const_float16(0x7DFF);
-    } else {
-#if defined(TARGET_MIPS)
-        return const_float16(0x7E00);
-#else
-        return const_float16(0xFE00);
-#endif
-    }
-#endif
-}
-
-/*----------------------------------------------------------------------------
-| The pattern for a default generated single-precision NaN.
-*----------------------------------------------------------------------------*/
-float32 float32_default_nan(float_status *status)
-{
-#if defined(TARGET_SPARC) || defined(TARGET_M68K)
-    return const_float32(0x7FFFFFFF);
-#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA) || \
-      defined(TARGET_XTENSA) || defined(TARGET_S390X) || \
-      defined(TARGET_TRICORE) || defined(TARGET_RISCV)
-    return const_float32(0x7FC00000);
-#elif defined(TARGET_HPPA)
-    return const_float32(0x7FA00000);
-#else
-    if (snan_bit_is_one(status)) {
-        return const_float32(0x7FBFFFFF);
-    } else {
-#if defined(TARGET_MIPS)
-        return const_float32(0x7FC00000);
-#else
-        return const_float32(0xFFC00000);
-#endif
-    }
-#endif
-}
-
-/*----------------------------------------------------------------------------
-| The pattern for a default generated double-precision NaN.
-*----------------------------------------------------------------------------*/
-float64 float64_default_nan(float_status *status)
-{
-#if defined(TARGET_SPARC) || defined(TARGET_M68K)
-    return const_float64(LIT64(0x7FFFFFFFFFFFFFFF));
-#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA) || \
-      defined(TARGET_S390X) || defined(TARGET_RISCV)
-    return const_float64(LIT64(0x7FF8000000000000));
-#elif defined(TARGET_HPPA)
-    return const_float64(LIT64(0x7FF4000000000000));
-#else
-    if (snan_bit_is_one(status)) {
-        return const_float64(LIT64(0x7FF7FFFFFFFFFFFF));
-    } else {
-#if defined(TARGET_MIPS)
-        return const_float64(LIT64(0x7FF8000000000000));
-#else
-        return const_float64(LIT64(0xFFF8000000000000));
-#endif
-    }
-#endif
-}
-
-/*----------------------------------------------------------------------------
 | The pattern for a default generated extended double-precision NaN.
 *----------------------------------------------------------------------------*/
 floatx80 floatx80_default_nan(float_status *status)
 {
     floatx80 r;
+
+    /* None of the targets that have snan_bit_is_one use floatx80.  */
+    assert(!snan_bit_is_one(status));
 #if defined(TARGET_M68K)
     r.low = LIT64(0xFFFFFFFFFFFFFFFF);
     r.high = 0x7FFF;
 #else
-    if (snan_bit_is_one(status)) {
-        r.low = LIT64(0xBFFFFFFFFFFFFFFF);
-        r.high = 0x7FFF;
-    } else {
-        r.low = LIT64(0xC000000000000000);
-        r.high = 0xFFFF;
-    }
+    /* X86 */
+    r.low = LIT64(0xC000000000000000);
+    r.high = 0xFFFF;
 #endif
     return r;
 }
@@ -284,27 +212,6 @@ floatx80 floatx80_default_nan(float_status *status)
 
 const floatx80 floatx80_infinity
     = make_floatx80_init(floatx80_infinity_high, floatx80_infinity_low);
-
-/*----------------------------------------------------------------------------
-| The pattern for a default generated quadruple-precision NaN.
-*----------------------------------------------------------------------------*/
-float128 float128_default_nan(float_status *status)
-{
-    float128 r;
-
-    if (snan_bit_is_one(status)) {
-        r.low = LIT64(0xFFFFFFFFFFFFFFFF);
-        r.high = LIT64(0x7FFF7FFFFFFFFFFF);
-    } else {
-        r.low = LIT64(0x0000000000000000);
-#if defined(TARGET_S390X) || defined(TARGET_PPC) || defined(TARGET_RISCV)
-        r.high = LIT64(0x7FFF800000000000);
-#else
-        r.high = LIT64(0xFFFF800000000000);
-#endif
-    }
-    return r;
-}
 
 /*----------------------------------------------------------------------------
 | Raises the exceptions specified by `flags'.  Floating-point traps can be

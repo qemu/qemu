@@ -2092,6 +2092,47 @@ float64 __attribute__((flatten)) float64_sqrt(float64 a, float_status *status)
     return float64_round_pack_canonical(pr, status);
 }
 
+/*----------------------------------------------------------------------------
+| The pattern for a default generated NaN.
+*----------------------------------------------------------------------------*/
+
+float16 float16_default_nan(float_status *status)
+{
+    FloatParts p = parts_default_nan(status);
+    p.frac >>= float16_params.frac_shift;
+    return float16_pack_raw(p);
+}
+
+float32 float32_default_nan(float_status *status)
+{
+    FloatParts p = parts_default_nan(status);
+    p.frac >>= float32_params.frac_shift;
+    return float32_pack_raw(p);
+}
+
+float64 float64_default_nan(float_status *status)
+{
+    FloatParts p = parts_default_nan(status);
+    p.frac >>= float64_params.frac_shift;
+    return float64_pack_raw(p);
+}
+
+float128 float128_default_nan(float_status *status)
+{
+    FloatParts p = parts_default_nan(status);
+    float128 r;
+
+    /* Extrapolate from the choices made by parts_default_nan to fill
+     * in the quad-floating format.  If the low bit is set, assume we
+     * want to set all non-snan bits.
+     */
+    r.low = -(p.frac & 1);
+    r.high = p.frac >> (DECOMPOSED_BINARY_POINT - 48);
+    r.high |= LIT64(0x7FFF000000000000);
+    r.high |= (uint64_t)p.sign << 63;
+
+    return r;
+}
 
 /*----------------------------------------------------------------------------
 | Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
