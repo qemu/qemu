@@ -93,7 +93,7 @@ static const char *const reset_dev_types[] = {
     "diag288",
 };
 
-void subsystem_reset(void)
+static void subsystem_reset(void)
 {
     DeviceState *dev;
     int i;
@@ -381,17 +381,54 @@ static void s390_cpu_plug(HotplugHandler *hotplug_dev,
     }
 }
 
+static inline void s390_do_cpu_ipl(CPUState *cs, run_on_cpu_data arg)
+{
+    S390CPU *cpu = S390_CPU(cs);
+
+    s390_ipl_prepare_cpu(cpu);
+    s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
+}
+
 static void s390_machine_reset(void)
 {
-    S390CPU *ipl_cpu = S390_CPU(qemu_get_cpu(0));
+    enum s390_reset reset_type;
+    CPUState *cs, *t;
 
+    /* get the reset parameters, reset them once done */
+    s390_ipl_get_reset_request(&cs, &reset_type);
+
+    /* all CPUs are paused and synchronized at this point */
     s390_cmma_reset();
-    qemu_devices_reset();
-    s390_crypto_reset();
 
-    /* all cpus are stopped - configure and start the ipl cpu only */
-    s390_ipl_prepare_cpu(ipl_cpu);
-    s390_cpu_set_state(S390_CPU_STATE_OPERATING, ipl_cpu);
+    switch (reset_type) {
+    case S390_RESET_EXTERNAL:
+    case S390_RESET_REIPL:
+        qemu_devices_reset();
+        s390_crypto_reset();
+
+        /* configure and start the ipl CPU only */
+        run_on_cpu(cs, s390_do_cpu_ipl, RUN_ON_CPU_NULL);
+        break;
+    case S390_RESET_MODIFIED_CLEAR:
+        CPU_FOREACH(t) {
+            run_on_cpu(t, s390_do_cpu_full_reset, RUN_ON_CPU_NULL);
+        }
+        subsystem_reset();
+        s390_crypto_reset();
+        run_on_cpu(cs, s390_do_cpu_load_normal, RUN_ON_CPU_NULL);
+        break;
+    case S390_RESET_LOAD_NORMAL:
+        CPU_FOREACH(t) {
+            run_on_cpu(t, s390_do_cpu_reset, RUN_ON_CPU_NULL);
+        }
+        subsystem_reset();
+        run_on_cpu(cs, s390_do_cpu_initial_reset, RUN_ON_CPU_NULL);
+        run_on_cpu(cs, s390_do_cpu_load_normal, RUN_ON_CPU_NULL);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    s390_ipl_clear_reset_request();
 }
 
 static void s390_machine_device_plug(HotplugHandler *hotplug_dev,

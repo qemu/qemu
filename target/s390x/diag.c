@@ -22,51 +22,6 @@
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 
-static int modified_clear_reset(S390CPU *cpu)
-{
-    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
-    CPUState *t;
-
-    pause_all_vcpus();
-    cpu_synchronize_all_states();
-    CPU_FOREACH(t) {
-        run_on_cpu(t, s390_do_cpu_full_reset, RUN_ON_CPU_NULL);
-    }
-    s390_cmma_reset();
-    subsystem_reset();
-    s390_crypto_reset();
-    scc->load_normal(CPU(cpu));
-    cpu_synchronize_all_post_reset();
-    resume_all_vcpus();
-    return 0;
-}
-
-static inline void s390_do_cpu_reset(CPUState *cs, run_on_cpu_data arg)
-{
-    S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
-
-    scc->cpu_reset(cs);
-}
-
-static int load_normal_reset(S390CPU *cpu)
-{
-    S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
-    CPUState *t;
-
-    pause_all_vcpus();
-    cpu_synchronize_all_states();
-    CPU_FOREACH(t) {
-        run_on_cpu(t, s390_do_cpu_reset, RUN_ON_CPU_NULL);
-    }
-    s390_cmma_reset();
-    subsystem_reset();
-    scc->initial_cpu_reset(CPU(cpu));
-    scc->load_normal(CPU(cpu));
-    cpu_synchronize_all_post_reset();
-    resume_all_vcpus();
-    return 0;
-}
-
 int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3)
 {
     uint64_t func = env->regs[r1];
@@ -101,6 +56,7 @@ int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3)
 
 void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
 {
+    CPUState *cs = CPU(s390_env_get_cpu(env));
     uint64_t addr =  env->regs[r1];
     uint64_t subcode = env->regs[r3];
     IplParameterBlock *iplb;
@@ -117,22 +73,13 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
 
     switch (subcode) {
     case 0:
-        modified_clear_reset(s390_env_get_cpu(env));
-        if (tcg_enabled()) {
-            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
-        }
+        s390_ipl_reset_request(cs, S390_RESET_MODIFIED_CLEAR);
         break;
     case 1:
-        load_normal_reset(s390_env_get_cpu(env));
-        if (tcg_enabled()) {
-            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
-        }
+        s390_ipl_reset_request(cs, S390_RESET_LOAD_NORMAL);
         break;
     case 3:
-        s390_reipl_request();
-        if (tcg_enabled()) {
-            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
-        }
+        s390_ipl_reset_request(cs, S390_RESET_REIPL);
         break;
     case 5:
         if ((r1 & 1) || (addr & 0x0fffULL)) {

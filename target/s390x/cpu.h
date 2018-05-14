@@ -686,6 +686,32 @@ static inline uint64_t s390_build_validity_mcic(void)
     return mcic;
 }
 
+static inline void s390_do_cpu_full_reset(CPUState *cs, run_on_cpu_data arg)
+{
+    cpu_reset(cs);
+}
+
+static inline void s390_do_cpu_reset(CPUState *cs, run_on_cpu_data arg)
+{
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
+
+    scc->cpu_reset(cs);
+}
+
+static inline void s390_do_cpu_initial_reset(CPUState *cs, run_on_cpu_data arg)
+{
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
+
+    scc->initial_cpu_reset(cs);
+}
+
+static inline void s390_do_cpu_load_normal(CPUState *cs, run_on_cpu_data arg)
+{
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
+
+    scc->load_normal(cs);
+}
+
 
 /* cpu.c */
 int s390_get_clock(uint8_t *tod_high, uint64_t *tod_low);
