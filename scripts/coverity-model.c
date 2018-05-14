@@ -103,6 +103,18 @@ static int get_keysym(const name2keysym_t *table,
     }
 }
 
+/* Replay data is considered trusted.  */
+uint8_t replay_get_byte(void)
+{
+     uint8_t byte = 0;
+     if (replay_file) {
+         uint8_t c;
+         byte = c;
+     }
+     return byte;
+}
+
+
 /*
  * GLib memory allocation functions.
  *
