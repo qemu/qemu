@@ -2135,6 +2135,37 @@ float128 float128_default_nan(float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Returns a quiet NaN from a signalling NaN for the floating point value `a'.
+*----------------------------------------------------------------------------*/
+
+float16 float16_silence_nan(float16 a, float_status *status)
+{
+    FloatParts p = float16_unpack_raw(a);
+    p.frac <<= float16_params.frac_shift;
+    p = parts_silence_nan(p, status);
+    p.frac >>= float16_params.frac_shift;
+    return float16_pack_raw(p);
+}
+
+float32 float32_silence_nan(float32 a, float_status *status)
+{
+    FloatParts p = float32_unpack_raw(a);
+    p.frac <<= float32_params.frac_shift;
+    p = parts_silence_nan(p, status);
+    p.frac >>= float32_params.frac_shift;
+    return float32_pack_raw(p);
+}
+
+float64 float64_silence_nan(float64 a, float_status *status)
+{
+    FloatParts p = float64_unpack_raw(a);
+    p.frac <<= float64_params.frac_shift;
+    p = parts_silence_nan(p, status);
+    p.frac >>= float64_params.frac_shift;
+    return float64_pack_raw(p);
+}
+
+/*----------------------------------------------------------------------------
 | Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
 | and 7, and returns the properly rounded 32-bit integer corresponding to the
 | input.  If `zSign' is 1, the input is negated before being converted to an
