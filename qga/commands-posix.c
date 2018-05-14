@@ -876,13 +876,28 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
     p = strstr(syspath, "/devices/pci");
     if (!p || sscanf(p + 12, "%*x:%*x/%x:%x:%x.%x%n",
                      pci, pci + 1, pci + 2, pci + 3, &pcilen) < 4) {
-        g_debug("only pci device is supported: sysfs path \"%s\"", syspath);
+        g_debug("only pci device is supported: sysfs path '%s'", syspath);
         return;
     }
 
-    driver = get_pci_driver(syspath, (p + 12 + pcilen) - syspath, errp);
-    if (!driver) {
-        goto cleanup;
+    p += 12 + pcilen;
+    while (true) {
+        driver = get_pci_driver(syspath, p - syspath, errp);
+        if (driver && (g_str_equal(driver, "ata_piix") ||
+                       g_str_equal(driver, "sym53c8xx") ||
+                       g_str_equal(driver, "virtio-pci") ||
+                       g_str_equal(driver, "ahci"))) {
+            break;
+        }
+
+        if (sscanf(p, "/%x:%x:%x.%x%n",
+                          pci, pci + 1, pci + 2, pci + 3, &pcilen) == 4) {
+            p += pcilen;
+            continue;
+        }
+
+        g_debug("unsupported driver or sysfs path '%s'", syspath);
+        return;
     }
 
     p = strstr(syspath, "/target");
