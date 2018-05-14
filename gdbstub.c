@@ -1814,7 +1814,7 @@ void gdb_signalled(CPUArchState *env, int sig)
     put_packet(s, buf);
 }
 
-static void gdb_accept(void)
+static bool gdb_accept(void)
 {
     GDBState *s;
     struct sockaddr_in sockaddr;
@@ -1826,7 +1826,7 @@ static void gdb_accept(void)
         fd = accept(gdbserver_fd, (struct sockaddr *)&sockaddr, &len);
         if (fd < 0 && errno != EINTR) {
             perror("accept");
-            return;
+            return false;
         } else if (fd >= 0) {
             qemu_set_cloexec(fd);
             break;
@@ -1834,7 +1834,10 @@ static void gdb_accept(void)
     }
 
     /* set short latency */
-    socket_set_nodelay(fd);
+    if (socket_set_nodelay(fd)) {
+        perror("setsockopt");
+        return false;
+    }
 
     s = g_malloc0(sizeof(GDBState));
     s->c_cpu = first_cpu;
@@ -1843,6 +1846,7 @@ static void gdb_accept(void)
     gdb_has_xml = false;
 
     gdbserver_state = s;
+    return true;
 }
 
 static int gdbserver_open(int port)
@@ -1883,7 +1887,11 @@ int gdbserver_start(int port)
     if (gdbserver_fd < 0)
         return -1;
     /* accept connections */
-    gdb_accept();
+    if (!gdb_accept()) {
+        close(gdbserver_fd);
+        gdbserver_fd = -1;
+        return -1;
+    }
     return 0;
 }
 
