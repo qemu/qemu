@@ -214,6 +214,10 @@ static void char_mux_test(void)
     g_assert_cmpint(h2.last_event, ==, -1);
 
     /* switch focus */
+    qemu_chr_be_write(base, (void *)"\1b", 2);
+    g_assert_cmpint(h1.last_event, ==, 42);
+    g_assert_cmpint(h2.last_event, ==, CHR_EVENT_BREAK);
+
     qemu_chr_be_write(base, (void *)"\1c", 2);
     g_assert_cmpint(h1.last_event, ==, CHR_EVENT_MUX_IN);
     g_assert_cmpint(h2.last_event, ==, CHR_EVENT_MUX_OUT);
@@ -226,6 +230,10 @@ static void char_mux_test(void)
     g_assert_cmpint(h1.read_count, ==, 6);
     g_assert_cmpstr(h1.read_buf, ==, "hello");
     h1.read_count = 0;
+
+    qemu_chr_be_write(base, (void *)"\1b", 2);
+    g_assert_cmpint(h1.last_event, ==, CHR_EVENT_BREAK);
+    g_assert_cmpint(h2.last_event, ==, CHR_EVENT_MUX_OUT);
 
     /* remove first handler */
     qemu_chr_fe_set_handlers(&chr_be1, NULL, NULL, NULL, NULL,
