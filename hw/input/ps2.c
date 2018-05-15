@@ -188,16 +188,64 @@ static void ps2_reset_queue(PS2State *s)
     q->count = 0;
 }
 
-void ps2_queue(PS2State *s, int b)
+void ps2_queue_noirq(PS2State *s, int b)
 {
     PS2Queue *q = &s->queue;
 
-    if (q->count >= PS2_QUEUE_SIZE - 1)
+    if (q->count == PS2_QUEUE_SIZE) {
         return;
+    }
+
     q->data[q->wptr] = b;
     if (++q->wptr == PS2_QUEUE_SIZE)
         q->wptr = 0;
     q->count++;
+}
+
+void ps2_raise_irq(PS2State *s)
+{
+    s->update_irq(s->update_arg, 1);
+}
+
+void ps2_queue(PS2State *s, int b)
+{
+    ps2_queue_noirq(s, b);
+    s->update_irq(s->update_arg, 1);
+}
+
+void ps2_queue_2(PS2State *s, int b1, int b2)
+{
+    if (PS2_QUEUE_SIZE - s->queue.count < 2) {
+        return;
+    }
+
+    ps2_queue_noirq(s, b1);
+    ps2_queue_noirq(s, b2);
+    s->update_irq(s->update_arg, 1);
+}
+
+void ps2_queue_3(PS2State *s, int b1, int b2, int b3)
+{
+    if (PS2_QUEUE_SIZE - s->queue.count < 3) {
+        return;
+    }
+
+    ps2_queue_noirq(s, b1);
+    ps2_queue_noirq(s, b2);
+    ps2_queue_noirq(s, b3);
+    s->update_irq(s->update_arg, 1);
+}
+
+void ps2_queue_4(PS2State *s, int b1, int b2, int b3, int b4)
+{
+    if (PS2_QUEUE_SIZE - s->queue.count < 4) {
+        return;
+    }
+
+    ps2_queue_noirq(s, b1);
+    ps2_queue_noirq(s, b2);
+    ps2_queue_noirq(s, b3);
+    ps2_queue_noirq(s, b4);
     s->update_irq(s->update_arg, 1);
 }
 
@@ -231,6 +279,11 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
     int qcode;
     uint16_t keycode = 0;
     int mod;
+
+    /* do not process events while disabled to prevent stream corruption */
+    if (!s->scan_enabled) {
+        return;
+    }
 
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     assert(evt->type == INPUT_EVENT_KIND_KEY);
@@ -496,13 +549,17 @@ void ps2_write_keyboard(void *opaque, int val)
             ps2_queue(&s->common, KBD_REPLY_RESEND);
             break;
         case KBD_CMD_GET_ID:
-            ps2_queue(&s->common, KBD_REPLY_ACK);
             /* We emulate a MF2 AT keyboard here */
-            ps2_queue(&s->common, KBD_REPLY_ID);
             if (s->translate)
-                ps2_queue(&s->common, 0x41);
+                ps2_queue_3(&s->common,
+                    KBD_REPLY_ACK,
+                    KBD_REPLY_ID,
+                    0x41);
             else
-                ps2_queue(&s->common, 0x83);
+                ps2_queue_3(&s->common,
+                    KBD_REPLY_ACK,
+                    KBD_REPLY_ID,
+                    0x83);
             break;
         case KBD_CMD_ECHO:
             ps2_queue(&s->common, KBD_CMD_ECHO);
@@ -529,8 +586,9 @@ void ps2_write_keyboard(void *opaque, int val)
             break;
         case KBD_CMD_RESET:
             ps2_reset_keyboard(s);
-            ps2_queue(&s->common, KBD_REPLY_ACK);
-            ps2_queue(&s->common, KBD_REPLY_POR);
+            ps2_queue_2(&s->common,
+                KBD_REPLY_ACK,
+                KBD_REPLY_POR);
             break;
         default:
             ps2_queue(&s->common, KBD_REPLY_RESEND);
@@ -539,8 +597,10 @@ void ps2_write_keyboard(void *opaque, int val)
         break;
     case KBD_CMD_SCANCODE:
         if (val == 0) {
-            ps2_queue(&s->common, KBD_REPLY_ACK);
-            ps2_put_keycode(s, s->scancode_set);
+            if (s->common.queue.count <= PS2_QUEUE_SIZE - 2) {
+                ps2_queue(&s->common, KBD_REPLY_ACK);
+                ps2_put_keycode(s, s->scancode_set);
+            }
         } else if (val >= 1 && val <= 3) {
             s->scancode_set = val;
             ps2_queue(&s->common, KBD_REPLY_ACK);
@@ -572,10 +632,15 @@ void ps2_keyboard_set_translation(void *opaque, int mode)
     s->translate = mode;
 }
 
-static void ps2_mouse_send_packet(PS2MouseState *s)
+static int ps2_mouse_send_packet(PS2MouseState *s)
 {
+    const int needed = 3 + (s->mouse_type - 2);
     unsigned int b;
     int dx1, dy1, dz1;
+
+    if (PS2_QUEUE_SIZE - s->common.queue.count < needed) {
+        return 0;
+    }
 
     dx1 = s->mouse_dx;
     dy1 = s->mouse_dy;
@@ -590,9 +655,9 @@ static void ps2_mouse_send_packet(PS2MouseState *s)
     else if (dy1 < -127)
         dy1 = -127;
     b = 0x08 | ((dx1 < 0) << 4) | ((dy1 < 0) << 5) | (s->mouse_buttons & 0x07);
-    ps2_queue(&s->common, b);
-    ps2_queue(&s->common, dx1 & 0xff);
-    ps2_queue(&s->common, dy1 & 0xff);
+    ps2_queue_noirq(&s->common, b);
+    ps2_queue_noirq(&s->common, dx1 & 0xff);
+    ps2_queue_noirq(&s->common, dy1 & 0xff);
     /* extra byte for IMPS/2 or IMEX */
     switch(s->mouse_type) {
     default:
@@ -602,7 +667,7 @@ static void ps2_mouse_send_packet(PS2MouseState *s)
             dz1 = 127;
         else if (dz1 < -127)
                 dz1 = -127;
-        ps2_queue(&s->common, dz1 & 0xff);
+        ps2_queue_noirq(&s->common, dz1 & 0xff);
         break;
     case 4:
         if (dz1 > 7)
@@ -610,15 +675,19 @@ static void ps2_mouse_send_packet(PS2MouseState *s)
         else if (dz1 < -7)
             dz1 = -7;
         b = (dz1 & 0x0f) | ((s->mouse_buttons & 0x18) << 1);
-        ps2_queue(&s->common, b);
+        ps2_queue_noirq(&s->common, b);
         break;
     }
+
+    ps2_raise_irq(&s->common);
 
     trace_ps2_mouse_send_packet(s, dx1, dy1, dz1, b);
     /* update deltas */
     s->mouse_dx -= dx1;
     s->mouse_dy -= dy1;
     s->mouse_dz -= dz1;
+
+    return 1;
 }
 
 static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
@@ -673,14 +742,18 @@ static void ps2_mouse_sync(DeviceState *dev)
 {
     PS2MouseState *s = (PS2MouseState *)dev;
 
+    /* do not sync while disabled to prevent stream corruption */
+    if (!(s->mouse_status & MOUSE_STATUS_ENABLED)) {
+        return;
+    }
+
     if (s->mouse_buttons) {
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     }
     if (!(s->mouse_status & MOUSE_STATUS_REMOTE)) {
-        while (s->common.queue.count < PS2_QUEUE_SIZE - 4) {
-            /* if not remote, send event. Multiple events are sent if
-               too big deltas */
-            ps2_mouse_send_packet(s);
+        /* if not remote, send event. Multiple events are sent if
+           too big deltas */
+        while (ps2_mouse_send_packet(s)) {
             if (s->mouse_dx == 0 && s->mouse_dy == 0 && s->mouse_dz == 0)
                 break;
         }
@@ -739,8 +812,9 @@ void ps2_write_mouse(void *opaque, int val)
             ps2_queue(&s->common, AUX_ACK);
             break;
         case AUX_GET_TYPE:
-            ps2_queue(&s->common, AUX_ACK);
-            ps2_queue(&s->common, s->mouse_type);
+            ps2_queue_2(&s->common,
+                AUX_ACK,
+                s->mouse_type);
             break;
         case AUX_SET_RES:
         case AUX_SET_SAMPLE:
@@ -748,10 +822,11 @@ void ps2_write_mouse(void *opaque, int val)
             ps2_queue(&s->common, AUX_ACK);
             break;
         case AUX_GET_SCALE:
-            ps2_queue(&s->common, AUX_ACK);
-            ps2_queue(&s->common, s->mouse_status);
-            ps2_queue(&s->common, s->mouse_resolution);
-            ps2_queue(&s->common, s->mouse_sample_rate);
+            ps2_queue_4(&s->common,
+                AUX_ACK,
+                s->mouse_status,
+                s->mouse_resolution,
+                s->mouse_sample_rate);
             break;
         case AUX_POLL:
             ps2_queue(&s->common, AUX_ACK);
@@ -776,9 +851,11 @@ void ps2_write_mouse(void *opaque, int val)
             s->mouse_resolution = 2;
             s->mouse_status = 0;
             s->mouse_type = 0;
-            ps2_queue(&s->common, AUX_ACK);
-            ps2_queue(&s->common, 0xaa);
-            ps2_queue(&s->common, s->mouse_type);
+            ps2_reset_queue(&s->common);
+            ps2_queue_3(&s->common,
+                AUX_ACK,
+                0xaa,
+                s->mouse_type);
             break;
         default:
             break;
