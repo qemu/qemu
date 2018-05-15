@@ -2441,6 +2441,15 @@ struct target_statfs64 {
 #define TARGET_F_SETLKW        7
 #define TARGET_F_GETOWN        11       /*  for sockets. */
 #define TARGET_F_SETOWN        12       /*  for sockets. */
+#elif defined(TARGET_SPARC)
+#define TARGET_F_RDLCK         1
+#define TARGET_F_WRLCK         2
+#define TARGET_F_UNLCK         3
+#define TARGET_F_GETOWN        5       /*  for sockets. */
+#define TARGET_F_SETOWN        6       /*  for sockets. */
+#define TARGET_F_GETLK         7
+#define TARGET_F_SETLK         8
+#define TARGET_F_SETLKW        9
 #else
 #define TARGET_F_GETLK         5
 #define TARGET_F_SETLK         6
@@ -2634,6 +2643,17 @@ struct target_statfs64 {
 #define TARGET_O_SYNC    (TARGET___O_SYNC | TARGET_O_DSYNC)
 #endif
 
+#if defined(TARGET_SPARC)
+#define TARGET_ARCH_FLOCK_PAD abi_short __unused;
+#define TARGET_ARCH_FLOCK64_PAD abi_short __unused;
+#elif defined(TARGET_MIPS)
+#define TARGET_ARCH_FLOCK_PAD abi_long pad[4];
+#define TARGET_ARCH_FLOCK64_PAD
+#else
+#define TARGET_ARCH_FLOCK_PAD
+#define TARGET_ARCH_FLOCK64_PAD
+#endif
+
 struct target_flock {
     short l_type;
     short l_whence;
@@ -2643,9 +2663,7 @@ struct target_flock {
     abi_long l_sysid;
 #endif
     int l_pid;
-#if defined(TARGET_MIPS)
-    abi_long pad[4];
-#endif
+    TARGET_ARCH_FLOCK_PAD
 };
 
 struct target_flock64 {
@@ -2654,6 +2672,7 @@ struct target_flock64 {
     abi_llong l_start;
     abi_llong l_len;
     abi_int   l_pid;
+    TARGET_ARCH_FLOCK64_PAD
 };
 
 struct target_f_owner_ex {

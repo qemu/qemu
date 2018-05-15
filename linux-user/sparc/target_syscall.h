@@ -1,6 +1,8 @@
 #ifndef SPARC_TARGET_SYSCALL_H
 #define SPARC_TARGET_SYSCALL_H
 
+#include "target_errno.h"
+
 struct target_pt_regs {
 	abi_ulong psr;
 	abi_ulong pc;
@@ -9,7 +11,7 @@ struct target_pt_regs {
 	abi_ulong u_regs[16];
 };
 
-#define UNAME_MACHINE "sun4"
+#define UNAME_MACHINE "sparc"
 #define UNAME_MINIMUM_RELEASE "2.6.32"
 
 /* SPARC kernels don't define this in their Kconfig, but they have the

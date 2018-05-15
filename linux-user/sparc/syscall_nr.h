@@ -22,6 +22,7 @@
 #define TARGET_NR_capset		 22 /* Linux Specific				   */
 #define TARGET_NR_setuid              23 /* Implemented via setreuid in SunOS           */
 #define TARGET_NR_getuid              24 /* Common                                      */
+#define TARGET_NR_vmsplice            25
 #define TARGET_NR_ptrace              26 /* Common                                      */
 #define TARGET_NR_alarm               27 /* Implemented via setitimer in SunOS          */
 #define TARGET_NR_sigaltstack	 28 /* Common					   */
@@ -135,6 +136,7 @@
 #define TARGET_NR_rmdir              137 /* Common                                      */
 #define TARGET_NR_utimes             138 /* SunOS Specific                              */
 #define TARGET_NR_stat64		139 /* Linux sparc32 Specific			   */
+#define TARGET_NR_sendfile64         140
 #define TARGET_NR_getpeername        141 /* Common                                      */
 #define TARGET_NR_futex              142 /* gethostid under SunOS                       */
 #define TARGET_NR_gettid             143 /* ENOSYS under SunOS                          */
@@ -145,29 +147,51 @@
 #define TARGET_NR_pciconfig_read	148 /* ENOSYS under SunOS                          */
 #define TARGET_NR_pciconfig_write	149 /* ENOSYS under SunOS                          */
 #define TARGET_NR_getsockname        150 /* Common                                      */
+#define TARGET_NR_inotify_init       151
+#define TARGET_NR_inotify_add_watch  152
 #define TARGET_NR_poll               153 /* Common                                      */
 #define TARGET_NR_getdents64		154 /* Linux specific				   */
 #define TARGET_NR_fcntl64		155 /* Linux sparc32 Specific                      */
+#define TARGET_NR_inotify_rm_watch   156
 #define TARGET_NR_statfs             157 /* Common                                      */
 #define TARGET_NR_fstatfs            158 /* Common                                      */
 #define TARGET_NR_umount             159 /* Common                                      */
+#define TARGET_NR_sched_set_affinity 160
+#define TARGET_NR_sched_get_affinity 161
 #define TARGET_NR_getdomainname      162 /* SunOS Specific                              */
 #define TARGET_NR_setdomainname      163 /* Common                                      */
 #define TARGET_NR_quotactl           165 /* Common                                      */
 #define TARGET_NR_set_tid_address    166 /* Linux specific, exportfs under SunOS        */
 #define TARGET_NR_mount              167 /* Common                                      */
 #define TARGET_NR_ustat              168 /* Common                                      */
+#define TARGET_NR_setxattr           169
+#define TARGET_NR_lsetxattr          170
+#define TARGET_NR_fsetxattr          171
+#define TARGET_NR_getxattr           172
+#define TARGET_NR_lgetxattr          173
 #define TARGET_NR_getdents           174 /* Common                                      */
 #define TARGET_NR_setsid             175 /* Common                                      */
 #define TARGET_NR_fchdir             176 /* Common                                      */
+#define TARGET_NR_fgetxattr          177
+#define TARGET_NR_listxattr          178
+#define TARGET_NR_llistxattr         179
+#define TARGET_NR_flistxattr         180
+#define TARGET_NR_removexattr        181
+#define TARGET_NR_lremovexattr       182
 #define TARGET_NR_sigpending         183 /* Common                                      */
 #define TARGET_NR_query_module	184 /* Linux Specific				   */
 #define TARGET_NR_setpgid            185 /* Common                                      */
+#define TARGET_NR_fremovexattr       186
 #define TARGET_NR_tkill              187 /* SunOS: fpathconf                            */
 #define TARGET_NR_exit_group	     188 /* Linux specific, sysconf undef SunOS         */
 #define TARGET_NR_uname              189 /* Linux Specific                              */
 #define TARGET_NR_init_module        190 /* Linux Specific                              */
 #define TARGET_NR_personality        191 /* Linux Specific                              */
+#define TARGET_NR_remap_file_pages   192
+#define TARGET_NR_epoll_create       193
+#define TARGET_NR_epoll_ctl          194
+#define TARGET_NR_epoll_wait         195
+#define TARGET_NR_ioprio_set         196
 #define TARGET_NR_getppid            197 /* Linux Specific                              */
 #define TARGET_NR_sigaction          198 /* Linux Specific                              */
 #define TARGET_NR_sgetmask           199 /* Linux Specific                              */
@@ -189,6 +213,7 @@
 #define TARGET_NR_ipc                215 /* Linux Specific                              */
 #define TARGET_NR_sigreturn          216 /* Linux Specific                              */
 #define TARGET_NR_clone              217 /* Linux Specific                              */
+#define TARGET_NR_ioprio_get         218
 #define TARGET_NR_adjtimex           219 /* Linux Specific                              */
 #define TARGET_NR_sigprocmask        220 /* Linux Specific                              */
 #define TARGET_NR_create_module      221 /* Linux Specific                              */
@@ -202,6 +227,7 @@
 #define TARGET_NR_setfsgid           229 /* Linux Specific                              */
 #define TARGET_NR__newselect         230 /* Linux Specific                              */
 #define TARGET_NR_time               231 /* Linux Specific                              */
+#define TARGET_NR_splice             232
 #define TARGET_NR_stime              233 /* Linux Specific                              */
 #define TARGET_NR_statfs64           234 /* Linux Specific                              */
 #define TARGET_NR_fstatfs64          235 /* Linux Specific                              */
@@ -224,7 +250,7 @@
 #define TARGET_NR_getsid             252
 #define TARGET_NR_fdatasync          253
 #define TARGET_NR_nfsservctl         254
-#define TARGET_NR_aplib              255
+#define TARGET_NR_sync_file_range    255
 #define TARGET_NR_clock_settime	256
 #define TARGET_NR_clock_gettime	257
 #define TARGET_NR_clock_getres	258
@@ -326,3 +352,7 @@
 #define TARGET_NR_listen                354
 #define TARGET_NR_setsockopt            355
 #define TARGET_NR_mlock2                356
+#define TARGET_NR_copy_file_range       357
+#define TARGET_NR_preadv2               358
+#define TARGET_NR_pwritev2              359
+#define TARGET_NR_statx                 360

@@ -6546,28 +6546,50 @@ static int target_to_host_fcntl_cmd(int cmd)
     return -TARGET_EINVAL;
 }
 
-#define TRANSTBL_CONVERT(a) { -1, TARGET_##a, -1, a }
-static const bitmask_transtbl flock_tbl[] = {
-    TRANSTBL_CONVERT(F_RDLCK),
-    TRANSTBL_CONVERT(F_WRLCK),
-    TRANSTBL_CONVERT(F_UNLCK),
-    TRANSTBL_CONVERT(F_EXLCK),
-    TRANSTBL_CONVERT(F_SHLCK),
-    { 0, 0, 0, 0 }
-};
+#define FLOCK_TRANSTBL \
+    switch (type) { \
+    TRANSTBL_CONVERT(F_RDLCK); \
+    TRANSTBL_CONVERT(F_WRLCK); \
+    TRANSTBL_CONVERT(F_UNLCK); \
+    TRANSTBL_CONVERT(F_EXLCK); \
+    TRANSTBL_CONVERT(F_SHLCK); \
+    }
+
+static int target_to_host_flock(int type)
+{
+#define TRANSTBL_CONVERT(a) case TARGET_##a: return a
+    FLOCK_TRANSTBL
+#undef  TRANSTBL_CONVERT
+    return -TARGET_EINVAL;
+}
+
+static int host_to_target_flock(int type)
+{
+#define TRANSTBL_CONVERT(a) case a: return TARGET_##a
+    FLOCK_TRANSTBL
+#undef  TRANSTBL_CONVERT
+    /* if we don't know how to convert the value coming
+     * from the host we copy to the target field as-is
+     */
+    return type;
+}
 
 static inline abi_long copy_from_user_flock(struct flock64 *fl,
                                             abi_ulong target_flock_addr)
 {
     struct target_flock *target_fl;
-    short l_type;
+    int l_type;
 
     if (!lock_user_struct(VERIFY_READ, target_fl, target_flock_addr, 1)) {
         return -TARGET_EFAULT;
     }
 
     __get_user(l_type, &target_fl->l_type);
-    fl->l_type = target_to_host_bitmask(l_type, flock_tbl);
+    l_type = target_to_host_flock(l_type);
+    if (l_type < 0) {
+        return l_type;
+    }
+    fl->l_type = l_type;
     __get_user(fl->l_whence, &target_fl->l_whence);
     __get_user(fl->l_start, &target_fl->l_start);
     __get_user(fl->l_len, &target_fl->l_len);
@@ -6586,7 +6608,7 @@ static inline abi_long copy_to_user_flock(abi_ulong target_flock_addr,
         return -TARGET_EFAULT;
     }
 
-    l_type = host_to_target_bitmask(fl->l_type, flock_tbl);
+    l_type = host_to_target_flock(fl->l_type);
     __put_user(l_type, &target_fl->l_type);
     __put_user(fl->l_whence, &target_fl->l_whence);
     __put_user(fl->l_start, &target_fl->l_start);
@@ -6604,14 +6626,18 @@ static inline abi_long copy_from_user_oabi_flock64(struct flock64 *fl,
                                                    abi_ulong target_flock_addr)
 {
     struct target_oabi_flock64 *target_fl;
-    short l_type;
+    int l_type;
 
     if (!lock_user_struct(VERIFY_READ, target_fl, target_flock_addr, 1)) {
         return -TARGET_EFAULT;
     }
 
     __get_user(l_type, &target_fl->l_type);
-    fl->l_type = target_to_host_bitmask(l_type, flock_tbl);
+    l_type = target_to_host_flock(l_type);
+    if (l_type < 0) {
+        return l_type;
+    }
+    fl->l_type = l_type;
     __get_user(fl->l_whence, &target_fl->l_whence);
     __get_user(fl->l_start, &target_fl->l_start);
     __get_user(fl->l_len, &target_fl->l_len);
@@ -6630,7 +6656,7 @@ static inline abi_long copy_to_user_oabi_flock64(abi_ulong target_flock_addr,
         return -TARGET_EFAULT;
     }
 
-    l_type = host_to_target_bitmask(fl->l_type, flock_tbl);
+    l_type = host_to_target_flock(fl->l_type);
     __put_user(l_type, &target_fl->l_type);
     __put_user(fl->l_whence, &target_fl->l_whence);
     __put_user(fl->l_start, &target_fl->l_start);
@@ -6645,14 +6671,18 @@ static inline abi_long copy_from_user_flock64(struct flock64 *fl,
                                               abi_ulong target_flock_addr)
 {
     struct target_flock64 *target_fl;
-    short l_type;
+    int l_type;
 
     if (!lock_user_struct(VERIFY_READ, target_fl, target_flock_addr, 1)) {
         return -TARGET_EFAULT;
     }
 
     __get_user(l_type, &target_fl->l_type);
-    fl->l_type = target_to_host_bitmask(l_type, flock_tbl);
+    l_type = target_to_host_flock(l_type);
+    if (l_type < 0) {
+        return l_type;
+    }
+    fl->l_type = l_type;
     __get_user(fl->l_whence, &target_fl->l_whence);
     __get_user(fl->l_start, &target_fl->l_start);
     __get_user(fl->l_len, &target_fl->l_len);
@@ -6671,7 +6701,7 @@ static inline abi_long copy_to_user_flock64(abi_ulong target_flock_addr,
         return -TARGET_EFAULT;
     }
 
-    l_type = host_to_target_bitmask(fl->l_type, flock_tbl);
+    l_type = host_to_target_flock(fl->l_type);
     __put_user(l_type, &target_fl->l_type);
     __put_user(fl->l_whence, &target_fl->l_whence);
     __put_user(fl->l_start, &target_fl->l_start);
