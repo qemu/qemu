@@ -118,6 +118,15 @@ Please note that g_malloc will exit on allocation failure, so there
 is no need to test for failure (as you would have to with malloc).
 Calling g_malloc with a zero size is valid and will return NULL.
 
+Prefer g_new(T, n) instead of g_malloc(sizeof(T) * n) for the following
+reasons:
+
+  a. It catches multiplication overflowing size_t;
+  b. It returns T * instead of void *, letting compiler catch more type
+     errors.
+
+Declarations like T *v = g_malloc(sizeof(*v)) are acceptable, though.
+
 Memory allocated by qemu_memalign or qemu_blockalign must be freed with
 qemu_vfree, since breaking this will cause problems on Win32.
 
