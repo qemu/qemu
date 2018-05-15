@@ -36,9 +36,7 @@ void sdl2_2d_update(DisplayChangeListener *dcl,
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
     DisplaySurface *surf = qemu_console_surface(dcl->con);
     SDL_Rect rect;
-    size_t surface_data_offset = surface_bytes_per_pixel(surf) * x +
-                                 surface_stride(surf) * y;
-
+    size_t surface_data_offset;
     assert(!scon->opengl);
 
     if (!surf) {
@@ -48,6 +46,8 @@ void sdl2_2d_update(DisplayChangeListener *dcl,
         return;
     }
 
+    surface_data_offset = surface_bytes_per_pixel(surf) * x +
+                          surface_stride(surf) * y;
     rect.x = x;
     rect.y = y;
     rect.w = w;
