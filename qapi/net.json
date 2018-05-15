@@ -450,7 +450,7 @@
 #
 # Since: 2.7
 #
-# 'dump' - removed with 2.12
+# 'dump': dropped in 2.12
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
@@ -498,7 +498,7 @@
 #
 # Since: 1.2
 #
-# 'vlan' - removed with 2.12
+# 'vlan': dropped in 2.13
 ##
 { 'struct': 'NetLegacy',
   'data': {
