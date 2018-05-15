@@ -255,8 +255,11 @@ typedef enum {
     VNC_STATE_UPDATE_FORCE,
 } VncStateUpdate;
 
+#define VNC_MAGIC ((uint64_t)0x05b3f069b3d204bb)
+
 struct VncState
 {
+    uint64_t magic;
     QIOChannelSocket *sioc; /* The underlying socket */
     QIOChannel *ioc; /* The channel currently used for I/O */
     guint ioc_tag;
