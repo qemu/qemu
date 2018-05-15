@@ -5780,7 +5780,7 @@ static void disas_fp_int_conv(DisasContext *s, uint32_t insn)
         default:
             /* all other sf/type/rmode combinations are invalid */
             unallocated_encoding(s);
-            break;
+            return;
         }
 
         if (!fp_access_check(s)) {
