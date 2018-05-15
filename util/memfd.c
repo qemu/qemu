@@ -66,7 +66,7 @@ int qemu_memfd_create(const char *name, size_t size, bool hugetlb,
 {
     int htsize = hugetlbsize ? ctz64(hugetlbsize) : 0;
 
-    if (htsize && 1 << htsize != hugetlbsize) {
+    if (htsize && 1ULL << htsize != hugetlbsize) {
         error_setg(errp, "Hugepage size must be a power of 2");
         return -1;
     }
