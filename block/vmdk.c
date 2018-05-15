@@ -1741,34 +1741,16 @@ static int coroutine_fn vmdk_co_pwrite_zeroes(BlockDriverState *bs,
     return ret;
 }
 
-static int vmdk_create_extent(const char *filename, int64_t filesize,
-                              bool flat, bool compress, bool zeroed_grain,
-                              QemuOpts *opts, Error **errp)
+static int vmdk_init_extent(BlockBackend *blk,
+                            int64_t filesize, bool flat,
+                            bool compress, bool zeroed_grain,
+                            Error **errp)
 {
     int ret, i;
-    BlockBackend *blk = NULL;
     VMDK4Header header;
-    Error *local_err = NULL;
     uint32_t tmp, magic, grains, gd_sectors, gt_size, gt_count;
     uint32_t *gd_buf = NULL;
     int gd_buf_size;
-
-    ret = bdrv_create_file(filename, opts, &local_err);
-    if (ret < 0) {
-        error_propagate(errp, local_err);
-        goto exit;
-    }
-
-    blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
-                       &local_err);
-    if (blk == NULL) {
-        error_propagate(errp, local_err);
-        ret = -EIO;
-        goto exit;
-    }
-
-    blk_set_allow_write_beyond_eof(blk, true);
 
     if (flat) {
         ret = blk_truncate(blk, filesize, PREALLOC_MODE_OFF, errp);
@@ -1863,15 +1845,50 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
                      gd_buf, gd_buf_size, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
-        goto exit;
     }
 
     ret = 0;
 exit:
-    if (blk) {
-        blk_unref(blk);
-    }
     g_free(gd_buf);
+    return ret;
+}
+
+static int vmdk_create_extent(const char *filename, int64_t filesize,
+                              bool flat, bool compress, bool zeroed_grain,
+                              BlockBackend **pbb,
+                              QemuOpts *opts, Error **errp)
+{
+    int ret;
+    BlockBackend *blk = NULL;
+    Error *local_err = NULL;
+
+    ret = bdrv_create_file(filename, opts, &local_err);
+    if (ret < 0) {
+        error_propagate(errp, local_err);
+        goto exit;
+    }
+
+    blk = blk_new_open(filename, NULL, NULL,
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                       &local_err);
+    if (blk == NULL) {
+        error_propagate(errp, local_err);
+        ret = -EIO;
+        goto exit;
+    }
+
+    blk_set_allow_write_beyond_eof(blk, true);
+
+    ret = vmdk_init_extent(blk, filesize, flat, compress, zeroed_grain, errp);
+exit:
+    if (blk) {
+        if (pbb) {
+            *pbb = blk;
+        } else {
+            blk_unref(blk);
+            blk = NULL;
+        }
+    }
     return ret;
 }
 
@@ -2094,7 +2111,7 @@ static int coroutine_fn vmdk_co_create_opts(const char *filename, QemuOpts *opts
         snprintf(ext_filename, PATH_MAX, "%s%s", path, desc_filename);
 
         if (vmdk_create_extent(ext_filename, size,
-                               flat, compress, zeroed_grain, opts, errp)) {
+                               flat, compress, zeroed_grain, NULL, opts, errp)) {
             ret = -EINVAL;
             goto exit;
         }
