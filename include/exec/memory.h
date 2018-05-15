@@ -679,7 +679,7 @@ void memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
  * memory_region_init_reservation: Initialize a memory region that reserves
  *                                 I/O space.
  *
- * A reservation region primariy serves debugging purposes.  It claims I/O
+ * A reservation region primarily serves debugging purposes.  It claims I/O
  * space that is not supposed to be handled by QEMU itself.  Any access via
  * the memory API will cause an abort().
  * This function is deprecated. Use memory_region_init_io() with NULL
