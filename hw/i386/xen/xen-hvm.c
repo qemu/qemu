@@ -1237,13 +1237,39 @@ static void xen_wakeup_notifier(Notifier *notifier, void *data)
 
 static int xen_map_ioreq_server(XenIOState *state)
 {
+    void *addr = NULL;
+    xenforeignmemory_resource_handle *fres;
     xen_pfn_t ioreq_pfn;
     xen_pfn_t bufioreq_pfn;
     evtchn_port_t bufioreq_evtchn;
     int rc;
 
+    /*
+     * Attempt to map using the resource API and fall back to normal
+     * foreign mapping if this is not supported.
+     */
+    QEMU_BUILD_BUG_ON(XENMEM_resource_ioreq_server_frame_bufioreq != 0);
+    QEMU_BUILD_BUG_ON(XENMEM_resource_ioreq_server_frame_ioreq(0) != 1);
+    fres = xenforeignmemory_map_resource(xen_fmem, xen_domid,
+                                         XENMEM_resource_ioreq_server,
+                                         state->ioservid, 0, 2,
+                                         &addr,
+                                         PROT_READ | PROT_WRITE, 0);
+    if (fres != NULL) {
+        trace_xen_map_resource_ioreq(state->ioservid, addr);
+        state->buffered_io_page = addr;
+        state->shared_page = addr + TARGET_PAGE_SIZE;
+    } else if (errno != EOPNOTSUPP) {
+        error_report("failed to map ioreq server resources: error %d handle=%p",
+                     errno, xen_xc);
+        return -1;
+    }
+
     rc = xen_get_ioreq_server_info(xen_domid, state->ioservid,
-                                   &ioreq_pfn, &bufioreq_pfn,
+                                   (state->shared_page == NULL) ?
+                                   &ioreq_pfn : NULL,
+                                   (state->buffered_io_page == NULL) ?
+                                   &bufioreq_pfn : NULL,
                                    &bufioreq_evtchn);
     if (rc < 0) {
         error_report("failed to get ioreq server info: error %d handle=%p",
@@ -1251,26 +1277,36 @@ static int xen_map_ioreq_server(XenIOState *state)
         return rc;
     }
 
-    DPRINTF("shared page at pfn %lx\n", ioreq_pfn);
-    DPRINTF("buffered io page at pfn %lx\n", bufioreq_pfn);
-    DPRINTF("buffered io evtchn is %x\n", bufioreq_evtchn);
-
-    state->shared_page = xenforeignmemory_map(xen_fmem, xen_domid,
-                                              PROT_READ | PROT_WRITE,
-                                              1, &ioreq_pfn, NULL);
     if (state->shared_page == NULL) {
-        error_report("map shared IO page returned error %d handle=%p",
-                     errno, xen_xc);
+        DPRINTF("shared page at pfn %lx\n", ioreq_pfn);
+
+        state->shared_page = xenforeignmemory_map(xen_fmem, xen_domid,
+                                                  PROT_READ | PROT_WRITE,
+                                                  1, &ioreq_pfn, NULL);
+        if (state->shared_page == NULL) {
+            error_report("map shared IO page returned error %d handle=%p",
+                         errno, xen_xc);
+        }
+    }
+
+    if (state->buffered_io_page == NULL) {
+        DPRINTF("buffered io page at pfn %lx\n", bufioreq_pfn);
+
+        state->buffered_io_page = xenforeignmemory_map(xen_fmem, xen_domid,
+                                                       PROT_READ | PROT_WRITE,
+                                                       1, &bufioreq_pfn,
+                                                       NULL);
+        if (state->buffered_io_page == NULL) {
+            error_report("map buffered IO page returned error %d", errno);
+            return -1;
+        }
+    }
+
+    if (state->shared_page == NULL || state->buffered_io_page == NULL) {
         return -1;
     }
 
-    state->buffered_io_page = xenforeignmemory_map(xen_fmem, xen_domid,
-                                                   PROT_READ | PROT_WRITE,
-                                                   1, &bufioreq_pfn, NULL);
-    if (state->buffered_io_page == NULL) {
-        error_report("map buffered IO page returned error %d", errno);
-        return -1;
-    }
+    DPRINTF("buffered io evtchn is %x\n", bufioreq_evtchn);
 
     state->bufioreq_remote_port = bufioreq_evtchn;
 
