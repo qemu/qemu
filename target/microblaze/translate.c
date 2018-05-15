@@ -516,12 +516,17 @@ static void dec_msr(DisasContext *dc)
 #if !defined(CONFIG_USER_ONLY)
     /* Catch read/writes to the mmu block.  */
     if ((sr & ~0xff) == 0x1000) {
+        TCGv_i32 tmp_sr;
+
         sr &= 7;
+        tmp_sr = tcg_const_i32(sr);
         LOG_DIS("m%ss sr%d r%d imm=%x\n", to ? "t" : "f", sr, dc->ra, dc->imm);
-        if (to)
-            gen_helper_mmu_write(cpu_env, tcg_const_i32(sr), cpu_R[dc->ra]);
-        else
-            gen_helper_mmu_read(cpu_R[dc->rd], cpu_env, tcg_const_i32(sr));
+        if (to) {
+            gen_helper_mmu_write(cpu_env, tmp_sr, cpu_R[dc->ra]);
+        } else {
+            gen_helper_mmu_read(cpu_R[dc->rd], cpu_env, tmp_sr);
+        }
+        tcg_temp_free_i32(tmp_sr);
         return;
     }
 #endif
