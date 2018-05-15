@@ -142,7 +142,7 @@ static void kvm_ioapic_realize(DeviceState *dev, Error **errp)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
 
-    memory_region_init_reservation(&s->io_memory, NULL, "kvm-ioapic", 0x1000);
+    memory_region_init_io(&s->io_memory, OBJECT(dev), NULL, NULL, "kvm-ioapic", 0x1000);
     /*
      * KVM ioapic only supports 0x11 now. This will only be used when
      * we want to dump ioapic version.
