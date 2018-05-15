@@ -256,6 +256,8 @@ const QEMULogItem qemu_log_items[] = {
       "show trace before each executed TB (lots of logs)" },
     { CPU_LOG_TB_CPU, "cpu",
       "show CPU registers before entering a TB (lots of logs)" },
+    { CPU_LOG_TB_FPU, "fpu",
+      "include FPU registers in the 'cpu' logging" },
     { CPU_LOG_MMU, "mmu",
       "log MMU-related activities" },
     { CPU_LOG_PCALL, "pcall",
