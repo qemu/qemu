@@ -96,6 +96,19 @@ echo
 # Enable postcopy-ram capability both on source and destination
 silent=yes
 _send_qemu_cmd $dest 'migrate_set_capability postcopy-ram on' "(qemu)"
+
+qemu_error_no_exit=yes success_or_failure=yes \
+    _send_qemu_cmd $dest '' "(qemu)" "Postcopy is not supported"
+if [ ${QEMU_STATUS[$dest]} -lt 0 ]; then
+    _send_qemu_cmd $dest '' "(qemu)"
+
+    _send_qemu_cmd $src 'quit' ""
+    _send_qemu_cmd $dest 'quit' ""
+    wait=1 _cleanup_qemu
+
+    _notrun 'Postcopy is not supported'
+fi
+
 _send_qemu_cmd $src 'migrate_set_speed 4k' "(qemu)"
 _send_qemu_cmd $src 'migrate_set_capability postcopy-ram on' "(qemu)"
 _send_qemu_cmd $src "migrate -d unix:${MIG_SOCKET}" "(qemu)"

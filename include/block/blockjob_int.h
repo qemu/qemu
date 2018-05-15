@@ -41,9 +41,6 @@ struct BlockJobDriver {
     /** String describing the operation, part of query-block-jobs QMP API */
     BlockJobType job_type;
 
-    /** Optional callback for job types that support setting a speed limit */
-    void (*set_speed)(BlockJob *job, int64_t speed, Error **errp);
-
     /** Mandatory: Entrypoint for the Coroutine. */
     CoroutineEntry *start;
 
@@ -167,6 +164,14 @@ void block_job_sleep_ns(BlockJob *job, int64_t ns);
  * Yield the block job coroutine.
  */
 void block_job_yield(BlockJob *job);
+
+/**
+ * block_job_ratelimit_get_delay:
+ *
+ * Calculate and return delay for the next request in ns. See the documentation
+ * of ratelimit_calculate_delay() for details.
+ */
+int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n);
 
 /**
  * block_job_early_fail:

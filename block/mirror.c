@@ -22,7 +22,6 @@
 #include "qemu/ratelimit.h"
 #include "qemu/bitmap.h"
 
-#define SLICE_TIME    100000000ULL /* ns */
 #define MAX_IN_FLIGHT 16
 #define MAX_IO_BYTES (1 << 20) /* 1 Mb */
 #define DEFAULT_MIRROR_BUF_SIZE (MAX_IN_FLIGHT * MAX_IO_BYTES)
@@ -36,7 +35,6 @@ typedef struct MirrorBuffer {
 
 typedef struct MirrorBlockJob {
     BlockJob common;
-    RateLimit limit;
     BlockBackend *target;
     BlockDriverState *mirror_top_bs;
     BlockDriverState *source;
@@ -121,7 +119,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
             bitmap_set(s->cow_bitmap, chunk_num, nb_chunks);
         }
         if (!s->initial_zeroing_ongoing) {
-            s->common.offset += op->bytes;
+            block_job_progress_update(&s->common, op->bytes);
         }
     }
     qemu_iovec_destroy(&op->qiov);
@@ -449,9 +447,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         assert(io_bytes);
         offset += io_bytes;
         nb_chunks -= DIV_ROUND_UP(io_bytes, s->granularity);
-        if (s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->limit, io_bytes_acct);
-        }
+        delay_ns = block_job_ratelimit_get_delay(&s->common, io_bytes_acct);
     }
     return delay_ns;
 }
@@ -596,7 +592,7 @@ static void mirror_throttle(MirrorBlockJob *s)
 {
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
-    if (now - s->last_pause_ns > SLICE_TIME) {
+    if (now - s->last_pause_ns > BLOCK_JOB_SLICE_TIME) {
         s->last_pause_ns = now;
         block_job_sleep_ns(&s->common, 0);
     } else {
@@ -792,19 +788,17 @@ static void coroutine_fn mirror_run(void *opaque)
         block_job_pause_point(&s->common);
 
         cnt = bdrv_get_dirty_count(s->dirty_bitmap);
-        /* s->common.offset contains the number of bytes already processed so
-         * far, cnt is the number of dirty bytes remaining and
-         * s->bytes_in_flight is the number of bytes currently being
-         * processed; together those are the current total operation length */
-        s->common.len = s->common.offset + s->bytes_in_flight + cnt;
+        /* cnt is the number of dirty bytes remaining and s->bytes_in_flight is
+         * the number of bytes currently being processed; together those are
+         * the current remaining operation length */
+        block_job_progress_set_remaining(&s->common, s->bytes_in_flight + cnt);
 
         /* Note that even when no rate limit is applied we need to yield
          * periodically with no pending I/O so that bdrv_drain_all() returns.
-         * We do so every SLICE_TIME nanoseconds, or when there is an error,
-         * or when the source is clean, whichever comes first.
-         */
+         * We do so every BLKOCK_JOB_SLICE_TIME nanoseconds, or when there is
+         * an error, or when the source is clean, whichever comes first. */
         delta = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->last_pause_ns;
-        if (delta < SLICE_TIME &&
+        if (delta < BLOCK_JOB_SLICE_TIME &&
             s->common.iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
             if (s->in_flight >= MAX_IN_FLIGHT || s->buf_free_count == 0 ||
                 (cnt == 0 && s->in_flight > 0)) {
@@ -870,7 +864,8 @@ static void coroutine_fn mirror_run(void *opaque)
         ret = 0;
 
         if (s->synced && !should_complete) {
-            delay_ns = (s->in_flight == 0 && cnt == 0 ? SLICE_TIME : 0);
+            delay_ns = (s->in_flight == 0 &&
+                        cnt == 0 ? BLOCK_JOB_SLICE_TIME : 0);
         }
         trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
         block_job_sleep_ns(&s->common, delay_ns);
@@ -907,17 +902,6 @@ immediate_exit:
         bdrv_drained_begin(bs);
     }
     block_job_defer_to_main_loop(&s->common, mirror_exit, data);
-}
-
-static void mirror_set_speed(BlockJob *job, int64_t speed, Error **errp)
-{
-    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
-        return;
-    }
-    ratelimit_set_speed(&s->limit, speed, SLICE_TIME);
 }
 
 static void mirror_complete(BlockJob *job, Error **errp)
@@ -1004,7 +988,6 @@ static void mirror_drain(BlockJob *job)
 static const BlockJobDriver mirror_job_driver = {
     .instance_size          = sizeof(MirrorBlockJob),
     .job_type               = BLOCK_JOB_TYPE_MIRROR,
-    .set_speed              = mirror_set_speed,
     .start                  = mirror_run,
     .complete               = mirror_complete,
     .pause                  = mirror_pause,
@@ -1015,7 +998,6 @@ static const BlockJobDriver mirror_job_driver = {
 static const BlockJobDriver commit_active_job_driver = {
     .instance_size          = sizeof(MirrorBlockJob),
     .job_type               = BLOCK_JOB_TYPE_COMMIT,
-    .set_speed              = mirror_set_speed,
     .start                  = mirror_run,
     .complete               = mirror_complete,
     .pause                  = mirror_pause,
@@ -1152,6 +1134,8 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         mirror_top_bs->implicit = true;
     }
     mirror_top_bs->total_sectors = bs->total_sectors;
+    mirror_top_bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED;
+    mirror_top_bs->supported_zero_flags = BDRV_REQ_WRITE_UNCHANGED;
     bdrv_set_aio_context(mirror_top_bs, bdrv_get_aio_context(bs));
 
     /* bdrv_append takes ownership of the mirror_top_bs reference, need to keep

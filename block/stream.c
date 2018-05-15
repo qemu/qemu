@@ -29,11 +29,8 @@ enum {
     STREAM_BUFFER_SIZE = 512 * 1024, /* in bytes */
 };
 
-#define SLICE_TIME 100000000ULL /* ns */
-
 typedef struct StreamBlockJob {
     BlockJob common;
-    RateLimit limit;
     BlockDriverState *base;
     BlockdevOnError on_error;
     char *backing_file_str;
@@ -107,6 +104,7 @@ static void coroutine_fn stream_run(void *opaque)
     BlockBackend *blk = s->common.blk;
     BlockDriverState *bs = blk_bs(blk);
     BlockDriverState *base = s->base;
+    int64_t len;
     int64_t offset = 0;
     uint64_t delay_ns = 0;
     int error = 0;
@@ -118,11 +116,12 @@ static void coroutine_fn stream_run(void *opaque)
         goto out;
     }
 
-    s->common.len = bdrv_getlength(bs);
-    if (s->common.len < 0) {
-        ret = s->common.len;
+    len = bdrv_getlength(bs);
+    if (len < 0) {
+        ret = len;
         goto out;
     }
+    block_job_progress_set_remaining(&s->common, len);
 
     buf = qemu_blockalign(bs, STREAM_BUFFER_SIZE);
 
@@ -135,7 +134,7 @@ static void coroutine_fn stream_run(void *opaque)
         bdrv_enable_copy_on_read(bs);
     }
 
-    for ( ; offset < s->common.len; offset += n) {
+    for ( ; offset < len; offset += n) {
         bool copy;
 
         /* Note that even when no rate limit is applied we need to yield
@@ -159,7 +158,7 @@ static void coroutine_fn stream_run(void *opaque)
 
             /* Finish early if end of backing file has been reached */
             if (ret == 0 && n == 0) {
-                n = s->common.len - offset;
+                n = len - offset;
             }
 
             copy = (ret == 1);
@@ -185,9 +184,9 @@ static void coroutine_fn stream_run(void *opaque)
         ret = 0;
 
         /* Publish progress */
-        s->common.offset += n;
-        if (copy && s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->limit, n);
+        block_job_progress_update(&s->common, n);
+        if (copy) {
+            delay_ns = block_job_ratelimit_get_delay(&s->common, n);
         } else {
             delay_ns = 0;
         }
@@ -209,21 +208,9 @@ out:
     block_job_defer_to_main_loop(&s->common, stream_complete, data);
 }
 
-static void stream_set_speed(BlockJob *job, int64_t speed, Error **errp)
-{
-    StreamBlockJob *s = container_of(job, StreamBlockJob, common);
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
-        return;
-    }
-    ratelimit_set_speed(&s->limit, speed, SLICE_TIME);
-}
-
 static const BlockJobDriver stream_job_driver = {
     .instance_size = sizeof(StreamBlockJob),
     .job_type      = BLOCK_JOB_TYPE_STREAM,
-    .set_speed     = stream_set_speed,
     .start         = stream_run,
 };
 

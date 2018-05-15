@@ -216,6 +216,12 @@ static void vxhs_parse_filename(const char *filename, QDict *options,
     }
 }
 
+static void vxhs_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    /* XXX Does VXHS support AIO on less than 512-byte alignment? */
+    bs->bl.request_alignment = 512;
+}
+
 static int vxhs_init_and_ref(void)
 {
     if (vxhs_ref++ == 0) {
@@ -424,21 +430,17 @@ static const AIOCBInfo vxhs_aiocb_info = {
  * and is passed to QNIO. When QNIO completes the work,
  * it will be passed back through the callback.
  */
-static BlockAIOCB *vxhs_aio_rw(BlockDriverState *bs, int64_t sector_num,
-                               QEMUIOVector *qiov, int nb_sectors,
+static BlockAIOCB *vxhs_aio_rw(BlockDriverState *bs, uint64_t offset,
+                               QEMUIOVector *qiov, uint64_t size,
                                BlockCompletionFunc *cb, void *opaque,
                                VDISKAIOCmd iodir)
 {
     VXHSAIOCB *acb = NULL;
     BDRVVXHSState *s = bs->opaque;
-    size_t size;
-    uint64_t offset;
     int iio_flags = 0;
     int ret = 0;
     void *dev_handle = s->vdisk_hostinfo.dev_handle;
 
-    offset = sector_num * BDRV_SECTOR_SIZE;
-    size = nb_sectors * BDRV_SECTOR_SIZE;
     acb = qemu_aio_get(&vxhs_aiocb_info, bs, cb, opaque);
 
     /*
@@ -451,11 +453,11 @@ static BlockAIOCB *vxhs_aio_rw(BlockDriverState *bs, int64_t sector_num,
     switch (iodir) {
     case VDISK_AIO_WRITE:
             ret = iio_writev(dev_handle, acb, qiov->iov, qiov->niov,
-                             offset, (uint64_t)size, iio_flags);
+                             offset, size, iio_flags);
             break;
     case VDISK_AIO_READ:
             ret = iio_readv(dev_handle, acb, qiov->iov, qiov->niov,
-                            offset, (uint64_t)size, iio_flags);
+                            offset, size, iio_flags);
             break;
     default:
             trace_vxhs_aio_rw_invalid(iodir);
@@ -474,22 +476,20 @@ errout:
     return NULL;
 }
 
-static BlockAIOCB *vxhs_aio_readv(BlockDriverState *bs,
-                                   int64_t sector_num, QEMUIOVector *qiov,
-                                   int nb_sectors,
+static BlockAIOCB *vxhs_aio_preadv(BlockDriverState *bs,
+                                   uint64_t offset, uint64_t bytes,
+                                   QEMUIOVector *qiov, int flags,
                                    BlockCompletionFunc *cb, void *opaque)
 {
-    return vxhs_aio_rw(bs, sector_num, qiov, nb_sectors, cb,
-                       opaque, VDISK_AIO_READ);
+    return vxhs_aio_rw(bs, offset, qiov, bytes, cb, opaque, VDISK_AIO_READ);
 }
 
-static BlockAIOCB *vxhs_aio_writev(BlockDriverState *bs,
-                                   int64_t sector_num, QEMUIOVector *qiov,
-                                   int nb_sectors,
-                                   BlockCompletionFunc *cb, void *opaque)
+static BlockAIOCB *vxhs_aio_pwritev(BlockDriverState *bs,
+                                    uint64_t offset, uint64_t bytes,
+                                    QEMUIOVector *qiov, int flags,
+                                    BlockCompletionFunc *cb, void *opaque)
 {
-    return vxhs_aio_rw(bs, sector_num, qiov, nb_sectors,
-                       cb, opaque, VDISK_AIO_WRITE);
+    return vxhs_aio_rw(bs, offset, qiov, bytes, cb, opaque, VDISK_AIO_WRITE);
 }
 
 static void vxhs_close(BlockDriverState *bs)
@@ -561,10 +561,11 @@ static BlockDriver bdrv_vxhs = {
     .instance_size                = sizeof(BDRVVXHSState),
     .bdrv_file_open               = vxhs_open,
     .bdrv_parse_filename          = vxhs_parse_filename,
+    .bdrv_refresh_limits          = vxhs_refresh_limits,
     .bdrv_close                   = vxhs_close,
     .bdrv_getlength               = vxhs_getlength,
-    .bdrv_aio_readv               = vxhs_aio_readv,
-    .bdrv_aio_writev              = vxhs_aio_writev,
+    .bdrv_aio_preadv              = vxhs_aio_preadv,
+    .bdrv_aio_pwritev             = vxhs_aio_pwritev,
 };
 
 static void bdrv_vxhs_init(void)

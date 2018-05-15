@@ -27,6 +27,9 @@
 #define BLOCKJOB_H
 
 #include "block/block.h"
+#include "qemu/ratelimit.h"
+
+#define BLOCK_JOB_SLICE_TIME 100000000ULL /* ns */
 
 typedef struct BlockJobDriver BlockJobDriver;
 typedef struct BlockJobTxn BlockJobTxn;
@@ -117,6 +120,9 @@ typedef struct BlockJob {
 
     /** Speed that was set with @block_job_set_speed.  */
     int64_t speed;
+
+    /** Rate limiting data structure for implementing @speed. */
+    RateLimit limit;
 
     /** The completion function that will be called when the job completes.  */
     BlockCompletionFunc *cb;
@@ -278,6 +284,25 @@ void block_job_finalize(BlockJob *job, Error **errp);
 void block_job_dismiss(BlockJob **job, Error **errp);
 
 /**
+ * block_job_progress_update:
+ * @job: The job that has made progress
+ * @done: How much progress the job made
+ *
+ * Updates the progress counter of the job.
+ */
+void block_job_progress_update(BlockJob *job, uint64_t done);
+
+/**
+ * block_job_progress_set_remaining:
+ * @job: The job whose expected progress end value is set
+ * @remaining: Expected end value of the progress counter of the job
+ *
+ * Sets the expected end value of the progress counter of a job so that a
+ * completion percentage can be calculated when the progress is updated.
+ */
+void block_job_progress_set_remaining(BlockJob *job, uint64_t remaining);
+
+/**
  * block_job_query:
  * @job: The job to get information about.
  *
@@ -426,5 +451,12 @@ void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job);
  * Returns true if the job should not be visible to the management layer.
  */
 bool block_job_is_internal(BlockJob *job);
+
+/**
+ * block_job_driver:
+ *
+ * Returns the driver associated with a block job.
+ */
+const BlockJobDriver *block_job_driver(BlockJob *job);
 
 #endif

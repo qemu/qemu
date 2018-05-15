@@ -400,10 +400,10 @@ L2 table entry:
               62:   0 for standard clusters
                     1 for compressed clusters
 
-              63:   0 for a cluster that is unused or requires COW, 1 if its
-                    refcount is exactly one. This information is only accurate
-                    in L2 tables that are reachable from the active L1
-                    table.
+              63:   0 for clusters that are unused, compressed or require COW.
+                    1 for standard clusters whose refcount is exactly one.
+                    This information is only accurate in L2 tables
+                    that are reachable from the active L1 table.
 
 Standard Cluster Descriptor:
 

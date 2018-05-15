@@ -31,11 +31,8 @@ enum {
     COMMIT_BUFFER_SIZE = 512 * 1024, /* in bytes */
 };
 
-#define SLICE_TIME 100000000ULL /* ns */
-
 typedef struct CommitBlockJob {
     BlockJob common;
-    RateLimit limit;
     BlockDriverState *commit_top_bs;
     BlockBackend *top;
     BlockBackend *base;
@@ -146,21 +143,21 @@ static void coroutine_fn commit_run(void *opaque)
     int64_t n = 0; /* bytes */
     void *buf = NULL;
     int bytes_written = 0;
-    int64_t base_len;
+    int64_t len, base_len;
 
-    ret = s->common.len = blk_getlength(s->top);
-
-    if (s->common.len < 0) {
+    ret = len = blk_getlength(s->top);
+    if (len < 0) {
         goto out;
     }
+    block_job_progress_set_remaining(&s->common, len);
 
     ret = base_len = blk_getlength(s->base);
     if (base_len < 0) {
         goto out;
     }
 
-    if (base_len < s->common.len) {
-        ret = blk_truncate(s->base, s->common.len, PREALLOC_MODE_OFF, NULL);
+    if (base_len < len) {
+        ret = blk_truncate(s->base, len, PREALLOC_MODE_OFF, NULL);
         if (ret) {
             goto out;
         }
@@ -168,7 +165,7 @@ static void coroutine_fn commit_run(void *opaque)
 
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
 
-    for (offset = 0; offset < s->common.len; offset += n) {
+    for (offset = 0; offset < len; offset += n) {
         bool copy;
 
         /* Note that even when no rate limit is applied we need to yield
@@ -198,10 +195,10 @@ static void coroutine_fn commit_run(void *opaque)
             }
         }
         /* Publish progress */
-        s->common.offset += n;
+        block_job_progress_update(&s->common, n);
 
-        if (copy && s->common.speed) {
-            delay_ns = ratelimit_calculate_delay(&s->limit, n);
+        if (copy) {
+            delay_ns = block_job_ratelimit_get_delay(&s->common, n);
         } else {
             delay_ns = 0;
         }
@@ -217,21 +214,9 @@ out:
     block_job_defer_to_main_loop(&s->common, commit_complete, data);
 }
 
-static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
-{
-    CommitBlockJob *s = container_of(job, CommitBlockJob, common);
-
-    if (speed < 0) {
-        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
-        return;
-    }
-    ratelimit_set_speed(&s->limit, speed, SLICE_TIME);
-}
-
 static const BlockJobDriver commit_job_driver = {
     .instance_size = sizeof(CommitBlockJob),
     .job_type      = BLOCK_JOB_TYPE_COMMIT,
-    .set_speed     = commit_set_speed,
     .start         = commit_run,
 };
 

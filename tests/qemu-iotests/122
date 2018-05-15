@@ -130,53 +130,6 @@ $QEMU_IO -c "read -P 0    1024k 1022k" "$TEST_IMG" 2>&1 | _filter_qemu_io | _fil
 
 
 echo
-echo "=== Corrupted size field in compressed cluster descriptor ==="
-echo
-# Create an empty image and fill half of it with compressed data.
-# The L2 entries of the two compressed clusters are located at
-# 0x800000 and 0x800008, their original values are 0x4008000000a00000
-# and 0x4008000000a00802 (5 sectors for compressed data each).
-_make_test_img 8M -o cluster_size=2M
-$QEMU_IO -c "write -c -P 0x11 0 2M" -c "write -c -P 0x11 2M 2M" "$TEST_IMG" \
-         2>&1 | _filter_qemu_io | _filter_testdir
-
-# Reduce size of compressed data to 4 sectors: this corrupts the image.
-poke_file "$TEST_IMG" $((0x800000)) "\x40\x06"
-$QEMU_IO -c "read  -P 0x11 0 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
-
-# 'qemu-img check' however doesn't see anything wrong because it
-# doesn't try to decompress the data and the refcounts are consistent.
-# TODO: update qemu-img so this can be detected.
-_check_test_img
-
-# Increase size of compressed data to the maximum (8192 sectors).
-# This makes QEMU read more data (8192 sectors instead of 5, host
-# addresses [0xa00000, 0xdfffff]), but the decompression algorithm
-# stops once we have enough to restore the uncompressed cluster, so
-# the rest of the data is ignored.
-poke_file "$TEST_IMG" $((0x800000)) "\x7f\xfe"
-# Do it also for the second compressed cluster (L2 entry at 0x800008).
-# In this case the compressed data would span 3 host clusters
-# (host addresses: [0xa00802, 0xe00801])
-poke_file "$TEST_IMG" $((0x800008)) "\x7f\xfe"
-
-# Here the image is too small so we're asking QEMU to read beyond the
-# end of the image.
-$QEMU_IO -c "read  -P 0x11  0 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
-# But if we grow the image we won't be reading beyond its end anymore.
-$QEMU_IO -c "write -P 0x22 4M 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
-$QEMU_IO -c "read  -P 0x11  0 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
-
-# The refcount data is however wrong because due to the increased size
-# of the compressed data it now reaches the following host clusters.
-# This can be repaired by qemu-img check by increasing the refcount of
-# those clusters.
-# TODO: update qemu-img to correct the compressed cluster size instead.
-_check_test_img -r all
-$QEMU_IO -c "read  -P 0x11  0 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
-$QEMU_IO -c "read  -P 0x22 4M 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
-
-echo
 echo "=== Full allocation with -S 0 ==="
 echo
 
