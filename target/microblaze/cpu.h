@@ -360,8 +360,10 @@ int cpu_mb_signal_handler(int host_signum, void *pinfo,
 
 static inline int cpu_mmu_index (CPUMBState *env, bool ifetch)
 {
+    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
+
     /* Are we in nommu mode?.  */
-    if (!(env->sregs[SR_MSR] & MSR_VM)) {
+    if (!(env->sregs[SR_MSR] & MSR_VM) || !cpu->cfg.use_mmu) {
         return MMU_NOMMU_IDX;
     }
 
