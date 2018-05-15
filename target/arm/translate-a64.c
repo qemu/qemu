@@ -5477,6 +5477,44 @@ static void handle_fp_3src_double(DisasContext *s, bool o0, bool o1,
     tcg_temp_free_i64(tcg_res);
 }
 
+/* Floating-point data-processing (3 source) - half precision */
+static void handle_fp_3src_half(DisasContext *s, bool o0, bool o1,
+                                int rd, int rn, int rm, int ra)
+{
+    TCGv_i32 tcg_op1, tcg_op2, tcg_op3;
+    TCGv_i32 tcg_res = tcg_temp_new_i32();
+    TCGv_ptr fpst = get_fpstatus_ptr(true);
+
+    tcg_op1 = read_fp_hreg(s, rn);
+    tcg_op2 = read_fp_hreg(s, rm);
+    tcg_op3 = read_fp_hreg(s, ra);
+
+    /* These are fused multiply-add, and must be done as one
+     * floating point operation with no rounding between the
+     * multiplication and addition steps.
+     * NB that doing the negations here as separate steps is
+     * correct : an input NaN should come out with its sign bit
+     * flipped if it is a negated-input.
+     */
+    if (o1 == true) {
+        tcg_gen_xori_i32(tcg_op3, tcg_op3, 0x8000);
+    }
+
+    if (o0 != o1) {
+        tcg_gen_xori_i32(tcg_op1, tcg_op1, 0x8000);
+    }
+
+    gen_helper_advsimd_muladdh(tcg_res, tcg_op1, tcg_op2, tcg_op3, fpst);
+
+    write_fp_sreg(s, rd, tcg_res);
+
+    tcg_temp_free_ptr(fpst);
+    tcg_temp_free_i32(tcg_op1);
+    tcg_temp_free_i32(tcg_op2);
+    tcg_temp_free_i32(tcg_op3);
+    tcg_temp_free_i32(tcg_res);
+}
+
 /* Floating point data-processing (3 source)
  *   31  30  29 28       24 23  22  21  20  16  15  14  10 9    5 4    0
  * +---+---+---+-----------+------+----+------+----+------+------+------+
@@ -5505,6 +5543,16 @@ static void disas_fp_3src(DisasContext *s, uint32_t insn)
             return;
         }
         handle_fp_3src_double(s, o0, o1, rd, rn, rm, ra);
+        break;
+    case 3:
+        if (!arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
+            unallocated_encoding(s);
+            return;
+        }
+        if (!fp_access_check(s)) {
+            return;
+        }
+        handle_fp_3src_half(s, o0, o1, rd, rn, rm, ra);
         break;
     default:
         unallocated_encoding(s);
