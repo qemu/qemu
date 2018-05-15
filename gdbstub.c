@@ -1558,6 +1558,12 @@ void gdb_do_syscallv(gdb_syscall_complete_cb cb, const char *fmt, va_list va)
     *p = 0;
 #ifdef CONFIG_USER_ONLY
     put_packet(s, s->syscall_buf);
+    /* Return control to gdb for it to process the syscall request.
+     * Since the protocol requires that gdb hands control back to us
+     * using a "here are the results" F packet, we don't need to check
+     * gdb_handlesig's return value (which is the signal to deliver if
+     * execution was resumed via a continue packet).
+     */
     gdb_handlesig(s->c_cpu, 0);
 #else
     /* In this case wait to send the syscall packet until notification that
