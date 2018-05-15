@@ -1,0 +1,115 @@
+#!/usr/bin/env python
+#
+# Copy-on-read tests using a COR filter node
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Max Reitz <mreitz@redhat.com>
+
+import iotests
+from iotests import log, qemu_img_pipe, qemu_io, filter_qemu_io
+
+# Need backing file support
+iotests.verify_image_format(supported_fmts=['qcow2', 'qcow', 'qed', 'vmdk'])
+iotests.verify_platform(['linux'])
+
+log('')
+log('=== Copy-on-read across nodes ===')
+log('')
+
+# The old copy-on-read mechanism without a filter node cannot request
+# WRITE_UNCHANGED permissions for its child.  Therefore it just tries
+# to sneak its write by the usual permission system and holds its
+# fingers crossed.  However, that sneaking does not work so well when
+# there is a filter node in the way: That will receive the write
+# request and re-issue a new one to its child, which this time is a
+# proper write request that will make the permission system cough --
+# unless there is someone at the top (like a guest device) that has
+# requested write permissions.
+#
+# A COR filter node, however, can request the proper permissions for
+# its child and therefore is not hit by this issue.
+
+with iotests.FilePath('base.img') as base_img_path, \
+     iotests.FilePath('top.img') as top_img_path, \
+     iotests.VM() as vm:
+
+    log('--- Setting up images ---')
+    log('')
+
+    qemu_img_pipe('create', '-f', iotests.imgfmt, base_img_path, '64M')
+
+    log(filter_qemu_io(qemu_io(base_img_path, '-c', 'write -P 1 0M 1M')))
+
+    qemu_img_pipe('create', '-f', iotests.imgfmt, '-b', base_img_path,
+                  top_img_path)
+
+    log(filter_qemu_io(qemu_io(top_img_path,  '-c', 'write -P 2 1M 1M')))
+
+    log('')
+    log('--- Doing COR ---')
+    log('')
+
+    # Compare with e.g. the following:
+    #   vm.add_drive_raw('if=none,node-name=node0,copy-on-read=on,driver=raw,' \
+    #                    'file.driver=%s,file.file.filename=%s' %
+    #                       (iotests.imgfmt, top_img_path))
+    # (Remove the blockdev-add instead.)
+    # ((Not tested here because it hits an assertion in the permission
+    #   system.))
+
+    vm.launch()
+
+    log(vm.qmp('blockdev-add',
+                    node_name='node0',
+                    driver='copy-on-read',
+                    file={
+                        'driver': 'raw',
+                        'file': {
+                            'driver': 'copy-on-read',
+                            'file': {
+                                'driver': 'raw',
+                                'file': {
+                                    'driver': iotests.imgfmt,
+                                    'file': {
+                                        'driver': 'file',
+                                        'filename': top_img_path
+                                    },
+                                    'backing': {
+                                        'driver': iotests.imgfmt,
+                                        'file': {
+                                            'driver': 'file',
+                                            'filename': base_img_path
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }))
+
+    # Trigger COR
+    log(vm.qmp('human-monitor-command',
+               command_line='qemu-io node0 "read 0 64M"'))
+
+    vm.shutdown()
+
+    log('')
+    log('--- Checking COR result ---')
+    log('')
+
+    log(filter_qemu_io(qemu_io(base_img_path, '-c', 'discard 0 64M')))
+    log(filter_qemu_io(qemu_io(top_img_path,  '-c', 'read -P 1 0M 1M')))
+    log(filter_qemu_io(qemu_io(top_img_path,  '-c', 'read -P 2 1M 1M')))

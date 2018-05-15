@@ -242,6 +242,23 @@ _run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
 
 _cleanup_qemu
 
+echo
+echo "== Detecting -U and force-share conflicts =="
+
+echo
+echo 'No conflict:'
+$QEMU_IMG info -U --image-opts driver=null-co,force-share=on
+echo
+echo 'Conflict:'
+$QEMU_IMG info -U --image-opts driver=null-co,force-share=off
+
+echo
+echo 'No conflict:'
+$QEMU_IO -c 'open -r -U -o driver=null-co,force-share=on'
+echo
+echo 'Conflict:'
+$QEMU_IO -c 'open -r -U -o driver=null-co,force-share=off'
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
