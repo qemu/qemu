@@ -11427,8 +11427,12 @@ VFP_CONV_FIX_A64(uq, s, 32, 64, uint64)
 #undef VFP_CONV_FIX_A64
 
 /* Conversion to/from f16 can overflow to infinity before/after scaling.
- * Therefore we convert to f64 (which does not round), scale,
- * and then convert f64 to f16 (which may round).
+ * Therefore we convert to f64, scale, and then convert f64 to f16; or
+ * vice versa for conversion to integer.
+ *
+ * For 16- and 32-bit integers, the conversion to f64 never rounds.
+ * For 64-bit integers, any integer that would cause rounding will also
+ * overflow to f16 infinity, so there is no double rounding problem.
  */
 
 static float16 do_postscale_fp16(float64 f, int shift, float_status *fpst)
@@ -11444,6 +11448,16 @@ float16 HELPER(vfp_sltoh)(uint32_t x, uint32_t shift, void *fpst)
 float16 HELPER(vfp_ultoh)(uint32_t x, uint32_t shift, void *fpst)
 {
     return do_postscale_fp16(uint32_to_float64(x, fpst), shift, fpst);
+}
+
+float16 HELPER(vfp_sqtoh)(uint64_t x, uint32_t shift, void *fpst)
+{
+    return do_postscale_fp16(int64_to_float64(x, fpst), shift, fpst);
+}
+
+float16 HELPER(vfp_uqtoh)(uint64_t x, uint32_t shift, void *fpst)
+{
+    return do_postscale_fp16(uint64_to_float64(x, fpst), shift, fpst);
 }
 
 static float64 do_prescale_fp16(float16 f, int shift, float_status *fpst)
@@ -11473,6 +11487,26 @@ uint32_t HELPER(vfp_toshh)(float16 x, uint32_t shift, void *fpst)
 uint32_t HELPER(vfp_touhh)(float16 x, uint32_t shift, void *fpst)
 {
     return float64_to_uint16(do_prescale_fp16(x, shift, fpst), fpst);
+}
+
+uint32_t HELPER(vfp_toslh)(float16 x, uint32_t shift, void *fpst)
+{
+    return float64_to_int32(do_prescale_fp16(x, shift, fpst), fpst);
+}
+
+uint32_t HELPER(vfp_toulh)(float16 x, uint32_t shift, void *fpst)
+{
+    return float64_to_uint32(do_prescale_fp16(x, shift, fpst), fpst);
+}
+
+uint64_t HELPER(vfp_tosqh)(float16 x, uint32_t shift, void *fpst)
+{
+    return float64_to_int64(do_prescale_fp16(x, shift, fpst), fpst);
+}
+
+uint64_t HELPER(vfp_touqh)(float16 x, uint32_t shift, void *fpst)
+{
+    return float64_to_uint64(do_prescale_fp16(x, shift, fpst), fpst);
 }
 
 /* Set the current fp rounding mode and return the old one.
