@@ -95,7 +95,8 @@ typedef struct XenIOState {
     CPUState **cpu_by_vcpu_id;
     /* the evtchn port for polling the notification, */
     evtchn_port_t *ioreq_local_port;
-    /* evtchn local port for buffered io */
+    /* evtchn remote and local ports for buffered io */
+    evtchn_port_t bufioreq_remote_port;
     evtchn_port_t bufioreq_local_port;
     /* the evtchn fd for polling */
     xenevtchn_handle *xce_handle;
@@ -1236,12 +1237,52 @@ static void xen_wakeup_notifier(Notifier *notifier, void *data)
     xc_set_hvm_param(xen_xc, xen_domid, HVM_PARAM_ACPI_S_STATE, 0);
 }
 
+static int xen_map_ioreq_server(XenIOState *state)
+{
+    xen_pfn_t ioreq_pfn;
+    xen_pfn_t bufioreq_pfn;
+    evtchn_port_t bufioreq_evtchn;
+    int rc;
+
+    rc = xen_get_ioreq_server_info(xen_domid, state->ioservid,
+                                   &ioreq_pfn, &bufioreq_pfn,
+                                   &bufioreq_evtchn);
+    if (rc < 0) {
+        error_report("failed to get ioreq server info: error %d handle=%p",
+                     errno, xen_xc);
+        return rc;
+    }
+
+    DPRINTF("shared page at pfn %lx\n", ioreq_pfn);
+    DPRINTF("buffered io page at pfn %lx\n", bufioreq_pfn);
+    DPRINTF("buffered io evtchn is %x\n", bufioreq_evtchn);
+
+    state->shared_page = xenforeignmemory_map(xen_fmem, xen_domid,
+                                              PROT_READ | PROT_WRITE,
+                                              1, &ioreq_pfn, NULL);
+    if (state->shared_page == NULL) {
+        error_report("map shared IO page returned error %d handle=%p",
+                     errno, xen_xc);
+        return -1;
+    }
+
+    state->buffered_io_page = xenforeignmemory_map(xen_fmem, xen_domid,
+                                                   PROT_READ | PROT_WRITE,
+                                                   1, &bufioreq_pfn, NULL);
+    if (state->buffered_io_page == NULL) {
+        error_report("map buffered IO page returned error %d", errno);
+        return -1;
+    }
+
+    state->bufioreq_remote_port = bufioreq_evtchn;
+
+    return 0;
+}
+
 void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 {
     int i, rc;
     xen_pfn_t ioreq_pfn;
-    xen_pfn_t bufioreq_pfn;
-    evtchn_port_t bufioreq_evtchn;
     XenIOState *state;
 
     state = g_malloc0(sizeof (XenIOState));
@@ -1269,25 +1310,8 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     state->wakeup.notify = xen_wakeup_notifier;
     qemu_register_wakeup_notifier(&state->wakeup);
 
-    rc = xen_get_ioreq_server_info(xen_domid, state->ioservid,
-                                   &ioreq_pfn, &bufioreq_pfn,
-                                   &bufioreq_evtchn);
+    rc = xen_map_ioreq_server(state);
     if (rc < 0) {
-        error_report("failed to get ioreq server info: error %d handle=%p",
-                     errno, xen_xc);
-        goto err;
-    }
-
-    DPRINTF("shared page at pfn %lx\n", ioreq_pfn);
-    DPRINTF("buffered io page at pfn %lx\n", bufioreq_pfn);
-    DPRINTF("buffered io evtchn is %x\n", bufioreq_evtchn);
-
-    state->shared_page = xenforeignmemory_map(xen_fmem, xen_domid,
-                                              PROT_READ|PROT_WRITE,
-                                              1, &ioreq_pfn, NULL);
-    if (state->shared_page == NULL) {
-        error_report("map shared IO page returned error %d handle=%p",
-                     errno, xen_xc);
         goto err;
     }
 
@@ -1305,14 +1329,6 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     } else if (rc != -ENOSYS) {
         error_report("get vmport regs pfn returned error %d, rc=%d",
                      errno, rc);
-        goto err;
-    }
-
-    state->buffered_io_page = xenforeignmemory_map(xen_fmem, xen_domid,
-                                                   PROT_READ|PROT_WRITE,
-                                                   1, &bufioreq_pfn, NULL);
-    if (state->buffered_io_page == NULL) {
-        error_report("map buffered IO page returned error %d", errno);
         goto err;
     }
 
@@ -1340,7 +1356,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     }
 
     rc = xenevtchn_bind_interdomain(state->xce_handle, xen_domid,
-                                    bufioreq_evtchn);
+                                    state->bufioreq_remote_port);
     if (rc == -1) {
         error_report("buffered evtchn bind error %d", errno);
         goto err;
