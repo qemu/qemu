@@ -299,6 +299,7 @@ def filter_img_info(output, filename):
                    .replace(imgfmt, 'IMGFMT')
         line = re.sub('iters: [0-9]+', 'iters: XXX', line)
         line = re.sub('uuid: [-a-f0-9]+', 'uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX', line)
+        line = re.sub('cid: [0-9]+', 'cid: XXXXXXXXXX', line)
         lines.append(line)
     return '\n'.join(lines)
 
