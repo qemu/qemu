@@ -1,0 +1,189 @@
+#
+# OpenRISC instruction decode definitions.
+#
+# Copyright (c) 2018 Richard Henderson <rth@twiddle.net>
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+#
+
+&dab            d a b
+&da             d a
+&ab             a b
+&dal            d a l
+&ai             a i
+
+####
+# System Instructions
+####
+
+l_sys           001000 0000000000 k:16
+l_trap          001000 0100000000 k:16
+l_msync         001000 1000000000 00000000 00000000
+l_psync         001000 1010000000 00000000 00000000
+l_csync         001000 1100000000 00000000 00000000
+
+l_rfe           001001 ----- ----- -------- --------
+
+####
+# Branch Instructions
+####
+
+l_j             000000 n:s26
+l_jal           000001 n:s26
+l_bnf           000011 n:s26
+l_bf            000100 n:s26
+
+l_jr            010001 ---------- b:5 -----------
+l_jalr          010010 ---------- b:5 -----------
+
+####
+# Memory Instructions
+####
+
+&load           d a i
+@load           ...... d:5 a:5 i:s16                    &load
+
+%store_i        21:s5 0:11
+&store          a b i
+@store          ...... ..... a:5 b:5 ...........        &store i=%store_i
+
+l_lwa           011011 ..... ..... ........ ........    @load
+l_lwz           100001 ..... ..... ........ ........    @load
+l_lws           100010 ..... ..... ........ ........    @load
+l_lbz           100011 ..... ..... ........ ........    @load
+l_lbs           100100 ..... ..... ........ ........    @load
+l_lhz           100101 ..... ..... ........ ........    @load
+l_lhs           100110 ..... ..... ........ ........    @load
+
+l_swa           110011 ..... ..... ..... ...........    @store
+l_sw            110101 ..... ..... ..... ...........    @store
+l_sb            110110 ..... ..... ..... ...........    @store
+l_sh            110111 ..... ..... ..... ...........    @store
+
+####
+# Immediate Operand Instructions
+####
+
+%mtspr_k        21:5 0:11
+
+&rri            d a i
+&rrk            d a k
+@rri            ...... d:5 a:5 i:s16                    &rri
+@rrk            ...... d:5 a:5 k:16                     &rrk
+
+l_nop           000101 01--- ----- k:16
+
+l_addi          100111 ..... ..... ........ ........    @rri
+l_addic         101000 ..... ..... ........ ........    @rri
+l_andi          101001 ..... ..... ........ ........    @rrk
+l_ori           101010 ..... ..... ........ ........    @rrk
+l_xori          101011 ..... ..... ........ ........    @rri
+l_muli          101100 ..... ..... ........ ........    @rri
+
+l_mfspr         101101 ..... ..... ........ ........    @rrk
+l_mtspr         110000 ..... a:5 b:5 ...........        k=%mtspr_k
+
+l_maci          010011 ----- a:5 i:s16
+
+l_movhi         000110 d:5 ----0 k:16
+l_macrc         000110 d:5 ----1 00000000 00000000
+
+####
+# Arithmetic Instructions
+####
+
+l_exths         111000 d:5 a:5 ----- - 0000 -- 1100
+l_extbs         111000 d:5 a:5 ----- - 0001 -- 1100
+l_exthz         111000 d:5 a:5 ----- - 0010 -- 1100
+l_extbz         111000 d:5 a:5 ----- - 0011 -- 1100
+
+l_add           111000 d:5 a:5 b:5   - 00 ---- 0000
+l_addc          111000 d:5 a:5 b:5   - 00 ---- 0001
+l_sub           111000 d:5 a:5 b:5   - 00 ---- 0010
+l_and           111000 d:5 a:5 b:5   - 00 ---- 0011
+l_or            111000 d:5 a:5 b:5   - 00 ---- 0100
+l_xor           111000 d:5 a:5 b:5   - 00 ---- 0101
+l_cmov          111000 d:5 a:5 b:5   - 00 ---- 1110
+l_ff1           111000 d:5 a:5 ----- - 00 ---- 1111
+l_fl1           111000 d:5 a:5 ----- - 01 ---- 1111
+
+l_sll           111000 d:5 a:5 b:5   - 0000 -- 1000
+l_srl           111000 d:5 a:5 b:5   - 0001 -- 1000
+l_sra           111000 d:5 a:5 b:5   - 0010 -- 1000
+l_ror           111000 d:5 a:5 b:5   - 0011 -- 1000
+
+l_mul           111000 d:5 a:5 b:5   - 11 ---- 0110
+l_mulu          111000 d:5 a:5 b:5   - 11 ---- 1011
+l_div           111000 d:5 a:5 b:5   - 11 ---- 1001
+l_divu          111000 d:5 a:5 b:5   - 11 ---- 1010
+
+l_muld          111000 ----- a:5 b:5 - 11 ---- 0111
+l_muldu         111000 ----- a:5 b:5 - 11 ---- 1100
+
+l_mac           110001 ----- a:5 b:5 ------- 0001
+l_macu          110001 ----- a:5 b:5 ------- 0011
+l_msb           110001 ----- a:5 b:5 ------- 0010
+l_msbu          110001 ----- a:5 b:5 ------- 0100
+
+l_slli          101110 d:5 a:5 -------- 00 l:6
+l_srli          101110 d:5 a:5 -------- 01 l:6
+l_srai          101110 d:5 a:5 -------- 10 l:6
+l_rori          101110 d:5 a:5 -------- 11 l:6
+
+####
+# Compare Instructions
+####
+
+l_sfeq          111001 00000 a:5 b:5 -----------
+l_sfne          111001 00001 a:5 b:5 -----------
+l_sfgtu         111001 00010 a:5 b:5 -----------
+l_sfgeu         111001 00011 a:5 b:5 -----------
+l_sfltu         111001 00100 a:5 b:5 -----------
+l_sfleu         111001 00101 a:5 b:5 -----------
+l_sfgts         111001 01010 a:5 b:5 -----------
+l_sfges         111001 01011 a:5 b:5 -----------
+l_sflts         111001 01100 a:5 b:5 -----------
+l_sfles         111001 01101 a:5 b:5 -----------
+
+l_sfeqi         101111 00000 a:5 i:s16
+l_sfnei         101111 00001 a:5 i:s16
+l_sfgtui        101111 00010 a:5 i:s16
+l_sfgeui        101111 00011 a:5 i:s16
+l_sfltui        101111 00100 a:5 i:s16
+l_sfleui        101111 00101 a:5 i:s16
+l_sfgtsi        101111 01010 a:5 i:s16
+l_sfgesi        101111 01011 a:5 i:s16
+l_sfltsi        101111 01100 a:5 i:s16
+l_sflesi        101111 01101 a:5 i:s16
+
+####
+# FP Instructions
+####
+
+lf_add_s        110010 d:5 a:5 b:5   --- 00000000
+lf_sub_s        110010 d:5 a:5 b:5   --- 00000001
+lf_mul_s        110010 d:5 a:5 b:5   --- 00000010
+lf_div_s        110010 d:5 a:5 b:5   --- 00000011
+lf_rem_s        110010 d:5 a:5 b:5   --- 00000110
+lf_madd_s       110010 d:5 a:5 b:5   --- 00000111
+
+lf_itof_s       110010 d:5 a:5 00000 --- 00000100
+lf_ftoi_s       110010 d:5 a:5 00000 --- 00000101
+
+lf_sfeq_s       110010 ----- a:5 b:5 --- 00001000
+lf_sfne_s       110010 ----- a:5 b:5 --- 00001001
+lf_sfgt_s       110010 ----- a:5 b:5 --- 00001010
+lf_sfge_s       110010 ----- a:5 b:5 --- 00001011
+lf_sflt_s       110010 ----- a:5 b:5 --- 00001100
+lf_sfle_s       110010 ----- a:5 b:5 --- 00001101
