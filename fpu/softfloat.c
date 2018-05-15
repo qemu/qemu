@@ -1525,7 +1525,7 @@ FLOAT_TO_UINT(64, 64)
 
 static FloatParts int_to_float(int64_t a, float_status *status)
 {
-    FloatParts r;
+    FloatParts r = {};
     if (a == 0) {
         r.cls = float_class_zero;
         r.sign = false;
