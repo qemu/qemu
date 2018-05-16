@@ -570,6 +570,7 @@ static BlockdevOptionsNfs *nfs_options_qdict_to_qapi(QDict *options,
     qobject_unref(crumpled);
 
     if (local_err) {
+        error_propagate(errp, local_err);
         return NULL;
     }
 
