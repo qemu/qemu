@@ -84,6 +84,7 @@
 { 'include': 'crypto.json' }
 { 'include': 'block.json' }
 { 'include': 'char.json' }
+{ 'include': 'job.json' }
 { 'include': 'net.json' }
 { 'include': 'rocker.json' }
 { 'include': 'tpm.json' }

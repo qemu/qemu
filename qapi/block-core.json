@@ -6,6 +6,7 @@
 
 { 'include': 'common.json' }
 { 'include': 'crypto.json' }
+{ 'include': 'job.json' }
 { 'include': 'sockets.json' }
 
 ##
@@ -1048,95 +1049,6 @@
 ##
 { 'enum': 'MirrorSyncMode',
   'data': ['top', 'full', 'none', 'incremental'] }
-
-##
-# @JobType:
-#
-# Type of a background job.
-#
-# @commit: block commit job type, see "block-commit"
-#
-# @stream: block stream job type, see "block-stream"
-#
-# @mirror: drive mirror job type, see "drive-mirror"
-#
-# @backup: drive backup job type, see "drive-backup"
-#
-# Since: 1.7
-##
-{ 'enum': 'JobType',
-  'data': ['commit', 'stream', 'mirror', 'backup'] }
-
-##
-# @JobVerb:
-#
-# Represents command verbs that can be applied to a job.
-#
-# @cancel: see @block-job-cancel
-#
-# @pause: see @block-job-pause
-#
-# @resume: see @block-job-resume
-#
-# @set-speed: see @block-job-set-speed
-#
-# @complete: see @block-job-complete
-#
-# @dismiss: see @block-job-dismiss
-#
-# @finalize: see @block-job-finalize
-#
-# Since: 2.12
-##
-{ 'enum': 'JobVerb',
-  'data': ['cancel', 'pause', 'resume', 'set-speed', 'complete', 'dismiss',
-           'finalize' ] }
-
-##
-# @JobStatus:
-#
-# Indicates the present state of a given job in its lifetime.
-#
-# @undefined: Erroneous, default state. Should not ever be visible.
-#
-# @created: The job has been created, but not yet started.
-#
-# @running: The job is currently running.
-#
-# @paused: The job is running, but paused. The pause may be requested by
-#          either the QMP user or by internal processes.
-#
-# @ready: The job is running, but is ready for the user to signal completion.
-#         This is used for long-running jobs like mirror that are designed to
-#         run indefinitely.
-#
-# @standby: The job is ready, but paused. This is nearly identical to @paused.
-#           The job may return to @ready or otherwise be canceled.
-#
-# @waiting: The job is waiting for other jobs in the transaction to converge
-#           to the waiting state. This status will likely not be visible for
-#           the last job in a transaction.
-#
-# @pending: The job has finished its work, but has finalization steps that it
-#           needs to make prior to completing. These changes may require
-#           manual intervention by the management process if manual was set
-#           to true. These changes may still fail.
-#
-# @aborting: The job is in the process of being aborted, and will finish with
-#            an error. The job will afterwards report that it is @concluded.
-#            This status may not be visible to the management process.
-#
-# @concluded: The job has finished all work. If manual was set to true, the job
-#             will remain in the query list until it is dismissed.
-#
-# @null: The job is in the process of being dismantled. This state should not
-#        ever be visible externally.
-#
-# Since: 2.12
-##
-{ 'enum': 'JobStatus',
-  'data': ['undefined', 'created', 'running', 'paused', 'ready', 'standby',
-           'waiting', 'pending', 'aborting', 'concluded', 'null' ] }
 
 ##
 # @BlockJobInfo:
