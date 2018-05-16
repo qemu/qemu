@@ -2338,8 +2338,7 @@
 #
 # This command returns immediately after marking the active background block
 # operation for pausing.  It is an error to call this command if no
-# operation is in progress.  Pausing an already paused job has no cumulative
-# effect; a single block-job-resume command will resume the job.
+# operation is in progress or if the job is already paused.
 #
 # The operation will pause as soon as possible.  No event is emitted when
 # the operation is actually paused.  Cancelling a paused job automatically
@@ -2363,7 +2362,7 @@
 #
 # This command returns immediately after resuming a paused background block
 # operation.  It is an error to call this command if no operation is in
-# progress.  Resuming an already running job is not an error.
+# progress or if the job is not paused.
 #
 # This command also clears the error status of the job.
 #
