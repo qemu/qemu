@@ -1148,15 +1148,18 @@
 # @device: The job identifier. Originally the device name but other
 #          values are allowed since QEMU 2.7
 #
-# @len: the maximum progress value
+# @len: Estimated @offset value at the completion of the job. This value can
+#       arbitrarily change while the job is running, in both directions.
+#
+# @offset: Progress made until now. The unit is arbitrary and the value can
+#          only meaningfully be used for the ratio of @offset to @len. The
+#          value is monotonically increasing.
 #
 # @busy: false if the job is known to be in a quiescent state, with
 #        no pending I/O.  Since 1.3.
 #
 # @paused: whether the job is paused or, if @busy is true, will
 #          pause itself as soon as possible.  Since 1.3.
-#
-# @offset: the current progress value
 #
 # @speed: the rate limit, bytes per second
 #
