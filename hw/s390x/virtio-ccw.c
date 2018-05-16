@@ -1001,10 +1001,15 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
     SubchDev *sch = ccw_dev->sch;
     uint64_t indicators;
 
-    /* queue indicators + secondary indicators */
-    if (vector >= VIRTIO_QUEUE_MAX + 64) {
+    if (vector == VIRTIO_NO_VECTOR) {
         return;
     }
+    /*
+     * vector < VIRTIO_QUEUE_MAX: notification for a virtqueue
+     * vector == VIRTIO_QUEUE_MAX: configuration change notification
+     * bits beyond that are unused and should never be notified for
+     */
+    assert(vector <= VIRTIO_QUEUE_MAX);
 
     if (vector < VIRTIO_QUEUE_MAX) {
         if (!dev->indicators) {
@@ -1027,6 +1032,7 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
                 css_adapter_interrupt(CSS_IO_ADAPTER_VIRTIO, dev->thinint_isc);
             }
         } else {
+            assert(vector < NR_CLASSIC_INDICATOR_BITS);
             indicators = address_space_ldq(&address_space_memory,
                                            dev->indicators->addr,
                                            MEMTXATTRS_UNSPECIFIED,
@@ -1040,12 +1046,11 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
         if (!dev->indicators2) {
             return;
         }
-        vector = 0;
         indicators = address_space_ldq(&address_space_memory,
                                        dev->indicators2->addr,
                                        MEMTXATTRS_UNSPECIFIED,
                                        NULL);
-        indicators |= 1ULL << vector;
+        indicators |= 1ULL;
         address_space_stq(&address_space_memory, dev->indicators2->addr,
                           indicators, MEMTXATTRS_UNSPECIFIED, NULL);
         css_conditional_io_interrupt(sch);
