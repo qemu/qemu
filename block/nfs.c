@@ -557,6 +557,7 @@ static BlockdevOptionsNfs *nfs_options_qdict_to_qapi(QDict *options,
     BlockdevOptionsNfs *opts = NULL;
     QObject *crumpled = NULL;
     Visitor *v;
+    const QDictEntry *e;
     Error *local_err = NULL;
 
     crumpled = qdict_crumple(options, errp);
@@ -570,7 +571,14 @@ static BlockdevOptionsNfs *nfs_options_qdict_to_qapi(QDict *options,
     qobject_unref(crumpled);
 
     if (local_err) {
+        error_propagate(errp, local_err);
         return NULL;
+    }
+
+    /* Remove the processed options from the QDict (the visitor processes
+     * _all_ options in the QDict) */
+    while ((e = qdict_first(options))) {
+        qdict_del(options, e->key);
     }
 
     return opts;
