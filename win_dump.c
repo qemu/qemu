@@ -111,12 +111,6 @@ static void patch_header(WinDumpHeader64 *h)
     h->PhysicalMemoryBlock.unused = 0;
     h->unused1 = 0;
 
-    /*
-     * We assume h->DirectoryBase and current CR3 are the same when we access
-     * memory by virtual address. In other words, we suppose current context
-     * is system context. It is definetely true in case of BSOD.
-     */
-
     patch_mm_pfn_database(h, &local_err);
     if (local_err) {
         warn_report_err(local_err);
@@ -171,6 +165,8 @@ void create_win_dump(DumpState *s, Error **errp)
 {
     WinDumpHeader64 *h = (WinDumpHeader64 *)(s->guest_note +
             VMCOREINFO_ELF_NOTE_HDR_SIZE);
+    X86CPU *first_x86_cpu = X86_CPU(first_cpu);
+    uint64_t saved_cr3 = first_x86_cpu->env.cr[3];
     Error *local_err = NULL;
 
     if (s->guest_note_size != sizeof(WinDumpHeader64) +
@@ -185,10 +181,17 @@ void create_win_dump(DumpState *s, Error **errp)
         return;
     }
 
+    /*
+     * Further access to kernel structures by virtual addresses
+     * should be made from system context.
+     */
+
+    first_x86_cpu->env.cr[3] = h->DirectoryTableBase;
+
     check_kdbg(h, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        goto out_cr3;
     }
 
     patch_header(h);
@@ -198,12 +201,17 @@ void create_win_dump(DumpState *s, Error **errp)
     s->written_size = qemu_write_full(s->fd, h, sizeof(*h));
     if (s->written_size != sizeof(*h)) {
         error_setg(errp, QERR_IO_ERROR);
-        return;
+        goto out_cr3;
     }
 
     write_runs(s, h, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        goto out_cr3;
     }
+
+out_cr3:
+    first_x86_cpu->env.cr[3] = saved_cr3;
+
+    return;
 }
