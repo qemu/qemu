@@ -425,11 +425,22 @@ static void pc_i440fx_machine_options(MachineClass *m)
     m->default_display = "std";
 }
 
-static void pc_i440fx_2_12_machine_options(MachineClass *m)
+static void pc_i440fx_2_13_machine_options(MachineClass *m)
 {
     pc_i440fx_machine_options(m);
     m->alias = "pc";
     m->is_default = 1;
+}
+
+DEFINE_I440FX_MACHINE(v2_13, "pc-i440fx-2.13", NULL,
+                      pc_i440fx_2_13_machine_options);
+
+static void pc_i440fx_2_12_machine_options(MachineClass *m)
+{
+    pc_i440fx_2_13_machine_options(m);
+    m->is_default = 0;
+    m->alias = NULL;
+    SET_MACHINE_COMPAT(m, PC_COMPAT_2_12);
 }
 
 DEFINE_I440FX_MACHINE(v2_12, "pc-i440fx-2.12", NULL,
@@ -438,8 +449,6 @@ DEFINE_I440FX_MACHINE(v2_12, "pc-i440fx-2.12", NULL,
 static void pc_i440fx_2_11_machine_options(MachineClass *m)
 {
     pc_i440fx_2_12_machine_options(m);
-    m->is_default = 0;
-    m->alias = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_11);
 }
 

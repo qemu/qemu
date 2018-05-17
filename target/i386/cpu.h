@@ -680,6 +680,7 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_ECX_AVX512_VPOPCNTDQ (1U << 14) /* POPCNT for vectors of DW/QW */
 #define CPUID_7_0_ECX_LA57     (1U << 16)
 #define CPUID_7_0_ECX_RDPID    (1U << 22)
+#define CPUID_7_0_ECX_CLDEMOTE (1U << 25)  /* CLDEMOTE Instruction */
 
 #define CPUID_7_0_EDX_AVX512_4VNNIW (1U << 2) /* AVX512 Neural Network Instructions */
 #define CPUID_7_0_EDX_AVX512_4FMAPS (1U << 3) /* AVX512 Multiply Accumulation Single Precision */
@@ -1044,6 +1045,65 @@ typedef enum TPRAccess {
     TPR_ACCESS_WRITE,
 } TPRAccess;
 
+/* Cache information data structures: */
+
+enum CacheType {
+    DCACHE,
+    ICACHE,
+    UNIFIED_CACHE
+};
+
+typedef struct CPUCacheInfo {
+    enum CacheType type;
+    uint8_t level;
+    /* Size in bytes */
+    uint32_t size;
+    /* Line size, in bytes */
+    uint16_t line_size;
+    /*
+     * Associativity.
+     * Note: representation of fully-associative caches is not implemented
+     */
+    uint8_t associativity;
+    /* Physical line partitions. CPUID[0x8000001D].EBX, CPUID[4].EBX */
+    uint8_t partitions;
+    /* Number of sets. CPUID[0x8000001D].ECX, CPUID[4].ECX */
+    uint32_t sets;
+    /*
+     * Lines per tag.
+     * AMD-specific: CPUID[0x80000005], CPUID[0x80000006].
+     * (Is this synonym to @partitions?)
+     */
+    uint8_t lines_per_tag;
+
+    /* Self-initializing cache */
+    bool self_init;
+    /*
+     * WBINVD/INVD is not guaranteed to act upon lower level caches of
+     * non-originating threads sharing this cache.
+     * CPUID[4].EDX[bit 0], CPUID[0x8000001D].EDX[bit 0]
+     */
+    bool no_invd_sharing;
+    /*
+     * Cache is inclusive of lower cache levels.
+     * CPUID[4].EDX[bit 1], CPUID[0x8000001D].EDX[bit 1].
+     */
+    bool inclusive;
+    /*
+     * A complex function is used to index the cache, potentially using all
+     * address bits.  CPUID[4].EDX[bit 2].
+     */
+    bool complex_indexing;
+} CPUCacheInfo;
+
+
+typedef struct CPUCaches {
+        CPUCacheInfo l1d_cache;
+        CPUCacheInfo l1i_cache;
+        CPUCacheInfo l2_cache;
+        CPUCacheInfo l3_cache;
+} CPUCaches;
+
 typedef struct CPUX86State {
     /* standard registers */
     target_ulong regs[CPU_NB_REGS];
@@ -1232,6 +1292,7 @@ typedef struct CPUX86State {
     /* Features that were explicitly enabled/disabled */
     FeatureWordArray user_features;
     uint32_t cpuid_model[12];
+    CPUCaches *cache_info;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
@@ -1337,6 +1398,11 @@ struct X86CPU {
      * socket share an virtual l3 cache.
      */
     bool enable_l3_cache;
+
+    /* Compatibility bits for old machine types.
+     * If true present the old cache topology information
+     */
+    bool legacy_cache;
 
     /* Compatibility bits for old machine types: */
     bool enable_cpuid_0xb;
