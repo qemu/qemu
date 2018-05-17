@@ -1098,3 +1098,10 @@ void qtest_qmp_device_del(const char *id)
     qobject_unref(response1);
     qobject_unref(response2);
 }
+
+bool qmp_rsp_is_err(QDict *rsp)
+{
+    QDict *error = qdict_get_qdict(rsp, "error");
+    qobject_unref(rsp);
+    return !!error;
+}

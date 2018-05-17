@@ -392,13 +392,6 @@ static void add_query_tests(QmpSchema *schema)
     }
 }
 
-static bool qmp_rsp_is_err(QDict *rsp)
-{
-    QDict *error = qdict_get_qdict(rsp, "error");
-    qobject_unref(rsp);
-    return !!error;
-}
-
 static void test_qmp_preconfig(void)
 {
     QDict *rsp, *ret;
