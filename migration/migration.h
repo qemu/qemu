@@ -24,6 +24,8 @@
 
 struct PostcopyBlocktimeContext;
 
+#define  MIGRATION_RESUME_ACK_VALUE  (1)
+
 /* State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
@@ -73,6 +75,11 @@ struct MigrationIncomingState {
      * live migration, to calculate vCPU block time
      * */
     struct PostcopyBlocktimeContext *blocktime_ctx;
+
+    /* notify PAUSED postcopy incoming migrations to try to continue */
+    bool postcopy_recover_triggered;
+    QemuSemaphore postcopy_pause_sem_dst;
+    QemuSemaphore postcopy_pause_sem_fault;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);
@@ -107,6 +114,12 @@ struct MigrationState
     QemuThread thread;
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
+    /*
+     * Protects to_dst_file pointer.  We need to make sure we won't
+     * yield or hang during the critical section, since this lock will
+     * be used in OOB command handler.
+     */
+    QemuMutex qemu_file_lock;
 
     /* bytes already send at the beggining of current interation */
     uint64_t iteration_initial_bytes;
@@ -129,6 +142,7 @@ struct MigrationState
         QEMUFile     *from_dst_file;
         QemuThread    rp_thread;
         bool          error;
+        QemuSemaphore rp_sem;
     } rp_state;
 
     double mbps;
@@ -194,12 +208,17 @@ struct MigrationState
     bool send_configuration;
     /* Whether we send section footer during migration */
     bool send_section_footer;
+
+    /* Needed by postcopy-pause state */
+    QemuSemaphore postcopy_pause_sem;
+    QemuSemaphore postcopy_pause_rp_sem;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
 
 void migration_fd_process_incoming(QEMUFile *f);
 void migration_ioc_process_incoming(QIOChannel *ioc);
+void migration_incoming_process(void);
 
 bool  migration_has_all_channels(void);
 
@@ -251,6 +270,9 @@ void migrate_send_rp_pong(MigrationIncomingState *mis,
                           uint32_t value);
 int migrate_send_rp_req_pages(MigrationIncomingState *mis, const char* rbname,
                               ram_addr_t start, size_t len);
+void migrate_send_rp_recv_bitmap(MigrationIncomingState *mis,
+                                 char *block_name);
+void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value);
 
 void dirty_bitmap_mig_before_vm_start(void);
 void init_dirty_bitmap_incoming_migration(void);

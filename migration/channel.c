@@ -71,11 +71,21 @@ void migration_channel_connect(MigrationState *s,
             !object_dynamic_cast(OBJECT(ioc),
                                  TYPE_QIO_CHANNEL_TLS)) {
             migration_tls_channel_connect(s, ioc, hostname, &error);
+
+            if (!error) {
+                /* tls_channel_connect will call back to this
+                 * function after the TLS handshake,
+                 * so we mustn't call migrate_fd_connect until then
+                 */
+
+                return;
+            }
         } else {
             QEMUFile *f = qemu_fopen_channel_output(ioc);
 
+            qemu_mutex_lock(&s->qemu_file_lock);
             s->to_dst_file = f;
-
+            qemu_mutex_unlock(&s->qemu_file_lock);
         }
     }
     migrate_fd_connect(s, error);
