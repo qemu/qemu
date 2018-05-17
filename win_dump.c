@@ -144,21 +144,37 @@ static void check_kdbg(WinDumpHeader64 *h, Error **errp)
 {
     const char OwnerTag[] = "KDBG";
     char read_OwnerTag[4];
+    uint64_t KdDebuggerDataBlock = h->KdDebuggerDataBlock;
+    bool try_fallback = true;
 
+try_again:
     if (cpu_memory_rw_debug(first_cpu,
-            h->KdDebuggerDataBlock + KDBG_OWNER_TAG_OFFSET64,
+            KdDebuggerDataBlock + KDBG_OWNER_TAG_OFFSET64,
             (uint8_t *)&read_OwnerTag, sizeof(read_OwnerTag), 0)) {
         error_setg(errp, "win-dump: failed to read OwnerTag");
         return;
     }
 
     if (memcmp(read_OwnerTag, OwnerTag, sizeof(read_OwnerTag))) {
-        error_setg(errp, "win-dump: invalid KDBG OwnerTag,"
-                         " expected '%.4s', got '%.4s',"
-                         " KdDebuggerDataBlock seems to be encrypted",
-                         OwnerTag, read_OwnerTag);
-        return;
+        if (try_fallback) {
+            /*
+             * If attempt to use original KDBG failed
+             * (most likely because of its encryption),
+             * we try to use KDBG obtained by guest driver.
+             */
+
+            KdDebuggerDataBlock = h->BugcheckParameter1;
+            try_fallback = false;
+            goto try_again;
+        } else {
+            error_setg(errp, "win-dump: invalid KDBG OwnerTag,"
+                             " expected '%.4s', got '%.4s'",
+                             OwnerTag, read_OwnerTag);
+            return;
+        }
     }
+
+    h->KdDebuggerDataBlock = KdDebuggerDataBlock;
 }
 
 void create_win_dump(DumpState *s, Error **errp)
