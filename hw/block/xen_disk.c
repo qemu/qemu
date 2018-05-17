@@ -496,8 +496,6 @@ static int ioreq_map(struct ioreq *ioreq)
     return 0;
 }
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40800
-
 static void ioreq_free_copy_buffers(struct ioreq *ioreq)
 {
     int i;
@@ -579,22 +577,6 @@ static int ioreq_grant_copy(struct ioreq *ioreq)
 
     return rc;
 }
-#else
-static void ioreq_free_copy_buffers(struct ioreq *ioreq)
-{
-    abort();
-}
-
-static int ioreq_init_copy_buffers(struct ioreq *ioreq)
-{
-    abort();
-}
-
-static int ioreq_grant_copy(struct ioreq *ioreq)
-{
-    abort();
-}
-#endif
 
 static int ioreq_runio_qemu_aio(struct ioreq *ioreq);
 
