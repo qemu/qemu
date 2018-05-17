@@ -146,6 +146,55 @@ void xen_be_unmap_grant_refs(struct XenDevice *xendev, void *ptr,
     }
 }
 
+static int compat_copy_grant_refs(struct XenDevice *xendev,
+                                  bool to_domain,
+                                  XenGrantCopySegment segs[],
+                                  unsigned int nr_segs)
+{
+    uint32_t *refs = g_new(uint32_t, nr_segs);
+    int prot = to_domain ? PROT_WRITE : PROT_READ;
+    void *pages;
+    unsigned int i;
+
+    for (i = 0; i < nr_segs; i++) {
+        XenGrantCopySegment *seg = &segs[i];
+
+        refs[i] = to_domain ?
+            seg->dest.foreign.ref : seg->source.foreign.ref;
+    }
+
+    pages = xengnttab_map_domain_grant_refs(xendev->gnttabdev, nr_segs,
+                                            xen_domid, refs, prot);
+    if (!pages) {
+        xen_pv_printf(xendev, 0,
+                      "xengnttab_map_domain_grant_refs failed: %s\n",
+                      strerror(errno));
+        g_free(refs);
+        return -1;
+    }
+
+    for (i = 0; i < nr_segs; i++) {
+        XenGrantCopySegment *seg = &segs[i];
+        void *page = pages + (i * XC_PAGE_SIZE);
+
+        if (to_domain) {
+            memcpy(page + seg->dest.foreign.offset, seg->source.virt,
+                   seg->len);
+        } else {
+            memcpy(seg->dest.virt, page + seg->source.foreign.offset,
+                   seg->len);
+        }
+    }
+
+    if (xengnttab_unmap(xendev->gnttabdev, pages, nr_segs)) {
+        xen_pv_printf(xendev, 0, "xengnttab_unmap failed: %s\n",
+                      strerror(errno));
+    }
+
+    g_free(refs);
+    return 0;
+}
+
 int xen_be_copy_grant_refs(struct XenDevice *xendev,
                            bool to_domain,
                            XenGrantCopySegment segs[],
@@ -156,6 +205,10 @@ int xen_be_copy_grant_refs(struct XenDevice *xendev,
     int rc;
 
     assert(xendev->ops->flags & DEVOPS_FLAG_NEED_GNTDEV);
+
+    if (!xen_feature_grant_copy) {
+        return compat_copy_grant_refs(xendev, to_domain, segs, nr_segs);
+    }
 
     xengnttab_segs = g_new0(xengnttab_grant_copy_segment_t, nr_segs);
 
