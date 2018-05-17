@@ -2014,6 +2014,7 @@ void hmp_device_del(Monitor *mon, const QDict *qdict)
 void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
+    bool win_dmp = qdict_get_try_bool(qdict, "windmp", false);
     bool paging = qdict_get_try_bool(qdict, "paging", false);
     bool zlib = qdict_get_try_bool(qdict, "zlib", false);
     bool lzo = qdict_get_try_bool(qdict, "lzo", false);
@@ -2028,10 +2029,14 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
     enum DumpGuestMemoryFormat dump_format = DUMP_GUEST_MEMORY_FORMAT_ELF;
     char *prot;
 
-    if (zlib + lzo + snappy > 1) {
-        error_setg(&err, "only one of '-z|-l|-s' can be set");
+    if (zlib + lzo + snappy + win_dmp > 1) {
+        error_setg(&err, "only one of '-z|-l|-s|-w' can be set");
         hmp_handle_error(mon, &err);
         return;
+    }
+
+    if (win_dmp) {
+        dump_format = DUMP_GUEST_MEMORY_FORMAT_WIN_DMP;
     }
 
     if (zlib) {
