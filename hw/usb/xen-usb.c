@@ -173,8 +173,9 @@ static int usbback_gnttab_map(struct usbback_req *usbback_req)
         for (i = 0; i < usbback_req->nr_buffer_segs; i++) {
             ref[i] = usbback_req->req.seg[i].gref;
         }
-        usbback_req->buffer = xengnttab_map_domain_grant_refs(xendev->gnttabdev,
-            usbback_req->nr_buffer_segs, xendev->dom, ref, prot);
+        usbback_req->buffer =
+            xen_be_map_grant_refs(xendev, ref, usbback_req->nr_buffer_segs,
+                                  prot);
 
         if (!usbback_req->buffer) {
             return -ENOMEM;
@@ -206,8 +207,9 @@ static int usbback_gnttab_map(struct usbback_req *usbback_req)
     for (i = 0; i < usbback_req->nr_extra_segs; i++) {
         ref[i] = usbback_req->req.seg[i + usbback_req->req.nr_buffer_segs].gref;
     }
-    usbback_req->isoc_buffer = xengnttab_map_domain_grant_refs(
-         xendev->gnttabdev, usbback_req->nr_extra_segs, xendev->dom, ref, prot);
+    usbback_req->isoc_buffer =
+        xen_be_map_grant_refs(xendev, ref, usbback_req->nr_extra_segs,
+                              prot);
 
     if (!usbback_req->isoc_buffer) {
         return -ENOMEM;
@@ -291,14 +293,14 @@ static void usbback_do_response(struct usbback_req *usbback_req, int32_t status,
     }
 
     if (usbback_req->buffer) {
-        xengnttab_unmap(xendev->gnttabdev, usbback_req->buffer,
-                        usbback_req->nr_buffer_segs);
+        xen_be_unmap_grant_refs(xendev, usbback_req->buffer,
+                                usbback_req->nr_buffer_segs);
         usbback_req->buffer = NULL;
     }
 
     if (usbback_req->isoc_buffer) {
-        xengnttab_unmap(xendev->gnttabdev, usbback_req->isoc_buffer,
-                        usbback_req->nr_extra_segs);
+        xen_be_unmap_grant_refs(xendev, usbback_req->isoc_buffer,
+                                usbback_req->nr_extra_segs);
         usbback_req->isoc_buffer = NULL;
     }
 
@@ -834,11 +836,11 @@ static void usbback_disconnect(struct XenDevice *xendev)
     xen_pv_unbind_evtchn(xendev);
 
     if (usbif->urb_sring) {
-        xengnttab_unmap(xendev->gnttabdev, usbif->urb_sring, 1);
+        xen_be_unmap_grant_ref(xendev, usbif->urb_sring);
         usbif->urb_sring = NULL;
     }
     if (usbif->conn_sring) {
-        xengnttab_unmap(xendev->gnttabdev, usbif->conn_sring, 1);
+        xen_be_unmap_grant_ref(xendev, usbif->conn_sring);
         usbif->conn_sring = NULL;
     }
 
@@ -877,12 +879,10 @@ static int usbback_connect(struct XenDevice *xendev)
         return -1;
     }
 
-    usbif->urb_sring = xengnttab_map_grant_ref(xendev->gnttabdev, xendev->dom,
-                                               urb_ring_ref,
-                                               PROT_READ | PROT_WRITE);
-    usbif->conn_sring = xengnttab_map_grant_ref(xendev->gnttabdev, xendev->dom,
-                                                conn_ring_ref,
-                                                PROT_READ | PROT_WRITE);
+    usbif->urb_sring = xen_be_map_grant_ref(xendev, urb_ring_ref,
+                                            PROT_READ | PROT_WRITE);
+    usbif->conn_sring = xen_be_map_grant_ref(xendev, conn_ring_ref,
+                                             PROT_READ | PROT_WRITE);
     if (!usbif->urb_sring || !usbif->conn_sring) {
         xen_pv_printf(xendev, 0, "error mapping rings\n");
         usbback_disconnect(xendev);
@@ -1024,10 +1024,7 @@ static void usbback_alloc(struct XenDevice *xendev)
 
     /* max_grants: for each request and for the rings (request and connect). */
     max_grants = USBIF_MAX_SEGMENTS_PER_REQUEST * USB_URB_RING_SIZE + 2;
-    if (xengnttab_set_max_grants(xendev->gnttabdev, max_grants) < 0) {
-        xen_pv_printf(xendev, 0, "xengnttab_set_max_grants failed: %s\n",
-                      strerror(errno));
-    }
+    xen_be_set_max_grant_refs(xendev, max_grants);
 }
 
 static int usbback_free(struct XenDevice *xendev)
