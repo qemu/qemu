@@ -372,6 +372,11 @@ void qmp_screendump(const char *filename, bool has_device, const char *device,
 
     graphic_hw_update(con);
     surface = qemu_console_surface(con);
+    if (!surface) {
+        error_setg(errp, "no surface");
+        return;
+    }
+
     ppm_save(filename, surface, errp);
 }
 
