@@ -20,10 +20,16 @@
 #
 
 ###########################################################################
+# Named fields.  These are primarily for disjoint fields.
+
+%imm9_16_10     16:s6 10:3
+
+###########################################################################
 # Named attribute sets.  These are used to make nice(er) names
 # when creating helpers common to those for the individual
 # instruction patterns.
 
+&rri            rd rn imm
 &rrr_esz        rd rn rm esz
 
 ###########################################################################
@@ -32,6 +38,12 @@
 
 # Three operand with unused vector element size
 @rd_rn_rm_e0    ........ ... rm:5 ... ... rn:5 rd:5             &rrr_esz esz=0
+
+# Basic Load/Store with 9-bit immediate offset
+@pd_rn_i9       ........ ........ ...... rn:5 . rd:4    \
+                &rri imm=%imm9_16_10
+@rd_rn_i9       ........ ........ ...... rn:5 rd:5      \
+                &rri imm=%imm9_16_10
 
 ###########################################################################
 # Instruction patterns.  Grouped according to the SVE encodingindex.xhtml.
@@ -43,3 +55,11 @@ AND_zzz         00000100 00 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
 ORR_zzz         00000100 01 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
 EOR_zzz         00000100 10 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
 BIC_zzz         00000100 11 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
+
+### SVE Memory - 32-bit Gather and Unsized Contiguous Group
+
+# SVE load predicate register
+LDR_pri         10000101 10 ...... 000 ... ..... 0 ....         @pd_rn_i9
+
+# SVE load vector register
+LDR_zri         10000101 10 ...... 010 ... ..... .....          @rd_rn_i9
