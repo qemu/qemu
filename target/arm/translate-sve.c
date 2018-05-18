@@ -498,6 +498,30 @@ static bool trans_ASRD(DisasContext *s, arg_rpri_esz *a, uint32_t insn)
 }
 
 /*
+ *** SVE Bitwise Shift - Predicated Group
+ */
+
+#define DO_ZPZW(NAME, name) \
+static bool trans_##NAME##_zpzw(DisasContext *s, arg_rprr_esz *a,         \
+                                uint32_t insn)                            \
+{                                                                         \
+    static gen_helper_gvec_4 * const fns[3] = {                           \
+        gen_helper_sve_##name##_zpzw_b, gen_helper_sve_##name##_zpzw_h,   \
+        gen_helper_sve_##name##_zpzw_s,                                   \
+    };                                                                    \
+    if (a->esz < 0 || a->esz >= 3) {                                      \
+        return false;                                                     \
+    }                                                                     \
+    return do_zpzz_ool(s, a, fns[a->esz]);                                \
+}
+
+DO_ZPZW(ASR, asr)
+DO_ZPZW(LSR, lsr)
+DO_ZPZW(LSL, lsl)
+
+#undef DO_ZPZW
+
+/*
  *** SVE Predicate Logical Operations Group
  */
 

@@ -157,6 +157,12 @@ ASR_zpzz        00000100 .. 010 100 100 ... ..... .....   @rdm_pg_rn # ASRR
 LSR_zpzz        00000100 .. 010 101 100 ... ..... .....   @rdm_pg_rn # LSRR
 LSL_zpzz        00000100 .. 010 111 100 ... ..... .....   @rdm_pg_rn # LSLR
 
+# SVE bitwise shift by wide elements (predicated)
+# Note these require size != 3.
+ASR_zpzw        00000100 .. 011 000 100 ... ..... .....         @rdn_pg_rm
+LSR_zpzw        00000100 .. 011 001 100 ... ..... .....         @rdn_pg_rm
+LSL_zpzw        00000100 .. 011 011 100 ... ..... .....         @rdn_pg_rm
+
 ### SVE Logical - Unpredicated Group
 
 # SVE bitwise logical operations (unpredicated)
