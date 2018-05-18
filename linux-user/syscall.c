@@ -1848,6 +1848,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         /* Payload types which need a different size of payload on
          * the target must adjust tgt_len here.
          */
+        tgt_len = len;
         switch (cmsg->cmsg_level) {
         case SOL_SOCKET:
             switch (cmsg->cmsg_type) {
@@ -1857,8 +1858,8 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
             default:
                 break;
             }
+            break;
         default:
-            tgt_len = len;
             break;
         }
 
