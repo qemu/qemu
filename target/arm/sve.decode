@@ -295,6 +295,10 @@ ADR_p64         00000100 11 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
 # Note esz != 0
 FEXPA           00000100 .. 1 00000 101110 ..... .....          @rd_rn
 
+# SVE floating-point trig select coefficient
+# Note esz != 0
+FTSSEL          00000100 .. 1 ..... 101100 ..... .....          @rd_rn_rm
+
 ### SVE Predicate Logical Operations Group
 
 # SVE predicate logical operations
