@@ -66,6 +66,7 @@
 
 # Two operand
 @pd_pn          ........ esz:2 .. .... ....... rn:4 . rd:4      &rr_esz
+@rd_rn          ........ esz:2 ...... ...... rn:5 rd:5          &rr_esz
 
 # Three operand with unused vector element size
 @rd_rn_rm_e0    ........ ... rm:5 ... ... rn:5 rd:5             &rrr_esz esz=0
@@ -287,6 +288,12 @@ ADR_s32         00000100 00 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
 ADR_u32         00000100 01 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
 ADR_p32         00000100 10 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
 ADR_p64         00000100 11 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
+
+### SVE Integer Misc - Unpredicated Group
+
+# SVE floating-point exponential accelerator
+# Note esz != 0
+FEXPA           00000100 .. 1 00000 101110 ..... .....          @rd_rn
 
 ### SVE Predicate Logical Operations Group
 
