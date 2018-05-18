@@ -149,6 +149,14 @@ LSL_zpzi        00000100 .. 000 011 100 ... .. ... ..... \
 ASRD            00000100 .. 000 100 100 ... .. ... ..... \
                 @rdn_pg_tszimm imm=%tszimm_shr
 
+# SVE bitwise shift by vector (predicated)
+ASR_zpzz        00000100 .. 010 000 100 ... ..... .....   @rdn_pg_rm
+LSR_zpzz        00000100 .. 010 001 100 ... ..... .....   @rdn_pg_rm
+LSL_zpzz        00000100 .. 010 011 100 ... ..... .....   @rdn_pg_rm
+ASR_zpzz        00000100 .. 010 100 100 ... ..... .....   @rdm_pg_rn # ASRR
+LSR_zpzz        00000100 .. 010 101 100 ... ..... .....   @rdm_pg_rn # LSRR
+LSL_zpzz        00000100 .. 010 111 100 ... ..... .....   @rdm_pg_rn # LSLR
+
 ### SVE Logical - Unpredicated Group
 
 # SVE bitwise logical operations (unpredicated)
