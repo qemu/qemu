@@ -22,6 +22,7 @@
 #include "exec/exec-all.h"
 #include "tcg-op.h"
 #include "tcg-op-gvec.h"
+#include "tcg-gvec-desc.h"
 #include "qemu/log.h"
 #include "arm_ldst.h"
 #include "translate.h"
@@ -191,6 +192,12 @@ static void do_predtest(DisasContext *s, int dofs, int gofs, int words)
     do_pred_flags(t);
     tcg_temp_free_i32(t);
 }
+
+/* For each element size, the bits within a predicate word that are active.  */
+const uint64_t pred_esz_masks[4] = {
+    0xffffffffffffffffull, 0x5555555555555555ull,
+    0x1111111111111111ull, 0x0101010101010101ull
+};
 
 /*
  *** SVE Logical - Unpredicated Group
@@ -539,6 +546,208 @@ static bool trans_PTEST(DisasContext *s, arg_PTEST *a, uint32_t insn)
         }
     }
     return true;
+}
+
+/* See the ARM pseudocode DecodePredCount.  */
+static unsigned decode_pred_count(unsigned fullsz, int pattern, int esz)
+{
+    unsigned elements = fullsz >> esz;
+    unsigned bound;
+
+    switch (pattern) {
+    case 0x0: /* POW2 */
+        return pow2floor(elements);
+    case 0x1: /* VL1 */
+    case 0x2: /* VL2 */
+    case 0x3: /* VL3 */
+    case 0x4: /* VL4 */
+    case 0x5: /* VL5 */
+    case 0x6: /* VL6 */
+    case 0x7: /* VL7 */
+    case 0x8: /* VL8 */
+        bound = pattern;
+        break;
+    case 0x9: /* VL16 */
+    case 0xa: /* VL32 */
+    case 0xb: /* VL64 */
+    case 0xc: /* VL128 */
+    case 0xd: /* VL256 */
+        bound = 16 << (pattern - 9);
+        break;
+    case 0x1d: /* MUL4 */
+        return elements - elements % 4;
+    case 0x1e: /* MUL3 */
+        return elements - elements % 3;
+    case 0x1f: /* ALL */
+        return elements;
+    default:   /* #uimm5 */
+        return 0;
+    }
+    return elements >= bound ? bound : 0;
+}
+
+/* This handles all of the predicate initialization instructions,
+ * PTRUE, PFALSE, SETFFR.  For PFALSE, we will have set PAT == 32
+ * so that decode_pred_count returns 0.  For SETFFR, we will have
+ * set RD == 16 == FFR.
+ */
+static bool do_predset(DisasContext *s, int esz, int rd, int pat, bool setflag)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    unsigned fullsz = vec_full_reg_size(s);
+    unsigned ofs = pred_full_reg_offset(s, rd);
+    unsigned numelem, setsz, i;
+    uint64_t word, lastword;
+    TCGv_i64 t;
+
+    numelem = decode_pred_count(fullsz, pat, esz);
+
+    /* Determine what we must store into each bit, and how many.  */
+    if (numelem == 0) {
+        lastword = word = 0;
+        setsz = fullsz;
+    } else {
+        setsz = numelem << esz;
+        lastword = word = pred_esz_masks[esz];
+        if (setsz % 64) {
+            lastword &= ~(-1ull << (setsz % 64));
+        }
+    }
+
+    t = tcg_temp_new_i64();
+    if (fullsz <= 64) {
+        tcg_gen_movi_i64(t, lastword);
+        tcg_gen_st_i64(t, cpu_env, ofs);
+        goto done;
+    }
+
+    if (word == lastword) {
+        unsigned maxsz = size_for_gvec(fullsz / 8);
+        unsigned oprsz = size_for_gvec(setsz / 8);
+
+        if (oprsz * 8 == setsz) {
+            tcg_gen_gvec_dup64i(ofs, oprsz, maxsz, word);
+            goto done;
+        }
+        if (oprsz * 8 == setsz + 8) {
+            tcg_gen_gvec_dup64i(ofs, oprsz, maxsz, word);
+            tcg_gen_movi_i64(t, 0);
+            tcg_gen_st_i64(t, cpu_env, ofs + oprsz - 8);
+            goto done;
+        }
+    }
+
+    setsz /= 8;
+    fullsz /= 8;
+
+    tcg_gen_movi_i64(t, word);
+    for (i = 0; i < setsz; i += 8) {
+        tcg_gen_st_i64(t, cpu_env, ofs + i);
+    }
+    if (lastword != word) {
+        tcg_gen_movi_i64(t, lastword);
+        tcg_gen_st_i64(t, cpu_env, ofs + i);
+        i += 8;
+    }
+    if (i < fullsz) {
+        tcg_gen_movi_i64(t, 0);
+        for (; i < fullsz; i += 8) {
+            tcg_gen_st_i64(t, cpu_env, ofs + i);
+        }
+    }
+
+ done:
+    tcg_temp_free_i64(t);
+
+    /* PTRUES */
+    if (setflag) {
+        tcg_gen_movi_i32(cpu_NF, -(word != 0));
+        tcg_gen_movi_i32(cpu_CF, word == 0);
+        tcg_gen_movi_i32(cpu_VF, 0);
+        tcg_gen_mov_i32(cpu_ZF, cpu_NF);
+    }
+    return true;
+}
+
+static bool trans_PTRUE(DisasContext *s, arg_PTRUE *a, uint32_t insn)
+{
+    return do_predset(s, a->esz, a->rd, a->pat, a->s);
+}
+
+static bool trans_SETFFR(DisasContext *s, arg_SETFFR *a, uint32_t insn)
+{
+    /* Note pat == 31 is #all, to set all elements.  */
+    return do_predset(s, 0, FFR_PRED_NUM, 31, false);
+}
+
+static bool trans_PFALSE(DisasContext *s, arg_PFALSE *a, uint32_t insn)
+{
+    /* Note pat == 32 is #unimp, to set no elements.  */
+    return do_predset(s, 0, a->rd, 32, false);
+}
+
+static bool trans_RDFFR_p(DisasContext *s, arg_RDFFR_p *a, uint32_t insn)
+{
+    /* The path through do_pppp_flags is complicated enough to want to avoid
+     * duplication.  Frob the arguments into the form of a predicated AND.
+     */
+    arg_rprr_s alt_a = {
+        .rd = a->rd, .pg = a->pg, .s = a->s,
+        .rn = FFR_PRED_NUM, .rm = FFR_PRED_NUM,
+    };
+    return trans_AND_pppp(s, &alt_a, insn);
+}
+
+static bool trans_RDFFR(DisasContext *s, arg_RDFFR *a, uint32_t insn)
+{
+    return do_mov_p(s, a->rd, FFR_PRED_NUM);
+}
+
+static bool trans_WRFFR(DisasContext *s, arg_WRFFR *a, uint32_t insn)
+{
+    return do_mov_p(s, FFR_PRED_NUM, a->rn);
+}
+
+static bool do_pfirst_pnext(DisasContext *s, arg_rr_esz *a,
+                            void (*gen_fn)(TCGv_i32, TCGv_ptr,
+                                           TCGv_ptr, TCGv_i32))
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    TCGv_ptr t_pd = tcg_temp_new_ptr();
+    TCGv_ptr t_pg = tcg_temp_new_ptr();
+    TCGv_i32 t;
+    unsigned desc;
+
+    desc = DIV_ROUND_UP(pred_full_reg_size(s), 8);
+    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, a->esz);
+
+    tcg_gen_addi_ptr(t_pd, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, a->rn));
+    t = tcg_const_i32(desc);
+
+    gen_fn(t, t_pd, t_pg, t);
+    tcg_temp_free_ptr(t_pd);
+    tcg_temp_free_ptr(t_pg);
+
+    do_pred_flags(t);
+    tcg_temp_free_i32(t);
+    return true;
+}
+
+static bool trans_PFIRST(DisasContext *s, arg_rr_esz *a, uint32_t insn)
+{
+    return do_pfirst_pnext(s, a, gen_helper_sve_pfirst);
+}
+
+static bool trans_PNEXT(DisasContext *s, arg_rr_esz *a, uint32_t insn)
+{
+    return do_pfirst_pnext(s, a, gen_helper_sve_pnext);
 }
 
 /*

@@ -540,6 +540,7 @@ typedef struct CPUARMState {
 
 #ifdef TARGET_AARCH64
         /* Store FFR as pregs[16] to make it easier to treat as any other.  */
+#define FFR_PRED_NUM 16
         ARMPredicateReg pregs[17];
         /* Scratch space for aa64 sve predicate temporary.  */
         ARMPredicateReg preg_tmp;
@@ -2974,5 +2975,8 @@ static inline uint64_t *aa64_vfp_qreg(CPUARMState *env, unsigned regno)
 {
     return &env->vfp.zregs[regno].d[0];
 }
+
+/* Shared between translate-sve.c and sve_helper.c.  */
+extern const uint64_t pred_esz_masks[4];
 
 #endif

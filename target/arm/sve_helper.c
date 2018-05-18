@@ -115,3 +115,87 @@ LOGICAL_PPPP(sve_nand_pppp, DO_NAND)
 #undef DO_NAND
 #undef DO_SEL
 #undef LOGICAL_PPPP
+
+/* Similar to the ARM LastActiveElement pseudocode function, except the
+   result is multiplied by the element size.  This includes the not found
+   indication; e.g. not found for esz=3 is -8.  */
+static intptr_t last_active_element(uint64_t *g, intptr_t words, intptr_t esz)
+{
+    uint64_t mask = pred_esz_masks[esz];
+    intptr_t i = words;
+
+    do {
+        uint64_t this_g = g[--i] & mask;
+        if (this_g) {
+            return i * 64 + (63 - clz64(this_g));
+        }
+    } while (i > 0);
+    return (intptr_t)-1 << esz;
+}
+
+uint32_t HELPER(sve_pfirst)(void *vd, void *vg, uint32_t words)
+{
+    uint32_t flags = PREDTEST_INIT;
+    uint64_t *d = vd, *g = vg;
+    intptr_t i = 0;
+
+    do {
+        uint64_t this_d = d[i];
+        uint64_t this_g = g[i];
+
+        if (this_g) {
+            if (!(flags & 4)) {
+                /* Set in D the first bit of G.  */
+                this_d |= this_g & -this_g;
+                d[i] = this_d;
+            }
+            flags = iter_predtest_fwd(this_d, this_g, flags);
+        }
+    } while (++i < words);
+
+    return flags;
+}
+
+uint32_t HELPER(sve_pnext)(void *vd, void *vg, uint32_t pred_desc)
+{
+    intptr_t words = extract32(pred_desc, 0, SIMD_OPRSZ_BITS);
+    intptr_t esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    uint32_t flags = PREDTEST_INIT;
+    uint64_t *d = vd, *g = vg, esz_mask;
+    intptr_t i, next;
+
+    next = last_active_element(vd, words, esz) + (1 << esz);
+    esz_mask = pred_esz_masks[esz];
+
+    /* Similar to the pseudocode for pnext, but scaled by ESZ
+       so that we find the correct bit.  */
+    if (next < words * 64) {
+        uint64_t mask = -1;
+
+        if (next & 63) {
+            mask = ~((1ull << (next & 63)) - 1);
+            next &= -64;
+        }
+        do {
+            uint64_t this_g = g[next / 64] & esz_mask & mask;
+            if (this_g != 0) {
+                next = (next & -64) + ctz64(this_g);
+                break;
+            }
+            next += 64;
+            mask = -1;
+        } while (next < words * 64);
+    }
+
+    i = 0;
+    do {
+        uint64_t this_d = 0;
+        if (i == next / 64) {
+            this_d = 1ull << (next & 63);
+        }
+        d[i] = this_d;
+        flags = iter_predtest_fwd(this_d, g[i] & esz_mask, flags);
+    } while (++i < words);
+
+    return flags;
+}

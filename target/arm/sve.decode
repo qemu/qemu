@@ -29,6 +29,7 @@
 # when creating helpers common to those for the individual
 # instruction patterns.
 
+&rr_esz         rd rn esz
 &rri            rd rn imm
 &rrr_esz        rd rn rm esz
 &rprr_s         rd pg rn rm s
@@ -36,6 +37,12 @@
 ###########################################################################
 # Named instruction formats.  These are generally used to
 # reduce the amount of duplication between instruction patterns.
+
+# Two operand with unused vector element size
+@pd_pn_e0       ........ ........ ....... rn:4 . rd:4           &rr_esz esz=0
+
+# Two operand
+@pd_pn          ........ esz:2 .. .... ....... rn:4 . rd:4      &rr_esz
 
 # Three operand with unused vector element size
 @rd_rn_rm_e0    ........ ... rm:5 ... ... rn:5 rd:5             &rrr_esz esz=0
@@ -76,6 +83,30 @@ NAND_pppp       00100101 1. 00 .... 01 .... 1 .... 1 ....       @pd_pg_pn_pm_s
 
 # SVE predicate test
 PTEST           00100101 01 010000 11 pg:4 0 rn:4 0 0000
+
+# SVE predicate initialize
+PTRUE           00100101 esz:2 01100 s:1 111000 pat:5 0 rd:4
+
+# SVE initialize FFR
+SETFFR          00100101 0010 1100 1001 0000 0000 0000
+
+# SVE zero predicate register
+PFALSE          00100101 0001 1000 1110 0100 0000 rd:4
+
+# SVE predicate read from FFR (predicated)
+RDFFR_p         00100101 0 s:1 0110001111000 pg:4 0 rd:4
+
+# SVE predicate read from FFR (unpredicated)
+RDFFR           00100101 0001 1001 1111 0000 0000 rd:4
+
+# SVE FFR write from predicate (WRFFR)
+WRFFR           00100101 0010 1000 1001 000 rn:4 00000
+
+# SVE predicate first active
+PFIRST          00100101 01 011 000 11000 00 .... 0 ....        @pd_pn_e0
+
+# SVE predicate next active
+PNEXT           00100101 .. 011 001 11000 10 .... 0 ....        @pd_pn
 
 ### SVE Memory - 32-bit Gather and Unsized Contiguous Group
 
