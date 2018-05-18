@@ -722,6 +722,15 @@ static int vtd_iova_to_slpte(VTDContextEntry *ce, uint64_t iova, bool is_write,
 
 typedef int (*vtd_page_walk_hook)(IOMMUTLBEntry *entry, void *private);
 
+static int vtd_page_walk_one(IOMMUTLBEntry *entry, int level,
+                             vtd_page_walk_hook hook_fn, void *private)
+{
+    assert(hook_fn);
+    trace_vtd_page_walk_one(level, entry->iova, entry->translated_addr,
+                            entry->addr_mask, entry->perm);
+    return hook_fn(entry, private);
+}
+
 /**
  * vtd_page_walk_level - walk over specific level for IOVA range
  *
@@ -781,28 +790,37 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
          */
         entry_valid = read_cur | write_cur;
 
+        entry.target_as = &address_space_memory;
+        entry.iova = iova & subpage_mask;
+        entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
+        entry.addr_mask = ~subpage_mask;
+
         if (vtd_is_last_slpte(slpte, level)) {
-            entry.target_as = &address_space_memory;
-            entry.iova = iova & subpage_mask;
             /* NOTE: this is only meaningful if entry_valid == true */
             entry.translated_addr = vtd_get_slpte_addr(slpte, aw);
-            entry.addr_mask = ~subpage_mask;
-            entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
             if (!entry_valid && !notify_unmap) {
                 trace_vtd_page_walk_skip_perm(iova, iova_next);
                 goto next;
             }
-            trace_vtd_page_walk_one(level, entry.iova, entry.translated_addr,
-                                    entry.addr_mask, entry.perm);
-            if (hook_fn) {
-                ret = hook_fn(&entry, private);
-                if (ret < 0) {
-                    return ret;
-                }
+            ret = vtd_page_walk_one(&entry, level, hook_fn, private);
+            if (ret < 0) {
+                return ret;
             }
         } else {
             if (!entry_valid) {
-                trace_vtd_page_walk_skip_perm(iova, iova_next);
+                if (notify_unmap) {
+                    /*
+                     * The whole entry is invalid; unmap it all.
+                     * Translated address is meaningless, zero it.
+                     */
+                    entry.translated_addr = 0x0;
+                    ret = vtd_page_walk_one(&entry, level, hook_fn, private);
+                    if (ret < 0) {
+                        return ret;
+                    }
+                } else {
+                    trace_vtd_page_walk_skip_perm(iova, iova_next);
+                }
                 goto next;
             }
             ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte, aw), iova,
