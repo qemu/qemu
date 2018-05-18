@@ -76,3 +76,42 @@ uint32_t HELPER(sve_predtest)(void *vd, void *vg, uint32_t words)
 
     return flags;
 }
+
+#define LOGICAL_PPPP(NAME, FUNC) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg, uint32_t desc)  \
+{                                                                         \
+    uintptr_t opr_sz = simd_oprsz(desc);                                  \
+    uint64_t *d = vd, *n = vn, *m = vm, *g = vg;                          \
+    uintptr_t i;                                                          \
+    for (i = 0; i < opr_sz / 8; ++i) {                                    \
+        d[i] = FUNC(n[i], m[i], g[i]);                                    \
+    }                                                                     \
+}
+
+#define DO_AND(N, M, G)  (((N) & (M)) & (G))
+#define DO_BIC(N, M, G)  (((N) & ~(M)) & (G))
+#define DO_EOR(N, M, G)  (((N) ^ (M)) & (G))
+#define DO_ORR(N, M, G)  (((N) | (M)) & (G))
+#define DO_ORN(N, M, G)  (((N) | ~(M)) & (G))
+#define DO_NOR(N, M, G)  (~((N) | (M)) & (G))
+#define DO_NAND(N, M, G) (~((N) & (M)) & (G))
+#define DO_SEL(N, M, G)  (((N) & (G)) | ((M) & ~(G)))
+
+LOGICAL_PPPP(sve_and_pppp, DO_AND)
+LOGICAL_PPPP(sve_bic_pppp, DO_BIC)
+LOGICAL_PPPP(sve_eor_pppp, DO_EOR)
+LOGICAL_PPPP(sve_sel_pppp, DO_SEL)
+LOGICAL_PPPP(sve_orr_pppp, DO_ORR)
+LOGICAL_PPPP(sve_orn_pppp, DO_ORN)
+LOGICAL_PPPP(sve_nor_pppp, DO_NOR)
+LOGICAL_PPPP(sve_nand_pppp, DO_NAND)
+
+#undef DO_AND
+#undef DO_BIC
+#undef DO_EOR
+#undef DO_ORR
+#undef DO_ORN
+#undef DO_NOR
+#undef DO_NAND
+#undef DO_SEL
+#undef LOGICAL_PPPP

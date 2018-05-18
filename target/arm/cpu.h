@@ -541,6 +541,8 @@ typedef struct CPUARMState {
 #ifdef TARGET_AARCH64
         /* Store FFR as pregs[16] to make it easier to treat as any other.  */
         ARMPredicateReg pregs[17];
+        /* Scratch space for aa64 sve predicate temporary.  */
+        ARMPredicateReg preg_tmp;
 #endif
 
         uint32_t xregs[16];
@@ -548,7 +550,7 @@ typedef struct CPUARMState {
         int vec_len;
         int vec_stride;
 
-        /* scratch space when Tn are not sufficient.  */
+        /* Scratch space for aa32 neon expansion.  */
         uint32_t scratch[8];
 
         /* There are a number of distinct float control structures:

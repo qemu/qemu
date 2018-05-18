@@ -31,6 +31,7 @@
 
 &rri            rd rn imm
 &rrr_esz        rd rn rm esz
+&rprr_s         rd pg rn rm s
 
 ###########################################################################
 # Named instruction formats.  These are generally used to
@@ -38,6 +39,9 @@
 
 # Three operand with unused vector element size
 @rd_rn_rm_e0    ........ ... rm:5 ... ... rn:5 rd:5             &rrr_esz esz=0
+
+# Three predicate operand, with governing predicate, flag setting
+@pd_pg_pn_pm_s  ........ . s:1 .. rm:4 .. pg:4 . rn:4 . rd:4    &rprr_s
 
 # Basic Load/Store with 9-bit immediate offset
 @pd_rn_i9       ........ ........ ...... rn:5 . rd:4    \
@@ -55,6 +59,18 @@ AND_zzz         00000100 00 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
 ORR_zzz         00000100 01 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
 EOR_zzz         00000100 10 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
 BIC_zzz         00000100 11 1 ..... 001 100 ..... .....         @rd_rn_rm_e0
+
+### SVE Predicate Logical Operations Group
+
+# SVE predicate logical operations
+AND_pppp        00100101 0. 00 .... 01 .... 0 .... 0 ....       @pd_pg_pn_pm_s
+BIC_pppp        00100101 0. 00 .... 01 .... 0 .... 1 ....       @pd_pg_pn_pm_s
+EOR_pppp        00100101 0. 00 .... 01 .... 1 .... 0 ....       @pd_pg_pn_pm_s
+SEL_pppp        00100101 0. 00 .... 01 .... 1 .... 1 ....       @pd_pg_pn_pm_s
+ORR_pppp        00100101 1. 00 .... 01 .... 0 .... 0 ....       @pd_pg_pn_pm_s
+ORN_pppp        00100101 1. 00 .... 01 .... 0 .... 1 ....       @pd_pg_pn_pm_s
+NOR_pppp        00100101 1. 00 .... 01 .... 1 .... 0 ....       @pd_pg_pn_pm_s
+NAND_pppp       00100101 1. 00 .... 01 .... 1 .... 1 ....       @pd_pg_pn_pm_s
 
 ### SVE Predicate Misc Group
 
