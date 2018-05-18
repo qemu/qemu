@@ -341,7 +341,6 @@ float64 HELPER(fdiv_d)(CPUHPPAState *env, float64 a, float64 b)
 float64 HELPER(fcnv_s_d)(CPUHPPAState *env, float32 arg)
 {
     float64 ret = float32_to_float64(arg, &env->fp_status);
-    ret = float64_maybe_silence_nan(ret, &env->fp_status);
     update_fr0_op(env, GETPC());
     return ret;
 }
@@ -349,7 +348,6 @@ float64 HELPER(fcnv_s_d)(CPUHPPAState *env, float32 arg)
 float32 HELPER(fcnv_d_s)(CPUHPPAState *env, float64 arg)
 {
     float32 ret = float64_to_float32(arg, &env->fp_status);
-    ret = float32_maybe_silence_nan(ret, &env->fp_status);
     update_fr0_op(env, GETPC());
     return ret;
 }

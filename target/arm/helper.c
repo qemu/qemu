@@ -11348,20 +11348,12 @@ FLOAT_CONVS(ui, d, 64, u)
 /* floating point conversion */
 float64 VFP_HELPER(fcvtd, s)(float32 x, CPUARMState *env)
 {
-    float64 r = float32_to_float64(x, &env->vfp.fp_status);
-    /* ARM requires that S<->D conversion of any kind of NaN generates
-     * a quiet NaN by forcing the most significant frac bit to 1.
-     */
-    return float64_maybe_silence_nan(r, &env->vfp.fp_status);
+    return float32_to_float64(x, &env->vfp.fp_status);
 }
 
 float32 VFP_HELPER(fcvts, d)(float64 x, CPUARMState *env)
 {
-    float32 r =  float64_to_float32(x, &env->vfp.fp_status);
-    /* ARM requires that S<->D conversion of any kind of NaN generates
-     * a quiet NaN by forcing the most significant frac bit to 1.
-     */
-    return float32_maybe_silence_nan(r, &env->vfp.fp_status);
+    return float64_to_float32(x, &env->vfp.fp_status);
 }
 
 /* VFP3 fixed point conversion.  */
@@ -11540,64 +11532,56 @@ uint32_t HELPER(set_neon_rmode)(uint32_t rmode, CPUARMState *env)
 }
 
 /* Half precision conversions.  */
-static float32 do_fcvt_f16_to_f32(uint32_t a, CPUARMState *env, float_status *s)
+float32 HELPER(vfp_fcvt_f16_to_f32)(float16 a, void *fpstp, uint32_t ahp_mode)
 {
-    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
-    float32 r = float16_to_float32(make_float16(a), ieee, s);
-    if (ieee) {
-        return float32_maybe_silence_nan(r, s);
-    }
+    /* Squash FZ16 to 0 for the duration of conversion.  In this case,
+     * it would affect flushing input denormals.
+     */
+    float_status *fpst = fpstp;
+    flag save = get_flush_inputs_to_zero(fpst);
+    set_flush_inputs_to_zero(false, fpst);
+    float32 r = float16_to_float32(a, !ahp_mode, fpst);
+    set_flush_inputs_to_zero(save, fpst);
     return r;
 }
 
-static uint32_t do_fcvt_f32_to_f16(float32 a, CPUARMState *env, float_status *s)
+float16 HELPER(vfp_fcvt_f32_to_f16)(float32 a, void *fpstp, uint32_t ahp_mode)
 {
-    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
-    float16 r = float32_to_float16(a, ieee, s);
-    if (ieee) {
-        r = float16_maybe_silence_nan(r, s);
-    }
-    return float16_val(r);
-}
-
-float32 HELPER(neon_fcvt_f16_to_f32)(uint32_t a, CPUARMState *env)
-{
-    return do_fcvt_f16_to_f32(a, env, &env->vfp.standard_fp_status);
-}
-
-uint32_t HELPER(neon_fcvt_f32_to_f16)(float32 a, CPUARMState *env)
-{
-    return do_fcvt_f32_to_f16(a, env, &env->vfp.standard_fp_status);
-}
-
-float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, CPUARMState *env)
-{
-    return do_fcvt_f16_to_f32(a, env, &env->vfp.fp_status);
-}
-
-uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUARMState *env)
-{
-    return do_fcvt_f32_to_f16(a, env, &env->vfp.fp_status);
-}
-
-float64 HELPER(vfp_fcvt_f16_to_f64)(uint32_t a, CPUARMState *env)
-{
-    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
-    float64 r = float16_to_float64(make_float16(a), ieee, &env->vfp.fp_status);
-    if (ieee) {
-        return float64_maybe_silence_nan(r, &env->vfp.fp_status);
-    }
+    /* Squash FZ16 to 0 for the duration of conversion.  In this case,
+     * it would affect flushing output denormals.
+     */
+    float_status *fpst = fpstp;
+    flag save = get_flush_to_zero(fpst);
+    set_flush_to_zero(false, fpst);
+    float16 r = float32_to_float16(a, !ahp_mode, fpst);
+    set_flush_to_zero(save, fpst);
     return r;
 }
 
-uint32_t HELPER(vfp_fcvt_f64_to_f16)(float64 a, CPUARMState *env)
+float64 HELPER(vfp_fcvt_f16_to_f64)(float16 a, void *fpstp, uint32_t ahp_mode)
 {
-    int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
-    float16 r = float64_to_float16(a, ieee, &env->vfp.fp_status);
-    if (ieee) {
-        r = float16_maybe_silence_nan(r, &env->vfp.fp_status);
-    }
-    return float16_val(r);
+    /* Squash FZ16 to 0 for the duration of conversion.  In this case,
+     * it would affect flushing input denormals.
+     */
+    float_status *fpst = fpstp;
+    flag save = get_flush_inputs_to_zero(fpst);
+    set_flush_inputs_to_zero(false, fpst);
+    float64 r = float16_to_float64(a, !ahp_mode, fpst);
+    set_flush_inputs_to_zero(save, fpst);
+    return r;
+}
+
+float16 HELPER(vfp_fcvt_f64_to_f16)(float64 a, void *fpstp, uint32_t ahp_mode)
+{
+    /* Squash FZ16 to 0 for the duration of conversion.  In this case,
+     * it would affect flushing output denormals.
+     */
+    float_status *fpst = fpstp;
+    flag save = get_flush_to_zero(fpst);
+    set_flush_to_zero(false, fpst);
+    float16 r = float64_to_float16(a, !ahp_mode, fpst);
+    set_flush_to_zero(save, fpst);
+    return r;
 }
 
 #define float32_two make_float32(0x40000000)
@@ -11739,7 +11723,7 @@ float16 HELPER(recpe_f16)(float16 input, void *fpstp)
         float16 nan = f16;
         if (float16_is_signaling_nan(f16, fpst)) {
             float_raise(float_flag_invalid, fpst);
-            nan = float16_maybe_silence_nan(f16, fpst);
+            nan = float16_silence_nan(f16, fpst);
         }
         if (fpst->default_nan_mode) {
             nan =  float16_default_nan(fpst);
@@ -11787,7 +11771,7 @@ float32 HELPER(recpe_f32)(float32 input, void *fpstp)
         float32 nan = f32;
         if (float32_is_signaling_nan(f32, fpst)) {
             float_raise(float_flag_invalid, fpst);
-            nan = float32_maybe_silence_nan(f32, fpst);
+            nan = float32_silence_nan(f32, fpst);
         }
         if (fpst->default_nan_mode) {
             nan =  float32_default_nan(fpst);
@@ -11835,7 +11819,7 @@ float64 HELPER(recpe_f64)(float64 input, void *fpstp)
         float64 nan = f64;
         if (float64_is_signaling_nan(f64, fpst)) {
             float_raise(float_flag_invalid, fpst);
-            nan = float64_maybe_silence_nan(f64, fpst);
+            nan = float64_silence_nan(f64, fpst);
         }
         if (fpst->default_nan_mode) {
             nan =  float64_default_nan(fpst);
@@ -11934,7 +11918,7 @@ float16 HELPER(rsqrte_f16)(float16 input, void *fpstp)
         float16 nan = f16;
         if (float16_is_signaling_nan(f16, s)) {
             float_raise(float_flag_invalid, s);
-            nan = float16_maybe_silence_nan(f16, s);
+            nan = float16_silence_nan(f16, s);
         }
         if (s->default_nan_mode) {
             nan =  float16_default_nan(s);
@@ -11978,7 +11962,7 @@ float32 HELPER(rsqrte_f32)(float32 input, void *fpstp)
         float32 nan = f32;
         if (float32_is_signaling_nan(f32, s)) {
             float_raise(float_flag_invalid, s);
-            nan = float32_maybe_silence_nan(f32, s);
+            nan = float32_silence_nan(f32, s);
         }
         if (s->default_nan_mode) {
             nan =  float32_default_nan(s);
@@ -12021,7 +12005,7 @@ float64 HELPER(rsqrte_f64)(float64 input, void *fpstp)
         float64 nan = f64;
         if (float64_is_signaling_nan(f64, s)) {
             float_raise(float_flag_invalid, s);
-            nan = float64_maybe_silence_nan(f64, s);
+            nan = float64_silence_nan(f64, s);
         }
         if (s->default_nan_mode) {
             nan =  float64_default_nan(s);
