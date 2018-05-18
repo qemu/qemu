@@ -22,7 +22,15 @@
 ###########################################################################
 # Named fields.  These are primarily for disjoint fields.
 
+%imm6_22_5      22:1 5:5
 %imm9_16_10     16:s6 10:3
+
+# A combination of tsz:imm3 -- extract esize.
+%tszimm_esz     22:2 5:5 !function=tszimm_esz
+# A combination of tsz:imm3 -- extract (2 * esize) - (tsz:imm3)
+%tszimm_shr     22:2 5:5 !function=tszimm_shr
+# A combination of tsz:imm3 -- extract (tsz:imm3) - esize
+%tszimm_shl     22:2 5:5 !function=tszimm_shl
 
 # Either a copy of rd (at bit 0), or a different source
 # as propagated via the MOVPRFX instruction.
@@ -39,6 +47,7 @@
 &rpr_esz        rd pg rn esz
 &rprr_s         rd pg rn rm s
 &rprr_esz       rd pg rn rm esz
+&rpri_esz       rd pg rn imm esz
 
 ###########################################################################
 # Named instruction formats.  These are generally used to
@@ -64,6 +73,11 @@
 
 # One register operand, with governing predicate, vector element size
 @rd_pg_rn       ........ esz:2 ... ... ... pg:3 rn:5 rd:5       &rpr_esz
+
+# Two register operand, one immediate operand, with predicate,
+# element size encoded as TSZHL.  User must fill in imm.
+@rdn_pg_tszimm  ........ .. ... ... ... pg:3 ..... rd:5 \
+                &rpri_esz rn=%reg_movprfx esz=%tszimm_esz
 
 # Basic Load/Store with 9-bit immediate offset
 @pd_rn_i9       ........ ........ ...... rn:5 . rd:4    \
@@ -122,6 +136,18 @@ SMAXV           00000100 .. 001 000 001 ... ..... .....         @rd_pg_rn
 UMAXV           00000100 .. 001 001 001 ... ..... .....         @rd_pg_rn
 SMINV           00000100 .. 001 010 001 ... ..... .....         @rd_pg_rn
 UMINV           00000100 .. 001 011 001 ... ..... .....         @rd_pg_rn
+
+### SVE Shift by Immediate - Predicated Group
+
+# SVE bitwise shift by immediate (predicated)
+ASR_zpzi        00000100 .. 000 000 100 ... .. ... ..... \
+                @rdn_pg_tszimm imm=%tszimm_shr
+LSR_zpzi        00000100 .. 000 001 100 ... .. ... ..... \
+                @rdn_pg_tszimm imm=%tszimm_shr
+LSL_zpzi        00000100 .. 000 011 100 ... .. ... ..... \
+                @rdn_pg_tszimm imm=%tszimm_shl
+ASRD            00000100 .. 000 100 100 ... .. ... ..... \
+                @rdn_pg_tszimm imm=%tszimm_shr
 
 ### SVE Logical - Unpredicated Group
 

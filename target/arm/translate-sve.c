@@ -34,6 +34,30 @@
 #include "translate-a64.h"
 
 /*
+ * Helpers for extracting complex instruction fields.
+ */
+
+/* See e.g. ASR (immediate, predicated).
+ * Returns -1 for unallocated encoding; diagnose later.
+ */
+static int tszimm_esz(int x)
+{
+    x >>= 3;  /* discard imm3 */
+    return 31 - clz32(x);
+}
+
+static int tszimm_shr(int x)
+{
+    return (16 << tszimm_esz(x)) - x;
+}
+
+/* See e.g. LSL (immediate, predicated).  */
+static int tszimm_shl(int x)
+{
+    return x - (8 << tszimm_esz(x));
+}
+
+/*
  * Include the generated decoder.
  */
 
@@ -362,6 +386,112 @@ static bool trans_SADDV(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
 }
 
 #undef DO_VPZ
+
+/*
+ *** SVE Shift by Immediate - Predicated Group
+ */
+
+/* Store zero into every active element of Zd.  We will use this for two
+ * and three-operand predicated instructions for which logic dictates a
+ * zero result.
+ */
+static bool do_clr_zp(DisasContext *s, int rd, int pg, int esz)
+{
+    static gen_helper_gvec_2 * const fns[4] = {
+        gen_helper_sve_clr_b, gen_helper_sve_clr_h,
+        gen_helper_sve_clr_s, gen_helper_sve_clr_d,
+    };
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_2_ool(vec_full_reg_offset(s, rd),
+                           pred_full_reg_offset(s, pg),
+                           vsz, vsz, 0, fns[esz]);
+    }
+    return true;
+}
+
+static bool do_zpzi_ool(DisasContext *s, arg_rpri_esz *a,
+                        gen_helper_gvec_3 *fn)
+{
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           pred_full_reg_offset(s, a->pg),
+                           vsz, vsz, a->imm, fn);
+    }
+    return true;
+}
+
+static bool trans_ASR_zpzi(DisasContext *s, arg_rpri_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_3 * const fns[4] = {
+        gen_helper_sve_asr_zpzi_b, gen_helper_sve_asr_zpzi_h,
+        gen_helper_sve_asr_zpzi_s, gen_helper_sve_asr_zpzi_d,
+    };
+    if (a->esz < 0) {
+        /* Invalid tsz encoding -- see tszimm_esz. */
+        return false;
+    }
+    /* Shift by element size is architecturally valid.  For
+       arithmetic right-shift, it's the same as by one less. */
+    a->imm = MIN(a->imm, (8 << a->esz) - 1);
+    return do_zpzi_ool(s, a, fns[a->esz]);
+}
+
+static bool trans_LSR_zpzi(DisasContext *s, arg_rpri_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_3 * const fns[4] = {
+        gen_helper_sve_lsr_zpzi_b, gen_helper_sve_lsr_zpzi_h,
+        gen_helper_sve_lsr_zpzi_s, gen_helper_sve_lsr_zpzi_d,
+    };
+    if (a->esz < 0) {
+        return false;
+    }
+    /* Shift by element size is architecturally valid.
+       For logical shifts, it is a zeroing operation.  */
+    if (a->imm >= (8 << a->esz)) {
+        return do_clr_zp(s, a->rd, a->pg, a->esz);
+    } else {
+        return do_zpzi_ool(s, a, fns[a->esz]);
+    }
+}
+
+static bool trans_LSL_zpzi(DisasContext *s, arg_rpri_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_3 * const fns[4] = {
+        gen_helper_sve_lsl_zpzi_b, gen_helper_sve_lsl_zpzi_h,
+        gen_helper_sve_lsl_zpzi_s, gen_helper_sve_lsl_zpzi_d,
+    };
+    if (a->esz < 0) {
+        return false;
+    }
+    /* Shift by element size is architecturally valid.
+       For logical shifts, it is a zeroing operation.  */
+    if (a->imm >= (8 << a->esz)) {
+        return do_clr_zp(s, a->rd, a->pg, a->esz);
+    } else {
+        return do_zpzi_ool(s, a, fns[a->esz]);
+    }
+}
+
+static bool trans_ASRD(DisasContext *s, arg_rpri_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_3 * const fns[4] = {
+        gen_helper_sve_asrd_b, gen_helper_sve_asrd_h,
+        gen_helper_sve_asrd_s, gen_helper_sve_asrd_d,
+    };
+    if (a->esz < 0) {
+        return false;
+    }
+    /* Shift by element size is architecturally valid.  For arithmetic
+       right shift for division, it is a zeroing operation.  */
+    if (a->imm >= (8 << a->esz)) {
+        return do_clr_zp(s, a->rd, a->pg, a->esz);
+    } else {
+        return do_zpzi_ool(s, a, fns[a->esz]);
+    }
+}
 
 /*
  *** SVE Predicate Logical Operations Group
