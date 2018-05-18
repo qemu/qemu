@@ -48,6 +48,7 @@
 
 &rr_esz         rd rn esz
 &rri            rd rn imm
+&rrri           rd rn rm imm
 &rri_esz        rd rn imm esz
 &rrr_esz        rd rn rm esz
 &rpr_esz        rd pg rn esz
@@ -74,6 +75,9 @@
 
 # Three operand, vector element size
 @rd_rn_rm       ........ esz:2 . rm:5 ... ... rn:5 rd:5         &rrr_esz
+
+# Three operand with "memory" size, aka immediate left shift
+@rd_rn_msz_rm   ........ ... rm:5 .... imm:2 rn:5 rd:5          &rrri
 
 # Two register operand, with governing predicate, vector element size
 @rdn_pg_rm      ........ esz:2 ... ... ... pg:3 rm:5 rd:5 \
@@ -275,6 +279,14 @@ LSL_zzi         00000100 .. 1 ..... 1001 11 ..... ..... \
 ASR_zzw         00000100 .. 1 ..... 1000 00 ..... .....         @rd_rn_rm
 LSR_zzw         00000100 .. 1 ..... 1000 01 ..... .....         @rd_rn_rm
 LSL_zzw         00000100 .. 1 ..... 1000 11 ..... .....         @rd_rn_rm
+
+### SVE Compute Vector Address Group
+
+# SVE vector address generation
+ADR_s32         00000100 00 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
+ADR_u32         00000100 01 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
+ADR_p32         00000100 10 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
+ADR_p64         00000100 11 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
 
 ### SVE Predicate Logical Operations Group
 

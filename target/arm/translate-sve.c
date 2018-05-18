@@ -894,6 +894,42 @@ static bool trans_RDVL(DisasContext *s, arg_RDVL *a, uint32_t insn)
 }
 
 /*
+ *** SVE Compute Vector Address Group
+ */
+
+static bool do_adr(DisasContext *s, arg_rrri *a, gen_helper_gvec_3 *fn)
+{
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           vsz, vsz, a->imm, fn);
+    }
+    return true;
+}
+
+static bool trans_ADR_p32(DisasContext *s, arg_rrri *a, uint32_t insn)
+{
+    return do_adr(s, a, gen_helper_sve_adr_p32);
+}
+
+static bool trans_ADR_p64(DisasContext *s, arg_rrri *a, uint32_t insn)
+{
+    return do_adr(s, a, gen_helper_sve_adr_p64);
+}
+
+static bool trans_ADR_s32(DisasContext *s, arg_rrri *a, uint32_t insn)
+{
+    return do_adr(s, a, gen_helper_sve_adr_s32);
+}
+
+static bool trans_ADR_u32(DisasContext *s, arg_rrri *a, uint32_t insn)
+{
+    return do_adr(s, a, gen_helper_sve_adr_u32);
+}
+
+/*
  *** SVE Predicate Logical Operations Group
  */
 
