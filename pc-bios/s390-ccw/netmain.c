@@ -47,7 +47,6 @@ IplParameterBlock iplb __attribute__((aligned(PAGE_SIZE)));
 static char cfgbuf[2048];
 
 static SubChannelId net_schid = { .one = 1 };
-static int ip_version = 4;
 static uint64_t dest_timer;
 
 static uint64_t get_timer_ms(void)
@@ -100,10 +99,10 @@ static int dhcp(struct filename_ip *fn_ip, int retries)
             printf("\nGiving up after %d DHCP requests\n", retries);
             return -1;
         }
-        ip_version = 4;
+        fn_ip->ip_version = 4;
         rc = dhcpv4(NULL, fn_ip);
         if (rc == -1) {
-            ip_version = 6;
+            fn_ip->ip_version = 6;
             set_ipv6_address(fn_ip->fd, 0);
             rc = dhcpv6(NULL, fn_ip);
             if (rc == 0) {
@@ -137,8 +136,7 @@ static int tftp_load(filename_ip_t *fnip, void *buffer, int len)
     tftp_err_t tftp_err;
     int rc;
 
-    rc = tftp(fnip, buffer, len, DEFAULT_TFTP_RETRIES, &tftp_err, 1, 1428,
-              ip_version);
+    rc = tftp(fnip, buffer, len, DEFAULT_TFTP_RETRIES, &tftp_err);
 
     if (rc < 0) {
         /* Make sure that error messages are put into a new line */
@@ -149,61 +147,11 @@ static int tftp_load(filename_ip_t *fnip, void *buffer, int len)
         printf("  TFTP: Received %s (%d KBytes)\n", fnip->filename, rc / 1024);
     } else if (rc > 0) {
         printf("  TFTP: Received %s (%d Bytes)\n", fnip->filename, rc);
-    } else if (rc == -1) {
-        puts("unknown TFTP error");
-    } else if (rc == -2) {
-        printf("TFTP buffer of %d bytes is too small for %s\n",
-            len, fnip->filename);
-    } else if (rc == -3) {
-        printf("file not found: %s\n", fnip->filename);
-    } else if (rc == -4) {
-        puts("TFTP access violation");
-    } else if (rc == -5) {
-        puts("illegal TFTP operation");
-    } else if (rc == -6) {
-        puts("unknown TFTP transfer ID");
-    } else if (rc == -7) {
-        puts("no such TFTP user");
-    } else if (rc == -8) {
-        puts("TFTP blocksize negotiation failed");
-    } else if (rc == -9) {
-        puts("file exceeds maximum TFTP transfer size");
-    } else if (rc <= -10 && rc >= -15) {
-        const char *icmp_err_str;
-        switch (rc) {
-        case -ICMP_NET_UNREACHABLE - 10:
-            icmp_err_str = "net unreachable";
-            break;
-        case -ICMP_HOST_UNREACHABLE - 10:
-            icmp_err_str = "host unreachable";
-            break;
-        case -ICMP_PROTOCOL_UNREACHABLE - 10:
-            icmp_err_str = "protocol unreachable";
-            break;
-        case -ICMP_PORT_UNREACHABLE - 10:
-            icmp_err_str = "port unreachable";
-            break;
-        case -ICMP_FRAGMENTATION_NEEDED - 10:
-            icmp_err_str = "fragmentation needed and DF set";
-            break;
-        case -ICMP_SOURCE_ROUTE_FAILED - 10:
-            icmp_err_str = "source route failed";
-            break;
-        default:
-            icmp_err_str = " UNKNOWN";
-            break;
-        }
-        printf("ICMP ERROR \"%s\"\n", icmp_err_str);
-    } else if (rc == -40) {
-        printf("TFTP error occurred after %d bad packets received",
-            tftp_err.bad_tftp_packets);
-    } else if (rc == -41) {
-        printf("TFTP error occurred after missing %d responses",
-            tftp_err.no_packets);
-    } else if (rc == -42) {
-        printf("TFTP error missing block %d, expected block was %d",
-            tftp_err.blocks_missed,
-            tftp_err.blocks_received);
+    } else {
+        const char *errstr = NULL;
+        int ecode;
+        tftp_get_error_info(fnip, &tftp_err, rc, &errstr, &ecode);
+        printf("TFTP error: %s\n", errstr ? errstr : "unknown error");
     }
 
     return rc;
@@ -231,7 +179,7 @@ static int net_init(filename_ip_t *fn_ip)
 
     rc = dhcp(fn_ip, DEFAULT_BOOT_RETRIES);
     if (rc >= 0) {
-        if (ip_version == 4) {
+        if (fn_ip->ip_version == 4) {
             set_ipv4_address(fn_ip->own_ip);
         }
     } else {
@@ -239,11 +187,11 @@ static int net_init(filename_ip_t *fn_ip)
         return -101;
     }
 
-    if (ip_version == 4) {
+    if (fn_ip->ip_version == 4) {
         printf("  Using IPv4 address: %d.%d.%d.%d\n",
               (fn_ip->own_ip >> 24) & 0xFF, (fn_ip->own_ip >> 16) & 0xFF,
               (fn_ip->own_ip >>  8) & 0xFF, fn_ip->own_ip & 0xFF);
-    } else if (ip_version == 6) {
+    } else if (fn_ip->ip_version == 6) {
         char ip6_str[40];
         ipv6_to_str(fn_ip->own_ip6.addr, ip6_str);
         printf("  Using IPv6 address: %s\n", ip6_str);
@@ -261,17 +209,17 @@ static int net_init(filename_ip_t *fn_ip)
     }
 
     printf("  Using TFTP server: ");
-    if (ip_version == 4) {
+    if (fn_ip->ip_version == 4) {
         printf("%d.%d.%d.%d\n",
                (fn_ip->server_ip >> 24) & 0xFF, (fn_ip->server_ip >> 16) & 0xFF,
                (fn_ip->server_ip >>  8) & 0xFF, fn_ip->server_ip & 0xFF);
-    } else if (ip_version == 6) {
+    } else if (fn_ip->ip_version == 6) {
         char ip6_str[40];
         ipv6_to_str(fn_ip->server_ip6.addr, ip6_str);
         printf("%s\n", ip6_str);
     }
 
-    if (strlen((char *)fn_ip->filename) > 0) {
+    if (strlen(fn_ip->filename) > 0) {
         printf("  Bootfile name: '%s'\n", fn_ip->filename);
     }
 
@@ -280,7 +228,7 @@ static int net_init(filename_ip_t *fn_ip)
 
 static void net_release(filename_ip_t *fn_ip)
 {
-    if (ip_version == 4) {
+    if (fn_ip->ip_version == 4) {
         dhcp_send_release(fn_ip->fd);
     }
 }
@@ -322,7 +270,7 @@ static int handle_ins_cfg(filename_ip_t *fn_ip, char *cfg, int cfgsize)
             return -1;
         }
         *ptr = 0;
-        strncpy((char *)fn_ip->filename, insbuf, sizeof(fn_ip->filename));
+        strncpy(fn_ip->filename, insbuf, sizeof(fn_ip->filename));
         destaddr = (char *)atol(ptr + 1);
         rc = tftp_load(fn_ip, destaddr, (long)_start - (long)destaddr);
         if (rc <= 0) {
@@ -455,7 +403,7 @@ void main(void)
         panic("Network initialization failed. Halting.\n");
     }
 
-    fnlen = strlen((char *)fn_ip.filename);
+    fnlen = strlen(fn_ip.filename);
     if (fnlen > 0 && fn_ip.filename[fnlen - 1] != '/') {
         rc = net_try_direct_tftp_load(&fn_ip);
     }
