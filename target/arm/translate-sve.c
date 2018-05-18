@@ -703,6 +703,85 @@ DO_ZPZZZ(MLS, mls)
 #undef DO_ZPZZZ
 
 /*
+ *** SVE Index Generation Group
+ */
+
+static void do_index(DisasContext *s, int esz, int rd,
+                     TCGv_i64 start, TCGv_i64 incr)
+{
+    unsigned vsz = vec_full_reg_size(s);
+    TCGv_i32 desc = tcg_const_i32(simd_desc(vsz, vsz, 0));
+    TCGv_ptr t_zd = tcg_temp_new_ptr();
+
+    tcg_gen_addi_ptr(t_zd, cpu_env, vec_full_reg_offset(s, rd));
+    if (esz == 3) {
+        gen_helper_sve_index_d(t_zd, start, incr, desc);
+    } else {
+        typedef void index_fn(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
+        static index_fn * const fns[3] = {
+            gen_helper_sve_index_b,
+            gen_helper_sve_index_h,
+            gen_helper_sve_index_s,
+        };
+        TCGv_i32 s32 = tcg_temp_new_i32();
+        TCGv_i32 i32 = tcg_temp_new_i32();
+
+        tcg_gen_extrl_i64_i32(s32, start);
+        tcg_gen_extrl_i64_i32(i32, incr);
+        fns[esz](t_zd, s32, i32, desc);
+
+        tcg_temp_free_i32(s32);
+        tcg_temp_free_i32(i32);
+    }
+    tcg_temp_free_ptr(t_zd);
+    tcg_temp_free_i32(desc);
+}
+
+static bool trans_INDEX_ii(DisasContext *s, arg_INDEX_ii *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 start = tcg_const_i64(a->imm1);
+        TCGv_i64 incr = tcg_const_i64(a->imm2);
+        do_index(s, a->esz, a->rd, start, incr);
+        tcg_temp_free_i64(start);
+        tcg_temp_free_i64(incr);
+    }
+    return true;
+}
+
+static bool trans_INDEX_ir(DisasContext *s, arg_INDEX_ir *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 start = tcg_const_i64(a->imm);
+        TCGv_i64 incr = cpu_reg(s, a->rm);
+        do_index(s, a->esz, a->rd, start, incr);
+        tcg_temp_free_i64(start);
+    }
+    return true;
+}
+
+static bool trans_INDEX_ri(DisasContext *s, arg_INDEX_ri *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 start = cpu_reg(s, a->rn);
+        TCGv_i64 incr = tcg_const_i64(a->imm);
+        do_index(s, a->esz, a->rd, start, incr);
+        tcg_temp_free_i64(incr);
+    }
+    return true;
+}
+
+static bool trans_INDEX_rr(DisasContext *s, arg_INDEX_rr *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 start = cpu_reg(s, a->rn);
+        TCGv_i64 incr = cpu_reg(s, a->rm);
+        do_index(s, a->esz, a->rd, start, incr);
+    }
+    return true;
+}
+
+/*
  *** SVE Predicate Logical Operations Group
  */
 
