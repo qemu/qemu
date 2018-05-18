@@ -49,6 +49,7 @@
 
 &rr_esz         rd rn esz
 &rri            rd rn imm
+&rr_dbm         rd rn dbm
 &rrri           rd rn rm imm
 &rri_esz        rd rn imm esz
 &rrr_esz        rd rn rm esz
@@ -110,6 +111,10 @@
 # Similarly without predicate.
 @rd_rn_tszimm   ........ .. ... ... ...... rn:5 rd:5 \
                 &rri_esz esz=%tszimm16_esz
+
+# Two register operand, one encoded bitmask.
+@rdn_dbm        ........ .. .... dbm:13 rd:5 \
+                &rr_dbm rn=%reg_movprfx
 
 # Basic Load/Store with 9-bit immediate offset
 @pd_rn_i9       ........ ........ ...... rn:5 . rd:4    \
@@ -329,6 +334,18 @@ INCDEC_v        00000100 .. 1 1 .... 1100 0 d:1 ..... .....    @incdec2_cnt u=1
 # SVE saturating inc/dec vector by element count
 # Note these require esz != 0.
 SINCDEC_v       00000100 .. 1 0 .... 1100 d:1 u:1 ..... .....   @incdec2_cnt
+
+### SVE Bitwise Immediate Group
+
+# SVE bitwise logical with immediate (unpredicated)
+ORR_zzi         00000101 00 0000 ............. .....            @rdn_dbm
+EOR_zzi         00000101 01 0000 ............. .....            @rdn_dbm
+AND_zzi         00000101 10 0000 ............. .....            @rdn_dbm
+
+# SVE broadcast bitmask immediate
+DUPM            00000101 11 0000 dbm:13 rd:5
+
+### SVE Predicate Logical Operations Group
 
 # SVE predicate logical operations
 AND_pppp        00100101 0. 00 .... 01 .... 0 .... 0 ....       @pd_pg_pn_pm_s

@@ -1786,6 +1786,55 @@ static bool trans_SINCDEC_v(DisasContext *s, arg_incdec2_cnt *a,
 }
 
 /*
+ *** SVE Bitwise Immediate Group
+ */
+
+static bool do_zz_dbm(DisasContext *s, arg_rr_dbm *a, GVecGen2iFn *gvec_fn)
+{
+    uint64_t imm;
+    if (!logic_imm_decode_wmask(&imm, extract32(a->dbm, 12, 1),
+                                extract32(a->dbm, 0, 6),
+                                extract32(a->dbm, 6, 6))) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        gvec_fn(MO_64, vec_full_reg_offset(s, a->rd),
+                vec_full_reg_offset(s, a->rn), imm, vsz, vsz);
+    }
+    return true;
+}
+
+static bool trans_AND_zzi(DisasContext *s, arg_rr_dbm *a, uint32_t insn)
+{
+    return do_zz_dbm(s, a, tcg_gen_gvec_andi);
+}
+
+static bool trans_ORR_zzi(DisasContext *s, arg_rr_dbm *a, uint32_t insn)
+{
+    return do_zz_dbm(s, a, tcg_gen_gvec_ori);
+}
+
+static bool trans_EOR_zzi(DisasContext *s, arg_rr_dbm *a, uint32_t insn)
+{
+    return do_zz_dbm(s, a, tcg_gen_gvec_xori);
+}
+
+static bool trans_DUPM(DisasContext *s, arg_DUPM *a, uint32_t insn)
+{
+    uint64_t imm;
+    if (!logic_imm_decode_wmask(&imm, extract32(a->dbm, 12, 1),
+                                extract32(a->dbm, 0, 6),
+                                extract32(a->dbm, 6, 6))) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        do_dupi_z(s, a->rd, imm);
+    }
+    return true;
+}
+
+/*
  *** SVE Memory - 32-bit Gather and Unsized Contiguous Group
  */
 
