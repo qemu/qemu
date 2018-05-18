@@ -1248,10 +1248,10 @@ static void vtd_interrupt_remap_table_setup(IntelIOMMUState *s)
 
 static void vtd_iommu_replay_all(IntelIOMMUState *s)
 {
-    IntelIOMMUNotifierNode *node;
+    VTDAddressSpace *vtd_as;
 
-    QLIST_FOREACH(node, &s->notifiers_list, next) {
-        memory_region_iommu_replay_all(&node->vtd_as->iommu);
+    QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
+        memory_region_iommu_replay_all(&vtd_as->iommu);
     }
 }
 
@@ -1372,7 +1372,6 @@ static void vtd_iotlb_global_invalidate(IntelIOMMUState *s)
 
 static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 {
-    IntelIOMMUNotifierNode *node;
     VTDContextEntry ce;
     VTDAddressSpace *vtd_as;
 
@@ -1381,8 +1380,7 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_domain,
                                 &domain_id);
 
-    QLIST_FOREACH(node, &s->notifiers_list, next) {
-        vtd_as = node->vtd_as;
+    QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
         if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                       vtd_as->devfn, &ce) &&
             domain_id == VTD_CONTEXT_ENTRY_DID(ce.hi)) {
@@ -1402,12 +1400,11 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                                            uint16_t domain_id, hwaddr addr,
                                            uint8_t am)
 {
-    IntelIOMMUNotifierNode *node;
+    VTDAddressSpace *vtd_as;
     VTDContextEntry ce;
     int ret;
 
-    QLIST_FOREACH(node, &(s->notifiers_list), next) {
-        VTDAddressSpace *vtd_as = node->vtd_as;
+    QLIST_FOREACH(vtd_as, &(s->vtd_as_with_notifiers), next) {
         ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                        vtd_as->devfn, &ce);
         if (!ret && domain_id == VTD_CONTEXT_ENTRY_DID(ce.hi)) {
@@ -2344,8 +2341,6 @@ static void vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
 {
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
-    IntelIOMMUNotifierNode *node = NULL;
-    IntelIOMMUNotifierNode *next_node = NULL;
 
     if (!s->caching_mode && new & IOMMU_NOTIFIER_MAP) {
         error_report("We need to set caching-mode=1 for intel-iommu to enable "
@@ -2354,21 +2349,9 @@ static void vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
     }
 
     if (old == IOMMU_NOTIFIER_NONE) {
-        node = g_malloc0(sizeof(*node));
-        node->vtd_as = vtd_as;
-        QLIST_INSERT_HEAD(&s->notifiers_list, node, next);
-        return;
-    }
-
-    /* update notifier node with new flags */
-    QLIST_FOREACH_SAFE(node, &s->notifiers_list, next, next_node) {
-        if (node->vtd_as == vtd_as) {
-            if (new == IOMMU_NOTIFIER_NONE) {
-                QLIST_REMOVE(node, next);
-                g_free(node);
-            }
-            return;
-        }
+        QLIST_INSERT_HEAD(&s->vtd_as_with_notifiers, vtd_as, next);
+    } else if (new == IOMMU_NOTIFIER_NONE) {
+        QLIST_REMOVE(vtd_as, next);
     }
 }
 
@@ -2838,12 +2821,10 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 
 static void vtd_address_space_unmap_all(IntelIOMMUState *s)
 {
-    IntelIOMMUNotifierNode *node;
     VTDAddressSpace *vtd_as;
     IOMMUNotifier *n;
 
-    QLIST_FOREACH(node, &s->notifiers_list, next) {
-        vtd_as = node->vtd_as;
+    QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
         IOMMU_NOTIFIER_FOREACH(n, &vtd_as->iommu) {
             vtd_address_space_unmap(vtd_as, n);
         }
@@ -3088,7 +3069,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    QLIST_INIT(&s->notifiers_list);
+    QLIST_INIT(&s->vtd_as_with_notifiers);
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
     memory_region_init_io(&s->csrmem, OBJECT(s), &vtd_mem_ops, s,
                           "intel_iommu", DMAR_REG_SIZE);
