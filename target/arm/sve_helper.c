@@ -500,6 +500,133 @@ DO_ZPZW(sve_lsl_zpzw_s, uint32_t, uint64_t, H1_4, DO_LSL)
 
 #undef DO_ZPZW
 
+/* Fully general two-operand expander, controlled by a predicate.
+ */
+#define DO_ZPZ(NAME, TYPE, H, OP)                               \
+void HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)  \
+{                                                               \
+    intptr_t i, opr_sz = simd_oprsz(desc);                      \
+    for (i = 0; i < opr_sz; ) {                                 \
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));         \
+        do {                                                    \
+            if (pg & 1) {                                       \
+                TYPE nn = *(TYPE *)(vn + H(i));                 \
+                *(TYPE *)(vd + H(i)) = OP(nn);                  \
+            }                                                   \
+            i += sizeof(TYPE), pg >>= sizeof(TYPE);             \
+        } while (i & 15);                                       \
+    }                                                           \
+}
+
+/* Similarly, specialized for 64-bit operands.  */
+#define DO_ZPZ_D(NAME, TYPE, OP)                                \
+void HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)  \
+{                                                               \
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;                  \
+    TYPE *d = vd, *n = vn;                                      \
+    uint8_t *pg = vg;                                           \
+    for (i = 0; i < opr_sz; i += 1) {                           \
+        if (pg[H1(i)] & 1) {                                    \
+            TYPE nn = n[i];                                     \
+            d[i] = OP(nn);                                      \
+        }                                                       \
+    }                                                           \
+}
+
+#define DO_CLS_B(N)   (clrsb32(N) - 24)
+#define DO_CLS_H(N)   (clrsb32(N) - 16)
+
+DO_ZPZ(sve_cls_b, int8_t, H1, DO_CLS_B)
+DO_ZPZ(sve_cls_h, int16_t, H1_2, DO_CLS_H)
+DO_ZPZ(sve_cls_s, int32_t, H1_4, clrsb32)
+DO_ZPZ_D(sve_cls_d, int64_t, clrsb64)
+
+#define DO_CLZ_B(N)   (clz32(N) - 24)
+#define DO_CLZ_H(N)   (clz32(N) - 16)
+
+DO_ZPZ(sve_clz_b, uint8_t, H1, DO_CLZ_B)
+DO_ZPZ(sve_clz_h, uint16_t, H1_2, DO_CLZ_H)
+DO_ZPZ(sve_clz_s, uint32_t, H1_4, clz32)
+DO_ZPZ_D(sve_clz_d, uint64_t, clz64)
+
+DO_ZPZ(sve_cnt_zpz_b, uint8_t, H1, ctpop8)
+DO_ZPZ(sve_cnt_zpz_h, uint16_t, H1_2, ctpop16)
+DO_ZPZ(sve_cnt_zpz_s, uint32_t, H1_4, ctpop32)
+DO_ZPZ_D(sve_cnt_zpz_d, uint64_t, ctpop64)
+
+#define DO_CNOT(N)    (N == 0)
+
+DO_ZPZ(sve_cnot_b, uint8_t, H1, DO_CNOT)
+DO_ZPZ(sve_cnot_h, uint16_t, H1_2, DO_CNOT)
+DO_ZPZ(sve_cnot_s, uint32_t, H1_4, DO_CNOT)
+DO_ZPZ_D(sve_cnot_d, uint64_t, DO_CNOT)
+
+#define DO_FABS(N)    (N & ((__typeof(N))-1 >> 1))
+
+DO_ZPZ(sve_fabs_h, uint16_t, H1_2, DO_FABS)
+DO_ZPZ(sve_fabs_s, uint32_t, H1_4, DO_FABS)
+DO_ZPZ_D(sve_fabs_d, uint64_t, DO_FABS)
+
+#define DO_FNEG(N)    (N ^ ~((__typeof(N))-1 >> 1))
+
+DO_ZPZ(sve_fneg_h, uint16_t, H1_2, DO_FNEG)
+DO_ZPZ(sve_fneg_s, uint32_t, H1_4, DO_FNEG)
+DO_ZPZ_D(sve_fneg_d, uint64_t, DO_FNEG)
+
+#define DO_NOT(N)    (~N)
+
+DO_ZPZ(sve_not_zpz_b, uint8_t, H1, DO_NOT)
+DO_ZPZ(sve_not_zpz_h, uint16_t, H1_2, DO_NOT)
+DO_ZPZ(sve_not_zpz_s, uint32_t, H1_4, DO_NOT)
+DO_ZPZ_D(sve_not_zpz_d, uint64_t, DO_NOT)
+
+#define DO_SXTB(N)    ((int8_t)N)
+#define DO_SXTH(N)    ((int16_t)N)
+#define DO_SXTS(N)    ((int32_t)N)
+#define DO_UXTB(N)    ((uint8_t)N)
+#define DO_UXTH(N)    ((uint16_t)N)
+#define DO_UXTS(N)    ((uint32_t)N)
+
+DO_ZPZ(sve_sxtb_h, uint16_t, H1_2, DO_SXTB)
+DO_ZPZ(sve_sxtb_s, uint32_t, H1_4, DO_SXTB)
+DO_ZPZ(sve_sxth_s, uint32_t, H1_4, DO_SXTH)
+DO_ZPZ_D(sve_sxtb_d, uint64_t, DO_SXTB)
+DO_ZPZ_D(sve_sxth_d, uint64_t, DO_SXTH)
+DO_ZPZ_D(sve_sxtw_d, uint64_t, DO_SXTS)
+
+DO_ZPZ(sve_uxtb_h, uint16_t, H1_2, DO_UXTB)
+DO_ZPZ(sve_uxtb_s, uint32_t, H1_4, DO_UXTB)
+DO_ZPZ(sve_uxth_s, uint32_t, H1_4, DO_UXTH)
+DO_ZPZ_D(sve_uxtb_d, uint64_t, DO_UXTB)
+DO_ZPZ_D(sve_uxth_d, uint64_t, DO_UXTH)
+DO_ZPZ_D(sve_uxtw_d, uint64_t, DO_UXTS)
+
+#define DO_ABS(N)    (N < 0 ? -N : N)
+
+DO_ZPZ(sve_abs_b, int8_t, H1, DO_ABS)
+DO_ZPZ(sve_abs_h, int16_t, H1_2, DO_ABS)
+DO_ZPZ(sve_abs_s, int32_t, H1_4, DO_ABS)
+DO_ZPZ_D(sve_abs_d, int64_t, DO_ABS)
+
+#define DO_NEG(N)    (-N)
+
+DO_ZPZ(sve_neg_b, uint8_t, H1, DO_NEG)
+DO_ZPZ(sve_neg_h, uint16_t, H1_2, DO_NEG)
+DO_ZPZ(sve_neg_s, uint32_t, H1_4, DO_NEG)
+DO_ZPZ_D(sve_neg_d, uint64_t, DO_NEG)
+
+#undef DO_CLS_B
+#undef DO_CLS_H
+#undef DO_CLZ_B
+#undef DO_CLZ_H
+#undef DO_CNOT
+#undef DO_FABS
+#undef DO_FNEG
+#undef DO_ABS
+#undef DO_NEG
+#undef DO_ZPZ
+#undef DO_ZPZ_D
+
 /* Two-operand reduction expander, controlled by a predicate.
  * The difference between TYPERED and TYPERET has to do with
  * sign-extension.  E.g. for SMAX, TYPERED must be signed,

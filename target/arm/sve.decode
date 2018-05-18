@@ -163,6 +163,29 @@ ASR_zpzw        00000100 .. 011 000 100 ... ..... .....         @rdn_pg_rm
 LSR_zpzw        00000100 .. 011 001 100 ... ..... .....         @rdn_pg_rm
 LSL_zpzw        00000100 .. 011 011 100 ... ..... .....         @rdn_pg_rm
 
+### SVE Integer Arithmetic - Unary Predicated Group
+
+# SVE unary bit operations (predicated)
+# Note esz != 0 for FABS and FNEG.
+CLS             00000100 .. 011 000 101 ... ..... .....         @rd_pg_rn
+CLZ             00000100 .. 011 001 101 ... ..... .....         @rd_pg_rn
+CNT_zpz         00000100 .. 011 010 101 ... ..... .....         @rd_pg_rn
+CNOT            00000100 .. 011 011 101 ... ..... .....         @rd_pg_rn
+NOT_zpz         00000100 .. 011 110 101 ... ..... .....         @rd_pg_rn
+FABS            00000100 .. 011 100 101 ... ..... .....         @rd_pg_rn
+FNEG            00000100 .. 011 101 101 ... ..... .....         @rd_pg_rn
+
+# SVE integer unary operations (predicated)
+# Note esz > original size for extensions.
+ABS             00000100 .. 010 110 101 ... ..... .....         @rd_pg_rn
+NEG             00000100 .. 010 111 101 ... ..... .....         @rd_pg_rn
+SXTB            00000100 .. 010 000 101 ... ..... .....         @rd_pg_rn
+UXTB            00000100 .. 010 001 101 ... ..... .....         @rd_pg_rn
+SXTH            00000100 .. 010 010 101 ... ..... .....         @rd_pg_rn
+UXTH            00000100 .. 010 011 101 ... ..... .....         @rd_pg_rn
+SXTW            00000100 .. 010 100 101 ... ..... .....         @rd_pg_rn
+UXTW            00000100 .. 010 101 101 ... ..... .....         @rd_pg_rn
+
 ### SVE Logical - Unpredicated Group
 
 # SVE bitwise logical operations (unpredicated)
