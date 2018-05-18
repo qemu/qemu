@@ -1680,6 +1680,12 @@ F: include/sysemu/replay.h
 F: docs/replay.txt
 F: stubs/replay.c
 
+IOVA Tree
+M: Peter Xu <peterx@redhat.com>
+S: Maintained
+F: include/qemu/iova-tree.h
+F: util/iova-tree.c
+
 Usermode Emulation
 ------------------
 Overall

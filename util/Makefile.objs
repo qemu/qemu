@@ -46,3 +46,4 @@ util-obj-y += qht.o
 util-obj-y += range.o
 util-obj-y += stats64.o
 util-obj-y += systemd.o
+util-obj-y += iova-tree.o
