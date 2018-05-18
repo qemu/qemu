@@ -1371,3 +1371,111 @@ void HELPER(sve_uqsubi_d)(void *d, void *a, uint64_t b, uint32_t desc)
         *(uint64_t *)(d + i) = (ai < b ? 0 : ai - b);
     }
 }
+
+/* Two operand predicated copy immediate with merge.  All valid immediates
+ * can fit within 17 signed bits in the simd_data field.
+ */
+void HELPER(sve_cpy_m_b)(void *vd, void *vn, void *vg,
+                         uint64_t mm, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd, *n = vn;
+    uint8_t *pg = vg;
+
+    mm = dup_const(MO_8, mm);
+    for (i = 0; i < opr_sz; i += 1) {
+        uint64_t nn = n[i];
+        uint64_t pp = expand_pred_b(pg[H1(i)]);
+        d[i] = (mm & pp) | (nn & ~pp);
+    }
+}
+
+void HELPER(sve_cpy_m_h)(void *vd, void *vn, void *vg,
+                         uint64_t mm, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd, *n = vn;
+    uint8_t *pg = vg;
+
+    mm = dup_const(MO_16, mm);
+    for (i = 0; i < opr_sz; i += 1) {
+        uint64_t nn = n[i];
+        uint64_t pp = expand_pred_h(pg[H1(i)]);
+        d[i] = (mm & pp) | (nn & ~pp);
+    }
+}
+
+void HELPER(sve_cpy_m_s)(void *vd, void *vn, void *vg,
+                         uint64_t mm, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd, *n = vn;
+    uint8_t *pg = vg;
+
+    mm = dup_const(MO_32, mm);
+    for (i = 0; i < opr_sz; i += 1) {
+        uint64_t nn = n[i];
+        uint64_t pp = expand_pred_s(pg[H1(i)]);
+        d[i] = (mm & pp) | (nn & ~pp);
+    }
+}
+
+void HELPER(sve_cpy_m_d)(void *vd, void *vn, void *vg,
+                         uint64_t mm, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd, *n = vn;
+    uint8_t *pg = vg;
+
+    for (i = 0; i < opr_sz; i += 1) {
+        uint64_t nn = n[i];
+        d[i] = (pg[H1(i)] & 1 ? mm : nn);
+    }
+}
+
+void HELPER(sve_cpy_z_b)(void *vd, void *vg, uint64_t val, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd;
+    uint8_t *pg = vg;
+
+    val = dup_const(MO_8, val);
+    for (i = 0; i < opr_sz; i += 1) {
+        d[i] = val & expand_pred_b(pg[H1(i)]);
+    }
+}
+
+void HELPER(sve_cpy_z_h)(void *vd, void *vg, uint64_t val, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd;
+    uint8_t *pg = vg;
+
+    val = dup_const(MO_16, val);
+    for (i = 0; i < opr_sz; i += 1) {
+        d[i] = val & expand_pred_h(pg[H1(i)]);
+    }
+}
+
+void HELPER(sve_cpy_z_s)(void *vd, void *vg, uint64_t val, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd;
+    uint8_t *pg = vg;
+
+    val = dup_const(MO_32, val);
+    for (i = 0; i < opr_sz; i += 1) {
+        d[i] = val & expand_pred_s(pg[H1(i)]);
+    }
+}
+
+void HELPER(sve_cpy_z_d)(void *vd, void *vg, uint64_t val, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd;
+    uint8_t *pg = vg;
+
+    for (i = 0; i < opr_sz; i += 1) {
+        d[i] = (pg[H1(i)] & 1 ? val : 0);
+    }
+}

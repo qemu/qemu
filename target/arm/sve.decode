@@ -22,7 +22,7 @@
 ###########################################################################
 # Named fields.  These are primarily for disjoint fields.
 
-%imm4_16_p1             16:4 !function=plus1
+%imm4_16_p1     16:4 !function=plus1
 %imm6_22_5      22:1 5:5
 %imm9_16_10     16:s6 10:3
 
@@ -37,6 +37,9 @@
 %tszimm16_esz   22:2 16:5 !function=tszimm_esz
 %tszimm16_shr   22:2 16:5 !function=tszimm_shr
 %tszimm16_shl   22:2 16:5 !function=tszimm_shl
+
+# Signed 8-bit immediate, optionally shifted left by 8.
+%sh8_i8s        5:9 !function=expand_imm_sh8s
 
 # Either a copy of rd (at bit 0), or a different source
 # as propagated via the MOVPRFX instruction.
@@ -111,6 +114,11 @@
 # Similarly without predicate.
 @rd_rn_tszimm   ........ .. ... ... ...... rn:5 rd:5 \
                 &rri_esz esz=%tszimm16_esz
+
+# Two register operand, one immediate operand, with 4-bit predicate.
+# User must fill in imm.
+@rdn_pg4        ........ esz:2 .. pg:4 ... ........ rd:5 \
+                &rpri_esz rn=%reg_movprfx
 
 # Two register operand, one encoded bitmask.
 @rdn_dbm        ........ .. .... dbm:13 rd:5 \
@@ -344,6 +352,15 @@ AND_zzi         00000101 10 0000 ............. .....            @rdn_dbm
 
 # SVE broadcast bitmask immediate
 DUPM            00000101 11 0000 dbm:13 rd:5
+
+### SVE Integer Wide Immediate - Predicated Group
+
+# SVE copy floating-point immediate (predicated)
+FCPY            00000101 .. 01 .... 110 imm:8 .....             @rdn_pg4
+
+# SVE copy integer immediate (predicated)
+CPY_m_i         00000101 .. 01 .... 01 . ........ .....   @rdn_pg4 imm=%sh8_i8s
+CPY_z_i         00000101 .. 01 .... 00 . ........ .....   @rdn_pg4 imm=%sh8_i8s
 
 ### SVE Predicate Logical Operations Group
 

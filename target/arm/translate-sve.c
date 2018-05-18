@@ -62,6 +62,12 @@ static inline int plus1(int x)
     return x + 1;
 }
 
+/* The SH bit is in bit 8.  Extract the low 8 and shift.  */
+static inline int expand_imm_sh8s(int x)
+{
+    return (int8_t)x << (x & 0x100 ? 8 : 0);
+}
+
 /*
  * Include the generated decoder.
  */
@@ -1830,6 +1836,88 @@ static bool trans_DUPM(DisasContext *s, arg_DUPM *a, uint32_t insn)
     }
     if (sve_access_check(s)) {
         do_dupi_z(s, a->rd, imm);
+    }
+    return true;
+}
+
+/*
+ *** SVE Integer Wide Immediate - Predicated Group
+ */
+
+/* Implement all merging copies.  This is used for CPY (immediate),
+ * FCPY, CPY (scalar), CPY (SIMD&FP scalar).
+ */
+static void do_cpy_m(DisasContext *s, int esz, int rd, int rn, int pg,
+                     TCGv_i64 val)
+{
+    typedef void gen_cpy(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv_i32);
+    static gen_cpy * const fns[4] = {
+        gen_helper_sve_cpy_m_b, gen_helper_sve_cpy_m_h,
+        gen_helper_sve_cpy_m_s, gen_helper_sve_cpy_m_d,
+    };
+    unsigned vsz = vec_full_reg_size(s);
+    TCGv_i32 desc = tcg_const_i32(simd_desc(vsz, vsz, 0));
+    TCGv_ptr t_zd = tcg_temp_new_ptr();
+    TCGv_ptr t_zn = tcg_temp_new_ptr();
+    TCGv_ptr t_pg = tcg_temp_new_ptr();
+
+    tcg_gen_addi_ptr(t_zd, cpu_env, vec_full_reg_offset(s, rd));
+    tcg_gen_addi_ptr(t_zn, cpu_env, vec_full_reg_offset(s, rn));
+    tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
+
+    fns[esz](t_zd, t_zn, t_pg, val, desc);
+
+    tcg_temp_free_ptr(t_zd);
+    tcg_temp_free_ptr(t_zn);
+    tcg_temp_free_ptr(t_pg);
+    tcg_temp_free_i32(desc);
+}
+
+static bool trans_FCPY(DisasContext *s, arg_FCPY *a, uint32_t insn)
+{
+    if (a->esz == 0) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        /* Decode the VFP immediate.  */
+        uint64_t imm = vfp_expand_imm(a->esz, a->imm);
+        TCGv_i64 t_imm = tcg_const_i64(imm);
+        do_cpy_m(s, a->esz, a->rd, a->rn, a->pg, t_imm);
+        tcg_temp_free_i64(t_imm);
+    }
+    return true;
+}
+
+static bool trans_CPY_m_i(DisasContext *s, arg_rpri_esz *a, uint32_t insn)
+{
+    if (a->esz == 0 && extract32(insn, 13, 1)) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        TCGv_i64 t_imm = tcg_const_i64(a->imm);
+        do_cpy_m(s, a->esz, a->rd, a->rn, a->pg, t_imm);
+        tcg_temp_free_i64(t_imm);
+    }
+    return true;
+}
+
+static bool trans_CPY_z_i(DisasContext *s, arg_CPY_z_i *a, uint32_t insn)
+{
+    static gen_helper_gvec_2i * const fns[4] = {
+        gen_helper_sve_cpy_z_b, gen_helper_sve_cpy_z_h,
+        gen_helper_sve_cpy_z_s, gen_helper_sve_cpy_z_d,
+    };
+
+    if (a->esz == 0 && extract32(insn, 13, 1)) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_i64 t_imm = tcg_const_i64(a->imm);
+        tcg_gen_gvec_2i_ool(vec_full_reg_offset(s, a->rd),
+                            pred_full_reg_offset(s, a->pg),
+                            t_imm, vsz, vsz, 0, fns[a->esz]);
+        tcg_temp_free_i64(t_imm);
     }
     return true;
 }
