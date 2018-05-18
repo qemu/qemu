@@ -24,6 +24,7 @@
 
 %imm4_16_p1     16:4 !function=plus1
 %imm6_22_5      22:1 5:5
+%imm8_16_10     16:5 10:3
 %imm9_16_10     16:s6 10:3
 
 # A combination of tsz:imm3 -- extract esize.
@@ -361,6 +362,12 @@ FCPY            00000101 .. 01 .... 110 imm:8 .....             @rdn_pg4
 # SVE copy integer immediate (predicated)
 CPY_m_i         00000101 .. 01 .... 01 . ........ .....   @rdn_pg4 imm=%sh8_i8s
 CPY_z_i         00000101 .. 01 .... 00 . ........ .....   @rdn_pg4 imm=%sh8_i8s
+
+### SVE Permute - Extract Group
+
+# SVE extract vector (immediate offset)
+EXT             00000101 001 ..... 000 ... rm:5 rd:5 \
+                &rrri rn=%reg_movprfx imm=%imm8_16_10
 
 ### SVE Predicate Logical Operations Group
 

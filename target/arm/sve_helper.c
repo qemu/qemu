@@ -1479,3 +1479,84 @@ void HELPER(sve_cpy_z_d)(void *vd, void *vg, uint64_t val, uint32_t desc)
         d[i] = (pg[H1(i)] & 1 ? val : 0);
     }
 }
+
+/* Big-endian hosts need to frob the byte indicies.  If the copy
+ * happens to be 8-byte aligned, then no frobbing necessary.
+ */
+static void swap_memmove(void *vd, void *vs, size_t n)
+{
+    uintptr_t d = (uintptr_t)vd;
+    uintptr_t s = (uintptr_t)vs;
+    uintptr_t o = (d | s | n) & 7;
+    size_t i;
+
+#ifndef HOST_WORDS_BIGENDIAN
+    o = 0;
+#endif
+    switch (o) {
+    case 0:
+        memmove(vd, vs, n);
+        break;
+
+    case 4:
+        if (d < s || d >= s + n) {
+            for (i = 0; i < n; i += 4) {
+                *(uint32_t *)H1_4(d + i) = *(uint32_t *)H1_4(s + i);
+            }
+        } else {
+            for (i = n; i > 0; ) {
+                i -= 4;
+                *(uint32_t *)H1_4(d + i) = *(uint32_t *)H1_4(s + i);
+            }
+        }
+        break;
+
+    case 2:
+    case 6:
+        if (d < s || d >= s + n) {
+            for (i = 0; i < n; i += 2) {
+                *(uint16_t *)H1_2(d + i) = *(uint16_t *)H1_2(s + i);
+            }
+        } else {
+            for (i = n; i > 0; ) {
+                i -= 2;
+                *(uint16_t *)H1_2(d + i) = *(uint16_t *)H1_2(s + i);
+            }
+        }
+        break;
+
+    default:
+        if (d < s || d >= s + n) {
+            for (i = 0; i < n; i++) {
+                *(uint8_t *)H1(d + i) = *(uint8_t *)H1(s + i);
+            }
+        } else {
+            for (i = n; i > 0; ) {
+                i -= 1;
+                *(uint8_t *)H1(d + i) = *(uint8_t *)H1(s + i);
+            }
+        }
+        break;
+    }
+}
+
+void HELPER(sve_ext)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t opr_sz = simd_oprsz(desc);
+    size_t n_ofs = simd_data(desc);
+    size_t n_siz = opr_sz - n_ofs;
+
+    if (vd != vm) {
+        swap_memmove(vd, vn + n_ofs, n_siz);
+        swap_memmove(vd + n_siz, vm, n_ofs);
+    } else if (vd != vn) {
+        swap_memmove(vd + n_siz, vd, n_ofs);
+        swap_memmove(vd, vn + n_ofs, n_siz);
+    } else {
+        /* vd == vn == vm.  Need temp space.  */
+        ARMVectorReg tmp;
+        swap_memmove(&tmp, vm, n_ofs);
+        swap_memmove(vd, vd + n_ofs, n_siz);
+        memcpy(vd + n_siz, &tmp, n_ofs);
+    }
+}
