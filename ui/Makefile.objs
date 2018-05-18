@@ -15,10 +15,6 @@ common-obj-$(CONFIG_COCOA) += cocoa.o
 common-obj-$(CONFIG_VNC) += $(vnc-obj-y)
 common-obj-$(call lnot,$(CONFIG_VNC)) += vnc-stubs.o
 
-common-obj-$(CONFIG_X11) += x_keymap.o
-x_keymap.o-cflags := $(X11_CFLAGS)
-x_keymap.o-libs := $(X11_LIBS)
-
 # ui-sdl module
 common-obj-$(CONFIG_SDL) += sdl.mo
 ifeq ($(CONFIG_SDLABI),1.2)
@@ -44,6 +40,13 @@ gtk.mo-libs += $(OPENGL_LIBS)
 ifeq ($(CONFIG_GTK_GL),y)
 gtk.mo-objs += gtk-gl-area.o
 endif
+endif
+
+ifeq ($(CONFIG_X11),y)
+sdl.mo-objs += x_keymap.o
+gtk.mo-objs += x_keymap.o
+x_keymap.o-cflags := $(X11_CFLAGS)
+x_keymap.o-libs := $(X11_LIBS)
 endif
 
 common-obj-$(CONFIG_CURSES) += curses.mo
