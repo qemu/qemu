@@ -1700,6 +1700,11 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
     uint64_t dlen;
     uint32_t data_len = p->iov.size;
 
+    if (!d) {
+            usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, 0,
+                                 0, 0, 0, 0);
+            return;
+    }
     if (d->first) {
         /* Total length of incoming data */
         d->length = cpu_to_le32(container->length) - sizeof(mtp_container);
