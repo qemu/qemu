@@ -87,6 +87,43 @@ static bool do_mov_z(DisasContext *s, int rd, int rn)
     return do_vector2_z(s, tcg_gen_gvec_mov, 0, rd, rn);
 }
 
+/* Set the cpu flags as per a return from an SVE helper.  */
+static void do_pred_flags(TCGv_i32 t)
+{
+    tcg_gen_mov_i32(cpu_NF, t);
+    tcg_gen_andi_i32(cpu_ZF, t, 2);
+    tcg_gen_andi_i32(cpu_CF, t, 1);
+    tcg_gen_movi_i32(cpu_VF, 0);
+}
+
+/* Subroutines computing the ARM PredTest psuedofunction.  */
+static void do_predtest1(TCGv_i64 d, TCGv_i64 g)
+{
+    TCGv_i32 t = tcg_temp_new_i32();
+
+    gen_helper_sve_predtest1(t, d, g);
+    do_pred_flags(t);
+    tcg_temp_free_i32(t);
+}
+
+static void do_predtest(DisasContext *s, int dofs, int gofs, int words)
+{
+    TCGv_ptr dptr = tcg_temp_new_ptr();
+    TCGv_ptr gptr = tcg_temp_new_ptr();
+    TCGv_i32 t;
+
+    tcg_gen_addi_ptr(dptr, cpu_env, dofs);
+    tcg_gen_addi_ptr(gptr, cpu_env, gofs);
+    t = tcg_const_i32(words);
+
+    gen_helper_sve_predtest(t, dptr, gptr, t);
+    tcg_temp_free_ptr(dptr);
+    tcg_temp_free_ptr(gptr);
+
+    do_pred_flags(t);
+    tcg_temp_free_i32(t);
+}
+
 /*
  *** SVE Logical - Unpredicated Group
  */
@@ -113,6 +150,34 @@ static bool trans_EOR_zzz(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
 static bool trans_BIC_zzz(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
 {
     return do_vector3_z(s, tcg_gen_gvec_andc, 0, a->rd, a->rn, a->rm);
+}
+
+/*
+ *** SVE Predicate Misc Group
+ */
+
+static bool trans_PTEST(DisasContext *s, arg_PTEST *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        int nofs = pred_full_reg_offset(s, a->rn);
+        int gofs = pred_full_reg_offset(s, a->pg);
+        int words = DIV_ROUND_UP(pred_full_reg_size(s), 8);
+
+        if (words == 1) {
+            TCGv_i64 pn = tcg_temp_new_i64();
+            TCGv_i64 pg = tcg_temp_new_i64();
+
+            tcg_gen_ld_i64(pn, cpu_env, nofs);
+            tcg_gen_ld_i64(pg, cpu_env, gofs);
+            do_predtest1(pn, pg);
+
+            tcg_temp_free_i64(pn);
+            tcg_temp_free_i64(pg);
+        } else {
+            do_predtest(s, nofs, gofs, words);
+        }
+    }
+    return true;
 }
 
 /*
