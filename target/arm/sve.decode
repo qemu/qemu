@@ -66,6 +66,9 @@
 # Three predicate operand, with governing predicate, flag setting
 @pd_pg_pn_pm_s  ........ . s:1 .. rm:4 .. pg:4 . rn:4 . rd:4    &rprr_s
 
+# Three operand, vector element size
+@rd_rn_rm       ........ esz:2 . rm:5 ... ... rn:5 rd:5         &rrr_esz
+
 # Two register operand, with governing predicate, vector element size
 @rdn_pg_rm      ........ esz:2 ... ... ... pg:3 rm:5 rd:5 \
                 &rprr_esz rn=%reg_movprfx
@@ -202,6 +205,16 @@ MLS             00000100 .. 0 ..... 011 ... ..... .....   @rda_pg_rn_rm
 # SVE integer multiply-add writing multiplicand (predicated)
 MLA             00000100 .. 0 ..... 110 ... ..... .....   @rdn_pg_ra_rm # MAD
 MLS             00000100 .. 0 ..... 111 ... ..... .....   @rdn_pg_ra_rm # MSB
+
+### SVE Integer Arithmetic - Unpredicated Group
+
+# SVE integer add/subtract vectors (unpredicated)
+ADD_zzz         00000100 .. 1 ..... 000 000 ..... .....         @rd_rn_rm
+SUB_zzz         00000100 .. 1 ..... 000 001 ..... .....         @rd_rn_rm
+SQADD_zzz       00000100 .. 1 ..... 000 100 ..... .....         @rd_rn_rm
+UQADD_zzz       00000100 .. 1 ..... 000 101 ..... .....         @rd_rn_rm
+SQSUB_zzz       00000100 .. 1 ..... 000 110 ..... .....         @rd_rn_rm
+UQSUB_zzz       00000100 .. 1 ..... 000 111 ..... .....         @rd_rn_rm
 
 ### SVE Logical - Unpredicated Group
 
