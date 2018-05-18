@@ -25,6 +25,22 @@
 #include "tcg/tcg-gvec-desc.h"
 
 
+/* Note that vector data is stored in host-endian 64-bit chunks,
+   so addressing units smaller than that needs a host-endian fixup.  */
+#ifdef HOST_WORDS_BIGENDIAN
+#define H1(x)   ((x) ^ 7)
+#define H1_2(x) ((x) ^ 6)
+#define H1_4(x) ((x) ^ 4)
+#define H2(x)   ((x) ^ 3)
+#define H4(x)   ((x) ^ 1)
+#else
+#define H1(x)   (x)
+#define H1_2(x) (x)
+#define H1_4(x) (x)
+#define H2(x)   (x)
+#define H4(x)   (x)
+#endif
+
 /* Return a value for NZCV as per the ARM PredTest pseudofunction.
  *
  * The return value has bit 31 set if N is set, bit 1 set if Z is clear,
@@ -115,6 +131,184 @@ LOGICAL_PPPP(sve_nand_pppp, DO_NAND)
 #undef DO_NAND
 #undef DO_SEL
 #undef LOGICAL_PPPP
+
+/* Fully general three-operand expander, controlled by a predicate.
+ * This is complicated by the host-endian storage of the register file.
+ */
+/* ??? I don't expect the compiler could ever vectorize this itself.
+ * With some tables we can convert bit masks to byte masks, and with
+ * extra care wrt byte/word ordering we could use gcc generic vectors
+ * and do 16 bytes at a time.
+ */
+#define DO_ZPZZ(NAME, TYPE, H, OP)                                       \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg, uint32_t desc) \
+{                                                                       \
+    intptr_t i, opr_sz = simd_oprsz(desc);                              \
+    for (i = 0; i < opr_sz; ) {                                         \
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));                 \
+        do {                                                            \
+            if (pg & 1) {                                               \
+                TYPE nn = *(TYPE *)(vn + H(i));                         \
+                TYPE mm = *(TYPE *)(vm + H(i));                         \
+                *(TYPE *)(vd + H(i)) = OP(nn, mm);                      \
+            }                                                           \
+            i += sizeof(TYPE), pg >>= sizeof(TYPE);                     \
+        } while (i & 15);                                               \
+    }                                                                   \
+}
+
+/* Similarly, specialized for 64-bit operands.  */
+#define DO_ZPZZ_D(NAME, TYPE, OP)                                \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg, uint32_t desc) \
+{                                                               \
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;                  \
+    TYPE *d = vd, *n = vn, *m = vm;                             \
+    uint8_t *pg = vg;                                           \
+    for (i = 0; i < opr_sz; i += 1) {                           \
+        if (pg[H1(i)] & 1) {                                    \
+            TYPE nn = n[i], mm = m[i];                          \
+            d[i] = OP(nn, mm);                                  \
+        }                                                       \
+    }                                                           \
+}
+
+#define DO_AND(N, M)  (N & M)
+#define DO_EOR(N, M)  (N ^ M)
+#define DO_ORR(N, M)  (N | M)
+#define DO_BIC(N, M)  (N & ~M)
+#define DO_ADD(N, M)  (N + M)
+#define DO_SUB(N, M)  (N - M)
+#define DO_MAX(N, M)  ((N) >= (M) ? (N) : (M))
+#define DO_MIN(N, M)  ((N) >= (M) ? (M) : (N))
+#define DO_ABD(N, M)  ((N) >= (M) ? (N) - (M) : (M) - (N))
+#define DO_MUL(N, M)  (N * M)
+#define DO_DIV(N, M)  (M ? N / M : 0)
+
+DO_ZPZZ(sve_and_zpzz_b, uint8_t, H1, DO_AND)
+DO_ZPZZ(sve_and_zpzz_h, uint16_t, H1_2, DO_AND)
+DO_ZPZZ(sve_and_zpzz_s, uint32_t, H1_4, DO_AND)
+DO_ZPZZ_D(sve_and_zpzz_d, uint64_t, DO_AND)
+
+DO_ZPZZ(sve_orr_zpzz_b, uint8_t, H1, DO_ORR)
+DO_ZPZZ(sve_orr_zpzz_h, uint16_t, H1_2, DO_ORR)
+DO_ZPZZ(sve_orr_zpzz_s, uint32_t, H1_4, DO_ORR)
+DO_ZPZZ_D(sve_orr_zpzz_d, uint64_t, DO_ORR)
+
+DO_ZPZZ(sve_eor_zpzz_b, uint8_t, H1, DO_EOR)
+DO_ZPZZ(sve_eor_zpzz_h, uint16_t, H1_2, DO_EOR)
+DO_ZPZZ(sve_eor_zpzz_s, uint32_t, H1_4, DO_EOR)
+DO_ZPZZ_D(sve_eor_zpzz_d, uint64_t, DO_EOR)
+
+DO_ZPZZ(sve_bic_zpzz_b, uint8_t, H1, DO_BIC)
+DO_ZPZZ(sve_bic_zpzz_h, uint16_t, H1_2, DO_BIC)
+DO_ZPZZ(sve_bic_zpzz_s, uint32_t, H1_4, DO_BIC)
+DO_ZPZZ_D(sve_bic_zpzz_d, uint64_t, DO_BIC)
+
+DO_ZPZZ(sve_add_zpzz_b, uint8_t, H1, DO_ADD)
+DO_ZPZZ(sve_add_zpzz_h, uint16_t, H1_2, DO_ADD)
+DO_ZPZZ(sve_add_zpzz_s, uint32_t, H1_4, DO_ADD)
+DO_ZPZZ_D(sve_add_zpzz_d, uint64_t, DO_ADD)
+
+DO_ZPZZ(sve_sub_zpzz_b, uint8_t, H1, DO_SUB)
+DO_ZPZZ(sve_sub_zpzz_h, uint16_t, H1_2, DO_SUB)
+DO_ZPZZ(sve_sub_zpzz_s, uint32_t, H1_4, DO_SUB)
+DO_ZPZZ_D(sve_sub_zpzz_d, uint64_t, DO_SUB)
+
+DO_ZPZZ(sve_smax_zpzz_b, int8_t, H1, DO_MAX)
+DO_ZPZZ(sve_smax_zpzz_h, int16_t, H1_2, DO_MAX)
+DO_ZPZZ(sve_smax_zpzz_s, int32_t, H1_4, DO_MAX)
+DO_ZPZZ_D(sve_smax_zpzz_d, int64_t, DO_MAX)
+
+DO_ZPZZ(sve_umax_zpzz_b, uint8_t, H1, DO_MAX)
+DO_ZPZZ(sve_umax_zpzz_h, uint16_t, H1_2, DO_MAX)
+DO_ZPZZ(sve_umax_zpzz_s, uint32_t, H1_4, DO_MAX)
+DO_ZPZZ_D(sve_umax_zpzz_d, uint64_t, DO_MAX)
+
+DO_ZPZZ(sve_smin_zpzz_b, int8_t,  H1, DO_MIN)
+DO_ZPZZ(sve_smin_zpzz_h, int16_t,  H1_2, DO_MIN)
+DO_ZPZZ(sve_smin_zpzz_s, int32_t,  H1_4, DO_MIN)
+DO_ZPZZ_D(sve_smin_zpzz_d, int64_t,  DO_MIN)
+
+DO_ZPZZ(sve_umin_zpzz_b, uint8_t, H1, DO_MIN)
+DO_ZPZZ(sve_umin_zpzz_h, uint16_t, H1_2, DO_MIN)
+DO_ZPZZ(sve_umin_zpzz_s, uint32_t, H1_4, DO_MIN)
+DO_ZPZZ_D(sve_umin_zpzz_d, uint64_t, DO_MIN)
+
+DO_ZPZZ(sve_sabd_zpzz_b, int8_t,  H1, DO_ABD)
+DO_ZPZZ(sve_sabd_zpzz_h, int16_t,  H1_2, DO_ABD)
+DO_ZPZZ(sve_sabd_zpzz_s, int32_t,  H1_4, DO_ABD)
+DO_ZPZZ_D(sve_sabd_zpzz_d, int64_t,  DO_ABD)
+
+DO_ZPZZ(sve_uabd_zpzz_b, uint8_t, H1, DO_ABD)
+DO_ZPZZ(sve_uabd_zpzz_h, uint16_t, H1_2, DO_ABD)
+DO_ZPZZ(sve_uabd_zpzz_s, uint32_t, H1_4, DO_ABD)
+DO_ZPZZ_D(sve_uabd_zpzz_d, uint64_t, DO_ABD)
+
+/* Because the computation type is at least twice as large as required,
+   these work for both signed and unsigned source types.  */
+static inline uint8_t do_mulh_b(int32_t n, int32_t m)
+{
+    return (n * m) >> 8;
+}
+
+static inline uint16_t do_mulh_h(int32_t n, int32_t m)
+{
+    return (n * m) >> 16;
+}
+
+static inline uint32_t do_mulh_s(int64_t n, int64_t m)
+{
+    return (n * m) >> 32;
+}
+
+static inline uint64_t do_smulh_d(uint64_t n, uint64_t m)
+{
+    uint64_t lo, hi;
+    muls64(&lo, &hi, n, m);
+    return hi;
+}
+
+static inline uint64_t do_umulh_d(uint64_t n, uint64_t m)
+{
+    uint64_t lo, hi;
+    mulu64(&lo, &hi, n, m);
+    return hi;
+}
+
+DO_ZPZZ(sve_mul_zpzz_b, uint8_t, H1, DO_MUL)
+DO_ZPZZ(sve_mul_zpzz_h, uint16_t, H1_2, DO_MUL)
+DO_ZPZZ(sve_mul_zpzz_s, uint32_t, H1_4, DO_MUL)
+DO_ZPZZ_D(sve_mul_zpzz_d, uint64_t, DO_MUL)
+
+DO_ZPZZ(sve_smulh_zpzz_b, int8_t, H1, do_mulh_b)
+DO_ZPZZ(sve_smulh_zpzz_h, int16_t, H1_2, do_mulh_h)
+DO_ZPZZ(sve_smulh_zpzz_s, int32_t, H1_4, do_mulh_s)
+DO_ZPZZ_D(sve_smulh_zpzz_d, uint64_t, do_smulh_d)
+
+DO_ZPZZ(sve_umulh_zpzz_b, uint8_t, H1, do_mulh_b)
+DO_ZPZZ(sve_umulh_zpzz_h, uint16_t, H1_2, do_mulh_h)
+DO_ZPZZ(sve_umulh_zpzz_s, uint32_t, H1_4, do_mulh_s)
+DO_ZPZZ_D(sve_umulh_zpzz_d, uint64_t, do_umulh_d)
+
+DO_ZPZZ(sve_sdiv_zpzz_s, int32_t, H1_4, DO_DIV)
+DO_ZPZZ_D(sve_sdiv_zpzz_d, int64_t, DO_DIV)
+
+DO_ZPZZ(sve_udiv_zpzz_s, uint32_t, H1_4, DO_DIV)
+DO_ZPZZ_D(sve_udiv_zpzz_d, uint64_t, DO_DIV)
+
+#undef DO_ZPZZ
+#undef DO_ZPZZ_D
+#undef DO_AND
+#undef DO_ORR
+#undef DO_EOR
+#undef DO_BIC
+#undef DO_ADD
+#undef DO_SUB
+#undef DO_MAX
+#undef DO_MIN
+#undef DO_ABD
+#undef DO_MUL
+#undef DO_DIV
 
 /* Similar to the ARM LastActiveElement pseudocode function, except the
    result is multiplied by the element size.  This includes the not found

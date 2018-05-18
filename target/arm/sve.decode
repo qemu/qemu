@@ -24,6 +24,10 @@
 
 %imm9_16_10     16:s6 10:3
 
+# Either a copy of rd (at bit 0), or a different source
+# as propagated via the MOVPRFX instruction.
+%reg_movprfx    0:5
+
 ###########################################################################
 # Named attribute sets.  These are used to make nice(er) names
 # when creating helpers common to those for the individual
@@ -33,6 +37,7 @@
 &rri            rd rn imm
 &rrr_esz        rd rn rm esz
 &rprr_s         rd pg rn rm s
+&rprr_esz       rd pg rn rm esz
 
 ###########################################################################
 # Named instruction formats.  These are generally used to
@@ -50,6 +55,12 @@
 # Three predicate operand, with governing predicate, flag setting
 @pd_pg_pn_pm_s  ........ . s:1 .. rm:4 .. pg:4 . rn:4 . rd:4    &rprr_s
 
+# Two register operand, with governing predicate, vector element size
+@rdn_pg_rm      ........ esz:2 ... ... ... pg:3 rm:5 rd:5 \
+                &rprr_esz rn=%reg_movprfx
+@rdm_pg_rn      ........ esz:2 ... ... ... pg:3 rn:5 rd:5 \
+                &rprr_esz rm=%reg_movprfx
+
 # Basic Load/Store with 9-bit immediate offset
 @pd_rn_i9       ........ ........ ...... rn:5 . rd:4    \
                 &rri imm=%imm9_16_10
@@ -58,6 +69,37 @@
 
 ###########################################################################
 # Instruction patterns.  Grouped according to the SVE encodingindex.xhtml.
+
+### SVE Integer Arithmetic - Binary Predicated Group
+
+# SVE bitwise logical vector operations (predicated)
+ORR_zpzz        00000100 .. 011 000 000 ... ..... .....   @rdn_pg_rm
+EOR_zpzz        00000100 .. 011 001 000 ... ..... .....   @rdn_pg_rm
+AND_zpzz        00000100 .. 011 010 000 ... ..... .....   @rdn_pg_rm
+BIC_zpzz        00000100 .. 011 011 000 ... ..... .....   @rdn_pg_rm
+
+# SVE integer add/subtract vectors (predicated)
+ADD_zpzz        00000100 .. 000 000 000 ... ..... .....   @rdn_pg_rm
+SUB_zpzz        00000100 .. 000 001 000 ... ..... .....   @rdn_pg_rm
+SUB_zpzz        00000100 .. 000 011 000 ... ..... .....   @rdm_pg_rn # SUBR
+
+# SVE integer min/max/difference (predicated)
+SMAX_zpzz       00000100 .. 001 000 000 ... ..... .....   @rdn_pg_rm
+UMAX_zpzz       00000100 .. 001 001 000 ... ..... .....   @rdn_pg_rm
+SMIN_zpzz       00000100 .. 001 010 000 ... ..... .....   @rdn_pg_rm
+UMIN_zpzz       00000100 .. 001 011 000 ... ..... .....   @rdn_pg_rm
+SABD_zpzz       00000100 .. 001 100 000 ... ..... .....   @rdn_pg_rm
+UABD_zpzz       00000100 .. 001 101 000 ... ..... .....   @rdn_pg_rm
+
+# SVE integer multiply/divide (predicated)
+MUL_zpzz        00000100 .. 010 000 000 ... ..... .....   @rdn_pg_rm
+SMULH_zpzz      00000100 .. 010 010 000 ... ..... .....   @rdn_pg_rm
+UMULH_zpzz      00000100 .. 010 011 000 ... ..... .....   @rdn_pg_rm
+# Note that divide requires size >= 2; below 2 is unallocated.
+SDIV_zpzz       00000100 .. 010 100 000 ... ..... .....   @rdn_pg_rm
+UDIV_zpzz       00000100 .. 010 101 000 ... ..... .....   @rdn_pg_rm
+SDIV_zpzz       00000100 .. 010 110 000 ... ..... .....   @rdm_pg_rn # SDIVR
+UDIV_zpzz       00000100 .. 010 111 000 ... ..... .....   @rdm_pg_rn # UDIVR
 
 ### SVE Logical - Unpredicated Group
 

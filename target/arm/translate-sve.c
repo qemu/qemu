@@ -228,6 +228,74 @@ static bool trans_BIC_zzz(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
 }
 
 /*
+ *** SVE Integer Arithmetic - Binary Predicated Group
+ */
+
+static bool do_zpzz_ool(DisasContext *s, arg_rprr_esz *a, gen_helper_gvec_4 *fn)
+{
+    unsigned vsz = vec_full_reg_size(s);
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        tcg_gen_gvec_4_ool(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           pred_full_reg_offset(s, a->pg),
+                           vsz, vsz, 0, fn);
+    }
+    return true;
+}
+
+#define DO_ZPZZ(NAME, name) \
+static bool trans_##NAME##_zpzz(DisasContext *s, arg_rprr_esz *a,         \
+                                uint32_t insn)                            \
+{                                                                         \
+    static gen_helper_gvec_4 * const fns[4] = {                           \
+        gen_helper_sve_##name##_zpzz_b, gen_helper_sve_##name##_zpzz_h,   \
+        gen_helper_sve_##name##_zpzz_s, gen_helper_sve_##name##_zpzz_d,   \
+    };                                                                    \
+    return do_zpzz_ool(s, a, fns[a->esz]);                                \
+}
+
+DO_ZPZZ(AND, and)
+DO_ZPZZ(EOR, eor)
+DO_ZPZZ(ORR, orr)
+DO_ZPZZ(BIC, bic)
+
+DO_ZPZZ(ADD, add)
+DO_ZPZZ(SUB, sub)
+
+DO_ZPZZ(SMAX, smax)
+DO_ZPZZ(UMAX, umax)
+DO_ZPZZ(SMIN, smin)
+DO_ZPZZ(UMIN, umin)
+DO_ZPZZ(SABD, sabd)
+DO_ZPZZ(UABD, uabd)
+
+DO_ZPZZ(MUL, mul)
+DO_ZPZZ(SMULH, smulh)
+DO_ZPZZ(UMULH, umulh)
+
+static bool trans_SDIV_zpzz(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_4 * const fns[4] = {
+        NULL, NULL, gen_helper_sve_sdiv_zpzz_s, gen_helper_sve_sdiv_zpzz_d
+    };
+    return do_zpzz_ool(s, a, fns[a->esz]);
+}
+
+static bool trans_UDIV_zpzz(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_4 * const fns[4] = {
+        NULL, NULL, gen_helper_sve_udiv_zpzz_s, gen_helper_sve_udiv_zpzz_d
+    };
+    return do_zpzz_ool(s, a, fns[a->esz]);
+}
+
+#undef DO_ZPZZ
+
+/*
  *** SVE Predicate Logical Operations Group
  */
 
