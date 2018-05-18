@@ -300,6 +300,12 @@ struct IntelIOMMUState {
     OnOffAuto intr_eim;             /* Toggle for EIM cabability */
     bool buggy_eim;                 /* Force buggy EIM unless eim=off */
     uint8_t aw_bits;                /* Host/IOVA address width (in bits) */
+
+    /*
+     * Protects IOMMU states in general.  Currently it protects the
+     * per-IOMMU IOTLB cache, and context entry cache in VTDAddressSpace.
+     */
+    QemuMutex iommu_lock;
 };
 
 /* Find the VTD Address space associated with the given bus pointer,
