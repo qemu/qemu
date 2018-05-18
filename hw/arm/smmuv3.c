@@ -143,7 +143,7 @@ static MemTxResult smmuv3_write_eventq(SMMUv3State *s, Evt *evt)
 
 void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info)
 {
-    Evt evt;
+    Evt evt = {};
     MemTxResult r;
 
     if (!smmuv3_eventq_enabled(s)) {

@@ -83,9 +83,9 @@ static inline hwaddr get_table_pte_address(uint64_t pte, int granule_sz)
 static inline hwaddr get_block_pte_address(uint64_t pte, int level,
                                            int granule_sz, uint64_t *bsz)
 {
-    int n = (granule_sz - 3) * (4 - level) + 3;
+    int n = level_shift(level, granule_sz);
 
-    *bsz = 1 << n;
+    *bsz = 1ULL << n;
     return PTE_ADDRESS(pte, n);
 }
 
