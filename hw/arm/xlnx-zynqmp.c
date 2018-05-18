@@ -90,6 +90,24 @@ static const int spi_intr[XLNX_ZYNQMP_NUM_SPIS] = {
     19, 20,
 };
 
+static const uint64_t gdma_ch_addr[XLNX_ZYNQMP_NUM_GDMA_CH] = {
+    0xFD500000, 0xFD510000, 0xFD520000, 0xFD530000,
+    0xFD540000, 0xFD550000, 0xFD560000, 0xFD570000
+};
+
+static const int gdma_ch_intr[XLNX_ZYNQMP_NUM_GDMA_CH] = {
+    124, 125, 126, 127, 128, 129, 130, 131
+};
+
+static const uint64_t adma_ch_addr[XLNX_ZYNQMP_NUM_ADMA_CH] = {
+    0xFFA80000, 0xFFA90000, 0xFFAA0000, 0xFFAB0000,
+    0xFFAC0000, 0xFFAD0000, 0xFFAE0000, 0xFFAF0000
+};
+
+static const int adma_ch_intr[XLNX_ZYNQMP_NUM_ADMA_CH] = {
+    77, 78, 79, 80, 81, 82, 83, 84
+};
+
 typedef struct XlnxZynqMPGICRegion {
     int region_index;
     uint32_t address;
@@ -197,6 +215,16 @@ static void xlnx_zynqmp_init(Object *obj)
 
     object_initialize(&s->rtc, sizeof(s->rtc), TYPE_XLNX_ZYNQMP_RTC);
     qdev_set_parent_bus(DEVICE(&s->rtc), sysbus_get_default());
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_GDMA_CH; i++) {
+        object_initialize(&s->gdma[i], sizeof(s->gdma[i]), TYPE_XLNX_ZDMA);
+        qdev_set_parent_bus(DEVICE(&s->gdma[i]), sysbus_get_default());
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_ADMA_CH; i++) {
+        object_initialize(&s->adma[i], sizeof(s->adma[i]), TYPE_XLNX_ZDMA);
+        qdev_set_parent_bus(DEVICE(&s->adma[i]), sysbus_get_default());
+    }
 }
 
 static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
@@ -492,6 +520,31 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->rtc), 0, RTC_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->rtc), 0, gic_spi[RTC_IRQ]);
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_GDMA_CH; i++) {
+        object_property_set_uint(OBJECT(&s->gdma[i]), 128, "bus-width", &err);
+        object_property_set_bool(OBJECT(&s->gdma[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gdma[i]), 0, gdma_ch_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gdma[i]), 0,
+                           gic_spi[gdma_ch_intr[i]]);
+    }
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_ADMA_CH; i++) {
+        object_property_set_bool(OBJECT(&s->adma[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->adma[i]), 0, adma_ch_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->adma[i]), 0,
+                           gic_spi[adma_ch_intr[i]]);
+    }
 }
 
 static Property xlnx_zynqmp_props[] = {

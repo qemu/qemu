@@ -27,6 +27,7 @@
 #include "hw/sd/sdhci.h"
 #include "hw/ssi/xilinx_spips.h"
 #include "hw/dma/xlnx_dpdma.h"
+#include "hw/dma/xlnx-zdma.h"
 #include "hw/display/xlnx_dp.h"
 #include "hw/intc/xlnx-zynqmp-ipi.h"
 #include "hw/timer/xlnx-zynqmp-rtc.h"
@@ -41,6 +42,8 @@
 #define XLNX_ZYNQMP_NUM_UARTS 2
 #define XLNX_ZYNQMP_NUM_SDHCI 2
 #define XLNX_ZYNQMP_NUM_SPIS 2
+#define XLNX_ZYNQMP_NUM_GDMA_CH 8
+#define XLNX_ZYNQMP_NUM_ADMA_CH 8
 
 #define XLNX_ZYNQMP_NUM_QSPI_BUS 2
 #define XLNX_ZYNQMP_NUM_QSPI_BUS_CS 2
@@ -94,6 +97,8 @@ typedef struct XlnxZynqMPState {
     XlnxDPDMAState dpdma;
     XlnxZynqMPIPI ipi;
     XlnxZynqMPRTC rtc;
+    XlnxZDMA gdma[XLNX_ZYNQMP_NUM_GDMA_CH];
+    XlnxZDMA adma[XLNX_ZYNQMP_NUM_ADMA_CH];
 
     char *boot_cpu;
     ARMCPU *boot_cpu_ptr;
