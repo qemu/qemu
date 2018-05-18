@@ -769,10 +769,77 @@ typedef struct {
 
 static int vtd_page_walk_one(IOMMUTLBEntry *entry, vtd_page_walk_info *info)
 {
+    VTDAddressSpace *as = info->as;
     vtd_page_walk_hook hook_fn = info->hook_fn;
     void *private = info->private;
+    DMAMap target = {
+        .iova = entry->iova,
+        .size = entry->addr_mask,
+        .translated_addr = entry->translated_addr,
+        .perm = entry->perm,
+    };
+    DMAMap *mapped = iova_tree_find(as->iova_tree, &target);
+
+    if (entry->perm == IOMMU_NONE && !info->notify_unmap) {
+        trace_vtd_page_walk_one_skip_unmap(entry->iova, entry->addr_mask);
+        return 0;
+    }
 
     assert(hook_fn);
+
+    /* Update local IOVA mapped ranges */
+    if (entry->perm) {
+        if (mapped) {
+            /* If it's exactly the same translation, skip */
+            if (!memcmp(mapped, &target, sizeof(target))) {
+                trace_vtd_page_walk_one_skip_map(entry->iova, entry->addr_mask,
+                                                 entry->translated_addr);
+                return 0;
+            } else {
+                /*
+                 * Translation changed.  Normally this should not
+                 * happen, but it can happen when with buggy guest
+                 * OSes.  Note that there will be a small window that
+                 * we don't have map at all.  But that's the best
+                 * effort we can do.  The ideal way to emulate this is
+                 * atomically modify the PTE to follow what has
+                 * changed, but we can't.  One example is that vfio
+                 * driver only has VFIO_IOMMU_[UN]MAP_DMA but no
+                 * interface to modify a mapping (meanwhile it seems
+                 * meaningless to even provide one).  Anyway, let's
+                 * mark this as a TODO in case one day we'll have
+                 * a better solution.
+                 */
+                IOMMUAccessFlags cache_perm = entry->perm;
+                int ret;
+
+                /* Emulate an UNMAP */
+                entry->perm = IOMMU_NONE;
+                trace_vtd_page_walk_one(info->domain_id,
+                                        entry->iova,
+                                        entry->translated_addr,
+                                        entry->addr_mask,
+                                        entry->perm);
+                ret = hook_fn(entry, private);
+                if (ret) {
+                    return ret;
+                }
+                /* Drop any existing mapping */
+                iova_tree_remove(as->iova_tree, &target);
+                /* Recover the correct permission */
+                entry->perm = cache_perm;
+            }
+        }
+        iova_tree_insert(as->iova_tree, &target);
+    } else {
+        if (!mapped) {
+            /* Skip since we didn't map this range at all */
+            trace_vtd_page_walk_one_skip_unmap(entry->iova, entry->addr_mask);
+            return 0;
+        }
+        iova_tree_remove(as->iova_tree, &target);
+    }
+
     trace_vtd_page_walk_one(info->domain_id, entry->iova,
                             entry->translated_addr, entry->addr_mask,
                             entry->perm);
@@ -834,45 +901,34 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
          */
         entry_valid = read_cur | write_cur;
 
-        entry.target_as = &address_space_memory;
-        entry.iova = iova & subpage_mask;
-        entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
-        entry.addr_mask = ~subpage_mask;
-
-        if (vtd_is_last_slpte(slpte, level)) {
-            /* NOTE: this is only meaningful if entry_valid == true */
-            entry.translated_addr = vtd_get_slpte_addr(slpte, info->aw);
-            if (!entry_valid && !info->notify_unmap) {
-                trace_vtd_page_walk_skip_perm(iova, iova_next);
-                goto next;
-            }
-            ret = vtd_page_walk_one(&entry, info);
-            if (ret < 0) {
-                return ret;
-            }
-        } else {
-            if (!entry_valid) {
-                if (info->notify_unmap) {
-                    /*
-                     * The whole entry is invalid; unmap it all.
-                     * Translated address is meaningless, zero it.
-                     */
-                    entry.translated_addr = 0x0;
-                    ret = vtd_page_walk_one(&entry, info);
-                    if (ret < 0) {
-                        return ret;
-                    }
-                } else {
-                    trace_vtd_page_walk_skip_perm(iova, iova_next);
-                }
-                goto next;
-            }
+        if (!vtd_is_last_slpte(slpte, level) && entry_valid) {
+            /*
+             * This is a valid PDE (or even bigger than PDE).  We need
+             * to walk one further level.
+             */
             ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte, info->aw),
                                       iova, MIN(iova_next, end), level - 1,
                                       read_cur, write_cur, info);
-            if (ret < 0) {
-                return ret;
-            }
+        } else {
+            /*
+             * This means we are either:
+             *
+             * (1) the real page entry (either 4K page, or huge page)
+             * (2) the whole range is invalid
+             *
+             * In either case, we send an IOTLB notification down.
+             */
+            entry.target_as = &address_space_memory;
+            entry.iova = iova & subpage_mask;
+            entry.perm = IOMMU_ACCESS_FLAG(read_cur, write_cur);
+            entry.addr_mask = ~subpage_mask;
+            /* NOTE: this is only meaningful if entry_valid == true */
+            entry.translated_addr = vtd_get_slpte_addr(slpte, info->aw);
+            ret = vtd_page_walk_one(&entry, info);
+        }
+
+        if (ret < 0) {
+            return ret;
         }
 
 next:
@@ -962,6 +1018,58 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
     }
 
     return 0;
+}
+
+static int vtd_sync_shadow_page_hook(IOMMUTLBEntry *entry,
+                                     void *private)
+{
+    memory_region_notify_iommu((IOMMUMemoryRegion *)private, *entry);
+    return 0;
+}
+
+/* If context entry is NULL, we'll try to fetch it on our own. */
+static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
+                                            VTDContextEntry *ce,
+                                            hwaddr addr, hwaddr size)
+{
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    vtd_page_walk_info info = {
+        .hook_fn = vtd_sync_shadow_page_hook,
+        .private = (void *)&vtd_as->iommu,
+        .notify_unmap = true,
+        .aw = s->aw_bits,
+        .as = vtd_as,
+    };
+    VTDContextEntry ce_cache;
+    int ret;
+
+    if (ce) {
+        /* If the caller provided context entry, use it */
+        ce_cache = *ce;
+    } else {
+        /* If the caller didn't provide ce, try to fetch */
+        ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
+                                       vtd_as->devfn, &ce_cache);
+        if (ret) {
+            /*
+             * This should not really happen, but in case it happens,
+             * we just skip the sync for this time.  After all we even
+             * don't have the root table pointer!
+             */
+            trace_vtd_err("Detected invalid context entry when "
+                          "trying to sync shadow page table");
+            return 0;
+        }
+    }
+
+    info.domain_id = VTD_CONTEXT_ENTRY_DID(ce_cache.hi);
+
+    return vtd_page_walk(&ce_cache, addr, addr + size, &info);
+}
+
+static int vtd_sync_shadow_page_table(VTDAddressSpace *vtd_as)
+{
+    return vtd_sync_shadow_page_table_range(vtd_as, NULL, 0, UINT64_MAX);
 }
 
 /*
@@ -1296,7 +1404,7 @@ static void vtd_iommu_replay_all(IntelIOMMUState *s)
     VTDAddressSpace *vtd_as;
 
     QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
-        memory_region_iommu_replay_all(&vtd_as->iommu);
+        vtd_sync_shadow_page_table(vtd_as);
     }
 }
 
@@ -1371,14 +1479,13 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                 vtd_switch_address_space(vtd_as);
                 /*
                  * So a device is moving out of (or moving into) a
-                 * domain, a replay() suites here to notify all the
-                 * IOMMU_NOTIFIER_MAP registers about this change.
+                 * domain, resync the shadow page table.
                  * This won't bring bad even if we have no such
                  * notifier registered - the IOMMU notification
                  * framework will skip MAP notifications if that
                  * happened.
                  */
-                memory_region_iommu_replay_all(&vtd_as->iommu);
+                vtd_sync_shadow_page_table(vtd_as);
             }
         }
     }
@@ -1436,16 +1543,9 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
         if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                       vtd_as->devfn, &ce) &&
             domain_id == VTD_CONTEXT_ENTRY_DID(ce.hi)) {
-            memory_region_iommu_replay_all(&vtd_as->iommu);
+            vtd_sync_shadow_page_table(vtd_as);
         }
     }
-}
-
-static int vtd_page_invalidate_notify_hook(IOMMUTLBEntry *entry,
-                                           void *private)
-{
-    memory_region_notify_iommu((IOMMUMemoryRegion *)private, *entry);
-    return 0;
 }
 
 static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
@@ -1462,21 +1562,12 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                                        vtd_as->devfn, &ce);
         if (!ret && domain_id == VTD_CONTEXT_ENTRY_DID(ce.hi)) {
             if (vtd_as_has_map_notifier(vtd_as)) {
-                vtd_page_walk_info info = {
-                    .hook_fn = vtd_page_invalidate_notify_hook,
-                    .private = (void *)&vtd_as->iommu,
-                    .notify_unmap = true,
-                    .aw = s->aw_bits,
-                    .as = vtd_as,
-                    .domain_id = domain_id,
-                };
-
                 /*
                  * As long as we have MAP notifications registered in
                  * any of our IOMMU notifiers, we need to sync the
                  * shadow page table.
                  */
-                vtd_page_walk(&ce, addr, addr + size, &info);
+                vtd_sync_shadow_page_table_range(vtd_as, &ce, addr, size);
             } else {
                 /*
                  * For UNMAP-only notifiers, we don't need to walk the
@@ -2806,6 +2897,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         vtd_dev_as->devfn = (uint8_t)devfn;
         vtd_dev_as->iommu_state = s;
         vtd_dev_as->context_cache_entry.context_cache_gen = 0;
+        vtd_dev_as->iova_tree = iova_tree_new();
 
         /*
          * Memory region relationships looks like (Address range shows
@@ -2858,6 +2950,7 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
     hwaddr start = n->start;
     hwaddr end = n->end;
     IntelIOMMUState *s = as->iommu_state;
+    DMAMap map;
 
     /*
      * Note: all the codes in this function has a assumption that IOVA
@@ -2901,6 +2994,10 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
                              VTD_PCI_SLOT(as->devfn),
                              VTD_PCI_FUNC(as->devfn),
                              entry.iova, size);
+
+    map.iova = entry.iova;
+    map.size = entry.addr_mask;
+    iova_tree_remove(as->iova_tree, &map);
 
     memory_region_notify_one(n, &entry);
 }
