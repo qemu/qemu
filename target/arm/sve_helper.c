@@ -1235,3 +1235,139 @@ void HELPER(sve_ftssel_d)(void *vd, void *vn, void *vm, uint32_t desc)
         d[i] = nn ^ (mm & 2) << 62;
     }
 }
+
+/*
+ * Signed saturating addition with scalar operand.
+ */
+
+void HELPER(sve_sqaddi_b)(void *d, void *a, int32_t b, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+
+    for (i = 0; i < oprsz; i += sizeof(int8_t)) {
+        int r = *(int8_t *)(a + i) + b;
+        if (r > INT8_MAX) {
+            r = INT8_MAX;
+        } else if (r < INT8_MIN) {
+            r = INT8_MIN;
+        }
+        *(int8_t *)(d + i) = r;
+    }
+}
+
+void HELPER(sve_sqaddi_h)(void *d, void *a, int32_t b, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int r = *(int16_t *)(a + i) + b;
+        if (r > INT16_MAX) {
+            r = INT16_MAX;
+        } else if (r < INT16_MIN) {
+            r = INT16_MIN;
+        }
+        *(int16_t *)(d + i) = r;
+    }
+}
+
+void HELPER(sve_sqaddi_s)(void *d, void *a, int64_t b, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+
+    for (i = 0; i < oprsz; i += sizeof(int32_t)) {
+        int64_t r = *(int32_t *)(a + i) + b;
+        if (r > INT32_MAX) {
+            r = INT32_MAX;
+        } else if (r < INT32_MIN) {
+            r = INT32_MIN;
+        }
+        *(int32_t *)(d + i) = r;
+    }
+}
+
+void HELPER(sve_sqaddi_d)(void *d, void *a, int64_t b, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+
+    for (i = 0; i < oprsz; i += sizeof(int64_t)) {
+        int64_t ai = *(int64_t *)(a + i);
+        int64_t r = ai + b;
+        if (((r ^ ai) & ~(ai ^ b)) < 0) {
+            /* Signed overflow.  */
+            r = (r < 0 ? INT64_MAX : INT64_MIN);
+        }
+        *(int64_t *)(d + i) = r;
+    }
+}
+
+/*
+ * Unsigned saturating addition with scalar operand.
+ */
+
+void HELPER(sve_uqaddi_b)(void *d, void *a, int32_t b, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+
+    for (i = 0; i < oprsz; i += sizeof(uint8_t)) {
+        int r = *(uint8_t *)(a + i) + b;
+        if (r > UINT8_MAX) {
+            r = UINT8_MAX;
+        } else if (r < 0) {
+            r = 0;
+        }
+        *(uint8_t *)(d + i) = r;
+    }
+}
+
+void HELPER(sve_uqaddi_h)(void *d, void *a, int32_t b, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+
+    for (i = 0; i < oprsz; i += sizeof(uint16_t)) {
+        int r = *(uint16_t *)(a + i) + b;
+        if (r > UINT16_MAX) {
+            r = UINT16_MAX;
+        } else if (r < 0) {
+            r = 0;
+        }
+        *(uint16_t *)(d + i) = r;
+    }
+}
+
+void HELPER(sve_uqaddi_s)(void *d, void *a, int64_t b, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+
+    for (i = 0; i < oprsz; i += sizeof(uint32_t)) {
+        int64_t r = *(uint32_t *)(a + i) + b;
+        if (r > UINT32_MAX) {
+            r = UINT32_MAX;
+        } else if (r < 0) {
+            r = 0;
+        }
+        *(uint32_t *)(d + i) = r;
+    }
+}
+
+void HELPER(sve_uqaddi_d)(void *d, void *a, uint64_t b, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+
+    for (i = 0; i < oprsz; i += sizeof(uint64_t)) {
+        uint64_t r = *(uint64_t *)(a + i) + b;
+        if (r < b) {
+            r = UINT64_MAX;
+        }
+        *(uint64_t *)(d + i) = r;
+    }
+}
+
+void HELPER(sve_uqsubi_d)(void *d, void *a, uint64_t b, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+
+    for (i = 0; i < oprsz; i += sizeof(uint64_t)) {
+        uint64_t ai = *(uint64_t *)(a + i);
+        *(uint64_t *)(d + i) = (ai < b ? 0 : ai - b);
+    }
+}

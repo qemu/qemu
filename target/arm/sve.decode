@@ -22,6 +22,7 @@
 ###########################################################################
 # Named fields.  These are primarily for disjoint fields.
 
+%imm4_16_p1             16:4 !function=plus1
 %imm6_22_5      22:1 5:5
 %imm9_16_10     16:s6 10:3
 
@@ -56,6 +57,9 @@
 &rprr_esz       rd pg rn rm esz
 &rprrr_esz      rd pg rn rm ra esz
 &rpri_esz       rd pg rn imm esz
+&ptrue          rd esz pat s
+&incdec_cnt     rd pat esz imm d u
+&incdec2_cnt    rd rn pat esz imm d u
 
 ###########################################################################
 # Named instruction formats.  These are generally used to
@@ -112,6 +116,13 @@
                 &rri imm=%imm9_16_10
 @rd_rn_i9       ........ ........ ...... rn:5 rd:5      \
                 &rri imm=%imm9_16_10
+
+# One register, pattern, and uint4+1.
+# User must fill in U and D.
+@incdec_cnt     ........ esz:2 .. .... ...... pat:5 rd:5 \
+                &incdec_cnt imm=%imm4_16_p1
+@incdec2_cnt    ........ esz:2 .. .... ...... pat:5 rd:5 \
+                &incdec2_cnt imm=%imm4_16_p1 rn=%reg_movprfx
 
 ###########################################################################
 # Instruction patterns.  Grouped according to the SVE encodingindex.xhtml.
@@ -299,7 +310,25 @@ FEXPA           00000100 .. 1 00000 101110 ..... .....          @rd_rn
 # Note esz != 0
 FTSSEL          00000100 .. 1 ..... 101100 ..... .....          @rd_rn_rm
 
-### SVE Predicate Logical Operations Group
+### SVE Element Count Group
+
+# SVE element count
+CNT_r           00000100 .. 10 .... 1110 0 0 ..... .....    @incdec_cnt d=0 u=1
+
+# SVE inc/dec register by element count
+INCDEC_r        00000100 .. 11 .... 1110 0 d:1 ..... .....      @incdec_cnt u=1
+
+# SVE saturating inc/dec register by element count
+SINCDEC_r_32    00000100 .. 10 .... 1111 d:1 u:1 ..... .....    @incdec_cnt
+SINCDEC_r_64    00000100 .. 11 .... 1111 d:1 u:1 ..... .....    @incdec_cnt
+
+# SVE inc/dec vector by element count
+# Note this requires esz != 0.
+INCDEC_v        00000100 .. 1 1 .... 1100 0 d:1 ..... .....    @incdec2_cnt u=1
+
+# SVE saturating inc/dec vector by element count
+# Note these require esz != 0.
+SINCDEC_v       00000100 .. 1 0 .... 1100 d:1 u:1 ..... .....   @incdec2_cnt
 
 # SVE predicate logical operations
 AND_pppp        00100101 0. 00 .... 01 .... 0 .... 0 ....       @pd_pg_pn_pm_s
