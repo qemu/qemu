@@ -46,7 +46,7 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 
 docker-image-debian-powerpc-cross: EXTRA_FILES:=$(SRC_PATH)/tests/docker/dockerfiles/debian-apt-fake.sh
 
-# Enforce dependancies for composite images
+# Enforce dependencies for composite images
 docker-image-debian: docker-image-debian9
 docker-image-debian8-mxe: docker-image-debian8
 docker-image-debian-amd64: docker-image-debian9

@@ -555,6 +555,14 @@ static inline bool in_aio_context_home_thread(AioContext *ctx)
 void aio_context_setup(AioContext *ctx);
 
 /**
+ * aio_context_destroy:
+ * @ctx: the aio context
+ *
+ * Destroy the aio context.
+ */
+void aio_context_destroy(AioContext *ctx);
+
+/**
  * aio_context_set_poll_params:
  * @ctx: the aio context
  * @max_ns: how long to busy poll for, in nanoseconds

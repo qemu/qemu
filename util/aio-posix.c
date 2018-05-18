@@ -45,11 +45,11 @@ struct AioHandler
 
 static void aio_epoll_disable(AioContext *ctx)
 {
-    ctx->epoll_available = false;
-    if (!ctx->epoll_enabled) {
+    ctx->epoll_enabled = false;
+    if (!ctx->epoll_available) {
         return;
     }
-    ctx->epoll_enabled = false;
+    ctx->epoll_available = false;
     close(ctx->epollfd);
 }
 
@@ -710,6 +710,13 @@ void aio_context_setup(AioContext *ctx)
     } else {
         ctx->epoll_available = true;
     }
+#endif
+}
+
+void aio_context_destroy(AioContext *ctx)
+{
+#ifdef CONFIG_EPOLL_CREATE1
+    aio_epoll_disable(ctx);
 #endif
 }
 
