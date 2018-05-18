@@ -32,6 +32,11 @@
 # A combination of tsz:imm3 -- extract (tsz:imm3) - esize
 %tszimm_shl     22:2 5:5 !function=tszimm_shl
 
+# Similarly for the tszh/tszl pair at 22/16 for zzi
+%tszimm16_esz   22:2 16:5 !function=tszimm_esz
+%tszimm16_shr   22:2 16:5 !function=tszimm_shr
+%tszimm16_shl   22:2 16:5 !function=tszimm_shl
+
 # Either a copy of rd (at bit 0), or a different source
 # as propagated via the MOVPRFX instruction.
 %reg_movprfx    0:5
@@ -43,6 +48,7 @@
 
 &rr_esz         rd rn esz
 &rri            rd rn imm
+&rri_esz        rd rn imm esz
 &rrr_esz        rd rn rm esz
 &rpr_esz        rd pg rn esz
 &rprr_s         rd pg rn rm s
@@ -91,6 +97,10 @@
 # element size encoded as TSZHL.  User must fill in imm.
 @rdn_pg_tszimm  ........ .. ... ... ... pg:3 ..... rd:5 \
                 &rpri_esz rn=%reg_movprfx esz=%tszimm_esz
+
+# Similarly without predicate.
+@rd_rn_tszimm   ........ .. ... ... ...... rn:5 rd:5 \
+                &rri_esz esz=%tszimm16_esz
 
 # Basic Load/Store with 9-bit immediate offset
 @pd_rn_i9       ........ ........ ...... rn:5 . rd:4    \
@@ -249,6 +259,22 @@ ADDPL           00000100 011 ..... 01010 ...... .....           @rd_rn_i6
 
 # SVE stack frame size
 RDVL            00000100 101 11111 01010 imm:s6 rd:5
+
+### SVE Bitwise Shift - Unpredicated Group
+
+# SVE bitwise shift by immediate (unpredicated)
+ASR_zzi         00000100 .. 1 ..... 1001 00 ..... ..... \
+                @rd_rn_tszimm imm=%tszimm16_shr
+LSR_zzi         00000100 .. 1 ..... 1001 01 ..... ..... \
+                @rd_rn_tszimm imm=%tszimm16_shr
+LSL_zzi         00000100 .. 1 ..... 1001 11 ..... ..... \
+                @rd_rn_tszimm imm=%tszimm16_shl
+
+# SVE bitwise shift by wide elements (unpredicated)
+# Note esz != 3
+ASR_zzw         00000100 .. 1 ..... 1000 00 ..... .....         @rd_rn_rm
+LSR_zzw         00000100 .. 1 ..... 1000 01 ..... .....         @rd_rn_rm
+LSL_zzw         00000100 .. 1 ..... 1000 11 ..... .....         @rd_rn_rm
 
 ### SVE Predicate Logical Operations Group
 

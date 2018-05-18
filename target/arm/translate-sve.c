@@ -134,6 +134,13 @@ static bool do_mov_z(DisasContext *s, int rd, int rn)
     return do_vector2_z(s, tcg_gen_gvec_mov, 0, rd, rn);
 }
 
+/* Initialize a Zreg with replications of a 64-bit immediate.  */
+static void do_dupi_z(DisasContext *s, int rd, uint64_t word)
+{
+    unsigned vsz = vec_full_reg_size(s);
+    tcg_gen_gvec_dup64i(vec_full_reg_offset(s, rd), vsz, vsz, word);
+}
+
 /* Invoke a vector expander on two Pregs.  */
 static bool do_vector2_p(DisasContext *s, GVecGen2Fn *gvec_fn,
                          int esz, int rd, int rn)
@@ -667,6 +674,84 @@ DO_ZPZW(LSR, lsr)
 DO_ZPZW(LSL, lsl)
 
 #undef DO_ZPZW
+
+/*
+ *** SVE Bitwise Shift - Unpredicated Group
+ */
+
+static bool do_shift_imm(DisasContext *s, arg_rri_esz *a, bool asr,
+                         void (*gvec_fn)(unsigned, uint32_t, uint32_t,
+                                         int64_t, uint32_t, uint32_t))
+{
+    if (a->esz < 0) {
+        /* Invalid tsz encoding -- see tszimm_esz. */
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        /* Shift by element size is architecturally valid.  For
+           arithmetic right-shift, it's the same as by one less.
+           Otherwise it is a zeroing operation.  */
+        if (a->imm >= 8 << a->esz) {
+            if (asr) {
+                a->imm = (8 << a->esz) - 1;
+            } else {
+                do_dupi_z(s, a->rd, 0);
+                return true;
+            }
+        }
+        gvec_fn(a->esz, vec_full_reg_offset(s, a->rd),
+                vec_full_reg_offset(s, a->rn), a->imm, vsz, vsz);
+    }
+    return true;
+}
+
+static bool trans_ASR_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    return do_shift_imm(s, a, true, tcg_gen_gvec_sari);
+}
+
+static bool trans_LSR_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    return do_shift_imm(s, a, false, tcg_gen_gvec_shri);
+}
+
+static bool trans_LSL_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    return do_shift_imm(s, a, false, tcg_gen_gvec_shli);
+}
+
+static bool do_zzw_ool(DisasContext *s, arg_rrr_esz *a, gen_helper_gvec_3 *fn)
+{
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           vsz, vsz, 0, fn);
+    }
+    return true;
+}
+
+#define DO_ZZW(NAME, name) \
+static bool trans_##NAME##_zzw(DisasContext *s, arg_rrr_esz *a,           \
+                               uint32_t insn)                             \
+{                                                                         \
+    static gen_helper_gvec_3 * const fns[4] = {                           \
+        gen_helper_sve_##name##_zzw_b, gen_helper_sve_##name##_zzw_h,     \
+        gen_helper_sve_##name##_zzw_s, NULL                               \
+    };                                                                    \
+    return do_zzw_ool(s, a, fns[a->esz]);                                 \
+}
+
+DO_ZZW(ASR, asr)
+DO_ZZW(LSR, lsr)
+DO_ZZW(LSL, lsl)
+
+#undef DO_ZZW
 
 /*
  *** SVE Integer Multiply-Add Group

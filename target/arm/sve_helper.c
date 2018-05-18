@@ -615,6 +615,36 @@ DO_ZPZ(sve_neg_h, uint16_t, H1_2, DO_NEG)
 DO_ZPZ(sve_neg_s, uint32_t, H1_4, DO_NEG)
 DO_ZPZ_D(sve_neg_d, uint64_t, DO_NEG)
 
+/* Three-operand expander, unpredicated, in which the third operand is "wide".
+ */
+#define DO_ZZW(NAME, TYPE, TYPEW, H, OP)                       \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc) \
+{                                                              \
+    intptr_t i, opr_sz = simd_oprsz(desc);                     \
+    for (i = 0; i < opr_sz; ) {                                \
+        TYPEW mm = *(TYPEW *)(vm + i);                         \
+        do {                                                   \
+            TYPE nn = *(TYPE *)(vn + H(i));                    \
+            *(TYPE *)(vd + H(i)) = OP(nn, mm);                 \
+            i += sizeof(TYPE);                                 \
+        } while (i & 7);                                       \
+    }                                                          \
+}
+
+DO_ZZW(sve_asr_zzw_b, int8_t, uint64_t, H1, DO_ASR)
+DO_ZZW(sve_lsr_zzw_b, uint8_t, uint64_t, H1, DO_LSR)
+DO_ZZW(sve_lsl_zzw_b, uint8_t, uint64_t, H1, DO_LSL)
+
+DO_ZZW(sve_asr_zzw_h, int16_t, uint64_t, H1_2, DO_ASR)
+DO_ZZW(sve_lsr_zzw_h, uint16_t, uint64_t, H1_2, DO_LSR)
+DO_ZZW(sve_lsl_zzw_h, uint16_t, uint64_t, H1_2, DO_LSL)
+
+DO_ZZW(sve_asr_zzw_s, int32_t, uint64_t, H1_4, DO_ASR)
+DO_ZZW(sve_lsr_zzw_s, uint32_t, uint64_t, H1_4, DO_LSR)
+DO_ZZW(sve_lsl_zzw_s, uint32_t, uint64_t, H1_4, DO_LSL)
+
+#undef DO_ZZW
+
 #undef DO_CLS_B
 #undef DO_CLS_H
 #undef DO_CLZ_B
