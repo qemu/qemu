@@ -296,6 +296,74 @@ static bool trans_UDIV_zpzz(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
 #undef DO_ZPZZ
 
 /*
+ *** SVE Integer Reduction Group
+ */
+
+typedef void gen_helper_gvec_reduc(TCGv_i64, TCGv_ptr, TCGv_ptr, TCGv_i32);
+static bool do_vpz_ool(DisasContext *s, arg_rpr_esz *a,
+                       gen_helper_gvec_reduc *fn)
+{
+    unsigned vsz = vec_full_reg_size(s);
+    TCGv_ptr t_zn, t_pg;
+    TCGv_i32 desc;
+    TCGv_i64 temp;
+
+    if (fn == NULL) {
+        return false;
+    }
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    desc = tcg_const_i32(simd_desc(vsz, vsz, 0));
+    temp = tcg_temp_new_i64();
+    t_zn = tcg_temp_new_ptr();
+    t_pg = tcg_temp_new_ptr();
+
+    tcg_gen_addi_ptr(t_zn, cpu_env, vec_full_reg_offset(s, a->rn));
+    tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, a->pg));
+    fn(temp, t_zn, t_pg, desc);
+    tcg_temp_free_ptr(t_zn);
+    tcg_temp_free_ptr(t_pg);
+    tcg_temp_free_i32(desc);
+
+    write_fp_dreg(s, a->rd, temp);
+    tcg_temp_free_i64(temp);
+    return true;
+}
+
+#define DO_VPZ(NAME, name) \
+static bool trans_##NAME(DisasContext *s, arg_rpr_esz *a, uint32_t insn) \
+{                                                                        \
+    static gen_helper_gvec_reduc * const fns[4] = {                      \
+        gen_helper_sve_##name##_b, gen_helper_sve_##name##_h,            \
+        gen_helper_sve_##name##_s, gen_helper_sve_##name##_d,            \
+    };                                                                   \
+    return do_vpz_ool(s, a, fns[a->esz]);                                \
+}
+
+DO_VPZ(ORV, orv)
+DO_VPZ(ANDV, andv)
+DO_VPZ(EORV, eorv)
+
+DO_VPZ(UADDV, uaddv)
+DO_VPZ(SMAXV, smaxv)
+DO_VPZ(UMAXV, umaxv)
+DO_VPZ(SMINV, sminv)
+DO_VPZ(UMINV, uminv)
+
+static bool trans_SADDV(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_reduc * const fns[4] = {
+        gen_helper_sve_saddv_b, gen_helper_sve_saddv_h,
+        gen_helper_sve_saddv_s, NULL
+    };
+    return do_vpz_ool(s, a, fns[a->esz]);
+}
+
+#undef DO_VPZ
+
+/*
  *** SVE Predicate Logical Operations Group
  */
 

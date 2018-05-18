@@ -298,6 +298,97 @@ DO_ZPZZ_D(sve_udiv_zpzz_d, uint64_t, DO_DIV)
 
 #undef DO_ZPZZ
 #undef DO_ZPZZ_D
+
+/* Two-operand reduction expander, controlled by a predicate.
+ * The difference between TYPERED and TYPERET has to do with
+ * sign-extension.  E.g. for SMAX, TYPERED must be signed,
+ * but TYPERET must be unsigned so that e.g. a 32-bit value
+ * is not sign-extended to the ABI uint64_t return type.
+ */
+/* ??? If we were to vectorize this by hand the reduction ordering
+ * would change.  For integer operands, this is perfectly fine.
+ */
+#define DO_VPZ(NAME, TYPEELT, TYPERED, TYPERET, H, INIT, OP) \
+uint64_t HELPER(NAME)(void *vn, void *vg, uint32_t desc)   \
+{                                                          \
+    intptr_t i, opr_sz = simd_oprsz(desc);                 \
+    TYPERED ret = INIT;                                    \
+    for (i = 0; i < opr_sz; ) {                            \
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));    \
+        do {                                               \
+            if (pg & 1) {                                  \
+                TYPEELT nn = *(TYPEELT *)(vn + H(i));      \
+                ret = OP(ret, nn);                         \
+            }                                              \
+            i += sizeof(TYPEELT), pg >>= sizeof(TYPEELT);  \
+        } while (i & 15);                                  \
+    }                                                      \
+    return (TYPERET)ret;                                   \
+}
+
+#define DO_VPZ_D(NAME, TYPEE, TYPER, INIT, OP)             \
+uint64_t HELPER(NAME)(void *vn, void *vg, uint32_t desc)   \
+{                                                          \
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;             \
+    TYPEE *n = vn;                                         \
+    uint8_t *pg = vg;                                      \
+    TYPER ret = INIT;                                      \
+    for (i = 0; i < opr_sz; i += 1) {                      \
+        if (pg[H1(i)] & 1) {                               \
+            TYPEE nn = n[i];                               \
+            ret = OP(ret, nn);                             \
+        }                                                  \
+    }                                                      \
+    return ret;                                            \
+}
+
+DO_VPZ(sve_orv_b, uint8_t, uint8_t, uint8_t, H1, 0, DO_ORR)
+DO_VPZ(sve_orv_h, uint16_t, uint16_t, uint16_t, H1_2, 0, DO_ORR)
+DO_VPZ(sve_orv_s, uint32_t, uint32_t, uint32_t, H1_4, 0, DO_ORR)
+DO_VPZ_D(sve_orv_d, uint64_t, uint64_t, 0, DO_ORR)
+
+DO_VPZ(sve_eorv_b, uint8_t, uint8_t, uint8_t, H1, 0, DO_EOR)
+DO_VPZ(sve_eorv_h, uint16_t, uint16_t, uint16_t, H1_2, 0, DO_EOR)
+DO_VPZ(sve_eorv_s, uint32_t, uint32_t, uint32_t, H1_4, 0, DO_EOR)
+DO_VPZ_D(sve_eorv_d, uint64_t, uint64_t, 0, DO_EOR)
+
+DO_VPZ(sve_andv_b, uint8_t, uint8_t, uint8_t, H1, -1, DO_AND)
+DO_VPZ(sve_andv_h, uint16_t, uint16_t, uint16_t, H1_2, -1, DO_AND)
+DO_VPZ(sve_andv_s, uint32_t, uint32_t, uint32_t, H1_4, -1, DO_AND)
+DO_VPZ_D(sve_andv_d, uint64_t, uint64_t, -1, DO_AND)
+
+DO_VPZ(sve_saddv_b, int8_t, uint64_t, uint64_t, H1, 0, DO_ADD)
+DO_VPZ(sve_saddv_h, int16_t, uint64_t, uint64_t, H1_2, 0, DO_ADD)
+DO_VPZ(sve_saddv_s, int32_t, uint64_t, uint64_t, H1_4, 0, DO_ADD)
+
+DO_VPZ(sve_uaddv_b, uint8_t, uint64_t, uint64_t, H1, 0, DO_ADD)
+DO_VPZ(sve_uaddv_h, uint16_t, uint64_t, uint64_t, H1_2, 0, DO_ADD)
+DO_VPZ(sve_uaddv_s, uint32_t, uint64_t, uint64_t, H1_4, 0, DO_ADD)
+DO_VPZ_D(sve_uaddv_d, uint64_t, uint64_t, 0, DO_ADD)
+
+DO_VPZ(sve_smaxv_b, int8_t, int8_t, uint8_t, H1, INT8_MIN, DO_MAX)
+DO_VPZ(sve_smaxv_h, int16_t, int16_t, uint16_t, H1_2, INT16_MIN, DO_MAX)
+DO_VPZ(sve_smaxv_s, int32_t, int32_t, uint32_t, H1_4, INT32_MIN, DO_MAX)
+DO_VPZ_D(sve_smaxv_d, int64_t, int64_t, INT64_MIN, DO_MAX)
+
+DO_VPZ(sve_umaxv_b, uint8_t, uint8_t, uint8_t, H1, 0, DO_MAX)
+DO_VPZ(sve_umaxv_h, uint16_t, uint16_t, uint16_t, H1_2, 0, DO_MAX)
+DO_VPZ(sve_umaxv_s, uint32_t, uint32_t, uint32_t, H1_4, 0, DO_MAX)
+DO_VPZ_D(sve_umaxv_d, uint64_t, uint64_t, 0, DO_MAX)
+
+DO_VPZ(sve_sminv_b, int8_t, int8_t, uint8_t, H1, INT8_MAX, DO_MIN)
+DO_VPZ(sve_sminv_h, int16_t, int16_t, uint16_t, H1_2, INT16_MAX, DO_MIN)
+DO_VPZ(sve_sminv_s, int32_t, int32_t, uint32_t, H1_4, INT32_MAX, DO_MIN)
+DO_VPZ_D(sve_sminv_d, int64_t, int64_t, INT64_MAX, DO_MIN)
+
+DO_VPZ(sve_uminv_b, uint8_t, uint8_t, uint8_t, H1, -1, DO_MIN)
+DO_VPZ(sve_uminv_h, uint16_t, uint16_t, uint16_t, H1_2, -1, DO_MIN)
+DO_VPZ(sve_uminv_s, uint32_t, uint32_t, uint32_t, H1_4, -1, DO_MIN)
+DO_VPZ_D(sve_uminv_d, uint64_t, uint64_t, -1, DO_MIN)
+
+#undef DO_VPZ
+#undef DO_VPZ_D
+
 #undef DO_AND
 #undef DO_ORR
 #undef DO_EOR

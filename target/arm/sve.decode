@@ -36,6 +36,7 @@
 &rr_esz         rd rn esz
 &rri            rd rn imm
 &rrr_esz        rd rn rm esz
+&rpr_esz        rd pg rn esz
 &rprr_s         rd pg rn rm s
 &rprr_esz       rd pg rn rm esz
 
@@ -60,6 +61,9 @@
                 &rprr_esz rn=%reg_movprfx
 @rdm_pg_rn      ........ esz:2 ... ... ... pg:3 rn:5 rd:5 \
                 &rprr_esz rm=%reg_movprfx
+
+# One register operand, with governing predicate, vector element size
+@rd_pg_rn       ........ esz:2 ... ... ... pg:3 rn:5 rd:5       &rpr_esz
 
 # Basic Load/Store with 9-bit immediate offset
 @pd_rn_i9       ........ ........ ...... rn:5 . rd:4    \
@@ -100,6 +104,24 @@ SDIV_zpzz       00000100 .. 010 100 000 ... ..... .....   @rdn_pg_rm
 UDIV_zpzz       00000100 .. 010 101 000 ... ..... .....   @rdn_pg_rm
 SDIV_zpzz       00000100 .. 010 110 000 ... ..... .....   @rdm_pg_rn # SDIVR
 UDIV_zpzz       00000100 .. 010 111 000 ... ..... .....   @rdm_pg_rn # UDIVR
+
+### SVE Integer Reduction Group
+
+# SVE bitwise logical reduction (predicated)
+ORV             00000100 .. 011 000 001 ... ..... .....         @rd_pg_rn
+EORV            00000100 .. 011 001 001 ... ..... .....         @rd_pg_rn
+ANDV            00000100 .. 011 010 001 ... ..... .....         @rd_pg_rn
+
+# SVE integer add reduction (predicated)
+# Note that saddv requires size != 3.
+UADDV           00000100 .. 000 001 001 ... ..... .....         @rd_pg_rn
+SADDV           00000100 .. 000 000 001 ... ..... .....         @rd_pg_rn
+
+# SVE integer min/max reduction (predicated)
+SMAXV           00000100 .. 001 000 001 ... ..... .....         @rd_pg_rn
+UMAXV           00000100 .. 001 001 001 ... ..... .....         @rd_pg_rn
+SMINV           00000100 .. 001 010 001 ... ..... .....         @rd_pg_rn
+UMINV           00000100 .. 001 011 001 ... ..... .....         @rd_pg_rn
 
 ### SVE Logical - Unpredicated Group
 
