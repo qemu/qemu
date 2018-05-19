@@ -75,39 +75,9 @@
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
 #define TARGET_SO_NOFCS     43
 
-/** sock_type - Socket types
- *
- * Please notice that for binary compat reasons ALPHA has to
- * override the enum sock_type in include/linux/net.h, so
- * we define ARCH_HAS_SOCKET_TYPES here.
- *
- * @SOCK_DGRAM - datagram (conn.less) socket
- * @SOCK_STREAM - stream (connection) socket
- * @SOCK_RAW - raw socket
- * @SOCK_RDM - reliably-delivered message
- * @SOCK_SEQPACKET - sequential packet socket
- * @SOCK_DCCP - Datagram Congestion Control Protocol socket
- * @SOCK_PACKET - linux specific way of getting packets at the dev level.
- *                For writing rarp and other similar things on the user
- *                level.
- * @SOCK_CLOEXEC - sets the close-on-exec (FD_CLOEXEC) flag.
- * @SOCK_NONBLOCK - sets the O_NONBLOCK file status flag.
+/* TARGET_O_NONBLOCK clashes with the bits used for socket types.  Therefore we
+ * have to define SOCK_NONBLOCK to a different value here.
  */
+#define TARGET_SOCK_NONBLOCK   0x40000000
 
-#define ARCH_HAS_SOCKET_TYPES          1
-
-enum sock_type {
-       TARGET_SOCK_STREAM      = 1,
-       TARGET_SOCK_DGRAM       = 2,
-       TARGET_SOCK_RAW         = 3,
-       TARGET_SOCK_RDM         = 4,
-       TARGET_SOCK_SEQPACKET   = 5,
-       TARGET_SOCK_DCCP        = 6,
-       TARGET_SOCK_PACKET      = 10,
-       TARGET_SOCK_CLOEXEC     = 010000000,
-       TARGET_SOCK_NONBLOCK    = 010000000000,
-};
-
-#define TARGET_SOCK_MAX (TARGET_SOCK_PACKET + 1)
-#define TARGET_SOCK_TYPE_MASK    0xf  /* Covers up to TARGET_SOCK_MAX-1. */
 #endif

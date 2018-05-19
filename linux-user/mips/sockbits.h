@@ -91,7 +91,7 @@
  * @SOCK_NONBLOCK - sets the O_NONBLOCK file status flag.
  */
 
-#define ARCH_HAS_SOCKET_TYPES          1
+#define TARGET_ARCH_HAS_SOCKET_TYPES          1
 
 enum sock_type {
        TARGET_SOCK_DGRAM       = 1,
@@ -101,10 +101,13 @@ enum sock_type {
        TARGET_SOCK_SEQPACKET   = 5,
        TARGET_SOCK_DCCP        = 6,
        TARGET_SOCK_PACKET      = 10,
-       TARGET_SOCK_CLOEXEC     = 02000000,
-       TARGET_SOCK_NONBLOCK    = 0200,
 };
 
 #define TARGET_SOCK_MAX (TARGET_SOCK_PACKET + 1)
 #define TARGET_SOCK_TYPE_MASK    0xf  /* Covers up to TARGET_SOCK_MAX-1. */
+
+/* Flags for socket, socketpair, paccept */
+#define TARGET_SOCK_CLOEXEC    TARGET_O_CLOEXEC
+#define TARGET_SOCK_NONBLOCK   TARGET_O_NONBLOCK
+
 #endif
