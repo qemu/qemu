@@ -28,10 +28,7 @@
                                         */
 #define TARGET_SO_OOBINLINE 0x0100     /* Receive out-of-band data in-band.
                                         */
-#if 0
-/* To add: Allow local address and port reuse. */
 #define TARGET_SO_REUSEPORT 0x0200
-#endif
 
 #define TARGET_SO_TYPE         0x1008  /* Compatible name for SO_STYLE. */
 #define TARGET_SO_STYLE        SO_TYPE /* Synonym */
