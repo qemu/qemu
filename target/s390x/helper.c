@@ -327,19 +327,20 @@ void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
         }
     }
 
-    for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "F%02d=%016" PRIx64, i, get_freg(env, i)->ll);
-        if ((i % 4) == 3) {
-            cpu_fprintf(f, "\n");
+    if (flags & CPU_DUMP_FPU) {
+        if (s390_has_feat(S390_FEAT_VECTOR)) {
+            for (i = 0; i < 32; i++) {
+                cpu_fprintf(f, "V%02d=%016" PRIx64 "%016" PRIx64 "%c",
+                            i, env->vregs[i][0].ll, env->vregs[i][1].ll,
+                            i % 2 ? '\n' : ' ');
+            }
         } else {
-            cpu_fprintf(f, " ");
+            for (i = 0; i < 16; i++) {
+                cpu_fprintf(f, "F%02d=%016" PRIx64 "%c",
+                            i, get_freg(env, i)->ll,
+                            (i % 4) == 3 ? '\n' : ' ');
+            }
         }
-    }
-
-    for (i = 0; i < 32; i++) {
-        cpu_fprintf(f, "V%02d=%016" PRIx64 "%016" PRIx64, i,
-                    env->vregs[i][0].ll, env->vregs[i][1].ll);
-        cpu_fprintf(f, (i % 2) ? "\n" : " ");
     }
 
 #ifndef CONFIG_USER_ONLY

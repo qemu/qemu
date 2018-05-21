@@ -219,11 +219,13 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f,
             cpu_fprintf(f, "\n");
         }
     }
-    for (i = 0; i < 32; i++) {
-        cpu_fprintf(f, " %s %016" PRIx64,
-            riscv_fpr_regnames[i], env->fpr[i]);
-        if ((i & 3) == 3) {
-            cpu_fprintf(f, "\n");
+    if (flags & CPU_DUMP_FPU) {
+        for (i = 0; i < 32; i++) {
+            cpu_fprintf(f, " %s %016" PRIx64,
+                riscv_fpr_regnames[i], env->fpr[i]);
+            if ((i & 3) == 3) {
+                cpu_fprintf(f, "\n");
+            }
         }
     }
 }

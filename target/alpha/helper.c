@@ -442,20 +442,19 @@ void alpha_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "     PC  " TARGET_FMT_lx "      PS  %02x\n",
                 env->pc, extract32(env->flags, ENV_FLAG_PS_SHIFT, 8));
     for (i = 0; i < 31; i++) {
-        cpu_fprintf(f, "IR%02d %s " TARGET_FMT_lx " ", i,
-                    linux_reg_names[i], cpu_alpha_load_gr(env, i));
-        if ((i % 3) == 2)
-            cpu_fprintf(f, "\n");
+        cpu_fprintf(f, "IR%02d %s " TARGET_FMT_lx "%c", i,
+                    linux_reg_names[i], cpu_alpha_load_gr(env, i),
+                    (i % 3) == 2 ? '\n' : ' ');
     }
 
     cpu_fprintf(f, "lock_a   " TARGET_FMT_lx " lock_v   " TARGET_FMT_lx "\n",
                 env->lock_addr, env->lock_value);
 
-    for (i = 0; i < 31; i++) {
-        cpu_fprintf(f, "FIR%02d    " TARGET_FMT_lx " ", i,
-                    *((uint64_t *)(&env->fir[i])));
-        if ((i % 3) == 2)
-            cpu_fprintf(f, "\n");
+    if (flags & CPU_DUMP_FPU) {
+        for (i = 0; i < 31; i++) {
+            cpu_fprintf(f, "FIR%02d    %016" PRIx64 "%c", i, env->fir[i],
+                        (i % 3) == 2 ? '\n' : ' ');
+        }
     }
     cpu_fprintf(f, "\n");
 }
