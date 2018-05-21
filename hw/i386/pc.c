@@ -2182,6 +2182,33 @@ static void pc_machine_set_nvdimm(Object *obj, bool value, Error **errp)
     pcms->acpi_nvdimm_state.is_enabled = value;
 }
 
+static void pc_machine_get_nvdimm_capabilities(Object *obj, Visitor *v,
+                                               const char *name, void *opaque,
+                                               Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    uint32_t value = pcms->acpi_nvdimm_state.capabilities;
+
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void pc_machine_set_nvdimm_capabilities(Object *obj, Visitor *v,
+                                               const char *name, void *opaque,
+                                               Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    Error *error = NULL;
+    uint32_t value;
+
+    visit_type_uint32(v, name, &value, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+
+    pcms->acpi_nvdimm_state.capabilities = value;
+}
+
 static bool pc_machine_get_smbus(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -2394,6 +2421,10 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, PC_MACHINE_NVDIMM,
         pc_machine_get_nvdimm, pc_machine_set_nvdimm, &error_abort);
+
+    object_class_property_add(oc, PC_MACHINE_NVDIMM_CAP, "uint32",
+        pc_machine_get_nvdimm_capabilities,
+        pc_machine_set_nvdimm_capabilities, NULL, NULL, &error_abort);
 
     object_class_property_add_bool(oc, PC_MACHINE_SMBUS,
         pc_machine_get_smbus, pc_machine_set_smbus, &error_abort);
