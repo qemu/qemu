@@ -25,13 +25,10 @@
 #ifndef HW_M48T59_INTERNAL_H
 #define HW_M48T59_INTERNAL_H 1
 
-//#define DEBUG_NVRAM
+#define M48T59_DEBUG 0
 
-#if defined(DEBUG_NVRAM)
-#define NVRAM_PRINTF(fmt, ...) do { printf(fmt , ## __VA_ARGS__); } while (0)
-#else
-#define NVRAM_PRINTF(fmt, ...) do { } while (0)
-#endif
+#define NVRAM_PRINTF(fmt, ...) do { \
+    if (M48T59_DEBUG) { printf(fmt , ## __VA_ARGS__); } } while (0)
 
 /*
  * The M48T02, M48T08 and M48T59 chips are very similar. The newer '59 has

@@ -1570,9 +1570,7 @@ OperandSem_opnd_sem_AR_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 OperandSem_opnd_sem_AR_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp >= 32);
-  return error;
+  return (*valp >= 32);
 }
 
 static int
@@ -1584,9 +1582,7 @@ OperandSem_opnd_sem_AR_0_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 OperandSem_opnd_sem_AR_0_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp >= 32);
-  return error;
+  return (*valp >= 32);
 }
 
 static int
@@ -1598,9 +1594,7 @@ OperandSem_opnd_sem_AR_1_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 OperandSem_opnd_sem_AR_1_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp >= 32);
-  return error;
+  return (*valp >= 32);
 }
 
 static int
@@ -1612,9 +1606,7 @@ OperandSem_opnd_sem_AR_2_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 OperandSem_opnd_sem_AR_2_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp >= 32);
-  return error;
+  return (*valp >= 32);
 }
 
 static int
@@ -1626,9 +1618,7 @@ OperandSem_opnd_sem_AR_3_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 OperandSem_opnd_sem_AR_3_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp >= 32);
-  return error;
+  return (*valp >= 32);
 }
 
 static int
@@ -1640,9 +1630,7 @@ OperandSem_opnd_sem_AR_4_decode (uint32 *valp ATTRIBUTE_UNUSED)
 static int
 OperandSem_opnd_sem_AR_4_encode (uint32 *valp)
 {
-  int error;
-  error = (*valp >= 32);
-  return error;
+  return (*valp >= 32);
 }
 
 static int

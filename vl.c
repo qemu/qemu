@@ -4011,6 +4011,10 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
+            case QEMU_OPTION_nodefconfig:
+            case QEMU_OPTION_nouserconfig:
+                /* Nothing to be parsed here. Especially, do not error out below. */
+                break;
             default:
                 if (os_parse_cmd_args(popt->index, optarg)) {
                     error_report("Option not supported in this build");

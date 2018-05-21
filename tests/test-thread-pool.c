@@ -224,8 +224,6 @@ static void test_cancel_async(void)
 
 int main(int argc, char **argv)
 {
-    int ret;
-
     qemu_init_main_loop(&error_abort);
     ctx = qemu_get_current_aio_context();
     pool = aio_get_thread_pool(ctx);
@@ -238,7 +236,5 @@ int main(int argc, char **argv)
     g_test_add_func("/thread-pool/cancel", test_cancel);
     g_test_add_func("/thread-pool/cancel-async", test_cancel_async);
 
-    ret = g_test_run();
-
-    return ret;
+    return g_test_run();
 }

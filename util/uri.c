@@ -1065,10 +1065,7 @@ URI *uri_parse_raw(const char *str, int raw)
  */
 URI *uri_new(void)
 {
-    URI *ret;
-
-    ret = g_new0(URI, 1);
-    return ret;
+    return g_new0(URI, 1);
 }
 
 /**

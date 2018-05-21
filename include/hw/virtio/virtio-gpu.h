@@ -18,7 +18,6 @@
 #include "ui/qemu-pixman.h"
 #include "ui/console.h"
 #include "hw/virtio/virtio.h"
-#include "hw/pci/pci.h"
 #include "qemu/log.h"
 
 #include "standard-headers/linux/virtio_gpu.h"

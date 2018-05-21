@@ -176,12 +176,8 @@ static void mos6522_set_sr_int(MOS6522State *s)
 
 static uint64_t mos6522_get_counter_value(MOS6522State *s, MOS6522Timer *ti)
 {
-    uint64_t d;
-
-    d = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ti->load_time,
-                 ti->frequency, NANOSECONDS_PER_SECOND);
-
-    return d;
+    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ti->load_time,
+                    ti->frequency, NANOSECONDS_PER_SECOND);
 }
 
 static uint64_t mos6522_get_load_time(MOS6522State *s, MOS6522Timer *ti)

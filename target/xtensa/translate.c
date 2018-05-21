@@ -1272,11 +1272,8 @@ XtensaOpcodeOps *
 xtensa_find_opcode_ops(const XtensaOpcodeTranslators *t,
                        const char *name)
 {
-    XtensaOpcodeOps *ops;
-
-    ops = bsearch(name, t->opcode, t->num_opcodes,
-                  sizeof(XtensaOpcodeOps), compare_opcode_ops);
-    return ops;
+    return bsearch(name, t->opcode, t->num_opcodes,
+                   sizeof(XtensaOpcodeOps), compare_opcode_ops);
 }
 
 static void translate_abs(DisasContext *dc, const uint32_t arg[],
