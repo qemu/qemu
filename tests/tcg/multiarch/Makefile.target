@@ -27,10 +27,10 @@ testthread: LDFLAGS+=-lpthread
 
 # default case (host page size)
 run-test-mmap: test-mmap
-	$(call quiet-command, $(QEMU) $< > test-mmap.out, "TEST", \
+	$(call run-test, test-mmap, $(QEMU) $<, \
 		"$< (default) on $(TARGET_NAME)")
 
 # additional page sizes (defined by each architecture adding to EXTRA_RUNS)
 run-test-mmap-%: test-mmap
-	$(call quiet-command, $(QEMU) -p $* $< > test-mmap-$*.out, "TEST", \
+	$(call run-test, test-mmap-$*, $(QEMU) -p $* $<,\
 		"$< ($* byte pages) on $(TARGET_NAME)")
