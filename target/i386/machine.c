@@ -837,6 +837,25 @@ static const VMStateDescription vmstate_spec_ctrl = {
     }
 };
 
+static bool virt_ssbd_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->virt_ssbd != 0;
+}
+
+static const VMStateDescription vmstate_msr_virt_ssbd = {
+    .name = "cpu/virt_ssbd",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = virt_ssbd_needed,
+    .fields = (VMStateField[]){
+        VMSTATE_UINT64(env.virt_ssbd, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -957,6 +976,7 @@ VMStateDescription vmstate_x86_cpu = {
 #endif
         &vmstate_spec_ctrl,
         &vmstate_mcg_ext_ctl,
+        &vmstate_msr_virt_ssbd,
         NULL
     }
 };
