@@ -1,4 +1,7 @@
 
+# These are used when we want to do substitutions without confusing Make
+NULL  :=
+SPACE := $(NULL) #
 COMMA := ,
 
 # Don't use implicit rules or variables
