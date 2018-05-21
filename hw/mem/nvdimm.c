@@ -89,7 +89,7 @@ static void nvdimm_set_unarmed(Object *obj, bool value, Error **errp)
 
 static void nvdimm_init(Object *obj)
 {
-    object_property_add(obj, NVDIMM_LABLE_SIZE_PROP, "int",
+    object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "int",
                         nvdimm_get_label_size, nvdimm_set_label_size, NULL,
                         NULL, NULL);
     object_property_add_bool(obj, NVDIMM_UNARMED_PROP,
