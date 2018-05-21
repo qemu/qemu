@@ -21,6 +21,7 @@ test-base64
 test-bdrv-drain
 test-bitops
 test-bitcnt
+test-block-backend
 test-blockjob
 test-blockjob-txn
 test-bufferiszero
