@@ -156,8 +156,10 @@ static void create_fdt(SpikeState *s, const struct MemmapEntry *memmap,
     g_free(cells);
     g_free(nodename);
 
-    qemu_fdt_add_subnode(fdt, "/chosen");
-    qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", cmdline);
+    if (cmdline) {
+        qemu_fdt_add_subnode(fdt, "/chosen");
+        qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", cmdline);
+    }
  }
 
 static void spike_v1_10_0_board_init(MachineState *machine)
