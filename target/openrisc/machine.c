@@ -24,31 +24,6 @@
 #include "hw/boards.h"
 #include "migration/cpu.h"
 
-static int env_post_load(void *opaque, int version_id)
-{
-    CPUOpenRISCState *env = opaque;
-
-    /* Restore MMU handlers */
-    if (env->sr & SR_DME) {
-        env->tlb.cpu_openrisc_map_address_data =
-            &cpu_openrisc_get_phys_data;
-    } else {
-        env->tlb.cpu_openrisc_map_address_data =
-            &cpu_openrisc_get_phys_nommu;
-    }
-
-    if (env->sr & SR_IME) {
-        env->tlb.cpu_openrisc_map_address_code =
-            &cpu_openrisc_get_phys_code;
-    } else {
-        env->tlb.cpu_openrisc_map_address_code =
-            &cpu_openrisc_get_phys_nommu;
-    }
-
-
-    return 0;
-}
-
 static const VMStateDescription vmstate_tlb_entry = {
     .name = "tlb_entry",
     .version_id = 1,
@@ -102,7 +77,6 @@ static const VMStateDescription vmstate_env = {
     .name = "env",
     .version_id = 6,
     .minimum_version_id = 6,
-    .post_load = env_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINTTL_2DARRAY(shadow_gpr, CPUOpenRISCState, 16, 32),
         VMSTATE_UINTTL(pc, CPUOpenRISCState),

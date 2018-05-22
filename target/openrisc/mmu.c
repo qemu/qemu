@@ -29,18 +29,16 @@
 #endif
 
 #ifndef CONFIG_USER_ONLY
-int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
-                                hwaddr *physical,
-                                int *prot, target_ulong address, int rw)
+static inline int get_phys_nommu(hwaddr *physical, int *prot,
+                                 target_ulong address)
 {
     *physical = address;
     *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     return TLBRET_MATCH;
 }
 
-int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
-                               hwaddr *physical,
-                               int *prot, target_ulong address, int rw)
+static int get_phys_code(OpenRISCCPU *cpu, hwaddr *physical, int *prot,
+                         target_ulong address, int rw, bool supervisor)
 {
     int vpn = address >> TARGET_PAGE_BITS;
     int idx = vpn & ITLB_MASK;
@@ -52,8 +50,7 @@ int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
     if (!(cpu->env.tlb.itlb[0][idx].mr & 1)) {
         return TLBRET_INVALID;
     }
-
-    if (cpu->env.sr & SR_SM) { /* supervisor mode */
+    if (supervisor) {
         if (cpu->env.tlb.itlb[0][idx].tr & SXE) {
             right |= PAGE_EXEC;
         }
@@ -62,7 +59,6 @@ int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
             right |= PAGE_EXEC;
         }
     }
-
     if ((rw & 2) && ((right & PAGE_EXEC) == 0)) {
         return TLBRET_BADADDR;
     }
@@ -73,9 +69,8 @@ int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
     return TLBRET_MATCH;
 }
 
-int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
-                               hwaddr *physical,
-                               int *prot, target_ulong address, int rw)
+static int get_phys_data(OpenRISCCPU *cpu, hwaddr *physical, int *prot,
+                         target_ulong address, int rw, bool supervisor)
 {
     int vpn = address >> TARGET_PAGE_BITS;
     int idx = vpn & DTLB_MASK;
@@ -87,8 +82,7 @@ int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
     if (!(cpu->env.tlb.dtlb[0][idx].mr & 1)) {
         return TLBRET_INVALID;
     }
-
-    if (cpu->env.sr & SR_SM) { /* supervisor mode */
+    if (supervisor) {
         if (cpu->env.tlb.dtlb[0][idx].tr & SRE) {
             right |= PAGE_READ;
         }
@@ -117,20 +111,24 @@ int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
     return TLBRET_MATCH;
 }
 
-static int cpu_openrisc_get_phys_addr(OpenRISCCPU *cpu,
-                                      hwaddr *physical,
-                                      int *prot, target_ulong address,
-                                      int rw)
+static int get_phys_addr(OpenRISCCPU *cpu, hwaddr *physical,
+                         int *prot, target_ulong address, int rw)
 {
-    int ret = TLBRET_MATCH;
+    bool supervisor = (cpu->env.sr & SR_SM) != 0;
+    int ret;
 
-    if (rw == MMU_INST_FETCH) {    /* ITLB */
-       *physical = 0;
-        ret = cpu->env.tlb.cpu_openrisc_map_address_code(cpu, physical,
-                                                          prot, address, rw);
-    } else {          /* DTLB */
-        ret = cpu->env.tlb.cpu_openrisc_map_address_data(cpu, physical,
-                                                          prot, address, rw);
+    /* Assume nommu results for a moment.  */
+    ret = get_phys_nommu(physical, prot, address);
+
+    /* Overwrite with TLB lookup if enabled.  */
+    if (rw == MMU_INST_FETCH) {
+        if (cpu->env.sr & SR_IME) {
+            ret = get_phys_code(cpu, physical, prot, address, rw, supervisor);
+        }
+    } else {
+        if (cpu->env.sr & SR_DME) {
+            ret = get_phys_data(cpu, physical, prot, address, rw, supervisor);
+        }
     }
 
     return ret;
@@ -186,8 +184,7 @@ int openrisc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
     hwaddr physical = 0;
     int prot = 0;
 
-    ret = cpu_openrisc_get_phys_addr(cpu, &physical, &prot,
-                                     address, rw);
+    ret = get_phys_addr(cpu, &physical, &prot, address, rw);
 
     if (ret == TLBRET_MATCH) {
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
@@ -225,17 +222,16 @@ hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 
     /* Check memory for any kind of address, since during debug the
        gdb can ask for anything, check data tlb for address */
-    miss = cpu_openrisc_get_phys_addr(cpu, &phys_addr, &prot, addr, 0);
+    miss = get_phys_addr(cpu, &phys_addr, &prot, addr, 0);
 
     /* Check instruction tlb */
     if (miss) {
-        miss = cpu_openrisc_get_phys_addr(cpu, &phys_addr, &prot, addr,
-                                          MMU_INST_FETCH);
+        miss = get_phys_addr(cpu, &phys_addr, &prot, addr, MMU_INST_FETCH);
     }
 
     /* Last, fall back to a plain address */
     if (miss) {
-        miss = cpu_openrisc_get_phys_nommu(cpu, &phys_addr, &prot, addr, 0);
+        miss = get_phys_nommu(&phys_addr, &prot, addr);
     }
 
     if (miss) {
@@ -243,11 +239,5 @@ hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     } else {
         return phys_addr;
     }
-}
-
-void cpu_openrisc_mmu_init(OpenRISCCPU *cpu)
-{
-    cpu->env.tlb.cpu_openrisc_map_address_code = &cpu_openrisc_get_phys_nommu;
-    cpu->env.tlb.cpu_openrisc_map_address_data = &cpu_openrisc_get_phys_nommu;
 }
 #endif

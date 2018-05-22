@@ -60,21 +60,6 @@ void HELPER(mtspr)(CPUOpenRISCState *env, target_ulong spr, target_ulong rb)
             tlb_flush(cs);
         }
         cpu_set_sr(env, rb);
-        if (env->sr & SR_DME) {
-            env->tlb.cpu_openrisc_map_address_data =
-                &cpu_openrisc_get_phys_data;
-        } else {
-            env->tlb.cpu_openrisc_map_address_data =
-                &cpu_openrisc_get_phys_nommu;
-        }
-
-        if (env->sr & SR_IME) {
-            env->tlb.cpu_openrisc_map_address_code =
-                &cpu_openrisc_get_phys_code;
-        } else {
-            env->tlb.cpu_openrisc_map_address_code =
-                &cpu_openrisc_get_phys_nommu;
-        }
         break;
 
     case TO_SPR(0, 18): /* PPC */

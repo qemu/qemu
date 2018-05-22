@@ -92,10 +92,6 @@ static void openrisc_cpu_initfn(Object *obj)
     OpenRISCCPU *cpu = OPENRISC_CPU(obj);
 
     cs->env_ptr = &cpu->env;
-
-#ifndef CONFIG_USER_ONLY
-    cpu_openrisc_mmu_init(cpu);
-#endif
 }
 
 /* CPU models */

@@ -379,17 +379,6 @@ void cpu_openrisc_count_update(OpenRISCCPU *cpu);
 void cpu_openrisc_timer_update(OpenRISCCPU *cpu);
 void cpu_openrisc_count_start(OpenRISCCPU *cpu);
 void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
-
-void cpu_openrisc_mmu_init(OpenRISCCPU *cpu);
-int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
-                                hwaddr *physical,
-                                int *prot, target_ulong address, int rw);
-int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
-                               hwaddr *physical,
-                               int *prot, target_ulong address, int rw);
-int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
-                               hwaddr *physical,
-                               int *prot, target_ulong address, int rw);
 #endif
 
 #define OPENRISC_CPU_TYPE_SUFFIX "-" TYPE_OPENRISC_CPU
