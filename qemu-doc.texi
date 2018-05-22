@@ -2922,6 +2922,11 @@ The @code{-startdate} option has been replaced by @code{-rtc base=@var{date}}.
 Option @option{-virtioconsole} has been replaced by
 @option{-device virtconsole}.
 
+@subsection -clock (since 3.0.0)
+
+The @code{-clock} option is ignored since QEMU version 1.7.0. There is no
+replacement since it is not needed anymore.
+
 @section qemu-img command line arguments
 
 @subsection convert -s (since 2.0.0)
