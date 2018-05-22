@@ -191,10 +191,13 @@ static int bochs_display_get_mode(BochsDisplayState *s,
 static void bochs_display_update(void *opaque)
 {
     BochsDisplayState *s = opaque;
+    DirtyBitmapSnapshot *snap = NULL;
+    bool full_update = false;
     BochsDisplayMode mode;
     DisplaySurface *ds;
     uint8_t *ptr;
-    int ret;
+    bool dirty;
+    int y, ys, ret;
 
     ret = bochs_display_get_mode(s, &mode);
     if (ret < 0) {
@@ -212,9 +215,34 @@ static void bochs_display_update(void *opaque)
                                              mode.stride,
                                              ptr + mode.offset);
         dpy_gfx_replace_surface(s->con, ds);
+        full_update = true;
     }
 
-    dpy_gfx_update_full(s->con);
+    if (full_update) {
+        dpy_gfx_update_full(s->con);
+    } else {
+        snap = memory_region_snapshot_and_clear_dirty(&s->vram,
+                                                      mode.offset, mode.size,
+                                                      DIRTY_MEMORY_VGA);
+        ys = -1;
+        for (y = 0; y < mode.height; y++) {
+            dirty = memory_region_snapshot_get_dirty(&s->vram, snap,
+                                                     mode.offset + mode.stride * y,
+                                                     mode.stride);
+            if (dirty && ys < 0) {
+                ys = y;
+            }
+            if (!dirty && ys >= 0) {
+                dpy_gfx_update(s->con, 0, ys,
+                               mode.width, y - ys);
+                ys = -1;
+            }
+        }
+        if (ys >= 0) {
+            dpy_gfx_update(s->con, 0, ys,
+                           mode.width, y - ys);
+        }
+    }
 }
 
 static const GraphicHwOps bochs_display_gfx_ops = {
@@ -251,6 +279,8 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
     pci_set_byte(&s->pci.config[PCI_REVISION_ID], 2);
     pci_register_bar(&s->pci, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
     pci_register_bar(&s->pci, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio);
+
+    memory_region_set_log(&s->vram, true, DIRTY_MEMORY_VGA);
 }
 
 static bool bochs_display_get_big_endian_fb(Object *obj, Error **errp)
