@@ -4071,18 +4071,18 @@ static const TypeInfo spapr_machine_info = {
     type_init(spapr_machine_register_##suffix)
 
 /*
- * pseries-2.13
+ * pseries-3.0
  */
-static void spapr_machine_2_13_instance_options(MachineState *machine)
+static void spapr_machine_3_0_instance_options(MachineState *machine)
 {
 }
 
-static void spapr_machine_2_13_class_options(MachineClass *mc)
+static void spapr_machine_3_0_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
 }
 
-DEFINE_SPAPR_MACHINE(2_13, "2.13", true);
+DEFINE_SPAPR_MACHINE(3_0, "3.0", true);
 
 /*
  * pseries-2.12
@@ -4091,18 +4091,18 @@ DEFINE_SPAPR_MACHINE(2_13, "2.13", true);
     HW_COMPAT_2_12                                                     \
     {                                                                  \
         .driver = TYPE_POWERPC_CPU,                                    \
-        .property = "pre-2.13-migration",                              \
+        .property = "pre-3.0-migration",                              \
         .value    = "on",                                              \
     },
 
 static void spapr_machine_2_12_instance_options(MachineState *machine)
 {
-    spapr_machine_2_13_instance_options(machine);
+    spapr_machine_3_0_instance_options(machine);
 }
 
 static void spapr_machine_2_12_class_options(MachineClass *mc)
 {
-    spapr_machine_2_13_class_options(mc);
+    spapr_machine_3_0_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_12);
 }
 

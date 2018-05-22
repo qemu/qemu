@@ -150,11 +150,11 @@ static bool cpu_pre_2_8_migration(void *opaque, int version_id)
 }
 
 #if defined(TARGET_PPC64)
-static bool cpu_pre_2_13_migration(void *opaque, int version_id)
+static bool cpu_pre_3_0_migration(void *opaque, int version_id)
 {
     PowerPCCPU *cpu = opaque;
 
-    return cpu->pre_2_13_migration;
+    return cpu->pre_3_0_migration;
 }
 #endif
 
@@ -220,7 +220,7 @@ static int cpu_pre_save(void *opaque)
         cpu->mig_insns_flags2 = env->insns_flags2 & insns_compat_mask2;
         cpu->mig_nb_BATs = env->nb_BATs;
     }
-    if (cpu->pre_2_13_migration) {
+    if (cpu->pre_3_0_migration) {
         if (cpu->hash64_opts) {
             cpu->mig_slb_nr = cpu->hash64_opts->slb_size;
         }
@@ -517,7 +517,7 @@ static const VMStateDescription vmstate_slb = {
     .needed = slb_needed,
     .post_load = slb_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32_TEST(mig_slb_nr, PowerPCCPU, cpu_pre_2_13_migration),
+        VMSTATE_INT32_TEST(mig_slb_nr, PowerPCCPU, cpu_pre_3_0_migration),
         VMSTATE_SLB_ARRAY(env.slb, PowerPCCPU, MAX_SLB_ENTRIES),
         VMSTATE_END_OF_LIST()
     }
