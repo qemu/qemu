@@ -498,7 +498,7 @@
 #
 # Since: 1.2
 #
-# 'vlan': dropped in 2.13
+# 'vlan': dropped in 3.0
 ##
 { 'struct': 'NetLegacy',
   'data': {

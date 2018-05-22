@@ -2424,7 +2424,7 @@
 # @vxhs: Since 2.10
 # @throttle: Since 2.11
 # @nvme: Since 2.12
-# @copy-on-read: Since 2.13
+# @copy-on-read: Since 3.0
 #
 # Since: 2.9
 ##
@@ -2452,7 +2452,7 @@
 # @x-check-cache-dropped: whether to check that page cache was dropped on live
 #                         migration.  May cause noticeable delays if the image
 #                         file is large, do not use in production.
-#                         (default: off) (since: 2.13)
+#                         (default: off) (since: 3.0)
 #
 # Since: 2.9
 ##

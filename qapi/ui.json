@@ -1031,7 +1031,7 @@
  # @core: Use OpenGL with Core (desktop) Context.
  # @es: Use OpenGL with ES (embedded systems) Context.
  #
- # Since: 2.13
+ # Since: 3.0
  #
  ##
  { 'enum'    : 'DisplayGLMode',

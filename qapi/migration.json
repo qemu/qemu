@@ -89,9 +89,9 @@
 #
 # @postcopy-active: like active, but now in postcopy mode. (since 2.5)
 #
-# @postcopy-paused: during postcopy but paused. (since 2.13)
+# @postcopy-paused: during postcopy but paused. (since 3.0)
 #
-# @postcopy-recover: trying to recover from a paused postcopy. (since 2.13)
+# @postcopy-recover: trying to recover from a paused postcopy. (since 3.0)
 #
 # @completed: migration is finished.
 #
@@ -163,11 +163,11 @@
 #
 # @postcopy-blocktime: total time when all vCPU were blocked during postcopy
 #           live migration. This is only present when the postcopy-blocktime
-#           migration capability is enabled. (Since 2.13)
+#           migration capability is enabled. (Since 3.0)
 #
 # @postcopy-vcpu-blocktime: list of the postcopy blocktime per vCPU.  This is
 #           only present when the postcopy-blocktime migration capability
-#           is enabled. (Since 2.13)
+#           is enabled. (Since 3.0)
 #
 #
 # Since: 0.14.0
@@ -374,7 +374,7 @@
 #                 (since 2.12)
 #
 # @postcopy-blocktime: Calculate downtime for postcopy live migration
-#                     (since 2.13)
+#                     (since 3.0)
 #
 # Since: 1.2
 ##
@@ -1034,7 +1034,7 @@
 # @detach: this argument exists only for compatibility reasons and
 #          is ignored by QEMU
 #
-# @resume: resume one paused migration, default "off". (since 2.13)
+# @resume: resume one paused migration, default "off". (since 3.0)
 #
 # Returns: nothing on success
 #
@@ -1208,7 +1208,7 @@
 #      "arguments": { "uri": "tcp:192.168.1.200:12345" } }
 # <- { "return": {} }
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'command': 'migrate-recover', 'data': { 'uri': 'str' },
   'allow-oob': true }
@@ -1225,6 +1225,6 @@
 # -> { "execute": "migrate-pause" }
 # <- { "return": {} }
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'command': 'migrate-pause', 'allow-oob': true }
