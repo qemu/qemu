@@ -37,6 +37,7 @@
 #include "exec/log.h"
 
 /* is_jmp field values */
+#define DISAS_EXIT    DISAS_TARGET_0  /* force exit to main loop */
 #define DISAS_UPDATE  DISAS_TARGET_1 /* cpu state was modified dynamically */
 
 typedef struct DisasContext {
@@ -1133,7 +1134,7 @@ static bool trans_l_rfe(DisasContext *dc, arg_l_rfe *a, uint32_t insn)
         gen_illegal_exception(dc);
     } else {
         gen_helper_rfe(cpu_env);
-        dc->base.is_jmp = DISAS_UPDATE;
+        dc->base.is_jmp = DISAS_EXIT;
     }
 #endif
     return true;
@@ -1353,8 +1354,7 @@ static void openrisc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         case DISAS_NORETURN:
             break;
         case DISAS_UPDATE:
-            /* indicate that the hash table must be used
-               to find the next TB */
+        case DISAS_EXIT:
             tcg_gen_exit_tb(NULL, 0);
             break;
         default:
