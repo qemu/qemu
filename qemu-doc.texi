@@ -2917,7 +2917,7 @@ The @code{-localtime} option has been replaced by @code{-rtc base=localtime}.
 
 The @code{-startdate} option has been replaced by @code{-rtc base=@var{date}}.
 
-@subsection -virtioconsole (since 2.13.0)
+@subsection -virtioconsole (since 3.0.0)
 
 Option @option{-virtioconsole} has been replaced by
 @option{-device virtconsole}.
@@ -2940,7 +2940,7 @@ from qcow2 images.
 
 The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
 
-@subsection query-cpus-fast "arch" output member (since 2.13.0)
+@subsection query-cpus-fast "arch" output member (since 3.0.0)
 
 The ``arch'' output member of the ``query-cpus-fast'' command is
 replaced by the ``target'' output member.
