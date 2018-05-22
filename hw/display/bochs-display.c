@@ -253,6 +253,7 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
 {
     BochsDisplayState *s = BOCHS_DISPLAY(dev);
     Object *obj = OBJECT(dev);
+    int ret;
 
     s->con = graphic_console_init(DEVICE(dev), 0, &bochs_display_gfx_ops, s);
 
@@ -279,6 +280,12 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
     pci_set_byte(&s->pci.config[PCI_REVISION_ID], 2);
     pci_register_bar(&s->pci, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
     pci_register_bar(&s->pci, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio);
+
+    if (pci_bus_is_express(pci_get_bus(dev))) {
+        dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+        ret = pcie_endpoint_cap_init(dev, 0x80);
+        assert(ret > 0);
+    }
 
     memory_region_set_log(&s->vram, true, DIRTY_MEMORY_VGA);
 }
@@ -342,6 +349,7 @@ static const TypeInfo bochs_display_type_info = {
     .instance_init  = bochs_display_init,
     .class_init     = bochs_display_class_init,
     .interfaces     = (InterfaceInfo[]) {
+        { INTERFACE_PCIE_DEVICE },
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
