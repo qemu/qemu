@@ -30,6 +30,7 @@
 #include <ipv6.h>
 #include <dns.h>
 #include <time.h>
+#include <pxelinux.h>
 
 #include "s390-ccw.h"
 #include "virtio.h"
@@ -41,12 +42,14 @@ extern char _start[];
 
 #define KERNEL_ADDR             ((void *)0L)
 #define KERNEL_MAX_SIZE         ((long)_start)
+#define ARCH_COMMAND_LINE_SIZE  896              /* Taken from Linux kernel */
 
 char stack[PAGE_SIZE * 8] __attribute__((aligned(PAGE_SIZE)));
 IplParameterBlock iplb __attribute__((aligned(PAGE_SIZE)));
 static char cfgbuf[2048];
 
 static SubChannelId net_schid = { .one = 1 };
+static uint8_t mac[6];
 static uint64_t dest_timer;
 
 static uint64_t get_timer_ms(void)
@@ -159,7 +162,6 @@ static int tftp_load(filename_ip_t *fnip, void *buffer, int len)
 
 static int net_init(filename_ip_t *fn_ip)
 {
-    uint8_t mac[6];
     int rc;
 
     memset(fn_ip, 0, sizeof(filename_ip_t));
@@ -234,6 +236,66 @@ static void net_release(filename_ip_t *fn_ip)
 }
 
 /**
+ * Load a kernel with initrd (i.e. with the information that we've got from
+ * a pxelinux.cfg config file)
+ */
+static int load_kernel_with_initrd(filename_ip_t *fn_ip,
+                                   struct pl_cfg_entry *entry)
+{
+    int rc;
+
+    printf("Loading pxelinux.cfg entry '%s'\n", entry->label);
+
+    if (!entry->kernel) {
+        printf("Kernel entry is missing!\n");
+        return -1;
+    }
+
+    strncpy(fn_ip->filename, entry->kernel, sizeof(fn_ip->filename));
+    rc = tftp_load(fn_ip, KERNEL_ADDR, KERNEL_MAX_SIZE);
+    if (rc < 0) {
+        return rc;
+    }
+
+    if (entry->initrd) {
+        uint64_t iaddr = (rc + 0xfff) & ~0xfffUL;
+
+        strncpy(fn_ip->filename, entry->initrd, sizeof(fn_ip->filename));
+        rc = tftp_load(fn_ip, (void *)iaddr, KERNEL_MAX_SIZE - iaddr);
+        if (rc < 0) {
+            return rc;
+        }
+        /* Patch location and size: */
+        *(uint64_t *)0x10408 = iaddr;
+        *(uint64_t *)0x10410 = rc;
+        rc += iaddr;
+    }
+
+    if (entry->append) {
+        strncpy((char *)0x10480, entry->append, ARCH_COMMAND_LINE_SIZE);
+    }
+
+    return rc;
+}
+
+#define MAX_PXELINUX_ENTRIES 16
+
+static int net_try_pxelinux_cfg(filename_ip_t *fn_ip)
+{
+    struct pl_cfg_entry entries[MAX_PXELINUX_ENTRIES];
+    int num_ent, def_ent = 0;
+
+    num_ent = pxelinux_load_parse_cfg(fn_ip, mac, NULL, DEFAULT_TFTP_RETRIES,
+                                      cfgbuf, sizeof(cfgbuf),
+                                      entries, MAX_PXELINUX_ENTRIES, &def_ent);
+    if (num_ent > 0) {
+        return load_kernel_with_initrd(fn_ip, &entries[def_ent]);
+    }
+
+    return -1;
+}
+
+/**
  * Load via information from a .INS file (which can be found on CD-ROMs
  * for example)
  */
@@ -301,6 +363,25 @@ static int net_try_direct_tftp_load(filename_ip_t *fn_ip)
         cfgbuf[rc] = 0;    /* Make sure that it is NUL-terminated */
         if (!strncmp("* ", cfgbuf, 2)) {
             return handle_ins_cfg(fn_ip, cfgbuf, rc);
+        }
+        /*
+         * pxelinux.cfg support via bootfile name is just here for developers'
+         * convenience (it eases testing with the built-in DHCP server of QEMU
+         * that does not support RFC 5071). The official way to configure a
+         * pxelinux.cfg file name is to use DHCP options 209 and 210 instead.
+         * So only use the pxelinux.cfg parser here for files that start with
+         * a magic comment string.
+         */
+        if (!strncasecmp("# pxelinux", cfgbuf, 10)) {
+            struct pl_cfg_entry entries[MAX_PXELINUX_ENTRIES];
+            int num_ent, def_ent = 0;
+
+            num_ent = pxelinux_parse_cfg(cfgbuf, sizeof(cfgbuf), entries,
+                                         MAX_PXELINUX_ENTRIES, &def_ent);
+            if (num_ent <= 0) {
+                return -1;
+            }
+            return load_kernel_with_initrd(fn_ip, &entries[def_ent]);
         }
     }
 
@@ -406,6 +487,9 @@ void main(void)
     fnlen = strlen(fn_ip.filename);
     if (fnlen > 0 && fn_ip.filename[fnlen - 1] != '/') {
         rc = net_try_direct_tftp_load(&fn_ip);
+    }
+    if (rc <= 0) {
+        rc = net_try_pxelinux_cfg(&fn_ip);
     }
 
     net_release(&fn_ip);
