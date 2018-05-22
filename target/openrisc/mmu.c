@@ -46,19 +46,19 @@ int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
     int idx = vpn & ITLB_MASK;
     int right = 0;
 
-    if ((cpu->env.tlb->itlb[0][idx].mr >> TARGET_PAGE_BITS) != vpn) {
+    if ((cpu->env.tlb.itlb[0][idx].mr >> TARGET_PAGE_BITS) != vpn) {
         return TLBRET_NOMATCH;
     }
-    if (!(cpu->env.tlb->itlb[0][idx].mr & 1)) {
+    if (!(cpu->env.tlb.itlb[0][idx].mr & 1)) {
         return TLBRET_INVALID;
     }
 
     if (cpu->env.sr & SR_SM) { /* supervisor mode */
-        if (cpu->env.tlb->itlb[0][idx].tr & SXE) {
+        if (cpu->env.tlb.itlb[0][idx].tr & SXE) {
             right |= PAGE_EXEC;
         }
     } else {
-        if (cpu->env.tlb->itlb[0][idx].tr & UXE) {
+        if (cpu->env.tlb.itlb[0][idx].tr & UXE) {
             right |= PAGE_EXEC;
         }
     }
@@ -67,7 +67,7 @@ int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
         return TLBRET_BADADDR;
     }
 
-    *physical = (cpu->env.tlb->itlb[0][idx].tr & TARGET_PAGE_MASK) |
+    *physical = (cpu->env.tlb.itlb[0][idx].tr & TARGET_PAGE_MASK) |
                 (address & (TARGET_PAGE_SIZE-1));
     *prot = right;
     return TLBRET_MATCH;
@@ -81,25 +81,25 @@ int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
     int idx = vpn & DTLB_MASK;
     int right = 0;
 
-    if ((cpu->env.tlb->dtlb[0][idx].mr >> TARGET_PAGE_BITS) != vpn) {
+    if ((cpu->env.tlb.dtlb[0][idx].mr >> TARGET_PAGE_BITS) != vpn) {
         return TLBRET_NOMATCH;
     }
-    if (!(cpu->env.tlb->dtlb[0][idx].mr & 1)) {
+    if (!(cpu->env.tlb.dtlb[0][idx].mr & 1)) {
         return TLBRET_INVALID;
     }
 
     if (cpu->env.sr & SR_SM) { /* supervisor mode */
-        if (cpu->env.tlb->dtlb[0][idx].tr & SRE) {
+        if (cpu->env.tlb.dtlb[0][idx].tr & SRE) {
             right |= PAGE_READ;
         }
-        if (cpu->env.tlb->dtlb[0][idx].tr & SWE) {
+        if (cpu->env.tlb.dtlb[0][idx].tr & SWE) {
             right |= PAGE_WRITE;
         }
     } else {
-        if (cpu->env.tlb->dtlb[0][idx].tr & URE) {
+        if (cpu->env.tlb.dtlb[0][idx].tr & URE) {
             right |= PAGE_READ;
         }
-        if (cpu->env.tlb->dtlb[0][idx].tr & UWE) {
+        if (cpu->env.tlb.dtlb[0][idx].tr & UWE) {
             right |= PAGE_WRITE;
         }
     }
@@ -111,7 +111,7 @@ int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
         return TLBRET_BADADDR;
     }
 
-    *physical = (cpu->env.tlb->dtlb[0][idx].tr & TARGET_PAGE_MASK) |
+    *physical = (cpu->env.tlb.dtlb[0][idx].tr & TARGET_PAGE_MASK) |
                 (address & (TARGET_PAGE_SIZE-1));
     *prot = right;
     return TLBRET_MATCH;
@@ -126,10 +126,10 @@ static int cpu_openrisc_get_phys_addr(OpenRISCCPU *cpu,
 
     if (rw == MMU_INST_FETCH) {    /* ITLB */
        *physical = 0;
-        ret = cpu->env.tlb->cpu_openrisc_map_address_code(cpu, physical,
+        ret = cpu->env.tlb.cpu_openrisc_map_address_code(cpu, physical,
                                                           prot, address, rw);
     } else {          /* DTLB */
-        ret = cpu->env.tlb->cpu_openrisc_map_address_data(cpu, physical,
+        ret = cpu->env.tlb.cpu_openrisc_map_address_data(cpu, physical,
                                                           prot, address, rw);
     }
 
@@ -247,9 +247,7 @@ hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 
 void cpu_openrisc_mmu_init(OpenRISCCPU *cpu)
 {
-    cpu->env.tlb = g_malloc0(sizeof(CPUOpenRISCTLBContext));
-
-    cpu->env.tlb->cpu_openrisc_map_address_code = &cpu_openrisc_get_phys_nommu;
-    cpu->env.tlb->cpu_openrisc_map_address_data = &cpu_openrisc_get_phys_nommu;
+    cpu->env.tlb.cpu_openrisc_map_address_code = &cpu_openrisc_get_phys_nommu;
+    cpu->env.tlb.cpu_openrisc_map_address_data = &cpu_openrisc_get_phys_nommu;
 }
 #endif

@@ -36,18 +36,18 @@ void HELPER(rfe)(CPUOpenRISCState *env)
 
 #ifndef CONFIG_USER_ONLY
     if (cpu->env.sr & SR_DME) {
-        cpu->env.tlb->cpu_openrisc_map_address_data =
+        cpu->env.tlb.cpu_openrisc_map_address_data =
             &cpu_openrisc_get_phys_data;
     } else {
-        cpu->env.tlb->cpu_openrisc_map_address_data =
+        cpu->env.tlb.cpu_openrisc_map_address_data =
             &cpu_openrisc_get_phys_nommu;
     }
 
     if (cpu->env.sr & SR_IME) {
-        cpu->env.tlb->cpu_openrisc_map_address_code =
+        cpu->env.tlb.cpu_openrisc_map_address_code =
             &cpu_openrisc_get_phys_code;
     } else {
-        cpu->env.tlb->cpu_openrisc_map_address_code =
+        cpu->env.tlb.cpu_openrisc_map_address_code =
             &cpu_openrisc_get_phys_nommu;
     }
 

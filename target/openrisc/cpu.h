@@ -301,6 +301,10 @@ typedef struct CPUOpenRISCState {
 
     uint32_t dflag;           /* In delay slot (boolean) */
 
+#ifndef CONFIG_USER_ONLY
+    CPUOpenRISCTLBContext tlb;
+#endif
+
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
@@ -310,8 +314,6 @@ typedef struct CPUOpenRISCState {
     uint32_t cpucfgr;         /* CPU configure register */
 
 #ifndef CONFIG_USER_ONLY
-    CPUOpenRISCTLBContext * tlb;
-
     QEMUTimer *timer;
     uint32_t ttmr;          /* Timer tick mode register */
     int is_counting;
