@@ -39,4 +39,16 @@ static inline uint8_t trace_mem_get_info(TCGMemOp op, bool store)
                                 op & MO_BSWAP, store);
 }
 
+static inline
+uint8_t trace_mem_build_info_no_se_be(int size_shift, bool store)
+{
+    return trace_mem_build_info(size_shift, false, MO_BE, store);
+}
+
+static inline
+uint8_t trace_mem_build_info_no_se_le(int size_shift, bool store)
+{
+    return trace_mem_build_info(size_shift, false, MO_LE, store);
+}
+
 #endif /* TRACE__MEM_INTERNAL_H */
