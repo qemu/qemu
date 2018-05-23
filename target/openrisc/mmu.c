@@ -177,42 +177,17 @@ static void cpu_openrisc_raise_mmu_exception(OpenRISCCPU *cpu,
     cpu->env.lock_addr = -1;
 }
 
-#ifndef CONFIG_USER_ONLY
 int openrisc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
                                   int rw, int mmu_idx)
 {
+#ifdef CONFIG_USER_ONLY
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
-    int ret = 0;
-    hwaddr physical = 0;
-    int prot = 0;
-
-    ret = get_phys_addr(cpu, &physical, &prot, address, rw);
-
-    if (ret == TLBRET_MATCH) {
-        tlb_set_page(cs, address & TARGET_PAGE_MASK,
-                     physical & TARGET_PAGE_MASK, prot,
-                     mmu_idx, TARGET_PAGE_SIZE);
-        ret = 0;
-    } else if (ret < 0) {
-        cpu_openrisc_raise_mmu_exception(cpu, address, rw, ret);
-        ret = 1;
-    }
-
-    return ret;
-}
+    cpu_openrisc_raise_mmu_exception(cpu, address, rw, 0);
+    return 1;
 #else
-int openrisc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
-                                  int rw, int mmu_idx)
-{
-    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
-    int ret = 0;
-
-    cpu_openrisc_raise_mmu_exception(cpu, address, rw, ret);
-    ret = 1;
-
-    return ret;
-}
+    g_assert_not_reached();
 #endif
+}
 
 #ifndef CONFIG_USER_ONLY
 hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
