@@ -358,6 +358,7 @@ void openrisc_translate_init(void);
 int openrisc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size,
                                   int rw, int mmu_idx);
 int cpu_openrisc_signal_handler(int host_signum, void *pinfo, void *puc);
+int print_insn_or1k(bfd_vma addr, disassemble_info *info);
 
 #define cpu_list cpu_openrisc_list
 #define cpu_signal_handler cpu_openrisc_signal_handler

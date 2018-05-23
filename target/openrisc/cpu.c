@@ -35,6 +35,11 @@ static bool openrisc_cpu_has_work(CPUState *cs)
                                     CPU_INTERRUPT_TIMER);
 }
 
+static void openrisc_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    info->print_insn = print_insn_or1k;
+}
+
 /* CPUClass::reset() */
 static void openrisc_cpu_reset(CPUState *s)
 {
@@ -152,6 +157,7 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
 #endif
     cc->gdb_num_core_regs = 32 + 3;
     cc->tcg_initialize = openrisc_translate_init;
+    cc->disas_set_info = openrisc_disas_set_info;
 }
 
 /* Sort alphabetically by type name, except for "any". */
