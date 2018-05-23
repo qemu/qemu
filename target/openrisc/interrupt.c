@@ -32,6 +32,7 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
 #ifndef CONFIG_USER_ONLY
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     CPUOpenRISCState *env = &cpu->env;
+    int exception = cs->exception_index;
 
     env->epcr = env->pc;
     if (env->dflag) {
@@ -41,12 +42,12 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     } else {
         env->sr &= ~SR_DSX;
     }
-    if (cs->exception_index == EXCP_SYSCALL) {
+    if (exception == EXCP_SYSCALL) {
         env->epcr += 4;
     }
     /* When we have an illegal instruction the error effective address
        shall be set to the illegal instruction address.  */
-    if (cs->exception_index == EXCP_ILLEGAL) {
+    if (exception == EXCP_ILLEGAL) {
         env->eear = env->pc;
     }
 
@@ -66,8 +67,27 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     env->tlb->cpu_openrisc_map_address_code = &cpu_openrisc_get_phys_nommu;
     env->lock_addr = -1;
 
-    if (cs->exception_index > 0 && cs->exception_index < EXCP_NR) {
-        hwaddr vect_pc = cs->exception_index << 8;
+    if (exception > 0 && exception < EXCP_NR) {
+        static const char * const int_name[EXCP_NR] = {
+            [EXCP_RESET]    = "RESET",
+            [EXCP_BUSERR]   = "BUSERR (bus error)",
+            [EXCP_DPF]      = "DFP (data protection fault)",
+            [EXCP_IPF]      = "IPF (code protection fault)",
+            [EXCP_TICK]     = "TICK (timer interrupt)",
+            [EXCP_ALIGN]    = "ALIGN",
+            [EXCP_ILLEGAL]  = "ILLEGAL",
+            [EXCP_INT]      = "INT (device interrupt)",
+            [EXCP_DTLBMISS] = "DTLBMISS (data tlb miss)",
+            [EXCP_ITLBMISS] = "ITLBMISS (code tlb miss)",
+            [EXCP_RANGE]    = "RANGE",
+            [EXCP_SYSCALL]  = "SYSCALL",
+            [EXCP_FPE]      = "FPE",
+            [EXCP_TRAP]     = "TRAP",
+        };
+
+        qemu_log_mask(CPU_LOG_INT, "INT: %s\n", int_name[exception]);
+
+        hwaddr vect_pc = exception << 8;
         if (env->cpucfgr & CPUCFGR_EVBARP) {
             vect_pc |= env->evbar;
         }
@@ -76,7 +96,7 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
         }
         env->pc = vect_pc;
     } else {
-        cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
+        cpu_abort(cs, "Unhandled exception 0x%x\n", exception);
     }
 #endif
 
