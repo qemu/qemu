@@ -1,111 +1,156 @@
-QA output created by 212
-
 === Successful image creation (defaults) ===
 
-Testing:
-QMP_VERSION
-{"return": {}}
-{"return": {}}
-{"return": {}}
-{"return": {}}
-{"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.parallels'}}}
+{u'return': {}}
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
 
-image: TEST_DIR/t.IMGFMT
+{'execute': 'blockdev-add', 'arguments': {'node_name': 'imgfile', 'driver': 'file', 'filename': 'TEST_DIR/PID-t.parallels'}}
+{u'return': {}}
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'parallels', 'file': 'imgfile', 'size': 134217728}}}
+{u'return': {}}
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+image: TEST_IMG
 file format: IMGFMT
 virtual size: 128M (134217728 bytes)
 
 === Successful image creation (explicit defaults) ===
 
-Testing:
-QMP_VERSION
-{"return": {}}
-{"return": {}}
-{"return": {}}
-{"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.parallels'}}}
+{u'return': {}}
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
 
-image: TEST_DIR/t.IMGFMT
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 1048576, 'driver': 'parallels', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-t.parallels'}, 'size': 67108864}}}
+{u'return': {}}
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+image: TEST_IMG
 file format: IMGFMT
 virtual size: 64M (67108864 bytes)
 
 === Successful image creation (with non-default options) ===
 
-Testing:
-QMP_VERSION
-{"return": {}}
-{"return": {}}
-{"return": {}}
-{"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.parallels'}}}
+{u'return': {}}
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
 
-image: TEST_DIR/t.IMGFMT
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 65536, 'driver': 'parallels', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-t.parallels'}, 'size': 33554432}}}
+{u'return': {}}
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+image: TEST_IMG
 file format: IMGFMT
 virtual size: 32M (33554432 bytes)
 
 === Invalid BlockdevRef ===
 
-Testing:
-QMP_VERSION
-{"return": {}}
-{"error": {"class": "GenericError", "desc": "Cannot find device=this doesn't exist nor node_name=this doesn't exist"}}
-{"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
-
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'parallels', 'file': "this doesn't exist", 'size': 33554432}}}
+{u'return': {}}
+Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exist
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
 
 === Zero size ===
 
-Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0
-QMP_VERSION
-{"return": {}}
-{"return": {}}
-{"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'parallels', 'file': 'node0', 'size': 0}}}
+{u'return': {}}
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
 
-image: TEST_DIR/t.IMGFMT
+image: TEST_IMG
 file format: IMGFMT
 virtual size: 0 (0 bytes)
 
 === Maximum size ===
 
-Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0
-QMP_VERSION
-{"return": {}}
-{"return": {}}
-{"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'parallels', 'file': 'node0', 'size': 4503599627369984}}}
+{u'return': {}}
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
 
-image: TEST_DIR/t.IMGFMT
+image: TEST_IMG
 file format: IMGFMT
 virtual size: 4096T (4503599627369984 bytes)
 
 === Invalid sizes ===
 
-Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0
-QMP_VERSION
-{"return": {}}
-{"error": {"class": "GenericError", "desc": "Image size must be a multiple of 512 bytes"}}
-{"error": {"class": "GenericError", "desc": "Image size is too large for this cluster size"}}
-{"error": {"class": "GenericError", "desc": "Image size is too large for this cluster size"}}
-{"error": {"class": "GenericError", "desc": "Image size is too large for this cluster size"}}
-{"error": {"class": "GenericError", "desc": "Image size is too large for this cluster size"}}
-{"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'parallels', 'file': 'node0', 'size': 1234}}}
+{u'return': {}}
+Job failed: Image size must be a multiple of 512 bytes
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
 
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'parallels', 'file': 'node0', 'size': 18446744073709551104L}}}
+{u'return': {}}
+Job failed: Image size is too large for this cluster size
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'parallels', 'file': 'node0', 'size': 9223372036854775808L}}}
+{u'return': {}}
+Job failed: Image size is too large for this cluster size
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'parallels', 'file': 'node0', 'size': 9223372036854775296}}}
+{u'return': {}}
+Job failed: Image size is too large for this cluster size
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'parallels', 'file': 'node0', 'size': 4503599627370497}}}
+{u'return': {}}
+Job failed: Image size is too large for this cluster size
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
 
 === Invalid cluster size ===
 
-Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0
-QMP_VERSION
-{"return": {}}
-{"error": {"class": "GenericError", "desc": "Cluster size must be a multiple of 512 bytes"}}
-{"error": {"class": "GenericError", "desc": "Cluster size must be a multiple of 512 bytes"}}
-{"error": {"class": "GenericError", "desc": "Cluster size is too large"}}
-{"error": {"class": "GenericError", "desc": "Cluster size is too large"}}
-{"error": {"class": "GenericError", "desc": "Cluster size is too large"}}
-{"error": {"class": "GenericError", "desc": "Image size is too large for this cluster size"}}
-{"error": {"class": "GenericError", "desc": "Image size is too large for this cluster size"}}
-{"return": {}}
-{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 1234, 'driver': 'parallels', 'file': 'node0', 'size': 67108864}}}
+{u'return': {}}
+Job failed: Cluster size must be a multiple of 512 bytes
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
 
-*** done
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 128, 'driver': 'parallels', 'file': 'node0', 'size': 67108864}}}
+{u'return': {}}
+Job failed: Cluster size must be a multiple of 512 bytes
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 4294967296, 'driver': 'parallels', 'file': 'node0', 'size': 67108864}}}
+{u'return': {}}
+Job failed: Cluster size is too large
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 9223372036854775808L, 'driver': 'parallels', 'file': 'node0', 'size': 67108864}}}
+{u'return': {}}
+Job failed: Cluster size is too large
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 18446744073709551104L, 'driver': 'parallels', 'file': 'node0', 'size': 67108864}}}
+{u'return': {}}
+Job failed: Cluster size is too large
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 0, 'driver': 'parallels', 'file': 'node0', 'size': 67108864}}}
+{u'return': {}}
+Job failed: Image size is too large for this cluster size
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+
+{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 512, 'driver': 'parallels', 'file': 'node0', 'size': 281474976710656}}}
+{u'return': {}}
+Job failed: Image size is too large for this cluster size
+{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
+{u'return': {}}
+

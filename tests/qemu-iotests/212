@@ -1,8 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env python
 #
 # Test parallels and file image creation
 #
 # Copyright (C) 2018 Red Hat, Inc.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,309 +20,176 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# creator
-owner=kwolf@redhat.com
+import iotests
+from iotests import imgfmt
 
-seq=`basename $0`
-echo "QA output created by $seq"
+iotests.verify_image_format(supported_fmts=['parallels'])
+iotests.verify_protocol(supported=['file'])
 
-here=`pwd`
-status=1	# failure is the default!
+def blockdev_create(vm, options):
+    result = vm.qmp_log('x-blockdev-create', job_id='job0', options=options)
 
-# get standard environment, filters and checks
-. ./common.rc
-. ./common.filter
+    if 'return' in result:
+        assert result['return'] == {}
+        vm.run_job('job0')
+    iotests.log("")
 
-_supported_fmt parallels
-_supported_proto file
-_supported_os Linux
+with iotests.FilePath('t.parallels') as disk_path, \
+     iotests.VM() as vm:
 
-function do_run_qemu()
-{
-    echo Testing: "$@"
-    $QEMU -nographic -qmp stdio -serial none "$@"
-    echo
-}
+    #
+    # Successful image creation (defaults)
+    #
+    iotests.log("=== Successful image creation (defaults) ===")
+    iotests.log("")
 
-function run_qemu()
-{
-    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp \
-                          | _filter_qemu | _filter_imgfmt \
-                          | _filter_actual_image_size
-}
+    size = 128 * 1024 * 1024
 
-echo
-echo "=== Successful image creation (defaults) ==="
-echo
+    vm.launch()
+    blockdev_create(vm, { 'driver': 'file',
+                          'filename': disk_path,
+                          'size': 0 })
 
-size=$((128 * 1024 * 1024))
+    vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
+               node_name='imgfile')
 
-run_qemu <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "file",
-      "filename": "$TEST_IMG",
-      "size": 0
-  }
-}
-{ "execute": "blockdev-add",
-  "arguments": {
-      "driver": "file",
-      "node-name": "imgfile",
-      "filename": "$TEST_IMG"
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "imgfile",
-      "size": $size
-  }
-}
-{ "execute": "quit" }
-EOF
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'imgfile',
+                          'size': size })
+    vm.shutdown()
 
-_img_info --format-specific | _filter_img_info --format-specific
+    iotests.img_info_log(disk_path)
 
-echo
-echo "=== Successful image creation (explicit defaults) ==="
-echo
+    #
+    # Successful image creation (explicit defaults)
+    #
+    iotests.log("=== Successful image creation (explicit defaults) ===")
+    iotests.log("")
 
-# Choose a different size to show that we got a new image
-size=$((64 * 1024 * 1024))
+    # Choose a different size to show that we got a new image
+    size = 64 * 1024 * 1024
 
-run_qemu <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "file",
-      "filename": "$TEST_IMG",
-      "size": 0
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": {
-          "driver": "file",
-          "filename": "$TEST_IMG"
-      },
-      "size": $size,
-      "cluster-size": 1048576
-  }
-}
-{ "execute": "quit" }
-EOF
+    vm.launch()
+    blockdev_create(vm, { 'driver': 'file',
+                          'filename': disk_path,
+                          'size': 0 })
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': {
+                              'driver': 'file',
+                              'filename': disk_path,
+                          },
+                          'size': size,
+                          'cluster-size': 1048576 })
+    vm.shutdown()
 
-_img_info --format-specific | _filter_img_info --format-specific
+    iotests.img_info_log(disk_path)
 
-echo
-echo "=== Successful image creation (with non-default options) ==="
-echo
+    #
+    # Successful image creation (with non-default options)
+    #
+    iotests.log("=== Successful image creation (with non-default options) ===")
+    iotests.log("")
 
-# Choose a different size to show that we got a new image
-size=$((32 * 1024 * 1024))
+    # Choose a different size to show that we got a new image
+    size = 32 * 1024 * 1024
 
-run_qemu <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "file",
-      "filename": "$TEST_IMG",
-      "size": 0
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": {
-          "driver": "file",
-          "filename": "$TEST_IMG"
-      },
-      "size": $size,
-      "cluster-size": 65536
-  }
-}
-{ "execute": "quit" }
-EOF
+    vm.launch()
+    blockdev_create(vm, { 'driver': 'file',
+                          'filename': disk_path,
+                          'size': 0 })
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': {
+                              'driver': 'file',
+                              'filename': disk_path,
+                          },
+                          'size': size,
+                          'cluster-size': 65536 })
+    vm.shutdown()
 
-_img_info --format-specific | _filter_img_info --format-specific
+    iotests.img_info_log(disk_path)
 
-echo
-echo "=== Invalid BlockdevRef ==="
-echo
+    #
+    # Invalid BlockdevRef
+    #
+    iotests.log("=== Invalid BlockdevRef ===")
+    iotests.log("")
 
-run_qemu <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "this doesn't exist",
-      "size": $size
-  }
-}
-{ "execute": "quit" }
-EOF
+    vm.launch()
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': "this doesn't exist",
+                          'size': size })
+    vm.shutdown()
 
-echo
-echo "=== Zero size ==="
-echo
+    #
+    # Zero size
+    #
+    iotests.log("=== Zero size ===")
+    iotests.log("")
 
-run_qemu -blockdev driver=file,filename="$TEST_IMG",node-name=node0 <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 0
-  }
-}
-{ "execute": "quit" }
-EOF
+    vm.add_blockdev('driver=file,filename=%s,node-name=node0' % (disk_path))
+    vm.launch()
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'node0',
+                          'size': 0 })
+    vm.shutdown()
 
-_img_info | _filter_img_info
+    iotests.img_info_log(disk_path)
 
-echo
-echo "=== Maximum size ==="
-echo
+    #
+    # Maximum size
+    #
+    iotests.log("=== Maximum size ===")
+    iotests.log("")
 
-run_qemu -blockdev driver=file,filename="$TEST_IMG",node-name=node0 <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 4503599627369984
-  }
-}
-{ "execute": "quit" }
-EOF
+    vm.launch()
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'node0',
+                          'size': 4503599627369984})
+    vm.shutdown()
 
-_img_info | _filter_img_info
+    iotests.img_info_log(disk_path)
 
-echo
-echo "=== Invalid sizes ==="
-echo
+    #
+    # Invalid sizes
+    #
 
-# TODO Negative image sizes aren't handled correctly, but this is a problem
-# with QAPI's implementation of the 'size' type and affects other commands as
-# well. Once this is fixed, we may want to add a test case here.
+    # TODO Negative image sizes aren't handled correctly, but this is a problem
+    # with QAPI's implementation of the 'size' type and affects other commands
+    # as well. Once this is fixed, we may want to add a test case here.
 
-# 1. Misaligned image size
-# 2. 2^64 - 512
-# 3. 2^63 = 8 EB (qemu-img enforces image sizes less than this)
-# 4. 2^63 - 512 (generally valid, but with the image header the file will
-#                exceed 63 bits)
-# 5. 2^52 (512 bytes more than maximum image size)
+    # 1. Misaligned image size
+    # 2. 2^64 - 512
+    # 3. 2^63 = 8 EB (qemu-img enforces image sizes less than this)
+    # 4. 2^63 - 512 (generally valid, but with the image header the file will
+    #                exceed 63 bits)
+    # 5. 2^52 (512 bytes more than maximum image size)
 
-run_qemu -blockdev driver=file,filename="$TEST_IMG",node-name=node0 <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 1234
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 18446744073709551104
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 9223372036854775808
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 9223372036854775296
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 4503599627370497
-  }
-}
-{ "execute": "quit" }
-EOF
+    iotests.log("=== Invalid sizes ===")
+    iotests.log("")
 
-echo
-echo "=== Invalid cluster size ==="
-echo
+    vm.launch()
+    for size in [ 1234, 18446744073709551104, 9223372036854775808,
+                  9223372036854775296, 4503599627370497 ]:
+        blockdev_create(vm, { 'driver': imgfmt,
+                              'file': 'node0',
+                              'size': size })
+    vm.shutdown()
 
-run_qemu -blockdev driver=file,filename="$TEST_IMG",node-name=node0 <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 67108864,
-      "cluster-size": 1234
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 67108864,
-      "cluster-size": 128
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 67108864,
-      "cluster-size": 4294967296
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 67108864,
-      "cluster-size": 9223372036854775808
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 67108864,
-      "cluster-size": 18446744073709551104
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 67108864,
-      "cluster-size": 0
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "size": 281474976710656,
-      "cluster-size": 512
-  }
-}
-{ "execute": "quit" }
-EOF
+    #
+    # Invalid cluster size
+    #
+    iotests.log("=== Invalid cluster size ===")
+    iotests.log("")
 
-
-# success, all done
-echo "*** done"
-rm -f $seq.full
-status=0
+    vm.launch()
+    for csize in [ 1234, 128, 4294967296, 9223372036854775808,
+                   18446744073709551104, 0 ]:
+        blockdev_create(vm, { 'driver': imgfmt,
+                              'file': 'node0',
+                              'size': 67108864,
+                              'cluster-size': csize })
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'node0',
+                          'size': 281474976710656,
+                          'cluster-size': 512 })
+    vm.shutdown()
