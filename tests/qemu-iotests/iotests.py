@@ -109,8 +109,16 @@ def qemu_img_pipe(*args):
         sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
     return subp.communicate()[0]
 
-def img_info_log(filename, filter_path=None):
-    output = qemu_img_pipe('info', '-f', imgfmt, filename)
+def img_info_log(filename, filter_path=None, imgopts=False, extra_args=[]):
+    args = [ 'info' ]
+    if imgopts:
+        args.append('--image-opts')
+    else:
+        args += [ '-f', imgfmt ]
+    args += extra_args
+    args.append(filename)
+
+    output = qemu_img_pipe(*args)
     if not filter_path:
         filter_path = filename
     log(filter_img_info(output, filter_path))

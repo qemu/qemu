@@ -1,8 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env python
 #
 # Test luks and file image creation
 #
 # Copyright (C) 2018 Red Hat, Inc.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,230 +20,165 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# creator
-owner=kwolf@redhat.com
+import iotests
+from iotests import imgfmt
 
-seq=`basename $0`
-echo "QA output created by $seq"
+iotests.verify_image_format(supported_fmts=['luks'])
+iotests.verify_protocol(supported=['file'])
 
-here=`pwd`
-status=1	# failure is the default!
+def blockdev_create(vm, options):
+    result = vm.qmp_log('x-blockdev-create', job_id='job0', options=options)
 
-# get standard environment, filters and checks
-. ./common.rc
-. ./common.filter
+    if 'return' in result:
+        assert result['return'] == {}
+        vm.run_job('job0')
+    iotests.log("")
 
-_supported_fmt luks
-_supported_proto file
-_supported_os Linux
+with iotests.FilePath('t.luks') as disk_path, \
+     iotests.VM() as vm:
 
-function do_run_qemu()
-{
-    echo Testing: "$@"
-    $QEMU -nographic -qmp stdio -serial none "$@"
-    echo
-}
+    vm.add_object('secret,id=keysec0,data=foo')
 
-function run_qemu()
-{
-    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp \
-                          | _filter_qemu | _filter_imgfmt \
-                          | _filter_actual_image_size
-}
+    #
+    # Successful image creation (defaults)
+    #
+    iotests.log("=== Successful image creation (defaults) ===")
+    iotests.log("")
 
-echo
-echo "=== Successful image creation (defaults) ==="
-echo
+    size = 128 * 1024 * 1024
 
-size=$((128 * 1024 * 1024))
+    vm.launch()
+    blockdev_create(vm, { 'driver': 'file',
+                          'filename': disk_path,
+                          'size': 0 })
 
-run_qemu -object secret,id=keysec0,data="foo" <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "file",
-      "filename": "$TEST_IMG_FILE",
-      "size": 0
-  }
-}
-{ "execute": "blockdev-add",
-  "arguments": {
-      "driver": "file",
-      "node-name": "imgfile",
-      "filename": "$TEST_IMG_FILE"
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "imgfile",
-      "key-secret": "keysec0",
-      "size": $size,
-      "iter-time": 10
-  }
-}
-{ "execute": "quit" }
-EOF
+    vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
+               node_name='imgfile')
 
-_img_info --format-specific | _filter_img_info --format-specific
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'imgfile',
+                          'key-secret': 'keysec0',
+                          'size': size,
+                          'iter-time': 10 })
+    vm.shutdown()
 
-echo
-echo "=== Successful image creation (with non-default options) ==="
-echo
+    # TODO Proper support for images to be used with imgopts and/or protocols
+    iotests.img_info_log(
+        'driver=luks,file.driver=file,file.filename=%s,key-secret=keysec0' % (disk_path),
+        filter_path=disk_path,
+        extra_args=['--object', 'secret,id=keysec0,data=foo'],
+        imgopts=True)
 
-# Choose a different size to show that we got a new image
-size=$((64 * 1024 * 1024))
+    #
+    # Successful image creation (with non-default options)
+    #
+    iotests.log("=== Successful image creation (with non-default options) ===")
+    iotests.log("")
 
-run_qemu -object secret,id=keysec0,data="foo" <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "file",
-      "filename": "$TEST_IMG_FILE",
-      "size": 0
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": {
-          "driver": "file",
-          "filename": "$TEST_IMG_FILE"
-      },
-      "size": $size,
-      "key-secret": "keysec0",
-      "cipher-alg": "twofish-128",
-      "cipher-mode": "ctr",
-      "ivgen-alg": "plain64",
-      "ivgen-hash-alg": "md5",
-      "hash-alg": "sha1",
-      "iter-time": 10
-  }
-}
-{ "execute": "quit" }
-EOF
+    size = 64 * 1024 * 1024
 
-_img_info --format-specific | _filter_img_info --format-specific
+    vm.launch()
+    blockdev_create(vm, { 'driver': 'file',
+                          'filename': disk_path,
+                          'size': 0 })
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': {
+                              'driver': 'file',
+                              'filename': disk_path,
+                          },
+                          'size': size,
+                          'key-secret': 'keysec0',
+                          'cipher-alg': 'twofish-128',
+                          'cipher-mode': 'ctr',
+                          'ivgen-alg': 'plain64',
+                          'ivgen-hash-alg': 'md5',
+                          'hash-alg': 'sha1',
+                          'iter-time': 10 })
+    vm.shutdown()
 
-echo
-echo "=== Invalid BlockdevRef ==="
-echo
+    # TODO Proper support for images to be used with imgopts and/or protocols
+    iotests.img_info_log(
+        'driver=luks,file.driver=file,file.filename=%s,key-secret=keysec0' % (disk_path),
+        filter_path=disk_path,
+        extra_args=['--object', 'secret,id=keysec0,data=foo'],
+        imgopts=True)
 
-run_qemu <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "this doesn't exist",
-      "size": $size
-  }
-}
-{ "execute": "quit" }
-EOF
+    #
+    # Invalid BlockdevRef
+    #
+    iotests.log("=== Invalid BlockdevRef ===")
+    iotests.log("")
 
-echo
-echo "=== Zero size ==="
-echo
+    size = 64 * 1024 * 1024
 
-run_qemu -blockdev driver=file,filename="$TEST_IMG_FILE",node-name=node0 \
-         -object secret,id=keysec0,data="foo" <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "key-secret": "keysec0",
-      "size": 0,
-      "iter-time": 10
-  }
-}
-{ "execute": "quit" }
-EOF
+    vm.launch()
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': "this doesn't exist",
+                          'size': size })
+    vm.shutdown()
 
-_img_info | _filter_img_info
+    #
+    # Zero size
+    #
+    iotests.log("=== Zero size ===")
+    iotests.log("")
 
+    vm.add_blockdev('driver=file,filename=%s,node-name=node0' % (disk_path))
+    vm.launch()
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'node0',
+                          'key-secret': 'keysec0',
+                          'size': 0,
+                          'iter-time': 10 })
+    vm.shutdown()
 
-echo
-echo "=== Invalid sizes ==="
-echo
+    # TODO Proper support for images to be used with imgopts and/or protocols
+    iotests.img_info_log(
+        'driver=luks,file.driver=file,file.filename=%s,key-secret=keysec0' % (disk_path),
+        filter_path=disk_path,
+        extra_args=['--object', 'secret,id=keysec0,data=foo'],
+        imgopts=True)
 
-# TODO Negative image sizes aren't handled correctly, but this is a problem
-# with QAPI's implementation of the 'size' type and affects other commands as
-# well. Once this is fixed, we may want to add a test case here.
+    #
+    # Invalid sizes
+    #
 
-# 1. 2^64 - 512
-# 2. 2^63 = 8 EB (qemu-img enforces image sizes less than this)
-# 3. 2^63 - 512 (generally valid, but with the crypto header the file will
-#                exceed 63 bits)
+    # TODO Negative image sizes aren't handled correctly, but this is a problem
+    # with QAPI's implementation of the 'size' type and affects other commands as
+    # well. Once this is fixed, we may want to add a test case here.
 
-run_qemu -blockdev driver=file,filename="$TEST_IMG_FILE",node-name=node0 \
-         -object secret,id=keysec0,data="foo" <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "key-secret": "keysec0",
-      "size": 18446744073709551104
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "key-secret": "keysec0",
-      "size": 9223372036854775808
-  }
-}
-{ "execute": "x-blockdev-create",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "file": "node0",
-      "key-secret": "keysec0",
-      "size": 9223372036854775296
-  }
-}
-{ "execute": "quit" }
-EOF
+    # 1. 2^64 - 512
+    # 2. 2^63 = 8 EB (qemu-img enforces image sizes less than this)
+    # 3. 2^63 - 512 (generally valid, but with the crypto header the file will
+    #                exceed 63 bits)
+    iotests.log("=== Invalid sizes ===")
+    iotests.log("")
 
-echo
-echo "=== Resize image with invalid sizes ==="
-echo
+    vm.launch()
+    for size in [ 18446744073709551104, 9223372036854775808, 9223372036854775296 ]:
+        blockdev_create(vm, { 'driver': imgfmt,
+                              'file': 'node0',
+                              'key-secret': 'keysec0',
+                              'size': size })
+    vm.shutdown()
 
-run_qemu -blockdev driver=file,filename="$TEST_IMG_FILE",node-name=node0 \
-         -blockdev driver=luks,file=node0,key-secret=keysec0,node-name=node1 \
-         -object secret,id=keysec0,data="foo" <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "block_resize",
-  "arguments": {
-      "node-name": "node1",
-      "size": 9223372036854775296
-  }
-}
-{ "execute": "block_resize",
-  "arguments": {
-      "node-name": "node1",
-      "size": 9223372036854775808
-  }
-}
-{ "execute": "block_resize",
-  "arguments": {
-      "node-name": "node1",
-      "size": 18446744073709551104
-  }
-}
-{ "execute": "block_resize",
-  "arguments": {
-      "node-name": "node1",
-      "size": -9223372036854775808
-  }
-}
-{ "execute": "quit" }
-EOF
+    #
+    # Resize image with invalid sizes
+    #
+    iotests.log("=== Resize image with invalid sizes ===")
+    iotests.log("")
 
-_img_info | _filter_img_info
+    vm.add_blockdev('driver=luks,file=node0,key-secret=keysec0,node-name=node1')
+    vm.launch()
+    vm.qmp_log('block_resize', node_name='node1', size=9223372036854775296)
+    vm.qmp_log('block_resize', node_name='node1', size=9223372036854775808)
+    vm.qmp_log('block_resize', node_name='node1', size=18446744073709551104)
+    vm.qmp_log('block_resize', node_name='node1', size=-9223372036854775808)
+    vm.shutdown()
 
-# success, all done
-echo "*** done"
-rm -f $seq.full
-status=0
+    # TODO Proper support for images to be used with imgopts and/or protocols
+    iotests.img_info_log(
+        'driver=luks,file.driver=file,file.filename=%s,key-secret=keysec0' % (disk_path),
+        filter_path=disk_path,
+        extra_args=['--object', 'secret,id=keysec0,data=foo'],
+        imgopts=True)
