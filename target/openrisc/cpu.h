@@ -222,7 +222,7 @@ enum {
 
 /* TLB size */
 enum {
-    TLB_SIZE = 64,
+    TLB_SIZE = 128,
     TLB_MASK = TLB_SIZE - 1,
 };
 
