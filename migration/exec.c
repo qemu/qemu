@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "channel.h"
 #include "exec.h"
+#include "migration.h"
 #include "io/channel-command.h"
 #include "trace.h"
 
@@ -48,6 +49,9 @@ static gboolean exec_accept_incoming_migration(QIOChannel *ioc,
 {
     migration_channel_process_incoming(ioc);
     object_unref(OBJECT(ioc));
+    if (!migrate_use_multifd()) {
+        migration_incoming_process();
+    }
     return G_SOURCE_REMOVE;
 }
 
