@@ -237,14 +237,6 @@ enum {
     UXE = (1 << 7),
 };
 
-/* check if tlb available */
-enum {
-    TLBRET_INVALID = -3,
-    TLBRET_NOMATCH = -2,
-    TLBRET_BADADDR = -1,
-    TLBRET_MATCH = 0
-};
-
 typedef struct OpenRISCTLBEntry {
     uint32_t mr;
     uint32_t tr;
