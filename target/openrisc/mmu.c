@@ -41,7 +41,7 @@ static int get_phys_code(OpenRISCCPU *cpu, hwaddr *physical, int *prot,
                          target_ulong address, int rw, bool supervisor)
 {
     int vpn = address >> TARGET_PAGE_BITS;
-    int idx = vpn & ITLB_MASK;
+    int idx = vpn & TLB_MASK;
     int right = 0;
     uint32_t mr = cpu->env.tlb.itlb[idx].mr;
     uint32_t tr = cpu->env.tlb.itlb[idx].tr;
@@ -74,7 +74,7 @@ static int get_phys_data(OpenRISCCPU *cpu, hwaddr *physical, int *prot,
                          target_ulong address, int rw, bool supervisor)
 {
     int vpn = address >> TARGET_PAGE_BITS;
-    int idx = vpn & DTLB_MASK;
+    int idx = vpn & TLB_MASK;
     int right = 0;
     uint32_t mr = cpu->env.tlb.dtlb[idx].mr;
     uint32_t tr = cpu->env.tlb.dtlb[idx].tr;

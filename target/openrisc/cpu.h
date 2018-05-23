@@ -222,10 +222,8 @@ enum {
 
 /* TLB size */
 enum {
-    DTLB_SIZE = 64,
-    DTLB_MASK = (DTLB_SIZE-1),
-    ITLB_SIZE = 64,
-    ITLB_MASK = (ITLB_SIZE-1),
+    TLB_SIZE = 64,
+    TLB_MASK = TLB_SIZE - 1,
 };
 
 /* TLB prot */
@@ -254,8 +252,8 @@ typedef struct OpenRISCTLBEntry {
 
 #ifndef CONFIG_USER_ONLY
 typedef struct CPUOpenRISCTLBContext {
-    OpenRISCTLBEntry itlb[ITLB_SIZE];
-    OpenRISCTLBEntry dtlb[DTLB_SIZE];
+    OpenRISCTLBEntry itlb[TLB_SIZE];
+    OpenRISCTLBEntry dtlb[TLB_SIZE];
 
     int (*cpu_openrisc_map_address_code)(struct OpenRISCCPU *cpu,
                                          hwaddr *physical,
