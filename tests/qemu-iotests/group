@@ -205,11 +205,11 @@
 204 rw auto quick
 205 rw auto quick
 206 rw auto
-# TODO The following commented out tests need to be reworked to work
-# with the x-blockdev-create job
-#207 rw auto
+207 rw auto
 208 rw auto quick
 209 rw auto quick
+# TODO The following commented out tests need to be reworked to work
+# with the x-blockdev-create job
 #210 rw auto
 #211 rw auto quick
 #212 rw auto quick
