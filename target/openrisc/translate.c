@@ -50,6 +50,15 @@ typedef struct DisasContext {
     target_ulong jmp_pc_imm;
 } DisasContext;
 
+static inline bool is_user(DisasContext *dc)
+{
+#ifdef CONFIG_USER_ONLY
+    return true;
+#else
+    return dc->mem_idx == MMU_USER_IDX;
+#endif
+}
+
 /* Include the auto-generated decoder.  */
 #include "decode.inc.c"
 
@@ -853,33 +862,25 @@ static bool trans_l_mfspr(DisasContext *dc, arg_l_mfspr *a, uint32_t insn)
 {
     check_r0_write(a->d);
 
-#ifdef CONFIG_USER_ONLY
-    gen_illegal_exception(dc);
-#else
-    if (dc->mem_idx == MMU_USER_IDX) {
+    if (is_user(dc)) {
         gen_illegal_exception(dc);
     } else {
         TCGv_i32 ti = tcg_const_i32(a->k);
         gen_helper_mfspr(cpu_R[a->d], cpu_env, cpu_R[a->d], cpu_R[a->a], ti);
         tcg_temp_free_i32(ti);
     }
-#endif
     return true;
 }
 
 static bool trans_l_mtspr(DisasContext *dc, arg_l_mtspr *a, uint32_t insn)
 {
-#ifdef CONFIG_USER_ONLY
-    gen_illegal_exception(dc);
-#else
-    if (dc->mem_idx == MMU_USER_IDX) {
+    if (is_user(dc)) {
         gen_illegal_exception(dc);
     } else {
         TCGv_i32 ti = tcg_const_i32(a->k);
         gen_helper_mtspr(cpu_env, cpu_R[a->a], cpu_R[a->b], ti);
         tcg_temp_free_i32(ti);
     }
-#endif
     return true;
 }
 
@@ -1104,16 +1105,12 @@ static bool trans_l_csync(DisasContext *dc, arg_l_csync *a, uint32_t insn)
 
 static bool trans_l_rfe(DisasContext *dc, arg_l_rfe *a, uint32_t insn)
 {
-#ifdef CONFIG_USER_ONLY
-    gen_illegal_exception(dc);
-#else
-    if (dc->mem_idx == MMU_USER_IDX) {
+    if (is_user(dc)) {
         gen_illegal_exception(dc);
     } else {
         gen_helper_rfe(cpu_env);
         dc->base.is_jmp = DISAS_EXIT;
     }
-#endif
     return true;
 }
 
