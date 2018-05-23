@@ -246,9 +246,36 @@ hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 void tlb_fill(CPUState *cs, target_ulong addr, int size,
               MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
-    int ret = openrisc_cpu_handle_mmu_fault(cs, addr, size,
-                                            access_type, mmu_idx);
-    if (ret) {
+    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
+    int ret, prot = 0;
+    hwaddr physical = 0;
+
+    if (mmu_idx == MMU_NOMMU_IDX) {
+        ret = get_phys_nommu(&physical, &prot, addr);
+    } else {
+        bool super = mmu_idx == MMU_SUPERVISOR_IDX;
+        if (access_type == MMU_INST_FETCH) {
+            ret = get_phys_code(cpu, &physical, &prot, addr, 2, super);
+        } else {
+            ret = get_phys_data(cpu, &physical, &prot, addr,
+                                access_type == MMU_DATA_STORE, super);
+        }
+    }
+
+    if (ret == TLBRET_MATCH) {
+        tlb_set_page(cs, addr & TARGET_PAGE_MASK,
+                     physical & TARGET_PAGE_MASK, prot,
+                     mmu_idx, TARGET_PAGE_SIZE);
+    } else if (ret < 0) {
+        int rw;
+        if (access_type == MMU_INST_FETCH) {
+            rw = 2;
+        } else if (access_type == MMU_DATA_STORE) {
+            rw = 1;
+        } else {
+            rw = 0;
+        }
+        cpu_openrisc_raise_mmu_exception(cpu, addr, rw, ret);
         /* Raise Exception.  */
         cpu_loop_exit_restore(cs, retaddr);
     }

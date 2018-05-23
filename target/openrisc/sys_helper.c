@@ -56,10 +56,6 @@ void HELPER(mtspr)(CPUOpenRISCState *env, target_ulong spr, target_ulong rb)
         break;
 
     case TO_SPR(0, 17): /* SR */
-        if ((env->sr & (SR_IME | SR_DME | SR_SM)) ^
-            (rb & (SR_IME | SR_DME | SR_SM))) {
-            tlb_flush(cs);
-        }
         cpu_set_sr(env, rb);
         break;
 

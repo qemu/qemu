@@ -385,9 +385,12 @@ void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 
 #include "exec/cpu-all.h"
 
-#define TB_FLAGS_DFLAG 1
-#define TB_FLAGS_R0_0  2
+#define TB_FLAGS_SM    SR_SM
+#define TB_FLAGS_DME   SR_DME
+#define TB_FLAGS_IME   SR_IME
 #define TB_FLAGS_OVE   SR_OVE
+#define TB_FLAGS_DFLAG 2      /* reuse SR_TEE */
+#define TB_FLAGS_R0_0  4      /* reuse SR_IEE */
 
 static inline uint32_t cpu_get_gpr(const CPUOpenRISCState *env, int i)
 {
@@ -405,17 +408,21 @@ static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env,
 {
     *pc = env->pc;
     *cs_base = 0;
-    *flags = (env->dflag
-              | (cpu_get_gpr(env, 0) == 0 ? TB_FLAGS_R0_0 : 0)
-              | (env->sr & SR_OVE));
+    *flags = (env->dflag ? TB_FLAGS_DFLAG : 0)
+           | (cpu_get_gpr(env, 0) ? 0 : TB_FLAGS_R0_0)
+           | (env->sr & (SR_SM | SR_DME | SR_IME | SR_OVE));
 }
 
 static inline int cpu_mmu_index(CPUOpenRISCState *env, bool ifetch)
 {
-    if (!(env->sr & SR_IME)) {
-        return MMU_NOMMU_IDX;
+    int ret = MMU_NOMMU_IDX;  /* mmu is disabled */
+
+    if (env->sr & (ifetch ? SR_IME : SR_DME)) {
+        /* The mmu is enabled; test supervisor state.  */
+        ret = env->sr & SR_SM ? MMU_SUPERVISOR_IDX : MMU_USER_IDX;
     }
-    return (env->sr & SR_SM) == 0 ? MMU_USER_IDX : MMU_SUPERVISOR_IDX;
+
+    return ret;
 }
 
 static inline uint32_t cpu_get_sr(const CPUOpenRISCState *env)

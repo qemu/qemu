@@ -51,10 +51,6 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
         env->eear = env->pc;
     }
 
-    /* For machine-state changed between user-mode and supervisor mode,
-       we need flush TLB when we enter&exit EXCP.  */
-    tlb_flush(cs);
-
     env->esr = cpu_get_sr(env);
     env->sr &= ~SR_DME;
     env->sr &= ~SR_IME;

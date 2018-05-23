@@ -55,7 +55,7 @@ static inline bool is_user(DisasContext *dc)
 #ifdef CONFIG_USER_ONLY
     return true;
 #else
-    return dc->mem_idx == MMU_USER_IDX;
+    return !(dc->tb_flags & TB_FLAGS_SM);
 #endif
 }
 
