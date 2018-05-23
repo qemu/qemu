@@ -240,4 +240,15 @@ hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         return phys_addr;
     }
 }
+
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
+{
+    int ret = openrisc_cpu_handle_mmu_fault(cs, addr, size,
+                                            access_type, mmu_idx);
+    if (ret) {
+        /* Raise Exception.  */
+        cpu_loop_exit_restore(cs, retaddr);
+    }
+}
 #endif
