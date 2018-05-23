@@ -43,19 +43,21 @@ static int get_phys_code(OpenRISCCPU *cpu, hwaddr *physical, int *prot,
     int vpn = address >> TARGET_PAGE_BITS;
     int idx = vpn & ITLB_MASK;
     int right = 0;
+    uint32_t mr = cpu->env.tlb.itlb[idx].mr;
+    uint32_t tr = cpu->env.tlb.itlb[idx].tr;
 
-    if ((cpu->env.tlb.itlb[0][idx].mr >> TARGET_PAGE_BITS) != vpn) {
+    if ((mr >> TARGET_PAGE_BITS) != vpn) {
         return TLBRET_NOMATCH;
     }
-    if (!(cpu->env.tlb.itlb[0][idx].mr & 1)) {
+    if (!(mr & 1)) {
         return TLBRET_INVALID;
     }
     if (supervisor) {
-        if (cpu->env.tlb.itlb[0][idx].tr & SXE) {
+        if (tr & SXE) {
             right |= PAGE_EXEC;
         }
     } else {
-        if (cpu->env.tlb.itlb[0][idx].tr & UXE) {
+        if (tr & UXE) {
             right |= PAGE_EXEC;
         }
     }
@@ -63,8 +65,7 @@ static int get_phys_code(OpenRISCCPU *cpu, hwaddr *physical, int *prot,
         return TLBRET_BADADDR;
     }
 
-    *physical = (cpu->env.tlb.itlb[0][idx].tr & TARGET_PAGE_MASK) |
-                (address & (TARGET_PAGE_SIZE-1));
+    *physical = (tr & TARGET_PAGE_MASK) | (address & ~TARGET_PAGE_MASK);
     *prot = right;
     return TLBRET_MATCH;
 }
@@ -75,25 +76,27 @@ static int get_phys_data(OpenRISCCPU *cpu, hwaddr *physical, int *prot,
     int vpn = address >> TARGET_PAGE_BITS;
     int idx = vpn & DTLB_MASK;
     int right = 0;
+    uint32_t mr = cpu->env.tlb.dtlb[idx].mr;
+    uint32_t tr = cpu->env.tlb.dtlb[idx].tr;
 
-    if ((cpu->env.tlb.dtlb[0][idx].mr >> TARGET_PAGE_BITS) != vpn) {
+    if ((mr >> TARGET_PAGE_BITS) != vpn) {
         return TLBRET_NOMATCH;
     }
-    if (!(cpu->env.tlb.dtlb[0][idx].mr & 1)) {
+    if (!(mr & 1)) {
         return TLBRET_INVALID;
     }
     if (supervisor) {
-        if (cpu->env.tlb.dtlb[0][idx].tr & SRE) {
+        if (tr & SRE) {
             right |= PAGE_READ;
         }
-        if (cpu->env.tlb.dtlb[0][idx].tr & SWE) {
+        if (tr & SWE) {
             right |= PAGE_WRITE;
         }
     } else {
-        if (cpu->env.tlb.dtlb[0][idx].tr & URE) {
+        if (tr & URE) {
             right |= PAGE_READ;
         }
-        if (cpu->env.tlb.dtlb[0][idx].tr & UWE) {
+        if (tr & UWE) {
             right |= PAGE_WRITE;
         }
     }
@@ -105,8 +108,7 @@ static int get_phys_data(OpenRISCCPU *cpu, hwaddr *physical, int *prot,
         return TLBRET_BADADDR;
     }
 
-    *physical = (cpu->env.tlb.dtlb[0][idx].tr & TARGET_PAGE_MASK) |
-                (address & (TARGET_PAGE_SIZE-1));
+    *physical = (tr & TARGET_PAGE_MASK) | (address & ~TARGET_PAGE_MASK);
     *prot = right;
     return TLBRET_MATCH;
 }
