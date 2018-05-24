@@ -16,7 +16,6 @@
 /* variables */
 extern struct xs_handle *xenstore;
 extern const char *xen_protocol;
-extern bool xen_feature_grant_copy;
 extern DeviceState *xen_sysdev;
 extern BusState *xen_sysbus;
 
@@ -42,6 +41,39 @@ void xen_be_register_common(void);
 int xen_be_register(const char *type, struct XenDevOps *ops);
 int xen_be_set_state(struct XenDevice *xendev, enum xenbus_state state);
 int xen_be_bind_evtchn(struct XenDevice *xendev);
+void xen_be_set_max_grant_refs(struct XenDevice *xendev,
+                               unsigned int nr_refs);
+void *xen_be_map_grant_refs(struct XenDevice *xendev, uint32_t *refs,
+                            unsigned int nr_refs, int prot);
+void xen_be_unmap_grant_refs(struct XenDevice *xendev, void *ptr,
+                             unsigned int nr_refs);
+
+typedef struct XenGrantCopySegment {
+    union {
+        void *virt;
+        struct {
+            uint32_t ref;
+            off_t offset;
+        } foreign;
+    } source, dest;
+    size_t len;
+} XenGrantCopySegment;
+
+int xen_be_copy_grant_refs(struct XenDevice *xendev,
+                           bool to_domain, XenGrantCopySegment segs[],
+                           unsigned int nr_segs);
+
+static inline void *xen_be_map_grant_ref(struct XenDevice *xendev,
+                                         uint32_t ref, int prot)
+{
+    return xen_be_map_grant_refs(xendev, &ref, 1, prot);
+}
+
+static inline void xen_be_unmap_grant_ref(struct XenDevice *xendev,
+                                          void *ptr)
+{
+    return xen_be_unmap_grant_refs(xendev, ptr, 1);
+}
 
 /* actual backend drivers */
 extern struct XenDevOps xen_console_ops;      /* xen_console.c     */

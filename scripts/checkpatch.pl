@@ -271,7 +271,7 @@ our @typeList = (
 	qr{hwaddr},
         # external libraries
 	qr{xml${Ident}},
-	qr{xendevicemodel_handle},
+	qr{xen\w+_handle},
 	# Glib definitions
 	qr{gchar},
 	qr{gshort},

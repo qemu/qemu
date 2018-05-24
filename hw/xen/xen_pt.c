@@ -907,7 +907,7 @@ out:
         }
     }
 
-    memory_listener_register(&s->memory_listener, &s->dev.bus_master_as);
+    memory_listener_register(&s->memory_listener, &address_space_memory);
     memory_listener_register(&s->io_listener, &address_space_io);
     s->listener_set = true;
     XEN_PT_LOG(d,
