@@ -12,6 +12,7 @@
 #include "clients.h"
 #include "net/vhost_net.h"
 #include "net/vhost-user.h"
+#include "hw/virtio/vhost-user.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-net.h"
@@ -23,6 +24,7 @@
 typedef struct NetVhostUserState {
     NetClientState nc;
     CharBackend chr; /* only queue index 0 */
+    VhostUserState *vhost_user;
     VHostNetState *vhost_net;
     guint watch;
     uint64_t acked_features;
@@ -64,7 +66,8 @@ static void vhost_user_stop(int queues, NetClientState *ncs[])
     }
 }
 
-static int vhost_user_start(int queues, NetClientState *ncs[], CharBackend *be)
+static int vhost_user_start(int queues, NetClientState *ncs[],
+                            VhostUserState *be)
 {
     VhostNetOptions options;
     struct vhost_net *net = NULL;
@@ -144,7 +147,7 @@ static ssize_t vhost_user_receive(NetClientState *nc, const uint8_t *buf,
     return size;
 }
 
-static void vhost_user_cleanup(NetClientState *nc)
+static void net_vhost_user_cleanup(NetClientState *nc)
 {
     NetVhostUserState *s = DO_UPCAST(NetVhostUserState, nc, nc);
 
@@ -159,6 +162,11 @@ static void vhost_user_cleanup(NetClientState *nc)
             s->watch = 0;
         }
         qemu_chr_fe_deinit(&s->chr, true);
+        if (s->vhost_user) {
+            vhost_user_cleanup(s->vhost_user);
+            g_free(s->vhost_user);
+            s->vhost_user = NULL;
+        }
     }
 
     qemu_purge_queued_packets(nc);
@@ -182,7 +190,7 @@ static NetClientInfo net_vhost_user_info = {
         .type = NET_CLIENT_DRIVER_VHOST_USER,
         .size = sizeof(NetVhostUserState),
         .receive = vhost_user_receive,
-        .cleanup = vhost_user_cleanup,
+        .cleanup = net_vhost_user_cleanup,
         .has_vnet_hdr = vhost_user_has_vnet_hdr,
         .has_ufo = vhost_user_has_ufo,
 };
@@ -244,7 +252,7 @@ static void net_vhost_user_event(void *opaque, int event)
     trace_vhost_user_event(chr->label, event);
     switch (event) {
     case CHR_EVENT_OPENED:
-        if (vhost_user_start(queues, ncs, &s->chr) < 0) {
+        if (vhost_user_start(queues, ncs, s->vhost_user) < 0) {
             qemu_chr_fe_disconnect(&s->chr);
             return;
         }
@@ -283,11 +291,18 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
 {
     Error *err = NULL;
     NetClientState *nc, *nc0 = NULL;
-    NetVhostUserState *s;
+    VhostUserState *user = NULL;
+    NetVhostUserState *s = NULL;
     int i;
 
     assert(name);
     assert(queues > 0);
+
+    user = vhost_user_init();
+    if (!user) {
+        error_report("failed to init vhost_user");
+        goto err;
+    }
 
     for (i = 0; i < queues; i++) {
         nc = qemu_new_net_client(&net_vhost_user_info, peer, device, name);
@@ -299,17 +314,19 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
             s = DO_UPCAST(NetVhostUserState, nc, nc);
             if (!qemu_chr_fe_init(&s->chr, chr, &err)) {
                 error_report_err(err);
-                return -1;
+                goto err;
             }
+            user->chr = &s->chr;
         }
-
+        s = DO_UPCAST(NetVhostUserState, nc, nc);
+        s->vhost_user = user;
     }
 
     s = DO_UPCAST(NetVhostUserState, nc, nc0);
     do {
         if (qemu_chr_fe_wait_connected(&s->chr, &err) < 0) {
             error_report_err(err);
-            return -1;
+            goto err;
         }
         qemu_chr_fe_set_handlers(&s->chr, NULL, NULL,
                                  net_vhost_user_event, NULL, nc0->name, NULL,
@@ -319,6 +336,17 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     assert(s->vhost_net);
 
     return 0;
+
+err:
+    if (user) {
+        vhost_user_cleanup(user);
+        g_free(user);
+        if (s) {
+            s->vhost_user = NULL;
+        }
+    }
+
+    return -1;
 }
 
 static Chardev *net_vhost_claim_chardev(

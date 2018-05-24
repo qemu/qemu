@@ -21,6 +21,7 @@
 #include "hw/block/block.h"
 #include "chardev/char-fe.h"
 #include "hw/virtio/vhost.h"
+#include "hw/virtio/vhost-user.h"
 
 #define TYPE_VHOST_USER_BLK "vhost-user-blk"
 #define VHOST_USER_BLK(obj) \
@@ -36,6 +37,7 @@ typedef struct VHostUserBlk {
     uint32_t config_wce;
     uint32_t config_ro;
     struct vhost_dev dev;
+    VhostUserState *vhost_user;
 } VHostUserBlk;
 
 #endif
