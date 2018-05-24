@@ -367,6 +367,10 @@ The fd is provided via VHOST_USER_SET_SLAVE_REQ_FD ancillary data.
 A slave may then send VHOST_USER_SLAVE_* messages to the master
 using this fd communication channel.
 
+If VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD protocol feature is negotiated,
+slave can send file descriptors (at most 8 descriptors in each message)
+to master via ancillary data using this fd communication channel.
+
 Protocol features
 -----------------
 
@@ -380,6 +384,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_CRYPTO_SESSION 7
 #define VHOST_USER_PROTOCOL_F_PAGEFAULT      8
 #define VHOST_USER_PROTOCOL_F_CONFIG         9
+#define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
 
 Master message types
 --------------------

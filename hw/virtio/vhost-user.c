@@ -30,6 +30,7 @@
 
 #define VHOST_MEMORY_MAX_NREGIONS    8
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
+#define VHOST_USER_SLAVE_MAX_FDS     8
 
 /*
  * Maximum size of virtio device config space
@@ -47,6 +48,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_CRYPTO_SESSION = 7,
     VHOST_USER_PROTOCOL_F_PAGEFAULT = 8,
     VHOST_USER_PROTOCOL_F_CONFIG = 9,
+    VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD = 10,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -854,16 +856,18 @@ static void slave_read(void *opaque)
     int size, ret = 0;
     struct iovec iov;
     struct msghdr msgh;
-    int fd = -1;
+    int fd[VHOST_USER_SLAVE_MAX_FDS];
     char control[CMSG_SPACE(sizeof(fd))];
     struct cmsghdr *cmsg;
-    size_t fdsize;
+    int i, fdsize = 0;
 
     memset(&msgh, 0, sizeof(msgh));
     msgh.msg_iov = &iov;
     msgh.msg_iovlen = 1;
     msgh.msg_control = control;
     msgh.msg_controllen = sizeof(control);
+
+    memset(fd, -1, sizeof(fd));
 
     /* Read header */
     iov.iov_base = &hdr;
@@ -885,7 +889,7 @@ static void slave_read(void *opaque)
             if (cmsg->cmsg_level == SOL_SOCKET &&
                 cmsg->cmsg_type == SCM_RIGHTS) {
                     fdsize = cmsg->cmsg_len - CMSG_LEN(0);
-                    memcpy(&fd, CMSG_DATA(cmsg), fdsize);
+                    memcpy(fd, CMSG_DATA(cmsg), fdsize);
                     break;
             }
     }
@@ -913,14 +917,15 @@ static void slave_read(void *opaque)
         break;
     default:
         error_report("Received unexpected msg type.");
-        if (fd != -1) {
-            close(fd);
-        }
         ret = -EINVAL;
     }
 
-    /* Message handlers need to make sure that fd will be consumed. */
-    fd = -1;
+    /* Close the remaining file descriptors. */
+    for (i = 0; i < fdsize; i++) {
+        if (fd[i] != -1) {
+            close(fd[i]);
+        }
+    }
 
     /*
      * REPLY_ACK feature handling. Other reply types has to be managed
@@ -954,8 +959,10 @@ err:
     qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
     close(u->slave_fd);
     u->slave_fd = -1;
-    if (fd != -1) {
-        close(fd);
+    for (i = 0; i < fdsize; i++) {
+        if (fd[i] != -1) {
+            close(fd[i]);
+        }
     }
     return;
 }
