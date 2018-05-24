@@ -51,6 +51,8 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_CRYPTO_SESSION = 7,
     VHOST_USER_PROTOCOL_F_PAGEFAULT = 8,
     VHOST_USER_PROTOCOL_F_CONFIG = 9,
+    VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD = 10,
+    VHOST_USER_PROTOCOL_F_HOST_NOTIFIER = 11,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -92,6 +94,14 @@ typedef enum VhostUserRequest {
     VHOST_USER_MAX
 } VhostUserRequest;
 
+typedef enum VhostUserSlaveRequest {
+    VHOST_USER_SLAVE_NONE = 0,
+    VHOST_USER_SLAVE_IOTLB_MSG = 1,
+    VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2,
+    VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG = 3,
+    VHOST_USER_SLAVE_MAX
+}  VhostUserSlaveRequest;
+
 typedef struct VhostUserMemoryRegion {
     uint64_t guest_phys_addr;
     uint64_t memory_size;
@@ -122,6 +132,12 @@ static VhostUserConfig c __attribute__ ((unused));
                                    + sizeof(c.size) \
                                    + sizeof(c.flags))
 
+typedef struct VhostUserVringArea {
+    uint64_t u64;
+    uint64_t size;
+    uint64_t offset;
+} VhostUserVringArea;
+
 #if defined(_WIN32)
 # define VU_PACKED __attribute__((gcc_struct, packed))
 #else
@@ -133,6 +149,7 @@ typedef struct VhostUserMsg {
 
 #define VHOST_USER_VERSION_MASK     (0x3)
 #define VHOST_USER_REPLY_MASK       (0x1 << 2)
+#define VHOST_USER_NEED_REPLY_MASK  (0x1 << 3)
     uint32_t flags;
     uint32_t size; /* the following payload size */
 
@@ -145,6 +162,7 @@ typedef struct VhostUserMsg {
         VhostUserMemory memory;
         VhostUserLog log;
         VhostUserConfig config;
+        VhostUserVringArea area;
     } payload;
 
     int fds[VHOST_MEMORY_MAX_NREGIONS];
@@ -368,6 +386,20 @@ VuVirtq *vu_get_queue(VuDev *dev, int qidx);
 void vu_set_queue_handler(VuDev *dev, VuVirtq *vq,
                           vu_queue_handler_cb handler);
 
+/**
+ * vu_set_queue_host_notifier:
+ * @dev: a VuDev context
+ * @vq: a VuVirtq queue
+ * @fd: a file descriptor
+ * @size: host page size
+ * @offset: notifier offset in @fd file
+ *
+ * Set queue's host notifier. This function may be called several
+ * times for the same queue. If called with -1 @fd, the notifier
+ * is removed.
+ */
+bool vu_set_queue_host_notifier(VuDev *dev, VuVirtq *vq, int fd,
+                                int size, int offset);
 
 /**
  * vu_queue_set_notification:
