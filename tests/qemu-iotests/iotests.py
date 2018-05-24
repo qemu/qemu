@@ -109,6 +109,12 @@ def qemu_img_pipe(*args):
         sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
     return subp.communicate()[0]
 
+def img_info_log(filename, filter_path=None):
+    output = qemu_img_pipe('info', '-f', imgfmt, filename)
+    if not filter_path:
+        filter_path = filename
+    log(filter_img_info(output, filter_path))
+
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
@@ -209,6 +215,18 @@ def filter_qmp_event(event):
 def filter_testfiles(msg):
     prefix = os.path.join(test_dir, "%s-" % (os.getpid()))
     return msg.replace(prefix, 'TEST_DIR/PID-')
+
+def filter_img_info(output, filename):
+    lines = []
+    for line in output.split('\n'):
+        if 'disk size' in line or 'actual-size' in line:
+            continue
+        line = line.replace(filename, 'TEST_IMG') \
+                   .replace(imgfmt, 'IMGFMT')
+        line = re.sub('iters: [0-9]+', 'iters: XXX', line)
+        line = re.sub('uuid: [-a-f0-9]+', 'uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX', line)
+        lines.append(line)
+    return '\n'.join(lines)
 
 def log(msg, filters=[]):
     for flt in filters:
