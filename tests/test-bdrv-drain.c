@@ -498,7 +498,7 @@ typedef struct TestBlockJob {
 
 static void test_job_completed(Job *job, void *opaque)
 {
-    job_completed(job, 0);
+    job_completed(job, 0, NULL);
 }
 
 static void coroutine_fn test_job_start(void *opaque)
