@@ -363,6 +363,27 @@ class VM(qtest.QEMUQtestMachine):
         return self.qmp('human-monitor-command',
                         command_line='qemu-io %s "%s"' % (drive, cmd))
 
+    def flatten_qmp_object(self, obj, output=None, basestr=''):
+        if output is None:
+            output = dict()
+        if isinstance(obj, list):
+            for i in range(len(obj)):
+                self.flatten_qmp_object(obj[i], output, basestr + str(i) + '.')
+        elif isinstance(obj, dict):
+            for key in obj:
+                self.flatten_qmp_object(obj[key], output, basestr + key + '.')
+        else:
+            output[basestr[:-1]] = obj # Strip trailing '.'
+        return output
+
+    def qmp_to_opts(self, obj):
+        obj = self.flatten_qmp_object(obj)
+        output_list = list()
+        for key in obj:
+            output_list += [key + '=' + obj[key]]
+        return ','.join(output_list)
+
+
 
 index_re = re.compile(r'([^\[]+)\[([^\]]+)\]')
 
@@ -389,26 +410,6 @@ class QMPTestCase(unittest.TestCase):
                 except IndexError:
                     self.fail('invalid index "%s" in path "%s" in "%s"' % (idx, path, str(d)))
         return d
-
-    def flatten_qmp_object(self, obj, output=None, basestr=''):
-        if output is None:
-            output = dict()
-        if isinstance(obj, list):
-            for i in range(len(obj)):
-                self.flatten_qmp_object(obj[i], output, basestr + str(i) + '.')
-        elif isinstance(obj, dict):
-            for key in obj:
-                self.flatten_qmp_object(obj[key], output, basestr + key + '.')
-        else:
-            output[basestr[:-1]] = obj # Strip trailing '.'
-        return output
-
-    def qmp_to_opts(self, obj):
-        obj = self.flatten_qmp_object(obj)
-        output_list = list()
-        for key in obj:
-            output_list += [key + '=' + obj[key]]
-        return ','.join(output_list)
 
     def assert_qmp_absent(self, d, path):
         try:
@@ -444,8 +445,8 @@ class QMPTestCase(unittest.TestCase):
         '''Asserts that the given filename is a json: filename and that its
            content is equal to the given reference object'''
         self.assertEqual(json_filename[:5], 'json:')
-        self.assertEqual(self.flatten_qmp_object(json.loads(json_filename[5:])),
-                         self.flatten_qmp_object(reference))
+        self.assertEqual(self.vm.flatten_qmp_object(json.loads(json_filename[5:])),
+                         self.vm.flatten_qmp_object(reference))
 
     def cancel_and_wait(self, drive='drive0', force=False, resume=False):
         '''Cancel a block job and wait for it to finish, returning the event'''
@@ -464,6 +465,9 @@ class QMPTestCase(unittest.TestCase):
                     self.assert_qmp(event, 'data/device', drive)
                     result = event
                     cancelled = True
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', drive)
+
 
         self.assert_no_active_block_jobs()
         return result
@@ -479,6 +483,8 @@ class QMPTestCase(unittest.TestCase):
                         self.assert_qmp(event, 'data/offset', event['data']['len'])
                     self.assert_no_active_block_jobs()
                     return event
+                elif event['event'] == 'JOB_STATUS_CHANGE':
+                    self.assert_qmp(event, 'data/id', drive)
 
     def wait_ready(self, drive='drive0'):
         '''Wait until a block job BLOCK_JOB_READY event'''

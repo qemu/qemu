@@ -26,13 +26,13 @@
 #ifndef BLOCKJOB_H
 #define BLOCKJOB_H
 
+#include "qemu/job.h"
 #include "block/block.h"
 #include "qemu/ratelimit.h"
 
 #define BLOCK_JOB_SLICE_TIME 100000000ULL /* ns */
 
 typedef struct BlockJobDriver BlockJobDriver;
-typedef struct BlockJobTxn BlockJobTxn;
 
 /**
  * BlockJob:
@@ -40,83 +40,14 @@ typedef struct BlockJobTxn BlockJobTxn;
  * Long-running operation on a BlockDriverState.
  */
 typedef struct BlockJob {
-    /** The job type, including the job vtable.  */
-    const BlockJobDriver *driver;
+    /** Data belonging to the generic Job infrastructure */
+    Job job;
 
     /** The block device on which the job is operating.  */
     BlockBackend *blk;
 
-    /**
-     * The ID of the block job. May be NULL for internal jobs.
-     */
-    char *id;
-
-    /**
-     * The coroutine that executes the job.  If not NULL, it is
-     * reentered when busy is false and the job is cancelled.
-     */
-    Coroutine *co;
-
-    /**
-     * Set to true if the job should cancel itself.  The flag must
-     * always be tested just before toggling the busy flag from false
-     * to true.  After a job has been cancelled, it should only yield
-     * if #aio_poll will ("sooner or later") reenter the coroutine.
-     */
-    bool cancelled;
-
-    /**
-     * Set to true if the job should abort immediately without waiting
-     * for data to be in sync.
-     */
-    bool force;
-
-    /**
-     * Counter for pause request. If non-zero, the block job is either paused,
-     * or if busy == true will pause itself as soon as possible.
-     */
-    int pause_count;
-
-    /**
-     * Set to true if the job is paused by user.  Can be unpaused with the
-     * block-job-resume QMP command.
-     */
-    bool user_paused;
-
-    /**
-     * Set to false by the job while the coroutine has yielded and may be
-     * re-entered by block_job_enter().  There may still be I/O or event loop
-     * activity pending.  Accessed under block_job_mutex (in blockjob.c).
-     */
-    bool busy;
-
-    /**
-     * Set to true by the job while it is in a quiescent state, where
-     * no I/O or event loop activity is pending.
-     */
-    bool paused;
-
-    /**
-     * Set to true when the job is ready to be completed.
-     */
-    bool ready;
-
-    /**
-     * Set to true when the job has deferred work to the main loop.
-     */
-    bool deferred_to_main_loop;
-
-    /** Element of the list of block jobs */
-    QLIST_ENTRY(BlockJob) job_list;
-
     /** Status that is published by the query-block-jobs QMP API */
     BlockDeviceIoStatus iostatus;
-
-    /** Offset that is published by the query-block-jobs QMP API */
-    int64_t offset;
-
-    /** Length that is published by the query-block-jobs QMP API */
-    int64_t len;
 
     /** Speed that was set with @block_job_set_speed.  */
     int64_t speed;
@@ -124,56 +55,24 @@ typedef struct BlockJob {
     /** Rate limiting data structure for implementing @speed. */
     RateLimit limit;
 
-    /** The completion function that will be called when the job completes.  */
-    BlockCompletionFunc *cb;
-
     /** Block other operations when block job is running */
     Error *blocker;
 
+    /** Called when a cancelled job is finalised. */
+    Notifier finalize_cancelled_notifier;
+
+    /** Called when a successfully completed job is finalised. */
+    Notifier finalize_completed_notifier;
+
+    /** Called when the job transitions to PENDING */
+    Notifier pending_notifier;
+
+    /** Called when the job transitions to READY */
+    Notifier ready_notifier;
+
     /** BlockDriverStates that are involved in this block job */
     GSList *nodes;
-
-    /** The opaque value that is passed to the completion function.  */
-    void *opaque;
-
-    /** Reference count of the block job */
-    int refcnt;
-
-    /** True when job has reported completion by calling block_job_completed. */
-    bool completed;
-
-    /** ret code passed to block_job_completed. */
-    int ret;
-
-    /**
-     * Timer that is used by @block_job_sleep_ns. Accessed under
-     * block_job_mutex (in blockjob.c).
-     */
-    QEMUTimer sleep_timer;
-
-    /** Current state; See @BlockJobStatus for details. */
-    BlockJobStatus status;
-
-    /** True if this job should automatically finalize itself */
-    bool auto_finalize;
-
-    /** True if this job should automatically dismiss itself */
-    bool auto_dismiss;
-
-    BlockJobTxn *txn;
-    QLIST_ENTRY(BlockJob) txn_list;
 } BlockJob;
-
-typedef enum BlockJobCreateFlags {
-    /* Default behavior */
-    BLOCK_JOB_DEFAULT = 0x00,
-    /* BlockJob is not QMP-created and should not send QMP events */
-    BLOCK_JOB_INTERNAL = 0x01,
-    /* BlockJob requires manual finalize step */
-    BLOCK_JOB_MANUAL_FINALIZE = 0x02,
-    /* BlockJob requires manual dismiss step */
-    BLOCK_JOB_MANUAL_DISMISS = 0x04,
-} BlockJobCreateFlags;
 
 /**
  * block_job_next:
@@ -231,156 +130,12 @@ void block_job_remove_all_bdrv(BlockJob *job);
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
 
 /**
- * block_job_start:
- * @job: A job that has not yet been started.
- *
- * Begins execution of a block job.
- * Takes ownership of one reference to the job object.
- */
-void block_job_start(BlockJob *job);
-
-/**
- * block_job_cancel:
- * @job: The job to be canceled.
- * @force: Quit a job without waiting for data to be in sync.
- *
- * Asynchronously cancel the specified job.
- */
-void block_job_cancel(BlockJob *job, bool force);
-
-/**
- * block_job_complete:
- * @job: The job to be completed.
- * @errp: Error object.
- *
- * Asynchronously complete the specified job.
- */
-void block_job_complete(BlockJob *job, Error **errp);
-
-
-/**
- * block_job_finalize:
- * @job: The job to fully commit and finish.
- * @errp: Error object.
- *
- * For jobs that have finished their work and are pending
- * awaiting explicit acknowledgement to commit their work,
- * This will commit that work.
- *
- * FIXME: Make the below statement universally true:
- * For jobs that support the manual workflow mode, all graph
- * changes that occur as a result will occur after this command
- * and before a successful reply.
- */
-void block_job_finalize(BlockJob *job, Error **errp);
-
-/**
- * block_job_dismiss:
- * @job: The job to be dismissed.
- * @errp: Error object.
- *
- * Remove a concluded job from the query list.
- */
-void block_job_dismiss(BlockJob **job, Error **errp);
-
-/**
- * block_job_progress_update:
- * @job: The job that has made progress
- * @done: How much progress the job made
- *
- * Updates the progress counter of the job.
- */
-void block_job_progress_update(BlockJob *job, uint64_t done);
-
-/**
- * block_job_progress_set_remaining:
- * @job: The job whose expected progress end value is set
- * @remaining: Expected end value of the progress counter of the job
- *
- * Sets the expected end value of the progress counter of a job so that a
- * completion percentage can be calculated when the progress is updated.
- */
-void block_job_progress_set_remaining(BlockJob *job, uint64_t remaining);
-
-/**
  * block_job_query:
  * @job: The job to get information about.
  *
  * Return information about a job.
  */
 BlockJobInfo *block_job_query(BlockJob *job, Error **errp);
-
-/**
- * block_job_user_pause:
- * @job: The job to be paused.
- *
- * Asynchronously pause the specified job.
- * Do not allow a resume until a matching call to block_job_user_resume.
- */
-void block_job_user_pause(BlockJob *job, Error **errp);
-
-/**
- * block_job_paused:
- * @job: The job to query.
- *
- * Returns true if the job is user-paused.
- */
-bool block_job_user_paused(BlockJob *job);
-
-/**
- * block_job_user_resume:
- * @job: The job to be resumed.
- *
- * Resume the specified job.
- * Must be paired with a preceding block_job_user_pause.
- */
-void block_job_user_resume(BlockJob *job, Error **errp);
-
-/**
- * block_job_user_cancel:
- * @job: The job to be cancelled.
- * @force: Quit a job without waiting for data to be in sync.
- *
- * Cancels the specified job, but may refuse to do so if the
- * operation isn't currently meaningful.
- */
-void block_job_user_cancel(BlockJob *job, bool force, Error **errp);
-
-/**
- * block_job_cancel_sync:
- * @job: The job to be canceled.
- *
- * Synchronously cancel the job.  The completion callback is called
- * before the function returns.  The job may actually complete
- * instead of canceling itself; the circumstances under which this
- * happens depend on the kind of job that is active.
- *
- * Returns the return value from the job if the job actually completed
- * during the call, or -ECANCELED if it was canceled.
- */
-int block_job_cancel_sync(BlockJob *job);
-
-/**
- * block_job_cancel_sync_all:
- *
- * Synchronously cancels all jobs using block_job_cancel_sync().
- */
-void block_job_cancel_sync_all(void);
-
-/**
- * block_job_complete_sync:
- * @job: The job to be completed.
- * @errp: Error object which may be set by block_job_complete(); this is not
- *        necessarily set on every error, the job return value has to be
- *        checked as well.
- *
- * Synchronously complete the job.  The completion callback is called before the
- * function returns, unless it is NULL (which is permissible when using this
- * function).
- *
- * Returns the return value from the job.
- */
-int block_job_complete_sync(BlockJob *job, Error **errp);
 
 /**
  * block_job_iostatus_reset:
@@ -390,59 +145,6 @@ int block_job_complete_sync(BlockJob *job, Error **errp);
  * other than job->blk.
  */
 void block_job_iostatus_reset(BlockJob *job);
-
-/**
- * block_job_txn_new:
- *
- * Allocate and return a new block job transaction.  Jobs can be added to the
- * transaction using block_job_txn_add_job().
- *
- * The transaction is automatically freed when the last job completes or is
- * cancelled.
- *
- * All jobs in the transaction either complete successfully or fail/cancel as a
- * group.  Jobs wait for each other before completing.  Cancelling one job
- * cancels all jobs in the transaction.
- */
-BlockJobTxn *block_job_txn_new(void);
-
-/**
- * block_job_ref:
- *
- * Add a reference to BlockJob refcnt, it will be decreased with
- * block_job_unref, and then be freed if it comes to be the last
- * reference.
- */
-void block_job_ref(BlockJob *job);
-
-/**
- * block_job_unref:
- *
- * Release a reference that was previously acquired with block_job_ref
- * or block_job_create. If it's the last reference to the object, it will be
- * freed.
- */
-void block_job_unref(BlockJob *job);
-
-/**
- * block_job_txn_unref:
- *
- * Release a reference that was previously acquired with block_job_txn_add_job
- * or block_job_txn_new. If it's the last reference to the object, it will be
- * freed.
- */
-void block_job_txn_unref(BlockJobTxn *txn);
-
-/**
- * block_job_txn_add_job:
- * @txn: The transaction (may be NULL)
- * @job: Job to add to the transaction
- *
- * Add @job to the transaction.  The @job must not already be in a transaction.
- * The caller must call either block_job_txn_unref() or block_job_completed()
- * to release the reference that is automatically grabbed here.
- */
-void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job);
 
 /**
  * block_job_is_internal:

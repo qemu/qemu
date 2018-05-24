@@ -17,7 +17,12 @@
 #include "sysemu/block-backend.h"
 
 static const BlockJobDriver test_block_job_driver = {
-    .instance_size = sizeof(BlockJob),
+    .job_driver = {
+        .instance_size = sizeof(BlockJob),
+        .free          = block_job_free,
+        .user_resume   = block_job_user_resume,
+        .drain         = block_job_drain,
+    },
 };
 
 static void block_job_cb(void *opaque, int ret)
@@ -38,9 +43,9 @@ static BlockJob *mk_job(BlockBackend *blk, const char *id,
         g_assert_null(errp);
         g_assert_nonnull(job);
         if (id) {
-            g_assert_cmpstr(job->id, ==, id);
+            g_assert_cmpstr(job->job.id, ==, id);
         } else {
-            g_assert_cmpstr(job->id, ==, blk_name(blk));
+            g_assert_cmpstr(job->job.id, ==, blk_name(blk));
         }
     } else {
         g_assert_nonnull(errp);
@@ -55,7 +60,7 @@ static BlockJob *do_test_id(BlockBackend *blk, const char *id,
                             bool should_succeed)
 {
     return mk_job(blk, id, &test_block_job_driver,
-                  should_succeed, BLOCK_JOB_DEFAULT);
+                  should_succeed, JOB_DEFAULT);
 }
 
 /* This creates a BlockBackend (optionally with a name) with a
@@ -124,11 +129,11 @@ static void test_job_ids(void)
     job[1] = do_test_id(blk[1], "id0", false);
 
     /* But once job[0] finishes we can reuse its ID */
-    block_job_early_fail(job[0]);
+    job_early_fail(&job[0]->job);
     job[1] = do_test_id(blk[1], "id0", true);
 
     /* No job ID specified, defaults to the backend name ('drive1') */
-    block_job_early_fail(job[1]);
+    job_early_fail(&job[1]->job);
     job[1] = do_test_id(blk[1], NULL, true);
 
     /* Duplicate job ID */
@@ -141,9 +146,9 @@ static void test_job_ids(void)
     /* This one is valid */
     job[2] = do_test_id(blk[2], "id_2", true);
 
-    block_job_early_fail(job[0]);
-    block_job_early_fail(job[1]);
-    block_job_early_fail(job[2]);
+    job_early_fail(&job[0]->job);
+    job_early_fail(&job[1]->job);
+    job_early_fail(&job[2]->job);
 
     destroy_blk(blk[0]);
     destroy_blk(blk[1]);
@@ -158,16 +163,16 @@ typedef struct CancelJob {
     bool completed;
 } CancelJob;
 
-static void cancel_job_completed(BlockJob *job, void *opaque)
+static void cancel_job_completed(Job *job, void *opaque)
 {
     CancelJob *s = opaque;
     s->completed = true;
-    block_job_completed(job, 0);
+    job_completed(job, 0);
 }
 
-static void cancel_job_complete(BlockJob *job, Error **errp)
+static void cancel_job_complete(Job *job, Error **errp)
 {
-    CancelJob *s = container_of(job, CancelJob, common);
+    CancelJob *s = container_of(job, CancelJob, common.job);
     s->should_complete = true;
 }
 
@@ -176,25 +181,30 @@ static void coroutine_fn cancel_job_start(void *opaque)
     CancelJob *s = opaque;
 
     while (!s->should_complete) {
-        if (block_job_is_cancelled(&s->common)) {
+        if (job_is_cancelled(&s->common.job)) {
             goto defer;
         }
 
-        if (!s->common.ready && s->should_converge) {
-            block_job_event_ready(&s->common);
+        if (!job_is_ready(&s->common.job) && s->should_converge) {
+            job_transition_to_ready(&s->common.job);
         }
 
-        block_job_sleep_ns(&s->common, 100000);
+        job_sleep_ns(&s->common.job, 100000);
     }
 
  defer:
-    block_job_defer_to_main_loop(&s->common, cancel_job_completed, s);
+    job_defer_to_main_loop(&s->common.job, cancel_job_completed, s);
 }
 
 static const BlockJobDriver test_cancel_driver = {
-    .instance_size = sizeof(CancelJob),
-    .start         = cancel_job_start,
-    .complete      = cancel_job_complete,
+    .job_driver = {
+        .instance_size = sizeof(CancelJob),
+        .free          = block_job_free,
+        .user_resume   = block_job_user_resume,
+        .drain         = block_job_drain,
+        .start         = cancel_job_start,
+        .complete      = cancel_job_complete,
+    },
 };
 
 static CancelJob *create_common(BlockJob **pjob)
@@ -205,9 +215,9 @@ static CancelJob *create_common(BlockJob **pjob)
 
     blk = create_blk(NULL);
     job = mk_job(blk, "Steve", &test_cancel_driver, true,
-                 BLOCK_JOB_MANUAL_FINALIZE | BLOCK_JOB_MANUAL_DISMISS);
-    block_job_ref(job);
-    assert(job->status == BLOCK_JOB_STATUS_CREATED);
+                 JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
+    job_ref(&job->job);
+    assert(job->job.status == JOB_STATUS_CREATED);
     s = container_of(job, CancelJob, common);
     s->blk = blk;
 
@@ -219,16 +229,15 @@ static void cancel_common(CancelJob *s)
 {
     BlockJob *job = &s->common;
     BlockBackend *blk = s->blk;
-    BlockJobStatus sts = job->status;
+    JobStatus sts = job->job.status;
 
-    block_job_cancel_sync(job);
-    if ((sts != BLOCK_JOB_STATUS_CREATED) &&
-        (sts != BLOCK_JOB_STATUS_CONCLUDED)) {
-        BlockJob *dummy = job;
-        block_job_dismiss(&dummy, &error_abort);
+    job_cancel_sync(&job->job);
+    if (sts != JOB_STATUS_CREATED && sts != JOB_STATUS_CONCLUDED) {
+        Job *dummy = &job->job;
+        job_dismiss(&dummy, &error_abort);
     }
-    assert(job->status == BLOCK_JOB_STATUS_NULL);
-    block_job_unref(job);
+    assert(job->job.status == JOB_STATUS_NULL);
+    job_unref(&job->job);
     destroy_blk(blk);
 }
 
@@ -248,8 +257,8 @@ static void test_cancel_running(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    job_start(&job->job);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     cancel_common(s);
 }
@@ -261,12 +270,12 @@ static void test_cancel_paused(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    job_start(&job->job);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
-    block_job_user_pause(job, &error_abort);
-    block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_PAUSED);
+    job_user_pause(&job->job, &error_abort);
+    job_enter(&job->job);
+    assert(job->job.status == JOB_STATUS_PAUSED);
 
     cancel_common(s);
 }
@@ -278,12 +287,12 @@ static void test_cancel_ready(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    job_start(&job->job);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_READY);
+    job_enter(&job->job);
+    assert(job->job.status == JOB_STATUS_READY);
 
     cancel_common(s);
 }
@@ -295,16 +304,16 @@ static void test_cancel_standby(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    job_start(&job->job);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_READY);
+    job_enter(&job->job);
+    assert(job->job.status == JOB_STATUS_READY);
 
-    block_job_user_pause(job, &error_abort);
-    block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_STANDBY);
+    job_user_pause(&job->job, &error_abort);
+    job_enter(&job->job);
+    assert(job->job.status == JOB_STATUS_STANDBY);
 
     cancel_common(s);
 }
@@ -316,19 +325,19 @@ static void test_cancel_pending(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    job_start(&job->job);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_READY);
+    job_enter(&job->job);
+    assert(job->job.status == JOB_STATUS_READY);
 
-    block_job_complete(job, &error_abort);
-    block_job_enter(job);
+    job_complete(&job->job, &error_abort);
+    job_enter(&job->job);
     while (!s->completed) {
         aio_poll(qemu_get_aio_context(), true);
     }
-    assert(job->status == BLOCK_JOB_STATUS_PENDING);
+    assert(job->job.status == JOB_STATUS_PENDING);
 
     cancel_common(s);
 }
@@ -340,22 +349,22 @@ static void test_cancel_concluded(void)
 
     s = create_common(&job);
 
-    block_job_start(job);
-    assert(job->status == BLOCK_JOB_STATUS_RUNNING);
+    job_start(&job->job);
+    assert(job->job.status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    block_job_enter(job);
-    assert(job->status == BLOCK_JOB_STATUS_READY);
+    job_enter(&job->job);
+    assert(job->job.status == JOB_STATUS_READY);
 
-    block_job_complete(job, &error_abort);
-    block_job_enter(job);
+    job_complete(&job->job, &error_abort);
+    job_enter(&job->job);
     while (!s->completed) {
         aio_poll(qemu_get_aio_context(), true);
     }
-    assert(job->status == BLOCK_JOB_STATUS_PENDING);
+    assert(job->job.status == JOB_STATUS_PENDING);
 
-    block_job_finalize(job, &error_abort);
-    assert(job->status == BLOCK_JOB_STATUS_CONCLUDED);
+    job_finalize(&job->job, &error_abort);
+    assert(job->job.status == JOB_STATUS_CONCLUDED);
 
     cancel_common(s);
 }

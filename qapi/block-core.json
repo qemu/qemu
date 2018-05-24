@@ -6,6 +6,7 @@
 
 { 'include': 'common.json' }
 { 'include': 'crypto.json' }
+{ 'include': 'job.json' }
 { 'include': 'sockets.json' }
 
 ##
@@ -1050,95 +1051,6 @@
   'data': ['top', 'full', 'none', 'incremental'] }
 
 ##
-# @BlockJobType:
-#
-# Type of a block job.
-#
-# @commit: block commit job type, see "block-commit"
-#
-# @stream: block stream job type, see "block-stream"
-#
-# @mirror: drive mirror job type, see "drive-mirror"
-#
-# @backup: drive backup job type, see "drive-backup"
-#
-# Since: 1.7
-##
-{ 'enum': 'BlockJobType',
-  'data': ['commit', 'stream', 'mirror', 'backup'] }
-
-##
-# @BlockJobVerb:
-#
-# Represents command verbs that can be applied to a blockjob.
-#
-# @cancel: see @block-job-cancel
-#
-# @pause: see @block-job-pause
-#
-# @resume: see @block-job-resume
-#
-# @set-speed: see @block-job-set-speed
-#
-# @complete: see @block-job-complete
-#
-# @dismiss: see @block-job-dismiss
-#
-# @finalize: see @block-job-finalize
-#
-# Since: 2.12
-##
-{ 'enum': 'BlockJobVerb',
-  'data': ['cancel', 'pause', 'resume', 'set-speed', 'complete', 'dismiss',
-           'finalize' ] }
-
-##
-# @BlockJobStatus:
-#
-# Indicates the present state of a given blockjob in its lifetime.
-#
-# @undefined: Erroneous, default state. Should not ever be visible.
-#
-# @created: The job has been created, but not yet started.
-#
-# @running: The job is currently running.
-#
-# @paused: The job is running, but paused. The pause may be requested by
-#          either the QMP user or by internal processes.
-#
-# @ready: The job is running, but is ready for the user to signal completion.
-#         This is used for long-running jobs like mirror that are designed to
-#         run indefinitely.
-#
-# @standby: The job is ready, but paused. This is nearly identical to @paused.
-#           The job may return to @ready or otherwise be canceled.
-#
-# @waiting: The job is waiting for other jobs in the transaction to converge
-#           to the waiting state. This status will likely not be visible for
-#           the last job in a transaction.
-#
-# @pending: The job has finished its work, but has finalization steps that it
-#           needs to make prior to completing. These changes may require
-#           manual intervention by the management process if manual was set
-#           to true. These changes may still fail.
-#
-# @aborting: The job is in the process of being aborted, and will finish with
-#            an error. The job will afterwards report that it is @concluded.
-#            This status may not be visible to the management process.
-#
-# @concluded: The job has finished all work. If manual was set to true, the job
-#             will remain in the query list until it is dismissed.
-#
-# @null: The job is in the process of being dismantled. This state should not
-#        ever be visible externally.
-#
-# Since: 2.12
-##
-{ 'enum': 'BlockJobStatus',
-  'data': ['undefined', 'created', 'running', 'paused', 'ready', 'standby',
-           'waiting', 'pending', 'aborting', 'concluded', 'null' ] }
-
-##
 # @BlockJobInfo:
 #
 # Information about a long-running block device operation.
@@ -1148,15 +1060,18 @@
 # @device: The job identifier. Originally the device name but other
 #          values are allowed since QEMU 2.7
 #
-# @len: the maximum progress value
+# @len: Estimated @offset value at the completion of the job. This value can
+#       arbitrarily change while the job is running, in both directions.
+#
+# @offset: Progress made until now. The unit is arbitrary and the value can
+#          only meaningfully be used for the ratio of @offset to @len. The
+#          value is monotonically increasing.
 #
 # @busy: false if the job is known to be in a quiescent state, with
 #        no pending I/O.  Since 1.3.
 #
 # @paused: whether the job is paused or, if @busy is true, will
 #          pause itself as soon as possible.  Since 1.3.
-#
-# @offset: the current progress value
 #
 # @speed: the rate limit, bytes per second
 #
@@ -1181,7 +1096,7 @@
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
            'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
            'io-status': 'BlockDeviceIoStatus', 'ready': 'bool',
-           'status': 'BlockJobStatus',
+           'status': 'JobStatus',
            'auto-finalize': 'bool', 'auto-dismiss': 'bool',
            '*error': 'str' } }
 
@@ -2338,8 +2253,7 @@
 #
 # This command returns immediately after marking the active background block
 # operation for pausing.  It is an error to call this command if no
-# operation is in progress.  Pausing an already paused job has no cumulative
-# effect; a single block-job-resume command will resume the job.
+# operation is in progress or if the job is already paused.
 #
 # The operation will pause as soon as possible.  No event is emitted when
 # the operation is actually paused.  Cancelling a paused job automatically
@@ -2363,7 +2277,7 @@
 #
 # This command returns immediately after resuming a paused background block
 # operation.  It is an error to call this command if no operation is in
-# progress.  Resuming an already running job is not an error.
+# progress or if the job is not paused.
 #
 # This command also clears the error status of the job.
 #
@@ -2414,7 +2328,7 @@
 # QEMU 2.12+ job lifetime management semantics.
 #
 # This command will refuse to operate on any job that has not yet reached
-# its terminal state, BLOCK_JOB_STATUS_CONCLUDED. For jobs that make use of
+# its terminal state, JOB_STATUS_CONCLUDED. For jobs that make use of the
 # BLOCK_JOB_READY event, block-job-cancel or block-job-complete will still need
 # to be used as appropriate.
 #
@@ -4497,7 +4411,7 @@
 #
 ##
 { 'event': 'BLOCK_JOB_COMPLETED',
-  'data': { 'type'  : 'BlockJobType',
+  'data': { 'type'  : 'JobType',
             'device': 'str',
             'len'   : 'int',
             'offset': 'int',
@@ -4533,7 +4447,7 @@
 #
 ##
 { 'event': 'BLOCK_JOB_CANCELLED',
-  'data': { 'type'  : 'BlockJobType',
+  'data': { 'type'  : 'JobType',
             'device': 'str',
             'len'   : 'int',
             'offset': 'int',
@@ -4598,7 +4512,7 @@
 #
 ##
 { 'event': 'BLOCK_JOB_READY',
-  'data': { 'type'  : 'BlockJobType',
+  'data': { 'type'  : 'JobType',
             'device': 'str',
             'len'   : 'int',
             'offset': 'int',
@@ -4625,7 +4539,7 @@
 #
 ##
 { 'event': 'BLOCK_JOB_PENDING',
-  'data': { 'type'  : 'BlockJobType',
+  'data': { 'type'  : 'JobType',
             'id'    : 'str' } }
 
 ##

@@ -27,8 +27,6 @@ echo "QA output created by $seq"
 here=`pwd`
 status=1 # failure is the default!
 
-MIG_SOCKET="${TEST_DIR}/migrate"
-
 _cleanup()
 {
     rm -f "${TEST_IMG}.mid"
@@ -83,7 +81,7 @@ _send_qemu_cmd $h \
                       'device': 'top',
                       'base':'$TEST_IMG.base',
                       'top': '$TEST_IMG.mid' } }" \
-    "BLOCK_JOB_COMPLETED"
+    '"status": "null"'
 _send_qemu_cmd $h "" "^}"
 
 echo
@@ -131,7 +129,7 @@ _send_qemu_cmd $h \
                       'device': 'top',
                       'base':'$TEST_IMG.base',
                       'top': '$TEST_IMG.mid' } }" \
-    "BLOCK_JOB_COMPLETED"
+    '"status": "null"'
 _send_qemu_cmd $h "" "^}"
 
 echo

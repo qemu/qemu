@@ -58,16 +58,16 @@ typedef struct {
     int ret;
 } StreamCompleteData;
 
-static void stream_complete(BlockJob *job, void *opaque)
+static void stream_complete(Job *job, void *opaque)
 {
-    StreamBlockJob *s = container_of(job, StreamBlockJob, common);
+    StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
+    BlockJob *bjob = &s->common;
     StreamCompleteData *data = opaque;
-    BlockDriverState *bs = blk_bs(job->blk);
+    BlockDriverState *bs = blk_bs(bjob->blk);
     BlockDriverState *base = s->base;
     Error *local_err = NULL;
 
-    if (!block_job_is_cancelled(&s->common) && bs->backing &&
-        data->ret == 0) {
+    if (!job_is_cancelled(job) && bs->backing && data->ret == 0) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
             base_id = s->backing_file_str;
@@ -88,12 +88,12 @@ out:
     /* Reopen the image back in read-only mode if necessary */
     if (s->bs_flags != bdrv_get_flags(bs)) {
         /* Give up write permissions before making it read-only */
-        blk_set_perm(job->blk, 0, BLK_PERM_ALL, &error_abort);
+        blk_set_perm(bjob->blk, 0, BLK_PERM_ALL, &error_abort);
         bdrv_reopen(bs, s->bs_flags, NULL);
     }
 
     g_free(s->backing_file_str);
-    block_job_completed(&s->common, data->ret);
+    job_completed(job, data->ret);
     g_free(data);
 }
 
@@ -121,7 +121,7 @@ static void coroutine_fn stream_run(void *opaque)
         ret = len;
         goto out;
     }
-    block_job_progress_set_remaining(&s->common, len);
+    job_progress_set_remaining(&s->common.job, len);
 
     buf = qemu_blockalign(bs, STREAM_BUFFER_SIZE);
 
@@ -140,8 +140,8 @@ static void coroutine_fn stream_run(void *opaque)
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
-        block_job_sleep_ns(&s->common, delay_ns);
-        if (block_job_is_cancelled(&s->common)) {
+        job_sleep_ns(&s->common.job, delay_ns);
+        if (job_is_cancelled(&s->common.job)) {
             break;
         }
 
@@ -184,7 +184,7 @@ static void coroutine_fn stream_run(void *opaque)
         ret = 0;
 
         /* Publish progress */
-        block_job_progress_update(&s->common, n);
+        job_progress_update(&s->common.job, n);
         if (copy) {
             delay_ns = block_job_ratelimit_get_delay(&s->common, n);
         } else {
@@ -205,13 +205,18 @@ out:
     /* Modify backing chain and close BDSes in main loop */
     data = g_malloc(sizeof(*data));
     data->ret = ret;
-    block_job_defer_to_main_loop(&s->common, stream_complete, data);
+    job_defer_to_main_loop(&s->common.job, stream_complete, data);
 }
 
 static const BlockJobDriver stream_job_driver = {
-    .instance_size = sizeof(StreamBlockJob),
-    .job_type      = BLOCK_JOB_TYPE_STREAM,
-    .start         = stream_run,
+    .job_driver = {
+        .instance_size = sizeof(StreamBlockJob),
+        .job_type      = JOB_TYPE_STREAM,
+        .free          = block_job_free,
+        .start         = stream_run,
+        .user_resume   = block_job_user_resume,
+        .drain         = block_job_drain,
+    },
 };
 
 void stream_start(const char *job_id, BlockDriverState *bs,
@@ -238,7 +243,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
                          BLK_PERM_GRAPH_MOD,
                          BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
                          BLK_PERM_WRITE,
-                         speed, BLOCK_JOB_DEFAULT, NULL, NULL, errp);
+                         speed, JOB_DEFAULT, NULL, NULL, errp);
     if (!s) {
         goto fail;
     }
@@ -259,7 +264,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
 
     s->on_error = on_error;
     trace_stream_start(bs, base, s);
-    block_job_start(&s->common);
+    job_start(&s->common.job);
     return;
 
 fail:

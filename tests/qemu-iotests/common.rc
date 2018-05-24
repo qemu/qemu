@@ -147,8 +147,9 @@ else
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="ssh://127.0.0.1$TEST_IMG_FILE"
     elif [ "$IMGPROTO" = "nfs" ]; then
-        TEST_DIR="nfs://127.0.0.1/$TEST_DIR"
-        TEST_IMG=$TEST_DIR/t.$IMGFMT
+        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        REMOTE_TEST_DIR="nfs://127.0.0.1$TEST_DIR"
+        TEST_IMG="nfs://127.0.0.1$TEST_IMG_FILE"
     elif [ "$IMGPROTO" = "vxhs" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="vxhs://127.0.0.1:9999/t.$IMGFMT"
@@ -171,6 +172,10 @@ fi
 if [ ! -d "$TEST_DIR" ]; then
     echo "common.config: Error: \$TEST_DIR ($TEST_DIR) is not a directory"
     exit 1
+fi
+
+if [ -z "$REMOTE_TEST_DIR" ]; then
+    REMOTE_TEST_DIR="$TEST_DIR"
 fi
 
 if [ ! -d "$SAMPLE_IMG_DIR" ]; then
@@ -333,7 +338,8 @@ _img_info()
     discard=0
     regex_json_spec_start='^ *"format-specific": \{'
     $QEMU_IMG info $QEMU_IMG_EXTRA_ARGS "$@" "$TEST_IMG" 2>&1 | \
-        sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
+        sed -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
+            -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGFMT#IMGFMT#g" \
             -e "/^disk size:/ D" \

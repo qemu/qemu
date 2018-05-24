@@ -72,9 +72,10 @@ typedef struct {
     int ret;
 } CommitCompleteData;
 
-static void commit_complete(BlockJob *job, void *opaque)
+static void commit_complete(Job *job, void *opaque)
 {
-    CommitBlockJob *s = container_of(job, CommitBlockJob, common);
+    CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
+    BlockJob *bjob = &s->common;
     CommitCompleteData *data = opaque;
     BlockDriverState *top = blk_bs(s->top);
     BlockDriverState *base = blk_bs(s->base);
@@ -90,7 +91,7 @@ static void commit_complete(BlockJob *job, void *opaque)
      * the normal backing chain can be restored. */
     blk_unref(s->base);
 
-    if (!block_job_is_cancelled(&s->common) && ret == 0) {
+    if (!job_is_cancelled(job) && ret == 0) {
         /* success */
         ret = bdrv_drop_intermediate(s->commit_top_bs, base,
                                      s->backing_file_str);
@@ -111,12 +112,12 @@ static void commit_complete(BlockJob *job, void *opaque)
     blk_unref(s->top);
 
     /* If there is more than one reference to the job (e.g. if called from
-     * block_job_finish_sync()), block_job_completed() won't free it and
-     * therefore the blockers on the intermediate nodes remain. This would
-     * cause bdrv_set_backing_hd() to fail. */
-    block_job_remove_all_bdrv(job);
+     * job_finish_sync()), job_completed() won't free it and therefore the
+     * blockers on the intermediate nodes remain. This would cause
+     * bdrv_set_backing_hd() to fail. */
+    block_job_remove_all_bdrv(bjob);
 
-    block_job_completed(&s->common, ret);
+    job_completed(job, ret);
     g_free(data);
 
     /* If bdrv_drop_intermediate() didn't already do that, remove the commit
@@ -149,7 +150,7 @@ static void coroutine_fn commit_run(void *opaque)
     if (len < 0) {
         goto out;
     }
-    block_job_progress_set_remaining(&s->common, len);
+    job_progress_set_remaining(&s->common.job, len);
 
     ret = base_len = blk_getlength(s->base);
     if (base_len < 0) {
@@ -171,8 +172,8 @@ static void coroutine_fn commit_run(void *opaque)
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
-        block_job_sleep_ns(&s->common, delay_ns);
-        if (block_job_is_cancelled(&s->common)) {
+        job_sleep_ns(&s->common.job, delay_ns);
+        if (job_is_cancelled(&s->common.job)) {
             break;
         }
         /* Copy if allocated above the base */
@@ -195,7 +196,7 @@ static void coroutine_fn commit_run(void *opaque)
             }
         }
         /* Publish progress */
-        block_job_progress_update(&s->common, n);
+        job_progress_update(&s->common.job, n);
 
         if (copy) {
             delay_ns = block_job_ratelimit_get_delay(&s->common, n);
@@ -211,13 +212,18 @@ out:
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
-    block_job_defer_to_main_loop(&s->common, commit_complete, data);
+    job_defer_to_main_loop(&s->common.job, commit_complete, data);
 }
 
 static const BlockJobDriver commit_job_driver = {
-    .instance_size = sizeof(CommitBlockJob),
-    .job_type      = BLOCK_JOB_TYPE_COMMIT,
-    .start         = commit_run,
+    .job_driver = {
+        .instance_size = sizeof(CommitBlockJob),
+        .job_type      = JOB_TYPE_COMMIT,
+        .free          = block_job_free,
+        .user_resume   = block_job_user_resume,
+        .drain         = block_job_drain,
+        .start         = commit_run,
+    },
 };
 
 static int coroutine_fn bdrv_commit_top_preadv(BlockDriverState *bs,
@@ -277,7 +283,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     }
 
     s = block_job_create(job_id, &commit_job_driver, NULL, bs, 0, BLK_PERM_ALL,
-                         speed, BLOCK_JOB_DEFAULT, NULL, NULL, errp);
+                         speed, JOB_DEFAULT, NULL, NULL, errp);
     if (!s) {
         return;
     }
@@ -367,7 +373,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     s->on_error = on_error;
 
     trace_commit_start(bs, base, top, s);
-    block_job_start(&s->common);
+    job_start(&s->common.job);
     return;
 
 fail:
@@ -380,7 +386,7 @@ fail:
     if (commit_top_bs) {
         bdrv_replace_node(commit_top_bs, top, &error_abort);
     }
-    block_job_early_fail(&s->common);
+    job_early_fail(&s->common.job);
 }
 
 

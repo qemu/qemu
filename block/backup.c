@@ -160,7 +160,7 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
          * offset field is an opaque progress value, it is not a disk offset.
          */
         job->bytes_read += n;
-        block_job_progress_update(&job->common, n);
+        job_progress_update(&job->common.job, n);
     }
 
 out:
@@ -207,25 +207,25 @@ static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
     }
 }
 
-static void backup_commit(BlockJob *job)
+static void backup_commit(Job *job)
 {
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
     if (s->sync_bitmap) {
         backup_cleanup_sync_bitmap(s, 0);
     }
 }
 
-static void backup_abort(BlockJob *job)
+static void backup_abort(Job *job)
 {
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
     if (s->sync_bitmap) {
         backup_cleanup_sync_bitmap(s, -1);
     }
 }
 
-static void backup_clean(BlockJob *job)
+static void backup_clean(Job *job)
 {
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
     assert(s->target);
     blk_unref(s->target);
     s->target = NULL;
@@ -317,11 +317,11 @@ typedef struct {
     int ret;
 } BackupCompleteData;
 
-static void backup_complete(BlockJob *job, void *opaque)
+static void backup_complete(Job *job, void *opaque)
 {
     BackupCompleteData *data = opaque;
 
-    block_job_completed(job, data->ret);
+    job_completed(job, data->ret);
     g_free(data);
 }
 
@@ -329,7 +329,7 @@ static bool coroutine_fn yield_and_check(BackupBlockJob *job)
 {
     uint64_t delay_ns;
 
-    if (block_job_is_cancelled(&job->common)) {
+    if (job_is_cancelled(&job->common.job)) {
         return true;
     }
 
@@ -337,9 +337,9 @@ static bool coroutine_fn yield_and_check(BackupBlockJob *job)
      * return. Without a yield, the VM would not reboot. */
     delay_ns = block_job_ratelimit_get_delay(&job->common, job->bytes_read);
     job->bytes_read = 0;
-    block_job_sleep_ns(&job->common, delay_ns);
+    job_sleep_ns(&job->common.job, delay_ns);
 
-    if (block_job_is_cancelled(&job->common)) {
+    if (job_is_cancelled(&job->common.job)) {
         return true;
     }
 
@@ -406,8 +406,8 @@ static void backup_incremental_init_copy_bitmap(BackupBlockJob *job)
         bdrv_set_dirty_iter(dbi, next_cluster * job->cluster_size);
     }
 
-    /* TODO block_job_progress_set_remaining() would make more sense */
-    block_job_progress_update(&job->common,
+    /* TODO job_progress_set_remaining() would make more sense */
+    job_progress_update(&job->common.job,
         job->len - hbitmap_count(job->copy_bitmap) * job->cluster_size);
 
     bdrv_dirty_iter_free(dbi);
@@ -425,7 +425,7 @@ static void coroutine_fn backup_run(void *opaque)
     qemu_co_rwlock_init(&job->flush_rwlock);
 
     nb_clusters = DIV_ROUND_UP(job->len, job->cluster_size);
-    block_job_progress_set_remaining(&job->common, job->len);
+    job_progress_set_remaining(&job->common.job, job->len);
 
     job->copy_bitmap = hbitmap_alloc(nb_clusters, 0);
     if (job->sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
@@ -441,10 +441,10 @@ static void coroutine_fn backup_run(void *opaque)
     if (job->sync_mode == MIRROR_SYNC_MODE_NONE) {
         /* All bits are set in copy_bitmap to allow any cluster to be copied.
          * This does not actually require them to be copied. */
-        while (!block_job_is_cancelled(&job->common)) {
+        while (!job_is_cancelled(&job->common.job)) {
             /* Yield until the job is cancelled.  We just let our before_write
              * notify callback service CoW requests. */
-            block_job_yield(&job->common);
+            job_yield(&job->common.job);
         }
     } else if (job->sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         ret = backup_run_incremental(job);
@@ -519,16 +519,21 @@ static void coroutine_fn backup_run(void *opaque)
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
-    block_job_defer_to_main_loop(&job->common, backup_complete, data);
+    job_defer_to_main_loop(&job->common.job, backup_complete, data);
 }
 
 static const BlockJobDriver backup_job_driver = {
-    .instance_size          = sizeof(BackupBlockJob),
-    .job_type               = BLOCK_JOB_TYPE_BACKUP,
-    .start                  = backup_run,
-    .commit                 = backup_commit,
-    .abort                  = backup_abort,
-    .clean                  = backup_clean,
+    .job_driver = {
+        .instance_size          = sizeof(BackupBlockJob),
+        .job_type               = JOB_TYPE_BACKUP,
+        .free                   = block_job_free,
+        .user_resume            = block_job_user_resume,
+        .drain                  = block_job_drain,
+        .start                  = backup_run,
+        .commit                 = backup_commit,
+        .abort                  = backup_abort,
+        .clean                  = backup_clean,
+    },
     .attached_aio_context   = backup_attached_aio_context,
     .drain                  = backup_drain,
 };
@@ -541,7 +546,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BlockdevOnError on_target_error,
                   int creation_flags,
                   BlockCompletionFunc *cb, void *opaque,
-                  BlockJobTxn *txn, Error **errp)
+                  JobTxn *txn, Error **errp)
 {
     int64_t len;
     BlockDriverInfo bdi;
@@ -673,8 +678,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         bdrv_reclaim_dirty_bitmap(bs, sync_bitmap, NULL);
     }
     if (job) {
-        backup_clean(&job->common);
-        block_job_early_fail(&job->common);
+        backup_clean(&job->common.job);
+        job_early_fail(&job->common.job);
     }
 
     return NULL;

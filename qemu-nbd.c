@@ -482,6 +482,12 @@ static const char *socket_activation_validate_opts(const char *device,
     return NULL;
 }
 
+static void qemu_nbd_shutdown(void)
+{
+    job_cancel_sync_all();
+    bdrv_close_all();
+}
+
 int main(int argc, char **argv)
 {
     BlockBackend *blk;
@@ -928,7 +934,7 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
     bdrv_init();
-    atexit(bdrv_close_all);
+    atexit(qemu_nbd_shutdown);
 
     srcpath = argv[optind];
     if (imageOpts) {

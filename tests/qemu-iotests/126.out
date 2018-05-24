@@ -3,7 +3,7 @@ QA output created by 126
 === Testing plain files ===
 
 Formatting 'TEST_DIR/a:b.IMGFMT', fmt=IMGFMT size=67108864
-Formatting 'TEST_DIR/a:b.IMGFMT', fmt=IMGFMT size=67108864
+Formatting 'file:TEST_DIR/a:b.IMGFMT', fmt=IMGFMT size=67108864
 
 === Testing relative backing filename resolution ===
 

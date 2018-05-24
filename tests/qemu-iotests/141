@@ -107,7 +107,7 @@ test_blockjob \
                     'format': '$IMGFMT',
                     'sync': 'none'}}" \
     'return' \
-    'BLOCK_JOB_CANCELLED'
+    '"status": "null"'
 
 echo
 echo '=== Testing drive-mirror ==='
@@ -124,7 +124,7 @@ test_blockjob \
                     'format': '$IMGFMT',
                     'sync': 'none'}}" \
     'BLOCK_JOB_READY' \
-    'BLOCK_JOB_COMPLETED'
+    '"status": "null"'
 
 echo
 echo '=== Testing active block-commit ==='
@@ -138,7 +138,7 @@ test_blockjob \
     "{'execute': 'block-commit',
       'arguments': {'job-id': 'job0', 'device': 'drv0'}}" \
     'BLOCK_JOB_READY' \
-    'BLOCK_JOB_COMPLETED'
+    '"status": "null"'
 
 echo
 echo '=== Testing non-active block-commit ==='
@@ -157,7 +157,7 @@ test_blockjob \
                     'top':    '$TEST_DIR/m.$IMGFMT',
                     'speed':  1}}" \
     'return' \
-    'BLOCK_JOB_CANCELLED'
+    '"status": "null"'
 
 echo
 echo '=== Testing block-stream ==='
@@ -170,8 +170,7 @@ echo
 $QEMU_IO -c 'write 0 1M' "$TEST_DIR/b.$IMGFMT" | _filter_qemu_io
 
 # With some data to stream (and @speed set to 1), block-stream will not complete
-# until we send the block-job-cancel command. Therefore, no event other than
-# BLOCK_JOB_CANCELLED will be emitted.
+# until we send the block-job-cancel command.
 
 test_blockjob \
     "{'execute': 'block-stream',
@@ -179,7 +178,7 @@ test_blockjob \
                     'device': 'drv0',
                     'speed': 1}}" \
     'return' \
-    'BLOCK_JOB_CANCELLED'
+    '"status": "null"'
 
 _cleanup_qemu
 

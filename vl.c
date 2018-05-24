@@ -4683,6 +4683,7 @@ int main(int argc, char **argv, char **envp)
     /* No more vcpu or device emulation activity beyond this point */
     vm_shutdown();
 
+    job_cancel_sync_all();
     bdrv_close_all();
 
     res_free();

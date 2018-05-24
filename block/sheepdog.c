@@ -1859,9 +1859,7 @@ out:
         error_setg_errno(errp, -ret, "Can't pre-allocate");
     }
 out_with_err_set:
-    if (blk) {
-        blk_unref(blk);
-    }
+    blk_unref(blk);
     g_free(buf);
 
     return ret;
