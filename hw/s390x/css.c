@@ -1199,17 +1199,6 @@ static IOInstEnding sch_handle_start_func_passthrough(SubchDev *sch)
         assert(orb != NULL);
         p->intparm = orb->intparm;
     }
-
-    /*
-     * Only support prefetch enable mode.
-     * Only support 64bit addressing idal.
-     */
-    if (!(orb->ctrl0 & ORB_CTRL0_MASK_C64)) {
-        warn_report("vfio-ccw requires PFCH and C64 flags set");
-        sch_gen_unit_exception(sch);
-        css_inject_io_interrupt(sch);
-        return IOINST_CC_EXPECTED;
-    }
     return s390_ccw_cmd_request(sch);
 }
 
