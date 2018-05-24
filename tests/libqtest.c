@@ -103,8 +103,15 @@ static int socket_accept(int sock)
 static void kill_qemu(QTestState *s)
 {
     if (s->qemu_pid != -1) {
+        int wstatus = 0;
+        pid_t pid;
+
         kill(s->qemu_pid, SIGTERM);
-        waitpid(s->qemu_pid, NULL, 0);
+        pid = waitpid(s->qemu_pid, &wstatus, 0);
+
+        if (pid == s->qemu_pid && WIFSIGNALED(wstatus)) {
+            assert(!WCOREDUMP(wstatus));
+        }
     }
 }
 
