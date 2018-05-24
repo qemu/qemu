@@ -1842,6 +1842,7 @@ static bool gdb_accept(void)
     /* set short latency */
     if (socket_set_nodelay(fd)) {
         perror("setsockopt");
+        close(fd);
         return false;
     }
 
