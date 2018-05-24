@@ -335,6 +335,99 @@ static void encode_cache_cpuid80000006(CPUCacheInfo *l2,
 }
 
 /*
+ * Definitions used for building CPUID Leaf 0x8000001D and 0x8000001E
+ * Please refer to the AMD64 Architecture Programmer’s Manual Volume 3.
+ * Define the constants to build the cpu topology. Right now, TOPOEXT
+ * feature is enabled only on EPYC. So, these constants are based on
+ * EPYC supported configurations. We may need to handle the cases if
+ * these values change in future.
+ */
+/* Maximum core complexes in a node */
+#define MAX_CCX 2
+/* Maximum cores in a core complex */
+#define MAX_CORES_IN_CCX 4
+/* Maximum cores in a node */
+#define MAX_CORES_IN_NODE 8
+/* Maximum nodes in a socket */
+#define MAX_NODES_PER_SOCKET 4
+
+/*
+ * Figure out the number of nodes required to build this config.
+ * Max cores in a node is 8
+ */
+static int nodes_in_socket(int nr_cores)
+{
+    int nodes;
+
+    nodes = DIV_ROUND_UP(nr_cores, MAX_CORES_IN_NODE);
+
+   /* Hardware does not support config with 3 nodes, return 4 in that case */
+    return (nodes == 3) ? 4 : nodes;
+}
+
+/*
+ * Decide the number of cores in a core complex with the given nr_cores using
+ * following set constants MAX_CCX, MAX_CORES_IN_CCX, MAX_CORES_IN_NODE and
+ * MAX_NODES_PER_SOCKET. Maintain symmetry as much as possible
+ * L3 cache is shared across all cores in a core complex. So, this will also
+ * tell us how many cores are sharing the L3 cache.
+ */
+static int cores_in_core_complex(int nr_cores)
+{
+    int nodes;
+
+    /* Check if we can fit all the cores in one core complex */
+    if (nr_cores <= MAX_CORES_IN_CCX) {
+        return nr_cores;
+    }
+    /* Get the number of nodes required to build this config */
+    nodes = nodes_in_socket(nr_cores);
+
+    /*
+     * Divide the cores accros all the core complexes
+     * Return rounded up value
+     */
+    return DIV_ROUND_UP(nr_cores, nodes * MAX_CCX);
+}
+
+/* Encode cache info for CPUID[8000001D] */
+static void encode_cache_cpuid8000001d(CPUCacheInfo *cache, CPUState *cs,
+                                uint32_t *eax, uint32_t *ebx,
+                                uint32_t *ecx, uint32_t *edx)
+{
+    uint32_t l3_cores;
+    assert(cache->size == cache->line_size * cache->associativity *
+                          cache->partitions * cache->sets);
+
+    *eax = CACHE_TYPE(cache->type) | CACHE_LEVEL(cache->level) |
+               (cache->self_init ? CACHE_SELF_INIT_LEVEL : 0);
+
+    /* L3 is shared among multiple cores */
+    if (cache->level == 3) {
+        l3_cores = cores_in_core_complex(cs->nr_cores);
+        *eax |= ((l3_cores * cs->nr_threads) - 1) << 14;
+    } else {
+        *eax |= ((cs->nr_threads - 1) << 14);
+    }
+
+    assert(cache->line_size > 0);
+    assert(cache->partitions > 0);
+    assert(cache->associativity > 0);
+    /* We don't implement fully-associative caches */
+    assert(cache->associativity < cache->sets);
+    *ebx = (cache->line_size - 1) |
+           ((cache->partitions - 1) << 12) |
+           ((cache->associativity - 1) << 22);
+
+    assert(cache->sets > 0);
+    *ecx = cache->sets - 1;
+
+    *edx = (cache->no_invd_sharing ? CACHE_NO_INVD_SHARING : 0) |
+           (cache->inclusive ? CACHE_INCLUSIVE : 0) |
+           (cache->complex_indexing ? CACHE_COMPLEX_IDX : 0);
+}
+
+/*
  * Definitions of the hardcoded cache entries we expose:
  * These are legacy cache values. If there is a need to change any
  * of these values please use builtin_x86_defs
@@ -4001,6 +4094,30 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *ebx = 0;
             *ecx = 0;
             *edx = 0;
+        }
+        break;
+    case 0x8000001D:
+        *eax = 0;
+        switch (count) {
+        case 0: /* L1 dcache info */
+            encode_cache_cpuid8000001d(env->cache_info_amd.l1d_cache, cs,
+                                       eax, ebx, ecx, edx);
+            break;
+        case 1: /* L1 icache info */
+            encode_cache_cpuid8000001d(env->cache_info_amd.l1i_cache, cs,
+                                       eax, ebx, ecx, edx);
+            break;
+        case 2: /* L2 cache info */
+            encode_cache_cpuid8000001d(env->cache_info_amd.l2_cache, cs,
+                                       eax, ebx, ecx, edx);
+            break;
+        case 3: /* L3 cache info */
+            encode_cache_cpuid8000001d(env->cache_info_amd.l3_cache, cs,
+                                       eax, ebx, ecx, edx);
+            break;
+        default: /* end of info */
+            *eax = *ebx = *ecx = *edx = 0;
+            break;
         }
         break;
     case 0xC0000000:
