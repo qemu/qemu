@@ -132,6 +132,16 @@ Depending on the request type, payload can be:
    Payload: Size bytes array holding the contents of the virtio
        device's configuration space
 
+ * Vring area description
+   -----------------------
+   | u64 | size | offset |
+   -----------------------
+
+   u64: a 64-bit integer contains vring index and flags
+   Size: a 64-bit size of this area
+   Offset: a 64-bit offset of this area from the start of the
+       supplied file descriptor
+
 In QEMU the vhost-user message is implemented with the following struct:
 
 typedef struct VhostUserMsg {
@@ -146,6 +156,7 @@ typedef struct VhostUserMsg {
         VhostUserLog log;
         struct vhost_iotlb_msg iotlb;
         VhostUserConfig config;
+        VhostUserVringArea area;
     };
 } QEMU_PACKED VhostUserMsg;
 
@@ -385,6 +396,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_PAGEFAULT      8
 #define VHOST_USER_PROTOCOL_F_CONFIG         9
 #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
+#define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
 
 Master message types
 --------------------
@@ -781,6 +793,27 @@ Slave message types
      content. If VHOST_USER_PROTOCOL_F_REPLY_ACK is negotiated, and slave set
      the VHOST_USER_NEED_REPLY flag, master must respond with zero when
      operation is successfully completed, or non-zero otherwise.
+
+ * VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG
+
+      Id: 3
+      Equivalent ioctl: N/A
+      Slave payload: vring area description
+      Master payload: N/A
+
+      Sets host notifier for a specified queue. The queue index is contained
+      in the u64 field of the vring area description. The host notifier is
+      described by the file descriptor (typically it's a VFIO device fd) which
+      is passed as ancillary data and the size (which is mmap size and should
+      be the same as host page size) and offset (which is mmap offset) carried
+      in the vring area description. QEMU can mmap the file descriptor based
+      on the size and offset to get a memory range. Registering a host notifier
+      means mapping this memory range to the VM as the specified queue's notify
+      MMIO region. Slave sends this request to tell QEMU to de-register the
+      existing notifier if any and register the new notifier if the request is
+      sent with a file descriptor.
+      This request should be sent only when VHOST_USER_PROTOCOL_F_HOST_NOTIFIER
+      protocol feature has been successfully negotiated.
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK:
 -------------------------------

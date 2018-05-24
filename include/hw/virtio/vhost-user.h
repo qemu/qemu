@@ -9,9 +9,17 @@
 #define HW_VIRTIO_VHOST_USER_H
 
 #include "chardev/char-fe.h"
+#include "hw/virtio/virtio.h"
+
+typedef struct VhostUserHostNotifier {
+    MemoryRegion mr;
+    void *addr;
+    bool set;
+} VhostUserHostNotifier;
 
 typedef struct VhostUserState {
     CharBackend *chr;
+    VhostUserHostNotifier notifier[VIRTIO_QUEUE_MAX];
 } VhostUserState;
 
 VhostUserState *vhost_user_init(void);
