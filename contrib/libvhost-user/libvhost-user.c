@@ -323,13 +323,15 @@ vu_message_write(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
         rc = sendmsg(conn_fd, &msg, 0);
     } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
 
-    do {
-        if (vmsg->data) {
-            rc = write(conn_fd, vmsg->data, vmsg->size);
-        } else {
-            rc = write(conn_fd, p + VHOST_USER_HDR_SIZE, vmsg->size);
-        }
-    } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
+    if (vmsg->size) {
+        do {
+            if (vmsg->data) {
+                rc = write(conn_fd, vmsg->data, vmsg->size);
+            } else {
+                rc = write(conn_fd, p + VHOST_USER_HDR_SIZE, vmsg->size);
+            }
+        } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
+    }
 
     if (rc <= 0) {
         vu_panic(dev, "Error while writing: %s", strerror(errno));

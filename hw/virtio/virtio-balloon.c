@@ -52,6 +52,8 @@ static const char *balloon_stat_names[] = {
    [VIRTIO_BALLOON_S_MEMTOT] = "stat-total-memory",
    [VIRTIO_BALLOON_S_AVAIL] = "stat-available-memory",
    [VIRTIO_BALLOON_S_CACHES] = "stat-disk-caches",
+   [VIRTIO_BALLOON_S_HTLB_PGALLOC] = "stat-htlb-pgalloc",
+   [VIRTIO_BALLOON_S_HTLB_PGFAIL] = "stat-htlb-pgfail",
    [VIRTIO_BALLOON_S_NR] = NULL
 };
 

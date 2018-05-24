@@ -2,16 +2,17 @@
 #ifndef _ASM_X86_KVM_PARA_H
 #define _ASM_X86_KVM_PARA_H
 
-#include <linux/types.h>
-#include <asm/hyperv.h>
+#include "standard-headers/linux/types.h"
 
 /* This CPUID returns the signature 'KVMKVMKVM' in ebx, ecx, and edx.  It
  * should be used to determine that a VM is running under KVM.
  */
 #define KVM_CPUID_SIGNATURE	0x40000000
 
-/* This CPUID returns a feature bitmap in eax.  Before enabling a particular
- * paravirtualization, the appropriate feature bit should be checked.
+/* This CPUID returns two feature bitmaps in eax, edx. Before enabling
+ * a particular paravirtualization, the appropriate feature bit should
+ * be checked in eax. The performance hint feature bit should be checked
+ * in edx.
  */
 #define KVM_CPUID_FEATURES	0x40000001
 #define KVM_FEATURE_CLOCKSOURCE		0
@@ -27,6 +28,8 @@
 #define KVM_FEATURE_PV_UNHALT		7
 #define KVM_FEATURE_PV_TLB_FLUSH	9
 #define KVM_FEATURE_ASYNC_PF_VMEXIT	10
+
+#define KVM_HINTS_DEDICATED      0
 
 /* The last 8 bits are used to indicate how to interpret the flags field
  * in pvclock structure. If no bits are set, all flags are ignored.
@@ -45,12 +48,12 @@
 #define MSR_KVM_PV_EOI_EN      0x4b564d04
 
 struct kvm_steal_time {
-	__u64 steal;
-	__u32 version;
-	__u32 flags;
-	__u8  preempted;
-	__u8  u8_pad[3];
-	__u32 pad[11];
+	uint64_t steal;
+	uint32_t version;
+	uint32_t flags;
+	uint8_t  preempted;
+	uint8_t  uint8_t_pad[3];
+	uint32_t pad[11];
 };
 
 #define KVM_VCPU_PREEMPTED          (1 << 0)
@@ -58,11 +61,11 @@ struct kvm_steal_time {
 
 #define KVM_CLOCK_PAIRING_WALLCLOCK 0
 struct kvm_clock_pairing {
-	__s64 sec;
-	__s64 nsec;
-	__u64 tsc;
-	__u32 flags;
-	__u32 pad[9];
+	int64_t sec;
+	int64_t nsec;
+	uint64_t tsc;
+	uint32_t flags;
+	uint32_t pad[9];
 };
 
 #define KVM_STEAL_ALIGNMENT_BITS 5
@@ -82,14 +85,14 @@ struct kvm_clock_pairing {
 
 /* Payload for KVM_HC_MMU_OP */
 struct kvm_mmu_op_header {
-	__u32 op;
-	__u32 pad;
+	uint32_t op;
+	uint32_t pad;
 };
 
 struct kvm_mmu_op_write_pte {
 	struct kvm_mmu_op_header header;
-	__u64 pte_phys;
-	__u64 pte_val;
+	uint64_t pte_phys;
+	uint64_t pte_val;
 };
 
 struct kvm_mmu_op_flush_tlb {
@@ -98,16 +101,16 @@ struct kvm_mmu_op_flush_tlb {
 
 struct kvm_mmu_op_release_pt {
 	struct kvm_mmu_op_header header;
-	__u64 pt_phys;
+	uint64_t pt_phys;
 };
 
 #define KVM_PV_REASON_PAGE_NOT_PRESENT 1
 #define KVM_PV_REASON_PAGE_READY 2
 
 struct kvm_vcpu_pv_apf_data {
-	__u32 reason;
-	__u8 pad[60];
-	__u32 enabled;
+	uint32_t reason;
+	uint8_t pad[60];
+	uint32_t enabled;
 };
 
 #define KVM_PV_EOI_BIT 0

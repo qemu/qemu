@@ -311,6 +311,12 @@ vub_get_features(VuDev *dev)
            1ull << VHOST_USER_F_PROTOCOL_FEATURES;
 }
 
+static uint64_t
+vub_get_protocol_features(VuDev *dev)
+{
+    return 1ull << VHOST_USER_PROTOCOL_F_CONFIG;
+}
+
 static int
 vub_get_config(VuDev *vu_dev, uint8_t *config, uint32_t len)
 {
@@ -373,6 +379,7 @@ vub_set_config(VuDev *vu_dev, const uint8_t *data,
 static const VuDevIface vub_iface = {
     .get_features = vub_get_features,
     .queue_set_started = vub_queue_set_started,
+    .get_protocol_features = vub_get_protocol_features,
     .get_config = vub_get_config,
     .set_config = vub_set_config,
 };
