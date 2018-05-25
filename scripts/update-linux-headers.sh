@@ -142,6 +142,20 @@ else
     cp "$linux/COPYING" "$output/linux-headers"
 fi
 
+# Recent kernel sources split the copyright/license info into multiple
+# files, which we need to copy. This set of licenses is the set that
+# are referred to by SPDX lines in the headers we currently copy.
+# We don't copy the Documentation/process/license-rules.rst which
+# is also referred to by COPYING, since it's explanatory rather than license.
+if [ -d "$linux/LICENSES" ]; then
+    mkdir -p "$output/linux-headers/LICENSES/preferred" \
+             "$output/linux-headers/LICENSES/exceptions"
+    for l in preferred/GPL-2.0 preferred/BSD-2-Clause preferred/BSD-3-Clause \
+             exceptions/Linux-syscall-note; do
+        cp "$linux/LICENSES/$l" "$output/linux-headers/LICENSES/$l"
+    done
+fi
+
 cat <<EOF >$output/linux-headers/linux/virtio_config.h
 #include "standard-headers/linux/virtio_config.h"
 EOF
