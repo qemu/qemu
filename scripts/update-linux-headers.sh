@@ -51,7 +51,8 @@ cp_portable() {
     fi
 
     header=$(basename "$f");
-    sed -e 's/__u\([0-9][0-9]*\)/uint\1_t/g' \
+    sed -e 's/__aligned_u64/__u64 __attribute__((aligned(8)))/g' \
+        -e 's/__u\([0-9][0-9]*\)/uint\1_t/g' \
         -e 's/u\([0-9][0-9]*\)/uint\1_t/g' \
         -e 's/__s\([0-9][0-9]*\)/int\1_t/g' \
         -e 's/__le\([0-9][0-9]*\)/uint\1_t/g' \
