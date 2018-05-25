@@ -28,8 +28,8 @@ struct input_event {
 #define input_event_sec time.tv_sec
 #define input_event_usec time.tv_usec
 #else
-	__kernel_ulong_t __sec;
-	__kernel_ulong_t __usec;
+	unsigned long __sec;
+	unsigned long __usec;
 #define input_event_sec  __sec
 #define input_event_usec __usec
 #endif
