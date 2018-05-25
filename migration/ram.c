@@ -246,7 +246,7 @@ int64_t ramblock_recv_bitmap_send(QEMUFile *file,
     qemu_put_be64(file, RAMBLOCK_RECV_BITMAP_ENDING);
     qemu_fflush(file);
 
-    free(le_bitmap);
+    g_free(le_bitmap);
 
     if (qemu_file_get_error(file)) {
         return qemu_file_get_error(file);
@@ -3514,7 +3514,7 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block)
 
     ret = 0;
 out:
-    free(le_bitmap);
+    g_free(le_bitmap);
     return ret;
 }
 
