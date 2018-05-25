@@ -63,8 +63,8 @@ static const JobDriver blockdev_create_job_driver = {
     .start         = blockdev_create_run,
 };
 
-void qmp_x_blockdev_create(const char *job_id, BlockdevCreateOptions *options,
-                           Error **errp)
+void qmp_blockdev_create(const char *job_id, BlockdevCreateOptions *options,
+                         Error **errp)
 {
     BlockdevCreateJob *s;
     const char *fmt = BlockdevDriver_str(options->driver);

@@ -1,13 +1,13 @@
 === Successful image creation (defaults) ===
 
-{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}}}
+{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}}}
 {u'return': {}}
 {'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
 {u'return': {}}
 
 {'execute': 'blockdev-add', 'arguments': {'node_name': 'imgfile', 'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}}
 {u'return': {}}
-{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'iter-time': 10, 'driver': 'luks', 'file': 'imgfile', 'size': 134217728}}}
+{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'iter-time': 10, 'driver': 'luks', 'file': 'imgfile', 'size': 134217728}}}
 {u'return': {}}
 {'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
 {u'return': {}}
@@ -54,12 +54,12 @@ Format specific information:
 
 === Successful image creation (with non-default options) ===
 
-{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}}}
+{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}}}
 {u'return': {}}
 {'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
 {u'return': {}}
 
-{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'hash-alg': 'sha1', 'cipher-mode': 'ctr', 'cipher-alg': 'twofish-128', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}, 'iter-time': 10, 'ivgen-alg': 'plain64', 'ivgen-hash-alg': 'md5', 'driver': 'luks', 'size': 67108864}}}
+{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'hash-alg': 'sha1', 'cipher-mode': 'ctr', 'cipher-alg': 'twofish-128', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}, 'iter-time': 10, 'ivgen-alg': 'plain64', 'ivgen-hash-alg': 'md5', 'driver': 'luks', 'size': 67108864}}}
 {u'return': {}}
 {'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
 {u'return': {}}
@@ -106,7 +106,7 @@ Format specific information:
 
 === Invalid BlockdevRef ===
 
-{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'luks', 'file': "this doesn't exist", 'size': 67108864}}}
+{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'luks', 'file': "this doesn't exist", 'size': 67108864}}}
 {u'return': {}}
 Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exist
 {'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
@@ -114,7 +114,7 @@ Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exi
 
 === Zero size ===
 
-{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'iter-time': 10, 'driver': 'luks', 'file': 'node0', 'size': 0}}}
+{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'iter-time': 10, 'driver': 'luks', 'file': 'node0', 'size': 0}}}
 {u'return': {}}
 {'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
 {u'return': {}}
@@ -161,19 +161,19 @@ Format specific information:
 
 === Invalid sizes ===
 
-{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'driver': 'luks', 'file': 'node0', 'size': 18446744073709551104L}}}
+{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'driver': 'luks', 'file': 'node0', 'size': 18446744073709551104L}}}
 {u'return': {}}
 Job failed: The requested file size is too large
 {'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
 {u'return': {}}
 
-{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'driver': 'luks', 'file': 'node0', 'size': 9223372036854775808L}}}
+{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'driver': 'luks', 'file': 'node0', 'size': 9223372036854775808L}}}
 {u'return': {}}
 Job failed: The requested file size is too large
 {'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
 {u'return': {}}
 
-{'execute': 'x-blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'driver': 'luks', 'file': 'node0', 'size': 9223372036854775296}}}
+{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'driver': 'luks', 'file': 'node0', 'size': 9223372036854775296}}}
 {u'return': {}}
 Job failed: The requested file size is too large
 {'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}

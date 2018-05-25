@@ -17,7 +17,7 @@
 #
 # @backup: drive backup job type, see "drive-backup"
 #
-# @create: image creation job type, see "x-blockdev-create" (since 3.0)
+# @create: image creation job type, see "blockdev-create" (since 3.0)
 #
 # Since: 1.7
 ##

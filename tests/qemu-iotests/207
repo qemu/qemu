@@ -31,7 +31,7 @@ def filter_hash(msg):
     return re.sub("'hash': '[0-9a-f]+'", "'hash': HASH", msg)
 
 def blockdev_create(vm, options):
-    result = vm.qmp_log('x-blockdev-create', job_id='job0', options=options,
+    result = vm.qmp_log('blockdev-create', job_id='job0', options=options,
                         filters=[iotests.filter_testfiles, filter_hash])
 
     if 'return' in result:

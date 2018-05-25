@@ -27,7 +27,7 @@ iotests.verify_image_format(supported_fmts=['parallels'])
 iotests.verify_protocol(supported=['file'])
 
 def blockdev_create(vm, options):
-    result = vm.qmp_log('x-blockdev-create', job_id='job0', options=options)
+    result = vm.qmp_log('blockdev-create', job_id='job0', options=options)
 
     if 'return' in result:
         assert result['return'] == {}

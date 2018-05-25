@@ -26,7 +26,7 @@ from iotests import imgfmt
 iotests.verify_image_format(supported_fmts=['qcow2'])
 
 def blockdev_create(vm, options):
-    result = vm.qmp_log('x-blockdev-create', job_id='job0', options=options)
+    result = vm.qmp_log('blockdev-create', job_id='job0', options=options)
 
     if 'return' in result:
         assert result['return'] == {}

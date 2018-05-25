@@ -4011,7 +4011,7 @@
   } }
 
 ##
-# @x-blockdev-create:
+# @blockdev-create:
 #
 # Starts a job to create an image format on a given node. The job is
 # automatically finalized, but a manual job-dismiss is required.
@@ -4022,7 +4022,7 @@
 #
 # Since: 3.0
 ##
-{ 'command': 'x-blockdev-create',
+{ 'command': 'blockdev-create',
   'data': { 'job-id': 'str',
             'options': 'BlockdevCreateOptions' } }
 
