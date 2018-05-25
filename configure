@@ -4599,6 +4599,7 @@ int main(void) { virgl_renderer_poll(); return 0; }
 EOF
   virgl_cflags=$($pkg_config --cflags virglrenderer 2>/dev/null)
   virgl_libs=$($pkg_config --libs virglrenderer 2>/dev/null)
+  virgl_version=$($pkg_config --modversion virglrenderer 2>/dev/null)
   if $pkg_config virglrenderer >/dev/null 2>&1 && \
      compile_prog "$virgl_cflags" "$virgl_libs" ; then
     virglrenderer="yes"
@@ -5827,7 +5828,7 @@ echo "nettle            $nettle $(echo_version $nettle $nettle_version)"
 echo "nettle kdf        $nettle_kdf"
 echo "libtasn1          $tasn1"
 echo "curses support    $curses"
-echo "virgl support     $virglrenderer"
+echo "virgl support     $virglrenderer $(echo_version $virglrenderer $virgl_version)"
 echo "curl support      $curl"
 echo "mingw32 support   $mingw32"
 echo "Audio drivers     $audio_drv_list"
