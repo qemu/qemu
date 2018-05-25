@@ -47,11 +47,6 @@
 #include "exec/memattrs.h"
 #include "trace.h"
 
-/* Work around this kernel header constant changing its name */
-#ifndef KVM_HINTS_REALTIME
-#define KVM_HINTS_REALTIME KVM_HINTS_DEDICATED
-#endif
-
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
