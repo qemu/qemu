@@ -47,6 +47,11 @@
 #include "exec/memattrs.h"
 #include "trace.h"
 
+/* Work around this kernel header constant changing its name */
+#ifndef KVM_HINTS_REALTIME
+#define KVM_HINTS_REALTIME KVM_HINTS_DEDICATED
+#endif
+
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
@@ -386,7 +391,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
             ret &= ~(1U << KVM_FEATURE_PV_UNHALT);
         }
     } else if (function == KVM_CPUID_FEATURES && reg == R_EDX) {
-        ret |= 1U << KVM_HINTS_DEDICATED;
+        ret |= 1U << KVM_HINTS_REALTIME;
         found = 1;
     }
 
