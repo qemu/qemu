@@ -1548,12 +1548,31 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     } else {
         share_surface = false;
     }
+
     if (s->line_offset != s->last_line_offset ||
         disp_width != s->last_width ||
         height != s->last_height ||
         s->last_depth != depth ||
         s->last_byteswap != byteswap ||
         share_surface != is_buffer_shared(surface)) {
+        /* display parameters changed -> need new display surface */
+        s->last_scr_width = disp_width;
+        s->last_scr_height = height;
+        s->last_width = disp_width;
+        s->last_height = height;
+        s->last_line_offset = s->line_offset;
+        s->last_depth = depth;
+        s->last_byteswap = byteswap;
+        full_update = 1;
+    }
+    if (surface_data(surface) != s->vram_ptr + (s->start_addr * 4)
+        && is_buffer_shared(surface)) {
+        /* base address changed (page flip) -> shared display surfaces
+         * must be updated with the new base address */
+        full_update = 1;
+    }
+
+    if (full_update) {
         if (share_surface) {
             surface = qemu_create_displaysurface_from(disp_width,
                     height, format, s->line_offset,
@@ -1563,23 +1582,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             qemu_console_resize(s->con, disp_width, height);
             surface = qemu_console_surface(s->con);
         }
-        s->last_scr_width = disp_width;
-        s->last_scr_height = height;
-        s->last_width = disp_width;
-        s->last_height = height;
-        s->last_line_offset = s->line_offset;
-        s->last_depth = depth;
-        s->last_byteswap = byteswap;
-        full_update = 1;
-    } else if (is_buffer_shared(surface) &&
-               (full_update || surface_data(surface) != s->vram_ptr
-                + (s->start_addr * 4))) {
-        pixman_format_code_t format =
-            qemu_default_pixman_format(depth, !byteswap);
-        surface = qemu_create_displaysurface_from(disp_width,
-                height, format, s->line_offset,
-                s->vram_ptr + (s->start_addr * 4));
-        dpy_gfx_replace_surface(s->con, surface);
     }
 
     if (shift_control == 0) {
