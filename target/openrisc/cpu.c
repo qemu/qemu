@@ -27,6 +27,7 @@ static void openrisc_cpu_set_pc(CPUState *cs, vaddr value)
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
 
     cpu->env.pc = value;
+    cpu->env.dflag = 0;
 }
 
 static bool openrisc_cpu_has_work(CPUState *cs)
