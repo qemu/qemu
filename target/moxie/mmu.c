@@ -21,7 +21,6 @@
 
 #include "cpu.h"
 #include "mmu.h"
-#include "exec/exec-all.h"
 
 int moxie_mmu_translate(MoxieMMUResult *res,
                        CPUMoxieState *env, uint32_t vaddr,
