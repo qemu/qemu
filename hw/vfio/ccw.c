@@ -22,6 +22,7 @@
 #include "hw/vfio/vfio-common.h"
 #include "hw/s390x/s390-ccw.h"
 #include "hw/s390x/ccw-device.h"
+#include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 
 #define TYPE_VFIO_CCW "vfio-ccw"
