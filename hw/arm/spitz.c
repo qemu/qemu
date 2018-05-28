@@ -27,7 +27,6 @@
 #include "hw/audio/wm8750.h"
 #include "audio/audio.h"
 #include "hw/boards.h"
-#include "sysemu/block-backend.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"

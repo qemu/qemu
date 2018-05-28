@@ -18,7 +18,6 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/block/block.h"
-#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/virtio/virtio-blk.h"
 #include "dataplane/virtio-blk.h"
