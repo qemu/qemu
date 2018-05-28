@@ -202,14 +202,6 @@ static int smbus_i2c_send(I2CSlave *s, uint8_t data)
     return 0;
 }
 
-static int smbus_device_init(I2CSlave *i2c)
-{
-    SMBusDevice *dev = SMBUS_DEVICE(i2c);
-    SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
-
-    return sc->init(dev);
-}
-
 /* Master device commands.  */
 int smbus_quick_command(I2CBus *bus, uint8_t addr, int read)
 {
@@ -350,7 +342,6 @@ static void smbus_device_class_init(ObjectClass *klass, void *data)
 {
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
 
-    sc->init = smbus_device_init;
     sc->event = smbus_i2c_event;
     sc->recv = smbus_i2c_recv;
     sc->send = smbus_i2c_send;
