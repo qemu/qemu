@@ -19,7 +19,6 @@
 #include "cpu.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
-#include "exec/ioport.h"
 #include "qapi/visitor.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
