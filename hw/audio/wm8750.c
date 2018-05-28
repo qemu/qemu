@@ -617,14 +617,12 @@ static const VMStateDescription vmstate_wm8750 = {
     }
 };
 
-static int wm8750_init(I2CSlave *i2c)
+static void wm8750_realize(DeviceState *dev, Error **errp)
 {
-    WM8750State *s = WM8750(i2c);
+    WM8750State *s = WM8750(dev);
 
     AUD_register_card(CODEC, &s->card);
     wm8750_reset(I2C_SLAVE(s));
-
-    return 0;
 }
 
 #if 0
@@ -707,7 +705,7 @@ static void wm8750_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
 
-    sc->init = wm8750_init;
+    dc->realize = wm8750_realize;
     sc->event = wm8750_event;
     sc->recv = wm8750_rx;
     sc->send = wm8750_tx;
