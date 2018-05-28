@@ -67,7 +67,9 @@ uint64_t helper_tick_get_count(CPUSPARCState *env, void *opaque, int mem_idx)
 
     return cpu_tick_get_count(timer);
 #else
-    return 0;
+    /* In user-mode, QEMU_CLOCK_VIRTUAL doesn't exist.
+       Just pass through the host cpu clock ticks.  */
+    return cpu_get_host_ticks();
 #endif
 }
 
