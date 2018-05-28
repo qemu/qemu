@@ -18,7 +18,6 @@
 
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-bus.h"
-#include "exec/address-spaces.h"
 
 #if defined(TARGET_PPC64) || defined(TARGET_ARM)
 #define LEGACY_VIRTIO_IS_BIENDIAN 1

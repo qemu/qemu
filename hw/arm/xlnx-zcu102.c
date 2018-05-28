@@ -22,7 +22,6 @@
 #include "hw/arm/xlnx-zynqmp.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
-#include "exec/address-spaces.h"
 #include "qemu/log.h"
 #include "sysemu/qtest.h"
 

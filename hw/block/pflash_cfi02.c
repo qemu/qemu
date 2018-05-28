@@ -41,7 +41,6 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/block-backend.h"
-#include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
 #include "hw/sysbus.h"
 

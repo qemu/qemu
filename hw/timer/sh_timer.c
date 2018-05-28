@@ -13,7 +13,6 @@
 #include "hw/sh4/sh.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
-#include "exec/address-spaces.h"
 #include "hw/ptimer.h"
 
 //#define DEBUG_TIMER

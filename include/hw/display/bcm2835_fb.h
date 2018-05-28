@@ -12,7 +12,6 @@
 #define BCM2835_FB_H
 
 #include "hw/sysbus.h"
-#include "exec/address-spaces.h"
 #include "ui/console.h"
 
 #define TYPE_BCM2835_FB "bcm2835-fb"

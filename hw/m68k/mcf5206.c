@@ -14,7 +14,6 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "sysemu/sysemu.h"
-#include "exec/address-spaces.h"
 
 /* General purpose timer module.  */
 typedef struct {

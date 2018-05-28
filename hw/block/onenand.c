@@ -27,7 +27,6 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "exec/memory.h"
-#include "exec/address-spaces.h"
 #include "hw/sysbus.h"
 #include "qemu/error-report.h"
 

@@ -8,7 +8,6 @@
 
 #include "bcm2835_mbox_defs.h"
 #include "hw/sysbus.h"
-#include "exec/address-spaces.h"
 
 #define TYPE_BCM2835_MBOX "bcm2835-mbox"
 #define BCM2835_MBOX(obj) \
