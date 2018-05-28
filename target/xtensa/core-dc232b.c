@@ -30,6 +30,7 @@
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
 #include "qemu/host-utils.h"
+#include "qemu/timer.h"
 
 #include "core-dc232b/core-isa.h"
 #include "overlay_tool.h"
