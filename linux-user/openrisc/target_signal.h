@@ -16,4 +16,6 @@ typedef struct target_sigaltstack {
 #define TARGET_MINSIGSTKSZ    2048
 #define TARGET_SIGSTKSZ       8192
 
+#include "../generic/signal.h"
+
 #endif /* OPENRISC_TARGET_SIGNAL_H */

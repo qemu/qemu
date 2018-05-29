@@ -16,5 +16,7 @@ typedef struct target_sigaltstack {
 #define TARGET_MINSIGSTKSZ     2048
 #define TARGET_SIGSTKSZ        8192
 
+#include "../generic/signal.h"
+
 #define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* S390X_TARGET_SIGNAL_H */
