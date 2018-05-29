@@ -2413,15 +2413,6 @@ struct target_statfs64 {
 #define TARGET_F_SETLKW        7
 #define TARGET_F_SETOWN        24       /*  for sockets. */
 #define TARGET_F_GETOWN        23       /*  for sockets. */
-#elif defined(TARGET_HPPA)
-#define TARGET_F_RDLCK         1
-#define TARGET_F_WRLCK         2
-#define TARGET_F_UNLCK         3
-#define TARGET_F_GETLK         5
-#define TARGET_F_SETLK         6
-#define TARGET_F_SETLKW        7
-#define TARGET_F_GETOWN        11       /*  for sockets. */
-#define TARGET_F_SETOWN        12       /*  for sockets. */
 #elif defined(TARGET_SPARC)
 #define TARGET_F_RDLCK         1
 #define TARGET_F_WRLCK         2
@@ -2433,19 +2424,10 @@ struct target_statfs64 {
 #define TARGET_F_SETLKW        9
 #endif
 
-#if defined(TARGET_HPPA)
-#define TARGET_F_SETSIG        13      /*  for sockets. */
-#define TARGET_F_GETSIG        14      /*  for sockets. */
-#endif
-
 #if defined(TARGET_MIPS)
 #define TARGET_F_GETLK64       33      /*  using 'struct flock64' */
 #define TARGET_F_SETLK64       34
 #define TARGET_F_SETLKW64      35
-#elif defined(TARGET_HPPA)
-#define TARGET_F_GETLK64       8       /*  using 'struct flock64' */
-#define TARGET_F_SETLK64       9
-#define TARGET_F_SETLKW64      10
 #endif
 
 #define TARGET_F_LINUX_SPECIFIC_BASE 1024
@@ -2456,21 +2438,7 @@ struct target_statfs64 {
 #define TARGET_F_GETPIPE_SZ (TARGET_F_LINUX_SPECIFIC_BASE + 8)
 #define TARGET_F_NOTIFY  (TARGET_F_LINUX_SPECIFIC_BASE+2)
 
-#if defined(TARGET_HPPA)
-#define TARGET_O_NONBLOCK    000200004 /* HPUX has separate NDELAY & NONBLOCK */
-#define TARGET_O_APPEND      000000010
-#define TARGET_O_CREAT       000000400 /* not fcntl */
-#define TARGET_O_EXCL        000002000 /* not fcntl */
-#define TARGET_O_NOCTTY      000400000 /* not fcntl */
-#define TARGET_O_DSYNC       001000000
-#define TARGET_O_LARGEFILE   000004000
-#define TARGET_O_DIRECTORY   000010000 /* must be a directory */
-#define TARGET_O_NOFOLLOW    000000200 /* don't follow links */
-#define TARGET_O_NOATIME     004000000
-#define TARGET_O_CLOEXEC     010000000
-#define TARGET___O_SYNC      000100000
-#define TARGET_O_PATH        020000000
-#elif defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_AARCH64)
+#if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_AARCH64)
 #define TARGET_O_DIRECTORY      040000 /* must be a directory */
 #define TARGET_O_NOFOLLOW      0100000 /* don't follow links */
 #define TARGET_O_DIRECT        0200000 /* direct disk access hint */
