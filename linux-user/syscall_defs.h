@@ -2407,19 +2407,7 @@ struct target_statfs64 {
 };
 #endif
 
-#if defined(TARGET_ALPHA)
-#define TARGET_F_GETLK         7
-#define TARGET_F_SETLK         8
-#define TARGET_F_SETLKW        9
-#define TARGET_F_SETOWN        5       /*  for sockets. */
-#define TARGET_F_GETOWN        6       /*  for sockets. */
-
-#define TARGET_F_RDLCK         1
-#define TARGET_F_WRLCK         2
-#define TARGET_F_UNLCK         8
-#define TARGET_F_EXLCK         16
-#define TARGET_F_SHLCK         32
-#elif defined(TARGET_MIPS)
+#if defined(TARGET_MIPS)
 #define TARGET_F_GETLK         14
 #define TARGET_F_SETLK         6
 #define TARGET_F_SETLKW        7
@@ -2468,23 +2456,7 @@ struct target_statfs64 {
 #define TARGET_F_GETPIPE_SZ (TARGET_F_LINUX_SPECIFIC_BASE + 8)
 #define TARGET_F_NOTIFY  (TARGET_F_LINUX_SPECIFIC_BASE+2)
 
-#if defined(TARGET_ALPHA)
-#define TARGET_O_NONBLOCK           04
-#define TARGET_O_APPEND            010
-#define TARGET_O_CREAT           01000 /* not fcntl */
-#define TARGET_O_TRUNC           02000 /* not fcntl */
-#define TARGET_O_EXCL            04000 /* not fcntl */
-#define TARGET_O_NOCTTY         010000 /* not fcntl */
-#define TARGET_O_DSYNC          040000
-#define TARGET_O_LARGEFILE           0 /* not necessary, always 64-bit */
-#define TARGET_O_DIRECTORY     0100000 /* must be a directory */
-#define TARGET_O_NOFOLLOW      0200000 /* don't follow links */
-#define TARGET_O_DIRECT       02000000 /* direct disk access hint */
-#define TARGET_O_NOATIME      04000000
-#define TARGET_O_CLOEXEC     010000000
-#define TARGET___O_SYNC      020000000
-#define TARGET_O_PATH        040000000
-#elif defined(TARGET_HPPA)
+#if defined(TARGET_HPPA)
 #define TARGET_O_NONBLOCK    000200004 /* HPUX has separate NDELAY & NONBLOCK */
 #define TARGET_O_APPEND      000000010
 #define TARGET_O_CREAT       000000400 /* not fcntl */
