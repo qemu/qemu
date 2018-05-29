@@ -2426,12 +2426,7 @@ struct target_statfs64 {
 #define TARGET_F_GETPIPE_SZ (TARGET_F_LINUX_SPECIFIC_BASE + 8)
 #define TARGET_F_NOTIFY  (TARGET_F_LINUX_SPECIFIC_BASE+2)
 
-#if defined (TARGET_PPC)
-#define TARGET_O_DIRECTORY      040000 /* must be a directory */
-#define TARGET_O_NOFOLLOW      0100000 /* don't follow links */
-#define TARGET_O_LARGEFILE     0200000
-#define TARGET_O_DIRECT        0400000 /* direct disk access hint */
-#elif defined (TARGET_SPARC)
+#if defined (TARGET_SPARC)
 #define TARGET_O_APPEND         0x0008
 #define TARGET_FASYNC           0x0040  /* fcntl, for BSD compatibility */
 #define TARGET_O_CREAT          0x0200  /* not fcntl */
