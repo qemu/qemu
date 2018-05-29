@@ -3134,6 +3134,7 @@ static void vvfat_qcow_options(int *child_flags, QDict *child_options,
 }
 
 static const BdrvChildRole child_vvfat_qcow = {
+    .parent_is_bds      = true,
     .inherit_options    = vvfat_qcow_options,
 };
 

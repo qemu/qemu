@@ -818,13 +818,13 @@ static char *bdrv_child_get_parent_desc(BdrvChild *c)
 static void bdrv_child_cb_drained_begin(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
-    bdrv_do_drained_begin_quiesce(bs, NULL);
+    bdrv_do_drained_begin_quiesce(bs, NULL, false);
 }
 
 static bool bdrv_child_cb_drained_poll(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
-    return bdrv_drain_poll(bs, false, NULL);
+    return bdrv_drain_poll(bs, false, NULL, false);
 }
 
 static void bdrv_child_cb_drained_end(BdrvChild *child)
@@ -908,6 +908,7 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
 }
 
 const BdrvChildRole child_file = {
+    .parent_is_bds   = true,
     .get_parent_desc = bdrv_child_get_parent_desc,
     .inherit_options = bdrv_inherited_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
@@ -933,6 +934,7 @@ static void bdrv_inherited_fmt_options(int *child_flags, QDict *child_options,
 }
 
 const BdrvChildRole child_format = {
+    .parent_is_bds   = true,
     .get_parent_desc = bdrv_child_get_parent_desc,
     .inherit_options = bdrv_inherited_fmt_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
@@ -1051,6 +1053,7 @@ static int bdrv_backing_update_filename(BdrvChild *c, BlockDriverState *base,
 }
 
 const BdrvChildRole child_backing = {
+    .parent_is_bds   = true,
     .get_parent_desc = bdrv_child_get_parent_desc,
     .attach          = bdrv_backing_attach,
     .detach          = bdrv_backing_detach,
@@ -4957,7 +4960,7 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
     AioContext *ctx = bdrv_get_aio_context(bs);
 
     aio_disable_external(ctx);
-    bdrv_parent_drained_begin(bs, NULL);
+    bdrv_parent_drained_begin(bs, NULL, false);
     bdrv_drain(bs); /* ensure there are no in-flight requests */
 
     while (aio_poll(ctx, false)) {
@@ -4971,7 +4974,7 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
      */
     aio_context_acquire(new_context);
     bdrv_attach_aio_context(bs, new_context);
-    bdrv_parent_drained_end(bs, NULL);
+    bdrv_parent_drained_end(bs, NULL, false);
     aio_enable_external(ctx);
     aio_context_release(new_context);
 }

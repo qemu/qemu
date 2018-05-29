@@ -577,6 +577,12 @@ struct BdrvChildRole {
      * points to. */
     bool stay_at_node;
 
+    /* If true, the parent is a BlockDriverState and bdrv_next_all_states()
+     * will return it. This information is used for drain_all, where every node
+     * will be drained separately, so the drain only needs to be propagated to
+     * non-BDS parents. */
+    bool parent_is_bds;
+
     void (*inherit_options)(int *child_flags, QDict *child_options,
                             int parent_flags, QDict *parent_options);
 
