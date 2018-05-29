@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ALPHA_TARGET_CPU_H
-#define ALPHA_TARGET_CPU_H
+#ifndef HPPA_TARGET_CPU_H
+#define HPPA_TARGET_CPU_H
 
 static inline void cpu_clone_regs(CPUHPPAState *env, target_ulong newsp)
 {
@@ -36,4 +36,8 @@ static inline void cpu_set_tls(CPUHPPAState *env, target_ulong newtls)
     env->cr[27] = newtls;
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUHPPAState *state)
+{
+    return state->gr[30];
+}
 #endif

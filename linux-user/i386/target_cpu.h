@@ -45,4 +45,8 @@ static inline void cpu_set_tls(CPUX86State *env, target_ulong newtls)
 }
 #endif /* defined(TARGET_ABI32) */
 
+static inline abi_ulong get_sp_from_cpustate(CPUX86State *state)
+{
+    return state->regs[R_ESP];
+}
 #endif /* I386_TARGET_CPU_H */

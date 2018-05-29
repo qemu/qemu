@@ -482,6 +482,8 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SA_RESTORER	0x04000000
 #endif
 
+#include "target_signal.h"
+
 #ifdef TARGET_SA_RESTORER
 #define TARGET_ARCH_HAS_SA_RESTORER 1
 #endif

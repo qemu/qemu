@@ -1,8 +1,6 @@
 #ifndef MIPS_TARGET_SIGNAL_H
 #define MIPS_TARGET_SIGNAL_H
 
-#include "cpu.h"
-
 /* this struct defines a stack used during syscall handling */
 
 typedef struct target_sigaltstack {
@@ -20,11 +18,6 @@ typedef struct target_sigaltstack {
 
 #define TARGET_MINSIGSTKSZ    2048
 #define TARGET_SIGSTKSZ       8192
-
-static inline abi_ulong get_sp_from_cpustate(CPUMIPSState *state)
-{
-    return state->active_tc.gpr[29];
-}
 
 #if defined(TARGET_ABI_MIPSO32)
 /* compare linux/arch/mips/kernel/signal.c:setup_frame() */

@@ -35,4 +35,8 @@ static inline void cpu_set_tls(CPUARMState *env, target_ulong newtls)
     env->cp15.tpidr_el[0] = newtls;
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUARMState *state)
+{
+   return state->xregs[31];
+}
 #endif

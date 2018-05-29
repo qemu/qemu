@@ -33,4 +33,8 @@ static inline void cpu_set_tls(CPUOpenRISCState *env, target_ulong newtls)
     cpu_set_gpr(env, 10, newtls);
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUOpenRISCState *state)
+{
+    return cpu_get_gpr(state, 1);
+}
 #endif

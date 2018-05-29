@@ -49,4 +49,8 @@ static inline target_ulong cpu_get_tls(CPUARMState *env)
     }
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUARMState *state)
+{
+   return state->regs[13];
+}
 #endif

@@ -36,4 +36,8 @@ static inline void cpu_set_tls(CPUS390XState *env, target_ulong newtls)
     env->aregs[1] = newtls & 0xffffffffULL;
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUS390XState *state)
+{
+   return state->regs[15];
+}
 #endif

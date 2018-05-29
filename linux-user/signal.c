@@ -23,7 +23,6 @@
 
 #include "qemu.h"
 #include "qemu-common.h"
-#include "target_signal.h"
 #include "trace.h"
 #include "signal-common.h"
 

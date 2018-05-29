@@ -33,4 +33,8 @@ static inline void cpu_set_tls(CPUCRISState *env, target_ulong newtls)
     env->pregs[PR_PID] = (env->pregs[PR_PID] & 0xff) | newtls;
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUCRISState *state)
+{
+    return state->regs[14];
+}
 #endif
