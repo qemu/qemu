@@ -7,5 +7,10 @@
 
 #ifndef AARCH64_TARGET_FCNTL_H
 #define AARCH64_TARGET_FCNTL_H
+
+#define TARGET_O_DIRECTORY      040000 /* must be a directory */
+#define TARGET_O_NOFOLLOW      0100000 /* don't follow links */
+#define TARGET_O_DIRECT        0200000 /* direct disk access hint */
+
 #include "../generic/fcntl.h"
 #endif
