@@ -44,6 +44,9 @@
 #ifndef MAC_OS_X_VERSION_10_6
 #define MAC_OS_X_VERSION_10_6 1060
 #endif
+#ifndef MAC_OS_X_VERSION_10_9
+#define MAC_OS_X_VERSION_10_9 1090
+#endif
 #ifndef MAC_OS_X_VERSION_10_10
 #define MAC_OS_X_VERSION_10_10 101000
 #endif
@@ -78,6 +81,13 @@
 #define NSWindowStyleMaskClosable       NSClosableWindowMask
 #define NSWindowStyleMaskMiniaturizable NSMiniaturizableWindowMask
 #define NSWindowStyleMaskTitled         NSTitledWindowMask
+#endif
+/* 10.13 deprecates NSFileHandlingPanelOKButton in favour of
+ * NSModalResponseOK, which was introduced in 10.9. Define
+ * it for older versions.
+ */
+#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_9
+#define NSModalResponseOK NSFileHandlingPanelOKButton
 #endif
 
 //#define DEBUG
@@ -1218,7 +1228,7 @@ QemuCocoaView *cocoaView;
     [openPanel setCanChooseFiles: YES];
     [openPanel setAllowsMultipleSelection: NO];
     [openPanel setAllowedFileTypes: supportedImageFileTypes];
-    if([openPanel runModal] == NSFileHandlingPanelOKButton) {
+    if([openPanel runModal] == NSModalResponseOK) {
         NSString * file = [[[openPanel URLs] objectAtIndex: 0] path];
         if(file == nil) {
             NSBeep();
