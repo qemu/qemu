@@ -200,3 +200,109 @@ crw-------. 1 root root 10, 224 Jul 11 10:11 /dev/tpm0
 PCR-00: 35 4E 3B CE 23 9F 38 59 ...
 ...
 PCR-23: 00 00 00 00 00 00 00 00 ...
+
+
+=== Migration with the TPM emulator ===
+
+The TPM emulator supports the following types of virtual machine migration:
+
+- VM save / restore (migration into a file)
+- Network migration
+- Snapshotting (migration into storage like QoW2 or QED)
+
+The following command sequences can be used to test VM save / restore.
+
+
+In a 1st terminal start an instance of a swtpm using the following command:
+
+mkdir /tmp/mytpm1
+swtpm socket --tpmstate dir=/tmp/mytpm1 \
+  --ctrl type=unixio,path=/tmp/mytpm1/swtpm-sock \
+  --log level=20 --tpm2
+
+In a 2nd terminal start the VM:
+
+qemu-system-x86_64 -display sdl -enable-kvm \
+  -m 1024 -boot d -bios bios-256k.bin -boot menu=on \
+  -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
+  -tpmdev emulator,id=tpm0,chardev=chrtpm \
+  -device tpm-tis,tpmdev=tpm0 \
+  -monitor stdio \
+  test.img
+
+Verify that the attached TPM is working as expected using applications inside
+the VM.
+
+To store the state of the VM use the following command in the QEMU monitor in
+the 2nd terminal:
+
+(qemu) migrate "exec:cat > testvm.bin"
+(qemu) quit
+
+At this point a file called 'testvm.bin' should exists and the swtpm and QEMU
+processes should have ended.
+
+To test 'VM restore' you have to start the swtpm with the same parameters
+as before. If previously a TPM 2 [--tpm2] was saved, --tpm2 must now be
+passed again on the command line.
+
+In the 1st terminal restart the swtpm with the same command line as before:
+
+swtpm socket --tpmstate dir=/tmp/mytpm1 \
+  --ctrl type=unixio,path=/tmp/mytpm1/swtpm-sock \
+  --log level=20 --tpm2
+
+In the 2nd terminal restore the state of the VM using the additonal
+'-incoming' option.
+
+qemu-system-x86_64 -display sdl -enable-kvm \
+  -m 1024 -boot d -bios bios-256k.bin -boot menu=on \
+  -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
+  -tpmdev emulator,id=tpm0,chardev=chrtpm \
+  -device tpm-tis,tpmdev=tpm0 \
+  -incoming "exec:cat < testvm.bin" \
+  test.img
+
+
+Troubleshooting migration:
+
+There are several reasons why migration may fail. In case of problems,
+please ensure that the command lines adhere to the following rules and,
+if possible, that identical versions of QEMU and swtpm are used at all
+times.
+
+VM save and restore:
+ - QEMU command line parameters should be identical apart from the
+   '-incoming' option on VM restore
+ - swtpm command line parameters should be identical
+
+VM migration to 'localhost':
+ - QEMU command line parameters should be identical apart from the
+   '-incoming' option on the destination side
+ - swtpm command line parameters should point to two different
+   directories on the source and destination swtpm (--tpmstate dir=...)
+   (especially if different versions of libtpms were to be used on the
+   same machine).
+
+VM migration across the network:
+ - QEMU command line parameters should be identical apart from the
+   '-incoming' option on the destination side
+ - swtpm command line parameters should be identical
+
+VM Snapshotting:
+ - QEMU command line parameters should be identical
+ - swtpm command line parameters should be identical
+
+
+Besides that, migration failure reasons on the swtpm level may include
+the following:
+
+ - the versions of the swtpm on the source and destination sides are
+   incompatible
+   - downgrading of TPM state may not be supported
+   - the source and destination libtpms were compiled with different
+     compile-time options and the destination side refuses to accept the
+     state
+ - different migration keys are used on the source and destination side
+   and the destination side cannot decrypt the migrated state
+   (swtpm ... --migration-key ... )
