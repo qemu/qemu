@@ -28,7 +28,7 @@
 #define RAM_TAG      0
 
 /* Tag portion */
-#define TLB_EPN_MASK          0xFFFFFC00 /* Effective Page Number */
+#define TLB_EPN_MASK          MAKE_64BIT_MASK(10, 64 - 10)
 #define TLB_PAGESZ_MASK       0x00000380
 #define TLB_PAGESZ(x)         (((x) & 0x7) << 7)
 #define PAGESZ_1K             0
@@ -42,7 +42,7 @@
 #define TLB_VALID             0x00000040 /* Entry is valid */
 
 /* Data portion */
-#define TLB_RPN_MASK          0xFFFFFC00 /* Real Page Number */
+#define TLB_RPN_MASK          MAKE_64BIT_MASK(10, 64 - 10)
 #define TLB_PERM_MASK         0x00000300
 #define TLB_EX                0x00000200 /* Instruction execution allowed */
 #define TLB_WR                0x00000100 /* Writes permitted */
@@ -54,20 +54,25 @@
 #define TLB_M                 0x00000002 /* Memory is coherent */
 #define TLB_G                 0x00000001 /* Memory is guarded from prefetch */
 
+/* TLBX  */
+#define R_TBLX_MISS_SHIFT 31
+#define R_TBLX_MISS_MASK (1U << R_TBLX_MISS_SHIFT)
+
 #define TLB_ENTRIES    64
 
 struct microblaze_mmu
 {
     /* Data and tag brams.  */
-    uint32_t rams[2][TLB_ENTRIES];
+    uint64_t rams[2][TLB_ENTRIES];
     /* We keep a separate ram for the tids to avoid the 48 bit tag width.  */
     uint8_t tids[TLB_ENTRIES];
     /* Control flops.  */
-    uint32_t regs[8];
+    uint32_t regs[3];
 
     int c_mmu;
     int c_mmu_tlb_access;
     int c_mmu_zones;
+    uint64_t c_addr_mask; /* Mask to apply to physical addresses.  */
 };
 
 struct microblaze_mmu_lookup
@@ -85,6 +90,6 @@ struct microblaze_mmu_lookup
 unsigned int mmu_translate(struct microblaze_mmu *mmu,
                            struct microblaze_mmu_lookup *lu,
                            target_ulong vaddr, int rw, int mmu_idx);
-uint32_t mmu_read(CPUMBState *env, uint32_t rn);
-void mmu_write(CPUMBState *env, uint32_t rn, uint32_t v);
+uint32_t mmu_read(CPUMBState *env, bool ea, uint32_t rn);
+void mmu_write(CPUMBState *env, bool ea, uint32_t rn, uint32_t v);
 void mmu_init(struct microblaze_mmu *mmu);

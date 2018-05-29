@@ -6844,6 +6844,7 @@ case "$target_name" in
   microblaze|microblazeel)
     TARGET_ARCH=microblaze
     bflt="yes"
+    echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   mips|mipsel)
     TARGET_ARCH=mips
