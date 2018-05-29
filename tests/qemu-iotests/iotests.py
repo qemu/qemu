@@ -303,6 +303,13 @@ def file_path(*names):
 
     return paths[0] if len(paths) == 1 else paths
 
+def remote_filename(path):
+    if imgproto == 'file':
+        return path
+    elif imgproto == 'ssh':
+        return "ssh://127.0.0.1%s" % (path)
+    else:
+        raise Exception("Protocol %s not supported" % (imgproto))
 
 class VM(qtest.QEMUQtestMachine):
     '''A QEMU VM'''
@@ -600,6 +607,16 @@ def verify_image_format(supported_fmts=[], unsupported_fmts=[]):
     not_sup = supported_fmts and (imgfmt not in supported_fmts)
     if not_sup or (imgfmt in unsupported_fmts):
         notrun('not suitable for this image format: %s' % imgfmt)
+
+def verify_protocol(supported=[], unsupported=[]):
+    assert not (supported and unsupported)
+
+    if 'generic' in supported:
+        return
+
+    not_sup = supported and (imgproto not in supported)
+    if not_sup or (imgproto in unsupported):
+        notrun('not suitable for this protocol: %s' % imgproto)
 
 def verify_platform(supported_oses=['linux']):
     if True not in [sys.platform.startswith(x) for x in supported_oses]:
