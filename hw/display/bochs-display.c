@@ -337,6 +337,7 @@ static void bochs_display_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_QEMU_VGA;
 
     k->realize   = bochs_display_realize;
+    k->romfile   = "vgabios-bochs-display.bin";
     k->exit      = bochs_display_exit;
     dc->vmsd     = &vmstate_bochs_display;
     dc->props    = bochs_display_properties;
