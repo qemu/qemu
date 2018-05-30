@@ -15,10 +15,12 @@
 
 #include "tpm-util.h"
 
-void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx);
+void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx,
+                         const char *ifmodel);
 
 void tpm_test_swtpm_migration_test(const char *src_tpm_path,
                                    const char *dst_tpm_path,
-                                   const char *uri, tx_func *tx);
+                                   const char *uri, tx_func *tx,
+                                   const char *ifmodel);
 
 #endif /* TESTS_TPM_TESTS_H */

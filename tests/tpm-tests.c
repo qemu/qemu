@@ -18,7 +18,8 @@
 #include "libqtest.h"
 #include "tpm-tests.h"
 
-void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx)
+void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx,
+                         const char *ifmodel)
 {
     char *args = NULL;
     QTestState *s;
@@ -36,8 +37,8 @@ void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx)
     args = g_strdup_printf(
         "-chardev socket,id=chr,path=%s "
         "-tpmdev emulator,id=dev,chardev=chr "
-        "-device tpm-crb,tpmdev=dev",
-        addr->u.q_unix.path);
+        "-device %s,tpmdev=dev",
+        addr->u.q_unix.path, ifmodel);
 
     s = qtest_start(args);
     g_free(args);
@@ -64,7 +65,8 @@ void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx)
 
 void tpm_test_swtpm_migration_test(const char *src_tpm_path,
                                    const char *dst_tpm_path,
-                                   const char *uri, tx_func *tx)
+                                   const char *uri, tx_func *tx,
+                                   const char *ifmodel)
 {
     gboolean succ;
     GPid src_tpm_pid, dst_tpm_pid;
@@ -87,7 +89,8 @@ void tpm_test_swtpm_migration_test(const char *src_tpm_path,
     }
 
     tpm_util_migration_start_qemu(&src_qemu, &dst_qemu,
-                                  src_tpm_addr, dst_tpm_addr, uri);
+                                  src_tpm_addr, dst_tpm_addr, uri,
+                                  ifmodel);
 
     tpm_util_startup(src_qemu, tx);
     tpm_util_pcrextend(src_qemu, tx);

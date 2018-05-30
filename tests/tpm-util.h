@@ -39,7 +39,8 @@ void tpm_util_migration_start_qemu(QTestState **src_qemu,
                                    QTestState **dst_qemu,
                                    SocketAddress *src_tpm_addr,
                                    SocketAddress *dst_tpm_addr,
-                                   const char *miguri);
+                                   const char *miguri,
+                                   const char *ifmodel);
 
 void tpm_util_wait_for_migration_complete(QTestState *who);
 
