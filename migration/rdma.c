@@ -400,7 +400,6 @@ struct QIOChannelRDMA {
     QIOChannel parent;
     RDMAContext *rdma;
     QEMUFile *file;
-    size_t len;
     bool blocking; /* XXX we don't actually honour this yet */
 };
 
@@ -2608,6 +2607,7 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
     int ret;
     ssize_t done = 0;
     size_t i;
+    size_t len = 0;
 
     CHECK_ERROR_STATE();
 
@@ -2627,10 +2627,10 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
         while (remaining) {
             RDMAControlHeader head;
 
-            rioc->len = MIN(remaining, RDMA_SEND_INCREMENT);
-            remaining -= rioc->len;
+            len = MIN(remaining, RDMA_SEND_INCREMENT);
+            remaining -= len;
 
-            head.len = rioc->len;
+            head.len = len;
             head.type = RDMA_CONTROL_QEMU_FILE;
 
             ret = qemu_rdma_exchange_send(rdma, &head, data, NULL, NULL, NULL);
@@ -2640,8 +2640,8 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
                 return ret;
             }
 
-            data += rioc->len;
-            done += rioc->len;
+            data += len;
+            done += len;
         }
     }
 
@@ -2736,8 +2736,7 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
             }
         }
     }
-    rioc->len = done;
-    return rioc->len;
+    return done;
 }
 
 /*
