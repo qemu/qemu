@@ -712,10 +712,15 @@ ssize_t qemu_deliver_packet_iov(NetClientState *sender,
                                 void *opaque)
 {
     NetClientState *nc = opaque;
+    size_t size = iov_size(iov, iovcnt);
     int ret;
 
+    if (size > INT_MAX) {
+        return size;
+    }
+
     if (nc->link_down) {
-        return iov_size(iov, iovcnt);
+        return size;
     }
 
     if (nc->receive_disabled) {
