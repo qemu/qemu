@@ -988,14 +988,14 @@ ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
     uint8_t buf1[60];
     int remaining;
     int crc_err = 0;
-    int size = size_;
+    size_t size = size_;
 
     if (CSR_DRX(s) || CSR_STOP(s) || CSR_SPND(s) || !size ||
         (CSR_LOOP(s) && !s->looptest)) {
         return -1;
     }
 #ifdef PCNET_DEBUG
-    printf("pcnet_receive size=%d\n", size);
+    printf("pcnet_receive size=%zu\n", size);
 #endif
 
     /* if too small buffer, then expand it */
