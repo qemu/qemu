@@ -359,3 +359,9 @@ class QEMUMachine(object):
         of the qemu process.
         '''
         return self._iolog
+
+    def add_args(self, *args):
+        '''
+        Adds to the list of extra arguments to be given to the QEMU binary
+        '''
+        self._args.extend(args)
