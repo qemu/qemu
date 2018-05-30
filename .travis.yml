@@ -1,4 +1,8 @@
+# The current Travis default is a container based 14.04 Trust on EC2
+# Additional builds with specific requirements for a full VM need to
+# be added as additional matrix: entries later on
 sudo: false
+dist: trusty
 language: c
 python:
   - "2.6"
