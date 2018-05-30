@@ -46,7 +46,7 @@
 #endif
 #endif
 #else
-#include "exec/address-spaces.h"
+#include "exec/ram_addr.h"
 #endif
 
 #include "exec/cputlb.h"
@@ -1934,7 +1934,11 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
  *
  * Called with mmap_lock held for user-mode emulation.
  */
-void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
+#ifdef CONFIG_SOFTMMU
+void tb_invalidate_phys_range(ram_addr_t start, ram_addr_t end)
+#else
+void tb_invalidate_phys_range(target_ulong start, target_ulong end)
+#endif
 {
     struct page_collection *pages;
     tb_page_addr_t next;
@@ -2072,26 +2076,6 @@ static bool tb_invalidate_phys_page(tb_page_addr_t addr, uintptr_t pc)
     return false;
 }
 #endif
-
-#if !defined(CONFIG_USER_ONLY)
-void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs)
-{
-    ram_addr_t ram_addr;
-    MemoryRegion *mr;
-    hwaddr l = 1;
-
-    rcu_read_lock();
-    mr = address_space_translate(as, addr, &addr, &l, false, attrs);
-    if (!(memory_region_is_ram(mr)
-          || memory_region_is_romd(mr))) {
-        rcu_read_unlock();
-        return;
-    }
-    ram_addr = memory_region_get_ram_addr(mr) + addr;
-    tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
-    rcu_read_unlock();
-}
-#endif /* !defined(CONFIG_USER_ONLY) */
 
 /* user-mode: call with mmap_lock held */
 void tb_check_watchpoint(CPUState *cpu)
