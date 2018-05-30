@@ -111,13 +111,14 @@ matrix:
     # Using newer GCC with sanitizers
     - addons:
         apt:
+          update: true
           sources:
             # PPAs for newer toolchains
             - ubuntu-toolchain-r-test
           packages:
             # Extra toolchains
-            - gcc-5
-            - g++-5
+            - gcc-7
+            - g++-7
             # Build dependencies
             - libaio-dev
             - libattr1-dev
@@ -146,8 +147,8 @@ matrix:
       language: generic
       compiler: none
       env:
-        - COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
-        - CONFIG="--cc=gcc-5 --cxx=g++-5 --disable-pie --disable-linux-user"
+        - COMPILER_NAME=gcc CXX=g++-7 CC=gcc-7
+        - CONFIG="--cc=gcc-7 --cxx=g++-7 --disable-pie --disable-linux-user"
         - TEST_CMD=""
       before_script:
         - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || cat config.log
