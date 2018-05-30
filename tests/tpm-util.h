@@ -33,4 +33,14 @@ gboolean tpm_util_swtpm_start(const char *path, GPid *pid,
                               SocketAddress **addr, GError **error);
 void tpm_util_swtpm_kill(GPid pid);
 
+void tpm_util_migrate(QTestState *who, const char *uri);
+
+void tpm_util_migration_start_qemu(QTestState **src_qemu,
+                                   QTestState **dst_qemu,
+                                   SocketAddress *src_tpm_addr,
+                                   SocketAddress *dst_tpm_addr,
+                                   const char *miguri);
+
+void tpm_util_wait_for_migration_complete(QTestState *who);
+
 #endif /* TESTS_TPM_UTIL_H */

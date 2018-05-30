@@ -15,105 +15,14 @@
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
 
-#include "hw/acpi/tpm.h"
-#include "io/channel-socket.h"
 #include "libqtest.h"
 #include "tpm-util.h"
-#include "sysemu/tpm.h"
-#include "qapi/qmp/qdict.h"
 
 typedef struct TestState {
     char *src_tpm_path;
     char *dst_tpm_path;
     char *uri;
 } TestState;
-
-bool got_stop;
-
-static void migrate(QTestState *who, const char *uri)
-{
-    QDict *rsp;
-    gchar *cmd;
-
-    cmd = g_strdup_printf("{ 'execute': 'migrate',"
-                          "'arguments': { 'uri': '%s' } }",
-                          uri);
-    rsp = qtest_qmp(who, cmd);
-    g_free(cmd);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
-}
-
-/*
- * Events can get in the way of responses we are actually waiting for.
- */
-static QDict *wait_command(QTestState *who, const char *command)
-{
-    const char *event_string;
-    QDict *response;
-
-    response = qtest_qmp(who, command);
-
-    while (qdict_haskey(response, "event")) {
-        /* OK, it was an event */
-        event_string = qdict_get_str(response, "event");
-        if (!strcmp(event_string, "STOP")) {
-            got_stop = true;
-        }
-        qobject_unref(response);
-        response = qtest_qmp_receive(who);
-    }
-    return response;
-}
-
-static void wait_for_migration_complete(QTestState *who)
-{
-    while (true) {
-        QDict *rsp, *rsp_return;
-        bool completed;
-        const char *status;
-
-        rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
-        rsp_return = qdict_get_qdict(rsp, "return");
-        status = qdict_get_str(rsp_return, "status");
-        completed = strcmp(status, "completed") == 0;
-        g_assert_cmpstr(status, !=,  "failed");
-        qobject_unref(rsp);
-        if (completed) {
-            return;
-        }
-        usleep(1000);
-    }
-}
-
-static void migration_start_qemu(QTestState **src_qemu, QTestState **dst_qemu,
-                                 SocketAddress *src_tpm_addr,
-                                 SocketAddress *dst_tpm_addr,
-                                 const char *miguri)
-{
-    char *src_qemu_args, *dst_qemu_args;
-
-    src_qemu_args = g_strdup_printf(
-        "-chardev socket,id=chr,path=%s "
-        "-tpmdev emulator,id=dev,chardev=chr "
-        "-device tpm-crb,tpmdev=dev ",
-        src_tpm_addr->u.q_unix.path);
-
-    *src_qemu = qtest_init(src_qemu_args);
-
-    dst_qemu_args = g_strdup_printf(
-        "-chardev socket,id=chr,path=%s "
-        "-tpmdev emulator,id=dev,chardev=chr "
-        "-device tpm-crb,tpmdev=dev "
-        "-incoming %s",
-        dst_tpm_addr->u.q_unix.path,
-        miguri);
-
-    *dst_qemu = qtest_init(dst_qemu_args);
-
-    free(src_qemu_args);
-    free(dst_qemu_args);
-}
 
 static void tpm_crb_swtpm_test(const void *data)
 {
@@ -183,8 +92,9 @@ static void tpm_crb_swtpm_migration_test(const void *data)
         goto err_src_tpm_kill;
     }
 
-    migration_start_qemu(&src_qemu, &dst_qemu, src_tpm_addr, dst_tpm_addr,
-                         ts->uri);
+    tpm_util_migration_start_qemu(&src_qemu, &dst_qemu,
+                                  src_tpm_addr, dst_tpm_addr,
+                                  ts->uri);
 
     tpm_util_startup(src_qemu, tpm_util_crb_transfer);
     tpm_util_pcrextend(src_qemu, tpm_util_crb_transfer);
@@ -197,8 +107,8 @@ static void tpm_crb_swtpm_migration_test(const void *data)
     tpm_util_pcrread(src_qemu, tpm_util_crb_transfer, tpm_pcrread_resp,
                      sizeof(tpm_pcrread_resp));
 
-    migrate(src_qemu, ts->uri);
-    wait_for_migration_complete(src_qemu);
+    tpm_util_migrate(src_qemu, ts->uri);
+    tpm_util_wait_for_migration_complete(src_qemu);
 
     tpm_util_pcrread(dst_qemu, tpm_util_crb_transfer, tpm_pcrread_resp,
                      sizeof(tpm_pcrread_resp));
