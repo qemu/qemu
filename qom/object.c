@@ -1669,25 +1669,29 @@ gchar *object_get_canonical_path(Object *obj)
     Object *root = object_get_root();
     char *newpath, *path = NULL;
 
-    while (obj != root) {
-        char *component = object_get_canonical_path_component(obj);
-
-        if (path) {
-            newpath = g_strdup_printf("%s/%s", component, path);
-            g_free(component);
-            g_free(path);
-            path = newpath;
-        } else {
-            path = component;
-        }
-
-        obj = obj->parent;
+    if (obj == root) {
+        return g_strdup("/");
     }
 
-    newpath = g_strdup_printf("/%s", path ? path : "");
-    g_free(path);
+    do {
+        char *component = object_get_canonical_path_component(obj);
 
-    return newpath;
+        if (!component) {
+            /* A canonical path must be complete, so discard what was
+             * collected so far.
+             */
+            g_free(path);
+            return NULL;
+        }
+
+        newpath = g_strdup_printf("/%s%s", component, path ? path : "");
+        g_free(path);
+        g_free(component);
+        path = newpath;
+        obj = obj->parent;
+    } while (obj != root);
+
+    return path;
 }
 
 Object *object_resolve_path_component(Object *parent, const gchar *part)
