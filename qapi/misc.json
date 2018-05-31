@@ -37,7 +37,8 @@
 #
 ##
 { 'command': 'qmp_capabilities',
-  'data': { '*enable': [ 'QMPCapability' ] } }
+  'data': { '*enable': [ 'QMPCapability' ] },
+  'allow-preconfig': true }
 
 ##
 # @QMPCapability:
@@ -155,7 +156,8 @@
 # Note: This example has been shortened as the real response is too long.
 #
 ##
-{ 'command': 'query-commands', 'returns': ['CommandInfo'] }
+{ 'command': 'query-commands', 'returns': ['CommandInfo'],
+  'allow-preconfig': true }
 
 ##
 # @LostTickPolicy:
@@ -1241,6 +1243,29 @@
 #
 ##
 { 'command': 'cont' }
+
+##
+# @exit-preconfig:
+#
+# Exit from "preconfig" state
+#
+# This command makes QEMU exit the preconfig state and proceed with
+# VM initialization using configuration data provided on the command line
+# and via the QMP monitor during the preconfig state. The command is only
+# available during the preconfig state (i.e. when the --preconfig command
+# line option was in use).
+#
+# Since 3.0
+#
+# Returns: nothing
+#
+# Example:
+#
+# -> { "execute": "exit-preconfig" }
+# <- { "return": {} }
+#
+##
+{ 'command': 'exit-preconfig', 'allow-preconfig': true }
 
 ##
 # @system_wakeup:
@@ -2648,7 +2673,8 @@
 #
 ##
 {'command': 'query-command-line-options', 'data': { '*option': 'str' },
- 'returns': ['CommandLineOptionInfo'] }
+ 'returns': ['CommandLineOptionInfo'],
+ 'allow-preconfig': true }
 
 ##
 # @X86CPURegister32:
@@ -3259,7 +3285,8 @@
 #    ]}
 #
 ##
-{ 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'] }
+{ 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'],
+             'allow-preconfig': true }
 
 ##
 # @GuidInfo:
@@ -3483,3 +3510,17 @@
 ##
 { 'command': 'x-oob-test', 'data' : { 'lock': 'bool' },
   'allow-oob': true }
+
+##
+# @set-numa-node:
+#
+# Runtime equivalent of '-numa' CLI option, available at
+# preconfigure stage to configure numa mapping before initializing
+# machine.
+#
+# Since 3.0
+##
+{ 'command': 'set-numa-node', 'boxed': true,
+  'data': 'NumaOptions',
+  'allow-preconfig': true
+}

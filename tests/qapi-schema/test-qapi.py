@@ -41,12 +41,12 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         print('alternate %s' % name)
         self._print_variants(variants)
 
-    def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed, allow_oob):
+    def visit_command(self, name, info, arg_type, ret_type, gen,
+                      success_response, boxed, allow_oob, allow_preconfig):
         print('command %s %s -> %s' % \
               (name, arg_type and arg_type.name, ret_type and ret_type.name))
-        print('   gen=%s success_response=%s boxed=%s oob=%s' % \
-              (gen, success_response, boxed, allow_oob))
+        print('   gen=%s success_response=%s boxed=%s oob=%s preconfig=%s' % \
+              (gen, success_response, boxed, allow_oob, allow_preconfig))
 
     def visit_event(self, name, info, arg_type, boxed):
         print('event %s %s' % (name, arg_type and arg_type.name))

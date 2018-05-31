@@ -5,6 +5,7 @@
 * CPU emulation::
 * Translator Internals::
 * QEMU compared to other emulators::
+* Managed start up options::
 * Bibliography::
 @end menu
 
@@ -313,6 +314,45 @@ provide cycle exact simulation as an emulator can.
 VirtualBox [9], Xen [10] and KVM [11] are based on QEMU. QEMU-SystemC
 [12] uses QEMU to simulate a system where some hardware devices are
 developed in SystemC.
+
+@node Managed start up options
+@section Managed start up options
+
+In system mode emulation, it's possible to create a VM in a paused state using
+the -S command line option. In this state the machine is completely initialized
+according to command line options and ready to execute VM code but VCPU threads
+are not executing any code. The VM state in this paused state depends on the way
+QEMU was started. It could be in:
+@table @asis
+@item initial state (after reset/power on state)
+@item with direct kernel loading, the initial state could be amended to execute
+code loaded by QEMU in the VM's RAM and with incoming migration
+@item with incoming migration, initial state will by amended with the migrated
+machine state after migration completes.
+@end table
+
+This paused state is typically used by users to query machine state and/or
+additionally configure the machine (by hotplugging devices) in runtime before
+allowing VM code to run.
+
+However, at the -S pause point, it's impossible to configure options that affect
+initial VM creation (like: -smp/-m/-numa ...) or cold plug devices. That's
+when the --preconfig command line option should be used. It allows pausing QEMU
+before the initial VM creation, in a new preconfig state, where additional
+queries and configuration can be performed via QMP before moving on to
+the resulting configuration startup. In the preconfig state, QEMU only allows
+a limited set of commands over the QMP monitor, where the commands do not
+depend on an initialized machine, including but not limited to:
+@table @asis
+@item qmp_capabilities
+@item query-qmp-schema
+@item query-commands
+@item query-status
+@item exit-preconfig
+@end table
+The full list of commands is in QMP schema which could be queried with
+query-qmp-schema, where commands supported at preconfig state have option
+'allow-preconfig' set to true.
 
 @node Bibliography
 @section Bibliography

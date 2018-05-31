@@ -559,7 +559,7 @@ following example objects:
 Usage: { 'command': STRING, '*data': COMPLEX-TYPE-NAME-OR-DICT,
          '*returns': TYPE-NAME, '*boxed': true,
          '*gen': false, '*success-response': false,
-         '*allow-oob': true }
+         '*allow-oob': true, '*allow-preconfig': true }
 
 Commands are defined by using a dictionary containing several members,
 where three members are most common.  The 'command' member is a
@@ -682,6 +682,15 @@ OOB command handlers must satisfy the following conditions:
   enabled for postcopy live migration.
 
 If in doubt, do not implement OOB execution support.
+
+A command may use the optional 'allow-preconfig' key to permit its execution
+at early runtime configuration stage (preconfig runstate).
+If not specified then a command defaults to 'allow-preconfig': false.
+
+An example of declaring a command that is enabled during preconfig:
+ { 'command': 'qmp_capabilities',
+   'data': { '*enable': [ 'QMPCapability' ] },
+   'allow-preconfig': true }
 
 === Events ===
 

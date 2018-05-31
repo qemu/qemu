@@ -1179,8 +1179,7 @@ static void monitor_init_qmp_commands(void)
     qmp_init_marshal(&qmp_commands);
 
     qmp_register_command(&qmp_commands, "query-qmp-schema",
-                         qmp_query_qmp_schema,
-                         QCO_NO_OPTIONS);
+                         qmp_query_qmp_schema, QCO_ALLOW_PRECONFIG);
     qmp_register_command(&qmp_commands, "device_add", qmp_device_add,
                          QCO_NO_OPTIONS);
     qmp_register_command(&qmp_commands, "netdev_add", qmp_netdev_add,
@@ -1190,7 +1189,7 @@ static void monitor_init_qmp_commands(void)
 
     QTAILQ_INIT(&qmp_cap_negotiation_commands);
     qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
-                         qmp_marshal_qmp_capabilities, QCO_NO_OPTIONS);
+                         qmp_marshal_qmp_capabilities, QCO_ALLOW_PRECONFIG);
 }
 
 static bool qmp_cap_enabled(Monitor *mon, QMPCapability cap)
@@ -3370,6 +3369,12 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
     const mon_cmd_t *cmd;
 
     trace_handle_hmp_command(mon, cmdline);
+
+    if (runstate_check(RUN_STATE_PRECONFIG)) {
+        monitor_printf(mon, "HMP not available in preconfig state, "
+                            "use QMP instead\n");
+        return;
+    }
 
     cmd = monitor_parse_command(mon, cmdline, &cmdline, mon->cmd_table);
     if (!cmd) {

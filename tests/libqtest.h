@@ -972,4 +972,13 @@ void qtest_qmp_device_add(const char *driver, const char *id, const char *fmt,
  */
 void qtest_qmp_device_del(const char *id);
 
+/**
+ * qmp_rsp_is_err:
+ * @rsp: QMP response to check for error
+ *
+ * Test @rsp for error and discard @rsp.
+ * Returns 'true' if there is error in @rsp and 'false' otherwise.
+ */
+bool qmp_rsp_is_err(QDict *rsp);
+
 #endif

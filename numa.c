@@ -141,9 +141,8 @@ static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
     uint8_t val = dist->val;
 
     if (src >= MAX_NODES || dst >= MAX_NODES) {
-        error_setg(errp,
-                   "Invalid node %d, max possible could be %d",
-                   MAX(src, dst), MAX_NODES);
+        error_setg(errp, "Parameter '%s' expects an integer between 0 and %d",
+                   src >= MAX_NODES ? "src" : "dst", MAX_NODES - 1);
         return;
     }
 
@@ -170,27 +169,10 @@ static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
     have_numa_distance = true;
 }
 
-static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
+static
+void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 {
-    NumaOptions *object = NULL;
-    MachineState *ms = opaque;
     Error *err = NULL;
-
-    {
-        Visitor *v = opts_visitor_new(opts);
-        visit_type_NumaOptions(v, NULL, &object, &err);
-        visit_free(v);
-    }
-
-    if (err) {
-        goto end;
-    }
-
-    /* Fix up legacy suffix-less format */
-    if ((object->type == NUMA_OPTIONS_TYPE_NODE) && object->u.node.has_mem) {
-        const char *mem_str = qemu_opt_get(opts, "mem");
-        qemu_strtosz_MiB(mem_str, NULL, &object->u.node.mem);
-    }
 
     switch (object->type) {
     case NUMA_OPTIONS_TYPE_NODE:
@@ -223,6 +205,31 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
     default:
         abort();
     }
+
+end:
+    error_propagate(errp, err);
+}
+
+int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
+{
+    NumaOptions *object = NULL;
+    MachineState *ms = MACHINE(opaque);
+    Error *err = NULL;
+    Visitor *v = opts_visitor_new(opts);
+
+    visit_type_NumaOptions(v, NULL, &object, &err);
+    visit_free(v);
+    if (err) {
+        goto end;
+    }
+
+    /* Fix up legacy suffix-less format */
+    if ((object->type == NUMA_OPTIONS_TYPE_NODE) && object->u.node.has_mem) {
+        const char *mem_str = qemu_opt_get(opts, "mem");
+        qemu_strtosz_MiB(mem_str, NULL, &object->u.node.mem);
+    }
+
+    set_numa_options(ms, object, &err);
 
 end:
     qapi_free_NumaOptions(object);
@@ -339,14 +346,10 @@ void numa_default_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
     nodes[i].node_mem = size - usedmem;
 }
 
-void parse_numa_opts(MachineState *ms)
+void numa_complete_configuration(MachineState *ms)
 {
     int i;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
-
-    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
-        exit(1);
-    }
 
     /*
      * If memory hotplug is enabled (slots > 0) but without '-numa'
@@ -432,6 +435,24 @@ void parse_numa_opts(MachineState *ms)
             complete_init_numa_distance();
         }
     }
+}
+
+void parse_numa_opts(MachineState *ms)
+{
+    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
+        exit(1);
+    }
+}
+
+void qmp_set_numa_node(NumaOptions *cmd, Error **errp)
+{
+    if (!runstate_check(RUN_STATE_PRECONFIG)) {
+        error_setg(errp, "The command is permitted only in '%s' state",
+                   RunState_str(RUN_STATE_PRECONFIG));
+         return;
+    }
+
+    set_numa_options(MACHINE(qdev_get_machine()), cmd, errp);
 }
 
 void numa_cpu_pre_plug(const CPUArchId *slot, DeviceState *dev, Error **errp)

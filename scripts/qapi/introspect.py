@@ -171,14 +171,15 @@ const QLitObject %(c_name)s = %(c_string)s;
                        {'members': [{'type': self._use_type(m.type)}
                                     for m in variants.variants]})
 
-    def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed, allow_oob):
+    def visit_command(self, name, info, arg_type, ret_type, gen,
+                      success_response, boxed, allow_oob, allow_preconfig):
         arg_type = arg_type or self._schema.the_empty_object_type
         ret_type = ret_type or self._schema.the_empty_object_type
         self._gen_qlit(name, 'command',
                        {'arg-type': self._use_type(arg_type),
                         'ret-type': self._use_type(ret_type),
-                        'allow-oob': allow_oob})
+                        'allow-oob': allow_oob,
+                        'allow-preconfig': allow_preconfig})
 
     def visit_event(self, name, info, arg_type, boxed):
         arg_type = arg_type or self._schema.the_empty_object_type

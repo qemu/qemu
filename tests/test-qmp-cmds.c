@@ -16,7 +16,7 @@ void qmp_user_def_cmd(Error **errp)
 {
 }
 
-void qmp_an_oob_command(Error **errp)
+void qmp_test_flags_command(Error **errp)
 {
 }
 

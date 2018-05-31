@@ -193,13 +193,15 @@ out:
     return ret
 
 
-def gen_register_command(name, success_response, allow_oob):
+def gen_register_command(name, success_response, allow_oob, allow_preconfig):
     options = []
 
     if not success_response:
         options += ['QCO_NO_SUCCESS_RESP']
     if allow_oob:
         options += ['QCO_ALLOW_OOB']
+    if allow_preconfig:
+        options += ['QCO_ALLOW_PRECONFIG']
 
     if not options:
         options = ['QCO_NO_OPTIONS']
@@ -275,8 +277,8 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
                        c_prefix=c_name(self._prefix, protect=False)))
         genc.add(gen_registry(self._regy, self._prefix))
 
-    def visit_command(self, name, info, arg_type, ret_type,
-                      gen, success_response, boxed, allow_oob):
+    def visit_command(self, name, info, arg_type, ret_type, gen,
+                      success_response, boxed, allow_oob, allow_preconfig):
         if not gen:
             return
         self._genh.add(gen_command_decl(name, arg_type, boxed, ret_type))
@@ -285,7 +287,8 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
             self._genc.add(gen_marshal_output(ret_type))
         self._genh.add(gen_marshal_decl(name))
         self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))
-        self._regy += gen_register_command(name, success_response, allow_oob)
+        self._regy += gen_register_command(name, success_response, allow_oob,
+                                           allow_preconfig)
 
 
 def gen_commands(schema, output_dir, prefix):
