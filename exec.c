@@ -3322,7 +3322,8 @@ static inline void cpu_physical_memory_write_rom_internal(AddressSpace *as,
     rcu_read_lock();
     while (len > 0) {
         l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, true);
+        mr = address_space_translate(as, addr, &addr1, &l, true,
+                                     MEMTXATTRS_UNSPECIFIED);
 
         if (!(memory_region_is_ram(mr) ||
               memory_region_is_romd(mr))) {
@@ -3699,7 +3700,7 @@ void address_space_cache_destroy(MemoryRegionCache *cache)
  */
 static inline MemoryRegion *address_space_translate_cached(
     MemoryRegionCache *cache, hwaddr addr, hwaddr *xlat,
-    hwaddr *plen, bool is_write)
+    hwaddr *plen, bool is_write, MemTxAttrs attrs)
 {
     MemoryRegionSection section;
     MemoryRegion *mr;
@@ -3733,7 +3734,8 @@ address_space_read_cached_slow(MemoryRegionCache *cache, hwaddr addr,
     MemoryRegion *mr;
 
     l = len;
-    mr = address_space_translate_cached(cache, addr, &addr1, &l, false);
+    mr = address_space_translate_cached(cache, addr, &addr1, &l, false,
+                                        MEMTXATTRS_UNSPECIFIED);
     flatview_read_continue(cache->fv,
                            addr, MEMTXATTRS_UNSPECIFIED, buf, len,
                            addr1, l, mr);
@@ -3750,7 +3752,8 @@ address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
     MemoryRegion *mr;
 
     l = len;
-    mr = address_space_translate_cached(cache, addr, &addr1, &l, true);
+    mr = address_space_translate_cached(cache, addr, &addr1, &l, true,
+                                        MEMTXATTRS_UNSPECIFIED);
     flatview_write_continue(cache->fv,
                             addr, MEMTXATTRS_UNSPECIFIED, buf, len,
                             addr1, l, mr);
@@ -3848,7 +3851,8 @@ bool cpu_physical_memory_is_io(hwaddr phys_addr)
 
     rcu_read_lock();
     mr = address_space_translate(&address_space_memory,
-                                 phys_addr, &phys_addr, &l, false);
+                                 phys_addr, &phys_addr, &l, false,
+                                 MEMTXATTRS_UNSPECIFIED);
 
     res = !(memory_region_is_ram(mr) || memory_region_is_romd(mr));
     rcu_read_unlock();
