@@ -1952,9 +1952,10 @@ bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_
  * @addr: address within that address space
  * @plen: pointer to length of buffer; updated on return
  * @is_write: indicates the transfer direction
+ * @attrs: memory attributes
  */
 void *address_space_map(AddressSpace *as, hwaddr addr,
-                        hwaddr *plen, bool is_write);
+                        hwaddr *plen, bool is_write, MemTxAttrs attrs);
 
 /* address_space_unmap: Unmaps a memory region previously mapped by address_space_map()
  *

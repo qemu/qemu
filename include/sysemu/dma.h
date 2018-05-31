@@ -132,7 +132,8 @@ static inline void *dma_memory_map(AddressSpace *as,
     hwaddr xlen = *len;
     void *p;
 
-    p = address_space_map(as, addr, &xlen, dir == DMA_DIRECTION_FROM_DEVICE);
+    p = address_space_map(as, addr, &xlen, dir == DMA_DIRECTION_FROM_DEVICE,
+                          MEMTXATTRS_UNSPECIFIED);
     *len = xlen;
     return p;
 }
