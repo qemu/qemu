@@ -171,10 +171,10 @@ static void gen_goto_tb(DisasContext *dc, int n, uint32_t dest)
     if (use_goto_tb(dc, dest)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_tl(dc->cpu_R[R_PC], dest);
-        tcg_gen_exit_tb((uintptr_t)tb + n);
+        tcg_gen_exit_tb(tb, n);
     } else {
         tcg_gen_movi_tl(dc->cpu_R[R_PC], dest);
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
     }
 }
 
@@ -880,14 +880,14 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     case DISAS_NEXT:
         /* Save the current PC back into the CPU register */
         tcg_gen_movi_tl(cpu_R[R_PC], dc->pc);
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
         break;
 
     default:
     case DISAS_JUMP:
     case DISAS_UPDATE:
         /* The jump will already have updated the PC register */
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
         break;
 
     case DISAS_TB_JUMP:

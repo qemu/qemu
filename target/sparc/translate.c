@@ -360,12 +360,12 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num,
         tcg_gen_goto_tb(tb_num);
         tcg_gen_movi_tl(cpu_pc, pc);
         tcg_gen_movi_tl(cpu_npc, npc);
-        tcg_gen_exit_tb((uintptr_t)s->base.tb + tb_num);
+        tcg_gen_exit_tb(s->base.tb, tb_num);
     } else {
         /* jump to another page: currently not optimized */
         tcg_gen_movi_tl(cpu_pc, pc);
         tcg_gen_movi_tl(cpu_npc, npc);
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
     }
 }
 
@@ -4329,7 +4329,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 /* End TB to notice changed ASI.  */
                                 save_state(dc);
                                 gen_op_next_insn();
-                                tcg_gen_exit_tb(0);
+                                tcg_gen_exit_tb(NULL, 0);
                                 dc->base.is_jmp = DISAS_NORETURN;
                                 break;
                             case 0x6: /* V9 wrfprs */
@@ -4338,7 +4338,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 dc->fprs_dirty = 0;
                                 save_state(dc);
                                 gen_op_next_insn();
-                                tcg_gen_exit_tb(0);
+                                tcg_gen_exit_tb(NULL, 0);
                                 dc->base.is_jmp = DISAS_NORETURN;
                                 break;
                             case 0xf: /* V9 sir, nop if user */
@@ -4466,7 +4466,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                             dc->cc_op = CC_OP_FLAGS;
                             save_state(dc);
                             gen_op_next_insn();
-                            tcg_gen_exit_tb(0);
+                            tcg_gen_exit_tb(NULL, 0);
                             dc->base.is_jmp = DISAS_NORETURN;
 #endif
                         }
@@ -4622,7 +4622,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                                         hpstate));
                                 save_state(dc);
                                 gen_op_next_insn();
-                                tcg_gen_exit_tb(0);
+                                tcg_gen_exit_tb(NULL, 0);
                                 dc->base.is_jmp = DISAS_NORETURN;
                                 break;
                             case 1: // htstate
@@ -5793,7 +5793,7 @@ static bool sparc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
         save_state(dc);
     }
     gen_helper_debug(cpu_env);
-    tcg_gen_exit_tb(0);
+    tcg_gen_exit_tb(NULL, 0);
     dc->base.is_jmp = DISAS_NORETURN;
     /* update pc_next so that the current instruction is included in tb->size */
     dc->base.pc_next += 4;
@@ -5832,7 +5832,7 @@ static void sparc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
                 tcg_gen_movi_tl(cpu_pc, dc->pc);
             }
             save_npc(dc);
-            tcg_gen_exit_tb(0);
+            tcg_gen_exit_tb(NULL, 0);
         }
     }
 }

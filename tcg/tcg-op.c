@@ -2574,10 +2574,30 @@ void tcg_gen_extr32_i64(TCGv_i64 lo, TCGv_i64 hi, TCGv_i64 arg)
 
 /* QEMU specific operations.  */
 
+void tcg_gen_exit_tb(TranslationBlock *tb, unsigned idx)
+{
+    uintptr_t val = (uintptr_t)tb + idx;
+
+    if (tb == NULL) {
+        tcg_debug_assert(idx == 0);
+    } else if (idx <= TB_EXIT_IDXMAX) {
+#ifdef CONFIG_DEBUG_TCG
+        /* This is an exit following a goto_tb.  Verify that we have
+           seen this numbered exit before, via tcg_gen_goto_tb.  */
+        tcg_debug_assert(tcg_ctx->goto_tb_issue_mask & (1 << idx));
+#endif
+    } else {
+        /* This is an exit via the exitreq label.  */
+        tcg_debug_assert(idx == TB_EXIT_REQUESTED);
+    }
+
+    tcg_gen_op1i(INDEX_op_exit_tb, val);
+}
+
 void tcg_gen_goto_tb(unsigned idx)
 {
     /* We only support two chained exits.  */
-    tcg_debug_assert(idx <= 1);
+    tcg_debug_assert(idx <= TB_EXIT_IDXMAX);
 #ifdef CONFIG_DEBUG_TCG
     /* Verify that we havn't seen this numbered exit before.  */
     tcg_debug_assert((tcg_ctx->goto_tb_issue_mask & (1 << idx)) == 0);
@@ -2594,7 +2614,7 @@ void tcg_gen_lookup_and_goto_ptr(void)
         tcg_gen_op1i(INDEX_op_goto_ptr, tcgv_ptr_arg(ptr));
         tcg_temp_free_ptr(ptr);
     } else {
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
     }
 }
 

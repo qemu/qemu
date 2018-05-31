@@ -779,7 +779,7 @@ static void gen_goto_tb(DisasContext *ctx, int which,
         tcg_gen_goto_tb(which);
         tcg_gen_movi_reg(cpu_iaoq_f, f);
         tcg_gen_movi_reg(cpu_iaoq_b, b);
-        tcg_gen_exit_tb((uintptr_t)ctx->base.tb + which);
+        tcg_gen_exit_tb(ctx->base.tb, which);
     } else {
         copy_iaoq_entry(cpu_iaoq_f, f, cpu_iaoq_b);
         copy_iaoq_entry(cpu_iaoq_b, b, ctx->iaoq_n_var);
@@ -2303,7 +2303,7 @@ static DisasJumpType trans_rfi(DisasContext *ctx, uint32_t insn,
     if (ctx->base.singlestep_enabled) {
         gen_excp_1(EXCP_DEBUG);
     } else {
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
     }
 
     /* Exit the TB to recognize new interrupts.  */
@@ -4844,7 +4844,7 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         if (ctx->base.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG);
         } else if (is_jmp == DISAS_IAQ_N_STALE_EXIT) {
-            tcg_gen_exit_tb(0);
+            tcg_gen_exit_tb(NULL, 0);
         } else {
             tcg_gen_lookup_and_goto_ptr();
         }

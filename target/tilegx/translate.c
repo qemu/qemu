@@ -2362,7 +2362,7 @@ static void translate_one_bundle(DisasContext *dc, uint64_t bundle)
             tcg_temp_free_i64(next);
         }
         tcg_temp_free_i64(dc->jmp.dest);
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
         dc->exit_tb = true;
     } else if (dc->atomic_excp != TILEGX_EXCP_NONE) {
         gen_exception(dc, dc->atomic_excp);
@@ -2419,7 +2419,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
             || tcg_op_buf_full()) {
             /* Ending the TB due to TB size or page boundary.  Set PC.  */
             tcg_gen_movi_tl(cpu_pc, dc->pc);
-            tcg_gen_exit_tb(0);
+            tcg_gen_exit_tb(NULL, 0);
             break;
         }
     }
