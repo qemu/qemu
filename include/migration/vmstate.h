@@ -870,6 +870,9 @@ extern const VMStateInfo vmstate_info_qtailq;
 #define VMSTATE_BOOL_ARRAY(_f, _s, _n)                               \
     VMSTATE_BOOL_ARRAY_V(_f, _s, _n, 0)
 
+#define VMSTATE_BOOL_SUB_ARRAY(_f, _s, _start, _num)                \
+    VMSTATE_SUB_ARRAY(_f, _s, _start, _num, 0, vmstate_info_bool, bool)
+
 #define VMSTATE_UINT16_ARRAY_V(_f, _s, _n, _v)                         \
     VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_uint16, uint16_t)
 
