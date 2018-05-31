@@ -3468,7 +3468,9 @@ static bool flatview_access_valid(FlatView *fv, hwaddr addr, int len,
         mr = flatview_translate(fv, addr, &xlat, &l, is_write);
         if (!memory_access_is_direct(mr, is_write)) {
             l = memory_access_size(mr, l, addr);
-            if (!memory_region_access_valid(mr, xlat, l, is_write)) {
+            /* When our callers all have attrs we'll pass them through here */
+            if (!memory_region_access_valid(mr, xlat, l, is_write,
+                                            MEMTXATTRS_UNSPECIFIED)) {
                 return false;
             }
         }
