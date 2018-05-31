@@ -1937,8 +1937,10 @@ static inline MemoryRegion *address_space_translate(AddressSpace *as,
  * @addr: address within that address space
  * @len: length of the area to be checked
  * @is_write: indicates the transfer direction
+ * @attrs: memory attributes
  */
-bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len, bool is_write);
+bool address_space_access_valid(AddressSpace *as, hwaddr addr, int len,
+                                bool is_write, MemTxAttrs attrs);
 
 /* address_space_map: map a physical memory region into a host virtual address
  *

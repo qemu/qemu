@@ -280,7 +280,8 @@ static void sigp_set_prefix(CPUState *cs, run_on_cpu_data arg)
     cpu_synchronize_state(cs);
 
     if (!address_space_access_valid(&address_space_memory, addr,
-                                    sizeof(struct LowCore), false)) {
+                                    sizeof(struct LowCore), false,
+                                    MEMTXATTRS_UNSPECIFIED)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
         return;
     }
