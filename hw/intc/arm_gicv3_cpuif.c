@@ -431,7 +431,7 @@ static uint64_t icv_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
     int regno = ri->opc2 & 3;
-    int grp = ri->crm & 1 ? GICV3_G0 : GICV3_G1NS;
+    int grp = (ri->crm & 1) ? GICV3_G1NS : GICV3_G0;
     uint64_t value = cs->ich_apr[grp][regno];
 
     trace_gicv3_icv_ap_read(ri->crm & 1, regno, gicv3_redist_affid(cs), value);
@@ -443,7 +443,7 @@ static void icv_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
     int regno = ri->opc2 & 3;
-    int grp = ri->crm & 1 ? GICV3_G0 : GICV3_G1NS;
+    int grp = (ri->crm & 1) ? GICV3_G1NS : GICV3_G0;
 
     trace_gicv3_icv_ap_write(ri->crm & 1, regno, gicv3_redist_affid(cs), value);
 
@@ -1465,7 +1465,7 @@ static uint64_t icc_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
     uint64_t value;
 
     int regno = ri->opc2 & 3;
-    int grp = ri->crm & 1 ? GICV3_G0 : GICV3_G1;
+    int grp = (ri->crm & 1) ? GICV3_G1 : GICV3_G0;
 
     if (icv_access(env, grp == GICV3_G0 ? HCR_FMO : HCR_IMO)) {
         return icv_ap_read(env, ri);
@@ -1487,7 +1487,7 @@ static void icc_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
     GICv3CPUState *cs = icc_cs_from_env(env);
 
     int regno = ri->opc2 & 3;
-    int grp = ri->crm & 1 ? GICV3_G0 : GICV3_G1;
+    int grp = (ri->crm & 1) ? GICV3_G1 : GICV3_G0;
 
     if (icv_access(env, grp == GICV3_G0 ? HCR_FMO : HCR_IMO)) {
         icv_ap_write(env, ri, value);
@@ -2296,7 +2296,7 @@ static uint64_t ich_ap_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
     int regno = ri->opc2 & 3;
-    int grp = ri->crm & 1 ? GICV3_G0 : GICV3_G1NS;
+    int grp = (ri->crm & 1) ? GICV3_G1NS : GICV3_G0;
     uint64_t value;
 
     value = cs->ich_apr[grp][regno];
@@ -2309,7 +2309,7 @@ static void ich_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     GICv3CPUState *cs = icc_cs_from_env(env);
     int regno = ri->opc2 & 3;
-    int grp = ri->crm & 1 ? GICV3_G0 : GICV3_G1NS;
+    int grp = (ri->crm & 1) ? GICV3_G1NS : GICV3_G0;
 
     trace_gicv3_ich_ap_write(ri->crm & 1, regno, gicv3_redist_affid(cs), value);
 
