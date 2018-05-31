@@ -243,6 +243,7 @@ static void kvm_dist_putbmp(GICv3State *s, uint32_t offset,
         if (clroffset != 0) {
             reg = 0;
             kvm_gicd_access(s, clroffset, &reg, true);
+            clroffset += 4;
         }
         reg = *gic_bmp_ptr32(bmp, irq);
         kvm_gicd_access(s, offset, &reg, true);
@@ -760,7 +761,6 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
 
     if (kvm_has_gsi_routing()) {
         /* set up irq routing */
-        kvm_init_irq_routing(kvm_state);
         for (i = 0; i < s->num_irq - GIC_INTERNAL; ++i) {
             kvm_irqchip_add_irq_route(kvm_state, i, 0, i);
         }

@@ -1669,14 +1669,14 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
+void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs)
 {
     ram_addr_t ram_addr;
     MemoryRegion *mr;
     hwaddr l = 1;
 
     rcu_read_lock();
-    mr = address_space_translate(as, addr, &addr, &l, false);
+    mr = address_space_translate(as, addr, &addr, &l, false, attrs);
     if (!(memory_region_is_ram(mr)
           || memory_region_is_romd(mr))) {
         rcu_read_unlock();

@@ -564,7 +564,8 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
 }
 
 static bool esp_mem_accepts(void *opaque, hwaddr addr,
-                            unsigned size, bool is_write)
+                            unsigned size, bool is_write,
+                            MemTxAttrs attrs)
 {
     return (size == 1) || (is_write && size == 4);
 }

@@ -137,7 +137,8 @@ static void gsc_to_pci_forwarding(DinoState *s)
 }
 
 static bool dino_chip_mem_valid(void *opaque, hwaddr addr,
-                                unsigned size, bool is_write)
+                                unsigned size, bool is_write,
+                                MemTxAttrs attrs)
 {
     switch (addr) {
     case DINO_IAR0:

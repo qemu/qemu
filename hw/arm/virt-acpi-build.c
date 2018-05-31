@@ -400,7 +400,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     AcpiIortItsGroup *its;
     AcpiIortTable *iort;
     AcpiIortSmmu3 *smmu;
-    size_t node_size, iort_length, smmu_offset = 0;
+    size_t node_size, iort_node_offset, iort_length, smmu_offset = 0;
     AcpiIortRC *rc;
 
     iort = acpi_data_push(table_data, sizeof(*iort));
@@ -413,7 +413,12 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
     iort_length = sizeof(*iort);
     iort->node_count = cpu_to_le32(nb_nodes);
-    iort->node_offset = cpu_to_le32(sizeof(*iort));
+    /*
+     * Use a copy in case table_data->data moves during acpi_data_push
+     * operations.
+     */
+    iort_node_offset = sizeof(*iort);
+    iort->node_offset = cpu_to_le32(iort_node_offset);
 
     /* ITS group node */
     node_size =  sizeof(*its) + sizeof(uint32_t);
@@ -429,7 +434,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         int irq =  vms->irqmap[VIRT_SMMU];
 
         /* SMMUv3 node */
-        smmu_offset = iort->node_offset + node_size;
+        smmu_offset = iort_node_offset + node_size;
         node_size = sizeof(*smmu) + sizeof(*idmap);
         iort_length += node_size;
         smmu = acpi_data_push(table_data, node_size);
@@ -450,7 +455,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         idmap->id_count = cpu_to_le32(0xFFFF);
         idmap->output_base = 0;
         /* output IORT node is the ITS group node (the first node) */
-        idmap->output_reference = cpu_to_le32(iort->node_offset);
+        idmap->output_reference = cpu_to_le32(iort_node_offset);
     }
 
     /* Root Complex Node */
@@ -479,9 +484,14 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         idmap->output_reference = cpu_to_le32(smmu_offset);
     } else {
         /* output IORT node is the ITS group node (the first node) */
-        idmap->output_reference = cpu_to_le32(iort->node_offset);
+        idmap->output_reference = cpu_to_le32(iort_node_offset);
     }
 
+    /*
+     * Update the pointer address in case table_data->data moves during above
+     * acpi_data_push operations.
+     */
+    iort = (AcpiIortTable *)(table_data->data + iort_start);
     iort->length = cpu_to_le32(iort_length);
 
     build_header(linker, table_data, (void *)(table_data->data + iort_start),

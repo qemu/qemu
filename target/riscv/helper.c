@@ -210,7 +210,7 @@ restart:
                 MemoryRegion *mr;
                 hwaddr l = sizeof(target_ulong), addr1;
                 mr = address_space_translate(cs->as, pte_addr,
-                    &addr1, &l, false);
+                    &addr1, &l, false, MEMTXATTRS_UNSPECIFIED);
                 if (memory_access_is_direct(mr, true)) {
                     target_ulong *pte_pa =
                         qemu_map_ram_ptr(mr->ram_block, addr1);

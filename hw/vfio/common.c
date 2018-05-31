@@ -324,7 +324,8 @@ static bool vfio_get_vaddr(IOMMUTLBEntry *iotlb, void **vaddr,
      */
     mr = address_space_translate(&address_space_memory,
                                  iotlb->translated_addr,
-                                 &xlat, &len, writable);
+                                 &xlat, &len, writable,
+                                 MEMTXATTRS_UNSPECIFIED);
     if (!memory_region_is_ram(mr)) {
         error_report("iommu map to non memory area %"HWADDR_PRIx"",
                      xlat);

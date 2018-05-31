@@ -33,7 +33,7 @@ static inline uint32_t glue(address_space_ldl_internal, SUFFIX)(ARG1_DECL,
     bool release_lock = false;
 
     RCU_READ_LOCK();
-    mr = TRANSLATE(addr, &addr1, &l, false);
+    mr = TRANSLATE(addr, &addr1, &l, false, attrs);
     if (l < 4 || !IS_DIRECT(mr, false)) {
         release_lock |= prepare_mmio_access(mr);
 
@@ -109,7 +109,7 @@ static inline uint64_t glue(address_space_ldq_internal, SUFFIX)(ARG1_DECL,
     bool release_lock = false;
 
     RCU_READ_LOCK();
-    mr = TRANSLATE(addr, &addr1, &l, false);
+    mr = TRANSLATE(addr, &addr1, &l, false, attrs);
     if (l < 8 || !IS_DIRECT(mr, false)) {
         release_lock |= prepare_mmio_access(mr);
 
@@ -183,7 +183,7 @@ uint32_t glue(address_space_ldub, SUFFIX)(ARG1_DECL,
     bool release_lock = false;
 
     RCU_READ_LOCK();
-    mr = TRANSLATE(addr, &addr1, &l, false);
+    mr = TRANSLATE(addr, &addr1, &l, false, attrs);
     if (!IS_DIRECT(mr, false)) {
         release_lock |= prepare_mmio_access(mr);
 
@@ -219,7 +219,7 @@ static inline uint32_t glue(address_space_lduw_internal, SUFFIX)(ARG1_DECL,
     bool release_lock = false;
 
     RCU_READ_LOCK();
-    mr = TRANSLATE(addr, &addr1, &l, false);
+    mr = TRANSLATE(addr, &addr1, &l, false, attrs);
     if (l < 2 || !IS_DIRECT(mr, false)) {
         release_lock |= prepare_mmio_access(mr);
 
@@ -296,7 +296,7 @@ void glue(address_space_stl_notdirty, SUFFIX)(ARG1_DECL,
     bool release_lock = false;
 
     RCU_READ_LOCK();
-    mr = TRANSLATE(addr, &addr1, &l, true);
+    mr = TRANSLATE(addr, &addr1, &l, true, attrs);
     if (l < 4 || !IS_DIRECT(mr, true)) {
         release_lock |= prepare_mmio_access(mr);
 
@@ -333,7 +333,7 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
     bool release_lock = false;
 
     RCU_READ_LOCK();
-    mr = TRANSLATE(addr, &addr1, &l, true);
+    mr = TRANSLATE(addr, &addr1, &l, true, attrs);
     if (l < 4 || !IS_DIRECT(mr, true)) {
         release_lock |= prepare_mmio_access(mr);
 
@@ -405,7 +405,7 @@ void glue(address_space_stb, SUFFIX)(ARG1_DECL,
     bool release_lock = false;
 
     RCU_READ_LOCK();
-    mr = TRANSLATE(addr, &addr1, &l, true);
+    mr = TRANSLATE(addr, &addr1, &l, true, attrs);
     if (!IS_DIRECT(mr, true)) {
         release_lock |= prepare_mmio_access(mr);
         r = memory_region_dispatch_write(mr, addr1, val, 1, attrs);
@@ -438,7 +438,7 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
     bool release_lock = false;
 
     RCU_READ_LOCK();
-    mr = TRANSLATE(addr, &addr1, &l, true);
+    mr = TRANSLATE(addr, &addr1, &l, true, attrs);
     if (l < 2 || !IS_DIRECT(mr, true)) {
         release_lock |= prepare_mmio_access(mr);
 
@@ -511,7 +511,7 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
     bool release_lock = false;
 
     RCU_READ_LOCK();
-    mr = TRANSLATE(addr, &addr1, &l, true);
+    mr = TRANSLATE(addr, &addr1, &l, true, attrs);
     if (l < 8 || !IS_DIRECT(mr, true)) {
         release_lock |= prepare_mmio_access(mr);
 

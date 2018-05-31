@@ -664,7 +664,8 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
     /* MSI doorbell address is translated by an IOMMU */
 
     rcu_read_lock();
-    mr = address_space_translate(as, address, &xlat, &len, true);
+    mr = address_space_translate(as, address, &xlat, &len, true,
+                                 MEMTXATTRS_UNSPECIFIED);
     if (!mr) {
         goto unlock;
     }

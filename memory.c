@@ -1269,7 +1269,8 @@ static void unassigned_mem_write(void *opaque, hwaddr addr,
 }
 
 static bool unassigned_mem_accepts(void *opaque, hwaddr addr,
-                                   unsigned size, bool is_write)
+                                   unsigned size, bool is_write,
+                                   MemTxAttrs attrs)
 {
     return false;
 }
@@ -1347,7 +1348,8 @@ static const MemoryRegionOps ram_device_mem_ops = {
 bool memory_region_access_valid(MemoryRegion *mr,
                                 hwaddr addr,
                                 unsigned size,
-                                bool is_write)
+                                bool is_write,
+                                MemTxAttrs attrs)
 {
     int access_size_min, access_size_max;
     int access_size, i;
@@ -1373,7 +1375,7 @@ bool memory_region_access_valid(MemoryRegion *mr,
     access_size = MAX(MIN(size, access_size_max), access_size_min);
     for (i = 0; i < size; i += access_size) {
         if (!mr->ops->valid.accepts(mr->opaque, addr + i, access_size,
-                                    is_write)) {
+                                    is_write, attrs)) {
             return false;
         }
     }
@@ -1416,7 +1418,7 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
 {
     MemTxResult r;
 
-    if (!memory_region_access_valid(mr, addr, size, false)) {
+    if (!memory_region_access_valid(mr, addr, size, false, attrs)) {
         *pval = unassigned_mem_read(mr, addr, size);
         return MEMTX_DECODE_ERROR;
     }
@@ -1458,7 +1460,7 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                          unsigned size,
                                          MemTxAttrs attrs)
 {
-    if (!memory_region_access_valid(mr, addr, size, true)) {
+    if (!memory_region_access_valid(mr, addr, size, true, attrs)) {
         unassigned_mem_write(mr, addr, data, size);
         return MEMTX_DECODE_ERROR;
     }

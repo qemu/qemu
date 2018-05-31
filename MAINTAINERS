@@ -447,6 +447,8 @@ F: hw/timer/cmsdk-apb-timer.c
 F: include/hw/timer/cmsdk-apb-timer.h
 F: hw/char/cmsdk-apb-uart.c
 F: include/hw/char/cmsdk-apb-uart.h
+F: hw/misc/tz-ppc.c
+F: include/hw/misc/tz-ppc.h
 
 ARM cores
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -515,8 +517,11 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/mps2.c
-F: hw/misc/mps2-scc.c
-F: include/hw/misc/mps2-scc.h
+F: hw/arm/mps2-tz.c
+F: hw/misc/mps2-*.c
+F: include/hw/misc/mps2-*.h
+F: hw/arm/iotkit.c
+F: include/hw/arm/iotkit.h
 
 Musicpal
 M: Jan Kiszka <jan.kiszka@web.de>

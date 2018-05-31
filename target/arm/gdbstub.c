@@ -157,8 +157,7 @@ int arm_gen_dynamic_xml(CPUState *cs)
     RegisterSysregXmlParam param = {cs, s};
 
     cpu->dyn_xml.num_cpregs = 0;
-    cpu->dyn_xml.cpregs_keys = g_malloc(sizeof(uint32_t *) *
-                                        g_hash_table_size(cpu->cp_regs));
+    cpu->dyn_xml.cpregs_keys = g_new(uint32_t, g_hash_table_size(cpu->cp_regs));
     g_string_printf(s, "<?xml version=\"1.0\"?>");
     g_string_append_printf(s, "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">");
     g_string_append_printf(s, "<feature name=\"org.qemu.gdb.arm.sys.regs\">");
