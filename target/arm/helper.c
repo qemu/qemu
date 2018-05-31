@@ -863,6 +863,14 @@ static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     env->cp15.cpacr_el1 = value;
 }
 
+static void cpacr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /* Call cpacr_write() so that we reset with the correct RAO bits set
+     * for our CPU features.
+     */
+    cpacr_write(env, ri, 0);
+}
+
 static CPAccessResult cpacr_access(CPUARMState *env, const ARMCPRegInfo *ri,
                                    bool isread)
 {
@@ -920,7 +928,7 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
     { .name = "CPACR", .state = ARM_CP_STATE_BOTH, .opc0 = 3,
       .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 2, .accessfn = cpacr_access,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.cpacr_el1),
-      .resetvalue = 0, .writefn = cpacr_write },
+      .resetfn = cpacr_reset, .writefn = cpacr_write },
     REGINFO_SENTINEL
 };
 
