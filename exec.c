@@ -478,6 +478,7 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
  * @is_write: whether the translation operation is for write
  * @is_mmio: whether this can be MMIO, set true if it can
  * @target_as: the address space targeted by the IOMMU
+ * @attrs: transaction attributes
  *
  * This function is called from RCU critical section.  It is the common
  * part of flatview_do_translate and address_space_translate_cached.
@@ -488,7 +489,8 @@ static MemoryRegionSection address_space_translate_iommu(IOMMUMemoryRegion *iomm
                                                          hwaddr *page_mask_out,
                                                          bool is_write,
                                                          bool is_mmio,
-                                                         AddressSpace **target_as)
+                                                         AddressSpace **target_as,
+                                                         MemTxAttrs attrs)
 {
     MemoryRegionSection *section;
     hwaddr page_mask = (hwaddr)-1;
@@ -572,7 +574,7 @@ static MemoryRegionSection flatview_do_translate(FlatView *fv,
         return address_space_translate_iommu(iommu_mr, xlat,
                                              plen_out, page_mask_out,
                                              is_write, is_mmio,
-                                             target_as);
+                                             target_as, attrs);
     }
     if (page_mask_out) {
         /* Not behind an IOMMU, use default page size. */
@@ -3734,7 +3736,7 @@ static inline MemoryRegion *address_space_translate_cached(
 
     section = address_space_translate_iommu(iommu_mr, xlat, plen,
                                             NULL, is_write, true,
-                                            &target_as);
+                                            &target_as, attrs);
     return section.mr;
 }
 
