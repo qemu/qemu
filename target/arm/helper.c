@@ -11344,35 +11344,35 @@ DO_VFP_cmp(d, float64)
 
 /* Integer to float and float to integer conversions */
 
-#define CONV_ITOF(name, fsz, sign) \
-    float##fsz HELPER(name)(uint32_t x, void *fpstp) \
-{ \
-    float_status *fpst = fpstp; \
-    return sign##int32_to_##float##fsz((sign##int32_t)x, fpst); \
+#define CONV_ITOF(name, ftype, fsz, sign)                           \
+ftype HELPER(name)(uint32_t x, void *fpstp)                         \
+{                                                                   \
+    float_status *fpst = fpstp;                                     \
+    return sign##int32_to_##float##fsz((sign##int32_t)x, fpst);     \
 }
 
-#define CONV_FTOI(name, fsz, sign, round) \
-uint32_t HELPER(name)(float##fsz x, void *fpstp) \
-{ \
-    float_status *fpst = fpstp; \
-    if (float##fsz##_is_any_nan(x)) { \
-        float_raise(float_flag_invalid, fpst); \
-        return 0; \
-    } \
-    return float##fsz##_to_##sign##int32##round(x, fpst); \
+#define CONV_FTOI(name, ftype, fsz, sign, round)                \
+uint32_t HELPER(name)(ftype x, void *fpstp)                     \
+{                                                               \
+    float_status *fpst = fpstp;                                 \
+    if (float##fsz##_is_any_nan(x)) {                           \
+        float_raise(float_flag_invalid, fpst);                  \
+        return 0;                                               \
+    }                                                           \
+    return float##fsz##_to_##sign##int32##round(x, fpst);       \
 }
 
-#define FLOAT_CONVS(name, p, fsz, sign) \
-CONV_ITOF(vfp_##name##to##p, fsz, sign) \
-CONV_FTOI(vfp_to##name##p, fsz, sign, ) \
-CONV_FTOI(vfp_to##name##z##p, fsz, sign, _round_to_zero)
+#define FLOAT_CONVS(name, p, ftype, fsz, sign)            \
+    CONV_ITOF(vfp_##name##to##p, ftype, fsz, sign)        \
+    CONV_FTOI(vfp_to##name##p, ftype, fsz, sign, )        \
+    CONV_FTOI(vfp_to##name##z##p, ftype, fsz, sign, _round_to_zero)
 
-FLOAT_CONVS(si, h, 16, )
-FLOAT_CONVS(si, s, 32, )
-FLOAT_CONVS(si, d, 64, )
-FLOAT_CONVS(ui, h, 16, u)
-FLOAT_CONVS(ui, s, 32, u)
-FLOAT_CONVS(ui, d, 64, u)
+FLOAT_CONVS(si, h, uint32_t, 16, )
+FLOAT_CONVS(si, s, float32, 32, )
+FLOAT_CONVS(si, d, float64, 64, )
+FLOAT_CONVS(ui, h, uint32_t, 16, u)
+FLOAT_CONVS(ui, s, float32, 32, u)
+FLOAT_CONVS(ui, d, float64, 64, u)
 
 #undef CONV_ITOF
 #undef CONV_FTOI
@@ -11465,22 +11465,22 @@ static float16 do_postscale_fp16(float64 f, int shift, float_status *fpst)
     return float64_to_float16(float64_scalbn(f, -shift, fpst), true, fpst);
 }
 
-float16 HELPER(vfp_sltoh)(uint32_t x, uint32_t shift, void *fpst)
+uint32_t HELPER(vfp_sltoh)(uint32_t x, uint32_t shift, void *fpst)
 {
     return do_postscale_fp16(int32_to_float64(x, fpst), shift, fpst);
 }
 
-float16 HELPER(vfp_ultoh)(uint32_t x, uint32_t shift, void *fpst)
+uint32_t HELPER(vfp_ultoh)(uint32_t x, uint32_t shift, void *fpst)
 {
     return do_postscale_fp16(uint32_to_float64(x, fpst), shift, fpst);
 }
 
-float16 HELPER(vfp_sqtoh)(uint64_t x, uint32_t shift, void *fpst)
+uint32_t HELPER(vfp_sqtoh)(uint64_t x, uint32_t shift, void *fpst)
 {
     return do_postscale_fp16(int64_to_float64(x, fpst), shift, fpst);
 }
 
-float16 HELPER(vfp_uqtoh)(uint64_t x, uint32_t shift, void *fpst)
+uint32_t HELPER(vfp_uqtoh)(uint64_t x, uint32_t shift, void *fpst)
 {
     return do_postscale_fp16(uint64_to_float64(x, fpst), shift, fpst);
 }
@@ -11504,32 +11504,32 @@ static float64 do_prescale_fp16(float16 f, int shift, float_status *fpst)
     }
 }
 
-uint32_t HELPER(vfp_toshh)(float16 x, uint32_t shift, void *fpst)
+uint32_t HELPER(vfp_toshh)(uint32_t x, uint32_t shift, void *fpst)
 {
     return float64_to_int16(do_prescale_fp16(x, shift, fpst), fpst);
 }
 
-uint32_t HELPER(vfp_touhh)(float16 x, uint32_t shift, void *fpst)
+uint32_t HELPER(vfp_touhh)(uint32_t x, uint32_t shift, void *fpst)
 {
     return float64_to_uint16(do_prescale_fp16(x, shift, fpst), fpst);
 }
 
-uint32_t HELPER(vfp_toslh)(float16 x, uint32_t shift, void *fpst)
+uint32_t HELPER(vfp_toslh)(uint32_t x, uint32_t shift, void *fpst)
 {
     return float64_to_int32(do_prescale_fp16(x, shift, fpst), fpst);
 }
 
-uint32_t HELPER(vfp_toulh)(float16 x, uint32_t shift, void *fpst)
+uint32_t HELPER(vfp_toulh)(uint32_t x, uint32_t shift, void *fpst)
 {
     return float64_to_uint32(do_prescale_fp16(x, shift, fpst), fpst);
 }
 
-uint64_t HELPER(vfp_tosqh)(float16 x, uint32_t shift, void *fpst)
+uint64_t HELPER(vfp_tosqh)(uint32_t x, uint32_t shift, void *fpst)
 {
     return float64_to_int64(do_prescale_fp16(x, shift, fpst), fpst);
 }
 
-uint64_t HELPER(vfp_touqh)(float16 x, uint32_t shift, void *fpst)
+uint64_t HELPER(vfp_touqh)(uint32_t x, uint32_t shift, void *fpst)
 {
     return float64_to_uint64(do_prescale_fp16(x, shift, fpst), fpst);
 }
@@ -11565,7 +11565,7 @@ uint32_t HELPER(set_neon_rmode)(uint32_t rmode, CPUARMState *env)
 }
 
 /* Half precision conversions.  */
-float32 HELPER(vfp_fcvt_f16_to_f32)(float16 a, void *fpstp, uint32_t ahp_mode)
+float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, void *fpstp, uint32_t ahp_mode)
 {
     /* Squash FZ16 to 0 for the duration of conversion.  In this case,
      * it would affect flushing input denormals.
@@ -11578,7 +11578,7 @@ float32 HELPER(vfp_fcvt_f16_to_f32)(float16 a, void *fpstp, uint32_t ahp_mode)
     return r;
 }
 
-float16 HELPER(vfp_fcvt_f32_to_f16)(float32 a, void *fpstp, uint32_t ahp_mode)
+uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, void *fpstp, uint32_t ahp_mode)
 {
     /* Squash FZ16 to 0 for the duration of conversion.  In this case,
      * it would affect flushing output denormals.
@@ -11591,7 +11591,7 @@ float16 HELPER(vfp_fcvt_f32_to_f16)(float32 a, void *fpstp, uint32_t ahp_mode)
     return r;
 }
 
-float64 HELPER(vfp_fcvt_f16_to_f64)(float16 a, void *fpstp, uint32_t ahp_mode)
+float64 HELPER(vfp_fcvt_f16_to_f64)(uint32_t a, void *fpstp, uint32_t ahp_mode)
 {
     /* Squash FZ16 to 0 for the duration of conversion.  In this case,
      * it would affect flushing input denormals.
@@ -11604,7 +11604,7 @@ float64 HELPER(vfp_fcvt_f16_to_f64)(float16 a, void *fpstp, uint32_t ahp_mode)
     return r;
 }
 
-float16 HELPER(vfp_fcvt_f64_to_f16)(float64 a, void *fpstp, uint32_t ahp_mode)
+uint32_t HELPER(vfp_fcvt_f64_to_f16)(float64 a, void *fpstp, uint32_t ahp_mode)
 {
     /* Squash FZ16 to 0 for the duration of conversion.  In this case,
      * it would affect flushing output denormals.
@@ -11742,7 +11742,7 @@ static bool round_to_inf(float_status *fpst, bool sign_bit)
     g_assert_not_reached();
 }
 
-float16 HELPER(recpe_f16)(float16 input, void *fpstp)
+uint32_t HELPER(recpe_f16)(uint32_t input, void *fpstp)
 {
     float_status *fpst = fpstp;
     float16 f16 = float16_squash_input_denormal(input, fpst);
@@ -11937,7 +11937,7 @@ static uint64_t recip_sqrt_estimate(int *exp , int exp_off, uint64_t frac)
     return extract64(estimate, 0, 8) << 44;
 }
 
-float16 HELPER(rsqrte_f16)(float16 input, void *fpstp)
+uint32_t HELPER(rsqrte_f16)(uint32_t input, void *fpstp)
 {
     float_status *s = fpstp;
     float16 f16 = float16_squash_input_denormal(input, s);
