@@ -3495,9 +3495,9 @@ bool address_space_access_valid(AddressSpace *as, hwaddr addr,
 
 static hwaddr
 flatview_extend_translation(FlatView *fv, hwaddr addr,
-                                 hwaddr target_len,
-                                 MemoryRegion *mr, hwaddr base, hwaddr len,
-                                 bool is_write)
+                            hwaddr target_len,
+                            MemoryRegion *mr, hwaddr base, hwaddr len,
+                            bool is_write, MemTxAttrs attrs)
 {
     hwaddr done = 0;
     hwaddr xlat;
@@ -3574,7 +3574,7 @@ void *address_space_map(AddressSpace *as,
 
     memory_region_ref(mr);
     *plen = flatview_extend_translation(fv, addr, len, mr, xlat,
-                                             l, is_write);
+                                        l, is_write, attrs);
     ptr = qemu_ram_ptr_length(mr->ram_block, xlat, plen, true);
     rcu_read_unlock();
 
@@ -3659,8 +3659,13 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
     mr = cache->mrs.mr;
     memory_region_ref(mr);
     if (memory_access_is_direct(mr, is_write)) {
+        /* We don't care about the memory attributes here as we're only
+         * doing this if we found actual RAM, which behaves the same
+         * regardless of attributes; so UNSPECIFIED is fine.
+         */
         l = flatview_extend_translation(cache->fv, addr, len, mr,
-                                        cache->xlat, l, is_write);
+                                        cache->xlat, l, is_write,
+                                        MEMTXATTRS_UNSPECIFIED);
         cache->ptr = qemu_ram_ptr_length(mr->ram_block, cache->xlat, &l, true);
     } else {
         cache->ptr = NULL;
