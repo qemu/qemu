@@ -420,14 +420,16 @@ static void fw_cfg_dma_mem_write(void *opaque, hwaddr addr,
 }
 
 static bool fw_cfg_dma_mem_valid(void *opaque, hwaddr addr,
-                                  unsigned size, bool is_write)
+                                 unsigned size, bool is_write,
+                                 MemTxAttrs attrs)
 {
     return !is_write || ((size == 4 && (addr == 0 || addr == 4)) ||
                          (size == 8 && addr == 0));
 }
 
 static bool fw_cfg_data_mem_valid(void *opaque, hwaddr addr,
-                                  unsigned size, bool is_write)
+                                  unsigned size, bool is_write,
+                                  MemTxAttrs attrs)
 {
     return addr == 0;
 }
@@ -439,7 +441,8 @@ static void fw_cfg_ctl_mem_write(void *opaque, hwaddr addr,
 }
 
 static bool fw_cfg_ctl_mem_valid(void *opaque, hwaddr addr,
-                                 unsigned size, bool is_write)
+                                 unsigned size, bool is_write,
+                                 MemTxAttrs attrs)
 {
     return is_write && size == 2;
 }
@@ -458,7 +461,8 @@ static void fw_cfg_comb_write(void *opaque, hwaddr addr,
 }
 
 static bool fw_cfg_comb_valid(void *opaque, hwaddr addr,
-                                  unsigned size, bool is_write)
+                              unsigned size, bool is_write,
+                              MemTxAttrs attrs)
 {
     return (size == 1) || (is_write && size == 2);
 }

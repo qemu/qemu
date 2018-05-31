@@ -166,7 +166,8 @@ struct MemoryRegionOps {
          * as a machine check exception).
          */
         bool (*accepts)(void *opaque, hwaddr addr,
-                        unsigned size, bool is_write);
+                        unsigned size, bool is_write,
+                        MemTxAttrs attrs);
     } valid;
     /* Internal implementation constraints: */
     struct {
