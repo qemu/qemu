@@ -136,13 +136,8 @@ void qmp_job_dismiss(const char *id, Error **errp)
 static JobInfo *job_query_single(Job *job, Error **errp)
 {
     JobInfo *info;
-    const char *errmsg = NULL;
 
     assert(!job_is_internal(job));
-
-    if (job->ret < 0) {
-        errmsg = strerror(-job->ret);
-    }
 
     info = g_new(JobInfo, 1);
     *info = (JobInfo) {
@@ -151,8 +146,8 @@ static JobInfo *job_query_single(Job *job, Error **errp)
         .status             = job->status,
         .current_progress   = job->progress_current,
         .total_progress     = job->progress_total,
-        .has_error          = !!errmsg,
-        .error              = g_strdup(errmsg),
+        .has_error          = !!job->error,
+        .error              = g_strdup(job->error),
     };
 
     return info;

@@ -369,6 +369,7 @@ void job_unref(Job *job)
 
         QLIST_REMOVE(job, job_list);
 
+        g_free(job->error);
         g_free(job->id);
         g_free(job);
     }
@@ -660,6 +661,9 @@ static void job_update_rc(Job *job)
         job->ret = -ECANCELED;
     }
     if (job->ret) {
+        if (!job->error) {
+            job->error = g_strdup(strerror(-job->ret));
+        }
         job_state_transition(job, JOB_STATUS_ABORTING);
     }
 }
@@ -782,6 +786,7 @@ static int job_prepare(Job *job)
 {
     if (job->ret == 0 && job->driver->prepare) {
         job->ret = job->driver->prepare(job);
+        job_update_rc(job);
     }
     return job->ret;
 }
@@ -855,10 +860,17 @@ static void job_completed_txn_success(Job *job)
     }
 }
 
-void job_completed(Job *job, int ret)
+void job_completed(Job *job, int ret, Error *error)
 {
     assert(job && job->txn && !job_is_completed(job));
+
     job->ret = ret;
+    if (error) {
+        assert(job->ret < 0);
+        job->error = g_strdup(error_get_pretty(error));
+        error_free(error);
+    }
+
     job_update_rc(job);
     trace_job_completed(job, ret, job->ret);
     if (job->ret) {
@@ -876,7 +888,7 @@ void job_cancel(Job *job, bool force)
     }
     job_cancel_async(job, force);
     if (!job_started(job)) {
-        job_completed(job, -ECANCELED);
+        job_completed(job, -ECANCELED, NULL);
     } else if (job->deferred_to_main_loop) {
         job_completed_txn_abort(job);
     } else {

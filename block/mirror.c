@@ -581,7 +581,7 @@ static void mirror_exit(Job *job, void *opaque)
     blk_set_perm(bjob->blk, 0, BLK_PERM_ALL, &error_abort);
     blk_insert_bs(bjob->blk, mirror_top_bs, &error_abort);
 
-    job_completed(job, data->ret);
+    job_completed(job, data->ret, NULL);
 
     g_free(data);
     bdrv_drained_end(src);

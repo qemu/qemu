@@ -768,6 +768,7 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     BDRVQcow2State *s = bs->opaque;
     uint64_t combined_cache_size;
     bool l2_cache_size_set, refcount_cache_size_set, combined_cache_size_set;
+    int min_refcount_cache = MIN_REFCOUNT_CACHE_SIZE * s->cluster_size;
 
     combined_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_CACHE_SIZE);
     l2_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_L2_CACHE_SIZE);
@@ -804,8 +805,6 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
         } else {
             uint64_t virtual_disk_size = bs->total_sectors * BDRV_SECTOR_SIZE;
             uint64_t max_l2_cache = virtual_disk_size / (s->cluster_size / 8);
-            uint64_t min_refcount_cache =
-                (uint64_t) MIN_REFCOUNT_CACHE_SIZE * s->cluster_size;
 
             /* Assign as much memory as possible to the L2 cache, and
              * use the remainder for the refcount cache */
@@ -825,7 +824,7 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
                                  * s->cluster_size);
         }
         if (!refcount_cache_size_set) {
-            *refcount_cache_size = MIN_REFCOUNT_CACHE_SIZE * s->cluster_size;
+            *refcount_cache_size = min_refcount_cache;
         }
     }
 

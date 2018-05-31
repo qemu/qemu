@@ -4011,16 +4011,20 @@
   } }
 
 ##
-# @x-blockdev-create:
+# @blockdev-create:
 #
-# Create an image format on a given node.
-# TODO Replace with something asynchronous (block job?)
+# Starts a job to create an image format on a given node. The job is
+# automatically finalized, but a manual job-dismiss is required.
 #
-# Since: 2.12
+# @job-id:          Identifier for the newly created job.
+#
+# @options:         Options for the image creation.
+#
+# Since: 3.0
 ##
-{ 'command': 'x-blockdev-create',
-  'data': 'BlockdevCreateOptions',
-  'boxed': true }
+{ 'command': 'blockdev-create',
+  'data': { 'job-id': 'str',
+            'options': 'BlockdevCreateOptions' } }
 
 ##
 # @blockdev-open-tray:
