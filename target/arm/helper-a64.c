@@ -384,6 +384,8 @@ float16 HELPER(frecpx_f16)(float16 a, void *fpstp)
         return nan;
     }
 
+    a = float16_squash_input_denormal(a, fpst);
+
     val16 = float16_val(a);
     sbit = 0x8000 & val16;
     exp = extract32(val16, 10, 5);
@@ -413,6 +415,8 @@ float32 HELPER(frecpx_f32)(float32 a, void *fpstp)
         return nan;
     }
 
+    a = float32_squash_input_denormal(a, fpst);
+
     val32 = float32_val(a);
     sbit = 0x80000000ULL & val32;
     exp = extract32(val32, 23, 8);
@@ -441,6 +445,8 @@ float64 HELPER(frecpx_f64)(float64 a, void *fpstp)
         }
         return nan;
     }
+
+    a = float64_squash_input_denormal(a, fpst);
 
     val64 = float64_val(a);
     sbit = 0x8000000000000000ULL & val64;
