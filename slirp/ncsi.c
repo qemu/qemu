@@ -1,7 +1,7 @@
 /*
  * NC-SI (Network Controller Sideband Interface) "echo" model
  *
- * Copyright (C) 2016 IBM Corp.
+ * Copyright (C) 2016-2018 IBM Corp.
  *
  * This code is licensed under the GPL version 2 or later. See the
  * COPYING file in the top-level directory.
@@ -10,6 +10,23 @@
 #include "slirp.h"
 
 #include "ncsi-pkt.h"
+
+static uint32_t ncsi_calculate_checksum(uint16_t *data, int len)
+{
+    uint32_t checksum = 0;
+    int i;
+
+    /*
+     * 32-bit unsigned sum of the NC-SI packet header and NC-SI packet
+     * payload interpreted as a series of 16-bit unsigned integer values.
+     */
+    for (i = 0; i < len; i++) {
+        checksum += htons(data[i]);
+    }
+
+    checksum = (~checksum + 1);
+    return checksum;
+}
 
 /* Get Capabilities */
 static int ncsi_rsp_handler_gc(struct ncsi_rsp_pkt_hdr *rnh)
@@ -32,6 +49,20 @@ static int ncsi_rsp_handler_gls(struct ncsi_rsp_pkt_hdr *rnh)
     struct ncsi_rsp_gls_pkt *rsp = (struct ncsi_rsp_gls_pkt *) rnh;
 
     rsp->status = htonl(0x1);
+    return 0;
+}
+
+/* Get Parameters */
+static int ncsi_rsp_handler_gp(struct ncsi_rsp_pkt_hdr *rnh)
+{
+    struct ncsi_rsp_gp_pkt *rsp = (struct ncsi_rsp_gp_pkt *) rnh;
+
+    /* no MAC address filters or VLAN filters on the channel */
+    rsp->mac_cnt = 0;
+    rsp->mac_enable = 0;
+    rsp->vlan_cnt = 0;
+    rsp->vlan_enable = 0;
+
     return 0;
 }
 
@@ -60,9 +91,9 @@ static const struct ncsi_rsp_handler {
         { NCSI_PKT_RSP_EGMF,    4, NULL },
         { NCSI_PKT_RSP_DGMF,    4, NULL },
         { NCSI_PKT_RSP_SNFC,    4, NULL },
-        { NCSI_PKT_RSP_GVI,    36, NULL },
+        { NCSI_PKT_RSP_GVI,    40, NULL },
         { NCSI_PKT_RSP_GC,     32, ncsi_rsp_handler_gc },
-        { NCSI_PKT_RSP_GP,     -1, NULL },
+        { NCSI_PKT_RSP_GP,     40, ncsi_rsp_handler_gp },
         { NCSI_PKT_RSP_GCPS,  172, NULL },
         { NCSI_PKT_RSP_GNS,   172, NULL },
         { NCSI_PKT_RSP_GNPTS, 172, NULL },
@@ -87,6 +118,9 @@ void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
         (ncsi_reply + ETH_HLEN);
     const struct ncsi_rsp_handler *handler = NULL;
     int i;
+    int ncsi_rsp_len = sizeof(*nh);
+    uint32_t checksum;
+    uint32_t *pchecksum;
 
     memset(ncsi_reply, 0, sizeof(ncsi_reply));
 
@@ -116,15 +150,18 @@ void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             /* TODO: handle errors */
             handler->handler(rnh);
         }
+        ncsi_rsp_len += handler->payload;
     } else {
         rnh->common.length = 0;
         rnh->code          = htons(NCSI_PKT_RSP_C_UNAVAILABLE);
         rnh->reason        = htons(NCSI_PKT_RSP_R_UNKNOWN);
     }
 
-    /* TODO: add a checksum at the end of the frame but the specs
-     * allows it to be zero */
+    /* Add the optional checksum at the end of the frame. */
+    checksum = ncsi_calculate_checksum((uint16_t *) rnh, ncsi_rsp_len);
+    pchecksum = (uint32_t *)((void *) rnh + ncsi_rsp_len);
+    *pchecksum = htonl(checksum);
+    ncsi_rsp_len += 4;
 
-    slirp_output(slirp->opaque, ncsi_reply, ETH_HLEN + sizeof(*nh) +
-                 (handler ? handler->payload : 0) + 4);
+    slirp_output(slirp->opaque, ncsi_reply, ETH_HLEN + ncsi_rsp_len);
 }

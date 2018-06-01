@@ -160,6 +160,9 @@
 # @dnssearch: list of DNS suffixes to search, passed as DHCP option
 #             to the guest
 #
+# @domainname: guest-visible domain name of the virtual nameserver
+#              (since 2.12)
+#
 # @ipv6-prefix: IPv6 network prefix (default is fec0::) (since
 #               2.6). The network prefix is given in the usual
 #               hexadecimal IPv6 address notation.
@@ -197,6 +200,7 @@
     '*dhcpstart': 'str',
     '*dns':       'str',
     '*dnssearch': ['String'],
+    '*domainname': 'str',
     '*ipv6-prefix':      'str',
     '*ipv6-prefixlen':   'int',
     '*ipv6-host':        'str',

@@ -701,9 +701,9 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	memset(&addr, 0, addrlen);
 
 	DEBUG_CALL("tcp_listen");
-	DEBUG_ARG("haddr = %s", inet_ntoa(*(struct in_addr *)&haddr));
+	DEBUG_ARG("haddr = %s", inet_ntoa((struct in_addr){.s_addr = haddr}));
 	DEBUG_ARG("hport = %d", ntohs(hport));
-	DEBUG_ARG("laddr = %s", inet_ntoa(*(struct in_addr *)&laddr));
+	DEBUG_ARG("laddr = %s", inet_ntoa((struct in_addr){.s_addr = laddr}));
 	DEBUG_ARG("lport = %d", ntohs(lport));
 	DEBUG_ARG("flags = %x", flags);
 
@@ -754,6 +754,8 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 		return NULL;
 	}
 	qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+	opt = 1;
+	qemu_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(int));
 
 	getsockname(s,(struct sockaddr *)&addr,&addrlen);
 	so->so_ffamily = AF_INET;

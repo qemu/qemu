@@ -157,7 +157,8 @@ static int net_slirp_init(NetClientState *peer, const char *model,
                           const char *bootfile, const char *vdhcp_start,
                           const char *vnameserver, const char *vnameserver6,
                           const char *smb_export, const char *vsmbserver,
-                          const char **dnssearch, Error **errp)
+                          const char **dnssearch, const char *vdomainname,
+                          Error **errp)
 {
     /* default settings according to historic slirp */
     struct in_addr net  = { .s_addr = htonl(0x0a000200) }; /* 10.0.2.0 */
@@ -359,6 +360,11 @@ static int net_slirp_init(NetClientState *peer, const char *model,
         ip6_dns.s6_addr[15] |= 3;
     }
 
+    if (vdomainname && !*vdomainname) {
+        error_setg(errp, "'domainname' parameter cannot be empty");
+        return -1;
+    }
+
 
     nc = qemu_new_net_client(&net_slirp_info, peer, model, name);
 
@@ -371,7 +377,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     s->slirp = slirp_init(restricted, ipv4, net, mask, host,
                           ipv6, ip6_prefix, vprefix6_len, ip6_host,
                           vhostname, tftp_export, bootfile, dhcp,
-                          dns, ip6_dns, dnssearch, s);
+                          dns, ip6_dns, dnssearch, vdomainname, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
 
     for (config = slirp_configs; config; config = config->next) {
@@ -486,7 +492,9 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
         goto fail_syntax;
     }
 
-    host_port = atoi(p);
+    if (qemu_strtoi(p, NULL, 10, &host_port)) {
+        goto fail_syntax;
+    }
 
     err = slirp_remove_hostfwd(s->slirp, is_udp, host_addr, host_port);
 
@@ -958,7 +966,7 @@ int net_init_slirp(const Netdev *netdev, const char *name,
                          user->ipv6_host, user->hostname, user->tftp,
                          user->bootfile, user->dhcpstart,
                          user->dns, user->ipv6_dns, user->smb,
-                         user->smbserver, dnssearch, errp);
+                         user->smbserver, dnssearch, user->domainname, errp);
 
     while (slirp_configs) {
         config = slirp_configs;

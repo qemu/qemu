@@ -298,6 +298,14 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
             q += val;
         }
 
+        if (slirp->vdomainname) {
+            val = strlen(slirp->vdomainname);
+            *q++ = RFC1533_DOMAINNAME;
+            *q++ = val;
+            memcpy(q, slirp->vdomainname, val);
+            q += val;
+        }
+
         if (slirp->vdnssearch) {
             size_t spaceleft = sizeof(rbp->bp_vend) - (q - rbp->bp_vend);
             val = slirp->vdnssearch_len;

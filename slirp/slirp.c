@@ -286,7 +286,7 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
                   const char *tftp_path, const char *bootfile,
                   struct in_addr vdhcp_start, struct in_addr vnameserver,
                   struct in6_addr vnameserver6, const char **vdnssearch,
-                  void *opaque)
+                  const char *vdomainname, void *opaque)
 {
     Slirp *slirp = g_malloc0(sizeof(Slirp));
 
@@ -317,6 +317,7 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
     }
     slirp->tftp_prefix = g_strdup(tftp_path);
     slirp->bootp_filename = g_strdup(bootfile);
+    slirp->vdomainname = g_strdup(vdomainname);
     slirp->vdhcp_startaddr = vdhcp_start;
     slirp->vnameserver_addr = vnameserver;
     slirp->vnameserver_addr6 = vnameserver6;
@@ -349,6 +350,7 @@ void slirp_cleanup(Slirp *slirp)
     g_free(slirp->vdnssearch);
     g_free(slirp->tftp_prefix);
     g_free(slirp->bootp_filename);
+    g_free(slirp->vdomainname);
     g_free(slirp);
 }
 
@@ -676,13 +678,13 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
                         /* continue; */
                     } else {
                         ret = sowrite(so);
+                        if (ret > 0) {
+                            /* Call tcp_output in case we need to send a window
+                             * update to the guest, otherwise it will be stuck
+                             * until it sends a window probe. */
+                            tcp_output(sototcpcb(so));
+                        }
                     }
-                    /*
-                     * XXXXX If we wrote something (a lot), there
-                     * could be a need for a window update.
-                     * In the worst case, the remote will send
-                     * a window probe to get things going again
-                     */
                 }
 
                 /*
