@@ -68,6 +68,7 @@ typedef struct IscsiLun {
     QemuMutex mutex;
     struct scsi_inquiry_logical_block_provisioning lbp;
     struct scsi_inquiry_block_limits bl;
+    struct scsi_inquiry_device_designator *dd;
     unsigned char *zeroblock;
     /* The allocmap tracks which clusters (pages) on the iSCSI target are
      * allocated and which are not. In case a target returns zeros for
@@ -1740,6 +1741,30 @@ static QemuOptsList runtime_opts = {
     },
 };
 
+static void iscsi_save_designator(IscsiLun *lun,
+                                  struct scsi_inquiry_device_identification *inq_di)
+{
+    struct scsi_inquiry_device_designator *desig, *copy = NULL;
+
+    for (desig = inq_di->designators; desig; desig = desig->next) {
+        if (desig->association ||
+            desig->designator_type > SCSI_DESIGNATOR_TYPE_NAA) {
+            continue;
+        }
+        /* NAA works better than T10 vendor ID based designator. */
+        if (!copy || copy->designator_type < desig->designator_type) {
+            copy = desig;
+        }
+    }
+    if (copy) {
+        lun->dd = g_new(struct scsi_inquiry_device_designator, 1);
+        *lun->dd = *copy;
+        lun->dd->next = NULL;
+        lun->dd->designator = g_malloc(copy->designator_length);
+        memcpy(lun->dd->designator, copy->designator, copy->designator_length);
+    }
+}
+
 static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
@@ -1922,6 +1947,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         struct scsi_task *inq_task;
         struct scsi_inquiry_logical_block_provisioning *inq_lbp;
         struct scsi_inquiry_block_limits *inq_bl;
+        struct scsi_inquiry_device_identification *inq_di;
         switch (inq_vpd->pages[i]) {
         case SCSI_INQUIRY_PAGECODE_LOGICAL_BLOCK_PROVISIONING:
             inq_task = iscsi_do_inquiry(iscsilun->iscsi, iscsilun->lun, 1,
@@ -1945,6 +1971,17 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
             }
             memcpy(&iscsilun->bl, inq_bl,
                    sizeof(struct scsi_inquiry_block_limits));
+            scsi_free_scsi_task(inq_task);
+            break;
+        case SCSI_INQUIRY_PAGECODE_DEVICE_IDENTIFICATION:
+            inq_task = iscsi_do_inquiry(iscsilun->iscsi, iscsilun->lun, 1,
+                                    SCSI_INQUIRY_PAGECODE_DEVICE_IDENTIFICATION,
+                                    (void **) &inq_di, errp);
+            if (inq_task == NULL) {
+                ret = -EINVAL;
+                goto out;
+            }
+            iscsi_save_designator(iscsilun, inq_di);
             scsi_free_scsi_task(inq_task);
             break;
         default:
@@ -2003,6 +2040,10 @@ static void iscsi_close(BlockDriverState *bs)
         iscsi_logout_sync(iscsi);
     }
     iscsi_destroy_context(iscsi);
+    if (iscsilun->dd) {
+        g_free(iscsilun->dd->designator);
+        g_free(iscsilun->dd);
+    }
     g_free(iscsilun->zeroblock);
     iscsi_allocmap_free(iscsilun);
     qemu_mutex_destroy(&iscsilun->mutex);
