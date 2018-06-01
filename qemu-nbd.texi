@@ -78,7 +78,7 @@ Disconnect the device @var{dev}
 @item -e, --shared=@var{num}
 Allow up to @var{num} clients to share the device (default @samp{1})
 @item -t, --persistent
-Don't exit on the last connection
+Don't exit on the lost connection
 @item -x, --export-name=@var{name}
 Set the NBD volume export name. This switches the server to use
 the new style NBD protocol negotiation
