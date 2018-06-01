@@ -17,7 +17,6 @@
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
 #include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 
 #ifdef __linux__
 

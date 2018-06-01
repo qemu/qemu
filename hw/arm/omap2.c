@@ -23,8 +23,6 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "sysemu/qtest.h"
 #include "hw/boards.h"
 #include "hw/hw.h"

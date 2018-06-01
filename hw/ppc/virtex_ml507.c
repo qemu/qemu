@@ -44,8 +44,6 @@
 #include "hw/ppc/ppc4xx.h"
 #include "ppc405.h"
 
-#include "sysemu/block-backend.h"
-
 #define EPAPR_MAGIC    (0x45504150)
 #define FLASH_SIZE     (16 * 1024 * 1024)
 

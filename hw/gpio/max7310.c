@@ -182,14 +182,13 @@ static void max7310_gpio_set(void *opaque, int line, int level)
 
 /* MAX7310 is SMBus-compatible (can be used with only SMBus protocols),
  * but also accepts sequences that are not SMBus so return an I2C device.  */
-static int max7310_init(I2CSlave *i2c)
+static void max7310_realize(DeviceState *dev, Error **errp)
 {
-    MAX7310State *s = MAX7310(i2c);
+    I2CSlave *i2c = I2C_SLAVE(dev);
+    MAX7310State *s = MAX7310(dev);
 
     qdev_init_gpio_in(&i2c->qdev, max7310_gpio_set, 8);
     qdev_init_gpio_out(&i2c->qdev, s->handler, 8);
-
-    return 0;
 }
 
 static void max7310_class_init(ObjectClass *klass, void *data)
@@ -197,7 +196,7 @@ static void max7310_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    k->init = max7310_init;
+    dc->realize = max7310_realize;
     k->event = max7310_event;
     k->recv = max7310_rx;
     k->send = max7310_tx;

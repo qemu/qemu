@@ -335,13 +335,11 @@ static void tmp421_reset(I2CSlave *i2c)
     s->status = 0;
 }
 
-static int tmp421_init(I2CSlave *i2c)
+static void tmp421_realize(DeviceState *dev, Error **errp)
 {
-    TMP421State *s = TMP421(i2c);
+    TMP421State *s = TMP421(dev);
 
     tmp421_reset(&s->i2c);
-
-    return 0;
 }
 
 static void tmp421_initfn(Object *obj)
@@ -366,7 +364,7 @@ static void tmp421_class_init(ObjectClass *klass, void *data)
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
     TMP421Class *sc = TMP421_CLASS(klass);
 
-    k->init = tmp421_init;
+    dc->realize = tmp421_realize;
     k->event = tmp421_event;
     k->recv = tmp421_rx;
     k->send = tmp421_tx;

@@ -464,20 +464,19 @@ static const VMStateDescription vmstate_lm_kbd = {
 };
 
 
-static int lm8323_init(I2CSlave *i2c)
+static void lm8323_realize(DeviceState *dev, Error **errp)
 {
-    LM823KbdState *s = LM8323(i2c);
+    LM823KbdState *s = LM8323(dev);
 
     s->model = 0x8323;
     s->pwm.tm[0] = timer_new_ns(QEMU_CLOCK_VIRTUAL, lm_kbd_pwm0_tick, s);
     s->pwm.tm[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, lm_kbd_pwm1_tick, s);
     s->pwm.tm[2] = timer_new_ns(QEMU_CLOCK_VIRTUAL, lm_kbd_pwm2_tick, s);
-    qdev_init_gpio_out(DEVICE(i2c), &s->nirq, 1);
+    qdev_init_gpio_out(dev, &s->nirq, 1);
 
     lm_kbd_reset(s);
 
     qemu_register_reset((void *) lm_kbd_reset, s);
-    return 0;
 }
 
 void lm832x_key_event(DeviceState *dev, int key, int state)
@@ -505,7 +504,7 @@ static void lm8323_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    k->init = lm8323_init;
+    dc->realize = lm8323_realize;
     k->event = lm_i2c_event;
     k->recv = lm_i2c_rx;
     k->send = lm_i2c_tx;

@@ -7,7 +7,6 @@
 #define BCM2835_DMA_H
 
 #include "qemu-common.h"
-#include "exec/address-spaces.h"
 #include "hw/sysbus.h"
 
 typedef struct {

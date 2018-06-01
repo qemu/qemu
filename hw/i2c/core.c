@@ -258,18 +258,6 @@ const VMStateDescription vmstate_i2c_slave = {
     }
 };
 
-static int i2c_slave_qdev_init(DeviceState *dev)
-{
-    I2CSlave *s = I2C_SLAVE(dev);
-    I2CSlaveClass *sc = I2C_SLAVE_GET_CLASS(s);
-
-    if (sc->init) {
-        return sc->init(s);
-    }
-
-    return 0;
-}
-
 DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr)
 {
     DeviceState *dev;
@@ -283,7 +271,6 @@ DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr)
 static void i2c_slave_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->init = i2c_slave_qdev_init;
     set_bit(DEVICE_CATEGORY_MISC, k->categories);
     k->bus_type = TYPE_I2C_BUS;
     k->props = i2c_props;

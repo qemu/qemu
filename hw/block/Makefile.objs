@@ -11,8 +11,6 @@ common-obj-$(CONFIG_NVME_PCI) += nvme.o
 
 obj-$(CONFIG_SH4) += tc58128.o
 
-obj-$(CONFIG_VIRTIO) += virtio-blk.o
-obj-$(CONFIG_VIRTIO) += dataplane/
-ifeq ($(CONFIG_VIRTIO),y)
+obj-$(CONFIG_VIRTIO_BLK) += virtio-blk.o
+obj-$(CONFIG_VIRTIO_BLK) += dataplane/
 obj-$(CONFIG_VHOST_USER_BLK) += vhost-user-blk.o
-endif

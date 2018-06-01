@@ -97,12 +97,11 @@ static uint8_t eeprom_read_data(SMBusDevice *dev, uint8_t cmd, int n)
     return eeprom_receive_byte(dev);
 }
 
-static int smbus_eeprom_initfn(SMBusDevice *dev)
+static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
 {
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *)dev;
 
     eeprom->offset = 0;
-    return 0;
 }
 
 static Property smbus_eeprom_properties[] = {
@@ -115,7 +114,7 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
 
-    sc->init = smbus_eeprom_initfn;
+    dc->realize = smbus_eeprom_realize;
     sc->quick_cmd = eeprom_quick_cmd;
     sc->send_byte = eeprom_send_byte;
     sc->receive_byte = eeprom_receive_byte;

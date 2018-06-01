@@ -10,7 +10,6 @@
 #include "hw/sysbus.h"
 #include "hw/m68k/mcf.h"
 #include "chardev/char-fe.h"
-#include "exec/address-spaces.h"
 
 typedef struct {
     SysBusDevice parent_obj;

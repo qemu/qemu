@@ -297,13 +297,12 @@ static const GraphicHwOps ssd0303_ops = {
     .gfx_update  = ssd0303_update_display,
 };
 
-static int ssd0303_init(I2CSlave *i2c)
+static void ssd0303_realize(DeviceState *dev, Error **errp)
 {
-    ssd0303_state *s = SSD0303(i2c);
+    ssd0303_state *s = SSD0303(dev);
 
-    s->con = graphic_console_init(DEVICE(i2c), 0, &ssd0303_ops, s);
+    s->con = graphic_console_init(dev, 0, &ssd0303_ops, s);
     qemu_console_resize(s->con, 96 * MAGNIFY, 16 * MAGNIFY);
-    return 0;
 }
 
 static void ssd0303_class_init(ObjectClass *klass, void *data)
@@ -311,7 +310,7 @@ static void ssd0303_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    k->init = ssd0303_init;
+    dc->realize = ssd0303_realize;
     k->event = ssd0303_event;
     k->recv = ssd0303_recv;
     k->send = ssd0303_send;

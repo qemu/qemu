@@ -1,7 +1,6 @@
 #include "qemu/osdep.h"
 #include "hw/xen/xen_backend.h"
 #include "qemu/option.h"
-#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 
 /* ------------------------------------------------------------- */

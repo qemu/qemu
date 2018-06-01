@@ -77,9 +77,8 @@ MemoryRegion):
 - reservation region: a reservation region is primarily for debugging.
   It claims I/O space that is not supposed to be handled by QEMU itself.
   The typical use is to track parts of the address space which will be
-  handled by the host kernel when KVM is enabled.
-  You initialize these with memory_region_init_reservation(), or by
-  passing a NULL callback parameter to memory_region_init_io().
+  handled by the host kernel when KVM is enabled.  You initialize these
+  by passing a NULL callback parameter to memory_region_init_io().
 
 It is valid to add subregions to a region which is not a pure container
 (that is, to an MMIO, RAM or ROM region). This means that the region

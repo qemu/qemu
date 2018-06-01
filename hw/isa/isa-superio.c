@@ -13,7 +13,6 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "chardev/char.h"
 #include "hw/isa/superio.h"
@@ -43,7 +42,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
         if (!k->parallel.is_enabled || k->parallel.is_enabled(sio, i)) {
             /* FIXME use a qdev chardev prop instead of parallel_hds[] */
             chr = parallel_hds[i];
-            if (chr == NULL || chr->be) {
+            if (chr == NULL) {
                 name = g_strdup_printf("discarding-parallel%d", i);
                 chr = qemu_chr_new(name, "null");
             } else {
@@ -83,7 +82,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
         if (!k->serial.is_enabled || k->serial.is_enabled(sio, i)) {
             /* FIXME use a qdev chardev prop instead of serial_hd() */
             chr = serial_hd(i);
-            if (chr == NULL || chr->be) {
+            if (chr == NULL) {
                 name = g_strdup_printf("discarding-serial%d", i);
                 chr = qemu_chr_new(name, "null");
             } else {

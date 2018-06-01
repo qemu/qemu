@@ -43,7 +43,6 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
-#include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
 #include "hw/sysbus.h"

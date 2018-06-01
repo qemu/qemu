@@ -260,7 +260,6 @@ static inline int cpu_interrupts_enabled(CPUNios2State *env)
 }
 
 #include "exec/cpu-all.h"
-#include "exec/exec-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUNios2State *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)

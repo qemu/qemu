@@ -7,7 +7,6 @@
 #define BCM2835_PROPERTY_H
 
 #include "hw/sysbus.h"
-#include "exec/address-spaces.h"
 #include "net/net.h"
 #include "hw/display/bcm2835_fb.h"
 

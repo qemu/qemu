@@ -35,7 +35,6 @@
 #include "elf.h"
 #include "net/net.h"
 #include "sysemu/device_tree.h"
-#include "sysemu/block-backend.h"
 #include "sysemu/cpus.h"
 #include "sysemu/hw_accel.h"
 #include "kvm_ppc.h"

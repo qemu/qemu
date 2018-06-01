@@ -16,7 +16,6 @@
 #include "cpu.h"
 #include "internal.h"
 #include "exec/address-spaces.h"
-#include "exec/exec-all.h"
 #include "hw/watchdog/wdt_diag288.h"
 #include "sysemu/cpus.h"
 #include "hw/s390x/ipl.h"

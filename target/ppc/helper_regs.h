@@ -21,6 +21,7 @@
 #define HELPER_REGS_H
 
 #include "qemu/main-loop.h"
+#include "exec/exec-all.h"
 
 /* Swap temporary saved registers with GPRs */
 static inline void hreg_swap_gpr_tgpr(CPUPPCState *env)

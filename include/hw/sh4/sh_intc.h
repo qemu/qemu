@@ -3,7 +3,6 @@
 
 #include "qemu-common.h"
 #include "hw/irq.h"
-#include "exec/address-spaces.h"
 
 typedef unsigned char intc_enum;
 

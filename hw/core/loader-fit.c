@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/address-spaces.h"
 #include "exec/memory.h"
 #include "hw/loader.h"
 #include "hw/loader-fit.h"

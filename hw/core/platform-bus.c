@@ -21,7 +21,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/platform-bus.h"
-#include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 

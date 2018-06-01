@@ -21,7 +21,6 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "trace.h"
-#include "exec/address-spaces.h"
 
 /* Sparc MMU emulation */
 

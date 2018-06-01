@@ -27,7 +27,6 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/isa/isa.h"
-#include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 

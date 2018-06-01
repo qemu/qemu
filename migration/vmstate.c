@@ -136,6 +136,9 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 } else if (field->flags & VMS_STRUCT) {
                     ret = vmstate_load_state(f, field->vmsd, curr_elem,
                                              field->vmsd->version_id);
+                } else if (field->flags & VMS_VSTRUCT) {
+                    ret = vmstate_load_state(f, field->vmsd, curr_elem,
+                                             field->struct_version_id);
                 } else {
                     ret = field->info->get(f, curr_elem, size, field);
                 }
@@ -209,6 +212,8 @@ static const char *vmfield_get_type_name(VMStateField *field)
 
     if (field->flags & VMS_STRUCT) {
         type = "struct";
+    } else if (field->flags & VMS_VSTRUCT) {
+        type = "vstruct";
     } else if (field->info->name) {
         type = field->info->name;
     }
@@ -309,7 +314,13 @@ bool vmstate_save_needed(const VMStateDescription *vmsd, void *opaque)
 
 
 int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
-                        void *opaque, QJSON *vmdesc)
+                       void *opaque, QJSON *vmdesc_id)
+{
+    return vmstate_save_state_v(f, vmsd, opaque, vmdesc_id, vmsd->version_id);
+}
+
+int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
+                         void *opaque, QJSON *vmdesc, int version_id)
 {
     int ret = 0;
     VMStateField *field = vmsd->fields;
@@ -327,13 +338,15 @@ int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
 
     if (vmdesc) {
         json_prop_str(vmdesc, "vmsd_name", vmsd->name);
-        json_prop_int(vmdesc, "version", vmsd->version_id);
+        json_prop_int(vmdesc, "version", version_id);
         json_start_array(vmdesc, "fields");
     }
 
     while (field->name) {
-        if (!field->field_exists ||
-            field->field_exists(opaque, vmsd->version_id)) {
+        if ((field->field_exists &&
+             field->field_exists(opaque, version_id)) ||
+            (!field->field_exists &&
+             field->version_id <= version_id)) {
             void *first_elem = opaque + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
@@ -363,6 +376,10 @@ int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                 } else if (field->flags & VMS_STRUCT) {
                     ret = vmstate_save_state(f, field->vmsd, curr_elem,
                                              vmdesc_loop);
+                } else if (field->flags & VMS_VSTRUCT) {
+                    ret = vmstate_save_state_v(f, field->vmsd, curr_elem,
+                                               vmdesc_loop,
+                                               field->struct_version_id);
                 } else {
                     ret = field->info->put(f, curr_elem, size, field,
                                      vmdesc_loop);

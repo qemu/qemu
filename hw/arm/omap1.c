@@ -28,8 +28,6 @@
 #include "hw/arm/omap.h"
 #include "sysemu/sysemu.h"
 #include "hw/arm/soc_dma.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
 #include "sysemu/qtest.h"
 #include "qemu/range.h"
 #include "hw/sysbus.h"

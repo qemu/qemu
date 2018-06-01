@@ -27,7 +27,6 @@
 #include "hw/qdev.h"
 #include "ne2000.h"
 #include "sysemu/sysemu.h"
-#include "exec/address-spaces.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 

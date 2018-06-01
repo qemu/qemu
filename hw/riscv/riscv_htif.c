@@ -29,7 +29,6 @@
 #include "chardev/char-fe.h"
 #include "hw/riscv/riscv_htif.h"
 #include "qemu/timer.h"
-#include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 
 #define RISCV_DEBUG_HTIF 0

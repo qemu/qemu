@@ -2529,20 +2529,7 @@ fi
 ##########################################
 # Windows Hypervisor Platform accelerator (WHPX) check
 if test "$whpx" != "no" ; then
-    cat > $TMPC << EOF
-#include <windows.h>
-#include <WinHvPlatform.h>
-#include <WinHvEmulation.h>
-int main(void) {
-    WHV_CAPABILITY whpx_cap;
-    UINT32 writtenSize;
-    WHvGetCapability(WHvCapabilityCodeFeatures, &whpx_cap, sizeof(whpx_cap),
-                     &writtenSize);
-    return 0;
-}
-EOF
-    if compile_prog "" "-lWinHvPlatform -lWinHvEmulation" ; then
-        libs_softmmu="$libs_softmmu -lWinHvPlatform -lWinHvEmulation"
+    if check_include "WinHvPlatform.h" && check_include "WinHvEmulation.h"; then
         whpx="yes"
     else
         if test "$whpx" = "yes"; then
