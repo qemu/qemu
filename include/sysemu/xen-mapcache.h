@@ -9,9 +9,8 @@
 #ifndef XEN_MAPCACHE_H
 #define XEN_MAPCACHE_H
 
-typedef hwaddr (*phys_offset_to_gaddr_t)(hwaddr start_addr,
-                                                     ram_addr_t size,
-                                                     void *opaque);
+typedef hwaddr (*phys_offset_to_gaddr_t)(hwaddr phys_offset,
+                                         ram_addr_t size);
 #ifdef CONFIG_XEN
 
 void xen_map_cache_init(phys_offset_to_gaddr_t f,

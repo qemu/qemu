@@ -119,6 +119,22 @@ static inline int xendevicemodel_pin_memory_cacheattr(
     return xc_domain_pin_memory_cacheattr(xen_xc, domid, start, end, type);
 }
 
+typedef void xenforeignmemory_resource_handle;
+
+#define XENMEM_resource_ioreq_server 0
+
+#define XENMEM_resource_ioreq_server_frame_bufioreq 0
+#define XENMEM_resource_ioreq_server_frame_ioreq(n) (1 + (n))
+
+static inline xenforeignmemory_resource_handle *xenforeignmemory_map_resource(
+    xenforeignmemory_handle *fmem, domid_t domid, unsigned int type,
+    unsigned int id, unsigned long frame, unsigned long nr_frames,
+    void **paddr, int prot, int flags)
+{
+    errno = EOPNOTSUPP;
+    return NULL;
+}
+
 #endif /* CONFIG_XEN_CTRL_INTERFACE_VERSION < 41100 */
 
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 41000

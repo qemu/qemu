@@ -319,7 +319,7 @@ tryagain:
         mapcache->last_entry = NULL;
 #ifdef XEN_COMPAT_PHYSMAP
         if (!translated && mapcache->phys_offset_to_gaddr) {
-            phys_addr = mapcache->phys_offset_to_gaddr(phys_addr, size, mapcache->opaque);
+            phys_addr = mapcache->phys_offset_to_gaddr(phys_addr, size);
             translated = true;
             goto tryagain;
         }

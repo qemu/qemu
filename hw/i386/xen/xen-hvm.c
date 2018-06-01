@@ -12,6 +12,7 @@
 
 #include "cpu.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/xen/xen_common.h"
@@ -86,6 +87,14 @@ typedef struct XenPhysmap {
     QLIST_ENTRY(XenPhysmap) list;
 } XenPhysmap;
 
+static QLIST_HEAD(, XenPhysmap) xen_physmap;
+
+typedef struct XenPciDevice {
+    PCIDevice *pci_dev;
+    uint32_t sbdf;
+    QLIST_ENTRY(XenPciDevice) entry;
+} XenPciDevice;
+
 typedef struct XenIOState {
     ioservid_t ioservid;
     shared_iopage_t *shared_page;
@@ -106,8 +115,8 @@ typedef struct XenIOState {
     struct xs_handle *xenstore;
     MemoryListener memory_listener;
     MemoryListener io_listener;
+    QLIST_HEAD(, XenPciDevice) dev_list;
     DeviceListener device_listener;
-    QLIST_HEAD(, XenPhysmap) physmap;
     hwaddr free_phys_offset;
     const XenPhysmap *log_for_dirtybit;
 
@@ -274,14 +283,13 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr,
     g_free(pfn_list);
 }
 
-static XenPhysmap *get_physmapping(XenIOState *state,
-                                   hwaddr start_addr, ram_addr_t size)
+static XenPhysmap *get_physmapping(hwaddr start_addr, ram_addr_t size)
 {
     XenPhysmap *physmap = NULL;
 
     start_addr &= TARGET_PAGE_MASK;
 
-    QLIST_FOREACH(physmap, &state->physmap, list) {
+    QLIST_FOREACH(physmap, &xen_physmap, list) {
         if (range_covers_byte(physmap->start_addr, physmap->size, start_addr)) {
             return physmap;
         }
@@ -289,23 +297,21 @@ static XenPhysmap *get_physmapping(XenIOState *state,
     return NULL;
 }
 
-#ifdef XEN_COMPAT_PHYSMAP
-static hwaddr xen_phys_offset_to_gaddr(hwaddr start_addr,
-                                                   ram_addr_t size, void *opaque)
+static hwaddr xen_phys_offset_to_gaddr(hwaddr phys_offset, ram_addr_t size)
 {
-    hwaddr addr = start_addr & TARGET_PAGE_MASK;
-    XenIOState *xen_io_state = opaque;
+    hwaddr addr = phys_offset & TARGET_PAGE_MASK;
     XenPhysmap *physmap = NULL;
 
-    QLIST_FOREACH(physmap, &xen_io_state->physmap, list) {
+    QLIST_FOREACH(physmap, &xen_physmap, list) {
         if (range_covers_byte(physmap->phys_offset, physmap->size, addr)) {
-            return physmap->start_addr;
+            return physmap->start_addr + (phys_offset - physmap->phys_offset);
         }
     }
 
-    return start_addr;
+    return phys_offset;
 }
 
+#ifdef XEN_COMPAT_PHYSMAP
 static int xen_save_physmap(XenIOState *state, XenPhysmap *physmap)
 {
     char path[80], value[17];
@@ -355,7 +361,7 @@ static int xen_add_to_physmap(XenIOState *state,
     hwaddr phys_offset = memory_region_get_ram_addr(mr);
     const char *mr_name;
 
-    if (get_physmapping(state, start_addr, size)) {
+    if (get_physmapping(start_addr, size)) {
         return 0;
     }
     if (size <= 0) {
@@ -384,7 +390,7 @@ go_physmap:
     physmap->name = mr_name;
     physmap->phys_offset = phys_offset;
 
-    QLIST_INSERT_HEAD(&state->physmap, physmap, list);
+    QLIST_INSERT_HEAD(&xen_physmap, physmap, list);
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         /* Now when we have a physmap entry we can replace a dummy mapping with
@@ -428,7 +434,7 @@ static int xen_remove_from_physmap(XenIOState *state,
     XenPhysmap *physmap = NULL;
     hwaddr phys_offset = 0;
 
-    physmap = get_physmapping(state, start_addr, size);
+    physmap = get_physmapping(start_addr, size);
     if (physmap == NULL) {
         return -1;
     }
@@ -570,6 +576,12 @@ static void xen_device_realize(DeviceListener *listener,
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         PCIDevice *pci_dev = PCI_DEVICE(dev);
+        XenPciDevice *xendev = g_new(XenPciDevice, 1);
+
+        xendev->pci_dev = pci_dev;
+        xendev->sbdf = PCI_BUILD_BDF(pci_dev_bus_num(pci_dev),
+                                     pci_dev->devfn);
+        QLIST_INSERT_HEAD(&state->dev_list, xendev, entry);
 
         xen_map_pcidev(xen_domid, state->ioservid, pci_dev);
     }
@@ -582,8 +594,17 @@ static void xen_device_unrealize(DeviceListener *listener,
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         PCIDevice *pci_dev = PCI_DEVICE(dev);
+        XenPciDevice *xendev, *next;
 
         xen_unmap_pcidev(xen_domid, state->ioservid, pci_dev);
+
+        QLIST_FOREACH_SAFE(xendev, &state->dev_list, entry, next) {
+            if (xendev->pci_dev == pci_dev) {
+                QLIST_REMOVE(xendev, entry);
+                g_free(xendev);
+                break;
+            }
+        }
     }
 }
 
@@ -597,7 +618,7 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
     int rc, i, j;
     const XenPhysmap *physmap = NULL;
 
-    physmap = get_physmapping(state, start_addr, size);
+    physmap = get_physmapping(start_addr, size);
     if (physmap == NULL) {
         /* not handled */
         return;
@@ -904,6 +925,62 @@ static void cpu_ioreq_move(ioreq_t *req)
     }
 }
 
+static void cpu_ioreq_config(XenIOState *state, ioreq_t *req)
+{
+    uint32_t sbdf = req->addr >> 32;
+    uint32_t reg = req->addr;
+    XenPciDevice *xendev;
+
+    if (req->size != sizeof(uint8_t) && req->size != sizeof(uint16_t) &&
+        req->size != sizeof(uint32_t)) {
+        hw_error("PCI config access: bad size (%u)", req->size);
+    }
+
+    if (req->count != 1) {
+        hw_error("PCI config access: bad count (%u)", req->count);
+    }
+
+    QLIST_FOREACH(xendev, &state->dev_list, entry) {
+        if (xendev->sbdf != sbdf) {
+            continue;
+        }
+
+        if (!req->data_is_ptr) {
+            if (req->dir == IOREQ_READ) {
+                req->data = pci_host_config_read_common(
+                    xendev->pci_dev, reg, PCI_CONFIG_SPACE_SIZE,
+                    req->size);
+                trace_cpu_ioreq_config_read(req, xendev->sbdf, reg,
+                                            req->size, req->data);
+            } else if (req->dir == IOREQ_WRITE) {
+                trace_cpu_ioreq_config_write(req, xendev->sbdf, reg,
+                                             req->size, req->data);
+                pci_host_config_write_common(
+                    xendev->pci_dev, reg, PCI_CONFIG_SPACE_SIZE,
+                    req->data, req->size);
+            }
+        } else {
+            uint32_t tmp;
+
+            if (req->dir == IOREQ_READ) {
+                tmp = pci_host_config_read_common(
+                    xendev->pci_dev, reg, PCI_CONFIG_SPACE_SIZE,
+                    req->size);
+                trace_cpu_ioreq_config_read(req, xendev->sbdf, reg,
+                                            req->size, tmp);
+                write_phys_req_item(req->data, req, 0, &tmp);
+            } else if (req->dir == IOREQ_WRITE) {
+                read_phys_req_item(req->data, req, 0, &tmp);
+                trace_cpu_ioreq_config_write(req, xendev->sbdf, reg,
+                                             req->size, tmp);
+                pci_host_config_write_common(
+                    xendev->pci_dev, reg, PCI_CONFIG_SPACE_SIZE,
+                    tmp, req->size);
+            }
+        }
+    }
+}
+
 static void regs_to_cpu(vmware_regs_t *vmport_regs, ioreq_t *req)
 {
     X86CPU *cpu;
@@ -976,27 +1053,9 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
         case IOREQ_TYPE_INVALIDATE:
             xen_invalidate_map_cache();
             break;
-        case IOREQ_TYPE_PCI_CONFIG: {
-            uint32_t sbdf = req->addr >> 32;
-            uint32_t val;
-
-            /* Fake a write to port 0xCF8 so that
-             * the config space access will target the
-             * correct device model.
-             */
-            val = (1u << 31) |
-                  ((req->addr & 0x0f00) << 16) |
-                  ((sbdf & 0xffff) << 8) |
-                  (req->addr & 0xfc);
-            do_outp(0xcf8, 4, val);
-
-            /* Now issue the config space access via
-             * port 0xCFC
-             */
-            req->addr = 0xcfc | (req->addr & 0x03);
-            cpu_ioreq_pio(req);
+        case IOREQ_TYPE_PCI_CONFIG:
+            cpu_ioreq_config(state, req);
             break;
-        }
         default:
             hw_error("Invalid ioreq type 0x%x\n", req->type);
     }
@@ -1222,7 +1281,7 @@ static void xen_read_physmap(XenIOState *state)
                 xen_domid, entries[i]);
         physmap->name = xs_read(state->xenstore, 0, path, &len);
 
-        QLIST_INSERT_HEAD(&state->physmap, physmap, list);
+        QLIST_INSERT_HEAD(&xen_physmap, physmap, list);
     }
     free(entries);
 }
@@ -1239,13 +1298,39 @@ static void xen_wakeup_notifier(Notifier *notifier, void *data)
 
 static int xen_map_ioreq_server(XenIOState *state)
 {
+    void *addr = NULL;
+    xenforeignmemory_resource_handle *fres;
     xen_pfn_t ioreq_pfn;
     xen_pfn_t bufioreq_pfn;
     evtchn_port_t bufioreq_evtchn;
     int rc;
 
+    /*
+     * Attempt to map using the resource API and fall back to normal
+     * foreign mapping if this is not supported.
+     */
+    QEMU_BUILD_BUG_ON(XENMEM_resource_ioreq_server_frame_bufioreq != 0);
+    QEMU_BUILD_BUG_ON(XENMEM_resource_ioreq_server_frame_ioreq(0) != 1);
+    fres = xenforeignmemory_map_resource(xen_fmem, xen_domid,
+                                         XENMEM_resource_ioreq_server,
+                                         state->ioservid, 0, 2,
+                                         &addr,
+                                         PROT_READ | PROT_WRITE, 0);
+    if (fres != NULL) {
+        trace_xen_map_resource_ioreq(state->ioservid, addr);
+        state->buffered_io_page = addr;
+        state->shared_page = addr + TARGET_PAGE_SIZE;
+    } else if (errno != EOPNOTSUPP) {
+        error_report("failed to map ioreq server resources: error %d handle=%p",
+                     errno, xen_xc);
+        return -1;
+    }
+
     rc = xen_get_ioreq_server_info(xen_domid, state->ioservid,
-                                   &ioreq_pfn, &bufioreq_pfn,
+                                   (state->shared_page == NULL) ?
+                                   &ioreq_pfn : NULL,
+                                   (state->buffered_io_page == NULL) ?
+                                   &bufioreq_pfn : NULL,
                                    &bufioreq_evtchn);
     if (rc < 0) {
         error_report("failed to get ioreq server info: error %d handle=%p",
@@ -1253,26 +1338,36 @@ static int xen_map_ioreq_server(XenIOState *state)
         return rc;
     }
 
-    DPRINTF("shared page at pfn %lx\n", ioreq_pfn);
-    DPRINTF("buffered io page at pfn %lx\n", bufioreq_pfn);
-    DPRINTF("buffered io evtchn is %x\n", bufioreq_evtchn);
-
-    state->shared_page = xenforeignmemory_map(xen_fmem, xen_domid,
-                                              PROT_READ | PROT_WRITE,
-                                              1, &ioreq_pfn, NULL);
     if (state->shared_page == NULL) {
-        error_report("map shared IO page returned error %d handle=%p",
-                     errno, xen_xc);
+        DPRINTF("shared page at pfn %lx\n", ioreq_pfn);
+
+        state->shared_page = xenforeignmemory_map(xen_fmem, xen_domid,
+                                                  PROT_READ | PROT_WRITE,
+                                                  1, &ioreq_pfn, NULL);
+        if (state->shared_page == NULL) {
+            error_report("map shared IO page returned error %d handle=%p",
+                         errno, xen_xc);
+        }
+    }
+
+    if (state->buffered_io_page == NULL) {
+        DPRINTF("buffered io page at pfn %lx\n", bufioreq_pfn);
+
+        state->buffered_io_page = xenforeignmemory_map(xen_fmem, xen_domid,
+                                                       PROT_READ | PROT_WRITE,
+                                                       1, &bufioreq_pfn,
+                                                       NULL);
+        if (state->buffered_io_page == NULL) {
+            error_report("map buffered IO page returned error %d", errno);
+            return -1;
+        }
+    }
+
+    if (state->shared_page == NULL || state->buffered_io_page == NULL) {
         return -1;
     }
 
-    state->buffered_io_page = xenforeignmemory_map(xen_fmem, xen_domid,
-                                                   PROT_READ | PROT_WRITE,
-                                                   1, &bufioreq_pfn, NULL);
-    if (state->buffered_io_page == NULL) {
-        error_report("map buffered IO page returned error %d", errno);
-        return -1;
-    }
+    DPRINTF("buffered io evtchn is %x\n", bufioreq_evtchn);
 
     state->bufioreq_remote_port = bufioreq_evtchn;
 
@@ -1374,7 +1469,6 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 
     state->memory_listener = xen_memory_listener;
-    QLIST_INIT(&state->physmap);
     memory_listener_register(&state->memory_listener, &address_space_memory);
     state->log_for_dirtybit = NULL;
 
@@ -1382,6 +1476,7 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     memory_listener_register(&state->io_listener, &address_space_io);
 
     state->device_listener = xen_device_listener;
+    QLIST_INIT(&state->dev_list);
     device_listener_register(&state->device_listener);
 
     /* Initialize backend core & drivers */
@@ -1390,6 +1485,8 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
         goto err;
     }
     xen_be_register_common();
+
+    QLIST_INIT(&xen_physmap);
     xen_read_physmap(state);
 
     /* Disable ACPI build because Xen handles it */
@@ -1460,6 +1557,8 @@ void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
     if (unlikely(xen_in_migration)) {
         int rc;
         ram_addr_t start_pfn, nb_pages;
+
+        start = xen_phys_offset_to_gaddr(start, length);
 
         if (length == 0) {
             length = TARGET_PAGE_SIZE;
