@@ -556,6 +556,17 @@ static inline bool iscsi_allocmap_is_valid(IscsiLun *iscsilun,
                                offset / iscsilun->cluster_size) == size);
 }
 
+static void coroutine_fn iscsi_co_wait_for_task(IscsiTask *iTask,
+                                                IscsiLun *iscsilun)
+{
+    while (!iTask->complete) {
+        iscsi_set_events(iscsilun);
+        qemu_mutex_unlock(&iscsilun->mutex);
+        qemu_coroutine_yield();
+        qemu_mutex_lock(&iscsilun->mutex);
+    }
+}
+
 static int coroutine_fn
 iscsi_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                 QEMUIOVector *iov, int flags)
@@ -617,12 +628,7 @@ retry:
     scsi_task_set_iov_out(iTask.task, (struct scsi_iovec *) iov->iov,
                           iov->niov);
 #endif
-    while (!iTask.complete) {
-        iscsi_set_events(iscsilun);
-        qemu_mutex_unlock(&iscsilun->mutex);
-        qemu_coroutine_yield();
-        qemu_mutex_lock(&iscsilun->mutex);
-    }
+    iscsi_co_wait_for_task(&iTask, iscsilun);
 
     if (iTask.task != NULL) {
         scsi_free_scsi_task(iTask.task);
@@ -693,13 +699,7 @@ retry:
         ret = -ENOMEM;
         goto out_unlock;
     }
-
-    while (!iTask.complete) {
-        iscsi_set_events(iscsilun);
-        qemu_mutex_unlock(&iscsilun->mutex);
-        qemu_coroutine_yield();
-        qemu_mutex_lock(&iscsilun->mutex);
-    }
+    iscsi_co_wait_for_task(&iTask, iscsilun);
 
     if (iTask.do_retry) {
         if (iTask.task != NULL) {
@@ -863,13 +863,8 @@ retry:
 #if LIBISCSI_API_VERSION < (20160603)
     scsi_task_set_iov_in(iTask.task, (struct scsi_iovec *) iov->iov, iov->niov);
 #endif
-    while (!iTask.complete) {
-        iscsi_set_events(iscsilun);
-        qemu_mutex_unlock(&iscsilun->mutex);
-        qemu_coroutine_yield();
-        qemu_mutex_lock(&iscsilun->mutex);
-    }
 
+    iscsi_co_wait_for_task(&iTask, iscsilun);
     if (iTask.task != NULL) {
         scsi_free_scsi_task(iTask.task);
         iTask.task = NULL;
@@ -906,12 +901,7 @@ retry:
         return -ENOMEM;
     }
 
-    while (!iTask.complete) {
-        iscsi_set_events(iscsilun);
-        qemu_mutex_unlock(&iscsilun->mutex);
-        qemu_coroutine_yield();
-        qemu_mutex_lock(&iscsilun->mutex);
-    }
+    iscsi_co_wait_for_task(&iTask, iscsilun);
 
     if (iTask.task != NULL) {
         scsi_free_scsi_task(iTask.task);
@@ -1143,12 +1133,7 @@ retry:
         goto out_unlock;
     }
 
-    while (!iTask.complete) {
-        iscsi_set_events(iscsilun);
-        qemu_mutex_unlock(&iscsilun->mutex);
-        qemu_coroutine_yield();
-        qemu_mutex_lock(&iscsilun->mutex);
-    }
+    iscsi_co_wait_for_task(&iTask, iscsilun);
 
     if (iTask.task != NULL) {
         scsi_free_scsi_task(iTask.task);
@@ -1244,12 +1229,7 @@ retry:
         return -ENOMEM;
     }
 
-    while (!iTask.complete) {
-        iscsi_set_events(iscsilun);
-        qemu_mutex_unlock(&iscsilun->mutex);
-        qemu_coroutine_yield();
-        qemu_mutex_lock(&iscsilun->mutex);
-    }
+    iscsi_co_wait_for_task(&iTask, iscsilun);
 
     if (iTask.status == SCSI_STATUS_CHECK_CONDITION &&
         iTask.task->sense.key == SCSI_SENSE_ILLEGAL_REQUEST &&
