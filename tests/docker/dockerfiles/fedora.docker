@@ -1,4 +1,4 @@
-FROM fedora:27
+FROM fedora:28
 ENV PACKAGES \
     ccache gettext git tar PyYAML sparse flex bison python3 bzip2 hostname \
     gcc gcc-c++ llvm clang make perl which bc findutils glib2-devel \
