@@ -1,4 +1,8 @@
+# The current Travis default is a container based 14.04 Trust on EC2
+# Additional builds with specific requirements for a full VM need to
+# be added as additional matrix: entries later on
 sudo: false
+dist: trusty
 language: c
 python:
   - "2.6"
@@ -70,11 +74,13 @@ script:
   - make ${MAKEFLAGS} && ${TEST_CMD}
 matrix:
   include:
-    # Test with CLang for compile portability
-    - env: CONFIG=""
+    # Test with Clang for compile portability (Travis uses clang-5.0)
+    - env: CONFIG="--disable-system"
+      compiler: clang
+    - env: CONFIG="--disable-user"
       compiler: clang
     # gprof/gcov are GCC features
-    - env: CONFIG="--enable-gprof --enable-gcov --disable-pie"
+    - env: CONFIG="--enable-gprof --enable-gcov --disable-pie --disable-linux-user"
       compiler: gcc
     # We manually include builds which we disable "make check" for
     - env: CONFIG="--enable-debug --enable-tcg-interpreter"
@@ -95,80 +101,24 @@ matrix:
     - env: CONFIG=""
       os: osx
       compiler: clang
-    # Plain Trusty System Build
-    - env: CONFIG="--disable-linux-user"
-      sudo: required
-      addons:
-      dist: trusty
-      compiler: gcc
-      before_install:
-        - sudo apt-get update -qq
-        - sudo apt-get build-dep -qq qemu
-        - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
-        - git submodule update --init --recursive
-    # Plain Trusty Linux User Build
-    - env: CONFIG="--disable-system"
-      sudo: required
-      addons:
-      dist: trusty
-      compiler: gcc
-      before_install:
-        - sudo apt-get update -qq
-        - sudo apt-get build-dep -qq qemu
-        - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
-        - git submodule update --init --recursive
-    # Trusty System build with latest stable clang & python 3.0
-    - sudo: required
-      addons:
-      dist: trusty
-      language: generic
-      compiler: none
+    # Python builds
+    - env: CONFIG="--target-list=x86_64-softmmu"
       python:
         - "3.0"
-      env:
-        - COMPILER_NAME=clang CXX=clang++-3.9 CC=clang-3.9
-        - CONFIG="--disable-linux-user --cc=clang-3.9 --cxx=clang++-3.9 --python=/usr/bin/python3"
-      before_install:
-        - wget -nv -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
-        - sudo apt-add-repository -y 'deb http://llvm.org/apt/trusty llvm-toolchain-trusty-3.9 main'
-        - sudo apt-get update -qq
-        - sudo apt-get install -qq -y clang-3.9
-        - sudo apt-get build-dep -qq qemu
-        - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
-        - git submodule update --init --recursive
-      before_script:
-        - ./configure ${CONFIG} || cat config.log
-    # Trusty Linux User build with latest stable clang & python 3.6
-    - sudo: required
-      addons:
-      dist: trusty
-      language: generic
-      compiler: none
+    - env: CONFIG="--target-list=x86_64-softmmu"
       python:
         - "3.6"
-      env:
-        - COMPILER_NAME=clang CXX=clang++-3.9 CC=clang-3.9
-        - CONFIG="--disable-system --cc=clang-3.9 --cxx=clang++-3.9 --python=/usr/bin/python3"
-      before_install:
-        - wget -nv -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
-        - sudo apt-add-repository -y 'deb http://llvm.org/apt/trusty llvm-toolchain-trusty-3.9 main'
-        - sudo apt-get update -qq
-        - sudo apt-get install -qq -y clang-3.9
-        - sudo apt-get build-dep -qq qemu
-        - wget -O - http://people.linaro.org/~alex.bennee/qemu-submodule-git-seed.tar.xz | tar -xvJ
-        - git submodule update --init --recursive
-      before_script:
-        - ./configure ${CONFIG} || cat config.log
     # Using newer GCC with sanitizers
     - addons:
         apt:
+          update: true
           sources:
             # PPAs for newer toolchains
             - ubuntu-toolchain-r-test
           packages:
             # Extra toolchains
-            - gcc-5
-            - g++-5
+            - gcc-7
+            - g++-7
             # Build dependencies
             - libaio-dev
             - libattr1-dev
@@ -197,8 +147,8 @@ matrix:
       language: generic
       compiler: none
       env:
-        - COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
-        - CONFIG="--cc=gcc-5 --cxx=g++-5 --disable-pie --disable-linux-user"
+        - COMPILER_NAME=gcc CXX=g++-7 CC=gcc-7
+        - CONFIG="--cc=gcc-7 --cxx=g++-7 --disable-pie --disable-linux-user"
         - TEST_CMD=""
       before_script:
         - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || cat config.log
