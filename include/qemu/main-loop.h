@@ -168,6 +168,20 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
 /* async I/O support */
 
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
+
+/**
+ * IOCanReadHandler: Return the number of bytes that #IOReadHandler can accept
+ *
+ * This function reports how many bytes #IOReadHandler is prepared to accept.
+ * #IOReadHandler may be invoked with up to this number of bytes.  If this
+ * function returns 0 then #IOReadHandler is not invoked.
+ *
+ * This function is typically called from an event loop.  If the number of
+ * bytes changes outside the event loop (e.g. because a vcpu thread drained the
+ * buffer), then it is necessary to kick the event loop so that this function
+ * is called again.  aio_notify() or qemu_notify_event() can be used to kick
+ * the event loop.
+ */
 typedef int IOCanReadHandler(void *opaque);
 
 /**
