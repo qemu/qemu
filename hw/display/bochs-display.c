@@ -158,6 +158,7 @@ static int bochs_display_get_mode(BochsDisplayState *s,
         /* best effort: support native endianess only */
         mode->format = PIXMAN_r5g6b5;
         mode->bytepp = 2;
+        break;
     case 32:
         mode->format = s->big_endian_fb
             ? PIXMAN_BE_x8r8g8b8
