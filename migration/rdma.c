@@ -400,7 +400,6 @@ struct QIOChannelRDMA {
     QIOChannel parent;
     RDMAContext *rdma;
     QEMUFile *file;
-    size_t len;
     bool blocking; /* XXX we don't actually honour this yet */
 };
 
@@ -2268,8 +2267,7 @@ static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
 
 static void qemu_rdma_cleanup(RDMAContext *rdma)
 {
-    struct rdma_cm_event *cm_event;
-    int ret, idx;
+    int idx;
 
     if (rdma->cm_id && rdma->connected) {
         if ((rdma->error_state ||
@@ -2283,14 +2281,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
             qemu_rdma_post_send_control(rdma, NULL, &head);
         }
 
-        ret = rdma_disconnect(rdma->cm_id);
-        if (!ret) {
-            trace_qemu_rdma_cleanup_waiting_for_disconnect();
-            ret = rdma_get_cm_event(rdma->channel, &cm_event);
-            if (!ret) {
-                rdma_ack_cm_event(cm_event);
-            }
-        }
+        rdma_disconnect(rdma->cm_id);
         trace_qemu_rdma_cleanup_disconnect();
         rdma->connected = false;
     }
@@ -2608,6 +2599,7 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
     int ret;
     ssize_t done = 0;
     size_t i;
+    size_t len = 0;
 
     CHECK_ERROR_STATE();
 
@@ -2627,10 +2619,10 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
         while (remaining) {
             RDMAControlHeader head;
 
-            rioc->len = MIN(remaining, RDMA_SEND_INCREMENT);
-            remaining -= rioc->len;
+            len = MIN(remaining, RDMA_SEND_INCREMENT);
+            remaining -= len;
 
-            head.len = rioc->len;
+            head.len = len;
             head.type = RDMA_CONTROL_QEMU_FILE;
 
             ret = qemu_rdma_exchange_send(rdma, &head, data, NULL, NULL, NULL);
@@ -2640,8 +2632,8 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
                 return ret;
             }
 
-            data += rioc->len;
-            done += rioc->len;
+            data += len;
+            done += len;
         }
     }
 
@@ -2736,8 +2728,7 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
             }
         }
     }
-    rioc->len = done;
-    return rioc->len;
+    return done;
 }
 
 /*

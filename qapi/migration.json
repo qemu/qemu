@@ -376,13 +376,17 @@
 # @postcopy-blocktime: Calculate downtime for postcopy live migration
 #                     (since 3.0)
 #
+# @late-block-activate: If enabled, the destination will not activate block
+#           devices (and thus take locks) immediately at the end of migration.
+#           (since 3.0)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
            'block', 'return-path', 'pause-before-switchover', 'x-multifd',
-           'dirty-bitmaps', 'postcopy-blocktime' ] }
+           'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate' ] }
 
 ##
 # @MigrationCapabilityStatus:
