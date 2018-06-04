@@ -32,7 +32,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "hw/usb.h"
-#include "hw/usb/desc.h"
+#include "desc.h"
 #include "hw/hw.h"
 #include "audio/audio.h"
 

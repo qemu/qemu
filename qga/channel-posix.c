@@ -2,7 +2,7 @@
 #include <termios.h>
 #include "qapi/error.h"
 #include "qemu/sockets.h"
-#include "qga/channel.h"
+#include "channel.h"
 
 #ifdef CONFIG_SOLARIS
 #include <stropts.h>

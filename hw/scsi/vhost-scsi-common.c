@@ -17,7 +17,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "migration/migration.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-scsi-common.h"
 #include "hw/virtio/virtio-scsi.h"

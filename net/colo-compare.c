@@ -25,7 +25,7 @@
 #include "net/queue.h"
 #include "chardev/char-fe.h"
 #include "qemu/sockets.h"
-#include "net/colo.h"
+#include "colo.h"
 #include "sysemu/iothread.h"
 
 #define TYPE_COLO_COMPARE "colo-compare"

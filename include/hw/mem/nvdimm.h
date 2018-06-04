@@ -134,6 +134,11 @@ struct AcpiNVDIMMState {
 
     /* the IO region used by OSPM to transfer control to QEMU. */
     MemoryRegion io_mr;
+
+    /*
+     * Platform capabilities, section 5.2.25.9 of ACPI 6.2 Errata A
+     */
+    int32_t capabilities;
 };
 typedef struct AcpiNVDIMMState AcpiNVDIMMState;
 

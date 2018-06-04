@@ -22,7 +22,7 @@
 #include "qapi/error.h"
 #include "qemu/bswap.h"
 
-#include "crypto/block-luks.h"
+#include "block-luks.h"
 
 #include "crypto/hash.h"
 #include "crypto/afsplit.h"

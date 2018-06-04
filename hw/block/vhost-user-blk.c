@@ -203,12 +203,10 @@ static uint64_t vhost_user_blk_get_features(VirtIODevice *vdev,
     virtio_add_feature(&features, VIRTIO_BLK_F_TOPOLOGY);
     virtio_add_feature(&features, VIRTIO_BLK_F_BLK_SIZE);
     virtio_add_feature(&features, VIRTIO_BLK_F_FLUSH);
+    virtio_add_feature(&features, VIRTIO_BLK_F_RO);
 
     if (s->config_wce) {
         virtio_add_feature(&features, VIRTIO_BLK_F_CONFIG_WCE);
-    }
-    if (s->config_ro) {
-        virtio_add_feature(&features, VIRTIO_BLK_F_RO);
     }
     if (s->num_queues > 1) {
         virtio_add_feature(&features, VIRTIO_BLK_F_MQ);
@@ -226,6 +224,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
+    VhostUserState *user;
     int i, ret;
 
     if (!s->chardev.chr) {
@@ -243,6 +242,15 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    user = vhost_user_init();
+    if (!user) {
+        error_setg(errp, "vhost-user-blk: failed to init vhost_user");
+        return;
+    }
+
+    user->chr = &s->chardev;
+    s->vhost_user = user;
+
     virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK,
                 sizeof(struct virtio_blk_config));
 
@@ -258,7 +266,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 
     vhost_dev_set_config_notifier(&s->dev, &blk_ops);
 
-    ret = vhost_dev_init(&s->dev, &s->chardev, VHOST_BACKEND_TYPE_USER, 0);
+    ret = vhost_dev_init(&s->dev, s->vhost_user, VHOST_BACKEND_TYPE_USER, 0);
     if (ret < 0) {
         error_setg(errp, "vhost-user-blk: vhost initialization failed: %s",
                    strerror(-ret));
@@ -283,6 +291,10 @@ vhost_err:
 virtio_err:
     g_free(s->dev.vqs);
     virtio_cleanup(vdev);
+
+    vhost_user_cleanup(user);
+    g_free(user);
+    s->vhost_user = NULL;
 }
 
 static void vhost_user_blk_device_unrealize(DeviceState *dev, Error **errp)
@@ -294,6 +306,12 @@ static void vhost_user_blk_device_unrealize(DeviceState *dev, Error **errp)
     vhost_dev_cleanup(&s->dev);
     g_free(s->dev.vqs);
     virtio_cleanup(vdev);
+
+    if (s->vhost_user) {
+        vhost_user_cleanup(s->vhost_user);
+        g_free(s->vhost_user);
+        s->vhost_user = NULL;
+    }
 }
 
 static void vhost_user_blk_instance_init(Object *obj)
@@ -319,7 +337,6 @@ static Property vhost_user_blk_properties[] = {
     DEFINE_PROP_UINT16("num-queues", VHostUserBlk, num_queues, 1),
     DEFINE_PROP_UINT32("queue-size", VHostUserBlk, queue_size, 128),
     DEFINE_PROP_BIT("config-wce", VHostUserBlk, config_wce, 0, true),
-    DEFINE_PROP_BIT("config-ro", VHostUserBlk, config_ro, 0, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

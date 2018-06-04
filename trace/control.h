@@ -267,6 +267,6 @@ char *trace_opt_parse(const char *optarg);
 uint32_t trace_get_vcpu_event_count(void);
 
 
-#include "trace/control-internal.h"
+#include "control-internal.h"
 
 #endif /* TRACE__CONTROL_H */

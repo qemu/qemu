@@ -22,7 +22,7 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "hw/usb.h"
-#include "hw/usb/desc.h"
+#include "desc.h"
 #include "sysemu/bt.h"
 #include "hw/bt.h"
 

@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
+#include "hw/virtio/vhost-user.h"
 #include "standard-headers/linux/virtio_crypto.h"
 #include "sysemu/cryptodev-vhost.h"
 #include "chardev/char-fe.h"
@@ -46,6 +47,7 @@
 typedef struct CryptoDevBackendVhostUser {
     CryptoDevBackend parent_obj;
 
+    VhostUserState *vhost_user;
     CharBackend chr;
     char *chr_name;
     bool opened;
@@ -102,7 +104,7 @@ cryptodev_vhost_user_start(int queues,
             continue;
         }
 
-        options.opaque = &s->chr;
+        options.opaque = s->vhost_user;
         options.backend_type = VHOST_BACKEND_TYPE_USER;
         options.cc = b->conf.peers.ccs[i];
         s->vhost_crypto[i] = cryptodev_vhost_init(&options);
@@ -185,6 +187,7 @@ static void cryptodev_vhost_user_init(
     size_t i;
     Error *local_err = NULL;
     Chardev *chr;
+    VhostUserState *user;
     CryptoDevBackendClient *cc;
     CryptoDevBackendVhostUser *s =
                       CRYPTODEV_BACKEND_VHOST_USER(backend);
@@ -214,6 +217,15 @@ static void cryptodev_vhost_user_init(
             }
         }
     }
+
+    user = vhost_user_init();
+    if (!user) {
+        error_setg(errp, "Failed to init vhost_user");
+        return;
+    }
+
+    user->chr = &s->chr;
+    s->vhost_user = user;
 
     qemu_chr_fe_set_handlers(&s->chr, NULL, NULL,
                      cryptodev_vhost_user_event, NULL, s, NULL, true);
@@ -298,6 +310,12 @@ static void cryptodev_vhost_user_cleanup(
             cryptodev_backend_free_client(cc);
             backend->conf.peers.ccs[i] = NULL;
         }
+    }
+
+    if (s->vhost_user) {
+        vhost_user_cleanup(s->vhost_user);
+        g_free(s->vhost_user);
+        s->vhost_user = NULL;
     }
 }
 

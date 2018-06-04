@@ -17,7 +17,7 @@
 #include "qemu/error-report.h"
 
 #include "hw/usb.h"
-#include "hw/usb/desc.h"
+#include "desc.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
 

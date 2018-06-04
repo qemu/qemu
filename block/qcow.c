@@ -37,7 +37,7 @@
 #include "qapi/qapi-visit-block-core.h"
 #include "crypto/block.h"
 #include "migration/blocker.h"
-#include "block/crypto.h"
+#include "crypto.h"
 
 /**************************************************************/
 /* QEMU COW block driver with compression and encryption support */

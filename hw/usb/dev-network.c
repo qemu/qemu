@@ -27,7 +27,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "hw/usb.h"
-#include "hw/usb/desc.h"
+#include "desc.h"
 #include "net/net.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"

@@ -1,6 +1,6 @@
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
-#include "ui/keymaps.h"
+#include "keymaps.h"
 #include "ui/input.h"
 
 #include "standard-headers/linux/input.h"

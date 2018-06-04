@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/usb.h"
-#include "hw/usb/desc.h"
+#include "desc.h"
 #include "trace.h"
 
 /* ------------------------------------------------------------------ */

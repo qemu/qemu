@@ -55,6 +55,7 @@
 #include "io/channel-buffer.h"
 #include "io/channel-file.h"
 #include "sysemu/replay.h"
+#include "qjson.h"
 
 #ifndef ETH_P_RARP
 #define ETH_P_RARP 0x8035

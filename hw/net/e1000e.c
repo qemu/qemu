@@ -41,7 +41,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 
-#include "hw/net/e1000_regs.h"
+#include "e1000_regs.h"
 
 #include "e1000x_common.h"
 #include "e1000e_core.h"

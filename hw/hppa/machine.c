@@ -16,7 +16,7 @@
 #include "hw/ide.h"
 #include "hw/timer/i8254.h"
 #include "hw/char/serial.h"
-#include "hw/hppa/hppa_sys.h"
+#include "hppa_sys.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qemu/log.h"

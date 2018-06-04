@@ -66,7 +66,7 @@
 #define VC_SCALE_STEP   0.25
 
 #ifdef GDK_WINDOWING_X11
-#include "ui/x_keymap.h"
+#include "x_keymap.h"
 
 /* Gtk2 compat */
 #ifndef GDK_IS_X11_DISPLAY

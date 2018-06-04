@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/bswap.h"
-#include "crypto/ivgen-plain.h"
+#include "ivgen-plain.h"
 
 static int qcrypto_ivgen_plain_init(QCryptoIVGen *ivgen,
                                     const uint8_t *key, size_t nkey,

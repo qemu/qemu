@@ -23,7 +23,7 @@
 #include "qemu/option.h"
 #include "qemu/crc32c.h"
 #include "qemu/bswap.h"
-#include "block/vhdx.h"
+#include "vhdx.h"
 #include "migration/blocker.h"
 #include "qemu/uuid.h"
 #include "qapi/qmp/qdict.h"

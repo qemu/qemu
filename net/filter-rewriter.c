@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "trace.h"
-#include "net/colo.h"
+#include "colo.h"
 #include "net/filter.h"
 #include "net/net.h"
 #include "qemu-common.h"

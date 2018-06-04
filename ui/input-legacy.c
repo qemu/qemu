@@ -26,7 +26,7 @@
 #include "qapi/qapi-commands-ui.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
-#include "ui/keymaps.h"
+#include "keymaps.h"
 #include "ui/input.h"
 
 struct QEMUPutMouseEntry {

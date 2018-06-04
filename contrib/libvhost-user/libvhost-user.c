@@ -314,11 +314,6 @@ vu_message_write(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
         msg.msg_controllen = 0;
     }
 
-    /* Set the version in the flags when sending the reply */
-    vmsg->flags &= ~VHOST_USER_VERSION_MASK;
-    vmsg->flags |= VHOST_USER_VERSION;
-    vmsg->flags |= VHOST_USER_REPLY_MASK;
-
     do {
         rc = sendmsg(conn_fd, &msg, 0);
     } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
@@ -339,6 +334,39 @@ vu_message_write(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
     }
 
     return true;
+}
+
+static bool
+vu_send_reply(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
+{
+    /* Set the version in the flags when sending the reply */
+    vmsg->flags &= ~VHOST_USER_VERSION_MASK;
+    vmsg->flags |= VHOST_USER_VERSION;
+    vmsg->flags |= VHOST_USER_REPLY_MASK;
+
+    return vu_message_write(dev, conn_fd, vmsg);
+}
+
+static bool
+vu_process_message_reply(VuDev *dev, const VhostUserMsg *vmsg)
+{
+    VhostUserMsg msg_reply;
+
+    if ((vmsg->flags & VHOST_USER_NEED_REPLY_MASK) == 0) {
+        return true;
+    }
+
+    if (!vu_message_read(dev, dev->slave_fd, &msg_reply)) {
+        return false;
+    }
+
+    if (msg_reply.request != vmsg->request) {
+        DPRINT("Received unexpected msg type. Expected %d received %d",
+               vmsg->request, msg_reply.request);
+        return false;
+    }
+
+    return msg_reply.payload.u64 == 0;
 }
 
 /* Kick the log_call_fd if required. */
@@ -536,7 +564,7 @@ vu_set_mem_table_exec_postcopy(VuDev *dev, VhostUserMsg *vmsg)
 
     /* Send the message back to qemu with the addresses filled in */
     vmsg->fd_num = 0;
-    if (!vu_message_write(dev, dev->sock, vmsg)) {
+    if (!vu_send_reply(dev, dev->sock, vmsg)) {
         vu_panic(dev, "failed to respond to set-mem-table for postcopy");
         return false;
     }
@@ -916,6 +944,41 @@ void vu_set_queue_handler(VuDev *dev, VuVirtq *vq,
     }
 }
 
+bool vu_set_queue_host_notifier(VuDev *dev, VuVirtq *vq, int fd,
+                                int size, int offset)
+{
+    int qidx = vq - dev->vq;
+    int fd_num = 0;
+    VhostUserMsg vmsg = {
+        .request = VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG,
+        .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+        .size = sizeof(vmsg.payload.area),
+        .payload.area = {
+            .u64 = qidx & VHOST_USER_VRING_IDX_MASK,
+            .size = size,
+            .offset = offset,
+        },
+    };
+
+    if (fd == -1) {
+        vmsg.payload.area.u64 |= VHOST_USER_VRING_NOFD_MASK;
+    } else {
+        vmsg.fds[fd_num++] = fd;
+    }
+
+    vmsg.fd_num = fd_num;
+
+    if ((dev->protocol_features & VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD) == 0) {
+        return false;
+    }
+
+    if (!vu_message_write(dev, dev->slave_fd, &vmsg)) {
+        return false;
+    }
+
+    return vu_process_message_reply(dev, &vmsg);
+}
+
 static bool
 vu_set_vring_call_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
@@ -968,7 +1031,9 @@ static bool
 vu_get_protocol_features_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
     uint64_t features = 1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD |
-                        1ULL << VHOST_USER_PROTOCOL_F_SLAVE_REQ;
+                        1ULL << VHOST_USER_PROTOCOL_F_SLAVE_REQ |
+                        1ULL << VHOST_USER_PROTOCOL_F_HOST_NOTIFIER |
+                        1ULL << VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD;
 
     if (have_userfault()) {
         features |= 1ULL << VHOST_USER_PROTOCOL_F_PAGEFAULT;
@@ -1252,7 +1317,7 @@ vu_dispatch(VuDev *dev)
         goto end;
     }
 
-    if (!vu_message_write(dev, dev->sock, &vmsg)) {
+    if (!vu_send_reply(dev, dev->sock, &vmsg)) {
         goto end;
     }
 

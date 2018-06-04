@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "crypto/tlscredsx509.h"
-#include "crypto/tlscredspriv.h"
+#include "tlscredspriv.h"
 #include "crypto/secret.h"
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"

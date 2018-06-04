@@ -31,6 +31,7 @@ typedef struct VubDev {
     VugDev parent;
     int blk_fd;
     struct virtio_blk_config blkcfg;
+    bool enable_ro;
     char *blk_name;
     GMainLoop *loop;
 } VubDev;
@@ -301,14 +302,27 @@ static void vub_queue_set_started(VuDev *vu_dev, int idx, bool started)
 static uint64_t
 vub_get_features(VuDev *dev)
 {
-    return 1ull << VIRTIO_BLK_F_SIZE_MAX |
-           1ull << VIRTIO_BLK_F_SEG_MAX |
-           1ull << VIRTIO_BLK_F_TOPOLOGY |
-           1ull << VIRTIO_BLK_F_BLK_SIZE |
-           1ull << VIRTIO_BLK_F_FLUSH |
-           1ull << VIRTIO_BLK_F_CONFIG_WCE |
-           1ull << VIRTIO_F_VERSION_1 |
-           1ull << VHOST_USER_F_PROTOCOL_FEATURES;
+    uint64_t features;
+    VugDev *gdev;
+    VubDev *vdev_blk;
+
+    gdev = container_of(dev, VugDev, parent);
+    vdev_blk = container_of(gdev, VubDev, parent);
+
+    features = 1ull << VIRTIO_BLK_F_SIZE_MAX |
+               1ull << VIRTIO_BLK_F_SEG_MAX |
+               1ull << VIRTIO_BLK_F_TOPOLOGY |
+               1ull << VIRTIO_BLK_F_BLK_SIZE |
+               1ull << VIRTIO_BLK_F_FLUSH |
+               1ull << VIRTIO_BLK_F_CONFIG_WCE |
+               1ull << VIRTIO_F_VERSION_1 |
+               1ull << VHOST_USER_F_PROTOCOL_FEATURES;
+
+    if (vdev_blk->enable_ro) {
+        features |= 1ull << VIRTIO_BLK_F_RO;
+    }
+
+    return features;
 }
 
 static uint64_t
@@ -476,6 +490,7 @@ vub_new(char *blk_file)
         vub_free(vdev_blk);
         return NULL;
     }
+    vdev_blk->enable_ro = false;
     vdev_blk->blkcfg.wce = 0;
     vdev_blk->blk_name = blk_file;
 
@@ -490,10 +505,11 @@ int main(int argc, char **argv)
     int opt;
     char *unix_socket = NULL;
     char *blk_file = NULL;
+    bool enable_ro = false;
     int lsock = -1, csock = -1;
     VubDev *vdev_blk = NULL;
 
-    while ((opt = getopt(argc, argv, "b:s:h")) != -1) {
+    while ((opt = getopt(argc, argv, "b:rs:h")) != -1) {
         switch (opt) {
         case 'b':
             blk_file = g_strdup(optarg);
@@ -501,17 +517,20 @@ int main(int argc, char **argv)
         case 's':
             unix_socket = g_strdup(optarg);
             break;
+        case 'r':
+            enable_ro = true;
+            break;
         case 'h':
         default:
-            printf("Usage: %s [-b block device or file, -s UNIX domain socket]"
-                   " | [ -h ]\n", argv[0]);
+            printf("Usage: %s [ -b block device or file, -s UNIX domain socket"
+                   " | -r Enable read-only ] | [ -h ]\n", argv[0]);
             return 0;
         }
     }
 
     if (!unix_socket || !blk_file) {
-        printf("Usage: %s [-b block device or file, -s UNIX domain socket] |"
-               " [ -h ]\n", argv[0]);
+        printf("Usage: %s [ -b block device or file, -s UNIX domain socket"
+               " | -r Enable read-only ] | [ -h ]\n", argv[0]);
         return -1;
     }
 
@@ -529,6 +548,9 @@ int main(int argc, char **argv)
     vdev_blk = vub_new(blk_file);
     if (!vdev_blk) {
         goto err;
+    }
+    if (enable_ro) {
+        vdev_blk->enable_ro = true;
     }
 
     vug_init(&vdev_blk->parent, csock, vub_panic_cb, &vub_iface);
