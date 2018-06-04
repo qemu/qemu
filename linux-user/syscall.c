@@ -906,11 +906,6 @@ static inline abi_long get_errno(abi_long ret)
         return ret;
 }
 
-static inline int is_error(abi_long ret)
-{
-    return (abi_ulong)ret >= (abi_ulong)(-4096);
-}
-
 const char *target_strerror(int err)
 {
     if (err == TARGET_ERESTARTSYS) {
