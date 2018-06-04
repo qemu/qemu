@@ -1200,9 +1200,9 @@ static void migration_bitmap_sync(RAMState *rs)
                    (double)(xbzrle_counters.cache_miss -
                             rs->xbzrle_cache_miss_prev) /
                    (rs->iterations - rs->iterations_prev);
+                rs->xbzrle_cache_miss_prev = xbzrle_counters.cache_miss;
             }
             rs->iterations_prev = rs->iterations;
-            rs->xbzrle_cache_miss_prev = xbzrle_counters.cache_miss;
         }
 
         /* reset period counters */
