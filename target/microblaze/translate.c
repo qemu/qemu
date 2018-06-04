@@ -143,10 +143,10 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     if (use_goto_tb(dc, dest)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i64(cpu_SR[SR_PC], dest);
-        tcg_gen_exit_tb((uintptr_t)dc->tb + n);
+        tcg_gen_exit_tb(dc->tb, n);
     } else {
         tcg_gen_movi_i64(cpu_SR[SR_PC], dest);
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
     }
 }
 
@@ -1766,7 +1766,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
             case DISAS_UPDATE:
                 /* indicate that the hash table must be used
                    to find the next TB */
-                tcg_gen_exit_tb(0);
+                tcg_gen_exit_tb(NULL, 0);
                 break;
             case DISAS_TB_JUMP:
                 /* nothing more to generate */

@@ -132,13 +132,13 @@ static inline void gen_goto_tb(CPUMoxieState *env, DisasContext *ctx,
     if (use_goto_tb(ctx, dest)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(cpu_pc, dest);
-        tcg_gen_exit_tb((uintptr_t)ctx->tb + n);
+        tcg_gen_exit_tb(ctx->tb, n);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
         if (ctx->singlestep_enabled) {
             gen_helper_debug(cpu_env);
         }
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
     }
 }
 
@@ -328,7 +328,7 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
                 tcg_temp_free_i32(t1);
 
                 /* Jump... */
-                tcg_gen_exit_tb(0);
+                tcg_gen_exit_tb(NULL, 0);
 
                 ctx->bstate = BS_BRANCH;
             }
@@ -472,14 +472,14 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
                 tcg_gen_mov_i32(cpu_pc, REG(fnreg));
                 tcg_temp_free_i32(t1);
                 tcg_temp_free_i32(t2);
-                tcg_gen_exit_tb(0);
+                tcg_gen_exit_tb(NULL, 0);
                 ctx->bstate = BS_BRANCH;
             }
             break;
         case 0x1a: /* jmpa */
             {
                 tcg_gen_movi_i32(cpu_pc, cpu_ldl_code(env, ctx->pc+2));
-                tcg_gen_exit_tb(0);
+                tcg_gen_exit_tb(NULL, 0);
                 ctx->bstate = BS_BRANCH;
                 length = 6;
             }
@@ -584,7 +584,7 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
             {
                 int reg = (opcode >> 4) & 0xf;
                 tcg_gen_mov_i32(cpu_pc, REG(reg));
-                tcg_gen_exit_tb(0);
+                tcg_gen_exit_tb(NULL, 0);
                 ctx->bstate = BS_BRANCH;
             }
             break;
@@ -878,7 +878,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
             gen_goto_tb(env, &ctx, 0, ctx.pc);
             break;
         case BS_EXCP:
-            tcg_gen_exit_tb(0);
+            tcg_gen_exit_tb(NULL, 0);
             break;
         case BS_BRANCH:
         default:

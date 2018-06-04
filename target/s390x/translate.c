@@ -1159,7 +1159,7 @@ static DisasJumpType help_goto_direct(DisasContext *s, uint64_t dest)
         per_breaking_event(s);
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(psw_addr, dest);
-        tcg_gen_exit_tb((uintptr_t)s->base.tb);
+        tcg_gen_exit_tb(s->base.tb, 0);
         return DISAS_GOTO_TB;
     } else {
         tcg_gen_movi_i64(psw_addr, dest);
@@ -1220,14 +1220,14 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
             /* Branch not taken.  */
             tcg_gen_goto_tb(0);
             tcg_gen_movi_i64(psw_addr, s->pc_tmp);
-            tcg_gen_exit_tb((uintptr_t)s->base.tb + 0);
+            tcg_gen_exit_tb(s->base.tb, 0);
 
             /* Branch taken.  */
             gen_set_label(lab);
             per_breaking_event(s);
             tcg_gen_goto_tb(1);
             tcg_gen_movi_i64(psw_addr, dest);
-            tcg_gen_exit_tb((uintptr_t)s->base.tb + 1);
+            tcg_gen_exit_tb(s->base.tb, 1);
 
             ret = DISAS_GOTO_TB;
         } else {
@@ -1250,7 +1250,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
             update_cc_op(s);
             tcg_gen_goto_tb(0);
             tcg_gen_movi_i64(psw_addr, s->pc_tmp);
-            tcg_gen_exit_tb((uintptr_t)s->base.tb + 0);
+            tcg_gen_exit_tb(s->base.tb, 0);
 
             gen_set_label(lab);
             if (is_imm) {
@@ -6240,7 +6240,7 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
             gen_exception(EXCP_DEBUG);
         } else if (use_exit_tb(dc) ||
                    dc->base.is_jmp == DISAS_PC_STALE_NOCHAIN) {
-            tcg_gen_exit_tb(0);
+            tcg_gen_exit_tb(NULL, 0);
         } else {
             tcg_gen_lookup_and_goto_ptr();
         }

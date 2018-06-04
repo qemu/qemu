@@ -3253,13 +3253,13 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
     if (use_goto_tb(ctx, dest)) {
         tcg_gen_goto_tb(n);
         gen_save_pc(dest);
-        tcg_gen_exit_tb((uintptr_t)ctx->tb + n);
+        tcg_gen_exit_tb(ctx->tb, n);
     } else {
         gen_save_pc(dest);
         if (ctx->singlestep_enabled) {
             /* raise exception debug */
         }
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
     }
 }
 
@@ -3327,7 +3327,7 @@ static void gen_fret(DisasContext *ctx)
     tcg_gen_qemu_ld_tl(cpu_gpr_a[11], cpu_gpr_a[10], ctx->mem_idx, MO_LESL);
     tcg_gen_addi_tl(cpu_gpr_a[10], cpu_gpr_a[10], 4);
     tcg_gen_mov_tl(cpu_PC, temp);
-    tcg_gen_exit_tb(0);
+    tcg_gen_exit_tb(NULL, 0);
     ctx->bstate = BS_BRANCH;
 
     tcg_temp_free(temp);
@@ -3431,12 +3431,12 @@ static void gen_compute_branch(DisasContext *ctx, uint32_t opc, int r1,
 /* SR-format jumps */
     case OPC1_16_SR_JI:
         tcg_gen_andi_tl(cpu_PC, cpu_gpr_a[r1], 0xfffffffe);
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
         break;
     case OPC2_32_SYS_RET:
     case OPC2_16_SR_RET:
         gen_helper_ret(cpu_env);
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
         break;
 /* B-format */
     case OPC1_32_B_CALLA:
@@ -3939,7 +3939,7 @@ static void decode_sr_system(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPC2_16_SR_RFE:
         gen_helper_rfe(cpu_env);
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
         ctx->bstate = BS_BRANCH;
         break;
     case OPC2_16_SR_DEBUG:
@@ -6578,7 +6578,7 @@ static void decode_rr_idirect(CPUTriCoreState *env, DisasContext *ctx)
     default:
         generate_trap(ctx, TRAPC_INSN_ERR, TIN2_IOPC);
     }
-    tcg_gen_exit_tb(0);
+    tcg_gen_exit_tb(NULL, 0);
     ctx->bstate = BS_BRANCH;
 }
 
@@ -8398,7 +8398,7 @@ static void decode_sys_interrupts(CPUTriCoreState *env, DisasContext *ctx)
         break;
     case OPC2_32_SYS_RFE:
         gen_helper_rfe(cpu_env);
-        tcg_gen_exit_tb(0);
+        tcg_gen_exit_tb(NULL, 0);
         ctx->bstate = BS_BRANCH;
         break;
     case OPC2_32_SYS_RFM:
@@ -8411,7 +8411,7 @@ static void decode_sys_interrupts(CPUTriCoreState *env, DisasContext *ctx)
             tcg_gen_brcondi_tl(TCG_COND_NE, tmp, 1, l1);
             gen_helper_rfm(cpu_env);
             gen_set_label(l1);
-            tcg_gen_exit_tb(0);
+            tcg_gen_exit_tb(NULL, 0);
             ctx->bstate = BS_BRANCH;
             tcg_temp_free(tmp);
         } else {
@@ -8845,7 +8845,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 
         if (num_insns >= max_insns || tcg_op_buf_full()) {
             gen_save_pc(ctx.next_pc);
-            tcg_gen_exit_tb(0);
+            tcg_gen_exit_tb(NULL, 0);
             break;
         }
         ctx.pc = ctx.next_pc;

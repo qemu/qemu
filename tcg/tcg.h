@@ -1239,9 +1239,10 @@ static inline unsigned get_mmuidx(TCGMemOpIdx oi)
  * to this default (which just calls the prologue.code emitted by
  * tcg_target_qemu_prologue()).
  */
-#define TB_EXIT_MASK 3
-#define TB_EXIT_IDX0 0
-#define TB_EXIT_IDX1 1
+#define TB_EXIT_MASK      3
+#define TB_EXIT_IDX0      0
+#define TB_EXIT_IDX1      1
+#define TB_EXIT_IDXMAX    1
 #define TB_EXIT_REQUESTED 3
 
 #ifdef HAVE_TCG_QEMU_TB_EXEC

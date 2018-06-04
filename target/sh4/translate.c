@@ -242,13 +242,13 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
     if (use_goto_tb(ctx, dest)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(cpu_pc, dest);
-        tcg_gen_exit_tb((uintptr_t)ctx->base.tb + n);
+        tcg_gen_exit_tb(ctx->base.tb, n);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
         if (ctx->base.singlestep_enabled) {
             gen_helper_debug(cpu_env);
         } else if (use_exit_tb(ctx)) {
-            tcg_gen_exit_tb(0);
+            tcg_gen_exit_tb(NULL, 0);
         } else {
             tcg_gen_lookup_and_goto_ptr();
         }
@@ -266,7 +266,7 @@ static void gen_jump(DisasContext * ctx)
         if (ctx->base.singlestep_enabled) {
             gen_helper_debug(cpu_env);
         } else if (use_exit_tb(ctx)) {
-            tcg_gen_exit_tb(0);
+            tcg_gen_exit_tb(NULL, 0);
         } else {
             tcg_gen_lookup_and_goto_ptr();
         }
@@ -2343,7 +2343,7 @@ static void sh4_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         if (ctx->base.singlestep_enabled) {
             gen_helper_debug(cpu_env);
         } else {
-            tcg_gen_exit_tb(0);
+            tcg_gen_exit_tb(NULL, 0);
         }
         break;
     case DISAS_NEXT:

@@ -52,7 +52,7 @@ static inline void gen_tb_end(TranslationBlock *tb, int num_insns)
     }
 
     gen_set_label(tcg_ctx->exitreq_label);
-    tcg_gen_exit_tb((uintptr_t)tb + TB_EXIT_REQUESTED);
+    tcg_gen_exit_tb(tb, TB_EXIT_REQUESTED);
 }
 
 static inline void gen_io_start(void)
