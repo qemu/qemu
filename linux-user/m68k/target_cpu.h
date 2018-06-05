@@ -37,4 +37,8 @@ static inline void cpu_set_tls(CPUM68KState *env, target_ulong newtls)
     ts->tp_value = newtls;
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUM68KState *state)
+{
+    return state->aregs[7];
+}
 #endif

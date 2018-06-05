@@ -1,8 +1,6 @@
 #ifndef OPENRISC_TARGET_SIGNAL_H
 #define OPENRISC_TARGET_SIGNAL_H
 
-#include "cpu.h"
-
 /* this struct defines a stack used during syscall handling */
 
 typedef struct target_sigaltstack {
@@ -15,11 +13,17 @@ typedef struct target_sigaltstack {
 #define TARGET_SS_ONSTACK     1
 #define TARGET_SS_DISABLE     2
 
+#define TARGET_SA_NOCLDSTOP    0x00000001
+#define TARGET_SA_NOCLDWAIT    0x00000002
+#define TARGET_SA_SIGINFO      0x00000004
+#define TARGET_SA_ONSTACK      0x08000000
+#define TARGET_SA_RESTART      0x10000000
+#define TARGET_SA_NODEFER      0x40000000
+#define TARGET_SA_RESETHAND    0x80000000
+
 #define TARGET_MINSIGSTKSZ    2048
 #define TARGET_SIGSTKSZ       8192
 
-static inline abi_ulong get_sp_from_cpustate(CPUOpenRISCState *state)
-{
-    return cpu_get_gpr(state, 1);
-}
+#include "../generic/signal.h"
+
 #endif /* OPENRISC_TARGET_SIGNAL_H */

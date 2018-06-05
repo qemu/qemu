@@ -1,8 +1,6 @@
 #ifndef ARM_TARGET_SIGNAL_H
 #define ARM_TARGET_SIGNAL_H
 
-#include "cpu.h"
-
 /* this struct defines a stack used during syscall handling */
 
 typedef struct target_sigaltstack {
@@ -21,10 +19,7 @@ typedef struct target_sigaltstack {
 #define TARGET_MINSIGSTKSZ	2048
 #define TARGET_SIGSTKSZ		8192
 
-static inline abi_ulong get_sp_from_cpustate(CPUARMState *state)
-{
-   return state->regs[13];
-}
+#include "../generic/signal.h"
 
 #define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* ARM_TARGET_SIGNAL_H */

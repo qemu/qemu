@@ -16,5 +16,4 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#define SPARC_TARGET_SIGNAL_H /* to only include sparc64/target_signal.h */
 #include "../sparc/signal.c"

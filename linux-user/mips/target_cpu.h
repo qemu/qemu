@@ -33,4 +33,8 @@ static inline void cpu_set_tls(CPUMIPSState *env, target_ulong newtls)
     env->active_tc.CP0_UserLocal = newtls;
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUMIPSState *state)
+{
+    return state->active_tc.gpr[29];
+}
 #endif

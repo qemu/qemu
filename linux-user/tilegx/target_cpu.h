@@ -32,4 +32,8 @@ static inline void cpu_set_tls(CPUTLGState *env, target_ulong newtls)
     env->regs[TILEGX_R_TP] = newtls;
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUTLGState *state)
+{
+    return state->regs[TILEGX_R_SP];
+}
 #endif

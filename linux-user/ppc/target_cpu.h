@@ -47,5 +47,8 @@ static inline uint32_t get_ppc64_abi(struct image_info *infop)
   return infop->elf_flags & EF_PPC64_ABI;
 }
 
-
+static inline abi_ulong get_sp_from_cpustate(CPUPPCState *state)
+{
+    return state->gpr[1];
+}
 #endif

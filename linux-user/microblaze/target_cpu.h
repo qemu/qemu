@@ -32,4 +32,8 @@ static inline void cpu_set_tls(CPUMBState *env, target_ulong newtls)
     env->regs[21] = newtls;
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUMBState *state)
+{
+    return state->regs[1];
+}
 #endif

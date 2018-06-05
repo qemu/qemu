@@ -10156,7 +10156,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (!is_error(ret)) {
                 /* Overwrite the native machine name with whatever is being
                    emulated. */
-                strcpy (buf->machine, cpu_to_uname_machine(cpu_env));
+                g_strlcpy(buf->machine, cpu_to_uname_machine(cpu_env),
+                          sizeof(buf->machine));
                 /* Allow the user to override the reported release.  */
                 if (qemu_uname_release && *qemu_uname_release) {
                     g_strlcpy(buf->release, qemu_uname_release,

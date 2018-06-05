@@ -36,4 +36,8 @@ static inline void cpu_set_tls(CPUNios2State *env, target_ulong newtls)
      */
 }
 
+static inline abi_ulong get_sp_from_cpustate(CPUNios2State *state)
+{
+    return state->regs[R_SP];
+}
 #endif
