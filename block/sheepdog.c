@@ -2335,7 +2335,7 @@ static int sd_truncate(BlockDriverState *bs, int64_t offset,
     }
 
     /* we don't need to update entire object */
-    datalen = SD_INODE_SIZE - sizeof(s->inode.data_vdi_id);
+    datalen = SD_INODE_HEADER_SIZE;
     s->inode.vdi_size = offset;
     ret = write_object(fd, s->bs, (char *)&s->inode,
                        vid_to_vdi_oid(s->inode.vdi_id), s->inode.nr_copies,
@@ -2703,7 +2703,7 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
      */
     strncpy(s->inode.tag, sn_info->name, sizeof(s->inode.tag));
     /* we don't need to update entire object */
-    datalen = SD_INODE_SIZE - sizeof(s->inode.data_vdi_id);
+    datalen = SD_INODE_HEADER_SIZE;
     inode = g_malloc(datalen);
 
     /* refresh inode. */
@@ -2938,13 +2938,14 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
     QEMUSnapshotInfo *sn_tab = NULL;
     unsigned wlen, rlen;
     int found = 0;
-    static SheepdogInode inode;
+    SheepdogInode *inode;
     unsigned long *vdi_inuse;
     unsigned int start_nr;
     uint64_t hval;
     uint32_t vid;
 
     vdi_inuse = g_malloc(max);
+    inode = g_malloc(SD_INODE_HEADER_SIZE);
 
     fd = connect_to_sdog(s, &local_err);
     if (fd < 0) {
@@ -2987,26 +2988,26 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
         }
 
         /* we don't need to read entire object */
-        ret = read_object(fd, s->bs, (char *)&inode,
+        ret = read_object(fd, s->bs, (char *)inode,
                           vid_to_vdi_oid(vid),
-                          0, SD_INODE_SIZE - sizeof(inode.data_vdi_id), 0,
+                          0, SD_INODE_HEADER_SIZE, 0,
                           s->cache_flags);
 
         if (ret) {
             continue;
         }
 
-        if (!strcmp(inode.name, s->name) && is_snapshot(&inode)) {
-            sn_tab[found].date_sec = inode.snap_ctime >> 32;
-            sn_tab[found].date_nsec = inode.snap_ctime & 0xffffffff;
-            sn_tab[found].vm_state_size = inode.vm_state_size;
-            sn_tab[found].vm_clock_nsec = inode.vm_clock_nsec;
+        if (!strcmp(inode->name, s->name) && is_snapshot(inode)) {
+            sn_tab[found].date_sec = inode->snap_ctime >> 32;
+            sn_tab[found].date_nsec = inode->snap_ctime & 0xffffffff;
+            sn_tab[found].vm_state_size = inode->vm_state_size;
+            sn_tab[found].vm_clock_nsec = inode->vm_clock_nsec;
 
             snprintf(sn_tab[found].id_str, sizeof(sn_tab[found].id_str),
-                     "%" PRIu32, inode.snap_id);
+                     "%" PRIu32, inode->snap_id);
             pstrcpy(sn_tab[found].name,
-                    MIN(sizeof(sn_tab[found].name), sizeof(inode.tag)),
-                    inode.tag);
+                    MIN(sizeof(sn_tab[found].name), sizeof(inode->tag)),
+                    inode->tag);
             found++;
         }
     }
@@ -3016,6 +3017,7 @@ out:
     *psn_tab = sn_tab;
 
     g_free(vdi_inuse);
+    g_free(inode);
 
     if (ret < 0) {
         return ret;
