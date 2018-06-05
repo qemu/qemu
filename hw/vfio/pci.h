@@ -29,6 +29,7 @@ typedef struct VFIOQuirk {
     void *data;
     int nr_mem;
     MemoryRegion *mem;
+    void (*reset)(struct VFIOPCIDevice *vdev, struct VFIOQuirk *quirk);
 } VFIOQuirk;
 
 typedef struct VFIOBAR {
@@ -167,6 +168,7 @@ void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr);
 void vfio_bar_quirk_finalize(VFIOPCIDevice *vdev, int nr);
 void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev);
 int vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp);
+void vfio_quirk_reset(VFIOPCIDevice *vdev);
 
 extern const PropertyInfo qdev_prop_nv_gpudirect_clique;
 

@@ -1694,6 +1694,21 @@ void vfio_bar_quirk_finalize(VFIOPCIDevice *vdev, int nr)
 /*
  * Reset quirks
  */
+void vfio_quirk_reset(VFIOPCIDevice *vdev)
+{
+    int i;
+
+    for (i = 0; i < PCI_ROM_SLOT; i++) {
+        VFIOQuirk *quirk;
+        VFIOBAR *bar = &vdev->bars[i];
+
+        QLIST_FOREACH(quirk, &bar->quirks, next) {
+            if (quirk->reset) {
+                quirk->reset(vdev, quirk);
+            }
+        }
+    }
+}
 
 /*
  * AMD Radeon PCI config reset, based on Linux:
