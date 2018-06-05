@@ -159,8 +159,10 @@ out:
 
 /* Should be holding either ram_list.mutex, or the RCU lock. */
 #define RAMBLOCK_FOREACH_MIGRATABLE(block)             \
-    RAMBLOCK_FOREACH(block)                            \
+    INTERNAL_RAMBLOCK_FOREACH(block)                   \
         if (!qemu_ram_is_migratable(block)) {} else
+
+#undef RAMBLOCK_FOREACH
 
 static void ramblock_recv_map_init(void)
 {

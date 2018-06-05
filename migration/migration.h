@@ -284,4 +284,7 @@ void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value);
 void dirty_bitmap_mig_before_vm_start(void);
 void init_dirty_bitmap_incoming_migration(void);
 
+#define qemu_ram_foreach_block \
+  #warning "Use qemu_ram_foreach_block_migratable in migration code"
+
 #endif
