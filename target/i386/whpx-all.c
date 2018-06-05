@@ -964,6 +964,16 @@ static int whpx_vcpu_run(CPUState *cpu)
                 rdx = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
                 rbx = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
                 break;
+            case 0x80000001:
+                rax = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
+                /* Remove any support of OSVW */
+                rcx =
+                    vcpu->exit_ctx.CpuidAccess.DefaultResultRcx &
+                    ~CPUID_EXT3_OSVW;
+
+                rdx = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
+                rbx = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+                break;
             default:
                 rax = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
                 rcx = vcpu->exit_ctx.CpuidAccess.DefaultResultRcx;
@@ -1382,12 +1392,13 @@ static int whpx_accel_init(MachineState *ms)
         goto error;
     }
 
-    UINT32 cpuidExitList[] = {1};
+    UINT32 cpuidExitList[] = {1, 0x80000001};
     hr = whp_dispatch.WHvSetPartitionProperty(
         whpx->partition,
         WHvPartitionPropertyCodeCpuidExitList,
         cpuidExitList,
         RTL_NUMBER_OF(cpuidExitList) * sizeof(UINT32));
+
     if (FAILED(hr)) {
         error_report("WHPX: Failed to set partition CpuidExitList hr=%08lx",
                      hr);
