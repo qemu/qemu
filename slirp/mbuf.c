@@ -151,27 +151,25 @@ m_cat(struct mbuf *m, struct mbuf *n)
 void
 m_inc(struct mbuf *m, int size)
 {
-	int datasize;
+    int datasize;
 
-	/* some compiles throw up on gotos.  This one we can fake. */
-        if(m->m_size>size) return;
+    /* some compilers throw up on gotos.  This one we can fake. */
+    if (m->m_size > size) {
+        return;
+    }
 
-        if (m->m_flags & M_EXT) {
-	  datasize = m->m_data - m->m_ext;
-	  m->m_ext = g_realloc(m->m_ext, size + datasize);
-	  m->m_data = m->m_ext + datasize;
-        } else {
-	  char *dat;
-	  datasize = m->m_data - m->m_dat;
-	  dat = g_malloc(size + datasize);
-	  memcpy(dat, m->m_dat, m->m_size);
+    if (m->m_flags & M_EXT) {
+        datasize = m->m_data - m->m_ext;
+        m->m_ext = g_realloc(m->m_ext, size + datasize);
+    } else {
+        datasize = m->m_data - m->m_dat;
+        m->m_ext = g_malloc(size + datasize);
+        memcpy(m->m_ext, m->m_dat, m->m_size);
+        m->m_flags |= M_EXT;
+    }
 
-	  m->m_ext = dat;
-	  m->m_data = m->m_ext + datasize;
-	  m->m_flags |= M_EXT;
-        }
-
-        m->m_size = size + datasize;
+    m->m_data = m->m_ext + datasize;
+    m->m_size = size + datasize;
 }
 
 
