@@ -107,7 +107,7 @@ case $line in
     target_name=${line#*=}
     echo "#define TARGET_NAME \"$target_name\""
     ;;
- TARGET_DIRS=*)
+ TARGET_LIST=*)
     # do nothing
     ;;
  TARGET_*=y) # configuration

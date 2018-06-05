@@ -1,0 +1,23 @@
+#
+# Docker TriCore cross-compiler target
+#
+# This docker target builds on the debian Stretch base image.
+#
+# Copyright (c) 2018 Philippe Mathieu-Daudé
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+FROM debian:9
+
+MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
+
+RUN git clone --single-branch \
+        https://github.com/bkoppelmann/tricore-binutils.git \
+        /usr/src/binutils && \
+    cd /usr/src/binutils && chmod +x missing && \
+    CFLAGS=-w ./configure --prefix=/usr --disable-nls --target=tricore && \
+    make && make install && \
+    rm -rf /usr/src/binutils
+
+# Specify the cross prefix for this image (see tests/docker/common.rc)
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=tricore-
