@@ -275,6 +275,15 @@ static const MemoryRegionOps vfio_ati_3c3_quirk = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static VFIOQuirk *vfio_quirk_alloc(int nr_mem)
+{
+    VFIOQuirk *quirk = g_new0(VFIOQuirk, 1);
+    quirk->mem = g_new0(MemoryRegion, nr_mem);
+    quirk->nr_mem = nr_mem;
+
+    return quirk;
+}
+
 static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
 {
     VFIOQuirk *quirk;
@@ -288,9 +297,7 @@ static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->mem = g_new0(MemoryRegion, 1);
-    quirk->nr_mem = 1;
+    quirk = vfio_quirk_alloc(1);
 
     memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_ati_3c3_quirk, vdev,
                           "vfio-ati-3c3-quirk", 1);
@@ -323,9 +330,7 @@ static void vfio_probe_ati_bar4_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->mem = g_new0(MemoryRegion, 2);
-    quirk->nr_mem = 2;
+    quirk = vfio_quirk_alloc(2);
     window = quirk->data = g_malloc0(sizeof(*window) +
                                      sizeof(VFIOConfigWindowMatch));
     window->vdev = vdev;
@@ -371,10 +376,9 @@ static void vfio_probe_ati_bar2_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = vfio_quirk_alloc(1);
     mirror = quirk->data = g_malloc0(sizeof(*mirror));
-    mirror->mem = quirk->mem = g_new0(MemoryRegion, 1);
-    quirk->nr_mem = 1;
+    mirror->mem = quirk->mem;
     mirror->vdev = vdev;
     mirror->offset = 0x4000;
     mirror->bar = nr;
@@ -548,10 +552,8 @@ static void vfio_vga_probe_nvidia_3d0_quirk(VFIOPCIDevice *vdev)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = vfio_quirk_alloc(2);
     quirk->data = data = g_malloc0(sizeof(*data));
-    quirk->mem = g_new0(MemoryRegion, 2);
-    quirk->nr_mem = 2;
     data->vdev = vdev;
 
     memory_region_init_io(&quirk->mem[0], OBJECT(vdev), &vfio_nvidia_3d4_quirk,
@@ -667,9 +669,7 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->mem = g_new0(MemoryRegion, 4);
-    quirk->nr_mem = 4;
+    quirk = vfio_quirk_alloc(4);
     bar5 = quirk->data = g_malloc0(sizeof(*bar5) +
                                    (sizeof(VFIOConfigWindowMatch) * 2));
     window = &bar5->window;
@@ -762,10 +762,9 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
+    quirk = vfio_quirk_alloc(1);
     mirror = quirk->data = g_malloc0(sizeof(*mirror));
-    mirror->mem = quirk->mem = g_new0(MemoryRegion, 1);
-    quirk->nr_mem = 1;
+    mirror->mem = quirk->mem;
     mirror->vdev = vdev;
     mirror->offset = 0x88000;
     mirror->bar = nr;
@@ -781,10 +780,9 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 
     /* The 0x1800 offset mirror only seems to get used by legacy VGA */
     if (vdev->vga) {
-        quirk = g_malloc0(sizeof(*quirk));
+        quirk = vfio_quirk_alloc(1);
         mirror = quirk->data = g_malloc0(sizeof(*mirror));
-        mirror->mem = quirk->mem = g_new0(MemoryRegion, 1);
-        quirk->nr_mem = 1;
+        mirror->mem = quirk->mem;
         mirror->vdev = vdev;
         mirror->offset = 0x1800;
         mirror->bar = nr;
@@ -945,9 +943,7 @@ static void vfio_probe_rtl8168_bar2_quirk(VFIOPCIDevice *vdev, int nr)
         return;
     }
 
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->mem = g_new0(MemoryRegion, 2);
-    quirk->nr_mem = 2;
+    quirk = vfio_quirk_alloc(2);
     quirk->data = rtl = g_malloc0(sizeof(*rtl));
     rtl->vdev = vdev;
 
@@ -1507,9 +1503,7 @@ static void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     /* Setup our quirk to munge GTT addresses to the VM allocated buffer */
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->mem = g_new0(MemoryRegion, 2);
-    quirk->nr_mem = 2;
+    quirk = vfio_quirk_alloc(2);
     igd = quirk->data = g_malloc0(sizeof(*igd));
     igd->vdev = vdev;
     igd->index = ~0;
