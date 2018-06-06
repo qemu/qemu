@@ -42,11 +42,24 @@ def test_pause_resume(vm):
             iotests.log(vm.qmp(pause_cmd, **{pause_arg: 'job0'}))
             pause_wait(vm, 'job0')
             iotests.log(iotests.filter_qmp_event(vm.event_wait('JOB_STATUS_CHANGE')))
-            iotests.log(vm.qmp('query-jobs'))
+            result = vm.qmp('query-jobs')
+            iotests.log(result)
+
+            old_progress = result['return'][0]['current-progress']
+            total_progress = result['return'][0]['total-progress']
 
             iotests.log(vm.qmp(resume_cmd, **{resume_arg: 'job0'}))
             iotests.log(iotests.filter_qmp_event(vm.event_wait('JOB_STATUS_CHANGE')))
-            iotests.log(vm.qmp('query-jobs'))
+            if old_progress < total_progress:
+                # Wait for the job to advance
+                while result['return'][0]['current-progress'] == old_progress:
+                    result = vm.qmp('query-jobs')
+                iotests.log(result)
+            else:
+                # Already reached the end, so the job cannot advance
+                # any further; therefore, the query-jobs result can be
+                # logged immediately
+                iotests.log(vm.qmp('query-jobs'))
 
 def test_job_lifecycle(vm, job, job_args, has_ready=False):
     iotests.log('')
@@ -58,12 +71,13 @@ def test_job_lifecycle(vm, job, job_args, has_ready=False):
     iotests.log(vm.qmp(job, job_id='job0', **job_args))
 
     # Depending on the storage, the first request may or may not have completed
-    # yet, so filter out the progress. Later query-job calls don't need the
-    # filtering because the progress is made deterministic by the block job
-    # speed
+    # yet (and the total progress may not have been fully determined yet), so
+    # filter out the progress. Later query-job calls don't need the filtering
+    # because the progress is made deterministic by the block job speed
     result = vm.qmp('query-jobs')
     for j in result['return']:
-        del j['current-progress']
+        j['current-progress'] = 'FILTERED'
+        j['total-progress'] = 'FILTERED'
     iotests.log(result)
 
     # undefined -> created -> running
