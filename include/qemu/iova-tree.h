@@ -23,7 +23,6 @@
  * for the thread safety issue.
  */
 
-#include "qemu/osdep.h"
 #include "exec/memory.h"
 #include "exec/hwaddr.h"
 
