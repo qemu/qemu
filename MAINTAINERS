@@ -766,8 +766,9 @@ F: hw/ppc/mac_newworld.c
 F: hw/pci-host/uninorth.c
 F: hw/pci-bridge/dec.[hc]
 F: hw/misc/macio/
-F: include/hw/ppc/mac_dbdma.h
 F: hw/nvram/mac_nvram.c
+F: include/hw/misc/macio/
+F: include/hw/ppc/mac_dbdma.h
 
 Old World
 M: Alexander Graf <agraf@suse.de>
