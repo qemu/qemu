@@ -287,6 +287,7 @@ void ide_atapi_cmd_reply_end(IDEState *s)
         } else {
             /* a new transfer is needed */
             s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO;
+            ide_set_irq(s->bus);
             byte_count_limit = atapi_byte_count_limit(s);
             trace_ide_atapi_cmd_reply_end_bcl(s, byte_count_limit);
             size = s->packet_transfer_size;
@@ -304,13 +305,12 @@ void ide_atapi_cmd_reply_end(IDEState *s)
                 if (size > (s->cd_sector_size - s->io_buffer_index))
                     size = (s->cd_sector_size - s->io_buffer_index);
             }
+            trace_ide_atapi_cmd_reply_end_new(s, s->status);
             s->packet_transfer_size -= size;
             s->elementary_transfer_size -= size;
             s->io_buffer_index += size;
             ide_transfer_start(s, s->io_buffer + s->io_buffer_index - size,
                                size, ide_atapi_cmd_reply_end);
-            ide_set_irq(s->bus);
-            trace_ide_atapi_cmd_reply_end_new(s, s->status);
         }
     }
 }
