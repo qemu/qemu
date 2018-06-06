@@ -439,6 +439,36 @@ echo "{'execute': 'qmp_capabilities'}
             -drive if=none,node-name=drive,file="$TEST_IMG",driver=qcow2 \
     | _filter_qmp | _filter_qemu_io
 
+echo
+echo "=== Testing incoming inactive corrupted image ==="
+echo
+
+_make_test_img 64M
+# Create an unaligned L1 entry, so qemu will signal a corruption when
+# reading from the covered area
+poke_file "$TEST_IMG" "$l1_offset" "\x00\x00\x00\x00\x2a\x2a\x2a\x2a"
+
+# Inactive images are effectively read-only images, so this should be a
+# non-fatal corruption (which does not modify the image)
+echo "{'execute': 'qmp_capabilities'}
+      {'execute': 'human-monitor-command',
+       'arguments': {'command-line': 'qemu-io drive \"read 0 512\"'}}
+      {'execute': 'quit'}" \
+    | $QEMU -qmp stdio -nographic -nodefaults \
+            -blockdev "{'node-name': 'drive',
+                        'driver': 'qcow2',
+                        'file': {
+                            'driver': 'file',
+                            'filename': '$TEST_IMG'
+                        }}" \
+            -incoming exec:'cat /dev/null' \
+            2>&1 \
+    | _filter_qmp | _filter_qemu_io
+
+echo
+# Image should not have been marked corrupt
+_img_info --format-specific | grep 'corrupt:'
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
