@@ -189,12 +189,12 @@ static uint64_t mos6522_get_load_time(MOS6522State *s, MOS6522Timer *ti)
 
 static void mos6522_portA_write(MOS6522State *s)
 {
-    qemu_log_mask(LOG_UNIMP, "portA_write unimplemented");
+    qemu_log_mask(LOG_UNIMP, "portA_write unimplemented\n");
 }
 
 static void mos6522_portB_write(MOS6522State *s)
 {
-    qemu_log_mask(LOG_UNIMP, "portB_write unimplemented");
+    qemu_log_mask(LOG_UNIMP, "portB_write unimplemented\n");
 }
 
 uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
