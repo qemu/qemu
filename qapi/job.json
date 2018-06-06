@@ -76,19 +76,19 @@
 #
 # Represents command verbs that can be applied to a job.
 #
-# @cancel: see @block-job-cancel
+# @cancel: see @job-cancel
 #
-# @pause: see @block-job-pause
+# @pause: see @job-pause
 #
-# @resume: see @block-job-resume
+# @resume: see @job-resume
 #
 # @set-speed: see @block-job-set-speed
 #
-# @complete: see @block-job-complete
+# @complete: see @job-complete
 #
-# @dismiss: see @block-job-dismiss
+# @dismiss: see @job-dismiss
 #
-# @finalize: see @block-job-finalize
+# @finalize: see @job-finalize
 #
 # Since: 2.12
 ##
