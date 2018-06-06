@@ -3351,15 +3351,19 @@ static gint x86_cpu_list_compare(gconstpointer a, gconstpointer b)
     ObjectClass *class_b = (ObjectClass *)b;
     X86CPUClass *cc_a = X86_CPU_CLASS(class_a);
     X86CPUClass *cc_b = X86_CPU_CLASS(class_b);
-    const char *name_a, *name_b;
+    char *name_a, *name_b;
+    int ret;
 
     if (cc_a->ordering != cc_b->ordering) {
-        return cc_a->ordering - cc_b->ordering;
+        ret = cc_a->ordering - cc_b->ordering;
     } else {
-        name_a = object_class_get_name(class_a);
-        name_b = object_class_get_name(class_b);
-        return strcmp(name_a, name_b);
+        name_a = x86_cpu_class_get_model_name(cc_a);
+        name_b = x86_cpu_class_get_model_name(cc_b);
+        ret = strcmp(name_a, name_b);
+        g_free(name_a);
+        g_free(name_b);
     }
+    return ret;
 }
 
 static GSList *get_sorted_cpu_model_list(void)
