@@ -444,7 +444,7 @@ struct IDEState {
 
 struct IDEDMAOps {
     DMAStartFunc *start_dma;
-    DMAVoidFunc *start_transfer;
+    DMAVoidFunc *pio_transfer;
     DMAInt32Func *prepare_buf;
     DMAu32Func *commit_buf;
     DMAIntFunc *rw_buf;
