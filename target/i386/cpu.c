@@ -3331,17 +3331,21 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
 
 /* Print all cpuid feature names in featureset
  */
-static void listflags(FILE *f, fprintf_function print, const char **featureset)
+static void listflags(FILE *f, fprintf_function print, GList *features)
 {
-    int bit;
-    bool first = true;
+    size_t len = 0;
+    GList *tmp;
 
-    for (bit = 0; bit < 32; bit++) {
-        if (featureset[bit]) {
-            print(f, "%s%s", first ? "" : " ", featureset[bit]);
-            first = false;
+    for (tmp = features; tmp; tmp = tmp->next) {
+        const char *name = tmp->data;
+        if ((len + strlen(name) + 1) >= 75) {
+            print(f, "\n");
+            len = 0;
         }
+        print(f, "%s%s", len == 0 ? "  " : " ", name);
+        len += strlen(name) + 1;
     }
+    print(f, "\n");
 }
 
 /* Sort alphabetically by type name, respecting X86CPUClass::ordering. */
@@ -3392,26 +3396,35 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
 /* list available CPU models and flags */
 void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    int i;
+    int i, j;
     CPUListState s = {
         .file = f,
         .cpu_fprintf = cpu_fprintf,
     };
     GSList *list;
+    GList *names = NULL;
 
     (*cpu_fprintf)(f, "Available CPUs:\n");
     list = get_sorted_cpu_model_list();
     g_slist_foreach(list, x86_cpu_list_entry, &s);
     g_slist_free(list);
 
-    (*cpu_fprintf)(f, "\nRecognized CPUID flags:\n");
+    names = NULL;
     for (i = 0; i < ARRAY_SIZE(feature_word_info); i++) {
         FeatureWordInfo *fw = &feature_word_info[i];
-
-        (*cpu_fprintf)(f, "  ");
-        listflags(f, cpu_fprintf, fw->feat_names);
-        (*cpu_fprintf)(f, "\n");
+        for (j = 0; j < 32; j++) {
+            if (fw->feat_names[j]) {
+                names = g_list_append(names, (gpointer)fw->feat_names[j]);
+            }
+        }
     }
+
+    names = g_list_sort(names, (GCompareFunc)strcmp);
+
+    (*cpu_fprintf)(f, "\nRecognized CPUID flags:\n");
+    listflags(f, cpu_fprintf, names);
+    (*cpu_fprintf)(f, "\n");
+    g_list_free(names);
 }
 
 static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
