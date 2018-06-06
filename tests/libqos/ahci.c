@@ -90,6 +90,7 @@ struct AHCICommand {
     uint32_t interrupts;
     uint64_t xbytes;
     uint32_t prd_size;
+    uint32_t sector_size;
     uint64_t buffer;
     AHCICommandProp *props;
     /* Data to be transferred to the guest */
@@ -796,7 +797,7 @@ static void command_header_init(AHCICommand *cmd)
 static void command_table_init(AHCICommand *cmd)
 {
     RegH2DFIS *fis = &(cmd->fis);
-    uint16_t sect_count = (cmd->xbytes / AHCI_SECTOR_SIZE);
+    uint16_t sect_count = (cmd->xbytes / cmd->sector_size);
 
     fis->fis_type = REG_H2D_FIS;
     fis->flags = REG_H2D_FIS_CMD; /* "Command" bit */
@@ -819,7 +820,7 @@ static void command_table_init(AHCICommand *cmd)
         if (cmd->props->lba28 || cmd->props->lba48) {
             fis->device = ATA_DEVICE_LBA;
         }
-        fis->count = (cmd->xbytes / AHCI_SECTOR_SIZE);
+        fis->count = (cmd->xbytes / cmd->sector_size);
     }
     fis->icc = 0x00;
     fis->control = 0x00;
@@ -857,6 +858,7 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     cmd->xbytes = props->size;
     cmd->prd_size = 4096;
     cmd->buffer = 0xabad1dea;
+    cmd->sector_size = props->atapi ? ATAPI_SECTOR_SIZE : AHCI_SECTOR_SIZE;
 
     if (!cmd->props->ncq) {
         cmd->interrupts = AHCI_PX_IS_DHRS;
@@ -1033,7 +1035,7 @@ void ahci_command_set_buffer(AHCICommand *cmd, uint64_t buffer)
 static void ahci_atapi_set_size(AHCICommand *cmd, uint64_t xbytes)
 {
     unsigned char *cbd = cmd->atapi_cmd;
-    uint64_t nsectors = xbytes / 2048;
+    uint64_t nsectors = xbytes / ATAPI_SECTOR_SIZE;
     uint32_t tmp;
     g_assert(cbd);
 
@@ -1080,7 +1082,7 @@ void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
         cmd->prd_size = prd_size;
     }
     cmd->xbytes = xbytes;
-    sect_count = (cmd->xbytes / AHCI_SECTOR_SIZE);
+    sect_count = (cmd->xbytes / cmd->sector_size);
 
     if (cmd->props->ncq) {
         NCQFIS *nfis = (NCQFIS *)&(cmd->fis);
