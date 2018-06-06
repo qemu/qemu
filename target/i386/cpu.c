@@ -3380,7 +3380,7 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
         desc = cc->cpu_def->model_id;
     }
 
-    (*s->cpu_fprintf)(s->file, "x86 %16s  %-48s\n",
+    (*s->cpu_fprintf)(s->file, "x86 %-20s  %-48s\n",
                       name, desc);
     g_free(name);
 }
