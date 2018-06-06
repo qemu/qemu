@@ -1259,7 +1259,6 @@ static void handle_reg_h2d_fis(AHCIState *s, int port,
             g_free(pretty_fis);
         }
         s->dev[port].done_atapi_packet = false;
-        /* XXX send PIO setup FIS */
     }
 
     ide_state->error = 0;
@@ -1353,10 +1352,12 @@ static void ahci_start_transfer(IDEDMA *dma)
     int is_atapi = opts & AHCI_CMD_ATAPI;
     int has_sglist = 0;
 
+    /* PIO FIS gets written prior to transfer */
+    ahci_write_fis_pio(ad, size);
+
     if (is_atapi && !ad->done_atapi_packet) {
         /* already prepopulated iobuffer */
         ad->done_atapi_packet = true;
-        size = 0;
         goto out;
     }
 
@@ -1376,19 +1377,12 @@ static void ahci_start_transfer(IDEDMA *dma)
         }
     }
 
+    /* Update number of transferred bytes, destroy sglist */
+    dma_buf_commit(s, size);
 out:
     /* declare that we processed everything */
     s->data_ptr = s->data_end;
-
-    /* Update number of transferred bytes, destroy sglist */
-    dma_buf_commit(s, size);
-
     s->end_transfer_func(s);
-
-    if (!(s->status & DRQ_STAT)) {
-        /* done with PIO send/receive */
-        ahci_write_fis_pio(ad, le32_to_cpu(ad->cur_cmd->status));
-    }
 }
 
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,

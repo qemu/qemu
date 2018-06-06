@@ -478,10 +478,10 @@ void ahci_port_check_d2h_sanity(AHCIQState *ahci, uint8_t port, uint8_t slot)
     g_free(d2h);
 }
 
-void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
-                                uint8_t slot, size_t buffsize)
+void ahci_port_check_pio_sanity(AHCIQState *ahci, AHCICommand *cmd)
 {
     PIOSetupFIS *pio = g_malloc0(0x20);
+    uint8_t port = cmd->port;
 
     /* We cannot check the Status or E_Status registers, because
      * the status may have again changed between the PIO Setup FIS
@@ -489,15 +489,22 @@ void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
     qtest_memread(ahci->parent->qts, ahci->port[port].fb + 0x20, pio, 0x20);
     g_assert_cmphex(pio->fis_type, ==, 0x5f);
 
-    /* BUG: PIO Setup FIS as utilized by QEMU tries to fit the entire
-     * transfer size in a uint16_t field. The maximum transfer size can
-     * eclipse this; the field is meant to convey the size of data per
-     * each Data FIS, not the entire operation as a whole. For now,
-     * we will sanity check the broken case where applicable. */
-    if (buffsize <= UINT16_MAX) {
-        g_assert_cmphex(le16_to_cpu(pio->tx_count), ==, buffsize);
+    /* Data transferred by PIO will either be:
+     * (1) 12 or 16 bytes for an ATAPI command packet (QEMU always uses 12), or
+     * (2) Actual data from the drive.
+     * If we do both, (2) winds up erasing any evidence of (1).
+     */
+    if (cmd->props->atapi && (cmd->xbytes == 0 || cmd->props->dma)) {
+        g_assert(le16_to_cpu(pio->tx_count) == 12 ||
+                 le16_to_cpu(pio->tx_count) == 16);
+    } else {
+        /* The AHCI test suite here does not test any PIO command that specifies
+         * a DRQ block larger than one sector (like 0xC4), so this should always
+         * be one sector or less. */
+        size_t pio_len = ((cmd->xbytes % cmd->sector_size) ?
+                          (cmd->xbytes % cmd->sector_size) : cmd->sector_size);
+        g_assert_cmphex(le16_to_cpu(pio->tx_count), ==, pio_len);
     }
-
     g_free(pio);
 }
 
@@ -832,9 +839,9 @@ void ahci_command_enable_atapi_dma(AHCICommand *cmd)
     RegH2DFIS *fis = &(cmd->fis);
     g_assert(cmd->props->atapi);
     fis->feature_low |= 0x01;
-    cmd->interrupts &= ~AHCI_PX_IS_PSS;
+    /* PIO is still used to transfer the ATAPI command */
+    g_assert(cmd->props->pio);
     cmd->props->dma = true;
-    cmd->props->pio = false;
     /* BUG: We expect the DMA Setup interrupt for DMA commands */
     /* cmd->interrupts |= AHCI_PX_IS_DSS; */
 }
@@ -846,7 +853,7 @@ AHCICommand *ahci_command_create(uint8_t command_name)
 
     g_assert(props);
     cmd = g_new0(AHCICommand, 1);
-    g_assert(!(props->dma && props->pio));
+    g_assert(!(props->dma && props->pio) || props->atapi);
     g_assert(!(props->lba28 && props->lba48));
     g_assert(!(props->read && props->write));
     g_assert(!props->size || props->data);
@@ -1218,7 +1225,7 @@ void ahci_command_verify(AHCIQState *ahci, AHCICommand *cmd)
         ahci_port_check_d2h_sanity(ahci, port, slot);
     }
     if (cmd->props->pio) {
-        ahci_port_check_pio_sanity(ahci, port, slot, cmd->xbytes);
+        ahci_port_check_pio_sanity(ahci, cmd);
     }
 }
 
