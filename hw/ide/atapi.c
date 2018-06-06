@@ -245,15 +245,11 @@ static uint16_t atapi_byte_count_limit(IDEState *s)
 void ide_atapi_cmd_reply_end(IDEState *s)
 {
     int byte_count_limit, size, ret;
-    trace_ide_atapi_cmd_reply_end(s, s->packet_transfer_size,
-                                  s->elementary_transfer_size,
-                                  s->io_buffer_index);
-    if (s->packet_transfer_size <= 0) {
-        /* end of transfer */
-        ide_atapi_cmd_ok(s);
-        ide_set_irq(s->bus);
-        trace_ide_atapi_cmd_reply_end_eot(s, s->status);
-    } else {
+    while (s->packet_transfer_size > 0) {
+        trace_ide_atapi_cmd_reply_end(s, s->packet_transfer_size,
+                                      s->elementary_transfer_size,
+                                      s->io_buffer_index);
+
         /* see if a new sector must be read */
         if (s->lba != -1 && s->io_buffer_index >= s->cd_sector_size) {
             if (!s->elementary_transfer_size) {
@@ -279,11 +275,6 @@ void ide_atapi_cmd_reply_end(IDEState *s)
             size = s->cd_sector_size - s->io_buffer_index;
             if (size > s->elementary_transfer_size)
                 size = s->elementary_transfer_size;
-            s->packet_transfer_size -= size;
-            s->elementary_transfer_size -= size;
-            s->io_buffer_index += size;
-            ide_transfer_start(s, s->io_buffer + s->io_buffer_index - size,
-                               size, ide_atapi_cmd_reply_end);
         } else {
             /* a new transfer is needed */
             s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO;
@@ -306,13 +297,26 @@ void ide_atapi_cmd_reply_end(IDEState *s)
                     size = (s->cd_sector_size - s->io_buffer_index);
             }
             trace_ide_atapi_cmd_reply_end_new(s, s->status);
-            s->packet_transfer_size -= size;
-            s->elementary_transfer_size -= size;
-            s->io_buffer_index += size;
-            ide_transfer_start(s, s->io_buffer + s->io_buffer_index - size,
-                               size, ide_atapi_cmd_reply_end);
+        }
+        s->packet_transfer_size -= size;
+        s->elementary_transfer_size -= size;
+        s->io_buffer_index += size;
+
+        /* Some adapters process PIO data right away.  In that case, we need
+         * to avoid mutual recursion between ide_transfer_start
+         * and ide_atapi_cmd_reply_end.
+         */
+        if (!ide_transfer_start_norecurse(s,
+                                          s->io_buffer + s->io_buffer_index - size,
+                                          size, ide_atapi_cmd_reply_end)) {
+            return;
         }
     }
+
+    /* end of transfer */
+    trace_ide_atapi_cmd_reply_end_eot(s, s->status);
+    ide_atapi_cmd_ok(s);
+    ide_set_irq(s->bus);
 }
 
 /* send a reply of 'size' bytes in s->io_buffer to an ATAPI command */

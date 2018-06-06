@@ -523,8 +523,8 @@ static void ide_clear_retry(IDEState *s)
 }
 
 /* prepare data transfer and tell what to do after */
-void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
-                        EndTransferFunc *end_transfer_func)
+bool ide_transfer_start_norecurse(IDEState *s, uint8_t *buf, int size,
+                                  EndTransferFunc *end_transfer_func)
 {
     s->data_ptr = buf;
     s->data_end = buf + size;
@@ -534,10 +534,18 @@ void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
     }
     if (!s->bus->dma->ops->pio_transfer) {
         s->end_transfer_func = end_transfer_func;
-        return;
+        return false;
     }
     s->bus->dma->ops->pio_transfer(s->bus->dma);
-    end_transfer_func(s);
+    return true;
+}
+
+void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
+                        EndTransferFunc *end_transfer_func)
+{
+    if (ide_transfer_start_norecurse(s, buf, size, end_transfer_func)) {
+        end_transfer_func(s);
+    }
 }
 
 static void ide_cmd_done(IDEState *s)
