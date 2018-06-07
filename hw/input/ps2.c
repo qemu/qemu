@@ -927,7 +927,7 @@ static void ps2_common_post_load(PS2State *s)
 
     /* reset rptr/wptr/count */
     q->rptr = 0;
-    q->wptr = size;
+    q->wptr = (size == PS2_QUEUE_SIZE) ? 0 : size;
     q->count = size;
     s->update_irq(s->update_arg, q->count != 0);
 }
