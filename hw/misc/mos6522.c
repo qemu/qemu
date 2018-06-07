@@ -405,7 +405,7 @@ static const VMStateDescription vmstate_mos6522 = {
         VMSTATE_UINT8(ifr, MOS6522State),
         VMSTATE_UINT8(ier, MOS6522State),
         VMSTATE_UINT8(anh, MOS6522State),
-        VMSTATE_STRUCT_ARRAY(timers, MOS6522State, 2, 1,
+        VMSTATE_STRUCT_ARRAY(timers, MOS6522State, 2, 0,
                              vmstate_mos6522_timer, MOS6522Timer),
         VMSTATE_END_OF_LIST()
     }
