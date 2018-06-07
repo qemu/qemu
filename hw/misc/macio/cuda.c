@@ -597,12 +597,12 @@ static void mos6522_cuda_portB_write(MOS6522State *s)
     cuda_update(cs);
 }
 
-static void mos6522_cuda_realize(DeviceState *dev, Error **errp)
+static void mos6522_cuda_reset(DeviceState *dev)
 {
     MOS6522State *ms = MOS6522(dev);
     MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(ms);
 
-    mdc->parent_realize(dev, errp);
+    mdc->parent_reset(dev);
 
     ms->timers[0].frequency = CUDA_TIMER_FREQ;
     ms->timers[1].frequency = (SCALE_US * 6000) / 4700;
@@ -613,7 +613,7 @@ static void mos6522_cuda_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_DEVICE_CLASS(oc);
 
-    dc->realize = mos6522_cuda_realize;
+    dc->reset = mos6522_cuda_reset;
     mdc->portB_write = mos6522_cuda_portB_write;
     mdc->get_timer1_counter_value = cuda_get_counter_value;
     mdc->get_timer2_counter_value = cuda_get_counter_value;

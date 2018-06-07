@@ -427,18 +427,12 @@ static void mos6522_reset(DeviceState *dev)
     /* s->ier = T1_INT | SR_INT; */
     s->anh = 0;
 
+    s->timers[0].frequency = s->frequency;
     s->timers[0].latch = 0xffff;
     set_counter(s, &s->timers[0], 0xffff);
 
-    s->timers[1].latch = 0xffff;
-}
-
-static void mos6522_realize(DeviceState *dev, Error **errp)
-{
-    MOS6522State *s = MOS6522(dev);
-
-    s->timers[0].frequency = s->frequency;
     s->timers[1].frequency = s->frequency;
+    s->timers[1].latch = 0xffff;
 }
 
 static void mos6522_init(Object *obj)
@@ -469,11 +463,10 @@ static void mos6522_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_DEVICE_CLASS(oc);
 
-    dc->realize = mos6522_realize;
     dc->reset = mos6522_reset;
     dc->vmsd = &vmstate_mos6522;
     dc->props = mos6522_properties;
-    mdc->parent_realize = dc->realize;
+    mdc->parent_reset = dc->reset;
     mdc->set_sr_int = mos6522_set_sr_int;
     mdc->portB_write = mos6522_portB_write;
     mdc->portA_write = mos6522_portA_write;
