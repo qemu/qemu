@@ -60,17 +60,6 @@ ssize_t pt_listxattr(FsContext *ctx, const char *path,
     return name_size;
 }
 
-static ssize_t flistxattrat_nofollow(int dirfd, const char *filename,
-                                     char *list, size_t size)
-{
-    char *proc_path = g_strdup_printf("/proc/self/fd/%d/%s", dirfd, filename);
-    int ret;
-
-    ret = llistxattr(proc_path, list, size);
-    g_free(proc_path);
-    return ret;
-}
-
 /*
  * Get the list and pass to each layer to find out whether
  * to send the data or not
@@ -196,17 +185,6 @@ ssize_t pt_getxattr(FsContext *ctx, const char *path, const char *name,
     return local_getxattr_nofollow(ctx, path, name, value, size);
 }
 
-int fsetxattrat_nofollow(int dirfd, const char *filename, const char *name,
-                         void *value, size_t size, int flags)
-{
-    char *proc_path = g_strdup_printf("/proc/self/fd/%d/%s", dirfd, filename);
-    int ret;
-
-    ret = lsetxattr(proc_path, name, value, size, flags);
-    g_free(proc_path);
-    return ret;
-}
-
 ssize_t local_setxattr_nofollow(FsContext *ctx, const char *path,
                                 const char *name, void *value, size_t size,
                                 int flags)
@@ -233,17 +211,6 @@ int pt_setxattr(FsContext *ctx, const char *path, const char *name, void *value,
                 size_t size, int flags)
 {
     return local_setxattr_nofollow(ctx, path, name, value, size, flags);
-}
-
-static ssize_t fremovexattrat_nofollow(int dirfd, const char *filename,
-                                       const char *name)
-{
-    char *proc_path = g_strdup_printf("/proc/self/fd/%d/%s", dirfd, filename);
-    int ret;
-
-    ret = lremovexattr(proc_path, name);
-    g_free(proc_path);
-    return ret;
 }
 
 ssize_t local_removexattr_nofollow(FsContext *ctx, const char *path,

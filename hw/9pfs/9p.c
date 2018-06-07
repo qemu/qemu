@@ -2522,7 +2522,7 @@ static void coroutine_fn v9fs_unlinkat(void *opaque)
 {
     int err = 0;
     V9fsString name;
-    int32_t dfid, flags;
+    int32_t dfid, flags, rflags = 0;
     size_t offset = 7;
     V9fsPath path;
     V9fsFidState *dfidp;
@@ -2549,6 +2549,15 @@ static void coroutine_fn v9fs_unlinkat(void *opaque)
         goto out_nofid;
     }
 
+    if (flags & ~P9_DOTL_AT_REMOVEDIR) {
+        err = -EINVAL;
+        goto out_nofid;
+    }
+
+    if (flags & P9_DOTL_AT_REMOVEDIR) {
+        rflags |= AT_REMOVEDIR;
+    }
+
     dfidp = get_fid(pdu, dfid);
     if (dfidp == NULL) {
         err = -EINVAL;
@@ -2567,7 +2576,7 @@ static void coroutine_fn v9fs_unlinkat(void *opaque)
     if (err < 0) {
         goto out_err;
     }
-    err = v9fs_co_unlinkat(pdu, &dfidp->path, &name, flags);
+    err = v9fs_co_unlinkat(pdu, &dfidp->path, &name, rflags);
     if (!err) {
         err = offset;
     }
@@ -3256,8 +3265,8 @@ static void coroutine_fn v9fs_xattrwalk(void *opaque)
         xattr_fidp->fs.xattr.len = size;
         xattr_fidp->fid_type = P9_FID_XATTR;
         xattr_fidp->fs.xattr.xattrwalk_fid = true;
+        xattr_fidp->fs.xattr.value = g_malloc0(size);
         if (size) {
-            xattr_fidp->fs.xattr.value = g_malloc0(size);
             err = v9fs_co_llistxattr(pdu, &xattr_fidp->path,
                                      xattr_fidp->fs.xattr.value,
                                      xattr_fidp->fs.xattr.len);
@@ -3289,8 +3298,8 @@ static void coroutine_fn v9fs_xattrwalk(void *opaque)
         xattr_fidp->fs.xattr.len = size;
         xattr_fidp->fid_type = P9_FID_XATTR;
         xattr_fidp->fs.xattr.xattrwalk_fid = true;
+        xattr_fidp->fs.xattr.value = g_malloc0(size);
         if (size) {
-            xattr_fidp->fs.xattr.value = g_malloc0(size);
             err = v9fs_co_lgetxattr(pdu, &xattr_fidp->path,
                                     &name, xattr_fidp->fs.xattr.value,
                                     xattr_fidp->fs.xattr.len);
@@ -3318,7 +3327,7 @@ out_nofid:
 
 static void coroutine_fn v9fs_xattrcreate(void *opaque)
 {
-    int flags;
+    int flags, rflags = 0;
     int32_t fid;
     uint64_t size;
     ssize_t err = 0;
@@ -3334,6 +3343,19 @@ static void coroutine_fn v9fs_xattrcreate(void *opaque)
         goto out_nofid;
     }
     trace_v9fs_xattrcreate(pdu->tag, pdu->id, fid, name.data, size, flags);
+
+    if (flags & ~(P9_XATTR_CREATE | P9_XATTR_REPLACE)) {
+        err = -EINVAL;
+        goto out_nofid;
+    }
+
+    if (flags & P9_XATTR_CREATE) {
+        rflags |= XATTR_CREATE;
+    }
+
+    if (flags & P9_XATTR_REPLACE) {
+        rflags |= XATTR_REPLACE;
+    }
 
     if (size > XATTR_SIZE_MAX) {
         err = -E2BIG;
@@ -3356,7 +3378,7 @@ static void coroutine_fn v9fs_xattrcreate(void *opaque)
     xattr_fidp->fs.xattr.copied_len = 0;
     xattr_fidp->fs.xattr.xattrwalk_fid = false;
     xattr_fidp->fs.xattr.len = size;
-    xattr_fidp->fs.xattr.flags = flags;
+    xattr_fidp->fs.xattr.flags = rflags;
     v9fs_string_init(&xattr_fidp->fs.xattr.name);
     v9fs_string_copy(&xattr_fidp->fs.xattr.name, &name);
     xattr_fidp->fs.xattr.value = g_malloc0(size);
