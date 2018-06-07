@@ -91,9 +91,6 @@ typedef struct MACIOIDEState {
 void macio_ide_init_drives(MACIOIDEState *ide, DriveInfo **hd_table);
 void macio_ide_register_dma(MACIOIDEState *ide);
 
-void macio_init(PCIDevice *dev,
-                MemoryRegion *pic_mem);
-
 /* Grackle PCI */
 #define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
 
