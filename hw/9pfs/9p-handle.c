@@ -559,19 +559,13 @@ static int handle_unlinkat(FsContext *ctx, V9fsPath *dir,
 {
     int dirfd, ret;
     HandleData *data = (HandleData *) ctx->private;
-    int rflags;
 
     dirfd = open_by_handle(data->mountfd, dir->data, O_PATH);
     if (dirfd < 0) {
         return dirfd;
     }
 
-    rflags = 0;
-    if (flags & P9_DOTL_AT_REMOVEDIR) {
-        rflags |= AT_REMOVEDIR;
-    }
-
-    ret = unlinkat(dirfd, name, rflags);
+    ret = unlinkat(dirfd, name, flags);
 
     close(dirfd);
     return ret;
