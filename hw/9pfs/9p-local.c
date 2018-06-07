@@ -1418,6 +1418,8 @@ static int local_init(FsContext *ctx, Error **errp)
      */
     if (fstatfs(data->mountfd, &stbuf) < 0) {
         close_preserve_errno(data->mountfd);
+        error_setg_errno(errp, errno,
+            "failed to stat file system at '%s'", ctx->fs_root);
         goto err;
     }
     switch (stbuf.f_type) {
