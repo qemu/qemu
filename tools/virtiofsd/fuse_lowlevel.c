@@ -2115,8 +2115,11 @@ reply_err:
     }
 
 static const struct fuse_opt fuse_ll_opts[] = {
-    LL_OPTION("debug", debug, 1), LL_OPTION("-d", debug, 1),
-    LL_OPTION("--debug", debug, 1), LL_OPTION("allow_root", deny_others, 1),
+    LL_OPTION("debug", debug, 1),
+    LL_OPTION("-d", debug, 1),
+    LL_OPTION("--debug", debug, 1),
+    LL_OPTION("allow_root", deny_others, 1),
+    LL_OPTION("--socket-path=%s", vu_socket_path, 0),
     FUSE_OPT_END
 };
 
@@ -2132,7 +2135,9 @@ void fuse_lowlevel_help(void)
      * These are not all options, but the ones that are
      * potentially of interest to an end-user
      */
-    printf("    -o allow_root          allow access by root\n");
+    printf(
+        "    -o allow_root              allow access by root\n"
+        "    --socket-path=PATH         path for the vhost-user socket\n");
 }
 
 void fuse_session_destroy(struct fuse_session *se)
