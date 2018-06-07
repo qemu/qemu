@@ -1841,6 +1841,10 @@ static void *file_ram_alloc(RAMBlock *block,
                    " must be multiples of page size 0x%zx",
                    block->mr->align, block->page_size);
         return NULL;
+    } else if (block->mr->align && !is_power_of_2(block->mr->align)) {
+        error_setg(errp, "alignment 0x%" PRIx64
+                   " must be a power of two", block->mr->align);
+        return NULL;
     }
     block->mr->align = MAX(block->page_size, block->mr->align);
 #if defined(__s390x__)
