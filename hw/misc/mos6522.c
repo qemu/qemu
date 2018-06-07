@@ -369,13 +369,6 @@ static const MemoryRegionOps mos6522_ops = {
     },
 };
 
-static bool mos6522_timer_exist(void *opaque, int version_id)
-{
-    MOS6522Timer *s = opaque;
-
-    return s->timer != NULL;
-}
-
 static const VMStateDescription vmstate_mos6522_timer = {
     .name = "mos6522_timer",
     .version_id = 0,
@@ -385,7 +378,7 @@ static const VMStateDescription vmstate_mos6522_timer = {
         VMSTATE_UINT16(counter_value, MOS6522Timer),
         VMSTATE_INT64(load_time, MOS6522Timer),
         VMSTATE_INT64(next_irq_time, MOS6522Timer),
-        VMSTATE_TIMER_PTR_TEST(timer, MOS6522Timer, mos6522_timer_exist),
+        VMSTATE_TIMER_PTR(timer, MOS6522Timer),
         VMSTATE_END_OF_LIST()
     }
 };
