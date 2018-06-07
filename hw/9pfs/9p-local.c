@@ -1373,10 +1373,10 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
     return ret;
 }
 
+#ifdef FS_IOC_GETVERSION
 static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
                                 mode_t st_mode, uint64_t *st_gen)
 {
-#ifdef FS_IOC_GETVERSION
     int err;
     V9fsFidOpenState fid_open;
 
@@ -1395,32 +1395,21 @@ static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
     err = ioctl(fid_open.fd, FS_IOC_GETVERSION, st_gen);
     local_close(ctx, &fid_open);
     return err;
-#else
-    errno = ENOTTY;
-    return -1;
-#endif
 }
+#endif
 
-static int local_init(FsContext *ctx, Error **errp)
+static int local_ioc_getversion_init(FsContext *ctx, LocalData *data, Error **errp)
 {
-    struct statfs stbuf;
-    LocalData *data = g_malloc(sizeof(*data));
-
-    data->mountfd = open(ctx->fs_root, O_DIRECTORY | O_RDONLY);
-    if (data->mountfd == -1) {
-        error_setg_errno(errp, errno, "failed to open '%s'", ctx->fs_root);
-        goto err;
-    }
-
 #ifdef FS_IOC_GETVERSION
+    struct statfs stbuf;
+
     /*
      * use ioc_getversion only if the ioctl is definied
      */
     if (fstatfs(data->mountfd, &stbuf) < 0) {
-        close_preserve_errno(data->mountfd);
         error_setg_errno(errp, errno,
-            "failed to stat file system at '%s'", ctx->fs_root);
-        goto err;
+                         "failed to stat file system at '%s'", ctx->fs_root);
+        return -1;
     }
     switch (stbuf.f_type) {
     case EXT2_SUPER_MAGIC:
@@ -1431,6 +1420,23 @@ static int local_init(FsContext *ctx, Error **errp)
         break;
     }
 #endif
+    return 0;
+}
+
+static int local_init(FsContext *ctx, Error **errp)
+{
+    LocalData *data = g_malloc(sizeof(*data));
+
+    data->mountfd = open(ctx->fs_root, O_DIRECTORY | O_RDONLY);
+    if (data->mountfd == -1) {
+        error_setg_errno(errp, errno, "failed to open '%s'", ctx->fs_root);
+        goto err;
+    }
+
+    if (local_ioc_getversion_init(ctx, data, errp) < 0) {
+        close(data->mountfd);
+        goto err;
+    }
 
     if (ctx->export_flags & V9FS_SM_PASSTHROUGH) {
         ctx->xops = passthrough_xattr_ops;
