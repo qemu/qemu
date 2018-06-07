@@ -24,11 +24,26 @@
 
 struct VFIOPCIDevice;
 
+typedef struct VFIOIOEventFD {
+    QLIST_ENTRY(VFIOIOEventFD) next;
+    MemoryRegion *mr;
+    hwaddr addr;
+    unsigned size;
+    uint64_t data;
+    EventNotifier e;
+    VFIORegion *region;
+    hwaddr region_addr;
+    bool dynamic; /* Added runtime, removed on device reset */
+    bool vfio;
+} VFIOIOEventFD;
+
 typedef struct VFIOQuirk {
     QLIST_ENTRY(VFIOQuirk) next;
     void *data;
+    QLIST_HEAD(, VFIOIOEventFD) ioeventfds;
     int nr_mem;
     MemoryRegion *mem;
+    void (*reset)(struct VFIOPCIDevice *vdev, struct VFIOQuirk *quirk);
 } VFIOQuirk;
 
 typedef struct VFIOBAR {
@@ -148,6 +163,8 @@ typedef struct VFIOPCIDevice {
     bool no_kvm_msi;
     bool no_kvm_msix;
     bool no_geforce_quirks;
+    bool no_kvm_ioeventfd;
+    bool no_vfio_ioeventfd;
     VFIODisplay *dpy;
 } VFIOPCIDevice;
 
@@ -167,6 +184,7 @@ void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr);
 void vfio_bar_quirk_finalize(VFIOPCIDevice *vdev, int nr);
 void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev);
 int vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp);
+void vfio_quirk_reset(VFIOPCIDevice *vdev);
 
 extern const PropertyInfo qdev_prop_nv_gpudirect_clique;
 
