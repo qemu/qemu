@@ -97,12 +97,6 @@ void macio_init(PCIDevice *dev,
 /* Grackle PCI */
 #define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
 
-/* UniNorth PCI */
-UNINHostState *pci_pmac_init(qemu_irq *pic,
-                             MemoryRegion *address_space_mem);
-UNINHostState *pci_pmac_u3_init(qemu_irq *pic,
-                                MemoryRegion *address_space_mem);
-
 /* Mac NVRAM */
 #define TYPE_MACIO_NVRAM "macio-nvram"
 #define MACIO_NVRAM(obj) \
