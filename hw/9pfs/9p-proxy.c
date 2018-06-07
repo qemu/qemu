@@ -1088,7 +1088,7 @@ static int proxy_ioc_getversion(FsContext *fs_ctx, V9fsPath *path,
 
 static int connect_namedsocket(const char *path, Error **errp)
 {
-    int sockfd, size;
+    int sockfd;
     struct sockaddr_un helper;
 
     if (strlen(path) >= sizeof(helper.sun_path)) {
@@ -1102,8 +1102,7 @@ static int connect_namedsocket(const char *path, Error **errp)
     }
     strcpy(helper.sun_path, path);
     helper.sun_family = AF_UNIX;
-    size = strlen(helper.sun_path) + sizeof(helper.sun_family);
-    if (connect(sockfd, (struct sockaddr *)&helper, size) < 0) {
+    if (connect(sockfd, (struct sockaddr *)&helper, sizeof(helper)) < 0) {
         error_setg_errno(errp, errno, "failed to connect to '%s'", path);
         close(sockfd);
         return -1;
