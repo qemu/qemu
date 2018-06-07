@@ -390,7 +390,7 @@ static const VMStateDescription vmstate_mos6522_timer = {
     }
 };
 
-static const VMStateDescription vmstate_mos6522 = {
+const VMStateDescription vmstate_mos6522 = {
     .name = "mos6522",
     .version_id = 0,
     .minimum_version_id = 0,
