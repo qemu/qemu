@@ -1,5 +1,5 @@
 /*
- * QTest testcase for TPM CRB talking to external swtpm and swtpm migration
+ * QTest testcase for TPM TIS talking to external swtpm and swtpm migration
  *
  * Copyright (c) 2018 IBM Corporation
  *  with parts borrowed from migration-test.c that is:
@@ -24,19 +24,19 @@ typedef struct TestState {
     char *uri;
 } TestState;
 
-static void tpm_crb_swtpm_test(const void *data)
+static void tpm_tis_swtpm_test(const void *data)
 {
     const TestState *ts = data;
 
-    tpm_test_swtpm_test(ts->src_tpm_path, tpm_util_crb_transfer, "tpm-crb");
+    tpm_test_swtpm_test(ts->src_tpm_path, tpm_util_tis_transfer, "tpm-tis");
 }
 
-static void tpm_crb_swtpm_migration_test(const void *data)
+static void tpm_tis_swtpm_migration_test(const void *data)
 {
     const TestState *ts = data;
 
     tpm_test_swtpm_migration_test(ts->src_tpm_path, ts->dst_tpm_path, ts->uri,
-                                  tpm_util_crb_transfer, "tpm-crb");
+                                  tpm_util_tis_transfer, "tpm-tis");
 }
 
 int main(int argc, char **argv)
@@ -44,16 +44,16 @@ int main(int argc, char **argv)
     int ret;
     TestState ts = { 0 };
 
-    ts.src_tpm_path = g_dir_make_tmp("qemu-tpm-crb-swtpm-test.XXXXXX", NULL);
-    ts.dst_tpm_path = g_dir_make_tmp("qemu-tpm-crb-swtpm-test.XXXXXX", NULL);
+    ts.src_tpm_path = g_dir_make_tmp("qemu-tpm-tis-swtpm-test.XXXXXX", NULL);
+    ts.dst_tpm_path = g_dir_make_tmp("qemu-tpm-tis-swtpm-test.XXXXXX", NULL);
     ts.uri = g_strdup_printf("unix:%s/migsocket", ts.src_tpm_path);
 
     module_call_init(MODULE_INIT_QOM);
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_data_func("/tpm/crb-swtpm/test", &ts, tpm_crb_swtpm_test);
-    qtest_add_data_func("/tpm/crb-swtpm-migration/test", &ts,
-                        tpm_crb_swtpm_migration_test);
+    qtest_add_data_func("/tpm/tis-swtpm/test", &ts, tpm_tis_swtpm_test);
+    qtest_add_data_func("/tpm/tis-swtpm-migration/test", &ts,
+                        tpm_tis_swtpm_migration_test);
     ret = g_test_run();
 
     g_rmdir(ts.dst_tpm_path);

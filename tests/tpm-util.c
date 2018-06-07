@@ -17,6 +17,12 @@
 #include "hw/acpi/tpm.h"
 #include "libqtest.h"
 #include "tpm-util.h"
+#include "qapi/qmp/qdict.h"
+
+#define TIS_REG(LOCTY, REG) \
+    (TPM_TIS_ADDR_BASE + ((LOCTY) << 12) + REG)
+
+static bool got_stop;
 
 void tpm_util_crb_transfer(QTestState *s,
                            const unsigned char *req, size_t req_size,
@@ -47,6 +53,51 @@ void tpm_util_crb_transfer(QTestState *s,
     g_assert_cmpint(sts & 1, ==, 0);
 
     qtest_memread(s, raddr, rsp, rsp_size);
+}
+
+void tpm_util_tis_transfer(QTestState *s,
+                           const unsigned char *req, size_t req_size,
+                           unsigned char *rsp, size_t rsp_size)
+{
+    uint32_t sts;
+    uint16_t bcount;
+    size_t i;
+
+    /* request use of locality 0 */
+    qtest_writeb(s, TIS_REG(0, TPM_TIS_REG_ACCESS), TPM_TIS_ACCESS_REQUEST_USE);
+    qtest_writel(s, TIS_REG(0, TPM_TIS_REG_STS), TPM_TIS_STS_COMMAND_READY);
+
+    sts = qtest_readl(s, TIS_REG(0, TPM_TIS_REG_STS));
+    bcount = (sts >> 8) & 0xffff;
+    g_assert_cmpint(bcount, >=, req_size);
+
+    /* transmit command */
+    for (i = 0; i < req_size; i++) {
+        qtest_writeb(s, TIS_REG(0, TPM_TIS_REG_DATA_FIFO), req[i]);
+    }
+
+    /* start processing */
+    qtest_writeb(s, TIS_REG(0, TPM_TIS_REG_STS), TPM_TIS_STS_TPM_GO);
+
+    uint64_t end_time = g_get_monotonic_time() + 50 * G_TIME_SPAN_SECOND;
+    do {
+        sts = qtest_readl(s, TIS_REG(0, TPM_TIS_REG_STS));
+        if ((sts & TPM_TIS_STS_DATA_AVAILABLE) != 0) {
+            break;
+        }
+    } while (g_get_monotonic_time() < end_time);
+
+    sts = qtest_readl(s, TIS_REG(0, TPM_TIS_REG_STS));
+    bcount = (sts >> 8) & 0xffff;
+
+    memset(rsp, 0, rsp_size);
+    for (i = 0; i < bcount; i++) {
+        rsp[i] = qtest_readb(s, TIS_REG(0, TPM_TIS_REG_DATA_FIFO));
+    }
+
+    /* relinquish use of locality 0 */
+    qtest_writeb(s, TIS_REG(0, TPM_TIS_REG_ACCESS),
+                 TPM_TIS_ACCESS_ACTIVE_LOCALITY);
 }
 
 void tpm_util_startup(QTestState *s, tx_func *tx)
@@ -183,4 +234,91 @@ void tpm_util_swtpm_kill(GPid pid)
     }
 
     kill(pid, SIGKILL);
+}
+
+void tpm_util_migrate(QTestState *who, const char *uri)
+{
+    QDict *rsp;
+    gchar *cmd;
+
+    cmd = g_strdup_printf("{ 'execute': 'migrate',"
+                          "'arguments': { 'uri': '%s' } }",
+                          uri);
+    rsp = qtest_qmp(who, cmd);
+    g_free(cmd);
+    g_assert(qdict_haskey(rsp, "return"));
+    qobject_unref(rsp);
+}
+
+/*
+ * Events can get in the way of responses we are actually waiting for.
+ */
+static QDict *tpm_util_wait_command(QTestState *who, const char *command)
+{
+    const char *event_string;
+    QDict *response;
+
+    response = qtest_qmp(who, command);
+
+    while (qdict_haskey(response, "event")) {
+        /* OK, it was an event */
+        event_string = qdict_get_str(response, "event");
+        if (!strcmp(event_string, "STOP")) {
+            got_stop = true;
+        }
+        qobject_unref(response);
+        response = qtest_qmp_receive(who);
+    }
+    return response;
+}
+
+void tpm_util_wait_for_migration_complete(QTestState *who)
+{
+    while (true) {
+        QDict *rsp, *rsp_return;
+        bool completed;
+        const char *status;
+
+        rsp = tpm_util_wait_command(who, "{ 'execute': 'query-migrate' }");
+        rsp_return = qdict_get_qdict(rsp, "return");
+        status = qdict_get_str(rsp_return, "status");
+        completed = strcmp(status, "completed") == 0;
+        g_assert_cmpstr(status, !=,  "failed");
+        qobject_unref(rsp);
+        if (completed) {
+            return;
+        }
+        usleep(1000);
+    }
+}
+
+void tpm_util_migration_start_qemu(QTestState **src_qemu,
+                                   QTestState **dst_qemu,
+                                   SocketAddress *src_tpm_addr,
+                                   SocketAddress *dst_tpm_addr,
+                                   const char *miguri,
+                                   const char *ifmodel)
+{
+    char *src_qemu_args, *dst_qemu_args;
+
+    src_qemu_args = g_strdup_printf(
+        "-chardev socket,id=chr,path=%s "
+        "-tpmdev emulator,id=dev,chardev=chr "
+        "-device %s,tpmdev=dev ",
+        src_tpm_addr->u.q_unix.path, ifmodel);
+
+    *src_qemu = qtest_init(src_qemu_args);
+
+    dst_qemu_args = g_strdup_printf(
+        "-chardev socket,id=chr,path=%s "
+        "-tpmdev emulator,id=dev,chardev=chr "
+        "-device %s,tpmdev=dev "
+        "-incoming %s",
+        dst_tpm_addr->u.q_unix.path,
+        ifmodel, miguri);
+
+    *dst_qemu = qtest_init(dst_qemu_args);
+
+    free(src_qemu_args);
+    free(dst_qemu_args);
 }

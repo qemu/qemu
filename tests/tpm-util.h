@@ -23,6 +23,9 @@ typedef void (tx_func)(QTestState *s,
 void tpm_util_crb_transfer(QTestState *s,
                            const unsigned char *req, size_t req_size,
                            unsigned char *rsp, size_t rsp_size);
+void tpm_util_tis_transfer(QTestState *s,
+                           const unsigned char *req, size_t req_size,
+                           unsigned char *rsp, size_t rsp_size);
 
 void tpm_util_startup(QTestState *s, tx_func *tx);
 void tpm_util_pcrextend(QTestState *s, tx_func *tx);
@@ -32,5 +35,16 @@ void tpm_util_pcrread(QTestState *s, tx_func *tx,
 gboolean tpm_util_swtpm_start(const char *path, GPid *pid,
                               SocketAddress **addr, GError **error);
 void tpm_util_swtpm_kill(GPid pid);
+
+void tpm_util_migrate(QTestState *who, const char *uri);
+
+void tpm_util_migration_start_qemu(QTestState **src_qemu,
+                                   QTestState **dst_qemu,
+                                   SocketAddress *src_tpm_addr,
+                                   SocketAddress *dst_tpm_addr,
+                                   const char *miguri,
+                                   const char *ifmodel);
+
+void tpm_util_wait_for_migration_complete(QTestState *who);
 
 #endif /* TESTS_TPM_UTIL_H */
