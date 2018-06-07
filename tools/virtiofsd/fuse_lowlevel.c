@@ -14,6 +14,7 @@
 #include "standard-headers/linux/fuse.h"
 #include "fuse_misc.h"
 #include "fuse_opt.h"
+#include "fuse_virtio.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -2202,6 +2203,11 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
         goto out4;
     }
 
+    if (!se->vu_socket_path) {
+        fprintf(stderr, "fuse: missing -o vhost_user_socket option\n");
+        goto out4;
+    }
+
     se->bufsize = FUSE_MAX_MAX_PAGES * getpagesize() + FUSE_BUFFER_HEADER_SIZE;
 
     list_init_req(&se->list);
@@ -2224,54 +2230,7 @@ out1:
 
 int fuse_session_mount(struct fuse_session *se)
 {
-    int fd;
-
-    /*
-     * Make sure file descriptors 0, 1 and 2 are open, otherwise chaos
-     * would ensue.
-     */
-    do {
-        fd = open("/dev/null", O_RDWR);
-        if (fd > 2) {
-            close(fd);
-        }
-    } while (fd >= 0 && fd <= 2);
-
-    /*
-     * To allow FUSE daemons to run without privileges, the caller may open
-     * /dev/fuse before launching the file system and pass on the file
-     * descriptor by specifying /dev/fd/N as the mount point. Note that the
-     * parent process takes care of performing the mount in this case.
-     */
-    fd = fuse_mnt_parse_fuse_fd(mountpoint);
-    if (fd != -1) {
-        if (fcntl(fd, F_GETFD) == -1) {
-            fuse_log(FUSE_LOG_ERR, "fuse: Invalid file descriptor /dev/fd/%u\n",
-                     fd);
-            return -1;
-        }
-        se->fd = fd;
-        return 0;
-    }
-
-    /* Open channel */
-    fd = fuse_kern_mount(mountpoint, se->mo);
-    if (fd == -1) {
-        return -1;
-    }
-    se->fd = fd;
-
-    /* Save mountpoint */
-    se->mountpoint = strdup(mountpoint);
-    if (se->mountpoint == NULL) {
-        goto error_out;
-    }
-
-    return 0;
-
-error_out:
-    fuse_kern_unmount(mountpoint, fd);
-    return -1;
+    return virtio_session_mount(se);
 }
 
 int fuse_session_fd(struct fuse_session *se)
