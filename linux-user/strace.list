@@ -1467,15 +1467,6 @@
 #ifdef TARGET_NR__sysctl
 { TARGET_NR__sysctl, "_sysctl" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_sys_epoll_create
-{ TARGET_NR_sys_epoll_create, "sys_epoll_create" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_sys_epoll_ctl
-{ TARGET_NR_sys_epoll_ctl, "sys_epoll_ctl" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_sys_epoll_wait
-{ TARGET_NR_sys_epoll_wait, "sys_epoll_wait" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_sysfs
 { TARGET_NR_sysfs, "sysfs" , NULL, NULL, NULL },
 #endif
