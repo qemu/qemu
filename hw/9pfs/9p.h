@@ -169,6 +169,10 @@ typedef struct V9fsConf
     char *fsdev_id;
 } V9fsConf;
 
+/* 9p2000.L xattr flags (matches Linux values) */
+#define P9_XATTR_CREATE 1
+#define P9_XATTR_REPLACE 2
+
 typedef struct V9fsXattr
 {
     uint64_t copied_len;
