@@ -97,7 +97,7 @@ static uint64_t pnv_core_xscom_read(void *opaque, hwaddr addr,
         val = 0x24f000000000000ull;
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx,
+        qemu_log_mask(LOG_UNIMP, "Warning: reading reg=0x%" HWADDR_PRIx "\n",
                   addr);
     }
 
@@ -107,7 +107,7 @@ static uint64_t pnv_core_xscom_read(void *opaque, hwaddr addr,
 static void pnv_core_xscom_write(void *opaque, hwaddr addr, uint64_t val,
                                  unsigned int width)
 {
-    qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx,
+    qemu_log_mask(LOG_UNIMP, "Warning: writing to reg=0x%" HWADDR_PRIx "\n",
                   addr);
 }
 
