@@ -27,8 +27,6 @@
 #ifndef QEMU_VMSTATE_H
 #define QEMU_VMSTATE_H
 
-typedef struct QJSON QJSON;
-
 typedef struct VMStateInfo VMStateInfo;
 typedef struct VMStateDescription VMStateDescription;
 typedef struct VMStateField VMStateField;
