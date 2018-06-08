@@ -35,9 +35,12 @@ static QemuOptsList throttle_opts = {
     },
 };
 
-static int throttle_configure_tgm(BlockDriverState *bs,
-                                  ThrottleGroupMember *tgm,
-                                  QDict *options, Error **errp)
+/*
+ * If this function succeeds then the throttle group name is stored in
+ * @group and must be freed by the caller.
+ * If there's an error then @group remains unmodified.
+ */
+static int throttle_parse_options(QDict *options, char **group, Error **errp)
 {
     int ret;
     const char *group_name;
@@ -62,8 +65,7 @@ static int throttle_configure_tgm(BlockDriverState *bs,
         goto fin;
     }
 
-    /* Register membership to group with name group_name */
-    throttle_group_register_tgm(tgm, group_name, bdrv_get_aio_context(bs));
+    *group = g_strdup(group_name);
     ret = 0;
 fin:
     qemu_opts_del(opts);
@@ -74,6 +76,8 @@ static int throttle_open(BlockDriverState *bs, QDict *options,
                          int flags, Error **errp)
 {
     ThrottleGroupMember *tgm = bs->opaque;
+    char *group;
+    int ret;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs,
                                &child_file, false, errp);
@@ -83,7 +87,14 @@ static int throttle_open(BlockDriverState *bs, QDict *options,
     bs->supported_write_flags = bs->file->bs->supported_write_flags;
     bs->supported_zero_flags = bs->file->bs->supported_zero_flags;
 
-    return throttle_configure_tgm(bs, tgm, options, errp);
+    ret = throttle_parse_options(options, &group, errp);
+    if (ret == 0) {
+        /* Register membership to group with name group_name */
+        throttle_group_register_tgm(tgm, group, bdrv_get_aio_context(bs));
+        g_free(group);
+    }
+
+    return ret;
 }
 
 static void throttle_close(BlockDriverState *bs)
@@ -159,35 +170,36 @@ static void throttle_attach_aio_context(BlockDriverState *bs,
 static int throttle_reopen_prepare(BDRVReopenState *reopen_state,
                                    BlockReopenQueue *queue, Error **errp)
 {
-    ThrottleGroupMember *tgm;
+    int ret;
+    char *group = NULL;
 
     assert(reopen_state != NULL);
     assert(reopen_state->bs != NULL);
 
-    reopen_state->opaque = g_new0(ThrottleGroupMember, 1);
-    tgm = reopen_state->opaque;
-
-    return throttle_configure_tgm(reopen_state->bs, tgm, reopen_state->options,
-            errp);
+    ret = throttle_parse_options(reopen_state->options, &group, errp);
+    reopen_state->opaque = group;
+    return ret;
 }
 
 static void throttle_reopen_commit(BDRVReopenState *reopen_state)
 {
-    ThrottleGroupMember *old_tgm = reopen_state->bs->opaque;
-    ThrottleGroupMember *new_tgm = reopen_state->opaque;
+    BlockDriverState *bs = reopen_state->bs;
+    ThrottleGroupMember *tgm = bs->opaque;
+    char *group = reopen_state->opaque;
 
-    throttle_group_unregister_tgm(old_tgm);
-    g_free(old_tgm);
-    reopen_state->bs->opaque = new_tgm;
+    assert(group);
+
+    if (strcmp(group, throttle_group_get_name(tgm))) {
+        throttle_group_unregister_tgm(tgm);
+        throttle_group_register_tgm(tgm, group, bdrv_get_aio_context(bs));
+    }
+    g_free(reopen_state->opaque);
     reopen_state->opaque = NULL;
 }
 
 static void throttle_reopen_abort(BDRVReopenState *reopen_state)
 {
-    ThrottleGroupMember *tgm = reopen_state->opaque;
-
-    throttle_group_unregister_tgm(tgm);
-    g_free(tgm);
+    g_free(reopen_state->opaque);
     reopen_state->opaque = NULL;
 }
 
