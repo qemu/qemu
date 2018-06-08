@@ -786,7 +786,7 @@ static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
         DPRINTF(s, D_VERBOSE, "error %d\n", p->b.bError);
     }
     if (len) {
-        g_assert_nonnull(data);
+        assert(data);
         memcpy(p->abData, data, len);
     }
     ccid_reset_error_status(s);

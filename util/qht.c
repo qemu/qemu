@@ -759,7 +759,7 @@ static void qht_do_resize_reset(struct qht *ht, struct qht_map *new, bool reset)
         return;
     }
 
-    g_assert_cmpuint(new->n_buckets, !=, old->n_buckets);
+    g_assert(new->n_buckets != old->n_buckets);
     qht_map_iter__all_locked(ht, old, qht_map_copy, new);
     qht_map_debug__all_locked(new);
 
