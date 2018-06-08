@@ -3578,14 +3578,8 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
             error_setg(errp, "Memory hotplug not supported for this machine");
             return;
         }
-        node = object_property_get_uint(OBJECT(dev), PC_DIMM_NODE_PROP, errp);
-        if (*errp) {
-            return;
-        }
-        if (node < 0 || node >= MAX_NODES) {
-            error_setg(errp, "Invaild node %d", node);
-            return;
-        }
+        node = object_property_get_uint(OBJECT(dev), PC_DIMM_NODE_PROP,
+                                        &error_abort);
 
         spapr_memory_plug(hotplug_dev, dev, node, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
