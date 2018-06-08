@@ -88,6 +88,7 @@ enum {
 
 static void palmetto_bmc_i2c_init(AspeedBoardState *bmc);
 static void ast2500_evb_i2c_init(AspeedBoardState *bmc);
+static void romulus_bmc_i2c_init(AspeedBoardState *bmc);
 static void witherspoon_bmc_i2c_init(AspeedBoardState *bmc);
 
 static const AspeedBoardConfig aspeed_boards[] = {
@@ -113,6 +114,7 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .fmc_model = "n25q256a",
         .spi_model = "mx66l1g45g",
         .num_cs    = 2,
+        .i2c_init  = romulus_bmc_i2c_init,
     },
     [WITHERSPOON_BMC]  = {
         .soc_name  = "ast2500-a1",
@@ -305,6 +307,10 @@ static void ast2500_evb_i2c_init(AspeedBoardState *bmc)
 
     /* The AST2500 EVB expects a LM75 but a TMP105 is compatible */
     i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 7), "tmp105", 0x4d);
+
+    /* The AST2500 EVB does not have an RTC. Let's pretend that one is
+     * plugged on the I2C bus header */
+    i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 11), "ds1338", 0x32);
 }
 
 static void ast2500_evb_init(MachineState *machine)
@@ -330,6 +336,15 @@ static const TypeInfo ast2500_evb_type = {
     .parent = TYPE_MACHINE,
     .class_init = ast2500_evb_class_init,
 };
+
+static void romulus_bmc_i2c_init(AspeedBoardState *bmc)
+{
+    AspeedSoCState *soc = &bmc->soc;
+
+    /* The romulus board expects Epson RX8900 I2C RTC but a ds1338 is
+     * good enough */
+    i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 11), "ds1338", 0x32);
+}
 
 static void romulus_bmc_init(MachineState *machine)
 {
@@ -364,6 +379,10 @@ static void witherspoon_bmc_i2c_init(AspeedBoardState *bmc)
 
     /* The Witherspoon expects a TMP275 but a TMP105 is compatible */
     i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 9), "tmp105", 0x4a);
+
+    /* The witherspoon board expects Epson RX8900 I2C RTC but a ds1338 is
+     * good enough */
+    i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 11), "ds1338", 0x32);
 }
 
 static void witherspoon_bmc_init(MachineState *machine)
