@@ -16,9 +16,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from __future__ import absolute_import
 import random
 import struct
-import fuzz
+from . import fuzz
 from math import ceil
 from os import urandom
 from itertools import chain

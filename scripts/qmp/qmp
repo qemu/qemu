@@ -11,8 +11,9 @@
 # See the COPYING file in the top-level directory.
 
 from __future__ import print_function
+from __future__ import absolute_import
 import sys, os
-from qmp import QEMUMonitorProtocol
+from .qmp import QEMUMonitorProtocol
 
 def print_response(rsp, prefix=[]):
     if type(rsp) == list:
