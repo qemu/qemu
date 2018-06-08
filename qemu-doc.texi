@@ -2965,11 +2965,6 @@ support page sizes < 4096 any longer.
 
 @section System emulator machines
 
-@subsection Xilinx EP108 (since 2.11.0)
-
-The ``xlnx-ep108'' machine has been replaced by the ``xlnx-zcu102'' machine.
-The ``xlnx-zcu102'' machine has the same features and capabilites in QEMU.
-
 @section Block device options
 
 @subsection "backing": "" (since 2.12.0)

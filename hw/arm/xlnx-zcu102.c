@@ -39,10 +39,6 @@ typedef struct XlnxZCU102 {
 #define ZCU102_MACHINE(obj) \
     OBJECT_CHECK(XlnxZCU102, (obj), TYPE_ZCU102_MACHINE)
 
-#define TYPE_EP108_MACHINE   MACHINE_TYPE_NAME("xlnx-ep108")
-#define EP108_MACHINE(obj) \
-    OBJECT_CHECK(XlnxZCU102, (obj), TYPE_EP108_MACHINE)
-
 static struct arm_boot_info xlnx_zcu102_binfo;
 
 static bool zcu102_get_secure(Object *obj, Error **errp)
@@ -73,8 +69,9 @@ static void zcu102_set_virt(Object *obj, bool value, Error **errp)
     s->virt = value;
 }
 
-static void xlnx_zynqmp_init(XlnxZCU102 *s, MachineState *machine)
+static void xlnx_zcu102_init(MachineState *machine)
 {
+    XlnxZCU102 *s = ZCU102_MACHINE(machine);
     int i;
     uint64_t ram_size = machine->ram_size;
 
@@ -183,60 +180,6 @@ static void xlnx_zynqmp_init(XlnxZCU102 *s, MachineState *machine)
     arm_load_kernel(s->soc.boot_cpu_ptr, &xlnx_zcu102_binfo);
 }
 
-static void xlnx_ep108_init(MachineState *machine)
-{
-    XlnxZCU102 *s = EP108_MACHINE(machine);
-
-    if (!qtest_enabled()) {
-        info_report("The Xilinx EP108 machine is deprecated, please use the "
-                    "ZCU102 machine (which has the same features) instead.");
-    }
-
-    xlnx_zynqmp_init(s, machine);
-}
-
-static void xlnx_ep108_machine_instance_init(Object *obj)
-{
-    XlnxZCU102 *s = EP108_MACHINE(obj);
-
-    /* EP108, we don't support setting secure or virt */
-    s->secure = false;
-    s->virt = false;
-}
-
-static void xlnx_ep108_machine_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->desc = "Xilinx ZynqMP EP108 board (Deprecated, please use xlnx-zcu102)";
-    mc->init = xlnx_ep108_init;
-    mc->block_default_type = IF_IDE;
-    mc->units_per_default_bus = 1;
-    mc->ignore_memory_transaction_failures = true;
-    mc->max_cpus = XLNX_ZYNQMP_NUM_APU_CPUS + XLNX_ZYNQMP_NUM_RPU_CPUS;
-    mc->default_cpus = XLNX_ZYNQMP_NUM_APU_CPUS;
-}
-
-static const TypeInfo xlnx_ep108_machine_init_typeinfo = {
-    .name       = MACHINE_TYPE_NAME("xlnx-ep108"),
-    .parent     = TYPE_MACHINE,
-    .class_init = xlnx_ep108_machine_class_init,
-    .instance_init = xlnx_ep108_machine_instance_init,
-    .instance_size = sizeof(XlnxZCU102),
-};
-
-static void xlnx_ep108_machine_init_register_types(void)
-{
-    type_register_static(&xlnx_ep108_machine_init_typeinfo);
-}
-
-static void xlnx_zcu102_init(MachineState *machine)
-{
-    XlnxZCU102 *s = ZCU102_MACHINE(machine);
-
-    xlnx_zynqmp_init(s, machine);
-}
-
 static void xlnx_zcu102_machine_instance_init(Object *obj)
 {
     XlnxZCU102 *s = ZCU102_MACHINE(obj);
@@ -289,4 +232,3 @@ static void xlnx_zcu102_machine_init_register_types(void)
 }
 
 type_init(xlnx_zcu102_machine_init_register_types)
-type_init(xlnx_ep108_machine_init_register_types)
