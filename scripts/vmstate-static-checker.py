@@ -158,7 +158,7 @@ def check_fields(src_fields, dest_fields, desc, sec):
     while True:
         if advance_src:
             try:
-                s_item = s_iter.next()
+                s_item = next(s_iter)
             except StopIteration:
                 if s_iter_list == []:
                     break
@@ -173,7 +173,7 @@ def check_fields(src_fields, dest_fields, desc, sec):
 
         if advance_dest:
             try:
-                d_item = d_iter.next()
+                d_item = next(d_iter)
             except StopIteration:
                 if d_iter_list == []:
                     # We were not in a substruct
