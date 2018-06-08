@@ -96,7 +96,7 @@ void register_write(RegisterInfo *reg, uint64_t val, uint64_t we,
     if (test) {
         qemu_log_mask(LOG_UNIMP,
                       "%s:%s writing %#" PRIx64 " to unimplemented bits:" \
-                      " %#" PRIx64 "",
+                      " %#" PRIx64 "\n",
                       prefix, reg->access->name, val, ac->unimp);
     }
 
