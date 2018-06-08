@@ -316,11 +316,14 @@ static void sd_set_scr(SDState *sd)
     if (sd->spec_version == SD_PHY_SPECv1_10_VERS) {
         sd->scr[0] |= 1;        /* Spec Version 1.10 */
     } else {
-        sd->scr[0] |= 2;        /* Spec Version 2.00 */
+        sd->scr[0] |= 2;        /* Spec Version 2.00 or Version 3.0X */
     }
     sd->scr[1] = (2 << 4)       /* SDSC Card (Security Version 1.01) */
                  | 0b0101;      /* 1-bit or 4-bit width bus modes */
     sd->scr[2] = 0x00;          /* Extended Security is not supported. */
+    if (sd->spec_version >= SD_PHY_SPECv3_01_VERS) {
+        sd->scr[2] |= 1 << 7;   /* Spec Version 3.0X */
+    }
     sd->scr[3] = 0x00;
     /* reserved for manufacturer usage */
     sd->scr[4] = 0x00;
@@ -2068,7 +2071,7 @@ static void sd_realize(DeviceState *dev, Error **errp)
 
     switch (sd->spec_version) {
     case SD_PHY_SPECv1_10_VERS
-     ... SD_PHY_SPECv2_00_VERS:
+     ... SD_PHY_SPECv3_01_VERS:
         break;
     default:
         error_setg(errp, "Invalid SD card Spec version: %u", sd->spec_version);
