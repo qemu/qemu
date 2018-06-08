@@ -90,7 +90,7 @@ class QOMFS(Fuse):
 
     def getattr(self, path):
         if self.is_link(path):
-            value = posix.stat_result((0755 | stat.S_IFLNK,
+            value = posix.stat_result((0o755 | stat.S_IFLNK,
                                        self.get_ino(path),
                                        0,
                                        2,
@@ -101,7 +101,7 @@ class QOMFS(Fuse):
                                        0,
                                        0))
         elif self.is_object(path):
-            value = posix.stat_result((0755 | stat.S_IFDIR,
+            value = posix.stat_result((0o755 | stat.S_IFDIR,
                                        self.get_ino(path),
                                        0,
                                        2,
@@ -112,7 +112,7 @@ class QOMFS(Fuse):
                                        0,
                                        0))
         elif self.is_property(path):
-            value = posix.stat_result((0644 | stat.S_IFREG,
+            value = posix.stat_result((0o644 | stat.S_IFREG,
                                        self.get_ino(path),
                                        0,
                                        1,
