@@ -45,7 +45,7 @@ def get_record(edict, idtoname, rechdr, fobj):
         rec = (name, rechdr[1], rechdr[3])
         try:
             event = edict[name]
-        except KeyError, e:
+        except KeyError as e:
             import sys
             sys.stderr.write('%s event is logged but is not declared ' \
                              'in the trace events file, try using ' \
