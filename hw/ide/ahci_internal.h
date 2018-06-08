@@ -102,24 +102,6 @@ enum AHCIPortReg {
     AHCI_PORT_REG__COUNT      = 32
 };
 
-/* registers for each SATA port */
-#define PORT_LST_ADDR             0x00 /* command list DMA addr */
-#define PORT_LST_ADDR_HI          0x04 /* command list DMA addr hi */
-#define PORT_FIS_ADDR             0x08 /* FIS rx buf addr */
-#define PORT_FIS_ADDR_HI          0x0c /* FIS rx buf addr hi */
-#define PORT_IRQ_STAT             0x10 /* interrupt status */
-#define PORT_IRQ_MASK             0x14 /* interrupt enable/disable mask */
-#define PORT_CMD                  0x18 /* port command */
-
-#define PORT_TFDATA               0x20 /* taskfile data */
-#define PORT_SIG                  0x24 /* device TF signature */
-#define PORT_SCR_STAT             0x28 /* SATA phy register: SStatus */
-#define PORT_SCR_CTL              0x2c /* SATA phy register: SControl */
-#define PORT_SCR_ERR              0x30 /* SATA phy register: SError */
-#define PORT_SCR_ACT              0x34 /* SATA phy register: SActive */
-#define PORT_CMD_ISSUE            0x38 /* command issue */
-#define PORT_RESERVED             0x3c /* reserved */
-
 /* Port interrupt bit descriptors */
 enum AHCIPortIRQ {
     AHCI_PORT_IRQ_BIT_DHRS = 0,
