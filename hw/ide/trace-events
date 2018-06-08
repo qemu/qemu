@@ -63,7 +63,8 @@ ide_atapi_cmd_read_dma_cb_aio(void *s, int lba, int n) "IDEState: %p; aio read: 
 ide_atapi_cmd_packet(void *s, uint16_t limit, const char *packet) "IDEState: %p; limit=0x%x packet: %s"
 
 # hw/ide/ahci.c
-ahci_port_read(void *s, int port, int offset, uint32_t ret) "ahci(%p)[%d]: port read @ 0x%x: 0x%08x"
+ahci_port_read(void *s, int port, const char *reg, int offset, uint32_t ret) "ahci(%p)[%d]: port read [reg:%s] @ 0x%x: 0x%08x"
+ahci_port_read_default(void *s, int port, const char *reg, int offset) "ahci(%p)[%d]: unimplemented port read [reg:%s] @ 0x%x"
 ahci_irq_raise(void *s) "ahci(%p): raise irq"
 ahci_irq_lower(void *s) "ahci(%p): lower irq"
 ahci_check_irq(void *s, uint32_t old, uint32_t new) "ahci(%p): check irq 0x%08x --> 0x%08x"

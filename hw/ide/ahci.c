@@ -46,7 +46,6 @@ static bool ahci_map_fis_address(AHCIDevice *ad);
 static void ahci_unmap_clb_address(AHCIDevice *ad);
 static void ahci_unmap_fis_address(AHCIDevice *ad);
 
-__attribute__((__unused__)) /* TODO */
 static const char *AHCIPortReg_lookup[AHCI_PORT_REG__COUNT] = {
     [AHCI_PORT_REG_LST_ADDR]    = "PxCLB",
     [AHCI_PORT_REG_LST_ADDR_HI] = "PxCLBU",
@@ -149,10 +148,12 @@ static uint32_t ahci_port_read(AHCIState *s, int port, int offset)
         val = pr->cmd_issue;
         break;
     default:
+        trace_ahci_port_read_default(s, port, AHCIPortReg_lookup[regnum],
+                                     offset);
         val = 0;
     }
 
-    trace_ahci_port_read(s, port, offset, val);
+    trace_ahci_port_read(s, port, AHCIPortReg_lookup[regnum], offset, val);
     return val;
 }
 
