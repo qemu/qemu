@@ -2978,6 +2978,7 @@ int main(int argc, char **argv, char **envp)
 
     runstate_init();
     postcopy_infrastructure_init();
+    monitor_init_globals();
 
     if (qcrypto_init(&err) < 0) {
         error_reportf_err(err, "cannot initialize crypto: ");
@@ -4411,12 +4412,6 @@ int main(int argc, char **argv, char **envp)
                   CDROM_OPTS);
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
     default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
-
-    /*
-     * Note: qtest_enabled() (which is used in monitor_qapi_event_init())
-     * depends on configure_accelerator() above.
-     */
-    monitor_init_globals();
 
     if (qemu_opts_foreach(qemu_find_opts("mon"),
                           mon_init_func, NULL, NULL)) {
