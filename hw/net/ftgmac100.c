@@ -207,16 +207,18 @@ typedef struct {
 /*
  * Max frame size for the receiving buffer
  */
-#define FTGMAC100_MAX_FRAME_SIZE    10240
+#define FTGMAC100_MAX_FRAME_SIZE    9220
 
 /* Limits depending on the type of the frame
  *
  *   9216 for Jumbo frames (+ 4 for VLAN)
  *   1518 for other frames (+ 4 for VLAN)
  */
-static int ftgmac100_max_frame_size(FTGMAC100State *s)
+static int ftgmac100_max_frame_size(FTGMAC100State *s, uint16_t proto)
 {
-    return (s->maccr & FTGMAC100_MACCR_JUMBO_LF ? 9216 : 1518) + 4;
+    int max = (s->maccr & FTGMAC100_MACCR_JUMBO_LF ? 9216 : 1518);
+
+    return max + (proto == ETH_P_VLAN ? 4 : 0);
 }
 
 static void ftgmac100_update_irq(FTGMAC100State *s)
@@ -408,7 +410,6 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
     uint8_t *ptr = s->frame;
     uint32_t addr = tx_descriptor;
     uint32_t flags = 0;
-    int max_frame_size = ftgmac100_max_frame_size(s);
 
     while (1) {
         FTGMAC100Desc bd;
@@ -427,11 +428,12 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
             flags = bd.des1;
         }
 
-        len = bd.des0 & 0x3FFF;
-        if (frame_size + len > max_frame_size) {
+        len = FTGMAC100_TXDES0_TXBUF_SIZE(bd.des0);
+        if (frame_size + len > sizeof(s->frame)) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: frame too big : %d bytes\n",
                           __func__, len);
-            len = max_frame_size - frame_size;
+            s->isr |= FTGMAC100_INT_XPKT_LOST;
+            len =  sizeof(s->frame) - frame_size;
         }
 
         if (dma_memory_read(&address_space_memory, bd.des3, ptr, len)) {
@@ -788,7 +790,8 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
     uint32_t buf_len;
     size_t size = len;
     uint32_t first = FTGMAC100_RXDES0_FRS;
-    int max_frame_size = ftgmac100_max_frame_size(s);
+    uint16_t proto = be16_to_cpu(PKT_GET_ETH_HDR(buf)->h_proto);
+    int max_frame_size = ftgmac100_max_frame_size(s, proto);
 
     if ((s->maccr & (FTGMAC100_MACCR_RXDMA_EN | FTGMAC100_MACCR_RXMAC_EN))
          != (FTGMAC100_MACCR_RXDMA_EN | FTGMAC100_MACCR_RXMAC_EN)) {
@@ -820,9 +823,9 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
 
     /* Huge frames are truncated.  */
     if (size > max_frame_size) {
-        size = max_frame_size;
         qemu_log_mask(LOG_GUEST_ERROR, "%s: frame too big : %zd bytes\n",
                       __func__, size);
+        size = max_frame_size;
         flags |= FTGMAC100_RXDES0_FTL;
     }
 
@@ -940,8 +943,6 @@ static void ftgmac100_realize(DeviceState *dev, Error **errp)
                           object_get_typename(OBJECT(dev)), DEVICE(dev)->id,
                           s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
-
-    s->frame = g_malloc(FTGMAC100_MAX_FRAME_SIZE);
 }
 
 static const VMStateDescription vmstate_ftgmac100 = {
