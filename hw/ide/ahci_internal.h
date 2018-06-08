@@ -55,12 +55,6 @@
 #define RX_FIS_UNK                0x60 /* offset of Unknown FIS data */
 
 /* global controller registers */
-#define HOST_CAP                  0x00 /* host capabilities */
-#define HOST_CTL                  0x04 /* global host control */
-#define HOST_IRQ_STAT             0x08 /* interrupt status */
-#define HOST_PORTS_IMPL           0x0c /* bitmap of implemented ports */
-#define HOST_VERSION              0x10 /* AHCI spec. version compliancy */
-
 enum AHCIHostReg {
     AHCI_HOST_REG_CAP        = 0,  /* CAP: host capabilities */
     AHCI_HOST_REG_CTL        = 1,  /* GHC: global host control */
