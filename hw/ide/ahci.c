@@ -494,13 +494,26 @@ static void ahci_mem_write(void *opaque, hwaddr addr,
             /* FIXME report write? */
             break;
         default:
-            trace_ahci_mem_write_unknown(s, size, addr, val);
+            qemu_log_mask(LOG_UNIMP,
+                          "Attempted write to unimplemented register: "
+                          "AHCI host register %s, "
+                          "offset 0x%"PRIx64": 0x%"PRIx64,
+                          AHCIHostReg_lookup[regnum], addr, val);
+            trace_ahci_mem_write_host_unimpl(s, size,
+                                             AHCIHostReg_lookup[regnum], addr);
         }
+        trace_ahci_mem_write_host(s, size, AHCIHostReg_lookup[regnum],
+                                     addr, val);
     } else if ((addr >= AHCI_PORT_REGS_START_ADDR) &&
                (addr < (AHCI_PORT_REGS_START_ADDR +
                         (s->ports * AHCI_PORT_ADDR_OFFSET_LEN)))) {
         ahci_port_write(s, (addr - AHCI_PORT_REGS_START_ADDR) >> 7,
                         addr & AHCI_PORT_ADDR_OFFSET_MASK, val);
+    } else {
+        qemu_log_mask(LOG_UNIMP, "Attempted write to unimplemented register: "
+                      "AHCI global register at offset 0x%"PRIx64": 0x%"PRIx64,
+                      addr, val);
+        trace_ahci_mem_write_unimpl(s, size, addr, val);
     }
 }
 
