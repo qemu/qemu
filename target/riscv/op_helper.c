@@ -293,7 +293,8 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
         if ((val_to_write & 3) == 0) {
             env->stvec = val_to_write >> 2 << 2;
         } else {
-            qemu_log_mask(LOG_UNIMP, "CSR_STVEC: vectored traps not supported");
+            qemu_log_mask(LOG_UNIMP,
+                          "CSR_STVEC: vectored traps not supported\n");
         }
         break;
     case CSR_SCOUNTEREN:
@@ -320,7 +321,8 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
         if ((val_to_write & 3) == 0) {
             env->mtvec = val_to_write >> 2 << 2;
         } else {
-            qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: vectored traps not supported");
+            qemu_log_mask(LOG_UNIMP,
+                          "CSR_MTVEC: vectored traps not supported\n");
         }
         break;
     case CSR_MCOUNTEREN:

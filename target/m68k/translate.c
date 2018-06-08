@@ -1556,7 +1556,7 @@ DISAS_INSN(undef)
     /* ??? This is both instructions that are as yet unimplemented
        for the 680x0 series, as well as those that are implemented
        but actually illegal for CPU32 or pre-68020.  */
-    qemu_log_mask(LOG_UNIMP, "Illegal instruction: %04x @ %08x",
+    qemu_log_mask(LOG_UNIMP, "Illegal instruction: %04x @ %08x\n",
                   insn, s->insn_pc);
     gen_exception(s, s->insn_pc, EXCP_UNSUPPORTED);
 }

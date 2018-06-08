@@ -140,7 +140,7 @@ static uint64_t memcard_read(void *opaque, hwaddr addr,
             r = s->response[s->response_read_ptr++];
             if (s->response_read_ptr > s->response_len) {
                 qemu_log_mask(LOG_GUEST_ERROR, "milkymist_memcard: "
-                              "read more cmd bytes than available. Clipping.");
+                              "read more cmd bytes than available: clipping\n");
                 s->response_read_ptr = 0;
             }
         }

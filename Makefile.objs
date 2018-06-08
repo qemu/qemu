@@ -213,6 +213,7 @@ trace-events-subdirs += hw/char
 trace-events-subdirs += hw/display
 trace-events-subdirs += hw/dma
 trace-events-subdirs += hw/hppa
+trace-events-subdirs += hw/i2c
 trace-events-subdirs += hw/i386
 trace-events-subdirs += hw/i386/xen
 trace-events-subdirs += hw/ide

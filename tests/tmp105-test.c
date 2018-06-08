@@ -14,8 +14,6 @@
 #include "qapi/qmp/qdict.h"
 #include "hw/misc/tmp105_regs.h"
 
-#define OMAP2_I2C_1_BASE 0x48070000
-
 #define TMP105_TEST_ID   "tmp105-test"
 #define TMP105_TEST_ADDR 0x49
 
