@@ -176,7 +176,7 @@ static uint64_t boston_platreg_read(void *opaque, hwaddr addr,
     uint32_t gic_freq, val;
 
     if (size != 4) {
-        qemu_log_mask(LOG_UNIMP, "%uB platform register read", size);
+        qemu_log_mask(LOG_UNIMP, "%uB platform register read\n", size);
         return 0;
     }
 
@@ -205,7 +205,7 @@ static uint64_t boston_platreg_read(void *opaque, hwaddr addr,
         val |= PLAT_DDR_CFG_MHZ;
         return val;
     default:
-        qemu_log_mask(LOG_UNIMP, "Read platform register 0x%" HWADDR_PRIx,
+        qemu_log_mask(LOG_UNIMP, "Read platform register 0x%" HWADDR_PRIx "\n",
                       addr & 0xffff);
         return 0;
     }
@@ -215,7 +215,7 @@ static void boston_platreg_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
     if (size != 4) {
-        qemu_log_mask(LOG_UNIMP, "%uB platform register write", size);
+        qemu_log_mask(LOG_UNIMP, "%uB platform register write\n", size);
         return;
     }
 
@@ -237,7 +237,7 @@ static void boston_platreg_write(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "Write platform register 0x%" HWADDR_PRIx
-                      " = 0x%" PRIx64, addr & 0xffff, val);
+                      " = 0x%" PRIx64 "\n", addr & 0xffff, val);
         break;
     }
 }
