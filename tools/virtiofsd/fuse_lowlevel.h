@@ -1755,6 +1755,13 @@ void fuse_req_interrupt_func(fuse_req_t req, fuse_interrupt_func_t func,
  */
 int fuse_req_interrupted(fuse_req_t req);
 
+/**
+ * Check if the session is connected via virtio
+ *
+ * @param se session object
+ * @return 1 if the session is a virtio session
+ */
+int fuse_lowlevel_is_virtio(struct fuse_session *se);
 
 /*
  * Inquiry functions

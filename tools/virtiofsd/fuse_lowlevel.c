@@ -2242,6 +2242,11 @@ void fuse_session_unmount(struct fuse_session *se)
 {
 }
 
+int fuse_lowlevel_is_virtio(struct fuse_session *se)
+{
+    return se->vu_socket_path != NULL;
+}
+
 #ifdef linux
 int fuse_req_getgroups(fuse_req_t req, int size, gid_t list[])
 {

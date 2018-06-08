@@ -13,6 +13,8 @@
 #include "fuse.h"
 #include "fuse_lowlevel.h"
 
+struct fv_VuDev;
+
 struct fuse_req {
     struct fuse_session *se;
     uint64_t unique;
@@ -65,6 +67,8 @@ struct fuse_session {
     size_t bufsize;
     int error;
     char *vu_socket_path;
+    int   vu_socketfd;
+    struct fv_VuDev *virtio_dev;
 };
 
 struct fuse_chan {
