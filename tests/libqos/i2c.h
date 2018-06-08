@@ -21,6 +21,8 @@ struct I2CAdapter {
     QTestState *qts;
 };
 
+#define OMAP2_I2C_1_BASE 0x48070000
+
 void i2c_send(I2CAdapter *i2c, uint8_t addr,
               const uint8_t *buf, uint16_t len);
 void i2c_recv(I2CAdapter *i2c, uint8_t addr,
