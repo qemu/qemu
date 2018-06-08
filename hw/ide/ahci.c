@@ -93,41 +93,42 @@ static const char *AHCIPortIRQ_lookup[AHCI_PORT_IRQ__COUNT] = {
     [AHCI_PORT_IRQ_BIT_CPDS] = "CPDS"
 };
 
-static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
+static uint32_t ahci_port_read(AHCIState *s, int port, int offset)
 {
     uint32_t val;
-    AHCIPortRegs *pr;
-    pr = &s->dev[port].port_regs;
+    AHCIPortRegs *pr = &s->dev[port].port_regs;
+    enum AHCIPortReg regnum = offset / sizeof(uint32_t);
+    assert(regnum < (AHCI_PORT_ADDR_OFFSET_LEN / sizeof(uint32_t)));
 
-    switch (offset) {
-    case PORT_LST_ADDR:
+    switch (regnum) {
+    case AHCI_PORT_REG_LST_ADDR:
         val = pr->lst_addr;
         break;
-    case PORT_LST_ADDR_HI:
+    case AHCI_PORT_REG_LST_ADDR_HI:
         val = pr->lst_addr_hi;
         break;
-    case PORT_FIS_ADDR:
+    case AHCI_PORT_REG_FIS_ADDR:
         val = pr->fis_addr;
         break;
-    case PORT_FIS_ADDR_HI:
+    case AHCI_PORT_REG_FIS_ADDR_HI:
         val = pr->fis_addr_hi;
         break;
-    case PORT_IRQ_STAT:
+    case AHCI_PORT_REG_IRQ_STAT:
         val = pr->irq_stat;
         break;
-    case PORT_IRQ_MASK:
+    case AHCI_PORT_REG_IRQ_MASK:
         val = pr->irq_mask;
         break;
-    case PORT_CMD:
+    case AHCI_PORT_REG_CMD:
         val = pr->cmd;
         break;
-    case PORT_TFDATA:
+    case AHCI_PORT_REG_TFDATA:
         val = pr->tfdata;
         break;
-    case PORT_SIG:
+    case AHCI_PORT_REG_SIG:
         val = pr->sig;
         break;
-    case PORT_SCR_STAT:
+    case AHCI_PORT_REG_SCR_STAT:
         if (s->dev[port].port.ifs[0].blk) {
             val = SATA_SCR_SSTATUS_DET_DEV_PRESENT_PHY_UP |
                   SATA_SCR_SSTATUS_SPD_GEN1 | SATA_SCR_SSTATUS_IPM_ACTIVE;
@@ -135,19 +136,18 @@ static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
             val = SATA_SCR_SSTATUS_DET_NODEV;
         }
         break;
-    case PORT_SCR_CTL:
+    case AHCI_PORT_REG_SCR_CTL:
         val = pr->scr_ctl;
         break;
-    case PORT_SCR_ERR:
+    case AHCI_PORT_REG_SCR_ERR:
         val = pr->scr_err;
         break;
-    case PORT_SCR_ACT:
+    case AHCI_PORT_REG_SCR_ACT:
         val = pr->scr_act;
         break;
-    case PORT_CMD_ISSUE:
+    case AHCI_PORT_REG_CMD_ISSUE:
         val = pr->cmd_issue;
         break;
-    case PORT_RESERVED:
     default:
         val = 0;
     }
