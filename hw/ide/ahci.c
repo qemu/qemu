@@ -532,13 +532,6 @@ static void ahci_check_cmd_bh(void *opaque)
     qemu_bh_delete(ad->check_bh);
     ad->check_bh = NULL;
 
-    if ((ad->busy_slot != -1) &&
-        !(ad->port.ifs[0].status & (BUSY_STAT|DRQ_STAT))) {
-        /* no longer busy */
-        ad->port_regs.cmd_issue &= ~(1 << ad->busy_slot);
-        ad->busy_slot = -1;
-    }
-
     check_cmd(ad->hba, ad->port_no);
 }
 
@@ -1424,6 +1417,12 @@ static void ahci_cmd_done(IDEDMA *dma)
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
 
     trace_ahci_cmd_done(ad->hba, ad->port_no);
+
+    /* no longer busy */
+    if (ad->busy_slot != -1) {
+        ad->port_regs.cmd_issue &= ~(1 << ad->busy_slot);
+        ad->busy_slot = -1;
+    }
 
     /* update d2h status */
     ahci_write_fis_d2h(ad);
