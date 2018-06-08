@@ -468,11 +468,14 @@ static void ahci_mem_write(void *opaque, hwaddr addr,
     }
 
     if (addr < AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR) {
-        switch (addr) {
-        case HOST_CAP: /* R/WO, RO */
+        enum AHCIHostReg regnum = addr / 4;
+        assert(regnum < AHCI_HOST_REG__COUNT);
+
+        switch (regnum) {
+        case AHCI_HOST_REG_CAP: /* R/WO, RO */
             /* FIXME handle R/WO */
             break;
-        case HOST_CTL: /* R/W */
+        case AHCI_HOST_REG_CTL: /* R/W */
             if (val & HOST_CTL_RESET) {
                 ahci_reset(s);
             } else {
@@ -480,14 +483,14 @@ static void ahci_mem_write(void *opaque, hwaddr addr,
                 ahci_check_irq(s);
             }
             break;
-        case HOST_IRQ_STAT: /* R/WC, RO */
+        case AHCI_HOST_REG_IRQ_STAT: /* R/WC, RO */
             s->control_regs.irqstatus &= ~val;
             ahci_check_irq(s);
             break;
-        case HOST_PORTS_IMPL: /* R/WO, RO */
+        case AHCI_HOST_REG_PORTS_IMPL: /* R/WO, RO */
             /* FIXME handle R/WO */
             break;
-        case HOST_VERSION: /* RO */
+        case AHCI_HOST_REG_VERSION: /* RO */
             /* FIXME report write? */
             break;
         default:
