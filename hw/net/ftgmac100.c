@@ -822,12 +822,6 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
         return size;
     }
 
-    if (size < 64 && !(s->maccr & FTGMAC100_MACCR_RX_RUNT)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: dropped runt frame of %zd bytes\n",
-                      __func__, size);
-        return size;
-    }
-
     if (!ftgmac100_filter(s, buf, size)) {
         return size;
     }
