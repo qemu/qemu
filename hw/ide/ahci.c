@@ -469,37 +469,36 @@ static void ahci_mem_write(void *opaque, hwaddr addr,
 
     if (addr < AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR) {
         switch (addr) {
-            case HOST_CAP: /* R/WO, RO */
-                /* FIXME handle R/WO */
-                break;
-            case HOST_CTL: /* R/W */
-                if (val & HOST_CTL_RESET) {
-                    ahci_reset(s);
-                } else {
-                    s->control_regs.ghc = (val & 0x3) | HOST_CTL_AHCI_EN;
-                    ahci_check_irq(s);
-                }
-                break;
-            case HOST_IRQ_STAT: /* R/WC, RO */
-                s->control_regs.irqstatus &= ~val;
+        case HOST_CAP: /* R/WO, RO */
+            /* FIXME handle R/WO */
+            break;
+        case HOST_CTL: /* R/W */
+            if (val & HOST_CTL_RESET) {
+                ahci_reset(s);
+            } else {
+                s->control_regs.ghc = (val & 0x3) | HOST_CTL_AHCI_EN;
                 ahci_check_irq(s);
-                break;
-            case HOST_PORTS_IMPL: /* R/WO, RO */
-                /* FIXME handle R/WO */
-                break;
-            case HOST_VERSION: /* RO */
-                /* FIXME report write? */
-                break;
-            default:
-                trace_ahci_mem_write_unknown(s, size, addr, val);
+            }
+            break;
+        case HOST_IRQ_STAT: /* R/WC, RO */
+            s->control_regs.irqstatus &= ~val;
+            ahci_check_irq(s);
+            break;
+        case HOST_PORTS_IMPL: /* R/WO, RO */
+            /* FIXME handle R/WO */
+            break;
+        case HOST_VERSION: /* RO */
+            /* FIXME report write? */
+            break;
+        default:
+            trace_ahci_mem_write_unknown(s, size, addr, val);
         }
     } else if ((addr >= AHCI_PORT_REGS_START_ADDR) &&
                (addr < (AHCI_PORT_REGS_START_ADDR +
-                (s->ports * AHCI_PORT_ADDR_OFFSET_LEN)))) {
+                        (s->ports * AHCI_PORT_ADDR_OFFSET_LEN)))) {
         ahci_port_write(s, (addr - AHCI_PORT_REGS_START_ADDR) >> 7,
                         addr & AHCI_PORT_ADDR_OFFSET_MASK, val);
     }
-
 }
 
 static const MemoryRegionOps ahci_mem_ops = {
