@@ -224,8 +224,7 @@ enum AHCIPortIRQ {
 #define SATA_SIGNATURE_CDROM               0xeb140101
 #define SATA_SIGNATURE_DISK                0x00000101
 
-#define AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR 0x20
-                                            /* Shouldn't this be 0x2c? */
+#define AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR 0x2c
 
 #define AHCI_PORT_REGS_START_ADDR          0x100
 #define AHCI_PORT_ADDR_OFFSET_MASK         0x7f
