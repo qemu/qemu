@@ -23,6 +23,7 @@
 Run QEMU with all combinations of -machine and -device types,
 check for crashes and unexpected errors.
 """
+from __future__ import print_function
 
 import sys
 import os
@@ -554,7 +555,7 @@ def main():
                 tc[k] = v
 
     if len(binariesToTest(args, tc)) == 0:
-        print >>sys.stderr, "No QEMU binary found"
+        print("No QEMU binary found", file=sys.stderr)
         parser.print_usage(sys.stderr)
         return 1
 

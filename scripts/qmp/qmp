@@ -10,6 +10,7 @@
 # This work is licensed under the terms of the GNU GPLv2 or later.
 # See the COPYING file in the top-level directory.
 
+from __future__ import print_function
 import sys, os
 from qmp import QEMUMonitorProtocol
 
@@ -26,9 +27,9 @@ def print_response(rsp, prefix=[]):
             print_response(rsp[key], prefix + [key])
     else:
         if len(prefix):
-            print '%s: %s' % ('.'.join(prefix), rsp)
+            print('%s: %s' % ('.'.join(prefix), rsp))
         else:
-            print '%s' % (rsp)
+            print('%s' % (rsp))
 
 def main(args):
     path = None
@@ -53,21 +54,21 @@ def main(args):
             elif arg in ['help']:
                 os.execlp('man', 'man', 'qmp')
             else:
-                print 'Unknown argument "%s"' % arg
+                print('Unknown argument "%s"' % arg)
 
             args = args[1:]
         else:
             break
 
     if not path:
-        print "QMP path isn't set, use --path=qmp-monitor-address or set QMP_PATH"
+        print("QMP path isn't set, use --path=qmp-monitor-address or set QMP_PATH")
         return 1
 
     if len(args):
         command, args = args[0], args[1:]
     else:
-        print 'No command found'
-        print 'Usage: "qmp [--path=qmp-monitor-address] qmp-cmd arguments"'
+        print('No command found')
+        print('Usage: "qmp [--path=qmp-monitor-address] qmp-cmd arguments"')
         return 1
 
     if command in ['help']:
@@ -93,7 +94,7 @@ def main(args):
             os.execvp(fullcmd, [fullcmd] + args)
         except OSError as exc:
             if exc.errno == 2:
-                print 'Command "%s" not found.' % (fullcmd)
+                print('Command "%s" not found.' % (fullcmd))
                 return 1
             raise
         return 0
@@ -104,7 +105,7 @@ def main(args):
     arguments = {}
     for arg in args:
         if not arg.startswith('--'):
-            print 'Unknown argument "%s"' % arg
+            print('Unknown argument "%s"' % arg)
             return 1
 
         arg = arg[2:]

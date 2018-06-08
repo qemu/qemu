@@ -11,6 +11,7 @@
 # the COPYING file in the top-level directory.
 ##
 
+from __future__ import print_function
 import sys
 import os
 from qmp import QEMUMonitorProtocol
@@ -33,7 +34,7 @@ def usage_error(error_msg = "unspecified error"):
 
 if len(args) > 0:
     if args[0] == "-h":
-        print usage()
+        print(usage())
         exit(0);
     elif args[0] == "-s":
         try:
@@ -52,13 +53,13 @@ srv = QEMUMonitorProtocol(socket_path)
 srv.connect()
 
 if len(args) == 0:
-    print '/'
+    print('/')
     sys.exit(0)
 
 for item in srv.command('qom-list', path=args[0]):
     if item['type'].startswith('child<'):
-        print '%s/' % item['name']
+        print('%s/' % item['name'])
     elif item['type'].startswith('link<'):
-        print '@%s/' % item['name']
+        print('@%s/' % item['name'])
     else:
-        print '%s' % item['name']
+        print('%s' % item['name'])

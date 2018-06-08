@@ -20,6 +20,7 @@
 # Exercise the QEMU 'luks' block driver to validate interoperability
 # with the Linux dm-crypt + cryptsetup implementation
 
+from __future__ import print_function
 import subprocess
 import os
 import os.path
@@ -376,7 +377,7 @@ def test_once(config, qemu_img=False):
     finally:
         iotests.log("# Delete image")
         delete_image(config)
-        print
+        print()
 
 
 # Obviously we only work with the luks image format

@@ -13,6 +13,7 @@
 # the COPYING file in the top-level directory.
 ##
 
+from __future__ import print_function
 import sys
 import os
 from qmp import QEMUMonitorProtocol
@@ -35,7 +36,7 @@ def usage_error(error_msg = "unspecified error"):
 
 if len(args) > 0:
     if args[0] == "-h":
-        print usage()
+        print(usage())
         exit(0);
     elif args[0] == "-s":
         try:
@@ -54,15 +55,15 @@ srv = QEMUMonitorProtocol(socket_path)
 srv.connect()
 
 def list_node(path):
-    print '%s' % path
+    print('%s' % path)
     items = srv.command('qom-list', path=path)
     for item in items:
         if not item['type'].startswith('child<'):
             try:
-                print '  %s: %s (%s)' % (item['name'], srv.command('qom-get', path=path, property=item['name']), item['type'])
+                print('  %s: %s (%s)' % (item['name'], srv.command('qom-get', path=path, property=item['name']), item['type']))
             except:
-                print '  %s: <EXCEPTION> (%s)' % (item['name'], item['type'])
-    print ''
+                print('  %s: <EXCEPTION> (%s)' % (item['name'], item['type']))
+    print('')
     for item in items:
         if item['type'].startswith('child<'):
             list_node((path if (path != '/') else '')  + '/' + item['name'])

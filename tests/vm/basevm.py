@@ -11,6 +11,7 @@
 # the COPYING file in the top-level directory.
 #
 
+from __future__ import print_function
 import os
 import sys
 import logging
@@ -222,7 +223,7 @@ def main(vmcls):
     try:
         args, argv = parse_args(vmcls.name)
         if not argv and not args.build_qemu and not args.build_image:
-            print "Nothing to do?"
+            print("Nothing to do?")
             return 1
         logging.basicConfig(level=(logging.DEBUG if args.debug
                                    else logging.WARN))
