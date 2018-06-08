@@ -134,7 +134,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
     def _fill_completion(self):
         cmds = self.cmd('query-commands')
-        if cmds.has_key('error'):
+        if 'error' in cmds:
             return
         for cmd in cmds['return']:
             self._completer.append(cmd['name'])

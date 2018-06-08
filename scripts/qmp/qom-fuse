@@ -29,7 +29,7 @@ class QOMFS(Fuse):
         self.ino_count = 1
 
     def get_ino(self, path):
-        if self.ino_map.has_key(path):
+        if path in self.ino_map:
             return self.ino_map[path]
         self.ino_map[path] = self.ino_count
         self.ino_count += 1

@@ -36,7 +36,7 @@ def main(args):
     path = None
 
     # Use QMP_PATH if it's set
-    if os.environ.has_key('QMP_PATH'):
+    if 'QMP_PATH' in os.environ:
         path = os.environ['QMP_PATH']
 
     while len(args):
@@ -80,7 +80,7 @@ def main(args):
 
     def do_command(srv, cmd, **kwds):
         rsp = srv.cmd(cmd, kwds)
-        if rsp.has_key('error'):
+        if 'error' in rsp:
             raise Exception(rsp['error']['desc'])
         return rsp['return']
 

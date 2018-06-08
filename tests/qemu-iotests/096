@@ -53,9 +53,9 @@ class TestLiveSnapshot(iotests.QMPTestCase):
                 self.assertEqual(r['iops'], self.iops)
                 self.assertEqual(r['iops_size'], self.iops_size)
             else:
-                self.assertFalse(r.has_key('group'))
+                self.assertFalse('group' in r)
                 self.assertEqual(r['iops'], 0)
-                self.assertFalse(r.has_key('iops_size'))
+                self.assertFalse('iops_size' in r)
 
     def testSnapshot(self):
         self.checkConfig('base')

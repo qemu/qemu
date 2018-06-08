@@ -46,7 +46,7 @@ if len(args) > 0:
         args = args[2:]
 
 if not socket_path:
-    if os.environ.has_key('QMP_SOCKET'):
+    if 'QMP_SOCKET' in os.environ:
         socket_path = os.environ['QMP_SOCKET']
     else:
         usage_error("no QMP socket path or address given");
