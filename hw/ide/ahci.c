@@ -27,6 +27,7 @@
 #include "hw/pci/pci.h"
 
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 #include "hw/ide/internal.h"
@@ -284,8 +285,8 @@ static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
     AHCIPortRegs *pr = &s->dev[port].port_regs;
     enum AHCIPortReg regnum = offset / sizeof(uint32_t);
     assert(regnum < (AHCI_PORT_ADDR_OFFSET_LEN / sizeof(uint32_t)));
+    trace_ahci_port_write(s, port, AHCIPortReg_lookup[regnum], offset, val);
 
-    trace_ahci_port_write(s, port, offset, val);
     switch (regnum) {
     case AHCI_PORT_REG_LST_ADDR:
         pr->lst_addr = val;
@@ -355,6 +356,11 @@ static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
         check_cmd(s, port);
         break;
     default:
+        trace_ahci_port_write_unimpl(s, port, AHCIPortReg_lookup[regnum],
+                                     offset, val);
+        qemu_log_mask(LOG_UNIMP, "Attempted write to unimplemented register: "
+                      "AHCI port %d register %s, offset 0x%x: 0x%"PRIx32,
+                      port, AHCIPortReg_lookup[regnum], offset, val);
         break;
     }
 }
