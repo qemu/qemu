@@ -114,6 +114,7 @@ ifneq (,$(findstring qemu-ga,$(TOOLS)))
 check-unit-$(land,$(CONFIG_LINUX),$(CONFIG_VIRTIO_SERIAL)) += tests/test-qga$(EXESUF)
 endif
 check-unit-y += tests/test-timed-average$(EXESUF)
+check-unit-$(CONFIG_INOTIFY1) += tests/test-util-filemonitor$(EXESUF)
 check-unit-y += tests/test-util-sockets$(EXESUF)
 check-unit-y += tests/test-io-task$(EXESUF)
 check-unit-y += tests/test-io-channel-socket$(EXESUF)
@@ -657,6 +658,8 @@ tests/test-crypto-tlssession$(EXESUF): tests/test-crypto-tlssession.o \
 	tests/crypto-tls-x509-helpers.o tests/pkix_asn1_tab.o \
 	tests/crypto-tls-psk-helpers.o \
         $(test-crypto-obj-y)
+tests/test-util-filemonitor$(EXESUF): tests/test-util-filemonitor.o \
+	$(test-util-obj-y)
 tests/test-util-sockets$(EXESUF): tests/test-util-sockets.o \
 	tests/socket-helpers.o $(test-util-obj-y)
 tests/test-io-task$(EXESUF): tests/test-io-task.o $(test-io-obj-y)

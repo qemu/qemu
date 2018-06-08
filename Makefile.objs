@@ -1,6 +1,6 @@
 #######################################################################
 # Common libraries for tools and emulators
-stub-obj-y = stubs/ crypto/
+stub-obj-y = stubs/ util/ crypto/
 util-obj-y = util/ qobject/ qapi/
 
 chardev-obj-y = chardev/
