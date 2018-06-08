@@ -282,30 +282,32 @@ static int ahci_cond_start_engines(AHCIDevice *ad)
 static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
 {
     AHCIPortRegs *pr = &s->dev[port].port_regs;
+    enum AHCIPortReg regnum = offset / sizeof(uint32_t);
+    assert(regnum < (AHCI_PORT_ADDR_OFFSET_LEN / sizeof(uint32_t)));
 
     trace_ahci_port_write(s, port, offset, val);
-    switch (offset) {
-    case PORT_LST_ADDR:
+    switch (regnum) {
+    case AHCI_PORT_REG_LST_ADDR:
         pr->lst_addr = val;
         break;
-    case PORT_LST_ADDR_HI:
+    case AHCI_PORT_REG_LST_ADDR_HI:
         pr->lst_addr_hi = val;
         break;
-    case PORT_FIS_ADDR:
+    case AHCI_PORT_REG_FIS_ADDR:
         pr->fis_addr = val;
         break;
-    case PORT_FIS_ADDR_HI:
+    case AHCI_PORT_REG_FIS_ADDR_HI:
         pr->fis_addr_hi = val;
         break;
-    case PORT_IRQ_STAT:
+    case AHCI_PORT_REG_IRQ_STAT:
         pr->irq_stat &= ~val;
         ahci_check_irq(s);
         break;
-    case PORT_IRQ_MASK:
+    case AHCI_PORT_REG_IRQ_MASK:
         pr->irq_mask = val & 0xfdc000ff;
         ahci_check_irq(s);
         break;
-    case PORT_CMD:
+    case AHCI_PORT_REG_CMD:
         /* Block any Read-only fields from being set;
          * including LIST_ON and FIS_ON.
          * The spec requires to set ICC bits to zero after the ICC change
@@ -329,26 +331,26 @@ static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
 
         check_cmd(s, port);
         break;
-    case PORT_TFDATA:
-    case PORT_SIG:
-    case PORT_SCR_STAT:
+    case AHCI_PORT_REG_TFDATA:
+    case AHCI_PORT_REG_SIG:
+    case AHCI_PORT_REG_SCR_STAT:
         /* Read Only */
         break;
-    case PORT_SCR_CTL:
+    case AHCI_PORT_REG_SCR_CTL:
         if (((pr->scr_ctl & AHCI_SCR_SCTL_DET) == 1) &&
             ((val & AHCI_SCR_SCTL_DET) == 0)) {
             ahci_reset_port(s, port);
         }
         pr->scr_ctl = val;
         break;
-    case PORT_SCR_ERR:
+    case AHCI_PORT_REG_SCR_ERR:
         pr->scr_err &= ~val;
         break;
-    case PORT_SCR_ACT:
+    case AHCI_PORT_REG_SCR_ACT:
         /* RW1 */
         pr->scr_act |= val;
         break;
-    case PORT_CMD_ISSUE:
+    case AHCI_PORT_REG_CMD_ISSUE:
         pr->cmd_issue |= val;
         check_cmd(s, port);
         break;
