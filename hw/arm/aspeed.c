@@ -45,6 +45,7 @@ enum {
     PALMETTO_BMC,
     AST2500_EVB,
     ROMULUS_BMC,
+    WITHERSPOON_BMC,
 };
 
 /* Palmetto hardware value: 0x120CE416 */
@@ -82,8 +83,12 @@ enum {
         SCU_AST2500_HW_STRAP_ACPI_ENABLE |                              \
         SCU_HW_STRAP_SPI_MODE(SCU_HW_STRAP_SPI_MASTER))
 
+/* Witherspoon hardware value: 0xF10AD216 (but use romulus definition) */
+#define WITHERSPOON_BMC_HW_STRAP1 ROMULUS_BMC_HW_STRAP1
+
 static void palmetto_bmc_i2c_init(AspeedBoardState *bmc);
 static void ast2500_evb_i2c_init(AspeedBoardState *bmc);
+static void witherspoon_bmc_i2c_init(AspeedBoardState *bmc);
 
 static const AspeedBoardConfig aspeed_boards[] = {
     [PALMETTO_BMC] = {
@@ -108,6 +113,14 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .fmc_model = "n25q256a",
         .spi_model = "mx66l1g45g",
         .num_cs    = 2,
+    },
+    [WITHERSPOON_BMC]  = {
+        .soc_name  = "ast2500-a1",
+        .hw_strap1 = WITHERSPOON_BMC_HW_STRAP1,
+        .fmc_model = "mx25l25635e",
+        .spi_model = "mx66l1g45g",
+        .num_cs    = 2,
+        .i2c_init  = witherspoon_bmc_i2c_init,
     },
 };
 
@@ -342,11 +355,47 @@ static const TypeInfo romulus_bmc_type = {
     .class_init = romulus_bmc_class_init,
 };
 
+static void witherspoon_bmc_i2c_init(AspeedBoardState *bmc)
+{
+    AspeedSoCState *soc = &bmc->soc;
+
+    i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 4), "tmp423", 0x4c);
+    i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 5), "tmp423", 0x4c);
+
+    /* The Witherspoon expects a TMP275 but a TMP105 is compatible */
+    i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 9), "tmp105", 0x4a);
+}
+
+static void witherspoon_bmc_init(MachineState *machine)
+{
+    aspeed_board_init(machine, &aspeed_boards[WITHERSPOON_BMC]);
+}
+
+static void witherspoon_bmc_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "OpenPOWER Witherspoon BMC (ARM1176)";
+    mc->init = witherspoon_bmc_init;
+    mc->max_cpus = 1;
+    mc->no_sdcard = 1;
+    mc->no_floppy = 1;
+    mc->no_cdrom = 1;
+    mc->no_parallel = 1;
+}
+
+static const TypeInfo witherspoon_bmc_type = {
+    .name = MACHINE_TYPE_NAME("witherspoon-bmc"),
+    .parent = TYPE_MACHINE,
+    .class_init = witherspoon_bmc_class_init,
+};
+
 static void aspeed_machine_init(void)
 {
     type_register_static(&palmetto_bmc_type);
     type_register_static(&ast2500_evb_type);
     type_register_static(&romulus_bmc_type);
+    type_register_static(&witherspoon_bmc_type);
 }
 
 type_init(aspeed_machine_init)
