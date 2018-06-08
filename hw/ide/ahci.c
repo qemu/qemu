@@ -330,11 +330,7 @@ static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
         check_cmd(s, port);
         break;
     case PORT_TFDATA:
-        /* Read Only. */
-        break;
     case PORT_SIG:
-        /* Read Only */
-        break;
     case PORT_SCR_STAT:
         /* Read Only */
         break;
