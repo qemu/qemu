@@ -131,7 +131,7 @@ static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
     return val;
 }
 
-static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
+static void ahci_irq_raise(AHCIState *s)
 {
     DeviceState *dev_state = s->container;
     PCIDevice *pci_dev = (PCIDevice *) object_dynamic_cast(OBJECT(dev_state),
@@ -146,7 +146,7 @@ static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
     }
 }
 
-static void ahci_irq_lower(AHCIState *s, AHCIDevice *dev)
+static void ahci_irq_lower(AHCIState *s)
 {
     DeviceState *dev_state = s->container;
     PCIDevice *pci_dev = (PCIDevice *) object_dynamic_cast(OBJECT(dev_state),
@@ -174,9 +174,9 @@ static void ahci_check_irq(AHCIState *s)
     trace_ahci_check_irq(s, old_irq, s->control_regs.irqstatus);
     if (s->control_regs.irqstatus &&
         (s->control_regs.ghc & HOST_CTL_IRQ_EN)) {
-            ahci_irq_raise(s, NULL);
+            ahci_irq_raise(s);
     } else {
-        ahci_irq_lower(s, NULL);
+        ahci_irq_lower(s);
     }
 }
 
