@@ -75,6 +75,34 @@
 #define HOST_CAP_64               (1U << 31) /* PCI DAC (64-bit DMA) support */
 
 /* registers for each SATA port */
+enum AHCIPortReg {
+    AHCI_PORT_REG_LST_ADDR    = 0, /* PxCLB: command list DMA addr */
+    AHCI_PORT_REG_LST_ADDR_HI = 1, /* PxCLBU: command list DMA addr hi */
+    AHCI_PORT_REG_FIS_ADDR    = 2, /* PxFB: FIS rx buf addr */
+    AHCI_PORT_REG_FIS_ADDR_HI = 3, /* PxFBU: FIX rx buf addr hi */
+    AHCI_PORT_REG_IRQ_STAT    = 4, /* PxIS: interrupt status */
+    AHCI_PORT_REG_IRQ_MASK    = 5, /* PxIE: interrupt enable/disable mask */
+    AHCI_PORT_REG_CMD         = 6, /* PxCMD: port command */
+    /* RESERVED */
+    AHCI_PORT_REG_TFDATA      = 8, /* PxTFD: taskfile data */
+    AHCI_PORT_REG_SIG         = 9, /* PxSIG: device TF signature */
+    AHCI_PORT_REG_SCR_STAT    = 10, /* PxSSTS: SATA phy register: SStatus */
+    AHCI_PORT_REG_SCR_CTL     = 11, /* PxSCTL: SATA phy register: SControl */
+    AHCI_PORT_REG_SCR_ERR     = 12, /* PxSERR: SATA phy register: SError */
+    AHCI_PORT_REG_SCR_ACT     = 13, /* PxSACT: SATA phy register: SActive */
+    AHCI_PORT_REG_CMD_ISSUE   = 14, /* PxCI: command issue */
+    AHCI_PORT_REG_SCR_NOTIF   = 15, /* PxSNTF: SATA phy register: SNotification */
+    AHCI_PORT_REG_FIS_CTL     = 16, /* PxFBS: Port multiplier switching ctl */
+    AHCI_PORT_REG_DEV_SLEEP   = 17, /* PxDEVSLP: device sleep control */
+    /* RESERVED */
+    AHCI_PORT_REG_VENDOR_1    = 28, /* PxVS: Vendor Specific */
+    AHCI_PORT_REG_VENDOR_2    = 29,
+    AHCI_PORT_REG_VENDOR_3    = 30,
+    AHCI_PORT_REG_VENDOR_4    = 31,
+    AHCI_PORT_REG__COUNT      = 32
+};
+
+/* registers for each SATA port */
 #define PORT_LST_ADDR             0x00 /* command list DMA addr */
 #define PORT_LST_ADDR_HI          0x04 /* command list DMA addr hi */
 #define PORT_FIS_ADDR             0x08 /* FIS rx buf addr */
@@ -82,6 +110,7 @@
 #define PORT_IRQ_STAT             0x10 /* interrupt status */
 #define PORT_IRQ_MASK             0x14 /* interrupt enable/disable mask */
 #define PORT_CMD                  0x18 /* port command */
+
 #define PORT_TFDATA               0x20 /* taskfile data */
 #define PORT_SIG                  0x24 /* device TF signature */
 #define PORT_SCR_STAT             0x28 /* SATA phy register: SStatus */

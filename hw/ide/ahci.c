@@ -46,6 +46,31 @@ static bool ahci_map_fis_address(AHCIDevice *ad);
 static void ahci_unmap_clb_address(AHCIDevice *ad);
 static void ahci_unmap_fis_address(AHCIDevice *ad);
 
+__attribute__((__unused__)) /* TODO */
+static const char *AHCIPortReg_lookup[AHCI_PORT_REG__COUNT] = {
+    [AHCI_PORT_REG_LST_ADDR]    = "PxCLB",
+    [AHCI_PORT_REG_LST_ADDR_HI] = "PxCLBU",
+    [AHCI_PORT_REG_FIS_ADDR]    = "PxFB",
+    [AHCI_PORT_REG_FIS_ADDR_HI] = "PxFBU",
+    [AHCI_PORT_REG_IRQ_STAT]    = "PxIS",
+    [AHCI_PORT_REG_IRQ_MASK]    = "PXIE",
+    [AHCI_PORT_REG_CMD]         = "PxCMD",
+    [7]                         = "Reserved",
+    [AHCI_PORT_REG_TFDATA]      = "PxTFD",
+    [AHCI_PORT_REG_SIG]         = "PxSIG",
+    [AHCI_PORT_REG_SCR_STAT]    = "PxSSTS",
+    [AHCI_PORT_REG_SCR_CTL]     = "PxSCTL",
+    [AHCI_PORT_REG_SCR_ERR]     = "PxSERR",
+    [AHCI_PORT_REG_SCR_ACT]     = "PxSACT",
+    [AHCI_PORT_REG_CMD_ISSUE]   = "PxCI",
+    [AHCI_PORT_REG_SCR_NOTIF]   = "PxSNTF",
+    [AHCI_PORT_REG_FIS_CTL]     = "PxFBS",
+    [AHCI_PORT_REG_DEV_SLEEP]   = "PxDEVSLP",
+    [18 ... 27]                 = "Reserved",
+    [AHCI_PORT_REG_VENDOR_1 ...
+     AHCI_PORT_REG_VENDOR_4]    = "PxVS",
+};
+
 static const char *AHCIPortIRQ_lookup[AHCI_PORT_IRQ__COUNT] = {
     [AHCI_PORT_IRQ_BIT_DHRS] = "DHRS",
     [AHCI_PORT_IRQ_BIT_PSS]  = "PSS",
