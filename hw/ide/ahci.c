@@ -47,6 +47,21 @@ static bool ahci_map_fis_address(AHCIDevice *ad);
 static void ahci_unmap_clb_address(AHCIDevice *ad);
 static void ahci_unmap_fis_address(AHCIDevice *ad);
 
+__attribute__((__unused__)) /* TODO */
+static const char *AHCIHostReg_lookup[AHCI_HOST_REG__COUNT] = {
+    [AHCI_HOST_REG_CAP]        = "CAP",
+    [AHCI_HOST_REG_CTL]        = "GHC",
+    [AHCI_HOST_REG_IRQ_STAT]   = "IS",
+    [AHCI_HOST_REG_PORTS_IMPL] = "PI",
+    [AHCI_HOST_REG_VERSION]    = "VS",
+    [AHCI_HOST_REG_CCC_CTL]    = "CCC_CTL",
+    [AHCI_HOST_REG_CCC_PORTS]  = "CCC_PORTS",
+    [AHCI_HOST_REG_EM_LOC]     = "EM_LOC",
+    [AHCI_HOST_REG_EM_CTL]     = "EM_CTL",
+    [AHCI_HOST_REG_CAP2]       = "CAP2",
+    [AHCI_HOST_REG_BOHC]       = "BOHC",
+};
+
 static const char *AHCIPortReg_lookup[AHCI_PORT_REG__COUNT] = {
     [AHCI_PORT_REG_LST_ADDR]    = "PxCLB",
     [AHCI_PORT_REG_LST_ADDR_HI] = "PxCLBU",

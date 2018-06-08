@@ -61,6 +61,21 @@
 #define HOST_PORTS_IMPL           0x0c /* bitmap of implemented ports */
 #define HOST_VERSION              0x10 /* AHCI spec. version compliancy */
 
+enum AHCIHostReg {
+    AHCI_HOST_REG_CAP        = 0,  /* CAP: host capabilities */
+    AHCI_HOST_REG_CTL        = 1,  /* GHC: global host control */
+    AHCI_HOST_REG_IRQ_STAT   = 2,  /* IS: interrupt status */
+    AHCI_HOST_REG_PORTS_IMPL = 3,  /* PI: bitmap of implemented ports */
+    AHCI_HOST_REG_VERSION    = 4,  /* VS: AHCI spec. version compliancy */
+    AHCI_HOST_REG_CCC_CTL    = 5,  /* CCC_CTL: CCC Control */
+    AHCI_HOST_REG_CCC_PORTS  = 6,  /* CCC_PORTS: CCC Ports */
+    AHCI_HOST_REG_EM_LOC     = 7,  /* EM_LOC: Enclosure Mgmt Location */
+    AHCI_HOST_REG_EM_CTL     = 8,  /* EM_CTL: Enclosure Mgmt Control */
+    AHCI_HOST_REG_CAP2       = 9,  /* CAP2: host capabilities, extended */
+    AHCI_HOST_REG_BOHC       = 10, /* BOHC: firmare/os handoff ctrl & status */
+    AHCI_HOST_REG__COUNT     = 11
+};
+
 /* HOST_CTL bits */
 #define HOST_CTL_RESET            (1 << 0)  /* reset controller; self-clear */
 #define HOST_CTL_IRQ_EN           (1 << 1)  /* global IRQ enable */
