@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "boot-sector.h"
+#include "qapi/qmp/qdict.h"
 
 static char isoimage[] = "cdrom-boot-iso-XXXXXX";
 
@@ -89,6 +90,32 @@ cleanup:
     return ret;
 }
 
+/**
+ * Check that at least the -cdrom parameter is basically working, i.e. we can
+ * see the filename of the ISO image in the output of "info block" afterwards
+ */
+static void test_cdrom_param(gconstpointer data)
+{
+    QTestState *qts;
+    char *resp;
+
+    qts = qtest_startf("-M %s -cdrom %s", (const char *)data, isoimage);
+    resp = qtest_hmp(qts, "info block");
+    g_assert(strstr(resp, isoimage) != 0);
+    g_free(resp);
+    qtest_quit(qts);
+}
+
+static void add_cdrom_param_tests(const char **machines)
+{
+    while (*machines) {
+        char *testname = g_strdup_printf("cdrom/param/%s", *machines);
+        qtest_add_data_func(testname, *machines, test_cdrom_param);
+        g_free(testname);
+        machines++;
+    }
+}
+
 static void test_cdboot(gconstpointer data)
 {
     QTestState *qts;
@@ -154,6 +181,37 @@ int main(int argc, char **argv)
         add_x86_tests();
     } else if (g_str_equal(arch, "s390x")) {
         add_s390x_tests();
+    } else if (g_str_equal(arch, "ppc64")) {
+        const char *ppcmachines[] = {
+            "pseries", "mac99", "g3beige", "40p", "prep", NULL
+        };
+        add_cdrom_param_tests(ppcmachines);
+    } else if (g_str_equal(arch, "sparc")) {
+        const char *sparcmachines[] = {
+            "LX", "SPARCClassic", "SPARCbook", "SS-10", "SS-20", "SS-4",
+            "SS-5", "SS-600MP", "Voyager", "leon3_generic", NULL
+        };
+        add_cdrom_param_tests(sparcmachines);
+    } else if (g_str_equal(arch, "sparc64")) {
+        const char *sparc64machines[] = {
+            "niagara", "sun4u", "sun4v", NULL
+        };
+        add_cdrom_param_tests(sparc64machines);
+    } else if (!strncmp(arch, "mips64", 6)) {
+        const char *mips64machines[] = {
+            "magnum", "malta", "mips", "pica61", NULL
+        };
+        add_cdrom_param_tests(mips64machines);
+    } else if (g_str_equal(arch, "arm") || g_str_equal(arch, "aarch64")) {
+        const char *armmachines[] = {
+            "realview-eb", "realview-eb-mpcore", "realview-pb-a8",
+            "realview-pbx-a9", "versatileab", "versatilepb", "vexpress-a15",
+            "vexpress-a9", "virt", NULL
+        };
+        add_cdrom_param_tests(armmachines);
+    } else {
+        const char *nonemachine[] = { "none", NULL };
+        add_cdrom_param_tests(nonemachine);
     }
 
     ret = g_test_run();
