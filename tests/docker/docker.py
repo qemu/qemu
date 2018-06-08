@@ -184,8 +184,14 @@ class Docker(object):
                                        stderr=subprocess.STDOUT,
                                        **kwargs)
 
+    def inspect_tag(self, tag):
+        try:
+            return self._output(["inspect", tag])
+        except subprocess.CalledProcessError:
+            return None
+
     def get_image_dockerfile_checksum(self, tag):
-        resp = self._output(["inspect", tag])
+        resp = self.inspect_tag(tag)
         labels = json.loads(resp)[0]["Config"].get("Labels", {})
         return labels.get("com.qemu.dockerfile-checksum", "")
 
@@ -445,6 +451,36 @@ class CcCommand(SubCommand):
         cmd += [args.image, args.cc]
         cmd += argv
         return Docker().command("run", cmd, args.quiet)
+
+
+class CheckCommand(SubCommand):
+    """Check if we need to re-build a docker image out of a dockerfile.
+    Arguments: <tag> <dockerfile>"""
+    name = "check"
+
+    def args(self, parser):
+        parser.add_argument("tag",
+                            help="Image Tag")
+        parser.add_argument("dockerfile",
+                            help="Dockerfile name")
+
+    def run(self, args, argv):
+        dockerfile = open(args.dockerfile, "rb").read()
+        tag = args.tag
+
+        dkr = Docker()
+        info = dkr.inspect_tag(tag)
+        if info is None:
+            print("Image does not exist")
+            return 1
+
+        if dkr.image_matches_dockerfile(tag, dockerfile):
+            if not args.quiet:
+                print("Image is up to date")
+            return 0
+        else:
+            print("Image needs updating")
+            return 1
 
 
 def main():
