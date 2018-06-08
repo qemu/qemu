@@ -340,7 +340,7 @@ sosendoob(struct socket *so)
 	struct sbuf *sb = &so->so_rcv;
 	char buff[2048]; /* XXX Shouldn't be sending more oob data than this */
 
-	int n, len;
+	int n;
 
 	DEBUG_CALL("sosendoob");
 	DEBUG_ARG("so = %p", so);
@@ -359,7 +359,7 @@ sosendoob(struct socket *so)
 		 * send it all
 		 */
 		uint32_t urgc = so->so_urgc;
-		len = (sb->sb_data + sb->sb_datalen) - sb->sb_rptr;
+		int len = (sb->sb_data + sb->sb_datalen) - sb->sb_rptr;
 		if (len > urgc) {
 			len = urgc;
 		}
@@ -374,13 +374,13 @@ sosendoob(struct socket *so)
 			len += n;
 		}
 		n = slirp_send(so, buff, len, (MSG_OOB)); /* |MSG_DONTWAIT)); */
+#ifdef DEBUG
+		if (n != len) {
+			DEBUG_ERROR((dfd, "Didn't send all data urgently XXXXX\n"));
+		}
+#endif
 	}
 
-#ifdef DEBUG
-	if (n != len) {
-		DEBUG_ERROR((dfd, "Didn't send all data urgently XXXXX\n"));
-	}
-#endif
 	if (n < 0) {
 		return n;
 	}
