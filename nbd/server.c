@@ -88,7 +88,7 @@ static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
  * as selected by NBD_OPT_SET_META_CONTEXT. Also used for
  * NBD_OPT_LIST_META_CONTEXT. */
 typedef struct NBDExportMetaContexts {
-    char export_name[NBD_MAX_NAME_SIZE + 1];
+    NBDExport *exp;
     bool valid; /* means that negotiation of the option finished without
                    errors */
     bool base_allocation; /* export base:allocation context (block status) */
@@ -399,10 +399,9 @@ static int nbd_negotiate_handle_list(NBDClient *client, Error **errp)
     return nbd_negotiate_send_rep(client, NBD_REP_ACK, errp);
 }
 
-static void nbd_check_meta_export_name(NBDClient *client)
+static void nbd_check_meta_export(NBDClient *client)
 {
-    client->export_meta.valid &= !strcmp(client->exp->name,
-                                         client->export_meta.export_name);
+    client->export_meta.valid &= client->exp == client->export_meta.exp;
 }
 
 /* Send a reply to NBD_OPT_EXPORT_NAME.
@@ -456,7 +455,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client,
 
     QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
     nbd_export_get(client->exp);
-    nbd_check_meta_export_name(client);
+    nbd_check_meta_export(client);
 
     return 0;
 }
@@ -650,7 +649,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
         client->exp = exp;
         QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
         nbd_export_get(client->exp);
-        nbd_check_meta_export_name(client);
+        nbd_check_meta_export(client);
         rc = 1;
     }
     return rc;
@@ -835,7 +834,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
                                       NBDExportMetaContexts *meta, Error **errp)
 {
     int ret;
-    NBDExport *exp;
+    char export_name[NBD_MAX_NAME_SIZE + 1];
     NBDExportMetaContexts local_meta;
     uint32_t nb_queries;
     int i;
@@ -854,15 +853,15 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
 
     memset(meta, 0, sizeof(*meta));
 
-    ret = nbd_opt_read_name(client, meta->export_name, NULL, errp);
+    ret = nbd_opt_read_name(client, export_name, NULL, errp);
     if (ret <= 0) {
         return ret;
     }
 
-    exp = nbd_export_find(meta->export_name);
-    if (exp == NULL) {
+    meta->exp = nbd_export_find(export_name);
+    if (meta->exp == NULL) {
         return nbd_opt_drop(client, NBD_REP_ERR_UNKNOWN, errp,
-                            "export '%s' not present", meta->export_name);
+                            "export '%s' not present", export_name);
     }
 
     ret = nbd_opt_read(client, &nb_queries, sizeof(nb_queries), errp);
@@ -871,7 +870,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     }
     cpu_to_be32s(&nb_queries);
     trace_nbd_negotiate_meta_context(nbd_opt_lookup(client->opt),
-                                     meta->export_name, nb_queries);
+                                     export_name, nb_queries);
 
     if (client->opt == NBD_OPT_LIST_META_CONTEXT && !nb_queries) {
         /* enable all known contexts */
