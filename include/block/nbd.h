@@ -229,10 +229,12 @@ enum {
 #define NBD_REPLY_TYPE_ERROR         NBD_REPLY_ERR(1)
 #define NBD_REPLY_TYPE_ERROR_OFFSET  NBD_REPLY_ERR(2)
 
-/* Flags for extents (NBDExtent.flags) of NBD_REPLY_TYPE_BLOCK_STATUS,
- * for base:allocation meta context */
+/* Extent flags for base:allocation in NBD_REPLY_TYPE_BLOCK_STATUS */
 #define NBD_STATE_HOLE (1 << 0)
 #define NBD_STATE_ZERO (1 << 1)
+
+/* Extent flags for qemu:dirty-bitmap in NBD_REPLY_TYPE_BLOCK_STATUS */
+#define NBD_STATE_DIRTY (1 << 0)
 
 static inline bool nbd_reply_type_is_error(int type)
 {
@@ -315,6 +317,8 @@ void nbd_client_put(NBDClient *client);
 void nbd_server_start(SocketAddress *addr, const char *tls_creds,
                       Error **errp);
 
+void nbd_export_bitmap(NBDExport *exp, const char *bitmap,
+                       const char *bitmap_export_name, Error **errp);
 
 /* nbd_read
  * Reads @size bytes from @ioc. Returns 0 on success.
