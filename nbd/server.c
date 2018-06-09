@@ -736,12 +736,16 @@ static int nbd_negotiate_send_meta_context(NBDClient *client,
 
 /* nbd_meta_base_query
  *
- * Handle query to 'base' namespace. For now, only base:allocation context is
- * available in it.  'len' is the amount of text remaining to be read from
+ * Handle queries to 'base' namespace. For now, only the base:allocation
+ * context is available.  'len' is the amount of text remaining to be read from
  * the current name, after the 'base:' portion has been stripped.
  *
  * Return -errno on I/O error, 0 if option was completely handled by
- * sending a reply about inconsistent lengths, or 1 on success. */
+ * sending a reply about inconsistent lengths, or 1 on success.
+ *
+ * Note: return code = 1 doesn't mean that we've parsed the "base:allocation"
+ * namespace. It only means that there are no errors.
+ */
 static int nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
                                uint32_t len, Error **errp)
 {
@@ -768,10 +772,12 @@ static int nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
     }
 
     if (strncmp(query, "allocation", alen) == 0) {
+        trace_nbd_negotiate_meta_query_parse("base:allocation");
         meta->base_allocation = true;
+    } else {
+        trace_nbd_negotiate_meta_query_skip("not base:allocation");
     }
 
-    trace_nbd_negotiate_meta_query_parse("base:allocation");
     return 1;
 }
 
