@@ -46,6 +46,8 @@
 # - @abort: since 1.6
 # - @block-dirty-bitmap-add: since 2.5
 # - @block-dirty-bitmap-clear: since 2.5
+# - @x-block-dirty-bitmap-enable: since 3.0
+# - @x-block-dirty-bitmap-disable: since 3.0
 # - @blockdev-backup: since 2.3
 # - @blockdev-snapshot: since 2.5
 # - @blockdev-snapshot-internal-sync: since 1.7
@@ -59,6 +61,8 @@
        'abort': 'Abort',
        'block-dirty-bitmap-add': 'BlockDirtyBitmapAdd',
        'block-dirty-bitmap-clear': 'BlockDirtyBitmap',
+       'x-block-dirty-bitmap-enable': 'BlockDirtyBitmap',
+       'x-block-dirty-bitmap-disable': 'BlockDirtyBitmap',
        'blockdev-backup': 'BlockdevBackup',
        'blockdev-snapshot': 'BlockdevSnapshot',
        'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal',
