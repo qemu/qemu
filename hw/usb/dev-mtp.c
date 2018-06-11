@@ -653,8 +653,7 @@ static void usb_mtp_inotify_cleanup(MTPState *s)
 
 static int usb_mtp_add_watch(int inotifyfd, char *path)
 {
-    uint32_t mask = IN_CREATE | IN_DELETE | IN_MODIFY |
-        IN_ISDIR;
+    uint32_t mask = IN_CREATE | IN_DELETE | IN_MODIFY;
 
     return inotify_add_watch(inotifyfd, path, mask);
 }
