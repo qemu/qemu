@@ -38,6 +38,7 @@ typedef struct PnvLpcController {
     /* ISA IO and Memory space */
     MemoryRegion isa_io;
     MemoryRegion isa_mem;
+    MemoryRegion isa_fw;
 
     /* Windows from OPB to ISA (aliases) */
     MemoryRegion opb_isa_io;
