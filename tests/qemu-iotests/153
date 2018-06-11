@@ -137,6 +137,24 @@ for opts1 in "" "read-only=on" "read-only=on,force-share=on"; do
         _run_cmd $QEMU_IMG dd          $L if="${TEST_IMG}" of="${TEST_IMG}.convert" bs=512 count=1
         _run_cmd $QEMU_IMG bench       $L -c 1 "${TEST_IMG}"
         _run_cmd $QEMU_IMG bench       $L -w -c 1 "${TEST_IMG}"
+
+        # qemu-img create does not support -U
+        if [ -z "$L" ]; then
+            _run_cmd $QEMU_IMG create -f $IMGFMT "${TEST_IMG}" \
+                                      -b ${TEST_IMG}.base
+            # Read the file format.  It used to be the case that
+            # file-posix simply truncated the file, but the qcow2
+            # driver then failed to format it because it was unable
+            # to acquire the necessary WRITE permission.  However, the
+            # truncation was already wrong, and the whole process
+            # resulted in the file being completely empty and thus its
+            # format would be detected to be raw.
+            # So we read it here to see that creation either completed
+            # successfully (thus the format is qcow2) or it aborted
+            # before the file was changed at all (thus the format stays
+            # qcow2).
+            _img_info -U | grep 'file format'
+        fi
     done
     _send_qemu_cmd $h "{ 'execute': 'quit', }" ""
     echo

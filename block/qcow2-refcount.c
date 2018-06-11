@@ -1799,6 +1799,19 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
     int ret;
     uint64_t refcount;
     int i, j;
+    bool repair;
+
+    if (fix & BDRV_FIX_ERRORS) {
+        /* Always repair */
+        repair = true;
+    } else if (fix & BDRV_FIX_LEAKS) {
+        /* Repair only if that seems safe: This function is always
+         * called after the refcounts have been fixed, so the refcount
+         * is accurate if that repair was successful */
+        repair = !res->check_errors && !res->corruptions && !res->leaks;
+    } else {
+        repair = false;
+    }
 
     for (i = 0; i < s->l1_size; i++) {
         uint64_t l1_entry = s->l1_table[i];
@@ -1818,10 +1831,8 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
         if ((refcount == 1) != ((l1_entry & QCOW_OFLAG_COPIED) != 0)) {
             fprintf(stderr, "%s OFLAG_COPIED L2 cluster: l1_index=%d "
                     "l1_entry=%" PRIx64 " refcount=%" PRIu64 "\n",
-                    fix & BDRV_FIX_ERRORS ? "Repairing" :
-                                            "ERROR",
-                    i, l1_entry, refcount);
-            if (fix & BDRV_FIX_ERRORS) {
+                    repair ? "Repairing" : "ERROR", i, l1_entry, refcount);
+            if (repair) {
                 s->l1_table[i] = refcount == 1
                                ? l1_entry |  QCOW_OFLAG_COPIED
                                : l1_entry & ~QCOW_OFLAG_COPIED;
@@ -1862,10 +1873,8 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
                 if ((refcount == 1) != ((l2_entry & QCOW_OFLAG_COPIED) != 0)) {
                     fprintf(stderr, "%s OFLAG_COPIED data cluster: "
                             "l2_entry=%" PRIx64 " refcount=%" PRIu64 "\n",
-                            fix & BDRV_FIX_ERRORS ? "Repairing" :
-                                                    "ERROR",
-                            l2_entry, refcount);
-                    if (fix & BDRV_FIX_ERRORS) {
+                            repair ? "Repairing" : "ERROR", l2_entry, refcount);
+                    if (repair) {
                         l2_table[j] = cpu_to_be64(refcount == 1
                                     ? l2_entry |  QCOW_OFLAG_COPIED
                                     : l2_entry & ~QCOW_OFLAG_COPIED);

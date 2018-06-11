@@ -77,6 +77,48 @@ $QEMU_IO -c "read -P 0 0 3M" "$TEST_IMG".orig 2>&1 | _filter_qemu_io | _filter_t
 
 
 echo
+echo "=== Converting to an overlay larger than its backing file ==="
+echo
+
+TEST_IMG="$TEST_IMG".base _make_test_img 256M
+# Needs to be at least how much an L2 table covers
+# (64 kB/entry * 64 kB / 8 B/entry = 512 MB)
+# That way, qcow2 will yield at least two status request responses.
+# With just a single response, it would always say "Allocated in the
+# backing file", so the optimization qemu-img convert tries to do is
+# done automatically.  Once it has to be queried twice, however (and
+# one of the queries is completely after the end of the backing file),
+# the block layer will automatically add a ZERO flag that qemu-img
+# convert used to follow up with a zero write to the target.
+# We do not want such a zero write, however, because we are past the
+# end of the backing file on the target as well, so we do not need to
+# write anything there.
+_make_test_img -b "$TEST_IMG".base 768M
+
+# Use compat=0.10 as the output so there is no zero cluster support
+$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base -o compat=0.10 \
+    "$TEST_IMG" "$TEST_IMG".orig
+# See that nothing has been allocated past 64M
+$QEMU_IMG map "$TEST_IMG".orig | _filter_qemu_img_map
+
+echo
+
+# Just before the end of the backing file
+$QEMU_IO -c 'write -P 0x11 255M 1M' "$TEST_IMG".base 2>&1 | _filter_qemu_io
+# Somewhere in the second L2 table
+$QEMU_IO -c 'write -P 0x22 600M 1M' "$TEST_IMG" 2>&1 | _filter_qemu_io
+
+$QEMU_IMG convert -O $IMGFMT -B "$TEST_IMG".base -o compat=0.10 \
+    "$TEST_IMG" "$TEST_IMG".orig
+
+$QEMU_IMG map "$TEST_IMG".orig | _filter_qemu_img_map
+$QEMU_IO -c 'read -P 0x11 255M 1M' \
+         -c 'read -P 0x22 600M 1M' \
+         "$TEST_IMG".orig \
+    | _filter_qemu_io
+
+
+echo
 echo "=== Concatenate multiple source images ==="
 echo
 

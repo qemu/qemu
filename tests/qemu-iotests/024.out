@@ -141,4 +141,34 @@ read 65536/65536 bytes at offset 917504
 === IO: pattern 0x00
 read 65536/65536 bytes at offset 983040
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Test rebase in a subdirectory of the working directory ===
+
+Formatting 'TEST_DIR/subdir/t.IMGFMT.base_old', fmt=IMGFMT size=1048576
+Formatting 'TEST_DIR/subdir/t.IMGFMT.base_new', fmt=IMGFMT size=1048576
+Formatting 'TEST_DIR/subdir/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=t.IMGFMT.base_old
+
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 196608
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 131072/131072 bytes at offset 65536
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 196608
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+backing file: t.IMGFMT.base_new (actual path: TEST_DIR/subdir/t.IMGFMT.base_new)
+
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 131072
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 196608
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+Offset          Length          File
+0               0x30000         TEST_DIR/subdir/t.IMGFMT
+0x30000         0x10000         TEST_DIR/subdir/t.IMGFMT.base_new
 *** done

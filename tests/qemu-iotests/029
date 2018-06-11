@@ -92,7 +92,7 @@ _make_test_img 64M
 { $QEMU_IMG snapshot -c foo $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 poke_file "$TEST_IMG" "$offset_size" "\x00\x00\x00\x00\x00\x00\x02\x00"
 poke_file "$TEST_IMG" "$offset_l1_size" "\x00\x00\x00\x01"
-{ $QEMU_IMG convert -s foo $TEST_IMG $TEST_IMG.snap; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IMG convert -l foo $TEST_IMG $TEST_IMG.snap; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 
 # success, all done

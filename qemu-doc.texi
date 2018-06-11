@@ -2927,13 +2927,6 @@ Option @option{-virtioconsole} has been replaced by
 The @code{-clock} option is ignored since QEMU version 1.7.0. There is no
 replacement since it is not needed anymore.
 
-@section qemu-img command line arguments
-
-@subsection convert -s (since 2.0.0)
-
-The ``convert -s snapshot_id_or_name'' argument is obsoleted
-by the ``convert -l snapshot_param'' argument instead.
-
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)

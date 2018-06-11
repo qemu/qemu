@@ -133,6 +133,15 @@ def qemu_io(*args):
         sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
     return subp.communicate()[0]
 
+def qemu_io_silent(*args):
+    '''Run qemu-io and return the exit code, suppressing stdout'''
+    args = qemu_io_args + list(args)
+    exitcode = subprocess.call(args, stdout=open('/dev/null', 'w'))
+    if exitcode < 0:
+        sys.stderr.write('qemu-io received signal %i: %s\n' %
+                         (-exitcode, ' '.join(args)))
+    return exitcode
+
 
 class QemuIoInteractive:
     def __init__(self, *args):
@@ -581,9 +590,14 @@ class QMPTestCase(unittest.TestCase):
         with Timeout(1, "Timeout waiting for job to pause"):
             while True:
                 result = self.vm.qmp('query-block-jobs')
+                found = False
                 for job in result['return']:
-                    if job['device'] == job_id and job['paused'] == True and job['busy'] == False:
-                        return job
+                    if job['device'] == job_id:
+                        found = True
+                        if job['paused'] == True and job['busy'] == False:
+                            return job
+                        break
+                assert found
 
     def pause_job(self, job_id='job0', wait=True):
         result = self.vm.qmp('block-job-pause', device=job_id)

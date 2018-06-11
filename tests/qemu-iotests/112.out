@@ -99,13 +99,11 @@ refcount bits: 64
 === Amend to compat=0.10 ===
 
 qemu-img: compat=0.10 requires refcount_bits=16
-qemu-img: Error while amending options: Operation not supported
 refcount bits: 64
 No errors were found on the image.
 refcount bits: 16
 refcount bits: 16
-qemu-img: Different refcount widths than 16 bits require compatibility level 1.1 or above (use compat=1.1 or greater)
-qemu-img: Error while amending options: Invalid argument
+qemu-img: Refcount widths other than 16 bits require compatibility level 1.1 or above (use compat=1.1 or greater)
 refcount bits: 16
 
 === Amend with snapshot ===
@@ -113,7 +111,6 @@ refcount bits: 16
 wrote 16777216/16777216 bytes at offset 0
 16 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-img: Cannot decrease refcount entry width to 1 bits: Cluster at offset 0x50000 has a refcount of 2
-qemu-img: Error while amending options: Invalid argument
 No errors were found on the image.
 refcount bits: 16
 No errors were found on the image.

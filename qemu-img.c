@@ -148,8 +148,6 @@ static void QEMU_NORETURN help(void)
            "  'snapshot_param' is param used for internal snapshot, format\n"
            "    is 'snapshot.id=[ID],snapshot.name=[NAME]', or\n"
            "    '[ID_OR_NAME]'\n"
-           "  'snapshot_id_or_name' is deprecated, use 'snapshot_param'\n"
-           "    instead\n"
            "  '-c' indicates that target image must be compressed (qcow format only)\n"
            "  '-u' allows unsafe backing chains. For rebasing, it is assumed that old and\n"
            "       new backing file match exactly. The image doesn't need a working\n"
@@ -249,6 +247,11 @@ static int print_block_option_help(const char *filename, const char *fmt)
         return 1;
     }
 
+    if (!drv->create_opts) {
+        error_report("Format driver '%s' does not support image creation", fmt);
+        return 1;
+    }
+
     create_opts = qemu_opts_append(create_opts, drv->create_opts);
     if (filename) {
         proto_drv = bdrv_find_protocol(filename, true, &local_err);
@@ -257,9 +260,15 @@ static int print_block_option_help(const char *filename, const char *fmt)
             qemu_opts_free(create_opts);
             return 1;
         }
+        if (!proto_drv->create_opts) {
+            error_report("Protocal driver '%s' does not support image creation",
+                         proto_drv->format_name);
+            return 1;
+        }
         create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
     }
 
+    printf("Supported options:\n");
     qemu_opts_print_help(create_opts);
     qemu_opts_free(create_opts);
     return 0;
@@ -1545,7 +1554,9 @@ typedef struct ImgConvertState {
     BlockBackend *target;
     bool has_zero_init;
     bool compressed;
+    bool unallocated_blocks_are_zero;
     bool target_has_backing;
+    int64_t target_backing_sectors; /* negative if unknown */
     bool wr_in_order;
     bool copy_range;
     int min_sparse;
@@ -1575,11 +1586,22 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 {
     int64_t src_cur_offset;
     int ret, n, src_cur;
+    bool post_backing_zero = false;
 
     convert_select_part(s, sector_num, &src_cur, &src_cur_offset);
 
     assert(s->total_sectors > sector_num);
     n = MIN(s->total_sectors - sector_num, BDRV_REQUEST_MAX_SECTORS);
+
+    if (s->target_backing_sectors >= 0) {
+        if (sector_num >= s->target_backing_sectors) {
+            post_backing_zero = s->unallocated_blocks_are_zero;
+        } else if (sector_num + n > s->target_backing_sectors) {
+            /* Split requests around target_backing_sectors (because
+             * starting from there, zeros are handled differently) */
+            n = s->target_backing_sectors - sector_num;
+        }
+    }
 
     if (s->sector_next_status <= sector_num) {
         int64_t count = n * BDRV_SECTOR_SIZE;
@@ -1602,7 +1624,7 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
         n = DIV_ROUND_UP(count, BDRV_SECTOR_SIZE);
 
         if (ret & BDRV_BLOCK_ZERO) {
-            s->status = BLK_ZERO;
+            s->status = post_backing_zero ? BLK_BACKING_FILE : BLK_ZERO;
         } else if (ret & BDRV_BLOCK_DATA) {
             s->status = BLK_DATA;
         } else {
@@ -1994,7 +2016,7 @@ static int img_convert(int argc, char **argv)
             {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:O:B:co:s:l:S:pt:T:qnm:WU",
+        c = getopt_long(argc, argv, ":hf:O:B:co:l:S:pt:T:qnm:WU",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -2034,9 +2056,6 @@ static int img_convert(int argc, char **argv)
                 options = g_strdup_printf("%s,%s", options, optarg);
                 g_free(old_options);
             }
-            break;
-        case 's':
-            snapshot_name = optarg;
             break;
         case 'l':
             if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
@@ -2368,6 +2387,16 @@ static int img_convert(int argc, char **argv)
         }
     }
 
+    if (s.target_has_backing) {
+        /* Errors are treated as "backing length unknown" (which means
+         * s.target_backing_sectors has to be negative, which it will
+         * be automatically).  The backing file length is used only
+         * for optimizations, so such a case is not fatal. */
+        s.target_backing_sectors = bdrv_nb_sectors(out_bs->backing->bs);
+    } else {
+        s.target_backing_sectors = -1;
+    }
+
     ret = bdrv_get_info(out_bs, &bdi);
     if (ret < 0) {
         if (s.compressed) {
@@ -2377,6 +2406,7 @@ static int img_convert(int argc, char **argv)
     } else {
         s.compressed = s.compressed || bdi.needs_compressed_writes;
         s.cluster_sectors = bdi.cluster_size / BDRV_SECTOR_SIZE;
+        s.unallocated_blocks_are_zero = bdi.unallocated_blocks_are_zero;
     }
 
     ret = convert_do_copy(&s);
@@ -3240,6 +3270,9 @@ static int img_rebase(int argc, char **argv)
         }
 
         if (out_baseimg[0]) {
+            const char *overlay_filename;
+            char *out_real_path;
+
             options = qdict_new();
             if (out_basefmt) {
                 qdict_put_str(options, "driver", out_basefmt);
@@ -3248,8 +3281,26 @@ static int img_rebase(int argc, char **argv)
                 qdict_put_bool(options, BDRV_OPT_FORCE_SHARE, true);
             }
 
-            blk_new_backing = blk_new_open(out_baseimg, NULL,
+            overlay_filename = bs->exact_filename[0] ? bs->exact_filename
+                                                     : bs->filename;
+            out_real_path = g_malloc(PATH_MAX);
+
+            bdrv_get_full_backing_filename_from_filename(overlay_filename,
+                                                         out_baseimg,
+                                                         out_real_path,
+                                                         PATH_MAX,
+                                                         &local_err);
+            if (local_err) {
+                error_reportf_err(local_err,
+                                  "Could not resolve backing filename: ");
+                ret = -1;
+                g_free(out_real_path);
+                goto out;
+            }
+
+            blk_new_backing = blk_new_open(out_real_path, NULL,
                                            options, src_flags, &local_err);
+            g_free(out_real_path);
             if (!blk_new_backing) {
                 error_reportf_err(local_err,
                                   "Could not open new backing file '%s': ",
@@ -3657,6 +3708,32 @@ static void amend_status_cb(BlockDriverState *bs,
     qemu_progress_print(100.f * offset / total_work_size, 0);
 }
 
+static int print_amend_option_help(const char *format)
+{
+    BlockDriver *drv;
+
+    /* Find driver and parse its options */
+    drv = bdrv_find_format(format);
+    if (!drv) {
+        error_report("Unknown file format '%s'", format);
+        return 1;
+    }
+
+    if (!drv->bdrv_amend_options) {
+        error_report("Format driver '%s' does not support option amendment",
+                     format);
+        return 1;
+    }
+
+    /* Every driver supporting amendment must have create_opts */
+    assert(drv->create_opts);
+
+    printf("Creation options for '%s':\n", format);
+    qemu_opts_print_help(drv->create_opts);
+    printf("\nNote that not all of these options may be amendable.\n");
+    return 0;
+}
+
 static int img_amend(int argc, char **argv)
 {
     Error *err = NULL;
@@ -3756,7 +3833,7 @@ static int img_amend(int argc, char **argv)
     if (fmt && has_help_option(options)) {
         /* If a format is explicitly specified (and possibly no filename is
          * given), print option help here */
-        ret = print_block_option_help(filename, fmt);
+        ret = print_amend_option_help(fmt);
         goto out;
     }
 
@@ -3785,16 +3862,19 @@ static int img_amend(int argc, char **argv)
 
     if (has_help_option(options)) {
         /* If the format was auto-detected, print option help here */
-        ret = print_block_option_help(filename, fmt);
+        ret = print_amend_option_help(fmt);
         goto out;
     }
 
-    if (!bs->drv->create_opts) {
-        error_report("Format driver '%s' does not support any options to amend",
+    if (!bs->drv->bdrv_amend_options) {
+        error_report("Format driver '%s' does not support option amendment",
                      fmt);
         ret = -1;
         goto out;
     }
+
+    /* Every driver supporting amendment must have create_opts */
+    assert(bs->drv->create_opts);
 
     create_opts = qemu_opts_append(create_opts, bs->drv->create_opts);
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
@@ -3807,10 +3887,10 @@ static int img_amend(int argc, char **argv)
 
     /* In case the driver does not call amend_status_cb() */
     qemu_progress_print(0.f, 0);
-    ret = bdrv_amend_options(bs, opts, &amend_status_cb, NULL);
+    ret = bdrv_amend_options(bs, opts, &amend_status_cb, NULL, &err);
     qemu_progress_print(100.f, 0);
     if (ret < 0) {
-        error_report("Error while amending options: %s", strerror(-ret));
+        error_report_err(err);
         goto out;
     }
 
