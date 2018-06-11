@@ -2073,6 +2073,7 @@ static void block_dirty_bitmap_add_prepare(BlkActionState *common,
                                action->has_granularity, action->granularity,
                                action->has_persistent, action->persistent,
                                action->has_autoload, action->autoload,
+                               action->has_x_disabled, action->x_disabled,
                                &local_err);
 
     if (!local_err) {
@@ -2880,6 +2881,7 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
                                 bool has_granularity, uint32_t granularity,
                                 bool has_persistent, bool persistent,
                                 bool has_autoload, bool autoload,
+                                bool has_disabled, bool disabled,
                                 Error **errp)
 {
     BlockDriverState *bs;
@@ -2914,6 +2916,10 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
         warn_report("Autoload option is deprecated and its value is ignored");
     }
 
+    if (!has_disabled) {
+        disabled = false;
+    }
+
     if (persistent &&
         !bdrv_can_store_new_dirty_bitmap(bs, name, granularity, errp))
     {
@@ -2923,6 +2929,10 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
     bitmap = bdrv_create_dirty_bitmap(bs, granularity, name, errp);
     if (bitmap == NULL) {
         return;
+    }
+
+    if (disabled) {
+        bdrv_disable_dirty_bitmap(bitmap);
     }
 
     bdrv_dirty_bitmap_set_persistance(bitmap, persistent);
