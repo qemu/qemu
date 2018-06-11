@@ -430,7 +430,6 @@ static void pc_i440fx_3_0_machine_options(MachineClass *m)
     pc_i440fx_machine_options(m);
     m->alias = "pc";
     m->is_default = 1;
-    SET_MACHINE_COMPAT(m, PC_COMPAT_2_12);
 }
 
 DEFINE_I440FX_MACHINE(v3_0, "pc-i440fx-3.0", NULL,
