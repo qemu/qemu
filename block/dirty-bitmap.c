@@ -98,15 +98,6 @@ BdrvDirtyBitmap *bdrv_find_dirty_bitmap(BlockDriverState *bs, const char *name)
 }
 
 /* Called with BQL taken.  */
-void bdrv_dirty_bitmap_make_anon(BdrvDirtyBitmap *bitmap)
-{
-    assert(!bdrv_dirty_bitmap_frozen(bitmap));
-    g_free(bitmap->name);
-    bitmap->name = NULL;
-    bitmap->persistent = false;
-}
-
-/* Called with BQL taken.  */
 BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
                                           uint32_t granularity,
                                           const char *name,

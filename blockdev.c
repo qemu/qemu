@@ -2881,7 +2881,6 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
         }
     }
 
-    bdrv_dirty_bitmap_make_anon(bitmap);
     bdrv_release_dirty_bitmap(bs, bitmap);
 }
 
