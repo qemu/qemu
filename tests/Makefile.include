@@ -179,6 +179,7 @@ check-qtest-generic-y = tests/qmp-test$(EXESUF)
 gcov-files-generic-y = monitor.c qapi/qmp-dispatch.c
 check-qtest-generic-y += tests/device-introspect-test$(EXESUF)
 gcov-files-generic-y = qdev-monitor.c qmp.c
+check-qtest-generic-y += tests/cdrom-test$(EXESUF)
 
 gcov-files-ipack-y += hw/ipack/ipack.c
 check-qtest-ipack-y += tests/ipoctal232-test$(EXESUF)
@@ -844,6 +845,7 @@ tests/test-qapi-util$(EXESUF): tests/test-qapi-util.o $(test-util-obj-y)
 tests/numa-test$(EXESUF): tests/numa-test.o
 tests/vmgenid-test$(EXESUF): tests/vmgenid-test.o tests/boot-sector.o tests/acpi-utils.o
 tests/sdhci-test$(EXESUF): tests/sdhci-test.o $(libqos-pc-obj-y)
+tests/cdrom-test$(EXESUF): tests/cdrom-test.o tests/boot-sector.o $(libqos-obj-y)
 
 tests/migration/stress$(EXESUF): tests/migration/stress.o
 	$(call quiet-command, $(LINKPROG) -static -O3 $(PTHREAD_LIB) -o $@ $< ,"LINK","$(TARGET_DIR)$@")

@@ -523,18 +523,28 @@ static void ide_clear_retry(IDEState *s)
 }
 
 /* prepare data transfer and tell what to do after */
-void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
-                        EndTransferFunc *end_transfer_func)
+bool ide_transfer_start_norecurse(IDEState *s, uint8_t *buf, int size,
+                                  EndTransferFunc *end_transfer_func)
 {
-    s->end_transfer_func = end_transfer_func;
     s->data_ptr = buf;
     s->data_end = buf + size;
     ide_set_retry(s);
     if (!(s->status & ERR_STAT)) {
         s->status |= DRQ_STAT;
     }
-    if (s->bus->dma->ops->start_transfer) {
-        s->bus->dma->ops->start_transfer(s->bus->dma);
+    if (!s->bus->dma->ops->pio_transfer) {
+        s->end_transfer_func = end_transfer_func;
+        return false;
+    }
+    s->bus->dma->ops->pio_transfer(s->bus->dma);
+    return true;
+}
+
+void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
+                        EndTransferFunc *end_transfer_func)
+{
+    if (ide_transfer_start_norecurse(s, buf, size, end_transfer_func)) {
+        end_transfer_func(s);
     }
 }
 
@@ -545,27 +555,18 @@ static void ide_cmd_done(IDEState *s)
     }
 }
 
-static void ide_transfer_halt(IDEState *s,
-                              void(*end_transfer_func)(IDEState *),
-                              bool notify)
+static void ide_transfer_halt(IDEState *s)
 {
-    s->end_transfer_func = end_transfer_func;
+    s->end_transfer_func = ide_transfer_stop;
     s->data_ptr = s->io_buffer;
     s->data_end = s->io_buffer;
     s->status &= ~DRQ_STAT;
-    if (notify) {
-        ide_cmd_done(s);
-    }
 }
 
 void ide_transfer_stop(IDEState *s)
 {
-    ide_transfer_halt(s, ide_transfer_stop, true);
-}
-
-static void ide_transfer_cancel(IDEState *s)
-{
-    ide_transfer_halt(s, ide_transfer_cancel, false);
+    ide_transfer_halt(s);
+    ide_cmd_done(s);
 }
 
 int64_t ide_get_sector(IDEState *s)
@@ -1362,7 +1363,7 @@ static bool cmd_nop(IDEState *s, uint8_t cmd)
 static bool cmd_device_reset(IDEState *s, uint8_t cmd)
 {
     /* Halt PIO (in the DRQ phase), then DMA */
-    ide_transfer_cancel(s);
+    ide_transfer_halt(s);
     ide_cancel_dma_sync(s);
 
     /* Reset any PIO commands, reset signature, etc */

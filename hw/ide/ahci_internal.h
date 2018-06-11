@@ -55,11 +55,20 @@
 #define RX_FIS_UNK                0x60 /* offset of Unknown FIS data */
 
 /* global controller registers */
-#define HOST_CAP                  0x00 /* host capabilities */
-#define HOST_CTL                  0x04 /* global host control */
-#define HOST_IRQ_STAT             0x08 /* interrupt status */
-#define HOST_PORTS_IMPL           0x0c /* bitmap of implemented ports */
-#define HOST_VERSION              0x10 /* AHCI spec. version compliancy */
+enum AHCIHostReg {
+    AHCI_HOST_REG_CAP        = 0,  /* CAP: host capabilities */
+    AHCI_HOST_REG_CTL        = 1,  /* GHC: global host control */
+    AHCI_HOST_REG_IRQ_STAT   = 2,  /* IS: interrupt status */
+    AHCI_HOST_REG_PORTS_IMPL = 3,  /* PI: bitmap of implemented ports */
+    AHCI_HOST_REG_VERSION    = 4,  /* VS: AHCI spec. version compliancy */
+    AHCI_HOST_REG_CCC_CTL    = 5,  /* CCC_CTL: CCC Control */
+    AHCI_HOST_REG_CCC_PORTS  = 6,  /* CCC_PORTS: CCC Ports */
+    AHCI_HOST_REG_EM_LOC     = 7,  /* EM_LOC: Enclosure Mgmt Location */
+    AHCI_HOST_REG_EM_CTL     = 8,  /* EM_CTL: Enclosure Mgmt Control */
+    AHCI_HOST_REG_CAP2       = 9,  /* CAP2: host capabilities, extended */
+    AHCI_HOST_REG_BOHC       = 10, /* BOHC: firmare/os handoff ctrl & status */
+    AHCI_HOST_REG__COUNT     = 11
+};
 
 /* HOST_CTL bits */
 #define HOST_CTL_RESET            (1 << 0)  /* reset controller; self-clear */
@@ -75,21 +84,32 @@
 #define HOST_CAP_64               (1U << 31) /* PCI DAC (64-bit DMA) support */
 
 /* registers for each SATA port */
-#define PORT_LST_ADDR             0x00 /* command list DMA addr */
-#define PORT_LST_ADDR_HI          0x04 /* command list DMA addr hi */
-#define PORT_FIS_ADDR             0x08 /* FIS rx buf addr */
-#define PORT_FIS_ADDR_HI          0x0c /* FIS rx buf addr hi */
-#define PORT_IRQ_STAT             0x10 /* interrupt status */
-#define PORT_IRQ_MASK             0x14 /* interrupt enable/disable mask */
-#define PORT_CMD                  0x18 /* port command */
-#define PORT_TFDATA               0x20 /* taskfile data */
-#define PORT_SIG                  0x24 /* device TF signature */
-#define PORT_SCR_STAT             0x28 /* SATA phy register: SStatus */
-#define PORT_SCR_CTL              0x2c /* SATA phy register: SControl */
-#define PORT_SCR_ERR              0x30 /* SATA phy register: SError */
-#define PORT_SCR_ACT              0x34 /* SATA phy register: SActive */
-#define PORT_CMD_ISSUE            0x38 /* command issue */
-#define PORT_RESERVED             0x3c /* reserved */
+enum AHCIPortReg {
+    AHCI_PORT_REG_LST_ADDR    = 0, /* PxCLB: command list DMA addr */
+    AHCI_PORT_REG_LST_ADDR_HI = 1, /* PxCLBU: command list DMA addr hi */
+    AHCI_PORT_REG_FIS_ADDR    = 2, /* PxFB: FIS rx buf addr */
+    AHCI_PORT_REG_FIS_ADDR_HI = 3, /* PxFBU: FIX rx buf addr hi */
+    AHCI_PORT_REG_IRQ_STAT    = 4, /* PxIS: interrupt status */
+    AHCI_PORT_REG_IRQ_MASK    = 5, /* PxIE: interrupt enable/disable mask */
+    AHCI_PORT_REG_CMD         = 6, /* PxCMD: port command */
+    /* RESERVED */
+    AHCI_PORT_REG_TFDATA      = 8, /* PxTFD: taskfile data */
+    AHCI_PORT_REG_SIG         = 9, /* PxSIG: device TF signature */
+    AHCI_PORT_REG_SCR_STAT    = 10, /* PxSSTS: SATA phy register: SStatus */
+    AHCI_PORT_REG_SCR_CTL     = 11, /* PxSCTL: SATA phy register: SControl */
+    AHCI_PORT_REG_SCR_ERR     = 12, /* PxSERR: SATA phy register: SError */
+    AHCI_PORT_REG_SCR_ACT     = 13, /* PxSACT: SATA phy register: SActive */
+    AHCI_PORT_REG_CMD_ISSUE   = 14, /* PxCI: command issue */
+    AHCI_PORT_REG_SCR_NOTIF   = 15, /* PxSNTF: SATA phy register: SNotification */
+    AHCI_PORT_REG_FIS_CTL     = 16, /* PxFBS: Port multiplier switching ctl */
+    AHCI_PORT_REG_DEV_SLEEP   = 17, /* PxDEVSLP: device sleep control */
+    /* RESERVED */
+    AHCI_PORT_REG_VENDOR_1    = 28, /* PxVS: Vendor Specific */
+    AHCI_PORT_REG_VENDOR_2    = 29,
+    AHCI_PORT_REG_VENDOR_3    = 30,
+    AHCI_PORT_REG_VENDOR_4    = 31,
+    AHCI_PORT_REG__COUNT      = 32
+};
 
 /* Port interrupt bit descriptors */
 enum AHCIPortIRQ {
@@ -198,8 +218,7 @@ enum AHCIPortIRQ {
 #define SATA_SIGNATURE_CDROM               0xeb140101
 #define SATA_SIGNATURE_DISK                0x00000101
 
-#define AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR 0x20
-                                            /* Shouldn't this be 0x2c? */
+#define AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR 0x2c
 
 #define AHCI_PORT_REGS_START_ADDR          0x100
 #define AHCI_PORT_ADDR_OFFSET_MASK         0x7f

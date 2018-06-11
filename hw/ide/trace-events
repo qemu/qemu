@@ -63,16 +63,23 @@ ide_atapi_cmd_read_dma_cb_aio(void *s, int lba, int n) "IDEState: %p; aio read: 
 ide_atapi_cmd_packet(void *s, uint16_t limit, const char *packet) "IDEState: %p; limit=0x%x packet: %s"
 
 # hw/ide/ahci.c
-ahci_port_read(void *s, int port, int offset, uint32_t ret) "ahci(%p)[%d]: port read @ 0x%x: 0x%08x"
+ahci_port_read(void *s, int port, const char *reg, int offset, uint32_t ret) "ahci(%p)[%d]: port read [reg:%s] @ 0x%x: 0x%08x"
+ahci_port_read_default(void *s, int port, const char *reg, int offset) "ahci(%p)[%d]: unimplemented port read [reg:%s] @ 0x%x"
 ahci_irq_raise(void *s) "ahci(%p): raise irq"
 ahci_irq_lower(void *s) "ahci(%p): lower irq"
 ahci_check_irq(void *s, uint32_t old, uint32_t new) "ahci(%p): check irq 0x%08x --> 0x%08x"
 ahci_trigger_irq(void *s, int port, const char *name, uint32_t val, uint32_t old, uint32_t new, uint32_t effective) "ahci(%p)[%d]: trigger irq +%s (0x%08x); irqstat: 0x%08x --> 0x%08x; effective: 0x%08x"
-ahci_port_write(void *s, int port, int offset, uint32_t val) "ahci(%p)[%d]: port write @ 0x%x: 0x%08x"
+ahci_port_write(void *s, int port, const char *reg, int offset, uint32_t val) "ahci(%p)[%d]: port write [reg:%s] @ 0x%x: 0x%08x"
+ahci_port_write_unimpl(void *s, int port, const char *reg, int offset, uint32_t val) "ahci(%p)[%d]: unimplemented port write [reg:%s] @ 0x%x: 0x%08x"
 ahci_mem_read_32(void *s, uint64_t addr, uint32_t val) "ahci(%p): mem read @ 0x%"PRIx64": 0x%08x"
+ahci_mem_read_32_default(void *s, uint64_t addr, uint32_t val) "ahci(%p): mem read @ 0x%"PRIx64": 0x%08x"
+ahci_mem_read_32_host(void *s, const char *reg, uint64_t addr, uint32_t val) "ahci(%p): mem read [reg:%s] @ 0x%"PRIx64": 0x%08x"
+ahci_mem_read_32_host_default(void *s, const char *reg, uint64_t addr) "ahci(%p): unimplemented mem read [reg:%s] @ 0x%"PRIx64
 ahci_mem_read(void *s, unsigned size, uint64_t addr, uint64_t val) "ahci(%p): read%u @ 0x%"PRIx64": 0x%016"PRIx64
 ahci_mem_write(void *s, unsigned size, uint64_t addr, uint64_t val) "ahci(%p): write%u @ 0x%"PRIx64": 0x%016"PRIx64
-ahci_mem_write_unknown(void *s, unsigned size, uint64_t addr, uint64_t val) "ahci(%p): write%u to unknown register 0x%"PRIx64": 0x%016"PRIx64
+ahci_mem_write_host_unimpl(void *s, unsigned size, const char *reg, uint64_t addr) "ahci(%p) unimplemented write%u [reg:%s] @ 0x%"PRIx64
+ahci_mem_write_host(void *s, unsigned size, const char *reg, uint64_t addr, uint64_t val) "ahci(%p) write%u [reg:%s] @ 0x%"PRIx64": 0x%016"PRIx64
+ahci_mem_write_unimpl(void *s, unsigned size, uint64_t addr, uint64_t val) "ahci(%p): write%u to unknown register 0x%"PRIx64": 0x%016"PRIx64
 ahci_set_signature(void *s, int port, uint8_t nsector, uint8_t sector, uint8_t lcyl, uint8_t hcyl, uint32_t sig) "ahci(%p)[%d]: set signature sector:0x%02x nsector:0x%02x lcyl:0x%02x hcyl:0x%02x (cumulatively: 0x%08x)"
 ahci_reset_port(void *s, int port) "ahci(%p)[%d]: reset port"
 ahci_unmap_fis_address_null(void *s, int port) "ahci(%p)[%d]: Attempt to unmap NULL FIS address"
@@ -101,7 +108,7 @@ handle_cmd_badport(void *s, int port) "ahci(%p)[%d]: guest accessed unused port"
 handle_cmd_badfis(void *s, int port) "ahci(%p)[%d]: guest provided an invalid cmd FIS"
 handle_cmd_badmap(void *s, int port, uint64_t len) "ahci(%p)[%d]: dma_memory_map failed, 0x%02"PRIx64" != 0x80"
 handle_cmd_unhandled_fis(void *s, int port, uint8_t b0, uint8_t b1, uint8_t b2) "ahci(%p)[%d]: unhandled FIS type. cmd_fis: 0x%02x-%02x-%02x"
-ahci_start_transfer(void *s, int port, const char *rw, uint32_t size, const char *tgt, const char *sgl) "ahci(%p)[%d]: %sing %d bytes on %s w/%s sglist"
+ahci_pio_transfer(void *s, int port, const char *rw, uint32_t size, const char *tgt, const char *sgl) "ahci(%p)[%d]: %sing %d bytes on %s w/%s sglist"
 ahci_start_dma(void *s, int port) "ahci(%p)[%d]: start dma"
 ahci_dma_prepare_buf(void *s, int port, int32_t io_buffer_size, int32_t limit) "ahci(%p)[%d]: prepare buf limit=%"PRId32" prepared=%"PRId32
 ahci_dma_prepare_buf_fail(void *s, int port) "ahci(%p)[%d]: sglist population failed"

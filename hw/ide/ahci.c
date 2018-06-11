@@ -27,6 +27,7 @@
 #include "hw/pci/pci.h"
 
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 #include "hw/ide/internal.h"
@@ -45,6 +46,44 @@ static bool ahci_map_clb_address(AHCIDevice *ad);
 static bool ahci_map_fis_address(AHCIDevice *ad);
 static void ahci_unmap_clb_address(AHCIDevice *ad);
 static void ahci_unmap_fis_address(AHCIDevice *ad);
+
+static const char *AHCIHostReg_lookup[AHCI_HOST_REG__COUNT] = {
+    [AHCI_HOST_REG_CAP]        = "CAP",
+    [AHCI_HOST_REG_CTL]        = "GHC",
+    [AHCI_HOST_REG_IRQ_STAT]   = "IS",
+    [AHCI_HOST_REG_PORTS_IMPL] = "PI",
+    [AHCI_HOST_REG_VERSION]    = "VS",
+    [AHCI_HOST_REG_CCC_CTL]    = "CCC_CTL",
+    [AHCI_HOST_REG_CCC_PORTS]  = "CCC_PORTS",
+    [AHCI_HOST_REG_EM_LOC]     = "EM_LOC",
+    [AHCI_HOST_REG_EM_CTL]     = "EM_CTL",
+    [AHCI_HOST_REG_CAP2]       = "CAP2",
+    [AHCI_HOST_REG_BOHC]       = "BOHC",
+};
+
+static const char *AHCIPortReg_lookup[AHCI_PORT_REG__COUNT] = {
+    [AHCI_PORT_REG_LST_ADDR]    = "PxCLB",
+    [AHCI_PORT_REG_LST_ADDR_HI] = "PxCLBU",
+    [AHCI_PORT_REG_FIS_ADDR]    = "PxFB",
+    [AHCI_PORT_REG_FIS_ADDR_HI] = "PxFBU",
+    [AHCI_PORT_REG_IRQ_STAT]    = "PxIS",
+    [AHCI_PORT_REG_IRQ_MASK]    = "PXIE",
+    [AHCI_PORT_REG_CMD]         = "PxCMD",
+    [7]                         = "Reserved",
+    [AHCI_PORT_REG_TFDATA]      = "PxTFD",
+    [AHCI_PORT_REG_SIG]         = "PxSIG",
+    [AHCI_PORT_REG_SCR_STAT]    = "PxSSTS",
+    [AHCI_PORT_REG_SCR_CTL]     = "PxSCTL",
+    [AHCI_PORT_REG_SCR_ERR]     = "PxSERR",
+    [AHCI_PORT_REG_SCR_ACT]     = "PxSACT",
+    [AHCI_PORT_REG_CMD_ISSUE]   = "PxCI",
+    [AHCI_PORT_REG_SCR_NOTIF]   = "PxSNTF",
+    [AHCI_PORT_REG_FIS_CTL]     = "PxFBS",
+    [AHCI_PORT_REG_DEV_SLEEP]   = "PxDEVSLP",
+    [18 ... 27]                 = "Reserved",
+    [AHCI_PORT_REG_VENDOR_1 ...
+     AHCI_PORT_REG_VENDOR_4]    = "PxVS",
+};
 
 static const char *AHCIPortIRQ_lookup[AHCI_PORT_IRQ__COUNT] = {
     [AHCI_PORT_IRQ_BIT_DHRS] = "DHRS",
@@ -68,41 +107,42 @@ static const char *AHCIPortIRQ_lookup[AHCI_PORT_IRQ__COUNT] = {
     [AHCI_PORT_IRQ_BIT_CPDS] = "CPDS"
 };
 
-static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
+static uint32_t ahci_port_read(AHCIState *s, int port, int offset)
 {
     uint32_t val;
-    AHCIPortRegs *pr;
-    pr = &s->dev[port].port_regs;
+    AHCIPortRegs *pr = &s->dev[port].port_regs;
+    enum AHCIPortReg regnum = offset / sizeof(uint32_t);
+    assert(regnum < (AHCI_PORT_ADDR_OFFSET_LEN / sizeof(uint32_t)));
 
-    switch (offset) {
-    case PORT_LST_ADDR:
+    switch (regnum) {
+    case AHCI_PORT_REG_LST_ADDR:
         val = pr->lst_addr;
         break;
-    case PORT_LST_ADDR_HI:
+    case AHCI_PORT_REG_LST_ADDR_HI:
         val = pr->lst_addr_hi;
         break;
-    case PORT_FIS_ADDR:
+    case AHCI_PORT_REG_FIS_ADDR:
         val = pr->fis_addr;
         break;
-    case PORT_FIS_ADDR_HI:
+    case AHCI_PORT_REG_FIS_ADDR_HI:
         val = pr->fis_addr_hi;
         break;
-    case PORT_IRQ_STAT:
+    case AHCI_PORT_REG_IRQ_STAT:
         val = pr->irq_stat;
         break;
-    case PORT_IRQ_MASK:
+    case AHCI_PORT_REG_IRQ_MASK:
         val = pr->irq_mask;
         break;
-    case PORT_CMD:
+    case AHCI_PORT_REG_CMD:
         val = pr->cmd;
         break;
-    case PORT_TFDATA:
+    case AHCI_PORT_REG_TFDATA:
         val = pr->tfdata;
         break;
-    case PORT_SIG:
+    case AHCI_PORT_REG_SIG:
         val = pr->sig;
         break;
-    case PORT_SCR_STAT:
+    case AHCI_PORT_REG_SCR_STAT:
         if (s->dev[port].port.ifs[0].blk) {
             val = SATA_SCR_SSTATUS_DET_DEV_PRESENT_PHY_UP |
                   SATA_SCR_SSTATUS_SPD_GEN1 | SATA_SCR_SSTATUS_IPM_ACTIVE;
@@ -110,28 +150,29 @@ static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
             val = SATA_SCR_SSTATUS_DET_NODEV;
         }
         break;
-    case PORT_SCR_CTL:
+    case AHCI_PORT_REG_SCR_CTL:
         val = pr->scr_ctl;
         break;
-    case PORT_SCR_ERR:
+    case AHCI_PORT_REG_SCR_ERR:
         val = pr->scr_err;
         break;
-    case PORT_SCR_ACT:
+    case AHCI_PORT_REG_SCR_ACT:
         val = pr->scr_act;
         break;
-    case PORT_CMD_ISSUE:
+    case AHCI_PORT_REG_CMD_ISSUE:
         val = pr->cmd_issue;
         break;
-    case PORT_RESERVED:
     default:
+        trace_ahci_port_read_default(s, port, AHCIPortReg_lookup[regnum],
+                                     offset);
         val = 0;
     }
 
-    trace_ahci_port_read(s, port, offset, val);
+    trace_ahci_port_read(s, port, AHCIPortReg_lookup[regnum], offset, val);
     return val;
 }
 
-static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
+static void ahci_irq_raise(AHCIState *s)
 {
     DeviceState *dev_state = s->container;
     PCIDevice *pci_dev = (PCIDevice *) object_dynamic_cast(OBJECT(dev_state),
@@ -146,7 +187,7 @@ static void ahci_irq_raise(AHCIState *s, AHCIDevice *dev)
     }
 }
 
-static void ahci_irq_lower(AHCIState *s, AHCIDevice *dev)
+static void ahci_irq_lower(AHCIState *s)
 {
     DeviceState *dev_state = s->container;
     PCIDevice *pci_dev = (PCIDevice *) object_dynamic_cast(OBJECT(dev_state),
@@ -174,9 +215,9 @@ static void ahci_check_irq(AHCIState *s)
     trace_ahci_check_irq(s, old_irq, s->control_regs.irqstatus);
     if (s->control_regs.irqstatus &&
         (s->control_regs.ghc & HOST_CTL_IRQ_EN)) {
-            ahci_irq_raise(s, NULL);
+            ahci_irq_raise(s);
     } else {
-        ahci_irq_lower(s, NULL);
+        ahci_irq_lower(s);
     }
 }
 
@@ -253,85 +294,88 @@ static int ahci_cond_start_engines(AHCIDevice *ad)
     return 0;
 }
 
-static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
+static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
 {
     AHCIPortRegs *pr = &s->dev[port].port_regs;
+    enum AHCIPortReg regnum = offset / sizeof(uint32_t);
+    assert(regnum < (AHCI_PORT_ADDR_OFFSET_LEN / sizeof(uint32_t)));
+    trace_ahci_port_write(s, port, AHCIPortReg_lookup[regnum], offset, val);
 
-    trace_ahci_port_write(s, port, offset, val);
-    switch (offset) {
-        case PORT_LST_ADDR:
-            pr->lst_addr = val;
-            break;
-        case PORT_LST_ADDR_HI:
-            pr->lst_addr_hi = val;
-            break;
-        case PORT_FIS_ADDR:
-            pr->fis_addr = val;
-            break;
-        case PORT_FIS_ADDR_HI:
-            pr->fis_addr_hi = val;
-            break;
-        case PORT_IRQ_STAT:
-            pr->irq_stat &= ~val;
-            ahci_check_irq(s);
-            break;
-        case PORT_IRQ_MASK:
-            pr->irq_mask = val & 0xfdc000ff;
-            ahci_check_irq(s);
-            break;
-        case PORT_CMD:
-            /* Block any Read-only fields from being set;
-             * including LIST_ON and FIS_ON.
-             * The spec requires to set ICC bits to zero after the ICC change
-             * is done. We don't support ICC state changes, therefore always
-             * force the ICC bits to zero.
-             */
-            pr->cmd = (pr->cmd & PORT_CMD_RO_MASK) |
-                      (val & ~(PORT_CMD_RO_MASK|PORT_CMD_ICC_MASK));
+    switch (regnum) {
+    case AHCI_PORT_REG_LST_ADDR:
+        pr->lst_addr = val;
+        break;
+    case AHCI_PORT_REG_LST_ADDR_HI:
+        pr->lst_addr_hi = val;
+        break;
+    case AHCI_PORT_REG_FIS_ADDR:
+        pr->fis_addr = val;
+        break;
+    case AHCI_PORT_REG_FIS_ADDR_HI:
+        pr->fis_addr_hi = val;
+        break;
+    case AHCI_PORT_REG_IRQ_STAT:
+        pr->irq_stat &= ~val;
+        ahci_check_irq(s);
+        break;
+    case AHCI_PORT_REG_IRQ_MASK:
+        pr->irq_mask = val & 0xfdc000ff;
+        ahci_check_irq(s);
+        break;
+    case AHCI_PORT_REG_CMD:
+        /* Block any Read-only fields from being set;
+         * including LIST_ON and FIS_ON.
+         * The spec requires to set ICC bits to zero after the ICC change
+         * is done. We don't support ICC state changes, therefore always
+         * force the ICC bits to zero.
+         */
+        pr->cmd = (pr->cmd & PORT_CMD_RO_MASK) |
+            (val & ~(PORT_CMD_RO_MASK | PORT_CMD_ICC_MASK));
 
-            /* Check FIS RX and CLB engines */
-            ahci_cond_start_engines(&s->dev[port]);
+        /* Check FIS RX and CLB engines */
+        ahci_cond_start_engines(&s->dev[port]);
 
-            /* XXX usually the FIS would be pending on the bus here and
-                   issuing deferred until the OS enables FIS receival.
-                   Instead, we only submit it once - which works in most
-                   cases, but is a hack. */
-            if ((pr->cmd & PORT_CMD_FIS_ON) &&
-                !s->dev[port].init_d2h_sent) {
-                ahci_init_d2h(&s->dev[port]);
-            }
+        /* XXX usually the FIS would be pending on the bus here and
+           issuing deferred until the OS enables FIS receival.
+           Instead, we only submit it once - which works in most
+           cases, but is a hack. */
+        if ((pr->cmd & PORT_CMD_FIS_ON) &&
+            !s->dev[port].init_d2h_sent) {
+            ahci_init_d2h(&s->dev[port]);
+        }
 
-            check_cmd(s, port);
-            break;
-        case PORT_TFDATA:
-            /* Read Only. */
-            break;
-        case PORT_SIG:
-            /* Read Only */
-            break;
-        case PORT_SCR_STAT:
-            /* Read Only */
-            break;
-        case PORT_SCR_CTL:
-            if (((pr->scr_ctl & AHCI_SCR_SCTL_DET) == 1) &&
-                ((val & AHCI_SCR_SCTL_DET) == 0)) {
-                ahci_reset_port(s, port);
-            }
-            pr->scr_ctl = val;
-            break;
-        case PORT_SCR_ERR:
-            pr->scr_err &= ~val;
-            break;
-        case PORT_SCR_ACT:
-            /* RW1 */
-            pr->scr_act |= val;
-            break;
-        case PORT_CMD_ISSUE:
-            pr->cmd_issue |= val;
-            check_cmd(s, port);
-            break;
-        default:
-            break;
+        check_cmd(s, port);
+        break;
+    case AHCI_PORT_REG_TFDATA:
+    case AHCI_PORT_REG_SIG:
+    case AHCI_PORT_REG_SCR_STAT:
+        /* Read Only */
+        break;
+    case AHCI_PORT_REG_SCR_CTL:
+        if (((pr->scr_ctl & AHCI_SCR_SCTL_DET) == 1) &&
+            ((val & AHCI_SCR_SCTL_DET) == 0)) {
+            ahci_reset_port(s, port);
+        }
+        pr->scr_ctl = val;
+        break;
+    case AHCI_PORT_REG_SCR_ERR:
+        pr->scr_err &= ~val;
+        break;
+    case AHCI_PORT_REG_SCR_ACT:
+        /* RW1 */
+        pr->scr_act |= val;
+        break;
+    case AHCI_PORT_REG_CMD_ISSUE:
+        pr->cmd_issue |= val;
+        check_cmd(s, port);
+        break;
+    default:
+        trace_ahci_port_write_unimpl(s, port, AHCIPortReg_lookup[regnum],
+                                     offset, val);
+        qemu_log_mask(LOG_UNIMP, "Attempted write to unimplemented register: "
+                      "AHCI port %d register %s, offset 0x%x: 0x%"PRIx32,
+                      port, AHCIPortReg_lookup[regnum], offset, val);
+        break;
     }
 }
 
@@ -341,28 +385,37 @@ static uint64_t ahci_mem_read_32(void *opaque, hwaddr addr)
     uint32_t val = 0;
 
     if (addr < AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR) {
-        switch (addr) {
-        case HOST_CAP:
+        enum AHCIHostReg regnum = addr / 4;
+        assert(regnum < AHCI_HOST_REG__COUNT);
+
+        switch (regnum) {
+        case AHCI_HOST_REG_CAP:
             val = s->control_regs.cap;
             break;
-        case HOST_CTL:
+        case AHCI_HOST_REG_CTL:
             val = s->control_regs.ghc;
             break;
-        case HOST_IRQ_STAT:
+        case AHCI_HOST_REG_IRQ_STAT:
             val = s->control_regs.irqstatus;
             break;
-        case HOST_PORTS_IMPL:
+        case AHCI_HOST_REG_PORTS_IMPL:
             val = s->control_regs.impl;
             break;
-        case HOST_VERSION:
+        case AHCI_HOST_REG_VERSION:
             val = s->control_regs.version;
             break;
+        default:
+            trace_ahci_mem_read_32_host_default(s, AHCIHostReg_lookup[regnum],
+                                                addr);
         }
+        trace_ahci_mem_read_32_host(s, AHCIHostReg_lookup[regnum], addr, val);
     } else if ((addr >= AHCI_PORT_REGS_START_ADDR) &&
                (addr < (AHCI_PORT_REGS_START_ADDR +
                 (s->ports * AHCI_PORT_ADDR_OFFSET_LEN)))) {
         val = ahci_port_read(s, (addr - AHCI_PORT_REGS_START_ADDR) >> 7,
                              addr & AHCI_PORT_ADDR_OFFSET_MASK);
+    } else {
+        trace_ahci_mem_read_32_default(s, addr, val);
     }
 
     trace_ahci_mem_read_32(s, addr, val);
@@ -415,38 +468,53 @@ static void ahci_mem_write(void *opaque, hwaddr addr,
     }
 
     if (addr < AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR) {
-        switch (addr) {
-            case HOST_CAP: /* R/WO, RO */
-                /* FIXME handle R/WO */
-                break;
-            case HOST_CTL: /* R/W */
-                if (val & HOST_CTL_RESET) {
-                    ahci_reset(s);
-                } else {
-                    s->control_regs.ghc = (val & 0x3) | HOST_CTL_AHCI_EN;
-                    ahci_check_irq(s);
-                }
-                break;
-            case HOST_IRQ_STAT: /* R/WC, RO */
-                s->control_regs.irqstatus &= ~val;
+        enum AHCIHostReg regnum = addr / 4;
+        assert(regnum < AHCI_HOST_REG__COUNT);
+
+        switch (regnum) {
+        case AHCI_HOST_REG_CAP: /* R/WO, RO */
+            /* FIXME handle R/WO */
+            break;
+        case AHCI_HOST_REG_CTL: /* R/W */
+            if (val & HOST_CTL_RESET) {
+                ahci_reset(s);
+            } else {
+                s->control_regs.ghc = (val & 0x3) | HOST_CTL_AHCI_EN;
                 ahci_check_irq(s);
-                break;
-            case HOST_PORTS_IMPL: /* R/WO, RO */
-                /* FIXME handle R/WO */
-                break;
-            case HOST_VERSION: /* RO */
-                /* FIXME report write? */
-                break;
-            default:
-                trace_ahci_mem_write_unknown(s, size, addr, val);
+            }
+            break;
+        case AHCI_HOST_REG_IRQ_STAT: /* R/WC, RO */
+            s->control_regs.irqstatus &= ~val;
+            ahci_check_irq(s);
+            break;
+        case AHCI_HOST_REG_PORTS_IMPL: /* R/WO, RO */
+            /* FIXME handle R/WO */
+            break;
+        case AHCI_HOST_REG_VERSION: /* RO */
+            /* FIXME report write? */
+            break;
+        default:
+            qemu_log_mask(LOG_UNIMP,
+                          "Attempted write to unimplemented register: "
+                          "AHCI host register %s, "
+                          "offset 0x%"PRIx64": 0x%"PRIx64,
+                          AHCIHostReg_lookup[regnum], addr, val);
+            trace_ahci_mem_write_host_unimpl(s, size,
+                                             AHCIHostReg_lookup[regnum], addr);
         }
+        trace_ahci_mem_write_host(s, size, AHCIHostReg_lookup[regnum],
+                                     addr, val);
     } else if ((addr >= AHCI_PORT_REGS_START_ADDR) &&
                (addr < (AHCI_PORT_REGS_START_ADDR +
-                (s->ports * AHCI_PORT_ADDR_OFFSET_LEN)))) {
+                        (s->ports * AHCI_PORT_ADDR_OFFSET_LEN)))) {
         ahci_port_write(s, (addr - AHCI_PORT_REGS_START_ADDR) >> 7,
                         addr & AHCI_PORT_ADDR_OFFSET_MASK, val);
+    } else {
+        qemu_log_mask(LOG_UNIMP, "Attempted write to unimplemented register: "
+                      "AHCI global register at offset 0x%"PRIx64": 0x%"PRIx64,
+                      addr, val);
+        trace_ahci_mem_write_unimpl(s, size, addr, val);
     }
-
 }
 
 static const MemoryRegionOps ahci_mem_ops = {
@@ -531,13 +599,6 @@ static void ahci_check_cmd_bh(void *opaque)
 
     qemu_bh_delete(ad->check_bh);
     ad->check_bh = NULL;
-
-    if ((ad->busy_slot != -1) &&
-        !(ad->port.ifs[0].status & (BUSY_STAT|DRQ_STAT))) {
-        /* no longer busy */
-        ad->port_regs.cmd_issue &= ~(1 << ad->busy_slot);
-        ad->busy_slot = -1;
-    }
 
     check_cmd(ad->hba, ad->port_no);
 }
@@ -1198,7 +1259,6 @@ static void handle_reg_h2d_fis(AHCIState *s, int port,
             g_free(pretty_fis);
         }
         s->dev[port].done_atapi_packet = false;
-        /* XXX send PIO setup FIS */
     }
 
     ide_state->error = 0;
@@ -1280,8 +1340,8 @@ out:
     return 0;
 }
 
-/* DMA dev <-> ram */
-static void ahci_start_transfer(IDEDMA *dma)
+/* Transfer PIO data between RAM and device */
+static void ahci_pio_transfer(IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
@@ -1292,10 +1352,12 @@ static void ahci_start_transfer(IDEDMA *dma)
     int is_atapi = opts & AHCI_CMD_ATAPI;
     int has_sglist = 0;
 
+    /* PIO FIS gets written prior to transfer */
+    ahci_write_fis_pio(ad, size);
+
     if (is_atapi && !ad->done_atapi_packet) {
         /* already prepopulated iobuffer */
         ad->done_atapi_packet = true;
-        size = 0;
         goto out;
     }
 
@@ -1303,9 +1365,9 @@ static void ahci_start_transfer(IDEDMA *dma)
         has_sglist = 1;
     }
 
-    trace_ahci_start_transfer(ad->hba, ad->port_no, is_write ? "writ" : "read",
-                              size, is_atapi ? "atapi" : "ata",
-                              has_sglist ? "" : "o");
+    trace_ahci_pio_transfer(ad->hba, ad->port_no, is_write ? "writ" : "read",
+                            size, is_atapi ? "atapi" : "ata",
+                            has_sglist ? "" : "o");
 
     if (has_sglist && size) {
         if (is_write) {
@@ -1315,19 +1377,11 @@ static void ahci_start_transfer(IDEDMA *dma)
         }
     }
 
+    /* Update number of transferred bytes, destroy sglist */
+    dma_buf_commit(s, size);
 out:
     /* declare that we processed everything */
     s->data_ptr = s->data_end;
-
-    /* Update number of transferred bytes, destroy sglist */
-    dma_buf_commit(s, size);
-
-    s->end_transfer_func(s);
-
-    if (!(s->status & DRQ_STAT)) {
-        /* done with PIO send/receive */
-        ahci_write_fis_pio(ad, le32_to_cpu(ad->cur_cmd->status));
-    }
 }
 
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,
@@ -1425,11 +1479,16 @@ static void ahci_cmd_done(IDEDMA *dma)
 
     trace_ahci_cmd_done(ad->hba, ad->port_no);
 
+    /* no longer busy */
+    if (ad->busy_slot != -1) {
+        ad->port_regs.cmd_issue &= ~(1 << ad->busy_slot);
+        ad->busy_slot = -1;
+    }
+
     /* update d2h status */
     ahci_write_fis_d2h(ad);
 
-    if (!ad->check_bh) {
-        /* maybe we still have something to process, check later */
+    if (ad->port_regs.cmd_issue && !ad->check_bh) {
         ad->check_bh = qemu_bh_new(ahci_check_cmd_bh, ad);
         qemu_bh_schedule(ad->check_bh);
     }
@@ -1443,7 +1502,7 @@ static const IDEDMAOps ahci_dma_ops = {
     .start_dma = ahci_start_dma,
     .restart = ahci_restart,
     .restart_dma = ahci_restart_dma,
-    .start_transfer = ahci_start_transfer,
+    .pio_transfer = ahci_pio_transfer,
     .prepare_buf = ahci_dma_prepare_buf,
     .commit_buf = ahci_commit_buf,
     .rw_buf = ahci_dma_rw_buf,
