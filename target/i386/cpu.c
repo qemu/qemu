@@ -788,7 +788,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "fma", "cx16", "xtpr", "pdcm",
             NULL, "pcid", "dca", "sse4.1",
             "sse4.2", "x2apic", "movbe", "popcnt",
-            "tsc-deadline", "aes", "xsave", "osxsave",
+            "tsc-deadline", "aes", "xsave", NULL /* osxsave */,
             "avx", "f16c", "rdrand", "hypervisor",
         },
         .cpuid_eax = 1, .cpuid_reg = R_ECX,
