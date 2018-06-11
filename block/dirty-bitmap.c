@@ -728,3 +728,21 @@ int64_t bdrv_dirty_bitmap_next_zero(BdrvDirtyBitmap *bitmap, uint64_t offset)
 {
     return hbitmap_next_zero(bitmap->bitmap, offset);
 }
+
+void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
+                             Error **errp)
+{
+    /* only bitmaps from one bds are supported */
+    assert(dest->mutex == src->mutex);
+
+    qemu_mutex_lock(dest->mutex);
+
+    assert(bdrv_dirty_bitmap_enabled(dest));
+    assert(!bdrv_dirty_bitmap_readonly(dest));
+
+    if (!hbitmap_merge(dest->bitmap, src->bitmap)) {
+        error_setg(errp, "Bitmaps are incompatible and can't be merged");
+    }
+
+    qemu_mutex_unlock(dest->mutex);
+}
