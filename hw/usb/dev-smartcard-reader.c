@@ -1147,6 +1147,7 @@ static void ccid_unrealize(USBDevice *dev, Error **errp)
     USBCCIDState *s = USB_CCID_DEV(dev);
 
     ccid_bulk_in_clear(s);
+    object_unref(OBJECT(&s->bus));
 }
 
 static void ccid_flush_pending_answers(USBCCIDState *s)

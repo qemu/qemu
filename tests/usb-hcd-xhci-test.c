@@ -35,6 +35,15 @@ static void test_usb_uas_hotplug(void)
     qtest_qmp_device_del("uas");
 }
 
+static void test_usb_ccid_hotplug(void)
+{
+    qtest_qmp_device_add("usb-ccid", "ccid", NULL);
+    qtest_qmp_device_del("ccid");
+    /* check the device can be added again */
+    qtest_qmp_device_add("usb-ccid", "ccid", NULL);
+    qtest_qmp_device_del("ccid");
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -44,6 +53,7 @@ int main(int argc, char **argv)
     qtest_add_func("/xhci/pci/init", test_xhci_init);
     qtest_add_func("/xhci/pci/hotplug", test_xhci_hotplug);
     qtest_add_func("/xhci/pci/hotplug/usb-uas", test_usb_uas_hotplug);
+    qtest_add_func("/xhci/pci/hotplug/usb-ccid", test_usb_ccid_hotplug);
 
     qtest_start("-device nec-usb-xhci,id=xhci"
                 " -drive id=drive0,if=none,file=null-co://,format=raw");

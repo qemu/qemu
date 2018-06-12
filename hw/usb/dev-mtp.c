@@ -1017,12 +1017,16 @@ static MTPData *usb_mtp_get_object(MTPState *s, MTPControl *c,
 static MTPData *usb_mtp_get_partial_object(MTPState *s, MTPControl *c,
                                            MTPObject *o)
 {
-    MTPData *d = usb_mtp_data_alloc(c);
+    MTPData *d;
     off_t offset;
 
+    if (c->argc <= 2) {
+        return NULL;
+    }
     trace_usb_mtp_op_get_partial_object(s->dev.addr, o->handle, o->path,
                                         c->argv[1], c->argv[2]);
 
+    d = usb_mtp_data_alloc(c);
     d->fd = open(o->path, O_RDONLY);
     if (d->fd == -1) {
         usb_mtp_data_free(d);
@@ -1696,6 +1700,11 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
     uint64_t dlen;
     uint32_t data_len = p->iov.size;
 
+    if (!d) {
+            usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, 0,
+                                 0, 0, 0, 0);
+            return;
+    }
     if (d->first) {
         /* Total length of incoming data */
         d->length = cpu_to_le32(container->length) - sizeof(mtp_container);
