@@ -567,7 +567,6 @@ $(SRC_PATH)/scripts/qapi/types.py \
 $(SRC_PATH)/scripts/qapi/visit.py \
 $(SRC_PATH)/scripts/qapi/common.py \
 $(SRC_PATH)/scripts/qapi/doc.py \
-$(SRC_PATH)/scripts/ordereddict.py \
 $(SRC_PATH)/scripts/qapi-gen.py
 
 qga/qapi-generated/qga-qapi-types.c qga/qapi-generated/qga-qapi-types.h \

@@ -390,14 +390,14 @@ class TestChangeReadOnly(ChangeBaseClass):
 
     def tearDown(self):
         self.vm.shutdown()
-        os.chmod(old_img, 0666)
-        os.chmod(new_img, 0666)
+        os.chmod(old_img, 0o666)
+        os.chmod(new_img, 0o666)
         os.remove(old_img)
         os.remove(new_img)
 
     def test_ro_ro_retain(self):
-        os.chmod(old_img, 0444)
-        os.chmod(new_img, 0444)
+        os.chmod(old_img, 0o444)
+        os.chmod(new_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk,read-only=on', 'none')
         self.vm.add_device('floppy,drive=drive0,id=%s' % self.device_name)
         self.vm.launch()
@@ -417,7 +417,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
 
     def test_ro_rw_retain(self):
-        os.chmod(old_img, 0444)
+        os.chmod(old_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk,read-only=on', 'none')
         self.vm.add_device('floppy,drive=drive0,id=%s' % self.device_name)
         self.vm.launch()
@@ -437,7 +437,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
 
     def test_rw_ro_retain(self):
-        os.chmod(new_img, 0444)
+        os.chmod(new_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk', 'none')
         self.vm.add_device('floppy,drive=drive0,id=%s' % self.device_name)
         self.vm.launch()
@@ -459,7 +459,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/image/filename', old_img)
 
     def test_ro_rw(self):
-        os.chmod(old_img, 0444)
+        os.chmod(old_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk,read-only=on', 'none')
         self.vm.add_device('floppy,drive=drive0,id=%s' % self.device_name)
         self.vm.launch()
@@ -480,7 +480,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
 
     def test_rw_ro(self):
-        os.chmod(new_img, 0444)
+        os.chmod(new_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk', 'none')
         self.vm.add_device('floppy,drive=drive0,id=%s' % self.device_name)
         self.vm.launch()
@@ -521,7 +521,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
 
     def test_make_ro_rw(self):
-        os.chmod(new_img, 0444)
+        os.chmod(new_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk', 'none')
         self.vm.add_device('floppy,drive=drive0,id=%s' % self.device_name)
         self.vm.launch()
@@ -542,7 +542,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/image/filename', old_img)
 
     def test_make_rw_ro_by_retain(self):
-        os.chmod(old_img, 0444)
+        os.chmod(old_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk,read-only=on', 'none')
         self.vm.add_device('floppy,drive=drive0,id=%s' % self.device_name)
         self.vm.launch()
@@ -562,7 +562,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
 
     def test_make_ro_rw_by_retain(self):
-        os.chmod(new_img, 0444)
+        os.chmod(new_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk', 'none')
         self.vm.add_device('floppy,drive=drive0,id=%s' % self.device_name)
         self.vm.launch()
@@ -582,7 +582,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/image/filename', old_img)
 
     def test_rw_ro_cycle(self):
-        os.chmod(new_img, 0444)
+        os.chmod(new_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk', 'none')
         self.vm.add_device('floppy,drive=drive0,id=%s' % self.device_name)
         self.vm.launch()

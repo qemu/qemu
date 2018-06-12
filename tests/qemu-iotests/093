@@ -237,7 +237,7 @@ class ThrottleTestGroupNames(iotests.QMPTestCase):
                 if name:
                     self.assertEqual(info["group"], name)
                 else:
-                    self.assertFalse(info.has_key('group'))
+                    self.assertFalse('group' in info)
                 return
 
         raise Exception("No group information found for '%s'" % device)

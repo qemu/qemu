@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # Option ROM signing utility
 #

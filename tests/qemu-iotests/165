@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from __future__ import print_function
 import os
 import re
 import iotests
@@ -85,7 +86,7 @@ class TestPersistentDirtyBitmap(iotests.QMPTestCase):
         log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
         log = re.sub(r'\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
         if log:
-            print log
+            print(log)
 
         self.vm = self.mkVm()
         self.vm.launch()

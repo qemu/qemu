@@ -32,6 +32,7 @@
 # consuming CPU cycles.  No disk I/O is performed since the ring buffer holds a
 # fixed-size in-memory trace.
 
+from __future__ import print_function
 import sys
 import os
 
@@ -77,8 +78,8 @@ def tail_trace():
         pass
 
 def usage():
-    print 'Usage: %s start [buffer_size_kb] | stop | dump | tail' % sys.argv[0]
-    print 'Control the KVM flight recorder tracing.'
+    print('Usage: %s start [buffer_size_kb] | stop | dump | tail' % sys.argv[0])
+    print('Control the KVM flight recorder tracing.')
     sys.exit(0)
 
 def main():
@@ -87,15 +88,15 @@ def main():
 
     cmd = sys.argv[1]
     if cmd == '--version':
-        print 'kvm_flightrecorder version 1.0'
+        print('kvm_flightrecorder version 1.0')
         sys.exit(0)
 
     if not os.path.isdir(tracing_dir):
-        print 'Unable to tracing debugfs directory, try:'
-        print 'mount -t debugfs none /sys/kernel/debug'
+        print('Unable to tracing debugfs directory, try:')
+        print('mount -t debugfs none /sys/kernel/debug')
         sys.exit(1)
     if not os.access(tracing_dir, os.W_OK):
-        print 'Unable to write to tracing debugfs directory, please run as root'
+        print('Unable to write to tracing debugfs directory, please run as root')
         sys.exit(1)
 
     if cmd == 'start':
@@ -105,16 +106,16 @@ def main():
             try:
                 buffer_size_kb = int(sys.argv[2])
             except ValueError:
-                print 'Invalid per-cpu trace buffer size in KB'
+                print('Invalid per-cpu trace buffer size in KB')
                 sys.exit(1)
             write_file(trace_path('buffer_size_kb'), str(buffer_size_kb))
-            print 'Per-CPU ring buffer size set to %d KB' % buffer_size_kb
+            print('Per-CPU ring buffer size set to %d KB' % buffer_size_kb)
 
         start_tracing()
-        print 'KVM flight recorder enabled'
+        print('KVM flight recorder enabled')
     elif cmd == 'stop':
         stop_tracing()
-        print 'KVM flight recorder disabled'
+        print('KVM flight recorder disabled')
     elif cmd == 'dump':
         dump_trace()
     elif cmd == 'tail':

@@ -11,6 +11,7 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
+from __future__ import print_function
 import sys
 import yaml
 import itertools
@@ -34,14 +35,14 @@ def main():
         sys.stderr.write("Usage: %s <travis-file>\n" % sys.argv[0])
         return 1
     conf = load_yaml(sys.argv[1])
-    print "\n".join((": ${%s}" % var for var in conf["env"]["global"]))
+    print("\n".join((": ${%s}" % var for var in conf["env"]["global"])))
     for config in conf_iter(conf):
-        print "("
-        print "\n".join(config["env"])
-        print "alias cc=" + config["compiler"]
-        print "\n".join(conf["before_script"])
-        print "\n".join(conf["script"])
-        print ")"
+        print("(")
+        print("\n".join(config["env"]))
+        print("alias cc=" + config["compiler"])
+        print("\n".join(conf["before_script"]))
+        print("\n".join(conf["script"]))
+        print(")")
     return 0
 
 if __name__ == "__main__":

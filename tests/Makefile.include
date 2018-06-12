@@ -31,7 +31,6 @@ $(SRC_PATH)/scripts/qapi/types.py \
 $(SRC_PATH)/scripts/qapi/visit.py \
 $(SRC_PATH)/scripts/qapi/common.py \
 $(SRC_PATH)/scripts/qapi/doc.py \
-$(SRC_PATH)/scripts/ordereddict.py \
 $(SRC_PATH)/scripts/qapi-gen.py
 
 # Get the list of all supported sysemu targets

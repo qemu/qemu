@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Common utilities and Python wrappers for qemu-iotests
 #
 # Copyright (C) 2012 IBM Corp.
@@ -248,7 +249,7 @@ def filter_img_info(output, filename):
 def log(msg, filters=[]):
     for flt in filters:
         msg = flt(msg)
-    print msg
+    print(msg)
 
 class Timeout:
     def __init__(self, seconds, errmsg = "Timeout"):
@@ -613,7 +614,7 @@ def notrun(reason):
     seq = os.path.basename(sys.argv[0])
 
     open('%s/%s.notrun' % (output_dir, seq), 'wb').write(reason + '\n')
-    print '%s not run: %s' % (seq, reason)
+    print('%s not run: %s' % (seq, reason))
     sys.exit(0)
 
 def verify_image_format(supported_fmts=[], unsupported_fmts=[]):

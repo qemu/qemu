@@ -11,11 +11,12 @@
 # the COPYING file in the top-level directory.
 ##
 
+from __future__ import absolute_import
 import fuse, stat
 from fuse import Fuse
 import os, posix
 from errno import *
-from qmp import QEMUMonitorProtocol
+from .qmp import QEMUMonitorProtocol
 
 fuse.fuse_python_api = (0, 2)
 
@@ -28,7 +29,7 @@ class QOMFS(Fuse):
         self.ino_count = 1
 
     def get_ino(self, path):
-        if self.ino_map.has_key(path):
+        if path in self.ino_map:
             return self.ino_map[path]
         self.ino_map[path] = self.ino_count
         self.ino_count += 1
@@ -89,7 +90,7 @@ class QOMFS(Fuse):
 
     def getattr(self, path):
         if self.is_link(path):
-            value = posix.stat_result((0755 | stat.S_IFLNK,
+            value = posix.stat_result((0o755 | stat.S_IFLNK,
                                        self.get_ino(path),
                                        0,
                                        2,
@@ -100,7 +101,7 @@ class QOMFS(Fuse):
                                        0,
                                        0))
         elif self.is_object(path):
-            value = posix.stat_result((0755 | stat.S_IFDIR,
+            value = posix.stat_result((0o755 | stat.S_IFDIR,
                                        self.get_ino(path),
                                        0,
                                        2,
@@ -111,7 +112,7 @@ class QOMFS(Fuse):
                                        0,
                                        0))
         elif self.is_property(path):
-            value = posix.stat_result((0644 | stat.S_IFREG,
+            value = posix.stat_result((0o644 | stat.S_IFREG,
                                        self.get_ino(path),
                                        0,
                                        1,

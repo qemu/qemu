@@ -11,9 +11,11 @@
 # the COPYING file in the top-level directory.
 ##
 
+from __future__ import print_function
+from __future__ import absolute_import
 import sys
 import os
-from qmp import QEMUMonitorProtocol
+from .qmp import QEMUMonitorProtocol
 
 cmd, args = sys.argv[0], sys.argv[1:]
 socket_path = None
@@ -33,7 +35,7 @@ def usage_error(error_msg = "unspecified error"):
 
 if len(args) > 0:
     if args[0] == "-h":
-        print usage()
+        print(usage())
         exit(0);
     elif args[0] == "-s":
         try:
@@ -43,7 +45,7 @@ if len(args) > 0:
         args = args[2:]
 
 if not socket_path:
-    if os.environ.has_key('QMP_SOCKET'):
+    if 'QMP_SOCKET' in os.environ:
         socket_path = os.environ['QMP_SOCKET']
     else:
         usage_error("no QMP socket path or address given");
@@ -62,6 +64,6 @@ srv.connect()
 rsp = srv.command('qom-get', path=path, property=prop)
 if type(rsp) == dict:
     for i in rsp.keys():
-        print '%s: %s' % (i, rsp[i])
+        print('%s: %s' % (i, rsp[i]))
 else:
-    print rsp
+    print(rsp)
