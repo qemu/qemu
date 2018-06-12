@@ -290,8 +290,8 @@ static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
             olen = 2;
             break;
         case 3:
-            obuf[0] = d->handler;
-            obuf[1] = d->devaddr;
+            obuf[0] = d->devaddr;
+            obuf[1] = d->handler;
             olen = 2;
             break;
         }
