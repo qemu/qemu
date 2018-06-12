@@ -424,6 +424,10 @@ static void spr_write_ptcr(DisasContext *ctx, int sprn, int gprn)
     gen_helper_store_ptcr(cpu_env, cpu_gpr[gprn]);
 }
 
+static void spr_write_pcr(DisasContext *ctx, int sprn, int gprn)
+{
+    gen_helper_store_pcr(cpu_env, cpu_gpr[gprn]);
+}
 #endif
 #endif
 
@@ -7815,7 +7819,7 @@ static void gen_spr_book3s_ids(CPUPPCState *env)
     /* Processor identification */
     spr_register_hv(env, SPR_PIR, "PIR",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, SPR_NOACCESS,
                  &spr_read_generic, NULL,
                  0x00000000);
     spr_register_hv(env, SPR_HID0, "HID0",
@@ -7957,11 +7961,12 @@ static void gen_spr_power6_common(CPUPPCState *env)
 #endif
     /*
      * Register PCR to report POWERPC_EXCP_PRIV_REG instead of
-     * POWERPC_EXCP_INVAL_SPR.
+     * POWERPC_EXCP_INVAL_SPR in userspace. Permit hypervisor access.
      */
-    spr_register(env, SPR_PCR, "PCR",
+    spr_register_hv(env, SPR_PCR, "PCR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_pcr,
                  0x00000000);
 }
 

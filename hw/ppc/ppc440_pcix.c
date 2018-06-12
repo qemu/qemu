@@ -257,7 +257,7 @@ static void ppc440_pcix_reg_write4(void *opaque, hwaddr addr,
         break;
     case PCIX0_PIM2SAL:
         s->pim[2].sa &= 0xffffffff00000000ULL;
-        s->pim[2].sa = val;
+        s->pim[2].sa |= val;
         ppc440_pcix_update_pim(s, 2);
         break;
     case PCIX0_PIM2LAL:

@@ -65,7 +65,7 @@ static void cuda_receive_packet_from_host(CUDAState *s,
 static uint64_t cuda_get_counter_value(MOS6522State *s, MOS6522Timer *ti)
 {
     MOS6522CUDAState *mcs = container_of(s, MOS6522CUDAState, parent_obj);
-    CUDAState *cs = mcs->cuda;
+    CUDAState *cs = container_of(mcs, CUDAState, mos6522_cuda);
 
     /* Reverse of the tb calculation algorithm that Mac OS X uses on bootup */
     uint64_t tb_diff = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
@@ -78,7 +78,7 @@ static uint64_t cuda_get_counter_value(MOS6522State *s, MOS6522Timer *ti)
 static uint64_t cuda_get_load_time(MOS6522State *s, MOS6522Timer *ti)
 {
     MOS6522CUDAState *mcs = container_of(s, MOS6522CUDAState, parent_obj);
-    CUDAState *cs = mcs->cuda;
+    CUDAState *cs = container_of(mcs, CUDAState, mos6522_cuda);
 
     uint64_t load_time = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
                                   cs->tb_frequency, NANOSECONDS_PER_SECOND);
@@ -88,7 +88,7 @@ static uint64_t cuda_get_load_time(MOS6522State *s, MOS6522Timer *ti)
 static void cuda_set_sr_int(void *opaque)
 {
     CUDAState *s = opaque;
-    MOS6522CUDAState *mcs = s->mos6522_cuda;
+    MOS6522CUDAState *mcs = &s->mos6522_cuda;
     MOS6522State *ms = MOS6522(mcs);
     MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(ms);
 
@@ -97,7 +97,7 @@ static void cuda_set_sr_int(void *opaque)
 
 static void cuda_delay_set_sr_int(CUDAState *s)
 {
-    MOS6522CUDAState *mcs = s->mos6522_cuda;
+    MOS6522CUDAState *mcs = &s->mos6522_cuda;
     MOS6522State *ms = MOS6522(mcs);
     MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(ms);
     int64_t expire;
@@ -117,7 +117,7 @@ static void cuda_delay_set_sr_int(CUDAState *s)
 /* NOTE: TIP and TREQ are negated */
 static void cuda_update(CUDAState *s)
 {
-    MOS6522CUDAState *mcs = s->mos6522_cuda;
+    MOS6522CUDAState *mcs = &s->mos6522_cuda;
     MOS6522State *ms = MOS6522(mcs);
     int packet_received, len;
 
@@ -462,7 +462,7 @@ static void cuda_receive_packet_from_host(CUDAState *s,
 static uint64_t mos6522_cuda_read(void *opaque, hwaddr addr, unsigned size)
 {
     CUDAState *s = opaque;
-    MOS6522CUDAState *mcs = s->mos6522_cuda;
+    MOS6522CUDAState *mcs = &s->mos6522_cuda;
     MOS6522State *ms = MOS6522(mcs);
 
     addr = (addr >> 9) & 0xf;
@@ -473,7 +473,7 @@ static void mos6522_cuda_write(void *opaque, hwaddr addr, uint64_t val,
                                unsigned size)
 {
     CUDAState *s = opaque;
-    MOS6522CUDAState *mcs = s->mos6522_cuda;
+    MOS6522CUDAState *mcs = &s->mos6522_cuda;
     MOS6522State *ms = MOS6522(mcs);
 
     addr = (addr >> 9) & 0xf;
@@ -492,9 +492,11 @@ static const MemoryRegionOps mos6522_cuda_ops = {
 
 static const VMStateDescription vmstate_cuda = {
     .name = "cuda",
-    .version_id = 4,
-    .minimum_version_id = 4,
+    .version_id = 5,
+    .minimum_version_id = 5,
     .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(mos6522_cuda.parent_obj, CUDAState, 0, vmstate_mos6522,
+                       MOS6522State),
         VMSTATE_UINT8(last_b, CUDAState),
         VMSTATE_UINT8(last_acr, CUDAState),
         VMSTATE_INT32(data_in_size, CUDAState),
@@ -530,12 +532,8 @@ static void cuda_realize(DeviceState *dev, Error **errp)
     DeviceState *d;
     struct tm tm;
 
-    d = qdev_create(NULL, TYPE_MOS6522_CUDA);
-    object_property_set_link(OBJECT(d), OBJECT(s), "cuda", errp);
-    qdev_init_nofail(d);
-    s->mos6522_cuda = MOS6522_CUDA(d);
-
     /* Pass IRQ from 6522 */
+    d = DEVICE(&s->mos6522_cuda);
     ms = MOS6522(d);
     sbd = SYS_BUS_DEVICE(s);
     sysbus_pass_irq(sbd, SYS_BUS_DEVICE(ms));
@@ -555,6 +553,10 @@ static void cuda_init(Object *obj)
 {
     CUDAState *s = CUDA(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    object_initialize(&s->mos6522_cuda, sizeof(s->mos6522_cuda),
+                      TYPE_MOS6522_CUDA);
+    qdev_set_parent_bus(DEVICE(&s->mos6522_cuda), sysbus_get_default());
 
     memory_region_init_io(&s->mem, obj, &mos6522_cuda_ops, s, "cuda", 0x2000);
     sysbus_init_mmio(sbd, &s->mem);
@@ -590,29 +592,20 @@ static const TypeInfo cuda_type_info = {
 static void mos6522_cuda_portB_write(MOS6522State *s)
 {
     MOS6522CUDAState *mcs = container_of(s, MOS6522CUDAState, parent_obj);
+    CUDAState *cs = container_of(mcs, CUDAState, mos6522_cuda);
 
-    cuda_update(mcs->cuda);
+    cuda_update(cs);
 }
 
-static void mos6522_cuda_realize(DeviceState *dev, Error **errp)
+static void mos6522_cuda_reset(DeviceState *dev)
 {
     MOS6522State *ms = MOS6522(dev);
     MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(ms);
 
-    mdc->parent_realize(dev, errp);
+    mdc->parent_reset(dev);
 
     ms->timers[0].frequency = CUDA_TIMER_FREQ;
     ms->timers[1].frequency = (SCALE_US * 6000) / 4700;
-}
-
-static void mos6522_cuda_init(Object *obj)
-{
-    MOS6522CUDAState *s = MOS6522_CUDA(obj);
-
-    object_property_add_link(obj, "cuda", TYPE_CUDA,
-                             (Object **) &s->cuda,
-                             qdev_prop_allow_set_link_before_realize,
-                             0, NULL);
 }
 
 static void mos6522_cuda_class_init(ObjectClass *oc, void *data)
@@ -620,7 +613,7 @@ static void mos6522_cuda_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_DEVICE_CLASS(oc);
 
-    dc->realize = mos6522_cuda_realize;
+    dc->reset = mos6522_cuda_reset;
     mdc->portB_write = mos6522_cuda_portB_write;
     mdc->get_timer1_counter_value = cuda_get_counter_value;
     mdc->get_timer2_counter_value = cuda_get_counter_value;
@@ -632,7 +625,6 @@ static const TypeInfo mos6522_cuda_type_info = {
     .name = TYPE_MOS6522_CUDA,
     .parent = TYPE_MOS6522,
     .instance_size = sizeof(MOS6522CUDAState),
-    .instance_init = mos6522_cuda_init,
     .class_init = mos6522_cuda_class_init,
 };
 

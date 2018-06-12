@@ -54,11 +54,20 @@
 #define CUDA_TIMER_TICKLE              0x24
 #define CUDA_COMBINED_FORMAT_IIC       0x25
 
+
+/* MOS6522 CUDA */
+typedef struct MOS6522CUDAState {
+    /*< private >*/
+    MOS6522State parent_obj;
+} MOS6522CUDAState;
+
+#define TYPE_MOS6522_CUDA "mos6522-cuda"
+#define MOS6522_CUDA(obj) OBJECT_CHECK(MOS6522CUDAState, (obj), \
+                                       TYPE_MOS6522_CUDA)
+
 /* Cuda */
 #define TYPE_CUDA "cuda"
 #define CUDA(obj) OBJECT_CHECK(CUDAState, (obj), TYPE_CUDA)
-
-typedef struct MOS6522CUDAState MOS6522CUDAState;
 
 typedef struct CUDAState {
     /*< private >*/
@@ -67,7 +76,7 @@ typedef struct CUDAState {
     MemoryRegion mem;
 
     ADBBusState adb_bus;
-    MOS6522CUDAState *mos6522_cuda;
+    MOS6522CUDAState mos6522_cuda;
 
     uint32_t tick_offset;
     uint64_t tb_frequency;
@@ -91,17 +100,5 @@ typedef struct CUDAState {
     uint8_t data_out[16];
     QEMUTimer *adb_poll_timer;
 } CUDAState;
-
-/* MOS6522 CUDA */
-struct MOS6522CUDAState {
-    /*< private >*/
-    MOS6522State parent_obj;
-
-    CUDAState *cuda;
-};
-
-#define TYPE_MOS6522_CUDA "mos6522-cuda"
-#define MOS6522_CUDA(obj) OBJECT_CHECK(MOS6522CUDAState, (obj), \
-                                       TYPE_MOS6522_CUDA)
 
 #endif /* CUDA_H */

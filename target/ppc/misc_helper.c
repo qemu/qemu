@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "qemu/error-report.h"
 
 #include "helper_regs.h"
 
@@ -97,6 +98,14 @@ void helper_store_ptcr(CPUPPCState *env, target_ulong val)
         ppc_store_ptcr(env, val);
         tlb_flush(CPU(cpu));
     }
+}
+
+void helper_store_pcr(CPUPPCState *env, target_ulong value)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+
+    env->spr[SPR_PCR] = value & pcc->pcr_mask;
 }
 #endif /* defined(TARGET_PPC64) */
 

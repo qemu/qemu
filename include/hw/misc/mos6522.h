@@ -130,7 +130,7 @@ typedef struct MOS6522State {
 typedef struct MOS6522DeviceClass {
     DeviceClass parent_class;
 
-    DeviceRealize parent_realize;
+    DeviceReset parent_reset;
     void (*set_sr_int)(MOS6522State *dev);
     void (*portB_write)(MOS6522State *dev);
     void (*portA_write)(MOS6522State *dev);
@@ -145,6 +145,8 @@ typedef struct MOS6522DeviceClass {
     OBJECT_CLASS_CHECK(MOS6522DeviceClass, (cls), TYPE_MOS6522)
 #define MOS6522_DEVICE_GET_CLASS(obj) \
     OBJECT_GET_CLASS(MOS6522DeviceClass, (obj), TYPE_MOS6522)
+
+extern const VMStateDescription vmstate_mos6522;
 
 uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size);
 void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);

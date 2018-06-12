@@ -524,19 +524,18 @@ static void unin_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
     trace_unin_write(addr, value);
-    if (addr == 0x0) {
-        *(int *)opaque = value;
-    }
 }
 
 static uint64_t unin_read(void *opaque, hwaddr addr, unsigned size)
 {
     uint32_t value;
 
-    value = 0;
     switch (addr) {
     case 0:
-        value = *(int *)opaque;
+        value = UNINORTH_VERSION_10A;
+        break;
+    default:
+        value = 0;
     }
 
     trace_unin_read(addr, value);
@@ -555,7 +554,7 @@ static void unin_init(Object *obj)
     UNINState *s = UNI_NORTH(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->mem, obj, &unin_ops, &s->token, "unin", 0x1000);
+    memory_region_init_io(&s->mem, obj, &unin_ops, s, "unin", 0x1000);
 
     sysbus_init_mmio(sbd, &s->mem);
 }

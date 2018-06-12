@@ -91,17 +91,8 @@ typedef struct MACIOIDEState {
 void macio_ide_init_drives(MACIOIDEState *ide, DriveInfo **hd_table);
 void macio_ide_register_dma(MACIOIDEState *ide);
 
-void macio_init(PCIDevice *dev,
-                MemoryRegion *pic_mem);
-
 /* Grackle PCI */
 #define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
-
-/* UniNorth PCI */
-UNINHostState *pci_pmac_init(qemu_irq *pic,
-                             MemoryRegion *address_space_mem);
-UNINHostState *pci_pmac_u3_init(qemu_irq *pic,
-                                MemoryRegion *address_space_mem);
 
 /* Mac NVRAM */
 #define TYPE_MACIO_NVRAM "macio-nvram"

@@ -2958,12 +2958,20 @@ support page sizes < 4096 any longer.
 
 @section System emulator machines
 
-@section Block device options
+@section Device options
 
-@subsection "backing": "" (since 2.12.0)
+@subsection Block device options
+
+@subsubsection "backing": "" (since 2.12.0)
 
 In order to prevent QEMU from automatically opening an image's backing
 chain, use ``"backing": null'' instead.
+
+@subsection vio-spapr-device device options
+
+@subsubsection "irq": "" (since 3.0.0)
+
+The ``irq'' property is obsoleted.
 
 @node Supported build platforms
 @appendix Supported build platforms

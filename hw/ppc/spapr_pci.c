@@ -1717,13 +1717,6 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     }
 
     /* DMA setup */
-    if (((sphb->page_size_mask & qemu_getrampagesize()) == 0)
-        && kvm_enabled()) {
-        warn_report("System page size 0x%lx is not enabled in page_size_mask "
-                    "(0x%"PRIx64"). Performance may be slow",
-                    qemu_getrampagesize(), sphb->page_size_mask);
-    }
-
     for (i = 0; i < windows_supported; ++i) {
         tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn[i]);
         if (!tcet) {

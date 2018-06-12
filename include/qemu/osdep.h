@@ -367,7 +367,8 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #endif
 
 #if defined(__linux__) && \
-    (defined(__x86_64__) || defined(__arm__) || defined(__aarch64__))
+    (defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) \
+     || defined(__powerpc64__))
    /* Use 2 MiB alignment so transparent hugepages can be used by KVM.
       Valgrind does not support alignments larger than 1 MiB,
       therefore we need special code which handles running on Valgrind. */
