@@ -59,6 +59,7 @@
 
 /* New World IRQs */
 #define NEWWORLD_CUDA_IRQ      0x19
+#define NEWWORLD_PMU_IRQ       0x19
 #define NEWWORLD_ESCCB_IRQ     0x24
 #define NEWWORLD_ESCCA_IRQ     0x25
 #define NEWWORLD_IDE0_IRQ      0xd

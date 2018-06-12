@@ -30,6 +30,7 @@
 #include "hw/intc/heathrow_pic.h"
 #include "hw/misc/macio/cuda.h"
 #include "hw/misc/macio/gpio.h"
+#include "hw/misc/macio/pmu.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "hw/ppc/openpic.h"
 
@@ -43,6 +44,7 @@ typedef struct MacIOState {
 
     MemoryRegion bar;
     CUDAState cuda;
+    PMUState pmu;
     DBDMAState dbdma;
     ESCCState escc;
     uint64_t frequency;

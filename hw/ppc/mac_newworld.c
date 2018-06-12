@@ -399,11 +399,19 @@ static void ppc_core99_init(MachineState *machine)
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
     if (has_adb) {
-        dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+        if (has_pmu) {
+            dev = DEVICE(object_resolve_path_component(OBJECT(macio), "pmu"));
+        } else {
+            dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+        }
+
         adb_bus = qdev_get_child_bus(dev, "adb.0");
         dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
+        qdev_prop_set_bit(dev, "disable-direct-reg3-writes", has_pmu);
         qdev_init_nofail(dev);
+
         dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
+        qdev_prop_set_bit(dev, "disable-direct-reg3-writes", has_pmu);
         qdev_init_nofail(dev);
     }
 
