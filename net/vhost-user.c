@@ -296,7 +296,7 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
             s = DO_UPCAST(VhostUserState, nc, nc);
             if (!qemu_chr_fe_init(&s->chr, chr, &err)) {
                 error_report_err(err);
-                return -1;
+                goto err;
             }
         }
 
@@ -306,7 +306,7 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     do {
         if (qemu_chr_fe_wait_connected(&s->chr, &err) < 0) {
             error_report_err(err);
-            return -1;
+            goto err;
         }
         qemu_chr_fe_set_handlers(&s->chr, NULL, NULL,
                                  net_vhost_user_event, NULL, nc0->name, NULL,
@@ -316,6 +316,13 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     assert(s->vhost_net);
 
     return 0;
+
+err:
+    if (nc0) {
+        qemu_del_net_client(nc0);
+    }
+
+    return -1;
 }
 
 static Chardev *net_vhost_claim_chardev(
