@@ -27,6 +27,7 @@
 #define PPC_MAC_H
 
 #include "exec/memory.h"
+#include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "hw/ide/internal.h"
 #include "hw/input/adb.h"
@@ -64,6 +65,16 @@
 #define NEWWORLD_IDE0_DMA_IRQ  0x2
 #define NEWWORLD_IDE1_IRQ      0xe
 #define NEWWORLD_IDE1_DMA_IRQ  0x3
+
+/* Core99 machine */
+#define TYPE_CORE99_MACHINE MACHINE_TYPE_NAME("mac99")
+#define CORE99_MACHINE(obj) OBJECT_CHECK(Core99MachineState, (obj), \
+                                         TYPE_CORE99_MACHINE)
+
+typedef struct Core99MachineState {
+    /*< private >*/
+    MachineState parent;
+} Core99MachineState;
 
 /* MacIO */
 #define TYPE_MACIO_IDE "macio-ide"

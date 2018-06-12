@@ -515,10 +515,17 @@ static void core99_machine_class_init(ObjectClass *oc, void *data)
 #endif
 }
 
+static void core99_instance_init(Object *obj)
+{
+    return;
+}
+
 static const TypeInfo core99_machine_info = {
     .name          = MACHINE_TYPE_NAME("mac99"),
     .parent        = TYPE_MACHINE,
     .class_init    = core99_machine_class_init,
+    .instance_init = core99_instance_init,
+    .instance_size = sizeof(Core99MachineState)
 };
 
 static void mac_machine_register_types(void)
