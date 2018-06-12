@@ -142,24 +142,27 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
                 trace_adb_mouse_request_change_addr(d->devaddr);
                 break;
             default:
-                d->devaddr = buf[1] & 0xf;
-                /* we support handlers:
-                 * 0x01: Classic Apple Mouse Protocol / 100 cpi operations
-                 * 0x02: Classic Apple Mouse Protocol / 200 cpi operations
-                 * we don't support handlers (at least):
-                 * 0x03: Mouse systems A3 trackball
-                 * 0x04: Extended Apple Mouse Protocol
-                 * 0x2f: Microspeed mouse
-                 * 0x42: Macally
-                 * 0x5f: Microspeed mouse
-                 * 0x66: Microspeed mouse
-                 */
-                if (buf[2] == 1 || buf[2] == 2) {
-                    d->handler = buf[2];
-                }
+                if (!d->disable_direct_reg3_writes) {
+                    d->devaddr = buf[1] & 0xf;
 
-                trace_adb_mouse_request_change_addr_and_handler(d->devaddr,
-                                                                d->handler);
+                    /* we support handlers:
+                     * 0x01: Classic Apple Mouse Protocol / 100 cpi operations
+                     * 0x02: Classic Apple Mouse Protocol / 200 cpi operations
+                     * we don't support handlers (at least):
+                     * 0x03: Mouse systems A3 trackball
+                     * 0x04: Extended Apple Mouse Protocol
+                     * 0x2f: Microspeed mouse
+                     * 0x42: Macally
+                     * 0x5f: Microspeed mouse
+                     * 0x66: Microspeed mouse
+                     */
+                    if (buf[2] == 1 || buf[2] == 2) {
+                        d->handler = buf[2];
+                    }
+
+                    trace_adb_mouse_request_change_addr_and_handler(
+                        d->devaddr, d->handler);
+                }
                 break;
             }
         }
