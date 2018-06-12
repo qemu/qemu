@@ -71,9 +71,15 @@
 #define CORE99_MACHINE(obj) OBJECT_CHECK(Core99MachineState, (obj), \
                                          TYPE_CORE99_MACHINE)
 
+#define CORE99_VIA_CONFIG_CUDA     0x0
+#define CORE99_VIA_CONFIG_PMU      0x1
+#define CORE99_VIA_CONFIG_PMU_ADB  0x2
+
 typedef struct Core99MachineState {
     /*< private >*/
     MachineState parent;
+
+    uint8_t via_config;
 } Core99MachineState;
 
 /* MacIO */

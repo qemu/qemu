@@ -111,6 +111,7 @@ static void ppc_core99_init(MachineState *machine)
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
     const char *boot_device = machine->boot_order;
+    Core99MachineState *core99_machine = CORE99_MACHINE(machine);
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
@@ -122,6 +123,7 @@ static void ppc_core99_init(MachineState *machine)
     UNINHostState *uninorth_pci;
     PCIBus *pci_bus;
     NewWorldMacIOState *macio;
+    bool has_pmu, has_adb;
     MACIOIDEState *macio_ide;
     BusState *adb_bus;
     MacIONVRAMState *nvr;
@@ -361,6 +363,9 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     machine->usb |= defaults_enabled() && !machine->usb_disabled;
+    has_pmu = (core99_machine->via_config != CORE99_VIA_CONFIG_CUDA);
+    has_adb = (core99_machine->via_config == CORE99_VIA_CONFIG_CUDA ||
+               core99_machine->via_config == CORE99_VIA_CONFIG_PMU_ADB);
 
     /* Timebase Frequency */
     if (kvm_enabled()) {
@@ -376,6 +381,8 @@ static void ppc_core99_init(MachineState *machine)
     macio = NEWWORLD_MACIO(pci_create(pci_bus, -1, TYPE_NEWWORLD_MACIO));
     dev = DEVICE(macio);
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
+    qdev_prop_set_bit(dev, "has-pmu", has_pmu);
+    qdev_prop_set_bit(dev, "has-adb", has_adb);
     object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
                              &error_abort);
     qdev_init_nofail(dev);
@@ -391,19 +398,21 @@ static void ppc_core99_init(MachineState *machine)
                                                         "ide[1]"));
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
-    dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
-    adb_bus = qdev_get_child_bus(dev, "adb.0");
-    dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
-    qdev_init_nofail(dev);
-    dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
-    qdev_init_nofail(dev);
+    if (has_adb) {
+        dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+        adb_bus = qdev_get_child_bus(dev, "adb.0");
+        dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
+        qdev_init_nofail(dev);
+        dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
+        qdev_init_nofail(dev);
+    }
 
     if (machine->usb) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
 
         /* U3 needs to use USB for input because Linux doesn't support via-cuda
         on PPC64 */
-        if (machine_arch == ARCH_MAC99_U3) {
+        if (!has_adb || machine_arch == ARCH_MAC99_U3) {
             USBBus *usb_bus = usb_bus_find(-1);
 
             usb_create_simple(usb_bus, "usb-kbd");
@@ -458,6 +467,8 @@ static void ppc_core99_init(MachineState *machine)
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_WIDTH, graphic_width);
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_HEIGHT, graphic_height);
     fw_cfg_add_i16(fw_cfg, FW_CFG_PPC_DEPTH, graphic_depth);
+
+    fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_VIACONFIG, core99_machine->via_config);
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_IS_KVM, kvm_enabled());
     if (kvm_enabled()) {
@@ -515,8 +526,52 @@ static void core99_machine_class_init(ObjectClass *oc, void *data)
 #endif
 }
 
+static char *core99_get_via_config(Object *obj, Error **errp)
+{
+    Core99MachineState *cms = CORE99_MACHINE(obj);
+
+    switch (cms->via_config) {
+    default:
+    case CORE99_VIA_CONFIG_CUDA:
+        return g_strdup("cuda");
+
+    case CORE99_VIA_CONFIG_PMU:
+        return g_strdup("pmu");
+
+    case CORE99_VIA_CONFIG_PMU_ADB:
+        return g_strdup("pmu-adb");
+    }
+}
+
+static void core99_set_via_config(Object *obj, const char *value, Error **errp)
+{
+    Core99MachineState *cms = CORE99_MACHINE(obj);
+
+    if (!strcmp(value, "cuda")) {
+        cms->via_config = CORE99_VIA_CONFIG_CUDA;
+    } else if (!strcmp(value, "pmu")) {
+        cms->via_config = CORE99_VIA_CONFIG_PMU;
+    } else if (!strcmp(value, "pmu-adb")) {
+        cms->via_config = CORE99_VIA_CONFIG_PMU_ADB;
+    } else {
+        error_setg(errp, "Invalid via value");
+        error_append_hint(errp, "Valid values are cuda, pmu, pmu-adb.\n");
+    }
+}
+
 static void core99_instance_init(Object *obj)
 {
+    Core99MachineState *cms = CORE99_MACHINE(obj);
+
+    /* Default via_config is CORE99_VIA_CONFIG_CUDA */
+    cms->via_config = CORE99_VIA_CONFIG_CUDA;
+    object_property_add_str(obj, "via", core99_get_via_config,
+                            core99_set_via_config, NULL);
+    object_property_set_description(obj, "via",
+                                    "Set VIA configuration. "
+                                    "Valid values are cuda, pmu and pmu-adb",
+                                    NULL);
+
     return;
 }
 

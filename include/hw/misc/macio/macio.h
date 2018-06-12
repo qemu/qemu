@@ -70,6 +70,8 @@ typedef struct NewWorldMacIOState {
     MacIOState parent_obj;
     /*< public >*/
 
+    bool has_pmu;
+    bool has_adb;
     OpenPICState *pic;
     MACIOIDEState ide[2];
 } NewWorldMacIOState;

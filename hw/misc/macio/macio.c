@@ -399,6 +399,12 @@ static const VMStateDescription vmstate_macio_newworld = {
     }
 };
 
+static Property macio_newworld_properties[] = {
+    DEFINE_PROP_BOOL("has-pmu", NewWorldMacIOState, has_pmu, false),
+    DEFINE_PROP_BOOL("has-adb", NewWorldMacIOState, has_adb, false),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void macio_newworld_class_init(ObjectClass *oc, void *data)
 {
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(oc);
@@ -407,6 +413,7 @@ static void macio_newworld_class_init(ObjectClass *oc, void *data)
     pdc->realize = macio_newworld_realize;
     pdc->device_id = PCI_DEVICE_ID_APPLE_UNI_N_KEYL;
     dc->vmsd = &vmstate_macio_newworld;
+    dc->props = macio_newworld_properties;
 }
 
 static Property macio_properties[] = {
