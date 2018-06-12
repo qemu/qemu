@@ -75,7 +75,13 @@ docker-image-debian-win64-cross: docker-image-debian8-mxe
 # force a re-build of the base image if we ever need to build one of
 # its children.
 ifndef SKIP_DOCKER_BUILD
+ifeq ($(HAVE_USER_DOCKER),y)
+SID_AGE=$(shell $(DOCKER_SCRIPT) check --checktype=age --olderthan=180 --quiet qemu:debian-sid)
+ifeq ($(SID_AGE),)
+else
 docker-image-debian-sid: NOCACHE=1
+endif
+endif
 endif
 
 docker-image-debian-alpha-cross: docker-image-debian-sid
