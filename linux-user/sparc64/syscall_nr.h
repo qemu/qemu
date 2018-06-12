@@ -154,7 +154,7 @@
 #define TARGET_NR_poll               153 /* Common                                      */
 #define TARGET_NR_getdents64		154 /* Linux specific				   */
 #define TARGET_NR_fcntl64            155 /* Linux sparc32 Specific                      */
-/* #define TARGET_NR_getdirentries   156    SunOS Specific                              */
+#define TARGET_NR_inotify_rm_watch   156 /* Linux specific                              */
 #define TARGET_NR_statfs             157 /* Common                                      */
 #define TARGET_NR_fstatfs            158 /* Common                                      */
 #define TARGET_NR_umount             159 /* Common                                      */
@@ -278,7 +278,7 @@
 #define TARGET_NR_mq_notify		277
 #define TARGET_NR_mq_getsetattr	278
 #define TARGET_NR_waitid		279
-/*#define TARGET_NR_sys_setaltroot	280 available (was setaltroot) */
+#define TARGET_NR_tee                   280
 #define TARGET_NR_add_key		281
 #define TARGET_NR_request_key	282
 #define TARGET_NR_keyctl		283

@@ -279,7 +279,7 @@
 #define TARGET_NR_ppoll             274
 #define TARGET_NR_openat            275
 #define TARGET_NR_mkdirat           276
-#define TARGET_NR_mknotat           277
+#define TARGET_NR_mknodat           277
 #define TARGET_NR_fchownat          278
 #define TARGET_NR_futimesat         279
 #define TARGET_NR_fstatat64         280
