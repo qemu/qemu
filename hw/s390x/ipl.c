@@ -29,6 +29,7 @@
 #include "exec/exec-all.h"
 
 #define KERN_IMAGE_START                0x010000UL
+#define LINUX_MAGIC_ADDR                0x010008UL
 #define KERN_PARM_AREA                  0x010480UL
 #define INITRD_START                    0x800000UL
 #define INITRD_PARM_START               0x010408UL
@@ -105,7 +106,9 @@ static uint64_t bios_translate_addr(void *opaque, uint64_t srcaddr)
 static void s390_ipl_realize(DeviceState *dev, Error **errp)
 {
     S390IPLState *ipl = S390_IPL(dev);
-    uint64_t pentry = KERN_IMAGE_START;
+    uint32_t *ipl_psw;
+    uint64_t pentry;
+    char *magic;
     int kernel_size;
     Error *err = NULL;
 
@@ -157,10 +160,24 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
                                NULL, 1, EM_S390, 0, 0);
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
-        }
-        if (kernel_size < 0) {
-            error_setg(&err, "could not load kernel '%s'", ipl->kernel);
-            goto error;
+            if (kernel_size < 0) {
+                error_setg(&err, "could not load kernel '%s'", ipl->kernel);
+                goto error;
+            }
+            /* if this is Linux use KERN_IMAGE_START */
+            magic = rom_ptr(LINUX_MAGIC_ADDR);
+            if (magic && !memcmp(magic, "S390EP", 6)) {
+                pentry = KERN_IMAGE_START;
+            } else {
+                /* if not Linux load the address of the (short) IPL PSW */
+                ipl_psw = rom_ptr(4);
+                if (ipl_psw) {
+                    pentry = be32_to_cpu(*ipl_psw) & 0x7fffffffUL;
+                } else {
+                    error_setg(&err, "Could not get IPL PSW");
+                    goto error;
+                }
+            }
         }
         /*
          * Is it a Linux kernel (starting at 0x10000)? If yes, we fill in the
