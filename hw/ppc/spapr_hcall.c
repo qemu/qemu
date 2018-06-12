@@ -1547,6 +1547,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
                 error_report_err(local_err);
                 return H_HARDWARE;
             }
+            error_free(local_err);
             local_err = NULL;
         }
     }
