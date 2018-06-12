@@ -186,8 +186,7 @@ static void ics_get_kvm_state(ICSState *ics)
         kvm_device_access(kernel_xics_fd, KVM_DEV_XICS_GRP_SOURCES,
                           i + ics->offset, &state, false, &local_err);
         if (local_err) {
-            error_report("Unable to retrieve KVM interrupt controller state"
-                    " for IRQ %d: %s", i + ics->offset, strerror(errno));
+            error_report_err(local_err);
             exit(1);
         }
 
@@ -273,11 +272,10 @@ static int ics_set_kvm_state(ICSState *ics, int version_id)
                 state |= KVM_XICS_QUEUED;
         }
 
-        kvm_device_access(kernel_xics_fd, KVM_DEV_XICS_GRP_SOURCES,
-                          i + ics->offset, &state, true, &local_err);
+        ret = kvm_device_access(kernel_xics_fd, KVM_DEV_XICS_GRP_SOURCES,
+                                i + ics->offset, &state, true, &local_err);
         if (local_err) {
-            error_report("Unable to restore KVM interrupt controller state"
-                    " for IRQs %d: %s", i + ics->offset, strerror(errno));
+            error_report_err(local_err);
             return ret;
         }
     }
