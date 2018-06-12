@@ -345,6 +345,9 @@ err:
             s->vhost_user = NULL;
         }
     }
+    if (nc0) {
+        qemu_del_net_client(nc0);
+    }
 
     return -1;
 }
