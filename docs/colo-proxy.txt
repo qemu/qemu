@@ -145,7 +145,7 @@ and redirect indev's packet to filter.
 COLO-compare, we do packet comparing job.
 Packets coming from the primary char indev will be sent to outdev.
 Packets coming from the secondary char dev will be dropped after comparing.
-COLO-comapre need two input chardev and one output chardev:
+COLO-compare needs two input chardevs and one output chardev:
 primary_in=chardev1-id (source: primary send packet)
 secondary_in=chardev2-id (source: secondary send packet)
 outdev=chardev3-id

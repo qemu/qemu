@@ -41,7 +41,7 @@ the PIIX3 chipset.  The USB 1.1 bus will carry the name "usb-bus.0".
 
 You can use the standard -device switch to add a EHCI controller to
 your virtual machine.  It is strongly recommended to specify an ID for
-the controller so the USB 2.0 bus gets a individual name, for example
+the controller so the USB 2.0 bus gets an individual name, for example
 '-device usb-ehci,id=ehci".  This will give you a USB 2.0 bus named
 "ehci.0".
 

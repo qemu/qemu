@@ -252,7 +252,7 @@ swtpm socket --tpmstate dir=/tmp/mytpm1 \
   --ctrl type=unixio,path=/tmp/mytpm1/swtpm-sock \
   --log level=20 --tpm2
 
-In the 2nd terminal restore the state of the VM using the additonal
+In the 2nd terminal restore the state of the VM using the additional
 '-incoming' option.
 
 qemu-system-x86_64 -display sdl -accel kvm \

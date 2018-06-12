@@ -10,7 +10,7 @@ calls which are mostly used as a private interface between the firmware
 running in the guest and QEMU.
 
 All those hypercalls start at hcall number 0xf000 which correspond
-to a implementation specific range in PAPR.
+to an implementation specific range in PAPR.
 
 - H_RTAS (0xf000)
 

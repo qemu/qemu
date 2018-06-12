@@ -37,7 +37,7 @@ over any transport.
 - tcp migration: do the migration using tcp sockets
 - unix migration: do the migration using unix sockets
 - exec migration: do the migration using the stdin/stdout through a process.
-- fd migration: do the migration using an file descriptor that is
+- fd migration: do the migration using a file descriptor that is
   passed to QEMU.  QEMU doesn't care how this file descriptor is opened.
 
 In addition, support is included for migration using RDMA, which

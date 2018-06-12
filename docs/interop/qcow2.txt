@@ -326,8 +326,8 @@ in the image file.
 It contains pointers to the second level structures which are called refcount
 blocks and are exactly one cluster in size.
 
-Given a offset into the image file, the refcount of its cluster can be obtained
-as follows:
+Given an offset into the image file, the refcount of its cluster can be
+obtained as follows:
 
     refcount_block_entries = (cluster_size * 8 / refcount_bits)
 
@@ -365,7 +365,7 @@ The L1 table has a variable size (stored in the header) and may use multiple
 clusters, however it must be contiguous in the image file. L2 tables are
 exactly one cluster in size.
 
-Given a offset into the virtual disk, the offset into the image file can be
+Given an offset into the virtual disk, the offset into the image file can be
 obtained as follows:
 
     l2_entries = (cluster_size / sizeof(uint64_t))

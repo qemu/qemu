@@ -108,12 +108,12 @@ Depending on the request type, payload can be:
    IOVA: a 64-bit I/O virtual address programmed by the guest
    Size: a 64-bit size
    User address: a 64-bit user address
-   Permissions: a 8-bit value:
+   Permissions: an 8-bit value:
     - 0: No access
     - 1: Read access
     - 2: Write access
     - 3: Read/Write access
-   Type: a 8-bit IOTLB message type:
+   Type: an 8-bit IOTLB message type:
     - 1: IOTLB miss
     - 2: IOTLB update
     - 3: IOTLB invalidate

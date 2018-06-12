@@ -524,7 +524,7 @@ You can create a cloned image from the existing snapshot.
 @example
 qemu-img create -b sheepdog:///@var{base}#@var{tag} sheepdog:///@var{image}
 @end example
-where @var{base} is a image name of the source snapshot and @var{tag}
+where @var{base} is an image name of the source snapshot and @var{tag}
 is its tag name.
 
 You can use an unix socket instead of an inet socket:

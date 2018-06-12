@@ -316,7 +316,7 @@ other cores sharing access to the memory. The classic example is the
 x86 cmpxchg instruction.
 
 The second type offer a pair of load/store instructions which offer a
-guarantee that an region of memory has not been touched between the
+guarantee that a region of memory has not been touched between the
 load and store instructions. An example of this is ARM's ldrex/strex
 pair where the strex instruction will return a flag indicating a
 successful store only if no other CPU has accessed the memory region

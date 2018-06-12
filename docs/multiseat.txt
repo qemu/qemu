@@ -62,7 +62,7 @@ to its own window so you can see both display devices side-by-side.
 
 For vnc some additional configuration on the command line is needed.
 We'll create two vnc server instances, and bind the second one to the
-second seat, simliar to input devices:
+second seat, similar to input devices:
 
 	-display vnc=:1,id=primary \
 	-display vnc=:2,id=secondary,display=video.2

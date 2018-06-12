@@ -62,7 +62,7 @@ It's also possible to start a guest with memory cold-plugged into the
 hotpluggable memory slots. This might seem counterintuitive at first,
 but this allows for a lot of flexibility when using the file backend.
 
-In the following command-line example, a 8GB guest is created where 6GB
+In the following command-line example, an 8GB guest is created where 6GB
 comes from regular RAM, 1GB is a 1GB hugepage page and 256MB is from
 2MB pages. Also, the guest has additional memory slots to hotplug more
 2GB if needed:

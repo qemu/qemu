@@ -72,7 +72,8 @@ for NVDIMM ACPI.
 
 Memory:
    QEMU uses BIOS Linker/loader feature to ask BIOS to allocate a memory
-   page and dynamically patch its into a int32 object named "MEMA" in ACPI.
+   page and dynamically patch its address into an int32 object named "MEMA"
+   in ACPI.
 
    This page is RAM-based and it is used to transfer data between _DSM
    method and QEMU. If ACPI has control, this pages is owned by ACPI which

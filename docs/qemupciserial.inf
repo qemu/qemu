@@ -1,7 +1,7 @@
 ; qemupciserial.inf for QEMU, based on MSPORTS.INF
 
 ; The driver itself is shipped with Windows (serial.sys).  This is
-; just a inf file to tell windows which pci id the serial pci card
+; just an inf file to tell windows which pci id the serial pci card
 ; emulated by qemu has, and to apply a name tag to it which windows
 ; will show in the device manager.
 
