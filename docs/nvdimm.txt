@@ -154,29 +154,22 @@ guest software that this vNVDIMM device contains a region that cannot
 accept persistent writes. In result, for example, the guest Linux
 NVDIMM driver, marks such vNVDIMM device as read-only.
 
-Platform Capabilities
----------------------
+NVDIMM Persistence
+------------------
 
 ACPI 6.2 Errata A added support for a new Platform Capabilities Structure
 which allows the platform to communicate what features it supports related to
-NVDIMM data durability.  Users can provide a capabilities value to a guest via
-the optional "nvdimm-cap" machine command line option:
+NVDIMM data persistence.  Users can provide a persistence value to a guest via
+the optional "nvdimm-persistence" machine command line option:
 
-    -machine pc,accel=kvm,nvdimm,nvdimm-cap=2
+    -machine pc,accel=kvm,nvdimm,nvdimm-persistence=cpu
 
-This "nvdimm-cap" field is an integer, and is the combined value of the
-various capability bits defined in table 5-137 of the ACPI 6.2 Errata A spec.
+There are currently two valid values for this option:
 
-Here is a quick summary of the three bits that are defined as of that spec:
+"mem-ctrl" - The platform supports flushing dirty data from the memory
+             controller to the NVDIMMs in the event of power loss.
 
-Bit[0] - CPU Cache Flush to NVDIMM Durability on Power Loss Capable.
-Bit[1] - Memory Controller Flush to NVDIMM Durability on Power Loss Capable.
-         Note: If bit 0 is set to 1 then this bit shall be set to 1 as well.
-Bit[2] - Byte Addressable Persistent Memory Hardware Mirroring Capable.
-
-So, a "nvdimm-cap" value of 2 would mean that the platform supports Memory
-Controller Flush on Power Loss, a value of 3 would mean that the platform
-supports CPU Cache Flush and Memory Controller Flush on Power Loss, etc.
-
-For a complete list of the flags available and for more detailed descriptions,
-please consult the ACPI spec.
+"cpu"      - The platform supports flushing dirty data from the CPU cache to
+             the NVDIMMs in the event of power loss.  This implies that the
+             platform also supports flushing dirty data through the memory
+             controller on power loss.

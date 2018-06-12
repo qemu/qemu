@@ -138,7 +138,8 @@ struct AcpiNVDIMMState {
     /*
      * Platform capabilities, section 5.2.25.9 of ACPI 6.2 Errata A
      */
-    int32_t capabilities;
+    int32_t persistence;
+    char    *persistence_string;
 };
 typedef struct AcpiNVDIMMState AcpiNVDIMMState;
 

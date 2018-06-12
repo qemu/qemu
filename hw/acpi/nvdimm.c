@@ -404,8 +404,8 @@ static GArray *nvdimm_build_device_structure(AcpiNVDIMMState *state)
     }
     g_slist_free(device_list);
 
-    if (state->capabilities) {
-        nvdimm_build_structure_caps(structures, state->capabilities);
+    if (state->persistence) {
+        nvdimm_build_structure_caps(structures, state->persistence);
     }
 
     return structures;
