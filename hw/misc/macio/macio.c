@@ -332,6 +332,16 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
     memory_region_init_io(timer_memory, OBJECT(s), &timer_ops, NULL, "timer",
                           0x1000);
     memory_region_add_subregion(&s->bar, 0x15000, timer_memory);
+
+    if (ns->has_pmu) {
+        /* GPIOs */
+        sysbus_dev = SYS_BUS_DEVICE(&ns->gpio);
+        object_property_set_link(OBJECT(&ns->gpio), OBJECT(pic_dev), "pic",
+                                 &error_abort);
+        memory_region_add_subregion(&s->bar, 0x50,
+                                    sysbus_mmio_get_region(sysbus_dev, 0));
+        object_property_set_bool(OBJECT(&ns->gpio), true, "realized", &err);
+    }
 }
 
 static void macio_newworld_init(Object *obj)
@@ -344,6 +354,9 @@ static void macio_newworld_init(Object *obj)
                              (Object **) &ns->pic,
                              qdev_prop_allow_set_link_before_realize,
                              0, NULL);
+
+    object_initialize(&ns->gpio, sizeof(ns->gpio), TYPE_MACIO_GPIO);
+    qdev_set_parent_bus(DEVICE(&ns->gpio), sysbus_get_default());
 
     for (i = 0; i < 2; i++) {
         macio_init_ide(s, &ns->ide[i], sizeof(ns->ide[i]), i);

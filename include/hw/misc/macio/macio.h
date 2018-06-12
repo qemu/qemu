@@ -26,8 +26,10 @@
 #ifndef MACIO_H
 #define MACIO_H
 
+#include "hw/char/escc.h"
 #include "hw/intc/heathrow_pic.h"
 #include "hw/misc/macio/cuda.h"
+#include "hw/misc/macio/gpio.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "hw/ppc/openpic.h"
 
@@ -74,6 +76,7 @@ typedef struct NewWorldMacIOState {
     bool has_adb;
     OpenPICState *pic;
     MACIOIDEState ide[2];
+    MacIOGPIOState gpio;
 } NewWorldMacIOState;
 
 #endif /* MACIO_H */
