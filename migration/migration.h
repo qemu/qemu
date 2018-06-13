@@ -121,6 +121,11 @@ struct MigrationState
      */
     QemuMutex qemu_file_lock;
 
+    /*
+     * Used to allow urgent requests to override rate limiting.
+     */
+    QemuSemaphore rate_limit_sem;
+
     /* bytes already send at the beggining of current interation */
     uint64_t iteration_initial_bytes;
     /* time at the start of current iteration */
@@ -286,5 +291,8 @@ void init_dirty_bitmap_incoming_migration(void);
 
 #define qemu_ram_foreach_block \
   #warning "Use qemu_ram_foreach_block_migratable in migration code"
+
+void migration_make_urgent_request(void);
+void migration_consume_urgent_request(void);
 
 #endif
