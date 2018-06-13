@@ -1051,6 +1051,24 @@
   'data': ['top', 'full', 'none', 'incremental'] }
 
 ##
+# @MirrorCopyMode:
+#
+# An enumeration whose values tell the mirror block job when to
+# trigger writes to the target.
+#
+# @background: copy data in background only.
+#
+# @write-blocking: when data is written to the source, write it
+#                  (synchronously) to the target as well.  In
+#                  addition, data is copied in background just like in
+#                  @background mode.
+#
+# Since: 3.0
+##
+{ 'enum': 'MirrorCopyMode',
+  'data': ['background', 'write-blocking'] }
+
+##
 # @BlockJobInfo:
 #
 # Information about a long-running block device operation.
