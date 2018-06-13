@@ -3702,9 +3702,6 @@ void cpu_physical_memory_unmap(void *buffer, hwaddr len,
 #define ARG1                     as
 #define SUFFIX
 #define TRANSLATE(...)           address_space_translate(as, __VA_ARGS__)
-#define IS_DIRECT(mr, is_write)  memory_access_is_direct(mr, is_write)
-#define MAP_RAM(mr, ofs)         qemu_map_ram_ptr((mr)->ram_block, ofs)
-#define INVALIDATE(mr, ofs, len) invalidate_and_set_dirty(mr, ofs, len)
 #define RCU_READ_LOCK(...)       rcu_read_lock()
 #define RCU_READ_UNLOCK(...)     rcu_read_unlock()
 #include "memory_ldst.inc.c"
@@ -3841,9 +3838,6 @@ address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
 #define ARG1                     cache
 #define SUFFIX                   _cached_slow
 #define TRANSLATE(...)           address_space_translate_cached(cache, __VA_ARGS__)
-#define IS_DIRECT(mr, is_write)  memory_access_is_direct(mr, is_write)
-#define MAP_RAM(mr, ofs)         (cache->ptr + (ofs - cache->xlat))
-#define INVALIDATE(mr, ofs, len) invalidate_and_set_dirty(mr, ofs, len)
 #define RCU_READ_LOCK()          ((void)0)
 #define RCU_READ_UNLOCK()        ((void)0)
 #include "memory_ldst.inc.c"
