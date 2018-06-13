@@ -94,11 +94,6 @@ with ``-device ...,netdev=x''), or ``-nic user,smb=/some/dir''
 (for embedded NICs). The new syntax allows different settings to be
 provided per NIC.
 
-@subsection -drive serial=... (since 2.10.0)
-
-The drive serial argument is replaced by the the serial argument
-that can be specified with the ``-device'' parameter.
-
 @subsection -usbdevice (since 2.10.0)
 
 The ``-usbdevice DEV'' argument is now a synonym for setting
