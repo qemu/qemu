@@ -46,6 +46,17 @@ struct virtio_fs_config {
     uint32_t num_queues;
 };
 
+/* Callback from libvhost-user */
+static uint64_t fv_get_features(VuDev *dev)
+{
+    return 1ULL << VIRTIO_F_VERSION_1;
+}
+
+/* Callback from libvhost-user */
+static void fv_set_features(VuDev *dev, uint64_t features)
+{
+}
+
 /*
  * Callback from libvhost-user if there's a new fd we're supposed to listen
  * to, typically a queue kick?
@@ -78,7 +89,9 @@ static bool fv_queue_order(VuDev *dev, int qidx)
 }
 
 static const VuDevIface fv_iface = {
-    /* TODO: Add other callbacks */
+    .get_features = fv_get_features,
+    .set_features = fv_set_features,
+
     .queue_is_processed_in_order = fv_queue_order,
 };
 
