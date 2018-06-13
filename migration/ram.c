@@ -1547,6 +1547,7 @@ static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset)
             memory_region_unref(block->mr);
             QSIMPLEQ_REMOVE_HEAD(&rs->src_page_requests, next_req);
             g_free(entry);
+            migration_consume_urgent_request();
         }
     }
     qemu_mutex_unlock(&rs->src_page_req_mutex);
@@ -1695,6 +1696,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     memory_region_ref(ramblock->mr);
     qemu_mutex_lock(&rs->src_page_req_mutex);
     QSIMPLEQ_INSERT_TAIL(&rs->src_page_requests, new_entry, next_req);
+    migration_make_urgent_request();
     qemu_mutex_unlock(&rs->src_page_req_mutex);
     rcu_read_unlock();
 
@@ -2643,8 +2645,13 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
     t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     i = 0;
-    while ((ret = qemu_file_rate_limit(f)) == 0) {
+    while ((ret = qemu_file_rate_limit(f)) == 0 ||
+            !QSIMPLEQ_EMPTY(&rs->src_page_requests)) {
         int pages;
+
+        if (qemu_file_get_error(f)) {
+            break;
+        }
 
         pages = ram_find_and_save_block(rs, false);
         /* no more pages to sent */
