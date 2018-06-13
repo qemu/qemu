@@ -186,6 +186,26 @@ err:
     error_propagate(errp, local_err);
 }
 
+static void pnv_unrealize_vcpu(PowerPCCPU *cpu)
+{
+    qemu_unregister_reset(pnv_cpu_reset, cpu);
+    object_unparent(cpu->intc);
+    cpu_remove_sync(CPU(cpu));
+    object_unparent(OBJECT(cpu));
+}
+
+static void pnv_core_unrealize(DeviceState *dev, Error **errp)
+{
+    PnvCore *pc = PNV_CORE(dev);
+    CPUCore *cc = CPU_CORE(dev);
+    int i;
+
+    for (i = 0; i < cc->nr_threads; i++) {
+        pnv_unrealize_vcpu(pc->threads[i]);
+    }
+    g_free(pc->threads);
+}
+
 static Property pnv_core_properties[] = {
     DEFINE_PROP_UINT32("pir", PnvCore, pir, 0),
     DEFINE_PROP_END_OF_LIST(),
@@ -196,6 +216,7 @@ static void pnv_core_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = pnv_core_realize;
+    dc->unrealize = pnv_core_unrealize;
     dc->props = pnv_core_properties;
 }
 
