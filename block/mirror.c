@@ -1473,7 +1473,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                              const BlockJobDriver *driver,
                              bool is_none_mode, BlockDriverState *base,
                              bool auto_complete, const char *filter_node_name,
-                             bool is_mirror,
+                             bool is_mirror, MirrorCopyMode copy_mode,
                              Error **errp)
 {
     MirrorBlockJob *s;
@@ -1581,7 +1581,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     s->on_target_error = on_target_error;
     s->is_none_mode = is_none_mode;
     s->backing_mode = backing_mode;
-    s->copy_mode = MIRROR_COPY_MODE_BACKGROUND;
+    s->copy_mode = copy_mode;
     s->base = base;
     s->granularity = granularity;
     s->buf_size = ROUND_UP(buf_size, granularity);
@@ -1648,7 +1648,8 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                   MirrorSyncMode mode, BlockMirrorBackingMode backing_mode,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
-                  bool unmap, const char *filter_node_name, Error **errp)
+                  bool unmap, const char *filter_node_name,
+                  MirrorCopyMode copy_mode, Error **errp)
 {
     bool is_none_mode;
     BlockDriverState *base;
@@ -1663,7 +1664,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                      speed, granularity, buf_size, backing_mode,
                      on_source_error, on_target_error, unmap, NULL, NULL,
                      &mirror_job_driver, is_none_mode, base, false,
-                     filter_node_name, true, errp);
+                     filter_node_name, true, copy_mode, errp);
 }
 
 void commit_active_start(const char *job_id, BlockDriverState *bs,
@@ -1686,7 +1687,8 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
                      MIRROR_LEAVE_BACKING_CHAIN,
                      on_error, on_error, true, cb, opaque,
                      &commit_active_job_driver, false, base, auto_complete,
-                     filter_node_name, false, &local_err);
+                     filter_node_name, false, MIRROR_COPY_MODE_BACKGROUND,
+                     &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error_restore_flags;
