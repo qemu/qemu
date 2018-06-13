@@ -40,7 +40,7 @@ static void mos6522_timer_update(MOS6522State *s, MOS6522Timer *ti,
 
 static void mos6522_update_irq(MOS6522State *s)
 {
-    if (s->ifr & s->ier & (SR_INT | T1_INT | T2_INT)) {
+    if (s->ifr & s->ier) {
         qemu_irq_raise(s->irq);
     } else {
         qemu_irq_lower(s->irq);
