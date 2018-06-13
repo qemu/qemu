@@ -463,6 +463,7 @@ static void mos6522_class_init(ObjectClass *oc, void *data)
     mdc->set_sr_int = mos6522_set_sr_int;
     mdc->portB_write = mos6522_portB_write;
     mdc->portA_write = mos6522_portA_write;
+    mdc->update_irq = mos6522_update_irq;
     mdc->get_timer1_counter_value = mos6522_get_counter_value;
     mdc->get_timer2_counter_value = mos6522_get_counter_value;
     mdc->get_timer1_load_time = mos6522_get_load_time;
