@@ -598,6 +598,9 @@ static inline QTestState *qtest_start(const char *args)
  */
 static inline void qtest_end(void)
 {
+    if (!global_qtest) {
+        return;
+    }
     qtest_quit(global_qtest);
     global_qtest = NULL;
 }
