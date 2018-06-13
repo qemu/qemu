@@ -113,16 +113,16 @@ by using 'x-colo-lost-heartbeat' command.
 == Test procedure ==
 1. Startup qemu
 Primary:
-# qemu-kvm -enable-kvm -m 2048 -smp 2 -qmp stdio -vnc :7 -name primary \
-  -device piix3-usb-uhci \
+# qemu-system-x86_64 -accel kvm -m 2048 -smp 2 -qmp stdio -name primary \
+  -device piix3-usb-uhci -vnc :7 \
   -device usb-tablet -netdev tap,id=hn0,vhost=off \
   -device virtio-net-pci,id=net-pci0,netdev=hn0 \
   -drive if=virtio,id=primary-disk0,driver=quorum,read-pattern=fifo,vote-threshold=1,\
          children.0.file.filename=1.raw,\
          children.0.driver=raw -S
 Secondary:
-# qemu-kvm -enable-kvm -m 2048 -smp 2 -qmp stdio -vnc :7 -name secondary \
-  -device piix3-usb-uhci \
+# qemu-system-x86_64 -accel kvm -m 2048 -smp 2 -qmp stdio -name secondary \
+  -device piix3-usb-uhci -vnc :7 \
   -device usb-tablet -netdev tap,id=hn0,vhost=off \
   -device virtio-net-pci,id=net-pci0,netdev=hn0 \
   -drive if=none,id=secondary-disk0,file.filename=1.raw,driver=raw,node-name=node0 \

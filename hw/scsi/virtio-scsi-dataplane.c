@@ -142,8 +142,8 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
     /* Set up guest notifier (irq) */
     rc = k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, true);
     if (rc != 0) {
-        fprintf(stderr, "virtio-scsi: Failed to set guest notifiers (%d), "
-                "ensure -enable-kvm is set\n", rc);
+        error_report("virtio-scsi: Failed to set guest notifiers (%d), "
+                     "ensure -accel kvm is set.", rc);
         goto fail_guest_notifiers;
     }
 
