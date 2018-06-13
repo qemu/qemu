@@ -151,7 +151,6 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     PnvCore *pc = PNV_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
     const char *typename = pnv_core_cpu_typename(pc);
-    size_t size = object_type_get_instance_size(typename);
     Error *local_err = NULL;
     void *obj;
     int i, j;
@@ -165,11 +164,11 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    pc->threads = g_malloc0(size * cc->nr_threads);
+    pc->threads = g_new(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
-        obj = pc->threads + i * size;
+        obj = object_new(typename);
 
-        object_initialize(obj, size, typename);
+        pc->threads[i] = POWERPC_CPU(obj);
 
         snprintf(name, sizeof(name), "thread[%d]", i);
         object_property_add_child(OBJECT(pc), name, obj, &error_abort);
@@ -179,7 +178,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
-        obj = pc->threads + j * size;
+        obj = OBJECT(pc->threads[j]);
 
         pnv_core_realize_child(obj, XICS_FABRIC(xi), &local_err);
         if (local_err) {
@@ -194,7 +193,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
 
 err:
     while (--i >= 0) {
-        obj = pc->threads + i * size;
+        obj = OBJECT(pc->threads[i]);
         object_unparent(obj);
     }
     g_free(pc->threads);

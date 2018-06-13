@@ -121,9 +121,9 @@ static int get_cpus_node(void *fdt)
  */
 static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
 {
-    CPUState *cs = CPU(DEVICE(pc->threads));
+    PowerPCCPU *cpu = pc->threads[0];
+    CPUState *cs = CPU(cpu);
     DeviceClass *dc = DEVICE_GET_CLASS(cs);
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
     int smt_threads = CPU_CORE(pc)->nr_threads;
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
