@@ -731,10 +731,6 @@ QemuOptsList qemu_legacy_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "interface (ide, scsi, sd, mtd, floppy, pflash, virtio)",
         },{
-            .name = "addr",
-            .type = QEMU_OPT_STRING,
-            .help = "pci address (virtio only)",
-        },{
             .name = "serial",
             .type = QEMU_OPT_STRING,
             .help = "disk serial number",
@@ -777,7 +773,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     DriveMediaType media = MEDIA_DISK;
     BlockInterfaceType type;
     int max_devs, bus_id, unit_id, index;
-    const char *devaddr;
     const char *werror, *rerror;
     bool read_only = false;
     bool copy_on_read;
@@ -786,7 +781,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     Error *local_err = NULL;
     int i;
     const char *deprecated[] = {
-        "serial", "addr"
+        "serial"
     };
 
     /* Change legacy command line options into QMP ones */
@@ -976,12 +971,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     }
 
     /* Add virtio block device */
-    devaddr = qemu_opt_get(legacy_opts, "addr");
-    if (devaddr && type != IF_VIRTIO) {
-        error_report("addr is not supported by this bus type");
-        goto fail;
-    }
-
     if (type == IF_VIRTIO) {
         QemuOpts *devopts;
         devopts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
@@ -993,9 +982,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         }
         qemu_opt_set(devopts, "drive", qdict_get_str(bs_opts, "id"),
                      &error_abort);
-        if (devaddr) {
-            qemu_opt_set(devopts, "addr", devaddr, &error_abort);
-        }
     }
 
     filename = qemu_opt_get(legacy_opts, "file");
@@ -1040,7 +1026,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo->type = type;
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
-    dinfo->devaddr = devaddr;
     dinfo->serial = g_strdup(serial);
 
     blk_set_legacy_dinfo(blk, dinfo);

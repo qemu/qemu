@@ -69,10 +69,6 @@ void hmp_drive_add(Monitor *mon, const QDict *qdict)
     if (!dinfo) {
         goto err;
     }
-    if (dinfo->devaddr) {
-        monitor_printf(mon, "Parameter addr not supported\n");
-        goto err;
-    }
 
     switch (dinfo->type) {
     case IF_NONE:
