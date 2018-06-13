@@ -775,8 +775,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     const char *filename;
     Error *local_err = NULL;
     int i;
-    const char *deprecated[] = {
-    };
 
     /* Change legacy command line options into QMP ones */
     static const struct {
@@ -851,16 +849,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     if (local_err) {
         error_report_err(local_err);
         goto fail;
-    }
-
-    /* Other deprecated options */
-    if (!qtest_enabled()) {
-        for (i = 0; i < ARRAY_SIZE(deprecated); i++) {
-            if (qemu_opt_get(legacy_opts, deprecated[i]) != NULL) {
-                error_report("'%s' is deprecated, please use the corresponding "
-                             "option of '-device' instead", deprecated[i]);
-            }
-        }
     }
 
     /* Media type */
