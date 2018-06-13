@@ -6,4 +6,7 @@ typedef struct RAMFBState RAMFBState;
 void ramfb_display_update(QemuConsole *con, RAMFBState *s);
 RAMFBState *ramfb_setup(Error **errp);
 
+/* ramfb-standalone.c */
+#define TYPE_RAMFB_DEVICE "ramfb"
+
 #endif /* RAMFB_H */
