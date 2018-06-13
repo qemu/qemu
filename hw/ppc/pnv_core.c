@@ -54,28 +54,6 @@ static void pnv_cpu_reset(void *opaque)
     env->msr |= MSR_HVB; /* Hypervisor mode */
 }
 
-static void pnv_cpu_init(PowerPCCPU *cpu, Error **errp)
-{
-    CPUPPCState *env = &cpu->env;
-    int core_pir;
-    int thread_index = 0; /* TODO: TCG supports only one thread */
-    ppc_spr_t *pir = &env->spr_cb[SPR_PIR];
-
-    core_pir = object_property_get_uint(OBJECT(cpu), "core-pir", &error_abort);
-
-    /*
-     * The PIR of a thread is the core PIR + the thread index. We will
-     * need to find a way to get the thread index when TCG supports
-     * more than 1. We could use the object name ?
-     */
-    pir->default_value = core_pir + thread_index;
-
-    /* Set time-base frequency to 512 MHz */
-    cpu_ppc_tb_init(env, PNV_TIMEBASE_FREQ);
-
-    qemu_register_reset(pnv_cpu_reset, cpu);
-}
-
 /*
  * These values are read by the PowerNV HW monitors under Linux
  */
@@ -121,29 +99,39 @@ static const MemoryRegionOps pnv_core_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_core_realize_child(Object *child, XICSFabric *xi, Error **errp)
+static void pnv_realize_vcpu(PowerPCCPU *cpu, XICSFabric *xi, Error **errp)
 {
+    CPUPPCState *env = &cpu->env;
+    int core_pir;
+    int thread_index = 0; /* TODO: TCG supports only one thread */
+    ppc_spr_t *pir = &env->spr_cb[SPR_PIR];
     Error *local_err = NULL;
-    CPUState *cs = CPU(child);
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-    object_property_set_bool(child, true, "realized", &local_err);
+    object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
 
-    cpu->intc = icp_create(child, TYPE_PNV_ICP, xi, &local_err);
+    cpu->intc = icp_create(OBJECT(cpu), TYPE_PNV_ICP, xi, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
 
-    pnv_cpu_init(cpu, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
+    core_pir = object_property_get_uint(OBJECT(cpu), "core-pir", &error_abort);
+
+    /*
+     * The PIR of a thread is the core PIR + the thread index. We will
+     * need to find a way to get the thread index when TCG supports
+     * more than 1. We could use the object name ?
+     */
+    pir->default_value = core_pir + thread_index;
+
+    /* Set time-base frequency to 512 MHz */
+    cpu_ppc_tb_init(env, PNV_TIMEBASE_FREQ);
+
+    qemu_register_reset(pnv_cpu_reset, cpu);
 }
 
 static void pnv_core_realize(DeviceState *dev, Error **errp)
@@ -178,9 +166,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
-        obj = OBJECT(pc->threads[j]);
-
-        pnv_core_realize_child(obj, XICS_FABRIC(xi), &local_err);
+        pnv_realize_vcpu(pc->threads[j], XICS_FABRIC(xi), &local_err);
         if (local_err) {
             goto err;
         }
