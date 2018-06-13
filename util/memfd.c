@@ -187,6 +187,7 @@ bool qemu_memfd_alloc_check(void)
         int fd;
         void *ptr;
 
+        fd = -1;
         ptr = qemu_memfd_alloc("test", 4096, 0, &fd, NULL);
         memfd_check = ptr ? MEMFD_OK : MEMFD_KO;
         qemu_memfd_free(ptr, 4096, fd);
