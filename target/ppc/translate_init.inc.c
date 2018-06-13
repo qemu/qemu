@@ -10316,14 +10316,6 @@ static void ppc_cpu_reset(CPUState *s)
     s->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
 
-#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-    env->vpa_addr = 0;
-    env->slb_shadow_addr = 0;
-    env->slb_shadow_size = 0;
-    env->dtl_addr = 0;
-    env->dtl_size = 0;
-#endif /* TARGET_PPC64 */
-
     for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
         ppc_spr_t *spr = &env->spr_cb[i];
 

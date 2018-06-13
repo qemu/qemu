@@ -8,6 +8,7 @@
 #include "exec/exec-all.h"
 #include "helper_regs.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "mmu-hash64.h"
 #include "cpu-models.h"
 #include "trace.h"
@@ -908,9 +909,11 @@ unmap_out:
 #define VPA_SHARED_PROC_OFFSET 0x9
 #define VPA_SHARED_PROC_VAL    0x2
 
-static target_ulong register_vpa(CPUPPCState *env, target_ulong vpa)
+static target_ulong register_vpa(PowerPCCPU *cpu, target_ulong vpa)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
     uint16_t size;
     uint8_t tmp;
 
@@ -935,32 +938,34 @@ static target_ulong register_vpa(CPUPPCState *env, target_ulong vpa)
         return H_PARAMETER;
     }
 
-    env->vpa_addr = vpa;
+    spapr_cpu->vpa_addr = vpa;
 
-    tmp = ldub_phys(cs->as, env->vpa_addr + VPA_SHARED_PROC_OFFSET);
+    tmp = ldub_phys(cs->as, spapr_cpu->vpa_addr + VPA_SHARED_PROC_OFFSET);
     tmp |= VPA_SHARED_PROC_VAL;
-    stb_phys(cs->as, env->vpa_addr + VPA_SHARED_PROC_OFFSET, tmp);
+    stb_phys(cs->as, spapr_cpu->vpa_addr + VPA_SHARED_PROC_OFFSET, tmp);
 
     return H_SUCCESS;
 }
 
-static target_ulong deregister_vpa(CPUPPCState *env, target_ulong vpa)
+static target_ulong deregister_vpa(PowerPCCPU *cpu, target_ulong vpa)
 {
-    if (env->slb_shadow_addr) {
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
+
+    if (spapr_cpu->slb_shadow_addr) {
         return H_RESOURCE;
     }
 
-    if (env->dtl_addr) {
+    if (spapr_cpu->dtl_addr) {
         return H_RESOURCE;
     }
 
-    env->vpa_addr = 0;
+    spapr_cpu->vpa_addr = 0;
     return H_SUCCESS;
 }
 
-static target_ulong register_slb_shadow(CPUPPCState *env, target_ulong addr)
+static target_ulong register_slb_shadow(PowerPCCPU *cpu, target_ulong addr)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
     uint32_t size;
 
     if (addr == 0) {
@@ -968,7 +973,7 @@ static target_ulong register_slb_shadow(CPUPPCState *env, target_ulong addr)
         return H_HARDWARE;
     }
 
-    size = ldl_be_phys(cs->as, addr + 0x4);
+    size = ldl_be_phys(CPU(cpu)->as, addr + 0x4);
     if (size < 0x8) {
         return H_PARAMETER;
     }
@@ -977,26 +982,28 @@ static target_ulong register_slb_shadow(CPUPPCState *env, target_ulong addr)
         return H_PARAMETER;
     }
 
-    if (!env->vpa_addr) {
+    if (!spapr_cpu->vpa_addr) {
         return H_RESOURCE;
     }
 
-    env->slb_shadow_addr = addr;
-    env->slb_shadow_size = size;
+    spapr_cpu->slb_shadow_addr = addr;
+    spapr_cpu->slb_shadow_size = size;
 
     return H_SUCCESS;
 }
 
-static target_ulong deregister_slb_shadow(CPUPPCState *env, target_ulong addr)
+static target_ulong deregister_slb_shadow(PowerPCCPU *cpu, target_ulong addr)
 {
-    env->slb_shadow_addr = 0;
-    env->slb_shadow_size = 0;
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
+
+    spapr_cpu->slb_shadow_addr = 0;
+    spapr_cpu->slb_shadow_size = 0;
     return H_SUCCESS;
 }
 
-static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
+static target_ulong register_dtl(PowerPCCPU *cpu, target_ulong addr)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
     uint32_t size;
 
     if (addr == 0) {
@@ -1004,26 +1011,28 @@ static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
         return H_HARDWARE;
     }
 
-    size = ldl_be_phys(cs->as, addr + 0x4);
+    size = ldl_be_phys(CPU(cpu)->as, addr + 0x4);
 
     if (size < 48) {
         return H_PARAMETER;
     }
 
-    if (!env->vpa_addr) {
+    if (!spapr_cpu->vpa_addr) {
         return H_RESOURCE;
     }
 
-    env->dtl_addr = addr;
-    env->dtl_size = size;
+    spapr_cpu->dtl_addr = addr;
+    spapr_cpu->dtl_size = size;
 
     return H_SUCCESS;
 }
 
-static target_ulong deregister_dtl(CPUPPCState *env, target_ulong addr)
+static target_ulong deregister_dtl(PowerPCCPU *cpu, target_ulong addr)
 {
-    env->dtl_addr = 0;
-    env->dtl_size = 0;
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
+
+    spapr_cpu->dtl_addr = 0;
+    spapr_cpu->dtl_size = 0;
 
     return H_SUCCESS;
 }
@@ -1035,38 +1044,36 @@ static target_ulong h_register_vpa(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     target_ulong procno = args[1];
     target_ulong vpa = args[2];
     target_ulong ret = H_PARAMETER;
-    CPUPPCState *tenv;
     PowerPCCPU *tcpu;
 
     tcpu = spapr_find_cpu(procno);
     if (!tcpu) {
         return H_PARAMETER;
     }
-    tenv = &tcpu->env;
 
     switch (flags) {
     case FLAGS_REGISTER_VPA:
-        ret = register_vpa(tenv, vpa);
+        ret = register_vpa(tcpu, vpa);
         break;
 
     case FLAGS_DEREGISTER_VPA:
-        ret = deregister_vpa(tenv, vpa);
+        ret = deregister_vpa(tcpu, vpa);
         break;
 
     case FLAGS_REGISTER_SLBSHADOW:
-        ret = register_slb_shadow(tenv, vpa);
+        ret = register_slb_shadow(tcpu, vpa);
         break;
 
     case FLAGS_DEREGISTER_SLBSHADOW:
-        ret = deregister_slb_shadow(tenv, vpa);
+        ret = deregister_slb_shadow(tcpu, vpa);
         break;
 
     case FLAGS_REGISTER_DTL:
-        ret = register_dtl(tenv, vpa);
+        ret = register_dtl(tcpu, vpa);
         break;
 
     case FLAGS_DEREGISTER_DTL:
-        ret = deregister_dtl(tenv, vpa);
+        ret = deregister_dtl(tcpu, vpa);
         break;
     }
 
