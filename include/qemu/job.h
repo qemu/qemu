@@ -335,6 +335,21 @@ void job_progress_update(Job *job, uint64_t done);
  */
 void job_progress_set_remaining(Job *job, uint64_t remaining);
 
+/**
+ * @job: The job whose expected progress end value is updated
+ * @delta: Value which is to be added to the current expected end
+ *         value
+ *
+ * Increases the expected end value of the progress counter of a job.
+ * This is useful for parenthesis operations: If a job has to
+ * conditionally perform a high-priority operation as part of its
+ * progress, it calls this function with the expected operation's
+ * length before, and job_progress_update() afterwards.
+ * (So the operation acts as a parenthesis in regards to the main job
+ * operation running in background.)
+ */
+void job_progress_increase_remaining(Job *job, uint64_t delta);
+
 /** To be called when a cancelled job is finalised. */
 void job_event_cancelled(Job *job);
 
