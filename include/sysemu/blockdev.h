@@ -35,7 +35,6 @@ struct DriveInfo {
     int auto_del;               /* see blockdev_mark_auto_del() */
     bool is_default;            /* Added by default_drive() ?  */
     int media_cd;
-    int cyls, heads, secs, trans;
     QemuOpts *opts;
     char *serial;
     QTAILQ_ENTRY(DriveInfo) next;
