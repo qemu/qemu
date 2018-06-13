@@ -116,4 +116,7 @@ extern const guint16 qemu_input_map_xorgxquartz_to_qcode[];
 extern const guint qemu_input_map_xorgxwin_to_qcode_len;
 extern const guint16 qemu_input_map_xorgxwin_to_qcode[];
 
+extern const guint qemu_input_map_osx_to_qcode_len;
+extern const guint16 qemu_input_map_osx_to_qcode[];
+
 #endif /* INPUT_H */
