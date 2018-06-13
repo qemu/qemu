@@ -241,7 +241,7 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case VIA_REG_SR:
         val = s->sr;
-        s->ifr &= ~(SR_INT | CB1_INT | CB2_INT);
+        s->ifr &= ~SR_INT;
         mos6522_update_irq(s);
         break;
     case VIA_REG_ACR:
