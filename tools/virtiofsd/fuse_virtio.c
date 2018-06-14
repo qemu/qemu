@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/iov.h"
 #include "fuse_virtio.h"
 #include "fuse_i.h"
 #include "standard-headers/linux/fuse.h"
@@ -32,6 +33,7 @@
 
 #include "contrib/libvhost-user/libvhost-user.h"
 
+struct fv_VuDev;
 struct fv_QueueInfo {
     pthread_t thread;
     struct fv_VuDev *virtio_dev;
@@ -101,10 +103,41 @@ static void fv_panic(VuDev *dev, const char *err)
     exit(EXIT_FAILURE);
 }
 
+/*
+ * Copy from an iovec into a fuse_buf (memory only)
+ * Caller must ensure there is space
+ */
+static void copy_from_iov(struct fuse_buf *buf, size_t out_num,
+                          const struct iovec *out_sg)
+{
+    void *dest = buf->mem;
+
+    while (out_num) {
+        size_t onelen = out_sg->iov_len;
+        memcpy(dest, out_sg->iov_base, onelen);
+        dest += onelen;
+        out_sg++;
+        out_num--;
+    }
+}
+
 /* Thread function for individual queues, created when a queue is 'started' */
 static void *fv_queue_thread(void *opaque)
 {
     struct fv_QueueInfo *qi = opaque;
+    struct VuDev *dev = &qi->virtio_dev->dev;
+    struct VuVirtq *q = vu_get_queue(dev, qi->qidx);
+    struct fuse_session *se = qi->virtio_dev->se;
+    struct fuse_chan ch;
+    struct fuse_buf fbuf;
+
+    fbuf.mem = NULL;
+    fbuf.flags = 0;
+
+    fuse_mutex_init(&ch.lock);
+    ch.fd = (int)0xdaff0d111;
+    ch.qi = qi;
+
     fuse_log(FUSE_LOG_INFO, "%s: Start for queue %d kick_fd %d\n", __func__,
              qi->qidx, qi->kick_fd);
     while (1) {
@@ -141,11 +174,71 @@ static void *fv_queue_thread(void *opaque)
             fuse_log(FUSE_LOG_ERR, "Eventfd_read for queue: %m\n");
             break;
         }
-        if (qi->virtio_dev->se->debug) {
-            fprintf(stderr, "%s: Queue %d gave evalue: %zx\n", __func__,
-                    qi->qidx, (size_t)evalue);
+        /* out is from guest, in is too guest */
+        unsigned int in_bytes, out_bytes;
+        vu_queue_get_avail_bytes(dev, q, &in_bytes, &out_bytes, ~0, ~0);
+
+        fuse_log(FUSE_LOG_DEBUG,
+                 "%s: Queue %d gave evalue: %zx available: in: %u out: %u\n",
+                 __func__, qi->qidx, (size_t)evalue, in_bytes, out_bytes);
+
+        while (1) {
+            /*
+             * An element contains one request and the space to send our
+             * response They're spread over multiple descriptors in a
+             * scatter/gather set and we can't trust the guest to keep them
+             * still; so copy in/out.
+             */
+            VuVirtqElement *elem = vu_queue_pop(dev, q, sizeof(VuVirtqElement));
+            if (!elem) {
+                break;
+            }
+
+            if (!fbuf.mem) {
+                fbuf.mem = malloc(se->bufsize);
+                assert(fbuf.mem);
+                assert(se->bufsize > sizeof(struct fuse_in_header));
+            }
+            /* The 'out' part of the elem is from qemu */
+            unsigned int out_num = elem->out_num;
+            struct iovec *out_sg = elem->out_sg;
+            size_t out_len = iov_size(out_sg, out_num);
+            fuse_log(FUSE_LOG_DEBUG,
+                     "%s: elem %d: with %d out desc of length %zd\n", __func__,
+                     elem->index, out_num, out_len);
+
+            /*
+             * The elem should contain a 'fuse_in_header' (in to fuse)
+             * plus the data based on the len in the header.
+             */
+            if (out_len < sizeof(struct fuse_in_header)) {
+                fuse_log(FUSE_LOG_ERR, "%s: elem %d too short for in_header\n",
+                         __func__, elem->index);
+                assert(0); /* TODO */
+            }
+            if (out_len > se->bufsize) {
+                fuse_log(FUSE_LOG_ERR, "%s: elem %d too large for buffer\n",
+                         __func__, elem->index);
+                assert(0); /* TODO */
+            }
+            copy_from_iov(&fbuf, out_num, out_sg);
+            fbuf.size = out_len;
+
+            /* TODO! Endianness of header */
+
+            /* TODO: Fixup fuse_send_msg */
+            /* TODO: Add checks for fuse_session_exited */
+            fuse_session_process_buf_int(se, &fbuf, &ch);
+
+            /* TODO: vu_queue_push(dev, q, elem, qi->write_count); */
+            vu_queue_notify(dev, q);
+
+            free(elem);
+            elem = NULL;
         }
     }
+    pthread_mutex_destroy(&ch.lock);
+    free(fbuf.mem);
 
     return NULL;
 }
