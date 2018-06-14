@@ -86,13 +86,14 @@ matrix:
     - env: CONFIG="--enable-debug --enable-tcg-interpreter"
            TEST_CMD=""
       compiler: gcc
-    - env: CONFIG="--enable-trace-backends=simple"
+    # We don't need to exercise every backend with every front-end
+    - env: CONFIG="--enable-trace-backends=log,simple,syslog --disable-system"
            TEST_CMD=""
       compiler: gcc
-    - env: CONFIG="--enable-trace-backends=ftrace"
+    - env: CONFIG="--enable-trace-backends=ftrace --target-list=x86_64-softmmu"
            TEST_CMD=""
       compiler: gcc
-    - env: CONFIG="--enable-trace-backends=ust"
+    - env: CONFIG="--enable-trace-backends=ust --target-list=x86_64-softmmu"
            TEST_CMD=""
       compiler: gcc
     - env: CONFIG="--disable-tcg"
