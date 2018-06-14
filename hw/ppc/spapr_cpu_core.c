@@ -176,7 +176,7 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 
     sc->threads = g_new(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
-        char id[32];
+        char *id;
         CPUState *cs;
         PowerPCCPU *cpu;
 
@@ -194,8 +194,9 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         /* Set NUMA node for the threads belonged to core  */
         cpu->node_id = sc->node_id;
 
-        snprintf(id, sizeof(id), "thread[%d]", i);
+        id = g_strdup_printf("thread[%d]", i);
         object_property_add_child(OBJECT(sc), id, obj, &local_err);
+        g_free(id);
         if (local_err) {
             goto err;
         }
