@@ -184,20 +184,20 @@ typedef struct NoteFuncDescStruct {
 } NoteFuncDesc;
 
 static const NoteFuncDesc note_core[] = {
-    {sizeof(((Note *)0)->contents.prstatus), s390x_write_elf64_prstatus},
-    {sizeof(((Note *)0)->contents.fpregset), s390x_write_elf64_fpregset},
+    {sizeof_field(Note, contents.prstatus), s390x_write_elf64_prstatus},
+    {sizeof_field(Note, contents.fpregset), s390x_write_elf64_fpregset},
     { 0, NULL}
 };
 
 static const NoteFuncDesc note_linux[] = {
-    {sizeof(((Note *)0)->contents.prefix),   s390x_write_elf64_prefix},
-    {sizeof(((Note *)0)->contents.ctrs),     s390x_write_elf64_ctrs},
-    {sizeof(((Note *)0)->contents.timer),    s390x_write_elf64_timer},
-    {sizeof(((Note *)0)->contents.todcmp),   s390x_write_elf64_todcmp},
-    {sizeof(((Note *)0)->contents.todpreg),  s390x_write_elf64_todpreg},
-    {sizeof(((Note *)0)->contents.vregslo),  s390x_write_elf64_vregslo},
-    {sizeof(((Note *)0)->contents.vregshi),  s390x_write_elf64_vregshi},
-    {sizeof(((Note *)0)->contents.gscb),     s390x_write_elf64_gscb},
+    {sizeof_field(Note, contents.prefix),   s390x_write_elf64_prefix},
+    {sizeof_field(Note, contents.ctrs),     s390x_write_elf64_ctrs},
+    {sizeof_field(Note, contents.timer),    s390x_write_elf64_timer},
+    {sizeof_field(Note, contents.todcmp),   s390x_write_elf64_todcmp},
+    {sizeof_field(Note, contents.todpreg),  s390x_write_elf64_todpreg},
+    {sizeof_field(Note, contents.vregslo),  s390x_write_elf64_vregslo},
+    {sizeof_field(Note, contents.vregshi),  s390x_write_elf64_vregshi},
+    {sizeof_field(Note, contents.gscb),     s390x_write_elf64_gscb},
     { 0, NULL}
 };
 

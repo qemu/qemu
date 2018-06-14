@@ -64,6 +64,8 @@
         (type *) ((char *) __mptr - offsetof(type, member));})
 #endif
 
+#define sizeof_field(type, field) sizeof(((type *)0)->field)
+
 /* Convert from a base type to a parent type, with compile time checking.  */
 #ifdef __GNUC__
 #define DO_UPCAST(type, field, dev) ( __extension__ ( { \
