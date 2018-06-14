@@ -37,11 +37,11 @@ static void qdict_defaults_test(void)
 
 static void qdict_flatten_test(void)
 {
-    QList *list1 = qlist_new();
-    QList *list2 = qlist_new();
-    QDict *dict1 = qdict_new();
-    QDict *dict2 = qdict_new();
-    QDict *dict3 = qdict_new();
+    QList *e_1 = qlist_new();
+    QList *e = qlist_new();
+    QDict *e_1_2 = qdict_new();
+    QDict *f = qdict_new();
+    QDict *root = qdict_new();
 
     /*
      * Test the flattening of
@@ -79,35 +79,36 @@ static void qdict_flatten_test(void)
      * }
      */
 
-    qdict_put_int(dict1, "a", 0);
-    qdict_put_int(dict1, "b", 1);
+    qdict_put_int(e_1_2, "a", 0);
+    qdict_put_int(e_1_2, "b", 1);
 
-    qlist_append_int(list1, 23);
-    qlist_append_int(list1, 66);
-    qlist_append(list1, dict1);
-    qlist_append_int(list2, 42);
-    qlist_append(list2, list1);
+    qlist_append_int(e_1, 23);
+    qlist_append_int(e_1, 66);
+    qlist_append(e_1, e_1_2);
+    qlist_append_int(e, 42);
+    qlist_append(e, e_1);
 
-    qdict_put_int(dict2, "c", 2);
-    qdict_put_int(dict2, "d", 3);
-    qdict_put(dict3, "e", list2);
-    qdict_put(dict3, "f", dict2);
-    qdict_put_int(dict3, "g", 4);
+    qdict_put_int(f, "c", 2);
+    qdict_put_int(f, "d", 3);
 
-    qdict_flatten(dict3);
+    qdict_put(root, "e", e);
+    qdict_put(root, "f", f);
+    qdict_put_int(root, "g", 4);
 
-    g_assert(qdict_get_int(dict3, "e.0") == 42);
-    g_assert(qdict_get_int(dict3, "e.1.0") == 23);
-    g_assert(qdict_get_int(dict3, "e.1.1") == 66);
-    g_assert(qdict_get_int(dict3, "e.1.2.a") == 0);
-    g_assert(qdict_get_int(dict3, "e.1.2.b") == 1);
-    g_assert(qdict_get_int(dict3, "f.c") == 2);
-    g_assert(qdict_get_int(dict3, "f.d") == 3);
-    g_assert(qdict_get_int(dict3, "g") == 4);
+    qdict_flatten(root);
 
-    g_assert(qdict_size(dict3) == 8);
+    g_assert(qdict_get_int(root, "e.0") == 42);
+    g_assert(qdict_get_int(root, "e.1.0") == 23);
+    g_assert(qdict_get_int(root, "e.1.1") == 66);
+    g_assert(qdict_get_int(root, "e.1.2.a") == 0);
+    g_assert(qdict_get_int(root, "e.1.2.b") == 1);
+    g_assert(qdict_get_int(root, "f.c") == 2);
+    g_assert(qdict_get_int(root, "f.d") == 3);
+    g_assert(qdict_get_int(root, "g") == 4);
 
-    qobject_unref(dict3);
+    g_assert(qdict_size(root) == 8);
+
+    qobject_unref(root);
 }
 
 static void qdict_array_split_test(void)
