@@ -67,23 +67,6 @@ int64_t qdict_get_try_int(const QDict *qdict, const char *key,
 bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value);
 const char *qdict_get_try_str(const QDict *qdict, const char *key);
 
-void qdict_copy_default(QDict *dst, QDict *src, const char *key);
-void qdict_set_default_str(QDict *dst, const char *key, const char *val);
-
 QDict *qdict_clone_shallow(const QDict *src);
-void qdict_flatten(QDict *qdict);
-
-void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start);
-void qdict_array_split(QDict *src, QList **dst);
-int qdict_array_entries(QDict *src, const char *subqdict);
-QObject *qdict_crumple(const QDict *src, Error **errp);
-
-void qdict_join(QDict *dest, QDict *src, bool overwrite);
-
-typedef struct QDictRenames {
-    const char *from;
-    const char *to;
-} QDictRenames;
-bool qdict_rename_keys(QDict *qdict, const QDictRenames *renames, Error **errp);
 
 #endif /* QDICT_H */

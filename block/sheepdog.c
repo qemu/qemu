@@ -24,6 +24,7 @@
 #include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "block/block_int.h"
+#include "block/qdict.h"
 #include "sysemu/block-backend.h"
 #include "qemu/bitops.h"
 #include "qemu/cutils.h"

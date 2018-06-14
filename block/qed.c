@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/qdict.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/bswap.h"

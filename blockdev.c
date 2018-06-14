@@ -35,6 +35,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "block/blockjob.h"
+#include "block/qdict.h"
 #include "block/throttle-groups.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"

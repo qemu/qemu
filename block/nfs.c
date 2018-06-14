@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "block/block_int.h"
+#include "block/qdict.h"
 #include "trace.h"
 #include "qemu/iov.h"
 #include "qemu/option.h"

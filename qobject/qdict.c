@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/qdict.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qbool.h"

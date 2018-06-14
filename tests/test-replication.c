@@ -15,6 +15,7 @@
 #include "qemu/option.h"
 #include "replication.h"
 #include "block/block_int.h"
+#include "block/qdict.h"
 #include "sysemu/block-backend.h"
 
 #define IMG_SIZE (64 * 1024 * 1024)
