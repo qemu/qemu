@@ -273,20 +273,12 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options,
         goto done;
     }
 
-    crumpled_addr = qdict_crumple(addr, errp);
+    crumpled_addr = qdict_crumple_for_keyval_qiv(addr, errp);
     if (!crumpled_addr) {
         goto done;
     }
 
-    /*
-     * FIXME .numeric, .to, .ipv4 or .ipv6 don't work with -drive
-     * server.type=inet.  .to doesn't matter, it's ignored anyway.
-     * That's because when @options come from -blockdev or
-     * blockdev_add, members are typed according to the QAPI schema,
-     * but when they come from -drive, they're all QString.  The
-     * visitor expects the former.
-     */
-    iv = qobject_input_visitor_new(crumpled_addr);
+    iv = qobject_input_visitor_new_keyval(crumpled_addr);
     visit_type_SocketAddress(iv, NULL, &saddr, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);

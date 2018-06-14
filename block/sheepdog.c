@@ -546,20 +546,12 @@ static SocketAddress *sd_server_config(QDict *options, Error **errp)
 
     qdict_extract_subqdict(options, &server, "server.");
 
-    crumpled_server = qdict_crumple(server, errp);
+    crumpled_server = qdict_crumple_for_keyval_qiv(server, errp);
     if (!crumpled_server) {
         goto done;
     }
 
-    /*
-     * FIXME .numeric, .to, .ipv4 or .ipv6 don't work with -drive
-     * server.type=inet.  .to doesn't matter, it's ignored anyway.
-     * That's because when @options come from -blockdev or
-     * blockdev_add, members are typed according to the QAPI schema,
-     * but when they come from -drive, they're all QString.  The
-     * visitor expects the former.
-     */
-    iv = qobject_input_visitor_new(crumpled_server);
+    iv = qobject_input_visitor_new_keyval(crumpled_server);
     visit_type_SocketAddress(iv, NULL, &saddr, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
