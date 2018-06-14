@@ -113,7 +113,7 @@ void spapr_ovec_cleanup(sPAPROptionVector *ov)
 void spapr_ovec_set(sPAPROptionVector *ov, long bitnr)
 {
     g_assert(ov);
-    g_assert_cmpint(bitnr, <, OV_MAXBITS);
+    g_assert(bitnr < OV_MAXBITS);
 
     set_bit(bitnr, ov->bitmap);
 }
@@ -121,7 +121,7 @@ void spapr_ovec_set(sPAPROptionVector *ov, long bitnr)
 void spapr_ovec_clear(sPAPROptionVector *ov, long bitnr)
 {
     g_assert(ov);
-    g_assert_cmpint(bitnr, <, OV_MAXBITS);
+    g_assert(bitnr < OV_MAXBITS);
 
     clear_bit(bitnr, ov->bitmap);
 }
@@ -129,7 +129,7 @@ void spapr_ovec_clear(sPAPROptionVector *ov, long bitnr)
 bool spapr_ovec_test(sPAPROptionVector *ov, long bitnr)
 {
     g_assert(ov);
-    g_assert_cmpint(bitnr, <, OV_MAXBITS);
+    g_assert(bitnr < OV_MAXBITS);
 
     return test_bit(bitnr, ov->bitmap) ? true : false;
 }
@@ -186,7 +186,7 @@ sPAPROptionVector *spapr_ovec_parse_vector(target_ulong table_addr, int vector)
     int i;
 
     g_assert(table_addr);
-    g_assert_cmpint(vector, >=, 1); /* vector numbering starts at 1 */
+    g_assert(vector >= 1);      /* vector numbering starts at 1 */
 
     addr = vector_addr(table_addr, vector);
     if (!addr) {
@@ -195,7 +195,7 @@ sPAPROptionVector *spapr_ovec_parse_vector(target_ulong table_addr, int vector)
     }
 
     vector_len = ldub_phys(&address_space_memory, addr++) + 1;
-    g_assert_cmpint(vector_len, <=, OV_MAXBYTES);
+    g_assert(vector_len <= OV_MAXBYTES);
     ov = spapr_ovec_new();
 
     for (i = 0; i < vector_len; i++) {
@@ -225,7 +225,7 @@ int spapr_ovec_populate_dt(void *fdt, int fdt_offset,
      * encoding/sizing expected in ibm,client-architecture-support
      */
     vec_len = (lastbit == OV_MAXBITS) ? 1 : lastbit / BITS_PER_BYTE + 1;
-    g_assert_cmpint(vec_len, <=, OV_MAXBYTES);
+    g_assert(vec_len <= OV_MAXBYTES);
     /* guest expects vector len encoded as vec_len - 1, since the length byte
      * is assumed and not included, and the first byte of the vector
      * is assumed as well
