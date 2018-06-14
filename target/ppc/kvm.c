@@ -406,9 +406,22 @@ target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
     }
 }
 
+bool kvmppc_hpt_needs_host_contiguous_pages(void)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
+    static struct kvm_ppc_smmu_info smmu_info;
+
+    if (!kvm_enabled()) {
+        return false;
+    }
+
+    kvm_get_smmu_info(cpu, &smmu_info);
+    return !!(smmu_info.flags & KVM_PPC_PAGE_SIZES_REAL);
+}
+
 static bool kvm_valid_page_size(uint32_t flags, long rampgsize, uint32_t shift)
 {
-    if (!(flags & KVM_PPC_PAGE_SIZES_REAL)) {
+    if (!kvmppc_hpt_needs_host_contiguous_pages()) {
         return true;
     }
 
@@ -445,7 +458,7 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     /* If we have HV KVM, we need to forbid CI large pages if our
      * host page size is smaller than 64K.
      */
-    if (smmu_info.flags & KVM_PPC_PAGE_SIZES_REAL) {
+    if (kvmppc_hpt_needs_host_contiguous_pages()) {
         if (getpagesize() >= 0x10000) {
             cpu->hash64_opts->flags |= PPC_HASH64_CI_LARGEPAGE;
         } else {
