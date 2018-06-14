@@ -187,6 +187,7 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         cs->cpu_index = cc->core_id + i;
         spapr_set_vcpu_id(cpu, cs->cpu_index, &local_err);
         if (local_err) {
+            object_unref(obj);
             goto err;
         }
 
@@ -198,6 +199,7 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         object_property_add_child(OBJECT(sc), id, obj, &local_err);
         g_free(id);
         if (local_err) {
+            object_unref(obj);
             goto err;
         }
         object_unref(obj);
