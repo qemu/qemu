@@ -89,16 +89,13 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
     QObject *value;
     const QDictEntry *entry, *next;
     char *new_key;
-    bool delete;
 
     entry = qdict_first(qdict);
 
     while (entry != NULL) {
-
         next = qdict_next(qdict, entry);
         value = qdict_entry_value(entry);
         new_key = NULL;
-        delete = false;
 
         if (prefix) {
             new_key = g_strdup_printf("%s.%s", prefix, entry->key);
@@ -109,27 +106,18 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
              * itself disappears. */
             qdict_flatten_qdict(qobject_to(QDict, value), target,
                                 new_key ? new_key : entry->key);
-            delete = true;
+            qdict_del(qdict, entry->key);
         } else if (qobject_type(value) == QTYPE_QLIST) {
             qdict_flatten_qlist(qobject_to(QList, value), target,
                                 new_key ? new_key : entry->key);
-            delete = true;
+            qdict_del(qdict, entry->key);
         } else if (prefix) {
             /* All other objects are moved to the target unchanged. */
             qdict_put_obj(target, new_key, qobject_ref(value));
-            delete = true;
+            qdict_del(qdict, entry->key);
         }
 
         g_free(new_key);
-
-        if (delete) {
-            qdict_del(qdict, entry->key);
-
-            /* Restart loop after modifying the iterated QDict */
-            entry = qdict_first(qdict);
-            continue;
-        }
-
         entry = next;
     }
 }
