@@ -317,26 +317,21 @@ static int qdict_is_list(QDict *maybe_list, Error **errp)
 
     for (ent = qdict_first(maybe_list); ent != NULL;
          ent = qdict_next(maybe_list, ent)) {
+        int is_index = !qemu_strtoi64(ent->key, NULL, 10, &val);
 
-        if (qemu_strtoi64(ent->key, NULL, 10, &val) == 0) {
-            if (is_list == -1) {
-                is_list = 1;
-            } else if (!is_list) {
-                error_setg(errp,
-                           "Cannot mix list and non-list keys");
-                return -1;
-            }
+        if (is_list == -1) {
+            is_list = is_index;
+        }
+
+        if (is_index != is_list) {
+            error_setg(errp, "Cannot mix list and non-list keys");
+            return -1;
+        }
+
+        if (is_index) {
             len++;
             if (val > max) {
                 max = val;
-            }
-        } else {
-            if (is_list == -1) {
-                is_list = 0;
-            } else if (is_list) {
-                error_setg(errp,
-                           "Cannot mix list and non-list keys");
-                return -1;
             }
         }
     }
