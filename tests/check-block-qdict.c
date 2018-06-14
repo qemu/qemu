@@ -41,6 +41,8 @@ static void qdict_flatten_test(void)
     QList *e = qlist_new();
     QDict *e_1_2 = qdict_new();
     QDict *f = qdict_new();
+    QList *y = qlist_new();
+    QDict *z = qdict_new();
     QDict *root = qdict_new();
 
     /*
@@ -62,7 +64,9 @@ static void qdict_flatten_test(void)
      *         "c": 2,
      *         "d": 3,
      *     },
-     *     "g": 4
+     *     "g": 4,
+     *     "y": [{}],
+     *     "z": {"a": []}
      * }
      *
      * to
@@ -77,6 +81,8 @@ static void qdict_flatten_test(void)
      *     "f.d": 3,
      *     "g": 4
      * }
+     *
+     * Note that "y" and "z" get eaten.
      */
 
     qdict_put_int(e_1_2, "a", 0);
@@ -91,9 +97,15 @@ static void qdict_flatten_test(void)
     qdict_put_int(f, "c", 2);
     qdict_put_int(f, "d", 3);
 
+    qlist_append(y, qdict_new());
+
+    qdict_put(z, "a", qlist_new());
+
     qdict_put(root, "e", e);
     qdict_put(root, "f", f);
     qdict_put_int(root, "g", 4);
+    qdict_put(root, "y", y);
+    qdict_put(root, "z", z);
 
     qdict_flatten(root);
 
