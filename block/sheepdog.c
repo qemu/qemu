@@ -539,19 +539,17 @@ static void sd_aio_setup(SheepdogAIOCB *acb, BDRVSheepdogState *s,
 static SocketAddress *sd_server_config(QDict *options, Error **errp)
 {
     QDict *server = NULL;
-    QObject *crumpled_server = NULL;
     Visitor *iv = NULL;
     SocketAddress *saddr = NULL;
     Error *local_err = NULL;
 
     qdict_extract_subqdict(options, &server, "server.");
 
-    crumpled_server = qdict_crumple_for_keyval_qiv(server, errp);
-    if (!crumpled_server) {
+    iv = qobject_input_visitor_new_flat_confused(server, errp);
+    if (!iv) {
         goto done;
     }
 
-    iv = qobject_input_visitor_new_keyval(crumpled_server);
     visit_type_SocketAddress(iv, NULL, &saddr, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -560,7 +558,6 @@ static SocketAddress *sd_server_config(QDict *options, Error **errp)
 
 done:
     visit_free(iv);
-    qobject_unref(crumpled_server);
     qobject_unref(server);
     return saddr;
 }
@@ -2173,7 +2170,6 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
 {
     BlockdevCreateOptions *create_options = NULL;
     QDict *qdict, *location_qdict;
-    QObject *crumpled;
     Visitor *v;
     char *redundancy;
     Error *local_err = NULL;
@@ -2209,16 +2205,14 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
     }
 
     /* Get the QAPI object */
-    crumpled = qdict_crumple_for_keyval_qiv(qdict, errp);
-    if (crumpled == NULL) {
+    v = qobject_input_visitor_new_flat_confused(qdict, errp);
+    if (!v) {
         ret = -EINVAL;
         goto fail;
     }
 
-    v = qobject_input_visitor_new_keyval(crumpled);
     visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
     visit_free(v);
-    qobject_unref(crumpled);
 
     if (local_err) {
         error_propagate(errp, local_err);

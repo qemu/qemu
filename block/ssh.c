@@ -606,7 +606,6 @@ static BlockdevOptionsSsh *ssh_parse_options(QDict *options, Error **errp)
     BlockdevOptionsSsh *result = NULL;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
-    QObject *crumpled;
     const QDictEntry *e;
     Visitor *v;
 
@@ -623,15 +622,13 @@ static BlockdevOptionsSsh *ssh_parse_options(QDict *options, Error **errp)
     }
 
     /* Create the QAPI object */
-    crumpled = qdict_crumple_for_keyval_qiv(options, errp);
-    if (crumpled == NULL) {
+    v = qobject_input_visitor_new_flat_confused(options, errp);
+    if (!v) {
         goto fail;
     }
 
-    v = qobject_input_visitor_new_keyval(crumpled);
     visit_type_BlockdevOptionsSsh(v, NULL, &result, &local_err);
     visit_free(v);
-    qobject_unref(crumpled);
 
     if (local_err) {
         error_propagate(errp, local_err);

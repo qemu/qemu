@@ -556,20 +556,17 @@ static BlockdevOptionsNfs *nfs_options_qdict_to_qapi(QDict *options,
                                                      Error **errp)
 {
     BlockdevOptionsNfs *opts = NULL;
-    QObject *crumpled = NULL;
     Visitor *v;
     const QDictEntry *e;
     Error *local_err = NULL;
 
-    crumpled = qdict_crumple_for_keyval_qiv(options, errp);
-    if (crumpled == NULL) {
+    v = qobject_input_visitor_new_flat_confused(options, errp);
+    if (!v) {
         return NULL;
     }
 
-    v = qobject_input_visitor_new_keyval(crumpled);
     visit_type_BlockdevOptionsNfs(v, NULL, &opts, &local_err);
     visit_free(v);
-    qobject_unref(crumpled);
 
     if (local_err) {
         error_propagate(errp, local_err);

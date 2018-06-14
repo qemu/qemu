@@ -1082,7 +1082,6 @@ static int coroutine_fn vpc_co_create_opts(const char *filename,
 {
     BlockdevCreateOptions *create_options = NULL;
     QDict *qdict;
-    QObject *qobj;
     Visitor *v;
     BlockDriverState *bs = NULL;
     Error *local_err = NULL;
@@ -1119,14 +1118,12 @@ static int coroutine_fn vpc_co_create_opts(const char *filename,
     qdict_put_str(qdict, "driver", "vpc");
     qdict_put_str(qdict, "file", bs->node_name);
 
-    qobj = qdict_crumple_for_keyval_qiv(qdict, errp);
-    if (!qobj) {
+    v = qobject_input_visitor_new_flat_confused(qdict, errp);
+    if (!v) {
         ret = -EINVAL;
         goto fail;
     }
 
-    v = qobject_input_visitor_new_keyval(qobj);
-    qobject_unref(qobj);
     visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
     visit_free(v);
 

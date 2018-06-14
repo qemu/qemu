@@ -630,7 +630,6 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVRBDState *s = bs->opaque;
     BlockdevOptionsRbd *opts = NULL;
     Visitor *v;
-    QObject *crumpled = NULL;
     const QDictEntry *e;
     Error *local_err = NULL;
     char *keypairs, *secretid;
@@ -647,16 +646,14 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Convert the remaining options into a QAPI object */
-    crumpled = qdict_crumple_for_keyval_qiv(options, errp);
-    if (crumpled == NULL) {
+    v = qobject_input_visitor_new_flat_confused(options, errp);
+    if (!v) {
         r = -EINVAL;
         goto out;
     }
 
-    v = qobject_input_visitor_new_keyval(crumpled);
     visit_type_BlockdevOptionsRbd(v, NULL, &opts, &local_err);
     visit_free(v);
-    qobject_unref(crumpled);
 
     if (local_err) {
         error_propagate(errp, local_err);

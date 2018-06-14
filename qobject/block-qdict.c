@@ -13,6 +13,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 
@@ -529,7 +530,7 @@ QObject *qdict_crumple(const QDict *src, Error **errp)
  * used for anything else, and it should go away once the block
  * subsystem has been cleaned up.
  */
-QObject *qdict_crumple_for_keyval_qiv(QDict *src, Error **errp)
+static QObject *qdict_crumple_for_keyval_qiv(QDict *src, Error **errp)
 {
     QDict *tmp = NULL;
     char *buf;
@@ -694,4 +695,29 @@ bool qdict_rename_keys(QDict *qdict, const QDictRenames *renames, Error **errp)
         renames++;
     }
     return true;
+}
+
+/*
+ * Create a QObject input visitor for flat @qdict with possibly
+ * confused scalar types.
+ *
+ * The block subsystem uses this function to visit its flat QDict with
+ * possibly confused scalar types.  It should not be used for anything
+ * else, and it should go away once the block subsystem has been
+ * cleaned up.
+ */
+Visitor *qobject_input_visitor_new_flat_confused(QDict *qdict,
+                                                 Error **errp)
+{
+    QObject *crumpled;
+    Visitor *v;
+
+    crumpled = qdict_crumple_for_keyval_qiv(qdict, errp);
+    if (!crumpled) {
+        return NULL;
+    }
+
+    v = qobject_input_visitor_new_keyval(crumpled);
+    qobject_unref(crumpled);
+    return v;
 }
