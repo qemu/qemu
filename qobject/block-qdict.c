@@ -403,7 +403,7 @@ static int qdict_is_list(QDict *maybe_list, Error **errp)
 QObject *qdict_crumple(const QDict *src, Error **errp)
 {
     const QDictEntry *ent;
-    QDict *two_level, *multi_level = NULL;
+    QDict *two_level, *multi_level = NULL, *child_dict;
     QObject *dst = NULL, *child;
     size_t i;
     char *prefix = NULL;
@@ -422,28 +422,28 @@ QObject *qdict_crumple(const QDict *src, Error **errp)
         }
 
         qdict_split_flat_key(ent->key, &prefix, &suffix);
-
         child = qdict_get(two_level, prefix);
-        if (suffix) {
-            QDict *child_dict = qobject_to(QDict, child);
-            if (!child_dict) {
-                if (child) {
-                    error_setg(errp, "Key %s prefix is already set as a scalar",
-                               prefix);
-                    goto error;
-                }
+        child_dict = qobject_to(QDict, child);
 
-                child_dict = qdict_new();
-                qdict_put_obj(two_level, prefix, QOBJECT(child_dict));
-            }
-
-            qdict_put_obj(child_dict, suffix, qobject_ref(ent->value));
-        } else {
-            if (child) {
-                error_setg(errp, "Key %s prefix is already set as a dict",
-                           prefix);
+        if (child) {
+            /*
+             * If @child_dict, then all previous keys with this prefix
+             * had a suffix.  If @suffix, this one has one as well,
+             * and we're good, else there's a clash.
+             */
+            if (!child_dict || !suffix) {
+                error_setg(errp, "Cannot mix scalar and non-scalar keys");
                 goto error;
             }
+        }
+
+        if (suffix) {
+            if (!child_dict) {
+                child_dict = qdict_new();
+                qdict_put(two_level, prefix, child_dict);
+            }
+            qdict_put_obj(child_dict, suffix, qobject_ref(ent->value));
+        } else {
             qdict_put_obj(two_level, prefix, qobject_ref(ent->value));
         }
 
