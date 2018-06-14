@@ -56,6 +56,8 @@ static void qdict_flatten_qlist(QList *qlist, QDict *target, const char *prefix)
 {
     QObject *value;
     const QListEntry *entry;
+    QDict *dict_val;
+    QList *list_val;
     char *new_key;
     int i;
 
@@ -69,16 +71,18 @@ static void qdict_flatten_qlist(QList *qlist, QDict *target, const char *prefix)
 
     for (i = 0; entry; entry = qlist_next(entry), i++) {
         value = qlist_entry_obj(entry);
+        dict_val = qobject_to(QDict, value);
+        list_val = qobject_to(QList, value);
         new_key = g_strdup_printf("%s.%i", prefix, i);
 
         /*
          * Flatten non-empty QDict and QList recursively into @target,
          * copy other objects to @target
          */
-        if (qobject_type(value) == QTYPE_QDICT) {
-            qdict_flatten_qdict(qobject_to(QDict, value), target, new_key);
-        } else if (qobject_type(value) == QTYPE_QLIST) {
-            qdict_flatten_qlist(qobject_to(QList, value), target, new_key);
+        if (dict_val && qdict_size(dict_val)) {
+            qdict_flatten_qdict(dict_val, target, new_key);
+        } else if (list_val && !qlist_empty(list_val)) {
+            qdict_flatten_qlist(list_val, target, new_key);
         } else {
             qdict_put_obj(target, new_key, qobject_ref(value));
         }
@@ -91,6 +95,8 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
 {
     QObject *value;
     const QDictEntry *entry, *next;
+    QDict *dict_val;
+    QList *list_val;
     char *new_key;
 
     entry = qdict_first(qdict);
@@ -98,6 +104,8 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
     while (entry != NULL) {
         next = qdict_next(qdict, entry);
         value = qdict_entry_value(entry);
+        dict_val = qobject_to(QDict, value);
+        list_val = qobject_to(QList, value);
         new_key = NULL;
 
         if (prefix) {
@@ -108,12 +116,12 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
          * Flatten non-empty QDict and QList recursively into @target,
          * copy other objects to @target
          */
-        if (qobject_type(value) == QTYPE_QDICT) {
-            qdict_flatten_qdict(qobject_to(QDict, value), target,
+        if (dict_val && qdict_size(dict_val)) {
+            qdict_flatten_qdict(dict_val, target,
                                 new_key ? new_key : entry->key);
             qdict_del(qdict, entry->key);
-        } else if (qobject_type(value) == QTYPE_QLIST) {
-            qdict_flatten_qlist(qobject_to(QList, value), target,
+        } else if (list_val && !qlist_empty(list_val)) {
+            qdict_flatten_qlist(list_val, target,
                                 new_key ? new_key : entry->key);
             qdict_del(qdict, entry->key);
         } else if (target != qdict) {
@@ -127,10 +135,11 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
 }
 
 /**
- * qdict_flatten(): For each nested QDict with key x, all fields with key y
- * are moved to this QDict and their key is renamed to "x.y". For each nested
- * QList with key x, the field at index y is moved to this QDict with the key
- * "x.y" (i.e., the reverse of what qdict_array_split() does).
+ * qdict_flatten(): For each nested non-empty QDict with key x, all
+ * fields with key y are moved to this QDict and their key is renamed
+ * to "x.y". For each nested non-empty QList with key x, the field at
+ * index y is moved to this QDict with the key "x.y" (i.e., the
+ * reverse of what qdict_array_split() does).
  * This operation is applied recursively for nested QDicts and QLists.
  */
 void qdict_flatten(QDict *qdict)
@@ -361,8 +370,8 @@ static int qdict_is_list(QDict *maybe_list, Error **errp)
  * @src: the original flat dictionary (only scalar values) to crumple
  *
  * Takes a flat dictionary whose keys use '.' separator to indicate
- * nesting, and values are scalars, and crumples it into a nested
- * structure.
+ * nesting, and values are scalars, empty dictionaries or empty lists,
+ * and crumples it into a nested structure.
  *
  * To include a literal '.' in a key name, it must be escaped as '..'
  *
@@ -399,6 +408,8 @@ QObject *qdict_crumple(const QDict *src, Error **errp)
 {
     const QDictEntry *ent;
     QDict *two_level, *multi_level = NULL, *child_dict;
+    QDict *dict_val;
+    QList *list_val;
     QObject *dst = NULL, *child;
     size_t i;
     char *prefix = NULL;
@@ -409,10 +420,11 @@ QObject *qdict_crumple(const QDict *src, Error **errp)
 
     /* Step 1: split our totally flat dict into a two level dict */
     for (ent = qdict_first(src); ent != NULL; ent = qdict_next(src, ent)) {
-        if (qobject_type(ent->value) == QTYPE_QDICT ||
-            qobject_type(ent->value) == QTYPE_QLIST) {
-            error_setg(errp, "Value %s is not a scalar",
-                       ent->key);
+        dict_val = qobject_to(QDict, ent->value);
+        list_val = qobject_to(QList, ent->value);
+        if ((dict_val && qdict_size(dict_val))
+            || (list_val && !qlist_empty(list_val))) {
+            error_setg(errp, "Value %s is not flat", ent->key);
             goto error;
         }
 
@@ -451,9 +463,9 @@ QObject *qdict_crumple(const QDict *src, Error **errp)
     multi_level = qdict_new();
     for (ent = qdict_first(two_level); ent != NULL;
          ent = qdict_next(two_level, ent)) {
-        QDict *dict = qobject_to(QDict, ent->value);
-        if (dict) {
-            child = qdict_crumple(dict, errp);
+        dict_val = qobject_to(QDict, ent->value);
+        if (dict_val && qdict_size(dict_val)) {
+            child = qdict_crumple(dict_val, errp);
             if (!child) {
                 goto error;
             }

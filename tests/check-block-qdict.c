@@ -79,10 +79,10 @@ static void qdict_flatten_test(void)
      *     "e.1.2.b": 1,
      *     "f.c": 2,
      *     "f.d": 3,
-     *     "g": 4
+     *     "g": 4,
+     *     "y.0": {},
+     *     "z.a": []
      * }
-     *
-     * Note that "y" and "z" get eaten.
      */
 
     qdict_put_int(e_1_2, "a", 0);
@@ -117,8 +117,10 @@ static void qdict_flatten_test(void)
     g_assert(qdict_get_int(root, "f.c") == 2);
     g_assert(qdict_get_int(root, "f.d") == 3);
     g_assert(qdict_get_int(root, "g") == 4);
+    g_assert(!qdict_size(qdict_get_qdict(root, "y.0")));
+    g_assert(qlist_empty(qdict_get_qlist(root, "z.a")));
 
-    g_assert(qdict_size(root) == 8);
+    g_assert(qdict_size(root) == 10);
 
     qobject_unref(root);
 }
@@ -387,7 +389,8 @@ static void qdict_join_test(void)
 static void qdict_crumple_test_recursive(void)
 {
     QDict *src, *dst, *rule, *vnc, *acl, *listen;
-    QList *rules;
+    QDict *empty, *empty_dict, *empty_list_0;
+    QList *rules, *empty_list, *empty_dict_a;
 
     src = qdict_new();
     qdict_put_str(src, "vnc.listen.addr", "127.0.0.1");
@@ -399,10 +402,12 @@ static void qdict_crumple_test_recursive(void)
     qdict_put_str(src, "vnc.acl.default", "deny");
     qdict_put_str(src, "vnc.acl..name", "acl0");
     qdict_put_str(src, "vnc.acl.rule..name", "acl0");
+    qdict_put(src, "empty.dict.a", qlist_new());
+    qdict_put(src, "empty.list.0", qdict_new());
 
     dst = qobject_to(QDict, qdict_crumple(src, &error_abort));
     g_assert(dst);
-    g_assert_cmpint(qdict_size(dst), ==, 1);
+    g_assert_cmpint(qdict_size(dst), ==, 2);
 
     vnc = qdict_get_qdict(dst, "vnc");
     g_assert(vnc);
@@ -439,6 +444,21 @@ static void qdict_crumple_test_recursive(void)
     /* With recursive crumpling, we should see all names unescaped */
     g_assert_cmpstr("acl0", ==, qdict_get_str(vnc, "acl.name"));
     g_assert_cmpstr("acl0", ==, qdict_get_str(acl, "rule.name"));
+
+    empty = qdict_get_qdict(dst, "empty");
+    g_assert(empty);
+    g_assert_cmpint(qdict_size(empty), ==, 2);
+    empty_dict = qdict_get_qdict(empty, "dict");
+    g_assert(empty_dict);
+    g_assert_cmpint(qdict_size(empty_dict), ==, 1);
+    empty_dict_a = qdict_get_qlist(empty_dict, "a");
+    g_assert(empty_dict_a && qlist_empty(empty_dict_a));
+    empty_list = qdict_get_qlist(empty, "list");
+    g_assert(empty_list);
+    g_assert_cmpint(qlist_size(empty_list), ==, 1);
+    empty_list_0 = qobject_to(QDict, qlist_pop(empty_list));
+    g_assert(empty_list_0);
+    g_assert_cmpint(qdict_size(empty_list_0), ==, 0);
 
     qobject_unref(src);
     qobject_unref(dst);
@@ -587,7 +607,7 @@ static void qdict_rename_keys_test(void)
 
 static void qdict_crumple_test_bad_inputs(void)
 {
-    QDict *src;
+    QDict *src, *nested;
     Error *error = NULL;
 
     src = qdict_new();
@@ -614,7 +634,9 @@ static void qdict_crumple_test_bad_inputs(void)
 
     src = qdict_new();
     /* The input should be flat, ie no dicts or lists */
-    qdict_put(src, "rule.a", qdict_new());
+    nested = qdict_new();
+    qdict_put(nested, "x", qdict_new());
+    qdict_put(src, "rule.a", nested);
     qdict_put_str(src, "rule.b", "allow");
 
     g_assert(qdict_crumple(src, &error) == NULL);
