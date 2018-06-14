@@ -946,7 +946,7 @@ static int coroutine_fn qcow_co_create_opts(const char *filename,
 {
     BlockdevCreateOptions *create_options = NULL;
     BlockDriverState *bs = NULL;
-    QDict *qdict = NULL;
+    QDict *qdict;
     QObject *qobj;
     Visitor *v;
     const char *val;
@@ -998,14 +998,13 @@ static int coroutine_fn qcow_co_create_opts(const char *filename,
     qdict_put_str(qdict, "file", bs->node_name);
 
     qobj = qdict_crumple_for_keyval_qiv(qdict, errp);
-    qobject_unref(qdict);
-    qdict = qobject_to(QDict, qobj);
-    if (qdict == NULL) {
+    if (!qobj) {
         ret = -EINVAL;
         goto fail;
     }
 
-    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    v = qobject_input_visitor_new_keyval(qobj);
+    qobject_unref(qobj);
     visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
     visit_free(v);
 
