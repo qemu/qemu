@@ -145,11 +145,14 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     cpu->intc = icp_create(OBJECT(cpu), spapr->icp_type, XICS_FABRIC(spapr),
                            &local_err);
     if (local_err) {
-        goto error;
+        goto error_unregister;
     }
 
     return;
 
+error_unregister:
+    qemu_unregister_reset(spapr_cpu_reset, cpu);
+    cpu_remove_sync(CPU(cpu));
 error:
     error_propagate(errp, local_err);
 }
@@ -208,11 +211,15 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     for (j = 0; j < cc->nr_threads; j++) {
         spapr_realize_vcpu(sc->threads[j], spapr, &local_err);
         if (local_err) {
-            goto err;
+            goto err_unrealize;
         }
     }
     return;
 
+err_unrealize:
+    while (--j >= 0) {
+        spapr_unrealize_vcpu(sc->threads[j]);
+    }
 err:
     while (--i >= 0) {
         obj = OBJECT(sc->threads[i]);
