@@ -157,6 +157,49 @@ error:
     error_propagate(errp, local_err);
 }
 
+static PowerPCCPU *spapr_create_vcpu(sPAPRCPUCore *sc, int i, Error **errp)
+{
+    sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(sc);
+    CPUCore *cc = CPU_CORE(sc);
+    Object *obj;
+    char *id;
+    CPUState *cs;
+    PowerPCCPU *cpu;
+    Error *local_err = NULL;
+
+    obj = object_new(scc->cpu_type);
+
+    cs = CPU(obj);
+    cpu = POWERPC_CPU(obj);
+    cs->cpu_index = cc->core_id + i;
+    spapr_set_vcpu_id(cpu, cs->cpu_index, &local_err);
+    if (local_err) {
+        goto err;
+    }
+
+    cpu->node_id = sc->node_id;
+
+    id = g_strdup_printf("thread[%d]", i);
+    object_property_add_child(OBJECT(sc), id, obj, &local_err);
+    g_free(id);
+    if (local_err) {
+        goto err;
+    }
+
+    object_unref(obj);
+    return cpu;
+
+err:
+    object_unref(obj);
+    error_propagate(errp, local_err);
+    return NULL;
+}
+
+static void spapr_delete_vcpu(PowerPCCPU *cpu)
+{
+    object_unparent(OBJECT(cpu));
+}
+
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 {
     /* We don't use SPAPR_MACHINE() in order to exit gracefully if the user
@@ -166,10 +209,8 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         (sPAPRMachineState *) object_dynamic_cast(qdev_get_machine(),
                                                   TYPE_SPAPR_MACHINE);
     sPAPRCPUCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
-    sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
     Error *local_err = NULL;
-    Object *obj;
     int i, j;
 
     if (!spapr) {
@@ -179,33 +220,10 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 
     sc->threads = g_new(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
-        char *id;
-        CPUState *cs;
-        PowerPCCPU *cpu;
-
-        obj = object_new(scc->cpu_type);
-
-        cs = CPU(obj);
-        cpu = sc->threads[i] = POWERPC_CPU(obj);
-        cs->cpu_index = cc->core_id + i;
-        spapr_set_vcpu_id(cpu, cs->cpu_index, &local_err);
+        sc->threads[i] = spapr_create_vcpu(sc, i, &local_err);
         if (local_err) {
-            object_unref(obj);
             goto err;
         }
-
-
-        /* Set NUMA node for the threads belonged to core  */
-        cpu->node_id = sc->node_id;
-
-        id = g_strdup_printf("thread[%d]", i);
-        object_property_add_child(OBJECT(sc), id, obj, &local_err);
-        g_free(id);
-        if (local_err) {
-            object_unref(obj);
-            goto err;
-        }
-        object_unref(obj);
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
@@ -222,8 +240,7 @@ err_unrealize:
     }
 err:
     while (--i >= 0) {
-        obj = OBJECT(sc->threads[i]);
-        object_unparent(obj);
+        spapr_delete_vcpu(sc->threads[i]);
     }
     g_free(sc->threads);
     error_propagate(errp, local_err);
