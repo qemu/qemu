@@ -240,20 +240,42 @@ static void qemu_rbd_refresh_limits(BlockDriverState *bs, Error **errp)
 
 
 static int qemu_rbd_set_auth(rados_t cluster, const char *secretid,
+                             BlockdevOptionsRbd *opts,
                              Error **errp)
 {
-    if (secretid == 0) {
-        return 0;
+    char *acr;
+    int r;
+    GString *accu;
+    RbdAuthModeList *auth;
+
+    if (secretid) {
+        gchar *secret = qcrypto_secret_lookup_as_base64(secretid,
+                                                        errp);
+        if (!secret) {
+            return -1;
+        }
+
+        rados_conf_set(cluster, "key", secret);
+        g_free(secret);
     }
 
-    gchar *secret = qcrypto_secret_lookup_as_base64(secretid,
-                                                    errp);
-    if (!secret) {
-        return -1;
+    if (opts->has_auth_client_required) {
+        accu = g_string_new("");
+        for (auth = opts->auth_client_required; auth; auth = auth->next) {
+            if (accu->str[0]) {
+                g_string_append_c(accu, ';');
+            }
+            g_string_append(accu, RbdAuthMode_str(auth->value));
+        }
+        acr = g_string_free(accu, FALSE);
+        r = rados_conf_set(cluster, "auth_client_required", acr);
+        g_free(acr);
+        if (r < 0) {
+            error_setg_errno(errp, -r,
+                             "Could not set 'auth_client_required'");
+            return r;
+        }
     }
-
-    rados_conf_set(cluster, "key", secret);
-    g_free(secret);
 
     return 0;
 }
@@ -585,7 +607,7 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
         }
     }
 
-    if (qemu_rbd_set_auth(*cluster, secretid, errp) < 0) {
+    if (qemu_rbd_set_auth(*cluster, secretid, opts, errp) < 0) {
         r = -EIO;
         goto failed_shutdown;
     }
