@@ -239,24 +239,25 @@ static void qemu_rbd_refresh_limits(BlockDriverState *bs, Error **errp)
 }
 
 
-static int qemu_rbd_set_auth(rados_t cluster, const char *secretid,
-                             BlockdevOptionsRbd *opts,
+static int qemu_rbd_set_auth(rados_t cluster, BlockdevOptionsRbd *opts,
                              Error **errp)
 {
-    char *acr;
+    char *key, *acr;
     int r;
     GString *accu;
     RbdAuthModeList *auth;
 
-    if (secretid) {
-        gchar *secret = qcrypto_secret_lookup_as_base64(secretid,
-                                                        errp);
-        if (!secret) {
-            return -1;
+    if (opts->key_secret) {
+        key = qcrypto_secret_lookup_as_base64(opts->key_secret, errp);
+        if (!key) {
+            return -EIO;
         }
-
-        rados_conf_set(cluster, "key", secret);
-        g_free(secret);
+        r = rados_conf_set(cluster, "key", key);
+        g_free(key);
+        if (r < 0) {
+            error_setg_errno(errp, -r, "Could not set 'key'");
+            return r;
+        }
     }
 
     if (opts->has_auth_client_required) {
@@ -367,9 +368,7 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-/* FIXME Deprecate and remove keypairs or make it available in QMP.
- * password_secret should eventually be configurable in opts->location. Support
- * for it in .bdrv_open will make it work here as well. */
+/* FIXME Deprecate and remove keypairs or make it available in QMP. */
 static int qemu_rbd_do_create(BlockdevCreateOptions *options,
                               const char *keypairs, const char *password_secret,
                               Error **errp)
@@ -575,6 +574,16 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
     Error *local_err = NULL;
     int r;
 
+    if (secretid) {
+        if (opts->key_secret) {
+            error_setg(errp,
+                       "Legacy 'password-secret' clashes with 'key-secret'");
+            return -EINVAL;
+        }
+        opts->key_secret = g_strdup(secretid);
+        opts->has_key_secret = true;
+    }
+
     mon_host = qemu_rbd_mon_host(opts, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -607,8 +616,8 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
         }
     }
 
-    if (qemu_rbd_set_auth(*cluster, secretid, opts, errp) < 0) {
-        r = -EIO;
+    r = qemu_rbd_set_auth(*cluster, opts, errp);
+    if (r < 0) {
         goto failed_shutdown;
     }
 
