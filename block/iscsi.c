@@ -1713,10 +1713,6 @@ static QemuOptsList runtime_opts = {
             .name = "timeout",
             .type = QEMU_OPT_NUMBER,
         },
-        {
-            .name = "filename",
-            .type = QEMU_OPT_STRING,
-        },
         { /* end of list */ }
     },
 };
@@ -1756,26 +1752,11 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     char *initiator_name = NULL;
     QemuOpts *opts;
     Error *local_err = NULL;
-    const char *transport_name, *portal, *target, *filename;
+    const char *transport_name, *portal, *target;
 #if LIBISCSI_API_VERSION >= (20160603)
     enum iscsi_transport_type transport;
 #endif
     int i, ret = 0, timeout = 0, lun;
-
-    /* If we are given a filename, parse the filename, with precedence given to
-     * filename encoded options */
-    filename = qdict_get_try_str(options, "filename");
-    if (filename) {
-        warn_report("'filename' option specified. "
-                    "This is an unsupported option, and may be deprecated "
-                    "in the future");
-        iscsi_parse_filename(filename, options, &local_err);
-        if (local_err) {
-            ret = -EINVAL;
-            error_propagate(errp, local_err);
-            goto exit;
-        }
-    }
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -2006,7 +1987,7 @@ out:
         }
         memset(iscsilun, 0, sizeof(IscsiLun));
     }
-exit:
+
     return ret;
 }
 
