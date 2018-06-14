@@ -71,12 +71,15 @@ static void qdict_flatten_qlist(QList *qlist, QDict *target, const char *prefix)
         value = qlist_entry_obj(entry);
         new_key = g_strdup_printf("%s.%i", prefix, i);
 
+        /*
+         * Flatten non-empty QDict and QList recursively into @target,
+         * copy other objects to @target
+         */
         if (qobject_type(value) == QTYPE_QDICT) {
             qdict_flatten_qdict(qobject_to(QDict, value), target, new_key);
         } else if (qobject_type(value) == QTYPE_QLIST) {
             qdict_flatten_qlist(qobject_to(QList, value), target, new_key);
         } else {
-            /* All other types are moved to the target unchanged. */
             qdict_put_obj(target, new_key, qobject_ref(value));
         }
 
@@ -101,9 +104,11 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
             new_key = g_strdup_printf("%s.%s", prefix, entry->key);
         }
 
+        /*
+         * Flatten non-empty QDict and QList recursively into @target,
+         * copy other objects to @target
+         */
         if (qobject_type(value) == QTYPE_QDICT) {
-            /* Entries of QDicts are processed recursively, the QDict object
-             * itself disappears. */
             qdict_flatten_qdict(qobject_to(QDict, value), target,
                                 new_key ? new_key : entry->key);
             qdict_del(qdict, entry->key);
@@ -111,8 +116,7 @@ static void qdict_flatten_qdict(QDict *qdict, QDict *target, const char *prefix)
             qdict_flatten_qlist(qobject_to(QList, value), target,
                                 new_key ? new_key : entry->key);
             qdict_del(qdict, entry->key);
-        } else if (prefix) {
-            /* All other objects are moved to the target unchanged. */
+        } else if (target != qdict) {
             qdict_put_obj(target, new_key, qobject_ref(value));
             qdict_del(qdict, entry->key);
         }
