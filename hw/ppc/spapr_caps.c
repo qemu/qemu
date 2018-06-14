@@ -327,27 +327,26 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
 };
 
 static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
-                                               CPUState *cs)
+                                               const char *cputype)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
     sPAPRCapabilities caps;
 
     caps = smc->default_caps;
 
-    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_07,
-                          0, spapr->max_compat_pvr)) {
+    if (!ppc_type_check_compat(cputype, CPU_POWERPC_LOGICAL_2_07,
+                               0, spapr->max_compat_pvr)) {
         caps.caps[SPAPR_CAP_HTM] = SPAPR_CAP_OFF;
         caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_BROKEN;
     }
 
-    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_06_PLUS,
-                          0, spapr->max_compat_pvr)) {
+    if (!ppc_type_check_compat(cputype, CPU_POWERPC_LOGICAL_2_06_PLUS,
+                               0, spapr->max_compat_pvr)) {
         caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_BROKEN;
     }
 
-    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_06,
-                          0, spapr->max_compat_pvr)) {
+    if (!ppc_type_check_compat(cputype, CPU_POWERPC_LOGICAL_2_06,
+                               0, spapr->max_compat_pvr)) {
         caps.caps[SPAPR_CAP_VSX] = SPAPR_CAP_OFF;
         caps.caps[SPAPR_CAP_DFP] = SPAPR_CAP_OFF;
         caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_BROKEN;
@@ -384,7 +383,7 @@ int spapr_caps_post_migration(sPAPRMachineState *spapr)
     sPAPRCapabilities dstcaps = spapr->eff;
     sPAPRCapabilities srccaps;
 
-    srccaps = default_caps_with_cpu(spapr, first_cpu);
+    srccaps = default_caps_with_cpu(spapr, MACHINE(spapr)->cpu_type);
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
         /* If not default value then assume came in with the migration */
         if (spapr->mig.caps[i] != spapr->def.caps[i]) {
@@ -446,7 +445,7 @@ void spapr_caps_reset(sPAPRMachineState *spapr)
     int i;
 
     /* First compute the actual set of caps we're running with.. */
-    default_caps = default_caps_with_cpu(spapr, first_cpu);
+    default_caps = default_caps_with_cpu(spapr, MACHINE(spapr)->cpu_type);
 
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
         /* Store the defaults */
