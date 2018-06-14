@@ -849,9 +849,8 @@ static void pnv_chip_icp_realize(PnvChip *chip, Error **errp)
     }
 }
 
-static void pnv_chip_realize(DeviceState *dev, Error **errp)
+static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
 {
-    PnvChip *chip = PNV_CHIP(dev);
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     const char *typename = pnv_chip_core_typename(chip);
@@ -862,14 +861,6 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Unable to find PowerNV CPU Core '%s'", typename);
         return;
     }
-
-    /* XSCOM bridge */
-    pnv_xscom_realize(chip, &error);
-    if (error) {
-        error_propagate(errp, error);
-        return;
-    }
-    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV_XSCOM_BASE(chip));
 
     /* Cores */
     pnv_chip_core_sanitize(chip, &error);
@@ -917,6 +908,27 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
         pnv_xscom_add_subregion(chip, xscom_core_base,
                                 &PNV_CORE(pnv_core)->xscom_regs);
         i++;
+    }
+}
+
+static void pnv_chip_realize(DeviceState *dev, Error **errp)
+{
+    PnvChip *chip = PNV_CHIP(dev);
+    Error *error = NULL;
+
+    /* XSCOM bridge */
+    pnv_xscom_realize(chip, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV_XSCOM_BASE(chip));
+
+    /* Cores */
+    pnv_chip_core_realize(chip, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
     }
 
     /* Create LPC controller */
