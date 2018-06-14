@@ -798,7 +798,8 @@ static inline uint8_t spapr_get_cap(sPAPRMachineState *spapr, int cap)
     return spapr->eff.caps[cap];
 }
 
-void spapr_caps_reset(sPAPRMachineState *spapr);
+void spapr_caps_init(sPAPRMachineState *spapr);
+void spapr_caps_apply(sPAPRMachineState *spapr);
 void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp);
 int spapr_caps_post_migration(sPAPRMachineState *spapr);
 

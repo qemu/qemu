@@ -439,12 +439,12 @@ SPAPR_CAP_MIG_STATE(cfpc, SPAPR_CAP_CFPC);
 SPAPR_CAP_MIG_STATE(sbbc, SPAPR_CAP_SBBC);
 SPAPR_CAP_MIG_STATE(ibs, SPAPR_CAP_IBS);
 
-void spapr_caps_reset(sPAPRMachineState *spapr)
+void spapr_caps_init(sPAPRMachineState *spapr)
 {
     sPAPRCapabilities default_caps;
     int i;
 
-    /* First compute the actual set of caps we're running with.. */
+    /* Compute the actual set of caps we should run with */
     default_caps = default_caps_with_cpu(spapr, MACHINE(spapr)->cpu_type);
 
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
@@ -455,8 +455,11 @@ void spapr_caps_reset(sPAPRMachineState *spapr)
             spapr->eff.caps[i] = default_caps.caps[i];
         }
     }
+}
 
-    /* .. then apply those caps to the virtual hardware */
+void spapr_caps_apply(sPAPRMachineState *spapr)
+{
+    int i;
 
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
         sPAPRCapabilityInfo *info = &capability_table[i];

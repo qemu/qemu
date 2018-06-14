@@ -1612,7 +1612,7 @@ static void spapr_machine_reset(void)
     void *fdt;
     int rc;
 
-    spapr_caps_reset(spapr);
+    spapr_caps_apply(spapr);
 
     first_ppc_cpu = POWERPC_CPU(first_cpu);
     if (kvm_enabled() && kvmppc_has_cap_mmu_radix() &&
@@ -2526,7 +2526,9 @@ static void spapr_machine_init(MachineState *machine)
     QLIST_INIT(&spapr->phbs);
     QTAILQ_INIT(&spapr->pending_dimm_unplugs);
 
-    /* Check HPT resizing availability */
+    /* Determine capabilities to run with */
+    spapr_caps_init(spapr);
+
     kvmppc_check_papr_resize_hpt(&resize_hpt_err);
     if (spapr->resize_hpt == SPAPR_RESIZE_HPT_DEFAULT) {
         /*
