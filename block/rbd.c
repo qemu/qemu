@@ -632,24 +632,8 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     QObject *crumpled = NULL;
     const QDictEntry *e;
     Error *local_err = NULL;
-    const char *filename;
     char *keypairs, *secretid;
     int r;
-
-    /* If we are given a filename, parse the filename, with precedence given to
-     * filename encoded options */
-    filename = qdict_get_try_str(options, "filename");
-    if (filename) {
-        warn_report("'filename' option specified. "
-                    "This is an unsupported option, and may be deprecated "
-                    "in the future");
-        qemu_rbd_parse_filename(filename, options, &local_err);
-        qdict_del(options, "filename");
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return -EINVAL;
-        }
-    }
 
     keypairs = g_strdup(qdict_get_try_str(options, "=keyvalue-pairs"));
     if (keypairs) {
