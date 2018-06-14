@@ -561,7 +561,7 @@ static BlockdevOptionsNfs *nfs_options_qdict_to_qapi(QDict *options,
     const QDictEntry *e;
     Error *local_err = NULL;
 
-    crumpled = qdict_crumple(options, errp);
+    crumpled = qdict_crumple_for_keyval_qiv(options, errp);
     if (crumpled == NULL) {
         return NULL;
     }

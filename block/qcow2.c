@@ -3152,7 +3152,7 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
     qdict_put_str(qdict, "file", bs->node_name);
 
     /* Now get the QAPI type BlockdevCreateOptions */
-    qobj = qdict_crumple(qdict, errp);
+    qobj = qdict_crumple_for_keyval_qiv(qdict, errp);
     qobject_unref(qdict);
     qdict = qobject_to(QDict, qobj);
     if (qdict == NULL) {

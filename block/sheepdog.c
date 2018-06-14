@@ -2217,7 +2217,7 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
     }
 
     /* Get the QAPI object */
-    crumpled = qdict_crumple(qdict, errp);
+    crumpled = qdict_crumple_for_keyval_qiv(qdict, errp);
     if (crumpled == NULL) {
         ret = -EINVAL;
         goto fail;

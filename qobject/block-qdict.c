@@ -9,7 +9,10 @@
 
 #include "qemu/osdep.h"
 #include "block/qdict.h"
+#include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qnum.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 
@@ -511,6 +514,60 @@ QObject *qdict_crumple(const QDict *src, Error **errp)
     qobject_unref(two_level);
     qobject_unref(dst);
     return NULL;
+}
+
+/**
+ * qdict_crumple_for_keyval_qiv:
+ * @src: the flat dictionary (only scalar values) to crumple
+ * @errp: location to store error
+ *
+ * Like qdict_crumple(), but additionally transforms scalar values so
+ * the result can be passed to qobject_input_visitor_new_keyval().
+ *
+ * The block subsystem uses this function to prepare its flat QDict
+ * with possibly confused scalar types for a visit.  It should not be
+ * used for anything else, and it should go away once the block
+ * subsystem has been cleaned up.
+ */
+QObject *qdict_crumple_for_keyval_qiv(QDict *src, Error **errp)
+{
+    QDict *tmp = NULL;
+    char *buf;
+    const char *s;
+    const QDictEntry *ent;
+    QObject *dst;
+
+    for (ent = qdict_first(src); ent; ent = qdict_next(src, ent)) {
+        buf = NULL;
+        switch (qobject_type(ent->value)) {
+        case QTYPE_QNULL:
+        case QTYPE_QSTRING:
+            continue;
+        case QTYPE_QNUM:
+            s = buf = qnum_to_string(qobject_to(QNum, ent->value));
+            break;
+        case QTYPE_QDICT:
+        case QTYPE_QLIST:
+            /* @src isn't flat; qdict_crumple() will fail */
+            continue;
+        case QTYPE_QBOOL:
+            s = qbool_get_bool(qobject_to(QBool, ent->value))
+                ? "on" : "off";
+            break;
+        default:
+            abort();
+        }
+
+        if (!tmp) {
+            tmp = qdict_clone_shallow(src);
+        }
+        qdict_put(tmp, ent->key, qstring_from_str(s));
+        g_free(buf);
+    }
+
+    dst = qdict_crumple(tmp ?: src, errp);
+    qobject_unref(tmp);
+    return dst;
 }
 
 /**

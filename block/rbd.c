@@ -647,7 +647,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Convert the remaining options into a QAPI object */
-    crumpled = qdict_crumple(options, errp);
+    crumpled = qdict_crumple_for_keyval_qiv(options, errp);
     if (crumpled == NULL) {
         r = -EINVAL;
         goto out;

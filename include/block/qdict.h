@@ -21,6 +21,7 @@ void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start);
 void qdict_array_split(QDict *src, QList **dst);
 int qdict_array_entries(QDict *src, const char *subqdict);
 QObject *qdict_crumple(const QDict *src, Error **errp);
+QObject *qdict_crumple_for_keyval_qiv(QDict *qdict, Error **errp);
 void qdict_flatten(QDict *qdict);
 
 typedef struct QDictRenames {
