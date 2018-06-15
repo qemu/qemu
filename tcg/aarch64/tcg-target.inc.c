@@ -1733,7 +1733,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_insn(s, 3305, LDR, offset, TCG_REG_TMP);
         }
         tcg_out_insn(s, 3207, BR, TCG_REG_TMP);
-        s->tb_jmp_reset_offset[a0] = tcg_current_code_size(s);
+        set_jmp_reset_offset(s, a0);
         break;
 
     case INDEX_op_goto_ptr:

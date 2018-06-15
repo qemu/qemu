@@ -2025,10 +2025,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         tcg_out32(s, MTSPR | RS(TCG_REG_TB) | CTR);
         tcg_out32(s, BCCTR | BO_ALWAYS);
-        s->tb_jmp_reset_offset[args[0]] = c = tcg_current_code_size(s);
+        set_jmp_reset_offset(s, args[0]);
         if (USE_REG_TB) {
             /* For the unlinked case, need to reset TCG_REG_TB.  */
-            c = -c;
+            c = -tcg_current_code_size(s);
             assert(c == (int16_t)c);
             tcg_out32(s, ADDI | TAI(TCG_REG_TB, TCG_REG_TB, c));
         }

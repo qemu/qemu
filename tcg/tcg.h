@@ -848,9 +848,11 @@ static inline bool tcg_op_buf_full(void)
     /* This is not a hard limit, it merely stops translation when
      * we have produced "enough" opcodes.  We want to limit TB size
      * such that a RISC host can reasonably use a 16-bit signed
-     * branch within the TB.
+     * branch within the TB.  We also need to be mindful of the
+     * 16-bit unsigned offsets, TranslationBlock.jmp_reset_offset[]
+     * and TCGContext.gen_insn_end_off[].
      */
-    return tcg_ctx->nb_ops >= 8000;
+    return tcg_ctx->nb_ops >= 4000;
 }
 
 /* pool based memory allocation */

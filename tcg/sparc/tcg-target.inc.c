@@ -1388,12 +1388,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_arithi(s, TCG_REG_G0, TCG_REG_TB, 0, JMPL);
             tcg_out_nop(s);
         }
-        s->tb_jmp_reset_offset[a0] = c = tcg_current_code_size(s);
+        set_jmp_reset_offset(s, a0);
 
         /* For the unlinked path of goto_tb, we need to reset
            TCG_REG_TB to the beginning of this TB.  */
         if (USE_REG_TB) {
-            c = -c;
+            c = -tcg_current_code_size(s);
             if (check_fit_i32(c, 13)) {
                 tcg_out_arithi(s, TCG_REG_TB, TCG_REG_TB, c, ARITH_ADD);
             } else {
