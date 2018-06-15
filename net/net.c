@@ -1093,7 +1093,9 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
     int ret = -1;
     Visitor *v = opts_visitor_new(opts);
 
-    if (is_netdev && is_help_option(qemu_opt_get(opts, "type"))) {
+    const char *type = qemu_opt_get(opts, "type");
+
+    if (is_netdev && type && is_help_option(type)) {
         show_netdevs();
         exit(0);
     } else {

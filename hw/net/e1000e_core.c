@@ -2022,10 +2022,6 @@ e1000e_msix_notify_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
 
     effective_eiac = core->mac[EIAC] & cause;
 
-    if (effective_eiac == E1000_ICR_OTHER) {
-        effective_eiac |= E1000_ICR_OTHER_CAUSES;
-    }
-
     core->mac[ICR] &= ~effective_eiac;
 
     if (!(core->mac[CTRL_EXT] & E1000_CTRL_EXT_IAME)) {
