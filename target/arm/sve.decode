@@ -98,6 +98,7 @@
                 &rprr_esz rn=%reg_movprfx
 @rdm_pg_rn      ........ esz:2 ... ... ... pg:3 rn:5 rd:5 \
                 &rprr_esz rm=%reg_movprfx
+@rd_pg4_rn_rm   ........ esz:2 . rm:5  .. pg:4  rn:5 rd:5       &rprr_esz
 
 # Three register operand, with governing predicate, vector element size
 @rda_pg_rn_rm   ........ esz:2 . rm:5  ... pg:3 rn:5 rd:5 \
@@ -465,6 +466,11 @@ RBIT            00000101 .. 1001 11 100 ... ..... .....         @rd_pg_rn
 
 # SVE vector splice (predicated)
 SPLICE          00000101 .. 101 100 100 ... ..... .....         @rdn_pg_rm
+
+### SVE Select Vectors Group
+
+# SVE select vector elements (predicated)
+SEL_zpzz        00000101 .. 1 ..... 11 .... ..... .....         @rd_pg4_rn_rm
 
 ### SVE Predicate Logical Operations Group
 
