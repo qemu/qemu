@@ -554,56 +554,28 @@ static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
 }
 
 /* Memory mapped interface */
-static uint32_t parallel_mm_readb (void *opaque, hwaddr addr)
+static uint64_t parallel_mm_readfn(void *opaque, hwaddr addr, unsigned size)
 {
     ParallelState *s = opaque;
 
-    return parallel_ioport_read_sw(s, addr >> s->it_shift) & 0xFF;
+    return parallel_ioport_read_sw(s, addr >> s->it_shift) &
+        MAKE_64BIT_MASK(0, size * 8);
 }
 
-static void parallel_mm_writeb (void *opaque,
-                                hwaddr addr, uint32_t value)
+static void parallel_mm_writefn(void *opaque, hwaddr addr,
+                                uint64_t value, unsigned size)
 {
     ParallelState *s = opaque;
 
-    parallel_ioport_write_sw(s, addr >> s->it_shift, value & 0xFF);
-}
-
-static uint32_t parallel_mm_readw (void *opaque, hwaddr addr)
-{
-    ParallelState *s = opaque;
-
-    return parallel_ioport_read_sw(s, addr >> s->it_shift) & 0xFFFF;
-}
-
-static void parallel_mm_writew (void *opaque,
-                                hwaddr addr, uint32_t value)
-{
-    ParallelState *s = opaque;
-
-    parallel_ioport_write_sw(s, addr >> s->it_shift, value & 0xFFFF);
-}
-
-static uint32_t parallel_mm_readl (void *opaque, hwaddr addr)
-{
-    ParallelState *s = opaque;
-
-    return parallel_ioport_read_sw(s, addr >> s->it_shift);
-}
-
-static void parallel_mm_writel (void *opaque,
-                                hwaddr addr, uint32_t value)
-{
-    ParallelState *s = opaque;
-
-    parallel_ioport_write_sw(s, addr >> s->it_shift, value);
+    parallel_ioport_write_sw(s, addr >> s->it_shift,
+                             value & MAKE_64BIT_MASK(0, size * 8));
 }
 
 static const MemoryRegionOps parallel_mm_ops = {
-    .old_mmio = {
-        .read = { parallel_mm_readb, parallel_mm_readw, parallel_mm_readl },
-        .write = { parallel_mm_writeb, parallel_mm_writew, parallel_mm_writel },
-    },
+    .read = parallel_mm_readfn,
+    .write = parallel_mm_writefn,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
