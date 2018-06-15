@@ -99,13 +99,14 @@ static const MemoryRegionOps pnv_core_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_realize_vcpu(PowerPCCPU *cpu, XICSFabric *xi, Error **errp)
+static void pnv_realize_vcpu(PowerPCCPU *cpu, PnvChip *chip, Error **errp)
 {
     CPUPPCState *env = &cpu->env;
     int core_pir;
     int thread_index = 0; /* TODO: TCG supports only one thread */
     ppc_spr_t *pir = &env->spr_cb[SPR_PIR];
     Error *local_err = NULL;
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
 
     object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
     if (local_err) {
@@ -113,7 +114,7 @@ static void pnv_realize_vcpu(PowerPCCPU *cpu, XICSFabric *xi, Error **errp)
         return;
     }
 
-    cpu->intc = icp_create(OBJECT(cpu), TYPE_PNV_ICP, xi, &local_err);
+    cpu->intc = pcc->intc_create(chip, OBJECT(cpu), &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -143,13 +144,12 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     void *obj;
     int i, j;
     char name[32];
-    Object *xi;
+    Object *chip;
 
-    xi = object_property_get_link(OBJECT(dev), "xics", &local_err);
-    if (!xi) {
-        error_setg(errp, "%s: required link 'xics' not found: %s",
-                   __func__, error_get_pretty(local_err));
-        return;
+    chip = object_property_get_link(OBJECT(dev), "chip", &local_err);
+    if (!chip) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "required link 'chip' not found: ");
     }
 
     pc->threads = g_new(PowerPCCPU *, cc->nr_threads);
@@ -166,7 +166,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
-        pnv_realize_vcpu(pc->threads[j], XICS_FABRIC(xi), &local_err);
+        pnv_realize_vcpu(pc->threads[j], PNV_CHIP(chip), &local_err);
         if (local_err) {
             goto err;
         }

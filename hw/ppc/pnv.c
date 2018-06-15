@@ -671,6 +671,13 @@ static uint32_t pnv_chip_core_pir_p8(PnvChip *chip, uint32_t core_id)
     return (chip->chip_id << 7) | (core_id << 3);
 }
 
+static Object *pnv_chip_power8_intc_create(PnvChip *chip, Object *child,
+                                           Error **errp)
+{
+    return icp_create(child, TYPE_PNV_ICP, XICS_FABRIC(qdev_get_machine()),
+                      errp);
+}
+
 /*
  *    0:48  Reserved - Read as zeroes
  *   49:52  Node ID
@@ -684,6 +691,12 @@ static uint32_t pnv_chip_core_pir_p8(PnvChip *chip, uint32_t core_id)
 static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
 {
     return (chip->chip_id << 8) | (core_id << 2);
+}
+
+static Object *pnv_chip_power9_intc_create(PnvChip *chip, Object *child,
+                                           Error **errp)
+{
+    return NULL;
 }
 
 /* Allowed core identifiers on a POWER8 Processor Chip :
@@ -721,6 +734,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x221ef04980000000ull;  /* P8 Murano DD2.1 */
     k->cores_mask = POWER8E_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
+    k->intc_create = pnv_chip_power8_intc_create;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8E";
 }
@@ -734,6 +748,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x220ea04980000000ull; /* P8 Venice DD2.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
+    k->intc_create = pnv_chip_power8_intc_create;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8";
 }
@@ -747,6 +762,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x120d304980000000ull;  /* P8 Naples DD1.0 */
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
+    k->intc_create = pnv_chip_power8_intc_create;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8NVL";
 }
@@ -760,6 +776,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->chip_cfam_id = 0x220d104900008000ull; /* P9 Nimbus DD2.0 */
     k->cores_mask = POWER9_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p9;
+    k->intc_create = pnv_chip_power9_intc_create;
     k->xscom_base = 0x00603fc00000000ull;
     dc->desc = "PowerNV Chip POWER9";
 }
@@ -892,8 +909,8 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         object_property_set_int(OBJECT(pnv_core),
                                 pcc->core_pir(chip, core_hwid),
                                 "pir", &error_fatal);
-        object_property_add_const_link(OBJECT(pnv_core), "xics",
-                                       qdev_get_machine(), &error_fatal);
+        object_property_add_const_link(OBJECT(pnv_core), "chip",
+                                       OBJECT(chip), &error_fatal);
         object_property_set_bool(OBJECT(pnv_core), true, "realized",
                                  &error_fatal);
         object_unref(OBJECT(pnv_core));
