@@ -450,6 +450,12 @@ LASTB_v         00000101 .. 10001 1 100 ... ..... .....         @rd_pg_rn
 LASTA_r         00000101 .. 10000 0 101 ... ..... .....         @rd_pg_rn
 LASTB_r         00000101 .. 10000 1 101 ... ..... .....         @rd_pg_rn
 
+# SVE copy element from SIMD&FP scalar register
+CPY_m_v         00000101 .. 100000 100 ... ..... .....          @rd_pg_rn
+
+# SVE copy element from general register to vector (predicated)
+CPY_m_r         00000101 .. 101000 101 ... ..... .....          @rd_pg_rn
+
 ### SVE Predicate Logical Operations Group
 
 # SVE predicate logical operations
