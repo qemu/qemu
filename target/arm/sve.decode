@@ -131,6 +131,11 @@
 @rdn_dbm        ........ .. .... dbm:13 rd:5 \
                 &rr_dbm rn=%reg_movprfx
 
+# Predicate output, vector and immediate input,
+# controlling predicate, element size.
+@pd_pg_rn_i7    ........ esz:2 . imm:7 . pg:3 rn:5 . rd:4       &rpri_esz
+@pd_pg_rn_i5    ........ esz:2 . imm:s5 ... pg:3 rn:5 . rd:4    &rpri_esz
+
 # Basic Load/Store with 9-bit immediate offset
 @pd_rn_i9       ........ ........ ...... rn:5 . rd:4    \
                 &rri imm=%imm9_16_10
@@ -495,6 +500,24 @@ CMPHS_ppzw      00100100 .. 0 ..... 110 ... ..... 0 ....        @pd_pg_rn_rm
 CMPHI_ppzw      00100100 .. 0 ..... 110 ... ..... 1 ....        @pd_pg_rn_rm
 CMPLO_ppzw      00100100 .. 0 ..... 111 ... ..... 0 ....        @pd_pg_rn_rm
 CMPLS_ppzw      00100100 .. 0 ..... 111 ... ..... 1 ....        @pd_pg_rn_rm
+
+### SVE Integer Compare - Unsigned Immediate Group
+
+# SVE integer compare with unsigned immediate
+CMPHS_ppzi      00100100 .. 1 ....... 0 ... ..... 0 ....      @pd_pg_rn_i7
+CMPHI_ppzi      00100100 .. 1 ....... 0 ... ..... 1 ....      @pd_pg_rn_i7
+CMPLO_ppzi      00100100 .. 1 ....... 1 ... ..... 0 ....      @pd_pg_rn_i7
+CMPLS_ppzi      00100100 .. 1 ....... 1 ... ..... 1 ....      @pd_pg_rn_i7
+
+### SVE Integer Compare - Signed Immediate Group
+
+# SVE integer compare with signed immediate
+CMPGE_ppzi      00100101 .. 0 ..... 000 ... ..... 0 ....      @pd_pg_rn_i5
+CMPGT_ppzi      00100101 .. 0 ..... 000 ... ..... 1 ....      @pd_pg_rn_i5
+CMPLT_ppzi      00100101 .. 0 ..... 001 ... ..... 0 ....      @pd_pg_rn_i5
+CMPLE_ppzi      00100101 .. 0 ..... 001 ... ..... 1 ....      @pd_pg_rn_i5
+CMPEQ_ppzi      00100101 .. 0 ..... 100 ... ..... 0 ....      @pd_pg_rn_i5
+CMPNE_ppzi      00100101 .. 0 ..... 100 ... ..... 1 ....      @pd_pg_rn_i5
 
 ### SVE Predicate Logical Operations Group
 

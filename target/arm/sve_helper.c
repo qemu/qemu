@@ -2388,3 +2388,91 @@ DO_CMP_PPZW_S(sve_cmpls_ppzw_s, uint32_t, uint64_t, <=)
 #undef DO_CMP_PPZW_H
 #undef DO_CMP_PPZW_S
 #undef DO_CMP_PPZW
+
+/* Similar, but the second source is immediate.  */
+#define DO_CMP_PPZI(NAME, TYPE, OP, H, MASK)                         \
+uint32_t HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)   \
+{                                                                    \
+    intptr_t opr_sz = simd_oprsz(desc);                              \
+    uint32_t flags = PREDTEST_INIT;                                  \
+    TYPE mm = simd_data(desc);                                       \
+    intptr_t i = opr_sz;                                             \
+    do {                                                             \
+        uint64_t out = 0, pg;                                        \
+        do {                                                         \
+            i -= sizeof(TYPE), out <<= sizeof(TYPE);                 \
+            TYPE nn = *(TYPE *)(vn + H(i));                          \
+            out |= nn OP mm;                                         \
+        } while (i & 63);                                            \
+        pg = *(uint64_t *)(vg + (i >> 3)) & MASK;                    \
+        out &= pg;                                                   \
+        *(uint64_t *)(vd + (i >> 3)) = out;                          \
+        flags = iter_predtest_bwd(out, pg, flags);                   \
+    } while (i > 0);                                                 \
+    return flags;                                                    \
+}
+
+#define DO_CMP_PPZI_B(NAME, TYPE, OP) \
+    DO_CMP_PPZI(NAME, TYPE, OP, H1,   0xffffffffffffffffull)
+#define DO_CMP_PPZI_H(NAME, TYPE, OP) \
+    DO_CMP_PPZI(NAME, TYPE, OP, H1_2, 0x5555555555555555ull)
+#define DO_CMP_PPZI_S(NAME, TYPE, OP) \
+    DO_CMP_PPZI(NAME, TYPE, OP, H1_4, 0x1111111111111111ull)
+#define DO_CMP_PPZI_D(NAME, TYPE, OP) \
+    DO_CMP_PPZI(NAME, TYPE, OP,     , 0x0101010101010101ull)
+
+DO_CMP_PPZI_B(sve_cmpeq_ppzi_b, uint8_t,  ==)
+DO_CMP_PPZI_H(sve_cmpeq_ppzi_h, uint16_t, ==)
+DO_CMP_PPZI_S(sve_cmpeq_ppzi_s, uint32_t, ==)
+DO_CMP_PPZI_D(sve_cmpeq_ppzi_d, uint64_t, ==)
+
+DO_CMP_PPZI_B(sve_cmpne_ppzi_b, uint8_t,  !=)
+DO_CMP_PPZI_H(sve_cmpne_ppzi_h, uint16_t, !=)
+DO_CMP_PPZI_S(sve_cmpne_ppzi_s, uint32_t, !=)
+DO_CMP_PPZI_D(sve_cmpne_ppzi_d, uint64_t, !=)
+
+DO_CMP_PPZI_B(sve_cmpgt_ppzi_b, int8_t,  >)
+DO_CMP_PPZI_H(sve_cmpgt_ppzi_h, int16_t, >)
+DO_CMP_PPZI_S(sve_cmpgt_ppzi_s, int32_t, >)
+DO_CMP_PPZI_D(sve_cmpgt_ppzi_d, int64_t, >)
+
+DO_CMP_PPZI_B(sve_cmpge_ppzi_b, int8_t,  >=)
+DO_CMP_PPZI_H(sve_cmpge_ppzi_h, int16_t, >=)
+DO_CMP_PPZI_S(sve_cmpge_ppzi_s, int32_t, >=)
+DO_CMP_PPZI_D(sve_cmpge_ppzi_d, int64_t, >=)
+
+DO_CMP_PPZI_B(sve_cmphi_ppzi_b, uint8_t,  >)
+DO_CMP_PPZI_H(sve_cmphi_ppzi_h, uint16_t, >)
+DO_CMP_PPZI_S(sve_cmphi_ppzi_s, uint32_t, >)
+DO_CMP_PPZI_D(sve_cmphi_ppzi_d, uint64_t, >)
+
+DO_CMP_PPZI_B(sve_cmphs_ppzi_b, uint8_t,  >=)
+DO_CMP_PPZI_H(sve_cmphs_ppzi_h, uint16_t, >=)
+DO_CMP_PPZI_S(sve_cmphs_ppzi_s, uint32_t, >=)
+DO_CMP_PPZI_D(sve_cmphs_ppzi_d, uint64_t, >=)
+
+DO_CMP_PPZI_B(sve_cmplt_ppzi_b, int8_t,  <)
+DO_CMP_PPZI_H(sve_cmplt_ppzi_h, int16_t, <)
+DO_CMP_PPZI_S(sve_cmplt_ppzi_s, int32_t, <)
+DO_CMP_PPZI_D(sve_cmplt_ppzi_d, int64_t, <)
+
+DO_CMP_PPZI_B(sve_cmple_ppzi_b, int8_t,  <=)
+DO_CMP_PPZI_H(sve_cmple_ppzi_h, int16_t, <=)
+DO_CMP_PPZI_S(sve_cmple_ppzi_s, int32_t, <=)
+DO_CMP_PPZI_D(sve_cmple_ppzi_d, int64_t, <=)
+
+DO_CMP_PPZI_B(sve_cmplo_ppzi_b, uint8_t,  <)
+DO_CMP_PPZI_H(sve_cmplo_ppzi_h, uint16_t, <)
+DO_CMP_PPZI_S(sve_cmplo_ppzi_s, uint32_t, <)
+DO_CMP_PPZI_D(sve_cmplo_ppzi_d, uint64_t, <)
+
+DO_CMP_PPZI_B(sve_cmpls_ppzi_b, uint8_t,  <=)
+DO_CMP_PPZI_H(sve_cmpls_ppzi_h, uint16_t, <=)
+DO_CMP_PPZI_S(sve_cmpls_ppzi_s, uint32_t, <=)
+DO_CMP_PPZI_D(sve_cmpls_ppzi_d, uint64_t, <=)
+
+#undef DO_CMP_PPZI_B
+#undef DO_CMP_PPZI_H
+#undef DO_CMP_PPZI_S
+#undef DO_CMP_PPZI_D
+#undef DO_CMP_PPZI
