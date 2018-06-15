@@ -2854,6 +2854,112 @@ DO_PPZI(CMPLS, cmpls)
 #undef DO_PPZI
 
 /*
+ *** SVE Partition Break Group
+ */
+
+static bool do_brk3(DisasContext *s, arg_rprr_s *a,
+                    gen_helper_gvec_4 *fn, gen_helper_gvec_flags_4 *fn_s)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    unsigned vsz = pred_full_reg_size(s);
+
+    /* Predicate sizes may be smaller and cannot use simd_desc.  */
+    TCGv_ptr d = tcg_temp_new_ptr();
+    TCGv_ptr n = tcg_temp_new_ptr();
+    TCGv_ptr m = tcg_temp_new_ptr();
+    TCGv_ptr g = tcg_temp_new_ptr();
+    TCGv_i32 t = tcg_const_i32(vsz - 2);
+
+    tcg_gen_addi_ptr(d, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(n, cpu_env, pred_full_reg_offset(s, a->rn));
+    tcg_gen_addi_ptr(m, cpu_env, pred_full_reg_offset(s, a->rm));
+    tcg_gen_addi_ptr(g, cpu_env, pred_full_reg_offset(s, a->pg));
+
+    if (a->s) {
+        fn_s(t, d, n, m, g, t);
+        do_pred_flags(t);
+    } else {
+        fn(d, n, m, g, t);
+    }
+    tcg_temp_free_ptr(d);
+    tcg_temp_free_ptr(n);
+    tcg_temp_free_ptr(m);
+    tcg_temp_free_ptr(g);
+    tcg_temp_free_i32(t);
+    return true;
+}
+
+static bool do_brk2(DisasContext *s, arg_rpr_s *a,
+                    gen_helper_gvec_3 *fn, gen_helper_gvec_flags_3 *fn_s)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    unsigned vsz = pred_full_reg_size(s);
+
+    /* Predicate sizes may be smaller and cannot use simd_desc.  */
+    TCGv_ptr d = tcg_temp_new_ptr();
+    TCGv_ptr n = tcg_temp_new_ptr();
+    TCGv_ptr g = tcg_temp_new_ptr();
+    TCGv_i32 t = tcg_const_i32(vsz - 2);
+
+    tcg_gen_addi_ptr(d, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(n, cpu_env, pred_full_reg_offset(s, a->rn));
+    tcg_gen_addi_ptr(g, cpu_env, pred_full_reg_offset(s, a->pg));
+
+    if (a->s) {
+        fn_s(t, d, n, g, t);
+        do_pred_flags(t);
+    } else {
+        fn(d, n, g, t);
+    }
+    tcg_temp_free_ptr(d);
+    tcg_temp_free_ptr(n);
+    tcg_temp_free_ptr(g);
+    tcg_temp_free_i32(t);
+    return true;
+}
+
+static bool trans_BRKPA(DisasContext *s, arg_rprr_s *a, uint32_t insn)
+{
+    return do_brk3(s, a, gen_helper_sve_brkpa, gen_helper_sve_brkpas);
+}
+
+static bool trans_BRKPB(DisasContext *s, arg_rprr_s *a, uint32_t insn)
+{
+    return do_brk3(s, a, gen_helper_sve_brkpb, gen_helper_sve_brkpbs);
+}
+
+static bool trans_BRKA_m(DisasContext *s, arg_rpr_s *a, uint32_t insn)
+{
+    return do_brk2(s, a, gen_helper_sve_brka_m, gen_helper_sve_brkas_m);
+}
+
+static bool trans_BRKB_m(DisasContext *s, arg_rpr_s *a, uint32_t insn)
+{
+    return do_brk2(s, a, gen_helper_sve_brkb_m, gen_helper_sve_brkbs_m);
+}
+
+static bool trans_BRKA_z(DisasContext *s, arg_rpr_s *a, uint32_t insn)
+{
+    return do_brk2(s, a, gen_helper_sve_brka_z, gen_helper_sve_brkas_z);
+}
+
+static bool trans_BRKB_z(DisasContext *s, arg_rpr_s *a, uint32_t insn)
+{
+    return do_brk2(s, a, gen_helper_sve_brkb_z, gen_helper_sve_brkbs_z);
+}
+
+static bool trans_BRKN(DisasContext *s, arg_rpr_s *a, uint32_t insn)
+{
+    return do_brk2(s, a, gen_helper_sve_brkn, gen_helper_sve_brkns);
+}
+
+/*
  *** SVE Memory - 32-bit Gather and Unsized Contiguous Group
  */
 

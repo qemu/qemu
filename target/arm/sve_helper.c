@@ -2476,3 +2476,251 @@ DO_CMP_PPZI_D(sve_cmpls_ppzi_d, uint64_t, <=)
 #undef DO_CMP_PPZI_S
 #undef DO_CMP_PPZI_D
 #undef DO_CMP_PPZI
+
+/* Similar to the ARM LastActive pseudocode function.  */
+static bool last_active_pred(void *vd, void *vg, intptr_t oprsz)
+{
+    intptr_t i;
+
+    for (i = QEMU_ALIGN_UP(oprsz, 8) - 8; i >= 0; i -= 8) {
+        uint64_t pg = *(uint64_t *)(vg + i);
+        if (pg) {
+            return (pow2floor(pg) & *(uint64_t *)(vd + i)) != 0;
+        }
+    }
+    return 0;
+}
+
+/* Compute a mask into RETB that is true for all G, up to and including
+ * (if after) or excluding (if !after) the first G & N.
+ * Return true if BRK found.
+ */
+static bool compute_brk(uint64_t *retb, uint64_t n, uint64_t g,
+                        bool brk, bool after)
+{
+    uint64_t b;
+
+    if (brk) {
+        b = 0;
+    } else if ((g & n) == 0) {
+        /* For all G, no N are set; break not found.  */
+        b = g;
+    } else {
+        /* Break somewhere in N.  Locate it.  */
+        b = g & n;            /* guard true, pred true */
+        b = b & -b;           /* first such */
+        if (after) {
+            b = b | (b - 1);  /* break after same */
+        } else {
+            b = b - 1;        /* break before same */
+        }
+        brk = true;
+    }
+
+    *retb = b;
+    return brk;
+}
+
+/* Compute a zeroing BRK.  */
+static void compute_brk_z(uint64_t *d, uint64_t *n, uint64_t *g,
+                          intptr_t oprsz, bool after)
+{
+    bool brk = false;
+    intptr_t i;
+
+    for (i = 0; i < DIV_ROUND_UP(oprsz, 8); ++i) {
+        uint64_t this_b, this_g = g[i];
+
+        brk = compute_brk(&this_b, n[i], this_g, brk, after);
+        d[i] = this_b & this_g;
+    }
+}
+
+/* Likewise, but also compute flags.  */
+static uint32_t compute_brks_z(uint64_t *d, uint64_t *n, uint64_t *g,
+                               intptr_t oprsz, bool after)
+{
+    uint32_t flags = PREDTEST_INIT;
+    bool brk = false;
+    intptr_t i;
+
+    for (i = 0; i < DIV_ROUND_UP(oprsz, 8); ++i) {
+        uint64_t this_b, this_d, this_g = g[i];
+
+        brk = compute_brk(&this_b, n[i], this_g, brk, after);
+        d[i] = this_d = this_b & this_g;
+        flags = iter_predtest_fwd(this_d, this_g, flags);
+    }
+    return flags;
+}
+
+/* Compute a merging BRK.  */
+static void compute_brk_m(uint64_t *d, uint64_t *n, uint64_t *g,
+                          intptr_t oprsz, bool after)
+{
+    bool brk = false;
+    intptr_t i;
+
+    for (i = 0; i < DIV_ROUND_UP(oprsz, 8); ++i) {
+        uint64_t this_b, this_g = g[i];
+
+        brk = compute_brk(&this_b, n[i], this_g, brk, after);
+        d[i] = (this_b & this_g) | (d[i] & ~this_g);
+    }
+}
+
+/* Likewise, but also compute flags.  */
+static uint32_t compute_brks_m(uint64_t *d, uint64_t *n, uint64_t *g,
+                               intptr_t oprsz, bool after)
+{
+    uint32_t flags = PREDTEST_INIT;
+    bool brk = false;
+    intptr_t i;
+
+    for (i = 0; i < oprsz / 8; ++i) {
+        uint64_t this_b, this_d = d[i], this_g = g[i];
+
+        brk = compute_brk(&this_b, n[i], this_g, brk, after);
+        d[i] = this_d = (this_b & this_g) | (this_d & ~this_g);
+        flags = iter_predtest_fwd(this_d, this_g, flags);
+    }
+    return flags;
+}
+
+static uint32_t do_zero(ARMPredicateReg *d, intptr_t oprsz)
+{
+    /* It is quicker to zero the whole predicate than loop on OPRSZ.
+     * The compiler should turn this into 4 64-bit integer stores.
+     */
+    memset(d, 0, sizeof(ARMPredicateReg));
+    return PREDTEST_INIT;
+}
+
+void HELPER(sve_brkpa)(void *vd, void *vn, void *vm, void *vg,
+                       uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    if (last_active_pred(vn, vg, oprsz)) {
+        compute_brk_z(vd, vm, vg, oprsz, true);
+    } else {
+        do_zero(vd, oprsz);
+    }
+}
+
+uint32_t HELPER(sve_brkpas)(void *vd, void *vn, void *vm, void *vg,
+                            uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    if (last_active_pred(vn, vg, oprsz)) {
+        return compute_brks_z(vd, vm, vg, oprsz, true);
+    } else {
+        return do_zero(vd, oprsz);
+    }
+}
+
+void HELPER(sve_brkpb)(void *vd, void *vn, void *vm, void *vg,
+                       uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    if (last_active_pred(vn, vg, oprsz)) {
+        compute_brk_z(vd, vm, vg, oprsz, false);
+    } else {
+        do_zero(vd, oprsz);
+    }
+}
+
+uint32_t HELPER(sve_brkpbs)(void *vd, void *vn, void *vm, void *vg,
+                            uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    if (last_active_pred(vn, vg, oprsz)) {
+        return compute_brks_z(vd, vm, vg, oprsz, false);
+    } else {
+        return do_zero(vd, oprsz);
+    }
+}
+
+void HELPER(sve_brka_z)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    compute_brk_z(vd, vn, vg, oprsz, true);
+}
+
+uint32_t HELPER(sve_brkas_z)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    return compute_brks_z(vd, vn, vg, oprsz, true);
+}
+
+void HELPER(sve_brkb_z)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    compute_brk_z(vd, vn, vg, oprsz, false);
+}
+
+uint32_t HELPER(sve_brkbs_z)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    return compute_brks_z(vd, vn, vg, oprsz, false);
+}
+
+void HELPER(sve_brka_m)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    compute_brk_m(vd, vn, vg, oprsz, true);
+}
+
+uint32_t HELPER(sve_brkas_m)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    return compute_brks_m(vd, vn, vg, oprsz, true);
+}
+
+void HELPER(sve_brkb_m)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    compute_brk_m(vd, vn, vg, oprsz, false);
+}
+
+uint32_t HELPER(sve_brkbs_m)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    return compute_brks_m(vd, vn, vg, oprsz, false);
+}
+
+void HELPER(sve_brkn)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+
+    if (!last_active_pred(vn, vg, oprsz)) {
+        do_zero(vd, oprsz);
+    }
+}
+
+/* As if PredTest(Ones(PL), D, esz).  */
+static uint32_t predtest_ones(ARMPredicateReg *d, intptr_t oprsz,
+                              uint64_t esz_mask)
+{
+    uint32_t flags = PREDTEST_INIT;
+    intptr_t i;
+
+    for (i = 0; i < oprsz / 8; i++) {
+        flags = iter_predtest_fwd(d->p[i], esz_mask, flags);
+    }
+    if (oprsz & 7) {
+        uint64_t mask = ~(-1ULL << (8 * (oprsz & 7)));
+        flags = iter_predtest_fwd(d->p[i], esz_mask & mask, flags);
+    }
+    return flags;
+}
+
+uint32_t HELPER(sve_brkns)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+
+    if (last_active_pred(vn, vg, oprsz)) {
+        return predtest_ones(vd, oprsz, -1);
+    } else {
+        return do_zero(vd, oprsz);
+    }
+}

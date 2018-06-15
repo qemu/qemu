@@ -59,6 +59,7 @@
 &rri_esz        rd rn imm esz
 &rrr_esz        rd rn rm esz
 &rpr_esz        rd pg rn esz
+&rpr_s          rd pg rn s
 &rprr_s         rd pg rn rm s
 &rprr_esz       rd pg rn rm esz
 &rprrr_esz      rd pg rn rm ra esz
@@ -77,6 +78,9 @@
 # Two operand
 @pd_pn          ........ esz:2 .. .... ....... rn:4 . rd:4      &rr_esz
 @rd_rn          ........ esz:2 ...... ...... rn:5 rd:5          &rr_esz
+
+# Two operand with governing predicate, flags setting
+@pd_pg_pn_s     ........ . s:1 ...... .. pg:4 . rn:4 . rd:4     &rpr_s
 
 # Three operand with unused vector element size
 @rd_rn_rm_e0    ........ ... rm:5 ... ... rn:5 rd:5             &rrr_esz esz=0
@@ -559,6 +563,21 @@ PFIRST          00100101 01 011 000 11000 00 .... 0 ....        @pd_pn_e0
 
 # SVE predicate next active
 PNEXT           00100101 .. 011 001 11000 10 .... 0 ....        @pd_pn
+
+### SVE Partition Break Group
+
+# SVE propagate break from previous partition
+BRKPA           00100101 0. 00 .... 11 .... 0 .... 0 ....       @pd_pg_pn_pm_s
+BRKPB           00100101 0. 00 .... 11 .... 0 .... 1 ....       @pd_pg_pn_pm_s
+
+# SVE partition break condition
+BRKA_z          00100101 0. 01000001 .... 0 .... 0 ....         @pd_pg_pn_s
+BRKB_z          00100101 1. 01000001 .... 0 .... 0 ....         @pd_pg_pn_s
+BRKA_m          00100101 0. 01000001 .... 0 .... 1 ....         @pd_pg_pn_s
+BRKB_m          00100101 1. 01000001 .... 0 .... 1 ....         @pd_pg_pn_s
+
+# SVE propagate break to next partition
+BRKN            00100101 0. 01100001 .... 0 .... 0 ....         @pd_pg_pn_s
 
 ### SVE Memory - 32-bit Gather and Unsized Contiguous Group
 
