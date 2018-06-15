@@ -648,6 +648,16 @@ UMIN_zzi        00100101 .. 101 011 110 ........ .....          @rdn_i8u
 # SVE integer multiply immediate (unpredicated)
 MUL_zzi         00100101 .. 110 000 110 ........ .....          @rdn_i8s
 
+### SVE Floating Point Arithmetic - Unpredicated Group
+
+# SVE floating-point arithmetic (unpredicated)
+FADD_zzz        01100101 .. 0 ..... 000 000 ..... .....         @rd_rn_rm
+FSUB_zzz        01100101 .. 0 ..... 000 001 ..... .....         @rd_rn_rm
+FMUL_zzz        01100101 .. 0 ..... 000 010 ..... .....         @rd_rn_rm
+FTSMUL          01100101 .. 0 ..... 000 011 ..... .....         @rd_rn_rm
+FRECPS          01100101 .. 0 ..... 000 110 ..... .....         @rd_rn_rm
+FRSQRTS         01100101 .. 0 ..... 000 111 ..... .....         @rd_rn_rm
+
 ### SVE Memory - 32-bit Gather and Unsized Contiguous Group
 
 # SVE load predicate register
