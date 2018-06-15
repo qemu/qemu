@@ -2090,6 +2090,126 @@ static bool trans_UNPK(DisasContext *s, arg_UNPK *a, uint32_t insn)
 }
 
 /*
+ *** SVE Permute - Predicates Group
+ */
+
+static bool do_perm_pred3(DisasContext *s, arg_rrr_esz *a, bool high_odd,
+                          gen_helper_gvec_3 *fn)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    unsigned vsz = pred_full_reg_size(s);
+
+    /* Predicate sizes may be smaller and cannot use simd_desc.
+       We cannot round up, as we do elsewhere, because we need
+       the exact size for ZIP2 and REV.  We retain the style for
+       the other helpers for consistency.  */
+    TCGv_ptr t_d = tcg_temp_new_ptr();
+    TCGv_ptr t_n = tcg_temp_new_ptr();
+    TCGv_ptr t_m = tcg_temp_new_ptr();
+    TCGv_i32 t_desc;
+    int desc;
+
+    desc = vsz - 2;
+    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, a->esz);
+    desc = deposit32(desc, SIMD_DATA_SHIFT + 2, 2, high_odd);
+
+    tcg_gen_addi_ptr(t_d, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(t_n, cpu_env, pred_full_reg_offset(s, a->rn));
+    tcg_gen_addi_ptr(t_m, cpu_env, pred_full_reg_offset(s, a->rm));
+    t_desc = tcg_const_i32(desc);
+
+    fn(t_d, t_n, t_m, t_desc);
+
+    tcg_temp_free_ptr(t_d);
+    tcg_temp_free_ptr(t_n);
+    tcg_temp_free_ptr(t_m);
+    tcg_temp_free_i32(t_desc);
+    return true;
+}
+
+static bool do_perm_pred2(DisasContext *s, arg_rr_esz *a, bool high_odd,
+                          gen_helper_gvec_2 *fn)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    unsigned vsz = pred_full_reg_size(s);
+    TCGv_ptr t_d = tcg_temp_new_ptr();
+    TCGv_ptr t_n = tcg_temp_new_ptr();
+    TCGv_i32 t_desc;
+    int desc;
+
+    tcg_gen_addi_ptr(t_d, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(t_n, cpu_env, pred_full_reg_offset(s, a->rn));
+
+    /* Predicate sizes may be smaller and cannot use simd_desc.
+       We cannot round up, as we do elsewhere, because we need
+       the exact size for ZIP2 and REV.  We retain the style for
+       the other helpers for consistency.  */
+
+    desc = vsz - 2;
+    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, a->esz);
+    desc = deposit32(desc, SIMD_DATA_SHIFT + 2, 2, high_odd);
+    t_desc = tcg_const_i32(desc);
+
+    fn(t_d, t_n, t_desc);
+
+    tcg_temp_free_i32(t_desc);
+    tcg_temp_free_ptr(t_d);
+    tcg_temp_free_ptr(t_n);
+    return true;
+}
+
+static bool trans_ZIP1_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 0, gen_helper_sve_zip_p);
+}
+
+static bool trans_ZIP2_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 1, gen_helper_sve_zip_p);
+}
+
+static bool trans_UZP1_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 0, gen_helper_sve_uzp_p);
+}
+
+static bool trans_UZP2_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 1, gen_helper_sve_uzp_p);
+}
+
+static bool trans_TRN1_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 0, gen_helper_sve_trn_p);
+}
+
+static bool trans_TRN2_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 1, gen_helper_sve_trn_p);
+}
+
+static bool trans_REV_p(DisasContext *s, arg_rr_esz *a, uint32_t insn)
+{
+    return do_perm_pred2(s, a, 0, gen_helper_sve_rev_p);
+}
+
+static bool trans_PUNPKLO(DisasContext *s, arg_PUNPKLO *a, uint32_t insn)
+{
+    return do_perm_pred2(s, a, 0, gen_helper_sve_punpk_p);
+}
+
+static bool trans_PUNPKHI(DisasContext *s, arg_PUNPKHI *a, uint32_t insn)
+{
+    return do_perm_pred2(s, a, 1, gen_helper_sve_punpk_p);
+}
+
+/*
  *** SVE Memory - 32-bit Gather and Unsized Contiguous Group
  */
 

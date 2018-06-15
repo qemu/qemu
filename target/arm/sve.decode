@@ -86,6 +86,7 @@
 
 # Three operand, vector element size
 @rd_rn_rm       ........ esz:2 . rm:5 ... ... rn:5 rd:5         &rrr_esz
+@pd_pn_pm       ........ esz:2 .. rm:4 ....... rn:4 . rd:4      &rrr_esz
 @rdn_rm         ........ esz:2 ...... ...... rm:5 rd:5 \
                 &rrr_esz rn=%reg_movprfx
 
@@ -395,6 +396,23 @@ TBL             00000101 .. 1 ..... 001100 ..... .....          @rd_rn_rm
 
 # SVE unpack vector elements
 UNPK            00000101 esz:2 1100 u:1 h:1 001110 rn:5 rd:5
+
+### SVE Permute - Predicates Group
+
+# SVE permute predicate elements
+ZIP1_p          00000101 .. 10 .... 010 000 0 .... 0 ....       @pd_pn_pm
+ZIP2_p          00000101 .. 10 .... 010 001 0 .... 0 ....       @pd_pn_pm
+UZP1_p          00000101 .. 10 .... 010 010 0 .... 0 ....       @pd_pn_pm
+UZP2_p          00000101 .. 10 .... 010 011 0 .... 0 ....       @pd_pn_pm
+TRN1_p          00000101 .. 10 .... 010 100 0 .... 0 ....       @pd_pn_pm
+TRN2_p          00000101 .. 10 .... 010 101 0 .... 0 ....       @pd_pn_pm
+
+# SVE reverse predicate elements
+REV_p           00000101 .. 11 0100 010 000 0 .... 0 ....       @pd_pn
+
+# SVE unpack predicate elements
+PUNPKLO         00000101 00 11 0000 010 000 0 .... 0 ....       @pd_pn_e0
+PUNPKHI         00000101 00 11 0001 010 000 0 .... 0 ....       @pd_pn_e0
 
 ### SVE Predicate Logical Operations Group
 

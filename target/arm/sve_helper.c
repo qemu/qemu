@@ -1674,3 +1674,293 @@ DO_UNPK(sve_uunpk_s, uint32_t, uint16_t, H4, H2)
 DO_UNPK(sve_uunpk_d, uint64_t, uint32_t, , H4)
 
 #undef DO_UNPK
+
+/* Mask of bits included in the even numbered predicates of width esz.
+ * We also use this for expand_bits/compress_bits, and so extend the
+ * same pattern out to 16-bit units.
+ */
+static const uint64_t even_bit_esz_masks[5] = {
+    0x5555555555555555ull,
+    0x3333333333333333ull,
+    0x0f0f0f0f0f0f0f0full,
+    0x00ff00ff00ff00ffull,
+    0x0000ffff0000ffffull,
+};
+
+/* Zero-extend units of 2**N bits to units of 2**(N+1) bits.
+ * For N==0, this corresponds to the operation that in qemu/bitops.h
+ * we call half_shuffle64; this algorithm is from Hacker's Delight,
+ * section 7-2 Shuffling Bits.
+ */
+static uint64_t expand_bits(uint64_t x, int n)
+{
+    int i;
+
+    x &= 0xffffffffu;
+    for (i = 4; i >= n; i--) {
+        int sh = 1 << i;
+        x = ((x << sh) | x) & even_bit_esz_masks[i];
+    }
+    return x;
+}
+
+/* Compress units of 2**(N+1) bits to units of 2**N bits.
+ * For N==0, this corresponds to the operation that in qemu/bitops.h
+ * we call half_unshuffle64; this algorithm is from Hacker's Delight,
+ * section 7-2 Shuffling Bits, where it is called an inverse half shuffle.
+ */
+static uint64_t compress_bits(uint64_t x, int n)
+{
+    int i;
+
+    for (i = n; i <= 4; i++) {
+        int sh = 1 << i;
+        x &= even_bit_esz_masks[i];
+        x = (x >> sh) | x;
+    }
+    return x & 0xffffffffu;
+}
+
+void HELPER(sve_zip_p)(void *vd, void *vn, void *vm, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    int esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    intptr_t high = extract32(pred_desc, SIMD_DATA_SHIFT + 2, 1);
+    uint64_t *d = vd;
+    intptr_t i;
+
+    if (oprsz <= 8) {
+        uint64_t nn = *(uint64_t *)vn;
+        uint64_t mm = *(uint64_t *)vm;
+        int half = 4 * oprsz;
+
+        nn = extract64(nn, high * half, half);
+        mm = extract64(mm, high * half, half);
+        nn = expand_bits(nn, esz);
+        mm = expand_bits(mm, esz);
+        d[0] = nn + (mm << (1 << esz));
+    } else {
+        ARMPredicateReg tmp_n, tmp_m;
+
+        /* We produce output faster than we consume input.
+           Therefore we must be mindful of possible overlap.  */
+        if ((vn - vd) < (uintptr_t)oprsz) {
+            vn = memcpy(&tmp_n, vn, oprsz);
+        }
+        if ((vm - vd) < (uintptr_t)oprsz) {
+            vm = memcpy(&tmp_m, vm, oprsz);
+        }
+        if (high) {
+            high = oprsz >> 1;
+        }
+
+        if ((high & 3) == 0) {
+            uint32_t *n = vn, *m = vm;
+            high >>= 2;
+
+            for (i = 0; i < DIV_ROUND_UP(oprsz, 8); i++) {
+                uint64_t nn = n[H4(high + i)];
+                uint64_t mm = m[H4(high + i)];
+
+                nn = expand_bits(nn, esz);
+                mm = expand_bits(mm, esz);
+                d[i] = nn + (mm << (1 << esz));
+            }
+        } else {
+            uint8_t *n = vn, *m = vm;
+            uint16_t *d16 = vd;
+
+            for (i = 0; i < oprsz / 2; i++) {
+                uint16_t nn = n[H1(high + i)];
+                uint16_t mm = m[H1(high + i)];
+
+                nn = expand_bits(nn, esz);
+                mm = expand_bits(mm, esz);
+                d16[H2(i)] = nn + (mm << (1 << esz));
+            }
+        }
+    }
+}
+
+void HELPER(sve_uzp_p)(void *vd, void *vn, void *vm, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    int esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    int odd = extract32(pred_desc, SIMD_DATA_SHIFT + 2, 1) << esz;
+    uint64_t *d = vd, *n = vn, *m = vm;
+    uint64_t l, h;
+    intptr_t i;
+
+    if (oprsz <= 8) {
+        l = compress_bits(n[0] >> odd, esz);
+        h = compress_bits(m[0] >> odd, esz);
+        d[0] = extract64(l + (h << (4 * oprsz)), 0, 8 * oprsz);
+    } else {
+        ARMPredicateReg tmp_m;
+        intptr_t oprsz_16 = oprsz / 16;
+
+        if ((vm - vd) < (uintptr_t)oprsz) {
+            m = memcpy(&tmp_m, vm, oprsz);
+        }
+
+        for (i = 0; i < oprsz_16; i++) {
+            l = n[2 * i + 0];
+            h = n[2 * i + 1];
+            l = compress_bits(l >> odd, esz);
+            h = compress_bits(h >> odd, esz);
+            d[i] = l + (h << 32);
+        }
+
+        /* For VL which is not a power of 2, the results from M do not
+           align nicely with the uint64_t for D.  Put the aligned results
+           from M into TMP_M and then copy it into place afterward.  */
+        if (oprsz & 15) {
+            d[i] = compress_bits(n[2 * i] >> odd, esz);
+
+            for (i = 0; i < oprsz_16; i++) {
+                l = m[2 * i + 0];
+                h = m[2 * i + 1];
+                l = compress_bits(l >> odd, esz);
+                h = compress_bits(h >> odd, esz);
+                tmp_m.p[i] = l + (h << 32);
+            }
+            tmp_m.p[i] = compress_bits(m[2 * i] >> odd, esz);
+
+            swap_memmove(vd + oprsz / 2, &tmp_m, oprsz / 2);
+        } else {
+            for (i = 0; i < oprsz_16; i++) {
+                l = m[2 * i + 0];
+                h = m[2 * i + 1];
+                l = compress_bits(l >> odd, esz);
+                h = compress_bits(h >> odd, esz);
+                d[oprsz_16 + i] = l + (h << 32);
+            }
+        }
+    }
+}
+
+void HELPER(sve_trn_p)(void *vd, void *vn, void *vm, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    uintptr_t esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    bool odd = extract32(pred_desc, SIMD_DATA_SHIFT + 2, 1);
+    uint64_t *d = vd, *n = vn, *m = vm;
+    uint64_t mask;
+    int shr, shl;
+    intptr_t i;
+
+    shl = 1 << esz;
+    shr = 0;
+    mask = even_bit_esz_masks[esz];
+    if (odd) {
+        mask <<= shl;
+        shr = shl;
+        shl = 0;
+    }
+
+    for (i = 0; i < DIV_ROUND_UP(oprsz, 8); i++) {
+        uint64_t nn = (n[i] & mask) >> shr;
+        uint64_t mm = (m[i] & mask) << shl;
+        d[i] = nn + mm;
+    }
+}
+
+/* Reverse units of 2**N bits.  */
+static uint64_t reverse_bits_64(uint64_t x, int n)
+{
+    int i, sh;
+
+    x = bswap64(x);
+    for (i = 2, sh = 4; i >= n; i--, sh >>= 1) {
+        uint64_t mask = even_bit_esz_masks[i];
+        x = ((x & mask) << sh) | ((x >> sh) & mask);
+    }
+    return x;
+}
+
+static uint8_t reverse_bits_8(uint8_t x, int n)
+{
+    static const uint8_t mask[3] = { 0x55, 0x33, 0x0f };
+    int i, sh;
+
+    for (i = 2, sh = 4; i >= n; i--, sh >>= 1) {
+        x = ((x & mask[i]) << sh) | ((x >> sh) & mask[i]);
+    }
+    return x;
+}
+
+void HELPER(sve_rev_p)(void *vd, void *vn, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    int esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    intptr_t i, oprsz_2 = oprsz / 2;
+
+    if (oprsz <= 8) {
+        uint64_t l = *(uint64_t *)vn;
+        l = reverse_bits_64(l << (64 - 8 * oprsz), esz);
+        *(uint64_t *)vd = l;
+    } else if ((oprsz & 15) == 0) {
+        for (i = 0; i < oprsz_2; i += 8) {
+            intptr_t ih = oprsz - 8 - i;
+            uint64_t l = reverse_bits_64(*(uint64_t *)(vn + i), esz);
+            uint64_t h = reverse_bits_64(*(uint64_t *)(vn + ih), esz);
+            *(uint64_t *)(vd + i) = h;
+            *(uint64_t *)(vd + ih) = l;
+        }
+    } else {
+        for (i = 0; i < oprsz_2; i += 1) {
+            intptr_t il = H1(i);
+            intptr_t ih = H1(oprsz - 1 - i);
+            uint8_t l = reverse_bits_8(*(uint8_t *)(vn + il), esz);
+            uint8_t h = reverse_bits_8(*(uint8_t *)(vn + ih), esz);
+            *(uint8_t *)(vd + il) = h;
+            *(uint8_t *)(vd + ih) = l;
+        }
+    }
+}
+
+void HELPER(sve_punpk_p)(void *vd, void *vn, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    intptr_t high = extract32(pred_desc, SIMD_DATA_SHIFT + 2, 1);
+    uint64_t *d = vd;
+    intptr_t i;
+
+    if (oprsz <= 8) {
+        uint64_t nn = *(uint64_t *)vn;
+        int half = 4 * oprsz;
+
+        nn = extract64(nn, high * half, half);
+        nn = expand_bits(nn, 0);
+        d[0] = nn;
+    } else {
+        ARMPredicateReg tmp_n;
+
+        /* We produce output faster than we consume input.
+           Therefore we must be mindful of possible overlap.  */
+        if ((vn - vd) < (uintptr_t)oprsz) {
+            vn = memcpy(&tmp_n, vn, oprsz);
+        }
+        if (high) {
+            high = oprsz >> 1;
+        }
+
+        if ((high & 3) == 0) {
+            uint32_t *n = vn;
+            high >>= 2;
+
+            for (i = 0; i < DIV_ROUND_UP(oprsz, 8); i++) {
+                uint64_t nn = n[H4(high + i)];
+                d[i] = expand_bits(nn, 0);
+            }
+        } else {
+            uint16_t *d16 = vd;
+            uint8_t *n = vn;
+
+            for (i = 0; i < oprsz / 2; i++) {
+                uint16_t nn = n[H1(high + i)];
+                d16[H2(i)] = expand_bits(nn, 0);
+            }
+        }
+    }
+}
