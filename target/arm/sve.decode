@@ -414,6 +414,16 @@ REV_p           00000101 .. 11 0100 010 000 0 .... 0 ....       @pd_pn
 PUNPKLO         00000101 00 11 0000 010 000 0 .... 0 ....       @pd_pn_e0
 PUNPKHI         00000101 00 11 0001 010 000 0 .... 0 ....       @pd_pn_e0
 
+### SVE Permute - Interleaving Group
+
+# SVE permute vector elements
+ZIP1_z          00000101 .. 1 ..... 011 000 ..... .....         @rd_rn_rm
+ZIP2_z          00000101 .. 1 ..... 011 001 ..... .....         @rd_rn_rm
+UZP1_z          00000101 .. 1 ..... 011 010 ..... .....         @rd_rn_rm
+UZP2_z          00000101 .. 1 ..... 011 011 ..... .....         @rd_rn_rm
+TRN1_z          00000101 .. 1 ..... 011 100 ..... .....         @rd_rn_rm
+TRN2_z          00000101 .. 1 ..... 011 101 ..... .....         @rd_rn_rm
+
 ### SVE Predicate Logical Operations Group
 
 # SVE predicate logical operations

@@ -1964,3 +1964,75 @@ void HELPER(sve_punpk_p)(void *vd, void *vn, uint32_t pred_desc)
         }
     }
 }
+
+#define DO_ZIP(NAME, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)       \
+{                                                                    \
+    intptr_t oprsz = simd_oprsz(desc);                               \
+    intptr_t i, oprsz_2 = oprsz / 2;                                 \
+    ARMVectorReg tmp_n, tmp_m;                                       \
+    /* We produce output faster than we consume input.               \
+       Therefore we must be mindful of possible overlap.  */         \
+    if (unlikely((vn - vd) < (uintptr_t)oprsz)) {                    \
+        vn = memcpy(&tmp_n, vn, oprsz_2);                            \
+    }                                                                \
+    if (unlikely((vm - vd) < (uintptr_t)oprsz)) {                    \
+        vm = memcpy(&tmp_m, vm, oprsz_2);                            \
+    }                                                                \
+    for (i = 0; i < oprsz_2; i += sizeof(TYPE)) {                    \
+        *(TYPE *)(vd + H(2 * i + 0)) = *(TYPE *)(vn + H(i));         \
+        *(TYPE *)(vd + H(2 * i + sizeof(TYPE))) = *(TYPE *)(vm + H(i)); \
+    }                                                                \
+}
+
+DO_ZIP(sve_zip_b, uint8_t, H1)
+DO_ZIP(sve_zip_h, uint16_t, H1_2)
+DO_ZIP(sve_zip_s, uint32_t, H1_4)
+DO_ZIP(sve_zip_d, uint64_t, )
+
+#define DO_UZP(NAME, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)         \
+{                                                                      \
+    intptr_t oprsz = simd_oprsz(desc);                                 \
+    intptr_t oprsz_2 = oprsz / 2;                                      \
+    intptr_t odd_ofs = simd_data(desc);                                \
+    intptr_t i;                                                        \
+    ARMVectorReg tmp_m;                                                \
+    if (unlikely((vm - vd) < (uintptr_t)oprsz)) {                      \
+        vm = memcpy(&tmp_m, vm, oprsz);                                \
+    }                                                                  \
+    for (i = 0; i < oprsz_2; i += sizeof(TYPE)) {                      \
+        *(TYPE *)(vd + H(i)) = *(TYPE *)(vn + H(2 * i + odd_ofs));     \
+    }                                                                  \
+    for (i = 0; i < oprsz_2; i += sizeof(TYPE)) {                      \
+        *(TYPE *)(vd + H(oprsz_2 + i)) = *(TYPE *)(vm + H(2 * i + odd_ofs)); \
+    }                                                                  \
+}
+
+DO_UZP(sve_uzp_b, uint8_t, H1)
+DO_UZP(sve_uzp_h, uint16_t, H1_2)
+DO_UZP(sve_uzp_s, uint32_t, H1_4)
+DO_UZP(sve_uzp_d, uint64_t, )
+
+#define DO_TRN(NAME, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)         \
+{                                                                      \
+    intptr_t oprsz = simd_oprsz(desc);                                 \
+    intptr_t odd_ofs = simd_data(desc);                                \
+    intptr_t i;                                                        \
+    for (i = 0; i < oprsz; i += 2 * sizeof(TYPE)) {                    \
+        TYPE ae = *(TYPE *)(vn + H(i + odd_ofs));                      \
+        TYPE be = *(TYPE *)(vm + H(i + odd_ofs));                      \
+        *(TYPE *)(vd + H(i + 0)) = ae;                                 \
+        *(TYPE *)(vd + H(i + sizeof(TYPE))) = be;                      \
+    }                                                                  \
+}
+
+DO_TRN(sve_trn_b, uint8_t, H1)
+DO_TRN(sve_trn_h, uint16_t, H1_2)
+DO_TRN(sve_trn_s, uint32_t, H1_4)
+DO_TRN(sve_trn_d, uint64_t, )
+
+#undef DO_ZIP
+#undef DO_UZP
+#undef DO_TRN
