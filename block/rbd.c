@@ -18,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "block/block_int.h"
+#include "block/qdict.h"
 #include "crypto/secret.h"
 #include "qemu/cutils.h"
 #include "qapi/qmp/qstring.h"
@@ -238,21 +239,44 @@ static void qemu_rbd_refresh_limits(BlockDriverState *bs, Error **errp)
 }
 
 
-static int qemu_rbd_set_auth(rados_t cluster, const char *secretid,
+static int qemu_rbd_set_auth(rados_t cluster, BlockdevOptionsRbd *opts,
                              Error **errp)
 {
-    if (secretid == 0) {
-        return 0;
+    char *key, *acr;
+    int r;
+    GString *accu;
+    RbdAuthModeList *auth;
+
+    if (opts->key_secret) {
+        key = qcrypto_secret_lookup_as_base64(opts->key_secret, errp);
+        if (!key) {
+            return -EIO;
+        }
+        r = rados_conf_set(cluster, "key", key);
+        g_free(key);
+        if (r < 0) {
+            error_setg_errno(errp, -r, "Could not set 'key'");
+            return r;
+        }
     }
 
-    gchar *secret = qcrypto_secret_lookup_as_base64(secretid,
-                                                    errp);
-    if (!secret) {
-        return -1;
+    if (opts->has_auth_client_required) {
+        accu = g_string_new("");
+        for (auth = opts->auth_client_required; auth; auth = auth->next) {
+            if (accu->str[0]) {
+                g_string_append_c(accu, ';');
+            }
+            g_string_append(accu, RbdAuthMode_str(auth->value));
+        }
+        acr = g_string_free(accu, FALSE);
+        r = rados_conf_set(cluster, "auth_client_required", acr);
+        g_free(acr);
+        if (r < 0) {
+            error_setg_errno(errp, -r,
+                             "Could not set 'auth_client_required'");
+            return r;
+        }
     }
-
-    rados_conf_set(cluster, "key", secret);
-    g_free(secret);
 
     return 0;
 }
@@ -344,9 +368,7 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-/* FIXME Deprecate and remove keypairs or make it available in QMP.
- * password_secret should eventually be configurable in opts->location. Support
- * for it in .bdrv_open will make it work here as well. */
+/* FIXME Deprecate and remove keypairs or make it available in QMP. */
 static int qemu_rbd_do_create(BlockdevCreateOptions *options,
                               const char *keypairs, const char *password_secret,
                               Error **errp)
@@ -552,6 +574,16 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
     Error *local_err = NULL;
     int r;
 
+    if (secretid) {
+        if (opts->key_secret) {
+            error_setg(errp,
+                       "Legacy 'password-secret' clashes with 'key-secret'");
+            return -EINVAL;
+        }
+        opts->key_secret = g_strdup(secretid);
+        opts->has_key_secret = true;
+    }
+
     mon_host = qemu_rbd_mon_host(opts, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -584,8 +616,8 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
         }
     }
 
-    if (qemu_rbd_set_auth(*cluster, secretid, errp) < 0) {
-        r = -EIO;
+    r = qemu_rbd_set_auth(*cluster, opts, errp);
+    if (r < 0) {
         goto failed_shutdown;
     }
 
@@ -629,27 +661,10 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVRBDState *s = bs->opaque;
     BlockdevOptionsRbd *opts = NULL;
     Visitor *v;
-    QObject *crumpled = NULL;
     const QDictEntry *e;
     Error *local_err = NULL;
-    const char *filename;
     char *keypairs, *secretid;
     int r;
-
-    /* If we are given a filename, parse the filename, with precedence given to
-     * filename encoded options */
-    filename = qdict_get_try_str(options, "filename");
-    if (filename) {
-        warn_report("'filename' option specified. "
-                    "This is an unsupported option, and may be deprecated "
-                    "in the future");
-        qemu_rbd_parse_filename(filename, options, &local_err);
-        qdict_del(options, "filename");
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return -EINVAL;
-        }
-    }
 
     keypairs = g_strdup(qdict_get_try_str(options, "=keyvalue-pairs"));
     if (keypairs) {
@@ -662,16 +677,14 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* Convert the remaining options into a QAPI object */
-    crumpled = qdict_crumple(options, errp);
-    if (crumpled == NULL) {
+    v = qobject_input_visitor_new_flat_confused(options, errp);
+    if (!v) {
         r = -EINVAL;
         goto out;
     }
 
-    v = qobject_input_visitor_new_keyval(crumpled);
     visit_type_BlockdevOptionsRbd(v, NULL, &opts, &local_err);
     visit_free(v);
-    qobject_unref(crumpled);
 
     if (local_err) {
         error_propagate(errp, local_err);

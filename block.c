@@ -27,6 +27,7 @@
 #include "block/block_int.h"
 #include "block/blockjob.h"
 #include "block/nbd.h"
+#include "block/qdict.h"
 #include "qemu/error-report.h"
 #include "module_block.h"
 #include "qemu/module.h"

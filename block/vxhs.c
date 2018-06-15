@@ -12,6 +12,7 @@
 #include <qnio/qnio_api.h>
 #include <sys/param.h>
 #include "block/block_int.h"
+#include "block/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"

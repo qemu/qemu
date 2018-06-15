@@ -27,6 +27,7 @@
 #include <dirent.h>
 #include "qapi/error.h"
 #include "block/block_int.h"
+#include "block/qdict.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/bswap.h"

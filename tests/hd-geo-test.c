@@ -201,7 +201,7 @@ static void setup_mbr(int img_idx, MBRcontents mbr)
 
 static int setup_ide(int argc, char *argv[], int argv_sz,
                      int ide_idx, const char *dev, int img_idx,
-                     MBRcontents mbr, const char *opts)
+                     MBRcontents mbr)
 {
     char *s1, *s2, *s3;
 
@@ -216,7 +216,7 @@ static int setup_ide(int argc, char *argv[], int argv_sz,
         s3 = g_strdup(",media=cdrom");
     }
     argc = append_arg(argc, argv, argv_sz,
-                      g_strdup_printf("%s%s%s%s", s1, s2, s3, opts));
+                      g_strdup_printf("%s%s%s", s1, s2, s3));
     g_free(s1);
     g_free(s2);
     g_free(s3);
@@ -260,7 +260,7 @@ static void test_ide_mbr(bool use_device, MBRcontents mbr)
     for (i = 0; i < backend_last; i++) {
         cur_ide[i] = &hd_chst[i][mbr];
         dev = use_device ? (is_hd(cur_ide[i]) ? "ide-hd" : "ide-cd") : NULL;
-        argc = setup_ide(argc, argv, ARGV_SIZE, i, dev, i, mbr, "");
+        argc = setup_ide(argc, argv, ARGV_SIZE, i, dev, i, mbr);
     }
     args = g_strjoinv(" ", argv);
     qtest_start(args);
@@ -327,16 +327,12 @@ static void test_ide_drive_user(const char *dev, bool trans)
     const CHST expected_chst = { secs / (4 * 32) , 4, 32, trans };
 
     argc = setup_common(argv, ARGV_SIZE);
-    opts = g_strdup_printf("%s,%s%scyls=%d,heads=%d,secs=%d",
-                           dev ?: "",
-                           trans && dev ? "bios-chs-" : "",
-                           trans ? "trans=lba," : "",
+    opts = g_strdup_printf("%s,%scyls=%d,heads=%d,secs=%d",
+                           dev, trans ? "bios-chs-trans=lba," : "",
                            expected_chst.cyls, expected_chst.heads,
                            expected_chst.secs);
     cur_ide[0] = &expected_chst;
-    argc = setup_ide(argc, argv, ARGV_SIZE,
-                     0, dev ? opts : NULL, backend_small, mbr_chs,
-                     dev ? "" : opts);
+    argc = setup_ide(argc, argv, ARGV_SIZE, 0, opts, backend_small, mbr_chs);
     g_free(opts);
     args = g_strjoinv(" ", argv);
     qtest_start(args);
@@ -344,22 +340,6 @@ static void test_ide_drive_user(const char *dev, bool trans)
     g_free(args);
     test_cmos();
     qtest_end();
-}
-
-/*
- * Test case: IDE device (if=ide) with explicit CHS
- */
-static void test_ide_drive_user_chs(void)
-{
-    test_ide_drive_user(NULL, false);
-}
-
-/*
- * Test case: IDE device (if=ide) with explicit CHS and translation
- */
-static void test_ide_drive_user_chst(void)
-{
-    test_ide_drive_user(NULL, true);
 }
 
 /*
@@ -392,8 +372,7 @@ static void test_ide_drive_cd_0(void)
     for (i = 0; i <= backend_empty; i++) {
         ide_idx = backend_empty - i;
         cur_ide[ide_idx] = &hd_chst[i][mbr_blank];
-        argc = setup_ide(argc, argv, ARGV_SIZE,
-                         ide_idx, NULL, i, mbr_blank, "");
+        argc = setup_ide(argc, argv, ARGV_SIZE, ide_idx, NULL, i, mbr_blank);
     }
     args = g_strjoinv(" ", argv);
     qtest_start(args);
@@ -422,8 +401,6 @@ int main(int argc, char **argv)
     qtest_add_func("hd-geo/ide/drive/mbr/blank", test_ide_drive_mbr_blank);
     qtest_add_func("hd-geo/ide/drive/mbr/lba", test_ide_drive_mbr_lba);
     qtest_add_func("hd-geo/ide/drive/mbr/chs", test_ide_drive_mbr_chs);
-    qtest_add_func("hd-geo/ide/drive/user/chs", test_ide_drive_user_chs);
-    qtest_add_func("hd-geo/ide/drive/user/chst", test_ide_drive_user_chst);
     qtest_add_func("hd-geo/ide/drive/cd_0", test_ide_drive_cd_0);
     qtest_add_func("hd-geo/ide/device/mbr/blank", test_ide_device_mbr_blank);
     qtest_add_func("hd-geo/ide/device/mbr/lba", test_ide_device_mbr_lba);

@@ -28,6 +28,7 @@
 #include <libssh2_sftp.h>
 
 #include "block/block_int.h"
+#include "block/qdict.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
@@ -605,7 +606,6 @@ static BlockdevOptionsSsh *ssh_parse_options(QDict *options, Error **errp)
     BlockdevOptionsSsh *result = NULL;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
-    QObject *crumpled;
     const QDictEntry *e;
     Visitor *v;
 
@@ -622,23 +622,13 @@ static BlockdevOptionsSsh *ssh_parse_options(QDict *options, Error **errp)
     }
 
     /* Create the QAPI object */
-    crumpled = qdict_crumple(options, errp);
-    if (crumpled == NULL) {
+    v = qobject_input_visitor_new_flat_confused(options, errp);
+    if (!v) {
         goto fail;
     }
 
-    /*
-     * FIXME .numeric, .to, .ipv4 or .ipv6 don't work with -drive.
-     * .to doesn't matter, it's ignored anyway.
-     * That's because when @options come from -blockdev or
-     * blockdev_add, members are typed according to the QAPI schema,
-     * but when they come from -drive, they're all QString.  The
-     * visitor expects the former.
-     */
-    v = qobject_input_visitor_new(crumpled);
     visit_type_BlockdevOptionsSsh(v, NULL, &result, &local_err);
     visit_free(v);
-    qobject_unref(crumpled);
 
     if (local_err) {
         error_propagate(errp, local_err);

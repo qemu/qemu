@@ -15,19 +15,6 @@
 #include "qapi/qapi-types-block.h"
 #include "qemu/error-report.h"
 
-void blkconf_serial(BlockConf *conf, char **serial)
-{
-    DriveInfo *dinfo;
-
-    if (!*serial) {
-        /* try to fall back to value set with legacy -drive serial=... */
-        dinfo = blk_legacy_dinfo(conf->blk);
-        if (dinfo) {
-            *serial = g_strdup(dinfo->serial);
-        }
-    }
-}
-
 void blkconf_blocksizes(BlockConf *conf)
 {
     BlockBackend *blk = conf->blk;
@@ -108,20 +95,6 @@ bool blkconf_geometry(BlockConf *conf, int *ptrans,
                       unsigned cyls_max, unsigned heads_max, unsigned secs_max,
                       Error **errp)
 {
-    DriveInfo *dinfo;
-
-    if (!conf->cyls && !conf->heads && !conf->secs) {
-        /* try to fall back to value set with legacy -drive cyls=... */
-        dinfo = blk_legacy_dinfo(conf->blk);
-        if (dinfo) {
-            conf->cyls  = dinfo->cyls;
-            conf->heads = dinfo->heads;
-            conf->secs  = dinfo->secs;
-            if (ptrans) {
-                *ptrans = dinfo->trans;
-            }
-        }
-    }
     if (!conf->cyls && !conf->heads && !conf->secs) {
         hd_geometry_guess(conf->blk,
                           &conf->cyls, &conf->heads, &conf->secs,

@@ -17,6 +17,7 @@
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 #include "block/block_int.h"
+#include "block/qdict.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-block.h"
 #include "qapi/qmp/qdict.h"
