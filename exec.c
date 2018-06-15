@@ -2544,22 +2544,7 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     memory_notdirty_write_prepare(&ndi, current_cpu, current_cpu->mem_io_vaddr,
                          ram_addr, size);
 
-    switch (size) {
-    case 1:
-        stb_p(qemu_map_ram_ptr(NULL, ram_addr), val);
-        break;
-    case 2:
-        stw_p(qemu_map_ram_ptr(NULL, ram_addr), val);
-        break;
-    case 4:
-        stl_p(qemu_map_ram_ptr(NULL, ram_addr), val);
-        break;
-    case 8:
-        stq_p(qemu_map_ram_ptr(NULL, ram_addr), val);
-        break;
-    default:
-        abort();
-    }
+    stn_p(qemu_map_ram_ptr(NULL, ram_addr), size, val);
     memory_notdirty_write_complete(&ndi);
 }
 
@@ -2739,22 +2724,8 @@ static MemTxResult subpage_read(void *opaque, hwaddr addr, uint64_t *data,
     if (res) {
         return res;
     }
-    switch (len) {
-    case 1:
-        *data = ldub_p(buf);
-        return MEMTX_OK;
-    case 2:
-        *data = lduw_p(buf);
-        return MEMTX_OK;
-    case 4:
-        *data = (uint32_t)ldl_p(buf);
-        return MEMTX_OK;
-    case 8:
-        *data = ldq_p(buf);
-        return MEMTX_OK;
-    default:
-        abort();
-    }
+    *data = ldn_p(buf, len);
+    return MEMTX_OK;
 }
 
 static MemTxResult subpage_write(void *opaque, hwaddr addr,
@@ -2768,22 +2739,7 @@ static MemTxResult subpage_write(void *opaque, hwaddr addr,
            " value %"PRIx64"\n",
            __func__, subpage, len, addr, value);
 #endif
-    switch (len) {
-    case 1:
-        stb_p(buf, value);
-        break;
-    case 2:
-        stw_p(buf, value);
-        break;
-    case 4:
-        stl_p(buf, value);
-        break;
-    case 8:
-        stq_p(buf, value);
-        break;
-    default:
-        abort();
-    }
+    stn_p(buf, len, value);
     return flatview_write(subpage->fv, addr + subpage->base, attrs, buf, len);
 }
 
@@ -3129,34 +3085,8 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
             l = memory_access_size(mr, l, addr1);
             /* XXX: could force current_cpu to NULL to avoid
                potential bugs */
-            switch (l) {
-            case 8:
-                /* 64 bit write access */
-                val = ldq_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 8,
-                                                       attrs);
-                break;
-            case 4:
-                /* 32 bit write access */
-                val = (uint32_t)ldl_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 4,
-                                                       attrs);
-                break;
-            case 2:
-                /* 16 bit write access */
-                val = lduw_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 2,
-                                                       attrs);
-                break;
-            case 1:
-                /* 8 bit write access */
-                val = ldub_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 1,
-                                                       attrs);
-                break;
-            default:
-                abort();
-            }
+            val = ldn_p(buf, l);
+            result |= memory_region_dispatch_write(mr, addr1, val, l, attrs);
         } else {
             /* RAM case */
             ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
@@ -3217,34 +3147,8 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
             /* I/O case */
             release_lock |= prepare_mmio_access(mr);
             l = memory_access_size(mr, l, addr1);
-            switch (l) {
-            case 8:
-                /* 64 bit read access */
-                result |= memory_region_dispatch_read(mr, addr1, &val, 8,
-                                                      attrs);
-                stq_p(buf, val);
-                break;
-            case 4:
-                /* 32 bit read access */
-                result |= memory_region_dispatch_read(mr, addr1, &val, 4,
-                                                      attrs);
-                stl_p(buf, val);
-                break;
-            case 2:
-                /* 16 bit read access */
-                result |= memory_region_dispatch_read(mr, addr1, &val, 2,
-                                                      attrs);
-                stw_p(buf, val);
-                break;
-            case 1:
-                /* 8 bit read access */
-                result |= memory_region_dispatch_read(mr, addr1, &val, 1,
-                                                      attrs);
-                stb_p(buf, val);
-                break;
-            default:
-                abort();
-            }
+            result |= memory_region_dispatch_read(mr, addr1, &val, l, attrs);
+            stn_p(buf, l, val);
         } else {
             /* RAM case */
             ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
