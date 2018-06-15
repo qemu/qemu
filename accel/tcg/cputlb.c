@@ -664,6 +664,18 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     env->iotlb_v[mmu_idx][vidx] = env->iotlb[mmu_idx][index];
 
     /* refill the tlb */
+    /*
+     * At this point iotlb contains a physical section number in the lower
+     * TARGET_PAGE_BITS, and either
+     *  + the ram_addr_t of the page base of the target RAM (if NOTDIRTY or ROM)
+     *  + the offset within section->mr of the page base (otherwise)
+     * We subtract the vaddr (which is page aligned and thus won't
+     * disturb the low bits) to give an offset which can be added to the
+     * (non-page-aligned) vaddr of the eventual memory access to get
+     * the MemoryRegion offset for the access. Note that the vaddr we
+     * subtract here is that of the page base, and not the same as the
+     * vaddr we add back in io_readx()/io_writex()/get_page_addr_code().
+     */
     env->iotlb[mmu_idx][index].addr = iotlb - vaddr;
     env->iotlb[mmu_idx][index].attrs = attrs;
 
