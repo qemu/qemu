@@ -529,24 +529,24 @@ static void pnv_reset(void)
     cpu_physical_memory_write(PNV_FDT_ADDR, fdt, fdt_totalsize(fdt));
 }
 
-static ISABus *pnv_isa_create(PnvChip *chip)
+static ISABus *pnv_chip_power8_isa_create(PnvChip *chip, Error **errp)
 {
-    PnvLpcController *lpc = &chip->lpc;
-    ISABus *isa_bus;
-    qemu_irq *irqs;
-    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    return pnv_lpc_isa_create(&chip->lpc, true, errp);
+}
 
-    /* let isa_bus_new() create its own bridge on SysBus otherwise
-     * devices speficied on the command line won't find the bus and
-     * will fail to create.
-     */
-    isa_bus = isa_bus_new(NULL, &lpc->isa_mem, &lpc->isa_io,
-                          &error_fatal);
+static ISABus *pnv_chip_power8nvl_isa_create(PnvChip *chip, Error **errp)
+{
+    return pnv_lpc_isa_create(&chip->lpc, false, errp);
+}
 
-    irqs = pnv_lpc_isa_irq_create(lpc, pcc->chip_type, ISA_NUM_IRQS);
+static ISABus *pnv_chip_power9_isa_create(PnvChip *chip, Error **errp)
+{
+    return NULL;
+}
 
-    isa_bus_irqs(isa_bus, irqs);
-    return isa_bus;
+static ISABus *pnv_isa_create(PnvChip *chip, Error **errp)
+{
+    return PNV_CHIP_GET_CLASS(chip)->isa_create(chip, errp);
 }
 
 static void pnv_init(MachineState *machine)
@@ -646,7 +646,7 @@ static void pnv_init(MachineState *machine)
     g_free(chip_typename);
 
     /* Instantiate ISA bus on chip 0 */
-    pnv->isa_bus = pnv_isa_create(pnv->chips[0]);
+    pnv->isa_bus = pnv_isa_create(pnv->chips[0], &error_fatal);
 
     /* Create serial port */
     serial_hds_isa_init(pnv->isa_bus, 0, MAX_ISA_SERIAL_PORTS);
@@ -735,6 +735,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8E_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
+    k->isa_create = pnv_chip_power8_isa_create;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8E";
 }
@@ -749,6 +750,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
+    k->isa_create = pnv_chip_power8_isa_create;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8";
 }
@@ -763,6 +765,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER8_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
+    k->isa_create = pnv_chip_power8nvl_isa_create;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8NVL";
 }
@@ -777,6 +780,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->cores_mask = POWER9_CORE_MASK;
     k->core_pir = pnv_chip_core_pir_p9;
     k->intc_create = pnv_chip_power9_intc_create;
+    k->isa_create = pnv_chip_power9_isa_create;
     k->xscom_base = 0x00603fc00000000ull;
     dc->desc = "PowerNV Chip POWER9";
 }
