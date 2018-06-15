@@ -53,9 +53,24 @@ The ``_{endian}`` infix is omitted for target-endian accesses.
 The target endian accessors are only available to source
 files which are built per-target.
 
+There are also functions which take the size as an argument:
+
+load: ``ldn{endian}_p(ptr, sz)``
+
+which performs an unsigned load of ``sz`` bytes from ``ptr``
+as an ``{endian}`` order value and returns it in a uint64_t.
+
+store: ``stn{endian}_p(ptr, sz, val)``
+
+which stores ``val`` to ``ptr`` as an ``{endian}`` order value
+of size ``sz`` bytes.
+
+
 Regexes for git grep
  - ``\<ldf\?[us]\?[bwlq]\(_[hbl]e\)\?_p\>``
  - ``\<stf\?[bwlq]\(_[hbl]e\)\?_p\>``
+ - ``\<ldn_\([hbl]e\)?_p\>``
+ - ``\<stn_\([hbl]e\)?_p\>``
 
 ``cpu_{ld,st}_*``
 ~~~~~~~~~~~~~~~~~

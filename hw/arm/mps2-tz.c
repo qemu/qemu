@@ -74,12 +74,13 @@ typedef struct {
     UnimplementedDeviceState spi[5];
     UnimplementedDeviceState i2c[4];
     UnimplementedDeviceState i2s_audio;
-    UnimplementedDeviceState gpio[5];
+    UnimplementedDeviceState gpio[4];
     UnimplementedDeviceState dma[4];
     UnimplementedDeviceState gfx;
     CMSDKAPBUART uart[5];
     SplitIRQ sec_resp_splitter;
     qemu_or_irq uart_irq_orgate;
+    DeviceState *lan9118;
 } MPS2TZMachineState;
 
 #define TYPE_MPS2TZ_MACHINE "mps2tz"
@@ -224,6 +225,26 @@ static MemoryRegion *make_fpgaio(MPS2TZMachineState *mms, void *opaque,
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(fpgaio), 0);
 }
 
+static MemoryRegion *make_eth_dev(MPS2TZMachineState *mms, void *opaque,
+                                  const char *name, hwaddr size)
+{
+    SysBusDevice *s;
+    DeviceState *iotkitdev = DEVICE(&mms->iotkit);
+    NICInfo *nd = &nd_table[0];
+
+    /* In hardware this is a LAN9220; the LAN9118 is software compatible
+     * except that it doesn't support the checksum-offload feature.
+     */
+    qemu_check_nic_model(nd, "lan9118");
+    mms->lan9118 = qdev_create(NULL, "lan9118");
+    qdev_set_nic_properties(mms->lan9118, nd);
+    qdev_init_nofail(mms->lan9118);
+
+    s = SYS_BUS_DEVICE(mms->lan9118);
+    sysbus_connect_irq(s, 0, qdev_get_gpio_in_named(iotkitdev, "EXP_IRQ", 16));
+    return sysbus_mmio_get_region(s, 0);
+}
+
 static void mps2tz_common_init(MachineState *machine)
 {
     MPS2TZMachineState *mms = MPS2TZ_MACHINE(machine);
@@ -363,7 +384,7 @@ static void mps2tz_common_init(MachineState *machine)
                 { "gpio1", make_unimp_dev, &mms->gpio[1], 0x40101000, 0x1000 },
                 { "gpio2", make_unimp_dev, &mms->gpio[2], 0x40102000, 0x1000 },
                 { "gpio3", make_unimp_dev, &mms->gpio[3], 0x40103000, 0x1000 },
-                { "gpio4", make_unimp_dev, &mms->gpio[4], 0x40104000, 0x1000 },
+                { "eth", make_eth_dev, NULL, 0x42000000, 0x100000 },
             },
         }, {
             .name = "ahb_ppcexp1",
@@ -446,13 +467,6 @@ static void mps2tz_common_init(MachineState *machine)
                               qdev_get_gpio_in_named(ppcdev,
                                                      "cfg_sec_resp", 0));
     }
-
-    /* In hardware this is a LAN9220; the LAN9118 is software compatible
-     * except that it doesn't support the checksum-offload feature.
-     * The ethernet controller is not behind a PPC.
-     */
-    lan9118_init(&nd_table[0], 0x42000000,
-                 qdev_get_gpio_in_named(iotkitdev, "EXP_IRQ", 16));
 
     create_unimplemented_device("FPGA NS PC", 0x48007000, 0x1000);
 

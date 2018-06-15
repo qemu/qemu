@@ -434,7 +434,7 @@ static const VMStateDescription vmstate_kbd = {
 };
 
 /* Memory mapped interface */
-static uint32_t kbd_mm_readb (void *opaque, hwaddr addr)
+static uint64_t kbd_mm_readfn(void *opaque, hwaddr addr, unsigned size)
 {
     KBDState *s = opaque;
 
@@ -444,7 +444,8 @@ static uint32_t kbd_mm_readb (void *opaque, hwaddr addr)
         return kbd_read_data(s, 0, 1) & 0xff;
 }
 
-static void kbd_mm_writeb (void *opaque, hwaddr addr, uint32_t value)
+static void kbd_mm_writefn(void *opaque, hwaddr addr,
+                           uint64_t value, unsigned size)
 {
     KBDState *s = opaque;
 
@@ -454,12 +455,13 @@ static void kbd_mm_writeb (void *opaque, hwaddr addr, uint32_t value)
         kbd_write_data(s, 0, value & 0xff, 1);
 }
 
+
 static const MemoryRegionOps i8042_mmio_ops = {
+    .read = kbd_mm_readfn,
+    .write = kbd_mm_writefn,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .old_mmio = {
-        .read = { kbd_mm_readb, kbd_mm_readb, kbd_mm_readb },
-        .write = { kbd_mm_writeb, kbd_mm_writeb, kbd_mm_writeb },
-    },
 };
 
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,

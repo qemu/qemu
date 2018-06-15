@@ -33,6 +33,15 @@
 #include "trace-tcg.h"
 #include "translate-a64.h"
 
+
+typedef void GVecGen2sFn(unsigned, uint32_t, uint32_t,
+                         TCGv_i64, uint32_t, uint32_t);
+
+typedef void gen_helper_gvec_flags_3(TCGv_i32, TCGv_ptr, TCGv_ptr,
+                                     TCGv_ptr, TCGv_i32);
+typedef void gen_helper_gvec_flags_4(TCGv_i32, TCGv_ptr, TCGv_ptr,
+                                     TCGv_ptr, TCGv_ptr, TCGv_i32);
+
 /*
  * Helpers for extracting complex instruction fields.
  */
@@ -66,6 +75,11 @@ static inline int plus1(int x)
 static inline int expand_imm_sh8s(int x)
 {
     return (int8_t)x << (x & 0x100 ? 8 : 0);
+}
+
+static inline int expand_imm_sh8u(int x)
+{
+    return (uint8_t)x << (x & 0x100 ? 8 : 0);
 }
 
 /*
@@ -372,6 +386,8 @@ static bool trans_UDIV_zpzz(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
     };
     return do_zpzz_ool(s, a, fns[a->esz]);
 }
+
+DO_ZPZZ(SEL, sel)
 
 #undef DO_ZPZZ
 
@@ -1955,6 +1971,1448 @@ static bool trans_EXT(DisasContext *s, arg_EXT *a, uint32_t insn)
     }
     return true;
 }
+
+/*
+ *** SVE Permute - Unpredicated Group
+ */
+
+static bool trans_DUP_s(DisasContext *s, arg_DUP_s *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_dup_i64(a->esz, vec_full_reg_offset(s, a->rd),
+                             vsz, vsz, cpu_reg_sp(s, a->rn));
+    }
+    return true;
+}
+
+static bool trans_DUP_x(DisasContext *s, arg_DUP_x *a, uint32_t insn)
+{
+    if ((a->imm & 0x1f) == 0) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        unsigned dofs = vec_full_reg_offset(s, a->rd);
+        unsigned esz, index;
+
+        esz = ctz32(a->imm);
+        index = a->imm >> (esz + 1);
+
+        if ((index << esz) < vsz) {
+            unsigned nofs = vec_reg_offset(s, a->rn, index, esz);
+            tcg_gen_gvec_dup_mem(esz, dofs, nofs, vsz, vsz);
+        } else {
+            tcg_gen_gvec_dup64i(dofs, vsz, vsz, 0);
+        }
+    }
+    return true;
+}
+
+static void do_insr_i64(DisasContext *s, arg_rrr_esz *a, TCGv_i64 val)
+{
+    typedef void gen_insr(TCGv_ptr, TCGv_ptr, TCGv_i64, TCGv_i32);
+    static gen_insr * const fns[4] = {
+        gen_helper_sve_insr_b, gen_helper_sve_insr_h,
+        gen_helper_sve_insr_s, gen_helper_sve_insr_d,
+    };
+    unsigned vsz = vec_full_reg_size(s);
+    TCGv_i32 desc = tcg_const_i32(simd_desc(vsz, vsz, 0));
+    TCGv_ptr t_zd = tcg_temp_new_ptr();
+    TCGv_ptr t_zn = tcg_temp_new_ptr();
+
+    tcg_gen_addi_ptr(t_zd, cpu_env, vec_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(t_zn, cpu_env, vec_full_reg_offset(s, a->rn));
+
+    fns[a->esz](t_zd, t_zn, val, desc);
+
+    tcg_temp_free_ptr(t_zd);
+    tcg_temp_free_ptr(t_zn);
+    tcg_temp_free_i32(desc);
+}
+
+static bool trans_INSR_f(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 t = tcg_temp_new_i64();
+        tcg_gen_ld_i64(t, cpu_env, vec_reg_offset(s, a->rm, 0, MO_64));
+        do_insr_i64(s, a, t);
+        tcg_temp_free_i64(t);
+    }
+    return true;
+}
+
+static bool trans_INSR_r(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        do_insr_i64(s, a, cpu_reg(s, a->rm));
+    }
+    return true;
+}
+
+static bool trans_REV_v(DisasContext *s, arg_rr_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_2 * const fns[4] = {
+        gen_helper_sve_rev_b, gen_helper_sve_rev_h,
+        gen_helper_sve_rev_s, gen_helper_sve_rev_d
+    };
+
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_2_ool(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vsz, vsz, 0, fns[a->esz]);
+    }
+    return true;
+}
+
+static bool trans_TBL(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_3 * const fns[4] = {
+        gen_helper_sve_tbl_b, gen_helper_sve_tbl_h,
+        gen_helper_sve_tbl_s, gen_helper_sve_tbl_d
+    };
+
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           vsz, vsz, 0, fns[a->esz]);
+    }
+    return true;
+}
+
+static bool trans_UNPK(DisasContext *s, arg_UNPK *a, uint32_t insn)
+{
+    static gen_helper_gvec_2 * const fns[4][2] = {
+        { NULL, NULL },
+        { gen_helper_sve_sunpk_h, gen_helper_sve_uunpk_h },
+        { gen_helper_sve_sunpk_s, gen_helper_sve_uunpk_s },
+        { gen_helper_sve_sunpk_d, gen_helper_sve_uunpk_d },
+    };
+
+    if (a->esz == 0) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_2_ool(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn)
+                           + (a->h ? vsz / 2 : 0),
+                           vsz, vsz, 0, fns[a->esz][a->u]);
+    }
+    return true;
+}
+
+/*
+ *** SVE Permute - Predicates Group
+ */
+
+static bool do_perm_pred3(DisasContext *s, arg_rrr_esz *a, bool high_odd,
+                          gen_helper_gvec_3 *fn)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    unsigned vsz = pred_full_reg_size(s);
+
+    /* Predicate sizes may be smaller and cannot use simd_desc.
+       We cannot round up, as we do elsewhere, because we need
+       the exact size for ZIP2 and REV.  We retain the style for
+       the other helpers for consistency.  */
+    TCGv_ptr t_d = tcg_temp_new_ptr();
+    TCGv_ptr t_n = tcg_temp_new_ptr();
+    TCGv_ptr t_m = tcg_temp_new_ptr();
+    TCGv_i32 t_desc;
+    int desc;
+
+    desc = vsz - 2;
+    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, a->esz);
+    desc = deposit32(desc, SIMD_DATA_SHIFT + 2, 2, high_odd);
+
+    tcg_gen_addi_ptr(t_d, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(t_n, cpu_env, pred_full_reg_offset(s, a->rn));
+    tcg_gen_addi_ptr(t_m, cpu_env, pred_full_reg_offset(s, a->rm));
+    t_desc = tcg_const_i32(desc);
+
+    fn(t_d, t_n, t_m, t_desc);
+
+    tcg_temp_free_ptr(t_d);
+    tcg_temp_free_ptr(t_n);
+    tcg_temp_free_ptr(t_m);
+    tcg_temp_free_i32(t_desc);
+    return true;
+}
+
+static bool do_perm_pred2(DisasContext *s, arg_rr_esz *a, bool high_odd,
+                          gen_helper_gvec_2 *fn)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    unsigned vsz = pred_full_reg_size(s);
+    TCGv_ptr t_d = tcg_temp_new_ptr();
+    TCGv_ptr t_n = tcg_temp_new_ptr();
+    TCGv_i32 t_desc;
+    int desc;
+
+    tcg_gen_addi_ptr(t_d, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(t_n, cpu_env, pred_full_reg_offset(s, a->rn));
+
+    /* Predicate sizes may be smaller and cannot use simd_desc.
+       We cannot round up, as we do elsewhere, because we need
+       the exact size for ZIP2 and REV.  We retain the style for
+       the other helpers for consistency.  */
+
+    desc = vsz - 2;
+    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, a->esz);
+    desc = deposit32(desc, SIMD_DATA_SHIFT + 2, 2, high_odd);
+    t_desc = tcg_const_i32(desc);
+
+    fn(t_d, t_n, t_desc);
+
+    tcg_temp_free_i32(t_desc);
+    tcg_temp_free_ptr(t_d);
+    tcg_temp_free_ptr(t_n);
+    return true;
+}
+
+static bool trans_ZIP1_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 0, gen_helper_sve_zip_p);
+}
+
+static bool trans_ZIP2_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 1, gen_helper_sve_zip_p);
+}
+
+static bool trans_UZP1_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 0, gen_helper_sve_uzp_p);
+}
+
+static bool trans_UZP2_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 1, gen_helper_sve_uzp_p);
+}
+
+static bool trans_TRN1_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 0, gen_helper_sve_trn_p);
+}
+
+static bool trans_TRN2_p(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_perm_pred3(s, a, 1, gen_helper_sve_trn_p);
+}
+
+static bool trans_REV_p(DisasContext *s, arg_rr_esz *a, uint32_t insn)
+{
+    return do_perm_pred2(s, a, 0, gen_helper_sve_rev_p);
+}
+
+static bool trans_PUNPKLO(DisasContext *s, arg_PUNPKLO *a, uint32_t insn)
+{
+    return do_perm_pred2(s, a, 0, gen_helper_sve_punpk_p);
+}
+
+static bool trans_PUNPKHI(DisasContext *s, arg_PUNPKHI *a, uint32_t insn)
+{
+    return do_perm_pred2(s, a, 1, gen_helper_sve_punpk_p);
+}
+
+/*
+ *** SVE Permute - Interleaving Group
+ */
+
+static bool do_zip(DisasContext *s, arg_rrr_esz *a, bool high)
+{
+    static gen_helper_gvec_3 * const fns[4] = {
+        gen_helper_sve_zip_b, gen_helper_sve_zip_h,
+        gen_helper_sve_zip_s, gen_helper_sve_zip_d,
+    };
+
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        unsigned high_ofs = high ? vsz / 2 : 0;
+        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn) + high_ofs,
+                           vec_full_reg_offset(s, a->rm) + high_ofs,
+                           vsz, vsz, 0, fns[a->esz]);
+    }
+    return true;
+}
+
+static bool do_zzz_data_ool(DisasContext *s, arg_rrr_esz *a, int data,
+                            gen_helper_gvec_3 *fn)
+{
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_3_ool(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           vsz, vsz, data, fn);
+    }
+    return true;
+}
+
+static bool trans_ZIP1_z(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_zip(s, a, false);
+}
+
+static bool trans_ZIP2_z(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_zip(s, a, true);
+}
+
+static gen_helper_gvec_3 * const uzp_fns[4] = {
+    gen_helper_sve_uzp_b, gen_helper_sve_uzp_h,
+    gen_helper_sve_uzp_s, gen_helper_sve_uzp_d,
+};
+
+static bool trans_UZP1_z(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_zzz_data_ool(s, a, 0, uzp_fns[a->esz]);
+}
+
+static bool trans_UZP2_z(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_zzz_data_ool(s, a, 1 << a->esz, uzp_fns[a->esz]);
+}
+
+static gen_helper_gvec_3 * const trn_fns[4] = {
+    gen_helper_sve_trn_b, gen_helper_sve_trn_h,
+    gen_helper_sve_trn_s, gen_helper_sve_trn_d,
+};
+
+static bool trans_TRN1_z(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_zzz_data_ool(s, a, 0, trn_fns[a->esz]);
+}
+
+static bool trans_TRN2_z(DisasContext *s, arg_rrr_esz *a, uint32_t insn)
+{
+    return do_zzz_data_ool(s, a, 1 << a->esz, trn_fns[a->esz]);
+}
+
+/*
+ *** SVE Permute Vector - Predicated Group
+ */
+
+static bool trans_COMPACT(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_3 * const fns[4] = {
+        NULL, NULL, gen_helper_sve_compact_s, gen_helper_sve_compact_d
+    };
+    return do_zpz_ool(s, a, fns[a->esz]);
+}
+
+/* Call the helper that computes the ARM LastActiveElement pseudocode
+ * function, scaled by the element size.  This includes the not found
+ * indication; e.g. not found for esz=3 is -8.
+ */
+static void find_last_active(DisasContext *s, TCGv_i32 ret, int esz, int pg)
+{
+    /* Predicate sizes may be smaller and cannot use simd_desc.  We cannot
+     * round up, as we do elsewhere, because we need the exact size.
+     */
+    TCGv_ptr t_p = tcg_temp_new_ptr();
+    TCGv_i32 t_desc;
+    unsigned vsz = pred_full_reg_size(s);
+    unsigned desc;
+
+    desc = vsz - 2;
+    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, esz);
+
+    tcg_gen_addi_ptr(t_p, cpu_env, pred_full_reg_offset(s, pg));
+    t_desc = tcg_const_i32(desc);
+
+    gen_helper_sve_last_active_element(ret, t_p, t_desc);
+
+    tcg_temp_free_i32(t_desc);
+    tcg_temp_free_ptr(t_p);
+}
+
+/* Increment LAST to the offset of the next element in the vector,
+ * wrapping around to 0.
+ */
+static void incr_last_active(DisasContext *s, TCGv_i32 last, int esz)
+{
+    unsigned vsz = vec_full_reg_size(s);
+
+    tcg_gen_addi_i32(last, last, 1 << esz);
+    if (is_power_of_2(vsz)) {
+        tcg_gen_andi_i32(last, last, vsz - 1);
+    } else {
+        TCGv_i32 max = tcg_const_i32(vsz);
+        TCGv_i32 zero = tcg_const_i32(0);
+        tcg_gen_movcond_i32(TCG_COND_GEU, last, last, max, zero, last);
+        tcg_temp_free_i32(max);
+        tcg_temp_free_i32(zero);
+    }
+}
+
+/* If LAST < 0, set LAST to the offset of the last element in the vector.  */
+static void wrap_last_active(DisasContext *s, TCGv_i32 last, int esz)
+{
+    unsigned vsz = vec_full_reg_size(s);
+
+    if (is_power_of_2(vsz)) {
+        tcg_gen_andi_i32(last, last, vsz - 1);
+    } else {
+        TCGv_i32 max = tcg_const_i32(vsz - (1 << esz));
+        TCGv_i32 zero = tcg_const_i32(0);
+        tcg_gen_movcond_i32(TCG_COND_LT, last, last, zero, max, last);
+        tcg_temp_free_i32(max);
+        tcg_temp_free_i32(zero);
+    }
+}
+
+/* Load an unsigned element of ESZ from BASE+OFS.  */
+static TCGv_i64 load_esz(TCGv_ptr base, int ofs, int esz)
+{
+    TCGv_i64 r = tcg_temp_new_i64();
+
+    switch (esz) {
+    case 0:
+        tcg_gen_ld8u_i64(r, base, ofs);
+        break;
+    case 1:
+        tcg_gen_ld16u_i64(r, base, ofs);
+        break;
+    case 2:
+        tcg_gen_ld32u_i64(r, base, ofs);
+        break;
+    case 3:
+        tcg_gen_ld_i64(r, base, ofs);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return r;
+}
+
+/* Load an unsigned element of ESZ from RM[LAST].  */
+static TCGv_i64 load_last_active(DisasContext *s, TCGv_i32 last,
+                                 int rm, int esz)
+{
+    TCGv_ptr p = tcg_temp_new_ptr();
+    TCGv_i64 r;
+
+    /* Convert offset into vector into offset into ENV.
+     * The final adjustment for the vector register base
+     * is added via constant offset to the load.
+     */
+#ifdef HOST_WORDS_BIGENDIAN
+    /* Adjust for element ordering.  See vec_reg_offset.  */
+    if (esz < 3) {
+        tcg_gen_xori_i32(last, last, 8 - (1 << esz));
+    }
+#endif
+    tcg_gen_ext_i32_ptr(p, last);
+    tcg_gen_add_ptr(p, p, cpu_env);
+
+    r = load_esz(p, vec_full_reg_offset(s, rm), esz);
+    tcg_temp_free_ptr(p);
+
+    return r;
+}
+
+/* Compute CLAST for a Zreg.  */
+static bool do_clast_vector(DisasContext *s, arg_rprr_esz *a, bool before)
+{
+    TCGv_i32 last;
+    TCGLabel *over;
+    TCGv_i64 ele;
+    unsigned vsz, esz = a->esz;
+
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    last = tcg_temp_local_new_i32();
+    over = gen_new_label();
+
+    find_last_active(s, last, esz, a->pg);
+
+    /* There is of course no movcond for a 2048-bit vector,
+     * so we must branch over the actual store.
+     */
+    tcg_gen_brcondi_i32(TCG_COND_LT, last, 0, over);
+
+    if (!before) {
+        incr_last_active(s, last, esz);
+    }
+
+    ele = load_last_active(s, last, a->rm, esz);
+    tcg_temp_free_i32(last);
+
+    vsz = vec_full_reg_size(s);
+    tcg_gen_gvec_dup_i64(esz, vec_full_reg_offset(s, a->rd), vsz, vsz, ele);
+    tcg_temp_free_i64(ele);
+
+    /* If this insn used MOVPRFX, we may need a second move.  */
+    if (a->rd != a->rn) {
+        TCGLabel *done = gen_new_label();
+        tcg_gen_br(done);
+
+        gen_set_label(over);
+        do_mov_z(s, a->rd, a->rn);
+
+        gen_set_label(done);
+    } else {
+        gen_set_label(over);
+    }
+    return true;
+}
+
+static bool trans_CLASTA_z(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
+{
+    return do_clast_vector(s, a, false);
+}
+
+static bool trans_CLASTB_z(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
+{
+    return do_clast_vector(s, a, true);
+}
+
+/* Compute CLAST for a scalar.  */
+static void do_clast_scalar(DisasContext *s, int esz, int pg, int rm,
+                            bool before, TCGv_i64 reg_val)
+{
+    TCGv_i32 last = tcg_temp_new_i32();
+    TCGv_i64 ele, cmp, zero;
+
+    find_last_active(s, last, esz, pg);
+
+    /* Extend the original value of last prior to incrementing.  */
+    cmp = tcg_temp_new_i64();
+    tcg_gen_ext_i32_i64(cmp, last);
+
+    if (!before) {
+        incr_last_active(s, last, esz);
+    }
+
+    /* The conceit here is that while last < 0 indicates not found, after
+     * adjusting for cpu_env->vfp.zregs[rm], it is still a valid address
+     * from which we can load garbage.  We then discard the garbage with
+     * a conditional move.
+     */
+    ele = load_last_active(s, last, rm, esz);
+    tcg_temp_free_i32(last);
+
+    zero = tcg_const_i64(0);
+    tcg_gen_movcond_i64(TCG_COND_GE, reg_val, cmp, zero, ele, reg_val);
+
+    tcg_temp_free_i64(zero);
+    tcg_temp_free_i64(cmp);
+    tcg_temp_free_i64(ele);
+}
+
+/* Compute CLAST for a Vreg.  */
+static bool do_clast_fp(DisasContext *s, arg_rpr_esz *a, bool before)
+{
+    if (sve_access_check(s)) {
+        int esz = a->esz;
+        int ofs = vec_reg_offset(s, a->rd, 0, esz);
+        TCGv_i64 reg = load_esz(cpu_env, ofs, esz);
+
+        do_clast_scalar(s, esz, a->pg, a->rn, before, reg);
+        write_fp_dreg(s, a->rd, reg);
+        tcg_temp_free_i64(reg);
+    }
+    return true;
+}
+
+static bool trans_CLASTA_v(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_clast_fp(s, a, false);
+}
+
+static bool trans_CLASTB_v(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_clast_fp(s, a, true);
+}
+
+/* Compute CLAST for a Xreg.  */
+static bool do_clast_general(DisasContext *s, arg_rpr_esz *a, bool before)
+{
+    TCGv_i64 reg;
+
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    reg = cpu_reg(s, a->rd);
+    switch (a->esz) {
+    case 0:
+        tcg_gen_ext8u_i64(reg, reg);
+        break;
+    case 1:
+        tcg_gen_ext16u_i64(reg, reg);
+        break;
+    case 2:
+        tcg_gen_ext32u_i64(reg, reg);
+        break;
+    case 3:
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    do_clast_scalar(s, a->esz, a->pg, a->rn, before, reg);
+    return true;
+}
+
+static bool trans_CLASTA_r(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_clast_general(s, a, false);
+}
+
+static bool trans_CLASTB_r(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_clast_general(s, a, true);
+}
+
+/* Compute LAST for a scalar.  */
+static TCGv_i64 do_last_scalar(DisasContext *s, int esz,
+                               int pg, int rm, bool before)
+{
+    TCGv_i32 last = tcg_temp_new_i32();
+    TCGv_i64 ret;
+
+    find_last_active(s, last, esz, pg);
+    if (before) {
+        wrap_last_active(s, last, esz);
+    } else {
+        incr_last_active(s, last, esz);
+    }
+
+    ret = load_last_active(s, last, rm, esz);
+    tcg_temp_free_i32(last);
+    return ret;
+}
+
+/* Compute LAST for a Vreg.  */
+static bool do_last_fp(DisasContext *s, arg_rpr_esz *a, bool before)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 val = do_last_scalar(s, a->esz, a->pg, a->rn, before);
+        write_fp_dreg(s, a->rd, val);
+        tcg_temp_free_i64(val);
+    }
+    return true;
+}
+
+static bool trans_LASTA_v(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_last_fp(s, a, false);
+}
+
+static bool trans_LASTB_v(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_last_fp(s, a, true);
+}
+
+/* Compute LAST for a Xreg.  */
+static bool do_last_general(DisasContext *s, arg_rpr_esz *a, bool before)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 val = do_last_scalar(s, a->esz, a->pg, a->rn, before);
+        tcg_gen_mov_i64(cpu_reg(s, a->rd), val);
+        tcg_temp_free_i64(val);
+    }
+    return true;
+}
+
+static bool trans_LASTA_r(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_last_general(s, a, false);
+}
+
+static bool trans_LASTB_r(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_last_general(s, a, true);
+}
+
+static bool trans_CPY_m_r(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        do_cpy_m(s, a->esz, a->rd, a->rd, a->pg, cpu_reg_sp(s, a->rn));
+    }
+    return true;
+}
+
+static bool trans_CPY_m_v(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        int ofs = vec_reg_offset(s, a->rn, 0, a->esz);
+        TCGv_i64 t = load_esz(cpu_env, ofs, a->esz);
+        do_cpy_m(s, a->esz, a->rd, a->rd, a->pg, t);
+        tcg_temp_free_i64(t);
+    }
+    return true;
+}
+
+static bool trans_REVB(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_3 * const fns[4] = {
+        NULL,
+        gen_helper_sve_revb_h,
+        gen_helper_sve_revb_s,
+        gen_helper_sve_revb_d,
+    };
+    return do_zpz_ool(s, a, fns[a->esz]);
+}
+
+static bool trans_REVH(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_3 * const fns[4] = {
+        NULL,
+        NULL,
+        gen_helper_sve_revh_s,
+        gen_helper_sve_revh_d,
+    };
+    return do_zpz_ool(s, a, fns[a->esz]);
+}
+
+static bool trans_REVW(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_zpz_ool(s, a, a->esz == 3 ? gen_helper_sve_revw_d : NULL);
+}
+
+static bool trans_RBIT(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    static gen_helper_gvec_3 * const fns[4] = {
+        gen_helper_sve_rbit_b,
+        gen_helper_sve_rbit_h,
+        gen_helper_sve_rbit_s,
+        gen_helper_sve_rbit_d,
+    };
+    return do_zpz_ool(s, a, fns[a->esz]);
+}
+
+static bool trans_SPLICE(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_4_ool(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           pred_full_reg_offset(s, a->pg),
+                           vsz, vsz, a->esz, gen_helper_sve_splice);
+    }
+    return true;
+}
+
+/*
+ *** SVE Integer Compare - Vectors Group
+ */
+
+static bool do_ppzz_flags(DisasContext *s, arg_rprr_esz *a,
+                          gen_helper_gvec_flags_4 *gen_fn)
+{
+    TCGv_ptr pd, zn, zm, pg;
+    unsigned vsz;
+    TCGv_i32 t;
+
+    if (gen_fn == NULL) {
+        return false;
+    }
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    vsz = vec_full_reg_size(s);
+    t = tcg_const_i32(simd_desc(vsz, vsz, 0));
+    pd = tcg_temp_new_ptr();
+    zn = tcg_temp_new_ptr();
+    zm = tcg_temp_new_ptr();
+    pg = tcg_temp_new_ptr();
+
+    tcg_gen_addi_ptr(pd, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(zn, cpu_env, vec_full_reg_offset(s, a->rn));
+    tcg_gen_addi_ptr(zm, cpu_env, vec_full_reg_offset(s, a->rm));
+    tcg_gen_addi_ptr(pg, cpu_env, pred_full_reg_offset(s, a->pg));
+
+    gen_fn(t, pd, zn, zm, pg, t);
+
+    tcg_temp_free_ptr(pd);
+    tcg_temp_free_ptr(zn);
+    tcg_temp_free_ptr(zm);
+    tcg_temp_free_ptr(pg);
+
+    do_pred_flags(t);
+
+    tcg_temp_free_i32(t);
+    return true;
+}
+
+#define DO_PPZZ(NAME, name) \
+static bool trans_##NAME##_ppzz(DisasContext *s, arg_rprr_esz *a,         \
+                                uint32_t insn)                            \
+{                                                                         \
+    static gen_helper_gvec_flags_4 * const fns[4] = {                     \
+        gen_helper_sve_##name##_ppzz_b, gen_helper_sve_##name##_ppzz_h,   \
+        gen_helper_sve_##name##_ppzz_s, gen_helper_sve_##name##_ppzz_d,   \
+    };                                                                    \
+    return do_ppzz_flags(s, a, fns[a->esz]);                              \
+}
+
+DO_PPZZ(CMPEQ, cmpeq)
+DO_PPZZ(CMPNE, cmpne)
+DO_PPZZ(CMPGT, cmpgt)
+DO_PPZZ(CMPGE, cmpge)
+DO_PPZZ(CMPHI, cmphi)
+DO_PPZZ(CMPHS, cmphs)
+
+#undef DO_PPZZ
+
+#define DO_PPZW(NAME, name) \
+static bool trans_##NAME##_ppzw(DisasContext *s, arg_rprr_esz *a,         \
+                                uint32_t insn)                            \
+{                                                                         \
+    static gen_helper_gvec_flags_4 * const fns[4] = {                     \
+        gen_helper_sve_##name##_ppzw_b, gen_helper_sve_##name##_ppzw_h,   \
+        gen_helper_sve_##name##_ppzw_s, NULL                              \
+    };                                                                    \
+    return do_ppzz_flags(s, a, fns[a->esz]);                              \
+}
+
+DO_PPZW(CMPEQ, cmpeq)
+DO_PPZW(CMPNE, cmpne)
+DO_PPZW(CMPGT, cmpgt)
+DO_PPZW(CMPGE, cmpge)
+DO_PPZW(CMPHI, cmphi)
+DO_PPZW(CMPHS, cmphs)
+DO_PPZW(CMPLT, cmplt)
+DO_PPZW(CMPLE, cmple)
+DO_PPZW(CMPLO, cmplo)
+DO_PPZW(CMPLS, cmpls)
+
+#undef DO_PPZW
+
+/*
+ *** SVE Integer Compare - Immediate Groups
+ */
+
+static bool do_ppzi_flags(DisasContext *s, arg_rpri_esz *a,
+                          gen_helper_gvec_flags_3 *gen_fn)
+{
+    TCGv_ptr pd, zn, pg;
+    unsigned vsz;
+    TCGv_i32 t;
+
+    if (gen_fn == NULL) {
+        return false;
+    }
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    vsz = vec_full_reg_size(s);
+    t = tcg_const_i32(simd_desc(vsz, vsz, a->imm));
+    pd = tcg_temp_new_ptr();
+    zn = tcg_temp_new_ptr();
+    pg = tcg_temp_new_ptr();
+
+    tcg_gen_addi_ptr(pd, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(zn, cpu_env, vec_full_reg_offset(s, a->rn));
+    tcg_gen_addi_ptr(pg, cpu_env, pred_full_reg_offset(s, a->pg));
+
+    gen_fn(t, pd, zn, pg, t);
+
+    tcg_temp_free_ptr(pd);
+    tcg_temp_free_ptr(zn);
+    tcg_temp_free_ptr(pg);
+
+    do_pred_flags(t);
+
+    tcg_temp_free_i32(t);
+    return true;
+}
+
+#define DO_PPZI(NAME, name) \
+static bool trans_##NAME##_ppzi(DisasContext *s, arg_rpri_esz *a,         \
+                                uint32_t insn)                            \
+{                                                                         \
+    static gen_helper_gvec_flags_3 * const fns[4] = {                     \
+        gen_helper_sve_##name##_ppzi_b, gen_helper_sve_##name##_ppzi_h,   \
+        gen_helper_sve_##name##_ppzi_s, gen_helper_sve_##name##_ppzi_d,   \
+    };                                                                    \
+    return do_ppzi_flags(s, a, fns[a->esz]);                              \
+}
+
+DO_PPZI(CMPEQ, cmpeq)
+DO_PPZI(CMPNE, cmpne)
+DO_PPZI(CMPGT, cmpgt)
+DO_PPZI(CMPGE, cmpge)
+DO_PPZI(CMPHI, cmphi)
+DO_PPZI(CMPHS, cmphs)
+DO_PPZI(CMPLT, cmplt)
+DO_PPZI(CMPLE, cmple)
+DO_PPZI(CMPLO, cmplo)
+DO_PPZI(CMPLS, cmpls)
+
+#undef DO_PPZI
+
+/*
+ *** SVE Partition Break Group
+ */
+
+static bool do_brk3(DisasContext *s, arg_rprr_s *a,
+                    gen_helper_gvec_4 *fn, gen_helper_gvec_flags_4 *fn_s)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    unsigned vsz = pred_full_reg_size(s);
+
+    /* Predicate sizes may be smaller and cannot use simd_desc.  */
+    TCGv_ptr d = tcg_temp_new_ptr();
+    TCGv_ptr n = tcg_temp_new_ptr();
+    TCGv_ptr m = tcg_temp_new_ptr();
+    TCGv_ptr g = tcg_temp_new_ptr();
+    TCGv_i32 t = tcg_const_i32(vsz - 2);
+
+    tcg_gen_addi_ptr(d, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(n, cpu_env, pred_full_reg_offset(s, a->rn));
+    tcg_gen_addi_ptr(m, cpu_env, pred_full_reg_offset(s, a->rm));
+    tcg_gen_addi_ptr(g, cpu_env, pred_full_reg_offset(s, a->pg));
+
+    if (a->s) {
+        fn_s(t, d, n, m, g, t);
+        do_pred_flags(t);
+    } else {
+        fn(d, n, m, g, t);
+    }
+    tcg_temp_free_ptr(d);
+    tcg_temp_free_ptr(n);
+    tcg_temp_free_ptr(m);
+    tcg_temp_free_ptr(g);
+    tcg_temp_free_i32(t);
+    return true;
+}
+
+static bool do_brk2(DisasContext *s, arg_rpr_s *a,
+                    gen_helper_gvec_3 *fn, gen_helper_gvec_flags_3 *fn_s)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    unsigned vsz = pred_full_reg_size(s);
+
+    /* Predicate sizes may be smaller and cannot use simd_desc.  */
+    TCGv_ptr d = tcg_temp_new_ptr();
+    TCGv_ptr n = tcg_temp_new_ptr();
+    TCGv_ptr g = tcg_temp_new_ptr();
+    TCGv_i32 t = tcg_const_i32(vsz - 2);
+
+    tcg_gen_addi_ptr(d, cpu_env, pred_full_reg_offset(s, a->rd));
+    tcg_gen_addi_ptr(n, cpu_env, pred_full_reg_offset(s, a->rn));
+    tcg_gen_addi_ptr(g, cpu_env, pred_full_reg_offset(s, a->pg));
+
+    if (a->s) {
+        fn_s(t, d, n, g, t);
+        do_pred_flags(t);
+    } else {
+        fn(d, n, g, t);
+    }
+    tcg_temp_free_ptr(d);
+    tcg_temp_free_ptr(n);
+    tcg_temp_free_ptr(g);
+    tcg_temp_free_i32(t);
+    return true;
+}
+
+static bool trans_BRKPA(DisasContext *s, arg_rprr_s *a, uint32_t insn)
+{
+    return do_brk3(s, a, gen_helper_sve_brkpa, gen_helper_sve_brkpas);
+}
+
+static bool trans_BRKPB(DisasContext *s, arg_rprr_s *a, uint32_t insn)
+{
+    return do_brk3(s, a, gen_helper_sve_brkpb, gen_helper_sve_brkpbs);
+}
+
+static bool trans_BRKA_m(DisasContext *s, arg_rpr_s *a, uint32_t insn)
+{
+    return do_brk2(s, a, gen_helper_sve_brka_m, gen_helper_sve_brkas_m);
+}
+
+static bool trans_BRKB_m(DisasContext *s, arg_rpr_s *a, uint32_t insn)
+{
+    return do_brk2(s, a, gen_helper_sve_brkb_m, gen_helper_sve_brkbs_m);
+}
+
+static bool trans_BRKA_z(DisasContext *s, arg_rpr_s *a, uint32_t insn)
+{
+    return do_brk2(s, a, gen_helper_sve_brka_z, gen_helper_sve_brkas_z);
+}
+
+static bool trans_BRKB_z(DisasContext *s, arg_rpr_s *a, uint32_t insn)
+{
+    return do_brk2(s, a, gen_helper_sve_brkb_z, gen_helper_sve_brkbs_z);
+}
+
+static bool trans_BRKN(DisasContext *s, arg_rpr_s *a, uint32_t insn)
+{
+    return do_brk2(s, a, gen_helper_sve_brkn, gen_helper_sve_brkns);
+}
+
+/*
+ *** SVE Predicate Count Group
+ */
+
+static void do_cntp(DisasContext *s, TCGv_i64 val, int esz, int pn, int pg)
+{
+    unsigned psz = pred_full_reg_size(s);
+
+    if (psz <= 8) {
+        uint64_t psz_mask;
+
+        tcg_gen_ld_i64(val, cpu_env, pred_full_reg_offset(s, pn));
+        if (pn != pg) {
+            TCGv_i64 g = tcg_temp_new_i64();
+            tcg_gen_ld_i64(g, cpu_env, pred_full_reg_offset(s, pg));
+            tcg_gen_and_i64(val, val, g);
+            tcg_temp_free_i64(g);
+        }
+
+        /* Reduce the pred_esz_masks value simply to reduce the
+         * size of the code generated here.
+         */
+        psz_mask = MAKE_64BIT_MASK(0, psz * 8);
+        tcg_gen_andi_i64(val, val, pred_esz_masks[esz] & psz_mask);
+
+        tcg_gen_ctpop_i64(val, val);
+    } else {
+        TCGv_ptr t_pn = tcg_temp_new_ptr();
+        TCGv_ptr t_pg = tcg_temp_new_ptr();
+        unsigned desc;
+        TCGv_i32 t_desc;
+
+        desc = psz - 2;
+        desc = deposit32(desc, SIMD_DATA_SHIFT, 2, esz);
+
+        tcg_gen_addi_ptr(t_pn, cpu_env, pred_full_reg_offset(s, pn));
+        tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
+        t_desc = tcg_const_i32(desc);
+
+        gen_helper_sve_cntp(val, t_pn, t_pg, t_desc);
+        tcg_temp_free_ptr(t_pn);
+        tcg_temp_free_ptr(t_pg);
+        tcg_temp_free_i32(t_desc);
+    }
+}
+
+static bool trans_CNTP(DisasContext *s, arg_CNTP *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        do_cntp(s, cpu_reg(s, a->rd), a->esz, a->rn, a->pg);
+    }
+    return true;
+}
+
+static bool trans_INCDECP_r(DisasContext *s, arg_incdec_pred *a,
+                            uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 reg = cpu_reg(s, a->rd);
+        TCGv_i64 val = tcg_temp_new_i64();
+
+        do_cntp(s, val, a->esz, a->pg, a->pg);
+        if (a->d) {
+            tcg_gen_sub_i64(reg, reg, val);
+        } else {
+            tcg_gen_add_i64(reg, reg, val);
+        }
+        tcg_temp_free_i64(val);
+    }
+    return true;
+}
+
+static bool trans_INCDECP_z(DisasContext *s, arg_incdec2_pred *a,
+                            uint32_t insn)
+{
+    if (a->esz == 0) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_i64 val = tcg_temp_new_i64();
+        GVecGen2sFn *gvec_fn = a->d ? tcg_gen_gvec_subs : tcg_gen_gvec_adds;
+
+        do_cntp(s, val, a->esz, a->pg, a->pg);
+        gvec_fn(a->esz, vec_full_reg_offset(s, a->rd),
+                vec_full_reg_offset(s, a->rn), val, vsz, vsz);
+    }
+    return true;
+}
+
+static bool trans_SINCDECP_r_32(DisasContext *s, arg_incdec_pred *a,
+                                uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 reg = cpu_reg(s, a->rd);
+        TCGv_i64 val = tcg_temp_new_i64();
+
+        do_cntp(s, val, a->esz, a->pg, a->pg);
+        do_sat_addsub_32(reg, val, a->u, a->d);
+    }
+    return true;
+}
+
+static bool trans_SINCDECP_r_64(DisasContext *s, arg_incdec_pred *a,
+                                uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 reg = cpu_reg(s, a->rd);
+        TCGv_i64 val = tcg_temp_new_i64();
+
+        do_cntp(s, val, a->esz, a->pg, a->pg);
+        do_sat_addsub_64(reg, val, a->u, a->d);
+    }
+    return true;
+}
+
+static bool trans_SINCDECP_z(DisasContext *s, arg_incdec2_pred *a,
+                             uint32_t insn)
+{
+    if (a->esz == 0) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        TCGv_i64 val = tcg_temp_new_i64();
+        do_cntp(s, val, a->esz, a->pg, a->pg);
+        do_sat_addsub_vec(s, a->esz, a->rd, a->rn, val, a->u, a->d);
+    }
+    return true;
+}
+
+/*
+ *** SVE Integer Compare Scalars Group
+ */
+
+static bool trans_CTERM(DisasContext *s, arg_CTERM *a, uint32_t insn)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    TCGCond cond = (a->ne ? TCG_COND_NE : TCG_COND_EQ);
+    TCGv_i64 rn = read_cpu_reg(s, a->rn, a->sf);
+    TCGv_i64 rm = read_cpu_reg(s, a->rm, a->sf);
+    TCGv_i64 cmp = tcg_temp_new_i64();
+
+    tcg_gen_setcond_i64(cond, cmp, rn, rm);
+    tcg_gen_extrl_i64_i32(cpu_NF, cmp);
+    tcg_temp_free_i64(cmp);
+
+    /* VF = !NF & !CF.  */
+    tcg_gen_xori_i32(cpu_VF, cpu_NF, 1);
+    tcg_gen_andc_i32(cpu_VF, cpu_VF, cpu_CF);
+
+    /* Both NF and VF actually look at bit 31.  */
+    tcg_gen_neg_i32(cpu_NF, cpu_NF);
+    tcg_gen_neg_i32(cpu_VF, cpu_VF);
+    return true;
+}
+
+static bool trans_WHILE(DisasContext *s, arg_WHILE *a, uint32_t insn)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    TCGv_i64 op0 = read_cpu_reg(s, a->rn, 1);
+    TCGv_i64 op1 = read_cpu_reg(s, a->rm, 1);
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i32 t2, t3;
+    TCGv_ptr ptr;
+    unsigned desc, vsz = vec_full_reg_size(s);
+    TCGCond cond;
+
+    if (!a->sf) {
+        if (a->u) {
+            tcg_gen_ext32u_i64(op0, op0);
+            tcg_gen_ext32u_i64(op1, op1);
+        } else {
+            tcg_gen_ext32s_i64(op0, op0);
+            tcg_gen_ext32s_i64(op1, op1);
+        }
+    }
+
+    /* For the helper, compress the different conditions into a computation
+     * of how many iterations for which the condition is true.
+     *
+     * This is slightly complicated by 0 <= UINT64_MAX, which is nominally
+     * 2**64 iterations, overflowing to 0.  Of course, predicate registers
+     * aren't that large, so any value >= predicate size is sufficient.
+     */
+    tcg_gen_sub_i64(t0, op1, op0);
+
+    /* t0 = MIN(op1 - op0, vsz).  */
+    tcg_gen_movi_i64(t1, vsz);
+    tcg_gen_umin_i64(t0, t0, t1);
+    if (a->eq) {
+        /* Equality means one more iteration.  */
+        tcg_gen_addi_i64(t0, t0, 1);
+    }
+
+    /* t0 = (condition true ? t0 : 0).  */
+    cond = (a->u
+            ? (a->eq ? TCG_COND_LEU : TCG_COND_LTU)
+            : (a->eq ? TCG_COND_LE : TCG_COND_LT));
+    tcg_gen_movi_i64(t1, 0);
+    tcg_gen_movcond_i64(cond, t0, op0, op1, t0, t1);
+
+    t2 = tcg_temp_new_i32();
+    tcg_gen_extrl_i64_i32(t2, t0);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    desc = (vsz / 8) - 2;
+    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, a->esz);
+    t3 = tcg_const_i32(desc);
+
+    ptr = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(ptr, cpu_env, pred_full_reg_offset(s, a->rd));
+
+    gen_helper_sve_while(t2, ptr, t2, t3);
+    do_pred_flags(t2);
+
+    tcg_temp_free_ptr(ptr);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(t3);
+    return true;
+}
+
+/*
+ *** SVE Integer Wide Immediate - Unpredicated Group
+ */
+
+static bool trans_FDUP(DisasContext *s, arg_FDUP *a, uint32_t insn)
+{
+    if (a->esz == 0) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        int dofs = vec_full_reg_offset(s, a->rd);
+        uint64_t imm;
+
+        /* Decode the VFP immediate.  */
+        imm = vfp_expand_imm(a->esz, a->imm);
+        imm = dup_const(a->esz, imm);
+
+        tcg_gen_gvec_dup64i(dofs, vsz, vsz, imm);
+    }
+    return true;
+}
+
+static bool trans_DUP_i(DisasContext *s, arg_DUP_i *a, uint32_t insn)
+{
+    if (a->esz == 0 && extract32(insn, 13, 1)) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        int dofs = vec_full_reg_offset(s, a->rd);
+
+        tcg_gen_gvec_dup64i(dofs, vsz, vsz, dup_const(a->esz, a->imm));
+    }
+    return true;
+}
+
+static bool trans_ADD_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    if (a->esz == 0 && extract32(insn, 13, 1)) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_addi(a->esz, vec_full_reg_offset(s, a->rd),
+                          vec_full_reg_offset(s, a->rn), a->imm, vsz, vsz);
+    }
+    return true;
+}
+
+static bool trans_SUB_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    a->imm = -a->imm;
+    return trans_ADD_zzi(s, a, insn);
+}
+
+static bool trans_SUBR_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    static const GVecGen2s op[4] = {
+        { .fni8 = tcg_gen_vec_sub8_i64,
+          .fniv = tcg_gen_sub_vec,
+          .fno = gen_helper_sve_subri_b,
+          .opc = INDEX_op_sub_vec,
+          .vece = MO_8,
+          .scalar_first = true },
+        { .fni8 = tcg_gen_vec_sub16_i64,
+          .fniv = tcg_gen_sub_vec,
+          .fno = gen_helper_sve_subri_h,
+          .opc = INDEX_op_sub_vec,
+          .vece = MO_16,
+          .scalar_first = true },
+        { .fni4 = tcg_gen_sub_i32,
+          .fniv = tcg_gen_sub_vec,
+          .fno = gen_helper_sve_subri_s,
+          .opc = INDEX_op_sub_vec,
+          .vece = MO_32,
+          .scalar_first = true },
+        { .fni8 = tcg_gen_sub_i64,
+          .fniv = tcg_gen_sub_vec,
+          .fno = gen_helper_sve_subri_d,
+          .opc = INDEX_op_sub_vec,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .vece = MO_64,
+          .scalar_first = true }
+    };
+
+    if (a->esz == 0 && extract32(insn, 13, 1)) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_i64 c = tcg_const_i64(a->imm);
+        tcg_gen_gvec_2s(vec_full_reg_offset(s, a->rd),
+                        vec_full_reg_offset(s, a->rn),
+                        vsz, vsz, c, &op[a->esz]);
+        tcg_temp_free_i64(c);
+    }
+    return true;
+}
+
+static bool trans_MUL_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        tcg_gen_gvec_muli(a->esz, vec_full_reg_offset(s, a->rd),
+                          vec_full_reg_offset(s, a->rn), a->imm, vsz, vsz);
+    }
+    return true;
+}
+
+static bool do_zzi_sat(DisasContext *s, arg_rri_esz *a, uint32_t insn,
+                       bool u, bool d)
+{
+    if (a->esz == 0 && extract32(insn, 13, 1)) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        TCGv_i64 val = tcg_const_i64(a->imm);
+        do_sat_addsub_vec(s, a->esz, a->rd, a->rn, val, u, d);
+        tcg_temp_free_i64(val);
+    }
+    return true;
+}
+
+static bool trans_SQADD_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    return do_zzi_sat(s, a, insn, false, false);
+}
+
+static bool trans_UQADD_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    return do_zzi_sat(s, a, insn, true, false);
+}
+
+static bool trans_SQSUB_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    return do_zzi_sat(s, a, insn, false, true);
+}
+
+static bool trans_UQSUB_zzi(DisasContext *s, arg_rri_esz *a, uint32_t insn)
+{
+    return do_zzi_sat(s, a, insn, true, true);
+}
+
+static bool do_zzi_ool(DisasContext *s, arg_rri_esz *a, gen_helper_gvec_2i *fn)
+{
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_i64 c = tcg_const_i64(a->imm);
+
+        tcg_gen_gvec_2i_ool(vec_full_reg_offset(s, a->rd),
+                            vec_full_reg_offset(s, a->rn),
+                            c, vsz, vsz, 0, fn);
+        tcg_temp_free_i64(c);
+    }
+    return true;
+}
+
+#define DO_ZZI(NAME, name) \
+static bool trans_##NAME##_zzi(DisasContext *s, arg_rri_esz *a,         \
+                               uint32_t insn)                           \
+{                                                                       \
+    static gen_helper_gvec_2i * const fns[4] = {                        \
+        gen_helper_sve_##name##i_b, gen_helper_sve_##name##i_h,         \
+        gen_helper_sve_##name##i_s, gen_helper_sve_##name##i_d,         \
+    };                                                                  \
+    return do_zzi_ool(s, a, fns[a->esz]);                               \
+}
+
+DO_ZZI(SMAX, smax)
+DO_ZZI(UMAX, umax)
+DO_ZZI(SMIN, smin)
+DO_ZZI(UMIN, umin)
+
+#undef DO_ZZI
+
+/*
+ *** SVE Floating Point Arithmetic - Unpredicated Group
+ */
+
+static bool do_zzz_fp(DisasContext *s, arg_rrr_esz *a,
+                      gen_helper_gvec_3_ptr *fn)
+{
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           status, vsz, vsz, 0, fn);
+        tcg_temp_free_ptr(status);
+    }
+    return true;
+}
+
+
+#define DO_FP3(NAME, name) \
+static bool trans_##NAME(DisasContext *s, arg_rrr_esz *a, uint32_t insn) \
+{                                                                   \
+    static gen_helper_gvec_3_ptr * const fns[4] = {                 \
+        NULL, gen_helper_gvec_##name##_h,                           \
+        gen_helper_gvec_##name##_s, gen_helper_gvec_##name##_d      \
+    };                                                              \
+    return do_zzz_fp(s, a, fns[a->esz]);                            \
+}
+
+DO_FP3(FADD_zzz, fadd)
+DO_FP3(FSUB_zzz, fsub)
+DO_FP3(FMUL_zzz, fmul)
+DO_FP3(FTSMUL, ftsmul)
+DO_FP3(FRECPS, recps)
+DO_FP3(FRSQRTS, rsqrts)
+
+#undef DO_FP3
 
 /*
  *** SVE Memory - 32-bit Gather and Unsized Contiguous Group

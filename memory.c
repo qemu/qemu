@@ -1799,6 +1799,9 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr,
     iommu_mr = IOMMU_MEMORY_REGION(mr);
     assert(n->notifier_flags != IOMMU_NOTIFIER_NONE);
     assert(n->start <= n->end);
+    assert(n->iommu_idx >= 0 &&
+           n->iommu_idx < memory_region_iommu_num_indexes(iommu_mr));
+
     QLIST_INSERT_HEAD(&iommu_mr->iommu_notify, n, node);
     memory_region_update_iommu_notify_flags(iommu_mr);
 }
@@ -1829,7 +1832,7 @@ void memory_region_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
     granularity = memory_region_iommu_get_min_page_size(iommu_mr);
 
     for (addr = 0; addr < memory_region_size(mr); addr += granularity) {
-        iotlb = imrc->translate(iommu_mr, addr, IOMMU_NONE);
+        iotlb = imrc->translate(iommu_mr, addr, IOMMU_NONE, n->iommu_idx);
         if (iotlb.perm != IOMMU_NONE) {
             n->notify(n, &iotlb);
         }
@@ -1891,6 +1894,7 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
 }
 
 void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
+                                int iommu_idx,
                                 IOMMUTLBEntry entry)
 {
     IOMMUNotifier *iommu_notifier;
@@ -1898,7 +1902,9 @@ void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
     assert(memory_region_is_iommu(MEMORY_REGION(iommu_mr)));
 
     IOMMU_NOTIFIER_FOREACH(iommu_notifier, iommu_mr) {
-        memory_region_notify_one(iommu_notifier, &entry);
+        if (iommu_notifier->iommu_idx == iommu_idx) {
+            memory_region_notify_one(iommu_notifier, &entry);
+        }
     }
 }
 
@@ -1913,6 +1919,29 @@ int memory_region_iommu_get_attr(IOMMUMemoryRegion *iommu_mr,
     }
 
     return imrc->get_attr(iommu_mr, attr, data);
+}
+
+int memory_region_iommu_attrs_to_index(IOMMUMemoryRegion *iommu_mr,
+                                       MemTxAttrs attrs)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
+
+    if (!imrc->attrs_to_index) {
+        return 0;
+    }
+
+    return imrc->attrs_to_index(iommu_mr, attrs);
+}
+
+int memory_region_iommu_num_indexes(IOMMUMemoryRegion *iommu_mr)
+{
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
+
+    if (!imrc->num_indexes) {
+        return 1;
+    }
+
+    return imrc->num_indexes(iommu_mr);
 }
 
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)

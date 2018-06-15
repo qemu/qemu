@@ -74,6 +74,28 @@ static uint32_t iter_predtest_fwd(uint64_t d, uint64_t g, uint32_t flags)
     return flags;
 }
 
+/* This is an iterative function, called for each Pd and Pg word
+ * moving backward.
+ */
+static uint32_t iter_predtest_bwd(uint64_t d, uint64_t g, uint32_t flags)
+{
+    if (likely(g)) {
+        /* Compute C from first (i.e last) !(D & G).
+           Use bit 2 to signal first G bit seen.  */
+        if (!(flags & 4)) {
+            flags += 4 - 1; /* add bit 2, subtract C from PREDTEST_INIT */
+            flags |= (d & pow2floor(g)) == 0;
+        }
+
+        /* Accumulate Z from each D & G.  */
+        flags |= ((d & g) != 0) << 1;
+
+        /* Compute N from last (i.e first) D & G.  Replace previous.  */
+        flags = deposit32(flags, 31, 1, (d & (g & -g)) != 0);
+    }
+    return flags;
+}
+
 /* The same for a single word predicate.  */
 uint32_t HELPER(sve_predtest1)(uint64_t d, uint64_t g)
 {
@@ -236,6 +258,26 @@ static inline uint64_t expand_pred_s(uint8_t byte)
         [0x11] = 0xffffffffffffffffull,
     };
     return word[byte & 0x11];
+}
+
+/* Swap 16-bit words within a 32-bit word.  */
+static inline uint32_t hswap32(uint32_t h)
+{
+    return rol32(h, 16);
+}
+
+/* Swap 16-bit words within a 64-bit word.  */
+static inline uint64_t hswap64(uint64_t h)
+{
+    uint64_t m = 0x0000ffff0000ffffull;
+    h = rol64(h, 32);
+    return ((h & m) << 16) | ((h >> 16) & m);
+}
+
+/* Swap 32-bit words within a 64-bit word.  */
+static inline uint64_t wswap64(uint64_t h)
+{
+    return rol64(h, 32);
 }
 
 #define LOGICAL_PPPP(NAME, FUNC) \
@@ -616,6 +658,20 @@ DO_ZPZ(sve_neg_h, uint16_t, H1_2, DO_NEG)
 DO_ZPZ(sve_neg_s, uint32_t, H1_4, DO_NEG)
 DO_ZPZ_D(sve_neg_d, uint64_t, DO_NEG)
 
+DO_ZPZ(sve_revb_h, uint16_t, H1_2, bswap16)
+DO_ZPZ(sve_revb_s, uint32_t, H1_4, bswap32)
+DO_ZPZ_D(sve_revb_d, uint64_t, bswap64)
+
+DO_ZPZ(sve_revh_s, uint32_t, H1_4, hswap32)
+DO_ZPZ_D(sve_revh_d, uint64_t, hswap64)
+
+DO_ZPZ_D(sve_revw_d, uint64_t, wswap64)
+
+DO_ZPZ(sve_rbit_b, uint8_t, H1, revbit8)
+DO_ZPZ(sve_rbit_h, uint16_t, H1_2, revbit16)
+DO_ZPZ(sve_rbit_s, uint32_t, H1_4, revbit32)
+DO_ZPZ_D(sve_rbit_d, uint64_t, revbit64)
+
 /* Three-operand expander, unpredicated, in which the third operand is "wide".
  */
 #define DO_ZZW(NAME, TYPE, TYPEW, H, OP)                       \
@@ -748,6 +804,46 @@ DO_VPZ_D(sve_uminv_d, uint64_t, uint64_t, -1, DO_MIN)
 #undef DO_VPZ
 #undef DO_VPZ_D
 
+/* Two vector operand, one scalar operand, unpredicated.  */
+#define DO_ZZI(NAME, TYPE, OP)                                       \
+void HELPER(NAME)(void *vd, void *vn, uint64_t s64, uint32_t desc)   \
+{                                                                    \
+    intptr_t i, opr_sz = simd_oprsz(desc) / sizeof(TYPE);            \
+    TYPE s = s64, *d = vd, *n = vn;                                  \
+    for (i = 0; i < opr_sz; ++i) {                                   \
+        d[i] = OP(n[i], s);                                          \
+    }                                                                \
+}
+
+#define DO_SUBR(X, Y)   (Y - X)
+
+DO_ZZI(sve_subri_b, uint8_t, DO_SUBR)
+DO_ZZI(sve_subri_h, uint16_t, DO_SUBR)
+DO_ZZI(sve_subri_s, uint32_t, DO_SUBR)
+DO_ZZI(sve_subri_d, uint64_t, DO_SUBR)
+
+DO_ZZI(sve_smaxi_b, int8_t, DO_MAX)
+DO_ZZI(sve_smaxi_h, int16_t, DO_MAX)
+DO_ZZI(sve_smaxi_s, int32_t, DO_MAX)
+DO_ZZI(sve_smaxi_d, int64_t, DO_MAX)
+
+DO_ZZI(sve_smini_b, int8_t, DO_MIN)
+DO_ZZI(sve_smini_h, int16_t, DO_MIN)
+DO_ZZI(sve_smini_s, int32_t, DO_MIN)
+DO_ZZI(sve_smini_d, int64_t, DO_MIN)
+
+DO_ZZI(sve_umaxi_b, uint8_t, DO_MAX)
+DO_ZZI(sve_umaxi_h, uint16_t, DO_MAX)
+DO_ZZI(sve_umaxi_s, uint32_t, DO_MAX)
+DO_ZZI(sve_umaxi_d, uint64_t, DO_MAX)
+
+DO_ZZI(sve_umini_b, uint8_t, DO_MIN)
+DO_ZZI(sve_umini_h, uint16_t, DO_MIN)
+DO_ZZI(sve_umini_s, uint32_t, DO_MIN)
+DO_ZZI(sve_umini_d, uint64_t, DO_MIN)
+
+#undef DO_ZZI
+
 #undef DO_AND
 #undef DO_ORR
 #undef DO_EOR
@@ -762,6 +858,7 @@ DO_VPZ_D(sve_uminv_d, uint64_t, uint64_t, -1, DO_MIN)
 #undef DO_ASR
 #undef DO_LSR
 #undef DO_LSL
+#undef DO_SUBR
 
 /* Similar to the ARM LastActiveElement pseudocode function, except the
    result is multiplied by the element size.  This includes the not found
@@ -1559,4 +1656,1157 @@ void HELPER(sve_ext)(void *vd, void *vn, void *vm, uint32_t desc)
         swap_memmove(vd, vd + n_ofs, n_siz);
         memcpy(vd + n_siz, &tmp, n_ofs);
     }
+}
+
+#define DO_INSR(NAME, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, uint64_t val, uint32_t desc) \
+{                                                                  \
+    intptr_t opr_sz = simd_oprsz(desc);                            \
+    swap_memmove(vd + sizeof(TYPE), vn, opr_sz - sizeof(TYPE));    \
+    *(TYPE *)(vd + H(0)) = val;                                    \
+}
+
+DO_INSR(sve_insr_b, uint8_t, H1)
+DO_INSR(sve_insr_h, uint16_t, H1_2)
+DO_INSR(sve_insr_s, uint32_t, H1_4)
+DO_INSR(sve_insr_d, uint64_t, )
+
+#undef DO_INSR
+
+void HELPER(sve_rev_b)(void *vd, void *vn, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc);
+    for (i = 0, j = opr_sz - 8; i < opr_sz / 2; i += 8, j -= 8) {
+        uint64_t f = *(uint64_t *)(vn + i);
+        uint64_t b = *(uint64_t *)(vn + j);
+        *(uint64_t *)(vd + i) = bswap64(b);
+        *(uint64_t *)(vd + j) = bswap64(f);
+    }
+}
+
+void HELPER(sve_rev_h)(void *vd, void *vn, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc);
+    for (i = 0, j = opr_sz - 8; i < opr_sz / 2; i += 8, j -= 8) {
+        uint64_t f = *(uint64_t *)(vn + i);
+        uint64_t b = *(uint64_t *)(vn + j);
+        *(uint64_t *)(vd + i) = hswap64(b);
+        *(uint64_t *)(vd + j) = hswap64(f);
+    }
+}
+
+void HELPER(sve_rev_s)(void *vd, void *vn, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc);
+    for (i = 0, j = opr_sz - 8; i < opr_sz / 2; i += 8, j -= 8) {
+        uint64_t f = *(uint64_t *)(vn + i);
+        uint64_t b = *(uint64_t *)(vn + j);
+        *(uint64_t *)(vd + i) = rol64(b, 32);
+        *(uint64_t *)(vd + j) = rol64(f, 32);
+    }
+}
+
+void HELPER(sve_rev_d)(void *vd, void *vn, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc);
+    for (i = 0, j = opr_sz - 8; i < opr_sz / 2; i += 8, j -= 8) {
+        uint64_t f = *(uint64_t *)(vn + i);
+        uint64_t b = *(uint64_t *)(vn + j);
+        *(uint64_t *)(vd + i) = b;
+        *(uint64_t *)(vd + j) = f;
+    }
+}
+
+#define DO_TBL(NAME, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc) \
+{                                                              \
+    intptr_t i, opr_sz = simd_oprsz(desc);                     \
+    uintptr_t elem = opr_sz / sizeof(TYPE);                    \
+    TYPE *d = vd, *n = vn, *m = vm;                            \
+    ARMVectorReg tmp;                                          \
+    if (unlikely(vd == vn)) {                                  \
+        n = memcpy(&tmp, vn, opr_sz);                          \
+    }                                                          \
+    for (i = 0; i < elem; i++) {                               \
+        TYPE j = m[H(i)];                                      \
+        d[H(i)] = j < elem ? n[H(j)] : 0;                      \
+    }                                                          \
+}
+
+DO_TBL(sve_tbl_b, uint8_t, H1)
+DO_TBL(sve_tbl_h, uint16_t, H2)
+DO_TBL(sve_tbl_s, uint32_t, H4)
+DO_TBL(sve_tbl_d, uint64_t, )
+
+#undef TBL
+
+#define DO_UNPK(NAME, TYPED, TYPES, HD, HS) \
+void HELPER(NAME)(void *vd, void *vn, uint32_t desc)           \
+{                                                              \
+    intptr_t i, opr_sz = simd_oprsz(desc);                     \
+    TYPED *d = vd;                                             \
+    TYPES *n = vn;                                             \
+    ARMVectorReg tmp;                                          \
+    if (unlikely(vn - vd < opr_sz)) {                          \
+        n = memcpy(&tmp, n, opr_sz / 2);                       \
+    }                                                          \
+    for (i = 0; i < opr_sz / sizeof(TYPED); i++) {             \
+        d[HD(i)] = n[HS(i)];                                   \
+    }                                                          \
+}
+
+DO_UNPK(sve_sunpk_h, int16_t, int8_t, H2, H1)
+DO_UNPK(sve_sunpk_s, int32_t, int16_t, H4, H2)
+DO_UNPK(sve_sunpk_d, int64_t, int32_t, , H4)
+
+DO_UNPK(sve_uunpk_h, uint16_t, uint8_t, H2, H1)
+DO_UNPK(sve_uunpk_s, uint32_t, uint16_t, H4, H2)
+DO_UNPK(sve_uunpk_d, uint64_t, uint32_t, , H4)
+
+#undef DO_UNPK
+
+/* Mask of bits included in the even numbered predicates of width esz.
+ * We also use this for expand_bits/compress_bits, and so extend the
+ * same pattern out to 16-bit units.
+ */
+static const uint64_t even_bit_esz_masks[5] = {
+    0x5555555555555555ull,
+    0x3333333333333333ull,
+    0x0f0f0f0f0f0f0f0full,
+    0x00ff00ff00ff00ffull,
+    0x0000ffff0000ffffull,
+};
+
+/* Zero-extend units of 2**N bits to units of 2**(N+1) bits.
+ * For N==0, this corresponds to the operation that in qemu/bitops.h
+ * we call half_shuffle64; this algorithm is from Hacker's Delight,
+ * section 7-2 Shuffling Bits.
+ */
+static uint64_t expand_bits(uint64_t x, int n)
+{
+    int i;
+
+    x &= 0xffffffffu;
+    for (i = 4; i >= n; i--) {
+        int sh = 1 << i;
+        x = ((x << sh) | x) & even_bit_esz_masks[i];
+    }
+    return x;
+}
+
+/* Compress units of 2**(N+1) bits to units of 2**N bits.
+ * For N==0, this corresponds to the operation that in qemu/bitops.h
+ * we call half_unshuffle64; this algorithm is from Hacker's Delight,
+ * section 7-2 Shuffling Bits, where it is called an inverse half shuffle.
+ */
+static uint64_t compress_bits(uint64_t x, int n)
+{
+    int i;
+
+    for (i = n; i <= 4; i++) {
+        int sh = 1 << i;
+        x &= even_bit_esz_masks[i];
+        x = (x >> sh) | x;
+    }
+    return x & 0xffffffffu;
+}
+
+void HELPER(sve_zip_p)(void *vd, void *vn, void *vm, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    int esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    intptr_t high = extract32(pred_desc, SIMD_DATA_SHIFT + 2, 1);
+    uint64_t *d = vd;
+    intptr_t i;
+
+    if (oprsz <= 8) {
+        uint64_t nn = *(uint64_t *)vn;
+        uint64_t mm = *(uint64_t *)vm;
+        int half = 4 * oprsz;
+
+        nn = extract64(nn, high * half, half);
+        mm = extract64(mm, high * half, half);
+        nn = expand_bits(nn, esz);
+        mm = expand_bits(mm, esz);
+        d[0] = nn + (mm << (1 << esz));
+    } else {
+        ARMPredicateReg tmp_n, tmp_m;
+
+        /* We produce output faster than we consume input.
+           Therefore we must be mindful of possible overlap.  */
+        if ((vn - vd) < (uintptr_t)oprsz) {
+            vn = memcpy(&tmp_n, vn, oprsz);
+        }
+        if ((vm - vd) < (uintptr_t)oprsz) {
+            vm = memcpy(&tmp_m, vm, oprsz);
+        }
+        if (high) {
+            high = oprsz >> 1;
+        }
+
+        if ((high & 3) == 0) {
+            uint32_t *n = vn, *m = vm;
+            high >>= 2;
+
+            for (i = 0; i < DIV_ROUND_UP(oprsz, 8); i++) {
+                uint64_t nn = n[H4(high + i)];
+                uint64_t mm = m[H4(high + i)];
+
+                nn = expand_bits(nn, esz);
+                mm = expand_bits(mm, esz);
+                d[i] = nn + (mm << (1 << esz));
+            }
+        } else {
+            uint8_t *n = vn, *m = vm;
+            uint16_t *d16 = vd;
+
+            for (i = 0; i < oprsz / 2; i++) {
+                uint16_t nn = n[H1(high + i)];
+                uint16_t mm = m[H1(high + i)];
+
+                nn = expand_bits(nn, esz);
+                mm = expand_bits(mm, esz);
+                d16[H2(i)] = nn + (mm << (1 << esz));
+            }
+        }
+    }
+}
+
+void HELPER(sve_uzp_p)(void *vd, void *vn, void *vm, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    int esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    int odd = extract32(pred_desc, SIMD_DATA_SHIFT + 2, 1) << esz;
+    uint64_t *d = vd, *n = vn, *m = vm;
+    uint64_t l, h;
+    intptr_t i;
+
+    if (oprsz <= 8) {
+        l = compress_bits(n[0] >> odd, esz);
+        h = compress_bits(m[0] >> odd, esz);
+        d[0] = extract64(l + (h << (4 * oprsz)), 0, 8 * oprsz);
+    } else {
+        ARMPredicateReg tmp_m;
+        intptr_t oprsz_16 = oprsz / 16;
+
+        if ((vm - vd) < (uintptr_t)oprsz) {
+            m = memcpy(&tmp_m, vm, oprsz);
+        }
+
+        for (i = 0; i < oprsz_16; i++) {
+            l = n[2 * i + 0];
+            h = n[2 * i + 1];
+            l = compress_bits(l >> odd, esz);
+            h = compress_bits(h >> odd, esz);
+            d[i] = l + (h << 32);
+        }
+
+        /* For VL which is not a power of 2, the results from M do not
+           align nicely with the uint64_t for D.  Put the aligned results
+           from M into TMP_M and then copy it into place afterward.  */
+        if (oprsz & 15) {
+            d[i] = compress_bits(n[2 * i] >> odd, esz);
+
+            for (i = 0; i < oprsz_16; i++) {
+                l = m[2 * i + 0];
+                h = m[2 * i + 1];
+                l = compress_bits(l >> odd, esz);
+                h = compress_bits(h >> odd, esz);
+                tmp_m.p[i] = l + (h << 32);
+            }
+            tmp_m.p[i] = compress_bits(m[2 * i] >> odd, esz);
+
+            swap_memmove(vd + oprsz / 2, &tmp_m, oprsz / 2);
+        } else {
+            for (i = 0; i < oprsz_16; i++) {
+                l = m[2 * i + 0];
+                h = m[2 * i + 1];
+                l = compress_bits(l >> odd, esz);
+                h = compress_bits(h >> odd, esz);
+                d[oprsz_16 + i] = l + (h << 32);
+            }
+        }
+    }
+}
+
+void HELPER(sve_trn_p)(void *vd, void *vn, void *vm, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    uintptr_t esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    bool odd = extract32(pred_desc, SIMD_DATA_SHIFT + 2, 1);
+    uint64_t *d = vd, *n = vn, *m = vm;
+    uint64_t mask;
+    int shr, shl;
+    intptr_t i;
+
+    shl = 1 << esz;
+    shr = 0;
+    mask = even_bit_esz_masks[esz];
+    if (odd) {
+        mask <<= shl;
+        shr = shl;
+        shl = 0;
+    }
+
+    for (i = 0; i < DIV_ROUND_UP(oprsz, 8); i++) {
+        uint64_t nn = (n[i] & mask) >> shr;
+        uint64_t mm = (m[i] & mask) << shl;
+        d[i] = nn + mm;
+    }
+}
+
+/* Reverse units of 2**N bits.  */
+static uint64_t reverse_bits_64(uint64_t x, int n)
+{
+    int i, sh;
+
+    x = bswap64(x);
+    for (i = 2, sh = 4; i >= n; i--, sh >>= 1) {
+        uint64_t mask = even_bit_esz_masks[i];
+        x = ((x & mask) << sh) | ((x >> sh) & mask);
+    }
+    return x;
+}
+
+static uint8_t reverse_bits_8(uint8_t x, int n)
+{
+    static const uint8_t mask[3] = { 0x55, 0x33, 0x0f };
+    int i, sh;
+
+    for (i = 2, sh = 4; i >= n; i--, sh >>= 1) {
+        x = ((x & mask[i]) << sh) | ((x >> sh) & mask[i]);
+    }
+    return x;
+}
+
+void HELPER(sve_rev_p)(void *vd, void *vn, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    int esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    intptr_t i, oprsz_2 = oprsz / 2;
+
+    if (oprsz <= 8) {
+        uint64_t l = *(uint64_t *)vn;
+        l = reverse_bits_64(l << (64 - 8 * oprsz), esz);
+        *(uint64_t *)vd = l;
+    } else if ((oprsz & 15) == 0) {
+        for (i = 0; i < oprsz_2; i += 8) {
+            intptr_t ih = oprsz - 8 - i;
+            uint64_t l = reverse_bits_64(*(uint64_t *)(vn + i), esz);
+            uint64_t h = reverse_bits_64(*(uint64_t *)(vn + ih), esz);
+            *(uint64_t *)(vd + i) = h;
+            *(uint64_t *)(vd + ih) = l;
+        }
+    } else {
+        for (i = 0; i < oprsz_2; i += 1) {
+            intptr_t il = H1(i);
+            intptr_t ih = H1(oprsz - 1 - i);
+            uint8_t l = reverse_bits_8(*(uint8_t *)(vn + il), esz);
+            uint8_t h = reverse_bits_8(*(uint8_t *)(vn + ih), esz);
+            *(uint8_t *)(vd + il) = h;
+            *(uint8_t *)(vd + ih) = l;
+        }
+    }
+}
+
+void HELPER(sve_punpk_p)(void *vd, void *vn, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    intptr_t high = extract32(pred_desc, SIMD_DATA_SHIFT + 2, 1);
+    uint64_t *d = vd;
+    intptr_t i;
+
+    if (oprsz <= 8) {
+        uint64_t nn = *(uint64_t *)vn;
+        int half = 4 * oprsz;
+
+        nn = extract64(nn, high * half, half);
+        nn = expand_bits(nn, 0);
+        d[0] = nn;
+    } else {
+        ARMPredicateReg tmp_n;
+
+        /* We produce output faster than we consume input.
+           Therefore we must be mindful of possible overlap.  */
+        if ((vn - vd) < (uintptr_t)oprsz) {
+            vn = memcpy(&tmp_n, vn, oprsz);
+        }
+        if (high) {
+            high = oprsz >> 1;
+        }
+
+        if ((high & 3) == 0) {
+            uint32_t *n = vn;
+            high >>= 2;
+
+            for (i = 0; i < DIV_ROUND_UP(oprsz, 8); i++) {
+                uint64_t nn = n[H4(high + i)];
+                d[i] = expand_bits(nn, 0);
+            }
+        } else {
+            uint16_t *d16 = vd;
+            uint8_t *n = vn;
+
+            for (i = 0; i < oprsz / 2; i++) {
+                uint16_t nn = n[H1(high + i)];
+                d16[H2(i)] = expand_bits(nn, 0);
+            }
+        }
+    }
+}
+
+#define DO_ZIP(NAME, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)       \
+{                                                                    \
+    intptr_t oprsz = simd_oprsz(desc);                               \
+    intptr_t i, oprsz_2 = oprsz / 2;                                 \
+    ARMVectorReg tmp_n, tmp_m;                                       \
+    /* We produce output faster than we consume input.               \
+       Therefore we must be mindful of possible overlap.  */         \
+    if (unlikely((vn - vd) < (uintptr_t)oprsz)) {                    \
+        vn = memcpy(&tmp_n, vn, oprsz_2);                            \
+    }                                                                \
+    if (unlikely((vm - vd) < (uintptr_t)oprsz)) {                    \
+        vm = memcpy(&tmp_m, vm, oprsz_2);                            \
+    }                                                                \
+    for (i = 0; i < oprsz_2; i += sizeof(TYPE)) {                    \
+        *(TYPE *)(vd + H(2 * i + 0)) = *(TYPE *)(vn + H(i));         \
+        *(TYPE *)(vd + H(2 * i + sizeof(TYPE))) = *(TYPE *)(vm + H(i)); \
+    }                                                                \
+}
+
+DO_ZIP(sve_zip_b, uint8_t, H1)
+DO_ZIP(sve_zip_h, uint16_t, H1_2)
+DO_ZIP(sve_zip_s, uint32_t, H1_4)
+DO_ZIP(sve_zip_d, uint64_t, )
+
+#define DO_UZP(NAME, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)         \
+{                                                                      \
+    intptr_t oprsz = simd_oprsz(desc);                                 \
+    intptr_t oprsz_2 = oprsz / 2;                                      \
+    intptr_t odd_ofs = simd_data(desc);                                \
+    intptr_t i;                                                        \
+    ARMVectorReg tmp_m;                                                \
+    if (unlikely((vm - vd) < (uintptr_t)oprsz)) {                      \
+        vm = memcpy(&tmp_m, vm, oprsz);                                \
+    }                                                                  \
+    for (i = 0; i < oprsz_2; i += sizeof(TYPE)) {                      \
+        *(TYPE *)(vd + H(i)) = *(TYPE *)(vn + H(2 * i + odd_ofs));     \
+    }                                                                  \
+    for (i = 0; i < oprsz_2; i += sizeof(TYPE)) {                      \
+        *(TYPE *)(vd + H(oprsz_2 + i)) = *(TYPE *)(vm + H(2 * i + odd_ofs)); \
+    }                                                                  \
+}
+
+DO_UZP(sve_uzp_b, uint8_t, H1)
+DO_UZP(sve_uzp_h, uint16_t, H1_2)
+DO_UZP(sve_uzp_s, uint32_t, H1_4)
+DO_UZP(sve_uzp_d, uint64_t, )
+
+#define DO_TRN(NAME, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc)         \
+{                                                                      \
+    intptr_t oprsz = simd_oprsz(desc);                                 \
+    intptr_t odd_ofs = simd_data(desc);                                \
+    intptr_t i;                                                        \
+    for (i = 0; i < oprsz; i += 2 * sizeof(TYPE)) {                    \
+        TYPE ae = *(TYPE *)(vn + H(i + odd_ofs));                      \
+        TYPE be = *(TYPE *)(vm + H(i + odd_ofs));                      \
+        *(TYPE *)(vd + H(i + 0)) = ae;                                 \
+        *(TYPE *)(vd + H(i + sizeof(TYPE))) = be;                      \
+    }                                                                  \
+}
+
+DO_TRN(sve_trn_b, uint8_t, H1)
+DO_TRN(sve_trn_h, uint16_t, H1_2)
+DO_TRN(sve_trn_s, uint32_t, H1_4)
+DO_TRN(sve_trn_d, uint64_t, )
+
+#undef DO_ZIP
+#undef DO_UZP
+#undef DO_TRN
+
+void HELPER(sve_compact_s)(void *vd, void *vn, void *vg, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc) / 4;
+    uint32_t *d = vd, *n = vn;
+    uint8_t *pg = vg;
+
+    for (i = j = 0; i < opr_sz; i++) {
+        if (pg[H1(i / 2)] & (i & 1 ? 0x10 : 0x01)) {
+            d[H4(j)] = n[H4(i)];
+            j++;
+        }
+    }
+    for (; j < opr_sz; j++) {
+        d[H4(j)] = 0;
+    }
+}
+
+void HELPER(sve_compact_d)(void *vd, void *vn, void *vg, uint32_t desc)
+{
+    intptr_t i, j, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd, *n = vn;
+    uint8_t *pg = vg;
+
+    for (i = j = 0; i < opr_sz; i++) {
+        if (pg[H1(i)] & 1) {
+            d[j] = n[i];
+            j++;
+        }
+    }
+    for (; j < opr_sz; j++) {
+        d[j] = 0;
+    }
+}
+
+/* Similar to the ARM LastActiveElement pseudocode function, except the
+ * result is multiplied by the element size.  This includes the not found
+ * indication; e.g. not found for esz=3 is -8.
+ */
+int32_t HELPER(sve_last_active_element)(void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    intptr_t esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+
+    return last_active_element(vg, DIV_ROUND_UP(oprsz, 8), esz);
+}
+
+void HELPER(sve_splice)(void *vd, void *vn, void *vm, void *vg, uint32_t desc)
+{
+    intptr_t opr_sz = simd_oprsz(desc) / 8;
+    int esz = simd_data(desc);
+    uint64_t pg, first_g, last_g, len, mask = pred_esz_masks[esz];
+    intptr_t i, first_i, last_i;
+    ARMVectorReg tmp;
+
+    first_i = last_i = 0;
+    first_g = last_g = 0;
+
+    /* Find the extent of the active elements within VG.  */
+    for (i = QEMU_ALIGN_UP(opr_sz, 8) - 8; i >= 0; i -= 8) {
+        pg = *(uint64_t *)(vg + i) & mask;
+        if (pg) {
+            if (last_g == 0) {
+                last_g = pg;
+                last_i = i;
+            }
+            first_g = pg;
+            first_i = i;
+        }
+    }
+
+    len = 0;
+    if (first_g != 0) {
+        first_i = first_i * 8 + ctz64(first_g);
+        last_i = last_i * 8 + 63 - clz64(last_g);
+        len = last_i - first_i + (1 << esz);
+        if (vd == vm) {
+            vm = memcpy(&tmp, vm, opr_sz * 8);
+        }
+        swap_memmove(vd, vn + first_i, len);
+    }
+    swap_memmove(vd + len, vm, opr_sz * 8 - len);
+}
+
+void HELPER(sve_sel_zpzz_b)(void *vd, void *vn, void *vm,
+                            void *vg, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd, *n = vn, *m = vm;
+    uint8_t *pg = vg;
+
+    for (i = 0; i < opr_sz; i += 1) {
+        uint64_t nn = n[i], mm = m[i];
+        uint64_t pp = expand_pred_b(pg[H1(i)]);
+        d[i] = (nn & pp) | (mm & ~pp);
+    }
+}
+
+void HELPER(sve_sel_zpzz_h)(void *vd, void *vn, void *vm,
+                            void *vg, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd, *n = vn, *m = vm;
+    uint8_t *pg = vg;
+
+    for (i = 0; i < opr_sz; i += 1) {
+        uint64_t nn = n[i], mm = m[i];
+        uint64_t pp = expand_pred_h(pg[H1(i)]);
+        d[i] = (nn & pp) | (mm & ~pp);
+    }
+}
+
+void HELPER(sve_sel_zpzz_s)(void *vd, void *vn, void *vm,
+                            void *vg, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd, *n = vn, *m = vm;
+    uint8_t *pg = vg;
+
+    for (i = 0; i < opr_sz; i += 1) {
+        uint64_t nn = n[i], mm = m[i];
+        uint64_t pp = expand_pred_s(pg[H1(i)]);
+        d[i] = (nn & pp) | (mm & ~pp);
+    }
+}
+
+void HELPER(sve_sel_zpzz_d)(void *vd, void *vn, void *vm,
+                            void *vg, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *d = vd, *n = vn, *m = vm;
+    uint8_t *pg = vg;
+
+    for (i = 0; i < opr_sz; i += 1) {
+        uint64_t nn = n[i], mm = m[i];
+        d[i] = (pg[H1(i)] & 1 ? nn : mm);
+    }
+}
+
+/* Two operand comparison controlled by a predicate.
+ * ??? It is very tempting to want to be able to expand this inline
+ * with x86 instructions, e.g.
+ *
+ *    vcmpeqw    zm, zn, %ymm0
+ *    vpmovmskb  %ymm0, %eax
+ *    and        $0x5555, %eax
+ *    and        pg, %eax
+ *
+ * or even aarch64, e.g.
+ *
+ *    // mask = 4000 1000 0400 0100 0040 0010 0004 0001
+ *    cmeq       v0.8h, zn, zm
+ *    and        v0.8h, v0.8h, mask
+ *    addv       h0, v0.8h
+ *    and        v0.8b, pg
+ *
+ * However, coming up with an abstraction that allows vector inputs and
+ * a scalar output, and also handles the byte-ordering of sub-uint64_t
+ * scalar outputs, is tricky.
+ */
+#define DO_CMP_PPZZ(NAME, TYPE, OP, H, MASK)                                 \
+uint32_t HELPER(NAME)(void *vd, void *vn, void *vm, void *vg, uint32_t desc) \
+{                                                                            \
+    intptr_t opr_sz = simd_oprsz(desc);                                      \
+    uint32_t flags = PREDTEST_INIT;                                          \
+    intptr_t i = opr_sz;                                                     \
+    do {                                                                     \
+        uint64_t out = 0, pg;                                                \
+        do {                                                                 \
+            i -= sizeof(TYPE), out <<= sizeof(TYPE);                         \
+            TYPE nn = *(TYPE *)(vn + H(i));                                  \
+            TYPE mm = *(TYPE *)(vm + H(i));                                  \
+            out |= nn OP mm;                                                 \
+        } while (i & 63);                                                    \
+        pg = *(uint64_t *)(vg + (i >> 3)) & MASK;                            \
+        out &= pg;                                                           \
+        *(uint64_t *)(vd + (i >> 3)) = out;                                  \
+        flags = iter_predtest_bwd(out, pg, flags);                           \
+    } while (i > 0);                                                         \
+    return flags;                                                            \
+}
+
+#define DO_CMP_PPZZ_B(NAME, TYPE, OP) \
+    DO_CMP_PPZZ(NAME, TYPE, OP, H1,   0xffffffffffffffffull)
+#define DO_CMP_PPZZ_H(NAME, TYPE, OP) \
+    DO_CMP_PPZZ(NAME, TYPE, OP, H1_2, 0x5555555555555555ull)
+#define DO_CMP_PPZZ_S(NAME, TYPE, OP) \
+    DO_CMP_PPZZ(NAME, TYPE, OP, H1_4, 0x1111111111111111ull)
+#define DO_CMP_PPZZ_D(NAME, TYPE, OP) \
+    DO_CMP_PPZZ(NAME, TYPE, OP,     , 0x0101010101010101ull)
+
+DO_CMP_PPZZ_B(sve_cmpeq_ppzz_b, uint8_t,  ==)
+DO_CMP_PPZZ_H(sve_cmpeq_ppzz_h, uint16_t, ==)
+DO_CMP_PPZZ_S(sve_cmpeq_ppzz_s, uint32_t, ==)
+DO_CMP_PPZZ_D(sve_cmpeq_ppzz_d, uint64_t, ==)
+
+DO_CMP_PPZZ_B(sve_cmpne_ppzz_b, uint8_t,  !=)
+DO_CMP_PPZZ_H(sve_cmpne_ppzz_h, uint16_t, !=)
+DO_CMP_PPZZ_S(sve_cmpne_ppzz_s, uint32_t, !=)
+DO_CMP_PPZZ_D(sve_cmpne_ppzz_d, uint64_t, !=)
+
+DO_CMP_PPZZ_B(sve_cmpgt_ppzz_b, int8_t,  >)
+DO_CMP_PPZZ_H(sve_cmpgt_ppzz_h, int16_t, >)
+DO_CMP_PPZZ_S(sve_cmpgt_ppzz_s, int32_t, >)
+DO_CMP_PPZZ_D(sve_cmpgt_ppzz_d, int64_t, >)
+
+DO_CMP_PPZZ_B(sve_cmpge_ppzz_b, int8_t,  >=)
+DO_CMP_PPZZ_H(sve_cmpge_ppzz_h, int16_t, >=)
+DO_CMP_PPZZ_S(sve_cmpge_ppzz_s, int32_t, >=)
+DO_CMP_PPZZ_D(sve_cmpge_ppzz_d, int64_t, >=)
+
+DO_CMP_PPZZ_B(sve_cmphi_ppzz_b, uint8_t,  >)
+DO_CMP_PPZZ_H(sve_cmphi_ppzz_h, uint16_t, >)
+DO_CMP_PPZZ_S(sve_cmphi_ppzz_s, uint32_t, >)
+DO_CMP_PPZZ_D(sve_cmphi_ppzz_d, uint64_t, >)
+
+DO_CMP_PPZZ_B(sve_cmphs_ppzz_b, uint8_t,  >=)
+DO_CMP_PPZZ_H(sve_cmphs_ppzz_h, uint16_t, >=)
+DO_CMP_PPZZ_S(sve_cmphs_ppzz_s, uint32_t, >=)
+DO_CMP_PPZZ_D(sve_cmphs_ppzz_d, uint64_t, >=)
+
+#undef DO_CMP_PPZZ_B
+#undef DO_CMP_PPZZ_H
+#undef DO_CMP_PPZZ_S
+#undef DO_CMP_PPZZ_D
+#undef DO_CMP_PPZZ
+
+/* Similar, but the second source is "wide".  */
+#define DO_CMP_PPZW(NAME, TYPE, TYPEW, OP, H, MASK)                     \
+uint32_t HELPER(NAME)(void *vd, void *vn, void *vm, void *vg, uint32_t desc) \
+{                                                                            \
+    intptr_t opr_sz = simd_oprsz(desc);                                      \
+    uint32_t flags = PREDTEST_INIT;                                          \
+    intptr_t i = opr_sz;                                                     \
+    do {                                                                     \
+        uint64_t out = 0, pg;                                                \
+        do {                                                                 \
+            TYPEW mm = *(TYPEW *)(vm + i - 8);                               \
+            do {                                                             \
+                i -= sizeof(TYPE), out <<= sizeof(TYPE);                     \
+                TYPE nn = *(TYPE *)(vn + H(i));                              \
+                out |= nn OP mm;                                             \
+            } while (i & 7);                                                 \
+        } while (i & 63);                                                    \
+        pg = *(uint64_t *)(vg + (i >> 3)) & MASK;                            \
+        out &= pg;                                                           \
+        *(uint64_t *)(vd + (i >> 3)) = out;                                  \
+        flags = iter_predtest_bwd(out, pg, flags);                           \
+    } while (i > 0);                                                         \
+    return flags;                                                            \
+}
+
+#define DO_CMP_PPZW_B(NAME, TYPE, TYPEW, OP) \
+    DO_CMP_PPZW(NAME, TYPE, TYPEW, OP, H1,   0xffffffffffffffffull)
+#define DO_CMP_PPZW_H(NAME, TYPE, TYPEW, OP) \
+    DO_CMP_PPZW(NAME, TYPE, TYPEW, OP, H1_2, 0x5555555555555555ull)
+#define DO_CMP_PPZW_S(NAME, TYPE, TYPEW, OP) \
+    DO_CMP_PPZW(NAME, TYPE, TYPEW, OP, H1_4, 0x1111111111111111ull)
+
+DO_CMP_PPZW_B(sve_cmpeq_ppzw_b, uint8_t,  uint64_t, ==)
+DO_CMP_PPZW_H(sve_cmpeq_ppzw_h, uint16_t, uint64_t, ==)
+DO_CMP_PPZW_S(sve_cmpeq_ppzw_s, uint32_t, uint64_t, ==)
+
+DO_CMP_PPZW_B(sve_cmpne_ppzw_b, uint8_t,  uint64_t, !=)
+DO_CMP_PPZW_H(sve_cmpne_ppzw_h, uint16_t, uint64_t, !=)
+DO_CMP_PPZW_S(sve_cmpne_ppzw_s, uint32_t, uint64_t, !=)
+
+DO_CMP_PPZW_B(sve_cmpgt_ppzw_b, int8_t,   int64_t, >)
+DO_CMP_PPZW_H(sve_cmpgt_ppzw_h, int16_t,  int64_t, >)
+DO_CMP_PPZW_S(sve_cmpgt_ppzw_s, int32_t,  int64_t, >)
+
+DO_CMP_PPZW_B(sve_cmpge_ppzw_b, int8_t,   int64_t, >=)
+DO_CMP_PPZW_H(sve_cmpge_ppzw_h, int16_t,  int64_t, >=)
+DO_CMP_PPZW_S(sve_cmpge_ppzw_s, int32_t,  int64_t, >=)
+
+DO_CMP_PPZW_B(sve_cmphi_ppzw_b, uint8_t,  uint64_t, >)
+DO_CMP_PPZW_H(sve_cmphi_ppzw_h, uint16_t, uint64_t, >)
+DO_CMP_PPZW_S(sve_cmphi_ppzw_s, uint32_t, uint64_t, >)
+
+DO_CMP_PPZW_B(sve_cmphs_ppzw_b, uint8_t,  uint64_t, >=)
+DO_CMP_PPZW_H(sve_cmphs_ppzw_h, uint16_t, uint64_t, >=)
+DO_CMP_PPZW_S(sve_cmphs_ppzw_s, uint32_t, uint64_t, >=)
+
+DO_CMP_PPZW_B(sve_cmplt_ppzw_b, int8_t,   int64_t, <)
+DO_CMP_PPZW_H(sve_cmplt_ppzw_h, int16_t,  int64_t, <)
+DO_CMP_PPZW_S(sve_cmplt_ppzw_s, int32_t,  int64_t, <)
+
+DO_CMP_PPZW_B(sve_cmple_ppzw_b, int8_t,   int64_t, <=)
+DO_CMP_PPZW_H(sve_cmple_ppzw_h, int16_t,  int64_t, <=)
+DO_CMP_PPZW_S(sve_cmple_ppzw_s, int32_t,  int64_t, <=)
+
+DO_CMP_PPZW_B(sve_cmplo_ppzw_b, uint8_t,  uint64_t, <)
+DO_CMP_PPZW_H(sve_cmplo_ppzw_h, uint16_t, uint64_t, <)
+DO_CMP_PPZW_S(sve_cmplo_ppzw_s, uint32_t, uint64_t, <)
+
+DO_CMP_PPZW_B(sve_cmpls_ppzw_b, uint8_t,  uint64_t, <=)
+DO_CMP_PPZW_H(sve_cmpls_ppzw_h, uint16_t, uint64_t, <=)
+DO_CMP_PPZW_S(sve_cmpls_ppzw_s, uint32_t, uint64_t, <=)
+
+#undef DO_CMP_PPZW_B
+#undef DO_CMP_PPZW_H
+#undef DO_CMP_PPZW_S
+#undef DO_CMP_PPZW
+
+/* Similar, but the second source is immediate.  */
+#define DO_CMP_PPZI(NAME, TYPE, OP, H, MASK)                         \
+uint32_t HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)   \
+{                                                                    \
+    intptr_t opr_sz = simd_oprsz(desc);                              \
+    uint32_t flags = PREDTEST_INIT;                                  \
+    TYPE mm = simd_data(desc);                                       \
+    intptr_t i = opr_sz;                                             \
+    do {                                                             \
+        uint64_t out = 0, pg;                                        \
+        do {                                                         \
+            i -= sizeof(TYPE), out <<= sizeof(TYPE);                 \
+            TYPE nn = *(TYPE *)(vn + H(i));                          \
+            out |= nn OP mm;                                         \
+        } while (i & 63);                                            \
+        pg = *(uint64_t *)(vg + (i >> 3)) & MASK;                    \
+        out &= pg;                                                   \
+        *(uint64_t *)(vd + (i >> 3)) = out;                          \
+        flags = iter_predtest_bwd(out, pg, flags);                   \
+    } while (i > 0);                                                 \
+    return flags;                                                    \
+}
+
+#define DO_CMP_PPZI_B(NAME, TYPE, OP) \
+    DO_CMP_PPZI(NAME, TYPE, OP, H1,   0xffffffffffffffffull)
+#define DO_CMP_PPZI_H(NAME, TYPE, OP) \
+    DO_CMP_PPZI(NAME, TYPE, OP, H1_2, 0x5555555555555555ull)
+#define DO_CMP_PPZI_S(NAME, TYPE, OP) \
+    DO_CMP_PPZI(NAME, TYPE, OP, H1_4, 0x1111111111111111ull)
+#define DO_CMP_PPZI_D(NAME, TYPE, OP) \
+    DO_CMP_PPZI(NAME, TYPE, OP,     , 0x0101010101010101ull)
+
+DO_CMP_PPZI_B(sve_cmpeq_ppzi_b, uint8_t,  ==)
+DO_CMP_PPZI_H(sve_cmpeq_ppzi_h, uint16_t, ==)
+DO_CMP_PPZI_S(sve_cmpeq_ppzi_s, uint32_t, ==)
+DO_CMP_PPZI_D(sve_cmpeq_ppzi_d, uint64_t, ==)
+
+DO_CMP_PPZI_B(sve_cmpne_ppzi_b, uint8_t,  !=)
+DO_CMP_PPZI_H(sve_cmpne_ppzi_h, uint16_t, !=)
+DO_CMP_PPZI_S(sve_cmpne_ppzi_s, uint32_t, !=)
+DO_CMP_PPZI_D(sve_cmpne_ppzi_d, uint64_t, !=)
+
+DO_CMP_PPZI_B(sve_cmpgt_ppzi_b, int8_t,  >)
+DO_CMP_PPZI_H(sve_cmpgt_ppzi_h, int16_t, >)
+DO_CMP_PPZI_S(sve_cmpgt_ppzi_s, int32_t, >)
+DO_CMP_PPZI_D(sve_cmpgt_ppzi_d, int64_t, >)
+
+DO_CMP_PPZI_B(sve_cmpge_ppzi_b, int8_t,  >=)
+DO_CMP_PPZI_H(sve_cmpge_ppzi_h, int16_t, >=)
+DO_CMP_PPZI_S(sve_cmpge_ppzi_s, int32_t, >=)
+DO_CMP_PPZI_D(sve_cmpge_ppzi_d, int64_t, >=)
+
+DO_CMP_PPZI_B(sve_cmphi_ppzi_b, uint8_t,  >)
+DO_CMP_PPZI_H(sve_cmphi_ppzi_h, uint16_t, >)
+DO_CMP_PPZI_S(sve_cmphi_ppzi_s, uint32_t, >)
+DO_CMP_PPZI_D(sve_cmphi_ppzi_d, uint64_t, >)
+
+DO_CMP_PPZI_B(sve_cmphs_ppzi_b, uint8_t,  >=)
+DO_CMP_PPZI_H(sve_cmphs_ppzi_h, uint16_t, >=)
+DO_CMP_PPZI_S(sve_cmphs_ppzi_s, uint32_t, >=)
+DO_CMP_PPZI_D(sve_cmphs_ppzi_d, uint64_t, >=)
+
+DO_CMP_PPZI_B(sve_cmplt_ppzi_b, int8_t,  <)
+DO_CMP_PPZI_H(sve_cmplt_ppzi_h, int16_t, <)
+DO_CMP_PPZI_S(sve_cmplt_ppzi_s, int32_t, <)
+DO_CMP_PPZI_D(sve_cmplt_ppzi_d, int64_t, <)
+
+DO_CMP_PPZI_B(sve_cmple_ppzi_b, int8_t,  <=)
+DO_CMP_PPZI_H(sve_cmple_ppzi_h, int16_t, <=)
+DO_CMP_PPZI_S(sve_cmple_ppzi_s, int32_t, <=)
+DO_CMP_PPZI_D(sve_cmple_ppzi_d, int64_t, <=)
+
+DO_CMP_PPZI_B(sve_cmplo_ppzi_b, uint8_t,  <)
+DO_CMP_PPZI_H(sve_cmplo_ppzi_h, uint16_t, <)
+DO_CMP_PPZI_S(sve_cmplo_ppzi_s, uint32_t, <)
+DO_CMP_PPZI_D(sve_cmplo_ppzi_d, uint64_t, <)
+
+DO_CMP_PPZI_B(sve_cmpls_ppzi_b, uint8_t,  <=)
+DO_CMP_PPZI_H(sve_cmpls_ppzi_h, uint16_t, <=)
+DO_CMP_PPZI_S(sve_cmpls_ppzi_s, uint32_t, <=)
+DO_CMP_PPZI_D(sve_cmpls_ppzi_d, uint64_t, <=)
+
+#undef DO_CMP_PPZI_B
+#undef DO_CMP_PPZI_H
+#undef DO_CMP_PPZI_S
+#undef DO_CMP_PPZI_D
+#undef DO_CMP_PPZI
+
+/* Similar to the ARM LastActive pseudocode function.  */
+static bool last_active_pred(void *vd, void *vg, intptr_t oprsz)
+{
+    intptr_t i;
+
+    for (i = QEMU_ALIGN_UP(oprsz, 8) - 8; i >= 0; i -= 8) {
+        uint64_t pg = *(uint64_t *)(vg + i);
+        if (pg) {
+            return (pow2floor(pg) & *(uint64_t *)(vd + i)) != 0;
+        }
+    }
+    return 0;
+}
+
+/* Compute a mask into RETB that is true for all G, up to and including
+ * (if after) or excluding (if !after) the first G & N.
+ * Return true if BRK found.
+ */
+static bool compute_brk(uint64_t *retb, uint64_t n, uint64_t g,
+                        bool brk, bool after)
+{
+    uint64_t b;
+
+    if (brk) {
+        b = 0;
+    } else if ((g & n) == 0) {
+        /* For all G, no N are set; break not found.  */
+        b = g;
+    } else {
+        /* Break somewhere in N.  Locate it.  */
+        b = g & n;            /* guard true, pred true */
+        b = b & -b;           /* first such */
+        if (after) {
+            b = b | (b - 1);  /* break after same */
+        } else {
+            b = b - 1;        /* break before same */
+        }
+        brk = true;
+    }
+
+    *retb = b;
+    return brk;
+}
+
+/* Compute a zeroing BRK.  */
+static void compute_brk_z(uint64_t *d, uint64_t *n, uint64_t *g,
+                          intptr_t oprsz, bool after)
+{
+    bool brk = false;
+    intptr_t i;
+
+    for (i = 0; i < DIV_ROUND_UP(oprsz, 8); ++i) {
+        uint64_t this_b, this_g = g[i];
+
+        brk = compute_brk(&this_b, n[i], this_g, brk, after);
+        d[i] = this_b & this_g;
+    }
+}
+
+/* Likewise, but also compute flags.  */
+static uint32_t compute_brks_z(uint64_t *d, uint64_t *n, uint64_t *g,
+                               intptr_t oprsz, bool after)
+{
+    uint32_t flags = PREDTEST_INIT;
+    bool brk = false;
+    intptr_t i;
+
+    for (i = 0; i < DIV_ROUND_UP(oprsz, 8); ++i) {
+        uint64_t this_b, this_d, this_g = g[i];
+
+        brk = compute_brk(&this_b, n[i], this_g, brk, after);
+        d[i] = this_d = this_b & this_g;
+        flags = iter_predtest_fwd(this_d, this_g, flags);
+    }
+    return flags;
+}
+
+/* Compute a merging BRK.  */
+static void compute_brk_m(uint64_t *d, uint64_t *n, uint64_t *g,
+                          intptr_t oprsz, bool after)
+{
+    bool brk = false;
+    intptr_t i;
+
+    for (i = 0; i < DIV_ROUND_UP(oprsz, 8); ++i) {
+        uint64_t this_b, this_g = g[i];
+
+        brk = compute_brk(&this_b, n[i], this_g, brk, after);
+        d[i] = (this_b & this_g) | (d[i] & ~this_g);
+    }
+}
+
+/* Likewise, but also compute flags.  */
+static uint32_t compute_brks_m(uint64_t *d, uint64_t *n, uint64_t *g,
+                               intptr_t oprsz, bool after)
+{
+    uint32_t flags = PREDTEST_INIT;
+    bool brk = false;
+    intptr_t i;
+
+    for (i = 0; i < oprsz / 8; ++i) {
+        uint64_t this_b, this_d = d[i], this_g = g[i];
+
+        brk = compute_brk(&this_b, n[i], this_g, brk, after);
+        d[i] = this_d = (this_b & this_g) | (this_d & ~this_g);
+        flags = iter_predtest_fwd(this_d, this_g, flags);
+    }
+    return flags;
+}
+
+static uint32_t do_zero(ARMPredicateReg *d, intptr_t oprsz)
+{
+    /* It is quicker to zero the whole predicate than loop on OPRSZ.
+     * The compiler should turn this into 4 64-bit integer stores.
+     */
+    memset(d, 0, sizeof(ARMPredicateReg));
+    return PREDTEST_INIT;
+}
+
+void HELPER(sve_brkpa)(void *vd, void *vn, void *vm, void *vg,
+                       uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    if (last_active_pred(vn, vg, oprsz)) {
+        compute_brk_z(vd, vm, vg, oprsz, true);
+    } else {
+        do_zero(vd, oprsz);
+    }
+}
+
+uint32_t HELPER(sve_brkpas)(void *vd, void *vn, void *vm, void *vg,
+                            uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    if (last_active_pred(vn, vg, oprsz)) {
+        return compute_brks_z(vd, vm, vg, oprsz, true);
+    } else {
+        return do_zero(vd, oprsz);
+    }
+}
+
+void HELPER(sve_brkpb)(void *vd, void *vn, void *vm, void *vg,
+                       uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    if (last_active_pred(vn, vg, oprsz)) {
+        compute_brk_z(vd, vm, vg, oprsz, false);
+    } else {
+        do_zero(vd, oprsz);
+    }
+}
+
+uint32_t HELPER(sve_brkpbs)(void *vd, void *vn, void *vm, void *vg,
+                            uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    if (last_active_pred(vn, vg, oprsz)) {
+        return compute_brks_z(vd, vm, vg, oprsz, false);
+    } else {
+        return do_zero(vd, oprsz);
+    }
+}
+
+void HELPER(sve_brka_z)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    compute_brk_z(vd, vn, vg, oprsz, true);
+}
+
+uint32_t HELPER(sve_brkas_z)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    return compute_brks_z(vd, vn, vg, oprsz, true);
+}
+
+void HELPER(sve_brkb_z)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    compute_brk_z(vd, vn, vg, oprsz, false);
+}
+
+uint32_t HELPER(sve_brkbs_z)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    return compute_brks_z(vd, vn, vg, oprsz, false);
+}
+
+void HELPER(sve_brka_m)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    compute_brk_m(vd, vn, vg, oprsz, true);
+}
+
+uint32_t HELPER(sve_brkas_m)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    return compute_brks_m(vd, vn, vg, oprsz, true);
+}
+
+void HELPER(sve_brkb_m)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    compute_brk_m(vd, vn, vg, oprsz, false);
+}
+
+uint32_t HELPER(sve_brkbs_m)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    return compute_brks_m(vd, vn, vg, oprsz, false);
+}
+
+void HELPER(sve_brkn)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+
+    if (!last_active_pred(vn, vg, oprsz)) {
+        do_zero(vd, oprsz);
+    }
+}
+
+/* As if PredTest(Ones(PL), D, esz).  */
+static uint32_t predtest_ones(ARMPredicateReg *d, intptr_t oprsz,
+                              uint64_t esz_mask)
+{
+    uint32_t flags = PREDTEST_INIT;
+    intptr_t i;
+
+    for (i = 0; i < oprsz / 8; i++) {
+        flags = iter_predtest_fwd(d->p[i], esz_mask, flags);
+    }
+    if (oprsz & 7) {
+        uint64_t mask = ~(-1ULL << (8 * (oprsz & 7)));
+        flags = iter_predtest_fwd(d->p[i], esz_mask & mask, flags);
+    }
+    return flags;
+}
+
+uint32_t HELPER(sve_brkns)(void *vd, void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+
+    if (last_active_pred(vn, vg, oprsz)) {
+        return predtest_ones(vd, oprsz, -1);
+    } else {
+        return do_zero(vd, oprsz);
+    }
+}
+
+uint64_t HELPER(sve_cntp)(void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    intptr_t esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    uint64_t *n = vn, *g = vg, sum = 0, mask = pred_esz_masks[esz];
+    intptr_t i;
+
+    for (i = 0; i < DIV_ROUND_UP(oprsz, 8); ++i) {
+        uint64_t t = n[i] & g[i] & mask;
+        sum += ctpop64(t);
+    }
+    return sum;
+}
+
+uint32_t HELPER(sve_while)(void *vd, uint32_t count, uint32_t pred_desc)
+{
+    uintptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    intptr_t esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    uint64_t esz_mask = pred_esz_masks[esz];
+    ARMPredicateReg *d = vd;
+    uint32_t flags;
+    intptr_t i;
+
+    /* Begin with a zero predicate register.  */
+    flags = do_zero(d, oprsz);
+    if (count == 0) {
+        return flags;
+    }
+
+    /* Scale from predicate element count to bits.  */
+    count <<= esz;
+    /* Bound to the bits in the predicate.  */
+    count = MIN(count, oprsz * 8);
+
+    /* Set all of the requested bits.  */
+    for (i = 0; i < count / 64; ++i) {
+        d->p[i] = esz_mask;
+    }
+    if (count & 63) {
+        d->p[i] = MAKE_64BIT_MASK(0, count & 63) & esz_mask;
+    }
+
+    return predtest_ones(d, oprsz, esz_mask);
 }

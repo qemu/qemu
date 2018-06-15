@@ -698,6 +698,7 @@ static void complete_collecting_data(Flash *s)
         case MAN_MACRONIX:
             s->quad_enable = extract32(s->data[0], 6, 1);
             if (s->len > 1) {
+                s->volatile_cfg = s->data[1];
                 s->four_bytes_address_mode = extract32(s->data[1], 5, 1);
             }
             break;

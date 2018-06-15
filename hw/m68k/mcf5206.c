@@ -512,19 +512,43 @@ static void m5206_mbar_writel(void *opaque, hwaddr offset,
     m5206_mbar_write(s, offset, value, 4);
 }
 
+static uint64_t m5206_mbar_readfn(void *opaque, hwaddr addr, unsigned size)
+{
+    switch (size) {
+    case 1:
+        return m5206_mbar_readb(opaque, addr);
+    case 2:
+        return m5206_mbar_readw(opaque, addr);
+    case 4:
+        return m5206_mbar_readl(opaque, addr);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void m5206_mbar_writefn(void *opaque, hwaddr addr,
+                               uint64_t value, unsigned size)
+{
+    switch (size) {
+    case 1:
+        m5206_mbar_writeb(opaque, addr, value);
+        break;
+    case 2:
+        m5206_mbar_writew(opaque, addr, value);
+        break;
+    case 4:
+        m5206_mbar_writel(opaque, addr, value);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static const MemoryRegionOps m5206_mbar_ops = {
-    .old_mmio = {
-        .read = {
-            m5206_mbar_readb,
-            m5206_mbar_readw,
-            m5206_mbar_readl,
-        },
-        .write = {
-            m5206_mbar_writeb,
-            m5206_mbar_writew,
-            m5206_mbar_writel,
-        },
-    },
+    .read = m5206_mbar_readfn,
+    .write = m5206_mbar_writefn,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

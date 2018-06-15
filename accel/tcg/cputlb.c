@@ -632,7 +632,8 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     }
 
     sz = size;
-    section = address_space_translate_for_iotlb(cpu, asidx, paddr, &xlat, &sz);
+    section = address_space_translate_for_iotlb(cpu, asidx, paddr, &xlat, &sz,
+                                                attrs, &prot);
     assert(sz >= TARGET_PAGE_SIZE);
 
     tlb_debug("vaddr=" TARGET_FMT_lx " paddr=0x" TARGET_FMT_plx
@@ -664,6 +665,18 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     env->iotlb_v[mmu_idx][vidx] = env->iotlb[mmu_idx][index];
 
     /* refill the tlb */
+    /*
+     * At this point iotlb contains a physical section number in the lower
+     * TARGET_PAGE_BITS, and either
+     *  + the ram_addr_t of the page base of the target RAM (if NOTDIRTY or ROM)
+     *  + the offset within section->mr of the page base (otherwise)
+     * We subtract the vaddr (which is page aligned and thus won't
+     * disturb the low bits) to give an offset which can be added to the
+     * (non-page-aligned) vaddr of the eventual memory access to get
+     * the MemoryRegion offset for the access. Note that the vaddr we
+     * subtract here is that of the page base, and not the same as the
+     * vaddr we add back in io_readx()/io_writex()/get_page_addr_code().
+     */
     env->iotlb[mmu_idx][index].addr = iotlb - vaddr;
     env->iotlb[mmu_idx][index].attrs = attrs;
 
@@ -765,13 +778,16 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
                          target_ulong addr, uintptr_t retaddr, int size)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    hwaddr physaddr = iotlbentry->addr;
-    MemoryRegion *mr = iotlb_to_region(cpu, physaddr, iotlbentry->attrs);
+    hwaddr mr_offset;
+    MemoryRegionSection *section;
+    MemoryRegion *mr;
     uint64_t val;
     bool locked = false;
     MemTxResult r;
 
-    physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
+    section = iotlb_to_section(cpu, iotlbentry->addr, iotlbentry->attrs);
+    mr = section->mr;
+    mr_offset = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
     cpu->mem_io_pc = retaddr;
     if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
@@ -783,9 +799,13 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
         qemu_mutex_lock_iothread();
         locked = true;
     }
-    r = memory_region_dispatch_read(mr, physaddr,
+    r = memory_region_dispatch_read(mr, mr_offset,
                                     &val, size, iotlbentry->attrs);
     if (r != MEMTX_OK) {
+        hwaddr physaddr = mr_offset +
+            section->offset_within_address_space -
+            section->offset_within_region;
+
         cpu_transaction_failed(cpu, physaddr, addr, size, MMU_DATA_LOAD,
                                mmu_idx, iotlbentry->attrs, r, retaddr);
     }
@@ -802,12 +822,15 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
                       uintptr_t retaddr, int size)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    hwaddr physaddr = iotlbentry->addr;
-    MemoryRegion *mr = iotlb_to_region(cpu, physaddr, iotlbentry->attrs);
+    hwaddr mr_offset;
+    MemoryRegionSection *section;
+    MemoryRegion *mr;
     bool locked = false;
     MemTxResult r;
 
-    physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
+    section = iotlb_to_section(cpu, iotlbentry->addr, iotlbentry->attrs);
+    mr = section->mr;
+    mr_offset = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
     if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
@@ -818,9 +841,13 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
         qemu_mutex_lock_iothread();
         locked = true;
     }
-    r = memory_region_dispatch_write(mr, physaddr,
+    r = memory_region_dispatch_write(mr, mr_offset,
                                      val, size, iotlbentry->attrs);
     if (r != MEMTX_OK) {
+        hwaddr physaddr = mr_offset +
+            section->offset_within_address_space -
+            section->offset_within_region;
+
         cpu_transaction_failed(cpu, physaddr, addr, size, MMU_DATA_STORE,
                                mmu_idx, iotlbentry->attrs, r, retaddr);
     }
@@ -868,12 +895,13 @@ static bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
  */
 tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
 {
-    int mmu_idx, index, pd;
+    int mmu_idx, index;
     void *p;
     MemoryRegion *mr;
+    MemoryRegionSection *section;
     CPUState *cpu = ENV_GET_CPU(env);
     CPUIOTLBEntry *iotlbentry;
-    hwaddr physaddr;
+    hwaddr physaddr, mr_offset;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = cpu_mmu_index(env, true);
@@ -884,8 +912,8 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
         }
     }
     iotlbentry = &env->iotlb[mmu_idx][index];
-    pd = iotlbentry->addr & ~TARGET_PAGE_MASK;
-    mr = iotlb_to_region(cpu, pd, iotlbentry->attrs);
+    section = iotlb_to_section(cpu, iotlbentry->addr, iotlbentry->attrs);
+    mr = section->mr;
     if (memory_region_is_unassigned(mr)) {
         qemu_mutex_lock_iothread();
         if (memory_region_request_mmio_ptr(mr, addr)) {
@@ -906,7 +934,10 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
          * and use the MemTXResult it produced). However it is the
          * simplest place we have currently available for the check.
          */
-        physaddr = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
+        mr_offset = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
+        physaddr = mr_offset +
+            section->offset_within_address_space -
+            section->offset_within_region;
         cpu_transaction_failed(cpu, physaddr, addr, 0, MMU_INST_FETCH, mmu_idx,
                                iotlbentry->attrs, MEMTX_DECODE_ERROR, 0);
 

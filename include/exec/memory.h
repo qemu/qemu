@@ -98,18 +98,21 @@ struct IOMMUNotifier {
     /* Notify for address space range start <= addr <= end */
     hwaddr start;
     hwaddr end;
+    int iommu_idx;
     QLIST_ENTRY(IOMMUNotifier) node;
 };
 typedef struct IOMMUNotifier IOMMUNotifier;
 
 static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
                                        IOMMUNotifierFlag flags,
-                                       hwaddr start, hwaddr end)
+                                       hwaddr start, hwaddr end,
+                                       int iommu_idx)
 {
     n->notify = fn;
     n->notifier_flags = flags;
     n->start = start;
     n->end = end;
+    n->iommu_idx = iommu_idx;
 }
 
 /*
@@ -206,6 +209,20 @@ enum IOMMUMemoryRegionAttr {
  * to report whenever mappings are changed, by calling
  * memory_region_notify_iommu() (or, if necessary, by calling
  * memory_region_notify_one() for each registered notifier).
+ *
+ * Conceptually an IOMMU provides a mapping from input address
+ * to an output TLB entry. If the IOMMU is aware of memory transaction
+ * attributes and the output TLB entry depends on the transaction
+ * attributes, we represent this using IOMMU indexes. Each index
+ * selects a particular translation table that the IOMMU has:
+ *   @attrs_to_index returns the IOMMU index for a set of transaction attributes
+ *   @translate takes an input address and an IOMMU index
+ * and the mapping returned can only depend on the input address and the
+ * IOMMU index.
+ *
+ * Most IOMMUs don't care about the transaction attributes and support
+ * only a single IOMMU index. A more complex IOMMU might have one index
+ * for secure transactions and one for non-secure transactions.
  */
 typedef struct IOMMUMemoryRegionClass {
     /* private */
@@ -234,9 +251,10 @@ typedef struct IOMMUMemoryRegionClass {
      * @iommu: the IOMMUMemoryRegion
      * @hwaddr: address to be translated within the memory region
      * @flag: requested access permissions
+     * @iommu_idx: IOMMU index for the translation
      */
     IOMMUTLBEntry (*translate)(IOMMUMemoryRegion *iommu, hwaddr addr,
-                               IOMMUAccessFlags flag);
+                               IOMMUAccessFlags flag, int iommu_idx);
     /* Returns minimum supported page size in bytes.
      * If this method is not provided then the minimum is assumed to
      * be TARGET_PAGE_SIZE.
@@ -290,6 +308,29 @@ typedef struct IOMMUMemoryRegionClass {
      */
     int (*get_attr)(IOMMUMemoryRegion *iommu, enum IOMMUMemoryRegionAttr attr,
                     void *data);
+
+    /* Return the IOMMU index to use for a given set of transaction attributes.
+     *
+     * Optional method: if an IOMMU only supports a single IOMMU index then
+     * the default implementation of memory_region_iommu_attrs_to_index()
+     * will return 0.
+     *
+     * The indexes supported by an IOMMU must be contiguous, starting at 0.
+     *
+     * @iommu: the IOMMUMemoryRegion
+     * @attrs: memory transaction attributes
+     */
+    int (*attrs_to_index)(IOMMUMemoryRegion *iommu, MemTxAttrs attrs);
+
+    /* Return the number of IOMMU indexes this IOMMU supports.
+     *
+     * Optional method: if this method is not provided, then
+     * memory_region_iommu_num_indexes() will return 1, indicating that
+     * only a single IOMMU index is supported.
+     *
+     * @iommu: the IOMMUMemoryRegion
+     */
+    int (*num_indexes)(IOMMUMemoryRegion *iommu);
 } IOMMUMemoryRegionClass;
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
@@ -971,11 +1012,13 @@ uint64_t memory_region_iommu_get_min_page_size(IOMMUMemoryRegion *iommu_mr);
  * should be notified with an UNMAP followed by a MAP.
  *
  * @iommu_mr: the memory region that was changed
+ * @iommu_idx: the IOMMU index for the translation table which has changed
  * @entry: the new entry in the IOMMU translation table.  The entry
  *         replaces all old entries for the same virtual I/O address range.
  *         Deleted entries have .@perm == 0.
  */
 void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
+                                int iommu_idx,
                                 IOMMUTLBEntry entry);
 
 /**
@@ -1053,6 +1096,24 @@ void memory_region_unregister_iommu_notifier(MemoryRegion *mr,
 int memory_region_iommu_get_attr(IOMMUMemoryRegion *iommu_mr,
                                  enum IOMMUMemoryRegionAttr attr,
                                  void *data);
+
+/**
+ * memory_region_iommu_attrs_to_index: return the IOMMU index to
+ * use for translations with the given memory transaction attributes.
+ *
+ * @iommu_mr: the memory region
+ * @attrs: the memory transaction attributes
+ */
+int memory_region_iommu_attrs_to_index(IOMMUMemoryRegion *iommu_mr,
+                                       MemTxAttrs attrs);
+
+/**
+ * memory_region_iommu_num_indexes: return the total number of IOMMU
+ * indexes that this IOMMU supports.
+ *
+ * @iommu_mr: the memory region
+ */
+int memory_region_iommu_num_indexes(IOMMUMemoryRegion *iommu_mr);
 
 /**
  * memory_region_name: get a memory region's name

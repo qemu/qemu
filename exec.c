@@ -501,8 +501,15 @@ static MemoryRegionSection address_space_translate_iommu(IOMMUMemoryRegion *iomm
     do {
         hwaddr addr = *xlat;
         IOMMUMemoryRegionClass *imrc = memory_region_get_iommu_class_nocheck(iommu_mr);
-        IOMMUTLBEntry iotlb = imrc->translate(iommu_mr, addr, is_write ?
-                                              IOMMU_WO : IOMMU_RO);
+        int iommu_idx = 0;
+        IOMMUTLBEntry iotlb;
+
+        if (imrc->attrs_to_index) {
+            iommu_idx = imrc->attrs_to_index(iommu_mr, attrs);
+        }
+
+        iotlb = imrc->translate(iommu_mr, addr, is_write ?
+                                IOMMU_WO : IOMMU_RO, iommu_idx);
 
         if (!(iotlb.perm & (1 << is_write))) {
             goto unassigned;
@@ -646,18 +653,144 @@ MemoryRegion *flatview_translate(FlatView *fv, hwaddr addr, hwaddr *xlat,
     return mr;
 }
 
+typedef struct TCGIOMMUNotifier {
+    IOMMUNotifier n;
+    MemoryRegion *mr;
+    CPUState *cpu;
+    int iommu_idx;
+    bool active;
+} TCGIOMMUNotifier;
+
+static void tcg_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
+{
+    TCGIOMMUNotifier *notifier = container_of(n, TCGIOMMUNotifier, n);
+
+    if (!notifier->active) {
+        return;
+    }
+    tlb_flush(notifier->cpu);
+    notifier->active = false;
+    /* We leave the notifier struct on the list to avoid reallocating it later.
+     * Generally the number of IOMMUs a CPU deals with will be small.
+     * In any case we can't unregister the iommu notifier from a notify
+     * callback.
+     */
+}
+
+static void tcg_register_iommu_notifier(CPUState *cpu,
+                                        IOMMUMemoryRegion *iommu_mr,
+                                        int iommu_idx)
+{
+    /* Make sure this CPU has an IOMMU notifier registered for this
+     * IOMMU/IOMMU index combination, so that we can flush its TLB
+     * when the IOMMU tells us the mappings we've cached have changed.
+     */
+    MemoryRegion *mr = MEMORY_REGION(iommu_mr);
+    TCGIOMMUNotifier *notifier;
+    int i;
+
+    for (i = 0; i < cpu->iommu_notifiers->len; i++) {
+        notifier = &g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier, i);
+        if (notifier->mr == mr && notifier->iommu_idx == iommu_idx) {
+            break;
+        }
+    }
+    if (i == cpu->iommu_notifiers->len) {
+        /* Not found, add a new entry at the end of the array */
+        cpu->iommu_notifiers = g_array_set_size(cpu->iommu_notifiers, i + 1);
+        notifier = &g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier, i);
+
+        notifier->mr = mr;
+        notifier->iommu_idx = iommu_idx;
+        notifier->cpu = cpu;
+        /* Rather than trying to register interest in the specific part
+         * of the iommu's address space that we've accessed and then
+         * expand it later as subsequent accesses touch more of it, we
+         * just register interest in the whole thing, on the assumption
+         * that iommu reconfiguration will be rare.
+         */
+        iommu_notifier_init(&notifier->n,
+                            tcg_iommu_unmap_notify,
+                            IOMMU_NOTIFIER_UNMAP,
+                            0,
+                            HWADDR_MAX,
+                            iommu_idx);
+        memory_region_register_iommu_notifier(notifier->mr, &notifier->n);
+    }
+
+    if (!notifier->active) {
+        notifier->active = true;
+    }
+}
+
+static void tcg_iommu_free_notifier_list(CPUState *cpu)
+{
+    /* Destroy the CPU's notifier list */
+    int i;
+    TCGIOMMUNotifier *notifier;
+
+    for (i = 0; i < cpu->iommu_notifiers->len; i++) {
+        notifier = &g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier, i);
+        memory_region_unregister_iommu_notifier(notifier->mr, &notifier->n);
+    }
+    g_array_free(cpu->iommu_notifiers, true);
+}
+
 /* Called from RCU critical section */
 MemoryRegionSection *
 address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
-                                  hwaddr *xlat, hwaddr *plen)
+                                  hwaddr *xlat, hwaddr *plen,
+                                  MemTxAttrs attrs, int *prot)
 {
     MemoryRegionSection *section;
+    IOMMUMemoryRegion *iommu_mr;
+    IOMMUMemoryRegionClass *imrc;
+    IOMMUTLBEntry iotlb;
+    int iommu_idx;
     AddressSpaceDispatch *d = atomic_rcu_read(&cpu->cpu_ases[asidx].memory_dispatch);
 
-    section = address_space_translate_internal(d, addr, xlat, plen, false);
+    for (;;) {
+        section = address_space_translate_internal(d, addr, &addr, plen, false);
+
+        iommu_mr = memory_region_get_iommu(section->mr);
+        if (!iommu_mr) {
+            break;
+        }
+
+        imrc = memory_region_get_iommu_class_nocheck(iommu_mr);
+
+        iommu_idx = imrc->attrs_to_index(iommu_mr, attrs);
+        tcg_register_iommu_notifier(cpu, iommu_mr, iommu_idx);
+        /* We need all the permissions, so pass IOMMU_NONE so the IOMMU
+         * doesn't short-cut its translation table walk.
+         */
+        iotlb = imrc->translate(iommu_mr, addr, IOMMU_NONE, iommu_idx);
+        addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
+                | (addr & iotlb.addr_mask));
+        /* Update the caller's prot bits to remove permissions the IOMMU
+         * is giving us a failure response for. If we get down to no
+         * permissions left at all we can give up now.
+         */
+        if (!(iotlb.perm & IOMMU_RO)) {
+            *prot &= ~(PAGE_READ | PAGE_EXEC);
+        }
+        if (!(iotlb.perm & IOMMU_WO)) {
+            *prot &= ~PAGE_WRITE;
+        }
+
+        if (!*prot) {
+            goto translate_fail;
+        }
+
+        d = flatview_to_dispatch(address_space_to_flatview(iotlb.target_as));
+    }
 
     assert(!memory_region_is_iommu(section->mr));
+    *xlat = addr;
     return section;
+
+translate_fail:
+    return &d->map.sections[PHYS_SECTION_UNASSIGNED];
 }
 #endif
 
@@ -816,6 +949,9 @@ void cpu_exec_unrealizefn(CPUState *cpu)
     if (qdev_get_vmsd(DEVICE(cpu)) == NULL) {
         vmstate_unregister(NULL, &vmstate_cpu_common, cpu);
     }
+#ifndef CONFIG_USER_ONLY
+    tcg_iommu_free_notifier_list(cpu);
+#endif
 }
 
 Property cpu_common_props[] = {
@@ -863,6 +999,8 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
     if (cc->vmsd != NULL) {
         vmstate_register(NULL, cpu->cpu_index, cc->vmsd, cpu);
     }
+
+    cpu->iommu_notifiers = g_array_new(false, true, sizeof(TCGIOMMUNotifier));
 #endif
 }
 
@@ -2544,22 +2682,7 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
     memory_notdirty_write_prepare(&ndi, current_cpu, current_cpu->mem_io_vaddr,
                          ram_addr, size);
 
-    switch (size) {
-    case 1:
-        stb_p(qemu_map_ram_ptr(NULL, ram_addr), val);
-        break;
-    case 2:
-        stw_p(qemu_map_ram_ptr(NULL, ram_addr), val);
-        break;
-    case 4:
-        stl_p(qemu_map_ram_ptr(NULL, ram_addr), val);
-        break;
-    case 8:
-        stq_p(qemu_map_ram_ptr(NULL, ram_addr), val);
-        break;
-    default:
-        abort();
-    }
+    stn_p(qemu_map_ram_ptr(NULL, ram_addr), size, val);
     memory_notdirty_write_complete(&ndi);
 }
 
@@ -2739,22 +2862,8 @@ static MemTxResult subpage_read(void *opaque, hwaddr addr, uint64_t *data,
     if (res) {
         return res;
     }
-    switch (len) {
-    case 1:
-        *data = ldub_p(buf);
-        return MEMTX_OK;
-    case 2:
-        *data = lduw_p(buf);
-        return MEMTX_OK;
-    case 4:
-        *data = ldl_p(buf);
-        return MEMTX_OK;
-    case 8:
-        *data = ldq_p(buf);
-        return MEMTX_OK;
-    default:
-        abort();
-    }
+    *data = ldn_p(buf, len);
+    return MEMTX_OK;
 }
 
 static MemTxResult subpage_write(void *opaque, hwaddr addr,
@@ -2768,22 +2877,7 @@ static MemTxResult subpage_write(void *opaque, hwaddr addr,
            " value %"PRIx64"\n",
            __func__, subpage, len, addr, value);
 #endif
-    switch (len) {
-    case 1:
-        stb_p(buf, value);
-        break;
-    case 2:
-        stw_p(buf, value);
-        break;
-    case 4:
-        stl_p(buf, value);
-        break;
-    case 8:
-        stq_p(buf, value);
-        break;
-    default:
-        abort();
-    }
+    stn_p(buf, len, value);
     return flatview_write(subpage->fv, addr + subpage->base, attrs, buf, len);
 }
 
@@ -2897,14 +2991,15 @@ static const MemoryRegionOps readonly_mem_ops = {
     },
 };
 
-MemoryRegion *iotlb_to_region(CPUState *cpu, hwaddr index, MemTxAttrs attrs)
+MemoryRegionSection *iotlb_to_section(CPUState *cpu,
+                                      hwaddr index, MemTxAttrs attrs)
 {
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
     CPUAddressSpace *cpuas = &cpu->cpu_ases[asidx];
     AddressSpaceDispatch *d = atomic_rcu_read(&cpuas->memory_dispatch);
     MemoryRegionSection *sections = d->map.sections;
 
-    return sections[index & ~TARGET_PAGE_MASK].mr;
+    return &sections[index & ~TARGET_PAGE_MASK];
 }
 
 static void io_mem_init(void)
@@ -3128,34 +3223,8 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
             l = memory_access_size(mr, l, addr1);
             /* XXX: could force current_cpu to NULL to avoid
                potential bugs */
-            switch (l) {
-            case 8:
-                /* 64 bit write access */
-                val = ldq_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 8,
-                                                       attrs);
-                break;
-            case 4:
-                /* 32 bit write access */
-                val = (uint32_t)ldl_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 4,
-                                                       attrs);
-                break;
-            case 2:
-                /* 16 bit write access */
-                val = lduw_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 2,
-                                                       attrs);
-                break;
-            case 1:
-                /* 8 bit write access */
-                val = ldub_p(buf);
-                result |= memory_region_dispatch_write(mr, addr1, val, 1,
-                                                       attrs);
-                break;
-            default:
-                abort();
-            }
+            val = ldn_p(buf, l);
+            result |= memory_region_dispatch_write(mr, addr1, val, l, attrs);
         } else {
             /* RAM case */
             ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
@@ -3216,34 +3285,8 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
             /* I/O case */
             release_lock |= prepare_mmio_access(mr);
             l = memory_access_size(mr, l, addr1);
-            switch (l) {
-            case 8:
-                /* 64 bit read access */
-                result |= memory_region_dispatch_read(mr, addr1, &val, 8,
-                                                      attrs);
-                stq_p(buf, val);
-                break;
-            case 4:
-                /* 32 bit read access */
-                result |= memory_region_dispatch_read(mr, addr1, &val, 4,
-                                                      attrs);
-                stl_p(buf, val);
-                break;
-            case 2:
-                /* 16 bit read access */
-                result |= memory_region_dispatch_read(mr, addr1, &val, 2,
-                                                      attrs);
-                stw_p(buf, val);
-                break;
-            case 1:
-                /* 8 bit read access */
-                result |= memory_region_dispatch_read(mr, addr1, &val, 1,
-                                                      attrs);
-                stb_p(buf, val);
-                break;
-            default:
-                abort();
-            }
+            result |= memory_region_dispatch_read(mr, addr1, &val, l, attrs);
+            stn_p(buf, l, val);
         } else {
             /* RAM case */
             ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
