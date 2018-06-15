@@ -90,7 +90,6 @@ typedef struct DisasContext {
     uint32_t jmp_pc;
 
     int abort_at_next_insn;
-    int nr_nops;
     struct TranslationBlock *tb;
     int singlestep_enabled;
 } DisasContext;
@@ -1576,17 +1575,12 @@ static inline void decode(DisasContext *dc, uint32_t ir)
     dc->ir = ir;
     LOG_DIS("%8.8x\t", dc->ir);
 
-    if (dc->ir)
-        dc->nr_nops = 0;
-    else {
+    if (ir == 0) {
         trap_illegal(dc, dc->cpu->env.pvr.regs[2] & PVR2_OPCODE_0x0_ILL_MASK);
-
-        LOG_DIS("nr_nops=%d\t", dc->nr_nops);
-        dc->nr_nops++;
-        if (dc->nr_nops > 4) {
-            cpu_abort(CPU(dc->cpu), "fetching nop sequence\n");
-        }
+        /* Don't decode nop/zero instructions any further.  */
+        return;
     }
+
     /* bit 2 seems to indicate insn type.  */
     dc->type_b = ir & (1 << 29);
 
@@ -1633,7 +1627,6 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     dc->singlestep_enabled = cs->singlestep_enabled;
     dc->cpustate_changed = 0;
     dc->abort_at_next_insn = 0;
-    dc->nr_nops = 0;
 
     if (pc_start & 3) {
         cpu_abort(cs, "Microblaze: unaligned PC=%x\n", pc_start);
