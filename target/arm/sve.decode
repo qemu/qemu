@@ -24,6 +24,7 @@
 
 %imm4_16_p1     16:4 !function=plus1
 %imm6_22_5      22:1 5:5
+%imm7_22_16     22:2 16:5
 %imm8_16_10     16:5 10:3
 %imm9_16_10     16:s6 10:3
 
@@ -85,6 +86,8 @@
 
 # Three operand, vector element size
 @rd_rn_rm       ........ esz:2 . rm:5 ... ... rn:5 rd:5         &rrr_esz
+@rdn_rm         ........ esz:2 ...... ...... rm:5 rd:5 \
+                &rrr_esz rn=%reg_movprfx
 
 # Three operand with "memory" size, aka immediate left shift
 @rd_rn_msz_rm   ........ ... rm:5 .... imm:2 rn:5 rd:5          &rrri
@@ -368,6 +371,30 @@ CPY_z_i         00000101 .. 01 .... 00 . ........ .....   @rdn_pg4 imm=%sh8_i8s
 # SVE extract vector (immediate offset)
 EXT             00000101 001 ..... 000 ... rm:5 rd:5 \
                 &rrri rn=%reg_movprfx imm=%imm8_16_10
+
+### SVE Permute - Unpredicated Group
+
+# SVE broadcast general register
+DUP_s           00000101 .. 1 00000 001110 ..... .....          @rd_rn
+
+# SVE broadcast indexed element
+DUP_x           00000101 .. 1 ..... 001000 rn:5 rd:5 \
+                &rri imm=%imm7_22_16
+
+# SVE insert SIMD&FP scalar register
+INSR_f          00000101 .. 1 10100 001110 ..... .....          @rdn_rm
+
+# SVE insert general register
+INSR_r          00000101 .. 1 00100 001110 ..... .....          @rdn_rm
+
+# SVE reverse vector elements
+REV_v           00000101 .. 1 11000 001110 ..... .....          @rd_rn
+
+# SVE vector table lookup
+TBL             00000101 .. 1 ..... 001100 ..... .....          @rd_rn_rm
+
+# SVE unpack vector elements
+UNPK            00000101 esz:2 1100 u:1 h:1 001110 rn:5 rd:5
 
 ### SVE Predicate Logical Operations Group
 
