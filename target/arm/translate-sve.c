@@ -34,6 +34,9 @@
 #include "translate-a64.h"
 
 
+typedef void GVecGen2sFn(unsigned, uint32_t, uint32_t,
+                         TCGv_i64, uint32_t, uint32_t);
+
 typedef void gen_helper_gvec_flags_3(TCGv_i32, TCGv_ptr, TCGv_ptr,
                                      TCGv_ptr, TCGv_i32);
 typedef void gen_helper_gvec_flags_4(TCGv_i32, TCGv_ptr, TCGv_ptr,
@@ -2957,6 +2960,136 @@ static bool trans_BRKB_z(DisasContext *s, arg_rpr_s *a, uint32_t insn)
 static bool trans_BRKN(DisasContext *s, arg_rpr_s *a, uint32_t insn)
 {
     return do_brk2(s, a, gen_helper_sve_brkn, gen_helper_sve_brkns);
+}
+
+/*
+ *** SVE Predicate Count Group
+ */
+
+static void do_cntp(DisasContext *s, TCGv_i64 val, int esz, int pn, int pg)
+{
+    unsigned psz = pred_full_reg_size(s);
+
+    if (psz <= 8) {
+        uint64_t psz_mask;
+
+        tcg_gen_ld_i64(val, cpu_env, pred_full_reg_offset(s, pn));
+        if (pn != pg) {
+            TCGv_i64 g = tcg_temp_new_i64();
+            tcg_gen_ld_i64(g, cpu_env, pred_full_reg_offset(s, pg));
+            tcg_gen_and_i64(val, val, g);
+            tcg_temp_free_i64(g);
+        }
+
+        /* Reduce the pred_esz_masks value simply to reduce the
+         * size of the code generated here.
+         */
+        psz_mask = MAKE_64BIT_MASK(0, psz * 8);
+        tcg_gen_andi_i64(val, val, pred_esz_masks[esz] & psz_mask);
+
+        tcg_gen_ctpop_i64(val, val);
+    } else {
+        TCGv_ptr t_pn = tcg_temp_new_ptr();
+        TCGv_ptr t_pg = tcg_temp_new_ptr();
+        unsigned desc;
+        TCGv_i32 t_desc;
+
+        desc = psz - 2;
+        desc = deposit32(desc, SIMD_DATA_SHIFT, 2, esz);
+
+        tcg_gen_addi_ptr(t_pn, cpu_env, pred_full_reg_offset(s, pn));
+        tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
+        t_desc = tcg_const_i32(desc);
+
+        gen_helper_sve_cntp(val, t_pn, t_pg, t_desc);
+        tcg_temp_free_ptr(t_pn);
+        tcg_temp_free_ptr(t_pg);
+        tcg_temp_free_i32(t_desc);
+    }
+}
+
+static bool trans_CNTP(DisasContext *s, arg_CNTP *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        do_cntp(s, cpu_reg(s, a->rd), a->esz, a->rn, a->pg);
+    }
+    return true;
+}
+
+static bool trans_INCDECP_r(DisasContext *s, arg_incdec_pred *a,
+                            uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 reg = cpu_reg(s, a->rd);
+        TCGv_i64 val = tcg_temp_new_i64();
+
+        do_cntp(s, val, a->esz, a->pg, a->pg);
+        if (a->d) {
+            tcg_gen_sub_i64(reg, reg, val);
+        } else {
+            tcg_gen_add_i64(reg, reg, val);
+        }
+        tcg_temp_free_i64(val);
+    }
+    return true;
+}
+
+static bool trans_INCDECP_z(DisasContext *s, arg_incdec2_pred *a,
+                            uint32_t insn)
+{
+    if (a->esz == 0) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_i64 val = tcg_temp_new_i64();
+        GVecGen2sFn *gvec_fn = a->d ? tcg_gen_gvec_subs : tcg_gen_gvec_adds;
+
+        do_cntp(s, val, a->esz, a->pg, a->pg);
+        gvec_fn(a->esz, vec_full_reg_offset(s, a->rd),
+                vec_full_reg_offset(s, a->rn), val, vsz, vsz);
+    }
+    return true;
+}
+
+static bool trans_SINCDECP_r_32(DisasContext *s, arg_incdec_pred *a,
+                                uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 reg = cpu_reg(s, a->rd);
+        TCGv_i64 val = tcg_temp_new_i64();
+
+        do_cntp(s, val, a->esz, a->pg, a->pg);
+        do_sat_addsub_32(reg, val, a->u, a->d);
+    }
+    return true;
+}
+
+static bool trans_SINCDECP_r_64(DisasContext *s, arg_incdec_pred *a,
+                                uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 reg = cpu_reg(s, a->rd);
+        TCGv_i64 val = tcg_temp_new_i64();
+
+        do_cntp(s, val, a->esz, a->pg, a->pg);
+        do_sat_addsub_64(reg, val, a->u, a->d);
+    }
+    return true;
+}
+
+static bool trans_SINCDECP_z(DisasContext *s, arg_incdec2_pred *a,
+                             uint32_t insn)
+{
+    if (a->esz == 0) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        TCGv_i64 val = tcg_temp_new_i64();
+        do_cntp(s, val, a->esz, a->pg, a->pg);
+        do_sat_addsub_vec(s, a->esz, a->rd, a->rn, val, a->u, a->d);
+    }
+    return true;
 }
 
 /*
