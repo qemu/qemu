@@ -3192,6 +3192,43 @@ static bool trans_WHILE(DisasContext *s, arg_WHILE *a, uint32_t insn)
 }
 
 /*
+ *** SVE Integer Wide Immediate - Unpredicated Group
+ */
+
+static bool trans_FDUP(DisasContext *s, arg_FDUP *a, uint32_t insn)
+{
+    if (a->esz == 0) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        int dofs = vec_full_reg_offset(s, a->rd);
+        uint64_t imm;
+
+        /* Decode the VFP immediate.  */
+        imm = vfp_expand_imm(a->esz, a->imm);
+        imm = dup_const(a->esz, imm);
+
+        tcg_gen_gvec_dup64i(dofs, vsz, vsz, imm);
+    }
+    return true;
+}
+
+static bool trans_DUP_i(DisasContext *s, arg_DUP_i *a, uint32_t insn)
+{
+    if (a->esz == 0 && extract32(insn, 13, 1)) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        int dofs = vec_full_reg_offset(s, a->rd);
+
+        tcg_gen_gvec_dup64i(dofs, vsz, vsz, dup_const(a->esz, a->imm));
+    }
+    return true;
+}
+
+/*
  *** SVE Memory - 32-bit Gather and Unsized Contiguous Group
  */
 
