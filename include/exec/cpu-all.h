@@ -133,6 +133,8 @@ static inline void tswap64s(uint64_t *s)
 #define stq_p(p, v) stq_be_p(p, v)
 #define stfl_p(p, v) stfl_be_p(p, v)
 #define stfq_p(p, v) stfq_be_p(p, v)
+#define ldn_p(p, sz) ldn_be_p(p, sz)
+#define stn_p(p, sz, v) stn_be_p(p, sz, v)
 #else
 #define lduw_p(p) lduw_le_p(p)
 #define ldsw_p(p) ldsw_le_p(p)
@@ -145,6 +147,8 @@ static inline void tswap64s(uint64_t *s)
 #define stq_p(p, v) stq_le_p(p, v)
 #define stfl_p(p, v) stfl_le_p(p, v)
 #define stfq_p(p, v) stfq_le_p(p, v)
+#define ldn_p(p, sz) ldn_le_p(p, sz)
+#define stn_p(p, sz, v) stn_le_p(p, sz, v)
 #endif
 
 /* MMU memory access macros */
