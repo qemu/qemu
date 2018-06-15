@@ -23,9 +23,6 @@ typedef enum {
     ARM_ENDIANNESS_BE32,
 } arm_endianness;
 
-/* armv7m.c */
-DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
-                         const char *kernel_filename, const char *cpu_type);
 /**
  * armv7m_load_kernel:
  * @cpu: CPU
@@ -33,9 +30,8 @@ DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
  * @mem_size: mem_size: maximum image size to load
  *
  * Load the guest image for an ARMv7M system. This must be called by
- * any ARMv7M board, either directly or via armv7m_init(). (This is
- * necessary to ensure that the CPU resets correctly on system reset,
- * as well as for kernel loading.)
+ * any ARMv7M board. (This is necessary to ensure that the CPU resets
+ * correctly on system reset, as well as for kernel loading.)
  */
 void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size);
 

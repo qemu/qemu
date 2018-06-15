@@ -261,27 +261,6 @@ static void armv7m_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-/* Init CPU and memory for a v7-M based board.
-   mem_size is in bytes.
-   Returns the ARMv7M device.  */
-
-DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
-                         const char *kernel_filename, const char *cpu_type)
-{
-    DeviceState *armv7m;
-
-    armv7m = qdev_create(NULL, TYPE_ARMV7M);
-    qdev_prop_set_uint32(armv7m, "num-irq", num_irq);
-    qdev_prop_set_string(armv7m, "cpu-type", cpu_type);
-    object_property_set_link(OBJECT(armv7m), OBJECT(get_system_memory()),
-                                     "memory", &error_abort);
-    /* This will exit with an error if the user passed us a bad cpu_type */
-    qdev_init_nofail(armv7m);
-
-    armv7m_load_kernel(ARM_CPU(first_cpu), kernel_filename, mem_size);
-    return armv7m;
-}
-
 void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
 {
     int image_size;
