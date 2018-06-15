@@ -74,6 +74,28 @@ static uint32_t iter_predtest_fwd(uint64_t d, uint64_t g, uint32_t flags)
     return flags;
 }
 
+/* This is an iterative function, called for each Pd and Pg word
+ * moving backward.
+ */
+static uint32_t iter_predtest_bwd(uint64_t d, uint64_t g, uint32_t flags)
+{
+    if (likely(g)) {
+        /* Compute C from first (i.e last) !(D & G).
+           Use bit 2 to signal first G bit seen.  */
+        if (!(flags & 4)) {
+            flags += 4 - 1; /* add bit 2, subtract C from PREDTEST_INIT */
+            flags |= (d & pow2floor(g)) == 0;
+        }
+
+        /* Accumulate Z from each D & G.  */
+        flags |= ((d & g) != 0) << 1;
+
+        /* Compute N from last (i.e first) D & G.  Replace previous.  */
+        flags = deposit32(flags, 31, 1, (d & (g & -g)) != 0);
+    }
+    return flags;
+}
+
 /* The same for a single word predicate.  */
 uint32_t HELPER(sve_predtest1)(uint64_t d, uint64_t g)
 {
@@ -2201,3 +2223,168 @@ void HELPER(sve_sel_zpzz_d)(void *vd, void *vn, void *vm,
         d[i] = (pg[H1(i)] & 1 ? nn : mm);
     }
 }
+
+/* Two operand comparison controlled by a predicate.
+ * ??? It is very tempting to want to be able to expand this inline
+ * with x86 instructions, e.g.
+ *
+ *    vcmpeqw    zm, zn, %ymm0
+ *    vpmovmskb  %ymm0, %eax
+ *    and        $0x5555, %eax
+ *    and        pg, %eax
+ *
+ * or even aarch64, e.g.
+ *
+ *    // mask = 4000 1000 0400 0100 0040 0010 0004 0001
+ *    cmeq       v0.8h, zn, zm
+ *    and        v0.8h, v0.8h, mask
+ *    addv       h0, v0.8h
+ *    and        v0.8b, pg
+ *
+ * However, coming up with an abstraction that allows vector inputs and
+ * a scalar output, and also handles the byte-ordering of sub-uint64_t
+ * scalar outputs, is tricky.
+ */
+#define DO_CMP_PPZZ(NAME, TYPE, OP, H, MASK)                                 \
+uint32_t HELPER(NAME)(void *vd, void *vn, void *vm, void *vg, uint32_t desc) \
+{                                                                            \
+    intptr_t opr_sz = simd_oprsz(desc);                                      \
+    uint32_t flags = PREDTEST_INIT;                                          \
+    intptr_t i = opr_sz;                                                     \
+    do {                                                                     \
+        uint64_t out = 0, pg;                                                \
+        do {                                                                 \
+            i -= sizeof(TYPE), out <<= sizeof(TYPE);                         \
+            TYPE nn = *(TYPE *)(vn + H(i));                                  \
+            TYPE mm = *(TYPE *)(vm + H(i));                                  \
+            out |= nn OP mm;                                                 \
+        } while (i & 63);                                                    \
+        pg = *(uint64_t *)(vg + (i >> 3)) & MASK;                            \
+        out &= pg;                                                           \
+        *(uint64_t *)(vd + (i >> 3)) = out;                                  \
+        flags = iter_predtest_bwd(out, pg, flags);                           \
+    } while (i > 0);                                                         \
+    return flags;                                                            \
+}
+
+#define DO_CMP_PPZZ_B(NAME, TYPE, OP) \
+    DO_CMP_PPZZ(NAME, TYPE, OP, H1,   0xffffffffffffffffull)
+#define DO_CMP_PPZZ_H(NAME, TYPE, OP) \
+    DO_CMP_PPZZ(NAME, TYPE, OP, H1_2, 0x5555555555555555ull)
+#define DO_CMP_PPZZ_S(NAME, TYPE, OP) \
+    DO_CMP_PPZZ(NAME, TYPE, OP, H1_4, 0x1111111111111111ull)
+#define DO_CMP_PPZZ_D(NAME, TYPE, OP) \
+    DO_CMP_PPZZ(NAME, TYPE, OP,     , 0x0101010101010101ull)
+
+DO_CMP_PPZZ_B(sve_cmpeq_ppzz_b, uint8_t,  ==)
+DO_CMP_PPZZ_H(sve_cmpeq_ppzz_h, uint16_t, ==)
+DO_CMP_PPZZ_S(sve_cmpeq_ppzz_s, uint32_t, ==)
+DO_CMP_PPZZ_D(sve_cmpeq_ppzz_d, uint64_t, ==)
+
+DO_CMP_PPZZ_B(sve_cmpne_ppzz_b, uint8_t,  !=)
+DO_CMP_PPZZ_H(sve_cmpne_ppzz_h, uint16_t, !=)
+DO_CMP_PPZZ_S(sve_cmpne_ppzz_s, uint32_t, !=)
+DO_CMP_PPZZ_D(sve_cmpne_ppzz_d, uint64_t, !=)
+
+DO_CMP_PPZZ_B(sve_cmpgt_ppzz_b, int8_t,  >)
+DO_CMP_PPZZ_H(sve_cmpgt_ppzz_h, int16_t, >)
+DO_CMP_PPZZ_S(sve_cmpgt_ppzz_s, int32_t, >)
+DO_CMP_PPZZ_D(sve_cmpgt_ppzz_d, int64_t, >)
+
+DO_CMP_PPZZ_B(sve_cmpge_ppzz_b, int8_t,  >=)
+DO_CMP_PPZZ_H(sve_cmpge_ppzz_h, int16_t, >=)
+DO_CMP_PPZZ_S(sve_cmpge_ppzz_s, int32_t, >=)
+DO_CMP_PPZZ_D(sve_cmpge_ppzz_d, int64_t, >=)
+
+DO_CMP_PPZZ_B(sve_cmphi_ppzz_b, uint8_t,  >)
+DO_CMP_PPZZ_H(sve_cmphi_ppzz_h, uint16_t, >)
+DO_CMP_PPZZ_S(sve_cmphi_ppzz_s, uint32_t, >)
+DO_CMP_PPZZ_D(sve_cmphi_ppzz_d, uint64_t, >)
+
+DO_CMP_PPZZ_B(sve_cmphs_ppzz_b, uint8_t,  >=)
+DO_CMP_PPZZ_H(sve_cmphs_ppzz_h, uint16_t, >=)
+DO_CMP_PPZZ_S(sve_cmphs_ppzz_s, uint32_t, >=)
+DO_CMP_PPZZ_D(sve_cmphs_ppzz_d, uint64_t, >=)
+
+#undef DO_CMP_PPZZ_B
+#undef DO_CMP_PPZZ_H
+#undef DO_CMP_PPZZ_S
+#undef DO_CMP_PPZZ_D
+#undef DO_CMP_PPZZ
+
+/* Similar, but the second source is "wide".  */
+#define DO_CMP_PPZW(NAME, TYPE, TYPEW, OP, H, MASK)                     \
+uint32_t HELPER(NAME)(void *vd, void *vn, void *vm, void *vg, uint32_t desc) \
+{                                                                            \
+    intptr_t opr_sz = simd_oprsz(desc);                                      \
+    uint32_t flags = PREDTEST_INIT;                                          \
+    intptr_t i = opr_sz;                                                     \
+    do {                                                                     \
+        uint64_t out = 0, pg;                                                \
+        do {                                                                 \
+            TYPEW mm = *(TYPEW *)(vm + i - 8);                               \
+            do {                                                             \
+                i -= sizeof(TYPE), out <<= sizeof(TYPE);                     \
+                TYPE nn = *(TYPE *)(vn + H(i));                              \
+                out |= nn OP mm;                                             \
+            } while (i & 7);                                                 \
+        } while (i & 63);                                                    \
+        pg = *(uint64_t *)(vg + (i >> 3)) & MASK;                            \
+        out &= pg;                                                           \
+        *(uint64_t *)(vd + (i >> 3)) = out;                                  \
+        flags = iter_predtest_bwd(out, pg, flags);                           \
+    } while (i > 0);                                                         \
+    return flags;                                                            \
+}
+
+#define DO_CMP_PPZW_B(NAME, TYPE, TYPEW, OP) \
+    DO_CMP_PPZW(NAME, TYPE, TYPEW, OP, H1,   0xffffffffffffffffull)
+#define DO_CMP_PPZW_H(NAME, TYPE, TYPEW, OP) \
+    DO_CMP_PPZW(NAME, TYPE, TYPEW, OP, H1_2, 0x5555555555555555ull)
+#define DO_CMP_PPZW_S(NAME, TYPE, TYPEW, OP) \
+    DO_CMP_PPZW(NAME, TYPE, TYPEW, OP, H1_4, 0x1111111111111111ull)
+
+DO_CMP_PPZW_B(sve_cmpeq_ppzw_b, uint8_t,  uint64_t, ==)
+DO_CMP_PPZW_H(sve_cmpeq_ppzw_h, uint16_t, uint64_t, ==)
+DO_CMP_PPZW_S(sve_cmpeq_ppzw_s, uint32_t, uint64_t, ==)
+
+DO_CMP_PPZW_B(sve_cmpne_ppzw_b, uint8_t,  uint64_t, !=)
+DO_CMP_PPZW_H(sve_cmpne_ppzw_h, uint16_t, uint64_t, !=)
+DO_CMP_PPZW_S(sve_cmpne_ppzw_s, uint32_t, uint64_t, !=)
+
+DO_CMP_PPZW_B(sve_cmpgt_ppzw_b, int8_t,   int64_t, >)
+DO_CMP_PPZW_H(sve_cmpgt_ppzw_h, int16_t,  int64_t, >)
+DO_CMP_PPZW_S(sve_cmpgt_ppzw_s, int32_t,  int64_t, >)
+
+DO_CMP_PPZW_B(sve_cmpge_ppzw_b, int8_t,   int64_t, >=)
+DO_CMP_PPZW_H(sve_cmpge_ppzw_h, int16_t,  int64_t, >=)
+DO_CMP_PPZW_S(sve_cmpge_ppzw_s, int32_t,  int64_t, >=)
+
+DO_CMP_PPZW_B(sve_cmphi_ppzw_b, uint8_t,  uint64_t, >)
+DO_CMP_PPZW_H(sve_cmphi_ppzw_h, uint16_t, uint64_t, >)
+DO_CMP_PPZW_S(sve_cmphi_ppzw_s, uint32_t, uint64_t, >)
+
+DO_CMP_PPZW_B(sve_cmphs_ppzw_b, uint8_t,  uint64_t, >=)
+DO_CMP_PPZW_H(sve_cmphs_ppzw_h, uint16_t, uint64_t, >=)
+DO_CMP_PPZW_S(sve_cmphs_ppzw_s, uint32_t, uint64_t, >=)
+
+DO_CMP_PPZW_B(sve_cmplt_ppzw_b, int8_t,   int64_t, <)
+DO_CMP_PPZW_H(sve_cmplt_ppzw_h, int16_t,  int64_t, <)
+DO_CMP_PPZW_S(sve_cmplt_ppzw_s, int32_t,  int64_t, <)
+
+DO_CMP_PPZW_B(sve_cmple_ppzw_b, int8_t,   int64_t, <=)
+DO_CMP_PPZW_H(sve_cmple_ppzw_h, int16_t,  int64_t, <=)
+DO_CMP_PPZW_S(sve_cmple_ppzw_s, int32_t,  int64_t, <=)
+
+DO_CMP_PPZW_B(sve_cmplo_ppzw_b, uint8_t,  uint64_t, <)
+DO_CMP_PPZW_H(sve_cmplo_ppzw_h, uint16_t, uint64_t, <)
+DO_CMP_PPZW_S(sve_cmplo_ppzw_s, uint32_t, uint64_t, <)
+
+DO_CMP_PPZW_B(sve_cmpls_ppzw_b, uint8_t,  uint64_t, <=)
+DO_CMP_PPZW_H(sve_cmpls_ppzw_h, uint16_t, uint64_t, <=)
+DO_CMP_PPZW_S(sve_cmpls_ppzw_s, uint32_t, uint64_t, <=)
+
+#undef DO_CMP_PPZW_B
+#undef DO_CMP_PPZW_H
+#undef DO_CMP_PPZW_S
+#undef DO_CMP_PPZW

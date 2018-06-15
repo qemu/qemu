@@ -99,6 +99,7 @@
 @rdm_pg_rn      ........ esz:2 ... ... ... pg:3 rn:5 rd:5 \
                 &rprr_esz rm=%reg_movprfx
 @rd_pg4_rn_rm   ........ esz:2 . rm:5  .. pg:4  rn:5 rd:5       &rprr_esz
+@pd_pg_rn_rm    ........ esz:2 . rm:5 ... pg:3 rn:5 . rd:4      &rprr_esz
 
 # Three register operand, with governing predicate, vector element size
 @rda_pg_rn_rm   ........ esz:2 . rm:5  ... pg:3 rn:5 rd:5 \
@@ -471,6 +472,29 @@ SPLICE          00000101 .. 101 100 100 ... ..... .....         @rdn_pg_rm
 
 # SVE select vector elements (predicated)
 SEL_zpzz        00000101 .. 1 ..... 11 .... ..... .....         @rd_pg4_rn_rm
+
+### SVE Integer Compare - Vectors Group
+
+# SVE integer compare_vectors
+CMPHS_ppzz      00100100 .. 0 ..... 000 ... ..... 0 ....        @pd_pg_rn_rm
+CMPHI_ppzz      00100100 .. 0 ..... 000 ... ..... 1 ....        @pd_pg_rn_rm
+CMPGE_ppzz      00100100 .. 0 ..... 100 ... ..... 0 ....        @pd_pg_rn_rm
+CMPGT_ppzz      00100100 .. 0 ..... 100 ... ..... 1 ....        @pd_pg_rn_rm
+CMPEQ_ppzz      00100100 .. 0 ..... 101 ... ..... 0 ....        @pd_pg_rn_rm
+CMPNE_ppzz      00100100 .. 0 ..... 101 ... ..... 1 ....        @pd_pg_rn_rm
+
+# SVE integer compare with wide elements
+# Note these require esz != 3.
+CMPEQ_ppzw      00100100 .. 0 ..... 001 ... ..... 0 ....        @pd_pg_rn_rm
+CMPNE_ppzw      00100100 .. 0 ..... 001 ... ..... 1 ....        @pd_pg_rn_rm
+CMPGE_ppzw      00100100 .. 0 ..... 010 ... ..... 0 ....        @pd_pg_rn_rm
+CMPGT_ppzw      00100100 .. 0 ..... 010 ... ..... 1 ....        @pd_pg_rn_rm
+CMPLT_ppzw      00100100 .. 0 ..... 011 ... ..... 0 ....        @pd_pg_rn_rm
+CMPLE_ppzw      00100100 .. 0 ..... 011 ... ..... 1 ....        @pd_pg_rn_rm
+CMPHS_ppzw      00100100 .. 0 ..... 110 ... ..... 0 ....        @pd_pg_rn_rm
+CMPHI_ppzw      00100100 .. 0 ..... 110 ... ..... 1 ....        @pd_pg_rn_rm
+CMPLO_ppzw      00100100 .. 0 ..... 111 ... ..... 0 ....        @pd_pg_rn_rm
+CMPLS_ppzw      00100100 .. 0 ..... 111 ... ..... 1 ....        @pd_pg_rn_rm
 
 ### SVE Predicate Logical Operations Group
 
