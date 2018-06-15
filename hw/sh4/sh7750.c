@@ -450,15 +450,43 @@ static void sh7750_mem_writel(void *opaque, hwaddr addr,
     }
 }
 
+static uint64_t sh7750_mem_readfn(void *opaque, hwaddr addr, unsigned size)
+{
+    switch (size) {
+    case 1:
+        return sh7750_mem_readb(opaque, addr);
+    case 2:
+        return sh7750_mem_readw(opaque, addr);
+    case 4:
+        return sh7750_mem_readl(opaque, addr);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void sh7750_mem_writefn(void *opaque, hwaddr addr,
+                               uint64_t value, unsigned size)
+{
+    switch (size) {
+    case 1:
+        sh7750_mem_writeb(opaque, addr, value);
+        break;
+    case 2:
+        sh7750_mem_writew(opaque, addr, value);
+        break;
+    case 4:
+        sh7750_mem_writel(opaque, addr, value);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static const MemoryRegionOps sh7750_mem_ops = {
-    .old_mmio = {
-        .read = {sh7750_mem_readb,
-                 sh7750_mem_readw,
-                 sh7750_mem_readl },
-        .write = {sh7750_mem_writeb,
-                  sh7750_mem_writew,
-                  sh7750_mem_writel },
-    },
+    .read = sh7750_mem_readfn,
+    .write = sh7750_mem_writefn,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
