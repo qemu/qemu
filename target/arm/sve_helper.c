@@ -2070,3 +2070,15 @@ void HELPER(sve_compact_d)(void *vd, void *vn, void *vg, uint32_t desc)
         d[j] = 0;
     }
 }
+
+/* Similar to the ARM LastActiveElement pseudocode function, except the
+ * result is multiplied by the element size.  This includes the not found
+ * indication; e.g. not found for esz=3 is -8.
+ */
+int32_t HELPER(sve_last_active_element)(void *vg, uint32_t pred_desc)
+{
+    intptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    intptr_t esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+
+    return last_active_element(vg, DIV_ROUND_UP(oprsz, 8), esz);
+}

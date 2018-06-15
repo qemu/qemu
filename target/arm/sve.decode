@@ -430,6 +430,26 @@ TRN2_z          00000101 .. 1 ..... 011 101 ..... .....         @rd_rn_rm
 # Note esz >= 2
 COMPACT         00000101 .. 100001 100 ... ..... .....          @rd_pg_rn
 
+# SVE conditionally broadcast element to vector
+CLASTA_z        00000101 .. 10100 0 100 ... ..... .....         @rdn_pg_rm
+CLASTB_z        00000101 .. 10100 1 100 ... ..... .....         @rdn_pg_rm
+
+# SVE conditionally copy element to SIMD&FP scalar
+CLASTA_v        00000101 .. 10101 0 100 ... ..... .....         @rd_pg_rn
+CLASTB_v        00000101 .. 10101 1 100 ... ..... .....         @rd_pg_rn
+
+# SVE conditionally copy element to general register
+CLASTA_r        00000101 .. 11000 0 101 ... ..... .....         @rd_pg_rn
+CLASTB_r        00000101 .. 11000 1 101 ... ..... .....         @rd_pg_rn
+
+# SVE copy element to SIMD&FP scalar register
+LASTA_v         00000101 .. 10001 0 100 ... ..... .....         @rd_pg_rn
+LASTB_v         00000101 .. 10001 1 100 ... ..... .....         @rd_pg_rn
+
+# SVE copy element to general register
+LASTA_r         00000101 .. 10000 0 101 ... ..... .....         @rd_pg_rn
+LASTB_r         00000101 .. 10000 1 101 ... ..... .....         @rd_pg_rn
+
 ### SVE Predicate Logical Operations Group
 
 # SVE predicate logical operations

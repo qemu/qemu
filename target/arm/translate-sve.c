@@ -2296,6 +2296,334 @@ static bool trans_COMPACT(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
     return do_zpz_ool(s, a, fns[a->esz]);
 }
 
+/* Call the helper that computes the ARM LastActiveElement pseudocode
+ * function, scaled by the element size.  This includes the not found
+ * indication; e.g. not found for esz=3 is -8.
+ */
+static void find_last_active(DisasContext *s, TCGv_i32 ret, int esz, int pg)
+{
+    /* Predicate sizes may be smaller and cannot use simd_desc.  We cannot
+     * round up, as we do elsewhere, because we need the exact size.
+     */
+    TCGv_ptr t_p = tcg_temp_new_ptr();
+    TCGv_i32 t_desc;
+    unsigned vsz = pred_full_reg_size(s);
+    unsigned desc;
+
+    desc = vsz - 2;
+    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, esz);
+
+    tcg_gen_addi_ptr(t_p, cpu_env, pred_full_reg_offset(s, pg));
+    t_desc = tcg_const_i32(desc);
+
+    gen_helper_sve_last_active_element(ret, t_p, t_desc);
+
+    tcg_temp_free_i32(t_desc);
+    tcg_temp_free_ptr(t_p);
+}
+
+/* Increment LAST to the offset of the next element in the vector,
+ * wrapping around to 0.
+ */
+static void incr_last_active(DisasContext *s, TCGv_i32 last, int esz)
+{
+    unsigned vsz = vec_full_reg_size(s);
+
+    tcg_gen_addi_i32(last, last, 1 << esz);
+    if (is_power_of_2(vsz)) {
+        tcg_gen_andi_i32(last, last, vsz - 1);
+    } else {
+        TCGv_i32 max = tcg_const_i32(vsz);
+        TCGv_i32 zero = tcg_const_i32(0);
+        tcg_gen_movcond_i32(TCG_COND_GEU, last, last, max, zero, last);
+        tcg_temp_free_i32(max);
+        tcg_temp_free_i32(zero);
+    }
+}
+
+/* If LAST < 0, set LAST to the offset of the last element in the vector.  */
+static void wrap_last_active(DisasContext *s, TCGv_i32 last, int esz)
+{
+    unsigned vsz = vec_full_reg_size(s);
+
+    if (is_power_of_2(vsz)) {
+        tcg_gen_andi_i32(last, last, vsz - 1);
+    } else {
+        TCGv_i32 max = tcg_const_i32(vsz - (1 << esz));
+        TCGv_i32 zero = tcg_const_i32(0);
+        tcg_gen_movcond_i32(TCG_COND_LT, last, last, zero, max, last);
+        tcg_temp_free_i32(max);
+        tcg_temp_free_i32(zero);
+    }
+}
+
+/* Load an unsigned element of ESZ from BASE+OFS.  */
+static TCGv_i64 load_esz(TCGv_ptr base, int ofs, int esz)
+{
+    TCGv_i64 r = tcg_temp_new_i64();
+
+    switch (esz) {
+    case 0:
+        tcg_gen_ld8u_i64(r, base, ofs);
+        break;
+    case 1:
+        tcg_gen_ld16u_i64(r, base, ofs);
+        break;
+    case 2:
+        tcg_gen_ld32u_i64(r, base, ofs);
+        break;
+    case 3:
+        tcg_gen_ld_i64(r, base, ofs);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return r;
+}
+
+/* Load an unsigned element of ESZ from RM[LAST].  */
+static TCGv_i64 load_last_active(DisasContext *s, TCGv_i32 last,
+                                 int rm, int esz)
+{
+    TCGv_ptr p = tcg_temp_new_ptr();
+    TCGv_i64 r;
+
+    /* Convert offset into vector into offset into ENV.
+     * The final adjustment for the vector register base
+     * is added via constant offset to the load.
+     */
+#ifdef HOST_WORDS_BIGENDIAN
+    /* Adjust for element ordering.  See vec_reg_offset.  */
+    if (esz < 3) {
+        tcg_gen_xori_i32(last, last, 8 - (1 << esz));
+    }
+#endif
+    tcg_gen_ext_i32_ptr(p, last);
+    tcg_gen_add_ptr(p, p, cpu_env);
+
+    r = load_esz(p, vec_full_reg_offset(s, rm), esz);
+    tcg_temp_free_ptr(p);
+
+    return r;
+}
+
+/* Compute CLAST for a Zreg.  */
+static bool do_clast_vector(DisasContext *s, arg_rprr_esz *a, bool before)
+{
+    TCGv_i32 last;
+    TCGLabel *over;
+    TCGv_i64 ele;
+    unsigned vsz, esz = a->esz;
+
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    last = tcg_temp_local_new_i32();
+    over = gen_new_label();
+
+    find_last_active(s, last, esz, a->pg);
+
+    /* There is of course no movcond for a 2048-bit vector,
+     * so we must branch over the actual store.
+     */
+    tcg_gen_brcondi_i32(TCG_COND_LT, last, 0, over);
+
+    if (!before) {
+        incr_last_active(s, last, esz);
+    }
+
+    ele = load_last_active(s, last, a->rm, esz);
+    tcg_temp_free_i32(last);
+
+    vsz = vec_full_reg_size(s);
+    tcg_gen_gvec_dup_i64(esz, vec_full_reg_offset(s, a->rd), vsz, vsz, ele);
+    tcg_temp_free_i64(ele);
+
+    /* If this insn used MOVPRFX, we may need a second move.  */
+    if (a->rd != a->rn) {
+        TCGLabel *done = gen_new_label();
+        tcg_gen_br(done);
+
+        gen_set_label(over);
+        do_mov_z(s, a->rd, a->rn);
+
+        gen_set_label(done);
+    } else {
+        gen_set_label(over);
+    }
+    return true;
+}
+
+static bool trans_CLASTA_z(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
+{
+    return do_clast_vector(s, a, false);
+}
+
+static bool trans_CLASTB_z(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
+{
+    return do_clast_vector(s, a, true);
+}
+
+/* Compute CLAST for a scalar.  */
+static void do_clast_scalar(DisasContext *s, int esz, int pg, int rm,
+                            bool before, TCGv_i64 reg_val)
+{
+    TCGv_i32 last = tcg_temp_new_i32();
+    TCGv_i64 ele, cmp, zero;
+
+    find_last_active(s, last, esz, pg);
+
+    /* Extend the original value of last prior to incrementing.  */
+    cmp = tcg_temp_new_i64();
+    tcg_gen_ext_i32_i64(cmp, last);
+
+    if (!before) {
+        incr_last_active(s, last, esz);
+    }
+
+    /* The conceit here is that while last < 0 indicates not found, after
+     * adjusting for cpu_env->vfp.zregs[rm], it is still a valid address
+     * from which we can load garbage.  We then discard the garbage with
+     * a conditional move.
+     */
+    ele = load_last_active(s, last, rm, esz);
+    tcg_temp_free_i32(last);
+
+    zero = tcg_const_i64(0);
+    tcg_gen_movcond_i64(TCG_COND_GE, reg_val, cmp, zero, ele, reg_val);
+
+    tcg_temp_free_i64(zero);
+    tcg_temp_free_i64(cmp);
+    tcg_temp_free_i64(ele);
+}
+
+/* Compute CLAST for a Vreg.  */
+static bool do_clast_fp(DisasContext *s, arg_rpr_esz *a, bool before)
+{
+    if (sve_access_check(s)) {
+        int esz = a->esz;
+        int ofs = vec_reg_offset(s, a->rd, 0, esz);
+        TCGv_i64 reg = load_esz(cpu_env, ofs, esz);
+
+        do_clast_scalar(s, esz, a->pg, a->rn, before, reg);
+        write_fp_dreg(s, a->rd, reg);
+        tcg_temp_free_i64(reg);
+    }
+    return true;
+}
+
+static bool trans_CLASTA_v(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_clast_fp(s, a, false);
+}
+
+static bool trans_CLASTB_v(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_clast_fp(s, a, true);
+}
+
+/* Compute CLAST for a Xreg.  */
+static bool do_clast_general(DisasContext *s, arg_rpr_esz *a, bool before)
+{
+    TCGv_i64 reg;
+
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    reg = cpu_reg(s, a->rd);
+    switch (a->esz) {
+    case 0:
+        tcg_gen_ext8u_i64(reg, reg);
+        break;
+    case 1:
+        tcg_gen_ext16u_i64(reg, reg);
+        break;
+    case 2:
+        tcg_gen_ext32u_i64(reg, reg);
+        break;
+    case 3:
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    do_clast_scalar(s, a->esz, a->pg, a->rn, before, reg);
+    return true;
+}
+
+static bool trans_CLASTA_r(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_clast_general(s, a, false);
+}
+
+static bool trans_CLASTB_r(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_clast_general(s, a, true);
+}
+
+/* Compute LAST for a scalar.  */
+static TCGv_i64 do_last_scalar(DisasContext *s, int esz,
+                               int pg, int rm, bool before)
+{
+    TCGv_i32 last = tcg_temp_new_i32();
+    TCGv_i64 ret;
+
+    find_last_active(s, last, esz, pg);
+    if (before) {
+        wrap_last_active(s, last, esz);
+    } else {
+        incr_last_active(s, last, esz);
+    }
+
+    ret = load_last_active(s, last, rm, esz);
+    tcg_temp_free_i32(last);
+    return ret;
+}
+
+/* Compute LAST for a Vreg.  */
+static bool do_last_fp(DisasContext *s, arg_rpr_esz *a, bool before)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 val = do_last_scalar(s, a->esz, a->pg, a->rn, before);
+        write_fp_dreg(s, a->rd, val);
+        tcg_temp_free_i64(val);
+    }
+    return true;
+}
+
+static bool trans_LASTA_v(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_last_fp(s, a, false);
+}
+
+static bool trans_LASTB_v(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_last_fp(s, a, true);
+}
+
+/* Compute LAST for a Xreg.  */
+static bool do_last_general(DisasContext *s, arg_rpr_esz *a, bool before)
+{
+    if (sve_access_check(s)) {
+        TCGv_i64 val = do_last_scalar(s, a->esz, a->pg, a->rn, before);
+        tcg_gen_mov_i64(cpu_reg(s, a->rd), val);
+        tcg_temp_free_i64(val);
+    }
+    return true;
+}
+
+static bool trans_LASTA_r(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_last_general(s, a, false);
+}
+
+static bool trans_LASTB_r(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    return do_last_general(s, a, true);
+}
+
 /*
  *** SVE Memory - 32-bit Gather and Unsized Contiguous Group
  */
