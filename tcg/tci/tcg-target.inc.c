@@ -574,7 +574,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             /* Indirect jump method. */
             TODO();
         }
-        s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
+        set_jmp_reset_offset(s, args[0]);
         break;
     case INDEX_op_br:
         tci_out_label(s, arg_label(args[0]));

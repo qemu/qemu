@@ -306,6 +306,14 @@ TCGLabel *gen_new_label(void)
     return l;
 }
 
+static void set_jmp_reset_offset(TCGContext *s, int which)
+{
+    size_t off = tcg_current_code_size(s);
+    s->tb_jmp_reset_offset[which] = off;
+    /* Make sure that we didn't overflow the stored offset.  */
+    assert(s->tb_jmp_reset_offset[which] == off);
+}
+
 #include "tcg-target.inc.c"
 
 /* compare a pointer @ptr and a tb_tc @s */
@@ -3532,7 +3540,10 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
             break;
         case INDEX_op_insn_start:
             if (num_insns >= 0) {
-                s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
+                size_t off = tcg_current_code_size(s);
+                s->gen_insn_end_off[num_insns] = off;
+                /* Assert that we do not overflow our stored offset.  */
+                assert(s->gen_insn_end_off[num_insns] == off);
             }
             num_insns++;
             for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {

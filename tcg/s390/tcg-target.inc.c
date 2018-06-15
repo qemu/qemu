@@ -1783,7 +1783,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             /* and go there */
             tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_REG_TB);
         }
-        s->tb_jmp_reset_offset[a0] = tcg_current_code_size(s);
+        set_jmp_reset_offset(s, a0);
 
         /* For the unlinked path of goto_tb, we need to reset
            TCG_REG_TB to the beginning of this TB.  */
