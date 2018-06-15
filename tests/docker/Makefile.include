@@ -34,7 +34,15 @@ docker-qemu-src: $(DOCKER_SRC_COPY)
 
 docker-image: ${DOCKER_TARGETS}
 
-# General rule for building docker images
+# General rule for building docker images. If we are a sub-make
+# invoked with SKIP_DOCKER_BUILD we still check the image is upto date
+# though
+ifdef SKIP_DOCKER_BUILD
+docker-image-%: $(DOCKER_FILES_DIR)/%.docker
+	$(call quiet-command, \
+		$(DOCKER_SCRIPT) check --quiet qemu:$* $<, \
+		"CHECK", "$*")
+else
 docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 	@if test "$@" = docker-image-debian-bootstrap -a -z "$(EXECUTABLE)"; then \
 		echo WARNING: EXECUTABLE is not set, debootstrap may fail. 2>&1 ; \
@@ -46,6 +54,7 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))\
 		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)),\
 		"BUILD","$*")
+endif
 
 # Enforce dependencies for composite images
 docker-image-debian: docker-image-debian9
@@ -65,7 +74,9 @@ docker-image-debian-win64-cross: docker-image-debian8-mxe
 # Debian SID images - we are tracking a rolling distro so we want to
 # force a re-build of the base image if we ever need to build one of
 # its children.
+ifndef SKIP_DOCKER_BUILD
 docker-image-debian-sid: NOCACHE=1
+endif
 
 docker-image-debian-alpha-cross: docker-image-debian-sid
 docker-image-debian-hppa-cross: docker-image-debian-sid
