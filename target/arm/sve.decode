@@ -42,6 +42,8 @@
 
 # Signed 8-bit immediate, optionally shifted left by 8.
 %sh8_i8s        5:9 !function=expand_imm_sh8s
+# Unsigned 8-bit immediate, optionally shifted left by 8.
+%sh8_i8u        5:9 !function=expand_imm_sh8u
 
 # Either a copy of rd (at bit 0), or a different source
 # as propagated via the MOVPRFX instruction.
@@ -95,6 +97,12 @@
 @pd_pn_pm       ........ esz:2 .. rm:4 ....... rn:4 . rd:4      &rrr_esz
 @rdn_rm         ........ esz:2 ...... ...... rm:5 rd:5 \
                 &rrr_esz rn=%reg_movprfx
+@rdn_sh_i8u     ........ esz:2 ...... ...... ..... rd:5 \
+                &rri_esz rn=%reg_movprfx imm=%sh8_i8u
+@rdn_i8u        ........ esz:2 ...... ... imm:8 rd:5 \
+                &rri_esz rn=%reg_movprfx
+@rdn_i8s        ........ esz:2 ...... ... imm:s8 rd:5 \
+                &rri_esz rn=%reg_movprfx
 
 # Three operand with "memory" size, aka immediate left shift
 @rd_rn_msz_rm   ........ ... rm:5 .... imm:2 rn:5 rd:5          &rrri
@@ -621,6 +629,24 @@ FDUP            00100101 esz:2 111 00 1110 imm:8 rd:5
 
 # SVE broadcast integer immediate (unpredicated)
 DUP_i           00100101 esz:2 111 00 011 . ........ rd:5       imm=%sh8_i8s
+
+# SVE integer add/subtract immediate (unpredicated)
+ADD_zzi         00100101 .. 100 000 11 . ........ .....         @rdn_sh_i8u
+SUB_zzi         00100101 .. 100 001 11 . ........ .....         @rdn_sh_i8u
+SUBR_zzi        00100101 .. 100 011 11 . ........ .....         @rdn_sh_i8u
+SQADD_zzi       00100101 .. 100 100 11 . ........ .....         @rdn_sh_i8u
+UQADD_zzi       00100101 .. 100 101 11 . ........ .....         @rdn_sh_i8u
+SQSUB_zzi       00100101 .. 100 110 11 . ........ .....         @rdn_sh_i8u
+UQSUB_zzi       00100101 .. 100 111 11 . ........ .....         @rdn_sh_i8u
+
+# SVE integer min/max immediate (unpredicated)
+SMAX_zzi        00100101 .. 101 000 110 ........ .....          @rdn_i8s
+UMAX_zzi        00100101 .. 101 001 110 ........ .....          @rdn_i8u
+SMIN_zzi        00100101 .. 101 010 110 ........ .....          @rdn_i8s
+UMIN_zzi        00100101 .. 101 011 110 ........ .....          @rdn_i8u
+
+# SVE integer multiply immediate (unpredicated)
+MUL_zzi         00100101 .. 110 000 110 ........ .....          @rdn_i8s
 
 ### SVE Memory - 32-bit Gather and Unsized Contiguous Group
 

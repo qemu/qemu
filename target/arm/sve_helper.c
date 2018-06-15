@@ -804,6 +804,46 @@ DO_VPZ_D(sve_uminv_d, uint64_t, uint64_t, -1, DO_MIN)
 #undef DO_VPZ
 #undef DO_VPZ_D
 
+/* Two vector operand, one scalar operand, unpredicated.  */
+#define DO_ZZI(NAME, TYPE, OP)                                       \
+void HELPER(NAME)(void *vd, void *vn, uint64_t s64, uint32_t desc)   \
+{                                                                    \
+    intptr_t i, opr_sz = simd_oprsz(desc) / sizeof(TYPE);            \
+    TYPE s = s64, *d = vd, *n = vn;                                  \
+    for (i = 0; i < opr_sz; ++i) {                                   \
+        d[i] = OP(n[i], s);                                          \
+    }                                                                \
+}
+
+#define DO_SUBR(X, Y)   (Y - X)
+
+DO_ZZI(sve_subri_b, uint8_t, DO_SUBR)
+DO_ZZI(sve_subri_h, uint16_t, DO_SUBR)
+DO_ZZI(sve_subri_s, uint32_t, DO_SUBR)
+DO_ZZI(sve_subri_d, uint64_t, DO_SUBR)
+
+DO_ZZI(sve_smaxi_b, int8_t, DO_MAX)
+DO_ZZI(sve_smaxi_h, int16_t, DO_MAX)
+DO_ZZI(sve_smaxi_s, int32_t, DO_MAX)
+DO_ZZI(sve_smaxi_d, int64_t, DO_MAX)
+
+DO_ZZI(sve_smini_b, int8_t, DO_MIN)
+DO_ZZI(sve_smini_h, int16_t, DO_MIN)
+DO_ZZI(sve_smini_s, int32_t, DO_MIN)
+DO_ZZI(sve_smini_d, int64_t, DO_MIN)
+
+DO_ZZI(sve_umaxi_b, uint8_t, DO_MAX)
+DO_ZZI(sve_umaxi_h, uint16_t, DO_MAX)
+DO_ZZI(sve_umaxi_s, uint32_t, DO_MAX)
+DO_ZZI(sve_umaxi_d, uint64_t, DO_MAX)
+
+DO_ZZI(sve_umini_b, uint8_t, DO_MIN)
+DO_ZZI(sve_umini_h, uint16_t, DO_MIN)
+DO_ZZI(sve_umini_s, uint32_t, DO_MIN)
+DO_ZZI(sve_umini_d, uint64_t, DO_MIN)
+
+#undef DO_ZZI
+
 #undef DO_AND
 #undef DO_ORR
 #undef DO_EOR
@@ -818,6 +858,7 @@ DO_VPZ_D(sve_uminv_d, uint64_t, uint64_t, -1, DO_MIN)
 #undef DO_ASR
 #undef DO_LSR
 #undef DO_LSL
+#undef DO_SUBR
 
 /* Similar to the ARM LastActiveElement pseudocode function, except the
    result is multiplied by the element size.  This includes the not found
