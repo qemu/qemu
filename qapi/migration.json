@@ -517,6 +517,9 @@
 #                     and a power of 2
 #                     (Since 2.11)
 #
+# @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
+#                     Defaults to 0 (unlimited).  In bytes per second.
+#                     (Since 3.0)
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -525,7 +528,7 @@
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
            'x-multifd-channels', 'x-multifd-page-count',
-           'xbzrle-cache-size' ] }
+           'xbzrle-cache-size', 'max-postcopy-bandwidth' ] }
 
 ##
 # @MigrateSetParameters:
@@ -593,6 +596,10 @@
 #                     needs to be a multiple of the target page size
 #                     and a power of 2
 #                     (Since 2.11)
+#
+# @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
+#                     Defaults to 0 (unlimited).  In bytes per second.
+#                     (Since 3.0)
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -611,7 +618,8 @@
             '*block-incremental': 'bool',
             '*x-multifd-channels': 'int',
             '*x-multifd-page-count': 'int',
-            '*xbzrle-cache-size': 'size' } }
+            '*xbzrle-cache-size': 'size',
+            '*max-postcopy-bandwidth': 'size' } }
 
 ##
 # @migrate-set-parameters:
@@ -694,6 +702,10 @@
 #                     needs to be a multiple of the target page size
 #                     and a power of 2
 #                     (Since 2.11)
+#
+# @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
+#                     Defaults to 0 (unlimited).  In bytes per second.
+#                     (Since 3.0)
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -710,7 +722,8 @@
             '*block-incremental': 'bool' ,
             '*x-multifd-channels': 'uint8',
             '*x-multifd-page-count': 'uint32',
-            '*xbzrle-cache-size': 'size' } }
+            '*xbzrle-cache-size': 'size',
+            '*max-postcopy-bandwidth': 'size'  } }
 
 ##
 # @query-migrate-parameters:

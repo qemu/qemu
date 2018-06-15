@@ -370,6 +370,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %" PRIu64 "\n",
             MigrationParameter_str(MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE),
             params->xbzrle_cache_size);
+        monitor_printf(mon, "%s: %" PRIu64 "\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_MAX_POSTCOPY_BANDWIDTH),
+            params->max_postcopy_bandwidth);
     }
 
     qapi_free_MigrationParameters(params);
@@ -1675,6 +1678,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
             break;
         }
         p->xbzrle_cache_size = cache_size;
+        break;
+    case MIGRATION_PARAMETER_MAX_POSTCOPY_BANDWIDTH:
+        p->has_max_postcopy_bandwidth = true;
+        visit_type_size(v, param, &p->max_postcopy_bandwidth, &err);
         break;
     default:
         assert(0);

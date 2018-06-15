@@ -97,6 +97,7 @@ typedef struct QEMUTimer QEMUTimer;
 typedef struct QEMUTimerListGroup QEMUTimerListGroup;
 typedef struct QBool QBool;
 typedef struct QDict QDict;
+typedef struct QJSON QJSON;
 typedef struct QList QList;
 typedef struct QNull QNull;
 typedef struct QNum QNum;

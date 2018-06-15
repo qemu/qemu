@@ -159,8 +159,10 @@ out:
 
 /* Should be holding either ram_list.mutex, or the RCU lock. */
 #define RAMBLOCK_FOREACH_MIGRATABLE(block)             \
-    RAMBLOCK_FOREACH(block)                            \
+    INTERNAL_RAMBLOCK_FOREACH(block)                   \
         if (!qemu_ram_is_migratable(block)) {} else
+
+#undef RAMBLOCK_FOREACH
 
 static void ramblock_recv_map_init(void)
 {
@@ -1139,6 +1141,25 @@ uint64_t ram_pagesize_summary(void)
     return summary;
 }
 
+static void migration_update_rates(RAMState *rs, int64_t end_time)
+{
+    uint64_t iter_count = rs->iterations - rs->iterations_prev;
+
+    /* calculate period counters */
+    ram_counters.dirty_pages_rate = rs->num_dirty_pages_period * 1000
+                / (end_time - rs->time_last_bitmap_sync);
+
+    if (!iter_count) {
+        return;
+    }
+
+    if (migrate_use_xbzrle()) {
+        xbzrle_counters.cache_miss_rate = (double)(xbzrle_counters.cache_miss -
+            rs->xbzrle_cache_miss_prev) / iter_count;
+        rs->xbzrle_cache_miss_prev = xbzrle_counters.cache_miss;
+    }
+}
+
 static void migration_bitmap_sync(RAMState *rs)
 {
     RAMBlock *block;
@@ -1159,6 +1180,7 @@ static void migration_bitmap_sync(RAMState *rs)
     RAMBLOCK_FOREACH_MIGRATABLE(block) {
         migration_bitmap_sync_range(rs, block, 0, block->used_length);
     }
+    ram_counters.remaining = ram_bytes_remaining();
     rcu_read_unlock();
     qemu_mutex_unlock(&rs->bitmap_mutex);
 
@@ -1168,9 +1190,6 @@ static void migration_bitmap_sync(RAMState *rs)
 
     /* more than 1 second = 1000 millisecons */
     if (end_time > rs->time_last_bitmap_sync + 1000) {
-        /* calculate period counters */
-        ram_counters.dirty_pages_rate = rs->num_dirty_pages_period * 1000
-            / (end_time - rs->time_last_bitmap_sync);
         bytes_xfer_now = ram_counters.transferred;
 
         /* During block migration the auto-converge logic incorrectly detects
@@ -1192,16 +1211,9 @@ static void migration_bitmap_sync(RAMState *rs)
             }
         }
 
-        if (migrate_use_xbzrle()) {
-            if (rs->iterations_prev != rs->iterations) {
-                xbzrle_counters.cache_miss_rate =
-                   (double)(xbzrle_counters.cache_miss -
-                            rs->xbzrle_cache_miss_prev) /
-                   (rs->iterations - rs->iterations_prev);
-            }
-            rs->iterations_prev = rs->iterations;
-            rs->xbzrle_cache_miss_prev = xbzrle_counters.cache_miss;
-        }
+        migration_update_rates(rs, end_time);
+
+        rs->iterations_prev = rs->iterations;
 
         /* reset period counters */
         rs->time_last_bitmap_sync = end_time;
@@ -1536,6 +1548,7 @@ static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset)
             memory_region_unref(block->mr);
             QSIMPLEQ_REMOVE_HEAD(&rs->src_page_requests, next_req);
             g_free(entry);
+            migration_consume_urgent_request();
         }
     }
     qemu_mutex_unlock(&rs->src_page_req_mutex);
@@ -1684,6 +1697,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     memory_region_ref(ramblock->mr);
     qemu_mutex_lock(&rs->src_page_req_mutex);
     QSIMPLEQ_INSERT_TAIL(&rs->src_page_requests, new_entry, next_req);
+    migration_make_urgent_request();
     qemu_mutex_unlock(&rs->src_page_req_mutex);
     rcu_read_unlock();
 
@@ -2516,7 +2530,7 @@ static void ram_state_resume_prepare(RAMState *rs, QEMUFile *out)
      * about dirty page logging as well.
      */
 
-    RAMBLOCK_FOREACH(block) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         pages += bitmap_count_one(block->bmap,
                                   block->used_length >> TARGET_PAGE_BITS);
     }
@@ -2632,8 +2646,13 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
     t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     i = 0;
-    while ((ret = qemu_file_rate_limit(f)) == 0) {
+    while ((ret = qemu_file_rate_limit(f)) == 0 ||
+            !QSIMPLEQ_EMPTY(&rs->src_page_requests)) {
         int pages;
+
+        if (qemu_file_get_error(f)) {
+            break;
+        }
 
         pages = ram_find_and_save_block(rs, false);
         /* no more pages to sent */
@@ -3431,7 +3450,7 @@ static int ram_dirty_bitmap_sync_all(MigrationState *s, RAMState *rs)
 
     trace_ram_dirty_bitmap_sync_start();
 
-    RAMBLOCK_FOREACH(block) {
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
         qemu_savevm_send_recv_bitmap(file, block->idstr);
         trace_ram_dirty_bitmap_request(block->idstr);
         ramblock_count++;
