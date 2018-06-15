@@ -66,14 +66,49 @@ static void or_irq_init(Object *obj)
     qdev_init_gpio_out(DEVICE(obj), &s->out_irq, 1);
 }
 
+/* The original version of this device had a fixed 16 entries in its
+ * VMState array; devices with more inputs than this need to
+ * migrate the extra lines via a subsection.
+ * The subsection migrates as much of the levels[] array as is needed
+ * (including repeating the first 16 elements), to avoid the awkwardness
+ * of splitting it in two to meet the requirements of VMSTATE_VARRAY_UINT16.
+ */
+#define OLD_MAX_OR_LINES 16
+#if MAX_OR_LINES < OLD_MAX_OR_LINES
+#error MAX_OR_LINES must be at least 16 for migration compatibility
+#endif
+
+static bool vmstate_extras_needed(void *opaque)
+{
+    qemu_or_irq *s = OR_IRQ(opaque);
+
+    return s->num_lines >= OLD_MAX_OR_LINES;
+}
+
+static const VMStateDescription vmstate_or_irq_extras = {
+    .name = "or-irq-extras",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vmstate_extras_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_VARRAY_UINT16_UNSAFE(levels, qemu_or_irq, num_lines, 0,
+                                     vmstate_info_bool, bool),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
 static const VMStateDescription vmstate_or_irq = {
     .name = TYPE_OR_IRQ,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_BOOL_ARRAY(levels, qemu_or_irq, MAX_OR_LINES),
+        VMSTATE_BOOL_SUB_ARRAY(levels, qemu_or_irq, 0, OLD_MAX_OR_LINES),
         VMSTATE_END_OF_LIST(),
-    }
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_or_irq_extras,
+        NULL
+    },
 };
 
 static Property or_irq_properties[] = {
