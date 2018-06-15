@@ -2738,3 +2738,34 @@ uint64_t HELPER(sve_cntp)(void *vn, void *vg, uint32_t pred_desc)
     }
     return sum;
 }
+
+uint32_t HELPER(sve_while)(void *vd, uint32_t count, uint32_t pred_desc)
+{
+    uintptr_t oprsz = extract32(pred_desc, 0, SIMD_OPRSZ_BITS) + 2;
+    intptr_t esz = extract32(pred_desc, SIMD_DATA_SHIFT, 2);
+    uint64_t esz_mask = pred_esz_masks[esz];
+    ARMPredicateReg *d = vd;
+    uint32_t flags;
+    intptr_t i;
+
+    /* Begin with a zero predicate register.  */
+    flags = do_zero(d, oprsz);
+    if (count == 0) {
+        return flags;
+    }
+
+    /* Scale from predicate element count to bits.  */
+    count <<= esz;
+    /* Bound to the bits in the predicate.  */
+    count = MIN(count, oprsz * 8);
+
+    /* Set all of the requested bits.  */
+    for (i = 0; i < count / 64; ++i) {
+        d->p[i] = esz_mask;
+    }
+    if (count & 63) {
+        d->p[i] = MAKE_64BIT_MASK(0, count & 63) & esz_mask;
+    }
+
+    return predtest_ones(d, oprsz, esz_mask);
+}

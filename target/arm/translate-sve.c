@@ -3093,6 +3093,105 @@ static bool trans_SINCDECP_z(DisasContext *s, arg_incdec2_pred *a,
 }
 
 /*
+ *** SVE Integer Compare Scalars Group
+ */
+
+static bool trans_CTERM(DisasContext *s, arg_CTERM *a, uint32_t insn)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    TCGCond cond = (a->ne ? TCG_COND_NE : TCG_COND_EQ);
+    TCGv_i64 rn = read_cpu_reg(s, a->rn, a->sf);
+    TCGv_i64 rm = read_cpu_reg(s, a->rm, a->sf);
+    TCGv_i64 cmp = tcg_temp_new_i64();
+
+    tcg_gen_setcond_i64(cond, cmp, rn, rm);
+    tcg_gen_extrl_i64_i32(cpu_NF, cmp);
+    tcg_temp_free_i64(cmp);
+
+    /* VF = !NF & !CF.  */
+    tcg_gen_xori_i32(cpu_VF, cpu_NF, 1);
+    tcg_gen_andc_i32(cpu_VF, cpu_VF, cpu_CF);
+
+    /* Both NF and VF actually look at bit 31.  */
+    tcg_gen_neg_i32(cpu_NF, cpu_NF);
+    tcg_gen_neg_i32(cpu_VF, cpu_VF);
+    return true;
+}
+
+static bool trans_WHILE(DisasContext *s, arg_WHILE *a, uint32_t insn)
+{
+    if (!sve_access_check(s)) {
+        return true;
+    }
+
+    TCGv_i64 op0 = read_cpu_reg(s, a->rn, 1);
+    TCGv_i64 op1 = read_cpu_reg(s, a->rm, 1);
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i32 t2, t3;
+    TCGv_ptr ptr;
+    unsigned desc, vsz = vec_full_reg_size(s);
+    TCGCond cond;
+
+    if (!a->sf) {
+        if (a->u) {
+            tcg_gen_ext32u_i64(op0, op0);
+            tcg_gen_ext32u_i64(op1, op1);
+        } else {
+            tcg_gen_ext32s_i64(op0, op0);
+            tcg_gen_ext32s_i64(op1, op1);
+        }
+    }
+
+    /* For the helper, compress the different conditions into a computation
+     * of how many iterations for which the condition is true.
+     *
+     * This is slightly complicated by 0 <= UINT64_MAX, which is nominally
+     * 2**64 iterations, overflowing to 0.  Of course, predicate registers
+     * aren't that large, so any value >= predicate size is sufficient.
+     */
+    tcg_gen_sub_i64(t0, op1, op0);
+
+    /* t0 = MIN(op1 - op0, vsz).  */
+    tcg_gen_movi_i64(t1, vsz);
+    tcg_gen_umin_i64(t0, t0, t1);
+    if (a->eq) {
+        /* Equality means one more iteration.  */
+        tcg_gen_addi_i64(t0, t0, 1);
+    }
+
+    /* t0 = (condition true ? t0 : 0).  */
+    cond = (a->u
+            ? (a->eq ? TCG_COND_LEU : TCG_COND_LTU)
+            : (a->eq ? TCG_COND_LE : TCG_COND_LT));
+    tcg_gen_movi_i64(t1, 0);
+    tcg_gen_movcond_i64(cond, t0, op0, op1, t0, t1);
+
+    t2 = tcg_temp_new_i32();
+    tcg_gen_extrl_i64_i32(t2, t0);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    desc = (vsz / 8) - 2;
+    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, a->esz);
+    t3 = tcg_const_i32(desc);
+
+    ptr = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(ptr, cpu_env, pred_full_reg_offset(s, a->rd));
+
+    gen_helper_sve_while(t2, ptr, t2, t3);
+    do_pred_flags(t2);
+
+    tcg_temp_free_ptr(ptr);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(t3);
+    return true;
+}
+
+/*
  *** SVE Memory - 32-bit Gather and Unsized Contiguous Group
  */
 

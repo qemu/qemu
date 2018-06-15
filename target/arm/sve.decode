@@ -606,6 +606,14 @@ SINCDECP_r_64   00100101 .. 1010 d:1 u:1 10001 10 .... .....    @incdec_pred
 # SVE saturating inc/dec vector by predicate count
 SINCDECP_z      00100101 .. 1010 d:1 u:1 10000 00 .... .....    @incdec2_pred
 
+### SVE Integer Compare - Scalars Group
+
+# SVE conditionally terminate scalars
+CTERM           00100101 1 sf:1 1 rm:5 001000 rn:5 ne:1 0000
+
+# SVE integer compare scalar count and limit
+WHILE           00100101 esz:2 1 rm:5 000 sf:1 u:1 1 rn:5 eq:1 rd:4
+
 ### SVE Memory - 32-bit Gather and Unsized Contiguous Group
 
 # SVE load predicate register
