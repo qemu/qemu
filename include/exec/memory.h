@@ -98,18 +98,21 @@ struct IOMMUNotifier {
     /* Notify for address space range start <= addr <= end */
     hwaddr start;
     hwaddr end;
+    int iommu_idx;
     QLIST_ENTRY(IOMMUNotifier) node;
 };
 typedef struct IOMMUNotifier IOMMUNotifier;
 
 static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
                                        IOMMUNotifierFlag flags,
-                                       hwaddr start, hwaddr end)
+                                       hwaddr start, hwaddr end,
+                                       int iommu_idx)
 {
     n->notify = fn;
     n->notifier_flags = flags;
     n->start = start;
     n->end = end;
+    n->iommu_idx = iommu_idx;
 }
 
 /*
@@ -1008,11 +1011,13 @@ uint64_t memory_region_iommu_get_min_page_size(IOMMUMemoryRegion *iommu_mr);
  * should be notified with an UNMAP followed by a MAP.
  *
  * @iommu_mr: the memory region that was changed
+ * @iommu_idx: the IOMMU index for the translation table which has changed
  * @entry: the new entry in the IOMMU translation table.  The entry
  *         replaces all old entries for the same virtual I/O address range.
  *         Deleted entries have .@perm == 0.
  */
 void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
+                                int iommu_idx,
                                 IOMMUTLBEntry entry);
 
 /**

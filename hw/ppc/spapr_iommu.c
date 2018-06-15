@@ -428,7 +428,7 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
     entry.translated_addr = tce & page_mask;
     entry.addr_mask = ~page_mask;
     entry.perm = spapr_tce_iommu_access_flags(tce);
-    memory_region_notify_iommu(&tcet->iommu, entry);
+    memory_region_notify_iommu(&tcet->iommu, 0, entry);
 
     return H_SUCCESS;
 }
