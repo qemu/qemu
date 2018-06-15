@@ -456,6 +456,13 @@ CPY_m_v         00000101 .. 100000 100 ... ..... .....          @rd_pg_rn
 # SVE copy element from general register to vector (predicated)
 CPY_m_r         00000101 .. 101000 101 ... ..... .....          @rd_pg_rn
 
+# SVE reverse within elements
+# Note esz >= operation size
+REVB            00000101 .. 1001 00 100 ... ..... .....         @rd_pg_rn
+REVH            00000101 .. 1001 01 100 ... ..... .....         @rd_pg_rn
+REVW            00000101 .. 1001 10 100 ... ..... .....         @rd_pg_rn
+RBIT            00000101 .. 1001 11 100 ... ..... .....         @rd_pg_rn
+
 ### SVE Predicate Logical Operations Group
 
 # SVE predicate logical operations
