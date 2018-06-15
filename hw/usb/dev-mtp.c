@@ -383,7 +383,7 @@ static const USBDesc desc = {
 /* ----------------------------------------------------------------------- */
 
 static MTPObject *usb_mtp_object_alloc(MTPState *s, uint32_t handle,
-                                       MTPObject *parent, char *name)
+                                       MTPObject *parent, const char *name)
 {
     MTPObject *o = g_new0(MTPObject, 1);
 
@@ -465,7 +465,7 @@ static MTPObject *usb_mtp_object_lookup(MTPState *s, uint32_t handle)
 }
 
 static MTPObject *usb_mtp_add_child(MTPState *s, MTPObject *o,
-                                    char *name)
+                                    const char *name)
 {
     MTPObject *child =
         usb_mtp_object_alloc(s, s->next_handle++, o, name);
@@ -484,7 +484,7 @@ static MTPObject *usb_mtp_add_child(MTPState *s, MTPObject *o,
 }
 
 static MTPObject *usb_mtp_object_lookup_name(MTPObject *parent,
-                                             char *name, int len)
+                                             const char *name, int len)
 {
     MTPObject *iter;
 
@@ -651,7 +651,7 @@ static void usb_mtp_inotify_cleanup(MTPState *s)
     }
 }
 
-static int usb_mtp_add_watch(int inotifyfd, char *path)
+static int usb_mtp_add_watch(int inotifyfd, const char *path)
 {
     uint32_t mask = IN_CREATE | IN_DELETE | IN_MODIFY;
 
