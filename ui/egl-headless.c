@@ -171,11 +171,12 @@ static void early_egl_headless_init(DisplayOptions *opts)
 
 static void egl_headless_init(DisplayState *ds, DisplayOptions *opts)
 {
+    DisplayGLMode mode = opts->has_gl ? opts->gl : DISPLAYGL_MODE_ON;
     QemuConsole *con;
     egl_dpy *edpy;
     int idx;
 
-    if (egl_rendernode_init(NULL) < 0) {
+    if (egl_rendernode_init(NULL, mode) < 0) {
         error_report("egl: render node init failed");
         exit(1);
     }

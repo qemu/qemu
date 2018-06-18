@@ -24,6 +24,7 @@
 
 EGLDisplay *qemu_egl_display;
 EGLConfig qemu_egl_config;
+DisplayGLMode qemu_egl_mode;
 
 /* ------------------------------------------------------------------ */
 
@@ -191,7 +192,7 @@ static int qemu_egl_rendernode_open(const char *rendernode)
     return fd;
 }
 
-int egl_rendernode_init(const char *rendernode)
+int egl_rendernode_init(const char *rendernode, DisplayGLMode mode)
 {
     qemu_egl_rn_fd = -1;
     int rc;
@@ -208,7 +209,8 @@ int egl_rendernode_init(const char *rendernode)
         goto err;
     }
 
-    rc = qemu_egl_init_dpy_mesa((EGLNativeDisplayType)qemu_egl_rn_gbm_dev);
+    rc = qemu_egl_init_dpy_mesa((EGLNativeDisplayType)qemu_egl_rn_gbm_dev,
+                                mode);
     if (rc != 0) {
         /* qemu_egl_init_dpy_mesa reports error */
         goto err;
@@ -392,11 +394,21 @@ static EGLDisplay qemu_egl_get_display(EGLNativeDisplayType native,
 }
 
 static int qemu_egl_init_dpy(EGLNativeDisplayType dpy,
-                             EGLenum platform)
+                             EGLenum platform,
+                             DisplayGLMode mode)
 {
-    static const EGLint conf_att_gl[] = {
+    static const EGLint conf_att_core[] = {
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
         EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+        EGL_RED_SIZE,   5,
+        EGL_GREEN_SIZE, 5,
+        EGL_BLUE_SIZE,  5,
+        EGL_ALPHA_SIZE, 0,
+        EGL_NONE,
+    };
+    static const EGLint conf_att_gles[] = {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
         EGL_RED_SIZE,   5,
         EGL_GREEN_SIZE, 5,
         EGL_BLUE_SIZE,  5,
@@ -406,6 +418,7 @@ static int qemu_egl_init_dpy(EGLNativeDisplayType dpy,
     EGLint major, minor;
     EGLBoolean b;
     EGLint n;
+    bool gles = (mode == DISPLAYGL_MODE_ES);
 
     qemu_egl_display = qemu_egl_get_display(dpy, platform);
     if (qemu_egl_display == EGL_NO_DISPLAY) {
@@ -419,50 +432,60 @@ static int qemu_egl_init_dpy(EGLNativeDisplayType dpy,
         return -1;
     }
 
-    b = eglBindAPI(EGL_OPENGL_API);
+    b = eglBindAPI(gles ?  EGL_OPENGL_ES_API : EGL_OPENGL_API);
     if (b == EGL_FALSE) {
-        error_report("egl: eglBindAPI failed");
+        error_report("egl: eglBindAPI failed (%s mode)",
+                     gles ? "gles" : "core");
         return -1;
     }
 
-    b = eglChooseConfig(qemu_egl_display, conf_att_gl,
+    b = eglChooseConfig(qemu_egl_display,
+                        gles ? conf_att_gles : conf_att_core,
                         &qemu_egl_config, 1, &n);
     if (b == EGL_FALSE || n != 1) {
-        error_report("egl: eglChooseConfig failed");
+        error_report("egl: eglChooseConfig failed (%s mode)",
+                     gles ? "gles" : "core");
         return -1;
     }
+
+    qemu_egl_mode = gles ? DISPLAYGL_MODE_ES : DISPLAYGL_MODE_CORE;
     return 0;
 }
 
-int qemu_egl_init_dpy_x11(EGLNativeDisplayType dpy)
+int qemu_egl_init_dpy_x11(EGLNativeDisplayType dpy, DisplayGLMode mode)
 {
 #ifdef EGL_KHR_platform_x11
-    return qemu_egl_init_dpy(dpy, EGL_PLATFORM_X11_KHR);
+    return qemu_egl_init_dpy(dpy, EGL_PLATFORM_X11_KHR, mode);
 #else
-    return qemu_egl_init_dpy(dpy, 0);
+    return qemu_egl_init_dpy(dpy, 0, mode);
 #endif
 }
 
-int qemu_egl_init_dpy_mesa(EGLNativeDisplayType dpy)
+int qemu_egl_init_dpy_mesa(EGLNativeDisplayType dpy, DisplayGLMode mode)
 {
 #ifdef EGL_MESA_platform_gbm
-    return qemu_egl_init_dpy(dpy, EGL_PLATFORM_GBM_MESA);
+    return qemu_egl_init_dpy(dpy, EGL_PLATFORM_GBM_MESA, mode);
 #else
-    return qemu_egl_init_dpy(dpy, 0);
+    return qemu_egl_init_dpy(dpy, 0, mode);
 #endif
 }
 
 EGLContext qemu_egl_init_ctx(void)
 {
-    static const EGLint ctx_att_gl[] = {
+    static const EGLint ctx_att_core[] = {
         EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
         EGL_NONE
     };
+    static const EGLint ctx_att_gles[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 2,
+        EGL_NONE
+    };
+    bool gles = (qemu_egl_mode == DISPLAYGL_MODE_ES);
     EGLContext ectx;
     EGLBoolean b;
 
     ectx = eglCreateContext(qemu_egl_display, qemu_egl_config, EGL_NO_CONTEXT,
-                            ctx_att_gl);
+                            gles ? ctx_att_gles : ctx_att_core);
     if (ectx == EGL_NO_CONTEXT) {
         error_report("egl: eglCreateContext failed");
         return NULL;
