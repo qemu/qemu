@@ -56,7 +56,7 @@ typedef struct ReadInfo {
     uint16_t rnmax;
     uint8_t rnsize;
     uint8_t reserved[13];
-    uint8_t loadparm[8];
+    uint8_t loadparm[LOADPARM_LEN];
 } __attribute__((packed)) ReadInfo;
 
 typedef struct SCCB {

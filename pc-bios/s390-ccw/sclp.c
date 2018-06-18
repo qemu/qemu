@@ -114,7 +114,7 @@ void sclp_get_loadparm_ascii(char *loadparm)
     memset((char *)_sccb, 0, sizeof(ReadInfo));
     sccb->h.length = sizeof(ReadInfo);
     if (!sclp_service_call(SCLP_CMDW_READ_SCP_INFO, sccb)) {
-        ebcdic_to_ascii((char *) sccb->loadparm, loadparm, 8);
+        ebcdic_to_ascii((char *) sccb->loadparm, loadparm, LOADPARM_LEN);
     }
 }
 

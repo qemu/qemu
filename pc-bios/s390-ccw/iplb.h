@@ -12,6 +12,8 @@
 #ifndef IPLB_H
 #define IPLB_H
 
+#define LOADPARM_LEN    8
+
 struct IplBlockCcw {
     uint8_t  reserved0[85];
     uint8_t  ssid;
@@ -61,7 +63,7 @@ struct IplParameterBlock {
     uint8_t  pbt;
     uint8_t  flags;
     uint16_t reserved01;
-    uint8_t  loadparm[8];
+    uint8_t  loadparm[LOADPARM_LEN];
     union {
         IplBlockCcw ccw;
         IplBlockFcp fcp;
