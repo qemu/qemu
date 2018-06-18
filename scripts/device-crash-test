@@ -35,7 +35,6 @@ import random
 import argparse
 from itertools import chain
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 from qemu import QEMUMachine
 
 logger = logging.getLogger('device-crash-test')
