@@ -52,7 +52,9 @@ def _guess_docker_command():
     commands = [["docker"], ["sudo", "-n", "docker"]]
     for cmd in commands:
         try:
-            if subprocess.call(cmd + ["images"],
+            # docker version will return the client details in stdout
+            # but still report a status of 1 if it can't contact the daemon
+            if subprocess.call(cmd + ["version"],
                                stdout=DEVNULL, stderr=DEVNULL) == 0:
                 return cmd
         except OSError:
