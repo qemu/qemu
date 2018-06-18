@@ -297,16 +297,6 @@
            'uuid': 'str',
            'slots': [ 'QCryptoBlockInfoLUKSSlot' ] }}
 
-##
-# @QCryptoBlockInfoQCow:
-#
-# Information about the QCow block encryption options
-#
-# Since: 2.7
-##
-{ 'struct': 'QCryptoBlockInfoQCow',
-  'data': { }}
-
 
 ##
 # @QCryptoBlockInfo:
@@ -318,5 +308,4 @@
 { 'union': 'QCryptoBlockInfo',
   'base': 'QCryptoBlockInfoBase',
   'discriminator': 'format',
-  'data': { 'qcow': 'QCryptoBlockInfoQCow',
-            'luks': 'QCryptoBlockInfoLUKS' } }
+  'data': { 'luks': 'QCryptoBlockInfoLUKS' } }

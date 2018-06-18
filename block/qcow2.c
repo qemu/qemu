@@ -4166,7 +4166,6 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
         switch (encrypt_info->format) {
         case Q_CRYPTO_BLOCK_FORMAT_QCOW:
             qencrypt->format = BLOCKDEV_QCOW2_ENCRYPTION_FORMAT_AES;
-            qencrypt->u.aes = encrypt_info->u.qcow;
             break;
         case Q_CRYPTO_BLOCK_FORMAT_LUKS:
             qencrypt->format = BLOCKDEV_QCOW2_ENCRYPTION_FORMAT_LUKS;

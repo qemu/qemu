@@ -52,8 +52,7 @@
 { 'union': 'ImageInfoSpecificQCow2Encryption',
   'base': 'ImageInfoSpecificQCow2EncryptionBase',
   'discriminator': 'format',
-  'data': { 'aes': 'QCryptoBlockInfoQCow',
-            'luks': 'QCryptoBlockInfoLUKS' } }
+  'data': { 'luks': 'QCryptoBlockInfoLUKS' } }
 
 ##
 # @ImageInfoSpecificQCow2:
@@ -2878,16 +2877,6 @@
             'hash': 'str' }}
 
 ##
-# @SshHostKeyDummy:
-#
-# For those union branches that don't need additional fields.
-#
-# Since: 2.12
-##
-{ 'struct': 'SshHostKeyDummy',
-  'data': {} }
-
-##
 # @SshHostKeyCheck:
 #
 # Since: 2.12
@@ -2895,9 +2884,7 @@
 { 'union': 'SshHostKeyCheck',
   'base': { 'mode': 'SshHostKeyCheckMode' },
   'discriminator': 'mode',
-  'data': { 'none': 'SshHostKeyDummy',
-            'hash': 'SshHostKeyHash',
-            'known_hosts': 'SshHostKeyDummy' } }
+  'data': { 'hash': 'SshHostKeyHash' } }
 
 ##
 # @BlockdevOptionsSsh:
@@ -4076,15 +4063,6 @@
             '*force-size':          'bool' } }
 
 ##
-# @BlockdevCreateNotSupported:
-#
-# This is used for all drivers that don't support creating images.
-#
-# Since: 2.12
-##
-{ 'struct': 'BlockdevCreateNotSupported', 'data': {}}
-
-##
 # @BlockdevCreateOptions:
 #
 # Options for creating an image format on a given node.
@@ -4098,44 +4076,20 @@
       'driver':         'BlockdevDriver' },
   'discriminator': 'driver',
   'data': {
-      'blkdebug':       'BlockdevCreateNotSupported',
-      'blkverify':      'BlockdevCreateNotSupported',
-      'bochs':          'BlockdevCreateNotSupported',
-      'cloop':          'BlockdevCreateNotSupported',
-      'copy-on-read':   'BlockdevCreateNotSupported',
-      'dmg':            'BlockdevCreateNotSupported',
       'file':           'BlockdevCreateOptionsFile',
-      'ftp':            'BlockdevCreateNotSupported',
-      'ftps':           'BlockdevCreateNotSupported',
       'gluster':        'BlockdevCreateOptionsGluster',
-      'host_cdrom':     'BlockdevCreateNotSupported',
-      'host_device':    'BlockdevCreateNotSupported',
-      'http':           'BlockdevCreateNotSupported',
-      'https':          'BlockdevCreateNotSupported',
-      'iscsi':          'BlockdevCreateNotSupported',
       'luks':           'BlockdevCreateOptionsLUKS',
-      'nbd':            'BlockdevCreateNotSupported',
       'nfs':            'BlockdevCreateOptionsNfs',
-      'null-aio':       'BlockdevCreateNotSupported',
-      'null-co':        'BlockdevCreateNotSupported',
-      'nvme':           'BlockdevCreateNotSupported',
       'parallels':      'BlockdevCreateOptionsParallels',
       'qcow':           'BlockdevCreateOptionsQcow',
       'qcow2':          'BlockdevCreateOptionsQcow2',
       'qed':            'BlockdevCreateOptionsQed',
-      'quorum':         'BlockdevCreateNotSupported',
-      'raw':            'BlockdevCreateNotSupported',
       'rbd':            'BlockdevCreateOptionsRbd',
-      'replication':    'BlockdevCreateNotSupported',
       'sheepdog':       'BlockdevCreateOptionsSheepdog',
       'ssh':            'BlockdevCreateOptionsSsh',
-      'throttle':       'BlockdevCreateNotSupported',
       'vdi':            'BlockdevCreateOptionsVdi',
       'vhdx':           'BlockdevCreateOptionsVhdx',
-      'vmdk':           'BlockdevCreateNotSupported',
-      'vpc':            'BlockdevCreateOptionsVpc',
-      'vvfat':          'BlockdevCreateNotSupported',
-      'vxhs':           'BlockdevCreateNotSupported'
+      'vpc':            'BlockdevCreateOptionsVpc'
   } }
 
 ##
