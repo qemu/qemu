@@ -776,6 +776,10 @@ int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
                     Error **errp);
 int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
                           bool align, Error **errp);
+int spapr_irq_find(sPAPRMachineState *spapr, int num, bool align,
+                   Error **errp);
+#define spapr_irq_findone(spapr, errp) spapr_irq_find(spapr, 1, false, errp)
+int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp);
 void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num);
 qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq);
 

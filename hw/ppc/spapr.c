@@ -3816,6 +3816,36 @@ static int ics_find_free_block(ICSState *ics, int num, int alignnum)
     return -1;
 }
 
+int spapr_irq_find(sPAPRMachineState *spapr, int num, bool align, Error **errp)
+{
+    ICSState *ics = spapr->ics;
+    int first = -1;
+
+    assert(ics);
+
+    /*
+     * MSIMesage::data is used for storing VIRQ so
+     * it has to be aligned to num to support multiple
+     * MSI vectors. MSI-X is not affected by this.
+     * The hint is used for the first IRQ, the rest should
+     * be allocated continuously.
+     */
+    if (align) {
+        assert((num == 1) || (num == 2) || (num == 4) ||
+               (num == 8) || (num == 16) || (num == 32));
+        first = ics_find_free_block(ics, num, num);
+    } else {
+        first = ics_find_free_block(ics, num, 1);
+    }
+
+    if (first < 0) {
+        error_setg(errp, "can't find a free %d-IRQ block", num);
+        return -1;
+    }
+
+    return first + ics->offset;
+}
+
 /*
  * Allocate the IRQ number and set the IRQ type, LSI or MSI
  */
@@ -3892,6 +3922,26 @@ int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
     trace_spapr_irq_alloc_block(first, num, lsi, align);
 
     return first;
+}
+
+int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp)
+{
+    ICSState *ics = spapr->ics;
+
+    assert(ics);
+
+    if (!ics_valid_irq(ics, irq)) {
+        error_setg(errp, "IRQ %d is invalid", irq);
+        return -1;
+    }
+
+    if (!ICS_IRQ_FREE(ics, irq - ics->offset)) {
+        error_setg(errp, "IRQ %d is not free", irq);
+        return -1;
+    }
+
+    spapr_irq_set_lsi(spapr, irq, lsi);
+    return 0;
 }
 
 void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num)
