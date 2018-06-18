@@ -129,6 +129,67 @@ static void spapr_cpu_core_unrealize(DeviceState *dev, Error **errp)
     g_free(sc->threads);
 }
 
+static bool slb_shadow_needed(void *opaque)
+{
+    sPAPRCPUState *spapr_cpu = opaque;
+
+    return spapr_cpu->slb_shadow_addr != 0;
+}
+
+static const VMStateDescription vmstate_spapr_cpu_slb_shadow = {
+    .name = "spapr_cpu/vpa/slb_shadow",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = slb_shadow_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(slb_shadow_addr, sPAPRCPUState),
+        VMSTATE_UINT64(slb_shadow_size, sPAPRCPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool dtl_needed(void *opaque)
+{
+    sPAPRCPUState *spapr_cpu = opaque;
+
+    return spapr_cpu->dtl_addr != 0;
+}
+
+static const VMStateDescription vmstate_spapr_cpu_dtl = {
+    .name = "spapr_cpu/vpa/dtl",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = dtl_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(dtl_addr, sPAPRCPUState),
+        VMSTATE_UINT64(dtl_size, sPAPRCPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool vpa_needed(void *opaque)
+{
+    sPAPRCPUState *spapr_cpu = opaque;
+
+    return spapr_cpu->vpa_addr != 0;
+}
+
+static const VMStateDescription vmstate_spapr_cpu_vpa = {
+    .name = "spapr_cpu/vpa",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vpa_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(vpa_addr, sPAPRCPUState),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_spapr_cpu_slb_shadow,
+        &vmstate_spapr_cpu_dtl,
+        NULL
+    }
+};
+
 static const VMStateDescription vmstate_spapr_cpu_state = {
     .name = "spapr_cpu",
     .version_id = 1,
@@ -136,6 +197,10 @@ static const VMStateDescription vmstate_spapr_cpu_state = {
     .fields = (VMStateField[]) {
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_spapr_cpu_vpa,
+        NULL
+    }
 };
 
 static void spapr_realize_vcpu(PowerPCCPU *cpu, sPAPRMachineState *spapr,
