@@ -129,6 +129,15 @@ static void spapr_cpu_core_unrealize(DeviceState *dev, Error **errp)
     g_free(sc->threads);
 }
 
+static const VMStateDescription vmstate_spapr_cpu_state = {
+    .name = "spapr_cpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static void spapr_realize_vcpu(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                Error **errp)
 {
@@ -194,6 +203,10 @@ static PowerPCCPU *spapr_create_vcpu(sPAPRCPUCore *sc, int i, Error **errp)
     }
 
     cpu->machine_data = g_new0(sPAPRCPUState, 1);
+    if (!sc->pre_3_0_migration) {
+        vmstate_register(NULL, cs->cpu_index, &vmstate_spapr_cpu_state,
+                         cpu->machine_data);
+    }
 
     object_unref(obj);
     return cpu;
@@ -204,10 +217,13 @@ err:
     return NULL;
 }
 
-static void spapr_delete_vcpu(PowerPCCPU *cpu)
+static void spapr_delete_vcpu(PowerPCCPU *cpu, sPAPRCPUCore *sc)
 {
     sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
 
+    if (!sc->pre_3_0_migration) {
+        vmstate_unregister(NULL, &vmstate_spapr_cpu_state, cpu->machine_data);
+    }
     cpu->machine_data = NULL;
     g_free(spapr_cpu);
     object_unparent(OBJECT(cpu));
@@ -253,7 +269,7 @@ err_unrealize:
     }
 err:
     while (--i >= 0) {
-        spapr_delete_vcpu(sc->threads[i]);
+        spapr_delete_vcpu(sc->threads[i], sc);
     }
     g_free(sc->threads);
     error_propagate(errp, local_err);
@@ -261,6 +277,8 @@ err:
 
 static Property spapr_cpu_core_properties[] = {
     DEFINE_PROP_INT32("node-id", sPAPRCPUCore, node_id, CPU_UNSET_NUMA_NODE_ID),
+    DEFINE_PROP_BOOL("pre-3.0-migration", sPAPRCPUCore, pre_3_0_migration,
+                     false),
     DEFINE_PROP_END_OF_LIST()
 };
 

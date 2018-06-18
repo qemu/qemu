@@ -31,6 +31,7 @@ typedef struct sPAPRCPUCore {
     /*< public >*/
     PowerPCCPU **threads;
     int node_id;
+    bool pre_3_0_migration; /* older machine don't know about sPAPRCPUState */
 } sPAPRCPUCore;
 
 typedef struct sPAPRCPUCoreClass {

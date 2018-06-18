@@ -4115,7 +4115,12 @@ DEFINE_SPAPR_MACHINE(3_0, "3.0", true);
     HW_COMPAT_2_12                                                     \
     {                                                                  \
         .driver = TYPE_POWERPC_CPU,                                    \
-        .property = "pre-3.0-migration",                              \
+        .property = "pre-3.0-migration",                               \
+        .value    = "on",                                              \
+    },                                                                 \
+    {                                                                  \
+        .driver = TYPE_SPAPR_CPU_CORE,                                 \
+        .property = "pre-3.0-migration",                               \
         .value    = "on",                                              \
     },
 
