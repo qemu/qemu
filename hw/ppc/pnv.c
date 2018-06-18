@@ -265,18 +265,6 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
     g_free(reg);
 }
 
-static int pnv_chip_lpc_offset(PnvChip *chip, void *fdt)
-{
-    char *name;
-    int offset;
-
-    name = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
-                           (uint64_t) PNV_XSCOM_BASE(chip), PNV_XSCOM_LPC_BASE);
-    offset = fdt_path_offset(fdt, name);
-    g_free(name);
-    return offset;
-}
-
 static void pnv_dt_chip(PnvChip *chip, void *fdt)
 {
     const char *typename = pnv_chip_core_typename(chip);
@@ -284,16 +272,6 @@ static void pnv_dt_chip(PnvChip *chip, void *fdt)
     int i;
 
     pnv_dt_xscom(chip, fdt, 0);
-
-    /* The default LPC bus of a multichip system is on chip 0. It's
-     * recognized by the firmware (skiboot) using a "primary"
-     * property.
-     */
-    if (chip->chip_id == 0x0) {
-        int lpc_offset = pnv_chip_lpc_offset(chip, fdt);
-
-        _FDT((fdt_setprop(fdt, lpc_offset, "primary", NULL, 0)));
-    }
 
     for (i = 0; i < chip->nr_cores; i++) {
         PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
@@ -418,16 +396,35 @@ static int pnv_dt_isa_device(DeviceState *dev, void *opaque)
     return 0;
 }
 
-static void pnv_dt_isa(ISABus *bus, void *fdt, int lpc_offset)
+static int pnv_chip_isa_offset(PnvChip *chip, void *fdt)
 {
+    char *name;
+    int offset;
+
+    name = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
+                           (uint64_t) PNV_XSCOM_BASE(chip), PNV_XSCOM_LPC_BASE);
+    offset = fdt_path_offset(fdt, name);
+    g_free(name);
+    return offset;
+}
+
+/* The default LPC bus of a multichip system is on chip 0. It's
+ * recognized by the firmware (skiboot) using a "primary" property.
+ */
+static void pnv_dt_isa(PnvMachineState *pnv, void *fdt)
+{
+    int isa_offset = pnv_chip_isa_offset(pnv->chips[0], fdt);
     ForeachPopulateArgs args = {
         .fdt = fdt,
-        .offset = lpc_offset,
+        .offset = isa_offset,
     };
+
+    _FDT((fdt_setprop(fdt, isa_offset, "primary", NULL, 0)));
 
     /* ISA devices are not necessarily parented to the ISA bus so we
      * can not use object_child_foreach() */
-    qbus_walk_children(BUS(bus), pnv_dt_isa_device, NULL, NULL, NULL, &args);
+    qbus_walk_children(BUS(pnv->isa_bus), pnv_dt_isa_device, NULL, NULL, NULL,
+                       &args);
 }
 
 static void *pnv_dt_create(MachineState *machine)
@@ -438,7 +435,6 @@ static void *pnv_dt_create(MachineState *machine)
     char *buf;
     int off;
     int i;
-    int lpc_offset;
 
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create_empty_tree(fdt, FDT_MAX_SIZE)));
@@ -480,8 +476,7 @@ static void *pnv_dt_create(MachineState *machine)
     }
 
     /* Populate ISA devices on chip 0 */
-    lpc_offset = pnv_chip_lpc_offset(pnv->chips[0], fdt);
-    pnv_dt_isa(pnv->isa_bus, fdt, lpc_offset);
+    pnv_dt_isa(pnv, fdt);
 
     if (pnv->bmc) {
         pnv_dt_bmc_sensors(pnv->bmc, fdt);
