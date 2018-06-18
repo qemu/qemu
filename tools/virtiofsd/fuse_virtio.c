@@ -41,6 +41,9 @@ struct fv_QueueInfo {
     /* Our queue index, corresponds to array position */
     int qidx;
     int kick_fd;
+
+    /* The element for the command currently being processed */
+    VuVirtqElement *qe;
 };
 
 /*
@@ -119,6 +122,105 @@ static void copy_from_iov(struct fuse_buf *buf, size_t out_num,
         out_sg++;
         out_num--;
     }
+}
+
+/*
+ * Copy from one iov to another, the given number of bytes
+ * The caller must have checked sizes.
+ */
+static void copy_iov(struct iovec *src_iov, int src_count,
+                     struct iovec *dst_iov, int dst_count, size_t to_copy)
+{
+    size_t dst_offset = 0;
+    /* Outer loop copies 'src' elements */
+    while (to_copy) {
+        assert(src_count);
+        size_t src_len = src_iov[0].iov_len;
+        size_t src_offset = 0;
+
+        if (src_len > to_copy) {
+            src_len = to_copy;
+        }
+        /* Inner loop copies contents of one 'src' to maybe multiple dst. */
+        while (src_len) {
+            assert(dst_count);
+            size_t dst_len = dst_iov[0].iov_len - dst_offset;
+            if (dst_len > src_len) {
+                dst_len = src_len;
+            }
+
+            memcpy(dst_iov[0].iov_base + dst_offset,
+                   src_iov[0].iov_base + src_offset, dst_len);
+            src_len -= dst_len;
+            to_copy -= dst_len;
+            src_offset += dst_len;
+            dst_offset += dst_len;
+
+            assert(dst_offset <= dst_iov[0].iov_len);
+            if (dst_offset == dst_iov[0].iov_len) {
+                dst_offset = 0;
+                dst_iov++;
+                dst_count--;
+            }
+        }
+        src_iov++;
+        src_count--;
+    }
+}
+
+/*
+ * Called back by ll whenever it wants to send a reply/message back
+ * The 1st element of the iov starts with the fuse_out_header
+ * 'unique'==0 means it's a notify message.
+ */
+int virtio_send_msg(struct fuse_session *se, struct fuse_chan *ch,
+                    struct iovec *iov, int count)
+{
+    VuVirtqElement *elem;
+    VuVirtq *q;
+
+    assert(count >= 1);
+    assert(iov[0].iov_len >= sizeof(struct fuse_out_header));
+
+    struct fuse_out_header *out = iov[0].iov_base;
+    /* TODO: Endianness! */
+
+    size_t tosend_len = iov_size(iov, count);
+
+    /* unique == 0 is notification, which we don't support */
+    assert(out->unique);
+    /* For virtio we always have ch */
+    assert(ch);
+    elem = ch->qi->qe;
+    q = &ch->qi->virtio_dev->dev.vq[ch->qi->qidx];
+
+    /* The 'in' part of the elem is to qemu */
+    unsigned int in_num = elem->in_num;
+    struct iovec *in_sg = elem->in_sg;
+    size_t in_len = iov_size(in_sg, in_num);
+    fuse_log(FUSE_LOG_DEBUG, "%s: elem %d: with %d in desc of length %zd\n",
+             __func__, elem->index, in_num, in_len);
+
+    /*
+     * The elem should have room for a 'fuse_out_header' (out from fuse)
+     * plus the data based on the len in the header.
+     */
+    if (in_len < sizeof(struct fuse_out_header)) {
+        fuse_log(FUSE_LOG_ERR, "%s: elem %d too short for out_header\n",
+                 __func__, elem->index);
+        return -E2BIG;
+    }
+    if (in_len < tosend_len) {
+        fuse_log(FUSE_LOG_ERR, "%s: elem %d too small for data len %zd\n",
+                 __func__, elem->index, tosend_len);
+        return -E2BIG;
+    }
+
+    copy_iov(iov, count, in_sg, in_num, tosend_len);
+    vu_queue_push(&se->virtio_dev->dev, q, elem, tosend_len);
+    vu_queue_notify(&se->virtio_dev->dev, q);
+
+    return 0;
 }
 
 /* Thread function for individual queues, created when a queue is 'started' */
@@ -226,13 +328,10 @@ static void *fv_queue_thread(void *opaque)
 
             /* TODO! Endianness of header */
 
-            /* TODO: Fixup fuse_send_msg */
             /* TODO: Add checks for fuse_session_exited */
             fuse_session_process_buf_int(se, &fbuf, &ch);
 
-            /* TODO: vu_queue_push(dev, q, elem, qi->write_count); */
-            vu_queue_notify(dev, q);
-
+            qi->qe = NULL;
             free(elem);
             elem = NULL;
         }

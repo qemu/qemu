@@ -171,6 +171,10 @@ static int fuse_send_msg(struct fuse_session *se, struct fuse_chan *ch,
         }
     }
 
+    if (fuse_lowlevel_is_virtio(se)) {
+        return virtio_send_msg(se, ch, iov, count);
+    }
+
     abort(); /* virtio should have taken it before here */
     return 0;
 }
