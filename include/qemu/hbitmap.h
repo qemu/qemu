@@ -324,11 +324,14 @@ void hbitmap_free_meta(HBitmap *hb);
 /**
  * hbitmap_iter_next:
  * @hbi: HBitmapIter to operate on.
+ * @advance: If true, advance the iterator.  Otherwise, the next call
+ *           of this function will return the same result (if that
+ *           position is still dirty).
  *
  * Return the next bit that is set in @hbi's associated HBitmap,
  * or -1 if all remaining bits are zero.
  */
-int64_t hbitmap_iter_next(HBitmapIter *hbi);
+int64_t hbitmap_iter_next(HBitmapIter *hbi, bool advance);
 
 /**
  * hbitmap_iter_next_word:

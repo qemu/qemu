@@ -385,6 +385,11 @@ void job_progress_set_remaining(Job *job, uint64_t remaining)
     job->progress_total = job->progress_current + remaining;
 }
 
+void job_progress_increase_remaining(Job *job, uint64_t delta)
+{
+    job->progress_total += delta;
+}
+
 void job_event_cancelled(Job *job)
 {
     notifier_list_notify(&job->on_finalize_cancelled, job);
