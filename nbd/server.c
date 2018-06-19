@@ -733,6 +733,71 @@ static int nbd_negotiate_send_meta_context(NBDClient *client,
     return qio_channel_writev_all(client->ioc, iov, 2, errp) < 0 ? -EIO : 0;
 }
 
+/* Read strlen(@pattern) bytes, and set @match to true if they match @pattern.
+ * @match is never set to false.
+ *
+ * Return -errno on I/O error, 0 if option was completely handled by
+ * sending a reply about inconsistent lengths, or 1 on success.
+ *
+ * Note: return code = 1 doesn't mean that we've read exactly @pattern.
+ * It only means that there are no errors.
+ */
+static int nbd_meta_pattern(NBDClient *client, const char *pattern, bool *match,
+                            Error **errp)
+{
+    int ret;
+    char *query;
+    size_t len = strlen(pattern);
+
+    assert(len);
+
+    query = g_malloc(len);
+    ret = nbd_opt_read(client, query, len, errp);
+    if (ret <= 0) {
+        g_free(query);
+        return ret;
+    }
+
+    if (strncmp(query, pattern, len) == 0) {
+        trace_nbd_negotiate_meta_query_parse(pattern);
+        *match = true;
+    } else {
+        trace_nbd_negotiate_meta_query_skip("pattern not matched");
+    }
+    g_free(query);
+
+    return 1;
+}
+
+/*
+ * Read @len bytes, and set @match to true if they match @pattern, or if @len
+ * is 0 and the client is performing _LIST_. @match is never set to false.
+ *
+ * Return -errno on I/O error, 0 if option was completely handled by
+ * sending a reply about inconsistent lengths, or 1 on success.
+ *
+ * Note: return code = 1 doesn't mean that we've read exactly @pattern.
+ * It only means that there are no errors.
+ */
+static int nbd_meta_empty_or_pattern(NBDClient *client, const char *pattern,
+                                     uint32_t len, bool *match, Error **errp)
+{
+    if (len == 0) {
+        if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
+            *match = true;
+        }
+        trace_nbd_negotiate_meta_query_parse("empty");
+        return 1;
+    }
+
+    if (len != strlen(pattern)) {
+        trace_nbd_negotiate_meta_query_skip("different lengths");
+        return nbd_opt_skip(client, len, errp);
+    }
+
+    return nbd_meta_pattern(client, pattern, match, errp);
+}
+
 /* nbd_meta_base_query
  *
  * Handle queries to 'base' namespace. For now, only the base:allocation
@@ -741,43 +806,12 @@ static int nbd_negotiate_send_meta_context(NBDClient *client,
  *
  * Return -errno on I/O error, 0 if option was completely handled by
  * sending a reply about inconsistent lengths, or 1 on success.
- *
- * Note: return code = 1 doesn't mean that we've parsed the "base:allocation"
- * namespace. It only means that there are no errors.
  */
 static int nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
                                uint32_t len, Error **errp)
 {
-    int ret;
-    char query[sizeof("allocation") - 1];
-    size_t alen = strlen("allocation");
-
-    if (len == 0) {
-        if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
-            meta->base_allocation = true;
-        }
-        trace_nbd_negotiate_meta_query_parse("base:");
-        return 1;
-    }
-
-    if (len != alen) {
-        trace_nbd_negotiate_meta_query_skip("not base:allocation");
-        return nbd_opt_skip(client, len, errp);
-    }
-
-    ret = nbd_opt_read(client, query, len, errp);
-    if (ret <= 0) {
-        return ret;
-    }
-
-    if (strncmp(query, "allocation", alen) == 0) {
-        trace_nbd_negotiate_meta_query_parse("base:allocation");
-        meta->base_allocation = true;
-    } else {
-        trace_nbd_negotiate_meta_query_skip("not base:allocation");
-    }
-
-    return 1;
+    return nbd_meta_empty_or_pattern(client, "allocation", len,
+                                     &meta->base_allocation, errp);
 }
 
 /* nbd_negotiate_meta_query
@@ -823,6 +857,7 @@ static int nbd_negotiate_meta_query(NBDClient *client,
         return nbd_opt_skip(client, len, errp);
     }
 
+    trace_nbd_negotiate_meta_query_parse("base:");
     return nbd_meta_base_query(client, meta, len, errp);
 }
 
