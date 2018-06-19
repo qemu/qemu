@@ -30,6 +30,7 @@
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/i2c/ppc4xx_i2c.h"
+#include "bitbang_i2c.h"
 
 #define PPC4xx_I2C_MEM_SIZE 18
 
@@ -45,6 +46,11 @@
 #define IIC_EXTSTS_XFRA     (1 << 0)
 
 #define IIC_XTCNTLSS_SRST   (1 << 0)
+
+#define IIC_DIRECTCNTL_SDAC (1 << 3)
+#define IIC_DIRECTCNTL_SCLC (1 << 2)
+#define IIC_DIRECTCNTL_MSDA (1 << 1)
+#define IIC_DIRECTCNTL_MSCL (1 << 0)
 
 static void ppc4xx_i2c_reset(DeviceState *s)
 {
@@ -289,7 +295,12 @@ static void ppc4xx_i2c_writeb(void *opaque, hwaddr addr, uint64_t value,
         i2c->xtcntlss = value;
         break;
     case 16:
-        i2c->directcntl = value & 0x7;
+        i2c->directcntl = value & (IIC_DIRECTCNTL_SDAC & IIC_DIRECTCNTL_SCLC);
+        i2c->directcntl |= (value & IIC_DIRECTCNTL_SCLC ? 1 : 0);
+        bitbang_i2c_set(i2c->bitbang, BITBANG_I2C_SCL,
+                        i2c->directcntl & IIC_DIRECTCNTL_MSCL);
+        i2c->directcntl |= bitbang_i2c_set(i2c->bitbang, BITBANG_I2C_SDA,
+                               (value & IIC_DIRECTCNTL_SDAC) != 0) << 1;
         break;
     default:
         if (addr < PPC4xx_I2C_MEM_SIZE) {
@@ -322,6 +333,7 @@ static void ppc4xx_i2c_init(Object *o)
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
     sysbus_init_irq(SYS_BUS_DEVICE(s), &s->irq);
     s->bus = i2c_init_bus(DEVICE(s), "i2c");
+    s->bitbang = bitbang_i2c_init(s->bus);
 }
 
 static void ppc4xx_i2c_class_init(ObjectClass *klass, void *data)
