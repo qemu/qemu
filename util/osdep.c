@@ -302,7 +302,8 @@ int qemu_open(const char *name, int flags, ...)
         }
 
         fd = monitor_fdset_get_fd(fdset_id, flags);
-        if (fd == -1) {
+        if (fd < 0) {
+            errno = -fd;
             return -1;
         }
 
