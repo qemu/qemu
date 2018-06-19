@@ -37,7 +37,7 @@ static bool is_parallel_enabled(ISASuperIODevice *sio, uint8_t index)
 
 static uint16_t get_parallel_iobase(ISASuperIODevice *sio, uint8_t index)
 {
-    return 0x3bc;
+    return 0x378;
 }
 
 static unsigned int get_parallel_irq(ISASuperIODevice *sio, uint8_t index)
