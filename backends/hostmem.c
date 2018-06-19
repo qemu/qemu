@@ -247,8 +247,7 @@ bool host_memory_backend_mr_inited(HostMemoryBackend *backend)
     return memory_region_size(&backend->mr) != 0;
 }
 
-MemoryRegion *
-host_memory_backend_get_memory(HostMemoryBackend *backend, Error **errp)
+MemoryRegion *host_memory_backend_get_memory(HostMemoryBackend *backend)
 {
     return host_memory_backend_mr_inited(backend) ? &backend->mr : NULL;
 }

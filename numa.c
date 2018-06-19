@@ -523,8 +523,7 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
         if (!backend) {
             continue;
         }
-        MemoryRegion *seg = host_memory_backend_get_memory(backend,
-                                                           &error_fatal);
+        MemoryRegion *seg = host_memory_backend_get_memory(backend);
 
         if (memory_region_is_mapped(seg)) {
             char *path = object_get_canonical_path_component(OBJECT(backend));

@@ -105,7 +105,7 @@ static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
 
 static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
 {
-    MemoryRegion *mr = host_memory_backend_get_memory(dimm->hostmem, errp);
+    MemoryRegion *mr = host_memory_backend_get_memory(dimm->hostmem);
     NVDIMMDevice *nvdimm = NVDIMM(dimm);
     uint64_t align, pmem_size, size = memory_region_size(mr);
 
@@ -161,7 +161,7 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
 
     memcpy(nvdimm->label_data + offset, buf, size);
 
-    mr = host_memory_backend_get_memory(dimm->hostmem, &error_abort);
+    mr = host_memory_backend_get_memory(dimm->hostmem);
     backend_offset = memory_region_size(mr) - nvdimm->label_size + offset;
     memory_region_set_dirty(mr, backend_offset, size);
 }

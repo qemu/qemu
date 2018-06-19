@@ -226,12 +226,12 @@ static MemoryRegion *pc_dimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
         return NULL;
     }
 
-    return host_memory_backend_get_memory(dimm->hostmem, errp);
+    return host_memory_backend_get_memory(dimm->hostmem);
 }
 
 static MemoryRegion *pc_dimm_get_vmstate_memory_region(PCDIMMDevice *dimm)
 {
-    return host_memory_backend_get_memory(dimm->hostmem, &error_abort);
+    return host_memory_backend_get_memory(dimm->hostmem);
 }
 
 static uint64_t pc_dimm_md_get_addr(const MemoryDeviceState *md)
