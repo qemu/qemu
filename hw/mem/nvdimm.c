@@ -64,36 +64,11 @@ out:
     error_propagate(errp, local_err);
 }
 
-static bool nvdimm_get_unarmed(Object *obj, Error **errp)
-{
-    NVDIMMDevice *nvdimm = NVDIMM(obj);
-
-    return nvdimm->unarmed;
-}
-
-static void nvdimm_set_unarmed(Object *obj, bool value, Error **errp)
-{
-    NVDIMMDevice *nvdimm = NVDIMM(obj);
-    Error *local_err = NULL;
-
-    if (memory_region_size(&nvdimm->nvdimm_mr)) {
-        error_setg(&local_err, "cannot change property value");
-        goto out;
-    }
-
-    nvdimm->unarmed = value;
-
- out:
-    error_propagate(errp, local_err);
-}
-
 static void nvdimm_init(Object *obj)
 {
     object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "int",
                         nvdimm_get_label_size, nvdimm_set_label_size, NULL,
                         NULL, NULL);
-    object_property_add_bool(obj, NVDIMM_UNARMED_PROP,
-                             nvdimm_get_unarmed, nvdimm_set_unarmed, NULL);
 }
 
 static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
@@ -166,13 +141,20 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
     memory_region_set_dirty(mr, backend_offset, size);
 }
 
+static Property nvdimm_properties[] = {
+    DEFINE_PROP_BOOL(NVDIMM_UNARMED_PROP, NVDIMMDevice, unarmed, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void nvdimm_class_init(ObjectClass *oc, void *data)
 {
     PCDIMMDeviceClass *ddc = PC_DIMM_CLASS(oc);
     NVDIMMClass *nvc = NVDIMM_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
     ddc->realize = nvdimm_realize;
     ddc->get_memory_region = nvdimm_get_memory_region;
+    dc->props = nvdimm_properties;
 
     nvc->read_label_data = nvdimm_read_label_data;
     nvc->write_label_data = nvdimm_write_label_data;
