@@ -37,14 +37,9 @@ void pc_dimm_plug(DeviceState *dev, MachineState *machine, uint64_t align,
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm,
                                                               &error_abort);
+    MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
     Error *local_err = NULL;
-    MemoryRegion *mr;
     uint64_t addr;
-
-    mr = ddc->get_memory_region(dimm, &local_err);
-    if (local_err) {
-        goto out;
-    }
 
     addr = object_property_get_uint(OBJECT(dimm),
                                     PC_DIMM_ADDR_PROP, &local_err);
