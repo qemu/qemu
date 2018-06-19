@@ -34,7 +34,7 @@ typedef struct PnvCore {
     CPUCore parent_obj;
 
     /*< public >*/
-    void *threads;
+    PowerPCCPU **threads;
     uint32_t pir;
 
     MemoryRegion xscom_regs;

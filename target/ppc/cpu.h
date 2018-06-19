@@ -1091,12 +1091,6 @@ struct CPUPPCState {
     target_ulong rmls;
 #endif
 
-#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-    uint64_t vpa_addr;
-    uint64_t slb_shadow_addr, slb_shadow_size;
-    uint64_t dtl_addr, dtl_size;
-#endif /* TARGET_PPC64 */
-
     int error_code;
     uint32_t pending_interrupts;
 #if !defined(CONFIG_USER_ONLY)
@@ -1205,6 +1199,7 @@ struct PowerPCCPU {
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
     Object *intc;
+    void *machine_data;
     int32_t node_id; /* NUMA node this CPU belongs to */
     PPCHash64Options *hash64_opts;
 
@@ -1300,8 +1295,6 @@ void ppc_store_ptcr(CPUPPCState *env, target_ulong value);
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
 void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf);
-#if defined(TARGET_PPC64)
-#endif
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS

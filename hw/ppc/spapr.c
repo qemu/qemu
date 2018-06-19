@@ -186,27 +186,33 @@ static int xics_max_server_number(sPAPRMachineState *spapr)
 static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
+    Error *local_err = NULL;
 
     if (kvm_enabled()) {
         if (machine_kernel_irqchip_allowed(machine) &&
-            !xics_kvm_init(spapr, errp)) {
+            !xics_kvm_init(spapr, &local_err)) {
             spapr->icp_type = TYPE_KVM_ICP;
-            spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs, errp);
+            spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs,
+                                          &local_err);
         }
         if (machine_kernel_irqchip_required(machine) && !spapr->ics) {
-            error_prepend(errp, "kernel_irqchip requested but unavailable: ");
-            return;
+            error_prepend(&local_err,
+                          "kernel_irqchip requested but unavailable: ");
+            goto error;
         }
+        error_free(local_err);
+        local_err = NULL;
     }
 
     if (!spapr->ics) {
         xics_spapr_init(spapr);
         spapr->icp_type = TYPE_ICP;
-        spapr->ics = spapr_ics_create(spapr, TYPE_ICS_SIMPLE, nr_irqs, errp);
-        if (!spapr->ics) {
-            return;
-        }
+        spapr->ics = spapr_ics_create(spapr, TYPE_ICS_SIMPLE, nr_irqs,
+                                      &local_err);
     }
+
+error:
+    error_propagate(errp, local_err);
 }
 
 static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,

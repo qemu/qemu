@@ -28,6 +28,7 @@ static void spapr_cpu_reset(void *opaque)
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
     target_ulong lpcr;
 
     cpu_reset(cs);
@@ -69,6 +70,12 @@ static void spapr_cpu_reset(void *opaque)
 
     /* Set a full AMOR so guest can use the AMR as it sees fit */
     env->spr[SPR_AMOR] = 0xffffffffffffffffull;
+
+    spapr_cpu->vpa_addr = 0;
+    spapr_cpu->slb_shadow_addr = 0;
+    spapr_cpu->slb_shadow_size = 0;
+    spapr_cpu->dtl_addr = 0;
+    spapr_cpu->dtl_size = 0;
 }
 
 void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip, target_ulong r3)
@@ -81,26 +88,6 @@ void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip, target_ulong r
     CPU(cpu)->halted = 0;
     /* Enable Power-saving mode Exit Cause exceptions */
     ppc_store_lpcr(cpu, env->spr[SPR_LPCR] | pcc->lpcr_pm);
-}
-
-static void spapr_cpu_destroy(PowerPCCPU *cpu)
-{
-    qemu_unregister_reset(spapr_cpu_reset, cpu);
-}
-
-static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu,
-                           Error **errp)
-{
-    CPUPPCState *env = &cpu->env;
-
-    /* Set time-base frequency to 512 MHz */
-    cpu_ppc_tb_init(env, SPAPR_TIMEBASE_FREQ);
-
-    cpu_ppc_set_vhyp(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
-    kvmppc_set_papr(cpu);
-
-    qemu_register_reset(spapr_cpu_reset, cpu);
-    spapr_cpu_reset(cpu);
 }
 
 /*
@@ -122,53 +109,108 @@ const char *spapr_get_cpu_core_type(const char *cpu_type)
     return object_class_get_name(oc);
 }
 
-static void spapr_cpu_core_unrealizefn(DeviceState *dev, Error **errp)
+static void spapr_unrealize_vcpu(PowerPCCPU *cpu)
+{
+    qemu_unregister_reset(spapr_cpu_reset, cpu);
+    object_unparent(cpu->intc);
+    cpu_remove_sync(CPU(cpu));
+    object_unparent(OBJECT(cpu));
+}
+
+static void spapr_cpu_core_unrealize(DeviceState *dev, Error **errp)
 {
     sPAPRCPUCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(dev);
     int i;
 
     for (i = 0; i < cc->nr_threads; i++) {
-        Object *obj = OBJECT(sc->threads[i]);
-        DeviceState *dev = DEVICE(obj);
-        CPUState *cs = CPU(dev);
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-
-        spapr_cpu_destroy(cpu);
-        object_unparent(cpu->intc);
-        cpu_remove_sync(cs);
-        object_unparent(obj);
+        spapr_unrealize_vcpu(sc->threads[i]);
     }
     g_free(sc->threads);
 }
 
-static void spapr_cpu_core_realize_child(Object *child,
-                                         sPAPRMachineState *spapr, Error **errp)
+static void spapr_realize_vcpu(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                               Error **errp)
 {
+    CPUPPCState *env = &cpu->env;
     Error *local_err = NULL;
-    CPUState *cs = CPU(child);
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-    object_property_set_bool(child, true, "realized", &local_err);
+    object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
     if (local_err) {
         goto error;
     }
 
-    spapr_cpu_init(spapr, cpu, &local_err);
-    if (local_err) {
-        goto error;
-    }
+    /* Set time-base frequency to 512 MHz */
+    cpu_ppc_tb_init(env, SPAPR_TIMEBASE_FREQ);
 
-    cpu->intc = icp_create(child, spapr->icp_type, XICS_FABRIC(spapr),
+    cpu_ppc_set_vhyp(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
+    kvmppc_set_papr(cpu);
+
+    qemu_register_reset(spapr_cpu_reset, cpu);
+    spapr_cpu_reset(cpu);
+
+    cpu->intc = icp_create(OBJECT(cpu), spapr->icp_type, XICS_FABRIC(spapr),
                            &local_err);
     if (local_err) {
-        goto error;
+        goto error_unregister;
     }
 
     return;
 
+error_unregister:
+    qemu_unregister_reset(spapr_cpu_reset, cpu);
+    cpu_remove_sync(CPU(cpu));
 error:
     error_propagate(errp, local_err);
+}
+
+static PowerPCCPU *spapr_create_vcpu(sPAPRCPUCore *sc, int i, Error **errp)
+{
+    sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(sc);
+    CPUCore *cc = CPU_CORE(sc);
+    Object *obj;
+    char *id;
+    CPUState *cs;
+    PowerPCCPU *cpu;
+    Error *local_err = NULL;
+
+    obj = object_new(scc->cpu_type);
+
+    cs = CPU(obj);
+    cpu = POWERPC_CPU(obj);
+    cs->cpu_index = cc->core_id + i;
+    spapr_set_vcpu_id(cpu, cs->cpu_index, &local_err);
+    if (local_err) {
+        goto err;
+    }
+
+    cpu->node_id = sc->node_id;
+
+    id = g_strdup_printf("thread[%d]", i);
+    object_property_add_child(OBJECT(sc), id, obj, &local_err);
+    g_free(id);
+    if (local_err) {
+        goto err;
+    }
+
+    cpu->machine_data = g_new0(sPAPRCPUState, 1);
+
+    object_unref(obj);
+    return cpu;
+
+err:
+    object_unref(obj);
+    error_propagate(errp, local_err);
+    return NULL;
+}
+
+static void spapr_delete_vcpu(PowerPCCPU *cpu)
+{
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
+
+    cpu->machine_data = NULL;
+    g_free(spapr_cpu);
+    object_unparent(OBJECT(cpu));
 }
 
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
@@ -180,10 +222,8 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         (sPAPRMachineState *) object_dynamic_cast(qdev_get_machine(),
                                                   TYPE_SPAPR_MACHINE);
     sPAPRCPUCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
-    sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
     Error *local_err = NULL;
-    Object *obj;
     int i, j;
 
     if (!spapr) {
@@ -193,46 +233,27 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 
     sc->threads = g_new(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
-        char id[32];
-        CPUState *cs;
-        PowerPCCPU *cpu;
-
-        obj = object_new(scc->cpu_type);
-
-        cs = CPU(obj);
-        cpu = sc->threads[i] = POWERPC_CPU(obj);
-        cs->cpu_index = cc->core_id + i;
-        spapr_set_vcpu_id(cpu, cs->cpu_index, &local_err);
+        sc->threads[i] = spapr_create_vcpu(sc, i, &local_err);
         if (local_err) {
             goto err;
         }
-
-
-        /* Set NUMA node for the threads belonged to core  */
-        cpu->node_id = sc->node_id;
-
-        snprintf(id, sizeof(id), "thread[%d]", i);
-        object_property_add_child(OBJECT(sc), id, obj, &local_err);
-        if (local_err) {
-            goto err;
-        }
-        object_unref(obj);
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
-        obj = OBJECT(sc->threads[j]);
-
-        spapr_cpu_core_realize_child(obj, spapr, &local_err);
+        spapr_realize_vcpu(sc->threads[j], spapr, &local_err);
         if (local_err) {
-            goto err;
+            goto err_unrealize;
         }
     }
     return;
 
+err_unrealize:
+    while (--j >= 0) {
+        spapr_unrealize_vcpu(sc->threads[j]);
+    }
 err:
     while (--i >= 0) {
-        obj = OBJECT(sc->threads[i]);
-        object_unparent(obj);
+        spapr_delete_vcpu(sc->threads[i]);
     }
     g_free(sc->threads);
     error_propagate(errp, local_err);
@@ -249,7 +270,7 @@ static void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
     sPAPRCPUCoreClass *scc = SPAPR_CPU_CORE_CLASS(oc);
 
     dc->realize = spapr_cpu_core_realize;
-    dc->unrealize = spapr_cpu_core_unrealizefn;
+    dc->unrealize = spapr_cpu_core_unrealize;
     dc->props = spapr_cpu_core_properties;
     scc->cpu_type = data;
 }

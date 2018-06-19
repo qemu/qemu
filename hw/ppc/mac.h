@@ -27,6 +27,7 @@
 #define PPC_MAC_H
 
 #include "exec/memory.h"
+#include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "hw/ide/internal.h"
 #include "hw/input/adb.h"
@@ -58,12 +59,31 @@
 
 /* New World IRQs */
 #define NEWWORLD_CUDA_IRQ      0x19
+#define NEWWORLD_PMU_IRQ       0x19
 #define NEWWORLD_ESCCB_IRQ     0x24
 #define NEWWORLD_ESCCA_IRQ     0x25
 #define NEWWORLD_IDE0_IRQ      0xd
 #define NEWWORLD_IDE0_DMA_IRQ  0x2
 #define NEWWORLD_IDE1_IRQ      0xe
 #define NEWWORLD_IDE1_DMA_IRQ  0x3
+#define NEWWORLD_EXTING_GPIO1  0x2f
+#define NEWWORLD_EXTING_GPIO9  0x37
+
+/* Core99 machine */
+#define TYPE_CORE99_MACHINE MACHINE_TYPE_NAME("mac99")
+#define CORE99_MACHINE(obj) OBJECT_CHECK(Core99MachineState, (obj), \
+                                         TYPE_CORE99_MACHINE)
+
+#define CORE99_VIA_CONFIG_CUDA     0x0
+#define CORE99_VIA_CONFIG_PMU      0x1
+#define CORE99_VIA_CONFIG_PMU_ADB  0x2
+
+typedef struct Core99MachineState {
+    /*< private >*/
+    MachineState parent;
+
+    uint8_t via_config;
+} Core99MachineState;
 
 /* MacIO */
 #define TYPE_MACIO_IDE "macio-ide"

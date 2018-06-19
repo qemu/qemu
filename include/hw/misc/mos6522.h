@@ -134,6 +134,7 @@ typedef struct MOS6522DeviceClass {
     void (*set_sr_int)(MOS6522State *dev);
     void (*portB_write)(MOS6522State *dev);
     void (*portA_write)(MOS6522State *dev);
+    void (*update_irq)(MOS6522State *dev);
     /* These are used to influence the CUDA MacOS timebase calibration */
     uint64_t (*get_timer1_counter_value)(MOS6522State *dev, MOS6522Timer *ti);
     uint64_t (*get_timer2_counter_value)(MOS6522State *dev, MOS6522Timer *ti);

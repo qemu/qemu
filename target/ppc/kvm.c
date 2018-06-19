@@ -829,22 +829,22 @@ static int kvm_get_fp(CPUState *cs)
 static int kvm_get_vpa(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    CPUPPCState *env = &cpu->env;
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
     struct kvm_one_reg reg;
     int ret;
 
     reg.id = KVM_REG_PPC_VPA_ADDR;
-    reg.addr = (uintptr_t)&env->vpa_addr;
+    reg.addr = (uintptr_t)&spapr_cpu->vpa_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret < 0) {
         DPRINTF("Unable to get VPA address from KVM: %s\n", strerror(errno));
         return ret;
     }
 
-    assert((uintptr_t)&env->slb_shadow_size
-           == ((uintptr_t)&env->slb_shadow_addr + 8));
+    assert((uintptr_t)&spapr_cpu->slb_shadow_size
+           == ((uintptr_t)&spapr_cpu->slb_shadow_addr + 8));
     reg.id = KVM_REG_PPC_VPA_SLB;
-    reg.addr = (uintptr_t)&env->slb_shadow_addr;
+    reg.addr = (uintptr_t)&spapr_cpu->slb_shadow_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret < 0) {
         DPRINTF("Unable to get SLB shadow state from KVM: %s\n",
@@ -852,9 +852,10 @@ static int kvm_get_vpa(CPUState *cs)
         return ret;
     }
 
-    assert((uintptr_t)&env->dtl_size == ((uintptr_t)&env->dtl_addr + 8));
+    assert((uintptr_t)&spapr_cpu->dtl_size
+           == ((uintptr_t)&spapr_cpu->dtl_addr + 8));
     reg.id = KVM_REG_PPC_VPA_DTL;
-    reg.addr = (uintptr_t)&env->dtl_addr;
+    reg.addr = (uintptr_t)&spapr_cpu->dtl_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
     if (ret < 0) {
         DPRINTF("Unable to get dispatch trace log state from KVM: %s\n",
@@ -868,7 +869,7 @@ static int kvm_get_vpa(CPUState *cs)
 static int kvm_put_vpa(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    CPUPPCState *env = &cpu->env;
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
     struct kvm_one_reg reg;
     int ret;
 
@@ -876,11 +877,12 @@ static int kvm_put_vpa(CPUState *cs)
      * registered.  That means when restoring state, if a VPA *is*
      * registered, we need to set that up first.  If not, we need to
      * deregister the others before deregistering the master VPA */
-    assert(env->vpa_addr || !(env->slb_shadow_addr || env->dtl_addr));
+    assert(spapr_cpu->vpa_addr
+           || !(spapr_cpu->slb_shadow_addr || spapr_cpu->dtl_addr));
 
-    if (env->vpa_addr) {
+    if (spapr_cpu->vpa_addr) {
         reg.id = KVM_REG_PPC_VPA_ADDR;
-        reg.addr = (uintptr_t)&env->vpa_addr;
+        reg.addr = (uintptr_t)&spapr_cpu->vpa_addr;
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret < 0) {
             DPRINTF("Unable to set VPA address to KVM: %s\n", strerror(errno));
@@ -888,19 +890,20 @@ static int kvm_put_vpa(CPUState *cs)
         }
     }
 
-    assert((uintptr_t)&env->slb_shadow_size
-           == ((uintptr_t)&env->slb_shadow_addr + 8));
+    assert((uintptr_t)&spapr_cpu->slb_shadow_size
+           == ((uintptr_t)&spapr_cpu->slb_shadow_addr + 8));
     reg.id = KVM_REG_PPC_VPA_SLB;
-    reg.addr = (uintptr_t)&env->slb_shadow_addr;
+    reg.addr = (uintptr_t)&spapr_cpu->slb_shadow_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret < 0) {
         DPRINTF("Unable to set SLB shadow state to KVM: %s\n", strerror(errno));
         return ret;
     }
 
-    assert((uintptr_t)&env->dtl_size == ((uintptr_t)&env->dtl_addr + 8));
+    assert((uintptr_t)&spapr_cpu->dtl_size
+           == ((uintptr_t)&spapr_cpu->dtl_addr + 8));
     reg.id = KVM_REG_PPC_VPA_DTL;
-    reg.addr = (uintptr_t)&env->dtl_addr;
+    reg.addr = (uintptr_t)&spapr_cpu->dtl_addr;
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret < 0) {
         DPRINTF("Unable to set dispatch trace log state to KVM: %s\n",
@@ -908,9 +911,9 @@ static int kvm_put_vpa(CPUState *cs)
         return ret;
     }
 
-    if (!env->vpa_addr) {
+    if (!spapr_cpu->vpa_addr) {
         reg.id = KVM_REG_PPC_VPA_ADDR;
-        reg.addr = (uintptr_t)&env->vpa_addr;
+        reg.addr = (uintptr_t)&spapr_cpu->vpa_addr;
         ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret < 0) {
             DPRINTF("Unable to set VPA address to KVM: %s\n", strerror(errno));
@@ -2412,11 +2415,28 @@ bool kvmppc_has_cap_mmu_hash_v3(void)
     return cap_mmu_hash_v3;
 }
 
+static bool kvmppc_power8_host(void)
+{
+    bool ret = false;
+#ifdef TARGET_PPC64
+    {
+        uint32_t base_pvr = CPU_POWERPC_POWER_SERVER_MASK & mfpvr();
+        ret = (base_pvr == CPU_POWERPC_POWER8E_BASE) ||
+              (base_pvr == CPU_POWERPC_POWER8NVL_BASE) ||
+              (base_pvr == CPU_POWERPC_POWER8_BASE);
+    }
+#endif /* TARGET_PPC64 */
+    return ret;
+}
+
 static int parse_cap_ppc_safe_cache(struct kvm_ppc_cpu_char c)
 {
+    bool l1d_thread_priv_req = !kvmppc_power8_host();
+
     if (~c.behaviour & c.behaviour_mask & H_CPU_BEHAV_L1D_FLUSH_PR) {
         return 2;
-    } else if ((c.character & c.character_mask & H_CPU_CHAR_L1D_THREAD_PRIV) &&
+    } else if ((!l1d_thread_priv_req ||
+                c.character & c.character_mask & H_CPU_CHAR_L1D_THREAD_PRIV) &&
                (c.character & c.character_mask
                 & (H_CPU_CHAR_L1D_FLUSH_ORI30 | H_CPU_CHAR_L1D_FLUSH_TRIG2))) {
         return 1;

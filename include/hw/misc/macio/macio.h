@@ -26,8 +26,11 @@
 #ifndef MACIO_H
 #define MACIO_H
 
+#include "hw/char/escc.h"
 #include "hw/intc/heathrow_pic.h"
 #include "hw/misc/macio/cuda.h"
+#include "hw/misc/macio/gpio.h"
+#include "hw/misc/macio/pmu.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "hw/ppc/openpic.h"
 
@@ -41,6 +44,7 @@ typedef struct MacIOState {
 
     MemoryRegion bar;
     CUDAState cuda;
+    PMUState pmu;
     DBDMAState dbdma;
     ESCCState escc;
     uint64_t frequency;
@@ -70,8 +74,11 @@ typedef struct NewWorldMacIOState {
     MacIOState parent_obj;
     /*< public >*/
 
+    bool has_pmu;
+    bool has_adb;
     OpenPICState *pic;
     MACIOIDEState ide[2];
+    MacIOGPIOState gpio;
 } NewWorldMacIOState;
 
 #endif /* MACIO_H */
