@@ -1,3 +1,6 @@
+common-obj-y += ramfb.o
+common-obj-y += ramfb-standalone.o
+
 common-obj-$(CONFIG_ADS7846) += ads7846.o
 common-obj-$(CONFIG_VGA_CIRRUS) += cirrus_vga.o
 common-obj-$(CONFIG_G364FB) += g364fb.o
