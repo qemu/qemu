@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2007 Jocelyn Mayer
  * Copyright (c) 2012 François Revol
- * Copyright (c) 2016 BALATON Zoltan
+ * Copyright (c) 2016-2018 BALATON Zoltan
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -49,7 +49,6 @@ typedef struct PPC4xxI2CState {
     uint8_t mdcntl;
     uint8_t sts;
     uint8_t extsts;
-    uint8_t sdata;
     uint8_t lsadr;
     uint8_t hsadr;
     uint8_t clkdiv;
@@ -57,7 +56,6 @@ typedef struct PPC4xxI2CState {
     uint8_t xfrcnt;
     uint8_t xtcntlss;
     uint8_t directcntl;
-    uint8_t intr;
 } PPC4xxI2CState;
 
 #endif /* PPC4XX_I2C_H */

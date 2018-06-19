@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2007 Jocelyn Mayer
  * Copyright (c) 2012 François Revol
- * Copyright (c) 2016 BALATON Zoltan
+ * Copyright (c) 2016-2018 BALATON Zoltan
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -63,7 +63,6 @@ static void ppc4xx_i2c_reset(DeviceState *s)
     i2c->mdcntl = 0;
     i2c->sts = 0;
     i2c->extsts = 0x8f;
-    i2c->sdata = 0;
     i2c->lsadr = 0;
     i2c->hsadr = 0;
     i2c->clkdiv = 0;
@@ -71,7 +70,6 @@ static void ppc4xx_i2c_reset(DeviceState *s)
     i2c->xfrcnt = 0;
     i2c->xtcntlss = 0;
     i2c->directcntl = 0xf;
-    i2c->intr = 0;
 }
 
 static inline bool ppc4xx_i2c_is_master(PPC4xxI2CState *i2c)
@@ -139,9 +137,6 @@ static uint64_t ppc4xx_i2c_readb(void *opaque, hwaddr addr, unsigned int size)
                           TYPE_PPC4xx_I2C, __func__);
         }
         break;
-    case 2:
-        ret = i2c->sdata;
-        break;
     case 4:
         ret = i2c->lmadr;
         break;
@@ -180,9 +175,6 @@ static uint64_t ppc4xx_i2c_readb(void *opaque, hwaddr addr, unsigned int size)
         break;
     case 16:
         ret = i2c->directcntl;
-        break;
-    case 17:
-        ret = i2c->intr;
         break;
     default:
         if (addr < PPC4xx_I2C_MEM_SIZE) {
@@ -228,9 +220,6 @@ static void ppc4xx_i2c_writeb(void *opaque, hwaddr addr, uint64_t value,
                 i2c_end_transfer(i2c->bus);
             }
         }
-        break;
-    case 2:
-        i2c->sdata = value;
         break;
     case 4:
         i2c->lmadr = value;
@@ -301,9 +290,6 @@ static void ppc4xx_i2c_writeb(void *opaque, hwaddr addr, uint64_t value,
         break;
     case 16:
         i2c->directcntl = value & 0x7;
-        break;
-    case 17:
-        i2c->intr = value;
         break;
     default:
         if (addr < PPC4xx_I2C_MEM_SIZE) {
