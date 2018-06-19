@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/bitops.h"
 
 #include "cpu.h"
 #include "exec/exec-all.h"
@@ -472,6 +473,8 @@ static void encode_topo_cpuid8000001e(CPUState *cs, X86CPU *cpu,
                                        uint32_t *ecx, uint32_t *edx)
 {
     struct core_topology topo = {0};
+    unsigned long nodes;
+    int shift;
 
     build_core_topology(cs->nr_cores, cpu->core_id, &topo);
     *eax = cpu->apic_id;
@@ -504,7 +507,28 @@ static void encode_topo_cpuid8000001e(CPUState *cs, X86CPU *cpu,
      *         2  Socket id
      *       1:0  Node id
      */
-    *ecx = ((topo.num_nodes - 1) << 8) | (cpu->socket_id << 2) | topo.node_id;
+    if (topo.num_nodes <= 4) {
+        *ecx = ((topo.num_nodes - 1) << 8) | (cpu->socket_id << 2) |
+                topo.node_id;
+    } else {
+        /*
+         * Node id fix up. Actual hardware supports up to 4 nodes. But with
+         * more than 32 cores, we may end up with more than 4 nodes.
+         * Node id is a combination of socket id and node id. Only requirement
+         * here is that this number should be unique accross the system.
+         * Shift the socket id to accommodate more nodes. We dont expect both
+         * socket id and node id to be big number at the same time. This is not
+         * an ideal config but we need to to support it. Max nodes we can have
+         * is 32 (255/8) with 8 cores per node and 255 max cores. We only need
+         * 5 bits for nodes. Find the left most set bit to represent the total
+         * number of nodes. find_last_bit returns last set bit(0 based). Left
+         * shift(+1) the socket id to represent all the nodes.
+         */
+        nodes = topo.num_nodes - 1;
+        shift = find_last_bit(&nodes, 8);
+        *ecx = ((topo.num_nodes - 1) << 8) | (cpu->socket_id << (shift + 1)) |
+                topo.node_id;
+    }
     *edx = 0;
 }
 
