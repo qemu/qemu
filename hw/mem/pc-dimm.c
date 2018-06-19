@@ -27,8 +27,8 @@
 #include "sysemu/numa.h"
 #include "trace.h"
 
-void pc_dimm_memory_plug(DeviceState *dev, MachineState *machine,
-                         uint64_t align, Error **errp)
+void pc_dimm_plug(DeviceState *dev, MachineState *machine, uint64_t align,
+                  Error **errp)
 {
     int slot;
     PCDIMMDevice *dimm = PC_DIMM(dev);
@@ -84,7 +84,7 @@ out:
     error_propagate(errp, local_err);
 }
 
-void pc_dimm_memory_unplug(DeviceState *dev, MachineState *machine)
+void pc_dimm_unplug(DeviceState *dev, MachineState *machine)
 {
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
