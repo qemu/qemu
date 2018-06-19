@@ -43,7 +43,7 @@ static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
     Error *local_err = NULL;
     uint64_t value;
 
-    if (memory_region_size(&nvdimm->nvdimm_mr)) {
+    if (nvdimm->nvdimm_mr) {
         error_setg(&local_err, "cannot change property value");
         goto out;
     }
@@ -71,11 +71,18 @@ static void nvdimm_init(Object *obj)
                         NULL, NULL);
 }
 
+static void nvdimm_finalize(Object *obj)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+
+    g_free(nvdimm->nvdimm_mr);
+}
+
 static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(dimm);
 
-    return &nvdimm->nvdimm_mr;
+    return nvdimm->nvdimm_mr;
 }
 
 static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
@@ -102,9 +109,10 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
         return;
     }
 
-    memory_region_init_alias(&nvdimm->nvdimm_mr, OBJECT(dimm),
+    nvdimm->nvdimm_mr = g_new(MemoryRegion, 1);
+    memory_region_init_alias(nvdimm->nvdimm_mr, OBJECT(dimm),
                              "nvdimm-memory", mr, 0, pmem_size);
-    nvdimm->nvdimm_mr.align = align;
+    nvdimm->nvdimm_mr->align = align;
 }
 
 /*
@@ -167,6 +175,7 @@ static TypeInfo nvdimm_info = {
     .class_init    = nvdimm_class_init,
     .instance_size = sizeof(NVDIMMDevice),
     .instance_init = nvdimm_init,
+    .instance_finalize = nvdimm_finalize,
 };
 
 static void nvdimm_register_types(void)
