@@ -73,7 +73,8 @@ typedef struct PCDIMMDeviceClass {
     /* public */
     void (*realize)(PCDIMMDevice *dimm, Error **errp);
     MemoryRegion *(*get_memory_region)(PCDIMMDevice *dimm, Error **errp);
-    MemoryRegion *(*get_vmstate_memory_region)(PCDIMMDevice *dimm);
+    MemoryRegion *(*get_vmstate_memory_region)(PCDIMMDevice *dimm,
+                                               Error **errp);
 } PCDIMMDeviceClass;
 
 void pc_dimm_plug(DeviceState *dev, MachineState *machine, uint64_t align,
