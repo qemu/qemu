@@ -425,13 +425,19 @@ static void prom_init(hwaddr addr, const char *bios_name)
     }
 }
 
-static void prom_init1(Object *obj)
+static void prom_realize(DeviceState *ds, Error **errp)
 {
-    PROMState *s = OPENPROM(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    PROMState *s = OPENPROM(ds);
+    SysBusDevice *dev = SYS_BUS_DEVICE(ds);
+    Error *local_err = NULL;
 
-    memory_region_init_ram_nomigrate(&s->prom, obj, "sun4u.prom", PROM_SIZE_MAX,
-                           &error_fatal);
+    memory_region_init_ram_nomigrate(&s->prom, OBJECT(ds), "sun4u.prom",
+                                     PROM_SIZE_MAX, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     vmstate_register_ram_global(&s->prom);
     memory_region_set_readonly(&s->prom, true);
     sysbus_init_mmio(dev, &s->prom);
@@ -446,6 +452,7 @@ static void prom_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->props = prom_properties;
+    dc->realize = prom_realize;
 }
 
 static const TypeInfo prom_info = {
@@ -453,7 +460,6 @@ static const TypeInfo prom_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PROMState),
     .class_init    = prom_class_init,
-    .instance_init = prom_init1,
 };
 
 

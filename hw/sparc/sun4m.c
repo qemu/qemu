@@ -572,23 +572,36 @@ typedef struct IDRegState {
     MemoryRegion mem;
 } IDRegState;
 
-static void idreg_init1(Object *obj)
+static void idreg_realize(DeviceState *ds, Error **errp)
 {
-    IDRegState *s = MACIO_ID_REGISTER(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    IDRegState *s = MACIO_ID_REGISTER(ds);
+    SysBusDevice *dev = SYS_BUS_DEVICE(ds);
+    Error *local_err = NULL;
 
-    memory_region_init_ram_nomigrate(&s->mem, obj,
-                           "sun4m.idreg", sizeof(idreg_data), &error_fatal);
+    memory_region_init_ram_nomigrate(&s->mem, OBJECT(ds), "sun4m.idreg",
+                                     sizeof(idreg_data), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     vmstate_register_ram_global(&s->mem);
     memory_region_set_readonly(&s->mem, true);
     sysbus_init_mmio(dev, &s->mem);
+}
+
+static void idreg_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = idreg_realize;
 }
 
 static const TypeInfo idreg_info = {
     .name          = TYPE_MACIO_ID_REGISTER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IDRegState),
-    .instance_init = idreg_init1,
+    .class_init    = idreg_class_init,
 };
 
 #define TYPE_TCX_AFX "tcx_afx"
@@ -613,21 +626,35 @@ static void afx_init(hwaddr addr)
     sysbus_mmio_map(s, 0, addr);
 }
 
-static void afx_init1(Object *obj)
+static void afx_realize(DeviceState *ds, Error **errp)
 {
-    AFXState *s = TCX_AFX(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    AFXState *s = TCX_AFX(ds);
+    SysBusDevice *dev = SYS_BUS_DEVICE(ds);
+    Error *local_err = NULL;
 
-    memory_region_init_ram_nomigrate(&s->mem, obj, "sun4m.afx", 4, &error_fatal);
+    memory_region_init_ram_nomigrate(&s->mem, OBJECT(ds), "sun4m.afx", 4,
+                                     &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     vmstate_register_ram_global(&s->mem);
     sysbus_init_mmio(dev, &s->mem);
+}
+
+static void afx_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = afx_realize;
 }
 
 static const TypeInfo afx_info = {
     .name          = TYPE_TCX_AFX,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AFXState),
-    .instance_init = afx_init1,
+    .class_init    = afx_class_init,
 };
 
 #define TYPE_OPENPROM "openprom"
@@ -680,13 +707,19 @@ static void prom_init(hwaddr addr, const char *bios_name)
     }
 }
 
-static void prom_init1(Object *obj)
+static void prom_realize(DeviceState *ds, Error **errp)
 {
-    PROMState *s = OPENPROM(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    PROMState *s = OPENPROM(ds);
+    SysBusDevice *dev = SYS_BUS_DEVICE(ds);
+    Error *local_err = NULL;
 
-    memory_region_init_ram_nomigrate(&s->prom, obj, "sun4m.prom", PROM_SIZE_MAX,
-                           &error_fatal);
+    memory_region_init_ram_nomigrate(&s->prom, OBJECT(ds), "sun4m.prom",
+                                     PROM_SIZE_MAX, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     vmstate_register_ram_global(&s->prom);
     memory_region_set_readonly(&s->prom, true);
     sysbus_init_mmio(dev, &s->prom);
@@ -701,6 +734,7 @@ static void prom_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->props = prom_properties;
+    dc->realize = prom_realize;
 }
 
 static const TypeInfo prom_info = {
@@ -708,7 +742,6 @@ static const TypeInfo prom_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PROMState),
     .class_init    = prom_class_init,
-    .instance_init = prom_init1,
 };
 
 #define TYPE_SUN4M_MEMORY "memory"
