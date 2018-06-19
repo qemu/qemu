@@ -421,6 +421,7 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
                                  Error **errp);
 bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base);
 BlockDriverState *bdrv_next_node(BlockDriverState *bs);
+BlockDriverState *bdrv_next_all_states(BlockDriverState *bs);
 
 typedef struct BdrvNextIterator {
     enum {
@@ -557,7 +558,8 @@ void bdrv_io_unplug(BlockDriverState *bs);
  * Begin a quiesced section of all users of @bs. This is part of
  * bdrv_drained_begin.
  */
-void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore);
+void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
+                               bool ignore_bds_parents);
 
 /**
  * bdrv_parent_drained_end:
@@ -565,7 +567,23 @@ void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore);
  * End a quiesced section of all users of @bs. This is part of
  * bdrv_drained_end.
  */
-void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore);
+void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
+                             bool ignore_bds_parents);
+
+/**
+ * bdrv_drain_poll:
+ *
+ * Poll for pending requests in @bs, its parents (except for @ignore_parent),
+ * and if @recursive is true its children as well (used for subtree drain).
+ *
+ * If @ignore_bds_parents is true, parents that are BlockDriverStates must
+ * ignore the drain request because they will be drained separately (used for
+ * drain_all).
+ *
+ * This is part of bdrv_drained_begin.
+ */
+bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
+                     BdrvChild *ignore_parent, bool ignore_bds_parents);
 
 /**
  * bdrv_drained_begin:
@@ -578,6 +596,15 @@ void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore);
  * This function can be recursive.
  */
 void bdrv_drained_begin(BlockDriverState *bs);
+
+/**
+ * bdrv_do_drained_begin_quiesce:
+ *
+ * Quiesces a BDS like bdrv_drained_begin(), but does not wait for already
+ * running requests to complete.
+ */
+void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
+                                   BdrvChild *parent, bool ignore_bds_parents);
 
 /**
  * Like bdrv_drained_begin, but recursively begins a quiesced section for
