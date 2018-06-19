@@ -518,11 +518,12 @@ void migration_ioc_process_incoming(QIOChannel *ioc)
  */
 bool migration_has_all_channels(void)
 {
+    MigrationIncomingState *mis = migration_incoming_get_current();
     bool all_channels;
 
     all_channels = multifd_recv_all_channels_created();
 
-    return all_channels;
+    return all_channels && mis->from_src_file != NULL;
 }
 
 /*
