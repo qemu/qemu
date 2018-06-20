@@ -2166,6 +2166,7 @@ R: Philippe Mathieu-Daudé <f4bug@amsat.org>
 L: qemu-devel@nongnu.org
 S: Maintained
 F: .travis.yml
+F: scripts/travis/
 F: .shippable.yml
 F: tests/docker/
 F: tests/vm/
