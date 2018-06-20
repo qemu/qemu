@@ -73,6 +73,7 @@ typedef struct VFIOContainer {
     unsigned iommu_type;
     int error;
     bool initialized;
+    unsigned long pgsizes;
     /*
      * This assumes the host IOMMU can support only a single
      * contiguous IOVA window.  We may need to generalize that in
