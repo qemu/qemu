@@ -15,6 +15,7 @@ ETEXI
         .params     = "[cmd]",
         .help       = "show the help",
         .cmd        = do_help_cmd,
+        .flags      = "p",
     },
 
 STEXI
