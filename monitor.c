@@ -128,6 +128,7 @@ typedef struct mon_cmd_t {
     const char *args_type;
     const char *params;
     const char *help;
+    const char *flags; /* p=preconfig */
     void (*cmd)(Monitor *mon, const QDict *qdict);
     /* @sub_table is a list of 2nd level of commands. If it does not exist,
      * cmd should be used. If it exists, sub_table[?].cmd should be
@@ -956,6 +957,19 @@ static int parse_cmdline(const char *cmdline,
  fail:
     free_cmdline_args(args, nb_args);
     return -1;
+}
+
+/*
+ * Returns true if the command can be executed in preconfig mode
+ * i.e. it has the 'p' flag.
+ */
+static bool cmd_can_preconfig(const mon_cmd_t *cmd)
+{
+    if (!cmd->flags) {
+        return false;
+    }
+
+    return strchr(cmd->flags, 'p');
 }
 
 static void help_cmd_dump_one(Monitor *mon,
@@ -3038,6 +3052,12 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
     cmd = search_dispatch_table(table, cmdname);
     if (!cmd) {
         monitor_printf(mon, "unknown command: '%.*s'\n",
+                       (int)(p - cmdp_start), cmdp_start);
+        return NULL;
+    }
+    if (runstate_check(RUN_STATE_PRECONFIG) && !cmd_can_preconfig(cmd)) {
+        monitor_printf(mon, "Command '%.*s' not available with -preconfig "
+                            "until after exit_preconfig.\n",
                        (int)(p - cmdp_start), cmdp_start);
         return NULL;
     }
