@@ -1623,7 +1623,8 @@ F: tests/test-*-visitor.c
 F: tests/test-qapi-*.c
 F: tests/test-qmp-*.c
 F: tests/test-visitor-serialization.c
-F: scripts/qapi*
+F: scripts/qapi-gen.py
+F: scripts/qapi/*
 F: docs/devel/qapi*
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
