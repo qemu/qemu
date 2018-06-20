@@ -1930,7 +1930,7 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
     return offset;
 }
 
-unsigned long last_ram_page(void)
+static unsigned long last_ram_page(void)
 {
     RAMBlock *block;
     ram_addr_t last = 0;

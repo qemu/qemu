@@ -27,7 +27,7 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis);
  * postcopy later; must be called prior to any precopy.
  * called from ram.c's similarly named ram_postcopy_incoming_init
  */
-int postcopy_ram_incoming_init(MigrationIncomingState *mis, size_t ram_pages);
+int postcopy_ram_incoming_init(MigrationIncomingState *mis);
 
 /*
  * At the end of a migration where postcopy_ram_incoming_init was called.
