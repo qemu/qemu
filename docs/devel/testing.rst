@@ -166,9 +166,14 @@ If you want to gather coverage information on a single test the ``make
 clean-coverage`` target can be used to delete any existing coverage
 information before running a single test.
 
-Reports can be obtained by running ``gcov`` command
-on the output files under ``$build_dir/tests/``, please read the
-``gcov`` documentation for more information.
+You can generate a HTML coverage report by executing ``make
+coverage-report`` which will create
+./reports/coverage/coverage-report.html. If you want to create it
+elsewhere simply execute ``make /foo/bar/baz/coverage-report.html``.
+
+Further analysis can be conducted by running the ``gcov`` command
+directly on the various .gcda output files. Please read the ``gcov``
+documentation for more information.
 
 QEMU iotests
 ============

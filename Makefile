@@ -986,6 +986,16 @@ docs/interop/qemu-qmp-ref.dvi docs/interop/qemu-qmp-ref.html \
     docs/interop/qemu-qmp-ref.txt docs/interop/qemu-qmp-ref.7: \
 	docs/interop/qemu-qmp-ref.texi docs/interop/qemu-qmp-qapi.texi
 
+# Reports/Analysis
+
+%/coverage-report.html:
+	@mkdir -p $*
+	$(call quiet-command,\
+		gcovr -p --html --html-details -o $@, \
+		"GEN", "coverage-report.html")
+
+.PHONY: coverage-report
+coverage-report: $(CURDIR)/reports/coverage/coverage-report.html
 
 ifdef CONFIG_WIN32
 
@@ -1095,6 +1105,9 @@ endif
 	@echo  'Documentation targets:'
 	@echo  '  html info pdf txt'
 	@echo  '                  - Build documentation in specified format'
+ifdef CONFIG_GCOV
+	@echo  '  coverage-report - Create code coverage report'
+endif
 	@echo  ''
 ifdef CONFIG_WIN32
 	@echo  'Windows targets:'
