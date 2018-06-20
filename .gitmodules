@@ -1,6 +1,3 @@
-[submodule "roms/vgabios"]
-	path = roms/vgabios
-	url = git://git.qemu-project.org/vgabios.git/
 [submodule "roms/seabios"]
 	path = roms/seabios
 	url = git://git.qemu-project.org/seabios.git/
