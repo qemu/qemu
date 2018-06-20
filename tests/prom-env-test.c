@@ -45,14 +45,16 @@ static void check_guest_memory(void)
 static void test_machine(const void *machine)
 {
     const char *extra_args;
+    const char *extra_props;
 
     /* The pseries firmware boots much faster without the default devices */
     extra_args = strcmp(machine, "pseries") == 0 ? "-nodefaults" : "";
+    extra_props = strcmp(machine, "pseries") == 0 ? ",cap-htm=off" : "";
 
-    global_qtest = qtest_startf("-M %s,accel=tcg %s "
+    global_qtest = qtest_startf("-M %s%s,accel=tcg %s "
                                 "-prom-env 'use-nvramrc?=true' "
                                 "-prom-env 'nvramrc=%x %x l!' ",
-                                (const char *)machine, extra_args,
+                                (const char *)machine, extra_props, extra_args,
                                 MAGIC, ADDRESS);
     check_guest_memory();
     qtest_quit(global_qtest);

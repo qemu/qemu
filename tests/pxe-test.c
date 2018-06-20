@@ -25,11 +25,15 @@ static char disk[] = "tests/pxe-test-disk-XXXXXX";
 static void test_pxe_one(const char *params, bool ipv6)
 {
     char *args;
+    const char *machine_props;
 
-    args = g_strdup_printf("-machine accel=kvm:tcg -nodefaults -boot order=n "
+    machine_props =
+        strcmp(qtest_get_arch(), "ppc64") == 0 ? ",cap-htm=off" : "";
+
+    args = g_strdup_printf("-machine accel=kvm:tcg%s -nodefaults -boot order=n "
                            "-netdev user,id=" NETNAME ",tftp=./,bootfile=%s,"
-                           "ipv4=%s,ipv6=%s %s", disk, ipv6 ? "off" : "on",
-                           ipv6 ? "on" : "off", params);
+                           "ipv4=%s,ipv6=%s %s", machine_props, disk,
+                           ipv6 ? "off" : "on", ipv6 ? "on" : "off", params);
 
     qtest_start(args);
     boot_sector_test();

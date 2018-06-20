@@ -460,12 +460,12 @@ static void test_migrate_start(QTestState **from, QTestState **to,
         /* On ppc64, the test only works with kvm-hv, but not with kvm-pr */
         accel = access("/sys/module/kvm_hv", F_OK) ? "tcg" : "kvm:tcg";
         init_bootfile_ppc(bootpath);
-        cmd_src = g_strdup_printf("-machine accel=%s -m 256M"
+        cmd_src = g_strdup_printf("-machine accel=%s,cap-htm=off -m 256M"
                                   " -name pcsource,debug-threads=on"
                                   " -serial file:%s/src_serial"
                                   " -drive file=%s,if=pflash,format=raw",
                                   accel, tmpfs, bootpath);
-        cmd_dst = g_strdup_printf("-machine accel=%s -m 256M"
+        cmd_dst = g_strdup_printf("-machine accel=%s,cap-htm=off -m 256M"
                                   " -name pcdest,debug-threads=on"
                                   " -serial file:%s/dest_serial"
                                   " -incoming %s",
