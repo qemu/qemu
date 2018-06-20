@@ -294,7 +294,6 @@ static const VMStateDescription vmstate_icp_server = {
 static void icp_reset(void *dev)
 {
     ICPState *icp = ICP(dev);
-    ICPStateClass *icpc = ICP_GET_CLASS(icp);
 
     icp->xirr = 0;
     icp->pending_priority = 0xff;
@@ -302,16 +301,11 @@ static void icp_reset(void *dev)
 
     /* Make all outputs are deasserted */
     qemu_set_irq(icp->output, 0);
-
-    if (icpc->reset) {
-        icpc->reset(icp);
-    }
 }
 
 static void icp_realize(DeviceState *dev, Error **errp)
 {
     ICPState *icp = ICP(dev);
-    ICPStateClass *icpc = ICP_GET_CLASS(dev);
     PowerPCCPU *cpu;
     CPUPPCState *env;
     Object *obj;
@@ -349,10 +343,6 @@ static void icp_realize(DeviceState *dev, Error **errp)
     default:
         error_setg(errp, "XICS interrupt controller does not support this CPU bus model");
         return;
-    }
-
-    if (icpc->realize) {
-        icpc->realize(icp, errp);
     }
 
     qemu_register_reset(icp_reset, dev);

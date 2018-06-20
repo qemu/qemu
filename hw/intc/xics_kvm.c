@@ -114,21 +114,37 @@ static int icp_set_kvm_state(ICPState *icp, int version_id)
     return 0;
 }
 
-static void icp_kvm_reset(ICPState *icp)
+static void icp_kvm_reset(DeviceState *dev)
 {
-    icp_set_kvm_state(icp, 1);
+    ICPStateClass *icpc = ICP_GET_CLASS(dev);
+
+    icpc->parent_reset(dev);
+
+    icp_set_kvm_state(ICP(dev), 1);
 }
 
-static void icp_kvm_realize(ICPState *icp, Error **errp)
+static void icp_kvm_realize(DeviceState *dev, Error **errp)
 {
-    CPUState *cs = icp->cs;
+    ICPState *icp = ICP(dev);
+    ICPStateClass *icpc = ICP_GET_CLASS(icp);
+    Error *local_err = NULL;
+    CPUState *cs;
     KVMEnabledICP *enabled_icp;
-    unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
+    unsigned long vcpu_id;
     int ret;
 
     if (kernel_xics_fd == -1) {
         abort();
     }
+
+    icpc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    cs = icp->cs;
+    vcpu_id = kvm_arch_vcpu_id(cs);
 
     /*
      * If we are reusing a parked vCPU fd corresponding to the CPU
@@ -154,12 +170,16 @@ static void icp_kvm_realize(ICPState *icp, Error **errp)
 
 static void icp_kvm_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ICPStateClass *icpc = ICP_CLASS(klass);
+
+    device_class_set_parent_realize(dc, icp_kvm_realize,
+                                    &icpc->parent_realize);
+    device_class_set_parent_reset(dc, icp_kvm_reset,
+                                  &icpc->parent_reset);
 
     icpc->pre_save = icp_get_kvm_state;
     icpc->post_load = icp_set_kvm_state;
-    icpc->realize = icp_kvm_realize;
-    icpc->reset = icp_kvm_reset;
     icpc->synchronize_state = icp_synchronize_state;
 }
 
