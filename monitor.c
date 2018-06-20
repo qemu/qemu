@@ -541,6 +541,27 @@ struct QMPResponse {
 };
 typedef struct QMPResponse QMPResponse;
 
+static QObject *monitor_qmp_response_pop_one(Monitor *mon)
+{
+    QObject *data;
+
+    qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
+    data = g_queue_pop_head(mon->qmp.qmp_responses);
+    qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
+
+    return data;
+}
+
+static void monitor_qmp_response_flush(Monitor *mon)
+{
+    QObject *data;
+
+    while ((data = monitor_qmp_response_pop_one(mon))) {
+        monitor_json_emitter_raw(mon, data);
+        qobject_unref(data);
+    }
+}
+
 /*
  * Pop a QMPResponse from any monitor's response queue into @response.
  * Return false if all the queues are empty; else true.
@@ -552,9 +573,7 @@ static bool monitor_qmp_response_pop_any(QMPResponse *response)
 
     qemu_mutex_lock(&monitor_lock);
     QTAILQ_FOREACH(mon, &mon_list, entry) {
-        qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
-        data = g_queue_pop_head(mon->qmp.qmp_responses);
-        qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
+        data = monitor_qmp_response_pop_one(mon);
         if (data) {
             response->mon = mon;
             response->data = data;
@@ -4456,6 +4475,13 @@ static void monitor_qmp_event(void *opaque, int event)
         mon_refcount++;
         break;
     case CHR_EVENT_CLOSED:
+        /*
+         * Note: this is only useful when the output of the chardev
+         * backend is still open.  For example, when the backend is
+         * stdio, it's possible that stdout is still open when stdin
+         * is closed.
+         */
+        monitor_qmp_response_flush(mon);
         monitor_qmp_cleanup_queues(mon);
         json_message_parser_destroy(&mon->qmp.parser);
         json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
