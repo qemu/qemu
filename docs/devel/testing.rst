@@ -161,9 +161,14 @@ GCC gcov support
 ``gcov`` is a GCC tool to analyze the testing coverage by
 instrumenting the tested code. To use it, configure QEMU with
 ``--enable-gcov`` option and build. Then run ``make check`` as usual.
-Reports can be obtained by running ``gcov`` command on the output
-files under ``$build_dir/tests/``, please read the ``gcov``
-documentation for more information.
+
+If you want to gather coverage information on a single test the ``make
+clean-coverage`` target can be used to delete any existing coverage
+information before running a single test.
+
+Reports can be obtained by running ``gcov`` command
+on the output files under ``$build_dir/tests/``, please read the
+``gcov`` documentation for more information.
 
 QEMU iotests
 ============
