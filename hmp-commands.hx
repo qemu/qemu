@@ -58,6 +58,25 @@ Quit the emulator.
 ETEXI
 
     {
+        .name       = "exit_preconfig",
+        .args_type  = "",
+        .params     = "",
+        .help       = "exit the preconfig state",
+        .cmd        = hmp_exit_preconfig,
+        .flags      = "p",
+    },
+
+STEXI
+@item exit_preconfig
+@findex exit_preconfig
+This command makes QEMU exit the preconfig state and proceed with
+VM initialization using configuration data provided on the command line
+and via the QMP monitor during the preconfig state. The command is only
+available during the preconfig state (i.e. when the --preconfig command
+line option was in use).
+ETEXI
+
+    {
         .name       = "block_resize",
         .args_type  = "device:B,size:o",
         .params     = "device size",
