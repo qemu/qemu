@@ -26,7 +26,10 @@ import tempfile
 import re
 import signal
 from tarfile import TarFile, TarInfo
-from StringIO import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 from shutil import copy, rmtree
 from pwd import getpwuid
 
