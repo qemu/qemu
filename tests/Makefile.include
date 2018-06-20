@@ -897,26 +897,16 @@ GCOV_OPTIONS = -n $(if $(V),-f,)
 
 .PHONY: $(patsubst %, check-qtest-%, $(QTEST_TARGETS))
 $(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: subdir-%-softmmu $(check-qtest-y)
-	$(if $(CONFIG_GCOV),@rm -f *.gcda */*.gcda */*/*.gcda */*/*/*.gcda,)
 	$(call quiet-command,QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
 		QTEST_QEMU_IMG=qemu-img$(EXESUF) \
 		MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} \
 		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $(check-qtest-$*-y) $(check-qtest-generic-y),"GTESTER","$@")
-	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$*-y) $(gcov-files-generic-y); do \
-	  echo Gcov report for $$f:;\
-	  $(GCOV) $(GCOV_OPTIONS) $$f -o `dirname $$f`; \
-	done,)
 
 .PHONY: $(patsubst %, check-%, $(check-unit-y) $(check-speed-y))
 $(patsubst %, check-%, $(check-unit-y) $(check-speed-y)): check-%: %
-	$(if $(CONFIG_GCOV),@rm -f *.gcda */*.gcda */*/*.gcda */*/*/*.gcda,)
 	$(call quiet-command, \
 		MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$(( $${RANDOM:-0} % 255 + 1))} \
 		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $*,"GTESTER","$*")
-	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$(subst tests/,,$*)-y) $(gcov-files-generic-y); do \
-	  echo Gcov report for $$f:;\
-	  $(GCOV) $(GCOV_OPTIONS) $$f -o `dirname $$f`; \
-	done,)
 
 # gtester tests with XML output
 

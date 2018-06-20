@@ -158,12 +158,11 @@ rarely used. See "QEMU iotests" section below for more information.
 GCC gcov support
 ----------------
 
-``gcov`` is a GCC tool to analyze the testing coverage by instrumenting the
-tested code. To use it, configure QEMU with ``--enable-gcov`` option and build.
-Then run ``make check`` as usual. There will be additional ``gcov`` output as
-the testing goes on, showing the test coverage percentage numbers per analyzed
-source file. More detailed reports can be obtained by running ``gcov`` command
-on the output files under ``$build_dir/tests/``, please read the ``gcov``
+``gcov`` is a GCC tool to analyze the testing coverage by
+instrumenting the tested code. To use it, configure QEMU with
+``--enable-gcov`` option and build. Then run ``make check`` as usual.
+Reports can be obtained by running ``gcov`` command on the output
+files under ``$build_dir/tests/``, please read the ``gcov``
 documentation for more information.
 
 QEMU iotests
