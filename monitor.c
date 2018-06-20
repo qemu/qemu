@@ -542,10 +542,10 @@ struct QMPResponse {
 typedef struct QMPResponse QMPResponse;
 
 /*
- * Return one QMPResponse.  The response is only valid if
- * response.data is not NULL.
+ * Pop a QMPResponse from any monitor's response queue into @response.
+ * Return false if all the queues are empty; else true.
  */
-static QMPResponse monitor_qmp_response_pop_one(void)
+static bool monitor_qmp_response_pop_any(QMPResponse *response)
 {
     Monitor *mon;
     QObject *data = NULL;
@@ -556,22 +556,20 @@ static QMPResponse monitor_qmp_response_pop_one(void)
         data = g_queue_pop_head(mon->qmp.qmp_responses);
         qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
         if (data) {
+            response->mon = mon;
+            response->data = data;
             break;
         }
     }
     qemu_mutex_unlock(&monitor_lock);
-    return (QMPResponse) { .mon = mon, .data = data };
+    return data != NULL;
 }
 
 static void monitor_qmp_bh_responder(void *opaque)
 {
     QMPResponse response;
 
-    while (true) {
-        response = monitor_qmp_response_pop_one();
-        if (!response.data) {
-            break;
-        }
+    while (monitor_qmp_response_pop_any(&response)) {
         monitor_json_emitter_raw(response.mon, response.data);
         qobject_unref(response.data);
     }
@@ -4199,7 +4197,7 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
  * when we process one request on a specific monitor, we put that
  * monitor to the end of mon_list queue.
  */
-static QMPRequest *monitor_qmp_requests_pop_one(void)
+static QMPRequest *monitor_qmp_requests_pop_any(void)
 {
     QMPRequest *req_obj = NULL;
     Monitor *mon;
@@ -4231,7 +4229,7 @@ static QMPRequest *monitor_qmp_requests_pop_one(void)
 
 static void monitor_qmp_bh_dispatcher(void *data)
 {
-    QMPRequest *req_obj = monitor_qmp_requests_pop_one();
+    QMPRequest *req_obj = monitor_qmp_requests_pop_any();
 
     if (req_obj) {
         trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
