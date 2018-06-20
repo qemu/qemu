@@ -33,7 +33,29 @@ typedef struct VFIOCCWDevice {
     uint64_t io_region_offset;
     struct ccw_io_region *io_region;
     EventNotifier io_notifier;
+    bool force_orb_pfch;
+    bool warned_orb_pfch;
 } VFIOCCWDevice;
+
+static inline void warn_once(bool *warned, const char *fmt, ...)
+{
+    va_list ap;
+
+    if (!warned || *warned) {
+        return;
+    }
+    *warned = true;
+    va_start(ap, fmt);
+    warn_vreport(fmt, ap);
+    va_end(ap);
+}
+
+static inline void warn_once_pfch(VFIOCCWDevice *vcdev, SubchDev *sch,
+                                  const char *msg)
+{
+    warn_once(&vcdev->warned_orb_pfch, "vfio-ccw (devno %x.%x.%04x): %s",
+              sch->cssid, sch->ssid, sch->devno, msg);
+}
 
 static void vfio_ccw_compute_needs_reset(VFIODevice *vdev)
 {
@@ -54,6 +76,18 @@ static IOInstEnding vfio_ccw_handle_request(SubchDev *sch)
     VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
     struct ccw_io_region *region = vcdev->io_region;
     int ret;
+
+    if (!(sch->orb.ctrl0 & ORB_CTRL0_MASK_PFCH)) {
+        if (!(vcdev->force_orb_pfch)) {
+            warn_once_pfch(vcdev, sch, "requires PFCH flag set");
+            sch_gen_unit_exception(sch);
+            css_inject_io_interrupt(sch);
+            return IOINST_CC_EXPECTED;
+        } else {
+            sch->orb.ctrl0 |= ORB_CTRL0_MASK_PFCH;
+            warn_once_pfch(vcdev, sch, "PFCH flag forced");
+        }
+    }
 
     QEMU_BUILD_BUG_ON(sizeof(region->orb_area) != sizeof(ORB));
     QEMU_BUILD_BUG_ON(sizeof(region->scsw_area) != sizeof(SCSW));
@@ -430,6 +464,7 @@ static void vfio_ccw_unrealize(DeviceState *dev, Error **errp)
 
 static Property vfio_ccw_properties[] = {
     DEFINE_PROP_STRING("sysfsdev", VFIOCCWDevice, vdev.sysfsdev),
+    DEFINE_PROP_BOOL("force-orb-pfch", VFIOCCWDevice, force_orb_pfch, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

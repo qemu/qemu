@@ -30,6 +30,7 @@
 #include <ipv6.h>
 #include <dns.h>
 #include <time.h>
+#include <pxelinux.h>
 
 #include "s390-ccw.h"
 #include "virtio.h"
@@ -41,13 +42,17 @@ extern char _start[];
 
 #define KERNEL_ADDR             ((void *)0L)
 #define KERNEL_MAX_SIZE         ((long)_start)
+#define ARCH_COMMAND_LINE_SIZE  896              /* Taken from Linux kernel */
+
+/* STSI 3.2.2 offset of first vmdb + offset of uuid inside vmdb */
+#define STSI322_VMDB_UUID_OFFSET ((8 + 12) * 4)
 
 char stack[PAGE_SIZE * 8] __attribute__((aligned(PAGE_SIZE)));
 IplParameterBlock iplb __attribute__((aligned(PAGE_SIZE)));
 static char cfgbuf[2048];
 
 static SubChannelId net_schid = { .one = 1 };
-static int ip_version = 4;
+static uint8_t mac[6];
 static uint64_t dest_timer;
 
 static uint64_t get_timer_ms(void)
@@ -100,10 +105,10 @@ static int dhcp(struct filename_ip *fn_ip, int retries)
             printf("\nGiving up after %d DHCP requests\n", retries);
             return -1;
         }
-        ip_version = 4;
+        fn_ip->ip_version = 4;
         rc = dhcpv4(NULL, fn_ip);
         if (rc == -1) {
-            ip_version = 6;
+            fn_ip->ip_version = 6;
             set_ipv6_address(fn_ip->fd, 0);
             rc = dhcpv6(NULL, fn_ip);
             if (rc == 0) {
@@ -137,8 +142,7 @@ static int tftp_load(filename_ip_t *fnip, void *buffer, int len)
     tftp_err_t tftp_err;
     int rc;
 
-    rc = tftp(fnip, buffer, len, DEFAULT_TFTP_RETRIES, &tftp_err, 1, 1428,
-              ip_version);
+    rc = tftp(fnip, buffer, len, DEFAULT_TFTP_RETRIES, &tftp_err);
 
     if (rc < 0) {
         /* Make sure that error messages are put into a new line */
@@ -149,61 +153,11 @@ static int tftp_load(filename_ip_t *fnip, void *buffer, int len)
         printf("  TFTP: Received %s (%d KBytes)\n", fnip->filename, rc / 1024);
     } else if (rc > 0) {
         printf("  TFTP: Received %s (%d Bytes)\n", fnip->filename, rc);
-    } else if (rc == -1) {
-        puts("unknown TFTP error");
-    } else if (rc == -2) {
-        printf("TFTP buffer of %d bytes is too small for %s\n",
-            len, fnip->filename);
-    } else if (rc == -3) {
-        printf("file not found: %s\n", fnip->filename);
-    } else if (rc == -4) {
-        puts("TFTP access violation");
-    } else if (rc == -5) {
-        puts("illegal TFTP operation");
-    } else if (rc == -6) {
-        puts("unknown TFTP transfer ID");
-    } else if (rc == -7) {
-        puts("no such TFTP user");
-    } else if (rc == -8) {
-        puts("TFTP blocksize negotiation failed");
-    } else if (rc == -9) {
-        puts("file exceeds maximum TFTP transfer size");
-    } else if (rc <= -10 && rc >= -15) {
-        const char *icmp_err_str;
-        switch (rc) {
-        case -ICMP_NET_UNREACHABLE - 10:
-            icmp_err_str = "net unreachable";
-            break;
-        case -ICMP_HOST_UNREACHABLE - 10:
-            icmp_err_str = "host unreachable";
-            break;
-        case -ICMP_PROTOCOL_UNREACHABLE - 10:
-            icmp_err_str = "protocol unreachable";
-            break;
-        case -ICMP_PORT_UNREACHABLE - 10:
-            icmp_err_str = "port unreachable";
-            break;
-        case -ICMP_FRAGMENTATION_NEEDED - 10:
-            icmp_err_str = "fragmentation needed and DF set";
-            break;
-        case -ICMP_SOURCE_ROUTE_FAILED - 10:
-            icmp_err_str = "source route failed";
-            break;
-        default:
-            icmp_err_str = " UNKNOWN";
-            break;
-        }
-        printf("ICMP ERROR \"%s\"\n", icmp_err_str);
-    } else if (rc == -40) {
-        printf("TFTP error occurred after %d bad packets received",
-            tftp_err.bad_tftp_packets);
-    } else if (rc == -41) {
-        printf("TFTP error occurred after missing %d responses",
-            tftp_err.no_packets);
-    } else if (rc == -42) {
-        printf("TFTP error missing block %d, expected block was %d",
-            tftp_err.blocks_missed,
-            tftp_err.blocks_received);
+    } else {
+        const char *errstr = NULL;
+        int ecode;
+        tftp_get_error_info(fnip, &tftp_err, rc, &errstr, &ecode);
+        printf("TFTP error: %s\n", errstr ? errstr : "unknown error");
     }
 
     return rc;
@@ -211,7 +165,6 @@ static int tftp_load(filename_ip_t *fnip, void *buffer, int len)
 
 static int net_init(filename_ip_t *fn_ip)
 {
-    uint8_t mac[6];
     int rc;
 
     memset(fn_ip, 0, sizeof(filename_ip_t));
@@ -231,7 +184,7 @@ static int net_init(filename_ip_t *fn_ip)
 
     rc = dhcp(fn_ip, DEFAULT_BOOT_RETRIES);
     if (rc >= 0) {
-        if (ip_version == 4) {
+        if (fn_ip->ip_version == 4) {
             set_ipv4_address(fn_ip->own_ip);
         }
     } else {
@@ -239,11 +192,11 @@ static int net_init(filename_ip_t *fn_ip)
         return -101;
     }
 
-    if (ip_version == 4) {
+    if (fn_ip->ip_version == 4) {
         printf("  Using IPv4 address: %d.%d.%d.%d\n",
               (fn_ip->own_ip >> 24) & 0xFF, (fn_ip->own_ip >> 16) & 0xFF,
               (fn_ip->own_ip >>  8) & 0xFF, fn_ip->own_ip & 0xFF);
-    } else if (ip_version == 6) {
+    } else if (fn_ip->ip_version == 6) {
         char ip6_str[40];
         ipv6_to_str(fn_ip->own_ip6.addr, ip6_str);
         printf("  Using IPv6 address: %s\n", ip6_str);
@@ -261,17 +214,17 @@ static int net_init(filename_ip_t *fn_ip)
     }
 
     printf("  Using TFTP server: ");
-    if (ip_version == 4) {
+    if (fn_ip->ip_version == 4) {
         printf("%d.%d.%d.%d\n",
                (fn_ip->server_ip >> 24) & 0xFF, (fn_ip->server_ip >> 16) & 0xFF,
                (fn_ip->server_ip >>  8) & 0xFF, fn_ip->server_ip & 0xFF);
-    } else if (ip_version == 6) {
+    } else if (fn_ip->ip_version == 6) {
         char ip6_str[40];
         ipv6_to_str(fn_ip->server_ip6.addr, ip6_str);
         printf("%s\n", ip6_str);
     }
 
-    if (strlen((char *)fn_ip->filename) > 0) {
+    if (strlen(fn_ip->filename) > 0) {
         printf("  Bootfile name: '%s'\n", fn_ip->filename);
     }
 
@@ -280,9 +233,120 @@ static int net_init(filename_ip_t *fn_ip)
 
 static void net_release(filename_ip_t *fn_ip)
 {
-    if (ip_version == 4) {
+    if (fn_ip->ip_version == 4) {
         dhcp_send_release(fn_ip->fd);
     }
+}
+
+/**
+ * Retrieve the Universally Unique Identifier of the VM.
+ * @return UUID string, or NULL in case of errors
+ */
+static const char *get_uuid(void)
+{
+    register int r0 asm("0");
+    register int r1 asm("1");
+    uint8_t *mem, *buf, uuid[16];
+    int i, cc, chk = 0;
+    static char uuid_str[37];
+
+    mem = malloc(2 * PAGE_SIZE);
+    if (!mem) {
+        puts("Out of memory ... can not get UUID.");
+        return NULL;
+    }
+    buf = (uint8_t *)(((uint64_t)mem + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
+    memset(buf, 0, PAGE_SIZE);
+
+    /* Get SYSIB 3.2.2 */
+    r0 = (3 << 28) | 2;
+    r1 = 2;
+    asm volatile(" stsi 0(%[addr])\n"
+                 " ipm  %[cc]\n"
+                 " srl  %[cc],28\n"
+                 : [cc] "=d" (cc)
+                 : "d" (r0), "d" (r1), [addr] "a" (buf)
+                 : "cc", "memory");
+    if (cc) {
+        return NULL;
+    }
+
+    for (i = 0; i < 16; i++) {
+        uuid[i] = buf[STSI322_VMDB_UUID_OFFSET + i];
+        chk |= uuid[i];
+    }
+    free(mem);
+    if (!chk) {
+        return NULL;
+    }
+
+    sprintf(uuid_str, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-"
+            "%02x%02x%02x%02x%02x%02x", uuid[0], uuid[1], uuid[2], uuid[3],
+            uuid[4], uuid[5], uuid[6], uuid[7], uuid[8], uuid[9], uuid[10],
+            uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]);
+
+    return uuid_str;
+}
+
+/**
+ * Load a kernel with initrd (i.e. with the information that we've got from
+ * a pxelinux.cfg config file)
+ */
+static int load_kernel_with_initrd(filename_ip_t *fn_ip,
+                                   struct pl_cfg_entry *entry)
+{
+    int rc;
+
+    printf("Loading pxelinux.cfg entry '%s'\n", entry->label);
+
+    if (!entry->kernel) {
+        printf("Kernel entry is missing!\n");
+        return -1;
+    }
+
+    strncpy(fn_ip->filename, entry->kernel, sizeof(fn_ip->filename));
+    rc = tftp_load(fn_ip, KERNEL_ADDR, KERNEL_MAX_SIZE);
+    if (rc < 0) {
+        return rc;
+    }
+
+    if (entry->initrd) {
+        uint64_t iaddr = (rc + 0xfff) & ~0xfffUL;
+
+        strncpy(fn_ip->filename, entry->initrd, sizeof(fn_ip->filename));
+        rc = tftp_load(fn_ip, (void *)iaddr, KERNEL_MAX_SIZE - iaddr);
+        if (rc < 0) {
+            return rc;
+        }
+        /* Patch location and size: */
+        *(uint64_t *)0x10408 = iaddr;
+        *(uint64_t *)0x10410 = rc;
+        rc += iaddr;
+    }
+
+    if (entry->append) {
+        strncpy((char *)0x10480, entry->append, ARCH_COMMAND_LINE_SIZE);
+    }
+
+    return rc;
+}
+
+#define MAX_PXELINUX_ENTRIES 16
+
+static int net_try_pxelinux_cfg(filename_ip_t *fn_ip)
+{
+    struct pl_cfg_entry entries[MAX_PXELINUX_ENTRIES];
+    int num_ent, def_ent = 0;
+
+    num_ent = pxelinux_load_parse_cfg(fn_ip, mac, get_uuid(),
+                                      DEFAULT_TFTP_RETRIES,
+                                      cfgbuf, sizeof(cfgbuf),
+                                      entries, MAX_PXELINUX_ENTRIES, &def_ent);
+    if (num_ent > 0) {
+        return load_kernel_with_initrd(fn_ip, &entries[def_ent]);
+    }
+
+    return -1;
 }
 
 /**
@@ -322,7 +386,7 @@ static int handle_ins_cfg(filename_ip_t *fn_ip, char *cfg, int cfgsize)
             return -1;
         }
         *ptr = 0;
-        strncpy((char *)fn_ip->filename, insbuf, sizeof(fn_ip->filename));
+        strncpy(fn_ip->filename, insbuf, sizeof(fn_ip->filename));
         destaddr = (char *)atol(ptr + 1);
         rc = tftp_load(fn_ip, destaddr, (long)_start - (long)destaddr);
         if (rc <= 0) {
@@ -353,6 +417,25 @@ static int net_try_direct_tftp_load(filename_ip_t *fn_ip)
         cfgbuf[rc] = 0;    /* Make sure that it is NUL-terminated */
         if (!strncmp("* ", cfgbuf, 2)) {
             return handle_ins_cfg(fn_ip, cfgbuf, rc);
+        }
+        /*
+         * pxelinux.cfg support via bootfile name is just here for developers'
+         * convenience (it eases testing with the built-in DHCP server of QEMU
+         * that does not support RFC 5071). The official way to configure a
+         * pxelinux.cfg file name is to use DHCP options 209 and 210 instead.
+         * So only use the pxelinux.cfg parser here for files that start with
+         * a magic comment string.
+         */
+        if (!strncasecmp("# pxelinux", cfgbuf, 10)) {
+            struct pl_cfg_entry entries[MAX_PXELINUX_ENTRIES];
+            int num_ent, def_ent = 0;
+
+            num_ent = pxelinux_parse_cfg(cfgbuf, sizeof(cfgbuf), entries,
+                                         MAX_PXELINUX_ENTRIES, &def_ent);
+            if (num_ent <= 0) {
+                return -1;
+            }
+            return load_kernel_with_initrd(fn_ip, &entries[def_ent]);
         }
     }
 
@@ -455,9 +538,12 @@ void main(void)
         panic("Network initialization failed. Halting.\n");
     }
 
-    fnlen = strlen((char *)fn_ip.filename);
+    fnlen = strlen(fn_ip.filename);
     if (fnlen > 0 && fn_ip.filename[fnlen - 1] != '/') {
         rc = net_try_direct_tftp_load(&fn_ip);
+    }
+    if (rc <= 0) {
+        rc = net_try_pxelinux_cfg(&fn_ip);
     }
 
     net_release(&fn_ip);
