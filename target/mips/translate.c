@@ -2433,11 +2433,8 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
 
 /* Load and store */
 static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
-                          int base, int16_t offset)
+                          TCGv t0)
 {
-    TCGv t0 = tcg_temp_new();
-
-    gen_base_offset_addr(ctx, t0, base, offset);
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
     switch (opc) {
@@ -2480,15 +2477,15 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     default:
         MIPS_INVAL("flt_ldst");
         generate_exception_end(ctx, EXCP_RI);
-        goto out;
+        break;
     }
- out:
-    tcg_temp_free(t0);
 }
 
 static void gen_cop1_ldst(DisasContext *ctx, uint32_t op, int rt,
                           int rs, int16_t imm)
 {
+    TCGv t0 = tcg_temp_new();
+
     if (ctx->CP0_Config1 & (1 << CP0C1_FP)) {
         check_cp1_enabled(ctx);
         switch (op) {
@@ -2497,11 +2494,13 @@ static void gen_cop1_ldst(DisasContext *ctx, uint32_t op, int rt,
             check_insn(ctx, ISA_MIPS2);
             /* Fallthrough */
         default:
-            gen_flt_ldst(ctx, op, rt, rs, imm);
+            gen_base_offset_addr(ctx, t0, rs, imm);
+            gen_flt_ldst(ctx, op, rt, t0);
         }
     } else {
         generate_exception_err(ctx, EXCP_CpU, 1);
     }
+    tcg_temp_free(t0);
 }
 
 /* Arithmetic with immediate operand */
