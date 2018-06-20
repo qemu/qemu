@@ -22,7 +22,16 @@ typedef enum {
     CHR_EVENT_OPENED, /* new connection established */
     CHR_EVENT_MUX_IN, /* mux-focus was set to this terminal */
     CHR_EVENT_MUX_OUT, /* mux-focus will move on */
-    CHR_EVENT_CLOSED /* connection closed */
+    CHR_EVENT_CLOSED /* connection closed.  NOTE: currently this event
+                      * is only bound to the read port of the chardev.
+                      * Normally the read port and write port of a
+                      * chardev should be the same, but it can be
+                      * different, e.g., for fd chardevs, when the two
+                      * fds are different.  So when we received the
+                      * CLOSED event it's still possible that the out
+                      * port is still open.  TODO: we should only send
+                      * the CLOSED event when both ports are closed.
+                      */
 } QEMUChrEvent;
 
 #define CHR_READ_BUF_LEN 4096
