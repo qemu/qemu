@@ -558,7 +558,11 @@ static int do_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
 #ifdef CONFIG_MPATH
     if (is_mpath(fd)) {
         /* multipath_pr_in fills the whole input buffer.  */
-        return multipath_pr_in(fd, cdb, sense, data, *resp_sz);
+        int r = multipath_pr_in(fd, cdb, sense, data, *resp_sz);
+        if (r != GOOD) {
+            *resp_sz = 0;
+        }
+        return r;
     }
 #endif
 
