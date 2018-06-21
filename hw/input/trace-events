@@ -41,5 +41,8 @@ milkymist_softusb_pulse_irq(void) "Pulse IRQ"
 hid_kbd_queue_full(void) "queue full"
 hid_kbd_queue_empty(void) "queue empty"
 
+# hw/input/tsc2005.c
+tsc2005_sense(const char *state) "touchscreen sense %s"
+
 # hw/input/virtio
 virtio_input_queue_full(void) "queue full"

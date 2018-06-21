@@ -24,6 +24,7 @@
 #include "qemu/timer.h"
 #include "ui/console.h"
 #include "hw/devices.h"
+#include "trace.h"
 
 #define TSC_CUT_RESOLUTION(value, p)	((value) >> (16 - (p ? 12 : 10)))
 
@@ -201,8 +202,7 @@ static void tsc2005_write(TSC2005State *s, int reg, uint16_t data)
         s->host_mode = (data >> 15) != 0;
         if (s->enabled != !(data & 0x4000)) {
             s->enabled = !(data & 0x4000);
-            fprintf(stderr, "%s: touchscreen sense %sabled\n",
-                            __func__, s->enabled ? "en" : "dis");
+            trace_tsc2005_sense(s->enabled ? "enabled" : "disabled");
             if (s->busy && !s->enabled)
                 timer_del(s->timer);
             s->busy = s->busy && s->enabled;
@@ -340,8 +340,7 @@ static uint8_t tsc2005_txrx_word(void *opaque, uint8_t value)
                 s->nextprecision = (value >> 2) & 1;
                 if (s->enabled != !(value & 1)) {
                     s->enabled = !(value & 1);
-                    fprintf(stderr, "%s: touchscreen sense %sabled\n",
-                                    __func__, s->enabled ? "en" : "dis");
+                    trace_tsc2005_sense(s->enabled ? "enabled" : "disabled");
                     if (s->busy && !s->enabled)
                         timer_del(s->timer);
                     s->busy = s->busy && s->enabled;
