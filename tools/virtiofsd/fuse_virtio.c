@@ -44,6 +44,7 @@ struct fv_QueueInfo {
 
     /* The element for the command currently being processed */
     VuVirtqElement *qe;
+    bool reply_sent;
 };
 
 /*
@@ -178,6 +179,7 @@ int virtio_send_msg(struct fuse_session *se, struct fuse_chan *ch,
 {
     VuVirtqElement *elem;
     VuVirtq *q;
+    int ret = 0;
 
     assert(count >= 1);
     assert(iov[0].iov_len >= sizeof(struct fuse_out_header));
@@ -191,6 +193,7 @@ int virtio_send_msg(struct fuse_session *se, struct fuse_chan *ch,
     assert(out->unique);
     /* For virtio we always have ch */
     assert(ch);
+    assert(!ch->qi->reply_sent);
     elem = ch->qi->qe;
     q = &ch->qi->virtio_dev->dev.vq[ch->qi->qidx];
 
@@ -208,19 +211,23 @@ int virtio_send_msg(struct fuse_session *se, struct fuse_chan *ch,
     if (in_len < sizeof(struct fuse_out_header)) {
         fuse_log(FUSE_LOG_ERR, "%s: elem %d too short for out_header\n",
                  __func__, elem->index);
-        return -E2BIG;
+        ret = -E2BIG;
+        goto err;
     }
     if (in_len < tosend_len) {
         fuse_log(FUSE_LOG_ERR, "%s: elem %d too small for data len %zd\n",
                  __func__, elem->index, tosend_len);
-        return -E2BIG;
+        ret = -E2BIG;
+        goto err;
     }
 
     copy_iov(iov, count, in_sg, in_num, tosend_len);
     vu_queue_push(&se->virtio_dev->dev, q, elem, tosend_len);
     vu_queue_notify(&se->virtio_dev->dev, q);
+    ch->qi->reply_sent = true;
 
-    return 0;
+err:
+    return ret;
 }
 
 /* Thread function for individual queues, created when a queue is 'started' */
@@ -296,6 +303,9 @@ static void *fv_queue_thread(void *opaque)
                 break;
             }
 
+            qi->qe = elem;
+            qi->reply_sent = false;
+
             if (!fbuf.mem) {
                 fbuf.mem = malloc(se->bufsize);
                 assert(fbuf.mem);
@@ -331,6 +341,13 @@ static void *fv_queue_thread(void *opaque)
             /* TODO: Add checks for fuse_session_exited */
             fuse_session_process_buf_int(se, &fbuf, &ch);
 
+            if (!qi->reply_sent) {
+                fuse_log(FUSE_LOG_DEBUG, "%s: elem %d no reply sent\n",
+                         __func__, elem->index);
+                /* I think we've still got to recycle the element */
+                vu_queue_push(dev, q, elem, 0);
+                vu_queue_notify(dev, q);
+            }
             qi->qe = NULL;
             free(elem);
             elem = NULL;
