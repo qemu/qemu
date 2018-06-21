@@ -1517,6 +1517,63 @@ static int run_process_child(const char *command[], Error **errp)
     return -1;
 }
 
+static bool systemd_supports_mode(SuspendMode mode, Error **errp)
+{
+    Error *local_err = NULL;
+    const char *systemctl_args[3] = {"systemd-hibernate", "systemd-suspend",
+                                     "systemd-hybrid-sleep"};
+    const char *cmd[4] = {"systemctl", "status", systemctl_args[mode], NULL};
+    int status;
+
+    status = run_process_child(cmd, &local_err);
+
+    /*
+     * systemctl status uses LSB return codes so we can expect
+     * status > 0 and be ok. To assert if the guest has support
+     * for the selected suspend mode, status should be < 4. 4 is
+     * the code for unknown service status, the return value when
+     * the service does not exist. A common value is status = 3
+     * (program is not running).
+     */
+    if (status > 0 && status < 4) {
+        return true;
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+
+    return false;
+}
+
+static void systemd_suspend(SuspendMode mode, Error **errp)
+{
+    Error *local_err = NULL;
+    const char *systemctl_args[3] = {"hibernate", "suspend", "hybrid-sleep"};
+    const char *cmd[3] = {"systemctl", systemctl_args[mode], NULL};
+    int status;
+
+    status = run_process_child(cmd, &local_err);
+
+    if (status == 0) {
+        return;
+    }
+
+    if ((status == -1) && !local_err) {
+        error_setg(errp, "the helper program 'systemctl %s' was not found",
+                   systemctl_args[mode]);
+        return;
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    } else {
+        error_setg(errp, "the helper program 'systemctl %s' returned an "
+                   "unexpected exit status code (%d)",
+                   systemctl_args[mode], status);
+    }
+}
+
 static bool pmutils_supports_mode(SuspendMode mode, Error **errp)
 {
     Error *local_err = NULL;
@@ -1660,6 +1717,14 @@ static void bios_supports_mode(SuspendMode mode, Error **errp)
     Error *local_err = NULL;
     bool ret;
 
+    ret = systemd_supports_mode(mode, &local_err);
+    if (ret) {
+        return;
+    }
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
     ret = pmutils_supports_mode(mode, &local_err);
     if (ret) {
         return;
@@ -1688,6 +1753,13 @@ static void guest_suspend(SuspendMode mode, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    systemd_suspend(mode, &local_err);
+    if (!local_err) {
+        return;
+    }
+
+    error_free(local_err);
 
     pmutils_suspend(mode, &local_err);
     if (!local_err) {
