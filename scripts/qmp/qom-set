@@ -12,10 +12,9 @@
 ##
 
 from __future__ import print_function
-from __future__ import absolute_import
 import sys
 import os
-from .qmp import QEMUMonitorProtocol
+from qmp import QEMUMonitorProtocol
 
 cmd, args = sys.argv[0], sys.argv[1:]
 socket_path = None

@@ -66,8 +66,7 @@
 # sent to QEMU, which is useful for debugging and documentation generation.
 
 from __future__ import print_function
-from __future__ import absolute_import
-from . import qmp
+import qmp
 import json
 import ast
 import readline
