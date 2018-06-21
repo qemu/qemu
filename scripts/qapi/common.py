@@ -884,12 +884,12 @@ def check_keys(expr_elem, meta, required, optional=[]):
         if key not in required and key not in optional:
             raise QAPISemError(info, "Unknown key '%s' in %s '%s'"
                                % (key, meta, name))
-        if (key == 'gen' or key == 'success-response') and value is not False:
+        if key in ['gen', 'success-response'] and value is not False:
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use false value"
                                % (key, meta, name))
-        if (key == 'boxed' or key == 'allow-oob' or
-            key == 'allow-preconfig') and value is not True:
+        if (key in ['boxed', 'allow-oob', 'allow-preconfig']
+                and value is not True):
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use true value"
                                % (key, meta, name))
@@ -1845,12 +1845,12 @@ def camel_to_upper(value):
         return c_fun_str
 
     new_name = ''
-    l = len(c_fun_str)
-    for i in range(l):
+    length = len(c_fun_str)
+    for i in range(length):
         c = c_fun_str[i]
         # When c is upper and no '_' appears before, do more checks
         if c.isupper() and (i > 0) and c_fun_str[i - 1] != '_':
-            if i < l - 1 and c_fun_str[i + 1].islower():
+            if i < length - 1 and c_fun_str[i + 1].islower():
                 new_name += '_'
             elif c_fun_str[i - 1].isdigit():
                 new_name += '_'
@@ -1862,6 +1862,7 @@ def c_enum_const(type_name, const_name, prefix=None):
     if prefix is not None:
         type_name = prefix
     return camel_to_upper(type_name) + '_' + c_name(const_name, False).upper()
+
 
 if hasattr(str, 'maketrans'):
     c_name_trans = str.maketrans('.-', '__')
@@ -1912,6 +1913,7 @@ def c_name(name, protect=True):
         return 'q_' + name
     return name
 
+
 eatspace = '\033EATSPACE.'
 pointer_suffix = ' *' + eatspace
 
@@ -1921,6 +1923,7 @@ def genindent(count):
     for _ in range(count):
         ret += ' '
     return ret
+
 
 indent_level = 0
 
