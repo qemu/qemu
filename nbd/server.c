@@ -2007,6 +2007,10 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                                       "discard failed", errp);
 
     case NBD_CMD_BLOCK_STATUS:
+        if (!request->len) {
+            return nbd_send_generic_reply(client, request->handle, -EINVAL,
+                                          "need non-zero length", errp);
+        }
         if (client->export_meta.valid && client->export_meta.base_allocation) {
             return nbd_co_send_block_status(client, request->handle,
                                             blk_bs(exp->blk), request->from,
