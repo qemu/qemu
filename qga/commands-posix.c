@@ -1474,14 +1474,37 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 #define LINUX_SYS_STATE_FILE "/sys/power/state"
 #define SUSPEND_SUPPORTED 0
 #define SUSPEND_NOT_SUPPORTED 1
+#define SUSPEND_MODE_DISK 1
+#define SUSPEND_MODE_RAM 2
+#define SUSPEND_MODE_HYBRID 3
 
-static void bios_supports_mode(const char *pmutils_bin, const char *pmutils_arg,
-                               const char *sysfile_str, Error **errp)
+static void bios_supports_mode(int suspend_mode, Error **errp)
 {
     Error *local_err = NULL;
+    const char *pmutils_arg, *sysfile_str;
+    const char *pmutils_bin = "pm-is-supported";
     char *pmutils_path;
     pid_t pid;
     int status;
+
+    switch (suspend_mode) {
+
+    case SUSPEND_MODE_DISK:
+        pmutils_arg = "--hibernate";
+        sysfile_str = "disk";
+        break;
+    case SUSPEND_MODE_RAM:
+        pmutils_arg = "--suspend";
+        sysfile_str = "mem";
+        break;
+    case SUSPEND_MODE_HYBRID:
+        pmutils_arg = "--suspend-hybrid";
+        sysfile_str = NULL;
+        break;
+    default:
+        error_setg(errp, "guest suspend mode not supported");
+        return;
+    }
 
     pmutils_path = g_find_program_in_path(pmutils_bin);
 
@@ -1559,13 +1582,38 @@ out:
     g_free(pmutils_path);
 }
 
-static void guest_suspend(const char *pmutils_bin, const char *sysfile_str,
-                          Error **errp)
+static void guest_suspend(int suspend_mode, Error **errp)
 {
     Error *local_err = NULL;
+    const char *pmutils_bin, *sysfile_str;
     char *pmutils_path;
     pid_t pid;
     int status;
+
+    bios_supports_mode(suspend_mode, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    switch (suspend_mode) {
+
+    case SUSPEND_MODE_DISK:
+        pmutils_bin = "pm-hibernate";
+        sysfile_str = "disk";
+        break;
+    case SUSPEND_MODE_RAM:
+        pmutils_bin = "pm-suspend";
+        sysfile_str = "mem";
+        break;
+    case SUSPEND_MODE_HYBRID:
+        pmutils_bin = "pm-suspend-hybrid";
+        sysfile_str = NULL;
+        break;
+    default:
+        error_setg(errp, "unknown guest suspend mode");
+        return;
+    }
 
     pmutils_path = g_find_program_in_path(pmutils_bin);
 
@@ -1629,42 +1677,17 @@ out:
 
 void qmp_guest_suspend_disk(Error **errp)
 {
-    Error *local_err = NULL;
-
-    bios_supports_mode("pm-is-supported", "--hibernate", "disk", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    guest_suspend("pm-hibernate", "disk", errp);
+    guest_suspend(SUSPEND_MODE_DISK, errp);
 }
 
 void qmp_guest_suspend_ram(Error **errp)
 {
-    Error *local_err = NULL;
-
-    bios_supports_mode("pm-is-supported", "--suspend", "mem", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    guest_suspend("pm-suspend", "mem", errp);
+    guest_suspend(SUSPEND_MODE_RAM, errp);
 }
 
 void qmp_guest_suspend_hybrid(Error **errp)
 {
-    Error *local_err = NULL;
-
-    bios_supports_mode("pm-is-supported", "--suspend-hybrid", NULL,
-                       &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    guest_suspend("pm-suspend-hybrid", NULL, errp);
+    guest_suspend(SUSPEND_MODE_HYBRID, errp);
 }
 
 static GuestNetworkInterfaceList *
