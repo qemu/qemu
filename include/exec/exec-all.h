@@ -345,7 +345,7 @@ struct TranslationBlock {
 #define CF_LAST_IO     0x00008000 /* Last insn may be an IO access.  */
 #define CF_NOCACHE     0x00010000 /* To be freed after execution */
 #define CF_USE_ICOUNT  0x00020000
-#define CF_INVALID     0x00040000 /* TB is stale. Setters need tb_lock */
+#define CF_INVALID     0x00040000 /* TB is stale. Set with @jmp_lock held */
 #define CF_PARALLEL    0x00080000 /* Generate code for a parallel context */
 /* cflags' mask for hashing/comparison */
 #define CF_HASH_MASK   \
@@ -359,9 +359,13 @@ struct TranslationBlock {
     /* original tb when cflags has CF_NOCACHE */
     struct TranslationBlock *orig_tb;
     /* first and second physical page containing code. The lower bit
-       of the pointer tells the index in page_next[] */
-    struct TranslationBlock *page_next[2];
+       of the pointer tells the index in page_next[].
+       The list is protected by the TB's page('s) lock(s) */
+    uintptr_t page_next[2];
     tb_page_addr_t page_addr[2];
+
+    /* jmp_lock placed here to fill a 4-byte hole. Its documentation is below */
+    QemuSpin jmp_lock;
 
     /* The following data are used to directly call another TB from
      * the code of this one. This can be done either by emitting direct or
@@ -374,20 +378,26 @@ struct TranslationBlock {
 #define TB_JMP_RESET_OFFSET_INVALID 0xffff /* indicates no jump generated */
     uintptr_t jmp_target_arg[2];  /* target address or offset */
 
-    /* Each TB has an associated circular list of TBs jumping to this one.
-     * jmp_list_first points to the first TB jumping to this one.
-     * jmp_list_next is used to point to the next TB in a list.
-     * Since each TB can have two jumps, it can participate in two lists.
-     * jmp_list_first and jmp_list_next are 4-byte aligned pointers to a
-     * TranslationBlock structure, but the two least significant bits of
-     * them are used to encode which data field of the pointed TB should
-     * be used to traverse the list further from that TB:
-     * 0 => jmp_list_next[0], 1 => jmp_list_next[1], 2 => jmp_list_first.
-     * In other words, 0/1 tells which jump is used in the pointed TB,
-     * and 2 means that this is a pointer back to the target TB of this list.
+    /*
+     * Each TB has a NULL-terminated list (jmp_list_head) of incoming jumps.
+     * Each TB can have two outgoing jumps, and therefore can participate
+     * in two lists. The list entries are kept in jmp_list_next[2]. The least
+     * significant bit (LSB) of the pointers in these lists is used to encode
+     * which of the two list entries is to be used in the pointed TB.
+     *
+     * List traversals are protected by jmp_lock. The destination TB of each
+     * outgoing jump is kept in jmp_dest[] so that the appropriate jmp_lock
+     * can be acquired from any origin TB.
+     *
+     * jmp_dest[] are tagged pointers as well. The LSB is set when the TB is
+     * being invalidated, so that no further outgoing jumps from it can be set.
+     *
+     * jmp_lock also protects the CF_INVALID cflag; a jump must not be chained
+     * to a destination TB that has CF_INVALID set.
      */
+    uintptr_t jmp_list_head;
     uintptr_t jmp_list_next[2];
-    uintptr_t jmp_list_first;
+    uintptr_t jmp_dest[2];
 };
 
 extern bool parallel_cpus;
@@ -405,7 +415,6 @@ static inline uint32_t curr_cflags(void)
          | (use_icount ? CF_USE_ICOUNT : 0);
 }
 
-void tb_remove(TranslationBlock *tb);
 void tb_flush(CPUState *cpu);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
@@ -431,9 +440,13 @@ extern uintptr_t tci_tb_ptr;
    smaller than 4 bytes, so we don't worry about special-casing this.  */
 #define GETPC_ADJ   2
 
-void tb_lock(void);
-void tb_unlock(void);
-void tb_lock_reset(void);
+#if !defined(CONFIG_USER_ONLY) && defined(CONFIG_DEBUG_TCG)
+void assert_no_pages_locked(void);
+#else
+static inline void assert_no_pages_locked(void)
+{
+}
+#endif
 
 #if !defined(CONFIG_USER_ONLY)
 

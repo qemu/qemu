@@ -13,10 +13,10 @@
 static struct qht ht;
 static int32_t arr[N * 2];
 
-static bool is_equal(const void *obj, const void *userp)
+static bool is_equal(const void *ap, const void *bp)
 {
-    const int32_t *a = obj;
-    const int32_t *b = userp;
+    const int32_t *a = ap;
+    const int32_t *b = bp;
 
     return *a == *b;
 }
@@ -27,11 +27,17 @@ static void insert(int a, int b)
 
     for (i = a; i < b; i++) {
         uint32_t hash;
+        void *existing;
+        bool inserted;
 
         arr[i] = i;
         hash = i;
 
-        qht_insert(&ht, &arr[i], hash);
+        inserted = qht_insert(&ht, &arr[i], hash, NULL);
+        g_assert_true(inserted);
+        inserted = qht_insert(&ht, &arr[i], hash, &existing);
+        g_assert_false(inserted);
+        g_assert_true(existing == &arr[i]);
     }
 }
 
@@ -60,7 +66,12 @@ static void check(int a, int b, bool expected)
 
         val = i;
         hash = i;
-        p = qht_lookup(&ht, is_equal, &val, hash);
+        /* test both lookup variants; results should be the same */
+        if (i % 2) {
+            p = qht_lookup(&ht, &val, hash);
+        } else {
+            p = qht_lookup_custom(&ht, &val, hash, is_equal);
+        }
         g_assert_true(!!p == expected);
     }
     rcu_read_unlock();
@@ -102,7 +113,7 @@ static void qht_do_test(unsigned int mode, size_t init_entries)
     /* under KVM we might fetch stats from an uninitialized qht */
     check_n(0);
 
-    qht_init(&ht, 0, mode);
+    qht_init(&ht, is_equal, 0, mode);
 
     check_n(0);
     insert(0, N);

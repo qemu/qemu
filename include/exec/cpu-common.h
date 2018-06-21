@@ -23,7 +23,7 @@ typedef struct CPUListState {
     FILE *file;
 } CPUListState;
 
-/* The CPU list lock nests outside tb_lock/tb_unlock.  */
+/* The CPU list lock nests outside page_(un)lock or mmap_(un)lock */
 void qemu_init_cpu_list(void);
 void cpu_list_lock(void);
 void cpu_list_unlock(void);
