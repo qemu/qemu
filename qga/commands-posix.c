@@ -1712,64 +1712,42 @@ static void linux_sys_state_suspend(SuspendMode mode, Error **errp)
 
 }
 
-static void bios_supports_mode(SuspendMode mode, Error **errp)
-{
-    Error *local_err = NULL;
-    bool ret;
-
-    ret = systemd_supports_mode(mode, &local_err);
-    if (ret) {
-        return;
-    }
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-    ret = pmutils_supports_mode(mode, &local_err);
-    if (ret) {
-        return;
-    }
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-    ret = linux_sys_state_supports_mode(mode, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-    if (!ret) {
-        error_setg(errp,
-                   "the requested suspend mode is not supported by the guest");
-    }
-}
-
 static void guest_suspend(SuspendMode mode, Error **errp)
 {
     Error *local_err = NULL;
+    bool mode_supported = false;
 
-    bios_supports_mode(mode, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
+    if (systemd_supports_mode(mode, &local_err)) {
+        mode_supported = true;
+        systemd_suspend(mode, &local_err);
     }
 
-    systemd_suspend(mode, &local_err);
     if (!local_err) {
         return;
     }
 
     error_free(local_err);
 
-    pmutils_suspend(mode, &local_err);
+    if (pmutils_supports_mode(mode, &local_err)) {
+        mode_supported = true;
+        pmutils_suspend(mode, &local_err);
+    }
+
     if (!local_err) {
         return;
     }
 
     error_free(local_err);
 
-    linux_sys_state_suspend(mode, &local_err);
-    if (local_err) {
+    if (linux_sys_state_supports_mode(mode, &local_err)) {
+        mode_supported = true;
+        linux_sys_state_suspend(mode, &local_err);
+    }
+
+    if (!mode_supported) {
+        error_setg(errp,
+                   "the requested suspend mode is not supported by the guest");
+    } else if (local_err) {
         error_propagate(errp, local_err);
     }
 }
