@@ -50,6 +50,8 @@ notifications:
     on_failure: always
 env:
   global:
+    - SRC_DIR="."
+    - BUILD_DIR="."
     - TEST_CMD="make check"
     - MAKEFLAGS="-j3"
   matrix:
@@ -68,11 +70,15 @@ before_install:
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libffi gettext glib pixman ; fi
   - git submodule update --init --recursive capstone dtc ui/keycodemapdb
 before_script:
-  - ./configure ${CONFIG} || { cat config.log && exit 1; }
+  - mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR}
+  - ${SRC_DIR}/configure ${CONFIG} || { cat config.log && exit 1; }
 script:
   - make ${MAKEFLAGS} && ${TEST_CMD}
 matrix:
   include:
+    # Test out-of-tree builds
+    - env: CONFIG="--enable-debug --enable-debug-tcg"
+           BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
     # Test with Clang for compile portability (Travis uses clang-5.0)
     - env: CONFIG="--disable-system"
       compiler: clang
