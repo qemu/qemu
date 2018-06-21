@@ -300,8 +300,12 @@ int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     const char *backing_file);
 void bdrv_refresh_filename(BlockDriverState *bs);
+
+int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
+                                  PreallocMode prealloc, Error **errp);
 int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
                   Error **errp);
+
 int64_t bdrv_nb_sectors(BlockDriverState *bs);
 int64_t bdrv_getlength(BlockDriverState *bs);
 int64_t bdrv_get_allocated_file_size(BlockDriverState *bs);

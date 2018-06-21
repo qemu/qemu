@@ -366,8 +366,8 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 }
 
-static int raw_truncate(BlockDriverState *bs, int64_t offset,
-                        PreallocMode prealloc, Error **errp)
+static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
+                                        PreallocMode prealloc, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -383,7 +383,7 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset,
 
     s->size = offset;
     offset += s->offset;
-    return bdrv_truncate(bs->file, offset, prealloc, errp);
+    return bdrv_co_truncate(bs->file, offset, prealloc, errp);
 }
 
 static void raw_eject(BlockDriverState *bs, bool eject_flag)
@@ -545,7 +545,7 @@ BlockDriver bdrv_raw = {
     .bdrv_co_block_status = &raw_co_block_status,
     .bdrv_co_copy_range_from = &raw_co_copy_range_from,
     .bdrv_co_copy_range_to  = &raw_co_copy_range_to,
-    .bdrv_truncate        = &raw_truncate,
+    .bdrv_co_truncate     = &raw_co_truncate,
     .bdrv_getlength       = &raw_getlength,
     .has_variable_length  = true,
     .bdrv_measure         = &raw_measure,

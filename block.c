@@ -3788,8 +3788,8 @@ exit:
 /**
  * Truncate file to 'offset' bytes (needed only for file protocols)
  */
-int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
-                  Error **errp)
+int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
+                                  PreallocMode prealloc, Error **errp)
 {
     BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
@@ -3807,23 +3807,28 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
         return -EINVAL;
     }
 
-    if (!drv->bdrv_truncate) {
+    bdrv_inc_in_flight(bs);
+
+    if (!drv->bdrv_co_truncate) {
         if (bs->file && drv->is_filter) {
-            return bdrv_truncate(bs->file, offset, prealloc, errp);
+            ret = bdrv_co_truncate(bs->file, offset, prealloc, errp);
+            goto out;
         }
         error_setg(errp, "Image format driver does not support resize");
-        return -ENOTSUP;
+        ret = -ENOTSUP;
+        goto out;
     }
     if (bs->read_only) {
         error_setg(errp, "Image is read-only");
-        return -EACCES;
+        ret = -EACCES;
+        goto out;
     }
 
     assert(!(bs->open_flags & BDRV_O_INACTIVE));
 
-    ret = drv->bdrv_truncate(bs, offset, prealloc, errp);
+    ret = drv->bdrv_co_truncate(bs, offset, prealloc, errp);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
     if (ret < 0) {
@@ -3834,7 +3839,49 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
     bdrv_dirty_bitmap_truncate(bs, offset);
     bdrv_parent_cb_resize(bs);
     atomic_inc(&bs->write_gen);
+
+out:
+    bdrv_dec_in_flight(bs);
     return ret;
+}
+
+typedef struct TruncateCo {
+    BdrvChild *child;
+    int64_t offset;
+    PreallocMode prealloc;
+    Error **errp;
+    int ret;
+} TruncateCo;
+
+static void coroutine_fn bdrv_truncate_co_entry(void *opaque)
+{
+    TruncateCo *tco = opaque;
+    tco->ret = bdrv_co_truncate(tco->child, tco->offset, tco->prealloc,
+                                tco->errp);
+}
+
+int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
+                  Error **errp)
+{
+    Coroutine *co;
+    TruncateCo tco = {
+        .child      = child,
+        .offset     = offset,
+        .prealloc   = prealloc,
+        .errp       = errp,
+        .ret        = NOT_DONE,
+    };
+
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        bdrv_truncate_co_entry(&tco);
+    } else {
+        co = qemu_coroutine_create(bdrv_truncate_co_entry, &tco);
+        qemu_coroutine_enter(co);
+        BDRV_POLL_WHILE(child->bs, tco.ret == NOT_DONE);
+    }
+
+    return tco.ret;
 }
 
 /**

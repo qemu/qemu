@@ -990,8 +990,10 @@ static int64_t qemu_rbd_getlength(BlockDriverState *bs)
     return info.size;
 }
 
-static int qemu_rbd_truncate(BlockDriverState *bs, int64_t offset,
-                             PreallocMode prealloc, Error **errp)
+static int coroutine_fn qemu_rbd_co_truncate(BlockDriverState *bs,
+                                             int64_t offset,
+                                             PreallocMode prealloc,
+                                             Error **errp)
 {
     BDRVRBDState *s = bs->opaque;
     int r;
@@ -1184,7 +1186,7 @@ static BlockDriver bdrv_rbd = {
     .bdrv_get_info          = qemu_rbd_getinfo,
     .create_opts            = &qemu_rbd_create_opts,
     .bdrv_getlength         = qemu_rbd_getlength,
-    .bdrv_truncate          = qemu_rbd_truncate,
+    .bdrv_co_truncate       = qemu_rbd_co_truncate,
     .protocol_name          = "rbd",
 
     .bdrv_aio_preadv        = qemu_rbd_aio_preadv,

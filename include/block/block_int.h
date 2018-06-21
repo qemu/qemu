@@ -289,8 +289,8 @@ struct BlockDriver {
      * bdrv_parse_filename.
      */
     const char *protocol_name;
-    int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset,
-                         PreallocMode prealloc, Error **errp);
+    int coroutine_fn (*bdrv_co_truncate)(BlockDriverState *bs, int64_t offset,
+                                         PreallocMode prealloc, Error **errp);
 
     int64_t (*bdrv_getlength)(BlockDriverState *bs);
     bool has_variable_length;

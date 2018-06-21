@@ -2292,8 +2292,8 @@ static int64_t sd_getlength(BlockDriverState *bs)
     return s->inode.vdi_size;
 }
 
-static int sd_truncate(BlockDriverState *bs, int64_t offset,
-                       PreallocMode prealloc, Error **errp)
+static int coroutine_fn sd_co_truncate(BlockDriverState *bs, int64_t offset,
+                                       PreallocMode prealloc, Error **errp)
 {
     BDRVSheepdogState *s = bs->opaque;
     int ret, fd;
@@ -2609,7 +2609,7 @@ static coroutine_fn int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
 
     assert(!flags);
     if (offset > s->inode.vdi_size) {
-        ret = sd_truncate(bs, offset, PREALLOC_MODE_OFF, NULL);
+        ret = sd_co_truncate(bs, offset, PREALLOC_MODE_OFF, NULL);
         if (ret < 0) {
             return ret;
         }
@@ -3231,7 +3231,7 @@ static BlockDriver bdrv_sheepdog = {
     .bdrv_has_zero_init           = bdrv_has_zero_init_1,
     .bdrv_getlength               = sd_getlength,
     .bdrv_get_allocated_file_size = sd_get_allocated_file_size,
-    .bdrv_truncate                = sd_truncate,
+    .bdrv_co_truncate             = sd_co_truncate,
 
     .bdrv_co_readv                = sd_co_readv,
     .bdrv_co_writev               = sd_co_writev,
@@ -3268,7 +3268,7 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .bdrv_has_zero_init           = bdrv_has_zero_init_1,
     .bdrv_getlength               = sd_getlength,
     .bdrv_get_allocated_file_size = sd_get_allocated_file_size,
-    .bdrv_truncate                = sd_truncate,
+    .bdrv_co_truncate             = sd_co_truncate,
 
     .bdrv_co_readv                = sd_co_readv,
     .bdrv_co_writev               = sd_co_writev,
@@ -3305,7 +3305,7 @@ static BlockDriver bdrv_sheepdog_unix = {
     .bdrv_has_zero_init           = bdrv_has_zero_init_1,
     .bdrv_getlength               = sd_getlength,
     .bdrv_get_allocated_file_size = sd_get_allocated_file_size,
-    .bdrv_truncate                = sd_truncate,
+    .bdrv_co_truncate             = sd_co_truncate,
 
     .bdrv_co_readv                = sd_co_readv,
     .bdrv_co_writev               = sd_co_writev,

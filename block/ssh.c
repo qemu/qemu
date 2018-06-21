@@ -1243,8 +1243,8 @@ static int64_t ssh_getlength(BlockDriverState *bs)
     return length;
 }
 
-static int ssh_truncate(BlockDriverState *bs, int64_t offset,
-                        PreallocMode prealloc, Error **errp)
+static int coroutine_fn ssh_co_truncate(BlockDriverState *bs, int64_t offset,
+                                        PreallocMode prealloc, Error **errp)
 {
     BDRVSSHState *s = bs->opaque;
 
@@ -1279,7 +1279,7 @@ static BlockDriver bdrv_ssh = {
     .bdrv_co_readv                = ssh_co_readv,
     .bdrv_co_writev               = ssh_co_writev,
     .bdrv_getlength               = ssh_getlength,
-    .bdrv_truncate                = ssh_truncate,
+    .bdrv_co_truncate             = ssh_co_truncate,
     .bdrv_co_flush_to_disk        = ssh_co_flush,
     .create_opts                  = &ssh_create_opts,
 };

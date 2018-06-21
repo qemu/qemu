@@ -357,8 +357,9 @@ static int block_crypto_co_create_generic(BlockDriverState *bs,
     return ret;
 }
 
-static int block_crypto_truncate(BlockDriverState *bs, int64_t offset,
-                                 PreallocMode prealloc, Error **errp)
+static int coroutine_fn
+block_crypto_co_truncate(BlockDriverState *bs, int64_t offset,
+                         PreallocMode prealloc, Error **errp)
 {
     BlockCrypto *crypto = bs->opaque;
     uint64_t payload_offset =
@@ -371,7 +372,7 @@ static int block_crypto_truncate(BlockDriverState *bs, int64_t offset,
 
     offset += payload_offset;
 
-    return bdrv_truncate(bs->file, offset, prealloc, errp);
+    return bdrv_co_truncate(bs->file, offset, prealloc, errp);
 }
 
 static void block_crypto_close(BlockDriverState *bs)
@@ -700,7 +701,7 @@ BlockDriver bdrv_crypto_luks = {
     .bdrv_child_perm    = bdrv_format_default_perms,
     .bdrv_co_create     = block_crypto_co_create_luks,
     .bdrv_co_create_opts = block_crypto_co_create_opts_luks,
-    .bdrv_truncate      = block_crypto_truncate,
+    .bdrv_co_truncate   = block_crypto_co_truncate,
     .create_opts        = &block_crypto_create_opts_luks,
 
     .bdrv_reopen_prepare = block_crypto_reopen_prepare,
