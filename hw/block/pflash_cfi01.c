@@ -47,6 +47,7 @@
 #include "qemu/log.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
+#include "trace.h"
 
 #define PFLASH_BUG(fmt, ...) \
 do { \
@@ -120,7 +121,7 @@ static void pflash_timer (void *opaque)
 {
     pflash_t *pfl = opaque;
 
-    DPRINTF("%s: command %02x done\n", __func__, pfl->cmd);
+    trace_pflash_timer_expired(pfl->cmd);
     /* Reset flash */
     pfl->status ^= 0x80;
     memory_region_rom_device_set_romd(&pfl->mem, true);
@@ -218,15 +219,14 @@ static uint32_t pflash_devid_query(pflash_t *pfl, hwaddr offset)
     switch (boff & 0xFF) {
     case 0:
         resp = pfl->ident0;
-        DPRINTF("%s: Manufacturer Code %04x\n", __func__, resp);
+        trace_pflash_manufacturer_id(resp);
         break;
     case 1:
         resp = pfl->ident1;
-        DPRINTF("%s: Device ID Code %04x\n", __func__, resp);
+        trace_pflash_device_id(resp);
         break;
     default:
-        DPRINTF("%s: Read Device Information offset=%x\n", __func__,
-                (unsigned)offset);
+        trace_pflash_device_info(offset);
         return 0;
         break;
     }
@@ -251,8 +251,7 @@ static uint32_t pflash_data_read(pflash_t *pfl, hwaddr offset,
     switch (width) {
     case 1:
         ret = p[offset];
-        DPRINTF("%s: data offset " TARGET_FMT_plx " %02x\n",
-                __func__, offset, ret);
+        trace_pflash_data_read8(offset, ret);
         break;
     case 2:
         if (be) {
@@ -262,8 +261,7 @@ static uint32_t pflash_data_read(pflash_t *pfl, hwaddr offset,
             ret = p[offset];
             ret |= p[offset + 1] << 8;
         }
-        DPRINTF("%s: data offset " TARGET_FMT_plx " %04x\n",
-                __func__, offset, ret);
+        trace_pflash_data_read16(offset, ret);
         break;
     case 4:
         if (be) {
@@ -277,8 +275,7 @@ static uint32_t pflash_data_read(pflash_t *pfl, hwaddr offset,
             ret |= p[offset + 2] << 16;
             ret |= p[offset + 3] << 24;
         }
-        DPRINTF("%s: data offset " TARGET_FMT_plx " %08x\n",
-                __func__, offset, ret);
+        trace_pflash_data_read32(offset, ret);
         break;
     default:
         DPRINTF("BUG in %s\n", __func__);
@@ -294,11 +291,7 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
     uint32_t ret;
 
     ret = -1;
-
-#if 0
-    DPRINTF("%s: reading offset " TARGET_FMT_plx " under cmd %02x width %d\n",
-            __func__, offset, pfl->cmd, width);
-#endif
+    trace_pflash_read(offset, pfl->cmd, width, pfl->wcycle);
     switch (pfl->cmd) {
     default:
         /* This should never happen : reset state & treat it as a read */
@@ -349,15 +342,14 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
             switch (boff) {
             case 0:
                 ret = pfl->ident0 << 8 | pfl->ident1;
-                DPRINTF("%s: Manufacturer Code %04x\n", __func__, ret);
+                trace_pflash_manufacturer_id(ret);
                 break;
             case 1:
                 ret = pfl->ident2 << 8 | pfl->ident3;
-                DPRINTF("%s: Device ID Code %04x\n", __func__, ret);
+                trace_pflash_device_id(ret);
                 break;
             default:
-                DPRINTF("%s: Read Device Information boff=%x\n", __func__,
-                        (unsigned)boff);
+                trace_pflash_device_info(boff);
                 ret = 0;
                 break;
             }
@@ -425,9 +417,7 @@ static inline void pflash_data_write(pflash_t *pfl, hwaddr offset,
 {
     uint8_t *p = pfl->storage;
 
-    DPRINTF("%s: block write offset " TARGET_FMT_plx
-            " value %x counter %016" PRIx64 "\n",
-            __func__, offset, value, pfl->counter);
+    trace_pflash_data_write(offset, value, width, pfl->counter);
     switch (width) {
     case 1:
         p[offset] = value;
@@ -466,9 +456,7 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
 
     cmd = value;
 
-    DPRINTF("%s: writing offset " TARGET_FMT_plx " value %08x width %d wcycle 0x%x\n",
-            __func__, offset, value, width, pfl->wcycle);
-
+    trace_pflash_write(offset, value, width, pfl->wcycle);
     if (!pfl->wcycle) {
         /* Set the device in I/O access mode */
         memory_region_rom_device_set_romd(&pfl->mem, false);
@@ -656,8 +644,8 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
                   "\n", __func__, offset, pfl->wcycle, pfl->cmd, value);
 
  reset_flash:
+    trace_pflash_reset();
     memory_region_rom_device_set_romd(&pfl->mem, true);
-
     pfl->wcycle = 0;
     pfl->cmd = 0;
 }
