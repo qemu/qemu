@@ -1545,6 +1545,65 @@ out:
     return ret;
 }
 
+static void pmutils_suspend(int suspend_mode, Error **errp)
+{
+    Error *local_err = NULL;
+    const char *pmutils_bin;
+    char *pmutils_path;
+    pid_t pid;
+    int status;
+
+    switch (suspend_mode) {
+
+    case SUSPEND_MODE_DISK:
+        pmutils_bin = "pm-hibernate";
+        break;
+    case SUSPEND_MODE_RAM:
+        pmutils_bin = "pm-suspend";
+        break;
+    case SUSPEND_MODE_HYBRID:
+        pmutils_bin = "pm-suspend-hybrid";
+        break;
+    default:
+        error_setg(errp, "unknown guest suspend mode");
+        return;
+    }
+
+    pmutils_path = g_find_program_in_path(pmutils_bin);
+    if (!pmutils_path) {
+        error_setg(errp, "the helper program '%s' was not found", pmutils_bin);
+        return;
+    }
+
+    pid = fork();
+    if (!pid) {
+        setsid();
+        execle(pmutils_path, pmutils_bin, NULL, environ);
+        /*
+         * If we get here execle() has failed.
+         */
+        _exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        error_setg_errno(errp, errno, "failed to create child process");
+        goto out;
+    }
+
+    ga_wait_child(pid, &status, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+
+    if (WEXITSTATUS(status)) {
+        error_setg(errp,
+                   "the helper program '%s' returned an unexpected exit status"
+                   " code (%d)", pmutils_path, WEXITSTATUS(status));
+    }
+
+out:
+    g_free(pmutils_path);
+}
+
 static bool linux_sys_state_supports_mode(int suspend_mode, Error **errp)
 {
     const char *sysfile_str;
@@ -1581,6 +1640,63 @@ static bool linux_sys_state_supports_mode(int suspend_mode, Error **errp)
     return false;
 }
 
+static void linux_sys_state_suspend(int suspend_mode, Error **errp)
+{
+    Error *local_err = NULL;
+    const char *sysfile_str;
+    pid_t pid;
+    int status;
+
+    switch (suspend_mode) {
+
+    case SUSPEND_MODE_DISK:
+        sysfile_str = "disk";
+        break;
+    case SUSPEND_MODE_RAM:
+        sysfile_str = "mem";
+        break;
+    default:
+        error_setg(errp, "unknown guest suspend mode");
+        return;
+    }
+
+    pid = fork();
+    if (!pid) {
+        /* child */
+        int fd;
+
+        setsid();
+        reopen_fd_to_null(0);
+        reopen_fd_to_null(1);
+        reopen_fd_to_null(2);
+
+        fd = open(LINUX_SYS_STATE_FILE, O_WRONLY);
+        if (fd < 0) {
+            _exit(EXIT_FAILURE);
+        }
+
+        if (write(fd, sysfile_str, strlen(sysfile_str)) < 0) {
+            _exit(EXIT_FAILURE);
+        }
+
+        _exit(EXIT_SUCCESS);
+    } else if (pid < 0) {
+        error_setg_errno(errp, errno, "failed to create child process");
+        return;
+    }
+
+    ga_wait_child(pid, &status, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (WEXITSTATUS(status)) {
+        error_setg(errp, "child process has failed to suspend");
+    }
+
+}
+
 static void bios_supports_mode(int suspend_mode, Error **errp)
 {
     Error *local_err = NULL;
@@ -1605,10 +1721,6 @@ static void bios_supports_mode(int suspend_mode, Error **errp)
 static void guest_suspend(int suspend_mode, Error **errp)
 {
     Error *local_err = NULL;
-    const char *pmutils_bin, *sysfile_str;
-    char *pmutils_path;
-    pid_t pid;
-    int status;
 
     bios_supports_mode(suspend_mode, &local_err);
     if (local_err) {
@@ -1616,83 +1728,17 @@ static void guest_suspend(int suspend_mode, Error **errp)
         return;
     }
 
-    switch (suspend_mode) {
-
-    case SUSPEND_MODE_DISK:
-        pmutils_bin = "pm-hibernate";
-        sysfile_str = "disk";
-        break;
-    case SUSPEND_MODE_RAM:
-        pmutils_bin = "pm-suspend";
-        sysfile_str = "mem";
-        break;
-    case SUSPEND_MODE_HYBRID:
-        pmutils_bin = "pm-suspend-hybrid";
-        sysfile_str = NULL;
-        break;
-    default:
-        error_setg(errp, "unknown guest suspend mode");
+    pmutils_suspend(suspend_mode, &local_err);
+    if (!local_err) {
         return;
     }
 
-    pmutils_path = g_find_program_in_path(pmutils_bin);
+    error_free(local_err);
 
-    pid = fork();
-    if (pid == 0) {
-        /* child */
-        int fd;
-
-        setsid();
-        reopen_fd_to_null(0);
-        reopen_fd_to_null(1);
-        reopen_fd_to_null(2);
-
-        if (pmutils_path) {
-            execle(pmutils_path, pmutils_bin, NULL, environ);
-        }
-
-        /*
-         * If we get here either pm-utils is not installed or execle() has
-         * failed. Let's try the manual method if the caller wants it.
-         */
-
-        if (!sysfile_str) {
-            _exit(EXIT_FAILURE);
-        }
-
-        fd = open(LINUX_SYS_STATE_FILE, O_WRONLY);
-        if (fd < 0) {
-            _exit(EXIT_FAILURE);
-        }
-
-        if (write(fd, sysfile_str, strlen(sysfile_str)) < 0) {
-            _exit(EXIT_FAILURE);
-        }
-
-        _exit(EXIT_SUCCESS);
-    } else if (pid < 0) {
-        error_setg_errno(errp, errno, "failed to create child process");
-        goto out;
-    }
-
-    ga_wait_child(pid, &status, &local_err);
+    linux_sys_state_suspend(suspend_mode, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        goto out;
     }
-
-    if (!WIFEXITED(status)) {
-        error_setg(errp, "child process has terminated abnormally");
-        goto out;
-    }
-
-    if (WEXITSTATUS(status)) {
-        error_setg(errp, "child process has failed to suspend");
-        goto out;
-    }
-
-out:
-    g_free(pmutils_path);
 }
 
 void qmp_guest_suspend_disk(Error **errp)
