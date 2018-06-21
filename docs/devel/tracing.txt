@@ -104,6 +104,11 @@ Trace events should use types as follows:
  * For everything else, use primitive scalar types (char, int, long) with the
    appropriate signedness.
 
+ * Avoid floating point types (float and double) because SystemTap does not
+   support them.  In most cases it is possible to round to an integer type
+   instead.  This may require scaling the value first by multiplying it by 1000
+   or the like when digits after the decimal point need to be preserved.
+
 Format strings should reflect the types defined in the trace event.  Take
 special care to use PRId64 and PRIu64 for int64_t and uint64_t types,
 respectively.  This ensures portability between 32- and 64-bit platforms.
