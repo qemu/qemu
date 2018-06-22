@@ -15,6 +15,7 @@
 #include "block/raw-aio.h"
 #include "qemu/event_notifier.h"
 #include "qemu/coroutine.h"
+#include "qapi/error.h"
 
 #include <libaio.h>
 
@@ -470,16 +471,21 @@ void laio_attach_aio_context(LinuxAioState *s, AioContext *new_context)
                            qemu_laio_poll_cb);
 }
 
-LinuxAioState *laio_init(void)
+LinuxAioState *laio_init(Error **errp)
 {
+    int rc;
     LinuxAioState *s;
 
     s = g_malloc0(sizeof(*s));
-    if (event_notifier_init(&s->e, false) < 0) {
+    rc = event_notifier_init(&s->e, false);
+    if (rc < 0) {
+        error_setg_errno(errp, -rc, "failed to to initialize event notifier");
         goto out_free_state;
     }
 
-    if (io_setup(MAX_EVENTS, &s->ctx) != 0) {
+    rc = io_setup(MAX_EVENTS, &s->ctx);
+    if (rc < 0) {
+        error_setg_errno(errp, -rc, "failed to create linux AIO context");
         goto out_close_efd;
     }
 
