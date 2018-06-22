@@ -10095,18 +10095,18 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
         !arm_dc_feature(s, ARM_FEATURE_V7)) {
         int i;
         bool found = false;
-        const uint32_t armv6m_insn[] = {0xf3808000 /* msr */,
-                                        0xf3b08040 /* dsb */,
-                                        0xf3b08050 /* dmb */,
-                                        0xf3b08060 /* isb */,
-                                        0xf3e08000 /* mrs */,
-                                        0xf000d000 /* bl */};
-        const uint32_t armv6m_mask[] = {0xffe0d000,
-                                        0xfff0d0f0,
-                                        0xfff0d0f0,
-                                        0xfff0d0f0,
-                                        0xffe0d000,
-                                        0xf800d000};
+        static const uint32_t armv6m_insn[] = {0xf3808000 /* msr */,
+                                               0xf3b08040 /* dsb */,
+                                               0xf3b08050 /* dmb */,
+                                               0xf3b08060 /* isb */,
+                                               0xf3e08000 /* mrs */,
+                                               0xf000d000 /* bl */};
+        static const uint32_t armv6m_mask[] = {0xffe0d000,
+                                               0xfff0d0f0,
+                                               0xfff0d0f0,
+                                               0xfff0d0f0,
+                                               0xffe0d000,
+                                               0xf800d000};
 
         for (i = 0; i < ARRAY_SIZE(armv6m_insn); i++) {
             if ((insn & armv6m_mask[i]) == armv6m_insn[i]) {
@@ -11039,8 +11039,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                         break;
                     case 3: /* Special control operations.  */
                         if (!arm_dc_feature(s, ARM_FEATURE_V7) &&
-                            !(arm_dc_feature(s, ARM_FEATURE_V6) &&
-                              arm_dc_feature(s, ARM_FEATURE_M))) {
+                            !arm_dc_feature(s, ARM_FEATURE_M)) {
                             goto illegal_op;
                         }
                         op = (insn >> 4) & 0xf;
