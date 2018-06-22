@@ -125,6 +125,8 @@ def gen_variants(variants):
                 c_name=c_name(variants.tag_member.name))
 
     for var in variants.variants:
+        if var.type.name == 'q_empty':
+            continue
         ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',

@@ -75,13 +75,10 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
     def visit_end(self):
         # visit the types that are actually used
-        qlits = self._qlits
-        self._qlits = []
         for typ in self._used_types:
             typ.visit(self)
         # generate C
         # TODO can generate awfully long lines
-        qlits.extend(self._qlits)
         name = c_name(self._prefix, protect=False) + 'qmp_schema_qlit'
         self._genh.add(mcgen('''
 #include "qapi/qmp/qlit.h"
@@ -93,7 +90,7 @@ extern const QLitObject %(c_name)s;
 const QLitObject %(c_name)s = %(c_string)s;
 ''',
                              c_name=c_name(name),
-                             c_string=to_qlit(qlits)))
+                             c_string=to_qlit(self._qlits)))
         self._schema = None
         self._qlits = []
         self._used_types = []

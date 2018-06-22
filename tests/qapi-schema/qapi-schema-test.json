@@ -39,7 +39,7 @@
             '*enum1': 'EnumOne' } }   # intentional forward reference
 
 { 'enum': 'EnumOne',
-  'data': [ 'value1', 'value2', 'value3' ] }
+  'data': [ 'value1', 'value2', 'value3', 'value4' ] }
 
 { 'struct': 'UserDefZero',
   'data': { 'integer': 'int' } }
@@ -76,7 +76,9 @@
   'discriminator': 'enum1',
   'data': { 'value1' : 'UserDefA',
             'value2' : 'UserDefB',
-            'value3' : 'UserDefB' } }
+            'value3' : 'UserDefB'
+            # 'value4' defaults to empty
+  } }
 
 { 'struct': 'UserDefUnionBase',
   'base': 'UserDefZero',

@@ -496,9 +496,11 @@ Resulting in these JSON objects:
 
 Notice that in a flat union, the discriminator name is controlled by
 the user, but because it must map to a base member with enum type, the
-code generator can ensure that branches exist for all values of the
-enum (although the order of the keys need not match the declaration of
-the enum).  In the resulting generated C data types, a flat union is
+code generator ensures that branches match the existing values of the
+enum. The order of the keys need not match the declaration of the enum.
+The keys need not cover all possible enum values. Omitted enum values
+are still valid branches that add no additional members to the data type.
+In the resulting generated C data types, a flat union is
 represented as a struct with the base members included directly, and
 then a union of structures for each branch of the struct.
 

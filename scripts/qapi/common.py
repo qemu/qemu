@@ -16,6 +16,7 @@ import errno
 import os
 import re
 import string
+import sys
 from collections import OrderedDict
 
 builtin_types = {
@@ -340,7 +341,10 @@ class QAPISchemaParser(object):
             return None
 
         try:
-            fobj = open(incl_fname, 'r')
+            if sys.version_info[0] >= 3:
+                fobj = open(incl_fname, 'r', encoding='utf-8')
+            else:
+                fobj = open(incl_fname, 'r')
         except IOError as e:
             raise QAPISemError(info, '%s: %s' % (e.strerror, incl_fname))
         return QAPISchemaParser(fobj, previously_included, info)
@@ -778,13 +782,6 @@ def check_union(expr, info):
                                    "Discriminator value '%s' is not found in "
                                    "enum '%s'"
                                    % (key, enum_define['enum']))
-
-    # If discriminator is user-defined, ensure all values are covered
-    if enum_define:
-        for value in enum_define['data']:
-            if value not in members.keys():
-                raise QAPISemError(info, "Union '%s' data missing '%s' branch"
-                                   % (name, value))
 
 
 def check_alternate(expr, info):
@@ -1357,6 +1354,14 @@ class QAPISchemaObjectTypeVariants(object):
             self.tag_member = seen[c_name(self._tag_name)]
             assert self._tag_name == self.tag_member.name
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
+        if self._tag_name:    # flat union
+            # branches that are not explicitly covered get an empty type
+            cases = set([v.name for v in self.variants])
+            for val in self.tag_member.type.values:
+                if val.name not in cases:
+                    v = QAPISchemaObjectTypeVariant(val.name, 'q_empty')
+                    v.set_owner(self.tag_member.owner)
+                    self.variants.append(v)
         for v in self.variants:
             v.check(schema)
             # Union names must match enum values; alternate names are
@@ -1492,7 +1497,11 @@ class QAPISchemaEvent(QAPISchemaEntity):
 class QAPISchema(object):
     def __init__(self, fname):
         self._fname = fname
-        parser = QAPISchemaParser(open(fname, 'r'))
+        if sys.version_info[0] >= 3:
+            f = open(fname, 'r', encoding='utf-8')
+        else:
+            f = open(fname, 'r')
+        parser = QAPISchemaParser(f)
         exprs = check_exprs(parser.exprs)
         self.docs = parser.docs
         self._entity_list = []
@@ -2006,7 +2015,10 @@ class QAPIGen(object):
                 if e.errno != errno.EEXIST:
                     raise
         fd = os.open(pathname, os.O_RDWR | os.O_CREAT, 0o666)
-        f = os.fdopen(fd, 'r+')
+        if sys.version_info[0] >= 3:
+            f = open(fd, 'r+', encoding='utf-8')
+        else:
+            f = os.fdopen(fd, 'r+')
         text = (self._top(fname) + self._preamble + self._body
                 + self._bottom(fname))
         oldtext = f.read(len(text) + 1)

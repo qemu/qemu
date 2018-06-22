@@ -125,6 +125,38 @@ static void qdict_flatten_test(void)
     qobject_unref(root);
 }
 
+static void qdict_clone_flatten_test(void)
+{
+    QDict *dict1 = qdict_new();
+    QDict *dict2 = qdict_new();
+    QDict *cloned_dict1;
+
+    /*
+     * Test that we can clone and flatten
+     *    { "a": { "b": 42 } }
+     * without modifying the clone.
+     */
+
+    qdict_put_int(dict2, "b", 42);
+    qdict_put(dict1, "a", dict2);
+
+    cloned_dict1 = qdict_clone_shallow(dict1);
+
+    qdict_flatten(dict1);
+
+    g_assert(qdict_size(dict1) == 1);
+    g_assert(qdict_get_int(dict1, "a.b") == 42);
+
+    g_assert(qdict_size(cloned_dict1) == 1);
+    g_assert(qdict_get_qdict(cloned_dict1, "a") == dict2);
+
+    g_assert(qdict_size(dict2) == 1);
+    g_assert(qdict_get_int(dict2, "b") == 42);
+
+    qobject_unref(dict1);
+    qobject_unref(cloned_dict1);
+}
+
 static void qdict_array_split_test(void)
 {
     QDict *test_dict = qdict_new();
@@ -674,6 +706,7 @@ int main(int argc, char **argv)
 
     g_test_add_func("/public/defaults", qdict_defaults_test);
     g_test_add_func("/public/flatten", qdict_flatten_test);
+    g_test_add_func("/public/clone_flatten", qdict_clone_flatten_test);
     g_test_add_func("/public/array_split", qdict_array_split_test);
     g_test_add_func("/public/array_entries", qdict_array_entries_test);
     g_test_add_func("/public/join", qdict_join_test);

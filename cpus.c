@@ -2273,8 +2273,6 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
         info->value->target = target;
         if (target == SYS_EMU_TARGET_S390X) {
             cpustate_to_cpuinfo_s390(&info->value->u.s390x, cpu);
-        } else {
-            /* do nothing for @CpuInfoOther */
         }
 
         if (!cur_item) {

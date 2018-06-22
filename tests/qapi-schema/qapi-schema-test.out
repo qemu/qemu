@@ -23,7 +23,7 @@ object UserDefOne
     base UserDefZero
     member string: str optional=False
     member enum1: EnumOne optional=True
-enum EnumOne ['value1', 'value2', 'value3']
+enum EnumOne ['value1', 'value2', 'value3', 'value4']
 object UserDefZero
     member integer: int optional=False
 object UserDefTwoDictDict
@@ -52,6 +52,7 @@ object UserDefFlatUnion
     case value1: UserDefA
     case value2: UserDefB
     case value3: UserDefB
+    case value4: q_empty
 object UserDefUnionBase
     base UserDefZero
     member string: str optional=False
