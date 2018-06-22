@@ -382,5 +382,7 @@
 #define __NR_pkey_free 382
 #define __NR_statx 383
 #define __NR_arch_prctl 384
+#define __NR_io_pgetevents 385
+#define __NR_rseq 386
 
 #endif /* _ASM_X86_UNISTD_32_H */
