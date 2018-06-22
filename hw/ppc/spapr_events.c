@@ -707,13 +707,18 @@ void spapr_clear_pending_events(sPAPRMachineState *spapr)
 
 void spapr_events_init(sPAPRMachineState *spapr)
 {
+    int epow_irq;
+
+    epow_irq = spapr_irq_findone(spapr, &error_fatal);
+
+    spapr_irq_claim(spapr, epow_irq, false, &error_fatal);
+
     QTAILQ_INIT(&spapr->pending_events);
 
     spapr->event_sources = spapr_event_sources_new();
 
     spapr_event_sources_register(spapr->event_sources, EVENT_CLASS_EPOW,
-                                 spapr_irq_alloc(spapr, 0, false,
-                                                  &error_fatal));
+                                 epow_irq);
 
     /* NOTE: if machine supports modern/dedicated hotplug event source,
      * we add it to the device-tree unconditionally. This means we may
@@ -724,9 +729,14 @@ void spapr_events_init(sPAPRMachineState *spapr)
      * checking that it's enabled.
      */
     if (spapr->use_hotplug_event_source) {
+        int hp_irq;
+
+        hp_irq = spapr_irq_findone(spapr, &error_fatal);
+
+        spapr_irq_claim(spapr, hp_irq, false, &error_fatal);
+
         spapr_event_sources_register(spapr->event_sources, EVENT_CLASS_HOT_PLUG,
-                                     spapr_irq_alloc(spapr, 0, false,
-                                                      &error_fatal));
+                                     hp_irq);
     }
 
     spapr->epow_notifier.notify = spapr_powerdown_req;

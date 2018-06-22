@@ -26,7 +26,9 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "sysemu/hw_accel.h"
+#include "exec/ram_addr.h"
 #include "target/ppc/cpu.h"
+#include "target/ppc/mmu-hash64.h"
 #include "cpu-models.h"
 #include "kvm_ppc.h"
 
@@ -59,6 +61,8 @@ typedef struct sPAPRCapabilityInfo {
     sPAPRCapPossible *possible;
     /* Make sure the virtual hardware can support this capability */
     void (*apply)(sPAPRMachineState *spapr, uint8_t val, Error **errp);
+    void (*cpu_apply)(sPAPRMachineState *spapr, PowerPCCPU *cpu,
+                      uint8_t val, Error **errp);
 } sPAPRCapabilityInfo;
 
 static void spapr_cap_get_bool(Object *obj, Visitor *v, const char *name,
@@ -140,6 +144,42 @@ static void spapr_cap_set_string(Object *obj, Visitor *v, const char *name,
                cap->name);
 out:
     g_free(val);
+}
+
+static void spapr_cap_get_pagesize(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    sPAPRCapabilityInfo *cap = opaque;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    uint8_t val = spapr_get_cap(spapr, cap->index);
+    uint64_t pagesize = (1ULL << val);
+
+    visit_type_size(v, name, &pagesize, errp);
+}
+
+static void spapr_cap_set_pagesize(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    sPAPRCapabilityInfo *cap = opaque;
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    uint64_t pagesize;
+    uint8_t val;
+    Error *local_err = NULL;
+
+    visit_type_size(v, name, &pagesize, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (!is_power_of_2(pagesize)) {
+        error_setg(errp, "cap-%s must be a power of 2", cap->name);
+        return;
+    }
+
+    val = ctz64(pagesize);
+    spapr->cmd_line_caps[cap->index] = true;
+    spapr->eff.caps[cap->index] = val;
 }
 
 static void cap_htm_apply(sPAPRMachineState *spapr, uint8_t val, Error **errp)
@@ -265,6 +305,69 @@ static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
 
 #define VALUE_DESC_TRISTATE     " (broken, workaround, fixed)"
 
+void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
+                          Error **errp)
+{
+    hwaddr maxpagesize = (1ULL << spapr->eff.caps[SPAPR_CAP_HPT_MAXPAGESIZE]);
+
+    if (!kvmppc_hpt_needs_host_contiguous_pages()) {
+        return;
+    }
+
+    if (maxpagesize > pagesize) {
+        error_setg(errp,
+                   "Can't support %"HWADDR_PRIu" kiB guest pages with %"
+                   HWADDR_PRIu" kiB host pages with this KVM implementation",
+                   maxpagesize >> 10, pagesize >> 10);
+    }
+}
+
+static void cap_hpt_maxpagesize_apply(sPAPRMachineState *spapr,
+                                      uint8_t val, Error **errp)
+{
+    if (val < 12) {
+        error_setg(errp, "Require at least 4kiB hpt-max-page-size");
+        return;
+    } else if (val < 16) {
+        warn_report("Many guests require at least 64kiB hpt-max-page-size");
+    }
+
+    spapr_check_pagesize(spapr, qemu_getrampagesize(), errp);
+}
+
+static bool spapr_pagesize_cb(void *opaque, uint32_t seg_pshift,
+                              uint32_t pshift)
+{
+    unsigned maxshift = *((unsigned *)opaque);
+
+    assert(pshift >= seg_pshift);
+
+    /* Don't allow the guest to use pages bigger than the configured
+     * maximum size */
+    if (pshift > maxshift) {
+        return false;
+    }
+
+    /* For whatever reason, KVM doesn't allow multiple pagesizes
+     * within a segment, *except* for the case of 16M pages in a 4k or
+     * 64k segment.  Always exclude other cases, so that TCG and KVM
+     * guests see a consistent environment */
+    if ((pshift != seg_pshift) && (pshift != 24)) {
+        return false;
+    }
+
+    return true;
+}
+
+static void cap_hpt_maxpagesize_cpu_apply(sPAPRMachineState *spapr,
+                                          PowerPCCPU *cpu,
+                                          uint8_t val, Error **errp)
+{
+    unsigned maxshift = val;
+
+    ppc_hash64_filter_pagesizes(cpu, spapr_pagesize_cb, &maxshift);
+}
+
 sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
@@ -324,30 +427,39 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .possible = &cap_ibs_possible,
         .apply = cap_safe_indirect_branch_apply,
     },
+    [SPAPR_CAP_HPT_MAXPAGESIZE] = {
+        .name = "hpt-max-page-size",
+        .description = "Maximum page size for Hash Page Table guests",
+        .index = SPAPR_CAP_HPT_MAXPAGESIZE,
+        .get = spapr_cap_get_pagesize,
+        .set = spapr_cap_set_pagesize,
+        .type = "int",
+        .apply = cap_hpt_maxpagesize_apply,
+        .cpu_apply = cap_hpt_maxpagesize_cpu_apply,
+    },
 };
 
 static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
-                                               CPUState *cs)
+                                               const char *cputype)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
     sPAPRCapabilities caps;
 
     caps = smc->default_caps;
 
-    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_07,
-                          0, spapr->max_compat_pvr)) {
+    if (!ppc_type_check_compat(cputype, CPU_POWERPC_LOGICAL_2_07,
+                               0, spapr->max_compat_pvr)) {
         caps.caps[SPAPR_CAP_HTM] = SPAPR_CAP_OFF;
         caps.caps[SPAPR_CAP_CFPC] = SPAPR_CAP_BROKEN;
     }
 
-    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_06_PLUS,
-                          0, spapr->max_compat_pvr)) {
+    if (!ppc_type_check_compat(cputype, CPU_POWERPC_LOGICAL_2_06_PLUS,
+                               0, spapr->max_compat_pvr)) {
         caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_BROKEN;
     }
 
-    if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_2_06,
-                          0, spapr->max_compat_pvr)) {
+    if (!ppc_type_check_compat(cputype, CPU_POWERPC_LOGICAL_2_06,
+                               0, spapr->max_compat_pvr)) {
         caps.caps[SPAPR_CAP_VSX] = SPAPR_CAP_OFF;
         caps.caps[SPAPR_CAP_DFP] = SPAPR_CAP_OFF;
         caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_BROKEN;
@@ -384,7 +496,7 @@ int spapr_caps_post_migration(sPAPRMachineState *spapr)
     sPAPRCapabilities dstcaps = spapr->eff;
     sPAPRCapabilities srccaps;
 
-    srccaps = default_caps_with_cpu(spapr, first_cpu);
+    srccaps = default_caps_with_cpu(spapr, MACHINE(spapr)->cpu_type);
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
         /* If not default value then assume came in with the migration */
         if (spapr->mig.caps[i] != spapr->def.caps[i]) {
@@ -440,13 +552,13 @@ SPAPR_CAP_MIG_STATE(cfpc, SPAPR_CAP_CFPC);
 SPAPR_CAP_MIG_STATE(sbbc, SPAPR_CAP_SBBC);
 SPAPR_CAP_MIG_STATE(ibs, SPAPR_CAP_IBS);
 
-void spapr_caps_reset(sPAPRMachineState *spapr)
+void spapr_caps_init(sPAPRMachineState *spapr)
 {
     sPAPRCapabilities default_caps;
     int i;
 
-    /* First compute the actual set of caps we're running with.. */
-    default_caps = default_caps_with_cpu(spapr, first_cpu);
+    /* Compute the actual set of caps we should run with */
+    default_caps = default_caps_with_cpu(spapr, MACHINE(spapr)->cpu_type);
 
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
         /* Store the defaults */
@@ -456,8 +568,11 @@ void spapr_caps_reset(sPAPRMachineState *spapr)
             spapr->eff.caps[i] = default_caps.caps[i];
         }
     }
+}
 
-    /* .. then apply those caps to the virtual hardware */
+void spapr_caps_apply(sPAPRMachineState *spapr)
+{
+    int i;
 
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
         sPAPRCapabilityInfo *info = &capability_table[i];
@@ -467,6 +582,23 @@ void spapr_caps_reset(sPAPRMachineState *spapr)
          * fatal, it should cause that.
          */
         info->apply(spapr, spapr->eff.caps[i], &error_fatal);
+    }
+}
+
+void spapr_caps_cpu_apply(sPAPRMachineState *spapr, PowerPCCPU *cpu)
+{
+    int i;
+
+    for (i = 0; i < SPAPR_CAP_NUM; i++) {
+        sPAPRCapabilityInfo *info = &capability_table[i];
+
+        /*
+         * If the apply function can't set the desired level and thinks it's
+         * fatal, it should cause that.
+         */
+        if (info->cpu_apply) {
+            info->cpu_apply(spapr, cpu, spapr->eff.caps[i], &error_fatal);
+        }
     }
 }
 

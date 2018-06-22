@@ -105,17 +105,13 @@ static const CompatInfo *compat_by_pvr(uint32_t pvr)
     return NULL;
 }
 
-bool ppc_check_compat(PowerPCCPU *cpu, uint32_t compat_pvr,
-                      uint32_t min_compat_pvr, uint32_t max_compat_pvr)
+static bool pcc_compat(PowerPCCPUClass *pcc, uint32_t compat_pvr,
+                       uint32_t min_compat_pvr, uint32_t max_compat_pvr)
 {
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     const CompatInfo *compat = compat_by_pvr(compat_pvr);
     const CompatInfo *min = compat_by_pvr(min_compat_pvr);
     const CompatInfo *max = compat_by_pvr(max_compat_pvr);
 
-#if !defined(CONFIG_USER_ONLY)
-    g_assert(cpu->vhyp);
-#endif
     g_assert(!min_compat_pvr || min);
     g_assert(!max_compat_pvr || max);
 
@@ -132,6 +128,25 @@ bool ppc_check_compat(PowerPCCPU *cpu, uint32_t compat_pvr,
         return false;
     }
     return true;
+}
+
+bool ppc_check_compat(PowerPCCPU *cpu, uint32_t compat_pvr,
+                      uint32_t min_compat_pvr, uint32_t max_compat_pvr)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+
+#if !defined(CONFIG_USER_ONLY)
+    g_assert(cpu->vhyp);
+#endif
+
+    return pcc_compat(pcc, compat_pvr, min_compat_pvr, max_compat_pvr);
+}
+
+bool ppc_type_check_compat(const char *cputype, uint32_t compat_pvr,
+                           uint32_t min_compat_pvr, uint32_t max_compat_pvr)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(object_class_by_name(cputype));
+    return pcc_compat(pcc, compat_pvr, min_compat_pvr, max_compat_pvr);
 }
 
 void ppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr, Error **errp)

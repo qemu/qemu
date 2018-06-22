@@ -76,6 +76,10 @@ static void spapr_cpu_reset(void *opaque)
     spapr_cpu->slb_shadow_size = 0;
     spapr_cpu->dtl_addr = 0;
     spapr_cpu->dtl_size = 0;
+
+    spapr_caps_cpu_apply(SPAPR_MACHINE(qdev_get_machine()), cpu);
+
+    kvm_check_mmu(cpu, &error_fatal);
 }
 
 void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip, target_ulong r3)
@@ -128,6 +132,80 @@ static void spapr_cpu_core_unrealize(DeviceState *dev, Error **errp)
     }
     g_free(sc->threads);
 }
+
+static bool slb_shadow_needed(void *opaque)
+{
+    sPAPRCPUState *spapr_cpu = opaque;
+
+    return spapr_cpu->slb_shadow_addr != 0;
+}
+
+static const VMStateDescription vmstate_spapr_cpu_slb_shadow = {
+    .name = "spapr_cpu/vpa/slb_shadow",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = slb_shadow_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(slb_shadow_addr, sPAPRCPUState),
+        VMSTATE_UINT64(slb_shadow_size, sPAPRCPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool dtl_needed(void *opaque)
+{
+    sPAPRCPUState *spapr_cpu = opaque;
+
+    return spapr_cpu->dtl_addr != 0;
+}
+
+static const VMStateDescription vmstate_spapr_cpu_dtl = {
+    .name = "spapr_cpu/vpa/dtl",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = dtl_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(dtl_addr, sPAPRCPUState),
+        VMSTATE_UINT64(dtl_size, sPAPRCPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool vpa_needed(void *opaque)
+{
+    sPAPRCPUState *spapr_cpu = opaque;
+
+    return spapr_cpu->vpa_addr != 0;
+}
+
+static const VMStateDescription vmstate_spapr_cpu_vpa = {
+    .name = "spapr_cpu/vpa",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vpa_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(vpa_addr, sPAPRCPUState),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_spapr_cpu_slb_shadow,
+        &vmstate_spapr_cpu_dtl,
+        NULL
+    }
+};
+
+static const VMStateDescription vmstate_spapr_cpu_state = {
+    .name = "spapr_cpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_spapr_cpu_vpa,
+        NULL
+    }
+};
 
 static void spapr_realize_vcpu(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                Error **errp)
@@ -194,6 +272,10 @@ static PowerPCCPU *spapr_create_vcpu(sPAPRCPUCore *sc, int i, Error **errp)
     }
 
     cpu->machine_data = g_new0(sPAPRCPUState, 1);
+    if (!sc->pre_3_0_migration) {
+        vmstate_register(NULL, cs->cpu_index, &vmstate_spapr_cpu_state,
+                         cpu->machine_data);
+    }
 
     object_unref(obj);
     return cpu;
@@ -204,10 +286,13 @@ err:
     return NULL;
 }
 
-static void spapr_delete_vcpu(PowerPCCPU *cpu)
+static void spapr_delete_vcpu(PowerPCCPU *cpu, sPAPRCPUCore *sc)
 {
     sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
 
+    if (!sc->pre_3_0_migration) {
+        vmstate_unregister(NULL, &vmstate_spapr_cpu_state, cpu->machine_data);
+    }
     cpu->machine_data = NULL;
     g_free(spapr_cpu);
     object_unparent(OBJECT(cpu));
@@ -253,7 +338,7 @@ err_unrealize:
     }
 err:
     while (--i >= 0) {
-        spapr_delete_vcpu(sc->threads[i]);
+        spapr_delete_vcpu(sc->threads[i], sc);
     }
     g_free(sc->threads);
     error_propagate(errp, local_err);
@@ -261,6 +346,8 @@ err:
 
 static Property spapr_cpu_core_properties[] = {
     DEFINE_PROP_INT32("node-id", sPAPRCPUCore, node_id, CPU_UNSET_NUMA_NODE_ID),
+    DEFINE_PROP_BOOL("pre-3.0-migration", sPAPRCPUCore, pre_3_0_migration,
+                     false),
     DEFINE_PROP_END_OF_LIST()
 };
 

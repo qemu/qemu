@@ -22,6 +22,7 @@
 #include "target/ppc/cpu.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "hw/isa/isa.h"
 
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_lpc.h"
@@ -535,16 +536,35 @@ static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
     }
 }
 
-qemu_irq *pnv_lpc_isa_irq_create(PnvLpcController *lpc, int chip_type,
-                                 int nirqs)
+ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp)
 {
+    Error *local_err = NULL;
+    ISABus *isa_bus;
+    qemu_irq *irqs;
+    qemu_irq_handler handler;
+
+    /* let isa_bus_new() create its own bridge on SysBus otherwise
+     * devices speficied on the command line won't find the bus and
+     * will fail to create.
+     */
+    isa_bus = isa_bus_new(NULL, &lpc->isa_mem, &lpc->isa_io, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
     /* Not all variants have a working serial irq decoder. If not,
      * handling of LPC interrupts becomes a platform issue (some
      * platforms have a CPLD to do it).
      */
-    if (chip_type == PNV_CHIP_POWER8NVL) {
-        return qemu_allocate_irqs(pnv_lpc_isa_irq_handler, lpc, nirqs);
+    if (use_cpld) {
+        handler = pnv_lpc_isa_irq_handler_cpld;
     } else {
-        return qemu_allocate_irqs(pnv_lpc_isa_irq_handler_cpld, lpc, nirqs);
+        handler = pnv_lpc_isa_irq_handler;
     }
+
+    irqs = qemu_allocate_irqs(handler, lpc, ISA_NUM_IRQS);
+
+    isa_bus_irqs(isa_bus, irqs);
+    return isa_bus;
 }

@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2007 Jocelyn Mayer
  * Copyright (c) 2012 François Revol
- * Copyright (c) 2016 BALATON Zoltan
+ * Copyright (c) 2016-2018 BALATON Zoltan
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,9 @@
 #include "hw/sysbus.h"
 #include "hw/i2c/i2c.h"
 
+/* from hw/i2c/bitbang_i2c.h */
+typedef struct bitbang_i2c_interface bitbang_i2c_interface;
+
 #define TYPE_PPC4xx_I2C "ppc4xx-i2c"
 #define PPC4xx_I2C(obj) OBJECT_CHECK(PPC4xxI2CState, (obj), TYPE_PPC4xx_I2C)
 
@@ -42,6 +45,7 @@ typedef struct PPC4xxI2CState {
     I2CBus *bus;
     qemu_irq irq;
     MemoryRegion iomem;
+    bitbang_i2c_interface *bitbang;
     uint8_t mdata;
     uint8_t lmadr;
     uint8_t hmadr;
@@ -49,7 +53,6 @@ typedef struct PPC4xxI2CState {
     uint8_t mdcntl;
     uint8_t sts;
     uint8_t extsts;
-    uint8_t sdata;
     uint8_t lsadr;
     uint8_t hsadr;
     uint8_t clkdiv;
@@ -57,7 +60,6 @@ typedef struct PPC4xxI2CState {
     uint8_t xfrcnt;
     uint8_t xtcntlss;
     uint8_t directcntl;
-    uint8_t intr;
 } PPC4xxI2CState;
 
 #endif /* PPC4XX_I2C_H */

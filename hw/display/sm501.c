@@ -652,9 +652,9 @@ static inline void get_hwc_palette(SM501State *state, int crt, uint8_t *palette)
         } else {
             rgb565 = color_reg & 0xFFFF;
         }
-        palette[i * 3 + 0] = (rgb565 << 3) & 0xf8; /* red */
-        palette[i * 3 + 1] = (rgb565 >> 3) & 0xfc; /* green */
-        palette[i * 3 + 2] = (rgb565 >> 8) & 0xf8; /* blue */
+        palette[i * 3 + 0] = ((rgb565 >> 11) * 527 + 23) >> 6; /* r */
+        palette[i * 3 + 1] = (((rgb565 >> 5) & 0x3f) * 259 + 33) >> 6; /* g */
+        palette[i * 3 + 2] = ((rgb565 & 0x1f) * 527 + 23) >> 6; /* b */
     }
 }
 

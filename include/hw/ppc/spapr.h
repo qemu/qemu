@@ -66,8 +66,10 @@ typedef enum {
 #define SPAPR_CAP_SBBC                  0x04
 /* Indirect Branch Serialisation */
 #define SPAPR_CAP_IBS                   0x05
+/* HPT Maximum Page Size (encoded as a shift) */
+#define SPAPR_CAP_HPT_MAXPAGESIZE       0x06
 /* Num Caps */
-#define SPAPR_CAP_NUM                   (SPAPR_CAP_IBS + 1)
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_HPT_MAXPAGESIZE + 1)
 
 /*
  * Capability Values
@@ -772,10 +774,10 @@ int spapr_get_vcpu_id(PowerPCCPU *cpu);
 void spapr_set_vcpu_id(PowerPCCPU *cpu, int cpu_index, Error **errp);
 PowerPCCPU *spapr_find_cpu(int vcpu_id);
 
-int spapr_irq_alloc(sPAPRMachineState *spapr, int irq_hint, bool lsi,
-                    Error **errp);
-int spapr_irq_alloc_block(sPAPRMachineState *spapr, int num, bool lsi,
-                          bool align, Error **errp);
+int spapr_irq_find(sPAPRMachineState *spapr, int num, bool align,
+                   Error **errp);
+#define spapr_irq_findone(spapr, errp) spapr_irq_find(spapr, 1, false, errp)
+int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp);
 void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num);
 qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq);
 
@@ -798,8 +800,13 @@ static inline uint8_t spapr_get_cap(sPAPRMachineState *spapr, int cap)
     return spapr->eff.caps[cap];
 }
 
-void spapr_caps_reset(sPAPRMachineState *spapr);
+void spapr_caps_init(sPAPRMachineState *spapr);
+void spapr_caps_apply(sPAPRMachineState *spapr);
+void spapr_caps_cpu_apply(sPAPRMachineState *spapr, PowerPCCPU *cpu);
 void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp);
 int spapr_caps_post_migration(sPAPRMachineState *spapr);
+
+void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
+                          Error **errp);
 
 #endif /* HW_SPAPR_H */
