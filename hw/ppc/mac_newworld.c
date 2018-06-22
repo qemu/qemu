@@ -407,11 +407,11 @@ static void ppc_core99_init(MachineState *machine)
 
         adb_bus = qdev_get_child_bus(dev, "adb.0");
         dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
-        qdev_prop_set_bit(dev, "disable-direct-reg3-writes", has_pmu);
+        qdev_prop_set_bit(dev, "disable-direct-reg3-writes", true);
         qdev_init_nofail(dev);
 
         dev = qdev_create(adb_bus, TYPE_ADB_MOUSE);
-        qdev_prop_set_bit(dev, "disable-direct-reg3-writes", has_pmu);
+        qdev_prop_set_bit(dev, "disable-direct-reg3-writes", true);
         qdev_init_nofail(dev);
     }
 
