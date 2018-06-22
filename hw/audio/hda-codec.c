@@ -325,6 +325,15 @@ static void hda_audio_output_cb(void *opaque, int avail)
 
     int64_t to_transfer = audio_MIN(wpos - rpos, avail);
 
+    if (wpos - rpos == B_SIZE) {
+        /* drop buffer, reset timer adjust */
+        st->rpos = 0;
+        st->wpos = 0;
+        st->buft_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        trace_hda_audio_overrun(st->node->name);
+        return;
+    }
+
     hda_timer_sync_adjust(st, (wpos - rpos) - to_transfer - (B_SIZE >> 1));
 
     while (to_transfer) {
