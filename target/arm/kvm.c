@@ -256,6 +256,7 @@ static void kvm_arm_machine_init_done(Notifier *notifier, void *data)
             kvm_arm_set_device_addr(kd);
         }
         memory_region_unref(kd->mr);
+        QSLIST_REMOVE_HEAD(&kvm_devices_head, entries);
         g_free(kd);
     }
     memory_listener_unregister(&devlistener);
