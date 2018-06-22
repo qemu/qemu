@@ -32,6 +32,3 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         pkg-config \
         python-minimal
 
-# Setup Emdebian [emdebian-archive-keyring]
-RUN echo "deb http://emdebian.org/tools/debian/ jessie main" > /etc/apt/sources.list.d/emdebian.list && \
-    curl http://emdebian.org/tools/debian/emdebian-toolchain-archive.key | apt-key add -

@@ -23,7 +23,10 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/osdep.h"
+#include <stdio.h>
+#include <stdint.h>
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 /*
  * Inspired by <ieee754.h>'s union ieee854_long_double, but with single
@@ -39,7 +42,7 @@ union float80u {
         unsigned int exponent:15;
         unsigned int negative:1;
         unsigned int empty:16;
-    } QEMU_PACKED ieee;
+    } __attribute__((packed)) ieee;
 
     /* This is for NaNs in the IEEE 854 double-extended-precision format.  */
     struct {
@@ -49,7 +52,7 @@ union float80u {
         unsigned int exponent:15;
         unsigned int negative:1;
         unsigned int empty:16;
-    } QEMU_PACKED ieee_nan;
+    } __attribute__((packed)) ieee_nan;
 };
 
 #define IEEE854_LONG_DOUBLE_BIAS 0x3fff
@@ -229,6 +232,7 @@ static void test_fprem_cases(void)
     do_fprem_stack_underflow();
 
     printf("= invalid operation =\n");
+    do_fprem(q_nan.d, 1.0);
     do_fprem(s_nan.d, 1.0);
     do_fprem(1.0, 0.0);
     do_fprem(pos_inf.d, 1.0);
@@ -237,6 +241,8 @@ static void test_fprem_cases(void)
     printf("= denormal =\n");
     do_fprem(pos_denorm.d, 1.0);
     do_fprem(1.0, pos_denorm.d);
+
+    do_fprem(smallest_positive_norm.d, smallest_positive_norm.d);
 
     /* printf("= underflow =\n"); */
     /* TODO: Is there a case where FPREM raises underflow? */

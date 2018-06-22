@@ -1,0 +1,17 @@
+# -*- Mode: makefile -*-
+#
+# AArch64 specific tweaks
+
+AARCH64_SRC=$(SRC_PATH)/tests/tcg/aarch64
+VPATH 		+= $(AARCH64_SRC)
+
+# we don't build any of the ARM tests
+AARCH64_TESTS=$(filter-out $(ARM_TESTS), $(TESTS))
+AARCH64_TESTS+=fcvt
+TESTS:=$(AARCH64_TESTS)
+
+fcvt: LDFLAGS+=-lm
+
+run-fcvt: fcvt
+	$(call run-test,$<,$(QEMU) $<, "$< on $(TARGET_NAME)")
+	$(call diff-out,$<,$(AARCH64_SRC)/fcvt.ref)

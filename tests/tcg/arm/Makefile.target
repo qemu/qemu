@@ -1,0 +1,32 @@
+# -*- Mode: makefile -*-
+#
+# ARM - included from tests/tcg/Makefile
+#
+
+ARM_SRC=$(SRC_PATH)/tests/tcg/arm
+
+# Set search path for all sources
+VPATH 		+= $(ARM_SRC)
+
+ARM_TESTS=hello-arm test-arm-iwmmxt
+
+TESTS += $(ARM_TESTS) fcvt
+
+hello-arm: CFLAGS+=-marm -ffreestanding
+hello-arm: LDFLAGS+=-nostdlib
+
+test-arm-iwmmxt: CFLAGS+=-marm -march=iwmmxt -mabi=aapcs -mfpu=fpv4-sp-d16
+test-arm-iwmmxt: test-arm-iwmmxt.S
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
+ifeq ($(TARGET_NAME), arm)
+fcvt: LDFLAGS+=-lm
+# fcvt: CFLAGS+=-march=armv8.2-a+fp16 -mfpu=neon-fp-armv8
+
+run-fcvt: fcvt
+	$(call run-test,fcvt,$(QEMU) $<,"$< on $(TARGET_NAME)")
+	$(call diff-out,fcvt,$(ARM_SRC)/fcvt.ref)
+endif
+
+# On ARM Linux only supports 4k pages
+EXTRA_RUNS+=run-test-mmap-4096

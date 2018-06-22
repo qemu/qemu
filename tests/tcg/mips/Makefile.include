@@ -1,0 +1,20 @@
+#
+# Makefile.include for all MIPs targets
+#
+# As Debian doesn't support mip64 in big endian mode the only way to
+# build BE is to pass a working cross compiler to ./configure
+#
+
+ifeq ($(TARGET_NAME),mips64el)
+DOCKER_IMAGE=debian-mips64el-cross
+DOCKER_CROSS_COMPILER=mips64el-linux-gnuabi64-gcc
+else ifeq ($(TARGET_NAME),mips64)
+DOCKER_IMAGE=debian-mips64-cross
+DOCKER_CROSS_COMPILER=mips64-linux-gnuabi64-gcc
+else ifeq ($(TARGET_NAME),mipsel)
+DOCKER_IMAGE=debian-mipsel-cross
+DOCKER_CROSS_COMPILER=mipsel-linux-gnu-gcc
+else ifeq ($(TARGET_NAME),mips)
+DOCKER_IMAGE=debian-mips-cross
+DOCKER_CROSS_COMPILER=mips-linux-gnu-gcc
+endif

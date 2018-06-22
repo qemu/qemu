@@ -31,6 +31,7 @@
 #include <utime.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <sys/uio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -39,13 +40,11 @@
 #include <dirent.h>
 #include <setjmp.h>
 #include <sys/shm.h>
-#include "qemu/cutils.h"
+#include <assert.h>
 
-#define TESTPATH "/tmp/linux-test.tmp"
-#define TESTPORT 7654
 #define STACK_SIZE 16384
 
-void error1(const char *filename, int line, const char *fmt, ...)
+static void error1(const char *filename, int line, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -56,11 +55,11 @@ void error1(const char *filename, int line, const char *fmt, ...)
     exit(1);
 }
 
-int __chk_error(const char *filename, int line, int ret)
+static int __chk_error(const char *filename, int line, int ret)
 {
     if (ret < 0) {
-        error1(filename, line, "%m (ret=%d, errno=%d)",
-               ret, errno);
+        error1(filename, line, "%m (ret=%d, errno=%d/%s)",
+               ret, errno, strerror(errno));
     }
     return ret;
 }
@@ -73,7 +72,7 @@ int __chk_error(const char *filename, int line, int ret)
 
 #define FILE_BUF_SIZE 300
 
-void test_file(void)
+static void test_file(void)
 {
     int fd, i, len, ret;
     uint8_t buf[FILE_BUF_SIZE];
@@ -85,19 +84,16 @@ void test_file(void)
     struct iovec vecs[2];
     DIR *dir;
     struct dirent *de;
+    /* TODO: make common tempdir creation for tcg tests */
+    char template[] = "/tmp/linux-test-XXXXXX";
+    char *tmpdir = mkdtemp(template);
 
-    /* clean up, just in case */
-    unlink(TESTPATH "/file1");
-    unlink(TESTPATH "/file2");
-    unlink(TESTPATH "/file3");
-    rmdir(TESTPATH);
+    assert(tmpdir);
 
     if (getcwd(cur_dir, sizeof(cur_dir)) == NULL)
         error("getcwd");
 
-    chk_error(mkdir(TESTPATH, 0755));
-
-    chk_error(chdir(TESTPATH));
+    chk_error(chdir(tmpdir));
 
     /* open/read/write/close/readv/writev/lseek */
 
@@ -163,7 +159,7 @@ void test_file(void)
         st.st_mtime != 1000)
         error("stat time");
 
-    chk_error(stat(TESTPATH, &st));
+    chk_error(stat(tmpdir, &st));
     if (!S_ISDIR(st.st_mode))
         error("stat mode");
 
@@ -185,7 +181,7 @@ void test_file(void)
         error("stat mode");
 
     /* getdents */
-    dir = opendir(TESTPATH);
+    dir = opendir(tmpdir);
     if (!dir)
         error("opendir");
     len = 0;
@@ -207,16 +203,17 @@ void test_file(void)
     chk_error(unlink("file3"));
     chk_error(unlink("file2"));
     chk_error(chdir(cur_dir));
-    chk_error(rmdir(TESTPATH));
+    chk_error(rmdir(tmpdir));
 }
 
-void test_fork(void)
+static void test_fork(void)
 {
     int pid, status;
 
     pid = chk_error(fork());
     if (pid == 0) {
         /* child */
+        sleep(2);
         exit(2);
     }
     chk_error(waitpid(pid, &status, 0));
@@ -224,7 +221,7 @@ void test_fork(void)
         error("waitpid status=0x%x", status);
 }
 
-void test_time(void)
+static void test_time(void)
 {
     struct timeval tv, tv2;
     struct timespec ts, rem;
@@ -251,34 +248,7 @@ void test_time(void)
         error("getrusage");
 }
 
-void pstrcpy(char *buf, int buf_size, const char *str)
-{
-    int c;
-    char *q = buf;
-
-    if (buf_size <= 0)
-        return;
-
-    for(;;) {
-        c = *str++;
-        if (c == 0 || q >= buf + buf_size - 1)
-            break;
-        *q++ = c;
-    }
-    *q = '\0';
-}
-
-/* strcat and truncate. */
-char *pstrcat(char *buf, int buf_size, const char *s)
-{
-    int len;
-    len = strlen(buf);
-    if (len < buf_size)
-        pstrcpy(buf + len, buf_size - len, s);
-    return buf;
-}
-
-int server_socket(void)
+static int server_socket(void)
 {
     int val, fd;
     struct sockaddr_in sockaddr;
@@ -290,7 +260,7 @@ int server_socket(void)
     chk_error(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)));
 
     sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(TESTPORT);
+    sockaddr.sin_port = htons(0); /* choose random ephemeral port) */
     sockaddr.sin_addr.s_addr = 0;
     chk_error(bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr)));
     chk_error(listen(fd, 0));
@@ -298,7 +268,7 @@ int server_socket(void)
 
 }
 
-int client_socket(void)
+static int client_socket(uint16_t port)
 {
     int fd;
     struct sockaddr_in sockaddr;
@@ -306,22 +276,29 @@ int client_socket(void)
     /* server socket */
     fd = chk_error(socket(PF_INET, SOCK_STREAM, 0));
     sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(TESTPORT);
+    sockaddr.sin_port = htons(port);
     inet_aton("127.0.0.1", &sockaddr.sin_addr);
     chk_error(connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr)));
     return fd;
 }
 
-const char socket_msg[] = "hello socket\n";
+static const char socket_msg[] = "hello socket\n";
 
-void test_socket(void)
+static void test_socket(void)
 {
     int server_fd, client_fd, fd, pid, ret, val;
     struct sockaddr_in sockaddr;
-    socklen_t len;
+    struct sockaddr_in server_addr;
+    socklen_t len, socklen;
+    uint16_t server_port;
     char buf[512];
 
     server_fd = server_socket();
+    /* find out what port we got */
+    socklen = sizeof(server_addr);
+    ret = getsockname(server_fd, &server_addr, &socklen);
+    chk_error(ret);
+    server_port = ntohs(server_addr.sin_port);
 
     /* test a few socket options */
     len = sizeof(val);
@@ -331,7 +308,7 @@ void test_socket(void)
 
     pid = chk_error(fork());
     if (pid == 0) {
-        client_fd = client_socket();
+        client_fd = client_socket(server_port);
         send(client_fd, socket_msg, sizeof(socket_msg), 0);
         close(client_fd);
         exit(0);
@@ -350,7 +327,7 @@ void test_socket(void)
 
 #define WCOUNT_MAX 512
 
-void test_pipe(void)
+static void test_pipe(void)
 {
     fd_set rfds, wfds;
     int fds[2], fd_max, ret;
@@ -382,7 +359,7 @@ void test_pipe(void)
             }
             if (FD_ISSET(fds[1], &wfds)) {
                 ch = 'a';
-                chk_error(write(fds[0], &ch, 1));
+                chk_error(write(fds[1], &ch, 1));
                 wcount++;
             }
         }
@@ -391,10 +368,10 @@ void test_pipe(void)
     chk_error(close(fds[1]));
 }
 
-int thread1_res;
-int thread2_res;
+static int thread1_res;
+static int thread2_res;
 
-int thread1_func(void *arg)
+static int thread1_func(void *arg)
 {
     int i;
     for(i=0;i<5;i++) {
@@ -404,7 +381,7 @@ int thread1_func(void *arg)
     return 0;
 }
 
-int thread2_func(void *arg)
+static int thread2_func(void *arg)
 {
     int i;
     for(i=0;i<6;i++) {
@@ -414,23 +391,37 @@ int thread2_func(void *arg)
     return 0;
 }
 
-void test_clone(void)
+static void wait_for_child(pid_t pid)
+{
+    int status;
+    chk_error(waitpid(pid, &status, 0));
+}
+
+/* For test_clone we must match the clone flags used by glibc, see
+ * CLONE_THREAD_FLAGS in the QEMU source code.
+ */
+static void test_clone(void)
 {
     uint8_t *stack1, *stack2;
-    int pid1, pid2, status1, status2;
+    pid_t pid1, pid2;
 
     stack1 = malloc(STACK_SIZE);
     pid1 = chk_error(clone(thread1_func, stack1 + STACK_SIZE,
-                           CLONE_VM | CLONE_FS | CLONE_FILES | SIGCHLD, "hello1"));
+                           CLONE_VM | CLONE_FS | CLONE_FILES |
+                           CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM,
+                            "hello1"));
 
     stack2 = malloc(STACK_SIZE);
     pid2 = chk_error(clone(thread2_func, stack2 + STACK_SIZE,
-                           CLONE_VM | CLONE_FS | CLONE_FILES | SIGCHLD, "hello2"));
+                           CLONE_VM | CLONE_FS | CLONE_FILES |
+                           CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM,
+                           "hello2"));
 
-    while (waitpid(pid1, &status1, 0) != pid1);
+    wait_for_child(pid1);
     free(stack1);
-    while (waitpid(pid2, &status2, 0) != pid2);
+    wait_for_child(pid2);
     free(stack2);
+
     if (thread1_res != 5 ||
         thread2_res != 6)
         error("clone");
@@ -441,21 +432,21 @@ void test_clone(void)
 volatile int alarm_count;
 jmp_buf jmp_env;
 
-void sig_alarm(int sig)
+static void sig_alarm(int sig)
 {
     if (sig != SIGALRM)
         error("signal");
     alarm_count++;
 }
 
-void sig_segv(int sig, siginfo_t *info, void *puc)
+static void sig_segv(int sig, siginfo_t *info, void *puc)
 {
     if (sig != SIGSEGV)
         error("signal");
     longjmp(jmp_env, 1);
 }
 
-void test_signal(void)
+static void test_signal(void)
 {
     struct sigaction act;
     struct itimerval it, oit;
@@ -475,12 +466,10 @@ void test_signal(void)
     it.it_value.tv_usec = 10 * 1000;
     chk_error(setitimer(ITIMER_REAL, &it, NULL));
     chk_error(getitimer(ITIMER_REAL, &oit));
-    if (oit.it_value.tv_sec != it.it_value.tv_sec ||
-        oit.it_value.tv_usec != it.it_value.tv_usec)
-        error("itimer");
 
     while (alarm_count < 5) {
         usleep(10 * 1000);
+        getitimer(ITIMER_REAL, &oit);
     }
 
     it.it_interval.tv_sec = 0;
@@ -489,9 +478,6 @@ void test_signal(void)
     it.it_value.tv_usec = 0;
     memset(&oit, 0xff, sizeof(oit));
     chk_error(setitimer(ITIMER_REAL, &it, &oit));
-    if (oit.it_value.tv_sec != 0 ||
-        oit.it_value.tv_usec != 10 * 1000)
-        error("setitimer");
 
     /* SIGSEGV test */
     act.sa_sigaction = sig_segv;
@@ -510,7 +496,7 @@ void test_signal(void)
 
 #define SHM_SIZE 32768
 
-void test_shm(void)
+static void test_shm(void)
 {
     void *ptr;
     int shmid;
@@ -529,10 +515,16 @@ void test_shm(void)
 int main(int argc, char **argv)
 {
     test_file();
+    test_pipe();
     test_fork();
     test_time();
     test_socket();
-    //    test_clone();
+
+    if (argc > 1) {
+        printf("test_clone still considered buggy\n");
+        test_clone();
+    }
+
     test_signal();
     test_shm();
     return 0;

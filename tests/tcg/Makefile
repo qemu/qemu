@@ -1,156 +1,101 @@
+# -*- Mode: makefile -*-
+#
+# TCG tests
+#
+# These are complicated by the fact we want to build them for guest
+# systems. This requires knowing what guests we are building and which
+# ones we have cross-compilers for or docker images with
+# cross-compilers.
+#
+# The tests themselves should be as minimal as possible as
+# cross-compilers don't always have a large amount of libraries
+# available.
+#
+# We only include the host build system for SRC_PATH and we don't
+# bother with the common rules.mk. We expect the following:
+#
+#   CC - the C compiler command
+#   EXTRA_CFLAGS - any extra CFLAGS
+#   BUILD_STATIC - are we building static binaries
+#
+# By default all tests are statically compiled but some host systems
+# may not package static libraries by default. If an external
+# cross-compiler can only build dynamic libraries the user might need
+# to make extra efforts to ensure ld.so can link at runtime when the
+# tests are run.
+#
+# We also accept SPEED=slow to enable slower running tests
+#
+# We also expect to be in the tests build dir for the FOO-linux-user.
+#
+
 -include ../../config-host.mak
--include $(SRC_PATH)/rules.mak
+-include ../config-target.mak
 
-$(call set-vpath, $(SRC_PATH)/tests/tcg)
+quiet-command = $(if $(V),$1,$(if $(2),@printf "  %-7s %s\n" $2 $3 && $1, @$1))
 
-QEMU=../../i386-linux-user/qemu-i386
-QEMU_X86_64=../../x86_64-linux-user/qemu-x86_64
-CC_X86_64=$(CC_I386) -m64
+# $1 = test name, $2 = cmd, $3 = desc
+run-test = $(call quiet-command, timeout $(TIMEOUT) $2 > $1.out,"TEST",$3)
 
-QEMU_INCLUDES += -I../..
-CFLAGS=-Wall -O2 -g -fno-strict-aliasing
-#CFLAGS+=-msse2
+# $1 = test name, $2 = reference
+diff-out = $(call quiet-command, diff -u $1.out $2 | head -n 10,"DIFF","$1.out with $2")
+
+# $1 = test name, $2 = reason
+skip-test = @printf "  SKIPPED %s on $(TARGET_NAME) because %s\n" $1 $2
+
+# Tests we are building
+TESTS=
+
+# Start with a blank slate, the build targets get to add stuff first
+CFLAGS=
+QEMU_CFLAGS=
 LDFLAGS=
 
-# TODO: automatically detect ARM and MIPS compilers, and run those too
+# The QEMU for this TARGET
+QEMU=../qemu-$(TARGET_NAME)
 
-# runcom maps page 0, so it requires root privileges
-# also, pi_10.com runs indefinitely
-
-I386_TESTS=hello-i386 \
-	   linux-test \
-	   testthread \
-	   sha1-i386 \
-	   test-i386 \
-	   test-i386-fprem \
-	   test-mmap \
-	   # runcom
-
-# native i386 compilers sometimes are not biarch.  assume cross-compilers are
-ifneq ($(ARCH),i386)
-I386_TESTS+=run-test-x86_64
+# If TCG debugging is enabled things are a lot slower
+ifeq ($(CONFIG_DEBUG_TCG),y)
+TIMEOUT=45
+else
+TIMEOUT=15
 endif
 
-TESTS = test_path
-ifneq ($(call find-in-path, $(CC_I386)),)
-TESTS += $(I386_TESTS)
+# The order we include is important. We include multiarch, base arch
+# and finally arch if it's not the same as base arch.
+-include $(SRC_PATH)/tests/tcg/multiarch/Makefile.target
+-include $(SRC_PATH)/tests/tcg/$(TARGET_BASE_ARCH)/Makefile.target
+ifneq ($(TARGET_BASE_ARCH),$(TARGET_NAME))
+-include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.target
 endif
 
-all: $(patsubst %,run-%,$(TESTS))
-test: all
+# Add the common build options
+CFLAGS+=-Wall -O0 -g -fno-strict-aliasing
+ifeq ($(BUILD_STATIC),y)
+LDFLAGS+=-static
+endif
 
-# rules to run tests
+%: %.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
 
-.PHONY: $(patsubst %,run-%,$(TESTS))
+all: $(TESTS)
+
+#
+# Test Runners
+#
+# By default we just run the test with the appropriate QEMU for the
+# target. More advanced tests may want to override the runner in their
+# specific make rules. Additional runners for the same binary should
+# be added to EXTRA_RUNS.
+#
+
+RUN_TESTS=$(patsubst %,run-%, $(TESTS))
+RUN_TESTS+=$(EXTRA_RUNS)
 
 run-%: %
-	-$(QEMU) ./$*
+	$(call run-test, $<, $(QEMU) $<, "$< on $(TARGET_NAME)")
 
-run-hello-i386: hello-i386
-run-linux-test: linux-test
-run-testthread: testthread
-run-sha1-i386: sha1-i386
+.PHONY: run
+run: $(RUN_TESTS)
 
-run-test-i386: test-i386
-	./test-i386 > test-i386.ref
-	-$(QEMU) test-i386 > test-i386.out
-	@if diff -u test-i386.ref test-i386.out ; then echo "Auto Test OK"; fi
-
-run-test-i386-fprem: test-i386-fprem
-	./test-i386-fprem > test-i386-fprem.ref
-	-$(QEMU) test-i386-fprem > test-i386-fprem.out
-	@if diff -u test-i386-fprem.ref test-i386-fprem.out ; then echo "Auto Test OK"; fi
-
-run-test-x86_64: test-x86_64
-	./test-x86_64 > test-x86_64.ref
-	-$(QEMU_X86_64) test-x86_64 > test-x86_64.out
-	@if diff -u test-x86_64.ref test-x86_64.out ; then echo "Auto Test OK"; fi
-
-run-test-mmap: test-mmap
-	-$(QEMU) ./test-mmap
-	-$(QEMU) -p 8192 ./test-mmap 8192
-	-$(QEMU) -p 16384 ./test-mmap 16384
-	-$(QEMU) -p 32768 ./test-mmap 32768
-
-run-runcom: runcom
-	-$(QEMU) ./runcom $(SRC_PATH)/tests/pi_10.com
-
-run-test_path: test_path
-	./test_path
-
-# rules to compile tests
-
-test_path: test_path.o
-
-test_path.o: test_path.c
-
-hello-i386: hello-i386.c
-	$(CC_I386) -nostdlib $(CFLAGS) -static $(LDFLAGS) -o $@ $<
-	strip $@
-
-testthread: testthread.c
-	$(CC_I386) $(CFLAGS) $(LDFLAGS) -o $@ $< -lpthread
-
-# i386/x86_64 emulation test (test various opcodes) */
-test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S \
-           test-i386.h test-i386-shift.h test-i386-muldiv.h
-	$(CC_I386) $(QEMU_INCLUDES) $(CFLAGS) $(LDFLAGS) -o $@ \
-              $(<D)/test-i386.c $(<D)/test-i386-code16.S $(<D)/test-i386-vm86.S -lm
-
-test-i386-fprem: test-i386-fprem.c
-	$(CC_I386) $(QEMU_INCLUDES) $(CFLAGS) $(LDFLAGS) -o $@ $^
-
-test-x86_64: test-i386.c \
-           test-i386.h test-i386-shift.h test-i386-muldiv.h
-	$(CC_X86_64) $(QEMU_INCLUDES) $(CFLAGS) $(LDFLAGS) -o $@ $(<D)/test-i386.c -lm
-
-# generic Linux and CPU test
-linux-test: linux-test.c
-	$(CC_I386) $(CFLAGS) $(LDFLAGS) -o $@ $< -lm
-
-# vm86 test
-runcom: runcom.c
-	$(CC_I386) $(CFLAGS) $(LDFLAGS) -o $@ $<
-
-test-mmap: test-mmap.c
-	$(CC_I386) -m32 $(CFLAGS) -Wall -O2 $(LDFLAGS) -o $@ $<
-
-# speed test
-sha1-i386: sha1.c
-	$(CC_I386) $(CFLAGS) $(LDFLAGS) -o $@ $<
-
-sha1: sha1.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
-
-speed: sha1 sha1-i386
-	time ./sha1
-	time $(QEMU) ./sha1-i386
-
-# arm test
-hello-arm: hello-arm.o
-	arm-linux-ld -o $@ $<
-
-hello-arm.o: hello-arm.c
-	arm-linux-gcc -Wall -g -O2 -c -o $@ $<
-
-test-arm-iwmmxt: test-arm-iwmmxt.s
-	cpp < $< | arm-linux-gnu-gcc -Wall -static -march=iwmmxt -mabi=aapcs -x assembler - -o $@
-
-# MIPS test
-hello-mips: hello-mips.c
-	mips-linux-gnu-gcc -nostdlib -static -mno-abicalls -fno-PIC -mabi=32 -Wall -Wextra -g -O2 -o $@ $<
-
-hello-mipsel: hello-mips.c
-	mipsel-linux-gnu-gcc -nostdlib -static -mno-abicalls -fno-PIC -mabi=32 -Wall -Wextra -g -O2 -o $@ $<
-
-# testsuite for the CRIS port.
-test-cris:
-	$(MAKE) -C cris check
-
-# testsuite for the LM32 port.
-test-lm32:
-	$(MAKE) -C lm32 check
-
-clean:
-	rm -f *~ *.o test-i386.out test-i386.ref \
-           test-x86_64.log test-x86_64.ref qruncom $(TESTS)
+# There is no clean target, the calling make just rm's the tests build dir

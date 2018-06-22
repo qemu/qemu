@@ -135,6 +135,8 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: target/arm/
+F: tests/tcg/arm/
+F: tests/tcg/aarch64/
 F: hw/arm/
 F: hw/cpu/a*mpcore.c
 F: include/hw/cpu/a*mpcore.h
@@ -283,6 +285,8 @@ M: Richard Henderson <rth@twiddle.net>
 M: Eduardo Habkost <ehabkost@redhat.com>
 S: Maintained
 F: target/i386/
+F: tests/tcg/i386/
+F: tests/tcg/x86_64/
 F: hw/i386/
 F: disas/i386.c
 T: git git://github.com/ehabkost/qemu.git x86-next
@@ -302,6 +306,10 @@ S: Maintained
 F: target/tricore/
 F: hw/tricore/
 F: include/hw/tricore/
+
+Multiarch Linux User Tests
+M: Alex Bennée <alex.bennee@linaro.org>
+F: tests/tcg/multiarch/
 
 Guest CPU Cores (KVM):
 ----------------------
@@ -2148,6 +2156,13 @@ F: tests/vm/
 W: https://travis-ci.org/qemu/qemu
 W: https://app.shippable.com/github/qemu/qemu
 W: http://patchew.org/QEMU/
+
+Guest Test Compilation Support
+M: Alex Bennée <alex.bennee@linaro.org>
+R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+F: tests/tcg/Makefile
+F: tests/tcg/Makefile.include
+L: qemu-devel@nongnu.org
 
 Documentation
 -------------

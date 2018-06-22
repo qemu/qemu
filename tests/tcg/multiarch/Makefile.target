@@ -1,0 +1,36 @@
+# -*- Mode: makefile -*-
+#
+# Multiarch Tests - included from tests/tcg/Makefile.target
+#
+# These tests are plain C and built without any architecture specific code.
+#
+
+MULTIARCH_SRC=$(SRC_PATH)/tests/tcg/multiarch
+
+# Set search path for all sources
+VPATH 		+= $(MULTIARCH_SRC)
+MULTIARCH_SRCS   =$(notdir $(wildcard $(MULTIARCH_SRC)/*.c))
+MULTIARCH_TESTS  =$(MULTIARCH_SRCS:.c=)
+
+# Update TESTS
+TESTS		+=$(MULTIARCH_TESTS)
+
+#
+# The following are any additional rules needed to build things
+#
+
+testthread: LDFLAGS+=-lpthread
+
+# We define the runner for test-mmap after the individual
+# architectures have defined their supported pages sizes. If no
+# additional page sizes are defined we only run the default test.
+
+# default case (host page size)
+run-test-mmap: test-mmap
+	$(call run-test, test-mmap, $(QEMU) $<, \
+		"$< (default) on $(TARGET_NAME)")
+
+# additional page sizes (defined by each architecture adding to EXTRA_RUNS)
+run-test-mmap-%: test-mmap
+	$(call run-test, test-mmap-$*, $(QEMU) -p $* $<,\
+		"$< ($* byte pages) on $(TARGET_NAME)")

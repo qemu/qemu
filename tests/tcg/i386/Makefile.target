@@ -1,0 +1,52 @@
+# i386 cross compile notes
+
+I386_SRC=$(SRC_PATH)/tests/tcg/i386
+
+# Set search path for all sources
+VPATH 		+= $(I386_SRC)
+
+I386_SRCS=$(notdir $(wildcard $(I386_SRC)/*.c))
+I386_TESTS=$(I386_SRCS:.c=)
+I386_ONLY_TESTS=$(filter-out test-i386-ssse3, $(I386_TESTS))
+# Update TESTS
+TESTS+=$(I386_ONLY_TESTS)
+
+ifneq ($(TARGET_NAME),x86_64)
+CFLAGS+=-m32
+endif
+
+#
+# hello-i386 is a barebones app
+#
+hello-i386: CFLAGS+=-ffreestanding
+hello-i386: LDFLAGS+=-nostdlib
+
+#
+# test-386 includes a couple of additional objects that need to be linked together
+#
+
+test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S test-i386.h test-i386-shift.h test-i386-muldiv.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
+	   $(<D)/test-i386.c $(<D)/test-i386-code16.S $(<D)/test-i386-vm86.S -lm
+
+# Specialist test runners
+run-runcom: TIMEOUT=30
+run-runcom: runcom pi_10.com
+	$(call run-test,$<,$(QEMU) ./runcom $(I386_SRC)/pi_10.com,"$< on $(TARGET_NAME)")
+
+ifeq ($(SPEED), slow)
+
+test-i386-fprem.ref: test-i386-fprem
+	$(call quiet-command, ./$< > $@,"GENREF","generating $@")
+
+run-test-i386-fprem: TIMEOUT=60
+run-test-i386-fprem: test-i386-fprem
+	$(call run-test,test-i386-fprem, $(QEMU) $<,"$< on $(TARGET_NAME)")
+	$(call diff-out,test-i386-fprem, $(I386_SRC)/$<.ref)
+else
+run-test-i386-fprem: test-i386-fprem
+	$(call skip-test, $<, "SLOW")
+endif
+
+# On i386 and x86_64 Linux only supports 4k pages (large pages are a different hack)
+EXTRA_RUNS+=run-test-mmap-4096

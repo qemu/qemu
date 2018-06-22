@@ -1,0 +1,31 @@
+# -*- Mode: makefile -*-
+#
+# TCG Compiler Probe
+#
+# This Makefile fragement is included multiple times in the main make
+# script to probe for available compilers. This is used to build up a
+# selection of required docker targets before we invoke a sub-make for
+# each target.
+
+# First we need the target makefile which tells us the target architecture
+-include $(BUILD_DIR)/$(PROBE_TARGET)/config-target.mak
+
+# Then we load up the target architecture makefiles which tell us
+# about the compilers
+CROSS_CC_GUEST:=
+DOCKER_IMAGE:=
+DOCKER_PREREQ:=
+
+-include $(SRC_PATH)/tests/tcg/$(TARGET_BASE_ARCH)/Makefile.include
+-include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.include
+
+ifndef CROSS_CC_GUEST
+ifneq ($(DOCKER_IMAGE),)
+DOCKER_PREREQ:=docker-image-$(DOCKER_IMAGE)
+endif
+endif
+
+# Clean-up
+# undefine TARGET_NAME
+# undefine TARGET_BASE_ARCH
+# undefine TARGET_ABI_DIR
