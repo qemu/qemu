@@ -1323,6 +1323,7 @@ static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t length)
     RAMBlock *block;
     ram_addr_t end;
 
+    assert(tcg_enabled());
     end = TARGET_PAGE_ALIGN(start + length);
     start &= TARGET_PAGE_MASK;
 
@@ -2655,6 +2656,7 @@ void memory_notdirty_write_prepare(NotDirtyInfo *ndi,
 void memory_notdirty_write_complete(NotDirtyInfo *ndi)
 {
     if (ndi->pages) {
+        assert(tcg_enabled());
         page_collection_unlock(ndi->pages);
         ndi->pages = NULL;
     }
@@ -3046,6 +3048,7 @@ static void tcg_commit(MemoryListener *listener)
     CPUAddressSpace *cpuas;
     AddressSpaceDispatch *d;
 
+    assert(tcg_enabled());
     /* since each CPU stores ram addresses in its TLB cache, we must
        reset the modified entries */
     cpuas = container_of(listener, CPUAddressSpace, tcg_as_listener);
