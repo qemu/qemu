@@ -1937,7 +1937,7 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
                                       unsigned int nb_extents,
                                       bool dont_fragment)
 {
-    uint64_t begin = offset, end;
+    uint64_t begin = offset, end = offset;
     uint64_t overall_end = offset + *length;
     unsigned int i = 0;
     BdrvDirtyBitmapIter *it;
@@ -1977,6 +1977,7 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
 
     bdrv_dirty_bitmap_unlock(bitmap);
 
+    assert(offset > end);
     *length = end - offset;
     return i;
 }
