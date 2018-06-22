@@ -3325,6 +3325,30 @@ mlocking qemu and guest memory can be enabled via @option{mlock=on}
 (enabled by default).
 ETEXI
 
+DEF("overcommit", HAS_ARG, QEMU_OPTION_overcommit,
+    "--overcommit [mem-lock=on|off][cpu-pm=on|off]\n"
+    "                run qemu with overcommit hints\n"
+    "                mem-lock=on|off controls memory lock support (default: off)\n"
+    "                cpu-pm=on|off controls cpu power management (default: off)\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -overcommit mem-lock=on|off
+@item -overcommit cpu-pm=on|off
+@findex -overcommit
+Run qemu with hints about host resource overcommit. The default is
+to assume that host overcommits all resources.
+
+Locking qemu and guest memory can be enabled via @option{mem-lock=on} (disabled
+by default).  This works when host memory is not overcommitted and reduces the
+worst-case latency for guest.  This is equivalent to @option{realtime}.
+
+Guest ability to manage power state of host cpus (increasing latency for other
+processes on the same host cpu, but decreasing latency for guest) can be
+enabled via @option{cpu-pm=on} (disabled by default).  This works best when
+host CPU is not overcommitted. When used, host estimates of CPU cycle and power
+utilization will be incorrect, not taking into account guest idle time.
+ETEXI
+
 DEF("gdb", HAS_ARG, QEMU_OPTION_gdb, \
     "-gdb dev        wait for gdb connection on 'dev'\n", QEMU_ARCH_ALL)
 STEXI
