@@ -129,7 +129,6 @@ static void hda_codec_parse_fmt(uint32_t format, struct audsettings *as)
 #include  "hda-codec-common.h"
 
 #define HDA_TIMER_TICKS (SCALE_MS)
-#define MAX_CORR (SCALE_US * 100)
 #define B_SIZE sizeof(st->buf)
 #define B_MASK (sizeof(st->buf) - 1)
 
@@ -196,13 +195,20 @@ static inline int64_t hda_bytes_per_second(HDAAudioStream *st)
 
 static inline void hda_timer_sync_adjust(HDAAudioStream *st, int64_t target_pos)
 {
-    int64_t corr =
-        NANOSECONDS_PER_SECOND * target_pos / hda_bytes_per_second(st);
-    if (corr > MAX_CORR) {
-        corr = MAX_CORR;
-    } else if (corr < -MAX_CORR) {
-        corr = -MAX_CORR;
+    int64_t limit = B_SIZE / 8;
+    int64_t corr = 0;
+
+    if (target_pos > limit) {
+        corr = HDA_TIMER_TICKS;
     }
+    if (target_pos < -limit) {
+        corr = -HDA_TIMER_TICKS;
+    }
+    if (corr == 0) {
+        return;
+    }
+
+    trace_hda_audio_adjust(st->node->name, target_pos);
     atomic_fetch_add(&st->buft_start, corr);
 }
 
