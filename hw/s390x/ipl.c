@@ -535,7 +535,13 @@ void s390_ipl_reset_request(CPUState *cs, enum s390_reset reset_type)
             ipl->iplb_valid = s390_gen_initial_iplb(ipl);
         }
     }
-    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+    if (reset_type == S390_RESET_MODIFIED_CLEAR ||
+        reset_type == S390_RESET_LOAD_NORMAL) {
+        /* ignore -no-reboot, send no event  */
+        qemu_system_reset_request(SHUTDOWN_CAUSE_SUBSYSTEM_RESET);
+    } else {
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+    }
     /* as this is triggered by a CPU, make sure to exit the loop */
     if (tcg_enabled()) {
         cpu_loop_exit(cs);

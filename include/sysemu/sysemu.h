@@ -44,6 +44,10 @@ typedef enum ShutdownCause {
                                      turns that into a shutdown */
     SHUTDOWN_CAUSE_GUEST_PANIC,   /* Guest panicked, and command line turns
                                      that into a shutdown */
+    SHUTDOWN_CAUSE_SUBSYSTEM_RESET,/* Partial guest reset that does not trigger
+                                      QMP events and ignores --no-reboot. This
+                                      is useful for sanitize hypercalls on s390
+                                      that are used during kexec/kdump/boot */
     SHUTDOWN_CAUSE__MAX,
 } ShutdownCause;
 
