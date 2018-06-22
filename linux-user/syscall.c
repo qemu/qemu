@@ -8022,10 +8022,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         }
 
         cpu_list_unlock();
-#ifdef TARGET_GPROF
-        _mcleanup();
-#endif
-        gdb_exit(cpu_env, arg1);
+        preexit_cleanup(cpu_env, arg1);
         _exit(arg1);
         ret = 0; /* avoid warning */
         break;
@@ -10131,10 +10128,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef __NR_exit_group
         /* new thread calls */
     case TARGET_NR_exit_group:
-#ifdef TARGET_GPROF
-        _mcleanup();
-#endif
-        gdb_exit(cpu_env, arg1);
+        preexit_cleanup(cpu_env, arg1);
         ret = get_errno(exit_group(arg1));
         break;
 #endif
