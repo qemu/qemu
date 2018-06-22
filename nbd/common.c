@@ -148,6 +148,8 @@ const char *nbd_cmd_lookup(uint16_t cmd)
         return "flush";
     case NBD_CMD_TRIM:
         return "trim";
+    case NBD_CMD_CACHE:
+        return "cache";
     case NBD_CMD_WRITE_ZEROES:
         return "write zeroes";
     case NBD_CMD_BLOCK_STATUS:

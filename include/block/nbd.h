@@ -135,6 +135,7 @@ typedef struct NBDExtent {
 #define NBD_FLAG_SEND_TRIM         (1 << 5) /* Send TRIM (discard) */
 #define NBD_FLAG_SEND_WRITE_ZEROES (1 << 6) /* Send WRITE_ZEROES */
 #define NBD_FLAG_SEND_DF           (1 << 7) /* Send DF (Do not Fragment) */
+#define NBD_FLAG_SEND_CACHE        (1 << 8) /* Send CACHE (prefetch) */
 
 /* New-style handshake (global) flags, sent from server to client, and
    control what will happen during handshake phase. */
@@ -195,7 +196,7 @@ enum {
     NBD_CMD_DISC = 2,
     NBD_CMD_FLUSH = 3,
     NBD_CMD_TRIM = 4,
-    /* 5 reserved for failed experiment NBD_CMD_CACHE */
+    NBD_CMD_CACHE = 5,
     NBD_CMD_WRITE_ZEROES = 6,
     NBD_CMD_BLOCK_STATUS = 7,
 };
@@ -229,10 +230,12 @@ enum {
 #define NBD_REPLY_TYPE_ERROR         NBD_REPLY_ERR(1)
 #define NBD_REPLY_TYPE_ERROR_OFFSET  NBD_REPLY_ERR(2)
 
-/* Flags for extents (NBDExtent.flags) of NBD_REPLY_TYPE_BLOCK_STATUS,
- * for base:allocation meta context */
+/* Extent flags for base:allocation in NBD_REPLY_TYPE_BLOCK_STATUS */
 #define NBD_STATE_HOLE (1 << 0)
 #define NBD_STATE_ZERO (1 << 1)
+
+/* Extent flags for qemu:dirty-bitmap in NBD_REPLY_TYPE_BLOCK_STATUS */
+#define NBD_STATE_DIRTY (1 << 0)
 
 static inline bool nbd_reply_type_is_error(int type)
 {
@@ -315,6 +318,8 @@ void nbd_client_put(NBDClient *client);
 void nbd_server_start(SocketAddress *addr, const char *tls_creds,
                       Error **errp);
 
+void nbd_export_bitmap(NBDExport *exp, const char *bitmap,
+                       const char *bitmap_export_name, Error **errp);
 
 /* nbd_read
  * Reads @size bytes from @ioc. Returns 0 on success.

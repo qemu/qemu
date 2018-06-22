@@ -1,0 +1,38 @@
+Qemu supports the NBD protocol, and has an internal NBD client (see
+block/nbd.c), an internal NBD server (see blockdev-nbd.c), and an
+external NBD server tool (see qemu-nbd.c). The common code is placed
+in nbd/*.
+
+The NBD protocol is specified here:
+https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
+
+The following paragraphs describe some specific properties of NBD
+protocol realization in Qemu.
+
+= Metadata namespaces =
+
+Qemu supports the "base:allocation" metadata context as defined in the
+NBD protocol specification, and also defines an additional metadata
+namespace "qemu".
+
+
+== "qemu" namespace ==
+
+The "qemu" namespace currently contains only one type of context,
+related to exposing the contents of a dirty bitmap alongside the
+associated disk contents.  That context has the following form:
+
+    qemu:dirty-bitmap:<dirty-bitmap-export-name>
+
+Each dirty-bitmap metadata context defines only one flag for extents
+in reply for NBD_CMD_BLOCK_STATUS:
+
+    bit 0: NBD_STATE_DIRTY, means that the extent is "dirty"
+
+For NBD_OPT_LIST_META_CONTEXT the following queries are supported
+in addition to "qemu:dirty-bitmap:<dirty-bitmap-export-name>":
+
+* "qemu:" - returns list of all available metadata contexts in the
+            namespace.
+* "qemu:dirty-bitmap:" - returns list of all available dirty-bitmap
+                         metadata contexts.
