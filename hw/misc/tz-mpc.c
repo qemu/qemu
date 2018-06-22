@@ -72,6 +72,53 @@ static void tz_mpc_irq_update(TZMPC *s)
     qemu_set_irq(s->irq, s->int_stat && s->int_en);
 }
 
+static void tz_mpc_iommu_notify(TZMPC *s, uint32_t lutidx,
+                                uint32_t oldlut, uint32_t newlut)
+{
+    /* Called when the LUT word at lutidx has changed from oldlut to newlut;
+     * must call the IOMMU notifiers for the changed blocks.
+     */
+    IOMMUTLBEntry entry = {
+        .addr_mask = s->blocksize - 1,
+    };
+    hwaddr addr = lutidx * s->blocksize * 32;
+    int i;
+
+    for (i = 0; i < 32; i++, addr += s->blocksize) {
+        bool block_is_ns;
+
+        if (!((oldlut ^ newlut) & (1 << i))) {
+            continue;
+        }
+        /* This changes the mappings for both the S and the NS space,
+         * so we need to do four notifies: an UNMAP then a MAP for each.
+         */
+        block_is_ns = newlut & (1 << i);
+
+        trace_tz_mpc_iommu_notify(addr);
+        entry.iova = addr;
+        entry.translated_addr = addr;
+
+        entry.perm = IOMMU_NONE;
+        memory_region_notify_iommu(&s->upstream, IOMMU_IDX_S, entry);
+        memory_region_notify_iommu(&s->upstream, IOMMU_IDX_NS, entry);
+
+        entry.perm = IOMMU_RW;
+        if (block_is_ns) {
+            entry.target_as = &s->blocked_io_as;
+        } else {
+            entry.target_as = &s->downstream_as;
+        }
+        memory_region_notify_iommu(&s->upstream, IOMMU_IDX_S, entry);
+        if (block_is_ns) {
+            entry.target_as = &s->downstream_as;
+        } else {
+            entry.target_as = &s->blocked_io_as;
+        }
+        memory_region_notify_iommu(&s->upstream, IOMMU_IDX_NS, entry);
+    }
+}
+
 static void tz_mpc_autoinc_idx(TZMPC *s, unsigned access_size)
 {
     /* Auto-increment BLK_IDX if necessary */
@@ -237,6 +284,7 @@ static MemTxResult tz_mpc_reg_write(void *opaque, hwaddr addr,
         s->blk_idx = value % s->blk_max;
         break;
     case A_BLK_LUT:
+        tz_mpc_iommu_notify(s, s->blk_idx, s->blk_lut[s->blk_idx], value);
         s->blk_lut[s->blk_idx] = value;
         tz_mpc_autoinc_idx(s, size);
         break;
@@ -383,9 +431,10 @@ static IOMMUTLBEntry tz_mpc_translate(IOMMUMemoryRegion *iommu,
     /* Look at the per-block configuration for this address, and
      * return a TLB entry directing the transaction at either
      * downstream_as or blocked_io_as, as appropriate.
-     * For the moment, always permit accesses.
+     * If the LUT cfg_ns bit is 1, only non-secure transactions
+     * may pass. If the bit is 0, only secure transactions may pass.
      */
-    ok = true;
+    ok = tz_mpc_cfg_ns(s, addr) == (iommu_idx == IOMMU_IDX_NS);
 
     trace_tz_mpc_translate(addr, flags,
                            iommu_idx == IOMMU_IDX_S ? "S" : "NS",
