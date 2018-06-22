@@ -441,7 +441,8 @@ static MemTxResult gicd_readl(GICv3State *s, hwaddr offset,
         int i, irq = offset - GICD_IPRIORITYR;
         uint32_t value = 0;
 
-        for (i = irq + 3; i >= irq; i--, value <<= 8) {
+        for (i = irq + 3; i >= irq; i--) {
+            value <<= 8;
             value |= gicd_read_ipriorityr(s, attrs, i);
         }
         *data = value;
