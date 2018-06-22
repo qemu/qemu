@@ -48,6 +48,16 @@ struct TZMPC {
 
     /*< public >*/
 
+    /* State */
+    uint32_t ctrl;
+    uint32_t blk_idx;
+    uint32_t int_stat;
+    uint32_t int_en;
+    uint32_t int_info1;
+    uint32_t int_info2;
+
+    uint32_t *blk_lut;
+
     qemu_irq irq;
 
     /* Properties */
