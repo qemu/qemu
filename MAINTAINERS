@@ -457,6 +457,8 @@ F: hw/char/cmsdk-apb-uart.c
 F: include/hw/char/cmsdk-apb-uart.h
 F: hw/misc/tz-ppc.c
 F: include/hw/misc/tz-ppc.h
+F: hw/misc/tz-mpc.c
+F: include/hw/misc/tz-mpc.h
 
 ARM cores
 M: Peter Maydell <peter.maydell@linaro.org>

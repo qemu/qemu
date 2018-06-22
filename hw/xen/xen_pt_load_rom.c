@@ -19,7 +19,7 @@
  * load the corresponding ROM data to RAM. If an error occurs while loading an
  * option ROM, we just ignore that option ROM and continue with the next one.
  */
-void *pci_assign_dev_load_option_rom(PCIDevice *dev, struct Object *owner,
+void *pci_assign_dev_load_option_rom(PCIDevice *dev,
                                      int *size, unsigned int domain,
                                      unsigned int bus, unsigned int slot,
                                      unsigned int function)
@@ -29,6 +29,7 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev, struct Object *owner,
     uint8_t val;
     struct stat st;
     void *ptr = NULL;
+    Object *owner = OBJECT(dev);
 
     /* If loading ROM from file, pci handles it */
     if (dev->romfile || !dev->rom_bar) {
@@ -59,8 +60,7 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev, struct Object *owner,
     fseek(fp, 0, SEEK_SET);
 
     snprintf(name, sizeof(name), "%s.rom", object_get_typename(owner));
-    memory_region_init_ram_nomigrate(&dev->rom, owner, name, st.st_size, &error_abort);
-    vmstate_register_ram(&dev->rom, &dev->qdev);
+    memory_region_init_ram(&dev->rom, owner, name, st.st_size, &error_abort);
     ptr = memory_region_get_ram_ptr(&dev->rom);
     memset(ptr, 0xff, st.st_size);
 

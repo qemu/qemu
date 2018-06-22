@@ -132,7 +132,7 @@ int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev)
 static void *get_vgabios(XenPCIPassthroughState *s, int *size,
                        XenHostPCIDevice *dev)
 {
-    return pci_assign_dev_load_option_rom(&s->dev, OBJECT(&s->dev), size,
+    return pci_assign_dev_load_option_rom(&s->dev, size,
                                           dev->domain, dev->bus,
                                           dev->dev, dev->func);
 }

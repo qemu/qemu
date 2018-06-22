@@ -319,7 +319,7 @@ static inline bool xen_pt_has_msix_mapping(XenPCIPassthroughState *s, int bar)
 }
 
 extern void *pci_assign_dev_load_option_rom(PCIDevice *dev,
-                                            struct Object *owner, int *size,
+                                            int *size,
                                             unsigned int domain,
                                             unsigned int bus, unsigned int slot,
                                             unsigned int function);

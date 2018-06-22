@@ -334,5 +334,7 @@
 #define __NR_pkey_alloc 330
 #define __NR_pkey_free 331
 #define __NR_statx 332
+#define __NR_io_pgetevents 333
+#define __NR_rseq 334
 
 #endif /* _ASM_X86_UNISTD_64_H */
