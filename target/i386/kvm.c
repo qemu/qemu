@@ -366,6 +366,15 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         if (!kvm_irqchip_in_kernel()) {
             ret &= ~CPUID_EXT_X2APIC;
         }
+
+        if (enable_cpu_pm) {
+            int disable_exits = kvm_check_extension(s,
+                                                    KVM_CAP_X86_DISABLE_EXITS);
+
+            if (disable_exits & KVM_X86_DISABLE_EXITS_MWAIT) {
+                ret |= CPUID_EXT_MONITOR;
+            }
+        }
     } else if (function == 6 && reg == R_EAX) {
         ret |= CPUID_6_EAX_ARAT; /* safe to allow because of emulated APIC */
     } else if (function == 7 && index == 0 && reg == R_EBX) {
