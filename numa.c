@@ -566,10 +566,8 @@ static void numa_stat_memory_devices(NumaNodeMem node_mem[])
 
             if (pcdimm_info) {
                 node_mem[pcdimm_info->node].node_mem += pcdimm_info->size;
-                if (pcdimm_info->hotpluggable && pcdimm_info->hotplugged) {
-                    node_mem[pcdimm_info->node].node_plugged_mem +=
-                        pcdimm_info->size;
-                }
+                node_mem[pcdimm_info->node].node_plugged_mem +=
+                    pcdimm_info->size;
             }
         }
     }
