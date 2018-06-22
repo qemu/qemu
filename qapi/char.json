@@ -62,7 +62,8 @@
 #    }
 #
 ##
-{ 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
+{ 'command': 'query-chardev', 'returns': ['ChardevInfo'],
+  'allow-preconfig': true }
 
 ##
 # @ChardevBackendInfo:

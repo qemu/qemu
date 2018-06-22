@@ -117,7 +117,8 @@
 #    }
 #
 ##
-{ 'command': 'query-version', 'returns': 'VersionInfo' }
+{ 'command': 'query-version', 'returns': 'VersionInfo',
+  'allow-preconfig': true }
 
 ##
 # @CommandInfo:
@@ -241,7 +242,7 @@
 # <- { "return": { "name": "qemu-name" } }
 #
 ##
-{ 'command': 'query-name', 'returns': 'NameInfo' }
+{ 'command': 'query-name', 'returns': 'NameInfo', 'allow-preconfig': true }
 
 ##
 # @KvmInfo:
@@ -301,7 +302,7 @@
 # <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
 #
 ##
-{ 'command': 'query-uuid', 'returns': 'UuidInfo' }
+{ 'command': 'query-uuid', 'returns': 'UuidInfo', 'allow-preconfig': true }
 
 ##
 # @EventInfo:
@@ -710,7 +711,8 @@
 #    }
 #
 ##
-{ 'command': 'query-iothreads', 'returns': ['IOThreadInfo'] }
+{ 'command': 'query-iothreads', 'returns': ['IOThreadInfo'],
+  'allow-preconfig': true }
 
 ##
 # @BalloonInfo:
@@ -1408,7 +1410,8 @@
 ##
 { 'command': 'qom-list',
   'data': { 'path': 'str' },
-  'returns': [ 'ObjectPropertyInfo' ] }
+  'returns': [ 'ObjectPropertyInfo' ],
+  'allow-preconfig': true }
 
 ##
 # @qom-get:
@@ -1444,7 +1447,8 @@
 ##
 { 'command': 'qom-get',
   'data': { 'path': 'str', 'property': 'str' },
-  'returns': 'any' }
+  'returns': 'any',
+  'allow-preconfig': true }
 
 ##
 # @qom-set:
@@ -1461,7 +1465,8 @@
 # Since: 1.2
 ##
 { 'command': 'qom-set',
-  'data': { 'path': 'str', 'property': 'str', 'value': 'any' } }
+  'data': { 'path': 'str', 'property': 'str', 'value': 'any' },
+  'allow-preconfig': true }
 
 ##
 # @change:
@@ -1543,7 +1548,8 @@
 ##
 { 'command': 'qom-list-types',
   'data': { '*implements': 'str', '*abstract': 'bool' },
-  'returns': [ 'ObjectTypeInfo' ] }
+  'returns': [ 'ObjectTypeInfo' ],
+  'allow-preconfig': true }
 
 ##
 # @device-list-properties:
@@ -1581,7 +1587,8 @@
 ##
 { 'command': 'qom-list-properties',
   'data': { 'typename': 'str'},
-  'returns': [ 'ObjectPropertyInfo' ] }
+  'returns': [ 'ObjectPropertyInfo' ],
+  'allow-preconfig': true }
 
 ##
 # @xen-set-global-dirty-log:
@@ -2902,7 +2909,7 @@
 #    }
 #
 ##
-{ 'command': 'query-memdev', 'returns': ['Memdev'] }
+{ 'command': 'query-memdev', 'returns': ['Memdev'], 'allow-preconfig': true }
 
 ##
 # @PCDIMMDeviceInfo:

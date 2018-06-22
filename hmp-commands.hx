@@ -15,6 +15,7 @@ ETEXI
         .params     = "[cmd]",
         .help       = "show the help",
         .cmd        = do_help_cmd,
+        .flags      = "p",
     },
 
 STEXI
@@ -54,6 +55,25 @@ STEXI
 @item q or quit
 @findex quit
 Quit the emulator.
+ETEXI
+
+    {
+        .name       = "exit_preconfig",
+        .args_type  = "",
+        .params     = "",
+        .help       = "exit the preconfig state",
+        .cmd        = hmp_exit_preconfig,
+        .flags      = "p",
+    },
+
+STEXI
+@item exit_preconfig
+@findex exit_preconfig
+This command makes QEMU exit the preconfig state and proceed with
+VM initialization using configuration data provided on the command line
+and via the QMP monitor during the preconfig state. The command is only
+available during the preconfig state (i.e. when the --preconfig command
+line option was in use).
 ETEXI
 
     {
@@ -1116,7 +1136,7 @@ ETEXI
 
     {
         .name       = "dump-guest-memory",
-        .args_type  = "paging:-p,detach:-d,zlib:-z,lzo:-l,snappy:-s,filename:F,begin:i?,length:i?",
+        .args_type  = "paging:-p,detach:-d,zlib:-z,lzo:-l,snappy:-s,filename:F,begin:l?,length:l?",
         .params     = "[-p] [-d] [-z|-l|-s] filename [begin length]",
         .help       = "dump guest memory into file 'filename'.\n\t\t\t"
                       "-p: do paging to get guest's memory mapping.\n\t\t\t"
@@ -1827,6 +1847,7 @@ ETEXI
         .params     = "path",
         .help       = "list QOM properties",
         .cmd        = hmp_qom_list,
+        .flags      = "p",
     },
 
 STEXI
@@ -1840,6 +1861,7 @@ ETEXI
         .params     = "path property value",
         .help       = "set QOM property",
         .cmd        = hmp_qom_set,
+        .flags      = "p",
     },
 
 STEXI
@@ -1854,6 +1876,7 @@ ETEXI
         .help       = "show various information about the system state",
         .cmd        = hmp_info_help,
         .sub_table  = info_cmds,
+        .flags      = "p",
     },
 
 STEXI
