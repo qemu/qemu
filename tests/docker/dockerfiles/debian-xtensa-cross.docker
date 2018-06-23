@@ -1,0 +1,31 @@
+#
+# Docker cross-compiler target
+#
+# This docker target builds on the debian stretch base image,
+# using a prebuilt toolchains for Xtensa cores from:
+# https://github.com/foss-xtensa/toolchain/releases
+#
+FROM debian:stretch-slim
+
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        bison \
+        build-essential \
+        ca-certificates \
+        curl \
+        flex \
+        gettext \
+        git \
+        python-minimal
+
+ENV CPU_LIST csp dc232b dc233c
+ENV TOOLCHAIN_RELEASE 2018.02
+
+RUN for cpu in $CPU_LIST; do \
+        curl -#SL http://github.com/foss-xtensa/toolchain/releases/download/$TOOLCHAIN_RELEASE/x86_64-$TOOLCHAIN_RELEASE-xtensa-$cpu-elf.tar.gz \
+        | tar -xzC /opt; \
+    done
+
+ENV PATH $PATH:/opt/$TOOLCHAIN_RELEASE/xtensa-dc232b-elf/bin:/opt/$TOOLCHAIN_RELEASE/xtensa-dc233c-elf/bin:/opt/$TOOLCHAIN_RELEASE/xtensa-csp-elf/bin
