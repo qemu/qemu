@@ -11,12 +11,11 @@
 # the COPYING file in the top-level directory.
 ##
 
-from __future__ import absolute_import
 import fuse, stat
 from fuse import Fuse
 import os, posix
 from errno import *
-from .qmp import QEMUMonitorProtocol
+from qmp import QEMUMonitorProtocol
 
 fuse.fuse_python_api = (0, 2)
 
