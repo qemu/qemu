@@ -865,6 +865,19 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
     GuestFilesystemTrimResponse *resp;
     HANDLE handle;
     WCHAR guid[MAX_PATH] = L"";
+    OSVERSIONINFO osvi;
+    BOOL win8_or_later;
+
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    GetVersionEx(&osvi);
+    win8_or_later = (osvi.dwMajorVersion > 6 ||
+                          ((osvi.dwMajorVersion == 6) &&
+                           (osvi.dwMinorVersion >= 2)));
+    if (!win8_or_later) {
+        error_setg(errp, "fstrim is only supported for Win8+");
+        return NULL;
+    }
 
     handle = FindFirstVolumeW(guid, ARRAYSIZE(guid));
     if (handle == INVALID_HANDLE_VALUE) {
