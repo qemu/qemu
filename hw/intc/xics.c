@@ -611,13 +611,6 @@ static const VMStateDescription vmstate_ics_simple = {
     },
 };
 
-static void ics_simple_initfn(Object *obj)
-{
-    ICSState *ics = ICS_SIMPLE(obj);
-
-    ics->offset = XICS_IRQ_BASE;
-}
-
 static void ics_simple_realize(DeviceState *dev, Error **errp)
 {
     ICSState *ics = ICS_SIMPLE(dev);
@@ -655,7 +648,6 @@ static const TypeInfo ics_simple_info = {
     .instance_size = sizeof(ICSState),
     .class_init = ics_simple_class_init,
     .class_size = sizeof(ICSStateClass),
-    .instance_init = ics_simple_initfn,
 };
 
 static void ics_base_realize(DeviceState *dev, Error **errp)
@@ -679,6 +671,13 @@ static void ics_base_realize(DeviceState *dev, Error **errp)
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
 }
 
+static void ics_base_instance_init(Object *obj)
+{
+    ICSState *ics = ICS_BASE(obj);
+
+    ics->offset = XICS_IRQ_BASE;
+}
+
 static Property ics_base_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
     DEFINE_PROP_END_OF_LIST(),
@@ -697,6 +696,7 @@ static const TypeInfo ics_base_info = {
     .parent = TYPE_DEVICE,
     .abstract = true,
     .instance_size = sizeof(ICSState),
+    .instance_init = ics_base_instance_init,
     .class_init = ics_base_class_init,
     .class_size = sizeof(ICSStateClass),
 };
