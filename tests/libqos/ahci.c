@@ -651,10 +651,7 @@ void ahci_exec(AHCIQState *ahci, uint8_t port,
     /* Command creation */
     if (opts->atapi) {
         uint16_t bcl = opts->set_bcl ? opts->bcl : ATAPI_SECTOR_SIZE;
-        cmd = ahci_atapi_command_create(op, bcl);
-        if (opts->atapi_dma) {
-            ahci_command_enable_atapi_dma(cmd);
-        }
+        cmd = ahci_atapi_command_create(op, bcl, opts->atapi_dma);
     } else {
         cmd = ahci_command_create(op);
     }
@@ -874,7 +871,6 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     /* cmd->interrupts |= props->data ? AHCI_PX_IS_DPS : 0; */
     /* BUG: We expect the DMA Setup interrupt for DMA commands */
     /* cmd->interrupts |= props->dma ? AHCI_PX_IS_DSS : 0; */
-    cmd->interrupts |= props->pio ? AHCI_PX_IS_PSS : 0;
     cmd->interrupts |= props->ncq ? AHCI_PX_IS_SDBS : 0;
 
     command_header_init(cmd);
@@ -883,19 +879,24 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     return cmd;
 }
 
-AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd, uint16_t bcl)
+AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd, uint16_t bcl, bool dma)
 {
     AHCICommand *cmd = ahci_command_create(CMD_PACKET);
     cmd->atapi_cmd = g_malloc0(16);
     cmd->atapi_cmd[0] = scsi_cmd;
     stw_le_p(&cmd->fis.lba_lo[1], bcl);
+    if (dma) {
+        ahci_command_enable_atapi_dma(cmd);
+    } else {
+        cmd->interrupts |= bcl ? AHCI_PX_IS_PSS : 0;
+    }
     return cmd;
 }
 
 void ahci_atapi_test_ready(AHCIQState *ahci, uint8_t port,
                            bool ready, uint8_t expected_sense)
 {
-    AHCICommand *cmd = ahci_atapi_command_create(CMD_ATAPI_TEST_UNIT_READY, 0);
+    AHCICommand *cmd = ahci_atapi_command_create(CMD_ATAPI_TEST_UNIT_READY, 0, false);
     ahci_command_set_size(cmd, 0);
     if (!ready) {
         cmd->interrupts |= AHCI_PX_IS_TFES;
@@ -937,7 +938,7 @@ void ahci_atapi_get_sense(AHCIQState *ahci, uint8_t port,
 
 void ahci_atapi_eject(AHCIQState *ahci, uint8_t port)
 {
-    AHCICommand *cmd = ahci_atapi_command_create(CMD_ATAPI_START_STOP_UNIT, 0);
+    AHCICommand *cmd = ahci_atapi_command_create(CMD_ATAPI_START_STOP_UNIT, 0, false);
     ahci_command_set_size(cmd, 0);
 
     cmd->atapi_cmd[4] = 0x02; /* loej = true */
@@ -949,7 +950,7 @@ void ahci_atapi_eject(AHCIQState *ahci, uint8_t port)
 
 void ahci_atapi_load(AHCIQState *ahci, uint8_t port)
 {
-    AHCICommand *cmd = ahci_atapi_command_create(CMD_ATAPI_START_STOP_UNIT, 0);
+    AHCICommand *cmd = ahci_atapi_command_create(CMD_ATAPI_START_STOP_UNIT, 0, false);
     ahci_command_set_size(cmd, 0);
 
     cmd->atapi_cmd[4] = 0x03; /* loej,start = true */
@@ -1098,6 +1099,12 @@ void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
     } else if (cmd->props->atapi) {
         ahci_atapi_set_size(cmd, xbytes);
     } else {
+        /* For writes, the PIO Setup FIS interrupt only comes from DRQs
+         * after the first.
+         */
+        if (cmd->props->pio && sect_count > (cmd->props->read ? 0 : 1)) {
+            cmd->interrupts |= AHCI_PX_IS_PSS;
+        }
         cmd->fis.count = sect_count;
     }
     cmd->header.prdtl = size_to_prdtl(cmd->xbytes, cmd->prd_size);

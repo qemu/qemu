@@ -622,7 +622,7 @@ void ahci_atapi_load(AHCIQState *ahci, uint8_t port);
 
 /* Command: Fine-grained lifecycle */
 AHCICommand *ahci_command_create(uint8_t command_name);
-AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd, uint16_t bcl);
+AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd, uint16_t bcl, bool dma);
 void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port);
 void ahci_command_issue(AHCIQState *ahci, AHCICommand *cmd);
 void ahci_command_issue_async(AHCIQState *ahci, AHCICommand *cmd);
