@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include <dirent.h>
 #include "cpu.h"
 #include "hw/hw.h"
@@ -3303,7 +3304,7 @@ static QDict *monitor_parse_arguments(Monitor *mon,
                         monitor_printf(mon, "enter a positive value\n");
                         goto fail;
                     }
-                    val <<= 20;
+                    val *= MiB;
                 }
                 qdict_put_int(qdict, key, val);
             }
