@@ -242,6 +242,7 @@ our $UTF8	= qr{
 # There are still some false positives, but this catches most
 # common cases.
 our $typeTypedefs = qr{(?x:
+        (?![KMGTPE]iB)                      # IEC binary prefix (do not match)
         [A-Z][A-Z\d_]*[a-z][A-Za-z\d_]*     # camelcase
         | [A-Z][A-Z\d_]*AIOCB               # all uppercase
         | [A-Z][A-Z\d_]*CPU                 # all uppercase
