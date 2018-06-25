@@ -1672,7 +1672,8 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
         ehci_set_state(ehci, async, EST_HORIZONTALQH);
 
     } else if ((q->qh.token & QTD_TOKEN_ACTIVE) &&
-               (NLPTR_TBIT(q->qh.current_qtd) == 0)) {
+               (NLPTR_TBIT(q->qh.current_qtd) == 0) &&
+               (q->qh.current_qtd != 0)) {
         q->qtdaddr = q->qh.current_qtd;
         ehci_set_state(ehci, async, EST_FETCHQTD);
 
