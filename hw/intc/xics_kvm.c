@@ -359,12 +359,10 @@ static void ics_kvm_class_init(ObjectClass *klass, void *data)
     ICSStateClass *icsc = ICS_BASE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    /*
-     * Use device_class_set_parent_realize() when ics-kvm inherits
-     * directly from ics-base and not from ics-simple anymore.
-     */
-    dc->realize = ics_kvm_realize;
-    dc->reset = ics_kvm_reset;
+    device_class_set_parent_realize(dc, ics_kvm_realize,
+                                    &icsc->parent_realize);
+    device_class_set_parent_reset(dc, ics_kvm_reset,
+                                  &icsc->parent_reset);
 
     icsc->pre_save = ics_get_kvm_state;
     icsc->post_load = ics_set_kvm_state;
@@ -373,7 +371,7 @@ static void ics_kvm_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo ics_kvm_info = {
     .name = TYPE_ICS_KVM,
-    .parent = TYPE_ICS_SIMPLE,
+    .parent = TYPE_ICS_BASE,
     .instance_size = sizeof(ICSState),
     .class_init = ics_kvm_class_init,
 };

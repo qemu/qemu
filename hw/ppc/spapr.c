@@ -137,7 +137,7 @@ static ICSState *spapr_ics_create(sPAPRMachineState *spapr,
         goto error;
     }
 
-    return ICS_SIMPLE(obj);
+    return ICS_BASE(obj);
 
 error:
     error_propagate(errp, local_err);
