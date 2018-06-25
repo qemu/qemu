@@ -324,25 +324,18 @@ static void ics_kvm_set_irq(void *opaque, int srcno, int val)
     }
 }
 
-static void ics_kvm_reset(void *dev)
+static void ics_kvm_reset(DeviceState *dev)
 {
-    ICSState *ics = ICS_SIMPLE(dev);
-    int i;
-    uint8_t flags[ics->nr_irqs];
+    ICSStateClass *icsc = ICS_BASE_GET_CLASS(dev);
 
-    for (i = 0; i < ics->nr_irqs; i++) {
-        flags[i] = ics->irqs[i].flags;
-    }
+    icsc->parent_reset(dev);
 
-    memset(ics->irqs, 0, sizeof(ICSIRQState) * ics->nr_irqs);
+    ics_set_kvm_state(ICS_KVM(dev), 1);
+}
 
-    for (i = 0; i < ics->nr_irqs; i++) {
-        ics->irqs[i].priority = 0xff;
-        ics->irqs[i].saved_priority = 0xff;
-        ics->irqs[i].flags = flags[i];
-    }
-
-    ics_set_kvm_state(ics, 1);
+static void ics_kvm_reset_handler(void *dev)
+{
+    ics_kvm_reset(dev);
 }
 
 static void ics_kvm_realize(DeviceState *dev, Error **errp)
@@ -358,7 +351,7 @@ static void ics_kvm_realize(DeviceState *dev, Error **errp)
     }
     ics->qirqs = qemu_allocate_irqs(ics_kvm_set_irq, ics, ics->nr_irqs);
 
-    qemu_register_reset(ics_kvm_reset, ics);
+    qemu_register_reset(ics_kvm_reset_handler, ics);
 }
 
 static void ics_kvm_class_init(ObjectClass *klass, void *data)
@@ -371,6 +364,7 @@ static void ics_kvm_class_init(ObjectClass *klass, void *data)
      * directly from ics-base and not from ics-simple anymore.
      */
     dc->realize = ics_kvm_realize;
+    dc->reset = ics_kvm_reset;
 
     icsc->pre_save = ics_get_kvm_state;
     icsc->post_load = ics_set_kvm_state;

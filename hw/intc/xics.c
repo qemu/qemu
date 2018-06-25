@@ -537,23 +537,16 @@ static void ics_simple_eoi(ICSState *ics, uint32_t nr)
     }
 }
 
-static void ics_simple_reset(void *dev)
+static void ics_simple_reset(DeviceState *dev)
 {
-    ICSState *ics = ICS_SIMPLE(dev);
-    int i;
-    uint8_t flags[ics->nr_irqs];
+    ICSStateClass *icsc = ICS_BASE_GET_CLASS(dev);
 
-    for (i = 0; i < ics->nr_irqs; i++) {
-        flags[i] = ics->irqs[i].flags;
-    }
+    icsc->parent_reset(dev);
+}
 
-    memset(ics->irqs, 0, sizeof(ICSIRQState) * ics->nr_irqs);
-
-    for (i = 0; i < ics->nr_irqs; i++) {
-        ics->irqs[i].priority = 0xff;
-        ics->irqs[i].saved_priority = 0xff;
-        ics->irqs[i].flags = flags[i];
-    }
+static void ics_simple_reset_handler(void *dev)
+{
+    ics_simple_reset(dev);
 }
 
 static int ics_simple_dispatch_pre_save(void *opaque)
@@ -625,7 +618,7 @@ static void ics_simple_realize(DeviceState *dev, Error **errp)
 
     ics->qirqs = qemu_allocate_irqs(ics_simple_set_irq, ics, ics->nr_irqs);
 
-    qemu_register_reset(ics_simple_reset, ics);
+    qemu_register_reset(ics_simple_reset_handler, ics);
 }
 
 static void ics_simple_class_init(ObjectClass *klass, void *data)
@@ -635,6 +628,8 @@ static void ics_simple_class_init(ObjectClass *klass, void *data)
 
     device_class_set_parent_realize(dc, ics_simple_realize,
                                     &isc->parent_realize);
+    device_class_set_parent_reset(dc, ics_simple_reset,
+                                  &isc->parent_reset);
 
     dc->vmsd = &vmstate_ics_simple;
     isc->reject = ics_simple_reject;
@@ -649,6 +644,25 @@ static const TypeInfo ics_simple_info = {
     .class_init = ics_simple_class_init,
     .class_size = sizeof(ICSStateClass),
 };
+
+static void ics_base_reset(DeviceState *dev)
+{
+    ICSState *ics = ICS_BASE(dev);
+    int i;
+    uint8_t flags[ics->nr_irqs];
+
+    for (i = 0; i < ics->nr_irqs; i++) {
+        flags[i] = ics->irqs[i].flags;
+    }
+
+    memset(ics->irqs, 0, sizeof(ICSIRQState) * ics->nr_irqs);
+
+    for (i = 0; i < ics->nr_irqs; i++) {
+        ics->irqs[i].priority = 0xff;
+        ics->irqs[i].saved_priority = 0xff;
+        ics->irqs[i].flags = flags[i];
+    }
+}
 
 static void ics_base_realize(DeviceState *dev, Error **errp)
 {
@@ -689,6 +703,7 @@ static void ics_base_class_init(ObjectClass *klass, void *data)
 
     dc->realize = ics_base_realize;
     dc->props = ics_base_properties;
+    dc->reset = ics_base_reset;
 }
 
 static const TypeInfo ics_base_info = {

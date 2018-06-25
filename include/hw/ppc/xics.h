@@ -116,6 +116,7 @@ struct ICSStateClass {
     DeviceClass parent_class;
 
     DeviceRealize parent_realize;
+    DeviceReset parent_reset;
 
     void (*pre_save)(ICSState *s);
     int (*post_load)(ICSState *s, int version_id);
