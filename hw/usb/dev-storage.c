@@ -625,6 +625,7 @@ static void usb_msd_storage_realize(USBDevice *dev, Error **errp)
                  &usb_msd_scsi_info_storage, NULL);
     scsi_dev = scsi_bus_legacy_add_drive(&s->bus, blk, 0, !!s->removable,
                                          s->conf.bootindex, s->conf.share_rw,
+                                         s->conf.rerror, s->conf.werror,
                                          dev->serial,
                                          errp);
     blk_unref(blk);
@@ -671,6 +672,7 @@ static const VMStateDescription vmstate_usb_msd = {
 
 static Property msd_properties[] = {
     DEFINE_BLOCK_PROPERTIES(MSDState, conf),
+    DEFINE_BLOCK_ERROR_PROPERTIES(MSDState, conf),
     DEFINE_PROP_BIT("removable", MSDState, removable, 0, false),
     DEFINE_PROP_END_OF_LIST(),
 };
