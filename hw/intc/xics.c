@@ -618,30 +618,31 @@ static void ics_simple_initfn(Object *obj)
     ics->offset = XICS_IRQ_BASE;
 }
 
-static void ics_simple_realize(ICSState *ics, Error **errp)
+static void ics_simple_realize(DeviceState *dev, Error **errp)
 {
-    if (!ics->nr_irqs) {
-        error_setg(errp, "Number of interrupts needs to be greater 0");
+    ICSState *ics = ICS_SIMPLE(dev);
+    ICSStateClass *icsc = ICS_BASE_GET_CLASS(ics);
+    Error *local_err = NULL;
+
+    icsc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
-    ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
+
     ics->qirqs = qemu_allocate_irqs(ics_simple_set_irq, ics, ics->nr_irqs);
 
     qemu_register_reset(ics_simple_reset, ics);
 }
-
-static Property ics_simple_properties[] = {
-    DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
 
 static void ics_simple_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICSStateClass *isc = ICS_BASE_CLASS(klass);
 
-    isc->realize = ics_simple_realize;
-    dc->props = ics_simple_properties;
+    device_class_set_parent_realize(dc, ics_simple_realize,
+                                    &isc->parent_realize);
+
     dc->vmsd = &vmstate_ics_simple;
     isc->reject = ics_simple_reject;
     isc->resend = ics_simple_resend;
@@ -659,7 +660,6 @@ static const TypeInfo ics_simple_info = {
 
 static void ics_base_realize(DeviceState *dev, Error **errp)
 {
-    ICSStateClass *icsc = ICS_BASE_GET_CLASS(dev);
     ICSState *ics = ICS_BASE(dev);
     Object *obj;
     Error *err = NULL;
@@ -672,17 +672,24 @@ static void ics_base_realize(DeviceState *dev, Error **errp)
     }
     ics->xics = XICS_FABRIC(obj);
 
-
-    if (icsc->realize) {
-        icsc->realize(ics, errp);
+    if (!ics->nr_irqs) {
+        error_setg(errp, "Number of interrupts needs to be greater 0");
+        return;
     }
+    ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
 }
+
+static Property ics_base_properties[] = {
+    DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void ics_base_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = ics_base_realize;
+    dc->props = ics_base_properties;
 }
 
 static const TypeInfo ics_base_info = {

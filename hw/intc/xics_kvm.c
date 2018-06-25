@@ -345,13 +345,17 @@ static void ics_kvm_reset(void *dev)
     ics_set_kvm_state(ics, 1);
 }
 
-static void ics_kvm_realize(ICSState *ics, Error **errp)
+static void ics_kvm_realize(DeviceState *dev, Error **errp)
 {
-    if (!ics->nr_irqs) {
-        error_setg(errp, "Number of interrupts needs to be greater 0");
+    ICSState *ics = ICS_KVM(dev);
+    ICSStateClass *icsc = ICS_BASE_GET_CLASS(ics);
+    Error *local_err = NULL;
+
+    icsc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
-    ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
     ics->qirqs = qemu_allocate_irqs(ics_kvm_set_irq, ics, ics->nr_irqs);
 
     qemu_register_reset(ics_kvm_reset, ics);
@@ -360,8 +364,14 @@ static void ics_kvm_realize(ICSState *ics, Error **errp)
 static void ics_kvm_class_init(ObjectClass *klass, void *data)
 {
     ICSStateClass *icsc = ICS_BASE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    icsc->realize = ics_kvm_realize;
+    /*
+     * Use device_class_set_parent_realize() when ics-kvm inherits
+     * directly from ics-base and not from ics-simple anymore.
+     */
+    dc->realize = ics_kvm_realize;
+
     icsc->pre_save = ics_get_kvm_state;
     icsc->post_load = ics_set_kvm_state;
     icsc->synchronize_state = ics_synchronize_state;
