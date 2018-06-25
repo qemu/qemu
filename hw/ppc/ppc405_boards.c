@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -40,7 +41,7 @@
 #include "exec/address-spaces.h"
 
 #define BIOS_FILENAME "ppc405_rom.bin"
-#define BIOS_SIZE (2048 * 1024)
+#define BIOS_SIZE (2 * MiB)
 
 #define KERNEL_LOAD_ADDR 0x00000000
 #define INITRD_LOAD_ADDR 0x01800000
@@ -216,14 +217,14 @@ static void ref405ep_init(MachineState *machine)
     memory_region_init(&ram_memories[1], NULL, "ef405ep.ram1", 0);
     ram_bases[1] = 0x00000000;
     ram_sizes[1] = 0x00000000;
-    ram_size = 128 * 1024 * 1024;
+    ram_size = 128 * MiB;
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register cpu\n", __func__);
 #endif
     env = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
                         33333333, &pic, kernel_filename == NULL ? 0 : 1);
     /* allocate SRAM */
-    sram_size = 512 * 1024;
+    sram_size = 512 * KiB;
     memory_region_init_ram(sram, NULL, "ef405ep.sram", sram_size,
                            &error_fatal);
     memory_region_add_subregion(sysmem, 0xFFF00000, sram);
@@ -589,7 +590,7 @@ static void taihu_405ep_init(MachineState *machine)
 
         bios_size = blk_getlength(blk);
         /* XXX: should check that size is 32MB */
-        bios_size = 32 * 1024 * 1024;
+        bios_size = 32 * MiB;
         fl_sectors = (bios_size + 65535) >> 16;
 #ifdef DEBUG_BOARD_INIT
         printf("Register parallel flash %d size %lx"

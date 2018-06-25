@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/hw.h"
@@ -45,7 +46,7 @@
 #include "ppc405.h"
 
 #define EPAPR_MAGIC    (0x45504150)
-#define FLASH_SIZE     (16 * 1024 * 1024)
+#define FLASH_SIZE     (16 * MiB)
 
 #define INTC_BASEADDR       0x81800000
 #define UART16550_BASEADDR  0x83e01003
@@ -127,7 +128,7 @@ static void main_cpu_reset(void *opaque)
        *   r8: 0
        *   r9: 0
     */
-    env->gpr[1] = (16<<20) - 8;
+    env->gpr[1] = (16 * MiB) - 8;
     /* Provide a device-tree.  */
     env->gpr[3] = bi->fdt;
     env->nip = bi->bootstrap_pc;
@@ -235,7 +236,7 @@ static void virtex_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi01_register(PFLASH_BASEADDR, NULL, "virtex.flash", FLASH_SIZE,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                          (64 * 1024), FLASH_SIZE >> 16,
+                          64 * KiB, FLASH_SIZE >> 16,
                           1, 0x89, 0x18, 0x0000, 0x0, 1);
 
     cpu_irq = (qemu_irq *) &env->irq_inputs[PPC40x_INPUT_INT];

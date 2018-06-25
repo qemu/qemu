@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
@@ -29,6 +30,7 @@
 #include "hw/boards.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
 #define DEBUG_UIC
 
@@ -353,25 +355,25 @@ static uint32_t sdram_bcr (hwaddr ram_base,
     uint32_t bcr;
 
     switch (ram_size) {
-    case (4 * 1024 * 1024):
+    case 4 * MiB:
         bcr = 0x00000000;
         break;
-    case (8 * 1024 * 1024):
+    case 8 * MiB:
         bcr = 0x00020000;
         break;
-    case (16 * 1024 * 1024):
+    case 16 * MiB:
         bcr = 0x00040000;
         break;
-    case (32 * 1024 * 1024):
+    case 32 * MiB:
         bcr = 0x00060000;
         break;
-    case (64 * 1024 * 1024):
+    case 64 * MiB:
         bcr = 0x00080000;
         break;
-    case (128 * 1024 * 1024):
+    case 128 * MiB:
         bcr = 0x000A0000;
         break;
-    case (256 * 1024 * 1024):
+    case 256 * MiB:
         bcr = 0x000C0000;
         break;
     default:
@@ -399,7 +401,7 @@ static target_ulong sdram_size (uint32_t bcr)
     if (sh == 7)
         size = -1;
     else
-        size = (4 * 1024 * 1024) << sh;
+        size = (4 * MiB) << sh;
 
     return size;
 }
@@ -702,8 +704,8 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
 
     ram_size -= size_left;
     if (size_left) {
-        printf("Truncating memory to %d MiB to fit SDRAM controller limits.\n",
-               (int)(ram_size >> 20));
+        error_report("Truncating memory to %" PRId64 " MiB to fit SDRAM"
+                     " controller limits", ram_size / MiB);
     }
 
     memory_region_allocate_system_memory(ram, NULL, "ppc4xx.sdram", ram_size);

@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
@@ -70,7 +71,7 @@ typedef struct PRePPCIState {
     int contiguous_map;
 } PREPPCIState;
 
-#define BIOS_SIZE (1024 * 1024)
+#define BIOS_SIZE (1 * MiB)
 
 static inline uint32_t raven_pci_io_config(hwaddr addr)
 {

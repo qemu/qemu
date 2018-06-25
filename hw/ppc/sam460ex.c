@@ -12,8 +12,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qemu-common.h"
-#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
@@ -46,7 +46,7 @@
 /* from Sam460 U-Boot include/configs/Sam460ex.h */
 #define FLASH_BASE             0xfff00000
 #define FLASH_BASE_H           0x4
-#define FLASH_SIZE             (1 << 20)
+#define FLASH_SIZE             (1 * MiB)
 #define UBOOT_LOAD_BASE        0xfff80000
 #define UBOOT_SIZE             0x00080000
 #define UBOOT_ENTRY            0xfffffffc
@@ -71,7 +71,7 @@
 
 /* FIXME: See u-boot.git 8ac41e, also fix in ppc440_uc.c */
 static const unsigned int ppc460ex_sdram_bank_sizes[] = {
-    1024 << 20, 512 << 20, 256 << 20, 128 << 20, 64 << 20, 32 << 20, 0
+    1 * GiB, 512 * MiB, 256 * MiB, 128 * MiB, 64 * MiB, 32 * MiB, 0
 };
 
 struct boot_info {
@@ -126,7 +126,7 @@ static void generate_eeprom_spd(uint8_t *eeprom, ram_addr_t ram_size)
     int i;
 
     /* work in terms of MB */
-    ram_size >>= 20;
+    ram_size /= MiB;
 
     while ((ram_size >= 4) && (nbanks <= 2)) {
         int sz_log2 = MIN(31 - clz32(ram_size), 14);
@@ -225,7 +225,7 @@ static int sam460ex_load_uboot(void)
     fl_sectors = (bios_size + 65535) >> 16;
 
     if (!pflash_cfi01_register(base, NULL, "sam460ex.flash", bios_size,
-                               blk, (64 * 1024), fl_sectors,
+                               blk, 64 * KiB, fl_sectors,
                                1, 0x89, 0x18, 0x0000, 0x0, 1)) {
         error_report("qemu: Error registering flash memory.");
         /* XXX: return an error instead? */
@@ -359,14 +359,14 @@ static void main_cpu_reset(void *opaque)
 
     /* either we have a kernel to boot or we jump to U-Boot */
     if (bi->entry != UBOOT_ENTRY) {
-        env->gpr[1] = (16 << 20) - 8;
+        env->gpr[1] = (16 * MiB) - 8;
         env->gpr[3] = FDT_ADDR;
         env->nip = bi->entry;
 
         /* Create a mapping for the kernel.  */
         mmubooke_create_initial_mapping(env, 0, 0);
         env->gpr[6] = tswap32(EPAPR_MAGIC);
-        env->gpr[7] = (16 << 20) - 8; /*bi->ima_size;*/
+        env->gpr[7] = (16 * MiB) - 8; /* bi->ima_size; */
 
     } else {
         env->nip = UBOOT_ENTRY;
@@ -479,7 +479,7 @@ static void sam460ex_init(MachineState *machine)
     /* 256K of L2 cache as memory */
     ppc4xx_l2sram_init(env);
     /* FIXME: remove this after fixing l2sram mapping in ppc440_uc.c? */
-    memory_region_init_ram(l2cache_ram, NULL, "ppc440.l2cache_ram", 256 << 10,
+    memory_region_init_ram(l2cache_ram, NULL, "ppc440.l2cache_ram", 256 * KiB,
                            &error_abort);
     memory_region_add_subregion(address_space_mem, 0x400000000LL, l2cache_ram);
 

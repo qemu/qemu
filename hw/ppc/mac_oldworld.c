@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
@@ -46,7 +47,6 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "exec/address-spaces.h"
-#include "qemu/cutils.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
@@ -118,10 +118,9 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     /* allocate RAM */
-    if (ram_size > (2047 << 20)) {
-        fprintf(stderr,
-                "qemu: Too much memory for this machine: %d MB, maximum 2047 MB\n",
-                ((unsigned int)ram_size / (1 << 20)));
+    if (ram_size > 2047 * MiB) {
+        error_report("Too much memory for this machine: %" PRId64 " MB, "
+                     "maximum 2047 MB", ram_size / MiB);
         exit(1);
     }
 

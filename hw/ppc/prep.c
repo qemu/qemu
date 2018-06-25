@@ -50,7 +50,7 @@
 #include "exec/address-spaces.h"
 #include "trace.h"
 #include "elf.h"
-#include "qemu/cutils.h"
+#include "qemu/units.h"
 #include "kvm_ppc.h"
 
 /* SMP is not enabled, for now */
@@ -60,7 +60,7 @@
 
 #define CFG_ADDR 0xf0000510
 
-#define BIOS_SIZE (1024 * 1024)
+#define BIOS_SIZE (1 * MiB)
 #define BIOS_FILENAME "ppc_rom.bin"
 #define KERNEL_LOAD_ADDR 0x01000000
 #define INITRD_LOAD_ADDR 0x01800000

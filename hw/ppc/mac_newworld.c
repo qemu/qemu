@@ -71,7 +71,6 @@
 #include "hw/usb.h"
 #include "exec/address-spaces.h"
 #include "hw/sysbus.h"
-#include "qemu/cutils.h"
 #include "trace.h"
 
 #define MAX_IDE_BUS 2

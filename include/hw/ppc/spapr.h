@@ -1,6 +1,7 @@
 #ifndef HW_SPAPR_H
 #define HW_SPAPR_H
 
+#include "qemu/units.h"
 #include "sysemu/dma.h"
 #include "hw/boards.h"
 #include "hw/ppc/xics.h"
@@ -749,8 +750,8 @@ int spapr_rng_populate_dt(void *fdt);
  */
 #define SPAPR_MAX_RAM_SLOTS     32
 
-/* 1GB alignment for device memory region */
-#define SPAPR_DEVICE_MEM_ALIGN (1ULL << 30)
+/* 1GB alignment for hotplug memory region */
+#define SPAPR_DEVICE_MEM_ALIGN (1 * GiB)
 
 /*
  * Number of 32 bit words in each LMB list entry in ibm,dynamic-memory

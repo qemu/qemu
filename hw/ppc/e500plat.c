@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qemu-common.h"
 #include "e500.h"
 #include "hw/net/fsl_etsec/etsec.h"
@@ -85,7 +86,7 @@ static void e500plat_machine_class_init(ObjectClass *oc, void *data)
     pmc->has_mpc8xxx_gpio = true;
     pmc->has_platform_bus = true;
     pmc->platform_bus_base = 0xf00000000ULL;
-    pmc->platform_bus_size = (128ULL * 1024 * 1024);
+    pmc->platform_bus_size = 128 * MiB;
     pmc->platform_bus_first_irq = 5;
     pmc->platform_bus_num_irqs = 10;
     pmc->ccsrbar_base = 0xFE0000000ULL;

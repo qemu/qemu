@@ -237,7 +237,7 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
     switch (parameter) {
     case RTAS_SYSPARM_SPLPAR_CHARACTERISTICS: {
         char *param_val = g_strdup_printf("MaxEntCap=%d,"
-                                          "DesMem=%llu,"
+                                          "DesMem=%" PRIu64 ","
                                           "DesProcs=%d,"
                                           "MaxPlatProcs=%d",
                                           max_cpus,
