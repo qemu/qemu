@@ -549,61 +549,6 @@ static void ics_simple_reset_handler(void *dev)
     ics_simple_reset(dev);
 }
 
-static int ics_simple_dispatch_pre_save(void *opaque)
-{
-    ICSState *ics = opaque;
-    ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
-
-    if (info->pre_save) {
-        info->pre_save(ics);
-    }
-
-    return 0;
-}
-
-static int ics_simple_dispatch_post_load(void *opaque, int version_id)
-{
-    ICSState *ics = opaque;
-    ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
-
-    if (info->post_load) {
-        return info->post_load(ics, version_id);
-    }
-
-    return 0;
-}
-
-static const VMStateDescription vmstate_ics_simple_irq = {
-    .name = "ics/irq",
-    .version_id = 2,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(server, ICSIRQState),
-        VMSTATE_UINT8(priority, ICSIRQState),
-        VMSTATE_UINT8(saved_priority, ICSIRQState),
-        VMSTATE_UINT8(status, ICSIRQState),
-        VMSTATE_UINT8(flags, ICSIRQState),
-        VMSTATE_END_OF_LIST()
-    },
-};
-
-static const VMStateDescription vmstate_ics_simple = {
-    .name = "ics",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .pre_save = ics_simple_dispatch_pre_save,
-    .post_load = ics_simple_dispatch_post_load,
-    .fields = (VMStateField[]) {
-        /* Sanity check */
-        VMSTATE_UINT32_EQUAL(nr_irqs, ICSState, NULL),
-
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(irqs, ICSState, nr_irqs,
-                                             vmstate_ics_simple_irq,
-                                             ICSIRQState),
-        VMSTATE_END_OF_LIST()
-    },
-};
-
 static void ics_simple_realize(DeviceState *dev, Error **errp)
 {
     ICSState *ics = ICS_SIMPLE(dev);
@@ -631,7 +576,6 @@ static void ics_simple_class_init(ObjectClass *klass, void *data)
     device_class_set_parent_reset(dc, ics_simple_reset,
                                   &isc->parent_reset);
 
-    dc->vmsd = &vmstate_ics_simple;
     isc->reject = ics_simple_reject;
     isc->resend = ics_simple_resend;
     isc->eoi = ics_simple_eoi;
@@ -692,6 +636,61 @@ static void ics_base_instance_init(Object *obj)
     ics->offset = XICS_IRQ_BASE;
 }
 
+static int ics_base_dispatch_pre_save(void *opaque)
+{
+    ICSState *ics = opaque;
+    ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
+
+    if (info->pre_save) {
+        info->pre_save(ics);
+    }
+
+    return 0;
+}
+
+static int ics_base_dispatch_post_load(void *opaque, int version_id)
+{
+    ICSState *ics = opaque;
+    ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
+
+    if (info->post_load) {
+        return info->post_load(ics, version_id);
+    }
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_ics_base_irq = {
+    .name = "ics/irq",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(server, ICSIRQState),
+        VMSTATE_UINT8(priority, ICSIRQState),
+        VMSTATE_UINT8(saved_priority, ICSIRQState),
+        VMSTATE_UINT8(status, ICSIRQState),
+        VMSTATE_UINT8(flags, ICSIRQState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription vmstate_ics_base = {
+    .name = "ics",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_save = ics_base_dispatch_pre_save,
+    .post_load = ics_base_dispatch_post_load,
+    .fields = (VMStateField[]) {
+        /* Sanity check */
+        VMSTATE_UINT32_EQUAL(nr_irqs, ICSState, NULL),
+
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(irqs, ICSState, nr_irqs,
+                                             vmstate_ics_base_irq,
+                                             ICSIRQState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static Property ics_base_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
     DEFINE_PROP_END_OF_LIST(),
@@ -704,6 +703,7 @@ static void ics_base_class_init(ObjectClass *klass, void *data)
     dc->realize = ics_base_realize;
     dc->props = ics_base_properties;
     dc->reset = ics_base_reset;
+    dc->vmsd = &vmstate_ics_base;
 }
 
 static const TypeInfo ics_base_info = {
