@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "sysemu/sysemu.h"
@@ -289,7 +290,7 @@ static void sclp_realize(DeviceState *dev, Error **errp)
     ret = s390_set_memory_limit(machine->maxram_size, &hw_limit);
     if (ret == -E2BIG) {
         error_setg(&err, "host supports a maximum of %" PRIu64 " GB",
-                   hw_limit >> 30);
+                   hw_limit / GiB);
     } else if (ret) {
         error_setg(&err, "setting the guest size failed");
     }
