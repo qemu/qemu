@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qemu-version.h"
 #include <machine/trap.h>
 
@@ -795,9 +796,9 @@ int main(int argc, char **argv)
             if (x86_stack_size <= 0)
                 usage();
             if (*r == 'M')
-                x86_stack_size *= 1024 * 1024;
+                x86_stack_size *= MiB;
             else if (*r == 'k' || *r == 'K')
-                x86_stack_size *= 1024;
+                x86_stack_size *= KiB;
         } else if (!strcmp(r, "L")) {
             interp_prefix = argv[optind++];
         } else if (!strcmp(r, "p")) {
