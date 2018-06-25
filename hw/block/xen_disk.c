@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 
@@ -814,7 +815,7 @@ static int blk_connect(struct XenDevice *xendev)
     xen_pv_printf(xendev, 1, "type \"%s\", fileproto \"%s\", filename \"%s\","
                   " size %" PRId64 " (%" PRId64 " MB)\n",
                   blkdev->type, blkdev->fileproto, blkdev->filename,
-                  blkdev->file_size, blkdev->file_size >> 20);
+                  blkdev->file_size, blkdev->file_size / MiB);
 
     /* Fill in number of sector size and number of sectors */
     xenstore_write_be_int(xendev, "sector-size", blkdev->file_blk);
