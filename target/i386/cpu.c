@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qemu/bitops.h"
 
@@ -64,9 +65,6 @@ struct CPUID2CacheDescriptorInfo {
     int line_size;
     int associativity;
 };
-
-#define KiB 1024
-#define MiB (1024 * 1024)
 
 /*
  * Known CPUID 2 cache descriptors.
