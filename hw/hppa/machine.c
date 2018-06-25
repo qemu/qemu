@@ -275,7 +275,7 @@ static void machine_hppa_machine_init(MachineClass *mc)
     mc->max_cpus = HPPA_MAX_CPUS;
     mc->default_cpus = 1;
     mc->is_default = 1;
-    mc->default_ram_size = 512 * M_BYTE;
+    mc->default_ram_size = 512 * MiB;
     mc->default_boot_order = "cd";
 }
 

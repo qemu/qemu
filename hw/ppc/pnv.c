@@ -556,7 +556,7 @@ static void pnv_init(MachineState *machine)
     char *chip_typename;
 
     /* allocate RAM */
-    if (machine->ram_size < (1 * G_BYTE)) {
+    if (machine->ram_size < (1 * GiB)) {
         warn_report("skiboot may not work with < 1GB of RAM");
     }
 
@@ -1174,7 +1174,7 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
                                       * storage */
     mc->no_parallel = 1;
     mc->default_boot_order = NULL;
-    mc->default_ram_size = 1 * G_BYTE;
+    mc->default_ram_size = 1 * GiB;
     xic->icp_get = pnv_icp_get;
     xic->ics_get = pnv_ics_get;
     xic->ics_resend = pnv_ics_resend;

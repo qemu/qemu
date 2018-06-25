@@ -597,7 +597,7 @@ static void sam460ex_machine_init(MachineClass *mc)
     mc->desc = "aCube Sam460ex";
     mc->init = sam460ex_init;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("460exb");
-    mc->default_ram_size = 512 * M_BYTE;
+    mc->default_ram_size = 512 * MiB;
 }
 
 DEFINE_MACHINE("sam460ex", sam460ex_machine_init)

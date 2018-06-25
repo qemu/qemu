@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/cutils.h"
+#include "qemu/units.h"
 #include "qemu/option.h"
 #include "qemu/option_int.h"
 #include "qapi/error.h"
@@ -704,13 +704,12 @@ static void test_opts_parse_size(void)
     g_assert_cmpuint(opts_count(opts), ==, 3);
     g_assert_cmphex(qemu_opt_get_size(opts, "size1", 0), ==, 8);
     g_assert_cmphex(qemu_opt_get_size(opts, "size2", 0), ==, 1536);
-    g_assert_cmphex(qemu_opt_get_size(opts, "size3", 0), ==, 2 * M_BYTE);
+    g_assert_cmphex(qemu_opt_get_size(opts, "size3", 0), ==, 2 * MiB);
     opts = qemu_opts_parse(&opts_list_02, "size1=0.1G,size2=16777215T",
                            false, &error_abort);
     g_assert_cmpuint(opts_count(opts), ==, 2);
-    g_assert_cmphex(qemu_opt_get_size(opts, "size1", 0), ==, G_BYTE / 10);
-    g_assert_cmphex(qemu_opt_get_size(opts, "size2", 0),
-                     ==, 16777215 * T_BYTE);
+    g_assert_cmphex(qemu_opt_get_size(opts, "size1", 0), ==, GiB / 10);
+    g_assert_cmphex(qemu_opt_get_size(opts, "size2", 0), ==, 16777215ULL * TiB);
 
     /* Beyond limit with suffix */
     opts = qemu_opts_parse(&opts_list_02, "size1=16777216T",

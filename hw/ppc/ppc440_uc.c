@@ -215,13 +215,13 @@ void ppc4xx_l2sram_init(CPUPPCState *env)
     l2sram = g_malloc0(sizeof(*l2sram));
     /* XXX: Size is 4*64kB for 460ex, cf. U-Boot, ppc4xx-isram.h */
     memory_region_init_ram(&l2sram->bank[0], NULL, "ppc4xx.l2sram_bank0",
-                           64 * K_BYTE, &error_abort);
+                           64 * KiB, &error_abort);
     memory_region_init_ram(&l2sram->bank[1], NULL, "ppc4xx.l2sram_bank1",
-                           64 * K_BYTE, &error_abort);
+                           64 * KiB, &error_abort);
     memory_region_init_ram(&l2sram->bank[2], NULL, "ppc4xx.l2sram_bank2",
-                           64 * K_BYTE, &error_abort);
+                           64 * KiB, &error_abort);
     memory_region_init_ram(&l2sram->bank[3], NULL, "ppc4xx.l2sram_bank3",
-                           64 * K_BYTE, &error_abort);
+                           64 * KiB, &error_abort);
     qemu_register_reset(&l2sram_reset, l2sram);
     ppc_dcr_register(env, DCR_L2CACHE_CFG,
                      l2sram, &dcr_read_l2sram, &dcr_write_l2sram);
@@ -513,28 +513,28 @@ static uint32_t sdram_bcr(hwaddr ram_base, hwaddr ram_size)
     uint32_t bcr;
 
     switch (ram_size) {
-    case (8 * M_BYTE):
+    case (8 * MiB):
         bcr = 0xffc0;
         break;
-    case (16 * M_BYTE):
+    case (16 * MiB):
         bcr = 0xff80;
         break;
-    case (32 * M_BYTE):
+    case (32 * MiB):
         bcr = 0xff00;
         break;
-    case (64 * M_BYTE):
+    case (64 * MiB):
         bcr = 0xfe00;
         break;
-    case (128 * M_BYTE):
+    case (128 * MiB):
         bcr = 0xfc00;
         break;
-    case (256 * M_BYTE):
+    case (256 * MiB):
         bcr = 0xf800;
         break;
-    case (512 * M_BYTE):
+    case (512 * MiB):
         bcr = 0xf000;
         break;
-    case (1 * G_BYTE):
+    case (1 * GiB):
         bcr = 0xe000;
         break;
     default:
@@ -561,7 +561,7 @@ static target_ulong sdram_size(uint32_t bcr)
     if (sh == 0) {
         size = -1;
     } else {
-        size = 8 * M_BYTE * sh;
+        size = 8 * MiB * sh;
     }
 
     return size;

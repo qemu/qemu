@@ -522,7 +522,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     /* Default 128 MB as guest ram size */
-    mc->default_ram_size = 128 * M_BYTE;
+    mc->default_ram_size = 128 * MiB;
     mc->rom_file_has_mr = true;
 
     /* numa node memory size aligned on 8MB by default.
