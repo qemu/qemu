@@ -1355,6 +1355,7 @@ static int tcg_cpu_exec(CPUState *cpu)
     int64_t ti;
 #endif
 
+    assert(tcg_enabled());
 #ifdef CONFIG_PROFILER
     ti = profile_getclock();
 #endif
@@ -1397,6 +1398,7 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
 
+    assert(tcg_enabled());
     rcu_register_thread();
     tcg_register_thread();
 
@@ -1631,6 +1633,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
 
+    assert(tcg_enabled());
     g_assert(!use_icount);
 
     rcu_register_thread();
@@ -1854,6 +1857,7 @@ static void qemu_tcg_init_vcpu(CPUState *cpu)
     static QemuThread *single_tcg_cpu_thread;
     static int tcg_region_inited;
 
+    assert(tcg_enabled());
     /*
      * Initialize TCG regions--once. Now is a good time, because:
      * (1) TCG's init context, prologue and target globals have been set up.

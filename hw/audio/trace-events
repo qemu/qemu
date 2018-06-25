@@ -17,3 +17,9 @@ milkymist_ac97_in_cb(int avail, uint32_t remaining) "avail %d remaining %u"
 milkymist_ac97_in_cb_transferred(int transferred) "transferred %d"
 milkymist_ac97_out_cb(int free, uint32_t remaining) "free %d remaining %u"
 milkymist_ac97_out_cb_transferred(int transferred) "transferred %d"
+
+# hw/audio/hda-codec.c
+hda_audio_running(const char *stream, int nr, bool running) "st %s, nr %d, run %d"
+hda_audio_format(const char *stream, int chan, const char *fmt, int freq) "st %s, %d x %s @ %d Hz"
+hda_audio_adjust(const char *stream, int pos) "st %s, pos %d"
+hda_audio_overrun(const char *stream) "st %s"

@@ -335,9 +335,8 @@ static int audio_get_conf_int (const char *key, int defval, int *defaultp)
     char *strval;
 
     strval = getenv (key);
-    if (strval) {
+    if (strval && !qemu_strtoi(strval, NULL, 10, &val)) {
         *defaultp = 0;
-        val = atoi (strval);
         return val;
     }
     else {

@@ -6,6 +6,10 @@
         .driver   = "migration",\
         .property = "decompress-error-check",\
         .value    = "off",\
+    },{\
+        .driver   = "hda-audio",\
+        .property = "use-timer",\
+        .value    = "false",\
     },
 
 #define HW_COMPAT_2_11 \
