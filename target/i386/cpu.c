@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/bitops.h"
 
 #include "cpu.h"
 #include "exec/exec-all.h"
@@ -427,6 +428,110 @@ static void encode_cache_cpuid8000001d(CPUCacheInfo *cache, CPUState *cs,
            (cache->complex_indexing ? CACHE_COMPLEX_IDX : 0);
 }
 
+/* Data structure to hold the configuration info for a given core index */
+struct core_topology {
+    /* core complex id of the current core index */
+    int ccx_id;
+    /*
+     * Adjusted core index for this core in the topology
+     * This can be 0,1,2,3 with max 4 cores in a core complex
+     */
+    int core_id;
+    /* Node id for this core index */
+    int node_id;
+    /* Number of nodes in this config */
+    int num_nodes;
+};
+
+/*
+ * Build the configuration closely match the EPYC hardware. Using the EPYC
+ * hardware configuration values (MAX_CCX, MAX_CORES_IN_CCX, MAX_CORES_IN_NODE)
+ * right now. This could change in future.
+ * nr_cores : Total number of cores in the config
+ * core_id  : Core index of the current CPU
+ * topo     : Data structure to hold all the config info for this core index
+ */
+static void build_core_topology(int nr_cores, int core_id,
+                                struct core_topology *topo)
+{
+    int nodes, cores_in_ccx;
+
+    /* First get the number of nodes required */
+    nodes = nodes_in_socket(nr_cores);
+
+    cores_in_ccx = cores_in_core_complex(nr_cores);
+
+    topo->node_id = core_id / (cores_in_ccx * MAX_CCX);
+    topo->ccx_id = (core_id % (cores_in_ccx * MAX_CCX)) / cores_in_ccx;
+    topo->core_id = core_id % cores_in_ccx;
+    topo->num_nodes = nodes;
+}
+
+/* Encode cache info for CPUID[8000001E] */
+static void encode_topo_cpuid8000001e(CPUState *cs, X86CPU *cpu,
+                                       uint32_t *eax, uint32_t *ebx,
+                                       uint32_t *ecx, uint32_t *edx)
+{
+    struct core_topology topo = {0};
+    unsigned long nodes;
+    int shift;
+
+    build_core_topology(cs->nr_cores, cpu->core_id, &topo);
+    *eax = cpu->apic_id;
+    /*
+     * CPUID_Fn8000001E_EBX
+     * 31:16 Reserved
+     * 15:8  Threads per core (The number of threads per core is
+     *       Threads per core + 1)
+     *  7:0  Core id (see bit decoding below)
+     *       SMT:
+     *           4:3 node id
+     *             2 Core complex id
+     *           1:0 Core id
+     *       Non SMT:
+     *           5:4 node id
+     *             3 Core complex id
+     *           1:0 Core id
+     */
+    if (cs->nr_threads - 1) {
+        *ebx = ((cs->nr_threads - 1) << 8) | (topo.node_id << 3) |
+                (topo.ccx_id << 2) | topo.core_id;
+    } else {
+        *ebx = (topo.node_id << 4) | (topo.ccx_id << 3) | topo.core_id;
+    }
+    /*
+     * CPUID_Fn8000001E_ECX
+     * 31:11 Reserved
+     * 10:8  Nodes per processor (Nodes per processor is number of nodes + 1)
+     *  7:0  Node id (see bit decoding below)
+     *         2  Socket id
+     *       1:0  Node id
+     */
+    if (topo.num_nodes <= 4) {
+        *ecx = ((topo.num_nodes - 1) << 8) | (cpu->socket_id << 2) |
+                topo.node_id;
+    } else {
+        /*
+         * Node id fix up. Actual hardware supports up to 4 nodes. But with
+         * more than 32 cores, we may end up with more than 4 nodes.
+         * Node id is a combination of socket id and node id. Only requirement
+         * here is that this number should be unique accross the system.
+         * Shift the socket id to accommodate more nodes. We dont expect both
+         * socket id and node id to be big number at the same time. This is not
+         * an ideal config but we need to to support it. Max nodes we can have
+         * is 32 (255/8) with 8 cores per node and 255 max cores. We only need
+         * 5 bits for nodes. Find the left most set bit to represent the total
+         * number of nodes. find_last_bit returns last set bit(0 based). Left
+         * shift(+1) the socket id to represent all the nodes.
+         */
+        nodes = topo.num_nodes - 1;
+        shift = find_last_bit(&nodes, 8);
+        *ecx = ((topo.num_nodes - 1) << 8) | (cpu->socket_id << (shift + 1)) |
+                topo.node_id;
+    }
+    *edx = 0;
+}
+
 /*
  * Definitions of the hardcoded cache entries we expose:
  * These are legacy cache values. If there is a need to change any
@@ -657,7 +762,8 @@ static void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
           CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
           CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
           CPUID_7_0_EBX_RDSEED */
-#define TCG_7_0_ECX_FEATURES (CPUID_7_0_ECX_PKU | CPUID_7_0_ECX_OSPKE | \
+#define TCG_7_0_ECX_FEATURES (CPUID_7_0_ECX_PKU | \
+          /* CPUID_7_0_ECX_OSPKE is dynamic */ \
           CPUID_7_0_ECX_LA57)
 #define TCG_7_0_EDX_FEATURES 0
 #define TCG_APM_FEATURES 0
@@ -707,7 +813,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "fma", "cx16", "xtpr", "pdcm",
             NULL, "pcid", "dca", "sse4.1",
             "sse4.2", "x2apic", "movbe", "popcnt",
-            "tsc-deadline", "aes", "xsave", "osxsave",
+            "tsc-deadline", "aes", "xsave", NULL /* osxsave */,
             "avx", "f16c", "rdrand", "hypervisor",
         },
         .cpuid_eax = 1, .cpuid_reg = R_ECX,
@@ -874,7 +980,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_7_0_ECX] = {
         .feat_names = {
             NULL, "avx512vbmi", "umip", "pku",
-            "ospke", NULL, "avx512vbmi2", NULL,
+            NULL /* ospke */, NULL, "avx512vbmi2", NULL,
             "gfni", "vaes", "vpclmulqdq", "avx512vnni",
             "avx512bitalg", NULL, "avx512-vpopcntdq", NULL,
             "la57", NULL, NULL, NULL,
@@ -927,7 +1033,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "ibpb", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
-            NULL, "virt-ssbd", NULL, NULL,
+            "amd-ssbd", "virt-ssbd", "amd-no-ssb", NULL,
             NULL, NULL, NULL, NULL,
         },
         .cpuid_eax = 0x80000008,
@@ -2473,7 +2579,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_OSVW | CPUID_EXT3_3DNOWPREFETCH |
             CPUID_EXT3_MISALIGNSSE | CPUID_EXT3_SSE4A | CPUID_EXT3_ABM |
-            CPUID_EXT3_CR8LEG | CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM,
+            CPUID_EXT3_CR8LEG | CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM |
+            CPUID_EXT3_TOPOEXT,
         .features[FEAT_7_0_EBX] =
             CPUID_7_0_EBX_FSGSBASE | CPUID_7_0_EBX_BMI1 | CPUID_7_0_EBX_AVX2 |
             CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_RDSEED |
@@ -2488,7 +2595,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
             CPUID_6_EAX_ARAT,
-        .xlevel = 0x8000000A,
+        .xlevel = 0x8000001E,
         .model_id = "AMD EPYC Processor",
         .cache_info = &epyc_cache_info,
     },
@@ -2518,7 +2625,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_OSVW | CPUID_EXT3_3DNOWPREFETCH |
             CPUID_EXT3_MISALIGNSSE | CPUID_EXT3_SSE4A | CPUID_EXT3_ABM |
-            CPUID_EXT3_CR8LEG | CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM,
+            CPUID_EXT3_CR8LEG | CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM |
+            CPUID_EXT3_TOPOEXT,
         .features[FEAT_8000_0008_EBX] =
             CPUID_8000_0008_EBX_IBPB,
         .features[FEAT_7_0_EBX] =
@@ -2535,7 +2643,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
             CPUID_6_EAX_ARAT,
-        .xlevel = 0x8000000A,
+        .xlevel = 0x8000001E,
         .model_id = "AMD EPYC Processor (with IBPB)",
         .cache_info = &epyc_cache_info,
     },
@@ -3250,17 +3358,21 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
 
 /* Print all cpuid feature names in featureset
  */
-static void listflags(FILE *f, fprintf_function print, const char **featureset)
+static void listflags(FILE *f, fprintf_function print, GList *features)
 {
-    int bit;
-    bool first = true;
+    size_t len = 0;
+    GList *tmp;
 
-    for (bit = 0; bit < 32; bit++) {
-        if (featureset[bit]) {
-            print(f, "%s%s", first ? "" : " ", featureset[bit]);
-            first = false;
+    for (tmp = features; tmp; tmp = tmp->next) {
+        const char *name = tmp->data;
+        if ((len + strlen(name) + 1) >= 75) {
+            print(f, "\n");
+            len = 0;
         }
+        print(f, "%s%s", len == 0 ? "  " : " ", name);
+        len += strlen(name) + 1;
     }
+    print(f, "\n");
 }
 
 /* Sort alphabetically by type name, respecting X86CPUClass::ordering. */
@@ -3270,15 +3382,19 @@ static gint x86_cpu_list_compare(gconstpointer a, gconstpointer b)
     ObjectClass *class_b = (ObjectClass *)b;
     X86CPUClass *cc_a = X86_CPU_CLASS(class_a);
     X86CPUClass *cc_b = X86_CPU_CLASS(class_b);
-    const char *name_a, *name_b;
+    char *name_a, *name_b;
+    int ret;
 
     if (cc_a->ordering != cc_b->ordering) {
-        return cc_a->ordering - cc_b->ordering;
+        ret = cc_a->ordering - cc_b->ordering;
     } else {
-        name_a = object_class_get_name(class_a);
-        name_b = object_class_get_name(class_b);
-        return strcmp(name_a, name_b);
+        name_a = x86_cpu_class_get_model_name(cc_a);
+        name_b = x86_cpu_class_get_model_name(cc_b);
+        ret = strcmp(name_a, name_b);
+        g_free(name_a);
+        g_free(name_b);
     }
+    return ret;
 }
 
 static GSList *get_sorted_cpu_model_list(void)
@@ -3299,7 +3415,7 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
         desc = cc->cpu_def->model_id;
     }
 
-    (*s->cpu_fprintf)(s->file, "x86 %16s  %-48s\n",
+    (*s->cpu_fprintf)(s->file, "x86 %-20s  %-48s\n",
                       name, desc);
     g_free(name);
 }
@@ -3307,26 +3423,35 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
 /* list available CPU models and flags */
 void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    int i;
+    int i, j;
     CPUListState s = {
         .file = f,
         .cpu_fprintf = cpu_fprintf,
     };
     GSList *list;
+    GList *names = NULL;
 
     (*cpu_fprintf)(f, "Available CPUs:\n");
     list = get_sorted_cpu_model_list();
     g_slist_foreach(list, x86_cpu_list_entry, &s);
     g_slist_free(list);
 
-    (*cpu_fprintf)(f, "\nRecognized CPUID flags:\n");
+    names = NULL;
     for (i = 0; i < ARRAY_SIZE(feature_word_info); i++) {
         FeatureWordInfo *fw = &feature_word_info[i];
-
-        (*cpu_fprintf)(f, "  ");
-        listflags(f, cpu_fprintf, fw->feat_names);
-        (*cpu_fprintf)(f, "\n");
+        for (j = 0; j < 32; j++) {
+            if (fw->feat_names[j]) {
+                names = g_list_append(names, (gpointer)fw->feat_names[j]);
+            }
+        }
     }
+
+    names = g_list_sort(names, (GCompareFunc)strcmp);
+
+    (*cpu_fprintf)(f, "\nRecognized CPUID flags:\n");
+    listflags(f, cpu_fprintf, names);
+    (*cpu_fprintf)(f, "\n");
+    g_list_free(names);
 }
 
 static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
@@ -4120,6 +4245,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             break;
         }
         break;
+    case 0x8000001E:
+        assert(cpu->core_id <= 255);
+        encode_topo_cpuid8000001e(cs, cpu,
+                                  eax, ebx, ecx, edx);
+        break;
     case 0xC0000000:
         *eax = env->cpuid_xlevel2;
         *ebx = 0;
@@ -4855,17 +4985,22 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
 
-    /* Only Intel CPUs support hyperthreading. Even though QEMU fixes this
-     * issue by adjusting CPUID_0000_0001_EBX and CPUID_8000_0008_ECX
-     * based on inputs (sockets,cores,threads), it is still better to gives
+    /*
+     * Most Intel and certain AMD CPUs support hyperthreading. Even though QEMU
+     * fixes this issue by adjusting CPUID_0000_0001_EBX and CPUID_8000_0008_ECX
+     * based on inputs (sockets,cores,threads), it is still better to give
      * users a warning.
      *
      * NOTE: the following code has to follow qemu_init_vcpu(). Otherwise
      * cs->nr_threads hasn't be populated yet and the checking is incorrect.
      */
-    if (!IS_INTEL_CPU(env) && cs->nr_threads > 1 && !ht_warned) {
-        error_report("AMD CPU doesn't support hyperthreading. Please configure"
-                     " -smp options properly.");
+     if (IS_AMD_CPU(env) &&
+         !(env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT) &&
+         cs->nr_threads > 1 && !ht_warned) {
+            error_report("This family of AMD CPU doesn't support "
+                         "hyperthreading(%d). Please configure -smp "
+                         "options properly or try enabling topoext feature.",
+                         cs->nr_threads);
         ht_warned = true;
     }
 

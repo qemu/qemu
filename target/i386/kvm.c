@@ -372,6 +372,13 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         if (host_tsx_blacklisted()) {
             ret &= ~(CPUID_7_0_EBX_RTM | CPUID_7_0_EBX_HLE);
         }
+    } else if (function == 0x80000001 && reg == R_ECX) {
+        /*
+         * It's safe to enable TOPOEXT even if it's not returned by
+         * GET_SUPPORTED_CPUID.  Unconditionally enabling TOPOEXT here allows
+         * us to keep CPU models including TOPOEXT runnable on older kernels.
+         */
+        ret |= CPUID_EXT3_TOPOEXT;
     } else if (function == 0x80000001 && reg == R_EDX) {
         /* On Intel, kvm returns cpuid according to the Intel spec,
          * so add missing bits according to the AMD spec:
