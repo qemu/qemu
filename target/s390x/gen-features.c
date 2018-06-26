@@ -512,6 +512,8 @@ static uint16_t default_GEN11_GA1[] = {
     S390_FEAT_IPTE_RANGE,
     S390_FEAT_ACCESS_EXCEPTION_FS_INDICATION,
     S390_FEAT_GROUP_MSA_EXT_4,
+    S390_FEAT_PPA15,
+    S390_FEAT_BPB,
 };
 
 #define default_GEN11_GA2 EmptyFeat

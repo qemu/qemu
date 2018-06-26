@@ -824,6 +824,8 @@ DEFINE_CCW_MACHINE(3_0, "3.0", true);
 static void ccw_machine_2_12_instance_options(MachineState *machine)
 {
     ccw_machine_3_0_instance_options(machine);
+    s390_cpudef_featoff_greater(11, 1, S390_FEAT_PPA15);
+    s390_cpudef_featoff_greater(11, 1, S390_FEAT_BPB);
 }
 
 static void ccw_machine_2_12_class_options(MachineClass *mc)
