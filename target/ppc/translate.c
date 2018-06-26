@@ -3095,61 +3095,60 @@ LARX(lbarx, DEF_MEMOP(MO_UB))
 LARX(lharx, DEF_MEMOP(MO_UW))
 LARX(lwarx, DEF_MEMOP(MO_UL))
 
-#define LD_ATOMIC(name, memop, tp, op, eop)                             \
-static void gen_##name(DisasContext *ctx)                               \
-{                                                                       \
-    int len = MEMOP_GET_SIZE(memop);                                    \
-    uint32_t gpr_FC = FC(ctx->opcode);                                  \
-    TCGv EA = tcg_temp_local_new();                                     \
-    TCGv_##tp t0, t1;                                                   \
-                                                                        \
-    gen_addr_register(ctx, EA);                                         \
-    if (len > 1) {                                                      \
-        gen_check_align(ctx, EA, len - 1);                              \
-    }                                                                   \
-    t0 = tcg_temp_new_##tp();                                           \
-    t1 = tcg_temp_new_##tp();                                           \
-    tcg_gen_##op(t0, cpu_gpr[rD(ctx->opcode) + 1]);                     \
-                                                                        \
-    switch (gpr_FC) {                                                   \
-    case 0: /* Fetch and add */                                         \
-        tcg_gen_atomic_fetch_add_##tp(t1, EA, t0, ctx->mem_idx, memop); \
-        break;                                                          \
-    case 1: /* Fetch and xor */                                         \
-        tcg_gen_atomic_fetch_xor_##tp(t1, EA, t0, ctx->mem_idx, memop); \
-        break;                                                          \
-    case 2: /* Fetch and or */                                          \
-        tcg_gen_atomic_fetch_or_##tp(t1, EA, t0, ctx->mem_idx, memop);  \
-        break;                                                          \
-    case 3: /* Fetch and 'and' */                                       \
-        tcg_gen_atomic_fetch_and_##tp(t1, EA, t0, ctx->mem_idx, memop); \
-        break;                                                          \
-    case 8: /* Swap */                                                  \
-        tcg_gen_atomic_xchg_##tp(t1, EA, t0, ctx->mem_idx, memop);      \
-        break;                                                          \
-    case 4:  /* Fetch and max unsigned */                               \
-    case 5:  /* Fetch and max signed */                                 \
-    case 6:  /* Fetch and min unsigned */                               \
-    case 7:  /* Fetch and min signed */                                 \
-    case 16: /* compare and swap not equal */                           \
-    case 24: /* Fetch and increment bounded */                          \
-    case 25: /* Fetch and increment equal */                            \
-    case 28: /* Fetch and decrement bounded */                          \
-        gen_invalid(ctx);                                               \
-        break;                                                          \
-    default:                                                            \
-        /* invoke data storage error handler */                         \
-        gen_exception_err(ctx, POWERPC_EXCP_DSI, POWERPC_EXCP_INVAL);   \
-    }                                                                   \
-    tcg_gen_##eop(cpu_gpr[rD(ctx->opcode)], t1);                        \
-    tcg_temp_free_##tp(t0);                                             \
-    tcg_temp_free_##tp(t1);                                             \
-    tcg_temp_free(EA);                                                  \
+static void gen_ld_atomic(DisasContext *ctx, TCGMemOp memop)
+{
+    uint32_t gpr_FC = FC(ctx->opcode);
+    TCGv EA = tcg_temp_new();
+    TCGv src, dst;
+
+    gen_addr_register(ctx, EA);
+    dst = cpu_gpr[rD(ctx->opcode)];
+    src = cpu_gpr[rD(ctx->opcode) + 1];
+
+    memop |= MO_ALIGN;
+    switch (gpr_FC) {
+    case 0: /* Fetch and add */
+        tcg_gen_atomic_fetch_add_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 1: /* Fetch and xor */
+        tcg_gen_atomic_fetch_xor_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 2: /* Fetch and or */
+        tcg_gen_atomic_fetch_or_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 3: /* Fetch and 'and' */
+        tcg_gen_atomic_fetch_and_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 8: /* Swap */
+        tcg_gen_atomic_xchg_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 4:  /* Fetch and max unsigned */
+    case 5:  /* Fetch and max signed */
+    case 6:  /* Fetch and min unsigned */
+    case 7:  /* Fetch and min signed */
+    case 16: /* compare and swap not equal */
+    case 24: /* Fetch and increment bounded */
+    case 25: /* Fetch and increment equal */
+    case 28: /* Fetch and decrement bounded */
+        gen_invalid(ctx);
+        break;
+    default:
+        /* invoke data storage error handler */
+        gen_exception_err(ctx, POWERPC_EXCP_DSI, POWERPC_EXCP_INVAL);
+    }
+    tcg_temp_free(EA);
 }
 
-LD_ATOMIC(lwat, DEF_MEMOP(MO_UL), i32, trunc_tl_i32, extu_i32_tl)
-#if defined(TARGET_PPC64)
-LD_ATOMIC(ldat, DEF_MEMOP(MO_Q), i64, mov_i64, mov_i64)
+static void gen_lwat(DisasContext *ctx)
+{
+    gen_ld_atomic(ctx, DEF_MEMOP(MO_UL));
+}
+
+#ifdef TARGET_PPC64
+static void gen_ldat(DisasContext *ctx)
+{
+    gen_ld_atomic(ctx, DEF_MEMOP(MO_Q));
+}
 #endif
 
 #define ST_ATOMIC(name, memop, tp, op)                                  \
