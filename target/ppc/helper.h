@@ -803,4 +803,8 @@ DEF_HELPER_FLAGS_1(fixup_thrm, TCG_CALL_NO_RWG, void, env)
 #if defined(TARGET_PPC64) && defined(CONFIG_ATOMIC128)
 DEF_HELPER_FLAGS_3(lq_le_parallel, TCG_CALL_NO_WG, i64, env, tl, i32)
 DEF_HELPER_FLAGS_3(lq_be_parallel, TCG_CALL_NO_WG, i64, env, tl, i32)
+DEF_HELPER_FLAGS_5(stq_le_parallel, TCG_CALL_NO_WG,
+                   void, env, tl, i64, i64, i32)
+DEF_HELPER_FLAGS_5(stq_be_parallel, TCG_CALL_NO_WG,
+                   void, env, tl, i64, i64, i32)
 #endif

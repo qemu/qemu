@@ -2760,6 +2760,7 @@ static void gen_std(DisasContext *ctx)
     if ((ctx->opcode & 0x3) == 0x2) { /* stq */
         bool legal_in_user_mode = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
         bool le_is_supported = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
+        TCGv hi, lo;
 
         if (!(ctx->insns_flags & PPC_64BX)) {
             gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
@@ -2783,20 +2784,38 @@ static void gen_std(DisasContext *ctx)
         EA = tcg_temp_new();
         gen_addr_imm_index(ctx, EA, 0x03);
 
-        /* We only need to swap high and low halves. gen_qemu_st64_i64 does
-           necessary 64-bit byteswap already. */
-        if (unlikely(ctx->le_mode)) {
-            gen_qemu_st64_i64(ctx, cpu_gpr[rs + 1], EA);
+        /* Note that the low part is always in RS+1, even in LE mode.  */
+        lo = cpu_gpr[rs + 1];
+        hi = cpu_gpr[rs];
+
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+#ifdef CONFIG_ATOMIC128
+            TCGv_i32 oi = tcg_temp_new_i32();
+            if (ctx->le_mode) {
+                tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ, ctx->mem_idx));
+                gen_helper_stq_le_parallel(cpu_env, EA, lo, hi, oi);
+            } else {
+                tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ, ctx->mem_idx));
+                gen_helper_stq_be_parallel(cpu_env, EA, lo, hi, oi);
+            }
+            tcg_temp_free_i32(oi);
+#else
+            /* Restart with exclusive lock.  */
+            gen_helper_exit_atomic(cpu_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
+#endif
+        } else if (ctx->le_mode) {
+            tcg_gen_qemu_st_i64(lo, EA, ctx->mem_idx, MO_LEQ);
             gen_addr_add(ctx, EA, EA, 8);
-            gen_qemu_st64_i64(ctx, cpu_gpr[rs], EA);
+            tcg_gen_qemu_st_i64(hi, EA, ctx->mem_idx, MO_LEQ);
         } else {
-            gen_qemu_st64_i64(ctx, cpu_gpr[rs], EA);
+            tcg_gen_qemu_st_i64(hi, EA, ctx->mem_idx, MO_BEQ);
             gen_addr_add(ctx, EA, EA, 8);
-            gen_qemu_st64_i64(ctx, cpu_gpr[rs + 1], EA);
+            tcg_gen_qemu_st_i64(lo, EA, ctx->mem_idx, MO_BEQ);
         }
         tcg_temp_free(EA);
     } else {
-        /* std / stdu*/
+        /* std / stdu */
         if (Rc(ctx->opcode)) {
             if (unlikely(rA(ctx->opcode) == 0)) {
                 gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
