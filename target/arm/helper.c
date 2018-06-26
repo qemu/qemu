@@ -9596,6 +9596,7 @@ static inline bool m_is_system_region(CPUARMState *env, uint32_t address)
 static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
                                  MMUAccessType access_type, ARMMMUIdx mmu_idx,
                                  hwaddr *phys_ptr, int *prot,
+                                 target_ulong *page_size,
                                  ARMMMUFaultInfo *fi)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
@@ -9603,6 +9604,7 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
     bool is_user = regime_is_user(env, mmu_idx);
 
     *phys_ptr = address;
+    *page_size = TARGET_PAGE_SIZE;
     *prot = 0;
 
     if (regime_translation_disabled(env, mmu_idx) ||
@@ -9675,15 +9677,11 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
                     rsize++;
                 }
             }
-            if (rsize < TARGET_PAGE_BITS) {
-                qemu_log_mask(LOG_UNIMP,
-                              "DRSR[%d]: No support for MPU (sub)region size of"
-                              " %" PRIu32 " bytes. Minimum is %d.\n",
-                              n, (1 << rsize), TARGET_PAGE_SIZE);
-                continue;
-            }
             if (srdis) {
                 continue;
+            }
+            if (rsize < TARGET_PAGE_BITS) {
+                *page_size = 1 << rsize;
             }
             break;
         }
@@ -9765,6 +9763,17 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
 
     fi->type = ARMFault_Permission;
     fi->level = 1;
+    /*
+     * Core QEMU code can't handle execution from small pages yet, so
+     * don't try it. This way we'll get an MPU exception, rather than
+     * eventually causing QEMU to exit in get_page_addr_code().
+     */
+    if (*page_size < TARGET_PAGE_SIZE && (*prot & PAGE_EXEC)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "MPU: No support for execution from regions "
+                      "smaller than 1K\n");
+        *prot &= ~PAGE_EXEC;
+    }
     return !(*prot & (1 << access_type));
 }
 
@@ -10334,7 +10343,7 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
         } else if (arm_feature(env, ARM_FEATURE_V7)) {
             /* PMSAv7 */
             ret = get_phys_addr_pmsav7(env, address, access_type, mmu_idx,
-                                       phys_ptr, prot, fi);
+                                       phys_ptr, prot, page_size, fi);
         } else {
             /* Pre-v7 MPU */
             ret = get_phys_addr_pmsav5(env, address, access_type, mmu_idx,
@@ -10396,9 +10405,15 @@ bool arm_tlb_fill(CPUState *cs, vaddr address,
                         core_to_arm_mmu_idx(env, mmu_idx), &phys_addr,
                         &attrs, &prot, &page_size, fi, NULL);
     if (!ret) {
-        /* Map a single [sub]page.  */
-        phys_addr &= TARGET_PAGE_MASK;
-        address &= TARGET_PAGE_MASK;
+        /*
+         * Map a single [sub]page. Regions smaller than our declared
+         * target page size are handled specially, so for those we
+         * pass in the exact addresses.
+         */
+        if (page_size >= TARGET_PAGE_SIZE) {
+            phys_addr &= TARGET_PAGE_MASK;
+            address &= TARGET_PAGE_MASK;
+        }
         tlb_set_page_with_attrs(cs, address, phys_addr, attrs,
                                 prot, mmu_idx, page_size);
         return 0;
