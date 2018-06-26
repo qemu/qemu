@@ -801,7 +801,7 @@ static void ahci_write_fis_sdb(AHCIState *s, NCQTransferState *ncq_tfs)
     }
 }
 
-static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
+static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len, bool pio_fis_i)
 {
     AHCIPortRegs *pr = &ad->port_regs;
     uint8_t *pio_fis;
@@ -814,7 +814,7 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
     pio_fis = &ad->res_fis[RES_FIS_PSFIS];
 
     pio_fis[0] = SATA_FIS_TYPE_PIO_SETUP;
-    pio_fis[1] = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
+    pio_fis[1] = (pio_fis_i ? (1 << 6) : 0);
     pio_fis[2] = s->status;
     pio_fis[3] = s->error;
 
@@ -842,8 +842,6 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
     if (pio_fis[2] & ERR_STAT) {
         ahci_trigger_irq(ad->hba, ad, AHCI_PORT_IRQ_BIT_TFES);
     }
-
-    ahci_trigger_irq(ad->hba, ad, AHCI_PORT_IRQ_BIT_PSS);
 }
 
 static bool ahci_write_fis_d2h(AHCIDevice *ad)
@@ -860,7 +858,7 @@ static bool ahci_write_fis_d2h(AHCIDevice *ad)
     d2h_fis = &ad->res_fis[RES_FIS_RFIS];
 
     d2h_fis[0] = SATA_FIS_TYPE_REGISTER_D2H;
-    d2h_fis[1] = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
+    d2h_fis[1] = (1 << 6); /* interrupt bit */
     d2h_fis[2] = s->status;
     d2h_fis[3] = s->error;
 
@@ -1258,11 +1256,10 @@ static void handle_reg_h2d_fis(AHCIState *s, int port,
             trace_handle_reg_h2d_fis_dump(s, port, pretty_fis);
             g_free(pretty_fis);
         }
-        s->dev[port].done_atapi_packet = false;
     }
 
     ide_state->error = 0;
-
+    s->dev[port].done_first_drq = false;
     /* Reset transferred byte counter */
     cmd->status = 0;
 
@@ -1351,13 +1348,23 @@ static void ahci_pio_transfer(IDEDMA *dma)
     int is_write = opts & AHCI_CMD_WRITE;
     int is_atapi = opts & AHCI_CMD_ATAPI;
     int has_sglist = 0;
+    bool pio_fis_i;
 
-    /* PIO FIS gets written prior to transfer */
-    ahci_write_fis_pio(ad, size);
+    /* The PIO Setup FIS is received prior to transfer, but the interrupt
+     * is only triggered after data is received.
+     *
+     * The device only sets the 'I' bit in the PIO Setup FIS for device->host
+     * requests (see "DPIOI1" in the SATA spec), or for host->device DRQs after
+     * the first (see "DPIOO1").  The latter is consistent with the spec's
+     * description of the PACKET protocol, where the command part of ATAPI requests
+     * ("DPKT0") has the 'I' bit clear, while the data part of PIO ATAPI requests
+     * ("DPKT4a" and "DPKT7") has the 'I' bit set for both directions for all DRQs.
+     */
+    pio_fis_i = ad->done_first_drq || (!is_atapi && !is_write);
+    ahci_write_fis_pio(ad, size, pio_fis_i);
 
-    if (is_atapi && !ad->done_atapi_packet) {
+    if (is_atapi && !ad->done_first_drq) {
         /* already prepopulated iobuffer */
-        ad->done_atapi_packet = true;
         goto out;
     }
 
@@ -1379,9 +1386,15 @@ static void ahci_pio_transfer(IDEDMA *dma)
 
     /* Update number of transferred bytes, destroy sglist */
     dma_buf_commit(s, size);
+
 out:
     /* declare that we processed everything */
     s->data_ptr = s->data_end;
+
+    ad->done_first_drq = true;
+    if (pio_fis_i) {
+        ahci_trigger_irq(ad->hba, ad, AHCI_PORT_IRQ_BIT_PSS);
+    }
 }
 
 static void ahci_start_dma(IDEDMA *dma, IDEState *s,
@@ -1627,7 +1640,7 @@ static const VMStateDescription vmstate_ahci_device = {
         VMSTATE_UINT32(port_regs.scr_err, AHCIDevice),
         VMSTATE_UINT32(port_regs.scr_act, AHCIDevice),
         VMSTATE_UINT32(port_regs.cmd_issue, AHCIDevice),
-        VMSTATE_BOOL(done_atapi_packet, AHCIDevice),
+        VMSTATE_BOOL(done_first_drq, AHCIDevice),
         VMSTATE_INT32(busy_slot, AHCIDevice),
         VMSTATE_BOOL(init_d2h_sent, AHCIDevice),
         VMSTATE_STRUCT_ARRAY(ncq_tfs, AHCIDevice, AHCI_MAX_CMDS,
