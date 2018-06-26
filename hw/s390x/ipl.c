@@ -33,7 +33,6 @@
 #define KERN_PARM_AREA                  0x010480UL
 #define INITRD_START                    0x800000UL
 #define INITRD_PARM_START               0x010408UL
-#define INITRD_PARM_SIZE                0x010410UL
 #define PARMFILE_START                  0x001000UL
 #define ZIPL_IMAGE_START                0x009000UL
 #define IPL_PSW_MASK                    (PSW_MASK_32 | PSW_MASK_64)
@@ -165,12 +164,12 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
                 goto error;
             }
             /* if this is Linux use KERN_IMAGE_START */
-            magic = rom_ptr(LINUX_MAGIC_ADDR);
+            magic = rom_ptr(LINUX_MAGIC_ADDR, 6);
             if (magic && !memcmp(magic, "S390EP", 6)) {
                 pentry = KERN_IMAGE_START;
             } else {
                 /* if not Linux load the address of the (short) IPL PSW */
-                ipl_psw = rom_ptr(4);
+                ipl_psw = rom_ptr(4, 4);
                 if (ipl_psw) {
                     pentry = be32_to_cpu(*ipl_psw) & 0x7fffffffUL;
                 } else {
@@ -186,9 +185,12 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
          * loader) and it won't work. For this case we force it to 0x10000, too.
          */
         if (pentry == KERN_IMAGE_START || pentry == 0x800) {
+            char *parm_area = rom_ptr(KERN_PARM_AREA, strlen(ipl->cmdline) + 1);
             ipl->start_addr = KERN_IMAGE_START;
             /* Overwrite parameters in the kernel image, which are "rom" */
-            strcpy(rom_ptr(KERN_PARM_AREA), ipl->cmdline);
+            if (parm_area) {
+                strcpy(parm_area, ipl->cmdline);
+            }
         } else {
             ipl->start_addr = pentry;
         }
@@ -196,6 +198,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
         if (ipl->initrd) {
             ram_addr_t initrd_offset;
             int initrd_size;
+            uint64_t *romptr;
 
             initrd_offset = INITRD_START;
             while (kernel_size + 0x100000 > initrd_offset) {
@@ -212,8 +215,11 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
              * we have to overwrite values in the kernel image,
              * which are "rom"
              */
-            stq_p(rom_ptr(INITRD_PARM_START), initrd_offset);
-            stq_p(rom_ptr(INITRD_PARM_SIZE), initrd_size);
+            romptr = rom_ptr(INITRD_PARM_START, 16);
+            if (romptr) {
+                stq_p(romptr, initrd_offset);
+                stq_p(romptr + 1, initrd_size);
+            }
         }
     }
     /*
