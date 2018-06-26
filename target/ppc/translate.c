@@ -3201,14 +3201,17 @@ ST_ATOMIC(stwat, DEF_MEMOP(MO_UL), i32, trunc_tl_i32)
 ST_ATOMIC(stdat, DEF_MEMOP(MO_Q), i64, mov_i64)
 #endif
 
-static void gen_conditional_store(DisasContext *ctx, TCGv EA,
-                                  int reg, int memop)
+static void gen_conditional_store(DisasContext *ctx, TCGMemOp memop)
 {
     TCGLabel *l1 = gen_new_label();
     TCGLabel *l2 = gen_new_label();
-    TCGv t0;
+    TCGv t0 = tcg_temp_new();
+    int reg = rS(ctx->opcode);
 
-    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, l1);
+    gen_set_access_type(ctx, ACCESS_RES);
+    gen_addr_reg_index(ctx, t0);
+    tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
+    tcg_temp_free(t0);
 
     t0 = tcg_temp_new();
     tcg_gen_atomic_cmpxchg_tl(t0, cpu_reserve, cpu_reserve_val,
@@ -3232,19 +3235,10 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
     tcg_gen_movi_tl(cpu_reserve, -1);
 }
 
-#define STCX(name, memop)                                   \
-static void gen_##name(DisasContext *ctx)                   \
-{                                                           \
-    TCGv t0;                                                \
-    int len = MEMOP_GET_SIZE(memop);                        \
-    gen_set_access_type(ctx, ACCESS_RES);                   \
-    t0 = tcg_temp_local_new();                              \
-    gen_addr_reg_index(ctx, t0);                            \
-    if (len > 1) {                                          \
-        gen_check_align(ctx, t0, (len) - 1);                \
-    }                                                       \
-    gen_conditional_store(ctx, t0, rS(ctx->opcode), memop); \
-    tcg_temp_free(t0);                                      \
+#define STCX(name, memop)                  \
+static void gen_##name(DisasContext *ctx)  \
+{                                          \
+    gen_conditional_store(ctx, memop);     \
 }
 
 STCX(stbcx_, DEF_MEMOP(MO_UB))
