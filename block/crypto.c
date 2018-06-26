@@ -160,7 +160,7 @@ block_crypto_open_opts_init(QCryptoBlockFormat format,
     ret->format = format;
 
     v = qobject_input_visitor_new_flat_confused(opts, &local_err);
-    if (local_err) {
+    if (!v) {
         goto out;
     }
 
@@ -214,7 +214,7 @@ block_crypto_create_opts_init(QCryptoBlockFormat format,
     ret->format = format;
 
     v = qobject_input_visitor_new_flat_confused(opts, &local_err);
-    if (local_err) {
+    if (!v) {
         goto out;
     }
 
