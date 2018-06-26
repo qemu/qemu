@@ -2708,6 +2708,7 @@ static void migration_calculate_complete(MigrationState *s)
 {
     uint64_t bytes = qemu_ftell(s->to_dst_file);
     int64_t end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    int64_t transfer_time;
 
     s->total_time = end_time - s->start_time;
     if (!s->downtime) {
@@ -2718,8 +2719,9 @@ static void migration_calculate_complete(MigrationState *s)
         s->downtime = end_time - s->downtime_start;
     }
 
-    if (s->total_time) {
-        s->mbps = ((double) bytes * 8.0) / s->total_time / 1000;
+    transfer_time = s->total_time - s->setup_time;
+    if (transfer_time) {
+        s->mbps = ((double) bytes * 8.0) / transfer_time / 1000;
     }
 }
 
