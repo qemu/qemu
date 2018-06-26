@@ -89,13 +89,9 @@
     }
 
 QCryptoBlockCreateOptions *
-block_crypto_create_opts_init(QCryptoBlockFormat format,
-                              QDict *opts,
-                              Error **errp);
+block_crypto_create_opts_init(QDict *opts, Error **errp);
 
 QCryptoBlockOpenOptions *
-block_crypto_open_opts_init(QCryptoBlockFormat format,
-                            QDict *opts,
-                            Error **errp);
+block_crypto_open_opts_init(QDict *opts, Error **errp);
 
 #endif /* BLOCK_CRYPTO_H__ */

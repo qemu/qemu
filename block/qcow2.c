@@ -1040,9 +1040,8 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
             ret = -EINVAL;
             goto fail;
         }
-        qdict_del(encryptopts, "format");
-        r->crypto_opts = block_crypto_open_opts_init(
-            Q_CRYPTO_BLOCK_FORMAT_QCOW, encryptopts, errp);
+        qdict_put_str(encryptopts, "format", "qcow");
+        r->crypto_opts = block_crypto_open_opts_init(encryptopts, errp);
         break;
 
     case QCOW_CRYPT_LUKS:
@@ -1053,9 +1052,8 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
             ret = -EINVAL;
             goto fail;
         }
-        qdict_del(encryptopts, "format");
-        r->crypto_opts = block_crypto_open_opts_init(
-            Q_CRYPTO_BLOCK_FORMAT_LUKS, encryptopts, errp);
+        qdict_put_str(encryptopts, "format", "luks");
+        r->crypto_opts = block_crypto_open_opts_init(encryptopts, errp);
         break;
 
     default:
