@@ -3597,7 +3597,7 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset,
         if (clusters_allocated < 0) {
             error_setg_errno(errp, -clusters_allocated,
                              "Failed to allocate data clusters");
-            return -clusters_allocated;
+            return clusters_allocated;
         }
 
         assert(clusters_allocated == nb_new_data_clusters);
