@@ -30,6 +30,10 @@ typedef struct AspeedSCUState {
     uint32_t hw_strap1;
     uint32_t hw_strap2;
     uint32_t hw_prot_key;
+
+    uint32_t clkin;
+    uint32_t hpll;
+    uint32_t apb_freq;
 } AspeedSCUState;
 
 #define AST2400_A0_SILICON_REV   0x02000303U
@@ -58,7 +62,64 @@ extern bool is_supported_silicon_rev(uint32_t silicon_rev);
  *       1. 2012/12/29 Ryan Chen Create
  */
 
-/* Hardware Strapping Register definition (for Aspeed AST2400 SOC)
+/* SCU08   Clock Selection Register
+ *
+ *  31     Enable Video Engine clock dynamic slow down
+ *  30:28  Video Engine clock slow down setting
+ *  27     2D Engine GCLK clock source selection
+ *  26     2D Engine GCLK clock throttling enable
+ *  25:23  APB PCLK divider selection
+ *  22:20  LPC Host LHCLK divider selection
+ *  19     LPC Host LHCLK clock generation/output enable control
+ *  18:16  MAC AHB bus clock divider selection
+ *  15     SD/SDIO clock running enable
+ *  14:12  SD/SDIO divider selection
+ *  11     Reserved
+ *  10:8   Video port output clock delay control bit
+ *  7      ARM CPU/AHB clock slow down enable
+ *  6:4    ARM CPU/AHB clock slow down setting
+ *  3:2    ECLK clock source selection
+ *  1      CPU/AHB clock slow down idle timer
+ *  0      CPU/AHB clock dynamic slow down enable (defined in bit[6:4])
+ */
+#define SCU_CLK_GET_PCLK_DIV(x)                    (((x) >> 23) & 0x7)
+
+/* SCU24   H-PLL Parameter Register (for Aspeed AST2400 SOC)
+ *
+ *  18     H-PLL parameter selection
+ *           0: Select H-PLL by strapping resistors
+ *           1: Select H-PLL by the programmed registers (SCU24[17:0])
+ *  17     Enable H-PLL bypass mode
+ *  16     Turn off H-PLL
+ *  10:5   H-PLL Numerator
+ *  4      H-PLL Output Divider
+ *  3:0    H-PLL Denumerator
+ *
+ *  (Output frequency) = 24MHz * (2-OD) * [(Numerator+2) / (Denumerator+1)]
+ */
+
+#define SCU_AST2400_H_PLL_PROGRAMMED               (0x1 << 18)
+#define SCU_AST2400_H_PLL_BYPASS_EN                (0x1 << 17)
+#define SCU_AST2400_H_PLL_OFF                      (0x1 << 16)
+
+/* SCU24   H-PLL Parameter Register (for Aspeed AST2500 SOC)
+ *
+ *  21     Enable H-PLL reset
+ *  20     Enable H-PLL bypass mode
+ *  19     Turn off H-PLL
+ *  18:13  H-PLL Post Divider
+ *  12:5   H-PLL Numerator (M)
+ *  4:0    H-PLL Denumerator (N)
+ *
+ *  (Output frequency) = CLKIN(24MHz) * [(M+1) / (N+1)] / (P+1)
+ *
+ * The default frequency is 792Mhz when CLKIN = 24MHz
+ */
+
+#define SCU_H_PLL_BYPASS_EN                        (0x1 << 20)
+#define SCU_H_PLL_OFF                              (0x1 << 19)
+
+/* SCU70  Hardware Strapping Register definition (for Aspeed AST2400 SOC)
  *
  * 31:29  Software defined strapping registers
  * 28:27  DRAM size setting (for VGA driver use)
@@ -107,12 +168,13 @@ extern bool is_supported_silicon_rev(uint32_t silicon_rev);
 #define SCU_AST2400_HW_STRAP_GET_CLK_SOURCE(x)     (((((x) >> 23) & 0x1) << 1) \
                                                     | (((x) >> 18) & 0x1))
 #define SCU_AST2400_HW_STRAP_CLK_SOURCE_MASK       ((0x1 << 23) | (0x1 << 18))
-#define     AST2400_CLK_25M_IN                         (0x1 << 23)
+#define SCU_HW_STRAP_CLK_25M_IN                    (0x1 << 23)
 #define     AST2400_CLK_24M_IN                         0
 #define     AST2400_CLK_48M_IN                         1
 #define     AST2400_CLK_25M_IN_24M_USB_CKI             2
 #define     AST2400_CLK_25M_IN_48M_USB_CKI             3
 
+#define SCU_HW_STRAP_CLK_48M_IN                    (0x1 << 18)
 #define SCU_HW_STRAP_2ND_BOOT_WDT                  (0x1 << 17)
 #define SCU_HW_STRAP_SUPER_IO_CONFIG               (0x1 << 16)
 #define SCU_HW_STRAP_VGA_CLASS_CODE                (0x1 << 15)
@@ -160,8 +222,8 @@ extern bool is_supported_silicon_rev(uint32_t silicon_rev);
 #define     AST2400_DIS_BOOT                           3
 
 /*
- * Hardware strapping register definition (for Aspeed AST2500 SoC and
- * higher)
+ * SCU70  Hardware strapping register definition (for Aspeed AST2500
+ *        SoC and higher)
  *
  * 31     Enable SPI Flash Strap Auto Fetch Mode
  * 30     Enable GPIO Strap Mode
