@@ -66,6 +66,8 @@
 
 /* CEx Control Register */
 #define R_CTRL0           (0x10 / 4)
+#define   CTRL_IO_DUAL_DATA        (1 << 29)
+#define   CTRL_IO_DUAL_ADDR_DATA   (1 << 28) /* Includes dummies */
 #define   CTRL_CMD_SHIFT           16
 #define   CTRL_CMD_MASK            0xff
 #define   CTRL_DUMMY_HIGH_SHIFT    14
@@ -492,8 +494,13 @@ static int aspeed_smc_flash_dummies(const AspeedSMCFlash *fl)
     uint32_t r_ctrl0 = s->regs[s->r_ctrl0 + fl->id];
     uint32_t dummy_high = (r_ctrl0 >> CTRL_DUMMY_HIGH_SHIFT) & 0x1;
     uint32_t dummy_low = (r_ctrl0 >> CTRL_DUMMY_LOW_SHIFT) & 0x3;
+    uint32_t dummies = ((dummy_high << 2) | dummy_low) * 8;
 
-    return ((dummy_high << 2) | dummy_low) * 8;
+    if (r_ctrl0 & CTRL_IO_DUAL_ADDR_DATA) {
+        dummies /= 2;
+    }
+
+    return dummies;
 }
 
 static void aspeed_smc_flash_send_addr(AspeedSMCFlash *fl, uint32_t addr)
