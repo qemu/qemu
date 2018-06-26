@@ -71,6 +71,7 @@ static int pr_manager_helper_write(PRManagerHelper *pr_mgr,
         if (n_written <= 0) {
             assert(n_written != QIO_CHANNEL_ERR_BLOCK);
             object_unref(OBJECT(pr_mgr->ioc));
+            pr_mgr->ioc = NULL;
             return n_written < 0 ? -EINVAL : 0;
         }
 
