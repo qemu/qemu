@@ -1157,4 +1157,6 @@ int coroutine_fn bdrv_co_copy_range_to(BdrvChild *src, uint64_t src_offset,
                                        BdrvChild *dst, uint64_t dst_offset,
                                        uint64_t bytes, BdrvRequestFlags flags);
 
+int refresh_total_sectors(BlockDriverState *bs, int64_t hint);
+
 #endif /* BLOCK_INT_H */
