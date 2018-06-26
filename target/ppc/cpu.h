@@ -1015,6 +1015,9 @@ struct CPUPPCState {
     /* Next instruction pointer */
     target_ulong nip;
 
+    /* High part of 128-bit helper return.  */
+    uint64_t retxh;
+
     int access_type; /* when a memory exception occurs, the access
                         type is stored here */
 

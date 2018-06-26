@@ -21,9 +21,9 @@
 #include "exec/exec-all.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
-
 #include "helper_regs.h"
 #include "exec/cpu_ldst.h"
+#include "tcg.h"
 #include "internal.h"
 
 //#define DEBUG_OP
@@ -214,6 +214,24 @@ target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
     }
     return i;
 }
+
+#if defined(TARGET_PPC64) && defined(CONFIG_ATOMIC128)
+uint64_t helper_lq_le_parallel(CPUPPCState *env, target_ulong addr,
+                               uint32_t opidx)
+{
+    Int128 ret = helper_atomic_ldo_le_mmu(env, addr, opidx, GETPC());
+    env->retxh = int128_gethi(ret);
+    return int128_getlo(ret);
+}
+
+uint64_t helper_lq_be_parallel(CPUPPCState *env, target_ulong addr,
+                               uint32_t opidx)
+{
+    Int128 ret = helper_atomic_ldo_be_mmu(env, addr, opidx, GETPC());
+    env->retxh = int128_gethi(ret);
+    return int128_getlo(ret);
+}
+#endif
 
 /*****************************************************************************/
 /* Altivec extension helpers */
