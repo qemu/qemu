@@ -2704,9 +2704,15 @@ static MigThrError migration_detect_error(MigrationState *s)
     }
 }
 
+/* How many bytes have we transferred since the beggining of the migration */
+static uint64_t migration_total_bytes(MigrationState *s)
+{
+    return qemu_ftell(s->to_dst_file);
+}
+
 static void migration_calculate_complete(MigrationState *s)
 {
-    uint64_t bytes = qemu_ftell(s->to_dst_file);
+    uint64_t bytes = migration_total_bytes(s);
     int64_t end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     int64_t transfer_time;
 
@@ -2729,13 +2735,15 @@ static void migration_update_counters(MigrationState *s,
                                       int64_t current_time)
 {
     uint64_t transferred, time_spent;
+    uint64_t current_bytes; /* bytes transferred since the beginning */
     double bandwidth;
 
     if (current_time < s->iteration_start_time + BUFFER_DELAY) {
         return;
     }
 
-    transferred = qemu_ftell(s->to_dst_file) - s->iteration_initial_bytes;
+    current_bytes = migration_total_bytes(s);
+    transferred = current_bytes - s->iteration_initial_bytes;
     time_spent = current_time - s->iteration_start_time;
     bandwidth = (double)transferred / time_spent;
     s->threshold_size = bandwidth * s->parameters.downtime_limit;
@@ -2754,7 +2762,7 @@ static void migration_update_counters(MigrationState *s,
     qemu_file_reset_rate_limit(s->to_dst_file);
 
     s->iteration_start_time = current_time;
-    s->iteration_initial_bytes = qemu_ftell(s->to_dst_file);
+    s->iteration_initial_bytes = current_bytes;
 
     trace_migrate_transferred(transferred, time_spent,
                               bandwidth, s->threshold_size);
