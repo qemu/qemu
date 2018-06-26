@@ -63,6 +63,7 @@ enum BdrvTrackedRequestType {
     BDRV_TRACKED_READ,
     BDRV_TRACKED_WRITE,
     BDRV_TRACKED_DISCARD,
+    BDRV_TRACKED_TRUNCATE,
 };
 
 typedef struct BdrvTrackedRequest {

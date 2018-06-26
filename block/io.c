@@ -3039,6 +3039,8 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
 {
     BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
+    BdrvTrackedRequest req;
+    int64_t old_size, new_bytes;
     int ret;
 
     assert(child->perm & BLK_PERM_RESIZE);
@@ -3053,7 +3055,28 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
         return -EINVAL;
     }
 
+    old_size = bdrv_getlength(bs);
+    if (old_size < 0) {
+        error_setg_errno(errp, -old_size, "Failed to get old image size");
+        return old_size;
+    }
+
+    if (offset > old_size) {
+        new_bytes = offset - old_size;
+    } else {
+        new_bytes = 0;
+    }
+
     bdrv_inc_in_flight(bs);
+    tracked_request_begin(&req, bs, offset, new_bytes, BDRV_TRACKED_TRUNCATE);
+
+    /* If we are growing the image and potentially using preallocation for the
+     * new area, we need to make sure that no write requests are made to it
+     * concurrently or they might be overwritten by preallocation. */
+    if (new_bytes) {
+        mark_request_serialising(&req, 1);
+        wait_serialising_requests(&req);
+    }
 
     if (!drv->bdrv_co_truncate) {
         if (bs->file && drv->is_filter) {
@@ -3087,7 +3110,9 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
     atomic_inc(&bs->write_gen);
 
 out:
+    tracked_request_end(&req);
     bdrv_dec_in_flight(bs);
+
     return ret;
 }
 
