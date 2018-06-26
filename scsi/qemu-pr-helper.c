@@ -74,8 +74,16 @@ static int uid = -1;
 static int gid = -1;
 #endif
 
+static void compute_default_paths(void)
+{
+    if (!socket_path) {
+        socket_path = qemu_get_local_state_pathname("run/qemu-pr-helper.sock");
+    }
+}
+
 static void usage(const char *name)
 {
+    compute_default_paths();
     (printf) (
 "Usage: %s [OPTIONS] FILE\n"
 "Persistent Reservation helper program for QEMU\n"
@@ -843,13 +851,6 @@ static const char *socket_activation_validate_opts(void)
     }
 
     return NULL;
-}
-
-static void compute_default_paths(void)
-{
-    if (!socket_path) {
-        socket_path = qemu_get_local_state_pathname("run/qemu-pr-helper.sock");
-    }
 }
 
 static void termsig_handler(int signum)
