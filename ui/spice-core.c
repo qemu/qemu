@@ -829,7 +829,8 @@ void qemu_spice_init(void)
                          "incompatible with -spice port/tls-port");
             exit(1);
         }
-        if (egl_rendernode_init(qemu_opt_get(opts, "rendernode")) != 0) {
+        if (egl_rendernode_init(qemu_opt_get(opts, "rendernode"),
+                                DISPLAYGL_MODE_ON) != 0) {
             error_report("Failed to initialize EGL render node for SPICE GL");
             exit(1);
         }

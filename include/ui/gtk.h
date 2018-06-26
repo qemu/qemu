@@ -127,7 +127,7 @@ void gd_egl_release_dmabuf(DisplayChangeListener *dcl,
                            QemuDmaBuf *dmabuf);
 void gd_egl_scanout_flush(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h);
-void gtk_egl_init(void);
+void gtk_egl_init(DisplayGLMode mode);
 int gd_egl_make_current(DisplayChangeListener *dcl,
                         QEMUGLContext ctx);
 
