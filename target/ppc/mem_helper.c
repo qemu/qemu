@@ -245,6 +245,44 @@ void helper_stq_be_parallel(CPUPPCState *env, target_ulong addr,
     Int128 val = int128_make128(lo, hi);
     helper_atomic_sto_be_mmu(env, addr, val, opidx, GETPC());
 }
+
+uint32_t helper_stqcx_le_parallel(CPUPPCState *env, target_ulong addr,
+                                  uint64_t new_lo, uint64_t new_hi,
+                                  uint32_t opidx)
+{
+    bool success = false;
+
+    if (likely(addr == env->reserve_addr)) {
+        Int128 oldv, cmpv, newv;
+
+        cmpv = int128_make128(env->reserve_val2, env->reserve_val);
+        newv = int128_make128(new_lo, new_hi);
+        oldv = helper_atomic_cmpxchgo_le_mmu(env, addr, cmpv, newv,
+                                             opidx, GETPC());
+        success = int128_eq(oldv, cmpv);
+    }
+    env->reserve_addr = -1;
+    return env->so + success * CRF_EQ_BIT;
+}
+
+uint32_t helper_stqcx_be_parallel(CPUPPCState *env, target_ulong addr,
+                                  uint64_t new_lo, uint64_t new_hi,
+                                  uint32_t opidx)
+{
+    bool success = false;
+
+    if (likely(addr == env->reserve_addr)) {
+        Int128 oldv, cmpv, newv;
+
+        cmpv = int128_make128(env->reserve_val2, env->reserve_val);
+        newv = int128_make128(new_lo, new_hi);
+        oldv = helper_atomic_cmpxchgo_be_mmu(env, addr, cmpv, newv,
+                                             opidx, GETPC());
+        success = int128_eq(oldv, cmpv);
+    }
+    env->reserve_addr = -1;
+    return env->so + success * CRF_EQ_BIT;
+}
 #endif
 
 /*****************************************************************************/

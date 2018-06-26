@@ -3332,50 +3332,77 @@ static void gen_lqarx(DisasContext *ctx)
 /* stqcx. */
 static void gen_stqcx_(DisasContext *ctx)
 {
-    TCGv EA;
-    int reg = rS(ctx->opcode);
-    int len = 16;
-#if !defined(CONFIG_USER_ONLY)
-    TCGLabel *l1;
-    TCGv gpr1, gpr2;
-#endif
+    int rs = rS(ctx->opcode);
+    TCGv EA, hi, lo;
 
-    if (unlikely((rD(ctx->opcode) & 1))) {
+    if (unlikely(rs & 1)) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
     }
+
     gen_set_access_type(ctx, ACCESS_RES);
-    EA = tcg_temp_local_new();
+    EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    if (len > 1) {
-        gen_check_align(ctx, EA, (len) - 1);
-    }
 
-#if defined(CONFIG_USER_ONLY)
-    gen_conditional_store(ctx, EA, reg, 16);
+    /* Note that the low part is always in RS+1, even in LE mode.  */
+    lo = cpu_gpr[rs + 1];
+    hi = cpu_gpr[rs];
+
+    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+        TCGv_i32 oi = tcg_const_i32(DEF_MEMOP(MO_Q) | MO_ALIGN_16);
+#ifdef CONFIG_ATOMIC128
+        if (ctx->le_mode) {
+            gen_helper_stqcx_le_parallel(cpu_crf[0], cpu_env, EA, lo, hi, oi);
+        } else {
+            gen_helper_stqcx_le_parallel(cpu_crf[0], cpu_env, EA, lo, hi, oi);
+        }
 #else
-    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
-    l1 = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, l1);
-    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], CRF_EQ);
-
-    if (unlikely(ctx->le_mode)) {
-        gpr1 = cpu_gpr[reg + 1];
-        gpr2 = cpu_gpr[reg];
-    } else {
-        gpr1 = cpu_gpr[reg];
-        gpr2 = cpu_gpr[reg + 1];
-    }
-    tcg_gen_qemu_st_tl(gpr1, EA, ctx->mem_idx, DEF_MEMOP(MO_Q));
-    gen_addr_add(ctx, EA, EA, 8);
-    tcg_gen_qemu_st_tl(gpr2, EA, ctx->mem_idx, DEF_MEMOP(MO_Q));
-
-    gen_set_label(l1);
-    tcg_gen_movi_tl(cpu_reserve, -1);
+        /* Restart with exclusive lock.  */
+        gen_helper_exit_atomic(cpu_env);
+        ctx->base.is_jmp = DISAS_NORETURN;
 #endif
-    tcg_temp_free(EA);
-}
+        tcg_temp_free(EA);
+        tcg_temp_free_i32(oi);
+    } else {
+        TCGLabel *lab_fail = gen_new_label();
+        TCGLabel *lab_over = gen_new_label();
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
 
+        tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, lab_fail);
+        tcg_temp_free(EA);
+
+        gen_qemu_ld64_i64(ctx, t0, cpu_reserve);
+        tcg_gen_ld_i64(t1, cpu_env, (ctx->le_mode
+                                     ? offsetof(CPUPPCState, reserve_val2)
+                                     : offsetof(CPUPPCState, reserve_val)));
+        tcg_gen_brcond_i64(TCG_COND_NE, t0, t1, lab_fail);
+
+        tcg_gen_addi_i64(t0, cpu_reserve, 8);
+        gen_qemu_ld64_i64(ctx, t0, t0);
+        tcg_gen_ld_i64(t1, cpu_env, (ctx->le_mode
+                                     ? offsetof(CPUPPCState, reserve_val)
+                                     : offsetof(CPUPPCState, reserve_val2)));
+        tcg_gen_brcond_i64(TCG_COND_NE, t0, t1, lab_fail);
+
+        /* Success */
+        gen_qemu_st64_i64(ctx, ctx->le_mode ? lo : hi, cpu_reserve);
+        tcg_gen_addi_i64(t0, cpu_reserve, 8);
+        gen_qemu_st64_i64(ctx, ctx->le_mode ? hi : lo, t0);
+
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
+        tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], CRF_EQ);
+        tcg_gen_br(lab_over);
+
+        gen_set_label(lab_fail);
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
+
+        gen_set_label(lab_over);
+        tcg_gen_movi_tl(cpu_reserve, -1);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
 #endif /* defined(TARGET_PPC64) */
 
 /* sync */
