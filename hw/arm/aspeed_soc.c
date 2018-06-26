@@ -127,6 +127,8 @@ static void aspeed_soc_init(Object *obj)
 
     object_initialize(&s->timerctrl, sizeof(s->timerctrl), TYPE_ASPEED_TIMER);
     object_property_add_child(obj, "timerctrl", OBJECT(&s->timerctrl), NULL);
+    object_property_add_const_link(OBJECT(&s->timerctrl), "scu",
+                                   OBJECT(&s->scu), &error_abort);
     qdev_set_parent_bus(DEVICE(&s->timerctrl), sysbus_get_default());
 
     object_initialize(&s->i2c, sizeof(s->i2c), TYPE_ASPEED_I2C);

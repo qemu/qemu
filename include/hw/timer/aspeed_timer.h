@@ -24,6 +24,8 @@
 
 #include "qemu/timer.h"
 
+typedef struct AspeedSCUState AspeedSCUState;
+
 #define ASPEED_TIMER(obj) \
     OBJECT_CHECK(AspeedTimerCtrlState, (obj), TYPE_ASPEED_TIMER);
 #define TYPE_ASPEED_TIMER "aspeed.timer"
@@ -55,6 +57,8 @@ typedef struct AspeedTimerCtrlState {
     uint32_t ctrl;
     uint32_t ctrl2;
     AspeedTimer timers[ASPEED_TIMER_NR_TIMERS];
+
+    AspeedSCUState *scu;
 } AspeedTimerCtrlState;
 
 #endif /* ASPEED_TIMER_H */
