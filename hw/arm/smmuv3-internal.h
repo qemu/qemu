@@ -23,6 +23,14 @@
 
 #include "hw/arm/smmu-common.h"
 
+typedef enum SMMUTranslationStatus {
+    SMMU_TRANS_DISABLE,
+    SMMU_TRANS_ABORT,
+    SMMU_TRANS_BYPASS,
+    SMMU_TRANS_ERROR,
+    SMMU_TRANS_SUCCESS,
+} SMMUTranslationStatus;
+
 /* MMIO Registers */
 
 REG32(IDR0,                0x0)
@@ -315,7 +323,7 @@ enum { /* Command completion notification */
 /* Events */
 
 typedef enum SMMUEventType {
-    SMMU_EVT_OK                 = 0x00,
+    SMMU_EVT_NONE               = 0x00,
     SMMU_EVT_F_UUT                    ,
     SMMU_EVT_C_BAD_STREAMID           ,
     SMMU_EVT_F_STE_FETCH              ,
@@ -337,7 +345,7 @@ typedef enum SMMUEventType {
 } SMMUEventType;
 
 static const char *event_stringify[] = {
-    [SMMU_EVT_OK]                       = "SMMU_EVT_OK",
+    [SMMU_EVT_NONE]                     = "no recorded event",
     [SMMU_EVT_F_UUT]                    = "SMMU_EVT_F_UUT",
     [SMMU_EVT_C_BAD_STREAMID]           = "SMMU_EVT_C_BAD_STREAMID",
     [SMMU_EVT_F_STE_FETCH]              = "SMMU_EVT_F_STE_FETCH",
