@@ -3070,23 +3070,24 @@ static void gen_isync(DisasContext *ctx)
 
 #define MEMOP_GET_SIZE(x)  (1 << ((x) & MO_SIZE))
 
-#define LARX(name, memop)                                            \
-static void gen_##name(DisasContext *ctx)                            \
-{                                                                    \
-    TCGv t0;                                                         \
-    TCGv gpr = cpu_gpr[rD(ctx->opcode)];                             \
-    int len = MEMOP_GET_SIZE(memop);                                 \
-    gen_set_access_type(ctx, ACCESS_RES);                            \
-    t0 = tcg_temp_local_new();                                       \
-    gen_addr_reg_index(ctx, t0);                                     \
-    if ((len) > 1) {                                                 \
-        gen_check_align(ctx, t0, (len)-1);                           \
-    }                                                                \
-    tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, memop);                \
-    tcg_gen_mov_tl(cpu_reserve, t0);                                 \
-    tcg_gen_mov_tl(cpu_reserve_val, gpr);                            \
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);                           \
-    tcg_temp_free(t0);                                               \
+static void gen_load_locked(DisasContext *ctx, TCGMemOp memop)
+{
+    TCGv gpr = cpu_gpr[rD(ctx->opcode)];
+    TCGv t0 = tcg_temp_new();
+
+    gen_set_access_type(ctx, ACCESS_RES);
+    gen_addr_reg_index(ctx, t0);
+    tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, memop | MO_ALIGN);
+    tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_gen_mov_tl(cpu_reserve_val, gpr);
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+    tcg_temp_free(t0);
+}
+
+#define LARX(name, memop)                  \
+static void gen_##name(DisasContext *ctx)  \
+{                                          \
+    gen_load_locked(ctx, memop);           \
 }
 
 /* lwarx */
