@@ -438,7 +438,7 @@ static void handle_mousemotion(SDL_Event *ev)
     int max_x, max_y;
     struct sdl2_console *scon = get_scon_from_window(ev->motion.windowID);
 
-    if (!qemu_console_is_graphic(scon->dcl.con)) {
+    if (!scon || !qemu_console_is_graphic(scon->dcl.con)) {
         return;
     }
 
@@ -470,7 +470,7 @@ static void handle_mousebutton(SDL_Event *ev)
     SDL_MouseButtonEvent *bev;
     struct sdl2_console *scon = get_scon_from_window(ev->button.windowID);
 
-    if (!qemu_console_is_graphic(scon->dcl.con)) {
+    if (!scon || !qemu_console_is_graphic(scon->dcl.con)) {
         return;
     }
 
@@ -496,7 +496,7 @@ static void handle_mousewheel(SDL_Event *ev)
     SDL_MouseWheelEvent *wev = &ev->wheel;
     InputButton btn;
 
-    if (!qemu_console_is_graphic(scon->dcl.con)) {
+    if (!scon || !qemu_console_is_graphic(scon->dcl.con)) {
         return;
     }
 
