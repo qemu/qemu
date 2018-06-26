@@ -36,8 +36,8 @@ static void ramfb_fw_cfg_write(void *dev, off_t offset, size_t len)
 {
     RAMFBState *s = dev;
     void *framebuffer;
-    uint32_t stride, fourcc, format;
-    hwaddr addr, length;
+    uint32_t fourcc, format;
+    hwaddr stride, addr, length;
 
     s->width  = be32_to_cpu(s->cfg.width);
     s->height = be32_to_cpu(s->cfg.height);
