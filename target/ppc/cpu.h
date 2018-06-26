@@ -196,7 +196,6 @@ enum {
     /* QEMU exceptions: special cases we want to stop translation            */
     POWERPC_EXCP_SYNC         = 0x202, /* context synchronizing instruction  */
     POWERPC_EXCP_SYSCALL_USER = 0x203, /* System call in user mode only      */
-    POWERPC_EXCP_STCX         = 0x204 /* Conditional stores in user mode     */
 };
 
 /* Exceptions error codes                                                    */
@@ -994,10 +993,6 @@ struct CPUPPCState {
     /* Reservation value */
     target_ulong reserve_val;
     target_ulong reserve_val2;
-    /* Reservation store address */
-    target_ulong reserve_ea;
-    /* Reserved store source register and size */
-    target_ulong reserve_info;
 
     /* Those ones are used in supervisor mode only */
     /* machine state register */

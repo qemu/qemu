@@ -3201,19 +3201,6 @@ ST_ATOMIC(stwat, DEF_MEMOP(MO_UL), i32, trunc_tl_i32)
 ST_ATOMIC(stdat, DEF_MEMOP(MO_Q), i64, mov_i64)
 #endif
 
-#if defined(CONFIG_USER_ONLY)
-static void gen_conditional_store(DisasContext *ctx, TCGv EA,
-                                  int reg, int memop)
-{
-    TCGv t0 = tcg_temp_new();
-
-    tcg_gen_st_tl(EA, cpu_env, offsetof(CPUPPCState, reserve_ea));
-    tcg_gen_movi_tl(t0, (MEMOP_GET_SIZE(memop) << 5) | reg);
-    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUPPCState, reserve_info));
-    tcg_temp_free(t0);
-    gen_exception_err(ctx, POWERPC_EXCP_STCX, 0);
-}
-#else
 static void gen_conditional_store(DisasContext *ctx, TCGv EA,
                                   int reg, int memop)
 {
@@ -3244,7 +3231,6 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
     gen_set_label(l2);
     tcg_gen_movi_tl(cpu_reserve, -1);
 }
-#endif
 
 #define STCX(name, memop)                                   \
 static void gen_##name(DisasContext *ctx)                   \
