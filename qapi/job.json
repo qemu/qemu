@@ -104,7 +104,7 @@
 # @id: The job identifier
 # @status: The new job status
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'event': 'JOB_STATUS_CHANGE',
   'data': { 'id': 'str',
@@ -126,7 +126,7 @@
 #
 # @id: The job identifier.
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'command': 'job-pause', 'data': { 'id': 'str' } }
 
@@ -140,7 +140,7 @@
 #
 # @id : The job identifier.
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'command': 'job-resume', 'data': { 'id': 'str' } }
 
@@ -159,7 +159,7 @@
 #
 # @id: The job identifier.
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'command': 'job-cancel', 'data': { 'id': 'str' } }
 
@@ -171,7 +171,7 @@
 #
 # @id: The job identifier.
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'command': 'job-complete', 'data': { 'id': 'str' } }
 
@@ -187,7 +187,7 @@
 #
 # @id: The job identifier.
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'command': 'job-dismiss', 'data': { 'id': 'str' } }
 
@@ -205,7 +205,7 @@
 # @id: The identifier of any job in the transaction, or of a job that is not
 #      part of any transaction.
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'command': 'job-finalize', 'data': { 'id': 'str' } }
 
@@ -237,7 +237,7 @@
 #                       the reason for the job failure. It should not be parsed
 #                       by applications.
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'struct': 'JobInfo',
   'data': { 'id': 'str', 'type': 'JobType', 'status': 'JobStatus',
@@ -251,6 +251,6 @@
 #
 # Returns: a list with a @JobInfo for each active job
 #
-# Since: 2.13
+# Since: 3.0
 ##
 { 'command': 'query-jobs', 'returns': ['JobInfo'] }
