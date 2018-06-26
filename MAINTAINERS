@@ -501,9 +501,10 @@ F: include/hw/arm/digic.h
 F: hw/*/digic*
 
 Gumstix
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 L: qemu-devel@nongnu.org
 L: qemu-arm@nongnu.org
-S: Orphan
+S: Odd Fixes
 F: hw/arm/gumstix.c
 
 i.MX31
