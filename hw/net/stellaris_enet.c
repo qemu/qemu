@@ -340,7 +340,7 @@ static uint64_t stellaris_enet_read(void *opaque, hwaddr offset,
         return s->np;
     case 0x38: /* TR */
         return 0;
-    case 0x3c: /* Undocuented: Timestamp? */
+    case 0x3c: /* Undocumented: Timestamp? */
         return 0;
     default:
         hw_error("stellaris_enet_read: Bad offset %x\n", (int)offset);
