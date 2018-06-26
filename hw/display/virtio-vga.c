@@ -152,7 +152,7 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     }
 
     /* add stdvga mmio regions */
-    pci_std_vga_mmio_region_init(vga, &vpci_dev->modern_bar,
+    pci_std_vga_mmio_region_init(vga, OBJECT(vvga), &vpci_dev->modern_bar,
                                  vvga->vga_mrs, true);
 
     vga->con = g->scanout[0].con;
