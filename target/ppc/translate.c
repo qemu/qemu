@@ -3102,13 +3102,21 @@ static void gen_ld_atomic(DisasContext *ctx, TCGMemOp memop)
     case 3: /* Fetch and 'and' */
         tcg_gen_atomic_fetch_and_tl(dst, EA, src, ctx->mem_idx, memop);
         break;
+    case 4:  /* Fetch and max unsigned */
+        tcg_gen_atomic_fetch_umax_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 5:  /* Fetch and max signed */
+        tcg_gen_atomic_fetch_smax_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 6:  /* Fetch and min unsigned */
+        tcg_gen_atomic_fetch_umin_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 7:  /* Fetch and min signed */
+        tcg_gen_atomic_fetch_smin_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
     case 8: /* Swap */
         tcg_gen_atomic_xchg_tl(dst, EA, src, ctx->mem_idx, memop);
         break;
-    case 4:  /* Fetch and max unsigned */
-    case 5:  /* Fetch and max signed */
-    case 6:  /* Fetch and min unsigned */
-    case 7:  /* Fetch and min signed */
     case 16: /* compare and swap not equal */
     case 24: /* Fetch and increment bounded */
     case 25: /* Fetch and increment equal */
@@ -3159,9 +3167,17 @@ static void gen_st_atomic(DisasContext *ctx, TCGMemOp memop)
         tcg_gen_atomic_and_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
         break;
     case 4:  /* Store max unsigned */
+        tcg_gen_atomic_umax_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
     case 5:  /* Store max signed */
+        tcg_gen_atomic_smax_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
     case 6:  /* Store min unsigned */
+        tcg_gen_atomic_umin_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
     case 7:  /* Store min signed */
+        tcg_gen_atomic_smin_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
     case 24: /* Store twin  */
         gen_invalid(ctx);
         break;
