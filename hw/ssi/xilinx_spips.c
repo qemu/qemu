@@ -851,12 +851,17 @@ static void xlnx_zynqmp_qspips_notify(void *opaque)
     {
         size_t ret;
         uint32_t num;
-        const void *rxd = pop_buf(recv_fifo, 4, &num);
+        const void *rxd;
+        int len;
+
+        len = recv_fifo->num >= rq->dma_burst_size ? rq->dma_burst_size :
+                                                   recv_fifo->num;
+        rxd = pop_buf(recv_fifo, len, &num);
 
         memcpy(rq->dma_buf, rxd, num);
 
-        ret = stream_push(rq->dma, rq->dma_buf, 4);
-        assert(ret == 4);
+        ret = stream_push(rq->dma, rq->dma_buf, num);
+        assert(ret == num);
         xlnx_zynqmp_qspips_check_flush(rq);
     }
 }
@@ -1333,6 +1338,12 @@ static void xlnx_zynqmp_qspips_realize(DeviceState *dev, Error **errp)
     XlnxZynqMPQSPIPS *s = XLNX_ZYNQMP_QSPIPS(dev);
     XilinxSPIPSClass *xsc = XILINX_SPIPS_GET_CLASS(s);
 
+    if (s->dma_burst_size > QSPI_DMA_MAX_BURST_SIZE) {
+        error_setg(errp,
+                   "qspi dma burst size %u exceeds maximum limit %d",
+                   s->dma_burst_size, QSPI_DMA_MAX_BURST_SIZE);
+        return;
+    }
     xilinx_qspips_realize(dev, errp);
     fifo8_create(&s->rx_fifo_g, xsc->rx_fifo_size);
     fifo8_create(&s->tx_fifo_g, xsc->tx_fifo_size);
@@ -1411,6 +1422,11 @@ static const VMStateDescription vmstate_xlnx_zynqmp_qspips = {
     }
 };
 
+static Property xilinx_zynqmp_qspips_properties[] = {
+    DEFINE_PROP_UINT32("dma-burst-size", XlnxZynqMPQSPIPS, dma_burst_size, 64),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static Property xilinx_qspips_properties[] = {
     /* We had to turn this off for 2.10 as it is not compatible with migration.
      * It can be enabled but will prevent the device to be migrated.
@@ -1463,6 +1479,7 @@ static void xlnx_zynqmp_qspips_class_init(ObjectClass *klass, void * data)
     dc->realize = xlnx_zynqmp_qspips_realize;
     dc->reset = xlnx_zynqmp_qspips_reset;
     dc->vmsd = &vmstate_xlnx_zynqmp_qspips;
+    dc->props = xilinx_zynqmp_qspips_properties;
     xsc->reg_ops = &xlnx_zynqmp_qspips_ops;
     xsc->rx_fifo_size = RXFF_A_Q;
     xsc->tx_fifo_size = TXFF_A_Q;
