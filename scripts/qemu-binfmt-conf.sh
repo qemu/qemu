@@ -161,25 +161,26 @@ usage() {
     cat <<EOF
 Usage: qemu-binfmt-conf.sh [--qemu-path PATH][--debian][--systemd CPU]
                            [--help][--credential yes|no][--exportdir PATH]
-                           [--persistent yes|no]
+                           [--persistent yes|no][--qemu-suffix SUFFIX]
 
        Configure binfmt_misc to use qemu interpreter
 
-       --help:       display this usage
-       --qemu-path:  set path to qemu interpreter ($QEMU_PATH)
-       --debian:     don't write into /proc,
-                     instead generate update-binfmts templates
-       --systemd:    don't write into /proc,
-                     instead generate file for systemd-binfmt.service
-                     for the given CPU. If CPU is "ALL", generate a
-                     file for all known cpus
-       --exportdir:  define where to write configuration files
-                     (default: $SYSTEMDDIR or $DEBIANDIR)
-       --credential: if yes, credential and security tokens are
-                     calculated according to the binary to interpret
-       --persistent: if yes, the interpreter is loaded when binfmt is
-                     configured and remains in memory. All future uses
-                     are cloned from the open file.
+       --help:        display this usage
+       --qemu-path:   set path to qemu interpreter ($QEMU_PATH)
+       --qemu-suffix: add a suffix to the default interpreter name
+       --debian:      don't write into /proc,
+                      instead generate update-binfmts templates
+       --systemd:     don't write into /proc,
+                      instead generate file for systemd-binfmt.service
+                      for the given CPU. If CPU is "ALL", generate a
+                      file for all known cpus
+       --exportdir:   define where to write configuration files
+                      (default: $SYSTEMDDIR or $DEBIANDIR)
+       --credential:  if yes, credential and security tokens are
+                      calculated according to the binary to interpret
+       --persistent:  if yes, the interpreter is loaded when binfmt is
+                      configured and remains in memory. All future uses
+                      are cloned from the open file.
 
     To import templates with update-binfmts, use :
 
@@ -297,6 +298,7 @@ qemu_set_binfmts() {
             qemu="$QEMU_PATH/qemu-i386"
         fi
 
+        qemu="$qemu$QEMU_SUFFIX"
         if [ "$host_family" != "$family" ] ; then
             $BINFMT_SET
         fi
@@ -312,8 +314,9 @@ DEBIANDIR="/usr/share/binfmts"
 QEMU_PATH=/usr/local/bin
 CREDENTIAL=no
 PERSISTENT=no
+QEMU_SUFFIX=""
 
-options=$(getopt -o ds:Q:e:hc:p: -l debian,systemd:,qemu-path:,exportdir:,help,credential:,persistent: -- "$@")
+options=$(getopt -o ds:Q:S:e:hc:p: -l debian,systemd:,qemu-path:,qemu-suffix:,exportdir:,help,credential:,persistent: -- "$@")
 eval set -- "$options"
 
 while true ; do
@@ -348,6 +351,10 @@ while true ; do
     -Q|--qemu-path)
         shift
         QEMU_PATH="$1"
+        ;;
+    -F|--qemu-suffix)
+        shift
+        QEMU_SUFFIX="$1"
         ;;
     -e|--exportdir)
         shift
