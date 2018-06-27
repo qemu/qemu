@@ -28,6 +28,8 @@
 #include "qemu/timer.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
+#include "qapi/error.h"
+#include "tcg_s390x.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "sysemu/cpus.h"
@@ -39,6 +41,7 @@
 #include "hw/s390x/ioinst.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/boards.h"
+#include "hw/s390x/tod.h"
 #endif
 
 /* #define DEBUG_HELPER */
@@ -138,17 +141,19 @@ void HELPER(spx)(CPUS390XState *env, uint64_t a1)
 /* Store Clock */
 uint64_t HELPER(stck)(CPUS390XState *env)
 {
-    uint64_t time;
+    S390TODState *td = s390_get_todstate();
+    S390TODClass *tdc = S390_TOD_GET_CLASS(td);
+    S390TOD tod;
 
-    time = env->tod_offset +
-        time2tod(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
-
-    return time;
+    tdc->get(td, &tod, &error_abort);
+    return tod.low;
 }
 
 /* Set Clock Comparator */
 void HELPER(sckc)(CPUS390XState *env, uint64_t time)
 {
+    S390TODState *td = s390_get_todstate();
+
     if (time == -1ULL) {
         return;
     }
@@ -156,12 +161,20 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
     env->ckc = time;
 
     /* difference between origins */
-    time -= env->tod_offset;
+    time -= td->base.low;
 
     /* nanoseconds */
     time = tod2time(time);
 
     timer_mod(env->tod_timer, time);
+}
+
+void tcg_s390_tod_updated(CPUState *cs, run_on_cpu_data opaque)
+{
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
+
+    helper_sckc(env, env->ckc);
 }
 
 /* Set Tod Programmable Field */

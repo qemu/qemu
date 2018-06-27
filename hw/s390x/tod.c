@@ -30,6 +30,17 @@ void s390_init_tod(void)
     qdev_init_nofail(DEVICE(obj));
 }
 
+S390TODState *s390_get_todstate(void)
+{
+    static S390TODState *ts;
+
+    if (!ts) {
+        ts = S390_TOD(object_resolve_path_type("", TYPE_S390_TOD, NULL));
+    }
+
+    return ts;
+}
+
 #define S390_TOD_CLOCK_VALUE_MISSING    0x00
 #define S390_TOD_CLOCK_VALUE_PRESENT    0x01
 
