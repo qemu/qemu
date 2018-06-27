@@ -413,9 +413,9 @@ int s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
     int r = 0;
 
     if (kvm_enabled()) {
-        r = kvm_s390_set_clock_ext(tod_high, tod_low);
+        r = kvm_s390_set_clock_ext(*tod_high, *tod_low);
         if (r == -ENXIO) {
-            return kvm_s390_set_clock(tod_high, tod_low);
+            return kvm_s390_set_clock(*tod_high, *tod_low);
         }
     }
     /* Fixme TCG */
