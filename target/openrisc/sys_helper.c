@@ -98,6 +98,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
     case TO_SPR(0, 1024) ... TO_SPR(0, 1024 + (16 * 32)): /* Shadow GPRs */
         idx = (spr - 1024);
         env->shadow_gpr[idx / 32][idx % 32] = rb;
+        break;
 
     case TO_SPR(1, 512) ... TO_SPR(1, 512+DTLB_SIZE-1): /* DTLBW0MR 0-127 */
         idx = spr - TO_SPR(1, 512);
