@@ -390,38 +390,6 @@ unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
     return s390_count_running_cpus();
 }
 
-int s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
-{
-    int r = 0;
-
-    if (kvm_enabled()) {
-        r = kvm_s390_get_clock_ext(tod_high, tod_low);
-        if (r == -ENXIO) {
-            return kvm_s390_get_clock(tod_high, tod_low);
-        }
-    } else {
-        /* Fixme TCG */
-        *tod_high = 0;
-        *tod_low = 0;
-    }
-
-    return r;
-}
-
-int s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
-{
-    int r = 0;
-
-    if (kvm_enabled()) {
-        r = kvm_s390_set_clock_ext(*tod_high, *tod_low);
-        if (r == -ENXIO) {
-            return kvm_s390_set_clock(*tod_high, *tod_low);
-        }
-    }
-    /* Fixme TCG */
-    return r;
-}
-
 int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
 {
     if (kvm_enabled()) {

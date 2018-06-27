@@ -10,6 +10,8 @@
 #ifndef KVM_S390X_H
 #define KVM_S390X_H
 
+#include "cpu-qom.h"
+
 struct kvm_s390_irq;
 
 void kvm_s390_floating_interrupt_legacy(struct kvm_s390_irq *irq);
