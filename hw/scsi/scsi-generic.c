@@ -144,6 +144,8 @@ static int execute_command(BlockBackend *blk,
 
 static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
 {
+    uint8_t page, page_len;
+
     /*
      *  EVPD set to zero returns the standard INQUIRY data.
      *
@@ -167,22 +169,57 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
             s->scsi_version = r->buf[2];
         }
     }
-    if (s->type == TYPE_DISK && r->req.cmd.buf[2] == 0xb0) {
-        uint32_t max_transfer =
-            blk_get_max_transfer(s->conf.blk) / s->blocksize;
 
-        assert(max_transfer);
-        stl_be_p(&r->buf[8], max_transfer);
-        /* Also take care of the opt xfer len. */
-        stl_be_p(&r->buf[12],
-                 MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
+    if (s->type == TYPE_DISK && (r->req.cmd.buf[1] & 0x01)) {
+        page = r->req.cmd.buf[2];
+        if (page == 0xb0) {
+            uint32_t max_transfer =
+                blk_get_max_transfer(s->conf.blk) / s->blocksize;
+
+            assert(max_transfer);
+            stl_be_p(&r->buf[8], max_transfer);
+            /* Also take care of the opt xfer len. */
+            stl_be_p(&r->buf[12],
+                    MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
+        } else if (page == 0x00 && s->needs_vpd_bl_emulation) {
+            /*
+             * Now we're capable of supplying the VPD Block Limits
+             * response if the hardware can't. Add it in the INQUIRY
+             * Supported VPD pages response in case we are using the
+             * emulation for this device.
+             *
+             * This way, the guest kernel will be aware of the support
+             * and will use it to proper setup the SCSI device.
+             */
+            page_len = r->buf[3];
+            r->buf[page_len + 4] = 0xb0;
+            r->buf[3] = ++page_len;
+        }
     }
+}
+
+static int scsi_emulate_block_limits(SCSIGenericReq *r)
+{
+    r->buflen = scsi_disk_emulate_vpd_page(&r->req, r->buf);
+    r->io_header.sb_len_wr = 0;
+
+    /*
+    * We have valid contents in the reply buffer but the
+    * io_header can report a sense error coming from
+    * the hardware in scsi_command_complete_noio. Clean
+    * up the io_header to avoid reporting it.
+    */
+    r->io_header.driver_status = 0;
+    r->io_header.status = 0;
+
+    return r->buflen;
 }
 
 static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIDevice *s = r->req.dev;
+    SCSISense sense;
     int len;
 
     assert(r->req.aiocb != NULL);
@@ -199,6 +236,27 @@ static void scsi_read_complete(void * opaque, int ret)
     DPRINTF("Data ready tag=0x%x len=%d\n", r->req.tag, len);
 
     r->len = -1;
+
+    /*
+     * Check if this is a VPD Block Limits request that
+     * resulted in sense error but would need emulation.
+     * In this case, emulate a valid VPD response.
+     */
+    if (s->needs_vpd_bl_emulation) {
+        int is_vpd_bl = r->req.cmd.buf[0] == INQUIRY &&
+                         r->req.cmd.buf[1] & 0x01 &&
+                         r->req.cmd.buf[2] == 0xb0;
+
+        if (is_vpd_bl && sg_io_sense_from_errno(-ret, &r->io_header, &sense)) {
+            len = scsi_emulate_block_limits(r);
+            /*
+             * No need to let scsi_read_complete go on and handle an
+             * INQUIRY VPD BL request we created manually.
+             */
+            goto req_complete;
+        }
+    }
+
     if (len == 0) {
         scsi_command_complete_noio(r, 0);
         goto done;
@@ -233,6 +291,8 @@ static void scsi_read_complete(void * opaque, int ret)
     if (r->req.cmd.buf[0] == INQUIRY) {
         scsi_handle_inquiry_reply(r, s);
     }
+
+req_complete:
     scsi_req_data(&r->req, len);
     scsi_req_unref(&r->req);
 
@@ -434,7 +494,49 @@ int scsi_SG_IO_FROM_DEV(BlockBackend *blk, uint8_t *cmd, uint8_t cmd_size,
     return 0;
 }
 
-void scsi_generic_read_device_identification(SCSIDevice *s)
+/*
+ * Executes an INQUIRY request with EVPD set to retrieve the
+ * available VPD pages of the device. If the device does
+ * not support the Block Limits page (page 0xb0), set
+ * the needs_vpd_bl_emulation flag for future use.
+ */
+static void scsi_generic_set_vpd_bl_emulation(SCSIDevice *s)
+{
+    uint8_t cmd[6];
+    uint8_t buf[250];
+    uint8_t page_len;
+    int ret, i;
+
+    memset(cmd, 0, sizeof(cmd));
+    memset(buf, 0, sizeof(buf));
+    cmd[0] = INQUIRY;
+    cmd[1] = 1;
+    cmd[2] = 0x00;
+    cmd[4] = sizeof(buf);
+
+    ret = scsi_SG_IO_FROM_DEV(s->conf.blk, cmd, sizeof(cmd),
+                              buf, sizeof(buf));
+    if (ret < 0) {
+        /*
+         * Do not assume anything if we can't retrieve the
+         * INQUIRY response to assert the VPD Block Limits
+         * support.
+         */
+        s->needs_vpd_bl_emulation = false;
+        return;
+    }
+
+    page_len = buf[3];
+    for (i = 4; i < page_len + 4; i++) {
+        if (buf[i] == 0xb0) {
+            s->needs_vpd_bl_emulation = false;
+            return;
+        }
+    }
+    s->needs_vpd_bl_emulation = true;
+}
+
+static void scsi_generic_read_device_identification(SCSIDevice *s)
 {
     uint8_t cmd[6];
     uint8_t buf[250];
@@ -476,6 +578,16 @@ void scsi_generic_read_device_identification(SCSIDevice *s)
         }
 
         i += p[3] + 4;
+    }
+}
+
+void scsi_generic_read_device_inquiry(SCSIDevice *s)
+{
+    scsi_generic_read_device_identification(s);
+    if (s->type == TYPE_DISK) {
+        scsi_generic_set_vpd_bl_emulation(s);
+    } else {
+        s->needs_vpd_bl_emulation = false;
     }
 }
 
@@ -580,7 +692,7 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
 
     /* Only used by scsi-block, but initialize it nevertheless to be clean.  */
     s->default_scsi_version = -1;
-    scsi_generic_read_device_identification(s);
+    scsi_generic_read_device_inquiry(s);
 }
 
 const SCSIReqOps scsi_generic_req_ops = {
