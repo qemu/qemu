@@ -141,7 +141,7 @@ uint64_t HELPER(stck)(CPUS390XState *env)
     uint64_t time;
 
     time = env->tod_offset +
-        time2tod(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - env->tod_basetime);
+        time2tod(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 
     return time;
 }
@@ -161,7 +161,7 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
     /* nanoseconds */
     time = tod2time(time);
 
-    timer_mod(env->tod_timer, env->tod_basetime + time);
+    timer_mod(env->tod_timer, time);
 }
 
 /* Set Tod Programmable Field */

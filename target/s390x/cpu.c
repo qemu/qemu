@@ -289,7 +289,6 @@ static void s390_cpu_initfn(Object *obj)
     qemu_get_timedate(&tm, 0);
     env->tod_offset = TOD_UNIX_EPOCH +
                       (time2tod(mktimegm(&tm)) * 1000000000ULL);
-    env->tod_basetime = 0;
     env->tod_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_tod_timer, cpu);
     env->cpu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_cpu_timer, cpu);
     s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
