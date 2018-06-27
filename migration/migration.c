@@ -507,7 +507,10 @@ void migration_ioc_process_incoming(QIOChannel *ioc)
         migration_incoming_setup(f);
         return;
     }
-    multifd_recv_new_channel(ioc);
+
+    if (multifd_recv_new_channel(ioc)) {
+        migration_incoming_process();
+    }
 }
 
 /**
