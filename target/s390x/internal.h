@@ -243,13 +243,14 @@ enum cc_op {
 /* Converts ns to s390's clock format */
 static inline uint64_t time2tod(uint64_t ns)
 {
-    return (ns << 9) / 125;
+    return (ns << 9) / 125 + (((ns & 0xff10000000000000ull) / 125) << 9);
+
 }
 
 /* Converts s390's clock format to ns */
 static inline uint64_t tod2time(uint64_t t)
 {
-    return (t * 125) >> 9;
+    return ((t >> 9) * 125) + (((t & 0x1ff) * 125) >> 9);
 }
 
 static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb,
