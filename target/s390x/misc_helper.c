@@ -184,6 +184,22 @@ void tcg_s390_tod_updated(CPUState *cs, run_on_cpu_data opaque)
     helper_sckc(env, env->ckc);
 }
 
+/* Set Clock */
+uint32_t HELPER(sck)(CPUS390XState *env, uint64_t tod_low)
+{
+    S390TODState *td = s390_get_todstate();
+    S390TODClass *tdc = S390_TOD_GET_CLASS(td);
+    S390TOD tod = {
+        .high = 0,
+        .low = tod_low,
+    };
+
+    qemu_mutex_lock_iothread();
+    tdc->set(td, &tod, &error_abort);
+    qemu_mutex_unlock_iothread();
+    return 0;
+}
+
 /* Set Tod Programmable Field */
 void HELPER(sckpf)(CPUS390XState *env, uint64_t r0)
 {

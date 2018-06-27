@@ -997,8 +997,7 @@
 /* SET ADDRESS SPACE CONTROL FAST */
     C(0xb279, SACF,    S,     Z,   0, a2, 0, 0, sacf, 0)
 /* SET CLOCK */
-    /* ??? Not implemented - is it necessary? */
-    C(0xb204, SCK,     S,     Z,   0, 0, 0, 0, 0, 0)
+    C(0xb204, SCK,     S,     Z,   la2, 0, 0, 0, sck, 0)
 /* SET CLOCK COMPARATOR */
     C(0xb206, SCKC,    S,     Z,   0, m2_64a, 0, 0, sckc, 0)
 /* SET CLOCK PROGRAMMABLE FIELD */

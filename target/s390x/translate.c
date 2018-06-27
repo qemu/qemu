@@ -4016,6 +4016,15 @@ static DisasJumpType op_stcke(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_sck(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    tcg_gen_qemu_ld_i64(o->in1, o->addr1, get_mem_index(s), MO_TEQ | MO_ALIGN);
+    gen_helper_sck(cc_op, cpu_env, o->in1);
+    set_cc_static(s);
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_sckc(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
