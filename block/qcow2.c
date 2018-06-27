@@ -1772,7 +1772,7 @@ static coroutine_fn int qcow2_handle_l2meta(BlockDriverState *bs,
     while (l2meta != NULL) {
         QCowL2Meta *next;
 
-        if (!ret && link_l2) {
+        if (link_l2) {
             ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
             if (ret) {
                 goto out;
