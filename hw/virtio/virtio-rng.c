@@ -156,6 +156,19 @@ static void check_rate_limit(void *opaque)
     vrng->activate_timer = true;
 }
 
+static void virtio_rng_set_status(VirtIODevice *vdev, uint8_t status)
+{
+    VirtIORNG *vrng = VIRTIO_RNG(vdev);
+
+    if (!vdev->vm_running) {
+        return;
+    }
+    vdev->status = status;
+
+    /* Something changed, try to process buffers */
+    virtio_rng_process(vrng);
+}
+
 static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -261,6 +274,7 @@ static void virtio_rng_class_init(ObjectClass *klass, void *data)
     vdc->realize = virtio_rng_device_realize;
     vdc->unrealize = virtio_rng_device_unrealize;
     vdc->get_features = get_features;
+    vdc->set_status = virtio_rng_set_status;
 }
 
 static const TypeInfo virtio_rng_info = {
