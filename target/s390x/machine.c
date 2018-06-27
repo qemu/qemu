@@ -19,6 +19,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "kvm_s390x.h"
+#include "tcg_s390x.h"
 #include "sysemu/kvm.h"
 
 static int cpu_post_load(void *opaque, int version_id)
@@ -32,6 +33,11 @@ static int cpu_post_load(void *opaque, int version_id)
     if (kvm_enabled()) {
         kvm_s390_set_cpu_state(cpu, cpu->env.cpu_state);
         return kvm_s390_vcpu_interrupt_post_load(cpu);
+    }
+
+    if (tcg_enabled()) {
+        /* Rearm the CKC timer if necessary */
+        tcg_s390_tod_updated(CPU(cpu), RUN_ON_CPU_NULL);
     }
 
     return 0;
