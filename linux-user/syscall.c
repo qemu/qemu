@@ -3019,6 +3019,8 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
         case IPV6_V6ONLY:
         case IPV6_RECVPKTINFO:
         case IPV6_UNICAST_HOPS:
+        case IPV6_MULTICAST_HOPS:
+        case IPV6_MULTICAST_LOOP:
         case IPV6_RECVERR:
         case IPV6_RECVHOPLIMIT:
         case IPV6_2292HOPLIMIT:
