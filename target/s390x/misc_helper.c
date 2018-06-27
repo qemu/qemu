@@ -154,6 +154,13 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
 {
     S390TODState *td = s390_get_todstate();
 
+    /* stop the timer and remove pending CKC IRQs */
+    timer_del(env->tod_timer);
+    qemu_mutex_lock_iothread();
+    env->pending_int &= ~INTERRUPT_EXT_CLOCK_COMPARATOR;
+    qemu_mutex_unlock_iothread();
+
+    /* the tod has to exceed the ckc, this can never happen if ckc is all 1's */
     if (time == -1ULL) {
         return;
     }
