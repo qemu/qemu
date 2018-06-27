@@ -142,6 +142,43 @@ static int execute_command(BlockBackend *blk,
     return 0;
 }
 
+static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
+{
+    /*
+     *  EVPD set to zero returns the standard INQUIRY data.
+     *
+     *  Check if scsi_version is unset (-1) to avoid re-defining it
+     *  each time an INQUIRY with standard data is received.
+     *  scsi_version is initialized with -1 in scsi_generic_reset
+     *  and scsi_disk_reset, making sure that we'll set the
+     *  scsi_version after a reset. If the version field of the
+     *  INQUIRY response somehow changes after a guest reboot,
+     *  we'll be able to keep track of it.
+     *
+     *  On SCSI-2 and older, first 3 bits of byte 2 is the
+     *  ANSI-approved version, while on later versions the
+     *  whole byte 2 contains the version. Check if we're dealing
+     *  with a newer version and, in that case, assign the
+     *  whole byte.
+     */
+    if (s->scsi_version == -1 && !(r->req.cmd.buf[1] & 0x01)) {
+        s->scsi_version = r->buf[2] & 0x07;
+        if (s->scsi_version > 2) {
+            s->scsi_version = r->buf[2];
+        }
+    }
+    if (s->type == TYPE_DISK && r->req.cmd.buf[2] == 0xb0) {
+        uint32_t max_transfer =
+            blk_get_max_transfer(s->conf.blk) / s->blocksize;
+
+        assert(max_transfer);
+        stl_be_p(&r->buf[8], max_transfer);
+        /* Also take care of the opt xfer len. */
+        stl_be_p(&r->buf[12],
+                 MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
+    }
+}
+
 static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
@@ -194,39 +231,7 @@ static void scsi_read_complete(void * opaque, int ret)
         }
     }
     if (r->req.cmd.buf[0] == INQUIRY) {
-        /*
-         *  EVPD set to zero returns the standard INQUIRY data.
-         *
-         *  Check if scsi_version is unset (-1) to avoid re-defining it
-         *  each time an INQUIRY with standard data is received.
-         *  scsi_version is initialized with -1 in scsi_generic_reset
-         *  and scsi_disk_reset, making sure that we'll set the
-         *  scsi_version after a reset. If the version field of the
-         *  INQUIRY response somehow changes after a guest reboot,
-         *  we'll be able to keep track of it.
-         *
-         *  On SCSI-2 and older, first 3 bits of byte 2 is the
-         *  ANSI-approved version, while on later versions the
-         *  whole byte 2 contains the version. Check if we're dealing
-         *  with a newer version and, in that case, assign the
-         *  whole byte.
-         */
-        if (s->scsi_version == -1 && !(r->req.cmd.buf[1] & 0x01)) {
-            s->scsi_version = r->buf[2] & 0x07;
-            if (s->scsi_version > 2) {
-                s->scsi_version = r->buf[2];
-            }
-        }
-        if (s->type == TYPE_DISK && r->req.cmd.buf[2] == 0xb0) {
-            uint32_t max_transfer =
-                blk_get_max_transfer(s->conf.blk) / s->blocksize;
-
-            assert(max_transfer);
-            stl_be_p(&r->buf[8], max_transfer);
-            /* Also take care of the opt xfer len. */
-            stl_be_p(&r->buf[12],
-                     MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
-        }
+        scsi_handle_inquiry_reply(r, s);
     }
     scsi_req_data(&r->req, len);
     scsi_req_unref(&r->req);
