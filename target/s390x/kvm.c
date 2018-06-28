@@ -752,12 +752,20 @@ int kvm_s390_mem_op(S390CPU *cpu, vaddr addr, uint8_t ar, void *hostbuf,
  */
 static void *legacy_s390_alloc(size_t size, uint64_t *align, bool shared)
 {
-    void *mem;
+    static void *mem;
+
+    if (mem) {
+        /* we only support one allocation, which is enough for initial ram */
+        return NULL;
+    }
 
     mem = mmap((void *) 0x800000000ULL, size,
                PROT_EXEC|PROT_READ|PROT_WRITE,
                MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-    return mem == MAP_FAILED ? NULL : mem;
+    if (mem == MAP_FAILED) {
+        mem = NULL;
+    }
+    return mem;
 }
 
 static uint8_t const *sw_bp_inst;
