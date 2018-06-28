@@ -500,7 +500,7 @@ static int cleanup_range(const char *block_name, void *host_addr,
  * postcopy later; must be called prior to any precopy.
  * called from arch_init's similarly named ram_postcopy_incoming_init
  */
-int postcopy_ram_incoming_init(MigrationIncomingState *mis, size_t ram_pages)
+int postcopy_ram_incoming_init(MigrationIncomingState *mis)
 {
     if (qemu_ram_foreach_migratable_block(init_range, NULL)) {
         return -1;
@@ -1265,7 +1265,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
     return false;
 }
 
-int postcopy_ram_incoming_init(MigrationIncomingState *mis, size_t ram_pages)
+int postcopy_ram_incoming_init(MigrationIncomingState *mis)
 {
     error_report("postcopy_ram_incoming_init: No OS support");
     return -1;
