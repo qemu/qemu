@@ -210,11 +210,11 @@ static const struct NoteFuncDescStruct {
     int contents_size;
     void (*note_contents_func)(NoteFuncArg *arg, PowerPCCPU *cpu);
 } note_func[] = {
-    {sizeof(((Note *)0)->contents.prstatus),  ppc_write_elf_prstatus},
-    {sizeof(((Note *)0)->contents.fpregset),  ppc_write_elf_fpregset},
-    {sizeof(((Note *)0)->contents.vmxregset), ppc_write_elf_vmxregset},
-    {sizeof(((Note *)0)->contents.vsxregset), ppc_write_elf_vsxregset},
-    {sizeof(((Note *)0)->contents.speregset), ppc_write_elf_speregset},
+    {sizeof_field(Note, contents.prstatus),  ppc_write_elf_prstatus},
+    {sizeof_field(Note, contents.fpregset),  ppc_write_elf_fpregset},
+    {sizeof_field(Note, contents.vmxregset), ppc_write_elf_vmxregset},
+    {sizeof_field(Note, contents.vsxregset), ppc_write_elf_vsxregset},
+    {sizeof_field(Note, contents.speregset), ppc_write_elf_speregset},
     { 0, NULL}
 };
 

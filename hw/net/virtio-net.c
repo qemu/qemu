@@ -46,7 +46,7 @@
  * 'container'.
  */
 #define endof(container, field) \
-    (offsetof(container, field) + sizeof(((container *)0)->field))
+    (offsetof(container, field) + sizeof_field(container, field))
 
 typedef struct VirtIOFeature {
     uint64_t flags;

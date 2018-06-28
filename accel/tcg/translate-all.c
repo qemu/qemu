@@ -191,7 +191,7 @@ struct page_collection {
 
 /* Make sure all possible CPU event bits fit in tb->trace_vcpu_dstate */
 QEMU_BUILD_BUG_ON(CPU_TRACE_DSTATE_MAX_EVENTS >
-                  sizeof(((TranslationBlock *)0)->trace_vcpu_dstate)
+                  sizeof_field(TranslationBlock, trace_vcpu_dstate)
                   * BITS_PER_BYTE);
 
 /*

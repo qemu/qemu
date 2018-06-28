@@ -525,8 +525,8 @@ static int xenfb_configure_fb(struct XenFB *xenfb, size_t fb_len_lim,
                               int width, int height, int depth,
                               size_t fb_len, int offset, int row_stride)
 {
-    size_t mfn_sz = sizeof(*((struct xenfb_page *)0)->pd);
-    size_t pd_len = sizeof(((struct xenfb_page *)0)->pd) / mfn_sz;
+    size_t mfn_sz = sizeof_field(struct xenfb_page, pd[0]);
+    size_t pd_len = sizeof_field(struct xenfb_page, pd) / mfn_sz;
     size_t fb_pages = pd_len * XC_PAGE_SIZE / mfn_sz;
     size_t fb_len_max = fb_pages * XC_PAGE_SIZE;
     int max_width, max_height;
