@@ -41,15 +41,6 @@ BlockAIOCB *pr_manager_execute(PRManager *pr_mgr,
                                BlockCompletionFunc *complete,
                                void *opaque);
 
-#ifdef CONFIG_LINUX
 PRManager *pr_manager_lookup(const char *id, Error **errp);
-#else
-static inline PRManager *pr_manager_lookup(const char *id, Error **errp)
-{
-    /* The classes do not exist at all!  */
-    error_setg(errp, "No persistent reservation manager with id '%s'", id);
-    return NULL;
-}
-#endif
 
 #endif
