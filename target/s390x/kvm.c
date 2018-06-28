@@ -765,6 +765,9 @@ static void *legacy_s390_alloc(size_t size, uint64_t *align, bool shared)
     if (mem == MAP_FAILED) {
         mem = NULL;
     }
+    if (mem && align) {
+        *align = QEMU_VMALLOC_ALIGN;
+    }
     return mem;
 }
 
