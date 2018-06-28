@@ -46,7 +46,8 @@ typedef struct PPC4xxI2CState {
     qemu_irq irq;
     MemoryRegion iomem;
     bitbang_i2c_interface *bitbang;
-    uint8_t mdata;
+    int mdidx;
+    uint8_t mdata[4];
     uint8_t lmadr;
     uint8_t hmadr;
     uint8_t cntl;
