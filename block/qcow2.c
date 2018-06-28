@@ -1775,6 +1775,8 @@ static coroutine_fn int qcow2_handle_l2meta(BlockDriverState *bs,
             if (ret) {
                 goto out;
             }
+        } else {
+            qcow2_alloc_cluster_abort(bs, l2meta);
         }
 
         /* Take the request off the list of running requests */
