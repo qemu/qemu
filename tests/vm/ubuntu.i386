@@ -77,7 +77,7 @@ class UbuntuX86VM(basevm.BaseVM):
         # The previous update sometimes doesn't survive a reboot, so do it again
         self.ssh_root_check("apt-get update")
         self.ssh_root_check("apt-get build-dep -y qemu")
-        self.ssh_root_check("apt-get install -y libfdt-dev")
+        self.ssh_root_check("apt-get install -y libfdt-dev flex bison")
         self.ssh_root("poweroff")
         self.wait()
         if os.path.exists(img):
