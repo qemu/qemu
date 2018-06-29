@@ -4005,6 +4005,29 @@ static bool trans_FCMLA_zpzzz(DisasContext *s,
     return true;
 }
 
+static bool trans_FCMLA_zzxz(DisasContext *s, arg_FCMLA_zzxz *a, uint32_t insn)
+{
+    static gen_helper_gvec_3_ptr * const fns[2] = {
+        gen_helper_gvec_fcmlah_idx,
+        gen_helper_gvec_fcmlas_idx,
+    };
+
+    tcg_debug_assert(a->esz == 1 || a->esz == 2);
+    tcg_debug_assert(a->rd == a->ra);
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           status, vsz, vsz,
+                           a->index * 4 + a->rot,
+                           fns[a->esz - 1]);
+        tcg_temp_free_ptr(status);
+    }
+    return true;
+}
+
 /*
  *** SVE Floating Point Unary Operations Predicated Group
  */

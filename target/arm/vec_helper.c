@@ -319,22 +319,27 @@ void HELPER(gvec_fcmlah_idx)(void *vd, void *vn, void *vm,
     uint32_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
     intptr_t index = extract32(desc, SIMD_DATA_SHIFT + 2, 2);
     uint32_t neg_real = flip ^ neg_imag;
-    uintptr_t i;
-    float16 e1 = m[H2(2 * index + flip)];
-    float16 e3 = m[H2(2 * index + 1 - flip)];
+    intptr_t elements = opr_sz / sizeof(float16);
+    intptr_t eltspersegment = 16 / sizeof(float16);
+    intptr_t i, j;
 
     /* Shift boolean to the sign bit so we can xor to negate.  */
     neg_real <<= 15;
     neg_imag <<= 15;
-    e1 ^= neg_real;
-    e3 ^= neg_imag;
 
-    for (i = 0; i < opr_sz / 2; i += 2) {
-        float16 e2 = n[H2(i + flip)];
-        float16 e4 = e2;
+    for (i = 0; i < elements; i += eltspersegment) {
+        float16 mr = m[H2(i + 2 * index + 0)];
+        float16 mi = m[H2(i + 2 * index + 1)];
+        float16 e1 = neg_real ^ (flip ? mi : mr);
+        float16 e3 = neg_imag ^ (flip ? mr : mi);
 
-        d[H2(i)] = float16_muladd(e2, e1, d[H2(i)], 0, fpst);
-        d[H2(i + 1)] = float16_muladd(e4, e3, d[H2(i + 1)], 0, fpst);
+        for (j = i; j < i + eltspersegment; j += 2) {
+            float16 e2 = n[H2(j + flip)];
+            float16 e4 = e2;
+
+            d[H2(j)] = float16_muladd(e2, e1, d[H2(j)], 0, fpst);
+            d[H2(j + 1)] = float16_muladd(e4, e3, d[H2(j + 1)], 0, fpst);
+        }
     }
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
@@ -380,22 +385,27 @@ void HELPER(gvec_fcmlas_idx)(void *vd, void *vn, void *vm,
     uint32_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
     intptr_t index = extract32(desc, SIMD_DATA_SHIFT + 2, 2);
     uint32_t neg_real = flip ^ neg_imag;
-    uintptr_t i;
-    float32 e1 = m[H4(2 * index + flip)];
-    float32 e3 = m[H4(2 * index + 1 - flip)];
+    intptr_t elements = opr_sz / sizeof(float32);
+    intptr_t eltspersegment = 16 / sizeof(float32);
+    intptr_t i, j;
 
     /* Shift boolean to the sign bit so we can xor to negate.  */
     neg_real <<= 31;
     neg_imag <<= 31;
-    e1 ^= neg_real;
-    e3 ^= neg_imag;
 
-    for (i = 0; i < opr_sz / 4; i += 2) {
-        float32 e2 = n[H4(i + flip)];
-        float32 e4 = e2;
+    for (i = 0; i < elements; i += eltspersegment) {
+        float32 mr = m[H4(i + 2 * index + 0)];
+        float32 mi = m[H4(i + 2 * index + 1)];
+        float32 e1 = neg_real ^ (flip ? mi : mr);
+        float32 e3 = neg_imag ^ (flip ? mr : mi);
 
-        d[H4(i)] = float32_muladd(e2, e1, d[H4(i)], 0, fpst);
-        d[H4(i + 1)] = float32_muladd(e4, e3, d[H4(i + 1)], 0, fpst);
+        for (j = i; j < i + eltspersegment; j += 2) {
+            float32 e2 = n[H4(j + flip)];
+            float32 e4 = e2;
+
+            d[H4(j)] = float32_muladd(e2, e1, d[H4(j)], 0, fpst);
+            d[H4(j + 1)] = float32_muladd(e4, e3, d[H4(j + 1)], 0, fpst);
+        }
     }
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
