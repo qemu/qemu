@@ -83,6 +83,7 @@
 &rprr_gather_load       rd pg rn rm esz msz u ff xs scale
 &rpri_gather_load       rd pg rn imm esz msz u ff
 &rprr_scatter_store     rd pg rn rm esz msz xs scale
+&rpri_scatter_store     rd pg rn imm esz msz
 
 ###########################################################################
 # Named instruction formats.  These are generally used to
@@ -219,6 +220,8 @@
                     &rprr_store nreg=0
 @rprr_scatter_store ....... msz:2 ..     rm:5 ... pg:3 rn:5 rd:5 \
                     &rprr_scatter_store
+@rpri_scatter_store ....... msz:2 ..    imm:5 ... pg:3 rn:5 rd:5 \
+                    &rpri_scatter_store
 
 ###########################################################################
 # Instruction patterns.  Grouped according to the SVE encodingindex.xhtml.
@@ -931,6 +934,14 @@ ST1_zprz        1110010 .. 01 ..... 101 ... ..... ..... \
 # SVE 64-bit scatter store (scalar plus 64-bit unscaled offset)
 ST1_zprz        1110010 .. 00 ..... 101 ... ..... ..... \
                 @rprr_scatter_store xs=2 esz=3 scale=0
+
+# SVE 64-bit scatter store (vector plus immediate)
+ST1_zpiz        1110010 .. 10 ..... 101 ... ..... ..... \
+                @rpri_scatter_store esz=3
+
+# SVE 32-bit scatter store (vector plus immediate)
+ST1_zpiz        1110010 .. 11 ..... 101 ... ..... ..... \
+                @rpri_scatter_store esz=2
 
 # SVE 64-bit scatter store (scalar plus unpacked 32-bit scaled offset)
 # Require msz > 0
