@@ -800,6 +800,9 @@ FMINNM_zpzi     01100101 .. 011 101 100 ... 0000 . .....        @rdn_i1
 FMAX_zpzi       01100101 .. 011 110 100 ... 0000 . .....        @rdn_i1
 FMIN_zpzi       01100101 .. 011 111 100 ... 0000 . .....        @rdn_i1
 
+# SVE floating-point trig multiply-add coefficient
+FTMAD           01100101 esz:2 010 imm:3 100000 rm:5 rd:5       rn=%reg_movprfx
+
 ### SVE FP Multiply-Add Group
 
 # SVE floating-point multiply-accumulate writing addend
