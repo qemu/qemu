@@ -46,9 +46,6 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		"CHECK", "$*")
 else
 docker-image-%: $(DOCKER_FILES_DIR)/%.docker
-	@if test "$@" = docker-image-debian-bootstrap -a -z "$(EXECUTABLE)"; then \
-		echo WARNING: EXECUTABLE is not set, debootstrap may fail. 2>&1 ; \
-	fi
 	$(call quiet-command,\
 		$(DOCKER_SCRIPT) build qemu:$* $< \
 		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) \
@@ -56,6 +53,27 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))\
 		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)),\
 		"BUILD","$*")
+
+# Special rule for debootstraped binfmt linux-user images
+docker-binfmt-image-debian-%: $(DOCKER_FILES_DIR)/debian-bootstrap.docker
+	$(if $(EXECUTABLE),,\
+		$(error EXECUTABLE not set, debootstrap of debian-$* would fail))
+	$(if $(wildcard $(EXECUTABLE)),,\
+		$(error Please build $(EXECUTABLE) first))
+	$(if $(DEB_ARCH),,\
+		$(error DEB_ARCH not set, debootstrap of debian-$* would fail))
+	$(if $(DEB_TYPE),,\
+		$(error DEB_TYPE not set, debootstrap of debian-$* would fail))
+	$(call quiet-command,						\
+		DEB_ARCH=$(DEB_ARCH)					\
+		DEB_TYPE=$(DEB_TYPE)					\
+		$(DOCKER_SCRIPT) build qemu:debian-$* $< 		\
+		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) 		\
+		$(if $(NOUSER),,--add-current-user) 			\
+		$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))	\
+		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)), \
+		"BUILD","binfmt debian-$* (debootstrapped)")
+
 endif
 
 # Enforce dependencies for composite images
