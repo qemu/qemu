@@ -3658,6 +3658,106 @@ void HELPER(sve_ftmad_d)(void *vd, void *vn, void *vm, void *vs, uint32_t desc)
 }
 
 /*
+ * FP Complex Add
+ */
+
+void HELPER(sve_fcadd_h)(void *vd, void *vn, void *vm, void *vg,
+                         void *vs, uint32_t desc)
+{
+    intptr_t j, i = simd_oprsz(desc);
+    uint64_t *g = vg;
+    float16 neg_imag = float16_set_sign(0, simd_data(desc));
+    float16 neg_real = float16_chs(neg_imag);
+
+    do {
+        uint64_t pg = g[(i - 1) >> 6];
+        do {
+            float16 e0, e1, e2, e3;
+
+            /* I holds the real index; J holds the imag index.  */
+            j = i - sizeof(float16);
+            i -= 2 * sizeof(float16);
+
+            e0 = *(float16 *)(vn + H1_2(i));
+            e1 = *(float16 *)(vm + H1_2(j)) ^ neg_real;
+            e2 = *(float16 *)(vn + H1_2(j));
+            e3 = *(float16 *)(vm + H1_2(i)) ^ neg_imag;
+
+            if (likely((pg >> (i & 63)) & 1)) {
+                *(float16 *)(vd + H1_2(i)) = float16_add(e0, e1, vs);
+            }
+            if (likely((pg >> (j & 63)) & 1)) {
+                *(float16 *)(vd + H1_2(j)) = float16_add(e2, e3, vs);
+            }
+        } while (i & 63);
+    } while (i != 0);
+}
+
+void HELPER(sve_fcadd_s)(void *vd, void *vn, void *vm, void *vg,
+                         void *vs, uint32_t desc)
+{
+    intptr_t j, i = simd_oprsz(desc);
+    uint64_t *g = vg;
+    float32 neg_imag = float32_set_sign(0, simd_data(desc));
+    float32 neg_real = float32_chs(neg_imag);
+
+    do {
+        uint64_t pg = g[(i - 1) >> 6];
+        do {
+            float32 e0, e1, e2, e3;
+
+            /* I holds the real index; J holds the imag index.  */
+            j = i - sizeof(float32);
+            i -= 2 * sizeof(float32);
+
+            e0 = *(float32 *)(vn + H1_2(i));
+            e1 = *(float32 *)(vm + H1_2(j)) ^ neg_real;
+            e2 = *(float32 *)(vn + H1_2(j));
+            e3 = *(float32 *)(vm + H1_2(i)) ^ neg_imag;
+
+            if (likely((pg >> (i & 63)) & 1)) {
+                *(float32 *)(vd + H1_2(i)) = float32_add(e0, e1, vs);
+            }
+            if (likely((pg >> (j & 63)) & 1)) {
+                *(float32 *)(vd + H1_2(j)) = float32_add(e2, e3, vs);
+            }
+        } while (i & 63);
+    } while (i != 0);
+}
+
+void HELPER(sve_fcadd_d)(void *vd, void *vn, void *vm, void *vg,
+                         void *vs, uint32_t desc)
+{
+    intptr_t j, i = simd_oprsz(desc);
+    uint64_t *g = vg;
+    float64 neg_imag = float64_set_sign(0, simd_data(desc));
+    float64 neg_real = float64_chs(neg_imag);
+
+    do {
+        uint64_t pg = g[(i - 1) >> 6];
+        do {
+            float64 e0, e1, e2, e3;
+
+            /* I holds the real index; J holds the imag index.  */
+            j = i - sizeof(float64);
+            i -= 2 * sizeof(float64);
+
+            e0 = *(float64 *)(vn + H1_2(i));
+            e1 = *(float64 *)(vm + H1_2(j)) ^ neg_real;
+            e2 = *(float64 *)(vn + H1_2(j));
+            e3 = *(float64 *)(vm + H1_2(i)) ^ neg_imag;
+
+            if (likely((pg >> (i & 63)) & 1)) {
+                *(float64 *)(vd + H1_2(i)) = float64_add(e0, e1, vs);
+            }
+            if (likely((pg >> (j & 63)) & 1)) {
+                *(float64 *)(vd + H1_2(j)) = float64_add(e2, e3, vs);
+            }
+        } while (i & 63);
+    } while (i != 0);
+}
+
+/*
  * Load contiguous data, protected by a governing predicate.
  */
 #define DO_LD1(NAME, FN, TYPEE, TYPEM, H)                  \

@@ -725,6 +725,10 @@ UMIN_zzi        00100101 .. 101 011 110 ........ .....          @rdn_i8u
 # SVE integer multiply immediate (unpredicated)
 MUL_zzi         00100101 .. 110 000 110 ........ .....          @rdn_i8s
 
+# SVE floating-point complex add (predicated)
+FCADD           01100100 esz:2 00000 rot:1 100 pg:3 rm:5 rd:5 \
+                rn=%reg_movprfx
+
 ### SVE FP Multiply-Add Indexed Group
 
 # SVE floating-point multiply-add (indexed)
