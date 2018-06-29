@@ -505,6 +505,9 @@ static void sam460ex_init(MachineState *machine)
     /* MAL */
     ppc4xx_mal_init(env, 4, 16, &uic[2][3]);
 
+    /* DMA */
+    ppc4xx_dma_init(env, 0x200);
+
     /* 256K of L2 cache as memory */
     ppc4xx_l2sram_init(env);
     /* FIXME: remove this after fixing l2sram mapping in ppc440_uc.c? */
