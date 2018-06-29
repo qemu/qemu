@@ -64,15 +64,19 @@ docker-binfmt-image-debian-%: $(DOCKER_FILES_DIR)/debian-bootstrap.docker
 		$(error DEB_ARCH not set, debootstrap of debian-$* would fail))
 	$(if $(DEB_TYPE),,\
 		$(error DEB_TYPE not set, debootstrap of debian-$* would fail))
-	$(call quiet-command,						\
-		DEB_ARCH=$(DEB_ARCH)					\
-		DEB_TYPE=$(DEB_TYPE)					\
-		$(DOCKER_SCRIPT) build qemu:debian-$* $< 		\
-		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) 		\
-		$(if $(NOUSER),,--add-current-user) 			\
-		$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))	\
-		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)), \
-		"BUILD","binfmt debian-$* (debootstrapped)")
+	$(if $(filter $(QEMU_TARGET),$(TARGET_DIRS)),				\
+		$(call quiet-command,						\
+			DEB_ARCH=$(DEB_ARCH)					\
+			DEB_TYPE=$(DEB_TYPE)					\
+			$(DOCKER_SCRIPT) build qemu:debian-$* $< 		\
+			$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) 		\
+			$(if $(NOUSER),,--add-current-user) 			\
+			$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))	\
+			$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)), \
+			"BUILD","binfmt debian-$* (debootstrapped)"),		\
+		$(call quiet-command,						\
+			$(DOCKER_SCRIPT) check --quiet qemu:debian-$* $<,	\
+			"CHECK", "debian-$* exists"))
 
 endif
 
@@ -117,6 +121,21 @@ docker-image-travis: NOUSER=1
 # Specialist build images, sometimes very limited tools
 docker-image-tricore-cross: docker-image-debian9
 
+# Rules for building linux-user powered images
+#
+# These are slower than using native cross compiler setups but can
+# work around issues with poorly working multi-arch systems and broken
+# packages.
+
+# Jessie is the last supported release for powerpc, but multi-arch is
+# broken so we need a qemu-linux-user for this target
+docker-binfmt-image-debian-powerpc-user: DEB_ARCH = powerpc
+docker-binfmt-image-debian-powerpc-user: DEB_TYPE = jessie
+docker-binfmt-image-debian-powerpc-user: QEMU_TARGET = ppc-linux-user
+docker-binfmt-image-debian-powerpc-user: EXECUTABLE = ${BUILD_DIR}/ppc-linux-user/qemu-ppc
+docker-image-debian-powerpc-user-cross: docker-binfmt-image-debian-powerpc-user
+DOCKER_USER_IMAGES += debian-powerpc-user
+
 # Expand all the pre-requistes for each docker image and test combination
 $(foreach i,$(filter-out $(DOCKER_INTERMEDIATE_IMAGES),$(DOCKER_IMAGES) $(DOCKER_DEPRECATED_IMAGES)), \
 	$(foreach t,$(DOCKER_TESTS) $(DOCKER_TOOLS), \
@@ -146,6 +165,11 @@ docker:
 	@echo
 	@echo 'Available container images:'
 	@echo '    $(DOCKER_IMAGES)'
+ifneq ($(DOCKER_USER_IMAGES),)
+	@echo
+	@echo 'Available linux-user images (docker-binfmt-image-debian-%):'
+	@echo '    $(DOCKER_USER_IMAGES)'
+endif
 	@echo
 	@echo 'Available tests:'
 	@echo '    $(DOCKER_TESTS)'
