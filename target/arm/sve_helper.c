@@ -3298,6 +3298,14 @@ DO_ZPZ_FP(sve_frintx_h, uint16_t, H1_2, float16_round_to_int)
 DO_ZPZ_FP(sve_frintx_s, uint32_t, H1_4, float32_round_to_int)
 DO_ZPZ_FP(sve_frintx_d, uint64_t,     , float64_round_to_int)
 
+DO_ZPZ_FP(sve_frecpx_h, uint16_t, H1_2, helper_frecpx_f16)
+DO_ZPZ_FP(sve_frecpx_s, uint32_t, H1_4, helper_frecpx_f32)
+DO_ZPZ_FP(sve_frecpx_d, uint64_t,     , helper_frecpx_f64)
+
+DO_ZPZ_FP(sve_fsqrt_h, uint16_t, H1_2, float16_sqrt)
+DO_ZPZ_FP(sve_fsqrt_s, uint32_t, H1_4, float32_sqrt)
+DO_ZPZ_FP(sve_fsqrt_d, uint64_t,     , float64_sqrt)
+
 DO_ZPZ_FP(sve_scvt_hh, uint16_t, H1_2, int16_to_float16)
 DO_ZPZ_FP(sve_scvt_sh, uint32_t, H1_4, int32_to_float16)
 DO_ZPZ_FP(sve_scvt_ss, uint32_t, H1_4, int32_to_float32)

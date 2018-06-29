@@ -854,6 +854,10 @@ FRINTA          01100101 .. 000 100 101 ... ..... .....         @rd_pg_rn
 FRINTX          01100101 .. 000 110 101 ... ..... .....         @rd_pg_rn
 FRINTI          01100101 .. 000 111 101 ... ..... .....         @rd_pg_rn
 
+# SVE floating-point unary operations
+FRECPX          01100101 .. 001 100 101 ... ..... .....         @rd_pg_rn
+FSQRT           01100101 .. 001 101 101 ... ..... .....         @rd_pg_rn
+
 # SVE integer convert to floating-point
 SCVTF_hh        01100101 01 010 01 0 101 ... ..... .....        @rd_pg_rn_e0
 SCVTF_sh        01100101 01 010 10 0 101 ... ..... .....        @rd_pg_rn_e0
