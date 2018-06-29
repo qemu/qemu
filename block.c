@@ -2584,6 +2584,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     BlockBackend *file = NULL;
     BlockDriverState *bs;
     BlockDriver *drv = NULL;
+    BdrvChild *child;
     const char *drvname;
     const char *backing;
     Error *local_err = NULL;
@@ -2765,6 +2766,15 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         if (ret < 0) {
             goto close_and_fail;
         }
+    }
+
+    /* Remove all children options from bs->options and bs->explicit_options */
+    QLIST_FOREACH(child, &bs->children, next) {
+        char *child_key_dot;
+        child_key_dot = g_strdup_printf("%s.", child->name);
+        qdict_extract_subqdict(bs->explicit_options, NULL, child_key_dot);
+        qdict_extract_subqdict(bs->options, NULL, child_key_dot);
+        g_free(child_key_dot);
     }
 
     bdrv_refresh_filename(bs);
@@ -2976,6 +2986,7 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         }
 
         child_key_dot = g_strdup_printf("%s.", child->name);
+        qdict_extract_subqdict(explicit_options, NULL, child_key_dot);
         qdict_extract_subqdict(options, &new_child_options, child_key_dot);
         g_free(child_key_dot);
 
