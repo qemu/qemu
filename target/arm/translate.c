@@ -7826,26 +7826,42 @@ static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
 
 static int disas_neon_insn_2reg_scalar_ext(DisasContext *s, uint32_t insn)
 {
-    int rd, rn, rm, rot, size, opr_sz;
+    gen_helper_gvec_3_ptr *fn_gvec_ptr;
+    int rd, rn, rm, opr_sz, data;
     TCGv_ptr fpst;
     bool q;
 
     q = extract32(insn, 6, 1);
     VFP_DREG_D(rd, insn);
     VFP_DREG_N(rn, insn);
-    VFP_DREG_M(rm, insn);
     if ((rd | rn) & q) {
         return 1;
     }
 
     if ((insn & 0xff000f10) == 0xfe000800) {
         /* VCMLA (indexed) -- 1111 1110 S.RR .... .... 1000 ...0 .... */
-        rot = extract32(insn, 20, 2);
-        size = extract32(insn, 23, 1);
-        if (!arm_dc_feature(s, ARM_FEATURE_V8_FCMA)
-            || (!size && !arm_dc_feature(s, ARM_FEATURE_V8_FP16))) {
+        int rot = extract32(insn, 20, 2);
+        int size = extract32(insn, 23, 1);
+        int index;
+
+        if (!arm_dc_feature(s, ARM_FEATURE_V8_FCMA)) {
             return 1;
         }
+        if (size == 0) {
+            if (!arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
+                return 1;
+            }
+            /* For fp16, rm is just Vm, and index is M.  */
+            rm = extract32(insn, 0, 4);
+            index = extract32(insn, 5, 1);
+        } else {
+            /* For fp32, rm is the usual M:Vm, and index is 0.  */
+            VFP_DREG_M(rm, insn);
+            index = 0;
+        }
+        data = (index << 2) | rot;
+        fn_gvec_ptr = (size ? gen_helper_gvec_fcmlas_idx
+                       : gen_helper_gvec_fcmlah_idx);
     } else {
         return 1;
     }
@@ -7864,9 +7880,7 @@ static int disas_neon_insn_2reg_scalar_ext(DisasContext *s, uint32_t insn)
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, rd),
                        vfp_reg_offset(1, rn),
                        vfp_reg_offset(1, rm), fpst,
-                       opr_sz, opr_sz, rot,
-                       size ? gen_helper_gvec_fcmlas_idx
-                       : gen_helper_gvec_fcmlah_idx);
+                       opr_sz, opr_sz, data, fn_gvec_ptr);
     tcg_temp_free_ptr(fpst);
     return 0;
 }

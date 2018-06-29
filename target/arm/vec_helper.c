@@ -317,10 +317,11 @@ void HELPER(gvec_fcmlah_idx)(void *vd, void *vn, void *vm,
     float_status *fpst = vfpst;
     intptr_t flip = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint32_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
+    intptr_t index = extract32(desc, SIMD_DATA_SHIFT + 2, 2);
     uint32_t neg_real = flip ^ neg_imag;
     uintptr_t i;
-    float16 e1 = m[H2(flip)];
-    float16 e3 = m[H2(1 - flip)];
+    float16 e1 = m[H2(2 * index + flip)];
+    float16 e3 = m[H2(2 * index + 1 - flip)];
 
     /* Shift boolean to the sign bit so we can xor to negate.  */
     neg_real <<= 15;
@@ -377,10 +378,11 @@ void HELPER(gvec_fcmlas_idx)(void *vd, void *vn, void *vm,
     float_status *fpst = vfpst;
     intptr_t flip = extract32(desc, SIMD_DATA_SHIFT, 1);
     uint32_t neg_imag = extract32(desc, SIMD_DATA_SHIFT + 1, 1);
+    intptr_t index = extract32(desc, SIMD_DATA_SHIFT + 2, 2);
     uint32_t neg_real = flip ^ neg_imag;
     uintptr_t i;
-    float32 e1 = m[H4(flip)];
-    float32 e3 = m[H4(1 - flip)];
+    float32 e1 = m[H4(2 * index + flip)];
+    float32 e3 = m[H4(2 * index + 1 - flip)];
 
     /* Shift boolean to the sign bit so we can xor to negate.  */
     neg_real <<= 31;

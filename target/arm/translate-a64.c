@@ -12669,15 +12669,18 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     case 0x13: /* FCMLA #90 */
     case 0x15: /* FCMLA #180 */
     case 0x17: /* FCMLA #270 */
-        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
-                           vec_full_reg_offset(s, rn),
-                           vec_reg_offset(s, rm, index, size), fpst,
-                           is_q ? 16 : 8, vec_full_reg_size(s),
-                           extract32(insn, 13, 2), /* rot */
-                           size == MO_64
-                           ? gen_helper_gvec_fcmlas_idx
-                           : gen_helper_gvec_fcmlah_idx);
-        tcg_temp_free_ptr(fpst);
+        {
+            int rot = extract32(insn, 13, 2);
+            int data = (index << 2) | rot;
+            tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, rd),
+                               vec_full_reg_offset(s, rn),
+                               vec_full_reg_offset(s, rm), fpst,
+                               is_q ? 16 : 8, vec_full_reg_size(s), data,
+                               size == MO_64
+                               ? gen_helper_gvec_fcmlas_idx
+                               : gen_helper_gvec_fcmlah_idx);
+            tcg_temp_free_ptr(fpst);
+        }
         return;
     }
 
