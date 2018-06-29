@@ -26,6 +26,7 @@
 #define QEMU_AIO_DISCARD      0x0010
 #define QEMU_AIO_WRITE_ZEROES 0x0020
 #define QEMU_AIO_COPY_RANGE   0x0040
+#define QEMU_AIO_TRUNCATE     0x0080
 #define QEMU_AIO_TYPE_MASK \
         (QEMU_AIO_READ | \
          QEMU_AIO_WRITE | \
@@ -33,7 +34,8 @@
          QEMU_AIO_FLUSH | \
          QEMU_AIO_DISCARD | \
          QEMU_AIO_WRITE_ZEROES | \
-         QEMU_AIO_COPY_RANGE)
+         QEMU_AIO_COPY_RANGE | \
+         QEMU_AIO_TRUNCATE)
 
 /* AIO flags */
 #define QEMU_AIO_MISALIGNED   0x1000

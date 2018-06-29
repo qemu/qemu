@@ -91,6 +91,15 @@ if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG.orig" "$TEST_IMG" >/dev
     exit 1
 fi
 
+echo "== Regression testing for copy offloading bug =="
+
+_make_test_img 1M
+TEST_IMG="$TEST_IMG.target" _make_test_img 1M
+$QEMU_IO -c 'write -P 1 0 512k' -c 'write -P 2 512k 512k' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'write -P 4 512k 512k' -c 'write -P 3 0 512k' "$TEST_IMG.target" | _filter_qemu_io
+$QEMU_IMG convert -n -O $IMGFMT "$TEST_IMG" "$TEST_IMG.target"
+$QEMU_IMG compare "$TEST_IMG" "$TEST_IMG.target"
+
 echo "*** done"
 rm -f $seq.full
 status=0

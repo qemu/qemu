@@ -994,6 +994,17 @@ err:
     return ret;
  }
 
+/**
+ * Frees the allocated clusters because the request failed and they won't
+ * actually be linked.
+ */
+void qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m)
+{
+    BDRVQcow2State *s = bs->opaque;
+    qcow2_free_clusters(bs, m->alloc_offset, m->nb_clusters << s->cluster_bits,
+                        QCOW2_DISCARD_NEVER);
+}
+
 /*
  * Returns the number of contiguous clusters that can be used for an allocating
  * write, but require COW to be performed (this includes yet unallocated space,

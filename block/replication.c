@@ -246,13 +246,14 @@ static coroutine_fn int replication_co_readv(BlockDriverState *bs,
         backup_cow_request_begin(&req, child->bs->job,
                                  sector_num * BDRV_SECTOR_SIZE,
                                  remaining_bytes);
-        ret = bdrv_co_readv(bs->file, sector_num, remaining_sectors,
-                            qiov);
+        ret = bdrv_co_preadv(bs->file, sector_num * BDRV_SECTOR_SIZE,
+                             remaining_bytes, qiov, 0);
         backup_cow_request_end(&req);
         goto out;
     }
 
-    ret = bdrv_co_readv(bs->file, sector_num, remaining_sectors, qiov);
+    ret = bdrv_co_preadv(bs->file, sector_num * BDRV_SECTOR_SIZE,
+                         remaining_sectors * BDRV_SECTOR_SIZE, qiov, 0);
 out:
     return replication_return_value(s, ret);
 }
@@ -279,8 +280,8 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
     }
 
     if (ret == 0) {
-        ret = bdrv_co_writev(top, sector_num,
-                             remaining_sectors, qiov);
+        ret = bdrv_co_pwritev(top, sector_num * BDRV_SECTOR_SIZE,
+                              remaining_sectors * BDRV_SECTOR_SIZE, qiov, 0);
         return replication_return_value(s, ret);
     }
 
@@ -306,7 +307,8 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
         qemu_iovec_concat(&hd_qiov, qiov, bytes_done, count);
 
         target = ret ? top : base;
-        ret = bdrv_co_writev(target, sector_num, n, &hd_qiov);
+        ret = bdrv_co_pwritev(target, sector_num * BDRV_SECTOR_SIZE,
+                              n * BDRV_SECTOR_SIZE, &hd_qiov, 0);
         if (ret < 0) {
             goto out1;
         }

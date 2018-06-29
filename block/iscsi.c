@@ -2085,8 +2085,8 @@ static void iscsi_reopen_commit(BDRVReopenState *reopen_state)
     }
 }
 
-static int iscsi_truncate(BlockDriverState *bs, int64_t offset,
-                          PreallocMode prealloc, Error **errp)
+static int coroutine_fn iscsi_co_truncate(BlockDriverState *bs, int64_t offset,
+                                          PreallocMode prealloc, Error **errp)
 {
     IscsiLun *iscsilun = bs->opaque;
     Error *local_err = NULL;
@@ -2226,7 +2226,7 @@ static void iscsi_populate_target_desc(unsigned char *desc, IscsiLun *lun)
     desc[5] = (dd->designator_type & 0xF)
         | ((dd->association & 3) << 4);
     desc[7] = dd->designator_length;
-    memcpy(desc + 8, dd->designator, dd->designator_length);
+    memcpy(desc + 8, dd->designator, MIN(dd->designator_length, 20));
 
     desc[28] = 0;
     desc[29] = (lun->block_size >> 16) & 0xFF;
@@ -2431,7 +2431,7 @@ static BlockDriver bdrv_iscsi = {
 
     .bdrv_getlength  = iscsi_getlength,
     .bdrv_get_info   = iscsi_get_info,
-    .bdrv_truncate   = iscsi_truncate,
+    .bdrv_co_truncate    = iscsi_co_truncate,
     .bdrv_refresh_limits = iscsi_refresh_limits,
 
     .bdrv_co_block_status  = iscsi_co_block_status,
@@ -2468,7 +2468,7 @@ static BlockDriver bdrv_iser = {
 
     .bdrv_getlength  = iscsi_getlength,
     .bdrv_get_info   = iscsi_get_info,
-    .bdrv_truncate   = iscsi_truncate,
+    .bdrv_co_truncate    = iscsi_co_truncate,
     .bdrv_refresh_limits = iscsi_refresh_limits,
 
     .bdrv_co_block_status  = iscsi_co_block_status,

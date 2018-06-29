@@ -227,14 +227,15 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         };
         qemu_iovec_init_external(&qiov, &iov, 1);
 
-        ret = bdrv_co_readv(bs->backing, idx * s->tracks, nb_cow_sectors,
-                            &qiov);
+        ret = bdrv_co_preadv(bs->backing, idx * s->tracks * BDRV_SECTOR_SIZE,
+                             nb_cow_bytes, &qiov, 0);
         if (ret < 0) {
             qemu_vfree(iov.iov_base);
             return ret;
         }
 
-        ret = bdrv_co_writev(bs->file, s->data_end, nb_cow_sectors, &qiov);
+        ret = bdrv_co_pwritev(bs->file, s->data_end * BDRV_SECTOR_SIZE,
+                              nb_cow_bytes, &qiov, 0);
         qemu_vfree(iov.iov_base);
         if (ret < 0) {
             return ret;
@@ -340,7 +341,8 @@ static coroutine_fn int parallels_co_writev(BlockDriverState *bs,
         qemu_iovec_reset(&hd_qiov);
         qemu_iovec_concat(&hd_qiov, qiov, bytes_done, nbytes);
 
-        ret = bdrv_co_writev(bs->file, position, n, &hd_qiov);
+        ret = bdrv_co_pwritev(bs->file, position * BDRV_SECTOR_SIZE, nbytes,
+                              &hd_qiov, 0);
         if (ret < 0) {
             break;
         }
@@ -379,7 +381,8 @@ static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
 
         if (position < 0) {
             if (bs->backing) {
-                ret = bdrv_co_readv(bs->backing, sector_num, n, &hd_qiov);
+                ret = bdrv_co_preadv(bs->backing, sector_num * BDRV_SECTOR_SIZE,
+                                     nbytes, &hd_qiov, 0);
                 if (ret < 0) {
                     break;
                 }
@@ -387,7 +390,8 @@ static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
                 qemu_iovec_memset(&hd_qiov, 0, 0, nbytes);
             }
         } else {
-            ret = bdrv_co_readv(bs->file, position, n, &hd_qiov);
+            ret = bdrv_co_preadv(bs->file, position * BDRV_SECTOR_SIZE, nbytes,
+                                 &hd_qiov, 0);
             if (ret < 0) {
                 break;
             }

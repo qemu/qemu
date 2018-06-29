@@ -725,7 +725,7 @@ static int find_image_format(BlockBackend *file, const char *filename,
  * Set the current 'total_sectors' value
  * Return 0 on success, -errno on error.
  */
-static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
+int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
 {
     BlockDriver *drv = bs->drv;
 
@@ -2222,16 +2222,6 @@ static void bdrv_parent_cb_change_media(BlockDriverState *bs, bool load)
     QLIST_FOREACH(c, &bs->parents, next_parent) {
         if (c->role->change_media) {
             c->role->change_media(c, load);
-        }
-    }
-}
-
-static void bdrv_parent_cb_resize(BlockDriverState *bs)
-{
-    BdrvChild *c;
-    QLIST_FOREACH(c, &bs->parents, next_parent) {
-        if (c->role->resize) {
-            c->role->resize(c);
         }
     }
 }
@@ -3782,58 +3772,6 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     ret = 0;
 exit:
     bdrv_unref(top);
-    return ret;
-}
-
-/**
- * Truncate file to 'offset' bytes (needed only for file protocols)
- */
-int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
-                  Error **errp)
-{
-    BlockDriverState *bs = child->bs;
-    BlockDriver *drv = bs->drv;
-    int ret;
-
-    assert(child->perm & BLK_PERM_RESIZE);
-
-    /* if bs->drv == NULL, bs is closed, so there's nothing to do here */
-    if (!drv) {
-        error_setg(errp, "No medium inserted");
-        return -ENOMEDIUM;
-    }
-    if (offset < 0) {
-        error_setg(errp, "Image size cannot be negative");
-        return -EINVAL;
-    }
-
-    if (!drv->bdrv_truncate) {
-        if (bs->file && drv->is_filter) {
-            return bdrv_truncate(bs->file, offset, prealloc, errp);
-        }
-        error_setg(errp, "Image format driver does not support resize");
-        return -ENOTSUP;
-    }
-    if (bs->read_only) {
-        error_setg(errp, "Image is read-only");
-        return -EACCES;
-    }
-
-    assert(!(bs->open_flags & BDRV_O_INACTIVE));
-
-    ret = drv->bdrv_truncate(bs, offset, prealloc, errp);
-    if (ret < 0) {
-        return ret;
-    }
-    ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "Could not refresh total sector count");
-    } else {
-        offset = bs->total_sectors * BDRV_SECTOR_SIZE;
-    }
-    bdrv_dirty_bitmap_truncate(bs, offset);
-    bdrv_parent_cb_resize(bs);
-    atomic_inc(&bs->write_gen);
     return ret;
 }
 

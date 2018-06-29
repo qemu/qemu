@@ -200,6 +200,23 @@ done
 done
 done
 
+echo
+echo === Avoid cluster leaks after temporary failure ===
+echo
+
+cat > "$TEST_DIR/blkdebug.conf" <<EOF
+[inject-error]
+event = "write_aio"
+errno = "5"
+once = "on"
+EOF
+
+# After the failed first write, do a second write so that the updated refcount
+# block is actually written back
+_make_test_img 64M
+$QEMU_IO -c "write 0 1M" -c "write 0 1M" "$BLKDBG_TEST_IMG" | _filter_qemu_io
+_check_test_img
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
