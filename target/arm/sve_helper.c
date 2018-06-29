@@ -2852,6 +2852,67 @@ uint32_t HELPER(sve_while)(void *vd, uint32_t count, uint32_t pred_desc)
     return predtest_ones(d, oprsz, esz_mask);
 }
 
+/* Recursive reduction on a function;
+ * C.f. the ARM ARM function ReducePredicated.
+ *
+ * While it would be possible to write this without the DATA temporary,
+ * it is much simpler to process the predicate register this way.
+ * The recursion is bounded to depth 7 (128 fp16 elements), so there's
+ * little to gain with a more complex non-recursive form.
+ */
+#define DO_REDUCE(NAME, TYPE, H, FUNC, IDENT)                         \
+static TYPE NAME##_reduce(TYPE *data, float_status *status, uintptr_t n) \
+{                                                                     \
+    if (n == 1) {                                                     \
+        return *data;                                                 \
+    } else {                                                          \
+        uintptr_t half = n / 2;                                       \
+        TYPE lo = NAME##_reduce(data, status, half);                  \
+        TYPE hi = NAME##_reduce(data + half, status, half);           \
+        return TYPE##_##FUNC(lo, hi, status);                         \
+    }                                                                 \
+}                                                                     \
+uint64_t HELPER(NAME)(void *vn, void *vg, void *vs, uint32_t desc)    \
+{                                                                     \
+    uintptr_t i, oprsz = simd_oprsz(desc), maxsz = simd_maxsz(desc);  \
+    TYPE data[sizeof(ARMVectorReg) / sizeof(TYPE)];                   \
+    for (i = 0; i < oprsz; ) {                                        \
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));               \
+        do {                                                          \
+            TYPE nn = *(TYPE *)(vn + H(i));                           \
+            *(TYPE *)((void *)data + i) = (pg & 1 ? nn : IDENT);      \
+            i += sizeof(TYPE), pg >>= sizeof(TYPE);                   \
+        } while (i & 15);                                             \
+    }                                                                 \
+    for (; i < maxsz; i += sizeof(TYPE)) {                            \
+        *(TYPE *)((void *)data + i) = IDENT;                          \
+    }                                                                 \
+    return NAME##_reduce(data, vs, maxsz / sizeof(TYPE));             \
+}
+
+DO_REDUCE(sve_faddv_h, float16, H1_2, add, float16_zero)
+DO_REDUCE(sve_faddv_s, float32, H1_4, add, float32_zero)
+DO_REDUCE(sve_faddv_d, float64,     , add, float64_zero)
+
+/* Identity is floatN_default_nan, without the function call.  */
+DO_REDUCE(sve_fminnmv_h, float16, H1_2, minnum, 0x7E00)
+DO_REDUCE(sve_fminnmv_s, float32, H1_4, minnum, 0x7FC00000)
+DO_REDUCE(sve_fminnmv_d, float64,     , minnum, 0x7FF8000000000000ULL)
+
+DO_REDUCE(sve_fmaxnmv_h, float16, H1_2, maxnum, 0x7E00)
+DO_REDUCE(sve_fmaxnmv_s, float32, H1_4, maxnum, 0x7FC00000)
+DO_REDUCE(sve_fmaxnmv_d, float64,     , maxnum, 0x7FF8000000000000ULL)
+
+DO_REDUCE(sve_fminv_h, float16, H1_2, min, float16_infinity)
+DO_REDUCE(sve_fminv_s, float32, H1_4, min, float32_infinity)
+DO_REDUCE(sve_fminv_d, float64,     , min, float64_infinity)
+
+DO_REDUCE(sve_fmaxv_h, float16, H1_2, max, float16_chs(float16_infinity))
+DO_REDUCE(sve_fmaxv_s, float32, H1_4, max, float32_chs(float32_infinity))
+DO_REDUCE(sve_fmaxv_d, float64,     , max, float64_chs(float64_infinity))
+
+#undef DO_REDUCE
+
 uint64_t HELPER(sve_fadda_h)(uint64_t nn, void *vm, void *vg,
                              void *status, uint32_t desc)
 {

@@ -735,6 +735,14 @@ FMUL_zzx        01100100 0.1 .. rm:3 001000 rn:5 rd:5 \
 FMUL_zzx        01100100 101 index:2 rm:3 001000 rn:5 rd:5      esz=2
 FMUL_zzx        01100100 111 index:1 rm:4 001000 rn:5 rd:5      esz=3
 
+### SVE FP Fast Reduction Group
+
+FADDV           01100101 .. 000 000 001 ... ..... .....         @rd_pg_rn
+FMAXNMV         01100101 .. 000 100 001 ... ..... .....         @rd_pg_rn
+FMINNMV         01100101 .. 000 101 001 ... ..... .....         @rd_pg_rn
+FMAXV           01100101 .. 000 110 001 ... ..... .....         @rd_pg_rn
+FMINV           01100101 .. 000 111 001 ... ..... .....         @rd_pg_rn
+
 ### SVE FP Accumulating Reduction Group
 
 # SVE floating-point serial reduction (predicated)

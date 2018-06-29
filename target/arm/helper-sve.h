@@ -725,6 +725,41 @@ DEF_HELPER_FLAGS_5(gvec_rsqrts_s, TCG_CALL_NO_RWG,
 DEF_HELPER_FLAGS_5(gvec_rsqrts_d, TCG_CALL_NO_RWG,
                    void, ptr, ptr, ptr, ptr, i32)
 
+DEF_HELPER_FLAGS_4(sve_faddv_h, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(sve_faddv_s, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(sve_faddv_d, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+
+DEF_HELPER_FLAGS_4(sve_fmaxnmv_h, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(sve_fmaxnmv_s, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(sve_fmaxnmv_d, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+
+DEF_HELPER_FLAGS_4(sve_fminnmv_h, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(sve_fminnmv_s, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(sve_fminnmv_d, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+
+DEF_HELPER_FLAGS_4(sve_fmaxv_h, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(sve_fmaxv_s, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(sve_fmaxv_d, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+
+DEF_HELPER_FLAGS_4(sve_fminv_h, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(sve_fminv_s, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(sve_fminv_d, TCG_CALL_NO_RWG,
+                   i64, ptr, ptr, ptr, i32)
+
 DEF_HELPER_FLAGS_5(sve_fadda_h, TCG_CALL_NO_RWG,
                    i64, i64, ptr, ptr, ptr, i32)
 DEF_HELPER_FLAGS_5(sve_fadda_s, TCG_CALL_NO_RWG,
