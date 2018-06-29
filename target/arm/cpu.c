@@ -1803,9 +1803,6 @@ static void arm_max_initfn(Object *obj)
          * since we don't correctly set the ID registers to advertise them,
          */
         set_feature(&cpu->env, ARM_FEATURE_V8);
-        set_feature(&cpu->env, ARM_FEATURE_VFP4);
-        set_feature(&cpu->env, ARM_FEATURE_NEON);
-        set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
         set_feature(&cpu->env, ARM_FEATURE_V8_AES);
         set_feature(&cpu->env, ARM_FEATURE_V8_SHA1);
         set_feature(&cpu->env, ARM_FEATURE_V8_SHA256);
