@@ -963,7 +963,8 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
         }
     }
 
-    if (unlikely(env->tlb_table[mmu_idx][index].addr_code & TLB_RECHECK)) {
+    if (unlikely((env->tlb_table[mmu_idx][index].addr_code &
+                  (TLB_RECHECK | TLB_INVALID_MASK)) == TLB_RECHECK)) {
         /*
          * This is a TLB_RECHECK access, where the MMU protection
          * covers a smaller range than a target page, and we must
