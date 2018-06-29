@@ -52,9 +52,7 @@ void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
         if (c == ignore || (ignore_bds_parents && c->role->parent_is_bds)) {
             continue;
         }
-        if (c->role->drained_begin) {
-            c->role->drained_begin(c);
-        }
+        bdrv_parent_drained_begin_single(c, false);
     }
 }
 
@@ -73,6 +71,14 @@ void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
     }
 }
 
+static bool bdrv_parent_drained_poll_single(BdrvChild *c)
+{
+    if (c->role->drained_poll) {
+        return c->role->drained_poll(c);
+    }
+    return false;
+}
+
 static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
                                      bool ignore_bds_parents)
 {
@@ -83,12 +89,20 @@ static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
         if (c == ignore || (ignore_bds_parents && c->role->parent_is_bds)) {
             continue;
         }
-        if (c->role->drained_poll) {
-            busy |= c->role->drained_poll(c);
-        }
+        busy |= bdrv_parent_drained_poll_single(c);
     }
 
     return busy;
+}
+
+void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll)
+{
+    if (c->role->drained_begin) {
+        c->role->drained_begin(c);
+    }
+    if (poll) {
+        BDRV_POLL_WHILE(c->bs, bdrv_parent_drained_poll_single(c));
+    }
 }
 
 static void bdrv_merge_limits(BlockLimits *dst, const BlockLimits *src)

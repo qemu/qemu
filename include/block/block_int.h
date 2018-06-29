@@ -606,6 +606,9 @@ struct BdrvChildRole {
      * requests after returning from .drained_begin() until .drained_end() is
      * called.
      *
+     * These functions must not change the graph (and therefore also must not
+     * call aio_poll(), which could change the graph indirectly).
+     *
      * Note that this can be nested. If drained_begin() was called twice, new
      * I/O is allowed only after drained_end() was called twice, too.
      */

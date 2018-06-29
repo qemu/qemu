@@ -2066,7 +2066,7 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
             }
             assert(num >= 0);
             for (i = 0; i < num; i++) {
-                child->role->drained_begin(child);
+                bdrv_parent_drained_begin_single(child, true);
             }
         }
 

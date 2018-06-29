@@ -569,6 +569,14 @@ void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
                                bool ignore_bds_parents);
 
 /**
+ * bdrv_parent_drained_begin_single:
+ *
+ * Begin a quiesced section for the parent of @c. If @poll is true, wait for
+ * any pending activity to cease.
+ */
+void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll);
+
+/**
  * bdrv_parent_drained_end:
  *
  * End a quiesced section of all users of @bs. This is part of
