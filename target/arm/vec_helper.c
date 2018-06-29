@@ -261,6 +261,130 @@ void HELPER(gvec_udot_h)(void *vd, void *vn, void *vm, uint32_t desc)
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
 
+void HELPER(gvec_sdot_idx_b)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, segend, opr_sz = simd_oprsz(desc), opr_sz_4 = opr_sz / 4;
+    intptr_t index = simd_data(desc);
+    uint32_t *d = vd;
+    int8_t *n = vn;
+    int8_t *m_indexed = (int8_t *)vm + index * 4;
+
+    /* Notice the special case of opr_sz == 8, from aa64/aa32 advsimd.
+     * Otherwise opr_sz is a multiple of 16.
+     */
+    segend = MIN(4, opr_sz_4);
+    i = 0;
+    do {
+        int8_t m0 = m_indexed[i * 4 + 0];
+        int8_t m1 = m_indexed[i * 4 + 1];
+        int8_t m2 = m_indexed[i * 4 + 2];
+        int8_t m3 = m_indexed[i * 4 + 3];
+
+        do {
+            d[i] += n[i * 4 + 0] * m0
+                  + n[i * 4 + 1] * m1
+                  + n[i * 4 + 2] * m2
+                  + n[i * 4 + 3] * m3;
+        } while (++i < segend);
+        segend = i + 4;
+    } while (i < opr_sz_4);
+
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_udot_idx_b)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, segend, opr_sz = simd_oprsz(desc), opr_sz_4 = opr_sz / 4;
+    intptr_t index = simd_data(desc);
+    uint32_t *d = vd;
+    uint8_t *n = vn;
+    uint8_t *m_indexed = (uint8_t *)vm + index * 4;
+
+    /* Notice the special case of opr_sz == 8, from aa64/aa32 advsimd.
+     * Otherwise opr_sz is a multiple of 16.
+     */
+    segend = MIN(4, opr_sz_4);
+    i = 0;
+    do {
+        uint8_t m0 = m_indexed[i * 4 + 0];
+        uint8_t m1 = m_indexed[i * 4 + 1];
+        uint8_t m2 = m_indexed[i * 4 + 2];
+        uint8_t m3 = m_indexed[i * 4 + 3];
+
+        do {
+            d[i] += n[i * 4 + 0] * m0
+                  + n[i * 4 + 1] * m1
+                  + n[i * 4 + 2] * m2
+                  + n[i * 4 + 3] * m3;
+        } while (++i < segend);
+        segend = i + 4;
+    } while (i < opr_sz_4);
+
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_sdot_idx_h)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc), opr_sz_8 = opr_sz / 8;
+    intptr_t index = simd_data(desc);
+    uint64_t *d = vd;
+    int16_t *n = vn;
+    int16_t *m_indexed = (int16_t *)vm + index * 4;
+
+    /* This is supported by SVE only, so opr_sz is always a multiple of 16.
+     * Process the entire segment all at once, writing back the results
+     * only after we've consumed all of the inputs.
+     */
+    for (i = 0; i < opr_sz_8 ; i += 2) {
+        uint64_t d0, d1;
+
+        d0  = n[i * 4 + 0] * (int64_t)m_indexed[i * 4 + 0];
+        d0 += n[i * 4 + 1] * (int64_t)m_indexed[i * 4 + 1];
+        d0 += n[i * 4 + 2] * (int64_t)m_indexed[i * 4 + 2];
+        d0 += n[i * 4 + 3] * (int64_t)m_indexed[i * 4 + 3];
+        d1  = n[i * 4 + 4] * (int64_t)m_indexed[i * 4 + 0];
+        d1 += n[i * 4 + 5] * (int64_t)m_indexed[i * 4 + 1];
+        d1 += n[i * 4 + 6] * (int64_t)m_indexed[i * 4 + 2];
+        d1 += n[i * 4 + 7] * (int64_t)m_indexed[i * 4 + 3];
+
+        d[i + 0] += d0;
+        d[i + 1] += d1;
+    }
+
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_udot_idx_h)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc), opr_sz_8 = opr_sz / 8;
+    intptr_t index = simd_data(desc);
+    uint64_t *d = vd;
+    uint16_t *n = vn;
+    uint16_t *m_indexed = (uint16_t *)vm + index * 4;
+
+    /* This is supported by SVE only, so opr_sz is always a multiple of 16.
+     * Process the entire segment all at once, writing back the results
+     * only after we've consumed all of the inputs.
+     */
+    for (i = 0; i < opr_sz_8 ; i += 2) {
+        uint64_t d0, d1;
+
+        d0  = n[i * 4 + 0] * (uint64_t)m_indexed[i * 4 + 0];
+        d0 += n[i * 4 + 1] * (uint64_t)m_indexed[i * 4 + 1];
+        d0 += n[i * 4 + 2] * (uint64_t)m_indexed[i * 4 + 2];
+        d0 += n[i * 4 + 3] * (uint64_t)m_indexed[i * 4 + 3];
+        d1  = n[i * 4 + 4] * (uint64_t)m_indexed[i * 4 + 0];
+        d1 += n[i * 4 + 5] * (uint64_t)m_indexed[i * 4 + 1];
+        d1 += n[i * 4 + 6] * (uint64_t)m_indexed[i * 4 + 2];
+        d1 += n[i * 4 + 7] * (uint64_t)m_indexed[i * 4 + 3];
+
+        d[i + 0] += d0;
+        d[i + 1] += d1;
+    }
+
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
 void HELPER(gvec_fcaddh)(void *vd, void *vn, void *vm,
                          void *vfpst, uint32_t desc)
 {
