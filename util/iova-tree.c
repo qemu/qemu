@@ -9,7 +9,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  */
 
-#include <glib.h>
+#include "qemu/osdep.h"
 #include "qemu/iova-tree.h"
 
 struct IOVATree {

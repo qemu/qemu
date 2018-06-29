@@ -414,10 +414,8 @@ GuestExec *qmp_guest_exec(const char *path,
     argv = guest_exec_get_args(&arglist, true);
     envp = has_env ? guest_exec_get_args(env, false) : NULL;
 
-    flags = G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD;
-#if GLIB_CHECK_VERSION(2, 33, 2)
-    flags |= G_SPAWN_SEARCH_PATH_FROM_ENVP;
-#endif
+    flags = G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD |
+        G_SPAWN_SEARCH_PATH_FROM_ENVP;
     if (!has_output) {
         flags |= G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL;
     }
@@ -514,7 +512,6 @@ GuestHostName *qmp_guest_get_host_name(Error **err)
 
 GuestTimezone *qmp_guest_get_timezone(Error **errp)
 {
-#if GLIB_CHECK_VERSION(2, 28, 0)
     GuestTimezone *info = NULL;
     GTimeZone *tz = NULL;
     gint64 now = 0;
@@ -544,8 +541,4 @@ GuestTimezone *qmp_guest_get_timezone(Error **errp)
 error:
     g_free(info);
     return NULL;
-#else
-    error_setg(errp, QERR_UNSUPPORTED);
-    return NULL;
-#endif
 }

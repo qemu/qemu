@@ -504,12 +504,6 @@ int main(int argc, char **argv)
     const char *arch = qtest_get_arch();
     gchar dir[] = "/tmp/ivshmem-test.XXXXXX";
 
-#if !GLIB_CHECK_VERSION(2, 31, 0)
-    if (!g_thread_supported()) {
-        g_thread_init(NULL);
-    }
-#endif
-
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_abrt_handler(abrt_handler, NULL);
