@@ -91,7 +91,7 @@ int sdbus_do_command(SDBus *sdbus, SDRequest *req, uint8_t *response)
 {
     SDState *card = get_card(sdbus);
 
-    trace_sdbus_command(sdbus_name(sdbus), req->cmd, req->arg, req->crc);
+    trace_sdbus_command(sdbus_name(sdbus), req->cmd, req->arg);
     if (card) {
         SDCardClass *sc = SD_CARD_GET_CLASS(card);
 
