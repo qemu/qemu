@@ -3425,6 +3425,52 @@ DO_FP3(FRSQRTS, rsqrts)
 
 #undef DO_FP3
 
+/*
+ *** SVE Floating Point Arithmetic - Predicated Group
+ */
+
+static bool do_zpzz_fp(DisasContext *s, arg_rprr_esz *a,
+                       gen_helper_gvec_4_ptr *fn)
+{
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           pred_full_reg_offset(s, a->pg),
+                           status, vsz, vsz, 0, fn);
+        tcg_temp_free_ptr(status);
+    }
+    return true;
+}
+
+#define DO_FP3(NAME, name) \
+static bool trans_##NAME(DisasContext *s, arg_rprr_esz *a, uint32_t insn) \
+{                                                                   \
+    static gen_helper_gvec_4_ptr * const fns[4] = {                 \
+        NULL, gen_helper_sve_##name##_h,                            \
+        gen_helper_sve_##name##_s, gen_helper_sve_##name##_d        \
+    };                                                              \
+    return do_zpzz_fp(s, a, fns[a->esz]);                           \
+}
+
+DO_FP3(FADD_zpzz, fadd)
+DO_FP3(FSUB_zpzz, fsub)
+DO_FP3(FMUL_zpzz, fmul)
+DO_FP3(FMIN_zpzz, fmin)
+DO_FP3(FMAX_zpzz, fmax)
+DO_FP3(FMINNM_zpzz, fminnum)
+DO_FP3(FMAXNM_zpzz, fmaxnum)
+DO_FP3(FABD, fabd)
+DO_FP3(FSCALE, fscalbn)
+DO_FP3(FDIV, fdiv)
+DO_FP3(FMULX, fmulx)
+
+#undef DO_FP3
 
 /*
  *** SVE Floating Point Unary Operations Predicated Group

@@ -2811,6 +2811,95 @@ uint32_t HELPER(sve_while)(void *vd, uint32_t count, uint32_t pred_desc)
     return predtest_ones(d, oprsz, esz_mask);
 }
 
+/* Fully general three-operand expander, controlled by a predicate,
+ * With the extra float_status parameter.
+ */
+#define DO_ZPZZ_FP(NAME, TYPE, H, OP)                           \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg,       \
+                  void *status, uint32_t desc)                  \
+{                                                               \
+    intptr_t i = simd_oprsz(desc);                              \
+    uint64_t *g = vg;                                           \
+    do {                                                        \
+        uint64_t pg = g[(i - 1) >> 6];                          \
+        do {                                                    \
+            i -= sizeof(TYPE);                                  \
+            if (likely((pg >> (i & 63)) & 1)) {                 \
+                TYPE nn = *(TYPE *)(vn + H(i));                 \
+                TYPE mm = *(TYPE *)(vm + H(i));                 \
+                *(TYPE *)(vd + H(i)) = OP(nn, mm, status);      \
+            }                                                   \
+        } while (i & 63);                                       \
+    } while (i != 0);                                           \
+}
+
+DO_ZPZZ_FP(sve_fadd_h, uint16_t, H1_2, float16_add)
+DO_ZPZZ_FP(sve_fadd_s, uint32_t, H1_4, float32_add)
+DO_ZPZZ_FP(sve_fadd_d, uint64_t,     , float64_add)
+
+DO_ZPZZ_FP(sve_fsub_h, uint16_t, H1_2, float16_sub)
+DO_ZPZZ_FP(sve_fsub_s, uint32_t, H1_4, float32_sub)
+DO_ZPZZ_FP(sve_fsub_d, uint64_t,     , float64_sub)
+
+DO_ZPZZ_FP(sve_fmul_h, uint16_t, H1_2, float16_mul)
+DO_ZPZZ_FP(sve_fmul_s, uint32_t, H1_4, float32_mul)
+DO_ZPZZ_FP(sve_fmul_d, uint64_t,     , float64_mul)
+
+DO_ZPZZ_FP(sve_fdiv_h, uint16_t, H1_2, float16_div)
+DO_ZPZZ_FP(sve_fdiv_s, uint32_t, H1_4, float32_div)
+DO_ZPZZ_FP(sve_fdiv_d, uint64_t,     , float64_div)
+
+DO_ZPZZ_FP(sve_fmin_h, uint16_t, H1_2, float16_min)
+DO_ZPZZ_FP(sve_fmin_s, uint32_t, H1_4, float32_min)
+DO_ZPZZ_FP(sve_fmin_d, uint64_t,     , float64_min)
+
+DO_ZPZZ_FP(sve_fmax_h, uint16_t, H1_2, float16_max)
+DO_ZPZZ_FP(sve_fmax_s, uint32_t, H1_4, float32_max)
+DO_ZPZZ_FP(sve_fmax_d, uint64_t,     , float64_max)
+
+DO_ZPZZ_FP(sve_fminnum_h, uint16_t, H1_2, float16_minnum)
+DO_ZPZZ_FP(sve_fminnum_s, uint32_t, H1_4, float32_minnum)
+DO_ZPZZ_FP(sve_fminnum_d, uint64_t,     , float64_minnum)
+
+DO_ZPZZ_FP(sve_fmaxnum_h, uint16_t, H1_2, float16_maxnum)
+DO_ZPZZ_FP(sve_fmaxnum_s, uint32_t, H1_4, float32_maxnum)
+DO_ZPZZ_FP(sve_fmaxnum_d, uint64_t,     , float64_maxnum)
+
+static inline float16 abd_h(float16 a, float16 b, float_status *s)
+{
+    return float16_abs(float16_sub(a, b, s));
+}
+
+static inline float32 abd_s(float32 a, float32 b, float_status *s)
+{
+    return float32_abs(float32_sub(a, b, s));
+}
+
+static inline float64 abd_d(float64 a, float64 b, float_status *s)
+{
+    return float64_abs(float64_sub(a, b, s));
+}
+
+DO_ZPZZ_FP(sve_fabd_h, uint16_t, H1_2, abd_h)
+DO_ZPZZ_FP(sve_fabd_s, uint32_t, H1_4, abd_s)
+DO_ZPZZ_FP(sve_fabd_d, uint64_t,     , abd_d)
+
+static inline float64 scalbn_d(float64 a, int64_t b, float_status *s)
+{
+    int b_int = MIN(MAX(b, INT_MIN), INT_MAX);
+    return float64_scalbn(a, b_int, s);
+}
+
+DO_ZPZZ_FP(sve_fscalbn_h, int16_t, H1_2, float16_scalbn)
+DO_ZPZZ_FP(sve_fscalbn_s, int32_t, H1_4, float32_scalbn)
+DO_ZPZZ_FP(sve_fscalbn_d, int64_t,     , scalbn_d)
+
+DO_ZPZZ_FP(sve_fmulx_h, uint16_t, H1_2, helper_advsimd_mulxh)
+DO_ZPZZ_FP(sve_fmulx_s, uint32_t, H1_4, helper_vfp_mulxs)
+DO_ZPZZ_FP(sve_fmulx_d, uint64_t,     , helper_vfp_mulxd)
+
+#undef DO_ZPZZ_FP
+
 /* Fully general two-operand expander, controlled by a predicate,
  * With the extra float_status parameter.
  */

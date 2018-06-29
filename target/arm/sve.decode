@@ -684,6 +684,23 @@ FTSMUL          01100101 .. 0 ..... 000 011 ..... .....         @rd_rn_rm
 FRECPS          01100101 .. 0 ..... 000 110 ..... .....         @rd_rn_rm
 FRSQRTS         01100101 .. 0 ..... 000 111 ..... .....         @rd_rn_rm
 
+### SVE FP Arithmetic Predicated Group
+
+# SVE floating-point arithmetic (predicated)
+FADD_zpzz       01100101 .. 00 0000 100 ... ..... .....    @rdn_pg_rm
+FSUB_zpzz       01100101 .. 00 0001 100 ... ..... .....    @rdn_pg_rm
+FMUL_zpzz       01100101 .. 00 0010 100 ... ..... .....    @rdn_pg_rm
+FSUB_zpzz       01100101 .. 00 0011 100 ... ..... .....    @rdm_pg_rn # FSUBR
+FMAXNM_zpzz     01100101 .. 00 0100 100 ... ..... .....    @rdn_pg_rm
+FMINNM_zpzz     01100101 .. 00 0101 100 ... ..... .....    @rdn_pg_rm
+FMAX_zpzz       01100101 .. 00 0110 100 ... ..... .....    @rdn_pg_rm
+FMIN_zpzz       01100101 .. 00 0111 100 ... ..... .....    @rdn_pg_rm
+FABD            01100101 .. 00 1000 100 ... ..... .....    @rdn_pg_rm
+FSCALE          01100101 .. 00 1001 100 ... ..... .....    @rdn_pg_rm
+FMULX           01100101 .. 00 1010 100 ... ..... .....    @rdn_pg_rm
+FDIV            01100101 .. 00 1100 100 ... ..... .....    @rdm_pg_rn # FDIVR
+FDIV            01100101 .. 00 1101 100 ... ..... .....    @rdn_pg_rm
+
 ### SVE FP Unary Operations Predicated Group
 
 # SVE integer convert to floating-point
