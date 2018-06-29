@@ -3050,9 +3050,10 @@ int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **er
 
 cleanup:
     QSIMPLEQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
-        if (ret && bs_entry->prepared) {
-            bdrv_reopen_abort(&bs_entry->state);
-        } else if (ret) {
+        if (ret) {
+            if (bs_entry->prepared) {
+                bdrv_reopen_abort(&bs_entry->state);
+            }
             qobject_unref(bs_entry->state.explicit_options);
         }
         qobject_unref(bs_entry->state.options);
@@ -3340,8 +3341,6 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
     if (drv->bdrv_reopen_abort) {
         drv->bdrv_reopen_abort(reopen_state);
     }
-
-    qobject_unref(reopen_state->explicit_options);
 
     bdrv_abort_perm_update(reopen_state->bs);
 }
