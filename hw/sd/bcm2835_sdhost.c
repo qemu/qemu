@@ -118,8 +118,6 @@ static void bcm2835_sdhost_send_command(BCM2835SDHostState *s)
         goto error;
     }
     if (!(s->cmd & SDCMD_NO_RESPONSE)) {
-#define RWORD(n) (((uint32_t)rsp[n] << 24) | (rsp[n + 1] << 16) \
-                  | (rsp[n + 2] << 8) | rsp[n + 3])
         if (rlen == 0 || (rlen == 4 && (s->cmd & SDCMD_LONG_RESPONSE))) {
             goto error;
         }
@@ -127,15 +125,14 @@ static void bcm2835_sdhost_send_command(BCM2835SDHostState *s)
             goto error;
         }
         if (rlen == 4) {
-            s->rsp[0] = RWORD(0);
+            s->rsp[0] = ldl_be_p(&rsp[0]);
             s->rsp[1] = s->rsp[2] = s->rsp[3] = 0;
         } else {
-            s->rsp[0] = RWORD(12);
-            s->rsp[1] = RWORD(8);
-            s->rsp[2] = RWORD(4);
-            s->rsp[3] = RWORD(0);
+            s->rsp[0] = ldl_be_p(&rsp[12]);
+            s->rsp[1] = ldl_be_p(&rsp[8]);
+            s->rsp[2] = ldl_be_p(&rsp[4]);
+            s->rsp[3] = ldl_be_p(&rsp[0]);
         }
-#undef RWORD
     }
     /* We never really delay commands, so if this was a 'busywait' command
      * then we've completed it now and can raise the interrupt.

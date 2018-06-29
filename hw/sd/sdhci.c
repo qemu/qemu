@@ -342,17 +342,13 @@ static void sdhci_send_command(SDHCIState *s)
 
     if (s->cmdreg & SDHC_CMD_RESPONSE) {
         if (rlen == 4) {
-            s->rspreg[0] = (response[0] << 24) | (response[1] << 16) |
-                           (response[2] << 8)  |  response[3];
+            s->rspreg[0] = ldl_be_p(response);
             s->rspreg[1] = s->rspreg[2] = s->rspreg[3] = 0;
             trace_sdhci_response4(s->rspreg[0]);
         } else if (rlen == 16) {
-            s->rspreg[0] = (response[11] << 24) | (response[12] << 16) |
-                           (response[13] << 8) |  response[14];
-            s->rspreg[1] = (response[7] << 24) | (response[8] << 16) |
-                           (response[9] << 8)  |  response[10];
-            s->rspreg[2] = (response[3] << 24) | (response[4] << 16) |
-                           (response[5] << 8)  |  response[6];
+            s->rspreg[0] = ldl_be_p(&response[11]);
+            s->rspreg[1] = ldl_be_p(&response[7]);
+            s->rspreg[2] = ldl_be_p(&response[3]);
             s->rspreg[3] = (response[0] << 16) | (response[1] << 8) |
                             response[2];
             trace_sdhci_response16(s->rspreg[3], s->rspreg[2],
@@ -396,8 +392,7 @@ static void sdhci_end_transfer(SDHCIState *s)
         trace_sdhci_end_transfer(request.cmd, request.arg);
         sdbus_do_command(&s->sdbus, &request, response);
         /* Auto CMD12 response goes to the upper Response register */
-        s->rspreg[3] = (response[0] << 24) | (response[1] << 16) |
-                (response[2] << 8) | response[3];
+        s->rspreg[3] = ldl_be_p(response);
     }
 
     s->prnsts &= ~(SDHC_DOING_READ | SDHC_DOING_WRITE |
