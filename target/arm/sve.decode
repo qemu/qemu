@@ -29,6 +29,7 @@
 %imm9_16_10     16:s6 10:3
 %size_23        23:2
 %dtype_23_13    23:2 13:2
+%index3_22_19   22:1 19:2
 
 # A combination of tsz:imm3 -- extract esize.
 %tszimm_esz     22:2 5:5 !function=tszimm_esz
@@ -715,6 +716,24 @@ UMIN_zzi        00100101 .. 101 011 110 ........ .....          @rdn_i8u
 
 # SVE integer multiply immediate (unpredicated)
 MUL_zzi         00100101 .. 110 000 110 ........ .....          @rdn_i8s
+
+### SVE FP Multiply-Add Indexed Group
+
+# SVE floating-point multiply-add (indexed)
+FMLA_zzxz       01100100 0.1 .. rm:3 00000 sub:1 rn:5 rd:5 \
+                ra=%reg_movprfx index=%index3_22_19 esz=1
+FMLA_zzxz       01100100 101 index:2 rm:3 00000 sub:1 rn:5 rd:5 \
+                ra=%reg_movprfx esz=2
+FMLA_zzxz       01100100 111 index:1 rm:4 00000 sub:1 rn:5 rd:5 \
+                ra=%reg_movprfx esz=3
+
+### SVE FP Multiply Indexed Group
+
+# SVE floating-point multiply (indexed)
+FMUL_zzx        01100100 0.1 .. rm:3 001000 rn:5 rd:5 \
+                index=%index3_22_19 esz=1
+FMUL_zzx        01100100 101 index:2 rm:3 001000 rn:5 rd:5      esz=2
+FMUL_zzx        01100100 111 index:1 rm:4 001000 rn:5 rd:5      esz=3
 
 ### SVE FP Accumulating Reduction Group
 

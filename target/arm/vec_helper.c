@@ -495,3 +495,51 @@ DO_3OP(gvec_rsqrts_d, helper_rsqrtsf_f64, float64)
 
 #endif
 #undef DO_3OP
+
+/* For the indexed ops, SVE applies the index per 128-bit vector segment.
+ * For AdvSIMD, there is of course only one such vector segment.
+ */
+
+#define DO_MUL_IDX(NAME, TYPE, H) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
+{                                                                          \
+    intptr_t i, j, oprsz = simd_oprsz(desc), segment = 16 / sizeof(TYPE);  \
+    intptr_t idx = simd_data(desc);                                        \
+    TYPE *d = vd, *n = vn, *m = vm;                                        \
+    for (i = 0; i < oprsz / sizeof(TYPE); i += segment) {                  \
+        TYPE mm = m[H(i + idx)];                                           \
+        for (j = 0; j < segment; j++) {                                    \
+            d[i + j] = TYPE##_mul(n[i + j], mm, stat);                     \
+        }                                                                  \
+    }                                                                      \
+}
+
+DO_MUL_IDX(gvec_fmul_idx_h, float16, H2)
+DO_MUL_IDX(gvec_fmul_idx_s, float32, H4)
+DO_MUL_IDX(gvec_fmul_idx_d, float64, )
+
+#undef DO_MUL_IDX
+
+#define DO_FMLA_IDX(NAME, TYPE, H)                                         \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *va,                  \
+                  void *stat, uint32_t desc)                               \
+{                                                                          \
+    intptr_t i, j, oprsz = simd_oprsz(desc), segment = 16 / sizeof(TYPE);  \
+    TYPE op1_neg = extract32(desc, SIMD_DATA_SHIFT, 1);                    \
+    intptr_t idx = desc >> (SIMD_DATA_SHIFT + 1);                          \
+    TYPE *d = vd, *n = vn, *m = vm, *a = va;                               \
+    op1_neg <<= (8 * sizeof(TYPE) - 1);                                    \
+    for (i = 0; i < oprsz / sizeof(TYPE); i += segment) {                  \
+        TYPE mm = m[H(i + idx)];                                           \
+        for (j = 0; j < segment; j++) {                                    \
+            d[i + j] = TYPE##_muladd(n[i + j] ^ op1_neg,                   \
+                                     mm, a[i + j], 0, stat);               \
+        }                                                                  \
+    }                                                                      \
+}
+
+DO_FMLA_IDX(gvec_fmla_idx_h, float16, H2)
+DO_FMLA_IDX(gvec_fmla_idx_s, float32, H4)
+DO_FMLA_IDX(gvec_fmla_idx_d, float64, )
+
+#undef DO_FMLA_IDX
