@@ -11407,7 +11407,7 @@ ftype HELPER(name)(uint32_t x, void *fpstp)                         \
 }
 
 #define CONV_FTOI(name, ftype, fsz, sign, round)                \
-uint32_t HELPER(name)(ftype x, void *fpstp)                     \
+sign##int32_t HELPER(name)(ftype x, void *fpstp)                \
 {                                                               \
     float_status *fpst = fpstp;                                 \
     if (float##fsz##_is_any_nan(x)) {                           \

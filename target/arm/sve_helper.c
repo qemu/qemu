@@ -3195,12 +3195,100 @@ static inline float16 sve_f64_to_f16(float64 f, float_status *fpst)
     return ret;
 }
 
+static inline int16_t vfp_float16_to_int16_rtz(float16 f, float_status *s)
+{
+    if (float16_is_any_nan(f)) {
+        float_raise(float_flag_invalid, s);
+        return 0;
+    }
+    return float16_to_int16_round_to_zero(f, s);
+}
+
+static inline int64_t vfp_float16_to_int64_rtz(float16 f, float_status *s)
+{
+    if (float16_is_any_nan(f)) {
+        float_raise(float_flag_invalid, s);
+        return 0;
+    }
+    return float16_to_int64_round_to_zero(f, s);
+}
+
+static inline int64_t vfp_float32_to_int64_rtz(float32 f, float_status *s)
+{
+    if (float32_is_any_nan(f)) {
+        float_raise(float_flag_invalid, s);
+        return 0;
+    }
+    return float32_to_int64_round_to_zero(f, s);
+}
+
+static inline int64_t vfp_float64_to_int64_rtz(float64 f, float_status *s)
+{
+    if (float64_is_any_nan(f)) {
+        float_raise(float_flag_invalid, s);
+        return 0;
+    }
+    return float64_to_int64_round_to_zero(f, s);
+}
+
+static inline uint16_t vfp_float16_to_uint16_rtz(float16 f, float_status *s)
+{
+    if (float16_is_any_nan(f)) {
+        float_raise(float_flag_invalid, s);
+        return 0;
+    }
+    return float16_to_uint16_round_to_zero(f, s);
+}
+
+static inline uint64_t vfp_float16_to_uint64_rtz(float16 f, float_status *s)
+{
+    if (float16_is_any_nan(f)) {
+        float_raise(float_flag_invalid, s);
+        return 0;
+    }
+    return float16_to_uint64_round_to_zero(f, s);
+}
+
+static inline uint64_t vfp_float32_to_uint64_rtz(float32 f, float_status *s)
+{
+    if (float32_is_any_nan(f)) {
+        float_raise(float_flag_invalid, s);
+        return 0;
+    }
+    return float32_to_uint64_round_to_zero(f, s);
+}
+
+static inline uint64_t vfp_float64_to_uint64_rtz(float64 f, float_status *s)
+{
+    if (float64_is_any_nan(f)) {
+        float_raise(float_flag_invalid, s);
+        return 0;
+    }
+    return float64_to_uint64_round_to_zero(f, s);
+}
+
 DO_ZPZ_FP(sve_fcvt_sh, uint32_t, H1_4, sve_f32_to_f16)
 DO_ZPZ_FP(sve_fcvt_hs, uint32_t, H1_4, sve_f16_to_f32)
 DO_ZPZ_FP(sve_fcvt_dh, uint64_t,     , sve_f64_to_f16)
 DO_ZPZ_FP(sve_fcvt_hd, uint64_t,     , sve_f16_to_f64)
 DO_ZPZ_FP(sve_fcvt_ds, uint64_t,     , float64_to_float32)
 DO_ZPZ_FP(sve_fcvt_sd, uint64_t,     , float32_to_float64)
+
+DO_ZPZ_FP(sve_fcvtzs_hh, uint16_t, H1_2, vfp_float16_to_int16_rtz)
+DO_ZPZ_FP(sve_fcvtzs_hs, uint32_t, H1_4, helper_vfp_tosizh)
+DO_ZPZ_FP(sve_fcvtzs_ss, uint32_t, H1_4, helper_vfp_tosizs)
+DO_ZPZ_FP(sve_fcvtzs_hd, uint64_t,     , vfp_float16_to_int64_rtz)
+DO_ZPZ_FP(sve_fcvtzs_sd, uint64_t,     , vfp_float32_to_int64_rtz)
+DO_ZPZ_FP(sve_fcvtzs_ds, uint64_t,     , helper_vfp_tosizd)
+DO_ZPZ_FP(sve_fcvtzs_dd, uint64_t,     , vfp_float64_to_int64_rtz)
+
+DO_ZPZ_FP(sve_fcvtzu_hh, uint16_t, H1_2, vfp_float16_to_uint16_rtz)
+DO_ZPZ_FP(sve_fcvtzu_hs, uint32_t, H1_4, helper_vfp_touizh)
+DO_ZPZ_FP(sve_fcvtzu_ss, uint32_t, H1_4, helper_vfp_touizs)
+DO_ZPZ_FP(sve_fcvtzu_hd, uint64_t,     , vfp_float16_to_uint64_rtz)
+DO_ZPZ_FP(sve_fcvtzu_sd, uint64_t,     , vfp_float32_to_uint64_rtz)
+DO_ZPZ_FP(sve_fcvtzu_ds, uint64_t,     , helper_vfp_touizd)
+DO_ZPZ_FP(sve_fcvtzu_dd, uint64_t,     , vfp_float64_to_uint64_rtz)
 
 DO_ZPZ_FP(sve_scvt_hh, uint16_t, H1_2, int16_to_float16)
 DO_ZPZ_FP(sve_scvt_sh, uint32_t, H1_4, int32_to_float16)
