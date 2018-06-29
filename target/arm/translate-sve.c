@@ -4269,7 +4269,19 @@ static gen_helper_gvec_mem_scatter * const gather_load_fn32[2][2][2][3] = {
         { gen_helper_sve_ldbsu_zss,
           gen_helper_sve_ldhsu_zss,
           gen_helper_sve_ldssu_zss, } } },
-    /* TODO fill in first-fault handlers */
+
+    { { { gen_helper_sve_ldffbss_zsu,
+          gen_helper_sve_ldffhss_zsu,
+          NULL, },
+        { gen_helper_sve_ldffbsu_zsu,
+          gen_helper_sve_ldffhsu_zsu,
+          gen_helper_sve_ldffssu_zsu, } },
+      { { gen_helper_sve_ldffbss_zss,
+          gen_helper_sve_ldffhss_zss,
+          NULL, },
+        { gen_helper_sve_ldffbsu_zss,
+          gen_helper_sve_ldffhsu_zss,
+          gen_helper_sve_ldffssu_zss, } } }
 };
 
 /* Note that we overload xs=2 to indicate 64-bit offset.  */
@@ -4298,7 +4310,31 @@ static gen_helper_gvec_mem_scatter * const gather_load_fn64[2][3][2][4] = {
           gen_helper_sve_ldhdu_zd,
           gen_helper_sve_ldsdu_zd,
           gen_helper_sve_ldddu_zd, } } },
-    /* TODO fill in first-fault handlers */
+
+    { { { gen_helper_sve_ldffbds_zsu,
+          gen_helper_sve_ldffhds_zsu,
+          gen_helper_sve_ldffsds_zsu,
+          NULL, },
+        { gen_helper_sve_ldffbdu_zsu,
+          gen_helper_sve_ldffhdu_zsu,
+          gen_helper_sve_ldffsdu_zsu,
+          gen_helper_sve_ldffddu_zsu, } },
+      { { gen_helper_sve_ldffbds_zss,
+          gen_helper_sve_ldffhds_zss,
+          gen_helper_sve_ldffsds_zss,
+          NULL, },
+        { gen_helper_sve_ldffbdu_zss,
+          gen_helper_sve_ldffhdu_zss,
+          gen_helper_sve_ldffsdu_zss,
+          gen_helper_sve_ldffddu_zss, } },
+      { { gen_helper_sve_ldffbds_zd,
+          gen_helper_sve_ldffhds_zd,
+          gen_helper_sve_ldffsds_zd,
+          NULL, },
+        { gen_helper_sve_ldffbdu_zd,
+          gen_helper_sve_ldffhdu_zd,
+          gen_helper_sve_ldffsdu_zd,
+          gen_helper_sve_ldffddu_zd, } } }
 };
 
 static bool trans_LD1_zprz(DisasContext *s, arg_LD1_zprz *a, uint32_t insn)
