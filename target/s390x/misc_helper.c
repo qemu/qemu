@@ -149,26 +149,23 @@ uint64_t HELPER(stck)(CPUS390XState *env)
     return tod.low;
 }
 
-/* Set Clock Comparator */
-void HELPER(sckc)(CPUS390XState *env, uint64_t time)
+static void update_ckc_timer(CPUS390XState *env)
 {
     S390TODState *td = s390_get_todstate();
+    uint64_t time;
 
     /* stop the timer and remove pending CKC IRQs */
     timer_del(env->tod_timer);
-    qemu_mutex_lock_iothread();
+    g_assert(qemu_mutex_iothread_locked());
     env->pending_int &= ~INTERRUPT_EXT_CLOCK_COMPARATOR;
-    qemu_mutex_unlock_iothread();
 
     /* the tod has to exceed the ckc, this can never happen if ckc is all 1's */
-    if (time == -1ULL) {
+    if (env->ckc == -1ULL) {
         return;
     }
 
-    env->ckc = time;
-
     /* difference between origins */
-    time -= td->base.low;
+    time = env->ckc - td->base.low;
 
     /* nanoseconds */
     time = tod2time(time);
@@ -176,12 +173,21 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
     timer_mod(env->tod_timer, time);
 }
 
+/* Set Clock Comparator */
+void HELPER(sckc)(CPUS390XState *env, uint64_t ckc)
+{
+    env->ckc = ckc;
+
+    qemu_mutex_lock_iothread();
+    update_ckc_timer(env);
+    qemu_mutex_unlock_iothread();
+}
+
 void tcg_s390_tod_updated(CPUState *cs, run_on_cpu_data opaque)
 {
     S390CPU *cpu = S390_CPU(cs);
-    CPUS390XState *env = &cpu->env;
 
-    helper_sckc(env, env->ckc);
+    update_ckc_timer(&cpu->env);
 }
 
 /* Set Clock */
