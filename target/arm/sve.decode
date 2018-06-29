@@ -27,6 +27,7 @@
 %imm7_22_16     22:2 16:5
 %imm8_16_10     16:5 10:3
 %imm9_16_10     16:s6 10:3
+%size_23        23:2
 
 # A combination of tsz:imm3 -- extract esize.
 %tszimm_esz     22:2 5:5 !function=tszimm_esz
@@ -76,6 +77,8 @@
 &incdec2_pred   rd rn pg esz d u
 &rprr_load      rd pg rn rm dtype nreg
 &rpri_load      rd pg rn imm dtype nreg
+&rprr_store     rd pg rn rm msz esz nreg
+&rpri_store     rd pg rn imm msz esz nreg
 
 ###########################################################################
 # Named instruction formats.  These are generally used to
@@ -183,6 +186,12 @@
                 &rprr_load dtype=%msz_dtype
 @rpri_load_msz  ....... .... . imm:s4 ... pg:3 rn:5 rd:5 \
                 &rpri_load dtype=%msz_dtype
+
+# Stores; user must fill in ESZ, MSZ, NREG as needed.
+@rprr_store         ....... ..    ..     rm:5 ... pg:3 rn:5 rd:5    &rprr_store
+@rpri_store_msz     ....... msz:2 .. . imm:s4 ... pg:3 rn:5 rd:5    &rpri_store
+@rprr_store_esz_n0  ....... ..    esz:2  rm:5 ... pg:3 rn:5 rd:5 \
+                    &rprr_store nreg=0
 
 ###########################################################################
 # Instruction patterns.  Grouped according to the SVE encodingindex.xhtml.
@@ -705,3 +714,32 @@ LD_zprr         1010010 .. nreg:2 ..... 110 ... ..... .....     @rprr_load_msz
 # SVE load multiple structures (scalar plus immediate)
 # LD2B, LD2H, LD2W, LD2D; etc.
 LD_zpri         1010010 .. nreg:2 0.... 111 ... ..... .....     @rpri_load_msz
+
+### SVE Memory Store Group
+
+# SVE contiguous store (scalar plus immediate)
+# ST1B, ST1H, ST1W, ST1D; require msz <= esz
+ST_zpri         1110010 .. esz:2  0.... 111 ... ..... ..... \
+                @rpri_store_msz nreg=0
+
+# SVE contiguous store (scalar plus scalar)
+# ST1B, ST1H, ST1W, ST1D; require msz <= esz
+# Enumerate msz lest we conflict with STR_zri.
+ST_zprr         1110010 00 ..     ..... 010 ... ..... ..... \
+                @rprr_store_esz_n0 msz=0
+ST_zprr         1110010 01 ..     ..... 010 ... ..... ..... \
+                @rprr_store_esz_n0 msz=1
+ST_zprr         1110010 10 ..     ..... 010 ... ..... ..... \
+                @rprr_store_esz_n0 msz=2
+ST_zprr         1110010 11 11     ..... 010 ... ..... ..... \
+                @rprr_store msz=3 esz=3 nreg=0
+
+# SVE contiguous non-temporal store (scalar plus immediate)  (nreg == 0)
+# SVE store multiple structures (scalar plus immediate)      (nreg != 0)
+ST_zpri         1110010 .. nreg:2 1.... 111 ... ..... ..... \
+                @rpri_store_msz esz=%size_23
+
+# SVE contiguous non-temporal store (scalar plus scalar)     (nreg == 0)
+# SVE store multiple structures (scalar plus scalar)         (nreg != 0)
+ST_zprr         1110010 msz:2 nreg:2 ..... 011 ... ..... ..... \
+                @rprr_store esz=%size_23
