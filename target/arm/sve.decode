@@ -845,6 +845,15 @@ FCVTZU_sd       01100101 11 011 10 1 101 ... ..... .....        @rd_pg_rn_e0
 FCVTZS_dd       01100101 11 011 11 0 101 ... ..... .....        @rd_pg_rn_e0
 FCVTZU_dd       01100101 11 011 11 1 101 ... ..... .....        @rd_pg_rn_e0
 
+# SVE floating-point round to integral value
+FRINTN          01100101 .. 000 000 101 ... ..... .....         @rd_pg_rn
+FRINTP          01100101 .. 000 001 101 ... ..... .....         @rd_pg_rn
+FRINTM          01100101 .. 000 010 101 ... ..... .....         @rd_pg_rn
+FRINTZ          01100101 .. 000 011 101 ... ..... .....         @rd_pg_rn
+FRINTA          01100101 .. 000 100 101 ... ..... .....         @rd_pg_rn
+FRINTX          01100101 .. 000 110 101 ... ..... .....         @rd_pg_rn
+FRINTI          01100101 .. 000 111 101 ... ..... .....         @rd_pg_rn
+
 # SVE integer convert to floating-point
 SCVTF_hh        01100101 01 010 01 0 101 ... ..... .....        @rd_pg_rn_e0
 SCVTF_sh        01100101 01 010 10 0 101 ... ..... .....        @rd_pg_rn_e0
