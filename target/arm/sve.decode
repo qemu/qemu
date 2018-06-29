@@ -821,6 +821,14 @@ FNMLS_zpzzz     01100101 .. 1 ..... 111 ... ..... .....         @rdn_pg_rm_ra
 
 ### SVE FP Unary Operations Predicated Group
 
+# SVE floating-point convert precision
+FCVT_sh         01100101 10 0010 00 101 ... ..... .....         @rd_pg_rn_e0
+FCVT_hs         01100101 10 0010 01 101 ... ..... .....         @rd_pg_rn_e0
+FCVT_dh         01100101 11 0010 00 101 ... ..... .....         @rd_pg_rn_e0
+FCVT_hd         01100101 11 0010 01 101 ... ..... .....         @rd_pg_rn_e0
+FCVT_ds         01100101 11 0010 10 101 ... ..... .....         @rd_pg_rn_e0
+FCVT_sd         01100101 11 0010 11 101 ... ..... .....         @rd_pg_rn_e0
+
 # SVE integer convert to floating-point
 SCVTF_hh        01100101 01 010 01 0 101 ... ..... .....        @rd_pg_rn_e0
 SCVTF_sh        01100101 01 010 10 0 101 ... ..... .....        @rd_pg_rn_e0
