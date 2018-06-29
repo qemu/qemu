@@ -17,6 +17,7 @@
 #include "io/channel.h"
 #include "io/channel-socket.h"
 #include "pr-helper.h"
+#include "qapi/qapi-events-block.h"
 
 #include <scsi/sg.h>
 
@@ -38,6 +39,16 @@ typedef struct PRManagerHelper {
     QIOChannel *ioc;
 } PRManagerHelper;
 
+static void pr_manager_send_status_changed_event(PRManagerHelper *pr_mgr)
+{
+    char *id = object_get_canonical_path_component(OBJECT(pr_mgr));
+
+    if (id) {
+        qapi_event_send_pr_manager_status_changed(id, !!pr_mgr->ioc,
+                                                  &error_abort);
+    }
+}
+
 /* Called with lock held.  */
 static int pr_manager_helper_read(PRManagerHelper *pr_mgr,
                                   void *buf, int sz, Error **errp)
@@ -47,6 +58,7 @@ static int pr_manager_helper_read(PRManagerHelper *pr_mgr,
     if (r < 0) {
         object_unref(OBJECT(pr_mgr->ioc));
         pr_mgr->ioc = NULL;
+        pr_manager_send_status_changed_event(pr_mgr);
         return -EINVAL;
     }
 
@@ -71,6 +83,8 @@ static int pr_manager_helper_write(PRManagerHelper *pr_mgr,
         if (n_written <= 0) {
             assert(n_written != QIO_CHANNEL_ERR_BLOCK);
             object_unref(OBJECT(pr_mgr->ioc));
+            pr_mgr->ioc = NULL;
+            pr_manager_send_status_changed_event(pr_mgr);
             return n_written < 0 ? -EINVAL : 0;
         }
 
@@ -126,6 +140,7 @@ static int pr_manager_helper_initialize(PRManagerHelper *pr_mgr,
         goto out_close;
     }
 
+    pr_manager_send_status_changed_event(pr_mgr);
     return 0;
 
 out_close:
@@ -234,6 +249,18 @@ out:
     return ret;
 }
 
+static bool pr_manager_helper_is_connected(PRManager *p)
+{
+    PRManagerHelper *pr_mgr = PR_MANAGER_HELPER(p);
+    bool result;
+
+    qemu_mutex_lock(&pr_mgr->lock);
+    result = (pr_mgr->ioc != NULL);
+    qemu_mutex_unlock(&pr_mgr->lock);
+
+    return result;
+}
+
 static void pr_manager_helper_complete(UserCreatable *uc, Error **errp)
 {
     PRManagerHelper *pr_mgr = PR_MANAGER_HELPER(uc);
@@ -283,6 +310,7 @@ static void pr_manager_helper_class_init(ObjectClass *klass,
                                   &error_abort);
     uc_klass->complete = pr_manager_helper_complete;
     prmgr_klass->run = pr_manager_helper_run;
+    prmgr_klass->is_connected = pr_manager_helper_is_connected;
 }
 
 static const TypeInfo pr_manager_helper_info = {

@@ -36,11 +36,6 @@
 #include "qemu/timer.h"
 #include "fpu/softfloat.h"
 
-#ifdef CONFIG_USER_ONLY
-/* tb_invalidate_phys_range */
-#include "accel/tcg/translate-all.h"
-#endif
-
 #ifndef CONFIG_USER_ONLY
 
 void xtensa_cpu_do_unaligned_access(CPUState *cs,
@@ -114,9 +109,7 @@ static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
 
 static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
 {
-    mmap_lock();
-    tb_invalidate_phys_range(vaddr, vaddr + 1);
-    mmap_unlock();
+    tb_invalidate_phys_addr(vaddr);
 }
 
 #endif

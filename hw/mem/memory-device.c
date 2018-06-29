@@ -116,8 +116,14 @@ uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
     address_space_start = ms->device_memory->base;
     address_space_end = address_space_start +
                         memory_region_size(&ms->device_memory->mr);
-    g_assert(QEMU_ALIGN_UP(address_space_start, align) == address_space_start);
     g_assert(address_space_end >= address_space_start);
+
+    /* address_space_start indicates the maximum alignment we expect */
+    if (QEMU_ALIGN_UP(address_space_start, align) != address_space_start) {
+        error_setg(errp, "the alignment (0%" PRIx64 ") is not supported",
+                   align);
+        return 0;
+    }
 
     memory_device_check_addable(ms, size, errp);
     if (*errp) {

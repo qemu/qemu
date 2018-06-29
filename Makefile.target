@@ -143,6 +143,7 @@ obj-y += hw/
 obj-y += memory.o
 obj-y += memory_mapping.o
 obj-y += dump.o
+obj-$(TARGET_X86_64) += win_dump.o
 obj-y += migration/ram.o
 LIBS := $(libs_softmmu) $(LIBS)
 

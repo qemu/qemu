@@ -5,6 +5,10 @@
 
 struct QemuMutex {
     SRWLOCK lock;
+#ifdef CONFIG_DEBUG_MUTEX
+    const char *file;
+    int line;
+#endif
     bool initialized;
 };
 

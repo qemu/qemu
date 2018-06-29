@@ -18,7 +18,7 @@ or
 
 Next put together the qemu command line (sdk/gtk):
 
-qemu	-enable-kvm -usb $memory $disk $whatever \
+qemu	-accel kvm -usb $memory $disk $whatever \
 	-display [ sdl | gtk ] \
 	-vga std \
 	-device usb-tablet

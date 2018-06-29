@@ -46,8 +46,10 @@ static bool stdio_echo_state;
 
 static void term_exit(void)
 {
-    tcsetattr(0, TCSANOW, &oldtty);
-    fcntl(0, F_SETFL, old_fd0_flags);
+    if (stdio_in_use) {
+        tcsetattr(0, TCSANOW, &oldtty);
+        fcntl(0, F_SETFL, old_fd0_flags);
+    }
 }
 
 static void qemu_chr_set_echo_stdio(Chardev *chr, bool echo)

@@ -62,7 +62,7 @@ RAM: 128G
 NIC: Intel I350 (10/100/1000Mbps)
 Host OS: CentOS 7 64-bit
 Guest OS: RHEL 6.5 64-bit
-Parameter: qemu-system-x86_64 -enable-kvm -smp 4 -m 4096
+Parameter: qemu-system-x86_64 -accel kvm -smp 4 -m 4096
  /share/ia32e_rhel6u5.qcow -monitor stdio
 
 There is no additional application is running on the guest when doing

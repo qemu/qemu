@@ -98,7 +98,7 @@ QEMU files related to the TPM passthrough device:
 Command line to start QEMU with the TPM passthrough device using the host's
 hardware TPM /dev/tpm0:
 
-qemu-system-x86_64 -display sdl -enable-kvm \
+qemu-system-x86_64 -display sdl -accel kvm \
   -m 1024 -boot d -bios bios-256k.bin -boot menu=on \
   -tpmdev passthrough,id=tpm0,path=/dev/tpm0 \
   -device tpm-tis,tpmdev=tpm0 test.img
@@ -164,7 +164,7 @@ swtpm socket --tpmstate dir=/tmp/mytpm1 \
 Command line to start QEMU with the TPM emulator device communicating with
 the swtpm:
 
-qemu-system-x86_64 -display sdl -enable-kvm \
+qemu-system-x86_64 -display sdl -accel kvm \
   -m 1024 -boot d -bios bios-256k.bin -boot menu=on \
   -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
   -tpmdev emulator,id=tpm0,chardev=chrtpm \
@@ -222,7 +222,7 @@ swtpm socket --tpmstate dir=/tmp/mytpm1 \
 
 In a 2nd terminal start the VM:
 
-qemu-system-x86_64 -display sdl -enable-kvm \
+qemu-system-x86_64 -display sdl -accel kvm \
   -m 1024 -boot d -bios bios-256k.bin -boot menu=on \
   -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
   -tpmdev emulator,id=tpm0,chardev=chrtpm \
@@ -255,7 +255,7 @@ swtpm socket --tpmstate dir=/tmp/mytpm1 \
 In the 2nd terminal restore the state of the VM using the additonal
 '-incoming' option.
 
-qemu-system-x86_64 -display sdl -enable-kvm \
+qemu-system-x86_64 -display sdl -accel kvm \
   -m 1024 -boot d -bios bios-256k.bin -boot menu=on \
   -chardev socket,id=chrtpm,path=/tmp/mytpm1/swtpm-sock \
   -tpmdev emulator,id=tpm0,chardev=chrtpm \

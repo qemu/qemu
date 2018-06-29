@@ -909,8 +909,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
     if (s->hostmem != NULL) {
         IVSHMEM_DPRINTF("using hostmem\n");
 
-        s->ivshmem_bar2 = host_memory_backend_get_memory(s->hostmem,
-                                                         &error_abort);
+        s->ivshmem_bar2 = host_memory_backend_get_memory(s->hostmem);
     } else {
         Chardev *chr = qemu_chr_fe_get_driver(&s->server_chr);
         assert(chr);

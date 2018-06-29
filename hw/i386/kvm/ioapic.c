@@ -112,15 +112,6 @@ static void kvm_ioapic_put(IOAPICCommonState *s)
     }
 }
 
-void kvm_ioapic_dump_state(Monitor *mon, const QDict *qdict)
-{
-    IOAPICCommonState *s = IOAPIC_COMMON(object_resolve_path("ioapic", NULL));
-
-    assert(s);
-    kvm_ioapic_get(s);
-    ioapic_print_redtbl(mon, s);
-}
-
 static void kvm_ioapic_reset(DeviceState *dev)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
@@ -132,8 +123,10 @@ static void kvm_ioapic_reset(DeviceState *dev)
 static void kvm_ioapic_set_irq(void *opaque, int irq, int level)
 {
     KVMIOAPICState *s = opaque;
+    IOAPICCommonState *common = IOAPIC_COMMON(s);
     int delivered;
 
+    ioapic_stat_update_irq(common, irq, level);
     delivered = kvm_set_irq(kvm_state, s->kvm_gsi_base + irq, level);
     apic_report_irq_delivered(delivered);
 }

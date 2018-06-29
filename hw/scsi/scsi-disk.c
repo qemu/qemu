@@ -585,219 +585,228 @@ static uint8_t *scsi_get_buf(SCSIRequest *req)
     return (uint8_t *)r->iov.iov_base;
 }
 
+int scsi_disk_emulate_vpd_page(SCSIRequest *req, uint8_t *outbuf)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+    uint8_t page_code = req->cmd.buf[2];
+    int start, buflen = 0;
+
+    outbuf[buflen++] = s->qdev.type & 0x1f;
+    outbuf[buflen++] = page_code;
+    outbuf[buflen++] = 0x00;
+    outbuf[buflen++] = 0x00;
+    start = buflen;
+
+    switch (page_code) {
+    case 0x00: /* Supported page codes, mandatory */
+    {
+        DPRINTF("Inquiry EVPD[Supported pages] "
+                "buffer size %zd\n", req->cmd.xfer);
+        outbuf[buflen++] = 0x00; /* list of supported pages (this page) */
+        if (s->serial) {
+            outbuf[buflen++] = 0x80; /* unit serial number */
+        }
+        outbuf[buflen++] = 0x83; /* device identification */
+        if (s->qdev.type == TYPE_DISK) {
+            outbuf[buflen++] = 0xb0; /* block limits */
+            outbuf[buflen++] = 0xb1; /* block device characteristics */
+            outbuf[buflen++] = 0xb2; /* thin provisioning */
+        }
+        break;
+    }
+    case 0x80: /* Device serial number, optional */
+    {
+        int l;
+
+        if (!s->serial) {
+            DPRINTF("Inquiry (EVPD[Serial number] not supported\n");
+            return -1;
+        }
+
+        l = strlen(s->serial);
+        if (l > 36) {
+            l = 36;
+        }
+
+        DPRINTF("Inquiry EVPD[Serial number] "
+                "buffer size %zd\n", req->cmd.xfer);
+        memcpy(outbuf + buflen, s->serial, l);
+        buflen += l;
+        break;
+    }
+
+    case 0x83: /* Device identification page, mandatory */
+    {
+        const char *str = s->serial ?: blk_name(s->qdev.conf.blk);
+        int max_len = s->serial ? 20 : 255 - 8;
+        int id_len = strlen(str);
+
+        if (id_len > max_len) {
+            id_len = max_len;
+        }
+        DPRINTF("Inquiry EVPD[Device identification] "
+                "buffer size %zd\n", req->cmd.xfer);
+
+        outbuf[buflen++] = 0x2; /* ASCII */
+        outbuf[buflen++] = 0;   /* not officially assigned */
+        outbuf[buflen++] = 0;   /* reserved */
+        outbuf[buflen++] = id_len; /* length of data following */
+        memcpy(outbuf + buflen, str, id_len);
+        buflen += id_len;
+
+        if (s->qdev.wwn) {
+            outbuf[buflen++] = 0x1; /* Binary */
+            outbuf[buflen++] = 0x3; /* NAA */
+            outbuf[buflen++] = 0;   /* reserved */
+            outbuf[buflen++] = 8;
+            stq_be_p(&outbuf[buflen], s->qdev.wwn);
+            buflen += 8;
+        }
+
+        if (s->qdev.port_wwn) {
+            outbuf[buflen++] = 0x61; /* SAS / Binary */
+            outbuf[buflen++] = 0x93; /* PIV / Target port / NAA */
+            outbuf[buflen++] = 0;    /* reserved */
+            outbuf[buflen++] = 8;
+            stq_be_p(&outbuf[buflen], s->qdev.port_wwn);
+            buflen += 8;
+        }
+
+        if (s->port_index) {
+            outbuf[buflen++] = 0x61; /* SAS / Binary */
+
+            /* PIV/Target port/relative target port */
+            outbuf[buflen++] = 0x94;
+
+            outbuf[buflen++] = 0;    /* reserved */
+            outbuf[buflen++] = 4;
+            stw_be_p(&outbuf[buflen + 2], s->port_index);
+            buflen += 4;
+        }
+        break;
+    }
+    case 0xb0: /* block limits */
+    {
+        unsigned int unmap_sectors =
+            s->qdev.conf.discard_granularity / s->qdev.blocksize;
+        unsigned int min_io_size =
+            s->qdev.conf.min_io_size / s->qdev.blocksize;
+        unsigned int opt_io_size =
+            s->qdev.conf.opt_io_size / s->qdev.blocksize;
+        unsigned int max_unmap_sectors =
+            s->max_unmap_size / s->qdev.blocksize;
+        unsigned int max_io_sectors =
+            s->max_io_size / s->qdev.blocksize;
+
+        if (s->qdev.type == TYPE_ROM) {
+            DPRINTF("Inquiry (EVPD[%02X] not supported for CDROM\n",
+                    page_code);
+            return -1;
+        }
+        if (s->qdev.type == TYPE_DISK) {
+            int max_transfer_blk = blk_get_max_transfer(s->qdev.conf.blk);
+            int max_io_sectors_blk =
+                max_transfer_blk / s->qdev.blocksize;
+
+            max_io_sectors =
+                MIN_NON_ZERO(max_io_sectors_blk, max_io_sectors);
+
+            /* min_io_size and opt_io_size can't be greater than
+             * max_io_sectors */
+            if (min_io_size) {
+                min_io_size = MIN(min_io_size, max_io_sectors);
+            }
+            if (opt_io_size) {
+                opt_io_size = MIN(opt_io_size, max_io_sectors);
+            }
+        }
+        /* required VPD size with unmap support */
+        buflen = 0x40;
+        memset(outbuf + 4, 0, buflen - 4);
+
+        outbuf[4] = 0x1; /* wsnz */
+
+        /* optimal transfer length granularity */
+        outbuf[6] = (min_io_size >> 8) & 0xff;
+        outbuf[7] = min_io_size & 0xff;
+
+        /* maximum transfer length */
+        outbuf[8] = (max_io_sectors >> 24) & 0xff;
+        outbuf[9] = (max_io_sectors >> 16) & 0xff;
+        outbuf[10] = (max_io_sectors >> 8) & 0xff;
+        outbuf[11] = max_io_sectors & 0xff;
+
+        /* optimal transfer length */
+        outbuf[12] = (opt_io_size >> 24) & 0xff;
+        outbuf[13] = (opt_io_size >> 16) & 0xff;
+        outbuf[14] = (opt_io_size >> 8) & 0xff;
+        outbuf[15] = opt_io_size & 0xff;
+
+        /* max unmap LBA count, default is 1GB */
+        outbuf[20] = (max_unmap_sectors >> 24) & 0xff;
+        outbuf[21] = (max_unmap_sectors >> 16) & 0xff;
+        outbuf[22] = (max_unmap_sectors >> 8) & 0xff;
+        outbuf[23] = max_unmap_sectors & 0xff;
+
+        /* max unmap descriptors, 255 fit in 4 kb with an 8-byte header */
+        outbuf[24] = 0;
+        outbuf[25] = 0;
+        outbuf[26] = 0;
+        outbuf[27] = 255;
+
+        /* optimal unmap granularity */
+        outbuf[28] = (unmap_sectors >> 24) & 0xff;
+        outbuf[29] = (unmap_sectors >> 16) & 0xff;
+        outbuf[30] = (unmap_sectors >> 8) & 0xff;
+        outbuf[31] = unmap_sectors & 0xff;
+
+        /* max write same size */
+        outbuf[36] = 0;
+        outbuf[37] = 0;
+        outbuf[38] = 0;
+        outbuf[39] = 0;
+
+        outbuf[40] = (max_io_sectors >> 24) & 0xff;
+        outbuf[41] = (max_io_sectors >> 16) & 0xff;
+        outbuf[42] = (max_io_sectors >> 8) & 0xff;
+        outbuf[43] = max_io_sectors & 0xff;
+        break;
+    }
+    case 0xb1: /* block device characteristics */
+    {
+        buflen = 8;
+        outbuf[4] = (s->rotation_rate >> 8) & 0xff;
+        outbuf[5] = s->rotation_rate & 0xff;
+        outbuf[6] = 0;
+        outbuf[7] = 0;
+        break;
+    }
+    case 0xb2: /* thin provisioning */
+    {
+        buflen = 8;
+        outbuf[4] = 0;
+        outbuf[5] = 0xe0; /* unmap & write_same 10/16 all supported */
+        outbuf[6] = s->qdev.conf.discard_granularity ? 2 : 1;
+        outbuf[7] = 0;
+        break;
+    }
+    default:
+        return -1;
+    }
+    /* done with EVPD */
+    assert(buflen - start <= 255);
+    outbuf[start - 1] = buflen - start;
+    return buflen;
+}
+
 static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     int buflen = 0;
-    int start;
 
     if (req->cmd.buf[1] & 0x1) {
         /* Vital product data */
-        uint8_t page_code = req->cmd.buf[2];
-
-        outbuf[buflen++] = s->qdev.type & 0x1f;
-        outbuf[buflen++] = page_code ; // this page
-        outbuf[buflen++] = 0x00;
-        outbuf[buflen++] = 0x00;
-        start = buflen;
-
-        switch (page_code) {
-        case 0x00: /* Supported page codes, mandatory */
-        {
-            DPRINTF("Inquiry EVPD[Supported pages] "
-                    "buffer size %zd\n", req->cmd.xfer);
-            outbuf[buflen++] = 0x00; // list of supported pages (this page)
-            if (s->serial) {
-                outbuf[buflen++] = 0x80; // unit serial number
-            }
-            outbuf[buflen++] = 0x83; // device identification
-            if (s->qdev.type == TYPE_DISK) {
-                outbuf[buflen++] = 0xb0; // block limits
-                outbuf[buflen++] = 0xb1; /* block device characteristics */
-                outbuf[buflen++] = 0xb2; // thin provisioning
-            }
-            break;
-        }
-        case 0x80: /* Device serial number, optional */
-        {
-            int l;
-
-            if (!s->serial) {
-                DPRINTF("Inquiry (EVPD[Serial number] not supported\n");
-                return -1;
-            }
-
-            l = strlen(s->serial);
-            if (l > 36) {
-                l = 36;
-            }
-
-            DPRINTF("Inquiry EVPD[Serial number] "
-                    "buffer size %zd\n", req->cmd.xfer);
-            memcpy(outbuf+buflen, s->serial, l);
-            buflen += l;
-            break;
-        }
-
-        case 0x83: /* Device identification page, mandatory */
-        {
-            const char *str = s->serial ?: blk_name(s->qdev.conf.blk);
-            int max_len = s->serial ? 20 : 255 - 8;
-            int id_len = strlen(str);
-
-            if (id_len > max_len) {
-                id_len = max_len;
-            }
-            DPRINTF("Inquiry EVPD[Device identification] "
-                    "buffer size %zd\n", req->cmd.xfer);
-
-            outbuf[buflen++] = 0x2; // ASCII
-            outbuf[buflen++] = 0;   // not officially assigned
-            outbuf[buflen++] = 0;   // reserved
-            outbuf[buflen++] = id_len; // length of data following
-            memcpy(outbuf+buflen, str, id_len);
-            buflen += id_len;
-
-            if (s->qdev.wwn) {
-                outbuf[buflen++] = 0x1; // Binary
-                outbuf[buflen++] = 0x3; // NAA
-                outbuf[buflen++] = 0;   // reserved
-                outbuf[buflen++] = 8;
-                stq_be_p(&outbuf[buflen], s->qdev.wwn);
-                buflen += 8;
-            }
-
-            if (s->qdev.port_wwn) {
-                outbuf[buflen++] = 0x61; // SAS / Binary
-                outbuf[buflen++] = 0x93; // PIV / Target port / NAA
-                outbuf[buflen++] = 0;    // reserved
-                outbuf[buflen++] = 8;
-                stq_be_p(&outbuf[buflen], s->qdev.port_wwn);
-                buflen += 8;
-            }
-
-            if (s->port_index) {
-                outbuf[buflen++] = 0x61; // SAS / Binary
-                outbuf[buflen++] = 0x94; // PIV / Target port / relative target port
-                outbuf[buflen++] = 0;    // reserved
-                outbuf[buflen++] = 4;
-                stw_be_p(&outbuf[buflen + 2], s->port_index);
-                buflen += 4;
-            }
-            break;
-        }
-        case 0xb0: /* block limits */
-        {
-            unsigned int unmap_sectors =
-                    s->qdev.conf.discard_granularity / s->qdev.blocksize;
-            unsigned int min_io_size =
-                    s->qdev.conf.min_io_size / s->qdev.blocksize;
-            unsigned int opt_io_size =
-                    s->qdev.conf.opt_io_size / s->qdev.blocksize;
-            unsigned int max_unmap_sectors =
-                    s->max_unmap_size / s->qdev.blocksize;
-            unsigned int max_io_sectors =
-                    s->max_io_size / s->qdev.blocksize;
-
-            if (s->qdev.type == TYPE_ROM) {
-                DPRINTF("Inquiry (EVPD[%02X] not supported for CDROM\n",
-                        page_code);
-                return -1;
-            }
-            if (s->qdev.type == TYPE_DISK) {
-                int max_transfer_blk = blk_get_max_transfer(s->qdev.conf.blk);
-                int max_io_sectors_blk =
-                    max_transfer_blk / s->qdev.blocksize;
-
-                max_io_sectors =
-                    MIN_NON_ZERO(max_io_sectors_blk, max_io_sectors);
-
-                /* min_io_size and opt_io_size can't be greater than
-                 * max_io_sectors */
-                if (min_io_size) {
-                    min_io_size = MIN(min_io_size, max_io_sectors);
-                }
-                if (opt_io_size) {
-                    opt_io_size = MIN(opt_io_size, max_io_sectors);
-                }
-            }
-            /* required VPD size with unmap support */
-            buflen = 0x40;
-            memset(outbuf + 4, 0, buflen - 4);
-
-            outbuf[4] = 0x1; /* wsnz */
-
-            /* optimal transfer length granularity */
-            outbuf[6] = (min_io_size >> 8) & 0xff;
-            outbuf[7] = min_io_size & 0xff;
-
-            /* maximum transfer length */
-            outbuf[8] = (max_io_sectors >> 24) & 0xff;
-            outbuf[9] = (max_io_sectors >> 16) & 0xff;
-            outbuf[10] = (max_io_sectors >> 8) & 0xff;
-            outbuf[11] = max_io_sectors & 0xff;
-
-            /* optimal transfer length */
-            outbuf[12] = (opt_io_size >> 24) & 0xff;
-            outbuf[13] = (opt_io_size >> 16) & 0xff;
-            outbuf[14] = (opt_io_size >> 8) & 0xff;
-            outbuf[15] = opt_io_size & 0xff;
-
-            /* max unmap LBA count, default is 1GB */
-            outbuf[20] = (max_unmap_sectors >> 24) & 0xff;
-            outbuf[21] = (max_unmap_sectors >> 16) & 0xff;
-            outbuf[22] = (max_unmap_sectors >> 8) & 0xff;
-            outbuf[23] = max_unmap_sectors & 0xff;
-
-            /* max unmap descriptors, 255 fit in 4 kb with an 8-byte header.  */
-            outbuf[24] = 0;
-            outbuf[25] = 0;
-            outbuf[26] = 0;
-            outbuf[27] = 255;
-
-            /* optimal unmap granularity */
-            outbuf[28] = (unmap_sectors >> 24) & 0xff;
-            outbuf[29] = (unmap_sectors >> 16) & 0xff;
-            outbuf[30] = (unmap_sectors >> 8) & 0xff;
-            outbuf[31] = unmap_sectors & 0xff;
-
-            /* max write same size */
-            outbuf[36] = 0;
-            outbuf[37] = 0;
-            outbuf[38] = 0;
-            outbuf[39] = 0;
-
-            outbuf[40] = (max_io_sectors >> 24) & 0xff;
-            outbuf[41] = (max_io_sectors >> 16) & 0xff;
-            outbuf[42] = (max_io_sectors >> 8) & 0xff;
-            outbuf[43] = max_io_sectors & 0xff;
-            break;
-        }
-        case 0xb1: /* block device characteristics */
-        {
-            buflen = 8;
-            outbuf[4] = (s->rotation_rate >> 8) & 0xff;
-            outbuf[5] = s->rotation_rate & 0xff;
-            outbuf[6] = 0;
-            outbuf[7] = 0;
-            break;
-        }
-        case 0xb2: /* thin provisioning */
-        {
-            buflen = 8;
-            outbuf[4] = 0;
-            outbuf[5] = 0xe0; /* unmap & write_same 10/16 all supported */
-            outbuf[6] = s->qdev.conf.discard_granularity ? 2 : 1;
-            outbuf[7] = 0;
-            break;
-        }
-        default:
-            return -1;
-        }
-        /* done with EVPD */
-        assert(buflen - start <= 255);
-        outbuf[start - 1] = buflen - start;
-        return buflen;
+        return scsi_disk_emulate_vpd_page(req, outbuf);
     }
 
     /* Standard INQUIRY data */
@@ -2569,8 +2578,6 @@ static int get_device_type(SCSIDiskState *s)
 {
     uint8_t cmd[16];
     uint8_t buf[36];
-    uint8_t sensebuf[8];
-    sg_io_hdr_t io_header;
     int ret;
 
     memset(cmd, 0, sizeof(cmd));
@@ -2578,19 +2585,9 @@ static int get_device_type(SCSIDiskState *s)
     cmd[0] = INQUIRY;
     cmd[4] = sizeof(buf);
 
-    memset(&io_header, 0, sizeof(io_header));
-    io_header.interface_id = 'S';
-    io_header.dxfer_direction = SG_DXFER_FROM_DEV;
-    io_header.dxfer_len = sizeof(buf);
-    io_header.dxferp = buf;
-    io_header.cmdp = cmd;
-    io_header.cmd_len = sizeof(cmd);
-    io_header.mx_sb_len = sizeof(sensebuf);
-    io_header.sbp = sensebuf;
-    io_header.timeout = 6000; /* XXX */
-
-    ret = blk_ioctl(s->qdev.conf.blk, SG_IO, &io_header);
-    if (ret < 0 || io_header.driver_status || io_header.host_status) {
+    ret = scsi_SG_IO_FROM_DEV(s->qdev.conf.blk, cmd, sizeof(cmd),
+                              buf, sizeof(buf));
+    if (ret < 0) {
         return -1;
     }
     s->qdev.type = buf[0];
@@ -2648,7 +2645,7 @@ static void scsi_block_realize(SCSIDevice *dev, Error **errp)
     s->features |= (1 << SCSI_DISK_F_NO_REMOVABLE_DEVOPS);
 
     scsi_realize(&s->qdev, errp);
-    scsi_generic_read_device_identification(&s->qdev);
+    scsi_generic_read_device_inquiry(&s->qdev);
 }
 
 typedef struct SCSIBlockReq {
@@ -3039,6 +3036,10 @@ static Property scsi_block_properties[] = {
     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.blk),
     DEFINE_PROP_BOOL("share-rw", SCSIDiskState, qdev.conf.share_rw, false),
     DEFINE_PROP_UINT16("rotation_rate", SCSIDiskState, rotation_rate, 0),
+    DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
+                       DEFAULT_MAX_UNMAP_SIZE),
+    DEFINE_PROP_UINT64("max_io_size", SCSIDiskState, max_io_size,
+                       DEFAULT_MAX_IO_SIZE),
     DEFINE_PROP_INT32("scsi_version", SCSIDiskState, qdev.default_scsi_version,
                       -1),
     DEFINE_PROP_END_OF_LIST(),

@@ -43,7 +43,7 @@ static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
     Error *local_err = NULL;
     uint64_t value;
 
-    if (memory_region_size(&nvdimm->nvdimm_mr)) {
+    if (nvdimm->nvdimm_mr) {
         error_setg(&local_err, "cannot change property value");
         goto out;
     }
@@ -64,52 +64,36 @@ out:
     error_propagate(errp, local_err);
 }
 
-static bool nvdimm_get_unarmed(Object *obj, Error **errp)
-{
-    NVDIMMDevice *nvdimm = NVDIMM(obj);
-
-    return nvdimm->unarmed;
-}
-
-static void nvdimm_set_unarmed(Object *obj, bool value, Error **errp)
-{
-    NVDIMMDevice *nvdimm = NVDIMM(obj);
-    Error *local_err = NULL;
-
-    if (memory_region_size(&nvdimm->nvdimm_mr)) {
-        error_setg(&local_err, "cannot change property value");
-        goto out;
-    }
-
-    nvdimm->unarmed = value;
-
- out:
-    error_propagate(errp, local_err);
-}
-
 static void nvdimm_init(Object *obj)
 {
     object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "int",
                         nvdimm_get_label_size, nvdimm_set_label_size, NULL,
                         NULL, NULL);
-    object_property_add_bool(obj, NVDIMM_UNARMED_PROP,
-                             nvdimm_get_unarmed, nvdimm_set_unarmed, NULL);
 }
 
-static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
+static void nvdimm_finalize(Object *obj)
 {
-    NVDIMMDevice *nvdimm = NVDIMM(dimm);
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
 
-    return &nvdimm->nvdimm_mr;
+    g_free(nvdimm->nvdimm_mr);
 }
 
-static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
+static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
 {
-    MemoryRegion *mr = host_memory_backend_get_memory(dimm->hostmem, errp);
-    NVDIMMDevice *nvdimm = NVDIMM(dimm);
-    uint64_t align, pmem_size, size = memory_region_size(mr);
+    PCDIMMDevice *dimm = PC_DIMM(nvdimm);
+    uint64_t align, pmem_size, size;
+    MemoryRegion *mr;
 
+    g_assert(!nvdimm->nvdimm_mr);
+
+    if (!dimm->hostmem) {
+        error_setg(errp, "'" PC_DIMM_MEMDEV_PROP "' property must be set");
+        return;
+    }
+
+    mr = host_memory_backend_get_memory(dimm->hostmem);
     align = memory_region_get_alignment(mr);
+    size = memory_region_size(mr);
 
     pmem_size = size - nvdimm->label_size;
     nvdimm->label_data = memory_region_get_ram_ptr(mr) + pmem_size;
@@ -127,9 +111,34 @@ static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
         return;
     }
 
-    memory_region_init_alias(&nvdimm->nvdimm_mr, OBJECT(dimm),
+    nvdimm->nvdimm_mr = g_new(MemoryRegion, 1);
+    memory_region_init_alias(nvdimm->nvdimm_mr, OBJECT(dimm),
                              "nvdimm-memory", mr, 0, pmem_size);
-    nvdimm->nvdimm_mr.align = align;
+    nvdimm->nvdimm_mr->align = align;
+}
+
+static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(dimm);
+    Error *local_err = NULL;
+
+    if (!nvdimm->nvdimm_mr) {
+        nvdimm_prepare_memory_region(nvdimm, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return NULL;
+        }
+    }
+    return nvdimm->nvdimm_mr;
+}
+
+static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(dimm);
+
+    if (!nvdimm->nvdimm_mr) {
+        nvdimm_prepare_memory_region(nvdimm, errp);
+    }
 }
 
 /*
@@ -161,24 +170,25 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
 
     memcpy(nvdimm->label_data + offset, buf, size);
 
-    mr = host_memory_backend_get_memory(dimm->hostmem, &error_abort);
+    mr = host_memory_backend_get_memory(dimm->hostmem);
     backend_offset = memory_region_size(mr) - nvdimm->label_size + offset;
     memory_region_set_dirty(mr, backend_offset, size);
 }
 
-static MemoryRegion *nvdimm_get_vmstate_memory_region(PCDIMMDevice *dimm)
-{
-    return host_memory_backend_get_memory(dimm->hostmem, &error_abort);
-}
+static Property nvdimm_properties[] = {
+    DEFINE_PROP_BOOL(NVDIMM_UNARMED_PROP, NVDIMMDevice, unarmed, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void nvdimm_class_init(ObjectClass *oc, void *data)
 {
     PCDIMMDeviceClass *ddc = PC_DIMM_CLASS(oc);
     NVDIMMClass *nvc = NVDIMM_CLASS(oc);
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
     ddc->realize = nvdimm_realize;
     ddc->get_memory_region = nvdimm_get_memory_region;
-    ddc->get_vmstate_memory_region = nvdimm_get_vmstate_memory_region;
+    dc->props = nvdimm_properties;
 
     nvc->read_label_data = nvdimm_read_label_data;
     nvc->write_label_data = nvdimm_write_label_data;
@@ -191,6 +201,7 @@ static TypeInfo nvdimm_info = {
     .class_init    = nvdimm_class_init,
     .instance_size = sizeof(NVDIMMDevice),
     .instance_init = nvdimm_init,
+    .instance_finalize = nvdimm_finalize,
 };
 
 static void nvdimm_register_types(void)

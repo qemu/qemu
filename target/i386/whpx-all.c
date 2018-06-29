@@ -932,6 +932,7 @@ static int whpx_vcpu_run(CPUState *cpu)
 
         case WHvRunVpExitReasonX64InterruptWindow:
             vcpu->window_registered = 0;
+            ret = 0;
             break;
 
         case WHvRunVpExitReasonX64Halt:
@@ -943,6 +944,40 @@ static int whpx_vcpu_run(CPUState *cpu)
             ret = 1;
             break;
 
+        case WHvRunVpExitReasonX64MsrAccess: {
+            WHV_REGISTER_VALUE reg_values[3] = {0};
+            WHV_REGISTER_NAME reg_names[3];
+            UINT32 reg_count;
+
+            reg_names[0] = WHvX64RegisterRip;
+            reg_names[1] = WHvX64RegisterRax;
+            reg_names[2] = WHvX64RegisterRdx;
+
+            reg_values[0].Reg64 =
+                vcpu->exit_ctx.VpContext.Rip +
+                vcpu->exit_ctx.VpContext.InstructionLength;
+
+            /*
+             * For all unsupported MSR access we:
+             *     ignore writes
+             *     return 0 on read.
+             */
+            reg_count = vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite ?
+                        1 : 3;
+
+            hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
+                whpx->partition,
+                cpu->cpu_index,
+                reg_names, reg_count,
+                reg_values);
+
+            if (FAILED(hr)) {
+                error_report("WHPX: Failed to set MsrAccess state "
+                             " registers, hr=%08lx", hr);
+            }
+            ret = 0;
+            break;
+        }
         case WHvRunVpExitReasonX64Cpuid: {
             WHV_REGISTER_VALUE reg_values[5];
             WHV_REGISTER_NAME reg_names[5];
@@ -960,6 +995,16 @@ static int whpx_vcpu_run(CPUState *cpu)
                 rcx =
                     vcpu->exit_ctx.CpuidAccess.DefaultResultRcx |
                     CPUID_EXT_HYPERVISOR;
+
+                rdx = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
+                rbx = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
+                break;
+            case 0x80000001:
+                rax = vcpu->exit_ctx.CpuidAccess.DefaultResultRax;
+                /* Remove any support of OSVW */
+                rcx =
+                    vcpu->exit_ctx.CpuidAccess.DefaultResultRcx &
+                    ~CPUID_EXT3_OSVW;
 
                 rdx = vcpu->exit_ctx.CpuidAccess.DefaultResultRdx;
                 rbx = vcpu->exit_ctx.CpuidAccess.DefaultResultRbx;
@@ -1000,7 +1045,6 @@ static int whpx_vcpu_run(CPUState *cpu)
         case WHvRunVpExitReasonUnrecoverableException:
         case WHvRunVpExitReasonInvalidVpRegisterValue:
         case WHvRunVpExitReasonUnsupportedFeature:
-        case WHvRunVpExitReasonX64MsrAccess:
         case WHvRunVpExitReasonException:
         default:
             error_report("WHPX: Unexpected VP exit code %d",
@@ -1368,6 +1412,7 @@ static int whpx_accel_init(MachineState *ms)
     }
 
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
+    prop.ExtendedVmExits.X64MsrExit = 1;
     prop.ExtendedVmExits.X64CpuidExit = 1;
     hr = whp_dispatch.WHvSetPartitionProperty(
         whpx->partition,
@@ -1376,18 +1421,19 @@ static int whpx_accel_init(MachineState *ms)
         sizeof(WHV_PARTITION_PROPERTY));
 
     if (FAILED(hr)) {
-        error_report("WHPX: Failed to enable partition extended X64CpuidExit"
-                     " hr=%08lx", hr);
+        error_report("WHPX: Failed to enable partition extended X64MsrExit and"
+                     " X64CpuidExit hr=%08lx", hr);
         ret = -EINVAL;
         goto error;
     }
 
-    UINT32 cpuidExitList[] = {1};
+    UINT32 cpuidExitList[] = {1, 0x80000001};
     hr = whp_dispatch.WHvSetPartitionProperty(
         whpx->partition,
         WHvPartitionPropertyCodeCpuidExitList,
         cpuidExitList,
         RTL_NUMBER_OF(cpuidExitList) * sizeof(UINT32));
+
     if (FAILED(hr)) {
         error_report("WHPX: Failed to set partition CpuidExitList hr=%08lx",
                      hr);

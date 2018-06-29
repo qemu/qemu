@@ -52,7 +52,7 @@ The ''kvaser_pci'' board/device model is compatible with and has been tested wit
 The tested setup was Linux 4.9 kernel on the host and guest side.
 Example for qemu-system-x86_64:
 
-    qemu-system-x86_64 -enable-kvm -kernel /boot/vmlinuz-4.9.0-4-amd64 \
+    qemu-system-x86_64 -accel kvm -kernel /boot/vmlinuz-4.9.0-4-amd64 \
       -initrd ramdisk.cpio \
       -virtfs local,path=shareddir,security_model=none,mount_tag=shareddir \
       -object can-bus,id=canbus0 \

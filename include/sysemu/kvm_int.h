@@ -20,6 +20,7 @@ typedef struct KVMSlot
     void *ram;
     int slot;
     int flags;
+    int old_flags;
 } KVMSlot;
 
 typedef struct KVMMemoryListener {
