@@ -5150,16 +5150,13 @@ static bool append_open_options(QDict *d, BlockDriverState *bs)
     QemuOptDesc *desc;
     BdrvChild *child;
     bool found_any = false;
-    const char *p;
 
     for (entry = qdict_first(bs->options); entry;
          entry = qdict_next(bs->options, entry))
     {
-        /* Exclude options for children */
+        /* Exclude node-name references to children */
         QLIST_FOREACH(child, &bs->children, next) {
-            if (strstart(qdict_entry_key(entry), child->name, &p)
-                && (!*p || *p == '.'))
-            {
+            if (!strcmp(entry->key, child->name)) {
                 break;
             }
         }
