@@ -270,6 +270,10 @@ ORV             00000100 .. 011 000 001 ... ..... .....         @rd_pg_rn
 EORV            00000100 .. 011 001 001 ... ..... .....         @rd_pg_rn
 ANDV            00000100 .. 011 010 001 ... ..... .....         @rd_pg_rn
 
+# SVE constructive prefix (predicated)
+MOVPRFX_z       00000100 .. 010 000 001 ... ..... .....         @rd_pg_rn
+MOVPRFX_m       00000100 .. 010 001 001 ... ..... .....         @rd_pg_rn
+
 # SVE integer add reduction (predicated)
 # Note that saddv requires size != 3.
 UADDV           00000100 .. 000 001 001 ... ..... .....         @rd_pg_rn
@@ -417,6 +421,9 @@ ADR_p32         00000100 10 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
 ADR_p64         00000100 11 1 ..... 1010 .. ..... .....         @rd_rn_msz_rm
 
 ### SVE Integer Misc - Unpredicated Group
+
+# SVE constructive prefix (unpredicated)
+MOVPRFX         00000100 00 1 00000 101111 rn:5 rd:5
 
 # SVE floating-point exponential accelerator
 # Note esz != 0

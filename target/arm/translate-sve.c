@@ -351,6 +351,23 @@ static bool do_zpzz_ool(DisasContext *s, arg_rprr_esz *a, gen_helper_gvec_4 *fn)
     return true;
 }
 
+/* Select active elememnts from Zn and inactive elements from Zm,
+ * storing the result in Zd.
+ */
+static void do_sel_z(DisasContext *s, int rd, int rn, int rm, int pg, int esz)
+{
+    static gen_helper_gvec_4 * const fns[4] = {
+        gen_helper_sve_sel_zpzz_b, gen_helper_sve_sel_zpzz_h,
+        gen_helper_sve_sel_zpzz_s, gen_helper_sve_sel_zpzz_d
+    };
+    unsigned vsz = vec_full_reg_size(s);
+    tcg_gen_gvec_4_ool(vec_full_reg_offset(s, rd),
+                       vec_full_reg_offset(s, rn),
+                       vec_full_reg_offset(s, rm),
+                       pred_full_reg_offset(s, pg),
+                       vsz, vsz, 0, fns[esz]);
+}
+
 #define DO_ZPZZ(NAME, name) \
 static bool trans_##NAME##_zpzz(DisasContext *s, arg_rprr_esz *a,         \
                                 uint32_t insn)                            \
@@ -401,7 +418,13 @@ static bool trans_UDIV_zpzz(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
     return do_zpzz_ool(s, a, fns[a->esz]);
 }
 
-DO_ZPZZ(SEL, sel)
+static bool trans_SEL_zpzz(DisasContext *s, arg_rprr_esz *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        do_sel_z(s, a->rd, a->rn, a->rm, a->pg, a->esz);
+    }
+    return true;
+}
 
 #undef DO_ZPZZ
 
@@ -5033,5 +5056,40 @@ static bool trans_PRF_rr(DisasContext *s, arg_PRF_rr *a, uint32_t insn)
     }
     /* Prefetch is a nop within QEMU.  */
     sve_access_check(s);
+    return true;
+}
+
+/*
+ * Move Prefix
+ *
+ * TODO: The implementation so far could handle predicated merging movprfx.
+ * The helper functions as written take an extra source register to
+ * use in the operation, but the result is only written when predication
+ * succeeds.  For unpredicated movprfx, we need to rearrange the helpers
+ * to allow the final write back to the destination to be unconditional.
+ * For predicated zeroing movprfx, we need to rearrange the helpers to
+ * allow the final write back to zero inactives.
+ *
+ * In the meantime, just emit the moves.
+ */
+
+static bool trans_MOVPRFX(DisasContext *s, arg_MOVPRFX *a, uint32_t insn)
+{
+    return do_mov_z(s, a->rd, a->rn);
+}
+
+static bool trans_MOVPRFX_m(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        do_sel_z(s, a->rd, a->rn, a->rd, a->pg, a->esz);
+    }
+    return true;
+}
+
+static bool trans_MOVPRFX_z(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
+{
+    if (sve_access_check(s)) {
+        do_movz_zpz(s, a->rd, a->rn, a->pg, a->esz);
+    }
     return true;
 }
