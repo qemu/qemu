@@ -194,6 +194,73 @@ void HELPER(gvec_qrdmlsh_s32)(void *vd, void *vn, void *vm,
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
 
+/* Integer 8 and 16-bit dot-product.
+ *
+ * Note that for the loops herein, host endianness does not matter
+ * with respect to the ordering of data within the 64-bit lanes.
+ * All elements are treated equally, no matter where they are.
+ */
+
+void HELPER(gvec_sdot_b)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc);
+    uint32_t *d = vd;
+    int8_t *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz / 4; ++i) {
+        d[i] += n[i * 4 + 0] * m[i * 4 + 0]
+              + n[i * 4 + 1] * m[i * 4 + 1]
+              + n[i * 4 + 2] * m[i * 4 + 2]
+              + n[i * 4 + 3] * m[i * 4 + 3];
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_udot_b)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc);
+    uint32_t *d = vd;
+    uint8_t *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz / 4; ++i) {
+        d[i] += n[i * 4 + 0] * m[i * 4 + 0]
+              + n[i * 4 + 1] * m[i * 4 + 1]
+              + n[i * 4 + 2] * m[i * 4 + 2]
+              + n[i * 4 + 3] * m[i * 4 + 3];
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_sdot_h)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc);
+    uint64_t *d = vd;
+    int16_t *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz / 8; ++i) {
+        d[i] += (int64_t)n[i * 4 + 0] * m[i * 4 + 0]
+              + (int64_t)n[i * 4 + 1] * m[i * 4 + 1]
+              + (int64_t)n[i * 4 + 2] * m[i * 4 + 2]
+              + (int64_t)n[i * 4 + 3] * m[i * 4 + 3];
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_udot_h)(void *vd, void *vn, void *vm, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc);
+    uint64_t *d = vd;
+    uint16_t *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz / 8; ++i) {
+        d[i] += (uint64_t)n[i * 4 + 0] * m[i * 4 + 0]
+              + (uint64_t)n[i * 4 + 1] * m[i * 4 + 1]
+              + (uint64_t)n[i * 4 + 2] * m[i * 4 + 2]
+              + (uint64_t)n[i * 4 + 3] * m[i * 4 + 3];
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
 void HELPER(gvec_fcaddh)(void *vd, void *vn, void *vm,
                          void *vfpst, uint32_t desc)
 {
