@@ -45,6 +45,9 @@
 # Unsigned 8-bit immediate, optionally shifted left by 8.
 %sh8_i8u        5:9 !function=expand_imm_sh8u
 
+# Unsigned load of msz into esz=2, represented as a dtype.
+%msz_dtype      23:2 !function=msz_dtype
+
 # Either a copy of rd (at bit 0), or a different source
 # as propagated via the MOVPRFX instruction.
 %reg_movprfx    0:5
@@ -71,6 +74,8 @@
 &incdec2_cnt    rd rn pat esz imm d u
 &incdec_pred    rd pg esz d u
 &incdec2_pred   rd rn pg esz d u
+&rprr_load      rd pg rn rm dtype nreg
+&rpri_load      rd pg rn imm dtype nreg
 
 ###########################################################################
 # Named instruction formats.  These are generally used to
@@ -169,6 +174,15 @@
 @incdec_pred    ........ esz:2 .... .. ..... .. pg:4 rd:5       &incdec_pred
 @incdec2_pred   ........ esz:2 .... .. ..... .. pg:4 rd:5 \
                 &incdec2_pred rn=%reg_movprfx
+
+# Loads; user must fill in NREG.
+@rprr_load_dt   ....... dtype:4 rm:5 ... pg:3 rn:5 rd:5         &rprr_load
+@rpri_load_dt   ....... dtype:4 . imm:s4 ... pg:3 rn:5 rd:5     &rpri_load
+
+@rprr_load_msz  ....... .... rm:5 ... pg:3 rn:5 rd:5 \
+                &rprr_load dtype=%msz_dtype
+@rpri_load_msz  ....... .... . imm:s4 ... pg:3 rn:5 rd:5 \
+                &rpri_load dtype=%msz_dtype
 
 ###########################################################################
 # Instruction patterns.  Grouped according to the SVE encodingindex.xhtml.
@@ -665,3 +679,23 @@ LDR_pri         10000101 10 ...... 000 ... ..... 0 ....         @pd_rn_i9
 
 # SVE load vector register
 LDR_zri         10000101 10 ...... 010 ... ..... .....          @rd_rn_i9
+
+### SVE Memory Contiguous Load Group
+
+# SVE contiguous load (scalar plus scalar)
+LD_zprr         1010010 .... ..... 010 ... ..... .....    @rprr_load_dt nreg=0
+
+# SVE contiguous load (scalar plus immediate)
+LD_zpri         1010010 .... 0.... 101 ... ..... .....    @rpri_load_dt nreg=0
+
+# SVE contiguous non-temporal load (scalar plus scalar)
+# LDNT1B, LDNT1H, LDNT1W, LDNT1D
+# SVE load multiple structures (scalar plus scalar)
+# LD2B, LD2H, LD2W, LD2D; etc.
+LD_zprr         1010010 .. nreg:2 ..... 110 ... ..... .....     @rprr_load_msz
+
+# SVE contiguous non-temporal load (scalar plus immediate)
+# LDNT1B, LDNT1H, LDNT1W, LDNT1D
+# SVE load multiple structures (scalar plus immediate)
+# LD2B, LD2H, LD2W, LD2D; etc.
+LD_zpri         1010010 .. nreg:2 0.... 111 ... ..... .....     @rpri_load_msz
