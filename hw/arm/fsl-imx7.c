@@ -459,7 +459,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * SRC
      */
-    create_unimplemented_device("sdma", FSL_IMX7_SRC_ADDR, FSL_IMX7_SRC_SIZE);
+    create_unimplemented_device("src", FSL_IMX7_SRC_ADDR, FSL_IMX7_SRC_SIZE);
 
     /*
      * Watchdog
