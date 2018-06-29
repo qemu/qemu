@@ -140,6 +140,7 @@
 # One register operand, with governing predicate, vector element size
 @rd_pg_rn       ........ esz:2 ... ... ... pg:3 rn:5 rd:5       &rpr_esz
 @rd_pg4_pn      ........ esz:2 ... ... .. pg:4 . rn:4 rd:5      &rpr_esz
+@pd_pg_rn       ........ esz:2 ... ... ... pg:3 rn:5 . rd:4     &rpr_esz
 
 # One register operand, with governing predicate, no vector element size
 @rd_pg_rn_e0    ........ .. ... ... ... pg:3 rn:5 rd:5          &rpr_esz esz=0
@@ -747,6 +748,15 @@ FMINV           01100101 .. 000 111 001 ... ..... .....         @rd_pg_rn
 
 FRECPE          01100101 .. 001 110 001100 ..... .....          @rd_rn
 FRSQRTE         01100101 .. 001 111 001100 ..... .....          @rd_rn
+
+### SVE FP Compare with Zero Group
+
+FCMGE_ppz0      01100101 .. 0100 00 001 ... ..... 0 ....        @pd_pg_rn
+FCMGT_ppz0      01100101 .. 0100 00 001 ... ..... 1 ....        @pd_pg_rn
+FCMLT_ppz0      01100101 .. 0100 01 001 ... ..... 0 ....        @pd_pg_rn
+FCMLE_ppz0      01100101 .. 0100 01 001 ... ..... 1 ....        @pd_pg_rn
+FCMEQ_ppz0      01100101 .. 0100 10 001 ... ..... 0 ....        @pd_pg_rn
+FCMNE_ppz0      01100101 .. 0100 11 001 ... ..... 0 ....        @pd_pg_rn
 
 ### SVE FP Accumulating Reduction Group
 

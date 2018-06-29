@@ -3555,6 +3555,49 @@ static bool trans_FRSQRTE(DisasContext *s, arg_rr_esz *a, uint32_t insn)
 }
 
 /*
+ *** SVE Floating Point Compare with Zero Group
+ */
+
+static void do_ppz_fp(DisasContext *s, arg_rpr_esz *a,
+                      gen_helper_gvec_3_ptr *fn)
+{
+    unsigned vsz = vec_full_reg_size(s);
+    TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+
+    tcg_gen_gvec_3_ptr(pred_full_reg_offset(s, a->rd),
+                       vec_full_reg_offset(s, a->rn),
+                       pred_full_reg_offset(s, a->pg),
+                       status, vsz, vsz, 0, fn);
+    tcg_temp_free_ptr(status);
+}
+
+#define DO_PPZ(NAME, name) \
+static bool trans_##NAME(DisasContext *s, arg_rpr_esz *a, uint32_t insn) \
+{                                                                 \
+    static gen_helper_gvec_3_ptr * const fns[3] = {               \
+        gen_helper_sve_##name##_h,                                \
+        gen_helper_sve_##name##_s,                                \
+        gen_helper_sve_##name##_d,                                \
+    };                                                            \
+    if (a->esz == 0) {                                            \
+        return false;                                             \
+    }                                                             \
+    if (sve_access_check(s)) {                                    \
+        do_ppz_fp(s, a, fns[a->esz - 1]);                         \
+    }                                                             \
+    return true;                                                  \
+}
+
+DO_PPZ(FCMGE_ppz0, fcmge0)
+DO_PPZ(FCMGT_ppz0, fcmgt0)
+DO_PPZ(FCMLE_ppz0, fcmle0)
+DO_PPZ(FCMLT_ppz0, fcmlt0)
+DO_PPZ(FCMEQ_ppz0, fcmeq0)
+DO_PPZ(FCMNE_ppz0, fcmne0)
+
+#undef DO_PPZ
+
+/*
  *** SVE Floating Point Accumulating Reduction Group
  */
 

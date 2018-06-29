@@ -3362,6 +3362,8 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg,               \
 
 #define DO_FCMGE(TYPE, X, Y, ST)  TYPE##_compare(Y, X, ST) <= 0
 #define DO_FCMGT(TYPE, X, Y, ST)  TYPE##_compare(Y, X, ST) < 0
+#define DO_FCMLE(TYPE, X, Y, ST)  TYPE##_compare(X, Y, ST) <= 0
+#define DO_FCMLT(TYPE, X, Y, ST)  TYPE##_compare(X, Y, ST) < 0
 #define DO_FCMEQ(TYPE, X, Y, ST)  TYPE##_compare_quiet(X, Y, ST) == 0
 #define DO_FCMNE(TYPE, X, Y, ST)  TYPE##_compare_quiet(X, Y, ST) != 0
 #define DO_FCMUO(TYPE, X, Y, ST)  \
@@ -3384,6 +3386,47 @@ DO_FPCMP_PPZZ_ALL(sve_facgt, DO_FACGT)
 #undef DO_FPCMP_PPZZ_S
 #undef DO_FPCMP_PPZZ_H
 #undef DO_FPCMP_PPZZ
+
+/* One operand floating-point comparison against zero, controlled
+ * by a predicate.
+ */
+#define DO_FPCMP_PPZ0(NAME, TYPE, H, OP)                   \
+void HELPER(NAME)(void *vd, void *vn, void *vg,            \
+                  void *status, uint32_t desc)             \
+{                                                          \
+    intptr_t i = simd_oprsz(desc), j = (i - 1) >> 6;       \
+    uint64_t *d = vd, *g = vg;                             \
+    do {                                                   \
+        uint64_t out = 0, pg = g[j];                       \
+        do {                                               \
+            i -= sizeof(TYPE), out <<= sizeof(TYPE);       \
+            if ((pg >> (i & 63)) & 1) {                    \
+                TYPE nn = *(TYPE *)(vn + H(i));            \
+                out |= OP(TYPE, nn, 0, status);            \
+            }                                              \
+        } while (i & 63);                                  \
+        d[j--] = out;                                      \
+    } while (i > 0);                                       \
+}
+
+#define DO_FPCMP_PPZ0_H(NAME, OP) \
+    DO_FPCMP_PPZ0(NAME##_h, float16, H1_2, OP)
+#define DO_FPCMP_PPZ0_S(NAME, OP) \
+    DO_FPCMP_PPZ0(NAME##_s, float32, H1_4, OP)
+#define DO_FPCMP_PPZ0_D(NAME, OP) \
+    DO_FPCMP_PPZ0(NAME##_d, float64,     , OP)
+
+#define DO_FPCMP_PPZ0_ALL(NAME, OP) \
+    DO_FPCMP_PPZ0_H(NAME, OP)   \
+    DO_FPCMP_PPZ0_S(NAME, OP)   \
+    DO_FPCMP_PPZ0_D(NAME, OP)
+
+DO_FPCMP_PPZ0_ALL(sve_fcmge0, DO_FCMGE)
+DO_FPCMP_PPZ0_ALL(sve_fcmgt0, DO_FCMGT)
+DO_FPCMP_PPZ0_ALL(sve_fcmle0, DO_FCMLE)
+DO_FPCMP_PPZ0_ALL(sve_fcmlt0, DO_FCMLT)
+DO_FPCMP_PPZ0_ALL(sve_fcmeq0, DO_FCMEQ)
+DO_FPCMP_PPZ0_ALL(sve_fcmne0, DO_FCMNE)
 
 /*
  * Load contiguous data, protected by a governing predicate.
