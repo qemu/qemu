@@ -3758,6 +3758,168 @@ void HELPER(sve_fcadd_d)(void *vd, void *vn, void *vm, void *vg,
 }
 
 /*
+ * FP Complex Multiply
+ */
+
+QEMU_BUILD_BUG_ON(SIMD_DATA_SHIFT + 22 > 32);
+
+void HELPER(sve_fcmla_zpzzz_h)(CPUARMState *env, void *vg, uint32_t desc)
+{
+    intptr_t j, i = simd_oprsz(desc);
+    unsigned rd = extract32(desc, SIMD_DATA_SHIFT, 5);
+    unsigned rn = extract32(desc, SIMD_DATA_SHIFT + 5, 5);
+    unsigned rm = extract32(desc, SIMD_DATA_SHIFT + 10, 5);
+    unsigned ra = extract32(desc, SIMD_DATA_SHIFT + 15, 5);
+    unsigned rot = extract32(desc, SIMD_DATA_SHIFT + 20, 2);
+    bool flip = rot & 1;
+    float16 neg_imag, neg_real;
+    void *vd = &env->vfp.zregs[rd];
+    void *vn = &env->vfp.zregs[rn];
+    void *vm = &env->vfp.zregs[rm];
+    void *va = &env->vfp.zregs[ra];
+    uint64_t *g = vg;
+
+    neg_imag = float16_set_sign(0, (rot & 2) != 0);
+    neg_real = float16_set_sign(0, rot == 1 || rot == 2);
+
+    do {
+        uint64_t pg = g[(i - 1) >> 6];
+        do {
+            float16 e1, e2, e3, e4, nr, ni, mr, mi, d;
+
+            /* I holds the real index; J holds the imag index.  */
+            j = i - sizeof(float16);
+            i -= 2 * sizeof(float16);
+
+            nr = *(float16 *)(vn + H1_2(i));
+            ni = *(float16 *)(vn + H1_2(j));
+            mr = *(float16 *)(vm + H1_2(i));
+            mi = *(float16 *)(vm + H1_2(j));
+
+            e2 = (flip ? ni : nr);
+            e1 = (flip ? mi : mr) ^ neg_real;
+            e4 = e2;
+            e3 = (flip ? mr : mi) ^ neg_imag;
+
+            if (likely((pg >> (i & 63)) & 1)) {
+                d = *(float16 *)(va + H1_2(i));
+                d = float16_muladd(e2, e1, d, 0, &env->vfp.fp_status_f16);
+                *(float16 *)(vd + H1_2(i)) = d;
+            }
+            if (likely((pg >> (j & 63)) & 1)) {
+                d = *(float16 *)(va + H1_2(j));
+                d = float16_muladd(e4, e3, d, 0, &env->vfp.fp_status_f16);
+                *(float16 *)(vd + H1_2(j)) = d;
+            }
+        } while (i & 63);
+    } while (i != 0);
+}
+
+void HELPER(sve_fcmla_zpzzz_s)(CPUARMState *env, void *vg, uint32_t desc)
+{
+    intptr_t j, i = simd_oprsz(desc);
+    unsigned rd = extract32(desc, SIMD_DATA_SHIFT, 5);
+    unsigned rn = extract32(desc, SIMD_DATA_SHIFT + 5, 5);
+    unsigned rm = extract32(desc, SIMD_DATA_SHIFT + 10, 5);
+    unsigned ra = extract32(desc, SIMD_DATA_SHIFT + 15, 5);
+    unsigned rot = extract32(desc, SIMD_DATA_SHIFT + 20, 2);
+    bool flip = rot & 1;
+    float32 neg_imag, neg_real;
+    void *vd = &env->vfp.zregs[rd];
+    void *vn = &env->vfp.zregs[rn];
+    void *vm = &env->vfp.zregs[rm];
+    void *va = &env->vfp.zregs[ra];
+    uint64_t *g = vg;
+
+    neg_imag = float32_set_sign(0, (rot & 2) != 0);
+    neg_real = float32_set_sign(0, rot == 1 || rot == 2);
+
+    do {
+        uint64_t pg = g[(i - 1) >> 6];
+        do {
+            float32 e1, e2, e3, e4, nr, ni, mr, mi, d;
+
+            /* I holds the real index; J holds the imag index.  */
+            j = i - sizeof(float32);
+            i -= 2 * sizeof(float32);
+
+            nr = *(float32 *)(vn + H1_2(i));
+            ni = *(float32 *)(vn + H1_2(j));
+            mr = *(float32 *)(vm + H1_2(i));
+            mi = *(float32 *)(vm + H1_2(j));
+
+            e2 = (flip ? ni : nr);
+            e1 = (flip ? mi : mr) ^ neg_real;
+            e4 = e2;
+            e3 = (flip ? mr : mi) ^ neg_imag;
+
+            if (likely((pg >> (i & 63)) & 1)) {
+                d = *(float32 *)(va + H1_2(i));
+                d = float32_muladd(e2, e1, d, 0, &env->vfp.fp_status);
+                *(float32 *)(vd + H1_2(i)) = d;
+            }
+            if (likely((pg >> (j & 63)) & 1)) {
+                d = *(float32 *)(va + H1_2(j));
+                d = float32_muladd(e4, e3, d, 0, &env->vfp.fp_status);
+                *(float32 *)(vd + H1_2(j)) = d;
+            }
+        } while (i & 63);
+    } while (i != 0);
+}
+
+void HELPER(sve_fcmla_zpzzz_d)(CPUARMState *env, void *vg, uint32_t desc)
+{
+    intptr_t j, i = simd_oprsz(desc);
+    unsigned rd = extract32(desc, SIMD_DATA_SHIFT, 5);
+    unsigned rn = extract32(desc, SIMD_DATA_SHIFT + 5, 5);
+    unsigned rm = extract32(desc, SIMD_DATA_SHIFT + 10, 5);
+    unsigned ra = extract32(desc, SIMD_DATA_SHIFT + 15, 5);
+    unsigned rot = extract32(desc, SIMD_DATA_SHIFT + 20, 2);
+    bool flip = rot & 1;
+    float64 neg_imag, neg_real;
+    void *vd = &env->vfp.zregs[rd];
+    void *vn = &env->vfp.zregs[rn];
+    void *vm = &env->vfp.zregs[rm];
+    void *va = &env->vfp.zregs[ra];
+    uint64_t *g = vg;
+
+    neg_imag = float64_set_sign(0, (rot & 2) != 0);
+    neg_real = float64_set_sign(0, rot == 1 || rot == 2);
+
+    do {
+        uint64_t pg = g[(i - 1) >> 6];
+        do {
+            float64 e1, e2, e3, e4, nr, ni, mr, mi, d;
+
+            /* I holds the real index; J holds the imag index.  */
+            j = i - sizeof(float64);
+            i -= 2 * sizeof(float64);
+
+            nr = *(float64 *)(vn + H1_2(i));
+            ni = *(float64 *)(vn + H1_2(j));
+            mr = *(float64 *)(vm + H1_2(i));
+            mi = *(float64 *)(vm + H1_2(j));
+
+            e2 = (flip ? ni : nr);
+            e1 = (flip ? mi : mr) ^ neg_real;
+            e4 = e2;
+            e3 = (flip ? mr : mi) ^ neg_imag;
+
+            if (likely((pg >> (i & 63)) & 1)) {
+                d = *(float64 *)(va + H1_2(i));
+                d = float64_muladd(e2, e1, d, 0, &env->vfp.fp_status);
+                *(float64 *)(vd + H1_2(i)) = d;
+            }
+            if (likely((pg >> (j & 63)) & 1)) {
+                d = *(float64 *)(va + H1_2(j));
+                d = float64_muladd(e4, e3, d, 0, &env->vfp.fp_status);
+                *(float64 *)(vd + H1_2(j)) = d;
+            }
+        } while (i & 63);
+    } while (i != 0);
+}
+
+/*
  * Load contiguous data, protected by a governing predicate.
  */
 #define DO_LD1(NAME, FN, TYPEE, TYPEM, H)                  \
