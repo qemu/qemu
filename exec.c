@@ -1027,7 +1027,7 @@ const char *parse_cpu_model(const char *cpu_model)
     return cpu_type;
 }
 
-#if defined(CONFIG_USER_ONLY)
+#if defined(CONFIG_USER_ONLY) || !defined(CONFIG_TCG)
 void tb_invalidate_phys_addr(target_ulong addr)
 {
     mmap_lock();
