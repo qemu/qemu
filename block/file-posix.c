@@ -1488,19 +1488,20 @@ static ssize_t handle_aiocb_copy_range(RawPosixAIOData *aiocb)
         ssize_t ret = copy_file_range(aiocb->aio_fildes, &in_off,
                                       aiocb->aio_fd2, &out_off,
                                       bytes, 0);
-        if (ret == -EINTR) {
-            continue;
+        if (ret == 0) {
+            /* No progress (e.g. when beyond EOF), let the caller fall back to
+             * buffer I/O. */
+            return -ENOSPC;
         }
         if (ret < 0) {
-            if (errno == ENOSYS) {
+            switch (errno) {
+            case ENOSYS:
                 return -ENOTSUP;
-            } else {
+            case EINTR:
+                continue;
+            default:
                 return -errno;
             }
-        }
-        if (!ret) {
-            /* No progress (e.g. when beyond EOF), fall back to buffer I/O. */
-            return -ENOTSUP;
         }
         bytes -= ret;
     }
