@@ -2811,6 +2811,62 @@ uint32_t HELPER(sve_while)(void *vd, uint32_t count, uint32_t pred_desc)
     return predtest_ones(d, oprsz, esz_mask);
 }
 
+uint64_t HELPER(sve_fadda_h)(uint64_t nn, void *vm, void *vg,
+                             void *status, uint32_t desc)
+{
+    intptr_t i = 0, opr_sz = simd_oprsz(desc);
+    float16 result = nn;
+
+    do {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (pg & 1) {
+                float16 mm = *(float16 *)(vm + H1_2(i));
+                result = float16_add(result, mm, status);
+            }
+            i += sizeof(float16), pg >>= sizeof(float16);
+        } while (i & 15);
+    } while (i < opr_sz);
+
+    return result;
+}
+
+uint64_t HELPER(sve_fadda_s)(uint64_t nn, void *vm, void *vg,
+                             void *status, uint32_t desc)
+{
+    intptr_t i = 0, opr_sz = simd_oprsz(desc);
+    float32 result = nn;
+
+    do {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (pg & 1) {
+                float32 mm = *(float32 *)(vm + H1_2(i));
+                result = float32_add(result, mm, status);
+            }
+            i += sizeof(float32), pg >>= sizeof(float32);
+        } while (i & 15);
+    } while (i < opr_sz);
+
+    return result;
+}
+
+uint64_t HELPER(sve_fadda_d)(uint64_t nn, void *vm, void *vg,
+                             void *status, uint32_t desc)
+{
+    intptr_t i = 0, opr_sz = simd_oprsz(desc) / 8;
+    uint64_t *m = vm;
+    uint8_t *pg = vg;
+
+    for (i = 0; i < opr_sz; i++) {
+        if (pg[H1(i)] & 1) {
+            nn = float64_add(nn, m[i], status);
+        }
+    }
+
+    return nn;
+}
+
 /* Fully general three-operand expander, controlled by a predicate,
  * With the extra float_status parameter.
  */

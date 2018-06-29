@@ -676,6 +676,11 @@ UMIN_zzi        00100101 .. 101 011 110 ........ .....          @rdn_i8u
 # SVE integer multiply immediate (unpredicated)
 MUL_zzi         00100101 .. 110 000 110 ........ .....          @rdn_i8s
 
+### SVE FP Accumulating Reduction Group
+
+# SVE floating-point serial reduction (predicated)
+FADDA           01100101 .. 011 000 001 ... ..... .....         @rdn_pg_rm
+
 ### SVE Floating Point Arithmetic - Unpredicated Group
 
 # SVE floating-point arithmetic (unpredicated)
