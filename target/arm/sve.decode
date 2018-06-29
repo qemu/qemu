@@ -685,8 +685,14 @@ LDR_zri         10000101 10 ...... 010 ... ..... .....          @rd_rn_i9
 # SVE contiguous load (scalar plus scalar)
 LD_zprr         1010010 .... ..... 010 ... ..... .....    @rprr_load_dt nreg=0
 
+# SVE contiguous first-fault load (scalar plus scalar)
+LDFF1_zprr      1010010 .... ..... 011 ... ..... .....    @rprr_load_dt nreg=0
+
 # SVE contiguous load (scalar plus immediate)
 LD_zpri         1010010 .... 0.... 101 ... ..... .....    @rpri_load_dt nreg=0
+
+# SVE contiguous non-fault load (scalar plus immediate)
+LDNF1_zpri      1010010 .... 1.... 101 ... ..... .....    @rpri_load_dt nreg=0
 
 # SVE contiguous non-temporal load (scalar plus scalar)
 # LDNT1B, LDNT1H, LDNT1W, LDNT1D

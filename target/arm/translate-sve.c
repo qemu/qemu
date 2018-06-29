@@ -3647,3 +3647,72 @@ static bool trans_LD_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
     }
     return true;
 }
+
+static bool trans_LDFF1_zprr(DisasContext *s, arg_rprr_load *a, uint32_t insn)
+{
+    static gen_helper_gvec_mem * const fns[16] = {
+        gen_helper_sve_ldff1bb_r,
+        gen_helper_sve_ldff1bhu_r,
+        gen_helper_sve_ldff1bsu_r,
+        gen_helper_sve_ldff1bdu_r,
+
+        gen_helper_sve_ldff1sds_r,
+        gen_helper_sve_ldff1hh_r,
+        gen_helper_sve_ldff1hsu_r,
+        gen_helper_sve_ldff1hdu_r,
+
+        gen_helper_sve_ldff1hds_r,
+        gen_helper_sve_ldff1hss_r,
+        gen_helper_sve_ldff1ss_r,
+        gen_helper_sve_ldff1sdu_r,
+
+        gen_helper_sve_ldff1bds_r,
+        gen_helper_sve_ldff1bss_r,
+        gen_helper_sve_ldff1bhs_r,
+        gen_helper_sve_ldff1dd_r,
+    };
+
+    if (sve_access_check(s)) {
+        TCGv_i64 addr = new_tmp_a64(s);
+        tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), dtype_msz(a->dtype));
+        tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
+        do_mem_zpa(s, a->rd, a->pg, addr, fns[a->dtype]);
+    }
+    return true;
+}
+
+static bool trans_LDNF1_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
+{
+    static gen_helper_gvec_mem * const fns[16] = {
+        gen_helper_sve_ldnf1bb_r,
+        gen_helper_sve_ldnf1bhu_r,
+        gen_helper_sve_ldnf1bsu_r,
+        gen_helper_sve_ldnf1bdu_r,
+
+        gen_helper_sve_ldnf1sds_r,
+        gen_helper_sve_ldnf1hh_r,
+        gen_helper_sve_ldnf1hsu_r,
+        gen_helper_sve_ldnf1hdu_r,
+
+        gen_helper_sve_ldnf1hds_r,
+        gen_helper_sve_ldnf1hss_r,
+        gen_helper_sve_ldnf1ss_r,
+        gen_helper_sve_ldnf1sdu_r,
+
+        gen_helper_sve_ldnf1bds_r,
+        gen_helper_sve_ldnf1bss_r,
+        gen_helper_sve_ldnf1bhs_r,
+        gen_helper_sve_ldnf1dd_r,
+    };
+
+    if (sve_access_check(s)) {
+        int vsz = vec_full_reg_size(s);
+        int elements = vsz >> dtype_esz[a->dtype];
+        int off = (a->imm * elements) << dtype_msz(a->dtype);
+        TCGv_i64 addr = new_tmp_a64(s);
+
+        tcg_gen_addi_i64(addr, cpu_reg_sp(s, a->rn), off);
+        do_mem_zpa(s, a->rd, a->pg, addr, fns[a->dtype]);
+    }
+    return true;
+}

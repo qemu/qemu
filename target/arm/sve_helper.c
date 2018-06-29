@@ -2963,3 +2963,160 @@ DO_LD4(sve_ld4dd_r, cpu_ldq_data_ra, uint64_t, uint64_t, )
 #undef DO_LD2
 #undef DO_LD3
 #undef DO_LD4
+
+/*
+ * Load contiguous data, first-fault and no-fault.
+ */
+
+#ifdef CONFIG_USER_ONLY
+
+/* Fault on byte I.  All bits in FFR from I are cleared.  The vector
+ * result from I is CONSTRAINED UNPREDICTABLE; we choose the MERGE
+ * option, which leaves subsequent data unchanged.
+ */
+static void record_fault(CPUARMState *env, uintptr_t i, uintptr_t oprsz)
+{
+    uint64_t *ffr = env->vfp.pregs[FFR_PRED_NUM].p;
+
+    if (i & 63) {
+        ffr[i / 64] &= MAKE_64BIT_MASK(0, i & 63);
+        i = ROUND_UP(i, 64);
+    }
+    for (; i < oprsz; i += 64) {
+        ffr[i / 64] = 0;
+    }
+}
+
+/* Hold the mmap lock during the operation so that there is no race
+ * between page_check_range and the load operation.  We expect the
+ * usual case to have no faults at all, so we check the whole range
+ * first and if successful defer to the normal load operation.
+ *
+ * TODO: Change mmap_lock to a rwlock so that multiple readers
+ * can run simultaneously.  This will probably help other uses
+ * within QEMU as well.
+ */
+#define DO_LDFF1(PART, FN, TYPEE, TYPEM, H)                             \
+static void do_sve_ldff1##PART(CPUARMState *env, void *vd, void *vg,    \
+                               target_ulong addr, intptr_t oprsz,       \
+                               bool first, uintptr_t ra)                \
+{                                                                       \
+    intptr_t i = 0;                                                     \
+    do {                                                                \
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));                 \
+        do {                                                            \
+            TYPEM m = 0;                                                \
+            if (pg & 1) {                                               \
+                if (!first &&                                           \
+                    unlikely(page_check_range(addr, sizeof(TYPEM),      \
+                                              PAGE_READ))) {            \
+                    record_fault(env, i, oprsz);                        \
+                    return;                                             \
+                }                                                       \
+                m = FN(env, addr, ra);                                  \
+                first = false;                                          \
+            }                                                           \
+            *(TYPEE *)(vd + H(i)) = m;                                  \
+            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);                   \
+            addr += sizeof(TYPEM);                                      \
+        } while (i & 15);                                               \
+    } while (i < oprsz);                                                \
+}                                                                       \
+void HELPER(sve_ldff1##PART)(CPUARMState *env, void *vg,                \
+                             target_ulong addr, uint32_t desc)          \
+{                                                                       \
+    intptr_t oprsz = simd_oprsz(desc);                                  \
+    unsigned rd = simd_data(desc);                                      \
+    void *vd = &env->vfp.zregs[rd];                                     \
+    mmap_lock();                                                        \
+    if (likely(page_check_range(addr, oprsz, PAGE_READ) == 0)) {        \
+        do_sve_ld1##PART(env, vd, vg, addr, oprsz, GETPC());            \
+    } else {                                                            \
+        do_sve_ldff1##PART(env, vd, vg, addr, oprsz, true, GETPC());    \
+    }                                                                   \
+    mmap_unlock();                                                      \
+}
+
+/* No-fault loads are like first-fault loads without the
+ * first faulting special case.
+ */
+#define DO_LDNF1(PART)                                                  \
+void HELPER(sve_ldnf1##PART)(CPUARMState *env, void *vg,                \
+                             target_ulong addr, uint32_t desc)          \
+{                                                                       \
+    intptr_t oprsz = simd_oprsz(desc);                                  \
+    unsigned rd = simd_data(desc);                                      \
+    void *vd = &env->vfp.zregs[rd];                                     \
+    mmap_lock();                                                        \
+    if (likely(page_check_range(addr, oprsz, PAGE_READ) == 0)) {        \
+        do_sve_ld1##PART(env, vd, vg, addr, oprsz, GETPC());            \
+    } else {                                                            \
+        do_sve_ldff1##PART(env, vd, vg, addr, oprsz, false, GETPC());   \
+    }                                                                   \
+    mmap_unlock();                                                      \
+}
+
+#else
+
+/* TODO: System mode is not yet supported.
+ * This would probably use tlb_vaddr_to_host.
+ */
+#define DO_LDFF1(PART, FN, TYPEE, TYPEM, H)                     \
+void HELPER(sve_ldff1##PART)(CPUARMState *env, void *vg,        \
+                  target_ulong addr, uint32_t desc)             \
+{                                                               \
+    g_assert_not_reached();                                     \
+}
+
+#define DO_LDNF1(PART)                                          \
+void HELPER(sve_ldnf1##PART)(CPUARMState *env, void *vg,        \
+                  target_ulong addr, uint32_t desc)             \
+{                                                               \
+    g_assert_not_reached();                                     \
+}
+
+#endif
+
+DO_LDFF1(bb_r,  cpu_ldub_data_ra, uint8_t, uint8_t, H1)
+DO_LDFF1(bhu_r, cpu_ldub_data_ra, uint16_t, uint8_t, H1_2)
+DO_LDFF1(bhs_r, cpu_ldsb_data_ra, uint16_t, int8_t, H1_2)
+DO_LDFF1(bsu_r, cpu_ldub_data_ra, uint32_t, uint8_t, H1_4)
+DO_LDFF1(bss_r, cpu_ldsb_data_ra, uint32_t, int8_t, H1_4)
+DO_LDFF1(bdu_r, cpu_ldub_data_ra, uint64_t, uint8_t, )
+DO_LDFF1(bds_r, cpu_ldsb_data_ra, uint64_t, int8_t, )
+
+DO_LDFF1(hh_r,  cpu_lduw_data_ra, uint16_t, uint16_t, H1_2)
+DO_LDFF1(hsu_r, cpu_lduw_data_ra, uint32_t, uint16_t, H1_4)
+DO_LDFF1(hss_r, cpu_ldsw_data_ra, uint32_t, int8_t, H1_4)
+DO_LDFF1(hdu_r, cpu_lduw_data_ra, uint64_t, uint16_t, )
+DO_LDFF1(hds_r, cpu_ldsw_data_ra, uint64_t, int16_t, )
+
+DO_LDFF1(ss_r,  cpu_ldl_data_ra, uint32_t, uint32_t, H1_4)
+DO_LDFF1(sdu_r, cpu_ldl_data_ra, uint64_t, uint32_t, )
+DO_LDFF1(sds_r, cpu_ldl_data_ra, uint64_t, int32_t, )
+
+DO_LDFF1(dd_r,  cpu_ldq_data_ra, uint64_t, uint64_t, )
+
+#undef DO_LDFF1
+
+DO_LDNF1(bb_r)
+DO_LDNF1(bhu_r)
+DO_LDNF1(bhs_r)
+DO_LDNF1(bsu_r)
+DO_LDNF1(bss_r)
+DO_LDNF1(bdu_r)
+DO_LDNF1(bds_r)
+
+DO_LDNF1(hh_r)
+DO_LDNF1(hsu_r)
+DO_LDNF1(hss_r)
+DO_LDNF1(hdu_r)
+DO_LDNF1(hds_r)
+
+DO_LDNF1(ss_r)
+DO_LDNF1(sdu_r)
+DO_LDNF1(sds_r)
+
+DO_LDNF1(dd_r)
+
+#undef DO_LDNF1
