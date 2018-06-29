@@ -80,6 +80,8 @@
 &rpri_load      rd pg rn imm dtype nreg
 &rprr_store     rd pg rn rm msz esz nreg
 &rpri_store     rd pg rn imm msz esz nreg
+&rprr_gather_load       rd pg rn rm esz msz u ff xs scale
+&rpri_gather_load       rd pg rn imm esz msz u ff
 &rprr_scatter_store     rd pg rn rm esz msz xs scale
 
 ###########################################################################
@@ -193,6 +195,22 @@
                 &rprr_load dtype=%msz_dtype
 @rpri_load_msz  ....... .... . imm:s4 ... pg:3 rn:5 rd:5 \
                 &rpri_load dtype=%msz_dtype
+
+# Gather Loads.
+@rprr_g_load_u        ....... .. .    . rm:5 . u:1 ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load xs=2
+@rprr_g_load_xs_u     ....... .. xs:1 . rm:5 . u:1 ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load
+@rprr_g_load_xs_u_sc  ....... .. xs:1 scale:1 rm:5 . u:1 ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load
+@rprr_g_load_xs_sc    ....... .. xs:1 scale:1 rm:5 . . ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load
+@rprr_g_load_u_sc     ....... .. .    scale:1 rm:5 . u:1 ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load xs=2
+@rprr_g_load_sc       ....... .. .    scale:1 rm:5 . . ff:1 pg:3 rn:5 rd:5 \
+                      &rprr_gather_load xs=2
+@rpri_g_load          ....... msz:2 .. imm:5 . u:1 ff:1 pg:3 rn:5 rd:5 \
+                      &rpri_gather_load
 
 # Stores; user must fill in ESZ, MSZ, NREG as needed.
 @rprr_store         ....... ..    ..     rm:5 ... pg:3 rn:5 rd:5    &rprr_store
@@ -759,6 +777,19 @@ LDR_zri         10000101 10 ...... 010 ... ..... .....          @rd_rn_i9
 LD1R_zpri       1000010 .. 1 imm:6 1.. pg:3 rn:5 rd:5 \
                 &rpri_load dtype=%dtype_23_13 nreg=0
 
+# SVE 32-bit gather load (scalar plus 32-bit unscaled offsets)
+# SVE 32-bit gather load (scalar plus 32-bit scaled offsets)
+LD1_zprz        1000010 00 .0 ..... 0.. ... ..... ..... \
+                @rprr_g_load_xs_u esz=2 msz=0 scale=0
+LD1_zprz        1000010 01 .. ..... 0.. ... ..... ..... \
+                @rprr_g_load_xs_u_sc esz=2 msz=1
+LD1_zprz        1000010 10 .. ..... 01. ... ..... ..... \
+                @rprr_g_load_xs_sc esz=2 msz=2 u=1
+
+# SVE 32-bit gather load (vector plus immediate)
+LD1_zpiz        1000010 .. 01 ..... 1.. ... ..... ..... \
+                @rpri_g_load esz=2
+
 ### SVE Memory Contiguous Load Group
 
 # SVE contiguous load (scalar plus scalar)
@@ -807,6 +838,32 @@ PRF             1000010 11 1- ----- 0-- --- ----- 0 ----
 PRF_rr          1000010 -- 00 rm:5 110 --- ----- 0 ----
 
 ### SVE Memory 64-bit Gather Group
+
+# SVE 64-bit gather load (scalar plus 32-bit unpacked unscaled offsets)
+# SVE 64-bit gather load (scalar plus 32-bit unpacked scaled offsets)
+LD1_zprz        1100010 00 .0 ..... 0.. ... ..... ..... \
+                @rprr_g_load_xs_u esz=3 msz=0 scale=0
+LD1_zprz        1100010 01 .. ..... 0.. ... ..... ..... \
+                @rprr_g_load_xs_u_sc esz=3 msz=1
+LD1_zprz        1100010 10 .. ..... 0.. ... ..... ..... \
+                @rprr_g_load_xs_u_sc esz=3 msz=2
+LD1_zprz        1100010 11 .. ..... 01. ... ..... ..... \
+                @rprr_g_load_xs_sc esz=3 msz=3 u=1
+
+# SVE 64-bit gather load (scalar plus 64-bit unscaled offsets)
+# SVE 64-bit gather load (scalar plus 64-bit scaled offsets)
+LD1_zprz        1100010 00 10 ..... 1.. ... ..... ..... \
+                @rprr_g_load_u esz=3 msz=0 scale=0
+LD1_zprz        1100010 01 1. ..... 1.. ... ..... ..... \
+                @rprr_g_load_u_sc esz=3 msz=1
+LD1_zprz        1100010 10 1. ..... 1.. ... ..... ..... \
+                @rprr_g_load_u_sc esz=3 msz=2
+LD1_zprz        1100010 11 1. ..... 11. ... ..... ..... \
+                @rprr_g_load_sc esz=3 msz=3 u=1
+
+# SVE 64-bit gather load (vector plus immediate)
+LD1_zpiz        1100010 .. 01 ..... 1.. ... ..... ..... \
+                @rpri_g_load esz=3
 
 # SVE 64-bit gather prefetch (scalar plus 64-bit scaled offsets)
 PRF             1100010 00 11 ----- 1-- --- ----- 0 ----
