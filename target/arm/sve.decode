@@ -80,6 +80,7 @@
 &rpri_load      rd pg rn imm dtype nreg
 &rprr_store     rd pg rn rm msz esz nreg
 &rpri_store     rd pg rn imm msz esz nreg
+&rprr_scatter_store     rd pg rn rm esz msz xs scale
 
 ###########################################################################
 # Named instruction formats.  These are generally used to
@@ -198,6 +199,8 @@
 @rpri_store_msz     ....... msz:2 .. . imm:s4 ... pg:3 rn:5 rd:5    &rpri_store
 @rprr_store_esz_n0  ....... ..    esz:2  rm:5 ... pg:3 rn:5 rd:5 \
                     &rprr_store nreg=0
+@rprr_scatter_store ....... msz:2 ..     rm:5 ... pg:3 rn:5 rd:5 \
+                    &rprr_scatter_store
 
 ###########################################################################
 # Instruction patterns.  Grouped according to the SVE encodingindex.xhtml.
@@ -825,3 +828,39 @@ ST_zpri         1110010 .. nreg:2 1.... 111 ... ..... ..... \
 # SVE store multiple structures (scalar plus scalar)         (nreg != 0)
 ST_zprr         1110010 msz:2 nreg:2 ..... 011 ... ..... ..... \
                 @rprr_store esz=%size_23
+
+# SVE 32-bit scatter store (scalar plus 32-bit scaled offsets)
+# Require msz > 0 && msz <= esz.
+ST1_zprz        1110010 .. 11 ..... 100 ... ..... ..... \
+                @rprr_scatter_store xs=0 esz=2 scale=1
+ST1_zprz        1110010 .. 11 ..... 110 ... ..... ..... \
+                @rprr_scatter_store xs=1 esz=2 scale=1
+
+# SVE 32-bit scatter store (scalar plus 32-bit unscaled offsets)
+# Require msz <= esz.
+ST1_zprz        1110010 .. 10 ..... 100 ... ..... ..... \
+                @rprr_scatter_store xs=0 esz=2 scale=0
+ST1_zprz        1110010 .. 10 ..... 110 ... ..... ..... \
+                @rprr_scatter_store xs=1 esz=2 scale=0
+
+# SVE 64-bit scatter store (scalar plus 64-bit scaled offset)
+# Require msz > 0
+ST1_zprz        1110010 .. 01 ..... 101 ... ..... ..... \
+                @rprr_scatter_store xs=2 esz=3 scale=1
+
+# SVE 64-bit scatter store (scalar plus 64-bit unscaled offset)
+ST1_zprz        1110010 .. 00 ..... 101 ... ..... ..... \
+                @rprr_scatter_store xs=2 esz=3 scale=0
+
+# SVE 64-bit scatter store (scalar plus unpacked 32-bit scaled offset)
+# Require msz > 0
+ST1_zprz        1110010 .. 01 ..... 100 ... ..... ..... \
+                @rprr_scatter_store xs=0 esz=3 scale=1
+ST1_zprz        1110010 .. 01 ..... 110 ... ..... ..... \
+                @rprr_scatter_store xs=1 esz=3 scale=1
+
+# SVE 64-bit scatter store (scalar plus unpacked 32-bit unscaled offset)
+ST1_zprz        1110010 .. 00 ..... 100 ... ..... ..... \
+                @rprr_scatter_store xs=0 esz=3 scale=0
+ST1_zprz        1110010 .. 00 ..... 110 ... ..... ..... \
+                @rprr_scatter_store xs=1 esz=3 scale=0
