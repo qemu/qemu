@@ -369,7 +369,17 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg, uint32_t desc) \
 #define DO_MIN(N, M)  ((N) >= (M) ? (M) : (N))
 #define DO_ABD(N, M)  ((N) >= (M) ? (N) - (M) : (M) - (N))
 #define DO_MUL(N, M)  (N * M)
-#define DO_DIV(N, M)  (M ? N / M : 0)
+
+
+/*
+ * We must avoid the C undefined behaviour cases: division by
+ * zero and signed division of INT_MIN by -1. Both of these
+ * have architecturally defined required results for Arm.
+ * We special case all signed divisions by -1 to avoid having
+ * to deduce the minimum integer for the type involved.
+ */
+#define DO_SDIV(N, M) (unlikely(M == 0) ? 0 : unlikely(M == -1) ? -N : N / M)
+#define DO_UDIV(N, M) (unlikely(M == 0) ? 0 : N / M)
 
 DO_ZPZZ(sve_and_zpzz_b, uint8_t, H1, DO_AND)
 DO_ZPZZ(sve_and_zpzz_h, uint16_t, H1_2, DO_AND)
@@ -477,11 +487,11 @@ DO_ZPZZ(sve_umulh_zpzz_h, uint16_t, H1_2, do_mulh_h)
 DO_ZPZZ(sve_umulh_zpzz_s, uint32_t, H1_4, do_mulh_s)
 DO_ZPZZ_D(sve_umulh_zpzz_d, uint64_t, do_umulh_d)
 
-DO_ZPZZ(sve_sdiv_zpzz_s, int32_t, H1_4, DO_DIV)
-DO_ZPZZ_D(sve_sdiv_zpzz_d, int64_t, DO_DIV)
+DO_ZPZZ(sve_sdiv_zpzz_s, int32_t, H1_4, DO_SDIV)
+DO_ZPZZ_D(sve_sdiv_zpzz_d, int64_t, DO_SDIV)
 
-DO_ZPZZ(sve_udiv_zpzz_s, uint32_t, H1_4, DO_DIV)
-DO_ZPZZ_D(sve_udiv_zpzz_d, uint64_t, DO_DIV)
+DO_ZPZZ(sve_udiv_zpzz_s, uint32_t, H1_4, DO_UDIV)
+DO_ZPZZ_D(sve_udiv_zpzz_d, uint64_t, DO_UDIV)
 
 /* Note that all bits of the shift are significant
    and not modulo the element size.  */
