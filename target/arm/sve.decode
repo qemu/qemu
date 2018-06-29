@@ -715,6 +715,15 @@ LD_zprr         1010010 .. nreg:2 ..... 110 ... ..... .....     @rprr_load_msz
 # LD2B, LD2H, LD2W, LD2D; etc.
 LD_zpri         1010010 .. nreg:2 0.... 111 ... ..... .....     @rpri_load_msz
 
+# SVE load and broadcast quadword (scalar plus scalar)
+LD1RQ_zprr      1010010 .. 00 ..... 000 ... ..... ..... \
+                @rprr_load_msz nreg=0
+
+# SVE load and broadcast quadword (scalar plus immediate)
+# LD1RQB, LD1RQH, LD1RQS, LD1RQD
+LD1RQ_zpri      1010010 .. 00 0.... 001 ... ..... ..... \
+                @rpri_load_msz nreg=0
+
 ### SVE Memory Store Group
 
 # SVE contiguous store (scalar plus immediate)
