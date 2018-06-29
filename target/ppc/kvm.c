@@ -248,19 +248,19 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
 
 
 #if defined(TARGET_PPC64)
-static void kvm_get_smmu_info(PowerPCCPU *cpu, struct kvm_ppc_smmu_info *info,
-                              Error **errp)
+static void kvm_get_smmu_info(struct kvm_ppc_smmu_info *info, Error **errp)
 {
-    CPUState *cs = CPU(cpu);
     int ret;
 
-    if (!kvm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_SMMU_INFO)) {
+    assert(kvm_state != NULL);
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_PPC_GET_SMMU_INFO)) {
         error_setg(errp, "KVM doesn't expose the MMU features it supports");
         error_append_hint(errp, "Consider switching to a newer KVM\n");
         return;
     }
 
-    ret = kvm_vm_ioctl(cs->kvm_state, KVM_PPC_GET_SMMU_INFO, info);
+    ret = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_SMMU_INFO, info);
     if (ret == 0) {
         return;
     }
@@ -326,14 +326,13 @@ target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
 
 bool kvmppc_hpt_needs_host_contiguous_pages(void)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
     static struct kvm_ppc_smmu_info smmu_info;
 
     if (!kvm_enabled()) {
         return false;
     }
 
-    kvm_get_smmu_info(cpu, &smmu_info, &error_fatal);
+    kvm_get_smmu_info(&smmu_info, &error_fatal);
     return !!(smmu_info.flags & KVM_PPC_PAGE_SIZES_REAL);
 }
 
@@ -348,7 +347,7 @@ void kvm_check_mmu(PowerPCCPU *cpu, Error **errp)
         return;
     }
 
-    kvm_get_smmu_info(cpu, &smmu_info, &local_err);
+    kvm_get_smmu_info(&smmu_info, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -2091,7 +2090,7 @@ uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
 
     /* Find the largest hardware supported page size that's less than
      * or equal to the (logical) backing page size of guest RAM */
-    kvm_get_smmu_info(POWERPC_CPU(first_cpu), &info, &error_fatal);
+    kvm_get_smmu_info(&info, &error_fatal);
     rampagesize = qemu_getrampagesize();
     best_page_shift = 0;
 
