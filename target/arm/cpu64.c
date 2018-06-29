@@ -139,6 +139,7 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->id_isar3 = 0x01112131;
     cpu->id_isar4 = 0x00011142;
     cpu->id_isar5 = 0x00011121;
+    cpu->id_isar6 = 0;
     cpu->id_aa64pfr0 = 0x00002222;
     cpu->id_aa64dfr0 = 0x10305106;
     cpu->pmceid0 = 0x00000000;
@@ -199,6 +200,7 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->id_isar3 = 0x01112131;
     cpu->id_isar4 = 0x00011142;
     cpu->id_isar5 = 0x00011121;
+    cpu->id_isar6 = 0;
     cpu->id_aa64pfr0 = 0x00002222;
     cpu->id_aa64dfr0 = 0x10305106;
     cpu->id_aa64isar0 = 0x00011120;

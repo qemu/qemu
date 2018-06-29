@@ -4872,11 +4872,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 6,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = cpu->id_mmfr4 },
-            /* 7 is as yet unallocated and must RAZ */
-            { .name = "ID_ISAR7_RESERVED", .state = ARM_CP_STATE_BOTH,
+            { .name = "ID_ISAR6", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 2, .opc2 = 7,
               .access = PL1_R, .type = ARM_CP_CONST,
-              .resetvalue = 0 },
+              .resetvalue = cpu->id_isar6 },
             REGINFO_SENTINEL
         };
         define_arm_cp_regs(cpu, v6_idregs);

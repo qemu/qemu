@@ -1273,6 +1273,7 @@ static void cortex_m3_initfn(Object *obj)
     cpu->id_isar3 = 0x01111110;
     cpu->id_isar4 = 0x01310102;
     cpu->id_isar5 = 0x00000000;
+    cpu->id_isar6 = 0x00000000;
 }
 
 static void cortex_m4_initfn(Object *obj)
@@ -1299,6 +1300,7 @@ static void cortex_m4_initfn(Object *obj)
     cpu->id_isar3 = 0x01111110;
     cpu->id_isar4 = 0x01310102;
     cpu->id_isar5 = 0x00000000;
+    cpu->id_isar6 = 0x00000000;
 }
 
 static void cortex_m33_initfn(Object *obj)
@@ -1327,6 +1329,7 @@ static void cortex_m33_initfn(Object *obj)
     cpu->id_isar3 = 0x01111131;
     cpu->id_isar4 = 0x01310132;
     cpu->id_isar5 = 0x00000000;
+    cpu->id_isar6 = 0x00000000;
     cpu->clidr = 0x00000000;
     cpu->ctr = 0x8000c000;
 }
@@ -1377,6 +1380,7 @@ static void cortex_r5_initfn(Object *obj)
     cpu->id_isar3 = 0x01112131;
     cpu->id_isar4 = 0x0010142;
     cpu->id_isar5 = 0x0;
+    cpu->id_isar6 = 0x0;
     cpu->mp_is_up = true;
     cpu->pmsav7_dregion = 16;
     define_arm_cp_regs(cpu, cortexr5_cp_reginfo);
