@@ -32,6 +32,7 @@
 #include "exec/log.h"
 #include "trace-tcg.h"
 #include "translate-a64.h"
+#include "fpu/softfloat.h"
 
 
 typedef void GVecGen2sFn(unsigned, uint32_t, uint32_t,
@@ -3532,6 +3533,80 @@ DO_FP3(FDIV, fdiv)
 DO_FP3(FMULX, fmulx)
 
 #undef DO_FP3
+
+typedef void gen_helper_sve_fp2scalar(TCGv_ptr, TCGv_ptr, TCGv_ptr,
+                                      TCGv_i64, TCGv_ptr, TCGv_i32);
+
+static void do_fp_scalar(DisasContext *s, int zd, int zn, int pg, bool is_fp16,
+                         TCGv_i64 scalar, gen_helper_sve_fp2scalar *fn)
+{
+    unsigned vsz = vec_full_reg_size(s);
+    TCGv_ptr t_zd, t_zn, t_pg, status;
+    TCGv_i32 desc;
+
+    t_zd = tcg_temp_new_ptr();
+    t_zn = tcg_temp_new_ptr();
+    t_pg = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(t_zd, cpu_env, vec_full_reg_offset(s, zd));
+    tcg_gen_addi_ptr(t_zn, cpu_env, vec_full_reg_offset(s, zn));
+    tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
+
+    status = get_fpstatus_ptr(is_fp16);
+    desc = tcg_const_i32(simd_desc(vsz, vsz, 0));
+    fn(t_zd, t_zn, t_pg, scalar, status, desc);
+
+    tcg_temp_free_i32(desc);
+    tcg_temp_free_ptr(status);
+    tcg_temp_free_ptr(t_pg);
+    tcg_temp_free_ptr(t_zn);
+    tcg_temp_free_ptr(t_zd);
+}
+
+static void do_fp_imm(DisasContext *s, arg_rpri_esz *a, uint64_t imm,
+                      gen_helper_sve_fp2scalar *fn)
+{
+    TCGv_i64 temp = tcg_const_i64(imm);
+    do_fp_scalar(s, a->rd, a->rn, a->pg, a->esz == MO_16, temp, fn);
+    tcg_temp_free_i64(temp);
+}
+
+#define DO_FP_IMM(NAME, name, const0, const1) \
+static bool trans_##NAME##_zpzi(DisasContext *s, arg_rpri_esz *a,         \
+                                uint32_t insn)                            \
+{                                                                         \
+    static gen_helper_sve_fp2scalar * const fns[3] = {                    \
+        gen_helper_sve_##name##_h,                                        \
+        gen_helper_sve_##name##_s,                                        \
+        gen_helper_sve_##name##_d                                         \
+    };                                                                    \
+    static uint64_t const val[3][2] = {                                   \
+        { float16_##const0, float16_##const1 },                           \
+        { float32_##const0, float32_##const1 },                           \
+        { float64_##const0, float64_##const1 },                           \
+    };                                                                    \
+    if (a->esz == 0) {                                                    \
+        return false;                                                     \
+    }                                                                     \
+    if (sve_access_check(s)) {                                            \
+        do_fp_imm(s, a, val[a->esz - 1][a->imm], fns[a->esz - 1]);        \
+    }                                                                     \
+    return true;                                                          \
+}
+
+#define float16_two  make_float16(0x4000)
+#define float32_two  make_float32(0x40000000)
+#define float64_two  make_float64(0x4000000000000000ULL)
+
+DO_FP_IMM(FADD, fadds, half, one)
+DO_FP_IMM(FSUB, fsubs, half, one)
+DO_FP_IMM(FMUL, fmuls, half, two)
+DO_FP_IMM(FSUBR, fsubrs, half, one)
+DO_FP_IMM(FMAXNM, fmaxnms, zero, one)
+DO_FP_IMM(FMINNM, fminnms, zero, one)
+DO_FP_IMM(FMAX, fmaxs, zero, one)
+DO_FP_IMM(FMIN, fmins, zero, one)
+
+#undef DO_FP_IMM
 
 static bool do_fp_cmp(DisasContext *s, arg_rprr_esz *a,
                       gen_helper_gvec_4_ptr *fn)

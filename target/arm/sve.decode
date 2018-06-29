@@ -160,6 +160,10 @@
 @rdn_pg4        ........ esz:2 .. pg:4 ... ........ rd:5 \
                 &rpri_esz rn=%reg_movprfx
 
+# Two register operand, one one-bit floating-point operand.
+@rdn_i1         ........ esz:2 ......... pg:3 .... imm:1 rd:5 \
+                &rpri_esz rn=%reg_movprfx
+
 # Two register operand, one encoded bitmask.
 @rdn_dbm        ........ .. .... dbm:13 rd:5 \
                 &rr_dbm rn=%reg_movprfx
@@ -743,6 +747,16 @@ FSCALE          01100101 .. 00 1001 100 ... ..... .....    @rdn_pg_rm
 FMULX           01100101 .. 00 1010 100 ... ..... .....    @rdn_pg_rm
 FDIV            01100101 .. 00 1100 100 ... ..... .....    @rdm_pg_rn # FDIVR
 FDIV            01100101 .. 00 1101 100 ... ..... .....    @rdn_pg_rm
+
+# SVE floating-point arithmetic with immediate (predicated)
+FADD_zpzi       01100101 .. 011 000 100 ... 0000 . .....        @rdn_i1
+FSUB_zpzi       01100101 .. 011 001 100 ... 0000 . .....        @rdn_i1
+FMUL_zpzi       01100101 .. 011 010 100 ... 0000 . .....        @rdn_i1
+FSUBR_zpzi      01100101 .. 011 011 100 ... 0000 . .....        @rdn_i1
+FMAXNM_zpzi     01100101 .. 011 100 100 ... 0000 . .....        @rdn_i1
+FMINNM_zpzi     01100101 .. 011 101 100 ... 0000 . .....        @rdn_i1
+FMAX_zpzi       01100101 .. 011 110 100 ... 0000 . .....        @rdn_i1
+FMIN_zpzi       01100101 .. 011 111 100 ... 0000 . .....        @rdn_i1
 
 ### SVE FP Multiply-Add Group
 
