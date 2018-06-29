@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "hw/hw.h"
 #include "hw/loader.h"
 #include "sysemu/arch_init.h"
@@ -105,7 +106,7 @@ static void pc_q35_init(MachineState *machine)
     if (lowmem > pcms->max_ram_below_4g) {
         lowmem = pcms->max_ram_below_4g;
         if (machine->ram_size - lowmem > lowmem &&
-            lowmem & ((1ULL << 30) - 1)) {
+            lowmem & (1 * GiB - 1)) {
             warn_report("There is possibly poor performance as the ram size "
                         " (0x%" PRIx64 ") is more then twice the size of"
                         " max-ram-below-4g (%"PRIu64") and"
