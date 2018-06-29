@@ -324,6 +324,17 @@ UXTH            00000100 .. 010 011 101 ... ..... .....         @rd_pg_rn
 SXTW            00000100 .. 010 100 101 ... ..... .....         @rd_pg_rn
 UXTW            00000100 .. 010 101 101 ... ..... .....         @rd_pg_rn
 
+### SVE Floating Point Compare - Vectors Group
+
+# SVE floating-point compare vectors
+FCMGE_ppzz      01100101 .. 0 ..... 010 ... ..... 0 ....        @pd_pg_rn_rm
+FCMGT_ppzz      01100101 .. 0 ..... 010 ... ..... 1 ....        @pd_pg_rn_rm
+FCMEQ_ppzz      01100101 .. 0 ..... 011 ... ..... 0 ....        @pd_pg_rn_rm
+FCMNE_ppzz      01100101 .. 0 ..... 011 ... ..... 1 ....        @pd_pg_rn_rm
+FCMUO_ppzz      01100101 .. 0 ..... 110 ... ..... 0 ....        @pd_pg_rn_rm
+FACGE_ppzz      01100101 .. 0 ..... 110 ... ..... 1 ....        @pd_pg_rn_rm
+FACGT_ppzz      01100101 .. 0 ..... 111 ... ..... 1 ....        @pd_pg_rn_rm
+
 ### SVE Integer Multiply-Add Group
 
 # SVE integer multiply-add writing addend (predicated)

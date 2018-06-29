@@ -3533,6 +3533,46 @@ DO_FP3(FMULX, fmulx)
 
 #undef DO_FP3
 
+static bool do_fp_cmp(DisasContext *s, arg_rprr_esz *a,
+                      gen_helper_gvec_4_ptr *fn)
+{
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_ptr status = get_fpstatus_ptr(a->esz == MO_16);
+        tcg_gen_gvec_4_ptr(pred_full_reg_offset(s, a->rd),
+                           vec_full_reg_offset(s, a->rn),
+                           vec_full_reg_offset(s, a->rm),
+                           pred_full_reg_offset(s, a->pg),
+                           status, vsz, vsz, 0, fn);
+        tcg_temp_free_ptr(status);
+    }
+    return true;
+}
+
+#define DO_FPCMP(NAME, name) \
+static bool trans_##NAME##_ppzz(DisasContext *s, arg_rprr_esz *a,     \
+                                uint32_t insn)                        \
+{                                                                     \
+    static gen_helper_gvec_4_ptr * const fns[4] = {                   \
+        NULL, gen_helper_sve_##name##_h,                              \
+        gen_helper_sve_##name##_s, gen_helper_sve_##name##_d          \
+    };                                                                \
+    return do_fp_cmp(s, a, fns[a->esz]);                              \
+}
+
+DO_FPCMP(FCMGE, fcmge)
+DO_FPCMP(FCMGT, fcmgt)
+DO_FPCMP(FCMEQ, fcmeq)
+DO_FPCMP(FCMNE, fcmne)
+DO_FPCMP(FCMUO, fcmuo)
+DO_FPCMP(FACGE, facge)
+DO_FPCMP(FACGT, facgt)
+
+#undef DO_FPCMP
+
 typedef void gen_helper_sve_fmla(TCGv_env, TCGv_ptr, TCGv_i32);
 
 static bool do_fmla(DisasContext *s, arg_rprrr_esz *a, gen_helper_sve_fmla *fn)

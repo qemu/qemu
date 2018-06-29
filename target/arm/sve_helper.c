@@ -3193,6 +3193,68 @@ void HELPER(sve_fnmls_zpzzz_d)(CPUARMState *env, void *vg, uint32_t desc)
     do_fmla_zpzzz_d(env, vg, desc, 0, INT64_MIN);
 }
 
+/* Two operand floating-point comparison controlled by a predicate.
+ * Unlike the integer version, we are not allowed to optimistically
+ * compare operands, since the comparison may have side effects wrt
+ * the FPSR.
+ */
+#define DO_FPCMP_PPZZ(NAME, TYPE, H, OP)                                \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *vg,               \
+                  void *status, uint32_t desc)                          \
+{                                                                       \
+    intptr_t i = simd_oprsz(desc), j = (i - 1) >> 6;                    \
+    uint64_t *d = vd, *g = vg;                                          \
+    do {                                                                \
+        uint64_t out = 0, pg = g[j];                                    \
+        do {                                                            \
+            i -= sizeof(TYPE), out <<= sizeof(TYPE);                    \
+            if (likely((pg >> (i & 63)) & 1)) {                         \
+                TYPE nn = *(TYPE *)(vn + H(i));                         \
+                TYPE mm = *(TYPE *)(vm + H(i));                         \
+                out |= OP(TYPE, nn, mm, status);                        \
+            }                                                           \
+        } while (i & 63);                                               \
+        d[j--] = out;                                                   \
+    } while (i > 0);                                                    \
+}
+
+#define DO_FPCMP_PPZZ_H(NAME, OP) \
+    DO_FPCMP_PPZZ(NAME##_h, float16, H1_2, OP)
+#define DO_FPCMP_PPZZ_S(NAME, OP) \
+    DO_FPCMP_PPZZ(NAME##_s, float32, H1_4, OP)
+#define DO_FPCMP_PPZZ_D(NAME, OP) \
+    DO_FPCMP_PPZZ(NAME##_d, float64,     , OP)
+
+#define DO_FPCMP_PPZZ_ALL(NAME, OP) \
+    DO_FPCMP_PPZZ_H(NAME, OP)   \
+    DO_FPCMP_PPZZ_S(NAME, OP)   \
+    DO_FPCMP_PPZZ_D(NAME, OP)
+
+#define DO_FCMGE(TYPE, X, Y, ST)  TYPE##_compare(Y, X, ST) <= 0
+#define DO_FCMGT(TYPE, X, Y, ST)  TYPE##_compare(Y, X, ST) < 0
+#define DO_FCMEQ(TYPE, X, Y, ST)  TYPE##_compare_quiet(X, Y, ST) == 0
+#define DO_FCMNE(TYPE, X, Y, ST)  TYPE##_compare_quiet(X, Y, ST) != 0
+#define DO_FCMUO(TYPE, X, Y, ST)  \
+    TYPE##_compare_quiet(X, Y, ST) == float_relation_unordered
+#define DO_FACGE(TYPE, X, Y, ST)  \
+    TYPE##_compare(TYPE##_abs(Y), TYPE##_abs(X), ST) <= 0
+#define DO_FACGT(TYPE, X, Y, ST)  \
+    TYPE##_compare(TYPE##_abs(Y), TYPE##_abs(X), ST) < 0
+
+DO_FPCMP_PPZZ_ALL(sve_fcmge, DO_FCMGE)
+DO_FPCMP_PPZZ_ALL(sve_fcmgt, DO_FCMGT)
+DO_FPCMP_PPZZ_ALL(sve_fcmeq, DO_FCMEQ)
+DO_FPCMP_PPZZ_ALL(sve_fcmne, DO_FCMNE)
+DO_FPCMP_PPZZ_ALL(sve_fcmuo, DO_FCMUO)
+DO_FPCMP_PPZZ_ALL(sve_facge, DO_FACGE)
+DO_FPCMP_PPZZ_ALL(sve_facgt, DO_FACGT)
+
+#undef DO_FPCMP_PPZZ_ALL
+#undef DO_FPCMP_PPZZ_D
+#undef DO_FPCMP_PPZZ_S
+#undef DO_FPCMP_PPZZ_H
+#undef DO_FPCMP_PPZZ
+
 /*
  * Load contiguous data, protected by a governing predicate.
  */
