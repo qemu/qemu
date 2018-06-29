@@ -133,6 +133,9 @@
 @rd_pg_rn       ........ esz:2 ... ... ... pg:3 rn:5 rd:5       &rpr_esz
 @rd_pg4_pn      ........ esz:2 ... ... .. pg:4 . rn:4 rd:5      &rpr_esz
 
+# One register operand, with governing predicate, no vector element size
+@rd_pg_rn_e0    ........ .. ... ... ... pg:3 rn:5 rd:5          &rpr_esz esz=0
+
 # Two register operands with a 6-bit signed immediate.
 @rd_rn_i6       ........ ... rn:5 ..... imm:s6 rd:5             &rri
 
@@ -680,6 +683,25 @@ FMUL_zzz        01100101 .. 0 ..... 000 010 ..... .....         @rd_rn_rm
 FTSMUL          01100101 .. 0 ..... 000 011 ..... .....         @rd_rn_rm
 FRECPS          01100101 .. 0 ..... 000 110 ..... .....         @rd_rn_rm
 FRSQRTS         01100101 .. 0 ..... 000 111 ..... .....         @rd_rn_rm
+
+### SVE FP Unary Operations Predicated Group
+
+# SVE integer convert to floating-point
+SCVTF_hh        01100101 01 010 01 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_sh        01100101 01 010 10 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_dh        01100101 01 010 11 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_ss        01100101 10 010 10 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_sd        01100101 11 010 00 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_ds        01100101 11 010 10 0 101 ... ..... .....        @rd_pg_rn_e0
+SCVTF_dd        01100101 11 010 11 0 101 ... ..... .....        @rd_pg_rn_e0
+
+UCVTF_hh        01100101 01 010 01 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_sh        01100101 01 010 10 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_dh        01100101 01 010 11 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_ss        01100101 10 010 10 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_sd        01100101 11 010 00 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_ds        01100101 11 010 10 1 101 ... ..... .....        @rd_pg_rn_e0
+UCVTF_dd        01100101 11 010 11 1 101 ... ..... .....        @rd_pg_rn_e0
 
 ### SVE Memory - 32-bit Gather and Unsized Contiguous Group
 

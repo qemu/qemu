@@ -2811,6 +2811,44 @@ uint32_t HELPER(sve_while)(void *vd, uint32_t count, uint32_t pred_desc)
     return predtest_ones(d, oprsz, esz_mask);
 }
 
+/* Fully general two-operand expander, controlled by a predicate,
+ * With the extra float_status parameter.
+ */
+#define DO_ZPZ_FP(NAME, TYPE, H, OP)                                  \
+void HELPER(NAME)(void *vd, void *vn, void *vg, void *status, uint32_t desc) \
+{                                                                     \
+    intptr_t i = simd_oprsz(desc);                                    \
+    uint64_t *g = vg;                                                 \
+    do {                                                              \
+        uint64_t pg = g[(i - 1) >> 6];                                \
+        do {                                                          \
+            i -= sizeof(TYPE);                                        \
+            if (likely((pg >> (i & 63)) & 1)) {                       \
+                TYPE nn = *(TYPE *)(vn + H(i));                       \
+                *(TYPE *)(vd + H(i)) = OP(nn, status);                \
+            }                                                         \
+        } while (i & 63);                                             \
+    } while (i != 0);                                                 \
+}
+
+DO_ZPZ_FP(sve_scvt_hh, uint16_t, H1_2, int16_to_float16)
+DO_ZPZ_FP(sve_scvt_sh, uint32_t, H1_4, int32_to_float16)
+DO_ZPZ_FP(sve_scvt_ss, uint32_t, H1_4, int32_to_float32)
+DO_ZPZ_FP(sve_scvt_sd, uint64_t,     , int32_to_float64)
+DO_ZPZ_FP(sve_scvt_dh, uint64_t,     , int64_to_float16)
+DO_ZPZ_FP(sve_scvt_ds, uint64_t,     , int64_to_float32)
+DO_ZPZ_FP(sve_scvt_dd, uint64_t,     , int64_to_float64)
+
+DO_ZPZ_FP(sve_ucvt_hh, uint16_t, H1_2, uint16_to_float16)
+DO_ZPZ_FP(sve_ucvt_sh, uint32_t, H1_4, uint32_to_float16)
+DO_ZPZ_FP(sve_ucvt_ss, uint32_t, H1_4, uint32_to_float32)
+DO_ZPZ_FP(sve_ucvt_sd, uint64_t,     , uint32_to_float64)
+DO_ZPZ_FP(sve_ucvt_dh, uint64_t,     , uint64_to_float16)
+DO_ZPZ_FP(sve_ucvt_ds, uint64_t,     , uint64_to_float32)
+DO_ZPZ_FP(sve_ucvt_dd, uint64_t,     , uint64_to_float64)
+
+#undef DO_ZPZ_FP
+
 /*
  * Load contiguous data, protected by a governing predicate.
  */
