@@ -3055,8 +3055,8 @@ cleanup:
                 bdrv_reopen_abort(&bs_entry->state);
             }
             qobject_unref(bs_entry->state.explicit_options);
+            qobject_unref(bs_entry->state.options);
         }
-        qobject_unref(bs_entry->state.options);
         g_free(bs_entry);
     }
     g_free(bs_queue);
@@ -3156,12 +3156,18 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     Error *local_err = NULL;
     BlockDriver *drv;
     QemuOpts *opts;
+    QDict *orig_reopen_opts;
     const char *value;
     bool read_only;
 
     assert(reopen_state != NULL);
     assert(reopen_state->bs->drv != NULL);
     drv = reopen_state->bs->drv;
+
+    /* This function and each driver's bdrv_reopen_prepare() remove
+     * entries from reopen_state->options as they are processed, so
+     * we need to make a copy of the original QDict. */
+    orig_reopen_opts = qdict_clone_shallow(reopen_state->options);
 
     /* Process generic block layer options */
     opts = qemu_opts_create(&bdrv_runtime_opts, NULL, 0, &error_abort);
@@ -3269,8 +3275,13 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
 
     ret = 0;
 
+    /* Restore the original reopen_state->options QDict */
+    qobject_unref(reopen_state->options);
+    reopen_state->options = qobject_ref(orig_reopen_opts);
+
 error:
     qemu_opts_del(opts);
+    qobject_unref(orig_reopen_opts);
     return ret;
 }
 
@@ -3300,8 +3311,10 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
 
     /* set BDS specific flags now */
     qobject_unref(bs->explicit_options);
+    qobject_unref(bs->options);
 
     bs->explicit_options   = reopen_state->explicit_options;
+    bs->options            = reopen_state->options;
     bs->open_flags         = reopen_state->flags;
     bs->read_only = !(reopen_state->flags & BDRV_O_RDWR);
 
