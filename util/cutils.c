@@ -545,6 +545,21 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
 }
 
 /**
+ * Searches for the first occurrence of 'c' in 's', and returns a pointer
+ * to the trailing null byte if none was found.
+ */
+#ifndef HAVE_STRCHRNUL
+const char *qemu_strchrnul(const char *s, int c)
+{
+    const char *e = strchr(s, c);
+    if (!e) {
+        e = s + strlen(s);
+    }
+    return e;
+}
+#endif
+
+/**
  * parse_uint:
  *
  * @s: String to parse

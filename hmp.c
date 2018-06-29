@@ -2140,12 +2140,12 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
     int has_hold_time = qdict_haskey(qdict, "hold-time");
     int hold_time = qdict_get_try_int(qdict, "hold-time", -1);
     Error *err = NULL;
-    char *separator;
+    const char *separator;
     int keyname_len;
 
     while (1) {
-        separator = strchr(keys, '-');
-        keyname_len = separator ? separator - keys : strlen(keys);
+        separator = qemu_strchrnul(keys, '-');
+        keyname_len = separator - keys;
 
         /* Be compatible with old interface, convert user inputted "<" */
         if (keys[0] == '<' && keyname_len == 1) {
@@ -2182,7 +2182,7 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
             keylist->value->u.qcode.data = idx;
         }
 
-        if (!separator) {
+        if (!*separator) {
             break;
         }
         keys = separator + 1;

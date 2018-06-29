@@ -65,7 +65,7 @@ int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
         assert(*path != '/');
 
         head = g_strdup(path);
-        c = strchrnul(path, '/');
+        c = qemu_strchrnul(path, '/');
         if (*c) {
             /* Intermediate path element */
             head[c - path] = 0;
