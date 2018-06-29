@@ -17,5 +17,3 @@ RUN /debootstrap/debootstrap --second-stage
 # At this point we can install additional packages if we want
 # Duplicate deb line as deb-src
 RUN cat /etc/apt/sources.list | sed "s/deb/deb-src/" >> /etc/apt/sources.list
-RUN apt-get update
-RUN apt-get -y build-dep qemu
