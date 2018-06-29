@@ -793,6 +793,12 @@ LD1RQ_zpri      1010010 .. 00 0.... 001 ... ..... ..... \
 
 ### SVE Memory Store Group
 
+# SVE store predicate register
+STR_pri         1110010 11 0.     ..... 000 ... ..... 0 ....    @pd_rn_i9
+
+# SVE store vector register
+STR_zri         1110010 11 0.     ..... 010 ... ..... .....     @rd_rn_i9
+
 # SVE contiguous store (scalar plus immediate)
 # ST1B, ST1H, ST1W, ST1D; require msz <= esz
 ST_zpri         1110010 .. esz:2  0.... 111 ... ..... ..... \
