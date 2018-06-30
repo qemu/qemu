@@ -458,7 +458,11 @@ void HELPER(check_interrupts)(CPUXtensaState *env)
 
 void HELPER(itlb_hit_test)(CPUXtensaState *env, uint32_t vaddr)
 {
-    get_page_addr_code(env, vaddr);
+    /*
+     * Attempt the memory load; we don't care about the result but
+     * only the side-effects (ie any MMU or other exception)
+     */
+    cpu_ldub_code_ra(env, vaddr, GETPC());
 }
 
 /*!

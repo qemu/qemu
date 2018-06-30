@@ -456,6 +456,7 @@
     .options = XTENSA_OPTIONS, \
     .nareg = XCHAL_NUM_AREGS, \
     .ndepc = (XCHAL_XEA_VERSION >= 2), \
+    .inst_fetch_width = XCHAL_INST_FETCH_WIDTH, \
     EXCEPTIONS_SECTION, \
     INTERRUPTS_SECTION, \
     TLB_SECTION, \
