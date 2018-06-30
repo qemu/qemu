@@ -140,15 +140,16 @@ static void read_fstree(void *fdt, const char *dirname)
     const char *parent_node;
 
     if (strstr(dirname, root_dir) != dirname) {
-        error_setg(&error_fatal, "%s: %s must be searched within %s",
-                   __func__, dirname, root_dir);
+        error_report("%s: %s must be searched within %s",
+                     __func__, dirname, root_dir);
+        exit(1);
     }
     parent_node = &dirname[strlen(SYSFS_DT_BASEDIR)];
 
     d = opendir(dirname);
     if (!d) {
-        error_setg(&error_fatal, "%s cannot open %s", __func__, dirname);
-        return;
+        error_report("%s cannot open %s", __func__, dirname);
+        exit(1);
     }
 
     while ((de = readdir(d)) != NULL) {
@@ -162,7 +163,8 @@ static void read_fstree(void *fdt, const char *dirname)
         tmpnam = g_strdup_printf("%s/%s", dirname, de->d_name);
 
         if (lstat(tmpnam, &st) < 0) {
-            error_setg(&error_fatal, "%s cannot lstat %s", __func__, tmpnam);
+            error_report("%s cannot lstat %s", __func__, tmpnam);
+            exit(1);
         }
 
         if (S_ISREG(st.st_mode)) {
@@ -170,8 +172,9 @@ static void read_fstree(void *fdt, const char *dirname)
             gsize len;
 
             if (!g_file_get_contents(tmpnam, &val, &len, NULL)) {
-                error_setg(&error_fatal, "%s not able to extract info from %s",
-                           __func__, tmpnam);
+                error_report("%s not able to extract info from %s",
+                             __func__, tmpnam);
+                exit(1);
             }
 
             if (strlen(parent_node) > 0) {
@@ -206,9 +209,9 @@ void *load_device_tree_from_sysfs(void)
     host_fdt = create_device_tree(&host_fdt_size);
     read_fstree(host_fdt, SYSFS_DT_BASEDIR);
     if (fdt_check_header(host_fdt)) {
-        error_setg(&error_fatal,
-                   "%s host device tree extracted into memory is invalid",
-                   __func__);
+        error_report("%s host device tree extracted into memory is invalid",
+                     __func__);
+        exit(1);
     }
     return host_fdt;
 }
@@ -227,6 +230,61 @@ static int findnode_nofail(void *fdt, const char *node_path)
     }
 
     return offset;
+}
+
+char **qemu_fdt_node_unit_path(void *fdt, const char *name, Error **errp)
+{
+    char *prefix =  g_strdup_printf("%s@", name);
+    unsigned int path_len = 16, n = 0;
+    GSList *path_list = NULL, *iter;
+    const char *iter_name;
+    int offset, len, ret;
+    char **path_array;
+
+    offset = fdt_next_node(fdt, -1, NULL);
+
+    while (offset >= 0) {
+        iter_name = fdt_get_name(fdt, offset, &len);
+        if (!iter_name) {
+            offset = len;
+            break;
+        }
+        if (!strcmp(iter_name, name) || g_str_has_prefix(iter_name, prefix)) {
+            char *path;
+
+            path = g_malloc(path_len);
+            while ((ret = fdt_get_path(fdt, offset, path, path_len))
+                  == -FDT_ERR_NOSPACE) {
+                path_len += 16;
+                path = g_realloc(path, path_len);
+            }
+            path_list = g_slist_prepend(path_list, path);
+            n++;
+        }
+        offset = fdt_next_node(fdt, offset, NULL);
+    }
+    g_free(prefix);
+
+    if (offset < 0 && offset != -FDT_ERR_NOTFOUND) {
+        error_setg(errp, "%s: abort parsing dt for %s node units: %s",
+                   __func__, name, fdt_strerror(offset));
+        for (iter = path_list; iter; iter = iter->next) {
+            g_free(iter->data);
+        }
+        g_slist_free(path_list);
+        return NULL;
+    }
+
+    path_array = g_new(char *, n + 1);
+    path_array[n--] = NULL;
+
+    for (iter = path_list; iter; iter = iter->next) {
+        path_array[n--] = iter->data;
+    }
+
+    g_slist_free(path_list);
+
+    return path_array;
 }
 
 char **qemu_fdt_node_path(void *fdt, const char *name, char *compat,

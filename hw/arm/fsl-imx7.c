@@ -324,7 +324,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
             FSL_IMX7_ECSPI4_ADDR,
         };
 
-        static const hwaddr FSL_IMX7_SPIn_IRQ[FSL_IMX7_NUM_ECSPIS] = {
+        static const int FSL_IMX7_SPIn_IRQ[FSL_IMX7_NUM_ECSPIS] = {
             FSL_IMX7_ECSPI1_IRQ,
             FSL_IMX7_ECSPI2_IRQ,
             FSL_IMX7_ECSPI3_IRQ,
@@ -349,7 +349,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
             FSL_IMX7_I2C4_ADDR,
         };
 
-        static const hwaddr FSL_IMX7_I2Cn_IRQ[FSL_IMX7_NUM_I2CS] = {
+        static const int FSL_IMX7_I2Cn_IRQ[FSL_IMX7_NUM_I2CS] = {
             FSL_IMX7_I2C1_IRQ,
             FSL_IMX7_I2C2_IRQ,
             FSL_IMX7_I2C3_IRQ,
@@ -459,7 +459,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
     /*
      * SRC
      */
-    create_unimplemented_device("sdma", FSL_IMX7_SRC_ADDR, FSL_IMX7_SRC_SIZE);
+    create_unimplemented_device("src", FSL_IMX7_SRC_ADDR, FSL_IMX7_SRC_SIZE);
 
     /*
      * Watchdog
@@ -515,7 +515,7 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
             FSL_IMX7_USB3_ADDR,
         };
 
-        static const hwaddr FSL_IMX7_USBn_IRQ[FSL_IMX7_NUM_USBS] = {
+        static const int FSL_IMX7_USBn_IRQ[FSL_IMX7_NUM_USBS] = {
             FSL_IMX7_USB1_IRQ,
             FSL_IMX7_USB2_IRQ,
             FSL_IMX7_USB3_IRQ,

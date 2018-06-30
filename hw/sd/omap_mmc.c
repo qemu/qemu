@@ -163,8 +163,7 @@ static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
                 CID_CSD_OVERWRITE;
         if (host->sdio & (1 << 13))
             mask |= AKE_SEQ_ERROR;
-        rspstatus = (response[0] << 24) | (response[1] << 16) |
-                (response[2] << 8) | (response[3] << 0);
+        rspstatus = ldl_be_p(response);
         break;
 
     case sd_r2:
@@ -182,8 +181,7 @@ static void omap_mmc_command(struct omap_mmc_s *host, int cmd, int dir,
         }
         rsplen = 4;
 
-        rspstatus = (response[0] << 24) | (response[1] << 16) |
-                (response[2] << 8) | (response[3] << 0);
+        rspstatus = ldl_be_p(response);
         if (rspstatus & 0x80000000)
             host->status &= 0xe000;
         else
