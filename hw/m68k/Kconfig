@@ -11,3 +11,4 @@ config MCF5208
 config NEXTCUBE
     bool
     select FRAMEBUFFER
+    select ESCC

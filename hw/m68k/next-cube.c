@@ -10,11 +10,12 @@
  */
 
 #include "qemu/osdep.h"
+#include "cpu.h"
 #include "exec/hwaddr.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
-#include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/m68k/next-cube.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
@@ -22,6 +23,7 @@
 #include "hw/sysbus.h"
 #include "hw/char/escc.h" /* ZILOG 8530 Serial Emulation */
 #include "hw/block/fdc.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "ui/console.h"
 #include "target/m68k/cpu.h"
@@ -815,6 +817,39 @@ void next_irq(void *opaque, int number, int level)
     }
 }
 
+static void next_serial_irq(void *opaque, int n, int level)
+{
+    /* DPRINTF("SCC IRQ NUM %i\n",n); */
+    if (n) {
+        next_irq(opaque, NEXT_SCC_DMA_I, level);
+    } else {
+        next_irq(opaque, NEXT_SCC_I, level);
+    }
+}
+
+static void next_escc_init(M68kCPU *cpu)
+{
+    qemu_irq *ser_irq = qemu_allocate_irqs(next_serial_irq, cpu, 2);
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, TYPE_ESCC);
+    qdev_prop_set_uint32(dev, "disabled", 0);
+    qdev_prop_set_uint32(dev, "frequency", 9600 * 384);
+    qdev_prop_set_uint32(dev, "it_shift", 0);
+    qdev_prop_set_bit(dev, "bit_swap", true);
+    qdev_prop_set_chr(dev, "chrB", serial_hd(1));
+    qdev_prop_set_chr(dev, "chrA", serial_hd(0));
+    qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
+    qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
+    qdev_init_nofail(dev);
+
+    s = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(s, 0, ser_irq[0]);
+    sysbus_connect_irq(s, 1,  ser_irq[1]);
+    sysbus_mmio_map(s, 0, 0x2118000);
+}
+
 static void next_cube_init(MachineState *machine)
 {
     M68kCPU *cpu;
@@ -906,8 +941,10 @@ static void next_cube_init(MachineState *machine)
         }
     }
 
-    /* TODO: */
     /* Serial */
+    next_escc_init(cpu);
+
+    /* TODO: */
     /* Network */
     /* SCSI */
 
