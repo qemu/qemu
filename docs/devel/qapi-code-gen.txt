@@ -666,22 +666,27 @@ command:
 
 - They are executed in order,
 - They run only in main thread of QEMU,
-- They have the BQL taken during execution.
+- They run with the BQL held.
 
 When a command is executed with OOB, the following changes occur:
 
 - They can be completed before a pending in-band command,
 - They run in a dedicated monitor thread,
-- They do not take the BQL during execution.
+- They run with the BQL not held.
 
 OOB command handlers must satisfy the following conditions:
 
-- It executes extremely fast,
-- It does not take any lock, or, it can take very small locks if all
-  critical regions also follow the rules for OOB command handler code,
+- It terminates quickly,
 - It does not invoke system calls that may block,
 - It does not access guest RAM that may block when userfaultfd is
-  enabled for postcopy live migration.
+  enabled for postcopy live migration,
+- It takes only "fast" locks, i.e. all critical sections protected by
+  any lock it takes also satisfy the conditions for OOB command
+  handler code.
+
+The restrictions on locking limit access to shared state.  Such access
+requires synchronization, but OOB commands can't take the BQL or any
+other "slow" lock.
 
 If in doubt, do not implement OOB execution support.
 
