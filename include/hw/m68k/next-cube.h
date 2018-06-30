@@ -4,4 +4,6 @@
 
 #define TYPE_NEXTFB "next-fb"
 
+#define TYPE_NEXTKBD "next-kbd"
+
 #endif /* NEXT_CUBE_H */
