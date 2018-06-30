@@ -38,7 +38,7 @@ def generate_h(event, group):
     out('    if (%(cond)s && qemu_loglevel_mask(LOG_TRACE)) {',
         '        struct timeval _now;',
         '        gettimeofday(&_now, NULL);',
-        '        qemu_log("%%d@%%zd.%%06zd:%(name)s " %(fmt)s "\\n",',
+        '        qemu_log("%%d@%%zu.%%06zu:%(name)s " %(fmt)s "\\n",',
         '                 getpid(),',
         '                 (size_t)_now.tv_sec, (size_t)_now.tv_usec',
         '                 %(argnames)s);',

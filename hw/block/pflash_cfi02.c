@@ -43,6 +43,7 @@
 #include "sysemu/block-backend.h"
 #include "qemu/host-utils.h"
 #include "hw/sysbus.h"
+#include "trace.h"
 
 //#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
@@ -124,7 +125,7 @@ static void pflash_timer (void *opaque)
 {
     pflash_t *pfl = opaque;
 
-    DPRINTF("%s: command %02x done\n", __func__, pfl->cmd);
+    trace_pflash_timer_expired(pfl->cmd);
     /* Reset flash */
     pfl->status ^= 0x80;
     if (pfl->bypass) {
@@ -143,8 +144,8 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
     uint32_t ret;
     uint8_t *p;
 
-    DPRINTF("%s: offset " TARGET_FMT_plx "\n", __func__, offset);
     ret = -1;
+    trace_pflash_read(offset, pfl->cmd, width, pfl->wcycle);
     /* Lazy reset to ROMD mode after a certain amount of read accesses */
     if (!pfl->rom_mode && pfl->wcycle == 0 &&
         ++pfl->read_counter > PFLASH_LAZY_ROMD_THRESHOLD) {
@@ -172,7 +173,7 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
         switch (width) {
         case 1:
             ret = p[offset];
-//            DPRINTF("%s: data offset %08x %02x\n", __func__, offset, ret);
+            trace_pflash_data_read8(offset, ret);
             break;
         case 2:
             if (be) {
@@ -182,7 +183,7 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
                 ret = p[offset];
                 ret |= p[offset + 1] << 8;
             }
-//            DPRINTF("%s: data offset %08x %04x\n", __func__, offset, ret);
+            trace_pflash_data_read16(offset, ret);
             break;
         case 4:
             if (be) {
@@ -196,7 +197,7 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
                 ret |= p[offset + 2] << 16;
                 ret |= p[offset + 3] << 24;
             }
-//            DPRINTF("%s: data offset %08x %08x\n", __func__, offset, ret);
+            trace_pflash_data_read32(offset, ret);
             break;
         }
         break;
@@ -274,8 +275,7 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
 #endif
         goto reset_flash;
     }
-    DPRINTF("%s: offset " TARGET_FMT_plx " %08x %d %d\n", __func__,
-            offset, value, width, pfl->wcycle);
+    trace_pflash_write(offset, value, width, pfl->wcycle);
     offset &= pfl->chip_len - 1;
 
     DPRINTF("%s: offset " TARGET_FMT_plx " %08x %d\n", __func__,
@@ -345,8 +345,7 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
             /* We need another unlock sequence */
             goto check_unlock0;
         case 0xA0:
-            DPRINTF("%s: write data offset " TARGET_FMT_plx " %08x %d\n",
-                    __func__, offset, value, width);
+            trace_pflash_data_write(offset, value, width, 0);
             p = pfl->storage;
             if (!pfl->ro) {
                 switch (width) {
@@ -483,6 +482,7 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
 
     /* Reset flash */
  reset_flash:
+    trace_pflash_reset();
     pfl->bypass = 0;
     pfl->wcycle = 0;
     pfl->cmd = 0;

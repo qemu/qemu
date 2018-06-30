@@ -70,7 +70,7 @@ def get_record(edict, idtoname, rechdr, fobj):
 def get_mapping(fobj):
     (event_id, ) = struct.unpack('=Q', fobj.read(8))
     (len, ) = struct.unpack('=L', fobj.read(4))
-    name = fobj.read(len)
+    name = fobj.read(len).decode()
 
     return (event_id, name)
 

@@ -27,6 +27,7 @@
 #include "net/net.h"
 #include "hw/cris/etraxfs.h"
 #include "qemu/error-report.h"
+#include "trace.h"
 
 #define D(x)
 
@@ -106,7 +107,7 @@ static unsigned int tdk_read(struct qemu_phy *phy, unsigned int req)
         r = phy->regs[regnum];
         break;
     }
-    D(printf("\n%s %x = reg[%d]\n", __func__, r, regnum));
+    trace_mdio_phy_read(regnum, r);
     return r;
 }
 
@@ -116,7 +117,7 @@ tdk_write(struct qemu_phy *phy, unsigned int req, unsigned int data)
     int regnum;
 
     regnum = req & 0x1f;
-    D(printf("%s reg[%d] = %x\n", __func__, regnum, data));
+    trace_mdio_phy_write(regnum, data);
     switch (regnum) {
     default:
         phy->regs[regnum] = data;
@@ -206,8 +207,7 @@ static void mdio_cycle(struct qemu_mdio *bus)
 {
     bus->cnt++;
 
-    D(printf("mdc=%d mdio=%d state=%d cnt=%d drv=%d\n",
-        bus->mdc, bus->mdio, bus->state, bus->cnt, bus->drive));
+    trace_mdio_bitbang(bus->mdc, bus->mdio, bus->state, bus->cnt, bus->drive);
 #if 0
     if (bus->mdc) {
         printf("%d", bus->mdio);
