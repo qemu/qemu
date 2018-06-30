@@ -157,6 +157,209 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int size,
 
 #else
 
+static hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
+                        int *prot)
+{
+    CPUX86State *env = &X86_CPU(cs)->env;
+    uint64_t rsvd_mask = PG_HI_RSVD_MASK;
+    uint64_t ptep, pte;
+    uint64_t exit_info_1 = 0;
+    target_ulong pde_addr, pte_addr;
+    uint32_t page_offset;
+    int page_size;
+
+    if (likely(!(env->hflags2 & HF2_NPT_MASK))) {
+        return gphys;
+    }
+
+    if (!(env->nested_pg_mode & SVM_NPT_NXE)) {
+        rsvd_mask |= PG_NX_MASK;
+    }
+
+    if (env->nested_pg_mode & SVM_NPT_PAE) {
+        uint64_t pde, pdpe;
+        target_ulong pdpe_addr;
+
+#ifdef TARGET_X86_64
+        if (env->nested_pg_mode & SVM_NPT_LMA) {
+            uint64_t pml5e;
+            uint64_t pml4e_addr, pml4e;
+
+            pml5e = env->nested_cr3;
+            ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;
+
+            pml4e_addr = (pml5e & PG_ADDRESS_MASK) +
+                    (((gphys >> 39) & 0x1ff) << 3);
+            pml4e = x86_ldq_phys(cs, pml4e_addr);
+            if (!(pml4e & PG_PRESENT_MASK)) {
+                goto do_fault;
+            }
+            if (pml4e & (rsvd_mask | PG_PSE_MASK)) {
+                goto do_fault_rsvd;
+            }
+            if (!(pml4e & PG_ACCESSED_MASK)) {
+                pml4e |= PG_ACCESSED_MASK;
+                x86_stl_phys_notdirty(cs, pml4e_addr, pml4e);
+            }
+            ptep &= pml4e ^ PG_NX_MASK;
+            pdpe_addr = (pml4e & PG_ADDRESS_MASK) +
+                    (((gphys >> 30) & 0x1ff) << 3);
+            pdpe = x86_ldq_phys(cs, pdpe_addr);
+            if (!(pdpe & PG_PRESENT_MASK)) {
+                goto do_fault;
+            }
+            if (pdpe & rsvd_mask) {
+                goto do_fault_rsvd;
+            }
+            ptep &= pdpe ^ PG_NX_MASK;
+            if (!(pdpe & PG_ACCESSED_MASK)) {
+                pdpe |= PG_ACCESSED_MASK;
+                x86_stl_phys_notdirty(cs, pdpe_addr, pdpe);
+            }
+            if (pdpe & PG_PSE_MASK) {
+                /* 1 GB page */
+                page_size = 1024 * 1024 * 1024;
+                pte_addr = pdpe_addr;
+                pte = pdpe;
+                goto do_check_protect;
+            }
+        } else
+#endif
+        {
+            pdpe_addr = (env->nested_cr3 & ~0x1f) + ((gphys >> 27) & 0x18);
+            pdpe = x86_ldq_phys(cs, pdpe_addr);
+            if (!(pdpe & PG_PRESENT_MASK)) {
+                goto do_fault;
+            }
+            rsvd_mask |= PG_HI_USER_MASK;
+            if (pdpe & (rsvd_mask | PG_NX_MASK)) {
+                goto do_fault_rsvd;
+            }
+            ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;
+        }
+
+        pde_addr = (pdpe & PG_ADDRESS_MASK) + (((gphys >> 21) & 0x1ff) << 3);
+        pde = x86_ldq_phys(cs, pde_addr);
+        if (!(pde & PG_PRESENT_MASK)) {
+            goto do_fault;
+        }
+        if (pde & rsvd_mask) {
+            goto do_fault_rsvd;
+        }
+        ptep &= pde ^ PG_NX_MASK;
+        if (pde & PG_PSE_MASK) {
+            /* 2 MB page */
+            page_size = 2048 * 1024;
+            pte_addr = pde_addr;
+            pte = pde;
+            goto do_check_protect;
+        }
+        /* 4 KB page */
+        if (!(pde & PG_ACCESSED_MASK)) {
+            pde |= PG_ACCESSED_MASK;
+            x86_stl_phys_notdirty(cs, pde_addr, pde);
+        }
+        pte_addr = (pde & PG_ADDRESS_MASK) + (((gphys >> 12) & 0x1ff) << 3);
+        pte = x86_ldq_phys(cs, pte_addr);
+        if (!(pte & PG_PRESENT_MASK)) {
+            goto do_fault;
+        }
+        if (pte & rsvd_mask) {
+            goto do_fault_rsvd;
+        }
+        /* combine pde and pte nx, user and rw protections */
+        ptep &= pte ^ PG_NX_MASK;
+        page_size = 4096;
+    } else {
+        uint32_t pde;
+
+        /* page directory entry */
+        pde_addr = (env->nested_cr3 & ~0xfff) + ((gphys >> 20) & 0xffc);
+        pde = x86_ldl_phys(cs, pde_addr);
+        if (!(pde & PG_PRESENT_MASK)) {
+            goto do_fault;
+        }
+        ptep = pde | PG_NX_MASK;
+
+        /* if PSE bit is set, then we use a 4MB page */
+        if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
+            page_size = 4096 * 1024;
+            pte_addr = pde_addr;
+
+            /* Bits 20-13 provide bits 39-32 of the address, bit 21 is reserved.
+             * Leave bits 20-13 in place for setting accessed/dirty bits below.
+             */
+            pte = pde | ((pde & 0x1fe000LL) << (32 - 13));
+            rsvd_mask = 0x200000;
+            goto do_check_protect_pse36;
+        }
+
+        if (!(pde & PG_ACCESSED_MASK)) {
+            pde |= PG_ACCESSED_MASK;
+            x86_stl_phys_notdirty(cs, pde_addr, pde);
+        }
+
+        /* page directory entry */
+        pte_addr = (pde & ~0xfff) + ((gphys >> 10) & 0xffc);
+        pte = x86_ldl_phys(cs, pte_addr);
+        if (!(pte & PG_PRESENT_MASK)) {
+            goto do_fault;
+        }
+        /* combine pde and pte user and rw protections */
+        ptep &= pte | PG_NX_MASK;
+        page_size = 4096;
+        rsvd_mask = 0;
+    }
+
+ do_check_protect:
+    rsvd_mask |= (page_size - 1) & PG_ADDRESS_MASK & ~PG_PSE_PAT_MASK;
+ do_check_protect_pse36:
+    if (pte & rsvd_mask) {
+        goto do_fault_rsvd;
+    }
+    ptep ^= PG_NX_MASK;
+
+    if (!(ptep & PG_USER_MASK)) {
+        goto do_fault_protect;
+    }
+    if (ptep & PG_NX_MASK) {
+        if (access_type == MMU_INST_FETCH) {
+            goto do_fault_protect;
+        }
+        *prot &= ~PAGE_EXEC;
+    }
+    if (!(ptep & PG_RW_MASK)) {
+        if (access_type == MMU_DATA_STORE) {
+            goto do_fault_protect;
+        }
+        *prot &= ~PAGE_WRITE;
+    }
+
+    pte &= PG_ADDRESS_MASK & ~(page_size - 1);
+    page_offset = gphys & (page_size - 1);
+    return pte + page_offset;
+
+ do_fault_rsvd:
+    exit_info_1 |= SVM_NPTEXIT_RSVD;
+ do_fault_protect:
+    exit_info_1 |= SVM_NPTEXIT_P;
+ do_fault:
+    x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2),
+                 gphys);
+    exit_info_1 |= SVM_NPTEXIT_US;
+    if (access_type == MMU_DATA_STORE) {
+        exit_info_1 |= SVM_NPTEXIT_RW;
+    } else if (access_type == MMU_INST_FETCH) {
+        exit_info_1 |= SVM_NPTEXIT_ID;
+    }
+    if (prot) {
+        exit_info_1 |= SVM_NPTEXIT_GPA;
+    } else { /* page table access */
+        exit_info_1 |= SVM_NPTEXIT_GPT;
+    }
+    cpu_vmexit(env, SVM_EXIT_NPF, exit_info_1, env->retaddr);
+}
+
 /* return value:
  * -1 = cannot handle fault
  * 0  = nothing more to do
@@ -224,6 +427,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int size,
             if (la57) {
                 pml5e_addr = ((env->cr[3] & ~0xfff) +
                         (((addr >> 48) & 0x1ff) << 3)) & a20_mask;
+                pml5e_addr = get_hphys(cs, pml5e_addr, MMU_DATA_STORE, NULL);
                 pml5e = x86_ldq_phys(cs, pml5e_addr);
                 if (!(pml5e & PG_PRESENT_MASK)) {
                     goto do_fault;
@@ -243,6 +447,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int size,
 
             pml4e_addr = ((pml5e & PG_ADDRESS_MASK) +
                     (((addr >> 39) & 0x1ff) << 3)) & a20_mask;
+            pml4e_addr = get_hphys(cs, pml4e_addr, MMU_DATA_STORE, false);
             pml4e = x86_ldq_phys(cs, pml4e_addr);
             if (!(pml4e & PG_PRESENT_MASK)) {
                 goto do_fault;
@@ -257,6 +462,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int size,
             ptep &= pml4e ^ PG_NX_MASK;
             pdpe_addr = ((pml4e & PG_ADDRESS_MASK) + (((addr >> 30) & 0x1ff) << 3)) &
                 a20_mask;
+            pdpe_addr = get_hphys(cs, pdpe_addr, MMU_DATA_STORE, NULL);
             pdpe = x86_ldq_phys(cs, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK)) {
                 goto do_fault;
@@ -282,6 +488,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int size,
             /* XXX: load them when cr3 is loaded ? */
             pdpe_addr = ((env->cr[3] & ~0x1f) + ((addr >> 27) & 0x18)) &
                 a20_mask;
+            pdpe_addr = get_hphys(cs, pdpe_addr, MMU_DATA_STORE, false);
             pdpe = x86_ldq_phys(cs, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK)) {
                 goto do_fault;
@@ -295,6 +502,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int size,
 
         pde_addr = ((pdpe & PG_ADDRESS_MASK) + (((addr >> 21) & 0x1ff) << 3)) &
             a20_mask;
+        pde_addr = get_hphys(cs, pde_addr, MMU_DATA_STORE, NULL);
         pde = x86_ldq_phys(cs, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -317,6 +525,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int size,
         }
         pte_addr = ((pde & PG_ADDRESS_MASK) + (((addr >> 12) & 0x1ff) << 3)) &
             a20_mask;
+        pte_addr = get_hphys(cs, pte_addr, MMU_DATA_STORE, NULL);
         pte = x86_ldq_phys(cs, pte_addr);
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -333,6 +542,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int size,
         /* page directory entry */
         pde_addr = ((env->cr[3] & ~0xfff) + ((addr >> 20) & 0xffc)) &
             a20_mask;
+        pde_addr = get_hphys(cs, pde_addr, MMU_DATA_STORE, NULL);
         pde = x86_ldl_phys(cs, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -360,6 +570,7 @@ int x86_cpu_handle_mmu_fault(CPUState *cs, vaddr addr, int size,
         /* page directory entry */
         pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) &
             a20_mask;
+        pte_addr = get_hphys(cs, pte_addr, MMU_DATA_STORE, NULL);
         pte = x86_ldl_phys(cs, pte_addr);
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -442,12 +653,13 @@ do_check_protect_pse36:
 
     /* align to page_size */
     pte &= PG_ADDRESS_MASK & ~(page_size - 1);
+    page_offset = addr & (page_size - 1);
+    paddr = get_hphys(cs, pte + page_offset, is_write1, &prot);
 
     /* Even if 4MB pages, we map only one 4KB page in the cache to
        avoid filling it too fast */
     vaddr = addr & TARGET_PAGE_MASK;
-    page_offset = vaddr & (page_size - 1);
-    paddr = pte + page_offset;
+    paddr &= TARGET_PAGE_MASK;
 
     assert(prot & (1 << is_write1));
     tlb_set_page_with_attrs(cs, vaddr, paddr, cpu_get_mem_attrs(env),

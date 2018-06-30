@@ -124,6 +124,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
     target_ulong addr;
+    uint64_t nested_ctl;
     uint32_t event_inj;
     uint32_t int_ctl;
 
@@ -205,6 +206,26 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                                          offsetof(struct vmcb,
                                                   control.intercept_exceptions
                                                   ));
+
+    nested_ctl = x86_ldq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
+                                                          control.nested_ctl));
+    if (nested_ctl & SVM_NPT_ENABLED) {
+        env->nested_cr3 = x86_ldq_phys(cs,
+                                env->vm_vmcb + offsetof(struct vmcb,
+                                                        control.nested_cr3));
+        env->hflags2 |= HF2_NPT_MASK;
+
+        env->nested_pg_mode = 0;
+        if (env->cr[4] & CR4_PAE_MASK) {
+            env->nested_pg_mode |= SVM_NPT_PAE;
+        }
+        if (env->hflags & HF_LMA_MASK) {
+            env->nested_pg_mode |= SVM_NPT_LMA;
+        }
+        if (env->efer & MSR_EFER_NXE) {
+            env->nested_pg_mode |= SVM_NPT_NXE;
+        }
+    }
 
     /* enable intercepts */
     env->hflags |= HF_SVMI_MASK;
@@ -616,6 +637,7 @@ void do_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
         x86_stl_phys(cs,
                  env->vm_vmcb + offsetof(struct vmcb, control.int_state), 0);
     }
+    env->hflags2 &= ~HF2_NPT_MASK;
 
     /* Save the VM state in the vmcb */
     svm_save_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.es),

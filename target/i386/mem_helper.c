@@ -202,13 +202,13 @@ void helper_boundl(CPUX86State *env, target_ulong a0, int v)
 void tlb_fill(CPUState *cs, target_ulong addr, int size,
               MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     int ret;
 
+    env->retaddr = retaddr;
     ret = x86_cpu_handle_mmu_fault(cs, addr, size, access_type, mmu_idx);
     if (ret) {
-        X86CPU *cpu = X86_CPU(cs);
-        CPUX86State *env = &cpu->env;
-
         raise_exception_err_ra(env, cs->exception_index, env->error_code, retaddr);
     }
 }
