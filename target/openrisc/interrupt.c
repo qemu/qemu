@@ -35,13 +35,6 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     int exception = cs->exception_index;
 
     env->epcr = env->pc;
-    if (env->dflag) {
-        env->dflag = 0;
-        env->sr |= SR_DSX;
-        env->epcr -= 4;
-    } else {
-        env->sr &= ~SR_DSX;
-    }
     if (exception == EXCP_SYSCALL) {
         env->epcr += 4;
     }
@@ -51,7 +44,10 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
         env->eear = env->pc;
     }
 
+    /* During exceptions esr is populared with the pre-exception sr.  */
     env->esr = cpu_get_sr(env);
+    /* In parallel sr is updated to disable mmu, interrupts, timers and
+       set the delay slot exception flag.  */
     env->sr &= ~SR_DME;
     env->sr &= ~SR_IME;
     env->sr |= SR_SM;
@@ -60,6 +56,15 @@ void openrisc_cpu_do_interrupt(CPUState *cs)
     env->pmr &= ~PMR_DME;
     env->pmr &= ~PMR_SME;
     env->lock_addr = -1;
+
+    /* Set/clear dsx to indicate if we are in a delay slot exception.  */
+    if (env->dflag) {
+        env->dflag = 0;
+        env->sr |= SR_DSX;
+        env->epcr -= 4;
+    } else {
+        env->sr &= ~SR_DSX;
+    }
 
     if (exception > 0 && exception < EXCP_NR) {
         static const char * const int_name[EXCP_NR] = {
