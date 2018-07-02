@@ -40,3 +40,8 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
     abort();
 }
 #endif
+
+bool kvm_hv_vpindex_settable(void)
+{
+    return false;
+}

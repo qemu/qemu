@@ -39,4 +39,7 @@ void kvm_hv_sint_route_destroy(HvSintRoute *sint_route);
 
 int kvm_hv_sint_route_set_sint(HvSintRoute *sint_route);
 
+uint32_t hyperv_vp_index(X86CPU *cpu);
+X86CPU *hyperv_find_vcpu(uint32_t vp_index);
+
 #endif
