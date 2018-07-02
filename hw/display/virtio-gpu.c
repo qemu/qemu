@@ -590,7 +590,7 @@ static void virtio_unref_resource(pixman_image_t *image, void *data)
 static void virtio_gpu_set_scanout(VirtIOGPU *g,
                                    struct virtio_gpu_ctrl_command *cmd)
 {
-    struct virtio_gpu_simple_resource *res;
+    struct virtio_gpu_simple_resource *res, *ores;
     struct virtio_gpu_scanout *scanout;
     pixman_format_code_t format;
     uint32_t offset;
@@ -662,6 +662,11 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
         }
         pixman_image_unref(rect);
         dpy_gfx_replace_surface(g->scanout[ss.scanout_id].con, scanout->ds);
+    }
+
+    ores = virtio_gpu_find_resource(g, scanout->resource_id);
+    if (ores) {
+        ores->scanout_bitmask &= ~(1 << ss.scanout_id);
     }
 
     res->scanout_bitmask |= (1 << ss.scanout_id);
