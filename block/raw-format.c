@@ -177,7 +177,7 @@ static inline int raw_adjust_offset(BlockDriverState *bs, uint64_t *offset,
         /* There's not enough space for the write, or the read request is
          * out-of-range. Don't read/write anything to prevent leaking out of
          * the size specified in options. */
-        return is_write ? -ENOSPC : -EINVAL;;
+        return is_write ? -ENOSPC : -EINVAL;
     }
 
     if (*offset > INT64_MAX - s->offset) {
