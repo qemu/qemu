@@ -1,0 +1,24 @@
+QA output created by 225
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=1048576
+Formatting 'TEST_DIR/t.IMGFMT.not_base', fmt=IMGFMT size=1048576
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.base
+
+=== Testing fitting VMDK backing image ===
+
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io overlay "read 0 512"
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing unrelated VMDK backing image ===
+
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io overlay "read 0 512"
+read failed: Invalid argument
+
+=== Testing non-VMDK backing image ===
+
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) qemu-io overlay "read 0 512"
+read failed: Invalid argument
+*** done
