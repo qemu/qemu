@@ -422,8 +422,7 @@ static inline void *tlb_vaddr_to_host(CPUArchState *env, target_ulong addr,
         g_assert_not_reached();
     }
 
-    if ((addr & TARGET_PAGE_MASK)
-        != (tlb_addr & (TARGET_PAGE_MASK | TLB_INVALID_MASK))) {
+    if (!tlb_hit(tlb_addr, addr)) {
         /* TLB entry is for a different page */
         return NULL;
     }

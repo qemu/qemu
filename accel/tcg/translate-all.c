@@ -669,9 +669,15 @@ static inline void page_lock_tb(const TranslationBlock *tb)
 
 static inline void page_unlock_tb(const TranslationBlock *tb)
 {
-    page_unlock(page_find(tb->page_addr[0] >> TARGET_PAGE_BITS));
+    PageDesc *p1 = page_find(tb->page_addr[0] >> TARGET_PAGE_BITS);
+
+    page_unlock(p1);
     if (unlikely(tb->page_addr[1] != -1)) {
-        page_unlock(page_find(tb->page_addr[1] >> TARGET_PAGE_BITS));
+        PageDesc *p2 = page_find(tb->page_addr[1] >> TARGET_PAGE_BITS);
+
+        if (p2 != p1) {
+            page_unlock(p2);
+        }
     }
 }
 
@@ -850,22 +856,34 @@ static void page_lock_pair(PageDesc **ret_p1, tb_page_addr_t phys1,
                            PageDesc **ret_p2, tb_page_addr_t phys2, int alloc)
 {
     PageDesc *p1, *p2;
+    tb_page_addr_t page1;
+    tb_page_addr_t page2;
 
     assert_memory_lock();
-    g_assert(phys1 != -1 && phys1 != phys2);
-    p1 = page_find_alloc(phys1 >> TARGET_PAGE_BITS, alloc);
+    g_assert(phys1 != -1);
+
+    page1 = phys1 >> TARGET_PAGE_BITS;
+    page2 = phys2 >> TARGET_PAGE_BITS;
+
+    p1 = page_find_alloc(page1, alloc);
     if (ret_p1) {
         *ret_p1 = p1;
     }
     if (likely(phys2 == -1)) {
         page_lock(p1);
         return;
+    } else if (page1 == page2) {
+        page_lock(p1);
+        if (ret_p2) {
+            *ret_p2 = p1;
+        }
+        return;
     }
-    p2 = page_find_alloc(phys2 >> TARGET_PAGE_BITS, alloc);
+    p2 = page_find_alloc(page2, alloc);
     if (ret_p2) {
         *ret_p2 = p2;
     }
-    if (phys1 < phys2) {
+    if (page1 < page2) {
         page_lock(p1);
         page_lock(p2);
     } else {
@@ -1623,7 +1641,7 @@ tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
         tb = existing_tb;
     }
 
-    if (p2) {
+    if (p2 && p2 != p) {
         page_unlock(p2);
     }
     page_unlock(p);
