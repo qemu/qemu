@@ -412,13 +412,11 @@ static inline uint32_t curr_cflags(void)
 }
 
 /* TranslationBlock invalidate API */
-#if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
-void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs);
-#else
-void tb_invalidate_phys_addr(target_ulong addr);
-#endif
 #if defined(CONFIG_USER_ONLY)
+void tb_invalidate_phys_addr(target_ulong addr);
 void tb_invalidate_phys_range(target_ulong start, target_ulong end);
+#else
+void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs);
 #endif
 void tb_flush(CPUState *cpu);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);

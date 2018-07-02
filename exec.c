@@ -1027,7 +1027,7 @@ const char *parse_cpu_model(const char *cpu_model)
     return cpu_type;
 }
 
-#if defined(CONFIG_USER_ONLY) || !defined(CONFIG_TCG)
+#if defined(CONFIG_USER_ONLY)
 void tb_invalidate_phys_addr(target_ulong addr)
 {
     mmap_lock();
@@ -1045,6 +1045,10 @@ void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs)
     ram_addr_t ram_addr;
     MemoryRegion *mr;
     hwaddr l = 1;
+
+    if (!tcg_enabled()) {
+        return;
+    }
 
     rcu_read_lock();
     mr = address_space_translate(as, addr, &addr, &l, false, attrs);
