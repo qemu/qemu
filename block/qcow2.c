@@ -3345,7 +3345,6 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
     int ret;
     unsigned int cur_bytes; /* number of sectors in current iteration */
     uint64_t cluster_offset;
-    uint8_t *cluster_data = NULL;
     QCowL2Meta *l2meta = NULL;
 
     assert(!bs->encrypted);
@@ -3404,7 +3403,6 @@ fail:
 
     qemu_co_mutex_unlock(&s->lock);
 
-    qemu_vfree(cluster_data);
     trace_qcow2_writev_done_req(qemu_coroutine_self(), ret);
 
     return ret;
