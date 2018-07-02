@@ -23,7 +23,7 @@ typedef void (*HvSintAckClb)(HvSintRoute *sint_route);
 
 struct HvSintRoute {
     uint32_t sint;
-    uint32_t vcpu_id;
+    uint32_t vp_index;
     int gsi;
     EventNotifier sint_set_notifier;
     EventNotifier sint_ack_notifier;
@@ -32,7 +32,7 @@ struct HvSintRoute {
 
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit);
 
-HvSintRoute *kvm_hv_sint_route_create(uint32_t vcpu_id, uint32_t sint,
+HvSintRoute *kvm_hv_sint_route_create(uint32_t vp_index, uint32_t sint,
                                       HvSintAckClb sint_ack_clb);
 
 void kvm_hv_sint_route_destroy(HvSintRoute *sint_route);

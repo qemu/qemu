@@ -72,7 +72,7 @@ static void kvm_hv_sint_ack_handler(EventNotifier *notifier)
     }
 }
 
-HvSintRoute *kvm_hv_sint_route_create(uint32_t vcpu_id, uint32_t sint,
+HvSintRoute *kvm_hv_sint_route_create(uint32_t vp_index, uint32_t sint,
                                       HvSintAckClb sint_ack_clb)
 {
     HvSintRoute *sint_route;
@@ -92,7 +92,7 @@ HvSintRoute *kvm_hv_sint_route_create(uint32_t vcpu_id, uint32_t sint,
     event_notifier_set_handler(&sint_route->sint_ack_notifier,
                                kvm_hv_sint_ack_handler);
 
-    gsi = kvm_irqchip_add_hv_sint_route(kvm_state, vcpu_id, sint);
+    gsi = kvm_irqchip_add_hv_sint_route(kvm_state, vp_index, sint);
     if (gsi < 0) {
         goto err_gsi;
     }
@@ -105,7 +105,7 @@ HvSintRoute *kvm_hv_sint_route_create(uint32_t vcpu_id, uint32_t sint,
     }
     sint_route->gsi = gsi;
     sint_route->sint_ack_clb = sint_ack_clb;
-    sint_route->vcpu_id = vcpu_id;
+    sint_route->vp_index = vp_index;
     sint_route->sint = sint;
 
     return sint_route;
