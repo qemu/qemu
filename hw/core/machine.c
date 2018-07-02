@@ -674,6 +674,7 @@ static void machine_finalize(Object *obj)
     g_free(ms->dumpdtb);
     g_free(ms->dt_compatible);
     g_free(ms->firmware);
+    g_free(ms->device_memory);
 }
 
 bool machine_usb(MachineState *machine)
