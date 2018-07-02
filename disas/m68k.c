@@ -2017,6 +2017,20 @@ print_insn_m68k (bfd_vma memaddr, disassemble_info *info)
 		}
 	    }
 
+          /* Don't match FPU insns with non-default coprocessor ID.  */
+          if (*d == '\0')
+            {
+              for (d = opc->args; *d; d += 2)
+                {
+                  if (d[0] == 'I')
+                    {
+                      val = fetch_arg (buffer, 'd', 3, info);
+                      if (val != 1)
+                        break;
+                    }
+                }
+            }
+
 	  if (*d == '\0')
 	    if ((val = match_insn_m68k (memaddr, info, opc, & priv)))
 	      return val;
