@@ -1,0 +1,49 @@
+QA output created by 223
+
+=== Create partially sparse image, then add dirty bitmap ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
+wrote 2097152/2097152 bytes at offset 1048576
+2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
+
+
+=== Write part of the file under active bitmap ===
+
+wrote 2097152/2097152 bytes at offset 2097152
+2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== End dirty bitmap, and start serving image over NBD ===
+
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+
+=== Contrast normal status with dirty-bitmap status ===
+
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2097152/2097152 bytes at offset 2097152
+2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+[{ "start": 0, "length": 1048576, "depth": 0, "zero": true, "data": false},
+{ "start": 1048576, "length": 3145728, "depth": 0, "zero": false, "data": true}]
+[{ "start": 0, "length": 2097152, "depth": 0, "zero": false, "data": true},
+{ "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
+
+=== End NBD server ===
+
+{"return": {}}
+{"return": {}}
+{"return": {}}
+*** done
