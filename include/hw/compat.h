@@ -10,6 +10,22 @@
         .driver   = "hda-audio",\
         .property = "use-timer",\
         .value    = "false",\
+    },{\
+        .driver   = "cirrus-vga",\
+        .property = "global-vmstate",\
+        .value    = "true",\
+    },{\
+        .driver   = "VGA",\
+        .property = "global-vmstate",\
+        .value    = "true",\
+    },{\
+        .driver   = "vmware-svga",\
+        .property = "global-vmstate",\
+        .value    = "true",\
+    },{\
+        .driver   = "qxl-vga",\
+        .property = "global-vmstate",\
+        .value    = "true",\
     },
 
 #define HW_COMPAT_2_11 \

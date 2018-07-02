@@ -2168,7 +2168,7 @@ static void qxl_realize_primary(PCIDevice *dev, Error **errp)
     qxl_init_ramsize(qxl);
     vga->vbe_size = qxl->vgamem_size;
     vga->vram_size_mb = qxl->vga.vram_size >> 20;
-    vga_common_init(vga, OBJECT(dev), true);
+    vga_common_init(vga, OBJECT(dev));
     vga_init(vga, OBJECT(dev),
              pci_address_space(dev), pci_address_space_io(dev), false);
     portio_list_init(&qxl->vga_port_list, OBJECT(dev), qxl_vga_portio_list,
@@ -2410,6 +2410,7 @@ static Property qxl_properties[] = {
 #endif
         DEFINE_PROP_UINT32("xres", PCIQXLDevice, xres, 0),
         DEFINE_PROP_UINT32("yres", PCIQXLDevice, yres, 0),
+        DEFINE_PROP_BOOL("global-vmstate", PCIQXLDevice, vga.global_vmstate, false),
         DEFINE_PROP_END_OF_LIST(),
 };
 
