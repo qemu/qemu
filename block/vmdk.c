@@ -333,6 +333,12 @@ static int vmdk_is_cid_valid(BlockDriverState *bs)
     if (!s->cid_checked && bs->backing) {
         BlockDriverState *p_bs = bs->backing->bs;
 
+        if (strcmp(p_bs->drv->format_name, "vmdk")) {
+            /* Backing file is not in vmdk format, so it does not have
+             * a CID, which makes the overlay's parent CID invalid */
+            return 0;
+        }
+
         if (vmdk_read_cid(p_bs, 0, &cur_pcid) != 0) {
             /* read failure: report as not valid */
             return 0;
