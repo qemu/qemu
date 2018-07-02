@@ -35,6 +35,7 @@
 #include "migration/register.h"
 #include "cpu_models.h"
 #include "hw/nmi.h"
+#include "hw/s390x/tod.h"
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {
@@ -187,58 +188,6 @@ static void s390_memory_init(ram_addr_t mem_size)
     s390_stattrib_init();
 }
 
-#define S390_TOD_CLOCK_VALUE_MISSING    0x00
-#define S390_TOD_CLOCK_VALUE_PRESENT    0x01
-
-static void gtod_save(QEMUFile *f, void *opaque)
-{
-    uint64_t tod_low;
-    uint8_t tod_high;
-    int r;
-
-    r = s390_get_clock(&tod_high, &tod_low);
-    if (r) {
-        warn_report("Unable to get guest clock for migration: %s",
-                    strerror(-r));
-        error_printf("Guest clock will not be migrated "
-                     "which could cause the guest to hang.");
-        qemu_put_byte(f, S390_TOD_CLOCK_VALUE_MISSING);
-        return;
-    }
-
-    qemu_put_byte(f, S390_TOD_CLOCK_VALUE_PRESENT);
-    qemu_put_byte(f, tod_high);
-    qemu_put_be64(f, tod_low);
-}
-
-static int gtod_load(QEMUFile *f, void *opaque, int version_id)
-{
-    uint64_t tod_low;
-    uint8_t tod_high;
-    int r;
-
-    if (qemu_get_byte(f) == S390_TOD_CLOCK_VALUE_MISSING) {
-        warn_report("Guest clock was not migrated. This could "
-                    "cause the guest to hang.");
-        return 0;
-    }
-
-    tod_high = qemu_get_byte(f);
-    tod_low = qemu_get_be64(f);
-
-    r = s390_set_clock(&tod_high, &tod_low);
-    if (r) {
-        error_report("Unable to set KVM guest TOD clock: %s", strerror(-r));
-    }
-
-    return r;
-}
-
-static SaveVMHandlers savevm_gtod = {
-    .save_state = gtod_save,
-    .load_state = gtod_load,
-};
-
 static void s390_init_ipl_dev(const char *kernel_filename,
                               const char *kernel_cmdline,
                               const char *initrd_filename, const char *firmware,
@@ -363,8 +312,8 @@ static void ccw_init(MachineState *machine)
         s390_create_sclpconsole("sclplmconsole", serial_hd(1));
     }
 
-    /* Register savevm handler for guest TOD clock */
-    register_savevm_live(NULL, "todclock", 0, 1, &savevm_gtod, NULL);
+    /* init the TOD clock */
+    s390_init_tod();
 }
 
 static void s390_cpu_plug(HotplugHandler *hotplug_dev,
@@ -824,6 +773,8 @@ DEFINE_CCW_MACHINE(3_0, "3.0", true);
 static void ccw_machine_2_12_instance_options(MachineState *machine)
 {
     ccw_machine_3_0_instance_options(machine);
+    s390_cpudef_featoff_greater(11, 1, S390_FEAT_PPA15);
+    s390_cpudef_featoff_greater(11, 1, S390_FEAT_BPB);
 }
 
 static void ccw_machine_2_12_class_options(MachineClass *mc)

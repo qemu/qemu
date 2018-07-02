@@ -28,6 +28,8 @@
 #include "qemu/timer.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
+#include "qapi/error.h"
+#include "tcg_s390x.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "sysemu/cpus.h"
@@ -39,6 +41,7 @@
 #include "hw/s390x/ioinst.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/boards.h"
+#include "hw/s390x/tod.h"
 #endif
 
 /* #define DEBUG_HELPER */
@@ -138,30 +141,69 @@ void HELPER(spx)(CPUS390XState *env, uint64_t a1)
 /* Store Clock */
 uint64_t HELPER(stck)(CPUS390XState *env)
 {
-    uint64_t time;
+    S390TODState *td = s390_get_todstate();
+    S390TODClass *tdc = S390_TOD_GET_CLASS(td);
+    S390TOD tod;
 
-    time = env->tod_offset +
-        time2tod(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - env->tod_basetime);
-
-    return time;
+    tdc->get(td, &tod, &error_abort);
+    return tod.low;
 }
 
-/* Set Clock Comparator */
-void HELPER(sckc)(CPUS390XState *env, uint64_t time)
+static void update_ckc_timer(CPUS390XState *env)
 {
-    if (time == -1ULL) {
+    S390TODState *td = s390_get_todstate();
+    uint64_t time;
+
+    /* stop the timer and remove pending CKC IRQs */
+    timer_del(env->tod_timer);
+    g_assert(qemu_mutex_iothread_locked());
+    env->pending_int &= ~INTERRUPT_EXT_CLOCK_COMPARATOR;
+
+    /* the tod has to exceed the ckc, this can never happen if ckc is all 1's */
+    if (env->ckc == -1ULL) {
         return;
     }
 
-    env->ckc = time;
-
     /* difference between origins */
-    time -= env->tod_offset;
+    time = env->ckc - td->base.low;
 
     /* nanoseconds */
     time = tod2time(time);
 
-    timer_mod(env->tod_timer, env->tod_basetime + time);
+    timer_mod(env->tod_timer, time);
+}
+
+/* Set Clock Comparator */
+void HELPER(sckc)(CPUS390XState *env, uint64_t ckc)
+{
+    env->ckc = ckc;
+
+    qemu_mutex_lock_iothread();
+    update_ckc_timer(env);
+    qemu_mutex_unlock_iothread();
+}
+
+void tcg_s390_tod_updated(CPUState *cs, run_on_cpu_data opaque)
+{
+    S390CPU *cpu = S390_CPU(cs);
+
+    update_ckc_timer(&cpu->env);
+}
+
+/* Set Clock */
+uint32_t HELPER(sck)(CPUS390XState *env, uint64_t tod_low)
+{
+    S390TODState *td = s390_get_todstate();
+    S390TODClass *tdc = S390_TOD_GET_CLASS(td);
+    S390TOD tod = {
+        .high = 0,
+        .low = tod_low,
+    };
+
+    qemu_mutex_lock_iothread();
+    tdc->set(td, &tod, &error_abort);
+    qemu_mutex_unlock_iothread();
+    return 0;
 }
 
 /* Set Tod Programmable Field */

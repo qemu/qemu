@@ -666,13 +666,13 @@ int kvm_s390_get_clock_ext(uint8_t *tod_high, uint64_t *tod_low)
     return r;
 }
 
-int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
+int kvm_s390_set_clock(uint8_t tod_high, uint64_t tod_low)
 {
     int r;
     struct kvm_device_attr attr = {
         .group = KVM_S390_VM_TOD,
         .attr = KVM_S390_VM_TOD_LOW,
-        .addr = (uint64_t)tod_low,
+        .addr = (uint64_t)&tod_low,
     };
 
     r = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
@@ -681,15 +681,15 @@ int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
     }
 
     attr.attr = KVM_S390_VM_TOD_HIGH;
-    attr.addr = (uint64_t)tod_high;
+    attr.addr = (uint64_t)&tod_high;
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
 
-int kvm_s390_set_clock_ext(uint8_t *tod_high, uint64_t *tod_low)
+int kvm_s390_set_clock_ext(uint8_t tod_high, uint64_t tod_low)
 {
     struct kvm_s390_vm_tod_clock gtod = {
-        .epoch_idx = *tod_high,
-        .tod  = *tod_low,
+        .epoch_idx = tod_high,
+        .tod  = tod_low,
     };
     struct kvm_device_attr attr = {
         .group = KVM_S390_VM_TOD,
@@ -752,12 +752,23 @@ int kvm_s390_mem_op(S390CPU *cpu, vaddr addr, uint8_t ar, void *hostbuf,
  */
 static void *legacy_s390_alloc(size_t size, uint64_t *align, bool shared)
 {
-    void *mem;
+    static void *mem;
+
+    if (mem) {
+        /* we only support one allocation, which is enough for initial ram */
+        return NULL;
+    }
 
     mem = mmap((void *) 0x800000000ULL, size,
                PROT_EXEC|PROT_READ|PROT_WRITE,
                MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-    return mem == MAP_FAILED ? NULL : mem;
+    if (mem == MAP_FAILED) {
+        mem = NULL;
+    }
+    if (mem && align) {
+        *align = QEMU_VMALLOC_ALIGN;
+    }
+    return mem;
 }
 
 static uint8_t const *sw_bp_inst;

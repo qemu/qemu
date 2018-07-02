@@ -130,8 +130,6 @@ struct CPUS390XState {
     uint64_t cpuid;
 #endif
 
-    uint64_t tod_offset;
-    uint64_t tod_basetime;
     QEMUTimer *tod_timer;
 
     QEMUTimer *cpu_timer;
@@ -714,8 +712,6 @@ static inline void s390_do_cpu_load_normal(CPUState *cs, run_on_cpu_data arg)
 
 
 /* cpu.c */
-int s390_get_clock(uint8_t *tod_high, uint64_t *tod_low);
-int s390_set_clock(uint8_t *tod_high, uint64_t *tod_low);
 void s390_crypto_reset(void);
 bool s390_get_squash_mcss(void);
 int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit);
