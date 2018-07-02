@@ -189,7 +189,7 @@ struct HDAAudioState {
 
 static inline int64_t hda_bytes_per_second(HDAAudioStream *st)
 {
-    return 2 * st->as.nchannels * st->as.freq;
+    return 2LL * st->as.nchannels * st->as.freq;
 }
 
 static inline void hda_timer_sync_adjust(HDAAudioStream *st, int64_t target_pos)
