@@ -970,6 +970,7 @@ int nbd_client_init(BlockDriverState *bs,
                     const char *export,
                     QCryptoTLSCreds *tlscreds,
                     const char *hostname,
+                    const char *x_dirty_bitmap,
                     Error **errp)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
@@ -982,9 +983,11 @@ int nbd_client_init(BlockDriverState *bs,
     client->info.request_sizes = true;
     client->info.structured_reply = true;
     client->info.base_allocation = true;
+    client->info.x_dirty_bitmap = g_strdup(x_dirty_bitmap);
     ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
                                 tlscreds, hostname,
                                 &client->ioc, &client->info, errp);
+    g_free(client->info.x_dirty_bitmap);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         return ret;
