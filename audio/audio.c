@@ -29,6 +29,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 #include "sysemu/replay.h"
+#include "trace.h"
 
 #define AUDIO_CAP "audio"
 #include "audio_int.h"
@@ -1129,6 +1130,10 @@ static void audio_pcm_print_info (const char *cap, struct audio_pcm_info *info)
 /*
  * Timer
  */
+
+static bool audio_timer_running;
+static uint64_t audio_timer_last;
+
 static int audio_is_timer_needed (void)
 {
     HWVoiceIn *hwi = NULL;
@@ -1148,14 +1153,31 @@ static void audio_reset_timer (AudioState *s)
     if (audio_is_timer_needed ()) {
         timer_mod_anticipate_ns(s->ts,
             qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + conf.period.ticks);
-    }
-    else {
-        timer_del (s->ts);
+        if (!audio_timer_running) {
+            audio_timer_running = true;
+            audio_timer_last = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            trace_audio_timer_start(conf.period.ticks / SCALE_MS);
+        }
+    } else {
+        timer_del(s->ts);
+        if (audio_timer_running) {
+            audio_timer_running = false;
+            trace_audio_timer_stop();
+        }
     }
 }
 
 static void audio_timer (void *opaque)
 {
+    int64_t now, diff;
+
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    diff = now - audio_timer_last;
+    if (diff > conf.period.ticks * 3 / 2) {
+        trace_audio_timer_delayed(diff / SCALE_MS);
+    }
+    audio_timer_last = now;
+
     audio_run ("timer");
     audio_reset_timer (opaque);
 }
