@@ -25,6 +25,8 @@
 #include "qemu/option.h"
 #include "exec/address-spaces.h"
 
+#include <mach-o/loader.h>
+
 /* Kernel boot protocol is specified in the kernel docs
  * Documentation/arm/Booting and Documentation/arm64/booting.txt
  * They have different preferred image load offsets from system RAM base.
@@ -919,12 +921,90 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
     return size;
 }
 
+static void macho_highest_lowest(struct mach_header_64* mh, uint64_t *lowaddr, uint64_t *highaddr) {
+    struct load_command* cmd = (struct load_command*)((uint8_t*)mh + sizeof(struct mach_header_64));
+    // iterate through all the segments once to find highest and lowest addresses
+    uint64_t low_addr_temp = ~0;
+    uint64_t high_addr_temp = 0;
+    for (unsigned int index = 0; index < mh->ncmds; index++) {
+        switch (cmd->cmd) {
+            case LC_SEGMENT_64: {
+                struct segment_command_64* segCmd = (struct segment_command_64*)cmd;
+                if (segCmd->vmaddr < low_addr_temp) {
+                    low_addr_temp = segCmd->vmaddr;
+                }
+                if (segCmd->vmaddr + segCmd->vmsize > high_addr_temp) {
+                    high_addr_temp = segCmd->vmaddr + segCmd->vmsize;
+                }
+                break;
+            }
+        }
+        cmd = (struct load_command*)((char*)cmd + cmd->cmdsize);
+    }
+    *lowaddr = low_addr_temp;
+    *highaddr = high_addr_temp;
+}
+
+static uint64_t arm_load_macho(struct arm_boot_info *info, uint64_t *pentry, AddressSpace *as)
+{
+    hwaddr kernel_load_offset = 0x00000000;
+    hwaddr mem_base = info->loader_start;
+
+    uint8_t *data = NULL;
+    gsize len;
+    bool ret = false;
+    uint8_t* rom_buf = NULL;
+    if (!g_file_get_contents(info->kernel_filename, (char**) &data, &len, NULL)) {
+        goto out;
+    }
+    struct mach_header_64* mh = (struct mach_header_64*)data;
+    struct load_command* cmd = (struct load_command*)(data + sizeof(struct mach_header_64));
+    // iterate through all the segments once to find highest and lowest addresses
+    uint64_t pc = 0;
+    uint64_t low_addr_temp;
+    uint64_t high_addr_temp;
+    macho_highest_lowest(mh, &low_addr_temp, &high_addr_temp);
+    uint64_t rom_buf_size = high_addr_temp - low_addr_temp;
+    rom_buf = g_malloc0(rom_buf_size);
+    for (unsigned int index = 0; index < mh->ncmds; index++) {
+        switch (cmd->cmd) {
+            case LC_SEGMENT_64: {
+                struct segment_command_64* segCmd = (struct segment_command_64*)cmd;
+                memcpy(rom_buf + (segCmd->vmaddr - low_addr_temp), data + segCmd->fileoff, segCmd->filesize);
+                break;
+            }
+            case LC_UNIXTHREAD: {
+                // grab just the entry point PC
+                uint64_t* ptrPc = (uint64_t*)((char*)cmd + 0x110); // for arm64 only.
+                pc = (*ptrPc & 0x3fffffff) + mem_base + kernel_load_offset;
+                break;
+            }
+        }
+        cmd = (struct load_command*)((char*)cmd + cmd->cmdsize);
+    }
+    hwaddr rom_base = (low_addr_temp & 0x3fffffff) + mem_base + kernel_load_offset;
+    rom_add_blob_fixed_as("macho", rom_buf, rom_buf_size, rom_base, as);
+    *pentry = pc;
+    ret = true;
+    fprintf(stderr, "%llx %llx %llx\n", low_addr_temp, high_addr_temp, pc);
+    fprintf(stderr, "%llx\n", *(uint64_t*)rom_buf);
+    out:
+    if (data) {
+        g_free(data);
+    }
+    if (rom_buf) {
+        g_free(rom_buf);
+    }
+    return ret? high_addr_temp - low_addr_temp : -1;
+}
+
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 {
     CPUState *cs;
     int kernel_size;
     int initrd_size;
     int is_linux = 0;
+    int is_xnu = 0;
     uint64_t elf_entry, elf_low_addr, elf_high_addr;
     int elf_machine;
     hwaddr entry;
@@ -1048,6 +1128,14 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
         }
     }
     entry = elf_entry;
+    if (kernel_size < 0) {
+        // try a MachO kernel.
+        kernel_size = arm_load_macho(info, &entry, as);
+        if (kernel_size >= 0) {
+            fprintf(stderr, "xnu\n");
+            is_xnu = 1;
+        }
+    }
     if (kernel_size < 0) {
         kernel_size = load_uimage_as(info->kernel_filename, &entry, NULL,
                                      &is_linux, NULL, NULL, as);
