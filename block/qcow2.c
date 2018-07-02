@@ -3299,7 +3299,6 @@ qcow2_co_copy_range_from(BlockDriverState *bs,
         case QCOW2_CLUSTER_COMPRESSED:
             ret = -ENOTSUP;
             goto out;
-            break;
 
         case QCOW2_CLUSTER_NORMAL:
             child = bs->file;
