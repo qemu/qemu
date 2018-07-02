@@ -203,6 +203,9 @@ static inline void hda_timer_sync_adjust(HDAAudioStream *st, int64_t target_pos)
     if (target_pos < -limit) {
         corr = -HDA_TIMER_TICKS;
     }
+    if (target_pos < -(2 * limit)) {
+        corr = -(4 * HDA_TIMER_TICKS);
+    }
     if (corr == 0) {
         return;
     }
