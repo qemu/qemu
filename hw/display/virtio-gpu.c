@@ -430,6 +430,16 @@ static void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
 static void virtio_gpu_resource_destroy(VirtIOGPU *g,
                                         struct virtio_gpu_simple_resource *res)
 {
+    int i;
+
+    if (res->scanout_bitmask) {
+        for (i = 0; i < g->conf.max_outputs; i++) {
+            if (res->scanout_bitmask & (1 << i)) {
+                virtio_gpu_disable_scanout(g, i);
+            }
+        }
+    }
+
     pixman_image_unref(res->image);
     virtio_gpu_cleanup_mapping(res);
     QTAILQ_REMOVE(&g->reslist, res, next);
