@@ -455,6 +455,14 @@ static int multipath_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
     char transportids[PR_HELPER_DATA_SIZE];
     int r;
 
+    if (sz < PR_OUT_FIXED_PARAM_SIZE) {
+        /* Illegal request, Parameter list length error.  This isn't fatal;
+         * we have read the data, send an error without closing the socket.
+         */
+        scsi_build_sense(sense, SENSE_CODE(INVALID_PARAM_LEN));
+        return CHECK_CONDITION;
+    }
+
     switch (rq_servact) {
     case MPATH_PROUT_REG_SA:
     case MPATH_PROUT_RES_SA:
@@ -574,6 +582,12 @@ static int do_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
                      const uint8_t *param, int sz)
 {
     int resp_sz;
+
+    if ((fcntl(fd, F_GETFL) & O_ACCMODE) == O_RDONLY) {
+        scsi_build_sense(sense, SENSE_CODE(INVALID_OPCODE));
+        return CHECK_CONDITION;
+    }
+
 #ifdef CONFIG_MPATH
     if (is_mpath(fd)) {
         return multipath_pr_out(fd, cdb, sense, param, sz);
@@ -690,21 +704,6 @@ static int coroutine_fn prh_read_request(PRHelperClient *client,
                                  errp) < 0) {
             goto out_close;
         }
-        if ((fcntl(client->fd, F_GETFL) & O_ACCMODE) == O_RDONLY) {
-            scsi_build_sense(resp->sense, SENSE_CODE(INVALID_OPCODE));
-            sz = 0;
-        } else if (sz < PR_OUT_FIXED_PARAM_SIZE) {
-            /* Illegal request, Parameter list length error.  This isn't fatal;
-             * we have read the data, send an error without closing the socket.
-             */
-            scsi_build_sense(resp->sense, SENSE_CODE(INVALID_PARAM_LEN));
-            sz = 0;
-        }
-        if (sz == 0) {
-            resp->result = CHECK_CONDITION;
-            close(client->fd);
-            client->fd = -1;
-        }
     }
 
     req->fd = client->fd;
@@ -785,25 +784,23 @@ static void coroutine_fn prh_co_entry(void *opaque)
             break;
         }
 
-        if (sz > 0) {
-            num_active_sockets++;
-            if (req.cdb[0] == PERSISTENT_RESERVE_OUT) {
-                r = do_pr_out(req.fd, req.cdb, resp.sense,
-                              client->data, sz);
-                resp.sz = 0;
-            } else {
-                resp.sz = sizeof(client->data);
-                r = do_pr_in(req.fd, req.cdb, resp.sense,
-                             client->data, &resp.sz);
-                resp.sz = MIN(resp.sz, sz);
-            }
-            num_active_sockets--;
-            close(req.fd);
-            if (r == -1) {
-                break;
-            }
-            resp.result = r;
+        num_active_sockets++;
+        if (req.cdb[0] == PERSISTENT_RESERVE_OUT) {
+            r = do_pr_out(req.fd, req.cdb, resp.sense,
+                          client->data, sz);
+            resp.sz = 0;
+        } else {
+            resp.sz = sizeof(client->data);
+            r = do_pr_in(req.fd, req.cdb, resp.sense,
+                         client->data, &resp.sz);
+            resp.sz = MIN(resp.sz, sz);
         }
+        num_active_sockets--;
+        close(req.fd);
+        if (r == -1) {
+            break;
+        }
+        resp.result = r;
 
         if (prh_write_response(client, &req, &resp, &local_err) < 0) {
             break;
