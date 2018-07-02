@@ -935,6 +935,26 @@ static const VMStateDescription vmstate_msr_virt_ssbd = {
     }
 };
 
+static bool svm_npt_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return !!(env->hflags2 & HF2_NPT_MASK);
+}
+
+static const VMStateDescription vmstate_svm_npt = {
+    .name = "cpu/svn_npt",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = svm_npt_needed,
+    .fields = (VMStateField[]){
+        VMSTATE_UINT64(env.nested_cr3, X86CPU),
+        VMSTATE_UINT32(env.nested_pg_mode, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -1059,6 +1079,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_mcg_ext_ctl,
         &vmstate_msr_intel_pt,
         &vmstate_msr_virt_ssbd,
+        &vmstate_svm_npt,
         NULL
     }
 };

@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "exec/memory.h"
 #include "hw/loader.h"
 #include "hw/loader-fit.h"
@@ -194,7 +195,7 @@ static int fit_load_fdt(const struct fit_loader *ldr, const void *itb,
 
     err = fit_image_addr(itb, img_off, "load", &load_addr);
     if (err == -ENOENT) {
-        load_addr = ROUND_UP(kernel_end, 64 * K_BYTE) + (10 * M_BYTE);
+        load_addr = ROUND_UP(kernel_end, 64 * KiB) + (10 * MiB);
     } else if (err) {
         ret = err;
         goto out;

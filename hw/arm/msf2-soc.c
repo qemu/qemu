@@ -23,13 +23,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "hw/arm/arm.h"
 #include "exec/address-spaces.h"
 #include "hw/char/serial.h"
 #include "hw/boards.h"
-#include "qemu/cutils.h"
 #include "hw/arm/msf2-soc.h"
 #include "hw/misc/unimp.h"
 
@@ -40,14 +40,14 @@
 
 #define SRAM_BASE_ADDRESS     0x20000000
 
-#define MSF2_ENVM_MAX_SIZE    (512 * K_BYTE)
+#define MSF2_ENVM_MAX_SIZE    (512 * KiB)
 
 /*
  * eSRAM max size is 80k without SECDED(Single error correction and
  * dual error detection) feature and 64k with SECDED.
  * We do not support SECDED now.
  */
-#define MSF2_ESRAM_MAX_SIZE       (80 * K_BYTE)
+#define MSF2_ESRAM_MAX_SIZE       (80 * KiB)
 
 static const uint32_t spi_addr[MSF2_NUM_SPIS] = { 0x40001000 , 0x40011000 };
 static const uint32_t uart_addr[MSF2_NUM_UARTS] = { 0x40000000 , 0x40010000 };

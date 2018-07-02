@@ -35,21 +35,28 @@
 #include "sev_i386.h"
 #include "qapi/qapi-commands-misc.h"
 
-
-static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
-                      hwaddr pte, hwaddr mask)
+/* Perform linear address sign extension */
+static hwaddr addr_canonical(CPUArchState *env, hwaddr addr)
 {
 #ifdef TARGET_X86_64
     if (env->cr[4] & CR4_LA57_MASK) {
         if (addr & (1ULL << 56)) {
-            addr |= -1LL << 57;
+            addr |= (hwaddr)-(1LL << 57);
         }
     } else {
         if (addr & (1ULL << 47)) {
-            addr |= -1LL << 48;
+            addr |= (hwaddr)-(1LL << 48);
         }
     }
 #endif
+    return addr;
+}
+
+static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
+                      hwaddr pte, hwaddr mask)
+{
+    addr = addr_canonical(env, addr);
+
     monitor_printf(mon, TARGET_FMT_plx ": " TARGET_FMT_plx
                    " %c%c%c%c%c%c%c%c%c\n",
                    addr,
@@ -243,8 +250,8 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void mem_print(Monitor *mon, hwaddr *pstart,
-                      int *plast_prot,
+static void mem_print(Monitor *mon, CPUArchState *env,
+                      hwaddr *pstart, int *plast_prot,
                       hwaddr end, int prot)
 {
     int prot1;
@@ -253,7 +260,9 @@ static void mem_print(Monitor *mon, hwaddr *pstart,
         if (*pstart != -1) {
             monitor_printf(mon, TARGET_FMT_plx "-" TARGET_FMT_plx " "
                            TARGET_FMT_plx " %c%c%c\n",
-                           *pstart, end, end - *pstart,
+                           addr_canonical(env, *pstart),
+                           addr_canonical(env, end),
+                           addr_canonical(env, end - *pstart),
                            prot1 & PG_USER_MASK ? 'u' : '-',
                            'r',
                            prot1 & PG_RW_MASK ? 'w' : '-');
@@ -283,7 +292,7 @@ static void mem_info_32(Monitor *mon, CPUArchState *env)
         if (pde & PG_PRESENT_MASK) {
             if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
                 prot = pde & (PG_USER_MASK | PG_RW_MASK | PG_PRESENT_MASK);
-                mem_print(mon, &start, &last_prot, end, prot);
+                mem_print(mon, env, &start, &last_prot, end, prot);
             } else {
                 for(l2 = 0; l2 < 1024; l2++) {
                     cpu_physical_memory_read((pde & ~0xfff) + l2 * 4, &pte, 4);
@@ -295,16 +304,16 @@ static void mem_info_32(Monitor *mon, CPUArchState *env)
                     } else {
                         prot = 0;
                     }
-                    mem_print(mon, &start, &last_prot, end, prot);
+                    mem_print(mon, env, &start, &last_prot, end, prot);
                 }
             }
         } else {
             prot = 0;
-            mem_print(mon, &start, &last_prot, end, prot);
+            mem_print(mon, env, &start, &last_prot, end, prot);
         }
     }
     /* Flush last range */
-    mem_print(mon, &start, &last_prot, (hwaddr)1 << 32, 0);
+    mem_print(mon, env, &start, &last_prot, (hwaddr)1 << 32, 0);
 }
 
 static void mem_info_pae32(Monitor *mon, CPUArchState *env)
@@ -332,7 +341,7 @@ static void mem_info_pae32(Monitor *mon, CPUArchState *env)
                     if (pde & PG_PSE_MASK) {
                         prot = pde & (PG_USER_MASK | PG_RW_MASK |
                                       PG_PRESENT_MASK);
-                        mem_print(mon, &start, &last_prot, end, prot);
+                        mem_print(mon, env, &start, &last_prot, end, prot);
                     } else {
                         pt_addr = pde & 0x3fffffffff000ULL;
                         for (l3 = 0; l3 < 512; l3++) {
@@ -345,21 +354,21 @@ static void mem_info_pae32(Monitor *mon, CPUArchState *env)
                             } else {
                                 prot = 0;
                             }
-                            mem_print(mon, &start, &last_prot, end, prot);
+                            mem_print(mon, env, &start, &last_prot, end, prot);
                         }
                     }
                 } else {
                     prot = 0;
-                    mem_print(mon, &start, &last_prot, end, prot);
+                    mem_print(mon, env, &start, &last_prot, end, prot);
                 }
             }
         } else {
             prot = 0;
-            mem_print(mon, &start, &last_prot, end, prot);
+            mem_print(mon, env, &start, &last_prot, end, prot);
         }
     }
     /* Flush last range */
-    mem_print(mon, &start, &last_prot, (hwaddr)1 << 32, 0);
+    mem_print(mon, env, &start, &last_prot, (hwaddr)1 << 32, 0);
 }
 
 
@@ -389,7 +398,7 @@ static void mem_info_la48(Monitor *mon, CPUArchState *env)
                         prot = pdpe & (PG_USER_MASK | PG_RW_MASK |
                                        PG_PRESENT_MASK);
                         prot &= pml4e;
-                        mem_print(mon, &start, &last_prot, end, prot);
+                        mem_print(mon, env, &start, &last_prot, end, prot);
                     } else {
                         pd_addr = pdpe & 0x3fffffffff000ULL;
                         for (l3 = 0; l3 < 512; l3++) {
@@ -401,7 +410,8 @@ static void mem_info_la48(Monitor *mon, CPUArchState *env)
                                     prot = pde & (PG_USER_MASK | PG_RW_MASK |
                                                   PG_PRESENT_MASK);
                                     prot &= pml4e & pdpe;
-                                    mem_print(mon, &start, &last_prot, end, prot);
+                                    mem_print(mon, env, &start,
+                                              &last_prot, end, prot);
                                 } else {
                                     pt_addr = pde & 0x3fffffffff000ULL;
                                     for (l4 = 0; l4 < 512; l4++) {
@@ -418,27 +428,29 @@ static void mem_info_la48(Monitor *mon, CPUArchState *env)
                                         } else {
                                             prot = 0;
                                         }
-                                        mem_print(mon, &start, &last_prot, end, prot);
+                                        mem_print(mon, env, &start,
+                                                  &last_prot, end, prot);
                                     }
                                 }
                             } else {
                                 prot = 0;
-                                mem_print(mon, &start, &last_prot, end, prot);
+                                mem_print(mon, env, &start,
+                                          &last_prot, end, prot);
                             }
                         }
                     }
                 } else {
                     prot = 0;
-                    mem_print(mon, &start, &last_prot, end, prot);
+                    mem_print(mon, env, &start, &last_prot, end, prot);
                 }
             }
         } else {
             prot = 0;
-            mem_print(mon, &start, &last_prot, end, prot);
+            mem_print(mon, env, &start, &last_prot, end, prot);
         }
     }
     /* Flush last range */
-    mem_print(mon, &start, &last_prot, (hwaddr)1 << 48, 0);
+    mem_print(mon, env, &start, &last_prot, (hwaddr)1 << 48, 0);
 }
 
 static void mem_info_la57(Monitor *mon, CPUArchState *env)
@@ -457,7 +469,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env)
         end = l0 << 48;
         if (!(pml5e & PG_PRESENT_MASK)) {
             prot = 0;
-            mem_print(mon, &start, &last_prot, end, prot);
+            mem_print(mon, env, &start, &last_prot, end, prot);
             continue;
         }
 
@@ -468,7 +480,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env)
             end = (l0 << 48) + (l1 << 39);
             if (!(pml4e & PG_PRESENT_MASK)) {
                 prot = 0;
-                mem_print(mon, &start, &last_prot, end, prot);
+                mem_print(mon, env, &start, &last_prot, end, prot);
                 continue;
             }
 
@@ -479,7 +491,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env)
                 end = (l0 << 48) + (l1 << 39) + (l2 << 30);
                 if (pdpe & PG_PRESENT_MASK) {
                     prot = 0;
-                    mem_print(mon, &start, &last_prot, end, prot);
+                    mem_print(mon, env, &start, &last_prot, end, prot);
                     continue;
                 }
 
@@ -487,7 +499,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env)
                     prot = pdpe & (PG_USER_MASK | PG_RW_MASK |
                             PG_PRESENT_MASK);
                     prot &= pml5e & pml4e;
-                    mem_print(mon, &start, &last_prot, end, prot);
+                    mem_print(mon, env, &start, &last_prot, end, prot);
                     continue;
                 }
 
@@ -498,7 +510,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env)
                     end = (l0 << 48) + (l1 << 39) + (l2 << 30) + (l3 << 21);
                     if (pde & PG_PRESENT_MASK) {
                         prot = 0;
-                        mem_print(mon, &start, &last_prot, end, prot);
+                        mem_print(mon, env, &start, &last_prot, end, prot);
                         continue;
                     }
 
@@ -506,7 +518,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env)
                         prot = pde & (PG_USER_MASK | PG_RW_MASK |
                                 PG_PRESENT_MASK);
                         prot &= pml5e & pml4e & pdpe;
-                        mem_print(mon, &start, &last_prot, end, prot);
+                        mem_print(mon, env, &start, &last_prot, end, prot);
                         continue;
                     }
 
@@ -523,14 +535,14 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env)
                         } else {
                             prot = 0;
                         }
-                        mem_print(mon, &start, &last_prot, end, prot);
+                        mem_print(mon, env, &start, &last_prot, end, prot);
                     }
                 }
             }
         }
     }
     /* Flush last range */
-    mem_print(mon, &start, &last_prot, (hwaddr)1 << 57, 0);
+    mem_print(mon, env, &start, &last_prot, (hwaddr)1 << 57, 0);
 }
 #endif /* TARGET_X86_64 */
 

@@ -11,6 +11,7 @@
  * top-level directory.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "crypto/init.h"
 #include "crypto/cipher.h"
 
@@ -56,8 +57,7 @@ static void test_cipher_speed(const void *opaque)
         total += chunk_size;
     } while (g_test_timer_elapsed() < 5.0);
 
-    total /= 1024 * 1024; /* to MB */
-
+    total /= MiB;
     g_print("cbc(aes128): ");
     g_print("Testing chunk_size %zu bytes ", chunk_size);
     g_print("done: %.2f MB in %.2f secs: ", total, g_test_timer_last());
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     g_assert(qcrypto_init(NULL) == 0);
 
-    for (i = 512; i <= (64 * 1204); i *= 2) {
+    for (i = 512; i <= 64 * KiB; i *= 2) {
         memset(name, 0 , sizeof(name));
         snprintf(name, sizeof(name), "/crypto/cipher/speed-%zu", i);
         g_test_add_data_func(name, (void *)i, test_cipher_speed);

@@ -26,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
@@ -726,10 +727,10 @@ static void dump_tlb(FILE *f, fprintf_function cpu_fprintf,
         bool print_header = true;
 
         if (sz >= 0x100000) {
-            sz >>= 20;
+            sz /= MiB;
             sz_text = "MB";
         } else {
-            sz >>= 10;
+            sz /= KiB;
             sz_text = "KB";
         }
 

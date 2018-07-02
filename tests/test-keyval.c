@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
@@ -457,11 +458,11 @@ static void test_keyval_visit_size(void)
     visit_type_size(v, "sz2", &sz, &error_abort);
     g_assert_cmpuint(sz, ==, 1536);
     visit_type_size(v, "sz3", &sz, &error_abort);
-    g_assert_cmphex(sz, ==, 2 * M_BYTE);
+    g_assert_cmphex(sz, ==, 2 * MiB);
     visit_type_size(v, "sz4", &sz, &error_abort);
-    g_assert_cmphex(sz, ==, G_BYTE / 10);
+    g_assert_cmphex(sz, ==, GiB / 10);
     visit_type_size(v, "sz5", &sz, &error_abort);
-    g_assert_cmphex(sz, ==, 16777215 * T_BYTE);
+    g_assert_cmphex(sz, ==, 16777215ULL * TiB);
     visit_check_struct(v, &error_abort);
     visit_end_struct(v, NULL);
     visit_free(v);

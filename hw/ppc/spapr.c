@@ -2322,17 +2322,17 @@ static void spapr_validate_node_memory(MachineState *machine, Error **errp)
 
     if (machine->ram_size % SPAPR_MEMORY_BLOCK_SIZE) {
         error_setg(errp, "Memory size 0x" RAM_ADDR_FMT
-                   " is not aligned to %llu MiB",
+                   " is not aligned to %" PRIu64 " MiB",
                    machine->ram_size,
-                   SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+                   SPAPR_MEMORY_BLOCK_SIZE / MiB);
         return;
     }
 
     if (machine->maxram_size % SPAPR_MEMORY_BLOCK_SIZE) {
         error_setg(errp, "Maximum memory size 0x" RAM_ADDR_FMT
-                   " is not aligned to %llu MiB",
+                   " is not aligned to %" PRIu64 " MiB",
                    machine->ram_size,
-                   SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+                   SPAPR_MEMORY_BLOCK_SIZE / MiB);
         return;
     }
 
@@ -2340,9 +2340,9 @@ static void spapr_validate_node_memory(MachineState *machine, Error **errp)
         if (numa_info[i].node_mem % SPAPR_MEMORY_BLOCK_SIZE) {
             error_setg(errp,
                        "Node %d memory size 0x%" PRIx64
-                       " is not aligned to %llu MiB",
+                       " is not aligned to %" PRIu64 " MiB",
                        i, numa_info[i].node_mem,
-                       SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+                       SPAPR_MEMORY_BLOCK_SIZE / MiB);
             return;
         }
     }
@@ -2763,7 +2763,7 @@ static void spapr_machine_init(MachineState *machine)
         }
     }
 
-    if (spapr->rma_size < (MIN_RMA_SLOF << 20)) {
+    if (spapr->rma_size < (MIN_RMA_SLOF * MiB)) {
         error_report(
             "pSeries SLOF firmware requires >= %ldM guest RMA (Real Mode Area memory)",
             MIN_RMA_SLOF);
@@ -3209,7 +3209,7 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     if (size % SPAPR_MEMORY_BLOCK_SIZE) {
         error_setg(errp, "Hotplugged memory size must be a multiple of "
-                      "%lld MB", SPAPR_MEMORY_BLOCK_SIZE / M_BYTE);
+                      "%" PRIu64 " MB", SPAPR_MEMORY_BLOCK_SIZE / MiB);
         return;
     }
 
@@ -3961,7 +3961,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 1024;
     mc->no_parallel = 1;
     mc->default_boot_order = "";
-    mc->default_ram_size = 512 * M_BYTE;
+    mc->default_ram_size = 512 * MiB;
     mc->kvm_type = spapr_kvm_type;
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_SPAPR_PCI_HOST_BRIDGE);
     mc->pci_allow_0_address = true;

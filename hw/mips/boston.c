@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qemu-common.h"
 
 #include "exec/address-spaces.h"
@@ -32,7 +33,6 @@
 #include "hw/mips/cpudevs.h"
 #include "hw/pci-host/xilinx-pcie.h"
 #include "qapi/error.h"
-#include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "chardev/char.h"
@@ -200,7 +200,7 @@ static uint64_t boston_platreg_read(void *opaque, hwaddr addr,
         val |= PLAT_BUILD_CFG_PCIE2_EN;
         return val;
     case PLAT_DDR_CFG:
-        val = s->mach->ram_size / G_BYTE;
+        val = s->mach->ram_size / GiB;
         assert(!(val & ~PLAT_DDR_CFG_SIZE));
         val |= PLAT_DDR_CFG_MHZ;
         return val;
@@ -355,7 +355,7 @@ static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
         return NULL;
     }
 
-    ram_low_sz = MIN(256 * M_BYTE, machine->ram_size);
+    ram_low_sz = MIN(256 * MiB, machine->ram_size);
     ram_high_sz = machine->ram_size - ram_low_sz;
     qemu_fdt_setprop_sized_cells(fdt, "/memory@0", "reg",
                                  1, 0x00000000, 1, ram_low_sz,
@@ -436,8 +436,8 @@ static void boston_mach_init(MachineState *machine)
     int fw_size, fit_err;
     bool is_64b;
 
-    if ((machine->ram_size % G_BYTE) ||
-        (machine->ram_size > (2 * G_BYTE))) {
+    if ((machine->ram_size % GiB) ||
+        (machine->ram_size > (2 * GiB))) {
         error_report("Memory size must be 1GB or 2GB");
         exit(1);
     }
@@ -471,7 +471,7 @@ static void boston_mach_init(MachineState *machine)
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(s->cps), 0, 0, 1);
 
     flash =  g_new(MemoryRegion, 1);
-    memory_region_init_rom(flash, NULL, "boston.flash", 128 * M_BYTE, &err);
+    memory_region_init_rom(flash, NULL, "boston.flash", 128 * MiB, &err);
     memory_region_add_subregion_overlap(sys_mem, 0x18000000, flash, 0);
 
     ddr = g_new(MemoryRegion, 1);
@@ -481,22 +481,22 @@ static void boston_mach_init(MachineState *machine)
 
     ddr_low_alias = g_new(MemoryRegion, 1);
     memory_region_init_alias(ddr_low_alias, NULL, "boston_low.ddr",
-                             ddr, 0, MIN(machine->ram_size, (256 * M_BYTE)));
+                             ddr, 0, MIN(machine->ram_size, (256 * MiB)));
     memory_region_add_subregion_overlap(sys_mem, 0, ddr_low_alias, 0);
 
     xilinx_pcie_init(sys_mem, 0,
-                     0x10000000, 32 * M_BYTE,
-                     0x40000000, 1 * G_BYTE,
+                     0x10000000, 32 * MiB,
+                     0x40000000, 1 * GiB,
                      get_cps_irq(s->cps, 2), false);
 
     xilinx_pcie_init(sys_mem, 1,
-                     0x12000000, 32 * M_BYTE,
-                     0x20000000, 512 * M_BYTE,
+                     0x12000000, 32 * MiB,
+                     0x20000000, 512 * MiB,
                      get_cps_irq(s->cps, 1), false);
 
     pcie2 = xilinx_pcie_init(sys_mem, 2,
-                             0x14000000, 32 * M_BYTE,
-                             0x16000000, 1 * M_BYTE,
+                             0x14000000, 32 * MiB,
+                             0x16000000, 1 * MiB,
                              get_cps_irq(s->cps, 0), true);
 
     platreg = g_new(MemoryRegion, 1);
@@ -526,7 +526,7 @@ static void boston_mach_init(MachineState *machine)
 
     if (machine->firmware) {
         fw_size = load_image_targphys(machine->firmware,
-                                      0x1fc00000, 4 * M_BYTE);
+                                      0x1fc00000, 4 * MiB);
         if (fw_size == -1) {
             error_printf("unable to load firmware image '%s'\n",
                           machine->firmware);
@@ -552,7 +552,7 @@ static void boston_mach_class_init(MachineClass *mc)
     mc->desc = "MIPS Boston";
     mc->init = boston_mach_init;
     mc->block_default_type = IF_IDE;
-    mc->default_ram_size = 1 * G_BYTE;
+    mc->default_ram_size = 1 * GiB;
     mc->max_cpus = 16;
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("I6400");
 }

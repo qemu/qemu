@@ -17,6 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "sysemu/kvm.h"
@@ -1090,11 +1091,10 @@ static void mmubooke_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
         pa = entry->RPN & mask;
         /* Extend the physical address to 36 bits */
         pa |= (hwaddr)(entry->RPN & 0xF) << 32;
-        size /= 1024;
-        if (size >= 1024) {
-            snprintf(size_buf, sizeof(size_buf), "%3" PRId64 "M", size / 1024);
+        if (size >= 1 * MiB) {
+            snprintf(size_buf, sizeof(size_buf), "%3" PRId64 "M", size / MiB);
         } else {
-            snprintf(size_buf, sizeof(size_buf), "%3" PRId64 "k", size);
+            snprintf(size_buf, sizeof(size_buf), "%3" PRId64 "k", size / KiB);
         }
         cpu_fprintf(f, "0x%016" PRIx64 " 0x%016" PRIx64 " %s %-5u %08x %08x\n",
                     (uint64_t)ea, (uint64_t)pa, size_buf, (uint32_t)entry->PID,

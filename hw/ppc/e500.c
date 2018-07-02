@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "e500.h"
 #include "e500-ccsr.h"
@@ -46,11 +47,11 @@
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define DTC_LOAD_PAD               0x1800000
 #define DTC_PAD_MASK               0xFFFFF
-#define DTB_MAX_SIZE               (8 * 1024 * 1024)
+#define DTB_MAX_SIZE               (8 * MiB)
 #define INITRD_LOAD_PAD            0x2000000
 #define INITRD_PAD_MASK            0xFFFFFF
 
-#define RAM_SIZES_ALIGN            (64UL << 20)
+#define RAM_SIZES_ALIGN            (64 * MiB)
 
 /* TODO: parameterize */
 #define MPC8544_CCSRBAR_SIZE       0x00100000ULL
@@ -603,7 +604,7 @@ static int ppce500_prep_device_tree(PPCE500MachineState *machine,
 /* Create -kernel TLB entries for BookE.  */
 hwaddr booke206_page_size_to_tlb(uint64_t size)
 {
-    return 63 - clz64(size >> 10);
+    return 63 - clz64(size / KiB);
 }
 
 static int booke206_initial_map_tsize(CPUPPCState *env)
@@ -671,7 +672,7 @@ static void ppce500_cpu_reset(void *opaque)
 
     /* Set initial guest state. */
     cs->halted = 0;
-    env->gpr[1] = (16<<20) - 8;
+    env->gpr[1] = (16 * MiB) - 8;
     env->gpr[3] = bi->dt_base;
     env->gpr[4] = 0;
     env->gpr[5] = 0;
@@ -1012,9 +1013,9 @@ void ppce500_init(MachineState *machine)
     }
 
     cur_base = loadaddr + payload_size;
-    if (cur_base < (32 * 1024 * 1024)) {
+    if (cur_base < 32 * MiB) {
         /* u-boot occupies memory up to 32MB, so load blobs above */
-        cur_base = (32 * 1024 * 1024);
+        cur_base = 32 * MiB;
     }
 
     /* Load bare kernel only if no bios/u-boot has been provided */

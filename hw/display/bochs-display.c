@@ -5,6 +5,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/display/bochs-vbe.h"
@@ -70,7 +71,7 @@ static uint64_t bochs_display_vbe_read(void *ptr, hwaddr addr,
     case VBE_DISPI_INDEX_ID:
         return VBE_DISPI_ID5;
     case VBE_DISPI_INDEX_VIDEO_MEMORY_64K:
-        return s->vgamem / (64 * 1024);
+        return s->vgamem / (64 * KiB);
     }
 
     if (index >= ARRAY_SIZE(s->vbe_regs)) {
@@ -258,10 +259,10 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
 
     s->con = graphic_console_init(DEVICE(dev), 0, &bochs_display_gfx_ops, s);
 
-    if (s->vgamem < (4 * 1024 * 1024)) {
+    if (s->vgamem < 4 * MiB) {
         error_setg(errp, "bochs-display: video memory too small");
     }
-    if (s->vgamem > (256 * 1024 * 1024)) {
+    if (s->vgamem > 256 * MiB) {
         error_setg(errp, "bochs-display: video memory too big");
     }
     s->vgamem = pow2ceil(s->vgamem);
@@ -323,7 +324,7 @@ static void bochs_display_exit(PCIDevice *dev)
 }
 
 static Property bochs_display_properties[] = {
-    DEFINE_PROP_SIZE("vgamem", BochsDisplayState, vgamem, 16 * 1024 * 1024),
+    DEFINE_PROP_SIZE("vgamem", BochsDisplayState, vgamem, 16 * MiB),
     DEFINE_PROP_END_OF_LIST(),
 };
 

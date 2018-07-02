@@ -24,7 +24,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/cutils.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -452,12 +452,12 @@
 
 /* SM501 local memory size taken from "linux/drivers/mfd/sm501.c" */
 static const uint32_t sm501_mem_local_size[] = {
-    [0] = 4 * M_BYTE,
-    [1] = 8 * M_BYTE,
-    [2] = 16 * M_BYTE,
-    [3] = 32 * M_BYTE,
-    [4] = 64 * M_BYTE,
-    [5] = 2 * M_BYTE,
+    [0] = 4 * MiB,
+    [1] = 8 * MiB,
+    [2] = 16 * MiB,
+    [3] = 32 * MiB,
+    [4] = 64 * MiB,
+    [5] = 2 * MiB,
 };
 #define get_local_mem_size(s) sm501_mem_local_size[(s)->local_mem_size_index]
 
@@ -1829,7 +1829,7 @@ static void sm501_realize_pci(PCIDevice *dev, Error **errp)
 }
 
 static Property sm501_pci_properties[] = {
-    DEFINE_PROP_UINT32("vram-size", SM501PCIState, vram_size, 64 * M_BYTE),
+    DEFINE_PROP_UINT32("vram-size", SM501PCIState, vram_size, 64 * MiB),
     DEFINE_PROP_END_OF_LIST(),
 };
 

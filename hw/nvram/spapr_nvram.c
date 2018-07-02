@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -47,9 +48,9 @@ typedef struct sPAPRNVRAM {
 #define VIO_SPAPR_NVRAM(obj) \
      OBJECT_CHECK(sPAPRNVRAM, (obj), TYPE_VIO_SPAPR_NVRAM)
 
-#define MIN_NVRAM_SIZE 8192
-#define DEFAULT_NVRAM_SIZE 65536
-#define MAX_NVRAM_SIZE 1048576
+#define MIN_NVRAM_SIZE      (8 * KiB)
+#define DEFAULT_NVRAM_SIZE  (64 * KiB)
+#define MAX_NVRAM_SIZE      (1 * MiB)
 
 static void rtas_nvram_fetch(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                              uint32_t token, uint32_t nargs,
@@ -167,7 +168,9 @@ static void spapr_nvram_realize(VIOsPAPRDevice *dev, Error **errp)
     nvram->buf = g_malloc0(nvram->size);
 
     if ((nvram->size < MIN_NVRAM_SIZE) || (nvram->size > MAX_NVRAM_SIZE)) {
-        error_setg(errp, "spapr-nvram must be between %d and %d bytes in size",
+        error_setg(errp,
+                   "spapr-nvram must be between %" PRId64
+                   " and %" PRId64 " bytes in size",
                    MIN_NVRAM_SIZE, MAX_NVRAM_SIZE);
         return;
     }

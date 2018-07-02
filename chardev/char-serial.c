@@ -265,7 +265,8 @@ static void qmp_chardev_open_serial(Chardev *chr,
     ChardevHostdev *serial = backend->u.serial.data;
     int fd;
 
-    fd = qmp_chardev_open_file_source(serial->device, O_RDWR, errp);
+    fd = qmp_chardev_open_file_source(serial->device, O_RDWR | O_NONBLOCK,
+                                      errp);
     if (fd < 0) {
         return;
     }

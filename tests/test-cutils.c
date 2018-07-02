@@ -26,8 +26,9 @@
  */
 
 #include "qemu/osdep.h"
-
+#include "qemu/units.h"
 #include "qemu/cutils.h"
+#include "qemu/units.h"
 
 static void test_parse_uint_null(void)
 {
@@ -2022,7 +2023,7 @@ static void test_qemu_strtosz_units(void)
     /* default is M */
     err = qemu_strtosz_MiB(none, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, M_BYTE);
+    g_assert_cmpint(res, ==, MiB);
     g_assert(endptr == none + 1);
 
     err = qemu_strtosz(b, &endptr, &res);
@@ -2032,32 +2033,32 @@ static void test_qemu_strtosz_units(void)
 
     err = qemu_strtosz(k, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, K_BYTE);
+    g_assert_cmpint(res, ==, KiB);
     g_assert(endptr == k + 2);
 
     err = qemu_strtosz(m, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, M_BYTE);
+    g_assert_cmpint(res, ==, MiB);
     g_assert(endptr == m + 2);
 
     err = qemu_strtosz(g, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, G_BYTE);
+    g_assert_cmpint(res, ==, GiB);
     g_assert(endptr == g + 2);
 
     err = qemu_strtosz(t, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, T_BYTE);
+    g_assert_cmpint(res, ==, TiB);
     g_assert(endptr == t + 2);
 
     err = qemu_strtosz(p, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, P_BYTE);
+    g_assert_cmpint(res, ==, PiB);
     g_assert(endptr == p + 2);
 
     err = qemu_strtosz(e, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, E_BYTE);
+    g_assert_cmpint(res, ==, EiB);
     g_assert(endptr == e + 2);
 }
 
@@ -2070,7 +2071,7 @@ static void test_qemu_strtosz_float(void)
 
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 12.345 * M_BYTE);
+    g_assert_cmpint(res, ==, 12.345 * MiB);
     g_assert(endptr == str + 7);
 }
 
@@ -2106,7 +2107,7 @@ static void test_qemu_strtosz_trailing(void)
 
     str = "123xxx";
     err = qemu_strtosz_MiB(str, &endptr, &res);
-    g_assert_cmpint(res, ==, 123 * M_BYTE);
+    g_assert_cmpint(res, ==, 123 * MiB);
     g_assert(endptr == str + 3);
 
     err = qemu_strtosz(str, NULL, &res);

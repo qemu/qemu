@@ -28,6 +28,7 @@
 #include "sysemu/block-backend.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
+#include "qemu/units.h"
 #include "hw/sysbus.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
@@ -56,7 +57,7 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
     flash_size = memory_region_size(flash_mem);
 
     /* map the last 128KB of the BIOS in ISA space */
-    isa_bios_size = MIN(flash_size, 128 * 1024);
+    isa_bios_size = MIN(flash_size, 128 * KiB);
     isa_bios = g_malloc(sizeof(*isa_bios));
     memory_region_init_ram(isa_bios, NULL, "isa-bios", isa_bios_size,
                            &error_fatal);
@@ -83,7 +84,7 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
  * only 18MB-4KB below 4G. For now, restrict the cumulative mapping to 8MB in
  * size.
  */
-#define FLASH_MAP_BASE_MIN ((hwaddr)(0x100000000ULL - 8*1024*1024))
+#define FLASH_MAP_BASE_MIN ((hwaddr)(4 * GiB - 8 * MiB))
 
 /* This function maps flash drives from 4G downward, in order of their unit
  * numbers. The mapping starts at unit#0, with unit number increments of 1, and
@@ -221,10 +222,7 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
     g_free(filename);
 
     /* map the last 128KB of the BIOS in ISA space */
-    isa_bios_size = bios_size;
-    if (isa_bios_size > (128 * 1024)) {
-        isa_bios_size = 128 * 1024;
-    }
+    isa_bios_size = MIN(bios_size, 128 * KiB);
     isa_bios = g_malloc(sizeof(*isa_bios));
     memory_region_init_alias(isa_bios, NULL, "isa-bios", bios,
                              bios_size - isa_bios_size, isa_bios_size);

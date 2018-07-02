@@ -16,17 +16,11 @@
 #include "tcg/tcg.h"
 #include "exec/cpu-common.h"
 #include "exec/exec-all.h"
-#include "translate-all.h"
 
 void tb_flush(CPUState *cpu)
 {
 }
 
 void tlb_set_dirty(CPUState *cpu, target_ulong vaddr)
-{
-}
-
-void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
-                                   int is_cpu_write_access)
 {
 }

@@ -23,20 +23,20 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/boards.h"
 #include "hw/arm/arm.h"
 #include "exec/address-spaces.h"
-#include "qemu/cutils.h"
 #include "hw/arm/msf2-soc.h"
 #include "cpu.h"
 
 #define DDR_BASE_ADDRESS      0xA0000000
-#define DDR_SIZE              (64 * M_BYTE)
+#define DDR_SIZE              (64 * MiB)
 
-#define M2S010_ENVM_SIZE      (256 * K_BYTE)
-#define M2S010_ESRAM_SIZE     (64 * K_BYTE)
+#define M2S010_ENVM_SIZE      (256 * KiB)
+#define M2S010_ESRAM_SIZE     (64 * KiB)
 
 static void emcraft_sf2_s2s010_init(MachineState *machine)
 {

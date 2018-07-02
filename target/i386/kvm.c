@@ -601,7 +601,8 @@ static bool hyperv_enabled(X86CPU *cpu)
             cpu->hyperv_runtime ||
             cpu->hyperv_synic ||
             cpu->hyperv_stimer ||
-            cpu->hyperv_reenlightenment);
+            cpu->hyperv_reenlightenment ||
+            cpu->hyperv_tlbflush);
 }
 
 static int kvm_arch_set_tsc_khz(CPUState *cs)
@@ -839,6 +840,18 @@ int kvm_arch_init_vcpu(CPUState *cs)
         if (cpu->hyperv_vapic) {
             c->eax |= HV_APIC_ACCESS_RECOMMENDED;
         }
+        if (cpu->hyperv_tlbflush) {
+            if (kvm_check_extension(cs->kvm_state,
+                                    KVM_CAP_HYPERV_TLBFLUSH) <= 0) {
+                fprintf(stderr, "Hyper-V TLB flush support "
+                        "(requested by 'hv-tlbflush' cpu flag) "
+                        " is not supported by kernel\n");
+                return -ENOSYS;
+            }
+            c->eax |= HV_REMOTE_TLB_FLUSH_RECOMMENDED;
+            c->eax |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
+        }
+
         c->ebx = cpu->hyperv_spinlock_attempts;
 
         c = &cpuid_data.entries[cpuid_i++];

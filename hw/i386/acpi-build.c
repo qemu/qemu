@@ -2248,8 +2248,8 @@ build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
                  (void *)tpm2_ptr, "TPM2", sizeof(*tpm2_ptr), 4, NULL, NULL);
 }
 
-#define HOLE_640K_START  (640 * 1024)
-#define HOLE_640K_END   (1024 * 1024)
+#define HOLE_640K_START  (640 * KiB)
+#define HOLE_640K_END   (1 * MiB)
 
 static void build_srat_hotpluggable_memory(GArray *table_data, uint64_t base,
                                            uint64_t len, int default_node)

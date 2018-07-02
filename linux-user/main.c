@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qemu-version.h"
 #include <sys/syscall.h>
 #include <sys/resource.h>
@@ -274,9 +275,9 @@ static void handle_arg_stack_size(const char *arg)
     }
 
     if (*p == 'M') {
-        guest_stack_size *= 1024 * 1024;
+        guest_stack_size *= MiB;
     } else if (*p == 'k' || *p == 'K') {
-        guest_stack_size *= 1024;
+        guest_stack_size *= KiB;
     }
 }
 

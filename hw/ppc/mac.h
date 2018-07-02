@@ -26,6 +26,7 @@
 #ifndef PPC_MAC_H
 #define PPC_MAC_H
 
+#include "qemu/units.h"
 #include "exec/memory.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"
@@ -38,7 +39,7 @@
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
 
-#define BIOS_SIZE     (1024 * 1024)
+#define BIOS_SIZE        (1 * MiB)
 #define NVRAM_SIZE        0x2000
 #define PROM_FILENAME    "openbios-ppc"
 #define PROM_ADDR         0xfff00000
