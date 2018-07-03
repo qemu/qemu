@@ -4123,6 +4123,30 @@ expensive operation that consumes random pool entropy, so it is
 recommended that a persistent set of parameters be generated
 upfront and saved.
 
+@item -object tls-creds-psk,id=@var{id},endpoint=@var{endpoint},dir=@var{/path/to/keys/dir}[,username=@var{username}]
+
+Creates a TLS Pre-Shared Keys (PSK) credentials object, which can be used to provide
+TLS support on network backends. The @option{id} parameter is a unique
+ID which network backends will use to access the credentials. The
+@option{endpoint} is either @option{server} or @option{client} depending
+on whether the QEMU network backend that uses the credentials will be
+acting as a client or as a server. For clients only, @option{username}
+is the username which will be sent to the server.  If omitted
+it defaults to ``qemu''.
+
+The @var{dir} parameter tells QEMU where to find the keys file.
+It is called ``@var{dir}/keys.psk'' and contains ``username:key''
+pairs.  This file can most easily be created using the GnuTLS
+@code{psktool} program.
+
+For server endpoints, @var{dir} may also contain a file
+@var{dh-params.pem} providing diffie-hellman parameters to use
+for the TLS server. If the file is missing, QEMU will generate
+a set of DH parameters at startup. This is a computationally
+expensive operation that consumes random pool entropy, so it is
+recommended that a persistent set of parameters be generated
+up front and saved.
+
 @item -object tls-creds-x509,id=@var{id},endpoint=@var{endpoint},dir=@var{/path/to/cred/dir},priority=@var{priority},verify-peer=@var{on|off},passwordid=@var{id}
 
 Creates a TLS anonymous credentials object, which can be used to provide

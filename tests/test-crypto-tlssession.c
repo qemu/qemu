@@ -21,7 +21,9 @@
 #include "qemu/osdep.h"
 
 #include "crypto-tls-x509-helpers.h"
+#include "crypto-tls-psk-helpers.h"
 #include "crypto/tlscredsx509.h"
+#include "crypto/tlscredspsk.h"
 #include "crypto/tlssession.h"
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
@@ -31,19 +33,8 @@
 #ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
 
 #define WORKDIR "tests/test-crypto-tlssession-work/"
+#define PSKFILE WORKDIR "keys.psk"
 #define KEYFILE WORKDIR "key-ctx.pem"
-
-struct QCryptoTLSSessionTestData {
-    const char *servercacrt;
-    const char *clientcacrt;
-    const char *servercrt;
-    const char *clientcrt;
-    bool expectServerFail;
-    bool expectClientFail;
-    const char *hostname;
-    const char *const *wildcards;
-};
-
 
 static ssize_t testWrite(const char *buf, size_t len, void *opaque)
 {
@@ -59,9 +50,150 @@ static ssize_t testRead(char *buf, size_t len, void *opaque)
     return read(*fd, buf, len);
 }
 
-static QCryptoTLSCreds *test_tls_creds_create(QCryptoTLSCredsEndpoint endpoint,
-                                              const char *certdir,
-                                              Error **errp)
+static QCryptoTLSCreds *test_tls_creds_psk_create(
+    QCryptoTLSCredsEndpoint endpoint,
+    const char *dir,
+    Error **errp)
+{
+    Error *err = NULL;
+    Object *parent = object_get_objects_root();
+    Object *creds = object_new_with_props(
+        TYPE_QCRYPTO_TLS_CREDS_PSK,
+        parent,
+        (endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER ?
+         "testtlscredsserver" : "testtlscredsclient"),
+        &err,
+        "endpoint", (endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER ?
+                     "server" : "client"),
+        "dir", dir,
+        "priority", "NORMAL",
+        NULL
+        );
+
+    if (err) {
+        error_propagate(errp, err);
+        return NULL;
+    }
+    return QCRYPTO_TLS_CREDS(creds);
+}
+
+
+static void test_crypto_tls_session_psk(void)
+{
+    QCryptoTLSCreds *clientCreds;
+    QCryptoTLSCreds *serverCreds;
+    QCryptoTLSSession *clientSess = NULL;
+    QCryptoTLSSession *serverSess = NULL;
+    int channel[2];
+    bool clientShake = false;
+    bool serverShake = false;
+    Error *err = NULL;
+    int ret;
+
+    /* We'll use this for our fake client-server connection */
+    ret = socketpair(AF_UNIX, SOCK_STREAM, 0, channel);
+    g_assert(ret == 0);
+
+    /*
+     * We have an evil loop to do the handshake in a single
+     * thread, so we need these non-blocking to avoid deadlock
+     * of ourselves
+     */
+    qemu_set_nonblock(channel[0]);
+    qemu_set_nonblock(channel[1]);
+
+    clientCreds = test_tls_creds_psk_create(
+        QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT,
+        WORKDIR,
+        &err);
+    g_assert(clientCreds != NULL);
+
+    serverCreds = test_tls_creds_psk_create(
+        QCRYPTO_TLS_CREDS_ENDPOINT_SERVER,
+        WORKDIR,
+        &err);
+    g_assert(serverCreds != NULL);
+
+    /* Now the real part of the test, setup the sessions */
+    clientSess = qcrypto_tls_session_new(
+        clientCreds, NULL, NULL,
+        QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT, &err);
+    serverSess = qcrypto_tls_session_new(
+        serverCreds, NULL, NULL,
+        QCRYPTO_TLS_CREDS_ENDPOINT_SERVER, &err);
+
+    g_assert(clientSess != NULL);
+    g_assert(serverSess != NULL);
+
+    /* For handshake to work, we need to set the I/O callbacks
+     * to read/write over the socketpair
+     */
+    qcrypto_tls_session_set_callbacks(serverSess,
+                                      testWrite, testRead,
+                                      &channel[0]);
+    qcrypto_tls_session_set_callbacks(clientSess,
+                                      testWrite, testRead,
+                                      &channel[1]);
+
+    /*
+     * Finally we loop around & around doing handshake on each
+     * session until we get an error, or the handshake completes.
+     * This relies on the socketpair being nonblocking to avoid
+     * deadlocking ourselves upon handshake
+     */
+    do {
+        int rv;
+        if (!serverShake) {
+            rv = qcrypto_tls_session_handshake(serverSess,
+                                               &err);
+            g_assert(rv >= 0);
+            if (qcrypto_tls_session_get_handshake_status(serverSess) ==
+                QCRYPTO_TLS_HANDSHAKE_COMPLETE) {
+                serverShake = true;
+            }
+        }
+        if (!clientShake) {
+            rv = qcrypto_tls_session_handshake(clientSess,
+                                               &err);
+            g_assert(rv >= 0);
+            if (qcrypto_tls_session_get_handshake_status(clientSess) ==
+                QCRYPTO_TLS_HANDSHAKE_COMPLETE) {
+                clientShake = true;
+            }
+        }
+    } while (!clientShake && !serverShake);
+
+
+    /* Finally make sure the server & client validation is successful. */
+    g_assert(qcrypto_tls_session_check_credentials(serverSess, &err) == 0);
+    g_assert(qcrypto_tls_session_check_credentials(clientSess, &err) == 0);
+
+    object_unparent(OBJECT(serverCreds));
+    object_unparent(OBJECT(clientCreds));
+
+    qcrypto_tls_session_free(serverSess);
+    qcrypto_tls_session_free(clientSess);
+
+    close(channel[0]);
+    close(channel[1]);
+}
+
+
+struct QCryptoTLSSessionTestData {
+    const char *servercacrt;
+    const char *clientcacrt;
+    const char *servercrt;
+    const char *clientcrt;
+    bool expectServerFail;
+    bool expectClientFail;
+    const char *hostname;
+    const char *const *wildcards;
+};
+
+static QCryptoTLSCreds *test_tls_creds_x509_create(
+    QCryptoTLSCredsEndpoint endpoint,
+    const char *certdir,
+    Error **errp)
 {
     Error *err = NULL;
     Object *parent = object_get_objects_root();
@@ -104,7 +236,7 @@ static QCryptoTLSCreds *test_tls_creds_create(QCryptoTLSCredsEndpoint endpoint,
  * initiate a TLS session across them. Finally do
  * do actual cert validation tests
  */
-static void test_crypto_tls_session(const void *opaque)
+static void test_crypto_tls_session_x509(const void *opaque)
 {
     struct QCryptoTLSSessionTestData *data =
         (struct QCryptoTLSSessionTestData *)opaque;
@@ -159,13 +291,13 @@ static void test_crypto_tls_session(const void *opaque)
     g_assert(link(KEYFILE,
                   CLIENT_CERT_DIR QCRYPTO_TLS_CREDS_X509_CLIENT_KEY) == 0);
 
-    clientCreds = test_tls_creds_create(
+    clientCreds = test_tls_creds_x509_create(
         QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT,
         CLIENT_CERT_DIR,
         &err);
     g_assert(clientCreds != NULL);
 
-    serverCreds = test_tls_creds_create(
+    serverCreds = test_tls_creds_x509_create(
         QCRYPTO_TLS_CREDS_ENDPOINT_SERVER,
         SERVER_CERT_DIR,
         &err);
@@ -285,7 +417,13 @@ int main(int argc, char **argv)
     mkdir(WORKDIR, 0700);
 
     test_tls_init(KEYFILE);
+    test_tls_psk_init(PSKFILE);
 
+    /* Simple initial test using Pre-Shared Keys. */
+    g_test_add_func("/qcrypto/tlssession/psk",
+                    test_crypto_tls_session_psk);
+
+    /* More complex tests using X.509 certificates. */
 # define TEST_SESS_REG(name, caCrt,                                     \
                        serverCrt, clientCrt,                            \
                        expectServerFail, expectClientFail,              \
@@ -296,7 +434,7 @@ int main(int argc, char **argv)
         hostname, wildcards                                             \
     };                                                                  \
     g_test_add_data_func("/qcrypto/tlssession/" # name,                 \
-                         &name, test_crypto_tls_session);               \
+                         &name, test_crypto_tls_session_x509);          \
 
 
 # define TEST_SESS_REG_EXT(name, serverCaCrt, clientCaCrt,              \
@@ -309,7 +447,7 @@ int main(int argc, char **argv)
         hostname, wildcards                                             \
     };                                                                  \
     g_test_add_data_func("/qcrypto/tlssession/" # name,                 \
-                         &name, test_crypto_tls_session);               \
+                         &name, test_crypto_tls_session_x509);          \
 
     /* A perfect CA, perfect client & perfect server */
 
@@ -518,6 +656,7 @@ int main(int argc, char **argv)
     test_tls_discard_cert(&clientcertlevel2breq);
     unlink(WORKDIR "cacertchain-sess.pem");
 
+    test_tls_psk_cleanup(PSKFILE);
     test_tls_cleanup(KEYFILE);
     rmdir(WORKDIR);
 

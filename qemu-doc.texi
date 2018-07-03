@@ -1262,6 +1262,7 @@ The recommendation is for the server to keep its certificates in either
 * tls_generate_server::
 * tls_generate_client::
 * tls_creds_setup::
+* tls_psk::
 @end menu
 @node tls_generate_ca
 @subsection Setup the Certificate Authority
@@ -1508,6 +1509,42 @@ example with VNC:
 
 @example
 $QEMU -vnc 0.0.0.0:0,tls-creds=tls0
+@end example
+
+@node tls_psk
+@subsection TLS Pre-Shared Keys (PSK)
+
+Instead of using certificates, you may also use TLS Pre-Shared Keys
+(TLS-PSK).  This can be simpler to set up than certificates but is
+less scalable.
+
+Use the GnuTLS @code{psktool} program to generate a @code{keys.psk}
+file containing one or more usernames and random keys:
+
+@example
+mkdir -m 0700 /tmp/keys
+psktool -u rich -p /tmp/keys/keys.psk
+@end example
+
+TLS-enabled servers such as qemu-nbd can use this directory like so:
+
+@example
+qemu-nbd \
+  -t -x / \
+  --object tls-creds-psk,id=tls0,endpoint=server,dir=/tmp/keys \
+  --tls-creds tls0 \
+  image.qcow2
+@end example
+
+When connecting from a qemu-based client you must specify the
+directory containing @code{keys.psk} and an optional @var{username}
+(defaults to ``qemu''):
+
+@example
+qemu-img info \
+  --object tls-creds-psk,id=tls0,dir=/tmp/keys,username=rich,endpoint=client \
+  --image-opts \
+  file.driver=nbd,file.host=localhost,file.port=10809,file.tls-creds=tls0,file.export=/
 @end example
 
 @node gdb_usage

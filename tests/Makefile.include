@@ -723,7 +723,9 @@ tests/test-crypto-tlscredsx509$(EXESUF): tests/test-crypto-tlscredsx509.o \
 
 tests/test-crypto-tlssession.o-cflags := $(TASN1_CFLAGS)
 tests/test-crypto-tlssession$(EXESUF): tests/test-crypto-tlssession.o \
-	tests/crypto-tls-x509-helpers.o tests/pkix_asn1_tab.o $(test-crypto-obj-y)
+	tests/crypto-tls-x509-helpers.o tests/pkix_asn1_tab.o \
+	tests/crypto-tls-psk-helpers.o \
+        $(test-crypto-obj-y)
 tests/test-util-sockets$(EXESUF): tests/test-util-sockets.o \
 	tests/socket-helpers.o $(test-util-obj-y)
 tests/test-io-task$(EXESUF): tests/test-io-task.o $(test-io-obj-y)
