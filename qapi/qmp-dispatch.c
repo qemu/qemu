@@ -20,8 +20,8 @@
 #include "qapi/qmp/qbool.h"
 #include "sysemu/sysemu.h"
 
-QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
-                              Error **errp)
+static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
+                                     Error **errp)
 {
     const char *exec_key = NULL;
     const QDictEntry *ent;
@@ -78,6 +78,7 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
                                 bool allow_oob, Error **errp)
 {
     Error *local_err = NULL;
+    bool oob;
     const char *command;
     QDict *args, *dict;
     QmpCommand *cmd;
@@ -89,9 +90,11 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
     }
 
     command = qdict_get_try_str(dict, "execute");
+    oob = false;
     if (!command) {
         assert(allow_oob);
         command = qdict_get_str(dict, "exec-oob");
+        oob = true;
     }
     cmd = qmp_find_command(cmds, command);
     if (cmd == NULL) {
@@ -103,6 +106,11 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
         error_setg(errp, "The command %s has been disabled for this instance",
                    command);
         return NULL;
+    }
+    if (oob && !(cmd->options & QCO_ALLOW_OOB)) {
+        error_setg(errp, "The command %s does not support OOB",
+                   command);
+        return false;
     }
 
     if (runstate_check(RUN_STATE_PRECONFIG) &&

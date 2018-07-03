@@ -1290,48 +1290,6 @@ static void qmp_caps_apply(Monitor *mon, QMPCapabilityList *list)
     }
 }
 
-/*
- * Return true if check successful, or false otherwise.  When false is
- * returned, detailed error will be in errp if provided.
- */
-static bool qmp_cmd_oob_check(Monitor *mon, QDict *req, Error **errp)
-{
-    const char *command;
-    QmpCommand *cmd;
-
-    command = qdict_get_try_str(req, "execute");
-    if (!command) {
-        command = qdict_get_try_str(req, "exec-oob");
-    }
-    if (!command) {
-        error_setg(errp, "Command field 'execute' missing");
-        return false;
-    }
-
-    cmd = qmp_find_command(mon->qmp.commands, command);
-    if (!cmd) {
-        if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
-            error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
-                      "Expecting capabilities negotiation "
-                      "with 'qmp_capabilities'");
-        } else {
-            error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
-                      "The command %s has not been found", command);
-        }
-        return false;
-    }
-
-    if (qmp_is_oob(req)) {
-        if (!(cmd->options & QCO_ALLOW_OOB)) {
-            error_setg(errp, "The command %s does not support OOB",
-                       command);
-            return false;
-        }
-    }
-
-    return true;
-}
-
 void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
                           Error **errp)
 {
@@ -4171,6 +4129,7 @@ static void monitor_qmp_dispatch(Monitor *mon, QObject *req, QObject *id)
 {
     Monitor *old_mon;
     QObject *rsp;
+    QDict *error;
 
     old_mon = cur_mon;
     cur_mon = mon;
@@ -4179,6 +4138,19 @@ static void monitor_qmp_dispatch(Monitor *mon, QObject *req, QObject *id)
 
     cur_mon = old_mon;
 
+    if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
+        error = qdict_get_qdict(qobject_to(QDict, rsp), "error");
+        if (error
+            && !g_strcmp0(qdict_get_try_str(error, "class"),
+                    QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
+            /* Provide a more useful error message */
+            qdict_del(error, "desc");
+            qdict_put_str(error, "desc", "Expecting capabilities negotiation"
+                          " with 'qmp_capabilities'");
+        }
+    }
+
+    /* Respond if necessary */
     monitor_qmp_respond(mon, rsp, NULL, qobject_ref(id));
 }
 
@@ -4256,7 +4228,9 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         error_setg(&err, QERR_JSON_PARSING);
     }
     if (err) {
-        goto err;
+        assert(!req);
+        monitor_qmp_respond(mon, NULL, err, NULL);
+        return;
     }
 
     qdict = qobject_to(QDict, req);
@@ -4271,18 +4245,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         qobject_unref(req_json);
     }
 
-    /* Check against the request in general layout */
-    qdict = qmp_dispatch_check_obj(req, qmp_oob_enabled(mon), &err);
-    if (!qdict) {
-        goto err;
-    }
-
-    /* Check against OOB specific */
-    if (!qmp_cmd_oob_check(mon, qdict, &err)) {
-        goto err;
-    }
-
-    if (qmp_is_oob(qdict)) {
+    if (qdict && qmp_is_oob(qdict)) {
         /* Out-of-band (OOB) requests are executed directly in parser. */
         trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(id)
                                           ?: "");
@@ -4336,12 +4299,6 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 
     /* Kick the dispatcher routine */
     qemu_bh_schedule(mon_global.qmp_dispatcher_bh);
-    return;
-
-err:
-    /* FIXME overtakes queued in-band commands, wrong when !qmp_is_oob() */
-    monitor_qmp_respond(mon, NULL, err, NULL);
-    qobject_unref(req);
 }
 
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
