@@ -254,8 +254,12 @@ struct QMPRequest {
     Monitor *mon;
     /* "id" field of the request */
     QObject *id;
-    /* Request object to be handled */
+    /*
+     * Request object to be handled or Error to be reported
+     * (exactly one of them is non-null)
+     */
     QObject *req;
+    Error *err;
     /*
      * Whether we need to resume the monitor afterward.  This flag is
      * used to emulate the old QMP server behavior that the current
@@ -360,6 +364,7 @@ static void qmp_request_free(QMPRequest *req)
 {
     qobject_unref(req->id);
     qobject_unref(req->req);
+    error_free(req->err);
     g_free(req);
 }
 
@@ -4199,8 +4204,14 @@ static void monitor_qmp_bh_dispatcher(void *data)
         return;
     }
 
-    trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
-    monitor_qmp_dispatch(req_obj->mon, req_obj->req, req_obj->id);
+    if (req_obj->req) {
+        trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
+        monitor_qmp_dispatch(req_obj->mon, req_obj->req, req_obj->id);
+    } else {
+        assert(req_obj->err);
+        monitor_qmp_respond(req_obj->mon, NULL, req_obj->err, NULL);
+    }
+
     if (req_obj->need_resume) {
         /* Pairs with the monitor_suspend() in handle_qmp_command() */
         monitor_resume(req_obj->mon);
@@ -4227,11 +4238,6 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         /* json_parser_parse_err() sucks: can fail without setting @err */
         error_setg(&err, QERR_JSON_PARSING);
     }
-    if (err) {
-        assert(!req);
-        monitor_qmp_respond(mon, NULL, err, NULL);
-        return;
-    }
 
     qdict = qobject_to(QDict, req);
     if (qdict) {
@@ -4257,6 +4263,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     req_obj->mon = mon;
     req_obj->id = id;
     req_obj->req = req;
+    req_obj->err = err;
     req_obj->need_resume = false;
 
     /* Protect qmp_requests and fetching its length. */
