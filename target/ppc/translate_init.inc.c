@@ -10278,6 +10278,8 @@ static void ppc_cpu_reset(CPUState *s)
 #endif
 #if defined(CONFIG_USER_ONLY)
     msr |= (target_ulong)1 << MSR_FP; /* Allow floating point usage */
+    msr |= (target_ulong)1 << MSR_FE0; /* Allow floating point exceptions */
+    msr |= (target_ulong)1 << MSR_FE1;
     msr |= (target_ulong)1 << MSR_VR; /* Allow altivec usage */
     msr |= (target_ulong)1 << MSR_VSX; /* Allow VSX usage */
     msr |= (target_ulong)1 << MSR_SPE; /* Allow SPE usage */

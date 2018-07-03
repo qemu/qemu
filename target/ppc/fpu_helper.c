@@ -36,6 +36,15 @@ static inline float128 float128_snan_to_qnan(float128 x)
 #define float32_snan_to_qnan(x) ((x) | 0x00400000)
 #define float16_snan_to_qnan(x) ((x) | 0x0200)
 
+static inline bool fp_exceptions_enabled(CPUPPCState *env)
+{
+#ifdef CONFIG_USER_ONLY
+    return true;
+#else
+    return (env->msr & ((1U << MSR_FE0) | (1U << MSR_FE1))) != 0;
+#endif
+}
+
 /*****************************************************************************/
 /* Floating point operations helpers */
 uint64_t helper_float32_to_float64(CPUPPCState *env, uint32_t arg)
@@ -207,7 +216,7 @@ uint64_t float_invalid_op_excp(CPUPPCState *env, int op, int set_fpcc)
     if (ve != 0) {
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
-        if (msr_fe0 != 0 || msr_fe1 != 0) {
+        if (fp_exceptions_enabled(env)) {
             /* GETPC() works here because this is inline */
             raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_FP | op, GETPC());
@@ -225,7 +234,7 @@ static inline void float_zero_divide_excp(CPUPPCState *env, uintptr_t raddr)
     if (fpscr_ze != 0) {
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
-        if (msr_fe0 != 0 || msr_fe1 != 0) {
+        if (fp_exceptions_enabled(env)) {
             raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_FP | POWERPC_EXCP_FP_ZX,
                                    raddr);
@@ -555,7 +564,7 @@ static void do_float_check_status(CPUPPCState *env, uintptr_t raddr)
     if (cs->exception_index == POWERPC_EXCP_PROGRAM &&
         (env->error_code & POWERPC_EXCP_FP)) {
         /* Differred floating-point exception after target FPR update */
-        if (msr_fe0 != 0 || msr_fe1 != 0) {
+        if (fp_exceptions_enabled(env)) {
             raise_exception_err_ra(env, cs->exception_index,
                                    env->error_code, raddr);
         }
