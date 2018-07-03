@@ -659,13 +659,14 @@ void bdrv_unregister_buf(BlockDriverState *bs, void *host);
  * @dst: Destination child to copy data to
  * @dst_offset: offset in @dst image to write data
  * @bytes: number of bytes to copy
- * @flags: request flags. Must be one of:
- *         0 - actually read data from src;
+ * @flags: request flags. Supported flags:
  *         BDRV_REQ_ZERO_WRITE - treat the @src range as zero data and do zero
  *                               write on @dst as if bdrv_co_pwrite_zeroes is
  *                               called. Used to simplify caller code, or
  *                               during BlockDriver.bdrv_co_copy_range_from()
  *                               recursion.
+ *         BDRV_REQ_NO_SERIALISING - do not serialize with other overlapping
+ *                                   requests currently in flight.
  *
  * Returns: 0 if succeeded; negative error code if failed.
  **/
