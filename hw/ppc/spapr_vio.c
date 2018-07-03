@@ -43,7 +43,16 @@
 
 #include <libfdt.h>
 
-static void spapr_vio_getset_irq(Object *obj, Visitor *v, const char *name,
+static void spapr_vio_get_irq(Object *obj, Visitor *v, const char *name,
+                              void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *ptr = qdev_get_prop_ptr(DEVICE(obj), prop);
+
+    visit_type_uint32(v, name, ptr, errp);
+}
+
+static void spapr_vio_set_irq(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
     Property *prop = opaque;
@@ -57,8 +66,8 @@ static void spapr_vio_getset_irq(Object *obj, Visitor *v, const char *name,
 
 static const PropertyInfo spapr_vio_irq_propinfo = {
     .name = "irq",
-    .get = spapr_vio_getset_irq,
-    .set = spapr_vio_getset_irq,
+    .get = spapr_vio_get_irq,
+    .set = spapr_vio_set_irq,
 };
 
 static Property spapr_vio_props[] = {
