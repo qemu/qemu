@@ -47,7 +47,7 @@ void qmp_enable_command(QmpCommandList *cmds, const char *name);
 bool qmp_command_is_enabled(const QmpCommand *cmd);
 const char *qmp_command_name(const QmpCommand *cmd);
 bool qmp_has_success_response(const QmpCommand *cmd);
-QObject *qmp_build_error_object(Error *err);
+QDict *qmp_error_response(Error *err);
 QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request,
                       bool allow_oob);
 bool qmp_is_oob(QDict *dict);

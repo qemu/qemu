@@ -141,11 +141,15 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
     return ret;
 }
 
-QObject *qmp_build_error_object(Error *err)
+QDict *qmp_error_response(Error *err)
 {
-    return qobject_from_jsonf("{ 'class': %s, 'desc': %s }",
-                              QapiErrorClass_str(error_get_class(err)),
-                              error_get_pretty(err));
+    QDict *rsp;
+
+    rsp = qdict_from_jsonf_nofail("{ 'error': { 'class': %s, 'desc': %s } }",
+                                  QapiErrorClass_str(error_get_class(err)),
+                                  error_get_pretty(err));
+    error_free(err);
+    return rsp;
 }
 
 /*
@@ -166,15 +170,13 @@ QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request,
 
     ret = do_qmp_dispatch(cmds, request, allow_oob, &err);
 
-    rsp = qdict_new();
     if (err) {
-        qdict_put_obj(rsp, "error", qmp_build_error_object(err));
-        error_free(err);
+        rsp = qmp_error_response(err);
     } else if (ret) {
+        rsp = qdict_new();
         qdict_put_obj(rsp, "return", ret);
     } else {
-        qobject_unref(rsp);
-        return NULL;
+        rsp = NULL;
     }
 
     return QOBJECT(rsp);
