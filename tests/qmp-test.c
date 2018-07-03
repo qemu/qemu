@@ -238,10 +238,12 @@ static void test_qmp_oob(void)
     /* OOB command overtakes slow in-band command */
     setup_blocking_cmd();
     send_cmd_that_blocks(qts, "ib-blocks-1");
+    qtest_async_qmp(qts, "{ 'execute': 'query-name', 'id': 'ib-quick-1' }");
     send_oob_cmd_that_fails(qts, "oob-1");
     recv_cmd_id(qts, "oob-1");
     unblock_blocked_cmd();
     recv_cmd_id(qts, "ib-blocks-1");
+    recv_cmd_id(qts, "ib-quick-1");
     cleanup_blocking_cmd();
 
     qtest_quit(qts);
