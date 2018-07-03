@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2017 Red Hat, Inc.
+ *  Copyright (C) 2016-2018 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Client Side
@@ -831,7 +831,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
 
             if (info->structured_reply && base_allocation) {
                 result = nbd_negotiate_simple_meta_context(
-                        ioc, name, "base:allocation",
+                        ioc, name, info->x_dirty_bitmap ?: "base:allocation",
                         &info->meta_base_allocation_id, errp);
                 if (result < 0) {
                     goto fail;

@@ -734,7 +734,7 @@ retry:
         goto out_unlock;
     }
 
-    *pnum = lbasd->num_blocks * iscsilun->block_size;
+    *pnum = (int64_t) lbasd->num_blocks * iscsilun->block_size;
 
     if (lbasd->provisioning == SCSI_PROVISIONING_TYPE_DEALLOCATED ||
         lbasd->provisioning == SCSI_PROVISIONING_TYPE_ANCHORED) {

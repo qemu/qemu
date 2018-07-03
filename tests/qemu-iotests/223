@@ -1,0 +1,138 @@
+#!/bin/bash
+#
+# Test reading dirty bitmap over NBD
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+status=1 # failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    _cleanup_qemu
+    rm -f "$TEST_DIR/nbd"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file # uses NBD as well
+_supported_os Linux
+
+function do_run_qemu()
+{
+    echo Testing: "$@"
+    $QEMU -nographic -qmp stdio -serial none "$@"
+    echo
+}
+
+function run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp \
+                          | _filter_qemu | _filter_imgfmt \
+                          | _filter_actual_image_size
+}
+
+echo
+echo "=== Create partially sparse image, then add dirty bitmap ==="
+echo
+
+_make_test_img 4M
+$QEMU_IO -c 'w -P 0x11 1M 2M' "$TEST_IMG" | _filter_qemu_io
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+  "arguments": {
+    "driver": "$IMGFMT",
+    "node-name": "n",
+    "file": {
+      "driver": "file",
+      "filename": "$TEST_IMG"
+    }
+  }
+}
+{ "execute": "block-dirty-bitmap-add",
+  "arguments": {
+    "node": "n",
+    "name": "b",
+    "persistent": true
+  }
+}
+{ "execute": "quit" }
+EOF
+
+echo
+echo "=== Write part of the file under active bitmap ==="
+echo
+
+$QEMU_IO -c 'w -P 0x22 2M 2M' "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== End dirty bitmap, and start serving image over NBD ==="
+echo
+
+_launch_qemu 2> >(_filter_nbd)
+
+silent=
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"qmp_capabilities"}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"blockdev-add",
+  "arguments":{"driver":"qcow2", "node-name":"n",
+    "file":{"driver":"file", "filename":"'"$TEST_IMG"'"}}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"x-block-dirty-bitmap-disable",
+  "arguments":{"node":"n", "name":"b"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
+  "arguments":{"addr":{"type":"unix",
+    "data":{"path":"'"$TEST_DIR/nbd"'"}}}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
+  "arguments":{"device":"n"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"x-nbd-server-add-bitmap",
+  "arguments":{"name":"n", "bitmap":"b"}}' "return"
+
+echo
+echo "=== Contrast normal status with dirty-bitmap status ==="
+echo
+
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
+IMG="driver=nbd,export=n,server.type=unix,server.path=$TEST_DIR/nbd"
+$QEMU_IO -r -c 'r -P 0 0 1m' -c 'r -P 0x11 1m 1m' \
+  -c 'r -P 0x22 2m 2m' --image-opts "$IMG" | _filter_qemu_io
+$QEMU_IMG map --output=json --image-opts \
+  "$IMG" | _filter_qemu_img_map
+$QEMU_IMG map --output=json --image-opts \
+  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b" | _filter_qemu_img_map
+
+echo
+echo "=== End NBD server ==="
+echo
+
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-remove",
+  "arguments":{"name":"n"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-stop"}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"quit"}' "return"
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0

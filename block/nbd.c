@@ -378,6 +378,12 @@ static QemuOptsList nbd_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "ID of the TLS credentials to use",
         },
+        {
+            .name = "x-dirty-bitmap",
+            .type = QEMU_OPT_STRING,
+            .help = "experimental: expose named dirty bitmap in place of "
+                    "block status",
+        },
         { /* end of list */ }
     },
 };
@@ -438,8 +444,8 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* NBD handshake */
-    ret = nbd_client_init(bs, sioc, s->export,
-                          tlscreds, hostname, errp);
+    ret = nbd_client_init(bs, sioc, s->export, tlscreds, hostname,
+                          qemu_opt_get(opts, "x-dirty-bitmap"), errp);
  error:
     if (sioc) {
         object_unref(OBJECT(sioc));

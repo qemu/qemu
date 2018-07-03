@@ -1977,7 +1977,7 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
 
     bdrv_dirty_bitmap_unlock(bitmap);
 
-    assert(offset > end);
+    assert(offset < end);
     *length = end - offset;
     return i;
 }

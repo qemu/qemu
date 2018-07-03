@@ -259,6 +259,7 @@ static inline bool nbd_reply_type_is_error(int type)
 struct NBDExportInfo {
     /* Set by client before nbd_receive_negotiate() */
     bool request_sizes;
+    char *x_dirty_bitmap;
 
     /* In-out fields, set by client before nbd_receive_negotiate() and
      * updated by server results during nbd_receive_negotiate() */
