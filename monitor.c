@@ -4167,20 +4167,10 @@ static void monitor_qmp_respond(Monitor *mon, QObject *rsp,
     qobject_unref(rsp);
 }
 
-/*
- * Dispatch one single QMP request. The function will free the req_obj
- * and objects inside it before return.
- */
-static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
+static void monitor_qmp_dispatch(Monitor *mon, QObject *req, QObject *id)
 {
-    Monitor *mon, *old_mon;
-    QObject *req, *rsp = NULL, *id;
-    bool need_resume;
-
-    req = req_obj->req;
-    mon = req_obj->mon;
-    id = req_obj->id;
-    need_resume = req_obj->need_resume;
+    Monitor *old_mon;
+    QObject *rsp;
 
     old_mon = cur_mon;
     cur_mon = mon;
@@ -4189,15 +4179,7 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
 
     cur_mon = old_mon;
 
-    /* Respond if necessary */
     monitor_qmp_respond(mon, rsp, NULL, qobject_ref(id));
-
-    /* This pairs with the monitor_suspend() in handle_qmp_command(). */
-    if (need_resume) {
-        monitor_resume(mon);
-    }
-
-    qmp_request_free(req_obj);
 }
 
 /*
@@ -4241,12 +4223,20 @@ static void monitor_qmp_bh_dispatcher(void *data)
 {
     QMPRequest *req_obj = monitor_qmp_requests_pop_any();
 
-    if (req_obj) {
-        trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
-        monitor_qmp_dispatch_one(req_obj);
-        /* Reschedule instead of looping so the main loop stays responsive */
-        qemu_bh_schedule(mon_global.qmp_dispatcher_bh);
+    if (!req_obj) {
+        return;
     }
+
+    trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
+    monitor_qmp_dispatch(req_obj->mon, req_obj->req, req_obj->id);
+    if (req_obj->need_resume) {
+        /* Pairs with the monitor_suspend() in handle_qmp_command() */
+        monitor_resume(req_obj->mon);
+    }
+    qmp_request_free(req_obj);
+
+    /* Reschedule instead of looping so the main loop stays responsive */
+    qemu_bh_schedule(mon_global.qmp_dispatcher_bh);
 }
 
 #define  QMP_REQ_QUEUE_LEN_MAX  (8)
@@ -4292,19 +4282,19 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err;
     }
 
+    if (qmp_is_oob(qdict)) {
+        /* Out-of-band (OOB) requests are executed directly in parser. */
+        trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(id)
+                                          ?: "");
+        monitor_qmp_dispatch(mon, req, id);
+        return;
+    }
+
     req_obj = g_new0(QMPRequest, 1);
     req_obj->mon = mon;
     req_obj->id = id;
     req_obj->req = req;
     req_obj->need_resume = false;
-
-    if (qmp_is_oob(qdict)) {
-        /* Out-of-band (OOB) requests are executed directly in parser. */
-        trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(req_obj->id)
-                                          ?: "");
-        monitor_qmp_dispatch_one(req_obj);
-        return;
-    }
 
     /* Protect qmp_requests and fetching its length. */
     qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
