@@ -587,51 +587,43 @@ void helper_reset_fpstatus(CPUPPCState *env)
 }
 
 /* fadd - fadd. */
-uint64_t helper_fadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
+float64 helper_fadd(CPUPPCState *env, float64 arg1, float64 arg2)
 {
-    CPU_DoubleU farg1, farg2;
+    float64 ret = float64_add(arg1, arg2, &env->fp_status);
+    int status = get_float_exception_flags(&env->fp_status);
 
-    farg1.ll = arg1;
-    farg2.ll = arg2;
-
-    if (unlikely(float64_is_infinity(farg1.d) && float64_is_infinity(farg2.d) &&
-                 float64_is_neg(farg1.d) != float64_is_neg(farg2.d))) {
-        /* Magnitude subtraction of infinities */
-        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
-    } else {
-        if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
-                     float64_is_signaling_nan(farg2.d, &env->fp_status))) {
+    if (unlikely(status & float_flag_invalid)) {
+        if (float64_is_infinity(arg1) && float64_is_infinity(arg2)) {
+            /* Magnitude subtraction of infinities */
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+        } else if (float64_is_signaling_nan(arg1, &env->fp_status) ||
+                   float64_is_signaling_nan(arg2, &env->fp_status)) {
             /* sNaN addition */
             float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
-        farg1.d = float64_add(farg1.d, farg2.d, &env->fp_status);
     }
 
-    return farg1.ll;
+    return ret;
 }
 
 /* fsub - fsub. */
-uint64_t helper_fsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
+float64 helper_fsub(CPUPPCState *env, float64 arg1, float64 arg2)
 {
-    CPU_DoubleU farg1, farg2;
+    float64 ret = float64_sub(arg1, arg2, &env->fp_status);
+    int status = get_float_exception_flags(&env->fp_status);
 
-    farg1.ll = arg1;
-    farg2.ll = arg2;
-
-    if (unlikely(float64_is_infinity(farg1.d) && float64_is_infinity(farg2.d) &&
-                 float64_is_neg(farg1.d) == float64_is_neg(farg2.d))) {
-        /* Magnitude subtraction of infinities */
-        farg1.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
-    } else {
-        if (unlikely(float64_is_signaling_nan(farg1.d, &env->fp_status) ||
-                     float64_is_signaling_nan(farg2.d, &env->fp_status))) {
-            /* sNaN subtraction */
+    if (unlikely(status & float_flag_invalid)) {
+        if (float64_is_infinity(arg1) && float64_is_infinity(arg2)) {
+            /* Magnitude subtraction of infinities */
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI, 1);
+        } else if (float64_is_signaling_nan(arg1, &env->fp_status) ||
+                   float64_is_signaling_nan(arg2, &env->fp_status)) {
+            /* sNaN addition */
             float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
         }
-        farg1.d = float64_sub(farg1.d, farg2.d, &env->fp_status);
     }
 
-    return farg1.ll;
+    return ret;
 }
 
 /* fmul - fmul. */
