@@ -1021,13 +1021,19 @@ class QAPISchemaEntity(object):
         # such place).
         self.info = info
         self.doc = doc
-        self.ifcond = listify_cond(ifcond)
+        self._ifcond = ifcond  # self.ifcond is set only after .check()
 
     def c_name(self):
         return c_name(self.name)
 
     def check(self, schema):
-        pass
+        if isinstance(self._ifcond, QAPISchemaType):
+            # inherit the condition from a type
+            typ = self._ifcond
+            typ.check(schema)
+            self.ifcond = typ.ifcond
+        else:
+            self.ifcond = listify_cond(self._ifcond)
 
     def is_implicit(self):
         return not self.info
@@ -1164,6 +1170,7 @@ class QAPISchemaEnumType(QAPISchemaType):
         self.prefix = prefix
 
     def check(self, schema):
+        QAPISchemaType.check(self, schema)
         seen = {}
         for v in self.values:
             v.check_clash(self.info, seen)
@@ -1196,8 +1203,10 @@ class QAPISchemaArrayType(QAPISchemaType):
         self.element_type = None
 
     def check(self, schema):
+        QAPISchemaType.check(self, schema)
         self.element_type = schema.lookup_type(self._element_type_name)
         assert self.element_type
+        self.element_type.check(schema)
         self.ifcond = self.element_type.ifcond
 
     def is_implicit(self):
@@ -1240,6 +1249,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.members = None
 
     def check(self, schema):
+        QAPISchemaType.check(self, schema)
         if self.members is False:               # check for cycles
             raise QAPISemError(self.info,
                                "Object %s contains itself" % self.name)
@@ -1430,6 +1440,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
         self.variants = variants
 
     def check(self, schema):
+        QAPISchemaType.check(self, schema)
         self.variants.tag_member.check(schema)
         # Not calling self.variants.check_clash(), because there's nothing
         # to clash with
@@ -1474,6 +1485,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
         self.allow_preconfig = allow_preconfig
 
     def check(self, schema):
+        QAPISchemaEntity.check(self, schema)
         if self._arg_type_name:
             self.arg_type = schema.lookup_type(self._arg_type_name)
             assert (isinstance(self.arg_type, QAPISchemaObjectType) or
@@ -1509,6 +1521,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
         self.boxed = boxed
 
     def check(self, schema):
+        QAPISchemaEntity.check(self, schema)
         if self._arg_type_name:
             self.arg_type = schema.lookup_type(self._arg_type_name)
             assert (isinstance(self.arg_type, QAPISchemaObjectType) or
@@ -1642,7 +1655,7 @@ class QAPISchema(object):
             # But it's not tight: the disjunction need not imply it.  We
             # may end up compiling useless wrapper types.
             # TODO kill simple unions or implement the disjunction
-            assert ifcond == typ.ifcond
+            assert ifcond == typ._ifcond # pylint: disable=protected-access
         else:
             self._def_entity(QAPISchemaObjectType(name, info, doc, ifcond,
                                                   None, members, None))
@@ -1688,7 +1701,7 @@ class QAPISchema(object):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
         typ = self._make_implicit_object_type(
-            typ, info, None, self.lookup_type(typ).ifcond,
+            typ, info, None, self.lookup_type(typ),
             'wrapper', [self._make_member('data', typ, info)])
         return QAPISchemaObjectTypeVariant(case, typ)
 
