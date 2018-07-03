@@ -52,8 +52,6 @@ QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
                            "QMP input member 'arguments' must be an object");
                 return NULL;
             }
-        } else if (!strcmp(arg_name, "id")) {
-            continue;
         } else if (!strcmp(arg_name, "control")) {
             if (qobject_type(arg_obj) != QTYPE_QDICT) {
                 error_setg(errp,

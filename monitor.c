@@ -4264,7 +4264,7 @@ static void monitor_qmp_bh_dispatcher(void *data)
 static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 {
     QObject *req, *id = NULL;
-    QDict *qdict = NULL;
+    QDict *qdict;
     MonitorQMP *mon_qmp = container_of(parser, MonitorQMP, parser);
     Monitor *mon = container_of(mon_qmp, Monitor, qmp);
     Error *err = NULL;
@@ -4279,6 +4279,12 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err;
     }
 
+    qdict = qobject_to(QDict, req);
+    if (qdict) {
+        id = qobject_ref(qdict_get(qdict, "id"));
+        qdict_del(qdict, "id");
+    } /* else will fail qmp_dispatch() */
+
     /* Check against the request in general layout */
     qdict = qmp_dispatch_check_obj(req, &err);
     if (!qdict) {
@@ -4290,15 +4296,11 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         goto err;
     }
 
-    id = qdict_get(qdict, "id");
-
     req_obj = g_new0(QMPRequest, 1);
     req_obj->mon = mon;
-    req_obj->id = qobject_ref(id);
+    req_obj->id = id;
     req_obj->req = req;
     req_obj->need_resume = false;
-
-    qdict_del(qdict, "id");
 
     if (qmp_is_oob(qdict)) {
         /* Out-of-band (OOB) requests are executed directly in parser. */

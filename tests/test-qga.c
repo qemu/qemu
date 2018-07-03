@@ -229,19 +229,16 @@ static void test_qga_ping(gconstpointer fix)
 
 static void test_qga_invalid_id(gconstpointer fix)
 {
-    /*
-     * FIXME "id" is ignored; it should either be repeated in the
-     * reply, or rejected on input
-     */
     const TestFixture *fixture = fix;
-    QDict *ret, *val;
+    QDict *ret, *error;
+    const char *class;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-ping', 'id': 1}");
     g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
 
-    val = qdict_get_qdict(ret, "return");
-    g_assert(!qdict_haskey(val, "id"));
+    error = qdict_get_qdict(ret, "error");
+    class = qdict_get_try_str(error, "class");
+    g_assert_cmpstr(class, ==, "GenericError");
 
     qobject_unref(ret);
 }
