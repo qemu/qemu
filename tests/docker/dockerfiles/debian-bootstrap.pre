@@ -62,7 +62,7 @@ if [ -z $DEBOOTSTRAP_DIR ]; then
         NEED_DEBOOTSTRAP=true
     fi
     if $NEED_DEBOOTSTRAP; then
-        DEBOOTSTRAP_SOURCE=https://anonscm.debian.org/git/d-i/debootstrap.git
+        DEBOOTSTRAP_SOURCE=https://salsa.debian.org/installer-team/debootstrap.git
         git clone ${DEBOOTSTRAP_SOURCE} ./debootstrap.git
         export DEBOOTSTRAP_DIR=./debootstrap.git
         DEBOOTSTRAP=./debootstrap.git/debootstrap
