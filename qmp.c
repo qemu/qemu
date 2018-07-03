@@ -129,22 +129,6 @@ void qmp_cpu_add(int64_t id, Error **errp)
     }
 }
 
-#ifndef CONFIG_SPICE
-/*
- * qmp_unregister_commands_hack() ensures that QMP command query-spice
- * exists only #ifdef CONFIG_SPICE.  Necessary for an accurate
- * query-commands result.  However, the QAPI schema is blissfully
- * unaware of that, and the QAPI code generator happily generates a
- * dead qmp_marshal_query_spice() that calls qmp_query_spice().
- * Provide it one, or else linking fails.  FIXME Educate the QAPI
- * schema on CONFIG_SPICE.
- */
-SpiceInfo *qmp_query_spice(Error **errp)
-{
-    abort();
-};
-#endif
-
 void qmp_exit_preconfig(Error **errp)
 {
     if (!runstate_check(RUN_STATE_PRECONFIG)) {
