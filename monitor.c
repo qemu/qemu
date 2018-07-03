@@ -173,7 +173,8 @@ typedef struct {
      * mode.
      */
     QmpCommandList *commands;
-    bool qmp_caps[QMP_CAPABILITY__MAX];
+    bool capab_offered[QMP_CAPABILITY__MAX]; /* capabilities offered */
+    bool capab[QMP_CAPABILITY__MAX];         /* offered and accepted */
     /*
      * Protects qmp request/response queue.  Please take monitor_lock
      * first when used together.
@@ -1253,52 +1254,56 @@ static void monitor_init_qmp_commands(void)
                          qmp_marshal_qmp_capabilities, QCO_ALLOW_PRECONFIG);
 }
 
-static bool qmp_cap_enabled(Monitor *mon, QMPCapability cap)
-{
-    return mon->qmp.qmp_caps[cap];
-}
-
 static bool qmp_oob_enabled(Monitor *mon)
 {
-    return qmp_cap_enabled(mon, QMP_CAPABILITY_OOB);
+    return mon->qmp.capab[QMP_CAPABILITY_OOB];
 }
 
-static void qmp_caps_check(Monitor *mon, QMPCapabilityList *list,
-                           Error **errp)
+static void monitor_qmp_caps_reset(Monitor *mon)
 {
+    memset(mon->qmp.capab_offered, 0, sizeof(mon->qmp.capab_offered));
+    memset(mon->qmp.capab, 0, sizeof(mon->qmp.capab));
+    mon->qmp.capab_offered[QMP_CAPABILITY_OOB] = mon->use_io_thread;
+}
+
+/*
+ * Accept QMP capabilities in @list for @mon.
+ * On success, set mon->qmp.capab[], and return true.
+ * On error, set @errp, and return false.
+ */
+static bool qmp_caps_accept(Monitor *mon, QMPCapabilityList *list,
+                            Error **errp)
+{
+    GString *unavailable = NULL;
+    bool capab[QMP_CAPABILITY__MAX];
+
+    memset(capab, 0, sizeof(capab));
+
     for (; list; list = list->next) {
-        assert(list->value < QMP_CAPABILITY__MAX);
-        switch (list->value) {
-        case QMP_CAPABILITY_OOB:
-            if (!mon->use_io_thread) {
-                /*
-                 * Out-of-band only works with monitors that are
-                 * running on dedicated I/O thread.
-                 */
-                error_setg(errp, "This monitor does not support "
-                           "out-of-band (OOB)");
-                return;
+        if (!mon->qmp.capab_offered[list->value]) {
+            if (!unavailable) {
+                unavailable = g_string_new(QMPCapability_str(list->value));
+            } else {
+                g_string_append_printf(unavailable, ", %s",
+                                      QMPCapability_str(list->value));
             }
-            break;
-        default:
-            break;
         }
+        capab[list->value] = true;
     }
-}
 
-/* This function should only be called after capabilities are checked. */
-static void qmp_caps_apply(Monitor *mon, QMPCapabilityList *list)
-{
-    for (; list; list = list->next) {
-        mon->qmp.qmp_caps[list->value] = true;
+    if (unavailable) {
+        error_setg(errp, "Capability %s not available", unavailable->str);
+        g_string_free(unavailable, true);
+        return false;
     }
+
+    memcpy(mon->qmp.capab, capab, sizeof(capab));
+    return true;
 }
 
 void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
                           Error **errp)
 {
-    Error *local_err = NULL;
-
     if (cur_mon->qmp.commands == &qmp_commands) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "Capabilities negotiation is already complete, command "
@@ -1306,19 +1311,8 @@ void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
         return;
     }
 
-    /* Enable QMP capabilities provided by the client if applicable. */
-    if (has_enable) {
-        qmp_caps_check(cur_mon, enable, &local_err);
-        if (local_err) {
-            /*
-             * Failed check on any of the capabilities will fail the
-             * entire command (and thus not apply any of the other
-             * capabilities that were also requested).
-             */
-            error_propagate(errp, local_err);
-            return;
-        }
-        qmp_caps_apply(cur_mon, enable);
+    if (!qmp_caps_accept(cur_mon, enable, errp)) {
+        return;
     }
 
     cur_mon->qmp.commands = &qmp_commands;
@@ -4385,21 +4379,14 @@ static QDict *qmp_greeting(Monitor *mon)
     qmp_marshal_query_version(NULL, &ver, NULL);
 
     for (cap = 0; cap < QMP_CAPABILITY__MAX; cap++) {
-        if (!mon->use_io_thread && cap == QMP_CAPABILITY_OOB) {
-            /* Monitors that are not using I/O thread won't support OOB */
-            continue;
+        if (mon->qmp.capab_offered[cap]) {
+            qlist_append_str(cap_list, QMPCapability_str(cap));
         }
-        qlist_append_str(cap_list, QMPCapability_str(cap));
     }
 
     return qdict_from_jsonf_nofail(
         "{'QMP': {'version': %p, 'capabilities': %p}}",
         ver, cap_list);
-}
-
-static void monitor_qmp_caps_reset(Monitor *mon)
-{
-    memset(mon->qmp.qmp_caps, 0, sizeof(mon->qmp.qmp_caps));
 }
 
 static void monitor_qmp_event(void *opaque, int event)
