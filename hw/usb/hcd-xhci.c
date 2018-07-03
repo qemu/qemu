@@ -1954,7 +1954,12 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         for (i = 0; i < length; i++) {
             TRBType type;
             type = xhci_ring_fetch(xhci, ring, &xfer->trbs[i], NULL);
-            assert(type);
+            if (!type) {
+                xhci_die(xhci);
+                xhci_ep_free_xfer(xfer);
+                epctx->kick_active--;
+                return;
+            }
         }
         xfer->streamid = streamid;
 
