@@ -503,9 +503,9 @@ int monitor_fprintf(FILE *stream, const char *fmt, ...)
     return 0;
 }
 
-static void monitor_json_emitter_raw(Monitor *mon,
-                                     QObject *data)
+static void qmp_send_response(Monitor *mon, QDict *rsp)
 {
+    QObject *data = QOBJECT(rsp);
     QString *json;
 
     json = mon->flags & MONITOR_USE_PRETTY ? qobject_to_json_pretty(data) :
@@ -518,7 +518,7 @@ static void monitor_json_emitter_raw(Monitor *mon,
     qobject_unref(json);
 }
 
-static void monitor_json_emitter(Monitor *mon, QObject *data)
+static void qmp_queue_response(Monitor *mon, QDict *rsp)
 {
     if (mon->use_io_thread) {
         /*
@@ -528,8 +528,7 @@ static void monitor_json_emitter(Monitor *mon, QObject *data)
          * responder thread).
          */
         qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
-        g_queue_push_tail(mon->qmp.qmp_responses,
-                          qobject_ref(qobject_to(QDict, data)));
+        g_queue_push_tail(mon->qmp.qmp_responses, qobject_ref(rsp));
         qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
         qemu_bh_schedule(qmp_respond_bh);
     } else {
@@ -537,7 +536,7 @@ static void monitor_json_emitter(Monitor *mon, QObject *data)
          * If not using monitor I/O thread, then we are in main thread.
          * Do the emission right away.
          */
-        monitor_json_emitter_raw(mon, data);
+        qmp_send_response(mon, rsp);
     }
 }
 
@@ -563,7 +562,7 @@ static void monitor_qmp_response_flush(Monitor *mon)
     QDict *data;
 
     while ((data = monitor_qmp_response_pop_one(mon))) {
-        monitor_json_emitter_raw(mon, QOBJECT(data));
+        qmp_send_response(mon, data);
         qobject_unref(data);
     }
 }
@@ -595,7 +594,7 @@ static void monitor_qmp_bh_responder(void *opaque)
     QMPResponse response;
 
     while (monitor_qmp_response_pop_any(&response)) {
-        monitor_json_emitter_raw(response.mon, QOBJECT(response.data));
+        qmp_send_response(response.mon, response.data);
         qobject_unref(response.data);
     }
 }
@@ -622,7 +621,7 @@ static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
     QTAILQ_FOREACH(mon, &mon_list, entry) {
         if (monitor_is_qmp(mon)
             && mon->qmp.commands != &qmp_cap_negotiation_commands) {
-            monitor_json_emitter(mon, QOBJECT(qdict));
+            qmp_queue_response(mon, qdict);
         }
     }
 }
@@ -4118,7 +4117,7 @@ static void monitor_qmp_respond(Monitor *mon, QDict *rsp,
             qdict_put_obj(rsp, "id", qobject_ref(id));
         }
 
-        monitor_json_emitter(mon, QOBJECT(rsp));
+        qmp_queue_response(mon, rsp);
     }
 
     qobject_unref(id);
@@ -4418,7 +4417,7 @@ static void monitor_qmp_event(void *opaque, int event)
         mon->qmp.commands = &qmp_cap_negotiation_commands;
         monitor_qmp_caps_reset(mon);
         data = get_qmp_greeting(mon);
-        monitor_json_emitter(mon, data);
+        qmp_queue_response(mon, qobject_to(QDict, data));
         qobject_unref(data);
         mon_refcount++;
         break;
