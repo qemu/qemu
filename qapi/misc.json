@@ -3473,24 +3473,6 @@
   'data': { 'id': 'any', 'reason': 'CommandDropReason' } }
 
 ##
-# @x-oob-test:
-#
-# Test OOB functionality.  When sending this command with lock=true,
-# it'll try to hang the dispatcher.  When sending it with lock=false,
-# it'll try to notify the locked thread to continue.  Note: it should
-# only be used by QMP test program rather than anything else.
-#
-# Since: 2.12
-#
-# Example:
-#
-# { "execute": "x-oob-test",
-#   "arguments": { "lock": true } }
-##
-{ 'command': 'x-oob-test', 'data' : { 'lock': 'bool' },
-  'allow-oob': true }
-
-##
 # @set-numa-node:
 #
 # Runtime equivalent of '-numa' CLI option, available at

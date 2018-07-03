@@ -135,16 +135,66 @@ static void test_qmp_protocol(void)
     qtest_quit(qts);
 }
 
-/* Tests for out-of-band support. */
+/* Out-of-band tests */
+
+char tmpdir[] = "/tmp/qmp-test-XXXXXX";
+char *fifo_name;
+
+static void setup_blocking_cmd(void)
+{
+    if (!mkdtemp(tmpdir)) {
+        g_error("mkdtemp: %s", strerror(errno));
+    }
+    fifo_name = g_strdup_printf("%s/fifo", tmpdir);
+    if (mkfifo(fifo_name, 0666)) {
+        g_error("mkfifo: %s", strerror(errno));
+    }
+}
+
+static void cleanup_blocking_cmd(void)
+{
+    unlink(fifo_name);
+    rmdir(tmpdir);
+}
+
+static void send_cmd_that_blocks(QTestState *s, const char *id)
+{
+    qtest_async_qmp(s, "{ 'execute': 'blockdev-add',  'id': %s,"
+                    " 'arguments': {"
+                    " 'driver': 'blkdebug', 'node-name': %s,"
+                    " 'config': %s,"
+                    " 'image': { 'driver': 'null-co' } } }",
+                    id, id, fifo_name);
+}
+
+static void unblock_blocked_cmd(void)
+{
+    int fd = open(fifo_name, O_WRONLY);
+    g_assert(fd >= 0);
+    close(fd);
+}
+
+static void send_oob_cmd_that_fails(QTestState *s, const char *id)
+{
+    qtest_async_qmp(s, "{ 'execute': 'migrate-pause', 'id': %s,"
+                    "  'control': { 'run-oob': true } }", id);
+}
+
+static void recv_cmd_id(QTestState *s, const char *id)
+{
+    QDict *resp = qtest_qmp_receive(s);
+
+    g_assert_cmpstr(qdict_get_try_str(resp, "id"), ==, id);
+    qobject_unref(resp);
+}
+
 static void test_qmp_oob(void)
 {
     QTestState *qts;
     QDict *resp, *q;
-    int acks = 0;
     const QListEntry *entry;
     QList *capabilities;
     QString *qstr;
-    const char *cmd_id;
 
     qts = qtest_init_without_qmp_handshake(true, common_args);
 
@@ -185,36 +235,19 @@ static void test_qmp_oob(void)
     g_assert(qdict_haskey(resp, "error"));
     qobject_unref(resp);
 
-    /*
-     * First send the "x-oob-test" command with lock=true and
-     * oob=false, it should hang the dispatcher and main thread;
-     * later, we send another lock=false with oob=true to continue
-     * that thread processing.  Finally we should receive replies from
-     * both commands.
-     */
-    qtest_async_qmp(qts,
-                    "{ 'execute': 'x-oob-test',"
-                    "  'arguments': { 'lock': true }, "
-                    "  'id': 'lock-cmd'}");
-    qtest_async_qmp(qts,
-                    "{ 'execute': 'x-oob-test', "
-                    "  'arguments': { 'lock': false }, "
-                    "  'control': { 'run-oob': true }, "
-                    "  'id': 'unlock-cmd' }");
-
-    /* Ignore all events.  Wait for 2 acks */
-    while (acks < 2) {
-        resp = qtest_qmp_receive(qts);
-        cmd_id = qdict_get_str(resp, "id");
-        if (!g_strcmp0(cmd_id, "lock-cmd") ||
-            !g_strcmp0(cmd_id, "unlock-cmd")) {
-            acks++;
-        }
-        qobject_unref(resp);
-    }
+    /* OOB command overtakes slow in-band command */
+    setup_blocking_cmd();
+    send_cmd_that_blocks(qts, "ib-blocks-1");
+    send_oob_cmd_that_fails(qts, "oob-1");
+    recv_cmd_id(qts, "oob-1");
+    unblock_blocked_cmd();
+    recv_cmd_id(qts, "ib-blocks-1");
+    cleanup_blocking_cmd();
 
     qtest_quit(qts);
 }
+
+/* Query smoke tests */
 
 static int query_error_class(const char *cmd)
 {
@@ -391,6 +424,8 @@ static void add_query_tests(QmpSchema *schema)
         g_free(test_name);
     }
 }
+
+/* Preconfig tests */
 
 static void test_qmp_preconfig(void)
 {

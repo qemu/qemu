@@ -775,19 +775,3 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 
     return mem_info;
 }
-
-static QemuSemaphore x_oob_test_sem;
-
-static void __attribute__((constructor)) x_oob_test_init(void)
-{
-    qemu_sem_init(&x_oob_test_sem, 0);
-}
-
-void qmp_x_oob_test(bool lock, Error **errp)
-{
-    if (lock) {
-        qemu_sem_wait(&x_oob_test_sem);
-    } else {
-        qemu_sem_post(&x_oob_test_sem);
-    }
-}
