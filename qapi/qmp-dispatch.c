@@ -133,6 +133,7 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
     } else if (cmd->options & QCO_NO_SUCCESS_RESP) {
         g_assert(!ret);
     } else if (!ret) {
+        /* TODO turn into assertion */
         ret = QOBJECT(qdict_new());
     }
 
@@ -176,6 +177,7 @@ QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
         rsp = qdict_new();
         qdict_put_obj(rsp, "return", ret);
     } else {
+        /* Can only happen for commands with QCO_NO_SUCCESS_RESP */
         rsp = NULL;
     }
 
