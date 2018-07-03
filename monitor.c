@@ -4184,12 +4184,6 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
 
     g_free(req_obj);
 
-    if (trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND)) {
-        QString *req_json = qobject_to_json(req);
-        trace_handle_qmp_command(mon, qstring_get_str(req_json));
-        qobject_unref(req_json);
-    }
-
     old_mon = cur_mon;
     cur_mon = mon;
 
@@ -4282,6 +4276,12 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         id = qobject_ref(qdict_get(qdict, "id"));
         qdict_del(qdict, "id");
     } /* else will fail qmp_dispatch() */
+
+    if (trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND)) {
+        QString *req_json = qobject_to_json(req);
+        trace_handle_qmp_command(mon, qstring_get_str(req_json));
+        qobject_unref(req_json);
+    }
 
     /* Check against the request in general layout */
     qdict = qmp_dispatch_check_obj(req, qmp_oob_enabled(mon), &err);
