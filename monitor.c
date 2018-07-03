@@ -4382,7 +4382,7 @@ void monitor_resume(Monitor *mon)
     trace_monitor_suspend(mon, -1);
 }
 
-static QObject *get_qmp_greeting(Monitor *mon)
+static QDict *qmp_greeting(Monitor *mon)
 {
     QList *cap_list = qlist_new();
     QObject *ver = NULL;
@@ -4398,8 +4398,9 @@ static QObject *get_qmp_greeting(Monitor *mon)
         qlist_append_str(cap_list, QMPCapability_str(cap));
     }
 
-    return qobject_from_jsonf("{'QMP': {'version': %p, 'capabilities': %p}}",
-                              ver, cap_list);
+    return qdict_from_jsonf_nofail(
+        "{'QMP': {'version': %p, 'capabilities': %p}}",
+        ver, cap_list);
 }
 
 static void monitor_qmp_caps_reset(Monitor *mon)
@@ -4409,15 +4410,15 @@ static void monitor_qmp_caps_reset(Monitor *mon)
 
 static void monitor_qmp_event(void *opaque, int event)
 {
-    QObject *data;
+    QDict *data;
     Monitor *mon = opaque;
 
     switch (event) {
     case CHR_EVENT_OPENED:
         mon->qmp.commands = &qmp_cap_negotiation_commands;
         monitor_qmp_caps_reset(mon);
-        data = get_qmp_greeting(mon);
-        qmp_queue_response(mon, qobject_to(QDict, data));
+        data = qmp_greeting(mon);
+        qmp_queue_response(mon, data);
         qobject_unref(data);
         mon_refcount++;
         break;
