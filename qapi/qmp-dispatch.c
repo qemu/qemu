@@ -20,7 +20,8 @@
 #include "qapi/qmp/qbool.h"
 #include "sysemu/sysemu.h"
 
-QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
+QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
+                              Error **errp)
 {
     const QDictEntry *ent;
     const char *arg_name;
@@ -52,7 +53,7 @@ QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
                            "QMP input member 'arguments' must be an object");
                 return NULL;
             }
-        } else if (!strcmp(arg_name, "control")) {
+        } else if (!strcmp(arg_name, "control") && allow_oob) {
             if (qobject_type(arg_obj) != QTYPE_QDICT) {
                 error_setg(errp,
                            "QMP input member 'control' must be a dict");
@@ -74,7 +75,7 @@ QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 }
 
 static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
-                                Error **errp)
+                                bool allow_oob, Error **errp)
 {
     Error *local_err = NULL;
     const char *command;
@@ -82,7 +83,7 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
     QmpCommand *cmd;
     QObject *ret = NULL;
 
-    dict = qmp_dispatch_check_obj(request, errp);
+    dict = qmp_dispatch_check_obj(request, allow_oob, errp);
     if (!dict) {
         return NULL;
     }
@@ -157,13 +158,14 @@ bool qmp_is_oob(QDict *dict)
     return qbool_get_bool(bool_obj);
 }
 
-QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request)
+QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request,
+                      bool allow_oob)
 {
     Error *err = NULL;
     QObject *ret;
     QDict *rsp;
 
-    ret = do_qmp_dispatch(cmds, request, &err);
+    ret = do_qmp_dispatch(cmds, request, allow_oob, &err);
 
     rsp = qdict_new();
     if (err) {

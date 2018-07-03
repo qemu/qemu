@@ -1319,11 +1319,6 @@ static bool qmp_cmd_oob_check(Monitor *mon, QDict *req, Error **errp)
     }
 
     if (qmp_is_oob(req)) {
-        if (!qmp_oob_enabled(mon)) {
-            error_setg(errp, "Please enable out-of-band first "
-                       "for the session during capabilities negotiation");
-            return false;
-        }
         if (!(cmd->options & QCO_ALLOW_OOB)) {
             error_setg(errp, "The command %s does not support OOB",
                        command);
@@ -4195,7 +4190,7 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     old_mon = cur_mon;
     cur_mon = mon;
 
-    rsp = qmp_dispatch(mon->qmp.commands, req);
+    rsp = qmp_dispatch(mon->qmp.commands, req, qmp_oob_enabled(mon));
 
     cur_mon = old_mon;
 
@@ -4286,7 +4281,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     } /* else will fail qmp_dispatch() */
 
     /* Check against the request in general layout */
-    qdict = qmp_dispatch_check_obj(req, &err);
+    qdict = qmp_dispatch_check_obj(req, qmp_oob_enabled(mon), &err);
     if (!qdict) {
         goto err;
     }

@@ -586,7 +586,7 @@ static void process_command(GAState *s, QDict *req)
 
     g_assert(req);
     g_debug("processing command");
-    rsp = qmp_dispatch(&ga_commands, QOBJECT(req));
+    rsp = qmp_dispatch(&ga_commands, QOBJECT(req), false);
     if (rsp) {
         ret = send_response(s, rsp);
         if (ret < 0) {

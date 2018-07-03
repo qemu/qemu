@@ -245,16 +245,17 @@ static void test_qga_invalid_id(gconstpointer fix)
 
 static void test_qga_invalid_oob(gconstpointer fix)
 {
-    /* FIXME "control" is ignored; it should be rejected */
     const TestFixture *fixture = fix;
-    QDict *ret;
+    QDict *ret, *error;
+    const char *class;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-ping',"
                  " 'control': {'run-oob': true}}");
     g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
 
-    qdict_get_qdict(ret, "return");
+    error = qdict_get_qdict(ret, "error");
+    class = qdict_get_try_str(error, "class");
+    g_assert_cmpstr(class, ==, "GenericError");
 
     qobject_unref(ret);
 }
