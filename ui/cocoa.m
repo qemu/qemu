@@ -637,6 +637,7 @@ QemuCocoaView *cocoaView;
     int buttons = 0;
     int keycode = 0;
     bool mouse_event = false;
+    static bool switched_to_fullscreen = false;
     NSPoint p = [event locationInWindow];
 
     switch ([event type]) {
@@ -681,7 +682,11 @@ QemuCocoaView *cocoaView;
                     keycode == Q_KEY_CODE_NUM_LOCK) {
                     [self toggleStatefulModifier:keycode];
                 } else if (qemu_console_is_graphic(NULL)) {
-                  [self toggleModifier:keycode];
+                    if (switched_to_fullscreen) {
+                        switched_to_fullscreen = false;
+                    } else {
+                        [self toggleModifier:keycode];
+                    }
                 }
             }
 
@@ -691,6 +696,13 @@ QemuCocoaView *cocoaView;
 
             // forward command key combos to the host UI unless the mouse is grabbed
             if (!isMouseGrabbed && ([event modifierFlags] & NSEventModifierFlagCommand)) {
+                /*
+                 * Prevent the command key from being stuck down in the guest
+                 * when using Command-F to switch to full screen mode.
+                 */
+                if (keycode == Q_KEY_CODE_F) {
+                    switched_to_fullscreen = true;
+                }
                 [NSApp sendEvent:event];
                 return;
             }
