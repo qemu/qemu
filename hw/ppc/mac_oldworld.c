@@ -383,6 +383,7 @@ static void heathrow_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "cd";
     mc->kvm_type = heathrow_kvm_type;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("750_v3.1");
+    mc->default_display = "std";
 }
 
 static const TypeInfo ppc_heathrow_machine_info = {
