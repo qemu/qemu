@@ -4292,13 +4292,6 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 
     id = qdict_get(qdict, "id");
 
-    /* When OOB is enabled, the "id" field is mandatory. */
-    if (qmp_oob_enabled(mon) && !id) {
-        error_setg(&err, "Out-of-band capability requires that "
-                   "every command contains an 'id' field");
-        goto err;
-    }
-
     req_obj = g_new0(QMPRequest, 1);
     req_obj->mon = mon;
     req_obj->id = qobject_ref(id);
