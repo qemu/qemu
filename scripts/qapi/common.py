@@ -12,6 +12,7 @@
 # See the COPYING file in the top-level directory.
 
 from __future__ import print_function
+from contextlib import contextmanager
 import errno
 import os
 import re
@@ -1974,6 +1975,40 @@ def guardend(name):
                  name=guardname(name))
 
 
+def gen_if(ifcond):
+    ret = ''
+    for ifc in ifcond:
+        ret += mcgen('''
+#if %(cond)s
+''', cond=ifc)
+    return ret
+
+
+def gen_endif(ifcond):
+    ret = ''
+    for ifc in reversed(ifcond):
+        ret += mcgen('''
+#endif /* %(cond)s */
+''', cond=ifc)
+    return ret
+
+
+def _wrap_ifcond(ifcond, before, after):
+    if before == after:
+        return after   # suppress empty #if ... #endif
+
+    assert after.startswith(before)
+    out = before
+    added = after[len(before):]
+    if added[0] == '\n':
+        out += '\n'
+        added = added[1:]
+    out += gen_if(ifcond)
+    out += added
+    out += gen_endif(ifcond)
+    return out
+
+
 def gen_enum_lookup(name, values, prefix=None):
     ret = mcgen('''
 
@@ -2071,6 +2106,10 @@ class QAPIGen(object):
     def add(self, text):
         self._body += text
 
+    def get_content(self, fname=None):
+        return (self._top(fname) + self._preamble + self._body
+                + self._bottom(fname))
+
     def _top(self, fname):
         return ''
 
@@ -2091,8 +2130,7 @@ class QAPIGen(object):
             f = open(fd, 'r+', encoding='utf-8')
         else:
             f = os.fdopen(fd, 'r+')
-        text = (self._top(fname) + self._preamble + self._body
-                + self._bottom(fname))
+        text = self.get_content(fname)
         oldtext = f.read(len(text) + 1)
         if text != oldtext:
             f.seek(0)
@@ -2101,10 +2139,62 @@ class QAPIGen(object):
         f.close()
 
 
-class QAPIGenC(QAPIGen):
+@contextmanager
+def ifcontext(ifcond, *args):
+    """A 'with' statement context manager to wrap with start_if()/end_if()
+
+    *args: any number of QAPIGenCCode
+
+    Example::
+
+        with ifcontext(ifcond, self._genh, self._genc):
+            modify self._genh and self._genc ...
+
+    Is equivalent to calling::
+
+        self._genh.start_if(ifcond)
+        self._genc.start_if(ifcond)
+        modify self._genh and self._genc ...
+        self._genh.end_if()
+        self._genc.end_if()
+    """
+    for arg in args:
+        arg.start_if(ifcond)
+    yield
+    for arg in args:
+        arg.end_if()
+
+
+class QAPIGenCCode(QAPIGen):
+
+    def __init__(self):
+        QAPIGen.__init__(self)
+        self._start_if = None
+
+    def start_if(self, ifcond):
+        assert self._start_if is None
+        self._start_if = (ifcond, self._body, self._preamble)
+
+    def end_if(self):
+        assert self._start_if
+        self._wrap_ifcond()
+        self._start_if = None
+
+    def _wrap_ifcond(self):
+        self._body = _wrap_ifcond(self._start_if[0],
+                                  self._start_if[1], self._body)
+        self._preamble = _wrap_ifcond(self._start_if[0],
+                                      self._start_if[2], self._preamble)
+
+    def get_content(self, fname=None):
+        assert self._start_if is None
+        return QAPIGen.get_content(self, fname)
+
+
+class QAPIGenC(QAPIGenCCode):
 
     def __init__(self, blurb, pydoc):
-        QAPIGen.__init__(self)
+        QAPIGenCCode.__init__(self)
         self._blurb = blurb
         self._copyright = '\n * '.join(re.findall(r'^Copyright .*', pydoc,
                                                   re.MULTILINE))
