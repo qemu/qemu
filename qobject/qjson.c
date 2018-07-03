@@ -76,6 +76,24 @@ QObject *qobject_from_jsonf(const char *string, ...)
     return obj;
 }
 
+/*
+ * Parse @string as JSON object with %-escapes interpolated.
+ * Abort on error.  Do not use with untrusted @string.
+ * Return the resulting QDict.  It is never null.
+ */
+QDict *qdict_from_jsonf_nofail(const char *string, ...)
+{
+    QDict *obj;
+    va_list ap;
+
+    va_start(ap, string);
+    obj = qobject_to(QDict, qobject_from_jsonv(string, &ap, &error_abort));
+    va_end(ap);
+
+    assert(obj);
+    return obj;
+}
+
 typedef struct ToJsonIterState
 {
     int indent;
