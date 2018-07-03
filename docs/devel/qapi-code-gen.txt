@@ -649,13 +649,11 @@ example:
  { 'command': 'migrate_recover',
    'data': { 'uri': 'str' }, 'allow-oob': true }
 
-To execute a command with out-of-band priority, the client specifies
-the "control" field in the request, with "run-oob" set to
-true. Example:
+To execute a command with out-of-band priority, the client uses key
+"exec-oob" instead of "execute".  Example:
 
- => { "execute": "command-support-oob",
-      "arguments": { ... },
-      "control": { "run-oob": true } }
+ => { "exec-oob": "migrate-recover",
+      "arguments": { "uri": "tcp:192.168.1.200:12345" } }
  <= { "return": { } }
 
 Without it, even the commands that support out-of-band execution will

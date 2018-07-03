@@ -92,12 +92,16 @@ Currently supported capabilities are:
 
 The format for command execution is:
 
-{ "execute": json-string, "arguments": json-object, "id": json-value,
-  "control": json-object }
+{ "execute": json-string, "arguments": json-object, "id": json-value }
+
+or
+
+{ "exec-oob": json-string, "arguments": json-object, "id": json-value }
 
  Where,
 
-- The "execute" member identifies the command to be executed by the Server
+- The "execute" or "exec-oob" member identifies the command to be
+  executed by the server.  The latter requests out-of-band execution.
 - The "arguments" member is used to pass any arguments required for the
   execution of the command, it is optional when no arguments are
   required. Each command documents what contents will be considered
@@ -106,9 +110,6 @@ The format for command execution is:
   command execution, it is optional and will be part of the response
   if provided.  The "id" member can be any json-value.  A json-number
   incremented for each successive command works fine.
-- The optional "control" member further specifies how the command is
-  to be executed.  Currently, its only member is optional "run-oob".
-  See section "2.3.1 Out-of-band execution" for details.
 
 2.3.1 Out-of-band execution
 ---------------------------
@@ -128,9 +129,6 @@ commands.
 To be able to match responses back to their commands, the client needs
 to pass "id" with out-of-band commands.  Passing it with all commands
 is recommended for clients that accept capability "oob".
-
-To execute a command out-of-band, the client puts "run-oob": true into
-execute's member "control".
 
 If the client sends in-band commands faster than the server can
 execute them, the server will eventually drop commands to limit the
@@ -274,7 +272,7 @@ S: { "timestamp": { "seconds": 1258551470, "microseconds": 802384 },
 3.7 Out-of-band execution
 -------------------------
 
-C: { "execute": "migrate-pause", "id": 42, "control": { "run-oob": true } }
+C: { "exec-oob": "migrate-pause", "id": 42 }
 S: { "id": 42,
      "error": { "class": "GenericError",
       "desc": "migrate-pause is currently only supported during postcopy-active state" } }

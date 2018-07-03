@@ -23,11 +23,11 @@
 QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
                               Error **errp)
 {
+    const char *exec_key = NULL;
     const QDictEntry *ent;
     const char *arg_name;
     const QObject *arg_obj;
-    bool has_exec_key = false;
-    QDict *dict = NULL;
+    QDict *dict;
 
     dict = qobject_to(QDict, request);
     if (!dict) {
@@ -40,23 +40,23 @@ QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
         arg_name = qdict_entry_key(ent);
         arg_obj = qdict_entry_value(ent);
 
-        if (!strcmp(arg_name, "execute")) {
+        if (!strcmp(arg_name, "execute")
+            || (!strcmp(arg_name, "exec-oob") && allow_oob)) {
             if (qobject_type(arg_obj) != QTYPE_QSTRING) {
-                error_setg(errp,
-                           "QMP input member 'execute' must be a string");
+                error_setg(errp, "QMP input member '%s' must be a string",
+                           arg_name);
                 return NULL;
             }
-            has_exec_key = true;
+            if (exec_key) {
+                error_setg(errp, "QMP input member '%s' clashes with '%s'",
+                           arg_name, exec_key);
+                return NULL;
+            }
+            exec_key = arg_name;
         } else if (!strcmp(arg_name, "arguments")) {
             if (qobject_type(arg_obj) != QTYPE_QDICT) {
                 error_setg(errp,
                            "QMP input member 'arguments' must be an object");
-                return NULL;
-            }
-        } else if (!strcmp(arg_name, "control") && allow_oob) {
-            if (qobject_type(arg_obj) != QTYPE_QDICT) {
-                error_setg(errp,
-                           "QMP input member 'control' must be a dict");
                 return NULL;
             }
         } else {
@@ -66,7 +66,7 @@ QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
         }
     }
 
-    if (!has_exec_key) {
+    if (!exec_key) {
         error_setg(errp, "QMP input lacks member 'execute'");
         return NULL;
     }
@@ -88,7 +88,11 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
         return NULL;
     }
 
-    command = qdict_get_str(dict, "execute");
+    command = qdict_get_try_str(dict, "execute");
+    if (!command) {
+        assert(allow_oob);
+        command = qdict_get_str(dict, "exec-oob");
+    }
     cmd = qmp_find_command(cmds, command);
     if (cmd == NULL) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
@@ -137,25 +141,12 @@ QObject *qmp_build_error_object(Error *err)
 }
 
 /*
- * Detect whether a request should be run out-of-band, by quickly
- * peeking at whether we have: { "control": { "run-oob": true } }. By
- * default commands are run in-band.
+ * Does @qdict look like a command to be run out-of-band?
  */
 bool qmp_is_oob(QDict *dict)
 {
-    QBool *bool_obj;
-
-    dict = qdict_get_qdict(dict, "control");
-    if (!dict) {
-        return false;
-    }
-
-    bool_obj = qobject_to(QBool, qdict_get(dict, "run-oob"));
-    if (!bool_obj) {
-        return false;
-    }
-
-    return qbool_get_bool(bool_obj);
+    return qdict_haskey(dict, "exec-oob")
+        && !qdict_haskey(dict, "execute");
 }
 
 QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request,

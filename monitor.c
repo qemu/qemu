@@ -1301,6 +1301,9 @@ static bool qmp_cmd_oob_check(Monitor *mon, QDict *req, Error **errp)
 
     command = qdict_get_try_str(req, "execute");
     if (!command) {
+        command = qdict_get_try_str(req, "exec-oob");
+    }
+    if (!command) {
         error_setg(errp, "Command field 'execute' missing");
         return false;
     }

@@ -249,8 +249,7 @@ static void test_qga_invalid_oob(gconstpointer fix)
     QDict *ret, *error;
     const char *class;
 
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-ping',"
-                 " 'control': {'run-oob': true}}");
+    ret = qmp_fd(fixture->fd, "{'exec-oob': 'guest-ping'}");
     g_assert_nonnull(ret);
 
     error = qdict_get_qdict(ret, "error");

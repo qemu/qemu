@@ -176,8 +176,7 @@ static void unblock_blocked_cmd(void)
 
 static void send_oob_cmd_that_fails(QTestState *s, const char *id)
 {
-    qtest_async_qmp(s, "{ 'execute': 'migrate-pause', 'id': %s,"
-                    "  'control': { 'run-oob': true } }", id);
+    qtest_async_qmp(s, "{ 'exec-oob': 'migrate-pause', 'id': %s }", id);
 }
 
 static void recv_cmd_id(QTestState *s, const char *id)
@@ -229,9 +228,7 @@ static void test_qmp_oob(void)
      * Try any command that does not support OOB but with OOB flag. We
      * should get failure.
      */
-    resp = qtest_qmp(qts,
-                     "{ 'execute': 'query-cpus',"
-                     "  'control': { 'run-oob': true } }");
+    resp = qtest_qmp(qts, "{ 'exec-oob': 'query-cpus' }");
     g_assert(qdict_haskey(resp, "error"));
     qobject_unref(resp);
 
