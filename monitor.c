@@ -211,7 +211,7 @@ struct Monitor {
 
     /*
      * State used only in the thread "owning" the monitor.
-     * If @use_io_thread, this is mon_global.mon_iothread.
+     * If @use_io_thread, this is @mon_iothread.
      * Else, it's the main thread.
      * These members can be safely accessed without locks.
      */
@@ -240,14 +240,13 @@ struct Monitor {
     int mux_out;
 };
 
-/* Let's add monitor global variables to this struct. */
-static struct {
-    IOThread *mon_iothread;
-    /* Bottom half to dispatch the requests received from I/O thread */
-    QEMUBH *qmp_dispatcher_bh;
-    /* Bottom half to deliver the responses back to clients */
-    QEMUBH *qmp_respond_bh;
-} mon_global;
+IOThread *mon_iothread;
+
+/* Bottom half to dispatch the requests received from I/O thread */
+QEMUBH *qmp_dispatcher_bh;
+
+/* Bottom half to deliver the responses back to clients */
+QEMUBH *qmp_respond_bh;
 
 struct QMPRequest {
     /* Owner of the request */
@@ -531,7 +530,7 @@ static void monitor_json_emitter(Monitor *mon, QObject *data)
         qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
         g_queue_push_tail(mon->qmp.qmp_responses, qobject_ref(data));
         qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
-        qemu_bh_schedule(mon_global.qmp_respond_bh);
+        qemu_bh_schedule(qmp_respond_bh);
     } else {
         /*
          * If not using monitor I/O thread, then we are in main thread.
@@ -4219,7 +4218,7 @@ static void monitor_qmp_bh_dispatcher(void *data)
     qmp_request_free(req_obj);
 
     /* Reschedule instead of looping so the main loop stays responsive */
-    qemu_bh_schedule(mon_global.qmp_dispatcher_bh);
+    qemu_bh_schedule(qmp_dispatcher_bh);
 }
 
 #define  QMP_REQ_QUEUE_LEN_MAX  (8)
@@ -4305,7 +4304,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
 
     /* Kick the dispatcher routine */
-    qemu_bh_schedule(mon_global.qmp_dispatcher_bh);
+    qemu_bh_schedule(qmp_dispatcher_bh);
 }
 
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
@@ -4358,7 +4357,7 @@ int monitor_suspend(Monitor *mon)
          * Kick I/O thread to make sure this takes effect.  It'll be
          * evaluated again in prepare() of the watch object.
          */
-        aio_notify(iothread_get_aio_context(mon_global.mon_iothread));
+        aio_notify(iothread_get_aio_context(mon_iothread));
     }
 
     trace_monitor_suspend(mon, 1);
@@ -4378,7 +4377,7 @@ void monitor_resume(Monitor *mon)
              * kick the thread in case it's sleeping.
              */
             if (mon->use_io_thread) {
-                aio_notify(iothread_get_aio_context(mon_global.mon_iothread));
+                aio_notify(iothread_get_aio_context(mon_iothread));
             }
         } else {
             assert(mon->rs);
@@ -4516,36 +4515,35 @@ static void sortcmdlist(void)
 
 static GMainContext *monitor_get_io_context(void)
 {
-    return iothread_get_g_main_context(mon_global.mon_iothread);
+    return iothread_get_g_main_context(mon_iothread);
 }
 
 static AioContext *monitor_get_aio_context(void)
 {
-    return iothread_get_aio_context(mon_global.mon_iothread);
+    return iothread_get_aio_context(mon_iothread);
 }
 
 static void monitor_iothread_init(void)
 {
-    mon_global.mon_iothread = iothread_create("mon_iothread",
-                                              &error_abort);
+    mon_iothread = iothread_create("mon_iothread", &error_abort);
 
     /*
      * This MUST be on main loop thread since we have commands that
      * have assumption to be run on main loop thread.  It would be
      * nice that one day we can remove this assumption in the future.
      */
-    mon_global.qmp_dispatcher_bh = aio_bh_new(iohandler_get_aio_context(),
-                                              monitor_qmp_bh_dispatcher,
-                                              NULL);
+    qmp_dispatcher_bh = aio_bh_new(iohandler_get_aio_context(),
+                                   monitor_qmp_bh_dispatcher,
+                                   NULL);
 
     /*
      * Unlike the dispatcher BH, this must be run on the monitor I/O
      * thread, so that monitors that are using I/O thread will make
      * sure read/write operations are all done on the I/O thread.
      */
-    mon_global.qmp_respond_bh = aio_bh_new(monitor_get_aio_context(),
-                                           monitor_qmp_bh_responder,
-                                           NULL);
+    qmp_respond_bh = aio_bh_new(monitor_get_aio_context(),
+                                monitor_qmp_bh_responder,
+                                NULL);
 }
 
 void monitor_init_globals(void)
@@ -4702,7 +4700,7 @@ void monitor_cleanup(void)
      * we need to unregister from chardev below in
      * monitor_data_destroy(), and chardev is not thread-safe yet
      */
-    iothread_stop(mon_global.mon_iothread);
+    iothread_stop(mon_iothread);
 
     /*
      * After we have I/O thread to send responses, it's possible that
@@ -4723,13 +4721,13 @@ void monitor_cleanup(void)
     qemu_mutex_unlock(&monitor_lock);
 
     /* QEMUBHs needs to be deleted before destroying the I/O thread */
-    qemu_bh_delete(mon_global.qmp_dispatcher_bh);
-    mon_global.qmp_dispatcher_bh = NULL;
-    qemu_bh_delete(mon_global.qmp_respond_bh);
-    mon_global.qmp_respond_bh = NULL;
+    qemu_bh_delete(qmp_dispatcher_bh);
+    qmp_dispatcher_bh = NULL;
+    qemu_bh_delete(qmp_respond_bh);
+    qmp_respond_bh = NULL;
 
-    iothread_destroy(mon_global.mon_iothread);
-    mon_global.mon_iothread = NULL;
+    iothread_destroy(mon_iothread);
+    mon_iothread = NULL;
 }
 
 QemuOptsList qemu_mon_opts = {
