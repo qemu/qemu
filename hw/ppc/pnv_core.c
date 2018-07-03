@@ -150,6 +150,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     if (!chip) {
         error_propagate(errp, local_err);
         error_prepend(errp, "required link 'chip' not found: ");
+        return;
     }
 
     pc->threads = g_new(PowerPCCPU *, cc->nr_threads);

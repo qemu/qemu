@@ -2388,23 +2388,6 @@ static inline void gen_addr_add(DisasContext *ctx, TCGv ret, TCGv arg1,
     }
 }
 
-static inline void gen_check_align(DisasContext *ctx, TCGv EA, int mask)
-{
-    TCGLabel *l1 = gen_new_label();
-    TCGv t0 = tcg_temp_new();
-    TCGv_i32 t1, t2;
-    tcg_gen_andi_tl(t0, EA, mask);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
-    t1 = tcg_const_i32(POWERPC_EXCP_ALIGN);
-    t2 = tcg_const_i32(ctx->opcode & 0x03FF0000);
-    gen_update_nip(ctx, ctx->base.pc_next - 4);
-    gen_helper_raise_exception_err(cpu_env, t1, t2);
-    tcg_temp_free_i32(t1);
-    tcg_temp_free_i32(t2);
-    gen_set_label(l1);
-    tcg_temp_free(t0);
-}
-
 static inline void gen_align_no_le(DisasContext *ctx)
 {
     gen_exception_err(ctx, POWERPC_EXCP_ALIGN,
@@ -2607,7 +2590,7 @@ static void gen_ld(DisasContext *ctx)
 static void gen_lq(DisasContext *ctx)
 {
     int ra, rd;
-    TCGv EA;
+    TCGv EA, hi, lo;
 
     /* lq is a legal user mode instruction starting in ISA 2.07 */
     bool legal_in_user_mode = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
@@ -2633,16 +2616,35 @@ static void gen_lq(DisasContext *ctx)
     EA = tcg_temp_new();
     gen_addr_imm_index(ctx, EA, 0x0F);
 
-    /* We only need to swap high and low halves. gen_qemu_ld64_i64 does
-       necessary 64-bit byteswap already. */
-    if (unlikely(ctx->le_mode)) {
-        gen_qemu_ld64_i64(ctx, cpu_gpr[rd + 1], EA);
+    /* Note that the low part is always in RD+1, even in LE mode.  */
+    lo = cpu_gpr[rd + 1];
+    hi = cpu_gpr[rd];
+
+    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+#ifdef CONFIG_ATOMIC128
+        TCGv_i32 oi = tcg_temp_new_i32();
+        if (ctx->le_mode) {
+            tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ, ctx->mem_idx));
+            gen_helper_lq_le_parallel(lo, cpu_env, EA, oi);
+        } else {
+            tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ, ctx->mem_idx));
+            gen_helper_lq_be_parallel(lo, cpu_env, EA, oi);
+        }
+        tcg_temp_free_i32(oi);
+        tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUPPCState, retxh));
+#else
+        /* Restart with exclusive lock.  */
+        gen_helper_exit_atomic(cpu_env);
+        ctx->base.is_jmp = DISAS_NORETURN;
+#endif
+    } else if (ctx->le_mode) {
+        tcg_gen_qemu_ld_i64(lo, EA, ctx->mem_idx, MO_LEQ);
         gen_addr_add(ctx, EA, EA, 8);
-        gen_qemu_ld64_i64(ctx, cpu_gpr[rd], EA);
+        tcg_gen_qemu_ld_i64(hi, EA, ctx->mem_idx, MO_LEQ);
     } else {
-        gen_qemu_ld64_i64(ctx, cpu_gpr[rd], EA);
+        tcg_gen_qemu_ld_i64(hi, EA, ctx->mem_idx, MO_BEQ);
         gen_addr_add(ctx, EA, EA, 8);
-        gen_qemu_ld64_i64(ctx, cpu_gpr[rd + 1], EA);
+        tcg_gen_qemu_ld_i64(lo, EA, ctx->mem_idx, MO_BEQ);
     }
     tcg_temp_free(EA);
 }
@@ -2741,6 +2743,7 @@ static void gen_std(DisasContext *ctx)
     if ((ctx->opcode & 0x3) == 0x2) { /* stq */
         bool legal_in_user_mode = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
         bool le_is_supported = (ctx->insns_flags2 & PPC2_LSQ_ISA207) != 0;
+        TCGv hi, lo;
 
         if (!(ctx->insns_flags & PPC_64BX)) {
             gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
@@ -2764,20 +2767,38 @@ static void gen_std(DisasContext *ctx)
         EA = tcg_temp_new();
         gen_addr_imm_index(ctx, EA, 0x03);
 
-        /* We only need to swap high and low halves. gen_qemu_st64_i64 does
-           necessary 64-bit byteswap already. */
-        if (unlikely(ctx->le_mode)) {
-            gen_qemu_st64_i64(ctx, cpu_gpr[rs + 1], EA);
+        /* Note that the low part is always in RS+1, even in LE mode.  */
+        lo = cpu_gpr[rs + 1];
+        hi = cpu_gpr[rs];
+
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+#ifdef CONFIG_ATOMIC128
+            TCGv_i32 oi = tcg_temp_new_i32();
+            if (ctx->le_mode) {
+                tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ, ctx->mem_idx));
+                gen_helper_stq_le_parallel(cpu_env, EA, lo, hi, oi);
+            } else {
+                tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ, ctx->mem_idx));
+                gen_helper_stq_be_parallel(cpu_env, EA, lo, hi, oi);
+            }
+            tcg_temp_free_i32(oi);
+#else
+            /* Restart with exclusive lock.  */
+            gen_helper_exit_atomic(cpu_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
+#endif
+        } else if (ctx->le_mode) {
+            tcg_gen_qemu_st_i64(lo, EA, ctx->mem_idx, MO_LEQ);
             gen_addr_add(ctx, EA, EA, 8);
-            gen_qemu_st64_i64(ctx, cpu_gpr[rs], EA);
+            tcg_gen_qemu_st_i64(hi, EA, ctx->mem_idx, MO_LEQ);
         } else {
-            gen_qemu_st64_i64(ctx, cpu_gpr[rs], EA);
+            tcg_gen_qemu_st_i64(hi, EA, ctx->mem_idx, MO_BEQ);
             gen_addr_add(ctx, EA, EA, 8);
-            gen_qemu_st64_i64(ctx, cpu_gpr[rs + 1], EA);
+            tcg_gen_qemu_st_i64(lo, EA, ctx->mem_idx, MO_BEQ);
         }
         tcg_temp_free(EA);
     } else {
-        /* std / stdu*/
+        /* std / stdu */
         if (Rc(ctx->opcode)) {
             if (unlikely(rA(ctx->opcode) == 0)) {
                 gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
@@ -3032,23 +3053,24 @@ static void gen_isync(DisasContext *ctx)
 
 #define MEMOP_GET_SIZE(x)  (1 << ((x) & MO_SIZE))
 
-#define LARX(name, memop)                                            \
-static void gen_##name(DisasContext *ctx)                            \
-{                                                                    \
-    TCGv t0;                                                         \
-    TCGv gpr = cpu_gpr[rD(ctx->opcode)];                             \
-    int len = MEMOP_GET_SIZE(memop);                                 \
-    gen_set_access_type(ctx, ACCESS_RES);                            \
-    t0 = tcg_temp_local_new();                                       \
-    gen_addr_reg_index(ctx, t0);                                     \
-    if ((len) > 1) {                                                 \
-        gen_check_align(ctx, t0, (len)-1);                           \
-    }                                                                \
-    tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, memop);                \
-    tcg_gen_mov_tl(cpu_reserve, t0);                                 \
-    tcg_gen_mov_tl(cpu_reserve_val, gpr);                            \
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);                           \
-    tcg_temp_free(t0);                                               \
+static void gen_load_locked(DisasContext *ctx, TCGMemOp memop)
+{
+    TCGv gpr = cpu_gpr[rD(ctx->opcode)];
+    TCGv t0 = tcg_temp_new();
+
+    gen_set_access_type(ctx, ACCESS_RES);
+    gen_addr_reg_index(ctx, t0);
+    tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, memop | MO_ALIGN);
+    tcg_gen_mov_tl(cpu_reserve, t0);
+    tcg_gen_mov_tl(cpu_reserve_val, gpr);
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+    tcg_temp_free(t0);
+}
+
+#define LARX(name, memop)                  \
+static void gen_##name(DisasContext *ctx)  \
+{                                          \
+    gen_load_locked(ctx, memop);           \
 }
 
 /* lwarx */
@@ -3056,134 +3078,239 @@ LARX(lbarx, DEF_MEMOP(MO_UB))
 LARX(lharx, DEF_MEMOP(MO_UW))
 LARX(lwarx, DEF_MEMOP(MO_UL))
 
-#define LD_ATOMIC(name, memop, tp, op, eop)                             \
-static void gen_##name(DisasContext *ctx)                               \
-{                                                                       \
-    int len = MEMOP_GET_SIZE(memop);                                    \
-    uint32_t gpr_FC = FC(ctx->opcode);                                  \
-    TCGv EA = tcg_temp_local_new();                                     \
-    TCGv_##tp t0, t1;                                                   \
-                                                                        \
-    gen_addr_register(ctx, EA);                                         \
-    if (len > 1) {                                                      \
-        gen_check_align(ctx, EA, len - 1);                              \
-    }                                                                   \
-    t0 = tcg_temp_new_##tp();                                           \
-    t1 = tcg_temp_new_##tp();                                           \
-    tcg_gen_##op(t0, cpu_gpr[rD(ctx->opcode) + 1]);                     \
-                                                                        \
-    switch (gpr_FC) {                                                   \
-    case 0: /* Fetch and add */                                         \
-        tcg_gen_atomic_fetch_add_##tp(t1, EA, t0, ctx->mem_idx, memop); \
-        break;                                                          \
-    case 1: /* Fetch and xor */                                         \
-        tcg_gen_atomic_fetch_xor_##tp(t1, EA, t0, ctx->mem_idx, memop); \
-        break;                                                          \
-    case 2: /* Fetch and or */                                          \
-        tcg_gen_atomic_fetch_or_##tp(t1, EA, t0, ctx->mem_idx, memop);  \
-        break;                                                          \
-    case 3: /* Fetch and 'and' */                                       \
-        tcg_gen_atomic_fetch_and_##tp(t1, EA, t0, ctx->mem_idx, memop); \
-        break;                                                          \
-    case 8: /* Swap */                                                  \
-        tcg_gen_atomic_xchg_##tp(t1, EA, t0, ctx->mem_idx, memop);      \
-        break;                                                          \
-    case 4:  /* Fetch and max unsigned */                               \
-    case 5:  /* Fetch and max signed */                                 \
-    case 6:  /* Fetch and min unsigned */                               \
-    case 7:  /* Fetch and min signed */                                 \
-    case 16: /* compare and swap not equal */                           \
-    case 24: /* Fetch and increment bounded */                          \
-    case 25: /* Fetch and increment equal */                            \
-    case 28: /* Fetch and decrement bounded */                          \
-        gen_invalid(ctx);                                               \
-        break;                                                          \
-    default:                                                            \
-        /* invoke data storage error handler */                         \
-        gen_exception_err(ctx, POWERPC_EXCP_DSI, POWERPC_EXCP_INVAL);   \
-    }                                                                   \
-    tcg_gen_##eop(cpu_gpr[rD(ctx->opcode)], t1);                        \
-    tcg_temp_free_##tp(t0);                                             \
-    tcg_temp_free_##tp(t1);                                             \
-    tcg_temp_free(EA);                                                  \
-}
-
-LD_ATOMIC(lwat, DEF_MEMOP(MO_UL), i32, trunc_tl_i32, extu_i32_tl)
-#if defined(TARGET_PPC64)
-LD_ATOMIC(ldat, DEF_MEMOP(MO_Q), i64, mov_i64, mov_i64)
-#endif
-
-#define ST_ATOMIC(name, memop, tp, op)                                  \
-static void gen_##name(DisasContext *ctx)                               \
-{                                                                       \
-    int len = MEMOP_GET_SIZE(memop);                                    \
-    uint32_t gpr_FC = FC(ctx->opcode);                                  \
-    TCGv EA = tcg_temp_local_new();                                     \
-    TCGv_##tp t0, t1;                                                   \
-                                                                        \
-    gen_addr_register(ctx, EA);                                         \
-    if (len > 1) {                                                      \
-        gen_check_align(ctx, EA, len - 1);                              \
-    }                                                                   \
-    t0 = tcg_temp_new_##tp();                                           \
-    t1 = tcg_temp_new_##tp();                                           \
-    tcg_gen_##op(t0, cpu_gpr[rD(ctx->opcode) + 1]);                     \
-                                                                        \
-    switch (gpr_FC) {                                                   \
-    case 0: /* add and Store */                                         \
-        tcg_gen_atomic_add_fetch_##tp(t1, EA, t0, ctx->mem_idx, memop); \
-        break;                                                          \
-    case 1: /* xor and Store */                                         \
-        tcg_gen_atomic_xor_fetch_##tp(t1, EA, t0, ctx->mem_idx, memop); \
-        break;                                                          \
-    case 2: /* Or and Store */                                          \
-        tcg_gen_atomic_or_fetch_##tp(t1, EA, t0, ctx->mem_idx, memop);  \
-        break;                                                          \
-    case 3: /* 'and' and Store */                                       \
-        tcg_gen_atomic_and_fetch_##tp(t1, EA, t0, ctx->mem_idx, memop); \
-        break;                                                          \
-    case 4:  /* Store max unsigned */                                   \
-    case 5:  /* Store max signed */                                     \
-    case 6:  /* Store min unsigned */                                   \
-    case 7:  /* Store min signed */                                     \
-    case 24: /* Store twin  */                                          \
-        gen_invalid(ctx);                                               \
-        break;                                                          \
-    default:                                                            \
-        /* invoke data storage error handler */                         \
-        gen_exception_err(ctx, POWERPC_EXCP_DSI, POWERPC_EXCP_INVAL);   \
-    }                                                                   \
-    tcg_temp_free_##tp(t0);                                             \
-    tcg_temp_free_##tp(t1);                                             \
-    tcg_temp_free(EA);                                                  \
-}
-
-ST_ATOMIC(stwat, DEF_MEMOP(MO_UL), i32, trunc_tl_i32)
-#if defined(TARGET_PPC64)
-ST_ATOMIC(stdat, DEF_MEMOP(MO_Q), i64, mov_i64)
-#endif
-
-#if defined(CONFIG_USER_ONLY)
-static void gen_conditional_store(DisasContext *ctx, TCGv EA,
-                                  int reg, int memop)
+static void gen_fetch_inc_conditional(DisasContext *ctx, TCGMemOp memop,
+                                      TCGv EA, TCGCond cond, int addend)
 {
-    TCGv t0 = tcg_temp_new();
+    TCGv t = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv u = tcg_temp_new();
 
-    tcg_gen_st_tl(EA, cpu_env, offsetof(CPUPPCState, reserve_ea));
-    tcg_gen_movi_tl(t0, (MEMOP_GET_SIZE(memop) << 5) | reg);
-    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUPPCState, reserve_info));
-    tcg_temp_free(t0);
-    gen_exception_err(ctx, POWERPC_EXCP_STCX, 0);
+    tcg_gen_qemu_ld_tl(t, EA, ctx->mem_idx, memop);
+    tcg_gen_addi_tl(t2, EA, MEMOP_GET_SIZE(memop));
+    tcg_gen_qemu_ld_tl(t2, t2, ctx->mem_idx, memop);
+    tcg_gen_addi_tl(u, t, addend);
+
+    /* E.g. for fetch and increment bounded... */
+    /* mem(EA,s) = (t != t2 ? u = t + 1 : t) */
+    tcg_gen_movcond_tl(cond, u, t, t2, u, t);
+    tcg_gen_qemu_st_tl(u, EA, ctx->mem_idx, memop);
+
+    /* RT = (t != t2 ? t : u = 1<<(s*8-1)) */
+    tcg_gen_movi_tl(u, 1 << (MEMOP_GET_SIZE(memop) * 8 - 1));
+    tcg_gen_movcond_tl(cond, cpu_gpr[rD(ctx->opcode)], t, t2, t, u);
+
+    tcg_temp_free(t);
+    tcg_temp_free(t2);
+    tcg_temp_free(u);
 }
-#else
-static void gen_conditional_store(DisasContext *ctx, TCGv EA,
-                                  int reg, int memop)
+
+static void gen_ld_atomic(DisasContext *ctx, TCGMemOp memop)
+{
+    uint32_t gpr_FC = FC(ctx->opcode);
+    TCGv EA = tcg_temp_new();
+    int rt = rD(ctx->opcode);
+    bool need_serial;
+    TCGv src, dst;
+
+    gen_addr_register(ctx, EA);
+    dst = cpu_gpr[rt];
+    src = cpu_gpr[(rt + 1) & 31];
+
+    need_serial = false;
+    memop |= MO_ALIGN;
+    switch (gpr_FC) {
+    case 0: /* Fetch and add */
+        tcg_gen_atomic_fetch_add_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 1: /* Fetch and xor */
+        tcg_gen_atomic_fetch_xor_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 2: /* Fetch and or */
+        tcg_gen_atomic_fetch_or_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 3: /* Fetch and 'and' */
+        tcg_gen_atomic_fetch_and_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 4:  /* Fetch and max unsigned */
+        tcg_gen_atomic_fetch_umax_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 5:  /* Fetch and max signed */
+        tcg_gen_atomic_fetch_smax_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 6:  /* Fetch and min unsigned */
+        tcg_gen_atomic_fetch_umin_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 7:  /* Fetch and min signed */
+        tcg_gen_atomic_fetch_smin_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+    case 8: /* Swap */
+        tcg_gen_atomic_xchg_tl(dst, EA, src, ctx->mem_idx, memop);
+        break;
+
+    case 16: /* Compare and swap not equal */
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            need_serial = true;
+        } else {
+            TCGv t0 = tcg_temp_new();
+            TCGv t1 = tcg_temp_new();
+
+            tcg_gen_qemu_ld_tl(t0, EA, ctx->mem_idx, memop);
+            if ((memop & MO_SIZE) == MO_64 || TARGET_LONG_BITS == 32) {
+                tcg_gen_mov_tl(t1, src);
+            } else {
+                tcg_gen_ext32u_tl(t1, src);
+            }
+            tcg_gen_movcond_tl(TCG_COND_NE, t1, t0, t1,
+                               cpu_gpr[(rt + 2) & 31], t0);
+            tcg_gen_qemu_st_tl(t1, EA, ctx->mem_idx, memop);
+            tcg_gen_mov_tl(dst, t0);
+
+            tcg_temp_free(t0);
+            tcg_temp_free(t1);
+        }
+        break;
+
+    case 24: /* Fetch and increment bounded */
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            need_serial = true;
+        } else {
+            gen_fetch_inc_conditional(ctx, memop, EA, TCG_COND_NE, 1);
+        }
+        break;
+    case 25: /* Fetch and increment equal */
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            need_serial = true;
+        } else {
+            gen_fetch_inc_conditional(ctx, memop, EA, TCG_COND_EQ, 1);
+        }
+        break;
+    case 28: /* Fetch and decrement bounded */
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            need_serial = true;
+        } else {
+            gen_fetch_inc_conditional(ctx, memop, EA, TCG_COND_NE, -1);
+        }
+        break;
+
+    default:
+        /* invoke data storage error handler */
+        gen_exception_err(ctx, POWERPC_EXCP_DSI, POWERPC_EXCP_INVAL);
+    }
+    tcg_temp_free(EA);
+
+    if (need_serial) {
+        /* Restart with exclusive lock.  */
+        gen_helper_exit_atomic(cpu_env);
+        ctx->base.is_jmp = DISAS_NORETURN;
+    }
+}
+
+static void gen_lwat(DisasContext *ctx)
+{
+    gen_ld_atomic(ctx, DEF_MEMOP(MO_UL));
+}
+
+#ifdef TARGET_PPC64
+static void gen_ldat(DisasContext *ctx)
+{
+    gen_ld_atomic(ctx, DEF_MEMOP(MO_Q));
+}
+#endif
+
+static void gen_st_atomic(DisasContext *ctx, TCGMemOp memop)
+{
+    uint32_t gpr_FC = FC(ctx->opcode);
+    TCGv EA = tcg_temp_new();
+    TCGv src, discard;
+
+    gen_addr_register(ctx, EA);
+    src = cpu_gpr[rD(ctx->opcode)];
+    discard = tcg_temp_new();
+
+    memop |= MO_ALIGN;
+    switch (gpr_FC) {
+    case 0: /* add and Store */
+        tcg_gen_atomic_add_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
+    case 1: /* xor and Store */
+        tcg_gen_atomic_xor_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
+    case 2: /* Or and Store */
+        tcg_gen_atomic_or_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
+    case 3: /* 'and' and Store */
+        tcg_gen_atomic_and_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
+    case 4:  /* Store max unsigned */
+        tcg_gen_atomic_umax_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
+    case 5:  /* Store max signed */
+        tcg_gen_atomic_smax_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
+    case 6:  /* Store min unsigned */
+        tcg_gen_atomic_umin_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
+    case 7:  /* Store min signed */
+        tcg_gen_atomic_smin_fetch_tl(discard, EA, src, ctx->mem_idx, memop);
+        break;
+    case 24: /* Store twin  */
+        if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+            /* Restart with exclusive lock.  */
+            gen_helper_exit_atomic(cpu_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
+        } else {
+            TCGv t = tcg_temp_new();
+            TCGv t2 = tcg_temp_new();
+            TCGv s = tcg_temp_new();
+            TCGv s2 = tcg_temp_new();
+            TCGv ea_plus_s = tcg_temp_new();
+
+            tcg_gen_qemu_ld_tl(t, EA, ctx->mem_idx, memop);
+            tcg_gen_addi_tl(ea_plus_s, EA, MEMOP_GET_SIZE(memop));
+            tcg_gen_qemu_ld_tl(t2, ea_plus_s, ctx->mem_idx, memop);
+            tcg_gen_movcond_tl(TCG_COND_EQ, s, t, t2, src, t);
+            tcg_gen_movcond_tl(TCG_COND_EQ, s2, t, t2, src, t2);
+            tcg_gen_qemu_st_tl(s, EA, ctx->mem_idx, memop);
+            tcg_gen_qemu_st_tl(s2, ea_plus_s, ctx->mem_idx, memop);
+
+            tcg_temp_free(ea_plus_s);
+            tcg_temp_free(s2);
+            tcg_temp_free(s);
+            tcg_temp_free(t2);
+            tcg_temp_free(t);
+        }
+        break;
+    default:
+        /* invoke data storage error handler */
+        gen_exception_err(ctx, POWERPC_EXCP_DSI, POWERPC_EXCP_INVAL);
+    }
+    tcg_temp_free(discard);
+    tcg_temp_free(EA);
+}
+
+static void gen_stwat(DisasContext *ctx)
+{
+    gen_st_atomic(ctx, DEF_MEMOP(MO_UL));
+}
+
+#ifdef TARGET_PPC64
+static void gen_stdat(DisasContext *ctx)
+{
+    gen_st_atomic(ctx, DEF_MEMOP(MO_Q));
+}
+#endif
+
+static void gen_conditional_store(DisasContext *ctx, TCGMemOp memop)
 {
     TCGLabel *l1 = gen_new_label();
     TCGLabel *l2 = gen_new_label();
-    TCGv t0;
+    TCGv t0 = tcg_temp_new();
+    int reg = rS(ctx->opcode);
 
-    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, l1);
+    gen_set_access_type(ctx, ACCESS_RES);
+    gen_addr_reg_index(ctx, t0);
+    tcg_gen_brcond_tl(TCG_COND_NE, t0, cpu_reserve, l1);
+    tcg_temp_free(t0);
 
     t0 = tcg_temp_new();
     tcg_gen_atomic_cmpxchg_tl(t0, cpu_reserve, cpu_reserve_val,
@@ -3206,21 +3333,11 @@ static void gen_conditional_store(DisasContext *ctx, TCGv EA,
     gen_set_label(l2);
     tcg_gen_movi_tl(cpu_reserve, -1);
 }
-#endif
 
-#define STCX(name, memop)                                   \
-static void gen_##name(DisasContext *ctx)                   \
-{                                                           \
-    TCGv t0;                                                \
-    int len = MEMOP_GET_SIZE(memop);                        \
-    gen_set_access_type(ctx, ACCESS_RES);                   \
-    t0 = tcg_temp_local_new();                              \
-    gen_addr_reg_index(ctx, t0);                            \
-    if (len > 1) {                                          \
-        gen_check_align(ctx, t0, (len) - 1);                \
-    }                                                       \
-    gen_conditional_store(ctx, t0, rS(ctx->opcode), memop); \
-    tcg_temp_free(t0);                                      \
+#define STCX(name, memop)                  \
+static void gen_##name(DisasContext *ctx)  \
+{                                          \
+    gen_conditional_store(ctx, memop);     \
 }
 
 STCX(stbcx_, DEF_MEMOP(MO_UB))
@@ -3236,9 +3353,8 @@ STCX(stdcx_, DEF_MEMOP(MO_Q))
 /* lqarx */
 static void gen_lqarx(DisasContext *ctx)
 {
-    TCGv EA;
     int rd = rD(ctx->opcode);
-    TCGv gpr1, gpr2;
+    TCGv EA, hi, lo;
 
     if (unlikely((rd & 1) || (rd == rA(ctx->opcode)) ||
                  (rd == rB(ctx->opcode)))) {
@@ -3247,73 +3363,125 @@ static void gen_lqarx(DisasContext *ctx)
     }
 
     gen_set_access_type(ctx, ACCESS_RES);
-    EA = tcg_temp_local_new();
+    EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    gen_check_align(ctx, EA, 15);
-    if (unlikely(ctx->le_mode)) {
-        gpr1 = cpu_gpr[rd+1];
-        gpr2 = cpu_gpr[rd];
-    } else {
-        gpr1 = cpu_gpr[rd];
-        gpr2 = cpu_gpr[rd+1];
-    }
-    tcg_gen_qemu_ld_i64(gpr1, EA, ctx->mem_idx, DEF_MEMOP(MO_Q));
-    tcg_gen_mov_tl(cpu_reserve, EA);
-    gen_addr_add(ctx, EA, EA, 8);
-    tcg_gen_qemu_ld_i64(gpr2, EA, ctx->mem_idx, DEF_MEMOP(MO_Q));
 
-    tcg_gen_st_tl(gpr1, cpu_env, offsetof(CPUPPCState, reserve_val));
-    tcg_gen_st_tl(gpr2, cpu_env, offsetof(CPUPPCState, reserve_val2));
+    /* Note that the low part is always in RD+1, even in LE mode.  */
+    lo = cpu_gpr[rd + 1];
+    hi = cpu_gpr[rd];
+
+    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+#ifdef CONFIG_ATOMIC128
+        TCGv_i32 oi = tcg_temp_new_i32();
+        if (ctx->le_mode) {
+            tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ | MO_ALIGN_16,
+                                                ctx->mem_idx));
+            gen_helper_lq_le_parallel(lo, cpu_env, EA, oi);
+        } else {
+            tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ | MO_ALIGN_16,
+                                                ctx->mem_idx));
+            gen_helper_lq_be_parallel(lo, cpu_env, EA, oi);
+        }
+        tcg_temp_free_i32(oi);
+        tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUPPCState, retxh));
+#else
+        /* Restart with exclusive lock.  */
+        gen_helper_exit_atomic(cpu_env);
+        ctx->base.is_jmp = DISAS_NORETURN;
+        tcg_temp_free(EA);
+        return;
+#endif
+    } else if (ctx->le_mode) {
+        tcg_gen_qemu_ld_i64(lo, EA, ctx->mem_idx, MO_LEQ | MO_ALIGN_16);
+        tcg_gen_mov_tl(cpu_reserve, EA);
+        gen_addr_add(ctx, EA, EA, 8);
+        tcg_gen_qemu_ld_i64(hi, EA, ctx->mem_idx, MO_LEQ);
+    } else {
+        tcg_gen_qemu_ld_i64(hi, EA, ctx->mem_idx, MO_BEQ | MO_ALIGN_16);
+        tcg_gen_mov_tl(cpu_reserve, EA);
+        gen_addr_add(ctx, EA, EA, 8);
+        tcg_gen_qemu_ld_i64(lo, EA, ctx->mem_idx, MO_BEQ);
+    }
     tcg_temp_free(EA);
+
+    tcg_gen_st_tl(hi, cpu_env, offsetof(CPUPPCState, reserve_val));
+    tcg_gen_st_tl(lo, cpu_env, offsetof(CPUPPCState, reserve_val2));
 }
 
 /* stqcx. */
 static void gen_stqcx_(DisasContext *ctx)
 {
-    TCGv EA;
-    int reg = rS(ctx->opcode);
-    int len = 16;
-#if !defined(CONFIG_USER_ONLY)
-    TCGLabel *l1;
-    TCGv gpr1, gpr2;
-#endif
+    int rs = rS(ctx->opcode);
+    TCGv EA, hi, lo;
 
-    if (unlikely((rD(ctx->opcode) & 1))) {
+    if (unlikely(rs & 1)) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
     }
+
     gen_set_access_type(ctx, ACCESS_RES);
-    EA = tcg_temp_local_new();
+    EA = tcg_temp_new();
     gen_addr_reg_index(ctx, EA);
-    if (len > 1) {
-        gen_check_align(ctx, EA, (len) - 1);
-    }
 
-#if defined(CONFIG_USER_ONLY)
-    gen_conditional_store(ctx, EA, reg, 16);
+    /* Note that the low part is always in RS+1, even in LE mode.  */
+    lo = cpu_gpr[rs + 1];
+    hi = cpu_gpr[rs];
+
+    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+        TCGv_i32 oi = tcg_const_i32(DEF_MEMOP(MO_Q) | MO_ALIGN_16);
+#ifdef CONFIG_ATOMIC128
+        if (ctx->le_mode) {
+            gen_helper_stqcx_le_parallel(cpu_crf[0], cpu_env, EA, lo, hi, oi);
+        } else {
+            gen_helper_stqcx_le_parallel(cpu_crf[0], cpu_env, EA, lo, hi, oi);
+        }
 #else
-    tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
-    l1 = gen_new_label();
-    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, l1);
-    tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], CRF_EQ);
-
-    if (unlikely(ctx->le_mode)) {
-        gpr1 = cpu_gpr[reg + 1];
-        gpr2 = cpu_gpr[reg];
-    } else {
-        gpr1 = cpu_gpr[reg];
-        gpr2 = cpu_gpr[reg + 1];
-    }
-    tcg_gen_qemu_st_tl(gpr1, EA, ctx->mem_idx, DEF_MEMOP(MO_Q));
-    gen_addr_add(ctx, EA, EA, 8);
-    tcg_gen_qemu_st_tl(gpr2, EA, ctx->mem_idx, DEF_MEMOP(MO_Q));
-
-    gen_set_label(l1);
-    tcg_gen_movi_tl(cpu_reserve, -1);
+        /* Restart with exclusive lock.  */
+        gen_helper_exit_atomic(cpu_env);
+        ctx->base.is_jmp = DISAS_NORETURN;
 #endif
-    tcg_temp_free(EA);
-}
+        tcg_temp_free(EA);
+        tcg_temp_free_i32(oi);
+    } else {
+        TCGLabel *lab_fail = gen_new_label();
+        TCGLabel *lab_over = gen_new_label();
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
 
+        tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, lab_fail);
+        tcg_temp_free(EA);
+
+        gen_qemu_ld64_i64(ctx, t0, cpu_reserve);
+        tcg_gen_ld_i64(t1, cpu_env, (ctx->le_mode
+                                     ? offsetof(CPUPPCState, reserve_val2)
+                                     : offsetof(CPUPPCState, reserve_val)));
+        tcg_gen_brcond_i64(TCG_COND_NE, t0, t1, lab_fail);
+
+        tcg_gen_addi_i64(t0, cpu_reserve, 8);
+        gen_qemu_ld64_i64(ctx, t0, t0);
+        tcg_gen_ld_i64(t1, cpu_env, (ctx->le_mode
+                                     ? offsetof(CPUPPCState, reserve_val)
+                                     : offsetof(CPUPPCState, reserve_val2)));
+        tcg_gen_brcond_i64(TCG_COND_NE, t0, t1, lab_fail);
+
+        /* Success */
+        gen_qemu_st64_i64(ctx, ctx->le_mode ? lo : hi, cpu_reserve);
+        tcg_gen_addi_i64(t0, cpu_reserve, 8);
+        gen_qemu_st64_i64(ctx, ctx->le_mode ? hi : lo, t0);
+
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
+        tcg_gen_ori_i32(cpu_crf[0], cpu_crf[0], CRF_EQ);
+        tcg_gen_br(lab_over);
+
+        gen_set_label(lab_fail);
+        tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
+
+        gen_set_label(lab_over);
+        tcg_gen_movi_tl(cpu_reserve, -1);
+        tcg_temp_free_i64(t0);
+        tcg_temp_free_i64(t1);
+    }
+}
 #endif /* defined(TARGET_PPC64) */
 
 /* sync */
@@ -4636,8 +4804,8 @@ static void gen_eciwx(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_EXT);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_check_align(ctx, t0, 0x03);
-    gen_qemu_ld32u(ctx, cpu_gpr[rD(ctx->opcode)], t0);
+    tcg_gen_qemu_ld_tl(cpu_gpr[rD(ctx->opcode)], t0, ctx->mem_idx,
+                       DEF_MEMOP(MO_UL | MO_ALIGN));
     tcg_temp_free(t0);
 }
 
@@ -4649,8 +4817,8 @@ static void gen_ecowx(DisasContext *ctx)
     gen_set_access_type(ctx, ACCESS_EXT);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_check_align(ctx, t0, 0x03);
-    gen_qemu_st32(ctx, cpu_gpr[rD(ctx->opcode)], t0);
+    tcg_gen_qemu_st_tl(cpu_gpr[rD(ctx->opcode)], t0, ctx->mem_idx,
+                       DEF_MEMOP(MO_UL | MO_ALIGN));
     tcg_temp_free(t0);
 }
 
@@ -6886,7 +7054,7 @@ GEN_HANDLER(stop##u, opc, 0xFF, 0xFF, 0x00000000, type),
 #define GEN_STUX(name, stop, opc2, opc3, type)                                \
 GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type),
 #define GEN_STX_E(name, stop, opc2, opc3, type, type2, chk)                   \
-GEN_HANDLER_E(name##x, 0x1F, opc2, opc3, 0x00000001, type, type2),
+GEN_HANDLER_E(name##x, 0x1F, opc2, opc3, 0x00000000, type, type2),
 #define GEN_STS(name, stop, op, type)                                         \
 GEN_ST(name, stop, op | 0x20, type)                                           \
 GEN_STU(name, stop, op | 0x21, type)                                          \
@@ -7314,6 +7482,7 @@ static bool ppc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     gen_debug_exception(ctx);
+    dcbase->is_jmp = DISAS_NORETURN;
     /* The address covered by the breakpoint must be included in
        [tb->pc, tb->pc + tb->size) in order to for it to be
        properly cleared -- thus we increment the PC here so that

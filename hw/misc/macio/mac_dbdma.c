@@ -71,18 +71,19 @@ static DBDMAState *dbdma_from_ch(DBDMA_channel *ch)
 }
 
 #if DEBUG_DBDMA
-static void dump_dbdma_cmd(dbdma_cmd *cmd)
+static void dump_dbdma_cmd(DBDMA_channel *ch, dbdma_cmd *cmd)
 {
-    printf("dbdma_cmd %p\n", cmd);
-    printf("    req_count 0x%04x\n", le16_to_cpu(cmd->req_count));
-    printf("    command 0x%04x\n", le16_to_cpu(cmd->command));
-    printf("    phy_addr 0x%08x\n", le32_to_cpu(cmd->phy_addr));
-    printf("    cmd_dep 0x%08x\n", le32_to_cpu(cmd->cmd_dep));
-    printf("    res_count 0x%04x\n", le16_to_cpu(cmd->res_count));
-    printf("    xfer_status 0x%04x\n", le16_to_cpu(cmd->xfer_status));
+    DBDMA_DPRINTFCH(ch, "dbdma_cmd %p\n", cmd);
+    DBDMA_DPRINTFCH(ch, "    req_count 0x%04x\n", le16_to_cpu(cmd->req_count));
+    DBDMA_DPRINTFCH(ch, "    command 0x%04x\n", le16_to_cpu(cmd->command));
+    DBDMA_DPRINTFCH(ch, "    phy_addr 0x%08x\n", le32_to_cpu(cmd->phy_addr));
+    DBDMA_DPRINTFCH(ch, "    cmd_dep 0x%08x\n", le32_to_cpu(cmd->cmd_dep));
+    DBDMA_DPRINTFCH(ch, "    res_count 0x%04x\n", le16_to_cpu(cmd->res_count));
+    DBDMA_DPRINTFCH(ch, "    xfer_status 0x%04x\n",
+                    le16_to_cpu(cmd->xfer_status));
 }
 #else
-static void dump_dbdma_cmd(dbdma_cmd *cmd)
+static void dump_dbdma_cmd(DBDMA_channel *ch, dbdma_cmd *cmd)
 {
 }
 #endif
@@ -448,7 +449,7 @@ static void channel_run(DBDMA_channel *ch)
     uint32_t phy_addr;
 
     DBDMA_DPRINTFCH(ch, "channel_run\n");
-    dump_dbdma_cmd(current);
+    dump_dbdma_cmd(ch, current);
 
     /* clear WAKE flag at command fetch */
 

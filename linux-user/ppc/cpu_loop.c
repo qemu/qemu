@@ -65,99 +65,23 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val)
     return -1;
 }
 
-static int do_store_exclusive(CPUPPCState *env)
-{
-    target_ulong addr;
-    target_ulong page_addr;
-    target_ulong val, val2 __attribute__((unused)) = 0;
-    int flags;
-    int segv = 0;
-
-    addr = env->reserve_ea;
-    page_addr = addr & TARGET_PAGE_MASK;
-    start_exclusive();
-    mmap_lock();
-    flags = page_get_flags(page_addr);
-    if ((flags & PAGE_READ) == 0) {
-        segv = 1;
-    } else {
-        int reg = env->reserve_info & 0x1f;
-        int size = env->reserve_info >> 5;
-        int stored = 0;
-
-        if (addr == env->reserve_addr) {
-            switch (size) {
-            case 1: segv = get_user_u8(val, addr); break;
-            case 2: segv = get_user_u16(val, addr); break;
-            case 4: segv = get_user_u32(val, addr); break;
-#if defined(TARGET_PPC64)
-            case 8: segv = get_user_u64(val, addr); break;
-            case 16: {
-                segv = get_user_u64(val, addr);
-                if (!segv) {
-                    segv = get_user_u64(val2, addr + 8);
-                }
-                break;
-            }
-#endif
-            default: abort();
-            }
-            if (!segv && val == env->reserve_val) {
-                val = env->gpr[reg];
-                switch (size) {
-                case 1: segv = put_user_u8(val, addr); break;
-                case 2: segv = put_user_u16(val, addr); break;
-                case 4: segv = put_user_u32(val, addr); break;
-#if defined(TARGET_PPC64)
-                case 8: segv = put_user_u64(val, addr); break;
-                case 16: {
-                    if (val2 == env->reserve_val2) {
-                        if (msr_le) {
-                            val2 = val;
-                            val = env->gpr[reg+1];
-                        } else {
-                            val2 = env->gpr[reg+1];
-                        }
-                        segv = put_user_u64(val, addr);
-                        if (!segv) {
-                            segv = put_user_u64(val2, addr + 8);
-                        }
-                    }
-                    break;
-                }
-#endif
-                default: abort();
-                }
-                if (!segv) {
-                    stored = 1;
-                }
-            }
-        }
-        env->crf[0] = (stored << 1) | xer_so;
-        env->reserve_addr = (target_ulong)-1;
-    }
-    if (!segv) {
-        env->nip += 4;
-    }
-    mmap_unlock();
-    end_exclusive();
-    return segv;
-}
-
 void cpu_loop(CPUPPCState *env)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
     target_siginfo_t info;
-    int trapnr;
+    int trapnr, sig;
     target_ulong ret;
 
     for(;;) {
+        bool arch_interrupt;
+
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
         process_queued_cpu_work(cs);
 
-        switch(trapnr) {
+        arch_interrupt = true;
+        switch (trapnr) {
         case POWERPC_EXCP_NONE:
             /* Just go on */
             break;
@@ -524,26 +448,15 @@ void cpu_loop(CPUPPCState *env)
             }
             env->gpr[3] = ret;
             break;
-        case POWERPC_EXCP_STCX:
-            if (do_store_exclusive(env)) {
-                info.si_signo = TARGET_SIGSEGV;
-                info.si_errno = 0;
-                info.si_code = TARGET_SEGV_MAPERR;
-                info._sifields._sigfault._addr = env->nip;
-                queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-            }
-            break;
         case EXCP_DEBUG:
-            {
-                int sig;
-
-                sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-                if (sig) {
-                    info.si_signo = sig;
-                    info.si_errno = 0;
-                    info.si_code = TARGET_TRAP_BRKPT;
-                    queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-                  }
+            sig = gdb_handlesig(cs, TARGET_SIGTRAP);
+            if (sig) {
+                info.si_signo = sig;
+                info.si_errno = 0;
+                info.si_code = TARGET_TRAP_BRKPT;
+                queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+            } else {
+                arch_interrupt = false;
             }
             break;
         case EXCP_INTERRUPT:
@@ -551,12 +464,22 @@ void cpu_loop(CPUPPCState *env)
             break;
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);
+            arch_interrupt = false;
             break;
         default:
             cpu_abort(cs, "Unknown exception 0x%x. Aborting\n", trapnr);
             break;
         }
         process_pending_signals(env);
+
+        /* Most of the traps imply a transition through kernel mode,
+         * which implies an REI instruction has been executed.  Which
+         * means that RX and LOCK_ADDR should be cleared.  But there
+         * are a few exceptions for traps internal to QEMU.
+         */
+        if (arch_interrupt) {
+            env->reserve_addr = -1;
+        }
     }
 }
 

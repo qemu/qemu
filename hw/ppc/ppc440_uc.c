@@ -13,6 +13,7 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "exec/address-spaces.h"
@@ -800,6 +801,227 @@ void ppc4xx_ahb_init(CPUPPCState *env)
     ppc_dcr_register(env, AHB_TOP, ahb, &dcr_read_ahb, &dcr_write_ahb);
     ppc_dcr_register(env, AHB_BOT, ahb, &dcr_read_ahb, &dcr_write_ahb);
     qemu_register_reset(ppc4xx_ahb_reset, ahb);
+}
+
+/*****************************************************************************/
+/* DMA controller */
+
+#define DMA0_CR_CE  (1 << 31)
+#define DMA0_CR_PW  (1 << 26 | 1 << 25)
+#define DMA0_CR_DAI (1 << 24)
+#define DMA0_CR_SAI (1 << 23)
+#define DMA0_CR_DEC (1 << 2)
+
+enum {
+    DMA0_CR  = 0x00,
+    DMA0_CT,
+    DMA0_SAH,
+    DMA0_SAL,
+    DMA0_DAH,
+    DMA0_DAL,
+    DMA0_SGH,
+    DMA0_SGL,
+
+    DMA0_SR  = 0x20,
+    DMA0_SGC = 0x23,
+    DMA0_SLP = 0x25,
+    DMA0_POL = 0x26,
+};
+
+typedef struct {
+    uint32_t cr;
+    uint32_t ct;
+    uint64_t sa;
+    uint64_t da;
+    uint64_t sg;
+} PPC4xxDmaChnl;
+
+typedef struct {
+    int base;
+    PPC4xxDmaChnl ch[4];
+    uint32_t sr;
+} PPC4xxDmaState;
+
+static uint32_t dcr_read_dma(void *opaque, int dcrn)
+{
+    PPC4xxDmaState *dma = opaque;
+    uint32_t val = 0;
+    int addr = dcrn - dma->base;
+    int chnl = addr / 8;
+
+    switch (addr) {
+    case 0x00 ... 0x1f:
+        switch (addr % 8) {
+        case DMA0_CR:
+            val = dma->ch[chnl].cr;
+            break;
+        case DMA0_CT:
+            val = dma->ch[chnl].ct;
+            break;
+        case DMA0_SAH:
+            val = dma->ch[chnl].sa >> 32;
+            break;
+        case DMA0_SAL:
+            val = dma->ch[chnl].sa;
+            break;
+        case DMA0_DAH:
+            val = dma->ch[chnl].da >> 32;
+            break;
+        case DMA0_DAL:
+            val = dma->ch[chnl].da;
+            break;
+        case DMA0_SGH:
+            val = dma->ch[chnl].sg >> 32;
+            break;
+        case DMA0_SGL:
+            val = dma->ch[chnl].sg;
+            break;
+        }
+        break;
+    case DMA0_SR:
+        val = dma->sr;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unimplemented register %x (%d, %x)\n",
+                      __func__, dcrn, chnl, addr);
+    }
+
+    return val;
+}
+
+static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
+{
+    PPC4xxDmaState *dma = opaque;
+    int addr = dcrn - dma->base;
+    int chnl = addr / 8;
+
+    switch (addr) {
+    case 0x00 ... 0x1f:
+        switch (addr % 8) {
+        case DMA0_CR:
+            dma->ch[chnl].cr = val;
+            if (val & DMA0_CR_CE) {
+                int count = dma->ch[chnl].ct & 0xffff;
+
+                if (count) {
+                    int width, i, sidx, didx;
+                    uint8_t *rptr, *wptr;
+                    hwaddr rlen, wlen;
+
+                    sidx = didx = 0;
+                    width = 1 << ((val & DMA0_CR_PW) >> 25);
+                    rptr = cpu_physical_memory_map(dma->ch[chnl].sa, &rlen, 0);
+                    wptr = cpu_physical_memory_map(dma->ch[chnl].da, &wlen, 1);
+                    if (rptr && wptr) {
+                        if (!(val & DMA0_CR_DEC) &&
+                            val & DMA0_CR_SAI && val & DMA0_CR_DAI) {
+                            /* optimise common case */
+                            memmove(wptr, rptr, count * width);
+                            sidx = didx = count * width;
+                        } else {
+                            /* do it the slow way */
+                            for (sidx = didx = i = 0; i < count; i++) {
+                                uint64_t v = ldn_le_p(rptr + sidx, width);
+                                stn_le_p(wptr + didx, width, v);
+                                if (val & DMA0_CR_SAI) {
+                                    sidx += width;
+                                }
+                                if (val & DMA0_CR_DAI) {
+                                    didx += width;
+                                }
+                            }
+                        }
+                    }
+                    if (wptr) {
+                        cpu_physical_memory_unmap(wptr, wlen, 1, didx);
+                    }
+                    if (wptr) {
+                        cpu_physical_memory_unmap(rptr, rlen, 0, sidx);
+                    }
+                }
+            }
+            break;
+        case DMA0_CT:
+            dma->ch[chnl].ct = val;
+            break;
+        case DMA0_SAH:
+            dma->ch[chnl].sa &= 0xffffffffULL;
+            dma->ch[chnl].sa |= (uint64_t)val << 32;
+            break;
+        case DMA0_SAL:
+            dma->ch[chnl].sa &= 0xffffffff00000000ULL;
+            dma->ch[chnl].sa |= val;
+            break;
+        case DMA0_DAH:
+            dma->ch[chnl].da &= 0xffffffffULL;
+            dma->ch[chnl].da |= (uint64_t)val << 32;
+            break;
+        case DMA0_DAL:
+            dma->ch[chnl].da &= 0xffffffff00000000ULL;
+            dma->ch[chnl].da |= val;
+            break;
+        case DMA0_SGH:
+            dma->ch[chnl].sg &= 0xffffffffULL;
+            dma->ch[chnl].sg |= (uint64_t)val << 32;
+            break;
+        case DMA0_SGL:
+            dma->ch[chnl].sg &= 0xffffffff00000000ULL;
+            dma->ch[chnl].sg |= val;
+            break;
+        }
+        break;
+    case DMA0_SR:
+        dma->sr &= ~val;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: unimplemented register %x (%d, %x)\n",
+                      __func__, dcrn, chnl, addr);
+    }
+}
+
+static void ppc4xx_dma_reset(void *opaque)
+{
+    PPC4xxDmaState *dma = opaque;
+    int dma_base = dma->base;
+
+    memset(dma, 0, sizeof(*dma));
+    dma->base = dma_base;
+}
+
+void ppc4xx_dma_init(CPUPPCState *env, int dcr_base)
+{
+    PPC4xxDmaState *dma;
+    int i;
+
+    dma = g_malloc0(sizeof(*dma));
+    dma->base = dcr_base;
+    qemu_register_reset(&ppc4xx_dma_reset, dma);
+    for (i = 0; i < 4; i++) {
+        ppc_dcr_register(env, dcr_base + i * 8 + DMA0_CR,
+                         dma, &dcr_read_dma, &dcr_write_dma);
+        ppc_dcr_register(env, dcr_base + i * 8 + DMA0_CT,
+                         dma, &dcr_read_dma, &dcr_write_dma);
+        ppc_dcr_register(env, dcr_base + i * 8 + DMA0_SAH,
+                         dma, &dcr_read_dma, &dcr_write_dma);
+        ppc_dcr_register(env, dcr_base + i * 8 + DMA0_SAL,
+                         dma, &dcr_read_dma, &dcr_write_dma);
+        ppc_dcr_register(env, dcr_base + i * 8 + DMA0_DAH,
+                         dma, &dcr_read_dma, &dcr_write_dma);
+        ppc_dcr_register(env, dcr_base + i * 8 + DMA0_DAL,
+                         dma, &dcr_read_dma, &dcr_write_dma);
+        ppc_dcr_register(env, dcr_base + i * 8 + DMA0_SGH,
+                         dma, &dcr_read_dma, &dcr_write_dma);
+        ppc_dcr_register(env, dcr_base + i * 8 + DMA0_SGL,
+                         dma, &dcr_read_dma, &dcr_write_dma);
+    }
+    ppc_dcr_register(env, dcr_base + DMA0_SR,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, dcr_base + DMA0_SGC,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, dcr_base + DMA0_SLP,
+                     dma, &dcr_read_dma, &dcr_write_dma);
+    ppc_dcr_register(env, dcr_base + DMA0_POL,
+                     dma, &dcr_read_dma, &dcr_write_dma);
 }
 
 /*****************************************************************************/

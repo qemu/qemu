@@ -137,7 +137,7 @@ static ICSState *spapr_ics_create(sPAPRMachineState *spapr,
         goto error;
     }
 
-    return ICS_SIMPLE(obj);
+    return ICS_BASE(obj);
 
 error:
     error_propagate(errp, local_err);
@@ -3962,6 +3962,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->no_parallel = 1;
     mc->default_boot_order = "";
     mc->default_ram_size = 512 * MiB;
+    mc->default_display = "std";
     mc->kvm_type = spapr_kvm_type;
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_SPAPR_PCI_HOST_BRIDGE);
     mc->pci_allow_0_address = true;
@@ -4095,17 +4096,16 @@ static void spapr_machine_2_12_instance_options(MachineState *machine)
 static void spapr_machine_2_12_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
-    uint8_t mps;
 
     spapr_machine_3_0_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_12);
 
-    if (kvmppc_hpt_needs_host_contiguous_pages()) {
-        mps = ctz64(qemu_getrampagesize());
-    } else {
-        mps = 34; /* allow everything up to 16GiB, i.e. everything */
-    }
-    smc->default_caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE] = mps;
+    /* We depend on kvm_enabled() to choose a default value for the
+     * hpt-max-page-size capability. Of course we can't do it here
+     * because this is too early and the HW accelerator isn't initialzed
+     * yet. Postpone this to machine init (see default_caps_with_cpu()).
+     */
+    smc->default_caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE] = 0;
 }
 
 DEFINE_SPAPR_MACHINE(2_12, "2.12", false);

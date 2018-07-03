@@ -851,6 +851,7 @@ M: BALATON Zoltan <balaton@eik.bme.hu>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ide/sii3112.c
+F: hw/timer/m41t80.c
 
 SH4 Machines
 ------------

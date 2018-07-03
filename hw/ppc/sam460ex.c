@@ -37,6 +37,8 @@
 #include "hw/i2c/smbus.h"
 #include "hw/usb/hcd-ehci.h"
 
+#include <libfdt.h>
+
 #define BINARY_DEVICE_TREE_FILE "canyonlands.dtb"
 #define UBOOT_FILENAME "u-boot-sam460-20100605.bin"
 /* to extract the official U-Boot bin from the updater: */
@@ -67,6 +69,10 @@
 */
 
 #define CPU_FREQ 1150000000
+#define PLB_FREQ 230000000
+#define OPB_FREQ 115000000
+#define EBC_FREQ 115000000
+#define UART_FREQ 11059200
 #define SDRAM_NR_BANKS 4
 
 /* FIXME: See u-boot.git 8ac41e, also fix in ppc440_uc.c */
@@ -255,6 +261,7 @@ static int sam460ex_load_device_tree(hwaddr addr,
     void *fdt;
     uint32_t tb_freq = CPU_FREQ;
     uint32_t clock_freq = CPU_FREQ;
+    int offset;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -307,6 +314,27 @@ static int sam460ex_load_device_tree(hwaddr addr,
                               clock_freq);
     qemu_fdt_setprop_cell(fdt, "/cpus/cpu@0", "timebase-frequency",
                               tb_freq);
+
+    /* Remove cpm node if it exists (it is not emulated) */
+    offset = fdt_path_offset(fdt, "/cpm");
+    if (offset >= 0) {
+        fdt_nop_node(fdt, offset);
+    }
+
+    /* set serial port clocks */
+    offset = fdt_node_offset_by_compatible(fdt, -1, "ns16550");
+    while (offset >= 0) {
+        fdt_setprop_cell(fdt, offset, "clock-frequency", UART_FREQ);
+        offset = fdt_node_offset_by_compatible(fdt, offset, "ns16550");
+    }
+
+    /* some more clocks */
+    qemu_fdt_setprop_cell(fdt, "/plb", "clock-frequency",
+                              PLB_FREQ);
+    qemu_fdt_setprop_cell(fdt, "/plb/opb", "clock-frequency",
+                              OPB_FREQ);
+    qemu_fdt_setprop_cell(fdt, "/plb/opb/ebc", "clock-frequency",
+                              EBC_FREQ);
 
     rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);
@@ -457,6 +485,7 @@ static void sam460ex_init(MachineState *machine)
     object_property_set_bool(OBJECT(dev), true, "realized", NULL);
     smbus_eeprom_init(i2c[0]->bus, 8, smbus_eeprom_buf, smbus_eeprom_size);
     g_free(smbus_eeprom_buf);
+    i2c_create_slave(i2c[0]->bus, "m41t80", 0x68);
 
     dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600800, uic[0][3]);
     i2c[1] = PPC4xx_I2C(dev);
@@ -475,6 +504,9 @@ static void sam460ex_init(MachineState *machine)
 
     /* MAL */
     ppc4xx_mal_init(env, 4, 16, &uic[2][3]);
+
+    /* DMA */
+    ppc4xx_dma_init(env, 0x200);
 
     /* 256K of L2 cache as memory */
     ppc4xx_l2sram_init(env);

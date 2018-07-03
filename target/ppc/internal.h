@@ -252,4 +252,9 @@ static inline void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 void helper_compute_fprf_float16(CPUPPCState *env, float16 arg);
 void helper_compute_fprf_float32(CPUPPCState *env, float32 arg);
 void helper_compute_fprf_float128(CPUPPCState *env, float128 arg);
+
+/* Raise a data fault alignment exception for the specified virtual address */
+void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
+                                 MMUAccessType access_type,
+                                 int mmu_idx, uintptr_t retaddr);
 #endif /* PPC_INTERNAL_H */

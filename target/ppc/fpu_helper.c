@@ -274,6 +274,7 @@ static inline void float_inexact_excp(CPUPPCState *env)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
 
+    env->fpscr |= 1 << FPSCR_FI;
     env->fpscr |= 1 << FPSCR_XX;
     /* Update the floating-point exception summary */
     env->fpscr |= FP_FX;
@@ -533,6 +534,7 @@ static void do_float_check_status(CPUPPCState *env, uintptr_t raddr)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
     int status = get_float_exception_flags(&env->fp_status);
+    bool inexact_happened = false;
 
     if (status & float_flag_divbyzero) {
         float_zero_divide_excp(env, raddr);
@@ -542,6 +544,12 @@ static void do_float_check_status(CPUPPCState *env, uintptr_t raddr)
         float_underflow_excp(env);
     } else if (status & float_flag_inexact) {
         float_inexact_excp(env);
+        inexact_happened = true;
+    }
+
+    /* if the inexact flag was not set */
+    if (inexact_happened == false) {
+        env->fpscr &= ~(1 << FPSCR_FI); /* clear the FPSCR[FI] bit */
     }
 
     if (cs->exception_index == POWERPC_EXCP_PROGRAM &&

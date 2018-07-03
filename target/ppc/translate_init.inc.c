@@ -10457,6 +10457,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     cc->set_pc = ppc_cpu_set_pc;
     cc->gdb_read_register = ppc_cpu_gdb_read_register;
     cc->gdb_write_register = ppc_cpu_gdb_write_register;
+    cc->do_unaligned_access = ppc_cpu_do_unaligned_access;
 #ifdef CONFIG_USER_ONLY
     cc->handle_mmu_fault = ppc_cpu_handle_mmu_fault;
 #else
