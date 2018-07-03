@@ -545,7 +545,7 @@ fail:
 #endif
 }
 
-static int send_response(GAState *s, QObject *payload)
+static int send_response(GAState *s, QDict *payload)
 {
     const char *buf;
     QString *payload_qstr, *response_qstr;
@@ -553,7 +553,7 @@ static int send_response(GAState *s, QObject *payload)
 
     g_assert(payload && s->channel);
 
-    payload_qstr = qobject_to_json(payload);
+    payload_qstr = qobject_to_json(QOBJECT(payload));
     if (!payload_qstr) {
         return -EINVAL;
     }
@@ -581,7 +581,7 @@ static int send_response(GAState *s, QObject *payload)
 
 static void process_command(GAState *s, QDict *req)
 {
-    QObject *rsp = NULL;
+    QDict *rsp;
     int ret;
 
     g_assert(req);
@@ -629,7 +629,7 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
             error_setg(&err, QERR_UNSUPPORTED);
             qdict = qmp_error_response(err);
         }
-        ret = send_response(s, QOBJECT(qdict));
+        ret = send_response(s, qdict);
         if (ret < 0) {
             g_warning("error sending error response: %s", strerror(-ret));
         }

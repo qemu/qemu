@@ -161,8 +161,8 @@ bool qmp_is_oob(QDict *dict)
         && !qdict_haskey(dict, "execute");
 }
 
-QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request,
-                      bool allow_oob)
+QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
+                    bool allow_oob)
 {
     Error *err = NULL;
     QObject *ret;
@@ -179,5 +179,5 @@ QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request,
         rsp = NULL;
     }
 
-    return QOBJECT(rsp);
+    return rsp;
 }

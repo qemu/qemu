@@ -48,8 +48,8 @@ bool qmp_command_is_enabled(const QmpCommand *cmd);
 const char *qmp_command_name(const QmpCommand *cmd);
 bool qmp_has_success_response(const QmpCommand *cmd);
 QDict *qmp_error_response(Error *err);
-QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request,
-                      bool allow_oob);
+QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
+                    bool allow_oob);
 bool qmp_is_oob(QDict *dict);
 
 typedef void (*qmp_cmd_callback_fn)(QmpCommand *cmd, void *opaque);

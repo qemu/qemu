@@ -379,7 +379,7 @@ static void monitor_qmp_cleanup_req_queue_locked(Monitor *mon)
 static void monitor_qmp_cleanup_resp_queue_locked(Monitor *mon)
 {
     while (!g_queue_is_empty(mon->qmp.qmp_responses)) {
-        qobject_unref((QObject *)g_queue_pop_head(mon->qmp.qmp_responses));
+        qobject_unref((QDict *)g_queue_pop_head(mon->qmp.qmp_responses));
     }
 }
 
@@ -528,7 +528,8 @@ static void monitor_json_emitter(Monitor *mon, QObject *data)
          * responder thread).
          */
         qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
-        g_queue_push_tail(mon->qmp.qmp_responses, qobject_ref(data));
+        g_queue_push_tail(mon->qmp.qmp_responses,
+                          qobject_ref(qobject_to(QDict, data)));
         qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
         qemu_bh_schedule(qmp_respond_bh);
     } else {
@@ -542,13 +543,13 @@ static void monitor_json_emitter(Monitor *mon, QObject *data)
 
 struct QMPResponse {
     Monitor *mon;
-    QObject *data;
+    QDict *data;
 };
 typedef struct QMPResponse QMPResponse;
 
-static QObject *monitor_qmp_response_pop_one(Monitor *mon)
+static QDict *monitor_qmp_response_pop_one(Monitor *mon)
 {
-    QObject *data;
+    QDict *data;
 
     qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
     data = g_queue_pop_head(mon->qmp.qmp_responses);
@@ -559,10 +560,10 @@ static QObject *monitor_qmp_response_pop_one(Monitor *mon)
 
 static void monitor_qmp_response_flush(Monitor *mon)
 {
-    QObject *data;
+    QDict *data;
 
     while ((data = monitor_qmp_response_pop_one(mon))) {
-        monitor_json_emitter_raw(mon, data);
+        monitor_json_emitter_raw(mon, QOBJECT(data));
         qobject_unref(data);
     }
 }
@@ -574,7 +575,7 @@ static void monitor_qmp_response_flush(Monitor *mon)
 static bool monitor_qmp_response_pop_any(QMPResponse *response)
 {
     Monitor *mon;
-    QObject *data = NULL;
+    QDict *data = NULL;
 
     qemu_mutex_lock(&monitor_lock);
     QTAILQ_FOREACH(mon, &mon_list, entry) {
@@ -594,7 +595,7 @@ static void monitor_qmp_bh_responder(void *opaque)
     QMPResponse response;
 
     while (monitor_qmp_response_pop_any(&response)) {
-        monitor_json_emitter_raw(response.mon, response.data);
+        monitor_json_emitter_raw(response.mon, QOBJECT(response.data));
         qobject_unref(response.data);
     }
 }
@@ -4104,20 +4105,20 @@ static int monitor_can_read(void *opaque)
  * 2. rsp, err, and id may be NULL.
  * 3. If err != NULL then rsp must be NULL.
  */
-static void monitor_qmp_respond(Monitor *mon, QObject *rsp,
+static void monitor_qmp_respond(Monitor *mon, QDict *rsp,
                                 Error *err, QObject *id)
 {
     if (err) {
         assert(!rsp);
-        rsp = QOBJECT(qmp_error_response(err));
+        rsp = qmp_error_response(err);
     }
 
     if (rsp) {
         if (id) {
-            qdict_put_obj(qobject_to(QDict, rsp), "id", qobject_ref(id));
+            qdict_put_obj(rsp, "id", qobject_ref(id));
         }
 
-        monitor_json_emitter(mon, rsp);
+        monitor_json_emitter(mon, QOBJECT(rsp));
     }
 
     qobject_unref(id);
@@ -4127,7 +4128,7 @@ static void monitor_qmp_respond(Monitor *mon, QObject *rsp,
 static void monitor_qmp_dispatch(Monitor *mon, QObject *req, QObject *id)
 {
     Monitor *old_mon;
-    QObject *rsp;
+    QDict *rsp;
     QDict *error;
 
     old_mon = cur_mon;
@@ -4138,7 +4139,7 @@ static void monitor_qmp_dispatch(Monitor *mon, QObject *req, QObject *id)
     cur_mon = old_mon;
 
     if (mon->qmp.commands == &qmp_cap_negotiation_commands) {
-        error = qdict_get_qdict(qobject_to(QDict, rsp), "error");
+        error = qdict_get_qdict(rsp, "error");
         if (error
             && !g_strcmp0(qdict_get_try_str(error, "class"),
                     QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
