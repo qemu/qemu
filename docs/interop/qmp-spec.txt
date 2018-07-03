@@ -77,8 +77,7 @@ The greeting message format is:
   is the same of the query-version command)
 - The "capabilities" member specify the availability of features beyond the
   baseline specification; the order of elements in this array has no
-  particular significance, so a client must search the entire array
-  when looking for a particular capability
+  particular significance.
 
 2.2.1 Capabilities
 ------------------
@@ -86,16 +85,7 @@ The greeting message format is:
 Currently supported capabilities are:
 
 - "oob": the QMP server supports "out-of-band" (OOB) command
-  execution.  For more details, please see the "run-oob" parameter in
-  the "Issuing Commands" section below.  Not all commands allow this
-  "oob" execution.  The "query-qmp-schema" command can be used to
-  inspect which commands support "oob" execution.
-
-QMP clients can get a list of supported QMP capabilities of the QMP
-server in the greeting message mentioned above.  By default, all the
-capabilities are off.  To enable any QMP capabilities, the QMP client
-needs to send the "qmp_capabilities" command with an extra parameter
-for the requested capabilities.
+  execution, as described in section "2.3.1 Out-of-band execution".
 
 2.3 Issuing Commands
 --------------------
@@ -115,14 +105,38 @@ The format for command execution is:
 - The "id" member is a transaction identification associated with the
   command execution.  It is required for all commands if the OOB -
   capability was enabled at startup, and optional otherwise.  The same
-  "id" field will be part of the response if provided. The "id" member
-  can be any json-value, although most clients merely use a
-  json-number incremented for each successive command
-- The "control" member is optional, and currently only used for
-  out-of-band execution. The handling or response of an "oob" command
-  can overtake prior in-band commands.  To enable "oob" handling of a
-  particular command, just provide a control field with: { "control":
-  { "run-oob": true } }
+  "id" field will be part of the response if provided.  The "id"
+  member can be any json-value.  A json-number incremented for each
+  successive command works fine.
+- The optional "control" member further specifies how the command is
+  to be executed.  Currently, its only member is optional "run-oob".
+  See section "2.3.1 Out-of-band execution" for details.
+
+
+2.3.1 Out-of-band execution
+---------------------------
+
+The server normally reads, executes and responds to one command after
+the other.  The client therefore receives command responses in issue
+order.
+
+With out-of-band execution enabled via capability negotiation (section
+4.), the server reads and queues commands as they arrive.  It executes
+commands from the queue one after the other.  Commands executed
+out-of-band jump the queue: the command get executed right away,
+possibly overtaking prior in-band commands.  The client may therefore
+receive such a command's response before responses from prior in-band
+commands.
+
+To execute a command out-of-band, the client puts "run-oob": true into
+execute's member "control".
+
+If the client sends in-band commands faster than the server can
+execute them, the server will eventually drop commands to limit the
+queue length.  The sever sends event COMMAND_DROPPED then.
+
+Only a few commands support out-of-band execution.  The ones that do
+have "allow-oob": true in output of query-qmp-schema.
 
 2.4 Commands Responses
 ----------------------
@@ -223,12 +237,13 @@ This section provides some examples of real QMP usage, in all of them
 3.1 Server greeting
 -------------------
 
-S: { "QMP": { "version": { "qemu": { "micro": 50, "minor": 6, "major": 1 },
-     "package": ""}, "capabilities": []}}
+S: { "QMP": {"version": {"qemu": {"micro": 0, "minor": 0, "major": 3},
+     "package": "v3.0.0"}, "capabilities": ["oob"] } }
 
-3.2 Client QMP negotiation
---------------------------
-C: { "execute": "qmp_capabilities" }
+3.2 Capabilities negotiation
+----------------------------
+
+C: { "execute": "qmp_capabilities", "arguments": { "enable": ["oob"] } }
 S: { "return": {}}
 
 3.3 Simple 'stop' execution
@@ -254,6 +269,15 @@ S: { "error": { "class": "GenericError", "desc": "Invalid JSON syntax" } }
 
 S: { "timestamp": { "seconds": 1258551470, "microseconds": 802384 },
     "event": "POWERDOWN" }
+
+3.7 Out-of-band execution
+-------------------------
+
+C: { "execute": "migrate-pause", "id": 42, "control": { "run-oob": true } }
+S: { "id": 42,
+     "error": { "class": "GenericError",
+      "desc": "migrate-pause is currently only supported during postcopy-active state" } }
+
 
 4. Capabilities Negotiation
 ===========================
