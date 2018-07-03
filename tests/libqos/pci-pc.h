@@ -15,6 +15,22 @@
 
 #include "libqos/pci.h"
 #include "libqos/malloc.h"
+#include "libqos/qgraph.h"
+
+typedef struct QPCIBusPC {
+    QOSGraphObject obj;
+    QPCIBus bus;
+} QPCIBusPC;
+
+/* qpci_init_pc():
+ * @ret: A valid QPCIBusPC * pointer
+ * @qts: The %QTestState for this PC machine
+ * @alloc: A previously initialized @alloc providing memory for @qts
+ *
+ * This function initializes an already allocated
+ * QPCIBusPC object.
+ */
+void qpci_init_pc(QPCIBusPC *ret, QTestState *qts, QGuestAllocator *alloc);
 
 /* qpci_pc_new():
  * @qts: The %QTestState for this PC machine
@@ -23,7 +39,8 @@
  * This function creates a new QPCIBusPC object,
  * and properly initialize its fields.
  *
- * Returns a newly allocated QPCIBus.
+ * Returns the QPCIBus *bus field of a newly
+ * allocated QPCIBusPC.
  */
 QPCIBus *qpci_new_pc(QTestState *qts, QGuestAllocator *alloc);
 

@@ -14,6 +14,7 @@
 #define LIBQOS_PCI_H
 
 #include "libqtest.h"
+#include "libqos/qgraph.h"
 
 #define QPCI_PIO_LIMIT    0x10000
 
@@ -22,6 +23,7 @@
 typedef struct QPCIDevice QPCIDevice;
 typedef struct QPCIBus QPCIBus;
 typedef struct QPCIBar QPCIBar;
+typedef struct QPCIAddress QPCIAddress;
 
 struct QPCIBus {
     uint8_t (*pio_readb)(QPCIBus *bus, uint32_t addr);
@@ -51,6 +53,7 @@ struct QPCIBus {
     QTestState *qts;
     uint16_t pio_alloc_ptr;
     uint64_t mmio_alloc_ptr, mmio_limit;
+
 };
 
 struct QPCIBar {
@@ -66,10 +69,17 @@ struct QPCIDevice
     uint64_t msix_table_off, msix_pba_off;
 };
 
+struct QPCIAddress {
+    uint32_t devfn;
+    uint16_t vendor_id;
+    uint16_t device_id;
+};
+
 void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
                          void (*func)(QPCIDevice *dev, int devfn, void *data),
                          void *data);
 QPCIDevice *qpci_device_find(QPCIBus *bus, int devfn);
+void qpci_device_init(QPCIDevice *dev, QPCIBus *bus, QPCIAddress *addr);
 
 void qpci_device_enable(QPCIDevice *dev);
 uint8_t qpci_find_capability(QPCIDevice *dev, uint8_t id);
@@ -110,4 +120,6 @@ void qpci_iounmap(QPCIDevice *dev, QPCIBar addr);
 QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr);
 
 void qpci_unplug_acpi_device_test(const char *id, uint8_t slot);
+
+void add_qpci_address(QOSGraphEdgeOptions *opts, QPCIAddress *addr);
 #endif
