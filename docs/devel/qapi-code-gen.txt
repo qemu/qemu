@@ -744,6 +744,35 @@ Example: Red Hat, Inc. controls redhat.com, and may therefore add a
 downstream command __com.redhat_drive-mirror.
 
 
+=== Configuring the schema ===
+
+The 'struct', 'enum', 'union', 'alternate', 'command' and 'event'
+top-level expressions can take an 'if' key.  Its value must be a string
+or a list of strings.  A string is shorthand for a list containing just
+that string.  The code generated for the top-level expression will then
+be guarded by #if COND for each COND in the list.
+
+Example: a conditional struct
+
+ { 'struct': 'IfStruct', 'data': { 'foo': 'int' },
+   'if': ['defined(CONFIG_FOO)', 'defined(HAVE_BAR)'] }
+
+gets its generated code guarded like this:
+
+ #if defined(CONFIG_FOO)
+ #if defined(HAVE_BAR)
+ ... generated code ...
+ #endif /* defined(HAVE_BAR) */
+ #endif /* defined(CONFIG_FOO) */
+
+Please note that you are responsible to ensure that the C code will
+compile with an arbitrary combination of conditions, since the
+generators are unable to check it at this point.
+
+The presence of 'if' keys in the schema is reflected through to the
+introspection output depending on the build configuration.
+
+
 == Client JSON Protocol introspection ==
 
 Clients of a Client JSON Protocol commonly need to figure out what

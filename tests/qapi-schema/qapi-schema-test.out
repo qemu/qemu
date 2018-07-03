@@ -36,6 +36,8 @@ object UserDefTwoDict
 object UserDefTwo
     member string0: str optional=False
     member dict1: UserDefTwoDict optional=False
+object UserDefThree
+    member string0: str optional=False
 object ForceArrays
     member unused1: UserDefOneList optional=False
     member unused2: UserDefTwoList optional=False
@@ -233,3 +235,27 @@ object q_obj___org.qemu_x-command-arg
     member d: __org.qemu_x-Alt optional=False
 command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> __org.qemu_x-Union1
    gen=True success_response=True boxed=False oob=False preconfig=False
+object TestIfStruct
+    member foo: int optional=False
+enum TestIfEnum ['foo', 'bar']
+object q_obj_TestStruct-wrapper
+    member data: TestStruct optional=False
+enum TestIfUnionKind ['foo']
+object TestIfUnion
+    member type: TestIfUnionKind optional=False
+    tag type
+    case foo: q_obj_TestStruct-wrapper
+alternate TestIfAlternate
+    tag type
+    case foo: int
+    case bar: TestStruct
+object q_obj_TestIfCmd-arg
+    member foo: TestIfStruct optional=False
+command TestIfCmd q_obj_TestIfCmd-arg -> UserDefThree
+   gen=True success_response=True boxed=False oob=False preconfig=False
+command TestCmdReturnDefThree None -> UserDefThree
+   gen=True success_response=True boxed=False oob=False preconfig=False
+object q_obj_TestIfEvent-arg
+    member foo: TestIfStruct optional=False
+event TestIfEvent q_obj_TestIfEvent-arg
+   boxed=False

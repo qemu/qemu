@@ -1,0 +1,3 @@
+# check empty 'if'
+{ 'struct': 'TestIfStruct', 'data': { 'foo': 'int' },
+  'if': '' }

@@ -1,0 +1,3 @@
+# check empty 'if' list
+{ 'struct': 'TestIfStruct', 'data': { 'foo': 'int' },
+  'if': [] }

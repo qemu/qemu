@@ -1,0 +1,1 @@
+tests/qapi-schema/bad-if-list.json:2: 'if' condition '' makes no sense
