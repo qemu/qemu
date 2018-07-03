@@ -2897,18 +2897,11 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
                                                     bool recurse_src)
 {
     BdrvTrackedRequest src_req, dst_req;
-    BlockDriverState *src_bs = src->bs;
-    BlockDriverState *dst_bs = dst->bs;
     int ret;
 
-    if (!src || !dst || !src->bs || !dst->bs) {
+    if (!dst || !dst->bs) {
         return -ENOMEDIUM;
     }
-    ret = bdrv_check_byte_request(src->bs, src_offset, bytes);
-    if (ret) {
-        return ret;
-    }
-
     ret = bdrv_check_byte_request(dst->bs, dst_offset, bytes);
     if (ret) {
         return ret;
@@ -2917,16 +2910,24 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
         return bdrv_co_pwrite_zeroes(dst, dst_offset, bytes, flags);
     }
 
+    if (!src || !src->bs) {
+        return -ENOMEDIUM;
+    }
+    ret = bdrv_check_byte_request(src->bs, src_offset, bytes);
+    if (ret) {
+        return ret;
+    }
+
     if (!src->bs->drv->bdrv_co_copy_range_from
         || !dst->bs->drv->bdrv_co_copy_range_to
         || src->bs->encrypted || dst->bs->encrypted) {
         return -ENOTSUP;
     }
-    bdrv_inc_in_flight(src_bs);
-    bdrv_inc_in_flight(dst_bs);
-    tracked_request_begin(&src_req, src_bs, src_offset,
+    bdrv_inc_in_flight(src->bs);
+    bdrv_inc_in_flight(dst->bs);
+    tracked_request_begin(&src_req, src->bs, src_offset,
                           bytes, BDRV_TRACKED_READ);
-    tracked_request_begin(&dst_req, dst_bs, dst_offset,
+    tracked_request_begin(&dst_req, dst->bs, dst_offset,
                           bytes, BDRV_TRACKED_WRITE);
 
     wait_serialising_requests(&src_req);
@@ -2944,8 +2945,8 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
     }
     tracked_request_end(&src_req);
     tracked_request_end(&dst_req);
-    bdrv_dec_in_flight(src_bs);
-    bdrv_dec_in_flight(dst_bs);
+    bdrv_dec_in_flight(src->bs);
+    bdrv_dec_in_flight(dst->bs);
     return ret;
 }
 
