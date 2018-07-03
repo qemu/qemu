@@ -3048,7 +3048,8 @@ static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
                    s->vram_size_mb);
         return;
     }
-    vga_common_init(s, OBJECT(dev), true);
+    s->global_vmstate = true;
+    vga_common_init(s, OBJECT(dev));
     cirrus_init_common(&d->cirrus_vga, OBJECT(dev), CIRRUS_ID_CLGD5430, 0,
                        isa_address_space(isadev),
                        isa_address_space_io(isadev));
@@ -3062,7 +3063,7 @@ static Property isa_cirrus_vga_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", struct ISACirrusVGAState,
                        cirrus_vga.vga.vram_size_mb, 4),
     DEFINE_PROP_BOOL("blitter", struct ISACirrusVGAState,
-                       cirrus_vga.enable_blitter, true),
+                     cirrus_vga.enable_blitter, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -3105,7 +3106,7 @@ static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
          return;
      }
      /* setup VGA */
-     vga_common_init(&s->vga, OBJECT(dev), true);
+     vga_common_init(&s->vga, OBJECT(dev));
      cirrus_init_common(s, OBJECT(dev), device_id, 1, pci_address_space(dev),
                         pci_address_space_io(dev));
      s->vga.con = graphic_console_init(DEVICE(dev), 0, s->vga.hw_ops, &s->vga);
@@ -3134,6 +3135,8 @@ static Property pci_vga_cirrus_properties[] = {
                        cirrus_vga.vga.vram_size_mb, 4),
     DEFINE_PROP_BOOL("blitter", struct PCICirrusVGAState,
                      cirrus_vga.enable_blitter, true),
+    DEFINE_PROP_BOOL("global-vmstate", struct PCICirrusVGAState,
+                     cirrus_vga.vga.global_vmstate, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

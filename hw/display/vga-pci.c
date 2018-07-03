@@ -222,7 +222,7 @@ static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
     bool qext = false;
 
     /* vga + console init */
-    vga_common_init(s, OBJECT(dev), true);
+    vga_common_init(s, OBJECT(dev));
     vga_init(s, OBJECT(dev), pci_address_space(dev), pci_address_space_io(dev),
              true);
 
@@ -265,7 +265,7 @@ static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
     bool qext = false;
 
     /* vga + console init */
-    vga_common_init(s, OBJECT(dev), false);
+    vga_common_init(s, OBJECT(dev));
     s->con = graphic_console_init(DEVICE(dev), 0, s->hw_ops, s);
 
     /* mmio bar */
@@ -308,6 +308,7 @@ static Property vga_pci_properties[] = {
     DEFINE_PROP_BIT("mmio", PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_MMIO, true),
     DEFINE_PROP_BIT("qemu-extended-regs",
                     PCIVGAState, flags, PCI_VGA_FLAG_ENABLE_QEXT, true),
+    DEFINE_PROP_BOOL("global-vmstate", PCIVGAState, vga.global_vmstate, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

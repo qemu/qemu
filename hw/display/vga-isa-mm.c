@@ -132,7 +132,8 @@ int isa_vga_mm_init(hwaddr vram_base,
     s = g_malloc0(sizeof(*s));
 
     s->vga.vram_size_mb = VGA_RAM_SIZE / MiB;
-    vga_common_init(&s->vga, NULL, true);
+    s->vga.global_vmstate = true;
+    vga_common_init(&s->vga, NULL);
     vga_mm_init(s, vram_base, ctrl_base, it_shift, address_space);
 
     s->vga.con = graphic_console_init(NULL, 0, s->vga.hw_ops, s);

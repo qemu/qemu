@@ -400,9 +400,47 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
     g->hostmem += res->hostmem;
 }
 
+static void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
+{
+    struct virtio_gpu_scanout *scanout = &g->scanout[scanout_id];
+    struct virtio_gpu_simple_resource *res;
+    DisplaySurface *ds = NULL;
+
+    if (scanout->resource_id == 0) {
+        return;
+    }
+
+    res = virtio_gpu_find_resource(g, scanout->resource_id);
+    if (res) {
+        res->scanout_bitmask &= ~(1 << scanout_id);
+    }
+
+    if (scanout_id == 0) {
+        /* primary head */
+        ds = qemu_create_message_surface(scanout->width  ?: 640,
+                                         scanout->height ?: 480,
+                                         "Guest disabled display.");
+    }
+    dpy_gfx_replace_surface(scanout->con, ds);
+    scanout->resource_id = 0;
+    scanout->ds = NULL;
+    scanout->width = 0;
+    scanout->height = 0;
+}
+
 static void virtio_gpu_resource_destroy(VirtIOGPU *g,
                                         struct virtio_gpu_simple_resource *res)
 {
+    int i;
+
+    if (res->scanout_bitmask) {
+        for (i = 0; i < g->conf.max_outputs; i++) {
+            if (res->scanout_bitmask & (1 << i)) {
+                virtio_gpu_disable_scanout(g, i);
+            }
+        }
+    }
+
     pixman_image_unref(res->image);
     virtio_gpu_cleanup_mapping(res);
     QTAILQ_REMOVE(&g->reslist, res, next);
@@ -563,7 +601,7 @@ static void virtio_unref_resource(pixman_image_t *image, void *data)
 static void virtio_gpu_set_scanout(VirtIOGPU *g,
                                    struct virtio_gpu_ctrl_command *cmd)
 {
-    struct virtio_gpu_simple_resource *res;
+    struct virtio_gpu_simple_resource *res, *ores;
     struct virtio_gpu_scanout *scanout;
     pixman_format_code_t format;
     uint32_t offset;
@@ -584,24 +622,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
 
     g->enable = 1;
     if (ss.resource_id == 0) {
-        scanout = &g->scanout[ss.scanout_id];
-        if (scanout->resource_id) {
-            res = virtio_gpu_find_resource(g, scanout->resource_id);
-            if (res) {
-                res->scanout_bitmask &= ~(1 << ss.scanout_id);
-            }
-        }
-        if (ss.scanout_id == 0) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: illegal scanout id specified %d",
-                          __func__, ss.scanout_id);
-            cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_SCANOUT_ID;
-            return;
-        }
-        dpy_gfx_replace_surface(g->scanout[ss.scanout_id].con, NULL);
-        scanout->ds = NULL;
-        scanout->width = 0;
-        scanout->height = 0;
+        virtio_gpu_disable_scanout(g, ss.scanout_id);
         return;
     }
 
@@ -652,6 +673,11 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
         }
         pixman_image_unref(rect);
         dpy_gfx_replace_surface(g->scanout[ss.scanout_id].con, scanout->ds);
+    }
+
+    ores = virtio_gpu_find_resource(g, scanout->resource_id);
+    if (ores) {
+        ores->scanout_bitmask &= ~(1 << ss.scanout_id);
     }
 
     res->scanout_bitmask |= (1 << ss.scanout_id);

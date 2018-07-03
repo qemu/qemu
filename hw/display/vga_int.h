@@ -133,6 +133,7 @@ typedef struct VGACommonState {
     bool full_update_gfx;
     bool big_endian_fb;
     bool default_endian_fb;
+    bool global_vmstate;
     /* hardware mouse cursor support */
     uint32_t invalidated_y_table[VGA_MAX_HEIGHT / 32];
     uint32_t hw_cursor_x;
@@ -157,7 +158,7 @@ static inline int c6_to_8(int v)
     return (v << 2) | (b << 1) | b;
 }
 
-void vga_common_init(VGACommonState *s, Object *obj, bool global_vmstate);
+void vga_common_init(VGACommonState *s, Object *obj);
 void vga_init(VGACommonState *s, Object *obj, MemoryRegion *address_space,
               MemoryRegion *address_space_io, bool init_vga_ports);
 MemoryRegion *vga_init_io(VGACommonState *s, Object *obj,
