@@ -4100,18 +4100,12 @@ static int monitor_can_read(void *opaque)
 }
 
 /*
- * 1. This function takes ownership of rsp, err, and id.
- * 2. rsp, err, and id may be NULL.
- * 3. If err != NULL then rsp must be NULL.
+ * Emit QMP response @rsp with ID @id to @mon.
+ * Null @rsp can only happen for commands with QCO_NO_SUCCESS_RESP.
+ * Nothing is emitted then.
  */
-static void monitor_qmp_respond(Monitor *mon, QDict *rsp,
-                                Error *err, QObject *id)
+static void monitor_qmp_respond(Monitor *mon, QDict *rsp, QObject *id)
 {
-    if (err) {
-        assert(!rsp);
-        rsp = qmp_error_response(err);
-    }
-
     if (rsp) {
         if (id) {
             qdict_put_obj(rsp, "id", qobject_ref(id));
@@ -4119,9 +4113,6 @@ static void monitor_qmp_respond(Monitor *mon, QDict *rsp,
 
         qmp_queue_response(mon, rsp);
     }
-
-    qobject_unref(id);
-    qobject_unref(rsp);
 }
 
 static void monitor_qmp_dispatch(Monitor *mon, QObject *req, QObject *id)
@@ -4149,8 +4140,8 @@ static void monitor_qmp_dispatch(Monitor *mon, QObject *req, QObject *id)
         }
     }
 
-    /* Respond if necessary */
-    monitor_qmp_respond(mon, rsp, NULL, qobject_ref(id));
+    monitor_qmp_respond(mon, rsp, id);
+    qobject_unref(rsp);
 }
 
 /*
@@ -4193,6 +4184,7 @@ static QMPRequest *monitor_qmp_requests_pop_any(void)
 static void monitor_qmp_bh_dispatcher(void *data)
 {
     QMPRequest *req_obj = monitor_qmp_requests_pop_any();
+    QDict *rsp;
 
     if (!req_obj) {
         return;
@@ -4203,7 +4195,9 @@ static void monitor_qmp_bh_dispatcher(void *data)
         monitor_qmp_dispatch(req_obj->mon, req_obj->req, req_obj->id);
     } else {
         assert(req_obj->err);
-        monitor_qmp_respond(req_obj->mon, NULL, req_obj->err, NULL);
+        rsp = qmp_error_response(req_obj->err);
+        monitor_qmp_respond(req_obj->mon, rsp, NULL);
+        qobject_unref(rsp);
     }
 
     if (req_obj->need_resume) {
