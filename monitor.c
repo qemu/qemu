@@ -4339,6 +4339,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     return;
 
 err:
+    /* FIXME overtakes queued in-band commands, wrong when !qmp_is_oob() */
     monitor_qmp_respond(mon, NULL, err, NULL);
     qobject_unref(req);
 }

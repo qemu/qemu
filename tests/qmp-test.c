@@ -241,6 +241,13 @@ static void test_qmp_oob(void)
     unblock_blocked_cmd();
     recv_cmd_id(qts, "ib-blocks-1");
     recv_cmd_id(qts, "ib-quick-1");
+
+    /* FIXME certain in-band errors overtake slow in-band command */
+    send_cmd_that_blocks(qts, "blocks-2");
+    qtest_async_qmp(qts, "{ 'id': 'err-2' }");
+    recv_cmd_id(qts, NULL);
+    unblock_blocked_cmd();
+    recv_cmd_id(qts, "blocks-2");
     cleanup_blocking_cmd();
 
     qtest_quit(qts);
