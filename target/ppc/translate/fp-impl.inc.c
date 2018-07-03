@@ -660,15 +660,12 @@ GEN_LDUF(name, ldop, op | 0x21, type);                                        \
 GEN_LDUXF(name, ldop, op | 0x01, type);                                       \
 GEN_LDXF(name, ldop, 0x17, op | 0x00, type)
 
-static inline void gen_qemu_ld32fs(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
+static void gen_qemu_ld32fs(DisasContext *ctx, TCGv_i64 dest, TCGv addr)
 {
-    TCGv t0 = tcg_temp_new();
-    TCGv_i32 t1 = tcg_temp_new_i32();
-    gen_qemu_ld32u(ctx, t0, arg2);
-    tcg_gen_trunc_tl_i32(t1, t0);
-    tcg_temp_free(t0);
-    gen_helper_float32_to_float64(arg1, cpu_env, t1);
-    tcg_temp_free_i32(t1);
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    tcg_gen_qemu_ld_i32(tmp, addr, ctx->mem_idx, DEF_MEMOP(MO_UL));
+    gen_helper_todouble(dest, tmp);
+    tcg_temp_free_i32(tmp);
 }
 
  /* lfd lfdu lfdux lfdx */
@@ -836,15 +833,12 @@ GEN_STUF(name, stop, op | 0x21, type);                                        \
 GEN_STUXF(name, stop, op | 0x01, type);                                       \
 GEN_STXF(name, stop, 0x17, op | 0x00, type)
 
-static inline void gen_qemu_st32fs(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
+static void gen_qemu_st32fs(DisasContext *ctx, TCGv_i64 src, TCGv addr)
 {
-    TCGv_i32 t0 = tcg_temp_new_i32();
-    TCGv t1 = tcg_temp_new();
-    gen_helper_float64_to_float32(t0, cpu_env, arg1);
-    tcg_gen_extu_i32_tl(t1, t0);
-    tcg_temp_free_i32(t0);
-    gen_qemu_st32(ctx, t1, arg2);
-    tcg_temp_free(t1);
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    gen_helper_tosingle(tmp, src);
+    tcg_gen_qemu_st_i32(tmp, addr, ctx->mem_idx, DEF_MEMOP(MO_UL));
+    tcg_temp_free_i32(tmp);
 }
 
 /* stfd stfdu stfdux stfdx */

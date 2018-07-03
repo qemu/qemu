@@ -47,24 +47,61 @@ static inline bool fp_exceptions_enabled(CPUPPCState *env)
 
 /*****************************************************************************/
 /* Floating point operations helpers */
-uint64_t helper_float32_to_float64(CPUPPCState *env, uint32_t arg)
-{
-    CPU_FloatU f;
-    CPU_DoubleU d;
 
-    f.l = arg;
-    d.d = float32_to_float64(f.f, &env->fp_status);
-    return d.ll;
+/*
+ * This is the non-arithmatic conversion that happens e.g. on loads.
+ * In the Power ISA pseudocode, this is called DOUBLE.
+ */
+uint64_t helper_todouble(uint32_t arg)
+{
+    uint32_t abs_arg = arg & 0x7fffffff;
+    uint64_t ret;
+
+    if (likely(abs_arg >= 0x00800000)) {
+        /* Normalized operand, or Inf, or NaN.  */
+        ret  = (uint64_t)extract32(arg, 30, 2) << 62;
+        ret |= ((extract32(arg, 30, 1) ^ 1) * (uint64_t)7) << 59;
+        ret |= (uint64_t)extract32(arg, 0, 30) << 29;
+    } else {
+        /* Zero or Denormalized operand.  */
+        ret = (uint64_t)extract32(arg, 31, 1) << 63;
+        if (unlikely(abs_arg != 0)) {
+            /* Denormalized operand.  */
+            int shift = clz32(abs_arg) - 9;
+            int exp = -126 - shift + 1023;
+            ret |= (uint64_t)exp << 52;
+            ret |= abs_arg << (shift + 29);
+        }
+    }
+    return ret;
 }
 
-uint32_t helper_float64_to_float32(CPUPPCState *env, uint64_t arg)
+/*
+ * This is the non-arithmatic conversion that happens e.g. on stores.
+ * In the Power ISA pseudocode, this is called SINGLE.
+ */
+uint32_t helper_tosingle(uint64_t arg)
 {
-    CPU_FloatU f;
-    CPU_DoubleU d;
+    int exp = extract64(arg, 52, 11);
+    uint32_t ret;
 
-    d.ll = arg;
-    f.f = float64_to_float32(d.d, &env->fp_status);
-    return f.l;
+    if (likely(exp > 896)) {
+        /* No denormalization required (includes Inf, NaN).  */
+        ret  = extract64(arg, 62, 2) << 30;
+        ret |= extract64(arg, 29, 30);
+    } else {
+        /* Zero or Denormal result.  If the exponent is in bounds for
+         * a single-precision denormal result, extract the proper bits.
+         * If the input is not zero, and the exponent is out of bounds,
+         * then the result is undefined; this underflows to zero.
+         */
+        ret = extract64(arg, 63, 1) << 31;
+        if (unlikely(exp >= 874)) {
+            /* Denormal result.  */
+            ret |= ((1ULL << 52) | extract64(arg, 0, 52)) >> (896 + 30 - exp);
+        }
+    }
+    return ret;
 }
 
 static inline int ppc_float32_get_unbiased_exp(float32 f)
