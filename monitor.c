@@ -243,7 +243,7 @@ struct Monitor {
 /* Let's add monitor global variables to this struct. */
 static struct {
     IOThread *mon_iothread;
-    /* Bottom half to dispatch the requests received from IO thread */
+    /* Bottom half to dispatch the requests received from I/O thread */
     QEMUBH *qmp_dispatcher_bh;
     /* Bottom half to deliver the responses back to clients */
     QEMUBH *qmp_respond_bh;
@@ -518,7 +518,7 @@ static void monitor_json_emitter(Monitor *mon, QObject *data)
 {
     if (mon->use_io_thr) {
         /*
-         * If using IO thread, we need to queue the item so that IO
+         * If using I/O thread, we need to queue the item so that I/O
          * thread will do the rest for us.  Take refcount so that
          * caller won't free the data (which will be finally freed in
          * responder thread).
@@ -529,7 +529,7 @@ static void monitor_json_emitter(Monitor *mon, QObject *data)
         qemu_bh_schedule(mon_global.qmp_respond_bh);
     } else {
         /*
-         * If not using monitor IO thread, then we are in main thread.
+         * If not using monitor I/O thread, then we are in main thread.
          * Do the emission right away.
          */
         monitor_json_emitter_raw(mon, data);
@@ -1269,7 +1269,7 @@ static void qmp_caps_check(Monitor *mon, QMPCapabilityList *list,
             if (!mon->use_io_thr) {
                 /*
                  * Out-of-band only works with monitors that are
-                 * running on dedicated IOThread.
+                 * running on dedicated I/O thread.
                  */
                 error_setg(errp, "This monitor does not support "
                            "out-of-band (OOB)");
@@ -4403,7 +4403,7 @@ int monitor_suspend(Monitor *mon)
 
     if (monitor_is_qmp(mon)) {
         /*
-         * Kick iothread to make sure this takes effect.  It'll be
+         * Kick I/O thread to make sure this takes effect.  It'll be
          * evaluated again in prepare() of the watch object.
          */
         aio_notify(iothread_get_aio_context(mon_global.mon_iothread));
@@ -4422,7 +4422,7 @@ void monitor_resume(Monitor *mon)
     if (atomic_dec_fetch(&mon->suspend_cnt) == 0) {
         if (monitor_is_qmp(mon)) {
             /*
-             * For QMP monitors that are running in IOThread, let's
+             * For QMP monitors that are running in I/O thread, let's
              * kick the thread in case it's sleeping.
              */
             if (mon->use_io_thr) {
@@ -4446,7 +4446,7 @@ static QObject *get_qmp_greeting(Monitor *mon)
 
     for (cap = 0; cap < QMP_CAPABILITY__MAX; cap++) {
         if (!mon->use_io_thr && cap == QMP_CAPABILITY_OOB) {
-            /* Monitors that are not using IOThread won't support OOB */
+            /* Monitors that are not using I/O thread won't support OOB */
             continue;
         }
         qlist_append_str(cap_list, QMPCapability_str(cap));
@@ -4587,9 +4587,9 @@ static void monitor_iothread_init(void)
                                               NULL);
 
     /*
-     * Unlike the dispatcher BH, this must be run on the monitor IO
-     * thread, so that monitors that are using IO thread will make
-     * sure read/write operations are all done on the IO thread.
+     * Unlike the dispatcher BH, this must be run on the monitor I/O
+     * thread, so that monitors that are using I/O thread will make
+     * sure read/write operations are all done on the I/O thread.
      */
     mon_global.qmp_respond_bh = aio_bh_new(monitor_get_aio_context(),
                                            monitor_qmp_bh_responder,
@@ -4661,7 +4661,7 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     if (mon->use_io_thr) {
         /*
          * When use_io_thr is set, we use the global shared dedicated
-         * IO thread for this monitor to handle input/output.
+         * I/O thread for this monitor to handle input/output.
          */
         context = monitor_get_io_context();
         /* We should have inited globals before reaching here. */
@@ -4718,7 +4718,7 @@ void monitor_init(Chardev *chr, int flags)
             /*
              * We can't call qemu_chr_fe_set_handlers() directly here
              * since during the procedure the chardev will be active
-             * and running in monitor iothread, while we'll still do
+             * and running in monitor I/O thread, while we'll still do
              * something before returning from it, which is a possible
              * race too.  To avoid that, we just create a BH to setup
              * the handlers.
@@ -4745,16 +4745,16 @@ void monitor_cleanup(void)
     Monitor *mon, *next;
 
     /*
-     * We need to explicitly stop the iothread (but not destroy it),
-     * cleanup the monitor resources, then destroy the iothread since
+     * We need to explicitly stop the I/O thread (but not destroy it),
+     * cleanup the monitor resources, then destroy the I/O thread since
      * we need to unregister from chardev below in
      * monitor_data_destroy(), and chardev is not thread-safe yet
      */
     iothread_stop(mon_global.mon_iothread);
 
     /*
-     * After we have IOThread to send responses, it's possible that
-     * when we stop the IOThread there are still replies queued in the
+     * After we have I/O thread to send responses, it's possible that
+     * when we stop the I/O thread there are still replies queued in the
      * responder queue.  Flush all of them.  Note that even after this
      * flush it's still possible that out buffer is not flushed.
      * It'll be done in below monitor_flush() as the last resort.
@@ -4770,7 +4770,7 @@ void monitor_cleanup(void)
     }
     qemu_mutex_unlock(&monitor_lock);
 
-    /* QEMUBHs needs to be deleted before destroying the IOThread. */
+    /* QEMUBHs needs to be deleted before destroying the I/O thread */
     qemu_bh_delete(mon_global.qmp_dispatcher_bh);
     mon_global.qmp_dispatcher_bh = NULL;
     qemu_bh_delete(mon_global.qmp_respond_bh);
