@@ -85,7 +85,7 @@ The greeting message format is:
 
 Currently supported capabilities are:
 
-- "oob": the QMP server supports "Out-Of-Band" (OOB) command
+- "oob": the QMP server supports "out-of-band" (OOB) command
   execution.  For more details, please see the "run-oob" parameter in
   the "Issuing Commands" section below.  Not all commands allow this
   "oob" execution.  The "query-qmp-schema" command can be used to

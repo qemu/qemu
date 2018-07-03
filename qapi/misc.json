@@ -46,7 +46,7 @@
 # Enumeration of capabilities to be advertised during initial client
 # connection, used for agreeing on particular QMP extension behaviors.
 #
-# @oob:   QMP ability to support Out-Of-Band requests.
+# @oob:   QMP ability to support out-of-band requests.
 #         (Please refer to qmp-spec.txt for more information on OOB)
 #
 # Since: 2.12

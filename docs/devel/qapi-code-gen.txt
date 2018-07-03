@@ -641,7 +641,7 @@ possible, the command expression should include the optional key
 'success-response' with boolean value false.  So far, only QGA makes
 use of this member.
 
-A command can be declared to support Out-Of-Band (OOB) execution.  By
+A command can be declared to support out-of-band (OOB) execution.  By
 default, commands do not support OOB.  To declare a command that
 supports it, the schema includes an extra 'allow-oob' field.  For
 example:

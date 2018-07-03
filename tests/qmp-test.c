@@ -135,7 +135,7 @@ static void test_qmp_protocol(void)
     qtest_quit(qts);
 }
 
-/* Tests for Out-Of-Band support. */
+/* Tests for out-of-band support. */
 static void test_qmp_oob(void)
 {
     QTestState *qts;

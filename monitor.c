@@ -1268,11 +1268,11 @@ static void qmp_caps_check(Monitor *mon, QMPCapabilityList *list,
         case QMP_CAPABILITY_OOB:
             if (!mon->use_io_thr) {
                 /*
-                 * Out-Of-Band only works with monitors that are
+                 * Out-of-band only works with monitors that are
                  * running on dedicated IOThread.
                  */
                 error_setg(errp, "This monitor does not support "
-                           "Out-Of-Band (OOB)");
+                           "out-of-band (OOB)");
                 return;
             }
             break;
@@ -1320,7 +1320,7 @@ static bool qmp_cmd_oob_check(Monitor *mon, QDict *req, Error **errp)
 
     if (qmp_is_oob(req)) {
         if (!qmp_oob_enabled(mon)) {
-            error_setg(errp, "Please enable Out-Of-Band first "
+            error_setg(errp, "Please enable out-of-band first "
                        "for the session during capabilities negotiation");
             return false;
         }
@@ -4294,7 +4294,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 
     /* When OOB is enabled, the "id" field is mandatory. */
     if (qmp_oob_enabled(mon) && !id) {
-        error_setg(&err, "Out-Of-Band capability requires that "
+        error_setg(&err, "Out-of-band capability requires that "
                    "every command contains an 'id' field");
         goto err;
     }
@@ -4308,7 +4308,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
     qdict_del(qdict, "id");
 
     if (qmp_is_oob(qdict)) {
-        /* Out-Of-Band (OOB) requests are executed directly in parser. */
+        /* Out-of-band (OOB) requests are executed directly in parser. */
         trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(req_obj->id)
                                           ?: "");
         monitor_qmp_dispatch_one(req_obj);
@@ -4684,12 +4684,12 @@ void monitor_init(Chardev *chr, int flags)
 
     if (use_oob) {
         if (CHARDEV_IS_MUX(chr)) {
-            error_report("Monitor Out-Of-Band is not supported with "
+            error_report("Monitor out-of-band is not supported with "
                          "MUX typed chardev backend");
             exit(1);
         }
         if (use_readline) {
-            error_report("Monitor Out-Of-band is only supported by QMP");
+            error_report("Monitor out-of-band is only supported by QMP");
             exit(1);
         }
     }
