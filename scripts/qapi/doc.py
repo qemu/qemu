@@ -204,14 +204,14 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
     def write(self, output_dir):
         self._gen.write(output_dir, self._prefix + 'qapi-doc.texi')
 
-    def visit_enum_type(self, name, info, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, values, prefix):
         doc = self.cur_doc
         self._gen.add(TYPE_FMT(type='Enum',
                                name=doc.symbol,
                                body=texi_entity(doc, 'Values',
                                                 member_func=texi_enum_value)))
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants):
         doc = self.cur_doc
         if base and base.is_implicit():
             base = None
@@ -220,13 +220,13 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
                                body=texi_entity(doc, 'Members',
                                                 base, variants)))
 
-    def visit_alternate_type(self, name, info, variants):
+    def visit_alternate_type(self, name, info, ifcond, variants):
         doc = self.cur_doc
         self._gen.add(TYPE_FMT(type='Alternate',
                                name=doc.symbol,
                                body=texi_entity(doc, 'Members')))
 
-    def visit_command(self, name, info, arg_type, ret_type, gen,
+    def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig):
         doc = self.cur_doc
         if boxed:
@@ -240,7 +240,7 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
                               name=doc.symbol,
                               body=body))
 
-    def visit_event(self, name, info, arg_type, boxed):
+    def visit_event(self, name, info, ifcond, arg_type, boxed):
         doc = self.cur_doc
         self._gen.add(MSG_FMT(type='Event',
                               name=doc.symbol,

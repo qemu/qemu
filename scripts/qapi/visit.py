@@ -310,15 +310,15 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
 ''',
                                       types=types))
 
-    def visit_enum_type(self, name, info, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, values, prefix):
         self._genh.add(gen_visit_decl(name, scalar=True))
         self._genc.add(gen_visit_enum(name))
 
-    def visit_array_type(self, name, info, element_type):
+    def visit_array_type(self, name, info, ifcond, element_type):
         self._genh.add(gen_visit_decl(name))
         self._genc.add(gen_visit_list(name, element_type))
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
@@ -331,7 +331,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
             self._genh.add(gen_visit_decl(name))
             self._genc.add(gen_visit_object(name, base, members, variants))
 
-    def visit_alternate_type(self, name, info, variants):
+    def visit_alternate_type(self, name, info, ifcond, variants):
         self._genh.add(gen_visit_decl(name))
         self._genc.add(gen_visit_alternate(name, variants))
 

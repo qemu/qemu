@@ -277,7 +277,7 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
                        c_prefix=c_name(self._prefix, protect=False)))
         genc.add(gen_registry(self._regy, self._prefix))
 
-    def visit_command(self, name, info, arg_type, ret_type, gen,
+    def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig):
         if not gen:
             return

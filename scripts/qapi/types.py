@@ -208,16 +208,16 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         self._genh.add(gen_type_cleanup_decl(name))
         self._genc.add(gen_type_cleanup(name))
 
-    def visit_enum_type(self, name, info, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, values, prefix):
         self._genh.preamble_add(gen_enum(name, values, prefix))
         self._genc.add(gen_enum_lookup(name, values, prefix))
 
-    def visit_array_type(self, name, info, element_type):
+    def visit_array_type(self, name, info, ifcond, element_type):
         self._genh.preamble_add(gen_fwd_object_or_array(name))
         self._genh.add(gen_array(name, element_type))
         self._gen_type_cleanup(name)
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
@@ -231,7 +231,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
             # implicit types won't be directly allocated/freed
             self._gen_type_cleanup(name)
 
-    def visit_alternate_type(self, name, info, variants):
+    def visit_alternate_type(self, name, info, ifcond, variants):
         self._genh.preamble_add(gen_fwd_object_or_array(name))
         self._genh.add(gen_object(name, None,
                                   [variants.tag_member], variants))
