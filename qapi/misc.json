@@ -3454,6 +3454,9 @@
 # only be dropped when the oob capability is enabled.
 #
 # @id: The dropped command's "id" field.
+# FIXME Broken by design.  Events are broadcast to all monitors.  If
+# another monitor's client has a command with the same ID in flight,
+# the event will incorrectly claim that command was dropped.
 #
 # @reason: The reason why the command is dropped.
 #

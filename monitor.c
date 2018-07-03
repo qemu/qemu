@@ -4331,6 +4331,12 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         /* Drop the request if queue is full. */
         if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX) {
             qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
+            /*
+             * FIXME @id's scope is just @mon, and broadcasting it is
+             * wrong.  If another monitor's client has a command with
+             * the same ID in flight, the event will incorrectly claim
+             * that command was dropped.
+             */
             qapi_event_send_command_dropped(id,
                                             COMMAND_DROP_REASON_QUEUE_FULL,
                                             &error_abort);
