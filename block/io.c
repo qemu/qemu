@@ -2930,8 +2930,10 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
     tracked_request_begin(&dst_req, dst->bs, dst_offset,
                           bytes, BDRV_TRACKED_WRITE);
 
-    wait_serialising_requests(&src_req);
-    wait_serialising_requests(&dst_req);
+    if (!(flags & BDRV_REQ_NO_SERIALISING)) {
+        wait_serialising_requests(&src_req);
+        wait_serialising_requests(&dst_req);
+    }
     if (recurse_src) {
         ret = src->bs->drv->bdrv_co_copy_range_from(src->bs,
                                                     src, src_offset,
