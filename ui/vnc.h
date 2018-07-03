@@ -297,7 +297,9 @@ struct VncState
     bool encode_ws;
     bool websocket;
 
+#ifdef CONFIG_VNC
     VncClientInfo *info;
+#endif
 
     /* Job thread bottom half has put data for a forced update
      * into the output buffer. This offset points to the end of

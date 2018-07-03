@@ -616,6 +616,7 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
     qapi_free_BlockStatsList(stats_list);
 }
 
+#ifdef CONFIG_VNC
 /* Helper for hmp_info_vnc_clients, _servers */
 static void hmp_info_VncBasicInfo(Monitor *mon, VncBasicInfo *info,
                                   const char *name)
@@ -703,6 +704,7 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
     qapi_free_VncInfo2List(info2l);
 
 }
+#endif
 
 #ifdef CONFIG_SPICE
 void hmp_info_spice(Monitor *mon, const QDict *qdict)
@@ -1772,12 +1774,14 @@ void hmp_eject(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
+#ifdef CONFIG_VNC
 static void hmp_change_read_arg(void *opaque, const char *password,
                                 void *readline_opaque)
 {
     qmp_change_vnc_password(password, NULL);
     monitor_read_command(opaque, 1);
 }
+#endif
 
 void hmp_change(Monitor *mon, const QDict *qdict)
 {
@@ -1788,6 +1792,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     BlockdevChangeReadOnlyMode read_only_mode = 0;
     Error *err = NULL;
 
+#ifdef CONFIG_VNC
     if (strcmp(device, "vnc") == 0) {
         if (read_only) {
             monitor_printf(mon,
@@ -1802,7 +1807,9 @@ void hmp_change(Monitor *mon, const QDict *qdict)
             }
         }
         qmp_change("vnc", target, !!arg, arg, &err);
-    } else {
+    } else
+#endif
+    {
         if (read_only) {
             read_only_mode =
                 qapi_enum_parse(&BlockdevChangeReadOnlyMode_lookup,
