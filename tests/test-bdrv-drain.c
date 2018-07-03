@@ -1250,6 +1250,47 @@ static void test_detach_by_driver_cb(void)
     test_detach_indirect(false);
 }
 
+static void test_append_to_drained(void)
+{
+    BlockBackend *blk;
+    BlockDriverState *base, *overlay;
+    BDRVTestState *base_s, *overlay_s;
+
+    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    base = bdrv_new_open_driver(&bdrv_test, "base", BDRV_O_RDWR, &error_abort);
+    base_s = base->opaque;
+    blk_insert_bs(blk, base, &error_abort);
+
+    overlay = bdrv_new_open_driver(&bdrv_test, "overlay", BDRV_O_RDWR,
+                                   &error_abort);
+    overlay_s = overlay->opaque;
+
+    do_drain_begin(BDRV_DRAIN, base);
+    g_assert_cmpint(base->quiesce_counter, ==, 1);
+    g_assert_cmpint(base_s->drain_count, ==, 1);
+    g_assert_cmpint(base->in_flight, ==, 0);
+
+    /* Takes ownership of overlay, so we don't have to unref it later */
+    bdrv_append(overlay, base, &error_abort);
+    g_assert_cmpint(base->in_flight, ==, 0);
+    g_assert_cmpint(overlay->in_flight, ==, 0);
+
+    g_assert_cmpint(base->quiesce_counter, ==, 1);
+    g_assert_cmpint(base_s->drain_count, ==, 1);
+    g_assert_cmpint(overlay->quiesce_counter, ==, 1);
+    g_assert_cmpint(overlay_s->drain_count, ==, 1);
+
+    do_drain_end(BDRV_DRAIN, base);
+
+    g_assert_cmpint(base->quiesce_counter, ==, 0);
+    g_assert_cmpint(base_s->drain_count, ==, 0);
+    g_assert_cmpint(overlay->quiesce_counter, ==, 0);
+    g_assert_cmpint(overlay_s->drain_count, ==, 0);
+
+    bdrv_unref(base);
+    blk_unref(blk);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -1307,6 +1348,8 @@ int main(int argc, char **argv)
     g_test_add_func("/bdrv-drain/detach/drain_subtree", test_detach_by_drain_subtree);
     g_test_add_func("/bdrv-drain/detach/parent_cb", test_detach_by_parent_cb);
     g_test_add_func("/bdrv-drain/detach/driver_cb", test_detach_by_driver_cb);
+
+    g_test_add_func("/bdrv-drain/attach/drain", test_append_to_drained);
 
     ret = g_test_run();
     qemu_event_destroy(&done_event);
