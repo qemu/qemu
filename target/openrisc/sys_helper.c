@@ -27,13 +27,12 @@
 
 #define TO_SPR(group, number) (((group) << 11) + (number))
 
-void HELPER(mtspr)(CPUOpenRISCState *env,
-                   target_ulong ra, target_ulong rb, target_ulong offset)
+void HELPER(mtspr)(CPUOpenRISCState *env, target_ulong spr, target_ulong rb)
 {
 #ifndef CONFIG_USER_ONLY
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    int spr = (ra | offset);
+    target_ulong mr;
     int idx;
 
     switch (spr) {
@@ -57,26 +56,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
         break;
 
     case TO_SPR(0, 17): /* SR */
-        if ((env->sr & (SR_IME | SR_DME | SR_SM)) ^
-            (rb & (SR_IME | SR_DME | SR_SM))) {
-            tlb_flush(cs);
-        }
         cpu_set_sr(env, rb);
-        if (env->sr & SR_DME) {
-            env->tlb->cpu_openrisc_map_address_data =
-                &cpu_openrisc_get_phys_data;
-        } else {
-            env->tlb->cpu_openrisc_map_address_data =
-                &cpu_openrisc_get_phys_nommu;
-        }
-
-        if (env->sr & SR_IME) {
-            env->tlb->cpu_openrisc_map_address_code =
-                &cpu_openrisc_get_phys_code;
-        } else {
-            env->tlb->cpu_openrisc_map_address_code =
-                &cpu_openrisc_get_phys_nommu;
-        }
         break;
 
     case TO_SPR(0, 18): /* PPC */
@@ -98,18 +78,22 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
     case TO_SPR(0, 1024) ... TO_SPR(0, 1024 + (16 * 32)): /* Shadow GPRs */
         idx = (spr - 1024);
         env->shadow_gpr[idx / 32][idx % 32] = rb;
-
-    case TO_SPR(1, 512) ... TO_SPR(1, 512+DTLB_SIZE-1): /* DTLBW0MR 0-127 */
-        idx = spr - TO_SPR(1, 512);
-        if (!(rb & 1)) {
-            tlb_flush_page(cs, env->tlb->dtlb[0][idx].mr & TARGET_PAGE_MASK);
-        }
-        env->tlb->dtlb[0][idx].mr = rb;
         break;
 
-    case TO_SPR(1, 640) ... TO_SPR(1, 640+DTLB_SIZE-1): /* DTLBW0TR 0-127 */
+    case TO_SPR(1, 512) ... TO_SPR(1, 512 + TLB_SIZE - 1): /* DTLBW0MR 0-127 */
+        idx = spr - TO_SPR(1, 512);
+        mr = env->tlb.dtlb[idx].mr;
+        if (mr & 1) {
+            tlb_flush_page(cs, mr & TARGET_PAGE_MASK);
+        }
+        if (rb & 1) {
+            tlb_flush_page(cs, rb & TARGET_PAGE_MASK);
+        }
+        env->tlb.dtlb[idx].mr = rb;
+        break;
+    case TO_SPR(1, 640) ... TO_SPR(1, 640 + TLB_SIZE - 1): /* DTLBW0TR 0-127 */
         idx = spr - TO_SPR(1, 640);
-        env->tlb->dtlb[0][idx].tr = rb;
+        env->tlb.dtlb[idx].tr = rb;
         break;
     case TO_SPR(1, 768) ... TO_SPR(1, 895):   /* DTLBW1MR 0-127 */
     case TO_SPR(1, 896) ... TO_SPR(1, 1023):  /* DTLBW1TR 0-127 */
@@ -118,17 +102,21 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
     case TO_SPR(1, 1280) ... TO_SPR(1, 1407): /* DTLBW3MR 0-127 */
     case TO_SPR(1, 1408) ... TO_SPR(1, 1535): /* DTLBW3TR 0-127 */
         break;
-    case TO_SPR(2, 512) ... TO_SPR(2, 512+ITLB_SIZE-1):   /* ITLBW0MR 0-127 */
-        idx = spr - TO_SPR(2, 512);
-        if (!(rb & 1)) {
-            tlb_flush_page(cs, env->tlb->itlb[0][idx].mr & TARGET_PAGE_MASK);
-        }
-        env->tlb->itlb[0][idx].mr = rb;
-        break;
 
-    case TO_SPR(2, 640) ... TO_SPR(2, 640+ITLB_SIZE-1): /* ITLBW0TR 0-127 */
+    case TO_SPR(2, 512) ... TO_SPR(2, 512 + TLB_SIZE - 1): /* ITLBW0MR 0-127 */
+        idx = spr - TO_SPR(2, 512);
+        mr = env->tlb.itlb[idx].mr;
+        if (mr & 1) {
+            tlb_flush_page(cs, mr & TARGET_PAGE_MASK);
+        }
+        if (rb & 1) {
+            tlb_flush_page(cs, rb & TARGET_PAGE_MASK);
+        }
+        env->tlb.itlb[idx].mr = rb;
+        break;
+    case TO_SPR(2, 640) ... TO_SPR(2, 640 + TLB_SIZE - 1): /* ITLBW0TR 0-127 */
         idx = spr - TO_SPR(2, 640);
-        env->tlb->itlb[0][idx].tr = rb;
+        env->tlb.itlb[idx].tr = rb;
         break;
     case TO_SPR(2, 768) ... TO_SPR(2, 895):   /* ITLBW1MR 0-127 */
     case TO_SPR(2, 896) ... TO_SPR(2, 1023):  /* ITLBW1TR 0-127 */
@@ -137,6 +125,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
     case TO_SPR(2, 1280) ... TO_SPR(2, 1407): /* ITLBW3MR 0-127 */
     case TO_SPR(2, 1408) ... TO_SPR(2, 1535): /* ITLBW3TR 0-127 */
         break;
+
     case TO_SPR(5, 1):  /* MACLO */
         env->mac = deposit64(env->mac, 0, 32, rb);
         break;
@@ -153,7 +142,7 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
         }
         break;
     case TO_SPR(9, 0):  /* PICMR */
-        env->picmr |= rb;
+        env->picmr = rb;
         break;
     case TO_SPR(9, 2):  /* PICSR */
         env->picsr &= ~rb;
@@ -201,13 +190,12 @@ void HELPER(mtspr)(CPUOpenRISCState *env,
 #endif
 }
 
-target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
-                           target_ulong rd, target_ulong ra, uint32_t offset)
+target_ulong HELPER(mfspr)(CPUOpenRISCState *env, target_ulong rd,
+                           target_ulong spr)
 {
 #ifndef CONFIG_USER_ONLY
     OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    int spr = (ra | offset);
     int idx;
 
     switch (spr) {
@@ -259,13 +247,13 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
         idx = (spr - 1024);
         return env->shadow_gpr[idx / 32][idx % 32];
 
-    case TO_SPR(1, 512) ... TO_SPR(1, 512+DTLB_SIZE-1): /* DTLBW0MR 0-127 */
+    case TO_SPR(1, 512) ... TO_SPR(1, 512 + TLB_SIZE - 1): /* DTLBW0MR 0-127 */
         idx = spr - TO_SPR(1, 512);
-        return env->tlb->dtlb[0][idx].mr;
+        return env->tlb.dtlb[idx].mr;
 
-    case TO_SPR(1, 640) ... TO_SPR(1, 640+DTLB_SIZE-1): /* DTLBW0TR 0-127 */
+    case TO_SPR(1, 640) ... TO_SPR(1, 640 + TLB_SIZE - 1): /* DTLBW0TR 0-127 */
         idx = spr - TO_SPR(1, 640);
-        return env->tlb->dtlb[0][idx].tr;
+        return env->tlb.dtlb[idx].tr;
 
     case TO_SPR(1, 768) ... TO_SPR(1, 895):   /* DTLBW1MR 0-127 */
     case TO_SPR(1, 896) ... TO_SPR(1, 1023):  /* DTLBW1TR 0-127 */
@@ -275,13 +263,13 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env,
     case TO_SPR(1, 1408) ... TO_SPR(1, 1535): /* DTLBW3TR 0-127 */
         break;
 
-    case TO_SPR(2, 512) ... TO_SPR(2, 512+ITLB_SIZE-1): /* ITLBW0MR 0-127 */
+    case TO_SPR(2, 512) ... TO_SPR(2, 512 + TLB_SIZE - 1): /* ITLBW0MR 0-127 */
         idx = spr - TO_SPR(2, 512);
-        return env->tlb->itlb[0][idx].mr;
+        return env->tlb.itlb[idx].mr;
 
-    case TO_SPR(2, 640) ... TO_SPR(2, 640+ITLB_SIZE-1): /* ITLBW0TR 0-127 */
+    case TO_SPR(2, 640) ... TO_SPR(2, 640 + TLB_SIZE - 1): /* ITLBW0TR 0-127 */
         idx = spr - TO_SPR(2, 640);
-        return env->tlb->itlb[0][idx].tr;
+        return env->tlb.itlb[idx].tr;
 
     case TO_SPR(2, 768) ... TO_SPR(2, 895):   /* ITLBW1MR 0-127 */
     case TO_SPR(2, 896) ... TO_SPR(2, 1023):  /* ITLBW1TR 0-127 */
