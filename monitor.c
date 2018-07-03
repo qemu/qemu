@@ -4182,8 +4182,6 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     id = req_obj->id;
     need_resume = req_obj->need_resume;
 
-    g_free(req_obj);
-
     old_mon = cur_mon;
     cur_mon = mon;
 
@@ -4192,14 +4190,14 @@ static void monitor_qmp_dispatch_one(QMPRequest *req_obj)
     cur_mon = old_mon;
 
     /* Respond if necessary */
-    monitor_qmp_respond(mon, rsp, NULL, id);
+    monitor_qmp_respond(mon, rsp, NULL, qobject_ref(id));
 
     /* This pairs with the monitor_suspend() in handle_qmp_command(). */
     if (need_resume) {
         monitor_resume(mon);
     }
 
-    qobject_unref(req);
+    qmp_request_free(req_obj);
 }
 
 /*
