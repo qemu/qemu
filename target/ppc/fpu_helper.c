@@ -858,25 +858,24 @@ uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
 }
 
 /* fsqrt - fsqrt. */
-uint64_t helper_fsqrt(CPUPPCState *env, uint64_t arg)
+float64 helper_fsqrt(CPUPPCState *env, float64 arg)
 {
-    CPU_DoubleU farg;
+    float64 ret = float64_sqrt(arg, &env->fp_status);
+    int status = get_float_exception_flags(&env->fp_status);
 
-    farg.ll = arg;
-
-    if (unlikely(float64_is_any_nan(farg.d))) {
-        if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
-            /* sNaN reciprocal square root */
-            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
-            farg.ll = float64_snan_to_qnan(farg.ll);
+    if (unlikely(status & float_flag_invalid)) {
+        if (unlikely(float64_is_any_nan(arg))) {
+            if (unlikely(float64_is_signaling_nan(arg, &env->fp_status))) {
+                /* sNaN square root */
+                float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN, 1);
+            }
+        } else {
+            /* Square root of a negative nonzero number */
+            float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
         }
-    } else if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
-        /* Square root of a negative nonzero number */
-        farg.ll = float_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT, 1);
-    } else {
-        farg.d = float64_sqrt(farg.d, &env->fp_status);
     }
-    return farg.ll;
+
+    return ret;
 }
 
 /* fre - fre. */
