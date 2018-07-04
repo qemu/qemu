@@ -874,7 +874,7 @@ endif
 
 # QTest rules
 
-TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_LIST)))
+TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
 ifeq ($(CONFIG_POSIX),y)
 QTEST_TARGETS = $(TARGETS)
 check-qtest-y=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
@@ -938,14 +938,14 @@ check-report.html: check-report.xml
 
 # Per guest TCG tests
 
-LINUX_USER_TARGETS=$(filter %-linux-user,$(TARGET_LIST))
+LINUX_USER_TARGETS=$(filter %-linux-user,$(TARGET_DIRS))
 BUILD_TCG_TARGET_RULES=$(patsubst %,build-tcg-tests-%, $(LINUX_USER_TARGETS))
 CLEAN_TCG_TARGET_RULES=$(patsubst %,clean-tcg-tests-%, $(LINUX_USER_TARGETS))
 RUN_TCG_TARGET_RULES=$(patsubst %,run-tcg-tests-%, $(LINUX_USER_TARGETS))
 
 ifeq ($(HAVE_USER_DOCKER),y)
 # Probe for the Docker Builds needed for each build
-$(foreach PROBE_TARGET,$(TARGET_LIST), 				\
+$(foreach PROBE_TARGET,$(TARGET_DIRS), 				\
 	$(eval -include $(SRC_PATH)/tests/tcg/Makefile.probe) 	\
 	$(if $(DOCKER_PREREQ), 					\
 		$(eval build-tcg-tests-$(PROBE_TARGET): $(DOCKER_PREREQ))))
