@@ -59,10 +59,10 @@
 { TARGET_NR_cacheflush, "cacheflush" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_capget
-{ TARGET_NR_capget, "capget" , NULL, NULL, NULL },
+{ TARGET_NR_capget, "capget" , "%s(%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_capset
-{ TARGET_NR_capset, "capset" , NULL, NULL, NULL },
+{ TARGET_NR_capset, "capset" , "%s(%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_chdir
 { TARGET_NR_chdir, "chdir" , NULL, print_chdir, NULL },
@@ -1107,7 +1107,7 @@
 { TARGET_NR_recvmmsg, "recvmmsg" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_recvmsg
-{ TARGET_NR_recvmsg, "recvmsg" , NULL, NULL, NULL },
+{ TARGET_NR_recvmsg, "recvmsg" , "%s(%d,%p,%#x)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_remap_file_pages
 { TARGET_NR_remap_file_pages, "remap_file_pages" , NULL, NULL, NULL },
