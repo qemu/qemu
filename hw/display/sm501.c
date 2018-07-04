@@ -487,6 +487,7 @@ typedef struct SM501State {
     MemoryRegion twoD_engine_region;
     uint32_t last_width;
     uint32_t last_height;
+    bool do_full_update; /* perform a full update next time */
     I2CBus *i2c_bus;
 
     /* mmio registers */
@@ -1042,6 +1043,7 @@ static void sm501_palette_write(void *opaque, hwaddr addr,
 
     assert(range_covers_byte(0, 0x400 * 3, addr));
     *(uint32_t *)&s->dc_palette[addr] = value;
+    s->do_full_update = true;
 }
 
 static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
@@ -1627,6 +1629,12 @@ static void sm501_update_display(void *opaque)
         surface = qemu_console_surface(s->con);
         s->last_width = width;
         s->last_height = height;
+        full_update = 1;
+    }
+
+    /* someone else requested a full update */
+    if (s->do_full_update) {
+        s->do_full_update = false;
         full_update = 1;
     }
 
