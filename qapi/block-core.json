@@ -3057,13 +3057,17 @@
 # @log-sector-size: sector size used in logging writes to @file, determines
 #                   granularity of offsets and sizes of writes (default: 512)
 #
+# @log-super-update-interval: interval of write requests after which the log
+#                             super block is updated to disk (default: 4096)
+#
 # Since: 3.0
 ##
 { 'struct': 'BlockdevOptionsBlklogwrites',
   'data': { 'file': 'BlockdevRef',
             'log': 'BlockdevRef',
             '*log-sector-size': 'uint32',
-            '*log-append': 'bool' } }
+            '*log-append': 'bool',
+            '*log-super-update-interval': 'uint64' } }
 
 ##
 # @BlockdevOptionsBlkverify:

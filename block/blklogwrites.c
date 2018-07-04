@@ -55,6 +55,7 @@ typedef struct {
     uint32_t sectorbits;
     uint64_t cur_log_sector;
     uint64_t nr_entries;
+    uint64_t update_interval;
 } BDRVBlkLogWritesState;
 
 static QemuOptsList runtime_opts = {
@@ -70,6 +71,11 @@ static QemuOptsList runtime_opts = {
             .name = "log-sector-size",
             .type = QEMU_OPT_SIZE,
             .help = "Log sector size",
+        },
+        {
+            .name = "log-super-update-interval",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Log superblock update interval (# of write requests)",
         },
         { /* end of list */ }
     },
@@ -234,6 +240,14 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->sectorsize = log_sector_size;
     s->sectorbits = blk_log_writes_log2(log_sector_size);
+    s->update_interval = qemu_opt_get_number(opts, "log-super-update-interval",
+                                             4096);
+    if (!s->update_interval) {
+        ret = -EINVAL;
+        error_setg(errp, "Invalid log superblock update interval %"PRIu64,
+                   s->update_interval);
+        goto fail_log;
+    }
 
     ret = 0;
 fail_log:
@@ -360,8 +374,10 @@ static void coroutine_fn blk_log_writes_co_do_log(BlkLogWritesLogReq *lr)
                                             lr->zero_size, 0);
     }
 
-    /* Update super block on flush */
-    if (lr->log_ret == 0 && lr->entry.flags & LOG_FLUSH_FLAG) {
+    /* Update super block on flush or every update interval */
+    if (lr->log_ret == 0 && ((lr->entry.flags & LOG_FLUSH_FLAG)
+        || (s->nr_entries % s->update_interval == 0)))
+    {
         struct log_write_super super = {
             .magic      = cpu_to_le64(WRITE_LOG_MAGIC),
             .version    = cpu_to_le64(WRITE_LOG_VERSION),
