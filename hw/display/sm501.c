@@ -715,12 +715,16 @@ static void sm501_2d_operation(SM501State *s)
     /* 1 if rop2 source is the pattern, otherwise the source is the bitmap */
     int rop2_source_is_pattern = (s->twoD_control >> 14) & 0x1;
     int rop = s->twoD_control & 0xFF;
+    uint32_t src_base = s->twoD_source_base & 0x03FFFFFF;
+    uint32_t dst_base = s->twoD_destination_base & 0x03FFFFFF;
 
     /* get frame buffer info */
-    uint8_t *src = s->local_mem + (s->twoD_source_base & 0x03FFFFFF);
-    uint8_t *dst = s->local_mem + (s->twoD_destination_base & 0x03FFFFFF);
+    uint8_t *src = s->local_mem + src_base;
+    uint8_t *dst = s->local_mem + dst_base;
     int src_width = s->twoD_pitch & 0x1FFF;
     int dst_width = (s->twoD_pitch >> 16) & 0x1FFF;
+    int crt = (s->dc_crt_control & SM501_DC_CRT_CONTROL_SEL) ? 1 : 0;
+    int fb_len = get_width(s, crt) * get_height(s, crt) * get_bpp(s, crt);
 
     if (addressing != 0x0) {
         printf("%s: only XY addressing is supported.\n", __func__);
@@ -820,6 +824,15 @@ static void sm501_2d_operation(SM501State *s)
         printf("non-implemented SM501 2D operation. %d\n", operation);
         abort();
         break;
+    }
+
+    if (dst_base >= get_fb_addr(s, crt) &&
+        dst_base <= get_fb_addr(s, crt) + fb_len) {
+        int dst_len = MIN(fb_len, ((dst_y + operation_height - 1) * dst_width +
+                           dst_x + operation_width) * (1 << format_flags));
+        if (dst_len) {
+            memory_region_set_dirty(&s->local_mem_region, dst_base, dst_len);
+        }
     }
 }
 
