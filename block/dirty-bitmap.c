@@ -250,8 +250,9 @@ void bdrv_enable_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap)
 /* Called with BQL taken. */
 void bdrv_dirty_bitmap_enable_successor(BdrvDirtyBitmap *bitmap)
 {
+    assert(bitmap->mutex == bitmap->successor->mutex);
     qemu_mutex_lock(bitmap->mutex);
-    bdrv_enable_dirty_bitmap(bitmap->successor);
+    bdrv_enable_dirty_bitmap_locked(bitmap->successor);
     qemu_mutex_unlock(bitmap->mutex);
 }
 
