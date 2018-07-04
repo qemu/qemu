@@ -1910,7 +1910,7 @@ static int nbd_co_send_extents(NBDClient *client, uint64_t handle,
 /* Get block status from the exported device and send it to the client */
 static int nbd_co_send_block_status(NBDClient *client, uint64_t handle,
                                     BlockDriverState *bs, uint64_t offset,
-                                    uint64_t length, bool last,
+                                    uint32_t length, bool last,
                                     uint32_t context_id, Error **errp)
 {
     int ret;
@@ -1922,7 +1922,8 @@ static int nbd_co_send_block_status(NBDClient *client, uint64_t handle,
                 client, handle, -ret, "can't get block status", errp);
     }
 
-    return nbd_co_send_extents(client, handle, &extent, 1, length, last,
+    return nbd_co_send_extents(client, handle, &extent, 1,
+                               be32_to_cpu(extent.length), last,
                                context_id, errp);
 }
 
