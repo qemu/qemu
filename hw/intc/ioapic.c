@@ -152,7 +152,7 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
     if (vector == 0) {
         vector = 2;
     }
-    if (vector >= 0 && vector < IOAPIC_NUM_PINS) {
+    if (vector < IOAPIC_NUM_PINS) {
         uint32_t mask = 1 << vector;
         uint64_t entry = s->ioredtbl[vector];
 
