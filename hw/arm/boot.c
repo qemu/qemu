@@ -951,7 +951,7 @@ struct xnu_arm64_boot_args {
 };
 
 static size_t macho_setup_bootargs(struct arm_boot_info *info, AddressSpace *as,
-    uint64_t bootargs_addr, uint64_t virt_base, uint64_t phys_base, uint64_t top_of_kernel_data) {
+    uint64_t bootargs_addr, uint64_t virt_base, uint64_t phys_base, uint64_t top_of_kernel_data, uint64_t dtb_address, uint64_t dtb_size) {
     struct xnu_arm64_boot_args boot_args;
     memset(&boot_args, 0, sizeof(boot_args));
     boot_args.Revision = xnu_arm64_kBootArgsRevision2;
@@ -959,9 +959,11 @@ static size_t macho_setup_bootargs(struct arm_boot_info *info, AddressSpace *as,
     boot_args.virtBase = virt_base;
     boot_args.physBase = phys_base;
     boot_args.memSize = info->ram_size;
-    boot_args.topOfKernelData = top_of_kernel_data + 0x10000 /* 16k space for the boot args itself */;
-    // todo: video, machine type, device tree, cmdline, flags
-    boot_args.deviceTreeP = 0xdeaddeaddeaddeadull;
+    // top of kernel data (kernel, dtb, any ramdisk) + boot args size + padding to 16k
+    boot_args.topOfKernelData = ((top_of_kernel_data + sizeof(boot_args)) + 0xffffull) & ~0xffffull;
+    // todo: video, machine type, cmdline, flags
+    boot_args.deviceTreeP = dtb_address;
+    boot_args.deviceTreeLength = dtb_size;
     boot_args.memSizeActual = info->ram_size;
     rom_add_blob_fixed_as("xnu_boot_args", &boot_args, sizeof(boot_args), bootargs_addr, as);
     return sizeof(boot_args);
@@ -1038,12 +1040,29 @@ static uint64_t arm_load_macho(struct arm_boot_info *info, uint64_t *pentry, Add
     rom_add_blob_fixed_as("macho", rom_buf, rom_buf_size, rom_base, as);
     ret = true;
 
+    uint64_t load_extra_offset = high_addr_temp;
+    uint64_t dtb_address = load_extra_offset;
+    gsize dtb_size = 0;
+    // load device tree
+    if (info->dtb_filename) {
+        uint8_t* dtb_data = NULL;
+        if (g_file_get_contents(info->dtb_filename, (char**) &dtb_data, &dtb_size, NULL)) {
+            info->dtb_filename = NULL;
+            rom_add_blob_fixed_as("xnu_dtb", dtb_data, dtb_size, VAtoPA(dtb_address), as);
+            load_extra_offset = (load_extra_offset + dtb_size + 0xffffull) & ~0xffffull;
+            g_free(dtb_data);
+        } else {
+            fprintf(stderr, "dtb failed?!\n");
+            abort();
+        }
+    }
+
     // fixup boot args
     // note: device tree and args must follow kernel and be included in the kernel data size.
     // macho_setup_bootargs takes care of adding the size for the args
     // osfmk/arm64/arm_vm_init.c:arm_vm_prot_init
-    uint64_t bootargs_addr = VAtoPA(high_addr_temp);
-    macho_setup_bootargs(info, as, bootargs_addr, virt_base, VAtoPA(virt_base), VAtoPA(high_addr_temp));
+    uint64_t bootargs_addr = VAtoPA(load_extra_offset);
+    macho_setup_bootargs(info, as, bootargs_addr, virt_base, VAtoPA(virt_base), VAtoPA(load_extra_offset), dtb_address, dtb_size);
 
     // write bootloader
     uint32_t fixupcontext[FIXUP_MAX];
