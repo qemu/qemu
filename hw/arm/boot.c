@@ -961,9 +961,10 @@ static size_t macho_setup_bootargs(struct arm_boot_info *info, AddressSpace *as,
     boot_args.memSize = info->ram_size;
     // top of kernel data (kernel, dtb, any ramdisk) + boot args size + padding to 16k
     boot_args.topOfKernelData = ((top_of_kernel_data + sizeof(boot_args)) + 0xffffull) & ~0xffffull;
-    // todo: video, machine type, cmdline, flags
+    // todo: video, machine type, flags
     boot_args.deviceTreeP = dtb_address;
     boot_args.deviceTreeLength = dtb_size;
+    strlcpy(boot_args.CommandLine, info->kernel_cmdline, sizeof(boot_args.CommandLine));
     boot_args.memSizeActual = info->ram_size;
     rom_add_blob_fixed_as("xnu_boot_args", &boot_args, sizeof(boot_args), bootargs_addr, as);
     return sizeof(boot_args);
@@ -1062,7 +1063,7 @@ static uint64_t arm_load_macho(struct arm_boot_info *info, uint64_t *pentry, Add
     // macho_setup_bootargs takes care of adding the size for the args
     // osfmk/arm64/arm_vm_init.c:arm_vm_prot_init
     uint64_t bootargs_addr = VAtoPA(load_extra_offset);
-    macho_setup_bootargs(info, as, bootargs_addr, virt_base, VAtoPA(virt_base), VAtoPA(load_extra_offset), dtb_address, dtb_size);
+    macho_setup_bootargs(info, as, bootargs_addr, low_addr_temp, VAtoPA(low_addr_temp), VAtoPA(load_extra_offset), dtb_address, dtb_size);
 
     // write bootloader
     uint32_t fixupcontext[FIXUP_MAX];
