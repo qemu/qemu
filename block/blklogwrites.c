@@ -79,7 +79,7 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *opts;
     Error *local_err = NULL;
     int ret;
-    int64_t log_sector_size;
+    uint64_t log_sector_size;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -101,11 +101,9 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
     log_sector_size = qemu_opt_get_size(opts, "log-sector-size",
                                         BDRV_SECTOR_SIZE);
 
-    if (log_sector_size < 0 || log_sector_size > (1ull << 23) ||
-        !is_power_of_2(log_sector_size))
-    {
+    if (log_sector_size > (1ull << 23) || !is_power_of_2(log_sector_size)) {
         ret = -EINVAL;
-        error_setg(errp, "Invalid log sector size %"PRId64, log_sector_size);
+        error_setg(errp, "Invalid log sector size %"PRIu64, log_sector_size);
         goto fail;
     }
 
