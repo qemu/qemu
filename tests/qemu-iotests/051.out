@@ -47,6 +47,29 @@ Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,format=qcow2
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=qcow2,format=qcow2: Cannot specify both 'driver' and 'format'
 
 
+=== Node names ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,node-name=x123456789012345678901234567890
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) quit
+
+Testing: -drive file=TEST_DIR/t.qcow2,node-name=x1234567890123456789012345678901
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,node-name=x1234567890123456789012345678901: Node name too long
+
+Testing: -drive file=TEST_DIR/t.qcow2,node-name=All-Types.of_all0wed_chars
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) quit
+
+Testing: -drive file=TEST_DIR/t.qcow2,node-name=123foo
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,node-name=123foo: Invalid node name
+
+Testing: -drive file=TEST_DIR/t.qcow2,node-name=_foo
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,node-name=_foo: Invalid node name
+
+Testing: -drive file=TEST_DIR/t.qcow2,node-name=foo#12
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,node-name=foo#12: Invalid node name
+
+
 === Device without drive ===
 
 Testing: -device VIRTIO_SCSI -device scsi-hd

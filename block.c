@@ -1156,6 +1156,12 @@ static void bdrv_assign_node_name(BlockDriverState *bs,
         goto out;
     }
 
+    /* Make sure that the node name isn't truncated */
+    if (strlen(node_name) >= sizeof(bs->node_name)) {
+        error_setg(errp, "Node name too long");
+        goto out;
+    }
+
     /* copy node name into the bs and insert it into the graph list */
     pstrcpy(bs->node_name, sizeof(bs->node_name), node_name);
     QTAILQ_INSERT_TAIL(&graph_bdrv_states, bs, node_list);
