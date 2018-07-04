@@ -706,6 +706,8 @@ static void sm501_2d_operation(SM501State *s)
     int format_flags = (s->twoD_stretch >> 20) & 0x3;
     int addressing = (s->twoD_stretch >> 16) & 0xF;
     int rop_mode = (s->twoD_control >> 15) & 0x1; /* 1 for rop2, else rop3 */
+    /* 1 if rop2 source is the pattern, otherwise the source is the bitmap */
+    int rop2_source_is_pattern = (s->twoD_control >> 14) & 0x1;
     int rop = s->twoD_control & 0xFF;
 
     /* get frame buffer info */
@@ -717,6 +719,27 @@ static void sm501_2d_operation(SM501State *s)
     if (addressing != 0x0) {
         printf("%s: only XY addressing is supported.\n", __func__);
         abort();
+    }
+
+    if (rop_mode == 0) {
+        if (rop != 0xcc) {
+            /* Anything other than plain copies are not supported */
+            qemu_log_mask(LOG_UNIMP, "sm501: rop3 mode with rop %x is not "
+                          "supported.\n", rop);
+        }
+    } else {
+        if (rop2_source_is_pattern && rop != 0x5) {
+            /* For pattern source, we support only inverse dest */
+            qemu_log_mask(LOG_UNIMP, "sm501: rop2 source being the pattern and "
+                          "rop %x is not supported.\n", rop);
+        } else {
+            if (rop != 0x5 && rop != 0xc) {
+                /* Anything other than plain copies or inverse dest is not
+                 * supported */
+                qemu_log_mask(LOG_UNIMP, "sm501: rop mode %x is not "
+                              "supported.\n", rop);
+            }
+        }
     }
 
     if ((s->twoD_source_base & 0x08000000) ||
