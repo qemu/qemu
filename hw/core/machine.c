@@ -792,10 +792,9 @@ void machine_run_board_init(MachineState *machine)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(machine);
 
-    if (nb_numa_nodes) {
-        numa_complete_configuration(machine);
+    numa_complete_configuration(machine);
+    if (nb_numa_nodes)
         machine_numa_finish_cpu_init(machine);
-    }
 
     /* If the machine supports the valid_cpu_types check and the user
      * specified a CPU with -cpu check here that the user CPU is supported.
