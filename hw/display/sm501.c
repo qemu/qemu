@@ -586,6 +586,11 @@ static uint32_t get_local_mem_size_index(uint32_t size)
     return index;
 }
 
+static ram_addr_t get_fb_addr(SM501State *s, int crt)
+{
+    return (crt ? s->dc_crt_fb_addr : s->dc_panel_fb_addr) & 0x3FFFFF0;
+}
+
 static inline int get_width(SM501State *s, int crt)
 {
     int width = crt ? s->dc_crt_h_total : s->dc_panel_h_total;
@@ -688,7 +693,8 @@ static inline void hwc_invalidate(SM501State *s, int crt)
     start *= w * bpp;
     end *= w * bpp;
 
-    memory_region_set_dirty(&s->local_mem_region, start, end - start);
+    memory_region_set_dirty(&s->local_mem_region,
+                            get_fb_addr(s, crt) + start, end - start);
 }
 
 static void sm501_2d_operation(SM501State *s)
@@ -1213,6 +1219,9 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
         break;
     case SM501_DC_PANEL_FB_ADDR:
         s->dc_panel_fb_addr = value & 0x8FFFFFF0;
+        if (value & 0x8000000) {
+            qemu_log_mask(LOG_UNIMP, "Panel external memory not supported\n");
+        }
         break;
     case SM501_DC_PANEL_FB_OFFSET:
         s->dc_panel_fb_offset = value & 0x3FF03FF0;
@@ -1273,6 +1282,9 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
         break;
     case SM501_DC_CRT_FB_ADDR:
         s->dc_crt_fb_addr = value & 0x8FFFFFF0;
+        if (value & 0x8000000) {
+            qemu_log_mask(LOG_UNIMP, "CRT external memory not supported\n");
+        }
         break;
     case SM501_DC_CRT_FB_OFFSET:
         s->dc_crt_fb_offset = value & 0x3FF03FF0;
@@ -1615,7 +1627,7 @@ static void sm501_update_display(void *opaque)
     draw_hwc_line_func *draw_hwc_line = NULL;
     int full_update = 0;
     int y_start = -1;
-    ram_addr_t offset = 0;
+    ram_addr_t offset;
     uint32_t *palette;
     uint8_t hwc_palette[3 * 3];
     uint8_t *hwc_src = NULL;
@@ -1672,9 +1684,10 @@ static void sm501_update_display(void *opaque)
     }
 
     /* draw each line according to conditions */
+    offset = get_fb_addr(s, crt);
     snap = memory_region_snapshot_and_clear_dirty(&s->local_mem_region,
               offset, width * height * src_bpp, DIRTY_MEMORY_VGA);
-    for (y = 0, offset = 0; y < height; y++, offset += width * src_bpp) {
+    for (y = 0; y < height; y++, offset += width * src_bpp) {
         int update, update_hwc;
 
         /* check if hardware cursor is enabled and we're within its range */
