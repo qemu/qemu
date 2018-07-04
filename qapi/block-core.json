@@ -3062,7 +3062,8 @@
 { 'struct': 'BlockdevOptionsBlklogwrites',
   'data': { 'file': 'BlockdevRef',
             'log': 'BlockdevRef',
-            '*log-sector-size': 'uint32' } }
+            '*log-sector-size': 'uint32',
+            '*log-append': 'bool' } }
 
 ##
 # @BlockdevOptionsBlkverify:
