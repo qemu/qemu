@@ -435,7 +435,9 @@
 # for up to 10 seconds by VSS.
 #
 # Returns: Number of file systems currently frozen. On error, all filesystems
-# will be thawed.
+# will be thawed. If no filesystems are frozen as a result of this call,
+# then @guest-fsfreeze-status will remain "thawed" and calling
+# @guest-fsfreeze-thaw is not necessary.
 #
 # Since: 0.15.0
 ##
@@ -846,6 +848,8 @@
 # @name: disk name
 # @mountpoint: mount point path
 # @type: file system type string
+# @used-bytes: file system used bytes (since 3.0)
+# @total-bytes: non-root file system total bytes (since 3.0)
 # @disk: an array of disk hardware information that the volume lies on,
 #        which may be empty if the disk type is not supported
 #
@@ -853,6 +857,7 @@
 ##
 { 'struct': 'GuestFilesystemInfo',
   'data': {'name': 'str', 'mountpoint': 'str', 'type': 'str',
+           '*used-bytes': 'uint64', '*total-bytes': 'uint64',
            'disk': ['GuestDiskAddress']} }
 
 ##
@@ -1168,10 +1173,10 @@
 #
 # @kernel-release:
 #     * POSIX: release field returned by uname(2)
-#     * Windows: version number of the OS
+#     * Windows: build number of the OS
 # @kernel-version:
 #     * POSIX: version field returned by uname(2)
-#     * Windows: build number of the OS
+#     * Windows: version number of the OS
 # @machine:
 #     * POSIX: machine field returned by uname(2)
 #     * Windows: one of x86, x86_64, arm, ia64

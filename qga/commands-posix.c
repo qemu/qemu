@@ -46,6 +46,7 @@ extern char **environ;
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#include <sys/statvfs.h>
 
 #ifdef FIFREEZE
 #define CONFIG_FSFREEZE
@@ -458,7 +459,7 @@ struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
 
     if (!has_count) {
         count = QGA_READ_COUNT_DEFAULT;
-    } else if (count < 0) {
+    } else if (count < 0 || count >= UINT32_MAX) {
         error_setg(errp, "value '%" PRId64 "' is invalid for argument count",
                    count);
         return NULL;
@@ -875,13 +876,28 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
     p = strstr(syspath, "/devices/pci");
     if (!p || sscanf(p + 12, "%*x:%*x/%x:%x:%x.%x%n",
                      pci, pci + 1, pci + 2, pci + 3, &pcilen) < 4) {
-        g_debug("only pci device is supported: sysfs path \"%s\"", syspath);
+        g_debug("only pci device is supported: sysfs path '%s'", syspath);
         return;
     }
 
-    driver = get_pci_driver(syspath, (p + 12 + pcilen) - syspath, errp);
-    if (!driver) {
-        goto cleanup;
+    p += 12 + pcilen;
+    while (true) {
+        driver = get_pci_driver(syspath, p - syspath, errp);
+        if (driver && (g_str_equal(driver, "ata_piix") ||
+                       g_str_equal(driver, "sym53c8xx") ||
+                       g_str_equal(driver, "virtio-pci") ||
+                       g_str_equal(driver, "ahci"))) {
+            break;
+        }
+
+        if (sscanf(p, "/%x:%x:%x.%x%n",
+                          pci, pci + 1, pci + 2, pci + 3, &pcilen) == 4) {
+            p += pcilen;
+            continue;
+        }
+
+        g_debug("unsupported driver or sysfs path '%s'", syspath);
+        return;
     }
 
     p = strstr(syspath, "/target");
@@ -1072,6 +1088,8 @@ static GuestFilesystemInfo *build_guest_fsinfo(struct FsMount *mount,
                                                Error **errp)
 {
     GuestFilesystemInfo *fs = g_malloc0(sizeof(*fs));
+    struct statvfs buf;
+    unsigned long used, nonroot_total, fr_size;
     char *devpath = g_strdup_printf("/sys/dev/block/%u:%u",
                                     mount->devmajor, mount->devminor);
 
@@ -1079,7 +1097,19 @@ static GuestFilesystemInfo *build_guest_fsinfo(struct FsMount *mount,
     fs->type = g_strdup(mount->devtype);
     build_guest_fsinfo_for_device(devpath, fs, errp);
 
+    if (statvfs(fs->mountpoint, &buf) == 0) {
+        fr_size = buf.f_frsize;
+        used = buf.f_blocks - buf.f_bfree;
+        nonroot_total = used + buf.f_bavail;
+        fs->used_bytes = used * fr_size;
+        fs->total_bytes = nonroot_total * fr_size;
+
+        fs->has_total_bytes = true;
+        fs->has_used_bytes = true;
+    }
+
     g_free(devpath);
+
     return fs;
 }
 
@@ -1274,6 +1304,12 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
     }
 
     free_fs_mount_list(&mounts);
+    /* We may not issue any FIFREEZE here.
+     * Just unset ga_state here and ready for the next call.
+     */
+    if (i == 0) {
+        ga_unset_frozen(ga_state);
+    }
     return i;
 
 error:
@@ -1439,102 +1475,208 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 #define SUSPEND_SUPPORTED 0
 #define SUSPEND_NOT_SUPPORTED 1
 
-static void bios_supports_mode(const char *pmutils_bin, const char *pmutils_arg,
-                               const char *sysfile_str, Error **errp)
+typedef enum {
+    SUSPEND_MODE_DISK = 0,
+    SUSPEND_MODE_RAM = 1,
+    SUSPEND_MODE_HYBRID = 2,
+} SuspendMode;
+
+/*
+ * Executes a command in a child process using g_spawn_sync,
+ * returning an int >= 0 representing the exit status of the
+ * process.
+ *
+ * If the program wasn't found in path, returns -1.
+ *
+ * If a problem happened when creating the child process,
+ * returns -1 and errp is set.
+ */
+static int run_process_child(const char *command[], Error **errp)
+{
+    int exit_status, spawn_flag;
+    GError *g_err = NULL;
+    bool success;
+
+    spawn_flag = G_SPAWN_SEARCH_PATH | G_SPAWN_STDOUT_TO_DEV_NULL |
+                 G_SPAWN_STDERR_TO_DEV_NULL;
+
+    success =  g_spawn_sync(NULL, (char **)command, environ, spawn_flag,
+                            NULL, NULL, NULL, NULL,
+                            &exit_status, &g_err);
+
+    if (success) {
+        return WEXITSTATUS(exit_status);
+    }
+
+    if (g_err && (g_err->code != G_SPAWN_ERROR_NOENT)) {
+        error_setg(errp, "failed to create child process, error '%s'",
+                   g_err->message);
+    }
+
+    g_error_free(g_err);
+    return -1;
+}
+
+static bool systemd_supports_mode(SuspendMode mode, Error **errp)
 {
     Error *local_err = NULL;
-    char *pmutils_path;
+    const char *systemctl_args[3] = {"systemd-hibernate", "systemd-suspend",
+                                     "systemd-hybrid-sleep"};
+    const char *cmd[4] = {"systemctl", "status", systemctl_args[mode], NULL};
+    int status;
+
+    status = run_process_child(cmd, &local_err);
+
+    /*
+     * systemctl status uses LSB return codes so we can expect
+     * status > 0 and be ok. To assert if the guest has support
+     * for the selected suspend mode, status should be < 4. 4 is
+     * the code for unknown service status, the return value when
+     * the service does not exist. A common value is status = 3
+     * (program is not running).
+     */
+    if (status > 0 && status < 4) {
+        return true;
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+
+    return false;
+}
+
+static void systemd_suspend(SuspendMode mode, Error **errp)
+{
+    Error *local_err = NULL;
+    const char *systemctl_args[3] = {"hibernate", "suspend", "hybrid-sleep"};
+    const char *cmd[3] = {"systemctl", systemctl_args[mode], NULL};
+    int status;
+
+    status = run_process_child(cmd, &local_err);
+
+    if (status == 0) {
+        return;
+    }
+
+    if ((status == -1) && !local_err) {
+        error_setg(errp, "the helper program 'systemctl %s' was not found",
+                   systemctl_args[mode]);
+        return;
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    } else {
+        error_setg(errp, "the helper program 'systemctl %s' returned an "
+                   "unexpected exit status code (%d)",
+                   systemctl_args[mode], status);
+    }
+}
+
+static bool pmutils_supports_mode(SuspendMode mode, Error **errp)
+{
+    Error *local_err = NULL;
+    const char *pmutils_args[3] = {"--hibernate", "--suspend",
+                                   "--suspend-hybrid"};
+    const char *cmd[3] = {"pm-is-supported", pmutils_args[mode], NULL};
+    int status;
+
+    status = run_process_child(cmd, &local_err);
+
+    if (status == SUSPEND_SUPPORTED) {
+        return true;
+    }
+
+    if ((status == -1) && !local_err) {
+        return false;
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    } else {
+        error_setg(errp,
+                   "the helper program '%s' returned an unexpected exit"
+                   " status code (%d)", "pm-is-supported", status);
+    }
+
+    return false;
+}
+
+static void pmutils_suspend(SuspendMode mode, Error **errp)
+{
+    Error *local_err = NULL;
+    const char *pmutils_binaries[3] = {"pm-hibernate", "pm-suspend",
+                                       "pm-suspend-hybrid"};
+    const char *cmd[2] = {pmutils_binaries[mode], NULL};
+    int status;
+
+    status = run_process_child(cmd, &local_err);
+
+    if (status == 0) {
+        return;
+    }
+
+    if ((status == -1) && !local_err) {
+        error_setg(errp, "the helper program '%s' was not found",
+                   pmutils_binaries[mode]);
+        return;
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    } else {
+        error_setg(errp,
+                   "the helper program '%s' returned an unexpected exit"
+                   " status code (%d)", pmutils_binaries[mode], status);
+    }
+}
+
+static bool linux_sys_state_supports_mode(SuspendMode mode, Error **errp)
+{
+    const char *sysfile_strs[3] = {"disk", "mem", NULL};
+    const char *sysfile_str = sysfile_strs[mode];
+    char buf[32]; /* hopefully big enough */
+    int fd;
+    ssize_t ret;
+
+    if (!sysfile_str) {
+        error_setg(errp, "unknown guest suspend mode");
+        return false;
+    }
+
+    fd = open(LINUX_SYS_STATE_FILE, O_RDONLY);
+    if (fd < 0) {
+        return false;
+    }
+
+    ret = read(fd, buf, sizeof(buf) - 1);
+    if (ret <= 0) {
+        return false;
+    }
+    buf[ret] = '\0';
+
+    if (strstr(buf, sysfile_str)) {
+        return true;
+    }
+    return false;
+}
+
+static void linux_sys_state_suspend(SuspendMode mode, Error **errp)
+{
+    Error *local_err = NULL;
+    const char *sysfile_strs[3] = {"disk", "mem", NULL};
+    const char *sysfile_str = sysfile_strs[mode];
     pid_t pid;
     int status;
 
-    pmutils_path = g_find_program_in_path(pmutils_bin);
+    if (!sysfile_str) {
+        error_setg(errp, "unknown guest suspend mode");
+        return;
+    }
 
     pid = fork();
     if (!pid) {
-        char buf[32]; /* hopefully big enough */
-        ssize_t ret;
-        int fd;
-
-        setsid();
-        reopen_fd_to_null(0);
-        reopen_fd_to_null(1);
-        reopen_fd_to_null(2);
-
-        if (pmutils_path) {
-            execle(pmutils_path, pmutils_bin, pmutils_arg, NULL, environ);
-        }
-
-        /*
-         * If we get here either pm-utils is not installed or execle() has
-         * failed. Let's try the manual method if the caller wants it.
-         */
-
-        if (!sysfile_str) {
-            _exit(SUSPEND_NOT_SUPPORTED);
-        }
-
-        fd = open(LINUX_SYS_STATE_FILE, O_RDONLY);
-        if (fd < 0) {
-            _exit(SUSPEND_NOT_SUPPORTED);
-        }
-
-        ret = read(fd, buf, sizeof(buf)-1);
-        if (ret <= 0) {
-            _exit(SUSPEND_NOT_SUPPORTED);
-        }
-        buf[ret] = '\0';
-
-        if (strstr(buf, sysfile_str)) {
-            _exit(SUSPEND_SUPPORTED);
-        }
-
-        _exit(SUSPEND_NOT_SUPPORTED);
-    } else if (pid < 0) {
-        error_setg_errno(errp, errno, "failed to create child process");
-        goto out;
-    }
-
-    ga_wait_child(pid, &status, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto out;
-    }
-
-    if (!WIFEXITED(status)) {
-        error_setg(errp, "child process has terminated abnormally");
-        goto out;
-    }
-
-    switch (WEXITSTATUS(status)) {
-    case SUSPEND_SUPPORTED:
-        goto out;
-    case SUSPEND_NOT_SUPPORTED:
-        error_setg(errp,
-                   "the requested suspend mode is not supported by the guest");
-        goto out;
-    default:
-        error_setg(errp,
-                   "the helper program '%s' returned an unexpected exit status"
-                   " code (%d)", pmutils_path, WEXITSTATUS(status));
-        goto out;
-    }
-
-out:
-    g_free(pmutils_path);
-}
-
-static void guest_suspend(const char *pmutils_bin, const char *sysfile_str,
-                          Error **errp)
-{
-    Error *local_err = NULL;
-    char *pmutils_path;
-    pid_t pid;
-    int status;
-
-    pmutils_path = g_find_program_in_path(pmutils_bin);
-
-    pid = fork();
-    if (pid == 0) {
         /* child */
         int fd;
 
@@ -1542,19 +1684,6 @@ static void guest_suspend(const char *pmutils_bin, const char *sysfile_str,
         reopen_fd_to_null(0);
         reopen_fd_to_null(1);
         reopen_fd_to_null(2);
-
-        if (pmutils_path) {
-            execle(pmutils_path, pmutils_bin, NULL, environ);
-        }
-
-        /*
-         * If we get here either pm-utils is not installed or execle() has
-         * failed. Let's try the manual method if the caller wants it.
-         */
-
-        if (!sysfile_str) {
-            _exit(EXIT_FAILURE);
-        }
 
         fd = open(LINUX_SYS_STATE_FILE, O_WRONLY);
         if (fd < 0) {
@@ -1568,67 +1697,74 @@ static void guest_suspend(const char *pmutils_bin, const char *sysfile_str,
         _exit(EXIT_SUCCESS);
     } else if (pid < 0) {
         error_setg_errno(errp, errno, "failed to create child process");
-        goto out;
+        return;
     }
 
     ga_wait_child(pid, &status, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        goto out;
-    }
-
-    if (!WIFEXITED(status)) {
-        error_setg(errp, "child process has terminated abnormally");
-        goto out;
+        return;
     }
 
     if (WEXITSTATUS(status)) {
         error_setg(errp, "child process has failed to suspend");
-        goto out;
     }
 
-out:
-    g_free(pmutils_path);
+}
+
+static void guest_suspend(SuspendMode mode, Error **errp)
+{
+    Error *local_err = NULL;
+    bool mode_supported = false;
+
+    if (systemd_supports_mode(mode, &local_err)) {
+        mode_supported = true;
+        systemd_suspend(mode, &local_err);
+    }
+
+    if (!local_err) {
+        return;
+    }
+
+    error_free(local_err);
+
+    if (pmutils_supports_mode(mode, &local_err)) {
+        mode_supported = true;
+        pmutils_suspend(mode, &local_err);
+    }
+
+    if (!local_err) {
+        return;
+    }
+
+    error_free(local_err);
+
+    if (linux_sys_state_supports_mode(mode, &local_err)) {
+        mode_supported = true;
+        linux_sys_state_suspend(mode, &local_err);
+    }
+
+    if (!mode_supported) {
+        error_setg(errp,
+                   "the requested suspend mode is not supported by the guest");
+    } else if (local_err) {
+        error_propagate(errp, local_err);
+    }
 }
 
 void qmp_guest_suspend_disk(Error **errp)
 {
-    Error *local_err = NULL;
-
-    bios_supports_mode("pm-is-supported", "--hibernate", "disk", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    guest_suspend("pm-hibernate", "disk", errp);
+    guest_suspend(SUSPEND_MODE_DISK, errp);
 }
 
 void qmp_guest_suspend_ram(Error **errp)
 {
-    Error *local_err = NULL;
-
-    bios_supports_mode("pm-is-supported", "--suspend", "mem", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    guest_suspend("pm-suspend", "mem", errp);
+    guest_suspend(SUSPEND_MODE_RAM, errp);
 }
 
 void qmp_guest_suspend_hybrid(Error **errp)
 {
-    Error *local_err = NULL;
-
-    bios_supports_mode("pm-is-supported", "--suspend-hybrid", NULL,
-                       &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    guest_suspend("pm-suspend-hybrid", NULL, errp);
+    guest_suspend(SUSPEND_MODE_HYBRID, errp);
 }
 
 static GuestNetworkInterfaceList *
