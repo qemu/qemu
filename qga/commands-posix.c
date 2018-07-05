@@ -890,6 +890,7 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
             break;
         }
 
+        g_free(driver);
         if (sscanf(p, "/%x:%x:%x.%x%n",
                           pci, pci + 1, pci + 2, pci + 3, &pcilen) == 4) {
             p += pcilen;
