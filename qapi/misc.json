@@ -1205,7 +1205,7 @@
 { 'command': 'cont' }
 
 ##
-# @exit-preconfig:
+# @x-exit-preconfig:
 #
 # Exit from "preconfig" state
 #
@@ -1221,11 +1221,11 @@
 #
 # Example:
 #
-# -> { "execute": "exit-preconfig" }
+# -> { "execute": "x-exit-preconfig" }
 # <- { "return": {} }
 #
 ##
-{ 'command': 'exit-preconfig', 'allow-preconfig': true }
+{ 'command': 'x-exit-preconfig', 'allow-preconfig': true }
 
 ##
 # @system_wakeup:

@@ -453,7 +453,7 @@ static void test_qmp_preconfig(void)
     qobject_unref(rsp);
 
     /* exit preconfig state */
-    g_assert(!qmp_rsp_is_err(qtest_qmp(qs, "{ 'execute': 'exit-preconfig' }")));
+    g_assert(!qmp_rsp_is_err(qtest_qmp(qs, "{ 'execute': 'x-exit-preconfig' }")));
     qtest_qmp_eventwait(qs, "RESUME");
 
     /* check that query-status returns running state */
@@ -463,8 +463,8 @@ static void test_qmp_preconfig(void)
     g_assert_cmpstr(qdict_get_try_str(ret, "status"), ==, "running");
     qobject_unref(rsp);
 
-    /* check that exit-preconfig returns error after exiting preconfig */
-    g_assert(qmp_rsp_is_err(qtest_qmp(qs, "{ 'execute': 'exit-preconfig' }")));
+    /* check that x-exit-preconfig returns error after exiting preconfig */
+    g_assert(qmp_rsp_is_err(qtest_qmp(qs, "{ 'execute': 'x-exit-preconfig' }")));
 
     /* enabled commands, no error expected  */
     g_assert(!qmp_rsp_is_err(qtest_qmp(qs, "{ 'execute': 'query-cpus' }")));

@@ -336,9 +336,9 @@ additionally configure the machine (by hotplugging devices) in runtime before
 allowing VM code to run.
 
 However, at the -S pause point, it's impossible to configure options that affect
-initial VM creation (like: -smp/-m/-numa ...) or cold plug devices. That's
-when the --preconfig command line option should be used. It allows pausing QEMU
-before the initial VM creation, in a new preconfig state, where additional
+initial VM creation (like: -smp/-m/-numa ...) or cold plug devices. The
+experimental --preconfig command line option  allows pausing QEMU
+before the initial VM creation, in a ``preconfig'' state, where additional
 queries and configuration can be performed via QMP before moving on to
 the resulting configuration startup. In the preconfig state, QEMU only allows
 a limited set of commands over the QMP monitor, where the commands do not
@@ -348,7 +348,7 @@ depend on an initialized machine, including but not limited to:
 @item query-qmp-schema
 @item query-commands
 @item query-status
-@item exit-preconfig
+@item x-exit-preconfig
 @end table
 
 @node Bibliography
