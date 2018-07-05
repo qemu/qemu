@@ -1,0 +1,15 @@
+#
+# Docker powerpc cross-compiler target for QEMU
+#
+# We can't use current Debian stable cross-compilers to build powerpc
+# as it has been dropped as a release architecture. Using Debian Sid
+# is just far too sketchy a build environment. This leaves us the
+# final option of using linux-user. This image is based of the
+# debootstrapped qemu:debian-powerpc-user but doesn't need any extra
+# magic once it is setup.
+#
+FROM qemu:debian-powerpc-user
+
+RUN echo man-db man-db/auto-update boolean false | debconf-set-selections
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get build-dep -yy qemu

@@ -5,6 +5,8 @@
 DOCKER_SUFFIX := .docker
 DOCKER_FILES_DIR := $(SRC_PATH)/tests/docker/dockerfiles
 DOCKER_DEPRECATED_IMAGES := debian
+# we don't run tests on intermediate images (used as base by another image)
+DOCKER_INTERMEDIATE_IMAGES := debian8 debian9 debian8-mxe debian-ports debian-sid
 DOCKER_IMAGES := $(filter-out $(DOCKER_DEPRECATED_IMAGES),$(sort $(notdir $(basename $(wildcard $(DOCKER_FILES_DIR)/*.docker)))))
 DOCKER_TARGETS := $(patsubst %,docker-image-%,$(DOCKER_IMAGES))
 # Use a global constant ccache directory to speed up repetitive builds
@@ -44,9 +46,6 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		"CHECK", "$*")
 else
 docker-image-%: $(DOCKER_FILES_DIR)/%.docker
-	@if test "$@" = docker-image-debian-bootstrap -a -z "$(EXECUTABLE)"; then \
-		echo WARNING: EXECUTABLE is not set, debootstrap may fail. 2>&1 ; \
-	fi
 	$(call quiet-command,\
 		$(DOCKER_SCRIPT) build qemu:$* $< \
 		$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) \
@@ -54,6 +53,31 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))\
 		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)),\
 		"BUILD","$*")
+
+# Special rule for debootstraped binfmt linux-user images
+docker-binfmt-image-debian-%: $(DOCKER_FILES_DIR)/debian-bootstrap.docker
+	$(if $(EXECUTABLE),,\
+		$(error EXECUTABLE not set, debootstrap of debian-$* would fail))
+	$(if $(wildcard $(EXECUTABLE)),,\
+		$(error Please build $(EXECUTABLE) first))
+	$(if $(DEB_ARCH),,\
+		$(error DEB_ARCH not set, debootstrap of debian-$* would fail))
+	$(if $(DEB_TYPE),,\
+		$(error DEB_TYPE not set, debootstrap of debian-$* would fail))
+	$(if $(filter $(QEMU_TARGET),$(TARGET_DIRS)),				\
+		$(call quiet-command,						\
+			DEB_ARCH=$(DEB_ARCH)					\
+			DEB_TYPE=$(DEB_TYPE)					\
+			$(DOCKER_SCRIPT) build qemu:debian-$* $< 		\
+			$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) 		\
+			$(if $(NOUSER),,--add-current-user) 			\
+			$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))	\
+			$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)), \
+			"BUILD","binfmt debian-$* (debootstrapped)"),		\
+		$(call quiet-command,						\
+			$(DOCKER_SCRIPT) check --quiet qemu:debian-$* $<,	\
+			"CHECK", "debian-$* exists"))
+
 endif
 
 # Enforce dependencies for composite images
@@ -97,8 +121,23 @@ docker-image-travis: NOUSER=1
 # Specialist build images, sometimes very limited tools
 docker-image-tricore-cross: docker-image-debian9
 
+# Rules for building linux-user powered images
+#
+# These are slower than using native cross compiler setups but can
+# work around issues with poorly working multi-arch systems and broken
+# packages.
+
+# Jessie is the last supported release for powerpc, but multi-arch is
+# broken so we need a qemu-linux-user for this target
+docker-binfmt-image-debian-powerpc-user: DEB_ARCH = powerpc
+docker-binfmt-image-debian-powerpc-user: DEB_TYPE = jessie
+docker-binfmt-image-debian-powerpc-user: QEMU_TARGET = ppc-linux-user
+docker-binfmt-image-debian-powerpc-user: EXECUTABLE = ${BUILD_DIR}/ppc-linux-user/qemu-ppc
+docker-image-debian-powerpc-user-cross: docker-binfmt-image-debian-powerpc-user
+DOCKER_USER_IMAGES += debian-powerpc-user
+
 # Expand all the pre-requistes for each docker image and test combination
-$(foreach i,$(DOCKER_IMAGES) $(DOCKER_DEPRECATED_IMAGES), \
+$(foreach i,$(filter-out $(DOCKER_INTERMEDIATE_IMAGES),$(DOCKER_IMAGES) $(DOCKER_DEPRECATED_IMAGES)), \
 	$(foreach t,$(DOCKER_TESTS) $(DOCKER_TOOLS), \
 		$(eval .PHONY: docker-$t@$i) \
 		$(eval docker-$t@$i: docker-image-$i docker-run-$t@$i) \
@@ -126,6 +165,11 @@ docker:
 	@echo
 	@echo 'Available container images:'
 	@echo '    $(DOCKER_IMAGES)'
+ifneq ($(DOCKER_USER_IMAGES),)
+	@echo
+	@echo 'Available linux-user images (docker-binfmt-image-debian-%):'
+	@echo '    $(DOCKER_USER_IMAGES)'
+endif
 	@echo
 	@echo 'Available tests:'
 	@echo '    $(DOCKER_TESTS)'

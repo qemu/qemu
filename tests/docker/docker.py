@@ -113,6 +113,10 @@ def _copy_binary_with_libs(src, dest_dir):
             _copy_with_mkdir(l , dest_dir, so_path)
 
 def _read_qemu_dockerfile(img_name):
+    # special case for Debian linux-user images
+    if img_name.startswith("debian") and img_name.endswith("user"):
+        img_name = "debian-bootstrap"
+
     df = os.path.join(os.path.dirname(__file__), "dockerfiles",
                       img_name + ".docker")
     return open(df, "r").read()
