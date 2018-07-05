@@ -241,11 +241,18 @@ int bdrv_dirty_bitmap_create_successor(BlockDriverState *bs,
     return 0;
 }
 
+void bdrv_enable_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap)
+{
+    assert(!bdrv_dirty_bitmap_frozen(bitmap));
+    bitmap->disabled = false;
+}
+
 /* Called with BQL taken. */
 void bdrv_dirty_bitmap_enable_successor(BdrvDirtyBitmap *bitmap)
 {
+    assert(bitmap->mutex == bitmap->successor->mutex);
     qemu_mutex_lock(bitmap->mutex);
-    bdrv_enable_dirty_bitmap(bitmap->successor);
+    bdrv_enable_dirty_bitmap_locked(bitmap->successor);
     qemu_mutex_unlock(bitmap->mutex);
 }
 
@@ -424,8 +431,7 @@ void bdrv_disable_dirty_bitmap(BdrvDirtyBitmap *bitmap)
 void bdrv_enable_dirty_bitmap(BdrvDirtyBitmap *bitmap)
 {
     bdrv_dirty_bitmap_lock(bitmap);
-    assert(!bdrv_dirty_bitmap_frozen(bitmap));
-    bitmap->disabled = false;
+    bdrv_enable_dirty_bitmap_locked(bitmap);
     bdrv_dirty_bitmap_unlock(bitmap);
 }
 
