@@ -1191,9 +1191,6 @@ static void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
  */
 static void qmp_unregister_commands_hack(void)
 {
-#ifndef CONFIG_SPICE
-    qmp_unregister_command(&qmp_commands, "query-spice");
-#endif
 #ifndef CONFIG_REPLICATION
     qmp_unregister_command(&qmp_commands, "xen-set-replication");
     qmp_unregister_command(&qmp_commands, "query-xen-replication-status");

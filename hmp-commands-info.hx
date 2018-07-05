@@ -426,6 +426,7 @@ STEXI
 Show which guest mouse is receiving events.
 ETEXI
 
+#if defined(CONFIG_VNC)
     {
         .name       = "vnc",
         .args_type  = "",
@@ -433,6 +434,7 @@ ETEXI
         .help       = "show the vnc server status",
         .cmd        = hmp_info_vnc,
     },
+#endif
 
 STEXI
 @item info vnc

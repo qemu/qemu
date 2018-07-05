@@ -310,30 +310,35 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
 ''',
                                       types=types))
 
-    def visit_enum_type(self, name, info, values, prefix):
-        self._genh.add(gen_visit_decl(name, scalar=True))
-        self._genc.add(gen_visit_enum(name))
+    def visit_enum_type(self, name, info, ifcond, values, prefix):
+        with ifcontext(ifcond, self._genh, self._genc):
+            self._genh.add(gen_visit_decl(name, scalar=True))
+            self._genc.add(gen_visit_enum(name))
 
-    def visit_array_type(self, name, info, element_type):
-        self._genh.add(gen_visit_decl(name))
-        self._genc.add(gen_visit_list(name, element_type))
+    def visit_array_type(self, name, info, ifcond, element_type):
+        with ifcontext(ifcond, self._genh, self._genc):
+            self._genh.add(gen_visit_decl(name))
+            self._genc.add(gen_visit_list(name, element_type))
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants):
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
-        self._genh.add(gen_visit_members_decl(name))
-        self._genc.add(gen_visit_object_members(name, base, members, variants))
-        # TODO Worth changing the visitor signature, so we could
-        # directly use rather than repeat type.is_implicit()?
-        if not name.startswith('q_'):
-            # only explicit types need an allocating visit
-            self._genh.add(gen_visit_decl(name))
-            self._genc.add(gen_visit_object(name, base, members, variants))
+        with ifcontext(ifcond, self._genh, self._genc):
+            self._genh.add(gen_visit_members_decl(name))
+            self._genc.add(gen_visit_object_members(name, base,
+                                                    members, variants))
+            # TODO Worth changing the visitor signature, so we could
+            # directly use rather than repeat type.is_implicit()?
+            if not name.startswith('q_'):
+                # only explicit types need an allocating visit
+                self._genh.add(gen_visit_decl(name))
+                self._genc.add(gen_visit_object(name, base, members, variants))
 
-    def visit_alternate_type(self, name, info, variants):
-        self._genh.add(gen_visit_decl(name))
-        self._genc.add(gen_visit_alternate(name, variants))
+    def visit_alternate_type(self, name, info, ifcond, variants):
+        with ifcontext(ifcond, self._genh, self._genc):
+            self._genh.add(gen_visit_decl(name))
+            self._genc.add(gen_visit_alternate(name, variants))
 
 
 def gen_visit(schema, output_dir, prefix, opt_builtins):

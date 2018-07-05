@@ -23,12 +23,13 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
     def visit_include(self, name, info):
         print('include %s' % name)
 
-    def visit_enum_type(self, name, info, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, values, prefix):
         print('enum %s %s' % (name, values))
         if prefix:
             print('    prefix %s' % prefix)
+        self._print_if(ifcond)
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants):
         print('object %s' % name)
         if base:
             print('    base %s' % base.name)
@@ -36,21 +37,25 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             print('    member %s: %s optional=%s' % \
                   (m.name, m.type.name, m.optional))
         self._print_variants(variants)
+        self._print_if(ifcond)
 
-    def visit_alternate_type(self, name, info, variants):
+    def visit_alternate_type(self, name, info, ifcond, variants):
         print('alternate %s' % name)
         self._print_variants(variants)
+        self._print_if(ifcond)
 
-    def visit_command(self, name, info, arg_type, ret_type, gen,
+    def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig):
         print('command %s %s -> %s' % \
               (name, arg_type and arg_type.name, ret_type and ret_type.name))
         print('   gen=%s success_response=%s boxed=%s oob=%s preconfig=%s' % \
               (gen, success_response, boxed, allow_oob, allow_preconfig))
+        self._print_if(ifcond)
 
-    def visit_event(self, name, info, arg_type, boxed):
+    def visit_event(self, name, info, ifcond, arg_type, boxed):
         print('event %s %s' % (name, arg_type and arg_type.name))
         print('   boxed=%s' % boxed)
+        self._print_if(ifcond)
 
     @staticmethod
     def _print_variants(variants):
@@ -58,6 +63,11 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             print('    tag %s' % variants.tag_member.name)
             for v in variants.variants:
                 print('    case %s: %s' % (v.name, v.type.name))
+
+    @staticmethod
+    def _print_if(ifcond, indent=4):
+        if ifcond:
+            print('%sif %s' % (' ' * indent, ifcond))
 
 
 try:

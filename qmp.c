@@ -129,38 +129,6 @@ void qmp_cpu_add(int64_t id, Error **errp)
     }
 }
 
-#ifndef CONFIG_VNC
-/* If VNC support is enabled, the "true" query-vnc command is
-   defined in the VNC subsystem */
-VncInfo *qmp_query_vnc(Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "vnc");
-    return NULL;
-};
-
-VncInfo2List *qmp_query_vnc_servers(Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "vnc");
-    return NULL;
-};
-#endif
-
-#ifndef CONFIG_SPICE
-/*
- * qmp_unregister_commands_hack() ensures that QMP command query-spice
- * exists only #ifdef CONFIG_SPICE.  Necessary for an accurate
- * query-commands result.  However, the QAPI schema is blissfully
- * unaware of that, and the QAPI code generator happily generates a
- * dead qmp_marshal_query_spice() that calls qmp_query_spice().
- * Provide it one, or else linking fails.  FIXME Educate the QAPI
- * schema on CONFIG_SPICE.
- */
-SpiceInfo *qmp_query_spice(Error **errp)
-{
-    abort();
-};
-#endif
-
 void qmp_exit_preconfig(Error **errp)
 {
     if (!runstate_check(RUN_STATE_PRECONFIG)) {
@@ -412,23 +380,17 @@ static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
         qmp_change_vnc_listen(target, errp);
     }
 }
-#else
-void qmp_change_vnc_password(const char *password, Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "vnc");
-}
-static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
-                           Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "vnc");
-}
 #endif /* !CONFIG_VNC */
 
 void qmp_change(const char *device, const char *target,
                 bool has_arg, const char *arg, Error **errp)
 {
     if (strcmp(device, "vnc") == 0) {
+#ifdef CONFIG_VNC
         qmp_change_vnc(target, has_arg, arg, errp);
+#else
+        error_setg(errp, QERR_FEATURE_DISABLED, "vnc");
+#endif
     } else {
         qmp_blockdev_change_medium(true, device, false, NULL, target,
                                    has_arg, arg, false, 0, errp);

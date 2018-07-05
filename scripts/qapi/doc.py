@@ -174,7 +174,7 @@ def texi_members(doc, what, base, variants, member_func):
     return '\n@b{%s:}\n@table @asis\n%s@end table\n' % (what, items)
 
 
-def texi_sections(doc):
+def texi_sections(doc, ifcond):
     """Format additional sections following arguments"""
     body = ''
     for section in doc.sections:
@@ -185,14 +185,16 @@ def texi_sections(doc):
             body += texi_example(section.text)
         else:
             body += texi_format(section.text)
+    if ifcond:
+        body += '\n\n@b{If:} @code{%s}' % ", ".join(ifcond)
     return body
 
 
-def texi_entity(doc, what, base=None, variants=None,
+def texi_entity(doc, what, ifcond, base=None, variants=None,
                 member_func=texi_member):
     return (texi_body(doc)
             + texi_members(doc, what, base, variants, member_func)
-            + texi_sections(doc))
+            + texi_sections(doc, ifcond))
 
 
 class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
@@ -204,47 +206,47 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
     def write(self, output_dir):
         self._gen.write(output_dir, self._prefix + 'qapi-doc.texi')
 
-    def visit_enum_type(self, name, info, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, values, prefix):
         doc = self.cur_doc
         self._gen.add(TYPE_FMT(type='Enum',
                                name=doc.symbol,
-                               body=texi_entity(doc, 'Values',
+                               body=texi_entity(doc, 'Values', ifcond,
                                                 member_func=texi_enum_value)))
 
-    def visit_object_type(self, name, info, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants):
         doc = self.cur_doc
         if base and base.is_implicit():
             base = None
         self._gen.add(TYPE_FMT(type='Object',
                                name=doc.symbol,
-                               body=texi_entity(doc, 'Members',
+                               body=texi_entity(doc, 'Members', ifcond,
                                                 base, variants)))
 
-    def visit_alternate_type(self, name, info, variants):
+    def visit_alternate_type(self, name, info, ifcond, variants):
         doc = self.cur_doc
         self._gen.add(TYPE_FMT(type='Alternate',
                                name=doc.symbol,
-                               body=texi_entity(doc, 'Members')))
+                               body=texi_entity(doc, 'Members', ifcond)))
 
-    def visit_command(self, name, info, arg_type, ret_type, gen,
+    def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig):
         doc = self.cur_doc
         if boxed:
             body = texi_body(doc)
             body += ('\n@b{Arguments:} the members of @code{%s}\n'
                      % arg_type.name)
-            body += texi_sections(doc)
+            body += texi_sections(doc, ifcond)
         else:
-            body = texi_entity(doc, 'Arguments')
+            body = texi_entity(doc, 'Arguments', ifcond)
         self._gen.add(MSG_FMT(type='Command',
                               name=doc.symbol,
                               body=body))
 
-    def visit_event(self, name, info, arg_type, boxed):
+    def visit_event(self, name, info, ifcond, arg_type, boxed):
         doc = self.cur_doc
         self._gen.add(MSG_FMT(type='Event',
                               name=doc.symbol,
-                              body=texi_entity(doc, 'Arguments')))
+                              body=texi_entity(doc, 'Arguments', ifcond)))
 
     def symbol(self, doc, entity):
         if self._gen._body:
@@ -257,7 +259,7 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
         assert not doc.args
         if self._gen._body:
             self._gen.add('\n')
-        self._gen.add(texi_body(doc) + texi_sections(doc))
+        self._gen.add(texi_body(doc) + texi_sections(doc, None))
 
 
 def gen_doc(schema, output_dir, prefix):

@@ -89,6 +89,8 @@ Not documented
 @end table
 @code{two} is undocumented
 
+
+@b{If:} @code{defined(IFCOND)}
 @end deftp
 
 
