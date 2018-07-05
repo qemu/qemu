@@ -2696,18 +2696,21 @@
 # @template: Specifies a template mode which can be adjusted using the other
 #            flags, defaults to 'cached'
 #
+# @bitmap-directory: since 3.0
+#
 # Since: 2.9
 ##
 { 'struct': 'Qcow2OverlapCheckFlags',
-  'data': { '*template':       'Qcow2OverlapCheckMode',
-            '*main-header':    'bool',
-            '*active-l1':      'bool',
-            '*active-l2':      'bool',
-            '*refcount-table': 'bool',
-            '*refcount-block': 'bool',
-            '*snapshot-table': 'bool',
-            '*inactive-l1':    'bool',
-            '*inactive-l2':    'bool' } }
+  'data': { '*template':         'Qcow2OverlapCheckMode',
+            '*main-header':      'bool',
+            '*active-l1':        'bool',
+            '*active-l2':        'bool',
+            '*refcount-table':   'bool',
+            '*refcount-block':   'bool',
+            '*snapshot-table':   'bool',
+            '*inactive-l1':      'bool',
+            '*inactive-l2':      'bool',
+            '*bitmap-directory': 'bool' } }
 
 ##
 # @Qcow2OverlapChecks:
