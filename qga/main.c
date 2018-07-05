@@ -545,7 +545,7 @@ fail:
 #endif
 }
 
-static int send_response(GAState *s, QObject *payload)
+static int send_response(GAState *s, QDict *payload)
 {
     const char *buf;
     QString *payload_qstr, *response_qstr;
@@ -553,7 +553,7 @@ static int send_response(GAState *s, QObject *payload)
 
     g_assert(payload && s->channel);
 
-    payload_qstr = qobject_to_json(payload);
+    payload_qstr = qobject_to_json(QOBJECT(payload));
     if (!payload_qstr) {
         return -EINVAL;
     }
@@ -581,12 +581,12 @@ static int send_response(GAState *s, QObject *payload)
 
 static void process_command(GAState *s, QDict *req)
 {
-    QObject *rsp = NULL;
+    QDict *rsp;
     int ret;
 
     g_assert(req);
     g_debug("processing command");
-    rsp = qmp_dispatch(&ga_commands, QOBJECT(req));
+    rsp = qmp_dispatch(&ga_commands, QOBJECT(req), false);
     if (rsp) {
         ret = send_response(s, rsp);
         if (ret < 0) {
@@ -610,15 +610,13 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
     qdict = qobject_to(QDict, json_parser_parse_err(tokens, NULL, &err));
     if (err || !qdict) {
         qobject_unref(qdict);
-        qdict = qdict_new();
         if (!err) {
             g_warning("failed to parse event: unknown error");
             error_setg(&err, QERR_JSON_PARSING);
         } else {
             g_warning("failed to parse event: %s", error_get_pretty(err));
         }
-        qdict_put_obj(qdict, "error", qmp_build_error_object(err));
-        error_free(err);
+        qdict = qmp_error_response(err);
     }
 
     /* handle host->guest commands */
@@ -627,13 +625,11 @@ static void process_event(JSONMessageParser *parser, GQueue *tokens)
     } else {
         if (!qdict_haskey(qdict, "error")) {
             qobject_unref(qdict);
-            qdict = qdict_new();
             g_warning("unrecognized payload format");
             error_setg(&err, QERR_UNSUPPORTED);
-            qdict_put_obj(qdict, "error", qmp_build_error_object(err));
-            error_free(err);
+            qdict = qmp_error_response(err);
         }
-        ret = send_response(s, QOBJECT(qdict));
+        ret = send_response(s, qdict);
         if (ret < 0) {
             g_warning("error sending error response: %s", strerror(-ret));
         }

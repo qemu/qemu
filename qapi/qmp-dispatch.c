@@ -20,13 +20,14 @@
 #include "qapi/qmp/qbool.h"
 #include "sysemu/sysemu.h"
 
-QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
+static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
+                                     Error **errp)
 {
+    const char *exec_key = NULL;
     const QDictEntry *ent;
     const char *arg_name;
     const QObject *arg_obj;
-    bool has_exec_key = false;
-    QDict *dict = NULL;
+    QDict *dict;
 
     dict = qobject_to(QDict, request);
     if (!dict) {
@@ -39,25 +40,23 @@ QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
         arg_name = qdict_entry_key(ent);
         arg_obj = qdict_entry_value(ent);
 
-        if (!strcmp(arg_name, "execute")) {
+        if (!strcmp(arg_name, "execute")
+            || (!strcmp(arg_name, "exec-oob") && allow_oob)) {
             if (qobject_type(arg_obj) != QTYPE_QSTRING) {
-                error_setg(errp,
-                           "QMP input member 'execute' must be a string");
+                error_setg(errp, "QMP input member '%s' must be a string",
+                           arg_name);
                 return NULL;
             }
-            has_exec_key = true;
+            if (exec_key) {
+                error_setg(errp, "QMP input member '%s' clashes with '%s'",
+                           arg_name, exec_key);
+                return NULL;
+            }
+            exec_key = arg_name;
         } else if (!strcmp(arg_name, "arguments")) {
             if (qobject_type(arg_obj) != QTYPE_QDICT) {
                 error_setg(errp,
                            "QMP input member 'arguments' must be an object");
-                return NULL;
-            }
-        } else if (!strcmp(arg_name, "id")) {
-            continue;
-        } else if (!strcmp(arg_name, "control")) {
-            if (qobject_type(arg_obj) != QTYPE_QDICT) {
-                error_setg(errp,
-                           "QMP input member 'control' must be a dict");
                 return NULL;
             }
         } else {
@@ -67,7 +66,7 @@ QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
         }
     }
 
-    if (!has_exec_key) {
+    if (!exec_key) {
         error_setg(errp, "QMP input lacks member 'execute'");
         return NULL;
     }
@@ -76,20 +75,27 @@ QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
 }
 
 static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
-                                Error **errp)
+                                bool allow_oob, Error **errp)
 {
     Error *local_err = NULL;
+    bool oob;
     const char *command;
     QDict *args, *dict;
     QmpCommand *cmd;
     QObject *ret = NULL;
 
-    dict = qmp_dispatch_check_obj(request, errp);
+    dict = qmp_dispatch_check_obj(request, allow_oob, errp);
     if (!dict) {
         return NULL;
     }
 
-    command = qdict_get_str(dict, "execute");
+    command = qdict_get_try_str(dict, "execute");
+    oob = false;
+    if (!command) {
+        assert(allow_oob);
+        command = qdict_get_str(dict, "exec-oob");
+        oob = true;
+    }
     cmd = qmp_find_command(cmds, command);
     if (cmd == NULL) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
@@ -100,6 +106,11 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
         error_setg(errp, "The command %s has been disabled for this instance",
                    command);
         return NULL;
+    }
+    if (oob && !(cmd->options & QCO_ALLOW_OOB)) {
+        error_setg(errp, "The command %s does not support OOB",
+                   command);
+        return false;
     }
 
     if (runstate_check(RUN_STATE_PRECONFIG) &&
@@ -122,6 +133,7 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
     } else if (cmd->options & QCO_NO_SUCCESS_RESP) {
         g_assert(!ret);
     } else if (!ret) {
+        /* TODO turn into assertion */
         ret = QOBJECT(qdict_new());
     }
 
@@ -130,53 +142,44 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
     return ret;
 }
 
-QObject *qmp_build_error_object(Error *err)
+QDict *qmp_error_response(Error *err)
 {
-    return qobject_from_jsonf("{ 'class': %s, 'desc': %s }",
-                              QapiErrorClass_str(error_get_class(err)),
-                              error_get_pretty(err));
+    QDict *rsp;
+
+    rsp = qdict_from_jsonf_nofail("{ 'error': { 'class': %s, 'desc': %s } }",
+                                  QapiErrorClass_str(error_get_class(err)),
+                                  error_get_pretty(err));
+    error_free(err);
+    return rsp;
 }
 
 /*
- * Detect whether a request should be run out-of-band, by quickly
- * peeking at whether we have: { "control": { "run-oob": true } }. By
- * default commands are run in-band.
+ * Does @qdict look like a command to be run out-of-band?
  */
 bool qmp_is_oob(QDict *dict)
 {
-    QBool *bool_obj;
-
-    dict = qdict_get_qdict(dict, "control");
-    if (!dict) {
-        return false;
-    }
-
-    bool_obj = qobject_to(QBool, qdict_get(dict, "run-oob"));
-    if (!bool_obj) {
-        return false;
-    }
-
-    return qbool_get_bool(bool_obj);
+    return qdict_haskey(dict, "exec-oob")
+        && !qdict_haskey(dict, "execute");
 }
 
-QObject *qmp_dispatch(QmpCommandList *cmds, QObject *request)
+QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
+                    bool allow_oob)
 {
     Error *err = NULL;
     QObject *ret;
     QDict *rsp;
 
-    ret = do_qmp_dispatch(cmds, request, &err);
+    ret = do_qmp_dispatch(cmds, request, allow_oob, &err);
 
-    rsp = qdict_new();
     if (err) {
-        qdict_put_obj(rsp, "error", qmp_build_error_object(err));
-        error_free(err);
+        rsp = qmp_error_response(err);
     } else if (ret) {
+        rsp = qdict_new();
         qdict_put_obj(rsp, "return", ret);
     } else {
-        qobject_unref(rsp);
-        return NULL;
+        /* Can only happen for commands with QCO_NO_SUCCESS_RESP */
+        rsp = NULL;
     }
 
-    return QOBJECT(rsp);
+    return rsp;
 }

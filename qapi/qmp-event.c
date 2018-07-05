@@ -34,15 +34,15 @@ QMPEventFuncEmit qmp_event_get_func_emit(void)
 static void timestamp_put(QDict *qdict)
 {
     int err;
-    QObject *obj;
+    QDict *ts;
     qemu_timeval tv;
 
     err = qemu_gettimeofday(&tv);
     /* Put -1 to indicate failure of getting host time */
-    obj = qobject_from_jsonf("{ 'seconds': %lld, 'microseconds': %lld }",
-                             err < 0 ? -1LL : (long long)tv.tv_sec,
-                             err < 0 ? -1LL : (long long)tv.tv_usec);
-    qdict_put_obj(qdict, "timestamp", obj);
+    ts = qdict_from_jsonf_nofail("{ 'seconds': %lld, 'microseconds': %lld }",
+                                 err < 0 ? -1LL : (long long)tv.tv_sec,
+                                 err < 0 ? -1LL : (long long)tv.tv_usec);
+    qdict_put(qdict, "timestamp", ts);
 }
 
 /*
