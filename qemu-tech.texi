@@ -350,9 +350,6 @@ depend on an initialized machine, including but not limited to:
 @item query-status
 @item exit-preconfig
 @end table
-The full list of commands is in QMP schema which could be queried with
-query-qmp-schema, where commands supported at preconfig state have option
-'allow-preconfig' set to true.
 
 @node Bibliography
 @section Bibliography
