@@ -2052,6 +2052,12 @@ S: Supported
 F: block/quorum.c
 L: qemu-block@nongnu.org
 
+blklogwrites
+M: Ari Sundholm <ari@tuxera.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: block/blklogwrites.c
+
 blkverify
 M: Stefan Hajnoczi <stefanha@redhat.com>
 L: qemu-block@nongnu.org

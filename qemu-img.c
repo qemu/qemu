@@ -2141,11 +2141,6 @@ static int img_convert(int argc, char **argv)
         goto fail_getopt;
     }
 
-    if (!s.wr_in_order && s.compressed) {
-        error_report("Out of order write and compress are mutually exclusive");
-        goto fail_getopt;
-    }
-
     if (tgt_image_opts && !skip_create) {
         error_report("--target-image-opts requires use of -n flag");
         goto fail_getopt;

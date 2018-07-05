@@ -100,6 +100,21 @@ run_qemu -drive file="$TEST_IMG",driver=raw,format=qcow2
 run_qemu -drive file="$TEST_IMG",driver=qcow2,format=qcow2
 
 echo
+echo === Node names ===
+echo
+
+# Maximum length: 31 characters
+run_qemu -drive file="$TEST_IMG",node-name=x123456789012345678901234567890
+run_qemu -drive file="$TEST_IMG",node-name=x1234567890123456789012345678901
+
+# First character must be alphabetic
+# Following characters alphanumeric or -._
+run_qemu -drive file="$TEST_IMG",node-name=All-Types.of_all0wed_chars
+run_qemu -drive file="$TEST_IMG",node-name=123foo
+run_qemu -drive file="$TEST_IMG",node-name=_foo
+run_qemu -drive file="$TEST_IMG",node-name=foo#12
+
+echo
 echo === Device without drive ===
 echo
 

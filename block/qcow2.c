@@ -23,11 +23,14 @@
  */
 
 #include "qemu/osdep.h"
+
+#define ZLIB_CONST
+#include <zlib.h>
+
 #include "block/block_int.h"
 #include "block/qdict.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
-#include <zlib.h>
 #include "qcow2.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
@@ -41,6 +44,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "crypto.h"
+#include "block/thread-pool.h"
 
 /*
   Differences with QCOW:
@@ -1541,6 +1545,9 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         qcow2_check_refcounts(bs, &result, 0);
     }
 #endif
+
+    qemu_co_queue_init(&s->compress_wait_queue);
+
     return ret;
 
  fail:
@@ -3650,6 +3657,104 @@ fail:
     return ret;
 }
 
+/*
+ * qcow2_compress()
+ *
+ * @dest - destination buffer, at least of @size-1 bytes
+ * @src - source buffer, @size bytes
+ *
+ * Returns: compressed size on success
+ *          -1 if compression is inefficient
+ *          -2 on any other error
+ */
+static ssize_t qcow2_compress(void *dest, const void *src, size_t size)
+{
+    ssize_t ret;
+    z_stream strm;
+
+    /* best compression, small window, no zlib header */
+    memset(&strm, 0, sizeof(strm));
+    ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+                       -12, 9, Z_DEFAULT_STRATEGY);
+    if (ret != 0) {
+        return -2;
+    }
+
+    /* strm.next_in is not const in old zlib versions, such as those used on
+     * OpenBSD/NetBSD, so cast the const away */
+    strm.avail_in = size;
+    strm.next_in = (void *) src;
+    strm.avail_out = size - 1;
+    strm.next_out = dest;
+
+    ret = deflate(&strm, Z_FINISH);
+    if (ret == Z_STREAM_END) {
+        ret = size - 1 - strm.avail_out;
+    } else {
+        ret = (ret == Z_OK ? -1 : -2);
+    }
+
+    deflateEnd(&strm);
+
+    return ret;
+}
+
+#define MAX_COMPRESS_THREADS 4
+
+typedef struct Qcow2CompressData {
+    void *dest;
+    const void *src;
+    size_t size;
+    ssize_t ret;
+} Qcow2CompressData;
+
+static int qcow2_compress_pool_func(void *opaque)
+{
+    Qcow2CompressData *data = opaque;
+
+    data->ret = qcow2_compress(data->dest, data->src, data->size);
+
+    return 0;
+}
+
+static void qcow2_compress_complete(void *opaque, int ret)
+{
+    qemu_coroutine_enter(opaque);
+}
+
+/* See qcow2_compress definition for parameters description */
+static ssize_t qcow2_co_compress(BlockDriverState *bs,
+                                 void *dest, const void *src, size_t size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    BlockAIOCB *acb;
+    ThreadPool *pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    Qcow2CompressData arg = {
+        .dest = dest,
+        .src = src,
+        .size = size,
+    };
+
+    while (s->nb_compress_threads >= MAX_COMPRESS_THREADS) {
+        qemu_co_queue_wait(&s->compress_wait_queue, NULL);
+    }
+
+    s->nb_compress_threads++;
+    acb = thread_pool_submit_aio(pool, qcow2_compress_pool_func, &arg,
+                                 qcow2_compress_complete,
+                                 qemu_coroutine_self());
+
+    if (!acb) {
+        s->nb_compress_threads--;
+        return -EINVAL;
+    }
+    qemu_coroutine_yield();
+    s->nb_compress_threads--;
+    qemu_co_queue_next(&s->compress_wait_queue);
+
+    return arg.ret;
+}
+
 /* XXX: put compressed sectors first, then all the cluster aligned
    tables to avoid losing bytes in alignment */
 static coroutine_fn int
@@ -3659,8 +3764,8 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     BDRVQcow2State *s = bs->opaque;
     QEMUIOVector hd_qiov;
     struct iovec iov;
-    z_stream strm;
-    int ret, out_len;
+    int ret;
+    size_t out_len;
     uint8_t *buf, *out_buf;
     int64_t cluster_offset;
 
@@ -3694,32 +3799,11 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
 
     out_buf = g_malloc(s->cluster_size);
 
-    /* best compression, small window, no zlib header */
-    memset(&strm, 0, sizeof(strm));
-    ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION,
-                       Z_DEFLATED, -12,
-                       9, Z_DEFAULT_STRATEGY);
-    if (ret != 0) {
+    out_len = qcow2_co_compress(bs, out_buf, buf, s->cluster_size);
+    if (out_len == -2) {
         ret = -EINVAL;
         goto fail;
-    }
-
-    strm.avail_in = s->cluster_size;
-    strm.next_in = (uint8_t *)buf;
-    strm.avail_out = s->cluster_size;
-    strm.next_out = out_buf;
-
-    ret = deflate(&strm, Z_FINISH);
-    if (ret != Z_STREAM_END && ret != Z_OK) {
-        deflateEnd(&strm);
-        ret = -EINVAL;
-        goto fail;
-    }
-    out_len = strm.next_out - out_buf;
-
-    deflateEnd(&strm);
-
-    if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
+    } else if (out_len == -1) {
         /* could not compress: write normal cluster */
         ret = qcow2_co_pwritev(bs, offset, bytes, qiov, 0);
         if (ret < 0) {

@@ -326,6 +326,9 @@ typedef struct BDRVQcow2State {
      * override) */
     char *image_backing_file;
     char *image_backing_format;
+
+    CoQueue compress_wait_queue;
+    int nb_compress_threads;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
