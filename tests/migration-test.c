@@ -360,7 +360,7 @@ static void migrate_start_postcopy(QTestState *who)
     qobject_unref(rsp);
 }
 
-static void test_migrate_start(QTestState **from, QTestState **to,
+static int test_migrate_start(QTestState **from, QTestState **to,
                                const char *uri, bool hide_stderr)
 {
     gchar *cmd_src, *cmd_dst;
@@ -385,9 +385,13 @@ static void test_migrate_start(QTestState **from, QTestState **to,
                                   accel, tmpfs, bootpath, uri);
     } else if (strcmp(arch, "ppc64") == 0) {
 
-        /* On ppc64, the test only works with kvm-hv, but not with kvm-pr */
+        /* On ppc64, the test only works with kvm-hv, but not with kvm-pr
+         * and TCG is touchy due to race conditions on dirty bits
+         * (especially on PPC for some reason)
+         */
         if (access("/sys/module/kvm_hv", F_OK)) {
-            accel = "tcg";
+            g_print("Skipping test: kvm_hv not available ");
+            return -1;
         }
         cmd_src = g_strdup_printf("-machine accel=%s -m 256M"
                                   " -name source,debug-threads=on"
@@ -424,6 +428,7 @@ static void test_migrate_start(QTestState **from, QTestState **to,
 
     *to = qtest_init(cmd_dst);
     g_free(cmd_dst);
+    return 0;
 }
 
 static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
@@ -510,7 +515,9 @@ static void test_postcopy(void)
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    test_migrate_start(&from, &to, uri, false);
+    if (test_migrate_start(&from, &to, uri, false)) {
+        return;
+    }
 
     migrate_set_capability(from, "postcopy-ram", "true");
     migrate_set_capability(to, "postcopy-ram", "true");
@@ -556,7 +563,9 @@ static void test_baddest(void)
     const char *status;
     bool failed;
 
-    test_migrate_start(&from, &to, "tcp:0:0", true);
+    if (test_migrate_start(&from, &to, "tcp:0:0", true)) {
+        return;
+    }
     migrate(from, "tcp:0:0");
     do {
         rsp = wait_command(from, "{ 'execute': 'query-migrate' }");
@@ -585,7 +594,9 @@ static void test_precopy_unix(void)
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    test_migrate_start(&from, &to, uri, false);
+    if (test_migrate_start(&from, &to, uri, false)) {
+        return;
+    }
 
     /* We want to pick a speed slow enough that the test completes
      * quickly, but that it doesn't complete precopy even on a slow
