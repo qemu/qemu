@@ -2836,13 +2836,13 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
     xcc->host_cpuid_required = true;
     xcc->ordering = 8;
 
-    if (kvm_enabled()) {
-        xcc->model_description =
-            "KVM processor with all supported host features ";
-    } else if (hvf_enabled()) {
-        xcc->model_description =
-            "HVF processor with all supported host features ";
-    }
+#if defined(CONFIG_KVM)
+    xcc->model_description =
+        "KVM processor with all supported host features ";
+#elif defined(CONFIG_HVF)
+    xcc->model_description =
+        "HVF processor with all supported host features ";
+#endif
 }
 
 static const TypeInfo host_x86_cpu_type_info = {

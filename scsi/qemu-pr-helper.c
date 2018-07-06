@@ -76,14 +76,12 @@ static int gid = -1;
 
 static void compute_default_paths(void)
 {
-    if (!socket_path) {
-        socket_path = qemu_get_local_state_pathname("run/qemu-pr-helper.sock");
-    }
+    socket_path = qemu_get_local_state_pathname("run/qemu-pr-helper.sock");
+    pidfile = qemu_get_local_state_pathname("run/qemu-pr-helper.pid");
 }
 
 static void usage(const char *name)
 {
-    compute_default_paths();
     (printf) (
 "Usage: %s [OPTIONS] FILE\n"
 "Persistent Reservation helper program for QEMU\n"
@@ -455,6 +453,14 @@ static int multipath_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
     char transportids[PR_HELPER_DATA_SIZE];
     int r;
 
+    if (sz < PR_OUT_FIXED_PARAM_SIZE) {
+        /* Illegal request, Parameter list length error.  This isn't fatal;
+         * we have read the data, send an error without closing the socket.
+         */
+        scsi_build_sense(sense, SENSE_CODE(INVALID_PARAM_LEN));
+        return CHECK_CONDITION;
+    }
+
     switch (rq_servact) {
     case MPATH_PROUT_REG_SA:
     case MPATH_PROUT_RES_SA:
@@ -574,6 +580,12 @@ static int do_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
                      const uint8_t *param, int sz)
 {
     int resp_sz;
+
+    if ((fcntl(fd, F_GETFL) & O_ACCMODE) == O_RDONLY) {
+        scsi_build_sense(sense, SENSE_CODE(INVALID_OPCODE));
+        return CHECK_CONDITION;
+    }
+
 #ifdef CONFIG_MPATH
     if (is_mpath(fd)) {
         return multipath_pr_out(fd, cdb, sense, param, sz);
@@ -690,21 +702,6 @@ static int coroutine_fn prh_read_request(PRHelperClient *client,
                                  errp) < 0) {
             goto out_close;
         }
-        if ((fcntl(client->fd, F_GETFL) & O_ACCMODE) == O_RDONLY) {
-            scsi_build_sense(resp->sense, SENSE_CODE(INVALID_OPCODE));
-            sz = 0;
-        } else if (sz < PR_OUT_FIXED_PARAM_SIZE) {
-            /* Illegal request, Parameter list length error.  This isn't fatal;
-             * we have read the data, send an error without closing the socket.
-             */
-            scsi_build_sense(resp->sense, SENSE_CODE(INVALID_PARAM_LEN));
-            sz = 0;
-        }
-        if (sz == 0) {
-            resp->result = CHECK_CONDITION;
-            close(client->fd);
-            client->fd = -1;
-        }
     }
 
     req->fd = client->fd;
@@ -785,25 +782,23 @@ static void coroutine_fn prh_co_entry(void *opaque)
             break;
         }
 
-        if (sz > 0) {
-            num_active_sockets++;
-            if (req.cdb[0] == PERSISTENT_RESERVE_OUT) {
-                r = do_pr_out(req.fd, req.cdb, resp.sense,
-                              client->data, sz);
-                resp.sz = 0;
-            } else {
-                resp.sz = sizeof(client->data);
-                r = do_pr_in(req.fd, req.cdb, resp.sense,
-                             client->data, &resp.sz);
-                resp.sz = MIN(resp.sz, sz);
-            }
-            num_active_sockets--;
-            close(req.fd);
-            if (r == -1) {
-                break;
-            }
-            resp.result = r;
+        num_active_sockets++;
+        if (req.cdb[0] == PERSISTENT_RESERVE_OUT) {
+            r = do_pr_out(req.fd, req.cdb, resp.sense,
+                          client->data, sz);
+            resp.sz = 0;
+        } else {
+            resp.sz = sizeof(client->data);
+            r = do_pr_in(req.fd, req.cdb, resp.sense,
+                         client->data, &resp.sz);
+            resp.sz = MIN(resp.sz, sz);
         }
+        num_active_sockets--;
+        close(req.fd);
+        if (r == -1) {
+            break;
+        }
+        resp.result = r;
 
         if (prh_write_response(client, &req, &resp, &local_err) < 0) {
             break;
@@ -842,19 +837,6 @@ static gboolean accept_client(QIOChannel *ioc, GIOCondition cond, gpointer opaqu
     qemu_coroutine_enter(prh->co);
 
     return TRUE;
-}
-
-
-/*
- * Check socket parameters compatibility when socket activation is used.
- */
-static const char *socket_activation_validate_opts(void)
-{
-    if (socket_path != NULL) {
-        return "Unix socket can't be set when using socket activation";
-    }
-
-    return NULL;
 }
 
 static void termsig_handler(int signum)
@@ -930,6 +912,7 @@ int main(int argc, char **argv)
     char *trace_file = NULL;
     bool daemonize = false;
     bool pidfile_specified = false;
+    bool socket_path_specified = false;
     unsigned socket_activation;
 
     struct sigaction sa_sigterm;
@@ -946,12 +929,14 @@ int main(int argc, char **argv)
     qemu_add_opts(&qemu_trace_opts);
     qemu_init_exec_dir(argv[0]);
 
-    pidfile = qemu_get_local_state_pathname("run/qemu-pr-helper.pid");
+    compute_default_paths();
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
         case 'k':
-            socket_path = optarg;
+            g_free(socket_path);
+            socket_path = g_strdup(optarg);
+            socket_path_specified = true;
             if (socket_path[0] != '/') {
                 error_report("socket path must be absolute");
                 exit(EXIT_FAILURE);
@@ -1042,10 +1027,9 @@ int main(int argc, char **argv)
     socket_activation = check_socket_activation();
     if (socket_activation == 0) {
         SocketAddress saddr;
-        compute_default_paths();
         saddr = (SocketAddress){
             .type = SOCKET_ADDRESS_TYPE_UNIX,
-            .u.q_unix.path = g_strdup(socket_path)
+            .u.q_unix.path = socket_path,
         };
         server_ioc = qio_channel_socket_new();
         if (qio_channel_socket_listen_sync(server_ioc, &saddr, &local_err) < 0) {
@@ -1053,12 +1037,10 @@ int main(int argc, char **argv)
             error_report_err(local_err);
             return 1;
         }
-        g_free(saddr.u.q_unix.path);
     } else {
         /* Using socket activation - check user didn't use -p etc. */
-        const char *err_msg = socket_activation_validate_opts();
-        if (err_msg != NULL) {
-            error_report("%s", err_msg);
+        if (socket_path_specified) {
+            error_report("Unix socket can't be set when using socket activation");
             exit(EXIT_FAILURE);
         }
 
@@ -1075,7 +1057,6 @@ int main(int argc, char **argv)
                          error_get_pretty(local_err));
             exit(EXIT_FAILURE);
         }
-        socket_path = NULL;
     }
 
     if (qemu_init_main_loop(&local_err)) {
