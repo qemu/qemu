@@ -3057,6 +3057,8 @@
 # @log-sector-size: sector size used in logging writes to @file, determines
 #                   granularity of offsets and sizes of writes (default: 512)
 #
+# @log-append:      append to an existing log (default: false)
+#
 # @log-super-update-interval: interval of write requests after which the log
 #                             super block is updated to disk (default: 4096)
 #
