@@ -28,6 +28,7 @@ typedef enum {
 } BlockInterfaceType;
 
 struct DriveInfo {
+    const char *devaddr;
     BlockInterfaceType type;
     int bus;
     int unit;
