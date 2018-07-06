@@ -84,7 +84,7 @@ void cpu_loop(CPUSH4State *env)
             arch_interrupt = false;
             break;
         default:
-            printf ("Unhandled trap: 0x%x\n", trapnr);
+            fprintf(stderr, "Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
             exit(EXIT_FAILURE);
         }

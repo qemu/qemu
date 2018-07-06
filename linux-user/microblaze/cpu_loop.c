@@ -105,8 +105,8 @@ void cpu_loop(CPUMBState *env)
                     queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
                     break;
                 default:
-                    printf("Unhandled hw-exception: 0x%" PRIx64 "\n",
-                           env->sregs[SR_ESR] & ESR_EC_MASK);
+                    fprintf(stderr, "Unhandled hw-exception: 0x%" PRIx64 "\n",
+                            env->sregs[SR_ESR] & ESR_EC_MASK);
                     cpu_dump_state(cs, stderr, fprintf, 0);
                     exit(EXIT_FAILURE);
                     break;
@@ -130,7 +130,7 @@ void cpu_loop(CPUMBState *env)
             cpu_exec_step_atomic(cs);
             break;
         default:
-            printf ("Unhandled trap: 0x%x\n", trapnr);
+            fprintf(stderr, "Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
             exit(EXIT_FAILURE);
         }
