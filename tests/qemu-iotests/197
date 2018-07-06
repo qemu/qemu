@@ -109,6 +109,15 @@ $QEMU_IO -f qcow2 -c map "$TEST_WRAP"
 _check_test_img
 $QEMU_IMG compare -f $IMGFMT -F qcow2 "$TEST_IMG" "$TEST_WRAP"
 
+echo
+echo '=== Partial final cluster ==='
+echo
+
+_make_test_img 1024
+$QEMU_IO -f $IMGFMT -C -c 'read 0 1024' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -f $IMGFMT -c map "$TEST_IMG"
+_check_test_img
+
 # success, all done
 echo '*** done'
 status=0

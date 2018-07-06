@@ -1200,6 +1200,12 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
             pnum = MIN(cluster_bytes, max_transfer);
         }
 
+        /* Stop at EOF if the image ends in the middle of the cluster */
+        if (ret == 0 && pnum == 0) {
+            assert(progress >= bytes);
+            break;
+        }
+
         assert(skip_bytes < pnum);
 
         if (ret <= 0) {
