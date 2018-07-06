@@ -15,6 +15,19 @@
 #include "qapi/qapi-types-block.h"
 #include "qemu/error-report.h"
 
+void blkconf_serial(BlockConf *conf, char **serial)
+{
+    DriveInfo *dinfo;
+
+    if (!*serial) {
+        /* try to fall back to value set with legacy -drive serial=... */
+        dinfo = blk_legacy_dinfo(conf->blk);
+        if (dinfo) {
+            *serial = g_strdup(dinfo->serial);
+        }
+    }
+}
+
 void blkconf_blocksizes(BlockConf *conf)
 {
     BlockBackend *blk = conf->blk;

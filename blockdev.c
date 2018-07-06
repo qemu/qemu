@@ -731,6 +731,10 @@ QemuOptsList qemu_legacy_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "interface (ide, scsi, sd, mtd, floppy, pflash, virtio)",
         },{
+            .name = "serial",
+            .type = QEMU_OPT_STRING,
+            .help = "disk serial number",
+        },{
             .name = "file",
             .type = QEMU_OPT_STRING,
             .help = "file name",
@@ -772,10 +776,12 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     const char *werror, *rerror;
     bool read_only = false;
     bool copy_on_read;
+    const char *serial;
     const char *filename;
     Error *local_err = NULL;
     int i;
     const char *deprecated[] = {
+        "serial"
     };
 
     /* Change legacy command line options into QMP ones */
@@ -943,6 +949,9 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         goto fail;
     }
 
+    /* Serial number */
+    serial = qemu_opt_get(legacy_opts, "serial");
+
     /* no id supplied -> create one */
     if (qemu_opts_id(all_opts) == NULL) {
         char *new_id;
@@ -1017,6 +1026,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo->type = type;
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
+    dinfo->serial = g_strdup(serial);
 
     blk_set_legacy_dinfo(blk, dinfo);
 

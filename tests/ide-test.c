@@ -529,8 +529,8 @@ static void test_bmdma_no_busmaster(void)
 static void test_bmdma_setup(void)
 {
     ide_test_start(
-        "-drive file=%s,if=ide,cache=writeback,format=raw "
-        "-global ide-hd.serial=%s -global ide-hd.ver=%s",
+        "-drive file=%s,if=ide,serial=%s,cache=writeback,format=raw "
+        "-global ide-hd.ver=%s",
         tmp_path, "testdisk", "version");
     qtest_irq_intercept_in(global_qtest, "ioapic");
 }
@@ -561,8 +561,8 @@ static void test_identify(void)
     int ret;
 
     ide_test_start(
-        "-drive file=%s,if=ide,cache=writeback,format=raw "
-        "-global ide-hd.serial=%s -global ide-hd.ver=%s",
+        "-drive file=%s,if=ide,serial=%s,cache=writeback,format=raw "
+        "-global ide-hd.ver=%s",
         tmp_path, "testdisk", "version");
 
     dev = get_pci_device(&bmdma_bar, &ide_bar);
