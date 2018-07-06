@@ -89,7 +89,10 @@ static inline uint32_t blk_log_writes_log2(uint32_t value)
 
 static inline bool blk_log_writes_sector_size_valid(uint32_t sector_size)
 {
-    return sector_size < (1ull << 24) && is_power_of_2(sector_size);
+    return is_power_of_2(sector_size) &&
+        sector_size >= sizeof(struct log_write_super) &&
+        sector_size >= sizeof(struct log_write_entry) &&
+        sector_size < (1ull << 24);
 }
 
 static uint64_t blk_log_writes_find_cur_log_sector(BdrvChild *log,
