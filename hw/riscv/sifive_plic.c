@@ -435,7 +435,6 @@ static void sifive_plic_irq_request(void *opaque, int irq, int level)
 static void sifive_plic_realize(DeviceState *dev, Error **errp)
 {
     SiFivePLICState *plic = SIFIVE_PLIC(dev);
-    int i;
 
     memory_region_init_io(&plic->mmio, OBJECT(dev), &sifive_plic_ops, plic,
                           TYPE_SIFIVE_PLIC, plic->aperture_size);
@@ -448,10 +447,7 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     plic->claimed = g_new0(uint32_t, plic->bitfield_words);
     plic->enable = g_new0(uint32_t, plic->bitfield_words * plic->num_addrs);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &plic->mmio);
-    plic->irqs = g_new0(qemu_irq, plic->num_sources + 1);
-    for (i = 0; i <= plic->num_sources; i++) {
-        plic->irqs[i] = qemu_allocate_irq(sifive_plic_irq_request, plic, i);
-    }
+    qdev_init_gpio_in(dev, sifive_plic_irq_request, plic->num_sources);
 }
 
 static void sifive_plic_class_init(ObjectClass *klass, void *data)

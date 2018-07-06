@@ -380,11 +380,11 @@ static void riscv_virt_board_init(MachineState *machine)
     for (i = 0; i < VIRTIO_COUNT; i++) {
         sysbus_create_simple("virtio-mmio",
             memmap[VIRT_VIRTIO].base + i * memmap[VIRT_VIRTIO].size,
-            SIFIVE_PLIC(s->plic)->irqs[VIRTIO_IRQ + i]);
+            qdev_get_gpio_in(DEVICE(s->plic), VIRTIO_IRQ + i));
     }
 
     serial_mm_init(system_memory, memmap[VIRT_UART0].base,
-        0, SIFIVE_PLIC(s->plic)->irqs[UART0_IRQ], 399193,
+        0, qdev_get_gpio_in(DEVICE(s->plic), UART0_IRQ), 399193,
         serial_hd(0), DEVICE_LITTLE_ENDIAN);
 }
 
