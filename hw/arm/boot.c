@@ -965,7 +965,12 @@ static size_t macho_setup_bootargs(struct arm_boot_info *info, AddressSpace *as,
     boot_args.deviceTreeP = dtb_address;
     boot_args.deviceTreeLength = dtb_size;
     strlcpy(boot_args.CommandLine, info->kernel_cmdline, sizeof(boot_args.CommandLine));
-    boot_args.memSizeActual = info->ram_size;
+    // this is badly named: it's actually
+    // how much physical RAM is *not* available to the kernel
+    // if left at 0, kernel estimates it by taking difference between
+    // memSize and size rounded up to 512m
+    // it's only used for memory usage debugging though.
+    boot_args.memSizeActual = 0;
     rom_add_blob_fixed_as("xnu_boot_args", &boot_args, sizeof(boot_args), bootargs_addr, as);
     return sizeof(boot_args);
 }
@@ -1014,7 +1019,6 @@ static uint64_t arm_load_macho(struct arm_boot_info *info, uint64_t *pentry, Add
     uint64_t pc = 0;
     uint64_t low_addr_temp;
     uint64_t high_addr_temp;
-    uint64_t virt_base = 0;
     macho_highest_lowest(mh, &low_addr_temp, &high_addr_temp);
     uint64_t rom_buf_size = high_addr_temp - low_addr_temp;
     rom_buf = g_malloc0(rom_buf_size);
@@ -1023,9 +1027,6 @@ static uint64_t arm_load_macho(struct arm_boot_info *info, uint64_t *pentry, Add
             case LC_SEGMENT_64: {
                 struct segment_command_64* segCmd = (struct segment_command_64*)cmd;
                 memcpy(rom_buf + (segCmd->vmaddr - low_addr_temp), data + segCmd->fileoff, segCmd->filesize);
-                if (virt_base == 0) {
-                    virt_base = segCmd->vmaddr;
-                }
                 break;
             }
             case LC_UNIXTHREAD: {
@@ -1063,7 +1064,9 @@ static uint64_t arm_load_macho(struct arm_boot_info *info, uint64_t *pentry, Add
     // macho_setup_bootargs takes care of adding the size for the args
     // osfmk/arm64/arm_vm_init.c:arm_vm_prot_init
     uint64_t bootargs_addr = VAtoPA(load_extra_offset);
-    macho_setup_bootargs(info, as, bootargs_addr, low_addr_temp, VAtoPA(low_addr_temp), VAtoPA(load_extra_offset), dtb_address, dtb_size);
+    uint64_t phys_base = (mem_base + kernel_load_offset);
+    uint64_t virt_base = low_addr_temp & ~0x3fffffffull;
+    macho_setup_bootargs(info, as, bootargs_addr, virt_base, phys_base, VAtoPA(load_extra_offset), dtb_address, dtb_size);
 
     // write bootloader
     uint32_t fixupcontext[FIXUP_MAX];
