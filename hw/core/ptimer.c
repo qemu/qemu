@@ -45,8 +45,20 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
     uint32_t period_frac = s->period_frac;
     uint64_t period = s->period;
     uint64_t delta = s->delta;
+    bool suppress_trigger = false;
 
-    if (delta == 0 && !(s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)) {
+    /*
+     * Note that if delta_adjust is 0 then we must be here because of
+     * a count register write or timer start, not because of timer expiry.
+     * In that case the policy might require us to suppress the timer trigger
+     * that we would otherwise generate for a zero delta.
+     */
+    if (delta_adjust == 0 &&
+        (s->policy_mask & PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT)) {
+        suppress_trigger = true;
+    }
+    if (delta == 0 && !(s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)
+        && !suppress_trigger) {
         ptimer_trigger(s);
     }
 
@@ -353,6 +365,14 @@ ptimer_state *ptimer_init(QEMUBH *bh, uint8_t policy_mask)
     s->bh = bh;
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ptimer_tick, s);
     s->policy_mask = policy_mask;
+
+    /*
+     * These two policies are incompatible -- trigger-on-decrement implies
+     * a timer trigger when the count becomes 0, but no-immediate-trigger
+     * implies a trigger when the count stops being 0.
+     */
+    assert(!((policy_mask & PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT) &&
+             (policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)));
     return s;
 }
 
