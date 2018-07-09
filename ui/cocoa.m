@@ -802,14 +802,20 @@ QemuCocoaView *cocoaView;
              * This is in-line with standard Mac OS X UI behaviour.
              */
 
+            /*
+             * When deltaY is zero, it means that this scrolling event was
+             * either horizontal, or so fine that it only appears in
+             * scrollingDeltaY. So we drop the event.
+             */
+            if ([event deltaY] != 0) {
             /* Determine if this is a scroll up or scroll down event */
-            buttons = ([event scrollingDeltaY] > 0) ?
-                INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
-            qemu_input_queue_btn(dcl->con, buttons, true);
-            qemu_input_event_sync();
-            qemu_input_queue_btn(dcl->con, buttons, false);
-            qemu_input_event_sync();
-
+                buttons = ([event deltaY] > 0) ?
+                    INPUT_BUTTON_WHEEL_UP : INPUT_BUTTON_WHEEL_DOWN;
+                qemu_input_queue_btn(dcl->con, buttons, true);
+                qemu_input_event_sync();
+                qemu_input_queue_btn(dcl->con, buttons, false);
+                qemu_input_event_sync();
+            }
             /*
              * Since deltaY also reports scroll wheel events we prevent mouse
              * movement code from executing.
