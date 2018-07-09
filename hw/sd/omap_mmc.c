@@ -1,6 +1,8 @@
 /*
  * OMAP on-chip MMC/SD host emulation.
  *
+ * Datasheet: TI Multimedia Card (MMC/SD/SDIO) Interface (SPRU765A)
+ *
  * Copyright (C) 2006-2007 Andrzej Zaborowski  <balrog@zabor.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -278,6 +280,12 @@ static void omap_mmc_update(void *opaque)
     omap_mmc_interrupts_update(s);
 }
 
+static void omap_mmc_pseudo_reset(struct omap_mmc_s *host)
+{
+    host->status = 0;
+    host->fifo_len = 0;
+}
+
 void omap_mmc_reset(struct omap_mmc_s *host)
 {
     host->last_cmd = 0;
@@ -286,11 +294,9 @@ void omap_mmc_reset(struct omap_mmc_s *host)
     host->dw = 0;
     host->mode = 0;
     host->enable = 0;
-    host->status = 0;
     host->mask = 0;
     host->cto = 0;
     host->dto = 0;
-    host->fifo_len = 0;
     host->blen = 0;
     host->blen_counter = 0;
     host->nblk = 0;
@@ -304,6 +310,8 @@ void omap_mmc_reset(struct omap_mmc_s *host)
     host->cdet_enable = 0;
     qemu_set_irq(host->coverswitch, host->cdet_state);
     host->clkdiv = 0;
+
+    omap_mmc_pseudo_reset(host);
 
     /* Since we're still using the legacy SD API the card is not plugged
      * into any bus, and we must reset it manually. When omap_mmc is
@@ -459,7 +467,7 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
         if (s->dw != 0 && s->lines < 4)
             printf("4-bit SD bus enabled\n");
         if (!s->enable)
-            omap_mmc_reset(s);
+            omap_mmc_pseudo_reset(s);
         break;
 
     case 0x10:	/* MMC_STAT */

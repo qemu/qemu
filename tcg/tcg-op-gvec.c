@@ -287,8 +287,11 @@ void tcg_gen_gvec_4_ptr(uint32_t dofs, uint32_t aofs, uint32_t bofs,
    in units of LNSZ.  This limits the expansion of inline code.  */
 static inline bool check_size_impl(uint32_t oprsz, uint32_t lnsz)
 {
-    uint32_t lnct = oprsz / lnsz;
-    return lnct >= 1 && lnct <= MAX_UNROLL;
+    if (oprsz % lnsz == 0) {
+        uint32_t lnct = oprsz / lnsz;
+        return lnct >= 1 && lnct <= MAX_UNROLL;
+    }
+    return false;
 }
 
 static void expand_clr(uint32_t dofs, uint32_t maxsz);

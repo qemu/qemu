@@ -69,6 +69,15 @@
  * not the one less.  */
 #define PTIMER_POLICY_NO_COUNTER_ROUND_DOWN (1 << 4)
 
+/*
+ * Starting to run with a zero counter, or setting the counter to "0" via
+ * ptimer_set_count() or ptimer_set_limit() will not trigger the timer
+ * (though it will cause a reload). Only a counter decrement to "0"
+ * will cause a trigger. Not compatible with NO_IMMEDIATE_TRIGGER;
+ * ptimer_init() will assert() that you don't set both.
+ */
+#define PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT (1 << 5)
+
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;
 typedef void (*ptimer_cb)(void *opaque);
