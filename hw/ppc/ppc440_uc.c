@@ -935,7 +935,7 @@ static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
                     if (wptr) {
                         cpu_physical_memory_unmap(wptr, wlen, 1, didx);
                     }
-                    if (wptr) {
+                    if (rptr) {
                         cpu_physical_memory_unmap(rptr, rlen, 0, sidx);
                     }
                 }

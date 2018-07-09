@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
@@ -34,6 +35,8 @@
 #include "hw/devices.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
+#include "hw/i2c/i2c.h"
+#include "hw/i2c/i2c-ddc.h"
 #include "qemu/range.h"
 #include "ui/pixel_ops.h"
 
@@ -215,6 +218,14 @@
 #define SM501_I2C_RESET                 (0x02)
 #define SM501_I2C_SLAVE_ADDRESS         (0x03)
 #define SM501_I2C_DATA                  (0x04)
+
+#define SM501_I2C_CONTROL_START         (1 << 2)
+#define SM501_I2C_CONTROL_ENABLE        (1 << 0)
+
+#define SM501_I2C_STATUS_COMPLETE       (1 << 3)
+#define SM501_I2C_STATUS_ERROR          (1 << 2)
+
+#define SM501_I2C_RESET_ERROR           (1 << 2)
 
 /* SSP base */
 #define SM501_SSP                       (0x020000)
@@ -471,10 +482,13 @@ typedef struct SM501State {
     MemoryRegion local_mem_region;
     MemoryRegion mmio_region;
     MemoryRegion system_config_region;
+    MemoryRegion i2c_region;
     MemoryRegion disp_ctrl_region;
     MemoryRegion twoD_engine_region;
     uint32_t last_width;
     uint32_t last_height;
+    bool do_full_update; /* perform a full update next time */
+    I2CBus *i2c_bus;
 
     /* mmio registers */
     uint32_t system_control;
@@ -486,6 +500,11 @@ typedef struct SM501State {
     uint32_t irq_mask;
     uint32_t misc_timing;
     uint32_t power_mode_control;
+
+    uint8_t i2c_byte_count;
+    uint8_t i2c_status;
+    uint8_t i2c_addr;
+    uint8_t i2c_data[16];
 
     uint32_t uart0_ier;
     uint32_t uart0_lcr;
@@ -565,6 +584,11 @@ static uint32_t get_local_mem_size_index(uint32_t size)
     }
 
     return index;
+}
+
+static ram_addr_t get_fb_addr(SM501State *s, int crt)
+{
+    return (crt ? s->dc_crt_fb_addr : s->dc_panel_fb_addr) & 0x3FFFFF0;
 }
 
 static inline int get_width(SM501State *s, int crt)
@@ -669,7 +693,8 @@ static inline void hwc_invalidate(SM501State *s, int crt)
     start *= w * bpp;
     end *= w * bpp;
 
-    memory_region_set_dirty(&s->local_mem_region, start, end - start);
+    memory_region_set_dirty(&s->local_mem_region,
+                            get_fb_addr(s, crt) + start, end - start);
 }
 
 static void sm501_2d_operation(SM501State *s)
@@ -686,16 +711,45 @@ static void sm501_2d_operation(SM501State *s)
     uint32_t color = s->twoD_foreground;
     int format_flags = (s->twoD_stretch >> 20) & 0x3;
     int addressing = (s->twoD_stretch >> 16) & 0xF;
+    int rop_mode = (s->twoD_control >> 15) & 0x1; /* 1 for rop2, else rop3 */
+    /* 1 if rop2 source is the pattern, otherwise the source is the bitmap */
+    int rop2_source_is_pattern = (s->twoD_control >> 14) & 0x1;
+    int rop = s->twoD_control & 0xFF;
+    uint32_t src_base = s->twoD_source_base & 0x03FFFFFF;
+    uint32_t dst_base = s->twoD_destination_base & 0x03FFFFFF;
 
     /* get frame buffer info */
-    uint8_t *src = s->local_mem + (s->twoD_source_base & 0x03FFFFFF);
-    uint8_t *dst = s->local_mem + (s->twoD_destination_base & 0x03FFFFFF);
-    int src_width = (s->dc_crt_h_total & 0x00000FFF) + 1;
-    int dst_width = (s->dc_crt_h_total & 0x00000FFF) + 1;
+    uint8_t *src = s->local_mem + src_base;
+    uint8_t *dst = s->local_mem + dst_base;
+    int src_width = s->twoD_pitch & 0x1FFF;
+    int dst_width = (s->twoD_pitch >> 16) & 0x1FFF;
+    int crt = (s->dc_crt_control & SM501_DC_CRT_CONTROL_SEL) ? 1 : 0;
+    int fb_len = get_width(s, crt) * get_height(s, crt) * get_bpp(s, crt);
 
     if (addressing != 0x0) {
         printf("%s: only XY addressing is supported.\n", __func__);
         abort();
+    }
+
+    if (rop_mode == 0) {
+        if (rop != 0xcc) {
+            /* Anything other than plain copies are not supported */
+            qemu_log_mask(LOG_UNIMP, "sm501: rop3 mode with rop %x is not "
+                          "supported.\n", rop);
+        }
+    } else {
+        if (rop2_source_is_pattern && rop != 0x5) {
+            /* For pattern source, we support only inverse dest */
+            qemu_log_mask(LOG_UNIMP, "sm501: rop2 source being the pattern and "
+                          "rop %x is not supported.\n", rop);
+        } else {
+            if (rop != 0x5 && rop != 0xc) {
+                /* Anything other than plain copies or inverse dest is not
+                 * supported */
+                qemu_log_mask(LOG_UNIMP, "sm501: rop mode %x is not "
+                              "supported.\n", rop);
+            }
+        }
     }
 
     if ((s->twoD_source_base & 0x08000000) ||
@@ -710,6 +764,8 @@ static void sm501_2d_operation(SM501State *s)
         int y, x, index_d, index_s;                                           \
         for (y = 0; y < operation_height; y++) {                              \
             for (x = 0; x < operation_width; x++) {                           \
+                _pixel_type val;                                              \
+                                                                              \
                 if (rtl) {                                                    \
                     index_s = ((src_y - y) * src_width + src_x - x) * _bpp;   \
                     index_d = ((dst_y - y) * dst_width + dst_x - x) * _bpp;   \
@@ -717,7 +773,13 @@ static void sm501_2d_operation(SM501State *s)
                     index_s = ((src_y + y) * src_width + src_x + x) * _bpp;   \
                     index_d = ((dst_y + y) * dst_width + dst_x + x) * _bpp;   \
                 }                                                             \
-                *(_pixel_type *)&dst[index_d] = *(_pixel_type *)&src[index_s];\
+                if (rop_mode == 1 && rop == 5) {                              \
+                    /* Invert dest */                                         \
+                    val = ~*(_pixel_type *)&dst[index_d];                     \
+                } else {                                                      \
+                    val = *(_pixel_type *)&src[index_s];                      \
+                }                                                             \
+                *(_pixel_type *)&dst[index_d] = val;                          \
             }                                                                 \
         }                                                                     \
     }
@@ -762,6 +824,15 @@ static void sm501_2d_operation(SM501State *s)
         printf("non-implemented SM501 2D operation. %d\n", operation);
         abort();
         break;
+    }
+
+    if (dst_base >= get_fb_addr(s, crt) &&
+        dst_base <= get_fb_addr(s, crt) + fb_len) {
+        int dst_len = MIN(fb_len, ((dst_y + operation_height - 1) * dst_width +
+                           dst_x + operation_width) * (1 << format_flags));
+        if (dst_len) {
+            memory_region_set_dirty(&s->local_mem_region, dst_base, dst_len);
+        }
     }
 }
 
@@ -897,6 +968,109 @@ static const MemoryRegionOps sm501_system_config_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static uint64_t sm501_i2c_read(void *opaque, hwaddr addr, unsigned size)
+{
+    SM501State *s = (SM501State *)opaque;
+    uint8_t ret = 0;
+
+    switch (addr) {
+    case SM501_I2C_BYTE_COUNT:
+        ret = s->i2c_byte_count;
+        break;
+    case SM501_I2C_STATUS:
+        ret = s->i2c_status;
+        break;
+    case SM501_I2C_SLAVE_ADDRESS:
+        ret = s->i2c_addr;
+        break;
+    case SM501_I2C_DATA ... SM501_I2C_DATA + 15:
+        ret = s->i2c_data[addr - SM501_I2C_DATA];
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "sm501 i2c : not implemented register read."
+                      " addr=0x%" HWADDR_PRIx "\n", addr);
+    }
+
+    SM501_DPRINTF("sm501 i2c regs : read addr=%" HWADDR_PRIx " val=%x\n",
+                  addr, ret);
+    return ret;
+}
+
+static void sm501_i2c_write(void *opaque, hwaddr addr, uint64_t value,
+                            unsigned size)
+{
+    SM501State *s = (SM501State *)opaque;
+    SM501_DPRINTF("sm501 i2c regs : write addr=%" HWADDR_PRIx
+                  " val=%" PRIx64 "\n", addr, value);
+
+    switch (addr) {
+    case SM501_I2C_BYTE_COUNT:
+        s->i2c_byte_count = value & 0xf;
+        break;
+    case SM501_I2C_CONTROL:
+        if (value & SM501_I2C_CONTROL_ENABLE) {
+            if (value & SM501_I2C_CONTROL_START) {
+                int res = i2c_start_transfer(s->i2c_bus,
+                                             s->i2c_addr >> 1,
+                                             s->i2c_addr & 1);
+                s->i2c_status |= (res ? SM501_I2C_STATUS_ERROR : 0);
+                if (!res) {
+                    int i;
+                    SM501_DPRINTF("sm501 i2c : transferring %d bytes to 0x%x\n",
+                                  s->i2c_byte_count + 1, s->i2c_addr >> 1);
+                    for (i = 0; i <= s->i2c_byte_count; i++) {
+                        res = i2c_send_recv(s->i2c_bus, &s->i2c_data[i],
+                                            !(s->i2c_addr & 1));
+                        if (res) {
+                            SM501_DPRINTF("sm501 i2c : transfer failed"
+                                          " i=%d, res=%d\n", i, res);
+                            s->i2c_status |= (res ? SM501_I2C_STATUS_ERROR : 0);
+                            return;
+                        }
+                    }
+                    if (i) {
+                        SM501_DPRINTF("sm501 i2c : transferred %d bytes\n", i);
+                        s->i2c_status = SM501_I2C_STATUS_COMPLETE;
+                    }
+                }
+            } else {
+                SM501_DPRINTF("sm501 i2c : end transfer\n");
+                i2c_end_transfer(s->i2c_bus);
+                s->i2c_status &= ~SM501_I2C_STATUS_ERROR;
+            }
+        }
+        break;
+    case SM501_I2C_RESET:
+        if ((value & SM501_I2C_RESET_ERROR) == 0) {
+            s->i2c_status &= ~SM501_I2C_STATUS_ERROR;
+        }
+        break;
+    case SM501_I2C_SLAVE_ADDRESS:
+        s->i2c_addr = value & 0xff;
+        break;
+    case SM501_I2C_DATA ... SM501_I2C_DATA + 15:
+        s->i2c_data[addr - SM501_I2C_DATA] = value & 0xff;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "sm501 i2c : not implemented register write. "
+                      "addr=0x%" HWADDR_PRIx " val=%" PRIx64 "\n", addr, value);
+    }
+}
+
+static const MemoryRegionOps sm501_i2c_ops = {
+    .read = sm501_i2c_read,
+    .write = sm501_i2c_write,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 static uint32_t sm501_palette_read(void *opaque, hwaddr addr)
 {
     SM501State *s = (SM501State *)opaque;
@@ -921,6 +1095,7 @@ static void sm501_palette_write(void *opaque, hwaddr addr,
 
     assert(range_covers_byte(0, 0x400 * 3, addr));
     *(uint32_t *)&s->dc_palette[addr] = value;
+    s->do_full_update = true;
 }
 
 static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
@@ -1057,6 +1232,9 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
         break;
     case SM501_DC_PANEL_FB_ADDR:
         s->dc_panel_fb_addr = value & 0x8FFFFFF0;
+        if (value & 0x8000000) {
+            qemu_log_mask(LOG_UNIMP, "Panel external memory not supported\n");
+        }
         break;
     case SM501_DC_PANEL_FB_OFFSET:
         s->dc_panel_fb_offset = value & 0x3FF03FF0;
@@ -1117,6 +1295,9 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
         break;
     case SM501_DC_CRT_FB_ADDR:
         s->dc_crt_fb_addr = value & 0x8FFFFFF0;
+        if (value & 0x8000000) {
+            qemu_log_mask(LOG_UNIMP, "CRT external memory not supported\n");
+        }
         break;
     case SM501_DC_CRT_FB_OFFSET:
         s->dc_crt_fb_offset = value & 0x3FF03FF0;
@@ -1459,7 +1640,7 @@ static void sm501_update_display(void *opaque)
     draw_hwc_line_func *draw_hwc_line = NULL;
     int full_update = 0;
     int y_start = -1;
-    ram_addr_t offset = 0;
+    ram_addr_t offset;
     uint32_t *palette;
     uint8_t hwc_palette[3 * 3];
     uint8_t *hwc_src = NULL;
@@ -1509,10 +1690,17 @@ static void sm501_update_display(void *opaque)
         full_update = 1;
     }
 
+    /* someone else requested a full update */
+    if (s->do_full_update) {
+        s->do_full_update = false;
+        full_update = 1;
+    }
+
     /* draw each line according to conditions */
+    offset = get_fb_addr(s, crt);
     snap = memory_region_snapshot_and_clear_dirty(&s->local_mem_region,
               offset, width * height * src_bpp, DIRTY_MEMORY_VGA);
-    for (y = 0, offset = 0; y < height; y++, offset += width * src_bpp) {
+    for (y = 0; y < height; y++, offset += width * src_bpp) {
         int update, update_hwc;
 
         /* check if hardware cursor is enabled and we're within its range */
@@ -1577,6 +1765,10 @@ static void sm501_reset(SM501State *s)
     s->irq_mask = 0;
     s->misc_timing = 0;
     s->power_mode_control = 0;
+    s->i2c_byte_count = 0;
+    s->i2c_status = 0;
+    s->i2c_addr = 0;
+    memset(s->i2c_data, 0, 16);
     s->dc_panel_control = 0x00010000; /* FIFO level 3 */
     s->dc_video_control = 0;
     s->dc_crt_control = 0x00010000;
@@ -1615,6 +1807,12 @@ static void sm501_init(SM501State *s, DeviceState *dev,
     memory_region_set_log(&s->local_mem_region, true, DIRTY_MEMORY_VGA);
     s->local_mem = memory_region_get_ram_ptr(&s->local_mem_region);
 
+    /* i2c */
+    s->i2c_bus = i2c_init_bus(dev, "sm501.i2c");
+    /* ddc */
+    I2CDDCState *ddc = I2CDDC(qdev_create(BUS(s->i2c_bus), TYPE_I2CDDC));
+    i2c_set_slave_address(I2C_SLAVE(ddc), 0x50);
+
     /* mmio */
     memory_region_init(&s->mmio_region, OBJECT(dev), "sm501.mmio", MMIO_SIZE);
     memory_region_init_io(&s->system_config_region, OBJECT(dev),
@@ -1622,6 +1820,9 @@ static void sm501_init(SM501State *s, DeviceState *dev,
                           "sm501-system-config", 0x6c);
     memory_region_add_subregion(&s->mmio_region, SM501_SYS_CONFIG,
                                 &s->system_config_region);
+    memory_region_init_io(&s->i2c_region, OBJECT(dev), &sm501_i2c_ops, s,
+                          "sm501-i2c", 0x14);
+    memory_region_add_subregion(&s->mmio_region, SM501_I2C, &s->i2c_region);
     memory_region_init_io(&s->disp_ctrl_region, OBJECT(dev),
                           &sm501_disp_ctrl_ops, s,
                           "sm501-disp-ctrl", 0x1000);
@@ -1705,6 +1906,11 @@ static const VMStateDescription vmstate_sm501_state = {
         VMSTATE_UINT32(twoD_destination_base, SM501State),
         VMSTATE_UINT32(twoD_alpha, SM501State),
         VMSTATE_UINT32(twoD_wrap, SM501State),
+        /* Added in version 2 */
+        VMSTATE_UINT8(i2c_byte_count, SM501State),
+        VMSTATE_UINT8(i2c_status, SM501State),
+        VMSTATE_UINT8(i2c_addr, SM501State),
+        VMSTATE_UINT8_ARRAY(i2c_data, SM501State, 16),
         VMSTATE_END_OF_LIST()
      }
 };
@@ -1770,8 +1976,8 @@ static void sm501_reset_sysbus(DeviceState *dev)
 
 static const VMStateDescription vmstate_sm501_sysbus = {
     .name = TYPE_SYSBUS_SM501,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(state, SM501SysBusState, 1,
                        vmstate_sm501_state, SM501State),
@@ -1843,8 +2049,8 @@ static void sm501_reset_pci(DeviceState *dev)
 
 static const VMStateDescription vmstate_sm501_pci = {
     .name = TYPE_PCI_SM501,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, SM501PCIState),
         VMSTATE_STRUCT(state, SM501PCIState, 1,

@@ -36,6 +36,7 @@
 #include "hw/i2c/ppc4xx_i2c.h"
 #include "hw/i2c/smbus.h"
 #include "hw/usb/hcd-ehci.h"
+#include "hw/ppc/fdt.h"
 
 #include <libfdt.h>
 
@@ -254,7 +255,6 @@ static int sam460ex_load_device_tree(hwaddr addr,
                                      hwaddr initrd_size,
                                      const char *kernel_cmdline)
 {
-    int ret = -1;
     uint32_t mem_reg_property[] = { 0, 0, cpu_to_be32(ramsize) };
     char *filename;
     int fdt_size;
@@ -265,42 +265,30 @@ static int sam460ex_load_device_tree(hwaddr addr,
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
-        goto out;
+        error_report("Couldn't find dtb file `%s'", BINARY_DEVICE_TREE_FILE);
+        exit(1);
     }
     fdt = load_device_tree(filename, &fdt_size);
     g_free(filename);
-    if (fdt == NULL) {
-        goto out;
+    if (!fdt) {
+        error_report("Couldn't load dtb file `%s'", filename);
+        exit(1);
     }
 
     /* Manipulate device tree in memory. */
 
-    ret = qemu_fdt_setprop(fdt, "/memory", "reg", mem_reg_property,
-                               sizeof(mem_reg_property));
-    if (ret < 0) {
-        error_report("couldn't set /memory/reg");
-    }
+    qemu_fdt_setprop(fdt, "/memory", "reg", mem_reg_property,
+                     sizeof(mem_reg_property));
 
     /* default FDT doesn't have a /chosen node... */
     qemu_fdt_add_subnode(fdt, "/chosen");
 
-    ret = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start",
-                                    initrd_base);
-    if (ret < 0) {
-        error_report("couldn't set /chosen/linux,initrd-start");
-    }
+    qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start", initrd_base);
 
-    ret = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
-                                    (initrd_base + initrd_size));
-    if (ret < 0) {
-        error_report("couldn't set /chosen/linux,initrd-end");
-    }
+    qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
+                          (initrd_base + initrd_size));
 
-    ret = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
-                                      kernel_cmdline);
-    if (ret < 0) {
-        error_report("couldn't set /chosen/bootargs");
-    }
+    qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
 
     /* Copy data from the host device tree into the guest. Since the guest can
      * directly access the timebase without host involvement, we must expose
@@ -318,13 +306,13 @@ static int sam460ex_load_device_tree(hwaddr addr,
     /* Remove cpm node if it exists (it is not emulated) */
     offset = fdt_path_offset(fdt, "/cpm");
     if (offset >= 0) {
-        fdt_nop_node(fdt, offset);
+        _FDT(fdt_nop_node(fdt, offset));
     }
 
     /* set serial port clocks */
     offset = fdt_node_offset_by_compatible(fdt, -1, "ns16550");
     while (offset >= 0) {
-        fdt_setprop_cell(fdt, offset, "clock-frequency", UART_FREQ);
+        _FDT(fdt_setprop_cell(fdt, offset, "clock-frequency", UART_FREQ));
         offset = fdt_node_offset_by_compatible(fdt, offset, "ns16550");
     }
 
@@ -338,11 +326,8 @@ static int sam460ex_load_device_tree(hwaddr addr,
 
     rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);
-    ret = fdt_size;
 
-out:
-
-    return ret;
+    return fdt_size;
 }
 
 /* Create reset TLB entries for BookE, mapping only the flash memory.  */
@@ -612,10 +597,6 @@ static void sam460ex_init(MachineState *machine)
         dt_size = sam460ex_load_device_tree(FDT_ADDR, machine->ram_size,
                                     RAMDISK_ADDR, initrd_size,
                                     machine->kernel_cmdline);
-        if (dt_size < 0) {
-            error_report("couldn't load device tree");
-            exit(1);
-        }
 
         boot_info->dt_base = FDT_ADDR;
         boot_info->dt_size = dt_size;

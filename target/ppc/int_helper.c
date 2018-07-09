@@ -1951,7 +1951,7 @@ VSPLT(w, u32)
 #define VINSERT(suffix, element)                                            \
     void helper_vinsert##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \
     {                                                                       \
-        memmove(&r->u8[index], &b->u8[8 - sizeof(r->element)],              \
+        memmove(&r->u8[index], &b->u8[8 - sizeof(r->element[0])],           \
                sizeof(r->element[0]));                                      \
     }
 #else
