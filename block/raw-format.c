@@ -498,9 +498,13 @@ static int raw_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
 }
 
 static int coroutine_fn raw_co_copy_range_from(BlockDriverState *bs,
-                                               BdrvChild *src, uint64_t src_offset,
-                                               BdrvChild *dst, uint64_t dst_offset,
-                                               uint64_t bytes, BdrvRequestFlags flags)
+                                               BdrvChild *src,
+                                               uint64_t src_offset,
+                                               BdrvChild *dst,
+                                               uint64_t dst_offset,
+                                               uint64_t bytes,
+                                               BdrvRequestFlags read_flags,
+                                               BdrvRequestFlags write_flags)
 {
     int ret;
 
@@ -509,13 +513,17 @@ static int coroutine_fn raw_co_copy_range_from(BlockDriverState *bs,
         return ret;
     }
     return bdrv_co_copy_range_from(bs->file, src_offset, dst, dst_offset,
-                                   bytes, flags);
+                                   bytes, read_flags, write_flags);
 }
 
 static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
-                                             BdrvChild *src, uint64_t src_offset,
-                                             BdrvChild *dst, uint64_t dst_offset,
-                                             uint64_t bytes, BdrvRequestFlags flags)
+                                             BdrvChild *src,
+                                             uint64_t src_offset,
+                                             BdrvChild *dst,
+                                             uint64_t dst_offset,
+                                             uint64_t bytes,
+                                             BdrvRequestFlags read_flags,
+                                             BdrvRequestFlags write_flags)
 {
     int ret;
 
@@ -524,7 +532,7 @@ static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
         return ret;
     }
     return bdrv_co_copy_range_to(src, src_offset, bs->file, dst_offset, bytes,
-                                 flags);
+                                 read_flags, write_flags);
 }
 
 BlockDriver bdrv_raw = {

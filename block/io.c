@@ -2910,13 +2910,11 @@ void bdrv_unregister_buf(BlockDriverState *bs, void *host)
     }
 }
 
-static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
-                                                    uint64_t src_offset,
-                                                    BdrvChild *dst,
-                                                    uint64_t dst_offset,
-                                                    uint64_t bytes,
-                                                    BdrvRequestFlags flags,
-                                                    bool recurse_src)
+static int coroutine_fn bdrv_co_copy_range_internal(
+        BdrvChild *src, uint64_t src_offset, BdrvChild *dst,
+        uint64_t dst_offset, uint64_t bytes,
+        BdrvRequestFlags read_flags, BdrvRequestFlags write_flags,
+        bool recurse_src)
 {
     BdrvTrackedRequest req;
     int ret;
@@ -2928,8 +2926,8 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
     if (ret) {
         return ret;
     }
-    if (flags & BDRV_REQ_ZERO_WRITE) {
-        return bdrv_co_pwrite_zeroes(dst, dst_offset, bytes, flags);
+    if (write_flags & BDRV_REQ_ZERO_WRITE) {
+        return bdrv_co_pwrite_zeroes(dst, dst_offset, bytes, write_flags);
     }
 
     if (!src || !src->bs) {
@@ -2951,14 +2949,15 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
         tracked_request_begin(&req, src->bs, src_offset, bytes,
                               BDRV_TRACKED_READ);
 
-        if (!(flags & BDRV_REQ_NO_SERIALISING)) {
+        if (!(read_flags & BDRV_REQ_NO_SERIALISING)) {
             wait_serialising_requests(&req);
         }
 
         ret = src->bs->drv->bdrv_co_copy_range_from(src->bs,
                                                     src, src_offset,
                                                     dst, dst_offset,
-                                                    bytes, flags);
+                                                    bytes,
+                                                    read_flags, write_flags);
 
         tracked_request_end(&req);
         bdrv_dec_in_flight(src->bs);
@@ -2967,15 +2966,15 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
         tracked_request_begin(&req, dst->bs, dst_offset, bytes,
                               BDRV_TRACKED_WRITE);
 
-        /* BDRV_REQ_NO_SERIALISING is only for read operation,
-         * so we ignore it in flags.
-         */
+        /* BDRV_REQ_NO_SERIALISING is only for read operation */
+        assert(!(write_flags & BDRV_REQ_NO_SERIALISING));
         wait_serialising_requests(&req);
 
         ret = dst->bs->drv->bdrv_co_copy_range_to(dst->bs,
                                                   src, src_offset,
                                                   dst, dst_offset,
-                                                  bytes, flags);
+                                                  bytes,
+                                                  read_flags, write_flags);
 
         tracked_request_end(&req);
         bdrv_dec_in_flight(dst->bs);
@@ -2990,10 +2989,12 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
  * semantics. */
 int coroutine_fn bdrv_co_copy_range_from(BdrvChild *src, uint64_t src_offset,
                                          BdrvChild *dst, uint64_t dst_offset,
-                                         uint64_t bytes, BdrvRequestFlags flags)
+                                         uint64_t bytes,
+                                         BdrvRequestFlags read_flags,
+                                         BdrvRequestFlags write_flags)
 {
     return bdrv_co_copy_range_internal(src, src_offset, dst, dst_offset,
-                                       bytes, flags, true);
+                                       bytes, read_flags, write_flags, true);
 }
 
 /* Copy range from @src to @dst.
@@ -3002,19 +3003,22 @@ int coroutine_fn bdrv_co_copy_range_from(BdrvChild *src, uint64_t src_offset,
  * semantics. */
 int coroutine_fn bdrv_co_copy_range_to(BdrvChild *src, uint64_t src_offset,
                                        BdrvChild *dst, uint64_t dst_offset,
-                                       uint64_t bytes, BdrvRequestFlags flags)
+                                       uint64_t bytes,
+                                       BdrvRequestFlags read_flags,
+                                       BdrvRequestFlags write_flags)
 {
     return bdrv_co_copy_range_internal(src, src_offset, dst, dst_offset,
-                                       bytes, flags, false);
+                                       bytes, read_flags, write_flags, false);
 }
 
 int coroutine_fn bdrv_co_copy_range(BdrvChild *src, uint64_t src_offset,
                                     BdrvChild *dst, uint64_t dst_offset,
-                                    uint64_t bytes, BdrvRequestFlags flags)
+                                    uint64_t bytes, BdrvRequestFlags read_flags,
+                                    BdrvRequestFlags write_flags)
 {
     return bdrv_co_copy_range_from(src, src_offset,
                                    dst, dst_offset,
-                                   bytes, flags);
+                                   bytes, read_flags, write_flags);
 }
 
 static void bdrv_parent_cb_resize(BlockDriverState *bs)

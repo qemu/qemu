@@ -218,7 +218,8 @@ struct BlockDriver {
                                                 BdrvChild *dst,
                                                 uint64_t dst_offset,
                                                 uint64_t bytes,
-                                                BdrvRequestFlags flags);
+                                                BdrvRequestFlags read_flags,
+                                                BdrvRequestFlags write_flags);
 
     /* Map [offset, offset + nbytes) range onto a child of bs to copy data to,
      * and invoke bdrv_co_copy_range_to(child, src, ...), or perform the copy
@@ -234,7 +235,8 @@ struct BlockDriver {
                                               BdrvChild *dst,
                                               uint64_t dst_offset,
                                               uint64_t bytes,
-                                              BdrvRequestFlags flags);
+                                              BdrvRequestFlags read_flags,
+                                              BdrvRequestFlags write_flags);
 
     /*
      * Building block for bdrv_block_status[_above] and
@@ -1156,10 +1158,14 @@ void blockdev_close_all_bdrv_states(void);
 
 int coroutine_fn bdrv_co_copy_range_from(BdrvChild *src, uint64_t src_offset,
                                          BdrvChild *dst, uint64_t dst_offset,
-                                         uint64_t bytes, BdrvRequestFlags flags);
+                                         uint64_t bytes,
+                                         BdrvRequestFlags read_flags,
+                                         BdrvRequestFlags write_flags);
 int coroutine_fn bdrv_co_copy_range_to(BdrvChild *src, uint64_t src_offset,
                                        BdrvChild *dst, uint64_t dst_offset,
-                                       uint64_t bytes, BdrvRequestFlags flags);
+                                       uint64_t bytes,
+                                       BdrvRequestFlags read_flags,
+                                       BdrvRequestFlags write_flags);
 
 int refresh_total_sectors(BlockDriverState *bs, int64_t hint);
 

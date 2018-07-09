@@ -163,7 +163,7 @@ static int coroutine_fn backup_cow_with_offload(BackupBlockJob *job,
     hbitmap_reset(job->copy_bitmap, start / job->cluster_size,
                   nr_clusters);
     ret = blk_co_copy_range(blk, start, job->target, start, nbytes,
-                            is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0);
+                            is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0, 0);
     if (ret < 0) {
         trace_backup_do_cow_copy_range_fail(job, start, ret);
         hbitmap_set(job->copy_bitmap, start / job->cluster_size,
