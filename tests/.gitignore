@@ -9,6 +9,7 @@ qht-bench
 rcutorture
 test-*
 !test-*.c
+!docker/test-*
 test-qapi-commands.[ch]
 test-qapi-events.[ch]
 test-qapi-types.[ch]
