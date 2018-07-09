@@ -255,7 +255,6 @@ static int sam460ex_load_device_tree(hwaddr addr,
                                      hwaddr initrd_size,
                                      const char *kernel_cmdline)
 {
-    int ret = -1;
     uint32_t mem_reg_property[] = { 0, 0, cpu_to_be32(ramsize) };
     char *filename;
     int fdt_size;
@@ -266,12 +265,14 @@ static int sam460ex_load_device_tree(hwaddr addr,
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
-        goto out;
+        error_report("Couldn't find dtb file `%s'", BINARY_DEVICE_TREE_FILE);
+        exit(1);
     }
     fdt = load_device_tree(filename, &fdt_size);
     g_free(filename);
-    if (fdt == NULL) {
-        goto out;
+    if (!fdt) {
+        error_report("Couldn't load dtb file `%s'", filename);
+        exit(1);
     }
 
     /* Manipulate device tree in memory. */
@@ -325,11 +326,8 @@ static int sam460ex_load_device_tree(hwaddr addr,
 
     rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);
-    ret = fdt_size;
 
-out:
-
-    return ret;
+    return fdt_size;
 }
 
 /* Create reset TLB entries for BookE, mapping only the flash memory.  */
@@ -599,10 +597,6 @@ static void sam460ex_init(MachineState *machine)
         dt_size = sam460ex_load_device_tree(FDT_ADDR, machine->ram_size,
                                     RAMDISK_ADDR, initrd_size,
                                     machine->kernel_cmdline);
-        if (dt_size < 0) {
-            error_report("couldn't load device tree");
-            exit(1);
-        }
 
         boot_info->dt_base = FDT_ADDR;
         boot_info->dt_size = dt_size;
