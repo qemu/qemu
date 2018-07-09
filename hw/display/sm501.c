@@ -1235,6 +1235,7 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
         if (value & 0x8000000) {
             qemu_log_mask(LOG_UNIMP, "Panel external memory not supported\n");
         }
+        s->do_full_update = true;
         break;
     case SM501_DC_PANEL_FB_OFFSET:
         s->dc_panel_fb_offset = value & 0x3FF03FF0;
@@ -1298,6 +1299,7 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
         if (value & 0x8000000) {
             qemu_log_mask(LOG_UNIMP, "CRT external memory not supported\n");
         }
+        s->do_full_update = true;
         break;
     case SM501_DC_CRT_FB_OFFSET:
         s->dc_crt_fb_offset = value & 0x3FF03FF0;
