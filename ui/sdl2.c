@@ -790,6 +790,8 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
     memset(&info, 0, sizeof(info));
     SDL_VERSION(&info.version);
 
+    gui_fullscreen = o->has_full_screen && o->full_screen;
+
     for (i = 0;; i++) {
         QemuConsole *con = qemu_console_lookup_by_index(i);
         if (!con) {
@@ -842,16 +844,13 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
         g_free(filename);
     }
 
-    if (sdl2_console->opts->has_full_screen &&
-        sdl2_console->opts->full_screen) {
-        gui_fullscreen = 1;
+    gui_grab = 0;
+    if (gui_fullscreen) {
         sdl_grab_start(0);
     }
 
     mouse_mode_notifier.notify = sdl_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&mouse_mode_notifier);
-
-    gui_grab = 0;
 
     sdl_cursor_hidden = SDL_CreateCursor(&data, &data, 8, 1, 0, 0);
     sdl_cursor_normal = SDL_GetCursor();
