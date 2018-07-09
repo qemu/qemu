@@ -40,6 +40,17 @@ build_qemu()
     make $MAKEFLAGS
 }
 
+check_qemu()
+{
+    # default to make check unless the caller specifies
+    if test -z "$@"; then
+        INVOCATION="check"
+    else
+        INVOCATION="$@"
+    fi
+    make $MAKEFLAGS $INVOCATION
+}
+
 test_fail()
 {
     echo "$@"

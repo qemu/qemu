@@ -15,4 +15,4 @@
 
 cd "$BUILD_DIR"
 
-build_qemu && make check $MAKEFLAGS && install_qemu
+build_qemu && check_qemu && install_qemu

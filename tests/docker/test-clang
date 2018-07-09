@@ -23,5 +23,5 @@ OPTS="--cxx=clang++ --cc=clang --host-cc=clang"
 #OPTS="$OPTS --extra-cflags=-fsanitize=undefined \
     #--extra-cflags=-fno-sanitize=float-divide-by-zero"
 build_qemu $OPTS
-make $MAKEFLAGS check
+check_qemu
 install_qemu
