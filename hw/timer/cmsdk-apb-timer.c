@@ -126,10 +126,26 @@ static void cmsdk_apb_timer_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     case A_RELOAD:
         /* Writing to reload also sets the current timer value */
+        if (!value) {
+            ptimer_stop(s->timer);
+        }
         ptimer_set_limit(s->timer, value, 1);
+        if (value && (s->ctrl & R_CTRL_EN_MASK)) {
+            /*
+             * Make sure timer is running (it might have stopped if this
+             * was an expired one-shot timer)
+             */
+            ptimer_run(s->timer, 0);
+        }
         break;
     case A_VALUE:
+        if (!value && !ptimer_get_limit(s->timer)) {
+            ptimer_stop(s->timer);
+        }
         ptimer_set_count(s->timer, value);
+        if (value && (s->ctrl & R_CTRL_EN_MASK)) {
+            ptimer_run(s->timer, ptimer_get_limit(s->timer) == 0);
+        }
         break;
     case A_INTSTATUS:
         /* Just one bit, which is W1C. */
