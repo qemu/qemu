@@ -351,7 +351,7 @@ IOMMUMemoryRegion *smmu_iommu_mr(SMMUState *s, uint32_t sid)
     bus_n = PCI_BUS_NUM(sid);
     smmu_bus = smmu_find_smmu_pcibus(s, bus_n);
     if (smmu_bus) {
-        devfn = sid & 0x7;
+        devfn = SMMU_PCI_DEVFN(sid);
         smmu = smmu_bus->pbdev[devfn];
         if (smmu) {
             return &smmu->iommu;
