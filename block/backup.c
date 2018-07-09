@@ -47,6 +47,8 @@ typedef struct BackupBlockJob {
     HBitmap *copy_bitmap;
     bool use_copy_range;
     int64_t copy_range_size;
+
+    bool serialize_target_writes;
 } BackupBlockJob;
 
 static const BlockJobDriver backup_job_driver;
@@ -102,6 +104,8 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
     QEMUIOVector qiov;
     BlockBackend *blk = job->common.blk;
     int nbytes;
+    int read_flags = is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0;
+    int write_flags = job->serialize_target_writes ? BDRV_REQ_SERIALISING : 0;
 
     hbitmap_reset(job->copy_bitmap, start / job->cluster_size, 1);
     nbytes = MIN(job->cluster_size, job->len - start);
@@ -112,8 +116,7 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
     iov.iov_len = nbytes;
     qemu_iovec_init_external(&qiov, &iov, 1);
 
-    ret = blk_co_preadv(blk, start, qiov.size, &qiov,
-                        is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0);
+    ret = blk_co_preadv(blk, start, qiov.size, &qiov, read_flags);
     if (ret < 0) {
         trace_backup_do_cow_read_fail(job, start, ret);
         if (error_is_read) {
@@ -124,11 +127,11 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
 
     if (qemu_iovec_is_zero(&qiov)) {
         ret = blk_co_pwrite_zeroes(job->target, start,
-                                   qiov.size, BDRV_REQ_MAY_UNMAP);
+                                   qiov.size, write_flags | BDRV_REQ_MAY_UNMAP);
     } else {
         ret = blk_co_pwritev(job->target, start,
-                             qiov.size, &qiov,
-                             job->compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
+                             qiov.size, &qiov, write_flags |
+                             (job->compress ? BDRV_REQ_WRITE_COMPRESSED : 0));
     }
     if (ret < 0) {
         trace_backup_do_cow_write_fail(job, start, ret);
@@ -156,6 +159,8 @@ static int coroutine_fn backup_cow_with_offload(BackupBlockJob *job,
     int nr_clusters;
     BlockBackend *blk = job->common.blk;
     int nbytes;
+    int read_flags = is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0;
+    int write_flags = job->serialize_target_writes ? BDRV_REQ_SERIALISING : 0;
 
     assert(QEMU_IS_ALIGNED(job->copy_range_size, job->cluster_size));
     nbytes = MIN(job->copy_range_size, end - start);
@@ -163,7 +168,7 @@ static int coroutine_fn backup_cow_with_offload(BackupBlockJob *job,
     hbitmap_reset(job->copy_bitmap, start / job->cluster_size,
                   nr_clusters);
     ret = blk_co_copy_range(blk, start, job->target, start, nbytes,
-                            is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0, 0);
+                            read_flags, write_flags);
     if (ret < 0) {
         trace_backup_do_cow_copy_range_fail(job, start, ret);
         hbitmap_set(job->copy_bitmap, start / job->cluster_size,
@@ -700,6 +705,9 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     job->sync_bitmap = sync_mode == MIRROR_SYNC_MODE_INCREMENTAL ?
                        sync_bitmap : NULL;
     job->compress = compress;
+
+    /* Detect image-fleecing (and similar) schemes */
+    job->serialize_target_writes = bdrv_chain_contains(target, bs);
 
     /* If there is no backing file on the target, we cannot rely on COW if our
      * backup cluster size is smaller than the target cluster size. Even for
