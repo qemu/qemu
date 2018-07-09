@@ -276,32 +276,18 @@ static int sam460ex_load_device_tree(hwaddr addr,
 
     /* Manipulate device tree in memory. */
 
-    ret = qemu_fdt_setprop(fdt, "/memory", "reg", mem_reg_property,
-                               sizeof(mem_reg_property));
-    if (ret < 0) {
-        error_report("couldn't set /memory/reg");
-    }
+    qemu_fdt_setprop(fdt, "/memory", "reg", mem_reg_property,
+                     sizeof(mem_reg_property));
 
     /* default FDT doesn't have a /chosen node... */
     qemu_fdt_add_subnode(fdt, "/chosen");
 
-    ret = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start",
-                                    initrd_base);
-    if (ret < 0) {
-        error_report("couldn't set /chosen/linux,initrd-start");
-    }
+    qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start", initrd_base);
 
-    ret = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
-                                    (initrd_base + initrd_size));
-    if (ret < 0) {
-        error_report("couldn't set /chosen/linux,initrd-end");
-    }
+    qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
+                          (initrd_base + initrd_size));
 
-    ret = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
-                                      kernel_cmdline);
-    if (ret < 0) {
-        error_report("couldn't set /chosen/bootargs");
-    }
+    qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
 
     /* Copy data from the host device tree into the guest. Since the guest can
      * directly access the timebase without host involvement, we must expose
