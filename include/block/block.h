@@ -50,6 +50,18 @@ typedef enum {
      * opened with BDRV_O_UNMAP.
      */
     BDRV_REQ_MAY_UNMAP          = 0x4,
+
+    /*
+     * The BDRV_REQ_NO_SERIALISING flag is only valid for reads and means that
+     * we don't want wait_serialising_requests() during the read operation.
+     *
+     * This flag is used for backup copy-on-write operations, when we need to
+     * read old data before write (write notifier triggered). It is okay since
+     * we already waited for other serializing requests in the initiating write
+     * (see bdrv_aligned_pwritev), and it is necessary if the initiating write
+     * is already serializing (without the flag, the read would deadlock
+     * waiting for the serialising write to complete).
+     */
     BDRV_REQ_NO_SERIALISING     = 0x8,
     BDRV_REQ_FUA                = 0x10,
     BDRV_REQ_WRITE_COMPRESSED   = 0x20,

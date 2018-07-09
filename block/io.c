@@ -1592,6 +1592,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     max_transfer = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_transfer, INT_MAX),
                                    align);
 
+    /* BDRV_REQ_NO_SERIALISING is only for read operation */
+    assert(!(flags & BDRV_REQ_NO_SERIALISING));
     waited = wait_serialising_requests(req);
     assert(!waited || !req->serialising);
     assert(req->overlap_offset <= offset);
@@ -2916,7 +2918,7 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
                                                     BdrvRequestFlags flags,
                                                     bool recurse_src)
 {
-    BdrvTrackedRequest src_req, dst_req;
+    BdrvTrackedRequest req;
     int ret;
 
     if (!dst || !dst->bs) {
@@ -2943,32 +2945,42 @@ static int coroutine_fn bdrv_co_copy_range_internal(BdrvChild *src,
         || src->bs->encrypted || dst->bs->encrypted) {
         return -ENOTSUP;
     }
-    bdrv_inc_in_flight(src->bs);
-    bdrv_inc_in_flight(dst->bs);
-    tracked_request_begin(&src_req, src->bs, src_offset,
-                          bytes, BDRV_TRACKED_READ);
-    tracked_request_begin(&dst_req, dst->bs, dst_offset,
-                          bytes, BDRV_TRACKED_WRITE);
 
-    if (!(flags & BDRV_REQ_NO_SERIALISING)) {
-        wait_serialising_requests(&src_req);
-        wait_serialising_requests(&dst_req);
-    }
     if (recurse_src) {
+        bdrv_inc_in_flight(src->bs);
+        tracked_request_begin(&req, src->bs, src_offset, bytes,
+                              BDRV_TRACKED_READ);
+
+        if (!(flags & BDRV_REQ_NO_SERIALISING)) {
+            wait_serialising_requests(&req);
+        }
+
         ret = src->bs->drv->bdrv_co_copy_range_from(src->bs,
                                                     src, src_offset,
                                                     dst, dst_offset,
                                                     bytes, flags);
+
+        tracked_request_end(&req);
+        bdrv_dec_in_flight(src->bs);
     } else {
+        bdrv_inc_in_flight(dst->bs);
+        tracked_request_begin(&req, dst->bs, dst_offset, bytes,
+                              BDRV_TRACKED_WRITE);
+
+        /* BDRV_REQ_NO_SERIALISING is only for read operation,
+         * so we ignore it in flags.
+         */
+        wait_serialising_requests(&req);
+
         ret = dst->bs->drv->bdrv_co_copy_range_to(dst->bs,
                                                   src, src_offset,
                                                   dst, dst_offset,
                                                   bytes, flags);
+
+        tracked_request_end(&req);
+        bdrv_dec_in_flight(dst->bs);
     }
-    tracked_request_end(&src_req);
-    tracked_request_end(&dst_req);
-    bdrv_dec_in_flight(src->bs);
-    bdrv_dec_in_flight(dst->bs);
+
     return ret;
 }
 
