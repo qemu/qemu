@@ -479,7 +479,12 @@ class CheckCommand(SubCommand):
     def run(self, args, argv):
         tag = args.tag
 
-        dkr = Docker()
+        try:
+            dkr = Docker()
+        except:
+            print("Docker not set up")
+            return 1
+
         info = dkr.inspect_tag(tag)
         if info is None:
             print("Image does not exist")
