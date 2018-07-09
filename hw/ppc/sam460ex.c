@@ -36,6 +36,7 @@
 #include "hw/i2c/ppc4xx_i2c.h"
 #include "hw/i2c/smbus.h"
 #include "hw/usb/hcd-ehci.h"
+#include "hw/ppc/fdt.h"
 
 #include <libfdt.h>
 
@@ -318,13 +319,13 @@ static int sam460ex_load_device_tree(hwaddr addr,
     /* Remove cpm node if it exists (it is not emulated) */
     offset = fdt_path_offset(fdt, "/cpm");
     if (offset >= 0) {
-        fdt_nop_node(fdt, offset);
+        _FDT(fdt_nop_node(fdt, offset));
     }
 
     /* set serial port clocks */
     offset = fdt_node_offset_by_compatible(fdt, -1, "ns16550");
     while (offset >= 0) {
-        fdt_setprop_cell(fdt, offset, "clock-frequency", UART_FREQ);
+        _FDT(fdt_setprop_cell(fdt, offset, "clock-frequency", UART_FREQ));
         offset = fdt_node_offset_by_compatible(fdt, offset, "ns16550");
     }
 
