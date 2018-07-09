@@ -1438,7 +1438,7 @@ static bool do_predset(DisasContext *s, int esz, int rd, int pat, bool setflag)
         setsz = numelem << esz;
         lastword = word = pred_esz_masks[esz];
         if (setsz % 64) {
-            lastword &= ~(-1ull << (setsz % 64));
+            lastword &= MAKE_64BIT_MASK(0, setsz % 64);
         }
     }
 
@@ -1457,19 +1457,13 @@ static bool do_predset(DisasContext *s, int esz, int rd, int pat, bool setflag)
             tcg_gen_gvec_dup64i(ofs, oprsz, maxsz, word);
             goto done;
         }
-        if (oprsz * 8 == setsz + 8) {
-            tcg_gen_gvec_dup64i(ofs, oprsz, maxsz, word);
-            tcg_gen_movi_i64(t, 0);
-            tcg_gen_st_i64(t, cpu_env, ofs + oprsz - 8);
-            goto done;
-        }
     }
 
     setsz /= 8;
     fullsz /= 8;
 
     tcg_gen_movi_i64(t, word);
-    for (i = 0; i < setsz; i += 8) {
+    for (i = 0; i < QEMU_ALIGN_DOWN(setsz, 8); i += 8) {
         tcg_gen_st_i64(t, cpu_env, ofs + i);
     }
     if (lastword != word) {
