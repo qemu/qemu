@@ -418,8 +418,8 @@ AioWait *bdrv_get_aio_wait(BlockDriverState *bs);
                    bdrv_get_aio_context(bs_),              \
                    cond); })
 
-int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int bytes);
-int bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes);
+int bdrv_pdiscard(BdrvChild *child, int64_t offset, int bytes);
+int bdrv_co_pdiscard(BdrvChild *child, int64_t offset, int bytes);
 int bdrv_has_zero_init_1(BlockDriverState *bs);
 int bdrv_has_zero_init(BlockDriverState *bs);
 bool bdrv_unallocated_blocks_are_zero(BlockDriverState *bs);

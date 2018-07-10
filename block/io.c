@@ -2633,7 +2633,7 @@ int bdrv_flush(BlockDriverState *bs)
 }
 
 typedef struct DiscardCo {
-    BlockDriverState *bs;
+    BdrvChild *child;
     int64_t offset;
     int bytes;
     int ret;
@@ -2642,17 +2642,17 @@ static void coroutine_fn bdrv_pdiscard_co_entry(void *opaque)
 {
     DiscardCo *rwco = opaque;
 
-    rwco->ret = bdrv_co_pdiscard(rwco->bs, rwco->offset, rwco->bytes);
+    rwco->ret = bdrv_co_pdiscard(rwco->child, rwco->offset, rwco->bytes);
 }
 
-int coroutine_fn bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset,
-                                  int bytes)
+int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset, int bytes)
 {
     BdrvTrackedRequest req;
     int max_pdiscard, ret;
     int head, tail, align;
+    BlockDriverState *bs = child->bs;
 
-    if (!bs->drv) {
+    if (!bs || !bs->drv) {
         return -ENOMEDIUM;
     }
 
@@ -2763,11 +2763,11 @@ out:
     return ret;
 }
 
-int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
+int bdrv_pdiscard(BdrvChild *child, int64_t offset, int bytes)
 {
     Coroutine *co;
     DiscardCo rwco = {
-        .bs = bs,
+        .child = child,
         .offset = offset,
         .bytes = bytes,
         .ret = NOT_DONE,
@@ -2778,8 +2778,8 @@ int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
         bdrv_pdiscard_co_entry(&rwco);
     } else {
         co = qemu_coroutine_create(bdrv_pdiscard_co_entry, &rwco);
-        bdrv_coroutine_enter(bs, co);
-        BDRV_POLL_WHILE(bs, rwco.ret == NOT_DONE);
+        bdrv_coroutine_enter(child->bs, co);
+        BDRV_POLL_WHILE(child->bs, rwco.ret == NOT_DONE);
     }
 
     return rwco.ret;

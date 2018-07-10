@@ -486,7 +486,7 @@ static int coroutine_fn blk_log_writes_co_do_file_flush(BlkLogWritesFileReq *fr)
 static int coroutine_fn
 blk_log_writes_co_do_file_pdiscard(BlkLogWritesFileReq *fr)
 {
-    return bdrv_co_pdiscard(fr->bs->file->bs, fr->offset, fr->bytes);
+    return bdrv_co_pdiscard(fr->bs->file, fr->offset, fr->bytes);
 }
 
 static int coroutine_fn

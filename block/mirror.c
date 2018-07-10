@@ -1333,7 +1333,7 @@ static int coroutine_fn bdrv_mirror_top_do_write(BlockDriverState *bs,
         break;
 
     case MIRROR_METHOD_DISCARD:
-        ret = bdrv_co_pdiscard(bs->backing->bs, offset, bytes);
+        ret = bdrv_co_pdiscard(bs->backing, offset, bytes);
         break;
 
     default:

@@ -297,7 +297,7 @@ static int coroutine_fn raw_co_pdiscard(BlockDriverState *bs,
     if (ret) {
         return ret;
     }
-    return bdrv_co_pdiscard(bs->file->bs, offset, bytes);
+    return bdrv_co_pdiscard(bs->file, offset, bytes);
 }
 
 static int64_t raw_getlength(BlockDriverState *bs)

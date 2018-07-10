@@ -149,7 +149,7 @@ static int coroutine_fn throttle_co_pdiscard(BlockDriverState *bs,
     ThrottleGroupMember *tgm = bs->opaque;
     throttle_group_co_io_limits_intercept(tgm, bytes, true);
 
-    return bdrv_co_pdiscard(bs->file->bs, offset, bytes);
+    return bdrv_co_pdiscard(bs->file, offset, bytes);
 }
 
 static int throttle_co_flush(BlockDriverState *bs)

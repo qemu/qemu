@@ -1560,7 +1560,7 @@ int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
         return ret;
     }
 
-    return bdrv_co_pdiscard(blk_bs(blk), offset, bytes);
+    return bdrv_co_pdiscard(blk->root, offset, bytes);
 }
 
 int blk_co_flush(BlockBackend *blk)
