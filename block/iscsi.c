@@ -44,6 +44,7 @@
 #include "qapi/qmp/qstring.h"
 #include "crypto/secret.h"
 #include "scsi/utils.h"
+#include "trace.h"
 
 /* Conflict between scsi/utils.h and libiscsi! :( */
 #define SCSI_XFER_NONE ISCSI_XFER_NONE
@@ -2193,9 +2194,11 @@ static int coroutine_fn iscsi_co_copy_range_from(BlockDriverState *bs,
                                                  BdrvChild *dst,
                                                  uint64_t dst_offset,
                                                  uint64_t bytes,
-                                                 BdrvRequestFlags flags)
+                                                 BdrvRequestFlags read_flags,
+                                                 BdrvRequestFlags write_flags)
 {
-    return bdrv_co_copy_range_to(src, src_offset, dst, dst_offset, bytes, flags);
+    return bdrv_co_copy_range_to(src, src_offset, dst, dst_offset, bytes,
+                                 read_flags, write_flags);
 }
 
 static struct scsi_task *iscsi_xcopy_task(int param_len)
@@ -2332,7 +2335,8 @@ static int coroutine_fn iscsi_co_copy_range_to(BlockDriverState *bs,
                                                BdrvChild *dst,
                                                uint64_t dst_offset,
                                                uint64_t bytes,
-                                               BdrvRequestFlags flags)
+                                               BdrvRequestFlags read_flags,
+                                               BdrvRequestFlags write_flags)
 {
     IscsiLun *dst_lun = dst->bs->opaque;
     IscsiLun *src_lun;
@@ -2396,6 +2400,8 @@ retry:
     }
 
 out_unlock:
+
+    trace_iscsi_xcopy(src_lun, src_offset, dst_lun, dst_offset, bytes, r);
     g_free(iscsi_task.task);
     qemu_mutex_unlock(&dst_lun->mutex);
     g_free(iscsi_task.err_str);

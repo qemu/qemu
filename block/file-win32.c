@@ -162,7 +162,7 @@ static BlockAIOCB *paio_submit(BlockDriverState *bs, HANDLE hfile,
     acb->aio_nbytes = count;
     acb->aio_offset = offset;
 
-    trace_paio_submit(acb, opaque, offset, count, type);
+    trace_file_paio_submit(acb, opaque, offset, count, type);
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }

@@ -734,7 +734,7 @@ void qcow2_process_discards(BlockDriverState *bs, int ret)
 
         /* Discard is optional, ignore the return value */
         if (ret >= 0) {
-            bdrv_pdiscard(bs->file->bs, d->offset, d->bytes);
+            bdrv_pdiscard(bs->file, d->offset, d->bytes);
         }
 
         g_free(d);

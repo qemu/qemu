@@ -419,6 +419,7 @@ static void drive_info_del(DriveInfo *dinfo)
         return;
     }
     qemu_opts_del(dinfo->opts);
+    g_free(dinfo->serial);
     g_free(dinfo);
 }
 
@@ -1559,7 +1560,7 @@ int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
         return ret;
     }
 
-    return bdrv_co_pdiscard(blk_bs(blk), offset, bytes);
+    return bdrv_co_pdiscard(blk->root, offset, bytes);
 }
 
 int blk_co_flush(BlockBackend *blk)
@@ -2218,7 +2219,8 @@ void blk_unregister_buf(BlockBackend *blk, void *host)
 
 int coroutine_fn blk_co_copy_range(BlockBackend *blk_in, int64_t off_in,
                                    BlockBackend *blk_out, int64_t off_out,
-                                   int bytes, BdrvRequestFlags flags)
+                                   int bytes, BdrvRequestFlags read_flags,
+                                   BdrvRequestFlags write_flags)
 {
     int r;
     r = blk_check_byte_request(blk_in, off_in, bytes);
@@ -2231,5 +2233,5 @@ int coroutine_fn blk_co_copy_range(BlockBackend *blk_in, int64_t off_in,
     }
     return bdrv_co_copy_range(blk_in->root, off_in,
                               blk_out->root, off_out,
-                              bytes, flags);
+                              bytes, read_flags, write_flags);
 }

@@ -625,7 +625,7 @@ static int coroutine_fn blkdebug_co_pdiscard(BlockDriverState *bs,
         return err;
     }
 
-    return bdrv_co_pdiscard(bs->file->bs, offset, bytes);
+    return bdrv_co_pdiscard(bs->file, offset, bytes);
 }
 
 static int coroutine_fn blkdebug_co_block_status(BlockDriverState *bs,

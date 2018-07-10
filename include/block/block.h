@@ -50,6 +50,18 @@ typedef enum {
      * opened with BDRV_O_UNMAP.
      */
     BDRV_REQ_MAY_UNMAP          = 0x4,
+
+    /*
+     * The BDRV_REQ_NO_SERIALISING flag is only valid for reads and means that
+     * we don't want wait_serialising_requests() during the read operation.
+     *
+     * This flag is used for backup copy-on-write operations, when we need to
+     * read old data before write (write notifier triggered). It is okay since
+     * we already waited for other serializing requests in the initiating write
+     * (see bdrv_aligned_pwritev), and it is necessary if the initiating write
+     * is already serializing (without the flag, the read would deadlock
+     * waiting for the serialising write to complete).
+     */
     BDRV_REQ_NO_SERIALISING     = 0x8,
     BDRV_REQ_FUA                = 0x10,
     BDRV_REQ_WRITE_COMPRESSED   = 0x20,
@@ -58,8 +70,20 @@ typedef enum {
      * content. */
     BDRV_REQ_WRITE_UNCHANGED    = 0x40,
 
+    /*
+     * BDRV_REQ_SERIALISING forces request serialisation for writes.
+     * It is used to ensure that writes to the backing file of a backup process
+     * target cannot race with a read of the backup target that defers to the
+     * backing file.
+     *
+     * Note, that BDRV_REQ_SERIALISING is _not_ opposite in meaning to
+     * BDRV_REQ_NO_SERIALISING. A more descriptive name for the latter might be
+     * _DO_NOT_WAIT_FOR_SERIALISING, except that is too long.
+     */
+    BDRV_REQ_SERIALISING        = 0x80,
+
     /* Mask of valid flags */
-    BDRV_REQ_MASK               = 0x7f,
+    BDRV_REQ_MASK               = 0xff,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {
@@ -394,8 +418,8 @@ AioWait *bdrv_get_aio_wait(BlockDriverState *bs);
                    bdrv_get_aio_context(bs_),              \
                    cond); })
 
-int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int bytes);
-int bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes);
+int bdrv_pdiscard(BdrvChild *child, int64_t offset, int bytes);
+int bdrv_co_pdiscard(BdrvChild *child, int64_t offset, int bytes);
 int bdrv_has_zero_init_1(BlockDriverState *bs);
 int bdrv_has_zero_init(BlockDriverState *bs);
 bool bdrv_unallocated_blocks_are_zero(BlockDriverState *bs);
@@ -569,6 +593,14 @@ void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
                                bool ignore_bds_parents);
 
 /**
+ * bdrv_parent_drained_begin_single:
+ *
+ * Begin a quiesced section for the parent of @c. If @poll is true, wait for
+ * any pending activity to cease.
+ */
+void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll);
+
+/**
  * bdrv_parent_drained_end:
  *
  * End a quiesced section of all users of @bs. This is part of
@@ -679,5 +711,6 @@ void bdrv_unregister_buf(BlockDriverState *bs, void *host);
  **/
 int coroutine_fn bdrv_co_copy_range(BdrvChild *src, uint64_t src_offset,
                                     BdrvChild *dst, uint64_t dst_offset,
-                                    uint64_t bytes, BdrvRequestFlags flags);
+                                    uint64_t bytes, BdrvRequestFlags read_flags,
+                                    BdrvRequestFlags write_flags);
 #endif

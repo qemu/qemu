@@ -23,4 +23,12 @@ can't open device TEST_DIR/t.wrap.qcow2: Can't use copy-on-read on read-only dev
 1023.938 MiB (0x3fff0000) bytes not allocated at offset 3 GiB (0xc0010000)
 No errors were found on the image.
 Images are identical.
+
+=== Partial final cluster ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1024
+read 1024/1024 bytes at offset 0
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
+No errors were found on the image.
 *** done

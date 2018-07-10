@@ -3259,13 +3259,14 @@ static int coroutine_fn
 qcow2_co_copy_range_from(BlockDriverState *bs,
                          BdrvChild *src, uint64_t src_offset,
                          BdrvChild *dst, uint64_t dst_offset,
-                         uint64_t bytes, BdrvRequestFlags flags)
+                         uint64_t bytes, BdrvRequestFlags read_flags,
+                         BdrvRequestFlags write_flags)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;
     unsigned int cur_bytes; /* number of bytes in current iteration */
     BdrvChild *child = NULL;
-    BdrvRequestFlags cur_flags;
+    BdrvRequestFlags cur_write_flags;
 
     assert(!bs->encrypted);
     qemu_co_mutex_lock(&s->lock);
@@ -3274,7 +3275,7 @@ qcow2_co_copy_range_from(BlockDriverState *bs,
         uint64_t copy_offset = 0;
         /* prepare next request */
         cur_bytes = MIN(bytes, INT_MAX);
-        cur_flags = flags;
+        cur_write_flags = write_flags;
 
         ret = qcow2_get_cluster_offset(bs, src_offset, &cur_bytes, &copy_offset);
         if (ret < 0) {
@@ -3286,20 +3287,20 @@ qcow2_co_copy_range_from(BlockDriverState *bs,
             if (bs->backing && bs->backing->bs) {
                 int64_t backing_length = bdrv_getlength(bs->backing->bs);
                 if (src_offset >= backing_length) {
-                    cur_flags |= BDRV_REQ_ZERO_WRITE;
+                    cur_write_flags |= BDRV_REQ_ZERO_WRITE;
                 } else {
                     child = bs->backing;
                     cur_bytes = MIN(cur_bytes, backing_length - src_offset);
                     copy_offset = src_offset;
                 }
             } else {
-                cur_flags |= BDRV_REQ_ZERO_WRITE;
+                cur_write_flags |= BDRV_REQ_ZERO_WRITE;
             }
             break;
 
         case QCOW2_CLUSTER_ZERO_PLAIN:
         case QCOW2_CLUSTER_ZERO_ALLOC:
-            cur_flags |= BDRV_REQ_ZERO_WRITE;
+            cur_write_flags |= BDRV_REQ_ZERO_WRITE;
             break;
 
         case QCOW2_CLUSTER_COMPRESSED:
@@ -3322,7 +3323,7 @@ qcow2_co_copy_range_from(BlockDriverState *bs,
         ret = bdrv_co_copy_range_from(child,
                                       copy_offset,
                                       dst, dst_offset,
-                                      cur_bytes, cur_flags);
+                                      cur_bytes, read_flags, cur_write_flags);
         qemu_co_mutex_lock(&s->lock);
         if (ret < 0) {
             goto out;
@@ -3343,7 +3344,8 @@ static int coroutine_fn
 qcow2_co_copy_range_to(BlockDriverState *bs,
                        BdrvChild *src, uint64_t src_offset,
                        BdrvChild *dst, uint64_t dst_offset,
-                       uint64_t bytes, BdrvRequestFlags flags)
+                       uint64_t bytes, BdrvRequestFlags read_flags,
+                       BdrvRequestFlags write_flags)
 {
     BDRVQcow2State *s = bs->opaque;
     int offset_in_cluster;
@@ -3386,7 +3388,7 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
         ret = bdrv_co_copy_range_to(src, src_offset,
                                     bs->file,
                                     cluster_offset + offset_in_cluster,
-                                    cur_bytes, flags);
+                                    cur_bytes, read_flags, write_flags);
         qemu_co_mutex_lock(&s->lock);
         if (ret < 0) {
             goto fail;

@@ -1488,6 +1488,8 @@ static ssize_t handle_aiocb_copy_range(RawPosixAIOData *aiocb)
         ssize_t ret = copy_file_range(aiocb->aio_fildes, &in_off,
                                       aiocb->aio_fd2, &out_off,
                                       bytes, 0);
+        trace_file_copy_file_range(aiocb->bs, aiocb->aio_fildes, in_off,
+                                   aiocb->aio_fd2, out_off, bytes, 0, ret);
         if (ret == 0) {
             /* No progress (e.g. when beyond EOF), let the caller fall back to
              * buffer I/O. */
@@ -1743,7 +1745,7 @@ static int paio_submit_co_full(BlockDriverState *bs, int fd,
         assert(qiov->size == bytes);
     }
 
-    trace_paio_submit_co(offset, bytes, type);
+    trace_file_paio_submit_co(offset, bytes, type);
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     return thread_pool_submit_co(pool, aio_worker, acb);
 }
@@ -2589,18 +2591,23 @@ static void raw_abort_perm_update(BlockDriverState *bs)
     raw_handle_perm_lock(bs, RAW_PL_ABORT, 0, 0, NULL);
 }
 
-static int coroutine_fn raw_co_copy_range_from(BlockDriverState *bs,
-                                               BdrvChild *src, uint64_t src_offset,
-                                               BdrvChild *dst, uint64_t dst_offset,
-                                               uint64_t bytes, BdrvRequestFlags flags)
+static int coroutine_fn raw_co_copy_range_from(
+        BlockDriverState *bs, BdrvChild *src, uint64_t src_offset,
+        BdrvChild *dst, uint64_t dst_offset, uint64_t bytes,
+        BdrvRequestFlags read_flags, BdrvRequestFlags write_flags)
 {
-    return bdrv_co_copy_range_to(src, src_offset, dst, dst_offset, bytes, flags);
+    return bdrv_co_copy_range_to(src, src_offset, dst, dst_offset, bytes,
+                                 read_flags, write_flags);
 }
 
 static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
-                                             BdrvChild *src, uint64_t src_offset,
-                                             BdrvChild *dst, uint64_t dst_offset,
-                                             uint64_t bytes, BdrvRequestFlags flags)
+                                             BdrvChild *src,
+                                             uint64_t src_offset,
+                                             BdrvChild *dst,
+                                             uint64_t dst_offset,
+                                             uint64_t bytes,
+                                             BdrvRequestFlags read_flags,
+                                             BdrvRequestFlags write_flags)
 {
     BDRVRawState *s = bs->opaque;
     BDRVRawState *src_s;

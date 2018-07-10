@@ -1783,7 +1783,7 @@ static int coroutine_fn convert_co_copy_range(ImgConvertState *s, int64_t sector
 
         ret = blk_co_copy_range(blk, offset, s->target,
                                 sector_num << BDRV_SECTOR_BITS,
-                                n << BDRV_SECTOR_BITS, 0);
+                                n << BDRV_SECTOR_BITS, 0, 0);
         if (ret < 0) {
             return ret;
         }
