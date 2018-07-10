@@ -2276,18 +2276,14 @@ out:
         qemu_file_set_error(f, ret);
 
         /*
-         * Detect whether it is:
-         *
-         * 1. postcopy running (after receiving all device data, which
-         *    must be in POSTCOPY_INCOMING_RUNNING state.  Note that
-         *    POSTCOPY_INCOMING_LISTENING is still not enough, it's
-         *    still receiving device states).
-         * 2. network failure (-EIO)
-         *
-         * If so, we try to wait for a recovery.
+         * If we are during an active postcopy, then we pause instead
+         * of bail out to at least keep the VM's dirty data.  Note
+         * that POSTCOPY_INCOMING_LISTENING stage is still not enough,
+         * during which we're still receiving device states and we
+         * still haven't yet started the VM on destination.
          */
         if (postcopy_state_get() == POSTCOPY_INCOMING_RUNNING &&
-            ret == -EIO && postcopy_pause_incoming(mis)) {
+            postcopy_pause_incoming(mis)) {
             /* Reset f to point to the newly created channel */
             f = mis->from_src_file;
             goto retry;
