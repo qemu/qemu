@@ -1743,7 +1743,7 @@ static int paio_submit_co_full(BlockDriverState *bs, int fd,
         assert(qiov->size == bytes);
     }
 
-    trace_paio_submit_co(offset, bytes, type);
+    trace_file_paio_submit_co(offset, bytes, type);
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     return thread_pool_submit_co(pool, aio_worker, acb);
 }
