@@ -168,6 +168,37 @@ static QDict *wait_command(QTestState *who, const char *command)
     return response;
 }
 
+/*
+ * Note: caller is responsible to free the returned object via
+ * qobject_unref() after use
+ */
+static QDict *migrate_query(QTestState *who)
+{
+    QDict *rsp, *rsp_return;
+
+    rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
+    rsp_return = qdict_get_qdict(rsp, "return");
+    g_assert(rsp_return);
+    qobject_ref(rsp_return);
+    qobject_unref(rsp);
+
+    return rsp_return;
+}
+
+/*
+ * Note: caller is responsible to free the returned object via
+ * g_free() after use
+ */
+static gchar *migrate_query_status(QTestState *who)
+{
+    QDict *rsp_return = migrate_query(who);
+    gchar *status = g_strdup(qdict_get_str(rsp_return, "status"));
+
+    g_assert(status);
+    qobject_unref(rsp_return);
+
+    return status;
+}
 
 /*
  * It's tricky to use qemu's migration event capability with qtest,
@@ -176,11 +207,10 @@ static QDict *wait_command(QTestState *who, const char *command)
 
 static uint64_t get_migration_pass(QTestState *who)
 {
-    QDict *rsp, *rsp_return, *rsp_ram;
+    QDict *rsp_return, *rsp_ram;
     uint64_t result;
 
-    rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
-    rsp_return = qdict_get_qdict(rsp, "return");
+    rsp_return = migrate_query(who);
     if (!qdict_haskey(rsp_return, "ram")) {
         /* Still in setup */
         result = 0;
@@ -188,33 +218,29 @@ static uint64_t get_migration_pass(QTestState *who)
         rsp_ram = qdict_get_qdict(rsp_return, "ram");
         result = qdict_get_try_int(rsp_ram, "dirty-sync-count", 0);
     }
-    qobject_unref(rsp);
+    qobject_unref(rsp_return);
     return result;
 }
 
 static void read_blocktime(QTestState *who)
 {
-    QDict *rsp, *rsp_return;
+    QDict *rsp_return;
 
-    rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
-    rsp_return = qdict_get_qdict(rsp, "return");
+    rsp_return = migrate_query(who);
     g_assert(qdict_haskey(rsp_return, "postcopy-blocktime"));
-    qobject_unref(rsp);
+    qobject_unref(rsp_return);
 }
 
 static void wait_for_migration_complete(QTestState *who)
 {
     while (true) {
-        QDict *rsp, *rsp_return;
         bool completed;
-        const char *status;
+        char *status;
 
-        rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
-        rsp_return = qdict_get_qdict(rsp, "return");
-        status = qdict_get_str(rsp_return, "status");
+        status = migrate_query_status(who);
         completed = strcmp(status, "completed") == 0;
         g_assert_cmpstr(status, !=,  "failed");
-        qobject_unref(rsp);
+        g_free(status);
         if (completed) {
             return;
         }
@@ -580,7 +606,7 @@ static void test_baddest(void)
 {
     QTestState *from, *to;
     QDict *rsp, *rsp_return;
-    const char *status;
+    char *status;
     bool failed;
 
     if (test_migrate_start(&from, &to, "tcp:0:0", true)) {
@@ -588,14 +614,10 @@ static void test_baddest(void)
     }
     migrate(from, "tcp:0:0", NULL);
     do {
-        rsp = wait_command(from, "{ 'execute': 'query-migrate' }");
-        rsp_return = qdict_get_qdict(rsp, "return");
-
-        status = qdict_get_str(rsp_return, "status");
-
+        status = migrate_query_status(from);
         g_assert(!strcmp(status, "setup") || !(strcmp(status, "failed")));
         failed = !strcmp(status, "failed");
-        qobject_unref(rsp);
+        g_free(status);
     } while (!failed);
 
     /* Is the machine currently running? */
