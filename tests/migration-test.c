@@ -572,12 +572,13 @@ static void test_deprecated(void)
 }
 
 static int migrate_postcopy_prepare(QTestState **from_ptr,
-                                     QTestState **to_ptr)
+                                     QTestState **to_ptr,
+                                     bool hide_error)
 {
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, false)) {
+    if (test_migrate_start(&from, &to, uri, hide_error)) {
         return -1;
     }
 
@@ -624,7 +625,7 @@ static void test_postcopy(void)
 {
     QTestState *from, *to;
 
-    if (migrate_postcopy_prepare(&from, &to)) {
+    if (migrate_postcopy_prepare(&from, &to, false)) {
         return;
     }
     migrate_postcopy_start(from, to);
@@ -636,7 +637,7 @@ static void test_postcopy_recovery(void)
     QTestState *from, *to;
     char *uri;
 
-    if (migrate_postcopy_prepare(&from, &to)) {
+    if (migrate_postcopy_prepare(&from, &to, true)) {
         return;
     }
 
