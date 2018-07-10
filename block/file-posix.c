@@ -2611,7 +2611,7 @@ static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
     }
 
     src_s = src->bs->opaque;
-    if (fd_open(bs) < 0 || fd_open(bs) < 0) {
+    if (fd_open(src->bs) < 0 || fd_open(dst->bs) < 0) {
         return -EIO;
     }
     return paio_submit_co_full(bs, src_s->fd, src_offset, s->fd, dst_offset,
