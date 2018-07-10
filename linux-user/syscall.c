@@ -12757,7 +12757,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
     default:
     unimplemented:
-        gemu_log("qemu: Unsupported syscall: %d\n", num);
+        qemu_log_mask(LOG_UNIMP, "Unsupported syscall: %d\n", num);
 #if defined(TARGET_NR_setxattr) || defined(TARGET_NR_get_thread_area) || defined(TARGET_NR_getdomainname) || defined(TARGET_NR_set_robust_list)
     unimplemented_nowarn:
 #endif

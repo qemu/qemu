@@ -278,7 +278,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
                     target_siginfo_t *info,
                     target_sigset_t *set, CPUSPARCState *env)
 {
-    fprintf(stderr, "setup_rt_frame: not implemented\n");
+    qemu_log_mask(LOG_UNIMP, "setup_rt_frame: not implemented\n");
 }
 
 long do_sigreturn(CPUSPARCState *env)
@@ -357,7 +357,7 @@ segv_and_exit:
 long do_rt_sigreturn(CPUSPARCState *env)
 {
     trace_user_do_rt_sigreturn(env, 0);
-    fprintf(stderr, "do_rt_sigreturn: not implemented\n");
+    qemu_log_mask(LOG_UNIMP, "do_rt_sigreturn: not implemented\n");
     return -TARGET_ENOSYS;
 }
 
