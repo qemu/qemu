@@ -40,6 +40,7 @@
 
 static AioWait drain_all_aio_wait;
 
+static void bdrv_parent_cb_resize(BlockDriverState *bs);
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int bytes, BdrvRequestFlags flags);
 
@@ -1621,13 +1622,16 @@ bdrv_co_write_req_finish(BdrvChild *child, int64_t offset, uint64_t bytes,
     BlockDriverState *bs = child->bs;
 
     atomic_inc(&bs->write_gen);
-    bdrv_set_dirty(bs, offset, bytes);
 
     stat64_max(&bs->wr_highest_offset, offset + bytes);
 
-    if (ret == 0) {
-        bs->total_sectors = MAX(bs->total_sectors, end_sector);
+    if (ret == 0 &&
+        end_sector > bs->total_sectors) {
+        bs->total_sectors = end_sector;
+        bdrv_parent_cb_resize(bs);
+        bdrv_dirty_bitmap_truncate(bs, end_sector << BDRV_SECTOR_BITS);
     }
+    bdrv_set_dirty(bs, offset, bytes);
 }
 
 /*
