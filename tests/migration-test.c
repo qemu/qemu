@@ -168,6 +168,37 @@ static QDict *wait_command(QTestState *who, const char *command)
     return response;
 }
 
+/*
+ * Note: caller is responsible to free the returned object via
+ * qobject_unref() after use
+ */
+static QDict *migrate_query(QTestState *who)
+{
+    QDict *rsp, *rsp_return;
+
+    rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
+    rsp_return = qdict_get_qdict(rsp, "return");
+    g_assert(rsp_return);
+    qobject_ref(rsp_return);
+    qobject_unref(rsp);
+
+    return rsp_return;
+}
+
+/*
+ * Note: caller is responsible to free the returned object via
+ * g_free() after use
+ */
+static gchar *migrate_query_status(QTestState *who)
+{
+    QDict *rsp_return = migrate_query(who);
+    gchar *status = g_strdup(qdict_get_str(rsp_return, "status"));
+
+    g_assert(status);
+    qobject_unref(rsp_return);
+
+    return status;
+}
 
 /*
  * It's tricky to use qemu's migration event capability with qtest,
@@ -176,11 +207,10 @@ static QDict *wait_command(QTestState *who, const char *command)
 
 static uint64_t get_migration_pass(QTestState *who)
 {
-    QDict *rsp, *rsp_return, *rsp_ram;
+    QDict *rsp_return, *rsp_ram;
     uint64_t result;
 
-    rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
-    rsp_return = qdict_get_qdict(rsp, "return");
+    rsp_return = migrate_query(who);
     if (!qdict_haskey(rsp_return, "ram")) {
         /* Still in setup */
         result = 0;
@@ -188,38 +218,40 @@ static uint64_t get_migration_pass(QTestState *who)
         rsp_ram = qdict_get_qdict(rsp_return, "ram");
         result = qdict_get_try_int(rsp_ram, "dirty-sync-count", 0);
     }
-    qobject_unref(rsp);
+    qobject_unref(rsp_return);
     return result;
 }
 
 static void read_blocktime(QTestState *who)
 {
-    QDict *rsp, *rsp_return;
+    QDict *rsp_return;
 
-    rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
-    rsp_return = qdict_get_qdict(rsp, "return");
+    rsp_return = migrate_query(who);
     g_assert(qdict_haskey(rsp_return, "postcopy-blocktime"));
-    qobject_unref(rsp);
+    qobject_unref(rsp_return);
 }
 
-static void wait_for_migration_complete(QTestState *who)
+static void wait_for_migration_status(QTestState *who,
+                                      const char *goal)
 {
     while (true) {
-        QDict *rsp, *rsp_return;
         bool completed;
-        const char *status;
+        char *status;
 
-        rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
-        rsp_return = qdict_get_qdict(rsp, "return");
-        status = qdict_get_str(rsp_return, "status");
-        completed = strcmp(status, "completed") == 0;
+        status = migrate_query_status(who);
+        completed = strcmp(status, goal) == 0;
         g_assert_cmpstr(status, !=,  "failed");
-        qobject_unref(rsp);
+        g_free(status);
         if (completed) {
             return;
         }
         usleep(1000);
     }
+}
+
+static void wait_for_migration_complete(QTestState *who)
+{
+    wait_for_migration_status(who, "completed");
 }
 
 static void wait_for_migration_pass(QTestState *who)
@@ -320,6 +352,29 @@ static void migrate_set_parameter(QTestState *who, const char *parameter,
     migrate_check_parameter(who, parameter, value);
 }
 
+static void migrate_pause(QTestState *who)
+{
+    QDict *rsp;
+
+    rsp = wait_command(who, "{ 'execute': 'migrate-pause' }");
+    g_assert(qdict_haskey(rsp, "return"));
+    qobject_unref(rsp);
+}
+
+static void migrate_recover(QTestState *who, const char *uri)
+{
+    QDict *rsp;
+    gchar *cmd = g_strdup_printf(
+        "{ 'execute': 'migrate-recover', "
+        "  'id': 'recover-cmd', "
+        "  'arguments': { 'uri': '%s' } }", uri);
+
+    rsp = wait_command(who, cmd);
+    g_assert(qdict_haskey(rsp, "return"));
+    g_free(cmd);
+    qobject_unref(rsp);
+}
+
 static void migrate_set_capability(QTestState *who, const char *capability,
                                    const char *value)
 {
@@ -337,27 +392,33 @@ static void migrate_set_capability(QTestState *who, const char *capability,
     qobject_unref(rsp);
 }
 
-static void migrate(QTestState *who, const char *uri)
+static void migrate(QTestState *who, const char *uri, const char *extra)
 {
     QDict *rsp;
     gchar *cmd;
 
     cmd = g_strdup_printf("{ 'execute': 'migrate',"
-                          "'arguments': { 'uri': '%s' } }",
-                          uri);
+                          "  'arguments': { 'uri': '%s' %s } }",
+                          uri, extra ? extra : "");
     rsp = qtest_qmp(who, cmd);
     g_free(cmd);
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 }
 
-static void migrate_start_postcopy(QTestState *who)
+static void migrate_postcopy_start(QTestState *from, QTestState *to)
 {
     QDict *rsp;
 
-    rsp = wait_command(who, "{ 'execute': 'migrate-start-postcopy' }");
+    rsp = wait_command(from, "{ 'execute': 'migrate-start-postcopy' }");
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
+
+    if (!got_stop) {
+        qtest_qmp_eventwait(from, "STOP");
+    }
+
+    qtest_qmp_eventwait(to, "RESUME");
 }
 
 static int test_migrate_start(QTestState **from, QTestState **to,
@@ -510,13 +571,15 @@ static void test_deprecated(void)
     qtest_quit(from);
 }
 
-static void test_postcopy(void)
+static int migrate_postcopy_prepare(QTestState **from_ptr,
+                                     QTestState **to_ptr,
+                                     bool hide_error)
 {
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, false)) {
-        return;
+    if (test_migrate_start(&from, &to, uri, hide_error)) {
+        return -1;
     }
 
     migrate_set_capability(from, "postcopy-ram", "true");
@@ -533,49 +596,114 @@ static void test_postcopy(void)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate(from, uri);
+    migrate(from, uri, NULL);
+    g_free(uri);
 
     wait_for_migration_pass(from);
 
-    migrate_start_postcopy(from);
+    *from_ptr = from;
+    *to_ptr = to;
 
-    if (!got_stop) {
-        qtest_qmp_eventwait(from, "STOP");
-    }
+    return 0;
+}
 
-    qtest_qmp_eventwait(to, "RESUME");
-
-    wait_for_serial("dest_serial");
+static void migrate_postcopy_complete(QTestState *from, QTestState *to)
+{
     wait_for_migration_complete(from);
+
+    /* Make sure we get at least one "B" on destination */
+    wait_for_serial("dest_serial");
 
     if (uffd_feature_thread_id) {
         read_blocktime(to);
     }
-    g_free(uri);
 
     test_migrate_end(from, to, true);
+}
+
+static void test_postcopy(void)
+{
+    QTestState *from, *to;
+
+    if (migrate_postcopy_prepare(&from, &to, false)) {
+        return;
+    }
+    migrate_postcopy_start(from, to);
+    migrate_postcopy_complete(from, to);
+}
+
+static void test_postcopy_recovery(void)
+{
+    QTestState *from, *to;
+    char *uri;
+
+    if (migrate_postcopy_prepare(&from, &to, true)) {
+        return;
+    }
+
+    /* Turn postcopy speed down, 4K/s is slow enough on any machines */
+    migrate_set_parameter(from, "max-postcopy-bandwidth", "4096");
+
+    /* Now we start the postcopy */
+    migrate_postcopy_start(from, to);
+
+    /*
+     * Wait until postcopy is really started; we can only run the
+     * migrate-pause command during a postcopy
+     */
+    wait_for_migration_status(from, "postcopy-active");
+
+    /*
+     * Manually stop the postcopy migration. This emulates a network
+     * failure with the migration socket
+     */
+    migrate_pause(from);
+
+    /*
+     * Wait for destination side to reach postcopy-paused state.  The
+     * migrate-recover command can only succeed if destination machine
+     * is in the paused state
+     */
+    wait_for_migration_status(to, "postcopy-paused");
+
+    /*
+     * Create a new socket to emulate a new channel that is different
+     * from the broken migration channel; tell the destination to
+     * listen to the new port
+     */
+    uri = g_strdup_printf("unix:%s/migsocket-recover", tmpfs);
+    migrate_recover(to, uri);
+
+    /*
+     * Try to rebuild the migration channel using the resume flag and
+     * the newly created channel
+     */
+    wait_for_migration_status(from, "postcopy-paused");
+    migrate(from, uri, ", 'resume': true");
+    g_free(uri);
+
+    /* Restore the postcopy bandwidth to unlimited */
+    migrate_set_parameter(from, "max-postcopy-bandwidth", "0");
+
+    migrate_postcopy_complete(from, to);
 }
 
 static void test_baddest(void)
 {
     QTestState *from, *to;
     QDict *rsp, *rsp_return;
-    const char *status;
+    char *status;
     bool failed;
 
     if (test_migrate_start(&from, &to, "tcp:0:0", true)) {
         return;
     }
-    migrate(from, "tcp:0:0");
+    migrate(from, "tcp:0:0", NULL);
     do {
-        rsp = wait_command(from, "{ 'execute': 'query-migrate' }");
-        rsp_return = qdict_get_qdict(rsp, "return");
-
-        status = qdict_get_str(rsp_return, "status");
-
+        status = migrate_query_status(from);
         g_assert(!strcmp(status, "setup") || !(strcmp(status, "failed")));
         failed = !strcmp(status, "failed");
-        qobject_unref(rsp);
+        g_free(status);
     } while (!failed);
 
     /* Is the machine currently running? */
@@ -610,7 +738,7 @@ static void test_precopy_unix(void)
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
-    migrate(from, uri);
+    migrate(from, uri, NULL);
 
     wait_for_migration_pass(from);
 
@@ -650,6 +778,7 @@ int main(int argc, char **argv)
     module_call_init(MODULE_INIT_QOM);
 
     qtest_add_func("/migration/postcopy/unix", test_postcopy);
+    qtest_add_func("/migration/postcopy/recovery", test_postcopy_recovery);
     qtest_add_func("/migration/deprecated", test_deprecated);
     qtest_add_func("/migration/bad_dest", test_baddest);
     qtest_add_func("/migration/precopy/unix", test_precopy_unix);
