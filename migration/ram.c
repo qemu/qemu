@@ -3580,7 +3580,7 @@ static int ram_load_postcopy(QEMUFile *f)
 {
     int flags = 0, ret = 0;
     bool place_needed = false;
-    bool matching_page_sizes = false;
+    bool matches_target_page_size = false;
     MigrationIncomingState *mis = migration_incoming_get_current();
     /* Temporary page that is later 'placed' */
     void *postcopy_host_page = postcopy_get_tmp_page(mis);
@@ -3620,7 +3620,7 @@ static int ram_load_postcopy(QEMUFile *f)
                 ret = -EINVAL;
                 break;
             }
-            matching_page_sizes = block->page_size == TARGET_PAGE_SIZE;
+            matches_target_page_size = block->page_size == TARGET_PAGE_SIZE;
             /*
              * Postcopy requires that we place whole host pages atomically;
              * these may be huge pages for RAMBlocks that are backed by
@@ -3668,12 +3668,17 @@ static int ram_load_postcopy(QEMUFile *f)
 
         case RAM_SAVE_FLAG_PAGE:
             all_zero = false;
-            if (!place_needed || !matching_page_sizes) {
+            if (!matches_target_page_size) {
+                /* For huge pages, we always use temporary buffer */
                 qemu_get_buffer(f, page_buffer, TARGET_PAGE_SIZE);
             } else {
-                /* Avoids the qemu_file copy during postcopy, which is
-                 * going to do a copy later; can only do it when we
-                 * do this read in one go (matching page sizes)
+                /*
+                 * For small pages that matches target page size, we
+                 * avoid the qemu_file copy.  Instead we directly use
+                 * the buffer of QEMUFile to place the page.  Note: we
+                 * cannot do any QEMUFile operation before using that
+                 * buffer to make sure the buffer is valid when
+                 * placing the page.
                  */
                 qemu_get_buffer_in_place(f, (uint8_t **)&place_source,
                                          TARGET_PAGE_SIZE);
