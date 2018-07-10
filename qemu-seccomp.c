@@ -34,6 +34,12 @@
 struct QemuSeccompSyscall {
     int32_t num;
     uint8_t set;
+    uint8_t narg;
+    const struct scmp_arg_cmp *arg_cmp;
+};
+
+const struct scmp_arg_cmp sched_setscheduler_arg[] = {
+    SCMP_A1(SCMP_CMP_NE, SCHED_IDLE)
 };
 
 static const struct QemuSeccompSyscall blacklist[] = {
@@ -92,7 +98,8 @@ static const struct QemuSeccompSyscall blacklist[] = {
     { SCMP_SYS(setpriority),            QEMU_SECCOMP_SET_RESOURCECTL },
     { SCMP_SYS(sched_setparam),         QEMU_SECCOMP_SET_RESOURCECTL },
     { SCMP_SYS(sched_getparam),         QEMU_SECCOMP_SET_RESOURCECTL },
-    { SCMP_SYS(sched_setscheduler),     QEMU_SECCOMP_SET_RESOURCECTL },
+    { SCMP_SYS(sched_setscheduler),     QEMU_SECCOMP_SET_RESOURCECTL,
+      ARRAY_SIZE(sched_setscheduler_arg), sched_setscheduler_arg },
     { SCMP_SYS(sched_getscheduler),     QEMU_SECCOMP_SET_RESOURCECTL },
     { SCMP_SYS(sched_setaffinity),      QEMU_SECCOMP_SET_RESOURCECTL },
     { SCMP_SYS(sched_getaffinity),      QEMU_SECCOMP_SET_RESOURCECTL },
@@ -118,7 +125,8 @@ static int seccomp_start(uint32_t seccomp_opts)
             continue;
         }
 
-        rc = seccomp_rule_add(ctx, SCMP_ACT_KILL, blacklist[i].num, 0);
+        rc = seccomp_rule_add_array(ctx, SCMP_ACT_KILL, blacklist[i].num,
+                                    blacklist[i].narg, blacklist[i].arg_cmp);
         if (rc < 0) {
             goto seccomp_return;
         }
