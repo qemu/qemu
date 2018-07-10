@@ -231,14 +231,15 @@ static void read_blocktime(QTestState *who)
     qobject_unref(rsp_return);
 }
 
-static void wait_for_migration_complete(QTestState *who)
+static void wait_for_migration_status(QTestState *who,
+                                      const char *goal)
 {
     while (true) {
         bool completed;
         char *status;
 
         status = migrate_query_status(who);
-        completed = strcmp(status, "completed") == 0;
+        completed = strcmp(status, goal) == 0;
         g_assert_cmpstr(status, !=,  "failed");
         g_free(status);
         if (completed) {
@@ -246,6 +247,11 @@ static void wait_for_migration_complete(QTestState *who)
         }
         usleep(1000);
     }
+}
+
+static void wait_for_migration_complete(QTestState *who)
+{
+    wait_for_migration_status(who, "completed");
 }
 
 static void wait_for_migration_pass(QTestState *who)
