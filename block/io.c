@@ -3030,20 +3030,16 @@ static int coroutine_fn bdrv_co_copy_range_internal(
         bdrv_inc_in_flight(dst->bs);
         tracked_request_begin(&req, dst->bs, dst_offset, bytes,
                               BDRV_TRACKED_WRITE);
-
-        /* BDRV_REQ_NO_SERIALISING is only for read operation */
-        assert(!(write_flags & BDRV_REQ_NO_SERIALISING));
-        if (write_flags & BDRV_REQ_SERIALISING) {
-            mark_request_serialising(&req, bdrv_get_cluster_size(dst->bs));
+        ret = bdrv_co_write_req_prepare(dst, dst_offset, bytes, &req,
+                                        write_flags);
+        if (!ret) {
+            ret = dst->bs->drv->bdrv_co_copy_range_to(dst->bs,
+                                                      src, src_offset,
+                                                      dst, dst_offset,
+                                                      bytes,
+                                                      read_flags, write_flags);
         }
-        wait_serialising_requests(&req);
-
-        ret = dst->bs->drv->bdrv_co_copy_range_to(dst->bs,
-                                                  src, src_offset,
-                                                  dst, dst_offset,
-                                                  bytes,
-                                                  read_flags, write_flags);
-
+        bdrv_co_write_req_finish(dst, dst_offset, bytes, &req, ret);
         tracked_request_end(&req);
         bdrv_dec_in_flight(dst->bs);
     }
