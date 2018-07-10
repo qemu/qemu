@@ -351,13 +351,19 @@ static void migrate(QTestState *who, const char *uri)
     qobject_unref(rsp);
 }
 
-static void migrate_start_postcopy(QTestState *who)
+static void migrate_postcopy_start(QTestState *from, QTestState *to)
 {
     QDict *rsp;
 
-    rsp = wait_command(who, "{ 'execute': 'migrate-start-postcopy' }");
+    rsp = wait_command(from, "{ 'execute': 'migrate-start-postcopy' }");
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
+
+    if (!got_stop) {
+        qtest_qmp_eventwait(from, "STOP");
+    }
+
+    qtest_qmp_eventwait(to, "RESUME");
 }
 
 static int test_migrate_start(QTestState **from, QTestState **to,
@@ -510,13 +516,14 @@ static void test_deprecated(void)
     qtest_quit(from);
 }
 
-static void test_postcopy(void)
+static int migrate_postcopy_prepare(QTestState **from_ptr,
+                                     QTestState **to_ptr)
 {
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
     if (test_migrate_start(&from, &to, uri, false)) {
-        return;
+        return -1;
     }
 
     migrate_set_capability(from, "postcopy-ram", "true");
@@ -534,26 +541,39 @@ static void test_postcopy(void)
     wait_for_serial("src_serial");
 
     migrate(from, uri);
+    g_free(uri);
 
     wait_for_migration_pass(from);
 
-    migrate_start_postcopy(from);
+    *from_ptr = from;
+    *to_ptr = to;
 
-    if (!got_stop) {
-        qtest_qmp_eventwait(from, "STOP");
-    }
+    return 0;
+}
 
-    qtest_qmp_eventwait(to, "RESUME");
-
-    wait_for_serial("dest_serial");
+static void migrate_postcopy_complete(QTestState *from, QTestState *to)
+{
     wait_for_migration_complete(from);
+
+    /* Make sure we get at least one "B" on destination */
+    wait_for_serial("dest_serial");
 
     if (uffd_feature_thread_id) {
         read_blocktime(to);
     }
-    g_free(uri);
 
     test_migrate_end(from, to, true);
+}
+
+static void test_postcopy(void)
+{
+    QTestState *from, *to;
+
+    if (migrate_postcopy_prepare(&from, &to)) {
+        return;
+    }
+    migrate_postcopy_start(from, to);
+    migrate_postcopy_complete(from, to);
 }
 
 static void test_baddest(void)
