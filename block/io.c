@@ -3136,7 +3136,8 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
     }
 
     bdrv_inc_in_flight(bs);
-    tracked_request_begin(&req, bs, offset, new_bytes, BDRV_TRACKED_TRUNCATE);
+    tracked_request_begin(&req, bs, offset - new_bytes, new_bytes,
+                          BDRV_TRACKED_TRUNCATE);
 
     /* If we are growing the image and potentially using preallocation for the
      * new area, we need to make sure that no write requests are made to it
