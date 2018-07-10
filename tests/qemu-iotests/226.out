@@ -1,0 +1,26 @@
+QA output created by 226
+
+=== Testing with driver:file ===
+
+== Testing RO ==
+can't open: A regular file was expected by the 'file' driver, but something else was given
+warning: Opening a character device as a file using the 'file' driver is deprecated
+== Testing RW ==
+can't open: Could not open 'TEST_DIR/t.IMGFMT': Is a directory
+warning: Opening a character device as a file using the 'file' driver is deprecated
+
+=== Testing with driver:host_device ===
+
+== Testing RO ==
+can't open: 'host_device' driver expects either a character or block device
+== Testing RW ==
+can't open: Could not open 'TEST_DIR/t.IMGFMT': Is a directory
+
+=== Testing with driver:host_cdrom ===
+
+== Testing RO ==
+can't open: 'host_cdrom' driver expects either a character or block device
+== Testing RW ==
+can't open: Could not open 'TEST_DIR/t.IMGFMT': Is a directory
+
+*** done
