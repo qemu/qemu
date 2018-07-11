@@ -3,6 +3,7 @@ RUN yum install -y epel-release centos-release-xen
 RUN yum -y update
 ENV PACKAGES \
     bison \
+    bzip2 \
     bzip2-devel \
     ccache \
     csnappy-devel \
@@ -12,10 +13,12 @@ ENV PACKAGES \
     gettext \
     git \
     glib2-devel \
+    libaio-devel \
     libepoxy-devel \
     libfdt-devel \
     librdmacm-devel \
     lzo-devel \
+    nettle-devel \
     make \
     mesa-libEGL-devel \
     mesa-libgbm-devel \
