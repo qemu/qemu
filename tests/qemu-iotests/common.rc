@@ -195,6 +195,16 @@ _use_sample_img()
     fi
 }
 
+_stop_nbd_server()
+{
+    if [ -f "${QEMU_TEST_DIR}/qemu-nbd.pid" ]; then
+        local QEMU_NBD_PID
+        read QEMU_NBD_PID < "${QEMU_TEST_DIR}/qemu-nbd.pid"
+        kill ${QEMU_NBD_PID}
+        rm -f "${QEMU_TEST_DIR}/qemu-nbd.pid"
+    fi
+}
+
 _make_test_img()
 {
     # extra qemu-img options can be added by tests
@@ -232,6 +242,10 @@ _make_test_img()
 
     if [ -n "$optstr" ]; then
         extra_img_options="-o $optstr $extra_img_options"
+    fi
+
+    if [ $IMGPROTO = "nbd" ]; then
+        _stop_nbd_server
     fi
 
     # XXX(hch): have global image options?
@@ -274,12 +288,7 @@ _cleanup_test_img()
     case "$IMGPROTO" in
 
         nbd)
-            if [ -f "${QEMU_TEST_DIR}/qemu-nbd.pid" ]; then
-                local QEMU_NBD_PID
-                read QEMU_NBD_PID < "${QEMU_TEST_DIR}/qemu-nbd.pid"
-                kill ${QEMU_NBD_PID}
-                rm -f "${QEMU_TEST_DIR}/qemu-nbd.pid"
-            fi
+            _stop_nbd_server
             rm -f "$TEST_IMG_FILE"
             ;;
         vxhs)
