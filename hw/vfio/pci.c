@@ -990,7 +990,6 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
     pci_register_bar(&vdev->pdev, PCI_ROM_SLOT,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &vdev->pdev.rom);
 
-    vdev->pdev.has_rom = true;
     vdev->rom_read_failed = false;
 }
 
