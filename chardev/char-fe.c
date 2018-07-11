@@ -235,7 +235,12 @@ void qemu_chr_fe_deinit(CharBackend *b, bool del)
             d->backends[b->tag] = NULL;
         }
         if (del) {
-            object_unparent(OBJECT(b->chr));
+            Object *obj = OBJECT(b->chr);
+            if (obj->parent) {
+                object_unparent(obj);
+            } else {
+                object_unref(obj);
+            }
         }
         b->chr = NULL;
     }
