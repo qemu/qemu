@@ -162,6 +162,7 @@ for opts1 in "" "read-only=on" "read-only=on,force-share=on"; do
     _cleanup_qemu
 done
 
+test_opts="read-only=off read-only=on read-only=on,force-share=on"
 for opt1 in $test_opts; do
     for opt2 in $test_opts; do
         echo
@@ -170,6 +171,7 @@ for opt1 in $test_opts; do
     done
 done
 
+echo
 echo "== Creating ${TEST_IMG}.[abc] ==" | _filter_testdir
 (
     $QEMU_IMG create -f qcow2 "${TEST_IMG}.a" -b "${TEST_IMG}"

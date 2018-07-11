@@ -369,6 +369,31 @@ _qemu_img_wrapper bench -U -w -c 1 TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': force-share=on can only be used with read-only images
 
 Round done
+
+== Two devices with the same image (read-only=off - read-only=off) ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,read-only=off: Failed to get "write" lock
+Is another process using the image?
+
+== Two devices with the same image (read-only=off - read-only=on) ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,read-only=on: Failed to get shared "write" lock
+Is another process using the image?
+
+== Two devices with the same image (read-only=off - read-only=on,force-share=on) ==
+
+== Two devices with the same image (read-only=on - read-only=off) ==
+QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,read-only=off: Failed to get "write" lock
+Is another process using the image?
+
+== Two devices with the same image (read-only=on - read-only=on) ==
+
+== Two devices with the same image (read-only=on - read-only=on,force-share=on) ==
+
+== Two devices with the same image (read-only=on,force-share=on - read-only=off) ==
+
+== Two devices with the same image (read-only=on,force-share=on - read-only=on) ==
+
+== Two devices with the same image (read-only=on,force-share=on - read-only=on,force-share=on) ==
+
 == Creating TEST_DIR/t.qcow2.[abc] ==
 Formatting 'TEST_DIR/t.IMGFMT.a', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT
 Formatting 'TEST_DIR/t.IMGFMT.b', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t.IMGFMT
