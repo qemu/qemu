@@ -569,13 +569,13 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     s->vfio = qemu_vfio_open_pci(device, errp);
     if (!s->vfio) {
         ret = -EINVAL;
-        goto fail;
+        goto out;
     }
 
     s->regs = qemu_vfio_pci_map_bar(s->vfio, 0, 0, NVME_BAR_SIZE, errp);
     if (!s->regs) {
         ret = -EINVAL;
-        goto fail;
+        goto out;
     }
 
     /* Perform initialize sequence as described in NVMe spec "7.6.1
@@ -585,7 +585,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     if (!(cap & (1ULL << 37))) {
         error_setg(errp, "Device doesn't support NVMe command set");
         ret = -EINVAL;
-        goto fail;
+        goto out;
     }
 
     s->page_size = MAX(4096, 1 << (12 + ((cap >> 48) & 0xF)));
@@ -603,7 +603,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
                              PRId64 " ms)",
                        timeout_ms);
             ret = -ETIMEDOUT;
-            goto fail;
+            goto out;
         }
     }
 
@@ -613,7 +613,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     s->queues[0] = nvme_create_queue_pair(bs, 0, NVME_QUEUE_SIZE, errp);
     if (!s->queues[0]) {
         ret = -EINVAL;
-        goto fail;
+        goto out;
     }
     QEMU_BUILD_BUG_ON(NVME_QUEUE_SIZE & 0xF000);
     s->regs->aqa = cpu_to_le32((NVME_QUEUE_SIZE << 16) | NVME_QUEUE_SIZE);
@@ -633,14 +633,14 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
                              PRId64 " ms)",
                        timeout_ms);
             ret = -ETIMEDOUT;
-            goto fail_queue;
+            goto out;
         }
     }
 
     ret = qemu_vfio_pci_init_irq(s->vfio, &s->irq_notifier,
                                  VFIO_PCI_MSIX_IRQ_INDEX, errp);
     if (ret) {
-        goto fail_queue;
+        goto out;
     }
     aio_set_event_notifier(bdrv_get_aio_context(bs), &s->irq_notifier,
                            false, nvme_handle_event, nvme_poll_cb);
@@ -649,30 +649,15 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EIO;
-        goto fail_handler;
+        goto out;
     }
 
     /* Set up command queues. */
     if (!nvme_add_io_queue(bs, errp)) {
         ret = -EIO;
-        goto fail_handler;
     }
-    return 0;
-
-fail_handler:
-    aio_set_event_notifier(bdrv_get_aio_context(bs), &s->irq_notifier,
-                           false, NULL, NULL);
-fail_queue:
-    nvme_free_queue_pair(bs, s->queues[0]);
-fail:
-    g_free(s->queues);
-    if (s->regs) {
-        qemu_vfio_pci_unmap_bar(s->vfio, 0, (void *)s->regs, 0, NVME_BAR_SIZE);
-    }
-    if (s->vfio) {
-        qemu_vfio_close(s->vfio);
-    }
-    event_notifier_cleanup(&s->irq_notifier);
+out:
+    /* Cleaning up is done in nvme_file_open() upon error. */
     return ret;
 }
 
@@ -739,8 +724,10 @@ static void nvme_close(BlockDriverState *bs)
     for (i = 0; i < s->nr_queues; ++i) {
         nvme_free_queue_pair(bs, s->queues[i]);
     }
+    g_free(s->queues);
     aio_set_event_notifier(bdrv_get_aio_context(bs), &s->irq_notifier,
                            false, NULL, NULL);
+    event_notifier_cleanup(&s->irq_notifier);
     qemu_vfio_pci_unmap_bar(s->vfio, 0, (void *)s->regs, 0, NVME_BAR_SIZE);
     qemu_vfio_close(s->vfio);
 }
