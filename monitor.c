@@ -4186,6 +4186,7 @@ static void monitor_qmp_bh_dispatcher(void *data)
     } else {
         assert(req_obj->err);
         rsp = qmp_error_response(req_obj->err);
+        req_obj->err = NULL;
         monitor_qmp_respond(req_obj->mon, rsp, NULL);
         qobject_unref(rsp);
     }
