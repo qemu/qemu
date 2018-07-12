@@ -217,6 +217,8 @@ def parse_args(vm_name):
                       help="build QEMU from source in guest")
     parser.add_option("--interactive", "-I", action="store_true",
                       help="Interactively run command")
+    parser.add_option("--snapshot", "-s", action="store_true",
+                      help="run tests with a snapshot")
     parser.disable_interspersed_args()
     return parser.parse_args()
 
@@ -242,7 +244,10 @@ def main(vmcls):
                    jobs=args.jobs)]
         else:
             cmd = argv
-        vm.boot(args.image + ",snapshot=on")
+        img = args.image
+        if args.snapshot:
+            img += ",snapshot=on"
+        vm.boot(img)
         vm.wait_ssh()
     except Exception as e:
         if isinstance(e, SystemExit) and e.code == 0:
