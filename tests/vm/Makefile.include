@@ -2,7 +2,7 @@
 
 .PHONY: vm-build-all
 
-IMAGES := ubuntu.i386 freebsd netbsd openbsd
+IMAGES := ubuntu.i386 freebsd netbsd openbsd centos
 IMAGE_FILES := $(patsubst %, tests/vm/%.img, $(IMAGES))
 
 .PRECIOUS: $(IMAGE_FILES)
@@ -14,6 +14,7 @@ vm-test:
 	@echo "  vm-build-freebsd                - Build QEMU in FreeBSD VM"
 	@echo "  vm-build-netbsd                 - Build QEMU in NetBSD VM"
 	@echo "  vm-build-openbsd                - Build QEMU in OpenBSD VM"
+	@echo "  vm-build-centos                 - Build QEMU in CentOS VM, with Docker"
 
 vm-build-all: $(addprefix vm-build-, $(IMAGES))
 
