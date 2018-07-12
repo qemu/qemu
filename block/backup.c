@@ -91,7 +91,7 @@ static void cow_request_end(CowRequest *req)
 }
 
 /* Copy range to target with a bounce buffer and return the bytes copied. If
- * error occured, return a negative error number */
+ * error occurred, return a negative error number */
 static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
                                                       int64_t start,
                                                       int64_t end,
@@ -148,7 +148,7 @@ fail:
 
 }
 
-/* Copy range to target and return the bytes copied. If error occured, return a
+/* Copy range to target and return the bytes copied. If error occurred, return a
  * negative error number. */
 static int coroutine_fn backup_cow_with_offload(BackupBlockJob *job,
                                                 int64_t start,

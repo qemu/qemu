@@ -3002,7 +3002,7 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
  *
  * Reopens all BDS specified in the queue, with the appropriate
  * flags.  All devices are prepared for reopen, and failure of any
- * device will cause all device changes to be abandonded, and intermediate
+ * device will cause all device changes to be abandoned, and intermediate
  * data cleaned up.
  *
  * If all devices prepare successfully, then the changes are committed
