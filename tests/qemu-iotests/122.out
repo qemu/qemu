@@ -194,12 +194,12 @@ wrote 1024/1024 bytes at offset 17408
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 convert -S 4k
-[{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 1024, "length": 7168, "depth": 0, "zero": true, "data": false},
-{ "start": 8192, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 9216, "length": 8192, "depth": 0, "zero": true, "data": false},
-{ "start": 17408, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 18432, "length": 67090432, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 4096, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 8192, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 12288, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 16384, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 20480, "length": 67088384, "depth": 0, "zero": true, "data": false}]
 
 convert -c -S 4k
 [{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true},
@@ -210,10 +210,8 @@ convert -c -S 4k
 { "start": 18432, "length": 67090432, "depth": 0, "zero": true, "data": false}]
 
 convert -S 8k
-[{ "start": 0, "length": 9216, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 9216, "length": 8192, "depth": 0, "zero": true, "data": false},
-{ "start": 17408, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 18432, "length": 67090432, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 24576, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 24576, "length": 67084288, "depth": 0, "zero": true, "data": false}]
 
 convert -c -S 8k
 [{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true},

@@ -96,7 +96,8 @@ will enumerate information about backing files in a disk image chain. Refer
 below for further description.
 
 @item -c
-indicates that target image must be compressed (qcow format only)
+indicates that target image must be compressed (qcow format only). If this
+option is used, copy offloading will not be attempted.
 
 @item -h
 with or without a command shows help and lists the supported formats
@@ -115,7 +116,8 @@ in case both @var{-q} and @var{-p} options are used.
 indicates the consecutive number of bytes that must contain only zeros
 for qemu-img to create a sparse image during conversion. This value is rounded
 down to the nearest 512 bytes. You may use the common size suffixes like
-@code{k} for kilobytes.
+@code{k} for kilobytes. If this option is used, copy offloading will not be
+attempted.
 
 @item -t @var{cache}
 specifies the cache mode that should be used with the (destination) file. See

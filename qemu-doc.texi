@@ -2969,6 +2969,12 @@ replacement since it is not needed anymore.
 The @option{-enable-hax} option has been replaced by @option{-accel hax}.
 Both options have been introduced in QEMU version 2.9.0.
 
+@subsection -drive file=json:@{...@{'driver':'file'@}@} (since 3.0)
+
+The 'file' driver for drives is no longer appropriate for character or host
+devices and will only accept regular files (S_IFREG). The correct driver
+for these file types is 'host_cdrom' or 'host_device' as appropriate.
+
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)
