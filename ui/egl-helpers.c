@@ -15,9 +15,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
-#include <glob.h>
-#include <dirent.h>
-
+#include "qemu/drm.h"
 #include "qemu/error-report.h"
 #include "ui/console.h"
 #include "ui/egl-helpers.h"
@@ -147,57 +145,12 @@ int qemu_egl_rn_fd;
 struct gbm_device *qemu_egl_rn_gbm_dev;
 EGLContext qemu_egl_rn_ctx;
 
-static int qemu_egl_rendernode_open(const char *rendernode)
-{
-    DIR *dir;
-    struct dirent *e;
-    int r, fd;
-    char *p;
-
-    if (rendernode) {
-        return open(rendernode, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
-    }
-
-    dir = opendir("/dev/dri");
-    if (!dir) {
-        return -1;
-    }
-
-    fd = -1;
-    while ((e = readdir(dir))) {
-        if (e->d_type != DT_CHR) {
-            continue;
-        }
-
-        if (strncmp(e->d_name, "renderD", 7)) {
-            continue;
-        }
-
-        p = g_strdup_printf("/dev/dri/%s", e->d_name);
-
-        r = open(p, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
-        if (r < 0) {
-            g_free(p);
-            continue;
-        }
-        fd = r;
-        g_free(p);
-        break;
-    }
-
-    closedir(dir);
-    if (fd < 0) {
-        return -1;
-    }
-    return fd;
-}
-
 int egl_rendernode_init(const char *rendernode, DisplayGLMode mode)
 {
     qemu_egl_rn_fd = -1;
     int rc;
 
-    qemu_egl_rn_fd = qemu_egl_rendernode_open(rendernode);
+    qemu_egl_rn_fd = qemu_drm_rendernode_open(rendernode);
     if (qemu_egl_rn_fd == -1) {
         error_report("egl: no drm render node available");
         goto err;
