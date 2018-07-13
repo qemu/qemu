@@ -259,7 +259,7 @@ def qemu_io_image_args(config, dev=False):
     if dev:
         return [
             "--image-opts",
-            "driver=file,filename=%s" % config.device_path()]
+            "driver=host_device,filename=%s" % config.device_path()]
     else:
         return [
             "--object",
