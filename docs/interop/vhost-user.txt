@@ -666,12 +666,12 @@ Master message types
       Equivalent ioctl: VHOST_SET_VRING_ENDIAN
       Master payload: vring state description
 
-      Set the endianess of a VQ for legacy devices. Little-endian is indicated
+      Set the endianness of a VQ for legacy devices. Little-endian is indicated
       with state.num set to 0 and big-endian is indicated with state.num set
       to 1. Other values are invalid.
       This request should be sent only when VHOST_USER_PROTOCOL_F_CROSS_ENDIAN
       has been negotiated.
-      Backends that negotiated this feature should handle both endianesses
+      Backends that negotiated this feature should handle both endiannesses
       and expect this message once (per VQ) during device configuration
       (ie. before the master starts the VQ).
 
