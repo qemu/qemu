@@ -19,5 +19,5 @@ RUN git clone --single-branch \
     make && make install && \
     rm -rf /usr/src/binutils
 
-# Specify the cross prefix for this image (see tests/docker/common.rc)
-ENV QEMU_CONFIGURE_OPTS --cross-prefix=tricore-
+# This image isn't designed for building QEMU but building tests
+ENV QEMU_CONFIGURE_OPTS --disable-system --disable-user
