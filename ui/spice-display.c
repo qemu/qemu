@@ -1056,7 +1056,8 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
             /* note: spice server will close the fd, so hand over a dup */
             spice_qxl_gl_scanout(&ssd->qxl, dup(dmabuf->fd),
                                  dmabuf->width, dmabuf->height,
-                                 dmabuf->stride, dmabuf->fourcc, false);
+                                 dmabuf->stride, dmabuf->fourcc,
+                                 dmabuf->y0_top);
         }
         qemu_spice_gl_monitor_config(ssd, 0, 0, dmabuf->width, dmabuf->height);
         ssd->guest_dmabuf_refresh = false;
