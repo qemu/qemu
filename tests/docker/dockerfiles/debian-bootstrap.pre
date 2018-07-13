@@ -56,10 +56,13 @@ if [ -z $DEBOOTSTRAP_DIR ]; then
     if [ -z $DEBOOTSTRAP ]; then
         echo "No debootstrap installed, attempting to install from SCM"
         NEED_DEBOOTSTRAP=true
-    elif ! (echo "${MIN_DEBOOTSTRAP_VERSION}" ; "${DEBOOTSTRAP}" --version \
-            | cut -d ' ' -f 2) | sort -t . -n -k 1,1 -k 2,2 -k 3,3 -c &>/dev/null; then
-        echo "debootstrap too old, attempting to install from SCM"
-        NEED_DEBOOTSTRAP=true
+    else
+        INSTALLED_VERSION=$(${DEBOOTSTRAP} --version | sed 's/debootstrap \([0-9\.]*\)[^0-9\.]*.*/\1/')
+        if ! (echo "${MIN_DEBOOTSTRAP_VERSION}" ; echo "${INSTALLED_VERSION}") \
+                | sort -t . -n -k 1,1 -k 2,2 -k 3,3 -C ; then
+            echo "debootstrap too old, attempting to install from SCM"
+            NEED_DEBOOTSTRAP=true
+        fi
     fi
     if $NEED_DEBOOTSTRAP; then
         DEBOOTSTRAP_SOURCE=https://salsa.debian.org/installer-team/debootstrap.git
