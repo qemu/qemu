@@ -11764,7 +11764,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (ret) {
                 break;
             }
-            ret = get_errno(fcntl(arg1, cmd, &fl));
+            ret = get_errno(safe_fcntl(arg1, cmd, &fl));
             if (ret == 0) {
                 ret = copyto(arg3, &fl);
             }
