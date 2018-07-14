@@ -78,14 +78,7 @@ int have_guest_base;
 # endif
 #endif
 
-/* That said, reserving *too* much vm space via mmap can run into problems
-   with rlimits, oom due to page table creation, etc.  We will still try it,
-   if directed by the command-line option, but not by default.  */
-#if HOST_LONG_BITS == 64 && TARGET_VIRT_ADDR_SPACE_BITS <= 32
-unsigned long reserved_va = MAX_RESERVED_VA;
-#else
 unsigned long reserved_va;
-#endif
 
 static void usage(int exitcode);
 
@@ -671,6 +664,18 @@ int main(int argc, char **argv, char **envp)
 
     /* init tcg before creating CPUs and to get qemu_host_page_size */
     tcg_exec_init(0);
+
+    /* Reserving *too* much vm space via mmap can run into problems
+       with rlimits, oom due to page table creation, etc.  We will still try it,
+       if directed by the command-line option, but not by default.  */
+    if (HOST_LONG_BITS == 64 &&
+        TARGET_VIRT_ADDR_SPACE_BITS <= 32 &&
+        reserved_va == 0) {
+        /* reserved_va must be aligned with the host page size
+         * as it is used with mmap()
+         */
+        reserved_va = MAX_RESERVED_VA & qemu_host_page_mask;
+    }
 
     cpu = cpu_create(cpu_type);
     env = cpu->env_ptr;
