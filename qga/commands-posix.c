@@ -1652,6 +1652,7 @@ static bool linux_sys_state_supports_mode(SuspendMode mode, Error **errp)
     }
 
     ret = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
     if (ret <= 0) {
         return false;
     }
