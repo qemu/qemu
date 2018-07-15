@@ -1024,7 +1024,7 @@ static void sm501_i2c_write(void *opaque, hwaddr addr, uint64_t value,
                         if (res) {
                             SM501_DPRINTF("sm501 i2c : transfer failed"
                                           " i=%d, res=%d\n", i, res);
-                            s->i2c_status |= (res ? SM501_I2C_STATUS_ERROR : 0);
+                            s->i2c_status |= SM501_I2C_STATUS_ERROR;
                             return;
                         }
                     }
