@@ -27,20 +27,18 @@ static void a9mp_priv_initfn(Object *obj)
     memory_region_init(&s->container, obj, "a9mp-priv-container", 0x2000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->container);
 
-    object_initialize(&s->scu, sizeof(s->scu), TYPE_A9_SCU);
-    qdev_set_parent_bus(DEVICE(&s->scu), sysbus_get_default());
+    sysbus_init_child_obj(obj, "scu", &s->scu, sizeof(s->scu), TYPE_A9_SCU);
 
-    object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
-    qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
+    sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic), TYPE_ARM_GIC);
 
-    object_initialize(&s->gtimer, sizeof(s->gtimer), TYPE_A9_GTIMER);
-    qdev_set_parent_bus(DEVICE(&s->gtimer), sysbus_get_default());
+    sysbus_init_child_obj(obj, "gtimer", &s->gtimer, sizeof(s->gtimer),
+                          TYPE_A9_GTIMER);
 
-    object_initialize(&s->mptimer, sizeof(s->mptimer), TYPE_ARM_MPTIMER);
-    qdev_set_parent_bus(DEVICE(&s->mptimer), sysbus_get_default());
+    sysbus_init_child_obj(obj, "mptimer", &s->mptimer, sizeof(s->mptimer),
+                          TYPE_ARM_MPTIMER);
 
-    object_initialize(&s->wdt, sizeof(s->wdt), TYPE_ARM_MPTIMER);
-    qdev_set_parent_bus(DEVICE(&s->wdt), sysbus_get_default());
+    sysbus_init_child_obj(obj, "wdt", &s->wdt, sizeof(s->wdt),
+                          TYPE_ARM_MPTIMER);
 }
 
 static void a9mp_priv_realize(DeviceState *dev, Error **errp)
