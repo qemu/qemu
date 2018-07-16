@@ -392,6 +392,60 @@ void object_initialize(void *data, size_t size, const char *typename)
     object_initialize_with_type(data, size, type);
 }
 
+void object_initialize_child(Object *parentobj, const char *propname,
+                             void *childobj, size_t size, const char *type,
+                             Error **errp, ...)
+{
+    va_list vargs;
+
+    va_start(vargs, errp);
+    object_initialize_childv(parentobj, propname, childobj, size, type, errp,
+                             vargs);
+    va_end(vargs);
+}
+
+void object_initialize_childv(Object *parentobj, const char *propname,
+                              void *childobj, size_t size, const char *type,
+                              Error **errp, va_list vargs)
+{
+    Error *local_err = NULL;
+    Object *obj;
+
+    object_initialize(childobj, size, type);
+    obj = OBJECT(childobj);
+
+    object_set_propv(obj, &local_err, vargs);
+    if (local_err) {
+        goto out;
+    }
+
+    object_property_add_child(parentobj, propname, obj, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    if (object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
+        user_creatable_complete(obj, &local_err);
+        if (local_err) {
+            object_unparent(obj);
+            goto out;
+        }
+    }
+
+    /*
+     * Since object_property_add_child added a reference to the child object,
+     * we can drop the reference added by object_initialize(), so the child
+     * property will own the only reference to the object.
+     */
+    object_unref(obj);
+
+out:
+    if (local_err) {
+        error_propagate(errp, local_err);
+        object_unref(obj);
+    }
+}
+
 static inline bool object_property_is_child(ObjectProperty *prop)
 {
     return strstart(prop->type, "child<", NULL);
