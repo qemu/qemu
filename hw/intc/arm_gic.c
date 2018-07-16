@@ -751,7 +751,9 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
             if (irq >= s->num_irq) {
                 goto bad_reg;
             }
-            if (irq >= 29 && irq <= 31) {
+            if (irq < 29 && s->revision == REV_11MPCORE) {
+                res = 0;
+            } else if (irq < GIC_INTERNAL) {
                 res = cm;
             } else {
                 res = GIC_TARGET(irq);
@@ -1014,7 +1016,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
             if (irq >= s->num_irq) {
                 goto bad_reg;
             }
-            if (irq < 29) {
+            if (irq < 29 && s->revision == REV_11MPCORE) {
                 value = 0;
             } else if (irq < GIC_INTERNAL) {
                 value = ALL_CPU_MASK;
