@@ -32,6 +32,7 @@
 #include "hw/misc/auxbus.h"
 #include "hw/i2c/i2c.h"
 #include "monitor/monitor.h"
+#include "qapi/error.h"
 
 #ifndef DEBUG_AUX
 #define DEBUG_AUX 0
@@ -63,9 +64,14 @@ static void aux_bus_class_init(ObjectClass *klass, void *data)
 AUXBus *aux_init_bus(DeviceState *parent, const char *name)
 {
     AUXBus *bus;
+    Object *auxtoi2c;
 
     bus = AUX_BUS(qbus_create(TYPE_AUX_BUS, parent, name));
-    bus->bridge = AUXTOI2C(qdev_create(BUS(bus), TYPE_AUXTOI2C));
+    auxtoi2c = object_new_with_props(TYPE_AUXTOI2C, OBJECT(bus), "i2c",
+                                     &error_abort, NULL);
+    qdev_set_parent_bus(DEVICE(auxtoi2c), BUS(bus));
+
+    bus->bridge = AUXTOI2C(auxtoi2c);
 
     /* Memory related. */
     bus->aux_io = g_malloc(sizeof(*bus->aux_io));
@@ -74,9 +80,11 @@ AUXBus *aux_init_bus(DeviceState *parent, const char *name)
     return bus;
 }
 
-static void aux_bus_map_device(AUXBus *bus, AUXSlave *dev, hwaddr addr)
+void aux_map_slave(AUXSlave *aux_dev, hwaddr addr)
 {
-    memory_region_add_subregion(bus->aux_io, addr, dev->mmio);
+    DeviceState *dev = DEVICE(aux_dev);
+    AUXBus *bus = AUX_BUS(qdev_get_parent_bus(dev));
+    memory_region_add_subregion(bus->aux_io, addr, aux_dev->mmio);
 }
 
 static bool aux_bus_is_bridge(AUXBus *bus, DeviceState *dev)
@@ -260,15 +268,13 @@ static void aux_slave_dev_print(Monitor *mon, DeviceState *dev, int indent)
                    memory_region_size(s->mmio));
 }
 
-DeviceState *aux_create_slave(AUXBus *bus, const char *type, uint32_t addr)
+DeviceState *aux_create_slave(AUXBus *bus, const char *type)
 {
     DeviceState *dev;
 
     dev = DEVICE(object_new(type));
     assert(dev);
     qdev_set_parent_bus(dev, &bus->qbus);
-    qdev_init_nofail(dev);
-    aux_bus_map_device(AUX_BUS(qdev_get_parent_bus(dev)), AUX_SLAVE(dev), addr);
     return dev;
 }
 

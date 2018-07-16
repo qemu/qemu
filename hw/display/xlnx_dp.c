@@ -1234,9 +1234,12 @@ static void xlnx_dp_init(Object *obj)
     /*
      * Initialize DPCD and EDID..
      */
-    s->dpcd = DPCD(aux_create_slave(s->aux_bus, "dpcd", 0x00000));
+    s->dpcd = DPCD(aux_create_slave(s->aux_bus, "dpcd"));
+    object_property_add_child(OBJECT(s), "dpcd", OBJECT(s->dpcd), NULL);
+
     s->edid = I2CDDC(qdev_create(BUS(aux_get_i2c_bus(s->aux_bus)), "i2c-ddc"));
     i2c_set_slave_address(I2C_SLAVE(s->edid), 0x50);
+    object_property_add_child(OBJECT(s), "edid", OBJECT(s->edid), NULL);
 
     fifo8_create(&s->rx_fifo, 16);
     fifo8_create(&s->tx_fifo, 16);
@@ -1247,6 +1250,9 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     XlnxDPState *s = XLNX_DP(dev);
     DisplaySurface *surface;
     struct audsettings as;
+
+    qdev_init_nofail(DEVICE(s->dpcd));
+    aux_map_slave(AUX_SLAVE(s->dpcd), 0x0000);
 
     s->console = graphic_console_init(dev, 0, &xlnx_dp_gfx_ops, s);
     surface = qemu_console_surface(s->console);
