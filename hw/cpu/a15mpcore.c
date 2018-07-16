@@ -35,15 +35,13 @@ static void a15mp_priv_initfn(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     A15MPPrivState *s = A15MPCORE_PRIV(obj);
-    DeviceState *gicdev;
 
     memory_region_init(&s->container, obj, "a15mp-priv-container", 0x8000);
     sysbus_init_mmio(sbd, &s->container);
 
-    object_initialize(&s->gic, sizeof(s->gic), gic_class_name());
-    gicdev = DEVICE(&s->gic);
-    qdev_set_parent_bus(gicdev, sysbus_get_default());
-    qdev_prop_set_uint32(gicdev, "revision", 2);
+    sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic),
+                          gic_class_name());
+    qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
 }
 
 static void a15mp_priv_realize(DeviceState *dev, Error **errp)
