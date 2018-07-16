@@ -129,7 +129,7 @@ void qmp_cpu_add(int64_t id, Error **errp)
     }
 }
 
-void qmp_exit_preconfig(Error **errp)
+void qmp_x_exit_preconfig(Error **errp)
 {
     if (!runstate_check(RUN_STATE_PRECONFIG)) {
         error_setg(errp, "The command is permitted only in '%s' state",

@@ -1,0 +1,234 @@
+@node Deprecated features
+@appendix Deprecated features
+
+In general features are intended to be supported indefinitely once
+introduced into QEMU. In the event that a feature needs to be removed,
+it will be listed in this appendix. The feature will remain functional
+for 2 releases prior to actual removal. Deprecated features may also
+generate warnings on the console when QEMU starts up, or if activated
+via a monitor command, however, this is not a mandatory requirement.
+
+Prior to the 2.10.0 release there was no official policy on how
+long features would be deprecated prior to their removal, nor
+any documented list of which features were deprecated. Thus
+any features deprecated prior to 2.10.0 will be treated as if
+they were first deprecated in the 2.10.0 release.
+
+What follows is a list of all features currently marked as
+deprecated.
+
+@section Build options
+
+@subsection GTK 2.x
+
+Previously QEMU has supported building against both GTK 2.x
+and 3.x series APIs. Support for the GTK 2.x builds will be
+discontinued, so maintainers should switch to using GTK 3.x,
+which is the default.
+
+@subsection SDL 1.2
+
+Previously QEMU has supported building against both SDL 1.2
+and 2.0 series APIs. Support for the SDL 1.2 builds will be
+discontinued, so maintainers should switch to using SDL 2.0,
+which is the default.
+
+@section System emulator command line arguments
+
+@subsection -no-kvm (since 1.3.0)
+
+The ``-no-kvm'' argument is now a synonym for setting
+``-machine accel=tcg''.
+
+@subsection -vnc tls (since 2.5.0)
+
+The ``-vnc tls'' argument is now a synonym for setting
+``-object tls-creds-anon,id=tls0'' combined with
+``-vnc tls-creds=tls0'
+
+@subsection -vnc x509 (since 2.5.0)
+
+The ``-vnc x509=/path/to/certs'' argument is now a
+synonym for setting
+``-object tls-creds-x509,dir=/path/to/certs,id=tls0,verify-peer=no''
+combined with ``-vnc tls-creds=tls0'
+
+@subsection -vnc x509verify (since 2.5.0)
+
+The ``-vnc x509verify=/path/to/certs'' argument is now a
+synonym for setting
+``-object tls-creds-x509,dir=/path/to/certs,id=tls0,verify-peer=yes''
+combined with ``-vnc tls-creds=tls0'
+
+@subsection -tftp (since 2.6.0)
+
+The ``-tftp /some/dir'' argument is replaced by either
+``-netdev user,id=x,tftp=/some/dir '' (for pluggable NICs, accompanied
+with ``-device ...,netdev=x''), or ``-nic user,tftp=/some/dir''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
+
+@subsection -bootp (since 2.6.0)
+
+The ``-bootp /some/file'' argument is replaced by either
+``-netdev user,id=x,bootp=/some/file '' (for pluggable NICs, accompanied
+with ``-device ...,netdev=x''), or ``-nic user,bootp=/some/file''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
+
+@subsection -redir (since 2.6.0)
+
+The ``-redir [tcp|udp]:hostport:[guestaddr]:guestport'' argument is
+replaced by either
+``-netdev user,id=x,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport''
+(for pluggable NICs, accompanied with ``-device ...,netdev=x'') or
+``-nic user,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
+
+@subsection -smb (since 2.6.0)
+
+The ``-smb /some/dir'' argument is replaced by either
+``-netdev user,id=x,smb=/some/dir '' (for pluggable NICs, accompanied
+with ``-device ...,netdev=x''), or ``-nic user,smb=/some/dir''
+(for embedded NICs). The new syntax allows different settings to be
+provided per NIC.
+
+@subsection -drive cyls=...,heads=...,secs=...,trans=... (since 2.10.0)
+
+The drive geometry arguments are replaced by the the geometry arguments
+that can be specified with the ``-device'' parameter.
+
+@subsection -drive serial=... (since 2.10.0)
+
+The drive serial argument is replaced by the the serial argument
+that can be specified with the ``-device'' parameter.
+
+@subsection -drive addr=... (since 2.10.0)
+
+The drive addr argument is replaced by the the addr argument
+that can be specified with the ``-device'' parameter.
+
+@subsection -usbdevice (since 2.10.0)
+
+The ``-usbdevice DEV'' argument is now a synonym for setting
+the ``-device usb-DEV'' argument instead. The deprecated syntax
+would automatically enable USB support on the machine type.
+If using the new syntax, USB support must be explicitly
+enabled via the ``-machine usb=on'' argument.
+
+@subsection -nodefconfig (since 2.11.0)
+
+The ``-nodefconfig`` argument is a synonym for ``-no-user-config``.
+
+@subsection -balloon (since 2.12.0)
+
+The @option{--balloon virtio} argument has been superseded by
+@option{--device virtio-balloon}.
+
+@subsection -machine s390-squash-mcss=on|off (since 2.12.0)
+
+The ``s390-squash-mcss=on`` property has been obsoleted by allowing the
+cssid to be chosen freely. Instead of squashing subchannels into the
+default channel subsystem image for guests that do not support multiple
+channel subsystems, all devices can be put into the default channel
+subsystem image.
+
+@subsection -fsdev handle (since 2.12.0)
+
+The ``handle'' fsdev backend does not support symlinks and causes the 9p
+filesystem in the guest to fail a fair amount of tests from the PJD POSIX
+filesystem test suite. Also it requires the CAP_DAC_READ_SEARCH capability,
+which is not the recommended way to run QEMU. This backend should not be
+used and it will be removed with no replacement.
+
+@subsection -no-frame (since 2.12.0)
+
+The @code{--no-frame} argument works with SDL 1.2 only. The other user
+interfaces never implemented this in the first place. So this will be
+removed together with SDL 1.2 support.
+
+@subsection -rtc-td-hack (since 2.12.0)
+
+The @code{-rtc-td-hack} option has been replaced by
+@code{-rtc driftfix=slew}.
+
+@subsection -localtime (since 2.12.0)
+
+The @code{-localtime} option has been replaced by @code{-rtc base=localtime}.
+
+@subsection -startdate (since 2.12.0)
+
+The @code{-startdate} option has been replaced by @code{-rtc base=@var{date}}.
+
+@subsection -virtioconsole (since 3.0.0)
+
+Option @option{-virtioconsole} has been replaced by
+@option{-device virtconsole}.
+
+@subsection -clock (since 3.0.0)
+
+The @code{-clock} option is ignored since QEMU version 1.7.0. There is no
+replacement since it is not needed anymore.
+
+@subsection -enable-hax (since 3.0.0)
+
+The @option{-enable-hax} option has been replaced by @option{-accel hax}.
+Both options have been introduced in QEMU version 2.9.0.
+
+@subsection -drive file=json:@{...@{'driver':'file'@}@} (since 3.0)
+
+The 'file' driver for drives is no longer appropriate for character or host
+devices and will only accept regular files (S_IFREG). The correct driver
+for these file types is 'host_cdrom' or 'host_device' as appropriate.
+
+@section QEMU Machine Protocol (QMP) commands
+
+@subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)
+
+"autoload" parameter is now ignored. All bitmaps are automatically loaded
+from qcow2 images.
+
+@subsection query-cpus (since 2.12.0)
+
+The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
+
+@subsection query-cpus-fast "arch" output member (since 3.0.0)
+
+The ``arch'' output member of the ``query-cpus-fast'' command is
+replaced by the ``target'' output member.
+
+@section System emulator devices
+
+@subsection ivshmem (since 2.6.0)
+
+The ``ivshmem'' device type is replaced by either the ``ivshmem-plain''
+or ``ivshmem-doorbell`` device types.
+
+@subsection Page size support < 4k for embedded PowerPC CPUs (since 2.12.0)
+
+qemu-system-ppcemb will be removed. qemu-system-ppc (or qemu-system-ppc64)
+should be used instead. That means that embedded 4xx PowerPC CPUs will not
+support page sizes < 4096 any longer.
+
+@section System emulator machines
+
+@subsection pc-0.10 and pc-0.11 (since 3.0)
+
+These machine types are very old and likely can not be used for live migration
+from old QEMU versions anymore. A newer machine type should be used instead.
+
+@section Device options
+
+@subsection Block device options
+
+@subsubsection "backing": "" (since 2.12.0)
+
+In order to prevent QEMU from automatically opening an image's backing
+chain, use ``"backing": null'' instead.
+
+@subsection vio-spapr-device device options
+
+@subsubsection "irq": "" (since 3.0.0)
+
+The ``irq'' property is obsoleted.

@@ -4224,7 +4224,7 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         qdict_del(qdict, "id");
     } /* else will fail qmp_dispatch() */
 
-    if (trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND)) {
+    if (req && trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND)) {
         QString *req_json = qobject_to_json(req);
         trace_handle_qmp_command(mon, qstring_get_str(req_json));
         qobject_unref(req_json);
