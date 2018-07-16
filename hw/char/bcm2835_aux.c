@@ -39,8 +39,8 @@
 #define AUX_MU_BAUD_REG 0x68
 
 /* bits in IER/IIR registers */
-#define TX_INT  0x1
-#define RX_INT  0x2
+#define RX_INT  0x1
+#define TX_INT  0x2
 
 static void bcm2835_aux_update(BCM2835AuxState *s)
 {
