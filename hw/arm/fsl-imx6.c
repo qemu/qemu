@@ -38,73 +38,57 @@ static void fsl_imx6_init(Object *obj)
     int i;
 
     for (i = 0; i < MIN(smp_cpus, FSL_IMX6_NUM_CPUS); i++) {
-        object_initialize(&s->cpu[i], sizeof(s->cpu[i]),
-                          "cortex-a9-" TYPE_ARM_CPU);
         snprintf(name, NAME_SIZE, "cpu%d", i);
-        object_property_add_child(obj, name, OBJECT(&s->cpu[i]), NULL);
+        object_initialize_child(obj, name, &s->cpu[i], sizeof(s->cpu[i]),
+                                "cortex-a9-" TYPE_ARM_CPU, &error_abort, NULL);
     }
 
-    object_initialize(&s->a9mpcore, sizeof(s->a9mpcore), TYPE_A9MPCORE_PRIV);
-    qdev_set_parent_bus(DEVICE(&s->a9mpcore), sysbus_get_default());
-    object_property_add_child(obj, "a9mpcore", OBJECT(&s->a9mpcore), NULL);
+    sysbus_init_child_obj(obj, "a9mpcore", &s->a9mpcore, sizeof(s->a9mpcore),
+                          TYPE_A9MPCORE_PRIV);
 
-    object_initialize(&s->ccm, sizeof(s->ccm), TYPE_IMX6_CCM);
-    qdev_set_parent_bus(DEVICE(&s->ccm), sysbus_get_default());
-    object_property_add_child(obj, "ccm", OBJECT(&s->ccm), NULL);
+    sysbus_init_child_obj(obj, "ccm", &s->ccm, sizeof(s->ccm), TYPE_IMX6_CCM);
 
-    object_initialize(&s->src, sizeof(s->src), TYPE_IMX6_SRC);
-    qdev_set_parent_bus(DEVICE(&s->src), sysbus_get_default());
-    object_property_add_child(obj, "src", OBJECT(&s->src), NULL);
+    sysbus_init_child_obj(obj, "src", &s->src, sizeof(s->src), TYPE_IMX6_SRC);
 
     for (i = 0; i < FSL_IMX6_NUM_UARTS; i++) {
-        object_initialize(&s->uart[i], sizeof(s->uart[i]), TYPE_IMX_SERIAL);
-        qdev_set_parent_bus(DEVICE(&s->uart[i]), sysbus_get_default());
         snprintf(name, NAME_SIZE, "uart%d", i + 1);
-        object_property_add_child(obj, name, OBJECT(&s->uart[i]), NULL);
+        sysbus_init_child_obj(obj, name, &s->uart[i], sizeof(s->uart[i]),
+                              TYPE_IMX_SERIAL);
     }
 
-    object_initialize(&s->gpt, sizeof(s->gpt), TYPE_IMX6_GPT);
-    qdev_set_parent_bus(DEVICE(&s->gpt), sysbus_get_default());
-    object_property_add_child(obj, "gpt", OBJECT(&s->gpt), NULL);
+    sysbus_init_child_obj(obj, "gpt", &s->gpt, sizeof(s->gpt), TYPE_IMX6_GPT);
 
     for (i = 0; i < FSL_IMX6_NUM_EPITS; i++) {
-        object_initialize(&s->epit[i], sizeof(s->epit[i]), TYPE_IMX_EPIT);
-        qdev_set_parent_bus(DEVICE(&s->epit[i]), sysbus_get_default());
         snprintf(name, NAME_SIZE, "epit%d", i + 1);
-        object_property_add_child(obj, name, OBJECT(&s->epit[i]), NULL);
+        sysbus_init_child_obj(obj, name, &s->epit[i], sizeof(s->epit[i]),
+                              TYPE_IMX_EPIT);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_I2CS; i++) {
-        object_initialize(&s->i2c[i], sizeof(s->i2c[i]), TYPE_IMX_I2C);
-        qdev_set_parent_bus(DEVICE(&s->i2c[i]), sysbus_get_default());
         snprintf(name, NAME_SIZE, "i2c%d", i + 1);
-        object_property_add_child(obj, name, OBJECT(&s->i2c[i]), NULL);
+        sysbus_init_child_obj(obj, name, &s->i2c[i], sizeof(s->i2c[i]),
+                              TYPE_IMX_I2C);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_GPIOS; i++) {
-        object_initialize(&s->gpio[i], sizeof(s->gpio[i]), TYPE_IMX_GPIO);
-        qdev_set_parent_bus(DEVICE(&s->gpio[i]), sysbus_get_default());
         snprintf(name, NAME_SIZE, "gpio%d", i + 1);
-        object_property_add_child(obj, name, OBJECT(&s->gpio[i]), NULL);
+        sysbus_init_child_obj(obj, name, &s->gpio[i], sizeof(s->gpio[i]),
+                              TYPE_IMX_GPIO);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_ESDHCS; i++) {
-        object_initialize(&s->esdhc[i], sizeof(s->esdhc[i]), TYPE_IMX_USDHC);
-        qdev_set_parent_bus(DEVICE(&s->esdhc[i]), sysbus_get_default());
         snprintf(name, NAME_SIZE, "sdhc%d", i + 1);
-        object_property_add_child(obj, name, OBJECT(&s->esdhc[i]), NULL);
+        sysbus_init_child_obj(obj, name, &s->esdhc[i], sizeof(s->esdhc[i]),
+                              TYPE_IMX_USDHC);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_ECSPIS; i++) {
-        object_initialize(&s->spi[i], sizeof(s->spi[i]), TYPE_IMX_SPI);
-        qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
         snprintf(name, NAME_SIZE, "spi%d", i + 1);
-        object_property_add_child(obj, name, OBJECT(&s->spi[i]), NULL);
+        sysbus_init_child_obj(obj, name, &s->spi[i], sizeof(s->spi[i]),
+                              TYPE_IMX_SPI);
     }
 
-    object_initialize(&s->eth, sizeof(s->eth), TYPE_IMX_ENET);
-    qdev_set_parent_bus(DEVICE(&s->eth), sysbus_get_default());
-    object_property_add_child(obj, "eth", OBJECT(&s->eth), NULL);
+    sysbus_init_child_obj(obj, "eth", &s->eth, sizeof(s->eth), TYPE_IMX_ENET);
 }
 
 static void fsl_imx6_realize(DeviceState *dev, Error **errp)
