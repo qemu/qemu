@@ -2194,6 +2194,10 @@ M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
 F: docs/devel/build-system.txt
 
+Incompatible changes
+R: libvir-list@redhat.com
+F: qemu-deprecated.texi
+
 Build System
 ------------
 GIT submodules
