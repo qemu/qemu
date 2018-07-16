@@ -68,19 +68,18 @@ static void m2sxxx_soc_initfn(Object *obj)
     MSF2State *s = MSF2_SOC(obj);
     int i;
 
-    object_initialize(&s->armv7m, sizeof(s->armv7m), TYPE_ARMV7M);
-    qdev_set_parent_bus(DEVICE(&s->armv7m), sysbus_get_default());
+    sysbus_init_child_obj(obj, "armv7m", &s->armv7m, sizeof(s->armv7m),
+                          TYPE_ARMV7M);
 
-    object_initialize(&s->sysreg, sizeof(s->sysreg), TYPE_MSF2_SYSREG);
-    qdev_set_parent_bus(DEVICE(&s->sysreg), sysbus_get_default());
+    sysbus_init_child_obj(obj, "sysreg", &s->sysreg, sizeof(s->sysreg),
+                          TYPE_MSF2_SYSREG);
 
-    object_initialize(&s->timer, sizeof(s->timer), TYPE_MSS_TIMER);
-    qdev_set_parent_bus(DEVICE(&s->timer), sysbus_get_default());
+    sysbus_init_child_obj(obj, "timer", &s->timer, sizeof(s->timer),
+                          TYPE_MSS_TIMER);
 
     for (i = 0; i < MSF2_NUM_SPIS; i++) {
-        object_initialize(&s->spi[i], sizeof(s->spi[i]),
+        sysbus_init_child_obj(obj, "spi[*]", &s->spi[i], sizeof(s->spi[i]),
                           TYPE_MSS_SPI);
-        qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
     }
 }
 
