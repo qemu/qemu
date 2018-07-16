@@ -471,7 +471,7 @@ STEXI
 @item -balloon virtio[,addr=@var{addr}]
 @findex -balloon
 Enable virtio balloon device, optionally with PCI address @var{addr}. This
-option is deprecated, use @option{--device virtio-balloon} instead.
+option is deprecated, use @option{-device virtio-balloon} instead.
 ETEXI
 
 DEF("device", HAS_ARG, QEMU_OPTION_device,
@@ -2005,7 +2005,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "-netdev hubport,id=str,hubid=n[,netdev=nd]\n"
     "                configure a hub port on the hub with ID 'n'\n", QEMU_ARCH_ALL)
 DEF("nic", HAS_ARG, QEMU_OPTION_nic,
-    "--nic [tap|bridge|"
+    "-nic [tap|bridge|"
 #ifdef CONFIG_SLIRP
     "user|"
 #endif
@@ -2024,7 +2024,7 @@ DEF("nic", HAS_ARG, QEMU_OPTION_nic,
     "socket][,option][,...][mac=macaddr]\n"
     "                initialize an on-board / default host NIC (using MAC address\n"
     "                macaddr) and connect it to the given host network backend\n"
-    "--nic none      use it alone to have zero network devices (the default is to\n"
+    "-nic none       use it alone to have zero network devices (the default is to\n"
     "                provided a 'user' network connection)\n",
     QEMU_ARCH_ALL)
 DEF("net", HAS_ARG, QEMU_OPTION_net,
@@ -3338,7 +3338,7 @@ mlocking qemu and guest memory can be enabled via @option{mlock=on}
 ETEXI
 
 DEF("overcommit", HAS_ARG, QEMU_OPTION_overcommit,
-    "--overcommit [mem-lock=on|off][cpu-pm=on|off]\n"
+    "-overcommit [mem-lock=on|off][cpu-pm=on|off]\n"
     "                run qemu with overcommit hints\n"
     "                mem-lock=on|off controls memory lock support (default: off)\n"
     "                cpu-pm=on|off controls cpu power management (default: off)\n",
