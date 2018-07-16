@@ -166,64 +166,59 @@ static void xlnx_zynqmp_init(Object *obj)
     int num_apus = MIN(smp_cpus, XLNX_ZYNQMP_NUM_APU_CPUS);
 
     for (i = 0; i < num_apus; i++) {
-        object_initialize(&s->apu_cpu[i], sizeof(s->apu_cpu[i]),
-                          "cortex-a53-" TYPE_ARM_CPU);
-        object_property_add_child(obj, "apu-cpu[*]", OBJECT(&s->apu_cpu[i]),
-                                  &error_abort);
+        object_initialize_child(obj, "apu-cpu[*]", &s->apu_cpu[i],
+                                sizeof(s->apu_cpu[i]),
+                                "cortex-a53-" TYPE_ARM_CPU, &error_abort, NULL);
     }
 
-    object_initialize(&s->gic, sizeof(s->gic), gic_class_name());
-    qdev_set_parent_bus(DEVICE(&s->gic), sysbus_get_default());
+    sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic),
+                          gic_class_name());
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GEMS; i++) {
-        object_initialize(&s->gem[i], sizeof(s->gem[i]), TYPE_CADENCE_GEM);
-        qdev_set_parent_bus(DEVICE(&s->gem[i]), sysbus_get_default());
+        sysbus_init_child_obj(obj, "gem[*]", &s->gem[i], sizeof(s->gem[i]),
+                              TYPE_CADENCE_GEM);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_UARTS; i++) {
-        object_initialize(&s->uart[i], sizeof(s->uart[i]), TYPE_CADENCE_UART);
-        qdev_set_parent_bus(DEVICE(&s->uart[i]), sysbus_get_default());
+        sysbus_init_child_obj(obj, "uart[*]", &s->uart[i], sizeof(s->uart[i]),
+                              TYPE_CADENCE_UART);
     }
 
-    object_initialize(&s->sata, sizeof(s->sata), TYPE_SYSBUS_AHCI);
-    qdev_set_parent_bus(DEVICE(&s->sata), sysbus_get_default());
+    sysbus_init_child_obj(obj, "sata", &s->sata, sizeof(s->sata),
+                          TYPE_SYSBUS_AHCI);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SDHCI; i++) {
-        object_initialize(&s->sdhci[i], sizeof(s->sdhci[i]),
-                          TYPE_SYSBUS_SDHCI);
-        qdev_set_parent_bus(DEVICE(&s->sdhci[i]),
-                            sysbus_get_default());
+        sysbus_init_child_obj(obj, "sdhci[*]", &s->sdhci[i],
+                              sizeof(s->sdhci[i]), TYPE_SYSBUS_SDHCI);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
-        object_initialize(&s->spi[i], sizeof(s->spi[i]),
-                          TYPE_XILINX_SPIPS);
-        qdev_set_parent_bus(DEVICE(&s->spi[i]), sysbus_get_default());
+        sysbus_init_child_obj(obj, "spi[*]", &s->spi[i], sizeof(s->spi[i]),
+                              TYPE_XILINX_SPIPS);
     }
 
-    object_initialize(&s->qspi, sizeof(s->qspi), TYPE_XLNX_ZYNQMP_QSPIPS);
-    qdev_set_parent_bus(DEVICE(&s->qspi), sysbus_get_default());
+    sysbus_init_child_obj(obj, "qspi", &s->qspi, sizeof(s->qspi),
+                          TYPE_XLNX_ZYNQMP_QSPIPS);
 
-    object_initialize(&s->dp, sizeof(s->dp), TYPE_XLNX_DP);
-    qdev_set_parent_bus(DEVICE(&s->dp), sysbus_get_default());
+    sysbus_init_child_obj(obj, "xxxdp", &s->dp, sizeof(s->dp), TYPE_XLNX_DP);
 
-    object_initialize(&s->dpdma, sizeof(s->dpdma), TYPE_XLNX_DPDMA);
-    qdev_set_parent_bus(DEVICE(&s->dpdma), sysbus_get_default());
+    sysbus_init_child_obj(obj, "dp-dma", &s->dpdma, sizeof(s->dpdma),
+                          TYPE_XLNX_DPDMA);
 
-    object_initialize(&s->ipi, sizeof(s->ipi), TYPE_XLNX_ZYNQMP_IPI);
-    qdev_set_parent_bus(DEVICE(&s->ipi), sysbus_get_default());
+    sysbus_init_child_obj(obj, "ipi", &s->ipi, sizeof(s->ipi),
+                          TYPE_XLNX_ZYNQMP_IPI);
 
-    object_initialize(&s->rtc, sizeof(s->rtc), TYPE_XLNX_ZYNQMP_RTC);
-    qdev_set_parent_bus(DEVICE(&s->rtc), sysbus_get_default());
+    sysbus_init_child_obj(obj, "rtc", &s->rtc, sizeof(s->rtc),
+                          TYPE_XLNX_ZYNQMP_RTC);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GDMA_CH; i++) {
-        object_initialize(&s->gdma[i], sizeof(s->gdma[i]), TYPE_XLNX_ZDMA);
-        qdev_set_parent_bus(DEVICE(&s->gdma[i]), sysbus_get_default());
+        sysbus_init_child_obj(obj, "gdma[*]", &s->gdma[i], sizeof(s->gdma[i]),
+                              TYPE_XLNX_ZDMA);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_ADMA_CH; i++) {
-        object_initialize(&s->adma[i], sizeof(s->adma[i]), TYPE_XLNX_ZDMA);
-        qdev_set_parent_bus(DEVICE(&s->adma[i]), sysbus_get_default());
+        sysbus_init_child_obj(obj, "adma[*]", &s->adma[i], sizeof(s->adma[i]),
+                              TYPE_XLNX_ZDMA);
     }
 }
 
