@@ -1,6 +1,6 @@
 # Makefile for VM tests
 
-.PHONY: vm-build-all
+.PHONY: vm-build-all vm-clean-all
 
 IMAGES := ubuntu.i386 freebsd netbsd openbsd centos
 IMAGE_FILES := $(patsubst %, tests/vm/%.img, $(IMAGES))
@@ -17,6 +17,9 @@ vm-test:
 	@echo "  vm-build-centos                 - Build QEMU in CentOS VM, with Docker"
 
 vm-build-all: $(addprefix vm-build-, $(IMAGES))
+
+vm-clean-all:
+	rm -f $(IMAGE_FILES)
 
 tests/vm/%.img: $(SRC_PATH)/tests/vm/% \
 		$(SRC_PATH)/tests/vm/basevm.py \
