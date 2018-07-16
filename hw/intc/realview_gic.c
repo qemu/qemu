@@ -54,16 +54,13 @@ static void realview_gic_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     RealViewGICState *s = REALVIEW_GIC(obj);
-    DeviceState *gicdev;
 
     memory_region_init(&s->container, OBJECT(s),
                        "realview-gic-container", 0x2000);
     sysbus_init_mmio(sbd, &s->container);
 
-    object_initialize(&s->gic, sizeof(s->gic), TYPE_ARM_GIC);
-    gicdev = DEVICE(&s->gic);
-    qdev_set_parent_bus(gicdev, sysbus_get_default());
-    qdev_prop_set_uint32(gicdev, "num-cpu", 1);
+    sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic), TYPE_ARM_GIC);
+    qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", 1);
 }
 
 static void realview_gic_class_init(ObjectClass *oc, void *data)

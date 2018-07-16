@@ -101,14 +101,14 @@ static void mpcore_rirq_init(Object *obj)
     SysBusDevice *privbusdev;
     int i;
 
-    object_initialize(&s->priv, sizeof(s->priv), TYPE_ARM11MPCORE_PRIV);
-    qdev_set_parent_bus(DEVICE(&s->priv), sysbus_get_default());
+    sysbus_init_child_obj(obj, "a11priv", &s->priv, sizeof(s->priv),
+                          TYPE_ARM11MPCORE_PRIV);
     privbusdev = SYS_BUS_DEVICE(&s->priv);
     sysbus_init_mmio(sbd, sysbus_mmio_get_region(privbusdev, 0));
 
     for (i = 0; i < 4; i++) {
-        object_initialize(&s->gic[i], sizeof(s->gic[i]), TYPE_REALVIEW_GIC);
-        qdev_set_parent_bus(DEVICE(&s->gic[i]), sysbus_get_default());
+        sysbus_init_child_obj(obj, "gic[*]", &s->gic[i], sizeof(s->gic[i]),
+                              TYPE_REALVIEW_GIC);
     }
 }
 
