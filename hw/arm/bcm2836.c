@@ -185,6 +185,8 @@ static void bcm283x_class_init(ObjectClass *oc, void *data)
     bc->info = data;
     dc->realize = bcm2836_realize;
     dc->props = bcm2836_props;
+    /* Reason: Must be wired up in code (see raspi_init() function) */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo bcm283x_type_info = {
