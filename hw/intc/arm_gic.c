@@ -543,7 +543,21 @@ static bool gic_eoi_split(GICState *s, int cpu, MemTxAttrs attrs)
 static void gic_deactivate_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
 {
     int cm = 1 << cpu;
-    int group = gic_has_groups(s) && GIC_TEST_GROUP(irq, cm);
+    int group;
+
+    if (irq >= s->num_irq) {
+        /*
+         * This handles two cases:
+         * 1. If software writes the ID of a spurious interrupt [ie 1023]
+         * to the GICC_DIR, the GIC ignores that write.
+         * 2. If software writes the number of a non-existent interrupt
+         * this must be a subcase of "value written is not an active interrupt"
+         * and so this is UNPREDICTABLE. We choose to ignore it.
+         */
+        return;
+    }
+
+    group = gic_has_groups(s) && GIC_TEST_GROUP(irq, cm);
 
     if (!gic_eoi_split(s, cpu, attrs)) {
         /* This is UNPREDICTABLE; we choose to ignore it */
