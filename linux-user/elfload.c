@@ -1875,7 +1875,13 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_PHDR, (abi_ulong)(info->load_addr + exec->e_phoff));
     NEW_AUX_ENT(AT_PHENT, (abi_ulong)(sizeof (struct elf_phdr)));
     NEW_AUX_ENT(AT_PHNUM, (abi_ulong)(exec->e_phnum));
-    NEW_AUX_ENT(AT_PAGESZ, (abi_ulong)(MAX(TARGET_PAGE_SIZE, getpagesize())));
+    if ((info->alignment & ~qemu_host_page_mask) != 0) {
+        /* Target doesn't support host page size alignment */
+        NEW_AUX_ENT(AT_PAGESZ, (abi_ulong)(TARGET_PAGE_SIZE));
+    } else {
+        NEW_AUX_ENT(AT_PAGESZ, (abi_ulong)(MAX(TARGET_PAGE_SIZE,
+                                               qemu_host_page_size)));
+    }
     NEW_AUX_ENT(AT_BASE, (abi_ulong)(interp_info ? interp_info->load_addr : 0));
     NEW_AUX_ENT(AT_FLAGS, (abi_ulong)0);
     NEW_AUX_ENT(AT_ENTRY, info->entry);
@@ -2202,6 +2208,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     /* Find the maximum size of the image and allocate an appropriate
        amount of memory to handle that.  */
     loaddr = -1, hiaddr = 0;
+    info->alignment = 0;
     for (i = 0; i < ehdr->e_phnum; ++i) {
         if (phdr[i].p_type == PT_LOAD) {
             abi_ulong a = phdr[i].p_vaddr - phdr[i].p_offset;
@@ -2213,6 +2220,7 @@ static void load_elf_image(const char *image_name, int image_fd,
                 hiaddr = a;
             }
             ++info->nsegs;
+            info->alignment |= phdr[i].p_align;
         }
     }
 

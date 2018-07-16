@@ -51,6 +51,7 @@ struct image_info {
         abi_ulong       file_string;
         uint32_t        elf_flags;
 	int		personality;
+        abi_ulong       alignment;
 
         /* The fields below are used in FDPIC mode.  */
         abi_ulong       loadmap_addr;
