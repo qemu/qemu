@@ -2747,6 +2747,9 @@ uint32_t helper_bcdadd(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
             result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgna, ps);
             zero = bcd_sub_mag(&result, a, b, &invalid, &overflow);
             cr = (sgna > 0) ? CRF_GT : CRF_LT;
+        } else if (bcd_cmp_mag(a, b) == 0) {
+            result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(0, ps);
+            zero = bcd_sub_mag(&result, b, a, &invalid, &overflow);
         } else {
             result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgnb, ps);
             zero = bcd_sub_mag(&result, b, a, &invalid, &overflow);
