@@ -269,11 +269,12 @@ static int sam460ex_load_device_tree(hwaddr addr,
         exit(1);
     }
     fdt = load_device_tree(filename, &fdt_size);
-    g_free(filename);
     if (!fdt) {
         error_report("Couldn't load dtb file `%s'", filename);
+        g_free(filename);
         exit(1);
     }
+    g_free(filename);
 
     /* Manipulate device tree in memory. */
 

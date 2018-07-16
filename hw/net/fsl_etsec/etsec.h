@@ -163,6 +163,8 @@ DeviceState *etsec_create(hwaddr        base,
                           qemu_irq      rx_irq,
                           qemu_irq      err_irq);
 
+void etsec_update_irq(eTSEC *etsec);
+
 void etsec_walk_tx_ring(eTSEC *etsec, int ring_nbr);
 void etsec_walk_rx_ring(eTSEC *etsec, int ring_nbr);
 ssize_t etsec_rx_ring_write(eTSEC *etsec, const uint8_t *buf, size_t size);

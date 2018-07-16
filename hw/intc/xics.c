@@ -291,7 +291,7 @@ static const VMStateDescription vmstate_icp_server = {
     },
 };
 
-static void icp_reset(void *dev)
+static void icp_reset(DeviceState *dev)
 {
     ICPState *icp = ICP(dev);
 
@@ -301,6 +301,13 @@ static void icp_reset(void *dev)
 
     /* Make all outputs are deasserted */
     qemu_set_irq(icp->output, 0);
+}
+
+static void icp_reset_handler(void *dev)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    dc->reset(dev);
 }
 
 static void icp_realize(DeviceState *dev, Error **errp)
@@ -345,7 +352,7 @@ static void icp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_register_reset(icp_reset, dev);
+    qemu_register_reset(icp_reset_handler, dev);
     vmstate_register(NULL, icp->cs->cpu_index, &vmstate_icp_server, icp);
 }
 
@@ -354,7 +361,7 @@ static void icp_unrealize(DeviceState *dev, Error **errp)
     ICPState *icp = ICP(dev);
 
     vmstate_unregister(NULL, &vmstate_icp_server, icp);
-    qemu_unregister_reset(icp_reset, dev);
+    qemu_unregister_reset(icp_reset_handler, dev);
 }
 
 static void icp_class_init(ObjectClass *klass, void *data)
@@ -363,6 +370,7 @@ static void icp_class_init(ObjectClass *klass, void *data)
 
     dc->realize = icp_realize;
     dc->unrealize = icp_unrealize;
+    dc->reset = icp_reset;
 }
 
 static const TypeInfo icp_info = {
