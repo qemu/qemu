@@ -112,6 +112,31 @@ def _copy_binary_with_libs(src, dest_dir):
             so_path = os.path.dirname(l)
             _copy_with_mkdir(l , dest_dir, so_path)
 
+
+def _check_binfmt_misc(executable):
+    """Check binfmt_misc has entry for executable in the right place.
+
+    The details of setting up binfmt_misc are outside the scope of
+    this script but we should at least fail early with a useful
+    message if it won't work."""
+
+    binary = os.path.basename(executable)
+    binfmt_entry = "/proc/sys/fs/binfmt_misc/%s" % (binary)
+
+    if not os.path.exists(binfmt_entry):
+        print ("No binfmt_misc entry for %s" % (binary))
+        return False
+
+    with open(binfmt_entry) as x: entry = x.read()
+
+    qpath = "/usr/bin/%s" % (binary)
+    if not re.search("interpreter %s\n" % (qpath), entry):
+        print ("binfmt_misc for %s does not point to %s" % (binary, qpath))
+        return False
+
+    return True
+
+
 def _read_qemu_dockerfile(img_name):
     # special case for Debian linux-user images
     if img_name.startswith("debian") and img_name.endswith("user"):
@@ -314,6 +339,11 @@ class BuildCommand(SubCommand):
         else:
             # Create a docker context directory for the build
             docker_dir = tempfile.mkdtemp(prefix="docker_build")
+
+            # Validate binfmt_misc will work
+            if args.include_executable:
+                if not _check_binfmt_misc(args.include_executable):
+                    return 1
 
             # Is there a .pre file to run in the build context?
             docker_pre = os.path.splitext(args.dockerfile)[0]+".pre"
