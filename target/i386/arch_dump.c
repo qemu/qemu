@@ -258,6 +258,12 @@ struct QEMUCPUState {
     QEMUCPUSegment cs, ds, es, fs, gs, ss;
     QEMUCPUSegment ldt, tr, gdt, idt;
     uint64_t cr[5];
+    /*
+     * Fields below are optional and are being added at the end without
+     * changing the version. External tools may identify their presence
+     * by checking 'size' field.
+     */
+    uint64_t kernel_gs_base;
 };
 
 typedef struct QEMUCPUState QEMUCPUState;
@@ -315,6 +321,10 @@ static void qemu_get_cpustate(QEMUCPUState *s, CPUX86State *env)
     s->cr[2] = env->cr[2];
     s->cr[3] = env->cr[3];
     s->cr[4] = env->cr[4];
+
+#ifdef TARGET_X86_64
+    s->kernel_gs_base = env->kernelgsbase;
+#endif
 }
 
 static inline int cpu_write_qemu_note(WriteCoreDumpFunction f,

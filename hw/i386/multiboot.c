@@ -161,6 +161,7 @@ int load_multiboot(FWCfgState *fw_cfg,
     uint8_t bootinfo[MBI_SIZE];
     uint8_t *mb_bootinfo_data;
     uint32_t cmdline_len;
+    GList *mods = NULL;
 
     /* Ok, let's see if it is a multiboot image.
        The header is 12x32bit long, so the latest entry may be 8192 - 48. */
@@ -291,16 +292,16 @@ int load_multiboot(FWCfgState *fw_cfg,
     cmdline_len = strlen(kernel_filename) + 1;
     cmdline_len += strlen(kernel_cmdline) + 1;
     if (initrd_filename) {
-        const char *r = get_opt_value(initrd_filename, NULL);
-        cmdline_len += strlen(r) + 1;
-        mbs.mb_mods_avail = 1;
-        while (1) {
+        const char *r = initrd_filename;
+        cmdline_len += strlen(initrd_filename) + 1;
+        while (*r) {
+            char *value;
+            r = get_opt_value(r, &value);
             mbs.mb_mods_avail++;
-            r = get_opt_value(r, NULL);
-            if (!*r) {
-                break;
+            mods = g_list_append(mods, value);
+            if (*r) {
+                r++;
             }
-            r++;
         }
     }
 
@@ -315,20 +316,16 @@ int load_multiboot(FWCfgState *fw_cfg,
     mbs.offset_cmdlines   = mbs.offset_mbinfo + mbs.mb_mods_avail * MB_MOD_SIZE;
     mbs.offset_bootloader = mbs.offset_cmdlines + cmdline_len;
 
-    if (initrd_filename) {
-        const char *next_initrd;
-        char not_last;
-        char *one_file = NULL;
-
+    if (mods) {
+        GList *tmpl = mods;
         mbs.offset_mods = mbs.mb_buf_size;
 
-        do {
+        while (tmpl) {
             char *next_space;
             int mb_mod_length;
             uint32_t offs = mbs.mb_buf_size;
+            char *one_file = tmpl->data;
 
-            next_initrd = get_opt_value(initrd_filename, &one_file);
-            not_last = *next_initrd;
             /* if a space comes after the module filename, treat everything
                after that as parameters */
             hwaddr c = mb_add_cmdline(&mbs, one_file);
@@ -353,10 +350,10 @@ int load_multiboot(FWCfgState *fw_cfg,
             mb_debug("mod_start: %p\nmod_end:   %p\n  cmdline: "TARGET_FMT_plx,
                      (char *)mbs.mb_buf + offs,
                      (char *)mbs.mb_buf + offs + mb_mod_length, c);
-            initrd_filename = next_initrd+1;
             g_free(one_file);
-            one_file = NULL;
-        } while (not_last);
+            tmpl = tmpl->next;
+        }
+        g_list_free(mods);
     }
 
     /* Commandline support */

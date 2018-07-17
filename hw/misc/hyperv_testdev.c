@@ -57,7 +57,7 @@ static void free_sint_route_index(HypervTestDev *dev, int i)
     dev->sint_route[i] = NULL;
 }
 
-static int find_sint_route_index(HypervTestDev *dev, uint32_t vcpu_id,
+static int find_sint_route_index(HypervTestDev *dev, uint32_t vp_index,
                                  uint32_t sint)
 {
     HvSintRoute *sint_route;
@@ -65,7 +65,7 @@ static int find_sint_route_index(HypervTestDev *dev, uint32_t vcpu_id,
 
     for (i = 0; i < ARRAY_SIZE(dev->sint_route); i++) {
         sint_route = dev->sint_route[i];
-        if (sint_route && sint_route->vcpu_id == vcpu_id &&
+        if (sint_route && sint_route->vp_index == vp_index &&
             sint_route->sint == sint) {
             return i;
         }
@@ -74,7 +74,7 @@ static int find_sint_route_index(HypervTestDev *dev, uint32_t vcpu_id,
 }
 
 static void hv_synic_test_dev_control(HypervTestDev *dev, uint32_t ctl,
-                                      uint32_t vcpu_id, uint32_t sint)
+                                      uint32_t vp_index, uint32_t sint)
 {
     int i;
     HvSintRoute *sint_route;
@@ -83,19 +83,19 @@ static void hv_synic_test_dev_control(HypervTestDev *dev, uint32_t ctl,
     case HV_TEST_DEV_SINT_ROUTE_CREATE:
         i = alloc_sint_route_index(dev);
         assert(i >= 0);
-        sint_route = kvm_hv_sint_route_create(vcpu_id, sint, NULL);
+        sint_route = kvm_hv_sint_route_create(vp_index, sint, NULL);
         assert(sint_route);
         dev->sint_route[i] = sint_route;
         break;
     case HV_TEST_DEV_SINT_ROUTE_DESTROY:
-        i = find_sint_route_index(dev, vcpu_id, sint);
+        i = find_sint_route_index(dev, vp_index, sint);
         assert(i >= 0);
         sint_route = dev->sint_route[i];
         kvm_hv_sint_route_destroy(sint_route);
         free_sint_route_index(dev, i);
         break;
     case HV_TEST_DEV_SINT_ROUTE_SET_SINT:
-        i = find_sint_route_index(dev, vcpu_id, sint);
+        i = find_sint_route_index(dev, vp_index, sint);
         assert(i >= 0);
         sint_route = dev->sint_route[i];
         kvm_hv_sint_route_set_sint(sint_route);
@@ -117,8 +117,8 @@ static void hv_test_dev_control(void *opaque, hwaddr addr, uint64_t data,
     case HV_TEST_DEV_SINT_ROUTE_DESTROY:
     case HV_TEST_DEV_SINT_ROUTE_SET_SINT: {
         uint8_t sint = data & 0xFF;
-        uint8_t vcpu_id = (data >> 8ULL) & 0xFF;
-        hv_synic_test_dev_control(dev, ctl, vcpu_id, sint);
+        uint8_t vp_index = (data >> 8ULL) & 0xFF;
+        hv_synic_test_dev_control(dev, ctl, vp_index, sint);
         break;
     }
     default:

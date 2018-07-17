@@ -85,6 +85,7 @@ static bool has_msr_hv_hypercall;
 static bool has_msr_hv_crash;
 static bool has_msr_hv_reset;
 static bool has_msr_hv_vpindex;
+static bool hv_vpindex_settable;
 static bool has_msr_hv_runtime;
 static bool has_msr_hv_synic;
 static bool has_msr_hv_stimer;
@@ -160,6 +161,11 @@ bool kvm_enable_x2apic(void)
              kvm_x2apic_api_set_flags(KVM_X2APIC_API_USE_32BIT_IDS |
                                       KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK),
              has_x2apic_api);
+}
+
+bool kvm_hv_vpindex_settable(void)
+{
+    return hv_vpindex_settable;
 }
 
 static int kvm_get_tsc(CPUState *cs)
@@ -745,6 +751,37 @@ static int hyperv_handle_properties(CPUState *cs)
     return 0;
 }
 
+static int hyperv_init_vcpu(X86CPU *cpu)
+{
+    if (cpu->hyperv_vpindex && !hv_vpindex_settable) {
+        /*
+         * the kernel doesn't support setting vp_index; assert that its value
+         * is in sync
+         */
+        int ret;
+        struct {
+            struct kvm_msrs info;
+            struct kvm_msr_entry entries[1];
+        } msr_data = {
+            .info.nmsrs = 1,
+            .entries[0].index = HV_X64_MSR_VP_INDEX,
+        };
+
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
+        if (ret < 0) {
+            return ret;
+        }
+        assert(ret == 1);
+
+        if (msr_data.entries[0].data != hyperv_vp_index(cpu)) {
+            error_report("kernel's vp_index != QEMU's vp_index");
+            return -ENXIO;
+        }
+    }
+
+    return 0;
+}
+
 static Error *invtsc_mig_blocker;
 
 #define KVM_MAX_CPUID_ENTRIES  100
@@ -1160,6 +1197,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
         has_msr_tsc_aux = false;
     }
 
+    r = hyperv_init_vcpu(cpu);
+    if (r) {
+        goto fail;
+    }
+
     return 0;
 
  fail:
@@ -1350,6 +1392,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 #ifdef KVM_CAP_PIT_STATE2
     has_pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
 #endif
+
+    hv_vpindex_settable = kvm_check_extension(s, KVM_CAP_HYPERV_VP_INDEX);
 
     ret = kvm_get_supported_msrs(s);
     if (ret < 0) {
@@ -1899,6 +1943,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         }
         if (has_msr_hv_runtime) {
             kvm_msr_entry_add(cpu, HV_X64_MSR_VP_RUNTIME, env->msr_hv_runtime);
+        }
+        if (cpu->hyperv_vpindex && hv_vpindex_settable) {
+            kvm_msr_entry_add(cpu, HV_X64_MSR_VP_INDEX, hyperv_vp_index(cpu));
         }
         if (cpu->hyperv_synic) {
             int j;

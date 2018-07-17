@@ -537,6 +537,7 @@ static gboolean _test_server_free(TestServer *server)
     g_free(server->mig_path);
 
     g_free(server->chr_name);
+    g_assert(server->bus);
     qpci_free_pc(server->bus);
 
     g_free(server);
@@ -684,6 +685,7 @@ static void test_migrate(void)
     g_free(cmd);
 
     init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
+    init_virtio_dev(dest, 1u << VIRTIO_NET_F_MAC);
     wait_for_fds(s);
     size = get_log_size(s);
     g_assert_cmpint(size, ==, (2 * 1024 * 1024) / (VHOST_LOG_PAGE * 8));
@@ -739,6 +741,7 @@ static void test_migrate(void)
     read_guest_mem_server(dest);
 
     uninit_virtio_dev(s);
+    uninit_virtio_dev(dest);
 
     g_source_destroy(source);
     g_source_unref(source);

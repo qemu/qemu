@@ -82,11 +82,9 @@ const char *get_opt_value(const char *p, char **value)
         if (*offset != '\0' && *(offset + 1) == ',') {
             length++;
         }
-        if (value) {
-            *value = g_renew(char, *value, capacity + length + 1);
-            strncpy(*value + capacity, p, length);
-            (*value)[capacity + length] = '\0';
-        }
+        *value = g_renew(char, *value, capacity + length + 1);
+        strncpy(*value + capacity, p, length);
+        (*value)[capacity + length] = '\0';
         capacity += length;
         if (*offset == '\0' ||
             *(offset + 1) != ',') {

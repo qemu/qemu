@@ -867,6 +867,10 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             device_reset(dev);
         }
         dev->pending_deleted_event = false;
+
+        if (hotplug_ctrl) {
+            hotplug_handler_post_plug(hotplug_ctrl, dev);
+        }
     } else if (!value && dev->realized) {
         Error **local_errp = NULL;
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
