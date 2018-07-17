@@ -997,6 +997,10 @@ static void qmp_chardev_open_socket(Chardev *chr,
 
     s->addr = addr = socket_address_flatten(sock->addr);
 
+    if (sock->has_reconnect && addr->type == SOCKET_ADDRESS_TYPE_FD) {
+        error_setg(errp, "'reconnect' option is incompatible with 'fd'");
+        goto error;
+    }
     qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
     /* TODO SOCKET_ADDRESS_FD where fd has AF_UNIX */
     if (addr->type == SOCKET_ADDRESS_TYPE_UNIX) {
