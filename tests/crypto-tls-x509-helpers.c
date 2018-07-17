@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 
 #include "crypto-tls-x509-helpers.h"
+#include "crypto/init.h"
 #include "qemu/sockets.h"
 
 #ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
@@ -95,7 +96,7 @@ static gnutls_x509_privkey_t test_tls_load_key(void)
 
 void test_tls_init(const char *keyfile)
 {
-    gnutls_global_init();
+    qcrypto_init(&error_abort);
 
     if (asn1_array2tree(pkix_asn1_tab, &pkix_asn1, NULL) != ASN1_SUCCESS) {
         abort();
