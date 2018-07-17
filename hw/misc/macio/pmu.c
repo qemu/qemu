@@ -770,9 +770,8 @@ static void pmu_init(Object *obj)
                              qdev_prop_allow_set_link_before_realize,
                              0, NULL);
 
-    object_initialize(&s->mos6522_pmu, sizeof(s->mos6522_pmu),
-                      TYPE_MOS6522_PMU);
-    qdev_set_parent_bus(DEVICE(&s->mos6522_pmu), sysbus_get_default());
+    sysbus_init_child_obj(obj, "mos6522-pmu", &s->mos6522_pmu,
+                          sizeof(s->mos6522_pmu), TYPE_MOS6522_PMU);
 
     memory_region_init_io(&s->mem, obj, &mos6522_pmu_ops, s, "via-pmu",
                           0x2000);

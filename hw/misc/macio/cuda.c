@@ -554,9 +554,8 @@ static void cuda_init(Object *obj)
     CUDAState *s = CUDA(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    object_initialize(&s->mos6522_cuda, sizeof(s->mos6522_cuda),
-                      TYPE_MOS6522_CUDA);
-    qdev_set_parent_bus(DEVICE(&s->mos6522_cuda), sysbus_get_default());
+    sysbus_init_child_obj(obj, "mos6522-cuda", &s->mos6522_cuda,
+                          sizeof(s->mos6522_cuda), TYPE_MOS6522_CUDA);
 
     memory_region_init_io(&s->mem, obj, &mos6522_cuda_ops, s, "cuda", 0x2000);
     sysbus_init_mmio(sbd, &s->mem);
