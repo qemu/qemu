@@ -1117,7 +1117,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->tn3270 = is_tn3270;
     sock->has_wait = true;
     sock->wait = is_waitconnect;
-    sock->has_reconnect = true;
+    sock->has_reconnect = qemu_opt_find(opts, "reconnect");
     sock->reconnect = reconnect;
     sock->tls_creds = g_strdup(tls_creds);
 
