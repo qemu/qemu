@@ -45,11 +45,10 @@ static void riscv_harts_realize(DeviceState *dev, Error **errp)
     s->harts = g_new0(RISCVCPU, s->num_harts);
 
     for (n = 0; n < s->num_harts; n++) {
-
-        object_initialize(&s->harts[n], sizeof(RISCVCPU), s->cpu_type);
+        object_initialize_child(OBJECT(s), "harts[*]", &s->harts[n],
+                                sizeof(RISCVCPU), s->cpu_type,
+                                &error_abort, NULL);
         s->harts[n].env.mhartid = n;
-        object_property_add_child(OBJECT(s), "harts[*]", OBJECT(&s->harts[n]),
-                                  &error_abort);
         qemu_register_reset(riscv_harts_cpu_reset, &s->harts[n]);
         object_property_set_bool(OBJECT(&s->harts[n]), true,
                                  "realized", &err);
