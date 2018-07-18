@@ -352,6 +352,7 @@ void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx)
 /*
  * qvirtio_get_dev_type:
  * Returns: the preferred virtio bus/device type for the current architecture.
+ * TODO: delete this
  */
 const char *qvirtio_get_dev_type(void)
 {
