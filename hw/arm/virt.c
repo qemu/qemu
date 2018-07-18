@@ -151,8 +151,11 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_PCIE_PIO] =           { 0x3eff0000, 0x00010000 },
     [VIRT_PCIE_ECAM] =          { 0x3f000000, 0x01000000 },
     [VIRT_MEM] =                { 0x40000000, RAMLIMIT_BYTES },
-    /* Additional 64 MB redist region (can contain up to 512 redistributors) */
+    // zhuowei: t8015 peripherals
+    [VIRT_AMCC] =               { 0x200000000, 0x00300000 }, // zhuowei: hack
     [VIRT_S3C_UART] =           { 0x22e600000, 0x00001000 }, // zhuowei: hack
+    [VIRT_AIC] =                { 0x232100000, 0x00009000 }, // zhuowei: hack
+    /* Additional 64 MB redist region (can contain up to 512 redistributors) */
     [VIRT_GIC_REDIST2] =        { 0x4000000000ULL, 0x4000000 },
     [VIRT_PCIE_ECAM_HIGH] =     { 0x4010000000ULL, 0x10000000 },
     /* Second PCIe window, 512GB wide at the 512GB boundary */
@@ -1541,6 +1544,17 @@ static void machvirt_init(MachineState *machine)
     rom_set_fw(vms->fw_cfg);
 
     create_platform_bus(vms, pic);
+
+    // zhuowei: hack: amcc
+    MemoryRegion *mcc = g_new(MemoryRegion, 1);
+    memory_region_allocate_system_memory(mcc, NULL, "mach-virt.mcc",
+                                         vms->memmap[VIRT_AMCC].size);
+    memory_region_add_subregion(sysmem, vms->memmap[VIRT_AMCC].base, mcc);
+
+    MemoryRegion *aic = g_new(MemoryRegion, 1);
+    memory_region_allocate_system_memory(aic, NULL, "mach-virt.aic",
+                                         vms->memmap[VIRT_AIC].size);
+    memory_region_add_subregion(sysmem, vms->memmap[VIRT_AIC].base, aic);
 
     vms->bootinfo.ram_size = machine->ram_size;
     vms->bootinfo.kernel_filename = machine->kernel_filename;
