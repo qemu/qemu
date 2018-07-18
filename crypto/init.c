@@ -44,8 +44,7 @@
  */
 
 #if (defined(CONFIG_GCRYPT) &&                  \
-     (!defined(GCRYPT_VERSION_NUMBER) ||        \
-      (GCRYPT_VERSION_NUMBER < 0x010600)))
+     (GCRYPT_VERSION_NUMBER < 0x010600))
 #define QCRYPTO_INIT_GCRYPT_THREADS
 #else
 #undef QCRYPTO_INIT_GCRYPT_THREADS
