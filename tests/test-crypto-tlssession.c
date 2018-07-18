@@ -151,7 +151,7 @@ static void test_crypto_tls_session_psk(void)
                 clientShake = true;
             }
         }
-    } while (!clientShake && !serverShake);
+    } while (!clientShake || !serverShake);
 
 
     /* Finally make sure the server & client validation is successful. */
@@ -341,7 +341,7 @@ static void test_crypto_tls_session_x509(const void *opaque)
                 clientShake = true;
             }
         }
-    } while (!clientShake && !serverShake);
+    } while (!clientShake || !serverShake);
 
 
     /* Finally make sure the server validation does what
