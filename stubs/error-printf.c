@@ -4,7 +4,8 @@
 
 void error_vprintf(const char *fmt, va_list ap)
 {
-    if (g_test_initialized() && !g_test_subprocess()) {
+    if (g_test_initialized() && !g_test_subprocess() &&
+        getenv("QTEST_SILENT_ERRORS")) {
         char *msg = g_strdup_vprintf(fmt, ap);
         g_test_message("%s", msg);
         g_free(msg);
