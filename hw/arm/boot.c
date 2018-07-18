@@ -25,7 +25,7 @@
 #include "qemu/option.h"
 #include "exec/address-spaces.h"
 
-#include <mach-o/loader.h>
+#include "macho_loader.h"
 
 /* Kernel boot protocol is specified in the kernel docs
  * Documentation/arm/Booting and Documentation/arm64/booting.txt
