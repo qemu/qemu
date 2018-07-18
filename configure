@@ -475,6 +475,7 @@ vxhs=""
 libxml2=""
 docker="no"
 debug_mutex="no"
+libpmem=""
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
 cross_cc_aarch64="aarch64-linux-gnu-gcc"
@@ -1435,6 +1436,10 @@ for opt do
   ;;
   --disable-debug-mutex) debug_mutex=no
   ;;
+  --enable-libpmem) libpmem=yes
+  ;;
+  --disable-libpmem) libpmem=no
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1710,6 +1715,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   vhost-user      vhost-user support
   capstone        capstone disassembler support
   debug-mutex     mutex debugging support
+  libpmem         libpmem support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -5546,6 +5552,24 @@ if has "docker"; then
 fi
 
 ##########################################
+# check for libpmem
+
+if test "$libpmem" != "no"; then
+	if $pkg_config --exists "libpmem"; then
+		libpmem="yes"
+		libpmem_libs=$($pkg_config --libs libpmem)
+		libpmem_cflags=$($pkg_config --cflags libpmem)
+		libs_softmmu="$libs_softmmu $libpmem_libs"
+		QEMU_CFLAGS="$QEMU_CFLAGS $libpmem_cflags"
+	else
+		if test "$libpmem" = "yes" ; then
+			feature_not_found "libpmem" "Install nvml or pmdk"
+		fi
+		libpmem="no"
+	fi
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -6010,6 +6034,7 @@ echo "replication support $replication"
 echo "VxHS block device $vxhs"
 echo "capstone          $capstone"
 echo "docker            $docker"
+echo "libpmem support   $libpmem"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -6761,6 +6786,10 @@ fi
 if test "$vxhs" = "yes" ; then
   echo "CONFIG_VXHS=y" >> $config_host_mak
   echo "VXHS_LIBS=$vxhs_libs" >> $config_host_mak
+fi
+
+if test "$libpmem" = "yes" ; then
+  echo "CONFIG_LIBPMEM=y" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then
