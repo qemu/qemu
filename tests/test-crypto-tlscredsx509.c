@@ -283,14 +283,8 @@ int main(int argc, char **argv)
                  true, true, GNUTLS_KP_TLS_WWW_SERVER, NULL,
                  0, 0);
 
-    /* Technically a CA cert with basic constraints
-     * key purpose == key signing + non-critical should
-     * be rejected. GNUTLS < 3.1 does not reject it and
-     * we don't anticipate them changing this behaviour
-     */
     TLS_TEST_REG(badca1, true, cacert4req.filename, servercert4req.filename,
-                (GNUTLS_VERSION_MAJOR == 3 && GNUTLS_VERSION_MINOR >= 1) ||
-                GNUTLS_VERSION_MAJOR > 3);
+                 true);
     TLS_TEST_REG(badca2, true,
                  cacert5req.filename, servercert5req.filename, true);
     TLS_TEST_REG(badca3, true,

@@ -22,8 +22,7 @@
 #include <gnutls/x509.h>
 
 #if !(defined WIN32) && \
-    defined(CONFIG_TASN1) && \
-    (LIBGNUTLS_VERSION_NUMBER >= 0x020600)
+    defined(CONFIG_TASN1)
 # define QCRYPTO_HAVE_TLS_TEST_SUPPORT
 #endif
 
