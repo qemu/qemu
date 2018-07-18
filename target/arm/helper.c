@@ -8177,6 +8177,13 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         env->cp15.far_el[new_el] = env->exception.vaddress;
         qemu_log_mask(CPU_LOG_INT, "...with FAR 0x%" PRIx64 "\n",
                       env->cp15.far_el[new_el]);
+        // zhuowei: hack to dump phys address
+        {
+            MemTxAttrs attrs = {};
+            hwaddr phys_addr = arm_cpu_get_phys_page_attrs_debug(cs, env->cp15.far_el[new_el], &attrs);
+            qemu_log_mask(CPU_LOG_INT, "...phys 0x%" PRIx64 "\n",
+                          phys_addr);
+        }
         /* fall through */
     case EXCP_BKPT:
     case EXCP_UDEF:
