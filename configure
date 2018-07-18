@@ -458,7 +458,6 @@ gtk_gl="no"
 tls_priority="NORMAL"
 gnutls=""
 nettle=""
-nettle_kdf="no"
 gcrypt=""
 gcrypt_hmac="no"
 vte=""
@@ -2730,7 +2729,7 @@ has_libgcrypt() {
 
 
 if test "$nettle" != "no"; then
-    if $pkg_config --exists "nettle"; then
+    if $pkg_config --exists "nettle >= 2.7.1"; then
         nettle_cflags=$($pkg_config --cflags nettle)
         nettle_libs=$($pkg_config --libs nettle)
         nettle_version=$($pkg_config --modversion nettle)
@@ -2739,23 +2738,12 @@ if test "$nettle" != "no"; then
         QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
         nettle="yes"
 
-        cat > $TMPC << EOF
-#include <stddef.h>
-#include <nettle/pbkdf2.h>
-int main(void) {
-     pbkdf2_hmac_sha256(8, NULL, 1000, 8, NULL, 8, NULL);
-     return 0;
-}
-EOF
         if test -z "$gcrypt"; then
            gcrypt="no"
         fi
-        if compile_prog "$nettle_cflags" "$nettle_libs" ; then
-            nettle_kdf=yes
-        fi
     else
         if test "$nettle" = "yes"; then
-            feature_not_found "nettle" "Install nettle devel"
+            feature_not_found "nettle" "Install nettle devel >= 2.7.1"
         else
             nettle="no"
         fi
@@ -5906,7 +5894,6 @@ echo "TLS priority      $tls_priority"
 echo "GNUTLS support    $gnutls"
 echo "libgcrypt         $gcrypt"
 echo "nettle            $nettle $(echo_version $nettle $nettle_version)"
-echo "nettle kdf        $nettle_kdf"
 echo "libtasn1          $tasn1"
 echo "curses support    $curses"
 echo "virgl support     $virglrenderer $(echo_version $virglrenderer $virgl_version)"
@@ -6351,9 +6338,6 @@ fi
 if test "$nettle" = "yes" ; then
   echo "CONFIG_NETTLE=y" >> $config_host_mak
   echo "CONFIG_NETTLE_VERSION_MAJOR=${nettle_version%%.*}" >> $config_host_mak
-  if test "$nettle_kdf" = "yes" ; then
-    echo "CONFIG_NETTLE_KDF=y" >> $config_host_mak
-  fi
 fi
 if test "$tasn1" = "yes" ; then
   echo "CONFIG_TASN1=y" >> $config_host_mak
