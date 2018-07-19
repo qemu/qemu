@@ -197,7 +197,7 @@ static void init_virtio_dev(QTestState *qts, TestServer *s, uint32_t features_ma
     uint32_t features;
     int i;
 
-    s->bus = qpci_init_pc(qts, NULL);
+    s->bus = qpci_new_pc(qts, NULL);
     g_assert_nonnull(s->bus);
 
     s->dev = qvirtio_pci_device_find(s->bus, VIRTIO_ID_NET);

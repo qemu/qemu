@@ -160,7 +160,7 @@ static void qpci_spapr_config_writel(QPCIBus *bus, int devfn, uint8_t offset,
 #define SPAPR_PCI_MMIO32_WIN_SIZE    0x80000000 /* 2 GiB */
 #define SPAPR_PCI_IO_WIN_SIZE        0x10000
 
-QPCIBus *qpci_init_spapr(QTestState *qts, QGuestAllocator *alloc)
+QPCIBus *qpci_new_spapr(QTestState *qts, QGuestAllocator *alloc)
 {
     QPCIBusSPAPR *ret = g_new0(QPCIBusSPAPR, 1);
 

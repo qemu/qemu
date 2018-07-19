@@ -35,7 +35,7 @@ static QPCIDevice *get_device(void)
 {
     QPCIDevice *dev;
 
-    pcibus = qpci_init_pc(global_qtest, NULL);
+    pcibus = qpci_new_pc(global_qtest, NULL);
     qpci_device_foreach(pcibus, 0x10ec, 0x8139, save_fn, &dev);
     g_assert(dev != NULL);
 

@@ -116,7 +116,7 @@ static void qpci_pc_config_writel(QPCIBus *bus, int devfn, uint8_t offset, uint3
     qtest_outl(bus->qts, 0xcfc, value);
 }
 
-QPCIBus *qpci_init_pc(QTestState *qts, QGuestAllocator *alloc)
+QPCIBus *qpci_new_pc(QTestState *qts, QGuestAllocator *alloc)
 {
     QPCIBusPC *ret = g_new0(QPCIBusPC, 1);
 

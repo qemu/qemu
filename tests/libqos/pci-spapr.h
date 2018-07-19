@@ -11,7 +11,7 @@
 #include "libqos/malloc.h"
 #include "libqos/pci.h"
 
-QPCIBus *qpci_init_spapr(QTestState *qts, QGuestAllocator *alloc);
+QPCIBus *qpci_new_spapr(QTestState *qts, QGuestAllocator *alloc);
 void     qpci_free_spapr(QPCIBus *bus);
 
 #endif
