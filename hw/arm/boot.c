@@ -998,6 +998,30 @@ static void macho_highest_lowest(struct mach_header_64* mh, uint64_t *lowaddr, u
     *lowaddr = low_addr_temp;
     *highaddr = high_addr_temp;
 }
+#define xnu_kPropNameLength 32
+struct xnu_DeviceTreeNodeProperty {
+    char name[xnu_kPropNameLength];
+    uint32_t length;
+    char value[];
+};
+
+static void macho_add_ramdisk_to_dtb(uint8_t* dtb_data, size_t dtb_size, uint64_t ramdisk_addr, uint64_t ramdisk_size) {
+    struct xnu_DeviceTreeNodeProperty* dtNode = NULL;
+    for (size_t i = 0; i < dtb_size; i++) {
+        if (strncmp((const char*)dtb_data + i, "MemoryMapReserved-0", xnu_kPropNameLength) == 0) {
+            dtNode = (struct xnu_DeviceTreeNodeProperty*)(dtb_data + i);
+            break;
+        }
+    }
+    if (!dtNode) {
+        fprintf(stderr, "Can't write device tree node for ramdisk!\n");
+        abort();
+    }
+    strncpy(dtNode->name, "RAMDisk", xnu_kPropNameLength);
+    uint64_t* valuePtr = (uint64_t*)&dtNode->value;
+    valuePtr[0] = ramdisk_addr;
+    valuePtr[1] = ramdisk_size;
+}
 
 #define VAtoPA(addr) (((addr) & 0x3fffffff) + mem_base + kernel_load_offset)
 
@@ -1043,6 +1067,24 @@ static uint64_t arm_load_macho(struct arm_boot_info *info, uint64_t *pentry, Add
     ret = true;
 
     uint64_t load_extra_offset = high_addr_temp;
+
+    uint64_t ramdisk_address = load_extra_offset;
+    gsize ramdisk_size = 0;
+
+    // load ramdisk if exists
+    if (info->initrd_filename) {
+        uint8_t* ramdisk_data = NULL;
+        if (g_file_get_contents(info->initrd_filename, (char**) &ramdisk_data, &ramdisk_size, NULL)) {
+            info->initrd_filename = NULL;
+            rom_add_blob_fixed_as("xnu_ramdisk", ramdisk_data, ramdisk_size, VAtoPA(ramdisk_address), as);
+            load_extra_offset = (load_extra_offset + ramdisk_size + 0xffffull) & ~0xffffull;
+            g_free(ramdisk_data);
+        } else {
+            fprintf(stderr, "ramdisk failed?!\n");
+            abort();
+        }
+    }
+
     uint64_t dtb_address = load_extra_offset;
     gsize dtb_size = 0;
     // load device tree
@@ -1050,6 +1092,9 @@ static uint64_t arm_load_macho(struct arm_boot_info *info, uint64_t *pentry, Add
         uint8_t* dtb_data = NULL;
         if (g_file_get_contents(info->dtb_filename, (char**) &dtb_data, &dtb_size, NULL)) {
             info->dtb_filename = NULL;
+            if (ramdisk_size != 0) {
+                macho_add_ramdisk_to_dtb(dtb_data, dtb_size, VAtoPA(ramdisk_address), ramdisk_size);
+            }
             rom_add_blob_fixed_as("xnu_dtb", dtb_data, dtb_size, VAtoPA(dtb_address), as);
             load_extra_offset = (load_extra_offset + dtb_size + 0xffffull) & ~0xffffull;
             g_free(dtb_data);
