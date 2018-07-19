@@ -149,7 +149,7 @@ static void xtensa_cpu_initfn(Object *obj)
 #ifndef CONFIG_USER_ONLY
     env->address_space_er = g_malloc(sizeof(*env->address_space_er));
     env->system_er = g_malloc(sizeof(*env->system_er));
-    memory_region_init_io(env->system_er, NULL, NULL, env, "er",
+    memory_region_init_io(env->system_er, obj, NULL, env, "er",
                           UINT64_C(0x100000000));
     address_space_init(env->address_space_er, env->system_er, "ER");
 #endif
