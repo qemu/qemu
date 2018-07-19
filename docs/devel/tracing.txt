@@ -18,7 +18,7 @@ for debugging, profiling, and observing execution.
 
 3. Run the virtual machine to produce a trace file:
 
-    qemu -trace events=/tmp/events ... # your normal QEMU invocation
+    qemu --trace events=/tmp/events ... # your normal QEMU invocation
 
 4. Pretty-print the binary trace file:
 
@@ -157,11 +157,11 @@ The state of events can also be queried and modified through monitor commands:
 * trace-event NAME on|off
   Enable/disable a given trace event or a group of events (using wildcards).
 
-The "-trace events=<file>" command line argument can be used to enable the
+The "--trace events=<file>" command line argument can be used to enable the
 events listed in <file> from the very beginning of the program. This file must
 contain one event name per line.
 
-If a line in the "-trace events=<file>" file begins with a '-', the trace event
+If a line in the "--trace events=<file>" file begins with a '-', the trace event
 will be disabled instead of enabled.  This is useful when a wildcard was used
 to enable an entire family of events but one noisy event needs to be disabled.
 
