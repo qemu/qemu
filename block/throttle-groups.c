@@ -564,6 +564,10 @@ void throttle_group_unregister_tgm(ThrottleGroupMember *tgm)
 
     qemu_mutex_lock(&tg->lock);
     for (i = 0; i < 2; i++) {
+        if (timer_pending(tgm->throttle_timers.timers[i])) {
+            tg->any_timer_armed[i] = false;
+            schedule_next_request(tgm, i);
+        }
         if (tg->tokens[i] == tgm) {
             token = throttle_group_next_tgm(tgm);
             /* Take care of the case where this is the last tgm in the group */
