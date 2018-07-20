@@ -450,27 +450,33 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
     qemu_mutex_unlock(&ssd->lock);
 }
 
-static void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
-{
-    if (ssd->cursor) {
-        assert(ssd->dcl.con);
-        dpy_cursor_define(ssd->dcl.con, ssd->cursor);
-    }
-    if (ssd->mouse_x != -1 && ssd->mouse_y != -1) {
-        assert(ssd->dcl.con);
-        dpy_mouse_set(ssd->dcl.con, ssd->mouse_x, ssd->mouse_y, 1);
-        ssd->mouse_x = -1;
-        ssd->mouse_y = -1;
-    }
-}
-
 void qemu_spice_cursor_refresh_bh(void *opaque)
 {
     SimpleSpiceDisplay *ssd = opaque;
 
     qemu_mutex_lock(&ssd->lock);
-    qemu_spice_cursor_refresh_unlocked(ssd);
-    qemu_mutex_unlock(&ssd->lock);
+    if (ssd->cursor) {
+        QEMUCursor *c = ssd->cursor;
+        assert(ssd->dcl.con);
+        cursor_get(c);
+        qemu_mutex_unlock(&ssd->lock);
+        dpy_cursor_define(ssd->dcl.con, c);
+        qemu_mutex_lock(&ssd->lock);
+        cursor_put(c);
+    }
+
+    if (ssd->mouse_x != -1 && ssd->mouse_y != -1) {
+        int x, y;
+        assert(ssd->dcl.con);
+        x = ssd->mouse_x;
+        y = ssd->mouse_y;
+        ssd->mouse_x = -1;
+        ssd->mouse_y = -1;
+        qemu_mutex_unlock(&ssd->lock);
+        dpy_mouse_set(ssd->dcl.con, x, y, 1);
+    } else {
+        qemu_mutex_unlock(&ssd->lock);
+    }
 }
 
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
