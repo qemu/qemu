@@ -976,8 +976,10 @@ static void qemu_spice_gl_cursor_position(DisplayChangeListener *dcl,
 {
     SimpleSpiceDisplay *ssd = container_of(dcl, SimpleSpiceDisplay, dcl);
 
+    qemu_mutex_lock(&ssd->lock);
     ssd->ptr_x = pos_x;
     ssd->ptr_y = pos_y;
+    qemu_mutex_unlock(&ssd->lock);
 }
 
 static void qemu_spice_gl_release_dmabuf(DisplayChangeListener *dcl,
@@ -1055,10 +1057,15 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
     }
 
     if (render_cursor) {
+        int x, y;
+        qemu_mutex_lock(&ssd->lock);
+        x = ssd->ptr_x;
+        y = ssd->ptr_y;
+        qemu_mutex_unlock(&ssd->lock);
         egl_texture_blit(ssd->gls, &ssd->blit_fb, &ssd->guest_fb,
                          !y_0_top);
         egl_texture_blend(ssd->gls, &ssd->blit_fb, &ssd->cursor_fb,
-                          !y_0_top, ssd->ptr_x, ssd->ptr_y);
+                          !y_0_top, x, y);
         glFlush();
     }
 
