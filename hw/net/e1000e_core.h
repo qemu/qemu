@@ -109,6 +109,8 @@ struct E1000Core {
     NICState *owner_nic;
     PCIDevice *owner;
     void (*owner_start_recv)(PCIDevice *d);
+
+    uint32_t msi_causes_pending;
 };
 
 void
