@@ -147,9 +147,12 @@ struct MTPData {
     uint32_t     trans;
     uint64_t     offset;
     uint64_t     length;
-    uint32_t     alloc;
+    uint64_t     alloc;
     uint8_t      *data;
     bool         first;
+    /* Used for >4G file sizes */
+    bool         pending;
+    uint64_t     cached_length;
     int          fd;
 };
 
@@ -1626,7 +1629,7 @@ static void usb_mtp_write_data(MTPState *s)
     MTPObject *parent =
         usb_mtp_object_lookup(s, s->dataset.parent_handle);
     char *path = NULL;
-    int rc = -1;
+    uint64_t rc;
     mode_t mask = 0644;
 
     assert(d != NULL);
@@ -1643,7 +1646,7 @@ static void usb_mtp_write_data(MTPState *s)
             d->fd = mkdir(path, mask);
             goto free;
         }
-        if (s->dataset.size < d->length) {
+        if ((s->dataset.size != 0xFFFFFFFF) && (s->dataset.size < d->length)) {
             usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
                                  0, 0, 0, 0);
             goto done;
@@ -1754,13 +1757,27 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
         usb_mtp_realloc(d, total_len);
         d->length += total_len;
         d->offset = 0;
+        d->cached_length = total_len;
         d->first = false;
+        d->pending = false;
+    }
+
+    if (d->pending) {
+        usb_mtp_realloc(d, d->cached_length);
+        d->length += d->cached_length;
+        d->pending = false;
     }
 
     if (d->length - d->offset > data_len) {
         dlen = data_len;
     } else {
         dlen = d->length - d->offset;
+        /* Check for cached data for large files */
+        if ((s->dataset.size == 0xFFFFFFFF) && (dlen < p->iov.size)) {
+            usb_mtp_realloc(d, p->iov.size - dlen);
+            d->length += p->iov.size - dlen;
+            dlen = p->iov.size;
+        }
     }
 
     switch (d->code) {
@@ -1780,11 +1797,17 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
     case CMD_SEND_OBJECT:
         usb_packet_copy(p, d->data + d->offset, dlen);
         d->offset += dlen;
-        if (d->offset == d->length) {
+        if ((p->iov.size % 64) || !p->iov.size) {
+            assert((s->dataset.size == 0xFFFFFFFF) ||
+                   (s->dataset.size == d->length));
+
             usb_mtp_write_data(s);
             usb_mtp_data_free(s->data_out);
             s->data_out = NULL;
             return;
+        }
+        if (d->offset == d->length) {
+            d->pending = true;
         }
         break;
     default:
