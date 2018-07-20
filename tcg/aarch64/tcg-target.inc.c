@@ -2219,7 +2219,6 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     switch (opc) {
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:
-    case INDEX_op_mul_vec:
     case INDEX_op_and_vec:
     case INDEX_op_or_vec:
     case INDEX_op_xor_vec:
@@ -2232,6 +2231,8 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_shri_vec:
     case INDEX_op_sari_vec:
         return 1;
+    case INDEX_op_mul_vec:
+        return vece < MO_64;
 
     default:
         return 0;
