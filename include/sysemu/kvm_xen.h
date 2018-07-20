@@ -12,6 +12,7 @@
 #ifndef QEMU_SYSEMU_KVM_XEN_H
 #define QEMU_SYSEMU_KVM_XEN_H
 
+int kvm_xen_soft_reset(void);
 uint32_t kvm_xen_get_caps(void);
 
 #define kvm_xen_has_cap(cap) (!!(kvm_xen_get_caps() &           \
