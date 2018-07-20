@@ -82,6 +82,7 @@ enum mtp_code {
     FMT_ASSOCIATION                = 0x3001,
 
     /* event codes */
+    EVT_CANCEL_TRANSACTION         = 0x4001,
     EVT_OBJ_ADDED                  = 0x4002,
     EVT_OBJ_REMOVED                = 0x4003,
     EVT_OBJ_INFO_CHANGED           = 0x4007,
@@ -1551,14 +1552,35 @@ static void usb_mtp_handle_control(USBDevice *dev, USBPacket *p,
                                    int length, uint8_t *data)
 {
     int ret;
+    MTPState *s = USB_MTP(dev);
+    uint16_t *event = (uint16_t *)data;
 
-    ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
-    if (ret >= 0) {
-        return;
+    switch (request) {
+    case ClassInterfaceOutRequest | 0x64:
+        if (*event == EVT_CANCEL_TRANSACTION) {
+            g_free(s->result);
+            s->result = NULL;
+            usb_mtp_data_free(s->data_in);
+            s->data_in = NULL;
+            if (s->write_pending) {
+                g_free(s->dataset.filename);
+                s->write_pending = false;
+            }
+            usb_mtp_data_free(s->data_out);
+            s->data_out = NULL;
+        } else {
+            p->status = USB_RET_STALL;
+        }
+        break;
+    default:
+        ret = usb_desc_handle_control(dev, p, request,
+                                      value, index, length, data);
+        if (ret >= 0) {
+            return;
+        }
     }
 
     trace_usb_mtp_stall(dev->addr, "unknown control request");
-    p->status = USB_RET_STALL;
 }
 
 static void usb_mtp_cancel_packet(USBDevice *dev, USBPacket *p)
