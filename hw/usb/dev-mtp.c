@@ -1721,6 +1721,7 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
     MTPData *d = s->data_out;
     uint64_t dlen;
     uint32_t data_len = p->iov.size;
+    uint64_t total_len;
 
     if (!d) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, 0,
@@ -1729,10 +1730,11 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
     }
     if (d->first) {
         /* Total length of incoming data */
-        d->length = cpu_to_le32(container->length) - sizeof(mtp_container);
+        total_len = cpu_to_le32(container->length) - sizeof(mtp_container);
         /* Length of data in this packet */
         data_len -= sizeof(mtp_container);
-        usb_mtp_realloc(d, d->length);
+        usb_mtp_realloc(d, total_len);
+        d->length += total_len;
         d->offset = 0;
         d->first = false;
     }
