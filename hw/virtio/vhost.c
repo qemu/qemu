@@ -663,11 +663,13 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     struct vhost_iommu *iommu;
     Int128 end;
     int iommu_idx;
-    IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
+    IOMMUMemoryRegion *iommu_mr;
 
     if (!memory_region_is_iommu(section->mr)) {
         return;
     }
+
+    iommu_mr = IOMMU_MEMORY_REGION(section->mr);
 
     iommu = g_malloc0(sizeof(*iommu));
     end = int128_add(int128_make64(section->offset_within_region),
