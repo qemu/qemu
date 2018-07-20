@@ -1602,6 +1602,24 @@ static void utf16_to_str(uint8_t len, uint16_t *arr, char *name)
     g_free(wstr);
 }
 
+/* Wrapper around write, returns 0 on failure */
+static uint64_t write_retry(int fd, void *buf, uint64_t size)
+{
+        uint64_t bytes_left = size, ret;
+
+        while (bytes_left > 0) {
+                ret = write(fd, buf, bytes_left);
+                if ((ret == -1) && (errno != EINTR || errno != EAGAIN ||
+                                    errno != EWOULDBLOCK)) {
+                        break;
+                }
+                bytes_left -= ret;
+                buf += ret;
+        }
+
+        return size - bytes_left;
+}
+
 static void usb_mtp_write_data(MTPState *s)
 {
     MTPData *d = s->data_out;
@@ -1644,8 +1662,8 @@ static void usb_mtp_write_data(MTPState *s)
             goto success;
         }
 
-        rc = write(d->fd, d->data, s->dataset.size);
-        if (rc == -1) {
+        rc = write_retry(d->fd, d->data, s->dataset.size);
+        if (!rc) {
             usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
                                  0, 0, 0, 0);
             goto done;
