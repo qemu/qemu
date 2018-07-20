@@ -2018,7 +2018,7 @@ static void usb_mtp_realize(USBDevice *dev, Error **errp)
     QTAILQ_INIT(&s->objects);
     if (s->desc == NULL) {
         if (s->root == NULL) {
-            error_setg(errp, "usb-mtp: x-root property must be configured");
+            error_setg(errp, "usb-mtp: rootdir property must be configured");
             return;
         }
         s->desc = strrchr(s->root, '/');
@@ -2047,7 +2047,7 @@ static const VMStateDescription vmstate_usb_mtp = {
 };
 
 static Property mtp_properties[] = {
-    DEFINE_PROP_STRING("x-root", MTPState, root),
+    DEFINE_PROP_STRING("rootdir", MTPState, root),
     DEFINE_PROP_STRING("desc", MTPState, desc),
     DEFINE_PROP_BOOL("readonly", MTPState, readonly, true),
     DEFINE_PROP_END_OF_LIST(),
