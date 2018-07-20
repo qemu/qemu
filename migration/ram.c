@@ -851,7 +851,7 @@ static void multifd_send_pages(void)
     p->pages->block = NULL;
     multifd_send_state->pages = p->pages;
     p->pages = pages;
-    transferred = pages->used * TARGET_PAGE_SIZE + p->packet_len;
+    transferred = ((uint64_t) pages->used) * TARGET_PAGE_SIZE + p->packet_len;
     ram_counters.multifd_bytes += transferred;
     ram_counters.transferred += transferred;;
     qemu_mutex_unlock(&p->mutex);
