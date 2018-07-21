@@ -5875,6 +5875,7 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
         /* assert our permissions are not too lax (stricter is fine) */
         // zhuowei: hack. make KTRR registers writable from EL1 even though they have opc1=4
         // assert((r->access & ~mask) == 0);
+        (void)(mask); // unused.
     }
 
     /* Check that the register definition has enough info to handle
