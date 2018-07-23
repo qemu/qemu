@@ -300,6 +300,7 @@ static void check_guests_ram(QTestState *who)
                  * to us yet.
                  */
                 hit_edge = true;
+                last_byte = b;
             } else {
                 fprintf(stderr, "Memory content inconsistency at %x"
                                 " first_byte = %x last_byte = %x current = %x"
@@ -308,7 +309,6 @@ static void check_guests_ram(QTestState *who)
                 bad = true;
             }
         }
-        last_byte = b;
     }
     g_assert_false(bad);
 }
