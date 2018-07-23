@@ -290,7 +290,7 @@ static mon_cmd_t info_cmds[];
 
 QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 
-Monitor *cur_mon;
+__thread Monitor *cur_mon;
 
 static void monitor_command_cb(void *opaque, const char *cmdline,
                                void *readline_opaque);

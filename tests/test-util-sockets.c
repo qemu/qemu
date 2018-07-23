@@ -69,7 +69,7 @@ int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
  * stubs/monitor.c is defined, to make sure monitor.o is discarded
  * otherwise we get duplicate syms at link time.
  */
-Monitor *cur_mon;
+__thread Monitor *cur_mon;
 void monitor_init(Chardev *chr, int flags) {}
 
 

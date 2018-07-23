@@ -259,8 +259,8 @@
 #
 # @ret-type: the name of the command's result type.
 #
-# @allow-oob: whether the command allows out-of-band execution.
-#             (Since: 2.12)
+# @allow-oob: whether the command allows out-of-band execution,
+#             defaults to false (Since: 2.12)
 #
 # TODO: @success-response (currently irrelevant, because it's QGA, not QMP)
 #
@@ -268,7 +268,7 @@
 ##
 { 'struct': 'SchemaInfoCommand',
   'data': { 'arg-type': 'str', 'ret-type': 'str',
-            'allow-oob': 'bool' } }
+            '*allow-oob': 'bool' } }
 
 ##
 # @SchemaInfoEvent:

@@ -3,7 +3,7 @@
 #include "qemu-common.h"
 #include "monitor/monitor.h"
 
-Monitor *cur_mon = NULL;
+__thread Monitor *cur_mon;
 
 int monitor_get_fd(Monitor *mon, const char *name, Error **errp)
 {

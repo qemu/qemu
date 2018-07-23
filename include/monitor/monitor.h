@@ -6,7 +6,7 @@
 #include "qapi/qapi-types-misc.h"
 #include "qemu/readline.h"
 
-extern Monitor *cur_mon;
+extern __thread Monitor *cur_mon;
 
 /* flags for monitor_init */
 /* 0x01 unused */
