@@ -1326,7 +1326,7 @@ static int qemu_gluster_has_zero_init(BlockDriverState *bs)
  * If @start is in a trailing hole or beyond EOF, return -ENXIO.
  * If we can't find out, return a negative errno other than -ENXIO.
  *
- * (Shamefully copied from file-posix.c, only miniscule adaptions.)
+ * (Shamefully copied from file-posix.c, only minuscule adaptions.)
  */
 static int find_allocation(BlockDriverState *bs, off_t start,
                            off_t *data, off_t *hole)
