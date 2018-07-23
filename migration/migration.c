@@ -1629,6 +1629,25 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
                        "paused migration");
             return false;
         }
+
+        /*
+         * Postcopy recovery won't work well with release-ram
+         * capability since release-ram will drop the page buffer as
+         * long as the page is put into the send buffer.  So if there
+         * is a network failure happened, any page buffers that have
+         * not yet reached the destination VM but have already been
+         * sent from the source VM will be lost forever.  Let's refuse
+         * the client from resuming such a postcopy migration.
+         * Luckily release-ram was designed to only be used when src
+         * and destination VMs are on the same host, so it should be
+         * fine.
+         */
+        if (migrate_release_ram()) {
+            error_setg(errp, "Postcopy recovery cannot work "
+                       "when release-ram capability is set");
+            return false;
+        }
+
         /* This is a resume, skip init status */
         return true;
     }
