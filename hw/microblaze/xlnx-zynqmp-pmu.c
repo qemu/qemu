@@ -62,13 +62,11 @@ static void xlnx_zynqmp_pmu_soc_init(Object *obj)
 {
     XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(obj);
 
-    object_initialize(&s->cpu, sizeof(s->cpu),
-                      TYPE_MICROBLAZE_CPU);
-    object_property_add_child(obj, "pmu-cpu", OBJECT(&s->cpu),
-                              &error_abort);
+    object_initialize_child(obj, "pmu-cpu", &s->cpu, sizeof(s->cpu),
+                            TYPE_MICROBLAZE_CPU, &error_abort, NULL);
 
-    object_initialize(&s->intc, sizeof(s->intc), TYPE_XLNX_PMU_IO_INTC);
-    qdev_set_parent_bus(DEVICE(&s->intc), sysbus_get_default());
+    sysbus_init_child_obj(obj, "intc", &s->intc, sizeof(s->intc),
+                          TYPE_XLNX_PMU_IO_INTC);
 }
 
 static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
