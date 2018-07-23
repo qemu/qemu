@@ -111,14 +111,6 @@ The ``-nodefconfig`` argument is a synonym for ``-no-user-config``.
 The @option{--balloon virtio} argument has been superseded by
 @option{--device virtio-balloon}.
 
-@subsection -machine s390-squash-mcss=on|off (since 2.12.0)
-
-The ``s390-squash-mcss=on`` property has been obsoleted by allowing the
-cssid to be chosen freely. Instead of squashing subchannels into the
-default channel subsystem image for guests that do not support multiple
-channel subsystems, all devices can be put into the default channel
-subsystem image.
-
 @subsection -fsdev handle (since 2.12.0)
 
 The ``handle'' fsdev backend does not support symlinks and causes the 9p

@@ -282,19 +282,8 @@ static void ccw_init(MachineState *machine)
     virtio_ccw_register_hcalls();
 
     s390_enable_css_support(s390_cpu_addr2state(0));
-    /*
-     * Non mcss-e enabled guests only see the devices from the default
-     * css, which is determined by the value of the squash_mcss property.
-     */
-    if (css_bus->squash_mcss) {
-        ret = css_create_css_image(0, true);
-    } else {
-        ret = css_create_css_image(VIRTUAL_CSSID, true);
-    }
-    if (qemu_opt_get(qemu_get_machine_opts(), "s390-squash-mcss")) {
-        warn_report("The machine property 's390-squash-mcss' is deprecated"
-                    " (obsoleted by lifting the cssid restrictions).");
-    }
+
+    ret = css_create_css_image(VIRTUAL_CSSID, true);
 
     assert(ret == 0);
     if (css_migration_enabled()) {
@@ -575,21 +564,6 @@ static void machine_set_loadparm(Object *obj, const char *val, Error **errp)
         ms->loadparm[i] = ' '; /* pad right with spaces */
     }
 }
-static inline bool machine_get_squash_mcss(Object *obj, Error **errp)
-{
-    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
-
-    return ms->s390_squash_mcss;
-}
-
-static inline void machine_set_squash_mcss(Object *obj, bool value,
-                                           Error **errp)
-{
-    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
-
-    ms->s390_squash_mcss = value;
-}
-
 static inline void s390_machine_initfn(Object *obj)
 {
     object_property_add_bool(obj, "aes-key-wrap",
@@ -614,13 +588,6 @@ static inline void s390_machine_initfn(Object *obj)
             " to upper case) to pass to machine loader, boot manager,"
             " and guest kernel",
             NULL);
-    object_property_add_bool(obj, "s390-squash-mcss",
-                             machine_get_squash_mcss,
-                             machine_set_squash_mcss, NULL);
-    object_property_set_description(obj, "s390-squash-mcss", "(deprecated) "
-            "enable/disable squashing subchannels into the default css",
-            NULL);
-    object_property_set_bool(obj, false, "s390-squash-mcss", NULL);
 }
 
 static const TypeInfo ccw_machine_info = {

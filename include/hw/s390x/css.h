@@ -266,11 +266,8 @@ extern const PropertyInfo css_devid_ro_propinfo;
 /**
  * Create a subchannel for the given bus id.
  *
- * If @p bus_id is valid, and @p squash_mcss is true, verify that it is
- * not already in use in the default css, and find a free devno from the
- * default css image for it.
- * If @p bus_id is valid, and @p squash_mcss is false, verify that it is
- * not already in use, and find a free devno for it.
+ * If @p bus_id is valid, verify that it is not already in use, and find a
+ * free devno for it.
  * If @p bus_id is not valid find a free subchannel id and device number
  * across all subchannel sets and all css images starting from the default
  * css image.
@@ -282,7 +279,7 @@ extern const PropertyInfo css_devid_ro_propinfo;
  * The caller becomes owner of the returned subchannel structure and
  * is responsible for unregistering and freeing it.
  */
-SubchDev *css_create_sch(CssDevId bus_id, bool squash_mcss, Error **errp);
+SubchDev *css_create_sch(CssDevId bus_id, Error **errp);
 
 /** Turn on css migration */
 void css_register_vmstate(void);

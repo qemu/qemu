@@ -2359,15 +2359,13 @@ const PropertyInfo css_devid_ro_propinfo = {
     .get = get_css_devid,
 };
 
-SubchDev *css_create_sch(CssDevId bus_id, bool squash_mcss, Error **errp)
+SubchDev *css_create_sch(CssDevId bus_id, Error **errp)
 {
     uint16_t schid = 0;
     SubchDev *sch;
 
     if (bus_id.valid) {
-        if (squash_mcss) {
-            bus_id.cssid = channel_subsys.default_cssid;
-        } else if (!channel_subsys.css[bus_id.cssid]) {
+        if (!channel_subsys.css[bus_id.cssid]) {
             css_create_css_image(bus_id.cssid, false);
         }
 

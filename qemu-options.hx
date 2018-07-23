@@ -43,7 +43,6 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                suppress-vmdesc=on|off disables self-describing migration (default=off)\n"
     "                nvdimm=on|off controls NVDIMM support (default=off)\n"
     "                enforce-config-section=on|off enforce configuration section migration (default=off)\n"
-    "                s390-squash-mcss=on|off (deprecated) controls support for squashing into default css (default=off)\n"
     "                memory-encryption=@var{} memory encryption object to use (default=none)\n",
     QEMU_ARCH_ALL)
 STEXI
@@ -96,15 +95,6 @@ controls whether DEA wrapping keys will be created to allow
 execution of DEA cryptographic functions.  The default is on.
 @item nvdimm=on|off
 Enables or disables NVDIMM support. The default is off.
-@item s390-squash-mcss=on|off
-Enables or disables squashing subchannels into the default css.
-The default is off.
-NOTE: This property is deprecated and will be removed in future releases.
-The ``s390-squash-mcss=on`` property has been obsoleted by allowing the
-cssid to be chosen freely. Instead of squashing subchannels into the
-default channel subsystem image for guests that do not support multiple
-channel subsystems, all devices can be put into the default channel
-subsystem image.
 @item enforce-config-section=on|off
 If @option{enforce-config-section} is set to @var{on}, force migration
 code to send configuration section even if the machine-type sets the

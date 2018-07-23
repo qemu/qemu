@@ -421,16 +421,6 @@ void s390_crypto_reset(void)
     }
 }
 
-bool s390_get_squash_mcss(void)
-{
-    if (object_property_get_bool(OBJECT(qdev_get_machine()), "s390-squash-mcss",
-                                 NULL)) {
-        return true;
-    }
-
-    return false;
-}
-
 void s390_enable_css_support(S390CPU *cpu)
 {
     if (kvm_enabled()) {
