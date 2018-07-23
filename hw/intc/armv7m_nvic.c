@@ -525,13 +525,17 @@ static void do_armv7m_nvic_set_pending(void *opaque, int irq, bool secure,
     NVICState *s = (NVICState *)opaque;
     bool banked = exc_is_banked(irq);
     VecInfo *vec;
+    bool targets_secure;
 
     assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
     assert(!secure || banked);
 
     vec = (banked && secure) ? &s->sec_vectors[irq] : &s->vectors[irq];
 
-    trace_nvic_set_pending(irq, secure, derived, vec->enabled, vec->prio);
+    targets_secure = banked ? secure : exc_targets_secure(s, irq);
+
+    trace_nvic_set_pending(irq, secure, targets_secure,
+                           derived, vec->enabled, vec->prio);
 
     if (derived) {
         /* Derived exceptions are always synchronous. */
@@ -611,7 +615,7 @@ static void do_armv7m_nvic_set_pending(void *opaque, int irq, bool secure,
              */
             irq = ARMV7M_EXCP_HARD;
             if (arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY) &&
-                (secure ||
+                (targets_secure ||
                  !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK))) {
                 vec = &s->sec_vectors[irq];
             } else {
