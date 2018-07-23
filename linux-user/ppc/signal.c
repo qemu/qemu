@@ -675,3 +675,59 @@ sigsegv:
     force_sig(TARGET_SIGSEGV);
     return -TARGET_QEMU_ESIGRETURN;
 }
+
+/* This syscall implements {get,set,swap}context for userland.  */
+abi_long do_swapcontext(CPUArchState *env, abi_ulong uold_ctx,
+                        abi_ulong unew_ctx, abi_long ctx_size)
+{
+    struct target_ucontext *uctx;
+    struct target_mcontext *mctx;
+
+    /* For ppc32, ctx_size is "reserved for future use".
+     * For ppc64, we do not yet support the VSX extension.
+     */
+    if (ctx_size < sizeof(struct target_ucontext)) {
+        return -TARGET_EINVAL;
+    }
+
+    if (uold_ctx) {
+        TaskState *ts = (TaskState *)thread_cpu->opaque;
+
+        if (!lock_user_struct(VERIFY_WRITE, uctx, uold_ctx, 1)) {
+            return -TARGET_EFAULT;
+        }
+
+#ifdef TARGET_PPC64
+        mctx = &uctx->tuc_sigcontext.mcontext;
+#else
+        /* ??? The kernel aligns the pointer down here into padding, but
+         * in setup_rt_frame we don't.  Be self-compatible for now.
+         */
+        mctx = &uctx->tuc_mcontext;
+        __put_user(h2g(mctx), &uctx->tuc_regs);
+#endif
+
+        save_user_regs(env, mctx);
+        host_to_target_sigset(&uctx->tuc_sigmask, &ts->signal_mask);
+
+        unlock_user_struct(uctx, uold_ctx, 1);
+    }
+
+    if (unew_ctx) {
+        int err;
+
+        if (!lock_user_struct(VERIFY_READ, uctx, unew_ctx, 1)) {
+            return -TARGET_EFAULT;
+        }
+        err = do_setcontext(uctx, env, 0);
+        unlock_user_struct(uctx, unew_ctx, 1);
+
+        if (err) {
+            /* We cannot return to a partially updated context.  */
+            force_sig(TARGET_SIGSEGV);
+        }
+        return -TARGET_QEMU_ESIGRETURN;
+    }
+
+    return 0;
+}
