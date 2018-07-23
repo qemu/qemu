@@ -281,9 +281,9 @@ static void exynos4210_gic_set_irq(void *opaque, int irq, int level)
     qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
-static void exynos4210_gic_init(Object *obj)
+static void exynos4210_gic_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(obj);
+    Object *obj = OBJECT(dev);
     Exynos4210GicState *s = EXYNOS4210_GIC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     const char cpu_prefix[] = "exynos4210-gic-alias_cpu";
@@ -347,13 +347,13 @@ static void exynos4210_gic_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->props = exynos4210_gic_properties;
+    dc->realize = exynos4210_gic_realize;
 }
 
 static const TypeInfo exynos4210_gic_info = {
     .name          = TYPE_EXYNOS4210_GIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210GicState),
-    .instance_init = exynos4210_gic_init,
     .class_init    = exynos4210_gic_class_init,
 };
 

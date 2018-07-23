@@ -169,16 +169,22 @@ static void sl_nand_init(Object *obj)
 {
     SLNANDState *s = SL_NAND(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    DriveInfo *nand;
 
     s->ctl = 0;
+
+    memory_region_init_io(&s->iomem, obj, &sl_ops, s, "sl", 0x40);
+    sysbus_init_mmio(dev, &s->iomem);
+}
+
+static void sl_nand_realize(DeviceState *dev, Error **errp)
+{
+    SLNANDState *s = SL_NAND(dev);
+    DriveInfo *nand;
+
     /* FIXME use a qdev drive property instead of drive_get() */
     nand = drive_get(IF_MTD, 0, 0);
     s->nand = nand_init(nand ? blk_by_legacy_dinfo(nand) : NULL,
                         s->manf_id, s->chip_id);
-
-    memory_region_init_io(&s->iomem, obj, &sl_ops, s, "sl", 0x40);
-    sysbus_init_mmio(dev, &s->iomem);
 }
 
 /* Spitz Keyboard */
@@ -1079,6 +1085,7 @@ static void sl_nand_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_sl_nand_info;
     dc->props = sl_nand_properties;
+    dc->realize = sl_nand_realize;
     /* Reason: init() method uses drive_get() */
     dc->user_creatable = false;
 }
