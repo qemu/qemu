@@ -1550,7 +1550,7 @@ static void icc_dir_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * tested in cases where we know !IsSecure is true.
      */
     route_fiq_to_el2 = env->cp15.hcr_el2 & HCR_FMO;
-    route_irq_to_el2 = env->cp15.hcr_el2 & HCR_FMO;
+    route_irq_to_el2 = env->cp15.hcr_el2 & HCR_IMO;
 
     switch (arm_current_el(env)) {
     case 3:
