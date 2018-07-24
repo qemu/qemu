@@ -547,7 +547,7 @@ static void tz_mpc_realize(DeviceState *dev, Error **errp)
     address_space_init(&s->blocked_io_as, &s->blocked_io,
                        "tz-mpc-blocked-io");
 
-    s->blk_lut = g_new(uint32_t, s->blk_max);
+    s->blk_lut = g_new0(uint32_t, s->blk_max);
 }
 
 static int tz_mpc_post_load(void *opaque, int version_id)
