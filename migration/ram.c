@@ -851,7 +851,7 @@ static void multifd_send_pages(void)
     p->pages->block = NULL;
     multifd_send_state->pages = p->pages;
     p->pages = pages;
-    transferred = pages->used * TARGET_PAGE_SIZE + p->packet_len;
+    transferred = ((uint64_t) pages->used) * TARGET_PAGE_SIZE + p->packet_len;
     ram_counters.multifd_bytes += transferred;
     ram_counters.transferred += transferred;;
     qemu_mutex_unlock(&p->mutex);
@@ -2827,8 +2827,15 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
         goto err;
     }
 
-    bitmap_clear(rb->receivedmap, start >> qemu_target_page_bits(),
-                 length >> qemu_target_page_bits());
+    /*
+     * On source VM, we don't need to update the received bitmap since
+     * we don't even have one.
+     */
+    if (rb->receivedmap) {
+        bitmap_clear(rb->receivedmap, start >> qemu_target_page_bits(),
+                     length >> qemu_target_page_bits());
+    }
+
     ret = ram_block_discard_range(rb, start, length);
 
 err:

@@ -786,7 +786,7 @@ static void hda_audio_reset(DeviceState *dev)
 static bool vmstate_hda_audio_stream_buf_needed(void *opaque)
 {
     HDAAudioStream *st = opaque;
-    return st->state->use_timer;
+    return st->state && st->state->use_timer;
 }
 
 static const VMStateDescription vmstate_hda_audio_stream_buf = {
