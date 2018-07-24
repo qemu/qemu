@@ -37,7 +37,7 @@ size_t qstring_get_length(const QString *qstring)
  *
  * Return string reference
  */
-QString *qstring_from_substr(const char *str, int start, int end)
+QString *qstring_from_substr(const char *str, size_t start, size_t end)
 {
     QString *qstring;
 
