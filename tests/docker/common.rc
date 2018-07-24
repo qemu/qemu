@@ -21,7 +21,7 @@ requires()
     done
 }
 
-build_qemu()
+configure_qemu()
 {
     config_opts="--enable-werror \
                  ${TARGET_LIST:+--target-list=${TARGET_LIST}} \
@@ -32,7 +32,29 @@ build_qemu()
     echo $config_opts
     $QEMU_SRC/configure $config_opts || \
         { cat config.log && test_fail "Failed to run 'configure'"; }
+}
+
+build_qemu()
+{
+    configure_qemu $@
     make $MAKEFLAGS
+}
+
+check_qemu()
+{
+    # default to make check unless the caller specifies
+    if test -z "$@"; then
+        INVOCATION="check"
+    else
+        INVOCATION="$@"
+    fi
+
+    if command -v gtester > /dev/null 2>&1 && \
+           gtester --version > /dev/null 2>&1; then
+        make $MAKEFLAGS $INVOCATION
+    else
+        echo "No working gtester, skipping make $INVOCATION"
+    fi
 }
 
 test_fail()

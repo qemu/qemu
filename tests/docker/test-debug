@@ -22,5 +22,5 @@ OPTS="--cxx=clang++ --cc=clang --host-cc=clang"
 OPTS="--enable-debug --enable-sanitizers $OPTS"
 
 build_qemu $OPTS
-make $MAKEFLAGS V=1 check
+check_qemu check V=1
 install_qemu

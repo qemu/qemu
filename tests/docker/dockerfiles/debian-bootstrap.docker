@@ -9,6 +9,7 @@ FROM scratch
 ADD . /
 
 # Patch all mounts as docker already has stuff set up
+# (this is not needed for later debootstraps but is harmless atm)
 RUN sed -i 's/in_target mount/echo not for docker in_target mount/g' /debootstrap/functions
 
 # Run stage 2

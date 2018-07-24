@@ -25,9 +25,6 @@ and host CPUs.
 test-i386-fprem
 ---------------
 
-runcom
-------
-
 test-mmap
 ---------
 
