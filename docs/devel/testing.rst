@@ -255,6 +255,17 @@ comparable library support for invoking and interacting with QEMU programs. If
 you opt for Python, it is strongly recommended to write Python 3 compatible
 code.
 
+Both Python and Bash frameworks in iotests provide helpers to manage test
+images. They can be used to create and clean up images under the test
+directory. If no I/O or any protocol specific feature is needed, it is often
+more convenient to use the pseudo block driver, ``null-co://``, as the test
+image, which doesn't require image creation or cleaning up. Avoid system-wide
+devices or files whenever possible, such as ``/dev/null`` or ``/dev/zero``.
+Otherwise, image locking implications have to be considered.  For example,
+another application on the host may have locked the file, possibly leading to a
+test failure.  If using such devices are explicitly desired, consider adding
+``locking=off`` option to disable image locking.
+
 Docker based tests
 ==================
 
