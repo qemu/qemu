@@ -973,10 +973,10 @@ static int init_directories(BDRVVVFATState* s,
         mapping = array_get(&(s->mapping), i);
 
         if (mapping->mode & MODE_DIRECTORY) {
+            char *path = mapping->path;
             mapping->begin = cluster;
             if(read_directory(s, i)) {
-                error_setg(errp, "Could not read directory %s",
-                           mapping->path);
+                error_setg(errp, "Could not read directory %s", path);
                 return -1;
             }
             mapping = array_get(&(s->mapping), i);
