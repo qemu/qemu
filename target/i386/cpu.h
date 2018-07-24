@@ -1050,8 +1050,8 @@ typedef enum TPRAccess {
 /* Cache information data structures: */
 
 enum CacheType {
-    DCACHE,
-    ICACHE,
+    DATA_CACHE,
+    INSTRUCTION_CACHE,
     UNIFIED_CACHE
 };
 
