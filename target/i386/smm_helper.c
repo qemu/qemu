@@ -54,6 +54,7 @@ void do_smm_enter(X86CPU *cpu)
     qemu_log_mask(CPU_LOG_INT, "SMM: enter\n");
     log_cpu_state_mask(CPU_LOG_INT, CPU(cpu), CPU_DUMP_CCOP);
 
+    env->msr_smi_count++;
     env->hflags |= HF_SMM_MASK;
     if (env->hflags2 & HF2_NMI_MASK) {
         env->hflags2 |= HF2_SMM_INSIDE_NMI_MASK;

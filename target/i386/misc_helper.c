@@ -447,6 +447,9 @@ void helper_rdmsr(CPUX86State *env)
         val = env->tsc_aux;
         break;
 #endif
+    case MSR_SMI_COUNT:
+        val = env->msr_smi_count;
+        break;
     case MSR_MTRRphysBase(0):
     case MSR_MTRRphysBase(1):
     case MSR_MTRRphysBase(2):
