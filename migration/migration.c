@@ -3052,8 +3052,6 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     } else {
         /* This is a fresh new migration */
         rate_limit = s->parameters.max_bandwidth / XFER_LIMIT_RATIO;
-        s->expected_downtime = s->parameters.downtime_limit;
-        s->cleanup_bh = qemu_bh_new(migrate_fd_cleanup, s);
 
         /* Notify before starting migration thread */
         notifier_list_notify(&migration_state_notifiers, s);
