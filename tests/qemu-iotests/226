@@ -56,10 +56,10 @@ for PROTO in "file" "host_device" "host_cdrom"; do
     echo
     echo "== Testing RO =="
     $QEMU_IO -c "open -r -o driver=$PROTO,filename=$TEST_IMG" 2>&1 | _filter_testdir | _filter_imgfmt
-    $QEMU_IO -c "open -r -o driver=$PROTO,filename=/dev/null" 2>&1 | _filter_imgfmt
+    $QEMU_IO -c "open -r -o driver=$PROTO,filename=/dev/null,locking=off" 2>&1 | _filter_imgfmt
     echo "== Testing RW =="
     $QEMU_IO -c "open -o driver=$PROTO,filename=$TEST_IMG" 2>&1 | _filter_testdir | _filter_imgfmt
-    $QEMU_IO -c "open -o driver=$PROTO,filename=/dev/null" 2>&1 | _filter_imgfmt
+    $QEMU_IO -c "open -o driver=$PROTO,filename=/dev/null,locking=off" 2>&1 | _filter_imgfmt
 done
 
 # success, all done
