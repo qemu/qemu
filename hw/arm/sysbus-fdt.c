@@ -107,6 +107,7 @@ static void copy_properties_from_host(HostProperty *props, int nb_props,
                 /* mandatory property not found: bail out */
                 exit(1);
             }
+            err = NULL;
         }
     }
 }
