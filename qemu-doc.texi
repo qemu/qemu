@@ -1103,7 +1103,9 @@ support provides a secure session, but no authentication. This allows any
 client to connect, and provides an encrypted session.
 
 @example
-qemu-system-i386 [...OPTIONS...] -vnc :1,tls,x509=/etc/pki/qemu -monitor stdio
+qemu-system-i386 [...OPTIONS...] \
+  -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=no \
+  -vnc :1,tls-creds=tls0 -monitor stdio
 @end example
 
 In the above example @code{/etc/pki/qemu} should contain at least three files,
@@ -1118,10 +1120,14 @@ only be readable by the user owning it.
 Certificates can also provide a means to authenticate the client connecting.
 The server will request that the client provide a certificate, which it will
 then validate against the CA certificate. This is a good choice if deploying
-in an environment with a private internal certificate authority.
+in an environment with a private internal certificate authority. It uses the
+same syntax as previously, but with @code{verify-peer} set to @code{yes}
+instead.
 
 @example
-qemu-system-i386 [...OPTIONS...] -vnc :1,tls,x509verify=/etc/pki/qemu -monitor stdio
+qemu-system-i386 [...OPTIONS...] \
+  -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=yes \
+  -vnc :1,tls-creds=tls0 -monitor stdio
 @end example
 
 
@@ -1132,7 +1138,9 @@ Finally, the previous method can be combined with VNC password authentication
 to provide two layers of authentication for clients.
 
 @example
-qemu-system-i386 [...OPTIONS...] -vnc :1,password,tls,x509verify=/etc/pki/qemu -monitor stdio
+qemu-system-i386 [...OPTIONS...] \
+  -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=yes \
+  -vnc :1,tls-creds=tls0,password -monitor stdio
 (qemu) change vnc password
 Password: ********
 (qemu)
@@ -1169,7 +1177,9 @@ credentials. This can be enabled, by combining the 'sasl' option
 with the aforementioned TLS + x509 options:
 
 @example
-qemu-system-i386 [...OPTIONS...] -vnc :1,tls,x509,sasl -monitor stdio
+qemu-system-i386 [...OPTIONS...] \
+  -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=yes \
+  -vnc :1,tls-creds=tls0,sasl -monitor stdio
 @end example
 
 @node vnc_setup_sasl
