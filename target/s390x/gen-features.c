@@ -661,6 +661,7 @@ static CpuFeatDefSpec CpuFeatDef[] = {
 #define FEAT_GROUP_INITIALIZER(_name)                  \
     {                                                  \
         .name = "S390_FEAT_GROUP_LIST_" #_name,        \
+        .enum_name = "S390_FEAT_GROUP_" #_name,        \
         .bits =                                        \
             { .data = group_##_name,                   \
               .len = ARRAY_SIZE(group_##_name) },      \
@@ -668,6 +669,7 @@ static CpuFeatDefSpec CpuFeatDef[] = {
 
 typedef struct {
     const char *name;
+    const char *enum_name;
     BitSpec bits;
 } FeatGroupDefSpec;
 
@@ -678,7 +680,6 @@ static FeatGroupDefSpec FeatGroupDef[] = {
     FEAT_GROUP_INITIALIZER(PLO),
     FEAT_GROUP_INITIALIZER(TOD_CLOCK_STEERING),
     FEAT_GROUP_INITIALIZER(GEN13_PTFF),
-    FEAT_GROUP_INITIALIZER(MULTIPLE_EPOCH_PTFF),
     FEAT_GROUP_INITIALIZER(MSA),
     FEAT_GROUP_INITIALIZER(MSA_EXT_1),
     FEAT_GROUP_INITIALIZER(MSA_EXT_2),
@@ -688,6 +689,7 @@ static FeatGroupDefSpec FeatGroupDef[] = {
     FEAT_GROUP_INITIALIZER(MSA_EXT_6),
     FEAT_GROUP_INITIALIZER(MSA_EXT_7),
     FEAT_GROUP_INITIALIZER(MSA_EXT_8),
+    FEAT_GROUP_INITIALIZER(MULTIPLE_EPOCH_PTFF),
 };
 
 #define QEMU_FEAT_INITIALIZER(_name)                   \
@@ -810,6 +812,19 @@ static void print_feature_group_defs(void)
     }
 }
 
+static void print_feature_group_enum_type(void)
+{
+    int i;
+
+    printf("\n/* CPU feature group enum type */\n"
+           "typedef enum {\n");
+    for (i = 0; i < ARRAY_SIZE(FeatGroupDef); i++) {
+        printf("\t%s,\n", FeatGroupDef[i].enum_name);
+    }
+    printf("\tS390_FEAT_GROUP_MAX,\n"
+           "} S390FeatGroup;\n");
+}
+
 int main(int argc, char *argv[])
 {
     printf("/*\n"
@@ -826,6 +841,7 @@ int main(int argc, char *argv[])
     print_feature_defs();
     print_feature_group_defs();
     print_qemu_feature_defs();
+    print_feature_group_enum_type();
     printf("\n#endif\n");
     return 0;
 }

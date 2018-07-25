@@ -16,6 +16,7 @@
 
 #include "qemu/bitmap.h"
 #include "cpu_features_def.h"
+#include "gen-features.h"
 
 /* CPU features are announced via different ways */
 typedef enum {
@@ -63,24 +64,6 @@ void s390_add_from_feat_block(S390FeatBitmap features, S390FeatType type,
                           uint8_t *data);
 void s390_feat_bitmap_to_ascii(const S390FeatBitmap features, void *opaque,
                                void (*fn)(const char *name, void *opaque));
-
-/* static groups that will never change */
-typedef enum {
-    S390_FEAT_GROUP_PLO,
-    S390_FEAT_GROUP_TOD_CLOCK_STEERING,
-    S390_FEAT_GROUP_GEN13_PTFF_ENH,
-    S390_FEAT_GROUP_MSA,
-    S390_FEAT_GROUP_MSA_EXT_1,
-    S390_FEAT_GROUP_MSA_EXT_2,
-    S390_FEAT_GROUP_MSA_EXT_3,
-    S390_FEAT_GROUP_MSA_EXT_4,
-    S390_FEAT_GROUP_MSA_EXT_5,
-    S390_FEAT_GROUP_MSA_EXT_6,
-    S390_FEAT_GROUP_MSA_EXT_7,
-    S390_FEAT_GROUP_MSA_EXT_8,
-    S390_FEAT_GROUP_MULTIPLE_EPOCH_PTFF,
-    S390_FEAT_GROUP_MAX,
-} S390FeatGroup;
 
 /* Definition of a CPU feature group */
 typedef struct {
