@@ -1632,49 +1632,6 @@ will cause the VNC server socket to enable the VeNCrypt auth
 mechanism.  The credentials should have been previously created
 using the @option{-object tls-creds} argument.
 
-The @option{tls-creds} parameter obsoletes the @option{tls},
-@option{x509}, and @option{x509verify} options, and as such
-it is not permitted to set both new and old type options at
-the same time.
-
-@item tls
-
-Require that client use TLS when communicating with the VNC server. This
-uses anonymous TLS credentials so is susceptible to a man-in-the-middle
-attack. It is recommended that this option be combined with either the
-@option{x509} or @option{x509verify} options.
-
-This option is now deprecated in favor of using the @option{tls-creds}
-argument.
-
-@item x509=@var{/path/to/certificate/dir}
-
-Valid if @option{tls} is specified. Require that x509 credentials are used
-for negotiating the TLS session. The server will send its x509 certificate
-to the client. It is recommended that a password be set on the VNC server
-to provide authentication of the client when this is used. The path following
-this option specifies where the x509 certificates are to be loaded from.
-See the @ref{vnc_security} section for details on generating certificates.
-
-This option is now deprecated in favour of using the @option{tls-creds}
-argument.
-
-@item x509verify=@var{/path/to/certificate/dir}
-
-Valid if @option{tls} is specified. Require that x509 credentials are used
-for negotiating the TLS session. The server will send its x509 certificate
-to the client, and request that the client send its own x509 certificate.
-The server will validate the client's certificate against the CA certificate,
-and reject clients when validation fails. If the certificate authority is
-trusted, this is a sufficient authentication mechanism. You may still wish
-to set a password on the VNC server as a second authentication layer. The
-path following this option specifies where the x509 certificates are to
-be loaded from. See the @ref{vnc_security} section for details on generating
-certificates.
-
-This option is now deprecated in favour of using the @option{tls-creds}
-argument.
-
 @item sasl
 
 Require that the client use SASL to authenticate with the VNC server.
