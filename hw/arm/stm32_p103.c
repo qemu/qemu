@@ -131,14 +131,15 @@ static void stm32_p103_init(MachineState *machine)
             serial_hds[0],
             STM32_USART2_NO_REMAP);
     
+    /* These additional UARTs have not been tested yet... */
     stm32_uart_connect(
             (Stm32Uart *)uart1,
-            serial_hds[0],
+            serial_hds[1],
             STM32_USART1_NO_REMAP);
     
     stm32_uart_connect(
             (Stm32Uart *)uart3,
-            serial_hds[0],
+            serial_hds[2],
             STM32_USART3_NO_REMAP);
  }
 
