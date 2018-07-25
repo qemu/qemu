@@ -1512,51 +1512,6 @@ static const TypeInfo virtio_ccw_bus_info = {
     .class_init = virtio_ccw_bus_class_init,
 };
 
-#ifdef CONFIG_VIRTFS
-static Property virtio_ccw_9p_properties[] = {
-    DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
-            VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
-    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
-                       VIRTIO_CCW_MAX_REV),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void virtio_ccw_9p_realize(VirtioCcwDevice *ccw_dev, Error **errp)
-{
-    V9fsCCWState *dev = VIRTIO_9P_CCW(ccw_dev);
-    DeviceState *vdev = DEVICE(&dev->vdev);
-
-    qdev_set_parent_bus(vdev, BUS(&ccw_dev->bus));
-    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
-}
-
-static void virtio_ccw_9p_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
-
-    k->realize = virtio_ccw_9p_realize;
-    dc->props = virtio_ccw_9p_properties;
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-}
-
-static void virtio_ccw_9p_instance_init(Object *obj)
-{
-    V9fsCCWState *dev = VIRTIO_9P_CCW(obj);
-
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
-                                TYPE_VIRTIO_9P);
-}
-
-static const TypeInfo virtio_ccw_9p_info = {
-    .name          = TYPE_VIRTIO_9P_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(V9fsCCWState),
-    .instance_init = virtio_ccw_9p_instance_init,
-    .class_init    = virtio_ccw_9p_class_init,
-};
-#endif
-
 #ifdef CONFIG_VHOST_VSOCK
 
 static Property vhost_vsock_ccw_properties[] = {
@@ -1607,9 +1562,6 @@ static void virtio_ccw_register(void)
     type_register_static(&virtio_ccw_device_info);
     type_register_static(&virtio_ccw_blk);
     type_register_static(&virtio_ccw_net);
-#ifdef CONFIG_VIRTFS
-    type_register_static(&virtio_ccw_9p_info);
-#endif
 #ifdef CONFIG_VHOST_VSOCK
     type_register_static(&vhost_vsock_ccw_info);
 #endif
