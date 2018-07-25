@@ -159,9 +159,7 @@ static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
     g_assert_cmphex(vs->dev->device_type, ==, VIRTIO_ID_SCSI);
 
     qvirtio_pci_device_enable(dev);
-    qvirtio_reset(vs->dev);
-    qvirtio_set_acknowledge(vs->dev);
-    qvirtio_set_driver(vs->dev);
+    qvirtio_start_device(vs->dev);
 
     vs->num_queues = qvirtio_config_readl(vs->dev, 0);
 

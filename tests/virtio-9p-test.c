@@ -65,9 +65,7 @@ static QVirtIO9P *qvirtio_9p_pci_start(void)
     v9p->dev = (QVirtioDevice *) dev;
 
     qvirtio_pci_device_enable(dev);
-    qvirtio_reset(v9p->dev);
-    qvirtio_set_acknowledge(v9p->dev);
-    qvirtio_set_driver(v9p->dev);
+    qvirtio_start_device(v9p->dev);
 
     v9p->vq = qvirtqueue_setup(v9p->dev, v9p->qs->alloc, 0);
 
