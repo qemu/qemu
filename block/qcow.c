@@ -938,6 +938,7 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
     ret = 0;
 exit:
     blk_unref(qcow_blk);
+    bdrv_unref(bs);
     qcrypto_block_free(crypto);
     return ret;
 }
