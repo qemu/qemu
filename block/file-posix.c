@@ -1646,6 +1646,9 @@ static int handle_aiocb_truncate(RawPosixAIOData *aiocb)
             num = MIN(left, 65536);
             result = write(fd, buf, num);
             if (result < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
                 result = -errno;
                 error_setg_errno(errp, -result,
                                  "Could not write zeros for preallocation");
