@@ -158,6 +158,14 @@ run_qemu_img convert -o help
 run_qemu_img convert -O bochs -o help
 
 echo
+echo === convert: -C and other options ===
+
+# Adding the help option to a command without other -o options
+run_qemu_img convert -C -S 4k -O $IMGFMT "$TEST_IMG" "$TEST_IMG".target
+run_qemu_img convert -C -S 8k -O $IMGFMT "$TEST_IMG" "$TEST_IMG".target
+run_qemu_img convert -C -c -O $IMGFMT "$TEST_IMG" "$TEST_IMG".target
+
+echo
 echo === amend: Options specified more than once ===
 
 # Last -f should win
