@@ -66,7 +66,7 @@ static void qstring_from_substr_test(void)
 {
     QString *qs;
 
-    qs = qstring_from_substr("virtualization", 3, 9);
+    qs = qstring_from_substr("virtualization", 3, 10);
     g_assert(qs != NULL);
     g_assert(strcmp(qstring_get_str(qs), "tualiza") == 0);
 
