@@ -189,6 +189,11 @@ static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
     Error *local_err = NULL;
 
+    /* Initialize the MSI IRQ allocator. */
+    if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+        spapr_irq_msi_init(spapr, XICS_IRQ_BASE + nr_irqs - SPAPR_IRQ_MSI);
+    }
+
     if (kvm_enabled()) {
         if (machine_kernel_irqchip_allowed(machine) &&
             !xics_kvm_init(spapr, &local_err)) {
@@ -1636,6 +1641,10 @@ static void spapr_machine_reset(void)
         ppc_set_compat(first_ppc_cpu, spapr->max_compat_pvr, &error_fatal);
     }
 
+    if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+        spapr_irq_msi_reset(spapr);
+    }
+
     qemu_devices_reset();
 
     /* DRC reset may cause a device to be unplugged. This will cause troubles
@@ -1910,6 +1919,24 @@ static const VMStateDescription vmstate_spapr_patb_entry = {
     },
 };
 
+static bool spapr_irq_map_needed(void *opaque)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    return spapr->irq_map && !bitmap_empty(spapr->irq_map, spapr->irq_map_nr);
+}
+
+static const VMStateDescription vmstate_spapr_irq_map = {
+    .name = "spapr_irq_map",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_irq_map_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BITMAP(irq_map, sPAPRMachineState, 0, irq_map_nr),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1937,6 +1964,7 @@ static const VMStateDescription vmstate_spapr = {
         &vmstate_spapr_cap_cfpc,
         &vmstate_spapr_cap_sbbc,
         &vmstate_spapr_cap_ibs,
+        &vmstate_spapr_irq_map,
         NULL
     }
 };
@@ -4086,8 +4114,12 @@ static void spapr_machine_3_0_instance_options(MachineState *machine)
 
 static void spapr_machine_3_0_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_3_1_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_3_0);
+
+    smc->legacy_irq_allocation = true;
 }
 
 DEFINE_SPAPR_MACHINE(3_0, "3.0", false);

@@ -8,6 +8,7 @@
 #include "hw/ppc/spapr_drc.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/ppc/spapr_ovec.h"
+#include "hw/ppc/spapr_irq.h"
 
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
@@ -101,6 +102,8 @@ struct sPAPRMachineClass {
     bool dr_lmb_enabled;       /* enable dynamic-reconfig/hotplug of LMBs */
     bool use_ohci_by_default;  /* use USB-OHCI instead of XHCI */
     bool pre_2_10_has_unused_icps;
+    bool legacy_irq_allocation;
+
     void (*phb_placement)(sPAPRMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio, 
                           hwaddr *mmio32, hwaddr *mmio64,
@@ -167,6 +170,8 @@ struct sPAPRMachineState {
     char *kvm_type;
 
     const char *icp_type;
+    int32_t irq_map_nr;
+    unsigned long *irq_map;
 
     bool cmd_line_caps[SPAPR_CAP_NUM];
     sPAPRCapabilities def, eff, mig;
