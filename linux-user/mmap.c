@@ -391,14 +391,23 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
     }
 #endif
 
+    if (!len) {
+        errno = EINVAL;
+        goto fail;
+    }
+
+    /* Also check for overflows... */
+    len = TARGET_PAGE_ALIGN(len);
+    if (!len) {
+        errno = ENOMEM;
+        goto fail;
+    }
+
     if (offset & ~TARGET_PAGE_MASK) {
         errno = EINVAL;
         goto fail;
     }
 
-    len = TARGET_PAGE_ALIGN(len);
-    if (len == 0)
-        goto the_end;
     real_start = start & qemu_host_page_mask;
     host_offset = offset & qemu_host_page_mask;
 
