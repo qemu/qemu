@@ -1414,6 +1414,7 @@ static const VMStateDescription vmstate_smmuv3_queue = {
         VMSTATE_UINT32(prod, SMMUQueue),
         VMSTATE_UINT32(cons, SMMUQueue),
         VMSTATE_UINT8(log2size, SMMUQueue),
+        VMSTATE_END_OF_LIST(),
     },
 };
 

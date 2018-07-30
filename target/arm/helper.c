@@ -5591,12 +5591,6 @@ void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     (*cpu_fprintf)(f, "Available CPUs:\n");
     g_slist_foreach(list, arm_cpu_list_entry, &s);
     g_slist_free(list);
-#ifdef CONFIG_KVM
-    /* The 'host' CPU type is dynamically registered only if KVM is
-     * enabled, so we have to special-case it here:
-     */
-    (*cpu_fprintf)(f, "  host (only available in KVM mode)\n");
-#endif
 }
 
 static void arm_cpu_add_definition(gpointer data, gpointer user_data)
