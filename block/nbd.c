@@ -109,7 +109,7 @@ static int nbd_parse_uri(const char *filename, QDict *options)
         /* strip braces from literal IPv6 address */
         if (uri->server[0] == '[') {
             host = qstring_from_substr(uri->server, 1,
-                                       strlen(uri->server) - 2);
+                                       strlen(uri->server) - 1);
         } else {
             host = qstring_from_str(uri->server);
         }

@@ -80,7 +80,7 @@ static void blkverify_parse_filename(const char *filename, QDict *options,
     }
 
     /* TODO Implement option pass-through and set raw.filename here */
-    raw_path = qstring_from_substr(filename, 0, c - filename - 1);
+    raw_path = qstring_from_substr(filename, 0, c - filename);
     qdict_put(options, "x-raw", raw_path);
 
     /* TODO Allow multi-level nesting and set file.filename here */
