@@ -40,6 +40,7 @@ uint32_t qvirtio_get_features(QVirtioDevice *d)
 
 void qvirtio_set_features(QVirtioDevice *d, uint32_t features)
 {
+    d->features = features;
     d->bus->set_features(d, features);
 }
 

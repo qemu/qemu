@@ -21,6 +21,7 @@ typedef struct QVirtioDevice {
     const QVirtioBus *bus;
     /* Device type */
     uint16_t device_type;
+    uint64_t features;
     bool big_endian;
 } QVirtioDevice;
 
