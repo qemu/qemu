@@ -54,7 +54,6 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/pci-host/spapr.h"
-#include "hw/ppc/xics.h"
 #include "hw/pci/msi.h"
 
 #include "hw/pci/pci.h"
@@ -117,33 +116,6 @@ static bool spapr_is_thread0_in_vcore(sPAPRMachineState *spapr,
     return spapr_get_vcpu_id(cpu) % spapr->vsmt == 0;
 }
 
-static ICSState *spapr_ics_create(sPAPRMachineState *spapr,
-                                  const char *type_ics,
-                                  int nr_irqs, Error **errp)
-{
-    Error *local_err = NULL;
-    Object *obj;
-
-    obj = object_new(type_ics);
-    object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
-    object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
-                                   &error_abort);
-    object_property_set_int(obj, nr_irqs, "nr-irqs", &local_err);
-    if (local_err) {
-        goto error;
-    }
-    object_property_set_bool(obj, true, "realized", &local_err);
-    if (local_err) {
-        goto error;
-    }
-
-    return ICS_BASE(obj);
-
-error:
-    error_propagate(errp, local_err);
-    return NULL;
-}
-
 static bool pre_2_10_vmstate_dummy_icp_needed(void *opaque)
 {
     /* Dummy entries correspond to unused ICPState objects in older QEMUs,
@@ -182,43 +154,6 @@ static int xics_max_server_number(sPAPRMachineState *spapr)
 {
     assert(spapr->vsmt);
     return DIV_ROUND_UP(max_cpus * spapr->vsmt, smp_threads);
-}
-
-static void xics_system_init(MachineState *machine, int nr_irqs, Error **errp)
-{
-    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
-    Error *local_err = NULL;
-
-    /* Initialize the MSI IRQ allocator. */
-    if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
-        spapr_irq_msi_init(spapr, XICS_IRQ_BASE + nr_irqs - SPAPR_IRQ_MSI);
-    }
-
-    if (kvm_enabled()) {
-        if (machine_kernel_irqchip_allowed(machine) &&
-            !xics_kvm_init(spapr, &local_err)) {
-            spapr->icp_type = TYPE_KVM_ICP;
-            spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs,
-                                          &local_err);
-        }
-        if (machine_kernel_irqchip_required(machine) && !spapr->ics) {
-            error_prepend(&local_err,
-                          "kernel_irqchip requested but unavailable: ");
-            goto error;
-        }
-        error_free(local_err);
-        local_err = NULL;
-    }
-
-    if (!spapr->ics) {
-        xics_spapr_init(spapr);
-        spapr->icp_type = TYPE_ICP;
-        spapr->ics = spapr_ics_create(spapr, TYPE_ICS_SIMPLE, nr_irqs,
-                                      &local_err);
-    }
-
-error:
-    error_propagate(errp, local_err);
 }
 
 static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
@@ -2618,7 +2553,7 @@ static void spapr_machine_init(MachineState *machine)
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
 
     /* Set up Interrupt Controller before we create the VCPUs */
-    xics_system_init(machine, XICS_IRQS_SPAPR, &error_fatal);
+    smc->irq->init(spapr, &error_fatal);
 
     /* Set up containers for ibm,client-architecture-support negotiated options
      */
@@ -3810,121 +3745,13 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
     return cpu ? ICP(cpu->intc) : NULL;
 }
 
-#define ICS_IRQ_FREE(ics, srcno)   \
-    (!((ics)->irqs[(srcno)].flags & (XICS_FLAGS_IRQ_MASK)))
-
-static int ics_find_free_block(ICSState *ics, int num, int alignnum)
-{
-    int first, i;
-
-    for (first = 0; first < ics->nr_irqs; first += alignnum) {
-        if (num > (ics->nr_irqs - first)) {
-            return -1;
-        }
-        for (i = first; i < first + num; ++i) {
-            if (!ICS_IRQ_FREE(ics, i)) {
-                break;
-            }
-        }
-        if (i == (first + num)) {
-            return first;
-        }
-    }
-
-    return -1;
-}
-
-int spapr_irq_find(sPAPRMachineState *spapr, int num, bool align, Error **errp)
-{
-    ICSState *ics = spapr->ics;
-    int first = -1;
-
-    assert(ics);
-
-    /*
-     * MSIMesage::data is used for storing VIRQ so
-     * it has to be aligned to num to support multiple
-     * MSI vectors. MSI-X is not affected by this.
-     * The hint is used for the first IRQ, the rest should
-     * be allocated continuously.
-     */
-    if (align) {
-        assert((num == 1) || (num == 2) || (num == 4) ||
-               (num == 8) || (num == 16) || (num == 32));
-        first = ics_find_free_block(ics, num, num);
-    } else {
-        first = ics_find_free_block(ics, num, 1);
-    }
-
-    if (first < 0) {
-        error_setg(errp, "can't find a free %d-IRQ block", num);
-        return -1;
-    }
-
-    return first + ics->offset;
-}
-
-int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp)
-{
-    ICSState *ics = spapr->ics;
-
-    assert(ics);
-
-    if (!ics_valid_irq(ics, irq)) {
-        error_setg(errp, "IRQ %d is invalid", irq);
-        return -1;
-    }
-
-    if (!ICS_IRQ_FREE(ics, irq - ics->offset)) {
-        error_setg(errp, "IRQ %d is not free", irq);
-        return -1;
-    }
-
-    ics_set_irq_type(ics, irq - ics->offset, lsi);
-    return 0;
-}
-
-void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num)
-{
-    ICSState *ics = spapr->ics;
-    int srcno = irq - ics->offset;
-    int i;
-
-    if (ics_valid_irq(ics, irq)) {
-        trace_spapr_irq_free(0, irq, num);
-        for (i = srcno; i < srcno + num; ++i) {
-            if (ICS_IRQ_FREE(ics, i)) {
-                trace_spapr_irq_free_warn(0, i + ics->offset);
-            }
-            memset(&ics->irqs[i], 0, sizeof(ICSIRQState));
-        }
-    }
-}
-
-qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq)
-{
-    ICSState *ics = spapr->ics;
-
-    if (ics_valid_irq(ics, irq)) {
-        return ics->qirqs[irq - ics->offset];
-    }
-
-    return NULL;
-}
-
 static void spapr_pic_print_info(InterruptStatsProvider *obj,
                                  Monitor *mon)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
-    CPUState *cs;
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-
-        icp_pic_print_info(ICP(cpu->intc), mon);
-    }
-
-    ics_pic_print_info(spapr->ics, mon);
+    smc->irq->print_info(spapr, mon);
 }
 
 int spapr_get_vcpu_id(PowerPCCPU *cpu)
@@ -4037,6 +3864,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     smc->default_caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_BROKEN;
     smc->default_caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE] = 16; /* 64kiB */
     spapr_caps_add_properties(smc, &error_abort);
+    smc->irq = &spapr_irq_xics;
 }
 
 static const TypeInfo spapr_machine_info = {
