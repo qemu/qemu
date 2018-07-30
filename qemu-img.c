@@ -2024,11 +2024,12 @@ static int img_convert(int argc, char **argv)
          skip_create = false, progress = false, tgt_image_opts = false;
     int64_t ret = -EINVAL;
     bool force_share = false;
+    bool explict_min_sparse = false;
 
     ImgConvertState s = (ImgConvertState) {
         /* Need at least 4k of zeros for sparse detection */
         .min_sparse         = 8,
-        .copy_range         = true,
+        .copy_range         = false,
         .buf_sectors        = IO_BUF_SIZE / BDRV_SECTOR_SIZE,
         .wr_in_order        = true,
         .num_coroutines     = 8,
@@ -2043,7 +2044,7 @@ static int img_convert(int argc, char **argv)
             {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:O:B:co:l:S:pt:T:qnm:WU",
+        c = getopt_long(argc, argv, ":hf:O:B:Cco:l:S:pt:T:qnm:WU",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -2067,9 +2068,11 @@ static int img_convert(int argc, char **argv)
         case 'B':
             out_baseimg = optarg;
             break;
+        case 'C':
+            s.copy_range = true;
+            break;
         case 'c':
             s.compressed = true;
-            s.copy_range = false;
             break;
         case 'o':
             if (!is_valid_option_list(optarg)) {
@@ -2112,7 +2115,7 @@ static int img_convert(int argc, char **argv)
             }
 
             s.min_sparse = sval / BDRV_SECTOR_SIZE;
-            s.copy_range = false;
+            explict_min_sparse = true;
             break;
         }
         case 'p':
@@ -2169,6 +2172,16 @@ static int img_convert(int argc, char **argv)
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
                           NULL, NULL)) {
+        goto fail_getopt;
+    }
+
+    if (s.compressed && s.copy_range) {
+        error_report("Cannot enable copy offloading when -c is used");
+        goto fail_getopt;
+    }
+
+    if (explict_min_sparse && s.copy_range) {
+        error_report("Cannot enable copy offloading when -S is used");
         goto fail_getopt;
     }
 

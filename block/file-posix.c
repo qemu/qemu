@@ -648,7 +648,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 #endif
 
-    bs->supported_zero_flags = s->discard_zeroes ? BDRV_REQ_MAY_UNMAP : 0;
+    bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP;
     ret = 0;
 fail:
     if (filename && (bdrv_flags & BDRV_O_TEMPORARY)) {
@@ -1487,6 +1487,35 @@ static ssize_t handle_aiocb_write_zeroes(RawPosixAIOData *aiocb)
     return -ENOTSUP;
 }
 
+static ssize_t handle_aiocb_write_zeroes_unmap(RawPosixAIOData *aiocb)
+{
+    BDRVRawState *s G_GNUC_UNUSED = aiocb->bs->opaque;
+    int ret;
+
+    /* First try to write zeros and unmap at the same time */
+
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+    ret = do_fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+                       aiocb->aio_offset, aiocb->aio_nbytes);
+    if (ret != -ENOTSUP) {
+        return ret;
+    }
+#endif
+
+#ifdef CONFIG_XFS
+    if (s->is_xfs) {
+        /* xfs_discard() guarantees that the discarded area reads as all-zero
+         * afterwards, so we can use it here. */
+        return xfs_discard(s, aiocb->aio_offset, aiocb->aio_nbytes);
+    }
+#endif
+
+    /* If we couldn't manage to unmap while guaranteed that the area reads as
+     * all-zero afterwards, just write zeroes without unmapping */
+    ret = handle_aiocb_write_zeroes(aiocb);
+    return ret;
+}
+
 #ifndef HAVE_COPY_FILE_RANGE
 static off_t copy_file_range(int in_fd, off_t *in_off, int out_fd,
                              off_t *out_off, size_t len, unsigned int flags)
@@ -1646,6 +1675,9 @@ static int handle_aiocb_truncate(RawPosixAIOData *aiocb)
             num = MIN(left, 65536);
             result = write(fd, buf, num);
             if (result < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
                 result = -errno;
                 error_setg_errno(errp, -result,
                                  "Could not write zeros for preallocation");
@@ -1728,6 +1760,9 @@ static int aio_worker(void *arg)
         break;
     case QEMU_AIO_WRITE_ZEROES:
         ret = handle_aiocb_write_zeroes(aiocb);
+        break;
+    case QEMU_AIO_WRITE_ZEROES | QEMU_AIO_DISCARD:
+        ret = handle_aiocb_write_zeroes_unmap(aiocb);
         break;
     case QEMU_AIO_COPY_RANGE:
         ret = handle_aiocb_copy_range(aiocb);
@@ -2553,15 +2588,13 @@ static int coroutine_fn raw_co_pwrite_zeroes(
     int bytes, BdrvRequestFlags flags)
 {
     BDRVRawState *s = bs->opaque;
+    int operation = QEMU_AIO_WRITE_ZEROES;
 
-    if (!(flags & BDRV_REQ_MAY_UNMAP)) {
-        return paio_submit_co(bs, s->fd, offset, NULL, bytes,
-                              QEMU_AIO_WRITE_ZEROES);
-    } else if (s->discard_zeroes) {
-        return paio_submit_co(bs, s->fd, offset, NULL, bytes,
-                              QEMU_AIO_DISCARD);
+    if (flags & BDRV_REQ_MAY_UNMAP) {
+        operation |= QEMU_AIO_DISCARD;
     }
-    return -ENOTSUP;
+
+    return paio_submit_co(bs, s->fd, offset, NULL, bytes, operation);
 }
 
 static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
@@ -3054,20 +3087,19 @@ static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int bytes, BdrvRequestFlags flags)
 {
     BDRVRawState *s = bs->opaque;
+    int operation = QEMU_AIO_WRITE_ZEROES | QEMU_AIO_BLKDEV;
     int rc;
 
     rc = fd_open(bs);
     if (rc < 0) {
         return rc;
     }
-    if (!(flags & BDRV_REQ_MAY_UNMAP)) {
-        return paio_submit_co(bs, s->fd, offset, NULL, bytes,
-                              QEMU_AIO_WRITE_ZEROES|QEMU_AIO_BLKDEV);
-    } else if (s->discard_zeroes) {
-        return paio_submit_co(bs, s->fd, offset, NULL, bytes,
-                              QEMU_AIO_DISCARD|QEMU_AIO_BLKDEV);
+
+    if (flags & BDRV_REQ_MAY_UNMAP) {
+        operation |= QEMU_AIO_DISCARD;
     }
-    return -ENOTSUP;
+
+    return paio_submit_co(bs, s->fd, offset, NULL, bytes, operation);
 }
 
 static int coroutine_fn hdev_co_create_opts(const char *filename, QemuOpts *opts,

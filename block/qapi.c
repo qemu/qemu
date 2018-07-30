@@ -593,15 +593,29 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
             p_next = &info->next;
         }
     } else {
-        for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+        for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
             BlockStatsList *info = g_malloc0(sizeof(*info));
             AioContext *ctx = blk_get_aio_context(blk);
             BlockStats *s;
+            char *qdev;
+
+            if (!*blk_name(blk) && !blk_get_attached_dev(blk)) {
+                continue;
+            }
 
             aio_context_acquire(ctx);
             s = bdrv_query_bds_stats(blk_bs(blk), true);
             s->has_device = true;
             s->device = g_strdup(blk_name(blk));
+
+            qdev = blk_get_attached_dev_id(blk);
+            if (qdev && *qdev) {
+                s->has_qdev = true;
+                s->qdev = qdev;
+            } else {
+                g_free(qdev);
+            }
+
             bdrv_query_blk_stats(s->stats, blk);
             aio_context_release(ctx);
 

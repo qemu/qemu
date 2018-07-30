@@ -866,6 +866,9 @@
 #
 # @node-name: The node name of the device. (Since 2.3)
 #
+# @qdev: The qdev ID, or if no ID is assigned, the QOM path of the block
+#        device. (since 3.0)
+#
 # @stats:  A @BlockDeviceStats for the device.
 #
 # @parent: This describes the file block device if it has one.
@@ -879,7 +882,7 @@
 # Since: 0.14.0
 ##
 { 'struct': 'BlockStats',
-  'data': {'*device': 'str', '*node-name': 'str',
+  'data': {'*device': 'str', '*qdev': 'str', '*node-name': 'str',
            'stats': 'BlockDeviceStats',
            '*parent': 'BlockStats',
            '*backing': 'BlockStats'} }
@@ -941,7 +944,8 @@
 #                "idle_time_ns":2953431879,
 #                "account_invalid":true,
 #                "account_failed":false
-#             }
+#             },
+#             "qdev": "/machine/unattached/device[23]"
 #          },
 #          {
 #             "device":"ide1-cd0",
@@ -959,7 +963,8 @@
 #                "wr_merged":0,
 #                "account_invalid":false,
 #                "account_failed":false
-#             }
+#             },
+#             "qdev": "/machine/unattached/device[24]"
 #          },
 #          {
 #             "device":"floppy0",
@@ -977,7 +982,8 @@
 #                "wr_merged":0,
 #                "account_invalid":false,
 #                "account_failed":false
-#             }
+#             },
+#             "qdev": "/machine/unattached/device[16]"
 #          },
 #          {
 #             "device":"sd0",

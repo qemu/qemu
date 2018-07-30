@@ -508,6 +508,17 @@ size             Virtual disk size
 Testing: convert -O bochs -o help
 qemu-img: Format driver 'bochs' does not support image creation
 
+=== convert: -C and other options ===
+
+Testing: convert -C -S 4k -O qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.target
+qemu-img: Cannot enable copy offloading when -S is used
+
+Testing: convert -C -S 8k -O qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.target
+qemu-img: Cannot enable copy offloading when -S is used
+
+Testing: convert -C -c -O qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.target
+qemu-img: Cannot enable copy offloading when -c is used
+
 === amend: Options specified more than once ===
 
 Testing: amend -f foo -f qcow2 -o lazy_refcounts=on TEST_DIR/t.qcow2

@@ -1,0 +1,205 @@
+QA output created by 227
+
+=== blockstats with -drive if=virtio ===
+
+Testing: -drive driver=null-co,if=virtio
+{
+    QMP_VERSION
+}
+{
+    "return": {
+    }
+}
+{
+    "return": [
+        {
+            "device": "virtio0",
+            "stats": {
+                "flush_total_time_ns": 0,
+                "wr_highest_offset": 0,
+                "wr_total_time_ns": 0,
+                "failed_wr_operations": 0,
+                "failed_rd_operations": 0,
+                "wr_merged": 0,
+                "wr_bytes": 0,
+                "timed_stats": [
+                ],
+                "failed_flush_operations": 0,
+                "account_invalid": true,
+                "rd_total_time_ns": 0,
+                "flush_operations": 0,
+                "wr_operations": 0,
+                "rd_merged": 0,
+                "rd_bytes": 0,
+                "invalid_flush_operations": 0,
+                "account_failed": true,
+                "rd_operations": 0,
+                "invalid_wr_operations": 0,
+                "invalid_rd_operations": 0
+            },
+            "node-name": "NODE_NAME",
+            "qdev": "/machine/peripheral-anon/device[0]/virtio-backend"
+        }
+    ]
+}
+{
+    "return": {
+    }
+}
+{
+    "timestamp": {
+        "seconds":  TIMESTAMP,
+        "microseconds":  TIMESTAMP
+    },
+    "event": "SHUTDOWN",
+    "data": {
+        "guest": false
+    }
+}
+
+
+=== blockstats with -drive if=none ===
+
+Testing: -drive driver=null-co,if=none
+{
+    QMP_VERSION
+}
+{
+    "return": {
+    }
+}
+{
+    "return": [
+        {
+            "device": "none0",
+            "stats": {
+                "flush_total_time_ns": 0,
+                "wr_highest_offset": 0,
+                "wr_total_time_ns": 0,
+                "failed_wr_operations": 0,
+                "failed_rd_operations": 0,
+                "wr_merged": 0,
+                "wr_bytes": 0,
+                "timed_stats": [
+                ],
+                "failed_flush_operations": 0,
+                "account_invalid": true,
+                "rd_total_time_ns": 0,
+                "flush_operations": 0,
+                "wr_operations": 0,
+                "rd_merged": 0,
+                "rd_bytes": 0,
+                "invalid_flush_operations": 0,
+                "account_failed": true,
+                "rd_operations": 0,
+                "invalid_wr_operations": 0,
+                "invalid_rd_operations": 0
+            },
+            "node-name": "NODE_NAME"
+        }
+    ]
+}
+{
+    "return": {
+    }
+}
+{
+    "timestamp": {
+        "seconds":  TIMESTAMP,
+        "microseconds":  TIMESTAMP
+    },
+    "event": "SHUTDOWN",
+    "data": {
+        "guest": false
+    }
+}
+
+
+=== blockstats with -blockdev ===
+
+Testing: -blockdev driver=null-co,node-name=null
+{
+    QMP_VERSION
+}
+{
+    "return": {
+    }
+}
+{
+    "return": [
+    ]
+}
+{
+    "return": {
+    }
+}
+{
+    "timestamp": {
+        "seconds":  TIMESTAMP,
+        "microseconds":  TIMESTAMP
+    },
+    "event": "SHUTDOWN",
+    "data": {
+        "guest": false
+    }
+}
+
+
+=== blockstats with -blockdev and -device ===
+
+Testing: -blockdev driver=null-co,node-name=null -device virtio-blk,drive=null,id=virtio0
+{
+    QMP_VERSION
+}
+{
+    "return": {
+    }
+}
+{
+    "return": [
+        {
+            "device": "",
+            "stats": {
+                "flush_total_time_ns": 0,
+                "wr_highest_offset": 0,
+                "wr_total_time_ns": 0,
+                "failed_wr_operations": 0,
+                "failed_rd_operations": 0,
+                "wr_merged": 0,
+                "wr_bytes": 0,
+                "timed_stats": [
+                ],
+                "failed_flush_operations": 0,
+                "account_invalid": false,
+                "rd_total_time_ns": 0,
+                "flush_operations": 0,
+                "wr_operations": 0,
+                "rd_merged": 0,
+                "rd_bytes": 0,
+                "invalid_flush_operations": 0,
+                "account_failed": false,
+                "rd_operations": 0,
+                "invalid_wr_operations": 0,
+                "invalid_rd_operations": 0
+            },
+            "node-name": "null",
+            "qdev": "/machine/peripheral/virtio0/virtio-backend"
+        }
+    ]
+}
+{
+    "return": {
+    }
+}
+{
+    "timestamp": {
+        "seconds":  TIMESTAMP,
+        "microseconds":  TIMESTAMP
+    },
+    "event": "SHUTDOWN",
+    "data": {
+        "guest": false
+    }
+}
+
+*** done
