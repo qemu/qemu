@@ -319,6 +319,7 @@ static void sclp_memory_init(SCLPDevice *sclp)
     initial_mem = initial_mem >> increment_size << increment_size;
 
     machine->ram_size = initial_mem;
+    machine->maxram_size = initial_mem;
     /* let's propagate the changed ram size into the global variable. */
     ram_size = initial_mem;
 }
