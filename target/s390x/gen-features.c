@@ -1,7 +1,7 @@
 /*
  * S390 feature list generator
  *
- * Copyright 2016 IBM Corp.
+ * Copyright IBM Corp. 2016, 2018
  *
  * Author(s): Michael Mueller <mimu@linux.vnet.ibm.com>
  *            David Hildenbrand <dahi@linux.vnet.ibm.com>
@@ -471,6 +471,7 @@ static uint16_t full_GEN14_GA1[] = {
     S390_FEAT_GROUP_MSA_EXT_7,
     S390_FEAT_GROUP_MSA_EXT_8,
     S390_FEAT_CMM_NT,
+    S390_FEAT_ETOKEN,
     S390_FEAT_HPMA2,
     S390_FEAT_SIE_KSS,
     S390_FEAT_GROUP_MULTIPLE_EPOCH_PTFF,

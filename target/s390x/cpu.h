@@ -2,6 +2,7 @@
  * S/390 virtual CPU header
  *
  *  Copyright (c) 2009 Ulrich Hecht
+ *  Copyright IBM Corp. 2012, 2018
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -68,6 +69,8 @@ struct CPUS390XState {
     uint32_t aregs[16];    /* access registers */
     uint8_t riccb[64];     /* runtime instrumentation control */
     uint64_t gscb[4];      /* guarded storage control */
+    uint64_t etoken;       /* etoken */
+    uint64_t etoken_extension; /* etoken extension */
 
     /* Fields up to this point are not cleared by initial CPU reset */
     struct {} start_initial_reset_fields;
