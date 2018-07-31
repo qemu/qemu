@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <errno.h>
 #include <sys/mman.h>
 
 #define D(x)
@@ -435,6 +435,25 @@ void checked_write(int fd, const void *buf, size_t count)
     fail_unless(rc == count);
 }
 
+void check_invalid_mmaps(void)
+{
+    unsigned char *addr;
+
+    /* Attempt to map a zero length page.  */
+    addr = mmap(NULL, 0, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    fprintf(stdout, "%s addr=%p", __func__, (void *)addr);
+    fail_unless(addr == MAP_FAILED);
+    fail_unless(errno == EINVAL);
+
+    /* Attempt to map a over length page.  */
+    addr = mmap(NULL, -4, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    fprintf(stdout, "%s addr=%p", __func__, (void *)addr);
+    fail_unless(addr == MAP_FAILED);
+    fail_unless(errno == ENOMEM);
+
+    fprintf(stdout, " passed\n");
+}
+
 int main(int argc, char **argv)
 {
 	char tempname[] = "/tmp/.cmmapXXXXXX";
@@ -476,6 +495,7 @@ int main(int argc, char **argv)
 	check_file_fixed_mmaps();
 	check_file_fixed_eof_mmaps();
 	check_file_unfixed_eof_mmaps();
+	check_invalid_mmaps();
 
 	/* Fails at the moment.  */
 	/* check_aligned_anonymous_fixed_mmaps_collide_with_host(); */
