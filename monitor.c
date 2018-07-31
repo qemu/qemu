@@ -633,7 +633,7 @@ static void monitor_qapi_event_handler(void *opaque);
  * applying any rate limiting if required.
  */
 static void
-monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
+monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
 {
     MonitorQAPIEventConf *evconf;
     MonitorQAPIEventState *evstate;
@@ -686,6 +686,48 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
     }
 
     qemu_mutex_unlock(&monitor_lock);
+}
+
+static void
+monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
+{
+    /*
+     * monitor_qapi_event_queue_no_reenter() is not reentrant: it
+     * would deadlock on monitor_lock.  Work around by queueing
+     * events in thread-local storage.
+     * TODO: remove this, make it re-enter safe.
+     */
+    typedef struct MonitorQapiEvent {
+        QAPIEvent event;
+        QDict *qdict;
+        QSIMPLEQ_ENTRY(MonitorQapiEvent) entry;
+    } MonitorQapiEvent;
+    static __thread QSIMPLEQ_HEAD(, MonitorQapiEvent) event_queue;
+    static __thread bool reentered;
+    MonitorQapiEvent *ev;
+
+    if (!reentered) {
+        QSIMPLEQ_INIT(&event_queue);
+    }
+
+    ev = g_new(MonitorQapiEvent, 1);
+    ev->qdict = qobject_ref(qdict);
+    ev->event = event;
+    QSIMPLEQ_INSERT_TAIL(&event_queue, ev, entry);
+    if (reentered) {
+        return;
+    }
+
+    reentered = true;
+
+    while ((ev = QSIMPLEQ_FIRST(&event_queue)) != NULL) {
+        QSIMPLEQ_REMOVE_HEAD(&event_queue, entry);
+        monitor_qapi_event_queue_no_reenter(ev->event, ev->qdict);
+        qobject_unref(ev->qdict);
+        g_free(ev);
+    }
+
+    reentered = false;
 }
 
 /*
