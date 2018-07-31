@@ -157,7 +157,6 @@ static void cryptodev_vhost_user_event(void *opaque, int event)
 {
     CryptoDevBackendVhostUser *s = opaque;
     CryptoDevBackend *b = CRYPTODEV_BACKEND(s);
-    Error *err = NULL;
     int queues = b->conf.peers.queues;
 
     assert(queues < MAX_CRYPTO_QUEUE_NUM);
@@ -173,10 +172,6 @@ static void cryptodev_vhost_user_event(void *opaque, int event)
         b->ready = false;
         cryptodev_vhost_user_stop(queues, s);
         break;
-    }
-
-    if (err) {
-        error_report_err(err);
     }
 }
 
