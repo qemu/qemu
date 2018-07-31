@@ -57,7 +57,7 @@ typedef struct PPC440PCIXState {
     struct PLBOutMap pom[PPC440_PCIX_NR_POMS];
     struct PLBInMap pim[PPC440_PCIX_NR_PIMS];
     uint32_t sts;
-    qemu_irq irq[PCI_NUM_PINS];
+    qemu_irq irq;
     AddressSpace bm_as;
     MemoryRegion bm;
 
@@ -418,21 +418,20 @@ static void ppc440_pcix_reset(DeviceState *dev)
  * This may need further refactoring for other boards. */
 static int ppc440_pcix_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    int slot = pci_dev->devfn >> 3;
-    trace_ppc440_pcix_map_irq(pci_dev->devfn, irq_num, slot);
-    return slot - 1;
+    trace_ppc440_pcix_map_irq(pci_dev->devfn, irq_num, 0);
+    return 0;
 }
 
 static void ppc440_pcix_set_irq(void *opaque, int irq_num, int level)
 {
-    qemu_irq *pci_irqs = opaque;
+    qemu_irq *pci_irq = opaque;
 
     trace_ppc440_pcix_set_irq(irq_num);
     if (irq_num < 0) {
         error_report("%s: PCI irq %d", __func__, irq_num);
         return;
     }
-    qemu_set_irq(pci_irqs[irq_num], level);
+    qemu_set_irq(*pci_irq, level);
 }
 
 static AddressSpace *ppc440_pcix_set_iommu(PCIBus *b, void *opaque, int devfn)
@@ -471,19 +470,15 @@ static int ppc440_pcix_initfn(SysBusDevice *dev)
 {
     PPC440PCIXState *s;
     PCIHostState *h;
-    int i;
 
     h = PCI_HOST_BRIDGE(dev);
     s = PPC440_PCIX_HOST_BRIDGE(dev);
 
-    for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
-        sysbus_init_irq(dev, &s->irq[i]);
-    }
-
+    sysbus_init_irq(dev, &s->irq);
     memory_region_init(&s->busmem, OBJECT(dev), "pci bus memory", UINT64_MAX);
     h->bus = pci_register_root_bus(DEVICE(dev), NULL, ppc440_pcix_set_irq,
-                         ppc440_pcix_map_irq, s->irq, &s->busmem,
-                         get_system_io(), PCI_DEVFN(0, 0), 4, TYPE_PCI_BUS);
+                         ppc440_pcix_map_irq, &s->irq, &s->busmem,
+                         get_system_io(), PCI_DEVFN(0, 0), 1, TYPE_PCI_BUS);
 
     s->dev = pci_create_simple(h->bus, PCI_DEVFN(0, 0), "ppc4xx-host-bridge");
 
