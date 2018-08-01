@@ -160,13 +160,15 @@ static void handle_set_nonblocking(HANDLE fh)
 int64_t qmp_guest_file_open(const char *path, bool has_mode,
                             const char *mode, Error **errp)
 {
-    int64_t fd;
+    int64_t fd = -1;
     HANDLE fh;
     HANDLE templ_file = NULL;
     DWORD share_mode = FILE_SHARE_READ;
     DWORD flags_and_attr = FILE_ATTRIBUTE_NORMAL;
     LPSECURITY_ATTRIBUTES sa_attr = NULL;
     OpenFlags *guest_flags;
+    GError *gerr = NULL;
+    wchar_t *w_path = NULL;
 
     if (!has_mode) {
         mode = "r";
@@ -175,16 +177,21 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode,
     guest_flags = find_open_flag(mode);
     if (guest_flags == NULL) {
         error_setg(errp, "invalid file open mode");
-        return -1;
+        goto done;
     }
 
-    fh = CreateFile(path, guest_flags->desired_access, share_mode, sa_attr,
+    w_path = g_utf8_to_utf16(path, -1, NULL, NULL, &gerr);
+    if (!w_path) {
+        goto done;
+    }
+
+    fh = CreateFileW(w_path, guest_flags->desired_access, share_mode, sa_attr,
                     guest_flags->creation_disposition, flags_and_attr,
                     templ_file);
     if (fh == INVALID_HANDLE_VALUE) {
         error_setg_win32(errp, GetLastError(), "failed to open file '%s'",
                          path);
-        return -1;
+        goto done;
     }
 
     /* set fd non-blocking to avoid common use cases (like reading from a
@@ -196,10 +203,17 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode,
     if (fd < 0) {
         CloseHandle(fh);
         error_setg(errp, "failed to add handle to qmp handle table");
-        return -1;
+        goto done;
     }
 
     slog("guest-file-open, handle: % " PRId64, fd);
+
+done:
+    if (gerr) {
+        error_setg(errp, QERR_QGA_COMMAND_FAILED, gerr->message);
+        g_error_free(gerr);
+    }
+    g_free(w_path);
     return fd;
 }
 
