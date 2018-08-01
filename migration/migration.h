@@ -266,6 +266,7 @@ bool migrate_colo_enabled(void);
 
 bool migrate_use_block(void);
 bool migrate_use_block_incremental(void);
+int migrate_max_cpu_throttle(void);
 bool migrate_use_return_path(void);
 
 bool migrate_use_compression(void);

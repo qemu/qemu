@@ -522,6 +522,9 @@
 # @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
 #                     Defaults to 0 (unlimited).  In bytes per second.
 #                     (Since 3.0)
+#
+# @max-cpu-throttle: maximum cpu throttle percentage.
+#                    Defaults to 99. (Since 3.1)
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -530,7 +533,8 @@
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
            'x-multifd-channels', 'x-multifd-page-count',
-           'xbzrle-cache-size', 'max-postcopy-bandwidth' ] }
+           'xbzrle-cache-size', 'max-postcopy-bandwidth',
+           'max-cpu-throttle' ] }
 
 ##
 # @MigrateSetParameters:
@@ -602,6 +606,10 @@
 # @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
 #                     Defaults to 0 (unlimited).  In bytes per second.
 #                     (Since 3.0)
+#
+# @max-cpu-throttle: maximum cpu throttle percentage.
+#                    The default value is 99. (Since 3.1)
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -621,7 +629,8 @@
             '*x-multifd-channels': 'int',
             '*x-multifd-page-count': 'int',
             '*xbzrle-cache-size': 'size',
-            '*max-postcopy-bandwidth': 'size' } }
+            '*max-postcopy-bandwidth': 'size',
+	    '*max-cpu-throttle': 'int' } }
 
 ##
 # @migrate-set-parameters:
@@ -708,6 +717,11 @@
 # @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
 #                     Defaults to 0 (unlimited).  In bytes per second.
 #                     (Since 3.0)
+#
+# @max-cpu-throttle: maximum cpu throttle percentage.
+#                    Defaults to 99.
+#                     (Since 3.1)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -725,7 +739,8 @@
             '*x-multifd-channels': 'uint8',
             '*x-multifd-page-count': 'uint32',
             '*xbzrle-cache-size': 'size',
-            '*max-postcopy-bandwidth': 'size'  } }
+	    '*max-postcopy-bandwidth': 'size',
+            '*max-cpu-throttle':'uint8'} }
 
 ##
 # @query-migrate-parameters:

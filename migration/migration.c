@@ -71,6 +71,7 @@
 /* Define default autoconverge cpu throttle migration parameters */
 #define DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL 20
 #define DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT 10
+#define DEFAULT_MIGRATE_MAX_CPU_THROTTLE 99
 
 /* Migration XBZRLE default cache size */
 #define DEFAULT_MIGRATE_XBZRLE_CACHE_SIZE (64 * 1024 * 1024)
@@ -697,6 +698,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->xbzrle_cache_size = s->parameters.xbzrle_cache_size;
     params->has_max_postcopy_bandwidth = true;
     params->max_postcopy_bandwidth = s->parameters.max_postcopy_bandwidth;
+    params->has_max_cpu_throttle = true;
+    params->max_cpu_throttle = s->parameters.max_cpu_throttle;
 
     return params;
 }
@@ -1043,6 +1046,15 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 
+    if (params->has_max_cpu_throttle &&
+        (params->max_cpu_throttle < params->cpu_throttle_initial ||
+         params->max_cpu_throttle > 99)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "max_cpu_throttle",
+                   "an integer in the range of cpu_throttle_initial to 99");
+        return false;
+    }
+
     return true;
 }
 
@@ -1109,6 +1121,9 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     }
     if (params->has_max_postcopy_bandwidth) {
         dest->max_postcopy_bandwidth = params->max_postcopy_bandwidth;
+    }
+    if (params->has_max_cpu_throttle) {
+        dest->max_cpu_throttle = params->max_cpu_throttle;
     }
 }
 
@@ -1184,6 +1199,9 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
     if (params->has_max_postcopy_bandwidth) {
         s->parameters.max_postcopy_bandwidth = params->max_postcopy_bandwidth;
+    }
+    if (params->has_max_cpu_throttle) {
+        s->parameters.max_cpu_throttle = params->max_cpu_throttle;
     }
 }
 
@@ -1961,7 +1979,6 @@ static int64_t migrate_max_postcopy_bandwidth(void)
 
     return s->parameters.max_postcopy_bandwidth;
 }
-
 
 bool migrate_use_block(void)
 {
@@ -3160,6 +3177,9 @@ static Property migration_properties[] = {
     DEFINE_PROP_SIZE("max-postcopy-bandwidth", MigrationState,
                       parameters.max_postcopy_bandwidth,
                       DEFAULT_MIGRATE_MAX_POSTCOPY_BANDWIDTH),
+    DEFINE_PROP_UINT8("max-cpu-throttle", MigrationState,
+                      parameters.max_cpu_throttle,
+                      DEFAULT_MIGRATE_MAX_CPU_THROTTLE),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -3230,6 +3250,7 @@ static void migration_instance_init(Object *obj)
     params->has_x_multifd_page_count = true;
     params->has_xbzrle_cache_size = true;
     params->has_max_postcopy_bandwidth = true;
+    params->has_max_cpu_throttle = true;
 
     qemu_sem_init(&ms->postcopy_pause_sem, 0);
     qemu_sem_init(&ms->postcopy_pause_rp_sem, 0);
