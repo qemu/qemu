@@ -1713,7 +1713,7 @@ static void pc_memory_plug(HotplugHandler *hotplug_dev,
     uint64_t align = TARGET_PAGE_SIZE;
     bool is_nvdimm = object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
 
-    if (memory_region_get_alignment(mr) && pcmc->enforce_aligned_dimm) {
+    if (pcmc->enforce_aligned_dimm) {
         align = memory_region_get_alignment(mr);
     }
 
