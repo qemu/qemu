@@ -67,15 +67,24 @@ void *qemu_memalign(size_t alignment, size_t size)
     return qemu_oom_check(qemu_try_memalign(alignment, size));
 }
 
+static int get_allocation_granularity(void)
+{
+    SYSTEM_INFO system_info;
+
+    GetSystemInfo(&system_info);
+    return system_info.dwAllocationGranularity;
+}
+
 void *qemu_anon_ram_alloc(size_t size, uint64_t *align, bool shared)
 {
     void *ptr;
 
-    /* FIXME: this is not exactly optimal solution since VirtualAlloc
-       has 64Kb granularity, but at least it guarantees us that the
-       memory is page aligned. */
     ptr = VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE);
     trace_qemu_anon_ram_alloc(size, ptr);
+
+    if (ptr && align) {
+        *align = MAX(get_allocation_granularity(), getpagesize());
+    }
     return ptr;
 }
 
