@@ -261,6 +261,7 @@ void gus_write(GUSEmuState * state, int port, int size, unsigned int data)
             GUSregb(IRQStatReg2x6) = 0x10;
             GUS_irqrequest(state, state->gusirq, 1);
         }
+        /* fall through */
     case 0x20D:                /* SB2xCd no IRQ */
         GUSregb(SB2xCd) = (uint8_t) data;
         break;

@@ -409,7 +409,7 @@ static uint64_t pxa2xx_mm_read(void *opaque, hwaddr addr,
     case MDCNFG ... SA1110:
         if ((addr & 3) == 0)
             return s->mm_regs[addr >> 2];
-
+        /* fall through */
     default:
         printf("%s: Bad register " REG_FMT "\n", __func__, addr);
         break;
