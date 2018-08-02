@@ -78,94 +78,6 @@ static int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
 /* ISA IO ports bridge */
 #define PPC_IO_BASE 0x80000000
 
-/* PowerPC control and status registers */
-#if 0 // Not used
-static struct {
-    /* IDs */
-    uint32_t veni_devi;
-    uint32_t revi;
-    /* Control and status */
-    uint32_t gcsr;
-    uint32_t xcfr;
-    uint32_t ct32;
-    uint32_t mcsr;
-    /* General purpose registers */
-    uint32_t gprg[6];
-    /* Exceptions */
-    uint32_t feen;
-    uint32_t fest;
-    uint32_t fema;
-    uint32_t fecl;
-    uint32_t eeen;
-    uint32_t eest;
-    uint32_t eecl;
-    uint32_t eeint;
-    uint32_t eemck0;
-    uint32_t eemck1;
-    /* Error diagnostic */
-} XCSR;
-
-static void PPC_XCSR_writeb (void *opaque,
-                             hwaddr addr, uint32_t value)
-{
-    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
-           value);
-}
-
-static void PPC_XCSR_writew (void *opaque,
-                             hwaddr addr, uint32_t value)
-{
-    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
-           value);
-}
-
-static void PPC_XCSR_writel (void *opaque,
-                             hwaddr addr, uint32_t value)
-{
-    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
-           value);
-}
-
-static uint32_t PPC_XCSR_readb (void *opaque, hwaddr addr)
-{
-    uint32_t retval = 0;
-
-    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
-           retval);
-
-    return retval;
-}
-
-static uint32_t PPC_XCSR_readw (void *opaque, hwaddr addr)
-{
-    uint32_t retval = 0;
-
-    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
-           retval);
-
-    return retval;
-}
-
-static uint32_t PPC_XCSR_readl (void *opaque, hwaddr addr)
-{
-    uint32_t retval = 0;
-
-    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
-           retval);
-
-    return retval;
-}
-
-static const MemoryRegionOps PPC_XCSR_ops = {
-    .old_mmio = {
-        .read = { PPC_XCSR_readb, PPC_XCSR_readw, PPC_XCSR_readl, },
-        .write = { PPC_XCSR_writeb, PPC_XCSR_writew, PPC_XCSR_writel, },
-    },
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-#endif
-
 /* Fake super-io ports for PREP platform (Intel 82378ZB) */
 typedef struct sysctrl_t {
     qemu_irq reset_irq;
@@ -648,11 +560,10 @@ static void ppc_prep_init(MachineState *machine)
     portio_list_init(&prep_port_list, NULL, prep_portio_list, sysctrl, "prep");
     portio_list_add(&prep_port_list, isa_address_space_io(isa), 0x0);
 
-    /* PowerPC control and status register group */
-#if 0
-    memory_region_init_io(xcsr, NULL, &PPC_XCSR_ops, NULL, "ppc-xcsr", 0x1000);
-    memory_region_add_subregion(sysmem, 0xFEFF0000, xcsr);
-#endif
+    /*
+     * PowerPC control and status register group: unimplemented,
+     * would be at address 0xFEFF0000.
+     */
 
     if (machine_usb(machine)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
