@@ -323,6 +323,7 @@ struct CPUMIPSState {
     target_ulong CP0_BadVAddr;
     uint32_t CP0_BadInstr;
     uint32_t CP0_BadInstrP;
+    uint32_t CP0_BadInstrX;
     int32_t CP0_Count;
     target_ulong CP0_EntryHi;
 #define CP0EnHi_EHINV 10
