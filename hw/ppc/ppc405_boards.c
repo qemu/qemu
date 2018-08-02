@@ -66,7 +66,7 @@ struct ref405ep_fpga_t {
     uint8_t reg1;
 };
 
-static uint32_t ref405ep_fpga_readb (void *opaque, hwaddr addr)
+static uint64_t ref405ep_fpga_readb(void *opaque, hwaddr addr, unsigned size)
 {
     ref405ep_fpga_t *fpga;
     uint32_t ret;
@@ -87,8 +87,8 @@ static uint32_t ref405ep_fpga_readb (void *opaque, hwaddr addr)
     return ret;
 }
 
-static void ref405ep_fpga_writeb (void *opaque,
-                                  hwaddr addr, uint32_t value)
+static void ref405ep_fpga_writeb(void *opaque, hwaddr addr, uint64_t value,
+                                 unsigned size)
 {
     ref405ep_fpga_t *fpga;
 
@@ -105,54 +105,14 @@ static void ref405ep_fpga_writeb (void *opaque,
     }
 }
 
-static uint32_t ref405ep_fpga_readw (void *opaque, hwaddr addr)
-{
-    uint32_t ret;
-
-    ret = ref405ep_fpga_readb(opaque, addr) << 8;
-    ret |= ref405ep_fpga_readb(opaque, addr + 1);
-
-    return ret;
-}
-
-static void ref405ep_fpga_writew (void *opaque,
-                                  hwaddr addr, uint32_t value)
-{
-    ref405ep_fpga_writeb(opaque, addr, (value >> 8) & 0xFF);
-    ref405ep_fpga_writeb(opaque, addr + 1, value & 0xFF);
-}
-
-static uint32_t ref405ep_fpga_readl (void *opaque, hwaddr addr)
-{
-    uint32_t ret;
-
-    ret = ref405ep_fpga_readb(opaque, addr) << 24;
-    ret |= ref405ep_fpga_readb(opaque, addr + 1) << 16;
-    ret |= ref405ep_fpga_readb(opaque, addr + 2) << 8;
-    ret |= ref405ep_fpga_readb(opaque, addr + 3);
-
-    return ret;
-}
-
-static void ref405ep_fpga_writel (void *opaque,
-                                  hwaddr addr, uint32_t value)
-{
-    ref405ep_fpga_writeb(opaque, addr, (value >> 24) & 0xFF);
-    ref405ep_fpga_writeb(opaque, addr + 1, (value >> 16) & 0xFF);
-    ref405ep_fpga_writeb(opaque, addr + 2, (value >> 8) & 0xFF);
-    ref405ep_fpga_writeb(opaque, addr + 3, value & 0xFF);
-}
-
 static const MemoryRegionOps ref405ep_fpga_ops = {
-    .old_mmio = {
-        .read = {
-            ref405ep_fpga_readb, ref405ep_fpga_readw, ref405ep_fpga_readl,
-        },
-        .write = {
-            ref405ep_fpga_writeb, ref405ep_fpga_writew, ref405ep_fpga_writel,
-        },
-    },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .read = ref405ep_fpga_readb,
+    .write = ref405ep_fpga_writeb,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void ref405ep_fpga_reset (void *opaque)
