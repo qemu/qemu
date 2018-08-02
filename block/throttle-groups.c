@@ -221,6 +221,15 @@ static ThrottleGroupMember *next_throttle_token(ThrottleGroupMember *tgm,
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
     ThrottleGroupMember *token, *start;
 
+    /* If this member has its I/O limits disabled then it means that
+     * it's being drained. Skip the round-robin search and return tgm
+     * immediately if it has pending requests. Otherwise we could be
+     * forcing it to wait for other member's throttled requests. */
+    if (tgm_has_pending_reqs(tgm, is_write) &&
+        atomic_read(&tgm->io_limits_disabled)) {
+        return tgm;
+    }
+
     start = token = tg->tokens[is_write];
 
     /* get next bs round in round robin style */
