@@ -747,6 +747,9 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     if (regs->cp0_epc & 1) {
         env->hflags |= MIPS_HFLAG_M16;
     }
+    if (env->insn_flags & ISA_NANOMIPS32) {
+        return;
+    }
     if (((info->elf_flags & EF_MIPS_NAN2008) != 0) !=
         ((env->active_fpu.fcr31 & (1 << FCR31_NAN2008)) != 0)) {
         if ((env->active_fpu.fcr31_rw_bitmask &
