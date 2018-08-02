@@ -4564,6 +4564,128 @@ static void gen_compute_branch (DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t1);
 }
 
+
+/* nanoMIPS Branches */
+static void gen_compute_branch_nm(DisasContext *ctx, uint32_t opc,
+                                int insn_bytes,
+                                int rs, int rt, int32_t offset)
+{
+    target_ulong btgt = -1;
+    int bcond_compute = 0;
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+
+    /* Load needed operands */
+    switch (opc) {
+    case OPC_BEQ:
+    case OPC_BNE:
+        /* Compare two registers */
+        if (rs != rt) {
+            gen_load_gpr(t0, rs);
+            gen_load_gpr(t1, rt);
+            bcond_compute = 1;
+        }
+        btgt = ctx->base.pc_next + insn_bytes + offset;
+        break;
+    case OPC_BGEZAL:
+        /* Compare to zero */
+        if (rs != 0) {
+            gen_load_gpr(t0, rs);
+            bcond_compute = 1;
+        }
+        btgt = ctx->base.pc_next + insn_bytes + offset;
+        break;
+    case OPC_BPOSGE32:
+        tcg_gen_andi_tl(t0, cpu_dspctrl, 0x3F);
+        bcond_compute = 1;
+        btgt = ctx->base.pc_next + insn_bytes + offset;
+        break;
+    case OPC_JR:
+    case OPC_JALR:
+        /* Jump to register */
+        if (offset != 0 && offset != 16) {
+            /* Hint = 0 is JR/JALR, hint 16 is JR.HB/JALR.HB, the
+               others are reserved. */
+            MIPS_INVAL("jump hint");
+            generate_exception_end(ctx, EXCP_RI);
+            goto out;
+        }
+        gen_load_gpr(btarget, rs);
+        break;
+    default:
+        MIPS_INVAL("branch/jump");
+        generate_exception_end(ctx, EXCP_RI);
+        goto out;
+    }
+    if (bcond_compute == 0) {
+        /* No condition to be computed */
+        switch (opc) {
+        case OPC_BEQ:     /* rx == rx        */
+            /* Always take */
+            ctx->hflags |= MIPS_HFLAG_B;
+            break;
+        case OPC_BGEZAL:  /* 0 >= 0          */
+            /* Always take and link */
+            tcg_gen_movi_tl(cpu_gpr[31],
+                            ctx->base.pc_next + insn_bytes);
+            ctx->hflags |= MIPS_HFLAG_B;
+            break;
+        case OPC_BNE:     /* rx != rx        */
+            tcg_gen_movi_tl(cpu_gpr[31], ctx->base.pc_next + 8);
+            /* Skip the instruction in the delay slot */
+            ctx->base.pc_next += 4;
+            goto out;
+        case OPC_JR:
+            ctx->hflags |= MIPS_HFLAG_BR;
+            break;
+        case OPC_JALR:
+            if (rt > 0) {
+                tcg_gen_movi_tl(cpu_gpr[rt],
+                                ctx->base.pc_next + insn_bytes);
+            }
+            ctx->hflags |= MIPS_HFLAG_BR;
+            break;
+        default:
+            MIPS_INVAL("branch/jump");
+            generate_exception_end(ctx, EXCP_RI);
+            goto out;
+        }
+    } else {
+        switch (opc) {
+        case OPC_BEQ:
+            tcg_gen_setcond_tl(TCG_COND_EQ, bcond, t0, t1);
+            goto not_likely;
+        case OPC_BNE:
+            tcg_gen_setcond_tl(TCG_COND_NE, bcond, t0, t1);
+            goto not_likely;
+        case OPC_BGEZAL:
+            tcg_gen_setcondi_tl(TCG_COND_GE, bcond, t0, 0);
+            tcg_gen_movi_tl(cpu_gpr[31],
+                            ctx->base.pc_next + insn_bytes);
+            goto not_likely;
+        case OPC_BPOSGE32:
+            tcg_gen_setcondi_tl(TCG_COND_GE, bcond, t0, 32);
+        not_likely:
+            ctx->hflags |= MIPS_HFLAG_BC;
+            break;
+        default:
+            MIPS_INVAL("conditional branch/jump");
+            generate_exception_end(ctx, EXCP_RI);
+            goto out;
+        }
+    }
+
+    ctx->btarget = btgt;
+
+ out:
+    if (insn_bytes == 2) {
+        ctx->hflags |= MIPS_HFLAG_B16;
+    }
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+
 /* special3 bitfield operations */
 static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
                         int rs, int lsb, int msb)
@@ -16729,14 +16851,50 @@ static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
     case NM_SWGP16:
         break;
     case NM_BC16:
+        gen_compute_branch_nm(ctx, OPC_BEQ, 2, 0, 0,
+                           (sextract32(ctx->opcode, 0, 1) << 10) |
+                           (extract32(ctx->opcode, 1, 9) << 1));
         break;
     case NM_BALC16:
+        gen_compute_branch_nm(ctx, OPC_BGEZAL, 2, 0, 0,
+                           (sextract32(ctx->opcode, 0, 1) << 10) |
+                           (extract32(ctx->opcode, 1, 9) << 1));
         break;
     case NM_BEQZC16:
+        gen_compute_branch_nm(ctx, OPC_BEQ, 2, rt, 0,
+                           (sextract32(ctx->opcode, 0, 1) << 7) |
+                           (extract32(ctx->opcode, 1, 6) << 1));
         break;
     case NM_BNEZC16:
+        gen_compute_branch_nm(ctx, OPC_BNE, 2, rt, 0,
+                           (sextract32(ctx->opcode, 0, 1) << 7) |
+                           (extract32(ctx->opcode, 1, 6) << 1));
         break;
     case NM_P16_BR:
+        switch (ctx->opcode & 0xf) {
+        case 0:
+            /* P16.JRC */
+            switch (extract32(ctx->opcode, 4, 1)) {
+            case NM_JRC:
+                gen_compute_branch_nm(ctx, OPC_JR, 2,
+                                   extract32(ctx->opcode, 5, 5), 0, 0);
+                break;
+            case NM_JALRC16:
+                gen_compute_branch_nm(ctx, OPC_JALR, 2,
+                                   extract32(ctx->opcode, 5, 5), 31, 0);
+                break;
+            }
+            break;
+        default:
+            {
+                /* P16.BRI */
+                uint32_t opc = extract32(ctx->opcode, 4, 3) <
+                               extract32(ctx->opcode, 7, 3) ? OPC_BEQ : OPC_BNE;
+                gen_compute_branch_nm(ctx, opc, 2, rs, rt,
+                                   extract32(ctx->opcode, 0, 4) << 1);
+            }
+            break;
+        }
         break;
     case NM_P16_SR:
         break;
