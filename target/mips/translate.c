@@ -13276,7 +13276,7 @@ static void gen_pool16c_r6_insn(DisasContext *ctx)
             gen_arith_imm(ctx, OPC_ADDIU, 29, 29, imm << 2);
         } else {
             /* JRC16 */
-            int rs = extract32(ctx->opcode, 5, 5);
+            rs = extract32(ctx->opcode, 5, 5);
             gen_compute_branch(ctx, OPC_JR, 2, rs, 0, 0, 0);
         }
         break;
@@ -15298,7 +15298,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
         } else {
             /* ADDIUPC */
             int reg = mmreg(ZIMM(ctx->opcode, 23, 3));
-            int offset = SIMM(ctx->opcode, 0, 23) << 2;
+            offset = SIMM(ctx->opcode, 0, 23) << 2;
 
             gen_addiupc(ctx, reg, offset, 0, 0);
         }
