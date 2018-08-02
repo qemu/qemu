@@ -388,26 +388,27 @@ struct CPUMIPSState {
     target_ulong CP0_CMGCRBase;
     int32_t CP0_Config0;
 #define CP0C0_M    31
-#define CP0C0_K23  28
-#define CP0C0_KU   25
+#define CP0C0_K23  28    /* 30..28 */
+#define CP0C0_KU   25    /* 27..25 */
 #define CP0C0_MDU  20
 #define CP0C0_MM   18
 #define CP0C0_BM   16
+#define CP0C0_Impl 16    /* 24..16 */
 #define CP0C0_BE   15
-#define CP0C0_AT   13
-#define CP0C0_AR   10
-#define CP0C0_MT   7
+#define CP0C0_AT   13    /* 14..13 */
+#define CP0C0_AR   10    /* 12..10 */
+#define CP0C0_MT   7     /*  9..7  */
 #define CP0C0_VI   3
-#define CP0C0_K0   0
+#define CP0C0_K0   0     /*  2..0  */
     int32_t CP0_Config1;
 #define CP0C1_M    31
-#define CP0C1_MMU  25
-#define CP0C1_IS   22
-#define CP0C1_IL   19
-#define CP0C1_IA   16
-#define CP0C1_DS   13
-#define CP0C1_DL   10
-#define CP0C1_DA   7
+#define CP0C1_MMU  25    /* 30..25 */
+#define CP0C1_IS   22    /* 24..22 */
+#define CP0C1_IL   19    /* 21..19 */
+#define CP0C1_IA   16    /* 18..16 */
+#define CP0C1_DS   13    /* 15..13 */
+#define CP0C1_DL   10    /* 12..10 */
+#define CP0C1_DA   7     /*  9..7  */
 #define CP0C1_C2   6
 #define CP0C1_MD   5
 #define CP0C1_PC   4
@@ -417,67 +418,85 @@ struct CPUMIPSState {
 #define CP0C1_FP   0
     int32_t CP0_Config2;
 #define CP0C2_M    31
-#define CP0C2_TU   28
-#define CP0C2_TS   24
-#define CP0C2_TL   20
-#define CP0C2_TA   16
-#define CP0C2_SU   12
-#define CP0C2_SS   8
-#define CP0C2_SL   4
-#define CP0C2_SA   0
+#define CP0C2_TU   28    /* 30..28 */
+#define CP0C2_TS   24    /* 27..24 */
+#define CP0C2_TL   20    /* 23..20 */
+#define CP0C2_TA   16    /* 19..16 */
+#define CP0C2_SU   12    /* 15..12 */
+#define CP0C2_SS   8     /* 11..8  */
+#define CP0C2_SL   4     /*  7..4  */
+#define CP0C2_SA   0     /*  3..0  */
     int32_t CP0_Config3;
-#define CP0C3_M    31
-#define CP0C3_BPG  30
-#define CP0C3_CMGCR 29
-#define CP0C3_MSAP  28
-#define CP0C3_BP 27
-#define CP0C3_BI 26
-#define CP0C3_SC 25
-#define CP0C3_IPLW 21
-#define CP0C3_MMAR 18
-#define CP0C3_MCU  17
-#define CP0C3_ISA_ON_EXC 16
-#define CP0C3_ISA  14
-#define CP0C3_ULRI 13
-#define CP0C3_RXI  12
-#define CP0C3_DSP2P 11
-#define CP0C3_DSPP 10
-#define CP0C3_LPA  7
-#define CP0C3_VEIC 6
-#define CP0C3_VInt 5
-#define CP0C3_SP   4
-#define CP0C3_CDMM 3
-#define CP0C3_MT   2
-#define CP0C3_SM   1
-#define CP0C3_TL   0
+#define CP0C3_M            31
+#define CP0C3_BPG          30
+#define CP0C3_CMGCR        29
+#define CP0C3_MSAP         28
+#define CP0C3_BP           27
+#define CP0C3_BI           26
+#define CP0C3_SC           25
+#define CP0C3_PW           24
+#define CP0C3_VZ           23
+#define CP0C3_IPLV         21    /* 22..21 */
+#define CP0C3_MMAR         18    /* 20..18 */
+#define CP0C3_MCU          17
+#define CP0C3_ISA_ON_EXC   16
+#define CP0C3_ISA          14    /* 15..14 */
+#define CP0C3_ULRI         13
+#define CP0C3_RXI          12
+#define CP0C3_DSP2P        11
+#define CP0C3_DSPP         10
+#define CP0C3_CTXTC        9
+#define CP0C3_ITL          8
+#define CP0C3_LPA          7
+#define CP0C3_VEIC         6
+#define CP0C3_VInt         5
+#define CP0C3_SP           4
+#define CP0C3_CDMM         3
+#define CP0C3_MT           2
+#define CP0C3_SM           1
+#define CP0C3_TL           0
     int32_t CP0_Config4;
     int32_t CP0_Config4_rw_bitmask;
-#define CP0C4_M    31
-#define CP0C4_IE   29
-#define CP0C4_AE   28
-#define CP0C4_KScrExist 16
-#define CP0C4_MMUExtDef 14
-#define CP0C4_FTLBPageSize 8
-#define CP0C4_FTLBWays 4
-#define CP0C4_FTLBSets 0
-#define CP0C4_MMUSizeExt 0
+#define CP0C4_M            31
+#define CP0C4_IE           29    /* 30..29 */
+#define CP0C4_AE           28
+#define CP0C4_VTLBSizeExt  24    /* 27..24 */
+#define CP0C4_KScrExist    16
+#define CP0C4_MMUExtDef    14
+#define CP0C4_FTLBPageSize 8     /* 12..8  */
+/* bit layout if MMUExtDef=1 */
+#define CP0C4_MMUSizeExt   0     /*  7..0  */
+/* bit layout if MMUExtDef=2 */
+#define CP0C4_FTLBWays     4     /*  7..4  */
+#define CP0C4_FTLBSets     0     /*  3..0  */
     int32_t CP0_Config5;
     int32_t CP0_Config5_rw_bitmask;
-#define CP0C5_M          31
-#define CP0C5_K          30
-#define CP0C5_CV         29
-#define CP0C5_EVA        28
-#define CP0C5_MSAEn      27
-#define CP0C5_XNP        13
-#define CP0C5_UFE        9
-#define CP0C5_FRE        8
-#define CP0C5_VP         7
-#define CP0C5_SBRI       6
-#define CP0C5_MVH        5
-#define CP0C5_LLB        4
-#define CP0C5_MRP        3
-#define CP0C5_UFR        2
-#define CP0C5_NFExists   0
+#define CP0C5_M            31
+#define CP0C5_K            30
+#define CP0C5_CV           29
+#define CP0C5_EVA          28
+#define CP0C5_MSAEn        27
+#define CP0C5_PMJ          23    /* 25..23 */
+#define CP0C5_WR2          22
+#define CP0C5_NMS          21
+#define CP0C5_ULS          20
+#define CP0C5_XPA          19
+#define CP0C5_CRCP         18
+#define CP0C5_MI           17
+#define CP0C5_GI           15    /* 16..15 */
+#define CP0C5_CA2          14
+#define CP0C5_XNP          13
+#define CP0C5_DEC          11
+#define CP0C5_L2C          10
+#define CP0C5_UFE          9
+#define CP0C5_FRE          8
+#define CP0C5_VP           7
+#define CP0C5_SBRI         6
+#define CP0C5_MVH          5
+#define CP0C5_LLB          4
+#define CP0C5_MRP          3
+#define CP0C5_UFR          2
+#define CP0C5_NFExists     0
     int32_t CP0_Config6;
     int32_t CP0_Config7;
     uint64_t CP0_MAAR[MIPS_MAAR_MAX];
