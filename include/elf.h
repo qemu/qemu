@@ -62,6 +62,29 @@ typedef int64_t  Elf64_Sxword;
 #define EF_MIPS_FP64      0x00000200
 #define EF_MIPS_NAN2008   0x00000400
 
+/* MIPS machine variant */
+#define EF_MIPS_MACH_NONE     0x00000000  /* A standard MIPS implementation  */
+#define EF_MIPS_MACH_3900     0x00810000  /* Toshiba R3900                   */
+#define EF_MIPS_MACH_4010     0x00820000  /* LSI R4010                       */
+#define EF_MIPS_MACH_4100     0x00830000  /* NEC VR4100                      */
+#define EF_MIPS_MACH_4650     0x00850000  /* MIPS R4650                      */
+#define EF_MIPS_MACH_4120     0x00870000  /* NEC VR4120                      */
+#define EF_MIPS_MACH_4111     0x00880000  /* NEC VR4111/VR4181               */
+#define EF_MIPS_MACH_SB1      0x008a0000  /* Broadcom SB-1                   */
+#define EF_MIPS_MACH_OCTEON   0x008b0000  /* Cavium Networks Octeon          */
+#define EF_MIPS_MACH_XLR      0x008c0000  /* RMI Xlr                         */
+#define EF_MIPS_MACH_OCTEON2  0x008d0000  /* Cavium Networks Octeon2         */
+#define EF_MIPS_MACH_OCTEON3  0x008e0000  /* Cavium Networks Octeon3         */
+#define EF_MIPS_MACH_5400     0x00910000  /* NEC VR5400                      */
+#define EF_MIPS_MACH_5900     0x00920000  /* MIPS R5900                      */
+#define EF_MIPS_MACH_5500     0x00980000  /* NEC VR5500                      */
+#define EF_MIPS_MACH_9000     0x00990000  /* PMC-Sierra's RM9000             */
+#define EF_MIPS_MACH_LS2E     0x00a00000  /* ST Microelectronics Loongson 2E */
+#define EF_MIPS_MACH_LS2F     0x00a10000  /* ST Microelectronics Loongson 2F */
+#define EF_MIPS_MACH_LS3A     0x00a20000  /* ST Microelectronics Loongson 3A */
+#define EF_MIPS_MACH          0x00ff0000  /* EF_MIPS_MACH_xxx selection mask */
+
+
 /* These constants define the different elf file types */
 #define ET_NONE   0
 #define ET_REL    1
