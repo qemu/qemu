@@ -36,64 +36,30 @@ typedef struct ISAVGAMMState {
 } ISAVGAMMState;
 
 /* Memory mapped interface */
-static uint32_t vga_mm_readb (void *opaque, hwaddr addr)
+static uint64_t vga_mm_read(void *opaque, hwaddr addr, unsigned size)
 {
     ISAVGAMMState *s = opaque;
 
-    return vga_ioport_read(&s->vga, addr >> s->it_shift) & 0xff;
+    return vga_ioport_read(&s->vga, addr >> s->it_shift) &
+        MAKE_64BIT_MASK(0, size * 8);
 }
 
-static void vga_mm_writeb (void *opaque,
-                           hwaddr addr, uint32_t value)
+static void vga_mm_write(void *opaque, hwaddr addr, uint64_t value,
+                         unsigned size)
 {
     ISAVGAMMState *s = opaque;
 
-    vga_ioport_write(&s->vga, addr >> s->it_shift, value & 0xff);
-}
-
-static uint32_t vga_mm_readw (void *opaque, hwaddr addr)
-{
-    ISAVGAMMState *s = opaque;
-
-    return vga_ioport_read(&s->vga, addr >> s->it_shift) & 0xffff;
-}
-
-static void vga_mm_writew (void *opaque,
-                           hwaddr addr, uint32_t value)
-{
-    ISAVGAMMState *s = opaque;
-
-    vga_ioport_write(&s->vga, addr >> s->it_shift, value & 0xffff);
-}
-
-static uint32_t vga_mm_readl (void *opaque, hwaddr addr)
-{
-    ISAVGAMMState *s = opaque;
-
-    return vga_ioport_read(&s->vga, addr >> s->it_shift);
-}
-
-static void vga_mm_writel (void *opaque,
-                           hwaddr addr, uint32_t value)
-{
-    ISAVGAMMState *s = opaque;
-
-    vga_ioport_write(&s->vga, addr >> s->it_shift, value);
+    vga_ioport_write(&s->vga, addr >> s->it_shift,
+                     value & MAKE_64BIT_MASK(0, size * 8));
 }
 
 static const MemoryRegionOps vga_mm_ctrl_ops = {
-    .old_mmio = {
-        .read = {
-            vga_mm_readb,
-            vga_mm_readw,
-            vga_mm_readl,
-        },
-        .write = {
-            vga_mm_writeb,
-            vga_mm_writew,
-            vga_mm_writel,
-        },
-    },
+    .read = vga_mm_read,
+    .write = vga_mm_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
