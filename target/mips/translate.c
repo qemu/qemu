@@ -16603,9 +16603,151 @@ enum {
 #define NANOMIPS_EXTRACT_RD5(op) ((op >> 5) & 0x1f)
 #define NANOMIPS_EXTRACT_RS5(op) (op & 0x1f)
 
+/* Implement nanoMIPS pseudocode decode_gpr(encoded_gpr, 'gpr3'). */
+static inline int decode_gpr_gpr3(int r)
+{
+    static const int map[] = { 16, 17, 18, 19,  4,  5,  6,  7 };
+
+    return map[r & 0x7];
+}
+
+/* Implement nanoMIPS pseudocode decode_gpr(encoded_gpr, 'gpr4'). */
+static inline int decode_gpr_gpr4(int r)
+{
+    static const int map[] = {  8,  9, 10, 11,  4,  5,  6,  7,
+                               16, 17, 18, 19, 20, 21, 22, 23 };
+
+    return map[r & 0xf];
+}
+
 
 static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
 {
+    uint32_t op;
+    int rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RD(ctx->opcode));
+    int rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS(ctx->opcode));
+    int rd = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS1(ctx->opcode));
+    int imm;
+
+    /* make sure instructions are on a halfword boundary */
+    if (ctx->base.pc_next & 0x1) {
+        TCGv tmp = tcg_const_tl(ctx->base.pc_next);
+        tcg_gen_st_tl(tmp, cpu_env, offsetof(CPUMIPSState, CP0_BadVAddr));
+        tcg_temp_free(tmp);
+        generate_exception_end(ctx, EXCP_AdEL);
+        return 2;
+    }
+
+    op = extract32(ctx->opcode, 10, 6);
+    switch (op) {
+    case NM_P16_MV:
+        break;
+    case NM_P16_SHIFT:
+        break;
+    case NM_P16C:
+        break;
+    case NM_P16_A1:
+        switch (extract32(ctx->opcode, 6, 1)) {
+        case NM_ADDIUR1SP:
+            imm = extract32(ctx->opcode, 0, 6) << 2;
+            gen_arith_imm(ctx, OPC_ADDIU, rt, 29, imm);
+            break;
+        default:
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        }
+        break;
+    case NM_P16_A2:
+        switch (extract32(ctx->opcode, 3, 1)) {
+        case NM_ADDIUR2:
+            imm = extract32(ctx->opcode, 0, 3) << 2;
+            gen_arith_imm(ctx, OPC_ADDIU, rt, rs, imm);
+            break;
+        case NM_P_ADDIURS5:
+            rt = extract32(ctx->opcode, 5, 5);
+            if (rt != 0) {
+                /* imm = sign_extend(s[3] . s[2:0] , from_nbits = 4) */
+                imm = (sextract32(ctx->opcode, 4, 1) << 3) |
+                      (extract32(ctx->opcode, 0, 3));
+                gen_arith_imm(ctx, OPC_ADDIU, rt, rt, imm);
+            }
+            break;
+        }
+        break;
+    case NM_P16_ADDU:
+        switch (ctx->opcode & 0x1) {
+        case NM_ADDU16:
+            gen_arith(ctx, OPC_ADDU, rd, rs, rt);
+            break;
+        case NM_SUBU16:
+            gen_arith(ctx, OPC_SUBU, rd, rs, rt);
+            break;
+        }
+        break;
+    case NM_P16_4X4:
+        rt = (extract32(ctx->opcode, 9, 1) << 3) |
+              extract32(ctx->opcode, 5, 3);
+        rs = (extract32(ctx->opcode, 4, 1) << 3) |
+              extract32(ctx->opcode, 0, 3);
+        rt = decode_gpr_gpr4(rt);
+        rs = decode_gpr_gpr4(rs);
+        switch ((extract32(ctx->opcode, 7, 2) & 0x2) |
+                (extract32(ctx->opcode, 3, 1))) {
+        case NM_ADDU4X4:
+            gen_arith(ctx, OPC_ADDU, rt, rs, rt);
+            break;
+        case NM_MUL4X4:
+            gen_r6_muldiv(ctx, R6_OPC_MUL, rt, rs, rt);
+            break;
+        default:
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        }
+        break;
+    case NM_LI16:
+        break;
+    case NM_ANDI16:
+        break;
+    case NM_P16_LB:
+        break;
+    case NM_P16_LH:
+        break;
+    case NM_LW16:
+        break;
+    case NM_LWSP16:
+        break;
+    case NM_LW4X4:
+        break;
+    case NM_SW4X4:
+        break;
+    case NM_LWGP16:
+        break;
+    case NM_SWSP16:
+        break;
+    case NM_SW16:
+        break;
+    case NM_SWGP16:
+        break;
+    case NM_BC16:
+        break;
+    case NM_BALC16:
+        break;
+    case NM_BEQZC16:
+        break;
+    case NM_BNEZC16:
+        break;
+    case NM_P16_BR:
+        break;
+    case NM_P16_SR:
+        break;
+    case NM_MOVEP:
+        break;
+    case NM_MOVEPREV:
+        break;
+    default:
+        break;
+    }
+
     return 2;
 }
 
