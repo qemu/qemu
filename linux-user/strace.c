@@ -2304,7 +2304,19 @@ print_statfs(const struct syscallname *name,
     print_pointer(arg1, 1);
     print_syscall_epilogue(name);
 }
-#define print_statfs64  print_statfs
+#endif
+
+#ifdef TARGET_NR_statfs64
+static void
+print_statfs64(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_string(arg0, 0);
+    print_pointer(arg1, 1);
+    print_syscall_epilogue(name);
+}
 #endif
 
 #ifdef TARGET_NR_symlink
