@@ -650,30 +650,16 @@ static void apic_timer(void *opaque)
     apic_timer_update(s, s->next_time);
 }
 
-static uint32_t apic_mem_readb(void *opaque, hwaddr addr)
-{
-    return 0;
-}
-
-static uint32_t apic_mem_readw(void *opaque, hwaddr addr)
-{
-    return 0;
-}
-
-static void apic_mem_writeb(void *opaque, hwaddr addr, uint32_t val)
-{
-}
-
-static void apic_mem_writew(void *opaque, hwaddr addr, uint32_t val)
-{
-}
-
-static uint32_t apic_mem_readl(void *opaque, hwaddr addr)
+static uint64_t apic_mem_read(void *opaque, hwaddr addr, unsigned size)
 {
     DeviceState *dev;
     APICCommonState *s;
     uint32_t val;
     int index;
+
+    if (size < 4) {
+        return 0;
+    }
 
     dev = cpu_get_current_apic();
     if (!dev) {
@@ -765,11 +751,17 @@ static void apic_send_msi(MSIMessage *msi)
     apic_deliver_irq(dest, dest_mode, delivery, vector, trigger_mode);
 }
 
-static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
+static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
+                           unsigned size)
 {
     DeviceState *dev;
     APICCommonState *s;
     int index = (addr >> 4) & 0xff;
+
+    if (size < 4) {
+        return;
+    }
+
     if (addr > 0xfff || !index) {
         /* MSI and MMIO APIC are at the same memory location,
          * but actually not on the global bus: MSI is on PCI bus
@@ -880,10 +872,12 @@ static void apic_post_load(APICCommonState *s)
 }
 
 static const MemoryRegionOps apic_io_ops = {
-    .old_mmio = {
-        .read = { apic_mem_readb, apic_mem_readw, apic_mem_readl, },
-        .write = { apic_mem_writeb, apic_mem_writew, apic_mem_writel, },
-    },
+    .read = apic_mem_read,
+    .write = apic_mem_write,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
