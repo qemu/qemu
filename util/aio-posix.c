@@ -232,7 +232,7 @@ void aio_set_fd_handler(AioContext *ctx,
             g_source_remove_poll(&ctx->source, &node->pfd);
         }
 
-        /* If the lock is held, just mark the node as deleted */
+        /* If a read is in progress, just mark the node as deleted */
         if (qemu_lockcnt_count(&ctx->list_lock)) {
             node->deleted = 1;
             node->pfd.revents = 0;
