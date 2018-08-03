@@ -23,9 +23,9 @@ class OpenBSDVM(basevm.BaseVM):
         cd $(mktemp -d /var/tmp/qemu-test.XXXXXX);
         tar -xf /dev/rsd1c;
         ./configure --cc=x86_64-unknown-openbsd6.1-gcc-4.9.4 --python=python2.7 {configure_opts};
-        gmake -j{jobs} {verbose};
+        gmake --output-sync -j{jobs} {verbose};
         # XXX: "gmake check" seems to always hang or fail
-        #gmake -j{jobs} check {verbose};
+        #gmake --output-sync -j{jobs} check {verbose};
     """
 
     def build_image(self, img):

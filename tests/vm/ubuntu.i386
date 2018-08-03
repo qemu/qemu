@@ -25,8 +25,8 @@ class UbuntuX86VM(basevm.BaseVM):
         sudo chmod a+r /dev/vdb;
         tar -xf /dev/vdb;
         ./configure {configure_opts};
-        make -j{jobs};
-        make check -j{jobs} {verbose};
+        make --output-sync -j{jobs};
+        make --output-sync check -j{jobs} {verbose};
     """
 
     def _gen_cloud_init_iso(self):
