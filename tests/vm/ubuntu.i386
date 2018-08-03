@@ -26,7 +26,7 @@ class UbuntuX86VM(basevm.BaseVM):
         tar -xf /dev/vdb;
         ./configure {configure_opts};
         make -j{jobs};
-        make check;
+        make -j{jobs} check;
     """
 
     def _gen_cloud_init_iso(self):

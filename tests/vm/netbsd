@@ -24,7 +24,7 @@ class NetBSDVM(basevm.BaseVM):
         tar -xf /dev/rld1a;
         ./configure --python=python2.7 {configure_opts};
         gmake -j{jobs};
-        gmake check;
+        gmake -j{jobs} check;
     """
 
     def build_image(self, img):

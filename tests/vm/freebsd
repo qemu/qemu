@@ -24,7 +24,7 @@ class FreeBSDVM(basevm.BaseVM):
         tar -xf /dev/vtbd1;
         ./configure {configure_opts};
         gmake -j{jobs};
-        gmake check;
+        gmake -j{jobs} check;
     """
 
     def build_image(self, img):
