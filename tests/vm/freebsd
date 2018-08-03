@@ -23,8 +23,8 @@ class FreeBSDVM(basevm.BaseVM):
         cd $(mktemp -d /var/tmp/qemu-test.XXXXXX);
         tar -xf /dev/vtbd1;
         ./configure {configure_opts};
-        gmake -j{jobs};
-        gmake -j{jobs} check;
+        gmake -j{jobs} {verbose};
+        gmake -j{jobs} check {verbose};
     """
 
     def build_image(self, img):

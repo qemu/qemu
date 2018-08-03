@@ -434,6 +434,7 @@ Debugging
 
 Add ``DEBUG=1`` and/or ``V=1`` to the make command to allow interactive
 debugging and verbose output. If this is not enough, see the next section.
+``V=1`` will be propagated down into the make jobs in the guest.
 
 Manual invocation
 -----------------

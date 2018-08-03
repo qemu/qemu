@@ -40,6 +40,7 @@ vm-build-%: tests/vm/%.img
 		$(if $(V)$(DEBUG), --debug) \
 		$(if $(DEBUG), --interactive) \
 		$(if $(J),--jobs $(J)) \
+		$(if $(V),--verbose) \
 		--image "$<" \
 		--build-qemu $(SRC_PATH), \
 		"  VM-BUILD $*")

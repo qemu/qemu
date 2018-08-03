@@ -211,6 +211,8 @@ def parse_args(vm_name):
                       help="force build image even if image exists")
     parser.add_option("--jobs", type=int, default=multiprocessing.cpu_count() / 2,
                       help="number of virtual CPUs")
+    parser.add_option("--verbose", "-V", action="store_true",
+                      help="Pass V=1 to builds within the guest")
     parser.add_option("--build-image", "-b", action="store_true",
                       help="build image")
     parser.add_option("--build-qemu",
@@ -241,7 +243,8 @@ def main(vmcls):
             vm.add_source_dir(args.build_qemu)
             cmd = [vm.BUILD_SCRIPT.format(
                    configure_opts = " ".join(argv),
-                   jobs=args.jobs)]
+                   jobs=args.jobs,
+                   verbose = "V=1" if args.verbose else "")]
         else:
             cmd = argv
         img = args.image
