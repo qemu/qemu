@@ -64,7 +64,7 @@ class BaseVM(object):
         else:
             self._stdout = self._devnull
         self._args = [ \
-            "-nodefaults", "-m", "2G",
+            "-nodefaults", "-m", "4G",
             "-netdev", "user,id=vnet,hostfwd=:127.0.0.1:0-:22",
             "-device", "virtio-net-pci,netdev=vnet",
             "-vnc", "127.0.0.1:0,to=20",
