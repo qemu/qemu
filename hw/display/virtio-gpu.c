@@ -421,6 +421,11 @@ static void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
                                          scanout->height ?: 480,
                                          "Guest disabled display.");
     }
+
+    if (g->disable_scanout) {
+        g->disable_scanout(g, scanout_id);
+    }
+
     dpy_gfx_replace_surface(scanout->con, ds);
     scanout->resource_id = 0;
     scanout->ds = NULL;
