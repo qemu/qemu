@@ -144,8 +144,6 @@ int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
     RdmaRmMR *mr;
     int ret = 0;
     RdmaRmPD *pd;
-    void *addr;
-    size_t length;
 
     pd = rdma_rm_get_pd(dev_res, pd_handle);
     if (!pd) {
@@ -158,40 +156,29 @@ int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
         pr_dbg("Failed to allocate obj in table\n");
         return -ENOMEM;
     }
+    pr_dbg("mr_handle=%d\n", *mr_handle);
 
-    if (!host_virt) {
-        /* TODO: This is my guess but not so sure that this needs to be
-         * done */
-        length = TARGET_PAGE_SIZE;
-        addr = g_malloc(length);
-    } else {
+    pr_dbg("host_virt=0x%p\n", host_virt);
+    pr_dbg("guest_start=0x%" PRIx64 "\n", guest_start);
+    pr_dbg("length=%zu\n", guest_length);
+
+    if (host_virt) {
         mr->virt = host_virt;
-        pr_dbg("host_virt=0x%p\n", mr->virt);
-        mr->length = guest_length;
-        pr_dbg("length=%zu\n", guest_length);
         mr->start = guest_start;
-        pr_dbg("guest_start=0x%" PRIx64 "\n", mr->start);
+        mr->length = guest_length;
 
-        length = mr->length;
-        addr = mr->virt;
+        ret = rdma_backend_create_mr(&mr->backend_mr, &pd->backend_pd, mr->virt,
+                                     mr->length, access_flags);
+        if (ret) {
+            pr_dbg("Fail in rdma_backend_create_mr, err=%d\n", ret);
+            ret = -EIO;
+            goto out_dealloc_mr;
+        }
     }
 
-    ret = rdma_backend_create_mr(&mr->backend_mr, &pd->backend_pd, addr, length,
-                                 access_flags);
-    if (ret) {
-        pr_dbg("Fail in rdma_backend_create_mr, err=%d\n", ret);
-        ret = -EIO;
-        goto out_dealloc_mr;
-    }
-
-    if (!host_virt) {
-        *lkey = mr->lkey = rdma_backend_mr_lkey(&mr->backend_mr);
-        *rkey = mr->rkey = rdma_backend_mr_rkey(&mr->backend_mr);
-    } else {
-        /* We keep mr_handle in lkey so send and recv get get mr ptr */
-        *lkey = *mr_handle;
-        *rkey = -1;
-    }
+    /* We keep mr_handle in lkey so send and recv get get mr ptr */
+    *lkey = *mr_handle;
+    *rkey = -1;
 
     mr->pd_handle = pd_handle;
 
@@ -214,7 +201,10 @@ void rdma_rm_dealloc_mr(RdmaDeviceResources *dev_res, uint32_t mr_handle)
 
     if (mr) {
         rdma_backend_destroy_mr(&mr->backend_mr);
-        munmap(mr->virt, mr->length);
+        pr_dbg("start=0x%" PRIx64 "\n", mr->start);
+        if (mr->start) {
+            munmap(mr->virt, mr->length);
+        }
         res_tbl_dealloc(&dev_res->mr_tbl, mr_handle);
     }
 }
