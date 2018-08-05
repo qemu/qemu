@@ -146,10 +146,10 @@ static void *comp_handler_thread(void *arg)
     return NULL;
 }
 
-static void stop_comp_thread(RdmaBackendDev *backend_dev)
+static void stop_backend_thread(RdmaBackendThread *thread)
 {
-    backend_dev->comp_thread.run = false;
-    while (backend_dev->comp_thread.is_running) {
+    thread->run = false;
+    while (thread->is_running) {
         pr_dbg("Waiting for thread to complete\n");
         sleep(THR_POLL_TO / SCALE_US / 2);
     }
@@ -159,7 +159,7 @@ static void start_comp_thread(RdmaBackendDev *backend_dev)
 {
     char thread_name[THR_NAME_LEN] = {0};
 
-    stop_comp_thread(backend_dev);
+    stop_backend_thread(&backend_dev->comp_thread);
 
     snprintf(thread_name, sizeof(thread_name), "rdma_comp_%s",
              ibv_get_device_name(backend_dev->ib_dev));
@@ -876,7 +876,7 @@ void rdma_backend_start(RdmaBackendDev *backend_dev)
 void rdma_backend_stop(RdmaBackendDev *backend_dev)
 {
     pr_dbg("Stopping rdma_backend\n");
-    stop_comp_thread(backend_dev);
+    stop_backend_thread(&backend_dev->comp_thread);
 }
 
 void rdma_backend_fini(RdmaBackendDev *backend_dev)
