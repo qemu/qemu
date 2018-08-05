@@ -22,18 +22,26 @@
 #include "sysemu/dma.h"
 
 #define pr_info(fmt, ...) \
-    fprintf(stdout, "%s: %-20s (%3d): " fmt, "pvrdma",  __func__, __LINE__,\
+    fprintf(stdout, "%s: %-20s (%3d): " fmt, "rdma",  __func__, __LINE__,\
            ## __VA_ARGS__)
 
 #define pr_err(fmt, ...) \
-    fprintf(stderr, "%s: Error at %-20s (%3d): " fmt, "pvrdma", __func__, \
+    fprintf(stderr, "%s: Error at %-20s (%3d): " fmt, "rdma", __func__, \
         __LINE__, ## __VA_ARGS__)
 
 #ifdef PVRDMA_DEBUG
+extern unsigned long pr_dbg_cnt;
+
+#define init_pr_dbg(void) \
+{ \
+    pr_dbg_cnt = 0; \
+}
+
 #define pr_dbg(fmt, ...) \
-    fprintf(stdout, "%s: %-20s (%3d): " fmt, "pvrdma", __func__, __LINE__,\
-           ## __VA_ARGS__)
+    fprintf(stdout, "%lx %ld: %-20s (%3d): " fmt, pthread_self(), pr_dbg_cnt++, \
+            __func__, __LINE__, ## __VA_ARGS__)
 #else
+#define init_pr_dbg(void)
 #define pr_dbg(fmt, ...)
 #endif
 

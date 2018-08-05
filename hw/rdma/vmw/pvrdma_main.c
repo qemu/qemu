@@ -577,6 +577,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     Object *memdev_root;
     bool ram_shared = false;
 
+    init_pr_dbg();
+
     pr_dbg("Initializing device %s %x.%x\n", pdev->name,
            PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 

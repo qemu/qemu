@@ -15,6 +15,10 @@
 
 #include "rdma_utils.h"
 
+#ifdef PVRDMA_DEBUG
+unsigned long pr_dbg_cnt;
+#endif
+
 void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen)
 {
     void *p;
