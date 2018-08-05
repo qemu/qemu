@@ -55,16 +55,12 @@ typedef struct RdmaRmCQ {
     bool notify;
 } RdmaRmCQ;
 
-typedef struct RdmaRmUserMR {
-    void *host_virt;
-    uint64_t guest_start;
-    size_t length;
-} RdmaRmUserMR;
-
 /* MR (DMA region) */
 typedef struct RdmaRmMR {
     RdmaBackendMR backend_mr;
-    RdmaRmUserMR user_mr;
+    void *virt;
+    uint64_t start;
+    size_t length;
     uint32_t pd_handle;
     uint32_t lkey;
     uint32_t rkey;

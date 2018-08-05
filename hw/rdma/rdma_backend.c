@@ -271,8 +271,7 @@ static int build_host_sge_array(RdmaDeviceResources *rdma_dev_res,
             return VENDOR_ERR_INVLKEY | ssge[ssge_idx].lkey;
         }
 
-        dsge->addr = (uintptr_t)mr->user_mr.host_virt + ssge[ssge_idx].addr -
-                     mr->user_mr.guest_start;
+        dsge->addr = (uintptr_t)mr->virt + ssge[ssge_idx].addr - mr->start;
         dsge->length = ssge[ssge_idx].length;
         dsge->lkey = rdma_backend_mr_lkey(&mr->backend_mr);
 
