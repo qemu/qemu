@@ -524,6 +524,7 @@ static int query_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
     struct ibv_qp_init_attr init_attr;
 
     pr_dbg("qp_handle=%d\n", cmd->qp_handle);
+    pr_dbg("attr_mask=0x%x\n", cmd->attr_mask);
 
     memset(rsp, 0, sizeof(*rsp));
     rsp->hdr.response = cmd->hdr.response;
@@ -531,8 +532,8 @@ static int query_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
 
     rsp->hdr.err = rdma_rm_query_qp(&dev->rdma_dev_res, &dev->backend_dev,
                                     cmd->qp_handle,
-                                    (struct ibv_qp_attr *)&resp->attrs, -1,
-                                    &init_attr);
+                                    (struct ibv_qp_attr *)&resp->attrs,
+                                    cmd->attr_mask, &init_attr);
 
     pr_dbg("ret=%d\n", rsp->hdr.err);
     return rsp->hdr.err;
