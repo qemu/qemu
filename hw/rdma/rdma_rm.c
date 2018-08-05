@@ -389,7 +389,7 @@ int rdma_rm_modify_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
     RdmaRmQP *qp;
     int ret;
 
-    pr_dbg("qpn=%d\n", qp_handle);
+    pr_dbg("qpn=0x%x\n", qp_handle);
 
     qp = rdma_rm_get_qp(dev_res, qp_handle);
     if (!qp) {
@@ -447,7 +447,7 @@ int rdma_rm_query_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
 {
     RdmaRmQP *qp;
 
-    pr_dbg("qpn=%d\n", qp_handle);
+    pr_dbg("qpn=0x%x\n", qp_handle);
 
     qp = rdma_rm_get_qp(dev_res, qp_handle);
     if (!qp) {
