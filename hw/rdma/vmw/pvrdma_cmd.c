@@ -59,6 +59,7 @@ static void *pvrdma_map_to_pdir(PCIDevice *pdev, uint64_t pdir_dma,
     }
 
     host_virt = mremap(curr_page, 0, length, MREMAP_MAYMOVE);
+    pr_dbg("mremap %p -> %p\n", curr_page, host_virt);
     if (host_virt == MAP_FAILED) {
         host_virt = NULL;
         error_report("PVRDMA: Failed to remap memory for host_virt");

@@ -166,6 +166,7 @@ int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
         mr->virt = host_virt;
         mr->start = guest_start;
         mr->length = guest_length;
+        mr->virt += (mr->start & (TARGET_PAGE_SIZE - 1));
 
         ret = rdma_backend_create_mr(&mr->backend_mr, &pd->backend_pd, mr->virt,
                                      mr->length, access_flags);
@@ -203,6 +204,7 @@ void rdma_rm_dealloc_mr(RdmaDeviceResources *dev_res, uint32_t mr_handle)
         rdma_backend_destroy_mr(&mr->backend_mr);
         pr_dbg("start=0x%" PRIx64 "\n", mr->start);
         if (mr->start) {
+            mr->virt -= (mr->start & (TARGET_PAGE_SIZE - 1));
             munmap(mr->virt, mr->length);
         }
         res_tbl_dealloc(&dev_res->mr_tbl, mr_handle);
