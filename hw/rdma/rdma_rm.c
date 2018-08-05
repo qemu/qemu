@@ -543,8 +543,9 @@ void rdma_rm_fini(RdmaDeviceResources *dev_res)
     res_tbl_free(&dev_res->uc_tbl);
     res_tbl_free(&dev_res->cqe_ctx_tbl);
     res_tbl_free(&dev_res->qp_tbl);
-    res_tbl_free(&dev_res->cq_tbl);
     res_tbl_free(&dev_res->mr_tbl);
+    res_tbl_free(&dev_res->cq_tbl);
     res_tbl_free(&dev_res->pd_tbl);
+
     g_hash_table_destroy(dev_res->qp_hash);
 }
