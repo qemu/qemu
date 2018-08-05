@@ -430,7 +430,7 @@ static void regs_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
             reset_device(dev);
             break;
         }
-    break;
+        break;
     case PVRDMA_REG_IMR:
         pr_dbg("Interrupt mask=0x%" PRIx64 "\n", val);
         dev->interrupt_mask = val;
@@ -439,7 +439,7 @@ static void regs_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         if (val == 0) {
             execute_command(dev);
         }
-    break;
+        break;
     default:
         break;
     }
