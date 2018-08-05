@@ -1094,9 +1094,9 @@ void tcg_optimize(TCGContext *s)
                 tmp = arg_info(op->args[1])->val;
                 tmp = dup_const(TCGOP_VECE(op), tmp);
                 tcg_opt_gen_movi(s, op, op->args[0], tmp);
-                continue;
+                break;
             }
-            break;
+            goto do_default;
 
         CASE_OP_32_64(not):
         CASE_OP_32_64(neg):
