@@ -744,7 +744,7 @@ static int init_device_caps(RdmaBackendDev *backend_dev,
     return 0;
 }
 
-int rdma_backend_init(RdmaBackendDev *backend_dev,
+int rdma_backend_init(RdmaBackendDev *backend_dev, PCIDevice *pdev,
                       RdmaDeviceResources *rdma_dev_res,
                       const char *backend_device_name, uint8_t port_num,
                       uint8_t backend_gid_idx, struct ibv_device_attr *dev_attr,
@@ -755,6 +755,10 @@ int rdma_backend_init(RdmaBackendDev *backend_dev,
     int num_ibv_devices;
     struct ibv_device **dev_list;
     struct ibv_port_attr port_attr;
+
+    memset(backend_dev, 0, sizeof(*backend_dev));
+
+    backend_dev->dev = pdev;
 
     backend_dev->backend_gid_idx = backend_gid_idx;
     backend_dev->port_num = port_num;

@@ -611,7 +611,7 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
         goto out;
     }
 
-    rc = rdma_backend_init(&dev->backend_dev, &dev->rdma_dev_res,
+    rc = rdma_backend_init(&dev->backend_dev, pdev, &dev->rdma_dev_res,
                            dev->backend_device_name, dev->backend_port_num,
                            dev->backend_gid_idx, &dev->dev_attr, errp);
     if (rc) {
