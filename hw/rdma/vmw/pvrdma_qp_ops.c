@@ -69,6 +69,7 @@ static int pvrdma_post_cqe(PVRDMADev *dev, uint32_t cq_handle,
         return -EINVAL;
     }
 
+    memset(cqe1, 0, sizeof(*cqe1));
     cqe1->wr_id = cqe->wr_id;
     cqe1->qp = cqe->qp;
     cqe1->opcode = cqe->opcode;
