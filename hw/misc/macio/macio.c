@@ -209,14 +209,11 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
 static void macio_init_ide(MacIOState *s, MACIOIDEState *ide, size_t ide_size,
                            int index)
 {
-    gchar *name;
+    gchar *name = g_strdup_printf("ide[%i]", index);
 
-    object_initialize(ide, ide_size, TYPE_MACIO_IDE);
-    qdev_set_parent_bus(DEVICE(ide), sysbus_get_default());
+    sysbus_init_child_obj(OBJECT(s), name, ide, ide_size, TYPE_MACIO_IDE);
     memory_region_add_subregion(&s->bar, 0x1f000 + ((index + 1) * 0x1000),
                                 &ide->mem);
-    name = g_strdup_printf("ide[%i]", index);
-    object_property_add_child(OBJECT(s), name, OBJECT(ide), NULL);
     g_free(name);
 }
 
@@ -232,9 +229,7 @@ static void macio_oldworld_init(Object *obj)
                              qdev_prop_allow_set_link_before_realize,
                              0, NULL);
 
-    object_initialize(&s->cuda, sizeof(s->cuda), TYPE_CUDA);
-    qdev_set_parent_bus(DEVICE(&s->cuda), sysbus_get_default());
-    object_property_add_child(obj, "cuda", OBJECT(&s->cuda), NULL);
+    sysbus_init_child_obj(obj, "cuda", &s->cuda, sizeof(s->cuda), TYPE_CUDA);
 
     object_initialize(&os->nvram, sizeof(os->nvram), TYPE_MACIO_NVRAM);
     dev = DEVICE(&os->nvram);
@@ -390,8 +385,8 @@ static void macio_newworld_init(Object *obj)
                              qdev_prop_allow_set_link_before_realize,
                              0, NULL);
 
-    object_initialize(&ns->gpio, sizeof(ns->gpio), TYPE_MACIO_GPIO);
-    qdev_set_parent_bus(DEVICE(&ns->gpio), sysbus_get_default());
+    sysbus_init_child_obj(obj, "gpio", &ns->gpio, sizeof(ns->gpio),
+                          TYPE_MACIO_GPIO);
 
     for (i = 0; i < 2; i++) {
         macio_init_ide(s, &ns->ide[i], sizeof(ns->ide[i]), i);
@@ -404,13 +399,10 @@ static void macio_instance_init(Object *obj)
 
     memory_region_init(&s->bar, obj, "macio", 0x80000);
 
-    object_initialize(&s->dbdma, sizeof(s->dbdma), TYPE_MAC_DBDMA);
-    qdev_set_parent_bus(DEVICE(&s->dbdma), sysbus_get_default());
-    object_property_add_child(obj, "dbdma", OBJECT(&s->dbdma), NULL);
+    sysbus_init_child_obj(obj, "dbdma", &s->dbdma, sizeof(s->dbdma),
+                          TYPE_MAC_DBDMA);
 
-    object_initialize(&s->escc, sizeof(s->escc), TYPE_ESCC);
-    qdev_set_parent_bus(DEVICE(&s->escc), sysbus_get_default());
-    object_property_add_child(obj, "escc", OBJECT(&s->escc), NULL);
+    sysbus_init_child_obj(obj, "escc", &s->escc, sizeof(s->escc), TYPE_ESCC);
 }
 
 static const VMStateDescription vmstate_macio_oldworld = {
