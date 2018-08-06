@@ -64,17 +64,49 @@ QObject *qobject_from_json(const char *string, Error **errp)
  * Abort on error.  Do not use with untrusted @string.
  * Return the resulting QObject.  It is never null.
  */
+QObject *qobject_from_vjsonf_nofail(const char *string, va_list ap)
+{
+    va_list ap_copy;
+    QObject *obj;
+
+    /* va_copy() is needed when va_list is an array type */
+    va_copy(ap_copy, ap);
+    obj = qobject_from_jsonv(string, &ap_copy, &error_abort);
+    va_end(ap_copy);
+
+    assert(obj);
+    return obj;
+}
+
+/*
+ * Parse @string as JSON value with %-escapes interpolated.
+ * Abort on error.  Do not use with untrusted @string.
+ * Return the resulting QObject.  It is never null.
+ */
 QObject *qobject_from_jsonf_nofail(const char *string, ...)
 {
     QObject *obj;
     va_list ap;
 
     va_start(ap, string);
-    obj = qobject_from_jsonv(string, &ap, &error_abort);
+    obj = qobject_from_vjsonf_nofail(string, ap);
     va_end(ap);
 
-    assert(obj);
     return obj;
+}
+
+/*
+ * Parse @string as JSON object with %-escapes interpolated.
+ * Abort on error.  Do not use with untrusted @string.
+ * Return the resulting QDict.  It is never null.
+ */
+QDict *qdict_from_vjsonf_nofail(const char *string, va_list ap)
+{
+    QDict *qdict;
+
+    qdict = qobject_to(QDict, qobject_from_vjsonf_nofail(string, ap));
+    assert(qdict);
+    return qdict;
 }
 
 /*
@@ -84,15 +116,13 @@ QObject *qobject_from_jsonf_nofail(const char *string, ...)
  */
 QDict *qdict_from_jsonf_nofail(const char *string, ...)
 {
-    QDict *obj;
+    QDict *qdict;
     va_list ap;
 
     va_start(ap, string);
-    obj = qobject_to(QDict, qobject_from_jsonv(string, &ap, &error_abort));
+    qdict = qdict_from_vjsonf_nofail(string, ap);
     va_end(ap);
-
-    assert(obj);
-    return obj;
+    return qdict;
 }
 
 typedef struct ToJsonIterState
