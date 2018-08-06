@@ -240,10 +240,13 @@ should succeed even with the data missing.  To support this the
 subsection can be connected to a device property and from there
 to a versioned machine type.
 
-One important note is that the post_load() function is called "after"
-loading all subsections, because a newer subsection could change same
-value that it uses.  A flag, and the combination of pre_load and post_load
-can be used to detect whether a subsection was loaded, and to
+The 'pre_load' and 'post_load' functions on subsections are only
+called if the subsection is loaded.
+
+One important note is that the outer post_load() function is called "after"
+loading all subsections, because a newer subsection could change the same
+value that it uses.  A flag, and the combination of outer pre_load and
+post_load can be used to detect whether a subsection was loaded, and to
 fall back on default behaviour when the subsection isn't present.
 
 Example:
@@ -315,8 +318,8 @@ For example:
       the property to false.
    c) Add a static bool  support_foo function that tests the property.
    d) Add a subsection with a .needed set to the support_foo function
-   e) (potentially) Add a pre_load that sets up a default value for 'foo'
-      to be used if the subsection isn't loaded.
+   e) (potentially) Add an outer pre_load that sets up a default value
+      for 'foo' to be used if the subsection isn't loaded.
 
 Now that subsection will not be generated when using an older
 machine type and the migration stream will be accepted by older
