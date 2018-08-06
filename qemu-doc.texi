@@ -2693,8 +2693,17 @@ The binary format is detected automatically.
 @command{qemu-microblaze} TODO.
 
 @cindex user mode (MIPS)
-@command{qemu-mips} TODO.
-@command{qemu-mipsel} TODO.
+@command{qemu-mips} executes 32-bit big endian MIPS binaries (MIPS O32 ABI).
+
+@command{qemu-mipsel} executes 32-bit little endian MIPS binaries (MIPS O32 ABI).
+
+@command{qemu-mips64} executes 64-bit big endian MIPS binaries (MIPS N64 ABI).
+
+@command{qemu-mips64el} executes 64-bit little endian MIPS binaries (MIPS N64 ABI).
+
+@command{qemu-mipsn32} executes 32-bit big endian MIPS binaries (MIPS N32 ABI).
+
+@command{qemu-mipsn32el} executes 32-bit little endian MIPS binaries (MIPS N32 ABI).
 
 @cindex user mode (NiosII)
 @command{qemu-nios2} TODO.
