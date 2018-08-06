@@ -3039,6 +3039,45 @@ static int qio_channel_rdma_close(QIOChannel *ioc,
     return 0;
 }
 
+static int
+qio_channel_rdma_shutdown(QIOChannel *ioc,
+                            QIOChannelShutdown how,
+                            Error **errp)
+{
+    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
+    RDMAContext *rdmain, *rdmaout;
+
+    rcu_read_lock();
+
+    rdmain = atomic_rcu_read(&rioc->rdmain);
+    rdmaout = atomic_rcu_read(&rioc->rdmain);
+
+    switch (how) {
+    case QIO_CHANNEL_SHUTDOWN_READ:
+        if (rdmain) {
+            rdmain->error_state = -1;
+        }
+        break;
+    case QIO_CHANNEL_SHUTDOWN_WRITE:
+        if (rdmaout) {
+            rdmaout->error_state = -1;
+        }
+        break;
+    case QIO_CHANNEL_SHUTDOWN_BOTH:
+    default:
+        if (rdmain) {
+            rdmain->error_state = -1;
+        }
+        if (rdmaout) {
+            rdmaout->error_state = -1;
+        }
+        break;
+    }
+
+    rcu_read_unlock();
+    return 0;
+}
+
 /*
  * Parameters:
  *    @offset == 0 :
@@ -3865,6 +3904,7 @@ static void qio_channel_rdma_class_init(ObjectClass *klass,
     ioc_klass->io_close = qio_channel_rdma_close;
     ioc_klass->io_create_watch = qio_channel_rdma_create_watch;
     ioc_klass->io_set_aio_fd_handler = qio_channel_rdma_set_aio_fd_handler;
+    ioc_klass->io_shutdown = qio_channel_rdma_shutdown;
 }
 
 static const TypeInfo qio_channel_rdma_info = {
