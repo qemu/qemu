@@ -76,7 +76,9 @@ void qtest_quit(QTestState *s);
 /**
  * qtest_qmp:
  * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu
+ * @fmt...: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf().  See parse_escape() for what's supported
+ * after '%'.
  *
  * Sends a QMP message to QEMU and returns the response.
  */
@@ -85,7 +87,9 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
 /**
  * qtest_qmp_send:
  * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu
+ * @fmt...: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf().  See parse_escape() for what's supported
+ * after '%'.
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */
@@ -94,7 +98,9 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...);
 /**
  * qtest_qmpv:
  * @s: #QTestState instance to operate on.
- * @fmt: QMP message to send to QEMU
+ * @fmt: QMP message to send to QEMU, formatted like
+ * qobject_from_jsonf().  See parse_escape() for what's supported
+ * after '%'.
  * @ap: QMP message arguments
  *
  * Sends a QMP message to QEMU and returns the response.
@@ -104,7 +110,9 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
 /**
  * qtest_qmp_vsend:
  * @s: #QTestState instance to operate on.
- * @fmt: QMP message to send to QEMU
+ * @fmt: QMP message to send to QEMU, formatted like
+ * qobject_from_jsonf().  See parse_escape() for what's supported
+ * after '%'.
  * @ap: QMP message arguments
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
@@ -153,7 +161,7 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 /**
  * qtest_hmpv:
  * @s: #QTestState instance to operate on.
- * @fmt: HMP command to send to QEMU
+ * @fmt: HMP command to send to QEMU, formats arguments like vsprintf().
  * @ap: HMP command arguments
  *
  * Send HMP command to QEMU via QMP's human-monitor-command.
@@ -161,7 +169,8 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
  *
  * Returns: the command's output.  The caller should g_free() it.
  */
-char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap);
+char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap)
+    GCC_FMT_ATTR(2, 0);
 
 /**
  * qtest_get_irq:
@@ -542,7 +551,9 @@ static inline void qtest_end(void)
 
 /**
  * qmp:
- * @fmt...: QMP message to send to qemu
+ * @fmt...: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf().  See parse_escape() for what's supported
+ * after '%'.
  *
  * Sends a QMP message to QEMU and returns the response.
  */
@@ -550,7 +561,9 @@ QDict *qmp(const char *fmt, ...);
 
 /**
  * qmp_send:
- * @fmt...: QMP message to send to qemu
+ * @fmt...: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf().  See parse_escape() for what's supported
+ * after '%'.
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */
