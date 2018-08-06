@@ -3226,6 +3226,35 @@ err:
 
 static void rdma_accept_incoming_migration(void *opaque);
 
+static void rdma_cm_poll_handler(void *opaque)
+{
+    RDMAContext *rdma = opaque;
+    int ret;
+    struct rdma_cm_event *cm_event;
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    ret = rdma_get_cm_event(rdma->channel, &cm_event);
+    if (ret) {
+        error_report("get_cm_event failed %d", errno);
+        return;
+    }
+    rdma_ack_cm_event(cm_event);
+
+    if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED ||
+        cm_event->event == RDMA_CM_EVENT_DEVICE_REMOVAL) {
+        error_report("receive cm event, cm event is %d", cm_event->event);
+        rdma->error_state = -EPIPE;
+        if (rdma->return_path) {
+            rdma->return_path->error_state = -EPIPE;
+        }
+
+        if (mis->migration_incoming_co) {
+            qemu_coroutine_enter(mis->migration_incoming_co);
+        }
+        return;
+    }
+}
+
 static int qemu_rdma_accept(RDMAContext *rdma)
 {
     RDMACapabilities cap;
@@ -3326,7 +3355,8 @@ static int qemu_rdma_accept(RDMAContext *rdma)
                             NULL,
                             (void *)(intptr_t)rdma->return_path);
     } else {
-        qemu_set_fd_handler(rdma->channel->fd, NULL, NULL, NULL);
+        qemu_set_fd_handler(rdma->channel->fd, rdma_cm_poll_handler,
+                            NULL, rdma);
     }
 
     ret = rdma_accept(rdma->cm_id, &conn_param);
