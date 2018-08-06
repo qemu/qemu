@@ -21,8 +21,9 @@
 import time
 import os
 import re
+import json
 import iotests
-from iotests import qemu_img, qemu_io
+from iotests import qemu_img, qemu_img_pipe, qemu_io
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 target_backing_img = os.path.join(iotests.test_dir, 'target-backing.img')
@@ -1287,6 +1288,149 @@ class TestReplaces(iotests.QMPTestCase):
         self.complete_and_wait('mirror')
 
         self.vm.assert_block_path('filter0', '/file', 'target')
+
+# Tests for mirror with filters (and how the mirror filter behaves, as
+# an example for an implicit filter)
+class TestFilters(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, backing_img, '1M')
+        qemu_img('create', '-f', iotests.imgfmt, '-b', backing_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', backing_img, target_img)
+
+        qemu_io('-c', 'write -P 1 0 512k', backing_img)
+        qemu_io('-c', 'write -P 2 512k 512k', test_img)
+
+        self.vm = iotests.VM().add_device('virtio-scsi,id=vio-scsi')
+        self.vm.launch()
+
+        result = self.vm.qmp('blockdev-add', **{
+                                'node-name': 'target',
+                                'driver': iotests.imgfmt,
+                                'file': {
+                                    'driver': 'file',
+                                    'filename': target_img
+                                },
+                                'backing': None
+                            })
+        self.assert_qmp(result, 'return', {})
+
+        self.filterless_chain = {
+                'node-name': 'source',
+                'driver': iotests.imgfmt,
+                'file': {
+                    'driver': 'file',
+                    'filename': test_img
+                },
+                'backing': {
+                    'node-name': 'backing',
+                    'driver': iotests.imgfmt,
+                    'file': {
+                        'driver': 'file',
+                        'filename': backing_img
+                    }
+                }
+            }
+
+    def tearDown(self):
+        self.vm.shutdown()
+
+        os.remove(test_img)
+        os.remove(target_img)
+        os.remove(backing_img)
+
+    def test_cor(self):
+        result = self.vm.qmp('blockdev-add', **{
+                                'node-name': 'filter',
+                                'driver': 'copy-on-read',
+                                'file': self.filterless_chain
+                            })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-mirror',
+                             job_id='mirror',
+                             device='filter',
+                             target='target',
+                             sync='top')
+        self.assert_qmp(result, 'return', {})
+
+        self.complete_and_wait('mirror')
+
+        self.vm.qmp('blockdev-del', node_name='target')
+
+        target_map = qemu_img_pipe('map', '--output=json', target_img)
+        target_map = json.loads(target_map)
+
+        assert target_map[0]['start'] == 0
+        assert target_map[0]['length'] == 512 * 1024
+        assert target_map[0]['depth'] == 1
+
+        assert target_map[1]['start'] == 512 * 1024
+        assert target_map[1]['length'] == 512 * 1024
+        assert target_map[1]['depth'] == 0
+
+    def test_implicit_mirror_filter(self):
+        result = self.vm.qmp('blockdev-add', **self.filterless_chain)
+        self.assert_qmp(result, 'return', {})
+
+        # We need this so we can query from above the mirror node
+        result = self.vm.qmp('device_add',
+                             driver='scsi-hd',
+                             id='virtio',
+                             bus='vio-scsi.0',
+                             drive='source')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-mirror',
+                             job_id='mirror',
+                             device='source',
+                             target='target',
+                             sync='top')
+        self.assert_qmp(result, 'return', {})
+
+        # The mirror filter is now an implicit node, so it should be
+        # invisible when querying the backing chain
+        blockdevs = self.vm.qmp('query-block')['return']
+        device_info = next(dev for dev in blockdevs if dev['qdev'] == 'virtio')
+
+        assert device_info['inserted']['node-name'] == 'source'
+
+        image_info = device_info['inserted']['image']
+        assert image_info['filename'] == test_img
+        assert image_info['backing-image']['filename'] == backing_img
+
+        self.complete_and_wait('mirror')
+
+    def test_explicit_mirror_filter(self):
+        # Same test as above, but this time we give the mirror filter
+        # a node-name so it will not be invisible
+        result = self.vm.qmp('blockdev-add', **self.filterless_chain)
+        self.assert_qmp(result, 'return', {})
+
+        # We need this so we can query from above the mirror node
+        result = self.vm.qmp('device_add',
+                             driver='scsi-hd',
+                             id='virtio',
+                             bus='vio-scsi.0',
+                             drive='source')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-mirror',
+                             job_id='mirror',
+                             device='source',
+                             target='target',
+                             sync='top',
+                             filter_node_name='mirror-filter')
+        self.assert_qmp(result, 'return', {})
+
+        # With a node-name given to it, the mirror filter should now
+        # be visible
+        blockdevs = self.vm.qmp('query-block')['return']
+        device_info = next(dev for dev in blockdevs if dev['qdev'] == 'virtio')
+
+        assert device_info['inserted']['node-name'] == 'mirror-filter'
+
+        self.complete_and_wait('mirror')
+
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],
