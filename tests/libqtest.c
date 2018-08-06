@@ -1090,7 +1090,7 @@ void qtest_qmp_device_del(const char *id)
     g_assert(response1);
     g_assert(!qdict_haskey(response1, "error"));
 
-    response2 = qmp("");
+    response2 = qmp_receive();
     g_assert(response2);
     g_assert(!qdict_haskey(response2, "error"));
 
