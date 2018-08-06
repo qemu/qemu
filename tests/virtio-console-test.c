@@ -14,17 +14,17 @@
 /* Tests only initialization so far. TODO: Replace with functional tests */
 static void console_nop(void)
 {
-    global_qtest = qtest_startf("-device virtio-serial-%s,id=vser0 "
-                                "-device virtconsole,bus=vser0.0",
-                                qvirtio_get_dev_type());
+    global_qtest = qtest_initf("-device virtio-serial-%s,id=vser0 "
+                               "-device virtconsole,bus=vser0.0",
+                               qvirtio_get_dev_type());
     qtest_end();
 }
 
 static void serialport_nop(void)
 {
-    global_qtest = qtest_startf("-device virtio-serial-%s,id=vser0 "
-                                "-device virtserialport,bus=vser0.0",
-                                qvirtio_get_dev_type());
+    global_qtest = qtest_initf("-device virtio-serial-%s,id=vser0 "
+                               "-device virtserialport,bus=vser0.0",
+                               qvirtio_get_dev_type());
     qtest_end();
 }
 

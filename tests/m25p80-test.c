@@ -363,9 +363,9 @@ int main(int argc, char **argv)
     g_assert(ret == 0);
     close(fd);
 
-    global_qtest = qtest_startf("-m 256 -machine palmetto-bmc "
-                                "-drive file=%s,format=raw,if=mtd",
-                                tmp_path);
+    global_qtest = qtest_initf("-m 256 -machine palmetto-bmc "
+                               "-drive file=%s,format=raw,if=mtd",
+                               tmp_path);
 
     qtest_add_func("/m25p80/read_jedec", test_read_jedec);
     qtest_add_func("/m25p80/erase_sector", test_erase_sector);

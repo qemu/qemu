@@ -146,7 +146,7 @@ static void cmos_get_date_time(QTestState *s, struct tm *date)
 
 static QTestState *m48t59_qtest_start(void)
 {
-    return qtest_startf("-M %s -rtc clock=vm", base_machine);
+    return qtest_initf("-M %s -rtc clock=vm", base_machine);
 }
 
 static void bcd_check_time(void)

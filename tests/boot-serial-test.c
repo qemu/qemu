@@ -172,11 +172,11 @@ static void test_machine(const void *data)
      * Make sure that this test uses tcg if available: It is used as a
      * fast-enough smoketest for that.
      */
-    global_qtest = qtest_startf("%s %s -M %s,accel=tcg:kvm "
-                                "-chardev file,id=serial0,path=%s "
-                                "-no-shutdown -serial chardev:serial0 %s",
-                                codeparam, code ? codetmp : "",
-                                test->machine, serialtmp, test->extra);
+    global_qtest = qtest_initf("%s %s -M %s,accel=tcg:kvm "
+                               "-chardev file,id=serial0,path=%s "
+                               "-no-shutdown -serial chardev:serial0 %s",
+                               codeparam, code ? codetmp : "",
+                               test->machine, serialtmp, test->extra);
     if (code) {
         unlink(codetmp);
     }

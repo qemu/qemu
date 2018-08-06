@@ -22,33 +22,32 @@ typedef struct QTestState QTestState;
 extern QTestState *global_qtest;
 
 /**
- * qtest_startf:
+ * qtest_initf:
  * @fmt...: Format for creating other arguments to pass to QEMU, formatted
  * like sprintf().
  *
- * Start QEMU and return the resulting #QTestState (but unlike qtest_start(),
- * #global_qtest is left at NULL).
+ * Convenience wrapper around qtest_start().
  *
  * Returns: #QTestState instance.
  */
-QTestState *qtest_startf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+QTestState *qtest_initf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 /**
- * qtest_vstartf:
+ * qtest_vinitf:
  * @fmt: Format for creating other arguments to pass to QEMU, formatted
  * like vsprintf().
  * @ap: Format arguments.
  *
- * Start QEMU and return the resulting #QTestState (but unlike qtest_start(),
- * #global_qtest is left at NULL).
+ * Convenience wrapper around qtest_start().
  *
  * Returns: #QTestState instance.
  */
-QTestState *qtest_vstartf(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
+QTestState *qtest_vinitf(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
 
 /**
  * qtest_init:
- * @extra_args: other arguments to pass to QEMU.
+ * @extra_args: other arguments to pass to QEMU.  CAUTION: these
+ * arguments are subject to word splitting and shell evaluation.
  *
  * Returns: #QTestState instance.
  */

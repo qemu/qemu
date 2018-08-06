@@ -436,7 +436,7 @@ static void add_query_tests(QmpSchema *schema)
 static void test_qmp_preconfig(void)
 {
     QDict *rsp, *ret;
-    QTestState *qs = qtest_startf("%s --preconfig", common_args);
+    QTestState *qs = qtest_initf("%s --preconfig", common_args);
 
     /* preconfig state */
     /* enabled commands, no error expected  */

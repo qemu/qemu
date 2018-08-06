@@ -93,10 +93,10 @@ static void arm_test_start(void)
 
     tmp_path = drive_create();
 
-    global_qtest = qtest_startf("-machine virt "
-                                "-drive if=none,id=drive0,file=%s,format=raw "
-                                "-device virtio-blk-device,drive=drive0",
-                                tmp_path);
+    global_qtest = qtest_initf("-machine virt "
+                               "-drive if=none,id=drive0,file=%s,format=raw "
+                               "-device virtio-blk-device,drive=drive0",
+                               tmp_path);
     unlink(tmp_path);
     g_free(tmp_path);
 }

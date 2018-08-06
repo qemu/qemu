@@ -99,7 +99,7 @@ static void test_cdrom_param(gconstpointer data)
     QTestState *qts;
     char *resp;
 
-    qts = qtest_startf("-M %s -cdrom %s", (const char *)data, isoimage);
+    qts = qtest_initf("-M %s -cdrom %s", (const char *)data, isoimage);
     resp = qtest_hmp(qts, "info block");
     g_assert(strstr(resp, isoimage) != 0);
     g_free(resp);
@@ -120,8 +120,8 @@ static void test_cdboot(gconstpointer data)
 {
     QTestState *qts;
 
-    qts = qtest_startf("-accel kvm:tcg -no-shutdown %s%s", (const char *)data,
-                       isoimage);
+    qts = qtest_initf("-accel kvm:tcg -no-shutdown %s%s", (const char *)data,
+                      isoimage);
     boot_sector_test(qts);
     qtest_quit(qts);
 }

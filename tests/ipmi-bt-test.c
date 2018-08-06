@@ -414,7 +414,7 @@ int main(int argc, char **argv)
     /* Run the tests */
     g_test_init(&argc, &argv, NULL);
 
-    global_qtest = qtest_startf(
+    global_qtest = qtest_initf(
         " -chardev socket,id=ipmi0,host=localhost,port=%d,reconnect=10"
         " -device ipmi-bmc-extern,chardev=ipmi0,id=bmc0"
         " -device isa-ipmi-bt,bmc=bmc0", emu_port);
