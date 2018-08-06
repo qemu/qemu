@@ -484,7 +484,7 @@ QDict *qtest_qmp_receive(QTestState *s)
  * in the case that they choose to discard all replies up until
  * a particular EVENT is received.
  */
-void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
+void qmp_fd_vsend(int fd, const char *fmt, va_list ap)
 {
     va_list ap_copy;
     QObject *qobj;
@@ -529,21 +529,21 @@ void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
     }
 }
 
-void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap)
+void qtest_qmp_vsend(QTestState *s, const char *fmt, va_list ap)
 {
-    qmp_fd_sendv(s->qmp_fd, fmt, ap);
+    qmp_fd_vsend(s->qmp_fd, fmt, ap);
 }
 
 QDict *qmp_fdv(int fd, const char *fmt, va_list ap)
 {
-    qmp_fd_sendv(fd, fmt, ap);
+    qmp_fd_vsend(fd, fmt, ap);
 
     return qmp_fd_receive(fd);
 }
 
 QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
 {
-    qtest_async_qmpv(s, fmt, ap);
+    qtest_qmp_vsend(s, fmt, ap);
 
     /* Receive reply */
     return qtest_qmp_receive(s);
@@ -565,7 +565,7 @@ void qmp_fd_send(int fd, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    qmp_fd_sendv(fd, fmt, ap);
+    qmp_fd_vsend(fd, fmt, ap);
     va_end(ap);
 }
 
@@ -580,12 +580,12 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
     return response;
 }
 
-void qtest_async_qmp(QTestState *s, const char *fmt, ...)
+void qtest_qmp_send(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    qtest_async_qmpv(s, fmt, ap);
+    qtest_qmp_vsend(s, fmt, ap);
     va_end(ap);
 }
 
@@ -968,12 +968,12 @@ QDict *qmp(const char *fmt, ...)
     return response;
 }
 
-void qmp_async(const char *fmt, ...)
+void qmp_send(const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    qtest_async_qmpv(global_qtest, fmt, ap);
+    qtest_qmp_vsend(global_qtest, fmt, ap);
     va_end(ap);
 }
 

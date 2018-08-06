@@ -674,7 +674,7 @@ void ahci_exec(AHCIQState *ahci, uint8_t port,
         g_assert_cmpint(rc, ==, 0);
     }
     if (opts->error) {
-        qtest_async_qmp(ahci->parent->qts, "{'execute':'cont' }");
+        qtest_qmp_send(ahci->parent->qts, "{'execute':'cont' }");
         qtest_qmp_eventwait(ahci->parent->qts, "RESUME");
     }
 
@@ -712,7 +712,7 @@ AHCICommand *ahci_guest_io_halt(AHCIQState *ahci, uint8_t port,
 void ahci_guest_io_resume(AHCIQState *ahci, AHCICommand *cmd)
 {
     /* Complete the command */
-    qtest_async_qmp(ahci->parent->qts, "{'execute':'cont' }");
+    qtest_qmp_send(ahci->parent->qts, "{'execute':'cont' }");
     qtest_qmp_eventwait(ahci->parent->qts, "RESUME");
     ahci_command_wait(ahci, cmd);
     ahci_command_verify(ahci, cmd);

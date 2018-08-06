@@ -1389,7 +1389,7 @@ static void test_flush_migrate(void)
 
     /* Complete the command */
     s = "{'execute':'cont' }";
-    qmp_async(s);
+    qmp_send(s);
     qmp_eventwait("RESUME");
     ahci_command_wait(dst, cmd);
     ahci_command_verify(dst, cmd);
@@ -1592,8 +1592,8 @@ static void test_atapi_tray(void)
     atapi_wait_tray(false);
 
     /* Remove media */
-    qmp_async("{'execute': 'blockdev-open-tray', "
-               "'arguments': {'id': 'cd0'}}");
+    qmp_send("{'execute': 'blockdev-open-tray',"
+             " 'arguments': {'id': 'cd0'}}");
     atapi_wait_tray(true);
     rsp = qmp_receive();
     qobject_unref(rsp);
@@ -1619,8 +1619,8 @@ static void test_atapi_tray(void)
                                          "'node-name': 'node0' }}");
 
     /* Again, the event shows up first */
-    qmp_async("{'execute': 'blockdev-close-tray', "
-               "'arguments': {'id': 'cd0'}}");
+    qmp_send("{'execute': 'blockdev-close-tray',"
+             " 'arguments': {'id': 'cd0'}}");
     atapi_wait_tray(false);
     rsp = qmp_receive();
     qobject_unref(rsp);

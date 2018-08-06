@@ -159,12 +159,12 @@ static void cleanup_blocking_cmd(void)
 
 static void send_cmd_that_blocks(QTestState *s, const char *id)
 {
-    qtest_async_qmp(s, "{ 'execute': 'blockdev-add',  'id': %s,"
-                    " 'arguments': {"
-                    " 'driver': 'blkdebug', 'node-name': %s,"
-                    " 'config': %s,"
-                    " 'image': { 'driver': 'null-co' } } }",
-                    id, id, fifo_name);
+    qtest_qmp_send(s, "{ 'execute': 'blockdev-add',  'id': %s,"
+                   " 'arguments': {"
+                   " 'driver': 'blkdebug', 'node-name': %s,"
+                   " 'config': %s,"
+                   " 'image': { 'driver': 'null-co' } } }",
+                   id, id, fifo_name);
 }
 
 static void unblock_blocked_cmd(void)
@@ -176,7 +176,7 @@ static void unblock_blocked_cmd(void)
 
 static void send_oob_cmd_that_fails(QTestState *s, const char *id)
 {
-    qtest_async_qmp(s, "{ 'exec-oob': 'migrate-pause', 'id': %s }", id);
+    qtest_qmp_send(s, "{ 'exec-oob': 'migrate-pause', 'id': %s }", id);
 }
 
 static void recv_cmd_id(QTestState *s, const char *id)
@@ -235,7 +235,7 @@ static void test_qmp_oob(void)
     /* OOB command overtakes slow in-band command */
     setup_blocking_cmd();
     send_cmd_that_blocks(qts, "ib-blocks-1");
-    qtest_async_qmp(qts, "{ 'execute': 'query-name', 'id': 'ib-quick-1' }");
+    qtest_qmp_send(qts, "{ 'execute': 'query-name', 'id': 'ib-quick-1' }");
     send_oob_cmd_that_fails(qts, "oob-1");
     recv_cmd_id(qts, "oob-1");
     unblock_blocked_cmd();
@@ -244,7 +244,7 @@ static void test_qmp_oob(void)
 
     /* Even malformed in-band command fails in-band */
     send_cmd_that_blocks(qts, "blocks-2");
-    qtest_async_qmp(qts, "{ 'id': 'err-2' }");
+    qtest_qmp_send(qts, "{ 'id': 'err-2' }");
     unblock_blocked_cmd();
     recv_cmd_id(qts, "blocks-2");
     recv_cmd_id(qts, "err-2");
