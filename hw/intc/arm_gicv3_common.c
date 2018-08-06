@@ -203,10 +203,16 @@ static int gicv3_gicd_no_migration_shift_bug_post_load(void *opaque,
     return 0;
 }
 
+static bool needed_always(void *opaque)
+{
+    return true;
+}
+
 const VMStateDescription vmstate_gicv3_gicd_no_migration_shift_bug = {
     .name = "arm_gicv3/gicd_no_migration_shift_bug",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = needed_always,
     .pre_load = gicv3_gicd_no_migration_shift_bug_pre_load,
     .post_load = gicv3_gicd_no_migration_shift_bug_post_load,
     .fields = (VMStateField[]) {
