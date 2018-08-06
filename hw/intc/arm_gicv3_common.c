@@ -29,6 +29,41 @@
 #include "hw/arm/linux-boot-if.h"
 #include "sysemu/kvm.h"
 
+
+static void gicv3_gicd_no_migration_shift_bug_post_load(GICv3State *cs)
+{
+    if (cs->gicd_no_migration_shift_bug) {
+        return;
+    }
+
+    /* Older versions of QEMU had a bug in the handling of state save/restore
+     * to the KVM GICv3: they got the offset in the bitmap arrays wrong,
+     * so that instead of the data for external interrupts 32 and up
+     * starting at bit position 32 in the bitmap, it started at bit
+     * position 64. If we're receiving data from a QEMU with that bug,
+     * we must move the data down into the right place.
+     */
+    memmove(cs->group, (uint8_t *)cs->group + GIC_INTERNAL / 8,
+            sizeof(cs->group) - GIC_INTERNAL / 8);
+    memmove(cs->grpmod, (uint8_t *)cs->grpmod + GIC_INTERNAL / 8,
+            sizeof(cs->grpmod) - GIC_INTERNAL / 8);
+    memmove(cs->enabled, (uint8_t *)cs->enabled + GIC_INTERNAL / 8,
+            sizeof(cs->enabled) - GIC_INTERNAL / 8);
+    memmove(cs->pending, (uint8_t *)cs->pending + GIC_INTERNAL / 8,
+            sizeof(cs->pending) - GIC_INTERNAL / 8);
+    memmove(cs->active, (uint8_t *)cs->active + GIC_INTERNAL / 8,
+            sizeof(cs->active) - GIC_INTERNAL / 8);
+    memmove(cs->edge_trigger, (uint8_t *)cs->edge_trigger + GIC_INTERNAL / 8,
+            sizeof(cs->edge_trigger) - GIC_INTERNAL / 8);
+
+    /*
+     * While this new version QEMU doesn't have this kind of bug as we fix it,
+     * so it needs to set the flag to true to indicate that and it's necessary
+     * for next migration to work from this new version QEMU.
+     */
+    cs->gicd_no_migration_shift_bug = true;
+}
+
 static int gicv3_pre_save(void *opaque)
 {
     GICv3State *s = (GICv3State *)opaque;
@@ -45,6 +80,8 @@ static int gicv3_post_load(void *opaque, int version_id)
 {
     GICv3State *s = (GICv3State *)opaque;
     ARMGICv3CommonClass *c = ARM_GICV3_COMMON_GET_CLASS(s);
+
+    gicv3_gicd_no_migration_shift_bug_post_load(s);
 
     if (c->post_load) {
         c->post_load(s);
@@ -161,45 +198,6 @@ static int gicv3_pre_load(void *opaque)
     return 0;
 }
 
-static int gicv3_gicd_no_migration_shift_bug_post_load(void *opaque,
-                                                       int version_id)
-{
-    GICv3State *cs = opaque;
-
-    if (cs->gicd_no_migration_shift_bug) {
-        return 0;
-    }
-
-    /* Older versions of QEMU had a bug in the handling of state save/restore
-     * to the KVM GICv3: they got the offset in the bitmap arrays wrong,
-     * so that instead of the data for external interrupts 32 and up
-     * starting at bit position 32 in the bitmap, it started at bit
-     * position 64. If we're receiving data from a QEMU with that bug,
-     * we must move the data down into the right place.
-     */
-    memmove(cs->group, (uint8_t *)cs->group + GIC_INTERNAL / 8,
-            sizeof(cs->group) - GIC_INTERNAL / 8);
-    memmove(cs->grpmod, (uint8_t *)cs->grpmod + GIC_INTERNAL / 8,
-            sizeof(cs->grpmod) - GIC_INTERNAL / 8);
-    memmove(cs->enabled, (uint8_t *)cs->enabled + GIC_INTERNAL / 8,
-            sizeof(cs->enabled) - GIC_INTERNAL / 8);
-    memmove(cs->pending, (uint8_t *)cs->pending + GIC_INTERNAL / 8,
-            sizeof(cs->pending) - GIC_INTERNAL / 8);
-    memmove(cs->active, (uint8_t *)cs->active + GIC_INTERNAL / 8,
-            sizeof(cs->active) - GIC_INTERNAL / 8);
-    memmove(cs->edge_trigger, (uint8_t *)cs->edge_trigger + GIC_INTERNAL / 8,
-            sizeof(cs->edge_trigger) - GIC_INTERNAL / 8);
-
-    /*
-     * While this new version QEMU doesn't have this kind of bug as we fix it,
-     * so it needs to set the flag to true to indicate that and it's necessary
-     * for next migration to work from this new version QEMU.
-     */
-    cs->gicd_no_migration_shift_bug = true;
-
-    return 0;
-}
-
 static bool needed_always(void *opaque)
 {
     return true;
@@ -210,7 +208,6 @@ const VMStateDescription vmstate_gicv3_gicd_no_migration_shift_bug = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = needed_always,
-    .post_load = gicv3_gicd_no_migration_shift_bug_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(gicd_no_migration_shift_bug, GICv3State),
         VMSTATE_END_OF_LIST()
