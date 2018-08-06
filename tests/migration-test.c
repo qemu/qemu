@@ -149,31 +149,20 @@ static void wait_for_serial(const char *side)
     } while (true);
 }
 
+static void stop_cb(void *opaque, const char *name, QDict *data)
+{
+    if (!strcmp(name, "STOP")) {
+        got_stop = true;
+    }
+}
+
 /*
  * Events can get in the way of responses we are actually waiting for.
  */
 static QDict *wait_command(QTestState *who, const char *command)
 {
-    const char *event_string;
-    QDict *response, *ret;
-
-    response = qtest_qmp(who, command);
-
-    while (qdict_haskey(response, "event")) {
-        /* OK, it was an event */
-        event_string = qdict_get_str(response, "event");
-        if (!strcmp(event_string, "STOP")) {
-            got_stop = true;
-        }
-        qobject_unref(response);
-        response = qtest_qmp_receive(who);
-    }
-
-    ret = qdict_get_qdict(response, "return");
-    g_assert(ret);
-    qobject_ref(ret);
-    qobject_unref(response);
-    return ret;
+    qtest_qmp_send(who, command);
+    return qtest_qmp_receive_success(who, stop_cb, NULL);
 }
 
 /*

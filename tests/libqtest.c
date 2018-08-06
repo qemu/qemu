@@ -1004,6 +1004,35 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
     qobject_unref(response);
 }
 
+QDict *qtest_qmp_receive_success(QTestState *s,
+                                 void (*event_cb)(void *opaque,
+                                                  const char *event,
+                                                  QDict *data),
+                                 void *opaque)
+{
+    QDict *response, *ret, *data;
+    const char *event;
+
+    for (;;) {
+        response = qtest_qmp_receive(s);
+        g_assert(!qdict_haskey(response, "error"));
+        ret = qdict_get_qdict(response, "return");
+        if (ret) {
+            break;
+        }
+        event = qdict_get_str(response, "event");
+        data = qdict_get_qdict(response, "data");
+        if (event_cb) {
+            event_cb(opaque, event, data);
+        }
+        qobject_unref(response);
+    }
+
+    qobject_ref(ret);
+    qobject_unref(response);
+    return ret;
+}
+
 /*
  * Generic hot-plugging test via the device_add QMP command.
  */
@@ -1028,6 +1057,14 @@ void qtest_qmp_device_add(const char *driver, const char *id,
     qobject_unref(response);
 }
 
+static void device_deleted_cb(void *opaque, const char *name, QDict *data)
+{
+    bool *got_event = opaque;
+
+    g_assert_cmpstr(name, ==, "DEVICE_DELETED");
+    *got_event = true;
+}
+
 /*
  * Generic hot-unplugging test via the device_del QMP command.
  * Device deletion will get one response and one event. For example:
@@ -1048,27 +1085,21 @@ void qtest_qmp_device_add(const char *driver, const char *id,
  */
 void qtest_qmp_device_del(const char *id)
 {
-    QDict *response1, *response2, *event = NULL;
+    bool got_event = false;
+    QDict *rsp;
 
-    response1 = qmp("{'execute': 'device_del', 'arguments': {'id': %s}}",
-                    id);
-    g_assert(response1);
-    g_assert(!qdict_haskey(response1, "error"));
-
-    response2 = qmp_receive();
-    g_assert(response2);
-    g_assert(!qdict_haskey(response2, "error"));
-
-    if (qdict_haskey(response1, "event")) {
-        event = response1;
-    } else if (qdict_haskey(response2, "event")) {
-        event = response2;
+    qtest_qmp_send(global_qtest,
+                   "{'execute': 'device_del', 'arguments': {'id': %s}}",
+                   id);
+    rsp = qtest_qmp_receive_success(global_qtest, device_deleted_cb,
+                                    &got_event);
+    qobject_unref(rsp);
+    if (!got_event) {
+        rsp = qmp_receive();
+        g_assert_cmpstr(qdict_get_try_str(rsp, "event"),
+                        ==, "DEVICE_DELETED");
+        qobject_unref(rsp);
     }
-    g_assert(event);
-    g_assert_cmpstr(qdict_get_str(event, "event"), ==, "DEVICE_DELETED");
-
-    qobject_unref(response1);
-    qobject_unref(response2);
 }
 
 bool qmp_rsp_is_err(QDict *rsp)
