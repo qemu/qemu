@@ -532,14 +532,12 @@ static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
 static void deprecated_set_downtime(QTestState *who, const double value)
 {
     QDict *rsp;
-    gchar *cmd;
     char *expected;
     int64_t result_int;
 
-    cmd = g_strdup_printf("{ 'execute': 'migrate_set_downtime',"
-                          "'arguments': { 'value': %g } }", value);
-    rsp = qtest_qmp(who, cmd);
-    g_free(cmd);
+    rsp = qtest_qmp(who,
+                    "{ 'execute': 'migrate_set_downtime',"
+                    " 'arguments': { 'value': %f } }", value);
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
     result_int = value * 1000L;

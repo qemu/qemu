@@ -160,14 +160,9 @@ void qpci_free_pc(QPCIBus *bus)
 void qpci_unplug_acpi_device_test(const char *id, uint8_t slot)
 {
     QDict *response;
-    char *cmd;
 
-    cmd = g_strdup_printf("{'execute': 'device_del',"
-                          " 'arguments': {"
-                          "   'id': '%s'"
-                          "}}", id);
-    response = qmp(cmd);
-    g_free(cmd);
+    response = qmp("{'execute': 'device_del', 'arguments': {'id': %s}}",
+                   id);
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     qobject_unref(response);

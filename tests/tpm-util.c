@@ -239,13 +239,10 @@ void tpm_util_swtpm_kill(GPid pid)
 void tpm_util_migrate(QTestState *who, const char *uri)
 {
     QDict *rsp;
-    gchar *cmd;
 
-    cmd = g_strdup_printf("{ 'execute': 'migrate',"
-                          "'arguments': { 'uri': '%s' } }",
-                          uri);
-    rsp = qtest_qmp(who, cmd);
-    g_free(cmd);
+    rsp = qtest_qmp(who,
+                    "{ 'execute': 'migrate', 'arguments': { 'uri': %s } }",
+                    uri);
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 }

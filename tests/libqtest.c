@@ -1054,12 +1054,9 @@ void qtest_qmp_device_add(const char *driver, const char *id, const char *fmt,
 void qtest_qmp_device_del(const char *id)
 {
     QDict *response1, *response2, *event = NULL;
-    char *cmd;
 
-    cmd = g_strdup_printf("{'execute': 'device_del',"
-                          " 'arguments': { 'id': '%s' }}", id);
-    response1 = qmp(cmd);
-    g_free(cmd);
+    response1 = qmp("{'execute': 'device_del', 'arguments': {'id': %s}}",
+                    id);
     g_assert(response1);
     g_assert(!qdict_haskey(response1, "error"));
 
