@@ -318,31 +318,25 @@ static void cleanup(const char *filename)
 }
 
 static void migrate_check_parameter(QTestState *who, const char *parameter,
-                                    const char *value)
+                                    long long value)
 {
     QDict *rsp_return;
-    char *result;
 
     rsp_return = wait_command(who,
                               "{ 'execute': 'query-migrate-parameters' }");
-    result = g_strdup_printf("%" PRId64,
-                             qdict_get_try_int(rsp_return,  parameter, -1));
-    g_assert_cmpstr(result, ==, value);
-    g_free(result);
+    g_assert_cmpint(qdict_get_int(rsp_return, parameter), ==, value);
     qobject_unref(rsp_return);
 }
 
 static void migrate_set_parameter(QTestState *who, const char *parameter,
-                                  const char *value)
+                                  long long value)
 {
     QDict *rsp;
-    gchar *cmd;
 
-    cmd = g_strdup_printf("{ 'execute': 'migrate-set-parameters',"
-                          "'arguments': { '%s': %s } }",
-                          parameter, value);
-    rsp = qtest_qmp(who, cmd);
-    g_free(cmd);
+    rsp = qtest_qmp(who,
+                    "{ 'execute': 'migrate-set-parameters',"
+                    "'arguments': { %s: %lld } }",
+                    parameter, value);
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
     migrate_check_parameter(who, parameter, value);
@@ -369,18 +363,16 @@ static void migrate_recover(QTestState *who, const char *uri)
 }
 
 static void migrate_set_capability(QTestState *who, const char *capability,
-                                   const char *value)
+                                   bool value)
 {
     QDict *rsp;
-    gchar *cmd;
 
-    cmd = g_strdup_printf("{ 'execute': 'migrate-set-capabilities',"
-                          "'arguments': { "
-                          "'capabilities': [ { "
-                          "'capability': '%s', 'state': %s } ] } }",
-                          capability, value);
-    rsp = qtest_qmp(who, cmd);
-    g_free(cmd);
+    rsp = qtest_qmp(who,
+                    "{ 'execute': 'migrate-set-capabilities',"
+                    "'arguments': { "
+                    "'capabilities': [ { "
+                    "'capability': %s, 'state': %i } ] } }",
+                    capability, value);
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 }
@@ -530,29 +522,21 @@ static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
 static void deprecated_set_downtime(QTestState *who, const double value)
 {
     QDict *rsp;
-    char *expected;
-    int64_t result_int;
 
     rsp = qtest_qmp(who,
                     "{ 'execute': 'migrate_set_downtime',"
                     " 'arguments': { 'value': %f } }", value);
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
-    result_int = value * 1000L;
-    expected = g_strdup_printf("%" PRId64, result_int);
-    migrate_check_parameter(who, "downtime-limit", expected);
-    g_free(expected);
+    migrate_check_parameter(who, "downtime-limit", value * 1000);
 }
 
-static void deprecated_set_speed(QTestState *who, const char *value)
+static void deprecated_set_speed(QTestState *who, long long value)
 {
     QDict *rsp;
-    gchar *cmd;
 
-    cmd = g_strdup_printf("{ 'execute': 'migrate_set_speed',"
-                          "'arguments': { 'value': %s } }", value);
-    rsp = qtest_qmp(who, cmd);
-    g_free(cmd);
+    rsp = qtest_qmp(who, "{ 'execute': 'migrate_set_speed',"
+                          "'arguments': { 'value': %lld } }", value);
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
     migrate_check_parameter(who, "max-bandwidth", value);
@@ -565,7 +549,7 @@ static void test_deprecated(void)
     from = qtest_start("");
 
     deprecated_set_downtime(from, 0.12345);
-    deprecated_set_speed(from, "12345");
+    deprecated_set_speed(from, 12345);
 
     qtest_quit(from);
 }
@@ -581,16 +565,16 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
         return -1;
     }
 
-    migrate_set_capability(from, "postcopy-ram", "true");
-    migrate_set_capability(to, "postcopy-ram", "true");
-    migrate_set_capability(to, "postcopy-blocktime", "true");
+    migrate_set_capability(from, "postcopy-ram", true);
+    migrate_set_capability(to, "postcopy-ram", true);
+    migrate_set_capability(to, "postcopy-blocktime", true);
 
     /* We want to pick a speed slow enough that the test completes
      * quickly, but that it doesn't complete precopy even on a slow
      * machine, so also set the downtime.
      */
-    migrate_set_parameter(from, "max-bandwidth", "100000000");
-    migrate_set_parameter(from, "downtime-limit", "1");
+    migrate_set_parameter(from, "max-bandwidth", 100000000);
+    migrate_set_parameter(from, "downtime-limit", 1);
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
@@ -641,7 +625,7 @@ static void test_postcopy_recovery(void)
     }
 
     /* Turn postcopy speed down, 4K/s is slow enough on any machines */
-    migrate_set_parameter(from, "max-postcopy-bandwidth", "4096");
+    migrate_set_parameter(from, "max-postcopy-bandwidth", 4096);
 
     /* Now we start the postcopy */
     migrate_postcopy_start(from, to);
@@ -682,7 +666,7 @@ static void test_postcopy_recovery(void)
     g_free(uri);
 
     /* Restore the postcopy bandwidth to unlimited */
-    migrate_set_parameter(from, "max-postcopy-bandwidth", "0");
+    migrate_set_parameter(from, "max-postcopy-bandwidth", 0);
 
     migrate_postcopy_complete(from, to);
 }
@@ -728,9 +712,9 @@ static void test_precopy_unix(void)
      * machine, so also set the downtime.
      */
     /* 1 ms should make it not converge*/
-    migrate_set_parameter(from, "downtime-limit", "1");
+    migrate_set_parameter(from, "downtime-limit", 1);
     /* 1GB/s */
-    migrate_set_parameter(from, "max-bandwidth", "1000000000");
+    migrate_set_parameter(from, "max-bandwidth", 1000000000);
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
@@ -740,7 +724,7 @@ static void test_precopy_unix(void)
     wait_for_migration_pass(from);
 
     /* 300 ms should converge */
-    migrate_set_parameter(from, "downtime-limit", "300");
+    migrate_set_parameter(from, "downtime-limit", 300);
 
     if (!got_stop) {
         qtest_qmp_eventwait(from, "STOP");
