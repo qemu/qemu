@@ -134,9 +134,6 @@ static const VMStateDescription vmstate_gicv3_cpu = {
     },
     .subsections = (const VMStateDescription * []) {
         &vmstate_gicv3_cpu_virt,
-        NULL
-    },
-    .subsections = (const VMStateDescription * []) {
         &vmstate_gicv3_cpu_sre_el1,
         NULL
     }
