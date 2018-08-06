@@ -538,7 +538,7 @@ QDict *qmp_fdv(int fd, const char *fmt, va_list ap)
     return qmp_fd_receive(fd);
 }
 
-QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+QDict *qtest_vqmp(QTestState *s, const char *fmt, va_list ap)
 {
     qtest_qmp_vsend(s, fmt, ap);
 
@@ -572,7 +572,7 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
     QDict *response;
 
     va_start(ap, fmt);
-    response = qtest_qmpv(s, fmt, ap);
+    response = qtest_vqmp(s, fmt, ap);
     va_end(ap);
     return response;
 }
@@ -608,7 +608,7 @@ void qtest_qmp_eventwait(QTestState *s, const char *event)
     qobject_unref(response);
 }
 
-char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap)
+char *qtest_vhmp(QTestState *s, const char *fmt, va_list ap)
 {
     char *cmd;
     QDict *resp;
@@ -637,7 +637,7 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...)
     char *ret;
 
     va_start(ap, fmt);
-    ret = qtest_hmpv(s, fmt, ap);
+    ret = qtest_vhmp(s, fmt, ap);
     va_end(ap);
     return ret;
 }
@@ -943,7 +943,7 @@ QDict *qmp(const char *fmt, ...)
     QDict *response;
 
     va_start(ap, fmt);
-    response = qtest_qmpv(global_qtest, fmt, ap);
+    response = qtest_vqmp(global_qtest, fmt, ap);
     va_end(ap);
     return response;
 }
@@ -963,7 +963,7 @@ char *hmp(const char *fmt, ...)
     char *ret;
 
     va_start(ap, fmt);
-    ret = qtest_hmpv(global_qtest, fmt, ap);
+    ret = qtest_vhmp(global_qtest, fmt, ap);
     va_end(ap);
     return ret;
 }
