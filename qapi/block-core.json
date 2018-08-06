@@ -3572,6 +3572,9 @@
 # @driver:        block driver name
 # @node-name:     the node name of the new node (Since 2.0).
 #                 This option is required on the top level of blockdev-add.
+#                 Valid node names start with an alphabetic character and may
+#                 contain only alphanumeric characters, '-', '.' and '_'. Their
+#                 maximum length is 31 characters.
 # @discard:       discard-related options (default: ignore)
 # @cache:         cache-related options
 # @read-only:     whether the block device should be read-only (default: false).
