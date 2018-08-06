@@ -52,10 +52,14 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+
+/* TODO actually test the results and get rid of this */
+#define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))
 
 static const char *get_devstr(void)
 {

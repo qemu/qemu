@@ -15,6 +15,9 @@
 #include "libqos/virtio.h"
 #include "qapi/qmp/qdict.h"
 
+/* TODO actually test the results and get rid of this */
+#define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))
+
 static void drive_add(void)
 {
     char *resp = hmp("drive_add 0 if=none,id=drive0");

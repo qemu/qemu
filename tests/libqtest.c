@@ -254,7 +254,7 @@ QTestState *qtest_init(const char *extra_args)
     /* Read the QMP greeting and then do the handshake */
     greeting = qtest_qmp_receive(s);
     qobject_unref(greeting);
-    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
+    qobject_unref(qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }"));
 
     return s;
 }
@@ -589,23 +589,6 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...)
     va_start(ap, fmt);
     qtest_qmp_vsend(s, fmt, ap);
     va_end(ap);
-}
-
-void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
-{
-    QDict *response = qtest_qmpv(s, fmt, ap);
-    qobject_unref(response);
-}
-
-void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
-{
-    va_list ap;
-    QDict *response;
-
-    va_start(ap, fmt);
-    response = qtest_qmpv(s, fmt, ap);
-    va_end(ap);
-    qobject_unref(response);
 }
 
 QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
@@ -979,14 +962,6 @@ void qmp_send(const char *fmt, ...)
     va_end(ap);
 }
 
-void qmp_discard_response(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    qtest_qmpv_discard_response(global_qtest, fmt, ap);
-    va_end(ap);
-}
 char *hmp(const char *fmt, ...)
 {
     va_list ap;

@@ -29,11 +29,14 @@
 #include "libqos/libqos.h"
 #include "libqos/pci-pc.h"
 #include "libqos/malloc-pc.h"
-
+#include "qapi/qmp/qdict.h"
 #include "qemu-common.h"
 #include "qemu/bswap.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"
+
+/* TODO actually test the results and get rid of this */
+#define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))
 
 #define TEST_IMAGE_SIZE 64 * 1024 * 1024
 

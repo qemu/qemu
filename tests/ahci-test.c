@@ -37,6 +37,9 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"
 
+/* TODO actually test the results and get rid of this */
+#define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))
+
 /* Test images sizes in MB */
 #define TEST_IMAGE_SIZE_MB_LARGE (200 * 1024)
 #define TEST_IMAGE_SIZE_MB_SMALL 64

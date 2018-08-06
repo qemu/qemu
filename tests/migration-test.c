@@ -20,6 +20,9 @@
 #include "chardev/char.h"
 #include "sysemu/sysemu.h"
 
+/* TODO actually test the results and get rid of this */
+#define qtest_qmp_discard_response(...) qobject_unref(qtest_qmp(__VA_ARGS__))
+
 const unsigned start_address = 1024 * 1024;
 const unsigned end_address = 100 * 1024 * 1024;
 bool got_stop;

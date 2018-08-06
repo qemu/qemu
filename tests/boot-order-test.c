@@ -13,8 +13,11 @@
 #include "qemu/osdep.h"
 #include "libqos/fw_cfg.h"
 #include "libqtest.h"
-
+#include "qapi/qmp/qdict.h"
 #include "hw/nvram/fw_cfg_keys.h"
+
+/* TODO actually test the results and get rid of this */
+#define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))
 
 typedef struct {
     const char *args;
