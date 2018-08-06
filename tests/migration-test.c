@@ -159,9 +159,14 @@ static void stop_cb(void *opaque, const char *name, QDict *data)
 /*
  * Events can get in the way of responses we are actually waiting for.
  */
-static QDict *wait_command(QTestState *who, const char *command)
+static QDict *wait_command(QTestState *who, const char *command, ...)
 {
-    qtest_qmp_send(who, command);
+    va_list ap;
+
+    va_start(ap, command);
+    qtest_qmp_vsend(who, command, ap);
+    va_end(ap);
+
     return qtest_qmp_receive_success(who, stop_cb, NULL);
 }
 
