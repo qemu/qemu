@@ -943,7 +943,9 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine));
  * qtest_qmp_device_add:
  * @driver: Name of the device that should be added
  * @id: Identification string
- * @fmt: printf-like format string for further options to device_add
+ * @fmt...: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * supported after '%'.
  *
  * Generic hot-plugging test via the device_add QMP command.
  */

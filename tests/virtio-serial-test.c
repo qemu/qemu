@@ -18,7 +18,7 @@ static void virtio_serial_nop(void)
 
 static void hotplug(void)
 {
-    qtest_qmp_device_add("virtserialport", "hp-port", NULL);
+    qtest_qmp_device_add("virtserialport", "hp-port", "{}");
 
     qtest_qmp_device_del("hp-port");
 }

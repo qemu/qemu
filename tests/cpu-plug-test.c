@@ -88,8 +88,9 @@ static void test_plug_with_device_add_x86(gconstpointer data)
         for (c = 0; c < td->cores; c++) {
             for (t = 0; t < td->threads; t++) {
                 char *id = g_strdup_printf("id-%i-%i-%i", s, c, t);
-                qtest_qmp_device_add(td->device_model, id, "'socket-id':%u, "
-                                     "'core-id':%u, 'thread-id':%u",
+                qtest_qmp_device_add(td->device_model, id,
+                                     "{'socket-id':%u, 'core-id':%u,"
+                                     " 'thread-id':%u}",
                                      s, c, t);
                 g_free(id);
             }
@@ -114,7 +115,7 @@ static void test_plug_with_device_add_coreid(gconstpointer data)
 
     for (c = td->cores; c < td->maxcpus / td->sockets / td->threads; c++) {
         char *id = g_strdup_printf("id-%i", c);
-        qtest_qmp_device_add(td->device_model, id, "'core-id':%u", c);
+        qtest_qmp_device_add(td->device_model, id, "{'core-id':%u}", c);
         g_free(id);
     }
 

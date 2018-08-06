@@ -19,7 +19,7 @@ static void test_ohci_init(void)
 
 static void test_ohci_hotplug(void)
 {
-    usb_test_hotplug("ohci", 1, NULL);
+    usb_test_hotplug("ohci", "1", NULL);
 }
 
 int main(int argc, char **argv)

@@ -22,7 +22,8 @@ static void hotplug(void)
 {
     const char *arch = qtest_get_arch();
 
-    qpci_plug_device_test("virtio-rng-pci", "rng1", PCI_SLOT_HP, NULL);
+    qtest_qmp_device_add("virtio-rng-pci", "rng1",
+                         "{'addr': %s}", stringify(PCI_SLOT_HP));
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         qpci_unplug_acpi_device_test("rng1", PCI_SLOT_HP);

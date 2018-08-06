@@ -18,13 +18,13 @@ static void test_xhci_init(void)
 
 static void test_xhci_hotplug(void)
 {
-    usb_test_hotplug("xhci", 1, NULL);
+    usb_test_hotplug("xhci", "1", NULL);
 }
 
 static void test_usb_uas_hotplug(void)
 {
-    qtest_qmp_device_add("usb-uas", "uas", NULL);
-    qtest_qmp_device_add("scsi-hd", "scsihd", "'drive': 'drive0'");
+    qtest_qmp_device_add("usb-uas", "uas", "{}");
+    qtest_qmp_device_add("scsi-hd", "scsihd", "{'drive': 'drive0'}");
 
     /* TODO:
         UAS HBA driver in libqos, to check that
@@ -37,10 +37,10 @@ static void test_usb_uas_hotplug(void)
 
 static void test_usb_ccid_hotplug(void)
 {
-    qtest_qmp_device_add("usb-ccid", "ccid", NULL);
+    qtest_qmp_device_add("usb-ccid", "ccid", "{}");
     qtest_qmp_device_del("ccid");
     /* check the device can be added again */
-    qtest_qmp_device_add("usb-ccid", "ccid", NULL);
+    qtest_qmp_device_add("usb-ccid", "ccid", "{}");
     qtest_qmp_device_del("ccid");
 }
 

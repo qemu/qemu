@@ -1007,26 +1007,21 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
 /*
  * Generic hot-plugging test via the device_add QMP command.
  */
-void qtest_qmp_device_add(const char *driver, const char *id, const char *fmt,
-                          ...)
+void qtest_qmp_device_add(const char *driver, const char *id,
+                          const char *fmt, ...)
 {
-    QDict *response;
-    char *cmd, *opts = NULL;
-    va_list va;
+    QDict *args, *response;
+    va_list ap;
 
-    if (fmt) {
-        va_start(va, fmt);
-        opts = g_strdup_vprintf(fmt, va);
-        va_end(va);
-    }
+    va_start(ap, fmt);
+    args = qdict_from_vjsonf_nofail(fmt, ap);
+    va_end(ap);
 
-    cmd = g_strdup_printf("{'execute': 'device_add',"
-                          " 'arguments': { 'driver': '%s', 'id': '%s'%s%s }}",
-                          driver, id, opts ? ", " : "", opts ? opts : "");
-    g_free(opts);
+    g_assert(!qdict_haskey(args, "driver") && !qdict_haskey(args, "id"));
+    qdict_put_str(args, "driver", driver);
+    qdict_put_str(args, "id", id);
 
-    response = qmp(cmd);
-    g_free(cmd);
+    response = qmp("{'execute': 'device_add', 'arguments': %p}", args);
     g_assert(response);
     g_assert(!qdict_haskey(response, "event")); /* We don't expect any events */
     g_assert(!qdict_haskey(response, "error"));

@@ -199,7 +199,7 @@ static void hotplug(void)
 
     qs = qvirtio_scsi_start(
             "-drive id=drv1,if=none,file=null-co://,format=raw");
-    qtest_qmp_device_add("scsi-hd", "scsihd", "'drive': 'drv1'");
+    qtest_qmp_device_add("scsi-hd", "scsihd", "{'drive': 'drv1'}");
     qtest_qmp_device_del("scsihd");
     qvirtio_scsi_stop(qs);
 }

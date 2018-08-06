@@ -666,8 +666,9 @@ static void pci_hotplug(void)
     qs = pci_test_start();
 
     /* plug secondary disk */
-    qpci_plug_device_test("virtio-blk-pci", "drv1", PCI_SLOT_HP,
-                          "'drive': 'drive1'");
+    qtest_qmp_device_add("virtio-blk-pci", "drv1",
+                         "{'addr': %s, 'drive': 'drive1'}",
+                         stringify(PCI_SLOT_HP));
 
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT_HP);
     g_assert(dev);

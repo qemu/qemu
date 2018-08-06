@@ -420,19 +420,17 @@ static void test_ivshmem_server_irq(void)
 static void test_ivshmem_hotplug(void)
 {
     const char *arch = qtest_get_arch();
-    gchar *opts;
 
     qtest_start("");
 
-    opts = g_strdup_printf("'shm': '%s', 'size': '1M'", tmpshm);
-
-    qpci_plug_device_test("ivshmem", "iv1", PCI_SLOT_HP, opts);
+    qtest_qmp_device_add("ivshmem",
+                         "iv1", "{'addr': %s, 'shm': %s, 'size': '1M'}",
+                         stringify(PCI_SLOT_HP), tmpshm);
     if (strcmp(arch, "ppc64") != 0) {
         qpci_unplug_acpi_device_test("iv1", PCI_SLOT_HP);
     }
 
     qtest_end();
-    g_free(opts);
 }
 
 static void test_ivshmem_memdev(void)

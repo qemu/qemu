@@ -456,12 +456,10 @@ static void test_e1000e_multiple_transfers(gconstpointer data)
 
 static void test_e1000e_hotplug(gconstpointer data)
 {
-    static const uint8_t slot = 0x06;
-
     qtest_start("-device e1000e");
 
-    qpci_plug_device_test("e1000e", "e1000e_net", slot, NULL);
-    qpci_unplug_acpi_device_test("e1000e_net", slot);
+    qtest_qmp_device_add("e1000e", "e1000e_net", "{'addr': '0x06'}");
+    qpci_unplug_acpi_device_test("e1000e_net", 0x06);
 
     qtest_end();
 }

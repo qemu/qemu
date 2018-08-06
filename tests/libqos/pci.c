@@ -395,10 +395,3 @@ QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr)
     QPCIBar bar = { .addr = addr };
     return bar;
 }
-
-void qpci_plug_device_test(const char *driver, const char *id,
-                           uint8_t slot, const char *opts)
-{
-    qtest_qmp_device_add(driver, id, "'addr': '%d'%s%s", slot,
-                         opts ? ", " : "", opts ? opts : "");
-}
