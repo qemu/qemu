@@ -73,7 +73,7 @@ static const VMStateDescription vmstate_gicv3_cpu_virt = {
     }
 };
 
-static int icc_sre_el1_reg_pre_load(void *opaque)
+static int vmstate_gicv3_cpu_pre_load(void *opaque)
 {
     GICv3CPUState *cs = opaque;
 
@@ -97,7 +97,6 @@ const VMStateDescription vmstate_gicv3_cpu_sre_el1 = {
     .name = "arm_gicv3_cpu/sre_el1",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_load = icc_sre_el1_reg_pre_load,
     .needed = icc_sre_el1_reg_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(icc_sre_el1, GICv3CPUState),
@@ -109,6 +108,7 @@ static const VMStateDescription vmstate_gicv3_cpu = {
     .name = "arm_gicv3_cpu",
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_load = vmstate_gicv3_cpu_pre_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(level, GICv3CPUState),
         VMSTATE_UINT32(gicr_ctlr, GICv3CPUState),
@@ -139,7 +139,7 @@ static const VMStateDescription vmstate_gicv3_cpu = {
     }
 };
 
-static int gicv3_gicd_no_migration_shift_bug_pre_load(void *opaque)
+static int gicv3_pre_load(void *opaque)
 {
     GICv3State *cs = opaque;
 
@@ -210,7 +210,6 @@ const VMStateDescription vmstate_gicv3_gicd_no_migration_shift_bug = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = needed_always,
-    .pre_load = gicv3_gicd_no_migration_shift_bug_pre_load,
     .post_load = gicv3_gicd_no_migration_shift_bug_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(gicd_no_migration_shift_bug, GICv3State),
@@ -222,6 +221,7 @@ static const VMStateDescription vmstate_gicv3 = {
     .name = "arm_gicv3",
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_load = gicv3_pre_load,
     .pre_save = gicv3_pre_save,
     .post_load = gicv3_post_load,
     .priority = MIG_PRI_GICV3,
