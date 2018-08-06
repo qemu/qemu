@@ -249,9 +249,11 @@ QTestState *qtest_init_without_qmp_handshake(bool use_oob,
 QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s = qtest_init_without_qmp_handshake(false, extra_args);
+    QDict *greeting;
 
     /* Read the QMP greeting and then do the handshake */
-    qtest_qmp_discard_response(s, "");
+    greeting = qtest_qmp_receive(s);
+    qobject_unref(greeting);
     qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
 
     return s;
