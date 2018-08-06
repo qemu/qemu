@@ -155,7 +155,7 @@ static void wait_for_serial(const char *side)
 static QDict *wait_command(QTestState *who, const char *command)
 {
     const char *event_string;
-    QDict *response;
+    QDict *response, *ret;
 
     response = qtest_qmp(who, command);
 
@@ -168,7 +168,12 @@ static QDict *wait_command(QTestState *who, const char *command)
         qobject_unref(response);
         response = qtest_qmp_receive(who);
     }
-    return response;
+
+    ret = qdict_get_qdict(response, "return");
+    g_assert(ret);
+    qobject_ref(ret);
+    qobject_unref(response);
+    return ret;
 }
 
 /*
@@ -177,15 +182,7 @@ static QDict *wait_command(QTestState *who, const char *command)
  */
 static QDict *migrate_query(QTestState *who)
 {
-    QDict *rsp, *rsp_return;
-
-    rsp = wait_command(who, "{ 'execute': 'query-migrate' }");
-    rsp_return = qdict_get_qdict(rsp, "return");
-    g_assert(rsp_return);
-    qobject_ref(rsp_return);
-    qobject_unref(rsp);
-
-    return rsp_return;
+    return wait_command(who, "{ 'execute': 'query-migrate' }");
 }
 
 /*
@@ -327,16 +324,16 @@ static void cleanup(const char *filename)
 static void migrate_check_parameter(QTestState *who, const char *parameter,
                                     const char *value)
 {
-    QDict *rsp, *rsp_return;
+    QDict *rsp_return;
     char *result;
 
-    rsp = wait_command(who, "{ 'execute': 'query-migrate-parameters' }");
-    rsp_return = qdict_get_qdict(rsp, "return");
+    rsp_return = wait_command(who,
+                              "{ 'execute': 'query-migrate-parameters' }");
     result = g_strdup_printf("%" PRId64,
                              qdict_get_try_int(rsp_return,  parameter, -1));
     g_assert_cmpstr(result, ==, value);
     g_free(result);
-    qobject_unref(rsp);
+    qobject_unref(rsp_return);
 }
 
 static void migrate_set_parameter(QTestState *who, const char *parameter,
@@ -360,7 +357,6 @@ static void migrate_pause(QTestState *who)
     QDict *rsp;
 
     rsp = wait_command(who, "{ 'execute': 'migrate-pause' }");
-    g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 }
 
@@ -373,7 +369,6 @@ static void migrate_recover(QTestState *who, const char *uri)
         "  'arguments': { 'uri': '%s' } }", uri);
 
     rsp = wait_command(who, cmd);
-    g_assert(qdict_haskey(rsp, "return"));
     g_free(cmd);
     qobject_unref(rsp);
 }
@@ -414,7 +409,6 @@ static void migrate_postcopy_start(QTestState *from, QTestState *to)
     QDict *rsp;
 
     rsp = wait_command(from, "{ 'execute': 'migrate-start-postcopy' }");
-    g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 
     if (!got_stop) {
@@ -692,7 +686,7 @@ static void test_postcopy_recovery(void)
 static void test_baddest(void)
 {
     QTestState *from, *to;
-    QDict *rsp, *rsp_return;
+    QDict *rsp_return;
     char *status;
     bool failed;
 
@@ -708,12 +702,10 @@ static void test_baddest(void)
     } while (!failed);
 
     /* Is the machine currently running? */
-    rsp = wait_command(from, "{ 'execute': 'query-status' }");
-    g_assert(qdict_haskey(rsp, "return"));
-    rsp_return = qdict_get_qdict(rsp, "return");
+    rsp_return = wait_command(from, "{ 'execute': 'query-status' }");
     g_assert(qdict_haskey(rsp_return, "running"));
     g_assert(qdict_get_bool(rsp_return, "running"));
-    qobject_unref(rsp);
+    qobject_unref(rsp_return);
 
     test_migrate_end(from, to, false);
 }
