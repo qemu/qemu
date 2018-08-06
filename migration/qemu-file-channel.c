@@ -49,7 +49,11 @@ static ssize_t channel_writev_buffer(void *opaque,
         ssize_t len;
         len = qio_channel_writev(ioc, local_iov, nlocal_iov, NULL);
         if (len == QIO_CHANNEL_ERR_BLOCK) {
-            qio_channel_wait(ioc, G_IO_OUT);
+            if (qemu_in_coroutine()) {
+                qio_channel_yield(ioc, G_IO_OUT);
+            } else {
+                qio_channel_wait(ioc, G_IO_OUT);
+            }
             continue;
         }
         if (len < 0) {
@@ -80,7 +84,11 @@ static ssize_t channel_get_buffer(void *opaque,
         ret = qio_channel_read(ioc, (char *)buf, size, NULL);
         if (ret < 0) {
             if (ret == QIO_CHANNEL_ERR_BLOCK) {
-                qio_channel_yield(ioc, G_IO_IN);
+                if (qemu_in_coroutine()) {
+                    qio_channel_yield(ioc, G_IO_IN);
+                } else {
+                    qio_channel_wait(ioc, G_IO_IN);
+                }
             } else {
                 /* XXX handle Error * object */
                 return -EIO;
