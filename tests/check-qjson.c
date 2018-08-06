@@ -865,7 +865,8 @@ static void vararg_string(void)
         QString *str;
 
         str = qobject_to(QString,
-                         qobject_from_jsonf("%s", test_cases[i].decoded));
+                         qobject_from_jsonf_nofail("%s",
+                                                   test_cases[i].decoded));
         g_assert(str);
         g_assert(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
 
@@ -998,17 +999,17 @@ static void vararg_number(void)
     double valuef = 2.323423423;
     int64_t val;
 
-    qnum = qobject_to(QNum, qobject_from_jsonf("%d", value));
+    qnum = qobject_to(QNum, qobject_from_jsonf_nofail("%d", value));
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, value);
     qobject_unref(qnum);
 
-    qnum = qobject_to(QNum, qobject_from_jsonf("%lld", value_ll));
+    qnum = qobject_to(QNum, qobject_from_jsonf_nofail("%lld", value_ll));
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, value_ll);
     qobject_unref(qnum);
 
-    qnum = qobject_to(QNum, qobject_from_jsonf("%f", valuef));
+    qnum = qobject_to(QNum, qobject_from_jsonf_nofail("%f", valuef));
     g_assert(qnum_get_double(qnum) == valuef);
     qobject_unref(qnum);
 }
@@ -1042,13 +1043,13 @@ static void keyword_literal(void)
 
     qobject_unref(qbool);
 
-    qbool = qobject_to(QBool, qobject_from_jsonf("%i", false));
+    qbool = qobject_to(QBool, qobject_from_jsonf_nofail("%i", false));
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == false);
     qobject_unref(qbool);
 
     /* Test that non-zero values other than 1 get collapsed to true */
-    qbool = qobject_to(QBool, qobject_from_jsonf("%i", 2));
+    qbool = qobject_to(QBool, qobject_from_jsonf_nofail("%i", 2));
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == true);
     qobject_unref(qbool);
@@ -1298,7 +1299,7 @@ static void simple_varargs(void)
     embedded_obj = qobject_from_json("[32, 42]", &error_abort);
     g_assert(embedded_obj != NULL);
 
-    obj = qobject_from_jsonf("[%d, 2, %p]", 1, embedded_obj);
+    obj = qobject_from_jsonf_nofail("[%d, 2, %p]", 1, embedded_obj);
     g_assert(qlit_equal_qobject(&decoded, obj));
 
     qobject_unref(obj);

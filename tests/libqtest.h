@@ -77,8 +77,8 @@ void qtest_quit(QTestState *s);
  * qtest_qmp:
  * @s: #QTestState instance to operate on.
  * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf().  See parse_escape() for what's supported
- * after '%'.
+ * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * supported after '%'.
  *
  * Sends a QMP message to QEMU and returns the response.
  */
@@ -88,8 +88,8 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...);
  * qtest_qmp_send:
  * @s: #QTestState instance to operate on.
  * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf().  See parse_escape() for what's supported
- * after '%'.
+ * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * supported after '%'.
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */
@@ -99,8 +99,8 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...);
  * qtest_qmpv:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU, formatted like
- * qobject_from_jsonf().  See parse_escape() for what's supported
- * after '%'.
+ * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * supported after '%'.
  * @ap: QMP message arguments
  *
  * Sends a QMP message to QEMU and returns the response.
@@ -111,8 +111,8 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap);
  * qtest_qmp_vsend:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU, formatted like
- * qobject_from_jsonf().  See parse_escape() for what's supported
- * after '%'.
+ * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * supported after '%'.
  * @ap: QMP message arguments
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
@@ -552,8 +552,8 @@ static inline void qtest_end(void)
 /**
  * qmp:
  * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf().  See parse_escape() for what's supported
- * after '%'.
+ * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * supported after '%'.
  *
  * Sends a QMP message to QEMU and returns the response.
  */
@@ -562,8 +562,8 @@ QDict *qmp(const char *fmt, ...);
 /**
  * qmp_send:
  * @fmt...: QMP message to send to qemu, formatted like
- * qobject_from_jsonf().  See parse_escape() for what's supported
- * after '%'.
+ * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * supported after '%'.
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
  */

@@ -59,7 +59,12 @@ QObject *qobject_from_json(const char *string, Error **errp)
     return qobject_from_jsonv(string, NULL, errp);
 }
 
-QObject *qobject_from_jsonf(const char *string, ...)
+/*
+ * Parse @string as JSON value with %-escapes interpolated.
+ * Abort on error.  Do not use with untrusted @string.
+ * Return the resulting QObject.  It is never null.
+ */
+QObject *qobject_from_jsonf_nofail(const char *string, ...)
 {
     QObject *obj;
     va_list ap;
@@ -68,6 +73,7 @@ QObject *qobject_from_jsonf(const char *string, ...)
     obj = qobject_from_jsonv(string, &ap, &error_abort);
     va_end(ap);
 
+    assert(obj);
     return obj;
 }
 
