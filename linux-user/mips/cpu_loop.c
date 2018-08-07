@@ -397,10 +397,13 @@ static int do_store_exclusive(CPUMIPSState *env)
     target_ulong addr;
     target_ulong page_addr;
     target_ulong val;
+    uint32_t val_wp = 0;
+    uint32_t llnewval_wp = 0;
     int flags;
     int segv = 0;
     int reg;
     int d;
+    int wp;
 
     addr = env->lladdr;
     page_addr = addr & TARGET_PAGE_MASK;
@@ -412,19 +415,31 @@ static int do_store_exclusive(CPUMIPSState *env)
     } else {
         reg = env->llreg & 0x1f;
         d = (env->llreg & 0x20) != 0;
-        if (d) {
-            segv = get_user_s64(val, addr);
+        wp = (env->llreg & 0x40) != 0;
+        if (!wp) {
+            if (d) {
+                segv = get_user_s64(val, addr);
+            } else {
+                segv = get_user_s32(val, addr);
+            }
         } else {
             segv = get_user_s32(val, addr);
+            segv |= get_user_s32(val_wp, addr);
+            llnewval_wp = env->llnewval_wp;
         }
         if (!segv) {
-            if (val != env->llval) {
+            if (val != env->llval && val_wp == llnewval_wp) {
                 env->active_tc.gpr[reg] = 0;
             } else {
-                if (d) {
-                    segv = put_user_u64(env->llnewval, addr);
+                if (!wp) {
+                    if (d) {
+                        segv = put_user_u64(env->llnewval, addr);
+                    } else {
+                        segv = put_user_u32(env->llnewval, addr);
+                    }
                 } else {
                     segv = put_user_u32(env->llnewval, addr);
+                    segv |= put_user_u32(env->llnewval_wp, addr + 4);
                 }
                 if (!segv) {
                     env->active_tc.gpr[reg] = 1;

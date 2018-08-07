@@ -1916,6 +1916,18 @@ static inline void check_mvh(DisasContext *ctx)
 }
 #endif
 
+/*
+ * This code generates a "reserved instruction" exception if the
+ * Config5 XNP bit is set.
+ */
+static inline void check_xnp(DisasContext *ctx)
+{
+    if (unlikely(ctx->CP0_Config5 & (1 << CP0C5_XNP))) {
+        generate_exception_end(ctx, EXCP_RI);
+    }
+}
+
+
 /* Define small wrappers for gen_load_fpr* so that we have a uniform
    calling interface for 32 and 64-bit FPRs.  No sense in changing
    all callers for gen_load_fpr32 when we need the CTX parameter for
@@ -2362,6 +2374,31 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t0);
 }
 
+static void gen_llwp(DisasContext *ctx, uint32_t base, int16_t offset,
+                    uint32_t reg1, uint32_t reg2)
+{
+    TCGv taddr = tcg_temp_new();
+    TCGv_i64 tval = tcg_temp_new_i64();
+    TCGv tmp1 = tcg_temp_new();
+    TCGv tmp2 = tcg_temp_new();
+
+    gen_base_offset_addr(ctx, taddr, base, offset);
+    tcg_gen_qemu_ld64(tval, taddr, ctx->mem_idx);
+#ifdef TARGET_WORDS_BIGENDIAN
+    tcg_gen_extr_i64_tl(tmp2, tmp1, tval);
+#else
+    tcg_gen_extr_i64_tl(tmp1, tmp2, tval);
+#endif
+    gen_store_gpr(tmp1, reg1);
+    tcg_temp_free(tmp1);
+    gen_store_gpr(tmp2, reg2);
+    tcg_temp_free(tmp2);
+    tcg_gen_st_i64(tval, cpu_env, offsetof(CPUMIPSState, llval_wp));
+    tcg_temp_free_i64(tval);
+    tcg_gen_st_tl(taddr, cpu_env, offsetof(CPUMIPSState, lladdr));
+    tcg_temp_free(taddr);
+}
+
 /* Store */
 static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
                     int base, int offset)
@@ -2456,6 +2493,51 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
     }
     tcg_temp_free(t1);
     tcg_temp_free(t0);
+}
+
+static void gen_scwp(DisasContext *ctx, uint32_t base, int16_t offset,
+                    uint32_t reg1, uint32_t reg2)
+{
+    TCGv taddr = tcg_temp_local_new();
+    TCGv lladdr = tcg_temp_local_new();
+    TCGv_i64 tval = tcg_temp_new_i64();
+    TCGv_i64 llval = tcg_temp_new_i64();
+    TCGv_i64 val = tcg_temp_new_i64();
+    TCGv tmp1 = tcg_temp_new();
+    TCGv tmp2 = tcg_temp_new();
+    TCGLabel *lab_fail = gen_new_label();
+    TCGLabel *lab_done = gen_new_label();
+
+    gen_base_offset_addr(ctx, taddr, base, offset);
+
+    tcg_gen_ld_tl(lladdr, cpu_env, offsetof(CPUMIPSState, lladdr));
+    tcg_gen_brcond_tl(TCG_COND_NE, taddr, lladdr, lab_fail);
+
+    gen_load_gpr(tmp1, reg1);
+    gen_load_gpr(tmp2, reg2);
+
+#ifdef TARGET_WORDS_BIGENDIAN
+    tcg_gen_concat_tl_i64(tval, tmp2, tmp1);
+#else
+    tcg_gen_concat_tl_i64(tval, tmp1, tmp2);
+#endif
+
+    tcg_gen_ld_i64(llval, cpu_env, offsetof(CPUMIPSState, llval_wp));
+    tcg_gen_atomic_cmpxchg_i64(val, taddr, llval, tval,
+                               ctx->mem_idx, MO_64);
+    if (reg1 != 0) {
+        tcg_gen_movi_tl(cpu_gpr[reg1], 1);
+    }
+    tcg_gen_brcond_i64(TCG_COND_EQ, val, llval, lab_done);
+
+    gen_set_label(lab_fail);
+
+    if (reg1 != 0) {
+        tcg_gen_movi_tl(cpu_gpr[reg1], 0);
+    }
+    gen_set_label(lab_done);
+    tcg_gen_movi_tl(lladdr, -1);
+    tcg_gen_st_tl(lladdr, cpu_env, offsetof(CPUMIPSState, lladdr));
 }
 
 /* Load and store */
@@ -18120,6 +18202,8 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         gen_ld(ctx, OPC_LL, rt, rs, s);
                         break;
                     case NM_LLWP:
+                        check_xnp(ctx);
+                        gen_llwp(ctx, rs, 0, rt, extract32(ctx->opcode, 3, 5));
                         break;
                     }
                     break;
@@ -18129,6 +18213,8 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         gen_st_cond(ctx, OPC_SC, rt, rs, s);
                         break;
                     case NM_SCWP:
+                        check_xnp(ctx);
+                        gen_scwp(ctx, rs, 0, rt, extract32(ctx->opcode, 3, 5));
                         break;
                     }
                     break;
