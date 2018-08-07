@@ -418,7 +418,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 static const VMStateDescription *
 vmstate_get_subsection(const VMStateDescription **sub, char *idstr)
 {
-    while (sub && *sub && (*sub)->needed) {
+    while (sub && *sub) {
         if (strcmp(idstr, (*sub)->name) == 0) {
             return *sub;
         }
@@ -486,8 +486,8 @@ static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
     int ret = 0;
 
     trace_vmstate_subsection_save_top(vmsd->name);
-    while (sub && *sub && (*sub)->needed) {
-        if ((*sub)->needed(opaque)) {
+    while (sub && *sub) {
+        if (vmstate_save_needed(*sub, opaque)) {
             const VMStateDescription *vmsdsub = *sub;
             uint8_t len;
 
