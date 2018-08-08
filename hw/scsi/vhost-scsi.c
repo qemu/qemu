@@ -238,6 +238,9 @@ static Property vhost_scsi_properties[] = {
     DEFINE_PROP_UINT32("max_sectors", VirtIOSCSICommon, conf.max_sectors,
                        0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSICommon, conf.cmd_per_lun, 128),
+    DEFINE_PROP_BIT64("t10_pi", VHostSCSICommon, host_features,
+                                                 VIRTIO_SCSI_F_T10_PI,
+                                                 false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
