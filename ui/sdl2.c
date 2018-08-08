@@ -761,7 +761,6 @@ static void sdl2_display_early_init(DisplayOptions *o)
 
 static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
 {
-    int flags;
     uint8_t data = 0;
     char *filename;
     int i;
@@ -782,8 +781,7 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
     setenv("SDL_VIDEODRIVER", "x11", 0);
 #endif
 
-    flags = SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE;
-    if (SDL_Init(flags)) {
+    if (SDL_Init(SDL_INIT_VIDEO)) {
         fprintf(stderr, "Could not initialize SDL(%s) - exiting\n",
                 SDL_GetError());
         exit(1);
