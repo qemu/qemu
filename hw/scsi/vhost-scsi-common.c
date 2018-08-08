@@ -96,6 +96,9 @@ uint64_t vhost_scsi_common_get_features(VirtIODevice *vdev, uint64_t features,
 {
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(vdev);
 
+    /* Turn on predefined features supported by this device */
+    features |= vsc->host_features;
+
     return vhost_get_features(&vsc->dev, vsc->feature_bits, features);
 }
 

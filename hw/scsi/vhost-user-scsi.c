@@ -137,18 +137,6 @@ static void vhost_user_scsi_unrealize(DeviceState *dev, Error **errp)
     }
 }
 
-static uint64_t vhost_user_scsi_get_features(VirtIODevice *vdev,
-                                             uint64_t features, Error **errp)
-{
-    VHostUserSCSI *s = VHOST_USER_SCSI(vdev);
-    VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
-
-    /* Turn on predefined features supported by this device */
-    features |= vsc->host_features;
-
-    return vhost_scsi_common_get_features(vdev, features, errp);
-}
-
 static Property vhost_user_scsi_properties[] = {
     DEFINE_PROP_CHR("chardev", VirtIOSCSICommon, conf.chardev),
     DEFINE_PROP_UINT32("boot_tpgt", VirtIOSCSICommon, conf.boot_tpgt, 0),
@@ -188,7 +176,7 @@ static void vhost_user_scsi_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->realize = vhost_user_scsi_realize;
     vdc->unrealize = vhost_user_scsi_unrealize;
-    vdc->get_features = vhost_user_scsi_get_features;
+    vdc->get_features = vhost_scsi_common_get_features;
     vdc->set_config = vhost_scsi_common_set_config;
     vdc->set_status = vhost_user_scsi_set_status;
     fwc->get_dev_path = vhost_scsi_common_get_fw_dev_path;
