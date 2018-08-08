@@ -902,8 +902,21 @@ enum {
     OPC_MTTR     = (0x0C << 21) | OPC_CP0,
     OPC_WRPGPR   = (0x0E << 21) | OPC_CP0,
     OPC_C0       = (0x10 << 21) | OPC_CP0,
-    OPC_C0_FIRST = (0x10 << 21) | OPC_CP0,
-    OPC_C0_LAST  = (0x1F << 21) | OPC_CP0,
+    OPC_C0_1     = (0x11 << 21) | OPC_CP0,
+    OPC_C0_2     = (0x12 << 21) | OPC_CP0,
+    OPC_C0_3     = (0x13 << 21) | OPC_CP0,
+    OPC_C0_4     = (0x14 << 21) | OPC_CP0,
+    OPC_C0_5     = (0x15 << 21) | OPC_CP0,
+    OPC_C0_6     = (0x16 << 21) | OPC_CP0,
+    OPC_C0_7     = (0x17 << 21) | OPC_CP0,
+    OPC_C0_8     = (0x18 << 21) | OPC_CP0,
+    OPC_C0_9     = (0x19 << 21) | OPC_CP0,
+    OPC_C0_A     = (0x1A << 21) | OPC_CP0,
+    OPC_C0_B     = (0x1B << 21) | OPC_CP0,
+    OPC_C0_C     = (0x1C << 21) | OPC_CP0,
+    OPC_C0_D     = (0x1D << 21) | OPC_CP0,
+    OPC_C0_E     = (0x1E << 21) | OPC_CP0,
+    OPC_C0_F     = (0x1F << 21) | OPC_CP0,
 };
 
 /* MFMC0 opcodes */
@@ -12490,10 +12503,22 @@ enum {
 /* PCREL Instructions perform PC-Relative address calculation. bits 20..16 */
 enum {
     ADDIUPC_00 = 0x00,
+    ADDIUPC_01 = 0x01,
+    ADDIUPC_02 = 0x02,
+    ADDIUPC_03 = 0x03,
+    ADDIUPC_04 = 0x04,
+    ADDIUPC_05 = 0x05,
+    ADDIUPC_06 = 0x06,
     ADDIUPC_07 = 0x07,
     AUIPC = 0x1e,
     ALUIPC = 0x1f,
     LWPC_08 = 0x08,
+    LWPC_09 = 0x09,
+    LWPC_0A = 0x0A,
+    LWPC_0B = 0x0B,
+    LWPC_0C = 0x0C,
+    LWPC_0D = 0x0D,
+    LWPC_0E = 0x0E,
     LWPC_0F = 0x0F,
 };
 
@@ -12928,12 +12953,16 @@ enum {
     R6_LWM16    = 0x02,
     R6_JRC16    = 0x03,
     MOVEP       = 0x04,
+    MOVEP_05    = 0x05,
+    MOVEP_06    = 0x06,
     MOVEP_07    = 0x07,
     R6_XOR16    = 0x08,
     R6_OR16     = 0x09,
     R6_SWM16    = 0x0a,
     JALRC16     = 0x0b,
     MOVEP_0C    = 0x0c,
+    MOVEP_0D    = 0x0d,
+    MOVEP_0E    = 0x0e,
     MOVEP_0F    = 0x0f,
     JRCADDIUSP  = 0x13,
     R6_BREAK16  = 0x1b,
@@ -13251,8 +13280,14 @@ static void gen_pool16c_r6_insn(DisasContext *ctx)
             gen_compute_branch(ctx, OPC_JR, 2, rs, 0, 0, 0);
         }
         break;
-    case MOVEP ... MOVEP_07:
-    case MOVEP_0C ... MOVEP_0F:
+    case MOVEP:
+    case MOVEP_05:
+    case MOVEP_06:
+    case MOVEP_07:
+    case MOVEP_0C:
+    case MOVEP_0D:
+    case MOVEP_0E:
+    case MOVEP_0F:
         {
             int enc_dest = uMIPS_RD(ctx->opcode);
             int enc_rt = uMIPS_RS2(ctx->opcode);
@@ -15230,7 +15265,14 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
         if (ctx->insn_flags & ISA_MIPS32R6) {
             /* PCREL: ADDIUPC, AUIPC, ALUIPC, LWPC */
             switch ((ctx->opcode >> 16) & 0x1f) {
-            case ADDIUPC_00 ... ADDIUPC_07:
+            case ADDIUPC_00:
+            case ADDIUPC_01:
+            case ADDIUPC_02:
+            case ADDIUPC_03:
+            case ADDIUPC_04:
+            case ADDIUPC_05:
+            case ADDIUPC_06:
+            case ADDIUPC_07:
                 gen_pcrel(ctx, OPC_ADDIUPC, ctx->base.pc_next & ~0x3, rt);
                 break;
             case AUIPC:
@@ -15239,7 +15281,14 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             case ALUIPC:
                 gen_pcrel(ctx, OPC_ALUIPC, ctx->base.pc_next, rt);
                 break;
-            case LWPC_08 ... LWPC_0F:
+            case LWPC_08:
+            case LWPC_09:
+            case LWPC_0A:
+            case LWPC_0B:
+            case LWPC_0C:
+            case LWPC_0D:
+            case LWPC_0E:
+            case LWPC_0F:
                 gen_pcrel(ctx, R6_OPC_LWPC, ctx->base.pc_next & ~0x3, rt);
                 break;
             default:
@@ -19790,7 +19839,22 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
             gen_cp0(env, ctx, op1, rt, rd);
 #endif /* !CONFIG_USER_ONLY */
             break;
-        case OPC_C0_FIRST ... OPC_C0_LAST:
+        case OPC_C0:
+        case OPC_C0_1:
+        case OPC_C0_2:
+        case OPC_C0_3:
+        case OPC_C0_4:
+        case OPC_C0_5:
+        case OPC_C0_6:
+        case OPC_C0_7:
+        case OPC_C0_8:
+        case OPC_C0_9:
+        case OPC_C0_A:
+        case OPC_C0_B:
+        case OPC_C0_C:
+        case OPC_C0_D:
+        case OPC_C0_E:
+        case OPC_C0_F:
 #ifndef CONFIG_USER_ONLY
             gen_cp0(env, ctx, MASK_C0(ctx->opcode), rt, rd);
 #endif /* !CONFIG_USER_ONLY */
