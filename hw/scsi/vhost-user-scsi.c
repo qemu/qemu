@@ -141,9 +141,10 @@ static uint64_t vhost_user_scsi_get_features(VirtIODevice *vdev,
                                              uint64_t features, Error **errp)
 {
     VHostUserSCSI *s = VHOST_USER_SCSI(vdev);
+    VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
 
     /* Turn on predefined features supported by this device */
-    features |= s->host_features;
+    features |= vsc->host_features;
 
     return vhost_scsi_common_get_features(vdev, features, errp);
 }
@@ -157,12 +158,12 @@ static Property vhost_user_scsi_properties[] = {
     DEFINE_PROP_UINT32("max_sectors", VirtIOSCSICommon, conf.max_sectors,
                        0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSICommon, conf.cmd_per_lun, 128),
-    DEFINE_PROP_BIT64("hotplug", VHostUserSCSI, host_features,
-                                                VIRTIO_SCSI_F_HOTPLUG,
-                                                true),
-    DEFINE_PROP_BIT64("param_change", VHostUserSCSI, host_features,
-                                                     VIRTIO_SCSI_F_CHANGE,
-                                                     true),
+    DEFINE_PROP_BIT64("hotplug", VHostSCSICommon, host_features,
+                                                  VIRTIO_SCSI_F_HOTPLUG,
+                                                  true),
+    DEFINE_PROP_BIT64("param_change", VHostSCSICommon, host_features,
+                                                       VIRTIO_SCSI_F_CHANGE,
+                                                       true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
