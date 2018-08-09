@@ -591,6 +591,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
      * so disable the optimization now.
      */
     if (blocking) {
+        assert(in_aio_context_home_thread(ctx));
         atomic_add(&ctx->notify_me, 2);
     }
 
@@ -633,6 +634,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     if (blocking) {
         atomic_sub(&ctx->notify_me, 2);
+        aio_notify_accept(ctx);
     }
 
     /* Adjust polling time */
@@ -675,8 +677,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
             trace_poll_grow(ctx, old, ctx->poll_ns);
         }
     }
-
-    aio_notify_accept(ctx);
 
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {
