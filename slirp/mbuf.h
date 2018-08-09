@@ -48,6 +48,19 @@
  */
 
 /*
+ * mbufs allow to have a gap between the start of the allocated buffer (m_ext if
+ * M_EXT is set, m_dat otherwise) and the in-use data:
+ *
+ *  |--gapsize----->|---m_len------->
+ *  |----------m_size------------------------------>
+ *                  |----M_ROOM-------------------->
+ *                                   |-M_FREEROOM-->
+ *
+ *  ^               ^                               ^
+ *  m_dat/m_ext     m_data                          end of buffer
+ */
+
+/*
  * How much room is in the mbuf, from m_data to the end of the mbuf
  */
 #define M_ROOM(m) ((m->m_flags & M_EXT)? \
