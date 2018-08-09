@@ -1,5 +1,5 @@
 /*
- * Olimex STM32 fa10c8 (Blue Pill) Development Board
+ * STM32 fa103c8 (Blue Pill) Development Board
  *
  * Copyright (C) 2018 Basel Alsayeh
  *
