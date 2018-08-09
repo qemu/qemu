@@ -80,17 +80,17 @@ static void stm32_f103c8_init(MachineState *machine)
     /*s->button_irq = qdev_get_gpio_in(gpio_a, 0);
     qemu_add_kbd_event_handler(stm32_p103_key_event, s);*/
 
-    /* Connect RS232 to UART */
+    /* Connect RS232 to UART 1 */
     stm32_uart_connect(
-            (Stm32Uart *)uart2,
+            (Stm32Uart *)uart1,
             serial_hds[0],
-            STM32_USART2_NO_REMAP);
+            STM32_USART1_NO_REMAP);
     
     /* These additional UARTs have not been tested yet... */
     stm32_uart_connect(
-            (Stm32Uart *)uart1,
+            (Stm32Uart *)uart2,
             serial_hds[1],
-            STM32_USART1_NO_REMAP);
+            STM32_USART2_NO_REMAP);
     
     stm32_uart_connect(
             (Stm32Uart *)uart3,
