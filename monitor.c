@@ -4277,6 +4277,8 @@ static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
         trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(id)
                                           ?: "");
         monitor_qmp_dispatch(mon, req, id);
+        qobject_unref(req);
+        qobject_unref(id);
         return;
     }
 
