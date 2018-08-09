@@ -948,6 +948,7 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
     }
 
     dbdd->done = true;
+    g_free(buffer);
 }
 
 /**
