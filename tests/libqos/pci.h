@@ -53,6 +53,7 @@ struct QPCIBus {
     QTestState *qts;
     uint16_t pio_alloc_ptr;
     uint64_t mmio_alloc_ptr, mmio_limit;
+    bool has_buggy_msi; /* TRUE for spapr, FALSE for pci */
 
 };
 
@@ -80,6 +81,9 @@ void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
                          void *data);
 QPCIDevice *qpci_device_find(QPCIBus *bus, int devfn);
 void qpci_device_init(QPCIDevice *dev, QPCIBus *bus, QPCIAddress *addr);
+
+bool qpci_has_buggy_msi(QPCIDevice *dev);
+bool qpci_check_buggy_msi(QPCIDevice *dev);
 
 void qpci_device_enable(QPCIDevice *dev);
 uint8_t qpci_find_capability(QPCIDevice *dev, uint8_t id);

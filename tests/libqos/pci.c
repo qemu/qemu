@@ -51,6 +51,20 @@ void qpci_device_foreach(QPCIBus *bus, int vendor_id, int device_id,
     }
 }
 
+bool qpci_has_buggy_msi(QPCIDevice *dev)
+{
+    return dev->bus->has_buggy_msi;
+}
+
+bool qpci_check_buggy_msi(QPCIDevice *dev)
+{
+    if (qpci_has_buggy_msi(dev)) {
+        g_test_skip("Skipping due to incomplete support for MSI");
+        return true;
+    }
+    return false;
+}
+
 static void qpci_device_set(QPCIDevice *dev, QPCIBus *bus, int devfn)
 {
     g_assert(dev);
