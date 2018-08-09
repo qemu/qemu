@@ -9,4 +9,4 @@ obj-$(CONFIG_DIGIC) += digic.o
 obj-y += omap1.o omap2.o strongarm.o
 obj-$(CONFIG_ALLWINNER_A10) += allwinner-a10.o cubieboard.o
 
-obj-y += stm32.o stm32_rcc.o stm32_clktree.o stm32_p103.o stm32_maple.o stm32_adc.o stm32_dac.o stm32_iwdg.o
+obj-y += stm32.o stm32_rcc.o stm32_clktree.o stm32_p103.o stm32_maple.o stm32_adc.o stm32_dac.o stm32_iwdg.o stm32_f103c8.o
