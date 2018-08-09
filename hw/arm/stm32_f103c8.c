@@ -54,9 +54,6 @@ static void stm32_f103c8_init(MachineState *machine)
 {
     const char* kernel_filename = machine->kernel_filename;
     qemu_irq *led_irq;
-    Stm32P103 *s;
-
-    s = (Stm32P103 *)g_malloc0(sizeof(Stm32P103));
 
     stm32_init(/*flash_size*/0x0001ffff,
                /*ram_size*/0x00004fff,
