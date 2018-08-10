@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/reset.h"
 #include "hw/qdev-core.h"
+#include "hw/boards.h"
 
 typedef struct FWBootEntry FWBootEntry;
 
@@ -208,11 +209,13 @@ DeviceState *get_boot_device(uint32_t position)
  * memory pointed by "size" is assigned total length of the array in bytes
  *
  */
-char *get_boot_devices_list(size_t *size, bool ignore_suffixes)
+char *get_boot_devices_list(size_t *size)
 {
     FWBootEntry *i;
     size_t total = 0;
     char *list = NULL;
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    bool ignore_suffixes = mc->ignore_boot_device_suffixes;
 
     QTAILQ_FOREACH(i, &fw_boot_order, link) {
         char *devpath = NULL,  *suffix = NULL;
