@@ -3612,6 +3612,7 @@ fi
 # libmpathpersist probe
 
 if test "$mpath" != "no" ; then
+  # probe for the new API
   cat > $TMPC <<EOF
 #include <libudev.h>
 #include <mpath_persist.h>
@@ -3633,8 +3634,26 @@ int main(void) {
 EOF
   if compile_prog "" "-ludev -lmultipath -lmpathpersist" ; then
     mpathpersist=yes
+    mpathpersist_new_api=yes
   else
-    mpathpersist=no
+    # probe for the old API
+    cat > $TMPC <<EOF
+#include <libudev.h>
+#include <mpath_persist.h>
+unsigned mpath_mx_alloc_len = 1024;
+int logsink;
+int main(void) {
+    struct udev *udev = udev_new();
+    mpath_lib_init(udev);
+    return 0;
+}
+EOF
+    if compile_prog "" "-ludev -lmultipath -lmpathpersist" ; then
+      mpathpersist=yes
+      mpathpersist_new_api=no
+    else
+      mpathpersist=no
+    fi
   fi
 else
   mpathpersist=no
@@ -6495,6 +6514,9 @@ if test "$virtfs" = "yes" ; then
 fi
 if test "$mpath" = "yes" ; then
   echo "CONFIG_MPATH=y" >> $config_host_mak
+  if test "$mpathpersist_new_api" = "yes"; then
+    echo "CONFIG_MPATH_NEW_API=y" >> $config_host_mak
+  fi
 fi
 if test "$vhost_scsi" = "yes" ; then
   echo "CONFIG_VHOST_SCSI=y" >> $config_host_mak
