@@ -139,7 +139,7 @@ static uint64_t sun4u_load_kernel(const char *kernel_filename,
     unsigned int i;
     long kernel_size;
     uint8_t *ptr;
-    uint64_t kernel_top;
+    uint64_t kernel_top = 0;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -172,7 +172,7 @@ static uint64_t sun4u_load_kernel(const char *kernel_filename,
         }
         /* load initrd above kernel */
         *initrd_size = 0;
-        if (initrd_filename) {
+        if (initrd_filename && kernel_top) {
             *initrd_addr = TARGET_PAGE_ALIGN(kernel_top);
 
             *initrd_size = load_image_targphys(initrd_filename,
