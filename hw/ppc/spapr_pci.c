@@ -267,6 +267,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                 target_ulong args, uint32_t nret,
                                 target_ulong rets)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     uint32_t config_addr = rtas_ld(args, 0);
     uint64_t buid = rtas_ldq(args, 1);
     unsigned int func = rtas_ld(args, 3);
@@ -334,7 +335,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
             return;
         }
 
-        if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+        if (!smc->legacy_irq_allocation) {
             spapr_irq_msi_free(spapr, msi->first_irq, msi->num);
         }
         spapr_irq_free(spapr, msi->first_irq, msi->num);
@@ -375,7 +376,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     }
 
     /* Allocate MSIs */
-    if (SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+    if (smc->legacy_irq_allocation) {
         irq = spapr_irq_find(spapr, req_num, ret_intr_type == RTAS_TYPE_MSI,
                              &err);
     } else {
@@ -401,7 +402,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     /* Release previous MSIs */
     if (msi) {
-        if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+        if (!smc->legacy_irq_allocation) {
             spapr_irq_msi_free(spapr, msi->first_irq, msi->num);
         }
         spapr_irq_free(spapr, msi->first_irq, msi->num);
@@ -1558,6 +1559,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     sPAPRMachineState *spapr =
         (sPAPRMachineState *) object_dynamic_cast(qdev_get_machine(),
                                                   TYPE_SPAPR_MACHINE);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
@@ -1575,7 +1577,6 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     }
 
     if (sphb->index != (uint32_t)-1) {
-        sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
         Error *local_err = NULL;
 
         smc->phb_placement(spapr, sphb->index,
@@ -1720,7 +1721,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         uint32_t irq = SPAPR_IRQ_PCI_LSI + sphb->index * PCI_NUM_PINS + i;
         Error *local_err = NULL;
 
-        if (SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+        if (smc->legacy_irq_allocation) {
             irq = spapr_irq_findone(spapr, &local_err);
             if (local_err) {
                 error_propagate(errp, local_err);
