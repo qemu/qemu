@@ -630,8 +630,14 @@ static void write_bootloader_nanomips(uint8_t *base, int64_t run_addr,
                                 /* nop */
 
     /* to_here: */
-    stw_p(p++, 0x0080); stw_p(p++, 0x0002);
+    if (semihosting_get_argc()) {
+        /* Preserve a0 content as arguments have been passed    */
+        stw_p(p++, 0x8000); stw_p(p++, 0xc000);
+                                /* nop                          */
+    } else {
+        stw_p(p++, 0x0080); stw_p(p++, 0x0002);
                                 /* li a0,2                      */
+    }
 
     stw_p(p++, 0xe3a0 | NM_HI1(ENVP_ADDR - 64));
 
