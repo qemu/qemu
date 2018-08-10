@@ -107,10 +107,28 @@ static void kill_qemu(QTestState *s)
         pid_t pid;
 
         kill(s->qemu_pid, SIGTERM);
-        pid = waitpid(s->qemu_pid, &wstatus, 0);
+        TFR(pid = waitpid(s->qemu_pid, &wstatus, 0));
 
-        if (pid == s->qemu_pid && WIFSIGNALED(wstatus)) {
-            assert(!WCOREDUMP(wstatus));
+        assert(pid == s->qemu_pid);
+        /*
+         * We expect qemu to exit with status 0; anything else is
+         * fishy and should be logged with as much detail as possible.
+         */
+        if (wstatus) {
+            if (WIFEXITED(wstatus)) {
+                fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
+                        "process but encountered exit status %d\n",
+                        __FILE__, __LINE__, WEXITSTATUS(wstatus));
+            } else if (WIFSIGNALED(wstatus)) {
+                int sig = WTERMSIG(wstatus);
+                const char *signame = strsignal(sig) ?: "unknown ???";
+                const char *dump = WCOREDUMP(wstatus) ? " (core dumped)" : "";
+
+                fprintf(stderr, "%s:%d: kill_qemu() detected QEMU death "
+                        "from signal %d (%s)%s\n",
+                        __FILE__, __LINE__, sig, signame, dump);
+            }
+            abort();
         }
     }
 }
