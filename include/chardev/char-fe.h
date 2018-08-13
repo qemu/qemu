@@ -113,7 +113,7 @@ void qemu_chr_fe_accept_input(CharBackend *be);
 /**
  * @qemu_chr_fe_disconnect:
  *
- * Close a fd accpeted by character backend.
+ * Close a fd accepted by character backend.
  * Without associated Chardev, do nothing.
  */
 void qemu_chr_fe_disconnect(CharBackend *be);
@@ -122,7 +122,7 @@ void qemu_chr_fe_disconnect(CharBackend *be);
  * @qemu_chr_fe_wait_connected:
  *
  * Wait for characted backend to be connected, return < 0 on error or
- * if no assicated Chardev.
+ * if no associated Chardev.
  */
 int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp);
 
@@ -186,7 +186,7 @@ guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
  * @buf the data
  * @len the number of bytes to send
  *
- * Returns: the number of bytes consumed (0 if no assicated Chardev)
+ * Returns: the number of bytes consumed (0 if no associated Chardev)
  */
 int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
 
@@ -201,7 +201,7 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
  * @buf the data
  * @len the number of bytes to send
  *
- * Returns: the number of bytes consumed (0 if no assicated Chardev)
+ * Returns: the number of bytes consumed (0 if no associated Chardev)
  */
 int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
 
@@ -213,7 +213,7 @@ int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
  * @buf the data buffer
  * @len the number of bytes to read
  *
- * Returns: the number of bytes read (0 if no assicated Chardev)
+ * Returns: the number of bytes read (0 if no associated Chardev)
  */
 int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len);
 
