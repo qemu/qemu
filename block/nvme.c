@@ -104,7 +104,7 @@ typedef struct {
     uint64_t nsze; /* Namespace size reported by identify command */
     int nsid;      /* The namespace id to read/write data. */
     uint64_t max_transfer;
-    int plugged;
+    bool plugged;
 
     CoMutex dma_map_lock;
     CoQueue dma_flush_queue;
@@ -1101,7 +1101,8 @@ static void nvme_attach_aio_context(BlockDriverState *bs,
 static void nvme_aio_plug(BlockDriverState *bs)
 {
     BDRVNVMeState *s = bs->opaque;
-    s->plugged++;
+    assert(!s->plugged);
+    s->plugged = true;
 }
 
 static void nvme_aio_unplug(BlockDriverState *bs)
@@ -1109,14 +1110,13 @@ static void nvme_aio_unplug(BlockDriverState *bs)
     int i;
     BDRVNVMeState *s = bs->opaque;
     assert(s->plugged);
-    if (!--s->plugged) {
-        for (i = 1; i < s->nr_queues; i++) {
-            NVMeQueuePair *q = s->queues[i];
-            qemu_mutex_lock(&q->lock);
-            nvme_kick(s, q);
-            nvme_process_completion(s, q);
-            qemu_mutex_unlock(&q->lock);
-        }
+    s->plugged = false;
+    for (i = 1; i < s->nr_queues; i++) {
+        NVMeQueuePair *q = s->queues[i];
+        qemu_mutex_lock(&q->lock);
+        nvme_kick(s, q);
+        nvme_process_completion(s, q);
+        qemu_mutex_unlock(&q->lock);
     }
 }
 
