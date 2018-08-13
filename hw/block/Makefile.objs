@@ -8,7 +8,6 @@ common-obj-$(CONFIG_XEN) += xen_disk.o
 common-obj-$(CONFIG_ECC) += ecc.o
 common-obj-$(CONFIG_ONENAND) += onenand.o
 common-obj-$(CONFIG_NVME_PCI) += nvme.o
-common-obj-$(CONFIG_CSKY_NFC) += csky_nfc.o
 
 obj-$(CONFIG_SH4) += tc58128.o
 

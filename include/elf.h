@@ -86,8 +86,6 @@ typedef int64_t  Elf64_Sxword;
 #define EM_PPC	       20	/* PowerPC */
 #define EM_PPC64       21       /* PowerPC64 */
 
-#define EM_CSKY        39       /* CSKY architecture */
-
 #define EM_ARM		40		/* ARM */
 
 #define EM_SH	       42	/* SuperH */

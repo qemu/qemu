@@ -1,6 +1,0 @@
-obj-y += mmu.o
-obj-y += gdbstub.o
-obj-y += helper.o
-obj-y += cpu.o
-obj-$(TARGET_CSKYV1) += translate_v1.o op_helper_v1.o
-obj-$(TARGET_CSKYV2) += translate_v2.o op_helper_v2.o op_vdsp.o op_dspv2.o

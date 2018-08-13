@@ -59,8 +59,7 @@
 #if (defined(TARGET_I386) && defined(TARGET_ABI32)) \
     || (defined(TARGET_ARM) && defined(TARGET_ABI32)) \
     || defined(TARGET_SPARC) \
-    || defined(TARGET_M68K) || defined(TARGET_SH4) || defined(TARGET_CRIS) \
-    || defined(TARGET_CSKY)
+    || defined(TARGET_M68K) || defined(TARGET_SH4) || defined(TARGET_CRIS)
     /* 16 bit uid wrappers emulation */
 #define USE_UID16
 #define target_id uint16_t
@@ -72,7 +71,7 @@
     || defined(TARGET_M68K) || defined(TARGET_CRIS) \
     || defined(TARGET_UNICORE32) || defined(TARGET_S390X) \
     || defined(TARGET_OPENRISC) || defined(TARGET_TILEGX) \
-    || defined(TARGET_NIOS2) || defined(TARGET_CSKY)
+    || defined(TARGET_NIOS2)
 
 #define TARGET_IOC_SIZEBITS	14
 #define TARGET_IOC_DIRBITS	2
@@ -436,8 +435,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     || defined(TARGET_M68K) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) \
     || defined(TARGET_MICROBLAZE) || defined(TARGET_UNICORE32) \
     || defined(TARGET_S390X) || defined(TARGET_OPENRISC) \
-    || defined(TARGET_TILEGX) || defined(TARGET_HPPA) \
-    || defined(TARGET_NIOS2) || defined(TARGET_CSKY)
+    || defined(TARGET_TILEGX) || defined(TARGET_HPPA) || defined(TARGET_NIOS2)
 
 #if defined(TARGET_SPARC)
 #define TARGET_SA_NOCLDSTOP    8u
@@ -646,48 +644,6 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #define TARGET_SIG_BLOCK       0
 #define TARGET_SIG_UNBLOCK     1
 #define TARGET_SIG_SETMASK     2
-
-#elif defined(TARGET_CSKY)
-
-#define TARGET_SIGHUP		 1
-#define TARGET_SIGINT		 2
-#define TARGET_SIGQUIT		 3
-#define TARGET_SIGILL		 4
-#define TARGET_SIGTRAP		 5
-#define TARGET_SIGABRT		 6
-#define TARGET_SIGIOT		 6
-#define TARGET_SIGBUS		 7
-#define TARGET_SIGFPE		 8
-#define TARGET_SIGKILL		 9
-#define TARGET_SIGUSR1		10
-#define TARGET_SIGSEGV		11
-#define TARGET_SIGUSR2		12
-#define TARGET_SIGPIPE		13
-#define TARGET_SIGALRM		14
-#define TARGET_SIGTERM		15
-#define TARGET_SIGSTKFLT	16
-#define TARGET_SIGCHLD		17
-#define TARGET_SIGCONT		18
-#define TARGET_SIGSTOP		19
-#define TARGET_SIGTSTP		20
-#define TARGET_SIGTTIN		21
-#define TARGET_SIGTTOU		22
-#define TARGET_SIGURG		23
-#define TARGET_SIGXCPU		24
-#define TARGET_SIGXFSZ		25
-#define TARGET_SIGVTALRM	26
-#define TARGET_SIGPROF		27
-#define TARGET_SIGWINCH	28
-#define TARGET_SIGIO		29
-#define TARGET_SIGPOLL		TARGET_SIGIO
-#define TARGET_SIGPWR		30
-#define TARGET_SIGSYS		31
-#define TARGET_SIGUNUSED	31
-#define TARGET_SIGRTMIN	32
-
-#define TARGET_SIG_BLOCK          0	/* for blocking signals */
-#define TARGET_SIG_UNBLOCK        1	/* for unblocking signals */
-#define TARGET_SIG_SETMASK        2	/* for setting the signal mask */
 
 #else
 
@@ -1417,8 +1373,7 @@ struct target_winsize {
 
 #if (defined(TARGET_I386) && defined(TARGET_ABI32)) \
     || (defined(TARGET_ARM) && defined(TARGET_ABI32)) \
-    || defined(TARGET_CRIS) || defined(TARGET_UNICORE32) \
-    || defined(TARGET_CSKY)
+    || defined(TARGET_CRIS) || defined(TARGET_UNICORE32)
 struct target_stat {
 	unsigned short st_dev;
 	unsigned short __pad1;
@@ -1462,16 +1417,8 @@ struct target_stat64 {
 	unsigned short	st_rdev;
 	unsigned char	__pad3[10];
 
-#if defined(TARGET_CSKYV1)
-  unsigned char __pad8[4];
-#endif
-
 	long long	st_size;
 	abi_ulong	st_blksize;
-
-#if defined(TARGET_CSKYV1)
-  unsigned char __pad9[4];
-#endif
 
 	abi_ulong	st_blocks;	/* Number 512-byte blocks allocated. */
 	abi_ulong	__pad4;		/* future possible st_blocks high bits */
@@ -2477,25 +2424,6 @@ struct target_statfs64 {
 #define TARGET___O_SYNC      000100000
 #define TARGET_O_PATH        020000000
 #elif defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_AARCH64)
-#define TARGET_O_DIRECTORY      040000 /* must be a directory */
-#define TARGET_O_NOFOLLOW      0100000 /* don't follow links */
-#define TARGET_O_DIRECT        0200000 /* direct disk access hint */
-#define TARGET_O_LARGEFILE     0400000
-#elif defined (TARGET_CSKY)
-#define TARGET_O_ACCMODE        0003
-#define TARGET_O_RDONLY         00
-#define TARGET_O_WRONLY         01
-#define TARGET_O_RDWR           02
-#define TARGET_O_CREAT          0100 /* not fcntl */
-#define TARGET_O_EXCL           0200 /* not fcntl */
-#define TARGET_O_NOCTTY         0400 /* not fcntl */
-#define TARGET_O_TRUNC          01000 /* not fcntl */
-#define TARGET_O_APPEND         02000
-#define TARGET_O_NONBLOCK       04000
-#define TARGET_O_NDELAY         TARGET_O_NONBLOCK
-#define TARGET_O_SYNC           010000
-#define TARGET_FASYNC           020000 /* fcntl, for BSD compatibility */
-/* these 4 macros are csky-specific */
 #define TARGET_O_DIRECTORY      040000 /* must be a directory */
 #define TARGET_O_NOFOLLOW      0100000 /* don't follow links */
 #define TARGET_O_DIRECT        0200000 /* direct disk access hint */

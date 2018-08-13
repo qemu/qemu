@@ -81,8 +81,6 @@ int graphic_depth = 32;
 #define QEMU_ARCH QEMU_ARCH_UNICORE32
 #elif defined(TARGET_TRICORE)
 #define QEMU_ARCH QEMU_ARCH_TRICORE
-#elif defined(TARGET_CSKY)
-#define QEMU_ARCH QEMU_ARCH_CSKY
 #endif
 
 const uint32_t arch_type = QEMU_ARCH;

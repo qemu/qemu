@@ -351,7 +351,6 @@ static int sstep_flags = SSTEP_ENABLE|SSTEP_NOIRQ|SSTEP_NOTIMER;
 static GDBState *gdbserver_state;
 
 bool gdb_has_xml;
-bool is_gdbserver_start = FALSE;
 
 #ifdef CONFIG_USER_ONLY
 /* XXX: This is not thread safe.  Do we care?  */
@@ -870,114 +869,6 @@ static int is_query_packet(const char *p, const char *query, char separator)
         (p[query_len] == '\0' || p[query_len] == separator);
 }
 
-#define TRACE_INFO_SIZE 4
-static int gdb_read_pctrace(GDBState *s, uint8_t *mem_buf,
-                            int mem_len, unsigned int num)
-{
-#ifdef TARGET_CSKY
-    CPUState *cpu = s->g_cpu;
-    CPUCSKYState *env = cpu->env_ptr;
-    struct csky_trace_info *trace_info = env->trace_info;
-    uint32_t index = (env->trace_index - 1) % TB_TRACE_NUM;
-    uint32_t pctrace_num = env->pctraces_max_num;
-    uint32_t i;
-    int len = 0;
-    uint8_t *addr = mem_buf;
-
-    if (env->tb_trace != 1) {
-        return len;
-    }
-
-    *(uint32_t *)(addr + len) = TRACE_INFO_SIZE;
-    len += TRACE_INFO_SIZE;
-
-    for (i = 0; i < pctrace_num; i++) {
-        if (index < i) {
-            index += TB_TRACE_NUM;
-        }
-        *(uint32_t *)(addr + len) = trace_info[index - i].tb_pc;
-        len += TRACE_INFO_SIZE;
-
-        if (mem_len < len + TRACE_INFO_SIZE) {
-            break;
-        }
-        if (i >= num) {
-            break;
-        }
-    }
-
-    len = TRACE_INFO_SIZE * pctrace_num;
-
-    return len;
-#else
-    return -1;
-#endif
-}
-
-static int gdb_handle_packet_usr_do_pctrace(GDBState * s, const char * line_buf)
-{
-    char buf[MAX_PACKET_LENGTH] = {0};
-    uint8_t mem_buf[MAX_PACKET_LENGTH] = {0};
-
-    unsigned int num = 0;
-    const char *p = line_buf;
-    int ch = *p++;
-
-    switch (ch) {
-    case ' ':
-        if (*p == '\0') {
-            break;
-        }
-        num = strtoul(p, (char **)&p, 10);
-        break;
-    default:
-        break;
-    }
-
-    int len = 0;
-    len = gdb_read_pctrace(s, mem_buf, MAX_PACKET_LENGTH / 2 - 1, num);
-    if (!len) {
-        return -1;
-    }
-
-    memtohex(buf, mem_buf, len);
-    put_packet(s, buf);
-
-    return 0;
-}
-
-typedef int (*cmd_cb)(GDBState * s, const char * line_buf);
-struct {
-    const char *cmd;
-    cmd_cb cmd_do;
-    int ignored;
-} gdb_handle_packet_usr_tab[] = {
-    {"pctrace", gdb_handle_packet_usr_do_pctrace, 0},
-};
-
-static int gdb_handle_packet_usr(GDBState * s, const char * line_buf)
-{
-    int ret = -1;
-    const char *p = line_buf;
-    int i = 0;
-    int size = ARRAY_SIZE(gdb_handle_packet_usr_tab);
-
-    for (i = 0; i < size; i++) {
-        int len = strlen(gdb_handle_packet_usr_tab[i].cmd);
-        const char *cmd = gdb_handle_packet_usr_tab[i].cmd;
-
-        if (!strncmp(cmd, p, len)) {
-            if (!gdb_handle_packet_usr_tab[i].ignored
-                && gdb_handle_packet_usr_tab[i].cmd_do) {
-                ret = gdb_handle_packet_usr_tab[i].cmd_do(s, p + len);
-            }
-            break;
-        }
-    }
-    return ret;
-}
-
-
 /**
  * gdb_handle_vcont - Parses and handles a vCont packet.
  * returns -ENOTSUP if a command is unsupported, -EINVAL or -ERANGE if there is
@@ -1139,9 +1030,6 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     case 'k':
         /* Kill the target */
         error_report("QEMU: Terminated via GDBstub");
-#ifdef _WIN32
-        sleep(1);
-#endif
         exit(0);
     case 'D':
         /* Detach packet */
@@ -1472,12 +1360,6 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         /* Unrecognised 'q' command.  */
         goto unknown_command;
 
-    case 'u': {
-        if (gdb_handle_packet_usr(s, p)) {
-            goto unknown_command;
-        }
-        break;
-    }
     default:
     unknown_command:
         /* put empty packet */
@@ -1810,8 +1692,6 @@ void gdb_exit(CPUArchState *env, int code)
 #ifndef CONFIG_USER_ONLY
   qemu_chr_fe_deinit(&s->chr, true);
 #endif
-
-  is_gdbserver_start = FALSE;
 }
 
 #ifdef CONFIG_USER_ONLY
@@ -1956,7 +1836,6 @@ int gdbserver_start(int port)
         return -1;
     /* accept connections */
     gdb_accept();
-    is_gdbserver_start = TRUE;
     return 0;
 }
 
@@ -2126,8 +2005,6 @@ int gdbserver_start(const char *device)
     s->state = chr ? RS_IDLE : RS_INACTIVE;
     s->mon_chr = mon_chr;
     s->current_syscall_cb = NULL;
-
-    is_gdbserver_start = TRUE;
 
     return 0;
 }

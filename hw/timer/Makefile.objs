@@ -33,11 +33,6 @@ obj-$(CONFIG_SH4) += sh_timer.o
 obj-$(CONFIG_DIGIC) += digic-timer.o
 obj-$(CONFIG_MIPS_CPS) += mips_gictimer.o
 
-ifeq ($(CONFIG_MODULES),y)
-common-obj-$(if $(CONFIG_CSKY_TIMER),m,n) += csky_timer_dummy.o
-endif
-obj-$(CONFIG_CSKY_TIMER) += csky_timer.o
-
 obj-$(CONFIG_MC146818RTC) += mc146818rtc.o
 
 obj-$(CONFIG_ALLWINNER_A10_PIT) += allwinner-a10-pit.o

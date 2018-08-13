@@ -228,9 +228,6 @@ enum bfd_architecture
 #define bfd_mach_nios2r2        2
   bfd_arch_lm32,       /* Lattice Mico32 */
 #define bfd_mach_lm32 1
-  bfd_arch_csky,
-#define bfd_mach_csky_v1 1
-#define bfd_mach_csky_v2 2
   bfd_arch_last
   };
 #define bfd_mach_s390_31 31
@@ -431,8 +428,6 @@ int print_insn_ia64             (bfd_vma, disassemble_info*);
 int print_insn_lm32             (bfd_vma, disassemble_info*);
 int print_insn_big_nios2        (bfd_vma, disassemble_info*);
 int print_insn_little_nios2     (bfd_vma, disassemble_info*);
-int print_insn_csky_v1          (bfd_vma, disassemble_info*);
-int print_insn_csky_v2          (bfd_vma, disassemble_info*);
 
 #if 0
 /* Fetch the disassembler for a given BFD, if that support is available.  */

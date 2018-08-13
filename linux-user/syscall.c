@@ -9222,7 +9222,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if (defined(TARGET_I386) && defined(TARGET_ABI32)) || \
     (defined(TARGET_ARM) && defined(TARGET_ABI32)) || \
     defined(TARGET_M68K) || defined(TARGET_CRIS) || defined(TARGET_MICROBLAZE) \
-    || defined(TARGET_S390X) || defined(TARGET_CSKY)
+    || defined(TARGET_S390X)
         {
             abi_ulong *v;
             abi_ulong v1, v2, v3, v4, v5, v6;

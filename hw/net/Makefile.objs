@@ -35,8 +35,6 @@ obj-$(CONFIG_COLDFIRE) += mcf_fec.o
 obj-$(CONFIG_MILKYMIST) += milkymist-minimac2.o
 obj-$(CONFIG_PSERIES) += spapr_llan.o
 obj-$(CONFIG_XILINX_ETHLITE) += xilinx_ethlite.o
-obj-$(CONFIG_CSKY_MAC) += csky_mac.o
-obj-$(CONFIG_CSKY_MAC2) += csky_mac_v2.o
 
 obj-$(CONFIG_VIRTIO) += virtio-net.o
 obj-y += vhost_net.o

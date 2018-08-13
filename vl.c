@@ -129,10 +129,6 @@ int main(int argc, char **argv)
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
 
-#ifdef CONFIG_MODULES
-#include "hw/csky/dynsoc.h"
-#endif
-
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
 
@@ -338,60 +334,6 @@ static QemuOptsList qemu_accel_opts = {
             .name = "thread",
             .type = QEMU_OPT_STRING,
             .help = "Enable/disable multi-threaded TCG",
-        },
-        { /* end of list */ }
-    },
-};
-
-static QemuOptsList qemu_cpu_prop_opts = {
-    .name = "cpu-prop",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_cpu_prop_opts.head),
-    .desc = {
-        {
-            .name = "vdsp",
-            .type = QEMU_OPT_NUMBER,
-            .help = "choose vdsp as 64 or 128",
-        },{
-            .name = "pctrace",
-            .type = QEMU_OPT_NUMBER,
-            .help = "number of pctrace records",
-        },{
-            .name = "elrw",
-            .type = QEMU_OPT_BOOL,
-            .help = "cpu use elrw or not",
-        },{
-            .name = "mem_prot",
-            .type = QEMU_OPT_STRING,
-            .help = "indicate memory protect, mmu/mgu/no",
-        },{
-            .name = "mmu_default",
-            .type = QEMU_OPT_BOOL,
-            .help = "MMU on or not before load kernel",
-        },{
-            .name = "tb_trace",
-            .type = QEMU_OPT_BOOL,
-            .help = "beginning of translation block's PC",
-        },{
-            .name = "unaligned_access",
-            .type = QEMU_OPT_BOOL,
-            .help = "cpu support unaligned data access",
-        },
-        { /* end of list */ }
-    },
-};
-
-static QemuOptsList qemu_soc_opts = {
-    .name = "soc",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_soc_opts.head),
-    .desc = {
-        {
-            .name = "shm",
-            .type = QEMU_OPT_BOOL,
-            .help = "use share memory or not",
-        },{
-            .name = "shmkey",
-            .type = QEMU_OPT_NUMBER,
-            .help = "share memory key, range [0~9999]",
         },
         { /* end of list */ }
     },
@@ -3219,8 +3161,6 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_trace_opts);
     qemu_add_opts(&qemu_option_rom_opts);
     qemu_add_opts(&qemu_machine_opts);
-    qemu_add_opts(&qemu_cpu_prop_opts);
-    qemu_add_opts(&qemu_soc_opts);
     qemu_add_opts(&qemu_accel_opts);
     qemu_add_opts(&qemu_mem_opts);
     qemu_add_opts(&qemu_smp_opts);
@@ -3310,35 +3250,6 @@ int main(int argc, char **argv, char **envp)
                 /* hw initialization will check this */
                 cpu_model = optarg;
                 break;
-            case QEMU_OPTION_cpu_prop:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("cpu-prop"),
-                                               optarg, false);
-                if (!opts) {
-                    exit(1);
-                }
-                break;
-            case QEMU_OPTION_soc:
-#ifdef CONFIG_MODULES
-                opts = qemu_opts_parse_noisily(qemu_find_opts("soc"),
-                                               optarg, false);
-                if (!opts) {
-                    exit(1);
-                }
-
-                if (qemu_opt_get_bool(opts, "shm", false)) {
-                    int shmkey = qemu_opt_get_number(opts, "shmkey", -1);
-                    if (shmkey == -1) {
-                        error_report("shared memory(shm) connect fail");
-                        exit(1);
-                    }
-                    dynsoc_load_modules(shmkey);
-                }
-#else
-                error_report("dynsoc load support is disabled");
-                exit(1);
-#endif
-                break;
-
             case QEMU_OPTION_hda:
                 {
                     char buf[256];

@@ -114,8 +114,7 @@ float32 float32_default_nan(float_status *status)
 #if defined(TARGET_SPARC) || defined(TARGET_M68K)
     return const_float32(0x7FFFFFFF);
 #elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA) || \
-      defined(TARGET_XTENSA) || defined(TARGET_S390X) || \
-      defined(TARGET_TRICORE) || defined(TARGET_CSKY)
+      defined(TARGET_XTENSA) || defined(TARGET_S390X) || defined(TARGET_TRICORE)
     return const_float32(0x7FC00000);
 #elif defined(TARGET_HPPA)
     return const_float32(0x7FA00000);

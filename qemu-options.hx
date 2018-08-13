@@ -118,66 +118,6 @@ STEXI
 Select CPU model (@code{-cpu help} for list and additional feature selection)
 ETEXI
 
-DEF("cpu-prop", HAS_ARG, QEMU_OPTION_cpu_prop,
-    "-cpu-prop vdsp=vdsp[,pctrace=pctrace_num][,elrw=on|off]\n"
-    "                [,mem_prot=mmu|mgu|no][,mmu_default=on|off]\n"
-    "                [,tb_trace=on|off][,unaligned_access=on|off]\n"
-    "                set CSKY CPU's properties\n"
-    "                vdsp= could be 64 or 128, default vdsp=0\n"
-    "                default pctrace=0, recommend 32 or 64\n"
-    "                elrw= default is off\n"
-    "                mem_prot= ck610/ck807/ck810 default is mmu, else mgu\n"
-    "                mmu_default= default is off\n"
-    "                tb_trace= default is off\n"
-    "                unaligned_access= default is off\n"
-    , QEMU_ARCH_CSKY)
-STEXI
-@item -cpu-prop vdsp=@var{vdsp}[,pctrace=@var{pctrace}][,elrw=on|off][,mem_prot=mmu|mgu|no][,mmu_default=on|off][,tb_trace=on|off][,unaligned_access=on|off]
-@findex -cpu-prop
-
-Choose extend CPU properities. Valid options are:
-
-@table @option
-@item vdsp=@var{vdsp}
-This option defines is 0, means CPU does not support VDSP, CPU's vdsp is 64 or 128.
-@item pctrace=@var{pctrace}
-This option defines number of pctrace record, default is 0. Setting >0 to open pctrace. Should using with tb_trace=on.
-@item elrw=on|off
-This option defines if has elrw extend.
-@item mem_prot=mmu|mgu|no
-This option defines if need to select memory protect unit.
-@item mmu_default=on|off
-This option defines if need open MMU before elf load.
-@item tb_trace=on|off
-This option defines if trace beginning of all TranslationBlock's PC. To log it, type "-d tb_trace".
-@item unaligned_access=on|off
-This option defines if cpu need support unaligned data access.
-@end table
-ETEXI
-
-DEF("soc", HAS_ARG, QEMU_OPTION_soc,
-    "-soc shm=on|off[,shmkey=key][,xmlpath=path]\n"
-    "                -soc loads all CSKY's modules, \n"
-    "                setting shm= default is on.\n"
-    "                setting shmkey= to connect to shm, used when shm=on, key range 0-9999\n"
-    "                setting xmlpath= to point out where xml file is.[have not implemented]\n"
-    "                Note: if setting shm=on ignores xmlpath= .\n"
-    , QEMU_ARCH_CSKY)
-STEXI
-@item -soc shm=on|off[,xmlpath=@var{path}]
-@findex -soc
-
-Loads all modules, and using shm to point out how to using modules. Valid options are:
-
-@table @option
-@item shm=on|off
-This option defines is on, get a description from cskysim to orgnize a dynsoc.
-@item xmlpath=@var{path}
-This option deparse xml to get a description to orgnize the dynsoc.
-@end table
-ETEXI
-
-
 DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "-accel [accel=]accelerator[,thread=single|multi]\n"
     "                select accelerator (kvm, xen, hax or tcg; use 'help' for a list)\n"
@@ -4085,7 +4025,7 @@ specified, the former is passed to semihosting as it always takes precedence.
 @end table
 ETEXI
 DEF("old-param", 0, QEMU_OPTION_old_param,
-    "-old-param      old param mode\n", QEMU_ARCH_ARM | QEMU_ARCH_CSKY)
+    "-old-param      old param mode\n", QEMU_ARCH_ARM)
 STEXI
 @item -old-param
 @findex -old-param (ARM)

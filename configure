@@ -422,8 +422,6 @@ tcmalloc="no"
 jemalloc="no"
 replication="yes"
 vxhs=""
-csky_dynsoc="no"
-csky_osver=""
 
 supported_cpu="no"
 supported_os="no"
@@ -455,8 +453,6 @@ for opt do
   --enable-debug-info) debug_info="yes"
   ;;
   --disable-debug-info) debug_info="no"
-  ;;
-  --enable-dynsoc) csky_dynsoc="yes"
   ;;
   esac
 done
@@ -656,12 +652,6 @@ case "$cpu" in
   x86_64|amd64)
     cpu="x86_64"
     supported_cpu="yes"
-  ;;
-  cskyv1)
-    cpu="cskyv1"
-  ;;
-  cskyv2)
-    cpu="cskyv2"
   ;;
   armv*b|armv*l|arm)
     cpu="arm"
@@ -891,8 +881,6 @@ for opt do
   --enable-debug-info)
   ;;
   --disable-debug-info)
-  ;;
-  --enable-dynsoc)
   ;;
   --enable-modules)
       modules="yes"
@@ -1324,8 +1312,6 @@ for opt do
   --enable-git-update) git_update=yes
   ;;
   --disable-git-update) git_update=no
-  ;;
-  --osver=*) csky_osver="$optarg"
   ;;
   *)
       echo "ERROR: unknown option $opt"
@@ -2810,10 +2796,6 @@ EOF
     fi
   else
     sdl_libs=$($sdlconfig --libs 2>/dev/null)
-  fi
-  if test "$mingw32" = "yes" ; then
-    sdl_libs="-lmingw32 -lSDLmain -lSDL -lmingw32 -lSDLmain -lSDL -liconv -lm -luser32 -lgdi32 -lwinmm -ldxguid"
-    echo $sdl_libs
   fi
   if compile_prog "$sdl_cflags" "$sdl_libs" ; then
     if test $(echo $sdlversion | sed 's/[^0-9]//g') -lt 121 ; then
@@ -5768,11 +5750,7 @@ fi
 if test "$modules" = "yes"; then
   # $shacmd can generate a hash started with digit, which the compiler doesn't
   # like as an symbol. So prefix it with an underscore
-  if test "$csky_dynsoc" = "yes"; then
-    echo "CONFIG_STAMP=y" >> $config_host_mak
-  else
-    echo "CONFIG_STAMP=_$( (echo $qemu_version; echo $pkgversion; cat $0) | $shacmd - | cut -f1 -d\ )" >> $config_host_mak
-  fi
+  echo "CONFIG_STAMP=_$( (echo $qemu_version; echo $pkgversion; cat $0) | $shacmd - | cut -f1 -d\ )" >> $config_host_mak
   echo "CONFIG_MODULES=y" >> $config_host_mak
 fi
 if test "$sdl" = "yes" ; then
@@ -6388,7 +6366,7 @@ target_name=$(echo $target | cut -d '-' -f 1)
 target_bigendian="no"
 
 case "$target_name" in
-  armeb|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or1k|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb|cskyv1eb|cskyv2eb)
+  armeb|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or1k|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
   target_bigendian=yes
   ;;
 esac
@@ -6448,20 +6426,6 @@ case "$target_name" in
     bflt="yes"
     mttcg="yes"
     gdb_xml_files="aarch64-core.xml aarch64-fpu.xml arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
-  ;;
-  cskyv1|cskyv1eb)
-    TARGET_ARCH=cskyv1
-    TARGET_BASE_ARCH=csky
-    TARGET_ABI_DIR=csky
-    bflt="yes"
-    echo "TARGET_CSKYV1=y" >> $config_target_mak
-  ;;
-  cskyv2|cskyv2eb)
-    TARGET_ARCH=cskyv2
-    TARGET_BASE_ARCH=csky
-    TARGET_ABI_DIR=csky
-    bflt="yes"
-    echo "TARGET_CSKYV2=y" >> $config_target_mak
   ;;
   cris)
   ;;
@@ -6616,24 +6580,6 @@ fi
 if test "$target_linux_user" = "yes" ; then
   echo "CONFIG_LINUX_USER=y" >> $config_target_mak
 fi
-
-case "$csky_osver" in
-  4*)
-    if test "$target_linux_user" = "yes" -a "$TARGET_BASE_ARCH" = "csky" ; then
-      echo "CONFIG_CSKY_KERNEL_4X=y" >> $config_target_mak
-    fi
-    ;;
-  3*)
-    if test "$target_linux_user" = "yes" -a "$TARGET_BASE_ARCH" = "csky" ; then
-      echo "CONFIG_CSKY_KERNEL_3X=y" >> $config_target_mak
-    fi
-    ;;
-  *)
-    if test "$target_linux_user" = "yes" -a "$TARGET_BASE_ARCH" = "csky" ; then
-      echo "CONFIG_CSKY_KERNEL_4X=y" >> $config_target_mak
-    fi
-esac
-
 list=""
 if test ! -z "$gdb_xml_files" ; then
   for x in $gdb_xml_files; do
@@ -6674,9 +6620,6 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     if test -n "${cxx}"; then
       disas_config "ARM_A64"
     fi
-  ;;
-  csky)
-    disas_config "CSKY"
   ;;
   cris)
     disas_config "CRIS"
