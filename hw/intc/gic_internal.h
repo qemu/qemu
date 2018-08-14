@@ -94,4 +94,9 @@ static inline bool gic_test_pending(GICState *s, int irq, int cm)
     }
 }
 
+static inline bool gic_is_vcpu(int cpu)
+{
+    return cpu >= GIC_NCPU;
+}
+
 #endif /* QEMU_ARM_GIC_INTERNAL_H */
