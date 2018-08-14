@@ -129,6 +129,20 @@ REG32(GICH_LR63, 0x1fc)
      R_GICH_LR0_Priority_MASK | R_GICH_LR0_State_MASK | \
      R_GICH_LR0_Grp1_MASK | R_GICH_LR0_HW_MASK)
 
+#define GICH_LR_STATE_INVALID         0
+#define GICH_LR_STATE_PENDING         1
+#define GICH_LR_STATE_ACTIVE          2
+#define GICH_LR_STATE_ACTIVE_PENDING  3
+
+#define GICH_LR_VIRT_ID(entry) (FIELD_EX32(entry, GICH_LR0, VirtualID))
+#define GICH_LR_PHYS_ID(entry) (FIELD_EX32(entry, GICH_LR0, PhysicalID))
+#define GICH_LR_CPUID(entry) (FIELD_EX32(entry, GICH_LR0, CPUID))
+#define GICH_LR_EOI(entry) (FIELD_EX32(entry, GICH_LR0, EOI))
+#define GICH_LR_PRIORITY(entry) (FIELD_EX32(entry, GICH_LR0, Priority) << 3)
+#define GICH_LR_STATE(entry) (FIELD_EX32(entry, GICH_LR0, State))
+#define GICH_LR_GROUP(entry) (FIELD_EX32(entry, GICH_LR0, Grp1))
+#define GICH_LR_HW(entry) (FIELD_EX32(entry, GICH_LR0, HW))
+
 /* Valid bits for GICC_CTLR for GICv1, v1 with security extensions,
  * GICv2 and GICv2 with security extensions:
  */
@@ -162,6 +176,66 @@ static inline bool gic_test_pending(GICState *s, int irq, int cm)
 static inline bool gic_is_vcpu(int cpu)
 {
     return cpu >= GIC_NCPU;
+}
+
+static inline int gic_get_vcpu_real_id(int cpu)
+{
+    return (cpu >= GIC_NCPU) ? (cpu - GIC_NCPU) : cpu;
+}
+
+/* Return true if the given vIRQ state exists in a LR and is either active or
+ * pending and active.
+ *
+ * This function is used to check that a guest's `end of interrupt' or
+ * `interrupts deactivation' request is valid, and matches with a LR of an
+ * already acknowledged vIRQ (i.e. has the active bit set in its state).
+ */
+static inline bool gic_virq_is_valid(GICState *s, int irq, int vcpu)
+{
+    int cpu = gic_get_vcpu_real_id(vcpu);
+    int lr_idx;
+
+    for (lr_idx = 0; lr_idx < s->num_lrs; lr_idx++) {
+        uint32_t *entry = &s->h_lr[lr_idx][cpu];
+
+        if ((GICH_LR_VIRT_ID(*entry) == irq) &&
+            (GICH_LR_STATE(*entry) & GICH_LR_STATE_ACTIVE)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/* Return a pointer on the LR entry matching the given vIRQ.
+ *
+ * This function is used to retrieve an LR for which we know for sure that the
+ * corresponding vIRQ exists in the current context (i.e. its current state is
+ * not `invalid'):
+ *   - Either the corresponding vIRQ has been validated with gic_virq_is_valid()
+ *     so it is `active' or `active and pending',
+ *   - Or it was pending and has been selected by gic_get_best_virq(). It is now
+ *     `pending', `active' or `active and pending', depending on what the guest
+ *     already did with this vIRQ.
+ *
+ * Having multiple LRs with the same VirtualID leads to UNPREDICTABLE
+ * behaviour in the GIC. We choose to return the first one that matches.
+ */
+static inline uint32_t *gic_get_lr_entry(GICState *s, int irq, int vcpu)
+{
+    int cpu = gic_get_vcpu_real_id(vcpu);
+    int lr_idx;
+
+    for (lr_idx = 0; lr_idx < s->num_lrs; lr_idx++) {
+        uint32_t *entry = &s->h_lr[lr_idx][cpu];
+
+        if ((GICH_LR_VIRT_ID(*entry) == irq) &&
+            (GICH_LR_STATE(*entry) != GICH_LR_STATE_INVALID)) {
+            return entry;
+        }
+    }
+
+    g_assert_not_reached();
 }
 
 #endif /* QEMU_ARM_GIC_INTERNAL_H */
