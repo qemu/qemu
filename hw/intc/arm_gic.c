@@ -184,8 +184,10 @@ static inline void gic_update_internal(GICState *s, bool virt)
         }
 
         if (best_irq != 1023) {
-            trace_gic_update_bestirq(cpu, best_irq, best_prio,
-                s->priority_mask[cpu_iface], s->running_priority[cpu_iface]);
+            trace_gic_update_bestirq(virt ? "vcpu" : "cpu", cpu,
+                                     best_irq, best_prio,
+                                     s->priority_mask[cpu_iface],
+                                     s->running_priority[cpu_iface]);
         }
 
         irq_level = fiq_level = 0;
@@ -332,6 +334,7 @@ static void gic_update_maintenance(GICState *s)
         gic_compute_misr(s, cpu);
         maint_level = (s->h_hcr[cpu] & R_GICH_HCR_EN_MASK) && s->h_misr[cpu];
 
+        trace_gic_update_maintenance_irq(cpu, maint_level);
         qemu_set_irq(s->maintenance_irq[cpu], maint_level);
     }
 }
@@ -597,7 +600,8 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
      * is in the wrong group.
      */
     irq = gic_get_current_pending_irq(s, cpu, attrs);
-    trace_gic_acknowledge_irq(gic_get_vcpu_real_id(cpu), irq);
+    trace_gic_acknowledge_irq(gic_is_vcpu(cpu) ? "vcpu" : "cpu",
+                              gic_get_vcpu_real_id(cpu), irq);
 
     if (irq >= GIC_MAXIRQ) {
         DPRINTF("ACK, no pending interrupt or it is hidden: %d\n", irq);
@@ -1130,20 +1134,23 @@ static MemTxResult gic_dist_read(void *opaque, hwaddr offset, uint64_t *data,
     switch (size) {
     case 1:
         *data = gic_dist_readb(opaque, offset, attrs);
-        return MEMTX_OK;
+        break;
     case 2:
         *data = gic_dist_readb(opaque, offset, attrs);
         *data |= gic_dist_readb(opaque, offset + 1, attrs) << 8;
-        return MEMTX_OK;
+        break;
     case 4:
         *data = gic_dist_readb(opaque, offset, attrs);
         *data |= gic_dist_readb(opaque, offset + 1, attrs) << 8;
         *data |= gic_dist_readb(opaque, offset + 2, attrs) << 16;
         *data |= gic_dist_readb(opaque, offset + 3, attrs) << 24;
-        return MEMTX_OK;
+        break;
     default:
         return MEMTX_ERROR;
     }
+
+    trace_gic_dist_read(offset, size, *data);
+    return MEMTX_OK;
 }
 
 static void gic_dist_writeb(void *opaque, hwaddr offset,
@@ -1482,6 +1489,8 @@ static void gic_dist_writel(void *opaque, hwaddr offset,
 static MemTxResult gic_dist_write(void *opaque, hwaddr offset, uint64_t data,
                                   unsigned size, MemTxAttrs attrs)
 {
+    trace_gic_dist_write(offset, size, data);
+
     switch (size) {
     case 1:
         gic_dist_writeb(opaque, offset, data, attrs);
@@ -1638,12 +1647,18 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         *data = 0;
         break;
     }
+
+    trace_gic_cpu_read(gic_is_vcpu(cpu) ? "vcpu" : "cpu",
+                       gic_get_vcpu_real_id(cpu), offset, *data);
     return MEMTX_OK;
 }
 
 static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
                                  uint32_t value, MemTxAttrs attrs)
 {
+    trace_gic_cpu_write(gic_is_vcpu(cpu) ? "vcpu" : "cpu",
+                        gic_get_vcpu_real_id(cpu), offset, value);
+
     switch (offset) {
     case 0x00: /* Control */
         gic_set_cpu_control(s, cpu, value, attrs);
@@ -1894,6 +1909,7 @@ static MemTxResult gic_hyp_read(void *opaque, int cpu, hwaddr addr,
         return MEMTX_OK;
     }
 
+    trace_gic_hyp_read(addr, *data);
     return MEMTX_OK;
 }
 
@@ -1902,6 +1918,8 @@ static MemTxResult gic_hyp_write(void *opaque, int cpu, hwaddr addr,
 {
     GICState *s = ARM_GIC(opaque);
     int vcpu = cpu + GIC_NCPU;
+
+    trace_gic_hyp_write(addr, value);
 
     switch (addr) {
     case A_GICH_HCR: /* Hypervisor Control */
@@ -1926,6 +1944,7 @@ static MemTxResult gic_hyp_write(void *opaque, int cpu, hwaddr addr,
         }
 
         s->h_lr[lr_idx][cpu] = value & GICH_LR_MASK;
+        trace_gic_lr_entry(cpu, lr_idx, s->h_lr[lr_idx][cpu]);
         break;
     }
 
