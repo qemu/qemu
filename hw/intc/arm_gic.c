@@ -365,17 +365,44 @@ static void gic_drop_prio(GICState *s, int cpu, int group)
     s->running_priority[cpu] = gic_get_prio_from_apr_bits(s, cpu);
 }
 
+static inline uint32_t gic_clear_pending_sgi(GICState *s, int irq, int cpu)
+{
+    int src;
+    uint32_t ret;
+
+    if (!gic_is_vcpu(cpu)) {
+        /* Lookup the source CPU for the SGI and clear this in the
+         * sgi_pending map.  Return the src and clear the overall pending
+         * state on this CPU if the SGI is not pending from any CPUs.
+         */
+        assert(s->sgi_pending[irq][cpu] != 0);
+        src = ctz32(s->sgi_pending[irq][cpu]);
+        s->sgi_pending[irq][cpu] &= ~(1 << src);
+        if (s->sgi_pending[irq][cpu] == 0) {
+            gic_clear_pending(s, irq, cpu);
+        }
+        ret = irq | ((src & 0x7) << 10);
+    } else {
+        uint32_t *lr_entry = gic_get_lr_entry(s, irq, cpu);
+        src = GICH_LR_CPUID(*lr_entry);
+
+        gic_clear_pending(s, irq, cpu);
+        ret = irq | (src << 10);
+    }
+
+    return ret;
+}
+
 uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
 {
-    int ret, irq, src;
-    int cm = 1 << cpu;
+    int ret, irq;
 
     /* gic_get_current_pending_irq() will return 1022 or 1023 appropriately
      * for the case where this GIC supports grouping and the pending interrupt
      * is in the wrong group.
      */
     irq = gic_get_current_pending_irq(s, cpu, attrs);
-    trace_gic_acknowledge_irq(cpu, irq);
+    trace_gic_acknowledge_irq(gic_get_vcpu_real_id(cpu), irq);
 
     if (irq >= GIC_MAXIRQ) {
         DPRINTF("ACK, no pending interrupt or it is hidden: %d\n", irq);
@@ -387,6 +414,8 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
         return 1023;
     }
 
+    gic_activate_irq(s, cpu, irq);
+
     if (s->revision == REV_11MPCORE) {
         /* Clear pending flags for both level and edge triggered interrupts.
          * Level triggered IRQs will be reasserted once they become inactive.
@@ -395,28 +424,13 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
         ret = irq;
     } else {
         if (irq < GIC_NR_SGIS) {
-            /* Lookup the source CPU for the SGI and clear this in the
-             * sgi_pending map.  Return the src and clear the overall pending
-             * state on this CPU if the SGI is not pending from any CPUs.
-             */
-            assert(s->sgi_pending[irq][cpu] != 0);
-            src = ctz32(s->sgi_pending[irq][cpu]);
-            s->sgi_pending[irq][cpu] &= ~(1 << src);
-            if (s->sgi_pending[irq][cpu] == 0) {
-                gic_clear_pending(s, irq, cpu);
-            }
-            ret = irq | ((src & 0x7) << 10);
+            ret = gic_clear_pending_sgi(s, irq, cpu);
         } else {
-            /* Clear pending state for both level and edge triggered
-             * interrupts. (level triggered interrupts with an active line
-             * remain pending, see gic_test_pending)
-             */
             gic_clear_pending(s, irq, cpu);
             ret = irq;
         }
     }
 
-    gic_activate_irq(s, cpu, irq);
     gic_update(s);
     DPRINTF("ACK %d\n", irq);
     return ret;
