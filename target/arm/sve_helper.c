@@ -2846,11 +2846,6 @@ uint32_t HELPER(sve_while)(void *vd, uint32_t count, uint32_t pred_desc)
         return flags;
     }
 
-    /* Scale from predicate element count to bits.  */
-    count <<= esz;
-    /* Bound to the bits in the predicate.  */
-    count = MIN(count, oprsz * 8);
-
     /* Set all of the requested bits.  */
     for (i = 0; i < count / 64; ++i) {
         d->p[i] = esz_mask;
