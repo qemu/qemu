@@ -627,7 +627,9 @@ BlockDriver bdrv_crypto_luks = {
     .bdrv_probe         = block_crypto_probe_luks,
     .bdrv_open          = block_crypto_open_luks,
     .bdrv_close         = block_crypto_close,
-    .bdrv_child_perm    = bdrv_format_default_perms,
+    /* This driver doesn't modify LUKS metadata except when creating image.
+     * Allow share-rw=on as a special case. */
+    .bdrv_child_perm    = bdrv_filter_default_perms,
     .bdrv_co_create     = block_crypto_co_create_luks,
     .bdrv_co_create_opts = block_crypto_co_create_opts_luks,
     .bdrv_co_truncate   = block_crypto_co_truncate,
