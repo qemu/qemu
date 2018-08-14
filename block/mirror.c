@@ -1499,6 +1499,11 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
         buf_size = DEFAULT_MIRROR_BUF_SIZE;
     }
 
+    if (bs == target) {
+        error_setg(errp, "Can't mirror node into itself");
+        return;
+    }
+
     /* In the case of active commit, add dummy driver to provide consistent
      * reads on the top, while disabling it in the intermediate nodes, and make
      * the backing chain writable. */
