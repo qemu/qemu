@@ -7162,6 +7162,22 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         return;
     }
 
+    /*
+     * Tailchaining: if there is currently a pending exception that
+     * is high enough priority to preempt execution at the level we're
+     * about to return to, then just directly take that exception now,
+     * avoiding an unstack-and-then-stack. Note that now we have
+     * deactivated the previous exception by calling armv7m_nvic_complete_irq()
+     * our current execution priority is already the execution priority we are
+     * returning to -- none of the state we would unstack or set based on
+     * the EXCRET value affects it.
+     */
+    if (armv7m_nvic_can_take_pending_exception(env->nvic)) {
+        qemu_log_mask(CPU_LOG_INT, "...tailchaining to pending exception\n");
+        v7m_exception_taken(cpu, excret, true, false);
+        return;
+    }
+
     switch_v7m_security_state(env, return_to_secure);
 
     {
