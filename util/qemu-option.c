@@ -208,17 +208,51 @@ out:
     return result;
 }
 
+static const char *opt_type_to_string(enum QemuOptType type)
+{
+    switch (type) {
+    case QEMU_OPT_STRING:
+        return "str";
+    case QEMU_OPT_BOOL:
+        return "bool (on/off)";
+    case QEMU_OPT_NUMBER:
+        return "num";
+    case QEMU_OPT_SIZE:
+        return "size";
+    }
+
+    g_assert_not_reached();
+}
+
 void qemu_opts_print_help(QemuOptsList *list)
 {
     QemuOptDesc *desc;
+    int i;
+    GPtrArray *array = g_ptr_array_new();
 
     assert(list);
     desc = list->desc;
     while (desc && desc->name) {
-        printf("%-16s %s\n", desc->name,
-               desc->help ? desc->help : "No description available");
+        GString *str = g_string_new(NULL);
+        if (list->name) {
+            g_string_append_printf(str, "%s.", list->name);
+        }
+        g_string_append_printf(str, "%s=%s", desc->name,
+                               opt_type_to_string(desc->type));
+        if (desc->help) {
+            g_string_append_printf(str, " - %s", desc->help);
+        }
+        g_ptr_array_add(array, g_string_free(str, false));
         desc++;
     }
+
+    g_ptr_array_sort(array, (GCompareFunc)qemu_pstrcmp0);
+    for (i = 0; i < array->len; i++) {
+        printf("%s\n", (char *)array->pdata[i]);
+    }
+    g_ptr_array_set_free_func(array, g_free);
+    g_ptr_array_free(array, true);
+
 }
 /* ------------------------------------------------------------------ */
 
