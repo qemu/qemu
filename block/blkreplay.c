@@ -43,10 +43,6 @@ fail:
     return ret;
 }
 
-static void blkreplay_close(BlockDriverState *bs)
-{
-}
-
 static int64_t blkreplay_getlength(BlockDriverState *bs)
 {
     return bdrv_getlength(bs->file->bs);
@@ -135,7 +131,6 @@ static BlockDriver bdrv_blkreplay = {
     .instance_size          = 0,
 
     .bdrv_open              = blkreplay_open,
-    .bdrv_close             = blkreplay_close,
     .bdrv_child_perm        = bdrv_filter_default_perms,
     .bdrv_getlength         = blkreplay_getlength,
 

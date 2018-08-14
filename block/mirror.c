@@ -1426,10 +1426,6 @@ static void bdrv_mirror_top_refresh_filename(BlockDriverState *bs, QDict *opts)
             bs->backing->bs->filename);
 }
 
-static void bdrv_mirror_top_close(BlockDriverState *bs)
-{
-}
-
 static void bdrv_mirror_top_child_perm(BlockDriverState *bs, BdrvChild *c,
                                        const BdrvChildRole *role,
                                        BlockReopenQueue *reopen_queue,
@@ -1456,7 +1452,6 @@ static BlockDriver bdrv_mirror_top = {
     .bdrv_co_flush              = bdrv_mirror_top_flush,
     .bdrv_co_block_status       = bdrv_co_block_status_from_backing,
     .bdrv_refresh_filename      = bdrv_mirror_top_refresh_filename,
-    .bdrv_close                 = bdrv_mirror_top_close,
     .bdrv_child_perm            = bdrv_mirror_top_child_perm,
 };
 

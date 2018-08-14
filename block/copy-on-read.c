@@ -45,11 +45,6 @@ static int cor_open(BlockDriverState *bs, QDict *options, int flags,
 }
 
 
-static void cor_close(BlockDriverState *bs)
-{
-}
-
-
 #define PERM_PASSTHROUGH (BLK_PERM_CONSISTENT_READ \
                           | BLK_PERM_WRITE \
                           | BLK_PERM_RESIZE)
@@ -143,7 +138,6 @@ BlockDriver bdrv_copy_on_read = {
     .format_name                        = "copy-on-read",
 
     .bdrv_open                          = cor_open,
-    .bdrv_close                         = cor_close,
     .bdrv_child_perm                    = cor_child_perm,
 
     .bdrv_getlength                     = cor_getlength,

@@ -239,10 +239,6 @@ static void bdrv_commit_top_refresh_filename(BlockDriverState *bs, QDict *opts)
             bs->backing->bs->filename);
 }
 
-static void bdrv_commit_top_close(BlockDriverState *bs)
-{
-}
-
 static void bdrv_commit_top_child_perm(BlockDriverState *bs, BdrvChild *c,
                                        const BdrvChildRole *role,
                                        BlockReopenQueue *reopen_queue,
@@ -260,7 +256,6 @@ static BlockDriver bdrv_commit_top = {
     .bdrv_co_preadv             = bdrv_commit_top_preadv,
     .bdrv_co_block_status       = bdrv_co_block_status_from_backing,
     .bdrv_refresh_filename      = bdrv_commit_top_refresh_filename,
-    .bdrv_close                 = bdrv_commit_top_close,
     .bdrv_child_perm            = bdrv_commit_top_child_perm,
 };
 

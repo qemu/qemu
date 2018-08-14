@@ -459,10 +459,6 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
     return 0;
 }
 
-static void raw_close(BlockDriverState *bs)
-{
-}
-
 static int raw_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     /* smallest possible positive score so that raw is used if and only if no
@@ -543,7 +539,6 @@ BlockDriver bdrv_raw = {
     .bdrv_reopen_commit   = &raw_reopen_commit,
     .bdrv_reopen_abort    = &raw_reopen_abort,
     .bdrv_open            = &raw_open,
-    .bdrv_close           = &raw_close,
     .bdrv_child_perm      = bdrv_filter_default_perms,
     .bdrv_co_create_opts  = &raw_co_create_opts,
     .bdrv_co_preadv       = &raw_co_preadv,
