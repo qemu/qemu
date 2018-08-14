@@ -345,21 +345,6 @@ static int img_add_key_secrets(void *opaque,
     return 0;
 }
 
-static BlockBackend *img_open_new_file(const char *filename,
-                                       QemuOpts *create_opts,
-                                       const char *fmt, int flags,
-                                       bool writethrough, bool quiet,
-                                       bool force_share)
-{
-    QDict *options = NULL;
-
-    options = qdict_new();
-    qemu_opt_foreach(create_opts, img_add_key_secrets, options, &error_abort);
-
-    return img_open_file(filename, options, fmt, flags, writethrough, quiet,
-                         force_share);
-}
-
 
 static BlockBackend *img_open(bool image_opts,
                               const char *filename,
@@ -2018,6 +2003,7 @@ static int img_convert(int argc, char **argv)
     BlockDriverState *out_bs;
     QemuOpts *opts = NULL, *sn_opts = NULL;
     QemuOptsList *create_opts = NULL;
+    QDict *open_opts = NULL;
     char *options = NULL;
     Error *local_err = NULL;
     bool writethrough, src_writethrough, quiet = false, image_opts = false,
@@ -2362,6 +2348,16 @@ static int img_convert(int argc, char **argv)
         }
     }
 
+    /*
+     * The later open call will need any decryption secrets, and
+     * bdrv_create() will purge "opts", so extract them now before
+     * they are lost.
+     */
+    if (!skip_create) {
+        open_opts = qdict_new();
+        qemu_opt_foreach(opts, img_add_key_secrets, open_opts, &error_abort);
+    }
+
     if (!skip_create) {
         /* Create the new image */
         ret = bdrv_create(drv, out_filename, opts, &local_err);
@@ -2388,8 +2384,9 @@ static int img_convert(int argc, char **argv)
          * That has to wait for bdrv_create to be improved
          * to allow filenames in option syntax
          */
-        s.target = img_open_new_file(out_filename, opts, out_fmt,
-                                     flags, writethrough, quiet, false);
+        s.target = img_open_file(out_filename, open_opts, out_fmt,
+                                 flags, writethrough, quiet, false);
+        open_opts = NULL; /* blk_new_open will have freed it */
     }
     if (!s.target) {
         ret = -1;
@@ -2464,6 +2461,7 @@ out:
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);
     qemu_opts_del(sn_opts);
+    qobject_unref(open_opts);
     blk_unref(s.target);
     if (s.src) {
         for (bs_i = 0; bs_i < s.src_num; bs_i++) {
