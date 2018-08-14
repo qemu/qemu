@@ -420,6 +420,8 @@ static void set_prio(NVICState *s, unsigned irq, bool secure, uint8_t prio)
     assert(irq > ARMV7M_EXCP_NMI); /* only use for configurable prios */
     assert(irq < s->num_irq);
 
+    prio &= MAKE_64BIT_MASK(8 - s->num_prio_bits, s->num_prio_bits);
+
     if (secure) {
         assert(exc_is_banked(irq));
         s->sec_vectors[irq].prio = prio;
@@ -779,6 +781,9 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
 
     switch (offset) {
     case 4: /* Interrupt Control Type.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            goto bad_offset;
+        }
         return ((s->num_irq - NVIC_FIRST_IRQ) / 32) - 1;
     case 0xc: /* CPPWR */
         if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
@@ -1278,9 +1283,12 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
                               "Setting VECTRESET when not in DEBUG mode "
                               "is UNPREDICTABLE\n");
             }
-            s->prigroup[attrs.secure] = extract32(value,
-                                                  R_V7M_AIRCR_PRIGROUP_SHIFT,
-                                                  R_V7M_AIRCR_PRIGROUP_LENGTH);
+            if (arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+                s->prigroup[attrs.secure] =
+                    extract32(value,
+                              R_V7M_AIRCR_PRIGROUP_SHIFT,
+                              R_V7M_AIRCR_PRIGROUP_LENGTH);
+            }
             if (attrs.secure) {
                 /* These bits are only writable by secure */
                 cpu->env.v7m.aircr = value &
@@ -1791,6 +1799,11 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
         break;
     case 0x300 ... 0x33f: /* NVIC Active */
         val = 0;
+
+        if (!arm_feature(&s->cpu->env, ARM_FEATURE_V7)) {
+            break;
+        }
+
         startvec = 8 * (offset - 0x300) + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
@@ -2259,6 +2272,8 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
 
     /* include space for internal exception vectors */
     s->num_irq += NVIC_FIRST_IRQ;
+
+    s->num_prio_bits = arm_feature(&s->cpu->env, ARM_FEATURE_V7) ? 8 : 2;
 
     object_property_set_bool(OBJECT(&s->systick[M_REG_NS]), true,
                              "realized", &err);

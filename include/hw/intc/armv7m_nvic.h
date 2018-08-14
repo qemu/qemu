@@ -57,6 +57,7 @@ typedef struct NVICState {
     VecInfo sec_vectors[NVIC_INTERNAL_VECTORS];
     /* The PRIGROUP field in AIRCR is banked */
     uint32_t prigroup[M_REG_NUM_BANKS];
+    uint8_t num_prio_bits;
 
     /* v8M NVIC_ITNS state (stored as a bool per bit) */
     bool itns[NVIC_MAX_VECTORS];
