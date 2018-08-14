@@ -143,6 +143,13 @@ REG32(GICH_LR63, 0x1fc)
 #define GICH_LR_GROUP(entry) (FIELD_EX32(entry, GICH_LR0, Grp1))
 #define GICH_LR_HW(entry) (FIELD_EX32(entry, GICH_LR0, HW))
 
+#define GICH_LR_CLEAR_PENDING(entry) \
+        ((entry) &= ~(GICH_LR_STATE_PENDING << R_GICH_LR0_State_SHIFT))
+#define GICH_LR_SET_ACTIVE(entry) \
+        ((entry) |= (GICH_LR_STATE_ACTIVE << R_GICH_LR0_State_SHIFT))
+#define GICH_LR_CLEAR_ACTIVE(entry) \
+        ((entry) &= ~(GICH_LR_STATE_ACTIVE << R_GICH_LR0_State_SHIFT))
+
 /* Valid bits for GICC_CTLR for GICv1, v1 with security extensions,
  * GICv2 and GICv2 with security extensions:
  */
@@ -236,6 +243,82 @@ static inline uint32_t *gic_get_lr_entry(GICState *s, int irq, int vcpu)
     }
 
     g_assert_not_reached();
+}
+
+static inline bool gic_test_group(GICState *s, int irq, int cpu)
+{
+    if (gic_is_vcpu(cpu)) {
+        uint32_t *entry = gic_get_lr_entry(s, irq, cpu);
+        return GICH_LR_GROUP(*entry);
+    } else {
+        return GIC_DIST_TEST_GROUP(irq, 1 << cpu);
+    }
+}
+
+static inline void gic_clear_pending(GICState *s, int irq, int cpu)
+{
+    if (gic_is_vcpu(cpu)) {
+        uint32_t *entry = gic_get_lr_entry(s, irq, cpu);
+        GICH_LR_CLEAR_PENDING(*entry);
+    } else {
+        /* Clear pending state for both level and edge triggered
+         * interrupts. (level triggered interrupts with an active line
+         * remain pending, see gic_test_pending)
+         */
+        GIC_DIST_CLEAR_PENDING(irq, GIC_DIST_TEST_MODEL(irq) ? ALL_CPU_MASK
+                                                             : (1 << cpu));
+    }
+}
+
+static inline void gic_set_active(GICState *s, int irq, int cpu)
+{
+    if (gic_is_vcpu(cpu)) {
+        uint32_t *entry = gic_get_lr_entry(s, irq, cpu);
+        GICH_LR_SET_ACTIVE(*entry);
+    } else {
+        GIC_DIST_SET_ACTIVE(irq, 1 << cpu);
+    }
+}
+
+static inline void gic_clear_active(GICState *s, int irq, int cpu)
+{
+    if (gic_is_vcpu(cpu)) {
+        uint32_t *entry = gic_get_lr_entry(s, irq, cpu);
+        GICH_LR_CLEAR_ACTIVE(*entry);
+
+        if (GICH_LR_HW(*entry)) {
+            /* Hardware interrupt. We must forward the deactivation request to
+             * the distributor.
+             */
+            int phys_irq = GICH_LR_PHYS_ID(*entry);
+            int rcpu = gic_get_vcpu_real_id(cpu);
+
+            if (phys_irq < GIC_NR_SGIS || phys_irq >= GIC_MAXIRQ) {
+                /* UNPREDICTABLE behaviour, we choose to ignore the request */
+                return;
+            }
+
+            /* This is equivalent to a NS write to DIR on the physical CPU
+             * interface. Hence group0 interrupt deactivation is ignored if
+             * the GIC is secure.
+             */
+            if (!s->security_extn || GIC_DIST_TEST_GROUP(phys_irq, 1 << rcpu)) {
+                GIC_DIST_CLEAR_ACTIVE(phys_irq, 1 << rcpu);
+            }
+        }
+    } else {
+        GIC_DIST_CLEAR_ACTIVE(irq, 1 << cpu);
+    }
+}
+
+static inline int gic_get_priority(GICState *s, int irq, int cpu)
+{
+    if (gic_is_vcpu(cpu)) {
+        uint32_t *entry = gic_get_lr_entry(s, irq, cpu);
+        return GICH_LR_PRIORITY(*entry);
+    } else {
+        return GIC_DIST_GET_PRIORITY(irq, cpu);
+    }
 }
 
 #endif /* QEMU_ARM_GIC_INTERNAL_H */

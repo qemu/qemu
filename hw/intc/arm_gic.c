@@ -222,7 +222,8 @@ static uint16_t gic_get_current_pending_irq(GICState *s, int cpu,
     uint16_t pending_irq = s->current_pending[cpu];
 
     if (pending_irq < GIC_MAXIRQ && gic_has_groups(s)) {
-        int group = GIC_DIST_TEST_GROUP(pending_irq, (1 << cpu));
+        int group = gic_test_group(s, pending_irq, cpu);
+
         /* On a GIC without the security extensions, reading this register
          * behaves in the same way as a secure access to a GIC with them.
          */
@@ -253,7 +254,7 @@ static int gic_get_group_priority(GICState *s, int cpu, int irq)
 
     if (gic_has_groups(s) &&
         !(s->cpu_ctlr[cpu] & GICC_CTLR_CBPR) &&
-        GIC_DIST_TEST_GROUP(irq, (1 << cpu))) {
+        gic_test_group(s, irq, cpu)) {
         bpr = s->abpr[cpu] - 1;
         assert(bpr >= 0);
     } else {
@@ -266,7 +267,7 @@ static int gic_get_group_priority(GICState *s, int cpu, int irq)
      */
     mask = ~0U << ((bpr & 7) + 1);
 
-    return GIC_DIST_GET_PRIORITY(irq, cpu) & mask;
+    return gic_get_priority(s, irq, cpu) & mask;
 }
 
 static void gic_activate_irq(GICState *s, int cpu, int irq)
@@ -279,14 +280,14 @@ static void gic_activate_irq(GICState *s, int cpu, int irq)
     int regno = preemption_level / 32;
     int bitno = preemption_level % 32;
 
-    if (gic_has_groups(s) && GIC_DIST_TEST_GROUP(irq, (1 << cpu))) {
+    if (gic_has_groups(s) && gic_test_group(s, irq, cpu)) {
         s->nsapr[regno][cpu] |= (1 << bitno);
     } else {
         s->apr[regno][cpu] |= (1 << bitno);
     }
 
     s->running_priority[cpu] = prio;
-    GIC_DIST_SET_ACTIVE(irq, 1 << cpu);
+    gic_set_active(s, irq, cpu);
 }
 
 static int gic_get_prio_from_apr_bits(GICState *s, int cpu)
@@ -355,7 +356,7 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
         return irq;
     }
 
-    if (GIC_DIST_GET_PRIORITY(irq, cpu) >= s->running_priority[cpu]) {
+    if (gic_get_priority(s, irq, cpu) >= s->running_priority[cpu]) {
         DPRINTF("ACK, pending interrupt (%d) has insufficient priority\n", irq);
         return 1023;
     }
@@ -364,8 +365,7 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
         /* Clear pending flags for both level and edge triggered interrupts.
          * Level triggered IRQs will be reasserted once they become inactive.
          */
-        GIC_DIST_CLEAR_PENDING(irq, GIC_DIST_TEST_MODEL(irq) ? ALL_CPU_MASK
-                                                             : cm);
+        gic_clear_pending(s, irq, cpu);
         ret = irq;
     } else {
         if (irq < GIC_NR_SGIS) {
@@ -377,9 +377,7 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
             src = ctz32(s->sgi_pending[irq][cpu]);
             s->sgi_pending[irq][cpu] &= ~(1 << src);
             if (s->sgi_pending[irq][cpu] == 0) {
-                GIC_DIST_CLEAR_PENDING(irq,
-                                       GIC_DIST_TEST_MODEL(irq) ? ALL_CPU_MASK
-                                                                : cm);
+                gic_clear_pending(s, irq, cpu);
             }
             ret = irq | ((src & 0x7) << 10);
         } else {
@@ -387,8 +385,7 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
              * interrupts. (level triggered interrupts with an active line
              * remain pending, see gic_test_pending)
              */
-            GIC_DIST_CLEAR_PENDING(irq, GIC_DIST_TEST_MODEL(irq) ? ALL_CPU_MASK
-                                                                 : cm);
+            gic_clear_pending(s, irq, cpu);
             ret = irq;
         }
     }
@@ -544,7 +541,6 @@ static bool gic_eoi_split(GICState *s, int cpu, MemTxAttrs attrs)
 
 static void gic_deactivate_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
 {
-    int cm = 1 << cpu;
     int group;
 
     if (irq >= s->num_irq) {
@@ -559,7 +555,7 @@ static void gic_deactivate_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
         return;
     }
 
-    group = gic_has_groups(s) && GIC_DIST_TEST_GROUP(irq, cm);
+    group = gic_has_groups(s) && gic_test_group(s, irq, cpu);
 
     if (!gic_eoi_split(s, cpu, attrs)) {
         /* This is UNPREDICTABLE; we choose to ignore it */
@@ -573,7 +569,7 @@ static void gic_deactivate_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
         return;
     }
 
-    GIC_DIST_CLEAR_ACTIVE(irq, cm);
+    gic_clear_active(s, irq, cpu);
 }
 
 static void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
@@ -608,7 +604,7 @@ static void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
         }
     }
 
-    group = gic_has_groups(s) && GIC_DIST_TEST_GROUP(irq, cm);
+    group = gic_has_groups(s) && gic_test_group(s, irq, cpu);
 
     if (gic_cpu_ns_access(s, cpu, attrs) && !group) {
         DPRINTF("Non-secure EOI for Group0 interrupt %d ignored\n", irq);
@@ -624,7 +620,7 @@ static void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
 
     /* In GICv2 the guest can choose to split priority-drop and deactivate */
     if (!gic_eoi_split(s, cpu, attrs)) {
-        GIC_DIST_CLEAR_ACTIVE(irq, cm);
+        gic_clear_active(s, irq, cpu);
     }
     gic_update(s);
 }
