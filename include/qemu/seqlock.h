@@ -16,6 +16,7 @@
 
 #include "qemu/atomic.h"
 #include "qemu/thread.h"
+#include "qemu/lockable.h"
 
 typedef struct QemuSeqLock QemuSeqLock;
 
@@ -44,6 +45,25 @@ static inline void seqlock_write_end(QemuSeqLock *sl)
 
     atomic_set(&sl->sequence, sl->sequence + 1);
 }
+
+/* Lock out other writers and update the count.  */
+static inline void seqlock_write_lock_impl(QemuSeqLock *sl, QemuLockable *lock)
+{
+    qemu_lockable_lock(lock);
+    seqlock_write_begin(sl);
+}
+#define seqlock_write_lock(sl, lock) \
+    seqlock_write_lock_impl(sl, QEMU_MAKE_LOCKABLE(lock))
+
+/* Lock out other writers and update the count.  */
+static inline void seqlock_write_unlock_impl(QemuSeqLock *sl, QemuLockable *lock)
+{
+    qemu_lockable_unlock(lock);
+    seqlock_write_begin(sl);
+}
+#define seqlock_write_unlock(sl, lock) \
+    seqlock_write_unlock_impl(sl, QEMU_MAKE_LOCKABLE(lock))
+
 
 static inline unsigned seqlock_read_begin(const QemuSeqLock *sl)
 {
