@@ -2121,7 +2121,9 @@ void tb_check_watchpoint(CPUState *cpu)
 
         cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
         addr = get_page_addr_code(env, pc);
-        tb_invalidate_phys_range(addr, addr + 1);
+        if (addr != -1) {
+            tb_invalidate_phys_range(addr, addr + 1);
+        }
     }
 }
 
