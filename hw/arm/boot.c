@@ -818,9 +818,9 @@ static int do_arm_linux_init(Object *obj, void *opaque)
     return 0;
 }
 
-static uint64_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
-                             uint64_t *lowaddr, uint64_t *highaddr,
-                             int elf_machine, AddressSpace *as)
+static int64_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
+                            uint64_t *lowaddr, uint64_t *highaddr,
+                            int elf_machine, AddressSpace *as)
 {
     bool elf_is64;
     union {
@@ -829,7 +829,7 @@ static uint64_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
     } elf_header;
     int data_swab = 0;
     bool big_endian;
-    uint64_t ret = -1;
+    int64_t ret = -1;
     Error *err = NULL;
 
 
