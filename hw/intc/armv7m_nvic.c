@@ -879,6 +879,9 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         val |= cpu->env.v7m.ccr[M_REG_NS] & R_V7M_CCR_BFHFNMIGN_MASK;
         return val;
     case 0xd24: /* System Handler Control and State (SHCSR) */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            goto bad_offset;
+        }
         val = 0;
         if (attrs.secure) {
             if (s->sec_vectors[ARMV7M_EXCP_MEM].active) {
@@ -1312,6 +1315,10 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         cpu->env.v7m.scr[attrs.secure] = value;
         break;
     case 0xd14: /* Configuration Control.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
+
         /* Enforce RAZ/WI on reserved and must-RAZ/WI bits */
         value &= (R_V7M_CCR_STKALIGN_MASK |
                   R_V7M_CCR_BFHFNMIGN_MASK |
@@ -1336,6 +1343,9 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         cpu->env.v7m.ccr[attrs.secure] = value;
         break;
     case 0xd24: /* System Handler Control and State (SHCSR) */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            goto bad_offset;
+        }
         if (attrs.secure) {
             s->sec_vectors[ARMV7M_EXCP_MEM].active = (value & (1 << 0)) != 0;
             /* Secure HardFault active bit cannot be written */

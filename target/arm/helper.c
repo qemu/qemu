@@ -10710,13 +10710,13 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
             env->v7m.primask[M_REG_NS] = val & 1;
             return;
         case 0x91: /* BASEPRI_NS */
-            if (!env->v7m.secure) {
+            if (!env->v7m.secure || !arm_feature(env, ARM_FEATURE_M_MAIN)) {
                 return;
             }
             env->v7m.basepri[M_REG_NS] = val & 0xff;
             return;
         case 0x93: /* FAULTMASK_NS */
-            if (!env->v7m.secure) {
+            if (!env->v7m.secure || !arm_feature(env, ARM_FEATURE_M_MAIN)) {
                 return;
             }
             env->v7m.faultmask[M_REG_NS] = val & 1;
@@ -10800,9 +10800,15 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
         env->v7m.primask[env->v7m.secure] = val & 1;
         break;
     case 17: /* BASEPRI */
+        if (!arm_feature(env, ARM_FEATURE_M_MAIN)) {
+            goto bad_reg;
+        }
         env->v7m.basepri[env->v7m.secure] = val & 0xff;
         break;
     case 18: /* BASEPRI_MAX */
+        if (!arm_feature(env, ARM_FEATURE_M_MAIN)) {
+            goto bad_reg;
+        }
         val &= 0xff;
         if (val != 0 && (val < env->v7m.basepri[env->v7m.secure]
                          || env->v7m.basepri[env->v7m.secure] == 0)) {
@@ -10810,6 +10816,9 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
         }
         break;
     case 19: /* FAULTMASK */
+        if (!arm_feature(env, ARM_FEATURE_M_MAIN)) {
+            goto bad_reg;
+        }
         env->v7m.faultmask[env->v7m.secure] = val & 1;
         break;
     case 20: /* CONTROL */
