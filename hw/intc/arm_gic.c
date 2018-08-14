@@ -240,9 +240,106 @@ static inline bool gic_lr_entry_is_eoi(uint32_t entry)
         && !GICH_LR_HW(entry) && GICH_LR_EOI(entry);
 }
 
+static inline void gic_extract_lr_info(GICState *s, int cpu,
+                                int *num_eoi, int *num_valid, int *num_pending)
+{
+    int lr_idx;
+
+    *num_eoi = 0;
+    *num_valid = 0;
+    *num_pending = 0;
+
+    for (lr_idx = 0; lr_idx < s->num_lrs; lr_idx++) {
+        uint32_t *entry = &s->h_lr[lr_idx][cpu];
+
+        if (gic_lr_entry_is_eoi(*entry)) {
+            (*num_eoi)++;
+        }
+
+        if (GICH_LR_STATE(*entry) != GICH_LR_STATE_INVALID) {
+            (*num_valid)++;
+        }
+
+        if (GICH_LR_STATE(*entry) == GICH_LR_STATE_PENDING) {
+            (*num_pending)++;
+        }
+    }
+}
+
+static void gic_compute_misr(GICState *s, int cpu)
+{
+    uint32_t value = 0;
+    int vcpu = cpu + GIC_NCPU;
+
+    int num_eoi, num_valid, num_pending;
+
+    gic_extract_lr_info(s, cpu, &num_eoi, &num_valid, &num_pending);
+
+    /* EOI */
+    if (num_eoi) {
+        value |= R_GICH_MISR_EOI_MASK;
+    }
+
+    /* U: true if only 0 or 1 LR entry is valid */
+    if ((s->h_hcr[cpu] & R_GICH_HCR_UIE_MASK) && (num_valid < 2)) {
+        value |= R_GICH_MISR_U_MASK;
+    }
+
+    /* LRENP: EOICount is not 0 */
+    if ((s->h_hcr[cpu] & R_GICH_HCR_LRENPIE_MASK) &&
+        ((s->h_hcr[cpu] & R_GICH_HCR_EOICount_MASK) != 0)) {
+        value |= R_GICH_MISR_LRENP_MASK;
+    }
+
+    /* NP: no pending interrupts */
+    if ((s->h_hcr[cpu] & R_GICH_HCR_NPIE_MASK) && (num_pending == 0)) {
+        value |= R_GICH_MISR_NP_MASK;
+    }
+
+    /* VGrp0E: group0 virq signaling enabled */
+    if ((s->h_hcr[cpu] & R_GICH_HCR_VGRP0EIE_MASK) &&
+        (s->cpu_ctlr[vcpu] & GICC_CTLR_EN_GRP0)) {
+        value |= R_GICH_MISR_VGrp0E_MASK;
+    }
+
+    /* VGrp0D: group0 virq signaling disabled */
+    if ((s->h_hcr[cpu] & R_GICH_HCR_VGRP0DIE_MASK) &&
+        !(s->cpu_ctlr[vcpu] & GICC_CTLR_EN_GRP0)) {
+        value |= R_GICH_MISR_VGrp0D_MASK;
+    }
+
+    /* VGrp1E: group1 virq signaling enabled */
+    if ((s->h_hcr[cpu] & R_GICH_HCR_VGRP1EIE_MASK) &&
+        (s->cpu_ctlr[vcpu] & GICC_CTLR_EN_GRP1)) {
+        value |= R_GICH_MISR_VGrp1E_MASK;
+    }
+
+    /* VGrp1D: group1 virq signaling disabled */
+    if ((s->h_hcr[cpu] & R_GICH_HCR_VGRP1DIE_MASK) &&
+        !(s->cpu_ctlr[vcpu] & GICC_CTLR_EN_GRP1)) {
+        value |= R_GICH_MISR_VGrp1D_MASK;
+    }
+
+    s->h_misr[cpu] = value;
+}
+
+static void gic_update_maintenance(GICState *s)
+{
+    int cpu = 0;
+    int maint_level;
+
+    for (cpu = 0; cpu < s->num_cpu; cpu++) {
+        gic_compute_misr(s, cpu);
+        maint_level = (s->h_hcr[cpu] & R_GICH_HCR_EN_MASK) && s->h_misr[cpu];
+
+        qemu_set_irq(s->maintenance_irq[cpu], maint_level);
+    }
+}
+
 static void gic_update_virt(GICState *s)
 {
     gic_update_internal(s, true);
+    gic_update_maintenance(s);
 }
 
 static void gic_set_irq_11mpcore(GICState *s, int irq, int level,
