@@ -218,7 +218,9 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
         qobject_unref(file_options);
         qdict_put_str(options, "file", bdrv_get_node_name(file));
 
-        drv->bdrv_close(bs);
+        if (drv->bdrv_close) {
+            drv->bdrv_close(bs);
+        }
         bdrv_unref_child(bs, bs->file);
         bs->file = NULL;
 
