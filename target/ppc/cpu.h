@@ -481,6 +481,11 @@ struct ppc_slb_t {
 #define msr_ts   ((env->msr >> MSR_TS1)  & 3)
 #define msr_tm   ((env->msr >> MSR_TM)   & 1)
 
+#define DBCR0_ICMP (1 << 27)
+#define DBCR0_BRT (1 << 26)
+#define DBSR_ICMP (1 << 27)
+#define DBSR_BRT (1 << 26)
+
 /* Hypervisor bit is more specific */
 #if defined(TARGET_PPC64)
 #define MSR_HVB (1ULL << MSR_SHV)
