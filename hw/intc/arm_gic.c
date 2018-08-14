@@ -71,7 +71,7 @@ static inline bool gic_has_groups(GICState *s)
 
 /* TODO: Many places that call this routine could be optimized.  */
 /* Update interrupt status after enabled or pending bits have been changed.  */
-void gic_update(GICState *s)
+static void gic_update(GICState *s)
 {
     int best_irq;
     int best_prio;
@@ -135,19 +135,6 @@ void gic_update(GICState *s)
         qemu_set_irq(s->parent_irq[cpu], irq_level);
         qemu_set_irq(s->parent_fiq[cpu], fiq_level);
     }
-}
-
-void gic_set_pending_private(GICState *s, int cpu, int irq)
-{
-    int cm = 1 << cpu;
-
-    if (gic_test_pending(s, irq, cm)) {
-        return;
-    }
-
-    DPRINTF("Set %d pending cpu %d\n", irq, cpu);
-    GIC_DIST_SET_PENDING(irq, cm);
-    gic_update(s);
 }
 
 static void gic_set_irq_11mpcore(GICState *s, int irq, int level,
@@ -579,7 +566,7 @@ static void gic_deactivate_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
     GIC_DIST_CLEAR_ACTIVE(irq, cm);
 }
 
-void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
+static void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
 {
     int cm = 1 << cpu;
     int group;
@@ -1487,12 +1474,6 @@ static const MemoryRegionOps gic_cpu_ops = {
     .write_with_attrs = gic_do_cpu_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
-
-/* This function is used by nvic model */
-void gic_init_irqs_and_distributor(GICState *s)
-{
-    gic_init_irqs_and_mmio(s, gic_set_irq, gic_ops);
-}
 
 static void arm_gic_realize(DeviceState *dev, Error **errp)
 {
