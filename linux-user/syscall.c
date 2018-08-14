@@ -7644,7 +7644,7 @@ static int open_self_maps(void *cpu_env, int fd)
             if (h2g(min) == ts->info->stack_limit) {
                 pstrcpy(path, sizeof(path), "      [stack]");
             }
-            dprintf(fd, TARGET_ABI_FMT_lx "-" TARGET_ABI_FMT_lx
+            dprintf(fd, TARGET_ABI_FMT_ptr "-" TARGET_ABI_FMT_ptr
                     " %c%c%c%c %08" PRIx64 " %02x:%02x %d %s%s\n",
                     h2g(min), h2g(max - 1) + 1, flag_r, flag_w,
                     flag_x, flag_p, offset, dev_maj, dev_min, inode,
