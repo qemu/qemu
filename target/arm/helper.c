@@ -7131,6 +7131,16 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         }
     }
 
+    /*
+     * Set CONTROL.SPSEL from excret.SPSEL. Since we're still in
+     * Handler mode (and will be until we write the new XPSR.Interrupt
+     * field) this does not switch around the current stack pointer.
+     * We must do this before we do any kind of tailchaining, including
+     * for the derived exceptions on integrity check failures, or we will
+     * give the guest an incorrect EXCRET.SPSEL value on exception entry.
+     */
+    write_v7m_control_spsel_for_secstate(env, return_to_sp_process, exc_secure);
+
     if (sfault) {
         env->v7m.sfsr |= R_V7M_SFSR_INVER_MASK;
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SECURE, false);
@@ -7151,12 +7161,6 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         v7m_exception_taken(cpu, excret, true, false);
         return;
     }
-
-    /* Set CONTROL.SPSEL from excret.SPSEL. Since we're still in
-     * Handler mode (and will be until we write the new XPSR.Interrupt
-     * field) this does not switch around the current stack pointer.
-     */
-    write_v7m_control_spsel_for_secstate(env, return_to_sp_process, exc_secure);
 
     switch_v7m_security_state(env, return_to_secure);
 
