@@ -1696,7 +1696,6 @@ F: qom/
 X: qom/cpu.c
 F: tests/check-qom-interface.c
 F: tests/check-qom-proplist.c
-F: tests/qom-test.c
 
 QMP
 M: Markus Armbruster <armbru@redhat.com>
@@ -1707,6 +1706,16 @@ F: docs/devel/*qmp-*
 F: scripts/qmp/
 F: tests/qmp-test.c
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
+
+qtest
+M: Paolo Bonzini <pbonzini@redhat.com>
+M: Thomas Huth <thuth@redhat.com>
+M: Laurent Vivier <lvivier@redhat.com>
+S: Maintained
+F: qtest.c
+F: tests/libqtest.*
+F: tests/libqos/
+F: tests/*-test.c
 
 Register API
 M: Alistair Francis <alistair@alistair23.me>
