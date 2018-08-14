@@ -926,10 +926,6 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
 {
     int mmu_idx, index;
     void *p;
-    MemoryRegion *mr;
-    MemoryRegionSection *section;
-    CPUState *cpu = ENV_GET_CPU(env);
-    CPUIOTLBEntry *iotlbentry;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     mmu_idx = cpu_mmu_index(env, true);
@@ -940,28 +936,19 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
         assert(tlb_hit(env->tlb_table[mmu_idx][index].addr_code, addr));
     }
 
-    if (unlikely(env->tlb_table[mmu_idx][index].addr_code & TLB_RECHECK)) {
+    if (unlikely(env->tlb_table[mmu_idx][index].addr_code &
+                 (TLB_RECHECK | TLB_MMIO))) {
         /*
-         * This is a TLB_RECHECK access, where the MMU protection
-         * covers a smaller range than a target page. Return -1 to
-         * indicate that we cannot simply execute from RAM here;
-         * we will perform the necessary repeat of the MMU check
-         * when the "execute a single insn" code performs the
-         * load of the guest insn.
+         * Return -1 if we can't translate and execute from an entire
+         * page of RAM here, which will cause us to execute by loading
+         * and translating one insn at a time, without caching:
+         *  - TLB_RECHECK: means the MMU protection covers a smaller range
+         *    than a target page, so we must redo the MMU check every insn
+         *  - TLB_MMIO: region is not backed by RAM
          */
         return -1;
     }
 
-    iotlbentry = &env->iotlb[mmu_idx][index];
-    section = iotlb_to_section(cpu, iotlbentry->addr, iotlbentry->attrs);
-    mr = section->mr;
-    if (memory_region_is_unassigned(mr)) {
-        /*
-         * Not guest RAM, so there is no ram_addr_t for it. Return -1,
-         * and we will execute a single insn from this device.
-         */
-        return -1;
-    }
     p = (void *)((uintptr_t)addr + env->tlb_table[mmu_idx][index].addend);
     return qemu_ram_addr_from_host_nofail(p);
 }
