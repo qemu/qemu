@@ -44,6 +44,8 @@ struct qht_stats {
 
 typedef bool (*qht_lookup_func_t)(const void *obj, const void *userp);
 typedef void (*qht_iter_func_t)(struct qht *ht, void *p, uint32_t h, void *up);
+typedef bool (*qht_iter_bool_func_t)(struct qht *ht, void *p, uint32_t h,
+                                     void *up);
 
 #define QHT_MODE_AUTO_RESIZE 0x1 /* auto-resize when heavily loaded */
 #define QHT_MODE_RAW_MUTEXES 0x2 /* bypass the profiler (QSP) */
@@ -179,8 +181,25 @@ bool qht_resize(struct qht *ht, size_t n_elems);
  *
  * Each time it is called, user-provided @func is passed a pointer-hash pair,
  * plus @userp.
+ *
+ * Note: @ht cannot be accessed from @func
+ * See also: qht_iter_remove()
  */
 void qht_iter(struct qht *ht, qht_iter_func_t func, void *userp);
+
+/**
+ * qht_iter_remove - Iterate over a QHT, optionally removing entries
+ * @ht: QHT to be iterated over
+ * @func: function to be called for each entry in QHT
+ * @userp: additional pointer to be passed to @func
+ *
+ * Each time it is called, user-provided @func is passed a pointer-hash pair,
+ * plus @userp. If @func returns true, the pointer-hash pair is removed.
+ *
+ * Note: @ht cannot be accessed from @func
+ * See also: qht_iter()
+ */
+void qht_iter_remove(struct qht *ht, qht_iter_bool_func_t func, void *userp);
 
 /**
  * qht_statistics_init - Gather statistics from a QHT
