@@ -160,7 +160,7 @@ static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
            cdev = &cpu_st->devs[cpu_st->selector];
            cdev->ost_status = data;
            info = acpi_cpu_device_status(cpu_st->selector, cdev);
-           qapi_event_send_acpi_device_ost(info, &error_abort);
+           qapi_event_send_acpi_device_ost(info);
            qapi_free_ACPIOSTInfo(info);
            trace_cpuhp_acpi_write_ost_status(cpu_st->selector,
                                              cdev->ost_status);

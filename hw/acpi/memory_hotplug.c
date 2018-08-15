@@ -161,7 +161,7 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
         /* TODO: implement memory removal on guest signal */
 
         info = acpi_memory_device_status(mem_st->selector, mdev);
-        qapi_event_send_acpi_device_ost(info, &error_abort);
+        qapi_event_send_acpi_device_ost(info);
         qapi_free_ACPIOSTInfo(info);
         break;
     case 0x14: /* set is_* fields  */
@@ -185,8 +185,7 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
             if (local_err) {
                 trace_mhp_acpi_pc_dimm_delete_failed(mem_st->selector);
                 qapi_event_send_mem_unplug_error(dev->id,
-                                                 error_get_pretty(local_err),
-                                                 &error_abort);
+                                                 error_get_pretty(local_err));
                 error_free(local_err);
                 break;
             }

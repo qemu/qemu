@@ -102,17 +102,17 @@ void watchdog_perform_action(void)
 {
     switch (watchdog_action) {
     case WATCHDOG_ACTION_RESET:     /* same as 'system_reset' in monitor */
-        qapi_event_send_watchdog(WATCHDOG_ACTION_RESET, &error_abort);
+        qapi_event_send_watchdog(WATCHDOG_ACTION_RESET);
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         break;
 
     case WATCHDOG_ACTION_SHUTDOWN:  /* same as 'system_powerdown' in monitor */
-        qapi_event_send_watchdog(WATCHDOG_ACTION_SHUTDOWN, &error_abort);
+        qapi_event_send_watchdog(WATCHDOG_ACTION_SHUTDOWN);
         qemu_system_powerdown_request();
         break;
 
     case WATCHDOG_ACTION_POWEROFF:  /* same as 'quit' command in monitor */
-        qapi_event_send_watchdog(WATCHDOG_ACTION_POWEROFF, &error_abort);
+        qapi_event_send_watchdog(WATCHDOG_ACTION_POWEROFF);
         exit(0);
 
     case WATCHDOG_ACTION_PAUSE:     /* same as 'stop' command in monitor */
@@ -120,22 +120,21 @@ void watchdog_perform_action(void)
          * you would get a deadlock.  Bypass the problem.
          */
         qemu_system_vmstop_request_prepare();
-        qapi_event_send_watchdog(WATCHDOG_ACTION_PAUSE, &error_abort);
+        qapi_event_send_watchdog(WATCHDOG_ACTION_PAUSE);
         qemu_system_vmstop_request(RUN_STATE_WATCHDOG);
         break;
 
     case WATCHDOG_ACTION_DEBUG:
-        qapi_event_send_watchdog(WATCHDOG_ACTION_DEBUG, &error_abort);
+        qapi_event_send_watchdog(WATCHDOG_ACTION_DEBUG);
         fprintf(stderr, "watchdog: timer fired\n");
         break;
 
     case WATCHDOG_ACTION_NONE:
-        qapi_event_send_watchdog(WATCHDOG_ACTION_NONE, &error_abort);
+        qapi_event_send_watchdog(WATCHDOG_ACTION_NONE);
         break;
 
     case WATCHDOG_ACTION_INJECT_NMI:
-        qapi_event_send_watchdog(WATCHDOG_ACTION_INJECT_NMI,
-                                 &error_abort);
+        qapi_event_send_watchdog(WATCHDOG_ACTION_INJECT_NMI);
         nmi_monitor_handle(0, NULL);
         break;
 

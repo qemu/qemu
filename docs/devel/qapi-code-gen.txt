@@ -1340,7 +1340,7 @@ Example:
     #include "example-qapi-types.h"
 
 
-    void qapi_event_send_my_event(Error **errp);
+    void qapi_event_send_my_event(void);
 
     typedef enum example_QAPIEvent {
         EXAMPLE_QAPI_EVENT_MY_EVENT = 0,
@@ -1356,10 +1356,9 @@ Example:
     $ cat qapi-generated/example-qapi-events.c
 [Uninteresting stuff omitted...]
 
-    void qapi_event_send_my_event(Error **errp)
+    void qapi_event_send_my_event(void)
     {
         QDict *qmp;
-        Error *err = NULL;
         QMPEventFuncEmit emit;
 
         emit = qmp_event_get_func_emit();
@@ -1369,9 +1368,8 @@ Example:
 
         qmp = qmp_event_build_dict("MY_EVENT");
 
-        emit(EXAMPLE_QAPI_EVENT_MY_EVENT, qmp, &err);
+        emit(EXAMPLE_QAPI_EVENT_MY_EVENT, qmp);
 
-        error_propagate(errp, err);
         qobject_unref(qmp);
     }
 

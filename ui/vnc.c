@@ -296,14 +296,13 @@ static void vnc_qmp_event(VncState *vs, QAPIEvent event)
 
     switch (event) {
     case QAPI_EVENT_VNC_CONNECTED:
-        qapi_event_send_vnc_connected(si, qapi_VncClientInfo_base(vs->info),
-                                      &error_abort);
+        qapi_event_send_vnc_connected(si, qapi_VncClientInfo_base(vs->info));
         break;
     case QAPI_EVENT_VNC_INITIALIZED:
-        qapi_event_send_vnc_initialized(si, vs->info, &error_abort);
+        qapi_event_send_vnc_initialized(si, vs->info);
         break;
     case QAPI_EVENT_VNC_DISCONNECTED:
-        qapi_event_send_vnc_disconnected(si, vs->info, &error_abort);
+        qapi_event_send_vnc_disconnected(si, vs->info);
         break;
     default:
         break;
