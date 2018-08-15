@@ -3953,6 +3953,16 @@ Dump json-encoded vmstate information for current machine type to file
 in @var{file}
 ETEXI
 
+DEF("enable-sync-profile", 0, QEMU_OPTION_enable_sync_profile,
+    "-enable-sync-profile\n"
+    "                enable synchronization profiling\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -enable-sync-profile
+@findex -enable-sync-profile
+Enable synchronization profiling.
+ETEXI
+
 STEXI
 @end table
 ETEXI
