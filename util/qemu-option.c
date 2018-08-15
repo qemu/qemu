@@ -486,7 +486,7 @@ int qemu_opt_unset(QemuOpts *opts, const char *name)
 }
 
 static void opt_set(QemuOpts *opts, const char *name, char *value,
-                    bool prepend, Error **errp)
+                    bool prepend, bool *invalidp, Error **errp)
 {
     QemuOpt *opt;
     const QemuOptDesc *desc;
@@ -496,6 +496,9 @@ static void opt_set(QemuOpts *opts, const char *name, char *value,
     if (!desc && !opts_accepts_any(opts)) {
         g_free(value);
         error_setg(errp, QERR_INVALID_PARAMETER, name);
+        if (invalidp) {
+            *invalidp = true;
+        }
         return;
     }
 
@@ -519,7 +522,7 @@ static void opt_set(QemuOpts *opts, const char *name, char *value,
 void qemu_opt_set(QemuOpts *opts, const char *name, const char *value,
                   Error **errp)
 {
-    opt_set(opts, name, g_strdup(value), false, errp);
+    opt_set(opts, name, g_strdup(value), false, NULL, errp);
 }
 
 void qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
@@ -750,7 +753,8 @@ void qemu_opts_print(QemuOpts *opts, const char *separator)
 }
 
 static void opts_do_parse(QemuOpts *opts, const char *params,
-                          const char *firstname, bool prepend, Error **errp)
+                          const char *firstname, bool prepend,
+                          bool *invalidp, Error **errp)
 {
     char *option = NULL;
     char *value = NULL;
@@ -785,7 +789,7 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
         }
         if (strcmp(option, "id") != 0) {
             /* store and parse */
-            opt_set(opts, option, value, prepend, &local_err);
+            opt_set(opts, option, value, prepend, invalidp, &local_err);
             value = NULL;
             if (local_err) {
                 error_propagate(errp, local_err);
@@ -814,11 +818,12 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
 void qemu_opts_do_parse(QemuOpts *opts, const char *params,
                        const char *firstname, Error **errp)
 {
-    opts_do_parse(opts, params, firstname, false, errp);
+    opts_do_parse(opts, params, firstname, false, NULL, errp);
 }
 
 static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
-                            bool permit_abbrev, bool defaults, Error **errp)
+                            bool permit_abbrev, bool defaults,
+                            bool *invalidp, Error **errp)
 {
     const char *firstname;
     char *id = NULL;
@@ -850,7 +855,7 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
         return NULL;
     }
 
-    opts_do_parse(opts, params, firstname, defaults, &local_err);
+    opts_do_parse(opts, params, firstname, defaults, invalidp, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         qemu_opts_del(opts);
@@ -870,7 +875,7 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
 QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params,
                           bool permit_abbrev, Error **errp)
 {
-    return opts_parse(list, params, permit_abbrev, false, errp);
+    return opts_parse(list, params, permit_abbrev, false, NULL, errp);
 }
 
 /**
@@ -886,10 +891,16 @@ QemuOpts *qemu_opts_parse_noisily(QemuOptsList *list, const char *params,
 {
     Error *err = NULL;
     QemuOpts *opts;
+    bool invalidp = false;
 
-    opts = opts_parse(list, params, permit_abbrev, false, &err);
+    opts = opts_parse(list, params, permit_abbrev, false, &invalidp, &err);
     if (err) {
-        error_report_err(err);
+        if (invalidp && has_help_option(params)) {
+            qemu_opts_print_help(list);
+            error_free(err);
+        } else {
+            error_report_err(err);
+        }
     }
     return opts;
 }
@@ -899,7 +910,7 @@ void qemu_opts_set_defaults(QemuOptsList *list, const char *params,
 {
     QemuOpts *opts;
 
-    opts = opts_parse(list, params, permit_abbrev, true, NULL);
+    opts = opts_parse(list, params, permit_abbrev, true, NULL, NULL);
     assert(opts);
 }
 
