@@ -108,6 +108,49 @@ static void iter_check(unsigned int count)
     g_assert_cmpuint(curr, ==, count);
 }
 
+static void sum_func(struct qht *ht, void *p, uint32_t hash, void *userp)
+{
+    uint32_t *sum = userp;
+    uint32_t a = *(uint32_t *)p;
+
+    *sum += a;
+}
+
+static void iter_sum_check(unsigned int expected)
+{
+    unsigned int sum = 0;
+
+    qht_iter(&ht, sum_func, &sum);
+    g_assert_cmpuint(sum, ==, expected);
+}
+
+static bool rm_mod_func(struct qht *ht, void *p, uint32_t hash, void *userp)
+{
+    uint32_t a = *(uint32_t *)p;
+    unsigned int mod = *(unsigned int *)userp;
+
+    return a % mod == 0;
+}
+
+static void iter_rm_mod(unsigned int mod)
+{
+    qht_iter_remove(&ht, rm_mod_func, &mod);
+}
+
+static void iter_rm_mod_check(unsigned int mod)
+{
+    unsigned int expected = 0;
+    unsigned int i;
+
+    for (i = 0; i < N; i++) {
+        if (i % mod == 0) {
+            continue;
+        }
+        expected += i;
+    }
+    iter_sum_check(expected);
+}
+
 static void qht_do_test(unsigned int mode, size_t init_entries)
 {
     /* under KVM we might fetch stats from an uninitialized qht */
@@ -138,8 +181,11 @@ static void qht_do_test(unsigned int mode, size_t init_entries)
     insert(10, 150);
     check_n(N);
 
-    rm(1, 2);
-    check_n(N - 1);
+    qht_reset(&ht);
+    insert(0, N);
+    iter_rm_mod(10);
+    iter_rm_mod_check(10);
+    check_n(N * 9 / 10);
     qht_reset_size(&ht, 0);
     check_n(0);
     check(0, N, false);
