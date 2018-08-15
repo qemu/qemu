@@ -367,7 +367,7 @@ static GString *qtest_recv_line(QTestState *s)
 
         if (len == -1 || len == 0) {
             fprintf(stderr, "Broken pipe\n");
-            exit(1);
+            abort();
         }
 
         g_string_append_len(s->rx, buffer, len);
@@ -454,7 +454,7 @@ static void qmp_response(JSONMessageParser *parser, GQueue *tokens)
     obj = json_parser_parse(tokens, NULL);
     if (!obj) {
         fprintf(stderr, "QMP JSON response parsing failed\n");
-        exit(1);
+        abort();
     }
 
     g_assert(!qmp->response);
@@ -480,7 +480,7 @@ QDict *qmp_fd_receive(int fd)
 
         if (len == -1 || len == 0) {
             fprintf(stderr, "Broken pipe\n");
-            exit(1);
+            abort();
         }
 
         if (log) {
