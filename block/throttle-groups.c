@@ -36,6 +36,7 @@
 
 static void throttle_group_obj_init(Object *obj);
 static void throttle_group_obj_complete(UserCreatable *obj, Error **errp);
+static void timer_cb(ThrottleGroupMember *tgm, bool is_write);
 
 /* The ThrottleGroup structure (with its ThrottleState) is shared
  * among different ThrottleGroupMembers and it's independent from
@@ -220,6 +221,15 @@ static ThrottleGroupMember *next_throttle_token(ThrottleGroupMember *tgm,
     ThrottleState *ts = tgm->throttle_state;
     ThrottleGroup *tg = container_of(ts, ThrottleGroup, ts);
     ThrottleGroupMember *token, *start;
+
+    /* If this member has its I/O limits disabled then it means that
+     * it's being drained. Skip the round-robin search and return tgm
+     * immediately if it has pending requests. Otherwise we could be
+     * forcing it to wait for other member's throttled requests. */
+    if (tgm_has_pending_reqs(tgm, is_write) &&
+        atomic_read(&tgm->io_limits_disabled)) {
+        return tgm;
+    }
 
     start = token = tg->tokens[is_write];
 
@@ -415,15 +425,31 @@ static void throttle_group_restart_queue(ThrottleGroupMember *tgm, bool is_write
     rd->tgm = tgm;
     rd->is_write = is_write;
 
+    /* This function is called when a timer is fired or when
+     * throttle_group_restart_tgm() is called. Either way, there can
+     * be no timer pending on this tgm at this point */
+    assert(!timer_pending(tgm->throttle_timers.timers[is_write]));
+
     co = qemu_coroutine_create(throttle_group_restart_queue_entry, rd);
     aio_co_enter(tgm->aio_context, co);
 }
 
 void throttle_group_restart_tgm(ThrottleGroupMember *tgm)
 {
+    int i;
+
     if (tgm->throttle_state) {
-        throttle_group_restart_queue(tgm, 0);
-        throttle_group_restart_queue(tgm, 1);
+        for (i = 0; i < 2; i++) {
+            QEMUTimer *t = tgm->throttle_timers.timers[i];
+            if (timer_pending(t)) {
+                /* If there's a pending timer on this tgm, fire it now */
+                timer_del(t);
+                timer_cb(tgm, i);
+            } else {
+                /* Else run the next request from the queue manually */
+                throttle_group_restart_queue(tgm, i);
+            }
+        }
     }
 }
 
@@ -558,16 +584,11 @@ void throttle_group_unregister_tgm(ThrottleGroupMember *tgm)
         return;
     }
 
-    assert(tgm->pending_reqs[0] == 0 && tgm->pending_reqs[1] == 0);
-    assert(qemu_co_queue_empty(&tgm->throttled_reqs[0]));
-    assert(qemu_co_queue_empty(&tgm->throttled_reqs[1]));
-
     qemu_mutex_lock(&tg->lock);
     for (i = 0; i < 2; i++) {
-        if (timer_pending(tgm->throttle_timers.timers[i])) {
-            tg->any_timer_armed[i] = false;
-            schedule_next_request(tgm, i);
-        }
+        assert(tgm->pending_reqs[i] == 0);
+        assert(qemu_co_queue_empty(&tgm->throttled_reqs[i]));
+        assert(!timer_pending(tgm->throttle_timers.timers[i]));
         if (tg->tokens[i] == tgm) {
             token = throttle_group_next_tgm(tgm);
             /* Take care of the case where this is the last tgm in the group */

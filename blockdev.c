@@ -731,30 +731,6 @@ QemuOptsList qemu_legacy_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "interface (ide, scsi, sd, mtd, floppy, pflash, virtio)",
         },{
-            .name = "cyls",
-            .type = QEMU_OPT_NUMBER,
-            .help = "number of cylinders (ide disk geometry)",
-        },{
-            .name = "heads",
-            .type = QEMU_OPT_NUMBER,
-            .help = "number of heads (ide disk geometry)",
-        },{
-            .name = "secs",
-            .type = QEMU_OPT_NUMBER,
-            .help = "number of sectors (ide disk geometry)",
-        },{
-            .name = "trans",
-            .type = QEMU_OPT_STRING,
-            .help = "chs translation (auto, lba, none)",
-        },{
-            .name = "addr",
-            .type = QEMU_OPT_STRING,
-            .help = "pci address (virtio only)",
-        },{
-            .name = "serial",
-            .type = QEMU_OPT_STRING,
-            .help = "disk serial number",
-        },{
             .name = "file",
             .type = QEMU_OPT_STRING,
             .help = "file name",
@@ -792,19 +768,13 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     QemuOpts *legacy_opts;
     DriveMediaType media = MEDIA_DISK;
     BlockInterfaceType type;
-    int cyls, heads, secs, translation;
     int max_devs, bus_id, unit_id, index;
-    const char *devaddr;
     const char *werror, *rerror;
     bool read_only = false;
     bool copy_on_read;
-    const char *serial;
     const char *filename;
     Error *local_err = NULL;
     int i;
-    const char *deprecated[] = {
-        "serial", "trans", "secs", "heads", "cyls", "addr"
-    };
 
     /* Change legacy command line options into QMP ones */
     static const struct {
@@ -881,16 +851,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         goto fail;
     }
 
-    /* Other deprecated options */
-    if (!qtest_enabled()) {
-        for (i = 0; i < ARRAY_SIZE(deprecated); i++) {
-            if (qemu_opt_get(legacy_opts, deprecated[i]) != NULL) {
-                error_report("'%s' is deprecated, please use the corresponding "
-                             "option of '-device' instead", deprecated[i]);
-            }
-        }
-    }
-
     /* Media type */
     value = qemu_opt_get(legacy_opts, "media");
     if (value) {
@@ -932,57 +892,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         type = block_default_type;
     }
 
-    /* Geometry */
-    cyls  = qemu_opt_get_number(legacy_opts, "cyls", 0);
-    heads = qemu_opt_get_number(legacy_opts, "heads", 0);
-    secs  = qemu_opt_get_number(legacy_opts, "secs", 0);
-
-    if (cyls || heads || secs) {
-        if (cyls < 1) {
-            error_report("invalid physical cyls number");
-            goto fail;
-        }
-        if (heads < 1) {
-            error_report("invalid physical heads number");
-            goto fail;
-        }
-        if (secs < 1) {
-            error_report("invalid physical secs number");
-            goto fail;
-        }
-    }
-
-    translation = BIOS_ATA_TRANSLATION_AUTO;
-    value = qemu_opt_get(legacy_opts, "trans");
-    if (value != NULL) {
-        if (!cyls) {
-            error_report("'%s' trans must be used with cyls, heads and secs",
-                         value);
-            goto fail;
-        }
-        if (!strcmp(value, "none")) {
-            translation = BIOS_ATA_TRANSLATION_NONE;
-        } else if (!strcmp(value, "lba")) {
-            translation = BIOS_ATA_TRANSLATION_LBA;
-        } else if (!strcmp(value, "large")) {
-            translation = BIOS_ATA_TRANSLATION_LARGE;
-        } else if (!strcmp(value, "rechs")) {
-            translation = BIOS_ATA_TRANSLATION_RECHS;
-        } else if (!strcmp(value, "auto")) {
-            translation = BIOS_ATA_TRANSLATION_AUTO;
-        } else {
-            error_report("'%s' invalid translation type", value);
-            goto fail;
-        }
-    }
-
-    if (media == MEDIA_CDROM) {
-        if (cyls || secs || heads) {
-            error_report("CHS can't be set with media=cdrom");
-            goto fail;
-        }
-    }
-
     /* Device address specified by bus/unit or index.
      * If none was specified, try to find the first free one. */
     bus_id  = qemu_opt_get_number(legacy_opts, "bus", 0);
@@ -1022,9 +931,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         goto fail;
     }
 
-    /* Serial number */
-    serial = qemu_opt_get(legacy_opts, "serial");
-
     /* no id supplied -> create one */
     if (qemu_opts_id(all_opts) == NULL) {
         char *new_id;
@@ -1044,12 +950,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     }
 
     /* Add virtio block device */
-    devaddr = qemu_opt_get(legacy_opts, "addr");
-    if (devaddr && type != IF_VIRTIO) {
-        error_report("addr is not supported by this bus type");
-        goto fail;
-    }
-
     if (type == IF_VIRTIO) {
         QemuOpts *devopts;
         devopts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
@@ -1061,9 +961,6 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         }
         qemu_opt_set(devopts, "drive", qdict_get_str(bs_opts, "id"),
                      &error_abort);
-        if (devaddr) {
-            qemu_opt_set(devopts, "addr", devaddr, &error_abort);
-        }
     }
 
     filename = qemu_opt_get(legacy_opts, "file");
@@ -1105,16 +1002,9 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     dinfo = g_malloc0(sizeof(*dinfo));
     dinfo->opts = all_opts;
 
-    dinfo->cyls = cyls;
-    dinfo->heads = heads;
-    dinfo->secs = secs;
-    dinfo->trans = translation;
-
     dinfo->type = type;
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
-    dinfo->devaddr = devaddr;
-    dinfo->serial = g_strdup(serial);
 
     blk_set_legacy_dinfo(blk, dinfo);
 

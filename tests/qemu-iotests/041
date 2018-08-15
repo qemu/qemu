@@ -234,6 +234,12 @@ class TestSingleBlockdev(TestSingleDrive):
         result = self.vm.qmp("blockdev-add", **args)
         self.assert_qmp(result, 'return', {})
 
+    def test_mirror_to_self(self):
+        result = self.vm.qmp(self.qmp_cmd, job_id='job0',
+                             device=self.qmp_target, sync='full',
+                             target=self.qmp_target)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+
     test_large_cluster = None
     test_image_not_found = None
     test_small_buffer2 = None

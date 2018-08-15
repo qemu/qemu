@@ -419,7 +419,6 @@ static void drive_info_del(DriveInfo *dinfo)
         return;
     }
     qemu_opts_del(dinfo->opts);
-    g_free(dinfo->serial);
     g_free(dinfo);
 }
 

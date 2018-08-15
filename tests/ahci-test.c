@@ -180,12 +180,12 @@ static AHCIQState *ahci_boot(const char *cli, ...)
         s = ahci_vboot(cli, ap);
         va_end(ap);
     } else {
-        cli = "-drive if=none,id=drive0,file=%s,cache=writeback,serial=%s"
-            ",format=%s"
+        cli = "-drive if=none,id=drive0,file=%s,cache=writeback,format=%s"
             " -M q35 "
             "-device ide-hd,drive=drive0 "
+            "-global ide-hd.serial=%s "
             "-global ide-hd.ver=%s";
-        s = ahci_boot(cli, tmp_path, "testdisk", imgfmt, "version");
+        s = ahci_boot(cli, tmp_path, imgfmt, "testdisk", "version");
     }
 
     return s;
