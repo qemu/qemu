@@ -25,6 +25,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "qemu/int128.h"
+#include "qemu/atomic128.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/s390x/storage-keys.h"
@@ -1389,7 +1390,7 @@ static void do_cdsg(CPUS390XState *env, uint64_t addr,
     bool fail;
 
     if (parallel) {
-#ifndef CONFIG_ATOMIC128
+#if !HAVE_CMPXCHG128
         cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
 #else
         int mem_idx = cpu_mmu_index(env, false);
@@ -1435,9 +1436,7 @@ void HELPER(cdsg_parallel)(CPUS390XState *env, uint64_t addr,
 static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
                         uint64_t a2, bool parallel)
 {
-#if !defined(CONFIG_USER_ONLY) || defined(CONFIG_ATOMIC128)
     uint32_t mem_idx = cpu_mmu_index(env, false);
-#endif
     uintptr_t ra = GETPC();
     uint32_t fc = extract32(env->regs[0], 0, 8);
     uint32_t sc = extract32(env->regs[0], 8, 8);
@@ -1465,18 +1464,20 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
     probe_write(env, a2, 0, mem_idx, ra);
 #endif
 
-    /* Note that the compare-and-swap is atomic, and the store is atomic, but
-       the complete operation is not.  Therefore we do not need to assert serial
-       context in order to implement this.  That said, restart early if we can't
-       support either operation that is supposed to be atomic.  */
+    /*
+     * Note that the compare-and-swap is atomic, and the store is atomic,
+     * but the complete operation is not.  Therefore we do not need to
+     * assert serial context in order to implement this.  That said,
+     * restart early if we can't support either operation that is supposed
+     * to be atomic.
+     */
     if (parallel) {
-        int mask = 0;
-#if !defined(CONFIG_ATOMIC64)
-        mask = -8;
-#elif !defined(CONFIG_ATOMIC128)
-        mask = -16;
+        uint32_t max = 2;
+#ifdef CONFIG_ATOMIC64
+        max = 3;
 #endif
-        if (((4 << fc) | (1 << sc)) & mask) {
+        if ((HAVE_CMPXCHG128 ? 0 : fc + 2 > max) ||
+            (HAVE_ATOMIC128  ? 0 : sc > max)) {
             cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
         }
     }
@@ -1546,16 +1547,7 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
             Int128 cv = int128_make128(env->regs[r3 + 1], env->regs[r3]);
             Int128 ov;
 
-            if (parallel) {
-#ifdef CONFIG_ATOMIC128
-                TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
-                ov = helper_atomic_cmpxchgo_be_mmu(env, a1, cv, nv, oi, ra);
-                cc = !int128_eq(ov, cv);
-#else
-                /* Note that we asserted !parallel above.  */
-                g_assert_not_reached();
-#endif
-            } else {
+            if (!parallel) {
                 uint64_t oh = cpu_ldq_data_ra(env, a1 + 0, ra);
                 uint64_t ol = cpu_ldq_data_ra(env, a1 + 8, ra);
 
@@ -1567,6 +1559,13 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
 
                 cpu_stq_data_ra(env, a1 + 0, int128_gethi(nv), ra);
                 cpu_stq_data_ra(env, a1 + 8, int128_getlo(nv), ra);
+            } else if (HAVE_CMPXCHG128) {
+                TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
+                ov = helper_atomic_cmpxchgo_be_mmu(env, a1, cv, nv, oi, ra);
+                cc = !int128_eq(ov, cv);
+            } else {
+                /* Note that we asserted !parallel above.  */
+                g_assert_not_reached();
             }
 
             env->regs[r3 + 0] = int128_gethi(ov);
@@ -1596,18 +1595,16 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
             cpu_stq_data_ra(env, a2, svh, ra);
             break;
         case 4:
-            if (parallel) {
-#ifdef CONFIG_ATOMIC128
+            if (!parallel) {
+                cpu_stq_data_ra(env, a2 + 0, svh, ra);
+                cpu_stq_data_ra(env, a2 + 8, svl, ra);
+            } else if (HAVE_ATOMIC128) {
                 TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
                 Int128 sv = int128_make128(svl, svh);
                 helper_atomic_sto_be_mmu(env, a2, sv, oi, ra);
-#else
+            } else {
                 /* Note that we asserted !parallel above.  */
                 g_assert_not_reached();
-#endif
-            } else {
-                cpu_stq_data_ra(env, a2 + 0, svh, ra);
-                cpu_stq_data_ra(env, a2 + 8, svl, ra);
             }
             break;
         default:
@@ -2105,21 +2102,18 @@ static uint64_t do_lpq(CPUS390XState *env, uint64_t addr, bool parallel)
     uintptr_t ra = GETPC();
     uint64_t hi, lo;
 
-    if (parallel) {
-#ifndef CONFIG_ATOMIC128
-        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
-#else
+    if (!parallel) {
+        check_alignment(env, addr, 16, ra);
+        hi = cpu_ldq_data_ra(env, addr + 0, ra);
+        lo = cpu_ldq_data_ra(env, addr + 8, ra);
+    } else if (HAVE_ATOMIC128) {
         int mem_idx = cpu_mmu_index(env, false);
         TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
         Int128 v = helper_atomic_ldo_be_mmu(env, addr, oi, ra);
         hi = int128_gethi(v);
         lo = int128_getlo(v);
-#endif
     } else {
-        check_alignment(env, addr, 16, ra);
-
-        hi = cpu_ldq_data_ra(env, addr + 0, ra);
-        lo = cpu_ldq_data_ra(env, addr + 8, ra);
+        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
     }
 
     env->retxl = lo;
@@ -2142,21 +2136,17 @@ static void do_stpq(CPUS390XState *env, uint64_t addr,
 {
     uintptr_t ra = GETPC();
 
-    if (parallel) {
-#ifndef CONFIG_ATOMIC128
-        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
-#else
-        int mem_idx = cpu_mmu_index(env, false);
-        TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
-
-        Int128 v = int128_make128(low, high);
-        helper_atomic_sto_be_mmu(env, addr, v, oi, ra);
-#endif
-    } else {
+    if (!parallel) {
         check_alignment(env, addr, 16, ra);
-
         cpu_stq_data_ra(env, addr + 0, high, ra);
         cpu_stq_data_ra(env, addr + 8, low, ra);
+    } else if (HAVE_ATOMIC128) {
+        int mem_idx = cpu_mmu_index(env, false);
+        TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
+        Int128 v = int128_make128(low, high);
+        helper_atomic_sto_be_mmu(env, addr, v, oi, ra);
+    } else {
+        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
     }
 }
 
