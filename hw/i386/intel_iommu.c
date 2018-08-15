@@ -311,14 +311,14 @@ static void vtd_generate_fault_event(IntelIOMMUState *s, uint32_t pre_fsts)
 {
     if (pre_fsts & VTD_FSTS_PPF || pre_fsts & VTD_FSTS_PFO ||
         pre_fsts & VTD_FSTS_IQE) {
-        trace_vtd_err("There are previous interrupt conditions "
-                      "to be serviced by software, fault event "
-                      "is not generated.");
+        error_report_once("There are previous interrupt conditions "
+                          "to be serviced by software, fault event "
+                          "is not generated");
         return;
     }
     vtd_set_clear_mask_long(s, DMAR_FECTL_REG, 0, VTD_FECTL_IP);
     if (vtd_get_long_raw(s, DMAR_FECTL_REG) & VTD_FECTL_IM) {
-        trace_vtd_err("Interrupt Mask set, irq is not generated.");
+        error_report_once("Interrupt Mask set, irq is not generated");
     } else {
         vtd_generate_interrupt(s, DMAR_FEADDR_REG, DMAR_FEDATA_REG);
         vtd_set_clear_mask_long(s, DMAR_FECTL_REG, VTD_FECTL_IP, 0);
@@ -426,20 +426,20 @@ static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
     trace_vtd_dmar_fault(source_id, fault, addr, is_write);
 
     if (fsts_reg & VTD_FSTS_PFO) {
-        trace_vtd_err("New fault is not recorded due to "
-                      "Primary Fault Overflow.");
+        error_report_once("New fault is not recorded due to "
+                          "Primary Fault Overflow");
         return;
     }
 
     if (vtd_try_collapse_fault(s, source_id)) {
-        trace_vtd_err("New fault is not recorded due to "
-                      "compression of faults.");
+        error_report_once("New fault is not recorded due to "
+                          "compression of faults");
         return;
     }
 
     if (vtd_is_frcd_set(s, s->next_frcd_reg)) {
-        trace_vtd_err("Next Fault Recording Reg is used, "
-                      "new fault is not recorded, set PFO field.");
+        error_report_once("Next Fault Recording Reg is used, "
+                          "new fault is not recorded, set PFO field");
         vtd_set_clear_mask_long(s, DMAR_FSTS_REG, 0, VTD_FSTS_PFO);
         return;
     }
@@ -447,8 +447,8 @@ static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
     vtd_record_frcd(s, s->next_frcd_reg, source_id, addr, fault, is_write);
 
     if (fsts_reg & VTD_FSTS_PPF) {
-        trace_vtd_err("There are pending faults already, "
-                      "fault event is not generated.");
+        error_report_once("There are pending faults already, "
+                          "fault event is not generated");
         vtd_set_frcd_and_update_ppf(s, s->next_frcd_reg);
         s->next_frcd_reg++;
         if (s->next_frcd_reg == DMAR_FRCD_REG_NR) {
@@ -1056,8 +1056,10 @@ static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
              * we just skip the sync for this time.  After all we even
              * don't have the root table pointer!
              */
-            trace_vtd_err("Detected invalid context entry when "
-                          "trying to sync shadow page table");
+            error_report_once("%s: invalid context entry for bus 0x%x"
+                              " devfn 0x%x",
+                              __func__, pci_bus_num(vtd_as->bus),
+                              vtd_as->devfn);
             return 0;
         }
     }
@@ -1514,7 +1516,8 @@ static uint64_t vtd_context_cache_invalidate(IntelIOMMUState *s, uint64_t val)
         break;
 
     default:
-        trace_vtd_err("Context cache invalidate type error.");
+        error_report_once("%s: invalid context: 0x%" PRIx64,
+                          __func__, val);
         caig = 0;
     }
     return caig;
@@ -1634,7 +1637,8 @@ static uint64_t vtd_iotlb_flush(IntelIOMMUState *s, uint64_t val)
         am = VTD_IVA_AM(addr);
         addr = VTD_IVA_ADDR(addr);
         if (am > VTD_MAMV) {
-            trace_vtd_err("IOTLB PSI flush: address mask overflow.");
+            error_report_once("%s: address mask overflow: 0x%" PRIx64,
+                              __func__, vtd_get_quad_raw(s, DMAR_IVA_REG));
             iaig = 0;
             break;
         }
@@ -1643,7 +1647,8 @@ static uint64_t vtd_iotlb_flush(IntelIOMMUState *s, uint64_t val)
         break;
 
     default:
-        trace_vtd_err("IOTLB flush: invalid granularity.");
+        error_report_once("%s: invalid granularity: 0x%" PRIx64,
+                          __func__, val);
         iaig = 0;
     }
     return iaig;
@@ -1793,8 +1798,8 @@ static void vtd_handle_ccmd_write(IntelIOMMUState *s)
     /* Context-cache invalidation request */
     if (val & VTD_CCMD_ICC) {
         if (s->qi_enabled) {
-            trace_vtd_err("Queued Invalidation enabled, "
-                          "should not use register-based invalidation");
+            error_report_once("Queued Invalidation enabled, "
+                              "should not use register-based invalidation");
             return;
         }
         ret = vtd_context_cache_invalidate(s, val);
@@ -1814,8 +1819,8 @@ static void vtd_handle_iotlb_write(IntelIOMMUState *s)
     /* IOTLB invalidation request */
     if (val & VTD_TLB_IVT) {
         if (s->qi_enabled) {
-            trace_vtd_err("Queued Invalidation enabled, "
-                          "should not use register-based invalidation.");
+            error_report_once("Queued Invalidation enabled, "
+                              "should not use register-based invalidation");
             return;
         }
         ret = vtd_iotlb_flush(s, val);
@@ -1833,7 +1838,7 @@ static bool vtd_get_inv_desc(dma_addr_t base_addr, uint32_t offset,
     dma_addr_t addr = base_addr + offset * sizeof(*inv_desc);
     if (dma_memory_read(&address_space_memory, addr, inv_desc,
         sizeof(*inv_desc))) {
-        trace_vtd_err("Read INV DESC failed.");
+        error_report_once("Read INV DESC failed");
         inv_desc->lo = 0;
         inv_desc->hi = 0;
         return false;
@@ -2188,7 +2193,8 @@ static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
     trace_vtd_reg_read(addr, size);
 
     if (addr + size > DMAR_REG_SIZE) {
-        trace_vtd_err("Read MMIO over range.");
+        error_report_once("%s: MMIO over range: addr=0x%" PRIx64
+                          " size=0x%u", __func__, addr, size);
         return (uint64_t)-1;
     }
 
@@ -2239,7 +2245,8 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
     trace_vtd_reg_write(addr, size, val);
 
     if (addr + size > DMAR_REG_SIZE) {
-        trace_vtd_err("Write MMIO over range.");
+        error_report_once("%s: MMIO over range: addr=0x%" PRIx64
+                          " size=0x%u", __func__, addr, size);
         return;
     }
 
@@ -2610,7 +2617,8 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
     addr = iommu->intr_root + index * sizeof(*entry);
     if (dma_memory_read(&address_space_memory, addr, entry,
                         sizeof(*entry))) {
-        trace_vtd_err("Memory read failed for IRTE.");
+        error_report_once("%s: read failed: ind=0x%x addr=0x%" PRIx64,
+                          __func__, index, addr);
         return -VTD_FR_IR_ROOT_INVAL;
     }
 
@@ -2742,14 +2750,15 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
     }
 
     if (origin->address & VTD_MSI_ADDR_HI_MASK) {
-        trace_vtd_err("MSI address high 32 bits non-zero when "
-                      "Interrupt Remapping enabled.");
+        error_report_once("%s: MSI address high 32 bits non-zero detected: "
+                          "address=0x%" PRIx64, __func__, origin->address);
         return -VTD_FR_IR_REQ_RSVD;
     }
 
     addr.data = origin->address & VTD_MSI_ADDR_LO_MASK;
     if (addr.addr.__head != 0xfee) {
-        trace_vtd_err("MSI addr low 32 bit invalid.");
+        error_report_once("%s: MSI address low 32 bit invalid: 0x%" PRIx32,
+                          __func__, addr.data);
         return -VTD_FR_IR_REQ_RSVD;
     }
 

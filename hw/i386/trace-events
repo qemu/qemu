@@ -69,7 +69,6 @@ vtd_ir_remap_msi_req(uint64_t addr, uint64_t data) "addr 0x%"PRIx64" data 0x%"PR
 vtd_fsts_ppf(bool set) "FSTS PPF bit set to %d"
 vtd_fsts_clear_ip(void) ""
 vtd_frr_new(int index, uint64_t hi, uint64_t lo) "index %d high 0x%"PRIx64" low 0x%"PRIx64
-vtd_err(const char *str) "%s"
 vtd_err_dmar_iova_overflow(uint64_t iova) "iova 0x%"PRIx64
 vtd_err_dmar_slpte_read_error(uint64_t iova, int level) "iova 0x%"PRIx64" level %d"
 vtd_err_dmar_slpte_perm_error(uint64_t iova, int level, uint64_t slpte, bool is_write) "iova 0x%"PRIx64" level %d slpte 0x%"PRIx64" write %d"
