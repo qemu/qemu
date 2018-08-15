@@ -692,8 +692,7 @@ static inline void qht_bucket_remove_entry(struct qht_bucket *orig, int pos)
 
 /* call with b->lock held */
 static inline
-bool qht_remove__locked(struct qht_map *map, struct qht_bucket *head,
-                        const void *p, uint32_t hash)
+bool qht_remove__locked(struct qht_bucket *head, const void *p, uint32_t hash)
 {
     struct qht_bucket *b = head;
     int i;
@@ -728,7 +727,7 @@ bool qht_remove(struct qht *ht, const void *p, uint32_t hash)
     qht_debug_assert(p);
 
     b = qht_bucket_lock__no_stale(ht, hash, &map);
-    ret = qht_remove__locked(map, b, p, hash);
+    ret = qht_remove__locked(b, p, hash);
     qht_bucket_debug__locked(b);
     qemu_spin_unlock(&b->lock);
     return ret;
