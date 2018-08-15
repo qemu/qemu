@@ -41,7 +41,7 @@ static void insert(int a, int b)
     }
 }
 
-static void rm(int init, int end)
+static void do_rm(int init, int end, bool exist)
 {
     int i;
 
@@ -49,8 +49,22 @@ static void rm(int init, int end)
         uint32_t hash;
 
         hash = arr[i];
-        g_assert_true(qht_remove(&ht, &arr[i], hash));
+        if (exist) {
+            g_assert_true(qht_remove(&ht, &arr[i], hash));
+        } else {
+            g_assert_false(qht_remove(&ht, &arr[i], hash));
+        }
     }
+}
+
+static void rm(int init, int end)
+{
+    do_rm(init, end, true);
+}
+
+static void rm_nonexist(int init, int end)
+{
+    do_rm(init, end, false);
 }
 
 static void check(int a, int b, bool expected)
@@ -157,8 +171,15 @@ static void qht_do_test(unsigned int mode, size_t init_entries)
     check_n(0);
 
     qht_init(&ht, is_equal, 0, mode);
+    rm_nonexist(0, 4);
+    insert(0, 4);
+    rm_nonexist(5, 6);
+    insert(4, 6);
+    rm_nonexist(7, 8);
+    iter_rm_mod(1);
 
     check_n(0);
+    rm_nonexist(0, 10);
     insert(0, N);
     check(0, N, true);
     check_n(N);
@@ -183,6 +204,7 @@ static void qht_do_test(unsigned int mode, size_t init_entries)
 
     qht_reset(&ht);
     insert(0, N);
+    rm_nonexist(N, N + 32);
     iter_rm_mod(10);
     iter_rm_mod_check(10);
     check_n(N * 9 / 10);
