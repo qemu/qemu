@@ -1099,7 +1099,17 @@ static void lo_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
     }
 
     if (flags) {
+#ifndef SYS_renameat2
         fuse_reply_err(req, EINVAL);
+#else
+        res = syscall(SYS_renameat2, lo_fd(req, parent), name,
+                       lo_fd(req, newparent), newname, flags);
+        if (res == -1 && errno == ENOSYS) {
+            fuse_reply_err(req, EINVAL);
+        } else {
+            fuse_reply_err(req, res == -1 ? errno : 0);
+        }
+#endif
         return;
     }
 
