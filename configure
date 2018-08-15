@@ -5154,6 +5154,21 @@ EOF
   fi
 fi
 
+cmpxchg128=no
+if test "$int128" = yes -a "$atomic128" = no; then
+  cat > $TMPC << EOF
+int main(void)
+{
+  unsigned __int128 x = 0, y = 0;
+  __sync_val_compare_and_swap_16(&x, y, x);
+  return 0;
+}
+EOF
+  if compile_prog "" "" ; then
+    cmpxchg128=yes
+  fi
+fi
+
 #########################################
 # See if 64-bit atomic operations are supported.
 # Note that without __atomic builtins, we can only
@@ -6661,6 +6676,10 @@ fi
 
 if test "$atomic128" = "yes" ; then
   echo "CONFIG_ATOMIC128=y" >> $config_host_mak
+fi
+
+if test "$cmpxchg128" = "yes" ; then
+  echo "CONFIG_CMPXCHG128=y" >> $config_host_mak
 fi
 
 if test "$atomic64" = "yes" ; then

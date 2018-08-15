@@ -32,6 +32,7 @@
 #include "qemu/queue.h"
 #include "tcg-mo.h"
 #include "tcg-target.h"
+#include "qemu/int128.h"
 
 /* XXX: make safe guess about sizes */
 #define MAX_OP_PER_INSTR 266
@@ -1456,11 +1457,14 @@ GEN_ATOMIC_HELPER_ALL(xchg)
 #undef GEN_ATOMIC_HELPER
 #endif /* CONFIG_SOFTMMU */
 
-#ifdef CONFIG_ATOMIC128
-#include "qemu/int128.h"
-
-/* These aren't really a "proper" helpers because TCG cannot manage Int128.
-   However, use the same format as the others, for use by the backends. */
+/*
+ * These aren't really a "proper" helpers because TCG cannot manage Int128.
+ * However, use the same format as the others, for use by the backends.
+ *
+ * The cmpxchg functions are only defined if HAVE_CMPXCHG128;
+ * the ld/st functions are only defined if HAVE_ATOMIC128,
+ * as defined by <qemu/atomic128.h>.
+ */
 Int128 helper_atomic_cmpxchgo_le_mmu(CPUArchState *env, target_ulong addr,
                                      Int128 cmpv, Int128 newv,
                                      TCGMemOpIdx oi, uintptr_t retaddr);
@@ -1476,7 +1480,5 @@ void helper_atomic_sto_le_mmu(CPUArchState *env, target_ulong addr, Int128 val,
                               TCGMemOpIdx oi, uintptr_t retaddr);
 void helper_atomic_sto_be_mmu(CPUArchState *env, target_ulong addr, Int128 val,
                               TCGMemOpIdx oi, uintptr_t retaddr);
-
-#endif /* CONFIG_ATOMIC128 */
 
 #endif /* TCG_H */

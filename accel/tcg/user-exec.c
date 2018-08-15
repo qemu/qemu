@@ -25,6 +25,7 @@
 #include "exec/cpu_ldst.h"
 #include "translate-all.h"
 #include "exec/helper-proto.h"
+#include "qemu/atomic128.h"
 
 #undef EAX
 #undef ECX
@@ -615,7 +616,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 /* The following is only callable from other helpers, and matches up
    with the softmmu version.  */
 
-#ifdef CONFIG_ATOMIC128
+#if HAVE_ATOMIC128 || HAVE_CMPXCHG128
 
 #undef EXTRA_ARGS
 #undef ATOMIC_NAME
@@ -628,4 +629,4 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 
 #define DATA_SIZE 16
 #include "atomic_template.h"
-#endif /* CONFIG_ATOMIC128 */
+#endif

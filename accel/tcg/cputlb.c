@@ -32,6 +32,7 @@
 #include "exec/log.h"
 #include "exec/helper-proto.h"
 #include "qemu/atomic.h"
+#include "qemu/atomic128.h"
 
 /* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */
 /* #define DEBUG_TLB */
@@ -1112,7 +1113,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #include "atomic_template.h"
 #endif
 
-#ifdef CONFIG_ATOMIC128
+#if HAVE_CMPXCHG128 || HAVE_ATOMIC128
 #define DATA_SIZE 16
 #include "atomic_template.h"
 #endif
