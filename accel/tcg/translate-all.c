@@ -1493,7 +1493,7 @@ static void tb_phys_invalidate__locked(TranslationBlock *tb)
  */
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
-    if (page_addr == -1) {
+    if (page_addr == -1 && tb->page_addr[0] != -1) {
         page_lock_tb(tb);
         do_tb_phys_invalidate(tb, true);
         page_unlock_tb(tb);
@@ -1608,6 +1608,17 @@ tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
 
     assert_memory_lock();
 
+    if (phys_pc == -1) {
+        /*
+         * If the TB is not associated with a physical RAM page then
+         * it must be a temporary one-insn TB, and we have nothing to do
+         * except fill in the page_addr[] fields.
+         */
+        assert(tb->cflags & CF_NOCACHE);
+        tb->page_addr[0] = tb->page_addr[1] = -1;
+        return tb;
+    }
+
     /*
      * Add the TB to the page list, acquiring first the pages's locks.
      * We keep the locks held until after inserting the TB in the hash table,
@@ -1676,6 +1687,12 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     assert_memory_lock();
 
     phys_pc = get_page_addr_code(env, pc);
+
+    if (phys_pc == -1) {
+        /* Generate a temporary TB with 1 insn in it */
+        cflags &= ~CF_COUNT_MASK;
+        cflags |= CF_NOCACHE | 1;
+    }
 
  buffer_overflow:
     tb = tb_alloc(pc);
@@ -2121,7 +2138,9 @@ void tb_check_watchpoint(CPUState *cpu)
 
         cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
         addr = get_page_addr_code(env, pc);
-        tb_invalidate_phys_range(addr, addr + 1);
+        if (addr != -1) {
+            tb_invalidate_phys_range(addr, addr + 1);
+        }
     }
 }
 
