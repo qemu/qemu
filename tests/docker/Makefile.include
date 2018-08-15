@@ -27,8 +27,11 @@ DOCKER_SRC_COPY := $(BUILD_DIR)/docker-src.$(CUR_TIME)
 
 $(DOCKER_SRC_COPY):
 	@mkdir $@
-	$(call quiet-command, cd $(SRC_PATH) && scripts/archive-source.sh $@/qemu.tar, \
-		"GEN", "$@/qemu.tar")
+	$(if $(SRC_ARCHIVE), \
+		$(call quiet-command, cp "$(SRC_ARCHIVE)" $@/qemu.tar, \
+			"CP", "$@/qemu.tar"), \
+		$(call quiet-command, cd $(SRC_PATH) && scripts/archive-source.sh $@/qemu.tar, \
+			"GEN", "$@/qemu.tar"))
 	$(call quiet-command, cp $(SRC_PATH)/tests/docker/run $@/run, \
 		"COPY","RUNNER")
 

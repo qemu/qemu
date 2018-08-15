@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #
-# Ubuntu i386 image
+# CentOS image
 #
-# Copyright 2017 Red Hat Inc.
+# Copyright 2018 Red Hat Inc.
 #
 # Authors:
 #  Fam Zheng <famz@redhat.com>
@@ -17,23 +17,24 @@ import subprocess
 import basevm
 import time
 
-class UbuntuX86VM(basevm.BaseVM):
-    name = "ubuntu.i386"
+class CentosVM(basevm.BaseVM):
+    name = "centos"
     BUILD_SCRIPT = """
         set -e;
         cd $(mktemp -d);
-        sudo chmod a+r /dev/vdb;
-        tar -xf /dev/vdb;
-        ./configure {configure_opts};
-        make --output-sync -j{jobs};
-        make --output-sync check -j{jobs} {verbose};
+        export SRC_ARCHIVE=/dev/vdb;
+        sudo chmod a+r $SRC_ARCHIVE;
+        tar -xf $SRC_ARCHIVE;
+        make docker-test-block@centos7 V={verbose} J={jobs};
+        make docker-test-quick@centos7 V={verbose} J={jobs};
+        make docker-test-mingw@fedora V={verbose} J={jobs};
     """
 
     def _gen_cloud_init_iso(self):
         cidir = self._tmpdir
         mdata = open(os.path.join(cidir, "meta-data"), "w")
-        mdata.writelines(["instance-id: ubuntu-vm-0\n",
-                          "local-hostname: ubuntu-guest\n"])
+        mdata.writelines(["instance-id: centos-vm-0\n",
+                          "local-hostname: centos-guest\n"])
         mdata.close()
         udata = open(os.path.join(cidir, "user-data"), "w")
         udata.writelines(["#cloud-config\n",
@@ -61,23 +62,17 @@ class UbuntuX86VM(basevm.BaseVM):
         return os.path.join(cidir, "cloud-init.iso")
 
     def build_image(self, img):
-        cimg = self._download_with_cache("https://cloud-images.ubuntu.com/releases/16.04/release/ubuntu-16.04-server-cloudimg-i386-disk1.img")
+        cimg = self._download_with_cache("https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1802.qcow2.xz")
         img_tmp = img + ".tmp"
-        subprocess.check_call(["cp", "-f", cimg, img_tmp])
+        subprocess.check_call(["cp", "-f", cimg, img_tmp + ".xz"])
+        subprocess.check_call(["xz", "-df", img_tmp + ".xz"])
         subprocess.check_call(["qemu-img", "resize", img_tmp, "50G"])
         self.boot(img_tmp, extra_args = ["-cdrom", self._gen_cloud_init_iso()])
         self.wait_ssh()
         self.ssh_root_check("touch /etc/cloud/cloud-init.disabled")
-        self.ssh_root_check("apt-get update")
-        self.ssh_root_check("apt-get install -y cloud-initramfs-growroot")
-        # Don't check the status in case the guest hang up too quickly
-        self.ssh_root("sync && reboot")
-        time.sleep(5)
-        self.wait_ssh()
-        # The previous update sometimes doesn't survive a reboot, so do it again
-        self.ssh_root_check("apt-get update")
-        self.ssh_root_check("apt-get build-dep -y qemu")
-        self.ssh_root_check("apt-get install -y libfdt-dev flex bison")
+        self.ssh_root_check("yum update -y")
+        self.ssh_root_check("yum install -y docker make git")
+        self.ssh_root_check("systemctl enable docker")
         self.ssh_root("poweroff")
         self.wait()
         if os.path.exists(img):
@@ -86,4 +81,4 @@ class UbuntuX86VM(basevm.BaseVM):
         return 0
 
 if __name__ == "__main__":
-    sys.exit(basevm.main(UbuntuX86VM))
+    sys.exit(basevm.main(CentosVM))

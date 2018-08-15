@@ -64,8 +64,7 @@ class BaseVM(object):
         else:
             self._stdout = self._devnull
         self._args = [ \
-            "-nodefaults", "-m", "2G",
-            "-cpu", "host",
+            "-nodefaults", "-m", "4G",
             "-netdev", "user,id=vnet,hostfwd=:127.0.0.1:0-:22",
             "-device", "virtio-net-pci,netdev=vnet",
             "-vnc", "127.0.0.1:0,to=20",
@@ -73,9 +72,11 @@ class BaseVM(object):
         if vcpus:
             self._args += ["-smp", str(vcpus)]
         if os.access("/dev/kvm", os.R_OK | os.W_OK):
+            self._args += ["-cpu", "host"]
             self._args += ["-enable-kvm"]
         else:
             logging.info("KVM not available, not using -enable-kvm")
+            self._args += ["-cpu", "max"]
         self._data_args = []
 
     def _download_with_cache(self, url, sha256sum=None):
@@ -210,12 +211,16 @@ def parse_args(vm_name):
                       help="force build image even if image exists")
     parser.add_option("--jobs", type=int, default=multiprocessing.cpu_count() / 2,
                       help="number of virtual CPUs")
+    parser.add_option("--verbose", "-V", action="store_true",
+                      help="Pass V=1 to builds within the guest")
     parser.add_option("--build-image", "-b", action="store_true",
                       help="build image")
     parser.add_option("--build-qemu",
                       help="build QEMU from source in guest")
     parser.add_option("--interactive", "-I", action="store_true",
                       help="Interactively run command")
+    parser.add_option("--snapshot", "-s", action="store_true",
+                      help="run tests with a snapshot")
     parser.disable_interspersed_args()
     return parser.parse_args()
 
@@ -238,10 +243,14 @@ def main(vmcls):
             vm.add_source_dir(args.build_qemu)
             cmd = [vm.BUILD_SCRIPT.format(
                    configure_opts = " ".join(argv),
-                   jobs=args.jobs)]
+                   jobs=args.jobs,
+                   verbose = "V=1" if args.verbose else "")]
         else:
             cmd = argv
-        vm.boot(args.image + ",snapshot=on")
+        img = args.image
+        if args.snapshot:
+            img += ",snapshot=on"
+        vm.boot(img)
         vm.wait_ssh()
     except Exception as e:
         if isinstance(e, SystemExit) and e.code == 0:

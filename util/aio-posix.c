@@ -232,7 +232,7 @@ void aio_set_fd_handler(AioContext *ctx,
             g_source_remove_poll(&ctx->source, &node->pfd);
         }
 
-        /* If the lock is held, just mark the node as deleted */
+        /* If a read is in progress, just mark the node as deleted */
         if (qemu_lockcnt_count(&ctx->list_lock)) {
             node->deleted = 1;
             node->pfd.revents = 0;
@@ -494,7 +494,8 @@ static bool run_poll_handlers_once(AioContext *ctx)
     QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
         if (!node->deleted && node->io_poll &&
             aio_node_check(ctx, node->is_external) &&
-            node->io_poll(node->opaque)) {
+            node->io_poll(node->opaque) &&
+            node->opaque != &ctx->notifier) {
             progress = true;
         }
 
@@ -590,6 +591,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
      * so disable the optimization now.
      */
     if (blocking) {
+        assert(in_aio_context_home_thread(ctx));
         atomic_add(&ctx->notify_me, 2);
     }
 
@@ -632,6 +634,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     if (blocking) {
         atomic_sub(&ctx->notify_me, 2);
+        aio_notify_accept(ctx);
     }
 
     /* Adjust polling time */
@@ -674,8 +677,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
             trace_poll_grow(ctx, old, ctx->poll_ns);
         }
     }
-
-    aio_notify_accept(ctx);
 
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {
