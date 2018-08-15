@@ -187,7 +187,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
     }
     switch ((*obj)->type) {
 ''',
-                 c_name=c_name(name))
+                c_name=c_name(name))
 
     for var in variants.variants:
         ret += mcgen('''

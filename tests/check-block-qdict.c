@@ -491,6 +491,7 @@ static void qdict_crumple_test_recursive(void)
     empty_list_0 = qobject_to(QDict, qlist_pop(empty_list));
     g_assert(empty_list_0);
     g_assert_cmpint(qdict_size(empty_list_0), ==, 0);
+    qobject_unref(empty_list_0);
 
     qobject_unref(src);
     qobject_unref(dst);

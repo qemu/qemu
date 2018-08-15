@@ -74,6 +74,7 @@ import sys
 import os
 import errno
 import atexit
+import shlex
 
 class QMPCompleter(list):
     def complete(self, text, state):
@@ -219,7 +220,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
             < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
         """
-        cmdargs = cmdline.split()
+        cmdargs = shlex.split(cmdline)
 
         # Transactional CLI entry/exit:
         if cmdargs[0] == 'transaction(':

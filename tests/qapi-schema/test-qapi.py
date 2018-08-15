@@ -34,8 +34,8 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         if base:
             print('    base %s' % base.name)
         for m in members:
-            print('    member %s: %s optional=%s' % \
-                  (m.name, m.type.name, m.optional))
+            print('    member %s: %s optional=%s'
+                  % (m.name, m.type.name, m.optional))
         self._print_variants(variants)
         self._print_if(ifcond)
 
@@ -46,10 +46,11 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig):
-        print('command %s %s -> %s' % \
-              (name, arg_type and arg_type.name, ret_type and ret_type.name))
-        print('   gen=%s success_response=%s boxed=%s oob=%s preconfig=%s' % \
-              (gen, success_response, boxed, allow_oob, allow_preconfig))
+        print('command %s %s -> %s'
+              % (name, arg_type and arg_type.name,
+                 ret_type and ret_type.name))
+        print('   gen=%s success_response=%s boxed=%s oob=%s preconfig=%s'
+              % (gen, success_response, boxed, allow_oob, allow_preconfig))
         self._print_if(ifcond)
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
