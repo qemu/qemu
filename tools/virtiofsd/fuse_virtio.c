@@ -230,6 +230,168 @@ err:
     return ret;
 }
 
+/*
+ * Callback from fuse_send_data_iov_* when it's virtio and the buffer
+ * is a single FD with FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK
+ * We need send the iov and then the buffer.
+ * Return 0 on success
+ */
+int virtio_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
+                         struct iovec *iov, int count, struct fuse_bufvec *buf,
+                         size_t len)
+{
+    int ret = 0;
+    VuVirtqElement *elem;
+    VuVirtq *q;
+
+    assert(count >= 1);
+    assert(iov[0].iov_len >= sizeof(struct fuse_out_header));
+
+    struct fuse_out_header *out = iov[0].iov_base;
+    /* TODO: Endianness! */
+
+    size_t iov_len = iov_size(iov, count);
+    size_t tosend_len = iov_len + len;
+
+    out->len = tosend_len;
+
+    fuse_log(FUSE_LOG_DEBUG, "%s: count=%d len=%zd iov_len=%zd\n", __func__,
+             count, len, iov_len);
+
+    /* unique == 0 is notification which we don't support */
+    assert(out->unique);
+
+    /* For virtio we always have ch */
+    assert(ch);
+    assert(!ch->qi->reply_sent);
+    elem = ch->qi->qe;
+    q = &ch->qi->virtio_dev->dev.vq[ch->qi->qidx];
+
+    /* The 'in' part of the elem is to qemu */
+    unsigned int in_num = elem->in_num;
+    struct iovec *in_sg = elem->in_sg;
+    size_t in_len = iov_size(in_sg, in_num);
+    fuse_log(FUSE_LOG_DEBUG, "%s: elem %d: with %d in desc of length %zd\n",
+             __func__, elem->index, in_num, in_len);
+
+    /*
+     * The elem should have room for a 'fuse_out_header' (out from fuse)
+     * plus the data based on the len in the header.
+     */
+    if (in_len < sizeof(struct fuse_out_header)) {
+        fuse_log(FUSE_LOG_ERR, "%s: elem %d too short for out_header\n",
+                 __func__, elem->index);
+        ret = E2BIG;
+        goto err;
+    }
+    if (in_len < tosend_len) {
+        fuse_log(FUSE_LOG_ERR, "%s: elem %d too small for data len %zd\n",
+                 __func__, elem->index, tosend_len);
+        ret = E2BIG;
+        goto err;
+    }
+
+    /* TODO: Limit to 'len' */
+
+    /* First copy the header data from iov->in_sg */
+    copy_iov(iov, count, in_sg, in_num, iov_len);
+
+    /*
+     * Build a copy of the the in_sg iov so we can skip bits in it,
+     * including changing the offsets
+     */
+    struct iovec *in_sg_cpy = calloc(sizeof(struct iovec), in_num);
+    assert(in_sg_cpy);
+    memcpy(in_sg_cpy, in_sg, sizeof(struct iovec) * in_num);
+    /* These get updated as we skip */
+    struct iovec *in_sg_ptr = in_sg_cpy;
+    int in_sg_cpy_count = in_num;
+
+    /* skip over parts of in_sg that contained the header iov */
+    size_t skip_size = iov_len;
+
+    size_t in_sg_left = 0;
+    do {
+        while (skip_size != 0 && in_sg_cpy_count) {
+            if (skip_size >= in_sg_ptr[0].iov_len) {
+                skip_size -= in_sg_ptr[0].iov_len;
+                in_sg_ptr++;
+                in_sg_cpy_count--;
+            } else {
+                in_sg_ptr[0].iov_len -= skip_size;
+                in_sg_ptr[0].iov_base += skip_size;
+                break;
+            }
+        }
+
+        int i;
+        for (i = 0, in_sg_left = 0; i < in_sg_cpy_count; i++) {
+            in_sg_left += in_sg_ptr[i].iov_len;
+        }
+        fuse_log(FUSE_LOG_DEBUG,
+                 "%s: after skip skip_size=%zd in_sg_cpy_count=%d "
+                 "in_sg_left=%zd\n",
+                 __func__, skip_size, in_sg_cpy_count, in_sg_left);
+        ret = preadv(buf->buf[0].fd, in_sg_ptr, in_sg_cpy_count,
+                     buf->buf[0].pos);
+
+        if (ret == -1) {
+            ret = errno;
+            fuse_log(FUSE_LOG_DEBUG, "%s: preadv failed (%m) len=%zd\n",
+                     __func__, len);
+            free(in_sg_cpy);
+            goto err;
+        }
+        fuse_log(FUSE_LOG_DEBUG, "%s: preadv ret=%d len=%zd\n", __func__,
+                 ret, len);
+        if (ret < len && ret) {
+            fuse_log(FUSE_LOG_DEBUG, "%s: ret < len\n", __func__);
+            /* Skip over this much next time around */
+            skip_size = ret;
+            buf->buf[0].pos += ret;
+            len -= ret;
+
+            /* Lets do another read */
+            continue;
+        }
+        if (!ret) {
+            /* EOF case? */
+            fuse_log(FUSE_LOG_DEBUG, "%s: !ret in_sg_left=%zd\n", __func__,
+                     in_sg_left);
+            break;
+        }
+        if (ret != len) {
+            fuse_log(FUSE_LOG_DEBUG, "%s: ret!=len\n", __func__);
+            ret = EIO;
+            free(in_sg_cpy);
+            goto err;
+        }
+        in_sg_left -= ret;
+        len -= ret;
+    } while (in_sg_left);
+    free(in_sg_cpy);
+
+    /* Need to fix out->len on EOF */
+    if (len) {
+        struct fuse_out_header *out_sg = in_sg[0].iov_base;
+
+        tosend_len -= len;
+        out_sg->len = tosend_len;
+    }
+
+    ret = 0;
+
+    vu_queue_push(&se->virtio_dev->dev, q, elem, tosend_len);
+    vu_queue_notify(&se->virtio_dev->dev, q);
+
+err:
+    if (ret == 0) {
+        ch->qi->reply_sent = true;
+    }
+
+    return ret;
+}
+
 /* Thread function for individual queues, created when a queue is 'started' */
 static void *fv_queue_thread(void *opaque)
 {

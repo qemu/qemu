@@ -26,4 +26,8 @@ int virtio_loop(struct fuse_session *se);
 int virtio_send_msg(struct fuse_session *se, struct fuse_chan *ch,
                     struct iovec *iov, int count);
 
+int virtio_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
+                         struct iovec *iov, int count,
+                         struct fuse_bufvec *buf, size_t len);
+
 #endif
