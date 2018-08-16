@@ -27,6 +27,10 @@
 #define R_STATUS1         (0x60 / 4)
 #define   PHY_BUSY_STATE      BIT(0)
 
+#define R_ECC_TEST_CTRL   (0x70 / 4)
+#define   ECC_TEST_FINISHED   BIT(12)
+#define   ECC_TEST_FAIL       BIT(13)
+
 /*
  * Configuration register Ox4 (for Aspeed AST2400 SOC)
  *
@@ -147,6 +151,11 @@ static void aspeed_sdmc_write(void *opaque, hwaddr addr, uint64_t data,
         case R_STATUS1:
             /* Will never return 'busy' */
             data &= ~PHY_BUSY_STATE;
+            break;
+        case R_ECC_TEST_CTRL:
+            /* Always done, always happy */
+            data |= ECC_TEST_FINISHED;
+            data &= ~ECC_TEST_FAIL;
             break;
         default:
             break;
