@@ -95,20 +95,10 @@ void xtensa_finalize_config(XtensaConfig *config)
 
     if (config->gdb_regmap.num_regs == 0 ||
         config->gdb_regmap.num_core_regs == 0) {
-        unsigned i;
         unsigned n_regs = 0;
         unsigned n_core_regs = 0;
 
-        for (i = 0; config->gdb_regmap.reg[i].targno >= 0; ++i) {
-            if (config->gdb_regmap.reg[i].type != 5 &&
-                config->gdb_regmap.reg[i].type != 6 &&
-                config->gdb_regmap.reg[i].type != 7) {
-                ++n_regs;
-                if ((config->gdb_regmap.reg[i].flags & 0x1) == 0) {
-                    ++n_core_regs;
-                }
-            }
-        }
+        xtensa_count_regs(config, &n_regs, &n_core_regs);
         if (config->gdb_regmap.num_regs == 0) {
             config->gdb_regmap.num_regs = n_regs;
         }
