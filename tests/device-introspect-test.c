@@ -103,7 +103,14 @@ static QList *device_type_list(bool abstract)
 static void test_one_device(const char *type)
 {
     QDict *resp;
-    char *help, *qom_tree;
+    char *help;
+    char *qom_tree_start, *qom_tree_end;
+    char *qtree_start, *qtree_end;
+
+    g_test_message("Testing device '%s'", type);
+
+    qom_tree_start = hmp("info qom-tree");
+    qtree_start = hmp("info qtree");
 
     resp = qmp("{'execute': 'device-list-properties',"
                " 'arguments': {'typename': %s}}",
@@ -115,10 +122,18 @@ static void test_one_device(const char *type)
 
     /*
      * Some devices leave dangling pointers in QOM behind.
-     * "info qom-tree" has a good chance at crashing then
+     * "info qom-tree" or "info qtree" have a good chance at crashing then.
+     * Also make sure that the tree did not change.
      */
-    qom_tree = hmp("info qom-tree");
-    g_free(qom_tree);
+    qom_tree_end = hmp("info qom-tree");
+    g_assert_cmpstr(qom_tree_start, ==, qom_tree_end);
+    g_free(qom_tree_start);
+    g_free(qom_tree_end);
+
+    qtree_end = hmp("info qtree");
+    g_assert_cmpstr(qtree_start, ==, qtree_end);
+    g_free(qtree_start);
+    g_free(qtree_end);
 }
 
 static void test_device_intro_list(void)
