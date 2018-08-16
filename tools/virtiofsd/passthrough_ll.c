@@ -478,6 +478,10 @@ static void lo_init(void *userdata, struct fuse_conn_info *conn)
         fuse_log(FUSE_LOG_DEBUG, "lo_init: activating flock locks\n");
         conn->want |= FUSE_CAP_FLOCK_LOCKS;
     }
+    if (lo->cache == CACHE_NEVER) {
+        fuse_log(FUSE_LOG_DEBUG, "lo_init: disabling readdirplus\n");
+        conn->want &= ~FUSE_CAP_READDIRPLUS;
+    }
 }
 
 static void lo_getattr(fuse_req_t req, fuse_ino_t ino,
