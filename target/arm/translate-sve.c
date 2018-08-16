@@ -4819,6 +4819,7 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
     unsigned vsz = vec_full_reg_size(s);
     unsigned psz = pred_full_reg_size(s);
     unsigned esz = dtype_esz[a->dtype];
+    unsigned msz = dtype_msz(a->dtype);
     TCGLabel *over = gen_new_label();
     TCGv_i64 temp;
 
@@ -4842,7 +4843,7 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
 
     /* Load the data.  */
     temp = tcg_temp_new_i64();
-    tcg_gen_addi_i64(temp, cpu_reg_sp(s, a->rn), a->imm << esz);
+    tcg_gen_addi_i64(temp, cpu_reg_sp(s, a->rn), a->imm << msz);
     tcg_gen_qemu_ld_i64(temp, temp, get_mem_index(s),
                         s->be_data | dtype_mop[a->dtype]);
 
