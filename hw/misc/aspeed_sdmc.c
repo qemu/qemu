@@ -226,6 +226,7 @@ static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
         s->ram_bits = ast2500_rambits(s);
         s->fixed_conf = ASPEED_SDMC_HW_VERSION(1) |
             ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
+            ASPEED_SDMC_CACHE_INITIAL_DONE |
             ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
         break;
     default:
