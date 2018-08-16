@@ -1,4 +1,4 @@
-ifeq ($(CONFIG_RDMA),y)
+ifeq ($(CONFIG_PVRDMA),y)
 obj-$(CONFIG_PCI) += rdma_utils.o rdma_backend.o rdma_rm.o
 obj-$(CONFIG_PCI) += vmw/pvrdma_dev_ring.o vmw/pvrdma_cmd.o \
                      vmw/pvrdma_qp_ops.o vmw/pvrdma_main.o
