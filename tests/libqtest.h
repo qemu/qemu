@@ -954,10 +954,12 @@ QDict *qmp_fd(int fd, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 /**
  * qtest_cb_for_every_machine:
  * @cb: Pointer to the callback function
+ * @skip_old_versioned: true if versioned old machine types should be skipped
  *
  *  Call a callback function for every name of all available machines.
  */
-void qtest_cb_for_every_machine(void (*cb)(const char *machine));
+void qtest_cb_for_every_machine(void (*cb)(const char *machine),
+                                bool skip_old_versioned);
 
 /**
  * qtest_qmp_device_add:

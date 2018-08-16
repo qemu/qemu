@@ -991,7 +991,53 @@ bool qtest_big_endian(QTestState *s)
     return s->big_endian;
 }
 
-void qtest_cb_for_every_machine(void (*cb)(const char *machine))
+static bool qtest_check_machine_version(const char *mname, const char *basename,
+                                        int major, int minor)
+{
+    char *newname;
+    bool is_equal;
+
+    newname = g_strdup_printf("%s-%i.%i", basename, major, minor);
+    is_equal = g_str_equal(mname, newname);
+    g_free(newname);
+
+    return is_equal;
+}
+
+static bool qtest_is_old_versioned_machine(const char *mname)
+{
+    const char *dash = strrchr(mname, '-');
+    const char *dot = strrchr(mname, '.');
+    const char *chr;
+    char *bname;
+    const int major = QEMU_VERSION_MAJOR;
+    const int minor = QEMU_VERSION_MINOR;
+    bool res = false;
+
+    if (dash && dot && dot > dash) {
+        for (chr = dash + 1; *chr; chr++) {
+            if (!qemu_isdigit(*chr) && *chr != '.') {
+                return false;
+            }
+        }
+        /*
+         * Now check if it is one of the latest versions. Check major + 1
+         * and minor + 1 versions as well, since they might already exist
+         * in the development branch.
+         */
+        bname = g_strdup(mname);
+        bname[dash - mname] = 0;
+        res = !qtest_check_machine_version(mname, bname, major + 1, 0) &&
+              !qtest_check_machine_version(mname, bname, major, minor + 1) &&
+              !qtest_check_machine_version(mname, bname, major, minor);
+        g_free(bname);
+    }
+
+    return res;
+}
+
+void qtest_cb_for_every_machine(void (*cb)(const char *machine),
+                                bool skip_old_versioned)
 {
     QDict *response, *minfo;
     QList *list;
@@ -1014,7 +1060,9 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
         qstr = qobject_to(QString, qobj);
         g_assert(qstr);
         mname = qstring_get_str(qstr);
-        cb(mname);
+        if (!skip_old_versioned || !qtest_is_old_versioned_machine(mname)) {
+            cb(mname);
+        }
     }
 
     qtest_end();
