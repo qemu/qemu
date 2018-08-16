@@ -23,6 +23,14 @@
 /* Configuration Register */
 #define R_CONF            (0x04 / 4)
 
+/* Control/Status Register #1 (ast2500) */
+#define R_STATUS1         (0x60 / 4)
+#define   PHY_BUSY_STATE      BIT(0)
+
+#define R_ECC_TEST_CTRL   (0x70 / 4)
+#define   ECC_TEST_FINISHED   BIT(12)
+#define   ECC_TEST_FAIL       BIT(13)
+
 /*
  * Configuration register Ox4 (for Aspeed AST2400 SOC)
  *
@@ -126,13 +134,31 @@ static void aspeed_sdmc_write(void *opaque, hwaddr addr, uint64_t data,
         case AST2400_A0_SILICON_REV:
         case AST2400_A1_SILICON_REV:
             data &= ~ASPEED_SDMC_READONLY_MASK;
+            data |= s->fixed_conf;
             break;
         case AST2500_A0_SILICON_REV:
         case AST2500_A1_SILICON_REV:
             data &= ~ASPEED_SDMC_AST2500_READONLY_MASK;
+            data |= s->fixed_conf;
             break;
         default:
             g_assert_not_reached();
+        }
+    }
+    if (s->silicon_rev == AST2500_A0_SILICON_REV ||
+            s->silicon_rev == AST2500_A1_SILICON_REV) {
+        switch (addr) {
+        case R_STATUS1:
+            /* Will never return 'busy' */
+            data &= ~PHY_BUSY_STATE;
+            break;
+        case R_ECC_TEST_CTRL:
+            /* Always done, always happy */
+            data |= ECC_TEST_FINISHED;
+            data &= ~ECC_TEST_FAIL;
+            break;
+        default:
+            break;
         }
     }
 
@@ -198,25 +224,7 @@ static void aspeed_sdmc_reset(DeviceState *dev)
     memset(s->regs, 0, sizeof(s->regs));
 
     /* Set ram size bit and defaults values */
-    switch (s->silicon_rev) {
-    case AST2400_A0_SILICON_REV:
-    case AST2400_A1_SILICON_REV:
-        s->regs[R_CONF] |=
-            ASPEED_SDMC_VGA_COMPAT |
-            ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
-        break;
-
-    case AST2500_A0_SILICON_REV:
-    case AST2500_A1_SILICON_REV:
-        s->regs[R_CONF] |=
-            ASPEED_SDMC_HW_VERSION(1) |
-            ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
-            ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
-        break;
-
-    default:
-        g_assert_not_reached();
-    }
+    s->regs[R_CONF] = s->fixed_conf;
 }
 
 static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
@@ -234,10 +242,18 @@ static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
     case AST2400_A0_SILICON_REV:
     case AST2400_A1_SILICON_REV:
         s->ram_bits = ast2400_rambits(s);
+        s->max_ram_size = 512 << 20;
+        s->fixed_conf = ASPEED_SDMC_VGA_COMPAT |
+            ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
         break;
     case AST2500_A0_SILICON_REV:
     case AST2500_A1_SILICON_REV:
         s->ram_bits = ast2500_rambits(s);
+        s->max_ram_size = 1024 << 20;
+        s->fixed_conf = ASPEED_SDMC_HW_VERSION(1) |
+            ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
+            ASPEED_SDMC_CACHE_INITIAL_DONE |
+            ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
         break;
     default:
         g_assert_not_reached();
@@ -261,6 +277,7 @@ static const VMStateDescription vmstate_aspeed_sdmc = {
 static Property aspeed_sdmc_properties[] = {
     DEFINE_PROP_UINT32("silicon-rev", AspeedSDMCState, silicon_rev, 0),
     DEFINE_PROP_UINT64("ram-size", AspeedSDMCState, ram_size, 0),
+    DEFINE_PROP_UINT64("max-ram-size", AspeedSDMCState, max_ram_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

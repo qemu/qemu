@@ -11312,9 +11312,13 @@ uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
     fpscr = (env->vfp.xregs[ARM_VFP_FPSCR] & 0xffc8ffff)
             | (env->vfp.vec_len << 16)
             | (env->vfp.vec_stride << 20);
+
     i = get_float_exception_flags(&env->vfp.fp_status);
     i |= get_float_exception_flags(&env->vfp.standard_fp_status);
-    i |= get_float_exception_flags(&env->vfp.fp_status_f16);
+    /* FZ16 does not generate an input denormal exception.  */
+    i |= (get_float_exception_flags(&env->vfp.fp_status_f16)
+          & ~float_flag_input_denormal);
+
     fpscr |= vfp_exceptbits_from_host(i);
     return fpscr;
 }
@@ -11348,6 +11352,11 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 {
     int i;
     uint32_t changed;
+
+    /* When ARMv8.2-FP16 is not supported, FZ16 is RES0.  */
+    if (!arm_feature(env, ARM_FEATURE_V8_FP16)) {
+        val &= ~FPCR_FZ16;
+    }
 
     changed = env->vfp.xregs[ARM_VFP_FPSCR];
     env->vfp.xregs[ARM_VFP_FPSCR] = (val & 0xffc8ffff);
@@ -12437,9 +12446,12 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
             zcr_len = 0;
         } else {
             int current_el = arm_current_el(env);
+            ARMCPU *cpu = arm_env_get_cpu(env);
 
-            zcr_len = env->vfp.zcr_el[current_el <= 1 ? 1 : current_el];
-            zcr_len &= 0xf;
+            zcr_len = cpu->sve_max_vq - 1;
+            if (current_el <= 1) {
+                zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[1]);
+            }
             if (current_el < 2 && arm_feature(env, ARM_FEATURE_EL2)) {
                 zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[2]);
             }

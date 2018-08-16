@@ -31,6 +31,7 @@ static struct arm_boot_info aspeed_board_binfo = {
 typedef struct AspeedBoardState {
     AspeedSoCState soc;
     MemoryRegion ram;
+    MemoryRegion max_ram;
 } AspeedBoardState;
 
 typedef struct AspeedBoardConfig {
@@ -127,6 +128,27 @@ static const AspeedBoardConfig aspeed_boards[] = {
     },
 };
 
+/*
+ * The max ram region is for firmwares that scan the address space
+ * with load/store to guess how much RAM the SoC has.
+ */
+static uint64_t max_ram_read(void *opaque, hwaddr offset, unsigned size)
+{
+    return 0;
+}
+
+static void max_ram_write(void *opaque, hwaddr offset, uint64_t value,
+                           unsigned size)
+{
+    /* Discard writes */
+}
+
+static const MemoryRegionOps max_ram_ops = {
+    .read = max_ram_read,
+    .write = max_ram_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 #define FIRMWARE_ADDR 0x0
 
 static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
@@ -187,6 +209,7 @@ static void aspeed_board_init(MachineState *machine,
     AspeedBoardState *bmc;
     AspeedSoCClass *sc;
     DriveInfo *drive0 = drive_get(IF_MTD, 0, 0);
+    ram_addr_t max_ram_size;
 
     bmc = g_new0(AspeedBoardState, 1);
     object_initialize(&bmc->soc, (sizeof(bmc->soc)), cfg->soc_name);
@@ -225,6 +248,14 @@ static void aspeed_board_init(MachineState *machine,
                                 &bmc->ram);
     object_property_add_const_link(OBJECT(&bmc->soc), "ram", OBJECT(&bmc->ram),
                                    &error_abort);
+
+    max_ram_size = object_property_get_uint(OBJECT(&bmc->soc), "max-ram-size",
+                                            &error_abort);
+    memory_region_init_io(&bmc->max_ram, NULL, &max_ram_ops, NULL,
+                          "max_ram", max_ram_size  - ram_size);
+    memory_region_add_subregion(get_system_memory(),
+                                sc->info->sdram_base + ram_size,
+                                &bmc->max_ram);
 
     aspeed_board_init_flashes(&bmc->soc.fmc, cfg->fmc_model, &error_abort);
     aspeed_board_init_flashes(&bmc->soc.spi[0], cfg->spi_model, &error_abort);

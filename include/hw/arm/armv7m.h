@@ -43,6 +43,7 @@ typedef struct {
  *   devices will be automatically layered on top of this view.)
  * + Property "idau": IDAU interface (forwarded to CPU object)
  * + Property "init-svtor": secure VTOR reset value (forwarded to CPU object)
+ * + Property "enable-bitband": expose bitbanded IO
  */
 typedef struct ARMv7MState {
     /*< private >*/
@@ -63,6 +64,7 @@ typedef struct ARMv7MState {
     MemoryRegion *board_memory;
     Object *idau;
     uint32_t init_svtor;
+    bool enable_bitband;
 } ARMv7MState;
 
 #endif

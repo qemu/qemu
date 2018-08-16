@@ -857,6 +857,9 @@ struct ARMCPU {
 
     /* Used to synchronize KVM and QEMU in-kernel device levels */
     uint8_t device_irq_level;
+
+    /* Used to set the maximum vector length the cpu will support.  */
+    uint32_t sve_max_vq;
 };
 
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
@@ -1266,7 +1269,7 @@ void vfp_set_fpscr(CPUARMState *env, uint32_t val);
  * we store the underlying state in fpscr and just mask on read/write.
  */
 #define FPSR_MASK 0xf800009f
-#define FPCR_MASK 0x07f79f00
+#define FPCR_MASK 0x07ff9f00
 
 #define FPCR_FZ16   (1 << 19)   /* ARMv8.2+, FP16 flush-to-zero */
 #define FPCR_FZ     (1 << 24)   /* Flush-to-zero enable bit */

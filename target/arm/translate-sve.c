@@ -4093,7 +4093,7 @@ static bool do_zpz_ptr(DisasContext *s, int rd, int rn, int pg,
 
 static bool trans_FCVT_sh(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
 {
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_fcvt_sh);
+    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvt_sh);
 }
 
 static bool trans_FCVT_hs(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
@@ -4103,7 +4103,7 @@ static bool trans_FCVT_hs(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
 
 static bool trans_FCVT_dh(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
 {
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_fcvt_dh);
+    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvt_dh);
 }
 
 static bool trans_FCVT_hd(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
@@ -4372,12 +4372,11 @@ static bool trans_UCVTF_dd(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
  * The load should begin at the address Rn + IMM.
  */
 
-static void do_ldr(DisasContext *s, uint32_t vofs, uint32_t len,
-                   int rn, int imm)
+static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
 {
-    uint32_t len_align = QEMU_ALIGN_DOWN(len, 8);
-    uint32_t len_remain = len % 8;
-    uint32_t nparts = len / 8 + ctpop8(len_remain);
+    int len_align = QEMU_ALIGN_DOWN(len, 8);
+    int len_remain = len % 8;
+    int nparts = len / 8 + ctpop8(len_remain);
     int midx = get_mem_index(s);
     TCGv_i64 addr, t0, t1;
 
@@ -4458,12 +4457,11 @@ static void do_ldr(DisasContext *s, uint32_t vofs, uint32_t len,
 }
 
 /* Similarly for stores.  */
-static void do_str(DisasContext *s, uint32_t vofs, uint32_t len,
-                   int rn, int imm)
+static void do_str(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
 {
-    uint32_t len_align = QEMU_ALIGN_DOWN(len, 8);
-    uint32_t len_remain = len % 8;
-    uint32_t nparts = len / 8 + ctpop8(len_remain);
+    int len_align = QEMU_ALIGN_DOWN(len, 8);
+    int len_remain = len % 8;
+    int nparts = len / 8 + ctpop8(len_remain);
     int midx = get_mem_index(s);
     TCGv_i64 addr, t0;
 
@@ -4667,8 +4665,7 @@ static bool trans_LD_zprr(DisasContext *s, arg_rprr_load *a, uint32_t insn)
     }
     if (sve_access_check(s)) {
         TCGv_i64 addr = new_tmp_a64(s);
-        tcg_gen_muli_i64(addr, cpu_reg(s, a->rm),
-                         (a->nreg + 1) << dtype_msz(a->dtype));
+        tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), dtype_msz(a->dtype));
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
         do_ld_zpa(s, a->rd, a->pg, addr, a->dtype, a->nreg);
     }
@@ -4821,6 +4818,7 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
     unsigned vsz = vec_full_reg_size(s);
     unsigned psz = pred_full_reg_size(s);
     unsigned esz = dtype_esz[a->dtype];
+    unsigned msz = dtype_msz(a->dtype);
     TCGLabel *over = gen_new_label();
     TCGv_i64 temp;
 
@@ -4844,7 +4842,7 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
 
     /* Load the data.  */
     temp = tcg_temp_new_i64();
-    tcg_gen_addi_i64(temp, cpu_reg_sp(s, a->rn), a->imm << esz);
+    tcg_gen_addi_i64(temp, cpu_reg_sp(s, a->rn), a->imm << msz);
     tcg_gen_qemu_ld_i64(temp, temp, get_mem_index(s),
                         s->be_data | dtype_mop[a->dtype]);
 
@@ -4900,7 +4898,7 @@ static bool trans_ST_zprr(DisasContext *s, arg_rprr_store *a, uint32_t insn)
     }
     if (sve_access_check(s)) {
         TCGv_i64 addr = new_tmp_a64(s);
-        tcg_gen_muli_i64(addr, cpu_reg(s, a->rm), (a->nreg + 1) << a->msz);
+        tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), a->msz);
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
         do_st_zpa(s, a->rd, a->pg, addr, a->msz, a->esz, a->nreg);
     }
