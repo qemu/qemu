@@ -12437,9 +12437,12 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
             zcr_len = 0;
         } else {
             int current_el = arm_current_el(env);
+            ARMCPU *cpu = arm_env_get_cpu(env);
 
-            zcr_len = env->vfp.zcr_el[current_el <= 1 ? 1 : current_el];
-            zcr_len &= 0xf;
+            zcr_len = cpu->sve_max_vq - 1;
+            if (current_el <= 1) {
+                zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[1]);
+            }
             if (current_el < 2 && arm_feature(env, ARM_FEATURE_EL2)) {
                 zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[2]);
             }

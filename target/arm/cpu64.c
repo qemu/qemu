@@ -29,6 +29,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
+#include "qapi/visitor.h"
 
 static inline void set_feature(CPUARMState *env, int feature)
 {
@@ -217,6 +218,29 @@ static void aarch64_a53_initfn(Object *obj)
     define_arm_cp_regs(cpu, cortex_a57_a53_cp_reginfo);
 }
 
+static void cpu_max_get_sve_vq(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    visit_type_uint32(v, name, &cpu->sve_max_vq, errp);
+}
+
+static void cpu_max_set_sve_vq(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    Error *err = NULL;
+
+    visit_type_uint32(v, name, &cpu->sve_max_vq, &err);
+
+    if (!err && (cpu->sve_max_vq == 0 || cpu->sve_max_vq > ARM_MAX_VQ)) {
+        error_setg(&err, "unsupported SVE vector length");
+        error_append_hint(&err, "Valid sve-max-vq in range [1-%d]\n",
+                          ARM_MAX_VQ);
+    }
+    error_propagate(errp, err);
+}
+
 /* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);
  * otherwise, a CPU with as many features enabled as our emulation supports.
  * The version of '-cpu max' for qemu-system-arm is defined in cpu.c;
@@ -253,6 +277,10 @@ static void aarch64_max_initfn(Object *obj)
         cpu->ctr = 0x80038003; /* 32 byte I and D cacheline size, VIPT icache */
         cpu->dcz_blocksize = 7; /*  512 bytes */
 #endif
+
+        cpu->sve_max_vq = ARM_MAX_VQ;
+        object_property_add(obj, "sve-max-vq", "uint32", cpu_max_get_sve_vq,
+                            cpu_max_set_sve_vq, NULL, NULL, &error_fatal);
     }
 }
 
@@ -405,6 +433,7 @@ void aarch64_sve_narrow_vq(CPUARMState *env, unsigned vq)
     uint64_t pmask;
 
     assert(vq >= 1 && vq <= ARM_MAX_VQ);
+    assert(vq <= arm_env_get_cpu(env)->sve_max_vq);
 
     /* Zap the high bits of the zregs.  */
     for (i = 0; i < 32; i++) {

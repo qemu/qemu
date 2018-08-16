@@ -168,9 +168,9 @@ static void arm_cpu_reset(CPUState *s)
         env->cp15.cpacr_el1 = deposit64(env->cp15.cpacr_el1, 16, 2, 3);
         env->cp15.cptr_el[3] |= CPTR_EZ;
         /* with maximum vector length */
-        env->vfp.zcr_el[1] = ARM_MAX_VQ - 1;
-        env->vfp.zcr_el[2] = ARM_MAX_VQ - 1;
-        env->vfp.zcr_el[3] = ARM_MAX_VQ - 1;
+        env->vfp.zcr_el[1] = cpu->sve_max_vq - 1;
+        env->vfp.zcr_el[2] = env->vfp.zcr_el[1];
+        env->vfp.zcr_el[3] = env->vfp.zcr_el[1];
 #else
         /* Reset into the highest available EL */
         if (arm_feature(env, ARM_FEATURE_EL3)) {

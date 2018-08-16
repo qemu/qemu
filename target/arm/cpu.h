@@ -857,6 +857,9 @@ struct ARMCPU {
 
     /* Used to synchronize KVM and QEMU in-kernel device levels */
     uint8_t device_irq_level;
+
+    /* Used to set the maximum vector length the cpu will support.  */
+    uint32_t sve_max_vq;
 };
 
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
