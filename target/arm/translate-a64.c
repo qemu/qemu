@@ -137,14 +137,13 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
     int el = arm_current_el(env);
     const char *ns_status;
 
-    cpu_fprintf(f, "PC=%016"PRIx64"  SP=%016"PRIx64"\n",
-            env->pc, env->xregs[31]);
-    for (i = 0; i < 31; i++) {
-        cpu_fprintf(f, "X%02d=%016"PRIx64, i, env->xregs[i]);
-        if ((i % 4) == 3) {
-            cpu_fprintf(f, "\n");
+    cpu_fprintf(f, " PC=%016" PRIx64 " ", env->pc);
+    for (i = 0; i < 32; i++) {
+        if (i == 31) {
+            cpu_fprintf(f, " SP=%016" PRIx64 "\n", env->xregs[i]);
         } else {
-            cpu_fprintf(f, " ");
+            cpu_fprintf(f, "X%02d=%016" PRIx64 "%s", i, env->xregs[i],
+                        (i + 2) % 3 ? " " : "\n");
         }
     }
 
