@@ -4665,8 +4665,7 @@ static bool trans_LD_zprr(DisasContext *s, arg_rprr_load *a, uint32_t insn)
     }
     if (sve_access_check(s)) {
         TCGv_i64 addr = new_tmp_a64(s);
-        tcg_gen_muli_i64(addr, cpu_reg(s, a->rm),
-                         (a->nreg + 1) << dtype_msz(a->dtype));
+        tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), dtype_msz(a->dtype));
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
         do_ld_zpa(s, a->rd, a->pg, addr, a->dtype, a->nreg);
     }
@@ -4899,7 +4898,7 @@ static bool trans_ST_zprr(DisasContext *s, arg_rprr_store *a, uint32_t insn)
     }
     if (sve_access_check(s)) {
         TCGv_i64 addr = new_tmp_a64(s);
-        tcg_gen_muli_i64(addr, cpu_reg(s, a->rm), (a->nreg + 1) << a->msz);
+        tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), a->msz);
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
         do_st_zpa(s, a->rd, a->pg, addr, a->msz, a->esz, a->nreg);
     }
