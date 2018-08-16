@@ -11423,12 +11423,12 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
         }
         feature = ARM_FEATURE_V8_DOTPROD;
         break;
-    case 0x8: /* FCMLA, #0 */
-    case 0x9: /* FCMLA, #90 */
-    case 0xa: /* FCMLA, #180 */
-    case 0xb: /* FCMLA, #270 */
-    case 0xc: /* FCADD, #90 */
-    case 0xe: /* FCADD, #270 */
+    case 0x18: /* FCMLA, #0 */
+    case 0x19: /* FCMLA, #90 */
+    case 0x1a: /* FCMLA, #180 */
+    case 0x1b: /* FCMLA, #270 */
+    case 0x1c: /* FCADD, #90 */
+    case 0x1e: /* FCADD, #270 */
         if (size == 0
             || (size == 1 && !arm_dc_feature(s, ARM_FEATURE_V8_FP16))
             || (size == 3 && !is_q)) {
