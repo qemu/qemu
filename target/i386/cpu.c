@@ -3880,6 +3880,9 @@ arch_query_cpu_model_expansion(CpuModelExpansionType type,
     }
 
     props = qdict_new();
+    ret->model = g_new0(CpuModelInfo, 1);
+    ret->model->props = QOBJECT(props);
+    ret->model->has_props = true;
 
     switch (type) {
     case CPU_MODEL_EXPANSION_TYPE_STATIC:
@@ -3900,15 +3903,9 @@ arch_query_cpu_model_expansion(CpuModelExpansionType type,
         goto out;
     }
 
-    if (!props) {
-        props = qdict_new();
-    }
     x86_cpu_to_dict(xc, props);
 
-    ret->model = g_new0(CpuModelInfo, 1);
     ret->model->name = g_strdup(base_name);
-    ret->model->props = QOBJECT(props);
-    ret->model->has_props = true;
 
 out:
     object_unref(OBJECT(xc));
