@@ -840,6 +840,8 @@ struct Rom {
     char *fw_dir;
     char *fw_file;
 
+    bool committed;
+
     hwaddr addr;
     QTAILQ_ENTRY(Rom) next;
 };
@@ -876,6 +878,8 @@ static void rom_insert(Rom *rom)
     if (!rom->as) {
         rom->as = &address_space_memory;
     }
+
+    rom->committed = false;
 
     /* List is ordered by load address in the same address space */
     QTAILQ_FOREACH(item, &roms, next) {
@@ -1166,6 +1170,34 @@ void rom_reset_order_override(void)
     if (!fw_cfg)
         return;
     fw_cfg_reset_order_override(fw_cfg);
+}
+
+void rom_transaction_begin(void)
+{
+    Rom *rom;
+
+    /* Ignore ROMs added without the transaction API */
+    QTAILQ_FOREACH(rom, &roms, next) {
+        rom->committed = true;
+    }
+}
+
+void rom_transaction_end(bool commit)
+{
+    Rom *rom;
+    Rom *tmp;
+
+    QTAILQ_FOREACH_SAFE(rom, &roms, next, tmp) {
+        if (rom->committed) {
+            continue;
+        }
+        if (commit) {
+            rom->committed = true;
+        } else {
+            QTAILQ_REMOVE(&roms, rom, next);
+            rom_free(rom);
+        }
+    }
 }
 
 static Rom *find_rom(hwaddr addr, size_t size)
