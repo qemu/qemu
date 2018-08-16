@@ -187,7 +187,7 @@ F: disas/microblaze.c
 
 MIPS
 M: Aurelien Jarno <aurelien@aurel32.net>
-M: Aleksandar Markovic <aleksandar.markovic@mips.com>
+M: Aleksandar Markovic <amarkovic@wavecomp.com>
 S: Maintained
 F: target/mips/
 F: hw/mips/
@@ -718,7 +718,7 @@ S: Maintained
 F: hw/mips/mips_malta.c
 
 Mipssim
-M: Aleksandar Markovic <aleksandar.markovic@mips.com>
+M: Aleksandar Markovic <amarkovic@wavecomp.com>
 S: Odd Fixes
 F: hw/mips/mips_mipssim.c
 F: hw/net/mipsnet.c
@@ -729,14 +729,15 @@ S: Maintained
 F: hw/mips/mips_r4k.c
 
 Fulong 2E
-M: Aleksandar Markovic <aleksandar.markovic@mips.com>
+M: Aleksandar Markovic <amarkovic@wavecomp.com>
 S: Odd Fixes
 F: hw/mips/mips_fulong2e.c
 F: hw/isa/vt82c686.c
+
 F: include/hw/isa/vt82c686.h
 
 Boston
-M: Paul Burton <paul.burton@mips.com>
+M: Paul Burton <pburton@wavecomp.com>
 S: Maintained
 F: hw/core/loader-fit.c
 F: hw/mips/boston.c

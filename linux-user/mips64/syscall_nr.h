@@ -327,6 +327,15 @@
 #define TARGET_NR_userfaultfd           (TARGET_NR_Linux + 321)
 #define TARGET_NR_membarrier            (TARGET_NR_Linux + 322)
 #define TARGET_NR_mlock2                (TARGET_NR_Linux + 323)
+#define TARGET_NR_copy_file_range       (TARGET_NR_Linux + 324)
+#define TARGET_NR_preadv2               (TARGET_NR_Linux + 325)
+#define TARGET_NR_pwritev2              (TARGET_NR_Linux + 326)
+#define TARGET_NR_pkey_mprotect         (TARGET_NR_Linux + 327)
+#define TARGET_NR_pkey_alloc            (TARGET_NR_Linux + 328)
+#define TARGET_NR_pkey_free             (TARGET_NR_Linux + 329)
+#define TARGET_NR_statx                 (TARGET_NR_Linux + 330)
+#define TARGET_NR_rseq                  (TARGET_NR_Linux + 331)
+#define TARGET_NR_io_pgetevents         (TARGET_NR_Linux + 332)
 
 #else
 /*
@@ -653,4 +662,13 @@
 #define TARGET_NR_userfaultfd           (TARGET_NR_Linux + 317)
 #define TARGET_NR_membarrier            (TARGET_NR_Linux + 318)
 #define TARGET_NR_mlock2                (TARGET_NR_Linux + 319)
+#define TARGET_NR_copy_file_range       (TARGET_NR_Linux + 320)
+#define TARGET_NR_preadv2               (TARGET_NR_Linux + 321)
+#define TARGET_NR_pwritev2              (TARGET_NR_Linux + 322)
+#define TARGET_NR_pkey_mprotect         (TARGET_NR_Linux + 323)
+#define TARGET_NR_pkey_alloc            (TARGET_NR_Linux + 324)
+#define TARGET_NR_pkey_free             (TARGET_NR_Linux + 325)
+#define TARGET_NR_statx                 (TARGET_NR_Linux + 326)
+#define TARGET_NR_rseq                  (TARGET_NR_Linux + 327)
+#define TARGET_NR_io_pgetevents         (TARGET_NR_Linux + 328)
 #endif
