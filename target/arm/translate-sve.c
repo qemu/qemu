@@ -4093,7 +4093,7 @@ static bool do_zpz_ptr(DisasContext *s, int rd, int rn, int pg,
 
 static bool trans_FCVT_sh(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
 {
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_fcvt_sh);
+    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvt_sh);
 }
 
 static bool trans_FCVT_hs(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
@@ -4103,7 +4103,7 @@ static bool trans_FCVT_hs(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
 
 static bool trans_FCVT_dh(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
 {
-    return do_zpz_ptr(s, a->rd, a->rn, a->pg, true, gen_helper_sve_fcvt_dh);
+    return do_zpz_ptr(s, a->rd, a->rn, a->pg, false, gen_helper_sve_fcvt_dh);
 }
 
 static bool trans_FCVT_hd(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
