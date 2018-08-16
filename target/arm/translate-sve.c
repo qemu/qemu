@@ -4372,12 +4372,11 @@ static bool trans_UCVTF_dd(DisasContext *s, arg_rpr_esz *a, uint32_t insn)
  * The load should begin at the address Rn + IMM.
  */
 
-static void do_ldr(DisasContext *s, uint32_t vofs, uint32_t len,
-                   int rn, int imm)
+static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
 {
-    uint32_t len_align = QEMU_ALIGN_DOWN(len, 8);
-    uint32_t len_remain = len % 8;
-    uint32_t nparts = len / 8 + ctpop8(len_remain);
+    int len_align = QEMU_ALIGN_DOWN(len, 8);
+    int len_remain = len % 8;
+    int nparts = len / 8 + ctpop8(len_remain);
     int midx = get_mem_index(s);
     TCGv_i64 addr, t0, t1;
 
@@ -4458,12 +4457,11 @@ static void do_ldr(DisasContext *s, uint32_t vofs, uint32_t len,
 }
 
 /* Similarly for stores.  */
-static void do_str(DisasContext *s, uint32_t vofs, uint32_t len,
-                   int rn, int imm)
+static void do_str(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
 {
-    uint32_t len_align = QEMU_ALIGN_DOWN(len, 8);
-    uint32_t len_remain = len % 8;
-    uint32_t nparts = len / 8 + ctpop8(len_remain);
+    int len_align = QEMU_ALIGN_DOWN(len, 8);
+    int len_remain = len % 8;
+    int nparts = len / 8 + ctpop8(len_remain);
     int midx = get_mem_index(s);
     TCGv_i64 addr, t0;
 
