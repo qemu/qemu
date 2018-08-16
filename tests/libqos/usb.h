@@ -13,6 +13,6 @@ void qusb_pci_init_one(QPCIBus *pcibus, struct qhc *hc,
 void uhci_port_test(struct qhc *hc, int port, uint16_t expect);
 void uhci_deinit(struct qhc *hc);
 
-void usb_test_hotplug(const char *bus_name, const int port,
+void usb_test_hotplug(const char *bus_name, const char *port,
                       void (*port_check)(void));
 #endif

@@ -709,11 +709,7 @@ static void test_migrate(void)
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 
-    cmd = g_strdup_printf("{ 'execute': 'migrate',"
-                          "'arguments': { 'uri': '%s' } }",
-                          uri);
-    rsp = qmp(cmd);
-    g_free(cmd);
+    rsp = qmp("{ 'execute': 'migrate', 'arguments': { 'uri': %s } }", uri);
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 

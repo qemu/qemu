@@ -107,10 +107,28 @@ static void kill_qemu(QTestState *s)
         pid_t pid;
 
         kill(s->qemu_pid, SIGTERM);
-        pid = waitpid(s->qemu_pid, &wstatus, 0);
+        TFR(pid = waitpid(s->qemu_pid, &wstatus, 0));
 
-        if (pid == s->qemu_pid && WIFSIGNALED(wstatus)) {
-            assert(!WCOREDUMP(wstatus));
+        assert(pid == s->qemu_pid);
+        /*
+         * We expect qemu to exit with status 0; anything else is
+         * fishy and should be logged with as much detail as possible.
+         */
+        if (wstatus) {
+            if (WIFEXITED(wstatus)) {
+                fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
+                        "process but encountered exit status %d\n",
+                        __FILE__, __LINE__, WEXITSTATUS(wstatus));
+            } else if (WIFSIGNALED(wstatus)) {
+                int sig = WTERMSIG(wstatus);
+                const char *signame = strsignal(sig) ?: "unknown ???";
+                const char *dump = WCOREDUMP(wstatus) ? " (core dumped)" : "";
+
+                fprintf(stderr, "%s:%d: kill_qemu() detected QEMU death "
+                        "from signal %d (%s)%s\n",
+                        __FILE__, __LINE__, sig, signame, dump);
+            }
+            abort();
         }
     }
 }
@@ -249,32 +267,33 @@ QTestState *qtest_init_without_qmp_handshake(bool use_oob,
 QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s = qtest_init_without_qmp_handshake(false, extra_args);
+    QDict *greeting;
 
     /* Read the QMP greeting and then do the handshake */
-    qtest_qmp_discard_response(s, "");
-    qtest_qmp_discard_response(s, "{ 'execute': 'qmp_capabilities' }");
+    greeting = qtest_qmp_receive(s);
+    qobject_unref(greeting);
+    qobject_unref(qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }"));
 
     return s;
 }
 
-QTestState *qtest_vstartf(const char *fmt, va_list ap)
+QTestState *qtest_vinitf(const char *fmt, va_list ap)
 {
     char *args = g_strdup_vprintf(fmt, ap);
     QTestState *s;
 
-    s = qtest_start(args);
+    s = qtest_init(args);
     g_free(args);
-    global_qtest = NULL;
     return s;
 }
 
-QTestState *qtest_startf(const char *fmt, ...)
+QTestState *qtest_initf(const char *fmt, ...)
 {
     va_list ap;
     QTestState *s;
 
     va_start(ap, fmt);
-    s = qtest_vstartf(fmt, ap);
+    s = qtest_vinitf(fmt, ap);
     va_end(ap);
     return s;
 }
@@ -348,7 +367,7 @@ static GString *qtest_recv_line(QTestState *s)
 
         if (len == -1 || len == 0) {
             fprintf(stderr, "Broken pipe\n");
-            exit(1);
+            abort();
         }
 
         g_string_append_len(s->rx, buffer, len);
@@ -435,7 +454,7 @@ static void qmp_response(JSONMessageParser *parser, GQueue *tokens)
     obj = json_parser_parse(tokens, NULL);
     if (!obj) {
         fprintf(stderr, "QMP JSON response parsing failed\n");
-        exit(1);
+        abort();
     }
 
     g_assert(!qmp->response);
@@ -461,7 +480,7 @@ QDict *qmp_fd_receive(int fd)
 
         if (len == -1 || len == 0) {
             fprintf(stderr, "Broken pipe\n");
-            exit(1);
+            abort();
         }
 
         if (log) {
@@ -484,26 +503,22 @@ QDict *qtest_qmp_receive(QTestState *s)
  * in the case that they choose to discard all replies up until
  * a particular EVENT is received.
  */
-void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
+void qmp_fd_vsend(int fd, const char *fmt, va_list ap)
 {
-    va_list ap_copy;
     QObject *qobj;
 
-    /* qobject_from_jsonv() silently eats leading 0xff as invalid
-     * JSON, but we want to test sending them over the wire to force
-     * resyncs */
+    /*
+     * qobject_from_vjsonf_nofail() chokes on leading 0xff as invalid
+     * JSON, but tests/test-qga.c needs to send that to test QGA
+     * synchronization
+     */
     if (*fmt == '\377') {
         socket_send(fd, fmt, 1);
         fmt++;
     }
 
-    /* Going through qobject ensures we escape strings properly.
-     * This seemingly unnecessary copy is required in case va_list
-     * is an array type.
-     */
-    va_copy(ap_copy, ap);
-    qobj = qobject_from_jsonv(fmt, &ap_copy, &error_abort);
-    va_end(ap_copy);
+    /* Going through qobject ensures we escape strings properly */
+    qobj = qobject_from_vjsonf_nofail(fmt, ap);
 
     /* No need to send anything for an empty QObject.  */
     if (qobj) {
@@ -529,21 +544,21 @@ void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
     }
 }
 
-void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap)
+void qtest_qmp_vsend(QTestState *s, const char *fmt, va_list ap)
 {
-    qmp_fd_sendv(s->qmp_fd, fmt, ap);
+    qmp_fd_vsend(s->qmp_fd, fmt, ap);
 }
 
 QDict *qmp_fdv(int fd, const char *fmt, va_list ap)
 {
-    qmp_fd_sendv(fd, fmt, ap);
+    qmp_fd_vsend(fd, fmt, ap);
 
     return qmp_fd_receive(fd);
 }
 
-QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
+QDict *qtest_vqmp(QTestState *s, const char *fmt, va_list ap)
 {
-    qtest_async_qmpv(s, fmt, ap);
+    qtest_qmp_vsend(s, fmt, ap);
 
     /* Receive reply */
     return qtest_qmp_receive(s);
@@ -565,7 +580,7 @@ void qmp_fd_send(int fd, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    qmp_fd_sendv(fd, fmt, ap);
+    qmp_fd_vsend(fd, fmt, ap);
     va_end(ap);
 }
 
@@ -575,35 +590,18 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
     QDict *response;
 
     va_start(ap, fmt);
-    response = qtest_qmpv(s, fmt, ap);
+    response = qtest_vqmp(s, fmt, ap);
     va_end(ap);
     return response;
 }
 
-void qtest_async_qmp(QTestState *s, const char *fmt, ...)
+void qtest_qmp_send(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    qtest_async_qmpv(s, fmt, ap);
+    qtest_qmp_vsend(s, fmt, ap);
     va_end(ap);
-}
-
-void qtest_qmpv_discard_response(QTestState *s, const char *fmt, va_list ap)
-{
-    QDict *response = qtest_qmpv(s, fmt, ap);
-    qobject_unref(response);
-}
-
-void qtest_qmp_discard_response(QTestState *s, const char *fmt, ...)
-{
-    va_list ap;
-    QDict *response;
-
-    va_start(ap, fmt);
-    response = qtest_qmpv(s, fmt, ap);
-    va_end(ap);
-    qobject_unref(response);
 }
 
 QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
@@ -628,7 +626,7 @@ void qtest_qmp_eventwait(QTestState *s, const char *event)
     qobject_unref(response);
 }
 
-char *qtest_hmpv(QTestState *s, const char *fmt, va_list ap)
+char *qtest_vhmp(QTestState *s, const char *fmt, va_list ap)
 {
     char *cmd;
     QDict *resp;
@@ -657,7 +655,7 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...)
     char *ret;
 
     va_start(ap, fmt);
-    ret = qtest_hmpv(s, fmt, ap);
+    ret = qtest_vhmp(s, fmt, ap);
     va_end(ap);
     return ret;
 }
@@ -963,35 +961,27 @@ QDict *qmp(const char *fmt, ...)
     QDict *response;
 
     va_start(ap, fmt);
-    response = qtest_qmpv(global_qtest, fmt, ap);
+    response = qtest_vqmp(global_qtest, fmt, ap);
     va_end(ap);
     return response;
 }
 
-void qmp_async(const char *fmt, ...)
+void qmp_send(const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    qtest_async_qmpv(global_qtest, fmt, ap);
+    qtest_qmp_vsend(global_qtest, fmt, ap);
     va_end(ap);
 }
 
-void qmp_discard_response(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    qtest_qmpv_discard_response(global_qtest, fmt, ap);
-    va_end(ap);
-}
 char *hmp(const char *fmt, ...)
 {
     va_list ap;
     char *ret;
 
     va_start(ap, fmt);
-    ret = qtest_hmpv(global_qtest, fmt, ap);
+    ret = qtest_vhmp(global_qtest, fmt, ap);
     va_end(ap);
     return ret;
 }
@@ -1031,33 +1021,65 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine))
     qobject_unref(response);
 }
 
+QDict *qtest_qmp_receive_success(QTestState *s,
+                                 void (*event_cb)(void *opaque,
+                                                  const char *event,
+                                                  QDict *data),
+                                 void *opaque)
+{
+    QDict *response, *ret, *data;
+    const char *event;
+
+    for (;;) {
+        response = qtest_qmp_receive(s);
+        g_assert(!qdict_haskey(response, "error"));
+        ret = qdict_get_qdict(response, "return");
+        if (ret) {
+            break;
+        }
+        event = qdict_get_str(response, "event");
+        data = qdict_get_qdict(response, "data");
+        if (event_cb) {
+            event_cb(opaque, event, data);
+        }
+        qobject_unref(response);
+    }
+
+    qobject_ref(ret);
+    qobject_unref(response);
+    return ret;
+}
+
 /*
  * Generic hot-plugging test via the device_add QMP command.
  */
-void qtest_qmp_device_add(const char *driver, const char *id, const char *fmt,
-                          ...)
+void qtest_qmp_device_add(const char *driver, const char *id,
+                          const char *fmt, ...)
 {
-    QDict *response;
-    char *cmd, *opts = NULL;
-    va_list va;
+    QDict *args, *response;
+    va_list ap;
 
-    if (fmt) {
-        va_start(va, fmt);
-        opts = g_strdup_vprintf(fmt, va);
-        va_end(va);
-    }
+    va_start(ap, fmt);
+    args = qdict_from_vjsonf_nofail(fmt, ap);
+    va_end(ap);
 
-    cmd = g_strdup_printf("{'execute': 'device_add',"
-                          " 'arguments': { 'driver': '%s', 'id': '%s'%s%s }}",
-                          driver, id, opts ? ", " : "", opts ? opts : "");
-    g_free(opts);
+    g_assert(!qdict_haskey(args, "driver") && !qdict_haskey(args, "id"));
+    qdict_put_str(args, "driver", driver);
+    qdict_put_str(args, "id", id);
 
-    response = qmp(cmd);
-    g_free(cmd);
+    response = qmp("{'execute': 'device_add', 'arguments': %p}", args);
     g_assert(response);
     g_assert(!qdict_haskey(response, "event")); /* We don't expect any events */
     g_assert(!qdict_haskey(response, "error"));
     qobject_unref(response);
+}
+
+static void device_deleted_cb(void *opaque, const char *name, QDict *data)
+{
+    bool *got_event = opaque;
+
+    g_assert_cmpstr(name, ==, "DEVICE_DELETED");
+    *got_event = true;
 }
 
 /*
@@ -1080,30 +1102,21 @@ void qtest_qmp_device_add(const char *driver, const char *id, const char *fmt,
  */
 void qtest_qmp_device_del(const char *id)
 {
-    QDict *response1, *response2, *event = NULL;
-    char *cmd;
+    bool got_event = false;
+    QDict *rsp;
 
-    cmd = g_strdup_printf("{'execute': 'device_del',"
-                          " 'arguments': { 'id': '%s' }}", id);
-    response1 = qmp(cmd);
-    g_free(cmd);
-    g_assert(response1);
-    g_assert(!qdict_haskey(response1, "error"));
-
-    response2 = qmp("");
-    g_assert(response2);
-    g_assert(!qdict_haskey(response2, "error"));
-
-    if (qdict_haskey(response1, "event")) {
-        event = response1;
-    } else if (qdict_haskey(response2, "event")) {
-        event = response2;
+    qtest_qmp_send(global_qtest,
+                   "{'execute': 'device_del', 'arguments': {'id': %s}}",
+                   id);
+    rsp = qtest_qmp_receive_success(global_qtest, device_deleted_cb,
+                                    &got_event);
+    qobject_unref(rsp);
+    if (!got_event) {
+        rsp = qmp_receive();
+        g_assert_cmpstr(qdict_get_try_str(rsp, "event"),
+                        ==, "DEVICE_DELETED");
+        qobject_unref(rsp);
     }
-    g_assert(event);
-    g_assert_cmpstr(qdict_get_str(event, "event"), ==, "DEVICE_DELETED");
-
-    qobject_unref(response1);
-    qobject_unref(response2);
 }
 
 bool qmp_rsp_is_err(QDict *rsp)

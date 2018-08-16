@@ -37,6 +37,9 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"
 
+/* TODO actually test the results and get rid of this */
+#define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))
+
 /* Test images sizes in MB */
 #define TEST_IMAGE_SIZE_MB_LARGE (200 * 1024)
 #define TEST_IMAGE_SIZE_MB_SMALL 64
@@ -1352,7 +1355,6 @@ static void test_flush_migrate(void)
     AHCIQState *src, *dst;
     AHCICommand *cmd;
     uint8_t px;
-    const char *s;
     char *uri = g_strdup_printf("unix:%s", mig_socket);
 
     prepare_blkdebug_script(debug_path, "flush_to_disk");
@@ -1388,8 +1390,7 @@ static void test_flush_migrate(void)
     ahci_migrate(src, dst, uri);
 
     /* Complete the command */
-    s = "{'execute':'cont' }";
-    qmp_async(s);
+    qmp_send("{'execute':'cont' }");
     qmp_eventwait("RESUME");
     ahci_command_wait(dst, cmd);
     ahci_command_verify(dst, cmd);
@@ -1592,8 +1593,8 @@ static void test_atapi_tray(void)
     atapi_wait_tray(false);
 
     /* Remove media */
-    qmp_async("{'execute': 'blockdev-open-tray', "
-               "'arguments': {'id': 'cd0'}}");
+    qmp_send("{'execute': 'blockdev-open-tray',"
+             " 'arguments': {'id': 'cd0'}}");
     atapi_wait_tray(true);
     rsp = qmp_receive();
     qobject_unref(rsp);
@@ -1619,8 +1620,8 @@ static void test_atapi_tray(void)
                                          "'node-name': 'node0' }}");
 
     /* Again, the event shows up first */
-    qmp_async("{'execute': 'blockdev-close-tray', "
-               "'arguments': {'id': 'cd0'}}");
+    qmp_send("{'execute': 'blockdev-close-tray',"
+             " 'arguments': {'id': 'cd0'}}");
     atapi_wait_tray(false);
     rsp = qmp_receive();
     qobject_unref(rsp);

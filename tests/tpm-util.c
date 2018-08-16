@@ -22,8 +22,6 @@
 #define TIS_REG(LOCTY, REG) \
     (TPM_TIS_ADDR_BASE + ((LOCTY) << 12) + REG)
 
-static bool got_stop;
-
 void tpm_util_crb_transfer(QTestState *s,
                            const unsigned char *req, size_t req_size,
                            unsigned char *rsp, size_t rsp_size)
@@ -239,52 +237,27 @@ void tpm_util_swtpm_kill(GPid pid)
 void tpm_util_migrate(QTestState *who, const char *uri)
 {
     QDict *rsp;
-    gchar *cmd;
 
-    cmd = g_strdup_printf("{ 'execute': 'migrate',"
-                          "'arguments': { 'uri': '%s' } }",
-                          uri);
-    rsp = qtest_qmp(who, cmd);
-    g_free(cmd);
+    rsp = qtest_qmp(who,
+                    "{ 'execute': 'migrate', 'arguments': { 'uri': %s } }",
+                    uri);
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
-}
-
-/*
- * Events can get in the way of responses we are actually waiting for.
- */
-static QDict *tpm_util_wait_command(QTestState *who, const char *command)
-{
-    const char *event_string;
-    QDict *response;
-
-    response = qtest_qmp(who, command);
-
-    while (qdict_haskey(response, "event")) {
-        /* OK, it was an event */
-        event_string = qdict_get_str(response, "event");
-        if (!strcmp(event_string, "STOP")) {
-            got_stop = true;
-        }
-        qobject_unref(response);
-        response = qtest_qmp_receive(who);
-    }
-    return response;
 }
 
 void tpm_util_wait_for_migration_complete(QTestState *who)
 {
     while (true) {
-        QDict *rsp, *rsp_return;
+        QDict *rsp_return;
         bool completed;
         const char *status;
 
-        rsp = tpm_util_wait_command(who, "{ 'execute': 'query-migrate' }");
-        rsp_return = qdict_get_qdict(rsp, "return");
+        qtest_qmp_send(who, "{ 'execute': 'query-migrate' }");
+        rsp_return = qtest_qmp_receive_success(who, NULL, NULL);
         status = qdict_get_str(rsp_return, "status");
         completed = strcmp(status, "completed") == 0;
         g_assert_cmpstr(status, !=,  "failed");
-        qobject_unref(rsp);
+        qobject_unref(rsp_return);
         if (completed) {
             return;
         }

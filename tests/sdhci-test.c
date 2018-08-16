@@ -184,8 +184,8 @@ static QSDHCI *machine_start(const struct sdhci_t *test)
         uint16_t vendor_id, device_id;
         uint64_t barsize;
 
-        global_qtest = qtest_startf("-machine %s -device sdhci-pci",
-                                    test->machine);
+        global_qtest = qtest_initf("-machine %s -device sdhci-pci",
+                                   test->machine);
 
         s->pci.bus = qpci_init_pc(global_qtest, NULL);
 
@@ -200,7 +200,7 @@ static QSDHCI *machine_start(const struct sdhci_t *test)
         qpci_device_enable(s->pci.dev);
     } else {
         /* SysBus */
-        global_qtest = qtest_startf("-machine %s", test->machine);
+        global_qtest = qtest_initf("-machine %s", test->machine);
         s->addr = test->sdhci.addr;
     }
 

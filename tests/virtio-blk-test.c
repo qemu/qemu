@@ -16,12 +16,16 @@
 #include "libqos/virtio-pci.h"
 #include "libqos/virtio-mmio.h"
 #include "libqos/malloc-generic.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu/bswap.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
 #include "standard-headers/linux/virtio_blk.h"
 #include "standard-headers/linux/virtio_pci.h"
+
+/* TODO actually test the results and get rid of this */
+#define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))
 
 #define TEST_IMAGE_SIZE         (64 * 1024 * 1024)
 #define QVIRTIO_BLK_TIMEOUT_US  (30 * 1000 * 1000)
@@ -89,10 +93,10 @@ static void arm_test_start(void)
 
     tmp_path = drive_create();
 
-    global_qtest = qtest_startf("-machine virt "
-                                "-drive if=none,id=drive0,file=%s,format=raw "
-                                "-device virtio-blk-device,drive=drive0",
-                                tmp_path);
+    global_qtest = qtest_initf("-machine virt "
+                               "-drive if=none,id=drive0,file=%s,format=raw "
+                               "-device virtio-blk-device,drive=drive0",
+                               tmp_path);
     unlink(tmp_path);
     g_free(tmp_path);
 }
@@ -662,8 +666,9 @@ static void pci_hotplug(void)
     qs = pci_test_start();
 
     /* plug secondary disk */
-    qpci_plug_device_test("virtio-blk-pci", "drv1", PCI_SLOT_HP,
-                          "'drive': 'drive1'");
+    qtest_qmp_device_add("virtio-blk-pci", "drv1",
+                         "{'addr': %s, 'drive': 'drive1'}",
+                         stringify(PCI_SLOT_HP));
 
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT_HP);
     g_assert(dev);

@@ -18,7 +18,7 @@ static void virtio_serial_nop(void)
 
 static void hotplug(void)
 {
-    qtest_qmp_device_add("virtserialport", "hp-port", NULL);
+    qtest_qmp_device_add("virtserialport", "hp-port", "{}");
 
     qtest_qmp_device_del("hp-port");
 }
@@ -31,8 +31,8 @@ int main(int argc, char **argv)
     qtest_add_func("/virtio/serial/nop", virtio_serial_nop);
     qtest_add_func("/virtio/serial/hotplug", hotplug);
 
-    global_qtest = qtest_startf("-device virtio-serial-%s",
-                                qvirtio_get_dev_type());
+    global_qtest = qtest_initf("-device virtio-serial-%s",
+                               qvirtio_get_dev_type());
     ret = g_test_run();
 
     qtest_end();

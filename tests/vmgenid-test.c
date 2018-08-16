@@ -142,7 +142,7 @@ static void vmgenid_set_guid_test(void)
 
     g_assert(qemu_uuid_parse(VGID_GUID, &expected) == 0);
 
-    global_qtest = qtest_startf(GUID_CMD(VGID_GUID));
+    global_qtest = qtest_initf(GUID_CMD(VGID_GUID));
 
     /* Read the GUID from accessing guest memory */
     read_guid_from_memory(&measured);
@@ -155,7 +155,7 @@ static void vmgenid_set_guid_auto_test(void)
 {
     QemuUUID measured;
 
-    global_qtest = qtest_startf(GUID_CMD("auto"));
+    global_qtest = qtest_initf(GUID_CMD("auto"));
 
     read_guid_from_memory(&measured);
 
@@ -171,7 +171,7 @@ static void vmgenid_query_monitor_test(void)
 
     g_assert(qemu_uuid_parse(VGID_GUID, &expected) == 0);
 
-    global_qtest = qtest_startf(GUID_CMD(VGID_GUID));
+    global_qtest = qtest_initf(GUID_CMD(VGID_GUID));
 
     /* Read the GUID via the monitor */
     read_guid_from_monitor(&measured);

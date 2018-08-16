@@ -23,8 +23,8 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/virtio/balloon/nop", balloon_nop);
 
-    global_qtest = qtest_startf("-device virtio-balloon-%s",
-                                qvirtio_get_dev_type());
+    global_qtest = qtest_initf("-device virtio-balloon-%s",
+                               qvirtio_get_dev_type());
     ret = g_test_run();
 
     qtest_end();

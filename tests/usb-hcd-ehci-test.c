@@ -139,7 +139,7 @@ static void pci_ehci_port_3_hotplug(void)
 
 static void pci_ehci_port_hotplug(void)
 {
-    usb_test_hotplug("ich9-ehci-1", 3, pci_ehci_port_3_hotplug);
+    usb_test_hotplug("ich9-ehci-1", "3", pci_ehci_port_3_hotplug);
 }
 
 
