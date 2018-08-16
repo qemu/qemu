@@ -100,7 +100,9 @@ void xtensa_finalize_config(XtensaConfig *config)
         unsigned n_core_regs = 0;
 
         for (i = 0; config->gdb_regmap.reg[i].targno >= 0; ++i) {
-            if (config->gdb_regmap.reg[i].type != 6) {
+            if (config->gdb_regmap.reg[i].type != 5 &&
+                config->gdb_regmap.reg[i].type != 6 &&
+                config->gdb_regmap.reg[i].type != 7) {
                 ++n_regs;
                 if ((config->gdb_regmap.reg[i].flags & 0x1) == 0) {
                     ++n_core_regs;
