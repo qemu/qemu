@@ -120,7 +120,7 @@ static void rtc_coalesced_timer_update(RTCState *s)
         timer_del(s->coalesced_timer);
     } else {
         /* divide each RTC interval to 2 - 8 smaller intervals */
-        int c = MIN(s->irq_coalesced, 7) + 1; 
+        int c = MIN(s->irq_coalesced, 7) + 1;
         int64_t next_clock = qemu_clock_get_ns(rtc_clock) +
             periodic_clock_to_ns(s->period / c);
         timer_mod(s->coalesced_timer, next_clock);
@@ -485,7 +485,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
             s->cmos_data[s->cmos_index] = data;
             check_update_timer(s);
             break;
-	case RTC_IBM_PS2_CENTURY_BYTE:
+        case RTC_IBM_PS2_CENTURY_BYTE:
             s->cmos_index = RTC_CENTURY;
             /* fall through */
         case RTC_CENTURY:
@@ -713,7 +713,7 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
         return 0xff;
     } else {
         switch(s->cmos_index) {
-	case RTC_IBM_PS2_CENTURY_BYTE:
+        case RTC_IBM_PS2_CENTURY_BYTE:
             s->cmos_index = RTC_CENTURY;
             /* fall through */
         case RTC_CENTURY:
@@ -915,7 +915,7 @@ static void rtc_reset(void *opaque)
 
     if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
         s->irq_coalesced = 0;
-        s->irq_reinject_on_ack_count = 0;		
+        s->irq_reinject_on_ack_count = 0;
     }
 }
 
