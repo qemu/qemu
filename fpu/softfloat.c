@@ -701,7 +701,7 @@ static FloatParts addsub_floats(FloatParts a, FloatParts b, bool subtract,
             }
             a.frac += b.frac;
             if (a.frac & DECOMPOSED_OVERFLOW_BIT) {
-                a.frac >>= 1;
+                shift64RightJamming(a.frac, 1, &a.frac);
                 a.exp += 1;
             }
             return a;
