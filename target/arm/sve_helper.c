@@ -3358,7 +3358,7 @@ static void do_fmla_zpzzz_h(CPUARMState *env, void *vg, uint32_t desc,
                 e1 = *(uint16_t *)(vn + H1_2(i)) ^ neg1;
                 e2 = *(uint16_t *)(vm + H1_2(i));
                 e3 = *(uint16_t *)(va + H1_2(i)) ^ neg3;
-                r = float16_muladd(e1, e2, e3, 0, &env->vfp.fp_status);
+                r = float16_muladd(e1, e2, e3, 0, &env->vfp.fp_status_f16);
                 *(uint16_t *)(vd + H1_2(i)) = r;
             }
         } while (i & 63);
