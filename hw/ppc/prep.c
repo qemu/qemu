@@ -696,6 +696,9 @@ static int prep_set_cmos_checksum(DeviceState *dev, void *opaque)
         rtc_set_memory(rtc, 0x3e, checksum & 0xff);
         rtc_set_memory(rtc, 0x2f, checksum >> 8);
         rtc_set_memory(rtc, 0x3f, checksum >> 8);
+
+        object_property_add_alias(qdev_get_machine(), "rtc-time", OBJECT(rtc),
+                                  "date", NULL);
     }
     return 0;
 }

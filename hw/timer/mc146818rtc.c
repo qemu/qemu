@@ -995,9 +995,6 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
 
     object_property_add_tm(OBJECT(s), "date", rtc_get_date, NULL);
 
-    object_property_add_alias(qdev_get_machine(), "rtc-time",
-                              OBJECT(s), "date", NULL);
-
     qdev_init_gpio_out(dev, &s->irq, 1);
 }
 
@@ -1018,6 +1015,9 @@ ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
         isa_connect_gpio_out(isadev, 0, RTC_ISA_IRQ);
     }
     QLIST_INSERT_HEAD(&rtc_devices, s, link);
+
+    object_property_add_alias(qdev_get_machine(), "rtc-time", OBJECT(s),
+                              "date", NULL);
 
     return isadev;
 }
@@ -1052,17 +1052,11 @@ static void rtc_class_initfn(ObjectClass *klass, void *data)
     dc->user_creatable = false;
 }
 
-static void rtc_finalize(Object *obj)
-{
-    object_property_del(qdev_get_machine(), "rtc", NULL);
-}
-
 static const TypeInfo mc146818rtc_info = {
     .name          = TYPE_MC146818_RTC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(RTCState),
     .class_init    = rtc_class_initfn,
-    .instance_finalize = rtc_finalize,
 };
 
 static void mc146818rtc_register_types(void)
