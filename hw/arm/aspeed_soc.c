@@ -155,6 +155,8 @@ static void aspeed_soc_init(Object *obj)
                          sc->info->silicon_rev);
     object_property_add_alias(obj, "ram-size", OBJECT(&s->sdmc),
                               "ram-size", &error_abort);
+    object_property_add_alias(obj, "max-ram-size", OBJECT(&s->sdmc),
+                              "max-ram-size", &error_abort);
 
     for (i = 0; i < sc->info->wdts_num; i++) {
         object_initialize(&s->wdt[i], sizeof(s->wdt[i]), TYPE_ASPEED_WDT);

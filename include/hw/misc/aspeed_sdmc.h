@@ -27,6 +27,7 @@ typedef struct AspeedSDMCState {
     uint32_t silicon_rev;
     uint32_t ram_bits;
     uint64_t ram_size;
+    uint64_t max_ram_size;
     uint32_t fixed_conf;
 
 } AspeedSDMCState;
