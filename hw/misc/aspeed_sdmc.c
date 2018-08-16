@@ -23,6 +23,10 @@
 /* Configuration Register */
 #define R_CONF            (0x04 / 4)
 
+/* Control/Status Register #1 (ast2500) */
+#define R_STATUS1         (0x60 / 4)
+#define   PHY_BUSY_STATE      BIT(0)
+
 /*
  * Configuration register Ox4 (for Aspeed AST2400 SOC)
  *
@@ -135,6 +139,17 @@ static void aspeed_sdmc_write(void *opaque, hwaddr addr, uint64_t data,
             break;
         default:
             g_assert_not_reached();
+        }
+    }
+    if (s->silicon_rev == AST2500_A0_SILICON_REV ||
+            s->silicon_rev == AST2500_A1_SILICON_REV) {
+        switch (addr) {
+        case R_STATUS1:
+            /* Will never return 'busy' */
+            data &= ~PHY_BUSY_STATE;
+            break;
+        default:
+            break;
         }
     }
 
