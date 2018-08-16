@@ -1633,8 +1633,8 @@ void helper_ljmp_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
         }
         limit = get_seg_limit(e1, e2);
         if (new_eip > limit &&
-            !(env->hflags & HF_LMA_MASK) && !(e2 & DESC_L_MASK)) {
-            raise_exception_err_ra(env, EXCP0D_GPF, new_cs & 0xfffc, GETPC());
+            (!(env->hflags & HF_LMA_MASK) || !(e2 & DESC_L_MASK))) {
+            raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
         }
         cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
                        get_seg_base(e1, e2), limit, e2);
