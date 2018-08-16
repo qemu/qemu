@@ -147,6 +147,10 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
                 size = load_uimage_as(s->file, &entry, NULL, NULL, NULL, NULL,
                                       as);
             }
+
+            if (size < 0) {
+                size = load_targphys_hex_as(s->file, &entry, as);
+            }
         }
 
         if (size < 0 || s->force_raw) {
