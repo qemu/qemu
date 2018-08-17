@@ -13,7 +13,13 @@
 
 #include "qemu/fprintf-fn.h"
 
-void qsp_report(FILE *f, fprintf_function cpu_fprintf, size_t max);
+enum QSPSortBy {
+    QSP_SORT_BY_TOTAL_WAIT_TIME,
+    QSP_SORT_BY_AVG_WAIT_TIME,
+};
+
+void qsp_report(FILE *f, fprintf_function cpu_fprintf, size_t max,
+                enum QSPSortBy sort_by);
 
 bool qsp_is_enabled(void);
 void qsp_enable(void);

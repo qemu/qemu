@@ -429,14 +429,34 @@ static gint qsp_tree_cmp(gconstpointer ap, gconstpointer bp, gpointer up)
 {
     const QSPEntry *a = ap;
     const QSPEntry *b = bp;
+    enum QSPSortBy sort_by = *(enum QSPSortBy *)up;
     const QSPCallSite *ca;
     const QSPCallSite *cb;
 
-    if (a->ns > b->ns) {
-        return -1;
-    } else if (a->ns < b->ns) {
-        return 1;
+    switch (sort_by) {
+    case QSP_SORT_BY_TOTAL_WAIT_TIME:
+        if (a->ns > b->ns) {
+            return -1;
+        } else if (a->ns < b->ns) {
+            return 1;
+        }
+        break;
+    case QSP_SORT_BY_AVG_WAIT_TIME:
+    {
+        double avg_a = a->n_acqs ? a->ns / a->n_acqs : 0;
+        double avg_b = b->n_acqs ? b->ns / b->n_acqs : 0;
+
+        if (avg_a > avg_b) {
+            return -1;
+        } else if (avg_a < avg_b) {
+            return 1;
+        }
+        break;
     }
+    default:
+        g_assert_not_reached();
+    }
+
     ca = a->callsite;
     cb = b->callsite;
     /* Break the tie with the object's address */
@@ -613,9 +633,10 @@ static void report_destroy(QSPReport *rep)
     g_free(rep->entries);
 }
 
-void qsp_report(FILE *f, fprintf_function cpu_fprintf, size_t max)
+void qsp_report(FILE *f, fprintf_function cpu_fprintf, size_t max,
+                enum QSPSortBy sort_by)
 {
-    GTree *tree = g_tree_new_full(qsp_tree_cmp, NULL, g_free, NULL);
+    GTree *tree = g_tree_new_full(qsp_tree_cmp, &sort_by, g_free, NULL);
     QSPReport rep;
 
     qsp_init();
