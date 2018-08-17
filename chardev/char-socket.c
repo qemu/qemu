@@ -353,6 +353,15 @@ static GSource *tcp_chr_add_watch(Chardev *chr, GIOCondition cond)
     return qio_channel_create_watch(s->ioc, cond);
 }
 
+static void remove_hup_source(SocketChardev *s)
+{
+    if (s->hup_source != NULL) {
+        g_source_destroy(s->hup_source);
+        g_source_unref(s->hup_source);
+        s->hup_source = NULL;
+    }
+}
+
 static void tcp_chr_free_connection(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
@@ -367,11 +376,7 @@ static void tcp_chr_free_connection(Chardev *chr)
         s->read_msgfds_num = 0;
     }
 
-    if (s->hup_source != NULL) {
-        g_source_destroy(s->hup_source);
-        g_source_unref(s->hup_source);
-        s->hup_source = NULL;
-    }
+    remove_hup_source(s);
 
     tcp_set_msgfds(chr, NULL, 0);
     remove_fd_in_watch(chr);
@@ -540,6 +545,27 @@ static char *sockaddr_to_str(struct sockaddr_storage *ss, socklen_t ss_len,
     }
 }
 
+static void update_ioc_handlers(SocketChardev *s)
+{
+    Chardev *chr = CHARDEV(s);
+
+    if (!s->connected) {
+        return;
+    }
+
+    remove_fd_in_watch(chr);
+    chr->gsource = io_add_watch_poll(chr, s->ioc,
+                                     tcp_chr_read_poll,
+                                     tcp_chr_read, chr,
+                                     chr->gcontext);
+
+    remove_hup_source(s);
+    s->hup_source = qio_channel_create_watch(s->ioc, G_IO_HUP);
+    g_source_set_callback(s->hup_source, (GSourceFunc)tcp_chr_hup,
+                          chr, NULL);
+    g_source_attach(s->hup_source, chr->gcontext);
+}
+
 static void tcp_chr_connect(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
@@ -552,16 +578,7 @@ static void tcp_chr_connect(void *opaque)
         s->is_listen, s->is_telnet);
 
     s->connected = 1;
-    chr->gsource = io_add_watch_poll(chr, s->ioc,
-                                       tcp_chr_read_poll,
-                                       tcp_chr_read,
-                                       chr, chr->gcontext);
-
-    s->hup_source = qio_channel_create_watch(s->ioc, G_IO_HUP);
-    g_source_set_callback(s->hup_source, (GSourceFunc)tcp_chr_hup,
-                          chr, NULL);
-    g_source_attach(s->hup_source, chr->gcontext);
-
+    update_ioc_handlers(s);
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
@@ -592,17 +609,7 @@ static void tcp_chr_update_read_handler(Chardev *chr)
         tcp_chr_telnet_init(CHARDEV(s));
     }
 
-    if (!s->connected) {
-        return;
-    }
-
-    remove_fd_in_watch(chr);
-    if (s->ioc) {
-        chr->gsource = io_add_watch_poll(chr, s->ioc,
-                                           tcp_chr_read_poll,
-                                           tcp_chr_read, chr,
-                                           chr->gcontext);
-    }
+    update_ioc_handlers(s);
 }
 
 static gboolean tcp_chr_telnet_init_io(QIOChannel *ioc,
