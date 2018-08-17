@@ -288,6 +288,18 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     BlockDriverState *bs = data->bs;
 
     if (bs) {
+        AioContext *ctx = bdrv_get_aio_context(bs);
+        AioContext *co_ctx = qemu_coroutine_get_aio_context(co);
+
+        /*
+         * When the coroutine yielded, the lock for its home context was
+         * released, so we need to re-acquire it here. If it explicitly
+         * acquired a different context, the lock is still held and we don't
+         * want to lock it a second time (or AIO_WAIT_WHILE() would hang).
+         */
+        if (ctx == co_ctx) {
+            aio_context_acquire(ctx);
+        }
         bdrv_dec_in_flight(bs);
         if (data->begin) {
             bdrv_do_drained_begin(bs, data->recursive, data->parent,
@@ -295,6 +307,9 @@ static void bdrv_co_drain_bh_cb(void *opaque)
         } else {
             bdrv_do_drained_end(bs, data->recursive, data->parent,
                                 data->ignore_bds_parents);
+        }
+        if (ctx == co_ctx) {
+            aio_context_release(ctx);
         }
     } else {
         assert(data->begin);

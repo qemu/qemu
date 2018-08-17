@@ -90,6 +90,11 @@ void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co);
 void coroutine_fn qemu_coroutine_yield(void);
 
 /**
+ * Get the AioContext of the given coroutine
+ */
+AioContext *coroutine_fn qemu_coroutine_get_aio_context(Coroutine *co);
+
+/**
  * Get the currently executing coroutine
  */
 Coroutine *coroutine_fn qemu_coroutine_self(void);
