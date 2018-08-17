@@ -223,6 +223,10 @@ static void cancel_common(CancelJob *s)
     BlockJob *job = &s->common;
     BlockBackend *blk = s->blk;
     JobStatus sts = job->job.status;
+    AioContext *ctx;
+
+    ctx = job->job.aio_context;
+    aio_context_acquire(ctx);
 
     job_cancel_sync(&job->job);
     if (sts != JOB_STATUS_CREATED && sts != JOB_STATUS_CONCLUDED) {
@@ -232,6 +236,8 @@ static void cancel_common(CancelJob *s)
     assert(job->job.status == JOB_STATUS_NULL);
     job_unref(&job->job);
     destroy_blk(blk);
+
+    aio_context_release(ctx);
 }
 
 static void test_cancel_created(void)
