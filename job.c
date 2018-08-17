@@ -29,6 +29,7 @@
 #include "qemu/job.h"
 #include "qemu/id.h"
 #include "qemu/main-loop.h"
+#include "block/aio-wait.h"
 #include "trace-root.h"
 #include "qapi/qapi-events-job.h"
 
@@ -962,6 +963,7 @@ void job_complete(Job *job, Error **errp)
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
 {
     Error *local_err = NULL;
+    AioWait dummy_wait = {};
     int ret;
 
     job_ref(job);
@@ -974,14 +976,10 @@ int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
         job_unref(job);
         return -EBUSY;
     }
-    /* job_drain calls job_enter, and it should be enough to induce progress
-     * until the job completes or moves to the main thread. */
-    while (!job->deferred_to_main_loop && !job_is_completed(job)) {
-        job_drain(job);
-    }
-    while (!job_is_completed(job)) {
-        aio_poll(qemu_get_aio_context(), true);
-    }
+
+    AIO_WAIT_WHILE(&dummy_wait, job->aio_context,
+                   (job_drain(job), !job_is_completed(job)));
+
     ret = (job_is_cancelled(job) && job->ret == 0) ? -ECANCELED : job->ret;
     job_unref(job);
     return ret;
