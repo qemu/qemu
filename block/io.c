@@ -268,10 +268,6 @@ bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
 static bool bdrv_drain_poll_top_level(BlockDriverState *bs, bool recursive,
                                       BdrvChild *ignore_parent)
 {
-    /* Execute pending BHs first and check everything else only after the BHs
-     * have executed. */
-    while (aio_poll(bs->aio_context, false));
-
     return bdrv_drain_poll(bs, recursive, ignore_parent, false);
 }
 
@@ -510,10 +506,6 @@ static bool bdrv_drain_all_poll(void)
 {
     BlockDriverState *bs = NULL;
     bool result = false;
-
-    /* Execute pending BHs first (may modify the graph) and check everything
-     * else only after the BHs have executed. */
-    while (aio_poll(qemu_get_aio_context(), false));
 
     /* bdrv_drain_poll() can't make changes to the graph and we are holding the
      * main AioContext lock, so iterating bdrv_next_all_states() is safe. */
