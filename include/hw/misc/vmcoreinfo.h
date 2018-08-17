@@ -13,20 +13,12 @@
 #define VMCOREINFO_H
 
 #include "hw/qdev.h"
+#include "standard-headers/linux/qemu_fw_cfg.h"
 
 #define VMCOREINFO_DEVICE "vmcoreinfo"
 #define VMCOREINFO(obj) OBJECT_CHECK(VMCoreInfoState, (obj), VMCOREINFO_DEVICE)
 
-#define VMCOREINFO_FORMAT_NONE 0x0
-#define VMCOREINFO_FORMAT_ELF 0x1
-
-/* all fields are little-endian */
-typedef struct FWCfgVMCoreInfo {
-    uint16_t host_format; /* set on reset */
-    uint16_t guest_format;
-    uint32_t size;
-    uint64_t paddr;
-} QEMU_PACKED FWCfgVMCoreInfo;
+typedef struct fw_cfg_vmcoreinfo FWCfgVMCoreInfo;
 
 typedef struct VMCoreInfoState {
     DeviceClass parent_obj;

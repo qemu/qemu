@@ -19,7 +19,7 @@ static void fw_cfg_vmci_write(void *dev, off_t offset, size_t len)
     VMCoreInfoState *s = VMCOREINFO(dev);
 
     s->has_vmcoreinfo = offset == 0 && len == sizeof(s->vmcoreinfo)
-        && s->vmcoreinfo.guest_format != VMCOREINFO_FORMAT_NONE;
+        && s->vmcoreinfo.guest_format != FW_CFG_VMCOREINFO_FORMAT_NONE;
 }
 
 static void vmcoreinfo_reset(void *dev)
@@ -28,7 +28,7 @@ static void vmcoreinfo_reset(void *dev)
 
     s->has_vmcoreinfo = false;
     memset(&s->vmcoreinfo, 0, sizeof(s->vmcoreinfo));
-    s->vmcoreinfo.host_format = cpu_to_le16(VMCOREINFO_FORMAT_ELF);
+    s->vmcoreinfo.host_format = cpu_to_le16(FW_CFG_VMCOREINFO_FORMAT_ELF);
 }
 
 static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
@@ -53,7 +53,7 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    fw_cfg_add_file_callback(fw_cfg, "etc/vmcoreinfo",
+    fw_cfg_add_file_callback(fw_cfg, FW_CFG_VMCOREINFO_FILENAME,
                              NULL, fw_cfg_vmci_write, s,
                              &s->vmcoreinfo, sizeof(s->vmcoreinfo), false);
 

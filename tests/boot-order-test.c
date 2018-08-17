@@ -14,7 +14,7 @@
 #include "libqos/fw_cfg.h"
 #include "libqtest.h"
 #include "qapi/qmp/qdict.h"
-#include "hw/nvram/fw_cfg_keys.h"
+#include "standard-headers/linux/qemu_fw_cfg.h"
 
 /* TODO actually test the results and get rid of this */
 #define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))

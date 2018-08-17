@@ -19,7 +19,20 @@
  */
 
 
-#include "../../include/hw/nvram/fw_cfg_keys.h"
+#define FW_CFG_KERNEL_ADDR      0x07
+#define FW_CFG_KERNEL_SIZE      0x08
+#define FW_CFG_KERNEL_CMDLINE   0x09
+#define FW_CFG_INITRD_ADDR      0x0a
+#define FW_CFG_INITRD_SIZE      0x0b
+#define FW_CFG_KERNEL_ENTRY     0x10
+#define FW_CFG_KERNEL_DATA      0x11
+#define FW_CFG_INITRD_DATA      0x12
+#define FW_CFG_CMDLINE_ADDR     0x13
+#define FW_CFG_CMDLINE_SIZE     0x14
+#define FW_CFG_CMDLINE_DATA     0x15
+#define FW_CFG_SETUP_ADDR       0x16
+#define FW_CFG_SETUP_SIZE       0x17
+#define FW_CFG_SETUP_DATA       0x18
 
 #define BIOS_CFG_IOPORT_CFG	0x510
 #define BIOS_CFG_IOPORT_DATA	0x511
