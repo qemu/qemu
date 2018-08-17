@@ -19,7 +19,7 @@ enum QSPSortBy {
 };
 
 void qsp_report(FILE *f, fprintf_function cpu_fprintf, size_t max,
-                enum QSPSortBy sort_by);
+                enum QSPSortBy sort_by, bool callsite_coalesce);
 
 bool qsp_is_enabled(void);
 void qsp_enable(void);
