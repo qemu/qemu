@@ -32,7 +32,6 @@
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-sockets.h"
-#include "sysemu/sysemu.h"
 
 #include "chardev/char-io.h"
 
@@ -724,11 +723,6 @@ static void tcp_chr_tls_init(Chardev *chr)
     Error *err = NULL;
     gchar *name;
 
-    if (!machine_init_done) {
-        /* This will be postponed to machine_done notifier */
-        return;
-    }
-
     if (s->is_listen) {
         tioc = qio_channel_tls_new_server(
             s->ioc, s->tls_creds,
@@ -1167,10 +1161,6 @@ static int tcp_chr_machine_done_hook(Chardev *chr)
 
     if (s->reconnect_time) {
         tcp_chr_connect_async(chr);
-    }
-
-    if (s->ioc && s->tls_creds) {
-        tcp_chr_tls_init(chr);
     }
 
     return 0;
