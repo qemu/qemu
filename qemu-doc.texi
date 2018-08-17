@@ -135,6 +135,7 @@ accelerator is required to use more than one host CPU for emulation.
 * pcsys_keys::         Keys in the graphical frontends
 * mux_keys::           Keys in the character backend multiplexer
 * pcsys_monitor::      QEMU Monitor
+* cpu_models::         CPU models
 * disk_images::        Disk Images
 * pcsys_network::      Network emulation
 * pcsys_other_devs::   Other Devices
@@ -601,6 +602,11 @@ The following commands are available:
 The monitor understands integers expressions for every integer
 argument. You can use register names to get the value of specifics
 CPU registers by prefixing them with @emph{$}.
+
+@node cpu_models
+@section CPU models
+
+@include docs/qemu-cpu-models.texi
 
 @node disk_images
 @section Disk Images
