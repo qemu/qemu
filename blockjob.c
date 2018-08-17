@@ -221,6 +221,22 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
     return 0;
 }
 
+void block_job_wakeup_all_bdrv(BlockJob *job)
+{
+    GSList *l;
+
+    for (l = job->nodes; l; l = l->next) {
+        BdrvChild *c = l->data;
+        bdrv_wakeup(c->bs);
+    }
+}
+
+static void block_job_on_idle(Notifier *n, void *opaque)
+{
+    BlockJob *job = opaque;
+    block_job_wakeup_all_bdrv(job);
+}
+
 bool block_job_is_internal(BlockJob *job)
 {
     return (job->job.id == NULL);
@@ -416,6 +432,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->finalize_completed_notifier.notify = block_job_event_completed;
     job->pending_notifier.notify = block_job_event_pending;
     job->ready_notifier.notify = block_job_event_ready;
+    job->idle_notifier.notify = block_job_on_idle;
 
     notifier_list_add(&job->job.on_finalize_cancelled,
                       &job->finalize_cancelled_notifier);
@@ -423,6 +440,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
                       &job->finalize_completed_notifier);
     notifier_list_add(&job->job.on_pending, &job->pending_notifier);
     notifier_list_add(&job->job.on_ready, &job->ready_notifier);
+    notifier_list_add(&job->job.on_idle, &job->idle_notifier);
 
     error_setg(&job->blocker, "block device is in use by block job: %s",
                job_type_str(&job->job));

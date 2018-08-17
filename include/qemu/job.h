@@ -156,6 +156,9 @@ typedef struct Job {
     /** Notifiers called when the job transitions to READY */
     NotifierList on_ready;
 
+    /** Notifiers called when the job coroutine yields or terminates */
+    NotifierList on_idle;
+
     /** Element of the list of jobs */
     QLIST_ENTRY(Job) job_list;
 
