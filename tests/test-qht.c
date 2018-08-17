@@ -172,9 +172,20 @@ static void qht_do_test(unsigned int mode, size_t init_entries)
 
     qht_init(&ht, is_equal, 0, mode);
     rm_nonexist(0, 4);
+    /*
+     * Test that we successfully delete the last element in a bucket.
+     * This is a hard-to-reach code path when resizing is on, but without
+     * resizing we can easily hit it if init_entries <= 1.
+     * Given that the number of elements per bucket can be 4 or 6 depending on
+     * the host's pointer size, test the removal of the 4th and 6th elements.
+     */
     insert(0, 4);
     rm_nonexist(5, 6);
-    insert(4, 6);
+    rm(3, 4);
+    check_n(3);
+    insert(3, 6);
+    rm(5, 6);
+    check_n(5);
     rm_nonexist(7, 8);
     iter_rm_mod(1);
 
