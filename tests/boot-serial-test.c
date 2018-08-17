@@ -116,8 +116,8 @@ static bool check_guest_output(const testdef_t *test, int fd)
     int i, nbr = 0, pos = 0, ccnt;
     char ch;
 
-    /* Poll serial output... Wait at most 60 seconds */
-    for (i = 0; i < 6000; ++i) {
+    /* Poll serial output... Wait at most 360 seconds */
+    for (i = 0; i < 36000; ++i) {
         ccnt = 0;
         while (ccnt++ < 512 && (nbr = read(fd, &ch, 1)) == 1) {
             if (ch == test->expect[pos]) {
