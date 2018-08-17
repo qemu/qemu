@@ -24,5 +24,6 @@ void qsp_report(FILE *f, fprintf_function cpu_fprintf, size_t max,
 bool qsp_is_enabled(void);
 void qsp_enable(void);
 void qsp_disable(void);
+void qsp_reset(void);
 
 #endif /* QEMU_QSP_H */
