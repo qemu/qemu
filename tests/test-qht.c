@@ -189,6 +189,10 @@ static void qht_do_test(unsigned int mode, size_t init_entries)
     rm_nonexist(7, 8);
     iter_rm_mod(1);
 
+    if (!(mode & QHT_MODE_AUTO_RESIZE)) {
+        qht_resize(&ht, init_entries * 4 + 4);
+    }
+
     check_n(0);
     rm_nonexist(0, 10);
     insert(0, N);
