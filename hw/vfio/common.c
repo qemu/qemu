@@ -32,6 +32,7 @@
 #include "hw/hw.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
+#include "sysemu/balloon.h"
 #include "sysemu/kvm.h"
 #include "trace.h"
 #include "qapi/error.h"
@@ -1044,6 +1045,33 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
 
     space = vfio_get_address_space(as);
 
+    /*
+     * VFIO is currently incompatible with memory ballooning insofar as the
+     * madvise to purge (zap) the page from QEMU's address space does not
+     * interact with the memory API and therefore leaves stale virtual to
+     * physical mappings in the IOMMU if the page was previously pinned.  We
+     * therefore add a balloon inhibit for each group added to a container,
+     * whether the container is used individually or shared.  This provides
+     * us with options to allow devices within a group to opt-in and allow
+     * ballooning, so long as it is done consistently for a group (for instance
+     * if the device is an mdev device where it is known that the host vendor
+     * driver will never pin pages outside of the working set of the guest
+     * driver, which would thus not be ballooning candidates).
+     *
+     * The first opportunity to induce pinning occurs here where we attempt to
+     * attach the group to existing containers within the AddressSpace.  If any
+     * pages are already zapped from the virtual address space, such as from a
+     * previous ballooning opt-in, new pinning will cause valid mappings to be
+     * re-established.  Likewise, when the overall MemoryListener for a new
+     * container is registered, a replay of mappings within the AddressSpace
+     * will occur, re-establishing any previously zapped pages as well.
+     *
+     * NB. Balloon inhibiting does not currently block operation of the
+     * balloon driver or revoke previously pinned pages, it only prevents
+     * calling madvise to modify the virtual mapping of ballooned pages.
+     */
+    qemu_balloon_inhibit(true);
+
     QLIST_FOREACH(container, &space->containers, next) {
         if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
             group->container = container;
@@ -1232,6 +1260,7 @@ close_fd_exit:
     close(fd);
 
 put_space_exit:
+    qemu_balloon_inhibit(false);
     vfio_put_address_space(space);
 
     return ret;
@@ -1352,6 +1381,7 @@ void vfio_put_group(VFIOGroup *group)
         return;
     }
 
+    qemu_balloon_inhibit(false);
     vfio_kvm_device_del_group(group);
     vfio_disconnect_container(group);
     QLIST_REMOVE(group, next);
