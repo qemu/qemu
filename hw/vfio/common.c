@@ -1381,7 +1381,9 @@ void vfio_put_group(VFIOGroup *group)
         return;
     }
 
-    qemu_balloon_inhibit(false);
+    if (!group->balloon_allowed) {
+        qemu_balloon_inhibit(false);
+    }
     vfio_kvm_device_del_group(group);
     vfio_disconnect_container(group);
     QLIST_REMOVE(group, next);
@@ -1415,6 +1417,25 @@ int vfio_get_device(VFIOGroup *group, const char *name,
         error_setg_errno(errp, errno, "error getting device info");
         close(fd);
         return ret;
+    }
+
+    /*
+     * Clear the balloon inhibitor for this group if the driver knows the
+     * device operates compatibly with ballooning.  Setting must be consistent
+     * per group, but since compatibility is really only possible with mdev
+     * currently, we expect singleton groups.
+     */
+    if (vbasedev->balloon_allowed != group->balloon_allowed) {
+        if (!QLIST_EMPTY(&group->device_list)) {
+            error_setg(errp,
+                       "Inconsistent device balloon setting within group");
+            return -1;
+        }
+
+        if (!group->balloon_allowed) {
+            group->balloon_allowed = true;
+            qemu_balloon_inhibit(false);
+        }
     }
 
     vbasedev->fd = fd;
