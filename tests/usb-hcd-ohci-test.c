@@ -10,30 +10,58 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "libqos/usb.h"
+#include "libqos/qgraph.h"
+#include "libqos/pci.h"
 
+typedef struct QOHCI_PCI QOHCI_PCI;
 
-static void test_ohci_init(void)
-{
+struct QOHCI_PCI {
+    QOSGraphObject obj;
+    QPCIDevice dev;
+};
 
-}
-
-static void test_ohci_hotplug(void)
+static void test_ohci_hotplug(void *obj, void *data, QGuestAllocator *alloc)
 {
     usb_test_hotplug("ohci", "1", NULL);
 }
 
-int main(int argc, char **argv)
+static void *ohci_pci_get_driver(void *obj, const char *interface)
 {
-    int ret;
+    QOHCI_PCI *ohci_pci = obj;
 
-    g_test_init(&argc, &argv, NULL);
+    if (!g_strcmp0(interface, "pci-device")) {
+        return &ohci_pci->dev;
+    }
 
-    qtest_add_func("/ohci/pci/init", test_ohci_init);
-    qtest_add_func("/ohci/pci/hotplug", test_ohci_hotplug);
-
-    qtest_start("-device pci-ohci,id=ohci");
-    ret = g_test_run();
-    qtest_end();
-
-    return ret;
+    fprintf(stderr, "%s not present in pci-ohci\n", interface);
+    g_assert_not_reached();
 }
+
+static void *ohci_pci_create(void *pci_bus, QGuestAllocator *alloc, void *addr)
+{
+    QOHCI_PCI *ohci_pci = g_new0(QOHCI_PCI, 1);
+    ohci_pci->obj.get_driver = ohci_pci_get_driver;
+
+    return &ohci_pci->obj;
+}
+
+static void ohci_pci_register_nodes(void)
+{
+    QOSGraphEdgeOptions opts = {
+        .extra_device_opts = "addr=04.0,id=ohci",
+    };
+    add_qpci_address(&opts, &(QPCIAddress) { .devfn = QPCI_DEVFN(4, 0) });
+
+    qos_node_create_driver("pci-ohci", ohci_pci_create);
+    qos_node_consumes("pci-ohci", "pci-bus", &opts);
+    qos_node_produces("pci-ohci", "pci-device");
+}
+
+libqos_init(ohci_pci_register_nodes);
+
+static void register_ohci_pci_test(void)
+{
+    qos_add_test("ohci_pci-test-hotplug", "pci-ohci", test_ohci_hotplug, NULL);
+}
+
+libqos_init(register_ohci_pci_test);
