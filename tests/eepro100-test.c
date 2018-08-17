@@ -9,23 +9,15 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "libqos/qgraph.h"
+#include "libqos/pci.h"
 
-static void test_device(gconstpointer data)
-{
-    const char *model = data;
-    QTestState *s;
-    char *args;
+typedef struct QEEPRO100 QEEPRO100;
 
-    args = g_strdup_printf("-device %s", model);
-    s = qtest_start(args);
-
-    /* Tests only initialization so far. TODO: Implement functional tests */
-
-    if (s) {
-        qtest_quit(s);
-    }
-    g_free(args);
-}
+struct QEEPRO100 {
+    QOSGraphObject obj;
+    QPCIDevice dev;
+};
 
 static const char *models[] = {
     "i82550",
@@ -43,19 +35,42 @@ static const char *models[] = {
     "i82801",
 };
 
-int main(int argc, char **argv)
+static void *eepro100_get_driver(void *obj, const char *interface)
 {
-    int i;
+    QEEPRO100 *eepro100 = obj;
 
-    g_test_init(&argc, &argv, NULL);
-
-    for (i = 0; i < ARRAY_SIZE(models); i++) {
-        char *path;
-
-        path = g_strdup_printf("eepro100/%s", models[i]);
-        qtest_add_data_func(path, models[i], test_device);
-        g_free(path);
+    if (!g_strcmp0(interface, "pci-device")) {
+        return &eepro100->dev;
     }
 
-    return g_test_run();
+    fprintf(stderr, "%s not present in eepro100\n", interface);
+    g_assert_not_reached();
 }
+
+static void *eepro100_create(void *pci_bus, QGuestAllocator *alloc, void *addr)
+{
+    QEEPRO100 *eepro100 = g_new0(QEEPRO100, 1);
+    QPCIBus *bus = pci_bus;
+
+    qpci_device_init(&eepro100->dev, bus, addr);
+    eepro100->obj.get_driver = eepro100_get_driver;
+
+    return &eepro100->obj;
+}
+
+static void eepro100_register_nodes(void)
+{
+    int i;
+    QOSGraphEdgeOptions opts = {
+        .extra_device_opts = "addr=04.0",
+    };
+
+    add_qpci_address(&opts, &(QPCIAddress) { .devfn = QPCI_DEVFN(4, 0) });
+    for (i = 0; i < ARRAY_SIZE(models); i++) {
+        qos_node_create_driver(models[i], eepro100_create);
+        qos_node_consumes(models[i], "pci-bus", &opts);
+        qos_node_produces(models[i], "pci-device");
+    }
+}
+
+libqos_init(eepro100_register_nodes);
