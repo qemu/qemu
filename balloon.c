@@ -26,6 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/atomic.h"
 #include "exec/cpu-common.h"
 #include "sysemu/kvm.h"
 #include "sysemu/balloon.h"
@@ -37,16 +38,22 @@
 static QEMUBalloonEvent *balloon_event_fn;
 static QEMUBalloonStatus *balloon_stat_fn;
 static void *balloon_opaque;
-static bool balloon_inhibited;
+static int balloon_inhibit_count;
 
 bool qemu_balloon_is_inhibited(void)
 {
-    return balloon_inhibited;
+    return atomic_read(&balloon_inhibit_count) > 0;
 }
 
 void qemu_balloon_inhibit(bool state)
 {
-    balloon_inhibited = state;
+    if (state) {
+        atomic_inc(&balloon_inhibit_count);
+    } else {
+        atomic_dec(&balloon_inhibit_count);
+    }
+
+    assert(atomic_read(&balloon_inhibit_count) >= 0);
 }
 
 static bool have_balloon(Error **errp)
