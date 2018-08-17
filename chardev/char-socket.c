@@ -1005,8 +1005,9 @@ static void qmp_chardev_open_socket(Chardev *chr,
         s->reconnect_time = reconnect;
     }
 
-    /* If reconnect_time is set, will do that in chr_machine_done. */
-    if (!s->reconnect_time) {
+    if (s->reconnect_time) {
+        tcp_chr_connect_async(chr);
+    } else {
         if (s->is_listen) {
             char *name;
             s->listener = qio_net_listener_new();
@@ -1155,17 +1156,6 @@ char_socket_get_connected(Object *obj, Error **errp)
     return s->connected;
 }
 
-static int tcp_chr_machine_done_hook(Chardev *chr)
-{
-    SocketChardev *s = SOCKET_CHARDEV(chr);
-
-    if (s->reconnect_time) {
-        tcp_chr_connect_async(chr);
-    }
-
-    return 0;
-}
-
 static void char_socket_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -1181,7 +1171,6 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
     cc->chr_add_client = tcp_chr_add_client;
     cc->chr_add_watch = tcp_chr_add_watch;
     cc->chr_update_read_handler = tcp_chr_update_read_handler;
-    cc->chr_machine_done = tcp_chr_machine_done_hook;
 
     object_class_property_add(oc, "addr", "SocketAddress",
                               char_socket_get_addr, NULL,
