@@ -45,7 +45,7 @@ static inline void seqlock_write_end(QemuSeqLock *sl)
     atomic_set(&sl->sequence, sl->sequence + 1);
 }
 
-static inline unsigned seqlock_read_begin(QemuSeqLock *sl)
+static inline unsigned seqlock_read_begin(const QemuSeqLock *sl)
 {
     /* Always fail if a write is in progress.  */
     unsigned ret = atomic_read(&sl->sequence);
