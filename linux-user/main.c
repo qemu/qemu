@@ -126,7 +126,7 @@ void fork_end(int child)
            Discard information about the parent threads.  */
         CPU_FOREACH_SAFE(cpu, next_cpu) {
             if (cpu != thread_cpu) {
-                QTAILQ_REMOVE(&cpus, cpu, node);
+                QTAILQ_REMOVE_RCU(&cpus, cpu, node);
             }
         }
         qemu_init_cpu_list();
