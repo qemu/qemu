@@ -44,7 +44,7 @@ static int nthreadsrunning;
 #define GOFLAG_RUN  1
 #define GOFLAG_STOP 2
 
-static volatile int goflag = GOFLAG_INIT;
+static int goflag = GOFLAG_INIT;
 
 #define RCU_READ_RUN 1000
 #define RCU_UPDATE_RUN 10
@@ -107,15 +107,15 @@ static void *rcu_q_reader(void *arg)
 
     *(struct rcu_reader_data **)arg = &rcu_reader;
     atomic_inc(&nthreadsrunning);
-    while (goflag == GOFLAG_INIT) {
+    while (atomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
 
-    while (goflag == GOFLAG_RUN) {
+    while (atomic_read(&goflag) == GOFLAG_RUN) {
         rcu_read_lock();
         QLIST_FOREACH_RCU(el, &Q_list_head, entry) {
             n_reads_local++;
-            if (goflag == GOFLAG_STOP) {
+            if (atomic_read(&goflag) == GOFLAG_STOP) {
                 break;
             }
         }
@@ -142,11 +142,11 @@ static void *rcu_q_updater(void *arg)
 
     *(struct rcu_reader_data **)arg = &rcu_reader;
     atomic_inc(&nthreadsrunning);
-    while (goflag == GOFLAG_INIT) {
+    while (atomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
 
-    while (goflag == GOFLAG_RUN) {
+    while (atomic_read(&goflag) == GOFLAG_RUN) {
         target_el = select_random_el(RCU_Q_LEN);
         j = 0;
         /* FOREACH_RCU could work here but let's use both macros */
@@ -160,7 +160,7 @@ static void *rcu_q_updater(void *arg)
                 break;
             }
         }
-        if (goflag == GOFLAG_STOP) {
+        if (atomic_read(&goflag) == GOFLAG_STOP) {
             break;
         }
         target_el = select_random_el(RCU_Q_LEN);
@@ -209,9 +209,9 @@ static void rcu_qtest_run(int duration, int nreaders)
         g_usleep(1000);
     }
 
-    goflag = GOFLAG_RUN;
+    atomic_set(&goflag, GOFLAG_RUN);
     sleep(duration);
-    goflag = GOFLAG_STOP;
+    atomic_set(&goflag, GOFLAG_STOP);
     wait_all_threads();
 }
 
