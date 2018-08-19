@@ -112,7 +112,7 @@ extern "C" {
        (elm)->field.le_next->field.le_prev =        \
         (elm)->field.le_prev;                       \
     }                                               \
-    *(elm)->field.le_prev =  (elm)->field.le_next;  \
+    atomic_set((elm)->field.le_prev, (elm)->field.le_next); \
 } while (/*CONSTCOND*/0)
 
 /* List traversal must occur within an RCU critical section.  */
