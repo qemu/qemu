@@ -91,6 +91,8 @@ struct list_element {
     QLIST_ENTRY(list_element) entry;
 #elif TEST_LIST_TYPE == 2
     QSIMPLEQ_ENTRY(list_element) entry;
+#elif TEST_LIST_TYPE == 3
+    QTAILQ_ENTRY(list_element) entry;
 #else
 #error Invalid TEST_LIST_TYPE
 #endif
@@ -129,6 +131,19 @@ static QSIMPLEQ_HEAD(, list_element) Q_list_head =
 #define TEST_LIST_INSERT_HEAD_RCU   QSIMPLEQ_INSERT_HEAD_RCU
 #define TEST_LIST_FOREACH_RCU       QSIMPLEQ_FOREACH_RCU
 #define TEST_LIST_FOREACH_SAFE_RCU  QSIMPLEQ_FOREACH_SAFE_RCU
+
+#elif TEST_LIST_TYPE == 3
+static QTAILQ_HEAD(, list_element) Q_list_head;
+
+#define TEST_NAME "qtailq"
+#define TEST_LIST_REMOVE_RCU(el, f) QTAILQ_REMOVE_RCU(&Q_list_head, el, f)
+
+#define TEST_LIST_INSERT_AFTER_RCU(list_el, el, f)               \
+           QTAILQ_INSERT_AFTER_RCU(&Q_list_head, list_el, el, f)
+
+#define TEST_LIST_INSERT_HEAD_RCU   QTAILQ_INSERT_HEAD_RCU
+#define TEST_LIST_FOREACH_RCU       QTAILQ_FOREACH_RCU
+#define TEST_LIST_FOREACH_SAFE_RCU  QTAILQ_FOREACH_SAFE_RCU
 #else
 #error Invalid TEST_LIST_TYPE
 #endif
