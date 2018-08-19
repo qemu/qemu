@@ -128,6 +128,71 @@ extern "C" {
           ((next_var) = atomic_rcu_read(&(var)->field.le_next), 1);  \
            (var) = (next_var))
 
+/*
+ * RCU simple queue
+ */
+
+/* Simple queue access methods */
+#define QSIMPLEQ_EMPTY_RCU(head)      (atomic_read(&(head)->sqh_first) == NULL)
+#define QSIMPLEQ_FIRST_RCU(head)       atomic_rcu_read(&(head)->sqh_first)
+#define QSIMPLEQ_NEXT_RCU(elm, field)  atomic_rcu_read(&(elm)->field.sqe_next)
+
+/* Simple queue functions */
+#define QSIMPLEQ_INSERT_HEAD_RCU(head, elm, field) do {         \
+    (elm)->field.sqe_next = (head)->sqh_first;                  \
+    if ((elm)->field.sqe_next == NULL) {                        \
+        (head)->sqh_last = &(elm)->field.sqe_next;              \
+    }                                                           \
+    atomic_rcu_set(&(head)->sqh_first, (elm));                  \
+} while (/*CONSTCOND*/0)
+
+#define QSIMPLEQ_INSERT_TAIL_RCU(head, elm, field) do {    \
+    (elm)->field.sqe_next = NULL;                          \
+    atomic_rcu_set((head)->sqh_last, (elm));               \
+    (head)->sqh_last = &(elm)->field.sqe_next;             \
+} while (/*CONSTCOND*/0)
+
+#define QSIMPLEQ_INSERT_AFTER_RCU(head, listelm, elm, field) do {       \
+    (elm)->field.sqe_next = (listelm)->field.sqe_next;                  \
+    if ((elm)->field.sqe_next == NULL) {                                \
+        (head)->sqh_last = &(elm)->field.sqe_next;                      \
+    }                                                                   \
+    atomic_rcu_set(&(listelm)->field.sqe_next, (elm));                  \
+} while (/*CONSTCOND*/0)
+
+#define QSIMPLEQ_REMOVE_HEAD_RCU(head, field) do {                     \
+    atomic_set(&(head)->sqh_first, (head)->sqh_first->field.sqe_next); \
+    if ((head)->sqh_first == NULL) {                                   \
+        (head)->sqh_last = &(head)->sqh_first;                         \
+    }                                                                  \
+} while (/*CONSTCOND*/0)
+
+#define QSIMPLEQ_REMOVE_RCU(head, elm, type, field) do {            \
+    if ((head)->sqh_first == (elm)) {                               \
+        QSIMPLEQ_REMOVE_HEAD_RCU((head), field);                    \
+    } else {                                                        \
+        struct type *curr = (head)->sqh_first;                      \
+        while (curr->field.sqe_next != (elm)) {                     \
+            curr = curr->field.sqe_next;                            \
+        }                                                           \
+        atomic_set(&curr->field.sqe_next,                           \
+                   curr->field.sqe_next->field.sqe_next);           \
+        if (curr->field.sqe_next == NULL) {                         \
+            (head)->sqh_last = &(curr)->field.sqe_next;             \
+        }                                                           \
+    }                                                               \
+} while (/*CONSTCOND*/0)
+
+#define QSIMPLEQ_FOREACH_RCU(var, head, field)                          \
+    for ((var) = atomic_rcu_read(&(head)->sqh_first);                   \
+         (var);                                                         \
+         (var) = atomic_rcu_read(&(var)->field.sqe_next))
+
+#define QSIMPLEQ_FOREACH_SAFE_RCU(var, head, field, next)                \
+    for ((var) = atomic_rcu_read(&(head)->sqh_first);                    \
+         (var) && ((next) = atomic_rcu_read(&(var)->field.sqe_next), 1); \
+         (var) = (next))
+
 #ifdef __cplusplus
 }
 #endif
