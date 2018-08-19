@@ -36,7 +36,7 @@ extern "C" {
 /*
  * List access methods.
  */
-#define QLIST_EMPTY_RCU(head) (atomic_rcu_read(&(head)->lh_first) == NULL)
+#define QLIST_EMPTY_RCU(head) (atomic_read(&(head)->lh_first) == NULL)
 #define QLIST_FIRST_RCU(head) (atomic_rcu_read(&(head)->lh_first))
 #define QLIST_NEXT_RCU(elm, field) (atomic_rcu_read(&(elm)->field.le_next))
 
