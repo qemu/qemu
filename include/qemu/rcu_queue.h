@@ -193,6 +193,72 @@ extern "C" {
          (var) && ((next) = atomic_rcu_read(&(var)->field.sqe_next), 1); \
          (var) = (next))
 
+/*
+ * RCU tail queue
+ */
+
+/* Tail queue access methods */
+#define QTAILQ_EMPTY_RCU(head)      (atomic_read(&(head)->tqh_first) == NULL)
+#define QTAILQ_FIRST_RCU(head)       atomic_rcu_read(&(head)->tqh_first)
+#define QTAILQ_NEXT_RCU(elm, field)  atomic_rcu_read(&(elm)->field.tqe_next)
+
+/* Tail queue functions */
+#define QTAILQ_INSERT_HEAD_RCU(head, elm, field) do {                   \
+    (elm)->field.tqe_next = (head)->tqh_first;                          \
+    if ((elm)->field.tqe_next != NULL) {                                \
+        (head)->tqh_first->field.tqe_prev = &(elm)->field.tqe_next;     \
+    } else {                                                            \
+        (head)->tqh_last = &(elm)->field.tqe_next;                      \
+    }                                                                   \
+    atomic_rcu_set(&(head)->tqh_first, (elm));                          \
+    (elm)->field.tqe_prev = &(head)->tqh_first;                         \
+} while (/*CONSTCOND*/0)
+
+#define QTAILQ_INSERT_TAIL_RCU(head, elm, field) do {               \
+    (elm)->field.tqe_next = NULL;                                   \
+    (elm)->field.tqe_prev = (head)->tqh_last;                       \
+    atomic_rcu_set((head)->tqh_last, (elm));                        \
+    (head)->tqh_last = &(elm)->field.tqe_next;                      \
+} while (/*CONSTCOND*/0)
+
+#define QTAILQ_INSERT_AFTER_RCU(head, listelm, elm, field) do {         \
+    (elm)->field.tqe_next = (listelm)->field.tqe_next;                  \
+    if ((elm)->field.tqe_next != NULL) {                                \
+        (elm)->field.tqe_next->field.tqe_prev = &(elm)->field.tqe_next; \
+    } else {                                                            \
+        (head)->tqh_last = &(elm)->field.tqe_next;                      \
+    }                                                                   \
+    atomic_rcu_set(&(listelm)->field.tqe_next, (elm));                  \
+    (elm)->field.tqe_prev = &(listelm)->field.tqe_next;                 \
+} while (/*CONSTCOND*/0)
+
+#define QTAILQ_INSERT_BEFORE_RCU(listelm, elm, field) do {          \
+    (elm)->field.tqe_prev = (listelm)->field.tqe_prev;              \
+    (elm)->field.tqe_next = (listelm);                              \
+    atomic_rcu_set((listelm)->field.tqe_prev, (elm));               \
+    (listelm)->field.tqe_prev = &(elm)->field.tqe_next;             \
+    } while (/*CONSTCOND*/0)
+
+#define QTAILQ_REMOVE_RCU(head, elm, field) do {                        \
+    if (((elm)->field.tqe_next) != NULL) {                              \
+        (elm)->field.tqe_next->field.tqe_prev = (elm)->field.tqe_prev;  \
+    } else {                                                            \
+        (head)->tqh_last = (elm)->field.tqe_prev;                       \
+    }                                                                   \
+    atomic_set((elm)->field.tqe_prev, (elm)->field.tqe_next);           \
+    (elm)->field.tqe_prev = NULL;                                       \
+} while (/*CONSTCOND*/0)
+
+#define QTAILQ_FOREACH_RCU(var, head, field)                            \
+    for ((var) = atomic_rcu_read(&(head)->tqh_first);                   \
+         (var);                                                         \
+         (var) = atomic_rcu_read(&(var)->field.tqe_next))
+
+#define QTAILQ_FOREACH_SAFE_RCU(var, head, field, next)                  \
+    for ((var) = atomic_rcu_read(&(head)->tqh_first);                    \
+         (var) && ((next) = atomic_rcu_read(&(var)->field.tqe_next), 1); \
+         (var) = (next))
+
 #ifdef __cplusplus
 }
 #endif
