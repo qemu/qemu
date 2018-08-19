@@ -622,9 +622,12 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
 
 static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
 {
+    CPUState **rev;
     CPUState *cs;
+    int n_cpus;
     int cpus_offset;
     char *nodename;
+    int i;
 
     cpus_offset = fdt_add_subnode(fdt, 0, "cpus");
     _FDT(cpus_offset);
@@ -635,8 +638,19 @@ static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
      * We walk the CPUs in reverse order to ensure that CPU DT nodes
      * created by fdt_add_subnode() end up in the right order in FDT
      * for the guest kernel the enumerate the CPUs correctly.
+     *
+     * The CPU list cannot be traversed in reverse order, so we need
+     * to do extra work.
      */
-    CPU_FOREACH_REVERSE(cs) {
+    n_cpus = 0;
+    rev = NULL;
+    CPU_FOREACH(cs) {
+        rev = g_renew(CPUState *, rev, n_cpus + 1);
+        rev[n_cpus++] = cs;
+    }
+
+    for (i = n_cpus - 1; i >= 0; i--) {
+        CPUState *cs = rev[i];
         PowerPCCPU *cpu = POWERPC_CPU(cs);
         int index = spapr_get_vcpu_id(cpu);
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
