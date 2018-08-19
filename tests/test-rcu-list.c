@@ -89,6 +89,8 @@ static void wait_all_threads(void)
 struct list_element {
 #if TEST_LIST_TYPE == 1
     QLIST_ENTRY(list_element) entry;
+#elif TEST_LIST_TYPE == 2
+    QSIMPLEQ_ENTRY(list_element) entry;
 #else
 #error Invalid TEST_LIST_TYPE
 #endif
@@ -112,6 +114,21 @@ static QLIST_HEAD(q_list_head, list_element) Q_list_head;
 #define TEST_LIST_INSERT_HEAD_RCU   QLIST_INSERT_HEAD_RCU
 #define TEST_LIST_FOREACH_RCU       QLIST_FOREACH_RCU
 #define TEST_LIST_FOREACH_SAFE_RCU  QLIST_FOREACH_SAFE_RCU
+
+#elif TEST_LIST_TYPE == 2
+static QSIMPLEQ_HEAD(, list_element) Q_list_head =
+    QSIMPLEQ_HEAD_INITIALIZER(Q_list_head);
+
+#define TEST_NAME "qsimpleq"
+#define TEST_LIST_REMOVE_RCU(el, f)                             \
+         QSIMPLEQ_REMOVE_RCU(&Q_list_head, el, list_element, f)
+
+#define TEST_LIST_INSERT_AFTER_RCU(list_el, el, f)               \
+         QSIMPLEQ_INSERT_AFTER_RCU(&Q_list_head, list_el, el, f)
+
+#define TEST_LIST_INSERT_HEAD_RCU   QSIMPLEQ_INSERT_HEAD_RCU
+#define TEST_LIST_FOREACH_RCU       QSIMPLEQ_FOREACH_RCU
+#define TEST_LIST_FOREACH_SAFE_RCU  QSIMPLEQ_FOREACH_SAFE_RCU
 #else
 #error Invalid TEST_LIST_TYPE
 #endif
