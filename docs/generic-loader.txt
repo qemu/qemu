@@ -56,25 +56,25 @@ An example of setting CPU 0's PC to 0x8000 is:
 
 Loading Files
 -------------
-The loader device also allows files to be loaded into memory. It can load raw
-files and ELF executable files.  Raw files are loaded verbatim.  ELF executable
-files are loaded by an ELF loader.  The syntax is shown below:
+The loader device also allows files to be loaded into memory. It can load ELF,
+U-Boot, and Intel HEX executable formats as well as raw images.  The syntax is
+shown below:
 
     -device loader,file=<file>[,addr=<addr>][,cpu-num=<cpu-num>][,force-raw=<raw>]
 
     <file>      - A file to be loaded into memory
-    <addr>      - The addr in memory that the file should be loaded. This is
-                  ignored if you are using an ELF (unless force-raw is true).
-                  This is required if you aren't loading an ELF.
+    <addr>      - The memory address where the file should be loaded. This is
+                  required for raw images and ignored for non-raw files.
     <cpu-num>   - This specifies the CPU that should be used. This is an
                   optional argument and will cause the CPU's PC to be set to
-                  where the image is stored or in the case of an ELF file to
-                  the value in the header. This option should only be used
-                  for the boot image.
+                  the memory address where the raw file is loaded or the entry
+                  point specified in the executable format header. This option
+                  should only be used for the boot image.
                   This will also cause the image to be written to the specified
                   CPU's address space. If not specified, the default is CPU 0.
     <force-raw> - Setting force-raw=on forces the file to be treated as a raw
-                  image.  This can be used to load ELF files as if they were raw.
+                  image.  This can be used to load supported executable formats
+                  as if they were raw.
 
 All values are parsed using the standard QemuOps parsing. This allows the user
 to specify any values in any format supported. By default the values
