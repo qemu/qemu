@@ -8901,6 +8901,25 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             tcg_temp_free_i32(tmp2);
             store_reg(s, rd, tmp);
             break;
+        case 0x6: /* ERET */
+            if (op1 != 3) {
+                goto illegal_op;
+            }
+            if (!arm_dc_feature(s, ARM_FEATURE_V7VE)) {
+                goto illegal_op;
+            }
+            if ((insn & 0x000fff0f) != 0x0000000e) {
+                /* UNPREDICTABLE; we choose to UNDEF */
+                goto illegal_op;
+            }
+
+            if (s->current_el == 2) {
+                tmp = load_cpu_field(elr_el[2]);
+            } else {
+                tmp = load_reg(s, 14);
+            }
+            gen_exception_return(s, tmp);
+            break;
         case 7:
         {
             int imm16 = extract32(insn, 0, 4) | (extract32(insn, 8, 12) << 4);
@@ -11158,8 +11177,16 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                         if (rn != 14 || rd != 15) {
                             goto illegal_op;
                         }
-                        tmp = load_reg(s, rn);
-                        tcg_gen_subi_i32(tmp, tmp, insn & 0xff);
+                        if (s->current_el == 2) {
+                            /* ERET from Hyp uses ELR_Hyp, not LR */
+                            if (insn & 0xff) {
+                                goto illegal_op;
+                            }
+                            tmp = load_cpu_field(elr_el[2]);
+                        } else {
+                            tmp = load_reg(s, rn);
+                            tcg_gen_subi_i32(tmp, tmp, insn & 0xff);
+                        }
                         gen_exception_return(s, tmp);
                         break;
                     case 6: /* MRS */
