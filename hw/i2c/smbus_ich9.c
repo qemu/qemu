@@ -86,7 +86,7 @@ static void ich9_smbus_realize(PCIDevice *d, Error **errp)
     pci_set_byte(d->config + ICH9_SMB_HOSTC, 0);
     /* TODO bar0, bar1: 64bit BAR support*/
 
-    pm_smbus_init(&d->qdev, &s->smb);
+    pm_smbus_init(&d->qdev, &s->smb, false);
     pci_register_bar(d, ICH9_SMB_SMB_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
                      &s->smb.io);
 }
