@@ -110,7 +110,6 @@ static void pl080_run(PL080State *s)
     if ((s->conf & PL080_CONF_E) == 0)
         return;
 
-hw_error("DMA active\n");
     /* If we are already in the middle of a DMA operation then indicate that
        there may be new DMA requests and return immediately.  */
     if (s->running) {
