@@ -1449,6 +1449,8 @@ typedef struct DisasContext {
     uint32_t opcode;
     int insn_flags;
     int32_t CP0_Config1;
+    int32_t CP0_Config3;
+    int32_t CP0_Config5;
     /* Routine used to access memory */
     int mem_idx;
     TCGMemOp default_tcg_memop_mask;
@@ -23307,6 +23309,8 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->saved_pc = -1;
     ctx->insn_flags = env->insn_flags;
     ctx->CP0_Config1 = env->CP0_Config1;
+    ctx->CP0_Config3 = env->CP0_Config3;
+    ctx->CP0_Config5 = env->CP0_Config5;
     ctx->btarget = 0;
     ctx->kscrexist = (env->CP0_Config4 >> CP0C4_KScrExist) & 0xff;
     ctx->rxi = (env->CP0_Config3 >> CP0C3_RXI) & 1;
