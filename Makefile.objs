@@ -240,6 +240,7 @@ trace-events-subdirs += hw/tpm
 trace-events-subdirs += hw/usb
 trace-events-subdirs += hw/vfio
 trace-events-subdirs += hw/virtio
+trace-events-subdirs += hw/watchdog
 trace-events-subdirs += hw/xen
 trace-events-subdirs += io
 trace-events-subdirs += linux-user
