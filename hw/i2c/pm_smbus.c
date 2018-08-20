@@ -80,9 +80,6 @@ static void smb_transaction(PMSMBus *s)
     I2CBus *bus = s->smbus;
     int ret;
 
-    assert(s->smb_stat & STS_HOST_BUSY);
-    s->smb_stat &= ~STS_HOST_BUSY;
-
     SMBUS_DPRINTF("SMBus trans addr=0x%02x prot=0x%02x\n", addr, prot);
     /* Transaction isn't exec if STS_DEV_ERR bit set */
     if ((s->smb_stat & STS_DEV_ERR) != 0)  {
@@ -209,9 +206,18 @@ error:
 
 static void smb_transaction_start(PMSMBus *s)
 {
-    /* Do not execute immediately the command ; it will be
-     * executed when guest will read SMB_STAT register */
-    s->smb_stat |= STS_HOST_BUSY;
+    if (s->smb_ctl & CTL_INTREN) {
+        smb_transaction(s);
+    } else {
+        /* Do not execute immediately the command; it will be
+         * executed when guest will read SMB_STAT register.  This
+         * is to work around a bug in AMIBIOS (that is working
+         * around another bug in some specific hardware) where
+         * it waits for STS_HOST_BUSY to be set before waiting
+         * checking for status.  If STS_HOST_BUSY doesn't get
+         * set, it gets stuck. */
+        s->smb_stat |= STS_HOST_BUSY;
+    }
 }
 
 static bool
@@ -330,6 +336,7 @@ static uint64_t smb_ioport_readb(void *opaque, hwaddr addr, unsigned width)
         val = s->smb_stat;
         if (s->smb_stat & STS_HOST_BUSY) {
             /* execute command now */
+            s->smb_stat &= ~STS_HOST_BUSY;
             smb_transaction(s);
         }
         break;
