@@ -1651,6 +1651,14 @@ static uint64_t usdhc_read(void *opaque, hwaddr offset, unsigned size)
 
         break;
 
+    case SDHC_PRNSTS:
+        /* Add SDSTB (SD Clock Stable) bit to PRNSTS */
+        ret = sdhci_read(opaque, offset, size) & ~ESDHC_PRNSTS_SDSTB;
+        if (s->clkcon & SDHC_CLOCK_INT_STABLE) {
+            ret |= ESDHC_PRNSTS_SDSTB;
+        }
+        break;
+
     case ESDHC_DLL_CTRL:
     case ESDHC_TUNE_CTRL_STATUS:
     case ESDHC_UNDOCUMENTED_REG27:
