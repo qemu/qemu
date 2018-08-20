@@ -75,11 +75,12 @@ static const unsigned char pl081_id[] =
 
 static void pl080_update(PL080State *s)
 {
-    if ((s->tc_int & s->tc_mask)
-            || (s->err_int & s->err_mask))
-        qemu_irq_raise(s->irq);
-    else
-        qemu_irq_lower(s->irq);
+    bool tclevel = (s->tc_int & s->tc_mask);
+    bool errlevel = (s->err_int & s->err_mask);
+
+    qemu_set_irq(s->interr, errlevel);
+    qemu_set_irq(s->inttc, tclevel);
+    qemu_set_irq(s->irq, errlevel || tclevel);
 }
 
 static void pl080_run(PL080State *s)
@@ -352,6 +353,8 @@ static void pl080_init(Object *obj)
     memory_region_init_io(&s->iomem, OBJECT(s), &pl080_ops, s, "pl080", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &s->interr);
+    sysbus_init_irq(sbd, &s->inttc);
     s->nchannels = 8;
 }
 
