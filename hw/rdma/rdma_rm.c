@@ -144,8 +144,6 @@ int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
     RdmaRmMR *mr;
     int ret = 0;
     RdmaRmPD *pd;
-    void *addr;
-    size_t length;
 
     pd = rdma_rm_get_pd(dev_res, pd_handle);
     if (!pd) {
@@ -158,40 +156,30 @@ int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
         pr_dbg("Failed to allocate obj in table\n");
         return -ENOMEM;
     }
+    pr_dbg("mr_handle=%d\n", *mr_handle);
 
-    if (!host_virt) {
-        /* TODO: This is my guess but not so sure that this needs to be
-         * done */
-        length = TARGET_PAGE_SIZE;
-        addr = g_malloc(length);
-    } else {
-        mr->user_mr.host_virt = host_virt;
-        pr_dbg("host_virt=0x%p\n", mr->user_mr.host_virt);
-        mr->user_mr.length = guest_length;
-        pr_dbg("length=%zu\n", guest_length);
-        mr->user_mr.guest_start = guest_start;
-        pr_dbg("guest_start=0x%" PRIx64 "\n", mr->user_mr.guest_start);
+    pr_dbg("host_virt=0x%p\n", host_virt);
+    pr_dbg("guest_start=0x%" PRIx64 "\n", guest_start);
+    pr_dbg("length=%zu\n", guest_length);
 
-        length = mr->user_mr.length;
-        addr = mr->user_mr.host_virt;
+    if (host_virt) {
+        mr->virt = host_virt;
+        mr->start = guest_start;
+        mr->length = guest_length;
+        mr->virt += (mr->start & (TARGET_PAGE_SIZE - 1));
+
+        ret = rdma_backend_create_mr(&mr->backend_mr, &pd->backend_pd, mr->virt,
+                                     mr->length, access_flags);
+        if (ret) {
+            pr_dbg("Fail in rdma_backend_create_mr, err=%d\n", ret);
+            ret = -EIO;
+            goto out_dealloc_mr;
+        }
     }
 
-    ret = rdma_backend_create_mr(&mr->backend_mr, &pd->backend_pd, addr, length,
-                                 access_flags);
-    if (ret) {
-        pr_dbg("Fail in rdma_backend_create_mr, err=%d\n", ret);
-        ret = -EIO;
-        goto out_dealloc_mr;
-    }
-
-    if (!host_virt) {
-        *lkey = mr->lkey = rdma_backend_mr_lkey(&mr->backend_mr);
-        *rkey = mr->rkey = rdma_backend_mr_rkey(&mr->backend_mr);
-    } else {
-        /* We keep mr_handle in lkey so send and recv get get mr ptr */
-        *lkey = *mr_handle;
-        *rkey = -1;
-    }
+    /* We keep mr_handle in lkey so send and recv get get mr ptr */
+    *lkey = *mr_handle;
+    *rkey = -1;
 
     mr->pd_handle = pd_handle;
 
@@ -214,7 +202,11 @@ void rdma_rm_dealloc_mr(RdmaDeviceResources *dev_res, uint32_t mr_handle)
 
     if (mr) {
         rdma_backend_destroy_mr(&mr->backend_mr);
-        munmap(mr->user_mr.host_virt, mr->user_mr.length);
+        pr_dbg("start=0x%" PRIx64 "\n", mr->start);
+        if (mr->start) {
+            mr->virt -= (mr->start & (TARGET_PAGE_SIZE - 1));
+            munmap(mr->virt, mr->length);
+        }
         res_tbl_dealloc(&dev_res->mr_tbl, mr_handle);
     }
 }
@@ -399,7 +391,7 @@ int rdma_rm_modify_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
     RdmaRmQP *qp;
     int ret;
 
-    pr_dbg("qpn=%d\n", qp_handle);
+    pr_dbg("qpn=0x%x\n", qp_handle);
 
     qp = rdma_rm_get_qp(dev_res, qp_handle);
     if (!qp) {
@@ -457,7 +449,7 @@ int rdma_rm_query_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
 {
     RdmaRmQP *qp;
 
-    pr_dbg("qpn=%d\n", qp_handle);
+    pr_dbg("qpn=0x%x\n", qp_handle);
 
     qp = rdma_rm_get_qp(dev_res, qp_handle);
     if (!qp) {
@@ -553,8 +545,9 @@ void rdma_rm_fini(RdmaDeviceResources *dev_res)
     res_tbl_free(&dev_res->uc_tbl);
     res_tbl_free(&dev_res->cqe_ctx_tbl);
     res_tbl_free(&dev_res->qp_tbl);
-    res_tbl_free(&dev_res->cq_tbl);
     res_tbl_free(&dev_res->mr_tbl);
+    res_tbl_free(&dev_res->cq_tbl);
     res_tbl_free(&dev_res->pd_tbl);
+
     g_hash_table_destroy(dev_res->qp_hash);
 }

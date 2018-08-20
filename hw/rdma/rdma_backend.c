@@ -35,6 +35,7 @@
 #define VENDOR_ERR_MR_SMALL         0x208
 
 #define THR_NAME_LEN 16
+#define THR_POLL_TO  5000
 
 typedef struct BackendCtx {
     uint64_t req_id;
@@ -91,33 +92,80 @@ static void *comp_handler_thread(void *arg)
     int rc;
     struct ibv_cq *ev_cq;
     void *ev_ctx;
+    int flags;
+    GPollFD pfds[1];
+
+    /* Change to non-blocking mode */
+    flags = fcntl(backend_dev->channel->fd, F_GETFL);
+    rc = fcntl(backend_dev->channel->fd, F_SETFL, flags | O_NONBLOCK);
+    if (rc < 0) {
+        pr_dbg("Fail to change to non-blocking mode\n");
+        return NULL;
+    }
 
     pr_dbg("Starting\n");
 
+    pfds[0].fd = backend_dev->channel->fd;
+    pfds[0].events = G_IO_IN | G_IO_HUP | G_IO_ERR;
+
+    backend_dev->comp_thread.is_running = true;
+
     while (backend_dev->comp_thread.run) {
-        pr_dbg("Waiting for completion on channel %p\n", backend_dev->channel);
-        rc = ibv_get_cq_event(backend_dev->channel, &ev_cq, &ev_ctx);
-        pr_dbg("ibv_get_cq_event=%d\n", rc);
-        if (unlikely(rc)) {
-            pr_dbg("---> ibv_get_cq_event (%d)\n", rc);
-            continue;
+        do {
+            rc = qemu_poll_ns(pfds, 1, THR_POLL_TO * (int64_t)SCALE_MS);
+        } while (!rc && backend_dev->comp_thread.run);
+
+        if (backend_dev->comp_thread.run) {
+            pr_dbg("Waiting for completion on channel %p\n", backend_dev->channel);
+            rc = ibv_get_cq_event(backend_dev->channel, &ev_cq, &ev_ctx);
+            pr_dbg("ibv_get_cq_event=%d\n", rc);
+            if (unlikely(rc)) {
+                pr_dbg("---> ibv_get_cq_event (%d)\n", rc);
+                continue;
+            }
+
+            rc = ibv_req_notify_cq(ev_cq, 0);
+            if (unlikely(rc)) {
+                pr_dbg("Error %d from ibv_req_notify_cq\n", rc);
+            }
+
+            poll_cq(backend_dev->rdma_dev_res, ev_cq);
+
+            ibv_ack_cq_events(ev_cq, 1);
         }
-
-        rc = ibv_req_notify_cq(ev_cq, 0);
-        if (unlikely(rc)) {
-            pr_dbg("Error %d from ibv_req_notify_cq\n", rc);
-        }
-
-        poll_cq(backend_dev->rdma_dev_res, ev_cq);
-
-        ibv_ack_cq_events(ev_cq, 1);
     }
 
     pr_dbg("Going down\n");
 
     /* TODO: Post cqe for all remaining buffs that were posted */
 
+    backend_dev->comp_thread.is_running = false;
+
+    qemu_thread_exit(0);
+
     return NULL;
+}
+
+static void stop_backend_thread(RdmaBackendThread *thread)
+{
+    thread->run = false;
+    while (thread->is_running) {
+        pr_dbg("Waiting for thread to complete\n");
+        sleep(THR_POLL_TO / SCALE_US / 2);
+    }
+}
+
+static void start_comp_thread(RdmaBackendDev *backend_dev)
+{
+    char thread_name[THR_NAME_LEN] = {0};
+
+    stop_backend_thread(&backend_dev->comp_thread);
+
+    snprintf(thread_name, sizeof(thread_name), "rdma_comp_%s",
+             ibv_get_device_name(backend_dev->ib_dev));
+    backend_dev->comp_thread.run = true;
+    qemu_thread_create(&backend_dev->comp_thread.thread, thread_name,
+                       comp_handler_thread, backend_dev, QEMU_THREAD_DETACHED);
 }
 
 void rdma_backend_register_comp_handler(void (*handler)(int status,
@@ -223,8 +271,7 @@ static int build_host_sge_array(RdmaDeviceResources *rdma_dev_res,
             return VENDOR_ERR_INVLKEY | ssge[ssge_idx].lkey;
         }
 
-        dsge->addr = (uintptr_t)mr->user_mr.host_virt + ssge[ssge_idx].addr -
-                     mr->user_mr.guest_start;
+        dsge->addr = (uintptr_t)mr->virt + ssge[ssge_idx].addr - mr->start;
         dsge->length = ssge[ssge_idx].length;
         dsge->lkey = rdma_backend_mr_lkey(&mr->backend_mr);
 
@@ -697,7 +744,7 @@ static int init_device_caps(RdmaBackendDev *backend_dev,
     return 0;
 }
 
-int rdma_backend_init(RdmaBackendDev *backend_dev,
+int rdma_backend_init(RdmaBackendDev *backend_dev, PCIDevice *pdev,
                       RdmaDeviceResources *rdma_dev_res,
                       const char *backend_device_name, uint8_t port_num,
                       uint8_t backend_gid_idx, struct ibv_device_attr *dev_attr,
@@ -706,9 +753,12 @@ int rdma_backend_init(RdmaBackendDev *backend_dev,
     int i;
     int ret = 0;
     int num_ibv_devices;
-    char thread_name[THR_NAME_LEN] = {0};
     struct ibv_device **dev_list;
     struct ibv_port_attr port_attr;
+
+    memset(backend_dev, 0, sizeof(*backend_dev));
+
+    backend_dev->dev = pdev;
 
     backend_dev->backend_gid_idx = backend_gid_idx;
     backend_dev->port_num = port_num;
@@ -800,11 +850,8 @@ int rdma_backend_init(RdmaBackendDev *backend_dev,
     pr_dbg("interface_id=0x%" PRIx64 "\n",
            be64_to_cpu(backend_dev->gid.global.interface_id));
 
-    snprintf(thread_name, sizeof(thread_name), "rdma_comp_%s",
-             ibv_get_device_name(backend_dev->ib_dev));
-    backend_dev->comp_thread.run = true;
-    qemu_thread_create(&backend_dev->comp_thread.thread, thread_name,
-                       comp_handler_thread, backend_dev, QEMU_THREAD_DETACHED);
+    backend_dev->comp_thread.run = false;
+    backend_dev->comp_thread.is_running = false;
 
     ah_cache_init();
 
@@ -823,8 +870,22 @@ out:
     return ret;
 }
 
+
+void rdma_backend_start(RdmaBackendDev *backend_dev)
+{
+    pr_dbg("Starting rdma_backend\n");
+    start_comp_thread(backend_dev);
+}
+
+void rdma_backend_stop(RdmaBackendDev *backend_dev)
+{
+    pr_dbg("Stopping rdma_backend\n");
+    stop_backend_thread(&backend_dev->comp_thread);
+}
+
 void rdma_backend_fini(RdmaBackendDev *backend_dev)
 {
+    rdma_backend_stop(backend_dev);
     g_hash_table_destroy(ah_hash);
     ibv_destroy_comp_channel(backend_dev->channel);
     ibv_close_device(backend_dev->context);

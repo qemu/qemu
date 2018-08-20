@@ -46,12 +46,14 @@ static inline uint32_t rdma_backend_mr_rkey(const RdmaBackendMR *mr)
     return mr->ibmr ? mr->ibmr->rkey : 0;
 }
 
-int rdma_backend_init(RdmaBackendDev *backend_dev,
+int rdma_backend_init(RdmaBackendDev *backend_dev, PCIDevice *pdev,
                       RdmaDeviceResources *rdma_dev_res,
                       const char *backend_device_name, uint8_t port_num,
                       uint8_t backend_gid_idx, struct ibv_device_attr *dev_attr,
                       Error **errp);
 void rdma_backend_fini(RdmaBackendDev *backend_dev);
+void rdma_backend_start(RdmaBackendDev *backend_dev);
+void rdma_backend_stop(RdmaBackendDev *backend_dev);
 void rdma_backend_register_comp_handler(void (*handler)(int status,
                                         unsigned int vendor_err, void *ctx));
 void rdma_backend_unregister_comp_handler(void);

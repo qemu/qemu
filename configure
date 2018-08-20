@@ -375,6 +375,7 @@ hax="no"
 hvf="no"
 whpx="no"
 rdma=""
+pvrdma=""
 gprof="no"
 debug_tcg="no"
 debug="no"
@@ -1363,6 +1364,10 @@ for opt do
   ;;
   --disable-rdma) rdma="no"
   ;;
+  --enable-pvrdma) pvrdma="yes"
+  ;;
+  --disable-pvrdma) pvrdma="no"
+  ;;
   --with-gtkabi=*) gtkabi="$optarg"
   ;;
   --disable-vte) vte="no"
@@ -1669,7 +1674,8 @@ disabled with --disable-FEATURE, default is enabled if available:
   hax             HAX acceleration support
   hvf             Hypervisor.framework acceleration support
   whpx            Windows Hypervisor Platform acceleration support
-  rdma            Enable RDMA-based migration and PVRDMA support
+  rdma            Enable RDMA-based migration
+  pvrdma          Enable PVRDMA support
   vde             support for vde network
   netmap          support for netmap network
   linux-aio       Linux AIO support
@@ -3064,6 +3070,48 @@ EOF
   fi
 fi
 
+##########################################
+# PVRDMA detection
+
+cat > $TMPC <<EOF &&
+#include <sys/mman.h>
+
+int
+main(void)
+{
+    char buf = 0;
+    void *addr = &buf;
+    addr = mremap(addr, 0, 1, MREMAP_MAYMOVE | MREMAP_FIXED);
+
+    return 0;
+}
+EOF
+
+if test "$rdma" = "yes" ; then
+    case "$pvrdma" in
+    "")
+        if compile_prog "" ""; then
+            pvrdma="yes"
+        else
+            pvrdma="no"
+        fi
+        ;;
+    "yes")
+        if ! compile_prog "" ""; then
+            error_exit "PVRDMA is not supported since mremap is not implemented"
+        fi
+        pvrdma="yes"
+        ;;
+    "no")
+        pvrdma="no"
+        ;;
+    esac
+else
+    if test "$pvrdma" = "yes" ; then
+        error_exit "PVRDMA requires rdma suppport"
+    fi
+    pvrdma="no"
+fi
 
 ##########################################
 # VNC SASL detection
@@ -5952,6 +6000,7 @@ if test "$tcg" = "yes" ; then
 fi
 echo "malloc trim support $malloc_trim"
 echo "RDMA support      $rdma"
+echo "PVRDMA support    $pvrdma"
 echo "fdt support       $fdt"
 echo "membarrier        $membarrier"
 echo "preadv support    $preadv"
@@ -6706,6 +6755,10 @@ echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
 if test "$rdma" = "yes" ; then
   echo "CONFIG_RDMA=y" >> $config_host_mak
   echo "RDMA_LIBS=$rdma_libs" >> $config_host_mak
+fi
+
+if test "$pvrdma" = "yes" ; then
+  echo "CONFIG_PVRDMA=y" >> $config_host_mak
 fi
 
 if test "$have_rtnetlink" = "yes" ; then

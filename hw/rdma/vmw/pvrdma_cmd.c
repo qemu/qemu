@@ -16,7 +16,6 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "cpu.h"
-#include <linux/types.h>
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_ids.h"
@@ -59,6 +58,7 @@ static void *pvrdma_map_to_pdir(PCIDevice *pdev, uint64_t pdir_dma,
     }
 
     host_virt = mremap(curr_page, 0, length, MREMAP_MAYMOVE);
+    pr_dbg("mremap %p -> %p\n", curr_page, host_virt);
     if (host_virt == MAP_FAILED) {
         host_virt = NULL;
         error_report("PVRDMA: Failed to remap memory for host_virt");
@@ -166,7 +166,7 @@ static int query_pkey(PVRDMADev *dev, union pvrdma_cmd_req *req,
     resp->hdr.ack = PVRDMA_CMD_QUERY_PKEY_RESP;
     resp->hdr.err = 0;
 
-    resp->pkey = 0x7FFF;
+    resp->pkey = PVRDMA_PKEY;
     pr_dbg("pkey=0x%x\n", resp->pkey);
 
     return 0;
@@ -524,6 +524,7 @@ static int query_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
     struct ibv_qp_init_attr init_attr;
 
     pr_dbg("qp_handle=%d\n", cmd->qp_handle);
+    pr_dbg("attr_mask=0x%x\n", cmd->attr_mask);
 
     memset(rsp, 0, sizeof(*rsp));
     rsp->hdr.response = cmd->hdr.response;
@@ -531,8 +532,8 @@ static int query_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
 
     rsp->hdr.err = rdma_rm_query_qp(&dev->rdma_dev_res, &dev->backend_dev,
                                     cmd->qp_handle,
-                                    (struct ibv_qp_attr *)&resp->attrs, -1,
-                                    &init_attr);
+                                    (struct ibv_qp_attr *)&resp->attrs,
+                                    cmd->attr_mask, &init_attr);
 
     pr_dbg("ret=%d\n", rsp->hdr.err);
     return rsp->hdr.err;
