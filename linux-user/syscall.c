@@ -539,6 +539,40 @@ enum {
     QEMU___IFLA_XDP_MAX,
 };
 
+enum {
+    QEMU_RTA_UNSPEC,
+    QEMU_RTA_DST,
+    QEMU_RTA_SRC,
+    QEMU_RTA_IIF,
+    QEMU_RTA_OIF,
+    QEMU_RTA_GATEWAY,
+    QEMU_RTA_PRIORITY,
+    QEMU_RTA_PREFSRC,
+    QEMU_RTA_METRICS,
+    QEMU_RTA_MULTIPATH,
+    QEMU_RTA_PROTOINFO, /* no longer used */
+    QEMU_RTA_FLOW,
+    QEMU_RTA_CACHEINFO,
+    QEMU_RTA_SESSION, /* no longer used */
+    QEMU_RTA_MP_ALGO, /* no longer used */
+    QEMU_RTA_TABLE,
+    QEMU_RTA_MARK,
+    QEMU_RTA_MFC_STATS,
+    QEMU_RTA_VIA,
+    QEMU_RTA_NEWDST,
+    QEMU_RTA_PREF,
+    QEMU_RTA_ENCAP_TYPE,
+    QEMU_RTA_ENCAP,
+    QEMU_RTA_EXPIRES,
+    QEMU_RTA_PAD,
+    QEMU_RTA_UID,
+    QEMU_RTA_TTL_PROPAGATE,
+    QEMU_RTA_IP_PROTO,
+    QEMU_RTA_SPORT,
+    QEMU_RTA_DPORT,
+    QEMU___RTA_MAX
+};
+
 typedef abi_long (*TargetFdDataFunc)(void *, size_t);
 typedef abi_long (*TargetFdAddrFunc)(void *, abi_ulong, socklen_t);
 typedef struct TargetFdTrans {
@@ -2661,14 +2695,14 @@ static abi_long host_to_target_data_route_rtattr(struct rtattr *rtattr)
     uint32_t *u32;
     switch (rtattr->rta_type) {
     /* binary: depends on family type */
-    case RTA_GATEWAY:
-    case RTA_DST:
-    case RTA_PREFSRC:
+    case QEMU_RTA_GATEWAY:
+    case QEMU_RTA_DST:
+    case QEMU_RTA_PREFSRC:
         break;
     /* u32 */
-    case RTA_PRIORITY:
-    case RTA_TABLE:
-    case RTA_OIF:
+    case QEMU_RTA_PRIORITY:
+    case QEMU_RTA_TABLE:
+    case QEMU_RTA_OIF:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
         break;
@@ -2808,13 +2842,13 @@ static abi_long target_to_host_data_route_rtattr(struct rtattr *rtattr)
     uint32_t *u32;
     switch (rtattr->rta_type) {
     /* binary: depends on family type */
-    case RTA_DST:
-    case RTA_SRC:
-    case RTA_GATEWAY:
+    case QEMU_RTA_DST:
+    case QEMU_RTA_SRC:
+    case QEMU_RTA_GATEWAY:
         break;
     /* u32 */
-    case RTA_PRIORITY:
-    case RTA_OIF:
+    case QEMU_RTA_PRIORITY:
+    case QEMU_RTA_OIF:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
         break;
