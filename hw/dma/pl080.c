@@ -11,8 +11,8 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
+#include "hw/dma/pl080.h"
 
-#define PL080_MAX_CHANNELS 8
 #define PL080_CONF_E    0x1
 #define PL080_CONF_M1   0x2
 #define PL080_CONF_M2   0x4
@@ -29,36 +29,6 @@
 #define PL080_CCTRL_SI  0x04000000
 #define PL080_CCTRL_D   0x02000000
 #define PL080_CCTRL_S   0x01000000
-
-typedef struct {
-    uint32_t src;
-    uint32_t dest;
-    uint32_t lli;
-    uint32_t ctrl;
-    uint32_t conf;
-} pl080_channel;
-
-#define TYPE_PL080 "pl080"
-#define PL080(obj) OBJECT_CHECK(PL080State, (obj), TYPE_PL080)
-
-typedef struct PL080State {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    uint8_t tc_int;
-    uint8_t tc_mask;
-    uint8_t err_int;
-    uint8_t err_mask;
-    uint32_t conf;
-    uint32_t sync;
-    uint32_t req_single;
-    uint32_t req_burst;
-    pl080_channel chan[PL080_MAX_CHANNELS];
-    int nchannels;
-    /* Flag to avoid recursive DMA invocations.  */
-    int running;
-    qemu_irq irq;
-} PL080State;
 
 static const VMStateDescription vmstate_pl080_channel = {
     .name = "pl080_channel",
@@ -408,7 +378,7 @@ static const TypeInfo pl080_info = {
 };
 
 static const TypeInfo pl081_info = {
-    .name          = "pl081",
+    .name          = TYPE_PL081,
     .parent        = TYPE_PL080,
     .instance_init = pl081_init,
 };
