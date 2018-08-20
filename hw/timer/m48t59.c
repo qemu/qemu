@@ -493,66 +493,29 @@ static uint64_t NVRAM_readb(void *opaque, hwaddr addr, unsigned size)
     return retval;
 }
 
-static void nvram_writeb (void *opaque, hwaddr addr, uint32_t value)
-{
-    M48t59State *NVRAM = opaque;
-
-    m48t59_write(NVRAM, addr, value & 0xff);
-}
-
-static void nvram_writew (void *opaque, hwaddr addr, uint32_t value)
-{
-    M48t59State *NVRAM = opaque;
-
-    m48t59_write(NVRAM, addr, (value >> 8) & 0xff);
-    m48t59_write(NVRAM, addr + 1, value & 0xff);
-}
-
-static void nvram_writel (void *opaque, hwaddr addr, uint32_t value)
-{
-    M48t59State *NVRAM = opaque;
-
-    m48t59_write(NVRAM, addr, (value >> 24) & 0xff);
-    m48t59_write(NVRAM, addr + 1, (value >> 16) & 0xff);
-    m48t59_write(NVRAM, addr + 2, (value >> 8) & 0xff);
-    m48t59_write(NVRAM, addr + 3, value & 0xff);
-}
-
-static uint32_t nvram_readb (void *opaque, hwaddr addr)
+static uint64_t nvram_read(void *opaque, hwaddr addr, unsigned size)
 {
     M48t59State *NVRAM = opaque;
 
     return m48t59_read(NVRAM, addr);
 }
 
-static uint32_t nvram_readw (void *opaque, hwaddr addr)
+static void nvram_write(void *opaque, hwaddr addr, uint64_t value,
+                        unsigned size)
 {
     M48t59State *NVRAM = opaque;
-    uint32_t retval;
 
-    retval = m48t59_read(NVRAM, addr) << 8;
-    retval |= m48t59_read(NVRAM, addr + 1);
-    return retval;
-}
-
-static uint32_t nvram_readl (void *opaque, hwaddr addr)
-{
-    M48t59State *NVRAM = opaque;
-    uint32_t retval;
-
-    retval = m48t59_read(NVRAM, addr) << 24;
-    retval |= m48t59_read(NVRAM, addr + 1) << 16;
-    retval |= m48t59_read(NVRAM, addr + 2) << 8;
-    retval |= m48t59_read(NVRAM, addr + 3);
-    return retval;
+    return m48t59_write(NVRAM, addr, value);
 }
 
 static const MemoryRegionOps nvram_ops = {
-    .old_mmio = {
-        .read = { nvram_readb, nvram_readw, nvram_readl, },
-        .write = { nvram_writeb, nvram_writew, nvram_writel, },
-    },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .read = nvram_read,
+    .write = nvram_write,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static const VMStateDescription vmstate_m48t59 = {
