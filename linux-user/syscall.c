@@ -502,6 +502,20 @@ enum {
 };
 
 enum {
+    QEMU_IFLA_TUN_UNSPEC,
+    QEMU_IFLA_TUN_OWNER,
+    QEMU_IFLA_TUN_GROUP,
+    QEMU_IFLA_TUN_TYPE,
+    QEMU_IFLA_TUN_PI,
+    QEMU_IFLA_TUN_VNET_HDR,
+    QEMU_IFLA_TUN_PERSIST,
+    QEMU_IFLA_TUN_MULTI_QUEUE,
+    QEMU_IFLA_TUN_NUM_QUEUES,
+    QEMU_IFLA_TUN_NUM_DISABLED_QUEUES,
+    QEMU___IFLA_TUN_MAX,
+};
+
+enum {
     QEMU_IFLA_INFO_UNSPEC,
     QEMU_IFLA_INFO_KIND,
     QEMU_IFLA_INFO_DATA,
@@ -2349,6 +2363,34 @@ static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
     return 0;
 }
 
+static abi_long host_to_target_data_tun_nlattr(struct nlattr *nlattr,
+                                                  void *context)
+{
+    uint32_t *u32;
+
+    switch (nlattr->nla_type) {
+    /* uint8_t */
+    case QEMU_IFLA_TUN_TYPE:
+    case QEMU_IFLA_TUN_PI:
+    case QEMU_IFLA_TUN_VNET_HDR:
+    case QEMU_IFLA_TUN_PERSIST:
+    case QEMU_IFLA_TUN_MULTI_QUEUE:
+        break;
+    /* uint32_t */
+    case QEMU_IFLA_TUN_NUM_QUEUES:
+    case QEMU_IFLA_TUN_NUM_DISABLED_QUEUES:
+    case QEMU_IFLA_TUN_OWNER:
+    case QEMU_IFLA_TUN_GROUP:
+        u32 = NLA_DATA(nlattr);
+        *u32 = tswap32(*u32);
+        break;
+    default:
+        gemu_log("Unknown QEMU_IFLA_TUN type %d\n", nlattr->nla_type);
+        break;
+    }
+    return 0;
+}
+
 struct linkinfo_context {
     int len;
     char *name;
@@ -2383,6 +2425,12 @@ static abi_long host_to_target_data_linkinfo_nlattr(struct nlattr *nlattr,
                                                   nlattr->nla_len,
                                                   NULL,
                                              host_to_target_data_bridge_nlattr);
+        } else if (strncmp(li_context->name, "tun",
+                    li_context->len) == 0) {
+            return host_to_target_for_each_nlattr(NLA_DATA(nlattr),
+                                                  nlattr->nla_len,
+                                                  NULL,
+                                                host_to_target_data_tun_nlattr);
         } else {
             gemu_log("Unknown QEMU_IFLA_INFO_KIND %s\n", li_context->name);
         }
