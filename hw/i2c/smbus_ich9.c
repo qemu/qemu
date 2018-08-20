@@ -61,11 +61,15 @@ static void ich9_smbus_write_config(PCIDevice *d, uint32_t address,
     pci_default_write_config(d, address, val, len);
     if (range_covers_byte(address, len, ICH9_SMB_HOSTC)) {
         uint8_t hostc = s->dev.config[ICH9_SMB_HOSTC];
-        if ((hostc & ICH9_SMB_HOSTC_HST_EN) &&
-            !(hostc & ICH9_SMB_HOSTC_I2C_EN)) {
+        if (hostc & ICH9_SMB_HOSTC_HST_EN) {
             memory_region_set_enabled(&s->smb.io, true);
         } else {
             memory_region_set_enabled(&s->smb.io, false);
+        }
+        s->smb.i2c_enable = (hostc & ICH9_SMB_HOSTC_I2C_EN) != 0;
+        if (hostc & ICH9_SMB_HOSTC_SSRESET) {
+            s->smb.reset(&s->smb);
+            s->dev.config[ICH9_SMB_HOSTC] &= ~ICH9_SMB_HOSTC_SSRESET;
         }
     }
 }
