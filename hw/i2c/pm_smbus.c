@@ -117,10 +117,16 @@ static void smb_transaction(PMSMBus *s)
         break;
     case PROT_I2C_BLOCK_DATA:
         if (read) {
-            ret = smbus_read_block(bus, addr, cmd, s->smb_data);
+            int xfersize = s->smb_data0;
+            if (xfersize > sizeof(s->smb_data)) {
+                xfersize = sizeof(s->smb_data);
+            }
+            ret = smbus_read_block(bus, addr, s->smb_data1, s->smb_data,
+                                   xfersize, false, true);
             goto data8;
         } else {
-            ret = smbus_write_block(bus, addr, cmd, s->smb_data, s->smb_data0);
+            ret = smbus_write_block(bus, addr, cmd, s->smb_data, s->smb_data0,
+                                    false);
             goto done;
         }
         break;
