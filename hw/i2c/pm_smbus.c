@@ -55,7 +55,7 @@
 #define PROT_WORD_DATA      3
 #define PROT_PROC_CALL      4
 #define PROT_BLOCK_DATA     5
-#define PROT_I2C_BLOCK_DATA 6
+#define PROT_I2C_BLOCK_READ 6
 
 /*#define DEBUG*/
 
@@ -115,7 +115,7 @@ static void smb_transaction(PMSMBus *s)
             goto done;
         }
         break;
-    case PROT_I2C_BLOCK_DATA:
+    case PROT_I2C_BLOCK_READ:
         if (read) {
             int xfersize = s->smb_data0;
             if (xfersize > sizeof(s->smb_data)) {
@@ -125,9 +125,8 @@ static void smb_transaction(PMSMBus *s)
                                    xfersize, false, true);
             goto data8;
         } else {
-            ret = smbus_write_block(bus, addr, cmd, s->smb_data, s->smb_data0,
-                                    false);
-            goto done;
+            /* The manual says the behavior is undefined, just set DEV_ERR. */
+            goto error;
         }
         break;
     default:
