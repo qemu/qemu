@@ -21,6 +21,8 @@
  * + sysbus IRQ 1: DMACINTERR error interrupt request
  * + sysbus IRQ 2: DMACINTTC count interrupt request
  * + sysbus MMIO region 0: MemoryRegion for the device's registers
+ * + QOM property "downstream": MemoryRegion defining where DMA
+ *   bus master transactions are made
  */
 
 #ifndef HW_DMA_PL080_H
@@ -61,6 +63,9 @@ typedef struct PL080State {
     qemu_irq irq;
     qemu_irq interr;
     qemu_irq inttc;
+
+    MemoryRegion *downstream;
+    AddressSpace downstream_as;
 } PL080State;
 
 #endif

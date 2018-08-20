@@ -12,6 +12,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
 #include "hw/dma/pl080.h"
+#include "qapi/error.h"
 
 #define PL080_CONF_E    0x1
 #define PL080_CONF_M1   0x2
@@ -161,14 +162,16 @@ again:
             swidth = 1 << ((ch->ctrl >> 18) & 7);
             dwidth = 1 << ((ch->ctrl >> 21) & 7);
             for (n = 0; n < dwidth; n+= swidth) {
-                cpu_physical_memory_read(ch->src, buff + n, swidth);
+                address_space_read(&s->downstream_as, ch->src,
+                                   MEMTXATTRS_UNSPECIFIED, buff + n, swidth);
                 if (ch->ctrl & PL080_CCTRL_SI)
                     ch->src += swidth;
             }
             xsize = (dwidth < swidth) ? swidth : dwidth;
             /* ??? This may pad the value incorrectly for dwidth < 32.  */
             for (n = 0; n < xsize; n += dwidth) {
-                cpu_physical_memory_write(ch->dest + n, buff + n, dwidth);
+                address_space_write(&s->downstream_as, ch->dest + n,
+                                    MEMTXATTRS_UNSPECIFIED, buff + n, dwidth);
                 if (ch->ctrl & PL080_CCTRL_DI)
                     ch->dest += swidth;
             }
@@ -178,19 +181,19 @@ again:
             if (size == 0) {
                 /* Transfer complete.  */
                 if (ch->lli) {
-                    ch->src = address_space_ldl_le(&address_space_memory,
+                    ch->src = address_space_ldl_le(&s->downstream_as,
                                                    ch->lli,
                                                    MEMTXATTRS_UNSPECIFIED,
                                                    NULL);
-                    ch->dest = address_space_ldl_le(&address_space_memory,
+                    ch->dest = address_space_ldl_le(&s->downstream_as,
                                                     ch->lli + 4,
                                                     MEMTXATTRS_UNSPECIFIED,
                                                     NULL);
-                    ch->ctrl = address_space_ldl_le(&address_space_memory,
+                    ch->ctrl = address_space_ldl_le(&s->downstream_as,
                                                     ch->lli + 12,
                                                     MEMTXATTRS_UNSPECIFIED,
                                                     NULL);
-                    ch->lli = address_space_ldl_le(&address_space_memory,
+                    ch->lli = address_space_ldl_le(&s->downstream_as,
                                                    ch->lli + 8,
                                                    MEMTXATTRS_UNSPECIFIED,
                                                    NULL);
@@ -358,6 +361,18 @@ static void pl080_init(Object *obj)
     s->nchannels = 8;
 }
 
+static void pl080_realize(DeviceState *dev, Error **errp)
+{
+    PL080State *s = PL080(dev);
+
+    if (!s->downstream) {
+        error_setg(errp, "PL080 'downstream' link not set");
+        return;
+    }
+
+    address_space_init(&s->downstream_as, s->downstream, "pl080-downstream");
+}
+
 static void pl081_init(Object *obj)
 {
     PL080State *s = PL080(obj);
@@ -365,11 +380,19 @@ static void pl081_init(Object *obj)
     s->nchannels = 2;
 }
 
+static Property pl080_properties[] = {
+    DEFINE_PROP_LINK("downstream", PL080State, downstream,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pl080_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->vmsd = &vmstate_pl080;
+    dc->realize = pl080_realize;
+    dc->props = pl080_properties;
 }
 
 static const TypeInfo pl080_info = {

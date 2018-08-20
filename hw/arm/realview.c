@@ -201,7 +201,13 @@ static void realview_init(MachineState *machine,
     pl011_create(0x1000c000, pic[15], serial_hd(3));
 
     /* DMA controller is optional, apparently.  */
-    sysbus_create_simple("pl081", 0x10030000, pic[24]);
+    dev = qdev_create(NULL, "pl081");
+    object_property_set_link(OBJECT(dev), OBJECT(sysmem), "downstream",
+                             &error_fatal);
+    qdev_init_nofail(dev);
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(busdev, 0, 0x10030000);
+    sysbus_connect_irq(busdev, 0, pic[24]);
 
     sysbus_create_simple("sp804", 0x10011000, pic[4]);
     sysbus_create_simple("sp804", 0x10012000, pic[5]);
