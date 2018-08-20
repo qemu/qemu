@@ -29,7 +29,6 @@
 #include "exec/ram_addr.h"
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
-#include "hw/misc/mmio_interface.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
@@ -2678,115 +2677,6 @@ void memory_listener_unregister(MemoryListener *listener)
     QTAILQ_REMOVE(&memory_listeners, listener, link);
     QTAILQ_REMOVE(&listener->address_space->listeners, listener, link_as);
     listener->address_space = NULL;
-}
-
-bool memory_region_request_mmio_ptr(MemoryRegion *mr, hwaddr addr)
-{
-    void *host;
-    unsigned size = 0;
-    unsigned offset = 0;
-    Object *new_interface;
-
-    if (!mr || !mr->ops->request_ptr) {
-        return false;
-    }
-
-    /*
-     * Avoid an update if the request_ptr call
-     * memory_region_invalidate_mmio_ptr which seems to be likely when we use
-     * a cache.
-     */
-    memory_region_transaction_begin();
-
-    host = mr->ops->request_ptr(mr->opaque, addr - mr->addr, &size, &offset);
-
-    if (!host || !size) {
-        memory_region_transaction_commit();
-        return false;
-    }
-
-    new_interface = object_new("mmio_interface");
-    qdev_prop_set_uint64(DEVICE(new_interface), "start", offset);
-    qdev_prop_set_uint64(DEVICE(new_interface), "end", offset + size - 1);
-    qdev_prop_set_bit(DEVICE(new_interface), "ro", true);
-    qdev_prop_set_ptr(DEVICE(new_interface), "host_ptr", host);
-    qdev_prop_set_ptr(DEVICE(new_interface), "subregion", mr);
-    object_property_set_bool(OBJECT(new_interface), true, "realized", NULL);
-
-    memory_region_transaction_commit();
-    return true;
-}
-
-typedef struct MMIOPtrInvalidate {
-    MemoryRegion *mr;
-    hwaddr offset;
-    unsigned size;
-    int busy;
-    int allocated;
-} MMIOPtrInvalidate;
-
-#define MAX_MMIO_INVALIDATE 10
-static MMIOPtrInvalidate mmio_ptr_invalidate_list[MAX_MMIO_INVALIDATE];
-
-static void memory_region_do_invalidate_mmio_ptr(CPUState *cpu,
-                                                 run_on_cpu_data data)
-{
-    MMIOPtrInvalidate *invalidate_data = (MMIOPtrInvalidate *)data.host_ptr;
-    MemoryRegion *mr = invalidate_data->mr;
-    hwaddr offset = invalidate_data->offset;
-    unsigned size = invalidate_data->size;
-    MemoryRegionSection section = memory_region_find(mr, offset, size);
-
-    qemu_mutex_lock_iothread();
-
-    /* Reset dirty so this doesn't happen later. */
-    cpu_physical_memory_test_and_clear_dirty(offset, size, 1);
-
-    if (section.mr != mr) {
-        /* memory_region_find add a ref on section.mr */
-        memory_region_unref(section.mr);
-        if (MMIO_INTERFACE(section.mr->owner)) {
-            /* We found the interface just drop it. */
-            object_property_set_bool(section.mr->owner, false, "realized",
-                                     NULL);
-            object_unref(section.mr->owner);
-            object_unparent(section.mr->owner);
-        }
-    }
-
-    qemu_mutex_unlock_iothread();
-
-    if (invalidate_data->allocated) {
-        g_free(invalidate_data);
-    } else {
-        invalidate_data->busy = 0;
-    }
-}
-
-void memory_region_invalidate_mmio_ptr(MemoryRegion *mr, hwaddr offset,
-                                       unsigned size)
-{
-    size_t i;
-    MMIOPtrInvalidate *invalidate_data = NULL;
-
-    for (i = 0; i < MAX_MMIO_INVALIDATE; i++) {
-        if (atomic_cmpxchg(&(mmio_ptr_invalidate_list[i].busy), 0, 1) == 0) {
-            invalidate_data = &mmio_ptr_invalidate_list[i];
-            break;
-        }
-    }
-
-    if (!invalidate_data) {
-        invalidate_data = g_malloc0(sizeof(MMIOPtrInvalidate));
-        invalidate_data->allocated = 1;
-    }
-
-    invalidate_data->mr = mr;
-    invalidate_data->offset = offset;
-    invalidate_data->size = size;
-
-    async_safe_run_on_cpu(first_cpu, memory_region_do_invalidate_mmio_ptr,
-                          RUN_ON_CPU_HOST_PTR(invalidate_data));
 }
 
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
