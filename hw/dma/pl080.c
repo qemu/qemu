@@ -348,6 +348,30 @@ static const MemoryRegionOps pl080_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void pl080_reset(DeviceState *dev)
+{
+    PL080State *s = PL080(dev);
+    int i;
+
+    s->tc_int = 0;
+    s->tc_mask = 0;
+    s->err_int = 0;
+    s->err_mask = 0;
+    s->conf = 0;
+    s->sync = 0;
+    s->req_single = 0;
+    s->req_burst = 0;
+    s->running = 0;
+
+    for (i = 0; i < s->nchannels; i++) {
+        s->chan[i].src = 0;
+        s->chan[i].dest = 0;
+        s->chan[i].lli = 0;
+        s->chan[i].ctrl = 0;
+        s->chan[i].conf = 0;
+    }
+}
+
 static void pl080_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -393,6 +417,7 @@ static void pl080_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_pl080;
     dc->realize = pl080_realize;
     dc->props = pl080_properties;
+    dc->reset = pl080_reset;
 }
 
 static const TypeInfo pl080_info = {
