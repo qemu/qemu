@@ -11,8 +11,9 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
+#include "hw/dma/pl080.h"
+#include "qapi/error.h"
 
-#define PL080_MAX_CHANNELS 8
 #define PL080_CONF_E    0x1
 #define PL080_CONF_M1   0x2
 #define PL080_CONF_M2   0x4
@@ -29,36 +30,6 @@
 #define PL080_CCTRL_SI  0x04000000
 #define PL080_CCTRL_D   0x02000000
 #define PL080_CCTRL_S   0x01000000
-
-typedef struct {
-    uint32_t src;
-    uint32_t dest;
-    uint32_t lli;
-    uint32_t ctrl;
-    uint32_t conf;
-} pl080_channel;
-
-#define TYPE_PL080 "pl080"
-#define PL080(obj) OBJECT_CHECK(PL080State, (obj), TYPE_PL080)
-
-typedef struct PL080State {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    uint8_t tc_int;
-    uint8_t tc_mask;
-    uint8_t err_int;
-    uint8_t err_mask;
-    uint32_t conf;
-    uint32_t sync;
-    uint32_t req_single;
-    uint32_t req_burst;
-    pl080_channel chan[PL080_MAX_CHANNELS];
-    int nchannels;
-    /* Flag to avoid recursive DMA invocations.  */
-    int running;
-    qemu_irq irq;
-} PL080State;
 
 static const VMStateDescription vmstate_pl080_channel = {
     .name = "pl080_channel",
@@ -105,11 +76,12 @@ static const unsigned char pl081_id[] =
 
 static void pl080_update(PL080State *s)
 {
-    if ((s->tc_int & s->tc_mask)
-            || (s->err_int & s->err_mask))
-        qemu_irq_raise(s->irq);
-    else
-        qemu_irq_lower(s->irq);
+    bool tclevel = (s->tc_int & s->tc_mask);
+    bool errlevel = (s->err_int & s->err_mask);
+
+    qemu_set_irq(s->interr, errlevel);
+    qemu_set_irq(s->inttc, tclevel);
+    qemu_set_irq(s->irq, errlevel || tclevel);
 }
 
 static void pl080_run(PL080State *s)
@@ -138,7 +110,6 @@ static void pl080_run(PL080State *s)
     if ((s->conf & PL080_CONF_E) == 0)
         return;
 
-hw_error("DMA active\n");
     /* If we are already in the middle of a DMA operation then indicate that
        there may be new DMA requests and return immediately.  */
     if (s->running) {
@@ -190,14 +161,16 @@ again:
             swidth = 1 << ((ch->ctrl >> 18) & 7);
             dwidth = 1 << ((ch->ctrl >> 21) & 7);
             for (n = 0; n < dwidth; n+= swidth) {
-                cpu_physical_memory_read(ch->src, buff + n, swidth);
+                address_space_read(&s->downstream_as, ch->src,
+                                   MEMTXATTRS_UNSPECIFIED, buff + n, swidth);
                 if (ch->ctrl & PL080_CCTRL_SI)
                     ch->src += swidth;
             }
             xsize = (dwidth < swidth) ? swidth : dwidth;
             /* ??? This may pad the value incorrectly for dwidth < 32.  */
             for (n = 0; n < xsize; n += dwidth) {
-                cpu_physical_memory_write(ch->dest + n, buff + n, dwidth);
+                address_space_write(&s->downstream_as, ch->dest + n,
+                                    MEMTXATTRS_UNSPECIFIED, buff + n, dwidth);
                 if (ch->ctrl & PL080_CCTRL_DI)
                     ch->dest += swidth;
             }
@@ -207,19 +180,19 @@ again:
             if (size == 0) {
                 /* Transfer complete.  */
                 if (ch->lli) {
-                    ch->src = address_space_ldl_le(&address_space_memory,
+                    ch->src = address_space_ldl_le(&s->downstream_as,
                                                    ch->lli,
                                                    MEMTXATTRS_UNSPECIFIED,
                                                    NULL);
-                    ch->dest = address_space_ldl_le(&address_space_memory,
+                    ch->dest = address_space_ldl_le(&s->downstream_as,
                                                     ch->lli + 4,
                                                     MEMTXATTRS_UNSPECIFIED,
                                                     NULL);
-                    ch->ctrl = address_space_ldl_le(&address_space_memory,
+                    ch->ctrl = address_space_ldl_le(&s->downstream_as,
                                                     ch->lli + 12,
                                                     MEMTXATTRS_UNSPECIFIED,
                                                     NULL);
-                    ch->lli = address_space_ldl_le(&address_space_memory,
+                    ch->lli = address_space_ldl_le(&s->downstream_as,
                                                    ch->lli + 8,
                                                    MEMTXATTRS_UNSPECIFIED,
                                                    NULL);
@@ -255,7 +228,7 @@ static uint64_t pl080_read(void *opaque, hwaddr offset,
         i = (offset & 0xe0) >> 5;
         if (i >= s->nchannels)
             goto bad_offset;
-        switch (offset >> 2) {
+        switch ((offset >> 2) & 7) {
         case 0: /* SrcAddr */
             return s->chan[i].src;
         case 1: /* DestAddr */
@@ -316,7 +289,7 @@ static void pl080_write(void *opaque, hwaddr offset,
         i = (offset & 0xe0) >> 5;
         if (i >= s->nchannels)
             goto bad_offset;
-        switch (offset >> 2) {
+        switch ((offset >> 2) & 7) {
         case 0: /* SrcAddr */
             s->chan[i].src = value;
             break;
@@ -334,6 +307,7 @@ static void pl080_write(void *opaque, hwaddr offset,
             pl080_run(s);
             break;
         }
+        return;
     }
     switch (offset >> 2) {
     case 2: /* IntTCClear */
@@ -374,6 +348,30 @@ static const MemoryRegionOps pl080_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void pl080_reset(DeviceState *dev)
+{
+    PL080State *s = PL080(dev);
+    int i;
+
+    s->tc_int = 0;
+    s->tc_mask = 0;
+    s->err_int = 0;
+    s->err_mask = 0;
+    s->conf = 0;
+    s->sync = 0;
+    s->req_single = 0;
+    s->req_burst = 0;
+    s->running = 0;
+
+    for (i = 0; i < s->nchannels; i++) {
+        s->chan[i].src = 0;
+        s->chan[i].dest = 0;
+        s->chan[i].lli = 0;
+        s->chan[i].ctrl = 0;
+        s->chan[i].conf = 0;
+    }
+}
+
 static void pl080_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -382,7 +380,21 @@ static void pl080_init(Object *obj)
     memory_region_init_io(&s->iomem, OBJECT(s), &pl080_ops, s, "pl080", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &s->interr);
+    sysbus_init_irq(sbd, &s->inttc);
     s->nchannels = 8;
+}
+
+static void pl080_realize(DeviceState *dev, Error **errp)
+{
+    PL080State *s = PL080(dev);
+
+    if (!s->downstream) {
+        error_setg(errp, "PL080 'downstream' link not set");
+        return;
+    }
+
+    address_space_init(&s->downstream_as, s->downstream, "pl080-downstream");
 }
 
 static void pl081_init(Object *obj)
@@ -392,11 +404,20 @@ static void pl081_init(Object *obj)
     s->nchannels = 2;
 }
 
+static Property pl080_properties[] = {
+    DEFINE_PROP_LINK("downstream", PL080State, downstream,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pl080_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->vmsd = &vmstate_pl080;
+    dc->realize = pl080_realize;
+    dc->props = pl080_properties;
+    dc->reset = pl080_reset;
 }
 
 static const TypeInfo pl080_info = {
@@ -408,7 +429,7 @@ static const TypeInfo pl080_info = {
 };
 
 static const TypeInfo pl081_info = {
-    .name          = "pl081",
+    .name          = TYPE_PL081,
     .parent        = TYPE_PL080,
     .instance_init = pl081_init,
 };

@@ -1,0 +1,6 @@
+# See docs/devel/tracing.txt for syntax documentation.
+
+# hw/char/cmsdk_apb_watchdog.c
+cmsdk_apb_watchdog_read(uint64_t offset, uint64_t data, unsigned size) "CMSDK APB watchdog read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+cmsdk_apb_watchdog_write(uint64_t offset, uint64_t data, unsigned size) "CMSDK APB watchdog write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+cmsdk_apb_watchdog_reset(void) "CMSDK APB watchdog: reset"
