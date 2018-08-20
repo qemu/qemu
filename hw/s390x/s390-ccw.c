@@ -67,8 +67,6 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
     CcwDevice *ccw_dev = CCW_DEVICE(cdev);
     CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
     DeviceState *parent = DEVICE(ccw_dev);
-    BusState *qbus = qdev_get_parent_bus(parent);
-    VirtualCssBus *cbus = VIRTUAL_CSS_BUS(qbus);
     SubchDev *sch;
     int ret;
     Error *err = NULL;
@@ -78,7 +76,7 @@ static void s390_ccw_realize(S390CCWDevice *cdev, char *sysfsdev, Error **errp)
         goto out_err_propagate;
     }
 
-    sch = css_create_sch(ccw_dev->devno, cbus->squash_mcss, &err);
+    sch = css_create_sch(ccw_dev->devno, &err);
     if (!sch) {
         goto out_mdevid_free;
     }

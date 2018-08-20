@@ -1,7 +1,7 @@
 /*
  * S390x machine definitions and functions
  *
- * Copyright IBM Corp. 2014
+ * Copyright IBM Corp. 2014, 2018
  *
  * Authors:
  *   Thomas Huth <thuth@linux.vnet.ibm.com>
@@ -216,6 +216,23 @@ const VMStateDescription vmstate_bpbc = {
     }
 };
 
+static bool etoken_needed(void *opaque)
+{
+    return s390_has_feat(S390_FEAT_ETOKEN);
+}
+
+const VMStateDescription vmstate_etoken = {
+    .name = "cpu/etoken",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = etoken_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.etoken, S390CPU),
+        VMSTATE_UINT64(env.etoken_extension, S390CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_s390_cpu = {
     .name = "cpu",
     .post_load = cpu_post_load,
@@ -251,6 +268,7 @@ const VMStateDescription vmstate_s390_cpu = {
         &vmstate_exval,
         &vmstate_gscb,
         &vmstate_bpbc,
+        &vmstate_etoken,
         NULL
     },
 };

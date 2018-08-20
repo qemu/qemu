@@ -1,7 +1,7 @@
 /*
  * CPU features/facilities for s390
  *
- * Copyright 2016 IBM Corp.
+ * Copyright IBM Corp. 2016, 2018
  *
  * Author(s): Michael Mueller <mimu@linux.vnet.ibm.com>
  *            David Hildenbrand <dahi@linux.vnet.ibm.com>
@@ -93,6 +93,7 @@ typedef enum {
     S390_FEAT_INSERT_REFERENCE_BITS_MULT,
     S390_FEAT_MSA_EXT_8,
     S390_FEAT_CMM_NT,
+    S390_FEAT_ETOKEN,
 
     /* Sclp Conf Char */
     S390_FEAT_SIE_GSLS,

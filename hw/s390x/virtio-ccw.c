@@ -694,13 +694,10 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
     CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
-    DeviceState *parent = DEVICE(ccw_dev);
-    BusState *qbus = qdev_get_parent_bus(parent);
-    VirtualCssBus *cbus = VIRTUAL_CSS_BUS(qbus);
     SubchDev *sch;
     Error *err = NULL;
 
-    sch = css_create_sch(ccw_dev->devno, cbus->squash_mcss, errp);
+    sch = css_create_sch(ccw_dev->devno, errp);
     if (!sch) {
         return;
     }

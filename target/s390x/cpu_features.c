@@ -1,7 +1,7 @@
 /*
  * CPU features/facilities for s390x
  *
- * Copyright 2016 IBM Corp.
+ * Copyright IBM Corp. 2016, 2018
  *
  * Author(s): David Hildenbrand <dahi@linux.vnet.ibm.com>
  *
@@ -13,7 +13,6 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "cpu_features.h"
-#include "gen-features.h"
 
 #define FEAT_INIT(_name, _type, _bit, _desc) \
     {                                                \
@@ -106,6 +105,7 @@ static const S390FeatDef s390_features[] = {
     FEAT_INIT("irbm", S390_FEAT_TYPE_STFL, 145, "Insert-reference-bits-multiple facility"),
     FEAT_INIT("msa8-base", S390_FEAT_TYPE_STFL, 146, "Message-security-assist-extension-8 facility (excluding subfunctions)"),
     FEAT_INIT("cmmnt", S390_FEAT_TYPE_STFL, 147, "CMM: ESSA-enhancement (no translate) facility"),
+    FEAT_INIT("etoken", S390_FEAT_TYPE_STFL, 156, "Etoken facility"),
 
     /* SCLP SCCB Byte 80 - 98  (bit numbers relative to byte-80) */
     FEAT_INIT("gsls", S390_FEAT_TYPE_SCLP_CONF_CHAR, 40, "SIE: Guest-storage-limit-suppression facility"),

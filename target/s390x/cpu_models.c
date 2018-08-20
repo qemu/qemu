@@ -307,7 +307,10 @@ static gint s390_cpu_list_compare(gconstpointer a, gconstpointer b)
     const char *name_a = object_class_get_name((ObjectClass *)a);
     const char *name_b = object_class_get_name((ObjectClass *)b);
 
-    /* move qemu and host to the top of the list, qemu first, host second */
+    /*
+     * Move qemu, host and max to the top of the list, qemu first, host second,
+     * max third.
+     */
     if (name_a[0] == 'q') {
         return -1;
     } else if (name_b[0] == 'q') {
@@ -315,6 +318,10 @@ static gint s390_cpu_list_compare(gconstpointer a, gconstpointer b)
     } else if (name_a[0] == 'h') {
         return -1;
     } else if (name_b[0] == 'h') {
+        return 1;
+    } else if (name_a[0] == 'm') {
+        return -1;
+    } else if (name_b[0] == 'm') {
         return 1;
     }
 
@@ -1077,27 +1084,6 @@ static void s390_cpu_model_initfn(Object *obj)
     }
 }
 
-#ifdef CONFIG_KVM
-static void s390_host_cpu_model_initfn(Object *obj)
-{
-    S390CPU *cpu = S390_CPU(obj);
-    Error *err = NULL;
-
-    if (!kvm_enabled() || !kvm_s390_cpu_models_supported()) {
-        return;
-    }
-
-    cpu->model = g_malloc0(sizeof(*cpu->model));
-    kvm_s390_get_host_cpu_model(cpu->model, &err);
-    if (err) {
-        error_report_err(err);
-        g_free(cpu->model);
-        /* fallback to unsupported cpu models */
-        cpu->model = NULL;
-    }
-}
-#endif
-
 static S390CPUDef s390_qemu_cpu_def;
 static S390CPUModel s390_qemu_cpu_model;
 
@@ -1134,6 +1120,31 @@ static void s390_qemu_cpu_model_initfn(Object *obj)
     cpu->model = g_malloc0(sizeof(*cpu->model));
     /* copy the CPU model so we can modify it */
     memcpy(cpu->model, &s390_qemu_cpu_model, sizeof(*cpu->model));
+}
+
+static void s390_max_cpu_model_initfn(Object *obj)
+{
+    const S390CPUModel *max_model;
+    S390CPU *cpu = S390_CPU(obj);
+    Error *local_err = NULL;
+
+    if (kvm_enabled() && !kvm_s390_cpu_models_supported()) {
+        /* "max" and "host" always work, even without CPU model support */
+        return;
+    }
+
+    max_model = get_max_cpu_model(&local_err);
+    if (local_err) {
+        /* we expect errors only under KVM, when actually querying the kernel */
+        g_assert(kvm_enabled());
+        error_report_err(local_err);
+        /* fallback to unsupported CPU models */
+        return;
+    }
+
+    cpu->model = g_new(S390CPUModel, 1);
+    /* copy the CPU model so we can modify it */
+    memcpy(cpu->model, max_model, sizeof(*cpu->model));
 }
 
 static void s390_cpu_model_finalize(Object *obj)
@@ -1209,6 +1220,20 @@ static void s390_qemu_cpu_model_class_init(ObjectClass *oc, void *data)
                                 qemu_hw_version());
 }
 
+static void s390_max_cpu_model_class_init(ObjectClass *oc, void *data)
+{
+    S390CPUClass *xcc = S390_CPU_CLASS(oc);
+
+    /*
+     * The "max" model is neither static nor migration safe. Under KVM
+     * it represents the "host" model. Under TCG it represents some kind of
+     * "qemu" CPU model without compat handling and maybe with some additional
+     * CPU features that are not yet unlocked in the "qemu" model.
+     */
+    xcc->desc =
+        "Enables all features supported by the accelerator in the current host";
+}
+
 /* Generate type name for a cpu model. Caller has to free the string. */
 static char *s390_cpu_type_name(const char *model_name)
 {
@@ -1239,12 +1264,18 @@ static const TypeInfo qemu_s390_cpu_type_info = {
     .class_init = s390_qemu_cpu_model_class_init,
 };
 
+static const TypeInfo max_s390_cpu_type_info = {
+    .name = S390_CPU_TYPE_NAME("max"),
+    .parent = TYPE_S390_CPU,
+    .instance_init = s390_max_cpu_model_initfn,
+    .instance_finalize = s390_cpu_model_finalize,
+    .class_init = s390_max_cpu_model_class_init,
+};
+
 #ifdef CONFIG_KVM
 static const TypeInfo host_s390_cpu_type_info = {
     .name = S390_CPU_TYPE_NAME("host"),
-    .parent = TYPE_S390_CPU,
-    .instance_init = s390_host_cpu_model_initfn,
-    .instance_finalize = s390_cpu_model_finalize,
+    .parent = S390_CPU_TYPE_NAME("max"),
     .class_init = s390_host_cpu_model_class_init,
 };
 #endif
@@ -1326,6 +1357,7 @@ static void register_types(void)
     }
 
     type_register_static(&qemu_s390_cpu_type_info);
+    type_register_static(&max_s390_cpu_type_info);
 #ifdef CONFIG_KVM
     type_register_static(&host_s390_cpu_type_info);
 #endif
