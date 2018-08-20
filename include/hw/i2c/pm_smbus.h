@@ -23,6 +23,8 @@ typedef struct PMSMBus {
 
     /* Set by the user. */
     bool i2c_enable;
+    void (*set_irq)(struct PMSMBus *s, bool enabled);
+    void *opaque;
 
     /* Internally used by pm_smbus. */
 
