@@ -20,6 +20,7 @@ class OpenBSDVM(basevm.BaseVM):
     name = "openbsd"
     BUILD_SCRIPT = """
         set -e;
+        rm -rf /var/tmp/qemu-test.*
         cd $(mktemp -d /var/tmp/qemu-test.XXXXXX);
         tar -xf /dev/rsd1c;
         ./configure --cc=x86_64-unknown-openbsd6.1-gcc-4.9.4 --python=python2.7 {configure_opts};

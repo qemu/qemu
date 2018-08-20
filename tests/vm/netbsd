@@ -20,6 +20,7 @@ class NetBSDVM(basevm.BaseVM):
     name = "netbsd"
     BUILD_SCRIPT = """
         set -e;
+        rm -rf /var/tmp/qemu-test.*
         cd $(mktemp -d /var/tmp/qemu-test.XXXXXX);
         tar -xf /dev/rld1a;
         ./configure --python=python2.7 {configure_opts};

@@ -20,6 +20,7 @@ class FreeBSDVM(basevm.BaseVM):
     name = "freebsd"
     BUILD_SCRIPT = """
         set -e;
+        rm -rf /var/tmp/qemu-test.*
         cd $(mktemp -d /var/tmp/qemu-test.XXXXXX);
         tar -xf /dev/vtbd1;
         ./configure {configure_opts};
