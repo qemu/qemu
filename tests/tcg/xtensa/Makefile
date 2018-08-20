@@ -44,6 +44,7 @@ TESTCASES += test_mmu.tst
 TESTCASES += test_mul16.tst
 TESTCASES += test_mul32.tst
 TESTCASES += test_nsa.tst
+TESTCASES += test_phys_mem.tst
 ifdef XT
 TESTCASES += test_pipeline.tst
 endif
