@@ -173,3 +173,25 @@ There are currently two valid values for this option:
              the NVDIMMs in the event of power loss.  This implies that the
              platform also supports flushing dirty data through the memory
              controller on power loss.
+
+If the vNVDIMM backend is in host persistent memory that can be accessed in
+SNIA NVM Programming Model [1] (e.g., Intel NVDIMM), it's suggested to set
+the 'pmem' option of memory-backend-file to 'on'. When 'pmem' is 'on' and QEMU
+is built with libpmem [2] support (configured with --enable-libpmem), QEMU
+will take necessary operations to guarantee the persistence of its own writes
+to the vNVDIMM backend(e.g., in vNVDIMM label emulation and live migration).
+If 'pmem' is 'on' while there is no libpmem support, qemu will exit and report
+a "lack of libpmem support" message to ensure the persistence is available.
+For example, if we want to ensure the persistence for some backend file,
+use the QEMU command line:
+
+    -object memory-backend-file,id=nv_mem,mem-path=/XXX/yyy,size=4G,pmem=on
+
+References
+----------
+
+[1] NVM Programming Model (NPM)
+	Version 1.2
+    https://www.snia.org/sites/default/files/technical_work/final/NVMProgrammingModel_v1.2.pdf
+[2] Persistent Memory Development Kit (PMDK), formerly known as NVML project, home page:
+    http://pmem.io/pmdk/
