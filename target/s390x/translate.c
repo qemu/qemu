@@ -2444,20 +2444,17 @@ static DisasJumpType op_insi(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_ipm(DisasContext *s, DisasOps *o)
 {
-    TCGv_i64 t1;
+    TCGv_i64 t1, t2;
 
     gen_op_calc_cc(s);
-    tcg_gen_andi_i64(o->out, o->out, ~0xff000000ull);
-
     t1 = tcg_temp_new_i64();
-    tcg_gen_shli_i64(t1, psw_mask, 20);
-    tcg_gen_shri_i64(t1, t1, 36);
-    tcg_gen_or_i64(o->out, o->out, t1);
-
-    tcg_gen_extu_i32_i64(t1, cc_op);
-    tcg_gen_shli_i64(t1, t1, 28);
-    tcg_gen_or_i64(o->out, o->out, t1);
+    tcg_gen_extract_i64(t1, psw_mask, 40, 4);
+    t2 = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(t2, cc_op);
+    tcg_gen_deposit_i64(t1, t1, t2, 4, 60);
+    tcg_gen_deposit_i64(o->out, o->out, t1, 24, 8);
     tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
     return DISAS_NEXT;
 }
 
