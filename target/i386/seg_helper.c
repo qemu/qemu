@@ -1244,7 +1244,7 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
     }
     if (env->cr[0] & CR0_PE_MASK) {
 #if !defined(CONFIG_USER_ONLY)
-        if (env->hflags & HF_SVMI_MASK) {
+        if (env->hflags & HF_GUEST_MASK) {
             handle_even_inj(env, intno, is_int, error_code, is_hw, 0);
         }
 #endif
@@ -1259,7 +1259,7 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
         }
     } else {
 #if !defined(CONFIG_USER_ONLY)
-        if (env->hflags & HF_SVMI_MASK) {
+        if (env->hflags & HF_GUEST_MASK) {
             handle_even_inj(env, intno, is_int, error_code, is_hw, 1);
         }
 #endif
@@ -1267,7 +1267,7 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
     }
 
 #if !defined(CONFIG_USER_ONLY)
-    if (env->hflags & HF_SVMI_MASK) {
+    if (env->hflags & HF_GUEST_MASK) {
         CPUState *cs = CPU(cpu);
         uint32_t event_inj = x86_ldl_phys(cs, env->vm_vmcb +
                                       offsetof(struct vmcb,

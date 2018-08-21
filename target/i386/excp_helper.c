@@ -53,7 +53,7 @@ static int check_exception(CPUX86State *env, int intno, int *error_code,
 
 #if !defined(CONFIG_USER_ONLY)
     if (env->old_exception == EXCP08_DBLE) {
-        if (env->hflags & HF_SVMI_MASK) {
+        if (env->hflags & HF_GUEST_MASK) {
             cpu_vmexit(env, SVM_EXIT_SHUTDOWN, 0, retaddr); /* does not return */
         }
 

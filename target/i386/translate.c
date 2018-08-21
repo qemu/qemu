@@ -632,7 +632,7 @@ static void gen_check_io(DisasContext *s, TCGMemOp ot, target_ulong cur_eip,
             tcg_abort();
         }
     }
-    if(s->flags & HF_SVMI_MASK) {
+    if(s->flags & HF_GUEST_MASK) {
         gen_update_cc_op(s);
         gen_jmp_im(s, cur_eip);
         svm_flags |= (1 << (4 + ot));
@@ -2316,7 +2316,7 @@ gen_svm_check_intercept_param(DisasContext *s, target_ulong pc_start,
                               uint32_t type, uint64_t param)
 {
     /* no SVM activated; fast case */
-    if (likely(!(s->flags & HF_SVMI_MASK)))
+    if (likely(!(s->flags & HF_GUEST_MASK)))
         return;
     gen_update_cc_op(s);
     gen_jmp_im(s, pc_start - s->cs_base);

@@ -228,7 +228,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     }
 
     /* enable intercepts */
-    env->hflags |= HF_SVMI_MASK;
+    env->hflags |= HF_GUEST_MASK;
 
     env->tsc_offset = x86_ldq_phys(cs, env->vm_vmcb +
                                offsetof(struct vmcb, control.tsc_offset));
@@ -503,7 +503,7 @@ void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
 
-    if (likely(!(env->hflags & HF_SVMI_MASK))) {
+    if (likely(!(env->hflags & HF_GUEST_MASK))) {
         return;
     }
     switch (type) {
@@ -697,7 +697,7 @@ void do_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
 
     /* Reload the host state from vm_hsave */
     env->hflags2 &= ~(HF2_HIF_MASK | HF2_VINTR_MASK);
-    env->hflags &= ~HF_SVMI_MASK;
+    env->hflags &= ~HF_GUEST_MASK;
     env->intercept = 0;
     env->intercept_exceptions = 0;
     cs->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
