@@ -212,13 +212,13 @@
 # -> { "execute": "query-migrate" }
 # <- { "return": {
 #         "status": "completed",
+#         "total-time":12345,
+#         "setup-time":12345,
+#         "downtime":12345,
 #         "ram":{
 #           "transferred":123,
 #           "remaining":123,
 #           "total":246,
-#           "total-time":12345,
-#           "setup-time":12345,
-#           "downtime":12345,
 #           "duplicate":123,
 #           "normal":123,
 #           "normal-bytes":123456,
@@ -238,13 +238,13 @@
 # <- {
 #       "return":{
 #          "status":"active",
+#          "total-time":12345,
+#          "setup-time":12345,
+#          "expected-downtime":12345,
 #          "ram":{
 #             "transferred":123,
 #             "remaining":123,
 #             "total":246,
-#             "total-time":12345,
-#             "setup-time":12345,
-#             "expected-downtime":12345,
 #             "duplicate":123,
 #             "normal":123,
 #             "normal-bytes":123456,
@@ -259,13 +259,13 @@
 # <- {
 #       "return":{
 #          "status":"active",
+#          "total-time":12345,
+#          "setup-time":12345,
+#          "expected-downtime":12345,
 #          "ram":{
 #             "total":1057024,
 #             "remaining":1053304,
 #             "transferred":3720,
-#             "total-time":12345,
-#             "setup-time":12345,
-#             "expected-downtime":12345,
 #             "duplicate":123,
 #             "normal":123,
 #             "normal-bytes":123456,
@@ -285,14 +285,13 @@
 # <- {
 #       "return":{
 #          "status":"active",
-#          "capabilities" : [ { "capability": "xbzrle", "state" : true } ],
+#          "total-time":12345,
+#          "setup-time":12345,
+#          "expected-downtime":12345,
 #          "ram":{
 #             "total":1057024,
 #             "remaining":1053304,
 #             "transferred":3720,
-#             "total-time":12345,
-#             "setup-time":12345,
-#             "expected-downtime":12345,
 #             "duplicate":10,
 #             "normal":3333,
 #             "normal-bytes":3412992,
