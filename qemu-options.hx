@@ -1711,9 +1711,6 @@ Windows 2000 is installed, you no longer need this option (this option
 slows down the IDE transfers).
 ETEXI
 
-HXCOMM Deprecated by -rtc
-DEF("rtc-td-hack", 0, QEMU_OPTION_rtc_td_hack, "", QEMU_ARCH_I386)
-
 DEF("no-fd-bootchk", 0, QEMU_OPTION_no_fd_bootchk,
     "-no-fd-bootchk  disable boot signature checking for floppy disks\n",
     QEMU_ARCH_I386)
@@ -3470,10 +3467,6 @@ ETEXI
 
 HXCOMM Silently ignored for compatibility
 DEF("clock", HAS_ARG, QEMU_OPTION_clock, "", QEMU_ARCH_ALL)
-
-HXCOMM Options deprecated by -rtc
-DEF("localtime", 0, QEMU_OPTION_localtime, "", QEMU_ARCH_ALL)
-DEF("startdate", HAS_ARG, QEMU_OPTION_startdate, "", QEMU_ARCH_ALL)
 
 DEF("rtc", HAS_ARG, QEMU_OPTION_rtc, \
     "-rtc [base=utc|localtime|date][,clock=host|rt|vm][,driftfix=none|slew]\n" \

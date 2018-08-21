@@ -96,19 +96,6 @@ The @code{--no-frame} argument works with SDL 1.2 only. The other user
 interfaces never implemented this in the first place. So this will be
 removed together with SDL 1.2 support.
 
-@subsection -rtc-td-hack (since 2.12.0)
-
-The @code{-rtc-td-hack} option has been replaced by
-@code{-rtc driftfix=slew}.
-
-@subsection -localtime (since 2.12.0)
-
-The @code{-localtime} option has been replaced by @code{-rtc base=localtime}.
-
-@subsection -startdate (since 2.12.0)
-
-The @code{-startdate} option has been replaced by @code{-rtc base=@var{date}}.
-
 @subsection -virtioconsole (since 3.0.0)
 
 Option @option{-virtioconsole} has been replaced by
