@@ -1299,10 +1299,24 @@ static inline uint32_t do_helper_trt(CPUS390XState *env, int len,
     return 0;
 }
 
+static uint32_t do_helper_trt_fwd(CPUS390XState *env, uint32_t len,
+                                  uint64_t array, uint64_t trans,
+                                  uintptr_t ra)
+{
+    return do_helper_trt(env, len, array, trans, 1, ra);
+}
+
 uint32_t HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
                      uint64_t trans)
 {
     return do_helper_trt(env, len, array, trans, 1, GETPC());
+}
+
+static uint32_t do_helper_trt_bkwd(CPUS390XState *env, uint32_t len,
+                                   uint64_t array, uint64_t trans,
+                                   uintptr_t ra)
+{
+    return do_helper_trt(env, len, array, trans, -1, ra);
 }
 
 uint32_t HELPER(trtr)(CPUS390XState *env, uint32_t len, uint64_t array,
@@ -2193,12 +2207,14 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
         typedef uint32_t (*dx_helper)(CPUS390XState *, uint32_t, uint64_t,
                                       uint64_t, uintptr_t);
         static const dx_helper dx[16] = {
+            [0x0] = do_helper_trt_bkwd,
             [0x2] = do_helper_mvc,
             [0x4] = do_helper_nc,
             [0x5] = do_helper_clc,
             [0x6] = do_helper_oc,
             [0x7] = do_helper_xc,
             [0xc] = do_helper_tr,
+            [0xd] = do_helper_trt_fwd,
         };
         dx_helper helper = dx[opc & 0xf];
 
