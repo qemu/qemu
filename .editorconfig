@@ -1,4 +1,10 @@
-# http://editorconfig.org
+# EditorConfig is a file format and collection of text editor plugins
+# for maintaining consistent coding styles between different editors
+# and IDEs. Most popular editors support this either natively or via
+# plugin.
+#
+# Check https://editorconfig.org for details.
+
 root = true
 
 [*]
@@ -6,10 +12,23 @@ end_of_line = lf
 insert_final_newline = true
 charset = utf-8
 
+[*.mak]
+indent_style = tab
+indent_size = 8
+file_type_emacs = makefile
+
 [Makefile*]
 indent_style = tab
 indent_size = 8
+file_type_emacs = makefile
 
 [*.{c,h}]
 indent_style = space
 indent_size = 4
+
+[*.{vert,frag}]
+file_type_emacs = glsl
+
+[*.json]
+indent_style = space
+file_type_emacs = python
