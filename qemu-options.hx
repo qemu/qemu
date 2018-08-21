@@ -3833,8 +3833,7 @@ Write device configuration to @var{file}. The @var{file} can be either filename 
 command line and device configuration into file or dash @code{-}) character to print the
 output to stdout. This can be later used as input file for @code{-readconfig} option.
 ETEXI
-HXCOMM Deprecated, same as -no-user-config
-DEF("nodefconfig", 0, QEMU_OPTION_nodefconfig, "", QEMU_ARCH_ALL)
+
 DEF("no-user-config", 0, QEMU_OPTION_nouserconfig,
     "-no-user-config\n"
     "                do not load default user-provided config files at startup\n",
@@ -3845,6 +3844,7 @@ STEXI
 The @code{-no-user-config} option makes QEMU not load any of the user-provided
 config files on @var{sysconfdir}.
 ETEXI
+
 DEF("trace", HAS_ARG, QEMU_OPTION_trace,
     "-trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
     "                specify tracing options\n",

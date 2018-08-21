@@ -82,10 +82,6 @@ would automatically enable USB support on the machine type.
 If using the new syntax, USB support must be explicitly
 enabled via the ``-machine usb=on'' argument.
 
-@subsection -nodefconfig (since 2.11.0)
-
-The ``-nodefconfig`` argument is a synonym for ``-no-user-config``.
-
 @subsection -fsdev handle (since 2.12.0)
 
 The ``handle'' fsdev backend does not support symlinks and causes the 9p
