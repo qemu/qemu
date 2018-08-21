@@ -162,12 +162,6 @@ replaced by the ``target'' output member.
 The ``ivshmem'' device type is replaced by either the ``ivshmem-plain''
 or ``ivshmem-doorbell`` device types.
 
-@subsection Page size support < 4k for embedded PowerPC CPUs (since 2.12.0)
-
-qemu-system-ppcemb will be removed. qemu-system-ppc (or qemu-system-ppc64)
-should be used instead. That means that embedded 4xx PowerPC CPUs will not
-support page sizes < 4096 any longer.
-
 @section System emulator machines
 
 @subsection pc-0.10 and pc-0.11 (since 3.0)

@@ -2251,7 +2251,6 @@ static CpuInfoArch sysemu_target_to_cpuinfo_arch(SysEmuTarget target)
         return CPU_INFO_ARCH_X86;
 
     case SYS_EMU_TARGET_PPC:
-    case SYS_EMU_TARGET_PPCEMB:
     case SYS_EMU_TARGET_PPC64:
         return CPU_INFO_ARCH_PPC;
 

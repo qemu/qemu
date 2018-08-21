@@ -195,8 +195,7 @@ supported_kvm_target() {
         i386:i386 | i386:x86_64 | i386:x32 | \
         x86_64:i386 | x86_64:x86_64 | x86_64:x32 | \
         mips:mips | mipsel:mips | \
-        ppc:ppc | ppcemb:ppc | ppc64:ppc | \
-        ppc:ppc64 | ppcemb:ppc64 | ppc64:ppc64 | \
+        ppc:ppc | ppc64:ppc | ppc:ppc64 | ppc64:ppc64 | \
         s390x:s390x)
             return 0
         ;;
@@ -6951,7 +6950,7 @@ if test "$linux" = "yes" ; then
   i386|x86_64|x32)
     linux_arch=x86
     ;;
-  ppcemb|ppc|ppc64)
+  ppc|ppc64)
     linux_arch=powerpc
     ;;
   s390x)
@@ -6981,7 +6980,7 @@ target_name=$(echo $target | cut -d '-' -f 1)
 target_bigendian="no"
 
 case "$target_name" in
-  armeb|aarch64_be|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or1k|ppc|ppcemb|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
+  armeb|aarch64_be|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or1k|ppc|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
   target_bigendian=yes
   ;;
 esac
@@ -7108,12 +7107,6 @@ case "$target_name" in
   ppc)
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
     target_compiler=$cross_cc_powerpc
-  ;;
-  ppcemb)
-    TARGET_BASE_ARCH=ppc
-    TARGET_ABI_DIR=ppc
-    gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
-    target_compiler=$cross_cc_ppcemb
   ;;
   ppc64)
     TARGET_BASE_ARCH=ppc

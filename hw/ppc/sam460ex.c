@@ -419,13 +419,6 @@ static void sam460ex_init(MachineState *machine)
         exit(1);
     }
 
-#ifdef TARGET_PPCEMB
-    if (!qtest_enabled()) {
-        warn_report("qemu-system-ppcemb is deprecated, "
-                    "please use qemu-system-ppc instead.");
-    }
-#endif
-
     qemu_register_reset(main_cpu_reset, cpu);
     boot_info = g_malloc0(sizeof(*boot_info));
     env->load_info = boot_info;

@@ -195,13 +195,6 @@ static void bamboo_init(MachineState *machine)
         exit(1);
     }
 
-#ifdef TARGET_PPCEMB
-    if (!qtest_enabled()) {
-        warn_report("qemu-system-ppcemb is deprecated, "
-                    "please use qemu-system-ppc instead.");
-    }
-#endif
-
     qemu_register_reset(main_cpu_reset, cpu);
     ppc_booke_timers_init(cpu, 400000000, 0);
     ppc_dcr_init(env, NULL, NULL);

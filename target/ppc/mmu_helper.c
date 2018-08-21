@@ -2363,12 +2363,12 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
     tlb->size = booke_tlb_to_page_size((val >> PPC4XX_TLBHI_SIZE_SHIFT)
                                        & PPC4XX_TLBHI_SIZE_MASK);
     /* We cannot handle TLB size < TARGET_PAGE_SIZE.
-     * If this ever occurs, one should use the ppcemb target instead
-     * of the ppc or ppc64 one
+     * If this ever occurs, we should implement TARGET_PAGE_BITS_VARY
      */
     if ((val & PPC4XX_TLBHI_V) && tlb->size < TARGET_PAGE_SIZE) {
         cpu_abort(cs, "TLB size " TARGET_FMT_lu " < %u "
-                  "are not supported (%d)\n",
+                  "are not supported (%d)\n"
+                  "Please implement TARGET_PAGE_BITS_VARY\n",
                   tlb->size, TARGET_PAGE_SIZE, (int)((val >> 7) & 0x7));
     }
     tlb->EPN = val & ~(tlb->size - 1);

@@ -1315,9 +1315,7 @@ int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level)
     return 0;
 }
 
-#if defined(TARGET_PPCEMB)
-#define PPC_INPUT_INT PPC40x_INPUT_INT
-#elif defined(TARGET_PPC64)
+#if defined(TARGET_PPC64)
 #define PPC_INPUT_INT PPC970_INPUT_INT
 #else
 #define PPC_INPUT_INT PPC6xx_INPUT_INT
