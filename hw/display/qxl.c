@@ -2057,7 +2057,6 @@ static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
 
     qemu_spice_display_init_common(&qxl->ssd);
     qxl->mode = QXL_MODE_UNDEFINED;
-    qxl->generation = 1;
     qxl->num_memslots = NUM_MEMSLOTS;
     qemu_mutex_init(&qxl->track_lock);
     qemu_mutex_init(&qxl->async_lock);

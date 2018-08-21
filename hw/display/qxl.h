@@ -43,7 +43,6 @@ typedef struct PCIQXLDevice {
 
     enum qxl_mode      mode;
     uint32_t           cmdflags;
-    int                generation;
     uint32_t           revision;
 
     int32_t            num_memslots;

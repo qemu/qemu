@@ -460,8 +460,8 @@ static uint32_t bonito_sbridge_pciaddr(void *opaque, hwaddr addr)
     return pciaddr;
 }
 
-static void bonito_spciconf_writeb(void *opaque, hwaddr addr,
-                                   uint32_t val)
+static void bonito_spciconf_write(void *opaque, hwaddr addr, uint64_t val,
+                                  unsigned size)
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
@@ -469,34 +469,8 @@ static void bonito_spciconf_writeb(void *opaque, hwaddr addr,
     uint32_t pciaddr;
     uint16_t status;
 
-    DPRINTF("bonito_spciconf_writeb "TARGET_FMT_plx" val %x\n", addr, val);
-    pciaddr = bonito_sbridge_pciaddr(s, addr);
-
-    if (pciaddr == 0xffffffff) {
-        return;
-    }
-
-    /* set the pci address in s->config_reg */
-    phb->config_reg = (pciaddr) | (1u << 31);
-    pci_data_write(phb->bus, phb->config_reg, val & 0xff, 1);
-
-    /* clear PCI_STATUS_REC_MASTER_ABORT and PCI_STATUS_REC_TARGET_ABORT */
-    status = pci_get_word(d->config + PCI_STATUS);
-    status &= ~(PCI_STATUS_REC_MASTER_ABORT | PCI_STATUS_REC_TARGET_ABORT);
-    pci_set_word(d->config + PCI_STATUS, status);
-}
-
-static void bonito_spciconf_writew(void *opaque, hwaddr addr,
-                                   uint32_t val)
-{
-    PCIBonitoState *s = opaque;
-    PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
-    uint32_t pciaddr;
-    uint16_t status;
-
-    DPRINTF("bonito_spciconf_writew "TARGET_FMT_plx" val %x\n", addr, val);
-    assert((addr & 0x1) == 0);
+    DPRINTF("bonito_spciconf_write "TARGET_FMT_plx" size %d val %x\n",
+            addr, size, val);
 
     pciaddr = bonito_sbridge_pciaddr(s, addr);
 
@@ -506,7 +480,7 @@ static void bonito_spciconf_writew(void *opaque, hwaddr addr,
 
     /* set the pci address in s->config_reg */
     phb->config_reg = (pciaddr) | (1u << 31);
-    pci_data_write(phb->bus, phb->config_reg, val, 2);
+    pci_data_write(phb->bus, phb->config_reg, val, size);
 
     /* clear PCI_STATUS_REC_MASTER_ABORT and PCI_STATUS_REC_TARGET_ABORT */
     status = pci_get_word(d->config + PCI_STATUS);
@@ -514,8 +488,7 @@ static void bonito_spciconf_writew(void *opaque, hwaddr addr,
     pci_set_word(d->config + PCI_STATUS, status);
 }
 
-static void bonito_spciconf_writel(void *opaque, hwaddr addr,
-                                   uint32_t val)
+static uint64_t bonito_spciconf_read(void *opaque, hwaddr addr, unsigned size)
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
@@ -523,38 +496,12 @@ static void bonito_spciconf_writel(void *opaque, hwaddr addr,
     uint32_t pciaddr;
     uint16_t status;
 
-    DPRINTF("bonito_spciconf_writel "TARGET_FMT_plx" val %x\n", addr, val);
-    assert((addr & 0x3) == 0);
+    DPRINTF("bonito_spciconf_read "TARGET_FMT_plx" size %d\n", addr, size);
 
     pciaddr = bonito_sbridge_pciaddr(s, addr);
 
     if (pciaddr == 0xffffffff) {
-        return;
-    }
-
-    /* set the pci address in s->config_reg */
-    phb->config_reg = (pciaddr) | (1u << 31);
-    pci_data_write(phb->bus, phb->config_reg, val, 4);
-
-    /* clear PCI_STATUS_REC_MASTER_ABORT and PCI_STATUS_REC_TARGET_ABORT */
-    status = pci_get_word(d->config + PCI_STATUS);
-    status &= ~(PCI_STATUS_REC_MASTER_ABORT | PCI_STATUS_REC_TARGET_ABORT);
-    pci_set_word(d->config + PCI_STATUS, status);
-}
-
-static uint32_t bonito_spciconf_readb(void *opaque, hwaddr addr)
-{
-    PCIBonitoState *s = opaque;
-    PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
-    uint32_t pciaddr;
-    uint16_t status;
-
-    DPRINTF("bonito_spciconf_readb "TARGET_FMT_plx"\n", addr);
-    pciaddr = bonito_sbridge_pciaddr(s, addr);
-
-    if (pciaddr == 0xffffffff) {
-        return 0xff;
+        return MAKE_64BIT_MASK(0, size * 8);
     }
 
     /* set the pci address in s->config_reg */
@@ -565,79 +512,17 @@ static uint32_t bonito_spciconf_readb(void *opaque, hwaddr addr)
     status &= ~(PCI_STATUS_REC_MASTER_ABORT | PCI_STATUS_REC_TARGET_ABORT);
     pci_set_word(d->config + PCI_STATUS, status);
 
-    return pci_data_read(phb->bus, phb->config_reg, 1);
-}
-
-static uint32_t bonito_spciconf_readw(void *opaque, hwaddr addr)
-{
-    PCIBonitoState *s = opaque;
-    PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
-    uint32_t pciaddr;
-    uint16_t status;
-
-    DPRINTF("bonito_spciconf_readw "TARGET_FMT_plx"\n", addr);
-    assert((addr & 0x1) == 0);
-
-    pciaddr = bonito_sbridge_pciaddr(s, addr);
-
-    if (pciaddr == 0xffffffff) {
-        return 0xffff;
-    }
-
-    /* set the pci address in s->config_reg */
-    phb->config_reg = (pciaddr) | (1u << 31);
-
-    /* clear PCI_STATUS_REC_MASTER_ABORT and PCI_STATUS_REC_TARGET_ABORT */
-    status = pci_get_word(d->config + PCI_STATUS);
-    status &= ~(PCI_STATUS_REC_MASTER_ABORT | PCI_STATUS_REC_TARGET_ABORT);
-    pci_set_word(d->config + PCI_STATUS, status);
-
-    return pci_data_read(phb->bus, phb->config_reg, 2);
-}
-
-static uint32_t bonito_spciconf_readl(void *opaque, hwaddr addr)
-{
-    PCIBonitoState *s = opaque;
-    PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
-    uint32_t pciaddr;
-    uint16_t status;
-
-    DPRINTF("bonito_spciconf_readl "TARGET_FMT_plx"\n", addr);
-    assert((addr & 0x3) == 0);
-
-    pciaddr = bonito_sbridge_pciaddr(s, addr);
-
-    if (pciaddr == 0xffffffff) {
-        return 0xffffffff;
-    }
-
-    /* set the pci address in s->config_reg */
-    phb->config_reg = (pciaddr) | (1u << 31);
-
-    /* clear PCI_STATUS_REC_MASTER_ABORT and PCI_STATUS_REC_TARGET_ABORT */
-    status = pci_get_word(d->config + PCI_STATUS);
-    status &= ~(PCI_STATUS_REC_MASTER_ABORT | PCI_STATUS_REC_TARGET_ABORT);
-    pci_set_word(d->config + PCI_STATUS, status);
-
-    return pci_data_read(phb->bus, phb->config_reg, 4);
+    return pci_data_read(phb->bus, phb->config_reg, size);
 }
 
 /* south bridge PCI configure space. 0x1fe8 0000 - 0x1fef ffff */
 static const MemoryRegionOps bonito_spciconf_ops = {
-    .old_mmio = {
-        .read = {
-            bonito_spciconf_readb,
-            bonito_spciconf_readw,
-            bonito_spciconf_readl,
-        },
-        .write = {
-            bonito_spciconf_writeb,
-            bonito_spciconf_writew,
-            bonito_spciconf_writel,
-        },
-    },
+    .read = bonito_spciconf_read,
+    .write = bonito_spciconf_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
