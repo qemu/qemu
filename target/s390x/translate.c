@@ -84,14 +84,21 @@ static uint64_t inline_branch_hit[CC_OP_MAX];
 static uint64_t inline_branch_miss[CC_OP_MAX];
 #endif
 
-static uint64_t pc_to_link_info(DisasContext *s, uint64_t pc)
+static void pc_to_link_info(TCGv_i64 out, DisasContext *s, uint64_t pc)
 {
-    if (!(s->base.tb->flags & FLAG_MASK_64)) {
-        if (s->base.tb->flags & FLAG_MASK_32) {
-            return pc | 0x80000000;
+    TCGv_i64 tmp;
+
+    if (s->base.tb->flags & FLAG_MASK_32) {
+        if (s->base.tb->flags & FLAG_MASK_64) {
+            tcg_gen_movi_i64(out, pc);
+            return;
         }
+        pc |= 0x80000000;
     }
-    return pc;
+    assert(!(s->base.tb->flags & FLAG_MASK_64));
+    tmp = tcg_const_i64(pc);
+    tcg_gen_deposit_i64(out, out, tmp, 0, 32);
+    tcg_temp_free_i64(tmp);
 }
 
 static TCGv_i64 psw_addr;
@@ -1453,7 +1460,40 @@ static DisasJumpType op_ni(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_bas(DisasContext *s, DisasOps *o)
 {
-    tcg_gen_movi_i64(o->out, pc_to_link_info(s, s->pc_tmp));
+    pc_to_link_info(o->out, s, s->pc_tmp);
+    if (o->in2) {
+        tcg_gen_mov_i64(psw_addr, o->in2);
+        per_branch(s, false);
+        return DISAS_PC_UPDATED;
+    } else {
+        return DISAS_NEXT;
+    }
+}
+
+static void save_link_info(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 t;
+
+    if (s->base.tb->flags & (FLAG_MASK_32 | FLAG_MASK_64)) {
+        pc_to_link_info(o->out, s, s->pc_tmp);
+        return;
+    }
+    gen_op_calc_cc(s);
+    tcg_gen_andi_i64(o->out, o->out, 0xffffffff00000000ull);
+    tcg_gen_ori_i64(o->out, o->out, ((s->ilen / 2) << 30) | s->pc_tmp);
+    t = tcg_temp_new_i64();
+    tcg_gen_shri_i64(t, psw_mask, 16);
+    tcg_gen_andi_i64(t, t, 0x0f000000);
+    tcg_gen_or_i64(o->out, o->out, t);
+    tcg_gen_extu_i32_i64(t, cc_op);
+    tcg_gen_shli_i64(t, t, 28);
+    tcg_gen_or_i64(o->out, o->out, t);
+    tcg_temp_free_i64(t);
+}
+
+static DisasJumpType op_bal(DisasContext *s, DisasOps *o)
+{
+    save_link_info(s, o);
     if (o->in2) {
         tcg_gen_mov_i64(psw_addr, o->in2);
         per_branch(s, false);
@@ -1465,7 +1505,7 @@ static DisasJumpType op_bas(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_basi(DisasContext *s, DisasOps *o)
 {
-    tcg_gen_movi_i64(o->out, pc_to_link_info(s, s->pc_tmp));
+    pc_to_link_info(o->out, s, s->pc_tmp);
     return help_goto_direct(s, s->base.pc_next + 2 * get_field(s->fields, i2));
 }
 
