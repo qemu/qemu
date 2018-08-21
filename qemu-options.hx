@@ -454,16 +454,6 @@ modprobe i810_audio clocking=48000
 @end example
 ETEXI
 
-DEF("balloon", HAS_ARG, QEMU_OPTION_balloon,
-    "-balloon virtio[,addr=str]\n"
-    "                enable virtio balloon device (deprecated)\n", QEMU_ARCH_ALL)
-STEXI
-@item -balloon virtio[,addr=@var{addr}]
-@findex -balloon
-Enable virtio balloon device, optionally with PCI address @var{addr}. This
-option is deprecated, use @option{-device virtio-balloon} instead.
-ETEXI
-
 DEF("device", HAS_ARG, QEMU_OPTION_device,
     "-device driver[,prop[=value][,...]]\n"
     "                add device (based on driver)\n"

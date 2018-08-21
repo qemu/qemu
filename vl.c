@@ -2127,36 +2127,6 @@ static void parse_display(const char *p)
     }
 }
 
-static int balloon_parse(const char *arg)
-{
-    QemuOpts *opts;
-
-    warn_report("This option is deprecated. "
-                "Use '--device virtio-balloon' to enable the balloon device.");
-
-    if (strcmp(arg, "none") == 0) {
-        return 0;
-    }
-
-    if (!strncmp(arg, "virtio", 6)) {
-        if (arg[6] == ',') {
-            /* have params -> parse them */
-            opts = qemu_opts_parse_noisily(qemu_find_opts("device"), arg + 7,
-                                           false);
-            if (!opts)
-                return  -1;
-        } else {
-            /* create empty opts */
-            opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
-                                    &error_abort);
-        }
-        qemu_opt_set(opts, "driver", "virtio-balloon", &error_abort);
-        return 0;
-    }
-
-    return -1;
-}
-
 char *qemu_find_file(int type, const char *name)
 {
     int i;
@@ -3659,12 +3629,6 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_no_hpet:
                 no_hpet = 1;
-                break;
-            case QEMU_OPTION_balloon:
-                if (balloon_parse(optarg) < 0) {
-                    error_report("unknown -balloon argument %s", optarg);
-                    exit(1);
-                }
                 break;
             case QEMU_OPTION_no_reboot:
                 no_reboot = 1;
