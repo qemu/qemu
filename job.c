@@ -732,10 +732,10 @@ static void job_cancel_async(Job *job, bool force)
 {
     if (job->user_paused) {
         /* Do not call job_enter here, the caller will handle it.  */
-        job->user_paused = false;
         if (job->driver->user_resume) {
             job->driver->user_resume(job);
         }
+        job->user_paused = false;
         assert(job->pause_count > 0);
         job->pause_count--;
     }
