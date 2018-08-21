@@ -1289,7 +1289,7 @@ static void virtio_gpu_instance_init(Object *obj)
 {
 }
 
-static void virtio_gpu_reset(VirtIODevice *vdev)
+void virtio_gpu_reset(VirtIODevice *vdev)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     struct virtio_gpu_simple_resource *res, *tmp;

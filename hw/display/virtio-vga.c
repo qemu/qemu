@@ -179,8 +179,12 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 static void virtio_vga_reset(DeviceState *dev)
 {
     VirtIOVGA *vvga = VIRTIO_VGA(dev);
-    vvga->vdev.enable = 0;
 
+    /* reset virtio-gpu */
+    virtio_gpu_reset(VIRTIO_DEVICE(&vvga->vdev));
+
+    /* reset vga */
+    vga_common_reset(&vvga->vga);
     vga_dirty_log_start(&vvga->vga);
 }
 
