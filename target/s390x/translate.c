@@ -1128,11 +1128,19 @@ struct DisasInsn {
 
     const char *name;
 
+    /* Pre-process arguments before HELP_OP.  */
     void (*help_in1)(DisasContext *, DisasFields *, DisasOps *);
     void (*help_in2)(DisasContext *, DisasFields *, DisasOps *);
     void (*help_prep)(DisasContext *, DisasFields *, DisasOps *);
+
+    /*
+     * Post-process output after HELP_OP.
+     * Note that these are not called if HELP_OP returns DISAS_NORETURN.
+     */
     void (*help_wout)(DisasContext *, DisasFields *, DisasOps *);
     void (*help_cout)(DisasContext *, DisasOps *);
+
+    /* Implement the operation itself.  */
     DisasJumpType (*help_op)(DisasContext *, DisasOps *);
 
     uint64_t data;
@@ -6125,11 +6133,13 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     if (insn->help_op) {
         ret = insn->help_op(s, &o);
     }
-    if (insn->help_wout) {
-        insn->help_wout(s, &f, &o);
-    }
-    if (insn->help_cout) {
-        insn->help_cout(s, &o);
+    if (ret != DISAS_NORETURN) {
+        if (insn->help_wout) {
+            insn->help_wout(s, &f, &o);
+        }
+        if (insn->help_cout) {
+            insn->help_cout(s, &o);
+        }
     }
 
     /* Free any temporaries created by the helpers.  */
