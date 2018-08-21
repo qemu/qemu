@@ -1639,10 +1639,8 @@ static int kvm_init(MachineState *ms)
         s->irq_set_ioctl = KVM_IRQ_LINE_STATUS;
     }
 
-#ifdef KVM_CAP_READONLY_MEM
     kvm_readonly_mem_allowed =
         (kvm_check_extension(s, KVM_CAP_READONLY_MEM) > 0);
-#endif
 
     kvm_eventfds_allowed =
         (kvm_check_extension(s, KVM_CAP_IOEVENTFD) > 0);

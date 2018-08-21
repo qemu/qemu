@@ -1381,17 +1381,9 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     int ret;
     struct utsname utsname;
 
-#ifdef KVM_CAP_XSAVE
     has_xsave = kvm_check_extension(s, KVM_CAP_XSAVE);
-#endif
-
-#ifdef KVM_CAP_XCRS
     has_xcrs = kvm_check_extension(s, KVM_CAP_XCRS);
-#endif
-
-#ifdef KVM_CAP_PIT_STATE2
     has_pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
-#endif
 
     hv_vpindex_settable = kvm_check_extension(s, KVM_CAP_HYPERV_VP_INDEX);
 
