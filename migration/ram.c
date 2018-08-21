@@ -1910,7 +1910,6 @@ retry:
             qemu_cond_signal(&comp_param[idx].cond);
             qemu_mutex_unlock(&comp_param[idx].mutex);
             pages = 1;
-            ram_counters.normal++;
             ram_counters.transferred += bytes_xmit;
             break;
         }
