@@ -1156,6 +1156,9 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
                 OHCI_SET_BM(td.flags, TD_EC, 3);
                 break;
             }
+            /* An error occured so we have to clear the interrupt counter. See
+             * spec at 6.4.4 on page 104 */
+            ohci->done_count = 0;
         }
         ed->head |= OHCI_ED_H;
     }

@@ -94,8 +94,8 @@ physical port addressing
 
 First you can (for all USB devices) specify the physical port where
 the device will show up in the guest.  This can be done using the
-"port" property.  UHCI has two root ports (1,2).  EHCI has four root
-ports (1-4), the emulated (1.1) USB hub has eight ports.
+"port" property.  UHCI has two root ports (1,2).  EHCI has six root
+ports (1-6), the emulated (1.1) USB hub has eight ports.
 
 Plugging a tablet into UHCI port 1 works like this:
 

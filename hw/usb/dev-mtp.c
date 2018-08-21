@@ -82,6 +82,7 @@ enum mtp_code {
     FMT_ASSOCIATION                = 0x3001,
 
     /* event codes */
+    EVT_CANCEL_TRANSACTION         = 0x4001,
     EVT_OBJ_ADDED                  = 0x4002,
     EVT_OBJ_REMOVED                = 0x4003,
     EVT_OBJ_INFO_CHANGED           = 0x4007,
@@ -146,9 +147,12 @@ struct MTPData {
     uint32_t     trans;
     uint64_t     offset;
     uint64_t     length;
-    uint32_t     alloc;
+    uint64_t     alloc;
     uint8_t      *data;
     bool         first;
+    /* Used for >4G file sizes */
+    bool         pending;
+    uint64_t     cached_length;
     int          fd;
 };
 
@@ -1551,14 +1555,35 @@ static void usb_mtp_handle_control(USBDevice *dev, USBPacket *p,
                                    int length, uint8_t *data)
 {
     int ret;
+    MTPState *s = USB_MTP(dev);
+    uint16_t *event = (uint16_t *)data;
 
-    ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
-    if (ret >= 0) {
-        return;
+    switch (request) {
+    case ClassInterfaceOutRequest | 0x64:
+        if (*event == EVT_CANCEL_TRANSACTION) {
+            g_free(s->result);
+            s->result = NULL;
+            usb_mtp_data_free(s->data_in);
+            s->data_in = NULL;
+            if (s->write_pending) {
+                g_free(s->dataset.filename);
+                s->write_pending = false;
+            }
+            usb_mtp_data_free(s->data_out);
+            s->data_out = NULL;
+        } else {
+            p->status = USB_RET_STALL;
+        }
+        break;
+    default:
+        ret = usb_desc_handle_control(dev, p, request,
+                                      value, index, length, data);
+        if (ret >= 0) {
+            return;
+        }
     }
 
     trace_usb_mtp_stall(dev->addr, "unknown control request");
-    p->status = USB_RET_STALL;
 }
 
 static void usb_mtp_cancel_packet(USBDevice *dev, USBPacket *p)
@@ -1580,13 +1605,31 @@ static void utf16_to_str(uint8_t len, uint16_t *arr, char *name)
     g_free(wstr);
 }
 
+/* Wrapper around write, returns 0 on failure */
+static uint64_t write_retry(int fd, void *buf, uint64_t size)
+{
+        uint64_t bytes_left = size, ret;
+
+        while (bytes_left > 0) {
+                ret = write(fd, buf, bytes_left);
+                if ((ret == -1) && (errno != EINTR || errno != EAGAIN ||
+                                    errno != EWOULDBLOCK)) {
+                        break;
+                }
+                bytes_left -= ret;
+                buf += ret;
+        }
+
+        return size - bytes_left;
+}
+
 static void usb_mtp_write_data(MTPState *s)
 {
     MTPData *d = s->data_out;
     MTPObject *parent =
         usb_mtp_object_lookup(s, s->dataset.parent_handle);
     char *path = NULL;
-    int rc = -1;
+    uint64_t rc;
     mode_t mask = 0644;
 
     assert(d != NULL);
@@ -1603,7 +1646,7 @@ static void usb_mtp_write_data(MTPState *s)
             d->fd = mkdir(path, mask);
             goto free;
         }
-        if (s->dataset.size < d->length) {
+        if ((s->dataset.size != 0xFFFFFFFF) && (s->dataset.size < d->length)) {
             usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
                                  0, 0, 0, 0);
             goto done;
@@ -1622,8 +1665,8 @@ static void usb_mtp_write_data(MTPState *s)
             goto success;
         }
 
-        rc = write(d->fd, d->data, s->dataset.size);
-        if (rc == -1) {
+        rc = write_retry(d->fd, d->data, s->dataset.size);
+        if (!rc) {
             usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
                                  0, 0, 0, 0);
             goto done;
@@ -1699,6 +1742,7 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
     MTPData *d = s->data_out;
     uint64_t dlen;
     uint32_t data_len = p->iov.size;
+    uint64_t total_len;
 
     if (!d) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, 0,
@@ -1707,18 +1751,33 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
     }
     if (d->first) {
         /* Total length of incoming data */
-        d->length = cpu_to_le32(container->length) - sizeof(mtp_container);
+        total_len = cpu_to_le32(container->length) - sizeof(mtp_container);
         /* Length of data in this packet */
         data_len -= sizeof(mtp_container);
-        usb_mtp_realloc(d, d->length);
+        usb_mtp_realloc(d, total_len);
+        d->length += total_len;
         d->offset = 0;
+        d->cached_length = total_len;
         d->first = false;
+        d->pending = false;
+    }
+
+    if (d->pending) {
+        usb_mtp_realloc(d, d->cached_length);
+        d->length += d->cached_length;
+        d->pending = false;
     }
 
     if (d->length - d->offset > data_len) {
         dlen = data_len;
     } else {
         dlen = d->length - d->offset;
+        /* Check for cached data for large files */
+        if ((s->dataset.size == 0xFFFFFFFF) && (dlen < p->iov.size)) {
+            usb_mtp_realloc(d, p->iov.size - dlen);
+            d->length += p->iov.size - dlen;
+            dlen = p->iov.size;
+        }
     }
 
     switch (d->code) {
@@ -1738,11 +1797,17 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
     case CMD_SEND_OBJECT:
         usb_packet_copy(p, d->data + d->offset, dlen);
         d->offset += dlen;
-        if (d->offset == d->length) {
+        if ((p->iov.size % 64) || !p->iov.size) {
+            assert((s->dataset.size == 0xFFFFFFFF) ||
+                   (s->dataset.size == d->length));
+
             usb_mtp_write_data(s);
             usb_mtp_data_free(s->data_out);
             s->data_out = NULL;
             return;
+        }
+        if (d->offset == d->length) {
+            d->pending = true;
         }
         break;
     default:
@@ -1953,7 +2018,7 @@ static void usb_mtp_realize(USBDevice *dev, Error **errp)
     QTAILQ_INIT(&s->objects);
     if (s->desc == NULL) {
         if (s->root == NULL) {
-            error_setg(errp, "usb-mtp: x-root property must be configured");
+            error_setg(errp, "usb-mtp: rootdir property must be configured");
             return;
         }
         s->desc = strrchr(s->root, '/');
@@ -1982,7 +2047,7 @@ static const VMStateDescription vmstate_usb_mtp = {
 };
 
 static Property mtp_properties[] = {
-    DEFINE_PROP_STRING("x-root", MTPState, root),
+    DEFINE_PROP_STRING("rootdir", MTPState, root),
     DEFINE_PROP_STRING("desc", MTPState, desc),
     DEFINE_PROP_BOOL("readonly", MTPState, readonly, true),
     DEFINE_PROP_END_OF_LIST(),
