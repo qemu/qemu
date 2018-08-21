@@ -502,6 +502,20 @@ enum {
 };
 
 enum {
+    QEMU_IFLA_TUN_UNSPEC,
+    QEMU_IFLA_TUN_OWNER,
+    QEMU_IFLA_TUN_GROUP,
+    QEMU_IFLA_TUN_TYPE,
+    QEMU_IFLA_TUN_PI,
+    QEMU_IFLA_TUN_VNET_HDR,
+    QEMU_IFLA_TUN_PERSIST,
+    QEMU_IFLA_TUN_MULTI_QUEUE,
+    QEMU_IFLA_TUN_NUM_QUEUES,
+    QEMU_IFLA_TUN_NUM_DISABLED_QUEUES,
+    QEMU___IFLA_TUN_MAX,
+};
+
+enum {
     QEMU_IFLA_INFO_UNSPEC,
     QEMU_IFLA_INFO_KIND,
     QEMU_IFLA_INFO_DATA,
@@ -537,6 +551,40 @@ enum {
     QEMU_IFLA_XDP_FLAGS,
     QEMU_IFLA_XDP_PROG_ID,
     QEMU___IFLA_XDP_MAX,
+};
+
+enum {
+    QEMU_RTA_UNSPEC,
+    QEMU_RTA_DST,
+    QEMU_RTA_SRC,
+    QEMU_RTA_IIF,
+    QEMU_RTA_OIF,
+    QEMU_RTA_GATEWAY,
+    QEMU_RTA_PRIORITY,
+    QEMU_RTA_PREFSRC,
+    QEMU_RTA_METRICS,
+    QEMU_RTA_MULTIPATH,
+    QEMU_RTA_PROTOINFO, /* no longer used */
+    QEMU_RTA_FLOW,
+    QEMU_RTA_CACHEINFO,
+    QEMU_RTA_SESSION, /* no longer used */
+    QEMU_RTA_MP_ALGO, /* no longer used */
+    QEMU_RTA_TABLE,
+    QEMU_RTA_MARK,
+    QEMU_RTA_MFC_STATS,
+    QEMU_RTA_VIA,
+    QEMU_RTA_NEWDST,
+    QEMU_RTA_PREF,
+    QEMU_RTA_ENCAP_TYPE,
+    QEMU_RTA_ENCAP,
+    QEMU_RTA_EXPIRES,
+    QEMU_RTA_PAD,
+    QEMU_RTA_UID,
+    QEMU_RTA_TTL_PROPAGATE,
+    QEMU_RTA_IP_PROTO,
+    QEMU_RTA_SPORT,
+    QEMU_RTA_DPORT,
+    QEMU___RTA_MAX
 };
 
 typedef abi_long (*TargetFdDataFunc)(void *, size_t);
@@ -2315,6 +2363,34 @@ static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
     return 0;
 }
 
+static abi_long host_to_target_data_tun_nlattr(struct nlattr *nlattr,
+                                                  void *context)
+{
+    uint32_t *u32;
+
+    switch (nlattr->nla_type) {
+    /* uint8_t */
+    case QEMU_IFLA_TUN_TYPE:
+    case QEMU_IFLA_TUN_PI:
+    case QEMU_IFLA_TUN_VNET_HDR:
+    case QEMU_IFLA_TUN_PERSIST:
+    case QEMU_IFLA_TUN_MULTI_QUEUE:
+        break;
+    /* uint32_t */
+    case QEMU_IFLA_TUN_NUM_QUEUES:
+    case QEMU_IFLA_TUN_NUM_DISABLED_QUEUES:
+    case QEMU_IFLA_TUN_OWNER:
+    case QEMU_IFLA_TUN_GROUP:
+        u32 = NLA_DATA(nlattr);
+        *u32 = tswap32(*u32);
+        break;
+    default:
+        gemu_log("Unknown QEMU_IFLA_TUN type %d\n", nlattr->nla_type);
+        break;
+    }
+    return 0;
+}
+
 struct linkinfo_context {
     int len;
     char *name;
@@ -2349,6 +2425,12 @@ static abi_long host_to_target_data_linkinfo_nlattr(struct nlattr *nlattr,
                                                   nlattr->nla_len,
                                                   NULL,
                                              host_to_target_data_bridge_nlattr);
+        } else if (strncmp(li_context->name, "tun",
+                    li_context->len) == 0) {
+            return host_to_target_for_each_nlattr(NLA_DATA(nlattr),
+                                                  nlattr->nla_len,
+                                                  NULL,
+                                                host_to_target_data_tun_nlattr);
         } else {
             gemu_log("Unknown QEMU_IFLA_INFO_KIND %s\n", li_context->name);
         }
@@ -2659,18 +2741,37 @@ static abi_long host_to_target_data_addr_rtattr(struct rtattr *rtattr)
 static abi_long host_to_target_data_route_rtattr(struct rtattr *rtattr)
 {
     uint32_t *u32;
+    struct rta_cacheinfo *ci;
+
     switch (rtattr->rta_type) {
     /* binary: depends on family type */
-    case RTA_GATEWAY:
-    case RTA_DST:
-    case RTA_PREFSRC:
+    case QEMU_RTA_GATEWAY:
+    case QEMU_RTA_DST:
+    case QEMU_RTA_PREFSRC:
+        break;
+    /* u8 */
+    case QEMU_RTA_PREF:
         break;
     /* u32 */
-    case RTA_PRIORITY:
-    case RTA_TABLE:
-    case RTA_OIF:
+    case QEMU_RTA_PRIORITY:
+    case QEMU_RTA_TABLE:
+    case QEMU_RTA_OIF:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
+        break;
+    /* struct rta_cacheinfo */
+    case QEMU_RTA_CACHEINFO:
+        ci = RTA_DATA(rtattr);
+        ci->rta_clntref = tswap32(ci->rta_clntref);
+        ci->rta_lastuse = tswap32(ci->rta_lastuse);
+        ci->rta_expires = tswap32(ci->rta_expires);
+        ci->rta_error = tswap32(ci->rta_error);
+        ci->rta_used = tswap32(ci->rta_used);
+#if defined(RTNETLINK_HAVE_PEERINFO)
+        ci->rta_id = tswap32(ci->rta_id);
+        ci->rta_ts = tswap32(ci->rta_ts);
+        ci->rta_tsage = tswap32(ci->rta_tsage);
+#endif
         break;
     default:
         gemu_log("Unknown host RTA type: %d\n", rtattr->rta_type);
@@ -2808,13 +2909,13 @@ static abi_long target_to_host_data_route_rtattr(struct rtattr *rtattr)
     uint32_t *u32;
     switch (rtattr->rta_type) {
     /* binary: depends on family type */
-    case RTA_DST:
-    case RTA_SRC:
-    case RTA_GATEWAY:
+    case QEMU_RTA_DST:
+    case QEMU_RTA_SRC:
+    case QEMU_RTA_GATEWAY:
         break;
     /* u32 */
-    case RTA_PRIORITY:
-    case RTA_OIF:
+    case QEMU_RTA_PRIORITY:
+    case QEMU_RTA_OIF:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
         break;
@@ -3892,7 +3993,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
             len = ret;
             if (fd_trans_host_to_target_data(fd)) {
                 ret = fd_trans_host_to_target_data(fd)(msg.msg_iov->iov_base,
-                                                       len);
+                                               MIN(msg.msg_iov->iov_len, len));
             } else {
                 ret = host_to_target_cmsg(msgp, &msg);
             }
@@ -4169,7 +4270,12 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
     }
     if (!is_error(ret)) {
         if (fd_trans_host_to_target_data(fd)) {
-            ret = fd_trans_host_to_target_data(fd)(host_msg, ret);
+            abi_long trans;
+            trans = fd_trans_host_to_target_data(fd)(host_msg, MIN(ret, len));
+            if (is_error(trans)) {
+                ret = trans;
+                goto fail;
+            }
         }
         if (target_addr) {
             host_to_target_sockaddr(target_addr, addr, addrlen);
@@ -7644,7 +7750,7 @@ static int open_self_maps(void *cpu_env, int fd)
             if (h2g(min) == ts->info->stack_limit) {
                 pstrcpy(path, sizeof(path), "      [stack]");
             }
-            dprintf(fd, TARGET_ABI_FMT_lx "-" TARGET_ABI_FMT_lx
+            dprintf(fd, TARGET_ABI_FMT_ptr "-" TARGET_ABI_FMT_ptr
                     " %c%c%c%c %08" PRIx64 " %02x:%02x %d %s%s\n",
                     h2g(min), h2g(max - 1) + 1, flag_r, flag_w,
                     flag_x, flag_p, offset, dev_maj, dev_min, inode,

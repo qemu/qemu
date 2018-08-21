@@ -293,6 +293,7 @@ static void gen_conditional_jump(DisasContext *ctx, target_ulong dest,
            disallow it in use_goto_tb, but it handles exit + singlestep.  */
         gen_goto_tb(ctx, 0, dest);
         gen_set_label(l1);
+        ctx->base.is_jmp = DISAS_NEXT;
         return;
     }
 
