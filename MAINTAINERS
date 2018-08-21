@@ -253,6 +253,7 @@ S: Maintained
 F: target/s390x/
 F: hw/s390x/
 F: disas/s390.c
+F: tests/tcg/s390x/
 L: qemu-s390x@nongnu.org
 
 SH4
