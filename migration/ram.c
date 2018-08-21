@@ -1672,6 +1672,31 @@ static void migration_bitmap_sync(RAMState *rs)
 }
 
 /**
+ * save_zero_page_to_file: send the zero page to the file
+ *
+ * Returns the size of data written to the file, 0 means the page is not
+ * a zero page
+ *
+ * @rs: current RAM state
+ * @file: the file where the data is saved
+ * @block: block that contains the page we want to send
+ * @offset: offset inside the block for the page
+ */
+static int save_zero_page_to_file(RAMState *rs, QEMUFile *file,
+                                  RAMBlock *block, ram_addr_t offset)
+{
+    uint8_t *p = block->host + offset;
+    int len = 0;
+
+    if (is_zero_range(p, TARGET_PAGE_SIZE)) {
+        len += save_page_header(rs, file, block, offset | RAM_SAVE_FLAG_ZERO);
+        qemu_put_byte(file, 0);
+        len += 1;
+    }
+    return len;
+}
+
+/**
  * save_zero_page: send the zero page to the stream
  *
  * Returns the number of pages written.
@@ -1682,19 +1707,14 @@ static void migration_bitmap_sync(RAMState *rs)
  */
 static int save_zero_page(RAMState *rs, RAMBlock *block, ram_addr_t offset)
 {
-    uint8_t *p = block->host + offset;
-    int pages = -1;
+    int len = save_zero_page_to_file(rs, rs->f, block, offset);
 
-    if (is_zero_range(p, TARGET_PAGE_SIZE)) {
+    if (len) {
         ram_counters.duplicate++;
-        ram_counters.transferred +=
-            save_page_header(rs, rs->f, block, offset | RAM_SAVE_FLAG_ZERO);
-        qemu_put_byte(rs->f, 0);
-        ram_counters.transferred += 1;
-        pages = 1;
+        ram_counters.transferred += len;
+        return 1;
     }
-
-    return pages;
+    return -1;
 }
 
 static void ram_release_pages(const char *rbname, uint64_t offset, int pages)
