@@ -10,3 +10,10 @@ i386_kvm_ss.add(when: 'CONFIG_XEN_EMU', if_true: files(
   ))
 
 i386_ss.add_all(when: 'CONFIG_KVM', if_true: i386_kvm_ss)
+
+xen_stubs_ss = ss.source_set()
+xen_stubs_ss.add(when: 'CONFIG_XEN_EMU', if_false: files(
+  'xen-stubs.c',
+))
+
+specific_ss.add_all(when: 'CONFIG_SOFTMMU', if_true: xen_stubs_ss)
