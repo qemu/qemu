@@ -211,6 +211,7 @@ struct DisasContext {
     bool gtse;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
+    uint32_t flags;
     uint64_t insns_flags;
     uint64_t insns_flags2;
 };
@@ -250,6 +251,17 @@ struct opc_handler_t {
     uint64_t count;
 #endif
 };
+
+/* SPR load/store helpers */
+static inline void gen_load_spr(TCGv t, int reg)
+{
+    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUPPCState, spr[reg]));
+}
+
+static inline void gen_store_spr(int reg, TCGv t)
+{
+    tcg_gen_st_tl(t, cpu_env, offsetof(CPUPPCState, spr[reg]));
+}
 
 static inline void gen_set_access_type(DisasContext *ctx, int access_type)
 {
@@ -311,6 +323,38 @@ static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
     ctx->exception = (excp);
+}
+
+/* Translates the EXCP_TRACE/BRANCH exceptions used on most PowerPCs to
+ * EXCP_DEBUG, if we are running on cores using the debug enable bit (e.g.
+ * BookE).
+ */
+static uint32_t gen_prep_dbgex(DisasContext *ctx, uint32_t excp)
+{
+    if ((ctx->singlestep_enabled & CPU_SINGLE_STEP)
+        && (excp == POWERPC_EXCP_BRANCH)) {
+        /* Trace excpt. has priority */
+        excp = POWERPC_EXCP_TRACE;
+    }
+    if (ctx->flags & POWERPC_FLAG_DE) {
+        target_ulong dbsr = 0;
+        switch (excp) {
+        case POWERPC_EXCP_TRACE:
+            dbsr = DBCR0_ICMP;
+            break;
+        case POWERPC_EXCP_BRANCH:
+            dbsr = DBCR0_BRT;
+            break;
+        }
+        TCGv t0 = tcg_temp_new();
+        gen_load_spr(t0, SPR_BOOKE_DBSR);
+        tcg_gen_ori_tl(t0, t0, dbsr);
+        gen_store_spr(SPR_BOOKE_DBSR, t0);
+        tcg_temp_free(t0);
+        return POWERPC_EXCP_DEBUG;
+    } else {
+        return excp;
+    }
 }
 
 static void gen_debug_exception(DisasContext *ctx)
@@ -574,17 +618,6 @@ typedef struct opcode_t {
     .oname = onam,                                                            \
 }
 #endif
-
-/* SPR load/store helpers */
-static inline void gen_load_spr(TCGv t, int reg)
-{
-    tcg_gen_ld_tl(t, cpu_env, offsetof(CPUPPCState, spr[reg]));
-}
-
-static inline void gen_store_spr(int reg, TCGv t)
-{
-    tcg_gen_st_tl(t, cpu_env, offsetof(CPUPPCState, spr[reg]));
-}
 
 /* Invalid instruction */
 static void gen_invalid(DisasContext *ctx)
@@ -3602,6 +3635,24 @@ static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 #endif
 }
 
+static void gen_lookup_and_goto_ptr(DisasContext *ctx)
+{
+    int sse = ctx->singlestep_enabled;
+    if (unlikely(sse)) {
+        if (sse & GDBSTUB_SINGLE_STEP) {
+            gen_debug_exception(ctx);
+        } else if (sse & (CPU_SINGLE_STEP | CPU_BRANCH_STEP)) {
+            uint32_t excp = gen_prep_dbgex(ctx, POWERPC_EXCP_BRANCH);
+            if (excp != POWERPC_EXCP_NONE) {
+                gen_exception(ctx, excp);
+            }
+        }
+        tcg_gen_exit_tb(NULL, 0);
+    } else {
+        tcg_gen_lookup_and_goto_ptr();
+    }
+}
+
 /***                                Branch                                 ***/
 static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
@@ -3614,18 +3665,7 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         tcg_gen_exit_tb(ctx->base.tb, n);
     } else {
         tcg_gen_movi_tl(cpu_nip, dest & ~3);
-        if (unlikely(ctx->singlestep_enabled)) {
-            if ((ctx->singlestep_enabled &
-                (CPU_BRANCH_STEP | CPU_SINGLE_STEP)) &&
-                (ctx->exception == POWERPC_EXCP_BRANCH ||
-                 ctx->exception == POWERPC_EXCP_TRACE)) {
-                gen_exception_nip(ctx, POWERPC_EXCP_TRACE, dest);
-            }
-            if (ctx->singlestep_enabled & GDBSTUB_SINGLE_STEP) {
-                gen_debug_exception(ctx);
-            }
-        }
-        tcg_gen_lookup_and_goto_ptr();
+        gen_lookup_and_goto_ptr(ctx);
     }
 }
 
@@ -3668,8 +3708,8 @@ static void gen_bcond(DisasContext *ctx, int type)
     uint32_t bo = BO(ctx->opcode);
     TCGLabel *l1;
     TCGv target;
-
     ctx->exception = POWERPC_EXCP_BRANCH;
+
     if (type == BCOND_LR || type == BCOND_CTR || type == BCOND_TAR) {
         target = tcg_temp_local_new();
         if (type == BCOND_CTR)
@@ -3733,10 +3773,11 @@ static void gen_bcond(DisasContext *ctx, int type)
         } else {
             tcg_gen_andi_tl(cpu_nip, target, ~3);
         }
-        tcg_gen_lookup_and_goto_ptr();
+        gen_lookup_and_goto_ptr(ctx);
         tcg_temp_free(target);
     }
     if ((bo & 0x14) != 0x14) {
+        /* fallthrough case */
         gen_set_label(l1);
         gen_goto_tb(ctx, 1, ctx->base.pc_next);
     }
@@ -7419,6 +7460,7 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->need_access_type = !(env->mmu_model & POWERPC_MMU_64B);
     ctx->le_mode = !!(env->hflags & (1 << MSR_LE));
     ctx->default_tcg_memop_mask = ctx->le_mode ? MO_LE : MO_BE;
+    ctx->flags = env->flags;
 #if defined(TARGET_PPC64)
     ctx->sf_mode = msr_is_64bit(env, env->msr);
     ctx->has_cfar = !!(env->flags & POWERPC_FLAG_CFAR);
@@ -7455,6 +7497,17 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
         ctx->singlestep_enabled = 0;
     if ((env->flags & POWERPC_FLAG_BE) && msr_be)
         ctx->singlestep_enabled |= CPU_BRANCH_STEP;
+    if ((env->flags & POWERPC_FLAG_DE) && msr_de) {
+        ctx->singlestep_enabled = 0;
+        target_ulong dbcr0 = env->spr[SPR_BOOKE_DBCR0];
+        if (dbcr0 & DBCR0_ICMP) {
+            ctx->singlestep_enabled |= CPU_SINGLE_STEP;
+        }
+        if (dbcr0 & DBCR0_BRT) {
+            ctx->singlestep_enabled |= CPU_BRANCH_STEP;
+        }
+
+    }
     if (unlikely(ctx->base.singlestep_enabled)) {
         ctx->singlestep_enabled |= GDBSTUB_SINGLE_STEP;
     }
@@ -7565,7 +7618,9 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                  ctx->exception != POWERPC_SYSCALL &&
                  ctx->exception != POWERPC_EXCP_TRAP &&
                  ctx->exception != POWERPC_EXCP_BRANCH)) {
-        gen_exception_nip(ctx, POWERPC_EXCP_TRACE, ctx->base.pc_next);
+        uint32_t excp = gen_prep_dbgex(ctx, POWERPC_EXCP_TRACE);
+        if (excp != POWERPC_EXCP_NONE)
+            gen_exception_nip(ctx, excp, ctx->base.pc_next);
     }
 
     if (tcg_check_temp_count()) {

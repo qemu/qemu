@@ -707,9 +707,11 @@ void spapr_clear_pending_events(sPAPRMachineState *spapr)
 
 void spapr_events_init(sPAPRMachineState *spapr)
 {
-    int epow_irq;
+    int epow_irq = SPAPR_IRQ_EPOW;
 
-    epow_irq = spapr_irq_findone(spapr, &error_fatal);
+    if (SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+        epow_irq = spapr_irq_findone(spapr, &error_fatal);
+    }
 
     spapr_irq_claim(spapr, epow_irq, false, &error_fatal);
 
@@ -729,9 +731,11 @@ void spapr_events_init(sPAPRMachineState *spapr)
      * checking that it's enabled.
      */
     if (spapr->use_hotplug_event_source) {
-        int hp_irq;
+        int hp_irq = SPAPR_IRQ_HOTPLUG;
 
-        hp_irq = spapr_irq_findone(spapr, &error_fatal);
+        if (SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+            hp_irq = spapr_irq_findone(spapr, &error_fatal);
+        }
 
         spapr_irq_claim(spapr, hp_irq, false, &error_fatal);
 
