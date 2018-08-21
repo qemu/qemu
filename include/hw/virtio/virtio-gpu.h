@@ -125,7 +125,6 @@ typedef struct VirtIOGPU {
         uint32_t bytes_3d;
     } stats;
 
-    void (*disable_scanout)(struct VirtIOGPU *g, int scanout_id);
     Error *migration_blocker;
 } VirtIOGPU;
 
