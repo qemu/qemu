@@ -1420,9 +1420,7 @@ void HELPER(cdsg_parallel)(CPUS390XState *env, uint64_t addr,
     Int128 oldv;
     bool fail;
 
-    if (!HAVE_CMPXCHG128) {
-        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
-    }
+    assert(HAVE_CMPXCHG128);
 
     mem_idx = cpu_mmu_index(env, false);
     oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
@@ -2115,16 +2113,17 @@ uint64_t HELPER(lpq_parallel)(CPUS390XState *env, uint64_t addr)
 {
     uintptr_t ra = GETPC();
     uint64_t hi, lo;
+    int mem_idx;
+    TCGMemOpIdx oi;
+    Int128 v;
 
-    if (HAVE_ATOMIC128) {
-        int mem_idx = cpu_mmu_index(env, false);
-        TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
-        Int128 v = helper_atomic_ldo_be_mmu(env, addr, oi, ra);
-        hi = int128_gethi(v);
-        lo = int128_getlo(v);
-    } else {
-        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
-    }
+    assert(HAVE_ATOMIC128);
+
+    mem_idx = cpu_mmu_index(env, false);
+    oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
+    v = helper_atomic_ldo_be_mmu(env, addr, oi, ra);
+    hi = int128_gethi(v);
+    lo = int128_getlo(v);
 
     env->retxl = lo;
     return hi;
@@ -2145,15 +2144,16 @@ void HELPER(stpq_parallel)(CPUS390XState *env, uint64_t addr,
                            uint64_t low, uint64_t high)
 {
     uintptr_t ra = GETPC();
+    int mem_idx;
+    TCGMemOpIdx oi;
+    Int128 v;
 
-    if (HAVE_ATOMIC128) {
-        int mem_idx = cpu_mmu_index(env, false);
-        TCGMemOpIdx oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
-        Int128 v = int128_make128(low, high);
-        helper_atomic_sto_be_mmu(env, addr, v, oi, ra);
-    } else {
-        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
-    }
+    assert(HAVE_ATOMIC128);
+
+    mem_idx = cpu_mmu_index(env, false);
+    oi = make_memop_idx(MO_TEQ | MO_ALIGN_16, mem_idx);
+    v = int128_make128(low, high);
+    helper_atomic_sto_be_mmu(env, addr, v, oi, ra);
 }
 
 /* Execute instruction.  This instruction executes an insn modified with
