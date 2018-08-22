@@ -454,7 +454,6 @@ glusterfs_discard="no"
 glusterfs_fallocate="no"
 glusterfs_zerofill="no"
 gtk=""
-gtkabi=""
 gtk_gl="no"
 tls_priority="NORMAL"
 gnutls=""
@@ -1370,8 +1369,6 @@ for opt do
   ;;
   --disable-pvrdma) pvrdma="no"
   ;;
-  --with-gtkabi=*) gtkabi="$optarg"
-  ;;
   --disable-vte) vte="no"
   ;;
   --enable-vte) vte="yes"
@@ -1659,7 +1656,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   sdl             SDL UI
   --with-sdlabi     select preferred SDL ABI 1.2 or 2.0
   gtk             gtk UI
-  --with-gtkabi     select preferred GTK ABI 2.0 or 3.0
   vte             vte support for the gtk UI
   curses          curses UI
   vnc             VNC UI support
@@ -2646,24 +2642,9 @@ fi
 # GTK probe
 
 if test "$gtk" != "no"; then
-    if test "$gtkabi" = ""; then
-        # The GTK ABI was not specified explicitly, so try whether 3.0 is available.
-        # Use 2.0 as a fallback if that is available.
-        if $pkg_config --exists "gtk+-3.0 >= 3.0.0"; then
-            gtkabi=3.0
-        elif $pkg_config --exists "gtk+-2.0 >= 2.18.0"; then
-            gtkabi=2.0
-        else
-            gtkabi=3.0
-        fi
-    fi
-    gtkpackage="gtk+-$gtkabi"
-    gtkx11package="gtk+-x11-$gtkabi"
-    if test "$gtkabi" = "3.0" ; then
-      gtkversion="3.0.0"
-    else
-      gtkversion="2.18.0"
-    fi
+    gtkpackage="gtk+-3.0"
+    gtkx11package="gtk+-x11-3.0"
+    gtkversion="3.0.0"
     if $pkg_config --exists "$gtkpackage >= $gtkversion"; then
         gtk_cflags=$($pkg_config --cflags $gtkpackage)
         gtk_libs=$($pkg_config --libs $gtkpackage)
@@ -2907,16 +2888,11 @@ fi
 # VTE probe
 
 if test "$vte" != "no"; then
-    if test "$gtkabi" = "3.0"; then
-      vteminversion="0.32.0"
-      if $pkg_config --exists "vte-2.91"; then
-        vtepackage="vte-2.91"
-      else
-        vtepackage="vte-2.90"
-      fi
+    vteminversion="0.32.0"
+    if $pkg_config --exists "vte-2.91"; then
+      vtepackage="vte-2.91"
     else
-      vtepackage="vte"
-      vteminversion="0.24.0"
+      vtepackage="vte-2.90"
     fi
     if $pkg_config --exists "$vtepackage >= $vteminversion"; then
         vte_cflags=$($pkg_config --cflags $vtepackage)
@@ -2924,11 +2900,7 @@ if test "$vte" != "no"; then
         vteversion=$($pkg_config --modversion $vtepackage)
         vte="yes"
     elif test "$vte" = "yes"; then
-        if test "$gtkabi" = "3.0"; then
-            feature_not_found "vte" "Install libvte-2.90/2.91 devel"
-        else
-            feature_not_found "vte" "Install libvte devel"
-        fi
+        feature_not_found "vte" "Install libvte-2.90/2.91 devel"
     else
         vte="no"
     fi
@@ -6109,12 +6081,6 @@ if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
 fi
 
-if test "$gtkabi" = "2.0"; then
-    echo
-    echo "WARNING: Use of GTK 2.0 is deprecated and will be removed in"
-    echo "WARNING: future releases. Please switch to using GTK 3.0"
-fi
-
 if test "$sdlabi" = "1.2"; then
     echo
     echo "WARNING: Use of SDL 1.2 is deprecated and will be removed in"
@@ -6431,7 +6397,6 @@ if test "$bluez" = "yes" ; then
 fi
 if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=m" >> $config_host_mak
-  echo "CONFIG_GTKABI=$gtkabi" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
   echo "GTK_LIBS=$gtk_libs" >> $config_host_mak
   if test "$gtk_gl" = "yes" ; then

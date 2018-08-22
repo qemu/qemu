@@ -19,13 +19,6 @@ deprecated.
 
 @section Build options
 
-@subsection GTK 2.x
-
-Previously QEMU has supported building against both GTK 2.x
-and 3.x series APIs. Support for the GTK 2.x builds will be
-discontinued, so maintainers should switch to using GTK 3.x,
-which is the default.
-
 @subsection SDL 1.2
 
 Previously QEMU has supported building against both SDL 1.2

@@ -27,15 +27,6 @@
 #include "ui/egl-context.h"
 #endif
 
-/* Compatibility define to let us build on both Gtk2 and Gtk3 */
-#if GTK_CHECK_VERSION(3, 0, 0)
-static inline void gdk_drawable_get_size(GdkWindow *w, gint *ww, gint *wh)
-{
-    *ww = gdk_window_get_width(w);
-    *wh = gdk_window_get_height(w);
-}
-#endif
-
 typedef struct GtkDisplayState GtkDisplayState;
 
 typedef struct VirtualGfxConsole {
