@@ -149,6 +149,11 @@ static int seccomp_start(uint32_t seccomp_opts)
         goto seccomp_return;
     }
 
+    rc = seccomp_attr_set(ctx, SCMP_FLTATR_CTL_TSYNC, 1);
+    if (rc != 0) {
+        goto seccomp_return;
+    }
+
     for (i = 0; i < ARRAY_SIZE(blacklist); i++) {
         if (!(seccomp_opts & blacklist[i].set)) {
             continue;
