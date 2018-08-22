@@ -40,40 +40,6 @@ which is the default.
 The ``-no-kvm'' argument is now a synonym for setting
 ``-machine accel=tcg''.
 
-@subsection -tftp (since 2.6.0)
-
-The ``-tftp /some/dir'' argument is replaced by either
-``-netdev user,id=x,tftp=/some/dir '' (for pluggable NICs, accompanied
-with ``-device ...,netdev=x''), or ``-nic user,tftp=/some/dir''
-(for embedded NICs). The new syntax allows different settings to be
-provided per NIC.
-
-@subsection -bootp (since 2.6.0)
-
-The ``-bootp /some/file'' argument is replaced by either
-``-netdev user,id=x,bootp=/some/file '' (for pluggable NICs, accompanied
-with ``-device ...,netdev=x''), or ``-nic user,bootp=/some/file''
-(for embedded NICs). The new syntax allows different settings to be
-provided per NIC.
-
-@subsection -redir (since 2.6.0)
-
-The ``-redir [tcp|udp]:hostport:[guestaddr]:guestport'' argument is
-replaced by either
-``-netdev user,id=x,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport''
-(for pluggable NICs, accompanied with ``-device ...,netdev=x'') or
-``-nic user,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport''
-(for embedded NICs). The new syntax allows different settings to be
-provided per NIC.
-
-@subsection -smb (since 2.6.0)
-
-The ``-smb /some/dir'' argument is replaced by either
-``-netdev user,id=x,smb=/some/dir '' (for pluggable NICs, accompanied
-with ``-device ...,netdev=x''), or ``-nic user,smb=/some/dir''
-(for embedded NICs). The new syntax allows different settings to be
-provided per NIC.
-
 @subsection -usbdevice (since 2.10.0)
 
 The ``-usbdevice DEV'' argument is now a synonym for setting
