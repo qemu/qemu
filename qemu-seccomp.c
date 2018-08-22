@@ -125,7 +125,7 @@ static int seccomp_start(uint32_t seccomp_opts)
             continue;
         }
 
-        rc = seccomp_rule_add_array(ctx, SCMP_ACT_KILL, blacklist[i].num,
+        rc = seccomp_rule_add_array(ctx, SCMP_ACT_TRAP, blacklist[i].num,
                                     blacklist[i].narg, blacklist[i].arg_cmp);
         if (rc < 0) {
             goto seccomp_return;
