@@ -998,7 +998,6 @@ static gboolean gd_scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
         btn = INPUT_BUTTON_WHEEL_UP;
     } else if (scroll->direction == GDK_SCROLL_DOWN) {
         btn = INPUT_BUTTON_WHEEL_DOWN;
-#if GTK_CHECK_VERSION(3, 4, 0)
     } else if (scroll->direction == GDK_SCROLL_SMOOTH) {
         gdouble delta_x, delta_y;
         if (!gdk_event_get_scroll_deltas((GdkEvent *)scroll,
@@ -1010,7 +1009,6 @@ static gboolean gd_scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
         } else {
             btn = INPUT_BUTTON_WHEEL_UP;
         }
-#endif
     } else {
         return TRUE;
     }
@@ -1672,11 +1670,9 @@ static GSList *gd_vc_menu_init(GtkDisplayState *s, VirtualConsole *vc,
     gtk_accel_group_connect(s->accel_group, GDK_KEY_1 + idx,
             HOTKEY_MODIFIERS, 0,
             g_cclosure_new_swap(G_CALLBACK(gd_accel_switch_vc), vc, NULL));
-#if GTK_CHECK_VERSION(3, 8, 0)
     gtk_accel_label_set_accel(
             GTK_ACCEL_LABEL(gtk_bin_get_child(GTK_BIN(vc->menu_item))),
             GDK_KEY_1 + idx, HOTKEY_MODIFIERS);
-#endif
 
     g_signal_connect(vc->menu_item, "activate",
                      G_CALLBACK(gd_menu_switch_vc), s);
@@ -2175,11 +2171,9 @@ static GtkWidget *gd_create_menu_view(GtkDisplayState *s)
                                    TRUE);
     gtk_accel_group_connect(s->accel_group, GDK_KEY_m, HOTKEY_MODIFIERS, 0,
             g_cclosure_new_swap(G_CALLBACK(gd_accel_show_menubar), s, NULL));
-#if GTK_CHECK_VERSION(3, 8, 0)
     gtk_accel_label_set_accel(
             GTK_ACCEL_LABEL(gtk_bin_get_child(GTK_BIN(s->show_menubar_item))),
             GDK_KEY_m, HOTKEY_MODIFIERS);
-#endif
     gtk_menu_shell_append(GTK_MENU_SHELL(view_menu), s->show_menubar_item);
 
     return view_menu;
@@ -2229,11 +2223,7 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     s->opts = opts;
 
     s->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-#if GTK_CHECK_VERSION(3, 2, 0)
     s->vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-#else
-    s->vbox = gtk_vbox_new(FALSE, 0);
-#endif
     s->notebook = gtk_notebook_new();
     s->menu_bar = gtk_menu_bar_new();
 
