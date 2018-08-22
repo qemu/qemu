@@ -17,15 +17,6 @@ they were first deprecated in the 2.10.0 release.
 What follows is a list of all features currently marked as
 deprecated.
 
-@section Build options
-
-@subsection SDL 1.2
-
-Previously QEMU has supported building against both SDL 1.2
-and 2.0 series APIs. Support for the SDL 1.2 builds will be
-discontinued, so maintainers should switch to using SDL 2.0,
-which is the default.
-
 @section System emulator command line arguments
 
 @subsection -machine enforce-config-section=on|off (since 3.1)
