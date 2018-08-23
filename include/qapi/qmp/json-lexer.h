@@ -33,12 +33,12 @@ typedef enum json_token_type {
 } JSONTokenType;
 
 typedef struct JSONLexer {
-    int state;
+    int start_state, state;
     GString *token;
     int x, y;
 } JSONLexer;
 
-void json_lexer_init(JSONLexer *lexer);
+void json_lexer_init(JSONLexer *lexer, bool enable_interpolation);
 
 void json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size);
 

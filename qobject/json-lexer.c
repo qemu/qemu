@@ -92,7 +92,7 @@
  *   Like double-quoted strings, except they're delimited by %x27
  *   (apostrophe) instead of %x22 (quotation mark), and can't contain
  *   unescaped apostrophe, but can contain unescaped quotation mark.
- * - Interpolation:
+ * - Interpolation, if enabled:
  *   interpolation = %((l|ll|I64)[du]|[ipsf])
  *
  * Note:
@@ -123,9 +123,11 @@ enum json_lexer_state {
     IN_INTERP_I64,
     IN_WHITESPACE,
     IN_START,
+    IN_START_INTERP,            /* must be IN_START + 1 */
 };
 
-QEMU_BUILD_BUG_ON((int)JSON_MIN <= (int)IN_START);
+QEMU_BUILD_BUG_ON((int)JSON_MIN <= (int)IN_START_INTERP);
+QEMU_BUILD_BUG_ON(IN_START_INTERP != IN_START + 1);
 
 #define TERMINAL(state) [0 ... 0x7F] = (state)
 
@@ -257,8 +259,12 @@ static const uint8_t json_lexer[][256] =  {
         ['I'] = IN_INTERP_I,
     },
 
-    /* top level rule */
-    [IN_START] = {
+    /*
+     * Two start states:
+     * - IN_START recognizes JSON tokens with our string extensions
+     * - IN_START_INTERP additionally recognizes interpolation.
+     */
+    [IN_START ... IN_START_INTERP] = {
         ['"'] = IN_DQ_STRING,
         ['\''] = IN_SQ_STRING,
         ['0'] = IN_ZERO,
@@ -271,17 +277,18 @@ static const uint8_t json_lexer[][256] =  {
         [','] = JSON_COMMA,
         [':'] = JSON_COLON,
         ['a' ... 'z'] = IN_KEYWORD,
-        ['%'] = IN_INTERP,
         [' '] = IN_WHITESPACE,
         ['\t'] = IN_WHITESPACE,
         ['\r'] = IN_WHITESPACE,
         ['\n'] = IN_WHITESPACE,
     },
+    [IN_START_INTERP]['%'] = IN_INTERP,
 };
 
-void json_lexer_init(JSONLexer *lexer)
+void json_lexer_init(JSONLexer *lexer, bool enable_interpolation)
 {
-    lexer->state = IN_START;
+    lexer->start_state = lexer->state = enable_interpolation
+        ? IN_START_INTERP : IN_START;
     lexer->token = g_string_sized_new(3);
     lexer->x = lexer->y = 0;
 }
@@ -321,7 +328,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             /* fall through */
         case JSON_SKIP:
             g_string_truncate(lexer->token, 0);
-            new_state = IN_START;
+            new_state = lexer->start_state;
             break;
         case IN_ERROR:
             /* XXX: To avoid having previous bad input leaving the parser in an
@@ -340,8 +347,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             json_message_process_token(lexer, lexer->token, JSON_ERROR,
                                        lexer->x, lexer->y);
             g_string_truncate(lexer->token, 0);
-            new_state = IN_START;
-            lexer->state = new_state;
+            lexer->state = lexer->start_state;
             return;
         default:
             break;
@@ -356,7 +362,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         json_message_process_token(lexer, lexer->token, lexer->state,
                                    lexer->x, lexer->y);
         g_string_truncate(lexer->token, 0);
-        lexer->state = IN_START;
+        lexer->state = lexer->start_state;
     }
 }
 
@@ -371,7 +377,7 @@ void json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size)
 
 void json_lexer_flush(JSONLexer *lexer)
 {
-    if (lexer->state != IN_START) {
+    if (lexer->state != lexer->start_state) {
         json_lexer_feed_char(lexer, 0, true);
     }
 }

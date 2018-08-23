@@ -115,7 +115,7 @@ void json_message_parser_init(JSONMessageParser *parser,
     parser->tokens = g_queue_new();
     parser->token_size = 0;
 
-    json_lexer_init(&parser->lexer);
+    json_lexer_init(&parser->lexer, !!ap);
 }
 
 void json_message_parser_feed(JSONMessageParser *parser,

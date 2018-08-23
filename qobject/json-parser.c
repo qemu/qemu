@@ -427,10 +427,6 @@ static QObject *parse_interpolation(JSONParserContext *ctxt, va_list *ap)
 {
     JSONToken *token;
 
-    if (ap == NULL) {
-        return NULL;
-    }
-
     token = parser_context_pop_token(ctxt);
     assert(token && token->type == JSON_INTERP);
 
