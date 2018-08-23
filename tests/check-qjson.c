@@ -776,15 +776,10 @@ static void utf8_string(void)
             qobject_unref(str);
             g_free(jstr);
 
-            /*
-             * Parse @json_out right back
-             * Disabled, because qobject_from_json() is buggy, and I can't
-             * be bothered to add the expected incorrect results.
-             * FIXME Enable once these bugs have been fixed.
-             */
-            if (0 && json_out != json_in) {
+            /* Parse @json_out right back, unless it has replacements */
+            if (!strstr(json_out, "\\uFFFD")) {
                 str = from_json_str(json_out, j, &error_abort);
-                g_assert_cmpstr(qstring_get_try_str(str), ==, utf8_out);
+                g_assert_cmpstr(qstring_get_try_str(str), ==, utf8_in);
             }
         }
     }
