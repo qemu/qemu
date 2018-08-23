@@ -945,9 +945,11 @@ static void keyword_literal(void)
 static void interpolation_valid(void)
 {
     long long value_lld = 0x123456789abcdefLL;
+    int64_t value_d64 = value_lld;
     long value_ld = (long)value_lld;
     int value_d = (int)value_lld;
     unsigned long long value_llu = 0xfedcba9876543210ULL;
+    uint64_t value_u64 = value_llu;
     unsigned long value_lu = (unsigned long)value_llu;
     unsigned value_u = (unsigned)value_llu;
     double value_f = 2.323423423;
@@ -985,6 +987,10 @@ static void interpolation_valid(void)
     g_assert_cmpint(qnum_get_int(qnum), ==, value_lld);
     qobject_unref(qnum);
 
+    qnum = qobject_to(QNum, qobject_from_jsonf_nofail("%" PRId64, value_d64));
+    g_assert_cmpint(qnum_get_int(qnum), ==, value_lld);
+    qobject_unref(qnum);
+
     qnum = qobject_to(QNum, qobject_from_jsonf_nofail("%u", value_u));
     g_assert_cmpuint(qnum_get_uint(qnum), ==, value_u);
     qobject_unref(qnum);
@@ -994,6 +1000,10 @@ static void interpolation_valid(void)
     qobject_unref(qnum);
 
     qnum = qobject_to(QNum, qobject_from_jsonf_nofail("%llu", value_llu));
+    g_assert_cmpuint(qnum_get_uint(qnum), ==, value_llu);
+    qobject_unref(qnum);
+
+    qnum = qobject_to(QNum, qobject_from_jsonf_nofail("%" PRIu64, value_u64));
     g_assert_cmpuint(qnum_get_uint(qnum), ==, value_llu);
     qobject_unref(qnum);
 
