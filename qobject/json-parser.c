@@ -546,10 +546,6 @@ QObject *json_parser_parse(GQueue *tokens, va_list *ap, Error **errp)
     JSONParserContext ctxt = { .buf = tokens };
     QObject *result;
 
-    if (!tokens) {
-        return NULL;
-    }
-
     result = parse_value(&ctxt, ap);
 
     error_propagate(errp, ctxt.err);
