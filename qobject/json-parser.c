@@ -132,64 +132,48 @@ static QString *qstring_from_escaped_str(JSONParserContext *ctxt,
 {
     const char *ptr = token->str;
     QString *str;
-    int double_quote = 1;
+    char quote;
 
-    if (*ptr == '"') {
-        double_quote = 1;
-    } else {
-        double_quote = 0;
-    }
-    ptr++;
-
+    assert(*ptr == '"' || *ptr == '\'');
+    quote = *ptr++;
     str = qstring_new();
-    while (*ptr && 
-           ((double_quote && *ptr != '"') || (!double_quote && *ptr != '\''))) {
+
+    while (*ptr != quote) {
+        assert(*ptr);
         if (*ptr == '\\') {
             ptr++;
-
-            switch (*ptr) {
+            switch (*ptr++) {
             case '"':
                 qstring_append(str, "\"");
-                ptr++;
                 break;
             case '\'':
                 qstring_append(str, "'");
-                ptr++;
                 break;
             case '\\':
                 qstring_append(str, "\\");
-                ptr++;
                 break;
             case '/':
                 qstring_append(str, "/");
-                ptr++;
                 break;
             case 'b':
                 qstring_append(str, "\b");
-                ptr++;
                 break;
             case 'f':
                 qstring_append(str, "\f");
-                ptr++;
                 break;
             case 'n':
                 qstring_append(str, "\n");
-                ptr++;
                 break;
             case 'r':
                 qstring_append(str, "\r");
-                ptr++;
                 break;
             case 't':
                 qstring_append(str, "\t");
-                ptr++;
                 break;
             case 'u': {
                 uint16_t unicode_char = 0;
                 char utf8_char[4];
                 int i = 0;
-
-                ptr++;
 
                 for (i = 0; i < 4; i++) {
                     if (qemu_isxdigit(*ptr)) {
