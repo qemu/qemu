@@ -516,7 +516,7 @@ static QObject *parse_literal(JSONParserContext *ctxt)
     }
     case JSON_FLOAT:
         /* FIXME dependent on locale; a pervasive issue in QEMU */
-        /* FIXME our lexer matches RFC 7159 in forbidding Inf or NaN,
+        /* FIXME our lexer matches RFC 8259 in forbidding Inf or NaN,
          * but those might be useful extensions beyond JSON */
         return QOBJECT(qnum_from_double(strtod(token->str, NULL)));
     default:

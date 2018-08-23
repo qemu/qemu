@@ -120,7 +120,7 @@
 ##
 # @JSONType:
 #
-# The four primitive and two structured types according to RFC 7159
+# The four primitive and two structured types according to RFC 8259
 # section 1, plus 'int' (split off 'number'), plus the obvious top
 # type 'value'.
 #
