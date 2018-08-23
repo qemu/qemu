@@ -544,6 +544,7 @@ QObject *json_parser_parse(GQueue *tokens, va_list *ap, Error **errp)
     QObject *result;
 
     result = parse_value(&ctxt, ap);
+    assert(ctxt.err || g_queue_is_empty(ctxt.buf));
 
     error_propagate(errp, ctxt.err);
 
