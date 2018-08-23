@@ -27,7 +27,7 @@ typedef enum json_token_type {
     JSON_FLOAT,
     JSON_KEYWORD,
     JSON_STRING,
-    JSON_ESCAPE,
+    JSON_INTERP,
     JSON_SKIP,
     JSON_ERROR,
 } JSONTokenType;

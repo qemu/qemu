@@ -423,7 +423,7 @@ static QObject *parse_keyword(JSONParserContext *ctxt)
     return NULL;
 }
 
-static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
+static QObject *parse_interpolation(JSONParserContext *ctxt, va_list *ap)
 {
     JSONToken *token;
 
@@ -432,7 +432,7 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
     }
 
     token = parser_context_pop_token(ctxt);
-    assert(token && token->type == JSON_ESCAPE);
+    assert(token && token->type == JSON_INTERP);
 
     if (!strcmp(token->str, "%p")) {
         return va_arg(*ap, QObject *);
@@ -527,8 +527,8 @@ static QObject *parse_value(JSONParserContext *ctxt, va_list *ap)
         return parse_object(ctxt, ap);
     case JSON_LSQUARE:
         return parse_array(ctxt, ap);
-    case JSON_ESCAPE:
-        return parse_escape(ctxt, ap);
+    case JSON_INTERP:
+        return parse_interpolation(ctxt, ap);
     case JSON_INTEGER:
     case JSON_FLOAT:
     case JSON_STRING:
