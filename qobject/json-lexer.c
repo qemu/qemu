@@ -286,7 +286,7 @@ void json_lexer_init(JSONLexer *lexer, JSONLexerEmitter func)
     lexer->x = lexer->y = 0;
 }
 
-static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
+static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
 {
     int char_consumed, new_state;
 
@@ -340,7 +340,7 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             g_string_truncate(lexer->token, 0);
             new_state = IN_START;
             lexer->state = new_state;
-            return 0;
+            return;
         default:
             break;
         }
@@ -355,29 +355,22 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         g_string_truncate(lexer->token, 0);
         lexer->state = IN_START;
     }
-
-    return 0;
 }
 
-int json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size)
+void json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size)
 {
     size_t i;
 
     for (i = 0; i < size; i++) {
-        int err;
-
-        err = json_lexer_feed_char(lexer, buffer[i], false);
-        if (err < 0) {
-            return err;
-        }
+        json_lexer_feed_char(lexer, buffer[i], false);
     }
-
-    return 0;
 }
 
-int json_lexer_flush(JSONLexer *lexer)
+void json_lexer_flush(JSONLexer *lexer)
 {
-    return lexer->state == IN_START ? 0 : json_lexer_feed_char(lexer, 0, true);
+    if (lexer->state != IN_START) {
+        json_lexer_feed_char(lexer, 0, true);
+    }
 }
 
 void json_lexer_destroy(JSONLexer *lexer)

@@ -36,10 +36,10 @@ typedef struct JSONMessageParser
 void json_message_parser_init(JSONMessageParser *parser,
                               void (*func)(JSONMessageParser *, GQueue *));
 
-int json_message_parser_feed(JSONMessageParser *parser,
+void json_message_parser_feed(JSONMessageParser *parser,
                              const char *buffer, size_t size);
 
-int json_message_parser_flush(JSONMessageParser *parser);
+void json_message_parser_flush(JSONMessageParser *parser);
 
 void json_message_parser_destroy(JSONMessageParser *parser);
 

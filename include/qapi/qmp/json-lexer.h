@@ -47,9 +47,9 @@ struct JSONLexer
 
 void json_lexer_init(JSONLexer *lexer, JSONLexerEmitter func);
 
-int json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size);
+void json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size);
 
-int json_lexer_flush(JSONLexer *lexer);
+void json_lexer_flush(JSONLexer *lexer);
 
 void json_lexer_destroy(JSONLexer *lexer);
 

@@ -118,15 +118,15 @@ void json_message_parser_init(JSONMessageParser *parser,
     json_lexer_init(&parser->lexer, json_message_process_token);
 }
 
-int json_message_parser_feed(JSONMessageParser *parser,
+void json_message_parser_feed(JSONMessageParser *parser,
                              const char *buffer, size_t size)
 {
-    return json_lexer_feed(&parser->lexer, buffer, size);
+    json_lexer_feed(&parser->lexer, buffer, size);
 }
 
-int json_message_parser_flush(JSONMessageParser *parser)
+void json_message_parser_flush(JSONMessageParser *parser)
 {
-    return json_lexer_flush(&parser->lexer);
+    json_lexer_flush(&parser->lexer);
 }
 
 void json_message_parser_destroy(JSONMessageParser *parser)
