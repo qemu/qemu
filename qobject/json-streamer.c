@@ -99,16 +99,13 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
 
     g_queue_push_tail(parser->tokens, token);
 
-    if (parser->brace_count < 0 ||
-        parser->bracket_count < 0 ||
-        (parser->brace_count == 0 &&
-         parser->bracket_count == 0)) {
-        json = json_parser_parse(parser->tokens, parser->ap, &err);
-        parser->tokens = NULL;
-        goto out_emit;
+    if ((parser->brace_count > 0 || parser->bracket_count > 0)
+        && parser->bracket_count >= 0 && parser->bracket_count >= 0) {
+        return;
     }
 
-    return;
+    json = json_parser_parse(parser->tokens, parser->ap, &err);
+    parser->tokens = NULL;
 
 out_emit:
     parser->brace_count = 0;
