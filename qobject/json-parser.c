@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/unicode.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qapi/qmp/qbool.h"
@@ -133,6 +134,10 @@ static QString *qstring_from_escaped_str(JSONParserContext *ctxt,
     const char *ptr = token->str;
     QString *str;
     char quote;
+    int cp;
+    char *end;
+    ssize_t len;
+    char utf8_buf[5];
 
     assert(*ptr == '"' || *ptr == '\'');
     quote = *ptr++;
@@ -194,12 +199,15 @@ static QString *qstring_from_escaped_str(JSONParserContext *ctxt,
                 goto out;
             }
         } else {
-            char dummy[2];
-
-            dummy[0] = *ptr++;
-            dummy[1] = 0;
-
-            qstring_append(str, dummy);
+            cp = mod_utf8_codepoint(ptr, 6, &end);
+            if (cp <= 0) {
+                parse_error(ctxt, token, "invalid UTF-8 sequence in string");
+                goto out;
+            }
+            ptr = end;
+            len = mod_utf8_encode(utf8_buf, sizeof(utf8_buf), cp);
+            assert(len >= 0);
+            qstring_append(str, utf8_buf);
         }
     }
 
