@@ -20,6 +20,7 @@
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
+#include "qemu/unicode.h"
 #include "qemu-common.h"
 
 static QString *from_json_str(const char *jstr, bool single, Error **errp)
@@ -410,7 +411,7 @@ static void utf8_string(void)
             "\xC8 \xC9 \xCA \xCB \xCC \xCD \xCE \xCF "
             "\xD0 \xD1 \xD2 \xD3 \xD4 \xD5 \xD6 \xD7 "
             "\xD8 \xD9 \xDA \xDB \xDC \xDD \xDE \xDF ",
-            NULL,               /* bug: rejected */
+            NULL,               /* bug: rejected (partly, see FIXME below) */
             "\\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD "
             "\\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD "
             "\\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD "
@@ -429,7 +430,7 @@ static void utf8_string(void)
         /* 3.2.3  All 8 first bytes of 4-byte sequences, followed by space */
         {
             "\xF0 \xF1 \xF2 \xF3 \xF4 \xF5 \xF6 \xF7 ",
-            NULL,               /* bug: rejected */
+            NULL,               /* bug: rejected (partly, see FIXME below) */
             "\\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD \\uFFFD ",
         },
         /* 3.2.4  All 4 first bytes of 5-byte sequences, followed by space */
@@ -509,7 +510,7 @@ static void utf8_string(void)
         {
             "\xC0\xE0\x80\xF0\x80\x80\xF8\x80\x80\x80\xFC\x80\x80\x80\x80"
             "\xDF\xEF\xBF\xF7\xBF\xBF\xFB\xBF\xBF\xBF\xFD\xBF\xBF\xBF\xBF",
-            NULL,               /* bug: rejected */
+            NULL,               /* bug: rejected (partly, see FIXME below) */
             "\\uFFFD\\uFFFD\\uFFFD\\uFFFD\\uFFFD"
             "\\uFFFD\\uFFFD\\uFFFD\\uFFFD\\uFFFD",
         },
@@ -792,8 +793,8 @@ static void utf8_string(void)
     };
     int i, j;
     QString *str;
-    const char *json_in, *utf8_out, *utf8_in, *json_out;
-    char *jstr;
+    const char *json_in, *utf8_out, *utf8_in, *json_out, *tail;
+    char *end, *in, *jstr;
 
     for (i = 0; test_cases[i].json_in; i++) {
         for (j = 0; j < 2; j++) {
@@ -810,6 +811,28 @@ static void utf8_string(void)
             } else {
                 str = from_json_str(json_in, j, NULL);
                 g_assert(!str);
+                /*
+                 * Failure may be due to any sequence, but *all* sequences
+                 * are expected to fail.  Test each one in isolation.
+                 */
+                for (tail = json_in; *tail; tail = end) {
+                    mod_utf8_codepoint(tail, 6, &end);
+                    if (*end == ' ') {
+                        end++;
+                    }
+                    in = strndup(tail, end - tail);
+                    str = from_json_str(in, j, NULL);
+                    /*
+                     * FIXME JSON parser accepts invalid sequence
+                     * starting with \xC2..\xF4
+                     */
+                    if (*in >= '\xC2' && *in <= '\xF4') {
+                        g_free(str);
+                        str = NULL;
+                    }
+                    g_assert(!str);
+                    g_free(in);
+                }
             }
 
             /* Unparse @utf8_in, expect @json_out */
