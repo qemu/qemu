@@ -82,13 +82,7 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
         goto out_emit;
     }
 
-    token = g_malloc(sizeof(JSONToken) + input->len + 1);
-    token->type = type;
-    memcpy(token->str, input->str, input->len);
-    token->str[input->len] = 0;
-    token->x = x;
-    token->y = y;
-
+    token = json_token(type, x, y, input);
     parser->token_size += input->len;
 
     g_queue_push_tail(&parser->tokens, token);

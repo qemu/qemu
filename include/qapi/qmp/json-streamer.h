@@ -16,13 +16,6 @@
 
 #include "qapi/qmp/json-lexer.h"
 
-typedef struct JSONToken {
-    int type;
-    int x;
-    int y;
-    char str[];
-} JSONToken;
-
 typedef struct JSONMessageParser
 {
     void (*emit)(void *opaque, QObject *json, Error *err);

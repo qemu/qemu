@@ -26,6 +26,13 @@
 #include "qapi/qmp/json-lexer.h"
 #include "qapi/qmp/json-streamer.h"
 
+struct JSONToken {
+    JSONTokenType type;
+    int x;
+    int y;
+    char str[];
+};
+
 typedef struct JSONParserContext
 {
     Error *err;
@@ -536,6 +543,18 @@ static QObject *parse_value(JSONParserContext *ctxt, va_list *ap)
         parse_error(ctxt, token, "expecting value");
         return NULL;
     }
+}
+
+JSONToken *json_token(JSONTokenType type, int x, int y, GString *tokstr)
+{
+    JSONToken *token = g_malloc(sizeof(JSONToken) + tokstr->len + 1);
+
+    token->type = type;
+    memcpy(token->str, tokstr->str, tokstr->len);
+    token->str[tokstr->len] = 0;
+    token->x = x;
+    token->y = y;
+    return token;
 }
 
 QObject *json_parser_parse(GQueue *tokens, va_list *ap, Error **errp)

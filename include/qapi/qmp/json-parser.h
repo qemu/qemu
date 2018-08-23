@@ -15,7 +15,11 @@
 #define QEMU_JSON_PARSER_H
 
 #include "qemu-common.h"
+#include "qapi/qmp/json-lexer.h"
 
+typedef struct JSONToken JSONToken;
+
+JSONToken *json_token(JSONTokenType type, int x, int y, GString *tokstr);
 QObject *json_parser_parse(GQueue *tokens, va_list *ap, Error **errp);
 
 #endif
