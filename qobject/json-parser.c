@@ -64,16 +64,27 @@ static void GCC_FMT_ATTR(3, 4) parse_error(JSONParserContext *ctxt,
     error_setg(&ctxt->err, "JSON parse error, %s", message);
 }
 
-static int hex2decimal(char ch)
+static int cvt4hex(const char *s)
 {
-    if (ch >= '0' && ch <= '9') {
-        return (ch - '0');
-    } else if (ch >= 'a' && ch <= 'f') {
-        return 10 + (ch - 'a');
-    } else if (ch >= 'A' && ch <= 'F') {
-        return 10 + (ch - 'A');
+    int cp, i;
+
+    cp = 0;
+    for (i = 0; i < 4; i++) {
+        if (!qemu_isxdigit(s[i])) {
+            return -1;
+        }
+        cp <<= 4;
+        if (s[i] >= '0' && s[i] <= '9') {
+            cp |= s[i] - '0';
+        } else if (s[i] >= 'a' && s[i] <= 'f') {
+            cp |= 10 + s[i] - 'a';
+        } else if (s[i] >= 'A' && s[i] <= 'F') {
+            cp |= 10 + s[i] - 'A';
+        } else {
+            return -1;
+        }
     }
-    abort();
+    return cp;
 }
 
 /**
@@ -115,7 +126,8 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
     const char *ptr = token->str;
     QString *str;
     char quote;
-    int cp, i;
+    const char *beg;
+    int cp, trailing;
     char *end;
     ssize_t len;
     char utf8_buf[5];
@@ -127,7 +139,7 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
     while (*ptr != quote) {
         assert(*ptr);
         if (*ptr == '\\') {
-            ptr++;
+            beg = ptr++;
             switch (*ptr++) {
             case '"':
                 qstring_append_chr(str, '"');
@@ -157,22 +169,28 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
                 qstring_append_chr(str, '\t');
                 break;
             case 'u':
-                cp = 0;
-                for (i = 0; i < 4; i++) {
-                    if (!qemu_isxdigit(*ptr)) {
-                        parse_error(ctxt, token,
-                                    "invalid hex escape sequence in string");
-                        goto out;
+                cp = cvt4hex(ptr);
+                ptr += 4;
+
+                /* handle surrogate pairs */
+                if (cp >= 0xD800 && cp <= 0xDBFF
+                    && ptr[0] == '\\' && ptr[1] == 'u') {
+                    /* leading surrogate followed by \u */
+                    cp = 0x10000 + ((cp & 0x3FF) << 10);
+                    trailing = cvt4hex(ptr + 2);
+                    if (trailing >= 0xDC00 && trailing <= 0xDFFF) {
+                        /* followed by trailing surrogate */
+                        cp |= trailing & 0x3FF;
+                        ptr += 6;
+                    } else {
+                        cp = -1; /* invalid */
                     }
-                    cp <<= 4;
-                    cp |= hex2decimal(*ptr);
-                    ptr++;
                 }
 
                 if (mod_utf8_encode(utf8_buf, sizeof(utf8_buf), cp) < 0) {
                     parse_error(ctxt, token,
-                                "\\u%.4s is not a valid Unicode character",
-                                ptr - 3);
+                                "%.*s is not a valid Unicode character",
+                                (int)(ptr - beg), beg);
                     goto out;
                 }
                 qstring_append(str, utf8_buf);

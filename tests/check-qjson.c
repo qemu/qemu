@@ -63,8 +63,7 @@ static void escaped_string(void)
         { "double byte utf-8 \\u00A2", "double byte utf-8 \xc2\xa2" },
         { "triple byte utf-8 \\u20AC", "triple byte utf-8 \xe2\x82\xac" },
         { "quadruple byte utf-8 \\uD834\\uDD1E", /* U+1D11E */
-          /* bug: want \xF0\x9D\x84\x9E */
-          NULL },
+          "quadruple byte utf-8 \xF0\x9D\x84\x9E" },
         { "\\", NULL },
         { "\\z", NULL },
         { "\\ux", NULL },
