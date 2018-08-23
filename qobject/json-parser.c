@@ -200,7 +200,7 @@ static QString *qstring_from_escaped_str(JSONParserContext *ctxt,
             }
         } else {
             cp = mod_utf8_codepoint(ptr, 6, &end);
-            if (cp <= 0) {
+            if (cp < 0) {
                 parse_error(ctxt, token, "invalid UTF-8 sequence in string");
                 goto out;
             }

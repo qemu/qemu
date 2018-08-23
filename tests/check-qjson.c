@@ -152,12 +152,6 @@ static void string_with_quotes(void)
 static void utf8_string(void)
 {
     /*
-     * Problem: we can't easily deal with embedded U+0000.  Parsing
-     * the JSON string "this \\u0000" is fun" yields "this \0 is fun",
-     * which gets misinterpreted as NUL-terminated "this ".  We should
-     * consider using overlong encoding \xC0\x80 for U+0000 ("modified
-     * UTF-8").
-     *
      * Most test cases are scraped from Markus Kuhn's UTF-8 decoder
      * capability and stress test at
      * http://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt
@@ -586,7 +580,7 @@ static void utf8_string(void)
         {
             /* \U+0000 */
             "\xC0\x80",
-            NULL,
+            "\xC0\x80",
             "\\u0000",
         },
         {

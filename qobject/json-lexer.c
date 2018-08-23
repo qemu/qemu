@@ -93,7 +93,7 @@
  *   interpolation = %((l|ll|I64)[du]|[ipsf])
  *
  * Note:
- * - Input must be encoded in UTF-8.
+ * - Input must be encoded in modified UTF-8.
  * - Decoding and validating is left to the parser.
  */
 
