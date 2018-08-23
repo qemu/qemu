@@ -25,7 +25,9 @@ typedef struct JSONToken {
 
 typedef struct JSONMessageParser
 {
-    void (*emit)(struct JSONMessageParser *parser, GQueue *tokens);
+    void (*emit)(void *opaque, QObject *json, Error *err);
+    void *opaque;
+    va_list *ap;
     JSONLexer lexer;
     int brace_count;
     int bracket_count;
@@ -37,7 +39,9 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
                                 JSONTokenType type, int x, int y);
 
 void json_message_parser_init(JSONMessageParser *parser,
-                              void (*func)(JSONMessageParser *, GQueue *));
+                              void (*emit)(void *opaque, QObject *json,
+                                           Error *err),
+                              void *opaque, va_list *ap);
 
 void json_message_parser_feed(JSONMessageParser *parser,
                              const char *buffer, size_t size);

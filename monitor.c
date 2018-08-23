@@ -59,7 +59,6 @@
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/json-streamer.h"
-#include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/qlist.h"
 #include "qom/object_interfaces.h"
 #include "trace-root.h"
@@ -4256,18 +4255,15 @@ static void monitor_qmp_bh_dispatcher(void *data)
 
 #define  QMP_REQ_QUEUE_LEN_MAX  (8)
 
-static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
+static void handle_qmp_command(void *opaque, QObject *req, Error *err)
 {
-    QObject *req, *id = NULL;
+    Monitor *mon = opaque;
+    QObject *id = NULL;
     QDict *qdict;
-    MonitorQMP *mon_qmp = container_of(parser, MonitorQMP, parser);
-    Monitor *mon = container_of(mon_qmp, Monitor, qmp);
-    Error *err = NULL;
     QMPRequest *req_obj;
 
-    req = json_parser_parse_err(tokens, NULL, &err);
     if (!req && !err) {
-        /* json_parser_parse_err() sucks: can fail without setting @err */
+        /* json_parser_parse() sucks: can fail without setting @err */
         error_setg(&err, QERR_JSON_PARSING);
     }
 
@@ -4465,7 +4461,8 @@ static void monitor_qmp_event(void *opaque, int event)
         monitor_qmp_response_flush(mon);
         monitor_qmp_cleanup_queues(mon);
         json_message_parser_destroy(&mon->qmp.parser);
-        json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
+        json_message_parser_init(&mon->qmp.parser, handle_qmp_command,
+                                 mon, NULL);
         mon_refcount--;
         monitor_fdsets_cleanup();
         break;
@@ -4683,7 +4680,8 @@ void monitor_init(Chardev *chr, int flags)
 
     if (monitor_is_qmp(mon)) {
         qemu_chr_fe_set_echo(&mon->chr, true);
-        json_message_parser_init(&mon->qmp.parser, handle_qmp_command);
+        json_message_parser_init(&mon->qmp.parser, handle_qmp_command,
+                                 mon, NULL);
         if (mon->use_io_thread) {
             /*
              * Make sure the old iowatch is gone.  It's possible when

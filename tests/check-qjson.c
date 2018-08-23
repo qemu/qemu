@@ -1438,7 +1438,6 @@ static void multiple_values(void)
     qobject_unref(obj);
 
     /* BUG simultaneously succeeds and fails */
-    /* BUG calls json_parser_parse() with errp pointing to non-null */
     obj = qobject_from_json("} true", &err);
     g_assert(qbool_get_bool(qobject_to(QBool, obj)));
     error_free_or_abort(&err);

@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/qmp/json-lexer.h"
+#include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/json-streamer.h"
 
 #define MAX_TOKEN_SIZE (64ULL << 20)
@@ -38,8 +39,9 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
                                 JSONTokenType type, int x, int y)
 {
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);
+    Error *err = NULL;
     JSONToken *token;
-    GQueue *tokens;
+    QObject *json;
 
     switch (type) {
     case JSON_LCURLY:
@@ -97,19 +99,20 @@ out_emit:
     /* send current list of tokens to parser and reset tokenizer */
     parser->brace_count = 0;
     parser->bracket_count = 0;
-    /* parser->emit takes ownership of parser->tokens.  Remove our own
-     * reference to parser->tokens before handing it out to parser->emit.
-     */
-    tokens = parser->tokens;
+    json = json_parser_parse(parser->tokens, parser->ap, &err);
     parser->tokens = g_queue_new();
-    parser->emit(parser, tokens);
     parser->token_size = 0;
+    parser->emit(parser->opaque, json, err);
 }
 
 void json_message_parser_init(JSONMessageParser *parser,
-                              void (*func)(JSONMessageParser *, GQueue *))
+                              void (*emit)(void *opaque, QObject *json,
+                                           Error *err),
+                              void *opaque, va_list *ap)
 {
-    parser->emit = func;
+    parser->emit = emit;
+    parser->opaque = opaque;
+    parser->ap = ap;
     parser->brace_count = 0;
     parser->bracket_count = 0;
     parser->tokens = g_queue_new();
