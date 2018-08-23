@@ -33,8 +33,21 @@ static void consume_json(void *opaque, QObject *json, Error *err)
 {
     JSONParsingState *s = opaque;
 
+    assert(!json != !err);
+    assert(!s->result || !s->err);
+
+    if (s->result) {
+        qobject_unref(s->result);
+        s->result = NULL;
+        error_setg(&s->err, "Expecting at most one JSON value");
+    }
+    if (s->err) {
+        qobject_unref(json);
+        error_free(err);
+        return;
+    }
     s->result = json;
-    error_propagate(&s->err, err);
+    s->err = err;
 }
 
 /*

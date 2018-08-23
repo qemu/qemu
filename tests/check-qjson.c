@@ -1443,17 +1443,13 @@ static void multiple_values(void)
     Error *err = NULL;
     QObject *obj;
 
-    /* BUG this leaks the syntax tree for "false" */
     obj = qobject_from_json("false true", &err);
-    g_assert(qbool_get_bool(qobject_to(QBool, obj)));
-    g_assert(!err);
-    qobject_unref(obj);
-
-    /* BUG simultaneously succeeds and fails */
-    obj = qobject_from_json("} true", &err);
-    g_assert(qbool_get_bool(qobject_to(QBool, obj)));
     error_free_or_abort(&err);
-    qobject_unref(obj);
+    g_assert(obj == NULL);
+
+    obj = qobject_from_json("} true", &err);
+    error_free_or_abort(&err);
+    g_assert(obj == NULL);
 }
 
 int main(int argc, char **argv)
