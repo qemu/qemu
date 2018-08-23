@@ -1418,6 +1418,25 @@ static void limits_nesting(void)
     g_assert(obj == NULL);
 }
 
+static void multiple_values(void)
+{
+    Error *err = NULL;
+    QObject *obj;
+
+    /* BUG this leaks the syntax tree for "false" */
+    obj = qobject_from_json("false true", &err);
+    g_assert(qbool_get_bool(qobject_to(QBool, obj)));
+    g_assert(!err);
+    qobject_unref(obj);
+
+    /* BUG simultaneously succeeds and fails */
+    /* BUG calls json_parser_parse() with errp pointing to non-null */
+    obj = qobject_from_json("} true", &err);
+    g_assert(qbool_get_bool(qobject_to(QBool, obj)));
+    error_free_or_abort(&err);
+    qobject_unref(obj);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -1455,6 +1474,7 @@ int main(int argc, char **argv)
     g_test_add_func("/errors/invalid_dict_comma", invalid_dict_comma);
     g_test_add_func("/errors/unterminated/literal", unterminated_literal);
     g_test_add_func("/errors/limits/nesting", limits_nesting);
+    g_test_add_func("/errors/multiple_values", multiple_values);
 
     return g_test_run();
 }
