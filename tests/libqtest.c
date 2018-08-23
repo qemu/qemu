@@ -507,16 +507,6 @@ void qmp_fd_vsend(int fd, const char *fmt, va_list ap)
 {
     QObject *qobj;
 
-    /*
-     * qobject_from_vjsonf_nofail() chokes on leading 0xff as invalid
-     * JSON, but tests/test-qga.c needs to send that to test QGA
-     * synchronization
-     */
-    if (*fmt == '\377') {
-        socket_send(fd, fmt, 1);
-        fmt++;
-    }
-
     /* Going through qobject ensures we escape strings properly */
     qobj = qobject_from_vjsonf_nofail(fmt, ap);
 
@@ -604,21 +594,34 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...)
     va_end(ap);
 }
 
-void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
+void qmp_fd_vsend_raw(int fd, const char *fmt, va_list ap)
 {
     bool log = getenv("QTEST_LOG") != NULL;
-    va_list ap;
-    char *str;
-
-    va_start(ap, fmt);
-    str = g_strdup_vprintf(fmt, ap);
-    va_end(ap);
+    char *str = g_strdup_vprintf(fmt, ap);
 
     if (log) {
         fprintf(stderr, "%s", str);
     }
-    socket_send(s->qmp_fd, str, strlen(str));
+    socket_send(fd, str, strlen(str));
     g_free(str);
+}
+
+void qmp_fd_send_raw(int fd, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qmp_fd_vsend_raw(fd, fmt, ap);
+    va_end(ap);
+}
+
+void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qmp_fd_vsend_raw(s->qmp_fd, fmt, ap);
+    va_end(ap);
 }
 
 QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
