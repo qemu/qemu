@@ -1623,6 +1623,7 @@ print_insn_arg (const char *d,
 
     case 'X':
       place = '8';
+      /* fall through */
     case 'Y':
     case 'Z':
     case 'W':

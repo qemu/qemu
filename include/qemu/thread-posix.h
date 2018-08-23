@@ -6,8 +6,8 @@
 
 typedef QemuMutex QemuRecMutex;
 #define qemu_rec_mutex_destroy qemu_mutex_destroy
-#define qemu_rec_mutex_lock qemu_mutex_lock
-#define qemu_rec_mutex_trylock qemu_mutex_trylock
+#define qemu_rec_mutex_lock_impl    qemu_mutex_lock_impl
+#define qemu_rec_mutex_trylock_impl qemu_mutex_trylock_impl
 #define qemu_rec_mutex_unlock qemu_mutex_unlock
 
 struct QemuMutex {

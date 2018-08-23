@@ -4689,6 +4689,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     case 0x82:
         if (CODE64(s))
             goto illegal_op;
+        /* fall through */
     case 0x80: /* GRP1 */
     case 0x81:
     case 0x83:
@@ -8292,6 +8293,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     case 0x10e ... 0x10f:
         /* 3DNow! instructions, ignore prefixes */
         s->prefix &= ~(PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA);
+        /* fall through */
     case 0x110 ... 0x117:
     case 0x128 ... 0x12f:
     case 0x138 ... 0x13a:

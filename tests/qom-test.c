@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
-    qtest_cb_for_every_machine(add_machine_test_case);
+    qtest_cb_for_every_machine(add_machine_test_case, g_test_quick());
 
     return g_test_run();
 }

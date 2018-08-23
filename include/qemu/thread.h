@@ -16,6 +16,9 @@ typedef struct QemuThread QemuThread;
 #include "qemu/thread-posix.h"
 #endif
 
+/* include QSP header once QemuMutex, QemuCond etc. are defined */
+#include "qemu/qsp.h"
+
 #define QEMU_THREAD_JOINABLE 0
 #define QEMU_THREAD_DETACHED 1
 
@@ -25,10 +28,52 @@ int qemu_mutex_trylock_impl(QemuMutex *mutex, const char *file, const int line);
 void qemu_mutex_lock_impl(QemuMutex *mutex, const char *file, const int line);
 void qemu_mutex_unlock_impl(QemuMutex *mutex, const char *file, const int line);
 
-#define qemu_mutex_lock(mutex) \
-        qemu_mutex_lock_impl(mutex, __FILE__, __LINE__)
-#define qemu_mutex_trylock(mutex) \
-        qemu_mutex_trylock_impl(mutex, __FILE__, __LINE__)
+typedef void (*QemuMutexLockFunc)(QemuMutex *m, const char *f, int l);
+typedef int (*QemuMutexTrylockFunc)(QemuMutex *m, const char *f, int l);
+typedef void (*QemuRecMutexLockFunc)(QemuRecMutex *m, const char *f, int l);
+typedef int (*QemuRecMutexTrylockFunc)(QemuRecMutex *m, const char *f, int l);
+typedef void (*QemuCondWaitFunc)(QemuCond *c, QemuMutex *m, const char *f,
+                                 int l);
+
+extern QemuMutexLockFunc qemu_bql_mutex_lock_func;
+extern QemuMutexLockFunc qemu_mutex_lock_func;
+extern QemuMutexTrylockFunc qemu_mutex_trylock_func;
+extern QemuRecMutexLockFunc qemu_rec_mutex_lock_func;
+extern QemuRecMutexTrylockFunc qemu_rec_mutex_trylock_func;
+extern QemuCondWaitFunc qemu_cond_wait_func;
+
+/* convenience macros to bypass the profiler */
+#define qemu_mutex_lock__raw(m)                         \
+        qemu_mutex_lock_impl(m, __FILE__, __LINE__)
+#define qemu_mutex_trylock__raw(m)                      \
+        qemu_mutex_trylock_impl(m, __FILE__, __LINE__)
+
+#define qemu_mutex_lock(m) ({                                           \
+            QemuMutexLockFunc _f = atomic_read(&qemu_mutex_lock_func);  \
+            _f(m, __FILE__, __LINE__);                                  \
+        })
+
+#define qemu_mutex_trylock(m) ({                                        \
+            QemuMutexTrylockFunc _f = atomic_read(&qemu_mutex_trylock_func); \
+            _f(m, __FILE__, __LINE__);                                  \
+        })
+
+#define qemu_rec_mutex_lock(m) ({                                       \
+            QemuRecMutexLockFunc _f = atomic_read(&qemu_rec_mutex_lock_func); \
+            _f(m, __FILE__, __LINE__);                                  \
+        })
+
+#define qemu_rec_mutex_trylock(m) ({                            \
+            QemuRecMutexTrylockFunc _f;                         \
+            _f = atomic_read(&qemu_rec_mutex_trylock_func);     \
+            _f(m, __FILE__, __LINE__);                          \
+        })
+
+#define qemu_cond_wait(c, m) ({                                         \
+            QemuCondWaitFunc _f = atomic_read(&qemu_cond_wait_func);    \
+            _f(c, m, __FILE__, __LINE__);                               \
+        })
+
 #define qemu_mutex_unlock(mutex) \
         qemu_mutex_unlock_impl(mutex, __FILE__, __LINE__)
 
@@ -47,6 +92,16 @@ static inline void (qemu_mutex_unlock)(QemuMutex *mutex)
     qemu_mutex_unlock(mutex);
 }
 
+static inline void (qemu_rec_mutex_lock)(QemuRecMutex *mutex)
+{
+    qemu_rec_mutex_lock(mutex);
+}
+
+static inline int (qemu_rec_mutex_trylock)(QemuRecMutex *mutex)
+{
+    return qemu_rec_mutex_trylock(mutex);
+}
+
 /* Prototypes for other functions are in thread-posix.h/thread-win32.h.  */
 void qemu_rec_mutex_init(QemuRecMutex *mutex);
 
@@ -62,9 +117,6 @@ void qemu_cond_signal(QemuCond *cond);
 void qemu_cond_broadcast(QemuCond *cond);
 void qemu_cond_wait_impl(QemuCond *cond, QemuMutex *mutex,
                          const char *file, const int line);
-
-#define qemu_cond_wait(cond, mutex) \
-        qemu_cond_wait_impl(cond, mutex, __FILE__, __LINE__)
 
 static inline void (qemu_cond_wait)(QemuCond *cond, QemuMutex *mutex)
 {

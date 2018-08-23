@@ -44,7 +44,7 @@ static int nthreadsrunning;
 #define GOFLAG_RUN  1
 #define GOFLAG_STOP 2
 
-static volatile int goflag = GOFLAG_INIT;
+static int goflag = GOFLAG_INIT;
 
 #define RCU_READ_RUN 1000
 #define RCU_UPDATE_RUN 10
@@ -82,9 +82,20 @@ static void wait_all_threads(void)
     n_threads = 0;
 }
 
+#ifndef TEST_LIST_TYPE
+#define TEST_LIST_TYPE 1
+#endif
 
 struct list_element {
+#if TEST_LIST_TYPE == 1
     QLIST_ENTRY(list_element) entry;
+#elif TEST_LIST_TYPE == 2
+    QSIMPLEQ_ENTRY(list_element) entry;
+#elif TEST_LIST_TYPE == 3
+    QTAILQ_ENTRY(list_element) entry;
+#else
+#error Invalid TEST_LIST_TYPE
+#endif
     struct rcu_head rcu;
 };
 
@@ -96,7 +107,46 @@ static void reclaim_list_el(struct rcu_head *prcu)
     n_reclaims++;
 }
 
+#if TEST_LIST_TYPE == 1
 static QLIST_HEAD(q_list_head, list_element) Q_list_head;
+
+#define TEST_NAME "qlist"
+#define TEST_LIST_REMOVE_RCU        QLIST_REMOVE_RCU
+#define TEST_LIST_INSERT_AFTER_RCU  QLIST_INSERT_AFTER_RCU
+#define TEST_LIST_INSERT_HEAD_RCU   QLIST_INSERT_HEAD_RCU
+#define TEST_LIST_FOREACH_RCU       QLIST_FOREACH_RCU
+#define TEST_LIST_FOREACH_SAFE_RCU  QLIST_FOREACH_SAFE_RCU
+
+#elif TEST_LIST_TYPE == 2
+static QSIMPLEQ_HEAD(, list_element) Q_list_head =
+    QSIMPLEQ_HEAD_INITIALIZER(Q_list_head);
+
+#define TEST_NAME "qsimpleq"
+#define TEST_LIST_REMOVE_RCU(el, f)                             \
+         QSIMPLEQ_REMOVE_RCU(&Q_list_head, el, list_element, f)
+
+#define TEST_LIST_INSERT_AFTER_RCU(list_el, el, f)               \
+         QSIMPLEQ_INSERT_AFTER_RCU(&Q_list_head, list_el, el, f)
+
+#define TEST_LIST_INSERT_HEAD_RCU   QSIMPLEQ_INSERT_HEAD_RCU
+#define TEST_LIST_FOREACH_RCU       QSIMPLEQ_FOREACH_RCU
+#define TEST_LIST_FOREACH_SAFE_RCU  QSIMPLEQ_FOREACH_SAFE_RCU
+
+#elif TEST_LIST_TYPE == 3
+static QTAILQ_HEAD(, list_element) Q_list_head;
+
+#define TEST_NAME "qtailq"
+#define TEST_LIST_REMOVE_RCU(el, f) QTAILQ_REMOVE_RCU(&Q_list_head, el, f)
+
+#define TEST_LIST_INSERT_AFTER_RCU(list_el, el, f)               \
+           QTAILQ_INSERT_AFTER_RCU(&Q_list_head, list_el, el, f)
+
+#define TEST_LIST_INSERT_HEAD_RCU   QTAILQ_INSERT_HEAD_RCU
+#define TEST_LIST_FOREACH_RCU       QTAILQ_FOREACH_RCU
+#define TEST_LIST_FOREACH_SAFE_RCU  QTAILQ_FOREACH_SAFE_RCU
+#else
+#error Invalid TEST_LIST_TYPE
+#endif
 
 static void *rcu_q_reader(void *arg)
 {
@@ -107,15 +157,15 @@ static void *rcu_q_reader(void *arg)
 
     *(struct rcu_reader_data **)arg = &rcu_reader;
     atomic_inc(&nthreadsrunning);
-    while (goflag == GOFLAG_INIT) {
+    while (atomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
 
-    while (goflag == GOFLAG_RUN) {
+    while (atomic_read(&goflag) == GOFLAG_RUN) {
         rcu_read_lock();
-        QLIST_FOREACH_RCU(el, &Q_list_head, entry) {
+        TEST_LIST_FOREACH_RCU(el, &Q_list_head, entry) {
             n_reads_local++;
-            if (goflag == GOFLAG_STOP) {
+            if (atomic_read(&goflag) == GOFLAG_STOP) {
                 break;
             }
         }
@@ -142,35 +192,35 @@ static void *rcu_q_updater(void *arg)
 
     *(struct rcu_reader_data **)arg = &rcu_reader;
     atomic_inc(&nthreadsrunning);
-    while (goflag == GOFLAG_INIT) {
+    while (atomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
 
-    while (goflag == GOFLAG_RUN) {
+    while (atomic_read(&goflag) == GOFLAG_RUN) {
         target_el = select_random_el(RCU_Q_LEN);
         j = 0;
         /* FOREACH_RCU could work here but let's use both macros */
-        QLIST_FOREACH_SAFE_RCU(prev_el, &Q_list_head, entry, el) {
+        TEST_LIST_FOREACH_SAFE_RCU(prev_el, &Q_list_head, entry, el) {
             j++;
             if (target_el == j) {
-                QLIST_REMOVE_RCU(prev_el, entry);
+                TEST_LIST_REMOVE_RCU(prev_el, entry);
                 /* may be more than one updater in the future */
                 call_rcu1(&prev_el->rcu, reclaim_list_el);
                 n_removed_local++;
                 break;
             }
         }
-        if (goflag == GOFLAG_STOP) {
+        if (atomic_read(&goflag) == GOFLAG_STOP) {
             break;
         }
         target_el = select_random_el(RCU_Q_LEN);
         j = 0;
-        QLIST_FOREACH_RCU(el, &Q_list_head, entry) {
+        TEST_LIST_FOREACH_RCU(el, &Q_list_head, entry) {
             j++;
             if (target_el == j) {
-                prev_el = g_new(struct list_element, 1);
+                struct list_element *new_el = g_new(struct list_element, 1);
                 n_nodes += n_nodes_local;
-                QLIST_INSERT_BEFORE_RCU(el, prev_el, entry);
+                TEST_LIST_INSERT_AFTER_RCU(el, new_el, entry);
                 break;
             }
         }
@@ -195,7 +245,7 @@ static void rcu_qtest_init(void)
     srand(time(0));
     for (i = 0; i < RCU_Q_LEN; i++) {
         new_el = g_new(struct list_element, 1);
-        QLIST_INSERT_HEAD_RCU(&Q_list_head, new_el, entry);
+        TEST_LIST_INSERT_HEAD_RCU(&Q_list_head, new_el, entry);
     }
     qemu_mutex_lock(&counts_mutex);
     n_nodes += RCU_Q_LEN;
@@ -209,9 +259,9 @@ static void rcu_qtest_run(int duration, int nreaders)
         g_usleep(1000);
     }
 
-    goflag = GOFLAG_RUN;
+    atomic_set(&goflag, GOFLAG_RUN);
     sleep(duration);
-    goflag = GOFLAG_STOP;
+    atomic_set(&goflag, GOFLAG_STOP);
     wait_all_threads();
 }
 
@@ -230,8 +280,8 @@ static void rcu_qtest(const char *test, int duration, int nreaders)
     create_thread(rcu_q_updater);
     rcu_qtest_run(duration, nreaders);
 
-    QLIST_FOREACH_SAFE_RCU(prev_el, &Q_list_head, entry, el) {
-        QLIST_REMOVE_RCU(prev_el, entry);
+    TEST_LIST_FOREACH_SAFE_RCU(prev_el, &Q_list_head, entry, el) {
+        TEST_LIST_REMOVE_RCU(prev_el, entry);
         call_rcu1(&prev_el->rcu, reclaim_list_el);
         n_removed_local++;
     }
@@ -290,9 +340,9 @@ int main(int argc, char *argv[])
             } else {
                 gtest_seconds = 20;
             }
-            g_test_add_func("/rcu/qlist/single-threaded", gtest_rcuq_one);
-            g_test_add_func("/rcu/qlist/short-few", gtest_rcuq_few);
-            g_test_add_func("/rcu/qlist/long-many", gtest_rcuq_many);
+            g_test_add_func("/rcu/"TEST_NAME"/single-threaded", gtest_rcuq_one);
+            g_test_add_func("/rcu/"TEST_NAME"/short-few", gtest_rcuq_few);
+            g_test_add_func("/rcu/"TEST_NAME"/long-many", gtest_rcuq_many);
             g_test_in_charge = 1;
             return g_test_run();
         }

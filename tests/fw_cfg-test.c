@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
-#include "hw/nvram/fw_cfg_keys.h"
+#include "standard-headers/linux/qemu_fw_cfg.h"
 #include "libqos/fw_cfg.h"
 
 static uint64_t ram_size = 128 << 20;

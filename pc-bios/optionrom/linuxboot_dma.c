@@ -58,8 +58,6 @@ asm(
 "   jmp load_kernel\n"
 );
 
-#include "../../include/hw/nvram/fw_cfg_keys.h"
-
 /* QEMU_CFG_DMA_CONTROL bits */
 #define BIOS_CFG_DMA_CTL_ERROR   0x01
 #define BIOS_CFG_DMA_CTL_READ    0x02
@@ -72,6 +70,8 @@ asm(
 #define uint64_t unsigned long long
 #define uint32_t unsigned int
 #define uint16_t unsigned short
+
+#include "../../include/standard-headers/linux/qemu_fw_cfg.h"
 
 #define barrier() asm("" : : : "memory")
 

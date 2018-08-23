@@ -1426,7 +1426,8 @@ static void cirrus_vga_write_sr(CirrusVGAState * s, uint32_t val)
         s->vga.hw_cursor_y = (val << 3) | (s->vga.sr_index >> 5);
 	break;
     case 0x07:			// Extended Sequencer Mode
-    cirrus_update_memory_access(s);
+        cirrus_update_memory_access(s);
+        /* fall through */
     case 0x08:			// EEPROM Control
     case 0x09:			// Scratch Register 0
     case 0x0a:			// Scratch Register 1

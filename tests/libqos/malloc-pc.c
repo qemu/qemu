@@ -14,7 +14,7 @@
 #include "libqos/malloc-pc.h"
 #include "libqos/fw_cfg.h"
 
-#include "hw/nvram/fw_cfg_keys.h"
+#include "standard-headers/linux/qemu_fw_cfg.h"
 
 #include "qemu-common.h"
 

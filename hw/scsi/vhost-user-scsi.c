@@ -137,17 +137,6 @@ static void vhost_user_scsi_unrealize(DeviceState *dev, Error **errp)
     }
 }
 
-static uint64_t vhost_user_scsi_get_features(VirtIODevice *vdev,
-                                             uint64_t features, Error **errp)
-{
-    VHostUserSCSI *s = VHOST_USER_SCSI(vdev);
-
-    /* Turn on predefined features supported by this device */
-    features |= s->host_features;
-
-    return vhost_scsi_common_get_features(vdev, features, errp);
-}
-
 static Property vhost_user_scsi_properties[] = {
     DEFINE_PROP_CHR("chardev", VirtIOSCSICommon, conf.chardev),
     DEFINE_PROP_UINT32("boot_tpgt", VirtIOSCSICommon, conf.boot_tpgt, 0),
@@ -157,12 +146,15 @@ static Property vhost_user_scsi_properties[] = {
     DEFINE_PROP_UINT32("max_sectors", VirtIOSCSICommon, conf.max_sectors,
                        0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSICommon, conf.cmd_per_lun, 128),
-    DEFINE_PROP_BIT64("hotplug", VHostUserSCSI, host_features,
-                                                VIRTIO_SCSI_F_HOTPLUG,
-                                                true),
-    DEFINE_PROP_BIT64("param_change", VHostUserSCSI, host_features,
-                                                     VIRTIO_SCSI_F_CHANGE,
-                                                     true),
+    DEFINE_PROP_BIT64("hotplug", VHostSCSICommon, host_features,
+                                                  VIRTIO_SCSI_F_HOTPLUG,
+                                                  true),
+    DEFINE_PROP_BIT64("param_change", VHostSCSICommon, host_features,
+                                                       VIRTIO_SCSI_F_CHANGE,
+                                                       true),
+    DEFINE_PROP_BIT64("t10_pi", VHostSCSICommon, host_features,
+                                                 VIRTIO_SCSI_F_T10_PI,
+                                                 false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -187,7 +179,7 @@ static void vhost_user_scsi_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->realize = vhost_user_scsi_realize;
     vdc->unrealize = vhost_user_scsi_unrealize;
-    vdc->get_features = vhost_user_scsi_get_features;
+    vdc->get_features = vhost_scsi_common_get_features;
     vdc->set_config = vhost_scsi_common_set_config;
     vdc->set_status = vhost_user_scsi_set_status;
     fwc->get_dev_path = vhost_scsi_common_get_fw_dev_path;

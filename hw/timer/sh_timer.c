@@ -74,6 +74,7 @@ static uint32_t sh_timer_read(void *opaque, hwaddr offset)
     case OFFSET_TCPR:
         if (s->feat & TIMER_FEAT_CAPT)
             return s->tcpr;
+        /* fall through */
     default:
         hw_error("sh_timer_read: Bad offset %x\n", (int)offset);
         return 0;

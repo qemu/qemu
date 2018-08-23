@@ -79,7 +79,8 @@ typedef struct PCDIMMDeviceClass {
                                                Error **errp);
 } PCDIMMDeviceClass;
 
-void pc_dimm_plug(DeviceState *dev, MachineState *machine, uint64_t align,
-                  Error **errp);
+void pc_dimm_pre_plug(DeviceState *dev, MachineState *machine,
+                      const uint64_t *legacy_align, Error **errp);
+void pc_dimm_plug(DeviceState *dev, MachineState *machine, Error **errp);
 void pc_dimm_unplug(DeviceState *dev, MachineState *machine);
 #endif

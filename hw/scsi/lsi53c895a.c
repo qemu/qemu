@@ -959,6 +959,10 @@ static void lsi_do_msgout(LSIState *s)
                 DPRINTF("WDTR (ignored)\n");
                 lsi_skip_msgbytes(s, 1);
                 break;
+            case 4:
+                DPRINTF("PPR (ignored)\n");
+                lsi_skip_msgbytes(s, 5);
+                break;
             default:
                 goto bad;
             }

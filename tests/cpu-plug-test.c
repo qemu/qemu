@@ -257,11 +257,11 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qtest_cb_for_every_machine(add_pc_test_case);
+        qtest_cb_for_every_machine(add_pc_test_case, g_test_quick());
     } else if (g_str_equal(arch, "ppc64")) {
-        qtest_cb_for_every_machine(add_pseries_test_case);
+        qtest_cb_for_every_machine(add_pseries_test_case, g_test_quick());
     } else if (g_str_equal(arch, "s390x")) {
-        qtest_cb_for_every_machine(add_s390x_test_case);
+        qtest_cb_for_every_machine(add_s390x_test_case, g_test_quick());
     }
 
     return g_test_run();

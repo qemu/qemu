@@ -741,10 +741,15 @@ static void complete (SB16State *s)
             ldebug ("set time const %d\n", s->time_const);
             break;
 
-        case 0x42:              /* FT2 sets output freq with this, go figure */
-            qemu_log_mask(LOG_UNIMP, "cmd 0x42 might not do what it think it"
-                          " should\n");
         case 0x41:
+        case 0x42:
+            /*
+             * 0x41 is documented as setting the output sample rate,
+             * and 0x42 the input sample rate, but in fact SB16 hardware
+             * seems to have only a single sample rate under the hood,
+             * and FT2 sets output freq with this (go figure).  Compare:
+             * http://homepages.cae.wisc.edu/~brodskye/sb16doc/sb16doc.html#SamplingRate
+             */
             s->freq = dsp_get_hilo (s);
             ldebug ("set freq %d\n", s->freq);
             break;

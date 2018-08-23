@@ -165,7 +165,9 @@ EOF
 
 rm -rf "$output/include/standard-headers/linux"
 mkdir -p "$output/include/standard-headers/linux"
-for i in "$tmpdir"/include/linux/*virtio*.h "$tmpdir/include/linux/input.h" \
+for i in "$tmpdir"/include/linux/*virtio*.h \
+         "$tmpdir/include/linux/qemu_fw_cfg.h" \
+         "$tmpdir/include/linux/input.h" \
          "$tmpdir/include/linux/input-event-codes.h" \
          "$tmpdir/include/linux/pci_regs.h" \
          "$tmpdir/include/linux/ethtool.h" "$tmpdir/include/linux/kernel.h" \

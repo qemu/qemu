@@ -29,57 +29,60 @@
 
 static int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp);
 
-void pc_dimm_plug(DeviceState *dev, MachineState *machine, uint64_t align,
-                  Error **errp)
+void pc_dimm_pre_plug(DeviceState *dev, MachineState *machine,
+                      const uint64_t *legacy_align, Error **errp)
 {
-    int slot;
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
-    MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm,
-                                                              &error_abort);
-    MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
     Error *local_err = NULL;
-    uint64_t addr;
+    MemoryRegion *mr;
+    uint64_t addr, align;
+    int slot;
 
-    addr = object_property_get_uint(OBJECT(dimm),
-                                    PC_DIMM_ADDR_PROP, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    addr = memory_device_get_free_addr(machine, !addr ? NULL : &addr, align,
-                                       memory_region_size(mr), &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    object_property_set_uint(OBJECT(dev), addr, PC_DIMM_ADDR_PROP, &local_err);
-    if (local_err) {
-        goto out;
-    }
-    trace_mhp_pc_dimm_assigned_address(addr);
-
-    slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
+    slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
+                                   &error_abort);
     slot = pc_dimm_get_free_slot(slot == PC_DIMM_UNASSIGNED_SLOT ? NULL : &slot,
                                  machine->ram_slots, &local_err);
     if (local_err) {
         goto out;
     }
-    object_property_set_int(OBJECT(dev), slot, PC_DIMM_SLOT_PROP, &local_err);
+    object_property_set_int(OBJECT(dev), slot, PC_DIMM_SLOT_PROP, &error_abort);
+    trace_mhp_pc_dimm_assigned_slot(slot);
+
+    mr = ddc->get_memory_region(dimm, &local_err);
     if (local_err) {
         goto out;
     }
-    trace_mhp_pc_dimm_assigned_slot(slot);
+
+    align = legacy_align ? *legacy_align : memory_region_get_alignment(mr);
+    addr = object_property_get_uint(OBJECT(dev), PC_DIMM_ADDR_PROP,
+                                    &error_abort);
+    addr = memory_device_get_free_addr(machine, !addr ? NULL : &addr, align,
+                                       memory_region_size(mr), &local_err);
+    if (local_err) {
+        goto out;
+    }
+    trace_mhp_pc_dimm_assigned_address(addr);
+    object_property_set_uint(OBJECT(dev), addr, PC_DIMM_ADDR_PROP,
+                             &error_abort);
+out:
+    error_propagate(errp, local_err);
+}
+
+void pc_dimm_plug(DeviceState *dev, MachineState *machine, Error **errp)
+{
+    PCDIMMDevice *dimm = PC_DIMM(dev);
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm,
+                                                              &error_abort);
+    MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
+    uint64_t addr;
+
+    addr = object_property_get_uint(OBJECT(dev), PC_DIMM_ADDR_PROP,
+                                    &error_abort);
 
     memory_device_plug_region(machine, mr, addr);
     vmstate_register_ram(vmstate_mr, dev);
-
-out:
-    error_propagate(errp, local_err);
 }
 
 void pc_dimm_unplug(DeviceState *dev, MachineState *machine)

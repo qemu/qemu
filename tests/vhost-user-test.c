@@ -768,7 +768,6 @@ static void wait_for_rings_started(TestServer *s, size_t count)
     g_mutex_unlock(&s->data_mutex);
 }
 
-#if defined(CONFIG_HAS_GLIB_SUBPROCESS_TESTS)
 static inline void test_server_connect(TestServer *server)
 {
     test_server_create_chr(server, ",reconnect=1");
@@ -893,7 +892,6 @@ static void test_flags_mismatch(void)
     g_free(path);
 }
 
-#endif
 
 static void test_multiqueue(void)
 {
@@ -975,7 +973,6 @@ int main(int argc, char **argv)
     qtest_add_func("/vhost-user/migrate", test_migrate);
     qtest_add_func("/vhost-user/multiqueue", test_multiqueue);
 
-#if defined(CONFIG_HAS_GLIB_SUBPROCESS_TESTS)
     /* keeps failing on build-system since Aug 15 2017 */
     if (getenv("QTEST_VHOST_USER_FIXME")) {
         qtest_add_func("/vhost-user/reconnect/subprocess",
@@ -988,7 +985,6 @@ int main(int argc, char **argv)
                        test_flags_mismatch_subprocess);
         qtest_add_func("/vhost-user/flags-mismatch", test_flags_mismatch);
     }
-#endif
 
     ret = g_test_run();
 

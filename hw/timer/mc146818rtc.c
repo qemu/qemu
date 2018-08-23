@@ -120,7 +120,7 @@ static void rtc_coalesced_timer_update(RTCState *s)
         timer_del(s->coalesced_timer);
     } else {
         /* divide each RTC interval to 2 - 8 smaller intervals */
-        int c = MIN(s->irq_coalesced, 7) + 1; 
+        int c = MIN(s->irq_coalesced, 7) + 1;
         int64_t next_clock = qemu_clock_get_ns(rtc_clock) +
             periodic_clock_to_ns(s->period / c);
         timer_mod(s->coalesced_timer, next_clock);
@@ -485,7 +485,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
             s->cmos_data[s->cmos_index] = data;
             check_update_timer(s);
             break;
-	case RTC_IBM_PS2_CENTURY_BYTE:
+        case RTC_IBM_PS2_CENTURY_BYTE:
             s->cmos_index = RTC_CENTURY;
             /* fall through */
         case RTC_CENTURY:
@@ -713,7 +713,7 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
         return 0xff;
     } else {
         switch(s->cmos_index) {
-	case RTC_IBM_PS2_CENTURY_BYTE:
+        case RTC_IBM_PS2_CENTURY_BYTE:
             s->cmos_index = RTC_CENTURY;
             /* fall through */
         case RTC_CENTURY:
@@ -915,7 +915,7 @@ static void rtc_reset(void *opaque)
 
     if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
         s->irq_coalesced = 0;
-        s->irq_reinject_on_ack_count = 0;		
+        s->irq_reinject_on_ack_count = 0;
     }
 }
 
@@ -995,9 +995,6 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
 
     object_property_add_tm(OBJECT(s), "date", rtc_get_date, NULL);
 
-    object_property_add_alias(qdev_get_machine(), "rtc-time",
-                              OBJECT(s), "date", NULL);
-
     qdev_init_gpio_out(dev, &s->irq, 1);
 }
 
@@ -1018,6 +1015,9 @@ ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
         isa_connect_gpio_out(isadev, 0, RTC_ISA_IRQ);
     }
     QLIST_INSERT_HEAD(&rtc_devices, s, link);
+
+    object_property_add_alias(qdev_get_machine(), "rtc-time", OBJECT(s),
+                              "date", NULL);
 
     return isadev;
 }
@@ -1052,17 +1052,11 @@ static void rtc_class_initfn(ObjectClass *klass, void *data)
     dc->user_creatable = false;
 }
 
-static void rtc_finalize(Object *obj)
-{
-    object_property_del(qdev_get_machine(), "rtc", NULL);
-}
-
 static const TypeInfo mc146818rtc_info = {
     .name          = TYPE_MC146818_RTC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(RTCState),
     .class_init    = rtc_class_initfn,
-    .instance_finalize = rtc_finalize,
 };
 
 static void mc146818rtc_register_types(void)

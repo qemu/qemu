@@ -35,7 +35,6 @@ static QObject *qom_get(const char *path, const char *prop)
     return ret;
 }
 
-#ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
 static bool qom_get_bool(const char *path, const char *prop)
 {
     QBool *value = qobject_to(QBool, qom_get(path, prop));
@@ -44,7 +43,6 @@ static bool qom_get_bool(const char *path, const char *prop)
     qobject_unref(value);
     return b;
 }
-#endif
 
 typedef struct CpuidTestArgs {
     const char *cmdline;
@@ -168,7 +166,6 @@ static FeatureTestArgs *add_feature_test(const char *name, const char *cmdline,
     return args;
 }
 
-#ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
 static void test_plus_minus_subprocess(void)
 {
     char *path;
@@ -210,17 +207,14 @@ static void test_plus_minus(void)
                               "Don't mix both \"+cx8\" and \"cx8=off\"*");
     g_test_trap_assert_stdout("");
 }
-#endif
 
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
-#ifdef CONFIG_HAS_GLIB_SUBPROCESS_TESTS
     g_test_add_func("/x86/cpuid/parsing-plus-minus/subprocess",
                     test_plus_minus_subprocess);
     g_test_add_func("/x86/cpuid/parsing-plus-minus", test_plus_minus);
-#endif
 
     /* Original level values for CPU models: */
     add_cpuid_test("x86/cpuid/phenom/level",
