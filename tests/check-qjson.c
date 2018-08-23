@@ -1236,7 +1236,7 @@ static void simple_whitespace(void)
                     })),
         },
         {
-            .encoded = " [ 43 , { 'h' : 'b' }, [ ], 42 ]",
+            .encoded = "\t[ 43 , { 'h' : 'b' },\r\n\t[ ], 42 ]\n",
             .decoded = QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(43),
                         QLIT_QDICT(((QLitDictEntry[]){
