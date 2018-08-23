@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qapi/error.h"
 #include "qapi/qmp/json-lexer.h"
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/json-streamer.h"
@@ -57,6 +58,7 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
         parser->bracket_count--;
         break;
     case JSON_ERROR:
+        error_setg(&err, "JSON parse error, stray '%s'", input->str);
         goto out_emit;
     default:
         break;
@@ -82,12 +84,20 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
         goto out_emit;
     }
 
-    if (parser->token_size > MAX_TOKEN_SIZE ||
-               g_queue_get_length(parser->tokens) > MAX_TOKEN_COUNT ||
-               parser->bracket_count + parser->brace_count > MAX_NESTING) {
-        /* Security consideration, we limit total memory allocated per object
-         * and the maximum recursion depth that a message can force.
-         */
+    /*
+     * Security consideration, we limit total memory allocated per object
+     * and the maximum recursion depth that a message can force.
+     */
+    if (parser->token_size > MAX_TOKEN_SIZE) {
+        error_setg(&err, "JSON token size limit exceeded");
+        goto out_emit;
+    }
+    if (g_queue_get_length(parser->tokens) > MAX_TOKEN_COUNT) {
+        error_setg(&err, "JSON token count limit exceeded");
+        goto out_emit;
+    }
+    if (parser->bracket_count + parser->brace_count > MAX_NESTING) {
+        error_setg(&err, "JSON nesting depth limit exceeded");
         goto out_emit;
     }
 

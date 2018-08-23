@@ -4262,10 +4262,7 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
     QDict *qdict;
     QMPRequest *req_obj;
 
-    if (!req && !err) {
-        /* json_parser_parse() sucks: can fail without setting @err */
-        error_setg(&err, QERR_JSON_PARSING);
-    }
+    assert(!req != !err);
 
     qdict = qobject_to(QDict, req);
     if (qdict) {

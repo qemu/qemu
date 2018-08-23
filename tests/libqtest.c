@@ -450,8 +450,11 @@ static void qmp_response(void *opaque, QObject *obj, Error *err)
 {
     QMPResponseParser *qmp = opaque;
 
-    if (!obj) {
-        fprintf(stderr, "QMP JSON response parsing failed\n");
+    assert(!obj != !err);
+
+    if (err) {
+        error_prepend(&err, "QMP JSON response parsing failed: ");
+        error_report_err(err);
         abort();
     }
 

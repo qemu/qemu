@@ -1021,6 +1021,7 @@ static void interpolation_unknown(void)
     }
     g_test_trap_subprocess(NULL, 0, 0);
     g_test_trap_assert_failed();
+    g_test_trap_assert_stderr("*Unexpected error*stray '%x'*");
 }
 
 static void interpolation_string(void)
@@ -1296,11 +1297,11 @@ static void junk_input(void)
     QObject *obj;
 
     obj = qobject_from_json("@", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 
     obj = qobject_from_json("{\x01", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 
     obj = qobject_from_json("[0\xFF]", &err);
@@ -1308,11 +1309,11 @@ static void junk_input(void)
     g_assert(obj == NULL);
 
     obj = qobject_from_json("00", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 
     obj = qobject_from_json("[1e", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 
     obj = qobject_from_json("truer", &err);
@@ -1324,7 +1325,7 @@ static void unterminated_string(void)
 {
     Error *err = NULL;
     QObject *obj = qobject_from_json("\"abc", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
@@ -1332,7 +1333,7 @@ static void unterminated_sq_string(void)
 {
     Error *err = NULL;
     QObject *obj = qobject_from_json("'abc", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
@@ -1340,7 +1341,7 @@ static void unterminated_escape(void)
 {
     Error *err = NULL;
     QObject *obj = qobject_from_json("\"abc\\\"", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 

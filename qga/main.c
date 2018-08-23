@@ -603,12 +603,13 @@ static void process_event(void *opaque, QObject *obj, Error *err)
     int ret;
 
     g_debug("process_event: called");
+    assert(!obj != !err);
     if (err) {
         goto err;
     }
     req = qobject_to(QDict, obj);
     if (!req) {
-        error_setg(&err, QERR_JSON_PARSING);
+        error_setg(&err, "Input must be a JSON object");
         goto err;
     }
     if (!qdict_haskey(req, "execute")) {

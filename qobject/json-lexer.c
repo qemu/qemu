@@ -334,8 +334,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             /* XXX: To avoid having previous bad input leaving the parser in an
              * unresponsive state where we consume unpredictable amounts of
              * subsequent "good" input, percolate this error state up to the
-             * tokenizer/parser by forcing a NULL object to be emitted, then
-             * reset state.
+             * parser by emitting a JSON_ERROR token, then reset lexer state.
              *
              * Also note that this handling is required for reliable channel
              * negotiation between QMP and the guest agent, since chr(0xFF)
