@@ -56,6 +56,8 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
     case JSON_RSQUARE:
         parser->bracket_count--;
         break;
+    case JSON_ERROR:
+        goto out_emit;
     default:
         break;
     }
@@ -70,10 +72,6 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
     parser->token_size += input->len;
 
     g_queue_push_tail(parser->tokens, token);
-
-    if (type == JSON_ERROR) {
-        goto out_emit;
-    }
 
     if (parser->brace_count < 0 ||
         parser->bracket_count < 0 ||
