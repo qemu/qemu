@@ -347,6 +347,12 @@ static void char_socket_test_common(Chardev *chr)
     g_assert_cmpint(id, >, 0);
     main_loop();
 
+    d.chr = chr_client;
+    id = g_idle_add(char_socket_test_idle, &d);
+    g_source_set_name_by_id(id, "test-idle");
+    g_assert_cmpint(id, >, 0);
+    main_loop();
+
     g_assert(object_property_get_bool(OBJECT(chr), "connected", &error_abort));
     g_assert(object_property_get_bool(OBJECT(chr_client),
                                       "connected", &error_abort));
@@ -356,6 +362,7 @@ static void char_socket_test_common(Chardev *chr)
 
     object_unparent(OBJECT(chr_client));
 
+    d.chr = chr;
     d.conn_expected = false;
     g_idle_add(char_socket_test_idle, &d);
     main_loop();
