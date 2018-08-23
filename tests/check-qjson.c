@@ -126,59 +126,24 @@ static void escaped_string(void)
     }
 }
 
-static void simple_string(void)
+static void string_with_quotes(void)
 {
-    int i;
-    struct {
-        const char *encoded;
-        const char *decoded;
-    } test_cases[] = {
-        { "\"hello world\"", "hello world" },
-        { "\"the quick brown fox jumped over the fence\"",
-          "the quick brown fox jumped over the fence" },
-        {}
+    const char *test_cases[] = {
+        "\"the bee's knees\"",
+        "'double quote \"'",
+        NULL
     };
-
-    for (i = 0; test_cases[i].encoded; i++) {
-        QObject *obj;
-        QString *str;
-
-        obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        str = qobject_to(QString, obj);
-        g_assert(str);
-        g_assert(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
-
-        str = qobject_to_json(obj);
-        g_assert(strcmp(qstring_get_str(str), test_cases[i].encoded) == 0);
-
-        qobject_unref(obj);
-        
-        qobject_unref(str);
-    }
-}
-
-static void single_quote_string(void)
-{
     int i;
-    struct {
-        const char *encoded;
-        const char *decoded;
-    } test_cases[] = {
-        { "'hello world'", "hello world" },
-        { "'the quick brown fox \\' jumped over the fence'",
-          "the quick brown fox ' jumped over the fence" },
-        {}
-    };
+    QString *str;
+    char *cstr;
 
-    for (i = 0; test_cases[i].encoded; i++) {
-        QObject *obj;
-        QString *str;
-
-        obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        str = qobject_to(QString, obj);
+    for (i = 0; test_cases[i]; i++) {
+        str = qobject_to(QString,
+                         qobject_from_json(test_cases[i], &error_abort));
         g_assert(str);
-        g_assert(strcmp(qstring_get_str(str), test_cases[i].decoded) == 0);
-
+        cstr = g_strndup(test_cases[i] + 1, strlen(test_cases[i]) - 2);
+        g_assert_cmpstr(qstring_get_str(str), ==, cstr);
+        g_free(cstr);
         qobject_unref(str);
     }
 }
@@ -1525,10 +1490,9 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
-    g_test_add_func("/literals/string/simple", simple_string);
     g_test_add_func("/literals/string/escaped", escaped_string);
+    g_test_add_func("/literals/string/quotes", string_with_quotes);
     g_test_add_func("/literals/string/utf8", utf8_string);
-    g_test_add_func("/literals/string/single_quote", single_quote_string);
     g_test_add_func("/literals/string/vararg", vararg_string);
 
     g_test_add_func("/literals/number/simple", simple_number);
