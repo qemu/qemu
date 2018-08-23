@@ -20,9 +20,9 @@ operating system.
 2. Protocol Specification
 =========================
 
-This section details the protocol format. For the purpose of this document
-"Client" is any application which is using QMP to communicate with QEMU and
-"Server" is QEMU itself.
+This section details the protocol format. For the purpose of this
+document, "Server" is either QEMU or the QEMU Guest Agent, and
+"Client" is any application communicating with it via QMP.
 
 JSON data structures, when mentioned in this document, are always in the
 following format:
@@ -34,9 +34,8 @@ by the JSON standard:
 
 http://www.ietf.org/rfc/rfc7159.txt
 
-The protocol is always encoded in UTF-8 except for synchronization
-bytes (documented below); although thanks to json-string escape
-sequences, the server will reply using only the strict ASCII subset.
+The server expects its input to be encoded in UTF-8, and sends its
+output encoded in ASCII.
 
 For convenience, json-object members mentioned in this document will
 be in a certain order. However, in real protocol usage they can be in
@@ -215,16 +214,31 @@ Some events are rate-limited to at most one per second.  If additional
 dropped, and the last one is delayed.  "Similar" normally means same
 event type.  See qmp-events.txt for details.
 
-2.6 QGA Synchronization
+2.6 Forcing the JSON parser into known-good state
+-------------------------------------------------
+
+Incomplete or invalid input can leave the server's JSON parser in a
+state where it can't parse additional commands.  To get it back into
+known-good state, the client should provoke a lexical error.
+
+The cleanest way to do that is sending an ASCII control character
+other than '\t' (horizontal tab), '\r' (carriage return), or '\n' (new
+line).
+
+Sadly, older versions of QEMU can fail to flag this as an error.  If a
+client needs to deal with them, it should send a 0xFF byte.
+
+2.7 QGA Synchronization
 -----------------------
 
-When using QGA, an additional synchronization feature is built into
-the protocol.  If the Client sends a raw 0xFF sentinel byte (not valid
-JSON), then the Server will reset its state and discard all pending
-data prior to the sentinel.  Conversely, if the Client makes use of
-the 'guest-sync-delimited' command, the Server will send a raw 0xFF
-sentinel byte prior to its response, to aid the Client in discarding
-any data prior to the sentinel.
+When a client connects to QGA over a transport lacking proper
+connection semantics such as virtio-serial, QGA may have read partial
+input from a previous client.  The client needs to force QGA's parser
+into known-good state using the previous section's technique.
+Moreover, the client may receive output a previous client didn't read.
+To help with skipping that output, QGA provides the
+'guest-sync-delimited' command.  Refer to its documentation for
+details.
 
 
 3. QMP Examples
