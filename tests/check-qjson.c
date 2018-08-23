@@ -22,55 +22,73 @@
 #include "qapi/qmp/qstring.h"
 #include "qemu-common.h"
 
+static QString *from_json_str(const char *jstr, bool single, Error **errp)
+{
+    char quote = single ? '\'' : '"';
+    char *qjstr = g_strdup_printf("%c%s%c", quote, jstr, quote);
+    QString *ret = qobject_to(QString, qobject_from_json(qjstr, errp));
+
+    g_free(qjstr);
+    return ret;
+}
+
+static char *to_json_str(QString *str)
+{
+    QString *json = qobject_to_json(QOBJECT(str));
+    char *jstr;
+
+    if (!json) {
+        return NULL;
+    }
+    /* peel off double quotes */
+    jstr = g_strndup(qstring_get_str(json) + 1,
+                     qstring_get_length(json) - 2);
+    qobject_unref(json);
+    return jstr;
+}
+
 static void escaped_string(void)
 {
-    int i;
     struct {
-        const char *encoded;
-        const char *decoded;
+        /* Content of JSON string to parse with qobject_from_json() */
+        const char *json_in;
+        /* Expected parse output; to unparse with qobject_to_json() */
+        const char *utf8_out;
         int skip;
     } test_cases[] = {
-        { "\"\\b\"", "\b" },
-        { "\"\\f\"", "\f" },
-        { "\"\\n\"", "\n" },
-        { "\"\\r\"", "\r" },
-        { "\"\\t\"", "\t" },
-        { "\"/\"", "/" },
-        { "\"\\/\"", "/", .skip = 1 },
-        { "\"\\\\\"", "\\" },
-        { "\"\\\"\"", "\"" },
-        { "\"hello world \\\"embedded string\\\"\"",
+        { "\\b", "\b" },
+        { "\\f", "\f" },
+        { "\\n", "\n" },
+        { "\\r", "\r" },
+        { "\\t", "\t" },
+        { "/", "/" },
+        { "\\/", "/", .skip = 1 },
+        { "\\\\", "\\" },
+        { "\\\"", "\"" },
+        { "hello world \\\"embedded string\\\"",
           "hello world \"embedded string\"" },
-        { "\"hello world\\nwith new line\"", "hello world\nwith new line" },
-        { "\"single byte utf-8 \\u0020\"", "single byte utf-8  ", .skip = 1 },
-        { "\"double byte utf-8 \\u00A2\"", "double byte utf-8 \xc2\xa2" },
-        { "\"triple byte utf-8 \\u20AC\"", "triple byte utf-8 \xe2\x82\xac" },
-        { "'\\b'", "\b", .skip = 1 },
-        { "'\\f'", "\f", .skip = 1 },
-        { "'\\n'", "\n", .skip = 1 },
-        { "'\\r'", "\r", .skip = 1 },
-        { "'\\t'", "\t", .skip = 1 },
-        { "'\\/'", "/", .skip = 1 },
-        { "'\\\\'", "\\", .skip = 1 },
+        { "hello world\\nwith new line", "hello world\nwith new line" },
+        { "single byte utf-8 \\u0020", "single byte utf-8  ", .skip = 1 },
+        { "double byte utf-8 \\u00A2", "double byte utf-8 \xc2\xa2" },
+        { "triple byte utf-8 \\u20AC", "triple byte utf-8 \xe2\x82\xac" },
         {}
     };
+    int i, j;
+    QString *cstr;
+    char *jstr;
 
-    for (i = 0; test_cases[i].encoded; i++) {
-        QObject *obj;
-        QString *str;
-
-        obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        str = qobject_to(QString, obj);
-        g_assert(str);
-        g_assert_cmpstr(qstring_get_str(str), ==, test_cases[i].decoded);
-
-        if (test_cases[i].skip == 0) {
-            str = qobject_to_json(obj);
-            g_assert_cmpstr(qstring_get_str(str), ==, test_cases[i].encoded);
-            qobject_unref(obj);
+    for (i = 0; test_cases[i].json_in; i++) {
+        for (j = 0; j < 2; j++) {
+            cstr = from_json_str(test_cases[i].json_in, j, &error_abort);
+            g_assert_cmpstr(qstring_get_try_str(cstr),
+                            ==, test_cases[i].utf8_out);
+            if (test_cases[i].skip == 0) {
+                jstr = to_json_str(cstr);
+                g_assert_cmpstr(jstr, ==, test_cases[i].json_in);
+                g_free(jstr);
+            }
+            qobject_unref(cstr);
         }
-
-        qobject_unref(str);
     }
 }
 
