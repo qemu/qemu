@@ -226,14 +226,12 @@ out:
 static JSONToken *parser_context_pop_token(JSONParserContext *ctxt)
 {
     g_free(ctxt->current);
-    assert(!g_queue_is_empty(ctxt->buf));
     ctxt->current = g_queue_pop_head(ctxt->buf);
     return ctxt->current;
 }
 
 static JSONToken *parser_context_peek_token(JSONParserContext *ctxt)
 {
-    assert(!g_queue_is_empty(ctxt->buf));
     return g_queue_peek_head(ctxt->buf);
 }
 
