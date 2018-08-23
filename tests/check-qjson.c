@@ -192,6 +192,26 @@ static void utf8_string(void)
          *   We may choose to define this as feature
          */
 
+        /* 0  Control characters */
+        {
+            /*
+             * Note: \x00 is impossible, other representations of
+             * U+0000 are covered under 4.3
+             */
+            "\x01\x02\x03\x04\x05\x06\x07"
+            "\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
+            "\x10\x11\x12\x13\x14\x15\x16\x17"
+            "\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F",
+            /* bug: not corrected (valid UTF-8, but invalid JSON) */
+            "\x01\x02\x03\x04\x05\x06\x07"
+            "\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
+            "\x10\x11\x12\x13\x14\x15\x16\x17"
+            "\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F",
+            "\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007"
+            "\\b\\t\\n\\u000B\\f\\r\\u000E\\u000F"
+            "\\u0010\\u0011\\u0012\\u0013\\u0014\\u0015\\u0016\\u0017"
+            "\\u0018\\u0019\\u001A\\u001B\\u001C\\u001D\\u001E\\u001F",
+        },
         /* 1  Some correct UTF-8 text */
         {
             /* a bit of German */
@@ -211,14 +231,14 @@ static void utf8_string(void)
         /* 2  Boundary condition test cases */
         /* 2.1  First possible sequence of a certain length */
         /*
-         * 2.1.1  1 byte U+0001
-         * \x00 is impossible, test \x01 instead.  Other
-         * representations of U+0000 are covered under 4.3.
+         * 2.1.1 1 byte U+0020
+         * Control characters are already covered by their own test
+         * case under 0.  Test the first 1 byte non-control character
+         * here.
          */
         {
-            "\x01",
-            "\x01",
-            "\\u0001",
+            " ",
+            " ",
         },
         /* 2.1.2  2 bytes U+0080 */
         {
@@ -1330,6 +1350,10 @@ static void junk_input(void)
     QObject *obj;
 
     obj = qobject_from_json("@", &err);
+    g_assert(!err);             /* BUG */
+    g_assert(obj == NULL);
+
+    obj = qobject_from_json("{\x01", &err);
     g_assert(!err);             /* BUG */
     g_assert(obj == NULL);
 

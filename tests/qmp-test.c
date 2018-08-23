@@ -71,10 +71,24 @@ static void test_malformed(QTestState *qts)
     qobject_unref(resp);
     g_assert(recovered(qts));
 
+    /* lexical error: funny control character outside string */
+    qtest_qmp_send_raw(qts, "{\x01");
+    resp = qtest_qmp_receive(qts);
+    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
+    qobject_unref(resp);
+    g_assert(recovered(qts));
+
     /* lexical error: impossible byte in string */
     qtest_qmp_send_raw(qts, "{'bad \xFF");
     resp = qtest_qmp_receive(qts);
     g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
+    qobject_unref(resp);
+    g_assert(recovered(qts));
+
+    /* lexical error: control character in string */
+    qtest_qmp_send_raw(qts, "{'execute': 'nonexistent', 'id':'\n'}");
+    resp = qtest_qmp_receive(qts);
+    g_assert_cmpstr(get_error_class(resp), ==, "CommandNotFound"); /* BUG */
     qobject_unref(resp);
     g_assert(recovered(qts));
 
