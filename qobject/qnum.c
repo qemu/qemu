@@ -14,7 +14,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/qmp/qnum.h"
-#include "qemu-common.h"
 
 /**
  * qnum_from_int(): Create a new QNum from an int64_t

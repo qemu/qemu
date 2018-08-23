@@ -14,7 +14,6 @@
 #ifndef QEMU_JSON_PARSER_H
 #define QEMU_JSON_PARSER_H
 
-#include "qemu-common.h"
 #include "qapi/qmp/json-lexer.h"
 
 typedef struct JSONToken JSONToken;
