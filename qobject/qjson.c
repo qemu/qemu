@@ -70,6 +70,10 @@ static QObject *qobject_from_jsonv(const char *string, va_list *ap,
     json_message_parser_flush(&state.parser);
     json_message_parser_destroy(&state.parser);
 
+    if (!state.result && !state.err) {
+        error_setg(&state.err, "Expecting a JSON value");
+    }
+
     error_propagate(errp, state.err);
     return state.result;
 }

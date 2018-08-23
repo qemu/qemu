@@ -1291,13 +1291,21 @@ static void simple_interpolation(void)
 
 static void empty_input(void)
 {
-    QObject *obj = qobject_from_json("", &error_abort);
+    Error *err = NULL;
+    QObject *obj;
+
+    obj = qobject_from_json("", &err);
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
 static void blank_input(void)
 {
-    QObject *obj = qobject_from_json("\n ", &error_abort);
+    Error *err = NULL;
+    QObject *obj;
+
+    obj = qobject_from_json("\n ", &err);
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
