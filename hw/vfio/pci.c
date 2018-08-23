@@ -2879,7 +2879,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     tmp = g_strdup_printf("%s/subsystem", vdev->vbasedev.sysfsdev);
     subsys = realpath(tmp, NULL);
     g_free(tmp);
-    is_mdev = (strcmp(subsys, "/sys/bus/mdev") == 0);
+    is_mdev = subsys && (strcmp(subsys, "/sys/bus/mdev") == 0);
     free(subsys);
 
     trace_vfio_mdev(vdev->vbasedev.name, is_mdev);
