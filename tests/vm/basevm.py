@@ -176,7 +176,7 @@ class BaseVM(object):
             raise Exception("Cannot find ssh port from 'info usernet':\n%s" % \
                             usernet_info)
 
-    def wait_ssh(self, seconds=120):
+    def wait_ssh(self, seconds=300):
         starttime = datetime.datetime.now()
         guest_up = False
         while (datetime.datetime.now() - starttime).total_seconds() < seconds:
