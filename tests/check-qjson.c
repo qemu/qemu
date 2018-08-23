@@ -56,18 +56,8 @@ static void escaped_string(void)
         const char *utf8_out;
         int skip;
     } test_cases[] = {
-        { "\\b", "\b" },
-        { "\\f", "\f" },
-        { "\\n", "\n" },
-        { "\\r", "\r" },
-        { "\\t", "\t" },
-        { "/", "/" },
+        { "\\b\\f\\n\\r\\t\\\\\\\"", "\b\f\n\r\t\\\"" },
         { "\\/", "/", .skip = 1 },
-        { "\\\\", "\\" },
-        { "\\\"", "\"" },
-        { "hello world \\\"embedded string\\\"",
-          "hello world \"embedded string\"" },
-        { "hello world\\nwith new line", "hello world\nwith new line" },
         { "single byte utf-8 \\u0020", "single byte utf-8  ", .skip = 1 },
         { "double byte utf-8 \\u00A2", "double byte utf-8 \xc2\xa2" },
         { "triple byte utf-8 \\u20AC", "triple byte utf-8 \xe2\x82\xac" },
