@@ -108,13 +108,13 @@ enum json_lexer_state {
     IN_SQ_STRING_ESCAPE,
     IN_SQ_STRING,
     IN_ZERO,
-    IN_DIGITS,
-    IN_DIGIT,
+    IN_EXP_DIGITS,
+    IN_EXP_SIGN,
     IN_EXP_E,
     IN_MANTISSA,
     IN_MANTISSA_DIGITS,
-    IN_NONZERO_NUMBER,
-    IN_NEG_NONZERO_NUMBER,
+    IN_DIGITS,
+    IN_SIGN,
     IN_KEYWORD,
     IN_INTERP,
     IN_WHITESPACE,
@@ -164,19 +164,19 @@ static const uint8_t json_lexer[][256] =  {
     },
 
     /* Float */
-    [IN_DIGITS] = {
+    [IN_EXP_DIGITS] = {
         TERMINAL(JSON_FLOAT),
-        ['0' ... '9'] = IN_DIGITS,
+        ['0' ... '9'] = IN_EXP_DIGITS,
     },
 
-    [IN_DIGIT] = {
-        ['0' ... '9'] = IN_DIGITS,
+    [IN_EXP_SIGN] = {
+        ['0' ... '9'] = IN_EXP_DIGITS,
     },
 
     [IN_EXP_E] = {
-        ['-'] = IN_DIGIT,
-        ['+'] = IN_DIGIT,
-        ['0' ... '9'] = IN_DIGITS,
+        ['-'] = IN_EXP_SIGN,
+        ['+'] = IN_EXP_SIGN,
+        ['0' ... '9'] = IN_EXP_DIGITS,
     },
 
     [IN_MANTISSA_DIGITS] = {
@@ -191,17 +191,17 @@ static const uint8_t json_lexer[][256] =  {
     },
 
     /* Number */
-    [IN_NONZERO_NUMBER] = {
+    [IN_DIGITS] = {
         TERMINAL(JSON_INTEGER),
-        ['0' ... '9'] = IN_NONZERO_NUMBER,
+        ['0' ... '9'] = IN_DIGITS,
         ['e'] = IN_EXP_E,
         ['E'] = IN_EXP_E,
         ['.'] = IN_MANTISSA,
     },
 
-    [IN_NEG_NONZERO_NUMBER] = {
+    [IN_SIGN] = {
         ['0'] = IN_ZERO,
-        ['1' ... '9'] = IN_NONZERO_NUMBER,
+        ['1' ... '9'] = IN_DIGITS,
     },
 
     /* keywords */
@@ -236,8 +236,8 @@ static const uint8_t json_lexer[][256] =  {
         ['"'] = IN_DQ_STRING,
         ['\''] = IN_SQ_STRING,
         ['0'] = IN_ZERO,
-        ['1' ... '9'] = IN_NONZERO_NUMBER,
-        ['-'] = IN_NEG_NONZERO_NUMBER,
+        ['1' ... '9'] = IN_DIGITS,
+        ['-'] = IN_SIGN,
         ['{'] = JSON_LCURLY,
         ['}'] = JSON_RCURLY,
         ['['] = JSON_LSQUARE,
