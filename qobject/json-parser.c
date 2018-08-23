@@ -237,33 +237,6 @@ static JSONToken *parser_context_peek_token(JSONParserContext *ctxt)
     return g_queue_peek_head(ctxt->buf);
 }
 
-static JSONParserContext *parser_context_new(GQueue *tokens)
-{
-    JSONParserContext *ctxt;
-
-    if (!tokens) {
-        return NULL;
-    }
-
-    ctxt = g_malloc0(sizeof(JSONParserContext));
-    ctxt->buf = tokens;
-
-    return ctxt;
-}
-
-/* to support error propagation, ctxt->err must be freed separately */
-static void parser_context_free(JSONParserContext *ctxt)
-{
-    if (ctxt) {
-        while (!g_queue_is_empty(ctxt->buf)) {
-            parser_context_pop_token(ctxt);
-        }
-        g_free(ctxt->current);
-        g_queue_free(ctxt->buf);
-        g_free(ctxt);
-    }
-}
-
 /**
  * Parsing rules
  */
@@ -575,18 +548,22 @@ QObject *json_parser_parse(GQueue *tokens, va_list *ap)
 
 QObject *json_parser_parse_err(GQueue *tokens, va_list *ap, Error **errp)
 {
-    JSONParserContext *ctxt = parser_context_new(tokens);
+    JSONParserContext ctxt = { .buf = tokens };
     QObject *result;
 
-    if (!ctxt) {
+    if (!tokens) {
         return NULL;
     }
 
-    result = parse_value(ctxt, ap);
+    result = parse_value(&ctxt, ap);
 
-    error_propagate(errp, ctxt->err);
+    error_propagate(errp, ctxt.err);
 
-    parser_context_free(ctxt);
+    while (!g_queue_is_empty(ctxt.buf)) {
+        parser_context_pop_token(&ctxt);
+    }
+    g_free(ctxt.current);
+    g_queue_free(ctxt.buf);
 
     return result;
 }
