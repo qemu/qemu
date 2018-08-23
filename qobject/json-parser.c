@@ -64,34 +64,6 @@ static void GCC_FMT_ATTR(3, 4) parse_error(JSONParserContext *ctxt,
     error_setg(&ctxt->err, "JSON parse error, %s", message);
 }
 
-/**
- * String helpers
- *
- * These helpers are used to unescape strings.
- */
-static void wchar_to_utf8(uint16_t wchar, char *buffer, size_t buffer_length)
-{
-    if (wchar <= 0x007F) {
-        BUG_ON(buffer_length < 2);
-
-        buffer[0] = wchar & 0x7F;
-        buffer[1] = 0;
-    } else if (wchar <= 0x07FF) {
-        BUG_ON(buffer_length < 3);
-
-        buffer[0] = 0xC0 | ((wchar >> 6) & 0x1F);
-        buffer[1] = 0x80 | (wchar & 0x3F);
-        buffer[2] = 0;
-    } else {
-        BUG_ON(buffer_length < 4);
-
-        buffer[0] = 0xE0 | ((wchar >> 12) & 0x0F);
-        buffer[1] = 0x80 | ((wchar >> 6) & 0x3F);
-        buffer[2] = 0x80 | (wchar & 0x3F);
-        buffer[3] = 0;
-    }
-}
-
 static int hex2decimal(char ch)
 {
     if (ch >= '0' && ch <= '9') {
@@ -197,7 +169,12 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
                     ptr++;
                 }
 
-                wchar_to_utf8(cp, utf8_buf, sizeof(utf8_buf));
+                if (mod_utf8_encode(utf8_buf, sizeof(utf8_buf), cp) < 0) {
+                    parse_error(ctxt, token,
+                                "\\u%.4s is not a valid Unicode character",
+                                ptr - 3);
+                    goto out;
+                }
                 qstring_append(str, utf8_buf);
                 break;
             default:
