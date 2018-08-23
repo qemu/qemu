@@ -347,6 +347,8 @@ void json_lexer_flush(JSONLexer *lexer)
     if (lexer->state != lexer->start_state) {
         json_lexer_feed_char(lexer, 0, true);
     }
+    json_message_process_token(lexer, lexer->token, JSON_END_OF_INPUT,
+                               lexer->x, lexer->y);
 }
 
 void json_lexer_destroy(JSONLexer *lexer)

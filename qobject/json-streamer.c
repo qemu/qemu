@@ -60,6 +60,13 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
     case JSON_ERROR:
         error_setg(&err, "JSON parse error, stray '%s'", input->str);
         goto out_emit;
+    case JSON_END_OF_INPUT:
+        if (g_queue_is_empty(parser->tokens)) {
+            return;
+        }
+        json = json_parser_parse(parser->tokens, parser->ap, &err);
+        parser->tokens = NULL;
+        goto out_emit;
     default:
         break;
     }
@@ -137,6 +144,7 @@ void json_message_parser_feed(JSONMessageParser *parser,
 void json_message_parser_flush(JSONMessageParser *parser)
 {
     json_lexer_flush(&parser->lexer);
+    assert(g_queue_is_empty(parser->tokens));
 }
 
 void json_message_parser_destroy(JSONMessageParser *parser)

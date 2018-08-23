@@ -1360,7 +1360,7 @@ static void unterminated_array(void)
 {
     Error *err = NULL;
     QObject *obj = qobject_from_json("[32", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
@@ -1368,7 +1368,7 @@ static void unterminated_array_comma(void)
 {
     Error *err = NULL;
     QObject *obj = qobject_from_json("[32,", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
@@ -1384,7 +1384,7 @@ static void unterminated_dict(void)
 {
     Error *err = NULL;
     QObject *obj = qobject_from_json("{'abc':32", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
@@ -1392,7 +1392,7 @@ static void unterminated_dict_comma(void)
 {
     Error *err = NULL;
     QObject *obj = qobject_from_json("{'abc':32,", &err);
-    g_assert(!err);             /* BUG */
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
