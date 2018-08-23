@@ -22,9 +22,7 @@
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
-#include "qapi/qmp/json-parser.h"
-#include "qapi/qmp/json-lexer.h"
-#include "qapi/qmp/json-streamer.h"
+#include "json-parser-int.h"
 
 struct JSONToken {
     JSONTokenType type;

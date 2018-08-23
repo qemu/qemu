@@ -24,7 +24,7 @@
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
-#include "qapi/qmp/json-streamer.h"
+#include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
