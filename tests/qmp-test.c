@@ -1,7 +1,7 @@
 /*
  * QMP protocol test cases
  *
- * Copyright (c) 2017 Red Hat Inc.
+ * Copyright (c) 2017-2018 Red Hat Inc.
  *
  * Authors:
  *  Markus Armbruster <armbru@redhat.com>
@@ -42,9 +42,48 @@ static void test_version(QObject *version)
     visit_free(v);
 }
 
+static bool recovered(QTestState *qts)
+{
+    QDict *resp;
+    bool ret;
+
+    resp = qtest_qmp(qts, "{ 'execute': 'no-such-cmd' }");
+    ret = !strcmp(get_error_class(resp), "CommandNotFound");
+    qobject_unref(resp);
+    return ret;
+}
+
 static void test_malformed(QTestState *qts)
 {
     QDict *resp;
+
+    /* syntax error */
+    qtest_qmp_send_raw(qts, "{]\n");
+    resp = qtest_qmp_receive(qts);
+    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
+    qobject_unref(resp);
+    g_assert(recovered(qts));
+
+    /* lexical error: impossible byte outside string */
+    qtest_qmp_send_raw(qts, "{\xFF");
+    resp = qtest_qmp_receive(qts);
+    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
+    qobject_unref(resp);
+    g_assert(recovered(qts));
+
+    /* lexical error: impossible byte in string */
+    qtest_qmp_send_raw(qts, "{'bad \xFF");
+    resp = qtest_qmp_receive(qts);
+    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
+    qobject_unref(resp);
+    g_assert(recovered(qts));
+
+    /* lexical error: interpolation */
+    qtest_qmp_send_raw(qts, "%%p\n");
+    resp = qtest_qmp_receive(qts);
+    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
+    qobject_unref(resp);
+    g_assert(recovered(qts));
 
     /* Not even a dictionary */
     resp = qtest_qmp(qts, "null");

@@ -604,6 +604,23 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...)
     va_end(ap);
 }
 
+void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
+{
+    bool log = getenv("QTEST_LOG") != NULL;
+    va_list ap;
+    char *str;
+
+    va_start(ap, fmt);
+    str = g_strdup_vprintf(fmt, ap);
+    va_end(ap);
+
+    if (log) {
+        fprintf(stderr, "%s", str);
+    }
+    socket_send(s->qmp_fd, str, strlen(str));
+    g_free(str);
+}
+
 QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
 {
     QDict *response;
