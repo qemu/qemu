@@ -1021,7 +1021,8 @@ static void interpolation_unknown(void)
     }
     g_test_trap_subprocess(NULL, 0, 0);
     g_test_trap_assert_failed();
-    g_test_trap_assert_stderr("*Unexpected error*stray '%x'*");
+    g_test_trap_assert_stderr("*Unexpected error*"
+                              "invalid interpolation '%x'*");
 }
 
 static void interpolation_string(void)

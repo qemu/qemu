@@ -453,6 +453,7 @@ static QObject *parse_interpolation(JSONParserContext *ctxt, va_list *ap)
     } else if (!strcmp(token->str, "%f")) {
         return QOBJECT(qnum_from_double(va_arg(*ap, double)));
     }
+    parse_error(ctxt, token, "invalid interpolation '%s'", token->str);
     return NULL;
 }
 
