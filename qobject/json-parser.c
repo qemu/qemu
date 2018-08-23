@@ -101,8 +101,7 @@ static int hex2decimal(char ch)
     } else if (ch >= 'A' && ch <= 'F') {
         return 10 + (ch - 'A');
     }
-
-    return -1;
+    abort();
 }
 
 /**
@@ -144,7 +143,7 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
     const char *ptr = token->str;
     QString *str;
     char quote;
-    int cp;
+    int cp, i;
     char *end;
     ssize_t len;
     char utf8_buf[5];
@@ -159,51 +158,48 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
             ptr++;
             switch (*ptr++) {
             case '"':
-                qstring_append(str, "\"");
+                qstring_append_chr(str, '"');
                 break;
             case '\'':
-                qstring_append(str, "'");
+                qstring_append_chr(str, '\'');
                 break;
             case '\\':
-                qstring_append(str, "\\");
+                qstring_append_chr(str, '\\');
                 break;
             case '/':
-                qstring_append(str, "/");
+                qstring_append_chr(str, '/');
                 break;
             case 'b':
-                qstring_append(str, "\b");
+                qstring_append_chr(str, '\b');
                 break;
             case 'f':
-                qstring_append(str, "\f");
+                qstring_append_chr(str, '\f');
                 break;
             case 'n':
-                qstring_append(str, "\n");
+                qstring_append_chr(str, '\n');
                 break;
             case 'r':
-                qstring_append(str, "\r");
+                qstring_append_chr(str, '\r');
                 break;
             case 't':
-                qstring_append(str, "\t");
+                qstring_append_chr(str, '\t');
                 break;
-            case 'u': {
-                uint16_t unicode_char = 0;
-                char utf8_char[4];
-                int i = 0;
-
+            case 'u':
+                cp = 0;
                 for (i = 0; i < 4; i++) {
-                    if (qemu_isxdigit(*ptr)) {
-                        unicode_char |= hex2decimal(*ptr) << ((3 - i) * 4);
-                    } else {
+                    if (!qemu_isxdigit(*ptr)) {
                         parse_error(ctxt, token,
                                     "invalid hex escape sequence in string");
                         goto out;
                     }
+                    cp <<= 4;
+                    cp |= hex2decimal(*ptr);
                     ptr++;
                 }
 
-                wchar_to_utf8(unicode_char, utf8_char, sizeof(utf8_char));
-                qstring_append(str, utf8_char);
-            }   break;
+                wchar_to_utf8(cp, utf8_buf, sizeof(utf8_buf));
+                qstring_append(str, utf8_buf);
+                break;
             default:
                 parse_error(ctxt, token, "invalid escape sequence in string");
                 goto out;
