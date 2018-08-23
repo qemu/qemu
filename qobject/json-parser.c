@@ -552,7 +552,6 @@ QObject *json_parser_parse(GQueue *tokens, va_list *ap, Error **errp)
         parser_context_pop_token(&ctxt);
     }
     g_free(ctxt.current);
-    g_queue_free(ctxt.buf);
 
     return result;
 }

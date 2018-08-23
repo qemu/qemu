@@ -22,17 +22,12 @@
 #define MAX_TOKEN_COUNT (2ULL << 20)
 #define MAX_NESTING (1 << 10)
 
-static void json_message_free_token(void *token, void *opaque)
-{
-    g_free(token);
-}
-
 static void json_message_free_tokens(JSONMessageParser *parser)
 {
-    if (parser->tokens) {
-        g_queue_foreach(parser->tokens, json_message_free_token, NULL);
-        g_queue_free(parser->tokens);
-        parser->tokens = NULL;
+    JSONToken *token;
+
+    while ((token = g_queue_pop_head(&parser->tokens))) {
+        g_free(token);
     }
 }
 
@@ -61,11 +56,10 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
         error_setg(&err, "JSON parse error, stray '%s'", input->str);
         goto out_emit;
     case JSON_END_OF_INPUT:
-        if (g_queue_is_empty(parser->tokens)) {
+        if (g_queue_is_empty(&parser->tokens)) {
             return;
         }
-        json = json_parser_parse(parser->tokens, parser->ap, &err);
-        parser->tokens = NULL;
+        json = json_parser_parse(&parser->tokens, parser->ap, &err);
         goto out_emit;
     default:
         break;
@@ -79,7 +73,7 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
         error_setg(&err, "JSON token size limit exceeded");
         goto out_emit;
     }
-    if (g_queue_get_length(parser->tokens) + 1 > MAX_TOKEN_COUNT) {
+    if (g_queue_get_length(&parser->tokens) + 1 > MAX_TOKEN_COUNT) {
         error_setg(&err, "JSON token count limit exceeded");
         goto out_emit;
     }
@@ -97,21 +91,19 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
 
     parser->token_size += input->len;
 
-    g_queue_push_tail(parser->tokens, token);
+    g_queue_push_tail(&parser->tokens, token);
 
     if ((parser->brace_count > 0 || parser->bracket_count > 0)
         && parser->bracket_count >= 0 && parser->bracket_count >= 0) {
         return;
     }
 
-    json = json_parser_parse(parser->tokens, parser->ap, &err);
-    parser->tokens = NULL;
+    json = json_parser_parse(&parser->tokens, parser->ap, &err);
 
 out_emit:
     parser->brace_count = 0;
     parser->bracket_count = 0;
     json_message_free_tokens(parser);
-    parser->tokens = g_queue_new();
     parser->token_size = 0;
     parser->emit(parser->opaque, json, err);
 }
@@ -126,7 +118,7 @@ void json_message_parser_init(JSONMessageParser *parser,
     parser->ap = ap;
     parser->brace_count = 0;
     parser->bracket_count = 0;
-    parser->tokens = g_queue_new();
+    g_queue_init(&parser->tokens);
     parser->token_size = 0;
 
     json_lexer_init(&parser->lexer, !!ap);
@@ -141,7 +133,7 @@ void json_message_parser_feed(JSONMessageParser *parser,
 void json_message_parser_flush(JSONMessageParser *parser)
 {
     json_lexer_flush(&parser->lexer);
-    assert(g_queue_is_empty(parser->tokens));
+    assert(g_queue_is_empty(&parser->tokens));
 }
 
 void json_message_parser_destroy(JSONMessageParser *parser)
