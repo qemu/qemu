@@ -208,10 +208,11 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
             }
             break;
         case '%':
-            if (ctxt->ap) {
+            if (ctxt->ap && ptr[1] != '%') {
                 parse_error(ctxt, token, "can't interpolate into string");
                 goto out;
             }
+            ptr++;
             /* fall through */
         default:
             cp = mod_utf8_codepoint(ptr, 6, &end);

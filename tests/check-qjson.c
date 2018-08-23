@@ -1270,7 +1270,7 @@ static void simple_interpolation(void)
     QObject *obj;
     QLitObject decoded = QLIT_QLIST(((QLitObject[]){
             QLIT_QNUM(1),
-            QLIT_QNUM(2),
+            QLIT_QSTR("100%"),
             QLIT_QLIST(((QLitObject[]){
                         QLIT_QNUM(32),
                         QLIT_QNUM(42),
@@ -1280,7 +1280,7 @@ static void simple_interpolation(void)
     embedded_obj = qobject_from_json("[32, 42]", &error_abort);
     g_assert(embedded_obj != NULL);
 
-    obj = qobject_from_jsonf_nofail("[%d, 2, %p]", 1, embedded_obj);
+    obj = qobject_from_jsonf_nofail("[%d, '100%%', %p]", 1, embedded_obj);
     g_assert(qlit_equal_qobject(&decoded, obj));
 
     qobject_unref(obj);
