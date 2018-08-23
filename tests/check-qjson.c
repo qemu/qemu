@@ -1037,16 +1037,13 @@ static void interpolation_unknown(void)
 
 static void interpolation_string(void)
 {
-    QLitObject decoded = QLIT_QLIST(((QLitObject[]){
-            QLIT_QSTR("%s"),
-            QLIT_QSTR("eins"),
-            {}}));
-    QObject *qobj;
-
-    /* Dangerous misfeature: % is silently ignored in strings */
-    qobj = qobject_from_jsonf_nofail("['%s', %s]", "eins", "zwei");
-    g_assert(qlit_equal_qobject(&decoded, qobj));
-    qobject_unref(qobj);
+    if (g_test_subprocess()) {
+        qobject_from_jsonf_nofail("['%s', %s]", "eins", "zwei");
+    }
+    g_test_trap_subprocess(NULL, 0, 0);
+    g_test_trap_assert_failed();
+    g_test_trap_assert_stderr("*Unexpected error*"
+                              "can't interpolate into string*");
 }
 
 static void simple_dict(void)

@@ -144,7 +144,8 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
 
     while (*ptr != quote) {
         assert(*ptr);
-        if (*ptr == '\\') {
+        switch (*ptr) {
+        case '\\':
             beg = ptr++;
             switch (*ptr++) {
             case '"':
@@ -205,7 +206,14 @@ static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
                 parse_error(ctxt, token, "invalid escape sequence in string");
                 goto out;
             }
-        } else {
+            break;
+        case '%':
+            if (ctxt->ap) {
+                parse_error(ctxt, token, "can't interpolate into string");
+                goto out;
+            }
+            /* fall through */
+        default:
             cp = mod_utf8_codepoint(ptr, 6, &end);
             if (cp < 0) {
                 parse_error(ctxt, token, "invalid UTF-8 sequence in string");
