@@ -76,7 +76,7 @@ QEMU_BUILD_BUG_ON((int)JSON_MIN <= (int)IN_START);
    from OLD_STATE required lookahead.  This happens whenever the table
    below uses the TERMINAL macro.  */
 #define TERMINAL_NEEDED_LOOKAHEAD(old_state, terminal) \
-            (json_lexer[(old_state)][0] == (terminal))
+    (terminal != IN_ERROR && json_lexer[(old_state)][0] == (terminal))
 
 static const uint8_t json_lexer[][256] =  {
     /* Relies on default initialization to IN_ERROR! */
@@ -304,7 +304,7 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         assert(lexer->state <= ARRAY_SIZE(json_lexer));
         new_state = json_lexer[lexer->state][(uint8_t)ch];
         char_consumed = !TERMINAL_NEEDED_LOOKAHEAD(lexer->state, new_state);
-        if (char_consumed) {
+        if (char_consumed && !flush) {
             g_string_append_c(lexer->token, ch);
         }
 
