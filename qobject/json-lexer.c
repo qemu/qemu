@@ -80,6 +80,8 @@
  *    escape = %x5C              ; \
  *    quotation-mark = %x22      ; "
  *    unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
+ *    [This lexer accepts any non-control character after escape, and
+ *    leaves rejecting invalid ones to the parser.]
  *
  *
  * Extensions over RFC 8259:
@@ -99,16 +101,8 @@
 
 enum json_lexer_state {
     IN_ERROR = 0,               /* must really be 0, see json_lexer[] */
-    IN_DQ_UCODE3,
-    IN_DQ_UCODE2,
-    IN_DQ_UCODE1,
-    IN_DQ_UCODE0,
     IN_DQ_STRING_ESCAPE,
     IN_DQ_STRING,
-    IN_SQ_UCODE3,
-    IN_SQ_UCODE2,
-    IN_SQ_UCODE1,
-    IN_SQ_UCODE0,
     IN_SQ_STRING_ESCAPE,
     IN_SQ_STRING,
     IN_ZERO,
@@ -144,37 +138,8 @@ static const uint8_t json_lexer[][256] =  {
     /* Relies on default initialization to IN_ERROR! */
 
     /* double quote string */
-    [IN_DQ_UCODE3] = {
-        ['0' ... '9'] = IN_DQ_STRING,
-        ['a' ... 'f'] = IN_DQ_STRING,
-        ['A' ... 'F'] = IN_DQ_STRING,
-    },
-    [IN_DQ_UCODE2] = {
-        ['0' ... '9'] = IN_DQ_UCODE3,
-        ['a' ... 'f'] = IN_DQ_UCODE3,
-        ['A' ... 'F'] = IN_DQ_UCODE3,
-    },
-    [IN_DQ_UCODE1] = {
-        ['0' ... '9'] = IN_DQ_UCODE2,
-        ['a' ... 'f'] = IN_DQ_UCODE2,
-        ['A' ... 'F'] = IN_DQ_UCODE2,
-    },
-    [IN_DQ_UCODE0] = {
-        ['0' ... '9'] = IN_DQ_UCODE1,
-        ['a' ... 'f'] = IN_DQ_UCODE1,
-        ['A' ... 'F'] = IN_DQ_UCODE1,
-    },
     [IN_DQ_STRING_ESCAPE] = {
-        ['b'] = IN_DQ_STRING,
-        ['f'] =  IN_DQ_STRING,
-        ['n'] =  IN_DQ_STRING,
-        ['r'] =  IN_DQ_STRING,
-        ['t'] =  IN_DQ_STRING,
-        ['/'] = IN_DQ_STRING,
-        ['\\'] = IN_DQ_STRING,
-        ['\''] = IN_DQ_STRING,
-        ['\"'] = IN_DQ_STRING,
-        ['u'] = IN_DQ_UCODE0,
+        [0x20 ... 0xFD] = IN_DQ_STRING,
     },
     [IN_DQ_STRING] = {
         [0x20 ... 0xFD] = IN_DQ_STRING,
@@ -183,37 +148,8 @@ static const uint8_t json_lexer[][256] =  {
     },
 
     /* single quote string */
-    [IN_SQ_UCODE3] = {
-        ['0' ... '9'] = IN_SQ_STRING,
-        ['a' ... 'f'] = IN_SQ_STRING,
-        ['A' ... 'F'] = IN_SQ_STRING,
-    },
-    [IN_SQ_UCODE2] = {
-        ['0' ... '9'] = IN_SQ_UCODE3,
-        ['a' ... 'f'] = IN_SQ_UCODE3,
-        ['A' ... 'F'] = IN_SQ_UCODE3,
-    },
-    [IN_SQ_UCODE1] = {
-        ['0' ... '9'] = IN_SQ_UCODE2,
-        ['a' ... 'f'] = IN_SQ_UCODE2,
-        ['A' ... 'F'] = IN_SQ_UCODE2,
-    },
-    [IN_SQ_UCODE0] = {
-        ['0' ... '9'] = IN_SQ_UCODE1,
-        ['a' ... 'f'] = IN_SQ_UCODE1,
-        ['A' ... 'F'] = IN_SQ_UCODE1,
-    },
     [IN_SQ_STRING_ESCAPE] = {
-        ['b'] = IN_SQ_STRING,
-        ['f'] =  IN_SQ_STRING,
-        ['n'] =  IN_SQ_STRING,
-        ['r'] =  IN_SQ_STRING,
-        ['t'] =  IN_SQ_STRING,
-        ['/'] = IN_SQ_STRING,
-        ['\\'] = IN_SQ_STRING,
-        ['\''] = IN_SQ_STRING,
-        ['\"'] = IN_SQ_STRING,
-        ['u'] = IN_SQ_UCODE0,
+        [0x20 ... 0xFD] = IN_SQ_STRING,
     },
     [IN_SQ_STRING] = {
         [0x20 ... 0xFD] = IN_SQ_STRING,

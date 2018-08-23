@@ -106,30 +106,40 @@ static int hex2decimal(char ch)
 }
 
 /**
- * parse_string(): Parse a json string and return a QObject
+ * parse_string(): Parse a JSON string
  *
- *  string
- *      ""
- *      " chars "
- *  chars
- *      char
- *      char chars
- *  char
- *      any-Unicode-character-
- *          except-"-or-\-or-
- *          control-character
- *      \"
- *      \\
- *      \/
- *      \b
- *      \f
- *      \n
- *      \r
- *      \t
- *      \u four-hex-digits 
+ * From RFC 8259 "The JavaScript Object Notation (JSON) Data
+ * Interchange Format":
+ *
+ *    char = unescaped /
+ *        escape (
+ *            %x22 /          ; "    quotation mark  U+0022
+ *            %x5C /          ; \    reverse solidus U+005C
+ *            %x2F /          ; /    solidus         U+002F
+ *            %x62 /          ; b    backspace       U+0008
+ *            %x66 /          ; f    form feed       U+000C
+ *            %x6E /          ; n    line feed       U+000A
+ *            %x72 /          ; r    carriage return U+000D
+ *            %x74 /          ; t    tab             U+0009
+ *            %x75 4HEXDIG )  ; uXXXX                U+XXXX
+ *    escape = %x5C              ; \
+ *    quotation-mark = %x22      ; "
+ *    unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
+ *
+ * Extensions over RFC 8259:
+ * - Extra escape sequence in strings:
+ *   0x27 (apostrophe) is recognized after escape, too
+ * - Single-quoted strings:
+ *   Like double-quoted strings, except they're delimited by %x27
+ *   (apostrophe) instead of %x22 (quotation mark), and can't contain
+ *   unescaped apostrophe, but can contain unescaped quotation mark.
+ *
+ * Note:
+ * - Encoding is modified UTF-8.
+ * - Invalid Unicode characters are rejected.
+ * - Control characters \x00..\x1F are rejected by the lexer.
  */
-static QString *qstring_from_escaped_str(JSONParserContext *ctxt,
-                                         JSONToken *token)
+static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
 {
     const char *ptr = token->str;
     QString *str;
@@ -495,7 +505,7 @@ static QObject *parse_literal(JSONParserContext *ctxt)
 
     switch (token->type) {
     case JSON_STRING:
-        return QOBJECT(qstring_from_escaped_str(ctxt, token));
+        return QOBJECT(parse_string(ctxt, token));
     case JSON_INTEGER: {
         /*
          * Represent JSON_INTEGER as QNUM_I64 if possible, else as
