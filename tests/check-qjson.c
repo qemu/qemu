@@ -1307,8 +1307,40 @@ static void simple_varargs(void)
 
 static void empty_input(void)
 {
-    const char *empty = "";
-    QObject *obj = qobject_from_json(empty, &error_abort);
+    QObject *obj = qobject_from_json("", &error_abort);
+    g_assert(obj == NULL);
+}
+
+static void blank_input(void)
+{
+    QObject *obj = qobject_from_json("\n ", &error_abort);
+    g_assert(obj == NULL);
+}
+
+static void junk_input(void)
+{
+    /* Note: junk within strings is covered elsewhere */
+    Error *err = NULL;
+    QObject *obj;
+
+    obj = qobject_from_json("@", &err);
+    g_assert(!err);             /* BUG */
+    g_assert(obj == NULL);
+
+    obj = qobject_from_json("[0\xFF]", &err);
+    error_free_or_abort(&err);
+    g_assert(obj == NULL);
+
+    obj = qobject_from_json("00", &err);
+    g_assert(!err);             /* BUG */
+    g_assert(obj == NULL);
+
+    obj = qobject_from_json("[1e", &err);
+    g_assert(!err);             /* BUG */
+    g_assert(obj == NULL);
+
+    obj = qobject_from_json("truer", &err);
+    error_free_or_abort(&err);
     g_assert(obj == NULL);
 }
 
@@ -1462,7 +1494,9 @@ int main(int argc, char **argv)
 
     g_test_add_func("/varargs/simple_varargs", simple_varargs);
 
-    g_test_add_func("/errors/empty_input", empty_input);
+    g_test_add_func("/errors/empty", empty_input);
+    g_test_add_func("/errors/blank", blank_input);
+    g_test_add_func("/errors/junk", junk_input);
     g_test_add_func("/errors/unterminated/string", unterminated_string);
     g_test_add_func("/errors/unterminated/escape", unterminated_escape);
     g_test_add_func("/errors/unterminated/sq_string", unterminated_sq_string);
