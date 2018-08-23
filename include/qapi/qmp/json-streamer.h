@@ -33,6 +33,9 @@ typedef struct JSONMessageParser
     uint64_t token_size;
 } JSONMessageParser;
 
+void json_message_process_token(JSONLexer *lexer, GString *input,
+                                JSONTokenType type, int x, int y);
+
 void json_message_parser_init(JSONMessageParser *parser,
                               void (*func)(JSONMessageParser *, GQueue *));
 

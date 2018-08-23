@@ -32,20 +32,13 @@ typedef enum json_token_type {
     JSON_ERROR,
 } JSONTokenType;
 
-typedef struct JSONLexer JSONLexer;
-
-typedef void (JSONLexerEmitter)(JSONLexer *, GString *,
-                                JSONTokenType, int x, int y);
-
-struct JSONLexer
-{
-    JSONLexerEmitter *emit;
+typedef struct JSONLexer {
     int state;
     GString *token;
     int x, y;
-};
+} JSONLexer;
 
-void json_lexer_init(JSONLexer *lexer, JSONLexerEmitter func);
+void json_lexer_init(JSONLexer *lexer);
 
 void json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size);
 

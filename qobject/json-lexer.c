@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/qmp/json-lexer.h"
+#include "qapi/qmp/json-streamer.h"
 
 #define MAX_TOKEN_SIZE (64ULL << 20)
 
@@ -278,9 +279,8 @@ static const uint8_t json_lexer[][256] =  {
     },
 };
 
-void json_lexer_init(JSONLexer *lexer, JSONLexerEmitter func)
+void json_lexer_init(JSONLexer *lexer)
 {
-    lexer->emit = func;
     lexer->state = IN_START;
     lexer->token = g_string_sized_new(3);
     lexer->x = lexer->y = 0;
@@ -316,7 +316,8 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         case JSON_FLOAT:
         case JSON_KEYWORD:
         case JSON_STRING:
-            lexer->emit(lexer, lexer->token, new_state, lexer->x, lexer->y);
+            json_message_process_token(lexer, lexer->token, new_state,
+                                       lexer->x, lexer->y);
             /* fall through */
         case JSON_SKIP:
             g_string_truncate(lexer->token, 0);
@@ -336,7 +337,8 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
              * never a valid ASCII/UTF-8 sequence, so this should reliably
              * induce an error/flush state.
              */
-            lexer->emit(lexer, lexer->token, JSON_ERROR, lexer->x, lexer->y);
+            json_message_process_token(lexer, lexer->token, JSON_ERROR,
+                                       lexer->x, lexer->y);
             g_string_truncate(lexer->token, 0);
             new_state = IN_START;
             lexer->state = new_state;
@@ -351,7 +353,8 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
      * this is a security consideration.
      */
     if (lexer->token->len > MAX_TOKEN_SIZE) {
-        lexer->emit(lexer, lexer->token, lexer->state, lexer->x, lexer->y);
+        json_message_process_token(lexer, lexer->token, lexer->state,
+                                   lexer->x, lexer->y);
         g_string_truncate(lexer->token, 0);
         lexer->state = IN_START;
     }

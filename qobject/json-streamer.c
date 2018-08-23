@@ -34,8 +34,8 @@ static void json_message_free_tokens(JSONMessageParser *parser)
     }
 }
 
-static void json_message_process_token(JSONLexer *lexer, GString *input,
-                                       JSONTokenType type, int x, int y)
+void json_message_process_token(JSONLexer *lexer, GString *input,
+                                JSONTokenType type, int x, int y)
 {
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);
     JSONToken *token;
@@ -115,7 +115,7 @@ void json_message_parser_init(JSONMessageParser *parser,
     parser->tokens = g_queue_new();
     parser->token_size = 0;
 
-    json_lexer_init(&parser->lexer, json_message_process_token);
+    json_lexer_init(&parser->lexer);
 }
 
 void json_message_parser_feed(JSONMessageParser *parser,
