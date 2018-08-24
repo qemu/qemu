@@ -1320,14 +1320,14 @@ enum arm_cpu_mode {
 #define ARM_VFP_FPINST2 10
 
 /* iwMMXt coprocessor control registers.  */
-#define ARM_IWMMXT_wCID		0
-#define ARM_IWMMXT_wCon		1
-#define ARM_IWMMXT_wCSSF	2
-#define ARM_IWMMXT_wCASF	3
-#define ARM_IWMMXT_wCGR0	8
-#define ARM_IWMMXT_wCGR1	9
-#define ARM_IWMMXT_wCGR2	10
-#define ARM_IWMMXT_wCGR3	11
+#define ARM_IWMMXT_wCID  0
+#define ARM_IWMMXT_wCon  1
+#define ARM_IWMMXT_wCSSF 2
+#define ARM_IWMMXT_wCASF 3
+#define ARM_IWMMXT_wCGR0 8
+#define ARM_IWMMXT_wCGR1 9
+#define ARM_IWMMXT_wCGR2 10
+#define ARM_IWMMXT_wCGR3 11
 
 /* V7M CCR bits */
 FIELD(V7M_CCR, NONBASETHRDENA, 0, 1)
