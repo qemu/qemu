@@ -203,6 +203,11 @@ struct target_ip_mreq_source {
     uint32_t imr_sourceaddr;
 };
 
+struct target_linger {
+    abi_int l_onoff;        /* Linger active                */
+    abi_int l_linger;       /* How long to linger for       */
+};
+
 struct target_timeval {
     abi_long tv_sec;
     abi_long tv_usec;
