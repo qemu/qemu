@@ -212,13 +212,13 @@
 # -> { "execute": "query-migrate" }
 # <- { "return": {
 #         "status": "completed",
+#         "total-time":12345,
+#         "setup-time":12345,
+#         "downtime":12345,
 #         "ram":{
 #           "transferred":123,
 #           "remaining":123,
 #           "total":246,
-#           "total-time":12345,
-#           "setup-time":12345,
-#           "downtime":12345,
 #           "duplicate":123,
 #           "normal":123,
 #           "normal-bytes":123456,
@@ -238,13 +238,13 @@
 # <- {
 #       "return":{
 #          "status":"active",
+#          "total-time":12345,
+#          "setup-time":12345,
+#          "expected-downtime":12345,
 #          "ram":{
 #             "transferred":123,
 #             "remaining":123,
 #             "total":246,
-#             "total-time":12345,
-#             "setup-time":12345,
-#             "expected-downtime":12345,
 #             "duplicate":123,
 #             "normal":123,
 #             "normal-bytes":123456,
@@ -259,13 +259,13 @@
 # <- {
 #       "return":{
 #          "status":"active",
+#          "total-time":12345,
+#          "setup-time":12345,
+#          "expected-downtime":12345,
 #          "ram":{
 #             "total":1057024,
 #             "remaining":1053304,
 #             "transferred":3720,
-#             "total-time":12345,
-#             "setup-time":12345,
-#             "expected-downtime":12345,
 #             "duplicate":123,
 #             "normal":123,
 #             "normal-bytes":123456,
@@ -285,14 +285,13 @@
 # <- {
 #       "return":{
 #          "status":"active",
-#          "capabilities" : [ { "capability": "xbzrle", "state" : true } ],
+#          "total-time":12345,
+#          "setup-time":12345,
+#          "expected-downtime":12345,
 #          "ram":{
 #             "total":1057024,
 #             "remaining":1053304,
 #             "transferred":3720,
-#             "total-time":12345,
-#             "setup-time":12345,
-#             "expected-downtime":12345,
 #             "duplicate":10,
 #             "normal":3333,
 #             "normal-bytes":3412992,
@@ -462,6 +461,11 @@
 # @compress-threads: Set compression thread count to be used in live migration,
 #          the compression thread count is an integer between 1 and 255.
 #
+# @compress-wait-thread: Controls behavior when all compression threads are
+#                        currently busy. If true (default), wait for a free
+#                        compression thread to become available; otherwise,
+#                        send the page uncompressed. (Since 3.1)
+#
 # @decompress-threads: Set decompression thread count to be used in live
 #          migration, the decompression thread count is an integer between 1
 #          and 255. Usually, decompression is at least 4 times as fast as
@@ -523,15 +527,20 @@
 # @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
 #                     Defaults to 0 (unlimited).  In bytes per second.
 #                     (Since 3.0)
+#
+# @max-cpu-throttle: maximum cpu throttle percentage.
+#                    Defaults to 99. (Since 3.1)
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
   'data': ['compress-level', 'compress-threads', 'decompress-threads',
+           'compress-wait-thread',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
            'x-multifd-channels', 'x-multifd-page-count',
-           'xbzrle-cache-size', 'max-postcopy-bandwidth' ] }
+           'xbzrle-cache-size', 'max-postcopy-bandwidth',
+           'max-cpu-throttle' ] }
 
 ##
 # @MigrateSetParameters:
@@ -539,6 +548,11 @@
 # @compress-level: compression level
 #
 # @compress-threads: compression thread count
+#
+# @compress-wait-thread: Controls behavior when all compression threads are
+#                        currently busy. If true (default), wait for a free
+#                        compression thread to become available; otherwise,
+#                        send the page uncompressed. (Since 3.1)
 #
 # @decompress-threads: decompression thread count
 #
@@ -603,6 +617,10 @@
 # @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
 #                     Defaults to 0 (unlimited).  In bytes per second.
 #                     (Since 3.0)
+#
+# @max-cpu-throttle: maximum cpu throttle percentage.
+#                    The default value is 99. (Since 3.1)
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -610,6 +628,7 @@
 { 'struct': 'MigrateSetParameters',
   'data': { '*compress-level': 'int',
             '*compress-threads': 'int',
+            '*compress-wait-thread': 'bool',
             '*decompress-threads': 'int',
             '*cpu-throttle-initial': 'int',
             '*cpu-throttle-increment': 'int',
@@ -622,7 +641,8 @@
             '*x-multifd-channels': 'int',
             '*x-multifd-page-count': 'int',
             '*xbzrle-cache-size': 'size',
-            '*max-postcopy-bandwidth': 'size' } }
+            '*max-postcopy-bandwidth': 'size',
+	    '*max-cpu-throttle': 'int' } }
 
 ##
 # @migrate-set-parameters:
@@ -648,6 +668,11 @@
 # @compress-level: compression level
 #
 # @compress-threads: compression thread count
+#
+# @compress-wait-thread: Controls behavior when all compression threads are
+#                        currently busy. If true (default), wait for a free
+#                        compression thread to become available; otherwise,
+#                        send the page uncompressed. (Since 3.1)
 #
 # @decompress-threads: decompression thread count
 #
@@ -709,11 +734,17 @@
 # @max-postcopy-bandwidth: Background transfer bandwidth during postcopy.
 #                     Defaults to 0 (unlimited).  In bytes per second.
 #                     (Since 3.0)
+#
+# @max-cpu-throttle: maximum cpu throttle percentage.
+#                    Defaults to 99.
+#                     (Since 3.1)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
   'data': { '*compress-level': 'uint8',
             '*compress-threads': 'uint8',
+            '*compress-wait-thread': 'bool',
             '*decompress-threads': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',
@@ -726,7 +757,8 @@
             '*x-multifd-channels': 'uint8',
             '*x-multifd-page-count': 'uint32',
             '*xbzrle-cache-size': 'size',
-            '*max-postcopy-bandwidth': 'size'  } }
+	    '*max-postcopy-bandwidth': 'size',
+            '*max-cpu-throttle':'uint8'} }
 
 ##
 # @query-migrate-parameters:
