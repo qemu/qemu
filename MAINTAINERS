@@ -541,6 +541,8 @@ F: hw/arm/iotkit.c
 F: include/hw/arm/iotkit.h
 F: hw/misc/iotkit-sysctl.c
 F: include/hw/misc/iotkit-sysctl.h
+F: hw/misc/iotkit-sysinfo.c
+F: include/hw/misc/iotkit-sysinfo.h
 
 Musicpal
 M: Jan Kiszka <jan.kiszka@web.de>
