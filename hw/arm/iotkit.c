@@ -19,6 +19,9 @@
 #include "hw/misc/unimp.h"
 #include "hw/arm/arm.h"
 
+/* Clock frequency in HZ of the 32KHz "slow clock" */
+#define S32KCLK (32 * 1000)
+
 /* Create an alias region of @size bytes starting at @base
  * which mirrors the memory starting at @orig.
  */
@@ -140,6 +143,15 @@ static void iotkit_init(Object *obj)
                           TYPE_CMSDK_APB_TIMER);
     sysbus_init_child_obj(obj, "dualtimer", &s->dualtimer, sizeof(s->dualtimer),
                           TYPE_CMSDK_APB_DUALTIMER);
+    sysbus_init_child_obj(obj, "s32kwatchdog", &s->s32kwatchdog,
+                          sizeof(s->s32kwatchdog), TYPE_CMSDK_APB_WATCHDOG);
+    sysbus_init_child_obj(obj, "nswatchdog", &s->nswatchdog,
+                          sizeof(s->nswatchdog), TYPE_CMSDK_APB_WATCHDOG);
+    sysbus_init_child_obj(obj, "swatchdog", &s->swatchdog,
+                          sizeof(s->swatchdog), TYPE_CMSDK_APB_WATCHDOG);
+    object_initialize_child(obj, "nmi-orgate", &s->nmi_orgate,
+                            sizeof(s->nmi_orgate), TYPE_OR_IRQ,
+                            &error_abort, NULL);
     object_initialize_child(obj, "ppc-irq-orgate", &s->ppc_irq_orgate,
                             sizeof(s->ppc_irq_orgate), TYPE_OR_IRQ,
                             &error_abort, NULL);
@@ -510,12 +522,52 @@ static void iotkit_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("SYSINFO", 0x40020000, 0x1000);
 
     create_unimplemented_device("SYSCONTROL", 0x50021000, 0x1000);
-    create_unimplemented_device("S32KWATCHDOG", 0x5002e000, 0x1000);
+
+    /* This OR gate wires together outputs from the secure watchdogs to NMI */
+    object_property_set_int(OBJECT(&s->nmi_orgate), 2, "num-lines", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    object_property_set_bool(OBJECT(&s->nmi_orgate), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    qdev_connect_gpio_out(DEVICE(&s->nmi_orgate), 0,
+                          qdev_get_gpio_in_named(DEVICE(&s->armv7m), "NMI", 0));
+
+    qdev_prop_set_uint32(DEVICE(&s->s32kwatchdog), "wdogclk-frq", S32KCLK);
+    object_property_set_bool(OBJECT(&s->s32kwatchdog), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->s32kwatchdog), 0,
+                       qdev_get_gpio_in(DEVICE(&s->nmi_orgate), 0));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->s32kwatchdog), 0, 0x5002e000);
 
     /* 0x40080000 .. 0x4008ffff : IoTKit second Base peripheral region */
 
-    create_unimplemented_device("NS watchdog", 0x40081000, 0x1000);
-    create_unimplemented_device("S watchdog", 0x50081000, 0x1000);
+    qdev_prop_set_uint32(DEVICE(&s->nswatchdog), "wdogclk-frq", s->mainclk_frq);
+    object_property_set_bool(OBJECT(&s->nswatchdog), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->nswatchdog), 0,
+                       qdev_get_gpio_in(DEVICE(&s->armv7m), 1));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->nswatchdog), 0, 0x40081000);
+
+    qdev_prop_set_uint32(DEVICE(&s->swatchdog), "wdogclk-frq", s->mainclk_frq);
+    object_property_set_bool(OBJECT(&s->swatchdog), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->swatchdog), 0,
+                       qdev_get_gpio_in(DEVICE(&s->nmi_orgate), 1));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->swatchdog), 0, 0x50081000);
 
     for (i = 0; i < ARRAY_SIZE(s->ppc_irq_splitter); i++) {
         Object *splitter = OBJECT(&s->ppc_irq_splitter[i]);
