@@ -451,6 +451,8 @@ F: hw/gpio/pl061.c
 F: hw/input/pl050.c
 F: hw/intc/pl190.c
 F: hw/sd/pl181.c
+F: hw/ssi/pl022.c
+F: include/hw/ssi/pl022.h
 F: hw/timer/pl031.c
 F: include/hw/arm/primecell.h
 F: hw/timer/cmsdk-apb-timer.c

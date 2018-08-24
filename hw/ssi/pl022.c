@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "hw/ssi/pl022.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/log.h"
 
@@ -40,31 +41,6 @@ do { fprintf(stderr, "pl022: error: " fmt , ## __VA_ARGS__);} while (0)
 #define PL022_INT_RT  0x04
 #define PL022_INT_RX  0x04
 #define PL022_INT_TX  0x08
-
-#define TYPE_PL022 "pl022"
-#define PL022(obj) OBJECT_CHECK(PL022State, (obj), TYPE_PL022)
-
-typedef struct PL022State {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    uint32_t cr0;
-    uint32_t cr1;
-    uint32_t bitmask;
-    uint32_t sr;
-    uint32_t cpsr;
-    uint32_t is;
-    uint32_t im;
-    /* The FIFO head points to the next empty entry.  */
-    int tx_fifo_head;
-    int rx_fifo_head;
-    int tx_fifo_len;
-    int rx_fifo_len;
-    uint16_t tx_fifo[8];
-    uint16_t rx_fifo[8];
-    qemu_irq irq;
-    SSIBus *ssi;
-} PL022State;
 
 static const unsigned char pl022_id[8] =
   { 0x22, 0x10, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
