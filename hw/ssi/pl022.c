@@ -146,7 +146,7 @@ static uint64_t pl022_read(void *opaque, hwaddr offset,
         return s->is;
     case 0x1c: /* MIS */
         return s->im & s->is;
-    case 0x20: /* DMACR */
+    case 0x24: /* DMACR */
         /* Not implemented.  */
         return 0;
     default:
@@ -192,7 +192,15 @@ static void pl022_write(void *opaque, hwaddr offset,
         s->im = value;
         pl022_update(s);
         break;
-    case 0x20: /* DMACR */
+    case 0x20: /* ICR */
+        /*
+         * write-1-to-clear: bit 0 clears ROR, bit 1 clears RT;
+         * RX and TX interrupts cannot be cleared this way.
+         */
+        value &= PL022_INT_ROR | PL022_INT_RT;
+        s->is &= ~value;
+        break;
+    case 0x24: /* DMACR */
         if (value) {
             qemu_log_mask(LOG_UNIMP, "pl022: DMA not implemented\n");
         }
