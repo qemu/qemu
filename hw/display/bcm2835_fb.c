@@ -126,6 +126,18 @@ static void draw_line_src16(void *opaque, uint8_t *dst, const uint8_t *src,
     }
 }
 
+static bool fb_use_offsets(BCM2835FBConfig *config)
+{
+    /*
+     * Return true if we should use the viewport offsets.
+     * Experimentally, the hardware seems to do this only if the
+     * viewport size is larger than the physical screen. (It doesn't
+     * prevent the guest setting this silly viewport setting, though...)
+     */
+    return config->xres_virtual > config->xres &&
+        config->yres_virtual > config->yres;
+}
+
 static void fb_update_display(void *opaque)
 {
     BCM2835FBState *s = opaque;
@@ -134,12 +146,18 @@ static void fb_update_display(void *opaque)
     int last = 0;
     int src_width = 0;
     int dest_width = 0;
+    uint32_t xoff = 0, yoff = 0;
 
     if (s->lock || !s->config.xres) {
         return;
     }
 
     src_width = bcm2835_fb_get_pitch(&s->config);
+    if (fb_use_offsets(&s->config)) {
+        xoff = s->config.xoffset;
+        yoff = s->config.yoffset;
+    }
+
     dest_width = s->config.xres;
 
     switch (surface_bits_per_pixel(surface)) {
@@ -165,8 +183,9 @@ static void fb_update_display(void *opaque)
     }
 
     if (s->invalidate) {
+        hwaddr base = s->config.base + xoff + yoff * src_width;
         framebuffer_update_memory_section(&s->fbsection, s->dma_mr,
-                                          s->config.base,
+                                          base,
                                           s->config.yres, src_width);
     }
 
@@ -176,7 +195,8 @@ static void fb_update_display(void *opaque)
                                draw_line_src16, s, &first, &last);
 
     if (first >= 0) {
-        dpy_gfx_update(s->con, 0, first, s->config.xres, last - first + 1);
+        dpy_gfx_update(s->con, 0, first, s->config.xres,
+                       last - first + 1);
     }
 
     s->invalidate = false;
@@ -202,8 +222,6 @@ static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
     s->config.base = s->vcram_base | (value & 0xc0000000);
     s->config.base += BCM2835_FB_OFFSET;
 
-    /* TODO - Manage properly virtual resolution */
-
     pitch = bcm2835_fb_get_pitch(&s->config);
     size = bcm2835_fb_get_size(&s->config);
 
@@ -223,8 +241,6 @@ void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig)
     /* TODO: input validation! */
 
     s->config = *newconfig;
-
-    /* TODO - Manage properly virtual resolution */
 
     s->invalidate = true;
     qemu_console_resize(s->con, s->config.xres, s->config.yres);

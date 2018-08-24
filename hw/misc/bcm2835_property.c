@@ -155,20 +155,29 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         case 0x00040002: /* Blank screen */
             resplen = 4;
             break;
-        case 0x00040003: /* Get display width/height */
-        case 0x00040004:
+        case 0x00040003: /* Get physical display width/height */
             stl_le_phys(&s->dma_as, value + 12, fbconfig.xres);
             stl_le_phys(&s->dma_as, value + 16, fbconfig.yres);
             resplen = 8;
             break;
-        case 0x00044003: /* Test display width/height */
-        case 0x00044004:
+        case 0x00040004: /* Get virtual display width/height */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.xres_virtual);
+            stl_le_phys(&s->dma_as, value + 16, fbconfig.yres_virtual);
             resplen = 8;
             break;
-        case 0x00048003: /* Set display width/height */
-        case 0x00048004:
+        case 0x00044003: /* Test physical display width/height */
+        case 0x00044004: /* Test virtual display width/height */
+            resplen = 8;
+            break;
+        case 0x00048003: /* Set physical display width/height */
             fbconfig.xres = ldl_le_phys(&s->dma_as, value + 12);
             fbconfig.yres = ldl_le_phys(&s->dma_as, value + 16);
+            fbconfig_updated = true;
+            resplen = 8;
+            break;
+        case 0x00048004: /* Set virtual display width/height */
+            fbconfig.xres_virtual = ldl_le_phys(&s->dma_as, value + 12);
+            fbconfig.yres_virtual = ldl_le_phys(&s->dma_as, value + 16);
             fbconfig_updated = true;
             resplen = 8;
             break;

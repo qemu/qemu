@@ -62,7 +62,8 @@ void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig);
  */
 static inline uint32_t bcm2835_fb_get_pitch(BCM2835FBConfig *config)
 {
-    return config->xres * (config->bpp >> 3);
+    uint32_t xres = MAX(config->xres, config->xres_virtual);
+    return xres * (config->bpp >> 3);
 }
 
 /**
@@ -71,7 +72,8 @@ static inline uint32_t bcm2835_fb_get_pitch(BCM2835FBConfig *config)
  */
 static inline uint32_t bcm2835_fb_get_size(BCM2835FBConfig *config)
 {
-    return config->yres * bcm2835_fb_get_pitch(config);
+    uint32_t yres = MAX(config->yres, config->yres_virtual);
+    return yres * bcm2835_fb_get_pitch(config);
 }
 
 #endif
