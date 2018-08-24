@@ -607,6 +607,7 @@ static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
         spapr_populate_cpu_dt(cs, fdt, offset, spapr);
     }
 
+    g_free(rev);
 }
 
 static uint32_t spapr_pc_dimm_node(MemoryDeviceInfoList *list, ram_addr_t addr)
