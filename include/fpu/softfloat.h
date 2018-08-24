@@ -190,22 +190,54 @@ enum {
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE integer-to-floating-point conversion routines.
 *----------------------------------------------------------------------------*/
+
+float16 int16_to_float16_scalbn(int16_t a, int, float_status *status);
+float16 int32_to_float16_scalbn(int32_t a, int, float_status *status);
+float16 int64_to_float16_scalbn(int64_t a, int, float_status *status);
+float16 uint16_to_float16_scalbn(uint16_t a, int, float_status *status);
+float16 uint32_to_float16_scalbn(uint32_t a, int, float_status *status);
+float16 uint64_to_float16_scalbn(uint64_t a, int, float_status *status);
+
+float16 int16_to_float16(int16_t a, float_status *status);
+float16 int32_to_float16(int32_t a, float_status *status);
+float16 int64_to_float16(int64_t a, float_status *status);
+float16 uint16_to_float16(uint16_t a, float_status *status);
+float16 uint32_to_float16(uint32_t a, float_status *status);
+float16 uint64_to_float16(uint64_t a, float_status *status);
+
+float32 int16_to_float32_scalbn(int16_t, int, float_status *status);
+float32 int32_to_float32_scalbn(int32_t, int, float_status *status);
+float32 int64_to_float32_scalbn(int64_t, int, float_status *status);
+float32 uint16_to_float32_scalbn(uint16_t, int, float_status *status);
+float32 uint32_to_float32_scalbn(uint32_t, int, float_status *status);
+float32 uint64_to_float32_scalbn(uint64_t, int, float_status *status);
+
 float32 int16_to_float32(int16_t, float_status *status);
 float32 int32_to_float32(int32_t, float_status *status);
-float64 int16_to_float64(int16_t, float_status *status);
-float64 int32_to_float64(int32_t, float_status *status);
+float32 int64_to_float32(int64_t, float_status *status);
 float32 uint16_to_float32(uint16_t, float_status *status);
 float32 uint32_to_float32(uint32_t, float_status *status);
+float32 uint64_to_float32(uint64_t, float_status *status);
+
+float64 int16_to_float64_scalbn(int16_t, int, float_status *status);
+float64 int32_to_float64_scalbn(int32_t, int, float_status *status);
+float64 int64_to_float64_scalbn(int64_t, int, float_status *status);
+float64 uint16_to_float64_scalbn(uint16_t, int, float_status *status);
+float64 uint32_to_float64_scalbn(uint32_t, int, float_status *status);
+float64 uint64_to_float64_scalbn(uint64_t, int, float_status *status);
+
+float64 int16_to_float64(int16_t, float_status *status);
+float64 int32_to_float64(int32_t, float_status *status);
+float64 int64_to_float64(int64_t, float_status *status);
 float64 uint16_to_float64(uint16_t, float_status *status);
 float64 uint32_to_float64(uint32_t, float_status *status);
-floatx80 int32_to_floatx80(int32_t, float_status *status);
-float128 int32_to_float128(int32_t, float_status *status);
-float32 int64_to_float32(int64_t, float_status *status);
-float64 int64_to_float64(int64_t, float_status *status);
-floatx80 int64_to_floatx80(int64_t, float_status *status);
-float128 int64_to_float128(int64_t, float_status *status);
-float32 uint64_to_float32(uint64_t, float_status *status);
 float64 uint64_to_float64(uint64_t, float_status *status);
+
+floatx80 int32_to_floatx80(int32_t, float_status *status);
+floatx80 int64_to_floatx80(int64_t, float_status *status);
+
+float128 int32_to_float128(int32_t, float_status *status);
+float128 int64_to_float128(int64_t, float_status *status);
 float128 uint64_to_float128(uint64_t, float_status *status);
 
 /*----------------------------------------------------------------------------
@@ -227,12 +259,6 @@ int64_t float16_to_int64(float16, float_status *status);
 uint64_t float16_to_uint64(float16 a, float_status *status);
 int64_t float16_to_int64_round_to_zero(float16, float_status *status);
 uint64_t float16_to_uint64_round_to_zero(float16 a, float_status *status);
-float16 int16_to_float16(int16_t a, float_status *status);
-float16 int32_to_float16(int32_t a, float_status *status);
-float16 int64_to_float16(int64_t a, float_status *status);
-float16 uint16_to_float16(uint16_t a, float_status *status);
-float16 uint32_to_float16(uint32_t a, float_status *status);
-float16 uint64_to_float16(uint64_t a, float_status *status);
 
 /*----------------------------------------------------------------------------
 | Software half-precision operations.
