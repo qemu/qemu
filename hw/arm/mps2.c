@@ -34,6 +34,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/char/cmsdk-apb-uart.h"
 #include "hw/timer/cmsdk-apb-timer.h"
+#include "hw/timer/cmsdk-apb-dualtimer.h"
 #include "hw/misc/mps2-scc.h"
 #include "hw/devices.h"
 #include "net/net.h"
@@ -64,6 +65,7 @@ typedef struct {
     MemoryRegion blockram_m3;
     MemoryRegion sram;
     MPS2SCC scc;
+    CMSDKAPBDualTimer dualtimer;
 } MPS2MachineState;
 
 #define TYPE_MPS2_MACHINE "mps2"
@@ -296,6 +298,15 @@ static void mps2_common_init(MachineState *machine)
 
     cmsdk_apb_timer_create(0x40000000, qdev_get_gpio_in(armv7m, 8), SYSCLK_FRQ);
     cmsdk_apb_timer_create(0x40001000, qdev_get_gpio_in(armv7m, 9), SYSCLK_FRQ);
+
+    sysbus_init_child_obj(OBJECT(mms), "dualtimer", &mms->dualtimer,
+                          sizeof(mms->dualtimer), TYPE_CMSDK_APB_DUALTIMER);
+    qdev_prop_set_uint32(DEVICE(&mms->dualtimer), "pclk-frq", SYSCLK_FRQ);
+    object_property_set_bool(OBJECT(&mms->dualtimer), true, "realized",
+                             &error_fatal);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&mms->dualtimer), 0,
+                       qdev_get_gpio_in(armv7m, 10));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&mms->dualtimer), 0, 0x40002000);
 
     object_initialize(&mms->scc, sizeof(mms->scc), TYPE_MPS2_SCC);
     sccdev = DEVICE(&mms->scc);
