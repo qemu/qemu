@@ -423,32 +423,6 @@ static int get_cpu_index(void)
     return -1;
 }
 
-static MemTxResult memory_region_oldmmio_read_accessor(MemoryRegion *mr,
-                                                       hwaddr addr,
-                                                       uint64_t *value,
-                                                       unsigned size,
-                                                       signed shift,
-                                                       uint64_t mask,
-                                                       MemTxAttrs attrs)
-{
-    uint64_t tmp;
-
-    tmp = mr->ops->old_mmio.read[ctz32(size)](mr->opaque, addr);
-    if (mr->subpage) {
-        trace_memory_region_subpage_read(get_cpu_index(), mr, addr, tmp, size);
-    } else if (mr == &io_mem_notdirty) {
-        /* Accesses to code which has previously been translated into a TB show
-         * up in the MMIO path, as accesses to the io_mem_notdirty
-         * MemoryRegion. */
-        trace_memory_region_tb_read(get_cpu_index(), addr, tmp, size);
-    } else if (TRACE_MEMORY_REGION_OPS_READ_ENABLED) {
-        hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
-        trace_memory_region_ops_read(get_cpu_index(), mr, abs_addr, tmp, size);
-    }
-    memory_region_shift_read_access(value, shift, mask, tmp);
-    return MEMTX_OK;
-}
-
 static MemTxResult  memory_region_read_accessor(MemoryRegion *mr,
                                                 hwaddr addr,
                                                 uint64_t *value,
@@ -500,31 +474,6 @@ static MemTxResult memory_region_read_with_attrs_accessor(MemoryRegion *mr,
     }
     memory_region_shift_read_access(value, shift, mask, tmp);
     return r;
-}
-
-static MemTxResult memory_region_oldmmio_write_accessor(MemoryRegion *mr,
-                                                        hwaddr addr,
-                                                        uint64_t *value,
-                                                        unsigned size,
-                                                        signed shift,
-                                                        uint64_t mask,
-                                                        MemTxAttrs attrs)
-{
-    uint64_t tmp = memory_region_shift_write_access(value, shift, mask);
-
-    if (mr->subpage) {
-        trace_memory_region_subpage_write(get_cpu_index(), mr, addr, tmp, size);
-    } else if (mr == &io_mem_notdirty) {
-        /* Accesses to code which has previously been translated into a TB show
-         * up in the MMIO path, as accesses to the io_mem_notdirty
-         * MemoryRegion. */
-        trace_memory_region_tb_write(get_cpu_index(), addr, tmp, size);
-    } else if (TRACE_MEMORY_REGION_OPS_WRITE_ENABLED) {
-        hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
-        trace_memory_region_ops_write(get_cpu_index(), mr, abs_addr, tmp, size);
-    }
-    mr->ops->old_mmio.write[ctz32(size)](mr->opaque, addr, tmp);
-    return MEMTX_OK;
 }
 
 static MemTxResult memory_region_write_accessor(MemoryRegion *mr,
@@ -1418,15 +1367,11 @@ static MemTxResult memory_region_dispatch_read1(MemoryRegion *mr,
                                          mr->ops->impl.max_access_size,
                                          memory_region_read_accessor,
                                          mr, attrs);
-    } else if (mr->ops->read_with_attrs) {
+    } else {
         return access_with_adjusted_size(addr, pval, size,
                                          mr->ops->impl.min_access_size,
                                          mr->ops->impl.max_access_size,
                                          memory_region_read_with_attrs_accessor,
-                                         mr, attrs);
-    } else {
-        return access_with_adjusted_size(addr, pval, size, 1, 4,
-                                         memory_region_oldmmio_read_accessor,
                                          mr, attrs);
     }
 }
@@ -1499,17 +1444,13 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                          mr->ops->impl.max_access_size,
                                          memory_region_write_accessor, mr,
                                          attrs);
-    } else if (mr->ops->write_with_attrs) {
+    } else {
         return
             access_with_adjusted_size(addr, &data, size,
                                       mr->ops->impl.min_access_size,
                                       mr->ops->impl.max_access_size,
                                       memory_region_write_with_attrs_accessor,
                                       mr, attrs);
-    } else {
-        return access_with_adjusted_size(addr, &data, size, 1, 4,
-                                         memory_region_oldmmio_write_accessor,
-                                         mr, attrs);
     }
 }
 
