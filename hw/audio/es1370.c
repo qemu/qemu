@@ -585,10 +585,13 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
 #endif
         break;
 
+    case ES1370_REG_ADC_FRAMECNT:
+        d += 2;
+        goto framecnt;
     case ES1370_REG_DAC1_FRAMECNT:
     case ES1370_REG_DAC2_FRAMECNT:
-    case ES1370_REG_ADC_FRAMECNT:
         d += (addr - ES1370_REG_DAC1_FRAMECNT) >> 3;
+    framecnt:
         val = d->frame_cnt;
 #ifdef DEBUG_ES1370
         {
@@ -602,10 +605,13 @@ static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
 #endif
         break;
 
+    case ES1370_REG_ADC_FRAMEADR:
+        d += 2;
+        goto frameadr;
     case ES1370_REG_DAC1_FRAMEADR:
     case ES1370_REG_DAC2_FRAMEADR:
-    case ES1370_REG_ADC_FRAMEADR:
         d += (addr - ES1370_REG_DAC1_FRAMEADR) >> 3;
+    frameadr:
         val = d->frame_addr;
         break;
 
