@@ -449,6 +449,45 @@ const mips_def_t mips_defs[] =
         .insn_flags = CPU_MIPS32R6 | ASE_MICROMIPS,
         .mmu_type = MMU_TYPE_R4000,
     },
+    {
+        .name = "I7200",
+        .CP0_PRid = 0x00010000,
+        .CP0_Config0 = MIPS_CONFIG0 | (1 << CP0C0_MM) | (0x2 << CP0C0_AR) |
+                        (MMU_TYPE_R4000 << CP0C0_MT),
+        .CP0_Config1 = (1U << CP0C1_M) | (15 << CP0C1_MMU) | (2 << CP0C1_IS) |
+                       (4 << CP0C1_IL) | (3 << CP0C1_IA) | (2 << CP0C1_DS) |
+                       (4 << CP0C1_DL) | (3 << CP0C1_DA) | (1 << CP0C1_PC) |
+                       (1 << CP0C1_EP),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3 | (1U << CP0C3_M) | (1 << CP0C3_CMGCR) |
+                       (1 << CP0C3_BI) | (1 << CP0C3_SC) | (3 << CP0C3_MMAR) |
+                       (1 << CP0C3_ISA_ON_EXC) | (1 << CP0C3_ISA) |
+                       (1 << CP0C3_ULRI) | (1 << CP0C3_RXI) |
+                       (1 << CP0C3_DSP2P) | (1 << CP0C3_DSPP) |
+                       (1 << CP0C3_CTXTC) | (1 << CP0C3_VInt) |
+                       (1 << CP0C3_CDMM) | (1 << CP0C3_MT) | (1 << CP0C3_TL),
+        .CP0_Config4 = MIPS_CONFIG4 | (0xfc << CP0C4_KScrExist) |
+                       (2 << CP0C4_IE) | (1U << CP0C4_M),
+        .CP0_Config5 = MIPS_CONFIG5 | (1 << CP0C5_MVH) | (1 << CP0C5_LLB),
+        .CP0_Config5_rw_bitmask = (1 << CP0C5_SBRI) | (1 << CP0C5_FRE) |
+                                  (1 << CP0C5_UFE),
+        .CP0_LLAddr_rw_bitmask = 0,
+        .CP0_LLAddr_shift = 0,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x3158FF1F,
+        .CP0_PageGrain = (1 << CP0PG_IEC) | (1 << CP0PG_XIE) |
+                         (1U << CP0PG_RIE),
+        .CP0_PageGrain_rw_bitmask = 0,
+        .CP1_fcr0 = (1 << FCR0_FREP) | (1 << FCR0_HAS2008) | (1 << FCR0_F64) |
+                    (1 << FCR0_L) | (1 << FCR0_W) | (1 << FCR0_D) |
+                    (1 << FCR0_S) | (0x02 << FCR0_PRID) | (0x0 << FCR0_REV),
+        .CP1_fcr31 = (1 << FCR31_ABS2008) | (1 << FCR31_NAN2008),
+        .SEGBITS = 32,
+        .PABITS = 32,
+        .insn_flags = CPU_NANOMIPS32 | ASE_DSP | ASE_DSPR2 | ASE_MT,
+        .mmu_type = MMU_TYPE_R4000,
+    },
 #if defined(TARGET_MIPS64)
     {
         .name = "R4000",
