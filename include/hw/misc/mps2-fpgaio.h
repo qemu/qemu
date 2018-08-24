@@ -38,6 +38,10 @@ typedef struct {
     uint32_t misc;
 
     uint32_t prescale_clk;
+
+    /* These hold the CLOCK_VIRTUAL ns tick when the CLK1HZ/CLK100HZ was zero */
+    int64_t clk1hz_tick_offset;
+    int64_t clk100hz_tick_offset;
 } MPS2FPGAIO;
 
 #endif

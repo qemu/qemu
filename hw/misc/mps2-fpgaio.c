@@ -22,6 +22,7 @@
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
 #include "hw/misc/mps2-fpgaio.h"
+#include "qemu/timer.h"
 
 REG32(LED0, 0)
 REG32(BUTTON, 8)
@@ -32,10 +33,21 @@ REG32(PRESCALE, 0x1c)
 REG32(PSCNTR, 0x20)
 REG32(MISC, 0x4c)
 
+static uint32_t counter_from_tickoff(int64_t now, int64_t tick_offset, int frq)
+{
+    return muldiv64(now - tick_offset, frq, NANOSECONDS_PER_SECOND);
+}
+
+static int64_t tickoff_from_counter(int64_t now, uint32_t count, int frq)
+{
+    return now - muldiv64(count, NANOSECONDS_PER_SECOND, frq);
+}
+
 static uint64_t mps2_fpgaio_read(void *opaque, hwaddr offset, unsigned size)
 {
     MPS2FPGAIO *s = MPS2_FPGAIO(opaque);
     uint64_t r;
+    int64_t now;
 
     switch (offset) {
     case A_LED0:
@@ -54,10 +66,15 @@ static uint64_t mps2_fpgaio_read(void *opaque, hwaddr offset, unsigned size)
         r = s->misc;
         break;
     case A_CLK1HZ:
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        r = counter_from_tickoff(now, s->clk1hz_tick_offset, 1);
+        break;
     case A_CLK100HZ:
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        r = counter_from_tickoff(now, s->clk100hz_tick_offset, 100);
+        break;
     case A_COUNTER:
     case A_PSCNTR:
-        /* These are all upcounters of various frequencies. */
         qemu_log_mask(LOG_UNIMP, "MPS2 FPGAIO: counters unimplemented\n");
         r = 0;
         break;
@@ -76,6 +93,7 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
                               unsigned size)
 {
     MPS2FPGAIO *s = MPS2_FPGAIO(opaque);
+    int64_t now;
 
     trace_mps2_fpgaio_write(offset, value, size);
 
@@ -100,6 +118,14 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
                       "MPS2 FPGAIO: MISC control bits unimplemented\n");
         s->misc = value;
         break;
+    case A_CLK1HZ:
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        s->clk1hz_tick_offset = tickoff_from_counter(now, value, 1);
+        break;
+    case A_CLK100HZ:
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        s->clk100hz_tick_offset = tickoff_from_counter(now, value, 100);
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "MPS2 FPGAIO write: bad offset 0x%x\n", (int) offset);
@@ -116,11 +142,14 @@ static const MemoryRegionOps mps2_fpgaio_ops = {
 static void mps2_fpgaio_reset(DeviceState *dev)
 {
     MPS2FPGAIO *s = MPS2_FPGAIO(dev);
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     trace_mps2_fpgaio_reset();
     s->led0 = 0;
     s->prescale = 0;
     s->misc = 0;
+    s->clk1hz_tick_offset = tickoff_from_counter(now, 0, 1);
+    s->clk100hz_tick_offset = tickoff_from_counter(now, 0, 100);
 }
 
 static void mps2_fpgaio_init(Object *obj)
@@ -133,6 +162,24 @@ static void mps2_fpgaio_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
+static bool mps2_fpgaio_counters_needed(void *opaque)
+{
+    /* Currently vmstate.c insists all subsections have a 'needed' function */
+    return true;
+}
+
+static const VMStateDescription mps2_fpgaio_counters_vmstate = {
+    .name = "mps2-fpgaio/counters",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = mps2_fpgaio_counters_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(clk1hz_tick_offset, MPS2FPGAIO),
+        VMSTATE_INT64(clk100hz_tick_offset, MPS2FPGAIO),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription mps2_fpgaio_vmstate = {
     .name = "mps2-fpgaio",
     .version_id = 1,
@@ -142,6 +189,10 @@ static const VMStateDescription mps2_fpgaio_vmstate = {
         VMSTATE_UINT32(prescale, MPS2FPGAIO),
         VMSTATE_UINT32(misc, MPS2FPGAIO),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &mps2_fpgaio_counters_vmstate,
+        NULL
     }
 };
 
