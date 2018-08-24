@@ -146,7 +146,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         case 0x00040001: /* Allocate buffer */
             stl_le_phys(&s->dma_as, value + 12, fbconfig.base);
             stl_le_phys(&s->dma_as, value + 16,
-                        fbconfig.xres * fbconfig.yres * fbconfig.bpp / 8);
+                        bcm2835_fb_get_size(&fbconfig));
             resplen = 8;
             break;
         case 0x00048001: /* Release buffer */
@@ -210,7 +210,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             break;
         case 0x00040008: /* Get pitch */
             stl_le_phys(&s->dma_as, value + 12,
-                        fbconfig.xres * fbconfig.bpp / 8);
+                        bcm2835_fb_get_pitch(&fbconfig));
             resplen = 4;
             break;
         case 0x00040009: /* Get virtual offset */

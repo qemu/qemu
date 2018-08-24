@@ -139,7 +139,7 @@ static void fb_update_display(void *opaque)
         return;
     }
 
-    src_width = s->config.xres * (s->config.bpp >> 3);
+    src_width = bcm2835_fb_get_pitch(&s->config);
     dest_width = s->config.xres;
 
     switch (surface_bits_per_pixel(surface)) {
@@ -204,8 +204,8 @@ static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
 
     /* TODO - Manage properly virtual resolution */
 
-    pitch = s->config.xres * (s->config.bpp >> 3);
-    size = s->config.yres * pitch;
+    pitch = bcm2835_fb_get_pitch(&s->config);
+    size = bcm2835_fb_get_size(&s->config);
 
     stl_le_phys(&s->dma_as, value + 16, pitch);
     stl_le_phys(&s->dma_as, value + 32, s->config.base);

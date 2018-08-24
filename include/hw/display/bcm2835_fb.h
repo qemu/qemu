@@ -52,4 +52,26 @@ typedef struct {
 
 void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig);
 
+/**
+ * bcm2835_fb_get_pitch: return number of bytes per line of the framebuffer
+ * @config: configuration info for the framebuffer
+ *
+ * Return the number of bytes per line of the framebuffer, ie the number
+ * that must be added to a pixel address to get the address of the pixel
+ * directly below it on screen.
+ */
+static inline uint32_t bcm2835_fb_get_pitch(BCM2835FBConfig *config)
+{
+    return config->xres * (config->bpp >> 3);
+}
+
+/**
+ * bcm2835_fb_get_size: return total size of framebuffer in bytes
+ * @config: configuration info for the framebuffer
+ */
+static inline uint32_t bcm2835_fb_get_size(BCM2835FBConfig *config)
+{
+    return config->yres * bcm2835_fb_get_pitch(config);
+}
+
 #endif
