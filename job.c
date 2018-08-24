@@ -136,21 +136,13 @@ static void job_txn_del_job(Job *job)
     }
 }
 
-static int job_txn_apply(JobTxn *txn, int fn(Job *), bool lock)
+static int job_txn_apply(JobTxn *txn, int fn(Job *))
 {
-    AioContext *ctx;
     Job *job, *next;
     int rc = 0;
 
     QLIST_FOREACH_SAFE(job, &txn->jobs, txn_list, next) {
-        if (lock) {
-            ctx = job->aio_context;
-            aio_context_acquire(ctx);
-        }
         rc = fn(job);
-        if (lock) {
-            aio_context_release(ctx);
-        }
         if (rc) {
             break;
         }
@@ -780,11 +772,11 @@ static void job_do_finalize(Job *job)
     assert(job && job->txn);
 
     /* prepare the transaction to complete */
-    rc = job_txn_apply(job->txn, job_prepare, true);
+    rc = job_txn_apply(job->txn, job_prepare);
     if (rc) {
         job_completed_txn_abort(job);
     } else {
-        job_txn_apply(job->txn, job_finalize_single, true);
+        job_txn_apply(job->txn, job_finalize_single);
     }
 }
 
@@ -830,10 +822,10 @@ static void job_completed_txn_success(Job *job)
         assert(other_job->ret == 0);
     }
 
-    job_txn_apply(txn, job_transition_to_pending, false);
+    job_txn_apply(txn, job_transition_to_pending);
 
     /* If no jobs need manual finalization, automatically do so */
-    if (job_txn_apply(txn, job_needs_finalize, false) == 0) {
+    if (job_txn_apply(txn, job_needs_finalize) == 0) {
         job_do_finalize(job);
     }
 }
