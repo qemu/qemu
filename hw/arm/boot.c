@@ -736,6 +736,17 @@ static void do_cpu_reset(void *opaque)
                 }
             }
 
+            if (!env->aarch64 && !info->secure_boot &&
+                arm_feature(env, ARM_FEATURE_EL2)) {
+                /*
+                 * This is an AArch32 boot not to Secure state, and
+                 * we have Hyp mode available, so boot the kernel into
+                 * Hyp mode. This is not how the CPU comes out of reset,
+                 * so we need to manually put it there.
+                 */
+                cpsr_write(env, ARM_CPU_MODE_HYP, CPSR_M, CPSRWriteRaw);
+            }
+
             if (cs == first_cpu) {
                 AddressSpace *as = arm_boot_address_space(cpu, info);
 
