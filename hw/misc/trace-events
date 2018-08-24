@@ -92,6 +92,15 @@ tz_mpc_mem_blocked_write(uint64_t addr, uint64_t data, unsigned size, bool secur
 tz_mpc_translate(uint64_t addr, int flags, const char *idx, const char *res) "TZ MPC translate: addr 0x%" PRIx64 " flags 0x%x iommu_idx %s: %s"
 tz_mpc_iommu_notify(uint64_t addr) "TZ MPC iommu: notifying UNMAP/MAP for 0x%" PRIx64
 
+# hw/misc/tz-msc.c
+tz_msc_reset(void) "TZ MSC: reset"
+tz_msc_cfg_nonsec(int level) "TZ MSC: cfg_nonsec = %d"
+tz_msc_cfg_sec_resp(int level) "TZ MSC: cfg_sec_resp = %d"
+tz_msc_irq_enable(int level) "TZ MSC: int_enable = %d"
+tz_msc_irq_clear(int level) "TZ MSC: int_clear = %d"
+tz_msc_update_irq(int level) "TZ MSC: setting irq line to %d"
+tz_msc_access_blocked(uint64_t offset) "TZ MSC: offset 0x%" PRIx64 " access blocked"
+
 # hw/misc/tz-ppc.c
 tz_ppc_reset(void) "TZ PPC: reset"
 tz_ppc_cfg_nonsec(int n, int level) "TZ PPC: cfg_nonsec[%d] = %d"
