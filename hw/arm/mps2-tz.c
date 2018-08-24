@@ -192,7 +192,7 @@ static MemoryRegion *make_scc(MPS2TZMachineState *mms, void *opaque,
     sccdev = DEVICE(scc);
     qdev_set_parent_bus(sccdev, sysbus_get_default());
     qdev_prop_set_uint32(sccdev, "scc-cfg4", 0x2);
-    qdev_prop_set_uint32(sccdev, "scc-aid", 0x02000008);
+    qdev_prop_set_uint32(sccdev, "scc-aid", 0x00200008);
     qdev_prop_set_uint32(sccdev, "scc-id", mmc->scc_id);
     object_property_set_bool(OBJECT(scc), true, "realized", &error_fatal);
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(sccdev), 0);
@@ -604,7 +604,7 @@ static void mps2tz_an505_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM MPS2 with AN505 FPGA image for Cortex-M33";
     mmc->fpga_type = FPGA_AN505;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m33");
-    mmc->scc_id = 0x41040000 | (505 << 4);
+    mmc->scc_id = 0x41045050;
 }
 
 static const TypeInfo mps2tz_info = {
