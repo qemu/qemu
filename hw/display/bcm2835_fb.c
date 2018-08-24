@@ -248,38 +248,6 @@ void bcm2835_fb_validate_config(BCM2835FBConfig *config)
     }
 }
 
-static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
-{
-    uint32_t pitch;
-    uint32_t size;
-
-    value &= ~0xf;
-
-    s->lock = true;
-
-    s->config.xres = ldl_le_phys(&s->dma_as, value);
-    s->config.yres = ldl_le_phys(&s->dma_as, value + 4);
-    s->config.xres_virtual = ldl_le_phys(&s->dma_as, value + 8);
-    s->config.yres_virtual = ldl_le_phys(&s->dma_as, value + 12);
-    s->config.bpp = ldl_le_phys(&s->dma_as, value + 20);
-    s->config.xoffset = ldl_le_phys(&s->dma_as, value + 24);
-    s->config.yoffset = ldl_le_phys(&s->dma_as, value + 28);
-
-    s->config.base = s->vcram_base | (value & 0xc0000000);
-    s->config.base += BCM2835_FB_OFFSET;
-
-    pitch = bcm2835_fb_get_pitch(&s->config);
-    size = bcm2835_fb_get_size(&s->config);
-
-    stl_le_phys(&s->dma_as, value + 16, pitch);
-    stl_le_phys(&s->dma_as, value + 32, s->config.base);
-    stl_le_phys(&s->dma_as, value + 36, size);
-
-    s->invalidate = true;
-    qemu_console_resize(s->con, s->config.xres, s->config.yres);
-    s->lock = false;
-}
-
 void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig)
 {
     s->lock = true;
@@ -289,6 +257,37 @@ void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig)
     s->invalidate = true;
     qemu_console_resize(s->con, s->config.xres, s->config.yres);
     s->lock = false;
+}
+
+static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
+{
+    uint32_t pitch;
+    uint32_t size;
+    BCM2835FBConfig newconf;
+
+    value &= ~0xf;
+
+    newconf.xres = ldl_le_phys(&s->dma_as, value);
+    newconf.yres = ldl_le_phys(&s->dma_as, value + 4);
+    newconf.xres_virtual = ldl_le_phys(&s->dma_as, value + 8);
+    newconf.yres_virtual = ldl_le_phys(&s->dma_as, value + 12);
+    newconf.bpp = ldl_le_phys(&s->dma_as, value + 20);
+    newconf.xoffset = ldl_le_phys(&s->dma_as, value + 24);
+    newconf.yoffset = ldl_le_phys(&s->dma_as, value + 28);
+
+    newconf.base = s->vcram_base | (value & 0xc0000000);
+    newconf.base += BCM2835_FB_OFFSET;
+
+    bcm2835_fb_validate_config(&newconf);
+
+    pitch = bcm2835_fb_get_pitch(&newconf);
+    size = bcm2835_fb_get_size(&newconf);
+
+    stl_le_phys(&s->dma_as, value + 16, pitch);
+    stl_le_phys(&s->dma_as, value + 32, newconf.base);
+    stl_le_phys(&s->dma_as, value + 36, size);
+
+    bcm2835_fb_reconfigure(s, &newconf);
 }
 
 static uint64_t bcm2835_fb_read(void *opaque, hwaddr offset, unsigned size)
