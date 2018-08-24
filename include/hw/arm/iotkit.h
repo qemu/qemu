@@ -56,6 +56,7 @@
 #include "hw/misc/tz-ppc.h"
 #include "hw/misc/tz-mpc.h"
 #include "hw/timer/cmsdk-apb-timer.h"
+#include "hw/timer/cmsdk-apb-dualtimer.h"
 #include "hw/misc/unimp.h"
 #include "hw/or-irq.h"
 #include "hw/core/split-irq.h"
@@ -87,7 +88,7 @@ typedef struct IoTKit {
     SplitIRQ mpc_irq_splitter[IOTS_NUM_EXP_MPC + IOTS_NUM_MPC];
     qemu_or_irq mpc_irq_orgate;
 
-    UnimplementedDeviceState dualtimer;
+    CMSDKAPBDualTimer dualtimer;
     UnimplementedDeviceState s32ktimer;
 
     MemoryRegion container;

@@ -139,7 +139,7 @@ static void iotkit_init(Object *obj)
     sysbus_init_child_obj(obj, "timer1", &s->timer1, sizeof(s->timer1),
                           TYPE_CMSDK_APB_TIMER);
     sysbus_init_child_obj(obj, "dualtimer", &s->dualtimer, sizeof(s->dualtimer),
-                          TYPE_UNIMPLEMENTED_DEVICE);
+                          TYPE_CMSDK_APB_DUALTIMER);
     object_initialize_child(obj, "ppc-irq-orgate", &s->ppc_irq_orgate,
                             sizeof(s->ppc_irq_orgate), TYPE_OR_IRQ,
                             &error_abort, NULL);
@@ -390,13 +390,15 @@ static void iotkit_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qdev_prop_set_string(DEVICE(&s->dualtimer), "name", "Dual timer");
-    qdev_prop_set_uint64(DEVICE(&s->dualtimer), "size", 0x1000);
+
+    qdev_prop_set_uint32(DEVICE(&s->dualtimer), "pclk-frq", s->mainclk_frq);
     object_property_set_bool(OBJECT(&s->dualtimer), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->dualtimer), 0,
+                       qdev_get_gpio_in(DEVICE(&s->armv7m), 5));
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dualtimer), 0);
     object_property_set_link(OBJECT(&s->apb_ppc0), OBJECT(mr), "port[2]", &err);
     if (err) {
