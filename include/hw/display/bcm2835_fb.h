@@ -53,8 +53,6 @@ typedef struct {
     uint32_t pitch;
 } BCM2835FBState;
 
-void bcm2835_fb_reconfigure(BCM2835FBState *s, uint32_t *xres, uint32_t *yres,
-                            uint32_t *xoffset, uint32_t *yoffset, uint32_t *bpp,
-                            uint32_t *pixo, uint32_t *alpha);
+void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig);
 
 #endif

@@ -213,34 +213,13 @@ static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
     s->lock = false;
 }
 
-void bcm2835_fb_reconfigure(BCM2835FBState *s, uint32_t *xres, uint32_t *yres,
-                            uint32_t *xoffset, uint32_t *yoffset, uint32_t *bpp,
-                            uint32_t *pixo, uint32_t *alpha)
+void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig)
 {
     s->lock = true;
 
     /* TODO: input validation! */
-    if (xres) {
-        s->config.xres = *xres;
-    }
-    if (yres) {
-        s->config.yres = *yres;
-    }
-    if (xoffset) {
-        s->config.xoffset = *xoffset;
-    }
-    if (yoffset) {
-        s->config.yoffset = *yoffset;
-    }
-    if (bpp) {
-        s->config.bpp = *bpp;
-    }
-    if (pixo) {
-        s->config.pixo = *pixo;
-    }
-    if (alpha) {
-        s->config.alpha = *alpha;
-    }
+
+    s->config = *newconfig;
 
     /* TODO - Manage properly virtual resolution */
 
