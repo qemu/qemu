@@ -47,6 +47,7 @@ typedef struct {
     bool lock, invalidate, pending;
 
     BCM2835FBConfig config;
+    BCM2835FBConfig initial_config;
 } BCM2835FBState;
 
 void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig);

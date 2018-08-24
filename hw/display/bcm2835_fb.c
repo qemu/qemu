@@ -329,11 +329,7 @@ static void bcm2835_fb_reset(DeviceState *dev)
 
     s->pending = false;
 
-    s->config.xres_virtual = s->config.xres;
-    s->config.yres_virtual = s->config.yres;
-    s->config.xoffset = 0;
-    s->config.yoffset = 0;
-    s->config.base = s->vcram_base + BCM2835_FB_OFFSET;
+    s->config = s->initial_config;
 
     s->invalidate = true;
     s->lock = false;
@@ -357,6 +353,13 @@ static void bcm2835_fb_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* Fill in the parts of initial_config that are not set by QOM properties */
+    s->initial_config.xres_virtual = s->initial_config.xres;
+    s->initial_config.yres_virtual = s->initial_config.yres;
+    s->initial_config.xoffset = 0;
+    s->initial_config.yoffset = 0;
+    s->initial_config.base = s->vcram_base + BCM2835_FB_OFFSET;
+
     s->dma_mr = MEMORY_REGION(obj);
     address_space_init(&s->dma_as, s->dma_mr, NULL);
 
@@ -370,13 +373,13 @@ static Property bcm2835_fb_props[] = {
     DEFINE_PROP_UINT32("vcram-base", BCM2835FBState, vcram_base, 0),/*required*/
     DEFINE_PROP_UINT32("vcram-size", BCM2835FBState, vcram_size,
                        DEFAULT_VCRAM_SIZE),
-    DEFINE_PROP_UINT32("xres", BCM2835FBState, config.xres, 640),
-    DEFINE_PROP_UINT32("yres", BCM2835FBState, config.yres, 480),
-    DEFINE_PROP_UINT32("bpp", BCM2835FBState, config.bpp, 16),
-    DEFINE_PROP_UINT32("pixo",
-                       BCM2835FBState, config.pixo, 1), /* 1=RGB, 0=BGR */
-    DEFINE_PROP_UINT32("alpha",
-                       BCM2835FBState, config.alpha, 2), /* alpha ignored */
+    DEFINE_PROP_UINT32("xres", BCM2835FBState, initial_config.xres, 640),
+    DEFINE_PROP_UINT32("yres", BCM2835FBState, initial_config.yres, 480),
+    DEFINE_PROP_UINT32("bpp", BCM2835FBState, initial_config.bpp, 16),
+    DEFINE_PROP_UINT32("pixo", BCM2835FBState,
+                       initial_config.pixo, 1), /* 1=RGB, 0=BGR */
+    DEFINE_PROP_UINT32("alpha", BCM2835FBState,
+                       initial_config.alpha, 2), /* alpha ignored */
     DEFINE_PROP_END_OF_LIST()
 };
 
