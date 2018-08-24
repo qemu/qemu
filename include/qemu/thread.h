@@ -48,6 +48,22 @@ extern QemuCondWaitFunc qemu_cond_wait_func;
 #define qemu_mutex_trylock__raw(m)                      \
         qemu_mutex_trylock_impl(m, __FILE__, __LINE__)
 
+#ifdef __COVERITY__
+/*
+ * Coverity is severely confused by the indirect function calls,
+ * hide them.
+ */
+#define qemu_mutex_lock(m)                                              \
+            qemu_mutex_lock_impl(m, __FILE__, __LINE__);
+#define qemu_mutex_trylock(m)                                           \
+            qemu_mutex_trylock_impl(m, __FILE__, __LINE__);
+#define qemu_rec_mutex_lock(m)                                          \
+            qemu_rec_mutex_lock_impl(m, __FILE__, __LINE__);
+#define qemu_rec_mutex_trylock(m)                                       \
+            qemu_rec_mutex_trylock_impl(m, __FILE__, __LINE__);
+#define qemu_cond_wait(c, m)                                            \
+            qemu_cond_wait_impl(c, m, __FILE__, __LINE__);
+#else
 #define qemu_mutex_lock(m) ({                                           \
             QemuMutexLockFunc _f = atomic_read(&qemu_mutex_lock_func);  \
             _f(m, __FILE__, __LINE__);                                  \
@@ -73,6 +89,7 @@ extern QemuCondWaitFunc qemu_cond_wait_func;
             QemuCondWaitFunc _f = atomic_read(&qemu_cond_wait_func);    \
             _f(c, m, __FILE__, __LINE__);                               \
         })
+#endif
 
 #define qemu_mutex_unlock(mutex) \
         qemu_mutex_unlock_impl(mutex, __FILE__, __LINE__)
