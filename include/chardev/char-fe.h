@@ -20,7 +20,7 @@ struct CharBackend {
 };
 
 /**
- * @qemu_chr_fe_init:
+ * qemu_chr_fe_init:
  *
  * Initializes a front end for the given CharBackend and
  * Chardev. Call qemu_chr_fe_deinit() to remove the association and
@@ -31,7 +31,7 @@ struct CharBackend {
 bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp);
 
 /**
- * @qemu_chr_fe_deinit:
+ * qemu_chr_fe_deinit:
  * @b: a CharBackend
  * @del: if true, delete the chardev backend
 *
@@ -42,9 +42,9 @@ bool qemu_chr_fe_init(CharBackend *b, Chardev *s, Error **errp);
 void qemu_chr_fe_deinit(CharBackend *b, bool del);
 
 /**
- * @qemu_chr_fe_get_driver:
+ * qemu_chr_fe_get_driver:
  *
- * Returns the driver associated with a CharBackend or NULL if no
+ * Returns: the driver associated with a CharBackend or NULL if no
  * associated Chardev.
  * Note: avoid this function as the driver should never be accessed directly,
  *       especially by the frontends that support chardevice hotswap.
@@ -53,21 +53,21 @@ void qemu_chr_fe_deinit(CharBackend *b, bool del);
 Chardev *qemu_chr_fe_get_driver(CharBackend *be);
 
 /**
- * @qemu_chr_fe_backend_connected:
+ * qemu_chr_fe_backend_connected:
  *
- * Returns true if there is a chardevice associated with @be.
+ * Returns: true if there is a chardevice associated with @be.
  */
 bool qemu_chr_fe_backend_connected(CharBackend *be);
 
 /**
- * @qemu_chr_fe_backend_open:
+ * qemu_chr_fe_backend_open:
  *
- * Returns true if chardevice associated with @be is open.
+ * Returns: true if chardevice associated with @be is open.
  */
 bool qemu_chr_fe_backend_open(CharBackend *be);
 
 /**
- * @qemu_chr_fe_set_handlers:
+ * qemu_chr_fe_set_handlers:
  * @b: a CharBackend
  * @fd_can_read: callback to get the amount of data the frontend may
  *               receive
@@ -95,7 +95,7 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
                               bool set_open);
 
 /**
- * @qemu_chr_fe_take_focus:
+ * qemu_chr_fe_take_focus:
  *
  * Take the focus (if the front end is muxed).
  *
@@ -104,14 +104,14 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
 void qemu_chr_fe_take_focus(CharBackend *b);
 
 /**
- * @qemu_chr_fe_accept_input:
+ * qemu_chr_fe_accept_input:
  *
  * Notify that the frontend is ready to receive data
  */
 void qemu_chr_fe_accept_input(CharBackend *be);
 
 /**
- * @qemu_chr_fe_disconnect:
+ * qemu_chr_fe_disconnect:
  *
  * Close a fd accepted by character backend.
  * Without associated Chardev, do nothing.
@@ -119,7 +119,7 @@ void qemu_chr_fe_accept_input(CharBackend *be);
 void qemu_chr_fe_disconnect(CharBackend *be);
 
 /**
- * @qemu_chr_fe_wait_connected:
+ * qemu_chr_fe_wait_connected:
  *
  * Wait for characted backend to be connected, return < 0 on error or
  * if no associated Chardev.
@@ -127,19 +127,18 @@ void qemu_chr_fe_disconnect(CharBackend *be);
 int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp);
 
 /**
- * @qemu_chr_fe_set_echo:
+ * qemu_chr_fe_set_echo:
+ * @echo: true to enable echo, false to disable echo
  *
  * Ask the backend to override its normal echo setting.  This only really
  * applies to the stdio backend and is used by the QMP server such that you
  * can see what you type if you try to type QMP commands.
  * Without associated Chardev, do nothing.
- *
- * @echo true to enable echo, false to disable echo
  */
 void qemu_chr_fe_set_echo(CharBackend *be, bool echo);
 
 /**
- * @qemu_chr_fe_set_open:
+ * qemu_chr_fe_set_open:
  *
  * Set character frontend open status.  This is an indication that the
  * front end is ready (or not) to begin doing I/O.
@@ -148,28 +147,26 @@ void qemu_chr_fe_set_echo(CharBackend *be, bool echo);
 void qemu_chr_fe_set_open(CharBackend *be, int fe_open);
 
 /**
- * @qemu_chr_fe_printf:
+ * qemu_chr_fe_printf:
+ * @fmt: see #printf
  *
  * Write to a character backend using a printf style interface.  This
  * function is thread-safe. It does nothing without associated
  * Chardev.
- *
- * @fmt see #printf
  */
 void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
 /**
- * @qemu_chr_fe_add_watch:
+ * qemu_chr_fe_add_watch:
+ * @cond: the condition to poll for
+ * @func: the function to call when the condition happens
+ * @user_data: the opaque pointer to pass to @func
  *
  * If the backend is connected, create and add a #GSource that fires
  * when the given condition (typically G_IO_OUT|G_IO_HUP or G_IO_HUP)
  * is active; return the #GSource's tag.  If it is disconnected,
  * or without associated Chardev, return 0.
- *
- * @cond the condition to poll for
- * @func the function to call when the condition happens
- * @user_data the opaque pointer to pass to @func
  *
  * Returns: the source tag
  */
@@ -177,53 +174,49 @@ guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
                             GIOFunc func, void *user_data);
 
 /**
- * @qemu_chr_fe_write:
+ * qemu_chr_fe_write:
+ * @buf: the data
+ * @len: the number of bytes to send
  *
  * Write data to a character backend from the front end.  This function
  * will send data from the front end to the back end.  This function
  * is thread-safe.
- *
- * @buf the data
- * @len the number of bytes to send
  *
  * Returns: the number of bytes consumed (0 if no associated Chardev)
  */
 int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
 
 /**
- * @qemu_chr_fe_write_all:
+ * qemu_chr_fe_write_all:
+ * @buf: the data
+ * @len: the number of bytes to send
  *
  * Write data to a character backend from the front end.  This function will
  * send data from the front end to the back end.  Unlike @qemu_chr_fe_write,
  * this function will block if the back end cannot consume all of the data
  * attempted to be written.  This function is thread-safe.
  *
- * @buf the data
- * @len the number of bytes to send
- *
  * Returns: the number of bytes consumed (0 if no associated Chardev)
  */
 int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
 
 /**
- * @qemu_chr_fe_read_all:
+ * qemu_chr_fe_read_all:
+ * @buf: the data buffer
+ * @len: the number of bytes to read
  *
  * Read data to a buffer from the back end.
- *
- * @buf the data buffer
- * @len the number of bytes to read
  *
  * Returns: the number of bytes read (0 if no associated Chardev)
  */
 int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len);
 
 /**
- * @qemu_chr_fe_ioctl:
+ * qemu_chr_fe_ioctl:
+ * @cmd: see CHR_IOCTL_*
+ * @arg: the data associated with @cmd
  *
  * Issue a device specific ioctl to a backend.  This function is thread-safe.
- *
- * @cmd see CHR_IOCTL_*
- * @arg the data associated with @cmd
  *
  * Returns: if @cmd is not supported by the backend or there is no
  *          associated Chardev, -ENOTSUP, otherwise the return
@@ -232,7 +225,7 @@ int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len);
 int qemu_chr_fe_ioctl(CharBackend *be, int cmd, void *arg);
 
 /**
- * @qemu_chr_fe_get_msgfd:
+ * qemu_chr_fe_get_msgfd:
  *
  * For backends capable of fd passing, return the latest file descriptor passed
  * by a client.
@@ -245,7 +238,7 @@ int qemu_chr_fe_ioctl(CharBackend *be, int cmd, void *arg);
 int qemu_chr_fe_get_msgfd(CharBackend *be);
 
 /**
- * @qemu_chr_fe_get_msgfds:
+ * qemu_chr_fe_get_msgfds:
  *
  * For backends capable of fd passing, return the number of file received
  * descriptors and fills the fds array up to num elements
@@ -258,7 +251,7 @@ int qemu_chr_fe_get_msgfd(CharBackend *be);
 int qemu_chr_fe_get_msgfds(CharBackend *be, int *fds, int num);
 
 /**
- * @qemu_chr_fe_set_msgfds:
+ * qemu_chr_fe_set_msgfds:
  *
  * For backends capable of fd passing, set an array of fds to be passed with
  * the next send operation.
