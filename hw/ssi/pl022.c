@@ -38,7 +38,7 @@ do { fprintf(stderr, "pl022: error: " fmt , ## __VA_ARGS__);} while (0)
 #define PL022_SR_BSY  0x10
 
 #define PL022_INT_ROR 0x01
-#define PL022_INT_RT  0x04
+#define PL022_INT_RT  0x02
 #define PL022_INT_RX  0x04
 #define PL022_INT_TX  0x08
 
