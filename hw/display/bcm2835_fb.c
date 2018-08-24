@@ -184,6 +184,9 @@ static void fb_update_display(void *opaque)
 
 static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
 {
+    uint32_t pitch;
+    uint32_t size;
+
     value &= ~0xf;
 
     s->lock = true;
@@ -201,12 +204,12 @@ static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
 
     /* TODO - Manage properly virtual resolution */
 
-    s->pitch = s->config.xres * (s->config.bpp >> 3);
-    s->size = s->config.yres * s->pitch;
+    pitch = s->config.xres * (s->config.bpp >> 3);
+    size = s->config.yres * pitch;
 
-    stl_le_phys(&s->dma_as, value + 16, s->pitch);
+    stl_le_phys(&s->dma_as, value + 16, pitch);
     stl_le_phys(&s->dma_as, value + 32, s->config.base);
-    stl_le_phys(&s->dma_as, value + 36, s->size);
+    stl_le_phys(&s->dma_as, value + 36, size);
 
     s->invalidate = true;
     qemu_console_resize(s->con, s->config.xres, s->config.yres);
@@ -222,9 +225,6 @@ void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig)
     s->config = *newconfig;
 
     /* TODO - Manage properly virtual resolution */
-
-    s->pitch = s->config.xres * (s->config.bpp >> 3);
-    s->size = s->config.yres * s->pitch;
 
     s->invalidate = true;
     qemu_console_resize(s->con, s->config.xres, s->config.yres);
@@ -301,8 +301,7 @@ static const VMStateDescription vmstate_bcm2835_fb = {
         VMSTATE_UINT32(config.yoffset, BCM2835FBState),
         VMSTATE_UINT32(config.bpp, BCM2835FBState),
         VMSTATE_UINT32(config.base, BCM2835FBState),
-        VMSTATE_UINT32(pitch, BCM2835FBState),
-        VMSTATE_UINT32(size, BCM2835FBState),
+        VMSTATE_UNUSED(8), /* Was pitch and size */
         VMSTATE_UINT32(config.pixo, BCM2835FBState),
         VMSTATE_UINT32(config.alpha, BCM2835FBState),
         VMSTATE_END_OF_LIST()
@@ -335,8 +334,6 @@ static void bcm2835_fb_reset(DeviceState *dev)
     s->config.xoffset = 0;
     s->config.yoffset = 0;
     s->config.base = s->vcram_base + BCM2835_FB_OFFSET;
-    s->pitch = s->config.xres * (s->config.bpp >> 3);
-    s->size = s->config.yres * s->pitch;
 
     s->invalidate = true;
     s->lock = false;

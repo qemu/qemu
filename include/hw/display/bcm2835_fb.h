@@ -47,10 +47,6 @@ typedef struct {
     bool lock, invalidate, pending;
 
     BCM2835FBConfig config;
-
-    /* These are just cached values calculated from the config settings */
-    uint32_t size;
-    uint32_t pitch;
 } BCM2835FBState;
 
 void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig);
