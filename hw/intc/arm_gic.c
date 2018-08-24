@@ -2084,7 +2084,7 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
         for (i = 0; i < s->num_cpu; i++) {
             memory_region_init_io(&s->vifaceiomem[i + 1], OBJECT(s),
                                   &gic_viface_ops, &s->backref[i],
-                                  "gic_viface", 0x1000);
+                                  "gic_viface", 0x200);
             sysbus_init_mmio(sbd, &s->vifaceiomem[i + 1]);
         }
     }
