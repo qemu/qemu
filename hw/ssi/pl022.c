@@ -270,26 +270,24 @@ static const VMStateDescription vmstate_pl022 = {
     }
 };
 
-static int pl022_init(SysBusDevice *sbd)
+static void pl022_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     PL022State *s = PL022(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl022_ops, s, "pl022", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
     s->ssi = ssi_create_bus(dev, "ssi");
-    return 0;
 }
 
 static void pl022_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    sdc->init = pl022_init;
     dc->reset = pl022_reset;
     dc->vmsd = &vmstate_pl022;
+    dc->realize = pl022_realize;
 }
 
 static const TypeInfo pl022_info = {
