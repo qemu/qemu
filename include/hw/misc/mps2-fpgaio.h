@@ -37,7 +37,17 @@ typedef struct {
     uint32_t prescale;
     uint32_t misc;
 
+    /* QEMU_CLOCK_VIRTUAL time at which counter and pscntr were last synced */
+    int64_t pscntr_sync_ticks;
+    /* Values of COUNTER and PSCNTR at time pscntr_sync_ticks */
+    uint32_t counter;
+    uint32_t pscntr;
+
     uint32_t prescale_clk;
+
+    /* These hold the CLOCK_VIRTUAL ns tick when the CLK1HZ/CLK100HZ was zero */
+    int64_t clk1hz_tick_offset;
+    int64_t clk100hz_tick_offset;
 } MPS2FPGAIO;
 
 #endif

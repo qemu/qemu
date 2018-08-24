@@ -45,7 +45,10 @@
 #include "hw/misc/mps2-scc.h"
 #include "hw/misc/mps2-fpgaio.h"
 #include "hw/misc/tz-mpc.h"
+#include "hw/misc/tz-msc.h"
 #include "hw/arm/iotkit.h"
+#include "hw/dma/pl080.h"
+#include "hw/ssi/pl022.h"
 #include "hw/devices.h"
 #include "net/net.h"
 #include "hw/core/split-irq.h"
@@ -71,12 +74,13 @@ typedef struct {
     MPS2FPGAIO fpgaio;
     TZPPC ppc[5];
     TZMPC ssram_mpc[3];
-    UnimplementedDeviceState spi[5];
+    PL022State spi[5];
     UnimplementedDeviceState i2c[4];
     UnimplementedDeviceState i2s_audio;
     UnimplementedDeviceState gpio[4];
-    UnimplementedDeviceState dma[4];
     UnimplementedDeviceState gfx;
+    PL080State dma[4];
+    TZMSC msc[4];
     CMSDKAPBUART uart[5];
     SplitIRQ sec_resp_splitter;
     qemu_or_irq uart_irq_orgate;
@@ -188,7 +192,7 @@ static MemoryRegion *make_scc(MPS2TZMachineState *mms, void *opaque,
     sccdev = DEVICE(scc);
     qdev_set_parent_bus(sccdev, sysbus_get_default());
     qdev_prop_set_uint32(sccdev, "scc-cfg4", 0x2);
-    qdev_prop_set_uint32(sccdev, "scc-aid", 0x02000008);
+    qdev_prop_set_uint32(sccdev, "scc-aid", 0x00200008);
     qdev_prop_set_uint32(sccdev, "scc-id", mmc->scc_id);
     object_property_set_bool(OBJECT(scc), true, "realized", &error_fatal);
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(sccdev), 0);
@@ -263,6 +267,89 @@ static MemoryRegion *make_mpc(MPS2TZMachineState *mms, void *opaque,
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(mpc), 0);
 }
 
+static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
+                              const char *name, hwaddr size)
+{
+    PL080State *dma = opaque;
+    int i = dma - &mms->dma[0];
+    SysBusDevice *s;
+    char *mscname = g_strdup_printf("%s-msc", name);
+    TZMSC *msc = &mms->msc[i];
+    DeviceState *iotkitdev = DEVICE(&mms->iotkit);
+    MemoryRegion *msc_upstream;
+    MemoryRegion *msc_downstream;
+
+    /*
+     * Each DMA device is a PL081 whose transaction master interface
+     * is guarded by a Master Security Controller. The downstream end of
+     * the MSC connects to the IoTKit AHB Slave Expansion port, so the
+     * DMA devices can see all devices and memory that the CPU does.
+     */
+    sysbus_init_child_obj(OBJECT(mms), mscname, msc, sizeof(*msc), TYPE_TZ_MSC);
+    msc_downstream = sysbus_mmio_get_region(SYS_BUS_DEVICE(&mms->iotkit), 0);
+    object_property_set_link(OBJECT(msc), OBJECT(msc_downstream),
+                             "downstream", &error_fatal);
+    object_property_set_link(OBJECT(msc), OBJECT(mms),
+                             "idau", &error_fatal);
+    object_property_set_bool(OBJECT(msc), true, "realized", &error_fatal);
+
+    qdev_connect_gpio_out_named(DEVICE(msc), "irq", 0,
+                                qdev_get_gpio_in_named(iotkitdev,
+                                                       "mscexp_status", i));
+    qdev_connect_gpio_out_named(iotkitdev, "mscexp_clear", i,
+                                qdev_get_gpio_in_named(DEVICE(msc),
+                                                       "irq_clear", 0));
+    qdev_connect_gpio_out_named(iotkitdev, "mscexp_ns", i,
+                                qdev_get_gpio_in_named(DEVICE(msc),
+                                                       "cfg_nonsec", 0));
+    qdev_connect_gpio_out(DEVICE(&mms->sec_resp_splitter),
+                          ARRAY_SIZE(mms->ppc) + i,
+                          qdev_get_gpio_in_named(DEVICE(msc),
+                                                 "cfg_sec_resp", 0));
+    msc_upstream = sysbus_mmio_get_region(SYS_BUS_DEVICE(msc), 0);
+
+    sysbus_init_child_obj(OBJECT(mms), name, dma, sizeof(*dma), TYPE_PL081);
+    object_property_set_link(OBJECT(dma), OBJECT(msc_upstream),
+                             "downstream", &error_fatal);
+    object_property_set_bool(OBJECT(dma), true, "realized", &error_fatal);
+
+    s = SYS_BUS_DEVICE(dma);
+    /* Wire up DMACINTR, DMACINTERR, DMACINTTC */
+    sysbus_connect_irq(s, 0, qdev_get_gpio_in_named(iotkitdev,
+                                                    "EXP_IRQ", 58 + i * 3));
+    sysbus_connect_irq(s, 1, qdev_get_gpio_in_named(iotkitdev,
+                                                    "EXP_IRQ", 56 + i * 3));
+    sysbus_connect_irq(s, 2, qdev_get_gpio_in_named(iotkitdev,
+                                                    "EXP_IRQ", 57 + i * 3));
+
+    return sysbus_mmio_get_region(s, 0);
+}
+
+static MemoryRegion *make_spi(MPS2TZMachineState *mms, void *opaque,
+                              const char *name, hwaddr size)
+{
+    /*
+     * The AN505 has five PL022 SPI controllers.
+     * One of these should have the LCD controller behind it; the others
+     * are connected only to the FPGA's "general purpose SPI connector"
+     * or "shield" expansion connectors.
+     * Note that if we do implement devices behind SPI, the chip select
+     * lines are set via the "MISC" register in the MPS2 FPGAIO device.
+     */
+    PL022State *spi = opaque;
+    int i = spi - &mms->spi[0];
+    DeviceState *iotkitdev = DEVICE(&mms->iotkit);
+    SysBusDevice *s;
+
+    sysbus_init_child_obj(OBJECT(mms), name, spi, sizeof(mms->spi[0]),
+                          TYPE_PL022);
+    object_property_set_bool(OBJECT(spi), true, "realized", &error_fatal);
+    s = SYS_BUS_DEVICE(spi);
+    sysbus_connect_irq(s, 0,
+                       qdev_get_gpio_in_named(iotkitdev, "EXP_IRQ", 51 + i));
+    return sysbus_mmio_get_region(s, 0);
+}
+
 static void mps2tz_common_init(MachineState *machine)
 {
     MPS2TZMachineState *mms = MPS2TZ_MACHINE(machine);
@@ -289,13 +376,14 @@ static void mps2tz_common_init(MachineState *machine)
                              &error_fatal);
 
     /* The sec_resp_cfg output from the IoTKit must be split into multiple
-     * lines, one for each of the PPCs we create here.
+     * lines, one for each of the PPCs we create here, plus one per MSC.
      */
     object_initialize(&mms->sec_resp_splitter, sizeof(mms->sec_resp_splitter),
                       TYPE_SPLIT_IRQ);
     object_property_add_child(OBJECT(machine), "sec-resp-splitter",
                               OBJECT(&mms->sec_resp_splitter), &error_abort);
-    object_property_set_int(OBJECT(&mms->sec_resp_splitter), 5,
+    object_property_set_int(OBJECT(&mms->sec_resp_splitter),
+                            ARRAY_SIZE(mms->ppc) + ARRAY_SIZE(mms->msc),
                             "num-lines", &error_fatal);
     object_property_set_bool(OBJECT(&mms->sec_resp_splitter), true,
                              "realized", &error_fatal);
@@ -360,11 +448,11 @@ static void mps2tz_common_init(MachineState *machine)
         }, {
             .name = "apb_ppcexp1",
             .ports = {
-                { "spi0", make_unimp_dev, &mms->spi[0], 0x40205000, 0x1000 },
-                { "spi1", make_unimp_dev, &mms->spi[1], 0x40206000, 0x1000 },
-                { "spi2", make_unimp_dev, &mms->spi[2], 0x40209000, 0x1000 },
-                { "spi3", make_unimp_dev, &mms->spi[3], 0x4020a000, 0x1000 },
-                { "spi4", make_unimp_dev, &mms->spi[4], 0x4020b000, 0x1000 },
+                { "spi0", make_spi, &mms->spi[0], 0x40205000, 0x1000 },
+                { "spi1", make_spi, &mms->spi[1], 0x40206000, 0x1000 },
+                { "spi2", make_spi, &mms->spi[2], 0x40209000, 0x1000 },
+                { "spi3", make_spi, &mms->spi[3], 0x4020a000, 0x1000 },
+                { "spi4", make_spi, &mms->spi[4], 0x4020b000, 0x1000 },
                 { "uart0", make_uart, &mms->uart[0], 0x40200000, 0x1000 },
                 { "uart1", make_uart, &mms->uart[1], 0x40201000, 0x1000 },
                 { "uart2", make_uart, &mms->uart[2], 0x40202000, 0x1000 },
@@ -396,10 +484,10 @@ static void mps2tz_common_init(MachineState *machine)
         }, {
             .name = "ahb_ppcexp1",
             .ports = {
-                { "dma0", make_unimp_dev, &mms->dma[0], 0x40110000, 0x1000 },
-                { "dma1", make_unimp_dev, &mms->dma[1], 0x40111000, 0x1000 },
-                { "dma2", make_unimp_dev, &mms->dma[2], 0x40112000, 0x1000 },
-                { "dma3", make_unimp_dev, &mms->dma[3], 0x40113000, 0x1000 },
+                { "dma0", make_dma, &mms->dma[0], 0x40110000, 0x1000 },
+                { "dma1", make_dma, &mms->dma[1], 0x40111000, 0x1000 },
+                { "dma2", make_dma, &mms->dma[2], 0x40112000, 0x1000 },
+                { "dma3", make_dma, &mms->dma[3], 0x40113000, 0x1000 },
             },
         },
     };
@@ -480,12 +568,32 @@ static void mps2tz_common_init(MachineState *machine)
     armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename, 0x400000);
 }
 
+static void mps2_tz_idau_check(IDAUInterface *ii, uint32_t address,
+                               int *iregion, bool *exempt, bool *ns, bool *nsc)
+{
+    /*
+     * The MPS2 TZ FPGA images have IDAUs in them which are connected to
+     * the Master Security Controllers. Thes have the same logic as
+     * is used by the IoTKit for the IDAU connected to the CPU, except
+     * that MSCs don't care about the NSC attribute.
+     */
+    int region = extract32(address, 28, 4);
+
+    *ns = !(region & 1);
+    *nsc = false;
+    /* 0xe0000000..0xe00fffff and 0xf0000000..0xf00fffff are exempt */
+    *exempt = (address & 0xeff00000) == 0xe0000000;
+    *iregion = region;
+}
+
 static void mps2tz_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    IDAUInterfaceClass *iic = IDAU_INTERFACE_CLASS(oc);
 
     mc->init = mps2tz_common_init;
     mc->max_cpus = 1;
+    iic->check = mps2_tz_idau_check;
 }
 
 static void mps2tz_an505_class_init(ObjectClass *oc, void *data)
@@ -496,7 +604,7 @@ static void mps2tz_an505_class_init(ObjectClass *oc, void *data)
     mc->desc = "ARM MPS2 with AN505 FPGA image for Cortex-M33";
     mmc->fpga_type = FPGA_AN505;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m33");
-    mmc->scc_id = 0x41040000 | (505 << 4);
+    mmc->scc_id = 0x41045050;
 }
 
 static const TypeInfo mps2tz_info = {
@@ -506,6 +614,10 @@ static const TypeInfo mps2tz_info = {
     .instance_size = sizeof(MPS2TZMachineState),
     .class_size = sizeof(MPS2TZMachineClass),
     .class_init = mps2tz_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_IDAU_INTERFACE },
+        { }
+    },
 };
 
 static const TypeInfo mps2tz_an505_info = {

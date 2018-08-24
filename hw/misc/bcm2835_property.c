@@ -21,11 +21,14 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
     uint32_t tmp;
     int n;
     uint32_t offset, length, color;
-    uint32_t xres, yres, xoffset, yoffset, bpp, pixo, alpha;
-    uint32_t tmp_xres, tmp_yres, tmp_xoffset, tmp_yoffset;
-    uint32_t tmp_bpp, tmp_pixo, tmp_alpha;
-    uint32_t *newxres = NULL, *newyres = NULL, *newxoffset = NULL,
-        *newyoffset = NULL, *newbpp = NULL, *newpixo = NULL, *newalpha = NULL;
+
+    /*
+     * Copy the current state of the framebuffer config; we will update
+     * this copy as we process tags and then ask the framebuffer to use
+     * it at the end.
+     */
+    BCM2835FBConfig fbconfig = s->fbdev->config;
+    bool fbconfig_updated = false;
 
     value &= ~0xf;
 
@@ -141,12 +144,9 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         /* Frame buffer */
 
         case 0x00040001: /* Allocate buffer */
-            stl_le_phys(&s->dma_as, value + 12, s->fbdev->base);
-            tmp_xres = newxres != NULL ? *newxres : s->fbdev->xres;
-            tmp_yres = newyres != NULL ? *newyres : s->fbdev->yres;
-            tmp_bpp = newbpp != NULL ? *newbpp : s->fbdev->bpp;
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.base);
             stl_le_phys(&s->dma_as, value + 16,
-                        tmp_xres * tmp_yres * tmp_bpp / 8);
+                        bcm2835_fb_get_size(&fbconfig));
             resplen = 8;
             break;
         case 0x00048001: /* Release buffer */
@@ -155,86 +155,85 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         case 0x00040002: /* Blank screen */
             resplen = 4;
             break;
-        case 0x00040003: /* Get display width/height */
-        case 0x00040004:
-            tmp_xres = newxres != NULL ? *newxres : s->fbdev->xres;
-            tmp_yres = newyres != NULL ? *newyres : s->fbdev->yres;
-            stl_le_phys(&s->dma_as, value + 12, tmp_xres);
-            stl_le_phys(&s->dma_as, value + 16, tmp_yres);
+        case 0x00044003: /* Test physical display width/height */
+        case 0x00044004: /* Test virtual display width/height */
             resplen = 8;
             break;
-        case 0x00044003: /* Test display width/height */
-        case 0x00044004:
+        case 0x00048003: /* Set physical display width/height */
+            fbconfig.xres = ldl_le_phys(&s->dma_as, value + 12);
+            fbconfig.yres = ldl_le_phys(&s->dma_as, value + 16);
+            bcm2835_fb_validate_config(&fbconfig);
+            fbconfig_updated = true;
+            /* fall through */
+        case 0x00040003: /* Get physical display width/height */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.xres);
+            stl_le_phys(&s->dma_as, value + 16, fbconfig.yres);
             resplen = 8;
             break;
-        case 0x00048003: /* Set display width/height */
-        case 0x00048004:
-            xres = ldl_le_phys(&s->dma_as, value + 12);
-            newxres = &xres;
-            yres = ldl_le_phys(&s->dma_as, value + 16);
-            newyres = &yres;
+        case 0x00048004: /* Set virtual display width/height */
+            fbconfig.xres_virtual = ldl_le_phys(&s->dma_as, value + 12);
+            fbconfig.yres_virtual = ldl_le_phys(&s->dma_as, value + 16);
+            bcm2835_fb_validate_config(&fbconfig);
+            fbconfig_updated = true;
+            /* fall through */
+        case 0x00040004: /* Get virtual display width/height */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.xres_virtual);
+            stl_le_phys(&s->dma_as, value + 16, fbconfig.yres_virtual);
             resplen = 8;
-            break;
-        case 0x00040005: /* Get depth */
-            tmp_bpp = newbpp != NULL ? *newbpp : s->fbdev->bpp;
-            stl_le_phys(&s->dma_as, value + 12, tmp_bpp);
-            resplen = 4;
             break;
         case 0x00044005: /* Test depth */
             resplen = 4;
             break;
         case 0x00048005: /* Set depth */
-            bpp = ldl_le_phys(&s->dma_as, value + 12);
-            newbpp = &bpp;
-            resplen = 4;
-            break;
-        case 0x00040006: /* Get pixel order */
-            tmp_pixo = newpixo != NULL ? *newpixo : s->fbdev->pixo;
-            stl_le_phys(&s->dma_as, value + 12, tmp_pixo);
+            fbconfig.bpp = ldl_le_phys(&s->dma_as, value + 12);
+            bcm2835_fb_validate_config(&fbconfig);
+            fbconfig_updated = true;
+            /* fall through */
+        case 0x00040005: /* Get depth */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.bpp);
             resplen = 4;
             break;
         case 0x00044006: /* Test pixel order */
             resplen = 4;
             break;
         case 0x00048006: /* Set pixel order */
-            pixo = ldl_le_phys(&s->dma_as, value + 12);
-            newpixo = &pixo;
-            resplen = 4;
-            break;
-        case 0x00040007: /* Get alpha */
-            tmp_alpha = newalpha != NULL ? *newalpha : s->fbdev->alpha;
-            stl_le_phys(&s->dma_as, value + 12, tmp_alpha);
+            fbconfig.pixo = ldl_le_phys(&s->dma_as, value + 12);
+            bcm2835_fb_validate_config(&fbconfig);
+            fbconfig_updated = true;
+            /* fall through */
+        case 0x00040006: /* Get pixel order */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.pixo);
             resplen = 4;
             break;
         case 0x00044007: /* Test pixel alpha */
             resplen = 4;
             break;
         case 0x00048007: /* Set alpha */
-            alpha = ldl_le_phys(&s->dma_as, value + 12);
-            newalpha = &alpha;
+            fbconfig.alpha = ldl_le_phys(&s->dma_as, value + 12);
+            bcm2835_fb_validate_config(&fbconfig);
+            fbconfig_updated = true;
+            /* fall through */
+        case 0x00040007: /* Get alpha */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.alpha);
             resplen = 4;
             break;
         case 0x00040008: /* Get pitch */
-            tmp_xres = newxres != NULL ? *newxres : s->fbdev->xres;
-            tmp_bpp = newbpp != NULL ? *newbpp : s->fbdev->bpp;
-            stl_le_phys(&s->dma_as, value + 12, tmp_xres * tmp_bpp / 8);
+            stl_le_phys(&s->dma_as, value + 12,
+                        bcm2835_fb_get_pitch(&fbconfig));
             resplen = 4;
-            break;
-        case 0x00040009: /* Get virtual offset */
-            tmp_xoffset = newxoffset != NULL ? *newxoffset : s->fbdev->xoffset;
-            tmp_yoffset = newyoffset != NULL ? *newyoffset : s->fbdev->yoffset;
-            stl_le_phys(&s->dma_as, value + 12, tmp_xoffset);
-            stl_le_phys(&s->dma_as, value + 16, tmp_yoffset);
-            resplen = 8;
             break;
         case 0x00044009: /* Test virtual offset */
             resplen = 8;
             break;
         case 0x00048009: /* Set virtual offset */
-            xoffset = ldl_le_phys(&s->dma_as, value + 12);
-            newxoffset = &xoffset;
-            yoffset = ldl_le_phys(&s->dma_as, value + 16);
-            newyoffset = &yoffset;
+            fbconfig.xoffset = ldl_le_phys(&s->dma_as, value + 12);
+            fbconfig.yoffset = ldl_le_phys(&s->dma_as, value + 16);
+            bcm2835_fb_validate_config(&fbconfig);
+            fbconfig_updated = true;
+            /* fall through */
+        case 0x00040009: /* Get virtual offset */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.xoffset);
+            stl_le_phys(&s->dma_as, value + 16, fbconfig.yoffset);
             resplen = 8;
             break;
         case 0x0004000a: /* Get/Test/Set overscan */
@@ -285,10 +284,8 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
     }
 
     /* Reconfigure framebuffer if required */
-    if (newxres || newyres || newxoffset || newyoffset || newbpp || newpixo
-        || newalpha) {
-        bcm2835_fb_reconfigure(s->fbdev, newxres, newyres, newxoffset,
-                               newyoffset, newbpp, newpixo, newalpha);
+    if (fbconfig_updated) {
+        bcm2835_fb_reconfigure(s->fbdev, &fbconfig);
     }
 
     /* Buffer response code */

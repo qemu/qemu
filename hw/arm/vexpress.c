@@ -172,6 +172,7 @@ typedef struct {
 typedef struct {
     MachineState parent;
     bool secure;
+    bool virt;
 } VexpressMachineState;
 
 #define TYPE_VEXPRESS_MACHINE   "vexpress"
@@ -203,7 +204,7 @@ struct VEDBoardInfo {
 };
 
 static void init_cpus(const char *cpu_type, const char *privdev,
-                      hwaddr periphbase, qemu_irq *pic, bool secure)
+                      hwaddr periphbase, qemu_irq *pic, bool secure, bool virt)
 {
     DeviceState *dev;
     SysBusDevice *busdev;
@@ -215,6 +216,11 @@ static void init_cpus(const char *cpu_type, const char *privdev,
 
         if (!secure) {
             object_property_set_bool(cpuobj, false, "has_el3", NULL);
+        }
+        if (!virt) {
+            if (object_property_find(cpuobj, "has_el2", NULL)) {
+                object_property_set_bool(cpuobj, false, "has_el2", NULL);
+            }
         }
 
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
@@ -251,6 +257,10 @@ static void init_cpus(const char *cpu_type, const char *privdev,
         sysbus_connect_irq(busdev, n, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
         sysbus_connect_irq(busdev, n + smp_cpus,
                            qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
+        sysbus_connect_irq(busdev, n + 2 * smp_cpus,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_VIRQ));
+        sysbus_connect_irq(busdev, n + 3 * smp_cpus,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
     }
 }
 
@@ -285,7 +295,8 @@ static void a9_daughterboard_init(const VexpressMachineState *vms,
     memory_region_add_subregion(sysmem, 0x60000000, ram);
 
     /* 0x1e000000 A9MPCore (SCU) private memory region */
-    init_cpus(cpu_type, TYPE_A9MPCORE_PRIV, 0x1e000000, pic, vms->secure);
+    init_cpus(cpu_type, TYPE_A9MPCORE_PRIV, 0x1e000000, pic,
+              vms->secure, vms->virt);
 
     /* Daughterboard peripherals : 0x10020000 .. 0x20000000 */
 
@@ -366,7 +377,8 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
     memory_region_add_subregion(sysmem, 0x80000000, ram);
 
     /* 0x2c000000 A15MPCore private memory region (GIC) */
-    init_cpus(cpu_type, TYPE_A15MPCORE_PRIV, 0x2c000000, pic, vms->secure);
+    init_cpus(cpu_type, TYPE_A15MPCORE_PRIV, 0x2c000000, pic, vms->secure,
+              vms->virt);
 
     /* A15 daughterboard peripherals: */
 
@@ -701,8 +713,8 @@ static void vexpress_common_init(MachineState *machine)
     daughterboard->bootinfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
     daughterboard->bootinfo.gic_cpu_if_addr = daughterboard->gic_cpu_if_addr;
     daughterboard->bootinfo.modify_dtb = vexpress_modify_dtb;
-    /* Indicate that when booting Linux we should be in secure state */
-    daughterboard->bootinfo.secure_boot = true;
+    /* When booting Linux we should be in secure state if the CPU has one. */
+    daughterboard->bootinfo.secure_boot = vms->secure;
     arm_load_kernel(ARM_CPU(first_cpu), &daughterboard->bootinfo);
 }
 
@@ -720,6 +732,20 @@ static void vexpress_set_secure(Object *obj, bool value, Error **errp)
     vms->secure = value;
 }
 
+static bool vexpress_get_virt(Object *obj, Error **errp)
+{
+    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+
+    return vms->virt;
+}
+
+static void vexpress_set_virt(Object *obj, bool value, Error **errp)
+{
+    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+
+    vms->virt = value;
+}
+
 static void vexpress_instance_init(Object *obj)
 {
     VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
@@ -732,6 +758,32 @@ static void vexpress_instance_init(Object *obj)
                                     "Set on/off to enable/disable the ARM "
                                     "Security Extensions (TrustZone)",
                                     NULL);
+}
+
+static void vexpress_a15_instance_init(Object *obj)
+{
+    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+
+    /*
+     * For the vexpress-a15, EL2 is by default enabled if EL3 is,
+     * but can also be specifically set to on or off.
+     */
+    vms->virt = true;
+    object_property_add_bool(obj, "virtualization", vexpress_get_virt,
+                             vexpress_set_virt, NULL);
+    object_property_set_description(obj, "virtualization",
+                                    "Set on/off to enable/disable the ARM "
+                                    "Virtualization Extensions "
+                                    "(defaults to same as 'secure')",
+                                    NULL);
+}
+
+static void vexpress_a9_instance_init(Object *obj)
+{
+    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+
+    /* The A9 doesn't have the virt extensions */
+    vms->virt = false;
 }
 
 static void vexpress_class_init(ObjectClass *oc, void *data)
@@ -780,12 +832,14 @@ static const TypeInfo vexpress_a9_info = {
     .name = TYPE_VEXPRESS_A9_MACHINE,
     .parent = TYPE_VEXPRESS_MACHINE,
     .class_init = vexpress_a9_class_init,
+    .instance_init = vexpress_a9_instance_init,
 };
 
 static const TypeInfo vexpress_a15_info = {
     .name = TYPE_VEXPRESS_A15_MACHINE,
     .parent = TYPE_VEXPRESS_MACHINE,
     .class_init = vexpress_a15_class_init,
+    .instance_init = vexpress_a15_instance_init,
 };
 
 static void vexpress_machine_init(void)

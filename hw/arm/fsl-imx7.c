@@ -209,6 +209,10 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(sbd, i, irq);
         irq = qdev_get_gpio_in(d, ARM_CPU_FIQ);
         sysbus_connect_irq(sbd, i + smp_cpus, irq);
+        irq = qdev_get_gpio_in(d, ARM_CPU_VIRQ);
+        sysbus_connect_irq(sbd, i + 2 * smp_cpus, irq);
+        irq = qdev_get_gpio_in(d, ARM_CPU_VFIQ);
+        sysbus_connect_irq(sbd, i + 3 * smp_cpus, irq);
     }
 
     /*

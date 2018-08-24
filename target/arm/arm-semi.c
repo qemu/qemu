@@ -136,7 +136,7 @@ static void arm_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
 #ifdef CONFIG_USER_ONLY
         ts->swi_errno = err;
 #else
-	syscall_err = err;
+        syscall_err = err;
 #endif
         reg0 = ret;
     } else {

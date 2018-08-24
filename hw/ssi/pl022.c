@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "hw/ssi/pl022.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/log.h"
 
@@ -37,34 +38,9 @@ do { fprintf(stderr, "pl022: error: " fmt , ## __VA_ARGS__);} while (0)
 #define PL022_SR_BSY  0x10
 
 #define PL022_INT_ROR 0x01
-#define PL022_INT_RT  0x04
+#define PL022_INT_RT  0x02
 #define PL022_INT_RX  0x04
 #define PL022_INT_TX  0x08
-
-#define TYPE_PL022 "pl022"
-#define PL022(obj) OBJECT_CHECK(PL022State, (obj), TYPE_PL022)
-
-typedef struct PL022State {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    uint32_t cr0;
-    uint32_t cr1;
-    uint32_t bitmask;
-    uint32_t sr;
-    uint32_t cpsr;
-    uint32_t is;
-    uint32_t im;
-    /* The FIFO head points to the next empty entry.  */
-    int tx_fifo_head;
-    int rx_fifo_head;
-    int tx_fifo_len;
-    int rx_fifo_len;
-    uint16_t tx_fifo[8];
-    uint16_t rx_fifo[8];
-    qemu_irq irq;
-    SSIBus *ssi;
-} PL022State;
 
 static const unsigned char pl022_id[8] =
   { 0x22, 0x10, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
@@ -170,7 +146,7 @@ static uint64_t pl022_read(void *opaque, hwaddr offset,
         return s->is;
     case 0x1c: /* MIS */
         return s->im & s->is;
-    case 0x20: /* DMACR */
+    case 0x24: /* DMACR */
         /* Not implemented.  */
         return 0;
     default:
@@ -216,7 +192,15 @@ static void pl022_write(void *opaque, hwaddr offset,
         s->im = value;
         pl022_update(s);
         break;
-    case 0x20: /* DMACR */
+    case 0x20: /* ICR */
+        /*
+         * write-1-to-clear: bit 0 clears ROR, bit 1 clears RT;
+         * RX and TX interrupts cannot be cleared this way.
+         */
+        value &= PL022_INT_ROR | PL022_INT_RT;
+        s->is &= ~value;
+        break;
+    case 0x24: /* DMACR */
         if (value) {
             qemu_log_mask(LOG_UNIMP, "pl022: DMA not implemented\n");
         }
@@ -227,8 +211,10 @@ static void pl022_write(void *opaque, hwaddr offset,
     }
 }
 
-static void pl022_reset(PL022State *s)
+static void pl022_reset(DeviceState *dev)
 {
+    PL022State *s = PL022(dev);
+
     s->rx_fifo_len = 0;
     s->tx_fifo_len = 0;
     s->im = 0;
@@ -292,25 +278,24 @@ static const VMStateDescription vmstate_pl022 = {
     }
 };
 
-static int pl022_init(SysBusDevice *sbd)
+static void pl022_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     PL022State *s = PL022(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl022_ops, s, "pl022", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
     s->ssi = ssi_create_bus(dev, "ssi");
-    pl022_reset(s);
-    vmstate_register(dev, -1, &vmstate_pl022, s);
-    return 0;
 }
 
 static void pl022_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    sdc->init = pl022_init;
+    dc->reset = pl022_reset;
+    dc->vmsd = &vmstate_pl022;
+    dc->realize = pl022_realize;
 }
 
 static const TypeInfo pl022_info = {

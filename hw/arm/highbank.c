@@ -243,6 +243,8 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     int n;
     qemu_irq cpu_irq[4];
     qemu_irq cpu_fiq[4];
+    qemu_irq cpu_virq[4];
+    qemu_irq cpu_vfiq[4];
     MemoryRegion *sysram;
     MemoryRegion *dram;
     MemoryRegion *sysmem;
@@ -282,6 +284,8 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         object_property_set_bool(cpuobj, true, "realized", &error_fatal);
         cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
         cpu_fiq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ);
+        cpu_virq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_VIRQ);
+        cpu_vfiq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_VFIQ);
     }
 
     sysmem = get_system_memory();
@@ -329,6 +333,8 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     for (n = 0; n < smp_cpus; n++) {
         sysbus_connect_irq(busdev, n, cpu_irq[n]);
         sysbus_connect_irq(busdev, n + smp_cpus, cpu_fiq[n]);
+        sysbus_connect_irq(busdev, n + 2 * smp_cpus, cpu_virq[n]);
+        sysbus_connect_irq(busdev, n + 3 * smp_cpus, cpu_vfiq[n]);
     }
 
     for (n = 0; n < 128; n++) {

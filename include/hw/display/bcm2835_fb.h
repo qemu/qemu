@@ -17,6 +17,20 @@
 #define TYPE_BCM2835_FB "bcm2835-fb"
 #define BCM2835_FB(obj) OBJECT_CHECK(BCM2835FBState, (obj), TYPE_BCM2835_FB)
 
+/*
+ * Configuration information about the fb which the guest can program
+ * via the mailbox property interface.
+ */
+typedef struct {
+    uint32_t xres, yres;
+    uint32_t xres_virtual, yres_virtual;
+    uint32_t xoffset, yoffset;
+    uint32_t bpp;
+    uint32_t base;
+    uint32_t pixo;
+    uint32_t alpha;
+} BCM2835FBConfig;
+
 typedef struct {
     /*< private >*/
     SysBusDevice busdev;
@@ -31,16 +45,43 @@ typedef struct {
     qemu_irq mbox_irq;
 
     bool lock, invalidate, pending;
-    uint32_t xres, yres;
-    uint32_t xres_virtual, yres_virtual;
-    uint32_t xoffset, yoffset;
-    uint32_t bpp;
-    uint32_t base, pitch, size;
-    uint32_t pixo, alpha;
+
+    BCM2835FBConfig config;
+    BCM2835FBConfig initial_config;
 } BCM2835FBState;
 
-void bcm2835_fb_reconfigure(BCM2835FBState *s, uint32_t *xres, uint32_t *yres,
-                            uint32_t *xoffset, uint32_t *yoffset, uint32_t *bpp,
-                            uint32_t *pixo, uint32_t *alpha);
+void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig);
+
+/**
+ * bcm2835_fb_get_pitch: return number of bytes per line of the framebuffer
+ * @config: configuration info for the framebuffer
+ *
+ * Return the number of bytes per line of the framebuffer, ie the number
+ * that must be added to a pixel address to get the address of the pixel
+ * directly below it on screen.
+ */
+static inline uint32_t bcm2835_fb_get_pitch(BCM2835FBConfig *config)
+{
+    uint32_t xres = MAX(config->xres, config->xres_virtual);
+    return xres * (config->bpp >> 3);
+}
+
+/**
+ * bcm2835_fb_get_size: return total size of framebuffer in bytes
+ * @config: configuration info for the framebuffer
+ */
+static inline uint32_t bcm2835_fb_get_size(BCM2835FBConfig *config)
+{
+    uint32_t yres = MAX(config->yres, config->yres_virtual);
+    return yres * bcm2835_fb_get_pitch(config);
+}
+
+/**
+ * bcm2835_fb_validate_config: check provided config
+ *
+ * Validates the configuration information provided by the guest and
+ * adjusts it if necessary.
+ */
+void bcm2835_fb_validate_config(BCM2835FBConfig *config);
 
 #endif

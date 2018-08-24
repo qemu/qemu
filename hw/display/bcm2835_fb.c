@@ -34,6 +34,13 @@
 #define DEFAULT_VCRAM_SIZE 0x4000000
 #define BCM2835_FB_OFFSET  0x00100000
 
+/* Maximum permitted framebuffer size; experimentally determined on an rpi2 */
+#define XRES_MAX 3840
+#define YRES_MAX 2560
+/* Framebuffer size used if guest requests zero size */
+#define XRES_SMALL 592
+#define YRES_SMALL 488
+
 static void fb_invalidate_display(void *opaque)
 {
     BCM2835FBState *s = BCM2835_FB(opaque);
@@ -52,7 +59,7 @@ static void draw_line_src16(void *opaque, uint8_t *dst, const uint8_t *src,
     int bpp = surface_bits_per_pixel(surface);
 
     while (width--) {
-        switch (s->bpp) {
+        switch (s->config.bpp) {
         case 8:
             /* lookup palette starting at video ram base
              * TODO: cache translation, rather than doing this each time!
@@ -91,7 +98,7 @@ static void draw_line_src16(void *opaque, uint8_t *dst, const uint8_t *src,
             break;
         }
 
-        if (s->pixo == 0) {
+        if (s->config.pixo == 0) {
             /* swap to BGR pixel format */
             uint8_t tmp = r;
             r = b;
@@ -126,6 +133,18 @@ static void draw_line_src16(void *opaque, uint8_t *dst, const uint8_t *src,
     }
 }
 
+static bool fb_use_offsets(BCM2835FBConfig *config)
+{
+    /*
+     * Return true if we should use the viewport offsets.
+     * Experimentally, the hardware seems to do this only if the
+     * viewport size is larger than the physical screen. (It doesn't
+     * prevent the guest setting this silly viewport setting, though...)
+     */
+    return config->xres_virtual > config->xres &&
+        config->yres_virtual > config->yres;
+}
+
 static void fb_update_display(void *opaque)
 {
     BCM2835FBState *s = opaque;
@@ -134,13 +153,19 @@ static void fb_update_display(void *opaque)
     int last = 0;
     int src_width = 0;
     int dest_width = 0;
+    uint32_t xoff = 0, yoff = 0;
 
-    if (s->lock || !s->xres) {
+    if (s->lock || !s->config.xres) {
         return;
     }
 
-    src_width = s->xres * (s->bpp >> 3);
-    dest_width = s->xres;
+    src_width = bcm2835_fb_get_pitch(&s->config);
+    if (fb_use_offsets(&s->config)) {
+        xoff = s->config.xoffset;
+        yoff = s->config.yoffset;
+    }
+
+    dest_width = s->config.xres;
 
     switch (surface_bits_per_pixel(surface)) {
     case 0:
@@ -165,89 +190,104 @@ static void fb_update_display(void *opaque)
     }
 
     if (s->invalidate) {
-        framebuffer_update_memory_section(&s->fbsection, s->dma_mr, s->base,
-                                          s->yres, src_width);
+        hwaddr base = s->config.base + xoff + yoff * src_width;
+        framebuffer_update_memory_section(&s->fbsection, s->dma_mr,
+                                          base,
+                                          s->config.yres, src_width);
     }
 
-    framebuffer_update_display(surface, &s->fbsection, s->xres, s->yres,
+    framebuffer_update_display(surface, &s->fbsection,
+                               s->config.xres, s->config.yres,
                                src_width, dest_width, 0, s->invalidate,
                                draw_line_src16, s, &first, &last);
 
     if (first >= 0) {
-        dpy_gfx_update(s->con, 0, first, s->xres, last - first + 1);
+        dpy_gfx_update(s->con, 0, first, s->config.xres,
+                       last - first + 1);
     }
 
     s->invalidate = false;
 }
 
-static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
+void bcm2835_fb_validate_config(BCM2835FBConfig *config)
 {
-    value &= ~0xf;
+    /*
+     * Validate the config, and clip any bogus values into range,
+     * as the hardware does. Note that fb_update_display() relies on
+     * this happening to prevent it from performing out-of-range
+     * accesses on redraw.
+     */
+    config->xres = MIN(config->xres, XRES_MAX);
+    config->xres_virtual = MIN(config->xres_virtual, XRES_MAX);
+    config->yres = MIN(config->yres, YRES_MAX);
+    config->yres_virtual = MIN(config->yres_virtual, YRES_MAX);
 
+    /*
+     * These are not minima: a 40x40 framebuffer will be accepted.
+     * They're only used as defaults if the guest asks for zero size.
+     */
+    if (config->xres == 0) {
+        config->xres = XRES_SMALL;
+    }
+    if (config->yres == 0) {
+        config->yres = YRES_SMALL;
+    }
+    if (config->xres_virtual == 0) {
+        config->xres_virtual = config->xres;
+    }
+    if (config->yres_virtual == 0) {
+        config->yres_virtual = config->yres;
+    }
+
+    if (fb_use_offsets(config)) {
+        /* Clip the offsets so the viewport is within the physical screen */
+        config->xoffset = MIN(config->xoffset,
+                              config->xres_virtual - config->xres);
+        config->yoffset = MIN(config->yoffset,
+                              config->yres_virtual - config->yres);
+    }
+}
+
+void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig)
+{
     s->lock = true;
 
-    s->xres = ldl_le_phys(&s->dma_as, value);
-    s->yres = ldl_le_phys(&s->dma_as, value + 4);
-    s->xres_virtual = ldl_le_phys(&s->dma_as, value + 8);
-    s->yres_virtual = ldl_le_phys(&s->dma_as, value + 12);
-    s->bpp = ldl_le_phys(&s->dma_as, value + 20);
-    s->xoffset = ldl_le_phys(&s->dma_as, value + 24);
-    s->yoffset = ldl_le_phys(&s->dma_as, value + 28);
-
-    s->base = s->vcram_base | (value & 0xc0000000);
-    s->base += BCM2835_FB_OFFSET;
-
-    /* TODO - Manage properly virtual resolution */
-
-    s->pitch = s->xres * (s->bpp >> 3);
-    s->size = s->yres * s->pitch;
-
-    stl_le_phys(&s->dma_as, value + 16, s->pitch);
-    stl_le_phys(&s->dma_as, value + 32, s->base);
-    stl_le_phys(&s->dma_as, value + 36, s->size);
+    s->config = *newconfig;
 
     s->invalidate = true;
-    qemu_console_resize(s->con, s->xres, s->yres);
+    qemu_console_resize(s->con, s->config.xres, s->config.yres);
     s->lock = false;
 }
 
-void bcm2835_fb_reconfigure(BCM2835FBState *s, uint32_t *xres, uint32_t *yres,
-                            uint32_t *xoffset, uint32_t *yoffset, uint32_t *bpp,
-                            uint32_t *pixo, uint32_t *alpha)
+static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
 {
-    s->lock = true;
+    uint32_t pitch;
+    uint32_t size;
+    BCM2835FBConfig newconf;
 
-    /* TODO: input validation! */
-    if (xres) {
-        s->xres = *xres;
-    }
-    if (yres) {
-        s->yres = *yres;
-    }
-    if (xoffset) {
-        s->xoffset = *xoffset;
-    }
-    if (yoffset) {
-        s->yoffset = *yoffset;
-    }
-    if (bpp) {
-        s->bpp = *bpp;
-    }
-    if (pixo) {
-        s->pixo = *pixo;
-    }
-    if (alpha) {
-        s->alpha = *alpha;
-    }
+    value &= ~0xf;
 
-    /* TODO - Manage properly virtual resolution */
+    newconf.xres = ldl_le_phys(&s->dma_as, value);
+    newconf.yres = ldl_le_phys(&s->dma_as, value + 4);
+    newconf.xres_virtual = ldl_le_phys(&s->dma_as, value + 8);
+    newconf.yres_virtual = ldl_le_phys(&s->dma_as, value + 12);
+    newconf.bpp = ldl_le_phys(&s->dma_as, value + 20);
+    newconf.xoffset = ldl_le_phys(&s->dma_as, value + 24);
+    newconf.yoffset = ldl_le_phys(&s->dma_as, value + 28);
 
-    s->pitch = s->xres * (s->bpp >> 3);
-    s->size = s->yres * s->pitch;
+    newconf.base = s->vcram_base | (value & 0xc0000000);
+    newconf.base += BCM2835_FB_OFFSET;
 
-    s->invalidate = true;
-    qemu_console_resize(s->con, s->xres, s->yres);
-    s->lock = false;
+    bcm2835_fb_validate_config(&newconf);
+
+    pitch = bcm2835_fb_get_pitch(&newconf);
+    size = bcm2835_fb_get_size(&newconf);
+
+    stl_le_phys(&s->dma_as, value + 16, pitch);
+    stl_le_phys(&s->dma_as, value + 32, newconf.base);
+    stl_le_phys(&s->dma_as, value + 36, size);
+
+    bcm2835_fb_reconfigure(s, &newconf);
 }
 
 static uint64_t bcm2835_fb_read(void *opaque, hwaddr offset, unsigned size)
@@ -312,18 +352,17 @@ static const VMStateDescription vmstate_bcm2835_fb = {
         VMSTATE_BOOL(lock, BCM2835FBState),
         VMSTATE_BOOL(invalidate, BCM2835FBState),
         VMSTATE_BOOL(pending, BCM2835FBState),
-        VMSTATE_UINT32(xres, BCM2835FBState),
-        VMSTATE_UINT32(yres, BCM2835FBState),
-        VMSTATE_UINT32(xres_virtual, BCM2835FBState),
-        VMSTATE_UINT32(yres_virtual, BCM2835FBState),
-        VMSTATE_UINT32(xoffset, BCM2835FBState),
-        VMSTATE_UINT32(yoffset, BCM2835FBState),
-        VMSTATE_UINT32(bpp, BCM2835FBState),
-        VMSTATE_UINT32(base, BCM2835FBState),
-        VMSTATE_UINT32(pitch, BCM2835FBState),
-        VMSTATE_UINT32(size, BCM2835FBState),
-        VMSTATE_UINT32(pixo, BCM2835FBState),
-        VMSTATE_UINT32(alpha, BCM2835FBState),
+        VMSTATE_UINT32(config.xres, BCM2835FBState),
+        VMSTATE_UINT32(config.yres, BCM2835FBState),
+        VMSTATE_UINT32(config.xres_virtual, BCM2835FBState),
+        VMSTATE_UINT32(config.yres_virtual, BCM2835FBState),
+        VMSTATE_UINT32(config.xoffset, BCM2835FBState),
+        VMSTATE_UINT32(config.yoffset, BCM2835FBState),
+        VMSTATE_UINT32(config.bpp, BCM2835FBState),
+        VMSTATE_UINT32(config.base, BCM2835FBState),
+        VMSTATE_UNUSED(8), /* Was pitch and size */
+        VMSTATE_UINT32(config.pixo, BCM2835FBState),
+        VMSTATE_UINT32(config.alpha, BCM2835FBState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -349,13 +388,7 @@ static void bcm2835_fb_reset(DeviceState *dev)
 
     s->pending = false;
 
-    s->xres_virtual = s->xres;
-    s->yres_virtual = s->yres;
-    s->xoffset = 0;
-    s->yoffset = 0;
-    s->base = s->vcram_base + BCM2835_FB_OFFSET;
-    s->pitch = s->xres * (s->bpp >> 3);
-    s->size = s->yres * s->pitch;
+    s->config = s->initial_config;
 
     s->invalidate = true;
     s->lock = false;
@@ -379,24 +412,33 @@ static void bcm2835_fb_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* Fill in the parts of initial_config that are not set by QOM properties */
+    s->initial_config.xres_virtual = s->initial_config.xres;
+    s->initial_config.yres_virtual = s->initial_config.yres;
+    s->initial_config.xoffset = 0;
+    s->initial_config.yoffset = 0;
+    s->initial_config.base = s->vcram_base + BCM2835_FB_OFFSET;
+
     s->dma_mr = MEMORY_REGION(obj);
     address_space_init(&s->dma_as, s->dma_mr, NULL);
 
     bcm2835_fb_reset(dev);
 
     s->con = graphic_console_init(dev, 0, &vgafb_ops, s);
-    qemu_console_resize(s->con, s->xres, s->yres);
+    qemu_console_resize(s->con, s->config.xres, s->config.yres);
 }
 
 static Property bcm2835_fb_props[] = {
     DEFINE_PROP_UINT32("vcram-base", BCM2835FBState, vcram_base, 0),/*required*/
     DEFINE_PROP_UINT32("vcram-size", BCM2835FBState, vcram_size,
                        DEFAULT_VCRAM_SIZE),
-    DEFINE_PROP_UINT32("xres", BCM2835FBState, xres, 640),
-    DEFINE_PROP_UINT32("yres", BCM2835FBState, yres, 480),
-    DEFINE_PROP_UINT32("bpp", BCM2835FBState, bpp, 16),
-    DEFINE_PROP_UINT32("pixo", BCM2835FBState, pixo, 1), /* 1=RGB, 0=BGR */
-    DEFINE_PROP_UINT32("alpha", BCM2835FBState, alpha, 2), /* alpha ignored */
+    DEFINE_PROP_UINT32("xres", BCM2835FBState, initial_config.xres, 640),
+    DEFINE_PROP_UINT32("yres", BCM2835FBState, initial_config.yres, 480),
+    DEFINE_PROP_UINT32("bpp", BCM2835FBState, initial_config.bpp, 16),
+    DEFINE_PROP_UINT32("pixo", BCM2835FBState,
+                       initial_config.pixo, 1), /* 1=RGB, 0=BGR */
+    DEFINE_PROP_UINT32("alpha", BCM2835FBState,
+                       initial_config.alpha, 2), /* alpha ignored */
     DEFINE_PROP_END_OF_LIST()
 };
 
