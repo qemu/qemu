@@ -83,6 +83,7 @@ typedef struct IoTKit {
     TZMPC mpc;
     CMSDKAPBTIMER timer0;
     CMSDKAPBTIMER timer1;
+    CMSDKAPBTIMER s32ktimer;
     qemu_or_irq ppc_irq_orgate;
     SplitIRQ sec_resp_splitter;
     SplitIRQ ppc_irq_splitter[NUM_PPCS];
@@ -91,7 +92,6 @@ typedef struct IoTKit {
     qemu_or_irq nmi_orgate;
 
     CMSDKAPBDualTimer dualtimer;
-    UnimplementedDeviceState s32ktimer;
 
     CMSDKAPBWatchdog s32kwatchdog;
     CMSDKAPBWatchdog nswatchdog;
