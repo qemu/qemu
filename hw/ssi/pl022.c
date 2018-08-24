@@ -279,7 +279,6 @@ static int pl022_init(SysBusDevice *sbd)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
     s->ssi = ssi_create_bus(dev, "ssi");
-    vmstate_register(dev, -1, &vmstate_pl022, s);
     return 0;
 }
 
@@ -290,6 +289,7 @@ static void pl022_class_init(ObjectClass *klass, void *data)
 
     sdc->init = pl022_init;
     dc->reset = pl022_reset;
+    dc->vmsd = &vmstate_pl022;
 }
 
 static const TypeInfo pl022_info = {
