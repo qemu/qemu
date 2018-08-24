@@ -8054,6 +8054,8 @@ static void take_aarch32_exception(CPUARMState *env, int new_mode,
     if (env->cp15.sctlr_el[arm_current_el(env)] & SCTLR_EE) {
         env->uncached_cpsr |= CPSR_E;
     }
+    /* J and IL must always be cleared for exception entry */
+    env->uncached_cpsr &= ~(CPSR_IL | CPSR_J);
     env->daif |= mask;
 
     if (new_mode == ARM_CPU_MODE_HYP) {
