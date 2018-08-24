@@ -43,6 +43,77 @@ static int64_t tickoff_from_counter(int64_t now, uint32_t count, int frq)
     return now - muldiv64(count, NANOSECONDS_PER_SECOND, frq);
 }
 
+static void resync_counter(MPS2FPGAIO *s)
+{
+    /*
+     * Update s->counter and s->pscntr to their true current values
+     * by calculating how many times PSCNTR has ticked since the
+     * last time we did a resync.
+     */
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    int64_t elapsed = now - s->pscntr_sync_ticks;
+
+    /*
+     * Round elapsed down to a whole number of PSCNTR ticks, so we don't
+     * lose time if we do multiple resyncs in a single tick.
+     */
+    uint64_t ticks = muldiv64(elapsed, s->prescale_clk, NANOSECONDS_PER_SECOND);
+
+    /*
+     * Work out what PSCNTR and COUNTER have moved to. We assume that
+     * PSCNTR reloads from PRESCALE one tick-period after it hits zero,
+     * and that COUNTER increments at the same moment.
+     */
+    if (ticks == 0) {
+        /* We haven't ticked since the last time we were asked */
+        return;
+    } else if (ticks < s->pscntr) {
+        /* We haven't yet reached zero, just reduce the PSCNTR */
+        s->pscntr -= ticks;
+    } else {
+        if (s->prescale == 0) {
+            /*
+             * If the reload value is zero then the PSCNTR will stick
+             * at zero once it reaches it, and so we will increment
+             * COUNTER every tick after that.
+             */
+            s->counter += ticks - s->pscntr;
+            s->pscntr = 0;
+        } else {
+            /*
+             * This is the complicated bit. This ASCII art diagram gives an
+             * example with PRESCALE==5 PSCNTR==7:
+             *
+             * ticks  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
+             * PSCNTR 7  6  5  4  3  2  1  0  5  4  3  2  1  0  5
+             * cinc                           1                 2
+             * y            0  1  2  3  4  5  6  7  8  9 10 11 12
+             * x            0  1  2  3  4  5  0  1  2  3  4  5  0
+             *
+             * where x = y % (s->prescale + 1)
+             * and so PSCNTR = s->prescale - x
+             * and COUNTER is incremented by y / (s->prescale + 1)
+             *
+             * The case where PSCNTR < PRESCALE works out the same,
+             * though we must be careful to calculate y as 64-bit unsigned
+             * for all parts of the expression.
+             * y < 0 is not possible because that implies ticks < s->pscntr.
+             */
+            uint64_t y = ticks - s->pscntr + s->prescale;
+            s->pscntr = s->prescale - (y % (s->prescale + 1));
+            s->counter += y / (s->prescale + 1);
+        }
+    }
+
+    /*
+     * Only advance the sync time to the timestamp of the last PSCNTR tick,
+     * not all the way to 'now', so we don't lose time if we do multiple
+     * resyncs in a single tick.
+     */
+    s->pscntr_sync_ticks += muldiv64(ticks, NANOSECONDS_PER_SECOND,
+                                     s->prescale_clk);
+}
+
 static uint64_t mps2_fpgaio_read(void *opaque, hwaddr offset, unsigned size)
 {
     MPS2FPGAIO *s = MPS2_FPGAIO(opaque);
@@ -74,9 +145,12 @@ static uint64_t mps2_fpgaio_read(void *opaque, hwaddr offset, unsigned size)
         r = counter_from_tickoff(now, s->clk100hz_tick_offset, 100);
         break;
     case A_COUNTER:
+        resync_counter(s);
+        r = s->counter;
+        break;
     case A_PSCNTR:
-        qemu_log_mask(LOG_UNIMP, "MPS2 FPGAIO: counters unimplemented\n");
-        r = 0;
+        resync_counter(s);
+        r = s->pscntr;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -107,6 +181,7 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
         s->led0 = value & 0x3;
         break;
     case A_PRESCALE:
+        resync_counter(s);
         s->prescale = value;
         break;
     case A_MISC:
@@ -125,6 +200,14 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
     case A_CLK100HZ:
         now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         s->clk100hz_tick_offset = tickoff_from_counter(now, value, 100);
+        break;
+    case A_COUNTER:
+        resync_counter(s);
+        s->counter = value;
+        break;
+    case A_PSCNTR:
+        resync_counter(s);
+        s->pscntr = value;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -150,6 +233,9 @@ static void mps2_fpgaio_reset(DeviceState *dev)
     s->misc = 0;
     s->clk1hz_tick_offset = tickoff_from_counter(now, 0, 1);
     s->clk100hz_tick_offset = tickoff_from_counter(now, 0, 100);
+    s->counter = 0;
+    s->pscntr = 0;
+    s->pscntr_sync_ticks = now;
 }
 
 static void mps2_fpgaio_init(Object *obj)
@@ -170,12 +256,15 @@ static bool mps2_fpgaio_counters_needed(void *opaque)
 
 static const VMStateDescription mps2_fpgaio_counters_vmstate = {
     .name = "mps2-fpgaio/counters",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .needed = mps2_fpgaio_counters_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT64(clk1hz_tick_offset, MPS2FPGAIO),
         VMSTATE_INT64(clk100hz_tick_offset, MPS2FPGAIO),
+        VMSTATE_UINT32(counter, MPS2FPGAIO),
+        VMSTATE_UINT32(pscntr, MPS2FPGAIO),
+        VMSTATE_INT64(pscntr_sync_ticks, MPS2FPGAIO),
         VMSTATE_END_OF_LIST()
     }
 };
