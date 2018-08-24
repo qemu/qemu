@@ -155,16 +155,6 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         case 0x00040002: /* Blank screen */
             resplen = 4;
             break;
-        case 0x00040003: /* Get physical display width/height */
-            stl_le_phys(&s->dma_as, value + 12, fbconfig.xres);
-            stl_le_phys(&s->dma_as, value + 16, fbconfig.yres);
-            resplen = 8;
-            break;
-        case 0x00040004: /* Get virtual display width/height */
-            stl_le_phys(&s->dma_as, value + 12, fbconfig.xres_virtual);
-            stl_le_phys(&s->dma_as, value + 16, fbconfig.yres_virtual);
-            resplen = 8;
-            break;
         case 0x00044003: /* Test physical display width/height */
         case 0x00044004: /* Test virtual display width/height */
             resplen = 8;
@@ -172,29 +162,35 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         case 0x00048003: /* Set physical display width/height */
             fbconfig.xres = ldl_le_phys(&s->dma_as, value + 12);
             fbconfig.yres = ldl_le_phys(&s->dma_as, value + 16);
+            bcm2835_fb_validate_config(&fbconfig);
             fbconfig_updated = true;
+            /* fall through */
+        case 0x00040003: /* Get physical display width/height */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.xres);
+            stl_le_phys(&s->dma_as, value + 16, fbconfig.yres);
             resplen = 8;
             break;
         case 0x00048004: /* Set virtual display width/height */
             fbconfig.xres_virtual = ldl_le_phys(&s->dma_as, value + 12);
             fbconfig.yres_virtual = ldl_le_phys(&s->dma_as, value + 16);
+            bcm2835_fb_validate_config(&fbconfig);
             fbconfig_updated = true;
+            /* fall through */
+        case 0x00040004: /* Get virtual display width/height */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.xres_virtual);
+            stl_le_phys(&s->dma_as, value + 16, fbconfig.yres_virtual);
             resplen = 8;
-            break;
-        case 0x00040005: /* Get depth */
-            stl_le_phys(&s->dma_as, value + 12, fbconfig.bpp);
-            resplen = 4;
             break;
         case 0x00044005: /* Test depth */
             resplen = 4;
             break;
         case 0x00048005: /* Set depth */
             fbconfig.bpp = ldl_le_phys(&s->dma_as, value + 12);
+            bcm2835_fb_validate_config(&fbconfig);
             fbconfig_updated = true;
-            resplen = 4;
-            break;
-        case 0x00040006: /* Get pixel order */
-            stl_le_phys(&s->dma_as, value + 12, fbconfig.pixo);
+            /* fall through */
+        case 0x00040005: /* Get depth */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.bpp);
             resplen = 4;
             break;
         case 0x00044006: /* Test pixel order */
@@ -202,11 +198,11 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             break;
         case 0x00048006: /* Set pixel order */
             fbconfig.pixo = ldl_le_phys(&s->dma_as, value + 12);
+            bcm2835_fb_validate_config(&fbconfig);
             fbconfig_updated = true;
-            resplen = 4;
-            break;
-        case 0x00040007: /* Get alpha */
-            stl_le_phys(&s->dma_as, value + 12, fbconfig.alpha);
+            /* fall through */
+        case 0x00040006: /* Get pixel order */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.pixo);
             resplen = 4;
             break;
         case 0x00044007: /* Test pixel alpha */
@@ -214,7 +210,11 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             break;
         case 0x00048007: /* Set alpha */
             fbconfig.alpha = ldl_le_phys(&s->dma_as, value + 12);
+            bcm2835_fb_validate_config(&fbconfig);
             fbconfig_updated = true;
+            /* fall through */
+        case 0x00040007: /* Get alpha */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.alpha);
             resplen = 4;
             break;
         case 0x00040008: /* Get pitch */
@@ -222,18 +222,18 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
                         bcm2835_fb_get_pitch(&fbconfig));
             resplen = 4;
             break;
-        case 0x00040009: /* Get virtual offset */
-            stl_le_phys(&s->dma_as, value + 12, fbconfig.xoffset);
-            stl_le_phys(&s->dma_as, value + 16, fbconfig.yoffset);
-            resplen = 8;
-            break;
         case 0x00044009: /* Test virtual offset */
             resplen = 8;
             break;
         case 0x00048009: /* Set virtual offset */
             fbconfig.xoffset = ldl_le_phys(&s->dma_as, value + 12);
             fbconfig.yoffset = ldl_le_phys(&s->dma_as, value + 16);
+            bcm2835_fb_validate_config(&fbconfig);
             fbconfig_updated = true;
+            /* fall through */
+        case 0x00040009: /* Get virtual offset */
+            stl_le_phys(&s->dma_as, value + 12, fbconfig.xoffset);
+            stl_le_phys(&s->dma_as, value + 16, fbconfig.yoffset);
             resplen = 8;
             break;
         case 0x0004000a: /* Get/Test/Set overscan */

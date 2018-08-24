@@ -34,6 +34,13 @@
 #define DEFAULT_VCRAM_SIZE 0x4000000
 #define BCM2835_FB_OFFSET  0x00100000
 
+/* Maximum permitted framebuffer size; experimentally determined on an rpi2 */
+#define XRES_MAX 3840
+#define YRES_MAX 2560
+/* Framebuffer size used if guest requests zero size */
+#define XRES_SMALL 592
+#define YRES_SMALL 488
+
 static void fb_invalidate_display(void *opaque)
 {
     BCM2835FBState *s = BCM2835_FB(opaque);
@@ -202,6 +209,45 @@ static void fb_update_display(void *opaque)
     s->invalidate = false;
 }
 
+void bcm2835_fb_validate_config(BCM2835FBConfig *config)
+{
+    /*
+     * Validate the config, and clip any bogus values into range,
+     * as the hardware does. Note that fb_update_display() relies on
+     * this happening to prevent it from performing out-of-range
+     * accesses on redraw.
+     */
+    config->xres = MIN(config->xres, XRES_MAX);
+    config->xres_virtual = MIN(config->xres_virtual, XRES_MAX);
+    config->yres = MIN(config->yres, YRES_MAX);
+    config->yres_virtual = MIN(config->yres_virtual, YRES_MAX);
+
+    /*
+     * These are not minima: a 40x40 framebuffer will be accepted.
+     * They're only used as defaults if the guest asks for zero size.
+     */
+    if (config->xres == 0) {
+        config->xres = XRES_SMALL;
+    }
+    if (config->yres == 0) {
+        config->yres = YRES_SMALL;
+    }
+    if (config->xres_virtual == 0) {
+        config->xres_virtual = config->xres;
+    }
+    if (config->yres_virtual == 0) {
+        config->yres_virtual = config->yres;
+    }
+
+    if (fb_use_offsets(config)) {
+        /* Clip the offsets so the viewport is within the physical screen */
+        config->xoffset = MIN(config->xoffset,
+                              config->xres_virtual - config->xres);
+        config->yoffset = MIN(config->yoffset,
+                              config->yres_virtual - config->yres);
+    }
+}
+
 static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
 {
     uint32_t pitch;
@@ -237,8 +283,6 @@ static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
 void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig)
 {
     s->lock = true;
-
-    /* TODO: input validation! */
 
     s->config = *newconfig;
 

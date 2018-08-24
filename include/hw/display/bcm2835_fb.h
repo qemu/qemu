@@ -76,4 +76,12 @@ static inline uint32_t bcm2835_fb_get_size(BCM2835FBConfig *config)
     return yres * bcm2835_fb_get_pitch(config);
 }
 
+/**
+ * bcm2835_fb_validate_config: check provided config
+ *
+ * Validates the configuration information provided by the guest and
+ * adjusts it if necessary.
+ */
+void bcm2835_fb_validate_config(BCM2835FBConfig *config);
+
 #endif
