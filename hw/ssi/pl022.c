@@ -203,8 +203,10 @@ static void pl022_write(void *opaque, hwaddr offset,
     }
 }
 
-static void pl022_reset(PL022State *s)
+static void pl022_reset(DeviceState *dev)
 {
+    PL022State *s = PL022(dev);
+
     s->rx_fifo_len = 0;
     s->tx_fifo_len = 0;
     s->im = 0;
@@ -277,7 +279,6 @@ static int pl022_init(SysBusDevice *sbd)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
     s->ssi = ssi_create_bus(dev, "ssi");
-    pl022_reset(s);
     vmstate_register(dev, -1, &vmstate_pl022, s);
     return 0;
 }
@@ -285,8 +286,10 @@ static int pl022_init(SysBusDevice *sbd)
 static void pl022_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     sdc->init = pl022_init;
+    dc->reset = pl022_reset;
 }
 
 static const TypeInfo pl022_info = {
