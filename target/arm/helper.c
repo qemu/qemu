@@ -5459,6 +5459,16 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             REGINFO_SENTINEL
         };
         define_arm_cp_regs(cpu, auxcr_reginfo);
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            /* HACTLR2 maps to ACTLR_EL2[63:32] and is not in ARMv7 */
+            ARMCPRegInfo hactlr2_reginfo = {
+                .name = "HACTLR2", .state = ARM_CP_STATE_AA32,
+                .cp = 15, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 3,
+                .access = PL2_RW, .type = ARM_CP_CONST,
+                .resetvalue = 0
+            };
+            define_one_arm_cp_reg(cpu, &hactlr2_reginfo);
+        }
     }
 
     if (arm_feature(env, ARM_FEATURE_CBAR)) {
