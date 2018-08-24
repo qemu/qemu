@@ -52,7 +52,7 @@ static void draw_line_src16(void *opaque, uint8_t *dst, const uint8_t *src,
     int bpp = surface_bits_per_pixel(surface);
 
     while (width--) {
-        switch (s->bpp) {
+        switch (s->config.bpp) {
         case 8:
             /* lookup palette starting at video ram base
              * TODO: cache translation, rather than doing this each time!
@@ -91,7 +91,7 @@ static void draw_line_src16(void *opaque, uint8_t *dst, const uint8_t *src,
             break;
         }
 
-        if (s->pixo == 0) {
+        if (s->config.pixo == 0) {
             /* swap to BGR pixel format */
             uint8_t tmp = r;
             r = b;
@@ -135,12 +135,12 @@ static void fb_update_display(void *opaque)
     int src_width = 0;
     int dest_width = 0;
 
-    if (s->lock || !s->xres) {
+    if (s->lock || !s->config.xres) {
         return;
     }
 
-    src_width = s->xres * (s->bpp >> 3);
-    dest_width = s->xres;
+    src_width = s->config.xres * (s->config.bpp >> 3);
+    dest_width = s->config.xres;
 
     switch (surface_bits_per_pixel(surface)) {
     case 0:
@@ -165,16 +165,18 @@ static void fb_update_display(void *opaque)
     }
 
     if (s->invalidate) {
-        framebuffer_update_memory_section(&s->fbsection, s->dma_mr, s->base,
-                                          s->yres, src_width);
+        framebuffer_update_memory_section(&s->fbsection, s->dma_mr,
+                                          s->config.base,
+                                          s->config.yres, src_width);
     }
 
-    framebuffer_update_display(surface, &s->fbsection, s->xres, s->yres,
+    framebuffer_update_display(surface, &s->fbsection,
+                               s->config.xres, s->config.yres,
                                src_width, dest_width, 0, s->invalidate,
                                draw_line_src16, s, &first, &last);
 
     if (first >= 0) {
-        dpy_gfx_update(s->con, 0, first, s->xres, last - first + 1);
+        dpy_gfx_update(s->con, 0, first, s->config.xres, last - first + 1);
     }
 
     s->invalidate = false;
@@ -186,28 +188,28 @@ static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
 
     s->lock = true;
 
-    s->xres = ldl_le_phys(&s->dma_as, value);
-    s->yres = ldl_le_phys(&s->dma_as, value + 4);
-    s->xres_virtual = ldl_le_phys(&s->dma_as, value + 8);
-    s->yres_virtual = ldl_le_phys(&s->dma_as, value + 12);
-    s->bpp = ldl_le_phys(&s->dma_as, value + 20);
-    s->xoffset = ldl_le_phys(&s->dma_as, value + 24);
-    s->yoffset = ldl_le_phys(&s->dma_as, value + 28);
+    s->config.xres = ldl_le_phys(&s->dma_as, value);
+    s->config.yres = ldl_le_phys(&s->dma_as, value + 4);
+    s->config.xres_virtual = ldl_le_phys(&s->dma_as, value + 8);
+    s->config.yres_virtual = ldl_le_phys(&s->dma_as, value + 12);
+    s->config.bpp = ldl_le_phys(&s->dma_as, value + 20);
+    s->config.xoffset = ldl_le_phys(&s->dma_as, value + 24);
+    s->config.yoffset = ldl_le_phys(&s->dma_as, value + 28);
 
-    s->base = s->vcram_base | (value & 0xc0000000);
-    s->base += BCM2835_FB_OFFSET;
+    s->config.base = s->vcram_base | (value & 0xc0000000);
+    s->config.base += BCM2835_FB_OFFSET;
 
     /* TODO - Manage properly virtual resolution */
 
-    s->pitch = s->xres * (s->bpp >> 3);
-    s->size = s->yres * s->pitch;
+    s->pitch = s->config.xres * (s->config.bpp >> 3);
+    s->size = s->config.yres * s->pitch;
 
     stl_le_phys(&s->dma_as, value + 16, s->pitch);
-    stl_le_phys(&s->dma_as, value + 32, s->base);
+    stl_le_phys(&s->dma_as, value + 32, s->config.base);
     stl_le_phys(&s->dma_as, value + 36, s->size);
 
     s->invalidate = true;
-    qemu_console_resize(s->con, s->xres, s->yres);
+    qemu_console_resize(s->con, s->config.xres, s->config.yres);
     s->lock = false;
 }
 
@@ -219,34 +221,34 @@ void bcm2835_fb_reconfigure(BCM2835FBState *s, uint32_t *xres, uint32_t *yres,
 
     /* TODO: input validation! */
     if (xres) {
-        s->xres = *xres;
+        s->config.xres = *xres;
     }
     if (yres) {
-        s->yres = *yres;
+        s->config.yres = *yres;
     }
     if (xoffset) {
-        s->xoffset = *xoffset;
+        s->config.xoffset = *xoffset;
     }
     if (yoffset) {
-        s->yoffset = *yoffset;
+        s->config.yoffset = *yoffset;
     }
     if (bpp) {
-        s->bpp = *bpp;
+        s->config.bpp = *bpp;
     }
     if (pixo) {
-        s->pixo = *pixo;
+        s->config.pixo = *pixo;
     }
     if (alpha) {
-        s->alpha = *alpha;
+        s->config.alpha = *alpha;
     }
 
     /* TODO - Manage properly virtual resolution */
 
-    s->pitch = s->xres * (s->bpp >> 3);
-    s->size = s->yres * s->pitch;
+    s->pitch = s->config.xres * (s->config.bpp >> 3);
+    s->size = s->config.yres * s->pitch;
 
     s->invalidate = true;
-    qemu_console_resize(s->con, s->xres, s->yres);
+    qemu_console_resize(s->con, s->config.xres, s->config.yres);
     s->lock = false;
 }
 
@@ -312,18 +314,18 @@ static const VMStateDescription vmstate_bcm2835_fb = {
         VMSTATE_BOOL(lock, BCM2835FBState),
         VMSTATE_BOOL(invalidate, BCM2835FBState),
         VMSTATE_BOOL(pending, BCM2835FBState),
-        VMSTATE_UINT32(xres, BCM2835FBState),
-        VMSTATE_UINT32(yres, BCM2835FBState),
-        VMSTATE_UINT32(xres_virtual, BCM2835FBState),
-        VMSTATE_UINT32(yres_virtual, BCM2835FBState),
-        VMSTATE_UINT32(xoffset, BCM2835FBState),
-        VMSTATE_UINT32(yoffset, BCM2835FBState),
-        VMSTATE_UINT32(bpp, BCM2835FBState),
-        VMSTATE_UINT32(base, BCM2835FBState),
+        VMSTATE_UINT32(config.xres, BCM2835FBState),
+        VMSTATE_UINT32(config.yres, BCM2835FBState),
+        VMSTATE_UINT32(config.xres_virtual, BCM2835FBState),
+        VMSTATE_UINT32(config.yres_virtual, BCM2835FBState),
+        VMSTATE_UINT32(config.xoffset, BCM2835FBState),
+        VMSTATE_UINT32(config.yoffset, BCM2835FBState),
+        VMSTATE_UINT32(config.bpp, BCM2835FBState),
+        VMSTATE_UINT32(config.base, BCM2835FBState),
         VMSTATE_UINT32(pitch, BCM2835FBState),
         VMSTATE_UINT32(size, BCM2835FBState),
-        VMSTATE_UINT32(pixo, BCM2835FBState),
-        VMSTATE_UINT32(alpha, BCM2835FBState),
+        VMSTATE_UINT32(config.pixo, BCM2835FBState),
+        VMSTATE_UINT32(config.alpha, BCM2835FBState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -349,13 +351,13 @@ static void bcm2835_fb_reset(DeviceState *dev)
 
     s->pending = false;
 
-    s->xres_virtual = s->xres;
-    s->yres_virtual = s->yres;
-    s->xoffset = 0;
-    s->yoffset = 0;
-    s->base = s->vcram_base + BCM2835_FB_OFFSET;
-    s->pitch = s->xres * (s->bpp >> 3);
-    s->size = s->yres * s->pitch;
+    s->config.xres_virtual = s->config.xres;
+    s->config.yres_virtual = s->config.yres;
+    s->config.xoffset = 0;
+    s->config.yoffset = 0;
+    s->config.base = s->vcram_base + BCM2835_FB_OFFSET;
+    s->pitch = s->config.xres * (s->config.bpp >> 3);
+    s->size = s->config.yres * s->pitch;
 
     s->invalidate = true;
     s->lock = false;
@@ -385,18 +387,20 @@ static void bcm2835_fb_realize(DeviceState *dev, Error **errp)
     bcm2835_fb_reset(dev);
 
     s->con = graphic_console_init(dev, 0, &vgafb_ops, s);
-    qemu_console_resize(s->con, s->xres, s->yres);
+    qemu_console_resize(s->con, s->config.xres, s->config.yres);
 }
 
 static Property bcm2835_fb_props[] = {
     DEFINE_PROP_UINT32("vcram-base", BCM2835FBState, vcram_base, 0),/*required*/
     DEFINE_PROP_UINT32("vcram-size", BCM2835FBState, vcram_size,
                        DEFAULT_VCRAM_SIZE),
-    DEFINE_PROP_UINT32("xres", BCM2835FBState, xres, 640),
-    DEFINE_PROP_UINT32("yres", BCM2835FBState, yres, 480),
-    DEFINE_PROP_UINT32("bpp", BCM2835FBState, bpp, 16),
-    DEFINE_PROP_UINT32("pixo", BCM2835FBState, pixo, 1), /* 1=RGB, 0=BGR */
-    DEFINE_PROP_UINT32("alpha", BCM2835FBState, alpha, 2), /* alpha ignored */
+    DEFINE_PROP_UINT32("xres", BCM2835FBState, config.xres, 640),
+    DEFINE_PROP_UINT32("yres", BCM2835FBState, config.yres, 480),
+    DEFINE_PROP_UINT32("bpp", BCM2835FBState, config.bpp, 16),
+    DEFINE_PROP_UINT32("pixo",
+                       BCM2835FBState, config.pixo, 1), /* 1=RGB, 0=BGR */
+    DEFINE_PROP_UINT32("alpha",
+                       BCM2835FBState, config.alpha, 2), /* alpha ignored */
     DEFINE_PROP_END_OF_LIST()
 };
 

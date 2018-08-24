@@ -141,10 +141,10 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         /* Frame buffer */
 
         case 0x00040001: /* Allocate buffer */
-            stl_le_phys(&s->dma_as, value + 12, s->fbdev->base);
-            tmp_xres = newxres != NULL ? *newxres : s->fbdev->xres;
-            tmp_yres = newyres != NULL ? *newyres : s->fbdev->yres;
-            tmp_bpp = newbpp != NULL ? *newbpp : s->fbdev->bpp;
+            stl_le_phys(&s->dma_as, value + 12, s->fbdev->config.base);
+            tmp_xres = newxres != NULL ? *newxres : s->fbdev->config.xres;
+            tmp_yres = newyres != NULL ? *newyres : s->fbdev->config.yres;
+            tmp_bpp = newbpp != NULL ? *newbpp : s->fbdev->config.bpp;
             stl_le_phys(&s->dma_as, value + 16,
                         tmp_xres * tmp_yres * tmp_bpp / 8);
             resplen = 8;
@@ -157,8 +157,8 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             break;
         case 0x00040003: /* Get display width/height */
         case 0x00040004:
-            tmp_xres = newxres != NULL ? *newxres : s->fbdev->xres;
-            tmp_yres = newyres != NULL ? *newyres : s->fbdev->yres;
+            tmp_xres = newxres != NULL ? *newxres : s->fbdev->config.xres;
+            tmp_yres = newyres != NULL ? *newyres : s->fbdev->config.yres;
             stl_le_phys(&s->dma_as, value + 12, tmp_xres);
             stl_le_phys(&s->dma_as, value + 16, tmp_yres);
             resplen = 8;
@@ -176,7 +176,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             resplen = 8;
             break;
         case 0x00040005: /* Get depth */
-            tmp_bpp = newbpp != NULL ? *newbpp : s->fbdev->bpp;
+            tmp_bpp = newbpp != NULL ? *newbpp : s->fbdev->config.bpp;
             stl_le_phys(&s->dma_as, value + 12, tmp_bpp);
             resplen = 4;
             break;
@@ -189,7 +189,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             resplen = 4;
             break;
         case 0x00040006: /* Get pixel order */
-            tmp_pixo = newpixo != NULL ? *newpixo : s->fbdev->pixo;
+            tmp_pixo = newpixo != NULL ? *newpixo : s->fbdev->config.pixo;
             stl_le_phys(&s->dma_as, value + 12, tmp_pixo);
             resplen = 4;
             break;
@@ -202,7 +202,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             resplen = 4;
             break;
         case 0x00040007: /* Get alpha */
-            tmp_alpha = newalpha != NULL ? *newalpha : s->fbdev->alpha;
+            tmp_alpha = newalpha != NULL ? *newalpha : s->fbdev->config.alpha;
             stl_le_phys(&s->dma_as, value + 12, tmp_alpha);
             resplen = 4;
             break;
@@ -215,14 +215,16 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
             resplen = 4;
             break;
         case 0x00040008: /* Get pitch */
-            tmp_xres = newxres != NULL ? *newxres : s->fbdev->xres;
-            tmp_bpp = newbpp != NULL ? *newbpp : s->fbdev->bpp;
+            tmp_xres = newxres != NULL ? *newxres : s->fbdev->config.xres;
+            tmp_bpp = newbpp != NULL ? *newbpp : s->fbdev->config.bpp;
             stl_le_phys(&s->dma_as, value + 12, tmp_xres * tmp_bpp / 8);
             resplen = 4;
             break;
         case 0x00040009: /* Get virtual offset */
-            tmp_xoffset = newxoffset != NULL ? *newxoffset : s->fbdev->xoffset;
-            tmp_yoffset = newyoffset != NULL ? *newyoffset : s->fbdev->yoffset;
+            tmp_xoffset = newxoffset != NULL ?
+                *newxoffset : s->fbdev->config.xoffset;
+            tmp_yoffset = newyoffset != NULL ?
+                *newyoffset : s->fbdev->config.yoffset;
             stl_le_phys(&s->dma_as, value + 12, tmp_xoffset);
             stl_le_phys(&s->dma_as, value + 16, tmp_yoffset);
             resplen = 8;
