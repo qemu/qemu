@@ -725,11 +725,6 @@ Visitor *qobject_input_visitor_new_str(const char *str,
     if (is_json) {
         obj = qobject_from_json(str, errp);
         if (!obj) {
-            /* Work around qobject_from_json() lossage TODO fix that */
-            if (errp && !*errp) {
-                error_setg(errp, "JSON parse error");
-                return NULL;
-            }
             return NULL;
         }
         args = qobject_to(QDict, obj);

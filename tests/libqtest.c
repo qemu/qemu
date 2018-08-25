@@ -21,10 +21,10 @@
 #include <sys/un.h>
 
 #include "libqtest.h"
+#include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qapi/qmp/json-parser.h"
-#include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
@@ -446,14 +446,15 @@ typedef struct {
     QDict *response;
 } QMPResponseParser;
 
-static void qmp_response(JSONMessageParser *parser, GQueue *tokens)
+static void qmp_response(void *opaque, QObject *obj, Error *err)
 {
-    QMPResponseParser *qmp = container_of(parser, QMPResponseParser, parser);
-    QObject *obj;
+    QMPResponseParser *qmp = opaque;
 
-    obj = json_parser_parse(tokens, NULL);
-    if (!obj) {
-        fprintf(stderr, "QMP JSON response parsing failed\n");
+    assert(!obj != !err);
+
+    if (err) {
+        error_prepend(&err, "QMP JSON response parsing failed: ");
+        error_report_err(err);
         abort();
     }
 
@@ -468,7 +469,7 @@ QDict *qmp_fd_receive(int fd)
     bool log = getenv("QTEST_LOG") != NULL;
 
     qmp.response = NULL;
-    json_message_parser_init(&qmp.parser, qmp_response);
+    json_message_parser_init(&qmp.parser, qmp_response, &qmp, NULL);
     while (!qmp.response) {
         ssize_t len;
         char c;
@@ -506,16 +507,6 @@ QDict *qtest_qmp_receive(QTestState *s)
 void qmp_fd_vsend(int fd, const char *fmt, va_list ap)
 {
     QObject *qobj;
-
-    /*
-     * qobject_from_vjsonf_nofail() chokes on leading 0xff as invalid
-     * JSON, but tests/test-qga.c needs to send that to test QGA
-     * synchronization
-     */
-    if (*fmt == '\377') {
-        socket_send(fd, fmt, 1);
-        fmt++;
-    }
 
     /* Going through qobject ensures we escape strings properly */
     qobj = qobject_from_vjsonf_nofail(fmt, ap);
@@ -601,6 +592,36 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...)
 
     va_start(ap, fmt);
     qtest_qmp_vsend(s, fmt, ap);
+    va_end(ap);
+}
+
+void qmp_fd_vsend_raw(int fd, const char *fmt, va_list ap)
+{
+    bool log = getenv("QTEST_LOG") != NULL;
+    char *str = g_strdup_vprintf(fmt, ap);
+
+    if (log) {
+        fprintf(stderr, "%s", str);
+    }
+    socket_send(fd, str, strlen(str));
+    g_free(str);
+}
+
+void qmp_fd_send_raw(int fd, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qmp_fd_vsend_raw(fd, fmt, ap);
+    va_end(ap);
+}
+
+void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qmp_fd_vsend_raw(s->qmp_fd, fmt, ap);
     va_end(ap);
 }
 

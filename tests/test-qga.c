@@ -147,8 +147,9 @@ static void test_qga_sync_delimited(gconstpointer fix)
     unsigned char c;
     QDict *ret;
 
+    qmp_fd_send_raw(fixture->fd, "\xff");
     qmp_fd_send(fixture->fd,
-                "\xff{'execute': 'guest-sync-delimited',"
+                "{'execute': 'guest-sync-delimited',"
                 " 'arguments': {'id': %u } }",
                 r);
 

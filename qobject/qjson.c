@@ -13,9 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qapi/qmp/json-lexer.h"
 #include "qapi/qmp/json-parser.h"
-#include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
@@ -27,16 +25,29 @@
 typedef struct JSONParsingState
 {
     JSONMessageParser parser;
-    va_list *ap;
     QObject *result;
     Error *err;
 } JSONParsingState;
 
-static void parse_json(JSONMessageParser *parser, GQueue *tokens)
+static void consume_json(void *opaque, QObject *json, Error *err)
 {
-    JSONParsingState *s = container_of(parser, JSONParsingState, parser);
+    JSONParsingState *s = opaque;
 
-    s->result = json_parser_parse_err(tokens, s->ap, &s->err);
+    assert(!json != !err);
+    assert(!s->result || !s->err);
+
+    if (s->result) {
+        qobject_unref(s->result);
+        s->result = NULL;
+        error_setg(&s->err, "Expecting at most one JSON value");
+    }
+    if (s->err) {
+        qobject_unref(json);
+        error_free(err);
+        return;
+    }
+    s->result = json;
+    s->err = err;
 }
 
 /*
@@ -54,12 +65,14 @@ static QObject *qobject_from_jsonv(const char *string, va_list *ap,
 {
     JSONParsingState state = {};
 
-    state.ap = ap;
-
-    json_message_parser_init(&state.parser, parse_json);
+    json_message_parser_init(&state.parser, consume_json, &state, ap);
     json_message_parser_feed(&state.parser, string, strlen(string));
     json_message_parser_flush(&state.parser);
     json_message_parser_destroy(&state.parser);
+
+    if (!state.result && !state.err) {
+        error_setg(&state.err, "Expecting a JSON value");
+    }
 
     error_propagate(errp, state.err);
     return state.result;

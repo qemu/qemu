@@ -97,6 +97,17 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
 /**
+ * qtest_qmp_send_raw:
+ * @s: #QTestState instance to operate on.
+ * @fmt...: text to send, formatted like sprintf()
+ *
+ * Sends text to the QMP monitor verbatim.  Need not be valid JSON;
+ * this is useful for negative tests.
+ */
+void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
+
+/**
  * qtest_qmpv:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU, formatted like
@@ -948,6 +959,8 @@ static inline int64_t clock_set(int64_t val)
 QDict *qmp_fd_receive(int fd);
 void qmp_fd_vsend(int fd, const char *fmt, va_list ap) GCC_FMT_ATTR(2, 0);
 void qmp_fd_send(int fd, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
+void qmp_fd_send_raw(int fd, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
+void qmp_fd_vsend_raw(int fd, const char *fmt, va_list ap) GCC_FMT_ATTR(2, 0);
 QDict *qmp_fdv(int fd, const char *fmt, va_list ap) GCC_FMT_ATTR(2, 0);
 QDict *qmp_fd(int fd, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 
