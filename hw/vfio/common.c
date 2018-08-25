@@ -1432,6 +1432,7 @@ int vfio_get_device(VFIOGroup *group, const char *name,
         if (!QLIST_EMPTY(&group->device_list)) {
             error_setg(errp,
                        "Inconsistent device balloon setting within group");
+            close(fd);
             return -1;
         }
 
