@@ -89,7 +89,6 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
         for typ in self._used_types:
             typ.visit(self)
         # generate C
-        # TODO can generate awfully long lines
         name = c_name(self._prefix, protect=False) + 'qmp_schema_qlit'
         self._genh.add(mcgen('''
 #include "qapi/qmp/qlit.h"
@@ -129,8 +128,8 @@ const QLitObject %(c_name)s = %(c_string)s;
         if typ not in self._used_types:
             self._used_types.append(typ)
         # Clients should examine commands and events, not types.  Hide
-        # type names to reduce the temptation.  Also saves a few
-        # characters.
+        # type names as integers to reduce the temptation.  Also, it
+        # saves a few characters on the wire.
         if isinstance(typ, QAPISchemaBuiltinType):
             return typ.name
         if isinstance(typ, QAPISchemaArrayType):
@@ -185,7 +184,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         arg_type = arg_type or self._schema.the_empty_object_type
         ret_type = ret_type or self._schema.the_empty_object_type
         obj = {'arg-type': self._use_type(arg_type),
-               'ret-type': self._use_type(ret_type) }
+               'ret-type': self._use_type(ret_type)}
         if allow_oob:
             obj['allow-oob'] = allow_oob
         self._gen_qlit(name, 'command', obj, ifcond)
