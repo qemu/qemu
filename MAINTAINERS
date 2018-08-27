@@ -1576,6 +1576,7 @@ S: Odd Fixes
 F: ui/
 F: include/ui/
 F: qapi/ui.json
+F: util/drm.c
 
 Cocoa graphics
 M: Peter Maydell <peter.maydell@linaro.org>

@@ -40,26 +40,6 @@ which is the default.
 The ``-no-kvm'' argument is now a synonym for setting
 ``-machine accel=tcg''.
 
-@subsection -vnc tls (since 2.5.0)
-
-The ``-vnc tls'' argument is now a synonym for setting
-``-object tls-creds-anon,id=tls0'' combined with
-``-vnc tls-creds=tls0'
-
-@subsection -vnc x509 (since 2.5.0)
-
-The ``-vnc x509=/path/to/certs'' argument is now a
-synonym for setting
-``-object tls-creds-x509,dir=/path/to/certs,id=tls0,verify-peer=no''
-combined with ``-vnc tls-creds=tls0'
-
-@subsection -vnc x509verify (since 2.5.0)
-
-The ``-vnc x509verify=/path/to/certs'' argument is now a
-synonym for setting
-``-object tls-creds-x509,dir=/path/to/certs,id=tls0,verify-peer=yes''
-combined with ``-vnc tls-creds=tls0'
-
 @subsection -tftp (since 2.6.0)
 
 The ``-tftp /some/dir'' argument is replaced by either

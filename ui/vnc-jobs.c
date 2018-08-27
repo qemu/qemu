@@ -193,6 +193,7 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
 
 static void vnc_async_encoding_end(VncState *orig, VncState *local)
 {
+    buffer_free(&local->output);
     orig->tight = local->tight;
     orig->zlib = local->zlib;
     orig->hextile = local->hextile;
@@ -278,7 +279,7 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
         /* Copy persistent encoding data */
         vnc_async_encoding_end(job->vs, &vs);
 
-	qemu_bh_schedule(job->vs->bh);
+        qemu_bh_schedule(job->vs->bh);
     }  else {
         buffer_reset(&vs.output);
         /* Copy persistent encoding data */
