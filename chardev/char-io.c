@@ -33,7 +33,6 @@ typedef struct IOWatchPoll {
     IOCanReadHandler *fd_can_read;
     GSourceFunc fd_read;
     void *opaque;
-    GMainContext *context;
 } IOWatchPoll;
 
 static IOWatchPoll *io_watch_poll_from_source(GSource *source)
@@ -55,47 +54,24 @@ static gboolean io_watch_poll_prepare(GSource *source,
         iwp->src = qio_channel_create_watch(
             iwp->ioc, G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL);
         g_source_set_callback(iwp->src, iwp->fd_read, iwp->opaque, NULL);
-        g_source_attach(iwp->src, iwp->context);
-    } else {
-        g_source_destroy(iwp->src);
+        g_source_add_child_source(source, iwp->src);
         g_source_unref(iwp->src);
+    } else {
+        g_source_remove_child_source(source, iwp->src);
         iwp->src = NULL;
     }
-    return FALSE;
-}
-
-static gboolean io_watch_poll_check(GSource *source)
-{
     return FALSE;
 }
 
 static gboolean io_watch_poll_dispatch(GSource *source, GSourceFunc callback,
                                        gpointer user_data)
 {
-    abort();
-}
-
-static void io_watch_poll_finalize(GSource *source)
-{
-    /* Due to a glib bug, removing the last reference to a source
-     * inside a finalize callback causes recursive locking (and a
-     * deadlock).  This is not a problem inside other callbacks,
-     * including dispatch callbacks, so we call io_remove_watch_poll
-     * to remove this source.  At this point, iwp->src must
-     * be NULL, or we would leak it.
-     *
-     * This would be solved much more elegantly by child sources,
-     * but we support older glib versions that do not have them.
-     */
-    IOWatchPoll *iwp = io_watch_poll_from_source(source);
-    assert(iwp->src == NULL);
+    return G_SOURCE_CONTINUE;
 }
 
 static GSourceFuncs io_watch_poll_funcs = {
     .prepare = io_watch_poll_prepare,
-    .check = io_watch_poll_check,
     .dispatch = io_watch_poll_dispatch,
-    .finalize = io_watch_poll_finalize,
 };
 
 GSource *io_add_watch_poll(Chardev *chr,
@@ -115,7 +91,6 @@ GSource *io_add_watch_poll(Chardev *chr,
     iwp->ioc = ioc;
     iwp->fd_read = (GSourceFunc) fd_read;
     iwp->src = NULL;
-    iwp->context = context;
 
     name = g_strdup_printf("chardev-iowatch-%s", chr->label);
     g_source_set_name((GSource *)iwp, name);
@@ -126,23 +101,10 @@ GSource *io_add_watch_poll(Chardev *chr,
     return (GSource *)iwp;
 }
 
-static void io_remove_watch_poll(GSource *source)
-{
-    IOWatchPoll *iwp;
-
-    iwp = io_watch_poll_from_source(source);
-    if (iwp->src) {
-        g_source_destroy(iwp->src);
-        g_source_unref(iwp->src);
-        iwp->src = NULL;
-    }
-    g_source_destroy(&iwp->parent);
-}
-
 void remove_fd_in_watch(Chardev *chr)
 {
     if (chr->gsource) {
-        io_remove_watch_poll(chr->gsource);
+        g_source_destroy(chr->gsource);
         chr->gsource = NULL;
     }
 }
