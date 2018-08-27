@@ -117,7 +117,7 @@ static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
             DeviceState *dev = NULL;
             HotplugHandler *hotplug_ctrl = NULL;
 
-            if (!cdev->cpu) {
+            if (!cdev->cpu || cdev->cpu == first_cpu) {
                 trace_cpuhp_acpi_ejecting_invalid_cpu(cpu_st->selector);
                 break;
             }
@@ -541,9 +541,11 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
                 aml_buffer(madt_buf->len, (uint8_t *)madt_buf->data)));
             g_array_free(madt_buf, true);
 
-            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
-            aml_append(method, aml_call1(CPU_EJECT_METHOD, uid));
-            aml_append(dev, method);
+            if (CPU(arch_ids->cpus[i].cpu) != first_cpu) {
+                method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
+                aml_append(method, aml_call1(CPU_EJECT_METHOD, uid));
+                aml_append(dev, method);
+            }
 
             method = aml_method("_OST", 3, AML_SERIALIZED);
             aml_append(method,
