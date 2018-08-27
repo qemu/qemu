@@ -3669,6 +3669,10 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
         MSIMessage src, dst;
         X86IOMMUClass *class = X86_IOMMU_GET_CLASS(iommu);
 
+        if (!class->int_remap) {
+            return 0;
+        }
+
         src.address = route->u.msi.address_hi;
         src.address <<= VTD_MSI_ADDR_HI_SHIFT;
         src.address |= route->u.msi.address_lo;
