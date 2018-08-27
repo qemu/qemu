@@ -69,20 +69,7 @@ vtd_ir_remap_msi_req(uint64_t addr, uint64_t data) "addr 0x%"PRIx64" data 0x%"PR
 vtd_fsts_ppf(bool set) "FSTS PPF bit set to %d"
 vtd_fsts_clear_ip(void) ""
 vtd_frr_new(int index, uint64_t hi, uint64_t lo) "index %d high 0x%"PRIx64" low 0x%"PRIx64
-vtd_err(const char *str) "%s"
-vtd_err_dmar_iova_overflow(uint64_t iova) "iova 0x%"PRIx64
-vtd_err_dmar_slpte_read_error(uint64_t iova, int level) "iova 0x%"PRIx64" level %d"
-vtd_err_dmar_slpte_perm_error(uint64_t iova, int level, uint64_t slpte, bool is_write) "iova 0x%"PRIx64" level %d slpte 0x%"PRIx64" write %d"
-vtd_err_dmar_slpte_resv_error(uint64_t iova, int level, uint64_t slpte) "iova 0x%"PRIx64" level %d slpte 0x%"PRIx64
-vtd_err_dmar_translate(uint8_t bus, uint8_t slot, uint8_t func, uint64_t iova) "dev %02x:%02x.%02x iova 0x%"PRIx64
 vtd_warn_invalid_qi_tail(uint16_t tail) "tail 0x%"PRIx16
-vtd_err_qi_disable(uint16_t head, uint16_t tail, int type) "head 0x%"PRIx16" tail 0x%"PRIx16" last_desc_type %d"
-vtd_err_qi_tail(uint16_t tail, uint16_t size) "tail 0x%"PRIx16" size 0x%"PRIx16
-vtd_err_irte(int index, uint64_t lo, uint64_t hi) "index %d low 0x%"PRIx64" high 0x%"PRIx64
-vtd_err_irte_sid(int index, uint16_t req, uint16_t target) "index %d SVT_ALL sid 0x%"PRIx16" (should be: 0x%"PRIx16")"
-vtd_err_irte_sid_bus(int index, uint8_t bus, uint8_t min, uint8_t max) "index %d SVT_BUS bus 0x%"PRIx8" (should be: 0x%"PRIx8"-0x%"PRIx8")"
-vtd_err_irte_svt(int index, int type) "index %d SVT type %d"
-vtd_err_ir_msi_invalid(uint16_t sid, uint64_t addr, uint64_t data) "sid 0x%"PRIx16" addr 0x%"PRIx64" data 0x%"PRIx64
 vtd_warn_ir_vector(uint16_t sid, int index, int vec, int target) "sid 0x%"PRIx16" index %d vec %d (should be: %d)"
 vtd_warn_ir_trigger(uint16_t sid, int index, int trig, int target) "sid 0x%"PRIx16" index %d trigger %d (should be: %d)"
 

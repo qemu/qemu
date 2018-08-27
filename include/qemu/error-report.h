@@ -44,6 +44,38 @@ void error_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void warn_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void info_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
+/*
+ * Similar to error_report(), except it prints the message just once.
+ * Return true when it prints, false otherwise.
+ */
+#define error_report_once(fmt, ...)             \
+    ({                                          \
+        static bool print_once_;                \
+        bool ret_print_once_ = !print_once_;    \
+                                                \
+        if (!print_once_) {                     \
+            print_once_ = true;                 \
+            error_report(fmt, ##__VA_ARGS__);   \
+        }                                       \
+        unlikely(ret_print_once_);              \
+    })
+
+/*
+ * Similar to warn_report(), except it prints the message just once.
+ * Return true when it prints, false otherwise.
+ */
+#define warn_report_once(fmt, ...)              \
+    ({                                          \
+        static bool print_once_;                \
+        bool ret_print_once_ = !print_once_;    \
+                                                \
+        if (!print_once_) {                     \
+            print_once_ = true;                 \
+            warn_report(fmt, ##__VA_ARGS__);    \
+        }                                       \
+        unlikely(ret_print_once_);              \
+    })
+
 const char *error_get_progname(void);
 extern bool enable_timestamp_msg;
 
