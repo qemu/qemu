@@ -1428,6 +1428,7 @@ Example:
             { "name", QLIT_QSTR("MY_EVENT"), },
             {}
         })),
+        /* "0" = q_obj_my-command-arg */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "members", QLIT_QLIST(((QLitObject[]) {
                 QLIT_QDICT(((QLitDictEntry[]) {
@@ -1441,6 +1442,7 @@ Example:
             { "name", QLIT_QSTR("0"), },
             {}
         })),
+        /* "1" = UserDefOne */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "members", QLIT_QLIST(((QLitObject[]) {
                 QLIT_QDICT(((QLitDictEntry[]) {
@@ -1460,6 +1462,7 @@ Example:
             { "name", QLIT_QSTR("1"), },
             {}
         })),
+        /* "2" = q_empty */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "members", QLIT_QLIST(((QLitObject[]) {
                 {}

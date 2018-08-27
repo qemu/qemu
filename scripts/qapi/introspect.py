@@ -19,12 +19,17 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
         return level * 4 * ' '
 
     if isinstance(obj, tuple):
-        ifobj, ifcond = obj
-        ret = gen_if(ifcond)
+        ifobj, extra = obj
+        ifcond = extra.get('if')
+        comment = extra.get('comment')
+        ret = ''
+        if comment:
+            ret += indent(level) + '/* %s */\n' % comment
+        if ifcond:
+            ret += gen_if(ifcond)
         ret += to_qlit(ifobj, level)
-        endif = gen_endif(ifcond)
-        if endif:
-            ret += '\n' + endif
+        if ifcond:
+            ret += '\n' + gen_endif(ifcond)
         return ret
 
     ret = ''
@@ -137,11 +142,21 @@ const QLitObject %(c_name)s = %(c_string)s;
         return self._name(typ.name)
 
     def _gen_qlit(self, name, mtype, obj, ifcond):
+        extra = {}
         if mtype not in ('command', 'event', 'builtin', 'array'):
+            if not self._unmask:
+                # Output a comment to make it easy to map masked names
+                # back to the source when reading the generated output.
+                extra['comment'] = '"%s" = %s' % (self._name(name), name)
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
-        self._qlits.append((obj, ifcond))
+        if ifcond:
+            extra['if'] = ifcond
+        if extra:
+            self._qlits.append((obj, extra))
+        else:
+            self._qlits.append(obj)
 
     def _gen_member(self, member):
         ret = {'name': member.name, 'type': self._use_type(member.type)}
