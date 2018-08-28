@@ -959,6 +959,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         uint32_t arg[MAX_OPCODE_ARGS];
         uint32_t raw_arg[MAX_OPCODE_ARGS];
     } slot_prop[MAX_INSN_SLOTS];
+    uint32_t debug_cause = 0;
 
     if (len == XTENSA_UNDEFINED) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1040,6 +1041,9 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
             return;
         }
+        if (ops->op_flags & XTENSA_OP_DEBUG_BREAK) {
+            debug_cause |= ops->par[0];
+        }
     }
 
     if ((op_flags & XTENSA_OP_PRIVILEGED) &&
@@ -1049,6 +1053,11 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
     if (op_flags & XTENSA_OP_SYSCALL) {
         gen_exception_cause(dc, SYSCALL_CAUSE);
+        return;
+    }
+
+    if ((op_flags & XTENSA_OP_DEBUG_BREAK) && dc->debug) {
+        gen_debug_exception(dc, debug_cause);
         return;
     }
 
@@ -1513,14 +1522,6 @@ static void translate_bp(DisasContext *dc, const uint32_t arg[],
     tcg_gen_andi_i32(tmp, cpu_SR[BR], 1 << arg[0]);
     gen_brcondi(dc, par[0], tmp, 0, arg[1]);
     tcg_temp_free(tmp);
-}
-
-static void translate_break(DisasContext *dc, const uint32_t arg[],
-                            const uint32_t par[])
-{
-    if (dc->debug) {
-        gen_debug_exception(dc, par[0]);
-    }
 }
 
 static void translate_call0(DisasContext *dc, const uint32_t arg[],
@@ -2827,12 +2828,14 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){TCG_COND_EQ},
     }, {
         .name = "break",
-        .translate = translate_break,
+        .translate = translate_nop,
         .par = (const uint32_t[]){DEBUGCAUSE_BI},
+        .op_flags = XTENSA_OP_DEBUG_BREAK,
     }, {
         .name = "break.n",
-        .translate = translate_break,
+        .translate = translate_nop,
         .par = (const uint32_t[]){DEBUGCAUSE_BN},
+        .op_flags = XTENSA_OP_DEBUG_BREAK,
     }, {
         .name = "bt",
         .translate = translate_bp,
