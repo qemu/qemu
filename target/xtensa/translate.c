@@ -1047,6 +1047,11 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         return;
     }
 
+    if (op_flags & XTENSA_OP_SYSCALL) {
+        gen_exception_cause(dc, SYSCALL_CAUSE);
+        return;
+    }
+
     for (slot = 0; slot < slots; ++slot) {
         XtensaOpcodeOps *ops = slot_prop[slot].ops;
 
@@ -2555,12 +2560,6 @@ static void translate_subx(DisasContext *dc, const uint32_t arg[],
         tcg_gen_sub_i32(cpu_R[arg[0]], tmp, cpu_R[arg[2]]);
         tcg_temp_free(tmp);
     }
-}
-
-static void translate_syscall(DisasContext *dc, const uint32_t arg[],
-                              const uint32_t par[])
-{
-    gen_exception_cause(dc, SYSCALL_CAUSE);
 }
 
 static void translate_waiti(DisasContext *dc, const uint32_t arg[],
@@ -4094,7 +4093,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){3},
     }, {
         .name = "syscall",
-        .translate = translate_syscall,
+        .op_flags = XTENSA_OP_SYSCALL,
     }, {
         .name = "umul.aa.hh",
         .translate = translate_mac16,
