@@ -59,7 +59,8 @@ memfd_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 
     name = object_get_canonical_path(OBJECT(backend));
     memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend),
-                                   name, backend->size, true, fd, errp);
+                                   name, backend->size,
+                                   backend->share, fd, errp);
     g_free(name);
 }
 
@@ -131,6 +132,7 @@ memfd_backend_instance_init(Object *obj)
 
     /* default to sealed file */
     m->seal = true;
+    MEMORY_BACKEND(m)->share = true;
 }
 
 static void

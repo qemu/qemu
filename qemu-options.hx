@@ -4025,7 +4025,7 @@ Memory backend objects offer more control than the @option{-m} option that is
 traditionally used to define guest RAM. Please refer to
 @option{memory-backend-file} for a description of the options.
 
-@item -object memory-backend-memfd,id=@var{id},merge=@var{on|off},dump=@var{on|off},prealloc=@var{on|off},size=@var{size},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave},seal=@var{on|off},hugetlb=@var{on|off},hugetlbsize=@var{size}
+@item -object memory-backend-memfd,id=@var{id},merge=@var{on|off},dump=@var{on|off},share=@var{on|off},prealloc=@var{on|off},size=@var{size},host-nodes=@var{host-nodes},policy=@var{default|preferred|bind|interleave},seal=@var{on|off},hugetlb=@var{on|off},hugetlbsize=@var{size}
 
 Creates an anonymous memory file backend object, which allows QEMU to
 share the memory with an external process (e.g. when using
@@ -4046,6 +4046,8 @@ with the @option{seal} option (requires at least Linux 4.16).
 
 Please refer to @option{memory-backend-file} for a description of the
 other options.
+
+The @option{share} boolean option is @var{on} by default with memfd.
 
 @item -object rng-random,id=@var{id},filename=@var{/dev/random}
 
