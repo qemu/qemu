@@ -57,11 +57,17 @@ static void init_libisa(XtensaConfig *config)
 {
     unsigned i, j;
     unsigned opcodes;
+    unsigned formats;
 
     config->isa = xtensa_isa_init(config->isa_internal, NULL, NULL);
     assert(xtensa_isa_maxlength(config->isa) <= MAX_INSN_LENGTH);
     opcodes = xtensa_isa_num_opcodes(config->isa);
+    formats = xtensa_isa_num_formats(config->isa);
     config->opcode_ops = g_new(XtensaOpcodeOps *, opcodes);
+
+    for (i = 0; i < formats; ++i) {
+        assert(xtensa_format_num_slots(config->isa, i) <= MAX_INSN_SLOTS);
+    }
 
     for (i = 0; i < opcodes; ++i) {
         const char *opc_name = xtensa_opcode_name(config->isa, i);
