@@ -26,6 +26,7 @@
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
 #include "hw/ppc/mac_dbdma.h"
+#include "hw/misc/macio/macio.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/dma.h"
 
