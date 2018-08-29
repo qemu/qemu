@@ -37,6 +37,7 @@
 typedef struct GrackleState {
     PCIHostState parent_obj;
 
+    uint32_t ofw_addr;
     HeathrowState *pic;
     qemu_irq irqs[4];
     MemoryRegion pci_mmio;
@@ -146,12 +147,28 @@ static const TypeInfo grackle_pci_info = {
     },
 };
 
+static char *grackle_ofw_unit_address(const SysBusDevice *dev)
+{
+    GrackleState *s = GRACKLE_PCI_HOST_BRIDGE(dev);
+
+    return g_strdup_printf("%x", s->ofw_addr);
+}
+
+static Property grackle_properties[] = {
+    DEFINE_PROP_UINT32("ofw-addr", GrackleState, ofw_addr, -1),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void grackle_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
     dc->realize = grackle_realize;
+    dc->props = grackle_properties;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->fw_name = "pci";
+    sbc->explicit_ofw_unit_address = grackle_ofw_unit_address;
 }
 
 static const TypeInfo grackle_host_info = {

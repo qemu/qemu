@@ -254,6 +254,7 @@ static void ppc_heathrow_init(MachineState *machine)
 
     /* Grackle PCI host bridge */
     dev = qdev_create(NULL, TYPE_GRACKLE_PCI_HOST_BRIDGE);
+    qdev_prop_set_uint32(dev, "ofw-addr", 0x80000000);
     object_property_set_link(OBJECT(dev), OBJECT(pic_dev), "pic",
                              &error_abort);
     qdev_init_nofail(dev);
