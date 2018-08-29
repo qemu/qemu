@@ -34,6 +34,15 @@
 #include "hw/ppc/mac_dbdma.h"
 #include "hw/ppc/openpic.h"
 
+/* MacIO virtual bus */
+#define TYPE_MACIO_BUS "macio-bus"
+#define MACIO_BUS(obj) OBJECT_CHECK(MacIOBusState, (obj), TYPE_MACIO_BUS)
+
+typedef struct MacIOBusState {
+    /*< private >*/
+    BusState parent_obj;
+} MacIOBusState;
+
 /* MacIO IDE */
 #define TYPE_MACIO_IDE "macio-ide"
 #define MACIO_IDE(obj) OBJECT_CHECK(MACIOIDEState, (obj), TYPE_MACIO_IDE)
@@ -68,6 +77,7 @@ typedef struct MacIOState {
     PCIDevice parent;
     /*< public >*/
 
+    MacIOBusState macio_bus;
     MemoryRegion bar;
     CUDAState cuda;
     PMUState pmu;
