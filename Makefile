@@ -415,6 +415,7 @@ dummy := $(call unnest-vars,, \
                 chardev-obj-y \
                 util-obj-y \
                 qga-obj-y \
+                elf2dmp-obj-y \
                 ivshmem-client-obj-y \
                 ivshmem-server-obj-y \
                 libvhost-user-obj-y \
@@ -709,6 +710,10 @@ ifneq ($(EXESUF),)
 .PHONY: qemu-ga
 qemu-ga: qemu-ga$(EXESUF) $(QGA_VSS_PROVIDER) $(QEMU_GA_MSI)
 endif
+
+elf2dmp: LIBS = $(CURL_LIBS)
+elf2dmp: $(elf2dmp-obj-y)
+	$(call LINK, $^)
 
 ifdef CONFIG_IVSHMEM
 ivshmem-client$(EXESUF): $(ivshmem-client-obj-y) $(COMMON_LDADDS)
