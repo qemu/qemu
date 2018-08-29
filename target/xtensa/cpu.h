@@ -351,6 +351,9 @@ typedef void (*XtensaOpcodeOp)(DisasContext *dc, const uint32_t arg[],
 typedef bool (*XtensaOpcodeBoolTest)(DisasContext *dc,
                                      const uint32_t arg[],
                                      const uint32_t par[]);
+typedef uint32_t (*XtensaOpcodeUintTest)(DisasContext *dc,
+                                         const uint32_t arg[],
+                                         const uint32_t par[]);
 
 enum {
     XTENSA_OP_ILL = 0x1,
@@ -374,8 +377,10 @@ typedef struct XtensaOpcodeOps {
     const char *name;
     XtensaOpcodeOp translate;
     XtensaOpcodeBoolTest test_ill;
+    XtensaOpcodeUintTest test_overflow;
     const uint32_t *par;
     uint32_t op_flags;
+    uint32_t windowed_register_op;
 } XtensaOpcodeOps;
 
 typedef struct XtensaOpcodeTranslators {
@@ -686,6 +691,8 @@ static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 #define XTENSA_TBFLAG_WINDOW_SHIFT 15
 #define XTENSA_TBFLAG_YIELD 0x20000
 #define XTENSA_TBFLAG_CWOE 0x40000
+#define XTENSA_TBFLAG_CALLINC_MASK 0x180000
+#define XTENSA_TBFLAG_CALLINC_SHIFT 19
 
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, uint32_t *flags)
@@ -724,6 +731,8 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         uint32_t w = ctz32(windowstart | 0x8);
 
         *flags |= (w << XTENSA_TBFLAG_WINDOW_SHIFT) | XTENSA_TBFLAG_CWOE;
+        *flags |= extract32(env->sregs[PS], PS_CALLINC_SHIFT,
+                            PS_CALLINC_LEN) << XTENSA_TBFLAG_CALLINC_SHIFT;
     } else {
         *flags |= 3 << XTENSA_TBFLAG_WINDOW_SHIFT;
     }

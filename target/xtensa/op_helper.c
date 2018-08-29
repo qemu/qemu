@@ -253,12 +253,7 @@ void HELPER(wsr_windowbase)(CPUXtensaState *env, uint32_t v)
 void HELPER(entry)(CPUXtensaState *env, uint32_t pc, uint32_t s, uint32_t imm)
 {
     int callinc = (env->sregs[PS] & PS_CALLINC) >> PS_CALLINC_SHIFT;
-    uint32_t windowstart = xtensa_replicate_windowstart(env) >>
-        (env->sregs[WINDOW_BASE] + 1);
 
-    if (windowstart & ((1 << callinc) - 1)) {
-        HELPER(window_check)(env, pc, callinc);
-    }
     env->regs[(callinc << 2) | (s & 3)] = env->regs[s] - imm;
     xtensa_rotate_window(env, callinc);
     env->sregs[WINDOW_START] |=
