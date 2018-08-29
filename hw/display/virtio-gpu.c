@@ -17,6 +17,7 @@
 #include "qemu/iov.h"
 #include "ui/console.h"
 #include "trace.h"
+#include "sysemu/dma.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-bus.h"
@@ -726,7 +727,8 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
         uint32_t l = le32_to_cpu(ents[i].length);
         hwaddr len = l;
         (*iov)[i].iov_len = l;
-        (*iov)[i].iov_base = cpu_physical_memory_map(a, &len, 1);
+        (*iov)[i].iov_base = dma_memory_map(VIRTIO_DEVICE(g)->dma_as,
+                                            a, &len, DMA_DIRECTION_TO_DEVICE);
         if (addr) {
             (*addr)[i] = a;
         }
@@ -754,8 +756,10 @@ void virtio_gpu_cleanup_mapping_iov(VirtIOGPU *g,
     int i;
 
     for (i = 0; i < count; i++) {
-        cpu_physical_memory_unmap(iov[i].iov_base, iov[i].iov_len, 1,
-                                  iov[i].iov_len);
+        dma_memory_unmap(VIRTIO_DEVICE(g)->dma_as,
+                         iov[i].iov_base, iov[i].iov_len,
+                         DMA_DIRECTION_TO_DEVICE,
+                         iov[i].iov_len);
     }
     g_free(iov);
 }
@@ -1147,13 +1151,17 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
         for (i = 0; i < res->iov_cnt; i++) {
             hwaddr len = res->iov[i].iov_len;
             res->iov[i].iov_base =
-                cpu_physical_memory_map(res->addrs[i], &len, 1);
+                dma_memory_map(VIRTIO_DEVICE(g)->dma_as,
+                               res->addrs[i], &len, DMA_DIRECTION_TO_DEVICE);
 
             if (!res->iov[i].iov_base || len != res->iov[i].iov_len) {
                 /* Clean up the half-a-mapping we just created... */
                 if (res->iov[i].iov_base) {
-                    cpu_physical_memory_unmap(res->iov[i].iov_base,
-                                              len, 0, 0);
+                    dma_memory_unmap(VIRTIO_DEVICE(g)->dma_as,
+                                     res->iov[i].iov_base,
+                                     res->iov[i].iov_len,
+                                     DMA_DIRECTION_TO_DEVICE,
+                                     res->iov[i].iov_len);
                 }
                 /* ...and the mappings for previous loop iterations */
                 res->iov_cnt = i;
@@ -1204,11 +1212,6 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     bool have_virgl;
     Error *local_err = NULL;
     int i;
-
-    if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
-        error_setg(errp, "virtio-gpu does not support vIOMMU yet");
-        return;
-    }
 
     if (g->conf.max_outputs > VIRTIO_GPU_MAX_SCANOUTS) {
         error_setg(errp, "invalid max_outputs > %d", VIRTIO_GPU_MAX_SCANOUTS);
