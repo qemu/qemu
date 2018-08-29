@@ -51,6 +51,7 @@ typedef struct MACIOIDEState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
+    uint32_t addr;
     uint32_t channel;
     qemu_irq real_ide_irq;
     qemu_irq real_dma_irq;

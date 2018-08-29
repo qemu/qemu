@@ -219,10 +219,11 @@ static void macio_init_ide(MacIOState *s, MACIOIDEState *ide, size_t ide_size,
                            int index)
 {
     gchar *name = g_strdup_printf("ide[%i]", index);
+    uint32_t addr = 0x1f000 + ((index + 1) * 0x1000);
 
     macio_init_child_obj(s, name, ide, ide_size, TYPE_MACIO_IDE);
-    memory_region_add_subregion(&s->bar, 0x1f000 + ((index + 1) * 0x1000),
-                                &ide->mem);
+    qdev_prop_set_uint32(DEVICE(ide), "addr", addr);
+    memory_region_add_subregion(&s->bar, addr, &ide->mem);
     g_free(name);
 }
 
