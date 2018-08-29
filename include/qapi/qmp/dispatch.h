@@ -50,7 +50,7 @@ bool qmp_has_success_response(const QmpCommand *cmd);
 QDict *qmp_error_response(Error *err);
 QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
                     bool allow_oob);
-bool qmp_is_oob(QDict *dict);
+bool qmp_is_oob(const QDict *dict);
 
 typedef void (*qmp_cmd_callback_fn)(QmpCommand *cmd, void *opaque);
 
