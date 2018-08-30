@@ -4012,7 +4012,7 @@ static void rdma_accept_incoming_migration(void *opaque)
 void rdma_start_incoming_migration(const char *host_port, Error **errp)
 {
     int ret;
-    RDMAContext *rdma, *rdma_return_path;
+    RDMAContext *rdma, *rdma_return_path = NULL;
     Error *local_err = NULL;
 
     trace_rdma_start_incoming_migration();
