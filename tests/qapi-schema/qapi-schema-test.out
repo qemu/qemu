@@ -156,6 +156,8 @@ object q_obj_user_def_cmd2-arg
     member ud1b: UserDefOne optional=True
 command user_def_cmd2 q_obj_user_def_cmd2-arg -> UserDefTwo
    gen=True success_response=True boxed=False oob=False preconfig=False
+command cmd-success-response None -> None
+   gen=True success_response=False boxed=False oob=False preconfig=False
 object q_obj_guest-get-time-arg
     member a: int optional=False
     member b: int optional=True
