@@ -68,19 +68,13 @@ static int coroutine_fn commit_populate(BlockBackend *bs, BlockBackend *base,
     return 0;
 }
 
-typedef struct {
-    int ret;
-} CommitCompleteData;
-
-static void commit_complete(Job *job, void *opaque)
+static void commit_exit(Job *job)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
     BlockJob *bjob = &s->common;
-    CommitCompleteData *data = opaque;
     BlockDriverState *top = blk_bs(s->top);
     BlockDriverState *base = blk_bs(s->base);
     BlockDriverState *commit_top_bs = s->commit_top_bs;
-    int ret = data->ret;
     bool remove_commit_top_bs = false;
 
     /* Make sure commit_top_bs and top stay around until bdrv_replace_node() */
@@ -91,10 +85,10 @@ static void commit_complete(Job *job, void *opaque)
      * the normal backing chain can be restored. */
     blk_unref(s->base);
 
-    if (!job_is_cancelled(job) && ret == 0) {
+    if (!job_is_cancelled(job) && job->ret == 0) {
         /* success */
-        ret = bdrv_drop_intermediate(s->commit_top_bs, base,
-                                     s->backing_file_str);
+        job->ret = bdrv_drop_intermediate(s->commit_top_bs, base,
+                                          s->backing_file_str);
     } else {
         /* XXX Can (or should) we somehow keep 'consistent read' blocked even
          * after the failed/cancelled commit job is gone? If we already wrote
@@ -117,9 +111,6 @@ static void commit_complete(Job *job, void *opaque)
      * bdrv_set_backing_hd() to fail. */
     block_job_remove_all_bdrv(bjob);
 
-    job_completed(job, ret);
-    g_free(data);
-
     /* If bdrv_drop_intermediate() didn't already do that, remove the commit
      * filter driver from the backing chain. Do this as the final step so that
      * the 'consistent read' permission can be granted.  */
@@ -137,7 +128,6 @@ static void commit_complete(Job *job, void *opaque)
 static int coroutine_fn commit_run(Job *job, Error **errp)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
-    CommitCompleteData *data;
     int64_t offset;
     uint64_t delay_ns = 0;
     int ret = 0;
@@ -210,9 +200,6 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
 out:
     qemu_vfree(buf);
 
-    data = g_malloc(sizeof(*data));
-    data->ret = ret;
-    job_defer_to_main_loop(&s->common.job, commit_complete, data);
     return ret;
 }
 
@@ -224,6 +211,7 @@ static const BlockJobDriver commit_job_driver = {
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
         .run           = commit_run,
+        .exit          = commit_exit,
     },
 };
 
