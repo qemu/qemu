@@ -310,3 +310,43 @@ void info_report(const char *fmt, ...)
     vreport(REPORT_TYPE_INFO, fmt, ap);
     va_end(ap);
 }
+
+/*
+ * Like error_report(), except print just once.
+ * If *printed is false, print the message, and flip *printed to true.
+ * Return whether the message was printed.
+ */
+bool error_report_once_cond(bool *printed, const char *fmt, ...)
+{
+    va_list ap;
+
+    assert(printed);
+    if (*printed) {
+        return false;
+    }
+    *printed = true;
+    va_start(ap, fmt);
+    vreport(REPORT_TYPE_ERROR, fmt, ap);
+    va_end(ap);
+    return true;
+}
+
+/*
+ * Like warn_report(), except print just once.
+ * If *printed is false, print the message, and flip *printed to true.
+ * Return whether the message was printed.
+ */
+bool warn_report_once_cond(bool *printed, const char *fmt, ...)
+{
+    va_list ap;
+
+    assert(printed);
+    if (*printed) {
+        return false;
+    }
+    *printed = true;
+    va_start(ap, fmt);
+    vreport(REPORT_TYPE_WARNING, fmt, ap);
+    va_end(ap);
+    return true;
+}
