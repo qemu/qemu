@@ -40,6 +40,7 @@
 #include "qemu/cutils.h"
 #include "trace.h"
 #include "nvme.h"
+#include "qemu/bitmap.h"
 
 #define NVME_GUEST_ERR(trace, fmt, ...) \
     do { \
@@ -1320,6 +1321,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         id_ns->ncap  = id_ns->nuse = id_ns->nsze =
             cpu_to_le64(n->ns_size >>
                 id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas)].ds);
+        id_ns->uncorrectable = bitmap_new(id_ns->nsze)
     }
 }
 
