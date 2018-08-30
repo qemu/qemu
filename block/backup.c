@@ -380,18 +380,6 @@ static BlockErrorAction backup_error_action(BackupBlockJob *job,
     }
 }
 
-typedef struct {
-    int ret;
-} BackupCompleteData;
-
-static void backup_complete(Job *job, void *opaque)
-{
-    BackupCompleteData *data = opaque;
-
-    job_completed(job, data->ret);
-    g_free(data);
-}
-
 static bool coroutine_fn yield_and_check(BackupBlockJob *job)
 {
     uint64_t delay_ns;
@@ -483,7 +471,6 @@ static void backup_incremental_init_copy_bitmap(BackupBlockJob *job)
 static int coroutine_fn backup_run(Job *opaque_job, Error **errp)
 {
     BackupBlockJob *job = container_of(opaque_job, BackupBlockJob, common.job);
-    BackupCompleteData *data;
     BlockDriverState *bs = blk_bs(job->common.blk);
     int64_t offset, nb_clusters;
     int ret = 0;
@@ -584,9 +571,6 @@ static int coroutine_fn backup_run(Job *opaque_job, Error **errp)
     qemu_co_rwlock_unlock(&job->flush_rwlock);
     hbitmap_free(job->copy_bitmap);
 
-    data = g_malloc(sizeof(*data));
-    data->ret = ret;
-    job_defer_to_main_loop(&job->common.job, backup_complete, data);
     return ret;
 }
 

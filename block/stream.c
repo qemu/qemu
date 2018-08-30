@@ -54,20 +54,16 @@ static int coroutine_fn stream_populate(BlockBackend *blk,
     return blk_co_preadv(blk, offset, qiov.size, &qiov, BDRV_REQ_COPY_ON_READ);
 }
 
-typedef struct {
-    int ret;
-} StreamCompleteData;
-
-static void stream_complete(Job *job, void *opaque)
+static void stream_exit(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
     BlockJob *bjob = &s->common;
-    StreamCompleteData *data = opaque;
     BlockDriverState *bs = blk_bs(bjob->blk);
     BlockDriverState *base = s->base;
     Error *local_err = NULL;
+    int ret = job->ret;
 
-    if (!job_is_cancelled(job) && bs->backing && data->ret == 0) {
+    if (!job_is_cancelled(job) && bs->backing && ret == 0) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
             base_id = s->backing_file_str;
@@ -75,11 +71,11 @@ static void stream_complete(Job *job, void *opaque)
                 base_fmt = base->drv->format_name;
             }
         }
-        data->ret = bdrv_change_backing_file(bs, base_id, base_fmt);
+        ret = bdrv_change_backing_file(bs, base_id, base_fmt);
         bdrv_set_backing_hd(bs, base, &local_err);
         if (local_err) {
             error_report_err(local_err);
-            data->ret = -EPERM;
+            ret = -EPERM;
             goto out;
         }
     }
@@ -93,14 +89,12 @@ out:
     }
 
     g_free(s->backing_file_str);
-    job_completed(job, data->ret);
-    g_free(data);
+    job->ret = ret;
 }
 
 static int coroutine_fn stream_run(Job *job, Error **errp)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
-    StreamCompleteData *data;
     BlockBackend *blk = s->common.blk;
     BlockDriverState *bs = blk_bs(blk);
     BlockDriverState *base = s->base;
@@ -203,9 +197,6 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
 
 out:
     /* Modify backing chain and close BDSes in main loop */
-    data = g_malloc(sizeof(*data));
-    data->ret = ret;
-    job_defer_to_main_loop(&s->common.job, stream_complete, data);
     return ret;
 }
 
@@ -215,6 +206,7 @@ static const BlockJobDriver stream_job_driver = {
         .job_type      = JOB_TYPE_STREAM,
         .free          = block_job_free,
         .run           = stream_run,
+        .exit          = stream_exit,
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
     },
