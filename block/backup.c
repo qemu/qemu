@@ -480,9 +480,9 @@ static void backup_incremental_init_copy_bitmap(BackupBlockJob *job)
     bdrv_dirty_iter_free(dbi);
 }
 
-static void coroutine_fn backup_run(void *opaque)
+static int coroutine_fn backup_run(Job *opaque_job, Error **errp)
 {
-    BackupBlockJob *job = opaque;
+    BackupBlockJob *job = container_of(opaque_job, BackupBlockJob, common.job);
     BackupCompleteData *data;
     BlockDriverState *bs = blk_bs(job->common.blk);
     int64_t offset, nb_clusters;
@@ -587,6 +587,7 @@ static void coroutine_fn backup_run(void *opaque)
     data = g_malloc(sizeof(*data));
     data->ret = ret;
     job_defer_to_main_loop(&job->common.job, backup_complete, data);
+    return ret;
 }
 
 static const BlockJobDriver backup_job_driver = {
@@ -596,7 +597,7 @@ static const BlockJobDriver backup_job_driver = {
         .free                   = block_job_free,
         .user_resume            = block_job_user_resume,
         .drain                  = block_job_drain,
-        .start                  = backup_run,
+        .run                    = backup_run,
         .commit                 = backup_commit,
         .abort                  = backup_abort,
         .clean                  = backup_clean,

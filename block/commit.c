@@ -134,9 +134,9 @@ static void commit_complete(Job *job, void *opaque)
     bdrv_unref(top);
 }
 
-static void coroutine_fn commit_run(void *opaque)
+static int coroutine_fn commit_run(Job *job, Error **errp)
 {
-    CommitBlockJob *s = opaque;
+    CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
     CommitCompleteData *data;
     int64_t offset;
     uint64_t delay_ns = 0;
@@ -213,6 +213,7 @@ out:
     data = g_malloc(sizeof(*data));
     data->ret = ret;
     job_defer_to_main_loop(&s->common.job, commit_complete, data);
+    return ret;
 }
 
 static const BlockJobDriver commit_job_driver = {
@@ -222,7 +223,7 @@ static const BlockJobDriver commit_job_driver = {
         .free          = block_job_free,
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
-        .start         = commit_run,
+        .run           = commit_run,
     },
 };
 

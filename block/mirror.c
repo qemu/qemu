@@ -812,9 +812,9 @@ static int mirror_flush(MirrorBlockJob *s)
     return ret;
 }
 
-static void coroutine_fn mirror_run(void *opaque)
+static int coroutine_fn mirror_run(Job *job, Error **errp)
 {
-    MirrorBlockJob *s = opaque;
+    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     MirrorExitData *data;
     BlockDriverState *bs = s->mirror_top_bs->backing->bs;
     BlockDriverState *target_bs = blk_bs(s->target);
@@ -1041,7 +1041,9 @@ immediate_exit:
     if (need_drain) {
         bdrv_drained_begin(bs);
     }
+
     job_defer_to_main_loop(&s->common.job, mirror_exit, data);
+    return ret;
 }
 
 static void mirror_complete(Job *job, Error **errp)
@@ -1138,7 +1140,7 @@ static const BlockJobDriver mirror_job_driver = {
         .free                   = block_job_free,
         .user_resume            = block_job_user_resume,
         .drain                  = block_job_drain,
-        .start                  = mirror_run,
+        .run                    = mirror_run,
         .pause                  = mirror_pause,
         .complete               = mirror_complete,
     },
@@ -1154,7 +1156,7 @@ static const BlockJobDriver commit_active_job_driver = {
         .free                   = block_job_free,
         .user_resume            = block_job_user_resume,
         .drain                  = block_job_drain,
-        .start                  = mirror_run,
+        .run                    = mirror_run,
         .pause                  = mirror_pause,
         .complete               = mirror_complete,
     },

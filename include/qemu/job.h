@@ -169,7 +169,7 @@ struct JobDriver {
     JobType job_type;
 
     /** Mandatory: Entrypoint for the Coroutine. */
-    CoroutineEntry *start;
+    int coroutine_fn (*run)(Job *job, Error **errp);
 
     /**
      * If the callback is not NULL, it will be invoked when the job transitions

@@ -757,9 +757,9 @@ static void test_job_completed(Job *job, void *opaque)
     job_completed(job, 0, NULL);
 }
 
-static void coroutine_fn test_job_start(void *opaque)
+static int coroutine_fn test_job_run(Job *job, Error **errp)
 {
-    TestBlockJob *s = opaque;
+    TestBlockJob *s = container_of(job, TestBlockJob, common.job);
 
     job_transition_to_ready(&s->common.job);
     while (!s->should_complete) {
@@ -771,6 +771,7 @@ static void coroutine_fn test_job_start(void *opaque)
     }
 
     job_defer_to_main_loop(&s->common.job, test_job_completed, NULL);
+    return 0;
 }
 
 static void test_job_complete(Job *job, Error **errp)
@@ -785,7 +786,7 @@ BlockJobDriver test_job_driver = {
         .free           = block_job_free,
         .user_resume    = block_job_user_resume,
         .drain          = block_job_drain,
-        .start          = test_job_start,
+        .run            = test_job_run,
         .complete       = test_job_complete,
     },
 };

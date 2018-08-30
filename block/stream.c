@@ -97,9 +97,9 @@ out:
     g_free(data);
 }
 
-static void coroutine_fn stream_run(void *opaque)
+static int coroutine_fn stream_run(Job *job, Error **errp)
 {
-    StreamBlockJob *s = opaque;
+    StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
     StreamCompleteData *data;
     BlockBackend *blk = s->common.blk;
     BlockDriverState *bs = blk_bs(blk);
@@ -206,6 +206,7 @@ out:
     data = g_malloc(sizeof(*data));
     data->ret = ret;
     job_defer_to_main_loop(&s->common.job, stream_complete, data);
+    return ret;
 }
 
 static const BlockJobDriver stream_job_driver = {
@@ -213,7 +214,7 @@ static const BlockJobDriver stream_job_driver = {
         .instance_size = sizeof(StreamBlockJob),
         .job_type      = JOB_TYPE_STREAM,
         .free          = block_job_free,
-        .start         = stream_run,
+        .run           = stream_run,
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
     },

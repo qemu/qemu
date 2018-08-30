@@ -45,9 +45,9 @@ static void blockdev_create_complete(Job *job, void *opaque)
     job_completed(job, s->ret, s->err);
 }
 
-static void coroutine_fn blockdev_create_run(void *opaque)
+static int coroutine_fn blockdev_create_run(Job *job, Error **errp)
 {
-    BlockdevCreateJob *s = opaque;
+    BlockdevCreateJob *s = container_of(job, BlockdevCreateJob, common);
 
     job_progress_set_remaining(&s->common, 1);
     s->ret = s->drv->bdrv_co_create(s->opts, &s->err);
@@ -55,12 +55,14 @@ static void coroutine_fn blockdev_create_run(void *opaque)
 
     qapi_free_BlockdevCreateOptions(s->opts);
     job_defer_to_main_loop(&s->common, blockdev_create_complete, NULL);
+
+    return s->ret;
 }
 
 static const JobDriver blockdev_create_job_driver = {
     .instance_size = sizeof(BlockdevCreateJob),
     .job_type      = JOB_TYPE_CREATE,
-    .start         = blockdev_create_run,
+    .run           = blockdev_create_run,
 };
 
 void qmp_blockdev_create(const char *job_id, BlockdevCreateOptions *options,

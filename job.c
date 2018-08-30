@@ -544,16 +544,16 @@ static void coroutine_fn job_co_entry(void *opaque)
 {
     Job *job = opaque;
 
-    assert(job && job->driver && job->driver->start);
+    assert(job && job->driver && job->driver->run);
     job_pause_point(job);
-    job->driver->start(job);
+    job->ret = job->driver->run(job, NULL);
 }
 
 
 void job_start(Job *job)
 {
     assert(job && !job_started(job) && job->paused &&
-           job->driver && job->driver->start);
+           job->driver && job->driver->run);
     job->co = qemu_coroutine_create(job_co_entry, job);
     job->pause_count--;
     job->busy = true;
