@@ -204,12 +204,19 @@ soread(struct socket *so)
 			return 0;
 		else {
 			int err;
-			socklen_t slen = sizeof err;
+			socklen_t elen = sizeof err;
+			struct sockaddr_storage addr;
+			struct sockaddr *paddr = (struct sockaddr *) &addr;
+			socklen_t alen = sizeof addr;
 
 			err = errno;
 			if (nn == 0) {
-				getsockopt(so->s, SOL_SOCKET, SO_ERROR,
-					   &err, &slen);
+				if (getpeername(so->s, paddr, &alen) < 0) {
+					err = errno;
+				} else {
+					getsockopt(so->s, SOL_SOCKET, SO_ERROR,
+						&err, &elen);
+				}
 			}
 
 			DEBUG_MISC((dfd, " --- soread() disconnected, nn = %d, errno = %d-%s\n", nn, errno,strerror(errno)));
