@@ -1075,7 +1075,11 @@ static void do_fsync(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
     fi.fh = arg->fh;
 
     if (req->se->op.fsync) {
-        req->se->op.fsync(req, nodeid, datasync, &fi);
+        if (fi.fh == (uint64_t)-1) {
+            req->se->op.fsync(req, nodeid, datasync, NULL);
+        } else {
+            req->se->op.fsync(req, nodeid, datasync, &fi);
+        }
     } else {
         fuse_reply_err(req, ENOSYS);
     }

@@ -903,10 +903,34 @@ static void lo_fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
 {
     int res;
     (void)ino;
-    if (datasync) {
-        res = fdatasync(fi->fh);
+    int fd;
+    char *buf;
+
+    fuse_log(FUSE_LOG_DEBUG, "lo_fsync(ino=%" PRIu64 ", fi=0x%p)\n", ino,
+             (void *)fi);
+
+    if (!fi) {
+        res = asprintf(&buf, "/proc/self/fd/%i", lo_fd(req, ino));
+        if (res == -1) {
+            return (void)fuse_reply_err(req, errno);
+        }
+
+        fd = open(buf, O_RDWR);
+        free(buf);
+        if (fd == -1) {
+            return (void)fuse_reply_err(req, errno);
+        }
     } else {
-        res = fsync(fi->fh);
+        fd = fi->fh;
+    }
+
+    if (datasync) {
+        res = fdatasync(fd);
+    } else {
+        res = fsync(fd);
+    }
+    if (!fi) {
+        close(fd);
     }
     fuse_reply_err(req, res == -1 ? errno : 0);
 }
