@@ -40,6 +40,7 @@
 #include "qemu/cutils.h"
 #include "trace.h"
 #include "nvme.h"
+#include "qemu/bitmap.h"
 
 #define NVME_GUEST_ERR(trace, fmt, ...) \
     do { \
@@ -47,6 +48,44 @@
         qemu_log_mask(LOG_GUEST_ERROR, #trace \
             " in %s: " fmt "\n", __func__, ## __VA_ARGS__); \
     } while (0)
+
+
+static void set_uncorrectable_blk(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
+    NvmeRequest *req)
+{
+    uint32_t nlb  = le32_to_cpu(cmd->nlb) + 1;
+    uint64_t slba = le64_to_cpu(cmd->slba);
+    if (unlikely((slba + nlb) > ns->id_ns.nsze)) {
+    block_acct_invalid(blk_get_stats(n->conf.blk), acct);
+    trace_nvme_err_invalid_lba_range(slba, nlb, ns->id_ns.nsze);
+    return NVME_LBA_RANGE | NVME_DNR;
+    }
+
+    for(int i=0; i<=nlba; i++){
+        ns->uncorrectable[slba+i]=1
+    }
+    return NVME_SUCCESS
+}
+
+static int check_uncorrectable(NvmeNamespace *ns, is_write, slba, nlb)
+{
+    for(int i=0; i<=nlba; i++){
+        if(ns->uncorrectable[slba+i]==1){
+                return 1
+            }
+    }
+    return 0
+}
+static int update_uncorrectable(NvmeNamespace *ns, slba, nlb)
+{
+    for(int i=0; i<=nlba; i++){
+        if(ns->uncorrectable[slba+i]==1){
+            ns->uncorrectable[slba+i]=0
+        }
+    }
+    return 0
+}
+
 
 static void nvme_process_sq(void *opaque);
 
@@ -367,6 +406,12 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
+    found_uncorrectable = is_write ? update_uncorrectable:check_uncorrectable;
+    if (found_uncorrectable){
+        return NVME_UNRECOVERED_READ
+    }
+
+
     dma_acct_start(n->conf.blk, &req->acct, &req->qsg, acct);
     if (req->qsg.nsg > 0) {
         req->has_sg = true;
@@ -403,6 +448,8 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         return nvme_flush(n, ns, cmd, req);
     case NVME_CMD_WRITE_ZEROS:
         return nvme_write_zeros(n, ns, cmd, req);
+    case NVME_CMD_WRITE_UNCOR:
+        return set_uncorrectable_blk(n, ns, cmd, req)
     case NVME_CMD_WRITE:
     case NVME_CMD_READ:
         return nvme_rw(n, ns, cmd, req);
@@ -1320,6 +1367,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         id_ns->ncap  = id_ns->nuse = id_ns->nsze =
             cpu_to_le64(n->ns_size >>
                 id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas)].ds);
+        id_ns->uncorrectable = bitmap_new(id_ns->nsze)
     }
 }
 
