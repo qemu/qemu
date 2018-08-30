@@ -282,7 +282,24 @@ static QemuOptsList qemu_sandbox_opts = {
 
 static void seccomp_register(void)
 {
-    qemu_add_opts(&qemu_sandbox_opts);
+    bool add = false;
+
+    /* FIXME: use seccomp_api_get() >= 2 check when released */
+
+#if defined(SECCOMP_FILTER_FLAG_TSYNC)
+    int check;
+
+    /* check host TSYNC capability, it returns errno == ENOSYS if unavailable */
+    check = qemu_seccomp(SECCOMP_SET_MODE_FILTER,
+                         SECCOMP_FILTER_FLAG_TSYNC, NULL);
+    if (check < 0 && errno == EFAULT) {
+        add = true;
+    }
+#endif
+
+    if (add) {
+        qemu_add_opts(&qemu_sandbox_opts);
+    }
 }
 opts_init(seccomp_register);
 #endif
