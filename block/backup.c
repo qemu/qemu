@@ -388,7 +388,7 @@ static void backup_complete(Job *job, void *opaque)
 {
     BackupCompleteData *data = opaque;
 
-    job_completed(job, data->ret, NULL);
+    job_completed(job, data->ret);
     g_free(data);
 }
 

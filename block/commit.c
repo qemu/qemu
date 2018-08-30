@@ -117,7 +117,7 @@ static void commit_complete(Job *job, void *opaque)
      * bdrv_set_backing_hd() to fail. */
     block_job_remove_all_bdrv(bjob);
 
-    job_completed(job, ret, NULL);
+    job_completed(job, ret);
     g_free(data);
 
     /* If bdrv_drop_intermediate() didn't already do that, remove the commit

@@ -35,14 +35,13 @@ typedef struct BlockdevCreateJob {
     BlockDriver *drv;
     BlockdevCreateOptions *opts;
     int ret;
-    Error *err;
 } BlockdevCreateJob;
 
 static void blockdev_create_complete(Job *job, void *opaque)
 {
     BlockdevCreateJob *s = container_of(job, BlockdevCreateJob, common);
 
-    job_completed(job, s->ret, s->err);
+    job_completed(job, s->ret);
 }
 
 static int coroutine_fn blockdev_create_run(Job *job, Error **errp)
@@ -50,7 +49,7 @@ static int coroutine_fn blockdev_create_run(Job *job, Error **errp)
     BlockdevCreateJob *s = container_of(job, BlockdevCreateJob, common);
 
     job_progress_set_remaining(&s->common, 1);
-    s->ret = s->drv->bdrv_co_create(s->opts, &s->err);
+    s->ret = s->drv->bdrv_co_create(s->opts, errp);
     job_progress_update(&s->common, 1);
 
     qapi_free_BlockdevCreateOptions(s->opts);

@@ -34,7 +34,7 @@ static void test_block_job_complete(Job *job, void *opaque)
         rc = -ECANCELED;
     }
 
-    job_completed(job, rc, NULL);
+    job_completed(job, rc);
     bdrv_unref(bs);
 }
 

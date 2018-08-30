@@ -124,11 +124,15 @@ typedef struct Job {
     /** Estimated progress_current value at the completion of the job */
     int64_t progress_total;
 
-    /** Error string for a failed job (NULL if, and only if, job->ret == 0) */
-    char *error;
-
     /** ret code passed to job_completed. */
     int ret;
+
+    /**
+     * Error object for a failed job.
+     * If job->ret is nonzero and an error object was not set, it will be set
+     * to strerror(-job->ret) during job_completed.
+     */
+    Error *err;
 
     /** The completion function that will be called when the job completes.  */
     BlockCompletionFunc *cb;
@@ -484,15 +488,13 @@ void job_transition_to_ready(Job *job);
 /**
  * @job: The job being completed.
  * @ret: The status code.
- * @error: The error message for a failing job (only with @ret < 0). If @ret is
- *         negative, but NULL is given for @error, strerror() is used.
  *
  * Marks @job as completed. If @ret is non-zero, the job transaction it is part
  * of is aborted. If @ret is zero, the job moves into the WAITING state. If it
  * is the last job to complete in its transaction, all jobs in the transaction
  * move from WAITING to PENDING.
  */
-void job_completed(Job *job, int ret, Error *error);
+void job_completed(Job *job, int ret);
 
 /** Asynchronously complete the specified @job. */
 void job_complete(Job *job, Error **errp);

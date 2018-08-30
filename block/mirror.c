@@ -710,7 +710,7 @@ static void mirror_exit(Job *job, void *opaque)
     blk_insert_bs(bjob->blk, mirror_top_bs, &error_abort);
 
     bs_opaque->job = NULL;
-    job_completed(job, data->ret, NULL);
+    job_completed(job, data->ret);
 
     g_free(data);
     bdrv_drained_end(src);

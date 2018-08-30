@@ -754,7 +754,7 @@ typedef struct TestBlockJob {
 
 static void test_job_completed(Job *job, void *opaque)
 {
-    job_completed(job, 0, NULL);
+    job_completed(job, 0);
 }
 
 static int coroutine_fn test_job_run(Job *job, Error **errp)

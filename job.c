@@ -369,7 +369,7 @@ void job_unref(Job *job)
 
         QLIST_REMOVE(job, job_list);
 
-        g_free(job->error);
+        error_free(job->err);
         g_free(job->id);
         g_free(job);
     }
@@ -546,7 +546,7 @@ static void coroutine_fn job_co_entry(void *opaque)
 
     assert(job && job->driver && job->driver->run);
     job_pause_point(job);
-    job->ret = job->driver->run(job, NULL);
+    job->ret = job->driver->run(job, &job->err);
 }
 
 
@@ -666,8 +666,8 @@ static void job_update_rc(Job *job)
         job->ret = -ECANCELED;
     }
     if (job->ret) {
-        if (!job->error) {
-            job->error = g_strdup(strerror(-job->ret));
+        if (!job->err) {
+            error_setg(&job->err, "%s", strerror(-job->ret));
         }
         job_state_transition(job, JOB_STATUS_ABORTING);
     }
@@ -865,17 +865,11 @@ static void job_completed_txn_success(Job *job)
     }
 }
 
-void job_completed(Job *job, int ret, Error *error)
+void job_completed(Job *job, int ret)
 {
     assert(job && job->txn && !job_is_completed(job));
 
     job->ret = ret;
-    if (error) {
-        assert(job->ret < 0);
-        job->error = g_strdup(error_get_pretty(error));
-        error_free(error);
-    }
-
     job_update_rc(job);
     trace_job_completed(job, ret, job->ret);
     if (job->ret) {
@@ -893,7 +887,7 @@ void job_cancel(Job *job, bool force)
     }
     job_cancel_async(job, force);
     if (!job_started(job)) {
-        job_completed(job, -ECANCELED, NULL);
+        job_completed(job, -ECANCELED);
     } else if (job->deferred_to_main_loop) {
         job_completed_txn_abort(job);
     } else {

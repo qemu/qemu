@@ -167,7 +167,7 @@ static void cancel_job_completed(Job *job, void *opaque)
 {
     CancelJob *s = opaque;
     s->completed = true;
-    job_completed(job, 0, NULL);
+    job_completed(job, 0);
 }
 
 static void cancel_job_complete(Job *job, Error **errp)
