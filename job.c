@@ -535,6 +535,8 @@ void job_drain(Job *job)
     }
 }
 
+static void job_completed(Job *job);
+
 static void job_exit(void *opaque)
 {
     Job *job = (Job *)opaque;
@@ -545,7 +547,7 @@ static void job_exit(void *opaque)
         job->driver->exit(job);
         aio_context_release(aio_context);
     }
-    job_completed(job, job->ret);
+    job_completed(job);
 }
 
 /**
@@ -883,13 +885,12 @@ static void job_completed_txn_success(Job *job)
     }
 }
 
-void job_completed(Job *job, int ret)
+static void job_completed(Job *job)
 {
     assert(job && job->txn && !job_is_completed(job));
 
-    job->ret = ret;
     job_update_rc(job);
-    trace_job_completed(job, ret, job->ret);
+    trace_job_completed(job, job->ret);
     if (job->ret) {
         job_completed_txn_abort(job);
     } else {
@@ -905,7 +906,7 @@ void job_cancel(Job *job, bool force)
     }
     job_cancel_async(job, force);
     if (!job_started(job)) {
-        job_completed(job, -ECANCELED);
+        job_completed(job);
     } else if (job->deferred_to_main_loop) {
         job_completed_txn_abort(job);
     } else {

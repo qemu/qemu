@@ -124,7 +124,11 @@ typedef struct Job {
     /** Estimated progress_current value at the completion of the job */
     int64_t progress_total;
 
-    /** ret code passed to job_completed. */
+    /**
+     * Return code from @run and/or @prepare callback(s).
+     * Not final until the job has reached the CONCLUDED status.
+     * 0 on success, -errno on failure.
+     */
     int ret;
 
     /**
@@ -172,7 +176,16 @@ struct JobDriver {
     /** Enum describing the operation */
     JobType job_type;
 
-    /** Mandatory: Entrypoint for the Coroutine. */
+    /**
+     * Mandatory: Entrypoint for the Coroutine.
+     *
+     * This callback will be invoked when moving from CREATED to RUNNING.
+     *
+     * If this callback returns nonzero, the job transaction it is part of is
+     * aborted. If it returns zero, the job moves into the WAITING state. If it
+     * is the last job to complete in its transaction, all jobs in the
+     * transaction move from WAITING to PENDING.
+     */
     int coroutine_fn (*run)(Job *job, Error **errp);
 
     /**
@@ -495,17 +508,6 @@ void job_early_fail(Job *job);
 
 /** Moves the @job from RUNNING to READY */
 void job_transition_to_ready(Job *job);
-
-/**
- * @job: The job being completed.
- * @ret: The status code.
- *
- * Marks @job as completed. If @ret is non-zero, the job transaction it is part
- * of is aborted. If @ret is zero, the job moves into the WAITING state. If it
- * is the last job to complete in its transaction, all jobs in the transaction
- * move from WAITING to PENDING.
- */
-void job_completed(Job *job, int ret);
 
 /** Asynchronously complete the specified @job. */
 void job_complete(Job *job, Error **errp);
