@@ -21,15 +21,6 @@
 
 const char common_args[] = "-nodefaults -machine none";
 
-static const char *get_error_class(QDict *resp)
-{
-    QDict *error = qdict_get_qdict(resp, "error");
-    const char *desc = qdict_get_try_str(error, "desc");
-
-    g_assert(desc);
-    return error ? qdict_get_try_str(error, "class") : NULL;
-}
-
 static void test_version(QObject *version)
 {
     Visitor *v;
@@ -42,15 +33,12 @@ static void test_version(QObject *version)
     visit_free(v);
 }
 
-static bool recovered(QTestState *qts)
+static void assert_recovered(QTestState *qts)
 {
     QDict *resp;
-    bool ret;
 
     resp = qtest_qmp(qts, "{ 'execute': 'no-such-cmd' }");
-    ret = !strcmp(get_error_class(resp), "CommandNotFound");
-    qobject_unref(resp);
-    return ret;
+    qmp_assert_error_class(resp, "CommandNotFound");
 }
 
 static void test_malformed(QTestState *qts)
@@ -60,73 +48,61 @@ static void test_malformed(QTestState *qts)
     /* syntax error */
     qtest_qmp_send_raw(qts, "{]\n");
     resp = qtest_qmp_receive(qts);
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
-    g_assert(recovered(qts));
+    qmp_assert_error_class(resp, "GenericError");
+    assert_recovered(qts);
 
     /* lexical error: impossible byte outside string */
     qtest_qmp_send_raw(qts, "{\xFF");
     resp = qtest_qmp_receive(qts);
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
-    g_assert(recovered(qts));
+    qmp_assert_error_class(resp, "GenericError");
+    assert_recovered(qts);
 
     /* lexical error: funny control character outside string */
     qtest_qmp_send_raw(qts, "{\x01");
     resp = qtest_qmp_receive(qts);
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
-    g_assert(recovered(qts));
+    qmp_assert_error_class(resp, "GenericError");
+    assert_recovered(qts);
 
     /* lexical error: impossible byte in string */
     qtest_qmp_send_raw(qts, "{'bad \xFF");
     resp = qtest_qmp_receive(qts);
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
-    g_assert(recovered(qts));
+    qmp_assert_error_class(resp, "GenericError");
+    assert_recovered(qts);
 
     /* lexical error: control character in string */
     qtest_qmp_send_raw(qts, "{'execute': 'nonexistent', 'id':'\n");
     resp = qtest_qmp_receive(qts);
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
-    g_assert(recovered(qts));
+    qmp_assert_error_class(resp, "GenericError");
+    assert_recovered(qts);
 
     /* lexical error: interpolation */
     qtest_qmp_send_raw(qts, "%%p\n");
     /* two errors, one for "%", one for "p" */
     resp = qtest_qmp_receive(qts);
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
+    qmp_assert_error_class(resp, "GenericError");
     resp = qtest_qmp_receive(qts);
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
-    g_assert(recovered(qts));
+    qmp_assert_error_class(resp, "GenericError");
+    assert_recovered(qts);
 
     /* Not even a dictionary */
     resp = qtest_qmp(qts, "null");
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
+    qmp_assert_error_class(resp, "GenericError");
 
     /* No "execute" key */
     resp = qtest_qmp(qts, "{}");
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
+    qmp_assert_error_class(resp, "GenericError");
 
     /* "execute" isn't a string */
     resp = qtest_qmp(qts, "{ 'execute': true }");
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
+    qmp_assert_error_class(resp, "GenericError");
 
     /* "arguments" isn't a dictionary */
     resp = qtest_qmp(qts, "{ 'execute': 'no-such-cmd', 'arguments': [] }");
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
+    qmp_assert_error_class(resp, "GenericError");
 
     /* extra key */
     resp = qtest_qmp(qts, "{ 'execute': 'no-such-cmd', 'extra': true }");
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
-    qobject_unref(resp);
+    qmp_assert_error_class(resp, "GenericError");
 }
 
 static void test_qmp_protocol(void)
@@ -148,8 +124,7 @@ static void test_qmp_protocol(void)
 
     /* Test valid command before handshake */
     resp = qtest_qmp(qts, "{ 'execute': 'query-version' }");
-    g_assert_cmpstr(get_error_class(resp), ==, "CommandNotFound");
-    qobject_unref(resp);
+    qmp_assert_error_class(resp, "CommandNotFound");
 
     /* Test malformed commands before handshake */
     test_malformed(qts);
@@ -162,8 +137,7 @@ static void test_qmp_protocol(void)
 
     /* Test repeated handshake */
     resp = qtest_qmp(qts, "{ 'execute': 'qmp_capabilities' }");
-    g_assert_cmpstr(get_error_class(resp), ==, "CommandNotFound");
-    qobject_unref(resp);
+    qmp_assert_error_class(resp, "CommandNotFound");
 
     /* Test valid command */
     resp = qtest_qmp(qts, "{ 'execute': 'query-version' }");
@@ -182,9 +156,8 @@ static void test_qmp_protocol(void)
 
     /* Test command failure with 'id' */
     resp = qtest_qmp(qts, "{ 'execute': 'human-monitor-command', 'id': 2 }");
-    g_assert_cmpstr(get_error_class(resp), ==, "GenericError");
     g_assert_cmpint(qdict_get_int(resp, "id"), ==, 2);
-    qobject_unref(resp);
+    qmp_assert_error_class(resp, "GenericError");
 
     qtest_quit(qts);
 }
