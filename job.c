@@ -535,6 +535,18 @@ void job_drain(Job *job)
     }
 }
 
+static void job_exit(void *opaque)
+{
+    Job *job = (Job *)opaque;
+    AioContext *aio_context = job->aio_context;
+
+    if (job->driver->exit) {
+        aio_context_acquire(aio_context);
+        job->driver->exit(job);
+        aio_context_release(aio_context);
+    }
+    job_completed(job, job->ret);
+}
 
 /**
  * All jobs must allow a pause point before entering their job proper. This
@@ -547,6 +559,12 @@ static void coroutine_fn job_co_entry(void *opaque)
     assert(job && job->driver && job->driver->run);
     job_pause_point(job);
     job->ret = job->driver->run(job, &job->err);
+    if (!job->deferred_to_main_loop) {
+        job->deferred_to_main_loop = true;
+        aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                                job_exit,
+                                job);
+    }
 }
 
 
