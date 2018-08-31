@@ -1078,6 +1078,13 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         tcg_temp_free(tmp);
     }
 
+    if (op_flags & XTENSA_OP_ALLOCA) {
+        TCGv_i32 tmp = tcg_const_i32(dc->pc);
+
+        gen_helper_movsp(cpu_env, tmp);
+        tcg_temp_free(tmp);
+    }
+
     for (slot = 0; slot < slots; ++slot) {
         XtensaOpcodeOps *ops = slot_prop[slot].ops;
 
@@ -1918,10 +1925,7 @@ static void translate_movp(DisasContext *dc, const uint32_t arg[],
 static void translate_movsp(DisasContext *dc, const uint32_t arg[],
                             const uint32_t par[])
 {
-    TCGv_i32 pc = tcg_const_i32(dc->pc);
-    gen_helper_movsp(cpu_env, pc);
     tcg_gen_mov_i32(cpu_R[arg[0]], cpu_R[arg[1]]);
-    tcg_temp_free(pc);
 }
 
 static void translate_mul16(DisasContext *dc, const uint32_t arg[],
@@ -3062,6 +3066,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "movsp",
         .translate = translate_movsp,
         .windowed_register_op = 0x3,
+        .op_flags = XTENSA_OP_ALLOCA,
     }, {
         .name = "movt",
         .translate = translate_movp,
