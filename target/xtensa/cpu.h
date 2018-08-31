@@ -381,6 +381,7 @@ typedef struct XtensaOpcodeOps {
     const uint32_t *par;
     uint32_t op_flags;
     uint32_t windowed_register_op;
+    uint32_t coprocessor;
 } XtensaOpcodeOps;
 
 typedef struct XtensaOpcodeTranslators {
