@@ -100,8 +100,7 @@
  */
 
 enum json_lexer_state {
-    IN_ERROR = 0,               /* must really be 0, see json_lexer[] */
-    IN_RECOVERY,
+    IN_RECOVERY = 1,
     IN_DQ_STRING_ESCAPE,
     IN_DQ_STRING,
     IN_SQ_STRING_ESCAPE,
@@ -121,6 +120,8 @@ enum json_lexer_state {
     IN_START_INTERP,            /* must be IN_START + 1 */
 };
 
+QEMU_BUILD_BUG_ON(JSON_ERROR != 0);
+QEMU_BUILD_BUG_ON(IN_RECOVERY != JSON_ERROR + 1);
 QEMU_BUILD_BUG_ON((int)JSON_MIN <= (int)IN_START_INTERP);
 QEMU_BUILD_BUG_ON(JSON_MAX >= 0x80);
 QEMU_BUILD_BUG_ON(IN_START_INTERP != IN_START + 1);
@@ -176,7 +177,7 @@ static const uint8_t json_lexer[][256] =  {
     /* Zero */
     [IN_ZERO] = {
         TERMINAL(JSON_INTEGER),
-        ['0' ... '9'] = IN_ERROR,
+        ['0' ... '9'] = JSON_ERROR,
         ['.'] = IN_MANTISSA,
     },
 
@@ -328,7 +329,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         case IN_START:
             new_state = lexer->start_state;
             break;
-        case IN_ERROR:
+        case JSON_ERROR:
             json_message_process_token(lexer, lexer->token, JSON_ERROR,
                                        lexer->x, lexer->y);
             new_state = IN_RECOVERY;
