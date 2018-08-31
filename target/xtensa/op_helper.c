@@ -310,19 +310,15 @@ void HELPER(test_ill_retw)(CPUXtensaState *env, uint32_t pc)
     }
 }
 
-uint32_t HELPER(retw)(CPUXtensaState *env, uint32_t pc)
+void HELPER(test_underflow_retw)(CPUXtensaState *env, uint32_t pc)
 {
     int n = (env->regs[0] >> 30) & 0x3;
-    uint32_t windowbase = windowbase_bound(env->sregs[WINDOW_BASE], env);
-    uint32_t windowstart = env->sregs[WINDOW_START];
-    uint32_t ret_pc = 0;
 
-    ret_pc = (pc & 0xc0000000) | (env->regs[0] & 0x3fffffff);
+    if (!(env->sregs[WINDOW_START] &
+          windowstart_bit(env->sregs[WINDOW_BASE] - n, env))) {
+        uint32_t windowbase = windowbase_bound(env->sregs[WINDOW_BASE], env);
 
-    xtensa_rotate_window(env, -n);
-    if (windowstart & windowstart_bit(env->sregs[WINDOW_BASE], env)) {
-        env->sregs[WINDOW_START] &= ~windowstart_bit(windowbase, env);
-    } else {
+        xtensa_rotate_window(env, -n);
         /* window underflow */
         env->sregs[PS] = (env->sregs[PS] & ~PS_OWB) |
             (windowbase << PS_OWB_SHIFT) | PS_EXCM;
@@ -336,6 +332,16 @@ uint32_t HELPER(retw)(CPUXtensaState *env, uint32_t pc)
             HELPER(exception)(env, EXC_WINDOW_UNDERFLOW12);
         }
     }
+}
+
+uint32_t HELPER(retw)(CPUXtensaState *env, uint32_t pc)
+{
+    int n = (env->regs[0] >> 30) & 0x3;
+    uint32_t windowbase = windowbase_bound(env->sregs[WINDOW_BASE], env);
+    uint32_t ret_pc = (pc & 0xc0000000) | (env->regs[0] & 0x3fffffff);
+
+    xtensa_rotate_window(env, -n);
+    env->sregs[WINDOW_START] &= ~windowstart_bit(windowbase, env);
     return ret_pc;
 }
 

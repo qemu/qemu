@@ -1071,6 +1071,13 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         return;
     }
 
+    if (op_flags & XTENSA_OP_UNDERFLOW) {
+        TCGv_i32 tmp = tcg_const_i32(dc->pc);
+
+        gen_helper_test_underflow_retw(cpu_env, tmp);
+        tcg_temp_free(tmp);
+    }
+
     for (slot = 0; slot < slots; ++slot) {
         XtensaOpcodeOps *ops = slot_prop[slot].ops;
 
@@ -3485,10 +3492,12 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "retw",
         .translate = translate_retw,
         .test_ill = test_ill_retw,
+        .op_flags = XTENSA_OP_UNDERFLOW,
     }, {
         .name = "retw.n",
         .translate = translate_retw,
         .test_ill = test_ill_retw,
+        .op_flags = XTENSA_OP_UNDERFLOW,
     }, {
         .name = "rfdd",
         .op_flags = XTENSA_OP_ILL,
