@@ -3906,8 +3906,8 @@ int main(int argc, char **argv, char **envp)
     os_daemonize();
     rcu_disable_atfork();
 
-    if (pid_file && qemu_create_pidfile(pid_file) != 0) {
-        error_report("could not acquire pid file: %s", strerror(errno));
+    if (pid_file && !qemu_write_pidfile(pid_file, &err)) {
+        error_reportf_err(err, "cannot create PID file: ");
         exit(1);
     }
 

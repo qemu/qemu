@@ -448,7 +448,8 @@ bool qemu_has_ofd_lock(void);
 #define FMT_pid "%d"
 #endif
 
-int qemu_create_pidfile(const char *filename);
+bool qemu_write_pidfile(const char *pidfile, Error **errp);
+
 int qemu_get_thread_id(void);
 
 #ifndef CONFIG_IOVEC
