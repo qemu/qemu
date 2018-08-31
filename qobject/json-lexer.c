@@ -261,7 +261,8 @@ void json_lexer_init(JSONLexer *lexer, bool enable_interpolation)
 
 static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
 {
-    int char_consumed, new_state;
+    int new_state;
+    bool char_consumed = false;
 
     lexer->x++;
     if (ch == '\n') {
@@ -269,11 +270,12 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         lexer->y++;
     }
 
-    do {
+    while (flush ? lexer->state != lexer->start_state : !char_consumed) {
         assert(lexer->state <= ARRAY_SIZE(json_lexer));
         new_state = json_lexer[lexer->state][(uint8_t)ch];
-        char_consumed = !TERMINAL_NEEDED_LOOKAHEAD(lexer->state, new_state);
-        if (char_consumed && !flush) {
+        char_consumed = !flush
+            && !TERMINAL_NEEDED_LOOKAHEAD(lexer->state, new_state);
+        if (char_consumed) {
             g_string_append_c(lexer->token, ch);
         }
 
@@ -318,7 +320,7 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             break;
         }
         lexer->state = new_state;
-    } while (!char_consumed && !flush);
+    }
 
     /* Do not let a single token grow to an arbitrarily large size,
      * this is a security consideration.
@@ -342,9 +344,8 @@ void json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size)
 
 void json_lexer_flush(JSONLexer *lexer)
 {
-    if (lexer->state != lexer->start_state) {
-        json_lexer_feed_char(lexer, 0, true);
-    }
+    json_lexer_feed_char(lexer, 0, true);
+    assert(lexer->state == lexer->start_state);
     json_message_process_token(lexer, lexer->token, JSON_END_OF_INPUT,
                                lexer->x, lexer->y);
 }
