@@ -101,6 +101,7 @@
 
 enum json_lexer_state {
     IN_ERROR = 0,               /* must really be 0, see json_lexer[] */
+    IN_RECOVERY,
     IN_DQ_STRING_ESCAPE,
     IN_DQ_STRING,
     IN_SQ_STRING_ESCAPE,
@@ -129,6 +130,28 @@ QEMU_BUILD_BUG_ON(IN_START_INTERP != IN_START + 1);
 
 static const uint8_t json_lexer[][256] =  {
     /* Relies on default initialization to IN_ERROR! */
+
+    /* error recovery */
+    [IN_RECOVERY] = {
+        /*
+         * Skip characters until a structural character, an ASCII
+         * control character other than '\t', or impossible UTF-8
+         * bytes '\xFE', '\xFF'.  Structural characters and line
+         * endings are promising resynchronization points.  Clients
+         * may use the others to force the JSON parser into known-good
+         * state; see docs/interop/qmp-spec.txt.
+         */
+        [0 ... 0x1F] = IN_START | LOOKAHEAD,
+        [0x20 ... 0xFD] = IN_RECOVERY,
+        [0xFE ... 0xFF] = IN_START | LOOKAHEAD,
+        ['\t'] = IN_RECOVERY,
+        ['['] = IN_START | LOOKAHEAD,
+        [']'] = IN_START | LOOKAHEAD,
+        ['{'] = IN_START | LOOKAHEAD,
+        ['}'] = IN_START | LOOKAHEAD,
+        [':'] = IN_START | LOOKAHEAD,
+        [','] = IN_START | LOOKAHEAD,
+    },
 
     /* double quote string */
     [IN_DQ_STRING_ESCAPE] = {
@@ -301,26 +324,18 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             /* fall through */
         case JSON_SKIP:
             g_string_truncate(lexer->token, 0);
+            /* fall through */
+        case IN_START:
             new_state = lexer->start_state;
             break;
         case IN_ERROR:
-            /* XXX: To avoid having previous bad input leaving the parser in an
-             * unresponsive state where we consume unpredictable amounts of
-             * subsequent "good" input, percolate this error state up to the
-             * parser by emitting a JSON_ERROR token, then reset lexer state.
-             *
-             * Also note that this handling is required for reliable channel
-             * negotiation between QMP and the guest agent, since chr(0xFF)
-             * is placed at the beginning of certain events to ensure proper
-             * delivery when the channel is in an unknown state. chr(0xFF) is
-             * never a valid ASCII/UTF-8 sequence, so this should reliably
-             * induce an error/flush state.
-             */
             json_message_process_token(lexer, lexer->token, JSON_ERROR,
                                        lexer->x, lexer->y);
+            new_state = IN_RECOVERY;
+            /* fall through */
+        case IN_RECOVERY:
             g_string_truncate(lexer->token, 0);
-            lexer->state = lexer->start_state;
-            return;
+            break;
         default:
             break;
         }
