@@ -95,6 +95,11 @@ bool qemu_write_pidfile(const char *path, Error **errp)
 
     while (1) {
         struct stat a, b;
+        struct flock lock = {
+            .l_type = F_WRLCK,
+            .l_whence = SEEK_SET,
+            .l_len = 0,
+        };
 
         fd = qemu_open(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
         if (fd == -1) {
@@ -107,7 +112,7 @@ bool qemu_write_pidfile(const char *path, Error **errp)
             goto fail_close;
         }
 
-        if (lockf(fd, F_TLOCK, 0) < 0) {
+        if (fcntl(fd, F_SETLK, &lock)) {
             error_setg_errno(errp, errno, "Cannot lock pid file");
             goto fail_close;
         }
