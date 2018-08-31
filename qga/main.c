@@ -151,7 +151,7 @@ static void quit_handler(int sig)
             WaitForSingleObject(hEventTimeout, 0);
             CloseHandle(hEventTimeout);
         }
-        qga_vss_fsfreeze(&i, false, &err);
+        qga_vss_fsfreeze(&i, false, NULL, &err);
         if (err) {
             g_debug("Error unfreezing filesystems prior to exiting: %s",
                 error_get_pretty(err));
