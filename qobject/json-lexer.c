@@ -123,7 +123,7 @@ enum json_lexer_state {
 QEMU_BUILD_BUG_ON((int)JSON_MIN <= (int)IN_START_INTERP);
 QEMU_BUILD_BUG_ON(IN_START_INTERP != IN_START + 1);
 
-#define TERMINAL(state) [0 ... 0x7F] = (state)
+#define TERMINAL(state) [0 ... 0xFF] = (state)
 
 /* Return whether TERMINAL is a terminal state and the transition to it
    from OLD_STATE required lookahead.  This happens whenever the table
