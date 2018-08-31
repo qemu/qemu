@@ -31,7 +31,6 @@ typedef enum json_token_type {
     JSON_KEYWORD,
     JSON_STRING,
     JSON_INTERP,
-    JSON_SKIP,
     JSON_END_OF_INPUT,
     JSON_MAX = JSON_END_OF_INPUT
 } JSONTokenType;

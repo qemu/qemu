@@ -115,7 +115,6 @@ enum json_lexer_state {
     IN_SIGN,
     IN_KEYWORD,
     IN_INTERP,
-    IN_WHITESPACE,
     IN_START,
     IN_START_INTERP,            /* must be IN_START + 1 */
 };
@@ -228,15 +227,6 @@ static const uint8_t json_lexer[][256] =  {
         ['a' ... 'z'] = IN_KEYWORD,
     },
 
-    /* whitespace */
-    [IN_WHITESPACE] = {
-        TERMINAL(JSON_SKIP),
-        [' '] = IN_WHITESPACE,
-        ['\t'] = IN_WHITESPACE,
-        ['\r'] = IN_WHITESPACE,
-        ['\n'] = IN_WHITESPACE,
-    },
-
     /* interpolation */
     [IN_INTERP] = {
         TERMINAL(JSON_INTERP),
@@ -263,10 +253,10 @@ static const uint8_t json_lexer[][256] =  {
         [','] = JSON_COMMA,
         [':'] = JSON_COLON,
         ['a' ... 'z'] = IN_KEYWORD,
-        [' '] = IN_WHITESPACE,
-        ['\t'] = IN_WHITESPACE,
-        ['\r'] = IN_WHITESPACE,
-        ['\n'] = IN_WHITESPACE,
+        [' '] = IN_START,
+        ['\t'] = IN_START,
+        ['\r'] = IN_START,
+        ['\n'] = IN_START,
     },
     [IN_START_INTERP]['%'] = IN_INTERP,
 };
@@ -323,10 +313,8 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             json_message_process_token(lexer, lexer->token, new_state,
                                        lexer->x, lexer->y);
             /* fall through */
-        case JSON_SKIP:
-            g_string_truncate(lexer->token, 0);
-            /* fall through */
         case IN_START:
+            g_string_truncate(lexer->token, 0);
             new_state = lexer->start_state;
             break;
         case JSON_ERROR:
