@@ -33,6 +33,7 @@ typedef enum json_token_type {
     JSON_SKIP,
     JSON_ERROR,
     JSON_END_OF_INPUT,
+    JSON_MAX = JSON_END_OF_INPUT
 } JSONTokenType;
 
 typedef struct JSONToken JSONToken;

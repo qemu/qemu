@@ -121,15 +121,11 @@ enum json_lexer_state {
 };
 
 QEMU_BUILD_BUG_ON((int)JSON_MIN <= (int)IN_START_INTERP);
+QEMU_BUILD_BUG_ON(JSON_MAX >= 0x80);
 QEMU_BUILD_BUG_ON(IN_START_INTERP != IN_START + 1);
 
-#define TERMINAL(state) [0 ... 0xFF] = (state)
-
-/* Return whether TERMINAL is a terminal state and the transition to it
-   from OLD_STATE required lookahead.  This happens whenever the table
-   below uses the TERMINAL macro.  */
-#define TERMINAL_NEEDED_LOOKAHEAD(old_state, terminal) \
-    (terminal != IN_ERROR && json_lexer[(old_state)][0] == (terminal))
+#define LOOKAHEAD 0x80
+#define TERMINAL(state) [0 ... 0xFF] = ((state) | LOOKAHEAD)
 
 static const uint8_t json_lexer[][256] =  {
     /* Relies on default initialization to IN_ERROR! */
@@ -251,6 +247,17 @@ static const uint8_t json_lexer[][256] =  {
     [IN_START_INTERP]['%'] = IN_INTERP,
 };
 
+static inline uint8_t next_state(JSONLexer *lexer, char ch, bool flush,
+                                 bool *char_consumed)
+{
+    uint8_t next;
+
+    assert(lexer->state <= ARRAY_SIZE(json_lexer));
+    next = json_lexer[lexer->state][(uint8_t)ch];
+    *char_consumed = !flush && !(next & LOOKAHEAD);
+    return next & ~LOOKAHEAD;
+}
+
 void json_lexer_init(JSONLexer *lexer, bool enable_interpolation)
 {
     lexer->start_state = lexer->state = enable_interpolation
@@ -271,11 +278,9 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
     }
 
     while (flush ? lexer->state != lexer->start_state : !char_consumed) {
-        assert(lexer->state <= ARRAY_SIZE(json_lexer));
-        new_state = json_lexer[lexer->state][(uint8_t)ch];
-        char_consumed = !flush
-            && !TERMINAL_NEEDED_LOOKAHEAD(lexer->state, new_state);
+        new_state = next_state(lexer, ch, flush, &char_consumed);
         if (char_consumed) {
+            assert(!flush);
             g_string_append_c(lexer->token, ch);
         }
 
