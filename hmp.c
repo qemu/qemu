@@ -2001,6 +2001,7 @@ static void hmp_migrate_status_cb(void *opaque)
         }
         monitor_resume(status->mon);
         timer_del(status->timer);
+        timer_free(status->timer);
         g_free(status);
     }
 
