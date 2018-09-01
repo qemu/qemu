@@ -42,6 +42,7 @@ TESTCASES += test_flix.tst
 TESTCASES += test_fp0_arith.tst
 TESTCASES += test_fp0_conv.tst
 TESTCASES += test_fp1.tst
+TESTCASES += test_fp_cpenable.tst
 TESTCASES += test_interrupt.tst
 TESTCASES += test_loop.tst
 TESTCASES += test_lsc.tst
