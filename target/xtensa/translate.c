@@ -933,6 +933,15 @@ static TCGv_i32 gen_mac16_m(TCGv_i32 v, bool hi, bool is_unsigned)
     return m;
 }
 
+static void gen_zero_check(DisasContext *dc, const uint32_t arg[])
+{
+    TCGLabel *label = gen_new_label();
+
+    tcg_gen_brcondi_i32(TCG_COND_NE, cpu_R[arg[2]], 0, label);
+    gen_exception_cause(dc, INTEGER_DIVIDE_BY_ZERO_CAUSE);
+    gen_set_label(label);
+}
+
 static inline unsigned xtensa_op0_insn_len(DisasContext *dc, uint8_t op0)
 {
     return xtensa_isa_length_from_chars(dc->config->isa, &op0);
@@ -1090,6 +1099,14 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
     if (coprocessor && !gen_check_cpenable(dc, coprocessor)) {
         return;
+    }
+
+    if (op_flags & XTENSA_OP_DIVIDE_BY_ZERO) {
+        for (slot = 0; slot < slots; ++slot) {
+            if (slot_prop[slot].ops->op_flags & XTENSA_OP_DIVIDE_BY_ZERO) {
+                gen_zero_check(dc, slot_prop[slot].arg);
+            }
+        }
     }
 
     for (slot = 0; slot < slots; ++slot) {
@@ -2013,22 +2030,11 @@ static void translate_ptlb(DisasContext *dc, const uint32_t arg[],
 #endif
 }
 
-static void gen_zero_check(DisasContext *dc, const uint32_t arg[])
-{
-    TCGLabel *label = gen_new_label();
-
-    tcg_gen_brcondi_i32(TCG_COND_NE, cpu_R[arg[2]], 0, label);
-    gen_exception_cause(dc, INTEGER_DIVIDE_BY_ZERO_CAUSE);
-    gen_set_label(label);
-}
-
 static void translate_quos(DisasContext *dc, const uint32_t arg[],
                            const uint32_t par[])
 {
     TCGLabel *label1 = gen_new_label();
     TCGLabel *label2 = gen_new_label();
-
-    gen_zero_check(dc, arg);
 
     tcg_gen_brcondi_i32(TCG_COND_NE, cpu_R[arg[1]], 0x80000000,
                         label1);
@@ -2051,14 +2057,8 @@ static void translate_quos(DisasContext *dc, const uint32_t arg[],
 static void translate_quou(DisasContext *dc, const uint32_t arg[],
                            const uint32_t par[])
 {
-    gen_zero_check(dc, arg);
-    if (par[0]) {
-        tcg_gen_divu_i32(cpu_R[arg[0]],
-                         cpu_R[arg[1]], cpu_R[arg[2]]);
-    } else {
-        tcg_gen_remu_i32(cpu_R[arg[0]],
-                         cpu_R[arg[1]], cpu_R[arg[2]]);
-    }
+    tcg_gen_divu_i32(cpu_R[arg[0]],
+                     cpu_R[arg[1]], cpu_R[arg[2]]);
 }
 
 static void translate_read_impwire(DisasContext *dc, const uint32_t arg[],
@@ -2066,6 +2066,13 @@ static void translate_read_impwire(DisasContext *dc, const uint32_t arg[],
 {
     /* TODO: GPIO32 may be a part of coprocessor */
     tcg_gen_movi_i32(cpu_R[arg[0]], 0);
+}
+
+static void translate_remu(DisasContext *dc, const uint32_t arg[],
+                           const uint32_t par[])
+{
+    tcg_gen_remu_i32(cpu_R[arg[0]],
+                     cpu_R[arg[1]], cpu_R[arg[2]]);
 }
 
 static void translate_rer(DisasContext *dc, const uint32_t arg[],
@@ -3457,11 +3464,12 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "quos",
         .translate = translate_quos,
         .par = (const uint32_t[]){true},
+        .op_flags = XTENSA_OP_DIVIDE_BY_ZERO,
         .windowed_register_op = 0x7,
     }, {
         .name = "quou",
         .translate = translate_quou,
-        .par = (const uint32_t[]){true},
+        .op_flags = XTENSA_OP_DIVIDE_BY_ZERO,
         .windowed_register_op = 0x7,
     }, {
         .name = "rdtlb0",
@@ -3483,11 +3491,12 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "rems",
         .translate = translate_quos,
         .par = (const uint32_t[]){false},
+        .op_flags = XTENSA_OP_DIVIDE_BY_ZERO,
         .windowed_register_op = 0x7,
     }, {
         .name = "remu",
-        .translate = translate_quou,
-        .par = (const uint32_t[]){false},
+        .translate = translate_remu,
+        .op_flags = XTENSA_OP_DIVIDE_BY_ZERO,
         .windowed_register_op = 0x7,
     }, {
         .name = "rer",
