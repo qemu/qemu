@@ -572,8 +572,6 @@ static bool gen_wsr_br(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 static bool gen_wsr_litbase(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 {
     tcg_gen_andi_i32(cpu_SR[sr], s, 0xfffff001);
-    /* This can change tb->flags, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
     return true;
 }
 
@@ -587,16 +585,12 @@ static bool gen_wsr_acchi(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 static bool gen_wsr_windowbase(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     gen_helper_wsr_windowbase(cpu_env, v);
-    /* This can change tb->flags, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
     return true;
 }
 
 static bool gen_wsr_windowstart(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     tcg_gen_andi_i32(cpu_SR[sr], v, (1 << dc->config->nareg / 4) - 1);
-    /* This can change tb->flags, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
     return true;
 }
 
@@ -609,8 +603,6 @@ static bool gen_wsr_ptevaddr(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 static bool gen_wsr_rasid(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     gen_helper_wsr_rasid(cpu_env, v);
-    /* This can change tb->flags, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
     return true;
 }
 
@@ -680,8 +672,6 @@ static bool gen_wsr_dbreakc(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 static bool gen_wsr_cpenable(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     tcg_gen_andi_i32(cpu_SR[sr], v, 0xff);
-    /* This can change tb->flags, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
     return true;
 }
 
@@ -738,8 +728,6 @@ static bool gen_wsr_ps(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     }
     tcg_gen_andi_i32(cpu_SR[sr], v, mask);
     gen_check_interrupts(dc);
-    /* This can change mmu index and tb->flags, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
     return true;
 }
 
@@ -770,8 +758,6 @@ static bool gen_wsr_icount(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 static bool gen_wsr_icountlevel(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     tcg_gen_andi_i32(cpu_SR[sr], v, 0xf);
-    /* This can change tb->flags, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
     return true;
 }
 
@@ -1115,6 +1101,14 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         dc->raw_arg = slot_prop[slot].raw_arg;
         ops->translate(dc, slot_prop[slot].arg, ops->par);
     }
+
+    if (dc->base.is_jmp == DISAS_NEXT) {
+        if (op_flags & XTENSA_OP_EXIT_TB_M1) {
+            /* Change in mmu index, memory mapping or tb->flags; exit tb */
+            gen_jumpi_check_loop_end(dc, -1);
+        }
+    }
+
     if (dc->base.is_jmp == DISAS_NEXT) {
         gen_check_loop_end(dc, 0);
     }
@@ -1664,8 +1658,6 @@ static void translate_entry(DisasContext *dc, const uint32_t arg[],
     tcg_temp_free(imm);
     tcg_temp_free(s);
     tcg_temp_free(pc);
-    /* This can change tb->flags, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
 }
 
 static void translate_extui(DisasContext *dc, const uint32_t arg[],
@@ -1699,8 +1691,6 @@ static void translate_itlb(DisasContext *dc, const uint32_t arg[],
     TCGv_i32 dtlb = tcg_const_i32(par[0]);
 
     gen_helper_itlb(cpu_env, cpu_R[arg[0]], dtlb);
-    /* This could change memory mapping, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
     tcg_temp_free(dtlb);
 #endif
 }
@@ -2163,8 +2153,6 @@ static void translate_rotw(DisasContext *dc, const uint32_t arg[],
     TCGv_i32 tmp = tcg_const_i32(arg[0]);
     gen_helper_rotw(cpu_env, tmp);
     tcg_temp_free(tmp);
-    /* This can change tb->flags, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
 }
 
 static void translate_rsil(DisasContext *dc, const uint32_t arg[],
@@ -2468,8 +2456,6 @@ static void translate_wtlb(DisasContext *dc, const uint32_t arg[],
     TCGv_i32 dtlb = tcg_const_i32(par[0]);
 
     gen_helper_wtlb(cpu_env, cpu_R[arg[0]], cpu_R[arg[1]], dtlb);
-    /* This could change memory mapping, so exit tb */
-    gen_jumpi_check_loop_end(dc, -1);
     tcg_temp_free(dtlb);
 #endif
 }
@@ -2874,6 +2860,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_entry,
         .test_ill = test_ill_entry,
         .test_overflow = test_overflow_entry,
+        .op_flags = XTENSA_OP_EXIT_TB_M1,
     }, {
         .name = "esync",
         .translate = translate_nop,
@@ -2897,7 +2884,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "idtlb",
         .translate = translate_itlb,
         .par = (const uint32_t[]){true},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "ihi",
@@ -2917,7 +2904,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "iitlb",
         .translate = translate_itlb,
         .par = (const uint32_t[]){false},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "iiu",
@@ -3562,7 +3549,7 @@ static const XtensaOpcodeOps core_ops[] = {
     }, {
         .name = "rotw",
         .translate = translate_rotw,
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
     }, {
         .name = "rsil",
         .translate = translate_rsil,
@@ -4270,7 +4257,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "wdtlb",
         .translate = translate_wtlb,
         .par = (const uint32_t[]){true},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x3,
     }, {
         .name = "wer",
@@ -4281,7 +4268,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "witlb",
         .translate = translate_wtlb,
         .par = (const uint32_t[]){false},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x3,
     }, {
         .name = "wrmsk_expstate",
@@ -4380,7 +4367,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
         .par = (const uint32_t[]){CPENABLE},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "wsr.dbreaka0",
@@ -4625,7 +4612,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
         .par = (const uint32_t[]){ICOUNTLEVEL},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "wsr.intclear",
@@ -4685,6 +4672,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
         .par = (const uint32_t[]){LITBASE},
+        .op_flags = XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "wsr.m0",
@@ -4764,7 +4752,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
         .par = (const uint32_t[]){PS},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "wsr.ptevaddr",
@@ -4778,7 +4766,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
         .par = (const uint32_t[]){RASID},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "wsr.sar",
@@ -4804,14 +4792,14 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
         .par = (const uint32_t[]){WINDOW_BASE},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "wsr.windowstart",
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
         .par = (const uint32_t[]){WINDOW_START},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "wur.expstate",
@@ -4936,7 +4924,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_xsr,
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){CPENABLE},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "xsr.dbreaka0",
@@ -5181,7 +5169,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_xsr,
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){ICOUNTLEVEL},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "xsr.intclear",
@@ -5241,6 +5229,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_xsr,
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){LITBASE},
+        .op_flags = XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "xsr.m0",
@@ -5313,7 +5302,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_xsr,
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){PS},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "xsr.ptevaddr",
@@ -5327,7 +5316,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_xsr,
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){RASID},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "xsr.sar",
@@ -5353,14 +5342,14 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_xsr,
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){WINDOW_BASE},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     }, {
         .name = "xsr.windowstart",
         .translate = translate_xsr,
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){WINDOW_START},
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
         .windowed_register_op = 0x1,
     },
 };
