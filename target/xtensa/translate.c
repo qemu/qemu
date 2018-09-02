@@ -505,9 +505,8 @@ static bool gen_rsr_ccount(DisasContext *dc, TCGv_i32 d, uint32_t sr)
     tcg_gen_mov_i32(d, cpu_SR[sr]);
     if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
         gen_io_end();
-        return true;
     }
-    return false;
+    return true;
 }
 
 static bool gen_rsr_ptevaddr(DisasContext *dc, TCGv_i32 d, uint32_t sr)
@@ -735,10 +734,9 @@ static bool gen_wsr_ccount(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     gen_helper_wsr_ccount(cpu_env, v);
     if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
         gen_io_end();
-        gen_jumpi_check_loop_end(dc, 0);
-        return true;
     }
-    return false;
+    gen_jumpi_check_loop_end(dc, 0);
+    return true;
 }
 
 static bool gen_wsr_icount(DisasContext *dc, uint32_t sr, TCGv_i32 v)
@@ -773,10 +771,9 @@ static bool gen_wsr_ccompare(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     tcg_temp_free(tmp);
     if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
         gen_io_end();
-        gen_jumpi_check_loop_end(dc, 0);
-        return true;
     }
-    return false;
+    gen_jumpi_check_loop_end(dc, 0);
+    return true;
 }
 #else
 static void gen_check_interrupts(DisasContext *dc)
