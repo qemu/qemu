@@ -2835,7 +2835,8 @@ static DisasJumpType op_lpsw(DisasContext *s, DisasOps *o)
 
     t1 = tcg_temp_new_i64();
     t2 = tcg_temp_new_i64();
-    tcg_gen_qemu_ld32u(t1, o->in2, get_mem_index(s));
+    tcg_gen_qemu_ld_i64(t1, o->in2, get_mem_index(s),
+                        MO_TEUL | MO_ALIGN_8);
     tcg_gen_addi_i64(o->in2, o->in2, 4);
     tcg_gen_qemu_ld32u(t2, o->in2, get_mem_index(s));
     /* Convert the 32-bit PSW_MASK into the 64-bit PSW_MASK.  */
@@ -2855,7 +2856,8 @@ static DisasJumpType op_lpswe(DisasContext *s, DisasOps *o)
 
     t1 = tcg_temp_new_i64();
     t2 = tcg_temp_new_i64();
-    tcg_gen_qemu_ld64(t1, o->in2, get_mem_index(s));
+    tcg_gen_qemu_ld_i64(t1, o->in2, get_mem_index(s),
+                        MO_TEQ | MO_ALIGN_8);
     tcg_gen_addi_i64(o->in2, o->in2, 8);
     tcg_gen_qemu_ld64(t2, o->in2, get_mem_index(s));
     gen_helper_load_psw(cpu_env, t1, t2);
