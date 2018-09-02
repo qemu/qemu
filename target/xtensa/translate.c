@@ -634,38 +634,34 @@ static bool gen_wsr_atomctl(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 static bool gen_wsr_ibreaka(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     unsigned id = sr - IBREAKA;
+    TCGv_i32 tmp = tcg_const_i32(id);
 
-    if (id < dc->config->nibreak) {
-        TCGv_i32 tmp = tcg_const_i32(id);
-        gen_helper_wsr_ibreaka(cpu_env, tmp, v);
-        tcg_temp_free(tmp);
-        gen_jumpi_check_loop_end(dc, 0);
-        return true;
-    }
-    return false;
+    assert(id < dc->config->nibreak);
+    gen_helper_wsr_ibreaka(cpu_env, tmp, v);
+    tcg_temp_free(tmp);
+    gen_jumpi_check_loop_end(dc, 0);
+    return true;
 }
 
 static bool gen_wsr_dbreaka(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     unsigned id = sr - DBREAKA;
+    TCGv_i32 tmp = tcg_const_i32(id);
 
-    if (id < dc->config->ndbreak) {
-        TCGv_i32 tmp = tcg_const_i32(id);
-        gen_helper_wsr_dbreaka(cpu_env, tmp, v);
-        tcg_temp_free(tmp);
-    }
+    assert(id < dc->config->ndbreak);
+    gen_helper_wsr_dbreaka(cpu_env, tmp, v);
+    tcg_temp_free(tmp);
     return false;
 }
 
 static bool gen_wsr_dbreakc(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     unsigned id = sr - DBREAKC;
+    TCGv_i32 tmp = tcg_const_i32(id);
 
-    if (id < dc->config->ndbreak) {
-        TCGv_i32 tmp = tcg_const_i32(id);
-        gen_helper_wsr_dbreakc(cpu_env, tmp, v);
-        tcg_temp_free(tmp);
-    }
+    assert(id < dc->config->ndbreak);
+    gen_helper_wsr_dbreakc(cpu_env, tmp, v);
+    tcg_temp_free(tmp);
     return false;
 }
 
@@ -764,26 +760,23 @@ static bool gen_wsr_icountlevel(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 static bool gen_wsr_ccompare(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     uint32_t id = sr - CCOMPARE;
-    bool ret = false;
+    uint32_t int_bit = 1 << dc->config->timerint[id];
+    TCGv_i32 tmp = tcg_const_i32(id);
 
-    if (id < dc->config->nccompare) {
-        uint32_t int_bit = 1 << dc->config->timerint[id];
-        TCGv_i32 tmp = tcg_const_i32(id);
-
-        tcg_gen_mov_i32(cpu_SR[sr], v);
-        tcg_gen_andi_i32(cpu_SR[INTSET], cpu_SR[INTSET], ~int_bit);
-        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-        }
-        gen_helper_update_ccompare(cpu_env, tmp);
-        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-            gen_io_end();
-            gen_jumpi_check_loop_end(dc, 0);
-            ret = true;
-        }
-        tcg_temp_free(tmp);
+    assert(id < dc->config->nccompare);
+    tcg_gen_mov_i32(cpu_SR[sr], v);
+    tcg_gen_andi_i32(cpu_SR[INTSET], cpu_SR[INTSET], ~int_bit);
+    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
+        gen_io_start();
     }
-    return ret;
+    gen_helper_update_ccompare(cpu_env, tmp);
+    tcg_temp_free(tmp);
+    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
+        gen_io_end();
+        gen_jumpi_check_loop_end(dc, 0);
+        return true;
+    }
+    return false;
 }
 #else
 static void gen_check_interrupts(DisasContext *dc)
