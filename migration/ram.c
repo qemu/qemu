@@ -2372,7 +2372,8 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
  *
  * Called within an RCU critical section.
  *
- * Returns the number of pages written where zero means no dirty pages
+ * Returns the number of pages written where zero means no dirty pages,
+ * or negative on error
  *
  * @rs: current RAM state
  * @last_stage: if we are at the completion stage
@@ -3196,6 +3197,12 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
             done = 1;
             break;
         }
+
+        if (pages < 0) {
+            qemu_file_set_error(f, pages);
+            break;
+        }
+
         rs->target_page_count += pages;
 
         /* we want to check in the 1st loop, just in case it was the 1st time
@@ -3238,7 +3245,7 @@ out:
 /**
  * ram_save_complete: function called to send the remaining amount of ram
  *
- * Returns zero to indicate success
+ * Returns zero to indicate success or negative on error
  *
  * Called with iothread lock
  *
@@ -3249,6 +3256,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 {
     RAMState **temp = opaque;
     RAMState *rs = *temp;
+    int ret = 0;
 
     rcu_read_lock();
 
@@ -3269,6 +3277,10 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         if (pages == 0) {
             break;
         }
+        if (pages < 0) {
+            ret = pages;
+            break;
+        }
     }
 
     flush_compressed_data(rs);
@@ -3280,7 +3292,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
     qemu_fflush(f);
 
-    return 0;
+    return ret;
 }
 
 static void ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
