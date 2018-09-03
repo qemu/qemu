@@ -31,6 +31,7 @@
 #include "qapi/qapi-events-migration.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/cpus.h"
+#include "net/filter.h"
 
 static bool vmstate_loading;
 static Notifier packets_compare_notifier;
@@ -79,6 +80,12 @@ static void secondary_vm_do_failover(void)
                       MIGRATION_STATUS_COMPLETED);
 
     replication_stop_all(true, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+    }
+
+    /* Notify all filters of all NIC to do checkpoint */
+    colo_notify_filters_event(COLO_EVENT_FAILOVER, &local_err);
     if (local_err) {
         error_report_err(local_err);
     }
@@ -777,6 +784,14 @@ void *colo_process_incoming_thread(void *opaque)
         }
         /* discard colo disk buffer */
         replication_do_checkpoint_all(&local_err);
+        if (local_err) {
+            qemu_mutex_unlock_iothread();
+            goto out;
+        }
+
+        /* Notify all filters of all NIC to do checkpoint */
+        colo_notify_filters_event(COLO_EVENT_CHECKPOINT, &local_err);
+
         if (local_err) {
             qemu_mutex_unlock_iothread();
             goto out;
