@@ -98,7 +98,7 @@
  * We'd prefer not want to pull in everything else TCG related, so handle
  * those few cases by hand.
  *
- * Note that x32 is fully detected with __x64_64__ + _ILP32, and that for
+ * Note that x32 is fully detected with __x86_64__ + _ILP32, and that for
  * Sparc we always force the use of sparcv9 in configure.
  */
 #if defined(__x86_64__) || defined(__sparc__)
