@@ -38,6 +38,8 @@ typedef ssize_t (FilterReceiveIOV)(NetFilterState *nc,
 
 typedef void (FilterStatusChanged) (NetFilterState *nf, Error **errp);
 
+typedef void (FilterHandleEvent) (NetFilterState *nf, int event, Error **errp);
+
 typedef struct NetFilterClass {
     ObjectClass parent_class;
 
@@ -45,6 +47,7 @@ typedef struct NetFilterClass {
     FilterSetup *setup;
     FilterCleanup *cleanup;
     FilterStatusChanged *status_changed;
+    FilterHandleEvent *handle_event;
     /* mandatory */
     FilterReceiveIOV *receive_iov;
 } NetFilterClass;
@@ -76,5 +79,7 @@ ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
                                     const struct iovec *iov,
                                     int iovcnt,
                                     void *opaque);
+
+void colo_notify_filters_event(int event, Error **errp);
 
 #endif /* QEMU_NET_FILTER_H */
