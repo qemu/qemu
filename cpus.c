@@ -823,6 +823,7 @@ int cpu_throttle_get_percentage(void)
 void cpu_ticks_init(void)
 {
     seqlock_init(&timers_state.vm_clock_seqlock);
+    qemu_spin_init(&timers_state.vm_clock_lock);
     vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
     throttle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
                                            cpu_throttle_timer_tick, NULL);
