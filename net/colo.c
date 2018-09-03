@@ -221,3 +221,11 @@ Connection *connection_get(GHashTable *connection_track_table,
 
     return conn;
 }
+
+bool connection_has_tracked(GHashTable *connection_track_table,
+                            ConnectionKey *key)
+{
+    Connection *conn = g_hash_table_lookup(connection_track_table, key);
+
+    return conn ? true : false;
+}

@@ -98,6 +98,8 @@ void connection_destroy(void *opaque);
 Connection *connection_get(GHashTable *connection_track_table,
                            ConnectionKey *key,
                            GQueue *conn_list);
+bool connection_has_tracked(GHashTable *connection_track_table,
+                            ConnectionKey *key);
 void connection_hashtable_reset(GHashTable *connection_track_table);
 Packet *packet_new(const void *data, int size, int vnet_hdr_len);
 void packet_destroy(void *opaque, void *user_data);

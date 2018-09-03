@@ -116,6 +116,12 @@ enum {
     SECONDARY_IN,
 };
 
+static void colo_compare_inconsistency_notify(void)
+{
+    notifier_list_notify(&colo_compare_notifiers,
+                migrate_get_current());
+}
+
 static int compare_chr_send(CompareState *s,
                             const uint8_t *buf,
                             uint32_t size,
@@ -328,12 +334,6 @@ static bool colo_mark_tcp_pkt(Packet *ppkt, Packet *spkt,
     }
 
     return false;
-}
-
-static void colo_compare_inconsistency_notify(void)
-{
-    notifier_list_notify(&colo_compare_notifiers,
-                migrate_get_current());
 }
 
 static void colo_compare_tcp(CompareState *s, Connection *conn)

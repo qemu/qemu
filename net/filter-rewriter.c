@@ -20,11 +20,15 @@
 #include "qemu/main-loop.h"
 #include "qemu/iov.h"
 #include "net/checksum.h"
+#include "net/colo.h"
+#include "migration/colo.h"
 
 #define FILTER_COLO_REWRITER(obj) \
     OBJECT_CHECK(RewriterState, (obj), TYPE_FILTER_REWRITER)
 
 #define TYPE_FILTER_REWRITER "filter-rewriter"
+#define FAILOVER_MODE_ON  true
+#define FAILOVER_MODE_OFF false
 
 typedef struct RewriterState {
     NetFilterState parent_obj;
@@ -32,7 +36,13 @@ typedef struct RewriterState {
     /* hashtable to save connection */
     GHashTable *connection_track_table;
     bool vnet_hdr;
+    bool failover_mode;
 } RewriterState;
+
+static void filter_rewriter_failover_mode(RewriterState *s)
+{
+    s->failover_mode = FAILOVER_MODE_ON;
+}
 
 static void filter_rewriter_flush(NetFilterState *nf)
 {
@@ -273,6 +283,13 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
              */
             reverse_connection_key(&key);
         }
+
+        /* After failover we needn't change new TCP packet */
+        if (s->failover_mode &&
+            !connection_has_tracked(s->connection_track_table, &key)) {
+            goto out;
+        }
+
         conn = connection_get(s->connection_track_table,
                               &key,
                               NULL);
@@ -306,9 +323,47 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
         }
     }
 
+out:
     packet_destroy(pkt, NULL);
     pkt = NULL;
     return 0;
+}
+
+static void reset_seq_offset(gpointer key, gpointer value, gpointer user_data)
+{
+    Connection *conn = (Connection *)value;
+
+    conn->offset = 0;
+}
+
+static gboolean offset_is_nonzero(gpointer key,
+                                  gpointer value,
+                                  gpointer user_data)
+{
+    Connection *conn = (Connection *)value;
+
+    return conn->offset ? true : false;
+}
+
+static void colo_rewriter_handle_event(NetFilterState *nf, int event,
+                                       Error **errp)
+{
+    RewriterState *rs = FILTER_COLO_REWRITER(nf);
+
+    switch (event) {
+    case COLO_EVENT_CHECKPOINT:
+        g_hash_table_foreach(rs->connection_track_table,
+                            reset_seq_offset, NULL);
+        break;
+    case COLO_EVENT_FAILOVER:
+        if (!g_hash_table_find(rs->connection_track_table,
+                              offset_is_nonzero, NULL)) {
+            filter_rewriter_failover_mode(rs);
+        }
+        break;
+    default:
+        break;
+    }
 }
 
 static void colo_rewriter_cleanup(NetFilterState *nf)
@@ -354,6 +409,7 @@ static void filter_rewriter_init(Object *obj)
     RewriterState *s = FILTER_COLO_REWRITER(obj);
 
     s->vnet_hdr = false;
+    s->failover_mode = FAILOVER_MODE_OFF;
     object_property_add_bool(obj, "vnet_hdr_support",
                              filter_rewriter_get_vnet_hdr,
                              filter_rewriter_set_vnet_hdr, NULL);
@@ -366,6 +422,7 @@ static void colo_rewriter_class_init(ObjectClass *oc, void *data)
     nfc->setup = colo_rewriter_setup;
     nfc->cleanup = colo_rewriter_cleanup;
     nfc->receive_iov = colo_rewriter_receive_iov;
+    nfc->handle_event = colo_rewriter_handle_event;
 }
 
 static const TypeInfo colo_rewriter_info = {
