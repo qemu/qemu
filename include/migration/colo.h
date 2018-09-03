@@ -16,6 +16,12 @@
 #include "qemu-common.h"
 #include "qapi/qapi-types-migration.h"
 
+enum colo_event {
+    COLO_EVENT_NONE,
+    COLO_EVENT_CHECKPOINT,
+    COLO_EVENT_FAILOVER,
+};
+
 void colo_info_init(void);
 
 void migrate_start_colo_process(MigrationState *s);
