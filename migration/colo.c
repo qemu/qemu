@@ -160,7 +160,7 @@ COLOMode get_colo_mode(void)
     } else if (migration_incoming_in_colo_state()) {
         return COLO_MODE_SECONDARY;
     } else {
-        return COLO_MODE_UNKNOWN;
+        return COLO_MODE_NONE;
     }
 }
 
