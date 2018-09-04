@@ -2783,3 +2783,12 @@ bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu)
 
     return !kvmppc_is_pr(cs->kvm_state);
 }
+
+void kvmppc_set_reg_ppc_online(PowerPCCPU *cpu, unsigned int online)
+{
+    CPUState *cs = CPU(cpu);
+
+    if (kvm_enabled()) {
+        kvm_set_one_reg(cs, KVM_REG_PPC_ONLINE, &online);
+    }
+}
