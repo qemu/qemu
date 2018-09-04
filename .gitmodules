@@ -43,3 +43,9 @@
 [submodule "roms/u-boot-sam460ex"]
 	path = roms/u-boot-sam460ex
 	url = git://git.qemu.org/u-boot-sam460ex.git
+[submodule "tests/fp/berkeley-testfloat-3"]
+	path = tests/fp/berkeley-testfloat-3
+	url = git://github.com/cota/berkeley-testfloat-3
+[submodule "tests/fp/berkeley-softfloat-3"]
+	path = tests/fp/berkeley-softfloat-3
+	url = git://github.com/cota/berkeley-softfloat-3
