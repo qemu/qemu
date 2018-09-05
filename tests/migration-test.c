@@ -83,7 +83,7 @@ static const char *tmpfs;
 /* A simple PC boot sector that modifies memory (1-100MB) quickly
  * outputting a 'B' every so often if it's still running.
  */
-#include "tests/migration/x86-a-b-bootblock.h"
+#include "tests/migration/i386/a-b-bootblock.h"
 
 static void init_bootfile_x86(const char *bootpath)
 {
