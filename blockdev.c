@@ -2182,7 +2182,13 @@ static const BlkActionOps actions[] = {
         .instance_size = sizeof(BlockDirtyBitmapState),
         .prepare = block_dirty_bitmap_disable_prepare,
         .abort = block_dirty_bitmap_disable_abort,
-     }
+    },
+    /* Where are transactions for MIRROR, COMMIT and STREAM?
+     * Although these blockjobs use transaction callbacks like the backup job,
+     * these jobs do not necessarily adhere to transaction semantics.
+     * These jobs may not fully undo all of their actions on abort, nor do they
+     * necessarily work in transactions with more than one job in them.
+     */
 };
 
 /**
