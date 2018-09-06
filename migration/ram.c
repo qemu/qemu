@@ -1996,17 +1996,22 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
         pss->page = 0;
         pss->block = QLIST_NEXT_RCU(pss->block, next);
         if (!pss->block) {
+            /*
+             * If memory migration starts over, we will meet a dirtied page
+             * which may still exists in compression threads's ring, so we
+             * should flush the compressed data to make sure the new page
+             * is not overwritten by the old one in the destination.
+             *
+             * Also If xbzrle is on, stop using the data compression at this
+             * point. In theory, xbzrle can do better than compression.
+             */
+            flush_compressed_data(rs);
+
             /* Hit the end of the list */
             pss->block = QLIST_FIRST_RCU(&ram_list.blocks);
             /* Flag that we've looped */
             pss->complete_round = true;
             rs->ram_bulk_stage = false;
-            if (migrate_use_xbzrle()) {
-                /* If xbzrle is on, stop using the data compression at this
-                 * point. In theory, xbzrle can do better than compression.
-                 */
-                flush_compressed_data(rs);
-            }
         }
         /* Didn't find anything this time, but try again on the new block */
         *again = true;
@@ -3219,7 +3224,6 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         }
         i++;
     }
-    flush_compressed_data(rs);
     rcu_read_unlock();
 
     /*
