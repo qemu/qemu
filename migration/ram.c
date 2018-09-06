@@ -1932,11 +1932,13 @@ update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
     compression_counters.pages++;
 }
 
+static bool save_page_use_compression(RAMState *rs);
+
 static void flush_compressed_data(RAMState *rs)
 {
     int idx, len, thread_count;
 
-    if (!migrate_use_compression()) {
+    if (!save_page_use_compression(rs)) {
         return;
     }
     thread_count = migrate_compress_threads();
