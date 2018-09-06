@@ -774,6 +774,15 @@ typedef struct TestBlockJob {
     bool should_complete;
 } TestBlockJob;
 
+static int test_job_prepare(Job *job)
+{
+    TestBlockJob *s = container_of(job, TestBlockJob, common.job);
+
+    /* Provoke an AIO_WAIT_WHILE() call to verify there is no deadlock */
+    blk_flush(s->common.blk);
+    return 0;
+}
+
 static int coroutine_fn test_job_run(Job *job, Error **errp)
 {
     TestBlockJob *s = container_of(job, TestBlockJob, common.job);
@@ -804,6 +813,7 @@ BlockJobDriver test_job_driver = {
         .drain          = block_job_drain,
         .run            = test_job_run,
         .complete       = test_job_complete,
+        .prepare        = test_job_prepare,
     },
 };
 
