@@ -141,14 +141,14 @@ Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
 
 int user_creatable_add_opts_foreach(void *opaque, QemuOpts *opts, Error **errp)
 {
-    bool (*type_predicate)(const char *) = opaque;
+    bool (*type_opt_predicate)(const char *, QemuOpts *) = opaque;
     Object *obj = NULL;
     Error *err = NULL;
     const char *type;
 
     type = qemu_opt_get(opts, "qom-type");
-    if (type && type_predicate &&
-        !type_predicate(type)) {
+    if (type && type_opt_predicate &&
+        !type_opt_predicate(type, opts)) {
         return 0;
     }
 
