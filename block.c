@@ -1094,19 +1094,19 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
     *flags &= ~BDRV_O_CACHE_MASK;
 
     assert(qemu_opt_find(opts, BDRV_OPT_CACHE_NO_FLUSH));
-    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
+    if (qemu_opt_get_bool_del(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
         *flags |= BDRV_O_NO_FLUSH;
     }
 
     assert(qemu_opt_find(opts, BDRV_OPT_CACHE_DIRECT));
-    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_DIRECT, false)) {
+    if (qemu_opt_get_bool_del(opts, BDRV_OPT_CACHE_DIRECT, false)) {
         *flags |= BDRV_O_NOCACHE;
     }
 
     *flags &= ~BDRV_O_RDWR;
 
     assert(qemu_opt_find(opts, BDRV_OPT_READ_ONLY));
-    if (!qemu_opt_get_bool(opts, BDRV_OPT_READ_ONLY, false)) {
+    if (!qemu_opt_get_bool_del(opts, BDRV_OPT_READ_ONLY, false)) {
         *flags |= BDRV_O_RDWR;
     }
 
@@ -3156,7 +3156,6 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     BlockDriver *drv;
     QemuOpts *opts;
     QDict *orig_reopen_opts;
-    const char *value;
     bool read_only;
 
     assert(reopen_state != NULL);
@@ -3179,17 +3178,10 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
 
     update_flags_from_options(&reopen_state->flags, opts);
 
-    /* node-name and driver must be unchanged. Put them back into the QDict, so
-     * that they are checked at the end of this function. */
-    value = qemu_opt_get(opts, "node-name");
-    if (value) {
-        qdict_put_str(reopen_state->options, "node-name", value);
-    }
-
-    value = qemu_opt_get(opts, "driver");
-    if (value) {
-        qdict_put_str(reopen_state->options, "driver", value);
-    }
+    /* All other options (including node-name and driver) must be unchanged.
+     * Put them back into the QDict, so that they are checked at the end
+     * of this function. */
+    qemu_opts_to_qdict(opts, reopen_state->options);
 
     /* If we are to stay read-only, do not allow permission change
      * to r/w. Attempting to set to r/w may fail if either BDRV_O_ALLOW_RDWR is
