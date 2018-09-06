@@ -2035,61 +2035,56 @@ static long sysconf_exact(int name, const char *name_str, Error **errp)
  * Written members remain unmodified on error.
  */
 static void transfer_vcpu(GuestLogicalProcessor *vcpu, bool sys2vcpu,
-                          Error **errp)
+                          char *dirpath, Error **errp)
 {
-    char *dirpath;
+    int fd;
+    int res;
     int dirfd;
+    static const char fn[] = "online";
 
-    dirpath = g_strdup_printf("/sys/devices/system/cpu/cpu%" PRId64 "/",
-                              vcpu->logical_id);
     dirfd = open(dirpath, O_RDONLY | O_DIRECTORY);
     if (dirfd == -1) {
         error_setg_errno(errp, errno, "open(\"%s\")", dirpath);
+        return;
+    }
+
+    fd = openat(dirfd, fn, sys2vcpu ? O_RDONLY : O_RDWR);
+    if (fd == -1) {
+        if (errno != ENOENT) {
+            error_setg_errno(errp, errno, "open(\"%s/%s\")", dirpath, fn);
+        } else if (sys2vcpu) {
+            vcpu->online = true;
+            vcpu->can_offline = false;
+        } else if (!vcpu->online) {
+            error_setg(errp, "logical processor #%" PRId64 " can't be "
+                       "offlined", vcpu->logical_id);
+        } /* otherwise pretend successful re-onlining */
     } else {
-        static const char fn[] = "online";
-        int fd;
-        int res;
+        unsigned char status;
 
-        fd = openat(dirfd, fn, sys2vcpu ? O_RDONLY : O_RDWR);
-        if (fd == -1) {
-            if (errno != ENOENT) {
-                error_setg_errno(errp, errno, "open(\"%s/%s\")", dirpath, fn);
-            } else if (sys2vcpu) {
-                vcpu->online = true;
-                vcpu->can_offline = false;
-            } else if (!vcpu->online) {
-                error_setg(errp, "logical processor #%" PRId64 " can't be "
-                           "offlined", vcpu->logical_id);
-            } /* otherwise pretend successful re-onlining */
-        } else {
-            unsigned char status;
+        res = pread(fd, &status, 1, 0);
+        if (res == -1) {
+            error_setg_errno(errp, errno, "pread(\"%s/%s\")", dirpath, fn);
+        } else if (res == 0) {
+            error_setg(errp, "pread(\"%s/%s\"): unexpected EOF", dirpath,
+                       fn);
+        } else if (sys2vcpu) {
+            vcpu->online = (status != '0');
+            vcpu->can_offline = true;
+        } else if (vcpu->online != (status != '0')) {
+            status = '0' + vcpu->online;
+            if (pwrite(fd, &status, 1, 0) == -1) {
+                error_setg_errno(errp, errno, "pwrite(\"%s/%s\")", dirpath,
+                                 fn);
+            }
+        } /* otherwise pretend successful re-(on|off)-lining */
 
-            res = pread(fd, &status, 1, 0);
-            if (res == -1) {
-                error_setg_errno(errp, errno, "pread(\"%s/%s\")", dirpath, fn);
-            } else if (res == 0) {
-                error_setg(errp, "pread(\"%s/%s\"): unexpected EOF", dirpath,
-                           fn);
-            } else if (sys2vcpu) {
-                vcpu->online = (status != '0');
-                vcpu->can_offline = true;
-            } else if (vcpu->online != (status != '0')) {
-                status = '0' + vcpu->online;
-                if (pwrite(fd, &status, 1, 0) == -1) {
-                    error_setg_errno(errp, errno, "pwrite(\"%s/%s\")", dirpath,
-                                     fn);
-                }
-            } /* otherwise pretend successful re-(on|off)-lining */
-
-            res = close(fd);
-            g_assert(res == 0);
-        }
-
-        res = close(dirfd);
+        res = close(fd);
         g_assert(res == 0);
     }
 
-    g_free(dirpath);
+    res = close(dirfd);
+    g_assert(res == 0);
 }
 
 GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
@@ -2107,17 +2102,21 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
     while (local_err == NULL && current < sc_max) {
         GuestLogicalProcessor *vcpu;
         GuestLogicalProcessorList *entry;
+        int64_t id = current++;
+        char *path = g_strdup_printf("/sys/devices/system/cpu/cpu%" PRId64 "/",
+                                     id);
 
-        vcpu = g_malloc0(sizeof *vcpu);
-        vcpu->logical_id = current++;
-        vcpu->has_can_offline = true; /* lolspeak ftw */
-        transfer_vcpu(vcpu, true, &local_err);
-
-        entry = g_malloc0(sizeof *entry);
-        entry->value = vcpu;
-
-        *link = entry;
-        link = &entry->next;
+        if (g_file_test(path, G_FILE_TEST_EXISTS)) {
+            vcpu = g_malloc0(sizeof *vcpu);
+            vcpu->logical_id = id;
+            vcpu->has_can_offline = true; /* lolspeak ftw */
+            transfer_vcpu(vcpu, true, path, &local_err);
+            entry = g_malloc0(sizeof *entry);
+            entry->value = vcpu;
+            *link = entry;
+            link = &entry->next;
+        }
+        g_free(path);
     }
 
     if (local_err == NULL) {
@@ -2138,7 +2137,11 @@ int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
 
     processed = 0;
     while (vcpus != NULL) {
-        transfer_vcpu(vcpus->value, false, &local_err);
+        char *path = g_strdup_printf("/sys/devices/system/cpu/cpu%" PRId64 "/",
+                                     vcpus->value->logical_id);
+
+        transfer_vcpu(vcpus->value, false, path, &local_err);
+        g_free(path);
         if (local_err != NULL) {
             break;
         }
