@@ -980,6 +980,8 @@ void stream_start(const char *job_id, BlockDriverState *bs,
  * @bs: Active block device.
  * @top: Top block device to be committed.
  * @base: Block device that will be written into, and become the new top.
+ * @creation_flags: Flags that control the behavior of the Job lifetime.
+ *                  See @BlockJobCreateFlags
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @on_error: The action to take upon error.
  * @backing_file_str: String to use as the backing file in @top's overlay
@@ -990,7 +992,8 @@ void stream_start(const char *job_id, BlockDriverState *bs,
  *
  */
 void commit_start(const char *job_id, BlockDriverState *bs,
-                  BlockDriverState *base, BlockDriverState *top, int64_t speed,
+                  BlockDriverState *base, BlockDriverState *top,
+                  int creation_flags, int64_t speed,
                   BlockdevOnError on_error, const char *backing_file_str,
                   const char *filter_node_name, Error **errp);
 /**

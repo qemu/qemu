@@ -3214,6 +3214,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
      * BlockdevOnError change for blkmirror makes it in
      */
     BlockdevOnError on_error = BLOCKDEV_ON_ERROR_REPORT;
+    int job_flags = JOB_DEFAULT;
 
     if (!has_speed) {
         speed = 0;
@@ -3295,15 +3296,15 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
             goto out;
         }
         commit_active_start(has_job_id ? job_id : NULL, bs, base_bs,
-                            JOB_DEFAULT, speed, on_error,
+                            job_flags, speed, on_error,
                             filter_node_name, NULL, NULL, false, &local_err);
     } else {
         BlockDriverState *overlay_bs = bdrv_find_overlay(bs, top_bs);
         if (bdrv_op_is_blocked(overlay_bs, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
             goto out;
         }
-        commit_start(has_job_id ? job_id : NULL, bs, base_bs, top_bs, speed,
-                     on_error, has_backing_file ? backing_file : NULL,
+        commit_start(has_job_id ? job_id : NULL, bs, base_bs, top_bs, job_flags,
+                     speed, on_error, has_backing_file ? backing_file : NULL,
                      filter_node_name, &local_err);
     }
     if (local_err != NULL) {
