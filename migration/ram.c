@@ -301,6 +301,15 @@ struct RAMState {
     uint64_t num_dirty_pages_period;
     /* xbzrle misses since the beginning of the period */
     uint64_t xbzrle_cache_miss_prev;
+
+    /* compression statistics since the beginning of the period */
+    /* amount of count that no free thread to compress data */
+    uint64_t compress_thread_busy_prev;
+    /* amount bytes after compression */
+    uint64_t compressed_size_prev;
+    /* amount of compressed pages */
+    uint64_t compress_pages_prev;
+
     /* total handled target pages at the beginning of period */
     uint64_t target_page_count_prev;
     /* total handled target pages since start */
@@ -337,6 +346,8 @@ struct PageSearchStatus {
     bool         complete_round;
 };
 typedef struct PageSearchStatus PageSearchStatus;
+
+CompressionStats compression_counters;
 
 struct CompressParam {
     bool done;
@@ -1593,6 +1604,7 @@ uint64_t ram_pagesize_summary(void)
 static void migration_update_rates(RAMState *rs, int64_t end_time)
 {
     uint64_t page_count = rs->target_page_count - rs->target_page_count_prev;
+    double compressed_size;
 
     /* calculate period counters */
     ram_counters.dirty_pages_rate = rs->num_dirty_pages_period * 1000
@@ -1606,6 +1618,26 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
         xbzrle_counters.cache_miss_rate = (double)(xbzrle_counters.cache_miss -
             rs->xbzrle_cache_miss_prev) / page_count;
         rs->xbzrle_cache_miss_prev = xbzrle_counters.cache_miss;
+    }
+
+    if (migrate_use_compression()) {
+        compression_counters.busy_rate = (double)(compression_counters.busy -
+            rs->compress_thread_busy_prev) / page_count;
+        rs->compress_thread_busy_prev = compression_counters.busy;
+
+        compressed_size = compression_counters.compressed_size -
+                          rs->compressed_size_prev;
+        if (compressed_size) {
+            double uncompressed_size = (compression_counters.pages -
+                                    rs->compress_pages_prev) * TARGET_PAGE_SIZE;
+
+            /* Compression-Ratio = Uncompressed-size / Compressed-size */
+            compression_counters.compression_rate =
+                                        uncompressed_size / compressed_size;
+
+            rs->compress_pages_prev = compression_counters.pages;
+            rs->compressed_size_prev = compression_counters.compressed_size;
+        }
     }
 }
 
@@ -1888,10 +1920,16 @@ exit:
 static void
 update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
 {
+    ram_counters.transferred += bytes_xmit;
+
     if (param->zero_page) {
         ram_counters.duplicate++;
+        return;
     }
-    ram_counters.transferred += bytes_xmit;
+
+    /* 8 means a header with RAM_SAVE_FLAG_CONTINUE. */
+    compression_counters.compressed_size += bytes_xmit - 8;
+    compression_counters.pages++;
 }
 
 static void flush_compressed_data(RAMState *rs)
@@ -2264,6 +2302,7 @@ static bool save_compress_page(RAMState *rs, RAMBlock *block, ram_addr_t offset)
         return true;
     }
 
+    compression_counters.busy++;
     return false;
 }
 
