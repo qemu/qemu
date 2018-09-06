@@ -2763,12 +2763,15 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         }
     }
 
-    /* Remove all children options from bs->options and bs->explicit_options */
+    /* Remove all children options and references
+     * from bs->options and bs->explicit_options */
     QLIST_FOREACH(child, &bs->children, next) {
         char *child_key_dot;
         child_key_dot = g_strdup_printf("%s.", child->name);
         qdict_extract_subqdict(bs->explicit_options, NULL, child_key_dot);
         qdict_extract_subqdict(bs->options, NULL, child_key_dot);
+        qdict_del(bs->explicit_options, child->name);
+        qdict_del(bs->options, child->name);
         g_free(child_key_dot);
     }
 
@@ -3290,6 +3293,7 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
 {
     BlockDriver *drv;
     BlockDriverState *bs;
+    BdrvChild *child;
     bool old_can_write, new_can_write;
 
     assert(reopen_state != NULL);
@@ -3313,6 +3317,13 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     bs->options            = reopen_state->options;
     bs->open_flags         = reopen_state->flags;
     bs->read_only = !(reopen_state->flags & BDRV_O_RDWR);
+
+    /* Remove child references from bs->options and bs->explicit_options.
+     * Child options were already removed in bdrv_reopen_queue_child() */
+    QLIST_FOREACH(child, &bs->children, next) {
+        qdict_del(bs->explicit_options, child->name);
+        qdict_del(bs->options, child->name);
+    }
 
     bdrv_refresh_limits(bs, NULL);
 
