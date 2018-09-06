@@ -140,18 +140,22 @@ memfd_backend_class_init(ObjectClass *oc, void *data)
 
     bc->alloc = memfd_backend_memory_alloc;
 
-    object_class_property_add_bool(oc, "hugetlb",
-                                   memfd_backend_get_hugetlb,
-                                   memfd_backend_set_hugetlb,
-                                   &error_abort);
-    object_class_property_add(oc, "hugetlbsize", "int",
-                              memfd_backend_get_hugetlbsize,
-                              memfd_backend_set_hugetlbsize,
-                              NULL, NULL, &error_abort);
-    object_class_property_add_bool(oc, "seal",
-                                   memfd_backend_get_seal,
-                                   memfd_backend_set_seal,
-                                   &error_abort);
+    if (qemu_memfd_check(MFD_HUGETLB)) {
+        object_class_property_add_bool(oc, "hugetlb",
+                                       memfd_backend_get_hugetlb,
+                                       memfd_backend_set_hugetlb,
+                                       &error_abort);
+        object_class_property_add(oc, "hugetlbsize", "int",
+                                  memfd_backend_get_hugetlbsize,
+                                  memfd_backend_set_hugetlbsize,
+                                  NULL, NULL, &error_abort);
+    }
+    if (qemu_memfd_check(MFD_ALLOW_SEALING)) {
+        object_class_property_add_bool(oc, "seal",
+                                       memfd_backend_get_seal,
+                                       memfd_backend_set_seal,
+                                       &error_abort);
+    }
 }
 
 static const TypeInfo memfd_backend_info = {
@@ -164,7 +168,9 @@ static const TypeInfo memfd_backend_info = {
 
 static void register_types(void)
 {
-    type_register_static(&memfd_backend_info);
+    if (qemu_memfd_check(0)) {
+        type_register_static(&memfd_backend_info);
+    }
 }
 
 type_init(register_types);
