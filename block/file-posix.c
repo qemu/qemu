@@ -849,8 +849,13 @@ static int raw_reopen_prepare(BDRVReopenState *state,
         goto out;
     }
 
-    rs->check_cache_dropped = qemu_opt_get_bool(opts, "x-check-cache-dropped",
-                                                false);
+    rs->check_cache_dropped =
+        qemu_opt_get_bool_del(opts, "x-check-cache-dropped", false);
+
+    /* This driver's reopen function doesn't currently allow changing
+     * other options, so let's put them back in the original QDict and
+     * bdrv_reopen_prepare() will detect changes and complain. */
+    qemu_opts_to_qdict(opts, state->options);
 
     if (s->type == FTYPE_CD) {
         rs->open_flags |= O_NONBLOCK;
