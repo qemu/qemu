@@ -2025,7 +2025,7 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
         return -EINVAL;
     }
 
-    if (writethrough != blk_enable_write_cache(blk) &&
+    if (!writethrough != blk_enable_write_cache(blk) &&
         blk_get_attached_dev(blk))
     {
         error_report("Cannot change cache.writeback: Device attached");
