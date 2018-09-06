@@ -160,14 +160,7 @@ typedef struct CancelJob {
     BlockBackend *blk;
     bool should_converge;
     bool should_complete;
-    bool completed;
 } CancelJob;
-
-static void cancel_job_exit(Job *job)
-{
-    CancelJob *s = container_of(job, CancelJob, common.job);
-    s->completed = true;
-}
 
 static void cancel_job_complete(Job *job, Error **errp)
 {
@@ -201,7 +194,6 @@ static const BlockJobDriver test_cancel_driver = {
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
         .run           = cancel_job_run,
-        .exit          = cancel_job_exit,
         .complete      = cancel_job_complete,
     },
 };
@@ -335,9 +327,11 @@ static void test_cancel_pending(void)
 
     job_complete(job, &error_abort);
     job_enter(job);
-    while (!s->completed) {
+    while (!job->deferred_to_main_loop) {
         aio_poll(qemu_get_aio_context(), true);
     }
+    assert(job->status == JOB_STATUS_READY);
+    aio_poll(qemu_get_aio_context(), true);
     assert(job->status == JOB_STATUS_PENDING);
 
     cancel_common(s);
@@ -359,9 +353,11 @@ static void test_cancel_concluded(void)
 
     job_complete(job, &error_abort);
     job_enter(job);
-    while (!s->completed) {
+    while (!job->deferred_to_main_loop) {
         aio_poll(qemu_get_aio_context(), true);
     }
+    assert(job->status == JOB_STATUS_READY);
+    aio_poll(qemu_get_aio_context(), true);
     assert(job->status == JOB_STATUS_PENDING);
 
     job_finalize(job, &error_abort);
