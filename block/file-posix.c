@@ -850,7 +850,7 @@ static int raw_reopen_prepare(BDRVReopenState *state,
     }
 
     rs->check_cache_dropped = qemu_opt_get_bool(opts, "x-check-cache-dropped",
-                                                s->check_cache_dropped);
+                                                false);
 
     if (s->type == FTYPE_CD) {
         rs->open_flags |= O_NONBLOCK;
