@@ -520,6 +520,32 @@ static void test_dummy_getenum(void)
 }
 
 
+static void test_dummy_prop_iterator(ObjectPropertyIterator *iter)
+{
+    bool seenbv = false, seensv = false, seenav = false, seentype = false;
+    ObjectProperty *prop;
+
+    while ((prop = object_property_iter_next(iter))) {
+        if (!seenbv && g_str_equal(prop->name, "bv")) {
+            seenbv = true;
+        } else if (!seensv && g_str_equal(prop->name, "sv")) {
+            seensv = true;
+        } else if (!seenav && g_str_equal(prop->name, "av")) {
+            seenav = true;
+        } else if (!seentype && g_str_equal(prop->name, "type")) {
+            /* This prop comes from the base Object class */
+            seentype = true;
+        } else {
+            g_printerr("Found prop '%s'\n", prop->name);
+            g_assert_not_reached();
+        }
+    }
+    g_assert(seenbv);
+    g_assert(seenav);
+    g_assert(seensv);
+    g_assert(seentype);
+}
+
 static void test_dummy_iterator(void)
 {
     Object *parent = object_get_objects_root();
@@ -532,32 +558,10 @@ static void test_dummy_iterator(void)
                               "sv", "Hiss hiss hiss",
                               "av", "platypus",
                               NULL));
-
-    ObjectProperty *prop;
     ObjectPropertyIterator iter;
-    bool seenbv = false, seensv = false, seenav = false, seentype;
 
     object_property_iter_init(&iter, OBJECT(dobj));
-    while ((prop = object_property_iter_next(&iter))) {
-        if (g_str_equal(prop->name, "bv")) {
-            seenbv = true;
-        } else if (g_str_equal(prop->name, "sv")) {
-            seensv = true;
-        } else if (g_str_equal(prop->name, "av")) {
-            seenav = true;
-        } else if (g_str_equal(prop->name, "type")) {
-            /* This prop comes from the base Object class */
-            seentype = true;
-        } else {
-            g_printerr("Found prop '%s'\n", prop->name);
-            g_assert_not_reached();
-        }
-    }
-    g_assert(seenbv);
-    g_assert(seenav);
-    g_assert(seensv);
-    g_assert(seentype);
-
+    test_dummy_prop_iterator(&iter);
     object_unparent(OBJECT(dobj));
 }
 
