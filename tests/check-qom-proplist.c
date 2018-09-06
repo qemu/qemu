@@ -125,10 +125,13 @@ static char *dummy_get_sv(Object *obj,
 
 static void dummy_init(Object *obj)
 {
+    Error *err = NULL;
+
     object_property_add_bool(obj, "bv",
                              dummy_get_bv,
                              dummy_set_bv,
-                             NULL);
+                             &err);
+    error_free_or_abort(&err);
 }
 
 
