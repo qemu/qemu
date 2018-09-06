@@ -3204,6 +3204,8 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                       bool has_backing_file, const char *backing_file,
                       bool has_speed, int64_t speed,
                       bool has_filter_node_name, const char *filter_node_name,
+                      bool has_auto_finalize, bool auto_finalize,
+                      bool has_auto_dismiss, bool auto_dismiss,
                       Error **errp)
 {
     BlockDriverState *bs;
@@ -3222,6 +3224,12 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     }
     if (!has_filter_node_name) {
         filter_node_name = NULL;
+    }
+    if (has_auto_finalize && !auto_finalize) {
+        job_flags |= JOB_MANUAL_FINALIZE;
+    }
+    if (has_auto_dismiss && !auto_dismiss) {
+        job_flags |= JOB_MANUAL_DISMISS;
     }
 
     /* Important Note:
