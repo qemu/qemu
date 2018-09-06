@@ -636,6 +636,17 @@ static void test_iothread_aio_cb(void *opaque, int ret)
     qemu_event_set(&done_event);
 }
 
+static void test_iothread_main_thread_bh(void *opaque)
+{
+    struct test_iothread_data *data = opaque;
+
+    /* Test that the AioContext is not yet locked in a random BH that is
+     * executed during drain, otherwise this would deadlock. */
+    aio_context_acquire(bdrv_get_aio_context(data->bs));
+    bdrv_flush(data->bs);
+    aio_context_release(bdrv_get_aio_context(data->bs));
+}
+
 /*
  * Starts an AIO request on a BDS that runs in the AioContext of iothread 1.
  * The request involves a BH on iothread 2 before it can complete.
@@ -704,6 +715,8 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
         if (drain_type != BDRV_DRAIN_ALL) {
             aio_context_acquire(ctx_a);
         }
+
+        aio_bh_schedule_oneshot(ctx_a, test_iothread_main_thread_bh, &data);
 
         /* The request is running on the IOThread a. Draining its block device
          * will make sure that it has completed as far as the BDS is concerned,
