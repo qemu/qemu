@@ -1272,13 +1272,14 @@
 #                   a different block device than @device).
 #
 # @auto-finalize: When false, this job will wait in a PENDING state after it has
-#                 finished its work, waiting for @block-job-finalize.
-#                 When true, this job will automatically perform its abort or
-#                 commit actions.
+#                 finished its work, waiting for @block-job-finalize before
+#                 making any block graph changes.
+#                 When true, this job will automatically
+#                 perform its abort or commit actions.
 #                 Defaults to true. (Since 2.12)
 #
 # @auto-dismiss: When false, this job will wait in a CONCLUDED state after it
-#                has completed ceased all work, and wait for @block-job-dismiss.
+#                has completely ceased all work, and awaits @block-job-dismiss.
 #                When true, this job will automatically disappear from the query
 #                list without user intervention.
 #                Defaults to true. (Since 2.12)
@@ -1327,13 +1328,14 @@
 #                   a different block device than @device).
 #
 # @auto-finalize: When false, this job will wait in a PENDING state after it has
-#                 finished its work, waiting for @block-job-finalize.
-#                 When true, this job will automatically perform its abort or
-#                 commit actions.
+#                 finished its work, waiting for @block-job-finalize before
+#                 making any block graph changes.
+#                 When true, this job will automatically
+#                 perform its abort or commit actions.
 #                 Defaults to true. (Since 2.12)
 #
 # @auto-dismiss: When false, this job will wait in a CONCLUDED state after it
-#                has completed ceased all work, and wait for @block-job-dismiss.
+#                has completely ceased all work, and awaits @block-job-dismiss.
 #                When true, this job will automatically disappear from the query
 #                list without user intervention.
 #                Defaults to true. (Since 2.12)
