@@ -565,6 +565,14 @@ static void test_dummy_iterator(void)
     object_unparent(OBJECT(dobj));
 }
 
+static void test_dummy_class_iterator(void)
+{
+    ObjectPropertyIterator iter;
+    ObjectClass *klass = object_class_by_name(TYPE_DUMMY);
+
+    object_class_property_iter_init(&iter, klass);
+    test_dummy_prop_iterator(&iter);
+}
 
 static void test_dummy_delchild(void)
 {
@@ -636,6 +644,7 @@ int main(int argc, char **argv)
     g_test_add_func("/qom/proplist/badenum", test_dummy_badenum);
     g_test_add_func("/qom/proplist/getenum", test_dummy_getenum);
     g_test_add_func("/qom/proplist/iterator", test_dummy_iterator);
+    g_test_add_func("/qom/proplist/class_iterator", test_dummy_class_iterator);
     g_test_add_func("/qom/proplist/delchild", test_dummy_delchild);
     g_test_add_func("/qom/resolve/partial", test_qom_partial_path);
 
