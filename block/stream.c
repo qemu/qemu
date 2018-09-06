@@ -54,16 +54,16 @@ static int coroutine_fn stream_populate(BlockBackend *blk,
     return blk_co_preadv(blk, offset, qiov.size, &qiov, BDRV_REQ_COPY_ON_READ);
 }
 
-static void stream_exit(Job *job)
+static int stream_prepare(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
     BlockJob *bjob = &s->common;
     BlockDriverState *bs = blk_bs(bjob->blk);
     BlockDriverState *base = s->base;
     Error *local_err = NULL;
-    int ret = job->ret;
+    int ret = 0;
 
-    if (!job_is_cancelled(job) && bs->backing && ret == 0) {
+    if (bs->backing) {
         const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
             base_id = s->backing_file_str;
@@ -75,12 +75,19 @@ static void stream_exit(Job *job)
         bdrv_set_backing_hd(bs, base, &local_err);
         if (local_err) {
             error_report_err(local_err);
-            ret = -EPERM;
-            goto out;
+            return -EPERM;
         }
     }
 
-out:
+    return ret;
+}
+
+static void stream_clean(Job *job)
+{
+    StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
+    BlockJob *bjob = &s->common;
+    BlockDriverState *bs = blk_bs(bjob->blk);
+
     /* Reopen the image back in read-only mode if necessary */
     if (s->bs_flags != bdrv_get_flags(bs)) {
         /* Give up write permissions before making it read-only */
@@ -89,7 +96,6 @@ out:
     }
 
     g_free(s->backing_file_str);
-    job->ret = ret;
 }
 
 static int coroutine_fn stream_run(Job *job, Error **errp)
@@ -206,7 +212,8 @@ static const BlockJobDriver stream_job_driver = {
         .job_type      = JOB_TYPE_STREAM,
         .free          = block_job_free,
         .run           = stream_run,
-        .exit          = stream_exit,
+        .prepare       = stream_prepare,
+        .clean         = stream_clean,
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
     },
