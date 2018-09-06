@@ -121,6 +121,7 @@ static void blk_root_inherit_options(int *child_flags, QDict *child_options,
     abort();
 }
 static void blk_root_drained_begin(BdrvChild *child);
+static bool blk_root_drained_poll(BdrvChild *child);
 static void blk_root_drained_end(BdrvChild *child);
 
 static void blk_root_change_media(BdrvChild *child, bool load);
@@ -294,6 +295,7 @@ static const BdrvChildRole child_root = {
     .get_parent_desc    = blk_root_get_parent_desc,
 
     .drained_begin      = blk_root_drained_begin,
+    .drained_poll       = blk_root_drained_poll,
     .drained_end        = blk_root_drained_end,
 
     .activate           = blk_root_activate,
@@ -2187,6 +2189,13 @@ static void blk_root_drained_begin(BdrvChild *child)
     if (atomic_fetch_inc(&blk->public.throttle_group_member.io_limits_disabled) == 0) {
         throttle_group_restart_tgm(&blk->public.throttle_group_member);
     }
+}
+
+static bool blk_root_drained_poll(BdrvChild *child)
+{
+    BlockBackend *blk = child->opaque;
+    assert(blk->quiesce_counter);
+    return !!blk->in_flight;
 }
 
 static void blk_root_drained_end(BdrvChild *child)
