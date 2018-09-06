@@ -214,7 +214,8 @@ static const BlockJobDriver stream_job_driver = {
 
 void stream_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, const char *backing_file_str,
-                  int64_t speed, BlockdevOnError on_error, Error **errp)
+                  int creation_flags, int64_t speed,
+                  BlockdevOnError on_error, Error **errp)
 {
     StreamBlockJob *s;
     BlockDriverState *iter;
@@ -236,7 +237,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
                          BLK_PERM_GRAPH_MOD,
                          BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
                          BLK_PERM_WRITE,
-                         speed, JOB_DEFAULT, NULL, NULL, errp);
+                         speed, creation_flags, NULL, NULL, errp);
     if (!s) {
         goto fail;
     }
