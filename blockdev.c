@@ -3116,6 +3116,8 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_backing_file, const char *backing_file,
                       bool has_speed, int64_t speed,
                       bool has_on_error, BlockdevOnError on_error,
+                      bool has_auto_finalize, bool auto_finalize,
+                      bool has_auto_dismiss, bool auto_dismiss,
                       Error **errp)
 {
     BlockDriverState *bs, *iter;
@@ -3184,6 +3186,13 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
 
     /* backing_file string overrides base bs filename */
     base_name = has_backing_file ? backing_file : base_name;
+
+    if (has_auto_finalize && !auto_finalize) {
+        job_flags |= JOB_MANUAL_FINALIZE;
+    }
+    if (has_auto_dismiss && !auto_dismiss) {
+        job_flags |= JOB_MANUAL_DISMISS;
+    }
 
     stream_start(has_job_id ? job_id : NULL, bs, base_bs, base_name,
                  job_flags, has_speed ? speed : 0, on_error, &local_err);
