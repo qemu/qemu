@@ -535,49 +535,6 @@ void job_drain(Job *job)
     }
 }
 
-static void job_completed(Job *job);
-
-static void job_exit(void *opaque)
-{
-    Job *job = (Job *)opaque;
-    AioContext *aio_context = job->aio_context;
-
-    if (job->driver->exit) {
-        aio_context_acquire(aio_context);
-        job->driver->exit(job);
-        aio_context_release(aio_context);
-    }
-    job_completed(job);
-}
-
-/**
- * All jobs must allow a pause point before entering their job proper. This
- * ensures that jobs can be paused prior to being started, then resumed later.
- */
-static void coroutine_fn job_co_entry(void *opaque)
-{
-    Job *job = opaque;
-
-    assert(job && job->driver && job->driver->run);
-    job_pause_point(job);
-    job->ret = job->driver->run(job, &job->err);
-    job->deferred_to_main_loop = true;
-    aio_bh_schedule_oneshot(qemu_get_aio_context(), job_exit, job);
-}
-
-
-void job_start(Job *job)
-{
-    assert(job && !job_started(job) && job->paused &&
-           job->driver && job->driver->run);
-    job->co = qemu_coroutine_create(job_co_entry, job);
-    job->pause_count--;
-    job->busy = true;
-    job->paused = false;
-    job_state_transition(job, JOB_STATUS_RUNNING);
-    aio_co_enter(job->aio_context, job->co);
-}
-
 /* Assumes the block_job_mutex is held */
 static bool job_timer_not_pending(Job *job)
 {
@@ -892,6 +849,40 @@ static void job_completed(Job *job)
     } else {
         job_completed_txn_success(job);
     }
+}
+
+/** Useful only as a type shim for aio_bh_schedule_oneshot. */
+static void job_exit(void *opaque)
+{
+    Job *job = (Job *)opaque;
+    job_completed(job);
+}
+
+/**
+ * All jobs must allow a pause point before entering their job proper. This
+ * ensures that jobs can be paused prior to being started, then resumed later.
+ */
+static void coroutine_fn job_co_entry(void *opaque)
+{
+    Job *job = opaque;
+
+    assert(job && job->driver && job->driver->run);
+    job_pause_point(job);
+    job->ret = job->driver->run(job, &job->err);
+    job->deferred_to_main_loop = true;
+    aio_bh_schedule_oneshot(qemu_get_aio_context(), job_exit, job);
+}
+
+void job_start(Job *job)
+{
+    assert(job && !job_started(job) && job->paused &&
+           job->driver && job->driver->run);
+    job->co = qemu_coroutine_create(job_co_entry, job);
+    job->pause_count--;
+    job->busy = true;
+    job->paused = false;
+    job_state_transition(job, JOB_STATUS_RUNNING);
+    aio_co_enter(job->aio_context, job->co);
 }
 
 void job_cancel(Job *job, bool force)
