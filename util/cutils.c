@@ -769,3 +769,8 @@ char *size_to_str(uint64_t val)
 
     return g_strdup_printf("%0.3g %sB", (double)val / div, suffixes[i]);
 }
+
+int qemu_pstrcmp0(const char **str1, const char **str2)
+{
+    return g_strcmp0(*str1, *str2);
+}
