@@ -435,6 +435,7 @@ int blk_get_refcnt(BlockBackend *blk)
  */
 void blk_ref(BlockBackend *blk)
 {
+    assert(blk->refcnt > 0);
     blk->refcnt++;
 }
 
@@ -447,7 +448,13 @@ void blk_unref(BlockBackend *blk)
 {
     if (blk) {
         assert(blk->refcnt > 0);
-        if (!--blk->refcnt) {
+        if (blk->refcnt > 1) {
+            blk->refcnt--;
+        } else {
+            blk_drain(blk);
+            /* blk_drain() cannot resurrect blk, nobody held a reference */
+            assert(blk->refcnt == 1);
+            blk->refcnt = 0;
             blk_delete(blk);
         }
     }
