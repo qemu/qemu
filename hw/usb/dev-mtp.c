@@ -1665,13 +1665,14 @@ static void usb_mtp_write_data(MTPState *s)
             goto success;
         }
 
-        rc = write_retry(d->fd, d->data, s->dataset.size);
-        if (!rc) {
+        rc = write_retry(d->fd, d->data, d->offset);
+        if (rc != d->offset) {
             usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
                                  0, 0, 0, 0);
             goto done;
             }
-        if (rc != s->dataset.size) {
+        /* Only for < 4G file sizes */
+        if (s->dataset.size != 0xFFFFFFFF && rc != s->dataset.size) {
             usb_mtp_queue_result(s, RES_INCOMPLETE_TRANSFER, d->trans,
                                  0, 0, 0, 0);
             goto done;
