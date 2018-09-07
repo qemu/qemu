@@ -151,6 +151,7 @@ int main(int argc, char **argv)
     test.addr->u.q_unix.path = g_build_filename(tmp_path, "sock", NULL);
     g_mutex_init(&test.data_mutex);
     g_cond_init(&test.data_cond);
+    test.data_cond_signal = false;
 
     thread = g_thread_new(NULL, tpm_emu_ctrl_thread, &test);
     tpm_emu_test_wait_cond(&test);
