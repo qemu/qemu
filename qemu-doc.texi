@@ -943,7 +943,7 @@ for details
 Bulk-only transport storage device, see
 @url{https://git.qemu.org/?p=qemu.git;a=blob_plain;f=docs/usb-storage.txt,usb-storage.txt}
 for details here, too
-@item usb-mtp,x-root=@var{dir}
+@item usb-mtp,rootdir=@var{dir}
 Media transfer protocol device, using @var{dir} as root of the file tree
 that is presented to the guest.
 @item usb-host,hostbus=@var{bus},hostaddr=@var{addr}
