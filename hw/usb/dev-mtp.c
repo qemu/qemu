@@ -1568,6 +1568,7 @@ static void usb_mtp_handle_control(USBDevice *dev, USBPacket *p,
             if (s->write_pending) {
                 g_free(s->dataset.filename);
                 s->write_pending = false;
+                s->dataset.size = 0;
             }
             usb_mtp_data_free(s->data_out);
             s->data_out = NULL;
@@ -1693,6 +1694,7 @@ done:
     }
 free:
     g_free(s->dataset.filename);
+    s->dataset.size = 0;
     g_free(path);
     s->write_pending = false;
 }
