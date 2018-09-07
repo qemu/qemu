@@ -857,7 +857,16 @@ static void job_exit(void *opaque)
     AioContext *ctx = job->aio_context;
 
     aio_context_acquire(ctx);
+
+    /* This is a lie, we're not quiescent, but still doing the completion
+     * callbacks. However, completion callbacks tend to involve operations that
+     * drain block nodes, and if .drained_poll still returned true, we would
+     * deadlock. */
+    job->busy = false;
+    job_event_idle(job);
+
     job_completed(job);
+
     aio_context_release(ctx);
 }
 
@@ -872,8 +881,8 @@ static void coroutine_fn job_co_entry(void *opaque)
     assert(job && job->driver && job->driver->run);
     job_pause_point(job);
     job->ret = job->driver->run(job, &job->err);
-    job_event_idle(job);
     job->deferred_to_main_loop = true;
+    job->busy = true;
     aio_bh_schedule_oneshot(qemu_get_aio_context(), job_exit, job);
 }
 

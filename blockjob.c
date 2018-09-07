@@ -164,7 +164,7 @@ static bool child_job_drained_poll(BdrvChild *c)
     /* An inactive or completed job doesn't have any pending requests. Jobs
      * with !job->busy are either already paused or have a pause point after
      * being reentered, so no job driver code will run before they pause. */
-    if (!job->busy || job_is_completed(job) || job->deferred_to_main_loop) {
+    if (!job->busy || job_is_completed(job)) {
         return false;
     }
 

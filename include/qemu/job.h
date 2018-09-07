@@ -76,6 +76,9 @@ typedef struct Job {
      * Set to false by the job while the coroutine has yielded and may be
      * re-entered by job_enter(). There may still be I/O or event loop activity
      * pending. Accessed under block_job_mutex (in blockjob.c).
+     *
+     * When the job is deferred to the main loop, busy is true as long as the
+     * bottom half is still pending.
      */
     bool busy;
 
