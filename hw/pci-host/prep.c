@@ -55,7 +55,7 @@ typedef struct RavenPCIState {
 typedef struct PRePPCIState {
     PCIHostState parent_obj;
 
-    qemu_irq irq[PCI_NUM_PINS];
+    qemu_irq pci_irqs[PCI_NUM_PINS];
     PCIBus pci_bus;
     AddressSpace pci_io_as;
     MemoryRegion pci_io;
@@ -194,9 +194,9 @@ static int raven_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void raven_set_irq(void *opaque, int irq_num, int level)
 {
-    qemu_irq *pic = opaque;
+    PREPPCIState *s = opaque;
 
-    qemu_set_irq(pic[irq_num] , level);
+    qemu_set_irq(s->pci_irqs[irq_num], level);
 }
 
 static AddressSpace *raven_pcihost_set_iommu(PCIBus *bus, void *opaque,
@@ -223,13 +223,12 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
     int i;
 
     for (i = 0; i < PCI_NUM_PINS; i++) {
-        sysbus_init_irq(dev, &s->irq[i]);
+        sysbus_init_irq(dev, &s->pci_irqs[i]);
     }
 
     qdev_init_gpio_in(d, raven_change_gpio, 1);
 
-    pci_bus_irqs(&s->pci_bus, raven_set_irq, raven_map_irq, s->irq,
-                 PCI_NUM_PINS);
+    pci_bus_irqs(&s->pci_bus, raven_set_irq, raven_map_irq, s, PCI_NUM_PINS);
 
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops, s,
                           "pci-conf-idx", 4);
