@@ -502,6 +502,7 @@ static void ppc_prep_init(MachineState *machine)
     }
     qdev_prop_set_string(dev, "bios-name", bios_name);
     qdev_prop_set_uint32(dev, "elf-machine", PPC_ELF_MACHINE);
+    qdev_prop_set_bit(dev, "is-legacy-prep", true);
     pcihost = PCI_HOST_BRIDGE(dev);
     object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
@@ -669,9 +670,6 @@ static void ibm_40p_init(MachineState *machine)
     qdev_connect_gpio_out(dev, 0,
                           cpu->env.irq_inputs[PPC6xx_INPUT_INT]);
     sysbus_connect_irq(pcihost, 0, qdev_get_gpio_in(dev, 15));
-    sysbus_connect_irq(pcihost, 1, qdev_get_gpio_in(dev, 13));
-    sysbus_connect_irq(pcihost, 2, qdev_get_gpio_in(dev, 15));
-    sysbus_connect_irq(pcihost, 3, qdev_get_gpio_in(dev, 13));
     isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
 
     /* Memory controller */
