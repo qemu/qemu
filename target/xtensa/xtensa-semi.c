@@ -34,8 +34,6 @@
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
 
-static CharBackend *xtensa_sim_console;
-
 enum {
     TARGET_SYS_exit = 1,
     TARGET_SYS_read = 3,
@@ -153,13 +151,48 @@ static uint32_t errno_h2g(int host_errno)
     }
 }
 
+typedef struct XtensaSimConsole {
+    CharBackend be;
+    struct {
+        char buffer[16];
+        size_t offset;
+    } input;
+} XtensaSimConsole;
+
+static XtensaSimConsole *sim_console;
+
+static IOCanReadHandler sim_console_can_read;
+static int sim_console_can_read(void *opaque)
+{
+    XtensaSimConsole *p = opaque;
+
+    return sizeof(p->input.buffer) - p->input.offset;
+}
+
+static IOReadHandler sim_console_read;
+static void sim_console_read(void *opaque, const uint8_t *buf, int size)
+{
+    XtensaSimConsole *p = opaque;
+    size_t copy = sizeof(p->input.buffer) - p->input.offset;
+
+    if (size < copy) {
+        copy = size;
+    }
+    memcpy(p->input.buffer + p->input.offset, buf, copy);
+    p->input.offset += copy;
+}
+
 void xtensa_sim_open_console(Chardev *chr)
 {
-    static CharBackend console;
+    static XtensaSimConsole console;
 
-    qemu_chr_fe_init(&console, chr, &error_abort);
-    qemu_chr_fe_set_handlers(&console, NULL, NULL, NULL, NULL, NULL, NULL, true);
-    xtensa_sim_console = &console;
+    qemu_chr_fe_init(&console.be, chr, &error_abort);
+    qemu_chr_fe_set_handlers(&console.be,
+                             sim_console_can_read,
+                             sim_console_read,
+                             NULL, NULL, &console,
+                             NULL, true);
+    sim_console = &console;
 }
 
 void HELPER(simcall)(CPUXtensaState *env)
@@ -195,11 +228,27 @@ void HELPER(simcall)(CPUXtensaState *env)
                 if (buf) {
                     vaddr += io_sz;
                     len -= io_sz;
-                    if (fd < 3 && xtensa_sim_console) {
+                    if (fd < 3 && sim_console) {
                         if (is_write && (fd == 1 || fd == 2)) {
-                            io_done = qemu_chr_fe_write_all(xtensa_sim_console,
+                            io_done = qemu_chr_fe_write_all(&sim_console->be,
                                                             buf, io_sz);
                             regs[3] = errno_h2g(errno);
+                        } else if (!is_write && fd == 0) {
+                            if (sim_console->input.offset) {
+                                io_done = sim_console->input.offset;
+                                if (io_sz < io_done) {
+                                    io_done = io_sz;
+                                }
+                                memcpy(buf, sim_console->input.buffer, io_done);
+                                memmove(sim_console->input.buffer,
+                                        sim_console->input.buffer + io_done,
+                                        sim_console->input.offset - io_done);
+                                sim_console->input.offset -= io_done;
+                                qemu_chr_fe_accept_input(&sim_console->be);
+                            } else {
+                                io_done = -1;
+                                regs[3] = TARGET_EAGAIN;
+                            }
                         } else {
                             qemu_log_mask(LOG_GUEST_ERROR,
                                           "%s fd %d is not supported with chardev console\n",
@@ -292,9 +341,11 @@ void HELPER(simcall)(CPUXtensaState *env)
                 tv.tv_sec = (int32_t)tswap32(target_tvv[0]);
                 tv.tv_usec = (int32_t)tswap32(target_tvv[1]);
             }
-            if (fd < 3 && xtensa_sim_console) {
+            if (fd < 3 && sim_console) {
                 if ((fd == 1 || fd == 2) && rq == SELECT_ONE_WRITE) {
                     regs[2] = 1;
+                } else if (fd == 0 && rq == SELECT_ONE_READ) {
+                    regs[2] = sim_console->input.offset > 0;
                 } else {
                     regs[2] = 0;
                 }
