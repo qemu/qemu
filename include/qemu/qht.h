@@ -104,7 +104,7 @@ bool qht_insert(struct qht *ht, void *p, uint32_t hash, void **existing);
  * Returns the corresponding pointer when a match is found.
  * Returns NULL otherwise.
  */
-void *qht_lookup_custom(struct qht *ht, const void *userp, uint32_t hash,
+void *qht_lookup_custom(const struct qht *ht, const void *userp, uint32_t hash,
                         qht_lookup_func_t func);
 
 /**
@@ -115,7 +115,7 @@ void *qht_lookup_custom(struct qht *ht, const void *userp, uint32_t hash,
  *
  * Calls qht_lookup_custom() using @ht's default comparison function.
  */
-void *qht_lookup(struct qht *ht, const void *userp, uint32_t hash);
+void *qht_lookup(const struct qht *ht, const void *userp, uint32_t hash);
 
 /**
  * qht_remove - remove a pointer from the hash table
