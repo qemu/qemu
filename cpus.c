@@ -287,7 +287,8 @@ static int64_t cpu_get_icount_raw_locked(void)
 static int64_t cpu_get_icount_locked(void)
 {
     int64_t icount = cpu_get_icount_raw_locked();
-    return atomic_read__nocheck(&timers_state.qemu_icount_bias) + cpu_icount_to_ns(icount);
+    return atomic_read_i64(&timers_state.qemu_icount_bias) +
+        cpu_icount_to_ns(icount);
 }
 
 int64_t cpu_get_icount_raw(void)
@@ -460,9 +461,9 @@ static void icount_adjust(void)
                    timers_state.icount_time_shift + 1);
     }
     last_delta = delta;
-    atomic_set__nocheck(&timers_state.qemu_icount_bias,
-                        cur_icount - (timers_state.qemu_icount
-                                      << timers_state.icount_time_shift));
+    atomic_set_i64(&timers_state.qemu_icount_bias,
+                   cur_icount - (timers_state.qemu_icount
+                                 << timers_state.icount_time_shift));
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                          &timers_state.vm_clock_lock);
 }
@@ -522,8 +523,8 @@ static void icount_warp_rt(void)
             int64_t delta = clock - cur_icount;
             warp_delta = MIN(warp_delta, delta);
         }
-        atomic_set__nocheck(&timers_state.qemu_icount_bias,
-                            timers_state.qemu_icount_bias + warp_delta);
+        atomic_set_i64(&timers_state.qemu_icount_bias,
+                       timers_state.qemu_icount_bias + warp_delta);
     }
     timers_state.vm_clock_warp_start = -1;
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
@@ -554,8 +555,8 @@ void qtest_clock_warp(int64_t dest)
 
         seqlock_write_lock(&timers_state.vm_clock_seqlock,
                            &timers_state.vm_clock_lock);
-        atomic_set__nocheck(&timers_state.qemu_icount_bias,
-                            timers_state.qemu_icount_bias + warp);
+        atomic_set_i64(&timers_state.qemu_icount_bias,
+                       timers_state.qemu_icount_bias + warp);
         seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                              &timers_state.vm_clock_lock);
 
@@ -626,8 +627,8 @@ void qemu_start_warp_timer(void)
              */
             seqlock_write_lock(&timers_state.vm_clock_seqlock,
                                &timers_state.vm_clock_lock);
-            atomic_set__nocheck(&timers_state.qemu_icount_bias,
-                                timers_state.qemu_icount_bias + deadline);
+            atomic_set_i64(&timers_state.qemu_icount_bias,
+                           timers_state.qemu_icount_bias + deadline);
             seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                                  &timers_state.vm_clock_lock);
             qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
