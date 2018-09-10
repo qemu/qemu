@@ -268,7 +268,8 @@ static void qht_map_unlock_buckets(struct qht_map *map)
  * Call with at least a bucket lock held.
  * @map should be the value read before acquiring the lock (or locks).
  */
-static inline bool qht_map_is_stale__locked(struct qht *ht, struct qht_map *map)
+static inline bool qht_map_is_stale__locked(const struct qht *ht,
+                                            const struct qht_map *map)
 {
     return map != ht->map;
 }
@@ -337,12 +338,12 @@ struct qht_bucket *qht_bucket_lock__no_stale(struct qht *ht, uint32_t hash,
     return b;
 }
 
-static inline bool qht_map_needs_resize(struct qht_map *map)
+static inline bool qht_map_needs_resize(const struct qht_map *map)
 {
     return atomic_read(&map->n_added_buckets) > map->n_added_buckets_threshold;
 }
 
-static inline void qht_chain_destroy(struct qht_bucket *head)
+static inline void qht_chain_destroy(const struct qht_bucket *head)
 {
     struct qht_bucket *curr = head->next;
     struct qht_bucket *prev;
@@ -550,8 +551,11 @@ void *qht_lookup(const struct qht *ht, const void *userp, uint32_t hash)
     return qht_lookup_custom(ht, userp, hash, ht->cmp);
 }
 
-/* call with head->lock held */
-static void *qht_insert__locked(struct qht *ht, struct qht_map *map,
+/*
+ * call with head->lock held
+ * @ht is const since it is only used for ht->cmp()
+ */
+static void *qht_insert__locked(const struct qht *ht, struct qht_map *map,
                                 struct qht_bucket *head, void *p, uint32_t hash,
                                 bool *needs_resize)
 {
@@ -645,7 +649,7 @@ bool qht_insert(struct qht *ht, void *p, uint32_t hash, void **existing)
     return false;
 }
 
-static inline bool qht_entry_is_last(struct qht_bucket *b, int pos)
+static inline bool qht_entry_is_last(const struct qht_bucket *b, int pos)
 {
     if (pos == QHT_BUCKET_ENTRIES - 1) {
         if (b->next == NULL) {
