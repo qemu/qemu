@@ -671,7 +671,7 @@ qht_entry_move(struct qht_bucket *to, int i, struct qht_bucket *from, int j)
 }
 
 /*
- * Find the last valid entry in @head, and swap it with @orig[pos], which has
+ * Find the last valid entry in @orig, and swap it with @orig[pos], which has
  * just been invalidated.
  */
 static inline void qht_bucket_remove_entry(struct qht_bucket *orig, int pos)
