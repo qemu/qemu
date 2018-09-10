@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
+#include "qemu/atomic.h"
 
 int qemu_icache_linesize = 0;
 int qemu_icache_linesize_log;
@@ -182,4 +183,6 @@ static void __attribute__((constructor)) init_cache_info(void)
     qemu_icache_linesize_log = ctz32(isize);
     qemu_dcache_linesize = dsize;
     qemu_dcache_linesize_log = ctz32(dsize);
+
+    atomic64_init();
 }
