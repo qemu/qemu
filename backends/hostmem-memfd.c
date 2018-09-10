@@ -44,10 +44,6 @@ memfd_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         return;
     }
 
-    if (host_memory_backend_mr_inited(backend)) {
-        return;
-    }
-
     backend->force_prealloc = mem_prealloc;
     fd = qemu_memfd_create(TYPE_MEMORY_BACKEND_MEMFD, backend->size,
                            m->hugetlb, m->hugetlbsize, m->seal ?
