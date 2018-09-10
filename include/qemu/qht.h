@@ -43,9 +43,8 @@ struct qht_stats {
 };
 
 typedef bool (*qht_lookup_func_t)(const void *obj, const void *userp);
-typedef void (*qht_iter_func_t)(struct qht *ht, void *p, uint32_t h, void *up);
-typedef bool (*qht_iter_bool_func_t)(struct qht *ht, void *p, uint32_t h,
-                                     void *up);
+typedef void (*qht_iter_func_t)(void *p, uint32_t h, void *up);
+typedef bool (*qht_iter_bool_func_t)(void *p, uint32_t h, void *up);
 
 #define QHT_MODE_AUTO_RESIZE 0x1 /* auto-resize when heavily loaded */
 #define QHT_MODE_RAW_MUTEXES 0x2 /* bypass the profiler (QSP) */

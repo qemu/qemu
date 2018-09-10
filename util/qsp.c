@@ -533,7 +533,7 @@ static gint qsp_tree_cmp(gconstpointer ap, gconstpointer bp, gpointer up)
     }
 }
 
-static void qsp_sort(struct qht *ht, void *p, uint32_t h, void *userp)
+static void qsp_sort(void *p, uint32_t h, void *userp)
 {
     QSPEntry *e = p;
     GTree *tree = userp;
@@ -541,7 +541,7 @@ static void qsp_sort(struct qht *ht, void *p, uint32_t h, void *userp)
     g_tree_insert(tree, e, NULL);
 }
 
-static void qsp_aggregate(struct qht *global_ht, void *p, uint32_t h, void *up)
+static void qsp_aggregate(void *p, uint32_t h, void *up)
 {
     struct qht *ht = up;
     const QSPEntry *e = p;
@@ -553,7 +553,7 @@ static void qsp_aggregate(struct qht *global_ht, void *p, uint32_t h, void *up)
     qsp_entry_aggregate(agg, e);
 }
 
-static void qsp_iter_diff(struct qht *orig, void *p, uint32_t hash, void *htp)
+static void qsp_iter_diff(void *p, uint32_t hash, void *htp)
 {
     struct qht *ht = htp;
     QSPEntry *old = p;
@@ -583,8 +583,7 @@ static void qsp_diff(struct qht *orig, struct qht *new)
     qht_iter(orig, qsp_iter_diff, new);
 }
 
-static void
-qsp_iter_callsite_coalesce(struct qht *orig, void *p, uint32_t h, void *htp)
+static void qsp_iter_callsite_coalesce(void *p, uint32_t h, void *htp)
 {
     struct qht *ht = htp;
     QSPEntry *old = p;
@@ -603,7 +602,7 @@ qsp_iter_callsite_coalesce(struct qht *orig, void *p, uint32_t h, void *htp)
     e->n_acqs += old->n_acqs;
 }
 
-static void qsp_ht_delete(struct qht *ht, void *p, uint32_t h, void *htp)
+static void qsp_ht_delete(void *p, uint32_t h, void *htp)
 {
     g_free(p);
 }

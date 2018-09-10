@@ -98,7 +98,7 @@ static void check(int a, int b, bool expected)
     qht_statistics_destroy(&stats);
 }
 
-static void count_func(struct qht *ht, void *p, uint32_t hash, void *userp)
+static void count_func(void *p, uint32_t hash, void *userp)
 {
     unsigned int *curr = userp;
 
@@ -122,7 +122,7 @@ static void iter_check(unsigned int count)
     g_assert_cmpuint(curr, ==, count);
 }
 
-static void sum_func(struct qht *ht, void *p, uint32_t hash, void *userp)
+static void sum_func(void *p, uint32_t hash, void *userp)
 {
     uint32_t *sum = userp;
     uint32_t a = *(uint32_t *)p;
@@ -138,7 +138,7 @@ static void iter_sum_check(unsigned int expected)
     g_assert_cmpuint(sum, ==, expected);
 }
 
-static bool rm_mod_func(struct qht *ht, void *p, uint32_t hash, void *userp)
+static bool rm_mod_func(void *p, uint32_t hash, void *userp)
 {
     uint32_t a = *(uint32_t *)p;
     unsigned int mod = *(unsigned int *)userp;

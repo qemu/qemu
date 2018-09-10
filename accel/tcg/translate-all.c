@@ -1282,8 +1282,7 @@ void tb_flush(CPUState *cpu)
  */
 #ifdef CONFIG_USER_ONLY
 
-static void
-do_tb_invalidate_check(struct qht *ht, void *p, uint32_t hash, void *userp)
+static void do_tb_invalidate_check(void *p, uint32_t hash, void *userp)
 {
     TranslationBlock *tb = p;
     target_ulong addr = *(target_ulong *)userp;
@@ -1304,8 +1303,7 @@ static void tb_invalidate_check(target_ulong address)
     qht_iter(&tb_ctx.htable, do_tb_invalidate_check, &address);
 }
 
-static void
-do_tb_page_check(struct qht *ht, void *p, uint32_t hash, void *userp)
+static void do_tb_page_check(void *p, uint32_t hash, void *userp)
 {
     TranslationBlock *tb = p;
     int flags1, flags2;

@@ -746,7 +746,7 @@ bool qht_remove(struct qht *ht, const void *p, uint32_t hash)
     return ret;
 }
 
-static inline void qht_bucket_iter(struct qht *ht, struct qht_bucket *head,
+static inline void qht_bucket_iter(struct qht_bucket *head,
                                    const struct qht_iter *iter, void *userp)
 {
     struct qht_bucket *b = head;
@@ -759,10 +759,10 @@ static inline void qht_bucket_iter(struct qht *ht, struct qht_bucket *head,
             }
             switch (iter->type) {
             case QHT_ITER_VOID:
-                iter->f.retvoid(ht, b->pointers[i], b->hashes[i], userp);
+                iter->f.retvoid(b->pointers[i], b->hashes[i], userp);
                 break;
             case QHT_ITER_RM:
-                if (iter->f.retbool(ht, b->pointers[i], b->hashes[i], userp)) {
+                if (iter->f.retbool(b->pointers[i], b->hashes[i], userp)) {
                     /* replace i with the last valid element in the bucket */
                     seqlock_write_begin(&head->sequence);
                     qht_bucket_remove_entry(b, i);
@@ -782,14 +782,14 @@ static inline void qht_bucket_iter(struct qht *ht, struct qht_bucket *head,
 }
 
 /* call with all of the map's locks held */
-static inline void qht_map_iter__all_locked(struct qht *ht, struct qht_map *map,
+static inline void qht_map_iter__all_locked(struct qht_map *map,
                                             const struct qht_iter *iter,
                                             void *userp)
 {
     size_t i;
 
     for (i = 0; i < map->n_buckets; i++) {
-        qht_bucket_iter(ht, &map->buckets[i], iter, userp);
+        qht_bucket_iter(&map->buckets[i], iter, userp);
     }
 }
 
@@ -800,8 +800,7 @@ do_qht_iter(struct qht *ht, const struct qht_iter *iter, void *userp)
 
     map = atomic_rcu_read(&ht->map);
     qht_map_lock_buckets(map);
-    /* Note: ht here is merely for carrying ht->mode; ht->map won't be read */
-    qht_map_iter__all_locked(ht, map, iter, userp);
+    qht_map_iter__all_locked(map, iter, userp);
     qht_map_unlock_buckets(map);
 }
 
@@ -825,9 +824,16 @@ void qht_iter_remove(struct qht *ht, qht_iter_bool_func_t func, void *userp)
     do_qht_iter(ht, &iter, userp);
 }
 
-static void qht_map_copy(struct qht *ht, void *p, uint32_t hash, void *userp)
+struct qht_map_copy_data {
+    struct qht *ht;
+    struct qht_map *new;
+};
+
+static void qht_map_copy(void *p, uint32_t hash, void *userp)
 {
-    struct qht_map *new = userp;
+    struct qht_map_copy_data *data = userp;
+    struct qht *ht = data->ht;
+    struct qht_map *new = data->new;
     struct qht_bucket *b = qht_map_to_bucket(new, hash);
 
     /* no need to acquire b->lock because no thread has seen this map yet */
@@ -845,6 +851,7 @@ static void qht_do_resize_reset(struct qht *ht, struct qht_map *new, bool reset)
         .f.retvoid = qht_map_copy,
         .type = QHT_ITER_VOID,
     };
+    struct qht_map_copy_data data;
 
     old = ht->map;
     qht_map_lock_buckets(old);
@@ -859,7 +866,9 @@ static void qht_do_resize_reset(struct qht *ht, struct qht_map *new, bool reset)
     }
 
     g_assert(new->n_buckets != old->n_buckets);
-    qht_map_iter__all_locked(ht, old, &iter, new);
+    data.ht = ht;
+    data.new = new;
+    qht_map_iter__all_locked(old, &iter, &data);
     qht_map_debug__all_locked(new);
 
     atomic_rcu_set(&ht->map, new);
