@@ -211,7 +211,7 @@ void qht_iter_remove(struct qht *ht, qht_iter_bool_func_t func, void *userp);
  * When done with @stats, pass the struct to qht_statistics_destroy().
  * Failing to do this will leak memory.
  */
-void qht_statistics_init(struct qht *ht, struct qht_stats *stats);
+void qht_statistics_init(const struct qht *ht, struct qht_stats *stats);
 
 /**
  * qht_statistics_destroy - Destroy a &struct qht_stats
