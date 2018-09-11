@@ -99,7 +99,7 @@ static void spapr_irq_init_xics(sPAPRMachineState *spapr, Error **errp)
 
     /* Initialize the MSI IRQ allocator. */
     if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
-        spapr_irq_msi_init(spapr, XICS_IRQ_BASE + nr_irqs - SPAPR_IRQ_MSI);
+        spapr_irq_msi_init(spapr, smc->irq->nr_msis);
     }
 
     if (kvm_enabled()) {
@@ -195,8 +195,13 @@ static void spapr_irq_print_info_xics(sPAPRMachineState *spapr, Monitor *mon)
     ics_pic_print_info(spapr->ics, mon);
 }
 
+#define SPAPR_IRQ_XICS_NR_IRQS     0x400
+#define SPAPR_IRQ_XICS_NR_MSIS     \
+    (XICS_IRQ_BASE + SPAPR_IRQ_XICS_NR_IRQS - SPAPR_IRQ_MSI)
+
 sPAPRIrq spapr_irq_xics = {
-    .nr_irqs     = XICS_IRQS_SPAPR,
+    .nr_irqs     = SPAPR_IRQ_XICS_NR_IRQS,
+    .nr_msis     = SPAPR_IRQ_XICS_NR_MSIS,
 
     .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,

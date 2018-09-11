@@ -31,6 +31,7 @@ void spapr_irq_msi_reset(sPAPRMachineState *spapr);
 
 typedef struct sPAPRIrq {
     uint32_t    nr_irqs;
+    uint32_t    nr_msis;
 
     void (*init)(sPAPRMachineState *spapr, Error **errp);
     int (*claim)(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp);
