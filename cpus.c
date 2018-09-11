@@ -245,21 +245,27 @@ static int64_t cpu_get_icount_executed(CPUState *cpu)
  * account executed instructions. This is done by the TCG vCPU
  * thread so the main-loop can see time has moved forward.
  */
-void cpu_update_icount(CPUState *cpu)
+static void cpu_update_icount_locked(CPUState *cpu)
 {
     int64_t executed = cpu_get_icount_executed(cpu);
     cpu->icount_budget -= executed;
 
-#ifndef CONFIG_ATOMIC64
-    seqlock_write_lock(&timers_state.vm_clock_seqlock,
-                       &timers_state.vm_clock_lock);
-#endif
     atomic_set__nocheck(&timers_state.qemu_icount,
                         timers_state.qemu_icount + executed);
-#ifndef CONFIG_ATOMIC64
+}
+
+/*
+ * Update the global shared timer_state.qemu_icount to take into
+ * account executed instructions. This is done by the TCG vCPU
+ * thread so the main-loop can see time has moved forward.
+ */
+void cpu_update_icount(CPUState *cpu)
+{
+    seqlock_write_lock(&timers_state.vm_clock_seqlock,
+                       &timers_state.vm_clock_lock);
+    cpu_update_icount_locked(cpu);
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                          &timers_state.vm_clock_lock);
-#endif
 }
 
 static int64_t cpu_get_icount_raw_locked(void)
@@ -272,7 +278,7 @@ static int64_t cpu_get_icount_raw_locked(void)
             exit(1);
         }
         /* Take into account what has run */
-        cpu_update_icount(cpu);
+        cpu_update_icount_locked(cpu);
     }
     /* The read is protected by the seqlock, so __nocheck is okay.  */
     return atomic_read__nocheck(&timers_state.qemu_icount);
