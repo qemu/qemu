@@ -41,6 +41,7 @@ typedef struct sPAPRIrq {
 } sPAPRIrq;
 
 extern sPAPRIrq spapr_irq_xics;
+extern sPAPRIrq spapr_irq_xics_legacy;
 
 int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp);
 void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num);
