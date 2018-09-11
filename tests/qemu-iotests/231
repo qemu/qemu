@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+# Test legacy and modern option parsing for rbd/ceph.  This will not
+# actually connect to a ceph server, but rather looks for the appropriate
+# error message that indicates we parsed the options correctly.
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=jcody@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+status=1	# failure is the default!
+
+_cleanup()
+{
+    rm "${BOGUS_CONF}"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt generic
+_supported_proto rbd
+_supported_os Linux
+
+BOGUS_CONF=${TEST_DIR}/ceph-$$.conf
+touch "${BOGUS_CONF}"
+
+_filter_conf()
+{
+    sed -e "s#$BOGUS_CONF#BOGUS_CONF#g"
+}
+
+# We expect this to fail, with no monitor ip provided and a null conf file.  Just want it
+# to fail in the right way.
+$QEMU_IMG info "json:{'file.driver':'rbd','file.filename':'rbd:rbd/bogus:conf=${BOGUS_CONF}'}" 2>&1 | _filter_conf
+$QEMU_IMG info "json:{'file.driver':'rbd','file.pool':'rbd','file.image':'bogus','file.conf':'${BOGUS_CONF}'}" 2>&1 | _filter_conf
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
