@@ -2288,7 +2288,7 @@ static void translate_s32c1i(DisasContext *dc, const uint32_t arg[],
         gen_load_store_alignment(dc, 2, addr, true);
         gen_check_atomctl(dc, addr);
         tcg_gen_atomic_cmpxchg_i32(cpu_R[arg[0]], addr, cpu_SR[SCOMPARE1],
-                                   tmp, dc->cring, MO_32);
+                                   tmp, dc->cring, MO_TEUL);
         tcg_temp_free(addr);
         tcg_temp_free(tmp);
     }
