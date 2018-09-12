@@ -58,7 +58,12 @@ typedef struct PCTestdev {
 #define TESTDEV(obj) \
      OBJECT_CHECK(PCTestdev, (obj), TYPE_TESTDEV)
 
-static void test_irq_line(void *opaque, hwaddr addr, uint64_t data,
+static uint64_t test_irq_line_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void test_irq_line_write(void *opaque, hwaddr addr, uint64_t data,
                           unsigned len)
 {
     PCTestdev *dev = opaque;
@@ -68,7 +73,8 @@ static void test_irq_line(void *opaque, hwaddr addr, uint64_t data,
 }
 
 static const MemoryRegionOps test_irq_ops = {
-    .write = test_irq_line,
+    .read = test_irq_line_read,
+    .write = test_irq_line_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 1,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -110,7 +116,12 @@ static const MemoryRegionOps test_ioport_byte_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void test_flush_page(void *opaque, hwaddr addr, uint64_t data,
+static uint64_t test_flush_page_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void test_flush_page_write(void *opaque, hwaddr addr, uint64_t data,
                             unsigned len)
 {
     hwaddr page = 4096;
@@ -126,7 +137,8 @@ static void test_flush_page(void *opaque, hwaddr addr, uint64_t data,
 }
 
 static const MemoryRegionOps test_flush_ops = {
-    .write = test_flush_page,
+    .read = test_flush_page_read,
+    .write = test_flush_page_write,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,
