@@ -847,7 +847,11 @@ static void job_completed(Job *job)
 static void job_exit(void *opaque)
 {
     Job *job = (Job *)opaque;
+    AioContext *ctx = job->aio_context;
+
+    aio_context_acquire(ctx);
     job_completed(job);
+    aio_context_release(ctx);
 }
 
 /**
