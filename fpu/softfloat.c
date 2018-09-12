@@ -1409,13 +1409,6 @@ float64 float64_round_to_int(float64 a, float_status *s)
     return float64_round_pack_canonical(pr, s);
 }
 
-float64 float64_trunc_to_int(float64 a, float_status *s)
-{
-    FloatParts pa = float64_unpack_canonical(a, s);
-    FloatParts pr = round_to_int(pa, float_round_to_zero, 0, s);
-    return float64_round_pack_canonical(pr, s);
-}
-
 /*
  * Returns the result of converting the floating-point value `a' to
  * the two's complement integer format. The conversion is performed
