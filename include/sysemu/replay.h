@@ -120,6 +120,9 @@ void replay_shutdown_request(ShutdownCause cause);
     Returns 0 in PLAY mode if checkpoint was not found.
     Returns 1 in all other cases. */
 bool replay_checkpoint(ReplayCheckpoint checkpoint);
+/*! Used to determine that checkpoint is pending.
+    Does not proceed to the next event in the log. */
+bool replay_has_checkpoint(void);
 
 /* Asynchronous events queue */
 

@@ -583,18 +583,29 @@ void qemu_start_warp_timer(void)
         return;
     }
 
-    /* warp clock deterministically in record/replay mode */
-    if (!replay_checkpoint(CHECKPOINT_CLOCK_WARP_START)) {
-        return;
-    }
+    if (replay_mode != REPLAY_MODE_PLAY) {
+        if (!all_cpu_threads_idle()) {
+            return;
+        }
 
-    if (!all_cpu_threads_idle()) {
-        return;
-    }
+        if (qtest_enabled()) {
+            /* When testing, qtest commands advance icount.  */
+            return;
+        }
 
-    if (qtest_enabled()) {
-        /* When testing, qtest commands advance icount.  */
-        return;
+        replay_checkpoint(CHECKPOINT_CLOCK_WARP_START);
+    } else {
+        /* warp clock deterministically in record/replay mode */
+        if (!replay_checkpoint(CHECKPOINT_CLOCK_WARP_START)) {
+            /* vCPU is sleeping and warp can't be started.
+               It is probably a race condition: notification sent
+               to vCPU was processed in advance and vCPU went to sleep.
+               Therefore we have to wake it up for doing someting. */
+            if (replay_has_checkpoint()) {
+                qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+            }
+            return;
+        }
     }
 
     /* We want to use the earliest deadline from ALL vm_clocks */
