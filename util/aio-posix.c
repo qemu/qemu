@@ -211,6 +211,7 @@ void aio_set_fd_handler(AioContext *ctx,
     AioHandler *node;
     bool is_new = false;
     bool deleted = false;
+    int poll_disable_change;
 
     qemu_lockcnt_lock(&ctx->list_lock);
 
@@ -244,11 +245,9 @@ void aio_set_fd_handler(AioContext *ctx,
             QLIST_REMOVE(node, node);
             deleted = true;
         }
-
-        if (!node->io_poll) {
-            ctx->poll_disable_cnt--;
-        }
+        poll_disable_change = -!node->io_poll;
     } else {
+        poll_disable_change = !io_poll - (node && !node->io_poll);
         if (node == NULL) {
             /* Alloc and insert if it's not already there */
             node = g_new0(AioHandler, 1);
@@ -257,10 +256,6 @@ void aio_set_fd_handler(AioContext *ctx,
 
             g_source_add_poll(&ctx->source, &node->pfd);
             is_new = true;
-
-            ctx->poll_disable_cnt += !io_poll;
-        } else {
-            ctx->poll_disable_cnt += !io_poll - !node->io_poll;
         }
 
         /* Update handler with latest information */
@@ -273,6 +268,15 @@ void aio_set_fd_handler(AioContext *ctx,
         node->pfd.events = (io_read ? G_IO_IN | G_IO_HUP | G_IO_ERR : 0);
         node->pfd.events |= (io_write ? G_IO_OUT | G_IO_ERR : 0);
     }
+
+    /* No need to order poll_disable_cnt writes against other updates;
+     * the counter is only used to avoid wasting time and latency on
+     * iterated polling when the system call will be ultimately necessary.
+     * Changing handlers is a rare event, and a little wasted polling until
+     * the aio_notify below is not an issue.
+     */
+    atomic_set(&ctx->poll_disable_cnt,
+               atomic_read(&ctx->poll_disable_cnt) + poll_disable_change);
 
     aio_epoll_update(ctx, node, is_new);
     qemu_lockcnt_unlock(&ctx->list_lock);
@@ -525,7 +529,6 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns)
 
     assert(ctx->notify_me);
     assert(qemu_lockcnt_count(&ctx->list_lock) > 0);
-    assert(ctx->poll_disable_cnt == 0);
 
     trace_run_poll_handlers_begin(ctx, max_ns);
 
@@ -533,7 +536,8 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns)
 
     do {
         progress = run_poll_handlers_once(ctx);
-    } while (!progress && qemu_clock_get_ns(QEMU_CLOCK_REALTIME) < end_time);
+    } while (!progress && qemu_clock_get_ns(QEMU_CLOCK_REALTIME) < end_time
+             && !atomic_read(&ctx->poll_disable_cnt));
 
     trace_run_poll_handlers_end(ctx, progress);
 
@@ -552,7 +556,7 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns)
  */
 static bool try_poll_mode(AioContext *ctx, bool blocking)
 {
-    if (blocking && ctx->poll_max_ns && ctx->poll_disable_cnt == 0) {
+    if (blocking && ctx->poll_max_ns && !atomic_read(&ctx->poll_disable_cnt)) {
         /* See qemu_soonest_timeout() uint64_t hack */
         int64_t max_ns = MIN((uint64_t)aio_compute_timeout(ctx),
                              (uint64_t)ctx->poll_ns);
