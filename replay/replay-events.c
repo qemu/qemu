@@ -94,18 +94,6 @@ void replay_disable_events(void)
     }
 }
 
-void replay_clear_events(void)
-{
-    g_assert(replay_mutex_locked());
-
-    while (!QTAILQ_EMPTY(&events_list)) {
-        Event *event = QTAILQ_FIRST(&events_list);
-        QTAILQ_REMOVE(&events_list, event, events);
-
-        g_free(event);
-    }
-}
-
 /*! Adds specified async event to the queue */
 void replay_add_event(ReplayAsyncEventKind event_kind,
                       void *opaque,
@@ -308,7 +296,7 @@ void replay_init_events(void)
 void replay_finish_events(void)
 {
     events_enabled = false;
-    replay_clear_events();
+    replay_flush_events();
 }
 
 bool replay_events_enabled(void)
