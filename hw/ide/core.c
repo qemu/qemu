@@ -35,6 +35,7 @@
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
+#include "sysemu/replay.h"
 
 #include "hw/ide/internal.h"
 #include "trace.h"
@@ -479,7 +480,7 @@ static void ide_issue_trim_cb(void *opaque, int ret)
 done:
     iocb->aiocb = NULL;
     if (iocb->bh) {
-        qemu_bh_schedule(iocb->bh);
+        replay_bh_schedule_event(iocb->bh);
     }
 }
 
