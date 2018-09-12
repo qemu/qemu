@@ -32,6 +32,14 @@ GlobalProperty hw_compat_3_1[] = {
         .driver   = "pcie-root-port",
         .property = "x-width",
         .value    = "1",
+    },{
+        .driver   = "memory-backend-file",
+        .property = "x-use-canonical-path-for-ramblock-id",
+        .value    = "true",
+    },{
+        .driver   = "memory-backend-memfd",
+        .property = "x-use-canonical-path-for-ramblock-id",
+        .value    = "true",
     },
 };
 const size_t hw_compat_3_1_len = G_N_ELEMENTS(hw_compat_3_1);

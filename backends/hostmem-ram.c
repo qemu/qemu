@@ -16,21 +16,20 @@
 
 #define TYPE_MEMORY_BACKEND_RAM "memory-backend-ram"
 
-
 static void
 ram_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
 {
-    char *path;
+    char *name;
 
     if (!backend->size) {
         error_setg(errp, "can't create backend with size 0");
         return;
     }
 
-    path = object_get_canonical_path_component(OBJECT(backend));
-    memory_region_init_ram_shared_nomigrate(&backend->mr, OBJECT(backend), path,
+    name = host_memory_backend_get_name(backend);
+    memory_region_init_ram_shared_nomigrate(&backend->mr, OBJECT(backend), name,
                            backend->size, backend->share, errp);
-    g_free(path);
+    g_free(name);
 }
 
 static void
