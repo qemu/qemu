@@ -1,8 +1,8 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
 # util/aio-posix.c
-run_poll_handlers_begin(void *ctx, int64_t max_ns) "ctx %p max_ns %"PRId64
-run_poll_handlers_end(void *ctx, bool progress) "ctx %p progress %d"
+run_poll_handlers_begin(void *ctx, int64_t max_ns, int64_t timeout) "ctx %p max_ns %"PRId64 " timeout %"PRId64
+run_poll_handlers_end(void *ctx, bool progress, int64_t timeout) "ctx %p progress %d new timeout %"PRId64
 poll_shrink(void *ctx, int64_t old, int64_t new) "ctx %p old %"PRId64" new %"PRId64
 poll_grow(void *ctx, int64_t old, int64_t new) "ctx %p old %"PRId64" new %"PRId64
 
