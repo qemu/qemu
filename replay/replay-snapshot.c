@@ -33,11 +33,18 @@ static int replay_pre_save(void *opaque)
 static int replay_post_load(void *opaque, int version_id)
 {
     ReplayState *state = opaque;
-    fseek(replay_file, state->file_offset, SEEK_SET);
-    qemu_clock_set_last(QEMU_CLOCK_HOST, state->host_clock_last);
-    /* If this was a vmstate, saved in recording mode,
-       we need to initialize replay data fields. */
-    replay_fetch_data_kind();
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        fseek(replay_file, state->file_offset, SEEK_SET);
+        qemu_clock_set_last(QEMU_CLOCK_HOST, state->host_clock_last);
+        /* If this was a vmstate, saved in recording mode,
+           we need to initialize replay data fields. */
+        replay_fetch_data_kind();
+    } else if (replay_mode == REPLAY_MODE_RECORD) {
+        /* This is only useful for loading the initial state.
+           Therefore reset all the counters. */
+        state->instructions_count = 0;
+        state->block_request_id = 0;
+    }
 
     return 0;
 }
