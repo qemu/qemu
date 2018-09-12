@@ -191,6 +191,10 @@ static void usb_hub_detach(USBPort *port1)
         port->wPortStatus &= ~PORT_STAT_ENABLE;
         port->wPortChange |= PORT_STAT_C_ENABLE;
     }
+    if (port->wPortStatus & PORT_STAT_SUSPEND) {
+        port->wPortStatus &= ~PORT_STAT_SUSPEND;
+        port->wPortChange |= PORT_STAT_C_SUSPEND;
+    }
     usb_wakeup(s->intr, 0);
 }
 
