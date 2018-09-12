@@ -498,10 +498,11 @@ static bool run_poll_handlers_once(AioContext *ctx, int64_t *timeout)
     QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
         if (!node->deleted && node->io_poll &&
             aio_node_check(ctx, node->is_external) &&
-            node->io_poll(node->opaque) &&
-            node->opaque != &ctx->notifier) {
+            node->io_poll(node->opaque)) {
             *timeout = 0;
-            progress = true;
+            if (node->opaque != &ctx->notifier) {
+                progress = true;
+            }
         }
 
         /* Caller handles freeing deleted nodes.  Don't do it here. */
