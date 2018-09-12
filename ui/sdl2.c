@@ -806,7 +806,8 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
     for (i = 0; i < sdl2_num_outputs; i++) {
         QemuConsole *con = qemu_console_lookup_by_index(i);
         assert(con != NULL);
-        if (!qemu_console_is_graphic(con)) {
+        if (!qemu_console_is_graphic(con) &&
+            qemu_console_get_index(con) != 0) {
             sdl2_console[i].hidden = true;
         }
         sdl2_console[i].idx = i;
