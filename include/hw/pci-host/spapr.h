@@ -113,9 +113,8 @@ static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
 
 PCIHostState *spapr_create_phb(sPAPRMachineState *spapr, int index);
 
-int spapr_populate_pci_dt(sPAPRPHBState *phb,
-                          uint32_t xics_phandle,
-                          void *fdt);
+int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t xics_phandle, void *fdt,
+                          uint32_t nr_msis);
 
 void spapr_pci_rtas_init(void);
 

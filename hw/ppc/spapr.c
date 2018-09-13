@@ -1267,7 +1267,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     }
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt);
+        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt, smc->irq->nr_msis);
         if (ret < 0) {
             error_report("couldn't setup PCI devices in fdt");
             exit(1);
