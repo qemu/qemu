@@ -784,6 +784,8 @@ static void test_iothread_drain_subtree(void)
 
 typedef struct TestBlockJob {
     BlockJob common;
+    int run_ret;
+    int prepare_ret;
     bool should_complete;
 } TestBlockJob;
 
@@ -793,7 +795,23 @@ static int test_job_prepare(Job *job)
 
     /* Provoke an AIO_WAIT_WHILE() call to verify there is no deadlock */
     blk_flush(s->common.blk);
-    return 0;
+    return s->prepare_ret;
+}
+
+static void test_job_commit(Job *job)
+{
+    TestBlockJob *s = container_of(job, TestBlockJob, common.job);
+
+    /* Provoke an AIO_WAIT_WHILE() call to verify there is no deadlock */
+    blk_flush(s->common.blk);
+}
+
+static void test_job_abort(Job *job)
+{
+    TestBlockJob *s = container_of(job, TestBlockJob, common.job);
+
+    /* Provoke an AIO_WAIT_WHILE() call to verify there is no deadlock */
+    blk_flush(s->common.blk);
 }
 
 static int coroutine_fn test_job_run(Job *job, Error **errp)
@@ -809,7 +827,7 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
         job_pause_point(&s->common.job);
     }
 
-    return 0;
+    return s->run_ret;
 }
 
 static void test_job_complete(Job *job, Error **errp)
@@ -827,14 +845,24 @@ BlockJobDriver test_job_driver = {
         .run            = test_job_run,
         .complete       = test_job_complete,
         .prepare        = test_job_prepare,
+        .commit         = test_job_commit,
+        .abort          = test_job_abort,
     },
 };
 
-static void test_blockjob_common(enum drain_type drain_type, bool use_iothread)
+enum test_job_result {
+    TEST_JOB_SUCCESS,
+    TEST_JOB_FAIL_RUN,
+    TEST_JOB_FAIL_PREPARE,
+};
+
+static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
+                                 enum test_job_result result)
 {
     BlockBackend *blk_src, *blk_target;
     BlockDriverState *src, *target;
     BlockJob *job;
+    TestBlockJob *tjob;
     IOThread *iothread = NULL;
     AioContext *ctx;
     int ret;
@@ -858,9 +886,23 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread)
     blk_insert_bs(blk_target, target, &error_abort);
 
     aio_context_acquire(ctx);
-    job = block_job_create("job0", &test_job_driver, NULL, src, 0, BLK_PERM_ALL,
-                           0, 0, NULL, NULL, &error_abort);
+    tjob = block_job_create("job0", &test_job_driver, NULL, src,
+                            0, BLK_PERM_ALL,
+                            0, 0, NULL, NULL, &error_abort);
+    job = &tjob->common;
     block_job_add_bdrv(job, "target", target, 0, BLK_PERM_ALL, &error_abort);
+
+    switch (result) {
+    case TEST_JOB_SUCCESS:
+        break;
+    case TEST_JOB_FAIL_RUN:
+        tjob->run_ret = -EIO;
+        break;
+    case TEST_JOB_FAIL_PREPARE:
+        tjob->prepare_ret = -EIO;
+        break;
+    }
+
     job_start(&job->job);
     aio_context_release(ctx);
 
@@ -918,7 +960,7 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread)
 
     aio_context_acquire(ctx);
     ret = job_complete_sync(&job->job, &error_abort);
-    g_assert_cmpint(ret, ==, 0);
+    g_assert_cmpint(ret, ==, (result == TEST_JOB_SUCCESS ? 0 : -EIO));
 
     if (use_iothread) {
         blk_set_aio_context(blk_src, qemu_get_aio_context());
@@ -937,32 +979,68 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread)
 
 static void test_blockjob_drain_all(void)
 {
-    test_blockjob_common(BDRV_DRAIN_ALL, false);
+    test_blockjob_common(BDRV_DRAIN_ALL, false, TEST_JOB_SUCCESS);
 }
 
 static void test_blockjob_drain(void)
 {
-    test_blockjob_common(BDRV_DRAIN, false);
+    test_blockjob_common(BDRV_DRAIN, false, TEST_JOB_SUCCESS);
 }
 
 static void test_blockjob_drain_subtree(void)
 {
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, false);
+    test_blockjob_common(BDRV_SUBTREE_DRAIN, false, TEST_JOB_SUCCESS);
+}
+
+static void test_blockjob_error_drain_all(void)
+{
+    test_blockjob_common(BDRV_DRAIN_ALL, false, TEST_JOB_FAIL_RUN);
+    test_blockjob_common(BDRV_DRAIN_ALL, false, TEST_JOB_FAIL_PREPARE);
+}
+
+static void test_blockjob_error_drain(void)
+{
+    test_blockjob_common(BDRV_DRAIN, false, TEST_JOB_FAIL_RUN);
+    test_blockjob_common(BDRV_DRAIN, false, TEST_JOB_FAIL_PREPARE);
+}
+
+static void test_blockjob_error_drain_subtree(void)
+{
+    test_blockjob_common(BDRV_SUBTREE_DRAIN, false, TEST_JOB_FAIL_RUN);
+    test_blockjob_common(BDRV_SUBTREE_DRAIN, false, TEST_JOB_FAIL_PREPARE);
 }
 
 static void test_blockjob_iothread_drain_all(void)
 {
-    test_blockjob_common(BDRV_DRAIN_ALL, true);
+    test_blockjob_common(BDRV_DRAIN_ALL, true, TEST_JOB_SUCCESS);
 }
 
 static void test_blockjob_iothread_drain(void)
 {
-    test_blockjob_common(BDRV_DRAIN, true);
+    test_blockjob_common(BDRV_DRAIN, true, TEST_JOB_SUCCESS);
 }
 
 static void test_blockjob_iothread_drain_subtree(void)
 {
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, true);
+    test_blockjob_common(BDRV_SUBTREE_DRAIN, true, TEST_JOB_SUCCESS);
+}
+
+static void test_blockjob_iothread_error_drain_all(void)
+{
+    test_blockjob_common(BDRV_DRAIN_ALL, true, TEST_JOB_FAIL_RUN);
+    test_blockjob_common(BDRV_DRAIN_ALL, true, TEST_JOB_FAIL_PREPARE);
+}
+
+static void test_blockjob_iothread_error_drain(void)
+{
+    test_blockjob_common(BDRV_DRAIN, true, TEST_JOB_FAIL_RUN);
+    test_blockjob_common(BDRV_DRAIN, true, TEST_JOB_FAIL_PREPARE);
+}
+
+static void test_blockjob_iothread_error_drain_subtree(void)
+{
+    test_blockjob_common(BDRV_SUBTREE_DRAIN, true, TEST_JOB_FAIL_RUN);
+    test_blockjob_common(BDRV_SUBTREE_DRAIN, true, TEST_JOB_FAIL_PREPARE);
 }
 
 
@@ -1434,12 +1512,26 @@ int main(int argc, char **argv)
     g_test_add_func("/bdrv-drain/blockjob/drain_subtree",
                     test_blockjob_drain_subtree);
 
+    g_test_add_func("/bdrv-drain/blockjob/error/drain_all",
+                    test_blockjob_error_drain_all);
+    g_test_add_func("/bdrv-drain/blockjob/error/drain",
+                    test_blockjob_error_drain);
+    g_test_add_func("/bdrv-drain/blockjob/error/drain_subtree",
+                    test_blockjob_error_drain_subtree);
+
     g_test_add_func("/bdrv-drain/blockjob/iothread/drain_all",
                     test_blockjob_iothread_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/iothread/drain",
                     test_blockjob_iothread_drain);
     g_test_add_func("/bdrv-drain/blockjob/iothread/drain_subtree",
                     test_blockjob_iothread_drain_subtree);
+
+    g_test_add_func("/bdrv-drain/blockjob/iothread/error/drain_all",
+                    test_blockjob_iothread_error_drain_all);
+    g_test_add_func("/bdrv-drain/blockjob/iothread/error/drain",
+                    test_blockjob_iothread_error_drain);
+    g_test_add_func("/bdrv-drain/blockjob/iothread/error/drain_subtree",
+                    test_blockjob_iothread_error_drain_subtree);
 
     g_test_add_func("/bdrv-drain/deletion/drain", test_delete_by_drain);
     g_test_add_func("/bdrv-drain/detach/drain_all", test_detach_by_drain_all);
