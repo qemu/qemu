@@ -10,7 +10,7 @@
  * Returns the size of the image file on success, -1 otherwise.
  * On error, errno is also set as appropriate.
  */
-int get_image_size(const char *filename);
+int64_t get_image_size(const char *filename);
 int load_image(const char *filename, uint8_t *addr); /* deprecated */
 ssize_t load_image_size(const char *filename, void *addr, size_t size);
 

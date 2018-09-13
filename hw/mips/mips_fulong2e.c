@@ -104,9 +104,9 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t* prom_buf, int index,
 
 static int64_t load_kernel (CPUMIPSState *env)
 {
-    int64_t kernel_entry, kernel_low, kernel_high;
+    int64_t kernel_entry, kernel_low, kernel_high, initrd_size;
     int index = 0;
-    long kernel_size, initrd_size;
+    long kernel_size;
     ram_addr_t initrd_offset;
     uint32_t *prom_buf;
     long prom_size;
@@ -150,7 +150,7 @@ static int64_t load_kernel (CPUMIPSState *env)
 
     prom_set(prom_buf, index++, "%s", loaderparams.kernel_filename);
     if (initrd_size > 0) {
-        prom_set(prom_buf, index++, "rd_start=0x%" PRIx64 " rd_size=%li %s",
+        prom_set(prom_buf, index++, "rd_start=0x%" PRIx64 " rd_size=%" PRId64 " %s",
                  cpu_mips_phys_to_kseg0(NULL, initrd_offset), initrd_size,
                  loaderparams.kernel_cmdline);
     } else {
