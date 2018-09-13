@@ -718,6 +718,7 @@ static void job_cancel_async(Job *job, bool force)
 
 static void job_completed_txn_abort(Job *job)
 {
+    AioContext *outer_ctx = job->aio_context;
     AioContext *ctx;
     JobTxn *txn = job->txn;
     Job *other_job;
@@ -731,23 +732,26 @@ static void job_completed_txn_abort(Job *job)
     txn->aborting = true;
     job_txn_ref(txn);
 
-    /* We are the first failed job. Cancel other jobs. */
-    QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
-        ctx = other_job->aio_context;
-        aio_context_acquire(ctx);
-    }
+    /* We can only hold the single job's AioContext lock while calling
+     * job_finalize_single() because the finalization callbacks can involve
+     * calls of AIO_WAIT_WHILE(), which could deadlock otherwise. */
+    aio_context_release(outer_ctx);
 
     /* Other jobs are effectively cancelled by us, set the status for
      * them; this job, however, may or may not be cancelled, depending
      * on the caller, so leave it. */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
         if (other_job != job) {
+            ctx = other_job->aio_context;
+            aio_context_acquire(ctx);
             job_cancel_async(other_job, false);
+            aio_context_release(ctx);
         }
     }
     while (!QLIST_EMPTY(&txn->jobs)) {
         other_job = QLIST_FIRST(&txn->jobs);
         ctx = other_job->aio_context;
+        aio_context_acquire(ctx);
         if (!job_is_completed(other_job)) {
             assert(job_is_cancelled(other_job));
             job_finish_sync(other_job, NULL, NULL);
@@ -755,6 +759,8 @@ static void job_completed_txn_abort(Job *job)
         job_finalize_single(other_job);
         aio_context_release(ctx);
     }
+
+    aio_context_acquire(outer_ctx);
 
     job_txn_unref(txn);
 }
