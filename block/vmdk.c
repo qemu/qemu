@@ -1698,6 +1698,27 @@ static int coroutine_fn
 vmdk_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
                            uint64_t bytes, QEMUIOVector *qiov)
 {
+    if (bytes == 0) {
+        /* The caller will write bytes 0 to signal EOF.
+         * When receive it, we align EOF to a sector boundary. */
+        BDRVVmdkState *s = bs->opaque;
+        int i, ret;
+        int64_t length;
+
+        for (i = 0; i < s->num_extents; i++) {
+            length = bdrv_getlength(s->extents[i].file->bs);
+            if (length < 0) {
+                return length;
+            }
+            length = QEMU_ALIGN_UP(length, BDRV_SECTOR_SIZE);
+            ret = bdrv_truncate(s->extents[i].file, length,
+                                PREALLOC_MODE_OFF, NULL);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+        return 0;
+    }
     return vmdk_co_pwritev(bs, offset, bytes, qiov, 0);
 }
 
