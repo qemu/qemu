@@ -3396,7 +3396,7 @@ DEF("xen-domid", HAS_ARG, QEMU_OPTION_xen_domid,
     "-xen-domid id   specify xen guest domain id\n", QEMU_ARCH_ALL)
 DEF("xen-attach", 0, QEMU_OPTION_xen_attach,
     "-xen-attach     attach to existing xen domain\n"
-    "                xend will use this when starting QEMU\n",
+    "                libxl will use this when starting QEMU\n",
     QEMU_ARCH_ALL)
 DEF("xen-domid-restrict", 0, QEMU_OPTION_xen_domid_restrict,
     "-xen-domid-restrict     restrict set of available xen operations\n"
@@ -3410,7 +3410,7 @@ Specify xen guest domain @var{id} (XEN only).
 @item -xen-attach
 @findex -xen-attach
 Attach to existing xen domain.
-xend will use this when starting QEMU (XEN only).
+libxl will use this when starting QEMU (XEN only).
 @findex -xen-domid-restrict
 Restrict set of available xen operations to specified domain id (XEN only).
 ETEXI

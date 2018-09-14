@@ -43,7 +43,7 @@ static void xen_init_pv(MachineState *machine)
 
     switch (xen_mode) {
     case XEN_ATTACH:
-        /* nothing to do, xend handles everything */
+        /* nothing to do, libxl handles everything */
         break;
     case XEN_EMULATE:
         error_report("xen emulation not implemented (yet)");

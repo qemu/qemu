@@ -15,7 +15,7 @@
 /* xen-machine.c */
 enum xen_mode {
     XEN_EMULATE = 0,  // xen emulation, using xenner (default)
-    XEN_ATTACH        // attach to xen domain created by xend
+    XEN_ATTACH        // attach to xen domain created by libxl
 };
 
 extern uint32_t xen_domid;
