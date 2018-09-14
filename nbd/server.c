@@ -1951,6 +1951,8 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
 
     assert(begin < overall_end && nb_extents);
     while (begin < overall_end && i < nb_extents) {
+        bool next_dirty = !dirty;
+
         if (dirty) {
             end = bdrv_dirty_bitmap_next_zero(bitmap, begin);
         } else {
@@ -1962,6 +1964,7 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
             end = MIN(bdrv_dirty_bitmap_size(bitmap),
                       begin + UINT32_MAX + 1 -
                       bdrv_dirty_bitmap_granularity(bitmap));
+            next_dirty = dirty;
         }
         if (dont_fragment && end > overall_end) {
             end = overall_end;
@@ -1971,7 +1974,7 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
         extents[i].flags = cpu_to_be32(dirty ? NBD_STATE_DIRTY : 0);
         i++;
         begin = end;
-        dirty = !dirty;
+        dirty = next_dirty;
     }
 
     bdrv_dirty_iter_free(it);
