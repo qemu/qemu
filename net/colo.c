@@ -137,7 +137,7 @@ Connection *connection_new(ConnectionKey *key)
     conn->ip_proto = key->ip_proto;
     conn->processing = false;
     conn->offset = 0;
-    conn->syn_flag = 0;
+    conn->tcp_state = TCPS_CLOSED;
     conn->pack = 0;
     conn->sack = 0;
     g_queue_init(&conn->primary_list);

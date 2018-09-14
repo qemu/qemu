@@ -18,6 +18,7 @@
 #include "slirp/slirp.h"
 #include "qemu/jhash.h"
 #include "qemu/timer.h"
+#include "slirp/tcp.h"
 
 #define HASHTABLE_MAX_SIZE 16384
 
@@ -81,11 +82,9 @@ typedef struct Connection {
     uint32_t sack;
     /* offset = secondary_seq - primary_seq */
     tcp_seq  offset;
-    /*
-     * we use this flag update offset func
-     * run once in independent tcp connection
-     */
-    int syn_flag;
+
+    int tcp_state; /* TCP FSM state */
+    tcp_seq fin_ack_seq; /* the seq of 'fin=1,ack=1' */
 } Connection;
 
 uint32_t connection_key_hash(const void *opaque);

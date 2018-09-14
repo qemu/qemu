@@ -59,9 +59,9 @@ static int is_tcp_packet(Packet *pkt)
 }
 
 /* handle tcp packet from primary guest */
-static int handle_primary_tcp_pkt(NetFilterState *nf,
+static int handle_primary_tcp_pkt(RewriterState *rf,
                                   Connection *conn,
-                                  Packet *pkt)
+                                  Packet *pkt, ConnectionKey *key)
 {
     struct tcphdr *tcp_pkt;
 
@@ -74,23 +74,28 @@ static int handle_primary_tcp_pkt(NetFilterState *nf,
         trace_colo_filter_rewriter_conn_offset(conn->offset);
     }
 
+    if (((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN)) &&
+        conn->tcp_state == TCPS_SYN_SENT) {
+        conn->tcp_state = TCPS_ESTABLISHED;
+    }
+
     if (((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == TH_SYN)) {
         /*
          * we use this flag update offset func
          * run once in independent tcp connection
          */
-        conn->syn_flag = 1;
+        conn->tcp_state = TCPS_SYN_RECEIVED;
     }
 
     if (((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == TH_ACK)) {
-        if (conn->syn_flag) {
+        if (conn->tcp_state == TCPS_SYN_RECEIVED) {
             /*
              * offset = secondary_seq - primary seq
              * ack packet sent by guest from primary node,
              * so we use th_ack - 1 get primary_seq
              */
             conn->offset -= (ntohl(tcp_pkt->th_ack) - 1);
-            conn->syn_flag = 0;
+            conn->tcp_state = TCPS_ESTABLISHED;
         }
         if (conn->offset) {
             /* handle packets to the secondary from the primary */
@@ -99,15 +104,66 @@ static int handle_primary_tcp_pkt(NetFilterState *nf,
             net_checksum_calculate((uint8_t *)pkt->data + pkt->vnet_hdr_len,
                                    pkt->size - pkt->vnet_hdr_len);
         }
+
+        /*
+         * Passive close step 3
+         */
+        if ((conn->tcp_state == TCPS_LAST_ACK) &&
+            (ntohl(tcp_pkt->th_ack) == (conn->fin_ack_seq + 1))) {
+            conn->tcp_state = TCPS_CLOSED;
+            g_hash_table_remove(rf->connection_track_table, key);
+        }
+    }
+
+    if ((tcp_pkt->th_flags & TH_FIN) == TH_FIN) {
+        /*
+         * Passive close.
+         * Step 1:
+         * The *server* side of this connect is VM, *client* tries to close
+         * the connection. We will into CLOSE_WAIT status.
+         *
+         * Step 2:
+         * In this step we will into LAST_ACK status.
+         *
+         * We got 'fin=1, ack=1' packet from server side, we need to
+         * record the seq of 'fin=1, ack=1' packet.
+         *
+         * Step 3:
+         * We got 'ack=1' packets from client side, it acks 'fin=1, ack=1'
+         * packet from server side. From this point, we can ensure that there
+         * will be no packets in the connection, except that, some errors
+         * happen between the path of 'filter object' and vNIC, if this rare
+         * case really happen, we can still create a new connection,
+         * So it is safe to remove the connection from connection_track_table.
+         *
+         */
+        if (conn->tcp_state == TCPS_ESTABLISHED) {
+            conn->tcp_state = TCPS_CLOSE_WAIT;
+        }
+
+        /*
+         * Active close step 2.
+         */
+        if (conn->tcp_state == TCPS_FIN_WAIT_1) {
+            conn->tcp_state = TCPS_TIME_WAIT;
+            /*
+             * For simplify implementation, we needn't wait 2MSL time
+             * in filter rewriter. Because guest kernel will track the
+             * TCP status and wait 2MSL time, if client resend the FIN
+             * packet, guest will apply the last ACK too.
+             */
+            conn->tcp_state = TCPS_CLOSED;
+            g_hash_table_remove(rf->connection_track_table, key);
+        }
     }
 
     return 0;
 }
 
 /* handle tcp packet from secondary guest */
-static int handle_secondary_tcp_pkt(NetFilterState *nf,
+static int handle_secondary_tcp_pkt(RewriterState *rf,
                                     Connection *conn,
-                                    Packet *pkt)
+                                    Packet *pkt, ConnectionKey *key)
 {
     struct tcphdr *tcp_pkt;
 
@@ -121,13 +177,20 @@ static int handle_secondary_tcp_pkt(NetFilterState *nf,
         trace_colo_filter_rewriter_conn_offset(conn->offset);
     }
 
-    if (((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN))) {
+    if (conn->tcp_state == TCPS_SYN_RECEIVED &&
+        ((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN))) {
         /*
          * save offset = secondary_seq and then
          * in handle_primary_tcp_pkt make offset
          * = secondary_seq - primary_seq
          */
         conn->offset = ntohl(tcp_pkt->th_seq);
+    }
+
+    /* VM active connect */
+    if (conn->tcp_state == TCPS_CLOSED &&
+        ((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == TH_SYN)) {
+        conn->tcp_state = TCPS_SYN_SENT;
     }
 
     if ((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == TH_ACK) {
@@ -139,6 +202,32 @@ static int handle_secondary_tcp_pkt(NetFilterState *nf,
             net_checksum_calculate((uint8_t *)pkt->data + pkt->vnet_hdr_len,
                                    pkt->size - pkt->vnet_hdr_len);
         }
+    }
+
+    /*
+     * Passive close step 2:
+     */
+    if (conn->tcp_state == TCPS_CLOSE_WAIT &&
+        (tcp_pkt->th_flags & (TH_ACK | TH_FIN)) == (TH_ACK | TH_FIN)) {
+        conn->fin_ack_seq = ntohl(tcp_pkt->th_seq);
+        conn->tcp_state = TCPS_LAST_ACK;
+    }
+
+    /*
+     * Active close
+     *
+     * Step 1:
+     * The *server* side of this connect is VM, *server* tries to close
+     * the connection.
+     *
+     * Step 2:
+     * We will into CLOSE_WAIT status.
+     * We simplify the TCPS_FIN_WAIT_2, TCPS_TIME_WAIT and
+     * CLOSING status.
+     */
+    if (conn->tcp_state == TCPS_ESTABLISHED &&
+        (tcp_pkt->th_flags & (TH_ACK | TH_FIN)) == TH_FIN) {
+        conn->tcp_state = TCPS_FIN_WAIT_1;
     }
 
     return 0;
@@ -190,7 +279,7 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
 
         if (sender == nf->netdev) {
             /* NET_FILTER_DIRECTION_TX */
-            if (!handle_primary_tcp_pkt(nf, conn, pkt)) {
+            if (!handle_primary_tcp_pkt(s, conn, pkt, &key)) {
                 qemu_net_queue_send(s->incoming_queue, sender, 0,
                 (const uint8_t *)pkt->data, pkt->size, NULL);
                 packet_destroy(pkt, NULL);
@@ -203,7 +292,7 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
             }
         } else {
             /* NET_FILTER_DIRECTION_RX */
-            if (!handle_secondary_tcp_pkt(nf, conn, pkt)) {
+            if (!handle_secondary_tcp_pkt(s, conn, pkt, &key)) {
                 qemu_net_queue_send(s->incoming_queue, sender, 0,
                 (const uint8_t *)pkt->data, pkt->size, NULL);
                 packet_destroy(pkt, NULL);
