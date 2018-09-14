@@ -159,6 +159,7 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
     struct in_addr preq_addr;
     int dhcp_msg_type, val;
     uint8_t *q;
+    uint8_t *end;
     uint8_t client_ethaddr[ETH_ALEN];
 
     /* extract exact DHCP msg type */
@@ -240,6 +241,7 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
     rbp->bp_siaddr = saddr.sin_addr; /* Server IP address */
 
     q = rbp->bp_vend;
+    end = (uint8_t *)&rbp[1];
     memcpy(q, rfc1533_cookie, 4);
     q += 4;
 
@@ -292,24 +294,33 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
 
         if (*slirp->client_hostname) {
             val = strlen(slirp->client_hostname);
-            *q++ = RFC1533_HOSTNAME;
-            *q++ = val;
-            memcpy(q, slirp->client_hostname, val);
-            q += val;
+            if (q + val + 2 >= end) {
+                g_warning("DHCP packet size exceeded, "
+                    "omitting host name option.");
+            } else {
+                *q++ = RFC1533_HOSTNAME;
+                *q++ = val;
+                memcpy(q, slirp->client_hostname, val);
+                q += val;
+            }
         }
 
         if (slirp->vdomainname) {
             val = strlen(slirp->vdomainname);
-            *q++ = RFC1533_DOMAINNAME;
-            *q++ = val;
-            memcpy(q, slirp->vdomainname, val);
-            q += val;
+            if (q + val + 2 >= end) {
+                g_warning("DHCP packet size exceeded, "
+                    "omitting domain name option.");
+            } else {
+                *q++ = RFC1533_DOMAINNAME;
+                *q++ = val;
+                memcpy(q, slirp->vdomainname, val);
+                q += val;
+            }
         }
 
         if (slirp->vdnssearch) {
-            size_t spaceleft = sizeof(rbp->bp_vend) - (q - rbp->bp_vend);
             val = slirp->vdnssearch_len;
-            if (val + 1 > spaceleft) {
+            if (q + val >= end) {
                 g_warning("DHCP packet size exceeded, "
                     "omitting domain-search option.");
             } else {
@@ -331,6 +342,7 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
         memcpy(q, nak_msg, sizeof(nak_msg) - 1);
         q += sizeof(nak_msg) - 1;
     }
+    assert(q < end);
     *q = RFC1533_END;
 
     daddr.sin_addr.s_addr = 0xffffffffu;
