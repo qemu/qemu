@@ -30,7 +30,8 @@
 #include "qemu/main-loop.h" /* iothread mutex */
 #include "qapi/visitor.h"
 
-#define EDU(obj)        OBJECT_CHECK(EduState, obj, "edu")
+#define TYPE_PCI_EDU_DEVICE "edu"
+#define EDU(obj)        OBJECT_CHECK(EduState, obj, TYPE_PCI_EDU_DEVICE)
 
 #define FACT_IRQ        0x00000001
 #define DMA_IRQ         0x00000100
@@ -414,7 +415,7 @@ static void pci_edu_register_types(void)
         { },
     };
     static const TypeInfo edu_info = {
-        .name          = "edu",
+        .name          = TYPE_PCI_EDU_DEVICE,
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(EduState),
         .instance_init = edu_instance_init,
