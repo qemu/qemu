@@ -28,7 +28,6 @@
 #include "hw/boards.h"
 #include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen-bus.h"
-#include "xen_domainbuild.h"
 #include "sysemu/block-backend.h"
 
 static void xen_init_pv(MachineState *machine)
@@ -46,19 +45,6 @@ static void xen_init_pv(MachineState *machine)
     case XEN_ATTACH:
         /* nothing to do, xend handles everything */
         break;
-#ifdef CONFIG_XEN_PV_DOMAIN_BUILD
-    case XEN_CREATE: {
-        const char *kernel_filename = machine->kernel_filename;
-        const char *kernel_cmdline = machine->kernel_cmdline;
-        const char *initrd_filename = machine->initrd_filename;
-        if (xen_domain_build_pv(kernel_filename, initrd_filename,
-                                kernel_cmdline) < 0) {
-            error_report("xen pv domain creation failed");
-            exit(1);
-        }
-        break;
-    }
-#endif
     case XEN_EMULATE:
         error_report("xen emulation not implemented (yet)");
         exit(1);

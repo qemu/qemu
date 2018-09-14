@@ -3856,13 +3856,6 @@ int main(int argc, char **argv, char **envp)
                 }
                 xen_domid = atoi(optarg);
                 break;
-            case QEMU_OPTION_xen_create:
-                if (!(xen_available())) {
-                    error_report("Option not supported for this target");
-                    exit(1);
-                }
-                xen_mode = XEN_CREATE;
-                break;
             case QEMU_OPTION_xen_attach:
                 if (!(xen_available())) {
                     error_report("Option not supported for this target");

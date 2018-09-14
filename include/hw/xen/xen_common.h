@@ -662,24 +662,6 @@ static inline int xen_set_ioreq_server_state(domid_t dom,
 
 #endif
 
-#ifdef CONFIG_XEN_PV_DOMAIN_BUILD
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40700
-static inline int xen_domain_create(xc_interface *xc, uint32_t ssidref,
-                                    xen_domain_handle_t handle, uint32_t flags,
-                                    uint32_t *pdomid)
-{
-    return xc_domain_create(xc, ssidref, handle, flags, pdomid);
-}
-#else
-static inline int xen_domain_create(xc_interface *xc, uint32_t ssidref,
-                                    xen_domain_handle_t handle, uint32_t flags,
-                                    uint32_t *pdomid)
-{
-    return xc_domain_create(xc, ssidref, handle, flags, pdomid, NULL);
-}
-#endif
-#endif
-
 /* Xen before 4.8 */
 
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40800

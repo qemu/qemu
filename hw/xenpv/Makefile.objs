@@ -1,4 +1,2 @@
 # Xen PV machine support
 obj-$(CONFIG_XEN) += xen_machine_pv.o
-# Xen PV machine builder support
-obj-$(CONFIG_XEN_PV_DOMAIN_BUILD) += xen_domainbuild.o
