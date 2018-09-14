@@ -318,6 +318,19 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
             }
         }
 
+        if (slirp->tftp_server_name) {
+            val = strlen(slirp->tftp_server_name);
+            if (q + val + 2 >= end) {
+                g_warning("DHCP packet size exceeded, "
+                    "omitting tftp-server-name option.");
+            } else {
+                *q++ = RFC2132_TFTP_SERVER_NAME;
+                *q++ = val;
+                memcpy(q, slirp->tftp_server_name, val);
+                q += val;
+            }
+        }
+
         if (slirp->vdnssearch) {
             val = slirp->vdnssearch_len;
             if (q + val >= end) {

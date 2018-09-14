@@ -150,6 +150,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
                           const char *vnameserver, const char *vnameserver6,
                           const char *smb_export, const char *vsmbserver,
                           const char **dnssearch, const char *vdomainname,
+                          const char *tftp_server_name,
                           Error **errp)
 {
     /* default settings according to historic slirp */
@@ -360,6 +361,11 @@ static int net_slirp_init(NetClientState *peer, const char *model,
         return -1;
     }
 
+    if (tftp_server_name && strlen(tftp_server_name) > 255) {
+        error_setg(errp, "'tftp-server-name' parameter cannot exceed 255 bytes");
+        return -1;
+    }
+
     nc = qemu_new_net_client(&net_slirp_info, peer, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str),
@@ -370,7 +376,8 @@ static int net_slirp_init(NetClientState *peer, const char *model,
 
     s->slirp = slirp_init(restricted, ipv4, net, mask, host,
                           ipv6, ip6_prefix, vprefix6_len, ip6_host,
-                          vhostname, tftp_export, bootfile, dhcp,
+                          vhostname, tftp_server_name,
+                          tftp_export, bootfile, dhcp,
                           dns, ip6_dns, dnssearch, vdomainname, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
 
@@ -907,7 +914,8 @@ int net_init_slirp(const Netdev *netdev, const char *name,
                          user->ipv6_host, user->hostname, user->tftp,
                          user->bootfile, user->dhcpstart,
                          user->dns, user->ipv6_dns, user->smb,
-                         user->smbserver, dnssearch, user->domainname, errp);
+                         user->smbserver, dnssearch, user->domainname,
+                         user->tftp_server_name, errp);
 
     while (slirp_configs) {
         config = slirp_configs;
