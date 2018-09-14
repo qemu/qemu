@@ -365,6 +365,15 @@ static int net_slirp_init(NetClientState *peer, const char *model,
         return -1;
     }
 
+    if (vdomainname && strlen(vdomainname) > 255) {
+        error_setg(errp, "'domainname' parameter cannot exceed 255 bytes");
+        return -1;
+    }
+
+    if (vhostname && strlen(vhostname) > 255) {
+        error_setg(errp, "'vhostname' parameter cannot exceed 255 bytes");
+        return -1;
+    }
 
     nc = qemu_new_net_client(&net_slirp_info, peer, model, name);
 
