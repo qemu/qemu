@@ -75,7 +75,7 @@ void hvf_put_xsave(CPUState *cpu_state)
 
     struct X86XSaveArea *xsave;
 
-    xsave = X86_CPU(cpu_state)->env.kvm_xsave_buf;
+    xsave = X86_CPU(cpu_state)->env.xsave_buf;
 
     x86_cpu_xsave_all_areas(X86_CPU(cpu_state), xsave);
 
@@ -163,7 +163,7 @@ void hvf_get_xsave(CPUState *cpu_state)
 {
     struct X86XSaveArea *xsave;
 
-    xsave = X86_CPU(cpu_state)->env.kvm_xsave_buf;
+    xsave = X86_CPU(cpu_state)->env.xsave_buf;
 
     if (hv_vcpu_read_fpstate(cpu_state->hvf_fd, (void*)xsave, 4096)) {
         abort();
