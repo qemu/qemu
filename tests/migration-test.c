@@ -443,11 +443,11 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         start_address = X86_TEST_MEM_START;
         end_address = X86_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
-        cmd_src = g_strdup_printf("-machine accel=%s -m 256M"
+        cmd_src = g_strdup_printf("-machine accel=%s -m 256M -nodefaults"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
-                                  " -prom-env '"
-                                  "boot-command=hex .\" _\" begin %x %x "
+                                  " -prom-env 'use-nvramrc?=true' -prom-env "
+                                  "'nvramrc=hex .\" _\" begin %x %x "
                                   "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
                                   "until'",  accel, tmpfs, end_address,
                                   start_address);
