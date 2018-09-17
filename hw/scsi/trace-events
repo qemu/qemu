@@ -229,3 +229,65 @@ spapr_vscsi_process_login(void) "Got login, sending response !"
 spapr_vscsi_queue_cmd_no_drive(uint64_t lun) "Command for lun 0x%08" PRIx64 " with no drive"
 spapr_vscsi_queue_cmd(uint32_t qtag, unsigned cdb, const char *cmd, int lun, int ret) "Queued command tag 0x%"PRIx32" CMD 0x%x=%s LUN %d ret: %d"
 spapr_vscsi_do_crq(unsigned c0, unsigned c1) "crq: %02x %02x ..."
+
+# hw/scsi/lsi53c895a.c
+lsi_reset(void) "Reset"
+lsi_update_irq(int level, uint8_t dstat, uint8_t sist1, uint8_t sist0) "Update IRQ level %d dstat 0x%02x sist 0x%02x0x%02x"
+lsi_update_irq_disconnected(void) "Handled IRQs & disconnected, looking for pending processes"
+lsi_script_scsi_interrupt(uint8_t stat1, uint8_t stat0, uint8_t sist1, uint8_t sist0) "SCSI Interrupt 0x%02x0x%02x prev 0x%02x0x%02x"
+lsi_script_dma_interrupt(uint8_t stat, uint8_t dstat) "DMA Interrupt 0x%x prev 0x%x"
+lsi_bad_phase_jump(uint32_t dsp) "Data phase mismatch jump to 0x%"PRIX32
+lsi_bad_phase_interrupt(void) "Phase mismatch interrupt"
+lsi_bad_selection(uint32_t id) "Selected absent target %"PRIu32
+lsi_do_dma_unavailable(void) "DMA no data available"
+lsi_do_dma(uint64_t addr, int len) "DMA addr=0x%"PRIx64" len=%d"
+lsi_queue_command(uint32_t tag) "Queueing tag=0x%"PRId32
+lsi_add_msg_byte_error(void) "MSG IN data too long"
+lsi_add_msg_byte(uint8_t data) "MSG IN 0x%02x"
+lsi_reselect(int id) "Reselected target %d"
+lsi_queue_req_error(void *p) "Multiple IO pending for request %p"
+lsi_queue_req(uint32_t tag) "Queueing IO tag=0x%"PRIx32
+lsi_command_complete(uint32_t status) "Command complete status=%"PRId32
+lsi_transfer_data(uint32_t tag, uint32_t len) "Data ready tag=0x%"PRIx32" len=%"PRId32
+lsi_do_command(uint32_t dbc) "Send command len=%"PRId32
+lsi_do_status(uint32_t dbc, uint8_t status) "Get status len=%"PRId32" status=%d"
+lsi_do_status_error(void) "Bad Status move"
+lsi_do_msgin(uint32_t dbc, int len) "Message in len=%"PRId32" %d"
+lsi_do_msgout(uint32_t dbc) "MSG out len=%"PRId32
+lsi_do_msgout_disconnect(void) "MSG: Disconnect"
+lsi_do_msgout_noop(void) "MSG: No Operation"
+lsi_do_msgout_extended(uint8_t msg, uint8_t len) "Extended message 0x%x (len %d)"
+lsi_do_msgout_ignored(const char *msg) "%s (ignored)"
+lsi_do_msgout_simplequeue(uint8_t select_tag) "SIMPLE queue tag=0x%x"
+lsi_do_msgout_abort(uint32_t tag) "MSG: ABORT TAG tag=0x%"PRId32
+lsi_do_msgout_clearqueue(uint32_t tag) "MSG: CLEAR QUEUE tag=0x%"PRIx32
+lsi_do_msgout_busdevicereset(uint32_t tag) "MSG: BUS DEVICE RESET tag=0x%"PRIx32
+lsi_do_msgout_select(int id) "Select LUN %d"
+lsi_memcpy(uint32_t dest, uint32_t src, int count) "memcpy dest 0x%"PRIx32" src 0x%"PRIx32" count %d"
+lsi_wait_reselect(void) "Wait Reselect"
+lsi_execute_script(uint32_t dsp, uint32_t insn, uint32_t addr) "SCRIPTS dsp=0x%"PRIx32" opcode 0x%"PRIx32" arg 0x%"PRIx32
+lsi_execute_script_blockmove_delayed(void) "Delayed select timeout"
+lsi_execute_script_blockmove_badphase(uint8_t phase, uint8_t expected) "Wrong phase got %d expected %d"
+lsi_execute_script_io_alreadyreselected(void) "Already reselected, jumping to alternative address"
+lsi_execute_script_io_selected(uint8_t id, const char *atn) "Selected target %d%s"
+lsi_execute_script_io_disconnect(void) "Wait Disconnect"
+lsi_execute_script_io_set(const char *atn, const char *ack, const char *tm, const char *cc) "Set%s%s%s%s"
+lsi_execute_script_io_clear(const char *atn, const char *ack, const char *tm, const char *cc) "Clear%s%s%s%s"
+lsi_execute_script_io_opcode(const char *opcode, int reg, const char *opname, uint8_t data8, uint32_t sfbr, const char *ssfbr) "%s reg 0x%x %s data8=0x%02x sfbr=0x%02x%s"
+lsi_execute_script_tc_nop(void) "NOP"
+lsi_execute_script_tc_delayedselect_timeout(void) "Delayed select timeout"
+lsi_execute_script_tc_compc(int result) "Compare carry %d"
+lsi_execute_script_tc_compp(uint8_t phase, int op, uint8_t insn_phase) "Compare phase %d %c= %d"
+lsi_execute_script_tc_compd(uint32_t sfbr, uint8_t mask, int op, int result) "Compare data 0x%"PRIx32" & 0x%x %c= 0x%x"
+lsi_execute_script_tc_jump(uint32_t addr) "Jump to 0x%"PRIx32
+lsi_execute_script_tc_call(uint32_t addr) "Call 0x%"PRIx32
+lsi_execute_script_tc_return(uint32_t addr) "Return to 0x%"PRIx32
+lsi_execute_script_tc_interrupt(uint32_t addr) "Interrupt 0x%"PRIx32
+lsi_execute_script_tc_illegal(void) "Illegal transfer control"
+lsi_execute_script_tc_cc_failed(void) "Control condition failed"
+lsi_execute_script_mm_load(int reg, int n, uint32_t addr, int data) "Load reg 0x%x size %d addr 0x%"PRIx32" = 0x%08x"
+lsi_execute_script_mm_store(int reg, int n, uint32_t addr) "Store reg 0x%x size %d addr 0x%"PRIx32
+lsi_execute_script_stop(void) "SCRIPTS execution stopped"
+lsi_awoken(void) "Woken by SIGP"
+lsi_reg_read(const char *name, int offset, uint8_t ret) "Read reg %s 0x%x = 0x%02x"
+lsi_reg_write(const char *name, int offset, uint8_t val) "Write reg %s 0x%x = 0x%02x"

@@ -20,20 +20,7 @@
 #include "hw/scsi/scsi.h"
 #include "sysemu/dma.h"
 #include "qemu/log.h"
-
-//#define DEBUG_LSI
-//#define DEBUG_LSI_REG
-
-#ifdef DEBUG_LSI
-#define DPRINTF(fmt, ...) \
-do { printf("lsi_scsi: " fmt , ## __VA_ARGS__); } while (0)
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__); exit(1);} while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while(0)
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "lsi_scsi: error: " fmt , ## __VA_ARGS__);} while (0)
-#endif
+#include "trace.h"
 
 static const char *names[] = {
     "SCNTL0", "SCNTL1", "SCNTL2", "SCNTL3", "SCID", "SXFER", "SDID", "GPREG",
@@ -313,7 +300,7 @@ static inline int lsi_irq_on_rsl(LSIState *s)
 
 static void lsi_soft_reset(LSIState *s)
 {
-    DPRINTF("Reset\n");
+    trace_lsi_reset();
     s->carry = 0;
 
     s->msg_action = 0;
@@ -484,15 +471,13 @@ static void lsi_update_irq(LSIState *s)
         level = 1;
 
     if (level != last_level) {
-        DPRINTF("Update IRQ level %d dstat %02x sist %02x%02x\n",
-                level, s->dstat, s->sist1, s->sist0);
+        trace_lsi_update_irq(level, s->dstat, s->sist1, s->sist0);
         last_level = level;
     }
     lsi_set_irq(s, level);
 
     if (!level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
-        DPRINTF("Handled IRQs & disconnected, looking for pending "
-                "processes\n");
+        trace_lsi_update_irq_disconnected();
         QTAILQ_FOREACH(p, &s->queue, next) {
             if (p->pending) {
                 lsi_reselect(s, p);
@@ -508,8 +493,7 @@ static void lsi_script_scsi_interrupt(LSIState *s, int stat0, int stat1)
     uint32_t mask0;
     uint32_t mask1;
 
-    DPRINTF("SCSI Interrupt 0x%02x%02x prev 0x%02x%02x\n",
-            stat1, stat0, s->sist1, s->sist0);
+    trace_lsi_script_scsi_interrupt(stat1, stat0, s->sist1, s->sist0);
     s->sist0 |= stat0;
     s->sist1 |= stat1;
     /* Stop processor on fatal or unmasked interrupt.  As a special hack
@@ -527,7 +511,7 @@ static void lsi_script_scsi_interrupt(LSIState *s, int stat0, int stat1)
 /* Stop SCRIPTS execution and raise a DMA interrupt.  */
 static void lsi_script_dma_interrupt(LSIState *s, int stat)
 {
-    DPRINTF("DMA Interrupt 0x%x prev 0x%x\n", stat, s->dstat);
+    trace_lsi_script_dma_interrupt(stat, s->dstat);
     s->dstat |= stat;
     lsi_update_irq(s);
     lsi_stop_script(s);
@@ -547,9 +531,9 @@ static void lsi_bad_phase(LSIState *s, int out, int new_phase)
         } else {
             s->dsp = (s->scntl2 & LSI_SCNTL2_WSR ? s->pmjad2 : s->pmjad1);
         }
-        DPRINTF("Data phase mismatch jump to %08x\n", s->dsp);
+        trace_lsi_bad_phase_jump(s->dsp);
     } else {
-        DPRINTF("Phase mismatch interrupt\n");
+        trace_lsi_bad_phase_interrupt();
         lsi_script_scsi_interrupt(s, LSI_SIST0_MA, 0);
         lsi_stop_script(s);
     }
@@ -576,7 +560,7 @@ static void lsi_disconnect(LSIState *s)
 
 static void lsi_bad_selection(LSIState *s, uint32_t id)
 {
-    DPRINTF("Selected absent target %d\n", id);
+    trace_lsi_bad_selection(id);
     lsi_script_scsi_interrupt(s, 0, LSI_SIST1_STO);
     lsi_disconnect(s);
 }
@@ -591,7 +575,7 @@ static void lsi_do_dma(LSIState *s, int out)
     assert(s->current);
     if (!s->current->dma_len) {
         /* Wait until data is available.  */
-        DPRINTF("DMA no data available\n");
+        trace_lsi_do_dma_unavailable();
         return;
     }
 
@@ -611,7 +595,7 @@ static void lsi_do_dma(LSIState *s, int out)
     else if (s->sbms)
         addr |= ((uint64_t)s->sbms << 32);
 
-    DPRINTF("DMA addr=0x" DMA_ADDR_FMT " len=%d\n", addr, count);
+    trace_lsi_do_dma(addr, count);
     s->csbc += count;
     s->dnad += count;
     s->dbc -= count;
@@ -640,7 +624,7 @@ static void lsi_queue_command(LSIState *s)
 {
     lsi_request *p = s->current;
 
-    DPRINTF("Queueing tag=0x%x\n", p->tag);
+    trace_lsi_queue_command(p->tag);
     assert(s->current != NULL);
     assert(s->current->dma_len == 0);
     QTAILQ_INSERT_TAIL(&s->queue, s->current, next);
@@ -654,9 +638,9 @@ static void lsi_queue_command(LSIState *s)
 static void lsi_add_msg_byte(LSIState *s, uint8_t data)
 {
     if (s->msg_len >= LSI_MAX_MSGIN_LEN) {
-        BADF("MSG IN data too long\n");
+        trace_lsi_add_msg_byte_error();
     } else {
-        DPRINTF("MSG IN 0x%02x\n", data);
+        trace_lsi_add_msg_byte(data);
         s->msg[s->msg_len++] = data;
     }
 }
@@ -676,7 +660,7 @@ static void lsi_reselect(LSIState *s, lsi_request *p)
     if (!(s->dcntl & LSI_DCNTL_COM)) {
         s->sfbr = 1 << (id & 0x7);
     }
-    DPRINTF("Reselected target %d\n", id);
+    trace_lsi_reselect(id);
     s->scntl1 |= LSI_SCNTL1_CON;
     lsi_set_phase(s, PHASE_MI);
     s->msg_action = p->out ? 2 : 3;
@@ -732,7 +716,7 @@ static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
     lsi_request *p = req->hba_private;
 
     if (p->pending) {
-        BADF("Multiple IO pending for request %p\n", p);
+        trace_lsi_queue_req_error(p);
     }
     p->pending = len;
     /* Reselect if waiting for it, or if reselection triggers an IRQ
@@ -747,7 +731,7 @@ static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
         lsi_reselect(s, p);
         return 0;
     } else {
-        DPRINTF("Queueing IO tag=0x%x\n", p->tag);
+        trace_lsi_queue_req(p->tag);
         p->pending = len;
         return 1;
     }
@@ -760,7 +744,7 @@ static void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid
     int out;
 
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
-    DPRINTF("Command complete status=%d\n", (int)status);
+    trace_lsi_command_complete(status);
     s->status = status;
     s->command_complete = 2;
     if (s->waiting && s->dbc != 0) {
@@ -795,7 +779,7 @@ static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
 
     /* host adapter (re)connected */
-    DPRINTF("Data ready tag=0x%x len=%d\n", req->tag, len);
+    trace_lsi_transfer_data(req->tag, len);
     s->current->dma_len = len;
     s->command_complete = 1;
     if (s->waiting) {
@@ -814,7 +798,7 @@ static void lsi_do_command(LSIState *s)
     uint32_t id;
     int n;
 
-    DPRINTF("Send command len=%d\n", s->dbc);
+    trace_lsi_do_command(s->dbc);
     if (s->dbc > 16)
         s->dbc = 16;
     pci_dma_read(PCI_DEVICE(s), s->dnad, buf, s->dbc);
@@ -862,9 +846,10 @@ static void lsi_do_command(LSIState *s)
 static void lsi_do_status(LSIState *s)
 {
     uint8_t status;
-    DPRINTF("Get status len=%d status=%d\n", s->dbc, s->status);
-    if (s->dbc != 1)
-        BADF("Bad Status move\n");
+    trace_lsi_do_status(s->dbc, s->status);
+    if (s->dbc != 1) {
+        trace_lsi_do_status_error();
+    }
     s->dbc = 1;
     status = s->status;
     s->sfbr = status;
@@ -877,7 +862,7 @@ static void lsi_do_status(LSIState *s)
 static void lsi_do_msgin(LSIState *s)
 {
     int len;
-    DPRINTF("Message in len=%d/%d\n", s->dbc, s->msg_len);
+    trace_lsi_do_msgin(s->dbc, s->msg_len);
     s->sfbr = s->msg[0];
     len = s->msg_len;
     if (len > s->dbc)
@@ -942,36 +927,36 @@ static void lsi_do_msgout(LSIState *s)
         current_req = lsi_find_by_tag(s, current_tag);
     }
 
-    DPRINTF("MSG out len=%d\n", s->dbc);
+    trace_lsi_do_msgout(s->dbc);
     while (s->dbc) {
         msg = lsi_get_msgbyte(s);
         s->sfbr = msg;
 
         switch (msg) {
         case 0x04:
-            DPRINTF("MSG: Disconnect\n");
+            trace_lsi_do_msgout_disconnect();
             lsi_disconnect(s);
             break;
         case 0x08:
-            DPRINTF("MSG: No Operation\n");
+            trace_lsi_do_msgout_noop();
             lsi_set_phase(s, PHASE_CMD);
             break;
         case 0x01:
             len = lsi_get_msgbyte(s);
             msg = lsi_get_msgbyte(s);
             (void)len; /* avoid a warning about unused variable*/
-            DPRINTF("Extended message 0x%x (len %d)\n", msg, len);
+            trace_lsi_do_msgout_extended(msg, len);
             switch (msg) {
             case 1:
-                DPRINTF("SDTR (ignored)\n");
+                trace_lsi_do_msgout_ignored("SDTR");
                 lsi_skip_msgbytes(s, 2);
                 break;
             case 3:
-                DPRINTF("WDTR (ignored)\n");
+                trace_lsi_do_msgout_ignored("WDTR");
                 lsi_skip_msgbytes(s, 1);
                 break;
             case 4:
-                DPRINTF("PPR (ignored)\n");
+                trace_lsi_do_msgout_ignored("PPR");
                 lsi_skip_msgbytes(s, 5);
                 break;
             default:
@@ -980,19 +965,20 @@ static void lsi_do_msgout(LSIState *s)
             break;
         case 0x20: /* SIMPLE queue */
             s->select_tag |= lsi_get_msgbyte(s) | LSI_TAG_VALID;
-            DPRINTF("SIMPLE queue tag=0x%x\n", s->select_tag & 0xff);
+            trace_lsi_do_msgout_simplequeue(s->select_tag & 0xff);
             break;
         case 0x21: /* HEAD of queue */
-            BADF("HEAD queue not implemented\n");
+            qemu_log_mask(LOG_UNIMP, "lsi_scsi: HEAD queue not implemented\n");
             s->select_tag |= lsi_get_msgbyte(s) | LSI_TAG_VALID;
             break;
         case 0x22: /* ORDERED queue */
-            BADF("ORDERED queue not implemented\n");
+            qemu_log_mask(LOG_UNIMP,
+                          "lsi_scsi: ORDERED queue not implemented\n");
             s->select_tag |= lsi_get_msgbyte(s) | LSI_TAG_VALID;
             break;
         case 0x0d:
             /* The ABORT TAG message clears the current I/O process only. */
-            DPRINTF("MSG: ABORT TAG tag=0x%x\n", current_tag);
+            trace_lsi_do_msgout_abort(current_tag);
             if (current_req) {
                 scsi_req_cancel(current_req->req);
             }
@@ -1004,17 +990,17 @@ static void lsi_do_msgout(LSIState *s)
             /* The ABORT message clears all I/O processes for the selecting
                initiator on the specified logical unit of the target. */
             if (msg == 0x06) {
-                DPRINTF("MSG: ABORT tag=0x%x\n", current_tag);
+                trace_lsi_do_msgout_abort(current_tag);
             }
             /* The CLEAR QUEUE message clears all I/O processes for all
                initiators on the specified logical unit of the target. */
             if (msg == 0x0e) {
-                DPRINTF("MSG: CLEAR QUEUE tag=0x%x\n", current_tag);
+                trace_lsi_do_msgout_clearqueue(current_tag);
             }
             /* The BUS DEVICE RESET message clears all I/O processes for all
                initiators on all logical units of the target. */
             if (msg == 0x0c) {
-                DPRINTF("MSG: BUS DEVICE RESET tag=0x%x\n", current_tag);
+                trace_lsi_do_msgout_busdevicereset(current_tag);
             }
 
             /* clear the current I/O process */
@@ -1042,14 +1028,14 @@ static void lsi_do_msgout(LSIState *s)
                 goto bad;
             }
             s->current_lun = msg & 7;
-            DPRINTF("Select LUN %d\n", s->current_lun);
+            trace_lsi_do_msgout_select(s->current_lun);
             lsi_set_phase(s, PHASE_CMD);
             break;
         }
     }
     return;
 bad:
-    BADF("Unimplemented message 0x%02x\n", msg);
+    qemu_log_mask(LOG_UNIMP, "Unimplemented message 0x%02x\n", msg);
     lsi_set_phase(s, PHASE_MI);
     lsi_add_msg_byte(s, 7); /* MESSAGE REJECT */
     s->msg_action = 0;
@@ -1061,7 +1047,7 @@ static void lsi_memcpy(LSIState *s, uint32_t dest, uint32_t src, int count)
     int n;
     uint8_t buf[LSI_BUF_SIZE];
 
-    DPRINTF("memcpy dest 0x%08x src 0x%08x count %d\n", dest, src, count);
+    trace_lsi_memcpy(dest, src, count);
     while (count) {
         n = (count > LSI_BUF_SIZE) ? LSI_BUF_SIZE : count;
         lsi_mem_read(s, src, buf, n);
@@ -1076,7 +1062,7 @@ static void lsi_wait_reselect(LSIState *s)
 {
     lsi_request *p;
 
-    DPRINTF("Wait Reselect\n");
+    trace_lsi_wait_reselect();
 
     QTAILQ_FOREACH(p, &s->queue, next) {
         if (p->pending) {
@@ -1109,14 +1095,14 @@ again:
     }
     addr = read_dword(s, s->dsp + 4);
     addr_high = 0;
-    DPRINTF("SCRIPTS dsp=%08x opcode %08x arg %08x\n", s->dsp, insn, addr);
+    trace_lsi_execute_script(s->dsp, insn, addr);
     s->dsps = addr;
     s->dcmd = insn >> 24;
     s->dsp += 8;
     switch (insn >> 30) {
     case 0: /* Block move.  */
         if (s->sist1 & LSI_SIST1_STO) {
-            DPRINTF("Delayed select timeout\n");
+            trace_lsi_execute_script_blockmove_delayed();
             lsi_stop_script(s);
             break;
         }
@@ -1171,8 +1157,9 @@ again:
                     addr_high = s->dbms;
                     break;
                 default:
-                    BADF("Illegal selector specified (0x%x > 0x15)"
-                         " for 64-bit DMA block move", selector);
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                          "lsi_scsi: Illegal selector specified (0x%x > 0x15) "
+                          "for 64-bit DMA block move", selector);
                     break;
                 }
             }
@@ -1184,8 +1171,8 @@ again:
             s->ia = s->dsp - 12;
         }
         if ((s->sstat1 & PHASE_MASK) != ((insn >> 24) & 7)) {
-            DPRINTF("Wrong phase got %d expected %d\n",
-                    s->sstat1 & PHASE_MASK, (insn >> 24) & 7);
+            trace_lsi_execute_script_blockmove_badphase(s->sstat1 & PHASE_MASK,
+                                                        (insn >> 24) & 7);
             lsi_script_scsi_interrupt(s, LSI_SIST0_MA, 0);
             break;
         }
@@ -1217,8 +1204,8 @@ again:
             lsi_do_msgin(s);
             break;
         default:
-            BADF("Unimplemented phase %d\n", s->sstat1 & PHASE_MASK);
-            exit(1);
+            qemu_log_mask(LOG_UNIMP, "lsi_scsi: Unimplemented phase %d\n",
+                          s->sstat1 & PHASE_MASK);
         }
         s->dfifo = s->dbc & 0xff;
         s->ctest5 = (s->ctest5 & 0xfc) | ((s->dbc >> 8) & 3);
@@ -1246,7 +1233,7 @@ again:
             case 0: /* Select */
                 s->sdid = id;
                 if (s->scntl1 & LSI_SCNTL1_CON) {
-                    DPRINTF("Already reselected, jumping to alternative address\n");
+                    trace_lsi_execute_script_io_alreadyreselected();
                     s->dsp = s->dnad;
                     break;
                 }
@@ -1256,8 +1243,8 @@ again:
                     lsi_bad_selection(s, id);
                     break;
                 }
-                DPRINTF("Selected target %d%s\n",
-                        id, insn & (1 << 3) ? " ATN" : "");
+                trace_lsi_execute_script_io_selected(id,
+                                             insn & (1 << 3) ? " ATN" : "");
                 /* ??? Linux drivers compain when this is set.  Maybe
                    it only applies in low-level mode (unimplemented).
                 lsi_script_scsi_interrupt(s, LSI_SIST0_CMP, 0); */
@@ -1269,7 +1256,7 @@ again:
                 lsi_set_phase(s, PHASE_MO);
                 break;
             case 1: /* Disconnect */
-                DPRINTF("Wait Disconnect\n");
+                trace_lsi_execute_script_io_disconnect();
                 s->scntl1 &= ~LSI_SCNTL1_CON;
                 break;
             case 2: /* Wait Reselect */
@@ -1278,7 +1265,7 @@ again:
                 }
                 break;
             case 3: /* Set */
-                DPRINTF("Set%s%s%s%s\n",
+                trace_lsi_execute_script_io_set(
                         insn & (1 << 3) ? " ATN" : "",
                         insn & (1 << 6) ? " ACK" : "",
                         insn & (1 << 9) ? " TM" : "",
@@ -1288,14 +1275,14 @@ again:
                     lsi_set_phase(s, PHASE_MO);
                 }
                 if (insn & (1 << 9)) {
-                    BADF("Target mode not implemented\n");
-                    exit(1);
+                    qemu_log_mask(LOG_UNIMP,
+                        "lsi_scsi: Target mode not implemented\n");
                 }
                 if (insn & (1 << 10))
                     s->carry = 1;
                 break;
             case 4: /* Clear */
-                DPRINTF("Clear%s%s%s%s\n",
+                trace_lsi_execute_script_io_clear(
                         insn & (1 << 3) ? " ATN" : "",
                         insn & (1 << 6) ? " ACK" : "",
                         insn & (1 << 9) ? " TM" : "",
@@ -1313,18 +1300,17 @@ again:
             uint8_t data8;
             int reg;
             int operator;
-#ifdef DEBUG_LSI
+
             static const char *opcode_names[3] =
                 {"Write", "Read", "Read-Modify-Write"};
             static const char *operator_names[8] =
                 {"MOV", "SHL", "OR", "XOR", "AND", "SHR", "ADD", "ADC"};
-#endif
 
             reg = ((insn >> 16) & 0x7f) | (insn & 0x80);
             data8 = (insn >> 8) & 0xff;
             opcode = (insn >> 27) & 7;
             operator = (insn >> 24) & 7;
-            DPRINTF("%s reg 0x%x %s data8=0x%02x sfbr=0x%02x%s\n",
+            trace_lsi_execute_script_io_opcode(
                     opcode_names[opcode - 5], reg,
                     operator_names[operator], data8, s->sfbr,
                     (insn & (1 << 23)) ? " SFBR" : "");
@@ -1404,21 +1390,21 @@ again:
             int jmp;
 
             if ((insn & 0x002e0000) == 0) {
-                DPRINTF("NOP\n");
+                trace_lsi_execute_script_tc_nop();
                 break;
             }
             if (s->sist1 & LSI_SIST1_STO) {
-                DPRINTF("Delayed select timeout\n");
+                trace_lsi_execute_script_tc_delayedselect_timeout();
                 lsi_stop_script(s);
                 break;
             }
             cond = jmp = (insn & (1 << 19)) != 0;
             if (cond == jmp && (insn & (1 << 21))) {
-                DPRINTF("Compare carry %d\n", s->carry == jmp);
+                trace_lsi_execute_script_tc_compc(s->carry == jmp);
                 cond = s->carry != 0;
             }
             if (cond == jmp && (insn & (1 << 17))) {
-                DPRINTF("Compare phase %d %c= %d\n",
+                trace_lsi_execute_script_tc_compp(
                         (s->sstat1 & PHASE_MASK),
                         jmp ? '=' : '!',
                         ((insn >> 24) & 7));
@@ -1428,7 +1414,7 @@ again:
                 uint8_t mask;
 
                 mask = (~insn >> 8) & 0xff;
-                DPRINTF("Compare data 0x%x & 0x%x %c= 0x%x\n",
+                trace_lsi_execute_script_tc_compd(
                         s->sfbr, mask, jmp ? '=' : '!', insn & mask);
                 cond = (s->sfbr & mask) == (insn & mask);
             }
@@ -1439,21 +1425,21 @@ again:
                 }
                 switch ((insn >> 27) & 7) {
                 case 0: /* Jump */
-                    DPRINTF("Jump to 0x%08x\n", addr);
+                    trace_lsi_execute_script_tc_jump(addr);
                     s->adder = addr;
                     s->dsp = addr;
                     break;
                 case 1: /* Call */
-                    DPRINTF("Call 0x%08x\n", addr);
+                    trace_lsi_execute_script_tc_call(addr);
                     s->temp = s->dsp;
                     s->dsp = addr;
                     break;
                 case 2: /* Return */
-                    DPRINTF("Return to 0x%08x\n", s->temp);
+                    trace_lsi_execute_script_tc_return(s->temp);
                     s->dsp = s->temp;
                     break;
                 case 3: /* Interrupt */
-                    DPRINTF("Interrupt 0x%08x\n", s->dsps);
+                    trace_lsi_execute_script_tc_interrupt(s->dsps);
                     if ((insn & (1 << 20)) != 0) {
                         s->istat0 |= LSI_ISTAT0_INTF;
                         lsi_update_irq(s);
@@ -1462,12 +1448,12 @@ again:
                     }
                     break;
                 default:
-                    DPRINTF("Illegal transfer control\n");
+                    trace_lsi_execute_script_tc_illegal();
                     lsi_script_dma_interrupt(s, LSI_DSTAT_IID);
                     break;
                 }
             } else {
-                DPRINTF("Control condition failed\n");
+                trace_lsi_execute_script_tc_cc_failed();
             }
         }
         break;
@@ -1495,13 +1481,12 @@ again:
             reg = (insn >> 16) & 0xff;
             if (insn & (1 << 24)) {
                 pci_dma_read(pci_dev, addr, data, n);
-                DPRINTF("Load reg 0x%x size %d addr 0x%08x = %08x\n", reg, n,
-                        addr, *(int *)data);
+                trace_lsi_execute_script_mm_load(reg, n, addr, *(int *)data);
                 for (i = 0; i < n; i++) {
                     lsi_reg_writeb(s, reg + i, data[i]);
                 }
             } else {
-                DPRINTF("Store reg 0x%x size %d addr 0x%08x\n", reg, n, addr);
+                trace_lsi_execute_script_mm_store(reg, n, addr);
                 for (i = 0; i < n; i++) {
                     data[i] = lsi_reg_readb(s, reg + i);
                 }
@@ -1515,8 +1500,10 @@ again:
            assume this is the case and force an unexpected device disconnect.
            This is apparently sufficient to beat the drivers into submission.
          */
-        if (!(s->sien0 & LSI_SIST0_UDC))
-            fprintf(stderr, "inf. loop with UDC masked\n");
+        if (!(s->sien0 & LSI_SIST0_UDC)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "lsi_scsi: inf. loop with UDC masked");
+        }
         lsi_script_scsi_interrupt(s, LSI_SIST0_UDC, 0);
         lsi_disconnect(s);
     } else if (s->istat1 & LSI_ISTAT1_SRUN && !s->waiting) {
@@ -1526,7 +1513,7 @@ again:
             goto again;
         }
     }
-    DPRINTF("SCRIPTS execution stopped\n");
+    trace_lsi_execute_script_stop();
 }
 
 static uint8_t lsi_reg_readb(LSIState *s, int offset)
@@ -1761,10 +1748,8 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
 #undef CASE_GET_REG24
 #undef CASE_GET_REG32
 
-#ifdef DEBUG_LSI_REG
-    DPRINTF("Read reg %s %x = %02x\n",
-            offset < ARRAY_SIZE(names) ? names[offset] : "???", offset, ret);
-#endif
+    trace_lsi_reg_read(offset < ARRAY_SIZE(names) ? names[offset] : "???",
+                       offset, ret);
 
     return ret;
 }
@@ -1782,21 +1767,22 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     case addr + 2: s->name &= 0xff00ffff; s->name |= val << 16; break; \
     case addr + 3: s->name &= 0x00ffffff; s->name |= val << 24; break;
 
-#ifdef DEBUG_LSI_REG
-    DPRINTF("Write reg %s %x = %02x\n",
-            offset < ARRAY_SIZE(names) ? names[offset] : "???", offset, val);
-#endif
+    trace_lsi_reg_write(offset < ARRAY_SIZE(names) ? names[offset] : "???",
+                        offset, val);
+
     switch (offset) {
     case 0x00: /* SCNTL0 */
         s->scntl0 = val;
         if (val & LSI_SCNTL0_START) {
-            BADF("Start sequence not implemented\n");
+            qemu_log_mask(LOG_UNIMP,
+                          "lsi_scsi: Start sequence not implemented\n");
         }
         break;
     case 0x01: /* SCNTL1 */
         s->scntl1 = val & ~LSI_SCNTL1_SST;
         if (val & LSI_SCNTL1_IARB) {
-            BADF("Immediate Arbritration not implemented\n");
+            qemu_log_mask(LOG_UNIMP,
+                      "lsi_scsi: Immediate Arbritration not implemented\n");
         }
         if (val & LSI_SCNTL1_RST) {
             if (!(s->sstat0 & LSI_SSTAT0_RST)) {
@@ -1823,7 +1809,8 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         break;
     case 0x06: /* SDID */
         if ((s->ssid & 0x80) && (val & 0xf) != (s->ssid & 0xf)) {
-            BADF("Destination ID does not match SSID\n");
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "lsi_scsi: Destination ID does not match SSID\n");
         }
         s->sdid = val & 0xf;
         break;
@@ -1851,7 +1838,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             lsi_update_irq(s);
         }
         if (s->waiting == 1 && val & LSI_ISTAT0_SIGP) {
-            DPRINTF("Woken by SIGP\n");
+            trace_lsi_awoken();
             s->waiting = 0;
             s->dsp = s->dnad;
             lsi_execute_script(s);
@@ -1878,13 +1865,15 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
     CASE_SET_REG32(temp, 0x1c)
     case 0x21: /* CTEST4 */
         if (val & 7) {
-           BADF("Unimplemented CTEST4-FBL 0x%x\n", val);
+            qemu_log_mask(LOG_UNIMP,
+                          "lsi_scsi: Unimplemented CTEST4-FBL 0x%x\n", val);
         }
         s->ctest4 = val;
         break;
     case 0x22: /* CTEST5 */
         if (val & (LSI_CTEST5_ADCK | LSI_CTEST5_BBCK)) {
-            BADF("CTEST5 DMA increment not implemented\n");
+            qemu_log_mask(LOG_UNIMP,
+                          "lsi_scsi: CTEST5 DMA increment not implemented\n");
         }
         s->ctest5 = val;
         break;
@@ -1941,7 +1930,8 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         break;
     case 0x49: /* STIME1 */
         if (val & 0xf) {
-            DPRINTF("General purpose timer not implemented\n");
+            qemu_log_mask(LOG_UNIMP,
+                          "lsi_scsi: General purpose timer not implemented\n");
             /* ??? Raising the interrupt immediately seems to be sufficient
                to keep the FreeBSD driver happy.  */
             lsi_script_scsi_interrupt(s, 0, LSI_SIST1_GEN);
@@ -1958,13 +1948,15 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         break;
     case 0x4e: /* STEST2 */
         if (val & 1) {
-            BADF("Low level mode not implemented\n");
+            qemu_log_mask(LOG_UNIMP,
+                          "lsi_scsi: Low level mode not implemented\n");
         }
         s->stest2 = val;
         break;
     case 0x4f: /* STEST3 */
         if (val & 0x41) {
-            BADF("SCSI FIFO test mode not implemented\n");
+            qemu_log_mask(LOG_UNIMP,
+                          "lsi_scsi: SCSI FIFO test mode not implemented\n");
         }
         s->stest3 = val;
         break;
