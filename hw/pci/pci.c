@@ -1737,6 +1737,9 @@ static PciDeviceInfo *qmp_query_pci_device(PCIDevice *dev, PCIBus *bus,
     info->id = g_new0(PciDeviceId, 1);
     info->id->vendor = pci_get_word(dev->config + PCI_VENDOR_ID);
     info->id->device = pci_get_word(dev->config + PCI_DEVICE_ID);
+    info->id->subsystem = pci_get_word(dev->config + PCI_SUBSYSTEM_ID);
+    info->id->subsystem_vendor =
+        pci_get_word(dev->config + PCI_SUBSYSTEM_VENDOR_ID);
     info->regions = qmp_query_pci_regions(dev);
     info->qdev_id = g_strdup(dev->qdev.id ? dev->qdev.id : "");
 
