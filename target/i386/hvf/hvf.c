@@ -72,7 +72,6 @@
 #include "sysemu/sysemu.h"
 #include "target/i386/cpu.h"
 
-pthread_rwlock_t mem_lock = PTHREAD_RWLOCK_INITIALIZER;
 HVFState *hvf_state;
 int hvf_disabled = 1;
 
