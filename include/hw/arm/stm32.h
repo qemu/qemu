@@ -366,6 +366,11 @@ typedef struct Stm32Timer Stm32Timer;
 #define TYPE_STM32_TIMER "stm32-timer"
 #define STM32_TIMER(obj) OBJECT_CHECK(Stm32Timer, (obj), TYPE_STM32_TIMER)
 
+/* CRC */
+typedef struct Stm32crc Stm32crc;
+
+#define TYPE_STM32_CRC "stm32-crc"
+#define STM32_CRC(obj) OBJECT_CHECK(Stm32crc, (obj), TYPE_STM32_CRC)
 
 
 /* STM32 MICROCONTROLLER - GENERAL */
