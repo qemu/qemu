@@ -38,8 +38,6 @@
 /* Maximum bounce buffer for copy-on-read and write zeroes, in bytes */
 #define MAX_BOUNCE_BUFFER (32768 << BDRV_SECTOR_BITS)
 
-static AioWait drain_all_aio_wait;
-
 static void bdrv_parent_cb_resize(BlockDriverState *bs);
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int bytes, BdrvRequestFlags flags);
@@ -557,7 +555,7 @@ void bdrv_drain_all_begin(void)
     }
 
     /* Now poll the in-flight requests */
-    AIO_WAIT_WHILE(&drain_all_aio_wait, NULL, bdrv_drain_all_poll());
+    AIO_WAIT_WHILE(NULL, bdrv_drain_all_poll());
 
     while ((bs = bdrv_next_all_states(bs))) {
         bdrv_drain_assert_idle(bs);
@@ -713,8 +711,7 @@ void bdrv_inc_in_flight(BlockDriverState *bs)
 
 void bdrv_wakeup(BlockDriverState *bs)
 {
-    aio_wait_kick(bdrv_get_aio_wait(bs));
-    aio_wait_kick(&drain_all_aio_wait);
+    aio_wait_kick();
 }
 
 void bdrv_dec_in_flight(BlockDriverState *bs)

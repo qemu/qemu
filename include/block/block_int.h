@@ -794,9 +794,6 @@ struct BlockDriverState {
     unsigned int in_flight;
     unsigned int serialising_in_flight;
 
-    /* Kicked to signal main loop when a request completes. */
-    AioWait wait;
-
     /* counter for nested bdrv_io_plug.
      * Accessed with atomic ops.
     */

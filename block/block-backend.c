@@ -88,7 +88,6 @@ struct BlockBackend {
      * Accessed with atomic ops.
      */
     unsigned int in_flight;
-    AioWait wait;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -1298,7 +1297,7 @@ static void blk_inc_in_flight(BlockBackend *blk)
 static void blk_dec_in_flight(BlockBackend *blk)
 {
     atomic_dec(&blk->in_flight);
-    aio_wait_kick(&blk->wait);
+    aio_wait_kick();
 }
 
 static void error_callback_bh(void *opaque)
@@ -1599,9 +1598,8 @@ void blk_drain(BlockBackend *blk)
     }
 
     /* We may have -ENOMEDIUM completions in flight */
-    AIO_WAIT_WHILE(&blk->wait,
-            blk_get_aio_context(blk),
-            atomic_mb_read(&blk->in_flight) > 0);
+    AIO_WAIT_WHILE(blk_get_aio_context(blk),
+                   atomic_mb_read(&blk->in_flight) > 0);
 
     if (bs) {
         bdrv_drained_end(bs);
@@ -1620,8 +1618,7 @@ void blk_drain_all(void)
         aio_context_acquire(ctx);
 
         /* We may have -ENOMEDIUM completions in flight */
-        AIO_WAIT_WHILE(&blk->wait, ctx,
-                atomic_mb_read(&blk->in_flight) > 0);
+        AIO_WAIT_WHILE(ctx, atomic_mb_read(&blk->in_flight) > 0);
 
         aio_context_release(ctx);
     }

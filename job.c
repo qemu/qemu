@@ -978,7 +978,6 @@ void job_complete(Job *job, Error **errp)
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
 {
     Error *local_err = NULL;
-    AioWait dummy_wait = {};
     int ret;
 
     job_ref(job);
@@ -992,7 +991,7 @@ int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
         return -EBUSY;
     }
 
-    AIO_WAIT_WHILE(&dummy_wait, job->aio_context,
+    AIO_WAIT_WHILE(job->aio_context,
                    (job_drain(job), !job_is_completed(job)));
 
     ret = (job_is_cancelled(job) && job->ret == 0) ? -ECANCELED : job->ret;

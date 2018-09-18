@@ -410,13 +410,9 @@ void bdrv_drain_all_begin(void);
 void bdrv_drain_all_end(void);
 void bdrv_drain_all(void);
 
-/* Returns NULL when bs == NULL */
-AioWait *bdrv_get_aio_wait(BlockDriverState *bs);
-
 #define BDRV_POLL_WHILE(bs, cond) ({                       \
     BlockDriverState *bs_ = (bs);                          \
-    AIO_WAIT_WHILE(bdrv_get_aio_wait(bs_),                 \
-                   bdrv_get_aio_context(bs_),              \
+    AIO_WAIT_WHILE(bdrv_get_aio_context(bs_),              \
                    cond); })
 
 int bdrv_pdiscard(BdrvChild *child, int64_t offset, int bytes);

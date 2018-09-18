@@ -221,20 +221,9 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
     return 0;
 }
 
-void block_job_wakeup_all_bdrv(BlockJob *job)
-{
-    GSList *l;
-
-    for (l = job->nodes; l; l = l->next) {
-        BdrvChild *c = l->data;
-        bdrv_wakeup(c->bs);
-    }
-}
-
 static void block_job_on_idle(Notifier *n, void *opaque)
 {
-    BlockJob *job = opaque;
-    block_job_wakeup_all_bdrv(job);
+    aio_wait_kick();
 }
 
 bool block_job_is_internal(BlockJob *job)

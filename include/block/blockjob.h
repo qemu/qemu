@@ -122,16 +122,6 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
 void block_job_remove_all_bdrv(BlockJob *job);
 
 /**
- * block_job_wakeup_all_bdrv:
- * @job: The block job
- *
- * Calls bdrv_wakeup() for all BlockDriverStates that have been added to the
- * job. This function is to be called whenever child_job_drained_poll() would
- * go from true to false to notify waiting drain requests.
- */
-void block_job_wakeup_all_bdrv(BlockJob *job);
-
-/**
  * block_job_set_speed:
  * @job: The job to set the speed for.
  * @speed: The new value

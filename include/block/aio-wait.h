@@ -30,14 +30,15 @@
 /**
  * AioWait:
  *
- * An object that facilitates synchronous waiting on a condition.  The main
- * loop can wait on an operation running in an IOThread as follows:
+ * An object that facilitates synchronous waiting on a condition. A single
+ * global AioWait object (global_aio_wait) is used internally.
  *
- *   AioWait *wait = ...;
+ * The main loop can wait on an operation running in an IOThread as follows:
+ *
  *   AioContext *ctx = ...;
  *   MyWork work = { .done = false };
  *   schedule_my_work_in_iothread(ctx, &work);
- *   AIO_WAIT_WHILE(wait, ctx, !work.done);
+ *   AIO_WAIT_WHILE(ctx, !work.done);
  *
  * The IOThread must call aio_wait_kick() to notify the main loop when
  * work.done changes:
@@ -46,7 +47,7 @@
  *   {
  *       ...
  *       work.done = true;
- *       aio_wait_kick(wait);
+ *       aio_wait_kick();
  *   }
  */
 typedef struct {
@@ -54,9 +55,10 @@ typedef struct {
     unsigned num_waiters;
 } AioWait;
 
+extern AioWait global_aio_wait;
+
 /**
  * AIO_WAIT_WHILE:
- * @wait: the aio wait object
  * @ctx: the aio context, or NULL if multiple aio contexts (for which the
  *       caller does not hold a lock) are involved in the polling condition.
  * @cond: wait while this conditional expression is true
@@ -72,9 +74,9 @@ typedef struct {
  * wait on conditions between two IOThreads since that could lead to deadlock,
  * go via the main loop instead.
  */
-#define AIO_WAIT_WHILE(wait, ctx, cond) ({                         \
+#define AIO_WAIT_WHILE(ctx, cond) ({                               \
     bool waited_ = false;                                          \
-    AioWait *wait_ = (wait);                                       \
+    AioWait *wait_ = &global_aio_wait;                             \
     AioContext *ctx_ = (ctx);                                      \
     /* Increment wait_->num_waiters before evaluating cond. */     \
     atomic_inc(&wait_->num_waiters);                               \
@@ -102,14 +104,12 @@ typedef struct {
 
 /**
  * aio_wait_kick:
- * @wait: the aio wait object that should re-evaluate its condition
- *
  * Wake up the main thread if it is waiting on AIO_WAIT_WHILE().  During
  * synchronous operations performed in an IOThread, the main thread lets the
  * IOThread's event loop run, waiting for the operation to complete.  A
  * aio_wait_kick() call will wake up the main thread.
  */
-void aio_wait_kick(AioWait *wait);
+void aio_wait_kick(void);
 
 /**
  * aio_wait_bh_oneshot:
