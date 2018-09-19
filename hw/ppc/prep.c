@@ -621,7 +621,7 @@ static void ibm_40p_init(MachineState *machine)
     CPUPPCState *env = NULL;
     uint16_t cmos_checksum;
     PowerPCCPU *cpu;
-    DeviceState *dev;
+    DeviceState *dev, *i82378_dev;
     SysBusDevice *pcihost, *s;
     Nvram *m48t59 = NULL;
     PCIBus *pci_bus;
@@ -666,11 +666,11 @@ static void ibm_40p_init(MachineState *machine)
     }
 
     /* PCI -> ISA bridge */
-    dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(11, 0), "i82378"));
-    qdev_connect_gpio_out(dev, 0,
+    i82378_dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(11, 0), "i82378"));
+    qdev_connect_gpio_out(i82378_dev, 0,
                           cpu->env.irq_inputs[PPC6xx_INPUT_INT]);
-    sysbus_connect_irq(pcihost, 0, qdev_get_gpio_in(dev, 15));
-    isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
+    sysbus_connect_irq(pcihost, 0, qdev_get_gpio_in(i82378_dev, 15));
+    isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
 
     /* Memory controller */
     dev = DEVICE(isa_create(isa_bus, "rs6000-mc"));
@@ -703,6 +703,7 @@ static void ibm_40p_init(MachineState *machine)
         dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(1, 0),
                                        "lsi53c810"));
         lsi53c8xx_handle_legacy_cmdline(dev);
+        qdev_connect_gpio_out(dev, 0, qdev_get_gpio_in(i82378_dev, 13));
 
         /* XXX: s3-trio at PCI_DEVFN(2, 0) */
         pci_vga_init(pci_bus);
