@@ -207,6 +207,7 @@ typedef struct {
     PCIDevice parent_obj;
     /*< public >*/
 
+    qemu_irq ext_irq;
     MemoryRegion mmio_io;
     MemoryRegion ram_io;
     MemoryRegion io_io;
@@ -443,9 +444,19 @@ static void lsi_stop_script(LSIState *s)
     s->istat1 &= ~LSI_ISTAT1_SRUN;
 }
 
-static void lsi_update_irq(LSIState *s)
+static void lsi_set_irq(LSIState *s, int level)
 {
     PCIDevice *d = PCI_DEVICE(s);
+
+    if (s->ext_irq) {
+        qemu_set_irq(s->ext_irq, level);
+    } else {
+        pci_set_irq(d, level);
+    }
+}
+
+static void lsi_update_irq(LSIState *s)
+{
     int level;
     static int last_level;
     lsi_request *p;
@@ -477,7 +488,7 @@ static void lsi_update_irq(LSIState *s)
                 level, s->dstat, s->sist1, s->sist0);
         last_level = level;
     }
-    pci_set_irq(d, level);
+    lsi_set_irq(s, level);
 
     if (!level && lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON)) {
         DPRINTF("Handled IRQs & disconnected, looking for pending "
@@ -2213,6 +2224,7 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
                           "lsi-io", 256);
 
     address_space_init(&s->pci_io_as, pci_address_space_io(dev), "lsi-pci-io");
+    qdev_init_gpio_out(d, &s->ext_irq, 1);
 
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio_io);
