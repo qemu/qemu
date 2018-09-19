@@ -218,9 +218,6 @@ static coroutine_fn int replication_co_readv(BlockDriverState *bs,
                                              QEMUIOVector *qiov)
 {
     BDRVReplicationState *s = bs->opaque;
-    BdrvChild *child = s->secondary_disk;
-    BlockJob *job = NULL;
-    CowRequest req;
     int ret;
 
     if (s->mode == REPLICATION_MODE_PRIMARY) {
@@ -233,28 +230,9 @@ static coroutine_fn int replication_co_readv(BlockDriverState *bs,
         return ret;
     }
 
-    if (child && child->bs) {
-        job = child->bs->job;
-    }
-
-    if (job) {
-        uint64_t remaining_bytes = remaining_sectors * BDRV_SECTOR_SIZE;
-
-        backup_wait_for_overlapping_requests(child->bs->job,
-                                             sector_num * BDRV_SECTOR_SIZE,
-                                             remaining_bytes);
-        backup_cow_request_begin(&req, child->bs->job,
-                                 sector_num * BDRV_SECTOR_SIZE,
-                                 remaining_bytes);
-        ret = bdrv_co_preadv(bs->file, sector_num * BDRV_SECTOR_SIZE,
-                             remaining_bytes, qiov, 0);
-        backup_cow_request_end(&req);
-        goto out;
-    }
-
     ret = bdrv_co_preadv(bs->file, sector_num * BDRV_SECTOR_SIZE,
                          remaining_sectors * BDRV_SECTOR_SIZE, qiov, 0);
-out:
+
     return replication_return_value(s, ret);
 }
 
