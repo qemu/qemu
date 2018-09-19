@@ -2290,3 +2290,10 @@ void lsi53c810_create(PCIBus *bus, int devfn)
 
     scsi_bus_legacy_handle_cmdline(&s->bus);
 }
+
+void lsi53c8xx_handle_legacy_cmdline(DeviceState *lsi_dev)
+{
+    LSIState *s = LSI53C895A(lsi_dev);
+
+    scsi_bus_legacy_handle_cmdline(&s->bus);
+}
