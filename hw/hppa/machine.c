@@ -59,6 +59,7 @@ static void machine_hppa_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
+    DeviceState *dev;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     qemu_irq rtc_irq, serial_irq;
@@ -115,7 +116,8 @@ static void machine_hppa_init(MachineState *machine)
     }
 
     /* SCSI disk setup. */
-    lsi53c895a_create(pci_bus);
+    dev = DEVICE(pci_create_simple(pci_bus, -1, "lsi53c895a"));
+    lsi53c8xx_handle_legacy_cmdline(dev);
 
     /* Network setup.  e1000 is good enough, failing Tulip support.  */
     for (i = 0; i < nb_nics; i++) {
