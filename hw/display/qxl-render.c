@@ -98,6 +98,8 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
 {
     VGACommonState *vga = &qxl->vga;
     DisplaySurface *surface;
+    int width = qxl->guest_head0_width ?: qxl->guest_primary.surface.width;
+    int height = qxl->guest_head0_height ?: qxl->guest_primary.surface.height;
     int i;
 
     if (qxl->guest_primary.resized) {
@@ -111,8 +113,8 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
         qxl_set_rect_to_surface(qxl, &qxl->dirty[0]);
         qxl->num_dirty_rects = 1;
         trace_qxl_render_guest_primary_resized(
-               qxl->guest_primary.surface.width,
-               qxl->guest_primary.surface.height,
+               width,
+               height,
                qxl->guest_primary.qxl_stride,
                qxl->guest_primary.bytes_pp,
                qxl->guest_primary.bits_pp);
@@ -120,15 +122,15 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
             pixman_format_code_t format =
                 qemu_default_pixman_format(qxl->guest_primary.bits_pp, true);
             surface = qemu_create_displaysurface_from
-                (qxl->guest_primary.surface.width,
-                 qxl->guest_primary.surface.height,
+                (width,
+                 height,
                  format,
                  qxl->guest_primary.abs_stride,
                  qxl->guest_primary.data);
         } else {
             surface = qemu_create_displaysurface
-                (qxl->guest_primary.surface.width,
-                 qxl->guest_primary.surface.height);
+                (width,
+                 height);
         }
         dpy_gfx_replace_surface(vga->con, surface);
     }
@@ -144,8 +146,8 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
             qxl->dirty[i].top < 0 ||
             qxl->dirty[i].left > qxl->dirty[i].right ||
             qxl->dirty[i].top > qxl->dirty[i].bottom ||
-            qxl->dirty[i].right > qxl->guest_primary.surface.width ||
-            qxl->dirty[i].bottom > qxl->guest_primary.surface.height) {
+            qxl->dirty[i].right > width ||
+            qxl->dirty[i].bottom > height) {
             continue;
         }
         qxl_blit(qxl, qxl->dirty+i);
