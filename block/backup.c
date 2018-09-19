@@ -28,6 +28,13 @@
 
 #define BACKUP_CLUSTER_SIZE_DEFAULT (1 << 16)
 
+typedef struct CowRequest {
+    int64_t start_byte;
+    int64_t end_byte;
+    QLIST_ENTRY(CowRequest) list;
+    CoQueue wait_queue; /* coroutines blocked on this request */
+} CowRequest;
+
 typedef struct BackupBlockJob {
     BlockJob common;
     BlockBackend *target;
@@ -320,37 +327,6 @@ void backup_do_checkpoint(BlockJob *job, Error **errp)
 
     len = DIV_ROUND_UP(backup_job->len, backup_job->cluster_size);
     hbitmap_set(backup_job->copy_bitmap, 0, len);
-}
-
-void backup_wait_for_overlapping_requests(BlockJob *job, int64_t offset,
-                                          uint64_t bytes)
-{
-    BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
-    int64_t start, end;
-
-    assert(block_job_driver(job) == &backup_job_driver);
-
-    start = QEMU_ALIGN_DOWN(offset, backup_job->cluster_size);
-    end = QEMU_ALIGN_UP(offset + bytes, backup_job->cluster_size);
-    wait_for_overlapping_requests(backup_job, start, end);
-}
-
-void backup_cow_request_begin(CowRequest *req, BlockJob *job,
-                              int64_t offset, uint64_t bytes)
-{
-    BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
-    int64_t start, end;
-
-    assert(block_job_driver(job) == &backup_job_driver);
-
-    start = QEMU_ALIGN_DOWN(offset, backup_job->cluster_size);
-    end = QEMU_ALIGN_UP(offset + bytes, backup_job->cluster_size);
-    cow_request_begin(req, backup_job, start, end);
-}
-
-void backup_cow_request_end(CowRequest *req)
-{
-    cow_request_end(req);
 }
 
 static void backup_drain(BlockJob *job)
