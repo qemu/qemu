@@ -786,6 +786,7 @@ typedef struct TestBlockJob {
     BlockJob common;
     int run_ret;
     int prepare_ret;
+    bool running;
     bool should_complete;
 } TestBlockJob;
 
@@ -818,12 +819,17 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
 {
     TestBlockJob *s = container_of(job, TestBlockJob, common.job);
 
+    /* We are running the actual job code past the pause point in
+     * job_co_entry(). */
+    s->running = true;
+
     job_transition_to_ready(&s->common.job);
     while (!s->should_complete) {
         /* Avoid job_sleep_ns() because it marks the job as !busy. We want to
          * emulate some actual activity (probably some I/O) here so that drain
          * has to wait for this activity to stop. */
-        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000);
+        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 1000000);
+
         job_pause_point(&s->common.job);
     }
 
@@ -856,11 +862,19 @@ enum test_job_result {
     TEST_JOB_FAIL_PREPARE,
 };
 
-static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
-                                 enum test_job_result result)
+enum test_job_drain_node {
+    TEST_JOB_DRAIN_SRC,
+    TEST_JOB_DRAIN_SRC_CHILD,
+    TEST_JOB_DRAIN_SRC_PARENT,
+};
+
+static void test_blockjob_common_drain_node(enum drain_type drain_type,
+                                            bool use_iothread,
+                                            enum test_job_result result,
+                                            enum test_job_drain_node drain_node)
 {
     BlockBackend *blk_src, *blk_target;
-    BlockDriverState *src, *target;
+    BlockDriverState *src, *src_backing, *src_overlay, *target, *drain_bs;
     BlockJob *job;
     TestBlockJob *tjob;
     IOThread *iothread = NULL;
@@ -869,8 +883,32 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
 
     src = bdrv_new_open_driver(&bdrv_test, "source", BDRV_O_RDWR,
                                &error_abort);
+    src_backing = bdrv_new_open_driver(&bdrv_test, "source-backing",
+                                       BDRV_O_RDWR, &error_abort);
+    src_overlay = bdrv_new_open_driver(&bdrv_test, "source-overlay",
+                                       BDRV_O_RDWR, &error_abort);
+
+    bdrv_set_backing_hd(src_overlay, src, &error_abort);
+    bdrv_unref(src);
+    bdrv_set_backing_hd(src, src_backing, &error_abort);
+    bdrv_unref(src_backing);
+
     blk_src = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
-    blk_insert_bs(blk_src, src, &error_abort);
+    blk_insert_bs(blk_src, src_overlay, &error_abort);
+
+    switch (drain_node) {
+    case TEST_JOB_DRAIN_SRC:
+        drain_bs = src;
+        break;
+    case TEST_JOB_DRAIN_SRC_CHILD:
+        drain_bs = src_backing;
+        break;
+    case TEST_JOB_DRAIN_SRC_PARENT:
+        drain_bs = src_overlay;
+        break;
+    default:
+        g_assert_not_reached();
+    }
 
     if (use_iothread) {
         iothread = iothread_new();
@@ -906,11 +944,21 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
     job_start(&job->job);
     aio_context_release(ctx);
 
+    if (use_iothread) {
+        /* job_co_entry() is run in the I/O thread, wait for the actual job
+         * code to start (we don't want to catch the job in the pause point in
+         * job_co_entry(). */
+        while (!tjob->running) {
+            aio_poll(qemu_get_aio_context(), false);
+        }
+    }
+
     g_assert_cmpint(job->job.pause_count, ==, 0);
     g_assert_false(job->job.paused);
+    g_assert_true(tjob->running);
     g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
 
-    do_drain_begin_unlocked(drain_type, src);
+    do_drain_begin_unlocked(drain_type, drain_bs);
 
     if (drain_type == BDRV_DRAIN_ALL) {
         /* bdrv_drain_all() drains both src and target */
@@ -921,7 +969,7 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
     g_assert_true(job->job.paused);
     g_assert_false(job->job.busy); /* The job is paused */
 
-    do_drain_end_unlocked(drain_type, src);
+    do_drain_end_unlocked(drain_type, drain_bs);
 
     if (use_iothread) {
         /* paused is reset in the I/O thread, wait for it */
@@ -969,11 +1017,24 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
 
     blk_unref(blk_src);
     blk_unref(blk_target);
-    bdrv_unref(src);
+    bdrv_unref(src_overlay);
     bdrv_unref(target);
 
     if (iothread) {
         iothread_join(iothread);
+    }
+}
+
+static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
+                                 enum test_job_result result)
+{
+    test_blockjob_common_drain_node(drain_type, use_iothread, result,
+                                    TEST_JOB_DRAIN_SRC);
+    test_blockjob_common_drain_node(drain_type, use_iothread, result,
+                                    TEST_JOB_DRAIN_SRC_CHILD);
+    if (drain_type == BDRV_SUBTREE_DRAIN) {
+        test_blockjob_common_drain_node(drain_type, use_iothread, result,
+                                        TEST_JOB_DRAIN_SRC_PARENT);
     }
 }
 
