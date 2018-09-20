@@ -820,9 +820,9 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
 
     job_transition_to_ready(&s->common.job);
     while (!s->should_complete) {
-        /* Avoid block_job_sleep_ns() because it marks the job as !busy. We
-         * want to emulate some actual activity (probably some I/O) here so
-         * that drain has to wait for this acitivity to stop. */
+        /* Avoid job_sleep_ns() because it marks the job as !busy. We want to
+         * emulate some actual activity (probably some I/O) here so that drain
+         * has to wait for this activity to stop. */
         qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000);
         job_pause_point(&s->common.job);
     }
@@ -908,7 +908,7 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
 
     g_assert_cmpint(job->job.pause_count, ==, 0);
     g_assert_false(job->job.paused);
-    g_assert_true(job->job.busy); /* We're in job_sleep_ns() */
+    g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
 
     do_drain_begin_unlocked(drain_type, src);
 
@@ -956,7 +956,7 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
 
     g_assert_cmpint(job->job.pause_count, ==, 0);
     g_assert_false(job->job.paused);
-    g_assert_true(job->job.busy); /* We're in job_sleep_ns() */
+    g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
 
     aio_context_acquire(ctx);
     ret = job_complete_sync(&job->job, &error_abort);
