@@ -404,6 +404,8 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *hub_id,
                 monitor_printf(mon, "unrecognized (hub-id, stackname) pair\n");
                 return NULL;
             }
+            warn_report("Using 'hub-id' is deprecated, specify the netdev id "
+                        "directly instead");
         } else {
             nc = qemu_find_netdev(name);
             if (!nc) {

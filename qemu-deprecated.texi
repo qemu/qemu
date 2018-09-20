@@ -104,6 +104,13 @@ The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
 The ``arch'' output member of the ``query-cpus-fast'' command is
 replaced by the ``target'' output member.
 
+@section System emulator human monitor commands
+
+@subsection The hub_id parameter of 'hostfwd_add' / 'hostfwd_remove' (since 3.1)
+
+The @option{[hub_id name]} parameter tuple of the 'hostfwd_add' and
+'hostfwd_remove' HMP commands has been replaced by @option{netdev_id}.
+
 @section System emulator devices
 
 @subsection ivshmem (since 2.6.0)
