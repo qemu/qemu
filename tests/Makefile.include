@@ -11,6 +11,7 @@ check-help:
 	@echo " $(MAKE) check-qapi-schema    Run QAPI schema tests"
 	@echo " $(MAKE) check-block          Run block tests"
 	@echo " $(MAKE) check-tcg            Run TCG tests"
+	@echo " $(MAKE) check-acceptance     Run all acceptance (functional) tests"
 	@echo " $(MAKE) check-report.html    Generates an HTML test report"
 	@echo " $(MAKE) check-venv           Creates a Python venv for tests"
 	@echo " $(MAKE) check-clean          Clean the tests"
@@ -1018,10 +1019,11 @@ check-decodetree:
 
 # Python venv for running tests
 
-.PHONY: check-venv
+.PHONY: check-venv check-acceptance
 
 TESTS_VENV_DIR=$(BUILD_DIR)/tests/venv
 TESTS_VENV_REQ=$(SRC_PATH)/tests/venv-requirements.txt
+TESTS_RESULTS_DIR=$(BUILD_DIR)/tests/results
 
 $(TESTS_VENV_DIR):
 	$(call quiet-command, \
@@ -1031,7 +1033,18 @@ $(TESTS_VENV_DIR):
             $(TESTS_VENV_DIR)/bin/pip -q install -r $(TESTS_VENV_REQ), \
             PIP, $(TESTS_VENV_REQ))
 
+$(TESTS_RESULTS_DIR):
+	$(call quiet-command, mkdir -p $@, \
+            MKDIR, $@)
+
 check-venv: $(TESTS_VENV_DIR)
+
+check-acceptance: check-venv $(TESTS_RESULTS_DIR)
+	$(call quiet-command, \
+            $(TESTS_VENV_DIR)/bin/python -m avocado \
+            --show=none run --job-results-dir=$(TESTS_RESULTS_DIR) --failfast=on \
+            $(SRC_PATH)/tests/acceptance, \
+            "AVOCADO", "tests/acceptance")
 
 # Consolidated targets
 
@@ -1046,7 +1059,7 @@ check-clean:
 	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
 	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y)) $(check-qtest-generic-y))
 	rm -f tests/test-qapi-gen-timestamp
-	rm -rf $(TESTS_VENV_DIR)
+	rm -rf $(TESTS_VENV_DIR) $(TESTS_RESULTS_DIR)
 
 clean: check-clean
 
