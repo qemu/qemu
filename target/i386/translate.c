@@ -8538,10 +8538,10 @@ static void i386_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
            chance to happen */
         dc->base.is_jmp = DISAS_TOO_MANY;
     } else if ((tb_cflags(dc->base.tb) & CF_USE_ICOUNT)
-               && ((dc->base.pc_next & TARGET_PAGE_MASK)
-                   != ((dc->base.pc_next + TARGET_MAX_INSN_SIZE - 1)
+               && ((pc_next & TARGET_PAGE_MASK)
+                   != ((pc_next + TARGET_MAX_INSN_SIZE - 1)
                        & TARGET_PAGE_MASK)
-                   || (dc->base.pc_next & ~TARGET_PAGE_MASK) == 0)) {
+                   || (pc_next & ~TARGET_PAGE_MASK) == 0)) {
         /* Do not cross the boundary of the pages in icount mode,
            it can cause an exception. Do it only when boundary is
            crossed by the first instruction in the block.
