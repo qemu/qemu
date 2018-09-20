@@ -83,6 +83,11 @@ The 'file' driver for drives is no longer appropriate for character or host
 devices and will only accept regular files (S_IFREG). The correct driver
 for these file types is 'host_cdrom' or 'host_device' as appropriate.
 
+@subsection -net ...,name=@var{name} (since 3.1)
+
+The @option{name} parameter of the @option{-net} option is a synonym
+for the @option{id} parameter, which should now be used instead.
+
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)
