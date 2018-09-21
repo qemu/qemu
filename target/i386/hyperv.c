@@ -185,7 +185,7 @@ void hyperv_sint_route_unref(HvSintRoute *sint_route)
     g_free(sint_route);
 }
 
-int kvm_hv_sint_route_set_sint(HvSintRoute *sint_route)
+int hyperv_sint_route_set_sint(HvSintRoute *sint_route)
 {
     return event_notifier_set(&sint_route->sint_set_notifier);
 }

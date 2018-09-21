@@ -28,7 +28,7 @@ HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
 void hyperv_sint_route_ref(HvSintRoute *sint_route);
 void hyperv_sint_route_unref(HvSintRoute *sint_route);
 
-int kvm_hv_sint_route_set_sint(HvSintRoute *sint_route);
+int hyperv_sint_route_set_sint(HvSintRoute *sint_route);
 
 uint32_t hyperv_vp_index(X86CPU *cpu);
 X86CPU *hyperv_find_vcpu(uint32_t vp_index);

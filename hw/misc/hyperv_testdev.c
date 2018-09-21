@@ -90,7 +90,7 @@ static void sint_route_set_sint(HypervTestDev *dev,
 
     sint_route = sint_route_find(dev, vp_index, sint);
 
-    kvm_hv_sint_route_set_sint(sint_route->sint_route);
+    hyperv_sint_route_set_sint(sint_route->sint_route);
 }
 
 static uint64_t hv_test_dev_read(void *opaque, hwaddr addr, unsigned size)
