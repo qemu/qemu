@@ -16,6 +16,16 @@
 #include "hyperv.h"
 #include "hyperv-proto.h"
 
+struct HvSintRoute {
+    uint32_t sint;
+    uint32_t vp_index;
+    int gsi;
+    EventNotifier sint_set_notifier;
+    EventNotifier sint_ack_notifier;
+    HvSintAckClb sint_ack_clb;
+    void *sint_ack_clb_data;
+};
+
 uint32_t hyperv_vp_index(X86CPU *cpu)
 {
     return CPU(cpu)->cpu_index;
@@ -77,11 +87,12 @@ static void kvm_hv_sint_ack_handler(EventNotifier *notifier)
     HvSintRoute *sint_route = container_of(notifier, HvSintRoute,
                                            sint_ack_notifier);
     event_notifier_test_and_clear(notifier);
-    sint_route->sint_ack_clb(sint_route);
+    sint_route->sint_ack_clb(sint_route->sint_ack_clb_data);
 }
 
 HvSintRoute *kvm_hv_sint_route_create(uint32_t vp_index, uint32_t sint,
-                                      HvSintAckClb sint_ack_clb)
+                                      HvSintAckClb sint_ack_clb,
+                                      void *sint_ack_clb_data)
 {
     HvSintRoute *sint_route;
     EventNotifier *ack_notifier;
@@ -116,6 +127,7 @@ HvSintRoute *kvm_hv_sint_route_create(uint32_t vp_index, uint32_t sint,
     }
     sint_route->gsi = gsi;
     sint_route->sint_ack_clb = sint_ack_clb;
+    sint_route->sint_ack_clb_data = sint_ack_clb_data;
     sint_route->vp_index = vp_index;
     sint_route->sint = sint;
 

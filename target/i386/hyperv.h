@@ -16,24 +16,15 @@
 
 #include "cpu.h"
 #include "sysemu/kvm.h"
-#include "qemu/event_notifier.h"
 
 typedef struct HvSintRoute HvSintRoute;
-typedef void (*HvSintAckClb)(HvSintRoute *sint_route);
-
-struct HvSintRoute {
-    uint32_t sint;
-    uint32_t vp_index;
-    int gsi;
-    EventNotifier sint_set_notifier;
-    EventNotifier sint_ack_notifier;
-    HvSintAckClb sint_ack_clb;
-};
+typedef void (*HvSintAckClb)(void *data);
 
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit);
 
 HvSintRoute *kvm_hv_sint_route_create(uint32_t vp_index, uint32_t sint,
-                                      HvSintAckClb sint_ack_clb);
+                                      HvSintAckClb sint_ack_clb,
+                                      void *sint_ack_clb_data);
 
 void kvm_hv_sint_route_destroy(HvSintRoute *sint_route);
 
