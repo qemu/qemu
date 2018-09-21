@@ -142,11 +142,13 @@ void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
     }
 }
 
-void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode)
+static void dcbz_common(CPUPPCState *env, target_ulong addr,
+                        uint32_t opcode, bool epid, uintptr_t retaddr)
 {
     target_ulong mask, dcbz_size = env->dcache_line_size;
     uint32_t i;
     void *haddr;
+    int mmu_idx = epid ? PPC_TLB_EPID_STORE : env->dmmu_idx;
 
 #if defined(TARGET_PPC64)
     /* Check for dcbz vs dcbzl on 970 */
@@ -166,15 +168,32 @@ void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode)
     }
 
     /* Try fast path translate */
-    haddr = tlb_vaddr_to_host(env, addr, MMU_DATA_STORE, env->dmmu_idx);
+    haddr = tlb_vaddr_to_host(env, addr, MMU_DATA_STORE, mmu_idx);
     if (haddr) {
         memset(haddr, 0, dcbz_size);
     } else {
         /* Slow path */
         for (i = 0; i < dcbz_size; i += 8) {
-            cpu_stq_data_ra(env, addr + i, 0, GETPC());
+            if (epid) {
+#if !defined(CONFIG_USER_ONLY)
+                /* Does not make sense on USER_ONLY config */
+                cpu_stq_eps_ra(env, addr + i, 0, retaddr);
+#endif
+            } else {
+                cpu_stq_data_ra(env, addr + i, 0, retaddr);
+            }
         }
     }
+}
+
+void helper_dcbz(CPUPPCState *env, target_ulong addr, uint32_t opcode)
+{
+    dcbz_common(env, addr, opcode, false, GETPC());
+}
+
+void helper_dcbzep(CPUPPCState *env, target_ulong addr, uint32_t opcode)
+{
+    dcbz_common(env, addr, opcode, true, GETPC());
 }
 
 void helper_icbi(CPUPPCState *env, target_ulong addr)
@@ -186,6 +205,15 @@ void helper_icbi(CPUPPCState *env, target_ulong addr)
      * do the load "by hand".
      */
     cpu_ldl_data_ra(env, addr, GETPC());
+}
+
+void helper_icbiep(CPUPPCState *env, target_ulong addr)
+{
+#if !defined(CONFIG_USER_ONLY)
+    /* See comments above */
+    addr &= ~(env->dcache_line_size - 1);
+    cpu_ldl_epl_ra(env, addr, GETPC());
+#endif
 }
 
 /* XXX: to be tested */

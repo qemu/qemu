@@ -673,6 +673,23 @@ GEN_LDFS(lfd, ld64_i64, 0x12, PPC_FLOAT);
  /* lfs lfsu lfsux lfsx */
 GEN_LDFS(lfs, ld32fs, 0x10, PPC_FLOAT);
 
+/* lfdepx (external PID lfdx) */
+static void gen_lfdepx(DisasContext *ctx)
+{
+    TCGv EA;
+    CHK_SV;
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_FLOAT);
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    tcg_gen_qemu_ld_i64(cpu_fpr[rD(ctx->opcode)], EA, PPC_TLB_EPID_LOAD,
+        DEF_MEMOP(MO_Q));
+    tcg_temp_free(EA);
+}
+
 /* lfdp */
 static void gen_lfdp(DisasContext *ctx)
 {
@@ -845,6 +862,23 @@ static void gen_qemu_st32fs(DisasContext *ctx, TCGv_i64 src, TCGv addr)
 GEN_STFS(stfd, st64_i64, 0x16, PPC_FLOAT);
 /* stfs stfsu stfsux stfsx */
 GEN_STFS(stfs, st32fs, 0x14, PPC_FLOAT);
+
+/* stfdepx (external PID lfdx) */
+static void gen_stfdepx(DisasContext *ctx)
+{
+    TCGv EA;
+    CHK_SV;
+    if (unlikely(!ctx->fpu_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_FPU);
+        return;
+    }
+    gen_set_access_type(ctx, ACCESS_FLOAT);
+    EA = tcg_temp_new();
+    gen_addr_reg_index(ctx, EA);
+    tcg_gen_qemu_st_i64(cpu_fpr[rD(ctx->opcode)], EA, PPC_TLB_EPID_STORE,
+                       DEF_MEMOP(MO_Q));
+    tcg_temp_free(EA);
+}
 
 /* stfdp */
 static void gen_stfdp(DisasContext *ctx)

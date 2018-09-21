@@ -924,29 +924,84 @@ static int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
     return 0;
 }
 
+static bool is_epid_mmu(int mmu_idx)
+{
+    return mmu_idx == PPC_TLB_EPID_STORE || mmu_idx == PPC_TLB_EPID_LOAD;
+}
+
+static uint32_t mmubooke206_esr(int mmu_idx, bool rw)
+{
+    uint32_t esr = 0;
+    if (rw) {
+        esr |= ESR_ST;
+    }
+    if (is_epid_mmu(mmu_idx)) {
+        esr |= ESR_EPID;
+    }
+    return esr;
+}
+
+/* Get EPID register given the mmu_idx. If this is regular load,
+ * construct the EPID access bits from current processor state  */
+
+/* Get the effective AS and PR bits and the PID. The PID is returned only if
+ * EPID load is requested, otherwise the caller must detect the correct EPID.
+ * Return true if valid EPID is returned. */
+static bool mmubooke206_get_as(CPUPPCState *env,
+                               int mmu_idx, uint32_t *epid_out,
+                               bool *as_out, bool *pr_out)
+{
+    if (is_epid_mmu(mmu_idx)) {
+        uint32_t epidr;
+        if (mmu_idx == PPC_TLB_EPID_STORE) {
+            epidr = env->spr[SPR_BOOKE_EPSC];
+        } else {
+            epidr = env->spr[SPR_BOOKE_EPLC];
+        }
+        *epid_out = (epidr & EPID_EPID) >> EPID_EPID_SHIFT;
+        *as_out = !!(epidr & EPID_EAS);
+        *pr_out = !!(epidr & EPID_EPR);
+        return true;
+    } else {
+        *as_out = msr_ds;
+        *pr_out = msr_pr;
+        return false;
+    }
+}
+
+/* Check if the tlb found by hashing really matches */
 static int mmubooke206_check_tlb(CPUPPCState *env, ppcmas_tlb_t *tlb,
                                  hwaddr *raddr, int *prot,
                                  target_ulong address, int rw,
-                                 int access_type)
+                                 int access_type, int mmu_idx)
 {
     int ret;
     int prot2 = 0;
+    uint32_t epid;
+    bool as, pr;
+    bool use_epid = mmubooke206_get_as(env, mmu_idx, &epid, &as, &pr);
 
-    if (ppcmas_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID]) >= 0) {
-        goto found_tlb;
-    }
+    if (!use_epid) {
+        if (ppcmas_tlb_check(env, tlb, raddr, address,
+                             env->spr[SPR_BOOKE_PID]) >= 0) {
+            goto found_tlb;
+        }
 
-    if (env->spr[SPR_BOOKE_PID1] &&
-        ppcmas_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID1]) >= 0) {
-        goto found_tlb;
-    }
+        if (env->spr[SPR_BOOKE_PID1] &&
+            ppcmas_tlb_check(env, tlb, raddr, address,
+                             env->spr[SPR_BOOKE_PID1]) >= 0) {
+            goto found_tlb;
+        }
 
-    if (env->spr[SPR_BOOKE_PID2] &&
-        ppcmas_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID2]) >= 0) {
-        goto found_tlb;
+        if (env->spr[SPR_BOOKE_PID2] &&
+            ppcmas_tlb_check(env, tlb, raddr, address,
+                             env->spr[SPR_BOOKE_PID2]) >= 0) {
+            goto found_tlb;
+        }
+    } else {
+        if (ppcmas_tlb_check(env, tlb, raddr, address, epid) >= 0) {
+            goto found_tlb;
+        }
     }
 
     LOG_SWTLB("%s: TLB entry not found\n", __func__);
@@ -954,7 +1009,7 @@ static int mmubooke206_check_tlb(CPUPPCState *env, ppcmas_tlb_t *tlb,
 
 found_tlb:
 
-    if (msr_pr != 0) {
+    if (pr) {
         if (tlb->mas7_3 & MAS3_UR) {
             prot2 |= PAGE_READ;
         }
@@ -978,6 +1033,8 @@ found_tlb:
 
     /* Check the address space and permissions */
     if (access_type == ACCESS_CODE) {
+        /* There is no way to fetch code using epid load */
+        assert(!use_epid);
         if (msr_ir != ((tlb->mas1 & MAS1_TS) >> MAS1_TS_SHIFT)) {
             LOG_SWTLB("%s: AS doesn't match\n", __func__);
             return -1;
@@ -992,7 +1049,7 @@ found_tlb:
         LOG_SWTLB("%s: no PAGE_EXEC: %x\n", __func__, prot2);
         ret = -3;
     } else {
-        if (msr_dr != ((tlb->mas1 & MAS1_TS) >> MAS1_TS_SHIFT)) {
+        if (as != ((tlb->mas1 & MAS1_TS) >> MAS1_TS_SHIFT)) {
             LOG_SWTLB("%s: AS doesn't match\n", __func__);
             return -1;
         }
@@ -1012,7 +1069,7 @@ found_tlb:
 
 static int mmubooke206_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
                                             target_ulong address, int rw,
-                                            int access_type)
+                                            int access_type, int mmu_idx)
 {
     ppcmas_tlb_t *tlb;
     hwaddr raddr;
@@ -1030,7 +1087,7 @@ static int mmubooke206_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
                 continue;
             }
             ret = mmubooke206_check_tlb(env, tlb, &raddr, &ctx->prot, address,
-                                        rw, access_type);
+                                        rw, access_type, mmu_idx);
             if (ret != -1) {
                 goto found_tlb;
             }
@@ -1348,8 +1405,10 @@ static inline int check_physical(CPUPPCState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
-static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
-                                target_ulong eaddr, int rw, int access_type)
+static int get_physical_address_wtlb(
+    CPUPPCState *env, mmu_ctx_t *ctx,
+    target_ulong eaddr, int rw, int access_type,
+    int mmu_idx)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int ret = -1;
@@ -1392,7 +1451,7 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         break;
     case POWERPC_MMU_BOOKE206:
         ret = mmubooke206_get_physical_address(env, ctx, eaddr, rw,
-                                               access_type);
+                                               access_type, mmu_idx);
         break;
     case POWERPC_MMU_MPC8xx:
         /* XXX: TODO */
@@ -1415,6 +1474,13 @@ static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 #endif
 
     return ret;
+}
+
+static int get_physical_address(
+    CPUPPCState *env, mmu_ctx_t *ctx,
+    target_ulong eaddr, int rw, int access_type)
+{
+    return get_physical_address_wtlb(env, ctx, eaddr, rw, access_type, 0);
 }
 
 hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
@@ -1463,8 +1529,15 @@ hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 }
 
 static void booke206_update_mas_tlb_miss(CPUPPCState *env, target_ulong address,
-                                     int rw)
+                                     int rw, int mmu_idx)
 {
+    uint32_t epid;
+    bool as, pr;
+    uint32_t missed_tid = 0;
+    bool use_epid = mmubooke206_get_as(env, mmu_idx, &epid, &as, &pr);
+    if (rw == 2) {
+        as = msr_ir;
+    }
     env->spr[SPR_BOOKE_MAS0] = env->spr[SPR_BOOKE_MAS4] & MAS4_TLBSELD_MASK;
     env->spr[SPR_BOOKE_MAS1] = env->spr[SPR_BOOKE_MAS4] & MAS4_TSIZED_MASK;
     env->spr[SPR_BOOKE_MAS2] = env->spr[SPR_BOOKE_MAS4] & MAS4_WIMGED_MASK;
@@ -1473,7 +1546,7 @@ static void booke206_update_mas_tlb_miss(CPUPPCState *env, target_ulong address,
     env->spr[SPR_BOOKE_MAS7] = 0;
 
     /* AS */
-    if (((rw == 2) && msr_ir) || ((rw != 2) && msr_dr)) {
+    if (as) {
         env->spr[SPR_BOOKE_MAS1] |= MAS1_TS;
         env->spr[SPR_BOOKE_MAS6] |= MAS6_SAS;
     }
@@ -1481,19 +1554,25 @@ static void booke206_update_mas_tlb_miss(CPUPPCState *env, target_ulong address,
     env->spr[SPR_BOOKE_MAS1] |= MAS1_VALID;
     env->spr[SPR_BOOKE_MAS2] |= address & MAS2_EPN_MASK;
 
-    switch (env->spr[SPR_BOOKE_MAS4] & MAS4_TIDSELD_PIDZ) {
-    case MAS4_TIDSELD_PID0:
-        env->spr[SPR_BOOKE_MAS1] |= env->spr[SPR_BOOKE_PID] << MAS1_TID_SHIFT;
-        break;
-    case MAS4_TIDSELD_PID1:
-        env->spr[SPR_BOOKE_MAS1] |= env->spr[SPR_BOOKE_PID1] << MAS1_TID_SHIFT;
-        break;
-    case MAS4_TIDSELD_PID2:
-        env->spr[SPR_BOOKE_MAS1] |= env->spr[SPR_BOOKE_PID2] << MAS1_TID_SHIFT;
-        break;
+    if (!use_epid) {
+        switch (env->spr[SPR_BOOKE_MAS4] & MAS4_TIDSELD_PIDZ) {
+        case MAS4_TIDSELD_PID0:
+            missed_tid = env->spr[SPR_BOOKE_PID];
+            break;
+        case MAS4_TIDSELD_PID1:
+            missed_tid = env->spr[SPR_BOOKE_PID1];
+            break;
+        case MAS4_TIDSELD_PID2:
+            missed_tid = env->spr[SPR_BOOKE_PID2];
+            break;
+        }
+        env->spr[SPR_BOOKE_MAS6] |= env->spr[SPR_BOOKE_PID] << 16;
+    } else {
+        missed_tid = epid;
+        env->spr[SPR_BOOKE_MAS6] |= missed_tid << 16;
     }
+    env->spr[SPR_BOOKE_MAS1] |= (missed_tid << MAS1_TID_SHIFT);
 
-    env->spr[SPR_BOOKE_MAS6] |= env->spr[SPR_BOOKE_PID] << 16;
 
     /* next victim logic */
     env->spr[SPR_BOOKE_MAS0] |= env->last_way << MAS0_ESEL_SHIFT;
@@ -1520,7 +1599,8 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
         /* data access */
         access_type = env->access_type;
     }
-    ret = get_physical_address(env, &ctx, address, rw, access_type);
+    ret = get_physical_address_wtlb(env, &ctx, address, rw,
+                                    access_type, mmu_idx);
     if (ret == 0) {
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      ctx.raddr & TARGET_PAGE_MASK, ctx.prot,
@@ -1550,12 +1630,13 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     env->spr[SPR_40x_ESR] = 0x00000000;
                     break;
                 case POWERPC_MMU_BOOKE206:
-                    booke206_update_mas_tlb_miss(env, address, 2);
+                    booke206_update_mas_tlb_miss(env, address, 2, mmu_idx);
                     /* fall through */
                 case POWERPC_MMU_BOOKE:
                     cs->exception_index = POWERPC_EXCP_ITLB;
                     env->error_code = 0;
                     env->spr[SPR_BOOKE_DEAR] = address;
+                    env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, 0);
                     return -1;
                 case POWERPC_MMU_MPC8xx:
                     /* XXX: TODO */
@@ -1642,13 +1723,13 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                     cpu_abort(cs, "MPC8xx MMU model is not implemented\n");
                     break;
                 case POWERPC_MMU_BOOKE206:
-                    booke206_update_mas_tlb_miss(env, address, rw);
+                    booke206_update_mas_tlb_miss(env, address, rw, mmu_idx);
                     /* fall through */
                 case POWERPC_MMU_BOOKE:
                     cs->exception_index = POWERPC_EXCP_DTLB;
                     env->error_code = 0;
                     env->spr[SPR_BOOKE_DEAR] = address;
-                    env->spr[SPR_BOOKE_ESR] = rw ? ESR_ST : 0;
+                    env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, rw);
                     return -1;
                 case POWERPC_MMU_REAL:
                     cpu_abort(cs, "PowerPC in real mode should never raise "
@@ -1672,7 +1753,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                 } else if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
                            (env->mmu_model == POWERPC_MMU_BOOKE206)) {
                     env->spr[SPR_BOOKE_DEAR] = address;
-                    env->spr[SPR_BOOKE_ESR] = rw ? ESR_ST : 0;
+                    env->spr[SPR_BOOKE_ESR] = mmubooke206_esr(mmu_idx, rw);
                 } else {
                     env->spr[SPR_DAR] = address;
                     if (rw == 1) {
@@ -2596,6 +2677,19 @@ void helper_booke_setpid(CPUPPCState *env, uint32_t pidn, target_ulong pid)
     env->spr[pidn] = pid;
     /* changing PIDs mean we're in a different address space now */
     tlb_flush(CPU(cpu));
+}
+
+void helper_booke_set_eplc(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    env->spr[SPR_BOOKE_EPLC] = val & EPID_MASK;
+    tlb_flush_by_mmuidx(CPU(cpu), 1 << PPC_TLB_EPID_LOAD);
+}
+void helper_booke_set_epsc(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    env->spr[SPR_BOOKE_EPSC] = val & EPID_MASK;
+    tlb_flush_by_mmuidx(CPU(cpu), 1 << PPC_TLB_EPID_STORE);
 }
 
 static inline void flush_page(CPUPPCState *env, ppcmas_tlb_t *tlb)
