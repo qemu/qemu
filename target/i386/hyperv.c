@@ -18,7 +18,7 @@
 
 struct HvSintRoute {
     uint32_t sint;
-    uint32_t vp_index;
+    X86CPU *cpu;
     int gsi;
     EventNotifier sint_set_notifier;
     EventNotifier sint_ack_notifier;
@@ -97,6 +97,12 @@ HvSintRoute *kvm_hv_sint_route_create(uint32_t vp_index, uint32_t sint,
     HvSintRoute *sint_route;
     EventNotifier *ack_notifier;
     int r, gsi;
+    X86CPU *cpu;
+
+    cpu = hyperv_find_vcpu(vp_index);
+    if (!cpu) {
+        return NULL;
+    }
 
     sint_route = g_new0(HvSintRoute, 1);
     r = event_notifier_init(&sint_route->sint_set_notifier, false);
@@ -128,7 +134,7 @@ HvSintRoute *kvm_hv_sint_route_create(uint32_t vp_index, uint32_t sint,
     sint_route->gsi = gsi;
     sint_route->sint_ack_clb = sint_ack_clb;
     sint_route->sint_ack_clb_data = sint_ack_clb_data;
-    sint_route->vp_index = vp_index;
+    sint_route->cpu = cpu;
     sint_route->sint = sint;
 
     return sint_route;
