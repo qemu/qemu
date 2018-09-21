@@ -84,6 +84,9 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
         uint64_t param = exit->u.hcall.params[0];
 
         switch (code) {
+        case HV_POST_MESSAGE:
+            exit->u.hcall.result = hyperv_hcall_post_message(param, fast);
+            break;
         case HV_SIGNAL_EVENT:
             exit->u.hcall.result = hyperv_hcall_signal_event(param, fast);
             break;
