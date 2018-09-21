@@ -16,6 +16,28 @@
 #include "hw/hyperv/hyperv.h"
 #include "hyperv-proto.h"
 
+int hyperv_x86_synic_add(X86CPU *cpu)
+{
+    hyperv_synic_add(CPU(cpu));
+    return 0;
+}
+
+void hyperv_x86_synic_reset(X86CPU *cpu)
+{
+    hyperv_synic_reset(CPU(cpu));
+}
+
+void hyperv_x86_synic_update(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    bool enable = env->msr_hv_synic_control & HV_SYNIC_ENABLE;
+    hwaddr msg_page_addr = (env->msr_hv_synic_msg_page & HV_SIMP_ENABLE) ?
+        (env->msr_hv_synic_msg_page & TARGET_PAGE_MASK) : 0;
+    hwaddr event_page_addr = (env->msr_hv_synic_evt_page & HV_SIEFP_ENABLE) ?
+        (env->msr_hv_synic_evt_page & TARGET_PAGE_MASK) : 0;
+    hyperv_synic_update(CPU(cpu), enable, msg_page_addr, event_page_addr);
+}
+
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
 {
     CPUX86State *env = &cpu->env;
@@ -44,6 +66,9 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
         default:
             return -1;
         }
+
+        hyperv_x86_synic_update(cpu);
+
         return 0;
     case KVM_EXIT_HYPERV_HCALL: {
         uint16_t code;

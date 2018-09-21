@@ -9,12 +9,103 @@
 
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
+#include "qapi/error.h"
 #include "sysemu/kvm.h"
 #include "hw/hyperv/hyperv.h"
 
+typedef struct SynICState {
+    DeviceState parent_obj;
+
+    CPUState *cs;
+
+    bool enabled;
+    hwaddr msg_page_addr;
+    hwaddr event_page_addr;
+} SynICState;
+
+#define TYPE_SYNIC "hyperv-synic"
+#define SYNIC(obj) OBJECT_CHECK(SynICState, (obj), TYPE_SYNIC)
+
+static SynICState *get_synic(CPUState *cs)
+{
+    return SYNIC(object_resolve_path_component(OBJECT(cs), "synic"));
+}
+
+static void synic_update(SynICState *synic, bool enable,
+                         hwaddr msg_page_addr, hwaddr event_page_addr)
+{
+
+    synic->enabled = enable;
+    synic->msg_page_addr = msg_page_addr;
+    synic->event_page_addr = event_page_addr;
+}
+
+void hyperv_synic_update(CPUState *cs, bool enable,
+                         hwaddr msg_page_addr, hwaddr event_page_addr)
+{
+    SynICState *synic = get_synic(cs);
+
+    if (!synic) {
+        return;
+    }
+
+    synic_update(synic, enable, msg_page_addr, event_page_addr);
+}
+
+static void synic_realize(DeviceState *dev, Error **errp)
+{
+}
+
+static void synic_reset(DeviceState *dev)
+{
+    SynICState *synic = SYNIC(dev);
+    synic_update(synic, false, 0, 0);
+}
+
+static void synic_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = synic_realize;
+    dc->reset = synic_reset;
+    dc->user_creatable = false;
+}
+
+void hyperv_synic_add(CPUState *cs)
+{
+    Object *obj;
+    SynICState *synic;
+
+    obj = object_new(TYPE_SYNIC);
+    synic = SYNIC(obj);
+    synic->cs = cs;
+    object_property_add_child(OBJECT(cs), "synic", obj, &error_abort);
+    object_unref(obj);
+    object_property_set_bool(obj, true, "realized", &error_abort);
+}
+
+void hyperv_synic_reset(CPUState *cs)
+{
+    device_reset(DEVICE(get_synic(cs)));
+}
+
+static const TypeInfo synic_type_info = {
+    .name = TYPE_SYNIC,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(SynICState),
+    .class_init = synic_class_init,
+};
+
+static void synic_register_types(void)
+{
+    type_register_static(&synic_type_info);
+}
+
+type_init(synic_register_types)
+
 struct HvSintRoute {
     uint32_t sint;
-    CPUState *cs;
+    SynICState *synic;
     int gsi;
     EventNotifier sint_set_notifier;
     EventNotifier sint_ack_notifier;
@@ -46,9 +137,15 @@ HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
     EventNotifier *ack_notifier;
     int r, gsi;
     CPUState *cs;
+    SynICState *synic;
 
     cs = hyperv_find_vcpu(vp_index);
     if (!cs) {
+        return NULL;
+    }
+
+    synic = get_synic(cs);
+    if (!synic) {
         return NULL;
     }
 
@@ -82,7 +179,7 @@ HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
     sint_route->gsi = gsi;
     sint_route->sint_ack_clb = sint_ack_clb;
     sint_route->sint_ack_clb_data = sint_ack_clb_data;
-    sint_route->cs = cs;
+    sint_route->synic = synic;
     sint_route->sint = sint;
     sint_route->refcount = 1;
 

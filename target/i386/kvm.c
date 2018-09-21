@@ -790,6 +790,13 @@ static int hyperv_init_vcpu(X86CPU *cpu)
                          strerror(-ret));
             return ret;
         }
+
+        ret = hyperv_x86_synic_add(cpu);
+        if (ret < 0) {
+            error_report("failed to create HyperV SynIC: %s",
+                         strerror(-ret));
+            return ret;
+        }
     }
 
     return 0;
@@ -1250,6 +1257,8 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
         for (i = 0; i < ARRAY_SIZE(env->msr_hv_synic_sint); i++) {
             env->msr_hv_synic_sint[i] = HV_SINT_MASKED;
         }
+
+        hyperv_x86_synic_reset(cpu);
     }
 }
 
