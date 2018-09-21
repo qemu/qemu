@@ -79,16 +79,18 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
 
         return 0;
     case KVM_EXIT_HYPERV_HCALL: {
-        uint16_t code;
+        uint16_t code = exit->u.hcall.input & 0xffff;
+        bool fast = exit->u.hcall.input & HV_HYPERCALL_FAST;
+        uint64_t param = exit->u.hcall.params[0];
 
-        code  = exit->u.hcall.input & 0xffff;
         switch (code) {
-        case HV_POST_MESSAGE:
         case HV_SIGNAL_EVENT:
+            exit->u.hcall.result = hyperv_hcall_signal_event(param, fast);
+            break;
         default:
             exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
-            return 0;
         }
+        return 0;
     }
     default:
         return -1;

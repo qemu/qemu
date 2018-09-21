@@ -39,6 +39,19 @@ int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *msg);
  */
 int hyperv_set_event_flag(HvSintRoute *sint_route, unsigned eventno);
 
+/*
+ * Associate @notifier with the event connection @conn_id, such that @notifier
+ * is signaled when the guest executes HV_SIGNAL_EVENT hypercall on @conn_id.
+ * If @notifier is NULL clear the association.
+ */
+int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier);
+
+/*
+ * Process HV_SIGNAL_EVENT hypercall: signal the EventNotifier associated with
+ * the connection as specified in @param.
+ */
+uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast);
+
 static inline uint32_t hyperv_vp_index(CPUState *cs)
 {
     return cs->cpu_index;

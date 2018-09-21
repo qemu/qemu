@@ -13,6 +13,9 @@
 #include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
 #include "qemu/bitops.h"
+#include "qemu/queue.h"
+#include "qemu/rcu.h"
+#include "qemu/rcu_queue.h"
 #include "hw/hyperv/hyperv.h"
 
 typedef struct SynICState {
@@ -449,4 +452,94 @@ void hyperv_sint_route_unref(HvSintRoute *sint_route)
 int hyperv_sint_route_set_sint(HvSintRoute *sint_route)
 {
     return event_notifier_set(&sint_route->sint_set_notifier);
+}
+
+typedef struct EventFlagHandler {
+    struct rcu_head rcu;
+    QLIST_ENTRY(EventFlagHandler) link;
+    uint32_t conn_id;
+    EventNotifier *notifier;
+} EventFlagHandler;
+
+static QLIST_HEAD(, EventFlagHandler) event_flag_handlers;
+static QemuMutex handlers_mutex;
+
+static void __attribute__((constructor)) hv_init(void)
+{
+    QLIST_INIT(&event_flag_handlers);
+    qemu_mutex_init(&handlers_mutex);
+}
+
+int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
+{
+    int ret;
+    EventFlagHandler *handler;
+
+    qemu_mutex_lock(&handlers_mutex);
+    QLIST_FOREACH(handler, &event_flag_handlers, link) {
+        if (handler->conn_id == conn_id) {
+            if (notifier) {
+                ret = -EEXIST;
+            } else {
+                QLIST_REMOVE_RCU(handler, link);
+                g_free_rcu(handler, rcu);
+                ret = 0;
+            }
+            goto unlock;
+        }
+    }
+
+    if (notifier) {
+        handler = g_new(EventFlagHandler, 1);
+        handler->conn_id = conn_id;
+        handler->notifier = notifier;
+        QLIST_INSERT_HEAD_RCU(&event_flag_handlers, handler, link);
+        ret = 0;
+    } else {
+        ret = -ENOENT;
+    }
+unlock:
+    qemu_mutex_unlock(&handlers_mutex);
+    return ret;
+}
+
+uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
+{
+    uint16_t ret;
+    EventFlagHandler *handler;
+
+    if (unlikely(!fast)) {
+        hwaddr addr = param;
+
+        if (addr & (__alignof__(addr) - 1)) {
+            return HV_STATUS_INVALID_ALIGNMENT;
+        }
+
+        param = ldq_phys(&address_space_memory, addr);
+    }
+
+    /*
+     * Per spec, bits 32-47 contain the extra "flag number".  However, we
+     * have no use for it, and in all known usecases it is zero, so just
+     * report lookup failure if it isn't.
+     */
+    if (param & 0xffff00000000ULL) {
+        return HV_STATUS_INVALID_PORT_ID;
+    }
+    /* remaining bits are reserved-zero */
+    if (param & ~HV_CONNECTION_ID_MASK) {
+        return HV_STATUS_INVALID_HYPERCALL_INPUT;
+    }
+
+    ret = HV_STATUS_INVALID_CONNECTION_ID;
+    rcu_read_lock();
+    QLIST_FOREACH_RCU(handler, &event_flag_handlers, link) {
+        if (handler->conn_id == param) {
+            event_notifier_set(handler->notifier);
+            ret = 0;
+            break;
+        }
+    }
+    rcu_read_unlock();
+    return ret;
 }
