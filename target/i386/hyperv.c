@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "hyperv.h"
 #include "hw/hyperv/hyperv.h"
 #include "hyperv-proto.h"
@@ -38,6 +39,13 @@ void hyperv_x86_synic_update(X86CPU *cpu)
     hyperv_synic_update(CPU(cpu), enable, msg_page_addr, event_page_addr);
 }
 
+static void async_synic_update(CPUState *cs, run_on_cpu_data data)
+{
+    qemu_mutex_lock_iothread();
+    hyperv_x86_synic_update(X86_CPU(cs));
+    qemu_mutex_unlock_iothread();
+}
+
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
 {
     CPUX86State *env = &cpu->env;
@@ -48,11 +56,6 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
             return -1;
         }
 
-        /*
-         * For now just track changes in SynIC control and msg/evt pages msr's.
-         * When SynIC messaging/events processing will be added in future
-         * here we will do messages queues flushing and pages remapping.
-         */
         switch (exit->u.synic.msr) {
         case HV_X64_MSR_SCONTROL:
             env->msr_hv_synic_control = exit->u.synic.control;
@@ -67,7 +70,12 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
             return -1;
         }
 
-        hyperv_x86_synic_update(cpu);
+        /*
+         * this will run in this cpu thread before it returns to KVM, but in a
+         * safe environment (i.e. when all cpus are quiescent) -- this is
+         * necessary because memory hierarchy is being changed
+         */
+        async_safe_run_on_cpu(CPU(cpu), async_synic_update, RUN_ON_CPU_NULL);
 
         return 0;
     case KVM_EXIT_HYPERV_HCALL: {

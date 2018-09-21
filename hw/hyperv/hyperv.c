@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
+#include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
 #include "hw/hyperv/hyperv.h"
 
@@ -21,6 +22,10 @@ typedef struct SynICState {
     bool enabled;
     hwaddr msg_page_addr;
     hwaddr event_page_addr;
+    MemoryRegion msg_page_mr;
+    MemoryRegion event_page_mr;
+    struct hyperv_message_page *msg_page;
+    struct hyperv_event_flags_page *event_page;
 } SynICState;
 
 #define TYPE_SYNIC "hyperv-synic"
@@ -36,8 +41,28 @@ static void synic_update(SynICState *synic, bool enable,
 {
 
     synic->enabled = enable;
-    synic->msg_page_addr = msg_page_addr;
-    synic->event_page_addr = event_page_addr;
+    if (synic->msg_page_addr != msg_page_addr) {
+        if (synic->msg_page_addr) {
+            memory_region_del_subregion(get_system_memory(),
+                                        &synic->msg_page_mr);
+        }
+        if (msg_page_addr) {
+            memory_region_add_subregion(get_system_memory(), msg_page_addr,
+                                        &synic->msg_page_mr);
+        }
+        synic->msg_page_addr = msg_page_addr;
+    }
+    if (synic->event_page_addr != event_page_addr) {
+        if (synic->event_page_addr) {
+            memory_region_del_subregion(get_system_memory(),
+                                        &synic->event_page_mr);
+        }
+        if (event_page_addr) {
+            memory_region_add_subregion(get_system_memory(), event_page_addr,
+                                        &synic->event_page_mr);
+        }
+        synic->event_page_addr = event_page_addr;
+    }
 }
 
 void hyperv_synic_update(CPUState *cs, bool enable,
@@ -54,11 +79,31 @@ void hyperv_synic_update(CPUState *cs, bool enable,
 
 static void synic_realize(DeviceState *dev, Error **errp)
 {
-}
+    Object *obj = OBJECT(dev);
+    SynICState *synic = SYNIC(dev);
+    char *msgp_name, *eventp_name;
+    uint32_t vp_index;
 
+    /* memory region names have to be globally unique */
+    vp_index = hyperv_vp_index(synic->cs);
+    msgp_name = g_strdup_printf("synic-%u-msg-page", vp_index);
+    eventp_name = g_strdup_printf("synic-%u-event-page", vp_index);
+
+    memory_region_init_ram(&synic->msg_page_mr, obj, msgp_name,
+                           sizeof(*synic->msg_page), &error_abort);
+    memory_region_init_ram(&synic->event_page_mr, obj, eventp_name,
+                           sizeof(*synic->event_page), &error_abort);
+    synic->msg_page = memory_region_get_ram_ptr(&synic->msg_page_mr);
+    synic->event_page = memory_region_get_ram_ptr(&synic->event_page_mr);
+
+    g_free(msgp_name);
+    g_free(eventp_name);
+}
 static void synic_reset(DeviceState *dev)
 {
     SynICState *synic = SYNIC(dev);
+    memset(synic->msg_page, 0, sizeof(*synic->msg_page));
+    memset(synic->event_page, 0, sizeof(*synic->event_page));
     synic_update(synic, false, 0, 0);
 }
 
