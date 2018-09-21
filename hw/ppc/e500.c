@@ -1000,7 +1000,7 @@ void ppce500_init(MachineState *machine)
         payload_size = load_uimage(filename, &bios_entry, &loadaddr, NULL,
                                    NULL, NULL);
         if (payload_size < 0) {
-            error_report("qemu: could not load firmware '%s'", filename);
+            error_report("could not load firmware '%s'", filename);
             exit(1);
         }
     }
@@ -1056,7 +1056,7 @@ void ppce500_init(MachineState *machine)
      */
     dt_base = (loadaddr + payload_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
     if (dt_base + DTB_MAX_SIZE > ram_size) {
-            error_report("qemu: not enough memory for device tree");
+            error_report("not enough memory for device tree");
             exit(1);
     }
 
