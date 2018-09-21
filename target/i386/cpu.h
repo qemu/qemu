@@ -1378,6 +1378,7 @@ struct X86CPU {
     bool hyperv_vpindex;
     bool hyperv_runtime;
     bool hyperv_synic;
+    bool hyperv_synic_kvm_only;
     bool hyperv_stimer;
     bool hyperv_frequencies;
     bool hyperv_reenlightenment;

@@ -734,8 +734,18 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HYPERV_EAX] |= HV_VP_RUNTIME_AVAILABLE;
     }
     if (cpu->hyperv_synic) {
-        if (!has_msr_hv_synic ||
-            !kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_SYNIC)) {
+        unsigned int cap = KVM_CAP_HYPERV_SYNIC;
+        if (!cpu->hyperv_synic_kvm_only) {
+            if (!cpu->hyperv_vpindex) {
+                fprintf(stderr, "Hyper-V SynIC "
+                        "(requested by 'hv-synic' cpu flag) "
+                        "requires Hyper-V VP_INDEX ('hv-vpindex')\n");
+            return -ENOSYS;
+            }
+            cap = KVM_CAP_HYPERV_SYNIC2;
+        }
+
+        if (!has_msr_hv_synic || !kvm_check_extension(cs->kvm_state, cap)) {
             fprintf(stderr, "Hyper-V SynIC (requested by 'hv-synic' cpu flag) "
                     "is not supported by kernel\n");
             return -ENOSYS;
@@ -784,18 +794,22 @@ static int hyperv_init_vcpu(X86CPU *cpu)
     }
 
     if (cpu->hyperv_synic) {
-        ret = kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC, 0);
+        uint32_t synic_cap = cpu->hyperv_synic_kvm_only ?
+            KVM_CAP_HYPERV_SYNIC : KVM_CAP_HYPERV_SYNIC2;
+        ret = kvm_vcpu_enable_cap(cs, synic_cap, 0);
         if (ret < 0) {
             error_report("failed to turn on HyperV SynIC in KVM: %s",
                          strerror(-ret));
             return ret;
         }
 
-        ret = hyperv_x86_synic_add(cpu);
-        if (ret < 0) {
-            error_report("failed to create HyperV SynIC: %s",
-                         strerror(-ret));
-            return ret;
+        if (!cpu->hyperv_synic_kvm_only) {
+            ret = hyperv_x86_synic_add(cpu);
+            if (ret < 0) {
+                error_report("failed to create HyperV SynIC: %s",
+                             strerror(-ret));
+                return ret;
+            }
         }
     }
 
