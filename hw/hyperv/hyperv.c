@@ -13,6 +13,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
 #include "qemu/bitops.h"
+#include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
@@ -470,7 +471,7 @@ static void __attribute__((constructor)) hv_init(void)
     qemu_mutex_init(&handlers_mutex);
 }
 
-int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
+static int set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
 {
     int ret;
     EventFlagHandler *handler;
@@ -501,6 +502,30 @@ int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
 unlock:
     qemu_mutex_unlock(&handlers_mutex);
     return ret;
+}
+
+static bool process_event_flags_userspace;
+
+int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
+{
+    if (!process_event_flags_userspace &&
+        !kvm_check_extension(kvm_state, KVM_CAP_HYPERV_EVENTFD)) {
+        process_event_flags_userspace = true;
+
+        warn_report("Hyper-V event signaling is not supported by this kernel; "
+                    "using slower userspace hypercall processing");
+    }
+
+    if (!process_event_flags_userspace) {
+        struct kvm_hyperv_eventfd hvevfd = {
+            .conn_id = conn_id,
+            .fd = notifier ? event_notifier_get_fd(notifier) : -1,
+            .flags = notifier ? 0 : KVM_HYPERV_EVENTFD_DEASSIGN,
+        };
+
+        return kvm_vm_ioctl(kvm_state, KVM_HYPERV_EVENTFD, &hvevfd);
+    }
+    return set_event_flag_handler(conn_id, notifier);
 }
 
 uint16_t hyperv_hcall_signal_event(uint64_t param, bool fast)
