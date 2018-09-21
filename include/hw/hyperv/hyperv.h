@@ -11,17 +11,29 @@
 #define HW_HYPERV_HYPERV_H
 
 #include "cpu-qom.h"
+#include "hw/hyperv/hyperv-proto.h"
 
 typedef struct HvSintRoute HvSintRoute;
-typedef void (*HvSintAckClb)(void *data);
+
+/*
+ * Callback executed in a bottom-half when the status of posting the message
+ * becomes known, before unblocking the connection for further messages
+ */
+typedef void (*HvSintMsgCb)(void *data, int status);
 
 HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
-                                   HvSintAckClb sint_ack_clb,
-                                   void *sint_ack_clb_data);
+                                   HvSintMsgCb cb, void *cb_data);
 void hyperv_sint_route_ref(HvSintRoute *sint_route);
 void hyperv_sint_route_unref(HvSintRoute *sint_route);
 
 int hyperv_sint_route_set_sint(HvSintRoute *sint_route);
+
+/*
+ * Submit a message to be posted in vcpu context.  If the submission succeeds,
+ * the status of posting the message is reported via the callback associated
+ * with the @sint_route; until then no more messages are accepted.
+ */
+int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *msg);
 
 static inline uint32_t hyperv_vp_index(CPUState *cs)
 {
