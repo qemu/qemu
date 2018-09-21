@@ -34,6 +34,10 @@ int hyperv_sint_route_set_sint(HvSintRoute *sint_route);
  * with the @sint_route; until then no more messages are accepted.
  */
 int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *msg);
+/*
+ * Set event flag @eventno, and signal the SINT if the flag has changed.
+ */
+int hyperv_set_event_flag(HvSintRoute *sint_route, unsigned eventno);
 
 static inline uint32_t hyperv_vp_index(CPUState *cs)
 {

@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
+#include "qemu/bitops.h"
 #include "hw/hyperv/hyperv.h"
 
 typedef struct SynICState {
@@ -308,6 +309,37 @@ static void sint_ack_handler(EventNotifier *notifier)
      * -EAGAIN and let the msg originator retry
      */
     aio_bh_schedule_oneshot(qemu_get_aio_context(), sint_msg_bh, sint_route);
+}
+
+/*
+ * Set given event flag for a given sint on a given vcpu, and signal the sint.
+ */
+int hyperv_set_event_flag(HvSintRoute *sint_route, unsigned eventno)
+{
+    int ret;
+    SynICState *synic = sint_route->synic;
+    unsigned long *flags, set_mask;
+    unsigned set_idx;
+
+    if (eventno > HV_EVENT_FLAGS_COUNT) {
+        return -EINVAL;
+    }
+    if (!synic->enabled || !synic->event_page_addr) {
+        return -ENXIO;
+    }
+
+    set_idx = BIT_WORD(eventno);
+    set_mask = BIT_MASK(eventno);
+    flags = synic->event_page->slot[sint_route->sint].flags;
+
+    if ((atomic_fetch_or(&flags[set_idx], set_mask) & set_mask) != set_mask) {
+        memory_region_set_dirty(&synic->event_page_mr, 0,
+                                sizeof(*synic->event_page));
+        ret = hyperv_sint_route_set_sint(sint_route);
+    } else {
+        ret = 0;
+    }
+    return ret;
 }
 
 HvSintRoute *hyperv_sint_route_new(uint32_t vp_index, uint32_t sint,
