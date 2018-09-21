@@ -27,14 +27,11 @@ struct HvSintRoute {
     unsigned refcount;
 };
 
-uint32_t hyperv_vp_index(X86CPU *cpu)
+static X86CPU *hyperv_find_vcpu(uint32_t vp_index)
 {
-    return CPU(cpu)->cpu_index;
-}
-
-X86CPU *hyperv_find_vcpu(uint32_t vp_index)
-{
-    return X86_CPU(qemu_get_cpu(vp_index));
+    X86CPU *cpu = X86_CPU(qemu_get_cpu(vp_index));
+    assert(hyperv_vp_index(cpu) == vp_index);
+    return cpu;
 }
 
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)

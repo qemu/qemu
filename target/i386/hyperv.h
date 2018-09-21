@@ -30,7 +30,9 @@ void hyperv_sint_route_unref(HvSintRoute *sint_route);
 
 int hyperv_sint_route_set_sint(HvSintRoute *sint_route);
 
-uint32_t hyperv_vp_index(X86CPU *cpu);
-X86CPU *hyperv_find_vcpu(uint32_t vp_index);
+static inline uint32_t hyperv_vp_index(X86CPU *cpu)
+{
+    return CPU(cpu)->cpu_index;
+}
 
 #endif
