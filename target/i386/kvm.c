@@ -735,8 +735,9 @@ static int hyperv_handle_properties(CPUState *cs)
     }
     if (cpu->hyperv_synic) {
         if (!has_msr_hv_synic ||
-            kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC, 0)) {
-            fprintf(stderr, "Hyper-V SynIC is not supported by kernel\n");
+            !kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_SYNIC)) {
+            fprintf(stderr, "Hyper-V SynIC (requested by 'hv-synic' cpu flag) "
+                    "is not supported by kernel\n");
             return -ENOSYS;
         }
 
@@ -754,12 +755,14 @@ static int hyperv_handle_properties(CPUState *cs)
 
 static int hyperv_init_vcpu(X86CPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
+    int ret;
+
     if (cpu->hyperv_vpindex && !hv_vpindex_settable) {
         /*
          * the kernel doesn't support setting vp_index; assert that its value
          * is in sync
          */
-        int ret;
         struct {
             struct kvm_msrs info;
             struct kvm_msr_entry entries[1];
@@ -768,7 +771,7 @@ static int hyperv_init_vcpu(X86CPU *cpu)
             .entries[0].index = HV_X64_MSR_VP_INDEX,
         };
 
-        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_MSRS, &msr_data);
         if (ret < 0) {
             return ret;
         }
@@ -777,6 +780,15 @@ static int hyperv_init_vcpu(X86CPU *cpu)
         if (msr_data.entries[0].data != hyperv_vp_index(CPU(cpu))) {
             error_report("kernel's vp_index != QEMU's vp_index");
             return -ENXIO;
+        }
+    }
+
+    if (cpu->hyperv_synic) {
+        ret = kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC, 0);
+        if (ret < 0) {
+            error_report("failed to turn on HyperV SynIC in KVM: %s",
+                         strerror(-ret));
+            return ret;
         }
     }
 
