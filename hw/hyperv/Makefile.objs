@@ -1,0 +1,2 @@
+obj-y += hyperv.o
+obj-$(CONFIG_HYPERV_TESTDEV) += hyperv_testdev.o

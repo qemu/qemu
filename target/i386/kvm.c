@@ -774,7 +774,7 @@ static int hyperv_init_vcpu(X86CPU *cpu)
         }
         assert(ret == 1);
 
-        if (msr_data.entries[0].data != hyperv_vp_index(cpu)) {
+        if (msr_data.entries[0].data != hyperv_vp_index(CPU(cpu))) {
             error_report("kernel's vp_index != QEMU's vp_index");
             return -ENXIO;
         }
@@ -1949,7 +1949,8 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_add(cpu, HV_X64_MSR_VP_RUNTIME, env->msr_hv_runtime);
         }
         if (cpu->hyperv_vpindex && hv_vpindex_settable) {
-            kvm_msr_entry_add(cpu, HV_X64_MSR_VP_INDEX, hyperv_vp_index(cpu));
+            kvm_msr_entry_add(cpu, HV_X64_MSR_VP_INDEX,
+                              hyperv_vp_index(CPU(cpu)));
         }
         if (cpu->hyperv_synic) {
             int j;
