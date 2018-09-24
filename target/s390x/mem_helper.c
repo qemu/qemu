@@ -1019,15 +1019,15 @@ void HELPER(pack)(CPUS390XState *env, uint32_t len, uint64_t dest, uint64_t src)
     len_src--;
 
     /* now pack every value */
-    while (len_dest >= 0) {
+    while (len_dest > 0) {
         b = 0;
 
-        if (len_src > 0) {
+        if (len_src >= 0) {
             b = cpu_ldub_data_ra(env, src, ra) & 0x0f;
             src--;
             len_src--;
         }
-        if (len_src > 0) {
+        if (len_src >= 0) {
             b |= cpu_ldub_data_ra(env, src, ra) << 4;
             src--;
             len_src--;
@@ -1299,10 +1299,24 @@ static inline uint32_t do_helper_trt(CPUS390XState *env, int len,
     return 0;
 }
 
+static uint32_t do_helper_trt_fwd(CPUS390XState *env, uint32_t len,
+                                  uint64_t array, uint64_t trans,
+                                  uintptr_t ra)
+{
+    return do_helper_trt(env, len, array, trans, 1, ra);
+}
+
 uint32_t HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
                      uint64_t trans)
 {
     return do_helper_trt(env, len, array, trans, 1, GETPC());
+}
+
+static uint32_t do_helper_trt_bkwd(CPUS390XState *env, uint32_t len,
+                                   uint64_t array, uint64_t trans,
+                                   uintptr_t ra)
+{
+    return do_helper_trt(env, len, array, trans, -1, ra);
 }
 
 uint32_t HELPER(trtr)(CPUS390XState *env, uint32_t len, uint64_t array,
@@ -1442,7 +1456,7 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
     }
 
     /* Sanity check the alignments.  */
-    if (extract32(a1, 0, 4 << fc) || extract32(a2, 0, 1 << sc)) {
+    if (extract32(a1, 0, fc + 2) || extract32(a2, 0, sc)) {
         goto spec_exception;
     }
 
@@ -2193,12 +2207,14 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
         typedef uint32_t (*dx_helper)(CPUS390XState *, uint32_t, uint64_t,
                                       uint64_t, uintptr_t);
         static const dx_helper dx[16] = {
+            [0x0] = do_helper_trt_bkwd,
             [0x2] = do_helper_mvc,
             [0x4] = do_helper_nc,
             [0x5] = do_helper_clc,
             [0x6] = do_helper_oc,
             [0x7] = do_helper_xc,
             [0xc] = do_helper_tr,
+            [0xd] = do_helper_trt_fwd,
         };
         dx_helper helper = dx[opc & 0xf];
 

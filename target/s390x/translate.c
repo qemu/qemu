@@ -84,14 +84,21 @@ static uint64_t inline_branch_hit[CC_OP_MAX];
 static uint64_t inline_branch_miss[CC_OP_MAX];
 #endif
 
-static uint64_t pc_to_link_info(DisasContext *s, uint64_t pc)
+static void pc_to_link_info(TCGv_i64 out, DisasContext *s, uint64_t pc)
 {
-    if (!(s->base.tb->flags & FLAG_MASK_64)) {
-        if (s->base.tb->flags & FLAG_MASK_32) {
-            return pc | 0x80000000;
+    TCGv_i64 tmp;
+
+    if (s->base.tb->flags & FLAG_MASK_32) {
+        if (s->base.tb->flags & FLAG_MASK_64) {
+            tcg_gen_movi_i64(out, pc);
+            return;
         }
+        pc |= 0x80000000;
     }
-    return pc;
+    assert(!(s->base.tb->flags & FLAG_MASK_64));
+    tmp = tcg_const_i64(pc);
+    tcg_gen_deposit_i64(out, out, tmp, 0, 32);
+    tcg_temp_free_i64(tmp);
 }
 
 static TCGv_i64 psw_addr;
@@ -835,7 +842,7 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
             cond = TCG_COND_NE;
             c->u.s32.b = tcg_const_i32(1);
             break;
-        case 0x8 | 0x2: /* cc == 0 || cc == 2 => (cc & 1) == 0 */
+        case 0x8 | 0x2: /* cc == 0 || cc == 2 => (cc & 1) == 0 */
             cond = TCG_COND_EQ;
             c->g1 = false;
             c->u.s32.a = tcg_temp_new_i32();
@@ -854,7 +861,7 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
             cond = TCG_COND_NE;
             c->u.s32.b = tcg_const_i32(0);
             break;
-        case 0x4 | 0x1: /* cc == 1 || cc == 3 => (cc & 1) != 0 */
+        case 0x4 | 0x1: /* cc == 1 || cc == 3 => (cc & 1) != 0 */
             cond = TCG_COND_NE;
             c->g1 = false;
             c->u.s32.a = tcg_temp_new_i32();
@@ -1453,7 +1460,40 @@ static DisasJumpType op_ni(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_bas(DisasContext *s, DisasOps *o)
 {
-    tcg_gen_movi_i64(o->out, pc_to_link_info(s, s->pc_tmp));
+    pc_to_link_info(o->out, s, s->pc_tmp);
+    if (o->in2) {
+        tcg_gen_mov_i64(psw_addr, o->in2);
+        per_branch(s, false);
+        return DISAS_PC_UPDATED;
+    } else {
+        return DISAS_NEXT;
+    }
+}
+
+static void save_link_info(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 t;
+
+    if (s->base.tb->flags & (FLAG_MASK_32 | FLAG_MASK_64)) {
+        pc_to_link_info(o->out, s, s->pc_tmp);
+        return;
+    }
+    gen_op_calc_cc(s);
+    tcg_gen_andi_i64(o->out, o->out, 0xffffffff00000000ull);
+    tcg_gen_ori_i64(o->out, o->out, ((s->ilen / 2) << 30) | s->pc_tmp);
+    t = tcg_temp_new_i64();
+    tcg_gen_shri_i64(t, psw_mask, 16);
+    tcg_gen_andi_i64(t, t, 0x0f000000);
+    tcg_gen_or_i64(o->out, o->out, t);
+    tcg_gen_extu_i32_i64(t, cc_op);
+    tcg_gen_shli_i64(t, t, 28);
+    tcg_gen_or_i64(o->out, o->out, t);
+    tcg_temp_free_i64(t);
+}
+
+static DisasJumpType op_bal(DisasContext *s, DisasOps *o)
+{
+    save_link_info(s, o);
     if (o->in2) {
         tcg_gen_mov_i64(psw_addr, o->in2);
         per_branch(s, false);
@@ -1465,7 +1505,7 @@ static DisasJumpType op_bas(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_basi(DisasContext *s, DisasOps *o)
 {
-    tcg_gen_movi_i64(o->out, pc_to_link_info(s, s->pc_tmp));
+    pc_to_link_info(o->out, s, s->pc_tmp);
     return help_goto_direct(s, s->base.pc_next + 2 * get_field(s->fields, i2));
 }
 
@@ -2018,9 +2058,9 @@ static DisasJumpType op_csst(DisasContext *s, DisasOps *o)
     TCGv_i32 t_r3 = tcg_const_i32(r3);
 
     if (tb_cflags(s->base.tb) & CF_PARALLEL) {
-        gen_helper_csst_parallel(cc_op, cpu_env, t_r3, o->in1, o->in2);
+        gen_helper_csst_parallel(cc_op, cpu_env, t_r3, o->addr1, o->in2);
     } else {
-        gen_helper_csst(cc_op, cpu_env, t_r3, o->in1, o->in2);
+        gen_helper_csst(cc_op, cpu_env, t_r3, o->addr1, o->in2);
     }
     tcg_temp_free_i32(t_r3);
 
@@ -2404,20 +2444,17 @@ static DisasJumpType op_insi(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_ipm(DisasContext *s, DisasOps *o)
 {
-    TCGv_i64 t1;
+    TCGv_i64 t1, t2;
 
     gen_op_calc_cc(s);
-    tcg_gen_andi_i64(o->out, o->out, ~0xff000000ull);
-
     t1 = tcg_temp_new_i64();
-    tcg_gen_shli_i64(t1, psw_mask, 20);
-    tcg_gen_shri_i64(t1, t1, 36);
-    tcg_gen_or_i64(o->out, o->out, t1);
-
-    tcg_gen_extu_i32_i64(t1, cc_op);
-    tcg_gen_shli_i64(t1, t1, 28);
-    tcg_gen_or_i64(o->out, o->out, t1);
+    tcg_gen_extract_i64(t1, psw_mask, 40, 4);
+    t2 = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(t2, cc_op);
+    tcg_gen_deposit_i64(t1, t1, t2, 4, 60);
+    tcg_gen_deposit_i64(o->out, o->out, t1, 24, 8);
     tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
     return DISAS_NEXT;
 }
 

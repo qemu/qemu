@@ -1,0 +1,8 @@
+VPATH+=$(SRC_PATH)/tests/tcg/s390x
+CFLAGS+=-march=zEC12 -m64
+TESTS+=hello-s390x
+TESTS+=csst
+TESTS+=ipm
+TESTS+=exrl-trt
+TESTS+=exrl-trtr
+TESTS+=pack
