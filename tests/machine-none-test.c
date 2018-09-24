@@ -44,7 +44,6 @@ static struct arch2cpu cpus_map[] = {
     { "or1k", "or1200" },
     { "ppc", "604" },
     { "ppc64", "power8e_v2.1" },
-    { "ppcemb", "440epb" },
     { "s390x", "qemu" },
     { "sh4", "sh7750r" },
     { "sh4eb", "sh7751r" },

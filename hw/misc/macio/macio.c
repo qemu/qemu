@@ -90,6 +90,15 @@ static void macio_bar_setup(MacIOState *s)
     macio_escc_legacy_setup(s);
 }
 
+static void macio_init_child_obj(MacIOState *s, const char *childname,
+                                 void *child, size_t childsize,
+                                 const char *childtype)
+{
+    object_initialize_child(OBJECT(s), childname, child, childsize, childtype,
+                            &error_abort, NULL);
+    qdev_set_parent_bus(DEVICE(child), BUS(&s->macio_bus));
+}
+
 static void macio_common_realize(PCIDevice *d, Error **errp)
 {
     MacIOState *s = MACIO(d);
@@ -210,10 +219,11 @@ static void macio_init_ide(MacIOState *s, MACIOIDEState *ide, size_t ide_size,
                            int index)
 {
     gchar *name = g_strdup_printf("ide[%i]", index);
+    uint32_t addr = 0x1f000 + ((index + 1) * 0x1000);
 
-    sysbus_init_child_obj(OBJECT(s), name, ide, ide_size, TYPE_MACIO_IDE);
-    memory_region_add_subregion(&s->bar, 0x1f000 + ((index + 1) * 0x1000),
-                                &ide->mem);
+    macio_init_child_obj(s, name, ide, ide_size, TYPE_MACIO_IDE);
+    qdev_prop_set_uint32(DEVICE(ide), "addr", addr);
+    memory_region_add_subregion(&s->bar, addr, &ide->mem);
     g_free(name);
 }
 
@@ -229,7 +239,7 @@ static void macio_oldworld_init(Object *obj)
                              qdev_prop_allow_set_link_before_realize,
                              0, NULL);
 
-    sysbus_init_child_obj(obj, "cuda", &s->cuda, sizeof(s->cuda), TYPE_CUDA);
+    macio_init_child_obj(s, "cuda", &s->cuda, sizeof(s->cuda), TYPE_CUDA);
 
     object_initialize(&os->nvram, sizeof(os->nvram), TYPE_MACIO_NVRAM);
     dev = DEVICE(&os->nvram);
@@ -340,7 +350,7 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
         object_property_set_link(OBJECT(&s->pmu), OBJECT(sysbus_dev), "gpio",
                                  &error_abort);
         qdev_prop_set_bit(DEVICE(&s->pmu), "has-adb", ns->has_adb);
-        qdev_set_parent_bus(DEVICE(&s->pmu), sysbus_get_default());
+        qdev_set_parent_bus(DEVICE(&s->pmu), BUS(&s->macio_bus));
         object_property_add_child(OBJECT(s), "pmu", OBJECT(&s->pmu), NULL);
 
         object_property_set_bool(OBJECT(&s->pmu), true, "realized", &err);
@@ -356,7 +366,7 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
     } else {
         /* CUDA */
         object_initialize(&s->cuda, sizeof(s->cuda), TYPE_CUDA);
-        qdev_set_parent_bus(DEVICE(&s->cuda), sysbus_get_default());
+        qdev_set_parent_bus(DEVICE(&s->cuda), BUS(&s->macio_bus));
         object_property_add_child(OBJECT(s), "cuda", OBJECT(&s->cuda), NULL);
         qdev_prop_set_uint64(DEVICE(&s->cuda), "timebase-frequency",
                              s->frequency);
@@ -385,8 +395,8 @@ static void macio_newworld_init(Object *obj)
                              qdev_prop_allow_set_link_before_realize,
                              0, NULL);
 
-    sysbus_init_child_obj(obj, "gpio", &ns->gpio, sizeof(ns->gpio),
-                          TYPE_MACIO_GPIO);
+    macio_init_child_obj(s, "gpio", &ns->gpio, sizeof(ns->gpio),
+                         TYPE_MACIO_GPIO);
 
     for (i = 0; i < 2; i++) {
         macio_init_ide(s, &ns->ide[i], sizeof(ns->ide[i]), i);
@@ -399,10 +409,13 @@ static void macio_instance_init(Object *obj)
 
     memory_region_init(&s->bar, obj, "macio", 0x80000);
 
-    sysbus_init_child_obj(obj, "dbdma", &s->dbdma, sizeof(s->dbdma),
-                          TYPE_MAC_DBDMA);
+    qbus_create_inplace(&s->macio_bus, sizeof(s->macio_bus), TYPE_MACIO_BUS,
+                        DEVICE(obj), "macio.0");
 
-    sysbus_init_child_obj(obj, "escc", &s->escc, sizeof(s->escc), TYPE_ESCC);
+    macio_init_child_obj(s, "dbdma", &s->dbdma, sizeof(s->dbdma),
+                         TYPE_MAC_DBDMA);
+
+    macio_init_child_obj(s, "escc", &s->escc, sizeof(s->escc), TYPE_ESCC);
 }
 
 static const VMStateDescription vmstate_macio_oldworld = {
@@ -470,6 +483,12 @@ static void macio_class_init(ObjectClass *klass, void *data)
     dc->user_creatable = false;
 }
 
+static const TypeInfo macio_bus_info = {
+    .name = TYPE_MACIO_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(MacIOBusState),
+};
+
 static const TypeInfo macio_oldworld_type_info = {
     .name          = TYPE_OLDWORLD_MACIO,
     .parent        = TYPE_MACIO,
@@ -501,6 +520,7 @@ static const TypeInfo macio_type_info = {
 
 static void macio_register_types(void)
 {
+    type_register_static(&macio_bus_info);
     type_register_static(&macio_type_info);
     type_register_static(&macio_oldworld_type_info);
     type_register_static(&macio_newworld_type_info);

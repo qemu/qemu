@@ -9647,17 +9647,6 @@ static int ppc_fixup_cpu(PowerPCCPU *cpu)
     return 0;
 }
 
-static inline bool ppc_cpu_is_valid(PowerPCCPUClass *pcc)
-{
-#ifdef TARGET_PPCEMB
-    return pcc->mmu_model == POWERPC_MMU_BOOKE ||
-           pcc->mmu_model == POWERPC_MMU_SOFT_4xx ||
-           pcc->mmu_model == POWERPC_MMU_SOFT_4xx_Z;
-#else
-    return true;
-#endif
-}
-
 static void ppc_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -9680,8 +9669,6 @@ static void ppc_cpu_realize(DeviceState *dev, Error **errp)
             goto unrealize;
         }
     }
-
-    assert(ppc_cpu_is_valid(pcc));
 
     create_ppc_opcodes(cpu, &local_err);
     if (local_err != NULL) {
@@ -9933,10 +9920,6 @@ static gint ppc_cpu_compare_class_pvr(gconstpointer a, gconstpointer b)
         return -1;
     }
 
-    if (!ppc_cpu_is_valid(pcc)) {
-        return -1;
-    }
-
     return pcc->pvr == pvr ? 0 : -1;
 }
 
@@ -9964,10 +9947,6 @@ static gint ppc_cpu_compare_class_pvr_mask(gconstpointer a, gconstpointer b)
     /* -cpu host does a PVR lookup during construction */
     if (unlikely(strcmp(object_class_get_name(oc),
                         TYPE_HOST_POWERPC_CPU) == 0)) {
-        return -1;
-    }
-
-    if (!ppc_cpu_is_valid(pcc)) {
         return -1;
     }
 
@@ -10036,11 +10015,7 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
     g_free(typename);
     g_free(cpu_model);
 
-    if (oc && ppc_cpu_is_valid(POWERPC_CPU_CLASS(oc))) {
-        return oc;
-    }
-
-    return NULL;
+    return oc;
 }
 
 static void ppc_cpu_parse_featurestr(const char *type, char *features,
@@ -10146,9 +10121,6 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     char *name;
     int i;
 
-    if (!ppc_cpu_is_valid(pcc)) {
-        return;
-    }
     if (unlikely(strcmp(typename, TYPE_HOST_POWERPC_CPU) == 0)) {
         return;
     }
@@ -10206,11 +10178,6 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
     const char *typename;
     CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
-    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
-
-    if (!ppc_cpu_is_valid(pcc)) {
-        return;
-    }
 
     typename = object_class_get_name(oc);
     info = g_malloc0(sizeof(*info));

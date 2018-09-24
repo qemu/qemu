@@ -52,23 +52,7 @@
 #else /* defined (TARGET_PPC64) */
 /* PowerPC 32 definitions */
 #define TARGET_LONG_BITS 32
-
-#if defined(TARGET_PPCEMB)
-/* Specific definitions for PowerPC embedded */
-/* BookE have 36 bits physical address space */
-#if defined(CONFIG_USER_ONLY)
-/* It looks like a lot of Linux programs assume page size
- * is 4kB long. This is evil, but we have to deal with it...
- */
 #define TARGET_PAGE_BITS 12
-#else /* defined(CONFIG_USER_ONLY) */
-/* Pages can be 1 kB small */
-#define TARGET_PAGE_BITS 10
-#endif /* defined(CONFIG_USER_ONLY) */
-#else /* defined(TARGET_PPCEMB) */
-/* "standard" PowerPC 32 definitions */
-#define TARGET_PAGE_BITS 12
-#endif /* defined(TARGET_PPCEMB) */
 
 #define TARGET_PHYS_ADDR_SPACE_BITS 36
 #define TARGET_VIRT_ADDR_SPACE_BITS 32

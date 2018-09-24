@@ -24,8 +24,6 @@
 
 #ifdef TARGET_PPC64
 #define TYPE_POWERPC_CPU "powerpc64-cpu"
-#elif defined(TARGET_PPCEMB)
-#define TYPE_POWERPC_CPU "embedded-powerpc-cpu"
 #else
 #define TYPE_POWERPC_CPU "powerpc-cpu"
 #endif
