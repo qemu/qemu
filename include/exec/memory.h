@@ -633,7 +633,7 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
                                                        uint64_t length,
                                                        void *host),
                                        Error **errp);
-#ifdef __linux__
+#ifdef CONFIG_POSIX
 
 /**
  * memory_region_init_ram_from_file:  Initialize RAM memory region with a

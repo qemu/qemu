@@ -1557,7 +1557,7 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
     }
 }
 
-#ifdef __linux__
+#ifdef CONFIG_POSIX
 void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       struct Object *owner,
                                       const char *name,
