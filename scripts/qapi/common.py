@@ -2070,16 +2070,14 @@ extern const QEnumLookup %(c_name)s_lookup;
     return ret
 
 
-def build_params(arg_type, boxed, extra):
-    if not arg_type:
-        assert not boxed
-        return extra
+def build_params(arg_type, boxed, extra=None):
     ret = ''
     sep = ''
     if boxed:
+        assert arg_type
         ret += '%s arg' % arg_type.c_param_type()
         sep = ', '
-    else:
+    elif arg_type:
         assert not arg_type.variants
         for memb in arg_type.members:
             ret += sep
@@ -2090,7 +2088,7 @@ def build_params(arg_type, boxed, extra):
                               c_name(memb.name))
     if extra:
         ret += sep + extra
-    return ret
+    return ret if ret else 'void'
 
 
 #
@@ -2220,6 +2218,7 @@ class QAPIGenC(QAPIGenCCode):
 
     def _bottom(self, fname):
         return mcgen('''
+
 /* Dummy declaration to prevent empty .o file */
 char dummy_%(name)s;
 ''',

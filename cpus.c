@@ -1053,7 +1053,7 @@ static int do_vm_stop(RunState state, bool send_stop)
         runstate_set(state);
         vm_state_notify(0, state);
         if (send_stop) {
-            qapi_event_send_stop(&error_abort);
+            qapi_event_send_stop();
         }
     }
 
@@ -2107,13 +2107,13 @@ int vm_prepare_start(void)
      * the STOP event.
      */
     if (runstate_is_running()) {
-        qapi_event_send_stop(&error_abort);
-        qapi_event_send_resume(&error_abort);
+        qapi_event_send_stop();
+        qapi_event_send_resume();
         return -1;
     }
 
     /* We are sending this now, but the CPUs will be resumed shortly later */
-    qapi_event_send_resume(&error_abort);
+    qapi_event_send_resume();
 
     replay_enable_events();
     cpu_enable_ticks();

@@ -1670,7 +1670,7 @@ static void migration_bitmap_sync(RAMState *rs)
         rs->bytes_xfer_prev = bytes_xfer_now;
     }
     if (migrate_use_events()) {
-        qapi_event_send_migration_pass(ram_counters.dirty_sync_count, NULL);
+        qapi_event_send_migration_pass(ram_counters.dirty_sync_count);
     }
 }
 

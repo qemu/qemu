@@ -4659,7 +4659,7 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
                                           *node_name != '\0', node_name,
                                           message, offset >= 0, offset,
                                           size >= 0, size,
-                                          fatal, &error_abort);
+                                          fatal);
     g_free(message);
 
     if (fatal) {

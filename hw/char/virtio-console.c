@@ -114,8 +114,7 @@ static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
     }
 
     if (dev->id) {
-        qapi_event_send_vserport_change(dev->id, guest_connected,
-                                        &error_abort);
+        qapi_event_send_vserport_change(dev->id, guest_connected);
     }
 }
 

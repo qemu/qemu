@@ -635,7 +635,7 @@ static void rtc_set_time(RTCState *s)
     s->base_rtc = mktimegm(&tm);
     s->last_update = qemu_clock_get_ns(rtc_clock);
 
-    qapi_event_send_rtc_change(qemu_timedate_diff(&tm), &error_abort);
+    qapi_event_send_rtc_change(qemu_timedate_diff(&tm));
 }
 
 static void rtc_set_cmos(RTCState *s, const struct tm *tm)

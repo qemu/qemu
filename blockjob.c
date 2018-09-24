@@ -315,8 +315,7 @@ static void block_job_event_cancelled(Notifier *n, void *opaque)
                                         job->job.id,
                                         job->job.progress_total,
                                         job->job.progress_current,
-                                        job->speed,
-                                        &error_abort);
+                                        job->speed);
 }
 
 static void block_job_event_completed(Notifier *n, void *opaque)
@@ -338,8 +337,7 @@ static void block_job_event_completed(Notifier *n, void *opaque)
                                         job->job.progress_current,
                                         job->speed,
                                         !!msg,
-                                        msg,
-                                        &error_abort);
+                                        msg);
 }
 
 static void block_job_event_pending(Notifier *n, void *opaque)
@@ -351,8 +349,7 @@ static void block_job_event_pending(Notifier *n, void *opaque)
     }
 
     qapi_event_send_block_job_pending(job_type(&job->job),
-                                      job->job.id,
-                                      &error_abort);
+                                      job->job.id);
 }
 
 static void block_job_event_ready(Notifier *n, void *opaque)
@@ -367,7 +364,7 @@ static void block_job_event_ready(Notifier *n, void *opaque)
                                     job->job.id,
                                     job->job.progress_total,
                                     job->job.progress_current,
-                                    job->speed, &error_abort);
+                                    job->speed);
 }
 
 
@@ -494,7 +491,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
         qapi_event_send_block_job_error(job->job.id,
                                         is_read ? IO_OPERATION_TYPE_READ :
                                         IO_OPERATION_TYPE_WRITE,
-                                        action, &error_abort);
+                                        action);
     }
     if (action == BLOCK_ERROR_ACTION_STOP) {
         job_pause(&job->job);

@@ -14,8 +14,7 @@
 #ifndef QMP_EVENT_H
 #define QMP_EVENT_H
 
-
-typedef void (*QMPEventFuncEmit)(unsigned event, QDict *dict, Error **errp);
+typedef void (*QMPEventFuncEmit)(unsigned event, QDict *dict);
 
 void qmp_event_set_func_emit(QMPEventFuncEmit emit);
 

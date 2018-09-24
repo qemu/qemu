@@ -199,7 +199,7 @@ static void quorum_report_bad(QuorumOpType type, uint64_t offset,
     }
 
     qapi_event_send_quorum_report_bad(type, !!msg, msg, node_name, start_sector,
-                                      end_sector - start_sector, &error_abort);
+                                      end_sector - start_sector);
 }
 
 static void quorum_report_failure(QuorumAIOCB *acb)
@@ -210,7 +210,7 @@ static void quorum_report_failure(QuorumAIOCB *acb)
                                       BDRV_SECTOR_SIZE);
 
     qapi_event_send_quorum_failure(reference, start_sector,
-                                   end_sector - start_sector, &error_abort);
+                                   end_sector - start_sector);
 }
 
 static int quorum_vote_error(QuorumAIOCB *acb);

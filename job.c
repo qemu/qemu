@@ -174,7 +174,7 @@ static void job_state_transition(Job *job, JobStatus s1)
     job->status = s1;
 
     if (!job_is_internal(job) && s1 != s0) {
-        qapi_event_send_job_status_change(job->id, job->status, &error_abort);
+        qapi_event_send_job_status_change(job->id, job->status);
     }
 }
 

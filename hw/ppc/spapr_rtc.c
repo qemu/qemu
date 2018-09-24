@@ -118,7 +118,7 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     }
 
     /* Generate a monitor event for the change */
-    qapi_event_send_rtc_change(qemu_timedate_diff(&tm), &error_abort);
+    qapi_event_send_rtc_change(qemu_timedate_diff(&tm));
 
     host_ns = qemu_clock_get_ns(rtc_clock);
 

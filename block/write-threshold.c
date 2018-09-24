@@ -63,8 +63,7 @@ static int coroutine_fn before_write_notify(NotifierWithReturn *notifier,
         qapi_event_send_block_write_threshold(
             bs->node_name,
             amount,
-            bs->write_threshold_offset,
-            &error_abort);
+            bs->write_threshold_offset);
 
         /* autodisable to avoid flooding the monitor */
         write_threshold_disable(bs);

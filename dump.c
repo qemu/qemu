@@ -1890,8 +1890,7 @@ static void dump_process(DumpState *s, Error **errp)
     /* should never fail */
     assert(result);
     qapi_event_send_dump_completed(result, !!local_err, (local_err ? \
-                                   error_get_pretty(local_err) : NULL),
-                                   &error_abort);
+                                   error_get_pretty(local_err) : NULL));
     qapi_free_DumpQueryResult(result);
 
     error_propagate(errp, local_err);
