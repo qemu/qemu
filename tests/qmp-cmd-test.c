@@ -197,6 +197,19 @@ static void add_query_tests(QmpSchema *schema)
     }
 }
 
+static void test_object_add_without_props(void)
+{
+    QTestState *qts;
+    QDict *resp;
+
+    qts = qtest_init(common_args);
+    resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
+                    " {'qom-type': 'memory-backend-ram', 'id': 'ram1' } }");
+    g_assert_nonnull(resp);
+    qmp_assert_error_class(resp, "GenericError");
+    qtest_quit(qts);
+}
+
 int main(int argc, char *argv[])
 {
     QmpSchema schema;
@@ -206,6 +219,11 @@ int main(int argc, char *argv[])
 
     qmp_schema_init(&schema);
     add_query_tests(&schema);
+
+    qtest_add_func("qmp/object-add-without-props",
+                   test_object_add_without_props);
+    /* TODO: add coverage of generic object-add failure modes */
+
     ret = g_test_run();
 
     qmp_schema_cleanup(&schema);

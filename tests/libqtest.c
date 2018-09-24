@@ -1194,3 +1194,14 @@ bool qmp_rsp_is_err(QDict *rsp)
     qobject_unref(rsp);
     return !!error;
 }
+
+void qmp_assert_error_class(QDict *rsp, const char *class)
+{
+    QDict *error = qdict_get_qdict(rsp, "error");
+
+    g_assert_cmpstr(qdict_get_try_str(error, "class"), ==, class);
+    g_assert_nonnull(qdict_get_try_str(error, "desc"));
+    g_assert(!qdict_haskey(rsp, "return"));
+
+    qobject_unref(rsp);
+}

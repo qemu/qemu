@@ -1004,4 +1004,13 @@ void qtest_qmp_device_del(const char *id);
  */
 bool qmp_rsp_is_err(QDict *rsp);
 
+/**
+ * qmp_assert_error_class:
+ * @rsp: QMP response to check for error
+ * @class: an error class
+ *
+ * Assert the response has the given error class and discard @rsp.
+ */
+void qmp_assert_error_class(QDict *rsp, const char *class);
+
 #endif

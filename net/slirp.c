@@ -67,13 +67,11 @@ static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 /* slirp network adapter */
 
 #define SLIRP_CFG_HOSTFWD 1
-#define SLIRP_CFG_LEGACY  2
 
 struct slirp_config_str {
     struct slirp_config_str *next;
     int flags;
     char str[1024];
-    int legacy_format;
 };
 
 typedef struct SlirpState {
@@ -87,19 +85,13 @@ typedef struct SlirpState {
 } SlirpState;
 
 static struct slirp_config_str *slirp_configs;
-const char *legacy_tftp_prefix;
-const char *legacy_bootp_filename;
 static QTAILQ_HEAD(slirp_stacks, SlirpState) slirp_stacks =
     QTAILQ_HEAD_INITIALIZER(slirp_stacks);
 
-static int slirp_hostfwd(SlirpState *s, const char *redir_str,
-                         int legacy_format, Error **errp);
-static int slirp_guestfwd(SlirpState *s, const char *config_str,
-                          int legacy_format, Error **errp);
+static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp);
+static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp);
 
 #ifndef _WIN32
-static const char *legacy_smb_export;
-
 static int slirp_smb(SlirpState *s, const char *exported_dir,
                      struct in_addr vserver_addr, Error **errp);
 static void slirp_smb_cleanup(SlirpState *s);
@@ -194,13 +186,6 @@ static int net_slirp_init(NetClientState *peer, const char *model,
         /* It doesn't make sense to disable both */
         error_setg(errp, "IPv4 and IPv6 disabled");
         return -1;
-    }
-
-    if (!tftp_export) {
-        tftp_export = legacy_tftp_prefix;
-    }
-    if (!bootfile) {
-        bootfile = legacy_bootp_filename;
     }
 
     if (vnetwork) {
@@ -382,21 +367,16 @@ static int net_slirp_init(NetClientState *peer, const char *model,
 
     for (config = slirp_configs; config; config = config->next) {
         if (config->flags & SLIRP_CFG_HOSTFWD) {
-            if (slirp_hostfwd(s, config->str,
-                              config->flags & SLIRP_CFG_LEGACY, errp) < 0) {
+            if (slirp_hostfwd(s, config->str, errp) < 0) {
                 goto error;
             }
         } else {
-            if (slirp_guestfwd(s, config->str,
-                               config->flags & SLIRP_CFG_LEGACY, errp) < 0) {
+            if (slirp_guestfwd(s, config->str, errp) < 0) {
                 goto error;
             }
         }
     }
 #ifndef _WIN32
-    if (!smb_export) {
-        smb_export = legacy_smb_export;
-    }
     if (smb_export) {
         if (slirp_smb(s, smb_export, smbsrv, errp) < 0) {
             goto error;
@@ -506,8 +486,7 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "invalid format\n");
 }
 
-static int slirp_hostfwd(SlirpState *s, const char *redir_str,
-                         int legacy_format, Error **errp)
+static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
 {
     struct in_addr host_addr = { .s_addr = INADDR_ANY };
     struct in_addr guest_addr = { .s_addr = 0 };
@@ -532,18 +511,16 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str,
         goto fail_syntax;
     }
 
-    if (!legacy_format) {
-        if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
-            fail_reason = "Missing : separator";
-            goto fail_syntax;
-        }
-        if (buf[0] != '\0' && !inet_aton(buf, &host_addr)) {
-            fail_reason = "Bad host address";
-            goto fail_syntax;
-        }
+    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+        fail_reason = "Missing : separator";
+        goto fail_syntax;
+    }
+    if (buf[0] != '\0' && !inet_aton(buf, &host_addr)) {
+        fail_reason = "Bad host address";
+        goto fail_syntax;
     }
 
-    if (get_str_sep(buf, sizeof(buf), &p, legacy_format ? ':' : '-') < 0) {
+    if (get_str_sep(buf, sizeof(buf), &p, '-') < 0) {
         fail_reason = "Bad host port separator";
         goto fail_syntax;
     }
@@ -602,33 +579,11 @@ void hmp_hostfwd_add(Monitor *mon, const QDict *qdict)
     }
     if (s) {
         Error *err = NULL;
-        if (slirp_hostfwd(s, redir_str, 0, &err) < 0) {
+        if (slirp_hostfwd(s, redir_str, &err) < 0) {
             error_report_err(err);
         }
     }
 
-}
-
-int net_slirp_redir(const char *redir_str)
-{
-    struct slirp_config_str *config;
-    Error *err = NULL;
-    int res;
-
-    if (QTAILQ_EMPTY(&slirp_stacks)) {
-        config = g_malloc(sizeof(*config));
-        pstrcpy(config->str, sizeof(config->str), redir_str);
-        config->flags = SLIRP_CFG_HOSTFWD | SLIRP_CFG_LEGACY;
-        config->next = slirp_configs;
-        slirp_configs = config;
-        return 0;
-    }
-
-    res = slirp_hostfwd(QTAILQ_FIRST(&slirp_stacks), redir_str, 1, &err);
-    if (res < 0) {
-        error_report_err(err);
-    }
-    return res;
 }
 
 #ifndef _WIN32
@@ -746,28 +701,6 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
     return 0;
 }
 
-/* automatic user mode samba server configuration (legacy interface) */
-int net_slirp_smb(const char *exported_dir)
-{
-    struct in_addr vserver_addr = { .s_addr = 0 };
-
-    if (legacy_smb_export) {
-        fprintf(stderr, "-smb given twice\n");
-        return -1;
-    }
-    legacy_smb_export = exported_dir;
-    if (!QTAILQ_EMPTY(&slirp_stacks)) {
-        Error *err = NULL;
-        int res = slirp_smb(QTAILQ_FIRST(&slirp_stacks), exported_dir,
-                            vserver_addr, &err);
-        if (res < 0) {
-            error_report_err(err);
-        }
-        return res;
-    }
-    return 0;
-}
-
 #endif /* !defined(_WIN32) */
 
 struct GuestFwd {
@@ -789,8 +722,7 @@ static void guestfwd_read(void *opaque, const uint8_t *buf, int size)
     slirp_socket_recv(fwd->slirp, fwd->server, fwd->port, buf, size);
 }
 
-static int slirp_guestfwd(SlirpState *s, const char *config_str,
-                          int legacy_format, Error **errp)
+static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
 {
     struct in_addr server = { .s_addr = 0 };
     struct GuestFwd *fwd;
@@ -800,26 +732,20 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
     int port;
 
     p = config_str;
-    if (legacy_format) {
-        if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
-            goto fail_syntax;
-        }
-    } else {
-        if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
-            goto fail_syntax;
-        }
-        if (strcmp(buf, "tcp") && buf[0] != '\0') {
-            goto fail_syntax;
-        }
-        if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
-            goto fail_syntax;
-        }
-        if (buf[0] != '\0' && !inet_aton(buf, &server)) {
-            goto fail_syntax;
-        }
-        if (get_str_sep(buf, sizeof(buf), &p, '-') < 0) {
-            goto fail_syntax;
-        }
+    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+        goto fail_syntax;
+    }
+    if (strcmp(buf, "tcp") && buf[0] != '\0') {
+        goto fail_syntax;
+    }
+    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+        goto fail_syntax;
+    }
+    if (buf[0] != '\0' && !inet_aton(buf, &server)) {
+        goto fail_syntax;
+    }
+    if (get_str_sep(buf, sizeof(buf), &p, '-') < 0) {
+        goto fail_syntax;
     }
     port = strtol(buf, &end, 10);
     if (*end != '\0' || port < 1 || port > 65535) {

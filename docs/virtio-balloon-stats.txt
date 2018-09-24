@@ -61,9 +61,9 @@ It's also important to note the following:
    respond to the request the timer will never be re-armed, which has
    the same effect as disabling polling
 
-Here are a few examples. QEMU is started with '-balloon virtio', which
-generates '/machine/peripheral-anon/device[1]' as the QOM path for the
-balloon device.
+Here are a few examples. QEMU is started with '-device virtio-balloon',
+which generates '/machine/peripheral-anon/device[1]' as the QOM path for
+the balloon device.
 
 Enable polling with 2 seconds interval:
 
