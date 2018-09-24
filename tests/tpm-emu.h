@@ -26,6 +26,7 @@ struct tpm_hdr {
 typedef struct TestState {
     GMutex data_mutex;
     GCond data_cond;
+    bool data_cond_signal;
     SocketAddress *addr;
     QIOChannel *tpm_ioc;
     GThread *emu_tpm_thread;
