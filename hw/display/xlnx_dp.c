@@ -1186,8 +1186,7 @@ static void xlnx_dp_update_display(void *opaque)
     /*
      * XXX: We might want to update only what changed.
      */
-    dpy_gfx_update(s->console, 0, 0, surface_width(s->g_plane.surface),
-                                     surface_height(s->g_plane.surface));
+    dpy_gfx_update_full(s->console);
 }
 
 static const GraphicHwOps xlnx_dp_gfx_ops = {

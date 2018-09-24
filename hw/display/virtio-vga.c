@@ -75,16 +75,6 @@ static void virtio_vga_gl_block(void *opaque, bool block)
     }
 }
 
-static void virtio_vga_disable_scanout(VirtIOGPU *g, int scanout_id)
-{
-    VirtIOVGA *vvga = container_of(g, VirtIOVGA, vdev);
-
-    if (scanout_id == 0) {
-        /* reset surface if needed */
-        vvga->vga.graphic_mode = -1;
-    }
-}
-
 static const GraphicHwOps virtio_vga_ops = {
     .invalidate = virtio_vga_invalidate_display,
     .gfx_update = virtio_vga_update_display,
@@ -166,7 +156,6 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
                                  vvga->vga_mrs, true);
 
     vga->con = g->scanout[0].con;
-    g->disable_scanout = virtio_vga_disable_scanout;
     graphic_console_set_hwops(vga->con, &virtio_vga_ops, vvga);
 
     for (i = 0; i < g->conf.max_outputs; i++) {
@@ -179,8 +168,12 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 static void virtio_vga_reset(DeviceState *dev)
 {
     VirtIOVGA *vvga = VIRTIO_VGA(dev);
-    vvga->vdev.enable = 0;
 
+    /* reset virtio-gpu */
+    virtio_gpu_reset(VIRTIO_DEVICE(&vvga->vdev));
+
+    /* reset vga */
+    vga_common_reset(&vvga->vga);
     vga_dirty_log_start(&vvga->vga);
 }
 

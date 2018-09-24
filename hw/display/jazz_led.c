@@ -214,8 +214,7 @@ static void jazz_led_update_display(void *opaque)
     }
 
     s->state = REDRAW_NONE;
-    dpy_gfx_update(s->con, 0, 0,
-                   surface_width(surface), surface_height(surface));
+    dpy_gfx_update_full(s->con);
 }
 
 static void jazz_led_invalidate_display(void *opaque)

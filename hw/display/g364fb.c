@@ -229,7 +229,7 @@ static void g364fb_draw_blank(G364State *s)
         d += surface_stride(surface);
     }
 
-    dpy_gfx_update(s->con, 0, 0, s->width, s->height);
+    dpy_gfx_update_full(s->con);
     s->blanked = 1;
 }
 

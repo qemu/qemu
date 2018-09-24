@@ -17,6 +17,7 @@
 #include "qemu/iov.h"
 #include "ui/console.h"
 #include "trace.h"
+#include "sysemu/dma.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-bus.h"
@@ -29,7 +30,8 @@
 static struct virtio_gpu_simple_resource*
 virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id);
 
-static void virtio_gpu_cleanup_mapping(struct virtio_gpu_simple_resource *res);
+static void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
+                                       struct virtio_gpu_simple_resource *res);
 
 static void
 virtio_gpu_ctrl_hdr_bswap(struct virtio_gpu_ctrl_hdr *hdr)
@@ -421,11 +423,6 @@ static void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
                                          scanout->height ?: 480,
                                          "Guest disabled display.");
     }
-
-    if (g->disable_scanout) {
-        g->disable_scanout(g, scanout_id);
-    }
-
     dpy_gfx_replace_surface(scanout->con, ds);
     scanout->resource_id = 0;
     scanout->ds = NULL;
@@ -447,7 +444,7 @@ static void virtio_gpu_resource_destroy(VirtIOGPU *g,
     }
 
     pixman_image_unref(res->image);
-    virtio_gpu_cleanup_mapping(res);
+    virtio_gpu_cleanup_mapping(g, res);
     QTAILQ_REMOVE(&g->reslist, res, next);
     g->hostmem -= res->hostmem;
     g_free(res);
@@ -693,7 +690,8 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     scanout->height = ss.r.height;
 }
 
-int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
+int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
+                                  struct virtio_gpu_resource_attach_backing *ab,
                                   struct virtio_gpu_ctrl_command *cmd,
                                   uint64_t **addr, struct iovec **iov)
 {
@@ -729,7 +727,8 @@ int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
         uint32_t l = le32_to_cpu(ents[i].length);
         hwaddr len = l;
         (*iov)[i].iov_len = l;
-        (*iov)[i].iov_base = cpu_physical_memory_map(a, &len, 1);
+        (*iov)[i].iov_base = dma_memory_map(VIRTIO_DEVICE(g)->dma_as,
+                                            a, &len, DMA_DIRECTION_TO_DEVICE);
         if (addr) {
             (*addr)[i] = a;
         }
@@ -737,7 +736,7 @@ int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
             qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to map MMIO memory for"
                           " resource %d element %d\n",
                           __func__, ab->resource_id, i);
-            virtio_gpu_cleanup_mapping_iov(*iov, i);
+            virtio_gpu_cleanup_mapping_iov(g, *iov, i);
             g_free(ents);
             *iov = NULL;
             if (addr) {
@@ -751,20 +750,24 @@ int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
     return 0;
 }
 
-void virtio_gpu_cleanup_mapping_iov(struct iovec *iov, uint32_t count)
+void virtio_gpu_cleanup_mapping_iov(VirtIOGPU *g,
+                                    struct iovec *iov, uint32_t count)
 {
     int i;
 
     for (i = 0; i < count; i++) {
-        cpu_physical_memory_unmap(iov[i].iov_base, iov[i].iov_len, 1,
-                                  iov[i].iov_len);
+        dma_memory_unmap(VIRTIO_DEVICE(g)->dma_as,
+                         iov[i].iov_base, iov[i].iov_len,
+                         DMA_DIRECTION_TO_DEVICE,
+                         iov[i].iov_len);
     }
     g_free(iov);
 }
 
-static void virtio_gpu_cleanup_mapping(struct virtio_gpu_simple_resource *res)
+static void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
+                                       struct virtio_gpu_simple_resource *res)
 {
-    virtio_gpu_cleanup_mapping_iov(res->iov, res->iov_cnt);
+    virtio_gpu_cleanup_mapping_iov(g, res->iov, res->iov_cnt);
     res->iov = NULL;
     res->iov_cnt = 0;
     g_free(res->addrs);
@@ -796,7 +799,7 @@ virtio_gpu_resource_attach_backing(VirtIOGPU *g,
         return;
     }
 
-    ret = virtio_gpu_create_mapping_iov(&ab, cmd, &res->addrs, &res->iov);
+    ret = virtio_gpu_create_mapping_iov(g, &ab, cmd, &res->addrs, &res->iov);
     if (ret != 0) {
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         return;
@@ -823,7 +826,7 @@ virtio_gpu_resource_detach_backing(VirtIOGPU *g,
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
     }
-    virtio_gpu_cleanup_mapping(res);
+    virtio_gpu_cleanup_mapping(g, res);
 }
 
 static void virtio_gpu_simple_process_cmd(VirtIOGPU *g,
@@ -1148,16 +1151,21 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
         for (i = 0; i < res->iov_cnt; i++) {
             hwaddr len = res->iov[i].iov_len;
             res->iov[i].iov_base =
-                cpu_physical_memory_map(res->addrs[i], &len, 1);
+                dma_memory_map(VIRTIO_DEVICE(g)->dma_as,
+                               res->addrs[i], &len, DMA_DIRECTION_TO_DEVICE);
+
             if (!res->iov[i].iov_base || len != res->iov[i].iov_len) {
                 /* Clean up the half-a-mapping we just created... */
                 if (res->iov[i].iov_base) {
-                    cpu_physical_memory_unmap(res->iov[i].iov_base,
-                                              len, 0, 0);
+                    dma_memory_unmap(VIRTIO_DEVICE(g)->dma_as,
+                                     res->iov[i].iov_base,
+                                     res->iov[i].iov_len,
+                                     DMA_DIRECTION_TO_DEVICE,
+                                     res->iov[i].iov_len);
                 }
                 /* ...and the mappings for previous loop iterations */
                 res->iov_cnt = i;
-                virtio_gpu_cleanup_mapping(res);
+                virtio_gpu_cleanup_mapping(g, res);
                 pixman_image_unref(res->image);
                 g_free(res);
                 return -EINVAL;
@@ -1187,7 +1195,7 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
         }
 
         dpy_gfx_replace_surface(scanout->con, scanout->ds);
-        dpy_gfx_update(scanout->con, 0, 0, scanout->width, scanout->height);
+        dpy_gfx_update_full(scanout->con);
         if (scanout->cursor.resource_id) {
             update_cursor(g, &scanout->cursor);
         }
@@ -1204,11 +1212,6 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     bool have_virgl;
     Error *local_err = NULL;
     int i;
-
-    if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
-        error_setg(errp, "virtio-gpu does not support vIOMMU yet");
-        return;
-    }
 
     if (g->conf.max_outputs > VIRTIO_GPU_MAX_SCANOUTS) {
         error_setg(errp, "invalid max_outputs > %d", VIRTIO_GPU_MAX_SCANOUTS);
@@ -1289,7 +1292,7 @@ static void virtio_gpu_instance_init(Object *obj)
 {
 }
 
-static void virtio_gpu_reset(VirtIODevice *vdev)
+void virtio_gpu_reset(VirtIODevice *vdev)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     struct virtio_gpu_simple_resource *res, *tmp;
