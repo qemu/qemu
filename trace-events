@@ -107,7 +107,7 @@ gdbstub_err_checksum_incorrect(uint8_t expected, uint8_t got) "got command packe
 # job.c
 job_state_transition(void *job,  int ret, const char *legal, const char *s0, const char *s1) "job %p (ret: %d) attempting %s transition (%s-->%s)"
 job_apply_verb(void *job, const char *state, const char *verb, const char *legal) "job %p in state %s; applying verb %s (%s)"
-job_completed(void *job, int ret, int jret) "job %p ret %d corrected ret %d"
+job_completed(void *job, int ret) "job %p ret %d"
 
 # job-qmp.c
 qmp_job_cancel(void *job) "job %p"

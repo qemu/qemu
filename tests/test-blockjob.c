@@ -163,11 +163,10 @@ typedef struct CancelJob {
     bool completed;
 } CancelJob;
 
-static void cancel_job_completed(Job *job, void *opaque)
+static void cancel_job_exit(Job *job)
 {
-    CancelJob *s = opaque;
+    CancelJob *s = container_of(job, CancelJob, common.job);
     s->completed = true;
-    job_completed(job, 0, NULL);
 }
 
 static void cancel_job_complete(Job *job, Error **errp)
@@ -176,13 +175,13 @@ static void cancel_job_complete(Job *job, Error **errp)
     s->should_complete = true;
 }
 
-static void coroutine_fn cancel_job_start(void *opaque)
+static int coroutine_fn cancel_job_run(Job *job, Error **errp)
 {
-    CancelJob *s = opaque;
+    CancelJob *s = container_of(job, CancelJob, common.job);
 
     while (!s->should_complete) {
         if (job_is_cancelled(&s->common.job)) {
-            goto defer;
+            return 0;
         }
 
         if (!job_is_ready(&s->common.job) && s->should_converge) {
@@ -192,8 +191,7 @@ static void coroutine_fn cancel_job_start(void *opaque)
         job_sleep_ns(&s->common.job, 100000);
     }
 
- defer:
-    job_defer_to_main_loop(&s->common.job, cancel_job_completed, s);
+    return 0;
 }
 
 static const BlockJobDriver test_cancel_driver = {
@@ -202,7 +200,8 @@ static const BlockJobDriver test_cancel_driver = {
         .free          = block_job_free,
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
-        .start         = cancel_job_start,
+        .run           = cancel_job_run,
+        .exit          = cancel_job_exit,
         .complete      = cancel_job_complete,
     },
 };

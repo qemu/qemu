@@ -24,39 +24,31 @@ typedef struct {
     int *result;
 } TestBlockJob;
 
-static void test_block_job_complete(Job *job, void *opaque)
+static void test_block_job_exit(Job *job)
 {
     BlockJob *bjob = container_of(job, BlockJob, job);
     BlockDriverState *bs = blk_bs(bjob->blk);
-    int rc = (intptr_t)opaque;
 
-    if (job_is_cancelled(job)) {
-        rc = -ECANCELED;
-    }
-
-    job_completed(job, rc, NULL);
     bdrv_unref(bs);
 }
 
-static void coroutine_fn test_block_job_run(void *opaque)
+static int coroutine_fn test_block_job_run(Job *job, Error **errp)
 {
-    TestBlockJob *s = opaque;
-    BlockJob *job = &s->common;
+    TestBlockJob *s = container_of(job, TestBlockJob, common.job);
 
     while (s->iterations--) {
         if (s->use_timer) {
-            job_sleep_ns(&job->job, 0);
+            job_sleep_ns(job, 0);
         } else {
-            job_yield(&job->job);
+            job_yield(job);
         }
 
-        if (job_is_cancelled(&job->job)) {
+        if (job_is_cancelled(job)) {
             break;
         }
     }
 
-    job_defer_to_main_loop(&job->job, test_block_job_complete,
-                           (void *)(intptr_t)s->rc);
+    return s->rc;
 }
 
 typedef struct {
@@ -80,7 +72,8 @@ static const BlockJobDriver test_block_job_driver = {
         .free          = block_job_free,
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
-        .start         = test_block_job_run,
+        .run           = test_block_job_run,
+        .exit          = test_block_job_exit,
     },
 };
 

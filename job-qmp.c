@@ -146,8 +146,9 @@ static JobInfo *job_query_single(Job *job, Error **errp)
         .status             = job->status,
         .current_progress   = job->progress_current,
         .total_progress     = job->progress_total,
-        .has_error          = !!job->error,
-        .error              = g_strdup(job->error),
+        .has_error          = !!job->err,
+        .error              = job->err ? \
+                              g_strdup(error_get_pretty(job->err)) : NULL,
     };
 
     return info;

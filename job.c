@@ -369,7 +369,7 @@ void job_unref(Job *job)
 
         QLIST_REMOVE(job, job_list);
 
-        g_free(job->error);
+        error_free(job->err);
         g_free(job->id);
         g_free(job);
     }
@@ -535,6 +535,20 @@ void job_drain(Job *job)
     }
 }
 
+static void job_completed(Job *job);
+
+static void job_exit(void *opaque)
+{
+    Job *job = (Job *)opaque;
+    AioContext *aio_context = job->aio_context;
+
+    if (job->driver->exit) {
+        aio_context_acquire(aio_context);
+        job->driver->exit(job);
+        aio_context_release(aio_context);
+    }
+    job_completed(job);
+}
 
 /**
  * All jobs must allow a pause point before entering their job proper. This
@@ -544,16 +558,18 @@ static void coroutine_fn job_co_entry(void *opaque)
 {
     Job *job = opaque;
 
-    assert(job && job->driver && job->driver->start);
+    assert(job && job->driver && job->driver->run);
     job_pause_point(job);
-    job->driver->start(job);
+    job->ret = job->driver->run(job, &job->err);
+    job->deferred_to_main_loop = true;
+    aio_bh_schedule_oneshot(qemu_get_aio_context(), job_exit, job);
 }
 
 
 void job_start(Job *job)
 {
     assert(job && !job_started(job) && job->paused &&
-           job->driver && job->driver->start);
+           job->driver && job->driver->run);
     job->co = qemu_coroutine_create(job_co_entry, job);
     job->pause_count--;
     job->busy = true;
@@ -666,8 +682,8 @@ static void job_update_rc(Job *job)
         job->ret = -ECANCELED;
     }
     if (job->ret) {
-        if (!job->error) {
-            job->error = g_strdup(strerror(-job->ret));
+        if (!job->err) {
+            error_setg(&job->err, "%s", strerror(-job->ret));
         }
         job_state_transition(job, JOB_STATUS_ABORTING);
     }
@@ -865,19 +881,12 @@ static void job_completed_txn_success(Job *job)
     }
 }
 
-void job_completed(Job *job, int ret, Error *error)
+static void job_completed(Job *job)
 {
     assert(job && job->txn && !job_is_completed(job));
 
-    job->ret = ret;
-    if (error) {
-        assert(job->ret < 0);
-        job->error = g_strdup(error_get_pretty(error));
-        error_free(error);
-    }
-
     job_update_rc(job);
-    trace_job_completed(job, ret, job->ret);
+    trace_job_completed(job, job->ret);
     if (job->ret) {
         job_completed_txn_abort(job);
     } else {
@@ -893,7 +902,7 @@ void job_cancel(Job *job, bool force)
     }
     job_cancel_async(job, force);
     if (!job_started(job)) {
-        job_completed(job, -ECANCELED, NULL);
+        job_completed(job);
     } else if (job->deferred_to_main_loop) {
         job_completed_txn_abort(job);
     } else {
@@ -954,38 +963,6 @@ void job_complete(Job *job, Error **errp)
     }
 
     job->driver->complete(job, errp);
-}
-
-
-typedef struct {
-    Job *job;
-    JobDeferToMainLoopFn *fn;
-    void *opaque;
-} JobDeferToMainLoopData;
-
-static void job_defer_to_main_loop_bh(void *opaque)
-{
-    JobDeferToMainLoopData *data = opaque;
-    Job *job = data->job;
-    AioContext *aio_context = job->aio_context;
-
-    aio_context_acquire(aio_context);
-    data->fn(data->job, data->opaque);
-    aio_context_release(aio_context);
-
-    g_free(data);
-}
-
-void job_defer_to_main_loop(Job *job, JobDeferToMainLoopFn *fn, void *opaque)
-{
-    JobDeferToMainLoopData *data = g_malloc(sizeof(*data));
-    data->job = job;
-    data->fn = fn;
-    data->opaque = opaque;
-    job->deferred_to_main_loop = true;
-
-    aio_bh_schedule_oneshot(qemu_get_aio_context(),
-                            job_defer_to_main_loop_bh, data);
 }
 
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
