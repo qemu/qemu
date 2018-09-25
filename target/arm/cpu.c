@@ -199,8 +199,18 @@ static void arm_cpu_reset(CPUState *s)
         env->cp15.c15_cpar = 1;
     }
 #else
-    /* SVC mode with interrupts disabled.  */
-    env->uncached_cpsr = ARM_CPU_MODE_SVC;
+
+    /*
+     * If the highest available EL is EL2, AArch32 will start in Hyp
+     * mode; otherwise it starts in SVC. Note that if we start in
+     * AArch64 then these values in the uncached_cpsr will be ignored.
+     */
+    if (arm_feature(env, ARM_FEATURE_EL2) &&
+        !arm_feature(env, ARM_FEATURE_EL3)) {
+        env->uncached_cpsr = ARM_CPU_MODE_HYP;
+    } else {
+        env->uncached_cpsr = ARM_CPU_MODE_SVC;
+    }
     env->daif = PSTATE_D | PSTATE_A | PSTATE_I | PSTATE_F;
 
     if (arm_feature(env, ARM_FEATURE_M)) {

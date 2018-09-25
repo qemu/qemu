@@ -442,17 +442,17 @@ typedef struct SMMUEventInfo {
 
 #define EVT_Q_OVERFLOW        (1 << 31)
 
-#define EVT_SET_TYPE(x, v)              deposit32((x)->word[0], 0 , 8 , v)
-#define EVT_SET_SSV(x, v)               deposit32((x)->word[0], 11, 1 , v)
-#define EVT_SET_SSID(x, v)              deposit32((x)->word[0], 12, 20, v)
-#define EVT_SET_SID(x, v)               ((x)->word[1] = v)
-#define EVT_SET_STAG(x, v)              deposit32((x)->word[2], 0 , 16, v)
-#define EVT_SET_STALL(x, v)             deposit32((x)->word[2], 31, 1 , v)
-#define EVT_SET_PNU(x, v)               deposit32((x)->word[3], 1 , 1 , v)
-#define EVT_SET_IND(x, v)               deposit32((x)->word[3], 2 , 1 , v)
-#define EVT_SET_RNW(x, v)               deposit32((x)->word[3], 3 , 1 , v)
-#define EVT_SET_S2(x, v)                deposit32((x)->word[3], 7 , 1 , v)
-#define EVT_SET_CLASS(x, v)             deposit32((x)->word[3], 8 , 2 , v)
+#define EVT_SET_TYPE(x, v)  ((x)->word[0] = deposit32((x)->word[0], 0 , 8 , v))
+#define EVT_SET_SSV(x, v)   ((x)->word[0] = deposit32((x)->word[0], 11, 1 , v))
+#define EVT_SET_SSID(x, v)  ((x)->word[0] = deposit32((x)->word[0], 12, 20, v))
+#define EVT_SET_SID(x, v)   ((x)->word[1] = v)
+#define EVT_SET_STAG(x, v)  ((x)->word[2] = deposit32((x)->word[2], 0 , 16, v))
+#define EVT_SET_STALL(x, v) ((x)->word[2] = deposit32((x)->word[2], 31, 1 , v))
+#define EVT_SET_PNU(x, v)   ((x)->word[3] = deposit32((x)->word[3], 1 , 1 , v))
+#define EVT_SET_IND(x, v)   ((x)->word[3] = deposit32((x)->word[3], 2 , 1 , v))
+#define EVT_SET_RNW(x, v)   ((x)->word[3] = deposit32((x)->word[3], 3 , 1 , v))
+#define EVT_SET_S2(x, v)    ((x)->word[3] = deposit32((x)->word[3], 7 , 1 , v))
+#define EVT_SET_CLASS(x, v) ((x)->word[3] = deposit32((x)->word[3], 8 , 2 , v))
 #define EVT_SET_ADDR(x, addr)                             \
     do {                                                  \
             (x)->word[5] = (uint32_t)(addr >> 32);        \
@@ -460,8 +460,8 @@ typedef struct SMMUEventInfo {
     } while (0)
 #define EVT_SET_ADDR2(x, addr)                            \
     do {                                                  \
-            deposit32((x)->word[7], 3, 29, addr >> 16);   \
-            deposit32((x)->word[7], 0, 16, addr & 0xffff);\
+            (x)->word[7] = deposit32((x)->word[7], 3, 29, addr >> 16);   \
+            (x)->word[7] = deposit32((x)->word[7], 0, 16, addr & 0xffff);\
     } while (0)
 
 void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *event);

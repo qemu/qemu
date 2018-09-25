@@ -296,9 +296,11 @@ static void cmsdk_apb_dualtimer_write(void *opaque, hwaddr offset,
         case A_TIMERITCR:
             s->timeritcr = value & R_TIMERITCR_VALID_MASK;
             cmsdk_apb_dualtimer_update(s);
+            break;
         case A_TIMERITOP:
             s->timeritop = value & R_TIMERITOP_VALID_MASK;
             cmsdk_apb_dualtimer_update(s);
+            break;
         default:
         bad_offset:
             qemu_log_mask(LOG_GUEST_ERROR,

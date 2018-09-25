@@ -136,7 +136,7 @@ static MemTxResult smmuv3_write_eventq(SMMUv3State *s, Evt *evt)
         return r;
     }
 
-    if (smmuv3_q_empty(q)) {
+    if (!smmuv3_q_empty(q)) {
         smmuv3_trigger_irq(s, SMMU_IRQ_EVTQ, 0);
     }
     return MEMTX_OK;

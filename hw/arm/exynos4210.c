@@ -352,19 +352,19 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem)
 
     /*** UARTs ***/
     exynos4210_uart_create(EXYNOS4210_UART0_BASE_ADDR,
-                           EXYNOS4210_UART0_FIFO_SIZE, 0, NULL,
+                           EXYNOS4210_UART0_FIFO_SIZE, 0, serial_hd(0),
                   s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 0)]);
 
     exynos4210_uart_create(EXYNOS4210_UART1_BASE_ADDR,
-                           EXYNOS4210_UART1_FIFO_SIZE, 1, NULL,
+                           EXYNOS4210_UART1_FIFO_SIZE, 1, serial_hd(1),
                   s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 1)]);
 
     exynos4210_uart_create(EXYNOS4210_UART2_BASE_ADDR,
-                           EXYNOS4210_UART2_FIFO_SIZE, 2, NULL,
+                           EXYNOS4210_UART2_FIFO_SIZE, 2, serial_hd(2),
                   s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 2)]);
 
     exynos4210_uart_create(EXYNOS4210_UART3_BASE_ADDR,
-                           EXYNOS4210_UART3_FIFO_SIZE, 3, NULL,
+                           EXYNOS4210_UART3_FIFO_SIZE, 3, serial_hd(3),
                   s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 3)]);
 
     /*** SD/MMC host controllers ***/

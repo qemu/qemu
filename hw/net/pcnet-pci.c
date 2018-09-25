@@ -139,94 +139,6 @@ static const MemoryRegionOps pcnet_io_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void pcnet_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
-{
-    PCNetState *d = opaque;
-
-    trace_pcnet_mmio_writeb(opaque, addr, val);
-    if (!(addr & 0x10))
-        pcnet_aprom_writeb(d, addr & 0x0f, val);
-}
-
-static uint32_t pcnet_mmio_readb(void *opaque, hwaddr addr)
-{
-    PCNetState *d = opaque;
-    uint32_t val = -1;
-
-    if (!(addr & 0x10))
-        val = pcnet_aprom_readb(d, addr & 0x0f);
-    trace_pcnet_mmio_readb(opaque, addr, val);
-    return val;
-}
-
-static void pcnet_mmio_writew(void *opaque, hwaddr addr, uint32_t val)
-{
-    PCNetState *d = opaque;
-
-    trace_pcnet_mmio_writew(opaque, addr, val);
-    if (addr & 0x10)
-        pcnet_ioport_writew(d, addr & 0x0f, val);
-    else {
-        addr &= 0x0f;
-        pcnet_aprom_writeb(d, addr, val & 0xff);
-        pcnet_aprom_writeb(d, addr+1, (val & 0xff00) >> 8);
-    }
-}
-
-static uint32_t pcnet_mmio_readw(void *opaque, hwaddr addr)
-{
-    PCNetState *d = opaque;
-    uint32_t val = -1;
-
-    if (addr & 0x10)
-        val = pcnet_ioport_readw(d, addr & 0x0f);
-    else {
-        addr &= 0x0f;
-        val = pcnet_aprom_readb(d, addr+1);
-        val <<= 8;
-        val |= pcnet_aprom_readb(d, addr);
-    }
-    trace_pcnet_mmio_readw(opaque, addr, val);
-    return val;
-}
-
-static void pcnet_mmio_writel(void *opaque, hwaddr addr, uint32_t val)
-{
-    PCNetState *d = opaque;
-
-    trace_pcnet_mmio_writel(opaque, addr, val);
-    if (addr & 0x10)
-        pcnet_ioport_writel(d, addr & 0x0f, val);
-    else {
-        addr &= 0x0f;
-        pcnet_aprom_writeb(d, addr, val & 0xff);
-        pcnet_aprom_writeb(d, addr+1, (val & 0xff00) >> 8);
-        pcnet_aprom_writeb(d, addr+2, (val & 0xff0000) >> 16);
-        pcnet_aprom_writeb(d, addr+3, (val & 0xff000000) >> 24);
-    }
-}
-
-static uint32_t pcnet_mmio_readl(void *opaque, hwaddr addr)
-{
-    PCNetState *d = opaque;
-    uint32_t val;
-
-    if (addr & 0x10)
-        val = pcnet_ioport_readl(d, addr & 0x0f);
-    else {
-        addr &= 0x0f;
-        val = pcnet_aprom_readb(d, addr+3);
-        val <<= 8;
-        val |= pcnet_aprom_readb(d, addr+2);
-        val <<= 8;
-        val |= pcnet_aprom_readb(d, addr+1);
-        val <<= 8;
-        val |= pcnet_aprom_readb(d, addr);
-    }
-    trace_pcnet_mmio_readl(opaque, addr, val);
-    return val;
-}
-
 static const VMStateDescription vmstate_pci_pcnet = {
     .name = "pcnet",
     .version_id = 3,
@@ -241,10 +153,12 @@ static const VMStateDescription vmstate_pci_pcnet = {
 /* PCI interface */
 
 static const MemoryRegionOps pcnet_mmio_ops = {
-    .old_mmio = {
-        .read = { pcnet_mmio_readb, pcnet_mmio_readw, pcnet_mmio_readl },
-        .write = { pcnet_mmio_writeb, pcnet_mmio_writew, pcnet_mmio_writel },
-    },
+    .read = pcnet_ioport_read,
+    .write = pcnet_ioport_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

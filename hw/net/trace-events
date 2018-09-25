@@ -61,12 +61,6 @@ pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val) "opaque=%p addr=0x
 pcnet_aprom_readb(void *opaque, uint32_t addr, uint32_t val) "opaque=%p addr=0x%08x val=0x%02x"
 pcnet_ioport_read(void *opaque, uint64_t addr, unsigned size) "opaque=%p addr=0x%"PRIx64" size=%d"
 pcnet_ioport_write(void *opaque, uint64_t addr, uint64_t data, unsigned size) "opaque=%p addr=0x%"PRIx64" data=0x%"PRIx64" size=%d"
-pcnet_mmio_writeb(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=0x%"PRIx64" val=0x%x"
-pcnet_mmio_writew(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=0x%"PRIx64" val=0x%x"
-pcnet_mmio_writel(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=0x%"PRIx64" val=0x%x"
-pcnet_mmio_readb(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=0x%"PRIx64" val=0x%x"
-pcnet_mmio_readw(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=0x%"PRIx64" val=0x%x"
-pcnet_mmio_readl(void *opaque, uint64_t addr, uint32_t val) "opaque=%p addr=0x%"PRIx64" val=0x%x"
 
 # hw/net/net_rx_pkt.c
 net_rx_pkt_parsed(bool ip4, bool ip6, bool udp, bool tcp, size_t l3o, size_t l4o, size_t l5o) "RX packet parsed: ip4: %d, ip6: %d, udp: %d, tcp: %d, l3 offset: %zu, l4 offset: %zu, l5 offset: %zu"
