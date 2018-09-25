@@ -400,7 +400,7 @@ static void co_schedule_bh_cb(void *opaque)
 
         /* Protected by write barrier in qemu_aio_coroutine_enter */
         atomic_set(&co->scheduled, NULL);
-        qemu_coroutine_enter(co);
+        qemu_aio_coroutine_enter(ctx, co);
         aio_context_release(ctx);
     }
 }

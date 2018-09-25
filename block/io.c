@@ -38,8 +38,6 @@
 /* Maximum bounce buffer for copy-on-read and write zeroes, in bytes */
 #define MAX_BOUNCE_BUFFER (32768 << BDRV_SECTOR_BITS)
 
-static AioWait drain_all_aio_wait;
-
 static void bdrv_parent_cb_resize(BlockDriverState *bs);
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int bytes, BdrvRequestFlags flags);
@@ -268,10 +266,6 @@ bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
 static bool bdrv_drain_poll_top_level(BlockDriverState *bs, bool recursive,
                                       BdrvChild *ignore_parent)
 {
-    /* Execute pending BHs first and check everything else only after the BHs
-     * have executed. */
-    while (aio_poll(bs->aio_context, false));
-
     return bdrv_drain_poll(bs, recursive, ignore_parent, false);
 }
 
@@ -288,6 +282,18 @@ static void bdrv_co_drain_bh_cb(void *opaque)
     BlockDriverState *bs = data->bs;
 
     if (bs) {
+        AioContext *ctx = bdrv_get_aio_context(bs);
+        AioContext *co_ctx = qemu_coroutine_get_aio_context(co);
+
+        /*
+         * When the coroutine yielded, the lock for its home context was
+         * released, so we need to re-acquire it here. If it explicitly
+         * acquired a different context, the lock is still held and we don't
+         * want to lock it a second time (or AIO_WAIT_WHILE() would hang).
+         */
+        if (ctx == co_ctx) {
+            aio_context_acquire(ctx);
+        }
         bdrv_dec_in_flight(bs);
         if (data->begin) {
             bdrv_do_drained_begin(bs, data->recursive, data->parent,
@@ -295,6 +301,9 @@ static void bdrv_co_drain_bh_cb(void *opaque)
         } else {
             bdrv_do_drained_end(bs, data->recursive, data->parent,
                                 data->ignore_bds_parents);
+        }
+        if (ctx == co_ctx) {
+            aio_context_release(ctx);
         }
     } else {
         assert(data->begin);
@@ -496,10 +505,6 @@ static bool bdrv_drain_all_poll(void)
     BlockDriverState *bs = NULL;
     bool result = false;
 
-    /* Execute pending BHs first (may modify the graph) and check everything
-     * else only after the BHs have executed. */
-    while (aio_poll(qemu_get_aio_context(), false));
-
     /* bdrv_drain_poll() can't make changes to the graph and we are holding the
      * main AioContext lock, so iterating bdrv_next_all_states() is safe. */
     while ((bs = bdrv_next_all_states(bs))) {
@@ -550,7 +555,7 @@ void bdrv_drain_all_begin(void)
     }
 
     /* Now poll the in-flight requests */
-    AIO_WAIT_WHILE(&drain_all_aio_wait, NULL, bdrv_drain_all_poll());
+    AIO_WAIT_WHILE(NULL, bdrv_drain_all_poll());
 
     while ((bs = bdrv_next_all_states(bs))) {
         bdrv_drain_assert_idle(bs);
@@ -706,8 +711,7 @@ void bdrv_inc_in_flight(BlockDriverState *bs)
 
 void bdrv_wakeup(BlockDriverState *bs)
 {
-    aio_wait_kick(bdrv_get_aio_wait(bs));
-    aio_wait_kick(&drain_all_aio_wait);
+    aio_wait_kick();
 }
 
 void bdrv_dec_in_flight(BlockDriverState *bs)

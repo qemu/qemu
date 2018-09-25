@@ -2792,6 +2792,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     bdrv_parent_cb_change_media(bs, true);
 
     qobject_unref(options);
+    options = NULL;
 
     /* For snapshot=on, create a temporary qcow2 overlay. bs points to the
      * temporary snapshot afterwards. */
@@ -4883,11 +4884,6 @@ out:
 AioContext *bdrv_get_aio_context(BlockDriverState *bs)
 {
     return bs ? bs->aio_context : qemu_get_aio_context();
-}
-
-AioWait *bdrv_get_aio_wait(BlockDriverState *bs)
-{
-    return bs ? &bs->wait : NULL;
 }
 
 void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co)

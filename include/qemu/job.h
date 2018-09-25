@@ -76,6 +76,9 @@ typedef struct Job {
      * Set to false by the job while the coroutine has yielded and may be
      * re-entered by job_enter(). There may still be I/O or event loop activity
      * pending. Accessed under block_job_mutex (in blockjob.c).
+     *
+     * When the job is deferred to the main loop, busy is true as long as the
+     * bottom half is still pending.
      */
     bool busy;
 
@@ -155,6 +158,9 @@ typedef struct Job {
 
     /** Notifiers called when the job transitions to READY */
     NotifierList on_ready;
+
+    /** Notifiers called when the job coroutine yields or terminates */
+    NotifierList on_idle;
 
     /** Element of the list of jobs */
     QLIST_ENTRY(Job) job_list;
@@ -521,6 +527,8 @@ void job_user_cancel(Job *job, bool force, Error **errp);
  *
  * Returns the return value from the job if the job actually completed
  * during the call, or -ECANCELED if it was canceled.
+ *
+ * Callers must hold the AioContext lock of job->aio_context.
  */
 int job_cancel_sync(Job *job);
 
@@ -538,6 +546,8 @@ void job_cancel_sync_all(void);
  * function).
  *
  * Returns the return value from the job.
+ *
+ * Callers must hold the AioContext lock of job->aio_context.
  */
 int job_complete_sync(Job *job, Error **errp);
 
@@ -563,6 +573,8 @@ void job_dismiss(Job **job, Error **errp);
  *
  * Returns 0 if the job is successfully completed, -ECANCELED if the job was
  * cancelled before completing, and -errno in other error cases.
+ *
+ * Callers must hold the AioContext lock of job->aio_context.
  */
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp);
 
