@@ -651,8 +651,8 @@ static int multifd_recv_initial_packet(QIOChannel *c, Error **errp)
         return -1;
     }
 
-    be32_to_cpus(&msg.magic);
-    be32_to_cpus(&msg.version);
+    msg.magic = be32_to_cpu(msg.magic);
+    msg.version = be32_to_cpu(msg.version);
 
     if (msg.magic != MULTIFD_MAGIC) {
         error_setg(errp, "multifd: received packet magic %x "
@@ -737,7 +737,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     RAMBlock *block;
     int i;
 
-    be32_to_cpus(&packet->magic);
+    packet->magic = be32_to_cpu(packet->magic);
     if (packet->magic != MULTIFD_MAGIC) {
         error_setg(errp, "multifd: received packet "
                    "magic %x and expected magic %x",
@@ -745,7 +745,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
         return -1;
     }
 
-    be32_to_cpus(&packet->version);
+    packet->version = be32_to_cpu(packet->version);
     if (packet->version != MULTIFD_VERSION) {
         error_setg(errp, "multifd: received packet "
                    "version %d and expected version %d",
@@ -755,7 +755,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 
     p->flags = be32_to_cpu(packet->flags);
 
-    be32_to_cpus(&packet->size);
+    packet->size = be32_to_cpu(packet->size);
     if (packet->size > migrate_multifd_page_count()) {
         error_setg(errp, "multifd: received packet "
                    "with size %d and expected maximum size %d",
