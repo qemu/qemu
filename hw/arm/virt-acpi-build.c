@@ -562,10 +562,12 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
     mem_base = vms->memmap[VIRT_MEM].base;
     for (i = 0; i < nb_numa_nodes; ++i) {
-        numamem = acpi_data_push(table_data, sizeof(*numamem));
-        build_srat_memory(numamem, mem_base, numa_info[i].node_mem, i,
-                          MEM_AFFINITY_ENABLED);
-        mem_base += numa_info[i].node_mem;
+        if (numa_info[i].node_mem > 0) {
+            numamem = acpi_data_push(table_data, sizeof(*numamem));
+            build_srat_memory(numamem, mem_base, numa_info[i].node_mem, i,
+                              MEM_AFFINITY_ENABLED);
+            mem_base += numa_info[i].node_mem;
+        }
     }
 
     build_header(linker, table_data, (void *)(table_data->data + srat_start),
