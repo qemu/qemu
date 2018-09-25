@@ -423,3 +423,17 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
         edid_checksum(dta);
     }
 }
+
+size_t qemu_edid_size(uint8_t *edid)
+{
+    uint32_t exts;
+
+    if (edid[0] != 0x00 ||
+        edid[1] != 0xff) {
+        /* doesn't look like a valid edid block */
+        return 0;
+    }
+
+    exts = edid[126];
+    return 128 * (exts + 1);
+}
