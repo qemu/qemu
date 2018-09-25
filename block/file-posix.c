@@ -741,8 +741,6 @@ static int raw_check_lock_bytes(int fd, uint64_t perm, uint64_t shared_perm,
                            "Failed to get \"%s\" lock",
                            perm_name);
                 g_free(perm_name);
-                error_append_hint(errp,
-                                  "Is another process using the image?\n");
                 return ret;
             }
         }
@@ -758,8 +756,6 @@ static int raw_check_lock_bytes(int fd, uint64_t perm, uint64_t shared_perm,
                            "Failed to get shared \"%s\" lock",
                            perm_name);
                 g_free(perm_name);
-                error_append_hint(errp,
-                                  "Is another process using the image?\n");
                 return ret;
             }
         }
@@ -796,6 +792,9 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
             if (!ret) {
                 return 0;
             }
+            error_append_hint(errp,
+                              "Is another process using the image [%s]?\n",
+                              bs->filename);
         }
         op = RAW_PL_ABORT;
         /* fall through to unlock bytes. */
@@ -2217,6 +2216,9 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
     /* Step two: Check that nobody else has taken conflicting locks */
     result = raw_check_lock_bytes(fd, perm, shared, errp);
     if (result < 0) {
+        error_append_hint(errp,
+                          "Is another process using the image [%s]?\n",
+                          file_opts->filename);
         goto out_unlock;
     }
 
