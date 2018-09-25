@@ -100,7 +100,7 @@
  */
 
 enum json_lexer_state {
-    IN_ERROR = 0,               /* must really be 0, see json_lexer[] */
+    IN_RECOVERY = 1,
     IN_DQ_STRING_ESCAPE,
     IN_DQ_STRING,
     IN_SQ_STRING_ESCAPE,
@@ -115,24 +115,43 @@ enum json_lexer_state {
     IN_SIGN,
     IN_KEYWORD,
     IN_INTERP,
-    IN_WHITESPACE,
     IN_START,
     IN_START_INTERP,            /* must be IN_START + 1 */
 };
 
+QEMU_BUILD_BUG_ON(JSON_ERROR != 0);
+QEMU_BUILD_BUG_ON(IN_RECOVERY != JSON_ERROR + 1);
 QEMU_BUILD_BUG_ON((int)JSON_MIN <= (int)IN_START_INTERP);
+QEMU_BUILD_BUG_ON(JSON_MAX >= 0x80);
 QEMU_BUILD_BUG_ON(IN_START_INTERP != IN_START + 1);
 
-#define TERMINAL(state) [0 ... 0x7F] = (state)
-
-/* Return whether TERMINAL is a terminal state and the transition to it
-   from OLD_STATE required lookahead.  This happens whenever the table
-   below uses the TERMINAL macro.  */
-#define TERMINAL_NEEDED_LOOKAHEAD(old_state, terminal) \
-    (terminal != IN_ERROR && json_lexer[(old_state)][0] == (terminal))
+#define LOOKAHEAD 0x80
+#define TERMINAL(state) [0 ... 0xFF] = ((state) | LOOKAHEAD)
 
 static const uint8_t json_lexer[][256] =  {
     /* Relies on default initialization to IN_ERROR! */
+
+    /* error recovery */
+    [IN_RECOVERY] = {
+        /*
+         * Skip characters until a structural character, an ASCII
+         * control character other than '\t', or impossible UTF-8
+         * bytes '\xFE', '\xFF'.  Structural characters and line
+         * endings are promising resynchronization points.  Clients
+         * may use the others to force the JSON parser into known-good
+         * state; see docs/interop/qmp-spec.txt.
+         */
+        [0 ... 0x1F] = IN_START | LOOKAHEAD,
+        [0x20 ... 0xFD] = IN_RECOVERY,
+        [0xFE ... 0xFF] = IN_START | LOOKAHEAD,
+        ['\t'] = IN_RECOVERY,
+        ['['] = IN_START | LOOKAHEAD,
+        [']'] = IN_START | LOOKAHEAD,
+        ['{'] = IN_START | LOOKAHEAD,
+        ['}'] = IN_START | LOOKAHEAD,
+        [':'] = IN_START | LOOKAHEAD,
+        [','] = IN_START | LOOKAHEAD,
+    },
 
     /* double quote string */
     [IN_DQ_STRING_ESCAPE] = {
@@ -157,7 +176,7 @@ static const uint8_t json_lexer[][256] =  {
     /* Zero */
     [IN_ZERO] = {
         TERMINAL(JSON_INTEGER),
-        ['0' ... '9'] = IN_ERROR,
+        ['0' ... '9'] = JSON_ERROR,
         ['.'] = IN_MANTISSA,
     },
 
@@ -208,15 +227,6 @@ static const uint8_t json_lexer[][256] =  {
         ['a' ... 'z'] = IN_KEYWORD,
     },
 
-    /* whitespace */
-    [IN_WHITESPACE] = {
-        TERMINAL(JSON_SKIP),
-        [' '] = IN_WHITESPACE,
-        ['\t'] = IN_WHITESPACE,
-        ['\r'] = IN_WHITESPACE,
-        ['\n'] = IN_WHITESPACE,
-    },
-
     /* interpolation */
     [IN_INTERP] = {
         TERMINAL(JSON_INTERP),
@@ -243,13 +253,24 @@ static const uint8_t json_lexer[][256] =  {
         [','] = JSON_COMMA,
         [':'] = JSON_COLON,
         ['a' ... 'z'] = IN_KEYWORD,
-        [' '] = IN_WHITESPACE,
-        ['\t'] = IN_WHITESPACE,
-        ['\r'] = IN_WHITESPACE,
-        ['\n'] = IN_WHITESPACE,
+        [' '] = IN_START,
+        ['\t'] = IN_START,
+        ['\r'] = IN_START,
+        ['\n'] = IN_START,
     },
     [IN_START_INTERP]['%'] = IN_INTERP,
 };
+
+static inline uint8_t next_state(JSONLexer *lexer, char ch, bool flush,
+                                 bool *char_consumed)
+{
+    uint8_t next;
+
+    assert(lexer->state <= ARRAY_SIZE(json_lexer));
+    next = json_lexer[lexer->state][(uint8_t)ch];
+    *char_consumed = !flush && !(next & LOOKAHEAD);
+    return next & ~LOOKAHEAD;
+}
 
 void json_lexer_init(JSONLexer *lexer, bool enable_interpolation)
 {
@@ -261,7 +282,8 @@ void json_lexer_init(JSONLexer *lexer, bool enable_interpolation)
 
 static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
 {
-    int char_consumed, new_state;
+    int new_state;
+    bool char_consumed = false;
 
     lexer->x++;
     if (ch == '\n') {
@@ -269,11 +291,10 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         lexer->y++;
     }
 
-    do {
-        assert(lexer->state <= ARRAY_SIZE(json_lexer));
-        new_state = json_lexer[lexer->state][(uint8_t)ch];
-        char_consumed = !TERMINAL_NEEDED_LOOKAHEAD(lexer->state, new_state);
-        if (char_consumed && !flush) {
+    while (flush ? lexer->state != lexer->start_state : !char_consumed) {
+        new_state = next_state(lexer, ch, flush, &char_consumed);
+        if (char_consumed) {
+            assert(!flush);
             g_string_append_c(lexer->token, ch);
         }
 
@@ -292,33 +313,23 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             json_message_process_token(lexer, lexer->token, new_state,
                                        lexer->x, lexer->y);
             /* fall through */
-        case JSON_SKIP:
+        case IN_START:
             g_string_truncate(lexer->token, 0);
             new_state = lexer->start_state;
             break;
-        case IN_ERROR:
-            /* XXX: To avoid having previous bad input leaving the parser in an
-             * unresponsive state where we consume unpredictable amounts of
-             * subsequent "good" input, percolate this error state up to the
-             * parser by emitting a JSON_ERROR token, then reset lexer state.
-             *
-             * Also note that this handling is required for reliable channel
-             * negotiation between QMP and the guest agent, since chr(0xFF)
-             * is placed at the beginning of certain events to ensure proper
-             * delivery when the channel is in an unknown state. chr(0xFF) is
-             * never a valid ASCII/UTF-8 sequence, so this should reliably
-             * induce an error/flush state.
-             */
+        case JSON_ERROR:
             json_message_process_token(lexer, lexer->token, JSON_ERROR,
                                        lexer->x, lexer->y);
+            new_state = IN_RECOVERY;
+            /* fall through */
+        case IN_RECOVERY:
             g_string_truncate(lexer->token, 0);
-            lexer->state = lexer->start_state;
-            return;
+            break;
         default:
             break;
         }
         lexer->state = new_state;
-    } while (!char_consumed && !flush);
+    }
 
     /* Do not let a single token grow to an arbitrarily large size,
      * this is a security consideration.
@@ -342,9 +353,8 @@ void json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size)
 
 void json_lexer_flush(JSONLexer *lexer)
 {
-    if (lexer->state != lexer->start_state) {
-        json_lexer_feed_char(lexer, 0, true);
-    }
+    json_lexer_feed_char(lexer, 0, true);
+    assert(lexer->state == lexer->start_state);
     json_message_process_token(lexer, lexer->token, JSON_END_OF_INPUT,
                                lexer->x, lexer->y);
 }

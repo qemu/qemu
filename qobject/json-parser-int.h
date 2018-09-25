@@ -16,10 +16,11 @@
 
 #include "qapi/qmp/json-parser.h"
 
-
 typedef enum json_token_type {
-    JSON_MIN = 100,
-    JSON_LCURLY = JSON_MIN,
+    JSON_ERROR = 0,             /* must be zero, see json_lexer[] */
+    /* Gap for lexer states */
+    JSON_LCURLY = 100,
+    JSON_MIN = JSON_LCURLY,
     JSON_RCURLY,
     JSON_LSQUARE,
     JSON_RSQUARE,
@@ -30,9 +31,8 @@ typedef enum json_token_type {
     JSON_KEYWORD,
     JSON_STRING,
     JSON_INTERP,
-    JSON_SKIP,
-    JSON_ERROR,
     JSON_END_OF_INPUT,
+    JSON_MAX = JSON_END_OF_INPUT
 } JSONTokenType;
 
 typedef struct JSONToken JSONToken;
