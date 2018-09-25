@@ -431,28 +431,14 @@ static void *do_data_compress(void *opaque)
     return NULL;
 }
 
-static inline void terminate_compression_threads(void)
-{
-    int idx, thread_count;
-
-    thread_count = migrate_compress_threads();
-
-    for (idx = 0; idx < thread_count; idx++) {
-        qemu_mutex_lock(&comp_param[idx].mutex);
-        comp_param[idx].quit = true;
-        qemu_cond_signal(&comp_param[idx].cond);
-        qemu_mutex_unlock(&comp_param[idx].mutex);
-    }
-}
-
 static void compress_threads_save_cleanup(void)
 {
     int i, thread_count;
 
-    if (!migrate_use_compression()) {
+    if (!migrate_use_compression() || !comp_param) {
         return;
     }
-    terminate_compression_threads();
+
     thread_count = migrate_compress_threads();
     for (i = 0; i < thread_count; i++) {
         /*
@@ -462,6 +448,12 @@ static void compress_threads_save_cleanup(void)
         if (!comp_param[i].file) {
             break;
         }
+
+        qemu_mutex_lock(&comp_param[i].mutex);
+        comp_param[i].quit = true;
+        qemu_cond_signal(&comp_param[i].cond);
+        qemu_mutex_unlock(&comp_param[i].mutex);
+
         qemu_thread_join(compress_threads + i);
         qemu_mutex_destroy(&comp_param[i].mutex);
         qemu_cond_destroy(&comp_param[i].cond);
