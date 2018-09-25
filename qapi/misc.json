@@ -832,10 +832,15 @@
 #
 # @vendor: the PCI vendor id
 #
+# @subsystem: the PCI subsystem id (since 3.1)
+#
+# @subsystem-vendor: the PCI subsystem vendor id (since 3.1)
+#
 # Since: 2.4
 ##
 { 'struct': 'PciDeviceId',
-  'data': {'device': 'int', 'vendor': 'int'} }
+  'data': {'device': 'int', 'vendor': 'int', 'subsystem': 'int',
+            'subsystem-vendor': 'int'} }
 
 ##
 # @PciDeviceInfo:

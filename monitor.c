@@ -952,6 +952,7 @@ static void help_cmd_dump(Monitor *mon, const mon_cmd_t *cmds,
                           char **args, int nb_args, int arg_index)
 {
     const mon_cmd_t *cmd;
+    size_t i;
 
     /* No valid arg need to compare with, dump all in *cmds */
     if (arg_index >= nb_args) {
@@ -973,8 +974,14 @@ static void help_cmd_dump(Monitor *mon, const mon_cmd_t *cmds,
             } else {
                 help_cmd_dump_one(mon, cmd, args, arg_index);
             }
-            break;
+            return;
         }
+    }
+
+    /* Command not found */
+    monitor_printf(mon, "unknown command: '");
+    for (i = 0; i <= arg_index; i++) {
+        monitor_printf(mon, "%s%s", args[i], i == arg_index ? "'\n" : " ");
     }
 }
 
