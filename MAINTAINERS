@@ -889,12 +889,11 @@ Sun4m
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Maintained
 F: hw/sparc/sun4m.c
+F: hw/sparc/sun4m_iommu.c
 F: hw/dma/sparc32_dma.c
-F: hw/dma/sun4m_iommu.c
 F: hw/misc/eccmemctl.c
 F: hw/misc/slavio_misc.c
 F: include/hw/sparc/sparc32_dma.h
-F: include/hw/sparc/sun4m.h
 F: pc-bios/openbios-sparc32
 
 Sun4u
@@ -1422,7 +1421,7 @@ F: qemu-io*
 F: tests/qemu-iotests/
 F: util/qemu-progress.c
 F: qobject/block-qdict.c
-F: test/check-block-qdict.c
+F: tests/check-block-qdict.c
 T: git git://repo.or.cz/qemu/kevin.git block
 
 Block I/O path
@@ -1455,7 +1454,7 @@ F: blockjob.c
 F: include/block/blockjob.h
 F: job.c
 F: job-qmp.c
-F: include/block/job.h
+F: include/qemu/job.h
 F: block/backup.c
 F: block/commit.c
 F: block/stream.c
@@ -1671,7 +1670,6 @@ QAPI Schema
 M: Eric Blake <eblake@redhat.com>
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
-F: qapi-schema.json
 F: qapi/*.json
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
@@ -1790,7 +1788,7 @@ F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
 F: tests/migration-test.c
-F: docs/devel/migration.txt
+F: docs/devel/migration.rst
 F: qapi/migration.json
 
 Seccomp

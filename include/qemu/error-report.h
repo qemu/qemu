@@ -44,36 +44,31 @@ void error_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void warn_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void info_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
+bool error_report_once_cond(bool *printed, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
+bool warn_report_once_cond(bool *printed, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
+
 /*
  * Similar to error_report(), except it prints the message just once.
  * Return true when it prints, false otherwise.
  */
-#define error_report_once(fmt, ...)             \
-    ({                                          \
-        static bool print_once_;                \
-        bool ret_print_once_ = !print_once_;    \
-                                                \
-        if (!print_once_) {                     \
-            print_once_ = true;                 \
-            error_report(fmt, ##__VA_ARGS__);   \
-        }                                       \
-        unlikely(ret_print_once_);              \
+#define error_report_once(fmt, ...)                     \
+    ({                                                  \
+        static bool print_once_;                        \
+        error_report_once_cond(&print_once_,            \
+                               fmt, ##__VA_ARGS__);     \
     })
 
 /*
  * Similar to warn_report(), except it prints the message just once.
  * Return true when it prints, false otherwise.
  */
-#define warn_report_once(fmt, ...)              \
-    ({                                          \
-        static bool print_once_;                \
-        bool ret_print_once_ = !print_once_;    \
-                                                \
-        if (!print_once_) {                     \
-            print_once_ = true;                 \
-            warn_report(fmt, ##__VA_ARGS__);    \
-        }                                       \
-        unlikely(ret_print_once_);              \
+#define warn_report_once(fmt, ...)                      \
+    ({                                                  \
+        static bool print_once_;                        \
+        warn_report_once_cond(&print_once_,             \
+                              fmt, ##__VA_ARGS__);      \
     })
 
 const char *error_get_progname(void);

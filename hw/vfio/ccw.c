@@ -37,24 +37,12 @@ typedef struct VFIOCCWDevice {
     bool warned_orb_pfch;
 } VFIOCCWDevice;
 
-static inline void warn_once(bool *warned, const char *fmt, ...)
-{
-    va_list ap;
-
-    if (!warned || *warned) {
-        return;
-    }
-    *warned = true;
-    va_start(ap, fmt);
-    warn_vreport(fmt, ap);
-    va_end(ap);
-}
-
 static inline void warn_once_pfch(VFIOCCWDevice *vcdev, SubchDev *sch,
                                   const char *msg)
 {
-    warn_once(&vcdev->warned_orb_pfch, "vfio-ccw (devno %x.%x.%04x): %s",
-              sch->cssid, sch->ssid, sch->devno, msg);
+    warn_report_once_cond(&vcdev->warned_orb_pfch,
+                          "vfio-ccw (devno %x.%x.%04x): %s",
+                          sch->cssid, sch->ssid, sch->devno, msg);
 }
 
 static void vfio_ccw_compute_needs_reset(VFIODevice *vdev)
