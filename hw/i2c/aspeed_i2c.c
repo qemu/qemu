@@ -252,7 +252,8 @@ static void aspeed_i2c_bus_handle_cmd(AspeedI2CBus *bus, uint64_t value)
         aspeed_i2c_set_state(bus, I2CD_MACTIVE);
     }
 
-    if (bus->cmd & (I2CD_M_RX_CMD | I2CD_M_S_RX_CMD_LAST)) {
+    if ((bus->cmd & (I2CD_M_RX_CMD | I2CD_M_S_RX_CMD_LAST)) &&
+        !(bus->intr_status & I2CD_INTR_RX_DONE)) {
         aspeed_i2c_handle_rx_cmd(bus);
     }
 
@@ -274,6 +275,7 @@ static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
                                  uint64_t value, unsigned size)
 {
     AspeedI2CBus *bus = opaque;
+    bool handle_rx;
 
     switch (offset) {
     case I2CD_FUN_CTRL_REG:
@@ -294,10 +296,16 @@ static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
         bus->intr_ctrl = value & 0x7FFF;
         break;
     case I2CD_INTR_STS_REG:
+        handle_rx = (bus->intr_status & I2CD_INTR_RX_DONE) &&
+                (value & I2CD_INTR_RX_DONE);
         bus->intr_status &= ~(value & 0x7FFF);
         if (!bus->intr_status) {
             bus->controller->intr_status &= ~(1 << bus->id);
             qemu_irq_lower(bus->controller->irq);
+        }
+        if (handle_rx && (bus->cmd & (I2CD_M_RX_CMD | I2CD_M_S_RX_CMD_LAST))) {
+            aspeed_i2c_handle_rx_cmd(bus);
+            aspeed_i2c_bus_raise_interrupt(bus);
         }
         break;
     case I2CD_DEV_ADDR_REG:
