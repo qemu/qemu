@@ -502,6 +502,7 @@ static void ppc_prep_init(MachineState *machine)
     }
     qdev_prop_set_string(dev, "bios-name", bios_name);
     qdev_prop_set_uint32(dev, "elf-machine", PPC_ELF_MACHINE);
+    qdev_prop_set_bit(dev, "is-legacy-prep", true);
     pcihost = PCI_HOST_BRIDGE(dev);
     object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
@@ -620,7 +621,7 @@ static void ibm_40p_init(MachineState *machine)
     CPUPPCState *env = NULL;
     uint16_t cmos_checksum;
     PowerPCCPU *cpu;
-    DeviceState *dev;
+    DeviceState *dev, *i82378_dev;
     SysBusDevice *pcihost, *s;
     Nvram *m48t59 = NULL;
     PCIBus *pci_bus;
@@ -651,7 +652,7 @@ static void ibm_40p_init(MachineState *machine)
     /* PCI host */
     dev = qdev_create(NULL, "raven-pcihost");
     if (!bios_name) {
-        bios_name = BIOS_FILENAME;
+        bios_name = "openbios-ppc";
     }
     qdev_prop_set_string(dev, "bios-name", bios_name);
     qdev_prop_set_uint32(dev, "elf-machine", PPC_ELF_MACHINE);
@@ -665,14 +666,11 @@ static void ibm_40p_init(MachineState *machine)
     }
 
     /* PCI -> ISA bridge */
-    dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(11, 0), "i82378"));
-    qdev_connect_gpio_out(dev, 0,
+    i82378_dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(11, 0), "i82378"));
+    qdev_connect_gpio_out(i82378_dev, 0,
                           cpu->env.irq_inputs[PPC6xx_INPUT_INT]);
-    sysbus_connect_irq(pcihost, 0, qdev_get_gpio_in(dev, 15));
-    sysbus_connect_irq(pcihost, 1, qdev_get_gpio_in(dev, 13));
-    sysbus_connect_irq(pcihost, 2, qdev_get_gpio_in(dev, 15));
-    sysbus_connect_irq(pcihost, 3, qdev_get_gpio_in(dev, 13));
-    isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
+    sysbus_connect_irq(pcihost, 0, qdev_get_gpio_in(i82378_dev, 15));
+    isa_bus = ISA_BUS(qdev_get_child_bus(i82378_dev, "isa.0"));
 
     /* Memory controller */
     dev = DEVICE(isa_create(isa_bus, "rs6000-mc"));
@@ -702,7 +700,10 @@ static void ibm_40p_init(MachineState *machine)
         qdev_prop_set_uint32(dev, "equipment", 0xc0);
         qdev_init_nofail(dev);
 
-        lsi53c810_create(pci_bus, PCI_DEVFN(1, 0));
+        dev = DEVICE(pci_create_simple(pci_bus, PCI_DEVFN(1, 0),
+                                       "lsi53c810"));
+        lsi53c8xx_handle_legacy_cmdline(dev);
+        qdev_connect_gpio_out(dev, 0, qdev_get_gpio_in(i82378_dev, 13));
 
         /* XXX: s3-trio at PCI_DEVFN(2, 0) */
         pci_vga_init(pci_bus);

@@ -1267,7 +1267,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     }
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt);
+        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt, smc->irq->nr_msis);
         if (ret < 0) {
             error_report("couldn't setup PCI devices in fdt");
             exit(1);
@@ -3971,6 +3971,7 @@ static void spapr_machine_3_0_class_options(MachineClass *mc)
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_3_0);
 
     smc->legacy_irq_allocation = true;
+    smc->irq = &spapr_irq_xics_legacy;
 }
 
 DEFINE_SPAPR_MACHINE(3_0, "3.0", false);
