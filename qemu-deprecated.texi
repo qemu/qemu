@@ -35,6 +35,11 @@ which is the default.
 
 @section System emulator command line arguments
 
+@subsection -machine enforce-config-section=on|off (since 3.1)
+
+The @option{enforce-config-section} parameter is replaced by the
+@option{-global migration.send-configuration=@var{on|off}} option.
+
 @subsection -no-kvm (since 1.3.0)
 
 The ``-no-kvm'' argument is now a synonym for setting
@@ -83,6 +88,11 @@ The 'file' driver for drives is no longer appropriate for character or host
 devices and will only accept regular files (S_IFREG). The correct driver
 for these file types is 'host_cdrom' or 'host_device' as appropriate.
 
+@subsection -net ...,name=@var{name} (since 3.1)
+
+The @option{name} parameter of the @option{-net} option is a synonym
+for the @option{id} parameter, which should now be used instead.
+
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)
@@ -98,6 +108,13 @@ The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
 
 The ``arch'' output member of the ``query-cpus-fast'' command is
 replaced by the ``target'' output member.
+
+@section System emulator human monitor commands
+
+@subsection The hub_id parameter of 'hostfwd_add' / 'hostfwd_remove' (since 3.1)
+
+The @option{[hub_id name]} parameter tuple of the 'hostfwd_add' and
+'hostfwd_remove' HMP commands has been replaced by @option{netdev_id}.
 
 @section System emulator devices
 

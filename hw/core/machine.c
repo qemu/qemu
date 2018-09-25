@@ -324,6 +324,9 @@ static void machine_set_enforce_config_section(Object *obj, bool value,
 {
     MachineState *ms = MACHINE(obj);
 
+    warn_report("enforce-config-section is deprecated, please use "
+                "-global migration.send-configuration=on|off instead");
+
     ms->enforce_config_section = value;
 }
 

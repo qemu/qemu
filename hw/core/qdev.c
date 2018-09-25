@@ -643,7 +643,7 @@ static void qdev_get_legacy_property(Object *obj, Visitor *v,
  * the string depends on the property type.  Legacy properties are only
  * needed for "info qtree".
  *
- * Do not use this is new code!  QOM Properties added through this interface
+ * Do not use this in new code!  QOM Properties added through this interface
  * will be given names in the "legacy" namespace.
  */
 static void qdev_property_add_legacy(DeviceState *dev, Property *prop,

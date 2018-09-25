@@ -984,6 +984,10 @@ static int net_client_init1(const void *object, bool is_netdev, Error **errp)
         /* missing optional values have been initialized to "all bits zero" */
         name = net->has_id ? net->id : net->name;
 
+        if (net->has_name) {
+            warn_report("The 'name' parameter is deprecated, use 'id' instead");
+        }
+
         /* Map the old options to the new flat type */
         switch (opts->type) {
         case NET_LEGACY_OPTIONS_TYPE_NONE:

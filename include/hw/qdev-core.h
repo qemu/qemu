@@ -51,8 +51,9 @@ struct VMStateDescription;
  * Devices are constructed in two stages,
  * 1) object instantiation via object_initialize() and
  * 2) device realization via #DeviceState:realized property.
- * The former may not fail (it might assert or exit), the latter may return
- * error information to the caller and must be re-entrant.
+ * The former may not fail (and must not abort or exit, since it is called
+ * during device introspection already), and the latter may return error
+ * information to the caller and must be re-entrant.
  * Trivial field initializations should go into #TypeInfo.instance_init.
  * Operations depending on @props static properties should go into @realize.
  * After successful realization, setting static properties will fail.
