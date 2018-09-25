@@ -61,7 +61,7 @@ MMIO area spec
 
 Likewise applies to the pci variant only for obvious reasons.
 
-0000 - 03ff : reserved, for possible virtio extension.
+0000 - 03ff : edid data blob.
 0400 - 041f : vga ioports (0x3c0 -> 0x3df), remapped 1:1.
               word access is supported, bytes are written
               in little endia order (aka index port first),
