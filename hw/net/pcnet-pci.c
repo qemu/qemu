@@ -139,69 +139,6 @@ static const MemoryRegionOps pcnet_io_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-/*
- * TODO: should MMIO accesses to the addresses corresponding to the
- * APROM also honour the BCR_DWIO() setting? If so, then these functions
- * and pcnet_ioport_write/pcnet_ioport_read could be merged.
- * If not, then should pcnet_ioport_{read,write}{w,l} really check
- * BCR_DWIO() for MMIO writes ?
- */
-static void pcnet_mmio_write(void *opaque, hwaddr addr, uint64_t value,
-                             unsigned size)
-{
-    PCNetState *d = opaque;
-
-    trace_pcnet_mmio_write(opaque, addr, size, val);
-
-    if (addr < 0x10) {
-        if (size == 1) {
-            pcnet_aprom_writeb(d, addr, data);
-        } else if ((addr & 1) == 0 && size == 2) {
-            pcnet_aprom_writeb(d, addr, data & 0xff);
-            pcnet_aprom_writeb(d, addr + 1, data >> 8);
-        } else if ((addr & 3) == 0 && size == 4) {
-            pcnet_aprom_writeb(d, addr, data & 0xff);
-            pcnet_aprom_writeb(d, addr + 1, (data >> 8) & 0xff);
-            pcnet_aprom_writeb(d, addr + 2, (data >> 16) & 0xff);
-            pcnet_aprom_writeb(d, addr + 3, data >> 24);
-        }
-    } else {
-        if (size == 2) {
-            pcnet_ioport_writew(d, addr, data);
-        } else if (size == 4) {
-            pcnet_ioport_writel(d, addr, data);
-        }
-    }
-}
-
-static uint64_t pcnet_mmio_read(void *opque, hwaddr addr, unsigned size)
-{
-    PCNetState *d = opaque;
-
-    trace_pcnet_ioport_read(opaque, addr, size);
-
-    if (addr < 0x10) {
-        if (size == 1) {
-            return pcnet_aprom_readb(d, addr);
-        } else if ((addr & 1) == 0 && size == 2) {
-            return pcnet_aprom_readb(d, addr) |
-                   (pcnet_aprom_readb(d, addr + 1) << 8);
-        } else if ((addr & 3) == 0 && size == 4) {
-            return pcnet_aprom_readb(d, addr) |
-                   (pcnet_aprom_readb(d, addr + 1) << 8) |
-                   (pcnet_aprom_readb(d, addr + 2) << 16) |
-                   (pcnet_aprom_readb(d, addr + 3) << 24);
-        }
-    } else {
-        if (size == 2) {
-            return pcnet_ioport_readw(d, addr);
-        } else if (size == 4) {
-            return pcnet_ioport_readl(d, addr);
-        }
-    }
-    return ((uint64_t)1 << (size * 8)) - 1;
-}
-
 static const VMStateDescription vmstate_pci_pcnet = {
     .name = "pcnet",
     .version_id = 3,
@@ -216,8 +153,8 @@ static const VMStateDescription vmstate_pci_pcnet = {
 /* PCI interface */
 
 static const MemoryRegionOps pcnet_mmio_ops = {
-    .read = pcnet_mmio_read,
-    .write = pcnet_mmio_write,
+    .read = pcnet_ioport_read,
+    .write = pcnet_ioport_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
     .impl.min_access_size = 1,
