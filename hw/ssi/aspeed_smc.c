@@ -388,8 +388,8 @@ static uint64_t aspeed_smc_flash_default_read(void *opaque, hwaddr addr,
 static void aspeed_smc_flash_default_write(void *opaque, hwaddr addr,
                                            uint64_t data, unsigned size)
 {
-   qemu_log_mask(LOG_GUEST_ERROR, "%s: To 0x%" HWADDR_PRIx " of size %u: 0x%"
-                 PRIx64 "\n", __func__, addr, size, data);
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: To 0x%" HWADDR_PRIx " of size %u: 0x%"
+                  PRIx64 "\n", __func__, addr, size, data);
 }
 
 static const MemoryRegionOps aspeed_smc_flash_default_ops = {
@@ -529,7 +529,7 @@ static void aspeed_smc_flash_setup(AspeedSMCFlash *fl, uint32_t addr)
      */
     if (aspeed_smc_flash_mode(fl) == CTRL_FREADMODE) {
         for (i = 0; i < aspeed_smc_flash_dummies(fl); i++) {
-                ssi_transfer(fl->controller->spi, 0xFF);
+            ssi_transfer(fl->controller->spi, 0xFF);
         }
     }
 }
@@ -567,7 +567,7 @@ static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
-                           unsigned size)
+                                   unsigned size)
 {
     AspeedSMCFlash *fl = opaque;
     AspeedSMCState *s = fl->controller;
