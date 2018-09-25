@@ -483,6 +483,8 @@ static int curl_init_state(BDRVCURLState *s, CURLState *state)
         curl_easy_setopt(state->curl, CURLOPT_URL, s->url);
         curl_easy_setopt(state->curl, CURLOPT_SSL_VERIFYPEER,
                          (long) s->sslverify);
+        curl_easy_setopt(state->curl, CURLOPT_SSL_VERIFYHOST,
+                         s->sslverify ? 2L : 0L);
         if (s->cookie) {
             curl_easy_setopt(state->curl, CURLOPT_COOKIE, s->cookie);
         }
