@@ -51,6 +51,7 @@
 #include "hw/ide.h"
 #include "hw/ide/pci.h"
 #include "hw/loader.h"
+#include "hw/fw-path-provider.h"
 #include "elf.h"
 #include "trace.h"
 
@@ -693,6 +694,56 @@ enum {
     sun4v_id = 64,
 };
 
+/*
+ * Implementation of an interface to adjust firmware path
+ * for the bootindex property handling.
+ */
+static char *sun4u_fw_dev_path(FWPathProvider *p, BusState *bus,
+                               DeviceState *dev)
+{
+    PCIDevice *pci;
+    IDEBus *ide_bus;
+    IDEState *ide_s;
+    int bus_id;
+
+    if (!strcmp(object_get_typename(OBJECT(dev)), "pbm-bridge")) {
+        pci = PCI_DEVICE(dev);
+
+        if (PCI_FUNC(pci->devfn)) {
+            return g_strdup_printf("pci@%x,%x", PCI_SLOT(pci->devfn),
+                                   PCI_FUNC(pci->devfn));
+        } else {
+            return g_strdup_printf("pci@%x", PCI_SLOT(pci->devfn));
+        }
+    }
+
+    if (!strcmp(object_get_typename(OBJECT(dev)), "ide-drive")) {
+         ide_bus = IDE_BUS(qdev_get_parent_bus(dev));
+         ide_s = idebus_active_if(ide_bus);
+         bus_id = ide_bus->bus_id;
+
+         if (ide_s->drive_kind == IDE_CD) {
+             return g_strdup_printf("ide@%x/cdrom", bus_id);
+         }
+
+         return g_strdup_printf("ide@%x/disk", bus_id);
+    }
+
+    if (!strcmp(object_get_typename(OBJECT(dev)), "ide-hd")) {
+        return g_strdup("disk");
+    }
+
+    if (!strcmp(object_get_typename(OBJECT(dev)), "ide-cd")) {
+        return g_strdup("cdrom");
+    }
+
+    if (!strcmp(object_get_typename(OBJECT(dev)), "virtio-blk-device")) {
+        return g_strdup("disk");
+    }
+
+    return NULL;
+}
+
 static const struct hwdef hwdefs[] = {
     /* Sun4u generic PC-like machine */
     {
@@ -723,6 +774,7 @@ static void sun4v_init(MachineState *machine)
 static void sun4u_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
 
     mc->desc = "Sun4u platform";
     mc->init = sun4u_init;
@@ -731,12 +783,18 @@ static void sun4u_class_init(ObjectClass *oc, void *data)
     mc->is_default = 1;
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-UltraSparc-IIi");
+    mc->ignore_boot_device_suffixes = true;
+    fwc->get_dev_path = sun4u_fw_dev_path;
 }
 
 static const TypeInfo sun4u_type = {
     .name = MACHINE_TYPE_NAME("sun4u"),
     .parent = TYPE_MACHINE,
     .class_init = sun4u_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_FW_PATH_PROVIDER },
+        { }
+    },
 };
 
 static void sun4v_class_init(ObjectClass *oc, void *data)
