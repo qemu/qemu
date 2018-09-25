@@ -18,10 +18,10 @@ ENV PACKAGES \
     libfdt-devel \
     librdmacm-devel \
     lzo-devel \
-    nettle-devel \
     make \
     mesa-libEGL-devel \
     mesa-libgbm-devel \
+    nettle-devel \
     pixman-devel \
     SDL-devel \
     spice-glib-devel \

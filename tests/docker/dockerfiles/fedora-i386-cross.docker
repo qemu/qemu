@@ -1,14 +1,13 @@
 FROM fedora:latest
 ENV PACKAGES \
     gcc \
-    glibc-static.i686 \
+    glib2-devel.i686 \
     glibc-devel.i686 \
-    glib2-devel.i686 \
-    zlib-devel.i686 \
-    glib2-devel.i686 \
+    glibc-static.i686 \
+    gnutls-devel.i686 \
     nettle-devel.i686 \
     pixman-devel.i686 \
-    gnutls-devel.i686
+    zlib-devel.i686
 
 RUN dnf install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt

@@ -25,6 +25,7 @@ IMAGES ?= %
 CUR_TIME := $(shell date +%Y-%m-%d-%H.%M.%S.$$$$)
 DOCKER_SRC_COPY := $(BUILD_DIR)/docker-src.$(CUR_TIME)
 
+.DELETE_ON_ERROR: $(DOCKER_SRC_COPY)
 $(DOCKER_SRC_COPY):
 	@mkdir $@
 	$(if $(SRC_ARCHIVE), \
