@@ -2280,7 +2280,10 @@ out:
              */
             if (postcopy_pause_return_path_thread(ms)) {
                 /* Reload rp, reset the rest */
-                rp = ms->rp_state.from_dst_file;
+                if (rp != ms->rp_state.from_dst_file) {
+                    qemu_fclose(rp);
+                    rp = ms->rp_state.from_dst_file;
+                }
                 ms->rp_state.error = false;
                 goto retry;
             }
