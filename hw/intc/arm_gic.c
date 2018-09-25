@@ -955,7 +955,7 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
             res = 0;
             if (!(s->security_extn && !attrs.secure) && gic_has_groups(s)) {
                 /* Every byte offset holds 8 group status bits */
-                irq = (offset - 0x080) * 8 + GIC_BASE_IRQ;
+                irq = (offset - 0x080) * 8;
                 if (irq >= s->num_irq) {
                     goto bad_reg;
                 }
@@ -974,7 +974,6 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
             irq = (offset - 0x100) * 8;
         else
             irq = (offset - 0x180) * 8;
-        irq += GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
         res = 0;
@@ -994,7 +993,6 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
             irq = (offset - 0x200) * 8;
         else
             irq = (offset - 0x280) * 8;
-        irq += GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
         res = 0;
@@ -1019,7 +1017,6 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
             goto bad_reg;
         }
 
-        irq += GIC_BASE_IRQ;
         if (irq >= s->num_irq)
             goto bad_reg;
         res = 0;
@@ -1036,7 +1033,7 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
         }
     } else if (offset < 0x800) {
         /* Interrupt Priority.  */
-        irq = (offset - 0x400) + GIC_BASE_IRQ;
+        irq = (offset - 0x400);
         if (irq >= s->num_irq)
             goto bad_reg;
         res = gic_dist_get_priority(s, cpu, irq, attrs);
@@ -1046,7 +1043,7 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
             /* For uniprocessor GICs these RAZ/WI */
             res = 0;
         } else {
-            irq = (offset - 0x800) + GIC_BASE_IRQ;
+            irq = (offset - 0x800);
             if (irq >= s->num_irq) {
                 goto bad_reg;
             }
@@ -1060,7 +1057,7 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
         }
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
-        irq = (offset - 0xc00) * 4 + GIC_BASE_IRQ;
+        irq = (offset - 0xc00) * 4;
         if (irq >= s->num_irq)
             goto bad_reg;
         res = 0;
@@ -1183,7 +1180,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
              */
             if (!(s->security_extn && !attrs.secure) && gic_has_groups(s)) {
                 /* Every byte offset holds 8 group status bits */
-                irq = (offset - 0x80) * 8 + GIC_BASE_IRQ;
+                irq = (offset - 0x80) * 8;
                 if (irq >= s->num_irq) {
                     goto bad_reg;
                 }
@@ -1204,7 +1201,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         }
     } else if (offset < 0x180) {
         /* Interrupt Set Enable.  */
-        irq = (offset - 0x100) * 8 + GIC_BASE_IRQ;
+        irq = (offset - 0x100) * 8;
         if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < GIC_NR_SGIS) {
@@ -1239,7 +1236,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         }
     } else if (offset < 0x200) {
         /* Interrupt Clear Enable.  */
-        irq = (offset - 0x180) * 8 + GIC_BASE_IRQ;
+        irq = (offset - 0x180) * 8;
         if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < GIC_NR_SGIS) {
@@ -1264,7 +1261,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         }
     } else if (offset < 0x280) {
         /* Interrupt Set Pending.  */
-        irq = (offset - 0x200) * 8 + GIC_BASE_IRQ;
+        irq = (offset - 0x200) * 8;
         if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < GIC_NR_SGIS) {
@@ -1283,7 +1280,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         }
     } else if (offset < 0x300) {
         /* Interrupt Clear Pending.  */
-        irq = (offset - 0x280) * 8 + GIC_BASE_IRQ;
+        irq = (offset - 0x280) * 8;
         if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < GIC_NR_SGIS) {
@@ -1309,7 +1306,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
             goto bad_reg;
         }
 
-        irq = (offset - 0x300) * 8 + GIC_BASE_IRQ;
+        irq = (offset - 0x300) * 8;
         if (irq >= s->num_irq) {
             goto bad_reg;
         }
@@ -1333,7 +1330,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
             goto bad_reg;
         }
 
-        irq = (offset - 0x380) * 8 + GIC_BASE_IRQ;
+        irq = (offset - 0x380) * 8;
         if (irq >= s->num_irq) {
             goto bad_reg;
         }
@@ -1353,7 +1350,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         }
     } else if (offset < 0x800) {
         /* Interrupt Priority.  */
-        irq = (offset - 0x400) + GIC_BASE_IRQ;
+        irq = (offset - 0x400);
         if (irq >= s->num_irq)
             goto bad_reg;
         gic_dist_set_priority(s, cpu, irq, value, attrs);
@@ -1362,7 +1359,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
          * annoying exception of the 11MPCore's GIC.
          */
         if (s->num_cpu != 1 || s->revision == REV_11MPCORE) {
-            irq = (offset - 0x800) + GIC_BASE_IRQ;
+            irq = (offset - 0x800);
             if (irq >= s->num_irq) {
                 goto bad_reg;
             }
@@ -1375,7 +1372,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
         }
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
-        irq = (offset - 0xc00) * 4 + GIC_BASE_IRQ;
+        irq = (offset - 0xc00) * 4;
         if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < GIC_NR_SGIS)

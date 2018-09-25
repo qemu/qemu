@@ -191,7 +191,6 @@ static void arm_gic_common_realize(DeviceState *dev, Error **errp)
                    s->num_cpu, GIC_NCPU);
         return;
     }
-    s->num_irq += GIC_BASE_IRQ;
     if (s->num_irq > GIC_MAXIRQ) {
         error_setg(errp,
                    "requested %u interrupt lines exceeds GIC maximum %d",
