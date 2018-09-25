@@ -160,14 +160,7 @@ typedef struct CancelJob {
     BlockBackend *blk;
     bool should_converge;
     bool should_complete;
-    bool completed;
 } CancelJob;
-
-static void cancel_job_exit(Job *job)
-{
-    CancelJob *s = container_of(job, CancelJob, common.job);
-    s->completed = true;
-}
 
 static void cancel_job_complete(Job *job, Error **errp)
 {
@@ -201,23 +194,24 @@ static const BlockJobDriver test_cancel_driver = {
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
         .run           = cancel_job_run,
-        .exit          = cancel_job_exit,
         .complete      = cancel_job_complete,
     },
 };
 
-static CancelJob *create_common(BlockJob **pjob)
+static CancelJob *create_common(Job **pjob)
 {
     BlockBackend *blk;
-    BlockJob *job;
+    Job *job;
+    BlockJob *bjob;
     CancelJob *s;
 
     blk = create_blk(NULL);
-    job = mk_job(blk, "Steve", &test_cancel_driver, true,
-                 JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
-    job_ref(&job->job);
-    assert(job->job.status == JOB_STATUS_CREATED);
-    s = container_of(job, CancelJob, common);
+    bjob = mk_job(blk, "Steve", &test_cancel_driver, true,
+                  JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
+    job = &bjob->job;
+    job_ref(job);
+    assert(job->status == JOB_STATUS_CREATED);
+    s = container_of(bjob, CancelJob, common);
     s->blk = blk;
 
     *pjob = job;
@@ -229,6 +223,10 @@ static void cancel_common(CancelJob *s)
     BlockJob *job = &s->common;
     BlockBackend *blk = s->blk;
     JobStatus sts = job->job.status;
+    AioContext *ctx;
+
+    ctx = job->job.aio_context;
+    aio_context_acquire(ctx);
 
     job_cancel_sync(&job->job);
     if (sts != JOB_STATUS_CREATED && sts != JOB_STATUS_CONCLUDED) {
@@ -238,11 +236,13 @@ static void cancel_common(CancelJob *s)
     assert(job->job.status == JOB_STATUS_NULL);
     job_unref(&job->job);
     destroy_blk(blk);
+
+    aio_context_release(ctx);
 }
 
 static void test_cancel_created(void)
 {
-    BlockJob *job;
+    Job *job;
     CancelJob *s;
 
     s = create_common(&job);
@@ -251,119 +251,123 @@ static void test_cancel_created(void)
 
 static void test_cancel_running(void)
 {
-    BlockJob *job;
+    Job *job;
     CancelJob *s;
 
     s = create_common(&job);
 
-    job_start(&job->job);
-    assert(job->job.status == JOB_STATUS_RUNNING);
+    job_start(job);
+    assert(job->status == JOB_STATUS_RUNNING);
 
     cancel_common(s);
 }
 
 static void test_cancel_paused(void)
 {
-    BlockJob *job;
+    Job *job;
     CancelJob *s;
 
     s = create_common(&job);
 
-    job_start(&job->job);
-    assert(job->job.status == JOB_STATUS_RUNNING);
+    job_start(job);
+    assert(job->status == JOB_STATUS_RUNNING);
 
-    job_user_pause(&job->job, &error_abort);
-    job_enter(&job->job);
-    assert(job->job.status == JOB_STATUS_PAUSED);
+    job_user_pause(job, &error_abort);
+    job_enter(job);
+    assert(job->status == JOB_STATUS_PAUSED);
 
     cancel_common(s);
 }
 
 static void test_cancel_ready(void)
 {
-    BlockJob *job;
+    Job *job;
     CancelJob *s;
 
     s = create_common(&job);
 
-    job_start(&job->job);
-    assert(job->job.status == JOB_STATUS_RUNNING);
+    job_start(job);
+    assert(job->status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    job_enter(&job->job);
-    assert(job->job.status == JOB_STATUS_READY);
+    job_enter(job);
+    assert(job->status == JOB_STATUS_READY);
 
     cancel_common(s);
 }
 
 static void test_cancel_standby(void)
 {
-    BlockJob *job;
+    Job *job;
     CancelJob *s;
 
     s = create_common(&job);
 
-    job_start(&job->job);
-    assert(job->job.status == JOB_STATUS_RUNNING);
+    job_start(job);
+    assert(job->status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    job_enter(&job->job);
-    assert(job->job.status == JOB_STATUS_READY);
+    job_enter(job);
+    assert(job->status == JOB_STATUS_READY);
 
-    job_user_pause(&job->job, &error_abort);
-    job_enter(&job->job);
-    assert(job->job.status == JOB_STATUS_STANDBY);
+    job_user_pause(job, &error_abort);
+    job_enter(job);
+    assert(job->status == JOB_STATUS_STANDBY);
 
     cancel_common(s);
 }
 
 static void test_cancel_pending(void)
 {
-    BlockJob *job;
+    Job *job;
     CancelJob *s;
 
     s = create_common(&job);
 
-    job_start(&job->job);
-    assert(job->job.status == JOB_STATUS_RUNNING);
+    job_start(job);
+    assert(job->status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    job_enter(&job->job);
-    assert(job->job.status == JOB_STATUS_READY);
+    job_enter(job);
+    assert(job->status == JOB_STATUS_READY);
 
-    job_complete(&job->job, &error_abort);
-    job_enter(&job->job);
-    while (!s->completed) {
+    job_complete(job, &error_abort);
+    job_enter(job);
+    while (!job->deferred_to_main_loop) {
         aio_poll(qemu_get_aio_context(), true);
     }
-    assert(job->job.status == JOB_STATUS_PENDING);
+    assert(job->status == JOB_STATUS_READY);
+    aio_poll(qemu_get_aio_context(), true);
+    assert(job->status == JOB_STATUS_PENDING);
 
     cancel_common(s);
 }
 
 static void test_cancel_concluded(void)
 {
-    BlockJob *job;
+    Job *job;
     CancelJob *s;
 
     s = create_common(&job);
 
-    job_start(&job->job);
-    assert(job->job.status == JOB_STATUS_RUNNING);
+    job_start(job);
+    assert(job->status == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
-    job_enter(&job->job);
-    assert(job->job.status == JOB_STATUS_READY);
+    job_enter(job);
+    assert(job->status == JOB_STATUS_READY);
 
-    job_complete(&job->job, &error_abort);
-    job_enter(&job->job);
-    while (!s->completed) {
+    job_complete(job, &error_abort);
+    job_enter(job);
+    while (!job->deferred_to_main_loop) {
         aio_poll(qemu_get_aio_context(), true);
     }
-    assert(job->job.status == JOB_STATUS_PENDING);
+    assert(job->status == JOB_STATUS_READY);
+    aio_poll(qemu_get_aio_context(), true);
+    assert(job->status == JOB_STATUS_PENDING);
 
-    job_finalize(&job->job, &error_abort);
-    assert(job->job.status == JOB_STATUS_CONCLUDED);
+    job_finalize(job, &error_abort);
+    assert(job->status == JOB_STATUS_CONCLUDED);
 
     cancel_common(s);
 }

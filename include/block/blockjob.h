@@ -70,6 +70,9 @@ typedef struct BlockJob {
     /** Called when the job transitions to READY */
     Notifier ready_notifier;
 
+    /** Called when the job coroutine yields or terminates */
+    Notifier idle_notifier;
+
     /** BlockDriverStates that are involved in this block job */
     GSList *nodes;
 } BlockJob;

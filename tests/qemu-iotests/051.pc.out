@@ -527,4 +527,7 @@ wrote 4096/4096 bytes at offset 0
 
 read 4096/4096 bytes at offset 0
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Testing: -drive driver=null-co,snapshot=on
+QEMU_PROG: -drive driver=null-co,snapshot=on: Could not get temporary filename: No such file or directory
+
 *** done

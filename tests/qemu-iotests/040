@@ -57,9 +57,12 @@ class ImageCommitTestCase(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-    def run_commit_test(self, top, base, need_ready=False):
+    def run_commit_test(self, top, base, need_ready=False, node_names=False):
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('block-commit', device='drive0', top=top, base=base)
+        if node_names:
+            result = self.vm.qmp('block-commit', device='drive0', top_node=top, base_node=base)
+        else:
+            result = self.vm.qmp('block-commit', device='drive0', top=top, base=base)
         self.assert_qmp(result, 'return', {})
         self.wait_for_complete(need_ready)
 
@@ -101,6 +104,11 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
         self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
 
+    def test_commit_node(self):
+        self.run_commit_test("mid", "base", node_names=True)
+        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
+        self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
+
     def test_device_not_found(self):
         result = self.vm.qmp('block-commit', device='nonexistent', top='%s' % mid_img)
         self.assert_qmp(result, 'error/class', 'DeviceNotFound')
@@ -123,6 +131,30 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
         self.assert_qmp(result, 'error/desc', 'Base \'badfile\' not found')
 
+    def test_top_node_invalid(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit', device='drive0', top_node='badfile', base_node='base')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', "Cannot find device= nor node_name=badfile")
+
+    def test_base_node_invalid(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit', device='drive0', top_node='mid', base_node='badfile')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', "Cannot find device= nor node_name=badfile")
+
+    def test_top_path_and_node(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit', device='drive0', top_node='mid', base_node='base', top='%s' % mid_img)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', "'top-node' and 'top' are mutually exclusive")
+
+    def test_base_path_and_node(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit', device='drive0', top_node='mid', base_node='base', base='%s' % backing_img)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', "'base-node' and 'base' are mutually exclusive")
+
     def test_top_is_active(self):
         self.run_commit_test(test_img, backing_img, need_ready=True)
         self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
@@ -138,6 +170,22 @@ class TestSingleDrive(ImageCommitTestCase):
         result = self.vm.qmp('block-commit', device='drive0', top='%s' % backing_img, base='%s' % mid_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
         self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % mid_img)
+
+    def test_top_and_base_node_reversed(self):
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('block-commit', device='drive0', top_node='base', base_node='top')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', "'top' is not in this backing file chain")
+
+    def test_top_node_in_wrong_chain(self):
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('blockdev-add', driver='null-co', node_name='null')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-commit', device='drive0', top_node='null', base_node='base')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', "'null' is not in this backing file chain")
 
     # When the job is running on a BB that is automatically deleted on hot
     # unplug, the job is cancelled when the device disappears

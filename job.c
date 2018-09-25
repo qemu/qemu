@@ -29,6 +29,7 @@
 #include "qemu/job.h"
 #include "qemu/id.h"
 #include "qemu/main-loop.h"
+#include "block/aio-wait.h"
 #include "trace-root.h"
 #include "qapi/qapi-events-job.h"
 
@@ -136,21 +137,13 @@ static void job_txn_del_job(Job *job)
     }
 }
 
-static int job_txn_apply(JobTxn *txn, int fn(Job *), bool lock)
+static int job_txn_apply(JobTxn *txn, int fn(Job *))
 {
-    AioContext *ctx;
     Job *job, *next;
     int rc = 0;
 
     QLIST_FOREACH_SAFE(job, &txn->jobs, txn_list, next) {
-        if (lock) {
-            ctx = job->aio_context;
-            aio_context_acquire(ctx);
-        }
         rc = fn(job);
-        if (lock) {
-            aio_context_release(ctx);
-        }
         if (rc) {
             break;
         }
@@ -410,6 +403,11 @@ static void job_event_ready(Job *job)
     notifier_list_notify(&job->on_ready, job);
 }
 
+static void job_event_idle(Job *job)
+{
+    notifier_list_notify(&job->on_idle, job);
+}
+
 void job_enter_cond(Job *job, bool(*fn)(Job *job))
 {
     if (!job_started(job)) {
@@ -455,6 +453,7 @@ static void coroutine_fn job_do_yield(Job *job, uint64_t ns)
         timer_mod(&job->sleep_timer, ns);
     }
     job->busy = false;
+    job_event_idle(job);
     job_unlock();
     qemu_coroutine_yield();
 
@@ -533,49 +532,6 @@ void job_drain(Job *job)
     if (job->driver->drain) {
         job->driver->drain(job);
     }
-}
-
-static void job_completed(Job *job);
-
-static void job_exit(void *opaque)
-{
-    Job *job = (Job *)opaque;
-    AioContext *aio_context = job->aio_context;
-
-    if (job->driver->exit) {
-        aio_context_acquire(aio_context);
-        job->driver->exit(job);
-        aio_context_release(aio_context);
-    }
-    job_completed(job);
-}
-
-/**
- * All jobs must allow a pause point before entering their job proper. This
- * ensures that jobs can be paused prior to being started, then resumed later.
- */
-static void coroutine_fn job_co_entry(void *opaque)
-{
-    Job *job = opaque;
-
-    assert(job && job->driver && job->driver->run);
-    job_pause_point(job);
-    job->ret = job->driver->run(job, &job->err);
-    job->deferred_to_main_loop = true;
-    aio_bh_schedule_oneshot(qemu_get_aio_context(), job_exit, job);
-}
-
-
-void job_start(Job *job)
-{
-    assert(job && !job_started(job) && job->paused &&
-           job->driver && job->driver->run);
-    job->co = qemu_coroutine_create(job_co_entry, job);
-    job->pause_count--;
-    job->busy = true;
-    job->paused = false;
-    job_state_transition(job, JOB_STATUS_RUNNING);
-    aio_co_enter(job->aio_context, job->co);
 }
 
 /* Assumes the block_job_mutex is held */
@@ -762,6 +718,7 @@ static void job_cancel_async(Job *job, bool force)
 
 static void job_completed_txn_abort(Job *job)
 {
+    AioContext *outer_ctx = job->aio_context;
     AioContext *ctx;
     JobTxn *txn = job->txn;
     Job *other_job;
@@ -775,23 +732,26 @@ static void job_completed_txn_abort(Job *job)
     txn->aborting = true;
     job_txn_ref(txn);
 
-    /* We are the first failed job. Cancel other jobs. */
-    QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
-        ctx = other_job->aio_context;
-        aio_context_acquire(ctx);
-    }
+    /* We can only hold the single job's AioContext lock while calling
+     * job_finalize_single() because the finalization callbacks can involve
+     * calls of AIO_WAIT_WHILE(), which could deadlock otherwise. */
+    aio_context_release(outer_ctx);
 
     /* Other jobs are effectively cancelled by us, set the status for
      * them; this job, however, may or may not be cancelled, depending
      * on the caller, so leave it. */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
         if (other_job != job) {
+            ctx = other_job->aio_context;
+            aio_context_acquire(ctx);
             job_cancel_async(other_job, false);
+            aio_context_release(ctx);
         }
     }
     while (!QLIST_EMPTY(&txn->jobs)) {
         other_job = QLIST_FIRST(&txn->jobs);
         ctx = other_job->aio_context;
+        aio_context_acquire(ctx);
         if (!job_is_completed(other_job)) {
             assert(job_is_cancelled(other_job));
             job_finish_sync(other_job, NULL, NULL);
@@ -799,6 +759,8 @@ static void job_completed_txn_abort(Job *job)
         job_finalize_single(other_job);
         aio_context_release(ctx);
     }
+
+    aio_context_acquire(outer_ctx);
 
     job_txn_unref(txn);
 }
@@ -823,11 +785,11 @@ static void job_do_finalize(Job *job)
     assert(job && job->txn);
 
     /* prepare the transaction to complete */
-    rc = job_txn_apply(job->txn, job_prepare, true);
+    rc = job_txn_apply(job->txn, job_prepare);
     if (rc) {
         job_completed_txn_abort(job);
     } else {
-        job_txn_apply(job->txn, job_finalize_single, true);
+        job_txn_apply(job->txn, job_finalize_single);
     }
 }
 
@@ -873,10 +835,10 @@ static void job_completed_txn_success(Job *job)
         assert(other_job->ret == 0);
     }
 
-    job_txn_apply(txn, job_transition_to_pending, false);
+    job_txn_apply(txn, job_transition_to_pending);
 
     /* If no jobs need manual finalization, automatically do so */
-    if (job_txn_apply(txn, job_needs_finalize, false) == 0) {
+    if (job_txn_apply(txn, job_needs_finalize) == 0) {
         job_do_finalize(job);
     }
 }
@@ -892,6 +854,54 @@ static void job_completed(Job *job)
     } else {
         job_completed_txn_success(job);
     }
+}
+
+/** Useful only as a type shim for aio_bh_schedule_oneshot. */
+static void job_exit(void *opaque)
+{
+    Job *job = (Job *)opaque;
+    AioContext *ctx = job->aio_context;
+
+    aio_context_acquire(ctx);
+
+    /* This is a lie, we're not quiescent, but still doing the completion
+     * callbacks. However, completion callbacks tend to involve operations that
+     * drain block nodes, and if .drained_poll still returned true, we would
+     * deadlock. */
+    job->busy = false;
+    job_event_idle(job);
+
+    job_completed(job);
+
+    aio_context_release(ctx);
+}
+
+/**
+ * All jobs must allow a pause point before entering their job proper. This
+ * ensures that jobs can be paused prior to being started, then resumed later.
+ */
+static void coroutine_fn job_co_entry(void *opaque)
+{
+    Job *job = opaque;
+
+    assert(job && job->driver && job->driver->run);
+    job_pause_point(job);
+    job->ret = job->driver->run(job, &job->err);
+    job->deferred_to_main_loop = true;
+    job->busy = true;
+    aio_bh_schedule_oneshot(qemu_get_aio_context(), job_exit, job);
+}
+
+void job_start(Job *job)
+{
+    assert(job && !job_started(job) && job->paused &&
+           job->driver && job->driver->run);
+    job->co = qemu_coroutine_create(job_co_entry, job);
+    job->pause_count--;
+    job->busy = true;
+    job->paused = false;
+    job_state_transition(job, JOB_STATUS_RUNNING);
+    aio_co_enter(job->aio_context, job->co);
 }
 
 void job_cancel(Job *job, bool force)
@@ -980,14 +990,10 @@ int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
         job_unref(job);
         return -EBUSY;
     }
-    /* job_drain calls job_enter, and it should be enough to induce progress
-     * until the job completes or moves to the main thread. */
-    while (!job->deferred_to_main_loop && !job_is_completed(job)) {
-        job_drain(job);
-    }
-    while (!job_is_completed(job)) {
-        aio_poll(qemu_get_aio_context(), true);
-    }
+
+    AIO_WAIT_WHILE(job->aio_context,
+                   (job_drain(job), !job_is_completed(job)));
+
     ret = (job_is_cancelled(job) && job->ret == 0) ? -ECANCELED : job->ret;
     job_unref(job);
     return ret;

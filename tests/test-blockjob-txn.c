@@ -24,7 +24,7 @@ typedef struct {
     int *result;
 } TestBlockJob;
 
-static void test_block_job_exit(Job *job)
+static void test_block_job_clean(Job *job)
 {
     BlockJob *bjob = container_of(job, BlockJob, job);
     BlockDriverState *bs = blk_bs(bjob->blk);
@@ -73,7 +73,7 @@ static const BlockJobDriver test_block_job_driver = {
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
         .run           = test_block_job_run,
-        .exit          = test_block_job_exit,
+        .clean         = test_block_job_clean,
     },
 };
 
