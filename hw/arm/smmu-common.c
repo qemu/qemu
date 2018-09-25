@@ -311,6 +311,7 @@ static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
     SMMUState *s = opaque;
     SMMUPciBus *sbus = g_hash_table_lookup(s->smmu_pcibus_by_busptr, bus);
     SMMUDevice *sdev;
+    static unsigned int index;
 
     if (!sbus) {
         sbus = g_malloc0(sizeof(SMMUPciBus) +
@@ -321,9 +322,8 @@ static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
 
     sdev = sbus->pbdev[devfn];
     if (!sdev) {
-        char *name = g_strdup_printf("%s-%d-%d",
-                                     s->mrtypename,
-                                     pci_bus_num(bus), devfn);
+        char *name = g_strdup_printf("%s-%d-%d", s->mrtypename, devfn, index++);
+
         sdev = sbus->pbdev[devfn] = g_new0(SMMUDevice, 1);
 
         sdev->smmu = s;
