@@ -95,18 +95,10 @@ void xtensa_finalize_config(XtensaConfig *config)
 
     if (config->gdb_regmap.num_regs == 0 ||
         config->gdb_regmap.num_core_regs == 0) {
-        unsigned i;
         unsigned n_regs = 0;
         unsigned n_core_regs = 0;
 
-        for (i = 0; config->gdb_regmap.reg[i].targno >= 0; ++i) {
-            if (config->gdb_regmap.reg[i].type != 6) {
-                ++n_regs;
-                if ((config->gdb_regmap.reg[i].flags & 0x1) == 0) {
-                    ++n_core_regs;
-                }
-            }
-        }
+        xtensa_count_regs(config, &n_regs, &n_core_regs);
         if (config->gdb_regmap.num_regs == 0) {
             config->gdb_regmap.num_regs = n_regs;
         }
@@ -574,7 +566,7 @@ static bool is_access_granted(unsigned access, int is_write)
     }
 }
 
-static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte);
+static bool get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte);
 
 static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
         uint32_t vaddr, int is_write, int mmu_idx,
@@ -592,7 +584,7 @@ static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
     int ret = xtensa_tlb_lookup(env, vaddr, dtlb, &wi, &ei, &ring);
 
     if ((ret == INST_TLB_MISS_CAUSE || ret == LOAD_STORE_TLB_MISS_CAUSE) &&
-            may_lookup_pt && get_pte(env, vaddr, &pte) == 0) {
+            may_lookup_pt && get_pte(env, vaddr, &pte)) {
         ring = (pte >> 4) & 0x3;
         wi = 0;
         split_tlb_entry_spec_way(env, vaddr, dtlb, &vpn, wi, &ei);
@@ -639,7 +631,7 @@ static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
     return 0;
 }
 
-static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
+static bool get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
 {
     CPUState *cs = CPU(xtensa_env_get_cpu(env));
     uint32_t paddr;
@@ -650,13 +642,29 @@ static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
     int ret = get_physical_addr_mmu(env, false, pt_vaddr, 0, 0,
             &paddr, &page_size, &access, false);
 
-    qemu_log_mask(CPU_LOG_MMU, "%s: trying autorefill(%08x) -> %08x\n",
-                  __func__, vaddr, ret ? ~0 : paddr);
+    if (ret == 0) {
+        qemu_log_mask(CPU_LOG_MMU,
+                      "%s: autorefill(%08x): PTE va = %08x, pa = %08x\n",
+                      __func__, vaddr, pt_vaddr, paddr);
+    } else {
+        qemu_log_mask(CPU_LOG_MMU,
+                      "%s: autorefill(%08x): PTE va = %08x, failed (%d)\n",
+                      __func__, vaddr, pt_vaddr, ret);
+    }
 
     if (ret == 0) {
-        *pte = ldl_phys(cs->as, paddr);
+        MemTxResult result;
+
+        *pte = address_space_ldl(cs->as, paddr, MEMTXATTRS_UNSPECIFIED,
+                                 &result);
+        if (result != MEMTX_OK) {
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s: couldn't load PTE: transaction failed (%u)\n",
+                          __func__, (unsigned)result);
+            ret = 1;
+        }
     }
-    return ret;
+    return ret == 0;
 }
 
 static int get_physical_addr_region(CPUXtensaState *env,

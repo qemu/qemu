@@ -2288,7 +2288,7 @@ static void translate_s32c1i(DisasContext *dc, const uint32_t arg[],
         gen_load_store_alignment(dc, 2, addr, true);
         gen_check_atomctl(dc, addr);
         tcg_gen_atomic_cmpxchg_i32(cpu_R[arg[0]], addr, cpu_SR[SCOMPARE1],
-                                   tmp, dc->cring, MO_32);
+                                   tmp, dc->cring, MO_TEUL);
         tcg_temp_free(addr);
         tcg_temp_free(tmp);
     }
@@ -4706,7 +4706,7 @@ static void translate_movcond_s(DisasContext *dc, const uint32_t arg[],
 
         tcg_gen_movcond_i32(par[0], cpu_FR[arg[0]],
                             cpu_R[arg[2]], zero,
-                            cpu_FR[arg[1]], cpu_FR[arg[2]]);
+                            cpu_FR[arg[1]], cpu_FR[arg[0]]);
         tcg_temp_free(zero);
     }
 }
@@ -4867,7 +4867,7 @@ static const XtensaOpcodeOps fpu2000_ops[] = {
         .translate = translate_compare_s,
         .par = (const uint32_t[]){COMPARE_OLT},
     }, {
-        .name = "rfr.s",
+        .name = "rfr",
         .translate = translate_rfr_s,
     }, {
         .name = "round.s",
@@ -4921,7 +4921,7 @@ static const XtensaOpcodeOps fpu2000_ops[] = {
         .translate = translate_ftoi_s,
         .par = (const uint32_t[]){float_round_to_zero, true},
     }, {
-        .name = "wfr.s",
+        .name = "wfr",
         .translate = translate_wfr_s,
     },
 };
