@@ -20,4 +20,8 @@ size_t qemu_edid_size(uint8_t *edid);
 void qemu_edid_region_io(MemoryRegion *region, Object *owner,
                          uint8_t *edid, size_t size);
 
+#define DEFINE_EDID_PROPERTIES(_state, _edid_info)              \
+    DEFINE_PROP_UINT32("xres", _state, _edid_info.prefx, 0),    \
+    DEFINE_PROP_UINT32("yres", _state, _edid_info.prefy, 0)
+
 #endif /* EDID_H */
