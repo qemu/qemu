@@ -79,14 +79,14 @@ Choosing the right cache sizes
 In order to choose the cache sizes we need to know how they relate to
 the amount of allocated space.
 
-The amount of virtual disk that can be mapped by the L2 and refcount
+The part of the virtual disk that can be mapped by the L2 and refcount
 caches (in bytes) is:
 
    disk_size = l2_cache_size * cluster_size / 8
    disk_size = refcount_cache_size * cluster_size * 8 / refcount_bits
 
 With the default values for cluster_size (64KB) and refcount_bits
-(16), that is
+(16), this becomes:
 
    disk_size = l2_cache_size * 8192
    disk_size = refcount_cache_size * 32768
@@ -97,12 +97,16 @@ need:
    l2_cache_size = disk_size_GB * 131072
    refcount_cache_size = disk_size_GB * 32768
 
-QEMU has a default L2 cache of 1MB (1048576 bytes) and a refcount
-cache of 256KB (262144 bytes), so using the formulas we've just seen
-we have
+For example, 1MB of L2 cache is needed to cover every 8 GB of the virtual
+image size (given that the default cluster size is used):
 
-   1048576 / 131072 = 8 GB of virtual disk covered by that cache
-    262144 /  32768 = 8 GB
+   8 GB / 8192 = 1 MB
+
+The refcount cache is 4 times the cluster size by default. With the default
+cluster size of 64 KB, it is 256 KB (262144 bytes). This is sufficient for
+8 GB of image size:
+
+   262144 * 32768 = 8 GB
 
 
 How to configure the cache sizes
@@ -129,6 +133,9 @@ There are a few things that need to be taken into account:
  - If only "cache-size" is specified then QEMU will assign as much
    memory as possible to the L2 cache before increasing the refcount
    cache size.
+
+ - At most two of "l2-cache-size", "refcount-cache-size", and "cache-size"
+   can be set simultaneously.
 
 Unlike L2 tables, refcount blocks are not used during normal I/O but
 only during allocations and internal snapshots. In most cases they are
