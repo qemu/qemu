@@ -125,12 +125,15 @@ There are a few things that need to be taken into account:
  - Both caches must have a size that is a multiple of the cluster size
    (or the cache entry size: see "Using smaller cache sizes" below).
 
- - The maximum L2 cache size is 1 MB by default (enough for full coverage
-   of 8 GB images, with the default cluster size). This value can be
-   modified using the "l2-cache-size" option. QEMU will not use more memory
-   than needed to hold all of the image's L2 tables, regardless of this max.
-   value. The minimal L2 cache size is 2 clusters (or 2 cache entries, see
-   below).
+ - The maximum L2 cache size is 32 MB by default on Linux platforms (enough
+   for full coverage of 256 GB images, with the default cluster size). This
+   value can be modified using the "l2-cache-size" option. QEMU will not use
+   more memory than needed to hold all of the image's L2 tables, regardless
+   of this max. value.
+   On non-Linux platforms the maximal value is smaller by default (8 MB) and
+   this difference stems from the fact that on Linux the cache can be cleared
+   periodically if needed, using the "cache-clean-interval" option (see below).
+   The minimal L2 cache size is 2 clusters (or 2 cache entries, see below).
 
  - The default (and minimum) refcount cache size is 4 clusters.
 
