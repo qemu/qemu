@@ -1698,7 +1698,7 @@ F: include/scsi/*
 F: scsi/*
 
 Block Jobs
-M: Jeff Cody <jcody@redhat.com>
+M: John Snow <jsnow@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: blockjob.c
@@ -1711,7 +1711,7 @@ F: block/commit.c
 F: block/stream.c
 F: block/mirror.c
 F: qapi/job.json
-T: git https://github.com/codyprime/qemu-kvm-jtc.git block
+T: git https://github.com/jnsnow/qemu.git jobs
 
 Block QAPI, monitor, command line
 M: Markus Armbruster <armbru@redhat.com>
