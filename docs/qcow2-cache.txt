@@ -210,8 +210,8 @@ This example removes all unused cache entries every 15 minutes:
 
    -drive file=hd.qcow2,cache-clean-interval=900
 
-If unset, the default value for this parameter is 0 and it disables
-this feature.
+If unset, the default value for this parameter is 600. Setting it to 0
+disables this feature.
 
 Note that this functionality currently relies on the MADV_DONTNEED
 argument for madvise() to actually free the memory. This is a
