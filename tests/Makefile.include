@@ -40,7 +40,7 @@ SYSEMU_TARGET_LIST := $(subst -softmmu.mak,,$(notdir \
 
 check-unit-y = tests/check-qdict$(EXESUF)
 gcov-files-check-qdict-y = qobject/qdict.c
-check-unit-y = tests/check-block-qdict$(EXESUF)
+check-unit-y += tests/check-block-qdict$(EXESUF)
 gcov-files-check-block-qdict-y = qobject/block-qdict.c
 check-unit-y += tests/test-char$(EXESUF)
 gcov-files-check-qdict-y = chardev/char.c
