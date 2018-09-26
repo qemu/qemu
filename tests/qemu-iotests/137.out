@@ -19,7 +19,6 @@ Parameter 'lazy-refcounts' expects 'on' or 'off'
 cache-size, l2-cache-size and refcount-cache-size may not be set at the same time
 l2-cache-size may not exceed cache-size
 refcount-cache-size may not exceed cache-size
-L2 cache size too big
 L2 cache entry size must be a power of two between 512 and the cluster size (65536)
 L2 cache entry size must be a power of two between 512 and the cluster size (65536)
 Refcount cache size too big
@@ -27,6 +26,9 @@ Conflicting values for qcow2 options 'overlap-check' ('constant') and 'overlap-c
 Unsupported value 'blubb' for qcow2 option 'overlap-check'. Allowed are any of the following: none, constant, cached, all
 Unsupported value 'blubb' for qcow2 option 'overlap-check'. Allowed are any of the following: none, constant, cached, all
 Cache clean interval too big
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=36028797018963968
+L2 cache size too big
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 
 === Test transaction semantics ===
 
