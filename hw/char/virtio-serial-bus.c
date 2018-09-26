@@ -667,9 +667,9 @@ static void virtio_serial_save_device(VirtIODevice *vdev, QEMUFile *f)
 
     /* The config space (ignored on the far end in current versions) */
     get_config(vdev, (uint8_t *)&config);
-    qemu_put_be16s(f, &config.cols);
-    qemu_put_be16s(f, &config.rows);
-    qemu_put_be32s(f, &config.max_nr_ports);
+    qemu_put_be16(f, config.cols);
+    qemu_put_be16(f, config.rows);
+    qemu_put_be32(f, config.max_nr_ports);
 
     /* The ports map */
     max_nr_ports = s->serial.max_virtserial_ports;
