@@ -834,10 +834,9 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
                                  (uint64_t)DEFAULT_L2_CACHE_CLUSTERS
                                  * s->cluster_size);
         }
-        if (!refcount_cache_size_set) {
-            *refcount_cache_size = min_refcount_cache;
-        }
     }
+    /* l2_cache_size and refcount_cache_size are ensured to have at least
+     * their minimum values in qcow2_update_options_prepare() */
 
     if (*l2_cache_entry_size < (1 << MIN_CLUSTER_BITS) ||
         *l2_cache_entry_size > s->cluster_size ||
