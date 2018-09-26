@@ -830,7 +830,7 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
         }
     } else {
         if (!l2_cache_size_set) {
-            *l2_cache_size = MAX(DEFAULT_L2_CACHE_BYTE_SIZE,
+            *l2_cache_size = MAX(DEFAULT_L2_CACHE_SIZE,
                                  (uint64_t)DEFAULT_L2_CACHE_CLUSTERS
                                  * s->cluster_size);
         }
