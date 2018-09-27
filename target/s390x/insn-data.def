@@ -964,126 +964,126 @@
 
 #ifndef CONFIG_USER_ONLY
 /* COMPARE AND SWAP AND PURGE */
-    D(0xb250, CSP,     RRE,   Z,   r1_32u, ra2, r1_P, 0, csp, 0, MO_TEUL)
-    D(0xb98a, CSPG,    RRE, DAT_ENH, r1_o, ra2, r1_P, 0, csp, 0, MO_TEQ)
+    E(0xb250, CSP,     RRE,   Z,   r1_32u, ra2, r1_P, 0, csp, 0, MO_TEUL, IF_PRIV)
+    E(0xb98a, CSPG,    RRE, DAT_ENH, r1_o, ra2, r1_P, 0, csp, 0, MO_TEQ, IF_PRIV)
 /* DIAGNOSE (KVM hypercall) */
-    C(0x8300, DIAG,    RSI,   Z,   0, 0, 0, 0, diag, 0)
+    F(0x8300, DIAG,    RSI,   Z,   0, 0, 0, 0, diag, 0, IF_PRIV)
 /* INSERT STORAGE KEY EXTENDED */
-    C(0xb229, ISKE,    RRE,   Z,   0, r2_o, new, r1_8, iske, 0)
+    F(0xb229, ISKE,    RRE,   Z,   0, r2_o, new, r1_8, iske, 0, IF_PRIV)
 /* INVALIDATE DAT TABLE ENTRY */
-    C(0xb98e, IPDE,    RRF_b, Z,   r1_o, r2_o, 0, 0, idte, 0)
+    F(0xb98e, IPDE,    RRF_b, Z,   r1_o, r2_o, 0, 0, idte, 0, IF_PRIV)
 /* INVALIDATE PAGE TABLE ENTRY */
-    C(0xb221, IPTE,    RRF_a, Z,   r1_o, r2_o, 0, 0, ipte, 0)
+    F(0xb221, IPTE,    RRF_a, Z,   r1_o, r2_o, 0, 0, ipte, 0, IF_PRIV)
 /* LOAD CONTROL */
-    C(0xb700, LCTL,    RS_a,  Z,   0, a2, 0, 0, lctl, 0)
-    C(0xeb2f, LCTLG,   RSY_a, Z,   0, a2, 0, 0, lctlg, 0)
+    F(0xb700, LCTL,    RS_a,  Z,   0, a2, 0, 0, lctl, 0, IF_PRIV)
+    F(0xeb2f, LCTLG,   RSY_a, Z,   0, a2, 0, 0, lctlg, 0, IF_PRIV)
 /* LOAD PROGRAM PARAMETER */
-    C(0xb280, LPP,     S,   LPP,   0, m2_64, 0, 0, lpp, 0)
+    F(0xb280, LPP,     S,   LPP,   0, m2_64, 0, 0, lpp, 0, IF_PRIV)
 /* LOAD PSW */
-    C(0x8200, LPSW,    S,     Z,   0, a2, 0, 0, lpsw, 0)
+    F(0x8200, LPSW,    S,     Z,   0, a2, 0, 0, lpsw, 0, IF_PRIV)
 /* LOAD PSW EXTENDED */
-    C(0xb2b2, LPSWE,   S,     Z,   0, a2, 0, 0, lpswe, 0)
+    F(0xb2b2, LPSWE,   S,     Z,   0, a2, 0, 0, lpswe, 0, IF_PRIV)
 /* LOAD REAL ADDRESS */
-    C(0xb100, LRA,     RX_a,  Z,   0, a2, r1, 0, lra, 0)
-    C(0xe313, LRAY,    RXY_a, LD,  0, a2, r1, 0, lra, 0)
-    C(0xe303, LRAG,    RXY_a, Z,   0, a2, r1, 0, lra, 0)
+    F(0xb100, LRA,     RX_a,  Z,   0, a2, r1, 0, lra, 0, IF_PRIV)
+    F(0xe313, LRAY,    RXY_a, LD,  0, a2, r1, 0, lra, 0, IF_PRIV)
+    F(0xe303, LRAG,    RXY_a, Z,   0, a2, r1, 0, lra, 0, IF_PRIV)
 /* LOAD USING REAL ADDRESS */
-    C(0xb24b, LURA,    RRE,   Z,   0, r2, new, r1_32, lura, 0)
-    C(0xb905, LURAG,   RRE,   Z,   0, r2, r1, 0, lurag, 0)
+    F(0xb24b, LURA,    RRE,   Z,   0, r2, new, r1_32, lura, 0, IF_PRIV)
+    F(0xb905, LURAG,   RRE,   Z,   0, r2, r1, 0, lurag, 0, IF_PRIV)
 /* MOVE TO PRIMARY */
-    C(0xda00, MVCP,    SS_d,  Z,   la1, a2, 0, 0, mvcp, 0)
+    F(0xda00, MVCP,    SS_d,  Z,   la1, a2, 0, 0, mvcp, 0, IF_PRIV)
 /* MOVE TO SECONDARY */
-    C(0xdb00, MVCS,    SS_d,  Z,   la1, a2, 0, 0, mvcs, 0)
+    F(0xdb00, MVCS,    SS_d,  Z,   la1, a2, 0, 0, mvcs, 0, IF_PRIV)
 /* PURGE TLB */
-    C(0xb20d, PTLB,    S,     Z,   0, 0, 0, 0, ptlb, 0)
+    F(0xb20d, PTLB,    S,     Z,   0, 0, 0, 0, ptlb, 0, IF_PRIV)
 /* RESET REFERENCE BIT EXTENDED */
-    C(0xb22a, RRBE,    RRE,   Z,   0, r2_o, 0, 0, rrbe, 0)
+    F(0xb22a, RRBE,    RRE,   Z,   0, r2_o, 0, 0, rrbe, 0, IF_PRIV)
 /* SERVICE CALL LOGICAL PROCESSOR (PV hypercall) */
-    C(0xb220, SERVC,   RRE,   Z,   r1_o, r2_o, 0, 0, servc, 0)
+    F(0xb220, SERVC,   RRE,   Z,   r1_o, r2_o, 0, 0, servc, 0, IF_PRIV)
 /* SET ADDRESS SPACE CONTROL FAST */
-    C(0xb279, SACF,    S,     Z,   0, a2, 0, 0, sacf, 0)
+    F(0xb279, SACF,    S,     Z,   0, a2, 0, 0, sacf, 0, IF_PRIV)
 /* SET CLOCK */
-    C(0xb204, SCK,     S,     Z,   la2, 0, 0, 0, sck, 0)
+    F(0xb204, SCK,     S,     Z,   la2, 0, 0, 0, sck, 0, IF_PRIV)
 /* SET CLOCK COMPARATOR */
-    C(0xb206, SCKC,    S,     Z,   0, m2_64a, 0, 0, sckc, 0)
+    F(0xb206, SCKC,    S,     Z,   0, m2_64a, 0, 0, sckc, 0, IF_PRIV)
 /* SET CLOCK PROGRAMMABLE FIELD */
-    C(0x0107, SCKPF,   E,     Z,   0, 0, 0, 0, sckpf, 0)
+    F(0x0107, SCKPF,   E,     Z,   0, 0, 0, 0, sckpf, 0, IF_PRIV)
 /* SET CPU TIMER */
-    C(0xb208, SPT,     S,     Z,   0, m2_64a, 0, 0, spt, 0)
+    F(0xb208, SPT,     S,     Z,   0, m2_64a, 0, 0, spt, 0, IF_PRIV)
 /* SET PREFIX */
-    C(0xb210, SPX,     S,     Z,   0, m2_32ua, 0, 0, spx, 0)
+    F(0xb210, SPX,     S,     Z,   0, m2_32ua, 0, 0, spx, 0, IF_PRIV)
 /* SET PSW KEY FROM ADDRESS */
-    C(0xb20a, SPKA,    S,     Z,   0, a2, 0, 0, spka, 0)
+    F(0xb20a, SPKA,    S,     Z,   0, a2, 0, 0, spka, 0, IF_PRIV)
 /* SET STORAGE KEY EXTENDED */
-    C(0xb22b, SSKE,    RRF_c, Z,   r1_o, r2_o, 0, 0, sske, 0)
+    F(0xb22b, SSKE,    RRF_c, Z,   r1_o, r2_o, 0, 0, sske, 0, IF_PRIV)
 /* SET SYSTEM MASK */
-    C(0x8000, SSM,     S,     Z,   0, m2_8u, 0, 0, ssm, 0)
+    F(0x8000, SSM,     S,     Z,   0, m2_8u, 0, 0, ssm, 0, IF_PRIV)
 /* SIGNAL PROCESSOR */
-    C(0xae00, SIGP,    RS_a,  Z,   0, a2, 0, 0, sigp, 0)
+    F(0xae00, SIGP,    RS_a,  Z,   0, a2, 0, 0, sigp, 0, IF_PRIV)
 /* STORE CLOCK */
     C(0xb205, STCK,    S,     Z,   la2, 0, new, m1_64, stck, 0)
     C(0xb27c, STCKF,   S,     SCF, la2, 0, new, m1_64, stck, 0)
 /* STORE CLOCK EXTENDED */
     C(0xb278, STCKE,   S,     Z,   0, a2, 0, 0, stcke, 0)
 /* STORE CLOCK COMPARATOR */
-    C(0xb207, STCKC,   S,     Z,   la2, 0, new, m1_64a, stckc, 0)
+    F(0xb207, STCKC,   S,     Z,   la2, 0, new, m1_64a, stckc, 0, IF_PRIV)
 /* STORE CONTROL */
-    C(0xb600, STCTL,   RS_a,  Z,   0, a2, 0, 0, stctl, 0)
-    C(0xeb25, STCTG,   RSY_a, Z,   0, a2, 0, 0, stctg, 0)
+    F(0xb600, STCTL,   RS_a,  Z,   0, a2, 0, 0, stctl, 0, IF_PRIV)
+    F(0xeb25, STCTG,   RSY_a, Z,   0, a2, 0, 0, stctg, 0, IF_PRIV)
 /* STORE CPU ADDRESS */
-    C(0xb212, STAP,    S,     Z,   la2, 0, new, m1_16a, stap, 0)
+    F(0xb212, STAP,    S,     Z,   la2, 0, new, m1_16a, stap, 0, IF_PRIV)
 /* STORE CPU ID */
-    C(0xb202, STIDP,   S,     Z,   la2, 0, new, m1_64a, stidp, 0)
+    F(0xb202, STIDP,   S,     Z,   la2, 0, new, m1_64a, stidp, 0, IF_PRIV)
 /* STORE CPU TIMER */
-    C(0xb209, STPT,    S,     Z,   la2, 0, new, m1_64a, stpt, 0)
+    F(0xb209, STPT,    S,     Z,   la2, 0, new, m1_64a, stpt, 0, IF_PRIV)
 /* STORE FACILITY LIST */
-    C(0xb2b1, STFL,    S,     Z,   0, 0, 0, 0, stfl, 0)
+    F(0xb2b1, STFL,    S,     Z,   0, 0, 0, 0, stfl, 0, IF_PRIV)
 /* STORE PREFIX */
-    C(0xb211, STPX,    S,     Z,   la2, 0, new, m1_32a, stpx, 0)
+    F(0xb211, STPX,    S,     Z,   la2, 0, new, m1_32a, stpx, 0, IF_PRIV)
 /* STORE SYSTEM INFORMATION */
-    C(0xb27d, STSI,    S,     Z,   0, a2, 0, 0, stsi, 0)
+    F(0xb27d, STSI,    S,     Z,   0, a2, 0, 0, stsi, 0, IF_PRIV)
 /* STORE THEN AND SYSTEM MASK */
-    C(0xac00, STNSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0)
+    F(0xac00, STNSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0, IF_PRIV)
 /* STORE THEN OR SYSTEM MASK */
-    C(0xad00, STOSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0)
+    F(0xad00, STOSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0, IF_PRIV)
 /* STORE USING REAL ADDRESS */
-    C(0xb246, STURA,   RRE,   Z,   r1_o, r2_o, 0, 0, stura, 0)
-    C(0xb925, STURG,   RRE,   Z,   r1_o, r2_o, 0, 0, sturg, 0)
+    F(0xb246, STURA,   RRE,   Z,   r1_o, r2_o, 0, 0, stura, 0, IF_PRIV)
+    F(0xb925, STURG,   RRE,   Z,   r1_o, r2_o, 0, 0, sturg, 0, IF_PRIV)
 /* TEST BLOCK */
-    C(0xb22c, TB,      RRE,   Z,   0, r2_o, 0, 0, testblock, 0)
+    F(0xb22c, TB,      RRE,   Z,   0, r2_o, 0, 0, testblock, 0, IF_PRIV)
 /* TEST PROTECTION */
     C(0xe501, TPROT,   SSE,   Z,   la1, a2, 0, 0, tprot, 0)
 
 /* CCW I/O Instructions */
-    C(0xb276, XSCH,    S,     Z,   0, 0, 0, 0, xsch, 0)
-    C(0xb230, CSCH,    S,     Z,   0, 0, 0, 0, csch, 0)
-    C(0xb231, HSCH,    S,     Z,   0, 0, 0, 0, hsch, 0)
-    C(0xb232, MSCH,    S,     Z,   0, insn, 0, 0, msch, 0)
-    C(0xb23b, RCHP,    S,     Z,   0, 0, 0, 0, rchp, 0)
-    C(0xb238, RSCH,    S,     Z,   0, 0, 0, 0, rsch, 0)
-    C(0xb237, SAL,     S,     Z,   0, 0, 0, 0, sal, 0)
-    C(0xb23c, SCHM,    S,     Z,   0, insn, 0, 0, schm, 0)
-    C(0xb274, SIGA,    S,     Z,   0, 0, 0, 0, siga, 0)
-    C(0xb23a, STCPS,   S,     Z,   0, 0, 0, 0, stcps, 0)
-    C(0xb233, SSCH,    S,     Z,   0, insn, 0, 0, ssch, 0)
-    C(0xb239, STCRW,   S,     Z,   0, insn, 0, 0, stcrw, 0)
-    C(0xb234, STSCH,   S,     Z,   0, insn, 0, 0, stsch, 0)
-    C(0xb236, TPI ,    S,     Z,   la2, 0, 0, 0, tpi, 0)
-    C(0xb235, TSCH,    S,     Z,   0, insn, 0, 0, tsch, 0)
+    F(0xb276, XSCH,    S,     Z,   0, 0, 0, 0, xsch, 0, IF_PRIV)
+    F(0xb230, CSCH,    S,     Z,   0, 0, 0, 0, csch, 0, IF_PRIV)
+    F(0xb231, HSCH,    S,     Z,   0, 0, 0, 0, hsch, 0, IF_PRIV)
+    F(0xb232, MSCH,    S,     Z,   0, insn, 0, 0, msch, 0, IF_PRIV)
+    F(0xb23b, RCHP,    S,     Z,   0, 0, 0, 0, rchp, 0, IF_PRIV)
+    F(0xb238, RSCH,    S,     Z,   0, 0, 0, 0, rsch, 0, IF_PRIV)
+    F(0xb237, SAL,     S,     Z,   0, 0, 0, 0, sal, 0, IF_PRIV)
+    F(0xb23c, SCHM,    S,     Z,   0, insn, 0, 0, schm, 0, IF_PRIV)
+    F(0xb274, SIGA,    S,     Z,   0, 0, 0, 0, siga, 0, IF_PRIV)
+    F(0xb23a, STCPS,   S,     Z,   0, 0, 0, 0, stcps, 0, IF_PRIV)
+    F(0xb233, SSCH,    S,     Z,   0, insn, 0, 0, ssch, 0, IF_PRIV)
+    F(0xb239, STCRW,   S,     Z,   0, insn, 0, 0, stcrw, 0, IF_PRIV)
+    F(0xb234, STSCH,   S,     Z,   0, insn, 0, 0, stsch, 0, IF_PRIV)
+    F(0xb236, TPI ,    S,     Z,   la2, 0, 0, 0, tpi, 0, IF_PRIV)
+    F(0xb235, TSCH,    S,     Z,   0, insn, 0, 0, tsch, 0, IF_PRIV)
     /* ??? Not listed in PoO ninth edition, but there's a linux driver that
        uses it: "A CHSC subchannel is usually present on LPAR only."  */
-    C(0xb25f, CHSC,  RRE,     Z,   0, insn, 0, 0, chsc, 0)
+    F(0xb25f, CHSC,  RRE,     Z,   0, insn, 0, 0, chsc, 0, IF_PRIV)
 
 /* zPCI Instructions */
     /* None of these instructions are documented in the PoP, so this is all
        based upon target/s390x/kvm.c and Linux code and likely incomplete */
-    C(0xebd0, PCISTB, RSY_a, PCI, la2, 0, 0, 0, pcistb, 0)
-    C(0xebd1, SIC, RSY_a, AIS, r1, r3, 0, 0, sic, 0)
-    C(0xb9a0, CLP, RRF_c, PCI, 0, 0, 0, 0, clp, 0)
-    C(0xb9d0, PCISTG, RRE, PCI, 0, 0, 0, 0, pcistg, 0)
-    C(0xb9d2, PCILG, RRE, PCI, 0, 0, 0, 0, pcilg, 0)
-    C(0xb9d3, RPCIT, RRE, PCI, 0, 0, 0, 0, rpcit, 0)
-    C(0xe3d0, MPCIFC, RXY_a, PCI, la2, 0, 0, 0, mpcifc, 0)
-    C(0xe3d4, STPCIFC, RXY_a, PCI, la2, 0, 0, 0, stpcifc, 0)
+    F(0xebd0, PCISTB, RSY_a, PCI, la2, 0, 0, 0, pcistb, 0, IF_PRIV)
+    F(0xebd1, SIC, RSY_a, AIS, r1, r3, 0, 0, sic, 0, IF_PRIV)
+    F(0xb9a0, CLP, RRF_c, PCI, 0, 0, 0, 0, clp, 0, IF_PRIV)
+    F(0xb9d0, PCISTG, RRE, PCI, 0, 0, 0, 0, pcistg, 0, IF_PRIV)
+    F(0xb9d2, PCILG, RRE, PCI, 0, 0, 0, 0, pcilg, 0, IF_PRIV)
+    F(0xb9d3, RPCIT, RRE, PCI, 0, 0, 0, 0, rpcit, 0, IF_PRIV)
+    F(0xe3d0, MPCIFC, RXY_a, PCI, la2, 0, 0, 0, mpcifc, 0, IF_PRIV)
+    F(0xe3d4, STPCIFC, RXY_a, PCI, la2, 0, 0, 0, stpcifc, 0, IF_PRIV)
 
 #endif /* CONFIG_USER_ONLY */
