@@ -26,6 +26,7 @@
 #include "exec/cpu_ldst.h"
 #include "hw/s390x/ioinst.h"
 #include "exec/address-spaces.h"
+#include "tcg_s390x.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"
 #include "hw/s390x/s390_flic.h"
@@ -47,6 +48,18 @@
 #define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
+
+void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env, uint32_t code,
+                                              int ilen, uintptr_t ra)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
+    cpu_restore_state(cs, ra, true);
+    qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
+                  env->psw.addr);
+    trigger_pgm_exception(env, code, ilen);
+    cpu_loop_exit(cs);
+}
 
 #if defined(CONFIG_USER_ONLY)
 
