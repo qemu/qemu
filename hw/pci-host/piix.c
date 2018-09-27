@@ -249,9 +249,7 @@ static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
  * the 64bit PCI hole will start after "over 4G RAM" and the
  * reserved space for memory hotplug if any.
  */
-static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
-                                                const char *name,
-                                                void *opaque, Error **errp)
+static uint64_t i440fx_pcihost_get_pci_hole64_start_value(Object *obj)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
@@ -263,7 +261,16 @@ static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
     if (!value && s->pci_hole64_fix) {
         value = pc_pci_hole64_start();
     }
-    visit_type_uint64(v, name, &value, errp);
+    return value;
+}
+
+static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
+                                                const char *name,
+                                                void *opaque, Error **errp)
+{
+    uint64_t hole64_start = i440fx_pcihost_get_pci_hole64_start_value(obj);
+
+    visit_type_uint64(v, name, &hole64_start, errp);
 }
 
 /*
