@@ -25,7 +25,8 @@ typedef struct SCSW {
     uint8_t dstat;
     uint8_t cstat;
     uint16_t count;
-} QEMU_PACKED SCSW;
+} SCSW;
+QEMU_BUILD_BUG_MSG(sizeof(SCSW) != 12, "size of SCSW is wrong");
 
 #define SCSW_FLAGS_MASK_KEY 0xf000
 #define SCSW_FLAGS_MASK_SCTL 0x0800
@@ -94,7 +95,8 @@ typedef struct PMCW {
     uint8_t  pam;
     uint8_t  chpid[8];
     uint32_t chars;
-} QEMU_PACKED PMCW;
+} PMCW;
+QEMU_BUILD_BUG_MSG(sizeof(PMCW) != 28, "size of PMCW is wrong");
 
 #define PMCW_FLAGS_MASK_QF 0x8000
 #define PMCW_FLAGS_MASK_W 0x4000
@@ -127,7 +129,8 @@ typedef struct IRB {
     uint32_t esw[5];
     uint32_t ecw[8];
     uint32_t emw[8];
-} QEMU_PACKED IRB;
+} IRB;
+QEMU_BUILD_BUG_MSG(sizeof(IRB) != 96, "size of IRB is wrong");
 
 /* operation request block */
 typedef struct ORB {
@@ -136,7 +139,8 @@ typedef struct ORB {
     uint8_t lpm;
     uint8_t ctrl1;
     uint32_t cpa;
-} QEMU_PACKED ORB;
+} ORB;
+QEMU_BUILD_BUG_MSG(sizeof(ORB) != 12, "size of ORB is wrong");
 
 #define ORB_CTRL0_MASK_KEY 0xf000
 #define ORB_CTRL0_MASK_SPND 0x0800
@@ -165,7 +169,8 @@ typedef struct CCW0 {
         uint8_t flags;
         uint8_t reserved;
         uint16_t count;
-} QEMU_PACKED CCW0;
+} CCW0;
+QEMU_BUILD_BUG_MSG(sizeof(CCW0) != 8, "size of CCW0 is wrong");
 
 /* channel command word (type 1) */
 typedef struct CCW1 {
@@ -173,7 +178,8 @@ typedef struct CCW1 {
     uint8_t flags;
     uint16_t count;
     uint32_t cda;
-} QEMU_PACKED CCW1;
+} CCW1;
+QEMU_BUILD_BUG_MSG(sizeof(CCW1) != 8, "size of CCW1 is wrong");
 
 #define CCW_FLAG_DC              0x80
 #define CCW_FLAG_CC              0x40
@@ -192,7 +198,8 @@ typedef struct CCW1 {
 typedef struct CRW {
     uint16_t flags;
     uint16_t rsid;
-} QEMU_PACKED CRW;
+} CRW;
+QEMU_BUILD_BUG_MSG(sizeof(CRW) != 4, "size of CRW is wrong");
 
 #define CRW_FLAGS_MASK_S 0x4000
 #define CRW_FLAGS_MASK_R 0x2000
