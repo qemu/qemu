@@ -1116,6 +1116,8 @@ F: hw/i386/acpi-build.[hc]
 F: hw/arm/virt-acpi-build.c
 F: tests/bios-tables-test.c
 F: tests/acpi-utils.[hc]
+F: tests/acpi-test-data/*
+F: tests/acpi-test-data/*/*
 
 ppc4xx
 M: Alexander Graf <agraf@suse.de>
