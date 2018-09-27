@@ -6092,34 +6092,12 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 
     /* Check for insn specification exceptions.  */
     if (insn->spec) {
-        int spec = insn->spec, excp = 0, r;
-
-        if (spec & SPEC_r1_even) {
-            r = get_field(&f, r1);
-            if (r & 1) {
-                excp = PGM_SPECIFICATION;
-            }
-        }
-        if (spec & SPEC_r2_even) {
-            r = get_field(&f, r2);
-            if (r & 1) {
-                excp = PGM_SPECIFICATION;
-            }
-        }
-        if (spec & SPEC_r3_even) {
-            r = get_field(&f, r3);
-            if (r & 1) {
-                excp = PGM_SPECIFICATION;
-            }
-        }
-        if (spec & SPEC_r1_f128 && !is_fp_pair(get_field(&f, r1))) {
-            excp = PGM_SPECIFICATION;
-        }
-        if (spec & SPEC_r2_f128 && !is_fp_pair(get_field(&f, r2))) {
-            excp = PGM_SPECIFICATION;
-        }
-        if (excp) {
-            gen_program_exception(s, excp);
+        if ((insn->spec & SPEC_r1_even && get_field(&f, r1) & 1) ||
+            (insn->spec & SPEC_r2_even && get_field(&f, r2) & 1) ||
+            (insn->spec & SPEC_r3_even && get_field(&f, r3) & 1) ||
+            (insn->spec & SPEC_r1_f128 && !is_fp_pair(get_field(&f, r1))) ||
+            (insn->spec & SPEC_r2_f128 && !is_fp_pair(get_field(&f, r2)))) {
+            gen_program_exception(s, PGM_SPECIFICATION);
             return DISAS_NORETURN;
         }
     }
