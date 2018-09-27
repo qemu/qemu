@@ -149,7 +149,7 @@ static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    uint64_t hole64_start = pc_pci_hole64_start();
+    uint64_t hole64_start = q35_host_get_pci_hole64_start_value(obj);
     Range w64;
     uint64_t value, hole64_end;
 
