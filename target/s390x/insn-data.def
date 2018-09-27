@@ -3,6 +3,8 @@
  *
  *  C(OPC,    NAME,    FMT,   FAC, I1, I2, P, W, OP, CC)
  *  D(OPC,    NAME,    FMT,   FAC, I1, I2, P, W, OP, CC, DATA)
+ *  E(OPC,    NAME,    FMT,   FAC, I1, I2, P, W, OP, CC, DATA, FLAGS)
+ *  F(OPC,    NAME,    FMT,   FAC, I1, I2, P, W, OP, CC, FLAGS)
  *
  *  OPC  = (op << 8) | op2 where op is the major, op2 the minor opcode
  *  NAME = name of the opcode, used internally
@@ -15,6 +17,7 @@
  *  OP   = func op_xx does the bulk of the operation
  *  CC   = func cout_xx defines how cc should get set
  *  DATA = immediate argument to op_xx function
+ *  FLAGS = categorize the type of instruction (e.g. for advanced checks)
  *
  *  The helpers get called in order: I1, I2, P, OP, W, CC
  */

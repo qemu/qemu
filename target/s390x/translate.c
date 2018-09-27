@@ -1121,6 +1121,7 @@ typedef struct {
 
 struct DisasInsn {
     unsigned opc:16;
+    unsigned flags:16;
     DisasFormat fmt:8;
     unsigned fac:8;
     unsigned spec:8;
@@ -5835,17 +5836,24 @@ static void in2_insn(DisasContext *s, DisasFields *f, DisasOps *o)
    search tree, rather than us having to post-process the table.  */
 
 #define C(OPC, NM, FT, FC, I1, I2, P, W, OP, CC) \
-    D(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, 0)
+    E(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, 0, 0)
 
-#define D(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D) insn_ ## NM,
+#define D(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D) \
+    E(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D, 0)
+
+#define F(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, FL) \
+    E(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, 0, FL)
+
+#define E(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D, FL) insn_ ## NM,
 
 enum DisasInsnEnum {
 #include "insn-data.def"
 };
 
-#undef D
-#define D(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D) {                       \
+#undef E
+#define E(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D, FL) {                   \
     .opc = OPC,                                                             \
+    .flags = FL,                                                            \
     .fmt = FMT_##FT,                                                        \
     .fac = FAC_##FC,                                                        \
     .spec = SPEC_in1_##I1 | SPEC_in2_##I2 | SPEC_prep_##P | SPEC_wout_##W,  \
@@ -5916,8 +5924,8 @@ static const DisasInsn insn_info[] = {
 #include "insn-data.def"
 };
 
-#undef D
-#define D(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D) \
+#undef E
+#define E(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D, FL) \
     case OPC: return &insn_info[insn_ ## NM];
 
 static const DisasInsn *lookup_opc(uint16_t opc)
@@ -5929,6 +5937,8 @@ static const DisasInsn *lookup_opc(uint16_t opc)
     }
 }
 
+#undef F
+#undef E
 #undef D
 #undef C
 
