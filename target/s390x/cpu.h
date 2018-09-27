@@ -255,6 +255,7 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 
 /* PSW defines */
 #undef PSW_MASK_PER
+#undef PSW_MASK_UNUSED_2
 #undef PSW_MASK_DAT
 #undef PSW_MASK_IO
 #undef PSW_MASK_EXT
@@ -273,6 +274,7 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #undef PSW_MASK_ESA_ADDR
 
 #define PSW_MASK_PER            0x4000000000000000ULL
+#define PSW_MASK_UNUSED_2       0x2000000000000000ULL
 #define PSW_MASK_DAT            0x0400000000000000ULL
 #define PSW_MASK_IO             0x0200000000000000ULL
 #define PSW_MASK_EXT            0x0100000000000000ULL
@@ -317,6 +319,9 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #define FLAG_MASK_32            (PSW_MASK_32     >> FLAG_MASK_PSW_SHIFT)
 #define FLAG_MASK_PSW           (FLAG_MASK_PER | FLAG_MASK_DAT | FLAG_MASK_PSTATE \
                                 | FLAG_MASK_ASC | FLAG_MASK_64 | FLAG_MASK_32)
+
+/* we'll use some unused PSW positions to store CR flags in tb flags */
+#define FLAG_MASK_AFP           (PSW_MASK_UNUSED_2 >> FLAG_MASK_PSW_SHIFT)
 
 /* Control register 0 bits */
 #define CR0_LOWPROT             0x0000000010000000ULL
@@ -364,6 +369,9 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
     *pc = env->psw.addr;
     *cs_base = env->ex_value;
     *flags = (env->psw.mask >> FLAG_MASK_PSW_SHIFT) & FLAG_MASK_PSW;
+    if (env->cregs[0] & CR0_AFP) {
+        *flags |= FLAG_MASK_AFP;
+    }
 }
 
 /* PER bits from control register 9 */
