@@ -6094,6 +6094,11 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
     return info;
 }
 
+static bool is_afp_reg(int reg)
+{
+    return reg % 2 || reg > 6;
+}
+
 static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 {
     const DisasInsn *insn;
@@ -6119,6 +6124,34 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i64(addr);
     }
 #endif
+
+    /* process flags */
+    if (insn->flags) {
+        /* if AFP is not enabled, instructions and registers are forbidden */
+        if (!(s->base.tb->flags & FLAG_MASK_AFP)) {
+            uint8_t dxc = 0;
+
+            if ((insn->flags & IF_AFP1) && is_afp_reg(get_field(&f, r1))) {
+                dxc = 1;
+            }
+            if ((insn->flags & IF_AFP2) && is_afp_reg(get_field(&f, r2))) {
+                dxc = 1;
+            }
+            if ((insn->flags & IF_AFP3) && is_afp_reg(get_field(&f, r3))) {
+                dxc = 1;
+            }
+            if (insn->flags & IF_BFP) {
+                dxc = 2;
+            }
+            if (insn->flags & IF_DFP) {
+                dxc = 3;
+            }
+            if (dxc) {
+                gen_data_exception(dxc);
+                return DISAS_NORETURN;
+            }
+        }
+    }
 
     /* Check for insn specification exceptions.  */
     if (insn->spec) {
