@@ -6024,6 +6024,12 @@ static bool is_afp_reg(int reg)
     return reg % 2 || reg > 6;
 }
 
+static bool is_fp_pair(int reg)
+{
+    /* 0,1,4,5,8,9,12,13: to exclude the others, check for single bit */
+    return !(reg & 0x2);
+}
+
 static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 {
     const DisasInsn *insn;
@@ -6106,17 +6112,11 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
                 excp = PGM_SPECIFICATION;
             }
         }
-        if (spec & SPEC_r1_f128) {
-            r = get_field(&f, r1);
-            if (r > 13) {
-                excp = PGM_SPECIFICATION;
-            }
+        if (spec & SPEC_r1_f128 && !is_fp_pair(get_field(&f, r1))) {
+            excp = PGM_SPECIFICATION;
         }
-        if (spec & SPEC_r2_f128) {
-            r = get_field(&f, r2);
-            if (r > 13) {
-                excp = PGM_SPECIFICATION;
-            }
+        if (spec & SPEC_r2_f128 && !is_fp_pair(get_field(&f, r2))) {
+            excp = PGM_SPECIFICATION;
         }
         if (excp) {
             gen_program_exception(s, excp);
