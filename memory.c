@@ -374,6 +374,21 @@ static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
     }
 }
 
+static inline void memory_region_shift_read_access(uint64_t *value,
+                                                   unsigned shift,
+                                                   uint64_t mask,
+                                                   uint64_t tmp)
+{
+    *value |= (tmp & mask) << shift;
+}
+
+static inline uint64_t memory_region_shift_write_access(uint64_t *value,
+                                                        unsigned shift,
+                                                        uint64_t mask)
+{
+    return (*value >> shift) & mask;
+}
+
 static hwaddr memory_region_to_absolute_addr(MemoryRegion *mr, hwaddr offset)
 {
     MemoryRegion *root;
@@ -418,7 +433,7 @@ static MemTxResult memory_region_oldmmio_read_accessor(MemoryRegion *mr,
         hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
         trace_memory_region_ops_read(get_cpu_index(), mr, abs_addr, tmp, size);
     }
-    *value |= (tmp & mask) << shift;
+    memory_region_shift_read_access(value, shift, mask, tmp);
     return MEMTX_OK;
 }
 
@@ -444,7 +459,7 @@ static MemTxResult  memory_region_read_accessor(MemoryRegion *mr,
         hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
         trace_memory_region_ops_read(get_cpu_index(), mr, abs_addr, tmp, size);
     }
-    *value |= (tmp & mask) << shift;
+    memory_region_shift_read_access(value, shift, mask, tmp);
     return MEMTX_OK;
 }
 
@@ -471,7 +486,7 @@ static MemTxResult memory_region_read_with_attrs_accessor(MemoryRegion *mr,
         hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
         trace_memory_region_ops_read(get_cpu_index(), mr, abs_addr, tmp, size);
     }
-    *value |= (tmp & mask) << shift;
+    memory_region_shift_read_access(value, shift, mask, tmp);
     return r;
 }
 
@@ -483,9 +498,8 @@ static MemTxResult memory_region_oldmmio_write_accessor(MemoryRegion *mr,
                                                         uint64_t mask,
                                                         MemTxAttrs attrs)
 {
-    uint64_t tmp;
+    uint64_t tmp = memory_region_shift_write_access(value, shift, mask);
 
-    tmp = (*value >> shift) & mask;
     if (mr->subpage) {
         trace_memory_region_subpage_write(get_cpu_index(), mr, addr, tmp, size);
     } else if (mr == &io_mem_notdirty) {
@@ -509,9 +523,8 @@ static MemTxResult memory_region_write_accessor(MemoryRegion *mr,
                                                 uint64_t mask,
                                                 MemTxAttrs attrs)
 {
-    uint64_t tmp;
+    uint64_t tmp = memory_region_shift_write_access(value, shift, mask);
 
-    tmp = (*value >> shift) & mask;
     if (mr->subpage) {
         trace_memory_region_subpage_write(get_cpu_index(), mr, addr, tmp, size);
     } else if (mr == &io_mem_notdirty) {
@@ -535,9 +548,8 @@ static MemTxResult memory_region_write_with_attrs_accessor(MemoryRegion *mr,
                                                            uint64_t mask,
                                                            MemTxAttrs attrs)
 {
-    uint64_t tmp;
+    uint64_t tmp = memory_region_shift_write_access(value, shift, mask);
 
-    tmp = (*value >> shift) & mask;
     if (mr->subpage) {
         trace_memory_region_subpage_write(get_cpu_index(), mr, addr, tmp, size);
     } else if (mr == &io_mem_notdirty) {
