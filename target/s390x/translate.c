@@ -314,18 +314,17 @@ static inline void gen_illegal_opcode(DisasContext *s)
     gen_program_exception(s, PGM_OPERATION);
 }
 
+static inline void gen_data_exception(uint8_t dxc)
+{
+    TCGv_i32 tmp = tcg_const_i32(dxc);
+    gen_helper_data_exception(cpu_env, tmp);
+    tcg_temp_free_i32(tmp);
+}
+
 static inline void gen_trap(DisasContext *s)
 {
-    TCGv_i32 t;
-
-    /* Set DXC to 0xff.  */
-    t = tcg_temp_new_i32();
-    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUS390XState, fpc));
-    tcg_gen_ori_i32(t, t, 0xff00);
-    tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, fpc));
-    tcg_temp_free_i32(t);
-
-    gen_program_exception(s, PGM_DATA);
+    /* Set DXC to 0xff */
+    gen_data_exception(0xff);
 }
 
 #ifndef CONFIG_USER_ONLY

@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internal.h"
+#include "exec/helper-proto.h"
 #include "qemu/timer.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
@@ -59,6 +60,28 @@ void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env, uint32_t code,
                   env->psw.addr);
     trigger_pgm_exception(env, code, ilen);
     cpu_loop_exit(cs);
+}
+
+void QEMU_NORETURN tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
+                                           uintptr_t ra)
+{
+    g_assert(dxc <= 0xff);
+#if !defined(CONFIG_USER_ONLY)
+    /* Store the DXC into the lowcore */
+    stl_phys(CPU(s390_env_get_cpu(env))->as,
+             env->psa + offsetof(LowCore, data_exc_code), dxc);
+#endif
+
+    /* Store the DXC into the FPC if AFP is enabled */
+    if (env->cregs[0] & CR0_AFP) {
+        env->fpc = deposit32(env->fpc, 8, 8, dxc);
+    }
+    tcg_s390_program_interrupt(env, PGM_DATA, ILEN_AUTO, ra);
+}
+
+void HELPER(data_exception)(CPUS390XState *env, uint32_t dxc)
+{
+    tcg_s390_data_exception(env, dxc, GETPC());
 }
 
 #if defined(CONFIG_USER_ONLY)
