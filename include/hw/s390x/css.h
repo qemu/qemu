@@ -48,7 +48,7 @@ typedef struct SenseId {
     uint8_t unused;          /* padding byte */
     /* extended part */
     CIW ciw[MAX_CIWS];       /* variable # of CIWs */
-} QEMU_PACKED SenseId;
+} SenseId;                   /* Note: No QEMU_PACKED due to unaligned members */
 
 /* Channel measurements, from linux/drivers/s390/cio/cmf.c. */
 typedef struct CMB {
