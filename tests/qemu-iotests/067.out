@@ -385,6 +385,7 @@ Testing: -device virtio-scsi -device scsi-cd,id=cd0
 {
     "return": [
         {
+            "io-status": "ok",
             "device": "",
             "locked": false,
             "removable": true,
