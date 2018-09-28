@@ -211,6 +211,7 @@ void aio_set_fd_handler(AioContext *ctx,
     AioHandler *node;
     bool is_new = false;
     bool deleted = false;
+    int poll_disable_change;
 
     qemu_lockcnt_lock(&ctx->list_lock);
 
@@ -244,11 +245,9 @@ void aio_set_fd_handler(AioContext *ctx,
             QLIST_REMOVE(node, node);
             deleted = true;
         }
-
-        if (!node->io_poll) {
-            ctx->poll_disable_cnt--;
-        }
+        poll_disable_change = -!node->io_poll;
     } else {
+        poll_disable_change = !io_poll - (node && !node->io_poll);
         if (node == NULL) {
             /* Alloc and insert if it's not already there */
             node = g_new0(AioHandler, 1);
@@ -257,10 +256,6 @@ void aio_set_fd_handler(AioContext *ctx,
 
             g_source_add_poll(&ctx->source, &node->pfd);
             is_new = true;
-
-            ctx->poll_disable_cnt += !io_poll;
-        } else {
-            ctx->poll_disable_cnt += !io_poll - !node->io_poll;
         }
 
         /* Update handler with latest information */
@@ -273,6 +268,15 @@ void aio_set_fd_handler(AioContext *ctx,
         node->pfd.events = (io_read ? G_IO_IN | G_IO_HUP | G_IO_ERR : 0);
         node->pfd.events |= (io_write ? G_IO_OUT | G_IO_ERR : 0);
     }
+
+    /* No need to order poll_disable_cnt writes against other updates;
+     * the counter is only used to avoid wasting time and latency on
+     * iterated polling when the system call will be ultimately necessary.
+     * Changing handlers is a rare event, and a little wasted polling until
+     * the aio_notify below is not an issue.
+     */
+    atomic_set(&ctx->poll_disable_cnt,
+               atomic_read(&ctx->poll_disable_cnt) + poll_disable_change);
 
     aio_epoll_update(ctx, node, is_new);
     qemu_lockcnt_unlock(&ctx->list_lock);
@@ -486,7 +490,7 @@ static void add_pollfd(AioHandler *node)
     npfd++;
 }
 
-static bool run_poll_handlers_once(AioContext *ctx)
+static bool run_poll_handlers_once(AioContext *ctx, int64_t *timeout)
 {
     bool progress = false;
     AioHandler *node;
@@ -494,9 +498,11 @@ static bool run_poll_handlers_once(AioContext *ctx)
     QLIST_FOREACH_RCU(node, &ctx->aio_handlers, node) {
         if (!node->deleted && node->io_poll &&
             aio_node_check(ctx, node->is_external) &&
-            node->io_poll(node->opaque) &&
-            node->opaque != &ctx->notifier) {
-            progress = true;
+            node->io_poll(node->opaque)) {
+            *timeout = 0;
+            if (node->opaque != &ctx->notifier) {
+                progress = true;
+            }
         }
 
         /* Caller handles freeing deleted nodes.  Don't do it here. */
@@ -518,31 +524,38 @@ static bool run_poll_handlers_once(AioContext *ctx)
  *
  * Returns: true if progress was made, false otherwise
  */
-static bool run_poll_handlers(AioContext *ctx, int64_t max_ns)
+static bool run_poll_handlers(AioContext *ctx, int64_t max_ns, int64_t *timeout)
 {
     bool progress;
-    int64_t end_time;
+    int64_t start_time, elapsed_time;
 
     assert(ctx->notify_me);
     assert(qemu_lockcnt_count(&ctx->list_lock) > 0);
-    assert(ctx->poll_disable_cnt == 0);
 
-    trace_run_poll_handlers_begin(ctx, max_ns);
+    trace_run_poll_handlers_begin(ctx, max_ns, *timeout);
 
-    end_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + max_ns;
-
+    start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     do {
-        progress = run_poll_handlers_once(ctx);
-    } while (!progress && qemu_clock_get_ns(QEMU_CLOCK_REALTIME) < end_time);
+        progress = run_poll_handlers_once(ctx, timeout);
+        elapsed_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - start_time;
+    } while (!progress && elapsed_time < max_ns
+             && !atomic_read(&ctx->poll_disable_cnt));
 
-    trace_run_poll_handlers_end(ctx, progress);
+    /* If time has passed with no successful polling, adjust *timeout to
+     * keep the same ending time.
+     */
+    if (*timeout != -1) {
+        *timeout -= MIN(*timeout, elapsed_time);
+    }
 
+    trace_run_poll_handlers_end(ctx, progress, *timeout);
     return progress;
 }
 
 /* try_poll_mode:
  * @ctx: the AioContext
- * @blocking: busy polling is only attempted when blocking is true
+ * @timeout: timeout for blocking wait, computed by the caller and updated if
+ *    polling succeeds.
  *
  * ctx->notify_me must be non-zero so this function can detect aio_notify().
  *
@@ -550,19 +563,16 @@ static bool run_poll_handlers(AioContext *ctx, int64_t max_ns)
  *
  * Returns: true if progress was made, false otherwise
  */
-static bool try_poll_mode(AioContext *ctx, bool blocking)
+static bool try_poll_mode(AioContext *ctx, int64_t *timeout)
 {
-    if (blocking && ctx->poll_max_ns && ctx->poll_disable_cnt == 0) {
-        /* See qemu_soonest_timeout() uint64_t hack */
-        int64_t max_ns = MIN((uint64_t)aio_compute_timeout(ctx),
-                             (uint64_t)ctx->poll_ns);
+    /* See qemu_soonest_timeout() uint64_t hack */
+    int64_t max_ns = MIN((uint64_t)*timeout, (uint64_t)ctx->poll_ns);
 
-        if (max_ns) {
-            poll_set_started(ctx, true);
+    if (max_ns && !atomic_read(&ctx->poll_disable_cnt)) {
+        poll_set_started(ctx, true);
 
-            if (run_poll_handlers(ctx, max_ns)) {
-                return true;
-            }
+        if (run_poll_handlers(ctx, max_ns, timeout)) {
+            return true;
         }
     }
 
@@ -571,7 +581,7 @@ static bool try_poll_mode(AioContext *ctx, bool blocking)
     /* Even if we don't run busy polling, try polling once in case it can make
      * progress and the caller will be able to avoid ppoll(2)/epoll_wait(2).
      */
-    return run_poll_handlers_once(ctx);
+    return run_poll_handlers_once(ctx, timeout);
 }
 
 bool aio_poll(AioContext *ctx, bool blocking)
@@ -601,8 +611,14 @@ bool aio_poll(AioContext *ctx, bool blocking)
         start = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     }
 
-    progress = try_poll_mode(ctx, blocking);
-    if (!progress) {
+    timeout = blocking ? aio_compute_timeout(ctx) : 0;
+    progress = try_poll_mode(ctx, &timeout);
+    assert(!(timeout && progress));
+
+    /* If polling is allowed, non-blocking aio_poll does not need the
+     * system call---a single round of run_poll_handlers_once suffices.
+     */
+    if (timeout || atomic_read(&ctx->poll_disable_cnt)) {
         assert(npfd == 0);
 
         /* fill pollfds */
@@ -615,8 +631,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
                 }
             }
         }
-
-        timeout = blocking ? aio_compute_timeout(ctx) : 0;
 
         /* wait until next event */
         if (aio_epoll_check_poll(ctx, pollfds, npfd, timeout)) {
