@@ -292,6 +292,12 @@ static int kvm_s390_configure_mempath_backing(KVMState *s)
         return 0;
     }
 
+    if (!hpage_1m_allowed()) {
+        error_report("This QEMU machine does not support huge page "
+                     "mappings");
+        return -EINVAL;
+    }
+
     if (path_psize != 1 * MiB) {
         error_report("Memory backing with 2G pages was specified, "
                      "but KVM does not support this memory backing");

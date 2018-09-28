@@ -456,6 +456,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     s390mc->ri_allowed = true;
     s390mc->cpu_model_allowed = true;
     s390mc->css_migration_enabled = true;
+    s390mc->hpage_1m_allowed = true;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->hot_add_cpu = s390_hot_add_cpu;
@@ -533,6 +534,12 @@ bool cpu_model_allowed(void)
 {
     /* for "none" machine this results in true */
     return get_machine_class()->cpu_model_allowed;
+}
+
+bool hpage_1m_allowed(void)
+{
+    /* for "none" machine this results in true */
+    return get_machine_class()->hpage_1m_allowed;
 }
 
 static char *machine_get_loadparm(Object *obj, Error **errp)
@@ -747,6 +754,9 @@ static void ccw_machine_3_0_instance_options(MachineState *machine)
 
 static void ccw_machine_3_0_class_options(MachineClass *mc)
 {
+    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+
+    s390mc->hpage_1m_allowed = false;
     ccw_machine_3_1_class_options(mc);
     SET_MACHINE_COMPAT(mc, CCW_COMPAT_3_0);
 }
