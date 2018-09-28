@@ -324,6 +324,9 @@ BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
     blk->shared_perm = shared_perm;
     blk_set_enable_write_cache(blk, true);
 
+    blk->on_read_error = BLOCKDEV_ON_ERROR_REPORT;
+    blk->on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
+
     block_acct_init(&blk->stats);
 
     notifier_list_init(&blk->remove_bs_notifiers);
