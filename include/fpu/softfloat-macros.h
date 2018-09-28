@@ -80,17 +80,6 @@ this code that are retained.
  */
 
 /*----------------------------------------------------------------------------
-| This macro tests for minimum version of the GNU C compiler.
-*----------------------------------------------------------------------------*/
-#if defined(__GNUC__) && defined(__GNUC_MINOR__)
-# define SOFTFLOAT_GNUC_PREREQ(maj, min) \
-         ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
-#else
-# define SOFTFLOAT_GNUC_PREREQ(maj, min) 0
-#endif
-
-
-/*----------------------------------------------------------------------------
 | Shifts `a' right by the number of bits given in `count'.  If any nonzero
 | bits are shifted off, they are ``jammed'' into the least significant bit of
 | the result by setting the least significant bit to 1.  The value of `count'
@@ -710,82 +699,6 @@ static inline uint32_t estimateSqrt32(int aExp, uint32_t a)
     }
     return ( (uint32_t) ( ( ( (uint64_t) a )<<31 ) / z ) ) + ( z>>1 );
 
-}
-
-/*----------------------------------------------------------------------------
-| Returns the number of leading 0 bits before the most-significant 1 bit of
-| `a'.  If `a' is zero, 32 is returned.
-*----------------------------------------------------------------------------*/
-
-static inline int8_t countLeadingZeros32(uint32_t a)
-{
-#if SOFTFLOAT_GNUC_PREREQ(3, 4)
-    if (a) {
-        return __builtin_clz(a);
-    } else {
-        return 32;
-    }
-#else
-    static const int8_t countLeadingZerosHigh[] = {
-        8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4,
-        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    };
-    int8_t shiftCount;
-
-    shiftCount = 0;
-    if ( a < 0x10000 ) {
-        shiftCount += 16;
-        a <<= 16;
-    }
-    if ( a < 0x1000000 ) {
-        shiftCount += 8;
-        a <<= 8;
-    }
-    shiftCount += countLeadingZerosHigh[ a>>24 ];
-    return shiftCount;
-#endif
-}
-
-/*----------------------------------------------------------------------------
-| Returns the number of leading 0 bits before the most-significant 1 bit of
-| `a'.  If `a' is zero, 64 is returned.
-*----------------------------------------------------------------------------*/
-
-static inline int8_t countLeadingZeros64(uint64_t a)
-{
-#if SOFTFLOAT_GNUC_PREREQ(3, 4)
-    if (a) {
-        return __builtin_clzll(a);
-    } else {
-        return 64;
-    }
-#else
-    int8_t shiftCount;
-
-    shiftCount = 0;
-    if ( a < ( (uint64_t) 1 )<<32 ) {
-        shiftCount += 32;
-    }
-    else {
-        a >>= 32;
-    }
-    shiftCount += countLeadingZeros32( a );
-    return shiftCount;
-#endif
 }
 
 /*----------------------------------------------------------------------------

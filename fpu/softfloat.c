@@ -2683,7 +2683,7 @@ static void
 {
     int8_t shiftCount;
 
-    shiftCount = countLeadingZeros32( aSig ) - 8;
+    shiftCount = clz32(aSig) - 8;
     *zSigPtr = aSig<<shiftCount;
     *zExpPtr = 1 - shiftCount;
 
@@ -2791,7 +2791,7 @@ static float32
 {
     int8_t shiftCount;
 
-    shiftCount = countLeadingZeros32( zSig ) - 1;
+    shiftCount = clz32(zSig) - 1;
     return roundAndPackFloat32(zSign, zExp - shiftCount, zSig<<shiftCount,
                                status);
 
@@ -2824,7 +2824,7 @@ static void
 {
     int8_t shiftCount;
 
-    shiftCount = countLeadingZeros64( aSig ) - 11;
+    shiftCount = clz64(aSig) - 11;
     *zSigPtr = aSig<<shiftCount;
     *zExpPtr = 1 - shiftCount;
 
@@ -2962,7 +2962,7 @@ static float64
 {
     int8_t shiftCount;
 
-    shiftCount = countLeadingZeros64( zSig ) - 1;
+    shiftCount = clz64(zSig) - 1;
     return roundAndPackFloat64(zSign, zExp - shiftCount, zSig<<shiftCount,
                                status);
 
@@ -2980,7 +2980,7 @@ void normalizeFloatx80Subnormal(uint64_t aSig, int32_t *zExpPtr,
 {
     int8_t shiftCount;
 
-    shiftCount = countLeadingZeros64( aSig );
+    shiftCount = clz64(aSig);
     *zSigPtr = aSig<<shiftCount;
     *zExpPtr = 1 - shiftCount;
 }
@@ -3219,7 +3219,7 @@ floatx80 normalizeRoundAndPackFloatx80(int8_t roundingPrecision,
         zSig1 = 0;
         zExp -= 64;
     }
-    shiftCount = countLeadingZeros64( zSig0 );
+    shiftCount = clz64(zSig0);
     shortShift128Left( zSig0, zSig1, shiftCount, &zSig0, &zSig1 );
     zExp -= shiftCount;
     return roundAndPackFloatx80(roundingPrecision, zSign, zExp,
@@ -3296,7 +3296,7 @@ static void
     int8_t shiftCount;
 
     if ( aSig0 == 0 ) {
-        shiftCount = countLeadingZeros64( aSig1 ) - 15;
+        shiftCount = clz64(aSig1) - 15;
         if ( shiftCount < 0 ) {
             *zSig0Ptr = aSig1>>( - shiftCount );
             *zSig1Ptr = aSig1<<( shiftCount & 63 );
@@ -3308,7 +3308,7 @@ static void
         *zExpPtr = - shiftCount - 63;
     }
     else {
-        shiftCount = countLeadingZeros64( aSig0 ) - 15;
+        shiftCount = clz64(aSig0) - 15;
         shortShift128Left( aSig0, aSig1, shiftCount, zSig0Ptr, zSig1Ptr );
         *zExpPtr = 1 - shiftCount;
     }
@@ -3497,7 +3497,7 @@ static float128 normalizeRoundAndPackFloat128(flag zSign, int32_t zExp,
         zSig1 = 0;
         zExp -= 64;
     }
-    shiftCount = countLeadingZeros64( zSig0 ) - 15;
+    shiftCount = clz64(zSig0) - 15;
     if ( 0 <= shiftCount ) {
         zSig2 = 0;
         shortShift128Left( zSig0, zSig1, shiftCount, &zSig0, &zSig1 );
@@ -3529,7 +3529,7 @@ floatx80 int32_to_floatx80(int32_t a, float_status *status)
     if ( a == 0 ) return packFloatx80( 0, 0, 0 );
     zSign = ( a < 0 );
     absA = zSign ? - a : a;
-    shiftCount = countLeadingZeros32( absA ) + 32;
+    shiftCount = clz32(absA) + 32;
     zSig = absA;
     return packFloatx80( zSign, 0x403E - shiftCount, zSig<<shiftCount );
 
@@ -3551,7 +3551,7 @@ float128 int32_to_float128(int32_t a, float_status *status)
     if ( a == 0 ) return packFloat128( 0, 0, 0, 0 );
     zSign = ( a < 0 );
     absA = zSign ? - a : a;
-    shiftCount = countLeadingZeros32( absA ) + 17;
+    shiftCount = clz32(absA) + 17;
     zSig0 = absA;
     return packFloat128( zSign, 0x402E - shiftCount, zSig0<<shiftCount, 0 );
 
@@ -3573,7 +3573,7 @@ floatx80 int64_to_floatx80(int64_t a, float_status *status)
     if ( a == 0 ) return packFloatx80( 0, 0, 0 );
     zSign = ( a < 0 );
     absA = zSign ? - a : a;
-    shiftCount = countLeadingZeros64( absA );
+    shiftCount = clz64(absA);
     return packFloatx80( zSign, 0x403E - shiftCount, absA<<shiftCount );
 
 }
@@ -3595,7 +3595,7 @@ float128 int64_to_float128(int64_t a, float_status *status)
     if ( a == 0 ) return packFloat128( 0, 0, 0, 0 );
     zSign = ( a < 0 );
     absA = zSign ? - a : a;
-    shiftCount = countLeadingZeros64( absA ) + 49;
+    shiftCount = clz64(absA) + 49;
     zExp = 0x406E - shiftCount;
     if ( 64 <= shiftCount ) {
         zSig1 = 0;
