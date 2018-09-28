@@ -302,11 +302,7 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
     return 0;
 }
 
-#if TCG_TARGET_REG_BITS == 64
 # define LOWREGMASK(x)	((x) & 7)
-#else
-# define LOWREGMASK(x)	(x)
-#endif
 
 #define P_EXT		0x100		/* 0x0f opcode prefix */
 #define P_EXT38         0x200           /* 0x0f 0x38 opcode prefix */
