@@ -3917,8 +3917,8 @@ int main(int argc, char **argv, char **envp)
     }
 
 #ifdef CONFIG_SECCOMP
-    if (qemu_opts_foreach(qemu_find_opts("sandbox"),
-                          parse_sandbox, NULL, NULL)) {
+    olist = qemu_find_opts_err("sandbox", NULL);
+    if (olist && qemu_opts_foreach(olist, parse_sandbox, NULL, NULL)) {
         exit(1);
     }
 #endif
