@@ -3,10 +3,6 @@
 #  range.
 #  Outputs an initial 'A' on serial followed by repeated 'B's
 #
-# run   tests/migration/rebuild-x86-bootblock.sh
-#   to regenerate the hex, and remember to include both the .h and .s
-#   in any patches.
-#
 # Copyright (c) 2016 Red Hat, Inc. and/or its affiliates
 # This work is licensed under the terms of the GNU GPL, version 2 or later.
 # See the COPYING file in the top-level directory.
