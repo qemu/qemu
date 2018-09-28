@@ -85,6 +85,9 @@ typedef struct PCITestDevState {
     MemoryRegion portio;
     IOTest *tests;
     int current;
+
+    uint64_t membar_size;
+    MemoryRegion membar;
 } PCITestDevState;
 
 #define TYPE_PCI_TEST_DEV "pci-testdev"
@@ -253,6 +256,16 @@ static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->portio);
 
+    if (d->membar_size) {
+        memory_region_init(&d->membar, OBJECT(d), "pci-testdev-membar",
+                           d->membar_size);
+        pci_register_bar(pci_dev, 2,
+                         PCI_BASE_ADDRESS_SPACE_MEMORY |
+                         PCI_BASE_ADDRESS_MEM_PREFETCH |
+                         PCI_BASE_ADDRESS_MEM_TYPE_64,
+                         &d->membar);
+    }
+
     d->current = -1;
     d->tests = g_malloc0(IOTEST_MAX * sizeof *d->tests);
     for (i = 0; i < IOTEST_MAX; ++i) {
@@ -305,6 +318,11 @@ static void qdev_pci_testdev_reset(DeviceState *dev)
     pci_testdev_reset(d);
 }
 
+static Property pci_testdev_properties[] = {
+    DEFINE_PROP_SIZE("membar", PCITestDevState, membar_size, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void pci_testdev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -319,6 +337,7 @@ static void pci_testdev_class_init(ObjectClass *klass, void *data)
     dc->desc = "PCI Test Device";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->reset = qdev_pci_testdev_reset;
+    dc->props = pci_testdev_properties;
 }
 
 static const TypeInfo pci_testdev_info = {

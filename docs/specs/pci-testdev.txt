@@ -1,11 +1,11 @@
 pci-test is a device used for testing low level IO
 
-device implements up to two BARs: BAR0 and BAR1.
-Each BAR can be memory or IO. Guests must detect
-BAR type and act accordingly.
+device implements up to three BARs: BAR0, BAR1 and BAR2.
+Each of BAR 0+1 can be memory or IO. Guests must detect
+BAR types and act accordingly.
 
-Each BAR size is up to 4K bytes.
-Each BAR starts with the following header:
+BAR 0+1 size is up to 4K bytes each.
+BAR 0+1 starts with the following header:
 
 typedef struct PCITestDevHdr {
     uint8_t test;  <- write-only, starts a given test number
@@ -24,3 +24,8 @@ All registers are little endian.
 device is expected to always implement tests 0 to N on each BAR, and to add new
 tests with higher numbers.  In this way a guest can scan test numbers until it
 detects an access type that it does not support on this BAR, then stop.
+
+BAR2 is a 64bit memory bar, without backing storage.  It is disabled
+by default and can be enabled using the membar=<size> property.  This
+can be used to test whether guests handle pci bars of a specific
+(possibly quite large) size correctly.
