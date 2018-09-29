@@ -202,18 +202,18 @@ Reducing the memory usage
 It is possible to clean unused cache entries in order to reduce the
 memory usage during periods of low I/O activity.
 
-The parameter "cache-clean-interval" defines an interval (in seconds).
-All cache entries that haven't been accessed during that interval are
-removed from memory.
+The parameter "cache-clean-interval" defines an interval (in seconds),
+after which all the cache entries that haven't been accessed during the
+interval are removed from memory. Setting this parameter to 0 disables this
+feature.
 
-This example removes all unused cache entries every 15 minutes:
+The following example removes all unused cache entries every 15 minutes:
 
    -drive file=hd.qcow2,cache-clean-interval=900
 
-If unset, the default value for this parameter is 600. Setting it to 0
-disables this feature.
+If unset, the default value for this parameter is 600 on platforms which
+support this functionality, and is 0 (disabled) on other platforms.
 
-Note that this functionality currently relies on the MADV_DONTNEED
-argument for madvise() to actually free the memory. This is a
-Linux-specific feature, so cache-clean-interval is not supported in
-other systems.
+This functionality currently relies on the MADV_DONTNEED argument for
+madvise() to actually free the memory. This is a Linux-specific feature,
+so cache-clean-interval is not supported on other systems.

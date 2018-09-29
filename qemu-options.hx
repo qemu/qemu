@@ -747,7 +747,8 @@ it which is not used for the L2 cache)
 
 @item cache-clean-interval
 Clean unused entries in the L2 and refcount caches. The interval is in seconds.
-The default value is 600. Setting it to 0 disables this feature.
+The default value is 600 on supporting platforms, and 0 on other platforms.
+Setting it to 0 disables this feature.
 
 @item pass-discard-request
 Whether discard requests to the qcow2 device should be forwarded to the data
