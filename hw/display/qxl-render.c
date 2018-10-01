@@ -98,6 +98,8 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
 {
     VGACommonState *vga = &qxl->vga;
     DisplaySurface *surface;
+    int width = qxl->guest_head0_width ?: qxl->guest_primary.surface.width;
+    int height = qxl->guest_head0_height ?: qxl->guest_primary.surface.height;
     int i;
 
     if (qxl->guest_primary.resized) {
@@ -111,8 +113,8 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
         qxl_set_rect_to_surface(qxl, &qxl->dirty[0]);
         qxl->num_dirty_rects = 1;
         trace_qxl_render_guest_primary_resized(
-               qxl->guest_primary.surface.width,
-               qxl->guest_primary.surface.height,
+               width,
+               height,
                qxl->guest_primary.qxl_stride,
                qxl->guest_primary.bytes_pp,
                qxl->guest_primary.bits_pp);
@@ -120,15 +122,15 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
             pixman_format_code_t format =
                 qemu_default_pixman_format(qxl->guest_primary.bits_pp, true);
             surface = qemu_create_displaysurface_from
-                (qxl->guest_primary.surface.width,
-                 qxl->guest_primary.surface.height,
+                (width,
+                 height,
                  format,
                  qxl->guest_primary.abs_stride,
                  qxl->guest_primary.data);
         } else {
             surface = qemu_create_displaysurface
-                (qxl->guest_primary.surface.width,
-                 qxl->guest_primary.surface.height);
+                (width,
+                 height);
         }
         dpy_gfx_replace_surface(vga->con, surface);
     }
@@ -144,8 +146,8 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
             qxl->dirty[i].top < 0 ||
             qxl->dirty[i].left > qxl->dirty[i].right ||
             qxl->dirty[i].top > qxl->dirty[i].bottom ||
-            qxl->dirty[i].right > qxl->guest_primary.surface.width ||
-            qxl->dirty[i].bottom > qxl->guest_primary.surface.height) {
+            qxl->dirty[i].right > width ||
+            qxl->dirty[i].bottom > height) {
             continue;
         }
         qxl_blit(qxl, qxl->dirty+i);
@@ -234,12 +236,28 @@ static QEMUCursor *qxl_cursor(PCIQXLDevice *qxl, QXLCursor *cursor,
                               uint32_t group_id)
 {
     QEMUCursor *c;
+    uint8_t *and_mask, *xor_mask;
     size_t size;
 
     c = cursor_alloc(cursor->header.width, cursor->header.height);
     c->hot_x = cursor->header.hot_spot_x;
     c->hot_y = cursor->header.hot_spot_y;
     switch (cursor->header.type) {
+    case SPICE_CURSOR_TYPE_MONO:
+        /* Assume that the full cursor is available in a single chunk. */
+        size = 2 * cursor_get_mono_bpl(c) * c->height;
+        if (size != cursor->data_size) {
+            fprintf(stderr, "%s: bad monochrome cursor %ux%u with size %u\n",
+                    __func__, c->width, c->height, cursor->data_size);
+            goto fail;
+        }
+        and_mask = cursor->chunk.data;
+        xor_mask = and_mask + cursor_get_mono_bpl(c) * c->height;
+        cursor_set_mono(c, 0xffffff, 0x000000, xor_mask, 1, and_mask);
+        if (qxl->debug > 2) {
+            cursor_print_ascii_art(c, "qxl/mono");
+        }
+        break;
     case SPICE_CURSOR_TYPE_ALPHA:
         size = sizeof(uint32_t) * cursor->header.width * cursor->header.height;
         qxl_unpack_chunks(c->data, size, qxl, &cursor->chunk, group_id);

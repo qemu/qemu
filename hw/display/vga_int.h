@@ -197,6 +197,6 @@ void pci_std_vga_mmio_region_init(VGACommonState *s,
                                   Object *owner,
                                   MemoryRegion *parent,
                                   MemoryRegion *subs,
-                                  bool qext);
+                                  bool qext, bool edid);
 
 #endif

@@ -259,6 +259,8 @@ static void qxl_spice_destroy_surfaces(PCIQXLDevice *qxl, qxl_async_io async)
 
 static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
 {
+    QXLMonitorsConfig *cfg;
+
     trace_qxl_spice_monitors_config(qxl->id);
     if (replay) {
         /*
@@ -285,6 +287,16 @@ static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
                 MEMSLOT_GROUP_GUEST,
                 (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
                                           QXL_IO_MONITORS_CONFIG_ASYNC));
+    }
+
+    cfg = qxl_phys2virt(qxl, qxl->guest_monitors_config, MEMSLOT_GROUP_GUEST);
+    if (cfg->count == 1) {
+        qxl->guest_primary.resized = 1;
+        qxl->guest_head0_width  = cfg->heads[0].width;
+        qxl->guest_head0_height = cfg->heads[0].height;
+    } else {
+        qxl->guest_head0_width  = 0;
+        qxl->guest_head0_height = 0;
     }
 }
 
