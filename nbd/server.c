@@ -1844,37 +1844,68 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
     return ret;
 }
 
-static int blockstatus_to_extent_be(BlockDriverState *bs, uint64_t offset,
-                                    uint64_t bytes, NBDExtent *extent)
+/*
+ * Populate @extents from block status. Update @bytes to be the actual
+ * length encoded (which may be smaller than the original), and update
+ * @nb_extents to the number of extents used.
+ *
+ * Returns zero on success and -errno on bdrv_block_status_above failure.
+ */
+static int blockstatus_to_extents(BlockDriverState *bs, uint64_t offset,
+                                  uint64_t *bytes, NBDExtent *extents,
+                                  unsigned int *nb_extents)
 {
-    uint64_t remaining_bytes = bytes;
+    uint64_t remaining_bytes = *bytes;
+    NBDExtent *extent = extents, *extents_end = extents + *nb_extents;
+    bool first_extent = true;
 
+    assert(*nb_extents);
     while (remaining_bytes) {
         uint32_t flags;
         int64_t num;
         int ret = bdrv_block_status_above(bs, NULL, offset, remaining_bytes,
                                           &num, NULL, NULL);
+
         if (ret < 0) {
             return ret;
         }
 
         flags = (ret & BDRV_BLOCK_ALLOCATED ? 0 : NBD_STATE_HOLE) |
                 (ret & BDRV_BLOCK_ZERO      ? NBD_STATE_ZERO : 0);
-
-        if (remaining_bytes == bytes) {
-            extent->flags = flags;
-        }
-
-        if (flags != extent->flags) {
-            break;
-        }
-
         offset += num;
         remaining_bytes -= num;
+
+        if (first_extent) {
+            extent->flags = flags;
+            extent->length = num;
+            first_extent = false;
+            continue;
+        }
+
+        if (flags == extent->flags) {
+            /* extend current extent */
+            extent->length += num;
+        } else {
+            if (extent + 1 == extents_end) {
+                break;
+            }
+
+            /* start new extent */
+            extent++;
+            extent->flags = flags;
+            extent->length = num;
+        }
     }
 
-    cpu_to_be32s(&extent->flags);
-    extent->length = cpu_to_be32(bytes - remaining_bytes);
+    extents_end = extent + 1;
+
+    for (extent = extents; extent < extents_end; extent++) {
+        cpu_to_be32s(&extent->flags);
+        cpu_to_be32s(&extent->length);
+    }
+
+    *bytes -= remaining_bytes;
+    *nb_extents = extents_end - extents;
 
     return 0;
 }
@@ -1910,21 +1941,29 @@ static int nbd_co_send_extents(NBDClient *client, uint64_t handle,
 /* Get block status from the exported device and send it to the client */
 static int nbd_co_send_block_status(NBDClient *client, uint64_t handle,
                                     BlockDriverState *bs, uint64_t offset,
-                                    uint32_t length, bool last,
-                                    uint32_t context_id, Error **errp)
+                                    uint32_t length, bool dont_fragment,
+                                    bool last, uint32_t context_id,
+                                    Error **errp)
 {
     int ret;
-    NBDExtent extent;
+    unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BITMAP_EXTENTS;
+    NBDExtent *extents = g_new(NBDExtent, nb_extents);
+    uint64_t final_length = length;
 
-    ret = blockstatus_to_extent_be(bs, offset, length, &extent);
+    ret = blockstatus_to_extents(bs, offset, &final_length, extents,
+                                 &nb_extents);
     if (ret < 0) {
+        g_free(extents);
         return nbd_co_send_structured_error(
                 client, handle, -ret, "can't get block status", errp);
     }
 
-    return nbd_co_send_extents(client, handle, &extent, 1,
-                               be32_to_cpu(extent.length), last,
-                               context_id, errp);
+    ret = nbd_co_send_extents(client, handle, extents, nb_extents,
+                              final_length, last, context_id, errp);
+
+    g_free(extents);
+
+    return ret;
 }
 
 /*
@@ -1951,6 +1990,8 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
 
     assert(begin < overall_end && nb_extents);
     while (begin < overall_end && i < nb_extents) {
+        bool next_dirty = !dirty;
+
         if (dirty) {
             end = bdrv_dirty_bitmap_next_zero(bitmap, begin);
         } else {
@@ -1962,6 +2003,7 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
             end = MIN(bdrv_dirty_bitmap_size(bitmap),
                       begin + UINT32_MAX + 1 -
                       bdrv_dirty_bitmap_granularity(bitmap));
+            next_dirty = dirty;
         }
         if (dont_fragment && end > overall_end) {
             end = overall_end;
@@ -1971,7 +2013,7 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
         extents[i].flags = cpu_to_be32(dirty ? NBD_STATE_DIRTY : 0);
         i++;
         begin = end;
-        dirty = !dirty;
+        dirty = next_dirty;
     }
 
     bdrv_dirty_iter_free(it);
@@ -2228,10 +2270,12 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
             (client->export_meta.base_allocation ||
              client->export_meta.bitmap))
         {
+            bool dont_fragment = request->flags & NBD_CMD_FLAG_REQ_ONE;
+
             if (client->export_meta.base_allocation) {
                 ret = nbd_co_send_block_status(client, request->handle,
                                                blk_bs(exp->blk), request->from,
-                                               request->len,
+                                               request->len, dont_fragment,
                                                !client->export_meta.bitmap,
                                                NBD_META_ID_BASE_ALLOCATION,
                                                errp);
@@ -2244,7 +2288,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                 ret = nbd_co_send_bitmap(client, request->handle,
                                          client->exp->export_bitmap,
                                          request->from, request->len,
-                                         request->flags & NBD_CMD_FLAG_REQ_ONE,
+                                         dont_fragment,
                                          true, NBD_META_ID_DIRTY_BITMAP, errp);
                 if (ret < 0) {
                     return ret;

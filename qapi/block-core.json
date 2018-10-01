@@ -1935,6 +1935,8 @@
 ##
 # @x-block-dirty-bitmap-merge:
 #
+# FIXME: Rename @src_name and @dst_name to src-name and dst-name.
+#
 # Merge @src_name dirty bitmap to @dst_name dirty bitmap. @src_name dirty
 # bitmap is unchanged. On error, @dst_name is unchanged.
 #
