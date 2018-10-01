@@ -1022,12 +1022,20 @@
 # GTK display options.
 #
 # @grab-on-hover: Grab keyboard input on mouse hover.
+# @zoom-to-fit: Zoom guest display to fit into the host window.  When
+#               turned off the host window will be resized instead.
+#               In case the display device can notify the guest on
+#               window resizes (virtio-gpu) this will default to "on",
+#               assuming the guest will resize the display to match
+#               the window size then.  Otherwise it defaults to "off".
+#               Since 3.1
 #
 # Since: 2.12
 #
 ##
 { 'struct'  : 'DisplayGTK',
-  'data'    : { '*grab-on-hover' : 'bool' } }
+  'data'    : { '*grab-on-hover' : 'bool',
+                '*zoom-to-fit'   : 'bool'  } }
 
  ##
  # @DisplayGLMode:
