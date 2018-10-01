@@ -608,6 +608,7 @@ static void amdvi_handle_control_write(AMDVIState *s)
     s->completion_wait_intr = !!(control & AMDVI_MMIO_CONTROL_COMWAITINTEN);
     s->cmdbuf_enabled = s->enabled && !!(control &
                         AMDVI_MMIO_CONTROL_CMDBUFLEN);
+    s->ga_enabled = !!(control & AMDVI_MMIO_CONTROL_GAEN);
 
     /* update the flags depending on the control register */
     if (s->cmdbuf_enabled) {
@@ -1094,6 +1095,65 @@ static int amdvi_int_remap_legacy(AMDVIState *iommu,
     return 0;
 }
 
+static int amdvi_get_irte_ga(AMDVIState *s, MSIMessage *origin, uint64_t *dte,
+                             struct irte_ga *irte, uint16_t devid)
+{
+    uint64_t irte_root, offset;
+
+    irte_root = dte[2] & AMDVI_IR_PHYS_ADDR_MASK;
+    offset = (origin->data & AMDVI_IRTE_OFFSET) << 4;
+    trace_amdvi_ir_irte(irte_root, offset);
+
+    if (dma_memory_read(&address_space_memory, irte_root + offset,
+                        irte, sizeof(*irte))) {
+        trace_amdvi_ir_err("failed to get irte_ga");
+        return -AMDVI_IR_GET_IRTE;
+    }
+
+    trace_amdvi_ir_irte_ga_val(irte->hi.val, irte->lo.val);
+    return 0;
+}
+
+static int amdvi_int_remap_ga(AMDVIState *iommu,
+                              MSIMessage *origin,
+                              MSIMessage *translated,
+                              uint64_t *dte,
+                              X86IOMMUIrq *irq,
+                              uint16_t sid)
+{
+    int ret;
+    struct irte_ga irte;
+
+    /* get interrupt remapping table */
+    ret = amdvi_get_irte_ga(iommu, origin, dte, &irte, sid);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (!irte.lo.fields_remap.valid) {
+        trace_amdvi_ir_target_abort("RemapEn is disabled");
+        return -AMDVI_IR_TARGET_ABORT;
+    }
+
+    if (irte.lo.fields_remap.guest_mode) {
+        error_report_once("guest mode is not zero");
+        return -AMDVI_IR_ERR;
+    }
+
+    if (irte.lo.fields_remap.int_type > AMDVI_IOAPIC_INT_TYPE_ARBITRATED) {
+        error_report_once("reserved int_type is set");
+        return -AMDVI_IR_ERR;
+    }
+
+    irq->delivery_mode = irte.lo.fields_remap.int_type;
+    irq->vector = irte.hi.fields.vector;
+    irq->dest_mode = irte.lo.fields_remap.dm;
+    irq->redir_hint = irte.lo.fields_remap.rq_eoi;
+    irq->dest = irte.lo.fields_remap.destination;
+
+    return 0;
+}
+
 static int __amdvi_int_remap_msi(AMDVIState *iommu,
                                  MSIMessage *origin,
                                  MSIMessage *translated,
@@ -1101,6 +1161,7 @@ static int __amdvi_int_remap_msi(AMDVIState *iommu,
                                  X86IOMMUIrq *irq,
                                  uint16_t sid)
 {
+    int ret;
     uint8_t int_ctl;
 
     int_ctl = (dte[2] >> AMDVI_IR_INTCTL_SHIFT) & 3;
@@ -1120,7 +1181,13 @@ static int __amdvi_int_remap_msi(AMDVIState *iommu,
         return -AMDVI_IR_ERR;
     }
 
-    return amdvi_int_remap_legacy(iommu, origin, translated, dte, irq, sid);
+    if (iommu->ga_enabled) {
+        ret = amdvi_int_remap_ga(iommu, origin, translated, dte, irq, sid);
+    } else {
+        ret = amdvi_int_remap_legacy(iommu, origin, translated, dte, irq, sid);
+    }
+
+    return ret;
 }
 
 /* Interrupt remapping for MSI/MSI-X entry */

@@ -103,6 +103,7 @@
 #define AMDVI_MMIO_CONTROL_EVENTINTEN     (1ULL << 3)
 #define AMDVI_MMIO_CONTROL_COMWAITINTEN   (1ULL << 4)
 #define AMDVI_MMIO_CONTROL_CMDBUFLEN      (1ULL << 12)
+#define AMDVI_MMIO_CONTROL_GAEN           (1ULL << 17)
 
 /* MMIO status register bits */
 #define AMDVI_MMIO_STATUS_CMDBUF_RUN  (1 << 4)
@@ -263,6 +264,38 @@ union irte {
     } fields;
 };
 
+/* Interrupt remapping table fields (Guest VAPIC is enabled) */
+union irte_ga_lo {
+  uint64_t val;
+
+  /* For int remapping */
+  struct {
+      uint64_t  valid:1,
+                no_fault:1,
+                /* ------ */
+                int_type:3,
+                rq_eoi:1,
+                dm:1,
+                /* ------ */
+                guest_mode:1,
+                destination:8,
+                rsvd_1:48;
+  } fields_remap;
+};
+
+union irte_ga_hi {
+  uint64_t val;
+  struct {
+      uint64_t  vector:8,
+                rsvd_2:56;
+  } fields;
+};
+
+struct irte_ga {
+  union irte_ga_lo lo;
+  union irte_ga_hi hi;
+};
+
 #define TYPE_AMD_IOMMU_DEVICE "amd-iommu"
 #define AMD_IOMMU_DEVICE(obj)\
     OBJECT_CHECK(AMDVIState, (obj), TYPE_AMD_IOMMU_DEVICE)
@@ -332,6 +365,9 @@ typedef struct AMDVIState {
 
     /* IOTLB */
     GHashTable *iotlb;
+
+    /* Interrupt remapping */
+    bool ga_enabled;
 } AMDVIState;
 
 #endif
