@@ -457,8 +457,10 @@ static const MemoryRegionOps stellaris_enet_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void stellaris_enet_reset(stellaris_enet_state *s)
+static void stellaris_enet_reset(DeviceState *dev)
 {
+    stellaris_enet_state *s =  STELLARIS_ENET(dev);
+
     s->mdv = 0x80;
     s->rctl = SE_RCTL_BADCRC;
     s->im = SE_INT_PHY | SE_INT_MD | SE_INT_RXER | SE_INT_FOV | SE_INT_TXEMP
@@ -487,8 +489,6 @@ static void stellaris_enet_realize(DeviceState *dev, Error **errp)
     s->nic = qemu_new_nic(&net_stellaris_enet_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
-
-    stellaris_enet_reset(s);
 }
 
 static Property stellaris_enet_properties[] = {
@@ -501,6 +501,7 @@ static void stellaris_enet_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = stellaris_enet_realize;
+    dc->reset = stellaris_enet_reset;
     dc->props = stellaris_enet_properties;
     dc->vmsd = &vmstate_stellaris_enet;
 }
