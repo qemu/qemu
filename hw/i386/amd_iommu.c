@@ -55,6 +55,7 @@ struct AMDVIAddressSpace {
     uint8_t bus_num;            /* bus number                           */
     uint8_t devfn;              /* device function                      */
     AMDVIState *iommu_state;    /* AMDVI - one per machine              */
+    MemoryRegion root;          /* AMDVI Root memory map region */
     IOMMUMemoryRegion iommu;    /* Device's address translation region  */
     MemoryRegion iommu_ir;      /* Device's interrupt remapping region  */
     AddressSpace as;            /* device's corresponding address space */
@@ -1032,8 +1033,9 @@ static IOMMUTLBEntry amdvi_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
 
 static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
+    char name[128];
     AMDVIState *s = opaque;
-    AMDVIAddressSpace **iommu_as;
+    AMDVIAddressSpace **iommu_as, *amdvi_dev_as;
     int bus_num = pci_bus_num(bus);
 
     iommu_as = s->address_spaces[bus_num];
@@ -1046,19 +1048,37 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
     /* set up AMD-Vi region */
     if (!iommu_as[devfn]) {
+        snprintf(name, sizeof(name), "amd_iommu_devfn_%d", devfn);
+
         iommu_as[devfn] = g_malloc0(sizeof(AMDVIAddressSpace));
         iommu_as[devfn]->bus_num = (uint8_t)bus_num;
         iommu_as[devfn]->devfn = (uint8_t)devfn;
         iommu_as[devfn]->iommu_state = s;
 
-        memory_region_init_iommu(&iommu_as[devfn]->iommu,
-                                 sizeof(iommu_as[devfn]->iommu),
+        amdvi_dev_as = iommu_as[devfn];
+
+        /*
+         * Memory region relationships looks like (Address range shows
+         * only lower 32 bits to make it short in length...):
+         *
+         * |-----------------+-------------------+----------|
+         * | Name            | Address range     | Priority |
+         * |-----------------+-------------------+----------+
+         * | amdvi_root      | 00000000-ffffffff |        0 |
+         * |  amdvi_iommu    | 00000000-ffffffff |        1 |
+         * |-----------------+-------------------+----------|
+         */
+        memory_region_init_iommu(&amdvi_dev_as->iommu,
+                                 sizeof(amdvi_dev_as->iommu),
                                  TYPE_AMD_IOMMU_MEMORY_REGION,
                                  OBJECT(s),
-                                 "amd-iommu", UINT64_MAX);
-        address_space_init(&iommu_as[devfn]->as,
-                           MEMORY_REGION(&iommu_as[devfn]->iommu),
-                           "amd-iommu");
+                                 "amd_iommu", UINT64_MAX);
+        memory_region_init(&amdvi_dev_as->root, OBJECT(s),
+                           "amdvi_root", UINT64_MAX);
+        address_space_init(&amdvi_dev_as->as, &amdvi_dev_as->root, name);
+        memory_region_add_subregion_overlap(&amdvi_dev_as->root, 0,
+                                            MEMORY_REGION(&amdvi_dev_as->iommu),
+                                            1);
     }
     return &iommu_as[devfn]->as;
 }
