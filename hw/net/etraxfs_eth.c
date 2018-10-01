@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/cris/etraxfs.h"
@@ -584,14 +585,14 @@ static NetClientInfo net_etraxfs_info = {
     .link_status_changed = eth_set_link,
 };
 
-static int fs_eth_init(SysBusDevice *sbd)
+static void etraxfs_eth_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     ETRAXFSEthState *s = ETRAX_FS_ETH(dev);
 
     if (!s->dma_out || !s->dma_in) {
-        error_report("Unconnected ETRAX-FS Ethernet MAC");
-        return -1;
+        error_setg(errp, "Unconnected ETRAX-FS Ethernet MAC");
+        return;
     }
 
     s->dma_out->client.push = eth_tx_push;
@@ -611,7 +612,6 @@ static int fs_eth_init(SysBusDevice *sbd)
 
     tdk_init(&s->phy);
     mdio_attach(&s->mdio_bus, &s->phy, s->phyaddr);
-    return 0;
 }
 
 static Property etraxfs_eth_properties[] = {
@@ -625,9 +625,8 @@ static Property etraxfs_eth_properties[] = {
 static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = fs_eth_init;
+    dc->realize = etraxfs_eth_realize;
     dc->props = etraxfs_eth_properties;
     /* Reason: pointer properties "dma_out", "dma_in" */
     dc->user_creatable = false;
