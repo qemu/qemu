@@ -5,6 +5,7 @@ config SUN4M
     select CS4231
     select ECCMEMCTL
     select EMPTY_SLOT
+    select UNIMP
     select ESCC
     select ESP
     select FDC

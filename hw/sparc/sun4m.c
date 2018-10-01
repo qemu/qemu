@@ -47,6 +47,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"
 #include "hw/empty_slot.h"
+#include "hw/misc/unimp.h"
 #include "hw/irq.h"
 #include "hw/loader.h"
 #include "elf.h"
@@ -968,7 +969,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     }
 
     if (hwdef->sx_base) {
-        empty_slot_init(hwdef->sx_base, 0x2000);
+        create_unimplemented_device("SUNW,sx", hwdef->sx_base, 0x2000);
     }
 
     nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0, 0x2000, 1968, 8);
@@ -1031,14 +1032,16 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     if (hwdef->dbri_base) {
         /* ISDN chip with attached CS4215 audio codec */
         /* prom space */
-        empty_slot_init(hwdef->dbri_base+0x1000, 0x30);
+        create_unimplemented_device("SUNW,DBRI.prom",
+                                    hwdef->dbri_base + 0x1000, 0x30);
         /* reg space */
-        empty_slot_init(hwdef->dbri_base+0x10000, 0x100);
+        create_unimplemented_device("SUNW,DBRI",
+                                    hwdef->dbri_base + 0x10000, 0x100);
     }
 
     if (hwdef->bpp_base) {
         /* parallel port */
-        empty_slot_init(hwdef->bpp_base, 0x20);
+        create_unimplemented_device("SUNW,bpp", hwdef->bpp_base, 0x20);
     }
 
     initrd_size = 0;
