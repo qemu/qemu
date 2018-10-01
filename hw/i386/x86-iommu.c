@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "trace.h"
+#include "sysemu/kvm.h"
 
 void x86_iommu_iec_register_notifier(X86IOMMUState *iommu,
                                      iec_notify_fn fn, void *data)
@@ -91,6 +92,14 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
     if (!pcms || !pcms->bus) {
         error_setg(errp, "Machine-type '%s' not supported by IOMMU",
                    mc->name);
+        return;
+    }
+
+    /* Both Intel and AMD IOMMU IR only support "kernel-irqchip={off|split}" */
+    if (x86_iommu->intr_supported && kvm_irqchip_in_kernel() &&
+        !kvm_irqchip_is_split()) {
+        error_setg(errp, "Interrupt Remapping cannot work with "
+                         "kernel-irqchip=on, please use 'split|off'.");
         return;
     }
 
