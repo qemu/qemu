@@ -473,9 +473,9 @@ static NetClientInfo net_stellaris_enet_info = {
     .receive = stellaris_enet_receive,
 };
 
-static int stellaris_enet_init(SysBusDevice *sbd)
+static void stellaris_enet_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     stellaris_enet_state *s = STELLARIS_ENET(dev);
 
     memory_region_init_io(&s->mmio, OBJECT(s), &stellaris_enet_ops, s,
@@ -489,7 +489,6 @@ static int stellaris_enet_init(SysBusDevice *sbd)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     stellaris_enet_reset(s);
-    return 0;
 }
 
 static Property stellaris_enet_properties[] = {
@@ -500,9 +499,8 @@ static Property stellaris_enet_properties[] = {
 static void stellaris_enet_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = stellaris_enet_init;
+    dc->realize = stellaris_enet_realize;
     dc->props = stellaris_enet_properties;
     dc->vmsd = &vmstate_stellaris_enet;
 }
