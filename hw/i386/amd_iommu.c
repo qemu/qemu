@@ -807,7 +807,7 @@ static inline uint64_t amdvi_get_perms(uint64_t entry)
            AMDVI_DEV_PERM_SHIFT;
 }
 
-/* a valid entry should have V = 1 and reserved bits honoured */
+/* validate that reserved bits are honoured */
 static bool amdvi_validate_dte(AMDVIState *s, uint16_t devid,
                                uint64_t *dte)
 {
@@ -820,7 +820,7 @@ static bool amdvi_validate_dte(AMDVIState *s, uint16_t devid,
         return false;
     }
 
-    return dte[0] & AMDVI_DEV_VALID;
+    return true;
 }
 
 /* get a device table entry given the devid */
@@ -966,8 +966,12 @@ static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
         return;
     }
 
-    /* devices with V = 0 are not translated */
     if (!amdvi_get_dte(s, devid, entry)) {
+        return;
+    }
+
+    /* devices with V = 0 are not translated */
+    if (!(entry[0] & AMDVI_DEV_VALID)) {
         goto out;
     }
 
