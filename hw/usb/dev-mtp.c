@@ -1568,6 +1568,7 @@ static void usb_mtp_handle_control(USBDevice *dev, USBPacket *p,
             if (s->write_pending) {
                 g_free(s->dataset.filename);
                 s->write_pending = false;
+                s->dataset.size = 0;
             }
             usb_mtp_data_free(s->data_out);
             s->data_out = NULL;
@@ -1665,13 +1666,14 @@ static void usb_mtp_write_data(MTPState *s)
             goto success;
         }
 
-        rc = write_retry(d->fd, d->data, s->dataset.size);
-        if (!rc) {
+        rc = write_retry(d->fd, d->data, d->offset);
+        if (rc != d->offset) {
             usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
                                  0, 0, 0, 0);
             goto done;
             }
-        if (rc != s->dataset.size) {
+        /* Only for < 4G file sizes */
+        if (s->dataset.size != 0xFFFFFFFF && rc != s->dataset.size) {
             usb_mtp_queue_result(s, RES_INCOMPLETE_TRANSFER, d->trans,
                                  0, 0, 0, 0);
             goto done;
@@ -1692,6 +1694,7 @@ done:
     }
 free:
     g_free(s->dataset.filename);
+    s->dataset.size = 0;
     g_free(path);
     s->write_pending = false;
 }

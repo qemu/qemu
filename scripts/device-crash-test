@@ -125,7 +125,7 @@ ERROR_WHITELIST = [
     {'device':'tpm-tis', 'expected':True},                 # tpm_tis: backend driver with id (null) could not be found
     {'device':'unimplemented-device', 'expected':True},    # property 'size' not specified or zero
     {'device':'usb-braille', 'expected':True},             # Property chardev is required
-    {'device':'usb-mtp', 'expected':True},                 # x-root property must be configured
+    {'device':'usb-mtp', 'expected':True},                 # rootdir property must be configured
     {'device':'usb-redir', 'expected':True},               # Parameter 'chardev' is missing
     {'device':'usb-serial', 'expected':True},              # Property chardev is required
     {'device':'usb-storage', 'expected':True},             # drive property not set
