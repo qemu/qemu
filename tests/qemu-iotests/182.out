@@ -4,5 +4,5 @@ Starting QEMU
 
 Starting a second QEMU using the same image should fail
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,id=drive0,file.locking=on: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 *** done

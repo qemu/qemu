@@ -109,7 +109,6 @@ $QEMU_IO \
     -c "reopen -o cache-size=1M,l2-cache-size=64k,refcount-cache-size=64k" \
     -c "reopen -o cache-size=1M,l2-cache-size=2M" \
     -c "reopen -o cache-size=1M,refcount-cache-size=2M" \
-    -c "reopen -o l2-cache-size=256T" \
     -c "reopen -o l2-cache-entry-size=33k" \
     -c "reopen -o l2-cache-entry-size=128k" \
     -c "reopen -o refcount-cache-size=256T" \
@@ -118,6 +117,13 @@ $QEMU_IO \
     -c "reopen -o overlap-check.template=blubb" \
     -c "reopen -o cache-clean-interval=-1" \
     "$TEST_IMG" | _filter_qemu_io
+
+IMGOPTS="cluster_size=256k" _make_test_img 32P
+$QEMU_IO \
+    -c "reopen -o l2-cache-entry-size=512,l2-cache-size=1T" \
+    "$TEST_IMG" | _filter_qemu_io
+
+_make_test_img 64M
 
 echo
 echo === Test transaction semantics ===

@@ -694,6 +694,8 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
     s->bh_indirection_ctx = ctx_b;
 
     aio_ret = -EINPROGRESS;
+    qemu_event_reset(&done_event);
+
     if (drain_thread == 0) {
         acb = blk_aio_preadv(blk, 0, &qiov, 0, test_iothread_aio_cb, &aio_ret);
     } else {
@@ -723,7 +725,6 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
          * but the drain in this thread can continue immediately after
          * bdrv_dec_in_flight() and aio_ret might be assigned only slightly
          * later. */
-        qemu_event_reset(&done_event);
         do_drain_begin(drain_type, bs);
         g_assert_cmpint(bs->in_flight, ==, 0);
 
@@ -743,7 +744,6 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
         }
         break;
     case 1:
-        qemu_event_reset(&done_event);
         aio_bh_schedule_oneshot(ctx_a, test_iothread_drain_entry, &data);
         qemu_event_wait(&done_event);
         break;

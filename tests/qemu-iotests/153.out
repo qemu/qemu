@@ -12,11 +12,11 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t
 
 == Launching another QEMU, opts: '' ==
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 == Launching another QEMU, opts: 'read-only=on' ==
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,read-only=on: Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 == Launching another QEMU, opts: 'read-only=on,force-share=on' ==
 
@@ -24,77 +24,77 @@ Is another process using the image?
 
 _qemu_io_wrapper -c read 0 512 TEST_DIR/t.qcow2
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_io_wrapper -r -c read 0 512 TEST_DIR/t.qcow2
 can't open device TEST_DIR/t.qcow2: Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_io_wrapper -c open  TEST_DIR/t.qcow2 -c read 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r  TEST_DIR/t.qcow2 -c read 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 no file open, try 'help open'
 
 _qemu_img_wrapper info TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper check TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper compare TEST_DIR/t.qcow2 TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper map TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper amend -o  TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper commit TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper resize TEST_DIR/t.qcow2 32M
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper rebase TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper snapshot -l TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper convert TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.convert
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper dd if=TEST_DIR/t.qcow2 of=TEST_DIR/t.qcow2.convert bs=512 count=1
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper bench -c 1 TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper bench -w -c 1 TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper create -f qcow2 TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
 qemu-img: TEST_DIR/t.qcow2: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 file format: IMGFMT
 
 == Running utility commands -U ==
@@ -132,7 +132,7 @@ Try 'qemu-img --help' for more information
 
 _qemu_img_wrapper rebase -U TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper snapshot -l -U TEST_DIR/t.qcow2
 
@@ -157,7 +157,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432 backing_file=TEST_DIR/t
 
 == Launching another QEMU, opts: '' ==
 QEMU_PROG: -drive file=TEST_DIR/t.qcow2,if=none,: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 == Launching another QEMU, opts: 'read-only=on' ==
 
@@ -167,13 +167,13 @@ Is another process using the image?
 
 _qemu_io_wrapper -c read 0 512 TEST_DIR/t.qcow2
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_io_wrapper -r -c read 0 512 TEST_DIR/t.qcow2
 
 _qemu_io_wrapper -c open  TEST_DIR/t.qcow2 -c read 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r  TEST_DIR/t.qcow2 -c read 0 512
@@ -188,19 +188,19 @@ _qemu_img_wrapper map TEST_DIR/t.qcow2
 
 _qemu_img_wrapper amend -o  TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper commit TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper resize TEST_DIR/t.qcow2 32M
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper rebase TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper snapshot -l TEST_DIR/t.qcow2
 
@@ -212,11 +212,11 @@ _qemu_img_wrapper bench -c 1 TEST_DIR/t.qcow2
 
 _qemu_img_wrapper bench -w -c 1 TEST_DIR/t.qcow2
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper create -f qcow2 TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
 qemu-img: TEST_DIR/t.qcow2: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 file format: IMGFMT
 
 == Running utility commands -U ==
@@ -254,7 +254,7 @@ Try 'qemu-img --help' for more information
 
 _qemu_img_wrapper rebase -U TEST_DIR/t.qcow2 -b TEST_DIR/t.qcow2.base
 qemu-img: Could not open 'TEST_DIR/t.qcow2': Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_img_wrapper snapshot -l -U TEST_DIR/t.qcow2
 
@@ -372,17 +372,17 @@ Round done
 
 == Two devices with the same image (read-only=off - read-only=off) ==
 QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,read-only=off: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 == Two devices with the same image (read-only=off - read-only=on) ==
 QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,read-only=on: Failed to get shared "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 == Two devices with the same image (read-only=off - read-only=on,force-share=on) ==
 
 == Two devices with the same image (read-only=on - read-only=off) ==
 QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2,read-only=off: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 == Two devices with the same image (read-only=on - read-only=on) ==
 
@@ -403,13 +403,13 @@ Formatting 'TEST_DIR/t.IMGFMT.c', fmt=IMGFMT size=33554432 backing_file=TEST_DIR
 
 == Backing image also as an active device ==
 QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 == Backing image also as an active device (ro) ==
 
 == Symbolic link ==
 QEMU_PROG: -drive if=none,file=TEST_DIR/t.qcow2: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 
 == Active commit to intermediate layer should work when base in use ==
 {"return": {}}
@@ -420,7 +420,7 @@ Adding drive
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 Creating overlay with qemu-img when the guest is running should be allowed
 
 _qemu_img_wrapper create -f qcow2 -b TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.overlay
@@ -433,7 +433,7 @@ _qemu_img_wrapper info TEST_DIR/t.qcow2
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
-Is another process using the image?
+Is another process using the image [TEST_DIR/t.qcow2]?
 Closing the other
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512

@@ -27,6 +27,7 @@
 
 #include "crypto/block.h"
 #include "qemu/coroutine.h"
+#include "qemu/units.h"
 
 //#define DEBUG_ALLOC
 //#define DEBUG_ALLOC2
@@ -43,11 +44,11 @@
 
 /* 8 MB refcount table is enough for 2 PB images at 64k cluster size
  * (128 GB for 512 byte clusters, 2 EB for 2 MB clusters) */
-#define QCOW_MAX_REFTABLE_SIZE 0x800000
+#define QCOW_MAX_REFTABLE_SIZE S_8MiB
 
 /* 32 MB L1 table is enough for 2 PB images at 64k cluster size
  * (128 GB for 512 byte clusters, 2 EB for 2 MB clusters) */
-#define QCOW_MAX_L1_SIZE 0x2000000
+#define QCOW_MAX_L1_SIZE S_32MiB
 
 /* Allow for an average of 1k per snapshot table entry, should be plenty of
  * space for snapshot names and IDs */
@@ -73,12 +74,16 @@
 /* Must be at least 4 to cover all cases of refcount table growth */
 #define MIN_REFCOUNT_CACHE_SIZE 4 /* clusters */
 
-/* Whichever is more */
-#define DEFAULT_L2_CACHE_CLUSTERS 8 /* clusters */
-#define DEFAULT_L2_CACHE_BYTE_SIZE 1048576 /* bytes */
+#ifdef CONFIG_LINUX
+#define DEFAULT_L2_CACHE_MAX_SIZE S_32MiB
+#define DEFAULT_CACHE_CLEAN_INTERVAL 600  /* seconds */
+#else
+#define DEFAULT_L2_CACHE_MAX_SIZE S_8MiB
+/* Cache clean interval is currently available only on Linux, so must be 0 */
+#define DEFAULT_CACHE_CLEAN_INTERVAL 0
+#endif
 
-#define DEFAULT_CLUSTER_SIZE 65536
-
+#define DEFAULT_CLUSTER_SIZE S_64KiB
 
 #define QCOW2_OPT_LAZY_REFCOUNTS "lazy-refcounts"
 #define QCOW2_OPT_DISCARD_REQUEST "pass-discard-request"
