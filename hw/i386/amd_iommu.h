@@ -176,7 +176,7 @@
 /* extended feature support */
 #define AMDVI_EXT_FEATURES (AMDVI_FEATURE_PREFETCH | AMDVI_FEATURE_PPR | \
         AMDVI_FEATURE_IA | AMDVI_FEATURE_GT | AMDVI_FEATURE_HE | \
-        AMDVI_GATS_MODE | AMDVI_HATS_MODE)
+        AMDVI_GATS_MODE | AMDVI_HATS_MODE | AMDVI_FEATURE_GA)
 
 /* capabilities header */
 #define AMDVI_CAPAB_FEATURES (AMDVI_CAPAB_FLAT_EXT | \
@@ -242,11 +242,11 @@
 #define AMDVI_IOAPIC_INT_TYPE_EINT           0x7
 
 /* Pass through interrupt */
-#define AMDVI_DEV_INT_PASS_MASK         (1UL << 56)
-#define AMDVI_DEV_EINT_PASS_MASK        (1UL << 57)
-#define AMDVI_DEV_NMI_PASS_MASK         (1UL << 58)
-#define AMDVI_DEV_LINT0_PASS_MASK       (1UL << 62)
-#define AMDVI_DEV_LINT1_PASS_MASK       (1UL << 63)
+#define AMDVI_DEV_INT_PASS_MASK         (1ULL << 56)
+#define AMDVI_DEV_EINT_PASS_MASK        (1ULL << 57)
+#define AMDVI_DEV_NMI_PASS_MASK         (1ULL << 58)
+#define AMDVI_DEV_LINT0_PASS_MASK       (1ULL << 62)
+#define AMDVI_DEV_LINT1_PASS_MASK       (1ULL << 63)
 
 /* Interrupt remapping table fields (Guest VAPIC not enabled) */
 union irte {
