@@ -1,0 +1,1 @@
+elf2dmp-obj-y = main.o addrspace.o download.o pdb.o qemu_elf.o

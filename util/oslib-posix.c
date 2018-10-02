@@ -88,6 +88,79 @@ int qemu_daemon(int nochdir, int noclose)
     return daemon(nochdir, noclose);
 }
 
+bool qemu_write_pidfile(const char *path, Error **errp)
+{
+    int fd;
+    char pidstr[32];
+
+    while (1) {
+        struct stat a, b;
+        struct flock lock = {
+            .l_type = F_WRLCK,
+            .l_whence = SEEK_SET,
+            .l_len = 0,
+        };
+
+        fd = qemu_open(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+        if (fd == -1) {
+            error_setg_errno(errp, errno, "Cannot open pid file");
+            return false;
+        }
+
+        if (fstat(fd, &b) < 0) {
+            error_setg_errno(errp, errno, "Cannot stat file");
+            goto fail_close;
+        }
+
+        if (fcntl(fd, F_SETLK, &lock)) {
+            error_setg_errno(errp, errno, "Cannot lock pid file");
+            goto fail_close;
+        }
+
+        /*
+         * Now make sure the path we locked is the same one that now
+         * exists on the filesystem.
+         */
+        if (stat(path, &a) < 0) {
+            /*
+             * PID file disappeared, someone else must be racing with
+             * us, so try again.
+             */
+            close(fd);
+            continue;
+        }
+
+        if (a.st_ino == b.st_ino) {
+            break;
+        }
+
+        /*
+         * PID file was recreated, someone else must be racing with
+         * us, so try again.
+         */
+        close(fd);
+    }
+
+    if (ftruncate(fd, 0) < 0) {
+        error_setg_errno(errp, errno, "Failed to truncate pid file");
+        goto fail_unlink;
+    }
+
+    snprintf(pidstr, sizeof(pidstr), FMT_pid "\n", getpid());
+    if (write(fd, pidstr, strlen(pidstr)) != strlen(pidstr)) {
+        error_setg(errp, "Failed to write pid file");
+        goto fail_unlink;
+    }
+
+    return true;
+
+fail_unlink:
+    unlink(path);
+fail_close:
+    close(fd);
+    return false;
+}
+
 void *qemu_oom_check(void *ptr)
 {
     if (ptr == NULL) {

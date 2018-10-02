@@ -58,9 +58,8 @@ typedef struct ResetData {
 
 static int64_t load_kernel(void)
 {
-    int64_t entry, kernel_high;
+    int64_t entry, kernel_high, initrd_size;
     long kernel_size;
-    long initrd_size;
     ram_addr_t initrd_offset;
     int big_endian;
 

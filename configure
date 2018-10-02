@@ -5721,6 +5721,9 @@ if test "$want_tools" = "yes" ; then
   if [ "$ivshmem" = "yes" ]; then
     tools="ivshmem-client\$(EXESUF) ivshmem-server\$(EXESUF) $tools"
   fi
+  if [ "$posix" = "yes" ] && [ "$curl" = "yes" ]; then
+    tools="elf2dmp $tools"
+  fi
 fi
 if test "$softmmu" = yes ; then
   if test "$linux" = yes; then
@@ -7024,12 +7027,14 @@ TARGET_ABI_DIR=""
 
 case "$target_name" in
   i386)
+    mttcg="yes"
     gdb_xml_files="i386-32bit.xml i386-32bit-core.xml i386-32bit-sse.xml"
     target_compiler=$cross_cc_i386
     target_compiler_cflags=$cross_cc_ccflags_i386
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
+    mttcg="yes"
     gdb_xml_files="i386-64bit.xml i386-64bit-core.xml i386-64bit-sse.xml"
     target_compiler=$cross_cc_x86_64
   ;;
@@ -7527,6 +7532,46 @@ cat <<EOD >config.status
 # Compiler output produced by configure, useful for debugging
 # configure, is in config.log if it exists.
 EOD
+
+preserve_env() {
+    envname=$1
+
+    eval envval=\$$envname
+
+    if test -n "$envval"
+    then
+	echo "$envname='$envval'" >> config.status
+	echo "export $envname" >> config.status
+    else
+	echo "unset $envname" >> config.status
+    fi
+}
+
+# Preserve various env variables that influence what
+# features/build target configure will detect
+preserve_env AR
+preserve_env AS
+preserve_env CC
+preserve_env CPP
+preserve_env CXX
+preserve_env INSTALL
+preserve_env LD
+preserve_env LD_LIBRARY_PATH
+preserve_env LIBTOOL
+preserve_env MAKE
+preserve_env NM
+preserve_env OBJCOPY
+preserve_env PATH
+preserve_env PKG_CONFIG
+preserve_env PKG_CONFIG_LIBDIR
+preserve_env PKG_CONFIG_PATH
+preserve_env PYTHON
+preserve_env SDL_CONFIG
+preserve_env SDL2_CONFIG
+preserve_env SMBD
+preserve_env STRIP
+preserve_env WINDRES
+
 printf "exec" >>config.status
 printf " '%s'" "$0" "$@" >>config.status
 echo ' "$@"' >>config.status

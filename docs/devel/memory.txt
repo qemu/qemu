@@ -326,8 +326,15 @@ visible as the pci-hole alias clips it to a 0.5GB range.
 MMIO Operations
 ---------------
 
-MMIO regions are provided with ->read() and ->write() callbacks; in addition
-various constraints can be supplied to control how these callbacks are called:
+MMIO regions are provided with ->read() and ->write() callbacks,
+which are sufficient for most devices. Some devices change behaviour
+based on the attributes used for the memory transaction, or need
+to be able to respond that the access should provoke a bus error
+rather than completing successfully; those devices can use the
+->read_with_attrs() and ->write_with_attrs() callbacks instead.
+
+In addition various constraints can be supplied to control how these
+callbacks are called:
 
  - .valid.min_access_size, .valid.max_access_size define the access sizes
    (in bytes) which the device accepts; accesses outside this range will
@@ -342,5 +349,3 @@ various constraints can be supplied to control how these callbacks are called:
  - .impl.unaligned specifies that the *implementation* supports unaligned
    accesses; if false, unaligned accesses will be emulated by two aligned
    accesses.
- - .old_mmio eases the porting of code that was formerly using
-   cpu_register_io_memory(). It should not be used in new code.

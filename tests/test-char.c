@@ -307,7 +307,7 @@ static int socket_can_read_hello(void *opaque)
     return 10;
 }
 
-static void char_socket_test_common(Chardev *chr)
+static void char_socket_test_common(Chardev *chr, bool reconnect)
 {
     Chardev *chr_client;
     QObject *addr;
@@ -327,7 +327,8 @@ static void char_socket_test_common(Chardev *chr)
     addr = object_property_get_qobject(OBJECT(chr), "addr", &error_abort);
     qdict = qobject_to(QDict, addr);
     port = qdict_get_str(qdict, "port");
-    tmp = g_strdup_printf("tcp:127.0.0.1:%s", port);
+    tmp = g_strdup_printf("tcp:127.0.0.1:%s%s", port,
+                          reconnect ? ",reconnect=1" : "");
     qobject_unref(qdict);
 
     qemu_chr_fe_init(&be, chr, &error_abort);
@@ -347,6 +348,12 @@ static void char_socket_test_common(Chardev *chr)
     g_assert_cmpint(id, >, 0);
     main_loop();
 
+    d.chr = chr_client;
+    id = g_idle_add(char_socket_test_idle, &d);
+    g_source_set_name_by_id(id, "test-idle");
+    g_assert_cmpint(id, >, 0);
+    main_loop();
+
     g_assert(object_property_get_bool(OBJECT(chr), "connected", &error_abort));
     g_assert(object_property_get_bool(OBJECT(chr_client),
                                       "connected", &error_abort));
@@ -356,6 +363,7 @@ static void char_socket_test_common(Chardev *chr)
 
     object_unparent(OBJECT(chr_client));
 
+    d.chr = chr;
     d.conn_expected = false;
     g_idle_add(char_socket_test_idle, &d);
     main_loop();
@@ -368,7 +376,15 @@ static void char_socket_basic_test(void)
 {
     Chardev *chr = qemu_chr_new("server", "tcp:127.0.0.1:0,server,nowait");
 
-    char_socket_test_common(chr);
+    char_socket_test_common(chr, false);
+}
+
+
+static void char_socket_reconnect_test(void)
+{
+    Chardev *chr = qemu_chr_new("server", "tcp:127.0.0.1:0,server,nowait");
+
+    char_socket_test_common(chr, true);
 }
 
 
@@ -400,7 +416,7 @@ static void char_socket_fdpass_test(void)
 
     qemu_opts_del(opts);
 
-    char_socket_test_common(chr);
+    char_socket_test_common(chr, false);
 }
 
 
@@ -819,6 +835,7 @@ int main(int argc, char **argv)
     g_test_add_func("/char/file-fifo", char_file_fifo_test);
 #endif
     g_test_add_func("/char/socket/basic", char_socket_basic_test);
+    g_test_add_func("/char/socket/reconnect", char_socket_reconnect_test);
     g_test_add_func("/char/socket/fdpass", char_socket_fdpass_test);
     g_test_add_func("/char/udp", char_udp_test);
 #ifdef HAVE_CHARDEV_SERIAL

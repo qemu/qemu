@@ -434,6 +434,11 @@ static bool fw_cfg_data_mem_valid(void *opaque, hwaddr addr,
     return addr == 0;
 }
 
+static uint64_t fw_cfg_ctl_mem_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
 static void fw_cfg_ctl_mem_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
@@ -468,6 +473,7 @@ static bool fw_cfg_comb_valid(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps fw_cfg_ctl_mem_ops = {
+    .read = fw_cfg_ctl_mem_read,
     .write = fw_cfg_ctl_mem_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid.accepts = fw_cfg_ctl_mem_valid,
@@ -1109,12 +1115,7 @@ static void fw_cfg_mem_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->ctl_iomem);
 
     if (s->data_width > data_ops->valid.max_access_size) {
-        /* memberwise copy because the "old_mmio" member is const */
-        s->wide_data_ops.read       = data_ops->read;
-        s->wide_data_ops.write      = data_ops->write;
-        s->wide_data_ops.endianness = data_ops->endianness;
-        s->wide_data_ops.valid      = data_ops->valid;
-        s->wide_data_ops.impl       = data_ops->impl;
+        s->wide_data_ops = *data_ops;
 
         s->wide_data_ops.valid.max_access_size = s->data_width;
         s->wide_data_ops.impl.max_access_size  = s->data_width;

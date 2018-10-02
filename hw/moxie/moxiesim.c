@@ -54,8 +54,8 @@ typedef struct {
 static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
 {
     uint64_t entry, kernel_low, kernel_high;
+    int64_t initrd_size;
     long kernel_size;
-    long initrd_size;
     ram_addr_t initrd_offset;
 
     kernel_size = load_elf(loader_params->kernel_filename,  NULL, NULL,

@@ -117,39 +117,6 @@ QEMU_COPYRIGHT "\n"
     , name);
 }
 
-static void write_pidfile(void)
-{
-    int pidfd;
-    char pidstr[32];
-
-    pidfd = qemu_open(pidfile, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR);
-    if (pidfd == -1) {
-        error_report("Cannot open pid file, %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    if (lockf(pidfd, F_TLOCK, 0)) {
-        error_report("Cannot lock pid file, %s", strerror(errno));
-        goto fail;
-    }
-    if (ftruncate(pidfd, 0)) {
-        error_report("Failed to truncate pid file");
-        goto fail;
-    }
-
-    snprintf(pidstr, sizeof(pidstr), "%d\n", getpid());
-    if (write(pidfd, pidstr, strlen(pidstr)) != strlen(pidstr)) {
-        error_report("Failed to write pid file");
-        goto fail;
-    }
-    return;
-
-fail:
-    unlink(pidfile);
-    close(pidfd);
-    exit(EXIT_FAILURE);
-}
-
 /* SG_IO support */
 
 typedef struct PRHelperSGIOData {
@@ -1080,8 +1047,11 @@ int main(int argc, char **argv)
         }
     }
 
-    if (daemonize || pidfile_specified)
-        write_pidfile();
+    if ((daemonize || pidfile_specified) &&
+        !qemu_write_pidfile(pidfile, &local_err)) {
+        error_report_err(local_err);
+        exit(EXIT_FAILURE);
+    }
 
 #ifdef CONFIG_LIBCAP
     if (drop_privileges() < 0) {

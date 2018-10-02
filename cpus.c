@@ -245,21 +245,27 @@ static int64_t cpu_get_icount_executed(CPUState *cpu)
  * account executed instructions. This is done by the TCG vCPU
  * thread so the main-loop can see time has moved forward.
  */
-void cpu_update_icount(CPUState *cpu)
+static void cpu_update_icount_locked(CPUState *cpu)
 {
     int64_t executed = cpu_get_icount_executed(cpu);
     cpu->icount_budget -= executed;
 
-#ifndef CONFIG_ATOMIC64
+    atomic_set_i64(&timers_state.qemu_icount,
+                   timers_state.qemu_icount + executed);
+}
+
+/*
+ * Update the global shared timer_state.qemu_icount to take into
+ * account executed instructions. This is done by the TCG vCPU
+ * thread so the main-loop can see time has moved forward.
+ */
+void cpu_update_icount(CPUState *cpu)
+{
     seqlock_write_lock(&timers_state.vm_clock_seqlock,
                        &timers_state.vm_clock_lock);
-#endif
-    atomic_set__nocheck(&timers_state.qemu_icount,
-                        timers_state.qemu_icount + executed);
-#ifndef CONFIG_ATOMIC64
+    cpu_update_icount_locked(cpu);
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                          &timers_state.vm_clock_lock);
-#endif
 }
 
 static int64_t cpu_get_icount_raw_locked(void)
@@ -272,16 +278,17 @@ static int64_t cpu_get_icount_raw_locked(void)
             exit(1);
         }
         /* Take into account what has run */
-        cpu_update_icount(cpu);
+        cpu_update_icount_locked(cpu);
     }
-    /* The read is protected by the seqlock, so __nocheck is okay.  */
-    return atomic_read__nocheck(&timers_state.qemu_icount);
+    /* The read is protected by the seqlock, but needs atomic64 to avoid UB */
+    return atomic_read_i64(&timers_state.qemu_icount);
 }
 
 static int64_t cpu_get_icount_locked(void)
 {
     int64_t icount = cpu_get_icount_raw_locked();
-    return atomic_read__nocheck(&timers_state.qemu_icount_bias) + cpu_icount_to_ns(icount);
+    return atomic_read_i64(&timers_state.qemu_icount_bias) +
+        cpu_icount_to_ns(icount);
 }
 
 int64_t cpu_get_icount_raw(void)
@@ -454,9 +461,9 @@ static void icount_adjust(void)
                    timers_state.icount_time_shift + 1);
     }
     last_delta = delta;
-    atomic_set__nocheck(&timers_state.qemu_icount_bias,
-                        cur_icount - (timers_state.qemu_icount
-                                      << timers_state.icount_time_shift));
+    atomic_set_i64(&timers_state.qemu_icount_bias,
+                   cur_icount - (timers_state.qemu_icount
+                                 << timers_state.icount_time_shift));
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                          &timers_state.vm_clock_lock);
 }
@@ -516,8 +523,8 @@ static void icount_warp_rt(void)
             int64_t delta = clock - cur_icount;
             warp_delta = MIN(warp_delta, delta);
         }
-        atomic_set__nocheck(&timers_state.qemu_icount_bias,
-                            timers_state.qemu_icount_bias + warp_delta);
+        atomic_set_i64(&timers_state.qemu_icount_bias,
+                       timers_state.qemu_icount_bias + warp_delta);
     }
     timers_state.vm_clock_warp_start = -1;
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
@@ -548,8 +555,8 @@ void qtest_clock_warp(int64_t dest)
 
         seqlock_write_lock(&timers_state.vm_clock_seqlock,
                            &timers_state.vm_clock_lock);
-        atomic_set__nocheck(&timers_state.qemu_icount_bias,
-                            timers_state.qemu_icount_bias + warp);
+        atomic_set_i64(&timers_state.qemu_icount_bias,
+                       timers_state.qemu_icount_bias + warp);
         seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                              &timers_state.vm_clock_lock);
 
@@ -576,18 +583,29 @@ void qemu_start_warp_timer(void)
         return;
     }
 
-    /* warp clock deterministically in record/replay mode */
-    if (!replay_checkpoint(CHECKPOINT_CLOCK_WARP_START)) {
-        return;
-    }
+    if (replay_mode != REPLAY_MODE_PLAY) {
+        if (!all_cpu_threads_idle()) {
+            return;
+        }
 
-    if (!all_cpu_threads_idle()) {
-        return;
-    }
+        if (qtest_enabled()) {
+            /* When testing, qtest commands advance icount.  */
+            return;
+        }
 
-    if (qtest_enabled()) {
-        /* When testing, qtest commands advance icount.  */
-        return;
+        replay_checkpoint(CHECKPOINT_CLOCK_WARP_START);
+    } else {
+        /* warp clock deterministically in record/replay mode */
+        if (!replay_checkpoint(CHECKPOINT_CLOCK_WARP_START)) {
+            /* vCPU is sleeping and warp can't be started.
+               It is probably a race condition: notification sent
+               to vCPU was processed in advance and vCPU went to sleep.
+               Therefore we have to wake it up for doing someting. */
+            if (replay_has_checkpoint()) {
+                qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+            }
+            return;
+        }
     }
 
     /* We want to use the earliest deadline from ALL vm_clocks */
@@ -620,8 +638,8 @@ void qemu_start_warp_timer(void)
              */
             seqlock_write_lock(&timers_state.vm_clock_seqlock,
                                &timers_state.vm_clock_lock);
-            atomic_set__nocheck(&timers_state.qemu_icount_bias,
-                                timers_state.qemu_icount_bias + deadline);
+            atomic_set_i64(&timers_state.qemu_icount_bias,
+                           timers_state.qemu_icount_bias + deadline);
             seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                                  &timers_state.vm_clock_lock);
             qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
@@ -823,6 +841,7 @@ int cpu_throttle_get_percentage(void)
 void cpu_ticks_init(void)
 {
     seqlock_init(&timers_state.vm_clock_seqlock);
+    qemu_spin_init(&timers_state.vm_clock_lock);
     vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
     throttle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
                                            cpu_throttle_timer_tick, NULL);
@@ -964,6 +983,8 @@ static void start_tcg_kick_timer(void)
     if (!tcg_kick_vcpu_timer && CPU_NEXT(first_cpu)) {
         tcg_kick_vcpu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                            kick_tcg_thread, NULL);
+    }
+    if (tcg_kick_vcpu_timer && !timer_pending(tcg_kick_vcpu_timer)) {
         timer_mod(tcg_kick_vcpu_timer, qemu_tcg_next_kick());
     }
 }
@@ -971,9 +992,8 @@ static void start_tcg_kick_timer(void)
 static void stop_tcg_kick_timer(void)
 {
     assert(!mttcg_enabled);
-    if (tcg_kick_vcpu_timer) {
+    if (tcg_kick_vcpu_timer && timer_pending(tcg_kick_vcpu_timer)) {
         timer_del(tcg_kick_vcpu_timer);
-        tcg_kick_vcpu_timer = NULL;
     }
 }
 

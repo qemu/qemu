@@ -914,7 +914,12 @@ static void ps2_common_post_load(PS2State *s)
     uint8_t tmp_data[PS2_QUEUE_SIZE];
 
     /* set the useful data buffer queue size, < PS2_QUEUE_SIZE */
-    size = (q->count < 0 || q->count > PS2_QUEUE_SIZE) ? 0 : q->count;
+    size = q->count;
+    if (q->count < 0) {
+        size = 0;
+    } else if (q->count > PS2_QUEUE_SIZE) {
+        size = PS2_QUEUE_SIZE;
+    }
 
     /* move the queue elements to the start of data array */
     for (i = 0; i < size; i++) {
@@ -929,7 +934,6 @@ static void ps2_common_post_load(PS2State *s)
     q->rptr = 0;
     q->wptr = (size == PS2_QUEUE_SIZE) ? 0 : size;
     q->count = size;
-    s->update_irq(s->update_arg, q->count != 0);
 }
 
 static void ps2_kbd_reset(void *opaque)

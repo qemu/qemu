@@ -29,6 +29,7 @@
 #include "hw/sh4/sh.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
+#include "qemu/timer.h"
 
 //#define DEBUG_SERIAL
 
@@ -63,6 +64,8 @@ typedef struct {
     int rtrg;
 
     CharBackend chr;
+    QEMUTimer *fifo_timeout_timer;
+    uint64_t etu; /* Elementary Time Unit (ns) */
 
     qemu_irq eri;
     qemu_irq rxi;
@@ -314,6 +317,16 @@ static int sh_serial_can_receive1(void *opaque)
     return sh_serial_can_receive(s);
 }
 
+static void sh_serial_timeout_int(void *opaque)
+{
+    sh_serial_state *s = opaque;
+
+    s->flags |= SH_SERIAL_FLAG_RDF;
+    if (s->scr & (1 << 6) && s->rxi) {
+        qemu_set_irq(s->rxi, 1);
+    }
+}
+
 static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
 {
     sh_serial_state *s = opaque;
@@ -330,8 +343,12 @@ static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
                 if (s->rx_cnt >= s->rtrg) {
                     s->flags |= SH_SERIAL_FLAG_RDF;
                     if (s->scr & (1 << 6) && s->rxi) {
+                        timer_del(s->fifo_timeout_timer);
                         qemu_set_irq(s->rxi, 1);
                     }
+                } else {
+                    timer_mod(s->fifo_timeout_timer,
+                        qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 15 * s->etu);
                 }
             }
         }
@@ -402,6 +419,9 @@ void sh_serial_init(MemoryRegion *sysmem,
                                  sh_serial_event, NULL, s, NULL, true);
     }
 
+    s->fifo_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                         sh_serial_timeout_int, s);
+    s->etu = NANOSECONDS_PER_SECOND / 9600;
     s->eri = eri_source;
     s->rxi = rxi_source;
     s->txi = txi_source;

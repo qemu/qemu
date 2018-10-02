@@ -224,6 +224,18 @@ out:
     return res;
 }
 
+bool replay_has_checkpoint(void)
+{
+    bool res = false;
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        g_assert(replay_mutex_locked());
+        replay_account_executed_instructions();
+        res = EVENT_CHECKPOINT <= replay_state.data_kind
+              && replay_state.data_kind <= EVENT_CHECKPOINT_LAST;
+    }
+    return res;
+}
+
 static void replay_enable(const char *fname, int mode)
 {
     const char *fmode = NULL;

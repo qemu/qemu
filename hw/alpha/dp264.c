@@ -150,7 +150,8 @@ static void clipper_init(MachineState *machine)
         }
 
         if (initrd_filename) {
-            long initrd_base, initrd_size;
+            long initrd_base;
+            int64_t initrd_size;
 
             initrd_size = get_image_size(initrd_filename);
             if (initrd_size < 0) {

@@ -31,10 +31,6 @@
 
 #include "chardev/char-io.h"
 
-#if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__)      \
-    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) \
-    || defined(__GLIBC__)
-
 typedef struct {
     Chardev parent;
     QIOChannel *ioc;
@@ -299,5 +295,3 @@ static void register_types(void)
 }
 
 type_init(register_types);
-
-#endif

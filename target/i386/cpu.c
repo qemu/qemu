@@ -5429,20 +5429,51 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
     cpu->env.eip = tb->pc - tb->cs_base;
 }
 
-static bool x86_cpu_has_work(CPUState *cs)
+int x86_cpu_pending_interrupt(CPUState *cs, int interrupt_request)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
-    return ((cs->interrupt_request & (CPU_INTERRUPT_HARD |
-                                      CPU_INTERRUPT_POLL)) &&
-            (env->eflags & IF_MASK)) ||
-           (cs->interrupt_request & (CPU_INTERRUPT_NMI |
-                                     CPU_INTERRUPT_INIT |
-                                     CPU_INTERRUPT_SIPI |
-                                     CPU_INTERRUPT_MCE)) ||
-           ((cs->interrupt_request & CPU_INTERRUPT_SMI) &&
-            !(env->hflags & HF_SMM_MASK));
+#if !defined(CONFIG_USER_ONLY)
+    if (interrupt_request & CPU_INTERRUPT_POLL) {
+        return CPU_INTERRUPT_POLL;
+    }
+#endif
+    if (interrupt_request & CPU_INTERRUPT_SIPI) {
+        return CPU_INTERRUPT_SIPI;
+    }
+
+    if (env->hflags2 & HF2_GIF_MASK) {
+        if ((interrupt_request & CPU_INTERRUPT_SMI) &&
+            !(env->hflags & HF_SMM_MASK)) {
+            return CPU_INTERRUPT_SMI;
+        } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
+                   !(env->hflags2 & HF2_NMI_MASK)) {
+            return CPU_INTERRUPT_NMI;
+        } else if (interrupt_request & CPU_INTERRUPT_MCE) {
+            return CPU_INTERRUPT_MCE;
+        } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
+                   (((env->hflags2 & HF2_VINTR_MASK) &&
+                     (env->hflags2 & HF2_HIF_MASK)) ||
+                    (!(env->hflags2 & HF2_VINTR_MASK) &&
+                     (env->eflags & IF_MASK &&
+                      !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
+            return CPU_INTERRUPT_HARD;
+#if !defined(CONFIG_USER_ONLY)
+        } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
+                   (env->eflags & IF_MASK) &&
+                   !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
+            return CPU_INTERRUPT_VIRQ;
+#endif
+        }
+    }
+
+    return 0;
+}
+
+static bool x86_cpu_has_work(CPUState *cs)
+{
+    return x86_cpu_pending_interrupt(cs, cs->interrupt_request) != 0;
 }
 
 static void x86_disas_set_info(CPUState *cs, disassemble_info *info)

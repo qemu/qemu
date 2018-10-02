@@ -2610,6 +2610,12 @@ static void scsi_block_realize(SCSIDevice *dev, Error **errp)
         return;
     }
 
+    if (s->rotation_rate) {
+        error_report_once("rotation_rate is specified for scsi-block but is "
+                          "not implemented. This option is deprecated and will "
+                          "be removed in a future version");
+    }
+
     /* check we are using a driver managing SG_IO (version 3 and after) */
     rc = blk_ioctl(s->qdev.conf.blk, SG_GET_VERSION_NUM, &sg_version);
     if (rc < 0) {

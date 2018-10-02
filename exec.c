@@ -1734,7 +1734,7 @@ long qemu_getrampagesize(void)
 }
 #endif
 
-#ifdef __linux__
+#ifdef CONFIG_POSIX
 static int64_t get_file_size(int fd)
 {
     int64_t size = lseek(fd, 0, SEEK_END);
@@ -2230,7 +2230,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
     }
 }
 
-#ifdef __linux__
+#ifdef CONFIG_POSIX
 RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
                                  uint32_t ram_flags, int fd,
                                  Error **errp)

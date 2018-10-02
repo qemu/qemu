@@ -81,8 +81,8 @@ typedef struct ResetData {
 static int64_t load_kernel(void)
 {
     const size_t params_size = 264;
-    int64_t entry, kernel_high;
-    long kernel_size, initrd_size;
+    int64_t entry, kernel_high, initrd_size;
+    long kernel_size;
     ram_addr_t initrd_offset;
     uint32_t *params_buf;
     int big_endian;
@@ -136,7 +136,7 @@ static int64_t load_kernel(void)
     params_buf[1] = tswap32(0x12345678);
 
     if (initrd_size > 0) {
-        snprintf((char *)params_buf + 8, 256, "rd_start=0x%" PRIx64 " rd_size=%li %s",
+        snprintf((char *)params_buf + 8, 256, "rd_start=0x%" PRIx64 " rd_size=%" PRId64 " %s",
                  cpu_mips_phys_to_kseg0(NULL, initrd_offset),
                  initrd_size, loaderparams.kernel_cmdline);
     } else {

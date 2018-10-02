@@ -1189,7 +1189,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     if (has_xsave) {
-        env->kvm_xsave_buf = qemu_memalign(4096, sizeof(struct kvm_xsave));
+        env->xsave_buf = qemu_memalign(4096, sizeof(struct kvm_xsave));
     }
     cpu->kvm_msr_buf = g_malloc0(MSR_BUF_SIZE);
 
@@ -1639,7 +1639,7 @@ ASSERT_OFFSET(XSAVE_PKRU, pkru_state);
 static int kvm_put_xsave(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
-    X86XSaveArea *xsave = env->kvm_xsave_buf;
+    X86XSaveArea *xsave = env->xsave_buf;
 
     if (!has_xsave) {
         return kvm_put_fpu(cpu);
@@ -2081,7 +2081,7 @@ static int kvm_get_fpu(X86CPU *cpu)
 static int kvm_get_xsave(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
-    X86XSaveArea *xsave = env->kvm_xsave_buf;
+    X86XSaveArea *xsave = env->xsave_buf;
     int ret;
 
     if (!has_xsave) {
@@ -3668,6 +3668,10 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
         int ret;
         MSIMessage src, dst;
         X86IOMMUClass *class = X86_IOMMU_GET_CLASS(iommu);
+
+        if (!class->int_remap) {
+            return 0;
+        }
 
         src.address = route->u.msi.address_hi;
         src.address <<= VTD_MSI_ADDR_HI_SHIFT;

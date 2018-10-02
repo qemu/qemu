@@ -2560,6 +2560,16 @@ static void qemu_run_exit_notifiers(void)
     notifier_list_notify(&exit_notifiers, NULL);
 }
 
+static const char *pid_file;
+static Notifier qemu_unlink_pidfile_notifier;
+
+static void qemu_unlink_pidfile(Notifier *n, void *data)
+{
+    if (pid_file) {
+        unlink(pid_file);
+    }
+}
+
 bool machine_init_done;
 
 void qemu_add_machine_init_done_notifier(Notifier *notify)
@@ -2884,7 +2894,6 @@ int main(int argc, char **argv, char **envp)
     const char *vga_model = NULL;
     const char *qtest_chrdev = NULL;
     const char *qtest_log = NULL;
-    const char *pid_file = NULL;
     const char *incoming = NULL;
     bool userconfig = true;
     bool nographic = false;
@@ -3906,10 +3915,13 @@ int main(int argc, char **argv, char **envp)
     os_daemonize();
     rcu_disable_atfork();
 
-    if (pid_file && qemu_create_pidfile(pid_file) != 0) {
-        error_report("could not acquire pid file: %s", strerror(errno));
+    if (pid_file && !qemu_write_pidfile(pid_file, &err)) {
+        error_reportf_err(err, "cannot create PID file: ");
         exit(1);
     }
+
+    qemu_unlink_pidfile_notifier.notify = qemu_unlink_pidfile;
+    qemu_add_exit_notifier(&qemu_unlink_pidfile_notifier);
 
     if (qemu_init_main_loop(&main_loop_err)) {
         error_report_err(main_loop_err);
@@ -4523,15 +4535,16 @@ int main(int argc, char **argv, char **envp)
     replay_checkpoint(CHECKPOINT_RESET);
     qemu_system_reset(SHUTDOWN_CAUSE_NONE);
     register_global_state();
-    if (replay_mode != REPLAY_MODE_NONE) {
-        replay_vmstate_init();
-    } else if (loadvm) {
+    if (loadvm) {
         Error *local_err = NULL;
         if (load_snapshot(loadvm, &local_err) < 0) {
             error_report_err(local_err);
             autostart = 0;
             exit(1);
         }
+    }
+    if (replay_mode != REPLAY_MODE_NONE) {
+        replay_vmstate_init();
     }
 
     qdev_prop_check_globals();

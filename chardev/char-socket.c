@@ -32,7 +32,6 @@
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-sockets.h"
-#include "sysemu/sysemu.h"
 
 #include "chardev/char-io.h"
 
@@ -354,6 +353,15 @@ static GSource *tcp_chr_add_watch(Chardev *chr, GIOCondition cond)
     return qio_channel_create_watch(s->ioc, cond);
 }
 
+static void remove_hup_source(SocketChardev *s)
+{
+    if (s->hup_source != NULL) {
+        g_source_destroy(s->hup_source);
+        g_source_unref(s->hup_source);
+        s->hup_source = NULL;
+    }
+}
+
 static void tcp_chr_free_connection(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
@@ -368,11 +376,7 @@ static void tcp_chr_free_connection(Chardev *chr)
         s->read_msgfds_num = 0;
     }
 
-    if (s->hup_source != NULL) {
-        g_source_destroy(s->hup_source);
-        g_source_unref(s->hup_source);
-        s->hup_source = NULL;
-    }
+    remove_hup_source(s);
 
     tcp_set_msgfds(chr, NULL, 0);
     remove_fd_in_watch(chr);
@@ -541,6 +545,27 @@ static char *sockaddr_to_str(struct sockaddr_storage *ss, socklen_t ss_len,
     }
 }
 
+static void update_ioc_handlers(SocketChardev *s)
+{
+    Chardev *chr = CHARDEV(s);
+
+    if (!s->connected) {
+        return;
+    }
+
+    remove_fd_in_watch(chr);
+    chr->gsource = io_add_watch_poll(chr, s->ioc,
+                                     tcp_chr_read_poll,
+                                     tcp_chr_read, chr,
+                                     chr->gcontext);
+
+    remove_hup_source(s);
+    s->hup_source = qio_channel_create_watch(s->ioc, G_IO_HUP);
+    g_source_set_callback(s->hup_source, (GSourceFunc)tcp_chr_hup,
+                          chr, NULL);
+    g_source_attach(s->hup_source, chr->gcontext);
+}
+
 static void tcp_chr_connect(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
@@ -553,16 +578,7 @@ static void tcp_chr_connect(void *opaque)
         s->is_listen, s->is_telnet);
 
     s->connected = 1;
-    chr->gsource = io_add_watch_poll(chr, s->ioc,
-                                       tcp_chr_read_poll,
-                                       tcp_chr_read,
-                                       chr, chr->gcontext);
-
-    s->hup_source = qio_channel_create_watch(s->ioc, G_IO_HUP);
-    g_source_set_callback(s->hup_source, (GSourceFunc)tcp_chr_hup,
-                          chr, NULL);
-    g_source_attach(s->hup_source, chr->gcontext);
-
+    update_ioc_handlers(s);
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
@@ -593,17 +609,7 @@ static void tcp_chr_update_read_handler(Chardev *chr)
         tcp_chr_telnet_init(CHARDEV(s));
     }
 
-    if (!s->connected) {
-        return;
-    }
-
-    remove_fd_in_watch(chr);
-    if (s->ioc) {
-        chr->gsource = io_add_watch_poll(chr, s->ioc,
-                                           tcp_chr_read_poll,
-                                           tcp_chr_read, chr,
-                                           chr->gcontext);
-    }
+    update_ioc_handlers(s);
 }
 
 static gboolean tcp_chr_telnet_init_io(QIOChannel *ioc,
@@ -723,11 +729,6 @@ static void tcp_chr_tls_init(Chardev *chr)
     QIOChannelTLS *tioc;
     Error *err = NULL;
     gchar *name;
-
-    if (!machine_init_done) {
-        /* This will be postponed to machine_done notifier */
-        return;
-    }
 
     if (s->is_listen) {
         tioc = qio_channel_tls_new_server(
@@ -1011,8 +1012,9 @@ static void qmp_chardev_open_socket(Chardev *chr,
         s->reconnect_time = reconnect;
     }
 
-    /* If reconnect_time is set, will do that in chr_machine_done. */
-    if (!s->reconnect_time) {
+    if (s->reconnect_time) {
+        tcp_chr_connect_async(chr);
+    } else {
         if (s->is_listen) {
             char *name;
             s->listener = qio_net_listener_new();
@@ -1161,21 +1163,6 @@ char_socket_get_connected(Object *obj, Error **errp)
     return s->connected;
 }
 
-static int tcp_chr_machine_done_hook(Chardev *chr)
-{
-    SocketChardev *s = SOCKET_CHARDEV(chr);
-
-    if (s->reconnect_time) {
-        tcp_chr_connect_async(chr);
-    }
-
-    if (s->ioc && s->tls_creds) {
-        tcp_chr_tls_init(chr);
-    }
-
-    return 0;
-}
-
 static void char_socket_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -1191,7 +1178,6 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
     cc->chr_add_client = tcp_chr_add_client;
     cc->chr_add_watch = tcp_chr_add_watch;
     cc->chr_update_read_handler = tcp_chr_update_read_handler;
-    cc->chr_machine_done = tcp_chr_machine_done_hook;
 
     object_class_property_add(oc, "addr", "SocketAddress",
                               char_socket_get_addr, NULL,

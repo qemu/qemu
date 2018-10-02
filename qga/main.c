@@ -340,46 +340,6 @@ static FILE *ga_open_logfile(const char *logfile)
     return f;
 }
 
-#ifndef _WIN32
-static bool ga_open_pidfile(const char *pidfile)
-{
-    int pidfd;
-    char pidstr[32];
-
-    pidfd = qemu_open(pidfile, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR);
-    if (pidfd == -1 || lockf(pidfd, F_TLOCK, 0)) {
-        g_critical("Cannot lock pid file, %s", strerror(errno));
-        if (pidfd != -1) {
-            close(pidfd);
-        }
-        return false;
-    }
-
-    if (ftruncate(pidfd, 0)) {
-        g_critical("Failed to truncate pid file");
-        goto fail;
-    }
-    snprintf(pidstr, sizeof(pidstr), "%d\n", getpid());
-    if (write(pidfd, pidstr, strlen(pidstr)) != strlen(pidstr)) {
-        g_critical("Failed to write pid file");
-        goto fail;
-    }
-
-    /* keep pidfile open & locked forever */
-    return true;
-
-fail:
-    unlink(pidfile);
-    close(pidfd);
-    return false;
-}
-#else /* _WIN32 */
-static bool ga_open_pidfile(const char *pidfile)
-{
-    return true;
-}
-#endif
-
 static gint ga_strcmp(gconstpointer str1, gconstpointer str2)
 {
     return strcmp(str1, str2);
@@ -479,8 +439,11 @@ void ga_unset_frozen(GAState *s)
     ga_enable_logging(s);
     g_warning("logging re-enabled due to filesystem unfreeze");
     if (s->deferred_options.pid_filepath) {
-        if (!ga_open_pidfile(s->deferred_options.pid_filepath)) {
-            g_warning("failed to create/open pid file");
+        Error *err = NULL;
+
+        if (!qemu_write_pidfile(s->deferred_options.pid_filepath, &err)) {
+            g_warning("%s", error_get_pretty(err));
+            error_free(err);
         }
         s->deferred_options.pid_filepath = NULL;
     }
@@ -515,8 +478,11 @@ static void become_daemon(const char *pidfile)
     }
 
     if (pidfile) {
-        if (!ga_open_pidfile(pidfile)) {
-            g_critical("failed to create pidfile");
+        Error *err = NULL;
+
+        if (!qemu_write_pidfile(pidfile, &err)) {
+            g_critical("%s", error_get_pretty(err));
+            error_free(err);
             exit(EXIT_FAILURE);
         }
     }

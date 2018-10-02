@@ -286,7 +286,14 @@ static void type_initialize(TypeImpl *ti)
     if (ti->instance_size == 0) {
         ti->abstract = true;
     }
-
+    if (type_is_ancestor(ti, type_interface)) {
+        assert(ti->instance_size == 0);
+        assert(ti->abstract);
+        assert(!ti->instance_init);
+        assert(!ti->instance_post_init);
+        assert(!ti->instance_finalize);
+        assert(!ti->num_interfaces);
+    }
     ti->class = g_malloc0(ti->class_size);
 
     parent = type_get_parent(ti);

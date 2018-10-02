@@ -1244,7 +1244,7 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
     }
     if (env->cr[0] & CR0_PE_MASK) {
 #if !defined(CONFIG_USER_ONLY)
-        if (env->hflags & HF_SVMI_MASK) {
+        if (env->hflags & HF_GUEST_MASK) {
             handle_even_inj(env, intno, is_int, error_code, is_hw, 0);
         }
 #endif
@@ -1259,7 +1259,7 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
         }
     } else {
 #if !defined(CONFIG_USER_ONLY)
-        if (env->hflags & HF_SVMI_MASK) {
+        if (env->hflags & HF_GUEST_MASK) {
             handle_even_inj(env, intno, is_int, error_code, is_hw, 1);
         }
 #endif
@@ -1267,7 +1267,7 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
     }
 
 #if !defined(CONFIG_USER_ONLY)
-    if (env->hflags & HF_SVMI_MASK) {
+    if (env->hflags & HF_GUEST_MASK) {
         CPUState *cs = CPU(cpu);
         uint32_t event_inj = x86_ldl_phys(cs, env->vm_vmcb +
                                       offsetof(struct vmcb,
@@ -1319,74 +1319,66 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
-    bool ret = false;
+    int intno;
 
+    interrupt_request = x86_cpu_pending_interrupt(cs, interrupt_request);
+    if (!interrupt_request) {
+        return false;
+    }
+
+    /* Don't process multiple interrupt requests in a single call.
+     * This is required to make icount-driven execution deterministic.
+     */
+    switch (interrupt_request) {
 #if !defined(CONFIG_USER_ONLY)
-    if (interrupt_request & CPU_INTERRUPT_POLL) {
+    case CPU_INTERRUPT_POLL:
         cs->interrupt_request &= ~CPU_INTERRUPT_POLL;
         apic_poll_irq(cpu->apic_state);
-        /* Don't process multiple interrupt requests in a single call.
-           This is required to make icount-driven execution deterministic. */
-        return true;
-    }
+        break;
 #endif
-    if (interrupt_request & CPU_INTERRUPT_SIPI) {
+    case CPU_INTERRUPT_SIPI:
         do_cpu_sipi(cpu);
-        ret = true;
-    } else if (env->hflags2 & HF2_GIF_MASK) {
-        if ((interrupt_request & CPU_INTERRUPT_SMI) &&
-            !(env->hflags & HF_SMM_MASK)) {
-            cpu_svm_check_intercept_param(env, SVM_EXIT_SMI, 0, 0);
-            cs->interrupt_request &= ~CPU_INTERRUPT_SMI;
-            do_smm_enter(cpu);
-            ret = true;
-        } else if ((interrupt_request & CPU_INTERRUPT_NMI) &&
-                   !(env->hflags2 & HF2_NMI_MASK)) {
-            cpu_svm_check_intercept_param(env, SVM_EXIT_NMI, 0, 0);
-            cs->interrupt_request &= ~CPU_INTERRUPT_NMI;
-            env->hflags2 |= HF2_NMI_MASK;
-            do_interrupt_x86_hardirq(env, EXCP02_NMI, 1);
-            ret = true;
-        } else if (interrupt_request & CPU_INTERRUPT_MCE) {
-            cs->interrupt_request &= ~CPU_INTERRUPT_MCE;
-            do_interrupt_x86_hardirq(env, EXCP12_MCHK, 0);
-            ret = true;
-        } else if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                   (((env->hflags2 & HF2_VINTR_MASK) &&
-                     (env->hflags2 & HF2_HIF_MASK)) ||
-                    (!(env->hflags2 & HF2_VINTR_MASK) &&
-                     (env->eflags & IF_MASK &&
-                      !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
-            int intno;
-            cpu_svm_check_intercept_param(env, SVM_EXIT_INTR, 0, 0);
-            cs->interrupt_request &= ~(CPU_INTERRUPT_HARD |
-                                       CPU_INTERRUPT_VIRQ);
-            intno = cpu_get_pic_interrupt(env);
-            qemu_log_mask(CPU_LOG_TB_IN_ASM,
-                          "Servicing hardware INT=0x%02x\n", intno);
-            do_interrupt_x86_hardirq(env, intno, 1);
-            /* ensure that no TB jump will be modified as
-               the program flow was changed */
-            ret = true;
+        break;
+    case CPU_INTERRUPT_SMI:
+        cpu_svm_check_intercept_param(env, SVM_EXIT_SMI, 0, 0);
+        cs->interrupt_request &= ~CPU_INTERRUPT_SMI;
+        do_smm_enter(cpu);
+        break;
+    case CPU_INTERRUPT_NMI:
+        cpu_svm_check_intercept_param(env, SVM_EXIT_NMI, 0, 0);
+        cs->interrupt_request &= ~CPU_INTERRUPT_NMI;
+        env->hflags2 |= HF2_NMI_MASK;
+        do_interrupt_x86_hardirq(env, EXCP02_NMI, 1);
+        break;
+    case CPU_INTERRUPT_MCE:
+        cs->interrupt_request &= ~CPU_INTERRUPT_MCE;
+        do_interrupt_x86_hardirq(env, EXCP12_MCHK, 0);
+        break;
+    case CPU_INTERRUPT_HARD:
+        cpu_svm_check_intercept_param(env, SVM_EXIT_INTR, 0, 0);
+        cs->interrupt_request &= ~(CPU_INTERRUPT_HARD |
+                                   CPU_INTERRUPT_VIRQ);
+        intno = cpu_get_pic_interrupt(env);
+        qemu_log_mask(CPU_LOG_TB_IN_ASM,
+                      "Servicing hardware INT=0x%02x\n", intno);
+        do_interrupt_x86_hardirq(env, intno, 1);
+        break;
 #if !defined(CONFIG_USER_ONLY)
-        } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
-                   (env->eflags & IF_MASK) &&
-                   !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
-            int intno;
-            /* FIXME: this should respect TPR */
-            cpu_svm_check_intercept_param(env, SVM_EXIT_VINTR, 0, 0);
-            intno = x86_ldl_phys(cs, env->vm_vmcb
+    case CPU_INTERRUPT_VIRQ:
+        /* FIXME: this should respect TPR */
+        cpu_svm_check_intercept_param(env, SVM_EXIT_VINTR, 0, 0);
+        intno = x86_ldl_phys(cs, env->vm_vmcb
                              + offsetof(struct vmcb, control.int_vector));
-            qemu_log_mask(CPU_LOG_TB_IN_ASM,
-                          "Servicing virtual hardware INT=0x%02x\n", intno);
-            do_interrupt_x86_hardirq(env, intno, 1);
-            cs->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
-            ret = true;
+        qemu_log_mask(CPU_LOG_TB_IN_ASM,
+                      "Servicing virtual hardware INT=0x%02x\n", intno);
+        do_interrupt_x86_hardirq(env, intno, 1);
+        cs->interrupt_request &= ~CPU_INTERRUPT_VIRQ;
+        break;
 #endif
-        }
     }
 
-    return ret;
+    /* Ensure that no TB jump will be modified as the program flow was changed.  */
+    return true;
 }
 
 void helper_lldt(CPUX86State *env, int selector)

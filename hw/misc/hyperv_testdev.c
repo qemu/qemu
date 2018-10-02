@@ -105,7 +105,12 @@ static void hv_synic_test_dev_control(HypervTestDev *dev, uint32_t ctl,
     }
 }
 
-static void hv_test_dev_control(void *opaque, hwaddr addr, uint64_t data,
+static uint64_t hv_test_dev_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void hv_test_dev_write(void *opaque, hwaddr addr, uint64_t data,
                                 uint32_t len)
 {
     HypervTestDev *dev = HYPERV_TEST_DEV(opaque);
@@ -127,7 +132,8 @@ static void hv_test_dev_control(void *opaque, hwaddr addr, uint64_t data,
 }
 
 static const MemoryRegionOps synic_test_sint_ops = {
-    .write = hv_test_dev_control,
+    .read = hv_test_dev_read,
+    .write = hv_test_dev_write,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,

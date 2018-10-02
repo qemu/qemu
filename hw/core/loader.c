@@ -61,9 +61,10 @@
 static int roms_loaded;
 
 /* return the size or -1 if error */
-int get_image_size(const char *filename)
+int64_t get_image_size(const char *filename)
 {
-    int fd, size;
+    int fd;
+    int64_t size;
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0)
         return -1;

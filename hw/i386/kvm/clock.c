@@ -147,6 +147,15 @@ static void kvm_update_clock(KVMClockState *s)
     s->clock_is_reliable = kvm_has_adjust_clock_stable();
 }
 
+static void do_kvmclock_ctrl(CPUState *cpu, run_on_cpu_data data)
+{
+    int ret = kvm_vcpu_ioctl(cpu, KVM_KVMCLOCK_CTRL, 0);
+
+    if (ret && ret != -EINVAL) {
+        fprintf(stderr, "%s: %s\n", __func__, strerror(-ret));
+    }
+}
+
 static void kvmclock_vm_state_change(void *opaque, int running,
                                      RunState state)
 {
@@ -183,13 +192,7 @@ static void kvmclock_vm_state_change(void *opaque, int running,
             return;
         }
         CPU_FOREACH(cpu) {
-            ret = kvm_vcpu_ioctl(cpu, KVM_KVMCLOCK_CTRL, 0);
-            if (ret) {
-                if (ret != -EINVAL) {
-                    fprintf(stderr, "%s: %s\n", __func__, strerror(-ret));
-                }
-                return;
-            }
+            run_on_cpu(cpu, do_kvmclock_ctrl, RUN_ON_CPU_NULL);
         }
     } else {
 

@@ -169,7 +169,7 @@ static char *get_qemu_cmd(TestServer *s,
                           int mem, enum test_memfd memfd, const char *mem_path,
                           const char *chr_opts, const char *extra)
 {
-    if (memfd == TEST_MEMFD_AUTO && qemu_memfd_check()) {
+    if (memfd == TEST_MEMFD_AUTO && qemu_memfd_check(0)) {
         memfd = TEST_MEMFD_YES;
     }
 
@@ -903,7 +903,7 @@ static void test_multiqueue(void)
     s->queues = 2;
     test_server_listen(s);
 
-    if (qemu_memfd_check()) {
+    if (qemu_memfd_check(0)) {
         cmd = g_strdup_printf(
             QEMU_CMD_MEMFD QEMU_CMD_CHR QEMU_CMD_NETDEV ",queues=%d "
             "-device virtio-net-pci,netdev=net0,mq=on,vectors=%d",
@@ -963,7 +963,7 @@ int main(int argc, char **argv)
     /* run the main loop thread so the chardev may operate */
     thread = g_thread_new(NULL, thread_function, loop);
 
-    if (qemu_memfd_check()) {
+    if (qemu_memfd_check(0)) {
         qtest_add_data_func("/vhost-user/read-guest-mem/memfd",
                             GINT_TO_POINTER(TEST_MEMFD_YES),
                             test_read_guest_mem);

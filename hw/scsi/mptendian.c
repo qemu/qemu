@@ -35,152 +35,155 @@
 
 static void mptsas_fix_sgentry_endianness(MPISGEntry *sge)
 {
-    le32_to_cpus(&sge->FlagsLength);
+    sge->FlagsLength = le32_to_cpu(sge->FlagsLength);
     if (sge->FlagsLength & MPI_SGE_FLAGS_64_BIT_ADDRESSING) {
-       le64_to_cpus(&sge->u.Address64);
+        sge->u.Address64 = le64_to_cpu(sge->u.Address64);
     } else {
-       le32_to_cpus(&sge->u.Address32);
+        sge->u.Address32 = le32_to_cpu(sge->u.Address32);
     }
 }
 
 static void mptsas_fix_sgentry_endianness_reply(MPISGEntry *sge)
 {
     if (sge->FlagsLength & MPI_SGE_FLAGS_64_BIT_ADDRESSING) {
-       cpu_to_le64s(&sge->u.Address64);
+        sge->u.Address64 = cpu_to_le64(sge->u.Address64);
     } else {
-       cpu_to_le32s(&sge->u.Address32);
+        sge->u.Address32 = cpu_to_le32(sge->u.Address32);
     }
-    cpu_to_le32s(&sge->FlagsLength);
+    sge->FlagsLength = cpu_to_le32(sge->FlagsLength);
 }
 
 void mptsas_fix_scsi_io_endianness(MPIMsgSCSIIORequest *req)
 {
-    le32_to_cpus(&req->MsgContext);
-    le32_to_cpus(&req->Control);
-    le32_to_cpus(&req->DataLength);
-    le32_to_cpus(&req->SenseBufferLowAddr);
+    req->MsgContext = le32_to_cpu(req->MsgContext);
+    req->Control = le32_to_cpu(req->Control);
+    req->DataLength = le32_to_cpu(req->DataLength);
+    req->SenseBufferLowAddr = le32_to_cpu(req->SenseBufferLowAddr);
 }
 
 void mptsas_fix_scsi_io_reply_endianness(MPIMsgSCSIIOReply *reply)
 {
-    cpu_to_le32s(&reply->MsgContext);
-    cpu_to_le16s(&reply->IOCStatus);
-    cpu_to_le32s(&reply->IOCLogInfo);
-    cpu_to_le32s(&reply->TransferCount);
-    cpu_to_le32s(&reply->SenseCount);
-    cpu_to_le32s(&reply->ResponseInfo);
-    cpu_to_le16s(&reply->TaskTag);
+    reply->MsgContext = cpu_to_le32(reply->MsgContext);
+    reply->IOCStatus = cpu_to_le16(reply->IOCStatus);
+    reply->IOCLogInfo = cpu_to_le32(reply->IOCLogInfo);
+    reply->TransferCount = cpu_to_le32(reply->TransferCount);
+    reply->SenseCount = cpu_to_le32(reply->SenseCount);
+    reply->ResponseInfo = cpu_to_le32(reply->ResponseInfo);
+    reply->TaskTag = cpu_to_le16(reply->TaskTag);
 }
 
 void mptsas_fix_scsi_task_mgmt_endianness(MPIMsgSCSITaskMgmt *req)
 {
-    le32_to_cpus(&req->MsgContext);
-    le32_to_cpus(&req->TaskMsgContext);
+    req->MsgContext = le32_to_cpu(req->MsgContext);
+    req->TaskMsgContext = le32_to_cpu(req->TaskMsgContext);
 }
 
 void mptsas_fix_scsi_task_mgmt_reply_endianness(MPIMsgSCSITaskMgmtReply *reply)
 {
-    cpu_to_le32s(&reply->MsgContext);
-    cpu_to_le16s(&reply->IOCStatus);
-    cpu_to_le32s(&reply->IOCLogInfo);
-    cpu_to_le32s(&reply->TerminationCount);
+    reply->MsgContext = cpu_to_le32(reply->MsgContext);
+    reply->IOCStatus = cpu_to_le16(reply->IOCStatus);
+    reply->IOCLogInfo = cpu_to_le32(reply->IOCLogInfo);
+    reply->TerminationCount = cpu_to_le32(reply->TerminationCount);
 }
 
 void mptsas_fix_ioc_init_endianness(MPIMsgIOCInit *req)
 {
-    le32_to_cpus(&req->MsgContext);
-    le16_to_cpus(&req->ReplyFrameSize);
-    le32_to_cpus(&req->HostMfaHighAddr);
-    le32_to_cpus(&req->SenseBufferHighAddr);
-    le32_to_cpus(&req->ReplyFifoHostSignalingAddr);
+    req->MsgContext = le32_to_cpu(req->MsgContext);
+    req->ReplyFrameSize = le16_to_cpu(req->ReplyFrameSize);
+    req->HostMfaHighAddr = le32_to_cpu(req->HostMfaHighAddr);
+    req->SenseBufferHighAddr = le32_to_cpu(req->SenseBufferHighAddr);
+    req->ReplyFifoHostSignalingAddr =
+        le32_to_cpu(req->ReplyFifoHostSignalingAddr);
     mptsas_fix_sgentry_endianness(&req->HostPageBufferSGE);
-    le16_to_cpus(&req->MsgVersion);
-    le16_to_cpus(&req->HeaderVersion);
+    req->MsgVersion = le16_to_cpu(req->MsgVersion);
+    req->HeaderVersion = le16_to_cpu(req->HeaderVersion);
 }
 
 void mptsas_fix_ioc_init_reply_endianness(MPIMsgIOCInitReply *reply)
 {
-    cpu_to_le32s(&reply->MsgContext);
-    cpu_to_le16s(&reply->IOCStatus);
-    cpu_to_le32s(&reply->IOCLogInfo);
+    reply->MsgContext = cpu_to_le32(reply->MsgContext);
+    reply->IOCStatus = cpu_to_le16(reply->IOCStatus);
+    reply->IOCLogInfo = cpu_to_le32(reply->IOCLogInfo);
 }
 
 void mptsas_fix_ioc_facts_endianness(MPIMsgIOCFacts *req)
 {
-    le32_to_cpus(&req->MsgContext);
+    req->MsgContext = le32_to_cpu(req->MsgContext);
 }
 
 void mptsas_fix_ioc_facts_reply_endianness(MPIMsgIOCFactsReply *reply)
 {
-    cpu_to_le16s(&reply->MsgVersion);
-    cpu_to_le16s(&reply->HeaderVersion);
-    cpu_to_le32s(&reply->MsgContext);
-    cpu_to_le16s(&reply->IOCExceptions);
-    cpu_to_le16s(&reply->IOCStatus);
-    cpu_to_le32s(&reply->IOCLogInfo);
-    cpu_to_le16s(&reply->ReplyQueueDepth);
-    cpu_to_le16s(&reply->RequestFrameSize);
-    cpu_to_le16s(&reply->ProductID);
-    cpu_to_le32s(&reply->CurrentHostMfaHighAddr);
-    cpu_to_le16s(&reply->GlobalCredits);
-    cpu_to_le32s(&reply->CurrentSenseBufferHighAddr);
-    cpu_to_le16s(&reply->CurReplyFrameSize);
-    cpu_to_le32s(&reply->FWImageSize);
-    cpu_to_le32s(&reply->IOCCapabilities);
-    cpu_to_le16s(&reply->HighPriorityQueueDepth);
+    reply->MsgVersion = cpu_to_le16(reply->MsgVersion);
+    reply->HeaderVersion = cpu_to_le16(reply->HeaderVersion);
+    reply->MsgContext = cpu_to_le32(reply->MsgContext);
+    reply->IOCExceptions = cpu_to_le16(reply->IOCExceptions);
+    reply->IOCStatus = cpu_to_le16(reply->IOCStatus);
+    reply->IOCLogInfo = cpu_to_le32(reply->IOCLogInfo);
+    reply->ReplyQueueDepth = cpu_to_le16(reply->ReplyQueueDepth);
+    reply->RequestFrameSize = cpu_to_le16(reply->RequestFrameSize);
+    reply->ProductID = cpu_to_le16(reply->ProductID);
+    reply->CurrentHostMfaHighAddr = cpu_to_le32(reply->CurrentHostMfaHighAddr);
+    reply->GlobalCredits = cpu_to_le16(reply->GlobalCredits);
+    reply->CurrentSenseBufferHighAddr =
+        cpu_to_le32(reply->CurrentSenseBufferHighAddr);
+    reply->CurReplyFrameSize = cpu_to_le16(reply->CurReplyFrameSize);
+    reply->FWImageSize = cpu_to_le32(reply->FWImageSize);
+    reply->IOCCapabilities = cpu_to_le32(reply->IOCCapabilities);
+    reply->HighPriorityQueueDepth = cpu_to_le16(reply->HighPriorityQueueDepth);
     mptsas_fix_sgentry_endianness_reply(&reply->HostPageBufferSGE);
-    cpu_to_le32s(&reply->ReplyFifoHostSignalingAddr);
+    reply->ReplyFifoHostSignalingAddr =
+        cpu_to_le32(reply->ReplyFifoHostSignalingAddr);
 }
 
 void mptsas_fix_config_endianness(MPIMsgConfig *req)
 {
-    le16_to_cpus(&req->ExtPageLength);
-    le32_to_cpus(&req->MsgContext);
-    le32_to_cpus(&req->PageAddress);
+    req->ExtPageLength = le16_to_cpu(req->ExtPageLength);
+    req->MsgContext = le32_to_cpu(req->MsgContext);
+    req->PageAddress = le32_to_cpu(req->PageAddress);
     mptsas_fix_sgentry_endianness(&req->PageBufferSGE);
 }
 
 void mptsas_fix_config_reply_endianness(MPIMsgConfigReply *reply)
 {
-    cpu_to_le16s(&reply->ExtPageLength);
-    cpu_to_le32s(&reply->MsgContext);
-    cpu_to_le16s(&reply->IOCStatus);
-    cpu_to_le32s(&reply->IOCLogInfo);
+    reply->ExtPageLength = cpu_to_le16(reply->ExtPageLength);
+    reply->MsgContext = cpu_to_le32(reply->MsgContext);
+    reply->IOCStatus = cpu_to_le16(reply->IOCStatus);
+    reply->IOCLogInfo = cpu_to_le32(reply->IOCLogInfo);
 }
 
 void mptsas_fix_port_facts_endianness(MPIMsgPortFacts *req)
 {
-    le32_to_cpus(&req->MsgContext);
+    req->MsgContext = le32_to_cpu(req->MsgContext);
 }
 
 void mptsas_fix_port_facts_reply_endianness(MPIMsgPortFactsReply *reply)
 {
-    cpu_to_le32s(&reply->MsgContext);
-    cpu_to_le16s(&reply->IOCStatus);
-    cpu_to_le32s(&reply->IOCLogInfo);
-    cpu_to_le16s(&reply->MaxDevices);
-    cpu_to_le16s(&reply->PortSCSIID);
-    cpu_to_le16s(&reply->ProtocolFlags);
-    cpu_to_le16s(&reply->MaxPostedCmdBuffers);
-    cpu_to_le16s(&reply->MaxPersistentIDs);
-    cpu_to_le16s(&reply->MaxLanBuckets);
+    reply->MsgContext = cpu_to_le32(reply->MsgContext);
+    reply->IOCStatus = cpu_to_le16(reply->IOCStatus);
+    reply->IOCLogInfo = cpu_to_le32(reply->IOCLogInfo);
+    reply->MaxDevices = cpu_to_le16(reply->MaxDevices);
+    reply->PortSCSIID = cpu_to_le16(reply->PortSCSIID);
+    reply->ProtocolFlags = cpu_to_le16(reply->ProtocolFlags);
+    reply->MaxPostedCmdBuffers = cpu_to_le16(reply->MaxPostedCmdBuffers);
+    reply->MaxPersistentIDs = cpu_to_le16(reply->MaxPersistentIDs);
+    reply->MaxLanBuckets = cpu_to_le16(reply->MaxLanBuckets);
 }
 
 void mptsas_fix_port_enable_endianness(MPIMsgPortEnable *req)
 {
-    le32_to_cpus(&req->MsgContext);
+    req->MsgContext = le32_to_cpu(req->MsgContext);
 }
 
 void mptsas_fix_port_enable_reply_endianness(MPIMsgPortEnableReply *reply)
 {
-    cpu_to_le32s(&reply->MsgContext);
-    cpu_to_le16s(&reply->IOCStatus);
-    cpu_to_le32s(&reply->IOCLogInfo);
+    reply->MsgContext = cpu_to_le32(reply->MsgContext);
+    reply->IOCStatus = cpu_to_le16(reply->IOCStatus);
+    reply->IOCLogInfo = cpu_to_le32(reply->IOCLogInfo);
 }
 
 void mptsas_fix_event_notification_endianness(MPIMsgEventNotify *req)
 {
-    le32_to_cpus(&req->MsgContext);
+    req->MsgContext = le32_to_cpu(req->MsgContext);
 }
 
 void mptsas_fix_event_notification_reply_endianness(MPIMsgEventNotifyReply *reply)
@@ -188,16 +191,16 @@ void mptsas_fix_event_notification_reply_endianness(MPIMsgEventNotifyReply *repl
     int length = reply->EventDataLength;
     int i;
 
-    cpu_to_le16s(&reply->EventDataLength);
-    cpu_to_le32s(&reply->MsgContext);
-    cpu_to_le16s(&reply->IOCStatus);
-    cpu_to_le32s(&reply->IOCLogInfo);
-    cpu_to_le32s(&reply->Event);
-    cpu_to_le32s(&reply->EventContext);
+    reply->EventDataLength = cpu_to_le16(reply->EventDataLength);
+    reply->MsgContext = cpu_to_le32(reply->MsgContext);
+    reply->IOCStatus = cpu_to_le16(reply->IOCStatus);
+    reply->IOCLogInfo = cpu_to_le32(reply->IOCLogInfo);
+    reply->Event = cpu_to_le32(reply->Event);
+    reply->EventContext = cpu_to_le32(reply->EventContext);
 
     /* Really depends on the event kind.  This will do for now.  */
     for (i = 0; i < length; i++) {
-        cpu_to_le32s(&reply->Data[i]);
+        reply->Data[i] = cpu_to_le32(reply->Data[i]);
     }
 }
 

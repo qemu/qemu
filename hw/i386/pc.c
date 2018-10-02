@@ -838,7 +838,8 @@ static void load_linux(PCMachineState *pcms,
                        FWCfgState *fw_cfg)
 {
     uint16_t protocol;
-    int setup_size, kernel_size, initrd_size = 0, cmdline_size;
+    int setup_size, kernel_size, cmdline_size;
+    int64_t initrd_size = 0;
     int dtb_size, setup_data_offset;
     uint32_t initrd_max;
     uint8_t header[8192], *setup, *kernel, *initrd_data;
@@ -973,6 +974,10 @@ static void load_linux(PCMachineState *pcms,
         if (initrd_size < 0) {
             fprintf(stderr, "qemu: error reading initrd %s: %s\n",
                     initrd_filename, strerror(errno));
+            exit(1);
+        } else if (initrd_size >= initrd_max) {
+            fprintf(stderr, "qemu: initrd is too large, cannot support."
+                    "(max: %"PRIu32", need %"PRId64")\n", initrd_max, initrd_size);
             exit(1);
         }
 

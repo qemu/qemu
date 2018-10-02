@@ -448,7 +448,8 @@ bool qemu_has_ofd_lock(void);
 #define FMT_pid "%d"
 #endif
 
-int qemu_create_pidfile(const char *filename);
+bool qemu_write_pidfile(const char *pidfile, Error **errp);
+
 int qemu_get_thread_id(void);
 
 #ifndef CONFIG_IOVEC
@@ -570,6 +571,8 @@ extern uintptr_t qemu_real_host_page_size;
 extern intptr_t qemu_real_host_page_mask;
 
 extern int qemu_icache_linesize;
+extern int qemu_icache_linesize_log;
 extern int qemu_dcache_linesize;
+extern int qemu_dcache_linesize_log;
 
 #endif
