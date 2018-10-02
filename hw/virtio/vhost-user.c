@@ -374,8 +374,6 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     int i, fd;
     size_t fd_num = 0;
-    bool reply_supported = virtio_has_feature(dev->protocol_features,
-                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
     VhostUserMsg msg_reply;
     int region_i, msg_i;
 
@@ -383,10 +381,6 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
         .hdr.request = VHOST_USER_SET_MEM_TABLE,
         .hdr.flags = VHOST_USER_VERSION,
     };
-
-    if (reply_supported) {
-        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
-    }
 
     if (u->region_rb_len < dev->mem->nregions) {
         u->region_rb = g_renew(RAMBlock*, u->region_rb, dev->mem->nregions);
@@ -503,10 +497,6 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
         return -1;
     }
 
-    if (reply_supported) {
-        return process_message_reply(dev, &msg);
-    }
-
     return 0;
 }
 
@@ -519,8 +509,7 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
     size_t fd_num = 0;
     bool do_postcopy = u->postcopy_listen && u->postcopy_fd.handler;
     bool reply_supported = virtio_has_feature(dev->protocol_features,
-                                          VHOST_USER_PROTOCOL_F_REPLY_ACK) &&
-                                          !do_postcopy;
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
 
     if (do_postcopy) {
         /* Postcopy has enough differences that it's best done in it's own
