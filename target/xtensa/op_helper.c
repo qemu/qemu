@@ -253,22 +253,11 @@ void HELPER(wsr_windowbase)(CPUXtensaState *env, uint32_t v)
 void HELPER(entry)(CPUXtensaState *env, uint32_t pc, uint32_t s, uint32_t imm)
 {
     int callinc = (env->sregs[PS] & PS_CALLINC) >> PS_CALLINC_SHIFT;
-    if (s > 3 || ((env->sregs[PS] & (PS_WOE | PS_EXCM)) ^ PS_WOE) != 0) {
-        qemu_log_mask(LOG_GUEST_ERROR, "Illegal entry instruction(pc = %08x), PS = %08x\n",
-                      pc, env->sregs[PS]);
-        HELPER(exception_cause)(env, pc, ILLEGAL_INSTRUCTION_CAUSE);
-    } else {
-        uint32_t windowstart = xtensa_replicate_windowstart(env) >>
-            (env->sregs[WINDOW_BASE] + 1);
 
-        if (windowstart & ((1 << callinc) - 1)) {
-            HELPER(window_check)(env, pc, callinc);
-        }
-        env->regs[(callinc << 2) | (s & 3)] = env->regs[s] - imm;
-        xtensa_rotate_window(env, callinc);
-        env->sregs[WINDOW_START] |=
-            windowstart_bit(env->sregs[WINDOW_BASE], env);
-    }
+    env->regs[(callinc << 2) | (s & 3)] = env->regs[s] - imm;
+    xtensa_rotate_window(env, callinc);
+    env->sregs[WINDOW_START] |=
+        windowstart_bit(env->sregs[WINDOW_BASE], env);
 }
 
 void HELPER(window_check)(CPUXtensaState *env, uint32_t pc, uint32_t w)
@@ -298,13 +287,12 @@ void HELPER(window_check)(CPUXtensaState *env, uint32_t pc, uint32_t w)
     }
 }
 
-uint32_t HELPER(retw)(CPUXtensaState *env, uint32_t pc)
+void HELPER(test_ill_retw)(CPUXtensaState *env, uint32_t pc)
 {
     int n = (env->regs[0] >> 30) & 0x3;
     int m = 0;
     uint32_t windowbase = windowbase_bound(env->sregs[WINDOW_BASE], env);
     uint32_t windowstart = env->sregs[WINDOW_START];
-    uint32_t ret_pc = 0;
 
     if (windowstart & windowstart_bit(windowbase - 1, env)) {
         m = 1;
@@ -314,35 +302,46 @@ uint32_t HELPER(retw)(CPUXtensaState *env, uint32_t pc)
         m = 3;
     }
 
-    if (n == 0 || (m != 0 && m != n) ||
-            ((env->sregs[PS] & (PS_WOE | PS_EXCM)) ^ PS_WOE) != 0) {
+    if (n == 0 || (m != 0 && m != n)) {
         qemu_log_mask(LOG_GUEST_ERROR, "Illegal retw instruction(pc = %08x), "
                       "PS = %08x, m = %d, n = %d\n",
                       pc, env->sregs[PS], m, n);
         HELPER(exception_cause)(env, pc, ILLEGAL_INSTRUCTION_CAUSE);
-    } else {
-        int owb = windowbase;
+    }
+}
 
-        ret_pc = (pc & 0xc0000000) | (env->regs[0] & 0x3fffffff);
+void HELPER(test_underflow_retw)(CPUXtensaState *env, uint32_t pc)
+{
+    int n = (env->regs[0] >> 30) & 0x3;
+
+    if (!(env->sregs[WINDOW_START] &
+          windowstart_bit(env->sregs[WINDOW_BASE] - n, env))) {
+        uint32_t windowbase = windowbase_bound(env->sregs[WINDOW_BASE], env);
 
         xtensa_rotate_window(env, -n);
-        if (windowstart & windowstart_bit(env->sregs[WINDOW_BASE], env)) {
-            env->sregs[WINDOW_START] &= ~windowstart_bit(owb, env);
-        } else {
-            /* window underflow */
-            env->sregs[PS] = (env->sregs[PS] & ~PS_OWB) |
-                (windowbase << PS_OWB_SHIFT) | PS_EXCM;
-            env->sregs[EPC1] = env->pc = pc;
+        /* window underflow */
+        env->sregs[PS] = (env->sregs[PS] & ~PS_OWB) |
+            (windowbase << PS_OWB_SHIFT) | PS_EXCM;
+        env->sregs[EPC1] = env->pc = pc;
 
-            if (n == 1) {
-                HELPER(exception)(env, EXC_WINDOW_UNDERFLOW4);
-            } else if (n == 2) {
-                HELPER(exception)(env, EXC_WINDOW_UNDERFLOW8);
-            } else if (n == 3) {
-                HELPER(exception)(env, EXC_WINDOW_UNDERFLOW12);
-            }
+        if (n == 1) {
+            HELPER(exception)(env, EXC_WINDOW_UNDERFLOW4);
+        } else if (n == 2) {
+            HELPER(exception)(env, EXC_WINDOW_UNDERFLOW8);
+        } else if (n == 3) {
+            HELPER(exception)(env, EXC_WINDOW_UNDERFLOW12);
         }
     }
+}
+
+uint32_t HELPER(retw)(CPUXtensaState *env, uint32_t pc)
+{
+    int n = (env->regs[0] >> 30) & 0x3;
+    uint32_t windowbase = windowbase_bound(env->sregs[WINDOW_BASE], env);
+    uint32_t ret_pc = (pc & 0xc0000000) | (env->regs[0] & 0x3fffffff);
+
+    xtensa_rotate_window(env, -n);
+    env->sregs[WINDOW_START] &= ~windowstart_bit(windowbase, env);
     return ret_pc;
 }
 

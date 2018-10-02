@@ -5,6 +5,8 @@ DEF_HELPER_3(debug_exception, noreturn, env, i32, i32)
 
 DEF_HELPER_2(wsr_windowbase, void, env, i32)
 DEF_HELPER_4(entry, void, env, i32, i32, i32)
+DEF_HELPER_2(test_ill_retw, void, env, i32)
+DEF_HELPER_2(test_underflow_retw, void, env, i32)
 DEF_HELPER_2(retw, i32, env, i32)
 DEF_HELPER_2(rotw, void, env, i32)
 DEF_HELPER_3(window_check, noreturn, env, i32, i32)
