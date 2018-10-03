@@ -2407,6 +2407,17 @@ static inline void check_dspr2(DisasContext *ctx)
     }
 }
 
+static inline void check_dspr3(DisasContext *ctx)
+{
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_DSPR3))) {
+        if (ctx->insn_flags & ASE_DSP) {
+            generate_exception_end(ctx, EXCP_DSPDIS);
+        } else {
+            generate_exception_end(ctx, EXCP_RI);
+        }
+    }
+}
+
 /* This code generates a "reserved instruction" exception if the
    CPU does not support the instruction set corresponding to flags. */
 static inline void check_insn(DisasContext *ctx, uint64_t flags)
@@ -20637,7 +20648,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     gen_compute_branch_cp1_nm(ctx, OPC_BC1NEZ, rt, s);
                     break;
                 case NM_BPOSGE32C:
-                    check_dspr2(ctx);
+                    check_dspr3(ctx);
                     {
                         int32_t imm = extract32(ctx->opcode, 1, 13) |
                                       extract32(ctx->opcode, 0, 1) << 13;
