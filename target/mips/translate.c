@@ -17132,6 +17132,40 @@ enum {
     NM_P_SC      = 0x0b,
 };
 
+/* P.LS.E0 instruction pool */
+enum {
+    NM_LBE      = 0x00,
+    NM_SBE      = 0x01,
+    NM_LBUE     = 0x02,
+    NM_P_PREFE  = 0x03,
+    NM_LHE      = 0x04,
+    NM_SHE      = 0x05,
+    NM_LHUE     = 0x06,
+    NM_CACHEE   = 0x07,
+    NM_LWE      = 0x08,
+    NM_SWE      = 0x09,
+    NM_P_LLE    = 0x0a,
+    NM_P_SCE    = 0x0b,
+};
+
+/* P.PREFE instruction pool */
+enum {
+    NM_SYNCIE   = 0x00,
+    NM_PREFE    = 0x01,
+};
+
+/* P.LLE instruction pool */
+enum {
+    NM_LLE      = 0x00,
+    NM_LLWPE    = 0x01,
+};
+
+/* P.SCE instruction pool */
+enum {
+    NM_SCE      = 0x00,
+    NM_SCWPE    = 0x01,
+};
+
 /* P.LS.WM instruction pool */
 enum {
     NM_LWM       = 0x00,
