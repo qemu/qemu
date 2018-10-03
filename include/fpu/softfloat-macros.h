@@ -329,15 +329,30 @@ static inline void
 | pieces which are stored at the locations pointed to by `z0Ptr' and `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-static inline void
- shortShift128Left(
-     uint64_t a0, uint64_t a1, int count, uint64_t *z0Ptr, uint64_t *z1Ptr)
+static inline void shortShift128Left(uint64_t a0, uint64_t a1, int count,
+                                     uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
+    *z1Ptr = a1 << count;
+    *z0Ptr = count == 0 ? a0 : (a0 << count) | (a1 >> (-count & 63));
+}
 
-    *z1Ptr = a1<<count;
-    *z0Ptr =
-        ( count == 0 ) ? a0 : ( a0<<count ) | ( a1>>( ( - count ) & 63 ) );
+/*----------------------------------------------------------------------------
+| Shifts the 128-bit value formed by concatenating `a0' and `a1' left by the
+| number of bits given in `count'.  Any bits shifted off are lost.  The value
+| of `count' may be greater than 64.  The result is broken into two 64-bit
+| pieces which are stored at the locations pointed to by `z0Ptr' and `z1Ptr'.
+*----------------------------------------------------------------------------*/
 
+static inline void shift128Left(uint64_t a0, uint64_t a1, int count,
+                                uint64_t *z0Ptr, uint64_t *z1Ptr)
+{
+    if (count < 64) {
+        *z1Ptr = a1 << count;
+        *z0Ptr = count == 0 ? a0 : (a0 << count) | (a1 >> (-count & 63));
+    } else {
+        *z1Ptr = 0;
+        *z0Ptr = a1 << (count - 64);
+    }
 }
 
 /*----------------------------------------------------------------------------
@@ -619,7 +634,8 @@ static inline uint64_t estimateDiv128To64(uint64_t a0, uint64_t a1, uint64_t b)
  *
  * Licensed under the GPLv2/LGPLv3
  */
-static inline uint64_t div128To64(uint64_t n0, uint64_t n1, uint64_t d)
+static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1,
+                                  uint64_t n0, uint64_t d)
 {
     uint64_t d0, d1, q0, q1, r1, r0, m;
 
@@ -658,8 +674,8 @@ static inline uint64_t div128To64(uint64_t n0, uint64_t n1, uint64_t d)
     }
     r0 -= m;
 
-    /* Return remainder in LSB */
-    return (q1 << 32) | q0 | (r0 != 0);
+    *r = r0;
+    return (q1 << 32) | q0;
 }
 
 /*----------------------------------------------------------------------------

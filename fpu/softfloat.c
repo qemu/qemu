@@ -1112,19 +1112,38 @@ static FloatParts div_floats(FloatParts a, FloatParts b, float_status *s)
     bool sign = a.sign ^ b.sign;
 
     if (a.cls == float_class_normal && b.cls == float_class_normal) {
-        uint64_t temp_lo, temp_hi;
+        uint64_t n0, n1, q, r;
         int exp = a.exp - b.exp;
+
+        /*
+         * We want a 2*N / N-bit division to produce exactly an N-bit
+         * result, so that we do not lose any precision and so that we
+         * do not have to renormalize afterward.  If A.frac < B.frac,
+         * then division would produce an (N-1)-bit result; shift A left
+         * by one to produce the an N-bit result, and decrement the
+         * exponent to match.
+         *
+         * The udiv_qrnnd algorithm that we're using requires normalization,
+         * i.e. the msb of the denominator must be set.  Since we know that
+         * DECOMPOSED_BINARY_POINT is msb-1, the inputs must be shifted left
+         * by one (more), and the remainder must be shifted right by one.
+         */
         if (a.frac < b.frac) {
             exp -= 1;
-            shortShift128Left(0, a.frac, DECOMPOSED_BINARY_POINT + 1,
-                              &temp_hi, &temp_lo);
+            shift128Left(0, a.frac, DECOMPOSED_BINARY_POINT + 2, &n1, &n0);
         } else {
-            shortShift128Left(0, a.frac, DECOMPOSED_BINARY_POINT,
-                              &temp_hi, &temp_lo);
+            shift128Left(0, a.frac, DECOMPOSED_BINARY_POINT + 1, &n1, &n0);
         }
-        /* LSB of quot is set if inexact which roundandpack will use
-         * to set flags. Yet again we re-use a for the result */
-        a.frac = div128To64(temp_lo, temp_hi, b.frac);
+        q = udiv_qrnnd(&r, n1, n0, b.frac << 1);
+
+        /*
+         * Set lsb if there is a remainder, to set inexact.
+         * As mentioned above, to find the actual value of the remainder we
+         * would need to shift right, but (1) we are only concerned about
+         * non-zero-ness, and (2) the remainder will always be even because
+         * both inputs to the division primitive are even.
+         */
+        a.frac = q | (r != 0);
         a.sign = sign;
         a.exp = exp;
         return a;
