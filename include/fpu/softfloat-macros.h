@@ -637,6 +637,11 @@ static inline uint64_t estimateDiv128To64(uint64_t a0, uint64_t a1, uint64_t b)
 static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1,
                                   uint64_t n0, uint64_t d)
 {
+#if defined(__x86_64__)
+    uint64_t q;
+    asm("divq %4" : "=a"(q), "=d"(*r) : "0"(n0), "1"(n1), "rm"(d));
+    return q;
+#else
     uint64_t d0, d1, q0, q1, r1, r0, m;
 
     d0 = (uint32_t)d;
@@ -676,6 +681,7 @@ static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1,
 
     *r = r0;
     return (q1 << 32) | q0;
+#endif
 }
 
 /*----------------------------------------------------------------------------
