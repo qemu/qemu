@@ -1327,7 +1327,7 @@ QemuOptsList bdrv_runtime_opts = {
             .help = "try to optimize zero writes (off, on, unmap)",
         },
         {
-            .name = "discard",
+            .name = BDRV_OPT_DISCARD,
             .type = QEMU_OPT_STRING,
             .help = "discard operation (ignore/off, unmap/on)",
         },
@@ -1432,7 +1432,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
         }
     }
 
-    discard = qemu_opt_get(opts, "discard");
+    discard = qemu_opt_get(opts, BDRV_OPT_DISCARD);
     if (discard != NULL) {
         if (bdrv_parse_discard_flags(discard, &bs->open_flags) != 0) {
             error_setg(errp, "Invalid discard option");
@@ -3186,7 +3186,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
 
     update_flags_from_options(&reopen_state->flags, opts);
 
-    discard = qemu_opt_get_del(opts, "discard");
+    discard = qemu_opt_get_del(opts, BDRV_OPT_DISCARD);
     if (discard != NULL) {
         if (bdrv_parse_discard_flags(discard, &reopen_state->flags) != 0) {
             error_setg(errp, "Invalid discard option");
