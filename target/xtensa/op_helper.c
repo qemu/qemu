@@ -107,13 +107,6 @@ static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
     }
 }
 
-#else
-
-static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
-{
-    tb_invalidate_phys_addr(vaddr);
-}
-
 #endif
 
 void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
@@ -367,23 +360,6 @@ void HELPER(movsp)(CPUXtensaState *env, uint32_t pc)
              windowstart_bit(env->sregs[WINDOW_BASE] - 2, env) |
              windowstart_bit(env->sregs[WINDOW_BASE] - 1, env))) == 0) {
         HELPER(exception_cause)(env, pc, ALLOCA_CAUSE);
-    }
-}
-
-void HELPER(wsr_lbeg)(CPUXtensaState *env, uint32_t v)
-{
-    if (env->sregs[LBEG] != v) {
-        tb_invalidate_virtual_addr(env, env->sregs[LEND] - 1);
-        env->sregs[LBEG] = v;
-    }
-}
-
-void HELPER(wsr_lend)(CPUXtensaState *env, uint32_t v)
-{
-    if (env->sregs[LEND] != v) {
-        tb_invalidate_virtual_addr(env, env->sregs[LEND] - 1);
-        env->sregs[LEND] = v;
-        tb_invalidate_virtual_addr(env, env->sregs[LEND] - 1);
     }
 }
 

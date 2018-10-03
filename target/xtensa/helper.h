@@ -12,8 +12,6 @@ DEF_HELPER_2(rotw, void, env, i32)
 DEF_HELPER_3(window_check, noreturn, env, i32, i32)
 DEF_HELPER_1(restore_owb, void, env)
 DEF_HELPER_2(movsp, void, env, i32)
-DEF_HELPER_2(wsr_lbeg, void, env, i32)
-DEF_HELPER_2(wsr_lend, void, env, i32)
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_1(simcall, void, env)
 #endif
