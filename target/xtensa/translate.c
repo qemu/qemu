@@ -2463,40 +2463,64 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_all,
         .par = (const uint32_t[]){false, 8},
     }, {
-        .name = "ball",
+        .name = (const char * const[]) {
+            "ball", "ball.w15", "ball.w18", NULL,
+        },
         .translate = translate_ball,
         .par = (const uint32_t[]){TCG_COND_EQ},
-    }, {
-        .name = "bany",
-        .translate = translate_bany,
-        .par = (const uint32_t[]){TCG_COND_NE},
-    }, {
-        .name = "bbc",
-        .translate = translate_bb,
-        .par = (const uint32_t[]){TCG_COND_EQ},
-    }, {
-        .name = "bbci",
-        .translate = translate_bbi,
-        .par = (const uint32_t[]){TCG_COND_EQ},
-    }, {
-        .name = "bbs",
-        .translate = translate_bb,
-        .par = (const uint32_t[]){TCG_COND_NE},
-    }, {
-        .name = "bbsi",
-        .translate = translate_bbi,
-        .par = (const uint32_t[]){TCG_COND_NE},
-    }, {
-        .name = "beq",
-        .translate = translate_b,
-        .par = (const uint32_t[]){TCG_COND_EQ},
-    }, {
-        .name = "beqi",
-        .translate = translate_bi,
-        .par = (const uint32_t[]){TCG_COND_EQ},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = (const char * const[]) {
-            "beqz", "beqz.n", NULL,
+            "bany", "bany.w15", "bany.w18", NULL,
+        },
+        .translate = translate_bany,
+        .par = (const uint32_t[]){TCG_COND_NE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bbc", "bbc.w15", "bbc.w18", NULL,
+        },
+        .translate = translate_bb,
+        .par = (const uint32_t[]){TCG_COND_EQ},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bbci", "bbci.w15", "bbci.w18", NULL,
+        },
+        .translate = translate_bbi,
+        .par = (const uint32_t[]){TCG_COND_EQ},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bbs", "bbs.w15", "bbs.w18", NULL,
+        },
+        .translate = translate_bb,
+        .par = (const uint32_t[]){TCG_COND_NE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bbsi", "bbsi.w15", "bbsi.w18", NULL,
+        },
+        .translate = translate_bbi,
+        .par = (const uint32_t[]){TCG_COND_NE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "beq", "beq.w15", "beq.w18", NULL,
+        },
+        .translate = translate_b,
+        .par = (const uint32_t[]){TCG_COND_EQ},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "beqi", "beqi.w15", "beqi.w18", NULL,
+        },
+        .translate = translate_bi,
+        .par = (const uint32_t[]){TCG_COND_EQ},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "beqz", "beqz.n", "beqz.w15", "beqz.w18", NULL,
         },
         .translate = translate_bz,
         .par = (const uint32_t[]){TCG_COND_EQ},
@@ -2506,68 +2530,110 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_bp,
         .par = (const uint32_t[]){TCG_COND_EQ},
     }, {
-        .name = "bge",
+        .name = (const char * const[]) {
+            "bge", "bge.w15", "bge.w18", NULL,
+        },
         .translate = translate_b,
         .par = (const uint32_t[]){TCG_COND_GE},
-    }, {
-        .name = "bgei",
-        .translate = translate_bi,
-        .par = (const uint32_t[]){TCG_COND_GE},
-    }, {
-        .name = "bgeu",
-        .translate = translate_b,
-        .par = (const uint32_t[]){TCG_COND_GEU},
-    }, {
-        .name = "bgeui",
-        .translate = translate_bi,
-        .par = (const uint32_t[]){TCG_COND_GEU},
-    }, {
-        .name = "bgez",
-        .translate = translate_bz,
-        .par = (const uint32_t[]){TCG_COND_GE},
-    }, {
-        .name = "blt",
-        .translate = translate_b,
-        .par = (const uint32_t[]){TCG_COND_LT},
-    }, {
-        .name = "blti",
-        .translate = translate_bi,
-        .par = (const uint32_t[]){TCG_COND_LT},
-    }, {
-        .name = "bltu",
-        .translate = translate_b,
-        .par = (const uint32_t[]){TCG_COND_LTU},
-    }, {
-        .name = "bltui",
-        .translate = translate_bi,
-        .par = (const uint32_t[]){TCG_COND_LTU},
-    }, {
-        .name = "bltz",
-        .translate = translate_bz,
-        .par = (const uint32_t[]){TCG_COND_LT},
-    }, {
-        .name = "bnall",
-        .translate = translate_ball,
-        .par = (const uint32_t[]){TCG_COND_NE},
-    }, {
-        .name = "bne",
-        .translate = translate_b,
-        .par = (const uint32_t[]){TCG_COND_NE},
-    }, {
-        .name = "bnei",
-        .translate = translate_bi,
-        .par = (const uint32_t[]){TCG_COND_NE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = (const char * const[]) {
-            "bnez", "bnez.n", NULL,
+            "bgei", "bgei.w15", "bgei.w18", NULL,
+        },
+        .translate = translate_bi,
+        .par = (const uint32_t[]){TCG_COND_GE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bgeu", "bgeu.w15", "bgeu.w18", NULL,
+        },
+        .translate = translate_b,
+        .par = (const uint32_t[]){TCG_COND_GEU},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bgeui", "bgeui.w15", "bgeui.w18", NULL,
+        },
+        .translate = translate_bi,
+        .par = (const uint32_t[]){TCG_COND_GEU},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bgez", "bgez.w15", "bgez.w18", NULL,
+        },
+        .translate = translate_bz,
+        .par = (const uint32_t[]){TCG_COND_GE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "blt", "blt.w15", "blt.w18", NULL,
+        },
+        .translate = translate_b,
+        .par = (const uint32_t[]){TCG_COND_LT},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "blti", "blti.w15", "blti.w18", NULL,
+        },
+        .translate = translate_bi,
+        .par = (const uint32_t[]){TCG_COND_LT},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bltu", "bltu.w15", "bltu.w18", NULL,
+        },
+        .translate = translate_b,
+        .par = (const uint32_t[]){TCG_COND_LTU},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bltui", "bltui.w15", "bltui.w18", NULL,
+        },
+        .translate = translate_bi,
+        .par = (const uint32_t[]){TCG_COND_LTU},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bltz", "bltz.w15", "bltz.w18", NULL,
+        },
+        .translate = translate_bz,
+        .par = (const uint32_t[]){TCG_COND_LT},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bnall", "bnall.w15", "bnall.w18", NULL,
+        },
+        .translate = translate_ball,
+        .par = (const uint32_t[]){TCG_COND_NE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bne", "bne.w15", "bne.w18", NULL,
+        },
+        .translate = translate_b,
+        .par = (const uint32_t[]){TCG_COND_NE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bnei", "bnei.w15", "bnei.w18", NULL,
+        },
+        .translate = translate_bi,
+        .par = (const uint32_t[]){TCG_COND_NE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
+    }, {
+        .name = (const char * const[]) {
+            "bnez", "bnez.n", "bnez.w15", "bnez.w18", NULL,
         },
         .translate = translate_bz,
         .par = (const uint32_t[]){TCG_COND_NE},
         .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
-        .name = "bnone",
+        .name = (const char * const[]) {
+            "bnone", "bnone.w15", "bnone.w18", NULL,
+        },
         .translate = translate_bany,
         .par = (const uint32_t[]){TCG_COND_EQ},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "break",
         .translate = translate_nop,
@@ -2785,17 +2851,26 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "ldpte",
         .op_flags = XTENSA_OP_ILL,
     }, {
-        .name = "loop",
+        .name = (const char * const[]) {
+            "loop", "loop.w15", NULL,
+        },
         .translate = translate_loop,
         .par = (const uint32_t[]){TCG_COND_NEVER},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
-        .name = "loopgtz",
+        .name = (const char * const[]) {
+            "loopgtz", "loopgtz.w15", NULL,
+        },
         .translate = translate_loop,
         .par = (const uint32_t[]){TCG_COND_GT},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
-        .name = "loopnez",
+        .name = (const char * const[]) {
+            "loopnez", "loopnez.w15", NULL,
+        },
         .translate = translate_loop,
         .par = (const uint32_t[]){TCG_COND_NE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "max",
         .translate = translate_smax,
