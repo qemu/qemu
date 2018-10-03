@@ -2138,7 +2138,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                               QemuConsole *con, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
-    bool zoom_to_fit;
+    bool zoom_to_fit = false;
 
     vc->label = qemu_console_get_label(con);
     vc->s = s;
