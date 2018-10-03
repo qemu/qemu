@@ -1253,7 +1253,6 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
     const uint16_t myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
                               NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA |
                               NBD_FLAG_SEND_WRITE_ZEROES | NBD_FLAG_SEND_CACHE);
-    bool oldStyle;
 
     /* Old style negotiation header, no room for options
         [ 0 ..   7]   passwd       ("NBDMAGIC")
@@ -1274,33 +1273,19 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
     trace_nbd_negotiate_begin();
     memcpy(buf, "NBDMAGIC", 8);
 
-    oldStyle = client->exp != NULL && !client->tlscreds;
-    if (oldStyle) {
-        trace_nbd_negotiate_old_style(client->exp->size,
-                                      client->exp->nbdflags | myflags);
-        stq_be_p(buf + 8, NBD_CLIENT_MAGIC);
-        stq_be_p(buf + 16, client->exp->size);
-        stl_be_p(buf + 24, client->exp->nbdflags | myflags);
+    stq_be_p(buf + 8, NBD_OPTS_MAGIC);
+    stw_be_p(buf + 16, NBD_FLAG_FIXED_NEWSTYLE | NBD_FLAG_NO_ZEROES);
 
-        if (nbd_write(client->ioc, buf, sizeof(buf), errp) < 0) {
-            error_prepend(errp, "write failed: ");
-            return -EINVAL;
+    if (nbd_write(client->ioc, buf, 18, errp) < 0) {
+        error_prepend(errp, "write failed: ");
+        return -EINVAL;
+    }
+    ret = nbd_negotiate_options(client, myflags, errp);
+    if (ret != 0) {
+        if (ret < 0) {
+            error_prepend(errp, "option negotiation failed: ");
         }
-    } else {
-        stq_be_p(buf + 8, NBD_OPTS_MAGIC);
-        stw_be_p(buf + 16, NBD_FLAG_FIXED_NEWSTYLE | NBD_FLAG_NO_ZEROES);
-
-        if (nbd_write(client->ioc, buf, 18, errp) < 0) {
-            error_prepend(errp, "write failed: ");
-            return -EINVAL;
-        }
-        ret = nbd_negotiate_options(client, myflags, errp);
-        if (ret != 0) {
-            if (ret < 0) {
-                error_prepend(errp, "option negotiation failed: ");
-            }
-            return ret;
-        }
+        return ret;
     }
 
     assert(!client->optlen);
@@ -2396,13 +2381,8 @@ static void nbd_client_receive_next_request(NBDClient *client)
 static coroutine_fn void nbd_co_client_start(void *opaque)
 {
     NBDClient *client = opaque;
-    NBDExport *exp = client->exp;
     Error *local_err = NULL;
 
-    if (exp) {
-        nbd_export_get(exp);
-        QTAILQ_INSERT_TAIL(&exp->clients, client, next);
-    }
     qemu_co_mutex_init(&client->send_lock);
 
     if (nbd_negotiate(client, &local_err)) {
@@ -2417,13 +2397,11 @@ static coroutine_fn void nbd_co_client_start(void *opaque)
 }
 
 /*
- * Create a new client listener on the given export @exp, using the
- * given channel @sioc.  Begin servicing it in a coroutine.  When the
- * connection closes, call @close_fn with an indication of whether the
- * client completed negotiation.
+ * Create a new client listener using the given channel @sioc.
+ * Begin servicing it in a coroutine.  When the connection closes, call
+ * @close_fn with an indication of whether the client completed negotiation.
  */
-void nbd_client_new(NBDExport *exp,
-                    QIOChannelSocket *sioc,
+void nbd_client_new(QIOChannelSocket *sioc,
                     QCryptoTLSCreds *tlscreds,
                     const char *tlsaclname,
                     void (*close_fn)(NBDClient *, bool))
@@ -2433,7 +2411,6 @@ void nbd_client_new(NBDExport *exp,
 
     client = g_new0(NBDClient, 1);
     client->refcount = 1;
-    client->exp = exp;
     client->tlscreds = tlscreds;
     if (tlscreds) {
         object_ref(OBJECT(client->tlscreds));

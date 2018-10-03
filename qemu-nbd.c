@@ -354,7 +354,7 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
 
     nb_fds++;
     nbd_update_server_watch();
-    nbd_client_new(NULL, cioc, tlscreds, NULL, nbd_client_closed);
+    nbd_client_new(cioc, tlscreds, NULL, nbd_client_closed);
 }
 
 static void nbd_update_server_watch(void)
