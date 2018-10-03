@@ -94,6 +94,7 @@ static void usage(const char *name)
 "General purpose options:\n"
 "  --object type,id=ID,...   define an object such as 'secret' for providing\n"
 "                            passwords and/or encryption keys\n"
+"  --tls-creds=ID            use id of an earlier --object to provide TLS\n"
 "  -T, --trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
 "                            specify tracing options\n"
 "  --fork                    fork off the server process and exit the parent\n"
