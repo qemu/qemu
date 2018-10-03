@@ -145,7 +145,7 @@ void tpm_util_pcrread(QTestState *s, tx_func *tx,
     g_assert_cmpmem(buffer, exp_resp_size, exp_resp, exp_resp_size);
 }
 
-static bool tpm_util_swtpm_has_tpm2(void)
+bool tpm_util_swtpm_has_tpm2(void)
 {
     bool has_tpm2 = false;
     char *out = NULL;
@@ -190,11 +190,6 @@ gboolean tpm_util_swtpm_start(const char *path, GPid *pid,
     gboolean succ;
     unsigned i;
 
-    succ = tpm_util_swtpm_has_tpm2();
-    if (!succ) {
-        goto cleanup;
-    }
-
     *addr = g_new0(SocketAddress, 1);
     (*addr)->type = SOCKET_ADDRESS_TYPE_UNIX;
     (*addr)->u.q_unix.path = g_build_filename(path, "sock", NULL);
@@ -202,7 +197,6 @@ gboolean tpm_util_swtpm_start(const char *path, GPid *pid,
     succ = g_spawn_async(NULL, swtpm_argv, NULL, G_SPAWN_SEARCH_PATH,
                          NULL, NULL, pid, error);
 
-cleanup:
     for (i = 0; swtpm_argv[i]; i++) {
         g_free(swtpm_argv[i]);
     }
