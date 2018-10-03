@@ -56,7 +56,7 @@ int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len)
 int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
 {
     Chardev *s = be->chr;
-    int offset = 0, counter = 10;
+    int offset = 0;
     int res;
 
     if (!s || !CHARDEV_GET_CLASS(s)->chr_sync_read) {
@@ -88,10 +88,6 @@ int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
         }
 
         offset += res;
-
-        if (!counter--) {
-            break;
-        }
     }
 
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
@@ -239,7 +235,12 @@ void qemu_chr_fe_deinit(CharBackend *b, bool del)
             d->backends[b->tag] = NULL;
         }
         if (del) {
-            object_unparent(OBJECT(b->chr));
+            Object *obj = OBJECT(b->chr);
+            if (obj->parent) {
+                object_unparent(obj);
+            } else {
+                object_unref(obj);
+            }
         }
         b->chr = NULL;
     }
