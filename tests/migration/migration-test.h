@@ -18,4 +18,13 @@
 #define PPC_TEST_MEM_START (1 * 1024 * 1024)
 #define PPC_TEST_MEM_END   (100 * 1024 * 1024)
 
+/* ARM */
+#define ARM_TEST_MEM_START (0x40000000 + 1 * 1024 * 1024)
+#define ARM_TEST_MEM_END   (0x40000000 + 100 * 1024 * 1024)
+#define ARM_MACH_VIRT_UART 0x09000000
+/* AArch64 kernel load address is 0x40080000, and the test memory starts at
+ * 0x40100000. So the maximum allowable kernel size is 512KB.
+ */
+#define ARM_TEST_MAX_KERNEL_SIZE (512 * 1024)
+
 #endif /* _TEST_MIGRATION_H_ */
