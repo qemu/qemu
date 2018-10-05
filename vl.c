@@ -4329,7 +4329,7 @@ int main(int argc, char **argv, char **envp)
     qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
                      &error_fatal);
 
-    configure_accelerator(current_machine);
+    configure_accelerator(current_machine, argv[0]);
 
     if (!qtest_enabled() && machine_class->deprecation_reason) {
         error_report("Machine type '%s' is deprecated: %s",

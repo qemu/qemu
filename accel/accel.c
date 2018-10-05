@@ -69,7 +69,7 @@ static int accel_init_machine(AccelClass *acc, MachineState *ms)
     return ret;
 }
 
-void configure_accelerator(MachineState *ms)
+void configure_accelerator(MachineState *ms, const char *progname)
 {
     const char *accel;
     char **accel_list, **tmp;
@@ -80,8 +80,20 @@ void configure_accelerator(MachineState *ms)
 
     accel = qemu_opt_get(qemu_get_machine_opts(), "accel");
     if (accel == NULL) {
-        /* Use the default "accelerator", tcg */
-        accel = "tcg";
+        /* Select the default accelerator */
+        int pnlen = strlen(progname);
+        if (pnlen >= 3 && g_str_equal(&progname[pnlen - 3], "kvm")) {
+            /* If the program name ends with "kvm", we prefer KVM */
+            accel = "kvm:tcg";
+        } else {
+#if defined(CONFIG_TCG)
+            accel = "tcg";
+#elif defined(CONFIG_KVM)
+            accel = "kvm";
+#else
+#error "No default accelerator available"
+#endif
+        }
     }
 
     accel_list = g_strsplit(accel, ":", 0);
