@@ -350,24 +350,6 @@ void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx)
     writew(vq->avail + 4 + (2 * vq->size), idx);
 }
 
-/*
- * qvirtio_get_dev_type:
- * Returns: the preferred virtio bus/device type for the current architecture.
- * TODO: delete this
- */
-const char *qvirtio_get_dev_type(void)
-{
-    const char *arch = qtest_get_arch();
-
-    if (g_str_equal(arch, "arm") || g_str_equal(arch, "aarch64")) {
-        return "device";  /* for virtio-mmio */
-    } else if (g_str_equal(arch, "s390x")) {
-        return "ccw";
-    } else {
-        return "pci";
-    }
-}
-
 void qvirtio_start_device(QVirtioDevice *vdev)
 {
     qvirtio_reset(vdev);
