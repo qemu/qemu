@@ -60,6 +60,14 @@ typedef struct MemoryDeviceClass {
     uint64_t (*get_addr)(const MemoryDeviceState *md);
 
     /*
+     * Set the address of the memory device in guest physical memory.
+     *
+     * Called when plugging the memory device to configure the determined
+     * address in guest physical memory.
+     */
+    void (*set_addr)(MemoryDeviceState *md, uint64_t addr, Error **errp);
+
+    /*
      * Return the amount of memory provided by the memory device currently
      * usable ("plugged") by the VM.
      *
