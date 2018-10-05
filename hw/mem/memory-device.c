@@ -57,10 +57,9 @@ static int memory_device_used_region_size(Object *obj, void *opaque)
     if (object_dynamic_cast(obj, TYPE_MEMORY_DEVICE)) {
         const DeviceState *dev = DEVICE(obj);
         const MemoryDeviceState *md = MEMORY_DEVICE(obj);
-        const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(obj);
 
         if (dev->realized) {
-            *size += mdc->get_region_size(md, &error_abort);
+            *size += memory_device_get_region_size(md, &error_abort);
         }
     }
 
@@ -167,7 +166,7 @@ uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
         uint64_t md_size, md_addr;
 
         md_addr = mdc->get_addr(md);
-        md_size = mdc->get_region_size(md, &error_abort);
+        md_size = memory_device_get_region_size(md, &error_abort);
 
         if (ranges_overlap(md_addr, md_size, new_addr, size)) {
             if (hint) {
@@ -264,6 +263,14 @@ void memory_device_unplug_region(MachineState *ms, MemoryRegion *mr)
     g_assert(ms->device_memory);
 
     memory_region_del_subregion(&ms->device_memory->mr, mr);
+}
+
+uint64_t memory_device_get_region_size(const MemoryDeviceState *md,
+                                       Error **errp)
+{
+    MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+
+    return mdc->get_region_size(md, errp);
 }
 
 static const TypeInfo memory_device_info = {
