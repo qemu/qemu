@@ -32,7 +32,7 @@ static int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp);
 void pc_dimm_pre_plug(PCDIMMDevice *dimm, MachineState *machine,
                       const uint64_t *legacy_align, Error **errp)
 {
-    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(dimm);
     Error *local_err = NULL;
     MemoryRegion *mr;
     uint64_t addr, align;
@@ -49,7 +49,7 @@ void pc_dimm_pre_plug(PCDIMMDevice *dimm, MachineState *machine,
                             &error_abort);
     trace_mhp_pc_dimm_assigned_slot(slot);
 
-    mr = ddc->get_memory_region(dimm, &local_err);
+    mr = mdc->get_memory_region(MEMORY_DEVICE(dimm), &local_err);
     if (local_err) {
         goto out;
     }
@@ -72,9 +72,11 @@ out:
 void pc_dimm_plug(PCDIMMDevice *dimm, MachineState *machine, Error **errp)
 {
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm,
                                                               &error_abort);
-    MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
+    MemoryRegion *mr = mdc->get_memory_region(MEMORY_DEVICE(dimm),
+                                              &error_abort);
     uint64_t addr;
 
     addr = object_property_get_uint(OBJECT(dimm), PC_DIMM_ADDR_PROP,
@@ -87,9 +89,11 @@ void pc_dimm_plug(PCDIMMDevice *dimm, MachineState *machine, Error **errp)
 void pc_dimm_unplug(PCDIMMDevice *dimm, MachineState *machine)
 {
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(dimm);
     MemoryRegion *vmstate_mr = ddc->get_vmstate_memory_region(dimm,
                                                               &error_abort);
-    MemoryRegion *mr = ddc->get_memory_region(dimm, &error_abort);
+    MemoryRegion *mr = mdc->get_memory_region(MEMORY_DEVICE(dimm),
+                                              &error_abort);
 
     memory_device_unplug_region(machine, mr);
     vmstate_unregister_ram(vmstate_mr, DEVICE(dimm));
@@ -235,17 +239,22 @@ static uint64_t pc_dimm_md_get_addr(const MemoryDeviceState *md)
 static uint64_t pc_dimm_md_get_region_size(const MemoryDeviceState *md,
                                            Error **errp)
 {
-    /* dropping const here is fine as we don't touch the memory region */
-    PCDIMMDevice *dimm = PC_DIMM(md);
-    const PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(md);
+    MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
     MemoryRegion *mr;
 
-    mr = ddc->get_memory_region(dimm, errp);
+    /* dropping const here is fine as we don't touch the memory region */
+    mr = mdc->get_memory_region((MemoryDeviceState *)md, errp);
     if (!mr) {
         return 0;
     }
 
     return memory_region_size(mr);
+}
+
+static MemoryRegion *pc_dimm_md_get_memory_region(MemoryDeviceState *md,
+                                                  Error **errp)
+{
+    return pc_dimm_get_memory_region(PC_DIMM(md), errp);
 }
 
 static void pc_dimm_md_fill_device_info(const MemoryDeviceState *md,
@@ -289,13 +298,13 @@ static void pc_dimm_class_init(ObjectClass *oc, void *data)
     dc->props = pc_dimm_properties;
     dc->desc = "DIMM memory module";
 
-    ddc->get_memory_region = pc_dimm_get_memory_region;
     ddc->get_vmstate_memory_region = pc_dimm_get_memory_region;
 
     mdc->get_addr = pc_dimm_md_get_addr;
     /* for a dimm plugged_size == region_size */
     mdc->get_plugged_size = pc_dimm_md_get_region_size;
     mdc->get_region_size = pc_dimm_md_get_region_size;
+    mdc->get_memory_region = pc_dimm_md_get_memory_region;
     mdc->fill_device_info = pc_dimm_md_fill_device_info;
 }
 

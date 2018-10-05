@@ -38,6 +38,11 @@ typedef struct MemoryDeviceState {
  * mapped into guest physical address space at a certain address. The
  * address in guest physical memory can either be specified explicitly
  * or get assigned automatically.
+ *
+ * Conceptually, memory devices only span one memory region. If multiple
+ * successive memory regions are used, a covering memory region has to
+ * be provided. Scattered memory regions are not supported for single
+ * devices.
  */
 typedef struct MemoryDeviceClass {
     /* private */
@@ -67,6 +72,16 @@ typedef struct MemoryDeviceClass {
      */
     uint64_t (*get_plugged_size)(const MemoryDeviceState *md, Error **errp);
     uint64_t (*get_region_size)(const MemoryDeviceState *md, Error **errp);
+
+    /*
+     * Return the memory region of the memory device.
+     *
+     * Called when (un)plugging the memory device, to (un)map the
+     * memory region in guest physical memory, but also to detect the
+     * required alignment during address assignment or when the size of the
+     * memory region is required.
+     */
+    MemoryRegion *(*get_memory_region)(MemoryDeviceState *md, Error **errp);
 
     /*
      * Translate the memory device into #MemoryDeviceInfo.

@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/mem/memory-device.h"
 
 static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
@@ -118,9 +119,10 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
     nvdimm->nvdimm_mr->align = align;
 }
 
-static MemoryRegion *nvdimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
+static MemoryRegion *nvdimm_md_get_memory_region(MemoryDeviceState *md,
+                                                 Error **errp)
 {
-    NVDIMMDevice *nvdimm = NVDIMM(dimm);
+    NVDIMMDevice *nvdimm = NVDIMM(md);
     Error *local_err = NULL;
 
     if (!nvdimm->nvdimm_mr) {
@@ -190,11 +192,12 @@ static Property nvdimm_properties[] = {
 static void nvdimm_class_init(ObjectClass *oc, void *data)
 {
     PCDIMMDeviceClass *ddc = PC_DIMM_CLASS(oc);
+    MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(oc);
     NVDIMMClass *nvc = NVDIMM_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     ddc->realize = nvdimm_realize;
-    ddc->get_memory_region = nvdimm_get_memory_region;
+    mdc->get_memory_region = nvdimm_md_get_memory_region;
     dc->props = nvdimm_properties;
 
     nvc->read_label_data = nvdimm_read_label_data;
