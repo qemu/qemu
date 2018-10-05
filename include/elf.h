@@ -87,6 +87,14 @@ typedef int64_t  Elf64_Sxword;
 #define EF_MIPS_MACH_LS3A     0x00a20000  /* ST Microelectronics Loongson 3A */
 #define EF_MIPS_MACH          0x00ff0000  /* EF_MIPS_MACH_xxx selection mask */
 
+#define MIPS_ABI_FP_ANY       0x0         /* FP ABI doesn't matter           */
+#define MIPS_ABI_FP_DOUBLE    0x1         /* -mdouble-float                  */
+#define MIPS_ABI_FP_SINGLE    0x2         /* -msingle-float                  */
+#define MIPS_ABI_FP_SOFT      0x3         /* -msoft-float                    */
+#define MIPS_ABI_FP_OLD_64    0x4         /* -mips32r2 -mfp64                */
+#define MIPS_ABI_FP_XX        0x5         /* -mfpxx                          */
+#define MIPS_ABI_FP_64        0x6         /* -mips32r2 -mfp64                */
+#define MIPS_ABI_FP_64A       0x7         /* -mips32r2 -mfp64 -mno-odd-spreg */
 
 /* These constants define the different elf file types */
 #define ET_NONE   0
