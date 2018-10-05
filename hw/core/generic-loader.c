@@ -204,6 +204,7 @@ static void generic_loader_class_init(ObjectClass *klass, void *data)
     dc->unrealize = generic_loader_unrealize;
     dc->props = generic_loader_props;
     dc->desc = "Generic Loader";
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static TypeInfo generic_loader_info = {
