@@ -175,7 +175,8 @@ uint64_t memory_device_get_free_addr(MachineState *ms, const uint64_t *hint,
         if (ranges_overlap(md_addr, md_size, new_addr, size)) {
             if (hint) {
                 const DeviceState *d = DEVICE(md);
-                error_setg(errp, "address range conflicts with '%s'", d->id);
+                error_setg(errp, "address range conflicts with memory device"
+                           " id='%s'", d->id ? d->id : "(unnamed)");
                 goto out;
             }
             new_addr = QEMU_ALIGN_UP(md_addr + md_size, align);
