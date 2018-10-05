@@ -96,6 +96,22 @@ typedef int64_t  Elf64_Sxword;
 #define MIPS_ABI_FP_64        0x6         /* -mips32r2 -mfp64                */
 #define MIPS_ABI_FP_64A       0x7         /* -mips32r2 -mfp64 -mno-odd-spreg */
 
+typedef struct mips_elf_abiflags_v0 {
+  uint16_t version;           /* Version of flags structure                  */
+  uint8_t isa_level;          /* The level of the ISA: 1-5, 32, 64           */
+  uint8_t isa_rev;            /* The revision of ISA:                        */
+                              /*   - 0 for MIPS V and below,                 */
+                              /*   - 1-n otherwise.                          */
+  uint8_t gpr_size;           /* The size of general purpose registers       */
+  uint8_t cpr1_size;          /* The size of co-processor 1 registers        */
+  uint8_t cpr2_size;          /* The size of co-processor 2 registers        */
+  uint8_t fp_abi;             /* The floating-point ABI                      */
+  uint32_t isa_ext;           /* Mask of processor-specific extensions       */
+  uint32_t ases;              /* Mask of ASEs used                           */
+  uint32_t flags1;            /* Mask of general flags                       */
+  uint32_t flags2;
+} Mips_elf_abiflags_v0;
+
 /* These constants define the different elf file types */
 #define ET_NONE   0
 #define ET_REL    1
