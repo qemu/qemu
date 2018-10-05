@@ -28,8 +28,11 @@ typedef int64_t  Elf64_Sxword;
 #define PT_PHDR    6
 #define PT_LOPROC  0x70000000
 #define PT_HIPROC  0x7fffffff
-#define PT_MIPS_REGINFO		0x70000000
-#define PT_MIPS_OPTIONS		0x70000001
+
+#define PT_MIPS_REGINFO   0x70000000
+#define PT_MIPS_RTPROC    0x70000001
+#define PT_MIPS_OPTIONS   0x70000002
+#define PT_MIPS_ABIFLAGS  0x70000003
 
 /* Flags in the e_flags field of the header */
 /* MIPS architecture level. */
