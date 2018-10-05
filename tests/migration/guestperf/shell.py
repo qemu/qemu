@@ -19,14 +19,12 @@ from __future__ import print_function
 #
 
 
-import os
-import os.path
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__),
-                             '..', '..', '..', 'scripts'))
 import argparse
 import fnmatch
+import os
+import os.path
 import platform
+import sys
 import logging
 
 from guestperf.hardware import Hardware

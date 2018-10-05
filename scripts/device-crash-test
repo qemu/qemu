@@ -35,7 +35,6 @@ import random
 import argparse
 from itertools import chain
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 from qemu import QEMUMachine
 
 logger = logging.getLogger('device-crash-test')
@@ -99,7 +98,6 @@ ERROR_WHITELIST = [
     {'device':'isa-ipmi-bt', 'expected':True},             # IPMI device requires a bmc attribute to be set
     {'device':'isa-ipmi-kcs', 'expected':True},            # IPMI device requires a bmc attribute to be set
     {'device':'isa-parallel', 'expected':True},            # Can't create serial device, empty char device
-    {'device':'isa-serial', 'expected':True},              # Can't create serial device, empty char device
     {'device':'ivshmem', 'expected':True},                 # You must specify either 'shm' or 'chardev'
     {'device':'ivshmem-doorbell', 'expected':True},        # You must specify a 'chardev'
     {'device':'ivshmem-plain', 'expected':True},           # You must specify a 'memdev'
@@ -110,9 +108,6 @@ ERROR_WHITELIST = [
     {'device':'pc-dimm', 'expected':True},                 # 'memdev' property is not set
     {'device':'pci-bridge', 'expected':True},              # Bridge chassis not specified. Each bridge is required to be assigned a unique chassis id > 0.
     {'device':'pci-bridge-seat', 'expected':True},         # Bridge chassis not specified. Each bridge is required to be assigned a unique chassis id > 0.
-    {'device':'pci-serial', 'expected':True},              # Can't create serial device, empty char device
-    {'device':'pci-serial-2x', 'expected':True},           # Can't create serial device, empty char device
-    {'device':'pci-serial-4x', 'expected':True},           # Can't create serial device, empty char device
     {'device':'pxa2xx-dma', 'expected':True},              # channels value invalid
     {'device':'pxb', 'expected':True},                     # Bridge chassis not specified. Each bridge is required to be assigned a unique chassis id > 0.
     {'device':'scsi-block', 'expected':True},              # drive property not set
@@ -218,7 +213,6 @@ ERROR_WHITELIST = [
     {'exitcode':-6, 'log':r"Object .* is not an instance of type generic-pc-machine", 'loglevel':logging.ERROR},
     {'exitcode':-6, 'log':r"Object .* is not an instance of type e500-ccsr", 'loglevel':logging.ERROR},
     {'exitcode':-6, 'log':r"vmstate_register_with_alias_id: Assertion `!se->compat \|\| se->instance_id == 0' failed", 'loglevel':logging.ERROR},
-    {'exitcode':-11, 'device':'isa-serial', 'loglevel':logging.ERROR, 'expected':True},
 
     # everything else (including SIGABRT and SIGSEGV) will be a fatal error:
     {'exitcode':None, 'fatal':True, 'loglevel':logging.FATAL},

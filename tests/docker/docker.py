@@ -14,14 +14,12 @@
 from __future__ import print_function
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__),
-                             '..', '..', 'scripts'))
-import argparse
 import subprocess
 import json
 import hashlib
 import atexit
 import uuid
+import argparse
 import tempfile
 import re
 import signal
