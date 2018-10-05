@@ -71,7 +71,6 @@ typedef struct MemoryDeviceClass {
      * most devices, this corresponds to the size of the memory region.
      */
     uint64_t (*get_plugged_size)(const MemoryDeviceState *md, Error **errp);
-    uint64_t (*get_region_size)(const MemoryDeviceState *md, Error **errp);
 
     /*
      * Return the memory region of the memory device.

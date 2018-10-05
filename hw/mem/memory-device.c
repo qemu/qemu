@@ -268,9 +268,16 @@ void memory_device_unplug_region(MachineState *ms, MemoryRegion *mr)
 uint64_t memory_device_get_region_size(const MemoryDeviceState *md,
                                        Error **errp)
 {
-    MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+    const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+    MemoryRegion *mr;
 
-    return mdc->get_region_size(md, errp);
+    /* dropping const here is fine as we don't touch the memory region */
+    mr = mdc->get_memory_region((MemoryDeviceState *)md, errp);
+    if (!mr) {
+        return 0;
+    }
+
+    return memory_region_size(mr);
 }
 
 static const TypeInfo memory_device_info = {
