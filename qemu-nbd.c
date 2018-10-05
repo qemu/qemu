@@ -56,7 +56,6 @@
 #define MBR_SIZE 512
 
 static NBDExport *exp;
-static bool newproto;
 static int verbose;
 static char *srcpath;
 static SocketAddress *saddr;
@@ -84,8 +83,8 @@ static void usage(const char *name)
 "  -e, --shared=NUM          device can be shared by NUM clients (default '1')\n"
 "  -t, --persistent          don't exit on the last connection\n"
 "  -v, --verbose             display extra debugging information\n"
-"  -x, --export-name=NAME    expose export by name\n"
-"  -D, --description=TEXT    with -x, also export a human-readable description\n"
+"  -x, --export-name=NAME    expose export by name (default is empty string)\n"
+"  -D, --description=TEXT    export a human-readable description\n"
 "\n"
 "Exposing part of the image:\n"
 "  -o, --offset=OFFSET       offset into the image\n"
@@ -94,6 +93,7 @@ static void usage(const char *name)
 "General purpose options:\n"
 "  --object type,id=ID,...   define an object such as 'secret' for providing\n"
 "                            passwords and/or encryption keys\n"
+"  --tls-creds=ID            use id of an earlier --object to provide TLS\n"
 "  -T, --trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
 "                            specify tracing options\n"
 "  --fork                    fork off the server process and exit the parent\n"
@@ -354,8 +354,7 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
 
     nb_fds++;
     nbd_update_server_watch();
-    nbd_client_new(newproto ? NULL : exp, cioc,
-                   tlscreds, NULL, nbd_client_closed);
+    nbd_client_new(cioc, tlscreds, NULL, nbd_client_closed);
 }
 
 static void nbd_update_server_watch(void)
@@ -549,7 +548,7 @@ int main(int argc, char **argv)
     Error *local_err = NULL;
     BlockdevDetectZeroesOptions detect_zeroes = BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
     QDict *options = NULL;
-    const char *export_name = NULL;
+    const char *export_name = ""; /* Default export name */
     const char *export_description = NULL;
     const char *tlscredsid = NULL;
     bool imageOpts = false;
@@ -808,11 +807,6 @@ int main(int argc, char **argv)
             error_report("TLS is not supported with a host device");
             exit(EXIT_FAILURE);
         }
-        if (!export_name) {
-            /* Set the default NBD protocol export name, since
-             * we *must* use new style protocol for TLS */
-            export_name = "";
-        }
         tlscreds = nbd_get_tls_creds(tlscredsid, &local_err);
         if (local_err) {
             error_report("Failed to get TLS creds %s",
@@ -1013,14 +1007,8 @@ int main(int argc, char **argv)
         error_report_err(local_err);
         exit(EXIT_FAILURE);
     }
-    if (export_name) {
-        nbd_export_set_name(exp, export_name);
-        nbd_export_set_description(exp, export_description);
-        newproto = true;
-    } else if (export_description) {
-        error_report("Export description requires an export name");
-        exit(EXIT_FAILURE);
-    }
+    nbd_export_set_name(exp, export_name);
+    nbd_export_set_description(exp, export_description);
 
     if (device) {
         int ret;

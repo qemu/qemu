@@ -135,7 +135,9 @@ typedef struct NBDExtent {
 #define NBD_FLAG_SEND_TRIM         (1 << 5) /* Send TRIM (discard) */
 #define NBD_FLAG_SEND_WRITE_ZEROES (1 << 6) /* Send WRITE_ZEROES */
 #define NBD_FLAG_SEND_DF           (1 << 7) /* Send DF (Do not Fragment) */
-#define NBD_FLAG_SEND_CACHE        (1 << 8) /* Send CACHE (prefetch) */
+#define NBD_FLAG_CAN_MULTI_CONN    (1 << 8) /* Multi-client cache consistent */
+#define NBD_FLAG_SEND_RESIZE       (1 << 9) /* Send resize */
+#define NBD_FLAG_SEND_CACHE        (1 << 10) /* Send CACHE (prefetch) */
 
 /* New-style handshake (global) flags, sent from server to client, and
    control what will happen during handshake phase. */
@@ -308,8 +310,7 @@ void nbd_export_set_name(NBDExport *exp, const char *name);
 void nbd_export_set_description(NBDExport *exp, const char *description);
 void nbd_export_close_all(void);
 
-void nbd_client_new(NBDExport *exp,
-                    QIOChannelSocket *sioc,
+void nbd_client_new(QIOChannelSocket *sioc,
                     QCryptoTLSCreds *tlscreds,
                     const char *tlsaclname,
                     void (*close_fn)(NBDClient *, bool));
