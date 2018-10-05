@@ -36,6 +36,7 @@
 #include "qemu/timer.h"
 #include "qemu/units.h"
 #include "qemu/mmap-alloc.h"
+#include "qemu/log.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
 #include "hw/hw.h"
@@ -290,6 +291,12 @@ static int kvm_s390_configure_mempath_backing(KVMState *s)
 
     if (path_psize == 4 * KiB) {
         return 0;
+    }
+
+    if (!hpage_1m_allowed()) {
+        error_report("This QEMU machine does not support huge page "
+                     "mappings");
+        return -EINVAL;
     }
 
     if (path_psize != 1 * MiB) {
@@ -1109,7 +1116,8 @@ void kvm_s390_program_interrupt(S390CPU *cpu, uint16_t code)
         .type = KVM_S390_PROGRAM_INT,
         .u.pgm.code = code,
     };
-
+    qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
+                  cpu->env.psw.addr);
     kvm_s390_vcpu_interrupt(cpu, &irq);
 }
 

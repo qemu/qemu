@@ -18,3 +18,13 @@
 void tcg_s390_tod_updated(CPUState *cs, run_on_cpu_data opaque)
 {
 }
+void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env, uint32_t code,
+                                              int ilen, uintptr_t ra)
+{
+    g_assert_not_reached();
+}
+void QEMU_NORETURN tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
+                                           uintptr_t ra)
+{
+    g_assert_not_reached();
+}

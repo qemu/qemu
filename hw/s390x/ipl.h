@@ -132,15 +132,15 @@ typedef struct QemuIplParameters QemuIplParameters;
 struct S390IPLState {
     /*< private >*/
     DeviceState parent_obj;
+    IplParameterBlock iplb;
+    QemuIplParameters qipl;
     uint64_t start_addr;
     uint64_t compat_start_addr;
     uint64_t bios_start_addr;
     uint64_t compat_bios_start_addr;
     bool enforce_bios;
-    IplParameterBlock iplb;
     bool iplb_valid;
     bool netboot;
-    QemuIplParameters qipl;
     /* reset related properties don't have to be migrated or reset */
     enum s390_reset reset_type;
     int reset_cpu_index;
@@ -157,6 +157,7 @@ struct S390IPLState {
     bool iplbext_migration;
 };
 typedef struct S390IPLState S390IPLState;
+QEMU_BUILD_BUG_MSG(offsetof(S390IPLState, iplb) & 3, "alignment of iplb wrong");
 
 #define S390_IPL_TYPE_FCP 0x00
 #define S390_IPL_TYPE_CCW 0x02

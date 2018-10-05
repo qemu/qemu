@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internal.h"
+#include "tcg_s390x.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/helper-proto.h"
@@ -39,14 +40,6 @@
     (to < from                      \
      ? (mask / (from / to)) & to    \
      : (mask & from) * (to / from))
-
-static void ieee_exception(CPUS390XState *env, uint32_t dxc, uintptr_t retaddr)
-{
-    /* Install the DXC code.  */
-    env->fpc = (env->fpc & ~0xff00) | (dxc << 8);
-    /* Trap.  */
-    s390_program_interrupt(env, PGM_DATA, ILEN_AUTO, retaddr);
-}
 
 /* Should be called after any operation that may raise IEEE exceptions.  */
 static void handle_exceptions(CPUS390XState *env, uintptr_t retaddr)
@@ -75,7 +68,7 @@ static void handle_exceptions(CPUS390XState *env, uintptr_t retaddr)
     /* Send signals for enabled exceptions.  */
     s390_exc &= env->fpc >> 24;
     if (s390_exc) {
-        ieee_exception(env, s390_exc, retaddr);
+        tcg_s390_data_exception(env, s390_exc, retaddr);
     }
 }
 
@@ -773,6 +766,6 @@ void HELPER(sfas)(CPUS390XState *env, uint64_t val)
        is also 1, a simulated-iee-exception trap occurs.  */
     s390_exc = (signalling >> 16) & (source >> 24);
     if (s390_exc) {
-        ieee_exception(env, s390_exc | 3, GETPC());
+        tcg_s390_data_exception(env, s390_exc | 3, GETPC());
     }
 }

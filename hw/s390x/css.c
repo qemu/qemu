@@ -750,20 +750,25 @@ static void sch_handle_halt_func(SubchDev *sch)
 
 }
 
-static void copy_sense_id_to_guest(SenseId *dest, SenseId *src)
+/*
+ * As the SenseId struct cannot be packed (would cause unaligned accesses), we
+ * have to copy the individual fields to an unstructured area using the correct
+ * layout (see SA22-7204-01 "Common I/O-Device Commands").
+ */
+static void copy_sense_id_to_guest(uint8_t *dest, SenseId *src)
 {
     int i;
 
-    dest->reserved = src->reserved;
-    dest->cu_type = cpu_to_be16(src->cu_type);
-    dest->cu_model = src->cu_model;
-    dest->dev_type = cpu_to_be16(src->dev_type);
-    dest->dev_model = src->dev_model;
-    dest->unused = src->unused;
-    for (i = 0; i < ARRAY_SIZE(dest->ciw); i++) {
-        dest->ciw[i].type = src->ciw[i].type;
-        dest->ciw[i].command = src->ciw[i].command;
-        dest->ciw[i].count = cpu_to_be16(src->ciw[i].count);
+    dest[0] = src->reserved;
+    stw_be_p(dest + 1, src->cu_type);
+    dest[3] = src->cu_model;
+    stw_be_p(dest + 4, src->dev_type);
+    dest[6] = src->dev_model;
+    dest[7] = src->unused;
+    for (i = 0; i < ARRAY_SIZE(src->ciw); i++) {
+        dest[8 + i * 4] = src->ciw[i].type;
+        dest[9 + i * 4] = src->ciw[i].command;
+        stw_be_p(dest + 10 + i * 4, src->ciw[i].count);
     }
 }
 
@@ -1044,9 +1049,10 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
         break;
     case CCW_CMD_SENSE_ID:
     {
-        SenseId sense_id;
+        /* According to SA22-7204-01, Sense-ID can store up to 256 bytes */
+        uint8_t sense_id[256];
 
-        copy_sense_id_to_guest(&sense_id, &sch->id);
+        copy_sense_id_to_guest(sense_id, &sch->id);
         /* Sense ID information is device specific. */
         if (check_len) {
             if (ccw.count != sizeof(sense_id)) {
@@ -1060,11 +1066,11 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
          * have enough place to store at least bytes 0-3.
          */
         if (len >= 4) {
-            sense_id.reserved = 0xff;
+            sense_id[0] = 0xff;
         } else {
-            sense_id.reserved = 0;
+            sense_id[0] = 0;
         }
-        ccw_dstream_write_buf(&sch->cds, &sense_id, len);
+        ccw_dstream_write_buf(&sch->cds, sense_id, len);
         sch->curr_status.scsw.count = ccw_dstream_residual_count(&sch->cds);
         ret = 0;
         break;
