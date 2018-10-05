@@ -760,6 +760,7 @@ qos-test-obj-y += tests/libqos/arm-xilinx-zynq-a9-machine.o
 qos-test-obj-y += tests/libqos/x86_64_pc-machine.o
 
 # Tests
+qos-test-obj-y += tests/pci-test.o
 qos-test-obj-y += tests/sdhci-test.o
 
 check-unit-y += tests/test-qgraph$(EXESUF)
