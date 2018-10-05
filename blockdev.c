@@ -2651,7 +2651,7 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
 
     bdrv_flags = blk_get_open_flags_from_root_state(blk);
     bdrv_flags &= ~(BDRV_O_TEMPORARY | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING |
-        BDRV_O_PROTOCOL);
+        BDRV_O_PROTOCOL | BDRV_O_AUTO_RDONLY);
 
     if (!has_read_only) {
         read_only = BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN;

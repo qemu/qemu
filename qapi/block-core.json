@@ -3656,6 +3656,12 @@
 #                 either generally or in certain configurations. In this case,
 #                 the default value does not work and the option must be
 #                 specified explicitly.
+# @auto-read-only: if true and @read-only is false, QEMU may automatically
+#                  decide not to open the image read-write as requested, but
+#                  fall back to read-only instead (and switch between the modes
+#                  later), e.g. depending on whether the image file is writable
+#                  or whether a writing user is attached to the node
+#                  (default: false, since 3.1)
 # @detect-zeroes: detect and optimize zero writes (Since 2.1)
 #                 (default: off)
 # @force-share:   force share all permission on added nodes.
@@ -3671,6 +3677,7 @@
             '*discard': 'BlockdevDiscardOptions',
             '*cache': 'BlockdevCacheOptions',
             '*read-only': 'bool',
+            '*auto-read-only': 'bool',
             '*force-share': 'bool',
             '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
   'discriminator': 'driver',

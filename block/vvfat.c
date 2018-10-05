@@ -3130,6 +3130,7 @@ static void vvfat_qcow_options(int *child_flags, QDict *child_options,
                                int parent_flags, QDict *parent_options)
 {
     qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "off");
+    qdict_set_default_str(child_options, BDRV_OPT_AUTO_READ_ONLY, "off");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 }
 
