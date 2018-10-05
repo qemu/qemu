@@ -122,6 +122,15 @@
 #ifndef __has_feature
 #define __has_feature(x) 0 /* compatibility with non-clang compilers */
 #endif
+
+#ifndef __has_builtin
+#define __has_builtin(x) 0 /* compatibility with non-clang compilers */
+#endif
+
+#if __has_builtin(__builtin_assume_aligned) || QEMU_GNUC_PREREQ(4, 7)
+#define HAS_ASSUME_ALIGNED
+#endif
+
 /* Implement C11 _Generic via GCC builtins.  Example:
  *
  *    QEMU_GENERIC(x, (float, sinf), (long double, sinl), sin) (x)

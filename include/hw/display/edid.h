@@ -4,7 +4,7 @@
 #include "hw/hw.h"
 
 typedef struct qemu_edid_info {
-    const char *vendor;
+    const char *vendor; /* http://www.uefi.org/pnp_id_list */
     const char *name;
     const char *serial;
     uint32_t    dpi;

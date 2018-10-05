@@ -309,6 +309,14 @@ static void pci_secondary_vga_exit(PCIDevice *dev)
     VGACommonState *s = &d->vga;
 
     graphic_console_close(s->con);
+    memory_region_del_subregion(&d->mmio, &d->mrs[0]);
+    memory_region_del_subregion(&d->mmio, &d->mrs[1]);
+    if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_QEXT)) {
+        memory_region_del_subregion(&d->mmio, &d->mrs[2]);
+    }
+    if (d->flags & (1 << PCI_VGA_FLAG_ENABLE_EDID)) {
+        memory_region_del_subregion(&d->mmio, &d->mrs[3]);
+    }
 }
 
 static void pci_secondary_vga_init(Object *obj)
