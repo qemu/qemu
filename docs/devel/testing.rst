@@ -43,15 +43,13 @@ add a new unit test:
 
 3. Add the test to ``tests/Makefile.include``. First, name the unit test
    program and add it to ``$(check-unit-y)``; then add a rule to build the
-   executable. Optionally, you can add a magical variable to support ``gcov``.
-   For example:
+   executable.  For example:
 
 .. code::
 
   check-unit-y += tests/foo-test$(EXESUF)
   tests/foo-test$(EXESUF): tests/foo-test.o $(test-util-obj-y)
   ...
-  gcov-files-foo-test-y = util/foo.c
 
 Since unit tests don't require environment variables, the simplest way to debug
 a unit test failure is often directly invoking it or even running it under
