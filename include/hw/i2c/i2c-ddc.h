@@ -19,14 +19,16 @@
 #ifndef I2C_DDC_H
 #define I2C_DDC_H
 
-/* A simple I2C slave which just returns the contents of its EDID blob. */
+#include "hw/display/edid.h"
 
+/* A simple I2C slave which just returns the contents of its EDID blob. */
 struct I2CDDCState {
     /*< private >*/
     I2CSlave i2c;
     /*< public >*/
     bool firstbyte;
     uint8_t reg;
+    qemu_edid_info edid_info;
     uint8_t edid_blob[128];
 };
 
