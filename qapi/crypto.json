@@ -181,11 +181,11 @@
 # The options that apply to LUKS encryption format initialization
 #
 # @cipher-alg: the cipher algorithm for data encryption
-#              Currently defaults to 'aes'.
+#              Currently defaults to 'aes-256'.
 # @cipher-mode: the cipher mode for data encryption
-#               Currently defaults to 'cbc'
+#               Currently defaults to 'xts'
 # @ivgen-alg: the initialization vector generator
-#             Currently defaults to 'essiv'
+#             Currently defaults to 'plain64'
 # @ivgen-hash-alg: the initialization vector generator hash
 #                  Currently defaults to 'sha256'
 # @hash-alg: the master key hash algorithm
