@@ -1198,7 +1198,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             if (local_err) {
                 error_report_err(local_err);
                 error_free(invtsc_mig_blocker);
-                goto fail;
+                return r;
             }
             /* for savevm */
             vmstate_x86_cpu.unmigratable = 1;
