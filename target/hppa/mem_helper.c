@@ -137,7 +137,8 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
 
     if (unlikely(!(prot & type))) {
         /* The access isn't allowed -- Inst/Data Memory Protection Fault.  */
-        ret = (type & PAGE_EXEC ? EXCP_IMP : EXCP_DMP);
+        ret = (type & PAGE_EXEC ? EXCP_IMP :
+               prot & PAGE_READ ? EXCP_DMP : EXCP_DMAR);
         goto egress;
     }
 
