@@ -43,6 +43,14 @@ typedef struct QVirtioPCIForeachData {
     void *user_data;
 } QVirtioPCIForeachData;
 
+static inline bool qvirtio_pci_is_big_endian(QVirtioPCIDevice *dev)
+{
+    QPCIBus *bus = dev->pdev->bus;
+
+    /* FIXME: virtio 1.0 is always little-endian */
+    return qtest_big_endian(bus->qts);
+}
+
 void qvirtio_pci_device_free(QVirtioPCIDevice *dev)
 {
     g_free(dev->pdev);
@@ -56,6 +64,7 @@ static void qvirtio_pci_init_from_pcidev(QVirtioPCIDevice *dev, QPCIDevice *pci_
     dev->config_msix_entry = -1;
 
     dev->vdev.bus = &qvirtio_pci;
+    dev->vdev.big_endian = qvirtio_pci_is_big_endian(dev);
 
     /* each virtio-xxx-pci device should override at least this function */
     dev->obj.get_driver = NULL;
@@ -99,7 +108,7 @@ static uint8_t qvirtio_pci_config_readb(QVirtioDevice *d, uint64_t off)
  * so with a big-endian guest the order has been reversed,
  * reverse it again
  * virtio-1.0 is always little-endian, like PCI, but this
- * case will be managed inside qvirtio_is_big_endian()
+ * case will be managed inside qvirtio_pci_is_big_endian()
  */
 
 static uint16_t qvirtio_pci_config_readw(QVirtioDevice *d, uint64_t off)

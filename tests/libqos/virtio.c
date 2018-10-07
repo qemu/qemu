@@ -372,3 +372,8 @@ void qvirtio_start_device(QVirtioDevice *vdev)
     qvirtio_set_acknowledge(vdev);
     qvirtio_set_driver(vdev);
 }
+
+bool qvirtio_is_big_endian(QVirtioDevice *d)
+{
+    return d->big_endian;
+}
