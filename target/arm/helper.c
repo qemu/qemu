@@ -3745,6 +3745,36 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .access = PL1_RW, .accessfn = access_trap_aa32s_el1,
       .writefn = sdcr_write,
       .fieldoffset = offsetoflow32(CPUARMState, cp15.mdcr_el3) },
+    // zhuowei: hack: KTRR for Apple CPUs
+    { .name = "KTRR_MYSTERY0_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 0,
+      .resetvalue = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ktrr_mystery0_el1) },
+    { .name = "KTRR_MYSTERY1_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 1,
+      .resetvalue = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ktrr_mystery1_el1) },
+    { .name = "KTRR_LOCK_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 2,
+      .resetvalue = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ktrr_lock_el1) },
+    { .name = "KTRR_LOWER_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 3,
+      .resetvalue = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ktrr_lower_el1) },
+    { .name = "KTRR_UPPER_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 4,
+      .resetvalue = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ktrr_upper_el1) },
+    // no ktrr register 5, I think.
+    { .name = "KTRR_MYSTERY6_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 6,
+      .resetvalue = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ktrr_mystery6_el1) },
+    { .name = "KTRR_MYSTERY7_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 15, .crm = 2, .opc2 = 7,
+      .resetvalue = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.ktrr_mystery7_el1) },
     REGINFO_SENTINEL
 };
 
@@ -5916,7 +5946,9 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
             break;
         }
         /* assert our permissions are not too lax (stricter is fine) */
-        assert((r->access & ~mask) == 0);
+        // zhuowei: hack. make KTRR registers writable from EL1 even though they have opc1=4
+        // assert((r->access & ~mask) == 0);
+        (void)(mask); // unused.
     }
 
     /* Check that the register definition has enough info to handle
@@ -8346,6 +8378,13 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         env->cp15.far_el[new_el] = env->exception.vaddress;
         qemu_log_mask(CPU_LOG_INT, "...with FAR 0x%" PRIx64 "\n",
                       env->cp15.far_el[new_el]);
+        // zhuowei: hack to dump phys address
+        {
+            MemTxAttrs attrs = {};
+            hwaddr phys_addr = arm_cpu_get_phys_page_attrs_debug(cs, env->cp15.far_el[new_el], &attrs);
+            qemu_log_mask(CPU_LOG_INT, "...phys 0x%" PRIx64 "\n",
+                          phys_addr);
+        }
         /* fall through */
     case EXCP_BKPT:
     case EXCP_UDEF:

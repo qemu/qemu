@@ -60,6 +60,8 @@
 #include "standard-headers/linux/input.h"
 #include "hw/arm/smmuv3.h"
 
+#include "hw/arm/exynos4210.h"
+
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
                                                     void *data) \
@@ -151,6 +153,10 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_PCIE_PIO] =           { 0x3eff0000, 0x00010000 },
     [VIRT_PCIE_ECAM] =          { 0x3f000000, 0x01000000 },
     [VIRT_MEM] =                { 0x40000000, RAMLIMIT_BYTES },
+    // zhuowei: t8015 peripherals
+    [VIRT_AMCC] =               { 0x200000000, 0x00300000 }, // zhuowei: hack
+    [VIRT_S3C_UART] =           { 0x22e600000, 0x00001000 }, // zhuowei: hack
+    [VIRT_AIC] =                { 0x232100000, 0x00009000 }, // zhuowei: hack
     /* Additional 64 MB redist region (can contain up to 512 redistributors) */
     [VIRT_GIC_REDIST2] =        { 0x4000000000ULL, 0x4000000 },
     [VIRT_PCIE_ECAM_HIGH] =     { 0x4010000000ULL, 0x10000000 },
@@ -164,6 +170,7 @@ static const int a15irqmap[] = {
     [VIRT_PCIE] = 3, /* ... to 6 */
     [VIRT_GPIO] = 7,
     [VIRT_SECURE_UART] = 8,
+    [VIRT_S3C_UART] = 9,
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
     [VIRT_SMMU] = 74,    /* ...to 74 + NUM_SMMU_IRQS - 1 */
@@ -658,6 +665,8 @@ static void create_gic(VirtMachineState *vms, qemu_irq *pic)
                            qdev_get_gpio_in(cpudev, ARM_CPU_VIRQ));
         sysbus_connect_irq(gicbusdev, i + 3 * smp_cpus,
                            qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
+        // zhuowei: hack: also wire timer to FIQ to match t8015
+        qdev_connect_gpio_out(cpudev, GTIMER_PHYS, qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
     }
 
     for (i = 0; i < NUM_IRQS; i++) {
@@ -715,6 +724,18 @@ static void create_uart(const VirtMachineState *vms, qemu_irq *pic, int uart,
     }
 
     g_free(nodename);
+}
+
+static void create_s3c_uart(const VirtMachineState *vms, qemu_irq *pic, int uart,
+                        MemoryRegion *mem, Chardev *chr)
+{
+    hwaddr base = vms->memmap[uart].base;
+    int irq = vms->irqmap[uart];
+
+    DeviceState *dev = exynos4210_uart_create(base, 256, 0, chr, pic[irq]);
+    if (!dev) {
+        abort();
+    }
 }
 
 static void create_rtc(const VirtMachineState *vms, qemu_irq *pic)
@@ -1537,6 +1558,7 @@ static void machvirt_init(MachineState *machine)
         create_secure_ram(vms, secure_sysmem);
         create_uart(vms, pic, VIRT_SECURE_UART, secure_sysmem, serial_hd(1));
     }
+    create_s3c_uart(vms, pic, VIRT_S3C_UART, sysmem, serial_hd(2));
 
     vms->highmem_ecam &= vms->highmem && (!firmware_loaded || aarch64);
 
@@ -1556,6 +1578,17 @@ static void machvirt_init(MachineState *machine)
     rom_set_fw(vms->fw_cfg);
 
     create_platform_bus(vms, pic);
+
+    // zhuowei: hack: amcc
+    MemoryRegion *mcc = g_new(MemoryRegion, 1);
+    memory_region_allocate_system_memory(mcc, NULL, "mach-virt.mcc",
+                                         vms->memmap[VIRT_AMCC].size);
+    memory_region_add_subregion(sysmem, vms->memmap[VIRT_AMCC].base, mcc);
+
+    MemoryRegion *aic = g_new(MemoryRegion, 1);
+    memory_region_allocate_system_memory(aic, NULL, "mach-virt.aic",
+                                         vms->memmap[VIRT_AIC].size);
+    memory_region_add_subregion(sysmem, vms->memmap[VIRT_AIC].base, aic);
 
     vms->bootinfo.ram_size = machine->ram_size;
     vms->bootinfo.kernel_filename = machine->kernel_filename;

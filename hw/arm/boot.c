@@ -25,6 +25,8 @@
 #include "qemu/option.h"
 #include "exec/address-spaces.h"
 
+#include "macho_loader.h"
+
 /* Kernel boot protocol is specified in the kernel docs
  * Documentation/arm/Booting and Documentation/arm64/booting.txt
  * They have different preferred image load offsets from system RAM base.
@@ -930,6 +932,218 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
     return size;
 }
 
+// pexpert/pexpert/arm64/boot.h
+#define xnu_arm64_kBootArgsRevision2		2	/* added boot_args.bootFlags */
+#define xnu_arm64_kBootArgsVersion2		2
+#define xnu_arm64_BOOT_LINE_LENGTH        256
+struct xnu_arm64_Boot_Video {
+	unsigned long	v_baseAddr;	/* Base address of video memory */
+	unsigned long	v_display;	/* Display Code (if Applicable */
+	unsigned long	v_rowBytes;	/* Number of bytes per pixel row */
+	unsigned long	v_width;	/* Width */
+	unsigned long	v_height;	/* Height */
+	unsigned long	v_depth;	/* Pixel Depth and other parameters */
+};
+
+struct xnu_arm64_boot_args {
+	uint16_t		Revision;			/* Revision of boot_args structure */
+	uint16_t		Version;			/* Version of boot_args structure */
+	uint64_t		virtBase;			/* Virtual base of memory */
+	uint64_t		physBase;			/* Physical base of memory */
+	uint64_t		memSize;			/* Size of memory */
+	uint64_t		topOfKernelData;	/* Highest physical address used in kernel data area */
+	struct xnu_arm64_Boot_Video		Video;				/* Video Information */
+	uint32_t		machineType;		/* Machine Type */
+	uint64_t		deviceTreeP;		/* Base of flattened device tree */
+	uint32_t		deviceTreeLength;	/* Length of flattened tree */
+	char			CommandLine[xnu_arm64_BOOT_LINE_LENGTH];	/* Passed in command line */
+	uint64_t		bootFlags;		/* Additional flags specified by the bootloader */
+	uint64_t		memSizeActual;		/* Actual size of memory */
+};
+
+static size_t macho_setup_bootargs(struct arm_boot_info *info, AddressSpace *as,
+    uint64_t bootargs_addr, uint64_t virt_base, uint64_t phys_base, uint64_t top_of_kernel_data, uint64_t dtb_address, uint64_t dtb_size) {
+    struct xnu_arm64_boot_args boot_args;
+    memset(&boot_args, 0, sizeof(boot_args));
+    boot_args.Revision = xnu_arm64_kBootArgsRevision2;
+    boot_args.Version = xnu_arm64_kBootArgsVersion2;
+    boot_args.virtBase = virt_base;
+    boot_args.physBase = phys_base;
+    boot_args.memSize = info->ram_size;
+    // top of kernel data (kernel, dtb, any ramdisk) + boot args size + padding to 16k
+    boot_args.topOfKernelData = ((top_of_kernel_data + sizeof(boot_args)) + 0xffffull) & ~0xffffull;
+    // todo: video, machine type, flags
+    boot_args.deviceTreeP = dtb_address;
+    boot_args.deviceTreeLength = dtb_size;
+    g_strlcpy(boot_args.CommandLine, info->kernel_cmdline, sizeof(boot_args.CommandLine));
+    // this is badly named: it's actually
+    // how much physical RAM is *not* available to the kernel
+    // if left at 0, kernel estimates it by taking difference between
+    // memSize and size rounded up to 512m
+    // it's only used for memory usage debugging though.
+    boot_args.memSizeActual = 0;
+    rom_add_blob_fixed_as("xnu_boot_args", &boot_args, sizeof(boot_args), bootargs_addr, as);
+    return sizeof(boot_args);
+}
+
+static void macho_highest_lowest(struct mach_header_64* mh, uint64_t *lowaddr, uint64_t *highaddr) {
+    struct load_command* cmd = (struct load_command*)((uint8_t*)mh + sizeof(struct mach_header_64));
+    // iterate through all the segments once to find highest and lowest addresses
+    uint64_t low_addr_temp = ~0;
+    uint64_t high_addr_temp = 0;
+    for (unsigned int index = 0; index < mh->ncmds; index++) {
+        switch (cmd->cmd) {
+            case LC_SEGMENT_64: {
+                struct segment_command_64* segCmd = (struct segment_command_64*)cmd;
+                if (segCmd->vmaddr < low_addr_temp) {
+                    low_addr_temp = segCmd->vmaddr;
+                }
+                if (segCmd->vmaddr + segCmd->vmsize > high_addr_temp) {
+                    high_addr_temp = segCmd->vmaddr + segCmd->vmsize;
+                }
+                break;
+            }
+        }
+        cmd = (struct load_command*)((char*)cmd + cmd->cmdsize);
+    }
+    *lowaddr = low_addr_temp;
+    *highaddr = high_addr_temp;
+}
+#define xnu_kPropNameLength 32
+struct xnu_DeviceTreeNodeProperty {
+    char name[xnu_kPropNameLength];
+    uint32_t length;
+    char value[];
+};
+
+static void macho_add_ramdisk_to_dtb(uint8_t* dtb_data, size_t dtb_size, uint64_t ramdisk_addr, uint64_t ramdisk_size) {
+    struct xnu_DeviceTreeNodeProperty* dtNode = NULL;
+    for (size_t i = 0; i < dtb_size; i++) {
+        if (strncmp((const char*)dtb_data + i, "MemoryMapReserved-0", xnu_kPropNameLength) == 0) {
+            dtNode = (struct xnu_DeviceTreeNodeProperty*)(dtb_data + i);
+            break;
+        }
+    }
+    if (!dtNode) {
+        fprintf(stderr, "Can't write device tree node for ramdisk!\n");
+        abort();
+    }
+    strncpy(dtNode->name, "RAMDisk", xnu_kPropNameLength);
+    uint64_t* valuePtr = (uint64_t*)&dtNode->value;
+    valuePtr[0] = ramdisk_addr;
+    valuePtr[1] = ramdisk_size;
+}
+
+#define VAtoPA(addr) (((addr) & 0x3fffffff) + mem_base + kernel_load_offset)
+
+static uint64_t arm_load_macho(struct arm_boot_info *info, uint64_t *pentry, AddressSpace *as)
+{
+    hwaddr kernel_load_offset = 0x00000000;
+    hwaddr mem_base = info->loader_start;
+
+    uint8_t *data = NULL;
+    gsize len;
+    bool ret = false;
+    uint8_t* rom_buf = NULL;
+    if (!g_file_get_contents(info->kernel_filename, (char**) &data, &len, NULL)) {
+        goto out;
+    }
+    struct mach_header_64* mh = (struct mach_header_64*)data;
+    struct load_command* cmd = (struct load_command*)(data + sizeof(struct mach_header_64));
+    // iterate through all the segments once to find highest and lowest addresses
+    uint64_t pc = 0;
+    uint64_t low_addr_temp;
+    uint64_t high_addr_temp;
+    macho_highest_lowest(mh, &low_addr_temp, &high_addr_temp);
+    uint64_t rom_buf_size = high_addr_temp - low_addr_temp;
+    rom_buf = g_malloc0(rom_buf_size);
+    for (unsigned int index = 0; index < mh->ncmds; index++) {
+        switch (cmd->cmd) {
+            case LC_SEGMENT_64: {
+                struct segment_command_64* segCmd = (struct segment_command_64*)cmd;
+                memcpy(rom_buf + (segCmd->vmaddr - low_addr_temp), data + segCmd->fileoff, segCmd->filesize);
+                break;
+            }
+            case LC_UNIXTHREAD: {
+                // grab just the entry point PC
+                uint64_t* ptrPc = (uint64_t*)((char*)cmd + 0x110); // for arm64 only.
+                pc = VAtoPA(*ptrPc);
+                break;
+            }
+        }
+        cmd = (struct load_command*)((char*)cmd + cmd->cmdsize);
+    }
+    hwaddr rom_base = VAtoPA(low_addr_temp);
+    rom_add_blob_fixed_as("macho", rom_buf, rom_buf_size, rom_base, as);
+    ret = true;
+
+    uint64_t load_extra_offset = high_addr_temp;
+
+    uint64_t ramdisk_address = load_extra_offset;
+    gsize ramdisk_size = 0;
+
+    // load ramdisk if exists
+    if (info->initrd_filename) {
+        uint8_t* ramdisk_data = NULL;
+        if (g_file_get_contents(info->initrd_filename, (char**) &ramdisk_data, &ramdisk_size, NULL)) {
+            info->initrd_filename = NULL;
+            rom_add_blob_fixed_as("xnu_ramdisk", ramdisk_data, ramdisk_size, VAtoPA(ramdisk_address), as);
+            load_extra_offset = (load_extra_offset + ramdisk_size + 0xffffull) & ~0xffffull;
+            g_free(ramdisk_data);
+        } else {
+            fprintf(stderr, "ramdisk failed?!\n");
+            abort();
+        }
+    }
+
+    uint64_t dtb_address = load_extra_offset;
+    gsize dtb_size = 0;
+    // load device tree
+    if (info->dtb_filename) {
+        uint8_t* dtb_data = NULL;
+        if (g_file_get_contents(info->dtb_filename, (char**) &dtb_data, &dtb_size, NULL)) {
+            info->dtb_filename = NULL;
+            if (ramdisk_size != 0) {
+                macho_add_ramdisk_to_dtb(dtb_data, dtb_size, VAtoPA(ramdisk_address), ramdisk_size);
+            }
+            rom_add_blob_fixed_as("xnu_dtb", dtb_data, dtb_size, VAtoPA(dtb_address), as);
+            load_extra_offset = (load_extra_offset + dtb_size + 0xffffull) & ~0xffffull;
+            g_free(dtb_data);
+        } else {
+            fprintf(stderr, "dtb failed?!\n");
+            abort();
+        }
+    }
+
+    // fixup boot args
+    // note: device tree and args must follow kernel and be included in the kernel data size.
+    // macho_setup_bootargs takes care of adding the size for the args
+    // osfmk/arm64/arm_vm_init.c:arm_vm_prot_init
+    uint64_t bootargs_addr = VAtoPA(load_extra_offset);
+    uint64_t phys_base = (mem_base + kernel_load_offset);
+    uint64_t virt_base = low_addr_temp & ~0x3fffffffull;
+    macho_setup_bootargs(info, as, bootargs_addr, virt_base, phys_base, VAtoPA(load_extra_offset), dtb_address, dtb_size);
+
+    // write bootloader
+    uint32_t fixupcontext[FIXUP_MAX];
+    fixupcontext[FIXUP_ARGPTR] = bootargs_addr;
+    fixupcontext[FIXUP_ENTRYPOINT] = pc;
+    write_bootloader("bootloader", info->loader_start,
+                         bootloader_aarch64, fixupcontext, as);
+    *pentry = info->loader_start;
+
+    out:
+    if (data) {
+        g_free(data);
+    }
+    if (rom_buf) {
+        g_free(rom_buf);
+    }
+    return ret? high_addr_temp - low_addr_temp : -1;
+}
+
+#undef VAtoPA
+
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 {
     CPUState *cs;
@@ -1059,6 +1273,13 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
         }
     }
     entry = elf_entry;
+    if (kernel_size < 0) {
+        // try a MachO kernel.
+        kernel_size = arm_load_macho(info, &entry, as);
+        if (kernel_size >= 0) {
+            fprintf(stderr, "xnu\n");
+        }
+    }
     if (kernel_size < 0) {
         kernel_size = load_uimage_as(info->kernel_filename, &entry, NULL,
                                      &is_linux, NULL, NULL, as);
