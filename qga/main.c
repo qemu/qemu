@@ -58,6 +58,7 @@
 #endif
 #define QGA_SENTINEL_BYTE 0xFF
 #define QGA_CONF_DEFAULT CONFIG_QEMU_CONFDIR G_DIR_SEPARATOR_S "qemu-ga.conf"
+#define QGA_RETRY_INTERVAL 5
 
 static struct {
     const char *state_dir;
@@ -98,6 +99,7 @@ struct GAState {
     GAPersistentState pstate;
     GAConfig *config;
     int socket_activation;
+    bool force_exit;
 };
 
 struct GAState *ga_state;
@@ -120,6 +122,7 @@ DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
 VOID WINAPI service_main(DWORD argc, TCHAR *argv[]);
 #endif
 static int run_agent(GAState *s);
+static void stop_agent(GAState *s, bool requested);
 
 static void
 init_dfl_pathnames(void)
@@ -168,9 +171,7 @@ static void quit_handler(int sig)
     }
     g_debug("received signal num %d, quitting", sig);
 
-    if (g_main_loop_is_running(ga_state->main_loop)) {
-        g_main_loop_quit(ga_state->main_loop);
-    }
+    stop_agent(ga_state, true);
 }
 
 #ifndef _WIN32
@@ -255,6 +256,10 @@ QEMU_COPYRIGHT "\n"
 "                    to list available RPCs)\n"
 "  -D, --dump-conf   dump a qemu-ga config file based on current config\n"
 "                    options / command-line parameters to stdout\n"
+"  -r, --retry-path  attempt re-opening path if it's unavailable or closed\n"
+"                    due to an error which may be recoverable in the future\n"
+"                    (virtio-serial driver re-install, serial device hot\n"
+"                    plug/unplug, etc.)\n"
 "  -h, --help        display this help and exit\n"
 "\n"
 QEMU_HELP_BOTTOM "\n"
@@ -614,6 +619,7 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
     switch (status) {
     case G_IO_STATUS_ERROR:
         g_warning("error reading channel");
+        stop_agent(s, false);
         return false;
     case G_IO_STATUS_NORMAL:
         buf[count] = 0;
@@ -927,6 +933,7 @@ struct GAConfig {
     int daemonize;
     GLogLevelFlags log_level;
     int dumpconf;
+    bool retry_path;
 };
 
 static void config_load(GAConfig *config)
@@ -975,6 +982,10 @@ static void config_load(GAConfig *config)
         g_key_file_get_boolean(keyfile, "general", "verbose", &gerr)) {
         /* enable all log levels */
         config->log_level = G_LOG_LEVEL_MASK;
+    }
+    if (g_key_file_has_key(keyfile, "general", "retry-path", NULL)) {
+        config->retry_path =
+            g_key_file_get_boolean(keyfile, "general", "retry-path", &gerr);
     }
     if (g_key_file_has_key(keyfile, "general", "blacklist", NULL)) {
         config->bliststr =
@@ -1037,6 +1048,8 @@ static void config_dump(GAConfig *config)
     g_key_file_set_string(keyfile, "general", "statedir", config->state_dir);
     g_key_file_set_boolean(keyfile, "general", "verbose",
                            config->log_level == G_LOG_LEVEL_MASK);
+    g_key_file_set_boolean(keyfile, "general", "retry-path",
+                           config->retry_path);
     tmp = list_join(config->blacklist, ',');
     g_key_file_set_string(keyfile, "general", "blacklist", tmp);
     g_free(tmp);
@@ -1055,7 +1068,7 @@ static void config_dump(GAConfig *config)
 
 static void config_parse(GAConfig *config, int argc, char **argv)
 {
-    const char *sopt = "hVvdm:p:l:f:F::b:s:t:D";
+    const char *sopt = "hVvdm:p:l:f:F::b:s:t:Dr";
     int opt_ind = 0, ch;
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
@@ -1075,6 +1088,7 @@ static void config_parse(GAConfig *config, int argc, char **argv)
         { "service", 1, NULL, 's' },
 #endif
         { "statedir", 1, NULL, 't' },
+        { "retry-path", 0, NULL, 'r' },
         { NULL, 0, NULL, 0 }
     };
 
@@ -1118,6 +1132,9 @@ static void config_parse(GAConfig *config, int argc, char **argv)
             break;
         case 'D':
             config->dumpconf = 1;
+            break;
+        case 'r':
+            config->retry_path = true;
             break;
         case 'b': {
             if (is_help_option(optarg)) {
@@ -1322,9 +1339,6 @@ static void cleanup_agent(GAState *s)
         ga_command_state_free(s->command_state);
         json_message_parser_destroy(&s->parser);
     }
-    if (s->channel) {
-        ga_channel_free(s->channel);
-    }
     g_free(s->pstate_filepath);
     g_free(s->state_filepath_isfrozen);
     if (s->main_loop) {
@@ -1334,7 +1348,7 @@ static void cleanup_agent(GAState *s)
     ga_state = NULL;
 }
 
-static int run_agent(GAState *s)
+static int run_agent_once(GAState *s)
 {
     if (!channel_init(s, s->config->method, s->config->channel_path,
                       s->socket_activation ? FIRST_SOCKET_ACTIVATION_FD : -1)) {
@@ -1344,7 +1358,39 @@ static int run_agent(GAState *s)
 
     g_main_loop_run(ga_state->main_loop);
 
+    if (s->channel) {
+        ga_channel_free(s->channel);
+    }
+
     return EXIT_SUCCESS;
+}
+
+static int run_agent(GAState *s)
+{
+    int ret = EXIT_SUCCESS;
+
+    s->force_exit = false;
+
+    do {
+        ret = run_agent_once(s);
+        if (s->config->retry_path && !s->force_exit) {
+            g_warning("agent stopped unexpectedly, restarting...");
+            sleep(QGA_RETRY_INTERVAL);
+        }
+    } while (s->config->retry_path && !s->force_exit);
+
+    return ret;
+}
+
+static void stop_agent(GAState *s, bool requested)
+{
+    if (!s->force_exit) {
+        s->force_exit = requested;
+    }
+
+    if (g_main_loop_is_running(s->main_loop)) {
+        g_main_loop_quit(s->main_loop);
+    }
 }
 
 int main(int argc, char **argv)
