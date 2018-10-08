@@ -817,4 +817,18 @@ static inline bool v7m_using_psp(CPUARMState *env)
         env->v7m.control[env->v7m.secure] & R_V7M_CONTROL_SPSEL_MASK;
 }
 
+/**
+ * v7m_sp_limit: Return SP limit for current CPU state
+ * Return the SP limit value for the current CPU security state
+ * and stack pointer.
+ */
+static inline uint32_t v7m_sp_limit(CPUARMState *env)
+{
+    if (v7m_using_psp(env)) {
+        return env->v7m.psplim[env->v7m.secure];
+    } else {
+        return env->v7m.msplim[env->v7m.secure];
+    }
+}
+
 #endif

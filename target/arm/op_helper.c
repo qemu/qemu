@@ -238,6 +238,25 @@ void arm_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
 
 #endif /* !defined(CONFIG_USER_ONLY) */
 
+void HELPER(v8m_stackcheck)(CPUARMState *env, uint32_t newvalue)
+{
+    /*
+     * Perform the v8M stack limit check for SP updates from translated code,
+     * raising an exception if the limit is breached.
+     */
+    if (newvalue < v7m_sp_limit(env)) {
+        CPUState *cs = CPU(arm_env_get_cpu(env));
+
+        /*
+         * Stack limit exceptions are a rare case, so rather than syncing
+         * PC/condbits before the call, we use cpu_restore_state() to
+         * get them right before raising the exception.
+         */
+        cpu_restore_state(cs, GETPC(), true);
+        raise_exception(env, EXCP_STKOF, 0, 1);
+    }
+}
+
 uint32_t HELPER(add_setq)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t res = a + b;
