@@ -796,4 +796,9 @@ static inline uint32_t arm_debug_exception_fsr(CPUARMState *env)
     }
 }
 
+/* Note make_memop_idx reserves 4 bits for mmu_idx, and MO_BSWAP is bit 3.
+ * Thus a TCGMemOpIdx, without any MO_ALIGN bits, fits in 8 bits.
+ */
+#define MEMOPIDX_SHIFT  8
+
 #endif

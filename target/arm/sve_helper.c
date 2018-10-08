@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internals.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/helper-proto.h"
@@ -3990,7 +3991,7 @@ typedef intptr_t sve_ld1_host_fn(void *vd, void *vg, void *host,
  * The controlling predicate is known to be true.
  */
 typedef void sve_ld1_tlb_fn(CPUARMState *env, void *vd, intptr_t reg_off,
-                            target_ulong vaddr, int mmu_idx, uintptr_t ra);
+                            target_ulong vaddr, TCGMemOpIdx oi, uintptr_t ra);
 typedef sve_ld1_tlb_fn sve_st1_tlb_fn;
 
 /*
@@ -4017,16 +4018,15 @@ static intptr_t sve_##NAME##_host(void *vd, void *vg, void *host,           \
 #ifdef CONFIG_SOFTMMU
 #define DO_LD_TLB(NAME, H, TYPEE, TYPEM, HOST, MOEND, TLB) \
 static void sve_##NAME##_tlb(CPUARMState *env, void *vd, intptr_t reg_off,  \
-                             target_ulong addr, int mmu_idx, uintptr_t ra)  \
+                             target_ulong addr, TCGMemOpIdx oi, uintptr_t ra)  \
 {                                                                           \
-    TCGMemOpIdx oi = make_memop_idx(ctz32(sizeof(TYPEM)) | MOEND, mmu_idx); \
     TYPEM val = TLB(env, addr, oi, ra);                                     \
     *(TYPEE *)(vd + H(reg_off)) = val;                                      \
 }
 #else
 #define DO_LD_TLB(NAME, H, TYPEE, TYPEM, HOST, MOEND, TLB)                  \
 static void sve_##NAME##_tlb(CPUARMState *env, void *vd, intptr_t reg_off,  \
-                             target_ulong addr, int mmu_idx, uintptr_t ra)  \
+                             target_ulong addr, TCGMemOpIdx oi, uintptr_t ra)  \
 {                                                                           \
     TYPEM val = HOST(g2h(addr));                                            \
     *(TYPEE *)(vd + H(reg_off)) = val;                                      \
@@ -4154,11 +4154,13 @@ static void sve_ld1_r(CPUARMState *env, void *vg, const target_ulong addr,
                       sve_ld1_host_fn *host_fn,
                       sve_ld1_tlb_fn *tlb_fn)
 {
-    void *vd = &env->vfp.zregs[simd_data(desc)];
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int mmu_idx = get_mmuidx(oi);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    void *vd = &env->vfp.zregs[rd];
     const int diffsz = esz - msz;
     const intptr_t reg_max = simd_oprsz(desc);
     const intptr_t mem_max = reg_max >> diffsz;
-    const int mmu_idx = cpu_mmu_index(env, false);
     ARMVectorReg scratch;
     void *host;
     intptr_t split, reg_off, mem_off;
@@ -4232,7 +4234,7 @@ static void sve_ld1_r(CPUARMState *env, void *vg, const target_ulong addr,
          * on I/O memory, it may succeed but not bring in the TLB entry.
          * But even then we have still made forward progress.
          */
-        tlb_fn(env, &scratch, reg_off, addr + mem_off, mmu_idx, retaddr);
+        tlb_fn(env, &scratch, reg_off, addr + mem_off, oi, retaddr);
         reg_off += 1 << esz;
     }
 #endif
@@ -4293,9 +4295,9 @@ static void sve_ld2_r(CPUARMState *env, void *vg, target_ulong addr,
                       uint32_t desc, int size, uintptr_t ra,
                       sve_ld1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
     intptr_t i, oprsz = simd_oprsz(desc);
-    unsigned rd = simd_data(desc);
     ARMVectorReg scratch[2] = { };
 
     set_helper_retaddr(ra);
@@ -4303,8 +4305,8 @@ static void sve_ld2_r(CPUARMState *env, void *vg, target_ulong addr,
         uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
         do {
             if (pg & 1) {
-                tlb_fn(env, &scratch[0], i, addr, mmu_idx, ra);
-                tlb_fn(env, &scratch[1], i, addr + size, mmu_idx, ra);
+                tlb_fn(env, &scratch[0], i, addr, oi, ra);
+                tlb_fn(env, &scratch[1], i, addr + size, oi, ra);
             }
             i += size, pg >>= size;
             addr += 2 * size;
@@ -4321,9 +4323,9 @@ static void sve_ld3_r(CPUARMState *env, void *vg, target_ulong addr,
                       uint32_t desc, int size, uintptr_t ra,
                       sve_ld1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
     intptr_t i, oprsz = simd_oprsz(desc);
-    unsigned rd = simd_data(desc);
     ARMVectorReg scratch[3] = { };
 
     set_helper_retaddr(ra);
@@ -4331,9 +4333,9 @@ static void sve_ld3_r(CPUARMState *env, void *vg, target_ulong addr,
         uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
         do {
             if (pg & 1) {
-                tlb_fn(env, &scratch[0], i, addr, mmu_idx, ra);
-                tlb_fn(env, &scratch[1], i, addr + size, mmu_idx, ra);
-                tlb_fn(env, &scratch[2], i, addr + 2 * size, mmu_idx, ra);
+                tlb_fn(env, &scratch[0], i, addr, oi, ra);
+                tlb_fn(env, &scratch[1], i, addr + size, oi, ra);
+                tlb_fn(env, &scratch[2], i, addr + 2 * size, oi, ra);
             }
             i += size, pg >>= size;
             addr += 3 * size;
@@ -4351,9 +4353,9 @@ static void sve_ld4_r(CPUARMState *env, void *vg, target_ulong addr,
                       uint32_t desc, int size, uintptr_t ra,
                       sve_ld1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
     intptr_t i, oprsz = simd_oprsz(desc);
-    unsigned rd = simd_data(desc);
     ARMVectorReg scratch[4] = { };
 
     set_helper_retaddr(ra);
@@ -4361,10 +4363,10 @@ static void sve_ld4_r(CPUARMState *env, void *vg, target_ulong addr,
         uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
         do {
             if (pg & 1) {
-                tlb_fn(env, &scratch[0], i, addr, mmu_idx, ra);
-                tlb_fn(env, &scratch[1], i, addr + size, mmu_idx, ra);
-                tlb_fn(env, &scratch[2], i, addr + 2 * size, mmu_idx, ra);
-                tlb_fn(env, &scratch[3], i, addr + 3 * size, mmu_idx, ra);
+                tlb_fn(env, &scratch[0], i, addr, oi, ra);
+                tlb_fn(env, &scratch[1], i, addr + size, oi, ra);
+                tlb_fn(env, &scratch[2], i, addr + 2 * size, oi, ra);
+                tlb_fn(env, &scratch[3], i, addr + 3 * size, oi, ra);
             }
             i += size, pg >>= size;
             addr += 4 * size;
@@ -4459,11 +4461,13 @@ static void sve_ldff1_r(CPUARMState *env, void *vg, const target_ulong addr,
                         sve_ld1_host_fn *host_fn,
                         sve_ld1_tlb_fn *tlb_fn)
 {
-    void *vd = &env->vfp.zregs[simd_data(desc)];
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int mmu_idx = get_mmuidx(oi);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    void *vd = &env->vfp.zregs[rd];
     const int diffsz = esz - msz;
     const intptr_t reg_max = simd_oprsz(desc);
     const intptr_t mem_max = reg_max >> diffsz;
-    const int mmu_idx = cpu_mmu_index(env, false);
     intptr_t split, reg_off, mem_off;
     void *host;
 
@@ -4515,7 +4519,7 @@ static void sve_ldff1_r(CPUARMState *env, void *vg, const target_ulong addr,
      * Perform one normal read, which will fault or not.
      * But it is likely to bring the page into the tlb.
      */
-    tlb_fn(env, vd, reg_off, addr + mem_off, mmu_idx, retaddr);
+    tlb_fn(env, vd, reg_off, addr + mem_off, oi, retaddr);
 
     /* After any fault, zero any leading predicated false elts.  */
     swap_memzero(vd, reg_off);
@@ -4544,7 +4548,8 @@ static void sve_ldnf1_r(CPUARMState *env, void *vg, const target_ulong addr,
                         uint32_t desc, const int esz, const int msz,
                         sve_ld1_host_fn *host_fn)
 {
-    void *vd = &env->vfp.zregs[simd_data(desc)];
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    void *vd = &env->vfp.zregs[rd];
     const int diffsz = esz - msz;
     const intptr_t reg_max = simd_oprsz(desc);
     const intptr_t mem_max = reg_max >> diffsz;
@@ -4677,15 +4682,14 @@ DO_LDFF1_LDNF1_2(dd,  3, 3)
 #ifdef CONFIG_SOFTMMU
 #define DO_ST_TLB(NAME, H, TYPEM, HOST, MOEND, TLB) \
 static void sve_##NAME##_tlb(CPUARMState *env, void *vd, intptr_t reg_off,  \
-                             target_ulong addr, int mmu_idx, uintptr_t ra)  \
+                             target_ulong addr, TCGMemOpIdx oi, uintptr_t ra) \
 {                                                                           \
-    TCGMemOpIdx oi = make_memop_idx(ctz32(sizeof(TYPEM)) | MOEND, mmu_idx); \
     TLB(env, addr, *(TYPEM *)(vd + H(reg_off)), oi, ra);                    \
 }
 #else
 #define DO_ST_TLB(NAME, H, TYPEM, HOST, MOEND, TLB) \
 static void sve_##NAME##_tlb(CPUARMState *env, void *vd, intptr_t reg_off,  \
-                             target_ulong addr, int mmu_idx, uintptr_t ra)  \
+                             target_ulong addr, TCGMemOpIdx oi, uintptr_t ra) \
 {                                                                           \
     HOST(g2h(addr), *(TYPEM *)(vd + H(reg_off)));                           \
 }
@@ -4724,9 +4728,9 @@ static void sve_st1_r(CPUARMState *env, void *vg, target_ulong addr,
                       const int esize, const int msize,
                       sve_st1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
     intptr_t i, oprsz = simd_oprsz(desc);
-    unsigned rd = simd_data(desc);
     void *vd = &env->vfp.zregs[rd];
 
     set_helper_retaddr(ra);
@@ -4734,7 +4738,7 @@ static void sve_st1_r(CPUARMState *env, void *vg, target_ulong addr,
         uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
         do {
             if (pg & 1) {
-                tlb_fn(env, vd, i, addr, mmu_idx, ra);
+                tlb_fn(env, vd, i, addr, oi, ra);
             }
             i += esize, pg >>= esize;
             addr += msize;
@@ -4748,9 +4752,9 @@ static void sve_st2_r(CPUARMState *env, void *vg, target_ulong addr,
                       const int esize, const int msize,
                       sve_st1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
     intptr_t i, oprsz = simd_oprsz(desc);
-    unsigned rd = simd_data(desc);
     void *d1 = &env->vfp.zregs[rd];
     void *d2 = &env->vfp.zregs[(rd + 1) & 31];
 
@@ -4759,8 +4763,8 @@ static void sve_st2_r(CPUARMState *env, void *vg, target_ulong addr,
         uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
         do {
             if (pg & 1) {
-                tlb_fn(env, d1, i, addr, mmu_idx, ra);
-                tlb_fn(env, d2, i, addr + msize, mmu_idx, ra);
+                tlb_fn(env, d1, i, addr, oi, ra);
+                tlb_fn(env, d2, i, addr + msize, oi, ra);
             }
             i += esize, pg >>= esize;
             addr += 2 * msize;
@@ -4774,9 +4778,9 @@ static void sve_st3_r(CPUARMState *env, void *vg, target_ulong addr,
                       const int esize, const int msize,
                       sve_st1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
     intptr_t i, oprsz = simd_oprsz(desc);
-    unsigned rd = simd_data(desc);
     void *d1 = &env->vfp.zregs[rd];
     void *d2 = &env->vfp.zregs[(rd + 1) & 31];
     void *d3 = &env->vfp.zregs[(rd + 2) & 31];
@@ -4786,9 +4790,9 @@ static void sve_st3_r(CPUARMState *env, void *vg, target_ulong addr,
         uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
         do {
             if (pg & 1) {
-                tlb_fn(env, d1, i, addr, mmu_idx, ra);
-                tlb_fn(env, d2, i, addr + msize, mmu_idx, ra);
-                tlb_fn(env, d3, i, addr + 2 * msize, mmu_idx, ra);
+                tlb_fn(env, d1, i, addr, oi, ra);
+                tlb_fn(env, d2, i, addr + msize, oi, ra);
+                tlb_fn(env, d3, i, addr + 2 * msize, oi, ra);
             }
             i += esize, pg >>= esize;
             addr += 3 * msize;
@@ -4802,9 +4806,9 @@ static void sve_st4_r(CPUARMState *env, void *vg, target_ulong addr,
                       const int esize, const int msize,
                       sve_st1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
     intptr_t i, oprsz = simd_oprsz(desc);
-    unsigned rd = simd_data(desc);
     void *d1 = &env->vfp.zregs[rd];
     void *d2 = &env->vfp.zregs[(rd + 1) & 31];
     void *d3 = &env->vfp.zregs[(rd + 2) & 31];
@@ -4815,10 +4819,10 @@ static void sve_st4_r(CPUARMState *env, void *vg, target_ulong addr,
         uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
         do {
             if (pg & 1) {
-                tlb_fn(env, d1, i, addr, mmu_idx, ra);
-                tlb_fn(env, d2, i, addr + msize, mmu_idx, ra);
-                tlb_fn(env, d3, i, addr + 2 * msize, mmu_idx, ra);
-                tlb_fn(env, d4, i, addr + 3 * msize, mmu_idx, ra);
+                tlb_fn(env, d1, i, addr, oi, ra);
+                tlb_fn(env, d2, i, addr + msize, oi, ra);
+                tlb_fn(env, d3, i, addr + 2 * msize, oi, ra);
+                tlb_fn(env, d4, i, addr + 3 * msize, oi, ra);
             }
             i += esize, pg >>= esize;
             addr += 4 * msize;
@@ -4916,9 +4920,9 @@ static void sve_ld1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
                        target_ulong base, uint32_t desc, uintptr_t ra,
                        zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
     intptr_t i, oprsz = simd_oprsz(desc);
-    unsigned scale = simd_data(desc);
     ARMVectorReg scratch = { };
 
     set_helper_retaddr(ra);
@@ -4927,7 +4931,7 @@ static void sve_ld1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
         do {
             if (likely(pg & 1)) {
                 target_ulong off = off_fn(vm, i);
-                tlb_fn(env, &scratch, i, base + (off << scale), mmu_idx, ra);
+                tlb_fn(env, &scratch, i, base + (off << scale), oi, ra);
             }
             i += 4, pg >>= 4;
         } while (i & 15);
@@ -4942,9 +4946,9 @@ static void sve_ld1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
                        target_ulong base, uint32_t desc, uintptr_t ra,
                        zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
     intptr_t i, oprsz = simd_oprsz(desc) / 8;
-    unsigned scale = simd_data(desc);
     ARMVectorReg scratch = { };
 
     set_helper_retaddr(ra);
@@ -4952,7 +4956,7 @@ static void sve_ld1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
         uint8_t pg = *(uint8_t *)(vg + H1(i));
         if (likely(pg & 1)) {
             target_ulong off = off_fn(vm, i * 8);
-            tlb_fn(env, &scratch, i * 8, base + (off << scale), mmu_idx, ra);
+            tlb_fn(env, &scratch, i * 8, base + (off << scale), oi, ra);
         }
     }
     set_helper_retaddr(0);
@@ -5058,7 +5062,7 @@ typedef bool sve_ld1_nf_fn(CPUARMState *env, void *vd, intptr_t reg_off,
 #ifdef CONFIG_SOFTMMU
 #define DO_LD_NF(NAME, H, TYPEE, TYPEM, HOST) \
 static bool sve_ld##NAME##_nf(CPUARMState *env, void *vd, intptr_t reg_off, \
-                            target_ulong addr, int mmu_idx)                 \
+                              target_ulong addr, int mmu_idx)               \
 {                                                                           \
     target_ulong next_page = -(addr | TARGET_PAGE_MASK);                    \
     if (likely(next_page - addr >= sizeof(TYPEM))) {                        \
@@ -5117,9 +5121,10 @@ static inline void sve_ldff1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
                                 zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn,
                                 sve_ld1_nf_fn *nonfault_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int mmu_idx = get_mmuidx(oi);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
     intptr_t reg_off, reg_max = simd_oprsz(desc);
-    unsigned scale = simd_data(desc);
     target_ulong addr;
 
     /* Skip to the first true predicate.  */
@@ -5129,7 +5134,7 @@ static inline void sve_ldff1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
         set_helper_retaddr(ra);
         addr = off_fn(vm, reg_off);
         addr = base + (addr << scale);
-        tlb_fn(env, vd, reg_off, addr, mmu_idx, ra);
+        tlb_fn(env, vd, reg_off, addr, oi, ra);
 
         /* The rest of the reads will be non-faulting.  */
         set_helper_retaddr(0);
@@ -5158,9 +5163,10 @@ static inline void sve_ldff1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
                                 zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn,
                                 sve_ld1_nf_fn *nonfault_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int mmu_idx = get_mmuidx(oi);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
     intptr_t reg_off, reg_max = simd_oprsz(desc);
-    unsigned scale = simd_data(desc);
     target_ulong addr;
 
     /* Skip to the first true predicate.  */
@@ -5170,7 +5176,7 @@ static inline void sve_ldff1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
         set_helper_retaddr(ra);
         addr = off_fn(vm, reg_off);
         addr = base + (addr << scale);
-        tlb_fn(env, vd, reg_off, addr, mmu_idx, ra);
+        tlb_fn(env, vd, reg_off, addr, oi, ra);
 
         /* The rest of the reads will be non-faulting.  */
         set_helper_retaddr(0);
@@ -5282,9 +5288,9 @@ static void sve_st1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
                        target_ulong base, uint32_t desc, uintptr_t ra,
                        zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
     intptr_t i, oprsz = simd_oprsz(desc);
-    unsigned scale = simd_data(desc);
 
     set_helper_retaddr(ra);
     for (i = 0; i < oprsz; ) {
@@ -5292,7 +5298,7 @@ static void sve_st1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
         do {
             if (likely(pg & 1)) {
                 target_ulong off = off_fn(vm, i);
-                tlb_fn(env, vd, i, base + (off << scale), mmu_idx, ra);
+                tlb_fn(env, vd, i, base + (off << scale), oi, ra);
             }
             i += 4, pg >>= 4;
         } while (i & 15);
@@ -5304,16 +5310,16 @@ static void sve_st1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
                        target_ulong base, uint32_t desc, uintptr_t ra,
                        zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
 {
-    const int mmu_idx = cpu_mmu_index(env, false);
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
     intptr_t i, oprsz = simd_oprsz(desc) / 8;
-    unsigned scale = simd_data(desc);
 
     set_helper_retaddr(ra);
     for (i = 0; i < oprsz; i++) {
         uint8_t pg = *(uint8_t *)(vg + H1(i));
         if (likely(pg & 1)) {
             target_ulong off = off_fn(vm, i * 8);
-            tlb_fn(env, vd, i * 8, base + (off << scale), mmu_idx, ra);
+            tlb_fn(env, vd, i * 8, base + (off << scale), oi, ra);
         }
     }
     set_helper_retaddr(0);
