@@ -8214,11 +8214,11 @@ static void gen_spr_power9_mmu(CPUPPCState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
     /* Partition Table Control */
-    spr_register_hv(env, SPR_PTCR, "PTCR",
-                    SPR_NOACCESS, SPR_NOACCESS,
-                    SPR_NOACCESS, SPR_NOACCESS,
-                    &spr_read_generic, &spr_write_ptcr,
-                    0x00000000);
+    spr_register_kvm_hv(env, SPR_PTCR, "PTCR",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_ptcr,
+                        KVM_REG_PPC_PTCR, 0x00000000);
 #endif
 }
 
