@@ -145,6 +145,11 @@ static void s390_cpu_full_reset(CPUState *s)
     env->cregs[0] = CR0_RESET;
     env->cregs[14] = CR14_RESET;
 
+#if defined(CONFIG_USER_ONLY)
+    /* user mode should always be allowed to use the full FPU */
+    env->cregs[0] |= CR0_AFP;
+#endif
+
     /* architectured initial value for Breaking-Event-Address register */
     env->gbea = 1;
 
