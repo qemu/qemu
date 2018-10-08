@@ -745,8 +745,6 @@ int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);
 
 #define TYPE_SPAPR_RNG "spapr-rng"
 
-int spapr_rng_populate_dt(void *fdt);
-
 #define SPAPR_MEMORY_BLOCK_SIZE (1 << 28) /* 256MB */
 
 /*

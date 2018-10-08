@@ -132,29 +132,6 @@ static void spapr_rng_realize(DeviceState *dev, Error **errp)
     }
 }
 
-int spapr_rng_populate_dt(void *fdt)
-{
-    int node;
-    int ret;
-
-    node = qemu_fdt_add_subnode(fdt, "/ibm,platform-facilities");
-    if (node <= 0) {
-        return -1;
-    }
-    ret = fdt_setprop_string(fdt, node, "device_type",
-                             "ibm,platform-facilities");
-    ret |= fdt_setprop_cell(fdt, node, "#address-cells", 0x1);
-    ret |= fdt_setprop_cell(fdt, node, "#size-cells", 0x0);
-
-    node = fdt_add_subnode(fdt, node, "ibm,random-v1");
-    if (node <= 0) {
-        return -1;
-    }
-    ret |= fdt_setprop_string(fdt, node, "compatible", "ibm,random");
-
-    return ret ? -1 : 0;
-}
-
 static Property spapr_rng_properties[] = {
     DEFINE_PROP_BOOL("use-kvm", sPAPRRngState, use_kvm, false),
     DEFINE_PROP_LINK("rng", sPAPRRngState, backend, TYPE_RNG_BACKEND,

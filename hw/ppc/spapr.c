@@ -610,6 +610,29 @@ static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
     g_free(rev);
 }
 
+static int spapr_rng_populate_dt(void *fdt)
+{
+    int node;
+    int ret;
+
+    node = qemu_fdt_add_subnode(fdt, "/ibm,platform-facilities");
+    if (node <= 0) {
+        return -1;
+    }
+    ret = fdt_setprop_string(fdt, node, "device_type",
+                             "ibm,platform-facilities");
+    ret |= fdt_setprop_cell(fdt, node, "#address-cells", 0x1);
+    ret |= fdt_setprop_cell(fdt, node, "#size-cells", 0x0);
+
+    node = fdt_add_subnode(fdt, node, "ibm,random-v1");
+    if (node <= 0) {
+        return -1;
+    }
+    ret |= fdt_setprop_string(fdt, node, "compatible", "ibm,random");
+
+    return ret ? -1 : 0;
+}
+
 static uint32_t spapr_pc_dimm_node(MemoryDeviceInfoList *list, ram_addr_t addr)
 {
     MemoryDeviceInfoList *info;
