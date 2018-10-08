@@ -169,4 +169,16 @@ bool test_buffer_is_zero_next_accel(void);
 int uleb128_encode_small(uint8_t *out, uint32_t n);
 int uleb128_decode_small(const uint8_t *in, uint32_t *n);
 
+/**
+ * qemu_pstrcmp0:
+ * @str1: a non-NULL pointer to a C string (*str1 can be NULL)
+ * @str2: a non-NULL pointer to a C string (*str2 can be NULL)
+ *
+ * Compares *str1 and *str2 with g_strcmp0().
+ *
+ * Returns: an integer less than, equal to, or greater than zero, if
+ * *str1 is <, == or > than *str2.
+ */
+int qemu_pstrcmp0(const char **str1, const char **str2);
+
 #endif

@@ -1115,7 +1115,7 @@ void object_class_property_iter_init(ObjectPropertyIterator *iter,
                                      ObjectClass *klass)
 {
     g_hash_table_iter_init(&iter->iter, klass->properties);
-    iter->nextclass = klass;
+    iter->nextclass = object_class_get_parent(klass);
 }
 
 ObjectProperty *object_class_property_find(ObjectClass *klass, const char *name,
@@ -2430,9 +2430,10 @@ void object_class_property_set_description(ObjectClass *klass,
     op->description = g_strdup(description);
 }
 
-static void object_instance_init(Object *obj)
+static void object_class_init(ObjectClass *klass, void *data)
 {
-    object_property_add_str(obj, "type", qdev_get_type, NULL, NULL);
+    object_class_property_add_str(klass, "type", qdev_get_type,
+                                  NULL, &error_abort);
 }
 
 static void register_types(void)
@@ -2446,7 +2447,7 @@ static void register_types(void)
     static TypeInfo object_info = {
         .name = TYPE_OBJECT,
         .instance_size = sizeof(Object),
-        .instance_init = object_instance_init,
+        .class_init = object_class_init,
         .abstract = true,
     };
 

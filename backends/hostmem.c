@@ -397,27 +397,41 @@ host_memory_backend_class_init(ObjectClass *oc, void *data)
     object_class_property_add_bool(oc, "merge",
         host_memory_backend_get_merge,
         host_memory_backend_set_merge, &error_abort);
+    object_class_property_set_description(oc, "merge",
+        "Mark memory as mergeable", &error_abort);
     object_class_property_add_bool(oc, "dump",
         host_memory_backend_get_dump,
         host_memory_backend_set_dump, &error_abort);
+    object_class_property_set_description(oc, "dump",
+        "Set to 'off' to exclude from core dump", &error_abort);
     object_class_property_add_bool(oc, "prealloc",
         host_memory_backend_get_prealloc,
         host_memory_backend_set_prealloc, &error_abort);
+    object_class_property_set_description(oc, "prealloc",
+        "Preallocate memory", &error_abort);
     object_class_property_add(oc, "size", "int",
         host_memory_backend_get_size,
         host_memory_backend_set_size,
         NULL, NULL, &error_abort);
+    object_class_property_set_description(oc, "size",
+        "Size of the memory region (ex: 500M)", &error_abort);
     object_class_property_add(oc, "host-nodes", "int",
         host_memory_backend_get_host_nodes,
         host_memory_backend_set_host_nodes,
         NULL, NULL, &error_abort);
+    object_class_property_set_description(oc, "host-nodes",
+        "Binds memory to the list of NUMA host nodes", &error_abort);
     object_class_property_add_enum(oc, "policy", "HostMemPolicy",
         &HostMemPolicy_lookup,
         host_memory_backend_get_policy,
         host_memory_backend_set_policy, &error_abort);
+    object_class_property_set_description(oc, "policy",
+        "Set the NUMA policy", &error_abort);
     object_class_property_add_bool(oc, "share",
         host_memory_backend_get_share, host_memory_backend_set_share,
         &error_abort);
+    object_class_property_set_description(oc, "share",
+        "Mark the memory as private to QEMU or shared", &error_abort);
 }
 
 static const TypeInfo host_memory_backend_info = {
