@@ -4229,6 +4229,18 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                 if (insn & (1 << 24)) /* pre-decrement */
                     tcg_gen_addi_i32(addr, addr, -((insn & 0xff) << 2));
 
+                if (s->v8m_stackcheck && rn == 13 && w) {
+                    /*
+                     * Here 'addr' is the lowest address we will store to,
+                     * and is either the old SP (if post-increment) or
+                     * the new SP (if pre-decrement). For post-increment
+                     * where the old value is below the limit and the new
+                     * value is above, it is UNKNOWN whether the limit check
+                     * triggers; we choose to trigger.
+                     */
+                    gen_helper_v8m_stackcheck(cpu_env, addr);
+                }
+
                 if (dp)
                     offset = 8;
                 else
