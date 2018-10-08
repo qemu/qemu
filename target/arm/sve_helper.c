@@ -4249,18 +4249,18 @@ void HELPER(sve_##NAME##_r)(CPUARMState *env, void *vg,        \
               sve_##NAME##_host, sve_##NAME##_tlb);            \
 }
 
-/* TODO: Propagate the endian check back to the translator.  */
 #define DO_LD1_2(NAME, ESZ, MSZ) \
-void HELPER(sve_##NAME##_r)(CPUARMState *env, void *vg,        \
-                            target_ulong addr, uint32_t desc)  \
-{                                                              \
-    if (arm_cpu_data_is_big_endian(env)) {                     \
-        sve_ld1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,      \
-                  sve_##NAME##_be_host, sve_##NAME##_be_tlb);  \
-    } else {                                                   \
-        sve_ld1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,      \
-                  sve_##NAME##_le_host, sve_##NAME##_le_tlb);  \
-    }                                                          \
+void HELPER(sve_##NAME##_le_r)(CPUARMState *env, void *vg,        \
+                               target_ulong addr, uint32_t desc)  \
+{                                                                 \
+    sve_ld1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,             \
+              sve_##NAME##_le_host, sve_##NAME##_le_tlb);         \
+}                                                                 \
+void HELPER(sve_##NAME##_be_r)(CPUARMState *env, void *vg,        \
+                               target_ulong addr, uint32_t desc)  \
+{                                                                 \
+    sve_ld1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,             \
+              sve_##NAME##_be_host, sve_##NAME##_be_tlb);         \
 }
 
 DO_LD1_1(ld1bb,  0)
@@ -4387,12 +4387,17 @@ void __attribute__((flatten)) HELPER(sve_ld##N##bb_r)               \
 }
 
 #define DO_LDN_2(N, SUFF, SIZE)                                       \
-void __attribute__((flatten)) HELPER(sve_ld##N##SUFF##_r)             \
+void __attribute__((flatten)) HELPER(sve_ld##N##SUFF##_le_r)          \
     (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
 {                                                                     \
     sve_ld##N##_r(env, vg, addr, desc, SIZE, GETPC(),                 \
-                  arm_cpu_data_is_big_endian(env)                     \
-                  ? sve_ld1##SUFF##_be_tlb : sve_ld1##SUFF##_le_tlb); \
+                  sve_ld1##SUFF##_le_tlb);                            \
+}                                                                     \
+void __attribute__((flatten)) HELPER(sve_ld##N##SUFF##_be_r)          \
+    (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
+{                                                                     \
+    sve_ld##N##_r(env, vg, addr, desc, SIZE, GETPC(),                 \
+                  sve_ld1##SUFF##_be_tlb);                            \
 }
 
 DO_LDN_1(2)
@@ -4618,29 +4623,28 @@ void HELPER(sve_ldnf1##PART##_r)(CPUARMState *env, void *vg,            \
     sve_ldnf1_r(env, vg, addr, desc, ESZ, 0, sve_ld1##PART##_host);     \
 }
 
-/* TODO: Propagate the endian check back to the translator.  */
 #define DO_LDFF1_LDNF1_2(PART, ESZ, MSZ) \
-void HELPER(sve_ldff1##PART##_r)(CPUARMState *env, void *vg,            \
-                                 target_ulong addr, uint32_t desc)      \
+void HELPER(sve_ldff1##PART##_le_r)(CPUARMState *env, void *vg,         \
+                                    target_ulong addr, uint32_t desc)   \
 {                                                                       \
-    if (arm_cpu_data_is_big_endian(env)) {                              \
-        sve_ldff1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,             \
-                    sve_ld1##PART##_be_host, sve_ld1##PART##_be_tlb);   \
-    } else {                                                            \
-        sve_ldff1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,             \
-                    sve_ld1##PART##_le_host, sve_ld1##PART##_le_tlb);   \
-    }                                                                   \
+    sve_ldff1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,                 \
+                sve_ld1##PART##_le_host, sve_ld1##PART##_le_tlb);       \
 }                                                                       \
-void HELPER(sve_ldnf1##PART##_r)(CPUARMState *env, void *vg,            \
-                                 target_ulong addr, uint32_t desc)      \
+void HELPER(sve_ldnf1##PART##_le_r)(CPUARMState *env, void *vg,         \
+                                    target_ulong addr, uint32_t desc)   \
 {                                                                       \
-    if (arm_cpu_data_is_big_endian(env)) {                              \
-        sve_ldnf1_r(env, vg, addr, desc, ESZ, MSZ,                      \
-                    sve_ld1##PART##_be_host);                           \
-    } else {                                                            \
-        sve_ldnf1_r(env, vg, addr, desc, ESZ, MSZ,                      \
-                    sve_ld1##PART##_le_host);                           \
-    }                                                                   \
+    sve_ldnf1_r(env, vg, addr, desc, ESZ, MSZ, sve_ld1##PART##_le_host); \
+}                                                                       \
+void HELPER(sve_ldff1##PART##_be_r)(CPUARMState *env, void *vg,         \
+                                    target_ulong addr, uint32_t desc)   \
+{                                                                       \
+    sve_ldff1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,                 \
+                sve_ld1##PART##_be_host, sve_ld1##PART##_be_tlb);       \
+}                                                                       \
+void HELPER(sve_ldnf1##PART##_be_r)(CPUARMState *env, void *vg,         \
+                                    target_ulong addr, uint32_t desc)   \
+{                                                                       \
+    sve_ldnf1_r(env, vg, addr, desc, ESZ, MSZ, sve_ld1##PART##_be_host); \
 }
 
 DO_LDFF1_LDNF1_1(bb,  0)
