@@ -43,20 +43,20 @@ static void xts_mult_x(uint8_t *I)
 
 
 /**
- * xts_tweak_uncrypt:
+ * xts_tweak_encdec:
  * @param ctxt: the cipher context
  * @param func: the cipher function
- * @src: buffer providing the cipher text of XTS_BLOCK_SIZE bytes
- * @dst: buffer to output the plain text of XTS_BLOCK_SIZE bytes
+ * @src: buffer providing the input text of XTS_BLOCK_SIZE bytes
+ * @dst: buffer to output the output text of XTS_BLOCK_SIZE bytes
  * @iv: the initialization vector tweak of XTS_BLOCK_SIZE bytes
  *
- * Decrypt data with a tweak
+ * Encrypt/decrypt data with a tweak
  */
-static void xts_tweak_decrypt(const void *ctx,
-                              xts_cipher_func *func,
-                              const uint8_t *src,
-                              uint8_t *dst,
-                              uint8_t *iv)
+static void xts_tweak_encdec(const void *ctx,
+                             xts_cipher_func *func,
+                             const uint8_t *src,
+                             uint8_t *dst,
+                             uint8_t *iv)
 {
     unsigned long x;
 
@@ -105,7 +105,7 @@ void xts_decrypt(const void *datactx,
     encfunc(tweakctx, XTS_BLOCK_SIZE, T, iv);
 
     for (i = 0; i < lim; i++) {
-        xts_tweak_decrypt(datactx, decfunc, src, dst, T);
+        xts_tweak_encdec(datactx, decfunc, src, dst, T);
 
         src += XTS_BLOCK_SIZE;
         dst += XTS_BLOCK_SIZE;
@@ -117,7 +117,7 @@ void xts_decrypt(const void *datactx,
         xts_mult_x(CC);
 
         /* PP = tweak decrypt block m-1 */
-        xts_tweak_decrypt(datactx, decfunc, src, PP, CC);
+        xts_tweak_encdec(datactx, decfunc, src, PP, CC);
 
         /* Pm = first length % XTS_BLOCK_SIZE bytes of PP */
         for (i = 0; i < mo; i++) {
@@ -129,45 +129,11 @@ void xts_decrypt(const void *datactx,
         }
 
         /* Pm-1 = Tweak uncrypt CC */
-        xts_tweak_decrypt(datactx, decfunc, CC, dst, T);
+        xts_tweak_encdec(datactx, decfunc, CC, dst, T);
     }
 
     /* Decrypt the iv back */
     decfunc(tweakctx, XTS_BLOCK_SIZE, iv, T);
-}
-
-
-/**
- * xts_tweak_crypt:
- * @param ctxt: the cipher context
- * @param func: the cipher function
- * @src: buffer providing the plain text of XTS_BLOCK_SIZE bytes
- * @dst: buffer to output the cipher text of XTS_BLOCK_SIZE bytes
- * @iv: the initialization vector tweak of XTS_BLOCK_SIZE bytes
- *
- * Encrypt data with a tweak
- */
-static void xts_tweak_encrypt(const void *ctx,
-                              xts_cipher_func *func,
-                              const uint8_t *src,
-                              uint8_t *dst,
-                              uint8_t *iv)
-{
-    unsigned long x;
-
-    /* tweak encrypt block i */
-    for (x = 0; x < XTS_BLOCK_SIZE; x++) {
-        dst[x] = src[x] ^ iv[x];
-    }
-
-    func(ctx, XTS_BLOCK_SIZE, dst, dst);
-
-    for (x = 0; x < XTS_BLOCK_SIZE; x++) {
-        dst[x] = dst[x] ^ iv[x];
-    }
-
-    /* LFSR the tweak */
-    xts_mult_x(iv);
 }
 
 
@@ -200,7 +166,7 @@ void xts_encrypt(const void *datactx,
     encfunc(tweakctx, XTS_BLOCK_SIZE, T, iv);
 
     for (i = 0; i < lim; i++) {
-        xts_tweak_encrypt(datactx, encfunc, src, dst, T);
+        xts_tweak_encdec(datactx, encfunc, src, dst, T);
 
         dst += XTS_BLOCK_SIZE;
         src += XTS_BLOCK_SIZE;
@@ -209,7 +175,7 @@ void xts_encrypt(const void *datactx,
     /* if length is not a multiple of XTS_BLOCK_SIZE then */
     if (mo > 0) {
         /* CC = tweak encrypt block m-1 */
-        xts_tweak_encrypt(datactx, encfunc, src, CC, T);
+        xts_tweak_encdec(datactx, encfunc, src, CC, T);
 
         /* Cm = first length % XTS_BLOCK_SIZE bytes of CC */
         for (i = 0; i < mo; i++) {
@@ -222,7 +188,7 @@ void xts_encrypt(const void *datactx,
         }
 
         /* Cm-1 = Tweak encrypt PP */
-        xts_tweak_encrypt(datactx, encfunc, PP, dst, T);
+        xts_tweak_encdec(datactx, encfunc, PP, dst, T);
     }
 
     /* Decrypt the iv back */
