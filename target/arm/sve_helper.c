@@ -4878,82 +4878,173 @@ DO_STN_2(4, dd, 8, 8)
 #undef DO_STN_1
 #undef DO_STN_2
 
-/* Loads with a vector index.  */
+/*
+ * Loads with a vector index.
+ */
 
-#define DO_LD1_ZPZ_S(NAME, TYPEI, TYPEM, FN)                            \
-void HELPER(NAME)(CPUARMState *env, void *vd, void *vg, void *vm,       \
-                  target_ulong base, uint32_t desc)                     \
-{                                                                       \
-    intptr_t i, oprsz = simd_oprsz(desc);                               \
-    unsigned scale = simd_data(desc);                                   \
-    uintptr_t ra = GETPC();                                             \
-    for (i = 0; i < oprsz; ) {                                          \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));                 \
-        do {                                                            \
-            TYPEM m = 0;                                                \
-            if (pg & 1) {                                               \
-                target_ulong off = *(TYPEI *)(vm + H1_4(i));            \
-                m = FN(env, base + (off << scale), ra);                 \
-            }                                                           \
-            *(uint32_t *)(vd + H1_4(i)) = m;                            \
-            i += 4, pg >>= 4;                                           \
-        } while (i & 15);                                               \
-    }                                                                   \
+/*
+ * Load the element at @reg + @reg_ofs, sign or zero-extend as needed.
+ */
+typedef target_ulong zreg_off_fn(void *reg, intptr_t reg_ofs);
+
+static target_ulong off_zsu_s(void *reg, intptr_t reg_ofs)
+{
+    return *(uint32_t *)(reg + H1_4(reg_ofs));
 }
 
-#define DO_LD1_ZPZ_D(NAME, TYPEI, TYPEM, FN)                            \
-void HELPER(NAME)(CPUARMState *env, void *vd, void *vg, void *vm,       \
-                  target_ulong base, uint32_t desc)                     \
-{                                                                       \
-    intptr_t i, oprsz = simd_oprsz(desc) / 8;                           \
-    unsigned scale = simd_data(desc);                                   \
-    uintptr_t ra = GETPC();                                             \
-    uint64_t *d = vd, *m = vm; uint8_t *pg = vg;                        \
-    for (i = 0; i < oprsz; i++) {                                       \
-        TYPEM mm = 0;                                                   \
-        if (pg[H1(i)] & 1) {                                            \
-            target_ulong off = (TYPEI)m[i];                             \
-            mm = FN(env, base + (off << scale), ra);                    \
-        }                                                               \
-        d[i] = mm;                                                      \
-    }                                                                   \
+static target_ulong off_zss_s(void *reg, intptr_t reg_ofs)
+{
+    return *(int32_t *)(reg + H1_4(reg_ofs));
 }
 
-DO_LD1_ZPZ_S(sve_ldbsu_zsu, uint32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LD1_ZPZ_S(sve_ldhsu_zsu, uint32_t, uint16_t, cpu_lduw_data_ra)
-DO_LD1_ZPZ_S(sve_ldssu_zsu, uint32_t, uint32_t, cpu_ldl_data_ra)
-DO_LD1_ZPZ_S(sve_ldbss_zsu, uint32_t, int8_t,   cpu_ldub_data_ra)
-DO_LD1_ZPZ_S(sve_ldhss_zsu, uint32_t, int16_t,  cpu_lduw_data_ra)
+static target_ulong off_zsu_d(void *reg, intptr_t reg_ofs)
+{
+    return (uint32_t)*(uint64_t *)(reg + reg_ofs);
+}
 
-DO_LD1_ZPZ_S(sve_ldbsu_zss, int32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LD1_ZPZ_S(sve_ldhsu_zss, int32_t, uint16_t, cpu_lduw_data_ra)
-DO_LD1_ZPZ_S(sve_ldssu_zss, int32_t, uint32_t, cpu_ldl_data_ra)
-DO_LD1_ZPZ_S(sve_ldbss_zss, int32_t, int8_t,   cpu_ldub_data_ra)
-DO_LD1_ZPZ_S(sve_ldhss_zss, int32_t, int16_t,  cpu_lduw_data_ra)
+static target_ulong off_zss_d(void *reg, intptr_t reg_ofs)
+{
+    return (int32_t)*(uint64_t *)(reg + reg_ofs);
+}
 
-DO_LD1_ZPZ_D(sve_ldbdu_zsu, uint32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhdu_zsu, uint32_t, uint16_t, cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsdu_zsu, uint32_t, uint32_t, cpu_ldl_data_ra)
-DO_LD1_ZPZ_D(sve_ldddu_zsu, uint32_t, uint64_t, cpu_ldq_data_ra)
-DO_LD1_ZPZ_D(sve_ldbds_zsu, uint32_t, int8_t,   cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhds_zsu, uint32_t, int16_t,  cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsds_zsu, uint32_t, int32_t,  cpu_ldl_data_ra)
+static target_ulong off_zd_d(void *reg, intptr_t reg_ofs)
+{
+    return *(uint64_t *)(reg + reg_ofs);
+}
 
-DO_LD1_ZPZ_D(sve_ldbdu_zss, int32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhdu_zss, int32_t, uint16_t, cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsdu_zss, int32_t, uint32_t, cpu_ldl_data_ra)
-DO_LD1_ZPZ_D(sve_ldddu_zss, int32_t, uint64_t, cpu_ldq_data_ra)
-DO_LD1_ZPZ_D(sve_ldbds_zss, int32_t, int8_t,   cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhds_zss, int32_t, int16_t,  cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsds_zss, int32_t, int32_t,  cpu_ldl_data_ra)
+static void sve_ld1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
+                       target_ulong base, uint32_t desc, uintptr_t ra,
+                       zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
+{
+    const int mmu_idx = cpu_mmu_index(env, false);
+    intptr_t i, oprsz = simd_oprsz(desc);
+    unsigned scale = simd_data(desc);
+    ARMVectorReg scratch = { };
 
-DO_LD1_ZPZ_D(sve_ldbdu_zd, uint64_t, uint8_t,  cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhdu_zd, uint64_t, uint16_t, cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsdu_zd, uint64_t, uint32_t, cpu_ldl_data_ra)
-DO_LD1_ZPZ_D(sve_ldddu_zd, uint64_t, uint64_t, cpu_ldq_data_ra)
-DO_LD1_ZPZ_D(sve_ldbds_zd, uint64_t, int8_t,   cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhds_zd, uint64_t, int16_t,  cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsds_zd, uint64_t, int32_t,  cpu_ldl_data_ra)
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (likely(pg & 1)) {
+                target_ulong off = off_fn(vm, i);
+                tlb_fn(env, &scratch, i, base + (off << scale), mmu_idx, ra);
+            }
+            i += 4, pg >>= 4;
+        } while (i & 15);
+    }
+    set_helper_retaddr(0);
+
+    /* Wait until all exceptions have been raised to write back.  */
+    memcpy(vd, &scratch, oprsz);
+}
+
+static void sve_ld1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
+                       target_ulong base, uint32_t desc, uintptr_t ra,
+                       zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
+{
+    const int mmu_idx = cpu_mmu_index(env, false);
+    intptr_t i, oprsz = simd_oprsz(desc) / 8;
+    unsigned scale = simd_data(desc);
+    ARMVectorReg scratch = { };
+
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; i++) {
+        uint8_t pg = *(uint8_t *)(vg + H1(i));
+        if (likely(pg & 1)) {
+            target_ulong off = off_fn(vm, i * 8);
+            tlb_fn(env, &scratch, i * 8, base + (off << scale), mmu_idx, ra);
+        }
+    }
+    set_helper_retaddr(0);
+
+    /* Wait until all exceptions have been raised to write back.  */
+    memcpy(vd, &scratch, oprsz * 8);
+}
+
+#define DO_LD1_ZPZ_S(MEM, OFS) \
+void __attribute__((flatten)) HELPER(sve_ld##MEM##_##OFS)    \
+    (CPUARMState *env, void *vd, void *vg, void *vm,         \
+     target_ulong base, uint32_t desc)                       \
+{                                                            \
+    sve_ld1_zs(env, vd, vg, vm, base, desc, GETPC(),         \
+              off_##OFS##_s, sve_ld1##MEM##_tlb);            \
+}
+
+#define DO_LD1_ZPZ_D(MEM, OFS) \
+void __attribute__((flatten)) HELPER(sve_ld##MEM##_##OFS)    \
+    (CPUARMState *env, void *vd, void *vg, void *vm,         \
+     target_ulong base, uint32_t desc)                       \
+{                                                            \
+    sve_ld1_zd(env, vd, vg, vm, base, desc, GETPC(),         \
+               off_##OFS##_d, sve_ld1##MEM##_tlb);           \
+}
+
+DO_LD1_ZPZ_S(bsu, zsu)
+DO_LD1_ZPZ_S(bsu, zss)
+DO_LD1_ZPZ_D(bdu, zsu)
+DO_LD1_ZPZ_D(bdu, zss)
+DO_LD1_ZPZ_D(bdu, zd)
+
+DO_LD1_ZPZ_S(bss, zsu)
+DO_LD1_ZPZ_S(bss, zss)
+DO_LD1_ZPZ_D(bds, zsu)
+DO_LD1_ZPZ_D(bds, zss)
+DO_LD1_ZPZ_D(bds, zd)
+
+DO_LD1_ZPZ_S(hsu_le, zsu)
+DO_LD1_ZPZ_S(hsu_le, zss)
+DO_LD1_ZPZ_D(hdu_le, zsu)
+DO_LD1_ZPZ_D(hdu_le, zss)
+DO_LD1_ZPZ_D(hdu_le, zd)
+
+DO_LD1_ZPZ_S(hsu_be, zsu)
+DO_LD1_ZPZ_S(hsu_be, zss)
+DO_LD1_ZPZ_D(hdu_be, zsu)
+DO_LD1_ZPZ_D(hdu_be, zss)
+DO_LD1_ZPZ_D(hdu_be, zd)
+
+DO_LD1_ZPZ_S(hss_le, zsu)
+DO_LD1_ZPZ_S(hss_le, zss)
+DO_LD1_ZPZ_D(hds_le, zsu)
+DO_LD1_ZPZ_D(hds_le, zss)
+DO_LD1_ZPZ_D(hds_le, zd)
+
+DO_LD1_ZPZ_S(hss_be, zsu)
+DO_LD1_ZPZ_S(hss_be, zss)
+DO_LD1_ZPZ_D(hds_be, zsu)
+DO_LD1_ZPZ_D(hds_be, zss)
+DO_LD1_ZPZ_D(hds_be, zd)
+
+DO_LD1_ZPZ_S(ss_le, zsu)
+DO_LD1_ZPZ_S(ss_le, zss)
+DO_LD1_ZPZ_D(sdu_le, zsu)
+DO_LD1_ZPZ_D(sdu_le, zss)
+DO_LD1_ZPZ_D(sdu_le, zd)
+
+DO_LD1_ZPZ_S(ss_be, zsu)
+DO_LD1_ZPZ_S(ss_be, zss)
+DO_LD1_ZPZ_D(sdu_be, zsu)
+DO_LD1_ZPZ_D(sdu_be, zss)
+DO_LD1_ZPZ_D(sdu_be, zd)
+
+DO_LD1_ZPZ_D(sds_le, zsu)
+DO_LD1_ZPZ_D(sds_le, zss)
+DO_LD1_ZPZ_D(sds_le, zd)
+
+DO_LD1_ZPZ_D(sds_be, zsu)
+DO_LD1_ZPZ_D(sds_be, zss)
+DO_LD1_ZPZ_D(sds_be, zd)
+
+DO_LD1_ZPZ_D(dd_le, zsu)
+DO_LD1_ZPZ_D(dd_le, zss)
+DO_LD1_ZPZ_D(dd_le, zd)
+
+DO_LD1_ZPZ_D(dd_be, zsu)
+DO_LD1_ZPZ_D(dd_be, zss)
+DO_LD1_ZPZ_D(dd_be, zd)
+
+#undef DO_LD1_ZPZ_S
+#undef DO_LD1_ZPZ_D
 
 /* First fault loads with a vector index.  */
 

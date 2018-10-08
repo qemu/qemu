@@ -5077,91 +5077,176 @@ static void do_mem_zpz(DisasContext *s, int zt, int pg, int zm, int scale,
     tcg_temp_free_i32(desc);
 }
 
-/* Indexed by [ff][xs][u][msz].  */
-static gen_helper_gvec_mem_scatter * const gather_load_fn32[2][2][2][3] = {
-    { { { gen_helper_sve_ldbss_zsu,
-          gen_helper_sve_ldhss_zsu,
-          NULL, },
-        { gen_helper_sve_ldbsu_zsu,
-          gen_helper_sve_ldhsu_zsu,
-          gen_helper_sve_ldssu_zsu, } },
-      { { gen_helper_sve_ldbss_zss,
-          gen_helper_sve_ldhss_zss,
-          NULL, },
-        { gen_helper_sve_ldbsu_zss,
-          gen_helper_sve_ldhsu_zss,
-          gen_helper_sve_ldssu_zss, } } },
+/* Indexed by [be][ff][xs][u][msz].  */
+static gen_helper_gvec_mem_scatter * const gather_load_fn32[2][2][2][2][3] = {
+    /* Little-endian */
+    { { { { gen_helper_sve_ldbss_zsu,
+            gen_helper_sve_ldhss_le_zsu,
+            NULL, },
+          { gen_helper_sve_ldbsu_zsu,
+            gen_helper_sve_ldhsu_le_zsu,
+            gen_helper_sve_ldss_le_zsu, } },
+        { { gen_helper_sve_ldbss_zss,
+            gen_helper_sve_ldhss_le_zss,
+            NULL, },
+          { gen_helper_sve_ldbsu_zss,
+            gen_helper_sve_ldhsu_le_zss,
+            gen_helper_sve_ldss_le_zss, } } },
 
-    { { { gen_helper_sve_ldffbss_zsu,
-          gen_helper_sve_ldffhss_zsu,
-          NULL, },
-        { gen_helper_sve_ldffbsu_zsu,
-          gen_helper_sve_ldffhsu_zsu,
-          gen_helper_sve_ldffssu_zsu, } },
-      { { gen_helper_sve_ldffbss_zss,
-          gen_helper_sve_ldffhss_zss,
-          NULL, },
-        { gen_helper_sve_ldffbsu_zss,
-          gen_helper_sve_ldffhsu_zss,
-          gen_helper_sve_ldffssu_zss, } } }
+      /* First-fault */
+      { { { gen_helper_sve_ldffbss_zsu,
+            gen_helper_sve_ldffhss_zsu,
+            NULL, },
+          { gen_helper_sve_ldffbsu_zsu,
+            gen_helper_sve_ldffhsu_zsu,
+            gen_helper_sve_ldffssu_zsu, } },
+        { { gen_helper_sve_ldffbss_zss,
+            gen_helper_sve_ldffhss_zss,
+            NULL, },
+          { gen_helper_sve_ldffbsu_zss,
+            gen_helper_sve_ldffhsu_zss,
+            gen_helper_sve_ldffssu_zss, } } } },
+
+    /* Big-endian */
+    { { { { gen_helper_sve_ldbss_zsu,
+            gen_helper_sve_ldhss_be_zsu,
+            NULL, },
+          { gen_helper_sve_ldbsu_zsu,
+            gen_helper_sve_ldhsu_be_zsu,
+            gen_helper_sve_ldss_be_zsu, } },
+        { { gen_helper_sve_ldbss_zss,
+            gen_helper_sve_ldhss_be_zss,
+            NULL, },
+          { gen_helper_sve_ldbsu_zss,
+            gen_helper_sve_ldhsu_be_zss,
+            gen_helper_sve_ldss_be_zss, } } },
+
+      /* First-fault */
+      { { { gen_helper_sve_ldffbss_zsu,
+            gen_helper_sve_ldffhss_zsu,
+            NULL, },
+          { gen_helper_sve_ldffbsu_zsu,
+            gen_helper_sve_ldffhsu_zsu,
+            gen_helper_sve_ldffssu_zsu, } },
+        { { gen_helper_sve_ldffbss_zss,
+            gen_helper_sve_ldffhss_zss,
+            NULL, },
+          { gen_helper_sve_ldffbsu_zss,
+            gen_helper_sve_ldffhsu_zss,
+            gen_helper_sve_ldffssu_zss, } } } },
 };
 
 /* Note that we overload xs=2 to indicate 64-bit offset.  */
-static gen_helper_gvec_mem_scatter * const gather_load_fn64[2][3][2][4] = {
-    { { { gen_helper_sve_ldbds_zsu,
-          gen_helper_sve_ldhds_zsu,
-          gen_helper_sve_ldsds_zsu,
-          NULL, },
-        { gen_helper_sve_ldbdu_zsu,
-          gen_helper_sve_ldhdu_zsu,
-          gen_helper_sve_ldsdu_zsu,
-          gen_helper_sve_ldddu_zsu, } },
-      { { gen_helper_sve_ldbds_zss,
-          gen_helper_sve_ldhds_zss,
-          gen_helper_sve_ldsds_zss,
-          NULL, },
-        { gen_helper_sve_ldbdu_zss,
-          gen_helper_sve_ldhdu_zss,
-          gen_helper_sve_ldsdu_zss,
-          gen_helper_sve_ldddu_zss, } },
-      { { gen_helper_sve_ldbds_zd,
-          gen_helper_sve_ldhds_zd,
-          gen_helper_sve_ldsds_zd,
-          NULL, },
-        { gen_helper_sve_ldbdu_zd,
-          gen_helper_sve_ldhdu_zd,
-          gen_helper_sve_ldsdu_zd,
-          gen_helper_sve_ldddu_zd, } } },
+static gen_helper_gvec_mem_scatter * const gather_load_fn64[2][2][3][2][4] = {
+    /* Little-endian */
+    { { { { gen_helper_sve_ldbds_zsu,
+            gen_helper_sve_ldhds_le_zsu,
+            gen_helper_sve_ldsds_le_zsu,
+            NULL, },
+          { gen_helper_sve_ldbdu_zsu,
+            gen_helper_sve_ldhdu_le_zsu,
+            gen_helper_sve_ldsdu_le_zsu,
+            gen_helper_sve_lddd_le_zsu, } },
+        { { gen_helper_sve_ldbds_zss,
+            gen_helper_sve_ldhds_le_zss,
+            gen_helper_sve_ldsds_le_zss,
+            NULL, },
+          { gen_helper_sve_ldbdu_zss,
+            gen_helper_sve_ldhdu_le_zss,
+            gen_helper_sve_ldsdu_le_zss,
+            gen_helper_sve_lddd_le_zss, } },
+        { { gen_helper_sve_ldbds_zd,
+            gen_helper_sve_ldhds_le_zd,
+            gen_helper_sve_ldsds_le_zd,
+            NULL, },
+          { gen_helper_sve_ldbdu_zd,
+            gen_helper_sve_ldhdu_le_zd,
+            gen_helper_sve_ldsdu_le_zd,
+            gen_helper_sve_lddd_le_zd, } } },
 
-    { { { gen_helper_sve_ldffbds_zsu,
-          gen_helper_sve_ldffhds_zsu,
-          gen_helper_sve_ldffsds_zsu,
-          NULL, },
-        { gen_helper_sve_ldffbdu_zsu,
-          gen_helper_sve_ldffhdu_zsu,
-          gen_helper_sve_ldffsdu_zsu,
-          gen_helper_sve_ldffddu_zsu, } },
-      { { gen_helper_sve_ldffbds_zss,
-          gen_helper_sve_ldffhds_zss,
-          gen_helper_sve_ldffsds_zss,
-          NULL, },
-        { gen_helper_sve_ldffbdu_zss,
-          gen_helper_sve_ldffhdu_zss,
-          gen_helper_sve_ldffsdu_zss,
-          gen_helper_sve_ldffddu_zss, } },
-      { { gen_helper_sve_ldffbds_zd,
-          gen_helper_sve_ldffhds_zd,
-          gen_helper_sve_ldffsds_zd,
-          NULL, },
-        { gen_helper_sve_ldffbdu_zd,
-          gen_helper_sve_ldffhdu_zd,
-          gen_helper_sve_ldffsdu_zd,
-          gen_helper_sve_ldffddu_zd, } } }
+      /* First-fault */
+      { { { gen_helper_sve_ldffbds_zsu,
+            gen_helper_sve_ldffhds_zsu,
+            gen_helper_sve_ldffsds_zsu,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zsu,
+            gen_helper_sve_ldffhdu_zsu,
+            gen_helper_sve_ldffsdu_zsu,
+            gen_helper_sve_ldffddu_zsu, } },
+        { { gen_helper_sve_ldffbds_zss,
+            gen_helper_sve_ldffhds_zss,
+            gen_helper_sve_ldffsds_zss,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zss,
+            gen_helper_sve_ldffhdu_zss,
+            gen_helper_sve_ldffsdu_zss,
+            gen_helper_sve_ldffddu_zss, } },
+        { { gen_helper_sve_ldffbds_zd,
+            gen_helper_sve_ldffhds_zd,
+            gen_helper_sve_ldffsds_zd,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zd,
+            gen_helper_sve_ldffhdu_zd,
+            gen_helper_sve_ldffsdu_zd,
+            gen_helper_sve_ldffddu_zd, } } } },
+
+    /* Big-endian */
+    { { { { gen_helper_sve_ldbds_zsu,
+            gen_helper_sve_ldhds_be_zsu,
+            gen_helper_sve_ldsds_be_zsu,
+            NULL, },
+          { gen_helper_sve_ldbdu_zsu,
+            gen_helper_sve_ldhdu_be_zsu,
+            gen_helper_sve_ldsdu_be_zsu,
+            gen_helper_sve_lddd_be_zsu, } },
+        { { gen_helper_sve_ldbds_zss,
+            gen_helper_sve_ldhds_be_zss,
+            gen_helper_sve_ldsds_be_zss,
+            NULL, },
+          { gen_helper_sve_ldbdu_zss,
+            gen_helper_sve_ldhdu_be_zss,
+            gen_helper_sve_ldsdu_be_zss,
+            gen_helper_sve_lddd_be_zss, } },
+        { { gen_helper_sve_ldbds_zd,
+            gen_helper_sve_ldhds_be_zd,
+            gen_helper_sve_ldsds_be_zd,
+            NULL, },
+          { gen_helper_sve_ldbdu_zd,
+            gen_helper_sve_ldhdu_be_zd,
+            gen_helper_sve_ldsdu_be_zd,
+            gen_helper_sve_lddd_be_zd, } } },
+
+      /* First-fault */
+      { { { gen_helper_sve_ldffbds_zsu,
+            gen_helper_sve_ldffhds_zsu,
+            gen_helper_sve_ldffsds_zsu,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zsu,
+            gen_helper_sve_ldffhdu_zsu,
+            gen_helper_sve_ldffsdu_zsu,
+            gen_helper_sve_ldffddu_zsu, } },
+        { { gen_helper_sve_ldffbds_zss,
+            gen_helper_sve_ldffhds_zss,
+            gen_helper_sve_ldffsds_zss,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zss,
+            gen_helper_sve_ldffhdu_zss,
+            gen_helper_sve_ldffsdu_zss,
+            gen_helper_sve_ldffddu_zss, } },
+        { { gen_helper_sve_ldffbds_zd,
+            gen_helper_sve_ldffhds_zd,
+            gen_helper_sve_ldffsds_zd,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zd,
+            gen_helper_sve_ldffhdu_zd,
+            gen_helper_sve_ldffsdu_zd,
+            gen_helper_sve_ldffddu_zd, } } } },
 };
 
 static bool trans_LD1_zprz(DisasContext *s, arg_LD1_zprz *a, uint32_t insn)
 {
     gen_helper_gvec_mem_scatter *fn = NULL;
+    int be = s->be_data == MO_BE;
 
     if (!sve_access_check(s)) {
         return true;
@@ -5169,10 +5254,10 @@ static bool trans_LD1_zprz(DisasContext *s, arg_LD1_zprz *a, uint32_t insn)
 
     switch (a->esz) {
     case MO_32:
-        fn = gather_load_fn32[a->ff][a->xs][a->u][a->msz];
+        fn = gather_load_fn32[be][a->ff][a->xs][a->u][a->msz];
         break;
     case MO_64:
-        fn = gather_load_fn64[a->ff][a->xs][a->u][a->msz];
+        fn = gather_load_fn64[be][a->ff][a->xs][a->u][a->msz];
         break;
     }
     assert(fn != NULL);
@@ -5185,6 +5270,7 @@ static bool trans_LD1_zprz(DisasContext *s, arg_LD1_zprz *a, uint32_t insn)
 static bool trans_LD1_zpiz(DisasContext *s, arg_LD1_zpiz *a, uint32_t insn)
 {
     gen_helper_gvec_mem_scatter *fn = NULL;
+    int be = s->be_data == MO_BE;
     TCGv_i64 imm;
 
     if (a->esz < a->msz || (a->esz == a->msz && !a->u)) {
@@ -5196,10 +5282,10 @@ static bool trans_LD1_zpiz(DisasContext *s, arg_LD1_zpiz *a, uint32_t insn)
 
     switch (a->esz) {
     case MO_32:
-        fn = gather_load_fn32[a->ff][0][a->u][a->msz];
+        fn = gather_load_fn32[be][a->ff][0][a->u][a->msz];
         break;
     case MO_64:
-        fn = gather_load_fn64[a->ff][2][a->u][a->msz];
+        fn = gather_load_fn64[be][a->ff][2][a->u][a->msz];
         break;
     }
     assert(fn != NULL);
