@@ -368,6 +368,28 @@ static void cap_hpt_maxpagesize_cpu_apply(sPAPRMachineState *spapr,
     ppc_hash64_filter_pagesizes(cpu, spapr_pagesize_cb, &maxshift);
 }
 
+static void cap_nested_kvm_hv_apply(sPAPRMachineState *spapr,
+                                    uint8_t val, Error **errp)
+{
+    if (!val) {
+        /* capability disabled by default */
+        return;
+    }
+
+    if (tcg_enabled()) {
+        error_setg(errp,
+                   "No Nested KVM-HV support in tcg, try cap-nested-hv=off");
+    } else if (kvm_enabled()) {
+        if (!kvmppc_has_cap_nested_kvm_hv()) {
+            error_setg(errp,
+"KVM implementation does not support Nested KVM-HV, try cap-nested-hv=off");
+        } else if (kvmppc_set_cap_nested_kvm_hv(val) < 0) {
+                error_setg(errp,
+"Error enabling cap-nested-hv with KVM, try cap-nested-hv=off");
+        }
+    }
+}
+
 sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
@@ -436,6 +458,15 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "int",
         .apply = cap_hpt_maxpagesize_apply,
         .cpu_apply = cap_hpt_maxpagesize_cpu_apply,
+    },
+    [SPAPR_CAP_NESTED_KVM_HV] = {
+        .name = "nested-hv",
+        .description = "Allow Nested KVM-HV",
+        .index = SPAPR_CAP_NESTED_KVM_HV,
+        .get = spapr_cap_get_bool,
+        .set = spapr_cap_set_bool,
+        .type = "bool",
+        .apply = cap_nested_kvm_hv_apply,
     },
 };
 
@@ -564,6 +595,7 @@ SPAPR_CAP_MIG_STATE(dfp, SPAPR_CAP_DFP);
 SPAPR_CAP_MIG_STATE(cfpc, SPAPR_CAP_CFPC);
 SPAPR_CAP_MIG_STATE(sbbc, SPAPR_CAP_SBBC);
 SPAPR_CAP_MIG_STATE(ibs, SPAPR_CAP_IBS);
+SPAPR_CAP_MIG_STATE(nested_kvm_hv, SPAPR_CAP_NESTED_KVM_HV);
 
 void spapr_caps_init(sPAPRMachineState *spapr)
 {
