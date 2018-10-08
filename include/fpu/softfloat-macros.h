@@ -80,17 +80,6 @@ this code that are retained.
  */
 
 /*----------------------------------------------------------------------------
-| This macro tests for minimum version of the GNU C compiler.
-*----------------------------------------------------------------------------*/
-#if defined(__GNUC__) && defined(__GNUC_MINOR__)
-# define SOFTFLOAT_GNUC_PREREQ(maj, min) \
-         ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
-#else
-# define SOFTFLOAT_GNUC_PREREQ(maj, min) 0
-#endif
-
-
-/*----------------------------------------------------------------------------
 | Shifts `a' right by the number of bits given in `count'.  If any nonzero
 | bits are shifted off, they are ``jammed'' into the least significant bit of
 | the result by setting the least significant bit to 1.  The value of `count'
@@ -340,15 +329,30 @@ static inline void
 | pieces which are stored at the locations pointed to by `z0Ptr' and `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-static inline void
- shortShift128Left(
-     uint64_t a0, uint64_t a1, int count, uint64_t *z0Ptr, uint64_t *z1Ptr)
+static inline void shortShift128Left(uint64_t a0, uint64_t a1, int count,
+                                     uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
+    *z1Ptr = a1 << count;
+    *z0Ptr = count == 0 ? a0 : (a0 << count) | (a1 >> (-count & 63));
+}
 
-    *z1Ptr = a1<<count;
-    *z0Ptr =
-        ( count == 0 ) ? a0 : ( a0<<count ) | ( a1>>( ( - count ) & 63 ) );
+/*----------------------------------------------------------------------------
+| Shifts the 128-bit value formed by concatenating `a0' and `a1' left by the
+| number of bits given in `count'.  Any bits shifted off are lost.  The value
+| of `count' may be greater than 64.  The result is broken into two 64-bit
+| pieces which are stored at the locations pointed to by `z0Ptr' and `z1Ptr'.
+*----------------------------------------------------------------------------*/
 
+static inline void shift128Left(uint64_t a0, uint64_t a1, int count,
+                                uint64_t *z0Ptr, uint64_t *z1Ptr)
+{
+    if (count < 64) {
+        *z1Ptr = a1 << count;
+        *z0Ptr = count == 0 ? a0 : (a0 << count) | (a1 >> (-count & 63));
+    } else {
+        *z1Ptr = 0;
+        *z0Ptr = a1 << (count - 64);
+    }
 }
 
 /*----------------------------------------------------------------------------
@@ -630,8 +634,36 @@ static inline uint64_t estimateDiv128To64(uint64_t a0, uint64_t a1, uint64_t b)
  *
  * Licensed under the GPLv2/LGPLv3
  */
-static inline uint64_t div128To64(uint64_t n0, uint64_t n1, uint64_t d)
+static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1,
+                                  uint64_t n0, uint64_t d)
 {
+#if defined(__x86_64__)
+    uint64_t q;
+    asm("divq %4" : "=a"(q), "=d"(*r) : "0"(n0), "1"(n1), "rm"(d));
+    return q;
+#elif defined(__s390x__)
+    /* Need to use a TImode type to get an even register pair for DLGR.  */
+    unsigned __int128 n = (unsigned __int128)n1 << 64 | n0;
+    asm("dlgr %0, %1" : "+r"(n) : "r"(d));
+    *r = n >> 64;
+    return n;
+#elif defined(_ARCH_PPC64)
+    /* From Power ISA 3.0B, programming note for divdeu.  */
+    uint64_t q1, q2, Q, r1, r2, R;
+    asm("divdeu %0,%2,%4; divdu %1,%3,%4"
+        : "=&r"(q1), "=r"(q2)
+        : "r"(n1), "r"(n0), "r"(d));
+    r1 = -(q1 * d);         /* low part of (n1<<64) - (q1 * d) */
+    r2 = n0 - (q2 * d);
+    Q = q1 + q2;
+    R = r1 + r2;
+    if (R >= d || R < r2) { /* overflow implies R > d */
+        Q += 1;
+        R -= d;
+    }
+    *r = R;
+    return Q;
+#else
     uint64_t d0, d1, q0, q1, r1, r0, m;
 
     d0 = (uint32_t)d;
@@ -669,8 +701,9 @@ static inline uint64_t div128To64(uint64_t n0, uint64_t n1, uint64_t d)
     }
     r0 -= m;
 
-    /* Return remainder in LSB */
-    return (q1 << 32) | q0 | (r0 != 0);
+    *r = r0;
+    return (q1 << 32) | q0;
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -710,82 +743,6 @@ static inline uint32_t estimateSqrt32(int aExp, uint32_t a)
     }
     return ( (uint32_t) ( ( ( (uint64_t) a )<<31 ) / z ) ) + ( z>>1 );
 
-}
-
-/*----------------------------------------------------------------------------
-| Returns the number of leading 0 bits before the most-significant 1 bit of
-| `a'.  If `a' is zero, 32 is returned.
-*----------------------------------------------------------------------------*/
-
-static inline int8_t countLeadingZeros32(uint32_t a)
-{
-#if SOFTFLOAT_GNUC_PREREQ(3, 4)
-    if (a) {
-        return __builtin_clz(a);
-    } else {
-        return 32;
-    }
-#else
-    static const int8_t countLeadingZerosHigh[] = {
-        8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4,
-        3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    };
-    int8_t shiftCount;
-
-    shiftCount = 0;
-    if ( a < 0x10000 ) {
-        shiftCount += 16;
-        a <<= 16;
-    }
-    if ( a < 0x1000000 ) {
-        shiftCount += 8;
-        a <<= 8;
-    }
-    shiftCount += countLeadingZerosHigh[ a>>24 ];
-    return shiftCount;
-#endif
-}
-
-/*----------------------------------------------------------------------------
-| Returns the number of leading 0 bits before the most-significant 1 bit of
-| `a'.  If `a' is zero, 64 is returned.
-*----------------------------------------------------------------------------*/
-
-static inline int8_t countLeadingZeros64(uint64_t a)
-{
-#if SOFTFLOAT_GNUC_PREREQ(3, 4)
-    if (a) {
-        return __builtin_clzll(a);
-    } else {
-        return 64;
-    }
-#else
-    int8_t shiftCount;
-
-    shiftCount = 0;
-    if ( a < ( (uint64_t) 1 )<<32 ) {
-        shiftCount += 32;
-    }
-    else {
-        a >>= 32;
-    }
-    shiftCount += countLeadingZeros32( a );
-    return shiftCount;
-#endif
 }
 
 /*----------------------------------------------------------------------------
