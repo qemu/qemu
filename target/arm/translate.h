@@ -38,6 +38,7 @@ typedef struct DisasContext {
     int vec_stride;
     bool v7m_handler_mode;
     bool v8m_secure; /* true if v8M and we're in Secure mode */
+    bool v8m_stackcheck; /* true if we need to perform v8M stack limit checks */
     /* Immediate value in AArch32 SVC insn; must be set if is_jmp == DISAS_SWI
      * so that top level loop can generate correct syndrome information.
      */

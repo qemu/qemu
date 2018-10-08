@@ -94,6 +94,15 @@ FIELD(V7M_EXCRET, RES1, 7, 25) /* including the must-be-1 prefix */
 #define M_FAKE_FSR_NSC_EXEC 0xf /* NS executing in S&NSC memory */
 #define M_FAKE_FSR_SFAULT 0xe /* SecureFault INVTRAN, INVEP or AUVIOL */
 
+/**
+ * raise_exception: Raise the specified exception.
+ * Raise a guest exception with the specified value, syndrome register
+ * and target exception level. This should be called from helper functions,
+ * and never returns because we will longjump back up to the CPU main loop.
+ */
+void QEMU_NORETURN raise_exception(CPUARMState *env, uint32_t excp,
+                                   uint32_t syndrome, uint32_t target_el);
+
 /*
  * For AArch64, map a given EL to an index in the banked_spsr array.
  * Note that this mapping and the AArch32 mapping defined in bank_number()
@@ -793,6 +802,41 @@ static inline uint32_t arm_debug_exception_fsr(CPUARMState *env)
         return arm_fi_to_lfsc(&fi);
     } else {
         return arm_fi_to_sfsc(&fi);
+    }
+}
+
+/* Note make_memop_idx reserves 4 bits for mmu_idx, and MO_BSWAP is bit 3.
+ * Thus a TCGMemOpIdx, without any MO_ALIGN bits, fits in 8 bits.
+ */
+#define MEMOPIDX_SHIFT  8
+
+/**
+ * v7m_using_psp: Return true if using process stack pointer
+ * Return true if the CPU is currently using the process stack
+ * pointer, or false if it is using the main stack pointer.
+ */
+static inline bool v7m_using_psp(CPUARMState *env)
+{
+    /* Handler mode always uses the main stack; for thread mode
+     * the CONTROL.SPSEL bit determines the answer.
+     * Note that in v7M it is not possible to be in Handler mode with
+     * CONTROL.SPSEL non-zero, but in v8M it is, so we must check both.
+     */
+    return !arm_v7m_is_handler_mode(env) &&
+        env->v7m.control[env->v7m.secure] & R_V7M_CONTROL_SPSEL_MASK;
+}
+
+/**
+ * v7m_sp_limit: Return SP limit for current CPU state
+ * Return the SP limit value for the current CPU security state
+ * and stack pointer.
+ */
+static inline uint32_t v7m_sp_limit(CPUARMState *env)
+{
+    if (v7m_using_psp(env)) {
+        return env->v7m.psplim[env->v7m.secure];
+    } else {
+        return env->v7m.msplim[env->v7m.secure];
     }
 }
 

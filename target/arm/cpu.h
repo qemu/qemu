@@ -56,6 +56,7 @@
 #define EXCP_SEMIHOST       16   /* semihosting call */
 #define EXCP_NOCP           17   /* v7M NOCP UsageFault */
 #define EXCP_INVSTATE       18   /* v7M INVSTATE UsageFault */
+#define EXCP_STKOF          19   /* v8M STKOF UsageFault */
 /* NB: add new EXCP_ defines to the array in arm_log_exception() too */
 
 #define ARMV7M_EXCP_RESET   1
@@ -910,11 +911,19 @@ int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
 int aarch64_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int aarch64_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void aarch64_sve_narrow_vq(CPUARMState *env, unsigned vq);
+void aarch64_sve_change_el(CPUARMState *env, int old_el, int new_el);
+#else
+static inline void aarch64_sve_narrow_vq(CPUARMState *env, unsigned vq) { }
+static inline void aarch64_sve_change_el(CPUARMState *env, int o, int n) { }
 #endif
 
 target_ulong do_arm_semihosting(CPUARMState *env);
 void aarch64_sync_32_to_64(CPUARMState *env);
 void aarch64_sync_64_to_32(CPUARMState *env);
+
+int fp_exception_el(CPUARMState *env, int cur_el);
+int sve_exception_el(CPUARMState *env, int cur_el);
+uint32_t sve_zcr_len_for_el(CPUARMState *env, int el);
 
 static inline bool is_a64(CPUARMState *env)
 {
@@ -1336,8 +1345,10 @@ FIELD(V7M_CCR, UNALIGN_TRP, 3, 1)
 FIELD(V7M_CCR, DIV_0_TRP, 4, 1)
 FIELD(V7M_CCR, BFHFNMIGN, 8, 1)
 FIELD(V7M_CCR, STKALIGN, 9, 1)
+FIELD(V7M_CCR, STKOFHFNMIGN, 10, 1)
 FIELD(V7M_CCR, DC, 16, 1)
 FIELD(V7M_CCR, IC, 17, 1)
+FIELD(V7M_CCR, BP, 18, 1)
 
 /* V7M SCR bits */
 FIELD(V7M_SCR, SLEEPONEXIT, 1, 1)
@@ -1378,6 +1389,7 @@ FIELD(V7M_CFSR, UNDEFINSTR, 16 + 0, 1)
 FIELD(V7M_CFSR, INVSTATE, 16 + 1, 1)
 FIELD(V7M_CFSR, INVPC, 16 + 2, 1)
 FIELD(V7M_CFSR, NOCP, 16 + 3, 1)
+FIELD(V7M_CFSR, STKOF, 16 + 4, 1)
 FIELD(V7M_CFSR, UNALIGNED, 16 + 8, 1)
 FIELD(V7M_CFSR, DIVBYZERO, 16 + 9, 1)
 
@@ -2842,6 +2854,9 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
 /* For M profile only, Handler (ie not Thread) mode */
 #define ARM_TBFLAG_HANDLER_SHIFT    21
 #define ARM_TBFLAG_HANDLER_MASK     (1 << ARM_TBFLAG_HANDLER_SHIFT)
+/* For M profile only, whether we should generate stack-limit checks */
+#define ARM_TBFLAG_STACKCHECK_SHIFT 22
+#define ARM_TBFLAG_STACKCHECK_MASK  (1 << ARM_TBFLAG_STACKCHECK_SHIFT)
 
 /* Bit usage when in AArch64 state */
 #define ARM_TBFLAG_TBI0_SHIFT 0        /* TBI0 for EL0/1 or TBI for EL2/3 */
@@ -2884,6 +2899,8 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
     (((F) & ARM_TBFLAG_BE_DATA_MASK) >> ARM_TBFLAG_BE_DATA_SHIFT)
 #define ARM_TBFLAG_HANDLER(F) \
     (((F) & ARM_TBFLAG_HANDLER_MASK) >> ARM_TBFLAG_HANDLER_SHIFT)
+#define ARM_TBFLAG_STACKCHECK(F) \
+    (((F) & ARM_TBFLAG_STACKCHECK_MASK) >> ARM_TBFLAG_STACKCHECK_SHIFT)
 #define ARM_TBFLAG_TBI0(F) \
     (((F) & ARM_TBFLAG_TBI0_MASK) >> ARM_TBFLAG_TBI0_SHIFT)
 #define ARM_TBFLAG_TBI1(F) \

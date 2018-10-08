@@ -4400,78 +4400,105 @@ static const ARMCPRegInfo debug_lpae_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-/* Return the exception level to which SVE-disabled exceptions should
- * be taken, or 0 if SVE is enabled.
+/* Return the exception level to which exceptions should be taken
+ * via SVEAccessTrap.  If an exception should be routed through
+ * AArch64.AdvSIMDFPAccessTrap, return 0; fp_exception_el should
+ * take care of raising that exception.
+ * C.f. the ARM pseudocode function CheckSVEEnabled.
  */
-static int sve_exception_el(CPUARMState *env)
+int sve_exception_el(CPUARMState *env, int el)
 {
 #ifndef CONFIG_USER_ONLY
-    unsigned current_el = arm_current_el(env);
+    if (el <= 1) {
+        bool disabled = false;
 
-    /* The CPACR.ZEN controls traps to EL1:
-     * 0, 2 : trap EL0 and EL1 accesses
-     * 1    : trap only EL0 accesses
-     * 3    : trap no accesses
+        /* The CPACR.ZEN controls traps to EL1:
+         * 0, 2 : trap EL0 and EL1 accesses
+         * 1    : trap only EL0 accesses
+         * 3    : trap no accesses
+         */
+        if (!extract32(env->cp15.cpacr_el1, 16, 1)) {
+            disabled = true;
+        } else if (!extract32(env->cp15.cpacr_el1, 17, 1)) {
+            disabled = el == 0;
+        }
+        if (disabled) {
+            /* route_to_el2 */
+            return (arm_feature(env, ARM_FEATURE_EL2)
+                    && !arm_is_secure(env)
+                    && (env->cp15.hcr_el2 & HCR_TGE) ? 2 : 1);
+        }
+
+        /* Check CPACR.FPEN.  */
+        if (!extract32(env->cp15.cpacr_el1, 20, 1)) {
+            disabled = true;
+        } else if (!extract32(env->cp15.cpacr_el1, 21, 1)) {
+            disabled = el == 0;
+        }
+        if (disabled) {
+            return 0;
+        }
+    }
+
+    /* CPTR_EL2.  Since TZ and TFP are positive,
+     * they will be zero when EL2 is not present.
      */
-    switch (extract32(env->cp15.cpacr_el1, 16, 2)) {
-    default:
-        if (current_el <= 1) {
-            /* Trap to PL1, which might be EL1 or EL3 */
-            if (arm_is_secure(env) && !arm_el_is_aa64(env, 3)) {
-                return 3;
-            }
-            return 1;
+    if (el <= 2 && !arm_is_secure_below_el3(env)) {
+        if (env->cp15.cptr_el[2] & CPTR_TZ) {
+            return 2;
         }
-        break;
-    case 1:
-        if (current_el == 0) {
-            return 1;
+        if (env->cp15.cptr_el[2] & CPTR_TFP) {
+            return 0;
         }
-        break;
-    case 3:
-        break;
     }
 
-    /* Similarly for CPACR.FPEN, after having checked ZEN.  */
-    switch (extract32(env->cp15.cpacr_el1, 20, 2)) {
-    default:
-        if (current_el <= 1) {
-            if (arm_is_secure(env) && !arm_el_is_aa64(env, 3)) {
-                return 3;
-            }
-            return 1;
-        }
-        break;
-    case 1:
-        if (current_el == 0) {
-            return 1;
-        }
-        break;
-    case 3:
-        break;
-    }
-
-    /* CPTR_EL2.  Check both TZ and TFP.  */
-    if (current_el <= 2
-        && (env->cp15.cptr_el[2] & (CPTR_TFP | CPTR_TZ))
-        && !arm_is_secure_below_el3(env)) {
-        return 2;
-    }
-
-    /* CPTR_EL3.  Check both EZ and TFP.  */
-    if (!(env->cp15.cptr_el[3] & CPTR_EZ)
-        || (env->cp15.cptr_el[3] & CPTR_TFP)) {
+    /* CPTR_EL3.  Since EZ is negative we must check for EL3.  */
+    if (arm_feature(env, ARM_FEATURE_EL3)
+        && !(env->cp15.cptr_el[3] & CPTR_EZ)) {
         return 3;
     }
 #endif
     return 0;
 }
 
+/*
+ * Given that SVE is enabled, return the vector length for EL.
+ */
+uint32_t sve_zcr_len_for_el(CPUARMState *env, int el)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    uint32_t zcr_len = cpu->sve_max_vq - 1;
+
+    if (el <= 1) {
+        zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[1]);
+    }
+    if (el < 2 && arm_feature(env, ARM_FEATURE_EL2)) {
+        zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[2]);
+    }
+    if (el < 3 && arm_feature(env, ARM_FEATURE_EL3)) {
+        zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[3]);
+    }
+    return zcr_len;
+}
+
 static void zcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                       uint64_t value)
 {
+    int cur_el = arm_current_el(env);
+    int old_len = sve_zcr_len_for_el(env, cur_el);
+    int new_len;
+
     /* Bits other than [3:0] are RAZ/WI.  */
     raw_write(env, ri, value & 0xf);
+
+    /*
+     * Because we arrived here, we know both FP and SVE are enabled;
+     * otherwise we would have trapped access to the ZCR_ELn register.
+     */
+    new_len = sve_zcr_len_for_el(env, cur_el);
+    if (new_len < old_len) {
+        aarch64_sve_narrow_vq(env, new_len + 1);
+    }
 }
 
 static const ARMCPRegInfo zcr_el1_reginfo = {
@@ -5018,9 +5045,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 3,
               .access = PL1_R, .type = ARM_CP_CONST,
               .resetvalue = 0 },
-            { .name = "ID_AA64PFR4_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
+            { .name = "ID_AA64ZFR0_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 4,
               .access = PL1_R, .type = ARM_CP_CONST,
+              /* At present, only SVEver == 0 is defined anyway.  */
               .resetvalue = 0 },
             { .name = "ID_AA64PFR5_EL1_RESERVED", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 4, .opc2 = 5,
@@ -6554,18 +6582,6 @@ pend_fault:
     return false;
 }
 
-/* Return true if we're using the process stack pointer (not the MSP) */
-static bool v7m_using_psp(CPUARMState *env)
-{
-    /* Handler mode always uses the main stack; for thread mode
-     * the CONTROL.SPSEL bit determines the answer.
-     * Note that in v7M it is not possible to be in Handler mode with
-     * CONTROL.SPSEL non-zero, but in v8M it is, so we must check both.
-     */
-    return !arm_v7m_is_handler_mode(env) &&
-        env->v7m.control[env->v7m.secure] & R_V7M_CONTROL_SPSEL_MASK;
-}
-
 /* Write to v7M CONTROL.SPSEL bit for the specified security bank.
  * This may change the current stack pointer between Main and Process
  * stack pointers if it is done for the CONTROL register for the current
@@ -6722,6 +6738,10 @@ void HELPER(v7m_blxns)(CPUARMState *env, uint32_t dest)
                       "BLXNS with misaligned SP is UNPREDICTABLE\n");
     }
 
+    if (sp < v7m_sp_limit(env)) {
+        raise_exception(env, EXCP_STKOF, 0, 1);
+    }
+
     saved_psr = env->v7m.exception;
     if (env->v7m.control[M_REG_S] & R_V7M_CONTROL_SFPA_MASK) {
         saved_psr |= XPSR_SFPA;
@@ -6851,6 +6871,8 @@ static bool v7m_push_callee_stack(ARMCPU *cpu, uint32_t lr, bool dotailchain,
     uint32_t frameptr;
     ARMMMUIdx mmu_idx;
     bool stacked_ok;
+    uint32_t limit;
+    bool want_psp;
 
     if (dotailchain) {
         bool mode = lr & R_V7M_EXCRET_MODE_MASK;
@@ -6860,12 +6882,34 @@ static bool v7m_push_callee_stack(ARMCPU *cpu, uint32_t lr, bool dotailchain,
         mmu_idx = arm_v7m_mmu_idx_for_secstate_and_priv(env, M_REG_S, priv);
         frame_sp_p = get_v7m_sp_ptr(env, M_REG_S, mode,
                                     lr & R_V7M_EXCRET_SPSEL_MASK);
+        want_psp = mode && (lr & R_V7M_EXCRET_SPSEL_MASK);
+        if (want_psp) {
+            limit = env->v7m.psplim[M_REG_S];
+        } else {
+            limit = env->v7m.msplim[M_REG_S];
+        }
     } else {
         mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
         frame_sp_p = &env->regs[13];
+        limit = v7m_sp_limit(env);
     }
 
     frameptr = *frame_sp_p - 0x28;
+    if (frameptr < limit) {
+        /*
+         * Stack limit failure: set SP to the limit value, and generate
+         * STKOF UsageFault. Stack pushes below the limit must not be
+         * performed. It is IMPDEF whether pushes above the limit are
+         * performed; we choose not to.
+         */
+        qemu_log_mask(CPU_LOG_INT,
+                      "...STKOF during callee-saves register stacking\n");
+        env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_STKOF_MASK;
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE,
+                                env->v7m.secure);
+        *frame_sp_p = limit;
+        return true;
+    }
 
     /* Write as much of the stack frame as we can. A write failure may
      * cause us to pend a derived exception.
@@ -6889,10 +6933,7 @@ static bool v7m_push_callee_stack(ARMCPU *cpu, uint32_t lr, bool dotailchain,
         v7m_stack_write(cpu, frameptr + 0x24, env->regs[11], mmu_idx,
                         ignore_faults);
 
-    /* Update SP regardless of whether any of the stack accesses failed.
-     * When we implement v8M stack limit checking then this attempt to
-     * update SP might also fail and result in a derived exception.
-     */
+    /* Update SP regardless of whether any of the stack accesses failed. */
     *frame_sp_p = frameptr;
 
     return !stacked_ok;
@@ -6938,7 +6979,7 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain,
                  * not already saved.
                  */
                 if (lr & R_V7M_EXCRET_DCRS_MASK &&
-                    !(dotailchain && (lr & R_V7M_EXCRET_ES_MASK))) {
+                    !(dotailchain && !(lr & R_V7M_EXCRET_ES_MASK))) {
                     push_failed = v7m_push_callee_stack(cpu, lr, dotailchain,
                                                         ignore_stackfaults);
                 }
@@ -7040,6 +7081,26 @@ static bool v7m_push_stack(ARMCPU *cpu)
 
     frameptr -= 0x20;
 
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        uint32_t limit = v7m_sp_limit(env);
+
+        if (frameptr < limit) {
+            /*
+             * Stack limit failure: set SP to the limit value, and generate
+             * STKOF UsageFault. Stack pushes below the limit must not be
+             * performed. It is IMPDEF whether pushes above the limit are
+             * performed; we choose not to.
+             */
+            qemu_log_mask(CPU_LOG_INT,
+                          "...STKOF during stacking\n");
+            env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_STKOF_MASK;
+            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE,
+                                    env->v7m.secure);
+            env->regs[13] = limit;
+            return true;
+        }
+    }
+
     /* Write as much of the stack frame as we can. If we fail a stack
      * write this will result in a derived exception being pended
      * (which may be taken in preference to the one we started with
@@ -7055,10 +7116,7 @@ static bool v7m_push_stack(ARMCPU *cpu)
         v7m_stack_write(cpu, frameptr + 24, env->regs[15], mmu_idx, false) &&
         v7m_stack_write(cpu, frameptr + 28, xpsr, mmu_idx, false);
 
-    /* Update SP regardless of whether any of the stack accesses failed.
-     * When we implement v8M stack limit checking then this attempt to
-     * update SP might also fail and result in a derived exception.
-     */
+    /* Update SP regardless of whether any of the stack accesses failed. */
     env->regs[13] = frameptr;
 
     return !stacked_ok;
@@ -7304,7 +7362,6 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
 
             pop_ok = pop_ok &&
                 v7m_stack_read(cpu, &env->regs[4], frameptr + 0x8, mmu_idx) &&
-                v7m_stack_read(cpu, &env->regs[4], frameptr + 0x8, mmu_idx) &&
                 v7m_stack_read(cpu, &env->regs[5], frameptr + 0xc, mmu_idx) &&
                 v7m_stack_read(cpu, &env->regs[6], frameptr + 0x10, mmu_idx) &&
                 v7m_stack_read(cpu, &env->regs[7], frameptr + 0x14, mmu_idx) &&
@@ -7512,6 +7569,7 @@ static void arm_log_exception(int idx)
             [EXCP_SEMIHOST] = "Semihosting call",
             [EXCP_NOCP] = "v7M NOCP UsageFault",
             [EXCP_INVSTATE] = "v7M INVSTATE UsageFault",
+            [EXCP_STKOF] = "v8M STKOF UsageFault",
         };
 
         if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
@@ -7666,6 +7724,10 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     case EXCP_INVSTATE:
         armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, env->v7m.secure);
         env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_INVSTATE_MASK;
+        break;
+    case EXCP_STKOF:
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, env->v7m.secure);
+        env->v7m.cfsr[env->v7m.secure] |= R_V7M_CFSR_STKOF_MASK;
         break;
     case EXCP_SWI:
         /* The PC already points to the next instruction.  */
@@ -8310,8 +8372,11 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
     unsigned int new_el = env->exception.target_el;
     target_ulong addr = env->cp15.vbar_el[new_el];
     unsigned int new_mode = aarch64_pstate_mode(new_el, true);
+    unsigned int cur_el = arm_current_el(env);
 
-    if (arm_current_el(env) < new_el) {
+    aarch64_sve_change_el(env, cur_el, new_el);
+
+    if (cur_el < new_el) {
         /* Entry vector offset depends on whether the implemented EL
          * immediately lower than the target level is using AArch32 or AArch64
          */
@@ -10929,11 +10994,23 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
              * currently in handler mode or not, using the NS CONTROL.SPSEL.
              */
             bool spsel = env->v7m.control[M_REG_NS] & R_V7M_CONTROL_SPSEL_MASK;
+            bool is_psp = !arm_v7m_is_handler_mode(env) && spsel;
+            uint32_t limit;
 
             if (!env->v7m.secure) {
                 return;
             }
-            if (!arm_v7m_is_handler_mode(env) && spsel) {
+
+            limit = is_psp ? env->v7m.psplim[false] : env->v7m.msplim[false];
+
+            if (val < limit) {
+                CPUState *cs = CPU(arm_env_get_cpu(env));
+
+                cpu_restore_state(cs, GETPC(), true);
+                raise_exception(env, EXCP_STKOF, 0, 1);
+            }
+
+            if (is_psp) {
                 env->v7m.other_ss_psp = val;
             } else {
                 env->v7m.other_ss_msp = val;
@@ -12516,11 +12593,10 @@ uint32_t HELPER(crc32c)(uint32_t acc, uint32_t val, uint32_t bytes)
 /* Return the exception level to which FP-disabled exceptions should
  * be taken, or 0 if FP is enabled.
  */
-static inline int fp_exception_el(CPUARMState *env)
+int fp_exception_el(CPUARMState *env, int cur_el)
 {
 #ifndef CONFIG_USER_ONLY
     int fpen;
-    int cur_el = arm_current_el(env);
 
     /* CPACR and the CPTR registers don't exist before v6, so FP is
      * always accessible
@@ -12583,7 +12659,8 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                           target_ulong *cs_base, uint32_t *pflags)
 {
     ARMMMUIdx mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
-    int fp_el = fp_exception_el(env);
+    int current_el = arm_current_el(env);
+    int fp_el = fp_exception_el(env, current_el);
     uint32_t flags;
 
     if (is_a64(env)) {
@@ -12594,7 +12671,7 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
         flags |= (arm_regime_tbi1(env, mmu_idx) << ARM_TBFLAG_TBI1_SHIFT);
 
         if (arm_feature(env, ARM_FEATURE_SVE)) {
-            int sve_el = sve_exception_el(env);
+            int sve_el = sve_exception_el(env, current_el);
             uint32_t zcr_len;
 
             /* If SVE is disabled, but FP is enabled,
@@ -12603,19 +12680,7 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
             if (sve_el != 0 && fp_el == 0) {
                 zcr_len = 0;
             } else {
-                int current_el = arm_current_el(env);
-                ARMCPU *cpu = arm_env_get_cpu(env);
-
-                zcr_len = cpu->sve_max_vq - 1;
-                if (current_el <= 1) {
-                    zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[1]);
-                }
-                if (current_el < 2 && arm_feature(env, ARM_FEATURE_EL2)) {
-                    zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[2]);
-                }
-                if (current_el < 3 && arm_feature(env, ARM_FEATURE_EL3)) {
-                    zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[3]);
-                }
+                zcr_len = sve_zcr_len_for_el(env, current_el);
             }
             flags |= sve_el << ARM_TBFLAG_SVEEXC_EL_SHIFT;
             flags |= zcr_len << ARM_TBFLAG_ZCR_LEN_SHIFT;
@@ -12668,6 +12733,98 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
         flags |= ARM_TBFLAG_HANDLER_MASK;
     }
 
+    /* v8M always applies stack limit checks unless CCR.STKOFHFNMIGN is
+     * suppressing them because the requested execution priority is less than 0.
+     */
+    if (arm_feature(env, ARM_FEATURE_V8) &&
+        arm_feature(env, ARM_FEATURE_M) &&
+        !((mmu_idx  & ARM_MMU_IDX_M_NEGPRI) &&
+          (env->v7m.ccr[env->v7m.secure] & R_V7M_CCR_STKOFHFNMIGN_MASK))) {
+        flags |= ARM_TBFLAG_STACKCHECK_MASK;
+    }
+
     *pflags = flags;
     *cs_base = 0;
 }
+
+#ifdef TARGET_AARCH64
+/*
+ * The manual says that when SVE is enabled and VQ is widened the
+ * implementation is allowed to zero the previously inaccessible
+ * portion of the registers.  The corollary to that is that when
+ * SVE is enabled and VQ is narrowed we are also allowed to zero
+ * the now inaccessible portion of the registers.
+ *
+ * The intent of this is that no predicate bit beyond VQ is ever set.
+ * Which means that some operations on predicate registers themselves
+ * may operate on full uint64_t or even unrolled across the maximum
+ * uint64_t[4].  Performing 4 bits of host arithmetic unconditionally
+ * may well be cheaper than conditionals to restrict the operation
+ * to the relevant portion of a uint16_t[16].
+ */
+void aarch64_sve_narrow_vq(CPUARMState *env, unsigned vq)
+{
+    int i, j;
+    uint64_t pmask;
+
+    assert(vq >= 1 && vq <= ARM_MAX_VQ);
+    assert(vq <= arm_env_get_cpu(env)->sve_max_vq);
+
+    /* Zap the high bits of the zregs.  */
+    for (i = 0; i < 32; i++) {
+        memset(&env->vfp.zregs[i].d[2 * vq], 0, 16 * (ARM_MAX_VQ - vq));
+    }
+
+    /* Zap the high bits of the pregs and ffr.  */
+    pmask = 0;
+    if (vq & 3) {
+        pmask = ~(-1ULL << (16 * (vq & 3)));
+    }
+    for (j = vq / 4; j < ARM_MAX_VQ / 4; j++) {
+        for (i = 0; i < 17; ++i) {
+            env->vfp.pregs[i].p[j] &= pmask;
+        }
+        pmask = 0;
+    }
+}
+
+/*
+ * Notice a change in SVE vector size when changing EL.
+ */
+void aarch64_sve_change_el(CPUARMState *env, int old_el, int new_el)
+{
+    int old_len, new_len;
+
+    /* Nothing to do if no SVE.  */
+    if (!arm_feature(env, ARM_FEATURE_SVE)) {
+        return;
+    }
+
+    /* Nothing to do if FP is disabled in either EL.  */
+    if (fp_exception_el(env, old_el) || fp_exception_el(env, new_el)) {
+        return;
+    }
+
+    /*
+     * DDI0584A.d sec 3.2: "If SVE instructions are disabled or trapped
+     * at ELx, or not available because the EL is in AArch32 state, then
+     * for all purposes other than a direct read, the ZCR_ELx.LEN field
+     * has an effective value of 0".
+     *
+     * Consider EL2 (aa64, vq=4) -> EL0 (aa32) -> EL1 (aa64, vq=0).
+     * If we ignore aa32 state, we would fail to see the vq4->vq0 transition
+     * from EL2->EL1.  Thus we go ahead and narrow when entering aa32 so that
+     * we already have the correct register contents when encountering the
+     * vq0->vq0 transition between EL0->EL1.
+     */
+    old_len = (arm_el_is_aa64(env, old_el) && !sve_exception_el(env, old_el)
+               ? sve_zcr_len_for_el(env, old_el) : 0);
+    new_len = (arm_el_is_aa64(env, new_el) && !sve_exception_el(env, new_el)
+               ? sve_zcr_len_for_el(env, new_el) : 0);
+
+    /* When changing vector length, clear inaccessible state.  */
+    if (new_len < old_len) {
+        aarch64_sve_narrow_vq(env, new_len + 1);
+    }
+}
+#endif

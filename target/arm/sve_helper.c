@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internals.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/helper-proto.h"
@@ -1683,6 +1684,47 @@ static void swap_memmove(void *vd, void *vs, size_t n)
                 i -= 1;
                 *(uint8_t *)H1(d + i) = *(uint8_t *)H1(s + i);
             }
+        }
+        break;
+    }
+}
+
+/* Similarly for memset of 0.  */
+static void swap_memzero(void *vd, size_t n)
+{
+    uintptr_t d = (uintptr_t)vd;
+    uintptr_t o = (d | n) & 7;
+    size_t i;
+
+    /* Usually, the first bit of a predicate is set, so N is 0.  */
+    if (likely(n == 0)) {
+        return;
+    }
+
+#ifndef HOST_WORDS_BIGENDIAN
+    o = 0;
+#endif
+    switch (o) {
+    case 0:
+        memset(vd, 0, n);
+        break;
+
+    case 4:
+        for (i = 0; i < n; i += 4) {
+            *(uint32_t *)H1_4(d + i) = 0;
+        }
+        break;
+
+    case 2:
+    case 6:
+        for (i = 0; i < n; i += 2) {
+            *(uint16_t *)H1_2(d + i) = 0;
+        }
+        break;
+
+    default:
+        for (i = 0; i < n; i++) {
+            *(uint8_t *)H1(d + i) = 0;
         }
         break;
     }
@@ -3927,161 +3969,471 @@ void HELPER(sve_fcmla_zpzzz_d)(CPUARMState *env, void *vg, uint32_t desc)
 /*
  * Load contiguous data, protected by a governing predicate.
  */
-#define DO_LD1(NAME, FN, TYPEE, TYPEM, H)                  \
-static void do_##NAME(CPUARMState *env, void *vd, void *vg, \
-                      target_ulong addr, intptr_t oprsz,   \
-                      uintptr_t ra)                        \
-{                                                          \
-    intptr_t i = 0;                                        \
-    do {                                                   \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));    \
-        do {                                               \
-            TYPEM m = 0;                                   \
-            if (pg & 1) {                                  \
-                m = FN(env, addr, ra);                     \
-            }                                              \
-            *(TYPEE *)(vd + H(i)) = m;                     \
-            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);      \
-            addr += sizeof(TYPEM);                         \
-        } while (i & 15);                                  \
-    } while (i < oprsz);                                   \
-}                                                          \
-void HELPER(NAME)(CPUARMState *env, void *vg,              \
-                  target_ulong addr, uint32_t desc)        \
-{                                                          \
-    do_##NAME(env, &env->vfp.zregs[simd_data(desc)], vg,   \
-              addr, simd_oprsz(desc), GETPC());            \
+
+/*
+ * Load elements into @vd, controlled by @vg, from @host + @mem_ofs.
+ * Memory is valid through @host + @mem_max.  The register element
+ * indicies are inferred from @mem_ofs, as modified by the types for
+ * which the helper is built.  Return the @mem_ofs of the first element
+ * not loaded (which is @mem_max if they are all loaded).
+ *
+ * For softmmu, we have fully validated the guest page.  For user-only,
+ * we cannot fully validate without taking the mmap lock, but since we
+ * know the access is within one host page, if any access is valid they
+ * all must be valid.  However, when @vg is all false, it may be that
+ * no access is valid.
+ */
+typedef intptr_t sve_ld1_host_fn(void *vd, void *vg, void *host,
+                                 intptr_t mem_ofs, intptr_t mem_max);
+
+/*
+ * Load one element into @vd + @reg_off from (@env, @vaddr, @ra).
+ * The controlling predicate is known to be true.
+ */
+typedef void sve_ld1_tlb_fn(CPUARMState *env, void *vd, intptr_t reg_off,
+                            target_ulong vaddr, TCGMemOpIdx oi, uintptr_t ra);
+typedef sve_ld1_tlb_fn sve_st1_tlb_fn;
+
+/*
+ * Generate the above primitives.
+ */
+
+#define DO_LD_HOST(NAME, H, TYPEE, TYPEM, HOST) \
+static intptr_t sve_##NAME##_host(void *vd, void *vg, void *host,           \
+                                  intptr_t mem_off, const intptr_t mem_max) \
+{                                                                           \
+    intptr_t reg_off = mem_off * (sizeof(TYPEE) / sizeof(TYPEM));           \
+    uint64_t *pg = vg;                                                      \
+    while (mem_off + sizeof(TYPEM) <= mem_max) {                            \
+        TYPEM val = 0;                                                      \
+        if (likely((pg[reg_off >> 6] >> (reg_off & 63)) & 1)) {             \
+            val = HOST(host + mem_off);                                     \
+        }                                                                   \
+        *(TYPEE *)(vd + H(reg_off)) = val;                                  \
+        mem_off += sizeof(TYPEM), reg_off += sizeof(TYPEE);                 \
+    }                                                                       \
+    return mem_off;                                                         \
 }
 
-#define DO_LD2(NAME, FN, TYPEE, TYPEM, H)                  \
-void HELPER(NAME)(CPUARMState *env, void *vg,              \
-                  target_ulong addr, uint32_t desc)        \
-{                                                          \
-    intptr_t i, oprsz = simd_oprsz(desc);                  \
-    intptr_t ra = GETPC();                                 \
-    unsigned rd = simd_data(desc);                         \
-    void *d1 = &env->vfp.zregs[rd];                        \
-    void *d2 = &env->vfp.zregs[(rd + 1) & 31];             \
-    for (i = 0; i < oprsz; ) {                             \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));    \
-        do {                                               \
-            TYPEM m1 = 0, m2 = 0;                          \
-            if (pg & 1) {                                  \
-                m1 = FN(env, addr, ra);                    \
-                m2 = FN(env, addr + sizeof(TYPEM), ra);    \
-            }                                              \
-            *(TYPEE *)(d1 + H(i)) = m1;                    \
-            *(TYPEE *)(d2 + H(i)) = m2;                    \
-            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);      \
-            addr += 2 * sizeof(TYPEM);                     \
-        } while (i & 15);                                  \
-    }                                                      \
+#ifdef CONFIG_SOFTMMU
+#define DO_LD_TLB(NAME, H, TYPEE, TYPEM, HOST, MOEND, TLB) \
+static void sve_##NAME##_tlb(CPUARMState *env, void *vd, intptr_t reg_off,  \
+                             target_ulong addr, TCGMemOpIdx oi, uintptr_t ra)  \
+{                                                                           \
+    TYPEM val = TLB(env, addr, oi, ra);                                     \
+    *(TYPEE *)(vd + H(reg_off)) = val;                                      \
+}
+#else
+#define DO_LD_TLB(NAME, H, TYPEE, TYPEM, HOST, MOEND, TLB)                  \
+static void sve_##NAME##_tlb(CPUARMState *env, void *vd, intptr_t reg_off,  \
+                             target_ulong addr, TCGMemOpIdx oi, uintptr_t ra)  \
+{                                                                           \
+    TYPEM val = HOST(g2h(addr));                                            \
+    *(TYPEE *)(vd + H(reg_off)) = val;                                      \
+}
+#endif
+
+#define DO_LD_PRIM_1(NAME, H, TE, TM)                   \
+    DO_LD_HOST(NAME, H, TE, TM, ldub_p)                 \
+    DO_LD_TLB(NAME, H, TE, TM, ldub_p, 0, helper_ret_ldub_mmu)
+
+DO_LD_PRIM_1(ld1bb,  H1,   uint8_t,  uint8_t)
+DO_LD_PRIM_1(ld1bhu, H1_2, uint16_t, uint8_t)
+DO_LD_PRIM_1(ld1bhs, H1_2, uint16_t,  int8_t)
+DO_LD_PRIM_1(ld1bsu, H1_4, uint32_t, uint8_t)
+DO_LD_PRIM_1(ld1bss, H1_4, uint32_t,  int8_t)
+DO_LD_PRIM_1(ld1bdu,     , uint64_t, uint8_t)
+DO_LD_PRIM_1(ld1bds,     , uint64_t,  int8_t)
+
+#define DO_LD_PRIM_2(NAME, end, MOEND, H, TE, TM, PH, PT)  \
+    DO_LD_HOST(NAME##_##end, H, TE, TM, PH##_##end##_p)    \
+    DO_LD_TLB(NAME##_##end, H, TE, TM, PH##_##end##_p,     \
+              MOEND, helper_##end##_##PT##_mmu)
+
+DO_LD_PRIM_2(ld1hh,  le, MO_LE, H1_2, uint16_t, uint16_t, lduw, lduw)
+DO_LD_PRIM_2(ld1hsu, le, MO_LE, H1_4, uint32_t, uint16_t, lduw, lduw)
+DO_LD_PRIM_2(ld1hss, le, MO_LE, H1_4, uint32_t,  int16_t, lduw, lduw)
+DO_LD_PRIM_2(ld1hdu, le, MO_LE,     , uint64_t, uint16_t, lduw, lduw)
+DO_LD_PRIM_2(ld1hds, le, MO_LE,     , uint64_t,  int16_t, lduw, lduw)
+
+DO_LD_PRIM_2(ld1ss,  le, MO_LE, H1_4, uint32_t, uint32_t, ldl, ldul)
+DO_LD_PRIM_2(ld1sdu, le, MO_LE,     , uint64_t, uint32_t, ldl, ldul)
+DO_LD_PRIM_2(ld1sds, le, MO_LE,     , uint64_t,  int32_t, ldl, ldul)
+
+DO_LD_PRIM_2(ld1dd,  le, MO_LE,     , uint64_t, uint64_t, ldq, ldq)
+
+DO_LD_PRIM_2(ld1hh,  be, MO_BE, H1_2, uint16_t, uint16_t, lduw, lduw)
+DO_LD_PRIM_2(ld1hsu, be, MO_BE, H1_4, uint32_t, uint16_t, lduw, lduw)
+DO_LD_PRIM_2(ld1hss, be, MO_BE, H1_4, uint32_t,  int16_t, lduw, lduw)
+DO_LD_PRIM_2(ld1hdu, be, MO_BE,     , uint64_t, uint16_t, lduw, lduw)
+DO_LD_PRIM_2(ld1hds, be, MO_BE,     , uint64_t,  int16_t, lduw, lduw)
+
+DO_LD_PRIM_2(ld1ss,  be, MO_BE, H1_4, uint32_t, uint32_t, ldl, ldul)
+DO_LD_PRIM_2(ld1sdu, be, MO_BE,     , uint64_t, uint32_t, ldl, ldul)
+DO_LD_PRIM_2(ld1sds, be, MO_BE,     , uint64_t,  int32_t, ldl, ldul)
+
+DO_LD_PRIM_2(ld1dd,  be, MO_BE,     , uint64_t, uint64_t, ldq, ldq)
+
+#undef DO_LD_TLB
+#undef DO_LD_HOST
+#undef DO_LD_PRIM_1
+#undef DO_LD_PRIM_2
+
+/*
+ * Skip through a sequence of inactive elements in the guarding predicate @vg,
+ * beginning at @reg_off bounded by @reg_max.  Return the offset of the active
+ * element >= @reg_off, or @reg_max if there were no active elements at all.
+ */
+static intptr_t find_next_active(uint64_t *vg, intptr_t reg_off,
+                                 intptr_t reg_max, int esz)
+{
+    uint64_t pg_mask = pred_esz_masks[esz];
+    uint64_t pg = (vg[reg_off >> 6] & pg_mask) >> (reg_off & 63);
+
+    /* In normal usage, the first element is active.  */
+    if (likely(pg & 1)) {
+        return reg_off;
+    }
+
+    if (pg == 0) {
+        reg_off &= -64;
+        do {
+            reg_off += 64;
+            if (unlikely(reg_off >= reg_max)) {
+                /* The entire predicate was false.  */
+                return reg_max;
+            }
+            pg = vg[reg_off >> 6] & pg_mask;
+        } while (pg == 0);
+    }
+    reg_off += ctz64(pg);
+
+    /* We should never see an out of range predicate bit set.  */
+    tcg_debug_assert(reg_off < reg_max);
+    return reg_off;
 }
 
-#define DO_LD3(NAME, FN, TYPEE, TYPEM, H)                  \
-void HELPER(NAME)(CPUARMState *env, void *vg,              \
-                  target_ulong addr, uint32_t desc)        \
-{                                                          \
-    intptr_t i, oprsz = simd_oprsz(desc);                  \
-    intptr_t ra = GETPC();                                 \
-    unsigned rd = simd_data(desc);                         \
-    void *d1 = &env->vfp.zregs[rd];                        \
-    void *d2 = &env->vfp.zregs[(rd + 1) & 31];             \
-    void *d3 = &env->vfp.zregs[(rd + 2) & 31];             \
-    for (i = 0; i < oprsz; ) {                             \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));    \
-        do {                                               \
-            TYPEM m1 = 0, m2 = 0, m3 = 0;                  \
-            if (pg & 1) {                                  \
-                m1 = FN(env, addr, ra);                    \
-                m2 = FN(env, addr + sizeof(TYPEM), ra);    \
-                m3 = FN(env, addr + 2 * sizeof(TYPEM), ra); \
-            }                                              \
-            *(TYPEE *)(d1 + H(i)) = m1;                    \
-            *(TYPEE *)(d2 + H(i)) = m2;                    \
-            *(TYPEE *)(d3 + H(i)) = m3;                    \
-            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);      \
-            addr += 3 * sizeof(TYPEM);                     \
-        } while (i & 15);                                  \
-    }                                                      \
+/*
+ * Return the maximum offset <= @mem_max which is still within the page
+ * referenced by @base + @mem_off.
+ */
+static intptr_t max_for_page(target_ulong base, intptr_t mem_off,
+                             intptr_t mem_max)
+{
+    target_ulong addr = base + mem_off;
+    intptr_t split = -(intptr_t)(addr | TARGET_PAGE_MASK);
+    return MIN(split, mem_max - mem_off) + mem_off;
 }
 
-#define DO_LD4(NAME, FN, TYPEE, TYPEM, H)                  \
-void HELPER(NAME)(CPUARMState *env, void *vg,              \
-                  target_ulong addr, uint32_t desc)        \
-{                                                          \
-    intptr_t i, oprsz = simd_oprsz(desc);                  \
-    intptr_t ra = GETPC();                                 \
-    unsigned rd = simd_data(desc);                         \
-    void *d1 = &env->vfp.zregs[rd];                        \
-    void *d2 = &env->vfp.zregs[(rd + 1) & 31];             \
-    void *d3 = &env->vfp.zregs[(rd + 2) & 31];             \
-    void *d4 = &env->vfp.zregs[(rd + 3) & 31];             \
-    for (i = 0; i < oprsz; ) {                             \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));    \
-        do {                                               \
-            TYPEM m1 = 0, m2 = 0, m3 = 0, m4 = 0;          \
-            if (pg & 1) {                                  \
-                m1 = FN(env, addr, ra);                    \
-                m2 = FN(env, addr + sizeof(TYPEM), ra);    \
-                m3 = FN(env, addr + 2 * sizeof(TYPEM), ra); \
-                m4 = FN(env, addr + 3 * sizeof(TYPEM), ra); \
-            }                                              \
-            *(TYPEE *)(d1 + H(i)) = m1;                    \
-            *(TYPEE *)(d2 + H(i)) = m2;                    \
-            *(TYPEE *)(d3 + H(i)) = m3;                    \
-            *(TYPEE *)(d4 + H(i)) = m4;                    \
-            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);      \
-            addr += 4 * sizeof(TYPEM);                     \
-        } while (i & 15);                                  \
-    }                                                      \
+static inline void set_helper_retaddr(uintptr_t ra)
+{
+#ifdef CONFIG_USER_ONLY
+    helper_retaddr = ra;
+#endif
 }
 
-DO_LD1(sve_ld1bhu_r, cpu_ldub_data_ra, uint16_t, uint8_t, H1_2)
-DO_LD1(sve_ld1bhs_r, cpu_ldsb_data_ra, uint16_t, int8_t, H1_2)
-DO_LD1(sve_ld1bsu_r, cpu_ldub_data_ra, uint32_t, uint8_t, H1_4)
-DO_LD1(sve_ld1bss_r, cpu_ldsb_data_ra, uint32_t, int8_t, H1_4)
-DO_LD1(sve_ld1bdu_r, cpu_ldub_data_ra, uint64_t, uint8_t, )
-DO_LD1(sve_ld1bds_r, cpu_ldsb_data_ra, uint64_t, int8_t, )
+/*
+ * The result of tlb_vaddr_to_host for user-only is just g2h(x),
+ * which is always non-null.  Elide the useless test.
+ */
+static inline bool test_host_page(void *host)
+{
+#ifdef CONFIG_USER_ONLY
+    return true;
+#else
+    return likely(host != NULL);
+#endif
+}
 
-DO_LD1(sve_ld1hsu_r, cpu_lduw_data_ra, uint32_t, uint16_t, H1_4)
-DO_LD1(sve_ld1hss_r, cpu_ldsw_data_ra, uint32_t, int16_t, H1_4)
-DO_LD1(sve_ld1hdu_r, cpu_lduw_data_ra, uint64_t, uint16_t, )
-DO_LD1(sve_ld1hds_r, cpu_ldsw_data_ra, uint64_t, int16_t, )
+/*
+ * Common helper for all contiguous one-register predicated loads.
+ */
+static void sve_ld1_r(CPUARMState *env, void *vg, const target_ulong addr,
+                      uint32_t desc, const uintptr_t retaddr,
+                      const int esz, const int msz,
+                      sve_ld1_host_fn *host_fn,
+                      sve_ld1_tlb_fn *tlb_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int mmu_idx = get_mmuidx(oi);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    void *vd = &env->vfp.zregs[rd];
+    const int diffsz = esz - msz;
+    const intptr_t reg_max = simd_oprsz(desc);
+    const intptr_t mem_max = reg_max >> diffsz;
+    ARMVectorReg scratch;
+    void *host;
+    intptr_t split, reg_off, mem_off;
 
-DO_LD1(sve_ld1sdu_r, cpu_ldl_data_ra, uint64_t, uint32_t, )
-DO_LD1(sve_ld1sds_r, cpu_ldl_data_ra, uint64_t, int32_t, )
+    /* Find the first active element.  */
+    reg_off = find_next_active(vg, 0, reg_max, esz);
+    if (unlikely(reg_off == reg_max)) {
+        /* The entire predicate was false; no load occurs.  */
+        memset(vd, 0, reg_max);
+        return;
+    }
+    mem_off = reg_off >> diffsz;
+    set_helper_retaddr(retaddr);
 
-DO_LD1(sve_ld1bb_r, cpu_ldub_data_ra, uint8_t, uint8_t, H1)
-DO_LD2(sve_ld2bb_r, cpu_ldub_data_ra, uint8_t, uint8_t, H1)
-DO_LD3(sve_ld3bb_r, cpu_ldub_data_ra, uint8_t, uint8_t, H1)
-DO_LD4(sve_ld4bb_r, cpu_ldub_data_ra, uint8_t, uint8_t, H1)
+    /*
+     * If the (remaining) load is entirely within a single page, then:
+     * For softmmu, and the tlb hits, then no faults will occur;
+     * For user-only, either the first load will fault or none will.
+     * We can thus perform the load directly to the destination and
+     * Vd will be unmodified on any exception path.
+     */
+    split = max_for_page(addr, mem_off, mem_max);
+    if (likely(split == mem_max)) {
+        host = tlb_vaddr_to_host(env, addr + mem_off, MMU_DATA_LOAD, mmu_idx);
+        if (test_host_page(host)) {
+            mem_off = host_fn(vd, vg, host - mem_off, mem_off, mem_max);
+            tcg_debug_assert(mem_off == mem_max);
+            set_helper_retaddr(0);
+            /* After having taken any fault, zero leading inactive elements. */
+            swap_memzero(vd, reg_off);
+            return;
+        }
+    }
 
-DO_LD1(sve_ld1hh_r, cpu_lduw_data_ra, uint16_t, uint16_t, H1_2)
-DO_LD2(sve_ld2hh_r, cpu_lduw_data_ra, uint16_t, uint16_t, H1_2)
-DO_LD3(sve_ld3hh_r, cpu_lduw_data_ra, uint16_t, uint16_t, H1_2)
-DO_LD4(sve_ld4hh_r, cpu_lduw_data_ra, uint16_t, uint16_t, H1_2)
+    /*
+     * Perform the predicated read into a temporary, thus ensuring
+     * if the load of the last element faults, Vd is not modified.
+     */
+#ifdef CONFIG_USER_ONLY
+    swap_memzero(&scratch, reg_off);
+    host_fn(&scratch, vg, g2h(addr), mem_off, mem_max);
+#else
+    memset(&scratch, 0, reg_max);
+    goto start;
+    while (1) {
+        reg_off = find_next_active(vg, reg_off, reg_max, esz);
+        if (reg_off >= reg_max) {
+            break;
+        }
+        mem_off = reg_off >> diffsz;
+        split = max_for_page(addr, mem_off, mem_max);
 
-DO_LD1(sve_ld1ss_r, cpu_ldl_data_ra, uint32_t, uint32_t, H1_4)
-DO_LD2(sve_ld2ss_r, cpu_ldl_data_ra, uint32_t, uint32_t, H1_4)
-DO_LD3(sve_ld3ss_r, cpu_ldl_data_ra, uint32_t, uint32_t, H1_4)
-DO_LD4(sve_ld4ss_r, cpu_ldl_data_ra, uint32_t, uint32_t, H1_4)
+    start:
+        if (split - mem_off >= (1 << msz)) {
+            /* At least one whole element on this page.  */
+            host = tlb_vaddr_to_host(env, addr + mem_off,
+                                     MMU_DATA_LOAD, mmu_idx);
+            if (host) {
+                mem_off = host_fn(&scratch, vg, host - mem_off,
+                                  mem_off, split);
+                reg_off = mem_off << diffsz;
+                continue;
+            }
+        }
 
-DO_LD1(sve_ld1dd_r, cpu_ldq_data_ra, uint64_t, uint64_t, )
-DO_LD2(sve_ld2dd_r, cpu_ldq_data_ra, uint64_t, uint64_t, )
-DO_LD3(sve_ld3dd_r, cpu_ldq_data_ra, uint64_t, uint64_t, )
-DO_LD4(sve_ld4dd_r, cpu_ldq_data_ra, uint64_t, uint64_t, )
+        /*
+         * Perform one normal read.  This may fault, longjmping out to the
+         * main loop in order to raise an exception.  It may succeed, and
+         * as a side-effect load the TLB entry for the next round.  Finally,
+         * in the extremely unlikely case we're performing this operation
+         * on I/O memory, it may succeed but not bring in the TLB entry.
+         * But even then we have still made forward progress.
+         */
+        tlb_fn(env, &scratch, reg_off, addr + mem_off, oi, retaddr);
+        reg_off += 1 << esz;
+    }
+#endif
 
-#undef DO_LD1
-#undef DO_LD2
-#undef DO_LD3
-#undef DO_LD4
+    set_helper_retaddr(0);
+    memcpy(vd, &scratch, reg_max);
+}
+
+#define DO_LD1_1(NAME, ESZ) \
+void HELPER(sve_##NAME##_r)(CPUARMState *env, void *vg,        \
+                            target_ulong addr, uint32_t desc)  \
+{                                                              \
+    sve_ld1_r(env, vg, addr, desc, GETPC(), ESZ, 0,            \
+              sve_##NAME##_host, sve_##NAME##_tlb);            \
+}
+
+#define DO_LD1_2(NAME, ESZ, MSZ) \
+void HELPER(sve_##NAME##_le_r)(CPUARMState *env, void *vg,        \
+                               target_ulong addr, uint32_t desc)  \
+{                                                                 \
+    sve_ld1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,             \
+              sve_##NAME##_le_host, sve_##NAME##_le_tlb);         \
+}                                                                 \
+void HELPER(sve_##NAME##_be_r)(CPUARMState *env, void *vg,        \
+                               target_ulong addr, uint32_t desc)  \
+{                                                                 \
+    sve_ld1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,             \
+              sve_##NAME##_be_host, sve_##NAME##_be_tlb);         \
+}
+
+DO_LD1_1(ld1bb,  0)
+DO_LD1_1(ld1bhu, 1)
+DO_LD1_1(ld1bhs, 1)
+DO_LD1_1(ld1bsu, 2)
+DO_LD1_1(ld1bss, 2)
+DO_LD1_1(ld1bdu, 3)
+DO_LD1_1(ld1bds, 3)
+
+DO_LD1_2(ld1hh,  1, 1)
+DO_LD1_2(ld1hsu, 2, 1)
+DO_LD1_2(ld1hss, 2, 1)
+DO_LD1_2(ld1hdu, 3, 1)
+DO_LD1_2(ld1hds, 3, 1)
+
+DO_LD1_2(ld1ss,  2, 2)
+DO_LD1_2(ld1sdu, 3, 2)
+DO_LD1_2(ld1sds, 3, 2)
+
+DO_LD1_2(ld1dd,  3, 3)
+
+#undef DO_LD1_1
+#undef DO_LD1_2
+
+/*
+ * Common helpers for all contiguous 2,3,4-register predicated loads.
+ */
+static void sve_ld2_r(CPUARMState *env, void *vg, target_ulong addr,
+                      uint32_t desc, int size, uintptr_t ra,
+                      sve_ld1_tlb_fn *tlb_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    intptr_t i, oprsz = simd_oprsz(desc);
+    ARMVectorReg scratch[2] = { };
+
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (pg & 1) {
+                tlb_fn(env, &scratch[0], i, addr, oi, ra);
+                tlb_fn(env, &scratch[1], i, addr + size, oi, ra);
+            }
+            i += size, pg >>= size;
+            addr += 2 * size;
+        } while (i & 15);
+    }
+    set_helper_retaddr(0);
+
+    /* Wait until all exceptions have been raised to write back.  */
+    memcpy(&env->vfp.zregs[rd], &scratch[0], oprsz);
+    memcpy(&env->vfp.zregs[(rd + 1) & 31], &scratch[1], oprsz);
+}
+
+static void sve_ld3_r(CPUARMState *env, void *vg, target_ulong addr,
+                      uint32_t desc, int size, uintptr_t ra,
+                      sve_ld1_tlb_fn *tlb_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    intptr_t i, oprsz = simd_oprsz(desc);
+    ARMVectorReg scratch[3] = { };
+
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (pg & 1) {
+                tlb_fn(env, &scratch[0], i, addr, oi, ra);
+                tlb_fn(env, &scratch[1], i, addr + size, oi, ra);
+                tlb_fn(env, &scratch[2], i, addr + 2 * size, oi, ra);
+            }
+            i += size, pg >>= size;
+            addr += 3 * size;
+        } while (i & 15);
+    }
+    set_helper_retaddr(0);
+
+    /* Wait until all exceptions have been raised to write back.  */
+    memcpy(&env->vfp.zregs[rd], &scratch[0], oprsz);
+    memcpy(&env->vfp.zregs[(rd + 1) & 31], &scratch[1], oprsz);
+    memcpy(&env->vfp.zregs[(rd + 2) & 31], &scratch[2], oprsz);
+}
+
+static void sve_ld4_r(CPUARMState *env, void *vg, target_ulong addr,
+                      uint32_t desc, int size, uintptr_t ra,
+                      sve_ld1_tlb_fn *tlb_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    intptr_t i, oprsz = simd_oprsz(desc);
+    ARMVectorReg scratch[4] = { };
+
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (pg & 1) {
+                tlb_fn(env, &scratch[0], i, addr, oi, ra);
+                tlb_fn(env, &scratch[1], i, addr + size, oi, ra);
+                tlb_fn(env, &scratch[2], i, addr + 2 * size, oi, ra);
+                tlb_fn(env, &scratch[3], i, addr + 3 * size, oi, ra);
+            }
+            i += size, pg >>= size;
+            addr += 4 * size;
+        } while (i & 15);
+    }
+    set_helper_retaddr(0);
+
+    /* Wait until all exceptions have been raised to write back.  */
+    memcpy(&env->vfp.zregs[rd], &scratch[0], oprsz);
+    memcpy(&env->vfp.zregs[(rd + 1) & 31], &scratch[1], oprsz);
+    memcpy(&env->vfp.zregs[(rd + 2) & 31], &scratch[2], oprsz);
+    memcpy(&env->vfp.zregs[(rd + 3) & 31], &scratch[3], oprsz);
+}
+
+#define DO_LDN_1(N) \
+void __attribute__((flatten)) HELPER(sve_ld##N##bb_r)               \
+    (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)  \
+{                                                                   \
+    sve_ld##N##_r(env, vg, addr, desc, 1, GETPC(), sve_ld1bb_tlb);  \
+}
+
+#define DO_LDN_2(N, SUFF, SIZE)                                       \
+void __attribute__((flatten)) HELPER(sve_ld##N##SUFF##_le_r)          \
+    (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
+{                                                                     \
+    sve_ld##N##_r(env, vg, addr, desc, SIZE, GETPC(),                 \
+                  sve_ld1##SUFF##_le_tlb);                            \
+}                                                                     \
+void __attribute__((flatten)) HELPER(sve_ld##N##SUFF##_be_r)          \
+    (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
+{                                                                     \
+    sve_ld##N##_r(env, vg, addr, desc, SIZE, GETPC(),                 \
+                  sve_ld1##SUFF##_be_tlb);                            \
+}
+
+DO_LDN_1(2)
+DO_LDN_1(3)
+DO_LDN_1(4)
+
+DO_LDN_2(2, hh, 2)
+DO_LDN_2(3, hh, 2)
+DO_LDN_2(4, hh, 2)
+
+DO_LDN_2(2, ss, 4)
+DO_LDN_2(3, ss, 4)
+DO_LDN_2(4, ss, 4)
+
+DO_LDN_2(2, dd, 8)
+DO_LDN_2(3, dd, 8)
+DO_LDN_2(4, dd, 8)
+
+#undef DO_LDN_1
+#undef DO_LDN_2
 
 /*
  * Load contiguous data, first-fault and no-fault.
+ *
+ * For user-only, one could argue that we should hold the mmap_lock during
+ * the operation so that there is no race between page_check_range and the
+ * load operation.  However, unmapping pages out from under a running thread
+ * is extraordinarily unlikely.  This theoretical race condition also affects
+ * linux-user/ in its get_user/put_user macros.
+ *
+ * TODO: Construct some helpers, written in assembly, that interact with
+ * handle_cpu_signal to produce memory ops which can properly report errors
+ * without racing.
  */
-
-#ifdef CONFIG_USER_ONLY
 
 /* Fault on byte I.  All bits in FFR from I are cleared.  The vector
  * result from I is CONSTRAINED UNPREDICTABLE; we choose the MERGE
@@ -4100,573 +4452,932 @@ static void record_fault(CPUARMState *env, uintptr_t i, uintptr_t oprsz)
     }
 }
 
-/* Hold the mmap lock during the operation so that there is no race
- * between page_check_range and the load operation.  We expect the
- * usual case to have no faults at all, so we check the whole range
- * first and if successful defer to the normal load operation.
- *
- * TODO: Change mmap_lock to a rwlock so that multiple readers
- * can run simultaneously.  This will probably help other uses
- * within QEMU as well.
+/*
+ * Common helper for all contiguous first-fault loads.
  */
-#define DO_LDFF1(PART, FN, TYPEE, TYPEM, H)                             \
-static void do_sve_ldff1##PART(CPUARMState *env, void *vd, void *vg,    \
-                               target_ulong addr, intptr_t oprsz,       \
-                               bool first, uintptr_t ra)                \
-{                                                                       \
-    intptr_t i = 0;                                                     \
-    do {                                                                \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));                 \
-        do {                                                            \
-            TYPEM m = 0;                                                \
-            if (pg & 1) {                                               \
-                if (!first &&                                           \
-                    unlikely(page_check_range(addr, sizeof(TYPEM),      \
-                                              PAGE_READ))) {            \
-                    record_fault(env, i, oprsz);                        \
-                    return;                                             \
-                }                                                       \
-                m = FN(env, addr, ra);                                  \
-                first = false;                                          \
-            }                                                           \
-            *(TYPEE *)(vd + H(i)) = m;                                  \
-            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);                   \
-            addr += sizeof(TYPEM);                                      \
-        } while (i & 15);                                               \
-    } while (i < oprsz);                                                \
-}                                                                       \
-void HELPER(sve_ldff1##PART)(CPUARMState *env, void *vg,                \
-                             target_ulong addr, uint32_t desc)          \
-{                                                                       \
-    intptr_t oprsz = simd_oprsz(desc);                                  \
-    unsigned rd = simd_data(desc);                                      \
-    void *vd = &env->vfp.zregs[rd];                                     \
-    mmap_lock();                                                        \
-    if (likely(page_check_range(addr, oprsz, PAGE_READ) == 0)) {        \
-        do_sve_ld1##PART(env, vd, vg, addr, oprsz, GETPC());            \
-    } else {                                                            \
-        do_sve_ldff1##PART(env, vd, vg, addr, oprsz, true, GETPC());    \
-    }                                                                   \
-    mmap_unlock();                                                      \
-}
+static void sve_ldff1_r(CPUARMState *env, void *vg, const target_ulong addr,
+                        uint32_t desc, const uintptr_t retaddr,
+                        const int esz, const int msz,
+                        sve_ld1_host_fn *host_fn,
+                        sve_ld1_tlb_fn *tlb_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int mmu_idx = get_mmuidx(oi);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    void *vd = &env->vfp.zregs[rd];
+    const int diffsz = esz - msz;
+    const intptr_t reg_max = simd_oprsz(desc);
+    const intptr_t mem_max = reg_max >> diffsz;
+    intptr_t split, reg_off, mem_off;
+    void *host;
 
-/* No-fault loads are like first-fault loads without the
- * first faulting special case.
- */
-#define DO_LDNF1(PART)                                                  \
-void HELPER(sve_ldnf1##PART)(CPUARMState *env, void *vg,                \
-                             target_ulong addr, uint32_t desc)          \
-{                                                                       \
-    intptr_t oprsz = simd_oprsz(desc);                                  \
-    unsigned rd = simd_data(desc);                                      \
-    void *vd = &env->vfp.zregs[rd];                                     \
-    mmap_lock();                                                        \
-    if (likely(page_check_range(addr, oprsz, PAGE_READ) == 0)) {        \
-        do_sve_ld1##PART(env, vd, vg, addr, oprsz, GETPC());            \
-    } else {                                                            \
-        do_sve_ldff1##PART(env, vd, vg, addr, oprsz, false, GETPC());   \
-    }                                                                   \
-    mmap_unlock();                                                      \
-}
+    /* Skip to the first active element.  */
+    reg_off = find_next_active(vg, 0, reg_max, esz);
+    if (unlikely(reg_off == reg_max)) {
+        /* The entire predicate was false; no load occurs.  */
+        memset(vd, 0, reg_max);
+        return;
+    }
+    mem_off = reg_off >> diffsz;
+    set_helper_retaddr(retaddr);
 
+    /*
+     * If the (remaining) load is entirely within a single page, then:
+     * For softmmu, and the tlb hits, then no faults will occur;
+     * For user-only, either the first load will fault or none will.
+     * We can thus perform the load directly to the destination and
+     * Vd will be unmodified on any exception path.
+     */
+    split = max_for_page(addr, mem_off, mem_max);
+    if (likely(split == mem_max)) {
+        host = tlb_vaddr_to_host(env, addr + mem_off, MMU_DATA_LOAD, mmu_idx);
+        if (test_host_page(host)) {
+            mem_off = host_fn(vd, vg, host - mem_off, mem_off, mem_max);
+            tcg_debug_assert(mem_off == mem_max);
+            set_helper_retaddr(0);
+            /* After any fault, zero any leading inactive elements.  */
+            swap_memzero(vd, reg_off);
+            return;
+        }
+    }
+
+#ifdef CONFIG_USER_ONLY
+    /*
+     * The page(s) containing this first element at ADDR+MEM_OFF must
+     * be valid.  Considering that this first element may be misaligned
+     * and cross a page boundary itself, take the rest of the page from
+     * the last byte of the element.
+     */
+    split = max_for_page(addr, mem_off + (1 << msz) - 1, mem_max);
+    mem_off = host_fn(vd, vg, g2h(addr), mem_off, split);
+
+    /* After any fault, zero any leading inactive elements.  */
+    swap_memzero(vd, reg_off);
+    reg_off = mem_off << diffsz;
 #else
+    /*
+     * Perform one normal read, which will fault or not.
+     * But it is likely to bring the page into the tlb.
+     */
+    tlb_fn(env, vd, reg_off, addr + mem_off, oi, retaddr);
 
-/* TODO: System mode is not yet supported.
- * This would probably use tlb_vaddr_to_host.
- */
-#define DO_LDFF1(PART, FN, TYPEE, TYPEM, H)                     \
-void HELPER(sve_ldff1##PART)(CPUARMState *env, void *vg,        \
-                  target_ulong addr, uint32_t desc)             \
-{                                                               \
-    g_assert_not_reached();                                     \
-}
+    /* After any fault, zero any leading predicated false elts.  */
+    swap_memzero(vd, reg_off);
+    mem_off += 1 << msz;
+    reg_off += 1 << esz;
 
-#define DO_LDNF1(PART)                                          \
-void HELPER(sve_ldnf1##PART)(CPUARMState *env, void *vg,        \
-                  target_ulong addr, uint32_t desc)             \
-{                                                               \
-    g_assert_not_reached();                                     \
-}
-
+    /* Try again to read the balance of the page.  */
+    split = max_for_page(addr, mem_off - 1, mem_max);
+    if (split >= (1 << msz)) {
+        host = tlb_vaddr_to_host(env, addr + mem_off, MMU_DATA_LOAD, mmu_idx);
+        if (host) {
+            mem_off = host_fn(vd, vg, host - mem_off, mem_off, split);
+            reg_off = mem_off << diffsz;
+        }
+    }
 #endif
 
-DO_LDFF1(bb_r,  cpu_ldub_data_ra, uint8_t, uint8_t, H1)
-DO_LDFF1(bhu_r, cpu_ldub_data_ra, uint16_t, uint8_t, H1_2)
-DO_LDFF1(bhs_r, cpu_ldsb_data_ra, uint16_t, int8_t, H1_2)
-DO_LDFF1(bsu_r, cpu_ldub_data_ra, uint32_t, uint8_t, H1_4)
-DO_LDFF1(bss_r, cpu_ldsb_data_ra, uint32_t, int8_t, H1_4)
-DO_LDFF1(bdu_r, cpu_ldub_data_ra, uint64_t, uint8_t, )
-DO_LDFF1(bds_r, cpu_ldsb_data_ra, uint64_t, int8_t, )
+    set_helper_retaddr(0);
+    record_fault(env, reg_off, reg_max);
+}
 
-DO_LDFF1(hh_r,  cpu_lduw_data_ra, uint16_t, uint16_t, H1_2)
-DO_LDFF1(hsu_r, cpu_lduw_data_ra, uint32_t, uint16_t, H1_4)
-DO_LDFF1(hss_r, cpu_ldsw_data_ra, uint32_t, int8_t, H1_4)
-DO_LDFF1(hdu_r, cpu_lduw_data_ra, uint64_t, uint16_t, )
-DO_LDFF1(hds_r, cpu_ldsw_data_ra, uint64_t, int16_t, )
+/*
+ * Common helper for all contiguous no-fault loads.
+ */
+static void sve_ldnf1_r(CPUARMState *env, void *vg, const target_ulong addr,
+                        uint32_t desc, const int esz, const int msz,
+                        sve_ld1_host_fn *host_fn)
+{
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    void *vd = &env->vfp.zregs[rd];
+    const int diffsz = esz - msz;
+    const intptr_t reg_max = simd_oprsz(desc);
+    const intptr_t mem_max = reg_max >> diffsz;
+    const int mmu_idx = cpu_mmu_index(env, false);
+    intptr_t split, reg_off, mem_off;
+    void *host;
 
-DO_LDFF1(ss_r,  cpu_ldl_data_ra, uint32_t, uint32_t, H1_4)
-DO_LDFF1(sdu_r, cpu_ldl_data_ra, uint64_t, uint32_t, )
-DO_LDFF1(sds_r, cpu_ldl_data_ra, uint64_t, int32_t, )
+#ifdef CONFIG_USER_ONLY
+    host = tlb_vaddr_to_host(env, addr, MMU_DATA_LOAD, mmu_idx);
+    if (likely(page_check_range(addr, mem_max, PAGE_READ) == 0)) {
+        /* The entire operation is valid and will not fault.  */
+        host_fn(vd, vg, host, 0, mem_max);
+        return;
+    }
+#endif
 
-DO_LDFF1(dd_r,  cpu_ldq_data_ra, uint64_t, uint64_t, )
+    /* There will be no fault, so we may modify in advance.  */
+    memset(vd, 0, reg_max);
 
-#undef DO_LDFF1
+    /* Skip to the first active element.  */
+    reg_off = find_next_active(vg, 0, reg_max, esz);
+    if (unlikely(reg_off == reg_max)) {
+        /* The entire predicate was false; no load occurs.  */
+        return;
+    }
+    mem_off = reg_off >> diffsz;
 
-DO_LDNF1(bb_r)
-DO_LDNF1(bhu_r)
-DO_LDNF1(bhs_r)
-DO_LDNF1(bsu_r)
-DO_LDNF1(bss_r)
-DO_LDNF1(bdu_r)
-DO_LDNF1(bds_r)
+#ifdef CONFIG_USER_ONLY
+    if (page_check_range(addr + mem_off, 1 << msz, PAGE_READ) == 0) {
+        /* At least one load is valid; take the rest of the page.  */
+        split = max_for_page(addr, mem_off + (1 << msz) - 1, mem_max);
+        mem_off = host_fn(vd, vg, host, mem_off, split);
+        reg_off = mem_off << diffsz;
+    }
+#else
+    /*
+     * If the address is not in the TLB, we have no way to bring the
+     * entry into the TLB without also risking a fault.  Note that
+     * the corollary is that we never load from an address not in RAM.
+     *
+     * This last is out of spec, in a weird corner case.
+     * Per the MemNF/MemSingleNF pseudocode, a NF load from Device memory
+     * must not actually hit the bus -- it returns UNKNOWN data instead.
+     * But if you map non-RAM with Normal memory attributes and do a NF
+     * load then it should access the bus.  (Nobody ought actually do this
+     * in the real world, obviously.)
+     *
+     * Then there are the annoying special cases with watchpoints...
+     *
+     * TODO: Add a form of tlb_fill that does not raise an exception,
+     * with a form of tlb_vaddr_to_host and a set of loads to match.
+     * The non_fault_vaddr_to_host would handle everything, usually,
+     * and the loads would handle the iomem path for watchpoints.
+     */
+    host = tlb_vaddr_to_host(env, addr + mem_off, MMU_DATA_LOAD, mmu_idx);
+    split = max_for_page(addr, mem_off, mem_max);
+    if (host && split >= (1 << msz)) {
+        mem_off = host_fn(vd, vg, host - mem_off, mem_off, split);
+        reg_off = mem_off << diffsz;
+    }
+#endif
 
-DO_LDNF1(hh_r)
-DO_LDNF1(hsu_r)
-DO_LDNF1(hss_r)
-DO_LDNF1(hdu_r)
-DO_LDNF1(hds_r)
+    record_fault(env, reg_off, reg_max);
+}
 
-DO_LDNF1(ss_r)
-DO_LDNF1(sdu_r)
-DO_LDNF1(sds_r)
+#define DO_LDFF1_LDNF1_1(PART, ESZ) \
+void HELPER(sve_ldff1##PART##_r)(CPUARMState *env, void *vg,            \
+                                 target_ulong addr, uint32_t desc)      \
+{                                                                       \
+    sve_ldff1_r(env, vg, addr, desc, GETPC(), ESZ, 0,                   \
+                sve_ld1##PART##_host, sve_ld1##PART##_tlb);             \
+}                                                                       \
+void HELPER(sve_ldnf1##PART##_r)(CPUARMState *env, void *vg,            \
+                                 target_ulong addr, uint32_t desc)      \
+{                                                                       \
+    sve_ldnf1_r(env, vg, addr, desc, ESZ, 0, sve_ld1##PART##_host);     \
+}
 
-DO_LDNF1(dd_r)
+#define DO_LDFF1_LDNF1_2(PART, ESZ, MSZ) \
+void HELPER(sve_ldff1##PART##_le_r)(CPUARMState *env, void *vg,         \
+                                    target_ulong addr, uint32_t desc)   \
+{                                                                       \
+    sve_ldff1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,                 \
+                sve_ld1##PART##_le_host, sve_ld1##PART##_le_tlb);       \
+}                                                                       \
+void HELPER(sve_ldnf1##PART##_le_r)(CPUARMState *env, void *vg,         \
+                                    target_ulong addr, uint32_t desc)   \
+{                                                                       \
+    sve_ldnf1_r(env, vg, addr, desc, ESZ, MSZ, sve_ld1##PART##_le_host); \
+}                                                                       \
+void HELPER(sve_ldff1##PART##_be_r)(CPUARMState *env, void *vg,         \
+                                    target_ulong addr, uint32_t desc)   \
+{                                                                       \
+    sve_ldff1_r(env, vg, addr, desc, GETPC(), ESZ, MSZ,                 \
+                sve_ld1##PART##_be_host, sve_ld1##PART##_be_tlb);       \
+}                                                                       \
+void HELPER(sve_ldnf1##PART##_be_r)(CPUARMState *env, void *vg,         \
+                                    target_ulong addr, uint32_t desc)   \
+{                                                                       \
+    sve_ldnf1_r(env, vg, addr, desc, ESZ, MSZ, sve_ld1##PART##_be_host); \
+}
 
-#undef DO_LDNF1
+DO_LDFF1_LDNF1_1(bb,  0)
+DO_LDFF1_LDNF1_1(bhu, 1)
+DO_LDFF1_LDNF1_1(bhs, 1)
+DO_LDFF1_LDNF1_1(bsu, 2)
+DO_LDFF1_LDNF1_1(bss, 2)
+DO_LDFF1_LDNF1_1(bdu, 3)
+DO_LDFF1_LDNF1_1(bds, 3)
+
+DO_LDFF1_LDNF1_2(hh,  1, 1)
+DO_LDFF1_LDNF1_2(hsu, 2, 1)
+DO_LDFF1_LDNF1_2(hss, 2, 1)
+DO_LDFF1_LDNF1_2(hdu, 3, 1)
+DO_LDFF1_LDNF1_2(hds, 3, 1)
+
+DO_LDFF1_LDNF1_2(ss,  2, 2)
+DO_LDFF1_LDNF1_2(sdu, 3, 2)
+DO_LDFF1_LDNF1_2(sds, 3, 2)
+
+DO_LDFF1_LDNF1_2(dd,  3, 3)
+
+#undef DO_LDFF1_LDNF1_1
+#undef DO_LDFF1_LDNF1_2
 
 /*
  * Store contiguous data, protected by a governing predicate.
  */
-#define DO_ST1(NAME, FN, TYPEE, TYPEM, H)                  \
-void HELPER(NAME)(CPUARMState *env, void *vg,              \
-                  target_ulong addr, uint32_t desc)        \
-{                                                          \
-    intptr_t i, oprsz = simd_oprsz(desc);                  \
-    intptr_t ra = GETPC();                                 \
-    unsigned rd = simd_data(desc);                         \
-    void *vd = &env->vfp.zregs[rd];                        \
-    for (i = 0; i < oprsz; ) {                             \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));    \
-        do {                                               \
-            if (pg & 1) {                                  \
-                TYPEM m = *(TYPEE *)(vd + H(i));           \
-                FN(env, addr, m, ra);                      \
-            }                                              \
-            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);      \
-            addr += sizeof(TYPEM);                         \
-        } while (i & 15);                                  \
-    }                                                      \
+
+#ifdef CONFIG_SOFTMMU
+#define DO_ST_TLB(NAME, H, TYPEM, HOST, MOEND, TLB) \
+static void sve_##NAME##_tlb(CPUARMState *env, void *vd, intptr_t reg_off,  \
+                             target_ulong addr, TCGMemOpIdx oi, uintptr_t ra) \
+{                                                                           \
+    TLB(env, addr, *(TYPEM *)(vd + H(reg_off)), oi, ra);                    \
 }
-
-#define DO_ST1_D(NAME, FN, TYPEM)                          \
-void HELPER(NAME)(CPUARMState *env, void *vg,              \
-                  target_ulong addr, uint32_t desc)        \
-{                                                          \
-    intptr_t i, oprsz = simd_oprsz(desc) / 8;              \
-    intptr_t ra = GETPC();                                 \
-    unsigned rd = simd_data(desc);                         \
-    uint64_t *d = &env->vfp.zregs[rd].d[0];                \
-    uint8_t *pg = vg;                                      \
-    for (i = 0; i < oprsz; i += 1) {                       \
-        if (pg[H1(i)] & 1) {                               \
-            FN(env, addr, d[i], ra);                       \
-        }                                                  \
-        addr += sizeof(TYPEM);                             \
-    }                                                      \
+#else
+#define DO_ST_TLB(NAME, H, TYPEM, HOST, MOEND, TLB) \
+static void sve_##NAME##_tlb(CPUARMState *env, void *vd, intptr_t reg_off,  \
+                             target_ulong addr, TCGMemOpIdx oi, uintptr_t ra) \
+{                                                                           \
+    HOST(g2h(addr), *(TYPEM *)(vd + H(reg_off)));                           \
 }
+#endif
 
-#define DO_ST2(NAME, FN, TYPEE, TYPEM, H)                  \
-void HELPER(NAME)(CPUARMState *env, void *vg,              \
-                  target_ulong addr, uint32_t desc)        \
-{                                                          \
-    intptr_t i, oprsz = simd_oprsz(desc);                  \
-    intptr_t ra = GETPC();                                 \
-    unsigned rd = simd_data(desc);                         \
-    void *d1 = &env->vfp.zregs[rd];                        \
-    void *d2 = &env->vfp.zregs[(rd + 1) & 31];             \
-    for (i = 0; i < oprsz; ) {                             \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));    \
-        do {                                               \
-            if (pg & 1) {                                  \
-                TYPEM m1 = *(TYPEE *)(d1 + H(i));          \
-                TYPEM m2 = *(TYPEE *)(d2 + H(i));          \
-                FN(env, addr, m1, ra);                     \
-                FN(env, addr + sizeof(TYPEM), m2, ra);     \
-            }                                              \
-            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);      \
-            addr += 2 * sizeof(TYPEM);                     \
-        } while (i & 15);                                  \
-    }                                                      \
-}
+DO_ST_TLB(st1bb,   H1,  uint8_t, stb_p, 0, helper_ret_stb_mmu)
+DO_ST_TLB(st1bh, H1_2, uint16_t, stb_p, 0, helper_ret_stb_mmu)
+DO_ST_TLB(st1bs, H1_4, uint32_t, stb_p, 0, helper_ret_stb_mmu)
+DO_ST_TLB(st1bd,     , uint64_t, stb_p, 0, helper_ret_stb_mmu)
 
-#define DO_ST3(NAME, FN, TYPEE, TYPEM, H)                  \
-void HELPER(NAME)(CPUARMState *env, void *vg,              \
-                  target_ulong addr, uint32_t desc)        \
-{                                                          \
-    intptr_t i, oprsz = simd_oprsz(desc);                  \
-    intptr_t ra = GETPC();                                 \
-    unsigned rd = simd_data(desc);                         \
-    void *d1 = &env->vfp.zregs[rd];                        \
-    void *d2 = &env->vfp.zregs[(rd + 1) & 31];             \
-    void *d3 = &env->vfp.zregs[(rd + 2) & 31];             \
-    for (i = 0; i < oprsz; ) {                             \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));    \
-        do {                                               \
-            if (pg & 1) {                                  \
-                TYPEM m1 = *(TYPEE *)(d1 + H(i));          \
-                TYPEM m2 = *(TYPEE *)(d2 + H(i));          \
-                TYPEM m3 = *(TYPEE *)(d3 + H(i));          \
-                FN(env, addr, m1, ra);                     \
-                FN(env, addr + sizeof(TYPEM), m2, ra);     \
-                FN(env, addr + 2 * sizeof(TYPEM), m3, ra); \
-            }                                              \
-            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);      \
-            addr += 3 * sizeof(TYPEM);                     \
-        } while (i & 15);                                  \
-    }                                                      \
-}
+DO_ST_TLB(st1hh_le, H1_2, uint16_t, stw_le_p, MO_LE, helper_le_stw_mmu)
+DO_ST_TLB(st1hs_le, H1_4, uint32_t, stw_le_p, MO_LE, helper_le_stw_mmu)
+DO_ST_TLB(st1hd_le,     , uint64_t, stw_le_p, MO_LE, helper_le_stw_mmu)
 
-#define DO_ST4(NAME, FN, TYPEE, TYPEM, H)                  \
-void HELPER(NAME)(CPUARMState *env, void *vg,              \
-                  target_ulong addr, uint32_t desc)        \
-{                                                          \
-    intptr_t i, oprsz = simd_oprsz(desc);                  \
-    intptr_t ra = GETPC();                                 \
-    unsigned rd = simd_data(desc);                         \
-    void *d1 = &env->vfp.zregs[rd];                        \
-    void *d2 = &env->vfp.zregs[(rd + 1) & 31];             \
-    void *d3 = &env->vfp.zregs[(rd + 2) & 31];             \
-    void *d4 = &env->vfp.zregs[(rd + 3) & 31];             \
-    for (i = 0; i < oprsz; ) {                             \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));    \
-        do {                                               \
-            if (pg & 1) {                                  \
-                TYPEM m1 = *(TYPEE *)(d1 + H(i));          \
-                TYPEM m2 = *(TYPEE *)(d2 + H(i));          \
-                TYPEM m3 = *(TYPEE *)(d3 + H(i));          \
-                TYPEM m4 = *(TYPEE *)(d4 + H(i));          \
-                FN(env, addr, m1, ra);                     \
-                FN(env, addr + sizeof(TYPEM), m2, ra);     \
-                FN(env, addr + 2 * sizeof(TYPEM), m3, ra); \
-                FN(env, addr + 3 * sizeof(TYPEM), m4, ra); \
-            }                                              \
-            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);      \
-            addr += 4 * sizeof(TYPEM);                     \
-        } while (i & 15);                                  \
-    }                                                      \
-}
+DO_ST_TLB(st1ss_le, H1_4, uint32_t, stl_le_p, MO_LE, helper_le_stl_mmu)
+DO_ST_TLB(st1sd_le,     , uint64_t, stl_le_p, MO_LE, helper_le_stl_mmu)
 
-DO_ST1(sve_st1bh_r, cpu_stb_data_ra, uint16_t, uint8_t, H1_2)
-DO_ST1(sve_st1bs_r, cpu_stb_data_ra, uint32_t, uint8_t, H1_4)
-DO_ST1_D(sve_st1bd_r, cpu_stb_data_ra, uint8_t)
+DO_ST_TLB(st1dd_le,     , uint64_t, stq_le_p, MO_LE, helper_le_stq_mmu)
 
-DO_ST1(sve_st1hs_r, cpu_stw_data_ra, uint32_t, uint16_t, H1_4)
-DO_ST1_D(sve_st1hd_r, cpu_stw_data_ra, uint16_t)
+DO_ST_TLB(st1hh_be, H1_2, uint16_t, stw_be_p, MO_BE, helper_be_stw_mmu)
+DO_ST_TLB(st1hs_be, H1_4, uint32_t, stw_be_p, MO_BE, helper_be_stw_mmu)
+DO_ST_TLB(st1hd_be,     , uint64_t, stw_be_p, MO_BE, helper_be_stw_mmu)
 
-DO_ST1_D(sve_st1sd_r, cpu_stl_data_ra, uint32_t)
+DO_ST_TLB(st1ss_be, H1_4, uint32_t, stl_be_p, MO_BE, helper_be_stl_mmu)
+DO_ST_TLB(st1sd_be,     , uint64_t, stl_be_p, MO_BE, helper_be_stl_mmu)
 
-DO_ST1(sve_st1bb_r, cpu_stb_data_ra, uint8_t, uint8_t, H1)
-DO_ST2(sve_st2bb_r, cpu_stb_data_ra, uint8_t, uint8_t, H1)
-DO_ST3(sve_st3bb_r, cpu_stb_data_ra, uint8_t, uint8_t, H1)
-DO_ST4(sve_st4bb_r, cpu_stb_data_ra, uint8_t, uint8_t, H1)
+DO_ST_TLB(st1dd_be,     , uint64_t, stq_be_p, MO_BE, helper_be_stq_mmu)
 
-DO_ST1(sve_st1hh_r, cpu_stw_data_ra, uint16_t, uint16_t, H1_2)
-DO_ST2(sve_st2hh_r, cpu_stw_data_ra, uint16_t, uint16_t, H1_2)
-DO_ST3(sve_st3hh_r, cpu_stw_data_ra, uint16_t, uint16_t, H1_2)
-DO_ST4(sve_st4hh_r, cpu_stw_data_ra, uint16_t, uint16_t, H1_2)
+#undef DO_ST_TLB
 
-DO_ST1(sve_st1ss_r, cpu_stl_data_ra, uint32_t, uint32_t, H1_4)
-DO_ST2(sve_st2ss_r, cpu_stl_data_ra, uint32_t, uint32_t, H1_4)
-DO_ST3(sve_st3ss_r, cpu_stl_data_ra, uint32_t, uint32_t, H1_4)
-DO_ST4(sve_st4ss_r, cpu_stl_data_ra, uint32_t, uint32_t, H1_4)
-
-DO_ST1_D(sve_st1dd_r, cpu_stq_data_ra, uint64_t)
-
-void HELPER(sve_st2dd_r)(CPUARMState *env, void *vg,
-                         target_ulong addr, uint32_t desc)
+/*
+ * Common helpers for all contiguous 1,2,3,4-register predicated stores.
+ */
+static void sve_st1_r(CPUARMState *env, void *vg, target_ulong addr,
+                      uint32_t desc, const uintptr_t ra,
+                      const int esize, const int msize,
+                      sve_st1_tlb_fn *tlb_fn)
 {
-    intptr_t i, oprsz = simd_oprsz(desc) / 8;
-    intptr_t ra = GETPC();
-    unsigned rd = simd_data(desc);
-    uint64_t *d1 = &env->vfp.zregs[rd].d[0];
-    uint64_t *d2 = &env->vfp.zregs[(rd + 1) & 31].d[0];
-    uint8_t *pg = vg;
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    intptr_t i, oprsz = simd_oprsz(desc);
+    void *vd = &env->vfp.zregs[rd];
 
-    for (i = 0; i < oprsz; i += 1) {
-        if (pg[H1(i)] & 1) {
-            cpu_stq_data_ra(env, addr, d1[i], ra);
-            cpu_stq_data_ra(env, addr + 8, d2[i], ra);
-        }
-        addr += 2 * 8;
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (pg & 1) {
+                tlb_fn(env, vd, i, addr, oi, ra);
+            }
+            i += esize, pg >>= esize;
+            addr += msize;
+        } while (i & 15);
     }
+    set_helper_retaddr(0);
 }
 
-void HELPER(sve_st3dd_r)(CPUARMState *env, void *vg,
-                         target_ulong addr, uint32_t desc)
+static void sve_st2_r(CPUARMState *env, void *vg, target_ulong addr,
+                      uint32_t desc, const uintptr_t ra,
+                      const int esize, const int msize,
+                      sve_st1_tlb_fn *tlb_fn)
 {
-    intptr_t i, oprsz = simd_oprsz(desc) / 8;
-    intptr_t ra = GETPC();
-    unsigned rd = simd_data(desc);
-    uint64_t *d1 = &env->vfp.zregs[rd].d[0];
-    uint64_t *d2 = &env->vfp.zregs[(rd + 1) & 31].d[0];
-    uint64_t *d3 = &env->vfp.zregs[(rd + 2) & 31].d[0];
-    uint8_t *pg = vg;
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    intptr_t i, oprsz = simd_oprsz(desc);
+    void *d1 = &env->vfp.zregs[rd];
+    void *d2 = &env->vfp.zregs[(rd + 1) & 31];
 
-    for (i = 0; i < oprsz; i += 1) {
-        if (pg[H1(i)] & 1) {
-            cpu_stq_data_ra(env, addr, d1[i], ra);
-            cpu_stq_data_ra(env, addr + 8, d2[i], ra);
-            cpu_stq_data_ra(env, addr + 16, d3[i], ra);
-        }
-        addr += 3 * 8;
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (pg & 1) {
+                tlb_fn(env, d1, i, addr, oi, ra);
+                tlb_fn(env, d2, i, addr + msize, oi, ra);
+            }
+            i += esize, pg >>= esize;
+            addr += 2 * msize;
+        } while (i & 15);
     }
+    set_helper_retaddr(0);
 }
 
-void HELPER(sve_st4dd_r)(CPUARMState *env, void *vg,
-                         target_ulong addr, uint32_t desc)
+static void sve_st3_r(CPUARMState *env, void *vg, target_ulong addr,
+                      uint32_t desc, const uintptr_t ra,
+                      const int esize, const int msize,
+                      sve_st1_tlb_fn *tlb_fn)
 {
-    intptr_t i, oprsz = simd_oprsz(desc) / 8;
-    intptr_t ra = GETPC();
-    unsigned rd = simd_data(desc);
-    uint64_t *d1 = &env->vfp.zregs[rd].d[0];
-    uint64_t *d2 = &env->vfp.zregs[(rd + 1) & 31].d[0];
-    uint64_t *d3 = &env->vfp.zregs[(rd + 2) & 31].d[0];
-    uint64_t *d4 = &env->vfp.zregs[(rd + 3) & 31].d[0];
-    uint8_t *pg = vg;
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    intptr_t i, oprsz = simd_oprsz(desc);
+    void *d1 = &env->vfp.zregs[rd];
+    void *d2 = &env->vfp.zregs[(rd + 1) & 31];
+    void *d3 = &env->vfp.zregs[(rd + 2) & 31];
 
-    for (i = 0; i < oprsz; i += 1) {
-        if (pg[H1(i)] & 1) {
-            cpu_stq_data_ra(env, addr, d1[i], ra);
-            cpu_stq_data_ra(env, addr + 8, d2[i], ra);
-            cpu_stq_data_ra(env, addr + 16, d3[i], ra);
-            cpu_stq_data_ra(env, addr + 24, d4[i], ra);
-        }
-        addr += 4 * 8;
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (pg & 1) {
+                tlb_fn(env, d1, i, addr, oi, ra);
+                tlb_fn(env, d2, i, addr + msize, oi, ra);
+                tlb_fn(env, d3, i, addr + 2 * msize, oi, ra);
+            }
+            i += esize, pg >>= esize;
+            addr += 3 * msize;
+        } while (i & 15);
     }
+    set_helper_retaddr(0);
 }
 
-/* Loads with a vector index.  */
+static void sve_st4_r(CPUARMState *env, void *vg, target_ulong addr,
+                      uint32_t desc, const uintptr_t ra,
+                      const int esize, const int msize,
+                      sve_st1_tlb_fn *tlb_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const unsigned rd = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 5);
+    intptr_t i, oprsz = simd_oprsz(desc);
+    void *d1 = &env->vfp.zregs[rd];
+    void *d2 = &env->vfp.zregs[(rd + 1) & 31];
+    void *d3 = &env->vfp.zregs[(rd + 2) & 31];
+    void *d4 = &env->vfp.zregs[(rd + 3) & 31];
 
-#define DO_LD1_ZPZ_S(NAME, TYPEI, TYPEM, FN)                            \
-void HELPER(NAME)(CPUARMState *env, void *vd, void *vg, void *vm,       \
-                  target_ulong base, uint32_t desc)                     \
-{                                                                       \
-    intptr_t i, oprsz = simd_oprsz(desc);                               \
-    unsigned scale = simd_data(desc);                                   \
-    uintptr_t ra = GETPC();                                             \
-    for (i = 0; i < oprsz; ) {                                          \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));                 \
-        do {                                                            \
-            TYPEM m = 0;                                                \
-            if (pg & 1) {                                               \
-                target_ulong off = *(TYPEI *)(vm + H1_4(i));            \
-                m = FN(env, base + (off << scale), ra);                 \
-            }                                                           \
-            *(uint32_t *)(vd + H1_4(i)) = m;                            \
-            i += 4, pg >>= 4;                                           \
-        } while (i & 15);                                               \
-    }                                                                   \
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (pg & 1) {
+                tlb_fn(env, d1, i, addr, oi, ra);
+                tlb_fn(env, d2, i, addr + msize, oi, ra);
+                tlb_fn(env, d3, i, addr + 2 * msize, oi, ra);
+                tlb_fn(env, d4, i, addr + 3 * msize, oi, ra);
+            }
+            i += esize, pg >>= esize;
+            addr += 4 * msize;
+        } while (i & 15);
+    }
+    set_helper_retaddr(0);
 }
 
-#define DO_LD1_ZPZ_D(NAME, TYPEI, TYPEM, FN)                            \
-void HELPER(NAME)(CPUARMState *env, void *vd, void *vg, void *vm,       \
-                  target_ulong base, uint32_t desc)                     \
-{                                                                       \
-    intptr_t i, oprsz = simd_oprsz(desc) / 8;                           \
-    unsigned scale = simd_data(desc);                                   \
-    uintptr_t ra = GETPC();                                             \
-    uint64_t *d = vd, *m = vm; uint8_t *pg = vg;                        \
-    for (i = 0; i < oprsz; i++) {                                       \
-        TYPEM mm = 0;                                                   \
-        if (pg[H1(i)] & 1) {                                            \
-            target_ulong off = (TYPEI)m[i];                             \
-            mm = FN(env, base + (off << scale), ra);                    \
-        }                                                               \
-        d[i] = mm;                                                      \
-    }                                                                   \
+#define DO_STN_1(N, NAME, ESIZE) \
+void __attribute__((flatten)) HELPER(sve_st##N##NAME##_r)           \
+    (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)  \
+{                                                                   \
+    sve_st##N##_r(env, vg, addr, desc, GETPC(), ESIZE, 1,           \
+                  sve_st1##NAME##_tlb);                             \
 }
 
-DO_LD1_ZPZ_S(sve_ldbsu_zsu, uint32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LD1_ZPZ_S(sve_ldhsu_zsu, uint32_t, uint16_t, cpu_lduw_data_ra)
-DO_LD1_ZPZ_S(sve_ldssu_zsu, uint32_t, uint32_t, cpu_ldl_data_ra)
-DO_LD1_ZPZ_S(sve_ldbss_zsu, uint32_t, int8_t,   cpu_ldub_data_ra)
-DO_LD1_ZPZ_S(sve_ldhss_zsu, uint32_t, int16_t,  cpu_lduw_data_ra)
+#define DO_STN_2(N, NAME, ESIZE, MSIZE) \
+void __attribute__((flatten)) HELPER(sve_st##N##NAME##_le_r)          \
+    (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
+{                                                                     \
+    sve_st##N##_r(env, vg, addr, desc, GETPC(), ESIZE, MSIZE,         \
+                  sve_st1##NAME##_le_tlb);                            \
+}                                                                     \
+void __attribute__((flatten)) HELPER(sve_st##N##NAME##_be_r)          \
+    (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
+{                                                                     \
+    sve_st##N##_r(env, vg, addr, desc, GETPC(), ESIZE, MSIZE,         \
+                  sve_st1##NAME##_be_tlb);                            \
+}
 
-DO_LD1_ZPZ_S(sve_ldbsu_zss, int32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LD1_ZPZ_S(sve_ldhsu_zss, int32_t, uint16_t, cpu_lduw_data_ra)
-DO_LD1_ZPZ_S(sve_ldssu_zss, int32_t, uint32_t, cpu_ldl_data_ra)
-DO_LD1_ZPZ_S(sve_ldbss_zss, int32_t, int8_t,   cpu_ldub_data_ra)
-DO_LD1_ZPZ_S(sve_ldhss_zss, int32_t, int16_t,  cpu_lduw_data_ra)
+DO_STN_1(1, bb, 1)
+DO_STN_1(1, bh, 2)
+DO_STN_1(1, bs, 4)
+DO_STN_1(1, bd, 8)
+DO_STN_1(2, bb, 1)
+DO_STN_1(3, bb, 1)
+DO_STN_1(4, bb, 1)
 
-DO_LD1_ZPZ_D(sve_ldbdu_zsu, uint32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhdu_zsu, uint32_t, uint16_t, cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsdu_zsu, uint32_t, uint32_t, cpu_ldl_data_ra)
-DO_LD1_ZPZ_D(sve_ldddu_zsu, uint32_t, uint64_t, cpu_ldq_data_ra)
-DO_LD1_ZPZ_D(sve_ldbds_zsu, uint32_t, int8_t,   cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhds_zsu, uint32_t, int16_t,  cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsds_zsu, uint32_t, int32_t,  cpu_ldl_data_ra)
+DO_STN_2(1, hh, 2, 2)
+DO_STN_2(1, hs, 4, 2)
+DO_STN_2(1, hd, 8, 2)
+DO_STN_2(2, hh, 2, 2)
+DO_STN_2(3, hh, 2, 2)
+DO_STN_2(4, hh, 2, 2)
 
-DO_LD1_ZPZ_D(sve_ldbdu_zss, int32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhdu_zss, int32_t, uint16_t, cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsdu_zss, int32_t, uint32_t, cpu_ldl_data_ra)
-DO_LD1_ZPZ_D(sve_ldddu_zss, int32_t, uint64_t, cpu_ldq_data_ra)
-DO_LD1_ZPZ_D(sve_ldbds_zss, int32_t, int8_t,   cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhds_zss, int32_t, int16_t,  cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsds_zss, int32_t, int32_t,  cpu_ldl_data_ra)
+DO_STN_2(1, ss, 4, 4)
+DO_STN_2(1, sd, 8, 4)
+DO_STN_2(2, ss, 4, 4)
+DO_STN_2(3, ss, 4, 4)
+DO_STN_2(4, ss, 4, 4)
 
-DO_LD1_ZPZ_D(sve_ldbdu_zd, uint64_t, uint8_t,  cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhdu_zd, uint64_t, uint16_t, cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsdu_zd, uint64_t, uint32_t, cpu_ldl_data_ra)
-DO_LD1_ZPZ_D(sve_ldddu_zd, uint64_t, uint64_t, cpu_ldq_data_ra)
-DO_LD1_ZPZ_D(sve_ldbds_zd, uint64_t, int8_t,   cpu_ldub_data_ra)
-DO_LD1_ZPZ_D(sve_ldhds_zd, uint64_t, int16_t,  cpu_lduw_data_ra)
-DO_LD1_ZPZ_D(sve_ldsds_zd, uint64_t, int32_t,  cpu_ldl_data_ra)
+DO_STN_2(1, dd, 8, 8)
+DO_STN_2(2, dd, 8, 8)
+DO_STN_2(3, dd, 8, 8)
+DO_STN_2(4, dd, 8, 8)
+
+#undef DO_STN_1
+#undef DO_STN_2
+
+/*
+ * Loads with a vector index.
+ */
+
+/*
+ * Load the element at @reg + @reg_ofs, sign or zero-extend as needed.
+ */
+typedef target_ulong zreg_off_fn(void *reg, intptr_t reg_ofs);
+
+static target_ulong off_zsu_s(void *reg, intptr_t reg_ofs)
+{
+    return *(uint32_t *)(reg + H1_4(reg_ofs));
+}
+
+static target_ulong off_zss_s(void *reg, intptr_t reg_ofs)
+{
+    return *(int32_t *)(reg + H1_4(reg_ofs));
+}
+
+static target_ulong off_zsu_d(void *reg, intptr_t reg_ofs)
+{
+    return (uint32_t)*(uint64_t *)(reg + reg_ofs);
+}
+
+static target_ulong off_zss_d(void *reg, intptr_t reg_ofs)
+{
+    return (int32_t)*(uint64_t *)(reg + reg_ofs);
+}
+
+static target_ulong off_zd_d(void *reg, intptr_t reg_ofs)
+{
+    return *(uint64_t *)(reg + reg_ofs);
+}
+
+static void sve_ld1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
+                       target_ulong base, uint32_t desc, uintptr_t ra,
+                       zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
+    intptr_t i, oprsz = simd_oprsz(desc);
+    ARMVectorReg scratch = { };
+
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (likely(pg & 1)) {
+                target_ulong off = off_fn(vm, i);
+                tlb_fn(env, &scratch, i, base + (off << scale), oi, ra);
+            }
+            i += 4, pg >>= 4;
+        } while (i & 15);
+    }
+    set_helper_retaddr(0);
+
+    /* Wait until all exceptions have been raised to write back.  */
+    memcpy(vd, &scratch, oprsz);
+}
+
+static void sve_ld1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
+                       target_ulong base, uint32_t desc, uintptr_t ra,
+                       zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
+    intptr_t i, oprsz = simd_oprsz(desc) / 8;
+    ARMVectorReg scratch = { };
+
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; i++) {
+        uint8_t pg = *(uint8_t *)(vg + H1(i));
+        if (likely(pg & 1)) {
+            target_ulong off = off_fn(vm, i * 8);
+            tlb_fn(env, &scratch, i * 8, base + (off << scale), oi, ra);
+        }
+    }
+    set_helper_retaddr(0);
+
+    /* Wait until all exceptions have been raised to write back.  */
+    memcpy(vd, &scratch, oprsz * 8);
+}
+
+#define DO_LD1_ZPZ_S(MEM, OFS) \
+void __attribute__((flatten)) HELPER(sve_ld##MEM##_##OFS)    \
+    (CPUARMState *env, void *vd, void *vg, void *vm,         \
+     target_ulong base, uint32_t desc)                       \
+{                                                            \
+    sve_ld1_zs(env, vd, vg, vm, base, desc, GETPC(),         \
+              off_##OFS##_s, sve_ld1##MEM##_tlb);            \
+}
+
+#define DO_LD1_ZPZ_D(MEM, OFS) \
+void __attribute__((flatten)) HELPER(sve_ld##MEM##_##OFS)    \
+    (CPUARMState *env, void *vd, void *vg, void *vm,         \
+     target_ulong base, uint32_t desc)                       \
+{                                                            \
+    sve_ld1_zd(env, vd, vg, vm, base, desc, GETPC(),         \
+               off_##OFS##_d, sve_ld1##MEM##_tlb);           \
+}
+
+DO_LD1_ZPZ_S(bsu, zsu)
+DO_LD1_ZPZ_S(bsu, zss)
+DO_LD1_ZPZ_D(bdu, zsu)
+DO_LD1_ZPZ_D(bdu, zss)
+DO_LD1_ZPZ_D(bdu, zd)
+
+DO_LD1_ZPZ_S(bss, zsu)
+DO_LD1_ZPZ_S(bss, zss)
+DO_LD1_ZPZ_D(bds, zsu)
+DO_LD1_ZPZ_D(bds, zss)
+DO_LD1_ZPZ_D(bds, zd)
+
+DO_LD1_ZPZ_S(hsu_le, zsu)
+DO_LD1_ZPZ_S(hsu_le, zss)
+DO_LD1_ZPZ_D(hdu_le, zsu)
+DO_LD1_ZPZ_D(hdu_le, zss)
+DO_LD1_ZPZ_D(hdu_le, zd)
+
+DO_LD1_ZPZ_S(hsu_be, zsu)
+DO_LD1_ZPZ_S(hsu_be, zss)
+DO_LD1_ZPZ_D(hdu_be, zsu)
+DO_LD1_ZPZ_D(hdu_be, zss)
+DO_LD1_ZPZ_D(hdu_be, zd)
+
+DO_LD1_ZPZ_S(hss_le, zsu)
+DO_LD1_ZPZ_S(hss_le, zss)
+DO_LD1_ZPZ_D(hds_le, zsu)
+DO_LD1_ZPZ_D(hds_le, zss)
+DO_LD1_ZPZ_D(hds_le, zd)
+
+DO_LD1_ZPZ_S(hss_be, zsu)
+DO_LD1_ZPZ_S(hss_be, zss)
+DO_LD1_ZPZ_D(hds_be, zsu)
+DO_LD1_ZPZ_D(hds_be, zss)
+DO_LD1_ZPZ_D(hds_be, zd)
+
+DO_LD1_ZPZ_S(ss_le, zsu)
+DO_LD1_ZPZ_S(ss_le, zss)
+DO_LD1_ZPZ_D(sdu_le, zsu)
+DO_LD1_ZPZ_D(sdu_le, zss)
+DO_LD1_ZPZ_D(sdu_le, zd)
+
+DO_LD1_ZPZ_S(ss_be, zsu)
+DO_LD1_ZPZ_S(ss_be, zss)
+DO_LD1_ZPZ_D(sdu_be, zsu)
+DO_LD1_ZPZ_D(sdu_be, zss)
+DO_LD1_ZPZ_D(sdu_be, zd)
+
+DO_LD1_ZPZ_D(sds_le, zsu)
+DO_LD1_ZPZ_D(sds_le, zss)
+DO_LD1_ZPZ_D(sds_le, zd)
+
+DO_LD1_ZPZ_D(sds_be, zsu)
+DO_LD1_ZPZ_D(sds_be, zss)
+DO_LD1_ZPZ_D(sds_be, zd)
+
+DO_LD1_ZPZ_D(dd_le, zsu)
+DO_LD1_ZPZ_D(dd_le, zss)
+DO_LD1_ZPZ_D(dd_le, zd)
+
+DO_LD1_ZPZ_D(dd_be, zsu)
+DO_LD1_ZPZ_D(dd_be, zss)
+DO_LD1_ZPZ_D(dd_be, zd)
+
+#undef DO_LD1_ZPZ_S
+#undef DO_LD1_ZPZ_D
 
 /* First fault loads with a vector index.  */
 
-#ifdef CONFIG_USER_ONLY
+/* Load one element into VD+REG_OFF from (ENV,VADDR) without faulting.
+ * The controlling predicate is known to be true.  Return true if the
+ * load was successful.
+ */
+typedef bool sve_ld1_nf_fn(CPUARMState *env, void *vd, intptr_t reg_off,
+                           target_ulong vaddr, int mmu_idx);
 
-#define DO_LDFF1_ZPZ(NAME, TYPEE, TYPEI, TYPEM, FN, H)                  \
-void HELPER(NAME)(CPUARMState *env, void *vd, void *vg, void *vm,       \
-                  target_ulong base, uint32_t desc)                     \
-{                                                                       \
-    intptr_t i, oprsz = simd_oprsz(desc);                               \
-    unsigned scale = simd_data(desc);                                   \
-    uintptr_t ra = GETPC();                                             \
-    bool first = true;                                                  \
-    mmap_lock();                                                        \
-    for (i = 0; i < oprsz; ) {                                          \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));                 \
-        do {                                                            \
-            TYPEM m = 0;                                                \
-            if (pg & 1) {                                               \
-                target_ulong off = *(TYPEI *)(vm + H(i));               \
-                target_ulong addr = base + (off << scale);              \
-                if (!first &&                                           \
-                    page_check_range(addr, sizeof(TYPEM), PAGE_READ)) { \
-                    record_fault(env, i, oprsz);                        \
-                    goto exit;                                          \
-                }                                                       \
-                m = FN(env, addr, ra);                                  \
-                first = false;                                          \
-            }                                                           \
-            *(TYPEE *)(vd + H(i)) = m;                                  \
-            i += sizeof(TYPEE), pg >>= sizeof(TYPEE);                   \
-        } while (i & 15);                                               \
-    }                                                                   \
- exit:                                                                  \
-    mmap_unlock();                                                      \
+#ifdef CONFIG_SOFTMMU
+#define DO_LD_NF(NAME, H, TYPEE, TYPEM, HOST) \
+static bool sve_ld##NAME##_nf(CPUARMState *env, void *vd, intptr_t reg_off, \
+                              target_ulong addr, int mmu_idx)               \
+{                                                                           \
+    target_ulong next_page = -(addr | TARGET_PAGE_MASK);                    \
+    if (likely(next_page - addr >= sizeof(TYPEM))) {                        \
+        void *host = tlb_vaddr_to_host(env, addr, MMU_DATA_LOAD, mmu_idx);  \
+        if (likely(host)) {                                                 \
+            TYPEM val = HOST(host);                                         \
+            *(TYPEE *)(vd + H(reg_off)) = val;                              \
+            return true;                                                    \
+        }                                                                   \
+    }                                                                       \
+    return false;                                                           \
 }
-
 #else
-
-#define DO_LDFF1_ZPZ(NAME, TYPEE, TYPEI, TYPEM, FN, H)                  \
-void HELPER(NAME)(CPUARMState *env, void *vd, void *vg, void *vm,       \
-                  target_ulong base, uint32_t desc)                     \
-{                                                                       \
-    g_assert_not_reached();                                             \
+#define DO_LD_NF(NAME, H, TYPEE, TYPEM, HOST) \
+static bool sve_ld##NAME##_nf(CPUARMState *env, void *vd, intptr_t reg_off, \
+                            target_ulong addr, int mmu_idx)                 \
+{                                                                           \
+    if (likely(page_check_range(addr, sizeof(TYPEM), PAGE_READ))) {         \
+        TYPEM val = HOST(g2h(addr));                                        \
+        *(TYPEE *)(vd + H(reg_off)) = val;                                  \
+        return true;                                                        \
+    }                                                                       \
+    return false;                                                           \
 }
-
 #endif
 
-#define DO_LDFF1_ZPZ_S(NAME, TYPEI, TYPEM, FN) \
-    DO_LDFF1_ZPZ(NAME, uint32_t, TYPEI, TYPEM, FN, H1_4)
-#define DO_LDFF1_ZPZ_D(NAME, TYPEI, TYPEM, FN) \
-    DO_LDFF1_ZPZ(NAME, uint64_t, TYPEI, TYPEM, FN, )
+DO_LD_NF(bsu, H1_4, uint32_t, uint8_t, ldub_p)
+DO_LD_NF(bss, H1_4, uint32_t,  int8_t, ldsb_p)
+DO_LD_NF(bdu,     , uint64_t, uint8_t, ldub_p)
+DO_LD_NF(bds,     , uint64_t,  int8_t, ldsb_p)
 
-DO_LDFF1_ZPZ_S(sve_ldffbsu_zsu, uint32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LDFF1_ZPZ_S(sve_ldffhsu_zsu, uint32_t, uint16_t, cpu_lduw_data_ra)
-DO_LDFF1_ZPZ_S(sve_ldffssu_zsu, uint32_t, uint32_t, cpu_ldl_data_ra)
-DO_LDFF1_ZPZ_S(sve_ldffbss_zsu, uint32_t, int8_t,   cpu_ldub_data_ra)
-DO_LDFF1_ZPZ_S(sve_ldffhss_zsu, uint32_t, int16_t,  cpu_lduw_data_ra)
+DO_LD_NF(hsu_le, H1_4, uint32_t, uint16_t, lduw_le_p)
+DO_LD_NF(hss_le, H1_4, uint32_t,  int16_t, ldsw_le_p)
+DO_LD_NF(hsu_be, H1_4, uint32_t, uint16_t, lduw_be_p)
+DO_LD_NF(hss_be, H1_4, uint32_t,  int16_t, ldsw_be_p)
+DO_LD_NF(hdu_le,     , uint64_t, uint16_t, lduw_le_p)
+DO_LD_NF(hds_le,     , uint64_t,  int16_t, ldsw_le_p)
+DO_LD_NF(hdu_be,     , uint64_t, uint16_t, lduw_be_p)
+DO_LD_NF(hds_be,     , uint64_t,  int16_t, ldsw_be_p)
 
-DO_LDFF1_ZPZ_S(sve_ldffbsu_zss, int32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LDFF1_ZPZ_S(sve_ldffhsu_zss, int32_t, uint16_t, cpu_lduw_data_ra)
-DO_LDFF1_ZPZ_S(sve_ldffssu_zss, int32_t, uint32_t, cpu_ldl_data_ra)
-DO_LDFF1_ZPZ_S(sve_ldffbss_zss, int32_t, int8_t,   cpu_ldub_data_ra)
-DO_LDFF1_ZPZ_S(sve_ldffhss_zss, int32_t, int16_t,  cpu_lduw_data_ra)
+DO_LD_NF(ss_le,  H1_4, uint32_t, uint32_t, ldl_le_p)
+DO_LD_NF(ss_be,  H1_4, uint32_t, uint32_t, ldl_be_p)
+DO_LD_NF(sdu_le,     , uint64_t, uint32_t, ldl_le_p)
+DO_LD_NF(sds_le,     , uint64_t,  int32_t, ldl_le_p)
+DO_LD_NF(sdu_be,     , uint64_t, uint32_t, ldl_be_p)
+DO_LD_NF(sds_be,     , uint64_t,  int32_t, ldl_be_p)
 
-DO_LDFF1_ZPZ_D(sve_ldffbdu_zsu, uint32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffhdu_zsu, uint32_t, uint16_t, cpu_lduw_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffsdu_zsu, uint32_t, uint32_t, cpu_ldl_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffddu_zsu, uint32_t, uint64_t, cpu_ldq_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffbds_zsu, uint32_t, int8_t,   cpu_ldub_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffhds_zsu, uint32_t, int16_t,  cpu_lduw_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffsds_zsu, uint32_t, int32_t,  cpu_ldl_data_ra)
+DO_LD_NF(dd_le,      , uint64_t, uint64_t, ldq_le_p)
+DO_LD_NF(dd_be,      , uint64_t, uint64_t, ldq_be_p)
 
-DO_LDFF1_ZPZ_D(sve_ldffbdu_zss, int32_t, uint8_t,  cpu_ldub_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffhdu_zss, int32_t, uint16_t, cpu_lduw_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffsdu_zss, int32_t, uint32_t, cpu_ldl_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffddu_zss, int32_t, uint64_t, cpu_ldq_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffbds_zss, int32_t, int8_t,   cpu_ldub_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffhds_zss, int32_t, int16_t,  cpu_lduw_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffsds_zss, int32_t, int32_t,  cpu_ldl_data_ra)
+/*
+ * Common helper for all gather first-faulting loads.
+ */
+static inline void sve_ldff1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
+                                target_ulong base, uint32_t desc, uintptr_t ra,
+                                zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn,
+                                sve_ld1_nf_fn *nonfault_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int mmu_idx = get_mmuidx(oi);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
+    intptr_t reg_off, reg_max = simd_oprsz(desc);
+    target_ulong addr;
 
-DO_LDFF1_ZPZ_D(sve_ldffbdu_zd, uint64_t, uint8_t,  cpu_ldub_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffhdu_zd, uint64_t, uint16_t, cpu_lduw_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffsdu_zd, uint64_t, uint32_t, cpu_ldl_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffddu_zd, uint64_t, uint64_t, cpu_ldq_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffbds_zd, uint64_t, int8_t,   cpu_ldub_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffhds_zd, uint64_t, int16_t,  cpu_lduw_data_ra)
-DO_LDFF1_ZPZ_D(sve_ldffsds_zd, uint64_t, int32_t,  cpu_ldl_data_ra)
+    /* Skip to the first true predicate.  */
+    reg_off = find_next_active(vg, 0, reg_max, MO_32);
+    if (likely(reg_off < reg_max)) {
+        /* Perform one normal read, which will fault or not.  */
+        set_helper_retaddr(ra);
+        addr = off_fn(vm, reg_off);
+        addr = base + (addr << scale);
+        tlb_fn(env, vd, reg_off, addr, oi, ra);
+
+        /* The rest of the reads will be non-faulting.  */
+        set_helper_retaddr(0);
+    }
+
+    /* After any fault, zero the leading predicated false elements.  */
+    swap_memzero(vd, reg_off);
+
+    while (likely((reg_off += 4) < reg_max)) {
+        uint64_t pg = *(uint64_t *)(vg + (reg_off >> 6) * 8);
+        if (likely((pg >> (reg_off & 63)) & 1)) {
+            addr = off_fn(vm, reg_off);
+            addr = base + (addr << scale);
+            if (!nonfault_fn(env, vd, reg_off, addr, mmu_idx)) {
+                record_fault(env, reg_off, reg_max);
+                break;
+            }
+        } else {
+            *(uint32_t *)(vd + H1_4(reg_off)) = 0;
+        }
+    }
+}
+
+static inline void sve_ldff1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
+                                target_ulong base, uint32_t desc, uintptr_t ra,
+                                zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn,
+                                sve_ld1_nf_fn *nonfault_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int mmu_idx = get_mmuidx(oi);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
+    intptr_t reg_off, reg_max = simd_oprsz(desc);
+    target_ulong addr;
+
+    /* Skip to the first true predicate.  */
+    reg_off = find_next_active(vg, 0, reg_max, MO_64);
+    if (likely(reg_off < reg_max)) {
+        /* Perform one normal read, which will fault or not.  */
+        set_helper_retaddr(ra);
+        addr = off_fn(vm, reg_off);
+        addr = base + (addr << scale);
+        tlb_fn(env, vd, reg_off, addr, oi, ra);
+
+        /* The rest of the reads will be non-faulting.  */
+        set_helper_retaddr(0);
+    }
+
+    /* After any fault, zero the leading predicated false elements.  */
+    swap_memzero(vd, reg_off);
+
+    while (likely((reg_off += 8) < reg_max)) {
+        uint8_t pg = *(uint8_t *)(vg + H1(reg_off >> 3));
+        if (likely(pg & 1)) {
+            addr = off_fn(vm, reg_off);
+            addr = base + (addr << scale);
+            if (!nonfault_fn(env, vd, reg_off, addr, mmu_idx)) {
+                record_fault(env, reg_off, reg_max);
+                break;
+            }
+        } else {
+            *(uint64_t *)(vd + reg_off) = 0;
+        }
+    }
+}
+
+#define DO_LDFF1_ZPZ_S(MEM, OFS) \
+void HELPER(sve_ldff##MEM##_##OFS)                                      \
+    (CPUARMState *env, void *vd, void *vg, void *vm,                    \
+     target_ulong base, uint32_t desc)                                  \
+{                                                                       \
+    sve_ldff1_zs(env, vd, vg, vm, base, desc, GETPC(),                  \
+                 off_##OFS##_s, sve_ld1##MEM##_tlb, sve_ld##MEM##_nf);  \
+}
+
+#define DO_LDFF1_ZPZ_D(MEM, OFS) \
+void HELPER(sve_ldff##MEM##_##OFS)                                      \
+    (CPUARMState *env, void *vd, void *vg, void *vm,                    \
+     target_ulong base, uint32_t desc)                                  \
+{                                                                       \
+    sve_ldff1_zd(env, vd, vg, vm, base, desc, GETPC(),                  \
+                 off_##OFS##_d, sve_ld1##MEM##_tlb, sve_ld##MEM##_nf);  \
+}
+
+DO_LDFF1_ZPZ_S(bsu, zsu)
+DO_LDFF1_ZPZ_S(bsu, zss)
+DO_LDFF1_ZPZ_D(bdu, zsu)
+DO_LDFF1_ZPZ_D(bdu, zss)
+DO_LDFF1_ZPZ_D(bdu, zd)
+
+DO_LDFF1_ZPZ_S(bss, zsu)
+DO_LDFF1_ZPZ_S(bss, zss)
+DO_LDFF1_ZPZ_D(bds, zsu)
+DO_LDFF1_ZPZ_D(bds, zss)
+DO_LDFF1_ZPZ_D(bds, zd)
+
+DO_LDFF1_ZPZ_S(hsu_le, zsu)
+DO_LDFF1_ZPZ_S(hsu_le, zss)
+DO_LDFF1_ZPZ_D(hdu_le, zsu)
+DO_LDFF1_ZPZ_D(hdu_le, zss)
+DO_LDFF1_ZPZ_D(hdu_le, zd)
+
+DO_LDFF1_ZPZ_S(hsu_be, zsu)
+DO_LDFF1_ZPZ_S(hsu_be, zss)
+DO_LDFF1_ZPZ_D(hdu_be, zsu)
+DO_LDFF1_ZPZ_D(hdu_be, zss)
+DO_LDFF1_ZPZ_D(hdu_be, zd)
+
+DO_LDFF1_ZPZ_S(hss_le, zsu)
+DO_LDFF1_ZPZ_S(hss_le, zss)
+DO_LDFF1_ZPZ_D(hds_le, zsu)
+DO_LDFF1_ZPZ_D(hds_le, zss)
+DO_LDFF1_ZPZ_D(hds_le, zd)
+
+DO_LDFF1_ZPZ_S(hss_be, zsu)
+DO_LDFF1_ZPZ_S(hss_be, zss)
+DO_LDFF1_ZPZ_D(hds_be, zsu)
+DO_LDFF1_ZPZ_D(hds_be, zss)
+DO_LDFF1_ZPZ_D(hds_be, zd)
+
+DO_LDFF1_ZPZ_S(ss_le,  zsu)
+DO_LDFF1_ZPZ_S(ss_le,  zss)
+DO_LDFF1_ZPZ_D(sdu_le, zsu)
+DO_LDFF1_ZPZ_D(sdu_le, zss)
+DO_LDFF1_ZPZ_D(sdu_le, zd)
+
+DO_LDFF1_ZPZ_S(ss_be,  zsu)
+DO_LDFF1_ZPZ_S(ss_be,  zss)
+DO_LDFF1_ZPZ_D(sdu_be, zsu)
+DO_LDFF1_ZPZ_D(sdu_be, zss)
+DO_LDFF1_ZPZ_D(sdu_be, zd)
+
+DO_LDFF1_ZPZ_D(sds_le, zsu)
+DO_LDFF1_ZPZ_D(sds_le, zss)
+DO_LDFF1_ZPZ_D(sds_le, zd)
+
+DO_LDFF1_ZPZ_D(sds_be, zsu)
+DO_LDFF1_ZPZ_D(sds_be, zss)
+DO_LDFF1_ZPZ_D(sds_be, zd)
+
+DO_LDFF1_ZPZ_D(dd_le, zsu)
+DO_LDFF1_ZPZ_D(dd_le, zss)
+DO_LDFF1_ZPZ_D(dd_le, zd)
+
+DO_LDFF1_ZPZ_D(dd_be, zsu)
+DO_LDFF1_ZPZ_D(dd_be, zss)
+DO_LDFF1_ZPZ_D(dd_be, zd)
 
 /* Stores with a vector index.  */
 
-#define DO_ST1_ZPZ_S(NAME, TYPEI, FN)                                   \
-void HELPER(NAME)(CPUARMState *env, void *vd, void *vg, void *vm,       \
-                  target_ulong base, uint32_t desc)                     \
-{                                                                       \
-    intptr_t i, oprsz = simd_oprsz(desc);                               \
-    unsigned scale = simd_data(desc);                                   \
-    uintptr_t ra = GETPC();                                             \
-    for (i = 0; i < oprsz; ) {                                          \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));                 \
-        do {                                                            \
-            if (likely(pg & 1)) {                                       \
-                target_ulong off = *(TYPEI *)(vm + H1_4(i));            \
-                uint32_t d = *(uint32_t *)(vd + H1_4(i));               \
-                FN(env, base + (off << scale), d, ra);                  \
-            }                                                           \
-            i += sizeof(uint32_t), pg >>= sizeof(uint32_t);             \
-        } while (i & 15);                                               \
-    }                                                                   \
+static void sve_st1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
+                       target_ulong base, uint32_t desc, uintptr_t ra,
+                       zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
+    intptr_t i, oprsz = simd_oprsz(desc);
+
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (likely(pg & 1)) {
+                target_ulong off = off_fn(vm, i);
+                tlb_fn(env, vd, i, base + (off << scale), oi, ra);
+            }
+            i += 4, pg >>= 4;
+        } while (i & 15);
+    }
+    set_helper_retaddr(0);
 }
 
-#define DO_ST1_ZPZ_D(NAME, TYPEI, FN)                                   \
-void HELPER(NAME)(CPUARMState *env, void *vd, void *vg, void *vm,       \
-                  target_ulong base, uint32_t desc)                     \
-{                                                                       \
-    intptr_t i, oprsz = simd_oprsz(desc) / 8;                           \
-    unsigned scale = simd_data(desc);                                   \
-    uintptr_t ra = GETPC();                                             \
-    uint64_t *d = vd, *m = vm; uint8_t *pg = vg;                        \
-    for (i = 0; i < oprsz; i++) {                                       \
-        if (likely(pg[H1(i)] & 1)) {                                    \
-            target_ulong off = (target_ulong)(TYPEI)m[i] << scale;      \
-            FN(env, base + off, d[i], ra);                              \
-        }                                                               \
-    }                                                                   \
+static void sve_st1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
+                       target_ulong base, uint32_t desc, uintptr_t ra,
+                       zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
+{
+    const TCGMemOpIdx oi = extract32(desc, SIMD_DATA_SHIFT, MEMOPIDX_SHIFT);
+    const int scale = extract32(desc, SIMD_DATA_SHIFT + MEMOPIDX_SHIFT, 2);
+    intptr_t i, oprsz = simd_oprsz(desc) / 8;
+
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; i++) {
+        uint8_t pg = *(uint8_t *)(vg + H1(i));
+        if (likely(pg & 1)) {
+            target_ulong off = off_fn(vm, i * 8);
+            tlb_fn(env, vd, i * 8, base + (off << scale), oi, ra);
+        }
+    }
+    set_helper_retaddr(0);
 }
 
-DO_ST1_ZPZ_S(sve_stbs_zsu, uint32_t, cpu_stb_data_ra)
-DO_ST1_ZPZ_S(sve_sths_zsu, uint32_t, cpu_stw_data_ra)
-DO_ST1_ZPZ_S(sve_stss_zsu, uint32_t, cpu_stl_data_ra)
+#define DO_ST1_ZPZ_S(MEM, OFS) \
+void __attribute__((flatten)) HELPER(sve_st##MEM##_##OFS)    \
+    (CPUARMState *env, void *vd, void *vg, void *vm,         \
+     target_ulong base, uint32_t desc)                       \
+{                                                            \
+    sve_st1_zs(env, vd, vg, vm, base, desc, GETPC(),         \
+              off_##OFS##_s, sve_st1##MEM##_tlb);            \
+}
 
-DO_ST1_ZPZ_S(sve_stbs_zss, int32_t, cpu_stb_data_ra)
-DO_ST1_ZPZ_S(sve_sths_zss, int32_t, cpu_stw_data_ra)
-DO_ST1_ZPZ_S(sve_stss_zss, int32_t, cpu_stl_data_ra)
+#define DO_ST1_ZPZ_D(MEM, OFS) \
+void __attribute__((flatten)) HELPER(sve_st##MEM##_##OFS)    \
+    (CPUARMState *env, void *vd, void *vg, void *vm,         \
+     target_ulong base, uint32_t desc)                       \
+{                                                            \
+    sve_st1_zd(env, vd, vg, vm, base, desc, GETPC(),         \
+               off_##OFS##_d, sve_st1##MEM##_tlb);           \
+}
 
-DO_ST1_ZPZ_D(sve_stbd_zsu, uint32_t, cpu_stb_data_ra)
-DO_ST1_ZPZ_D(sve_sthd_zsu, uint32_t, cpu_stw_data_ra)
-DO_ST1_ZPZ_D(sve_stsd_zsu, uint32_t, cpu_stl_data_ra)
-DO_ST1_ZPZ_D(sve_stdd_zsu, uint32_t, cpu_stq_data_ra)
+DO_ST1_ZPZ_S(bs, zsu)
+DO_ST1_ZPZ_S(hs_le, zsu)
+DO_ST1_ZPZ_S(hs_be, zsu)
+DO_ST1_ZPZ_S(ss_le, zsu)
+DO_ST1_ZPZ_S(ss_be, zsu)
 
-DO_ST1_ZPZ_D(sve_stbd_zss, int32_t, cpu_stb_data_ra)
-DO_ST1_ZPZ_D(sve_sthd_zss, int32_t, cpu_stw_data_ra)
-DO_ST1_ZPZ_D(sve_stsd_zss, int32_t, cpu_stl_data_ra)
-DO_ST1_ZPZ_D(sve_stdd_zss, int32_t, cpu_stq_data_ra)
+DO_ST1_ZPZ_S(bs, zss)
+DO_ST1_ZPZ_S(hs_le, zss)
+DO_ST1_ZPZ_S(hs_be, zss)
+DO_ST1_ZPZ_S(ss_le, zss)
+DO_ST1_ZPZ_S(ss_be, zss)
 
-DO_ST1_ZPZ_D(sve_stbd_zd, uint64_t, cpu_stb_data_ra)
-DO_ST1_ZPZ_D(sve_sthd_zd, uint64_t, cpu_stw_data_ra)
-DO_ST1_ZPZ_D(sve_stsd_zd, uint64_t, cpu_stl_data_ra)
-DO_ST1_ZPZ_D(sve_stdd_zd, uint64_t, cpu_stq_data_ra)
+DO_ST1_ZPZ_D(bd, zsu)
+DO_ST1_ZPZ_D(hd_le, zsu)
+DO_ST1_ZPZ_D(hd_be, zsu)
+DO_ST1_ZPZ_D(sd_le, zsu)
+DO_ST1_ZPZ_D(sd_be, zsu)
+DO_ST1_ZPZ_D(dd_le, zsu)
+DO_ST1_ZPZ_D(dd_be, zsu)
+
+DO_ST1_ZPZ_D(bd, zss)
+DO_ST1_ZPZ_D(hd_le, zss)
+DO_ST1_ZPZ_D(hd_be, zss)
+DO_ST1_ZPZ_D(sd_le, zss)
+DO_ST1_ZPZ_D(sd_be, zss)
+DO_ST1_ZPZ_D(dd_le, zss)
+DO_ST1_ZPZ_D(dd_be, zss)
+
+DO_ST1_ZPZ_D(bd, zd)
+DO_ST1_ZPZ_D(hd_le, zd)
+DO_ST1_ZPZ_D(hd_be, zd)
+DO_ST1_ZPZ_D(sd_le, zd)
+DO_ST1_ZPZ_D(sd_be, zd)
+DO_ST1_ZPZ_D(dd_le, zd)
+DO_ST1_ZPZ_D(dd_be, zd)
+
+#undef DO_ST1_ZPZ_S
+#undef DO_ST1_ZPZ_D

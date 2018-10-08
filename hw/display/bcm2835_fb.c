@@ -190,7 +190,7 @@ static void fb_update_display(void *opaque)
     }
 
     if (s->invalidate) {
-        hwaddr base = s->config.base + xoff + yoff * src_width;
+        hwaddr base = s->config.base + xoff + (hwaddr)yoff * src_width;
         framebuffer_update_memory_section(&s->fbsection, s->dma_mr,
                                           base,
                                           s->config.yres, src_width);

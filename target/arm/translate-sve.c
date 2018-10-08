@@ -4600,62 +4600,97 @@ static const uint8_t dtype_esz[16] = {
     3, 2, 1, 3
 };
 
+static TCGMemOpIdx sve_memopidx(DisasContext *s, int dtype)
+{
+    return make_memop_idx(s->be_data | dtype_mop[dtype], get_mem_index(s));
+}
+
 static void do_mem_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
-                       gen_helper_gvec_mem *fn)
+                       int dtype, gen_helper_gvec_mem *fn)
 {
     unsigned vsz = vec_full_reg_size(s);
     TCGv_ptr t_pg;
-    TCGv_i32 desc;
+    TCGv_i32 t_desc;
+    int desc;
 
     /* For e.g. LD4, there are not enough arguments to pass all 4
      * registers as pointers, so encode the regno into the data field.
      * For consistency, do this even for LD1.
      */
-    desc = tcg_const_i32(simd_desc(vsz, vsz, zt));
+    desc = sve_memopidx(s, dtype);
+    desc |= zt << MEMOPIDX_SHIFT;
+    desc = simd_desc(vsz, vsz, desc);
+    t_desc = tcg_const_i32(desc);
     t_pg = tcg_temp_new_ptr();
 
     tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
-    fn(cpu_env, t_pg, addr, desc);
+    fn(cpu_env, t_pg, addr, t_desc);
 
     tcg_temp_free_ptr(t_pg);
-    tcg_temp_free_i32(desc);
+    tcg_temp_free_i32(t_desc);
 }
 
 static void do_ld_zpa(DisasContext *s, int zt, int pg,
                       TCGv_i64 addr, int dtype, int nreg)
 {
-    static gen_helper_gvec_mem * const fns[16][4] = {
-        { gen_helper_sve_ld1bb_r, gen_helper_sve_ld2bb_r,
-          gen_helper_sve_ld3bb_r, gen_helper_sve_ld4bb_r },
-        { gen_helper_sve_ld1bhu_r, NULL, NULL, NULL },
-        { gen_helper_sve_ld1bsu_r, NULL, NULL, NULL },
-        { gen_helper_sve_ld1bdu_r, NULL, NULL, NULL },
+    static gen_helper_gvec_mem * const fns[2][16][4] = {
+        /* Little-endian */
+        { { gen_helper_sve_ld1bb_r, gen_helper_sve_ld2bb_r,
+            gen_helper_sve_ld3bb_r, gen_helper_sve_ld4bb_r },
+          { gen_helper_sve_ld1bhu_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1bsu_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1bdu_r, NULL, NULL, NULL },
 
-        { gen_helper_sve_ld1sds_r, NULL, NULL, NULL },
-        { gen_helper_sve_ld1hh_r, gen_helper_sve_ld2hh_r,
-          gen_helper_sve_ld3hh_r, gen_helper_sve_ld4hh_r },
-        { gen_helper_sve_ld1hsu_r, NULL, NULL, NULL },
-        { gen_helper_sve_ld1hdu_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1sds_le_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1hh_le_r, gen_helper_sve_ld2hh_le_r,
+            gen_helper_sve_ld3hh_le_r, gen_helper_sve_ld4hh_le_r },
+          { gen_helper_sve_ld1hsu_le_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1hdu_le_r, NULL, NULL, NULL },
 
-        { gen_helper_sve_ld1hds_r, NULL, NULL, NULL },
-        { gen_helper_sve_ld1hss_r, NULL, NULL, NULL },
-        { gen_helper_sve_ld1ss_r, gen_helper_sve_ld2ss_r,
-          gen_helper_sve_ld3ss_r, gen_helper_sve_ld4ss_r },
-        { gen_helper_sve_ld1sdu_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1hds_le_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1hss_le_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1ss_le_r, gen_helper_sve_ld2ss_le_r,
+            gen_helper_sve_ld3ss_le_r, gen_helper_sve_ld4ss_le_r },
+          { gen_helper_sve_ld1sdu_le_r, NULL, NULL, NULL },
 
-        { gen_helper_sve_ld1bds_r, NULL, NULL, NULL },
-        { gen_helper_sve_ld1bss_r, NULL, NULL, NULL },
-        { gen_helper_sve_ld1bhs_r, NULL, NULL, NULL },
-        { gen_helper_sve_ld1dd_r, gen_helper_sve_ld2dd_r,
-          gen_helper_sve_ld3dd_r, gen_helper_sve_ld4dd_r },
+          { gen_helper_sve_ld1bds_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1bss_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1bhs_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1dd_le_r, gen_helper_sve_ld2dd_le_r,
+            gen_helper_sve_ld3dd_le_r, gen_helper_sve_ld4dd_le_r } },
+
+        /* Big-endian */
+        { { gen_helper_sve_ld1bb_r, gen_helper_sve_ld2bb_r,
+            gen_helper_sve_ld3bb_r, gen_helper_sve_ld4bb_r },
+          { gen_helper_sve_ld1bhu_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1bsu_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1bdu_r, NULL, NULL, NULL },
+
+          { gen_helper_sve_ld1sds_be_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1hh_be_r, gen_helper_sve_ld2hh_be_r,
+            gen_helper_sve_ld3hh_be_r, gen_helper_sve_ld4hh_be_r },
+          { gen_helper_sve_ld1hsu_be_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1hdu_be_r, NULL, NULL, NULL },
+
+          { gen_helper_sve_ld1hds_be_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1hss_be_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1ss_be_r, gen_helper_sve_ld2ss_be_r,
+            gen_helper_sve_ld3ss_be_r, gen_helper_sve_ld4ss_be_r },
+          { gen_helper_sve_ld1sdu_be_r, NULL, NULL, NULL },
+
+          { gen_helper_sve_ld1bds_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1bss_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1bhs_r, NULL, NULL, NULL },
+          { gen_helper_sve_ld1dd_be_r, gen_helper_sve_ld2dd_be_r,
+            gen_helper_sve_ld3dd_be_r, gen_helper_sve_ld4dd_be_r } }
     };
-    gen_helper_gvec_mem *fn = fns[dtype][nreg];
+    gen_helper_gvec_mem *fn = fns[s->be_data == MO_BE][dtype][nreg];
 
     /* While there are holes in the table, they are not
      * accessible via the instruction encoding.
      */
     assert(fn != NULL);
-    do_mem_zpa(s, zt, pg, addr, fn);
+    do_mem_zpa(s, zt, pg, addr, dtype, fn);
 }
 
 static bool trans_LD_zprr(DisasContext *s, arg_rprr_load *a, uint32_t insn)
@@ -4689,59 +4724,104 @@ static bool trans_LD_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
 
 static bool trans_LDFF1_zprr(DisasContext *s, arg_rprr_load *a, uint32_t insn)
 {
-    static gen_helper_gvec_mem * const fns[16] = {
-        gen_helper_sve_ldff1bb_r,
-        gen_helper_sve_ldff1bhu_r,
-        gen_helper_sve_ldff1bsu_r,
-        gen_helper_sve_ldff1bdu_r,
+    static gen_helper_gvec_mem * const fns[2][16] = {
+        /* Little-endian */
+        { gen_helper_sve_ldff1bb_r,
+          gen_helper_sve_ldff1bhu_r,
+          gen_helper_sve_ldff1bsu_r,
+          gen_helper_sve_ldff1bdu_r,
 
-        gen_helper_sve_ldff1sds_r,
-        gen_helper_sve_ldff1hh_r,
-        gen_helper_sve_ldff1hsu_r,
-        gen_helper_sve_ldff1hdu_r,
+          gen_helper_sve_ldff1sds_le_r,
+          gen_helper_sve_ldff1hh_le_r,
+          gen_helper_sve_ldff1hsu_le_r,
+          gen_helper_sve_ldff1hdu_le_r,
 
-        gen_helper_sve_ldff1hds_r,
-        gen_helper_sve_ldff1hss_r,
-        gen_helper_sve_ldff1ss_r,
-        gen_helper_sve_ldff1sdu_r,
+          gen_helper_sve_ldff1hds_le_r,
+          gen_helper_sve_ldff1hss_le_r,
+          gen_helper_sve_ldff1ss_le_r,
+          gen_helper_sve_ldff1sdu_le_r,
 
-        gen_helper_sve_ldff1bds_r,
-        gen_helper_sve_ldff1bss_r,
-        gen_helper_sve_ldff1bhs_r,
-        gen_helper_sve_ldff1dd_r,
+          gen_helper_sve_ldff1bds_r,
+          gen_helper_sve_ldff1bss_r,
+          gen_helper_sve_ldff1bhs_r,
+          gen_helper_sve_ldff1dd_le_r },
+
+        /* Big-endian */
+        { gen_helper_sve_ldff1bb_r,
+          gen_helper_sve_ldff1bhu_r,
+          gen_helper_sve_ldff1bsu_r,
+          gen_helper_sve_ldff1bdu_r,
+
+          gen_helper_sve_ldff1sds_be_r,
+          gen_helper_sve_ldff1hh_be_r,
+          gen_helper_sve_ldff1hsu_be_r,
+          gen_helper_sve_ldff1hdu_be_r,
+
+          gen_helper_sve_ldff1hds_be_r,
+          gen_helper_sve_ldff1hss_be_r,
+          gen_helper_sve_ldff1ss_be_r,
+          gen_helper_sve_ldff1sdu_be_r,
+
+          gen_helper_sve_ldff1bds_r,
+          gen_helper_sve_ldff1bss_r,
+          gen_helper_sve_ldff1bhs_r,
+          gen_helper_sve_ldff1dd_be_r },
     };
 
     if (sve_access_check(s)) {
         TCGv_i64 addr = new_tmp_a64(s);
         tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), dtype_msz(a->dtype));
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
-        do_mem_zpa(s, a->rd, a->pg, addr, fns[a->dtype]);
+        do_mem_zpa(s, a->rd, a->pg, addr, a->dtype,
+                   fns[s->be_data == MO_BE][a->dtype]);
     }
     return true;
 }
 
 static bool trans_LDNF1_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
 {
-    static gen_helper_gvec_mem * const fns[16] = {
-        gen_helper_sve_ldnf1bb_r,
-        gen_helper_sve_ldnf1bhu_r,
-        gen_helper_sve_ldnf1bsu_r,
-        gen_helper_sve_ldnf1bdu_r,
+    static gen_helper_gvec_mem * const fns[2][16] = {
+        /* Little-endian */
+        { gen_helper_sve_ldnf1bb_r,
+          gen_helper_sve_ldnf1bhu_r,
+          gen_helper_sve_ldnf1bsu_r,
+          gen_helper_sve_ldnf1bdu_r,
 
-        gen_helper_sve_ldnf1sds_r,
-        gen_helper_sve_ldnf1hh_r,
-        gen_helper_sve_ldnf1hsu_r,
-        gen_helper_sve_ldnf1hdu_r,
+          gen_helper_sve_ldnf1sds_le_r,
+          gen_helper_sve_ldnf1hh_le_r,
+          gen_helper_sve_ldnf1hsu_le_r,
+          gen_helper_sve_ldnf1hdu_le_r,
 
-        gen_helper_sve_ldnf1hds_r,
-        gen_helper_sve_ldnf1hss_r,
-        gen_helper_sve_ldnf1ss_r,
-        gen_helper_sve_ldnf1sdu_r,
+          gen_helper_sve_ldnf1hds_le_r,
+          gen_helper_sve_ldnf1hss_le_r,
+          gen_helper_sve_ldnf1ss_le_r,
+          gen_helper_sve_ldnf1sdu_le_r,
 
-        gen_helper_sve_ldnf1bds_r,
-        gen_helper_sve_ldnf1bss_r,
-        gen_helper_sve_ldnf1bhs_r,
-        gen_helper_sve_ldnf1dd_r,
+          gen_helper_sve_ldnf1bds_r,
+          gen_helper_sve_ldnf1bss_r,
+          gen_helper_sve_ldnf1bhs_r,
+          gen_helper_sve_ldnf1dd_le_r },
+
+        /* Big-endian */
+        { gen_helper_sve_ldnf1bb_r,
+          gen_helper_sve_ldnf1bhu_r,
+          gen_helper_sve_ldnf1bsu_r,
+          gen_helper_sve_ldnf1bdu_r,
+
+          gen_helper_sve_ldnf1sds_be_r,
+          gen_helper_sve_ldnf1hh_be_r,
+          gen_helper_sve_ldnf1hsu_be_r,
+          gen_helper_sve_ldnf1hdu_be_r,
+
+          gen_helper_sve_ldnf1hds_be_r,
+          gen_helper_sve_ldnf1hss_be_r,
+          gen_helper_sve_ldnf1ss_be_r,
+          gen_helper_sve_ldnf1sdu_be_r,
+
+          gen_helper_sve_ldnf1bds_r,
+          gen_helper_sve_ldnf1bss_r,
+          gen_helper_sve_ldnf1bhs_r,
+          gen_helper_sve_ldnf1dd_be_r },
     };
 
     if (sve_access_check(s)) {
@@ -4751,30 +4831,57 @@ static bool trans_LDNF1_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
         TCGv_i64 addr = new_tmp_a64(s);
 
         tcg_gen_addi_i64(addr, cpu_reg_sp(s, a->rn), off);
-        do_mem_zpa(s, a->rd, a->pg, addr, fns[a->dtype]);
+        do_mem_zpa(s, a->rd, a->pg, addr, a->dtype,
+                   fns[s->be_data == MO_BE][a->dtype]);
     }
     return true;
 }
 
 static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int msz)
 {
-    static gen_helper_gvec_mem * const fns[4] = {
-        gen_helper_sve_ld1bb_r, gen_helper_sve_ld1hh_r,
-        gen_helper_sve_ld1ss_r, gen_helper_sve_ld1dd_r,
+    static gen_helper_gvec_mem * const fns[2][4] = {
+        { gen_helper_sve_ld1bb_r,    gen_helper_sve_ld1hh_le_r,
+          gen_helper_sve_ld1ss_le_r, gen_helper_sve_ld1dd_le_r },
+        { gen_helper_sve_ld1bb_r,    gen_helper_sve_ld1hh_be_r,
+          gen_helper_sve_ld1ss_be_r, gen_helper_sve_ld1dd_be_r },
     };
     unsigned vsz = vec_full_reg_size(s);
     TCGv_ptr t_pg;
-    TCGv_i32 desc;
+    TCGv_i32 t_desc;
+    int desc, poff;
 
     /* Load the first quadword using the normal predicated load helpers.  */
-    desc = tcg_const_i32(simd_desc(16, 16, zt));
-    t_pg = tcg_temp_new_ptr();
+    desc = sve_memopidx(s, msz_dtype(msz));
+    desc |= zt << MEMOPIDX_SHIFT;
+    desc = simd_desc(16, 16, desc);
+    t_desc = tcg_const_i32(desc);
 
-    tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
-    fns[msz](cpu_env, t_pg, addr, desc);
+    poff = pred_full_reg_offset(s, pg);
+    if (vsz > 16) {
+        /*
+         * Zero-extend the first 16 bits of the predicate into a temporary.
+         * This avoids triggering an assert making sure we don't have bits
+         * set within a predicate beyond VQ, but we have lowered VQ to 1
+         * for this load operation.
+         */
+        TCGv_i64 tmp = tcg_temp_new_i64();
+#ifdef HOST_WORDS_BIGENDIAN
+        poff += 6;
+#endif
+        tcg_gen_ld16u_i64(tmp, cpu_env, poff);
+
+        poff = offsetof(CPUARMState, vfp.preg_tmp);
+        tcg_gen_st_i64(tmp, cpu_env, poff);
+        tcg_temp_free_i64(tmp);
+    }
+
+    t_pg = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(t_pg, cpu_env, poff);
+
+    fns[s->be_data == MO_BE][msz](cpu_env, t_pg, addr, t_desc);
 
     tcg_temp_free_ptr(t_pg);
-    tcg_temp_free_i32(desc);
+    tcg_temp_free_i32(t_desc);
 
     /* Replicate that first quadword.  */
     if (vsz > 16) {
@@ -4860,35 +4967,73 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
 static void do_st_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
                       int msz, int esz, int nreg)
 {
-    static gen_helper_gvec_mem * const fn_single[4][4] = {
-        { gen_helper_sve_st1bb_r, gen_helper_sve_st1bh_r,
-          gen_helper_sve_st1bs_r, gen_helper_sve_st1bd_r },
-        { NULL,                   gen_helper_sve_st1hh_r,
-          gen_helper_sve_st1hs_r, gen_helper_sve_st1hd_r },
-        { NULL, NULL,
-          gen_helper_sve_st1ss_r, gen_helper_sve_st1sd_r },
-        { NULL, NULL, NULL, gen_helper_sve_st1dd_r },
+    static gen_helper_gvec_mem * const fn_single[2][4][4] = {
+        { { gen_helper_sve_st1bb_r,
+            gen_helper_sve_st1bh_r,
+            gen_helper_sve_st1bs_r,
+            gen_helper_sve_st1bd_r },
+          { NULL,
+            gen_helper_sve_st1hh_le_r,
+            gen_helper_sve_st1hs_le_r,
+            gen_helper_sve_st1hd_le_r },
+          { NULL, NULL,
+            gen_helper_sve_st1ss_le_r,
+            gen_helper_sve_st1sd_le_r },
+          { NULL, NULL, NULL,
+            gen_helper_sve_st1dd_le_r } },
+        { { gen_helper_sve_st1bb_r,
+            gen_helper_sve_st1bh_r,
+            gen_helper_sve_st1bs_r,
+            gen_helper_sve_st1bd_r },
+          { NULL,
+            gen_helper_sve_st1hh_be_r,
+            gen_helper_sve_st1hs_be_r,
+            gen_helper_sve_st1hd_be_r },
+          { NULL, NULL,
+            gen_helper_sve_st1ss_be_r,
+            gen_helper_sve_st1sd_be_r },
+          { NULL, NULL, NULL,
+            gen_helper_sve_st1dd_be_r } },
     };
-    static gen_helper_gvec_mem * const fn_multiple[3][4] = {
-        { gen_helper_sve_st2bb_r, gen_helper_sve_st2hh_r,
-          gen_helper_sve_st2ss_r, gen_helper_sve_st2dd_r },
-        { gen_helper_sve_st3bb_r, gen_helper_sve_st3hh_r,
-          gen_helper_sve_st3ss_r, gen_helper_sve_st3dd_r },
-        { gen_helper_sve_st4bb_r, gen_helper_sve_st4hh_r,
-          gen_helper_sve_st4ss_r, gen_helper_sve_st4dd_r },
+    static gen_helper_gvec_mem * const fn_multiple[2][3][4] = {
+        { { gen_helper_sve_st2bb_r,
+            gen_helper_sve_st2hh_le_r,
+            gen_helper_sve_st2ss_le_r,
+            gen_helper_sve_st2dd_le_r },
+          { gen_helper_sve_st3bb_r,
+            gen_helper_sve_st3hh_le_r,
+            gen_helper_sve_st3ss_le_r,
+            gen_helper_sve_st3dd_le_r },
+          { gen_helper_sve_st4bb_r,
+            gen_helper_sve_st4hh_le_r,
+            gen_helper_sve_st4ss_le_r,
+            gen_helper_sve_st4dd_le_r } },
+        { { gen_helper_sve_st2bb_r,
+            gen_helper_sve_st2hh_be_r,
+            gen_helper_sve_st2ss_be_r,
+            gen_helper_sve_st2dd_be_r },
+          { gen_helper_sve_st3bb_r,
+            gen_helper_sve_st3hh_be_r,
+            gen_helper_sve_st3ss_be_r,
+            gen_helper_sve_st3dd_be_r },
+          { gen_helper_sve_st4bb_r,
+            gen_helper_sve_st4hh_be_r,
+            gen_helper_sve_st4ss_be_r,
+            gen_helper_sve_st4dd_be_r } },
     };
     gen_helper_gvec_mem *fn;
+    int be = s->be_data == MO_BE;
 
     if (nreg == 0) {
         /* ST1 */
-        fn = fn_single[msz][esz];
+        fn = fn_single[be][msz][esz];
     } else {
         /* ST2, ST3, ST4 -- msz == esz, enforced by encoding */
         assert(msz == esz);
-        fn = fn_multiple[nreg - 1][msz];
+        fn = fn_multiple[be][nreg - 1][msz];
     }
     assert(fn != NULL);
-    do_mem_zpa(s, zt, pg, addr, fn);
+    do_mem_zpa(s, zt, pg, addr, msz_dtype(msz), fn);
 }
 
 static bool trans_ST_zprr(DisasContext *s, arg_rprr_store *a, uint32_t insn)
@@ -4926,111 +5071,203 @@ static bool trans_ST_zpri(DisasContext *s, arg_rpri_store *a, uint32_t insn)
  *** SVE gather loads / scatter stores
  */
 
-static void do_mem_zpz(DisasContext *s, int zt, int pg, int zm, int scale,
-                       TCGv_i64 scalar, gen_helper_gvec_mem_scatter *fn)
+static void do_mem_zpz(DisasContext *s, int zt, int pg, int zm,
+                       int scale, TCGv_i64 scalar, int msz,
+                       gen_helper_gvec_mem_scatter *fn)
 {
     unsigned vsz = vec_full_reg_size(s);
-    TCGv_i32 desc = tcg_const_i32(simd_desc(vsz, vsz, scale));
     TCGv_ptr t_zm = tcg_temp_new_ptr();
     TCGv_ptr t_pg = tcg_temp_new_ptr();
     TCGv_ptr t_zt = tcg_temp_new_ptr();
+    TCGv_i32 t_desc;
+    int desc;
+
+    desc = sve_memopidx(s, msz_dtype(msz));
+    desc |= scale << MEMOPIDX_SHIFT;
+    desc = simd_desc(vsz, vsz, desc);
+    t_desc = tcg_const_i32(desc);
 
     tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
     tcg_gen_addi_ptr(t_zm, cpu_env, vec_full_reg_offset(s, zm));
     tcg_gen_addi_ptr(t_zt, cpu_env, vec_full_reg_offset(s, zt));
-    fn(cpu_env, t_zt, t_pg, t_zm, scalar, desc);
+    fn(cpu_env, t_zt, t_pg, t_zm, scalar, t_desc);
 
     tcg_temp_free_ptr(t_zt);
     tcg_temp_free_ptr(t_zm);
     tcg_temp_free_ptr(t_pg);
-    tcg_temp_free_i32(desc);
+    tcg_temp_free_i32(t_desc);
 }
 
-/* Indexed by [ff][xs][u][msz].  */
-static gen_helper_gvec_mem_scatter * const gather_load_fn32[2][2][2][3] = {
-    { { { gen_helper_sve_ldbss_zsu,
-          gen_helper_sve_ldhss_zsu,
-          NULL, },
-        { gen_helper_sve_ldbsu_zsu,
-          gen_helper_sve_ldhsu_zsu,
-          gen_helper_sve_ldssu_zsu, } },
-      { { gen_helper_sve_ldbss_zss,
-          gen_helper_sve_ldhss_zss,
-          NULL, },
-        { gen_helper_sve_ldbsu_zss,
-          gen_helper_sve_ldhsu_zss,
-          gen_helper_sve_ldssu_zss, } } },
+/* Indexed by [be][ff][xs][u][msz].  */
+static gen_helper_gvec_mem_scatter * const gather_load_fn32[2][2][2][2][3] = {
+    /* Little-endian */
+    { { { { gen_helper_sve_ldbss_zsu,
+            gen_helper_sve_ldhss_le_zsu,
+            NULL, },
+          { gen_helper_sve_ldbsu_zsu,
+            gen_helper_sve_ldhsu_le_zsu,
+            gen_helper_sve_ldss_le_zsu, } },
+        { { gen_helper_sve_ldbss_zss,
+            gen_helper_sve_ldhss_le_zss,
+            NULL, },
+          { gen_helper_sve_ldbsu_zss,
+            gen_helper_sve_ldhsu_le_zss,
+            gen_helper_sve_ldss_le_zss, } } },
 
-    { { { gen_helper_sve_ldffbss_zsu,
-          gen_helper_sve_ldffhss_zsu,
-          NULL, },
-        { gen_helper_sve_ldffbsu_zsu,
-          gen_helper_sve_ldffhsu_zsu,
-          gen_helper_sve_ldffssu_zsu, } },
-      { { gen_helper_sve_ldffbss_zss,
-          gen_helper_sve_ldffhss_zss,
-          NULL, },
-        { gen_helper_sve_ldffbsu_zss,
-          gen_helper_sve_ldffhsu_zss,
-          gen_helper_sve_ldffssu_zss, } } }
+      /* First-fault */
+      { { { gen_helper_sve_ldffbss_zsu,
+            gen_helper_sve_ldffhss_le_zsu,
+            NULL, },
+          { gen_helper_sve_ldffbsu_zsu,
+            gen_helper_sve_ldffhsu_le_zsu,
+            gen_helper_sve_ldffss_le_zsu, } },
+        { { gen_helper_sve_ldffbss_zss,
+            gen_helper_sve_ldffhss_le_zss,
+            NULL, },
+          { gen_helper_sve_ldffbsu_zss,
+            gen_helper_sve_ldffhsu_le_zss,
+            gen_helper_sve_ldffss_le_zss, } } } },
+
+    /* Big-endian */
+    { { { { gen_helper_sve_ldbss_zsu,
+            gen_helper_sve_ldhss_be_zsu,
+            NULL, },
+          { gen_helper_sve_ldbsu_zsu,
+            gen_helper_sve_ldhsu_be_zsu,
+            gen_helper_sve_ldss_be_zsu, } },
+        { { gen_helper_sve_ldbss_zss,
+            gen_helper_sve_ldhss_be_zss,
+            NULL, },
+          { gen_helper_sve_ldbsu_zss,
+            gen_helper_sve_ldhsu_be_zss,
+            gen_helper_sve_ldss_be_zss, } } },
+
+      /* First-fault */
+      { { { gen_helper_sve_ldffbss_zsu,
+            gen_helper_sve_ldffhss_be_zsu,
+            NULL, },
+          { gen_helper_sve_ldffbsu_zsu,
+            gen_helper_sve_ldffhsu_be_zsu,
+            gen_helper_sve_ldffss_be_zsu, } },
+        { { gen_helper_sve_ldffbss_zss,
+            gen_helper_sve_ldffhss_be_zss,
+            NULL, },
+          { gen_helper_sve_ldffbsu_zss,
+            gen_helper_sve_ldffhsu_be_zss,
+            gen_helper_sve_ldffss_be_zss, } } } },
 };
 
 /* Note that we overload xs=2 to indicate 64-bit offset.  */
-static gen_helper_gvec_mem_scatter * const gather_load_fn64[2][3][2][4] = {
-    { { { gen_helper_sve_ldbds_zsu,
-          gen_helper_sve_ldhds_zsu,
-          gen_helper_sve_ldsds_zsu,
-          NULL, },
-        { gen_helper_sve_ldbdu_zsu,
-          gen_helper_sve_ldhdu_zsu,
-          gen_helper_sve_ldsdu_zsu,
-          gen_helper_sve_ldddu_zsu, } },
-      { { gen_helper_sve_ldbds_zss,
-          gen_helper_sve_ldhds_zss,
-          gen_helper_sve_ldsds_zss,
-          NULL, },
-        { gen_helper_sve_ldbdu_zss,
-          gen_helper_sve_ldhdu_zss,
-          gen_helper_sve_ldsdu_zss,
-          gen_helper_sve_ldddu_zss, } },
-      { { gen_helper_sve_ldbds_zd,
-          gen_helper_sve_ldhds_zd,
-          gen_helper_sve_ldsds_zd,
-          NULL, },
-        { gen_helper_sve_ldbdu_zd,
-          gen_helper_sve_ldhdu_zd,
-          gen_helper_sve_ldsdu_zd,
-          gen_helper_sve_ldddu_zd, } } },
+static gen_helper_gvec_mem_scatter * const gather_load_fn64[2][2][3][2][4] = {
+    /* Little-endian */
+    { { { { gen_helper_sve_ldbds_zsu,
+            gen_helper_sve_ldhds_le_zsu,
+            gen_helper_sve_ldsds_le_zsu,
+            NULL, },
+          { gen_helper_sve_ldbdu_zsu,
+            gen_helper_sve_ldhdu_le_zsu,
+            gen_helper_sve_ldsdu_le_zsu,
+            gen_helper_sve_lddd_le_zsu, } },
+        { { gen_helper_sve_ldbds_zss,
+            gen_helper_sve_ldhds_le_zss,
+            gen_helper_sve_ldsds_le_zss,
+            NULL, },
+          { gen_helper_sve_ldbdu_zss,
+            gen_helper_sve_ldhdu_le_zss,
+            gen_helper_sve_ldsdu_le_zss,
+            gen_helper_sve_lddd_le_zss, } },
+        { { gen_helper_sve_ldbds_zd,
+            gen_helper_sve_ldhds_le_zd,
+            gen_helper_sve_ldsds_le_zd,
+            NULL, },
+          { gen_helper_sve_ldbdu_zd,
+            gen_helper_sve_ldhdu_le_zd,
+            gen_helper_sve_ldsdu_le_zd,
+            gen_helper_sve_lddd_le_zd, } } },
 
-    { { { gen_helper_sve_ldffbds_zsu,
-          gen_helper_sve_ldffhds_zsu,
-          gen_helper_sve_ldffsds_zsu,
-          NULL, },
-        { gen_helper_sve_ldffbdu_zsu,
-          gen_helper_sve_ldffhdu_zsu,
-          gen_helper_sve_ldffsdu_zsu,
-          gen_helper_sve_ldffddu_zsu, } },
-      { { gen_helper_sve_ldffbds_zss,
-          gen_helper_sve_ldffhds_zss,
-          gen_helper_sve_ldffsds_zss,
-          NULL, },
-        { gen_helper_sve_ldffbdu_zss,
-          gen_helper_sve_ldffhdu_zss,
-          gen_helper_sve_ldffsdu_zss,
-          gen_helper_sve_ldffddu_zss, } },
-      { { gen_helper_sve_ldffbds_zd,
-          gen_helper_sve_ldffhds_zd,
-          gen_helper_sve_ldffsds_zd,
-          NULL, },
-        { gen_helper_sve_ldffbdu_zd,
-          gen_helper_sve_ldffhdu_zd,
-          gen_helper_sve_ldffsdu_zd,
-          gen_helper_sve_ldffddu_zd, } } }
+      /* First-fault */
+      { { { gen_helper_sve_ldffbds_zsu,
+            gen_helper_sve_ldffhds_le_zsu,
+            gen_helper_sve_ldffsds_le_zsu,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zsu,
+            gen_helper_sve_ldffhdu_le_zsu,
+            gen_helper_sve_ldffsdu_le_zsu,
+            gen_helper_sve_ldffdd_le_zsu, } },
+        { { gen_helper_sve_ldffbds_zss,
+            gen_helper_sve_ldffhds_le_zss,
+            gen_helper_sve_ldffsds_le_zss,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zss,
+            gen_helper_sve_ldffhdu_le_zss,
+            gen_helper_sve_ldffsdu_le_zss,
+            gen_helper_sve_ldffdd_le_zss, } },
+        { { gen_helper_sve_ldffbds_zd,
+            gen_helper_sve_ldffhds_le_zd,
+            gen_helper_sve_ldffsds_le_zd,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zd,
+            gen_helper_sve_ldffhdu_le_zd,
+            gen_helper_sve_ldffsdu_le_zd,
+            gen_helper_sve_ldffdd_le_zd, } } } },
+
+    /* Big-endian */
+    { { { { gen_helper_sve_ldbds_zsu,
+            gen_helper_sve_ldhds_be_zsu,
+            gen_helper_sve_ldsds_be_zsu,
+            NULL, },
+          { gen_helper_sve_ldbdu_zsu,
+            gen_helper_sve_ldhdu_be_zsu,
+            gen_helper_sve_ldsdu_be_zsu,
+            gen_helper_sve_lddd_be_zsu, } },
+        { { gen_helper_sve_ldbds_zss,
+            gen_helper_sve_ldhds_be_zss,
+            gen_helper_sve_ldsds_be_zss,
+            NULL, },
+          { gen_helper_sve_ldbdu_zss,
+            gen_helper_sve_ldhdu_be_zss,
+            gen_helper_sve_ldsdu_be_zss,
+            gen_helper_sve_lddd_be_zss, } },
+        { { gen_helper_sve_ldbds_zd,
+            gen_helper_sve_ldhds_be_zd,
+            gen_helper_sve_ldsds_be_zd,
+            NULL, },
+          { gen_helper_sve_ldbdu_zd,
+            gen_helper_sve_ldhdu_be_zd,
+            gen_helper_sve_ldsdu_be_zd,
+            gen_helper_sve_lddd_be_zd, } } },
+
+      /* First-fault */
+      { { { gen_helper_sve_ldffbds_zsu,
+            gen_helper_sve_ldffhds_be_zsu,
+            gen_helper_sve_ldffsds_be_zsu,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zsu,
+            gen_helper_sve_ldffhdu_be_zsu,
+            gen_helper_sve_ldffsdu_be_zsu,
+            gen_helper_sve_ldffdd_be_zsu, } },
+        { { gen_helper_sve_ldffbds_zss,
+            gen_helper_sve_ldffhds_be_zss,
+            gen_helper_sve_ldffsds_be_zss,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zss,
+            gen_helper_sve_ldffhdu_be_zss,
+            gen_helper_sve_ldffsdu_be_zss,
+            gen_helper_sve_ldffdd_be_zss, } },
+        { { gen_helper_sve_ldffbds_zd,
+            gen_helper_sve_ldffhds_be_zd,
+            gen_helper_sve_ldffsds_be_zd,
+            NULL, },
+          { gen_helper_sve_ldffbdu_zd,
+            gen_helper_sve_ldffhdu_be_zd,
+            gen_helper_sve_ldffsdu_be_zd,
+            gen_helper_sve_ldffdd_be_zd, } } } },
 };
 
 static bool trans_LD1_zprz(DisasContext *s, arg_LD1_zprz *a, uint32_t insn)
 {
     gen_helper_gvec_mem_scatter *fn = NULL;
+    int be = s->be_data == MO_BE;
 
     if (!sve_access_check(s)) {
         return true;
@@ -5038,22 +5275,23 @@ static bool trans_LD1_zprz(DisasContext *s, arg_LD1_zprz *a, uint32_t insn)
 
     switch (a->esz) {
     case MO_32:
-        fn = gather_load_fn32[a->ff][a->xs][a->u][a->msz];
+        fn = gather_load_fn32[be][a->ff][a->xs][a->u][a->msz];
         break;
     case MO_64:
-        fn = gather_load_fn64[a->ff][a->xs][a->u][a->msz];
+        fn = gather_load_fn64[be][a->ff][a->xs][a->u][a->msz];
         break;
     }
     assert(fn != NULL);
 
     do_mem_zpz(s, a->rd, a->pg, a->rm, a->scale * a->msz,
-               cpu_reg_sp(s, a->rn), fn);
+               cpu_reg_sp(s, a->rn), a->msz, fn);
     return true;
 }
 
 static bool trans_LD1_zpiz(DisasContext *s, arg_LD1_zpiz *a, uint32_t insn)
 {
     gen_helper_gvec_mem_scatter *fn = NULL;
+    int be = s->be_data == MO_BE;
     TCGv_i64 imm;
 
     if (a->esz < a->msz || (a->esz == a->msz && !a->u)) {
@@ -5065,10 +5303,10 @@ static bool trans_LD1_zpiz(DisasContext *s, arg_LD1_zpiz *a, uint32_t insn)
 
     switch (a->esz) {
     case MO_32:
-        fn = gather_load_fn32[a->ff][0][a->u][a->msz];
+        fn = gather_load_fn32[be][a->ff][0][a->u][a->msz];
         break;
     case MO_64:
-        fn = gather_load_fn64[a->ff][2][a->u][a->msz];
+        fn = gather_load_fn64[be][a->ff][2][a->u][a->msz];
         break;
     }
     assert(fn != NULL);
@@ -5077,40 +5315,63 @@ static bool trans_LD1_zpiz(DisasContext *s, arg_LD1_zpiz *a, uint32_t insn)
      * by loading the immediate into the scalar parameter.
      */
     imm = tcg_const_i64(a->imm << a->msz);
-    do_mem_zpz(s, a->rd, a->pg, a->rn, 0, imm, fn);
+    do_mem_zpz(s, a->rd, a->pg, a->rn, 0, imm, a->msz, fn);
     tcg_temp_free_i64(imm);
     return true;
 }
 
-/* Indexed by [xs][msz].  */
-static gen_helper_gvec_mem_scatter * const scatter_store_fn32[2][3] = {
-    { gen_helper_sve_stbs_zsu,
-      gen_helper_sve_sths_zsu,
-      gen_helper_sve_stss_zsu, },
-    { gen_helper_sve_stbs_zss,
-      gen_helper_sve_sths_zss,
-      gen_helper_sve_stss_zss, },
+/* Indexed by [be][xs][msz].  */
+static gen_helper_gvec_mem_scatter * const scatter_store_fn32[2][2][3] = {
+    /* Little-endian */
+    { { gen_helper_sve_stbs_zsu,
+        gen_helper_sve_sths_le_zsu,
+        gen_helper_sve_stss_le_zsu, },
+      { gen_helper_sve_stbs_zss,
+        gen_helper_sve_sths_le_zss,
+        gen_helper_sve_stss_le_zss, } },
+    /* Big-endian */
+    { { gen_helper_sve_stbs_zsu,
+        gen_helper_sve_sths_be_zsu,
+        gen_helper_sve_stss_be_zsu, },
+      { gen_helper_sve_stbs_zss,
+        gen_helper_sve_sths_be_zss,
+        gen_helper_sve_stss_be_zss, } },
 };
 
 /* Note that we overload xs=2 to indicate 64-bit offset.  */
-static gen_helper_gvec_mem_scatter * const scatter_store_fn64[3][4] = {
-    { gen_helper_sve_stbd_zsu,
-      gen_helper_sve_sthd_zsu,
-      gen_helper_sve_stsd_zsu,
-      gen_helper_sve_stdd_zsu, },
-    { gen_helper_sve_stbd_zss,
-      gen_helper_sve_sthd_zss,
-      gen_helper_sve_stsd_zss,
-      gen_helper_sve_stdd_zss, },
-    { gen_helper_sve_stbd_zd,
-      gen_helper_sve_sthd_zd,
-      gen_helper_sve_stsd_zd,
-      gen_helper_sve_stdd_zd, },
+static gen_helper_gvec_mem_scatter * const scatter_store_fn64[2][3][4] = {
+    /* Little-endian */
+    { { gen_helper_sve_stbd_zsu,
+        gen_helper_sve_sthd_le_zsu,
+        gen_helper_sve_stsd_le_zsu,
+        gen_helper_sve_stdd_le_zsu, },
+      { gen_helper_sve_stbd_zss,
+        gen_helper_sve_sthd_le_zss,
+        gen_helper_sve_stsd_le_zss,
+        gen_helper_sve_stdd_le_zss, },
+      { gen_helper_sve_stbd_zd,
+        gen_helper_sve_sthd_le_zd,
+        gen_helper_sve_stsd_le_zd,
+        gen_helper_sve_stdd_le_zd, } },
+    /* Big-endian */
+    { { gen_helper_sve_stbd_zsu,
+        gen_helper_sve_sthd_be_zsu,
+        gen_helper_sve_stsd_be_zsu,
+        gen_helper_sve_stdd_be_zsu, },
+      { gen_helper_sve_stbd_zss,
+        gen_helper_sve_sthd_be_zss,
+        gen_helper_sve_stsd_be_zss,
+        gen_helper_sve_stdd_be_zss, },
+      { gen_helper_sve_stbd_zd,
+        gen_helper_sve_sthd_be_zd,
+        gen_helper_sve_stsd_be_zd,
+        gen_helper_sve_stdd_be_zd, } },
 };
 
 static bool trans_ST1_zprz(DisasContext *s, arg_ST1_zprz *a, uint32_t insn)
 {
     gen_helper_gvec_mem_scatter *fn;
+    int be = s->be_data == MO_BE;
 
     if (a->esz < a->msz || (a->msz == 0 && a->scale)) {
         return false;
@@ -5120,22 +5381,23 @@ static bool trans_ST1_zprz(DisasContext *s, arg_ST1_zprz *a, uint32_t insn)
     }
     switch (a->esz) {
     case MO_32:
-        fn = scatter_store_fn32[a->xs][a->msz];
+        fn = scatter_store_fn32[be][a->xs][a->msz];
         break;
     case MO_64:
-        fn = scatter_store_fn64[a->xs][a->msz];
+        fn = scatter_store_fn64[be][a->xs][a->msz];
         break;
     default:
         g_assert_not_reached();
     }
     do_mem_zpz(s, a->rd, a->pg, a->rm, a->scale * a->msz,
-               cpu_reg_sp(s, a->rn), fn);
+               cpu_reg_sp(s, a->rn), a->msz, fn);
     return true;
 }
 
 static bool trans_ST1_zpiz(DisasContext *s, arg_ST1_zpiz *a, uint32_t insn)
 {
     gen_helper_gvec_mem_scatter *fn = NULL;
+    int be = s->be_data == MO_BE;
     TCGv_i64 imm;
 
     if (a->esz < a->msz) {
@@ -5147,10 +5409,10 @@ static bool trans_ST1_zpiz(DisasContext *s, arg_ST1_zpiz *a, uint32_t insn)
 
     switch (a->esz) {
     case MO_32:
-        fn = scatter_store_fn32[0][a->msz];
+        fn = scatter_store_fn32[be][0][a->msz];
         break;
     case MO_64:
-        fn = scatter_store_fn64[2][a->msz];
+        fn = scatter_store_fn64[be][2][a->msz];
         break;
     }
     assert(fn != NULL);
@@ -5159,7 +5421,7 @@ static bool trans_ST1_zpiz(DisasContext *s, arg_ST1_zpiz *a, uint32_t insn)
      * by loading the immediate into the scalar parameter.
      */
     imm = tcg_const_i64(a->imm << a->msz);
-    do_mem_zpz(s, a->rd, a->pg, a->rn, 0, imm, fn);
+    do_mem_zpz(s, a->rd, a->pg, a->rn, 0, imm, a->msz, fn);
     tcg_temp_free_i64(imm);
     return true;
 }
