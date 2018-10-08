@@ -793,9 +793,9 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_BX     0x40000 /* branch exchanges execution mode    */
 #define MIPS_HFLAG_BMASK  (MIPS_HFLAG_BMASK_BASE | MIPS_HFLAG_BMASK_EXT)
     /* MIPS DSP resources access. */
-#define MIPS_HFLAG_DSP   0x080000  /* Enable access to MIPS DSP resources. */
-#define MIPS_HFLAG_DSPR2 0x100000  /* Enable access to MIPS DSPR2 resources. */
-#define MIPS_HFLAG_DSPR3 0x20000000 /* Enable access to MIPS DSPR3 resources.*/
+#define MIPS_HFLAG_DSP    0x080000   /* Enable access to DSP resources.    */
+#define MIPS_HFLAG_DSP_R2 0x100000   /* Enable access to DSP R2 resources. */
+#define MIPS_HFLAG_DSP_R3 0x20000000 /* Enable access to DSP R3 resources. */
     /* Extra flag about HWREna register. */
 #define MIPS_HFLAG_HWRENA_ULR 0x200000 /* ULR bit from HWREna is set. */
 #define MIPS_HFLAG_SBRI  0x400000 /* R6 SDBBP causes RI excpt. in user mode */

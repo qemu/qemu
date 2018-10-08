@@ -306,8 +306,8 @@ static inline void compute_hflags(CPUMIPSState *env)
 {
     env->hflags &= ~(MIPS_HFLAG_COP1X | MIPS_HFLAG_64 | MIPS_HFLAG_CP0 |
                      MIPS_HFLAG_F64 | MIPS_HFLAG_FPU | MIPS_HFLAG_KSU |
-                     MIPS_HFLAG_AWRAP | MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2 |
-                     MIPS_HFLAG_DSPR3 | MIPS_HFLAG_SBRI | MIPS_HFLAG_MSA |
+                     MIPS_HFLAG_AWRAP | MIPS_HFLAG_DSP | MIPS_HFLAG_DSP_R2 |
+                     MIPS_HFLAG_DSP_R3 | MIPS_HFLAG_SBRI | MIPS_HFLAG_MSA |
                      MIPS_HFLAG_FRE | MIPS_HFLAG_ELPA | MIPS_HFLAG_ERL);
     if (env->CP0_Status & (1 << CP0St_ERL)) {
         env->hflags |= MIPS_HFLAG_ERL;
@@ -355,21 +355,29 @@ static inline void compute_hflags(CPUMIPSState *env)
         (env->CP0_Config5 & (1 << CP0C5_SBRI))) {
         env->hflags |= MIPS_HFLAG_SBRI;
     }
-    if (env->insn_flags & ASE_DSPR3) {
+    if (env->insn_flags & ASE_DSP_R3) {
+        /*
+         * Our cpu supports DSP R3 ASE, so enable
+         * access to DSP R3 resources.
+         */
         if (env->CP0_Status & (1 << CP0St_MX)) {
-            env->hflags |= MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2 |
-                           MIPS_HFLAG_DSPR3;
+            env->hflags |= MIPS_HFLAG_DSP | MIPS_HFLAG_DSP_R2 |
+                           MIPS_HFLAG_DSP_R3;
         }
-    } else if (env->insn_flags & ASE_DSPR2) {
-        /* Enables access MIPS DSP resources, now our cpu is DSP ASER2,
-           so enable to access DSPR2 resources. */
+    } else if (env->insn_flags & ASE_DSP_R2) {
+        /*
+         * Our cpu supports DSP R2 ASE, so enable
+         * access to DSP R2 resources.
+         */
         if (env->CP0_Status & (1 << CP0St_MX)) {
-            env->hflags |= MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2;
+            env->hflags |= MIPS_HFLAG_DSP | MIPS_HFLAG_DSP_R2;
         }
 
     } else if (env->insn_flags & ASE_DSP) {
-        /* Enables access MIPS DSP resources, now our cpu is DSP ASE,
-           so enable to access DSP resources. */
+        /*
+         * Our cpu supports DSP ASE, so enable
+         * access to DSP resources.
+         */
         if (env->CP0_Status & (1 << CP0St_MX)) {
             env->hflags |= MIPS_HFLAG_DSP;
         }
