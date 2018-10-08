@@ -94,6 +94,15 @@ FIELD(V7M_EXCRET, RES1, 7, 25) /* including the must-be-1 prefix */
 #define M_FAKE_FSR_NSC_EXEC 0xf /* NS executing in S&NSC memory */
 #define M_FAKE_FSR_SFAULT 0xe /* SecureFault INVTRAN, INVEP or AUVIOL */
 
+/**
+ * raise_exception: Raise the specified exception.
+ * Raise a guest exception with the specified value, syndrome register
+ * and target exception level. This should be called from helper functions,
+ * and never returns because we will longjump back up to the CPU main loop.
+ */
+void QEMU_NORETURN raise_exception(CPUARMState *env, uint32_t excp,
+                                   uint32_t syndrome, uint32_t target_el);
+
 /*
  * For AArch64, map a given EL to an index in the banked_spsr array.
  * Note that this mapping and the AArch32 mapping defined in bank_number()

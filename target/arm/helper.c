@@ -6738,6 +6738,10 @@ void HELPER(v7m_blxns)(CPUARMState *env, uint32_t dest)
                       "BLXNS with misaligned SP is UNPREDICTABLE\n");
     }
 
+    if (sp < v7m_sp_limit(env)) {
+        raise_exception(env, EXCP_STKOF, 0, 1);
+    }
+
     saved_psr = env->v7m.exception;
     if (env->v7m.control[M_REG_S] & R_V7M_CONTROL_SFPA_MASK) {
         saved_psr |= XPSR_SFPA;
