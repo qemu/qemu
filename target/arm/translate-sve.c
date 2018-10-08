@@ -4953,32 +4953,70 @@ static bool trans_LD1R_zpri(DisasContext *s, arg_rpri_load *a, uint32_t insn)
 static void do_st_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
                       int msz, int esz, int nreg)
 {
-    static gen_helper_gvec_mem * const fn_single[4][4] = {
-        { gen_helper_sve_st1bb_r, gen_helper_sve_st1bh_r,
-          gen_helper_sve_st1bs_r, gen_helper_sve_st1bd_r },
-        { NULL,                   gen_helper_sve_st1hh_r,
-          gen_helper_sve_st1hs_r, gen_helper_sve_st1hd_r },
-        { NULL, NULL,
-          gen_helper_sve_st1ss_r, gen_helper_sve_st1sd_r },
-        { NULL, NULL, NULL, gen_helper_sve_st1dd_r },
+    static gen_helper_gvec_mem * const fn_single[2][4][4] = {
+        { { gen_helper_sve_st1bb_r,
+            gen_helper_sve_st1bh_r,
+            gen_helper_sve_st1bs_r,
+            gen_helper_sve_st1bd_r },
+          { NULL,
+            gen_helper_sve_st1hh_le_r,
+            gen_helper_sve_st1hs_le_r,
+            gen_helper_sve_st1hd_le_r },
+          { NULL, NULL,
+            gen_helper_sve_st1ss_le_r,
+            gen_helper_sve_st1sd_le_r },
+          { NULL, NULL, NULL,
+            gen_helper_sve_st1dd_le_r } },
+        { { gen_helper_sve_st1bb_r,
+            gen_helper_sve_st1bh_r,
+            gen_helper_sve_st1bs_r,
+            gen_helper_sve_st1bd_r },
+          { NULL,
+            gen_helper_sve_st1hh_be_r,
+            gen_helper_sve_st1hs_be_r,
+            gen_helper_sve_st1hd_be_r },
+          { NULL, NULL,
+            gen_helper_sve_st1ss_be_r,
+            gen_helper_sve_st1sd_be_r },
+          { NULL, NULL, NULL,
+            gen_helper_sve_st1dd_be_r } },
     };
-    static gen_helper_gvec_mem * const fn_multiple[3][4] = {
-        { gen_helper_sve_st2bb_r, gen_helper_sve_st2hh_r,
-          gen_helper_sve_st2ss_r, gen_helper_sve_st2dd_r },
-        { gen_helper_sve_st3bb_r, gen_helper_sve_st3hh_r,
-          gen_helper_sve_st3ss_r, gen_helper_sve_st3dd_r },
-        { gen_helper_sve_st4bb_r, gen_helper_sve_st4hh_r,
-          gen_helper_sve_st4ss_r, gen_helper_sve_st4dd_r },
+    static gen_helper_gvec_mem * const fn_multiple[2][3][4] = {
+        { { gen_helper_sve_st2bb_r,
+            gen_helper_sve_st2hh_le_r,
+            gen_helper_sve_st2ss_le_r,
+            gen_helper_sve_st2dd_le_r },
+          { gen_helper_sve_st3bb_r,
+            gen_helper_sve_st3hh_le_r,
+            gen_helper_sve_st3ss_le_r,
+            gen_helper_sve_st3dd_le_r },
+          { gen_helper_sve_st4bb_r,
+            gen_helper_sve_st4hh_le_r,
+            gen_helper_sve_st4ss_le_r,
+            gen_helper_sve_st4dd_le_r } },
+        { { gen_helper_sve_st2bb_r,
+            gen_helper_sve_st2hh_be_r,
+            gen_helper_sve_st2ss_be_r,
+            gen_helper_sve_st2dd_be_r },
+          { gen_helper_sve_st3bb_r,
+            gen_helper_sve_st3hh_be_r,
+            gen_helper_sve_st3ss_be_r,
+            gen_helper_sve_st3dd_be_r },
+          { gen_helper_sve_st4bb_r,
+            gen_helper_sve_st4hh_be_r,
+            gen_helper_sve_st4ss_be_r,
+            gen_helper_sve_st4dd_be_r } },
     };
     gen_helper_gvec_mem *fn;
+    int be = s->be_data == MO_BE;
 
     if (nreg == 0) {
         /* ST1 */
-        fn = fn_single[msz][esz];
+        fn = fn_single[be][msz][esz];
     } else {
         /* ST2, ST3, ST4 -- msz == esz, enforced by encoding */
         assert(msz == esz);
-        fn = fn_multiple[nreg - 1][msz];
+        fn = fn_multiple[be][nreg - 1][msz];
     }
     assert(fn != NULL);
     do_mem_zpa(s, zt, pg, addr, fn);

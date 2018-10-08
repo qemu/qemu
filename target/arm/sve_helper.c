@@ -4836,12 +4836,17 @@ void __attribute__((flatten)) HELPER(sve_st##N##NAME##_r)           \
 }
 
 #define DO_STN_2(N, NAME, ESIZE, MSIZE) \
-void __attribute__((flatten)) HELPER(sve_st##N##NAME##_r)             \
+void __attribute__((flatten)) HELPER(sve_st##N##NAME##_le_r)          \
     (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
 {                                                                     \
     sve_st##N##_r(env, vg, addr, desc, GETPC(), ESIZE, MSIZE,         \
-                  arm_cpu_data_is_big_endian(env)                     \
-                  ? sve_st1##NAME##_be_tlb : sve_st1##NAME##_le_tlb); \
+                  sve_st1##NAME##_le_tlb);                            \
+}                                                                     \
+void __attribute__((flatten)) HELPER(sve_st##N##NAME##_be_r)          \
+    (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
+{                                                                     \
+    sve_st##N##_r(env, vg, addr, desc, GETPC(), ESIZE, MSIZE,         \
+                  sve_st1##NAME##_be_tlb);                            \
 }
 
 DO_STN_1(1, bb, 1)
