@@ -5136,61 +5136,100 @@ DO_LDFF1_ZPZ_D(sve_ldffsds_zd, uint64_t, int32_t,  cpu_ldl_data_ra)
 
 /* Stores with a vector index.  */
 
-#define DO_ST1_ZPZ_S(NAME, TYPEI, FN)                                   \
-void HELPER(NAME)(CPUARMState *env, void *vd, void *vg, void *vm,       \
-                  target_ulong base, uint32_t desc)                     \
-{                                                                       \
-    intptr_t i, oprsz = simd_oprsz(desc);                               \
-    unsigned scale = simd_data(desc);                                   \
-    uintptr_t ra = GETPC();                                             \
-    for (i = 0; i < oprsz; ) {                                          \
-        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));                 \
-        do {                                                            \
-            if (likely(pg & 1)) {                                       \
-                target_ulong off = *(TYPEI *)(vm + H1_4(i));            \
-                uint32_t d = *(uint32_t *)(vd + H1_4(i));               \
-                FN(env, base + (off << scale), d, ra);                  \
-            }                                                           \
-            i += sizeof(uint32_t), pg >>= sizeof(uint32_t);             \
-        } while (i & 15);                                               \
-    }                                                                   \
+static void sve_st1_zs(CPUARMState *env, void *vd, void *vg, void *vm,
+                       target_ulong base, uint32_t desc, uintptr_t ra,
+                       zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
+{
+    const int mmu_idx = cpu_mmu_index(env, false);
+    intptr_t i, oprsz = simd_oprsz(desc);
+    unsigned scale = simd_data(desc);
+
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; ) {
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));
+        do {
+            if (likely(pg & 1)) {
+                target_ulong off = off_fn(vm, i);
+                tlb_fn(env, vd, i, base + (off << scale), mmu_idx, ra);
+            }
+            i += 4, pg >>= 4;
+        } while (i & 15);
+    }
+    set_helper_retaddr(0);
 }
 
-#define DO_ST1_ZPZ_D(NAME, TYPEI, FN)                                   \
-void HELPER(NAME)(CPUARMState *env, void *vd, void *vg, void *vm,       \
-                  target_ulong base, uint32_t desc)                     \
-{                                                                       \
-    intptr_t i, oprsz = simd_oprsz(desc) / 8;                           \
-    unsigned scale = simd_data(desc);                                   \
-    uintptr_t ra = GETPC();                                             \
-    uint64_t *d = vd, *m = vm; uint8_t *pg = vg;                        \
-    for (i = 0; i < oprsz; i++) {                                       \
-        if (likely(pg[H1(i)] & 1)) {                                    \
-            target_ulong off = (target_ulong)(TYPEI)m[i] << scale;      \
-            FN(env, base + off, d[i], ra);                              \
-        }                                                               \
-    }                                                                   \
+static void sve_st1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
+                       target_ulong base, uint32_t desc, uintptr_t ra,
+                       zreg_off_fn *off_fn, sve_ld1_tlb_fn *tlb_fn)
+{
+    const int mmu_idx = cpu_mmu_index(env, false);
+    intptr_t i, oprsz = simd_oprsz(desc) / 8;
+    unsigned scale = simd_data(desc);
+
+    set_helper_retaddr(ra);
+    for (i = 0; i < oprsz; i++) {
+        uint8_t pg = *(uint8_t *)(vg + H1(i));
+        if (likely(pg & 1)) {
+            target_ulong off = off_fn(vm, i * 8);
+            tlb_fn(env, vd, i * 8, base + (off << scale), mmu_idx, ra);
+        }
+    }
+    set_helper_retaddr(0);
 }
 
-DO_ST1_ZPZ_S(sve_stbs_zsu, uint32_t, cpu_stb_data_ra)
-DO_ST1_ZPZ_S(sve_sths_zsu, uint32_t, cpu_stw_data_ra)
-DO_ST1_ZPZ_S(sve_stss_zsu, uint32_t, cpu_stl_data_ra)
+#define DO_ST1_ZPZ_S(MEM, OFS) \
+void __attribute__((flatten)) HELPER(sve_st##MEM##_##OFS)    \
+    (CPUARMState *env, void *vd, void *vg, void *vm,         \
+     target_ulong base, uint32_t desc)                       \
+{                                                            \
+    sve_st1_zs(env, vd, vg, vm, base, desc, GETPC(),         \
+              off_##OFS##_s, sve_st1##MEM##_tlb);            \
+}
 
-DO_ST1_ZPZ_S(sve_stbs_zss, int32_t, cpu_stb_data_ra)
-DO_ST1_ZPZ_S(sve_sths_zss, int32_t, cpu_stw_data_ra)
-DO_ST1_ZPZ_S(sve_stss_zss, int32_t, cpu_stl_data_ra)
+#define DO_ST1_ZPZ_D(MEM, OFS) \
+void __attribute__((flatten)) HELPER(sve_st##MEM##_##OFS)    \
+    (CPUARMState *env, void *vd, void *vg, void *vm,         \
+     target_ulong base, uint32_t desc)                       \
+{                                                            \
+    sve_st1_zd(env, vd, vg, vm, base, desc, GETPC(),         \
+               off_##OFS##_d, sve_st1##MEM##_tlb);           \
+}
 
-DO_ST1_ZPZ_D(sve_stbd_zsu, uint32_t, cpu_stb_data_ra)
-DO_ST1_ZPZ_D(sve_sthd_zsu, uint32_t, cpu_stw_data_ra)
-DO_ST1_ZPZ_D(sve_stsd_zsu, uint32_t, cpu_stl_data_ra)
-DO_ST1_ZPZ_D(sve_stdd_zsu, uint32_t, cpu_stq_data_ra)
+DO_ST1_ZPZ_S(bs, zsu)
+DO_ST1_ZPZ_S(hs_le, zsu)
+DO_ST1_ZPZ_S(hs_be, zsu)
+DO_ST1_ZPZ_S(ss_le, zsu)
+DO_ST1_ZPZ_S(ss_be, zsu)
 
-DO_ST1_ZPZ_D(sve_stbd_zss, int32_t, cpu_stb_data_ra)
-DO_ST1_ZPZ_D(sve_sthd_zss, int32_t, cpu_stw_data_ra)
-DO_ST1_ZPZ_D(sve_stsd_zss, int32_t, cpu_stl_data_ra)
-DO_ST1_ZPZ_D(sve_stdd_zss, int32_t, cpu_stq_data_ra)
+DO_ST1_ZPZ_S(bs, zss)
+DO_ST1_ZPZ_S(hs_le, zss)
+DO_ST1_ZPZ_S(hs_be, zss)
+DO_ST1_ZPZ_S(ss_le, zss)
+DO_ST1_ZPZ_S(ss_be, zss)
 
-DO_ST1_ZPZ_D(sve_stbd_zd, uint64_t, cpu_stb_data_ra)
-DO_ST1_ZPZ_D(sve_sthd_zd, uint64_t, cpu_stw_data_ra)
-DO_ST1_ZPZ_D(sve_stsd_zd, uint64_t, cpu_stl_data_ra)
-DO_ST1_ZPZ_D(sve_stdd_zd, uint64_t, cpu_stq_data_ra)
+DO_ST1_ZPZ_D(bd, zsu)
+DO_ST1_ZPZ_D(hd_le, zsu)
+DO_ST1_ZPZ_D(hd_be, zsu)
+DO_ST1_ZPZ_D(sd_le, zsu)
+DO_ST1_ZPZ_D(sd_be, zsu)
+DO_ST1_ZPZ_D(dd_le, zsu)
+DO_ST1_ZPZ_D(dd_be, zsu)
+
+DO_ST1_ZPZ_D(bd, zss)
+DO_ST1_ZPZ_D(hd_le, zss)
+DO_ST1_ZPZ_D(hd_be, zss)
+DO_ST1_ZPZ_D(sd_le, zss)
+DO_ST1_ZPZ_D(sd_be, zss)
+DO_ST1_ZPZ_D(dd_le, zss)
+DO_ST1_ZPZ_D(dd_be, zss)
+
+DO_ST1_ZPZ_D(bd, zd)
+DO_ST1_ZPZ_D(hd_le, zd)
+DO_ST1_ZPZ_D(hd_be, zd)
+DO_ST1_ZPZ_D(sd_le, zd)
+DO_ST1_ZPZ_D(sd_be, zd)
+DO_ST1_ZPZ_D(dd_le, zd)
+DO_ST1_ZPZ_D(dd_be, zd)
+
+#undef DO_ST1_ZPZ_S
+#undef DO_ST1_ZPZ_D

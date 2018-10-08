@@ -1468,41 +1468,67 @@ DEF_HELPER_FLAGS_6(sve_ldffsds_zd, TCG_CALL_NO_WG,
 
 DEF_HELPER_FLAGS_6(sve_stbs_zsu, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_sths_zsu, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_sths_le_zsu, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_stss_zsu, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_sths_be_zsu, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stss_le_zsu, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stss_be_zsu, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
 
 DEF_HELPER_FLAGS_6(sve_stbs_zss, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_sths_zss, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_sths_le_zss, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_stss_zss, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_sths_be_zss, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stss_le_zss, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stss_be_zss, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
 
 DEF_HELPER_FLAGS_6(sve_stbd_zsu, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_sthd_zsu, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_sthd_le_zsu, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_stsd_zsu, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_sthd_be_zsu, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_stdd_zsu, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_stsd_le_zsu, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stsd_be_zsu, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stdd_le_zsu, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stdd_be_zsu, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
 
 DEF_HELPER_FLAGS_6(sve_stbd_zss, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_sthd_zss, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_sthd_le_zss, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_stsd_zss, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_sthd_be_zss, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_stdd_zss, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_stsd_le_zss, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stsd_be_zss, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stdd_le_zss, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stdd_be_zss, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
 
 DEF_HELPER_FLAGS_6(sve_stbd_zd, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_sthd_zd, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_sthd_le_zd, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_stsd_zd, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_sthd_be_zd, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
-DEF_HELPER_FLAGS_6(sve_stdd_zd, TCG_CALL_NO_WG,
+DEF_HELPER_FLAGS_6(sve_stsd_le_zd, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stsd_be_zd, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stdd_le_zd, TCG_CALL_NO_WG,
+                   void, env, ptr, ptr, ptr, tl, i32)
+DEF_HELPER_FLAGS_6(sve_stdd_be_zd, TCG_CALL_NO_WG,
                    void, env, ptr, ptr, ptr, tl, i32)
