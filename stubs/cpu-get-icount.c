@@ -11,6 +11,11 @@ int64_t cpu_get_icount(void)
     abort();
 }
 
+int64_t cpu_get_icount_raw(void)
+{
+    abort();
+}
+
 void qemu_timer_notify_cb(void *opaque, QEMUClockType type)
 {
     qemu_notify_event();

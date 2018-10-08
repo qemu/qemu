@@ -122,6 +122,8 @@ void replay_finish_event(void);
     data_kind variable. */
 void replay_fetch_data_kind(void);
 
+/*! Advance replay_state.current_step to the specified value. */
+void replay_advance_current_step(uint64_t current_step);
 /*! Saves queued events (like instructions and sound). */
 void replay_save_instructions(void);
 

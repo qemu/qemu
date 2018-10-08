@@ -509,8 +509,8 @@ static void icount_warp_rt(void)
     seqlock_write_lock(&timers_state.vm_clock_seqlock,
                        &timers_state.vm_clock_lock);
     if (runstate_is_running()) {
-        int64_t clock = REPLAY_CLOCK(REPLAY_CLOCK_VIRTUAL_RT,
-                                     cpu_get_clock_locked());
+        int64_t clock = REPLAY_CLOCK_LOCKED(REPLAY_CLOCK_VIRTUAL_RT,
+                                            cpu_get_clock_locked());
         int64_t warp_delta;
 
         warp_delta = clock - timers_state.vm_clock_warp_start;

@@ -217,20 +217,25 @@ void replay_mutex_unlock(void)
     }
 }
 
+void replay_advance_current_step(uint64_t current_step)
+{
+    int diff = (int)(replay_get_current_step() - replay_state.current_step);
+
+    /* Time can only go forward */
+    assert(diff >= 0);
+
+    if (diff > 0) {
+        replay_put_event(EVENT_INSTRUCTION);
+        replay_put_dword(diff);
+        replay_state.current_step += diff;
+    }
+}
+
 /*! Saves cached instructions. */
 void replay_save_instructions(void)
 {
     if (replay_file && replay_mode == REPLAY_MODE_RECORD) {
         g_assert(replay_mutex_locked());
-        int diff = (int)(replay_get_current_step() - replay_state.current_step);
-
-        /* Time can only go forward */
-        assert(diff >= 0);
-
-        if (diff > 0) {
-            replay_put_event(EVENT_INSTRUCTION);
-            replay_put_dword(diff);
-            replay_state.current_step += diff;
-        }
+        replay_advance_current_step(replay_get_current_step());
     }
 }

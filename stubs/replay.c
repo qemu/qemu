@@ -4,7 +4,7 @@
 
 ReplayMode replay_mode;
 
-int64_t replay_save_clock(unsigned int kind, int64_t clock)
+int64_t replay_save_clock(unsigned int kind, int64_t clock, int64_t raw_icount)
 {
     abort();
     return 0;
