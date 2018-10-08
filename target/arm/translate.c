@@ -12251,7 +12251,10 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
             store_reg(s, rd, tmp);
             break;
         case 4: case 5: case 0xc: case 0xd:
-            /* push/pop */
+            /*
+             * 0b1011_x10x_xxxx_xxxx
+             *  - push/pop
+             */
             addr = load_reg(s, 13);
             if (insn & (1 << 8))
                 offset = 4;
@@ -12264,6 +12267,17 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
             if ((insn & (1 << 11)) == 0) {
                 tcg_gen_addi_i32(addr, addr, -offset);
             }
+
+            if (s->v8m_stackcheck) {
+                /*
+                 * Here 'addr' is the lower of "old SP" and "new SP";
+                 * if this is a pop that starts below the limit and ends
+                 * above it, it is UNKNOWN whether the limit check triggers;
+                 * we choose to trigger.
+                 */
+                gen_helper_v8m_stackcheck(cpu_env, addr);
+            }
+
             for (i = 0; i < 8; i++) {
                 if (insn & (1 << i)) {
                     if (insn & (1 << 11)) {
