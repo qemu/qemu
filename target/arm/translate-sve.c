@@ -4765,12 +4765,33 @@ static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int msz)
     unsigned vsz = vec_full_reg_size(s);
     TCGv_ptr t_pg;
     TCGv_i32 desc;
+    int poff;
 
     /* Load the first quadword using the normal predicated load helpers.  */
     desc = tcg_const_i32(simd_desc(16, 16, zt));
-    t_pg = tcg_temp_new_ptr();
 
-    tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
+    poff = pred_full_reg_offset(s, pg);
+    if (vsz > 16) {
+        /*
+         * Zero-extend the first 16 bits of the predicate into a temporary.
+         * This avoids triggering an assert making sure we don't have bits
+         * set within a predicate beyond VQ, but we have lowered VQ to 1
+         * for this load operation.
+         */
+        TCGv_i64 tmp = tcg_temp_new_i64();
+#ifdef HOST_WORDS_BIGENDIAN
+        poff += 6;
+#endif
+        tcg_gen_ld16u_i64(tmp, cpu_env, poff);
+
+        poff = offsetof(CPUARMState, vfp.preg_tmp);
+        tcg_gen_st_i64(tmp, cpu_env, poff);
+        tcg_temp_free_i64(tmp);
+    }
+
+    t_pg = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(t_pg, cpu_env, poff);
+
     fns[msz](cpu_env, t_pg, addr, desc);
 
     tcg_temp_free_ptr(t_pg);
