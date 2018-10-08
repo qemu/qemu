@@ -10623,6 +10623,10 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             tmp2 = load_reg(s, rm);
             if ((insn & 0x70) != 0)
                 goto illegal_op;
+            /*
+             * 0b1111_1010_0xxx_xxxx_1111_xxxx_0000_xxxx:
+             *  - MOV, MOVS (register-shifted register), flagsetting
+             */
             op = (insn >> 21) & 3;
             logic_cc = (insn & (1 << 20)) != 0;
             gen_arm_shift_reg(tmp, op, tmp2, logic_cc);
@@ -11674,7 +11678,11 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
         rd = insn & 7;
         op = (insn >> 11) & 3;
         if (op == 3) {
-            /* add/subtract */
+            /*
+             * 0b0001_1xxx_xxxx_xxxx
+             *  - Add, subtract (three low registers)
+             *  - Add, subtract (two low registers and immediate)
+             */
             rn = (insn >> 3) & 7;
             tmp = load_reg(s, rn);
             if (insn & (1 << 10)) {
@@ -11711,7 +11719,10 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
         }
         break;
     case 2: case 3:
-        /* arithmetic large immediate */
+        /*
+         * 0b001x_xxxx_xxxx_xxxx
+         *  - Add, subtract, compare, move (one low register and immediate)
+         */
         op = (insn >> 11) & 3;
         rd = (insn >> 8) & 0x7;
         if (op == 0) { /* mov */
@@ -11848,7 +11859,10 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
             break;
         }
 
-        /* data processing register */
+        /*
+         * 0b0100_00xx_xxxx_xxxx
+         *  - Data-processing (two low registers)
+         */
         rd = insn & 7;
         rm = (insn >> 3) & 7;
         op = (insn >> 6) & 0xf;
