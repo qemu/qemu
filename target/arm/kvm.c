@@ -310,7 +310,7 @@ static int compare_u64(const void *a, const void *b)
     return 0;
 }
 
-/* Initialize the CPUState's cpreg list according to the kernel's
+/* Initialize the ARMCPU cpreg list according to the kernel's
  * definition of what CPU registers it knows about (and throw away
  * the previous TCG-created cpreg list).
  */

@@ -50,9 +50,9 @@ void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid, uint64_t group,
 
 /**
  * kvm_arm_init_cpreg_list:
- * @cs: CPUState
+ * @cpu: ARMCPU
  *
- * Initialize the CPUState's cpreg list according to the kernel's
+ * Initialize the ARMCPU cpreg list according to the kernel's
  * definition of what CPU registers it knows about (and throw away
  * the previous TCG-created cpreg list).
  *
