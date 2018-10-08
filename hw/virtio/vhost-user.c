@@ -1291,6 +1291,7 @@ static int vhost_user_postcopy_end(struct vhost_dev *dev, Error **errp)
         return ret;
     }
     postcopy_unregister_shared_ufd(&u->postcopy_fd);
+    close(u->postcopy_fd.fd);
     u->postcopy_fd.handler = NULL;
 
     trace_vhost_user_postcopy_end_exit();
@@ -1429,6 +1430,12 @@ static int vhost_user_backend_cleanup(struct vhost_dev *dev)
     if (u->postcopy_notifier.notify) {
         postcopy_remove_notifier(&u->postcopy_notifier);
         u->postcopy_notifier.notify = NULL;
+    }
+    u->postcopy_listen = false;
+    if (u->postcopy_fd.handler) {
+        postcopy_unregister_shared_ufd(&u->postcopy_fd);
+        close(u->postcopy_fd.fd);
+        u->postcopy_fd.handler = NULL;
     }
     if (u->slave_fd >= 0) {
         qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
