@@ -7304,7 +7304,6 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
 
             pop_ok = pop_ok &&
                 v7m_stack_read(cpu, &env->regs[4], frameptr + 0x8, mmu_idx) &&
-                v7m_stack_read(cpu, &env->regs[4], frameptr + 0x8, mmu_idx) &&
                 v7m_stack_read(cpu, &env->regs[5], frameptr + 0xc, mmu_idx) &&
                 v7m_stack_read(cpu, &env->regs[6], frameptr + 0x10, mmu_idx) &&
                 v7m_stack_read(cpu, &env->regs[7], frameptr + 0x14, mmu_idx) &&
