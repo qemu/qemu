@@ -8374,7 +8374,11 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
     unsigned int new_mode = aarch64_pstate_mode(new_el, true);
     unsigned int cur_el = arm_current_el(env);
 
-    aarch64_sve_change_el(env, cur_el, new_el);
+    /*
+     * Note that new_el can never be 0.  If cur_el is 0, then
+     * el0_a64 is is_a64(), else el0_a64 is ignored.
+     */
+    aarch64_sve_change_el(env, cur_el, new_el, is_a64(env));
 
     if (cur_el < new_el) {
         /* Entry vector offset depends on whether the implemented EL
@@ -12791,9 +12795,11 @@ void aarch64_sve_narrow_vq(CPUARMState *env, unsigned vq)
 /*
  * Notice a change in SVE vector size when changing EL.
  */
-void aarch64_sve_change_el(CPUARMState *env, int old_el, int new_el)
+void aarch64_sve_change_el(CPUARMState *env, int old_el,
+                           int new_el, bool el0_a64)
 {
     int old_len, new_len;
+    bool old_a64, new_a64;
 
     /* Nothing to do if no SVE.  */
     if (!arm_feature(env, ARM_FEATURE_SVE)) {
@@ -12817,9 +12823,11 @@ void aarch64_sve_change_el(CPUARMState *env, int old_el, int new_el)
      * we already have the correct register contents when encountering the
      * vq0->vq0 transition between EL0->EL1.
      */
-    old_len = (arm_el_is_aa64(env, old_el) && !sve_exception_el(env, old_el)
+    old_a64 = old_el ? arm_el_is_aa64(env, old_el) : el0_a64;
+    old_len = (old_a64 && !sve_exception_el(env, old_el)
                ? sve_zcr_len_for_el(env, old_el) : 0);
-    new_len = (arm_el_is_aa64(env, new_el) && !sve_exception_el(env, new_el)
+    new_a64 = new_el ? arm_el_is_aa64(env, new_el) : el0_a64;
+    new_len = (new_a64 && !sve_exception_el(env, new_el)
                ? sve_zcr_len_for_el(env, new_el) : 0);
 
     /* When changing vector length, clear inaccessible state.  */
