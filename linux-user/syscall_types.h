@@ -300,6 +300,26 @@ STRUCT(usbdevfs_connectinfo,
         TYPE_INT, /* devnum */
         TYPE_CHAR) /* slow */
 
+STRUCT(usbdevfs_iso_packet_desc,
+        TYPE_INT, /* length */
+        TYPE_INT, /* actual_length */
+        TYPE_INT) /* status */
+
+STRUCT(usbdevfs_urb,
+        TYPE_CHAR, /* type */
+        TYPE_CHAR, /* endpoint */
+        TYPE_INT, /* status */
+        TYPE_INT, /* flags */
+        TYPE_PTRVOID, /* buffer */
+        TYPE_INT, /* buffer_length */
+        TYPE_INT, /* actual_length */
+        TYPE_INT, /* start_frame */
+        TYPE_INT, /* union number_of_packets stream_id */
+        TYPE_INT, /* error_count */
+        TYPE_INT, /* signr */
+        TYPE_PTRVOID, /* usercontext */
+        MK_ARRAY(MK_STRUCT(STRUCT_usbdevfs_iso_packet_desc), 0)) /* desc */
+
 STRUCT(usbdevfs_ioctl,
         TYPE_INT, /* ifno */
         TYPE_INT, /* ioctl_code */
