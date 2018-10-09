@@ -140,14 +140,14 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     if (ret < 0) {
         goto fail;
     }
-    be32_to_cpus(&header.magic);
-    be32_to_cpus(&header.version);
-    be64_to_cpus(&header.backing_file_offset);
-    be32_to_cpus(&header.backing_file_size);
-    be32_to_cpus(&header.mtime);
-    be64_to_cpus(&header.size);
-    be32_to_cpus(&header.crypt_method);
-    be64_to_cpus(&header.l1_table_offset);
+    header.magic = be32_to_cpu(header.magic);
+    header.version = be32_to_cpu(header.version);
+    header.backing_file_offset = be64_to_cpu(header.backing_file_offset);
+    header.backing_file_size = be32_to_cpu(header.backing_file_size);
+    header.mtime = be32_to_cpu(header.mtime);
+    header.size = be64_to_cpu(header.size);
+    header.crypt_method = be32_to_cpu(header.crypt_method);
+    header.l1_table_offset = be64_to_cpu(header.l1_table_offset);
 
     if (header.magic != QCOW_MAGIC) {
         error_setg(errp, "Image not in qcow format");
@@ -270,7 +270,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     for(i = 0;i < s->l1_size; i++) {
-        be64_to_cpus(&s->l1_table[i]);
+        s->l1_table[i] = be64_to_cpu(s->l1_table[i]);
     }
 
     /* alloc L2 cache (max. 64k * 16 * 8 = 8 MB) */
