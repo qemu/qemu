@@ -281,6 +281,13 @@ int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
     }
 
     bs->read_only = read_only;
+
+    if (read_only) {
+        bs->open_flags &= ~BDRV_O_RDWR;
+    } else {
+        bs->open_flags |= BDRV_O_RDWR;
+    }
+
     return 0;
 }
 
