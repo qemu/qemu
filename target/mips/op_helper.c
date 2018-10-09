@@ -1445,6 +1445,68 @@ void helper_mtc0_segctl2(CPUMIPSState *env, target_ulong arg1)
     tlb_flush(cs);
 }
 
+void helper_mtc0_pwfield(CPUMIPSState *env, target_ulong arg1)
+{
+#if defined(TARGET_MIPS64)
+    uint64_t mask = 0x3F3FFFFFFFULL;
+    uint32_t old_ptei = (env->CP0_PWField >> CP0PF_PTEI) & 0x3FULL;
+    uint32_t new_ptei = (arg1 >> CP0PF_PTEI) & 0x3FULL;
+
+    if ((env->insn_flags & ISA_MIPS32R6)) {
+        if (((arg1 >> CP0PF_BDI) & 0x3FULL) < 12) {
+            mask &= ~(0x3FULL << CP0PF_BDI);
+        }
+        if (((arg1 >> CP0PF_GDI) & 0x3FULL) < 12) {
+            mask &= ~(0x3FULL << CP0PF_GDI);
+        }
+        if (((arg1 >> CP0PF_UDI) & 0x3FULL) < 12) {
+            mask &= ~(0x3FULL << CP0PF_UDI);
+        }
+        if (((arg1 >> CP0PF_MDI) & 0x3FULL) < 12) {
+            mask &= ~(0x3FULL << CP0PF_MDI);
+        }
+        if (((arg1 >> CP0PF_PTI) & 0x3FULL) < 12) {
+            mask &= ~(0x3FULL << CP0PF_PTI);
+        }
+    }
+    env->CP0_PWField = arg1 & mask;
+
+    if ((new_ptei >= 32) ||
+            ((env->insn_flags & ISA_MIPS32R6) &&
+                    (new_ptei == 0 || new_ptei == 1))) {
+        env->CP0_PWField = (env->CP0_PWField & ~0x3FULL) |
+                (old_ptei << CP0PF_PTEI);
+    }
+#else
+    uint32_t mask = 0x3FFFFFFF;
+    uint32_t old_ptew = (env->CP0_PWField >> CP0PF_PTEW) & 0x3F;
+    uint32_t new_ptew = (arg1 >> CP0PF_PTEW) & 0x3F;
+
+    if ((env->insn_flags & ISA_MIPS32R6)) {
+        if (((arg1 >> CP0PF_GDW) & 0x3F) < 12) {
+            mask &= ~(0x3F << CP0PF_GDW);
+        }
+        if (((arg1 >> CP0PF_UDW) & 0x3F) < 12) {
+            mask &= ~(0x3F << CP0PF_UDW);
+        }
+        if (((arg1 >> CP0PF_MDW) & 0x3F) < 12) {
+            mask &= ~(0x3F << CP0PF_MDW);
+        }
+        if (((arg1 >> CP0PF_PTW) & 0x3F) < 12) {
+            mask &= ~(0x3F << CP0PF_PTW);
+        }
+    }
+    env->CP0_PWField = arg1 & mask;
+
+    if ((new_ptew >= 32) ||
+            ((env->insn_flags & ISA_MIPS32R6) &&
+                    (new_ptew == 0 || new_ptew == 1))) {
+        env->CP0_PWField = (env->CP0_PWField & ~0x3F) |
+                (old_ptew << CP0PF_PTEW);
+    }
+#endif
+}
+
 void helper_mtc0_wired(CPUMIPSState *env, target_ulong arg1)
 {
     if (env->insn_flags & ISA_MIPS32R6) {
