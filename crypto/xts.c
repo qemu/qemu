@@ -81,11 +81,11 @@ static void xts_mult_x(xts_uint128 *I)
  *
  * Encrypt/decrypt data with a tweak
  */
-static void xts_tweak_encdec(const void *ctx,
-                             xts_cipher_func *func,
-                             const xts_uint128 *src,
-                             xts_uint128 *dst,
-                             xts_uint128 *iv)
+static inline void xts_tweak_encdec(const void *ctx,
+                                    xts_cipher_func *func,
+                                    const xts_uint128 *src,
+                                    xts_uint128 *dst,
+                                    xts_uint128 *iv)
 {
     /* tweak encrypt block i */
     xts_uint128_xor(dst, src, iv);
