@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "crypto/xts.h"
 
 typedef union {
@@ -39,19 +40,34 @@ static inline void xts_uint128_xor(xts_uint128 *D,
     D->u[1] = S1->u[1] ^ S2->u[1];
 }
 
-static void xts_mult_x(uint8_t *I)
+static inline void xts_uint128_cpu_to_les(xts_uint128 *v)
 {
-    int x;
-    uint8_t t, tt;
+    cpu_to_le64s(&v->u[0]);
+    cpu_to_le64s(&v->u[1]);
+}
 
-    for (x = t = 0; x < 16; x++) {
-        tt = I[x] >> 7;
-        I[x] = ((I[x] << 1) | t) & 0xFF;
-        t = tt;
+static inline void xts_uint128_le_to_cpus(xts_uint128 *v)
+{
+    le64_to_cpus(&v->u[0]);
+    le64_to_cpus(&v->u[1]);
+}
+
+static void xts_mult_x(xts_uint128 *I)
+{
+    uint64_t tt;
+
+    xts_uint128_le_to_cpus(I);
+
+    tt = I->u[0] >> 63;
+    I->u[0] <<= 1;
+
+    if (I->u[1] >> 63) {
+        I->u[0] ^= 0x87;
     }
-    if (tt) {
-        I[0] ^= 0x87;
-    }
+    I->u[1] <<= 1;
+    I->u[1] |= tt;
+
+    xts_uint128_cpu_to_les(I);
 }
 
 
@@ -79,7 +95,7 @@ static void xts_tweak_encdec(const void *ctx,
     xts_uint128_xor(dst, dst, iv);
 
     /* LFSR the tweak */
-    xts_mult_x(iv->b);
+    xts_mult_x(iv);
 }
 
 
@@ -134,7 +150,7 @@ void xts_decrypt(const void *datactx,
     if (mo > 0) {
         xts_uint128 S, D;
         memcpy(&CC, &T, XTS_BLOCK_SIZE);
-        xts_mult_x(CC.b);
+        xts_mult_x(&CC);
 
         /* PP = tweak decrypt block m-1 */
         memcpy(&S, src, XTS_BLOCK_SIZE);
