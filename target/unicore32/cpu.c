@@ -116,8 +116,6 @@ static void uc32_cpu_initfn(Object *obj)
     env->uncached_asr = ASR_MODE_PRIV;
     env->regs[31] = 0x03000000;
 #endif
-
-    tlb_flush(cs);
 }
 
 static const VMStateDescription vmstate_uc32_cpu = {
