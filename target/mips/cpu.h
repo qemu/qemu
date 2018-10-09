@@ -432,6 +432,16 @@ struct CPUMIPSState {
 #define CP0PF_PTW  6     /* 11..6  */
 #define CP0PF_PTEW 0     /*  5..0  */
 #endif
+    target_ulong CP0_PWSize;
+#if defined(TARGET_MIPS64)
+#define CP0PS_BDW  32    /* 37..32 */
+#endif
+#define CP0PS_PS   30
+#define CP0PS_GDW  24    /* 29..24 */
+#define CP0PS_UDW  18    /* 23..18 */
+#define CP0PS_MDW  12    /* 17..12 */
+#define CP0PS_PTW  6     /* 11..6  */
+#define CP0PS_PTEW 0     /*  5..0  */
 /*
  * CP0 Register 6
  */
