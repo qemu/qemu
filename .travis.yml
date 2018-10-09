@@ -36,6 +36,7 @@ addons:
       - liburcu-dev
       - libusb-1.0-0-dev
       - libvte-2.90-dev
+      - python3-pip
       - sparse
       - uuid-dev
       - gcovr
@@ -115,6 +116,11 @@ matrix:
       python:
         - "3.0"
     - env: CONFIG="--target-list=x86_64-softmmu"
+      python:
+        - "3.6"
+    # Acceptance (Functional) tests
+    - env: CONFIG="--python=/usr/bin/python3 --target-list=x86_64-softmmu"
+           TEST_CMD="make check-acceptance"
       python:
         - "3.6"
     # Using newer GCC with sanitizers
