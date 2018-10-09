@@ -14,6 +14,10 @@
 #define X86_TEST_MEM_START (1 * 1024 * 1024)
 #define X86_TEST_MEM_END   (100 * 1024 * 1024)
 
+/* S390 */
+#define S390_TEST_MEM_START (1 * 1024 * 1024)
+#define S390_TEST_MEM_END   (100 * 1024 * 1024)
+
 /* PPC */
 #define PPC_TEST_MEM_START (1 * 1024 * 1024)
 #define PPC_TEST_MEM_END   (100 * 1024 * 1024)
