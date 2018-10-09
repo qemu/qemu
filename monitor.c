@@ -4567,22 +4567,12 @@ void monitor_init(Chardev *chr, int flags)
 {
     Monitor *mon = g_malloc(sizeof(*mon));
     bool use_readline = flags & MONITOR_USE_READLINE;
-    bool use_oob = flags & MONITOR_USE_OOB;
 
-    if (use_oob) {
-        if (!qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT)) {
-            error_report("Monitor out-of-band is not supported with "
-                         "%s typed chardev backend",
-                         object_get_typename(OBJECT(chr)));
-            exit(1);
-        }
-        if (use_readline) {
-            error_report("Monitor out-of-band is only supported by QMP");
-            exit(1);
-        }
-    }
-
-    monitor_data_init(mon, false, use_oob);
+    /* Note: we run QMP monitor in I/O thread when @chr supports that */
+    monitor_data_init(mon, false,
+                      (flags & MONITOR_USE_CONTROL)
+                      && qemu_chr_has_feature(chr,
+                                              QEMU_CHAR_FEATURE_GCONTEXT));
 
     qemu_chr_fe_init(&mon->chr, chr, &error_abort);
     mon->flags = flags;
@@ -4676,9 +4666,6 @@ QemuOptsList qemu_mon_opts = {
             .type = QEMU_OPT_STRING,
         },{
             .name = "pretty",
-            .type = QEMU_OPT_BOOL,
-        },{
-            .name = "x-oob",
             .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
