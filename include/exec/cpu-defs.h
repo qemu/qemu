@@ -24,6 +24,7 @@
 #endif
 
 #include "qemu/host-utils.h"
+#include "qemu/thread.h"
 #include "qemu/queue.h"
 #ifdef CONFIG_TCG
 #include "tcg-target.h"
@@ -142,6 +143,8 @@ typedef struct CPUIOTLBEntry {
 
 #define CPU_COMMON_TLB \
     /* The meaning of the MMU modes is defined in the target code. */   \
+    /* tlb_lock serializes updates to tlb_table and tlb_v_table */      \
+    QemuSpin tlb_lock;                                                  \
     CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
     CPUTLBEntry tlb_v_table[NB_MMU_MODES][CPU_VTLB_SIZE];               \
     CPUIOTLBEntry iotlb[NB_MMU_MODES][CPU_TLB_SIZE];                    \
