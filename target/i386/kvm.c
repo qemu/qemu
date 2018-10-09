@@ -608,7 +608,8 @@ static bool hyperv_enabled(X86CPU *cpu)
             cpu->hyperv_synic ||
             cpu->hyperv_stimer ||
             cpu->hyperv_reenlightenment ||
-            cpu->hyperv_tlbflush);
+            cpu->hyperv_tlbflush ||
+            cpu->hyperv_ipi);
 }
 
 static int kvm_arch_set_tsc_khz(CPUState *cs)
@@ -886,6 +887,17 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 return -ENOSYS;
             }
             c->eax |= HV_REMOTE_TLB_FLUSH_RECOMMENDED;
+            c->eax |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
+        }
+        if (cpu->hyperv_ipi) {
+            if (kvm_check_extension(cs->kvm_state,
+                                    KVM_CAP_HYPERV_SEND_IPI) <= 0) {
+                fprintf(stderr, "Hyper-V IPI send support "
+                        "(requested by 'hv-ipi' cpu flag) "
+                        " is not supported by kernel\n");
+                return -ENOSYS;
+            }
+            c->eax |= HV_CLUSTER_IPI_RECOMMENDED;
             c->eax |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
         }
 
