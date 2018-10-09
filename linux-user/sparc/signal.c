@@ -258,10 +258,6 @@ void setup_frame(int sig, struct target_sigaction *ka,
         __put_user(val32, &sf->insns[1]);
         if (err)
             goto sigsegv;
-
-        /* Flush instruction space. */
-        // flush_sig_insns(current->mm, (unsigned long) &(sf->insns[0]));
-        // tb_flush(env);
     }
     unlock_user(sf, sf_addr, sizeof(struct target_signal_frame));
     return;
