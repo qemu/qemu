@@ -1527,6 +1527,16 @@ void helper_mtc0_wired(CPUMIPSState *env, target_ulong arg1)
     }
 }
 
+void helper_mtc0_pwctl(CPUMIPSState *env, target_ulong arg1)
+{
+#if defined(TARGET_MIPS64)
+    /* PWEn = 0. Hardware page table walking is not implemented. */
+    env->CP0_PWCtl = (env->CP0_PWCtl & 0x000000C0) | (arg1 & 0x5C00003F);
+#else
+    env->CP0_PWCtl = (arg1 & 0x800000FF);
+#endif
+}
+
 void helper_mtc0_srsconf0(CPUMIPSState *env, target_ulong arg1)
 {
     env->CP0_SRSConf0 |= arg1 & env->CP0_SRSConf0_rw_bitmask;
