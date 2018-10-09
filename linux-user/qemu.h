@@ -461,27 +461,59 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
    These are usually used to access struct data members once the struct has
    been locked - usually with lock_user_struct.  */
 
-/* Tricky points:
-   - Use __builtin_choose_expr to avoid type promotion from ?:,
-   - Invalid sizes result in a compile time error stemming from
-     the fact that abort has no parameters.
-   - It's easier to use the endian-specific unaligned load/store
-     functions than host-endian unaligned load/store plus tswapN.  */
+/*
+ * Tricky points:
+ * - Use __builtin_choose_expr to avoid type promotion from ?:,
+ * - Invalid sizes result in a compile time error stemming from
+ *   the fact that abort has no parameters.
+ * - It's easier to use the endian-specific unaligned load/store
+ *   functions than host-endian unaligned load/store plus tswapN.
+ * - The pragmas are necessary only to silence a clang false-positive
+ *   warning: see https://bugs.llvm.org/show_bug.cgi?id=39113 .
+ * - We have to disable -Wpragmas warnings to avoid a complaint about
+ *   an unknown warning type from older compilers that don't know about
+ *   -Waddress-of-packed-member.
+ * - gcc has bugs in its _Pragma() support in some versions, eg
+ *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83256 -- so we only
+ *   include the warning-suppression pragmas for clang
+ */
+#ifdef __clang__
+#define PRAGMA_DISABLE_PACKED_WARNING                                   \
+    _Pragma("GCC diagnostic push");                                     \
+    _Pragma("GCC diagnostic ignored \"-Wpragmas\"");                    \
+    _Pragma("GCC diagnostic ignored \"-Waddress-of-packed-member\"")
 
-#define __put_user_e(x, hptr, e)                                        \
-  (__builtin_choose_expr(sizeof(*(hptr)) == 1, stb_p,                   \
-   __builtin_choose_expr(sizeof(*(hptr)) == 2, stw_##e##_p,             \
-   __builtin_choose_expr(sizeof(*(hptr)) == 4, stl_##e##_p,             \
-   __builtin_choose_expr(sizeof(*(hptr)) == 8, stq_##e##_p, abort))))   \
-     ((hptr), (x)), (void)0)
+#define PRAGMA_REENABLE_PACKED_WARNING          \
+    _Pragma("GCC diagnostic pop")
 
-#define __get_user_e(x, hptr, e)                                        \
-  ((x) = (typeof(*hptr))(                                               \
-   __builtin_choose_expr(sizeof(*(hptr)) == 1, ldub_p,                  \
-   __builtin_choose_expr(sizeof(*(hptr)) == 2, lduw_##e##_p,            \
-   __builtin_choose_expr(sizeof(*(hptr)) == 4, ldl_##e##_p,             \
-   __builtin_choose_expr(sizeof(*(hptr)) == 8, ldq_##e##_p, abort))))   \
-     (hptr)), (void)0)
+#else
+#define PRAGMA_DISABLE_PACKED_WARNING
+#define PRAGMA_REENABLE_PACKED_WARNING
+#endif
+
+#define __put_user_e(x, hptr, e)                                            \
+    do {                                                                    \
+        PRAGMA_DISABLE_PACKED_WARNING;                                      \
+        (__builtin_choose_expr(sizeof(*(hptr)) == 1, stb_p,                 \
+        __builtin_choose_expr(sizeof(*(hptr)) == 2, stw_##e##_p,            \
+        __builtin_choose_expr(sizeof(*(hptr)) == 4, stl_##e##_p,            \
+        __builtin_choose_expr(sizeof(*(hptr)) == 8, stq_##e##_p, abort))))  \
+            ((hptr), (x)), (void)0);                                        \
+        PRAGMA_REENABLE_PACKED_WARNING;                                     \
+    } while (0)
+
+#define __get_user_e(x, hptr, e)                                            \
+    do {                                                                    \
+        PRAGMA_DISABLE_PACKED_WARNING;                                      \
+        ((x) = (typeof(*hptr))(                                             \
+        __builtin_choose_expr(sizeof(*(hptr)) == 1, ldub_p,                 \
+        __builtin_choose_expr(sizeof(*(hptr)) == 2, lduw_##e##_p,           \
+        __builtin_choose_expr(sizeof(*(hptr)) == 4, ldl_##e##_p,            \
+        __builtin_choose_expr(sizeof(*(hptr)) == 8, ldq_##e##_p, abort))))  \
+            (hptr)), (void)0);                                              \
+        PRAGMA_REENABLE_PACKED_WARNING;                                     \
+    } while (0)
+
 
 #ifdef TARGET_WORDS_BIGENDIAN
 # define __put_user(x, hptr)  __put_user_e(x, hptr, be)
