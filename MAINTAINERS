@@ -1207,6 +1207,18 @@ F: include/hw/s390x/s390-ccw.h
 T: git git://github.com/cohuck/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
+vfio-ap
+M: Christian Borntraeger <borntraeger@de.ibm.com>
+M: Tony Krowiak <akrowiak@linux.ibm.com>
+M: Halil Pasic <pasic@linux.ibm.com>
+M: Pierre Morel <pmorel@linux.ibm.com>
+S: Supported
+F: hw/s390x/ap-device.c
+F: hw/s390x/ap-bridge.c
+F: include/hw/s390x/ap-device.h
+F: include/hw/s390x/ap-bridge.h
+L: qemu-s390x@nongnu.org
+
 vhost
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
