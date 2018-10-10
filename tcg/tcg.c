@@ -3430,7 +3430,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 
 #ifdef CONFIG_PROFILER
     {
-        int n;
+        int n = 0;
 
         QTAILQ_FOREACH(op, &s->ops, link) {
             n++;
