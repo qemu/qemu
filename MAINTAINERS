@@ -88,6 +88,7 @@ F: hw/char/terminal3270.c
 F: hw/intc/s390_flic.c
 F: hw/intc/s390_flic_kvm.c
 F: hw/s390x/
+F: hw/vfio/ap.c
 F: hw/vfio/ccw.c
 F: hw/watchdog/wdt_diag288.c
 F: include/hw/s390x/
@@ -1217,6 +1218,7 @@ F: hw/s390x/ap-device.c
 F: hw/s390x/ap-bridge.c
 F: include/hw/s390x/ap-device.h
 F: include/hw/s390x/ap-bridge.h
+F: hw/vfio/ap.c
 L: qemu-s390x@nongnu.org
 
 vhost
