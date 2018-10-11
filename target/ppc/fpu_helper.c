@@ -114,54 +114,62 @@ static inline int ppc_float64_get_unbiased_exp(float64 f)
     return ((f >> 52) & 0x7FF) - 1023;
 }
 
-#define COMPUTE_FPRF(tp)                                       \
-void helper_compute_fprf_##tp(CPUPPCState *env, tp arg)        \
+/* Classify a floating-point number.  */
+enum {
+    is_normal   = 1,
+    is_zero     = 2,
+    is_denormal = 4,
+    is_inf      = 8,
+    is_qnan     = 16,
+    is_snan     = 32,
+    is_neg      = 64,
+};
+
+#define COMPUTE_CLASS(tp)                                      \
+static int tp##_classify(tp arg)                               \
 {                                                              \
-    int isneg;                                                 \
-    int fprf;                                                  \
-                                                               \
-    isneg = tp##_is_neg(arg);                                  \
+    int ret = tp##_is_neg(arg) * is_neg;                       \
     if (unlikely(tp##_is_any_nan(arg))) {                      \
-        if (tp##_is_signaling_nan(arg, &env->fp_status)) {     \
-            /* Signaling NaN: flags are undefined */           \
-            fprf = 0x00;                                       \
-        } else {                                               \
-            /* Quiet NaN */                                    \
-            fprf = 0x11;                                       \
-        }                                                      \
+        float_status dummy = { };  /* snan_bit_is_one = 0 */   \
+        ret |= (tp##_is_signaling_nan(arg, &dummy)             \
+                ? is_snan : is_qnan);                          \
     } else if (unlikely(tp##_is_infinity(arg))) {              \
-        /* +/- infinity */                                     \
-        if (isneg) {                                           \
-            fprf = 0x09;                                       \
-        } else {                                               \
-            fprf = 0x05;                                       \
-        }                                                      \
+        ret |= is_inf;                                         \
+    } else if (tp##_is_zero(arg)) {                            \
+        ret |= is_zero;                                        \
+    } else if (tp##_is_zero_or_denormal(arg)) {                \
+        ret |= is_denormal;                                    \
     } else {                                                   \
-        if (tp##_is_zero(arg)) {                               \
-            /* +/- zero */                                     \
-            if (isneg) {                                       \
-                fprf = 0x12;                                   \
-            } else {                                           \
-                fprf = 0x02;                                   \
-            }                                                  \
-        } else {                                               \
-            if (tp##_is_zero_or_denormal(arg)) {               \
-                /* Denormalized numbers */                     \
-                fprf = 0x10;                                   \
-            } else {                                           \
-                /* Normalized numbers */                       \
-                fprf = 0x00;                                   \
-            }                                                  \
-            if (isneg) {                                       \
-                fprf |= 0x08;                                  \
-            } else {                                           \
-                fprf |= 0x04;                                  \
-            }                                                  \
-        }                                                      \
+        ret |= is_normal;                                      \
     }                                                          \
-    /* We update FPSCR_FPRF */                                 \
-    env->fpscr &= ~(0x1F << FPSCR_FPRF);                       \
-    env->fpscr |= fprf << FPSCR_FPRF;                          \
+    return ret;                                                \
+}
+
+COMPUTE_CLASS(float16)
+COMPUTE_CLASS(float32)
+COMPUTE_CLASS(float64)
+COMPUTE_CLASS(float128)
+
+static void set_fprf_from_class(CPUPPCState *env, int class)
+{
+    static const uint8_t fprf[6][2] = {
+        { 0x04, 0x08 },  /* normalized */
+        { 0x02, 0x12 },  /* zero */
+        { 0x14, 0x18 },  /* denormalized */
+        { 0x05, 0x09 },  /* infinity */
+        { 0x11, 0x11 },  /* qnan */
+        { 0x00, 0x00 },  /* snan -- flags are undefined */
+    };
+    bool isneg = class & is_neg;
+
+    env->fpscr &= ~(0x1F << FPSCR_FPRF);
+    env->fpscr |= fprf[ctz32(class)][isneg] << FPSCR_FPRF;
+}
+
+#define COMPUTE_FPRF(tp)                                \
+void helper_compute_fprf_##tp(CPUPPCState *env, tp arg) \
+{                                                       \
+    set_fprf_from_class(env, tp##_classify(arg));       \
 }
 
 COMPUTE_FPRF(float16)
