@@ -2466,6 +2466,7 @@ static int debugcon_parse(const char *devname)
     QemuOpts *opts;
 
     if (!qemu_chr_new_mux_mon("debugcon", devname)) {
+        error_report("invalid character backend '%s'", devname);
         exit(1);
     }
     opts = qemu_opts_create(qemu_find_opts("device"), "debugcon", 1, NULL);
