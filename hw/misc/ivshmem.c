@@ -911,6 +911,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
         IVSHMEM_DPRINTF("using hostmem\n");
 
         s->ivshmem_bar2 = host_memory_backend_get_memory(s->hostmem);
+        host_memory_backend_set_mapped(s->hostmem, true);
     } else {
         Chardev *chr = qemu_chr_fe_get_driver(&s->server_chr);
         assert(chr);
@@ -991,6 +992,10 @@ static void ivshmem_exit(PCIDevice *dev)
         }
 
         vmstate_unregister_ram(s->ivshmem_bar2, DEVICE(dev));
+    }
+
+    if (s->hostmem) {
+        host_memory_backend_set_mapped(s->hostmem, false);
     }
 
     if (s->peers) {
@@ -1101,14 +1106,6 @@ static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
     }
 
     ivshmem_common_realize(dev, errp);
-    host_memory_backend_set_mapped(s->hostmem, true);
-}
-
-static void ivshmem_plain_exit(PCIDevice *pci_dev)
-{
-    IVShmemState *s = IVSHMEM_COMMON(pci_dev);
-
-    host_memory_backend_set_mapped(s->hostmem, false);
 }
 
 static void ivshmem_plain_class_init(ObjectClass *klass, void *data)
@@ -1117,7 +1114,6 @@ static void ivshmem_plain_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = ivshmem_plain_realize;
-    k->exit = ivshmem_plain_exit;
     dc->props = ivshmem_plain_properties;
     dc->vmsd = &ivshmem_plain_vmsd;
 }

@@ -48,10 +48,6 @@ struct QTestState
 static GHookList abrt_hooks;
 static struct sigaction sigact_old;
 
-#define g_assert_no_errno(ret) do { \
-    g_assert_cmpint(ret, !=, -1); \
-} while (0)
-
 static int qtest_query_target_endianness(QTestState *s);
 
 static int init_socket(const char *socket_path)
@@ -61,7 +57,7 @@ static int init_socket(const char *socket_path)
     int ret;
 
     sock = socket(PF_UNIX, SOCK_STREAM, 0);
-    g_assert_no_errno(sock);
+    g_assert_cmpint(sock, !=, -1);
 
     addr.sun_family = AF_UNIX;
     snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socket_path);
@@ -70,9 +66,9 @@ static int init_socket(const char *socket_path)
     do {
         ret = bind(sock, (struct sockaddr *)&addr, sizeof(addr));
     } while (ret == -1 && errno == EINTR);
-    g_assert_no_errno(ret);
+    g_assert_cmpint(ret, !=, -1);
     ret = listen(sock, 1);
-    g_assert_no_errno(ret);
+    g_assert_cmpint(ret, !=, -1);
 
     return sock;
 }
@@ -325,7 +321,6 @@ static void socket_send(int fd, const char *buf, size_t size)
             continue;
         }
 
-        g_assert_no_errno(len);
         g_assert_cmpint(len, >, 0);
 
         offset += len;

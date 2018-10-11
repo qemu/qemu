@@ -780,6 +780,7 @@ static void utf8_string(void)
             if (!strstr(json_out, "\\uFFFD")) {
                 str = from_json_str(json_out, j, &error_abort);
                 g_assert_cmpstr(qstring_get_try_str(str), ==, utf8_in);
+                qobject_unref(str);
             }
         }
     }
