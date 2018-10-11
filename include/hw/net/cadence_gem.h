@@ -33,7 +33,7 @@
 #define CADENCE_GEM_MAXREG        (0x00000800 / 4) /* Last valid GEM address */
 
 /* Max number of words in a DMA descriptor.  */
-#define DESC_MAX_NUM_WORDS              2
+#define DESC_MAX_NUM_WORDS              6
 
 #define MAX_PRIORITY_QUEUES             8
 #define MAX_TYPE1_SCREENERS             16
