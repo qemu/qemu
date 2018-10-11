@@ -6472,7 +6472,7 @@ static bool v7m_stack_write(ARMCPU *cpu, uint32_t addr, uint32_t value,
     target_ulong page_size;
     hwaddr physaddr;
     int prot;
-    ARMMMUFaultInfo fi;
+    ARMMMUFaultInfo fi = {};
     bool secure = mmu_idx & ARM_MMU_IDX_M_S;
     int exc;
     bool exc_secure;
@@ -6534,7 +6534,7 @@ static bool v7m_stack_read(ARMCPU *cpu, uint32_t *dest, uint32_t addr,
     target_ulong page_size;
     hwaddr physaddr;
     int prot;
-    ARMMMUFaultInfo fi;
+    ARMMMUFaultInfo fi = {};
     bool secure = mmu_idx & ARM_MMU_IDX_M_S;
     int exc;
     bool exc_secure;
