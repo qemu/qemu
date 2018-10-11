@@ -142,7 +142,6 @@ do { \
 
 typedef struct BDRVRawState {
     int fd;
-    int lock_fd;
     bool use_lock;
     int type;
     int open_flags;
@@ -153,7 +152,7 @@ typedef struct BDRVRawState {
     uint64_t shared_perm;
 
     /* The perms bits whose corresponding bytes are already locked in
-     * s->lock_fd. */
+     * s->fd. */
     uint64_t locked_perm;
     uint64_t locked_shared_perm;
 
@@ -551,18 +550,6 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
     s->fd = fd;
 
-    s->lock_fd = -1;
-    if (s->use_lock) {
-        fd = qemu_open(filename, s->open_flags);
-        if (fd < 0) {
-            ret = -errno;
-            error_setg_errno(errp, errno, "Could not open '%s' for locking",
-                             filename);
-            qemu_close(s->fd);
-            goto fail;
-        }
-        s->lock_fd = fd;
-    }
     s->perm = 0;
     s->shared_perm = BLK_PERM_ALL;
 
@@ -823,15 +810,13 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
         return 0;
     }
 
-    assert(s->lock_fd > 0);
-
     switch (op) {
     case RAW_PL_PREPARE:
-        ret = raw_apply_lock_bytes(s, s->lock_fd, s->perm | new_perm,
+        ret = raw_apply_lock_bytes(s, s->fd, s->perm | new_perm,
                                    ~s->shared_perm | ~new_shared,
                                    false, errp);
         if (!ret) {
-            ret = raw_check_lock_bytes(s->lock_fd, new_perm, new_shared, errp);
+            ret = raw_check_lock_bytes(s->fd, new_perm, new_shared, errp);
             if (!ret) {
                 return 0;
             }
@@ -842,7 +827,7 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
         op = RAW_PL_ABORT;
         /* fall through to unlock bytes. */
     case RAW_PL_ABORT:
-        raw_apply_lock_bytes(s, s->lock_fd, s->perm, ~s->shared_perm,
+        raw_apply_lock_bytes(s, s->fd, s->perm, ~s->shared_perm,
                              true, &local_err);
         if (local_err) {
             /* Theoretically the above call only unlocks bytes and it cannot
@@ -852,7 +837,7 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
         }
         break;
     case RAW_PL_COMMIT:
-        raw_apply_lock_bytes(s, s->lock_fd, new_perm, ~new_shared,
+        raw_apply_lock_bytes(s, s->fd, new_perm, ~new_shared,
                              true, &local_err);
         if (local_err) {
             /* Theoretically the above call only unlocks bytes and it cannot
@@ -967,10 +952,18 @@ static void raw_reopen_commit(BDRVReopenState *state)
 {
     BDRVRawReopenState *rs = state->opaque;
     BDRVRawState *s = state->bs->opaque;
+    Error *local_err = NULL;
 
     s->check_cache_dropped = rs->check_cache_dropped;
     s->open_flags = rs->open_flags;
 
+    /* Copy locks to the new fd before closing the old one. */
+    raw_apply_lock_bytes(NULL, rs->fd, s->locked_perm,
+                         ~s->locked_shared_perm, false, &local_err);
+    if (local_err) {
+        /* shouldn't fail in a sane host, but report it just in case. */
+        error_report_err(local_err);
+    }
     qemu_close(s->fd);
     s->fd = rs->fd;
 
@@ -1962,10 +1955,6 @@ static void raw_close(BlockDriverState *bs)
     if (s->fd >= 0) {
         qemu_close(s->fd);
         s->fd = -1;
-    }
-    if (s->lock_fd >= 0) {
-        qemu_close(s->lock_fd);
-        s->lock_fd = -1;
     }
 }
 
