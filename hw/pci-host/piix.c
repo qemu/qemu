@@ -142,7 +142,7 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
     PCIDevice *pd = PCI_DEVICE(d);
 
     memory_region_transaction_begin();
-    for (i = 0; i < 13; i++) {
+    for (i = 0; i < ARRAY_SIZE(d->pam_regions); i++) {
         pam_update(&d->pam_regions[i], i,
                    pd->config[I440FX_PAM + DIV_ROUND_UP(i, 2)]);
     }
@@ -412,7 +412,7 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
 
     init_pam(dev, f->ram_memory, f->system_memory, f->pci_address_space,
              &f->pam_regions[0], PAM_BIOS_BASE, PAM_BIOS_SIZE);
-    for (i = 0; i < 12; ++i) {
+    for (i = 0; i < ARRAY_SIZE(f->pam_regions) - 1; ++i) {
         init_pam(dev, f->ram_memory, f->system_memory, f->pci_address_space,
                  &f->pam_regions[i+1], PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE,
                  PAM_EXPAN_SIZE);
