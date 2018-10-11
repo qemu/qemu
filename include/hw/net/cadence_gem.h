@@ -45,6 +45,8 @@ typedef struct CadenceGEMState {
 
     /*< public >*/
     MemoryRegion iomem;
+    MemoryRegion *dma_mr;
+    AddressSpace dma_as;
     NICState *nic;
     NICConf conf;
     qemu_irq irq[MAX_PRIORITY_QUEUES];
