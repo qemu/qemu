@@ -38,7 +38,7 @@ $(SRC_PATH)/scripts/qapi-gen.py
 SYSEMU_TARGET_LIST := $(subst -softmmu.mak,,$(notdir \
    $(wildcard $(SRC_PATH)/default-configs/*-softmmu.mak)))
 
-check-unit-y = tests/check-qdict$(EXESUF)
+check-unit-y += tests/check-qdict$(EXESUF)
 gcov-files-check-qdict-y = qobject/qdict.c
 check-unit-y += tests/check-block-qdict$(EXESUF)
 gcov-files-check-block-qdict-y = qobject/block-qdict.c
@@ -181,7 +181,7 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
 
-check-qtest-generic-y = tests/qmp-test$(EXESUF)
+check-qtest-generic-y += tests/qmp-test$(EXESUF)
 gcov-files-generic-y = monitor.c qapi/qmp-dispatch.c
 check-qtest-generic-y += tests/qmp-cmd-test$(EXESUF)
 
@@ -324,13 +324,13 @@ check-qtest-x86_64-$(CONFIG_SDHCI) += tests/sdhci-test$(EXESUF)
 gcov-files-i386-y += i386-softmmu/hw/timer/mc146818rtc.c
 gcov-files-x86_64-y = $(subst i386-softmmu/,x86_64-softmmu/,$(gcov-files-i386-y))
 
-check-qtest-alpha-y = tests/boot-serial-test$(EXESUF)
+check-qtest-alpha-y += tests/boot-serial-test$(EXESUF)
 
-check-qtest-hppa-y = tests/boot-serial-test$(EXESUF)
+check-qtest-hppa-y += tests/boot-serial-test$(EXESUF)
 
 check-qtest-m68k-y = tests/boot-serial-test$(EXESUF)
 
-check-qtest-microblaze-y = tests/boot-serial-test$(EXESUF)
+check-qtest-microblaze-y += tests/boot-serial-test$(EXESUF)
 
 check-qtest-mips-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
 
@@ -338,7 +338,7 @@ check-qtest-mips64-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
 
 check-qtest-mips64el-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
 
-check-qtest-moxie-y = tests/boot-serial-test$(EXESUF)
+check-qtest-moxie-y += tests/boot-serial-test$(EXESUF)
 
 check-qtest-ppc-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
 check-qtest-ppc-y += tests/boot-order-test$(EXESUF)
@@ -348,7 +348,7 @@ check-qtest-ppc-y += tests/boot-serial-test$(EXESUF)
 check-qtest-ppc-y += tests/m48t59-test$(EXESUF)
 gcov-files-ppc-y += hw/timer/m48t59.c
 
-check-qtest-ppc64-y = $(check-qtest-ppc-y)
+check-qtest-ppc64-y += $(check-qtest-ppc-y)
 gcov-files-ppc64-y = $(subst ppc-softmmu/,ppc64-softmmu/,$(gcov-files-ppc-y))
 check-qtest-ppc64-y += tests/spapr-phb-test$(EXESUF)
 gcov-files-ppc64-y += ppc64-softmmu/hw/ppc/spapr_pci.c
@@ -377,7 +377,7 @@ check-qtest-sh4-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
 
 check-qtest-sh4eb-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
 
-check-qtest-sparc-y = tests/prom-env-test$(EXESUF)
+check-qtest-sparc-y += tests/prom-env-test$(EXESUF)
 check-qtest-sparc-y += tests/m48t59-test$(EXESUF)
 gcov-files-sparc-y = hw/timer/m48t59.c
 check-qtest-sparc-y += tests/boot-serial-test$(EXESUF)
@@ -386,7 +386,7 @@ check-qtest-sparc64-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
 check-qtest-sparc64-y += tests/prom-env-test$(EXESUF)
 check-qtest-sparc64-y += tests/boot-serial-test$(EXESUF)
 
-check-qtest-arm-y = tests/tmp105-test$(EXESUF)
+check-qtest-arm-y += tests/tmp105-test$(EXESUF)
 check-qtest-arm-y += tests/pca9552-test$(EXESUF)
 check-qtest-arm-y += tests/ds1338-test$(EXESUF)
 check-qtest-arm-y += tests/m25p80-test$(EXESUF)
@@ -404,9 +404,9 @@ check-qtest-aarch64-$(CONFIG_SDHCI) += tests/sdhci-test$(EXESUF)
 check-qtest-aarch64-y += tests/boot-serial-test$(EXESUF)
 check-qtest-aarch64-y += tests/migration-test$(EXESUF)
 
-check-qtest-microblazeel-y = $(check-qtest-microblaze-y)
+check-qtest-microblazeel-y += $(check-qtest-microblaze-y)
 
-check-qtest-xtensaeb-y = $(check-qtest-xtensa-y)
+check-qtest-xtensaeb-y += $(check-qtest-xtensa-y)
 
 check-qtest-s390x-y = tests/boot-serial-test$(EXESUF)
 check-qtest-s390x-$(CONFIG_SLIRP) += tests/pxe-test$(EXESUF)
