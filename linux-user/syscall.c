@@ -9347,6 +9347,14 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             return ret;
         }
 #endif
+#ifdef TARGET_MIPS
+        case TARGET_PR_GET_FP_MODE:
+            /* TODO: Implement TARGET_PR_SET_FP_MODE handling.*/
+            return -TARGET_EINVAL;
+        case TARGET_PR_SET_FP_MODE:
+            /* TODO: Implement TARGET_PR_GET_FP_MODE handling.*/
+            return -TARGET_EINVAL;
+#endif /* MIPS */
 #ifdef TARGET_AARCH64
         case TARGET_PR_SVE_SET_VL:
             /*
