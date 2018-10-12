@@ -88,6 +88,7 @@ F: hw/char/terminal3270.c
 F: hw/intc/s390_flic.c
 F: hw/intc/s390_flic_kvm.c
 F: hw/s390x/
+F: hw/vfio/ap.c
 F: hw/vfio/ccw.c
 F: hw/watchdog/wdt_diag288.c
 F: include/hw/s390x/
@@ -95,6 +96,7 @@ F: include/hw/watchdog/wdt_diag288.h
 F: pc-bios/s390-ccw/
 F: pc-bios/s390-ccw.img
 F: target/s390x/
+F: docs/vfio-ap.txt
 K: ^Subject:.*(?i)s390x?
 T: git git://github.com/cohuck/qemu.git s390-next
 L: qemu-s390x@nongnu.org
@@ -1205,6 +1207,20 @@ F: hw/vfio/ccw.c
 F: hw/s390x/s390-ccw.c
 F: include/hw/s390x/s390-ccw.h
 T: git git://github.com/cohuck/qemu.git s390-next
+L: qemu-s390x@nongnu.org
+
+vfio-ap
+M: Christian Borntraeger <borntraeger@de.ibm.com>
+M: Tony Krowiak <akrowiak@linux.ibm.com>
+M: Halil Pasic <pasic@linux.ibm.com>
+M: Pierre Morel <pmorel@linux.ibm.com>
+S: Supported
+F: hw/s390x/ap-device.c
+F: hw/s390x/ap-bridge.c
+F: include/hw/s390x/ap-device.h
+F: include/hw/s390x/ap-bridge.h
+F: hw/vfio/ap.c
+F: docs/vfio-ap.txt
 L: qemu-s390x@nongnu.org
 
 vhost

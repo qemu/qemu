@@ -32,6 +32,7 @@
 #include "ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/css-bridge.h"
+#include "hw/s390x/ap-bridge.h"
 #include "migration/register.h"
 #include "cpu_models.h"
 #include "hw/nmi.h"
@@ -262,6 +263,9 @@ static void ccw_init(MachineState *machine)
 
     /* init the SIGP facility */
     s390_init_sigp();
+
+    /* create AP bridge and bus(es) */
+    s390_init_ap();
 
     /* get a BUS */
     css_bus = virtual_css_bus_init();

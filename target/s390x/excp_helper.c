@@ -33,23 +33,6 @@
 #include "hw/s390x/s390_flic.h"
 #endif
 
-/* #define DEBUG_S390 */
-/* #define DEBUG_S390_STDOUT */
-
-#ifdef DEBUG_S390
-#ifdef DEBUG_S390_STDOUT
-#define DPRINTF(fmt, ...) \
-    do { fprintf(stderr, fmt, ## __VA_ARGS__); \
-         if (qemu_log_separate()) { qemu_log(fmt, ##__VA_ARGS__); } } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { qemu_log(fmt, ## __VA_ARGS__); } while (0)
-#endif
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
-
 void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env, uint32_t code,
                                               int ilen, uintptr_t ra)
 {
@@ -128,8 +111,8 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr, int size,
     uint64_t asc;
     int prot;
 
-    DPRINTF("%s: address 0x%" VADDR_PRIx " rw %d mmu_idx %d\n",
-            __func__, orig_vaddr, rw, mmu_idx);
+    qemu_log_mask(CPU_LOG_MMU, "%s: addr 0x%" VADDR_PRIx " rw %d mmu_idx %d\n",
+                  __func__, orig_vaddr, rw, mmu_idx);
 
     vaddr = orig_vaddr;
 
@@ -158,8 +141,9 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr, int size,
     if (!address_space_access_valid(&address_space_memory, raddr,
                                     TARGET_PAGE_SIZE, rw,
                                     MEMTXATTRS_UNSPECIFIED)) {
-        DPRINTF("%s: raddr %" PRIx64 " > ram_size %" PRIx64 "\n", __func__,
-                (uint64_t)raddr, (uint64_t)ram_size);
+        qemu_log_mask(CPU_LOG_MMU,
+                      "%s: raddr %" PRIx64 " > ram_size %" PRIx64 "\n",
+                      __func__, (uint64_t)raddr, (uint64_t)ram_size);
         trigger_pgm_exception(env, PGM_ADDRESSING, ILEN_AUTO);
         return 1;
     }
@@ -217,8 +201,10 @@ static void do_program_interrupt(CPUS390XState *env)
         break;
     }
 
-    qemu_log_mask(CPU_LOG_INT, "%s: code=0x%x ilen=%d\n",
-                  __func__, env->int_pgm_code, ilen);
+    qemu_log_mask(CPU_LOG_INT,
+                  "%s: code=0x%x ilen=%d psw: %" PRIx64 " %" PRIx64 "\n",
+                  __func__, env->int_pgm_code, ilen, env->psw.mask,
+                  env->psw.addr);
 
     lowcore = cpu_map_lowcore(env);
 
@@ -239,10 +225,6 @@ static void do_program_interrupt(CPUS390XState *env)
     lowcore->per_breaking_event_addr = cpu_to_be64(env->gbea);
 
     cpu_unmap_lowcore(lowcore);
-
-    DPRINTF("%s: %x %x %" PRIx64 " %" PRIx64 "\n", __func__,
-            env->int_pgm_code, ilen, env->psw.mask,
-            env->psw.addr);
 
     load_psw(env, mask, addr);
 }
@@ -334,9 +316,6 @@ static void do_ext_interrupt(CPUS390XState *env)
 
     cpu_unmap_lowcore(lowcore);
 
-    DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__,
-            env->psw.mask, env->psw.addr);
-
     load_psw(env, mask, addr);
 }
 
@@ -365,8 +344,6 @@ static void do_io_interrupt(CPUS390XState *env)
     cpu_unmap_lowcore(lowcore);
     g_free(io);
 
-    DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__, env->psw.mask,
-            env->psw.addr);
     load_psw(env, mask, addr);
 }
 
@@ -408,9 +385,6 @@ static void do_mchk_interrupt(CPUS390XState *env)
 
     cpu_unmap_lowcore(lowcore);
 
-    DPRINTF("%s: %" PRIx64 " %" PRIx64 "\n", __func__,
-            env->psw.mask, env->psw.addr);
-
     load_psw(env, mask, addr);
 }
 
@@ -421,8 +395,8 @@ void s390_cpu_do_interrupt(CPUState *cs)
     CPUS390XState *env = &cpu->env;
     bool stopped = false;
 
-    qemu_log_mask(CPU_LOG_INT, "%s: %d at pc=%" PRIx64 "\n",
-                  __func__, cs->exception_index, env->psw.addr);
+    qemu_log_mask(CPU_LOG_INT, "%s: %d at psw=%" PRIx64 ":%" PRIx64 "\n",
+                  __func__, cs->exception_index, env->psw.mask, env->psw.addr);
 
 try_deliver:
     /* handle machine checks */
