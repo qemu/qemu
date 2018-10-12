@@ -33,8 +33,8 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "ui/pixel_ops.h"
-#include "vga_int.h"
 #include "hw/loader.h"
+#include "cirrus_vga_internal.h"
 
 /*
  * TODO:
@@ -51,16 +51,6 @@
  *  definitions
  *
  ***************************************/
-
-// ID
-#define CIRRUS_ID_CLGD5422  (0x23<<2)
-#define CIRRUS_ID_CLGD5426  (0x24<<2)
-#define CIRRUS_ID_CLGD5424  (0x25<<2)
-#define CIRRUS_ID_CLGD5428  (0x26<<2)
-#define CIRRUS_ID_CLGD5430  (0x28<<2)
-#define CIRRUS_ID_CLGD5434  (0x2A<<2)
-#define CIRRUS_ID_CLGD5436  (0x2B<<2)
-#define CIRRUS_ID_CLGD5446  (0x2E<<2)
 
 // sequencer 0x07
 #define CIRRUS_SR7_BPP_VGA            0x00
@@ -176,64 +166,9 @@
 
 #define CIRRUS_PNPMMIO_SIZE         0x1000
 
-struct CirrusVGAState;
-typedef void (*cirrus_bitblt_rop_t) (struct CirrusVGAState *s,
-                                     uint32_t dstaddr, uint32_t srcaddr,
-				     int dstpitch, int srcpitch,
-				     int bltwidth, int bltheight);
 typedef void (*cirrus_fill_t)(struct CirrusVGAState *s,
                               uint32_t dstaddr, int dst_pitch,
                               int width, int height);
-
-typedef struct CirrusVGAState {
-    VGACommonState vga;
-
-    MemoryRegion cirrus_vga_io;
-    MemoryRegion cirrus_linear_io;
-    MemoryRegion cirrus_linear_bitblt_io;
-    MemoryRegion cirrus_mmio_io;
-    MemoryRegion pci_bar;
-    bool linear_vram;  /* vga.vram mapped over cirrus_linear_io */
-    MemoryRegion low_mem_container; /* container for 0xa0000-0xc0000 */
-    MemoryRegion low_mem;           /* always mapped, overridden by: */
-    MemoryRegion cirrus_bank[2];    /*   aliases at 0xa0000-0xb0000  */
-    uint32_t cirrus_addr_mask;
-    uint32_t linear_mmio_mask;
-    uint8_t cirrus_shadow_gr0;
-    uint8_t cirrus_shadow_gr1;
-    uint8_t cirrus_hidden_dac_lockindex;
-    uint8_t cirrus_hidden_dac_data;
-    uint32_t cirrus_bank_base[2];
-    uint32_t cirrus_bank_limit[2];
-    uint8_t cirrus_hidden_palette[48];
-    bool enable_blitter;
-    int cirrus_blt_pixelwidth;
-    int cirrus_blt_width;
-    int cirrus_blt_height;
-    int cirrus_blt_dstpitch;
-    int cirrus_blt_srcpitch;
-    uint32_t cirrus_blt_fgcol;
-    uint32_t cirrus_blt_bgcol;
-    uint32_t cirrus_blt_dstaddr;
-    uint32_t cirrus_blt_srcaddr;
-    uint8_t cirrus_blt_mode;
-    uint8_t cirrus_blt_modeext;
-    cirrus_bitblt_rop_t cirrus_rop;
-#define CIRRUS_BLTBUFSIZE (2048 * 4) /* one line width */
-    uint8_t cirrus_bltbuf[CIRRUS_BLTBUFSIZE];
-    uint8_t *cirrus_srcptr;
-    uint8_t *cirrus_srcptr_end;
-    uint32_t cirrus_srccounter;
-    /* hwcursor display state */
-    int last_hw_cursor_size;
-    int last_hw_cursor_x;
-    int last_hw_cursor_y;
-    int last_hw_cursor_y_start;
-    int last_hw_cursor_y_end;
-    int real_vram_size; /* XXX: suppress that */
-    int device_id;
-    int bustype;
-} CirrusVGAState;
 
 typedef struct PCICirrusVGAState {
     PCIDevice dev;
@@ -243,16 +178,6 @@ typedef struct PCICirrusVGAState {
 #define TYPE_PCI_CIRRUS_VGA "cirrus-vga"
 #define PCI_CIRRUS_VGA(obj) \
     OBJECT_CHECK(PCICirrusVGAState, (obj), TYPE_PCI_CIRRUS_VGA)
-
-#define TYPE_ISA_CIRRUS_VGA "isa-cirrus-vga"
-#define ISA_CIRRUS_VGA(obj) \
-    OBJECT_CHECK(ISACirrusVGAState, (obj), TYPE_ISA_CIRRUS_VGA)
-
-typedef struct ISACirrusVGAState {
-    ISADevice parent_obj;
-
-    CirrusVGAState cirrus_vga;
-} ISACirrusVGAState;
 
 static uint8_t rop_to_index[256];
 
@@ -2829,7 +2754,7 @@ static int cirrus_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_cirrus_vga = {
+const VMStateDescription vmstate_cirrus_vga = {
     .name = "cirrus_vga",
     .version_id = 2,
     .minimum_version_id = 1,
@@ -2932,10 +2857,9 @@ static const MemoryRegionOps cirrus_vga_io_ops = {
     },
 };
 
-static void cirrus_init_common(CirrusVGAState *s, Object *owner,
-                               int device_id, int is_pci,
-                               MemoryRegion *system_memory,
-                               MemoryRegion *system_io)
+void cirrus_init_common(CirrusVGAState *s, Object *owner,
+                        int device_id, int is_pci,
+                        MemoryRegion *system_memory, MemoryRegion *system_io)
 {
     int i;
     static int inited;
@@ -3031,62 +2955,6 @@ static void cirrus_init_common(CirrusVGAState *s, Object *owner,
 
 /***************************************
  *
- *  ISA bus support
- *
- ***************************************/
-
-static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
-{
-    ISADevice *isadev = ISA_DEVICE(dev);
-    ISACirrusVGAState *d = ISA_CIRRUS_VGA(dev);
-    VGACommonState *s = &d->cirrus_vga.vga;
-
-    /* follow real hardware, cirrus card emulated has 4 MB video memory.
-       Also accept 8 MB/16 MB for backward compatibility. */
-    if (s->vram_size_mb != 4 && s->vram_size_mb != 8 &&
-        s->vram_size_mb != 16) {
-        error_setg(errp, "Invalid cirrus_vga ram size '%u'",
-                   s->vram_size_mb);
-        return;
-    }
-    s->global_vmstate = true;
-    vga_common_init(s, OBJECT(dev));
-    cirrus_init_common(&d->cirrus_vga, OBJECT(dev), CIRRUS_ID_CLGD5430, 0,
-                       isa_address_space(isadev),
-                       isa_address_space_io(isadev));
-    s->con = graphic_console_init(dev, 0, s->hw_ops, s);
-    rom_add_vga(VGABIOS_CIRRUS_FILENAME);
-    /* XXX ISA-LFB support */
-    /* FIXME not qdev yet */
-}
-
-static Property isa_cirrus_vga_properties[] = {
-    DEFINE_PROP_UINT32("vgamem_mb", struct ISACirrusVGAState,
-                       cirrus_vga.vga.vram_size_mb, 4),
-    DEFINE_PROP_BOOL("blitter", struct ISACirrusVGAState,
-                     cirrus_vga.enable_blitter, true),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void isa_cirrus_vga_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->vmsd  = &vmstate_cirrus_vga;
-    dc->realize = isa_cirrus_vga_realizefn;
-    dc->props = isa_cirrus_vga_properties;
-    set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-}
-
-static const TypeInfo isa_cirrus_vga_info = {
-    .name          = TYPE_ISA_CIRRUS_VGA,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISACirrusVGAState),
-    .class_init = isa_cirrus_vga_class_init,
-};
-
-/***************************************
- *
  *  PCI bus support
  *
  ***************************************/
@@ -3171,7 +3039,6 @@ static const TypeInfo cirrus_vga_info = {
 
 static void cirrus_vga_register_types(void)
 {
-    type_register_static(&isa_cirrus_vga_info);
     type_register_static(&cirrus_vga_info);
 }
 
