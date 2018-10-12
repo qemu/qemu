@@ -244,4 +244,8 @@ static inline abi_ulong target_shmlba(CPUMIPSState *env)
     return 0x40000;
 }
 
+/* MIPS-specific prctl() options */
+#define TARGET_PR_SET_FP_MODE  45
+#define TARGET_PR_GET_FP_MODE  46
+
 #endif /* MIPS_TARGET_SYSCALL_H */
