@@ -1262,15 +1262,9 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
                        "Unable to set VVFAT to 'rw' when drive is read-only");
             goto fail;
         }
-    } else  if (!bdrv_is_read_only(bs)) {
-        error_report("Opening non-rw vvfat images without an explicit "
-                     "read-only=on option is deprecated. Future versions "
-                     "will refuse to open the image instead of "
-                     "automatically marking the image read-only.");
-        /* read only is the default for safety */
-        ret = bdrv_set_read_only(bs, true, &local_err);
+    } else {
+        ret = bdrv_apply_auto_read_only(bs, NULL, errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             goto fail;
         }
     }

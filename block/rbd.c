@@ -780,17 +780,10 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     /* If we are using an rbd snapshot, we must be r/o, otherwise
      * leave as-is */
     if (s->snap != NULL) {
-        if (!bdrv_is_read_only(bs)) {
-            error_report("Opening rbd snapshots without an explicit "
-                         "read-only=on option is deprecated. Future versions "
-                         "will refuse to open the image instead of "
-                         "automatically marking the image read-only.");
-            r = bdrv_set_read_only(bs, true, &local_err);
-            if (r < 0) {
-                rbd_close(s->image);
-                error_propagate(errp, local_err);
-                goto failed_open;
-            }
+        r = bdrv_apply_auto_read_only(bs, "rbd snapshots are read-only", errp);
+        if (r < 0) {
+            rbd_close(s->image);
+            goto failed_open;
         }
     }
 

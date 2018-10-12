@@ -413,21 +413,15 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     int64_t offset;
     int ret;
 
+    ret = bdrv_apply_auto_read_only(bs, NULL, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
                                false, errp);
     if (!bs->file) {
         return -EINVAL;
-    }
-
-    if (!bdrv_is_read_only(bs)) {
-        error_report("Opening dmg images without an explicit read-only=on "
-                     "option is deprecated. Future versions will refuse to "
-                     "open the image instead of automatically marking the "
-                     "image read-only.");
-        ret = bdrv_set_read_only(bs, true, errp);
-        if (ret < 0) {
-            return ret;
-        }
     }
 
     block_module_load_one("dmg-bz2");
