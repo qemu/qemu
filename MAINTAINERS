@@ -2023,7 +2023,6 @@ F: block/rbd.c
 T: git git://github.com/codyprime/qemu-kvm-jtc.git block
 
 Sheepdog
-M: Hitoshi Mitake <mitake.hitoshi@lab.ntt.co.jp>
 M: Liu Yuan <namei.unix@gmail.com>
 M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
