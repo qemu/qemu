@@ -1951,12 +1951,14 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     g_signal_connect(vc->vte.terminal, "commit", G_CALLBACK(gd_vc_in), vc);
 
     /* The documentation says that the default is UTF-8, but actually it is
-     * 7-bit ASCII at least in VTE 0.38.
-     */
+     * 7-bit ASCII at least in VTE 0.38. The function is deprecated since
+     * VTE 0.54 (only UTF-8 is supported now). */
+#if !VTE_CHECK_VERSION(0, 54, 0)
 #if VTE_CHECK_VERSION(0, 38, 0)
     vte_terminal_set_encoding(VTE_TERMINAL(vc->vte.terminal), "UTF-8", NULL);
 #else
     vte_terminal_set_encoding(VTE_TERMINAL(vc->vte.terminal), "UTF-8");
+#endif
 #endif
 
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->vte.terminal), -1);
@@ -2136,7 +2138,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                               QemuConsole *con, int idx,
                               GSList *group, GtkWidget *view_menu)
 {
-    bool zoom_to_fit;
+    bool zoom_to_fit = false;
 
     vc->label = qemu_console_get_label(con);
     vc->s = s;
