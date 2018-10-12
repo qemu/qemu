@@ -34,6 +34,7 @@ typedef struct PCIQXLDevice {
     PortioList         vga_port_list;
     SimpleSpiceDisplay ssd;
     int                id;
+    bool               have_vga;
     uint32_t           debug;
     uint32_t           guestdebug;
     uint32_t           cmdlog;
