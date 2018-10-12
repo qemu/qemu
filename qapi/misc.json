@@ -839,8 +839,8 @@
 # Since: 2.4
 ##
 { 'struct': 'PciDeviceId',
-  'data': {'device': 'int', 'vendor': 'int', 'subsystem': 'int',
-            'subsystem-vendor': 'int'} }
+  'data': {'device': 'int', 'vendor': 'int', '*subsystem': 'int',
+            '*subsystem-vendor': 'int'} }
 
 ##
 # @PciDeviceInfo:

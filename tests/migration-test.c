@@ -86,12 +86,24 @@ static const char *tmpfs;
  * repeatedly. It outputs a 'B' at a fixed rate while it's still running.
  */
 #include "tests/migration/i386/a-b-bootblock.h"
+#include "tests/migration/aarch64/a-b-kernel.h"
 
-static void init_bootfile_x86(const char *bootpath)
+static void init_bootfile(const char *bootpath, void *content)
 {
     FILE *bootfile = fopen(bootpath, "wb");
 
-    g_assert_cmpint(fwrite(x86_bootsect, 512, 1, bootfile), ==, 1);
+    g_assert_cmpint(fwrite(content, 512, 1, bootfile), ==, 1);
+    fclose(bootfile);
+}
+
+#include "tests/migration/s390x/a-b-bios.h"
+
+static void init_bootfile_s390x(const char *bootpath)
+{
+    FILE *bootfile = fopen(bootpath, "wb");
+    size_t len = sizeof(s390x_elf);
+
+    g_assert_cmpint(fwrite(s390x_elf, len, 1, bootfile), ==, 1);
     fclose(bootfile);
 }
 
@@ -428,7 +440,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     got_stop = false;
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        init_bootfile_x86(bootpath);
+        init_bootfile(bootpath, x86_bootsect);
         cmd_src = g_strdup_printf("-machine accel=%s -m 150M"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
@@ -442,6 +454,19 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                   accel, tmpfs, bootpath, uri);
         start_address = X86_TEST_MEM_START;
         end_address = X86_TEST_MEM_END;
+    } else if (g_str_equal(arch, "s390x")) {
+        init_bootfile_s390x(bootpath);
+        cmd_src = g_strdup_printf("-machine accel=%s -m 128M"
+                                  " -name source,debug-threads=on"
+                                  " -serial file:%s/src_serial -bios %s",
+                                  accel, tmpfs, bootpath);
+        cmd_dst = g_strdup_printf("-machine accel=%s -m 128M"
+                                  " -name target,debug-threads=on"
+                                  " -serial file:%s/dest_serial -bios %s"
+                                  " -incoming %s",
+                                  accel, tmpfs, bootpath, uri);
+        start_address = S390_TEST_MEM_START;
+        end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
         cmd_src = g_strdup_printf("-machine accel=%s -m 256M -nodefaults"
                                   " -name source,debug-threads=on"
@@ -459,6 +484,24 @@ static int test_migrate_start(QTestState **from, QTestState **to,
 
         start_address = PPC_TEST_MEM_START;
         end_address = PPC_TEST_MEM_END;
+    } else if (strcmp(arch, "aarch64") == 0) {
+        init_bootfile(bootpath, aarch64_kernel);
+        cmd_src = g_strdup_printf("-machine virt,accel=%s,gic-version=max "
+                                  "-name vmsource,debug-threads=on -cpu max "
+                                  "-m 150M -serial file:%s/src_serial "
+                                  "-kernel %s ",
+                                  accel, tmpfs, bootpath);
+        cmd_dst = g_strdup_printf("-machine virt,accel=%s,gic-version=max "
+                                  "-name vmdest,debug-threads=on -cpu max "
+                                  "-m 150M -serial file:%s/dest_serial "
+                                  "-kernel %s "
+                                  "-incoming %s ",
+                                  accel, tmpfs, bootpath, uri);
+
+        start_address = ARM_TEST_MEM_START;
+        end_address = ARM_TEST_MEM_END;
+
+        g_assert(sizeof(aarch64_kernel) <= ARM_TEST_MAX_KERNEL_SIZE);
     } else {
         g_assert_not_reached();
     }
@@ -545,7 +588,7 @@ static void test_deprecated(void)
 {
     QTestState *from;
 
-    from = qtest_start("");
+    from = qtest_start("-machine none");
 
     deprecated_set_downtime(from, 0.12345);
     deprecated_set_speed(from, 12345);
