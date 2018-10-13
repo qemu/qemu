@@ -196,6 +196,13 @@ class BaseVM(object):
         return self._guest.qmp(*args, **kwargs)
 
 def parse_args(vm_name):
+
+    def get_default_jobs():
+        if kvm_available():
+            return multiprocessing.cpu_count() / 2
+        else:
+            return 1
+
     parser = optparse.OptionParser(
         description="VM test utility.  Exit codes: "
                     "0 = success, "
@@ -208,7 +215,7 @@ def parse_args(vm_name):
                       help="image file name")
     parser.add_option("--force", "-f", action="store_true",
                       help="force build image even if image exists")
-    parser.add_option("--jobs", type=int, default=multiprocessing.cpu_count() / 2,
+    parser.add_option("--jobs", type=int, default=get_default_jobs(),
                       help="number of virtual CPUs")
     parser.add_option("--verbose", "-V", action="store_true",
                       help="Pass V=1 to builds within the guest")
