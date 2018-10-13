@@ -200,10 +200,10 @@ class BaseVM(object):
     def qmp(self, *args, **kwargs):
         return self._guest.qmp(*args, **kwargs)
 
-def parse_args(vm_name):
+def parse_args(vmcls):
 
     def get_default_jobs():
-        if kvm_available():
+        if kvm_available(vmcls.arch):
             return multiprocessing.cpu_count() / 2
         else:
             return 1
@@ -216,7 +216,7 @@ def parse_args(vm_name):
                     "3 = test command failed")
     parser.add_option("--debug", "-D", action="store_true",
                       help="enable debug output")
-    parser.add_option("--image", "-i", default="%s.img" % vm_name,
+    parser.add_option("--image", "-i", default="%s.img" % vmcls.name,
                       help="image file name")
     parser.add_option("--force", "-f", action="store_true",
                       help="force build image even if image exists")
@@ -237,7 +237,7 @@ def parse_args(vm_name):
 
 def main(vmcls):
     try:
-        args, argv = parse_args(vmcls.name)
+        args, argv = parse_args(vmcls)
         if not argv and not args.build_qemu and not args.build_image:
             print("Nothing to do?")
             return 1
