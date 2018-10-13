@@ -26,6 +26,10 @@ import tempfile
 LOG = logging.getLogger(__name__)
 
 
+def kvm_available(target_arch=None):
+    return os.access("/dev/kvm", os.R_OK | os.W_OK)
+
+
 #: Maps machine types to the preferred console device types
 CONSOLE_DEV_TYPES = {
     r'^clipper$': 'isa-serial',

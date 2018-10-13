@@ -18,7 +18,7 @@ import logging
 import time
 import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
-from qemu import QEMUMachine
+from qemu import QEMUMachine, kvm_available
 import subprocess
 import hashlib
 import optparse
@@ -72,7 +72,7 @@ class BaseVM(object):
             "-serial", "file:%s" % os.path.join(self._tmpdir, "serial.out")]
         if vcpus:
             self._args += ["-smp", str(vcpus)]
-        if os.access("/dev/kvm", os.R_OK | os.W_OK):
+        if kvm_available():
             self._args += ["-enable-kvm"]
         else:
             logging.info("KVM not available, not using -enable-kvm")
