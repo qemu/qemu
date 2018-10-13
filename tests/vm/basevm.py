@@ -74,7 +74,7 @@ class BaseVM(object):
             "-serial", "file:%s" % os.path.join(self._tmpdir, "serial.out")]
         if vcpus and vcpus > 1:
             self._args += ["-smp", str(vcpus)]
-        if kvm_available():
+        if kvm_available(self.arch):
             self._args += ["-enable-kvm"]
         else:
             logging.info("KVM not available, not using -enable-kvm")
