@@ -70,7 +70,7 @@ class BaseVM(object):
             "-device", "virtio-net-pci,netdev=vnet",
             "-vnc", "127.0.0.1:0,to=20",
             "-serial", "file:%s" % os.path.join(self._tmpdir, "serial.out")]
-        if vcpus:
+        if vcpus and vcpus > 1:
             self._args += ["-smp", str(vcpus)]
         if kvm_available():
             self._args += ["-enable-kvm"]
