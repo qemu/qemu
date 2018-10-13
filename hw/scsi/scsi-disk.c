@@ -441,9 +441,18 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
         }
         switch (error) {
         case 0:
-            /* The command has run, no need to fake sense.  */
+            /* A passthrough command has run and has produced sense data; check
+             * whether the error has to be handled by the guest or should rather
+             * pause the host.
+             */
             assert(r->status && *r->status);
-            scsi_req_complete(&r->req, *r->status);
+            error = scsi_sense_buf_to_errno(r->req.sense, sizeof(r->req.sense));
+            if (error == ECANCELED || error == EAGAIN || error == ENOTCONN ||
+                error == 0)  {
+                /* These errors are handled by guest. */
+                scsi_req_complete(&r->req, *r->status);
+                return true;
+            }
             break;
         case ENOMEDIUM:
             scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
@@ -460,17 +469,6 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
         default:
             scsi_check_condition(r, SENSE_CODE(IO_ERROR));
             break;
-        }
-    }
-    if (!error) {
-        assert(r->status && *r->status);
-        error = scsi_sense_buf_to_errno(r->req.sense, sizeof(r->req.sense));
-
-        if (error == ECANCELED || error == EAGAIN || error == ENOTCONN ||
-            error == 0)  {
-            /* These errors are handled by guest. */
-            scsi_req_complete(&r->req, *r->status);
-            return true;
         }
     }
 
