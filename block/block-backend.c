@@ -1708,7 +1708,7 @@ void blk_error_action(BlockBackend *blk, BlockErrorAction action,
     }
 }
 
-int blk_is_read_only(BlockBackend *blk)
+bool blk_is_read_only(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
 
@@ -1719,18 +1719,18 @@ int blk_is_read_only(BlockBackend *blk)
     }
 }
 
-int blk_is_sg(BlockBackend *blk)
+bool blk_is_sg(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
 
     if (!bs) {
-        return 0;
+        return false;
     }
 
     return bdrv_is_sg(bs);
 }
 
-int blk_enable_write_cache(BlockBackend *blk)
+bool blk_enable_write_cache(BlockBackend *blk)
 {
     return blk->enable_write_cache;
 }
