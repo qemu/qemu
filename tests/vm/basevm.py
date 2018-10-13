@@ -42,6 +42,8 @@ class BaseVM(object):
     BUILD_SCRIPT = ""
     # The guest name, to be overridden by subclasses
     name = "#base"
+    # The guest architecture, to be overridden by subclasses
+    arch = "#arch"
     def __init__(self, debug=False, vcpus=None):
         self._guest = None
         self._tmpdir = os.path.realpath(tempfile.mkdtemp(prefix="vm-test-",
@@ -151,7 +153,7 @@ class BaseVM(object):
             "-device", "virtio-blk,drive=drive0,bootindex=0"]
         args += self._data_args + extra_args
         logging.debug("QEMU args: %s", " ".join(args))
-        qemu_bin = os.environ.get("QEMU", "qemu-system-x86_64")
+        qemu_bin = os.environ.get("QEMU", "qemu-system-" + self.arch)
         guest = QEMUMachine(binary=qemu_bin, args=args)
         try:
             guest.launch()

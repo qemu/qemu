@@ -19,6 +19,7 @@ import time
 
 class CentosVM(basevm.BaseVM):
     name = "centos"
+    arch = "x86_64"
     BUILD_SCRIPT = """
         set -e;
         cd $(mktemp -d);
