@@ -27,6 +27,8 @@ LOG = logging.getLogger(__name__)
 
 
 def kvm_available(target_arch=None):
+    if target_arch and target_arch != os.uname()[4]:
+        return False
     return os.access("/dev/kvm", os.R_OK | os.W_OK)
 
 
