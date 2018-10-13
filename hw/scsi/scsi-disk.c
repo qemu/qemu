@@ -473,10 +473,15 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
     }
 
     blk_error_action(s->qdev.conf.blk, action, is_read, error);
+    if (action == BLOCK_ERROR_ACTION_IGNORE) {
+        scsi_req_complete(&r->req, 0);
+        return true;
+    }
+
     if (action == BLOCK_ERROR_ACTION_STOP) {
         scsi_req_retry(&r->req);
     }
-    return action != BLOCK_ERROR_ACTION_IGNORE;
+    return false;
 }
 
 static void scsi_write_complete_noio(SCSIDiskReq *r, int ret)
