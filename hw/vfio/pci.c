@@ -37,6 +37,9 @@
 
 #define MSIX_CAP_LENGTH 12
 
+#define TYPE_VFIO_PCI "vfio-pci"
+#define PCI_VFIO(obj)    OBJECT_CHECK(VFIOPCIDevice, obj, TYPE_VFIO_PCI)
+
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
 
@@ -222,7 +225,7 @@ static void vfio_intx_disable_kvm(VFIOPCIDevice *vdev)
 
 static void vfio_intx_update(PCIDevice *pdev)
 {
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
     PCIINTxRoute route;
     Error *err = NULL;
 
@@ -477,7 +480,7 @@ static void vfio_update_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage msg,
 static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
                                    MSIMessage *msg, IOHandler *handler)
 {
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
     VFIOMSIVector *vector;
     int ret;
 
@@ -574,7 +577,7 @@ static int vfio_msix_vector_use(PCIDevice *pdev,
 
 static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
 {
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
     VFIOMSIVector *vector = &vdev->msi_vectors[nr];
 
     trace_vfio_msix_vector_release(vdev->vbasedev.name, nr);
@@ -1086,7 +1089,7 @@ static const MemoryRegionOps vfio_vga_ops = {
  */
 static void vfio_sub_page_bar_update_mapping(PCIDevice *pdev, int bar)
 {
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
     VFIORegion *region = &vdev->bars[bar].region;
     MemoryRegion *mmap_mr, *region_mr, *base_mr;
     PCIIORegion *r;
@@ -1132,7 +1135,7 @@ static void vfio_sub_page_bar_update_mapping(PCIDevice *pdev, int bar)
  */
 uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
 {
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
     uint32_t emu_bits = 0, emu_val = 0, phys_val = 0, val;
 
     memcpy(&emu_bits, vdev->emulated_config_bits + addr, len);
@@ -1165,7 +1168,7 @@ uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
 void vfio_pci_write_config(PCIDevice *pdev,
                            uint32_t addr, uint32_t val, int len)
 {
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
     uint32_t val_le = cpu_to_le32(val);
 
     trace_vfio_pci_write_config(vdev->vbasedev.name, addr, val, len);
@@ -2801,7 +2804,7 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
 
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
     char *tmp, *subsys, group_path[PATH_MAX], *group_name;
@@ -3067,6 +3070,10 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
             goto out_teardown;
         }
     }
+    if (vdev->enable_ramfb && vdev->dpy == NULL) {
+        error_setg(errp, "ramfb=on requires display=on");
+        goto out_teardown;
+    }
 
     vfio_register_err_notifier(vdev);
     vfio_register_req_notifier(vdev);
@@ -3084,8 +3091,7 @@ error:
 
 static void vfio_instance_finalize(Object *obj)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(obj);
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pci_dev);
+    VFIOPCIDevice *vdev = PCI_VFIO(obj);
     VFIOGroup *group = vdev->vbasedev.group;
 
     vfio_display_finalize(vdev);
@@ -3105,7 +3111,7 @@ static void vfio_instance_finalize(Object *obj)
 
 static void vfio_exitfn(PCIDevice *pdev)
 {
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
 
     vfio_unregister_req_notifier(vdev);
     vfio_unregister_err_notifier(vdev);
@@ -3120,8 +3126,7 @@ static void vfio_exitfn(PCIDevice *pdev)
 
 static void vfio_pci_reset(DeviceState *dev)
 {
-    PCIDevice *pdev = DO_UPCAST(PCIDevice, qdev, dev);
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOPCIDevice *vdev = PCI_VFIO(dev);
 
     trace_vfio_pci_reset(vdev->vbasedev.name);
 
@@ -3161,7 +3166,7 @@ post_reset:
 static void vfio_instance_init(Object *obj)
 {
     PCIDevice *pci_dev = PCI_DEVICE(obj);
-    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, PCI_DEVICE(obj));
+    VFIOPCIDevice *vdev = PCI_VFIO(obj);
 
     device_add_bootindex_property(obj, &vdev->bootindex,
                                   "bootindex", NULL,
@@ -3245,7 +3250,7 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo vfio_pci_dev_info = {
-    .name = "vfio-pci",
+    .name = TYPE_VFIO_PCI,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VFIOPCIDevice),
     .class_init = vfio_pci_dev_class_init,
@@ -3258,9 +3263,30 @@ static const TypeInfo vfio_pci_dev_info = {
     },
 };
 
+static Property vfio_pci_dev_nohotplug_properties[] = {
+    DEFINE_PROP_BOOL("ramfb", VFIOPCIDevice, enable_ramfb, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->props = vfio_pci_dev_nohotplug_properties;
+    dc->hotpluggable = false;
+}
+
+static const TypeInfo vfio_pci_nohotplug_dev_info = {
+    .name = "vfio-pci-nohotplug",
+    .parent = "vfio-pci",
+    .instance_size = sizeof(VFIOPCIDevice),
+    .class_init = vfio_pci_nohotplug_dev_class_init,
+};
+
 static void register_vfio_pci_dev_type(void)
 {
     type_register_static(&vfio_pci_dev_info);
+    type_register_static(&vfio_pci_nohotplug_dev_info);
 }
 
 type_init(register_vfio_pci_dev_type)
