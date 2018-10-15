@@ -3067,6 +3067,10 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
             goto out_teardown;
         }
     }
+    if (vdev->enable_ramfb && vdev->dpy == NULL) {
+        error_setg(errp, "ramfb=on requires display=on");
+        goto out_teardown;
+    }
 
     vfio_register_err_notifier(vdev);
     vfio_register_req_notifier(vdev);
@@ -3258,9 +3262,30 @@ static const TypeInfo vfio_pci_dev_info = {
     },
 };
 
+static Property vfio_pci_dev_nohotplug_properties[] = {
+    DEFINE_PROP_BOOL("ramfb", VFIOPCIDevice, enable_ramfb, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void vfio_pci_nohotplug_dev_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->props = vfio_pci_dev_nohotplug_properties;
+    dc->hotpluggable = false;
+}
+
+static const TypeInfo vfio_pci_nohotplug_dev_info = {
+    .name = "vfio-pci-nohotplug",
+    .parent = "vfio-pci",
+    .instance_size = sizeof(VFIOPCIDevice),
+    .class_init = vfio_pci_nohotplug_dev_class_init,
+};
+
 static void register_vfio_pci_dev_type(void)
 {
     type_register_static(&vfio_pci_dev_info);
+    type_register_static(&vfio_pci_nohotplug_dev_info);
 }
 
 type_init(register_vfio_pci_dev_type)
