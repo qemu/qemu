@@ -223,7 +223,7 @@ static void edid_desc_timing(uint8_t *desc,
 
     uint32_t clock  = 75 * (xres + xblank) * (yres + yblank);
 
-    *(uint32_t *)(desc) = cpu_to_le32(clock / 10000);
+    stl_le_p(desc, clock / 10000);
 
     desc[2] = xres   & 0xff;
     desc[3] = xblank & 0xff;
@@ -342,9 +342,9 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
                           (((info->vendor[2] - '@') & 0x1f) <<  0));
     uint16_t model_nr = 0x1234;
     uint32_t serial_nr = info->serial ? atoi(info->serial) : 0;
-    *(uint16_t *)(edid +  8) = cpu_to_be16(vendor_id);
-    *(uint16_t *)(edid + 10) = cpu_to_le16(model_nr);
-    *(uint32_t *)(edid + 12) = cpu_to_le32(serial_nr);
+    stw_be_p(edid +  8, vendor_id);
+    stw_le_p(edid + 10, model_nr);
+    stl_le_p(edid + 12, serial_nr);
 
     /* manufacture week and year */
     edid[16] = 42;
