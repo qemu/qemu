@@ -1975,6 +1975,17 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     }
 #endif
 
+    /* If host supports feature MSR, write down. */
+    if (kvm_feature_msrs) {
+        int i;
+        for (i = 0; i < kvm_feature_msrs->nmsrs; i++)
+            if (kvm_feature_msrs->indices[i] == MSR_IA32_ARCH_CAPABILITIES) {
+                kvm_msr_entry_add(cpu, MSR_IA32_ARCH_CAPABILITIES,
+                              env->features[FEAT_ARCH_CAPABILITIES]);
+                break;
+            }
+    }
+
     /*
      * The following MSRs have side effects on the guest or are too heavy
      * for normal writeback. Limit them to reset or full state updates.
