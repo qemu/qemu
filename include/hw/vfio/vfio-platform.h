@@ -54,7 +54,8 @@ typedef struct VFIOPlatformDevice {
     QLIST_HEAD(, VFIOINTp) intp_list; /* list of IRQs */
     /* queue of pending IRQs */
     QSIMPLEQ_HEAD(pending_intp_queue, VFIOINTp) pending_intp_queue;
-    char *compat; /* compatibility string */
+    char *compat; /* DT compatible values, separated by NUL */
+    unsigned int num_compat; /* number of compatible values */
     uint32_t mmap_timeout; /* delay to re-enable mmaps after interrupt */
     QEMUTimer *mmap_timer; /* allows fast-path resume after IRQ hit */
     QemuMutex intp_mutex; /* protect the intp_list IRQ state */
