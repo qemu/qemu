@@ -18,7 +18,7 @@ if test $# -lt 1; then
     error "Usage: $0 <output tarball>"
 fi
 
-tar_file=`realpath "$1"`
+tar_file=$(realpath "$1")
 list_file="${tar_file}.list"
 vroot_dir="${tar_file}.vroot"
 
@@ -34,7 +34,7 @@ if git diff-index --quiet HEAD -- &>/dev/null
 then
     HEAD=HEAD
 else
-    HEAD=`git stash create`
+    HEAD=$(git stash create)
 fi
 git clone --shared . "$vroot_dir"
 test $? -ne 0 && error "failed to clone into '$vroot_dir'"
