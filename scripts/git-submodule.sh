@@ -59,8 +59,8 @@ status)
     fi
 
     test -f "$substat" || exit 1
-    CURSTATUS=`$GIT submodule status $modules`
-    OLDSTATUS=`cat $substat`
+    CURSTATUS=$($GIT submodule status $modules)
+    OLDSTATUS=$(cat $substat)
     test "$CURSTATUS" = "$OLDSTATUS"
     exit $?
     ;;
