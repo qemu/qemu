@@ -23,10 +23,10 @@ while getopts "s:e:cbh" opt; do
 done
 
 if [ "x$start" = "x" ]; then
-    start=`git tag -l 'v[0-9]*\.[0-9]*\.0' | tail -n 2 | head -n 1`
+    start=$(git tag -l 'v[0-9]*\.[0-9]*\.0' | tail -n 2 | head -n 1)
 fi
 if [ "x$end" = "x" ]; then
-    end=`git tag -l  'v[0-9]*\.[0-9]*\.0' | tail -n 1`
+    end=$(git tag -l  'v[0-9]*\.[0-9]*\.0' | tail -n 1)
 fi
 
 if [ "x$start" = "x" ] || [ "x$end" = "x" ]; then
@@ -38,9 +38,9 @@ fi
 echo "Searching git log for bugs in the range $start..$end"
 
 urlstr='https://bugs.launchpad.net/\(bugs\|qemu/+bug\)/'
-bug_urls=`git log $start..$end \
+bug_urls=$(git log $start..$end \
   | sed -n '\,'"$urlstr"', s,\(.*\)\('"$urlstr"'\)\([0-9]*\).*,\2\4,p' \
-  | sort -u`
+  | sort -u)
 
 echo Found bug URLs:
 for i in $bug_urls ; do echo " $i" ; done
@@ -68,7 +68,7 @@ elif [ "x$show_in_browser" = "x1" ]; then
         bugbrowser=xdg-open
     elif command -v gnome-open >/dev/null 2>&1; then
         bugbrowser=gnome-open
-    elif [ "`uname`" = "Darwin" ]; then
+    elif [ "$(uname)" = "Darwin" ]; then
         bugbrowser=open
     elif command -v sensible-browser >/dev/null 2>&1; then
         bugbrowser=sensible-browser
