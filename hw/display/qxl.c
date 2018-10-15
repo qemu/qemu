@@ -290,7 +290,7 @@ static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
     }
 
     cfg = qxl_phys2virt(qxl, qxl->guest_monitors_config, MEMSLOT_GROUP_GUEST);
-    if (cfg->count == 1) {
+    if (cfg != NULL && cfg->count == 1) {
         qxl->guest_primary.resized = 1;
         qxl->guest_head0_width  = cfg->heads[0].width;
         qxl->guest_head0_height = cfg->heads[0].height;
