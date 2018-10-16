@@ -102,6 +102,8 @@ qcrypto_block_qcow_open(QCryptoBlock *block,
                         Error **errp)
 {
     if (flags & QCRYPTO_BLOCK_OPEN_NO_IO) {
+        block->sector_size = QCRYPTO_BLOCK_QCOW_SECTOR_SIZE;
+        block->payload_offset = 0;
         return 0;
     } else {
         if (!options->u.qcow.key_secret) {
