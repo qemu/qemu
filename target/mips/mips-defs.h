@@ -22,40 +22,50 @@
 #endif
 #endif
 
-/* Masks used to mark instructions to indicate which ISA level they
-   were introduced in. */
-#define		ISA_MIPS1	0x00000001
-#define		ISA_MIPS2	0x00000002
-#define		ISA_MIPS3	0x00000004
-#define		ISA_MIPS4	0x00000008
-#define		ISA_MIPS5	0x00000010
-#define		ISA_MIPS32	0x00000020
-#define		ISA_MIPS32R2	0x00000040
-#define		ISA_MIPS64	0x00000080
-#define		ISA_MIPS64R2	0x00000100
-#define   ISA_MIPS32R3  0x00000200
-#define   ISA_MIPS64R3  0x00000400
-#define   ISA_MIPS32R5  0x00000800
-#define   ISA_MIPS64R5  0x00001000
-#define   ISA_MIPS32R6  0x00002000
-#define   ISA_MIPS64R6  0x00004000
-#define   ISA_NANOMIPS32  0x00008000
-
-/* MIPS ASEs. */
-#define   ASE_MIPS16    0x00010000
-#define   ASE_MIPS3D    0x00020000
-#define   ASE_MDMX      0x00040000
-#define   ASE_DSP       0x00080000
-#define   ASE_DSPR2     0x00100000
-#define   ASE_MT        0x00200000
-#define   ASE_SMARTMIPS 0x00400000
-#define   ASE_MICROMIPS 0x00800000
-#define   ASE_MSA       0x01000000
-
-/* Chip specific instructions. */
-#define		INSN_LOONGSON2E  0x20000000
-#define		INSN_LOONGSON2F  0x40000000
-#define		INSN_VR54XX	0x80000000
+/*
+ * bit definitions for insn_flags (ISAs/ASEs flags)
+ * ------------------------------------------------
+ */
+/*
+ *   bits 0-31: MIPS base instruction sets
+ */
+#define ISA_MIPS1         0x0000000000000001ULL
+#define ISA_MIPS2         0x0000000000000002ULL
+#define ISA_MIPS3         0x0000000000000004ULL
+#define ISA_MIPS4         0x0000000000000008ULL
+#define ISA_MIPS5         0x0000000000000010ULL
+#define ISA_MIPS32        0x0000000000000020ULL
+#define ISA_MIPS32R2      0x0000000000000040ULL
+#define ISA_MIPS64        0x0000000000000080ULL
+#define ISA_MIPS64R2      0x0000000000000100ULL
+#define ISA_MIPS32R3      0x0000000000000200ULL
+#define ISA_MIPS64R3      0x0000000000000400ULL
+#define ISA_MIPS32R5      0x0000000000000800ULL
+#define ISA_MIPS64R5      0x0000000000001000ULL
+#define ISA_MIPS32R6      0x0000000000002000ULL
+#define ISA_MIPS64R6      0x0000000000004000ULL
+#define ISA_NANOMIPS32    0x0000000000008000ULL
+/*
+ *   bits 32-47: MIPS ASEs
+ */
+#define ASE_MIPS16        0x0000000100000000ULL
+#define ASE_MIPS3D        0x0000000200000000ULL
+#define ASE_MDMX          0x0000000400000000ULL
+#define ASE_DSP           0x0000000800000000ULL
+#define ASE_DSPR2         0x0000001000000000ULL
+#define ASE_MT            0x0000004000000000ULL
+#define ASE_SMARTMIPS     0x0000008000000000ULL
+#define ASE_MICROMIPS     0x0000010000000000ULL
+#define ASE_MSA           0x0000020000000000ULL
+/*
+ *   bits 48-55: vendor-specific base instruction sets
+ */
+#define INSN_LOONGSON2E   0x0001000000000000ULL
+#define INSN_LOONGSON2F   0x0002000000000000ULL
+#define INSN_VR54XX       0x0004000000000000ULL
+/*
+ *   bits 56-63: vendor-specific ASEs
+ */
 
 /* MIPS CPU defines. */
 #define		CPU_MIPS1	(ISA_MIPS1)
