@@ -36,6 +36,7 @@
 #include "qemu/range.h"
 
 #include "e1000x_common.h"
+#include "trace.h"
 
 static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -847,6 +848,15 @@ static uint64_t rx_desc_base(E1000State *s)
     return (bah << 32) + bal;
 }
 
+static void
+e1000_receiver_overrun(E1000State *s, size_t size)
+{
+    trace_e1000_receiver_overrun(size, s->mac_reg[RDH], s->mac_reg[RDT]);
+    e1000x_inc_reg_if_not_full(s->mac_reg, RNBC);
+    e1000x_inc_reg_if_not_full(s->mac_reg, MPC);
+    set_ics(s, 0, E1000_ICS_RXO);
+}
+
 static ssize_t
 e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
 {
@@ -916,8 +926,8 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
     desc_offset = 0;
     total_size = size + e1000x_fcs_len(s->mac_reg);
     if (!e1000_has_rxbufs(s, total_size)) {
-            set_ics(s, 0, E1000_ICS_RXO);
-            return -1;
+        e1000_receiver_overrun(s, total_size);
+        return -1;
     }
     do {
         desc_size = total_size - desc_offset;
@@ -969,7 +979,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
             rdh_start >= s->mac_reg[RDLEN] / sizeof(desc)) {
             DBGOUT(RXERR, "RDH wraparound @%x, RDT %x, RDLEN %x\n",
                    rdh_start, s->mac_reg[RDT], s->mac_reg[RDLEN]);
-            set_ics(s, 0, E1000_ICS_RXO);
+            e1000_receiver_overrun(s, total_size);
             return -1;
         }
     } while (desc_offset < total_size);
