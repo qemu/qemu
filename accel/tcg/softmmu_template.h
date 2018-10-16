@@ -280,7 +280,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     uintptr_t mmu_idx = get_mmuidx(oi);
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
-    target_ulong tlb_addr = entry->addr_write;
+    target_ulong tlb_addr = tlb_addr_write(entry);
     unsigned a_bits = get_alignment_bits(get_memop(oi));
     uintptr_t haddr;
 
@@ -295,7 +295,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
             tlb_fill(ENV_GET_CPU(env), addr, DATA_SIZE, MMU_DATA_STORE,
                      mmu_idx, retaddr);
         }
-        tlb_addr = entry->addr_write & ~TLB_INVALID_MASK;
+        tlb_addr = tlb_addr_write(entry) & ~TLB_INVALID_MASK;
     }
 
     /* Handle an IO access.  */
@@ -325,7 +325,7 @@ void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
            cannot evict the first.  */
         page2 = (addr + DATA_SIZE) & TARGET_PAGE_MASK;
         entry2 = tlb_entry(env, mmu_idx, page2);
-        if (!tlb_hit_page(entry2->addr_write, page2)
+        if (!tlb_hit_page(tlb_addr_write(entry2), page2)
             && !VICTIM_TLB_HIT(addr_write, page2)) {
             tlb_fill(ENV_GET_CPU(env), page2, DATA_SIZE, MMU_DATA_STORE,
                      mmu_idx, retaddr);
@@ -358,7 +358,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     uintptr_t mmu_idx = get_mmuidx(oi);
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
-    target_ulong tlb_addr = entry->addr_write;
+    target_ulong tlb_addr = tlb_addr_write(entry);
     unsigned a_bits = get_alignment_bits(get_memop(oi));
     uintptr_t haddr;
 
@@ -373,7 +373,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
             tlb_fill(ENV_GET_CPU(env), addr, DATA_SIZE, MMU_DATA_STORE,
                      mmu_idx, retaddr);
         }
-        tlb_addr = entry->addr_write & ~TLB_INVALID_MASK;
+        tlb_addr = tlb_addr_write(entry) & ~TLB_INVALID_MASK;
     }
 
     /* Handle an IO access.  */
@@ -403,7 +403,7 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
            cannot evict the first.  */
         page2 = (addr + DATA_SIZE) & TARGET_PAGE_MASK;
         entry2 = tlb_entry(env, mmu_idx, page2);
-        if (!tlb_hit_page(entry2->addr_write, page2)
+        if (!tlb_hit_page(tlb_addr_write(entry2), page2)
             && !VICTIM_TLB_HIT(addr_write, page2)) {
             tlb_fill(ENV_GET_CPU(env), page2, DATA_SIZE, MMU_DATA_STORE,
                      mmu_idx, retaddr);
