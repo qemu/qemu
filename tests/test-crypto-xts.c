@@ -416,6 +416,88 @@ static void test_xts_split(const void *opaque)
 }
 
 
+static void test_xts_unaligned(const void *opaque)
+{
+#define BAD_ALIGN 3
+    const QCryptoXTSTestData *data = opaque;
+    uint8_t in[512 + BAD_ALIGN], out[512 + BAD_ALIGN];
+    uint8_t Torg[16], T[16 + BAD_ALIGN];
+    uint64_t seq;
+    struct TestAES aesdata;
+    struct TestAES aestweak;
+
+    AES_set_encrypt_key(data->key1, data->keylen / 2 * 8, &aesdata.enc);
+    AES_set_decrypt_key(data->key1, data->keylen / 2 * 8, &aesdata.dec);
+    AES_set_encrypt_key(data->key2, data->keylen / 2 * 8, &aestweak.enc);
+    AES_set_decrypt_key(data->key2, data->keylen / 2 * 8, &aestweak.dec);
+
+    seq = data->seqnum;
+    STORE64L(seq, Torg);
+    memset(Torg + 8, 0, 8);
+
+    /* IV not aligned */
+    memcpy(T + BAD_ALIGN, Torg, 16);
+    memcpy(in, data->PTX, data->PTLEN);
+    xts_encrypt(&aesdata, &aestweak,
+                test_xts_aes_encrypt,
+                test_xts_aes_decrypt,
+                T + BAD_ALIGN, data->PTLEN, out, in);
+
+    g_assert(memcmp(out, data->CTX, data->PTLEN) == 0);
+
+    /* plain text not aligned */
+    memcpy(T, Torg, 16);
+    memcpy(in + BAD_ALIGN, data->PTX, data->PTLEN);
+    xts_encrypt(&aesdata, &aestweak,
+                test_xts_aes_encrypt,
+                test_xts_aes_decrypt,
+                T, data->PTLEN, out, in + BAD_ALIGN);
+
+    g_assert(memcmp(out, data->CTX, data->PTLEN) == 0);
+
+    /* cipher text not aligned */
+    memcpy(T, Torg, 16);
+    memcpy(in, data->PTX, data->PTLEN);
+    xts_encrypt(&aesdata, &aestweak,
+                test_xts_aes_encrypt,
+                test_xts_aes_decrypt,
+                T, data->PTLEN, out + BAD_ALIGN, in);
+
+    g_assert(memcmp(out + BAD_ALIGN, data->CTX, data->PTLEN) == 0);
+
+
+    /* IV not aligned */
+    memcpy(T + BAD_ALIGN, Torg, 16);
+    memcpy(in, data->CTX, data->PTLEN);
+    xts_decrypt(&aesdata, &aestweak,
+                test_xts_aes_encrypt,
+                test_xts_aes_decrypt,
+                T + BAD_ALIGN, data->PTLEN, out, in);
+
+    g_assert(memcmp(out, data->PTX, data->PTLEN) == 0);
+
+    /* cipher text not aligned */
+    memcpy(T, Torg, 16);
+    memcpy(in + BAD_ALIGN, data->CTX, data->PTLEN);
+    xts_decrypt(&aesdata, &aestweak,
+                test_xts_aes_encrypt,
+                test_xts_aes_decrypt,
+                T, data->PTLEN, out, in + BAD_ALIGN);
+
+    g_assert(memcmp(out, data->PTX, data->PTLEN) == 0);
+
+    /* plain text not aligned */
+    memcpy(T, Torg, 16);
+    memcpy(in, data->CTX, data->PTLEN);
+    xts_decrypt(&aesdata, &aestweak,
+                test_xts_aes_encrypt,
+                test_xts_aes_decrypt,
+                T, data->PTLEN, out + BAD_ALIGN, in);
+
+    g_assert(memcmp(out + BAD_ALIGN, data->PTX, data->PTLEN) == 0);
+}
+
+
 int main(int argc, char **argv)
 {
     size_t i;
@@ -437,6 +519,10 @@ int main(int argc, char **argv)
             g_test_add_data_func(path, &test_data[i], test_xts_split);
             g_free(path);
         }
+
+        path = g_strdup_printf("%s/unaligned", test_data[i].path);
+        g_test_add_data_func(path, &test_data[i], test_xts_unaligned);
+        g_free(path);
     }
 
     return g_test_run();
