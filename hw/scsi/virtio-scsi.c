@@ -797,16 +797,8 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         virtio_scsi_acquire(s);
         blk_set_aio_context(sd->conf.blk, s->ctx);
         virtio_scsi_release(s);
-    }
-}
 
-/* Announce the new device after it has been plugged */
-static void virtio_scsi_post_hotplug(HotplugHandler *hotplug_dev,
-                                     DeviceState *dev)
-{
-    VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
-    SCSIDevice *sd = SCSI_DEVICE(dev);
+    }
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
         virtio_scsi_acquire(s);
@@ -976,7 +968,6 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
     vdc->start_ioeventfd = virtio_scsi_dataplane_start;
     vdc->stop_ioeventfd = virtio_scsi_dataplane_stop;
     hc->plug = virtio_scsi_hotplug;
-    hc->post_plug = virtio_scsi_post_hotplug;
     hc->unplug = virtio_scsi_hotunplug;
 }
 
