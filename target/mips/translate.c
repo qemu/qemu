@@ -1490,6 +1490,161 @@ enum {
  *  Q16SCOP XRa, XRb, XRc, XRd        S32M2I XRa, Rb
  *  Q16SAT XRa, XRb, XRc              S32I2M XRa, Rb
  *
+ *
+ *              bits
+ *             05..00
+ *
+ *          ┌─ 000000 ─ OPC_MXU_S32MADD
+ *          ├─ 000001 ─ OPC_MXU_S32MADDU
+ *          ├─ 000010 ─ <not assigned>
+ *          │                               20..18
+ *          ├─ 000011 ─ OPC_MXU__POOL00 ─┬─ 000 ─ OPC_MXU_S32MAX
+ *          │                            ├─ 001 ─ OPC_MXU_S32MIN
+ *          │                            ├─ 010 ─ OPC_MXU_D16MAX
+ *          │                            ├─ 011 ─ OPC_MXU_D16MIN
+ *          │                            ├─ 100 ─ OPC_MXU_Q8MAX
+ *          │                            ├─ 101 ─ OPC_MXU_Q8MIN
+ *          │                            ├─ 110 ─ OPC_MXU_Q8SLT
+ *          │                            └─ 111 ─ OPC_MXU_Q8SLTU
+ *          ├─ 000100 ─ OPC_MXU_S32MSUB
+ *          ├─ 000101 ─ OPC_MXU_S32MSUBU    20..18
+ *          ├─ 000110 ─ OPC_MXU__POOL01 ─┬─ 000 ─ OPC_MXU_S32SLT
+ *          │                            ├─ 001 ─ OPC_MXU_D16SLT
+ *          │                            ├─ 010 ─ OPC_MXU_D16AVG
+ *          │                            ├─ 011 ─ OPC_MXU_D16AVGR
+ *          │                            ├─ 100 ─ OPC_MXU_Q8AVG
+ *          │                            ├─ 101 ─ OPC_MXU_Q8AVGR
+ *          │                            └─ 111 ─ OPC_MXU_Q8ADD
+ *          │
+ *          │                               20..18
+ *          ├─ 000111 ─ OPC_MXU__POOL02 ─┬─ 000 ─ OPC_MXU_S32CPS
+ *          │                            ├─ 010 ─ OPC_MXU_D16CPS
+ *          │                            ├─ 100 ─ OPC_MXU_Q8ABD
+ *          │                            └─ 110 ─ OPC_MXU_Q16SAT
+ *          ├─ 001000 ─ OPC_MXU_D16MUL
+ *          │                               25..24
+ *          ├─ 001001 ─ OPC_MXU__POOL03 ─┬─ 00 ─ OPC_MXU_D16MULF
+ *          │                            └─ 01 ─ OPC_MXU_D16MULE
+ *          ├─ 001010 ─ OPC_MXU_D16MAC
+ *          ├─ 001011 ─ OPC_MXU_D16MACF
+ *          ├─ 001100 ─ OPC_MXU_D16MADL
+ *          │                               25..24
+ *          ├─ 001101 ─ OPC_MXU__POOL04 ─┬─ 00 ─ OPC_MXU_S16MAD
+ *          │                            └─ 01 ─ OPC_MXU_S16MAD_1
+ *          ├─ 001110 ─ OPC_MXU_Q16ADD
+ *          ├─ 001111 ─ OPC_MXU_D16MACE
+ *          │                               23
+ *          ├─ 010000 ─ OPC_MXU__POOL05 ─┬─ 0 ─ OPC_MXU_S32LDD
+ *          │                            └─ 1 ─ OPC_MXU_S32LDDR
+ *          │
+ *          │                               23
+ *          ├─ 010001 ─ OPC_MXU__POOL06 ─┬─ 0 ─ OPC_MXU_S32STD
+ *          │                            └─ 1 ─ OPC_MXU_S32STDR
+ *          │
+ *          │                               13..10
+ *          ├─ 010010 ─ OPC_MXU__POOL07 ─┬─ 0000 ─ OPC_MXU_S32LDDV
+ *          │                            └─ 0001 ─ OPC_MXU_S32LDDVR
+ *          │
+ *          │                               13..10
+ *          ├─ 010011 ─ OPC_MXU__POOL08 ─┬─ 0000 ─ OPC_MXU_S32STDV
+ *          │                            └─ 0001 ─ OPC_MXU_S32STDVR
+ *          │
+ *          │                               23
+ *          ├─ 010100 ─ OPC_MXU__POOL09 ─┬─ 0 ─ OPC_MXU_S32LDI
+ *          │                            └─ 1 ─ OPC_MXU_S32LDIR
+ *          │
+ *          │                               23
+ *          ├─ 010101 ─ OPC_MXU__POOL10 ─┬─ 0 ─ OPC_MXU_S32SDI
+ *          │                            └─ 1 ─ OPC_MXU_S32SDIR
+ *          │
+ *          │                               13..10
+ *          ├─ 010110 ─ OPC_MXU__POOL11 ─┬─ 0000 ─ OPC_MXU_S32LDIV
+ *          │                            └─ 0001 ─ OPC_MXU_S32LDIVR
+ *          │
+ *          │                               13..10
+ *          ├─ 010111 ─ OPC_MXU__POOL12 ─┬─ 0000 ─ OPC_MXU_S32SDIV
+ *          │                            └─ 0001 ─ OPC_MXU_S32SDIVR
+ *          ├─ 011000 ─ OPC_MXU_D32ADD
+ *          │                               23..22
+ *   MXU    ├─ 011001 ─ OPC_MXU__POOL13 ─┬─ 00 ─ OPC_MXU_D32ACC
+ * opcodes ─┤                            ├─ 01 ─ OPC_MXU_D32ACCM
+ *          │                            └─ 10 ─ OPC_MXU_D32ASUM
+ *          ├─ 011010 ─ <not assigned>
+ *          │                               23..22
+ *          ├─ 011011 ─ OPC_MXU__POOL14 ─┬─ 00 ─ OPC_MXU_Q16ACC
+ *          │                            ├─ 01 ─ OPC_MXU_Q16ACCM
+ *          │                            └─ 10 ─ OPC_MXU_Q16ASUM
+ *          │
+ *          │                               23..22
+ *          ├─ 011100 ─ OPC_MXU__POOL15 ─┬─ 00 ─ OPC_MXU_Q8ADDE
+ *          │                            ├─ 01 ─ OPC_MXU_D8SUM
+ *          ├─ 011101 ─ OPC_MXU_Q8ACCE   └─ 10 ─ OPC_MXU_D8SUMC
+ *          ├─ 011110 ─ <not assigned>
+ *          ├─ 011111 ─ <not assigned>
+ *          ├─ 100000 ─ <not assigned>
+ *          ├─ 100001 ─ <not assigned>
+ *          ├─ 100010 ─ OPC_MXU_S8LDD
+ *          ├─ 100011 ─ OPC_MXU_S8STD
+ *          ├─ 100100 ─ OPC_MXU_S8LDI
+ *          ├─ 100101 ─ OPC_MXU_S8SDI
+ *          │                               15..14
+ *          ├─ 100110 ─ OPC_MXU__POOL16 ─┬─ 00 ─ OPC_MXU_S32MUL
+ *          │                            ├─ 00 ─ OPC_MXU_S32MULU
+ *          │                            ├─ 00 ─ OPC_MXU_S32EXTR
+ *          │                            └─ 00 ─ OPC_MXU_S32EXTRV
+ *          │
+ *          │                               20..18
+ *          ├─ 100111 ─ OPC_MXU__POOL17 ─┬─ 000 ─ OPC_MXU_D32SARW
+ *          │                            ├─ 001 ─ OPC_MXU_S32ALN
+ *          ├─ 101000 ─ OPC_MXU_LXB      ├─ 010 ─ OPC_MXU_S32ALNI
+ *          ├─ 101001 ─ <not assigned>   ├─ 011 ─ OPC_MXU_S32NOR
+ *          ├─ 101010 ─ OPC_MXU_S16LDD   ├─ 100 ─ OPC_MXU_S32AND
+ *          ├─ 101011 ─ OPC_MXU_S16STD   ├─ 101 ─ OPC_MXU_S32OR
+ *          ├─ 101100 ─ OPC_MXU_S16LDI   ├─ 110 ─ OPC_MXU_S32XOR
+ *          ├─ 101101 ─ OPC_MXU_S16SDI   └─ 111 ─ OPC_MXU_S32LUI
+ *          ├─ 101000 ─ <not assigned>
+ *          ├─ 101001 ─ <not assigned>
+ *          ├─ 101010 ─ <not assigned>
+ *          ├─ 101011 ─ <not assigned>
+ *          ├─ 101100 ─ <not assigned>
+ *          ├─ 101101 ─ <not assigned>
+ *          ├─ 101110 ─ OPC_MXU_S32M2I
+ *          ├─ 101111 ─ OPC_MXU_S32I2M
+ *          ├─ 110000 ─ OPC_MXU_D32SLL
+ *          ├─ 110001 ─ OPC_MXU_D32SLR
+ *          ├─ 110010 ─ OPC_MXU_D32SARL
+ *          ├─ 110011 ─ OPC_MXU_D32SAR
+ *          ├─ 110100 ─ OPC_MXU_Q16SLL
+ *          ├─ 110101 ─ OPC_MXU_Q16SLR      20..18
+ *          ├─ 110110 ─ OPC_MXU__POOL18 ─┬─ 000 ─ OPC_MXU_D32SLLV
+ *          │                            ├─ 001 ─ OPC_MXU_D32SLRV
+ *          │                            ├─ 010 ─ OPC_MXU_D32SARV
+ *          │                            ├─ 011 ─ OPC_MXU_Q16SLLV
+ *          │                            ├─ 100 ─ OPC_MXU_Q16SLRV
+ *          │                            └─ 101 ─ OPC_MXU_Q16SARV
+ *          ├─ 110111 ─ OPC_MXU_Q16SAR
+ *          │                               23..22
+ *          ├─ 111000 ─ OPC_MXU__POOL19 ─┬─ 00 ─ OPC_MXU_Q8MUL
+ *          │                            └─ 01 ─ OPC_MXU_Q8MULSU
+ *          │
+ *          │                               20..18
+ *          ├─ 111001 ─ OPC_MXU__POOL20 ─┬─ 000 ─ OPC_MXU_Q8MOVZ
+ *          │                            ├─ 001 ─ OPC_MXU_Q8MOVN
+ *          │                            ├─ 010 ─ OPC_MXU_D16MOVZ
+ *          │                            ├─ 011 ─ OPC_MXU_D16MOVN
+ *          │                            ├─ 100 ─ OPC_MXU_S32MOVZ
+ *          │                            └─ 101 ─ OPC_MXU_S32MOV
+ *          │
+ *          │                               23..22
+ *          ├─ 111010 ─ OPC_MXU__POOL21 ─┬─ 00 ─ OPC_MXU_Q8MAC
+ *          │                            └─ 10 ─ OPC_MXU_Q8MACSU
+ *          ├─ 111011 ─ OPC_MXU_Q16SCOP
+ *          ├─ 111100 ─ OPC_MXU_Q8MADL
+ *          ├─ 111101 ─ OPC_MXU_S32SFL
+ *          ├─ 111110 ─ OPC_MXU_Q8SAD
+ *          └─ 111111 ─ <not assigned>
+ *
+ *
  *   Compiled after:
  *
  *   "XBurst® Instruction Set Architecture MIPS eXtension/enhanced Unit
