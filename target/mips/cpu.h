@@ -811,7 +811,7 @@ struct CPUMIPSState {
     int CCRes; /* Cycle count resolution/divisor */
     uint32_t CP0_Status_rw_bitmask; /* Read/write bits in CP0_Status */
     uint32_t CP0_TCStatus_rw_bitmask; /* Read/write bits in CP0_TCStatus */
-    int insn_flags; /* Supported instruction set */
+    uint64_t insn_flags; /* Supported instruction set */
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
