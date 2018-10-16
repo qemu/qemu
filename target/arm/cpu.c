@@ -1397,7 +1397,7 @@ static void cortex_r5_initfn(Object *obj)
     cpu->id_mmfr1 = 0x00000000;
     cpu->id_mmfr2 = 0x01200000;
     cpu->id_mmfr3 = 0x0211;
-    cpu->id_isar0 = 0x2101111;
+    cpu->id_isar0 = 0x02101111;
     cpu->id_isar1 = 0x13112111;
     cpu->id_isar2 = 0x21232141;
     cpu->id_isar3 = 0x01112131;
@@ -1587,7 +1587,10 @@ static void cortex_a7_initfn(Object *obj)
     cpu->id_mmfr1 = 0x40000000;
     cpu->id_mmfr2 = 0x01240000;
     cpu->id_mmfr3 = 0x02102211;
-    cpu->id_isar0 = 0x01101110;
+    /* a7_mpcore_r0p5_trm, page 4-4 gives 0x01101110; but
+     * table 4-41 gives 0x02101110, which includes the arm div insns.
+     */
+    cpu->id_isar0 = 0x02101110;
     cpu->id_isar1 = 0x13112111;
     cpu->id_isar2 = 0x21232041;
     cpu->id_isar3 = 0x11112131;
