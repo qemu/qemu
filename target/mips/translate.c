@@ -1402,6 +1402,94 @@ enum {
  * MXU unit contains 17 registers called X0-X16. X0 is always zero, and X16 is
  * the control register.
  *
+ * The notation used in MXU assembler mnemonics:
+ *
+ *   XRa, XRb, XRc, XRd - MXU registers
+ *   Rb, Rc, Rd, Rs, Rt - general purpose MIPS registers
+ *   s12                - a subfield of an instruction code
+ *   strd2              - a subfield of an instruction code
+ *   eptn2              - a subfield of an instruction code
+ *   eptn3              - a subfield of an instruction code
+ *   optn2              - a subfield of an instruction code
+ *   optn3              - a subfield of an instruction code
+ *   sft4               - a subfield of an instruction code
+ *
+ * Load/Store instructions           Multiplication instructions
+ * -----------------------           ---------------------------
+ *
+ *  S32LDD XRa, Rb, s12               S32MADD XRa, XRd, Rs, Rt
+ *  S32STD XRa, Rb, s12               S32MADDU XRa, XRd, Rs, Rt
+ *  S32LDDV XRa, Rb, rc, strd2        S32SUB XRa, XRd, Rs, Rt
+ *  S32STDV XRa, Rb, rc, strd2        S32SUBU XRa, XRd, Rs, Rt
+ *  S32LDI XRa, Rb, s12               S32MUL XRa, XRd, Rs, Rt
+ *  S32SDI XRa, Rb, s12               S32MULU XRa, XRd, Rs, Rt
+ *  S32LDIV XRa, Rb, rc, strd2        D16MUL XRa, XRb, XRc, XRd, optn2
+ *  S32SDIV XRa, Rb, rc, strd2        D16MULE XRa, XRb, XRc, optn2
+ *  S32LDDR XRa, Rb, s12              D16MULF XRa, XRb, XRc, optn2
+ *  S32STDR XRa, Rb, s12              D16MAC XRa, XRb, XRc, XRd, aptn2, optn2
+ *  S32LDDVR XRa, Rb, rc, strd2       D16MACE XRa, XRb, XRc, XRd, aptn2, optn2
+ *  S32STDVR XRa, Rb, rc, strd2       D16MACF XRa, XRb, XRc, XRd, aptn2, optn2
+ *  S32LDIR XRa, Rb, s12              D16MADL XRa, XRb, XRc, XRd, aptn2, optn2
+ *  S32SDIR XRa, Rb, s12              S16MAD XRa, XRb, XRc, XRd, aptn1, optn2
+ *  S32LDIVR XRa, Rb, rc, strd2       Q8MUL XRa, XRb, XRc, XRd
+ *  S32SDIVR XRa, Rb, rc, strd2       Q8MULSU XRa, XRb, XRc, XRd
+ *  S16LDD XRa, Rb, s10, eptn2        Q8MAC XRa, XRb, XRc, XRd, aptn2
+ *  S16STD XRa, Rb, s10, eptn2        Q8MACSU XRa, XRb, XRc, XRd, aptn2
+ *  S16LDI XRa, Rb, s10, eptn2        Q8MADL XRa, XRb, XRc, XRd, aptn2
+ *  S16SDI XRa, Rb, s10, eptn2
+ *  S8LDD XRa, Rb, s8, eptn3
+ *  S8STD XRa, Rb, s8, eptn3         Addition and subtraction instructions
+ *  S8LDI XRa, Rb, s8, eptn3         -------------------------------------
+ *  S8SDI XRa, Rb, s8, eptn3
+ *  LXW Rd, Rs, Rt, strd2             D32ADD XRa, XRb, XRc, XRd, eptn2
+ *  LXH Rd, Rs, Rt, strd2             D32ADDC XRa, XRb, XRc, XRd
+ *  LXHU Rd, Rs, Rt, strd2            D32ACC XRa, XRb, XRc, XRd, eptn2
+ *  LXB Rd, Rs, Rt, strd2             D32ACCM XRa, XRb, XRc, XRd, eptn2
+ *  LXBU Rd, Rs, Rt, strd2            D32ASUM XRa, XRb, XRc, XRd, eptn2
+ *                                    S32CPS XRa, XRb, XRc
+ *                                    Q16ADD XRa, XRb, XRc, XRd, eptn2, optn2
+ * Comparison instructions            Q16ACC XRa, XRb, XRc, XRd, eptn2
+ * -----------------------            Q16ACCM XRa, XRb, XRc, XRd, eptn2
+ *                                    D16ASUM XRa, XRb, XRc, XRd, eptn2
+ *  S32MAX XRa, XRb, XRc              D16CPS XRa, XRb,
+ *  S32MIN XRa, XRb, XRc              D16AVG XRa, XRb, XRc
+ *  S32SLT XRa, XRb, XRc              D16AVGR XRa, XRb, XRc
+ *  S32MOVZ XRa, XRb, XRc             Q8ADD XRa, XRb, XRc, eptn2
+ *  S32MOVN XRa, XRb, XRc             Q8ADDE XRa, XRb, XRc, XRd, eptn2
+ *  D16MAX XRa, XRb, XRc              Q8ACCE XRa, XRb, XRc, XRd, eptn2
+ *  D16MIN XRa, XRb, XRc              Q8ABD XRa, XRb, XRc
+ *  D16SLT XRa, XRb, XRc              Q8SAD XRa, XRb, XRc, XRd
+ *  D16MOVZ XRa, XRb, XRc             Q8AVG XRa, XRb, XRc
+ *  D16MOVN XRa, XRb, XRc             Q8AVGR XRa, XRb, XRc
+ *  Q8MAX XRa, XRb, XRc               D8SUM XRa, XRb, XRc, XRd
+ *  Q8MIN XRa, XRb, XRc               D8SUMC XRa, XRb, XRc, XRd
+ *  Q8SLT XRa, XRb, XRc
+ *  Q8SLTU XRa, XRb, XRc
+ *  Q8MOVZ XRa, XRb, XRc             Shift instructions
+ *  Q8MOVN XRa, XRb, XRc             ------------------
+ *
+ *                                    D32SLL XRa, XRb, XRc, XRd, sft4
+ * Bitwise instructions               D32SLR XRa, XRb, XRc, XRd, sft4
+ * --------------------               D32SAR XRa, XRb, XRc, XRd, sft4
+ *                                    D32SARL XRa, XRb, XRc, sft4
+ *  S32NOR XRa, XRb, XRc              D32SLLV XRa, XRb, Rb
+ *  S32AND XRa, XRb, XRc              D32SLRV XRa, XRb, Rb
+ *  S32XOR XRa, XRb, XRc              D32SARV XRa, XRb, Rb
+ *  S32OR XRa, XRb, XRc               D32SARW XRa, XRb, XRc, Rb
+ *                                    Q16SLL XRa, XRb, XRc, XRd, sft4
+ *                                    Q16SLR XRa, XRb, XRc, XRd, sft4
+ * Miscelaneous instructions          Q16SAR XRa, XRb, XRc, XRd, sft4
+ * -------------------------          Q16SLLV XRa, XRb, Rb
+ *                                    Q16SLRV XRa, XRb, Rb
+ *  S32SFL XRa, XRb, XRc, XRd, optn2  Q16SARV XRa, XRb, Rb
+ *  S32ALN XRa, XRb, XRc, Rb
+ *  S32ALNI XRa, XRb, XRc, s3
+ *  S32LUI XRa, s8, optn3            Move instructions
+ *  S32EXTR XRa, XRb, Rb, bits5      -----------------
+ *  S32EXTRV XRa, XRb, Rs, Rt
+ *  Q16SCOP XRa, XRb, XRc, XRd        S32M2I XRa, Rb
+ *  Q16SAT XRa, XRb, XRc              S32I2M XRa, Rb
+ *
  *   Compiled after:
  *
  *   "XBurst® Instruction Set Architecture MIPS eXtension/enhanced Unit
