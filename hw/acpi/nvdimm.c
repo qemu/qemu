@@ -581,7 +581,7 @@ static void nvdimm_dsm_func_read_fit(AcpiNVDIMMState *state, NvdimmDsmIn *in,
     int size;
 
     read_fit = (NvdimmFuncReadFITIn *)in->arg3;
-    le32_to_cpus(&read_fit->offset);
+    read_fit->offset = le32_to_cpu(read_fit->offset);
 
     fit = fit_buf->fit;
 
@@ -742,8 +742,8 @@ static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
     int size;
 
     get_label_data = (NvdimmFuncGetLabelDataIn *)in->arg3;
-    le32_to_cpus(&get_label_data->offset);
-    le32_to_cpus(&get_label_data->length);
+    get_label_data->offset = le32_to_cpu(get_label_data->offset);
+    get_label_data->length = le32_to_cpu(get_label_data->length);
 
     nvdimm_debug("Read Label Data: offset %#x length %#x.\n",
                  get_label_data->offset, get_label_data->length);
@@ -781,8 +781,8 @@ static void nvdimm_dsm_set_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
 
     set_label_data = (NvdimmFuncSetLabelDataIn *)in->arg3;
 
-    le32_to_cpus(&set_label_data->offset);
-    le32_to_cpus(&set_label_data->length);
+    set_label_data->offset = le32_to_cpu(set_label_data->offset);
+    set_label_data->length = le32_to_cpu(set_label_data->length);
 
     nvdimm_debug("Write Label Data: offset %#x length %#x.\n",
                  set_label_data->offset, set_label_data->length);
@@ -877,9 +877,9 @@ nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     in = g_new(NvdimmDsmIn, 1);
     cpu_physical_memory_read(dsm_mem_addr, in, sizeof(*in));
 
-    le32_to_cpus(&in->revision);
-    le32_to_cpus(&in->function);
-    le32_to_cpus(&in->handle);
+    in->revision = le32_to_cpu(in->revision);
+    in->function = le32_to_cpu(in->function);
+    in->handle = le32_to_cpu(in->handle);
 
     nvdimm_debug("Revision %#x Handler %#x Function %#x.\n", in->revision,
                  in->handle, in->function);
