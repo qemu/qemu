@@ -2677,7 +2677,7 @@ static int machine_set_property(void *opaque,
     g_free(qom_name);
 
     if (local_err) {
-        error_report_err(local_err);
+        error_propagate(errp, local_err);
         return -1;
     }
 
@@ -4249,11 +4249,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     machine_opts = qemu_get_machine_opts();
-    if (qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
-                         NULL)) {
-        object_unref(OBJECT(current_machine));
-        exit(1);
-    }
+    qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
+                     &error_fatal);
 
     configure_accelerator(current_machine);
 
