@@ -690,7 +690,7 @@ out:
     }
 
     if (vdev->vbasedev.name) {
-        error_prepend(errp, ERR_PREFIX, vdev->vbasedev.name);
+        error_prepend(errp, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     } else {
         error_prepend(errp, "vfio error: ");
     }

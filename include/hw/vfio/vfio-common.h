@@ -31,7 +31,6 @@
 #include <linux/vfio.h>
 #endif
 
-#define ERR_PREFIX "vfio error: %s: "
 #define VFIO_MSG_PREFIX "vfio %s: "
 
 enum {
