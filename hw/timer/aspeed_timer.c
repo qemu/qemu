@@ -454,8 +454,7 @@ static void aspeed_timer_realize(DeviceState *dev, Error **errp)
 
     obj = object_property_get_link(OBJECT(dev), "scu", &err);
     if (!obj) {
-        error_propagate(errp, err);
-        error_prepend(errp, "required link 'scu' not found: ");
+        error_propagate_prepend(errp, err, "required link 'scu' not found: ");
         return;
     }
     s->scu = ASPEED_SCU(obj);

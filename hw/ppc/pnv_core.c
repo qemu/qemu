@@ -148,8 +148,8 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
 
     chip = object_property_get_link(OBJECT(dev), "chip", &local_err);
     if (!chip) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "required link 'chip' not found: ");
+        error_propagate_prepend(errp, local_err,
+                                "required link 'chip' not found: ");
         return;
     }
 

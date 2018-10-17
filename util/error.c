@@ -292,3 +292,16 @@ void error_propagate(Error **dst_errp, Error *local_err)
         error_free(local_err);
     }
 }
+
+void error_propagate_prepend(Error **dst_errp, Error *err,
+                             const char *fmt, ...)
+{
+    va_list ap;
+
+    if (dst_errp && !*dst_errp) {
+        va_start(ap, fmt);
+        error_vprepend(&err, fmt, ap);
+        va_end(ap);
+    } /* else error is being ignored, don't bother with prepending */
+    error_propagate(dst_errp, err);
+}

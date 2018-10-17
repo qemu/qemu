@@ -1283,8 +1283,7 @@ static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
         if (ret == -ENOTSUP) {
             return 0;
         }
-        error_prepend(&err, "msi_init failed: ");
-        error_propagate(errp, err);
+        error_propagate_prepend(errp, err, "msi_init failed: ");
         return ret;
     }
     vdev->msi_cap_size = 0xa + (msi_maskbit ? 0xa : 0) + (msi_64bit ? 0x4 : 0);

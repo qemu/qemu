@@ -1724,16 +1724,15 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         if (smc->legacy_irq_allocation) {
             irq = spapr_irq_findone(spapr, &local_err);
             if (local_err) {
-                error_propagate(errp, local_err);
-                error_prepend(errp, "can't allocate LSIs: ");
+                error_propagate_prepend(errp, local_err,
+                                        "can't allocate LSIs: ");
                 return;
             }
         }
 
         spapr_irq_claim(spapr, irq, true, &local_err);
         if (local_err) {
-            error_propagate(errp, local_err);
-            error_prepend(errp, "can't allocate LSIs: ");
+            error_propagate_prepend(errp, local_err, "can't allocate LSIs: ");
             return;
         }
 

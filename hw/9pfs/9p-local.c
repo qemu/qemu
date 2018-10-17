@@ -1509,8 +1509,8 @@ static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse, Error **errp)
 
     fsdev_throttle_parse_opts(opts, &fse->fst, &local_err);
     if (local_err) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "invalid throttle configuration: ");
+        error_propagate_prepend(errp, local_err,
+                                "invalid throttle configuration: ");
         return -1;
     }
 
