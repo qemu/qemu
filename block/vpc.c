@@ -456,10 +456,12 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     qemu_co_mutex_init(&s->lock);
+    qemu_opts_del(opts);
 
     return 0;
 
 fail:
+    qemu_opts_del(opts);
     qemu_vfree(s->pagetable);
 #ifdef CACHE
     g_free(s->pageentry_u8);
