@@ -28,6 +28,7 @@
 #include <termios.h>
 #endif
 
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "ui/input.h"
@@ -421,9 +422,8 @@ static void curses_keyboard_setup(void)
         keyboard_layout = "en-us";
 #endif
     if(keyboard_layout) {
-        kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout);
-        if (!kbd_layout)
-            exit(1);
+        kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout,
+                                          &error_fatal);
     }
 }
 

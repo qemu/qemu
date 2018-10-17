@@ -29,6 +29,7 @@
 #include <SDL.h>
 #include <SDL_syswm.h>
 
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "ui/console.h"
@@ -917,9 +918,8 @@ static void sdl1_display_init(DisplayState *ds, DisplayOptions *o)
         keyboard_layout = "en-us";
 #endif
     if(keyboard_layout) {
-        kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout);
-        if (!kbd_layout)
-            exit(1);
+        kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout,
+                                          &error_fatal);
     }
 
     g_printerr("Running QEMU with SDL 1.2 is deprecated, and will be removed\n"
