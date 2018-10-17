@@ -2414,8 +2414,8 @@ int save_snapshot(const char *name, Error **errp)
     AioContext *aio_context;
 
     if (!replay_can_snapshot()) {
-        error_report("Record/replay does not allow making snapshot "
-                     "right now. Try once more later.");
+        error_setg(errp, "Record/replay does not allow making snapshot "
+                   "right now. Try once more later.");
         return ret;
     }
 
@@ -2611,8 +2611,8 @@ int load_snapshot(const char *name, Error **errp)
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     if (!replay_can_snapshot()) {
-        error_report("Record/replay does not allow loading snapshot "
-                     "right now. Try once more later.");
+        error_setg(errp, "Record/replay does not allow loading snapshot "
+                   "right now. Try once more later.");
         return -EINVAL;
     }
 
