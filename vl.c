@@ -2270,8 +2270,8 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     } else if (strcmp(mode, "control") == 0) {
         flags = MONITOR_USE_CONTROL;
     } else {
-        error_report("unknown monitor mode \"%s\"", mode);
-        exit(1);
+        error_setg(errp, "unknown monitor mode \"%s\"", mode);
+        return -1;
     }
 
     if (qemu_opt_get_bool(opts, "pretty", 0))
@@ -2285,8 +2285,8 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     chardev = qemu_opt_get(opts, "chardev");
     chr = qemu_chr_find(chardev);
     if (chr == NULL) {
-        error_report("chardev \"%s\" not found", chardev);
-        exit(1);
+        error_setg(errp, "chardev \"%s\" not found", chardev);
+        return -1;
     }
 
     monitor_init(chr, flags);
@@ -4413,10 +4413,8 @@ int main(int argc, char **argv, char **envp)
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
     default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
 
-    if (qemu_opts_foreach(qemu_find_opts("mon"),
-                          mon_init_func, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("mon"),
+                      mon_init_func, NULL, &error_fatal);
 
     if (foreach_device_config(DEV_SERIAL, serial_parse) < 0)
         exit(1);
