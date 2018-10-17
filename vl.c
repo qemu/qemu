@@ -2174,7 +2174,7 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     FWCfgState *fw_cfg = (FWCfgState *) opaque;
 
     if (fw_cfg == NULL) {
-        error_report("fw_cfg device not available");
+        error_setg(errp, "fw_cfg device not available");
         return -1;
     }
     name = qemu_opt_get(opts, "name");
@@ -2183,15 +2183,16 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
 
     /* we need name and either a file or the content string */
     if (!(nonempty_str(name) && (nonempty_str(file) || nonempty_str(str)))) {
-        error_report("invalid argument(s)");
+        error_setg(errp, "invalid argument(s)");
         return -1;
     }
     if (nonempty_str(file) && nonempty_str(str)) {
-        error_report("file and string are mutually exclusive");
+        error_setg(errp, "file and string are mutually exclusive");
         return -1;
     }
     if (strlen(name) > FW_CFG_MAX_FILE_PATH - 1) {
-        error_report("name too long (max. %d char)", FW_CFG_MAX_FILE_PATH - 1);
+        error_setg(errp, "name too long (max. %d char)",
+                   FW_CFG_MAX_FILE_PATH - 1);
         return -1;
     }
     if (strncmp(name, "opt/", 4) != 0) {
@@ -2203,7 +2204,7 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
         buf = g_memdup(str, size);
     } else {
         if (!g_file_get_contents(file, &buf, &size, NULL)) {
-            error_report("can't load %s", file);
+            error_setg(errp, "can't load %s", file);
             return -1;
         }
     }
@@ -4477,10 +4478,8 @@ int main(int argc, char **argv, char **envp)
         hax_sync_vcpus();
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("fw_cfg"),
-                          parse_fw_cfg, fw_cfg_find(), NULL) != 0) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("fw_cfg"),
+                      parse_fw_cfg, fw_cfg_find(), &error_fatal);
 
     /* init USB devices */
     if (machine_usb(current_machine)) {
