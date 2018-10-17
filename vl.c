@@ -3974,10 +3974,8 @@ int main(int argc, char **argv, char **envp)
     }
 #endif
 
-    if (qemu_opts_foreach(qemu_find_opts("name"),
-                          parse_name, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("name"),
+                      parse_name, NULL, &error_fatal);
 
 #ifndef _WIN32
     qemu_opts_foreach(qemu_find_opts("add-fd"),
