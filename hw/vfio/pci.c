@@ -252,7 +252,7 @@ static void vfio_intx_update(PCIDevice *pdev)
 
     vfio_intx_enable_kvm(vdev, &err);
     if (err) {
-        error_reportf_err(err, WARN_PREFIX, vdev->vbasedev.name);
+        warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 
     /* Re-enable the interrupt in cased we missed an EOI */
@@ -317,7 +317,7 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 
     vfio_intx_enable_kvm(vdev, &err);
     if (err) {
-        error_reportf_err(err, WARN_PREFIX, vdev->vbasedev.name);
+        warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 
     vdev->interrupt = VFIO_INT_INTx;
@@ -1557,7 +1557,7 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
                     &err);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
-            error_report_err(err);
+            warn_report_err(err);
             return 0;
         }
 
@@ -2590,9 +2590,9 @@ static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
     } else {
-        error_report(WARN_PREFIX
-                     "Could not enable error recovery for the device",
-                     vbasedev->name);
+        warn_report(VFIO_MSG_PREFIX
+                    "Could not enable error recovery for the device",
+                    vbasedev->name);
     }
 }
 
@@ -2717,7 +2717,7 @@ static void vfio_req_notifier_handler(void *opaque)
 
     qdev_unplug(&vdev->pdev.qdev, &err);
     if (err) {
-        error_reportf_err(err, WARN_PREFIX, vdev->vbasedev.name);
+        warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 }
 

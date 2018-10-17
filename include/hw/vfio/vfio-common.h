@@ -32,7 +32,7 @@
 #endif
 
 #define ERR_PREFIX "vfio error: %s: "
-#define WARN_PREFIX "vfio warning: %s: "
+#define VFIO_MSG_PREFIX "vfio %s: "
 
 enum {
     VFIO_DEVICE_TYPE_PCI = 0,

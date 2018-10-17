@@ -679,8 +679,8 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < vbasedev->num_regions; i++) {
         if (vfio_region_mmap(vdev->regions[i])) {
-            error_report("%s mmap unsupported. Performance may be slow",
-                         memory_region_name(vdev->regions[i]->mem));
+            warn_report("%s mmap unsupported, performance may be slow",
+                        memory_region_name(vdev->regions[i]->mem));
         }
         sysbus_init_mmio(sbdev, vdev->regions[i]->mem);
     }
