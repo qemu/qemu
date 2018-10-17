@@ -2222,12 +2222,10 @@ static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
 
 static int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    Error *err = NULL;
     DeviceState *dev;
 
-    dev = qdev_device_add(opts, &err);
+    dev = qdev_device_add(opts, errp);
     if (!dev) {
-        error_report_err(err);
         return -1;
     }
     object_unref(OBJECT(dev));
@@ -4492,10 +4490,8 @@ int main(int argc, char **argv, char **envp)
 
     /* init generic devices */
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
-    if (qemu_opts_foreach(qemu_find_opts("device"),
-                          device_init_func, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("device"),
+                      device_init_func, NULL, &error_fatal);
 
     cpu_synchronize_all_post_init();
 
