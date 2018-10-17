@@ -4360,9 +4360,7 @@ int main(int argc, char **argv, char **envp)
                       user_creatable_add_opts_foreach,
                       object_create_delayed, &error_fatal);
 
-    if (tpm_init() < 0) {
-        exit(1);
-    }
+    tpm_init();
 
     /* init the bluetooth world */
     if (foreach_device_config(DEV_BT, bt_parse))

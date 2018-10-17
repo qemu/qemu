@@ -16,7 +16,7 @@
 #include "qom/object.h"
 
 int tpm_config_parse(QemuOptsList *opts_list, const char *optarg);
-int tpm_init(void);
+void tpm_init(void);
 void tpm_cleanup(void);
 
 typedef enum TPMVersion {
