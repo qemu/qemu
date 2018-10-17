@@ -3973,8 +3973,8 @@ int main(int argc, char **argv, char **envp)
 
 #ifdef CONFIG_SECCOMP
     olist = qemu_find_opts_err("sandbox", NULL);
-    if (olist && qemu_opts_foreach(olist, parse_sandbox, NULL, NULL)) {
-        exit(1);
+    if (olist) {
+        qemu_opts_foreach(olist, parse_sandbox, NULL, &error_fatal);
     }
 #endif
 
