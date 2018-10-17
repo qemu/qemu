@@ -453,8 +453,8 @@ static NetSocketState *net_socket_fd_init(NetClientState *peer,
     case SOCK_STREAM:
         return net_socket_fd_init_stream(peer, model, name, fd, is_connected);
     default:
-        error_report("socket type=%d for fd=%d must be either"
-                     " SOCK_DGRAM or SOCK_STREAM", so_type, fd);
+        error_setg(errp, "socket type=%d for fd=%d must be either"
+                   " SOCK_DGRAM or SOCK_STREAM", so_type, fd);
         closesocket(fd);
     }
     return NULL;
