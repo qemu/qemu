@@ -79,10 +79,11 @@ static void add_keysym(char *line, int keysym, int keycode, kbd_layout_t *k)
     trace_keymap_add(keysym, keycode, line);
 }
 
-static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
-                                           const char *language,
-                                           kbd_layout_t *k)
+static int parse_keyboard_layout(kbd_layout_t *k,
+                                 const name2keysym_t *table,
+                                 const char *language)
 {
+    int ret;
     FILE *f;
     char * filename;
     char line[1024];
@@ -95,12 +96,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
     g_free(filename);
     if (!f) {
         fprintf(stderr, "Could not read keymap file: '%s'\n", language);
-        return NULL;
-    }
-
-    if (!k) {
-        k = g_new0(kbd_layout_t, 1);
-        k->hash = g_hash_table_new(NULL, NULL);
+        return -1;
     }
 
     for(;;) {
@@ -118,7 +114,10 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
             continue;
         }
         if (!strncmp(line, "include ", 8)) {
-            parse_keyboard_layout(table, line + 8, k);
+            if (parse_keyboard_layout(k, table, line + 8) < 0) {
+                ret = -1;
+                goto out;
+            }
         } else {
             int offset = 0;
             while (line[offset] != 0 &&
@@ -164,15 +163,27 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
             }
         }
     }
+
+    ret = 0;
+out:
     fclose(f);
-    return k;
+    return ret;
 }
 
 
 kbd_layout_t *init_keyboard_layout(const name2keysym_t *table,
                                    const char *language)
 {
-    return parse_keyboard_layout(table, language, NULL);
+    kbd_layout_t *k;
+
+    k = g_new0(kbd_layout_t, 1);
+    k->hash = g_hash_table_new(NULL, NULL);
+    if (parse_keyboard_layout(k, table, language) < 0) {
+        g_hash_table_unref(k->hash);
+        g_free(k);
+        return NULL;
+    }
+    return k;
 }
 
 
