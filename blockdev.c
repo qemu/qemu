@@ -759,7 +759,8 @@ QemuOptsList qemu_legacy_drive_opts = {
     },
 };
 
-DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
+DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
+                     Error **errp)
 {
     const char *value;
     BlockBackend *blk;
@@ -808,7 +809,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         qemu_opt_rename(all_opts, opt_renames[i].from, opt_renames[i].to,
                         &local_err);
         if (local_err) {
-            error_report_err(local_err);
+            error_propagate(errp, local_err);
             return NULL;
         }
     }
@@ -819,7 +820,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         bool writethrough;
 
         if (bdrv_parse_cache_mode(value, &flags, &writethrough) != 0) {
-            error_report("invalid cache option");
+            error_setg(errp, "invalid cache option");
             return NULL;
         }
 
@@ -847,7 +848,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
                                    &error_abort);
     qemu_opts_absorb_qdict(legacy_opts, bs_opts, &local_err);
     if (local_err) {
-        error_report_err(local_err);
+        error_propagate(errp, local_err);
         goto fail;
     }
 
@@ -860,7 +861,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
             media = MEDIA_CDROM;
             read_only = true;
         } else {
-            error_report("'%s' invalid media", value);
+            error_setg(errp, "'%s' invalid media", value);
             goto fail;
         }
     }
@@ -885,7 +886,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
              type++) {
         }
         if (type == IF_COUNT) {
-            error_report("unsupported bus type '%s'", value);
+            error_setg(errp, "unsupported bus type '%s'", value);
             goto fail;
         }
     } else {
@@ -902,7 +903,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 
     if (index != -1) {
         if (bus_id != 0 || unit_id != -1) {
-            error_report("index cannot be used with bus and unit");
+            error_setg(errp, "index cannot be used with bus and unit");
             goto fail;
         }
         bus_id = drive_index_to_bus_id(type, index);
@@ -921,13 +922,13 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     }
 
     if (max_devs && unit_id >= max_devs) {
-        error_report("unit %d too big (max is %d)", unit_id, max_devs - 1);
+        error_setg(errp, "unit %d too big (max is %d)", unit_id, max_devs - 1);
         goto fail;
     }
 
     if (drive_get(type, bus_id, unit_id) != NULL) {
-        error_report("drive with bus=%d, unit=%d (index=%d) exists",
-                     bus_id, unit_id, index);
+        error_setg(errp, "drive with bus=%d, unit=%d (index=%d) exists",
+                   bus_id, unit_id, index);
         goto fail;
     }
 
@@ -970,7 +971,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     if (werror != NULL) {
         if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO &&
             type != IF_NONE) {
-            error_report("werror is not supported by this bus type");
+            error_setg(errp, "werror is not supported by this bus type");
             goto fail;
         }
         qdict_put_str(bs_opts, "werror", werror);
@@ -980,7 +981,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     if (rerror != NULL) {
         if (type != IF_IDE && type != IF_VIRTIO && type != IF_SCSI &&
             type != IF_NONE) {
-            error_report("rerror is not supported by this bus type");
+            error_setg(errp, "rerror is not supported by this bus type");
             goto fail;
         }
         qdict_put_str(bs_opts, "rerror", rerror);
@@ -991,7 +992,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
     bs_opts = NULL;
     if (!blk) {
         if (local_err) {
-            error_report_err(local_err);
+            error_propagate(errp, local_err);
         }
         goto fail;
     } else {

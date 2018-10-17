@@ -1129,7 +1129,7 @@ static int drive_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     BlockInterfaceType *block_default_type = opaque;
 
-    return drive_new(opts, *block_default_type) == NULL;
+    return drive_new(opts, *block_default_type, errp) == NULL;
 }
 
 static int drive_enable_snapshot(void *opaque, QemuOpts *opts, Error **errp)
@@ -1155,8 +1155,7 @@ static void default_drive(int enable, int snapshot, BlockInterfaceType type,
         drive_enable_snapshot(NULL, opts, NULL);
     }
 
-    dinfo = drive_new(opts, type);
-    assert(dinfo);
+    dinfo = drive_new(opts, type, &error_abort);
     dinfo->is_default = true;
 
 }
@@ -4397,7 +4396,8 @@ int main(int argc, char **argv, char **envp)
                           NULL, NULL);
     }
     if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func,
-                          &machine_class->block_default_type, NULL)) {
+                          &machine_class->block_default_type, &error_fatal)) {
+        /* We printed help */
         exit(1);
     }
 
