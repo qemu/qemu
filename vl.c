@@ -2002,15 +2002,10 @@ static void select_vgahw(const char *p)
 
 static void parse_display_qapi(const char *optarg)
 {
-    Error *err = NULL;
     DisplayOptions *opts;
     Visitor *v;
 
-    v = qobject_input_visitor_new_str(optarg, "type", &err);
-    if (!v) {
-        error_report_err(err);
-        exit(1);
-    }
+    v = qobject_input_visitor_new_str(optarg, "type", &error_fatal);
 
     visit_type_DisplayOptions(v, NULL, &opts, &error_fatal);
     QAPI_CLONE_MEMBERS(DisplayOptions, &dpy, opts);
