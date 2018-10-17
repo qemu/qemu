@@ -766,11 +766,9 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
-        exit(EXIT_FAILURE);
-    }
+    qemu_opts_foreach(&qemu_object_opts,
+                      user_creatable_add_opts_foreach,
+                      NULL, &error_fatal);
 
     if (!trace_init_backends()) {
         exit(1);

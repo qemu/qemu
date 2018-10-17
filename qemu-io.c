@@ -620,11 +620,9 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(&qemu_object_opts,
+                      user_creatable_add_opts_foreach,
+                      NULL, &error_fatal);
 
     if (!trace_init_backends()) {
         exit(1);
