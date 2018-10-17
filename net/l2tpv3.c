@@ -28,6 +28,7 @@
 #include <netdb.h>
 #include "net/net.h"
 #include "clients.h"
+#include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
@@ -528,7 +529,6 @@ int net_init_l2tpv3(const Netdev *netdev,
                     const char *name,
                     NetClientState *peer, Error **errp)
 {
-    /* FIXME error_setg(errp, ...) on failure */
     const NetdevL2TPv3Options *l2tpv3;
     NetL2TPV3State *s;
     NetClientState *nc;
@@ -555,7 +555,7 @@ int net_init_l2tpv3(const Netdev *netdev,
     }
 
     if ((l2tpv3->has_offset) && (l2tpv3->offset > 256)) {
-        error_report("l2tpv3_open : offset must be less than 256 bytes");
+        error_setg(errp, "offset must be less than 256 bytes");
         goto outerr;
     }
 
@@ -563,6 +563,8 @@ int net_init_l2tpv3(const Netdev *netdev,
         if (l2tpv3->has_rxcookie && l2tpv3->has_txcookie) {
             s->cookie = true;
         } else {
+            error_setg(errp,
+                       "require both 'rxcookie' and 'txcookie' or neither");
             goto outerr;
         }
     } else {
@@ -578,7 +580,7 @@ int net_init_l2tpv3(const Netdev *netdev,
     if (l2tpv3->has_udp && l2tpv3->udp) {
         s->udp = true;
         if (!(l2tpv3->has_srcport && l2tpv3->has_dstport)) {
-            error_report("l2tpv3_open : need both src and dst port for udp");
+            error_setg(errp, "need both src and dst port for udp");
             goto outerr;
         } else {
             srcport = l2tpv3->srcport;
@@ -639,20 +641,19 @@ int net_init_l2tpv3(const Netdev *netdev,
     gairet = getaddrinfo(l2tpv3->src, srcport, &hints, &result);
 
     if ((gairet != 0) || (result == NULL)) {
-        error_report(
-            "l2tpv3_open : could not resolve src, errno = %s",
-            gai_strerror(gairet)
-        );
+        error_setg(errp, "could not resolve src, errno = %s",
+                   gai_strerror(gairet));
         goto outerr;
     }
     fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     if (fd == -1) {
         fd = -errno;
-        error_report("l2tpv3_open : socket creation failed, errno = %d", -fd);
+        error_setg(errp, "socket creation failed, errno = %d",
+                   -fd);
         goto outerr;
     }
     if (bind(fd, (struct sockaddr *) result->ai_addr, result->ai_addrlen)) {
-        error_report("l2tpv3_open :  could not bind socket err=%i", errno);
+        error_setg(errp, "could not bind socket err=%i", errno);
         goto outerr;
     }
     if (result) {
@@ -677,10 +678,8 @@ int net_init_l2tpv3(const Netdev *netdev,
     result = NULL;
     gairet = getaddrinfo(l2tpv3->dst, dstport, &hints, &result);
     if ((gairet != 0) || (result == NULL)) {
-        error_report(
-            "l2tpv3_open : could not resolve dst, error = %s",
-            gai_strerror(gairet)
-        );
+        error_setg(errp, "could not resolve dst, error = %s",
+                   gai_strerror(gairet));
         goto outerr;
     }
 
