@@ -60,8 +60,16 @@ typedef enum {
  * Each attribute corresponds to one bit. Attributes modify the processing
  * of timers when they fire.
  *
- * No attributes defined currently.
+ * The following attributes are available:
+ *
+ * QEMU_TIMER_ATTR_EXTERNAL: drives external subsystem
+ *
+ * Timers with this attribute do not recorded in rr mode, therefore it could be
+ * used for the subsystems that operate outside the guest core. Applicable only
+ * with virtual clock type.
  */
+
+#define QEMU_TIMER_ATTR_EXTERNAL BIT(0)
 
 typedef struct QEMUTimerList QEMUTimerList;
 
