@@ -437,23 +437,7 @@ static bool quorum_iovec_compare(QEMUIOVector *a, QEMUIOVector *b)
     return true;
 }
 
-static void GCC_FMT_ATTR(2, 3) quorum_err(QuorumAIOCB *acb,
-                                          const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    fprintf(stderr, "quorum: offset=%" PRIu64 " bytes=%" PRIu64 " ",
-            acb->offset, acb->bytes);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-    exit(1);
-}
-
-static bool quorum_compare(QuorumAIOCB *acb,
-                           QEMUIOVector *a,
-                           QEMUIOVector *b)
+static bool quorum_compare(QuorumAIOCB *acb, QEMUIOVector *a, QEMUIOVector *b)
 {
     BDRVQuorumState *s = acb->bs->opaque;
     ssize_t offset;
@@ -462,8 +446,10 @@ static bool quorum_compare(QuorumAIOCB *acb,
     if (s->is_blkverify) {
         offset = qemu_iovec_compare(a, b);
         if (offset != -1) {
-            quorum_err(acb, "contents mismatch at offset %" PRIu64,
-                       acb->offset + offset);
+            fprintf(stderr, "quorum: offset=%" PRIu64 " bytes=%" PRIu64
+                    " contents mismatch at offset %" PRIu64 "\n",
+                    acb->offset, acb->bytes, acb->offset + offset);
+            exit(1);
         }
         return true;
     }
