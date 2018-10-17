@@ -912,13 +912,12 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     s->read_pattern = ret;
 
     if (s->read_pattern == QUORUM_READ_PATTERN_QUORUM) {
-        /* is the driver in blkverify mode */
-        if (qemu_opt_get_bool(opts, QUORUM_OPT_BLKVERIFY, false) &&
-            s->num_children == 2 && s->threshold == 2) {
-            s->is_blkverify = true;
-        } else if (qemu_opt_get_bool(opts, QUORUM_OPT_BLKVERIFY, false)) {
-            fprintf(stderr, "blkverify mode is set by setting blkverify=on "
-                    "and using two files with vote_threshold=2\n");
+        s->is_blkverify = qemu_opt_get_bool(opts, QUORUM_OPT_BLKVERIFY, false);
+        if (s->is_blkverify && (s->num_children != 2 || s->threshold != 2)) {
+            error_setg(&local_err, "blkverify=on can only be set if there are "
+                       "exactly two files and vote-threshold is 2");
+            ret = -EINVAL;
+            goto exit;
         }
 
         s->rewrite_corrupted = qemu_opt_get_bool(opts, QUORUM_OPT_REWRITE,
