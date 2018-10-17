@@ -259,7 +259,7 @@ static void char_pty_open(Chardev *chr,
     qemu_set_nonblock(master_fd);
 
     chr->filename = g_strdup_printf("pty:%s", pty_name);
-    error_report("char device redirected to %s (label %s)",
+    error_printf("char device redirected to %s (label %s)\n",
                  pty_name, chr->label);
 
     s = PTY_CHARDEV(chr);

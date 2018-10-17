@@ -634,7 +634,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, Error **errp)
 
         chardev_name_foreach(help_string_append, str);
 
-        error_report("Available chardev backend types: %s", str->str);
+        error_printf("Available chardev backend types: %s\n", str->str);
         g_string_free(str, true);
         return NULL;
     }
