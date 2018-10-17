@@ -4082,13 +4082,13 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
     assert(id);
     vnc_display_init(id, &local_err);
     if (local_err) {
-        error_report_err(local_err);
-        exit(1);
+        error_propagate(errp, local_err);
+        return -1;
     }
     vnc_display_open(id, &local_err);
     if (local_err != NULL) {
-        error_reportf_err(local_err, "Failed to start VNC server: ");
-        exit(1);
+        error_propagate(errp, local_err);
+        return -1;
     }
     return 0;
 }
