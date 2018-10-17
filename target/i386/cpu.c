@@ -5123,14 +5123,15 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
      * NOTE: the following code has to follow qemu_init_vcpu(). Otherwise
      * cs->nr_threads hasn't be populated yet and the checking is incorrect.
      */
-     if (IS_AMD_CPU(env) &&
-         !(env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT) &&
-         cs->nr_threads > 1 && !ht_warned) {
-            error_report("This family of AMD CPU doesn't support "
-                         "hyperthreading(%d). Please configure -smp "
-                         "options properly or try enabling topoext feature.",
-                         cs->nr_threads);
-        ht_warned = true;
+    if (IS_AMD_CPU(env) &&
+        !(env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_TOPOEXT) &&
+        cs->nr_threads > 1 && !ht_warned) {
+            warn_report("This family of AMD CPU doesn't support "
+                        "hyperthreading(%d)",
+                        cs->nr_threads);
+            error_printf("Please configure -smp options properly"
+                         " or try enabling topoext feature.\n");
+            ht_warned = true;
     }
 
     x86_cpu_apic_realize(cpu, &local_err);

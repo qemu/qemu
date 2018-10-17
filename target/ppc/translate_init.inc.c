@@ -8381,8 +8381,8 @@ static void getset_compat_deprecated(Object *obj, Visitor *v, const char *name,
     QNull *null = NULL;
 
     if (!qtest_enabled()) {
-        error_report("CPU 'compat' property is deprecated and has no effect; "
-                     "use max-cpu-compat machine property instead");
+        warn_report("CPU 'compat' property is deprecated and has no effect; "
+                    "use max-cpu-compat machine property instead");
     }
     visit_type_null(v, name, &null, NULL);
     qobject_unref(null);

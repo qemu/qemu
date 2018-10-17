@@ -2020,10 +2020,10 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     if (n->net_conf.tx && strcmp(n->net_conf.tx, "timer")
                        && strcmp(n->net_conf.tx, "bh")) {
-        error_report("virtio-net: "
-                     "Unknown option tx=%s, valid options: \"timer\" \"bh\"",
-                     n->net_conf.tx);
-        error_report("Defaulting to \"bh\"");
+        warn_report("virtio-net: "
+                    "Unknown option tx=%s, valid options: \"timer\" \"bh\"",
+                    n->net_conf.tx);
+        error_printf("Defaulting to \"bh\"");
     }
 
     n->net_conf.tx_queue_size = MIN(virtio_net_max_tx_queue_size(n),
