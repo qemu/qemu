@@ -496,7 +496,6 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
 
     switch (timer_list->clock->type) {
     case QEMU_CLOCK_REALTIME:
-    case QEMU_CLOCK_VIRTUAL_EXT:
         break;
     default:
     case QEMU_CLOCK_VIRTUAL:
@@ -598,7 +597,6 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
         return get_clock();
     default:
     case QEMU_CLOCK_VIRTUAL:
-    case QEMU_CLOCK_VIRTUAL_EXT:
         if (use_icount) {
             return cpu_get_icount();
         } else {

@@ -42,14 +42,6 @@
  * In icount mode, this clock counts nanoseconds while the virtual
  * machine is running.  It is used to increase @QEMU_CLOCK_VIRTUAL
  * while the CPUs are sleeping and thus not executing instructions.
- *
- * @QEMU_CLOCK_VIRTUAL_EXT: virtual clock for external subsystems
- *
- * The virtual clock only runs during the emulation. It stops
- * when the virtual machine is stopped. The timers for this clock
- * do not recorded in rr mode, therefore this clock could be used
- * for the subsystems that operate outside the guest core.
- *
  */
 
 typedef enum {
@@ -57,7 +49,6 @@ typedef enum {
     QEMU_CLOCK_VIRTUAL = 1,
     QEMU_CLOCK_HOST = 2,
     QEMU_CLOCK_VIRTUAL_RT = 3,
-    QEMU_CLOCK_VIRTUAL_EXT = 4,
     QEMU_CLOCK_MAX
 } QEMUClockType;
 

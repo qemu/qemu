@@ -271,7 +271,7 @@ static void qemu_input_queue_process(void *opaque)
         item = QTAILQ_FIRST(queue);
         switch (item->type) {
         case QEMU_INPUT_QUEUE_DELAY:
-            timer_mod(item->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_EXT)
+            timer_mod(item->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL)
                       + item->delay_ms);
             return;
         case QEMU_INPUT_QUEUE_EVENT:
@@ -301,7 +301,7 @@ static void qemu_input_queue_delay(struct QemuInputEventQueueHead *queue,
     queue_count++;
 
     if (start_timer) {
-        timer_mod(item->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_EXT)
+        timer_mod(item->timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL)
                   + item->delay_ms);
     }
 }
@@ -448,8 +448,8 @@ void qemu_input_event_send_key_delay(uint32_t delay_ms)
     }
 
     if (!kbd_timer) {
-        kbd_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL_EXT,
-                                 qemu_input_queue_process, &kbd_queue);
+        kbd_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, qemu_input_queue_process,
+                                 &kbd_queue);
     }
     if (queue_count < queue_limit) {
         qemu_input_queue_delay(&kbd_queue, kbd_timer,
