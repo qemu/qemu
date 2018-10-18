@@ -175,6 +175,10 @@
 #define RCC_APB1RSTR_TIM2RST            (1U << RCC_APB1RSTR_TIM2RST_BIT)
 
 #define RCC_AHBENR_OFFSET 0x14
+#define RCC_AHBENR_DMA1EN_BIT 1
+#define RCC_AHBENR_SRAMEN_BIT 4
+#define RCC_AHBENR_FLITFEN_BIT 16
+#define RCC_AHBENR_CRCEN_BIT 64
 
 #define RCC_APB2ENR_OFFSET 0x18
 #define RCC_APB2ENR_ADC3EN_BIT   15
@@ -267,7 +271,8 @@ struct Stm32Rcc {
     /* Register Values */
     uint32_t
         RCC_APB1ENR,
-        RCC_APB2ENR;
+        RCC_APB2ENR,
+        RCC_AHBENR;
 
     /* Register Field Values */
     uint32_t
@@ -510,6 +515,17 @@ static void stm32_rcc_RCC_APB2ENR_write(Stm32Rcc *s, uint32_t new_value,
     s->RCC_APB2ENR = new_value & 0x0000fffd;
 }
 
+/* Write the AHBENR peripheral clock enable register
+ * Enables/Disables the peripheral clocks based on each bit. */
+static void stm32_rcc_RCC_AHBENR_write(Stm32Rcc *s, uint32_t new_value,
+                                        bool init)
+{
+    stm32_rcc_periph_enable(s, new_value, init, STM32_CRC,
+                            RCC_AHBENR_CRCEN_BIT);
+
+    s->RCC_AHBENR = new_value & 0x0000fffd;
+}
+
 /* Write the APB1 peripheral clock enable register
  * Enables/Disables the peripheral clocks based on each bit. */
 static void stm32_rcc_RCC_APB1ENR_write(Stm32Rcc *s, uint32_t new_value,
@@ -600,8 +616,7 @@ static uint64_t stm32_rcc_readw(void *opaque, hwaddr offset)
             STM32_NOT_IMPL_REG(offset, 4);
             return 0;
         case RCC_AHBENR_OFFSET:
-            STM32_NOT_IMPL_REG(offset, 4);
-            return 0;
+            return s->RCC_AHBENR;
         case RCC_APB2ENR_OFFSET:
             return s->RCC_APB2ENR;
         case RCC_APB1ENR_OFFSET:
@@ -646,7 +661,7 @@ static void stm32_rcc_writew(void *opaque, hwaddr offset,
             STM32_NOT_IMPL_REG(offset, 4);
             break;
         case RCC_AHBENR_OFFSET:
-            STM32_NOT_IMPL_REG(offset, 4);
+            stm32_rcc_RCC_AHBENR_write(s, value, false);
             break;
         case RCC_APB2ENR_OFFSET:
             stm32_rcc_RCC_APB2ENR_write(s, value, false);
@@ -712,6 +727,7 @@ static void stm32_rcc_reset(DeviceState *dev)
     stm32_rcc_RCC_CFGR_write(s, 0x00000000, true);
     stm32_rcc_RCC_APB2ENR_write(s, 0x00000000, true);
     stm32_rcc_RCC_APB1ENR_write(s, 0x00000000, true);
+    stm32_rcc_RCC_AHBENR_write(s, 0x00000000, true);
     stm32_rcc_RCC_BDCR_write(s, 0x00000000, true);
     stm32_rcc_RCC_CSR_write(s, 0x0c000000, true);
 }
@@ -888,6 +904,7 @@ static void stm32_rcc_init_clk(Stm32Rcc *s)
     s->PERIPHCLK[STM32_RTC]  = clktree_create_clk("RTC", 1, 1, false, CLKTREE_NO_MAX_FREQ,-1,
                               s->LSECLK,s->LSICLK,s->HSE_DIV128, NULL);
     s->PERIPHCLK[STM32_DAC]  = clktree_create_clk("DAC", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
+    s->PERIPHCLK[STM32_CRC]  = clktree_create_clk("CRC", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->HCLK, NULL);
 }
 
 
