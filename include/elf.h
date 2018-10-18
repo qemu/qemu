@@ -79,9 +79,9 @@ typedef int64_t  Elf64_Sxword;
 #define EF_MIPS_MACH_OCTEON2  0x008d0000  /* Cavium Networks Octeon2         */
 #define EF_MIPS_MACH_OCTEON3  0x008e0000  /* Cavium Networks Octeon3         */
 #define EF_MIPS_MACH_5400     0x00910000  /* NEC VR5400                      */
-#define EF_MIPS_MACH_5900     0x00920000  /* MIPS R5900                      */
+#define EF_MIPS_MACH_5900     0x00920000  /* Toshiba/Sony R5900              */
 #define EF_MIPS_MACH_5500     0x00980000  /* NEC VR5500                      */
-#define EF_MIPS_MACH_9000     0x00990000  /* PMC-Sierra's RM9000             */
+#define EF_MIPS_MACH_9000     0x00990000  /* PMC-Sierra RM9000               */
 #define EF_MIPS_MACH_LS2E     0x00a00000  /* ST Microelectronics Loongson 2E */
 #define EF_MIPS_MACH_LS2F     0x00a10000  /* ST Microelectronics Loongson 2F */
 #define EF_MIPS_MACH_LS3A     0x00a20000  /* ST Microelectronics Loongson 3A */
