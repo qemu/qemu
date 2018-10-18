@@ -2414,9 +2414,9 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
     "-chardev help\n"
     "-chardev null,id=id[,mux=on|off][,logfile=PATH][,logappend=on|off]\n"
     "-chardev socket,id=id[,host=host],port=port[,to=to][,ipv4][,ipv6][,nodelay][,reconnect=seconds]\n"
-    "         [,server][,nowait][,telnet][,reconnect=seconds][,mux=on|off]\n"
+    "         [,server][,nowait][,telnet][,websocket][,reconnect=seconds][,mux=on|off]\n"
     "         [,logfile=PATH][,logappend=on|off][,tls-creds=ID] (tcp)\n"
-    "-chardev socket,id=id,path=path[,server][,nowait][,telnet][,reconnect=seconds]\n"
+    "-chardev socket,id=id,path=path[,server][,nowait][,telnet][,websocket][,reconnect=seconds]\n"
     "         [,mux=on|off][,logfile=PATH][,logappend=on|off] (unix)\n"
     "-chardev udp,id=id[,host=host],port=port[,localaddr=localaddr]\n"
     "         [,localport=localport][,ipv4][,ipv6][,mux=on|off]\n"
@@ -2544,7 +2544,7 @@ The available backends are:
 A void device. This device will not emit any data, and will drop any data it
 receives. The null backend does not take any options.
 
-@item -chardev socket,id=@var{id}[,@var{TCP options} or @var{unix options}][,server][,nowait][,telnet][,reconnect=@var{seconds}][,tls-creds=@var{id}]
+@item -chardev socket,id=@var{id}[,@var{TCP options} or @var{unix options}][,server][,nowait][,telnet][,websocket][,reconnect=@var{seconds}][,tls-creds=@var{id}]
 
 Create a two-way stream socket, which can be either a TCP or a unix socket. A
 unix socket will be created if @option{path} is specified. Behaviour is
@@ -2557,6 +2557,9 @@ connect to a listening socket.
 
 @option{telnet} specifies that traffic on the socket should interpret telnet
 escape sequences.
+
+@option{websocket} specifies that the socket uses WebSocket protocol for
+communication.
 
 @option{reconnect} sets the timeout for reconnecting on non-server sockets when
 the remote end goes away.  qemu will delay this many seconds and then attempt
@@ -3105,6 +3108,10 @@ telnet option negotiation.  This will also allow you to send the
 MAGIC_SYSRQ sequence if you use a telnet that supports sending the break
 sequence.  Typically in unix telnet you do it with Control-] and then
 type "send break" followed by pressing the enter key.
+
+@item websocket:@var{host}:@var{port},server[,nowait][,nodelay]
+The WebSocket protocol is used instead of raw tcp socket. The port acts as
+a WebSocket server. Client mode is not supported.
 
 @item unix:@var{path}[,server][,nowait][,reconnect=@var{seconds}]
 A unix domain socket is used instead of a tcp socket.  The option works the

@@ -26,6 +26,7 @@
 #include "chardev/char.h"
 #include "io/channel-socket.h"
 #include "io/channel-tls.h"
+#include "io/channel-websock.h"
 #include "io/net-listener.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
@@ -67,6 +68,8 @@ typedef struct {
     bool is_tn3270;
     GSource *telnet_source;
     TCPChardevTelnetInit *telnet_init;
+
+    bool is_websock;
 
     GSource *reconnect_timer;
     int64_t reconnect_time;
@@ -394,7 +397,7 @@ static const char *qemu_chr_socket_protocol(SocketChardev *s)
     if (s->is_telnet) {
         return "telnet";
     }
-    return "tcp";
+    return s->is_websock ? "websocket" : "tcp";
 }
 
 static char *qemu_chr_socket_address(SocketChardev *s, const char *prefix)
@@ -714,6 +717,41 @@ cont:
 }
 
 
+static void tcp_chr_websock_handshake(QIOTask *task, gpointer user_data)
+{
+    Chardev *chr = user_data;
+    SocketChardev *s = user_data;
+
+    if (qio_task_propagate_error(task, NULL)) {
+        tcp_chr_disconnect(chr);
+    } else {
+        if (s->do_telnetopt) {
+            tcp_chr_telnet_init(chr);
+        } else {
+            tcp_chr_connect(chr);
+        }
+    }
+}
+
+
+static void tcp_chr_websock_init(Chardev *chr)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+    QIOChannelWebsock *wioc = NULL;
+    gchar *name;
+
+    wioc = qio_channel_websock_new_server(s->ioc);
+
+    name = g_strdup_printf("chardev-websocket-server-%s", chr->label);
+    qio_channel_set_name(QIO_CHANNEL(wioc), name);
+    g_free(name);
+    object_unref(OBJECT(s->ioc));
+    s->ioc = QIO_CHANNEL(wioc);
+
+    qio_channel_websock_handshake(wioc, tcp_chr_websock_handshake, chr, NULL);
+}
+
+
 static void tcp_chr_tls_handshake(QIOTask *task,
                                   gpointer user_data)
 {
@@ -723,7 +761,9 @@ static void tcp_chr_tls_handshake(QIOTask *task,
     if (qio_task_propagate_error(task, NULL)) {
         tcp_chr_disconnect(chr);
     } else {
-        if (s->do_telnetopt) {
+        if (s->is_websock) {
+            tcp_chr_websock_init(chr);
+        } else if (s->do_telnetopt) {
             tcp_chr_telnet_init(chr);
         } else {
             tcp_chr_connect(chr);
@@ -809,12 +849,12 @@ static int tcp_chr_new_client(Chardev *chr, QIOChannelSocket *sioc)
 
     if (s->tls_creds) {
         tcp_chr_tls_init(chr);
+    } else if (s->is_websock) {
+        tcp_chr_websock_init(chr);
+    } else if (s->do_telnetopt) {
+        tcp_chr_telnet_init(chr);
     } else {
-        if (s->do_telnetopt) {
-            tcp_chr_telnet_init(chr);
-        } else {
-            tcp_chr_connect(chr);
-        }
+        tcp_chr_connect(chr);
     }
 
     return 0;
@@ -959,13 +999,20 @@ static void qmp_chardev_open_socket(Chardev *chr,
     bool is_telnet      = sock->has_telnet  ? sock->telnet  : false;
     bool is_tn3270      = sock->has_tn3270  ? sock->tn3270  : false;
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
+    bool is_websock     = sock->has_websocket ? sock->websocket : false;
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
     QIOChannelSocket *sioc = NULL;
     SocketAddress *addr;
 
+    if (!is_listen && is_websock) {
+        error_setg(errp, "%s", "Websocket client is not implemented");
+        goto error;
+    }
+
     s->is_listen = is_listen;
     s->is_telnet = is_telnet;
     s->is_tn3270 = is_tn3270;
+    s->is_websock = is_websock;
     s->do_nodelay = do_nodelay;
     if (sock->tls_creds) {
         Object *creds;
@@ -1076,6 +1123,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     bool is_waitconnect = is_listen && qemu_opt_get_bool(opts, "wait", true);
     bool is_telnet      = qemu_opt_get_bool(opts, "telnet", false);
     bool is_tn3270      = qemu_opt_get_bool(opts, "tn3270", false);
+    bool is_websock     = qemu_opt_get_bool(opts, "websocket", false);
     bool do_nodelay     = !qemu_opt_get_bool(opts, "delay", true);
     int64_t reconnect   = qemu_opt_get_number(opts, "reconnect", 0);
     const char *path = qemu_opt_get(opts, "path");
@@ -1124,6 +1172,8 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->telnet = is_telnet;
     sock->has_tn3270 = true;
     sock->tn3270 = is_tn3270;
+    sock->has_websocket = true;
+    sock->websocket = is_websock;
     sock->has_wait = true;
     sock->wait = is_waitconnect;
     sock->has_reconnect = qemu_opt_find(opts, "reconnect");
