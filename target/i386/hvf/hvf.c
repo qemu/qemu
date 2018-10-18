@@ -73,7 +73,6 @@
 #include "target/i386/cpu.h"
 
 HVFState *hvf_state;
-int hvf_disabled = 1;
 
 static void assert_hvf_ok(hv_return_t ret)
 {
@@ -604,11 +603,6 @@ int hvf_init_vcpu(CPUState *cpu)
     return 0;
 }
 
-void hvf_disable(int shouldDisable)
-{
-    hvf_disabled = shouldDisable;
-}
-
 static void hvf_store_events(CPUState *cpu, uint32_t ins_len, uint64_t idtvec_info)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
@@ -934,7 +928,7 @@ int hvf_vcpu_exec(CPUState *cpu)
     return ret;
 }
 
-static bool hvf_allowed;
+bool hvf_allowed;
 
 static int hvf_accel_init(MachineState *ms)
 {
@@ -942,7 +936,6 @@ static int hvf_accel_init(MachineState *ms)
     hv_return_t ret;
     HVFState *s;
 
-    hvf_disable(0);
     ret = hv_vm_create(HV_VM_DEFAULT);
     assert_hvf_ok(ret);
 
