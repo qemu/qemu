@@ -198,6 +198,92 @@ quorum="$quorum,file.children.2.driver=raw"
 
 $QEMU_IO -c "open -o $quorum" | _filter_qemu_io
 
+echo
+echo "== dynamically adding a child to a quorum =="
+
+for verify in false true; do
+    run_qemu <<EOF
+    { "execute": "qmp_capabilities" }
+    { "execute": "blockdev-add",
+        "arguments": {
+            "driver": "quorum",
+            "node-name": "drive0-quorum",
+            "vote-threshold": 2,
+            "blkverify": ${verify},
+            "children": [
+                {
+                    "driver": "$IMGFMT",
+                    "file": {
+                        "driver": "file",
+                        "filename": "$TEST_DIR/1.raw"
+                    }
+                },
+                {
+                    "driver": "$IMGFMT",
+                    "file": {
+                        "driver": "file",
+                        "filename": "$TEST_DIR/2.raw"
+                    }
+                }
+            ]
+        }
+    }
+    { "execute": "blockdev-add",
+        "arguments": {
+            "node-name": "drive3",
+            "driver": "$IMGFMT",
+            "file": {
+                "driver": "file",
+                "filename": "$TEST_DIR/2.raw"
+            }
+        }
+    }
+    { "execute": "x-blockdev-change",
+      "arguments": { "parent": "drive0-quorum",
+                     "node": "drive3" } }
+    { "execute": "quit" }
+EOF
+done
+
+echo
+echo "== dynamically removing a child from a quorum =="
+
+for verify in false true; do
+    for vote_threshold in 1 2; do
+        run_qemu <<EOF
+        { "execute": "qmp_capabilities" }
+        { "execute": "blockdev-add",
+            "arguments": {
+                "driver": "quorum",
+                "node-name": "drive0-quorum",
+                "vote-threshold": ${vote_threshold},
+                "blkverify": ${verify},
+                "children": [
+                    {
+                        "driver": "$IMGFMT",
+                        "file": {
+                            "driver": "file",
+                            "filename": "$TEST_DIR/1.raw"
+                        }
+                    },
+                    {
+                        "driver": "$IMGFMT",
+                        "file": {
+                            "driver": "file",
+                            "filename": "$TEST_DIR/2.raw"
+                        }
+                    }
+                ]
+            }
+        }
+        { "execute": "x-blockdev-change",
+          "arguments": { "parent": "drive0-quorum",
+                         "child": "children.1" } }
+        { "execute": "quit" }
+EOF
+    done
+done
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
