@@ -789,10 +789,10 @@ void qemu_system_vmstop_request(RunState state)
 
 /***********************************************************/
 /* RTC reference time/date access */
-static time_t qemu_ref_timedate(void)
+static time_t qemu_ref_timedate(QEMUClockType clock)
 {
-    time_t value = qemu_clock_get_ms(rtc_clock) / 1000;
-    switch (rtc_clock) {
+    time_t value = qemu_clock_get_ms(clock) / 1000;
+    switch (clock) {
     case QEMU_CLOCK_REALTIME:
         value -= rtc_realtime_clock_offset;
         /* no break */
@@ -812,7 +812,7 @@ static time_t qemu_ref_timedate(void)
 
 void qemu_get_timedate(struct tm *tm, int offset)
 {
-    time_t ti = qemu_ref_timedate();
+    time_t ti = qemu_ref_timedate(rtc_clock);
 
     ti += offset;
 
@@ -847,7 +847,7 @@ int qemu_timedate_diff(struct tm *tm)
         abort();
     }
 
-    return seconds - qemu_ref_timedate();
+    return seconds - qemu_ref_timedate(QEMU_CLOCK_HOST);
 }
 
 static void configure_rtc_base_datetime(const char *startdate)

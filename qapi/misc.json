@@ -3070,7 +3070,8 @@
 # Emitted when the guest changes the RTC time.
 #
 # @offset: offset between base RTC clock (as specified by -rtc base), and
-#          new RTC clock value
+#          new RTC clock value. Note that value will be different depending
+#          on clock chosen to drive RTC (specified by -rtc clock).
 #
 # Note: This event is rate-limited.
 #
