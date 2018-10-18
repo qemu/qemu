@@ -3531,12 +3531,6 @@ if ! compile_prog "$CFLAGS" "$LIBS" ; then
 	       "build target"
 fi
 
-# g_test_trap_subprocess added in 2.38. Used by some tests.
-glib_subprocess=yes
-if ! $pkg_config --atleast-version=2.38 glib-2.0; then
-    glib_subprocess=no
-fi
-
 # Silence clang 3.5.0 warnings about glib attribute __alloc_size__ usage
 cat > $TMPC << EOF
 #include <glib.h>
