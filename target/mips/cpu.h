@@ -170,6 +170,16 @@ struct TCState {
         MSACSR_FS_MASK)
 
     float_status msa_fp_status;
+
+#define NUMBER_OF_MXU_REGISTERS 16
+    target_ulong mxu_gpr[NUMBER_OF_MXU_REGISTERS - 1];
+    target_ulong mxu_cr;
+#define MXU_CR_LC       31
+#define MXU_CR_RC       30
+#define MXU_CR_BIAS     2
+#define MXU_CR_RD_EN    1
+#define MXU_CR_MXU_EN   0
+
 };
 
 typedef struct CPUMIPSState CPUMIPSState;
