@@ -787,6 +787,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
                          "automatically marking the image read-only.");
             r = bdrv_set_read_only(bs, true, &local_err);
             if (r < 0) {
+                rbd_close(s->image);
                 error_propagate(errp, local_err);
                 goto failed_open;
             }
