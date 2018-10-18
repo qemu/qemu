@@ -992,6 +992,11 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
     char indexstr[32];
     int ret;
 
+    if (s->is_blkverify) {
+        error_setg(errp, "Cannot add a child to a quorum in blkverify mode");
+        return;
+    }
+
     assert(s->num_children <= INT_MAX / sizeof(BdrvChild *));
     if (s->num_children == INT_MAX / sizeof(BdrvChild *) ||
         s->next_child_index == UINT_MAX) {
@@ -1045,6 +1050,9 @@ static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
             s->threshold);
         return;
     }
+
+    /* We know now that num_children > threshold, so blkverify must be false */
+    assert(!s->is_blkverify);
 
     bdrv_drained_begin(bs);
 
