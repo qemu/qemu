@@ -2686,7 +2686,6 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     events.exception.nr = env->exception_injected;
     events.exception.has_error_code = env->has_error_code;
     events.exception.error_code = env->error_code;
-    events.exception.pad = 0;
 
     events.interrupt.injected = (env->interrupt_injected >= 0);
     events.interrupt.nr = env->interrupt_injected;
@@ -2695,7 +2694,6 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     events.nmi.injected = env->nmi_injected;
     events.nmi.pending = env->nmi_pending;
     events.nmi.masked = !!(env->hflags2 & HF2_NMI_MASK);
-    events.nmi.pad = 0;
 
     events.sipi_vector = env->sipi_vector;
     events.flags = 0;
