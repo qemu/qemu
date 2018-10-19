@@ -334,9 +334,6 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
                (uint32_t *)(frame->retcode + 0));
     __put_user(0x4e40, (uint16_t *)(frame->retcode + 4));
 
-    if (err)
-        goto give_sigsegv;
-
     /* Set up to return from userspace */
 
     env->aregs[7] = frame_addr;
