@@ -255,38 +255,6 @@ static void tlb_flush_page_locked(CPUArchState *env, int midx,
     }
 }
 
-static void tlb_flush_page_async_work(CPUState *cpu, run_on_cpu_data data)
-{
-    CPUArchState *env = cpu->env_ptr;
-    target_ulong addr = (target_ulong) data.target_ptr;
-    int mmu_idx;
-
-    assert_cpu_is_self(cpu);
-
-    tlb_debug("page addr:" TARGET_FMT_lx "\n", addr);
-
-    addr &= TARGET_PAGE_MASK;
-    qemu_spin_lock(&env->tlb_c.lock);
-    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        tlb_flush_page_locked(env, mmu_idx, addr);
-    }
-    qemu_spin_unlock(&env->tlb_c.lock);
-
-    tb_flush_jmp_cache(cpu, addr);
-}
-
-void tlb_flush_page(CPUState *cpu, target_ulong addr)
-{
-    tlb_debug("page :" TARGET_FMT_lx "\n", addr);
-
-    if (!qemu_cpu_is_self(cpu)) {
-        async_run_on_cpu(cpu, tlb_flush_page_async_work,
-                         RUN_ON_CPU_TARGET_PTR(addr));
-    } else {
-        tlb_flush_page_async_work(cpu, RUN_ON_CPU_TARGET_PTR(addr));
-    }
-}
-
 /* As we are going to hijack the bottom bits of the page address for a
  * mmuidx bit mask we need to fail to build if we can't do that
  */
@@ -336,6 +304,11 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
     }
 }
 
+void tlb_flush_page(CPUState *cpu, target_ulong addr)
+{
+    tlb_flush_page_by_mmuidx(cpu, addr, ALL_MMUIDX_BITS);
+}
+
 void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, target_ulong addr,
                                        uint16_t idxmap)
 {
@@ -350,6 +323,11 @@ void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, target_ulong addr,
 
     flush_all_helper(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
     fn(src_cpu, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+}
+
+void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
+{
+    tlb_flush_page_by_mmuidx_all_cpus(src, addr, ALL_MMUIDX_BITS);
 }
 
 void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
@@ -369,21 +347,9 @@ void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
     async_safe_run_on_cpu(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
 }
 
-void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
+void tlb_flush_page_all_cpus_synced(CPUState *src, target_ulong addr)
 {
-    const run_on_cpu_func fn = tlb_flush_page_async_work;
-
-    flush_all_helper(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
-    fn(src, RUN_ON_CPU_TARGET_PTR(addr));
-}
-
-void tlb_flush_page_all_cpus_synced(CPUState *src,
-                                                  target_ulong addr)
-{
-    const run_on_cpu_func fn = tlb_flush_page_async_work;
-
-    flush_all_helper(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
-    async_safe_run_on_cpu(src, fn, RUN_ON_CPU_TARGET_PTR(addr));
+    tlb_flush_page_by_mmuidx_all_cpus_synced(src, addr, ALL_MMUIDX_BITS);
 }
 
 /* update the TLBs so that writes to code in the virtual page 'addr'
