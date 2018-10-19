@@ -44,6 +44,7 @@
 #include "trace-tcg.h"
 #include "exec/translator.h"
 #include "exec/log.h"
+#include "qemu/atomic128.h"
 
 
 /* Information that (most) every instruction needs to manipulate.  */
@@ -1128,11 +1129,19 @@ struct DisasInsn {
 
     const char *name;
 
+    /* Pre-process arguments before HELP_OP.  */
     void (*help_in1)(DisasContext *, DisasFields *, DisasOps *);
     void (*help_in2)(DisasContext *, DisasFields *, DisasOps *);
     void (*help_prep)(DisasContext *, DisasFields *, DisasOps *);
+
+    /*
+     * Post-process output after HELP_OP.
+     * Note that these are not called if HELP_OP returns DISAS_NORETURN.
+     */
     void (*help_wout)(DisasContext *, DisasFields *, DisasOps *);
     void (*help_cout)(DisasContext *, DisasOps *);
+
+    /* Implement the operation itself.  */
     DisasJumpType (*help_op)(DisasContext *, DisasOps *);
 
     uint64_t data;
@@ -2032,6 +2041,7 @@ static DisasJumpType op_cdsg(DisasContext *s, DisasOps *o)
     int r3 = get_field(s->fields, r3);
     int d2 = get_field(s->fields, d2);
     int b2 = get_field(s->fields, b2);
+    DisasJumpType ret = DISAS_NEXT;
     TCGv_i64 addr;
     TCGv_i32 t_r1, t_r3;
 
@@ -2039,17 +2049,20 @@ static DisasJumpType op_cdsg(DisasContext *s, DisasOps *o)
     addr = get_address(s, 0, b2, d2);
     t_r1 = tcg_const_i32(r1);
     t_r3 = tcg_const_i32(r3);
-    if (tb_cflags(s->base.tb) & CF_PARALLEL) {
+    if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
+        gen_helper_cdsg(cpu_env, addr, t_r1, t_r3);
+    } else if (HAVE_CMPXCHG128) {
         gen_helper_cdsg_parallel(cpu_env, addr, t_r1, t_r3);
     } else {
-        gen_helper_cdsg(cpu_env, addr, t_r1, t_r3);
+        gen_helper_exit_atomic(cpu_env);
+        ret = DISAS_NORETURN;
     }
     tcg_temp_free_i64(addr);
     tcg_temp_free_i32(t_r1);
     tcg_temp_free_i32(t_r3);
 
     set_cc_static(s);
-    return DISAS_NEXT;
+    return ret;
 }
 
 static DisasJumpType op_csst(DisasContext *s, DisasOps *o)
@@ -3026,10 +3039,13 @@ static DisasJumpType op_lpd(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_lpq(DisasContext *s, DisasOps *o)
 {
-    if (tb_cflags(s->base.tb) & CF_PARALLEL) {
+    if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
+        gen_helper_lpq(o->out, cpu_env, o->in2);
+    } else if (HAVE_ATOMIC128) {
         gen_helper_lpq_parallel(o->out, cpu_env, o->in2);
     } else {
-        gen_helper_lpq(o->out, cpu_env, o->in2);
+        gen_helper_exit_atomic(cpu_env);
+        return DISAS_NORETURN;
     }
     return_low128(o->out2);
     return DISAS_NEXT;
@@ -4406,10 +4422,13 @@ static DisasJumpType op_stmh(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stpq(DisasContext *s, DisasOps *o)
 {
-    if (tb_cflags(s->base.tb) & CF_PARALLEL) {
+    if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
+        gen_helper_stpq(cpu_env, o->in2, o->out2, o->out);
+    } else if (HAVE_ATOMIC128) {
         gen_helper_stpq_parallel(cpu_env, o->in2, o->out2, o->out);
     } else {
-        gen_helper_stpq(cpu_env, o->in2, o->out2, o->out);
+        gen_helper_exit_atomic(cpu_env);
+        return DISAS_NORETURN;
     }
     return DISAS_NEXT;
 }
@@ -6125,11 +6144,13 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     if (insn->help_op) {
         ret = insn->help_op(s, &o);
     }
-    if (insn->help_wout) {
-        insn->help_wout(s, &f, &o);
-    }
-    if (insn->help_cout) {
-        insn->help_cout(s, &o);
+    if (ret != DISAS_NORETURN) {
+        if (insn->help_wout) {
+            insn->help_wout(s, &f, &o);
+        }
+        if (insn->help_cout) {
+            insn->help_cout(s, &o);
+        }
     }
 
     /* Free any temporaries created by the helpers.  */

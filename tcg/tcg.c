@@ -30,6 +30,7 @@
 /* Define to jump the ELF file used to communicate with GDB.  */
 #undef DEBUG_JIT
 
+#include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "qemu/host-utils.h"
 #include "qemu/timer.h"
@@ -3361,6 +3362,7 @@ void tcg_profile_snapshot(TCGProfile *prof, bool counters, bool table)
         const TCGProfile *orig = &s->prof;
 
         if (counters) {
+            PROF_ADD(prof, orig, cpu_exec_time);
             PROF_ADD(prof, orig, tb_count1);
             PROF_ADD(prof, orig, tb_count);
             PROF_ADD(prof, orig, op_count);
@@ -3412,10 +3414,31 @@ void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf)
                     prof.table_op_count[i]);
     }
 }
+
+int64_t tcg_cpu_exec_time(void)
+{
+    unsigned int n_ctxs = atomic_read(&n_tcg_ctxs);
+    unsigned int i;
+    int64_t ret = 0;
+
+    for (i = 0; i < n_ctxs; i++) {
+        const TCGContext *s = atomic_read(&tcg_ctxs[i]);
+        const TCGProfile *prof = &s->prof;
+
+        ret += atomic_read(&prof->cpu_exec_time);
+    }
+    return ret;
+}
 #else
 void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf)
 {
     cpu_fprintf(f, "[TCG profiler not compiled]\n");
+}
+
+int64_t tcg_cpu_exec_time(void)
+{
+    error_report("%s: TCG profiler not compiled", __func__);
+    exit(EXIT_FAILURE);
 }
 #endif
 
@@ -3430,7 +3453,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 
 #ifdef CONFIG_PROFILER
     {
-        int n;
+        int n = 0;
 
         QTAILQ_FOREACH(op, &s->ops, link) {
             n++;

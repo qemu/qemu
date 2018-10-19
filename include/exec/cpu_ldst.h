@@ -126,6 +126,29 @@ extern __thread uintptr_t helper_retaddr;
 /* The memory helpers for tcg-generated code need tcg_target_long etc.  */
 #include "tcg.h"
 
+static inline target_ulong tlb_addr_write(const CPUTLBEntry *entry)
+{
+#if TCG_OVERSIZED_GUEST
+    return entry->addr_write;
+#else
+    return atomic_read(&entry->addr_write);
+#endif
+}
+
+/* Find the TLB index corresponding to the mmu_idx + address pair.  */
+static inline uintptr_t tlb_index(CPUArchState *env, uintptr_t mmu_idx,
+                                  target_ulong addr)
+{
+    return (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+}
+
+/* Find the TLB entry corresponding to the mmu_idx + address pair.  */
+static inline CPUTLBEntry *tlb_entry(CPUArchState *env, uintptr_t mmu_idx,
+                                     target_ulong addr)
+{
+    return &env->tlb_table[mmu_idx][tlb_index(env, mmu_idx, addr)];
+}
+
 #ifdef MMU_MODE0_SUFFIX
 #define CPU_MMU_INDEX 0
 #define MEMSUFFIX MMU_MODE0_SUFFIX
@@ -416,8 +439,7 @@ static inline void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
 #if defined(CONFIG_USER_ONLY)
     return g2h(addr);
 #else
-    int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    CPUTLBEntry *tlbentry = &env->tlb_table[mmu_idx][index];
+    CPUTLBEntry *tlbentry = tlb_entry(env, mmu_idx, addr);
     abi_ptr tlb_addr;
     uintptr_t haddr;
 
@@ -426,7 +448,7 @@ static inline void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
         tlb_addr = tlbentry->addr_read;
         break;
     case 1:
-        tlb_addr = tlbentry->addr_write;
+        tlb_addr = tlb_addr_write(tlbentry);
         break;
     case 2:
         tlb_addr = tlbentry->addr_code;
@@ -445,7 +467,7 @@ static inline void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
         return NULL;
     }
 
-    haddr = addr + env->tlb_table[mmu_idx][index].addend;
+    haddr = addr + tlbentry->addend;
     return (void *)haddr;
 #endif /* defined(CONFIG_USER_ONLY) */
 }

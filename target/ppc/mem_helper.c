@@ -25,6 +25,7 @@
 #include "exec/cpu_ldst.h"
 #include "tcg.h"
 #include "internal.h"
+#include "qemu/atomic128.h"
 
 //#define DEBUG_OP
 
@@ -215,11 +216,15 @@ target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
     return i;
 }
 
-#if defined(TARGET_PPC64) && defined(CONFIG_ATOMIC128)
+#ifdef TARGET_PPC64
 uint64_t helper_lq_le_parallel(CPUPPCState *env, target_ulong addr,
                                uint32_t opidx)
 {
-    Int128 ret = helper_atomic_ldo_le_mmu(env, addr, opidx, GETPC());
+    Int128 ret;
+
+    /* We will have raised EXCP_ATOMIC from the translator.  */
+    assert(HAVE_ATOMIC128);
+    ret = helper_atomic_ldo_le_mmu(env, addr, opidx, GETPC());
     env->retxh = int128_gethi(ret);
     return int128_getlo(ret);
 }
@@ -227,7 +232,11 @@ uint64_t helper_lq_le_parallel(CPUPPCState *env, target_ulong addr,
 uint64_t helper_lq_be_parallel(CPUPPCState *env, target_ulong addr,
                                uint32_t opidx)
 {
-    Int128 ret = helper_atomic_ldo_be_mmu(env, addr, opidx, GETPC());
+    Int128 ret;
+
+    /* We will have raised EXCP_ATOMIC from the translator.  */
+    assert(HAVE_ATOMIC128);
+    ret = helper_atomic_ldo_be_mmu(env, addr, opidx, GETPC());
     env->retxh = int128_gethi(ret);
     return int128_getlo(ret);
 }
@@ -235,14 +244,22 @@ uint64_t helper_lq_be_parallel(CPUPPCState *env, target_ulong addr,
 void helper_stq_le_parallel(CPUPPCState *env, target_ulong addr,
                             uint64_t lo, uint64_t hi, uint32_t opidx)
 {
-    Int128 val = int128_make128(lo, hi);
+    Int128 val;
+
+    /* We will have raised EXCP_ATOMIC from the translator.  */
+    assert(HAVE_ATOMIC128);
+    val = int128_make128(lo, hi);
     helper_atomic_sto_le_mmu(env, addr, val, opidx, GETPC());
 }
 
 void helper_stq_be_parallel(CPUPPCState *env, target_ulong addr,
                             uint64_t lo, uint64_t hi, uint32_t opidx)
 {
-    Int128 val = int128_make128(lo, hi);
+    Int128 val;
+
+    /* We will have raised EXCP_ATOMIC from the translator.  */
+    assert(HAVE_ATOMIC128);
+    val = int128_make128(lo, hi);
     helper_atomic_sto_be_mmu(env, addr, val, opidx, GETPC());
 }
 
@@ -251,6 +268,9 @@ uint32_t helper_stqcx_le_parallel(CPUPPCState *env, target_ulong addr,
                                   uint32_t opidx)
 {
     bool success = false;
+
+    /* We will have raised EXCP_ATOMIC from the translator.  */
+    assert(HAVE_CMPXCHG128);
 
     if (likely(addr == env->reserve_addr)) {
         Int128 oldv, cmpv, newv;
@@ -270,6 +290,9 @@ uint32_t helper_stqcx_be_parallel(CPUPPCState *env, target_ulong addr,
                                   uint32_t opidx)
 {
     bool success = false;
+
+    /* We will have raised EXCP_ATOMIC from the translator.  */
+    assert(HAVE_CMPXCHG128);
 
     if (likely(addr == env->reserve_addr)) {
         Int128 oldv, cmpv, newv;

@@ -1046,7 +1046,6 @@ static inline int64_t profile_getclock(void)
     return get_clock();
 }
 
-extern int64_t tcg_time;
 extern int64_t dev_time;
 #endif
 

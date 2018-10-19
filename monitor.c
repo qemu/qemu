@@ -83,6 +83,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/iothread.h"
 #include "qemu/cutils.h"
+#include "tcg/tcg.h"
 
 #if defined(TARGET_S390X)
 #include "hw/s390x/storage-keys.h"
@@ -1966,16 +1967,22 @@ static void hmp_info_numa(Monitor *mon, const QDict *qdict)
 
 #ifdef CONFIG_PROFILER
 
-int64_t tcg_time;
 int64_t dev_time;
 
 static void hmp_info_profile(Monitor *mon, const QDict *qdict)
 {
+    static int64_t last_cpu_exec_time;
+    int64_t cpu_exec_time;
+    int64_t delta;
+
+    cpu_exec_time = tcg_cpu_exec_time();
+    delta = cpu_exec_time - last_cpu_exec_time;
+
     monitor_printf(mon, "async time  %" PRId64 " (%0.3f)\n",
                    dev_time, dev_time / (double)NANOSECONDS_PER_SECOND);
     monitor_printf(mon, "qemu time   %" PRId64 " (%0.3f)\n",
-                   tcg_time, tcg_time / (double)NANOSECONDS_PER_SECOND);
-    tcg_time = 0;
+                   delta, delta / (double)NANOSECONDS_PER_SECOND);
+    last_cpu_exec_time = cpu_exec_time;
     dev_time = 0;
 }
 #else

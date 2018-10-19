@@ -33,6 +33,7 @@
 #include "trace-tcg.h"
 #include "exec/translator.h"
 #include "exec/log.h"
+#include "qemu/atomic128.h"
 
 
 #define CPU_SINGLE_STEP 0x1
@@ -2654,22 +2655,22 @@ static void gen_lq(DisasContext *ctx)
     hi = cpu_gpr[rd];
 
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-#ifdef CONFIG_ATOMIC128
-        TCGv_i32 oi = tcg_temp_new_i32();
-        if (ctx->le_mode) {
-            tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ, ctx->mem_idx));
-            gen_helper_lq_le_parallel(lo, cpu_env, EA, oi);
+        if (HAVE_ATOMIC128) {
+            TCGv_i32 oi = tcg_temp_new_i32();
+            if (ctx->le_mode) {
+                tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ, ctx->mem_idx));
+                gen_helper_lq_le_parallel(lo, cpu_env, EA, oi);
+            } else {
+                tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ, ctx->mem_idx));
+                gen_helper_lq_be_parallel(lo, cpu_env, EA, oi);
+            }
+            tcg_temp_free_i32(oi);
+            tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUPPCState, retxh));
         } else {
-            tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ, ctx->mem_idx));
-            gen_helper_lq_be_parallel(lo, cpu_env, EA, oi);
+            /* Restart with exclusive lock.  */
+            gen_helper_exit_atomic(cpu_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
         }
-        tcg_temp_free_i32(oi);
-        tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUPPCState, retxh));
-#else
-        /* Restart with exclusive lock.  */
-        gen_helper_exit_atomic(cpu_env);
-        ctx->base.is_jmp = DISAS_NORETURN;
-#endif
     } else if (ctx->le_mode) {
         tcg_gen_qemu_ld_i64(lo, EA, ctx->mem_idx, MO_LEQ);
         gen_addr_add(ctx, EA, EA, 8);
@@ -2805,21 +2806,21 @@ static void gen_std(DisasContext *ctx)
         hi = cpu_gpr[rs];
 
         if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-#ifdef CONFIG_ATOMIC128
-            TCGv_i32 oi = tcg_temp_new_i32();
-            if (ctx->le_mode) {
-                tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ, ctx->mem_idx));
-                gen_helper_stq_le_parallel(cpu_env, EA, lo, hi, oi);
+            if (HAVE_ATOMIC128) {
+                TCGv_i32 oi = tcg_temp_new_i32();
+                if (ctx->le_mode) {
+                    tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ, ctx->mem_idx));
+                    gen_helper_stq_le_parallel(cpu_env, EA, lo, hi, oi);
+                } else {
+                    tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ, ctx->mem_idx));
+                    gen_helper_stq_be_parallel(cpu_env, EA, lo, hi, oi);
+                }
+                tcg_temp_free_i32(oi);
             } else {
-                tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ, ctx->mem_idx));
-                gen_helper_stq_be_parallel(cpu_env, EA, lo, hi, oi);
+                /* Restart with exclusive lock.  */
+                gen_helper_exit_atomic(cpu_env);
+                ctx->base.is_jmp = DISAS_NORETURN;
             }
-            tcg_temp_free_i32(oi);
-#else
-            /* Restart with exclusive lock.  */
-            gen_helper_exit_atomic(cpu_env);
-            ctx->base.is_jmp = DISAS_NORETURN;
-#endif
         } else if (ctx->le_mode) {
             tcg_gen_qemu_st_i64(lo, EA, ctx->mem_idx, MO_LEQ);
             gen_addr_add(ctx, EA, EA, 8);
@@ -3404,26 +3405,26 @@ static void gen_lqarx(DisasContext *ctx)
     hi = cpu_gpr[rd];
 
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-#ifdef CONFIG_ATOMIC128
-        TCGv_i32 oi = tcg_temp_new_i32();
-        if (ctx->le_mode) {
-            tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ | MO_ALIGN_16,
-                                                ctx->mem_idx));
-            gen_helper_lq_le_parallel(lo, cpu_env, EA, oi);
+        if (HAVE_ATOMIC128) {
+            TCGv_i32 oi = tcg_temp_new_i32();
+            if (ctx->le_mode) {
+                tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ | MO_ALIGN_16,
+                                                    ctx->mem_idx));
+                gen_helper_lq_le_parallel(lo, cpu_env, EA, oi);
+            } else {
+                tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ | MO_ALIGN_16,
+                                                    ctx->mem_idx));
+                gen_helper_lq_be_parallel(lo, cpu_env, EA, oi);
+            }
+            tcg_temp_free_i32(oi);
+            tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUPPCState, retxh));
         } else {
-            tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ | MO_ALIGN_16,
-                                                ctx->mem_idx));
-            gen_helper_lq_be_parallel(lo, cpu_env, EA, oi);
+            /* Restart with exclusive lock.  */
+            gen_helper_exit_atomic(cpu_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
+            tcg_temp_free(EA);
+            return;
         }
-        tcg_temp_free_i32(oi);
-        tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUPPCState, retxh));
-#else
-        /* Restart with exclusive lock.  */
-        gen_helper_exit_atomic(cpu_env);
-        ctx->base.is_jmp = DISAS_NORETURN;
-        tcg_temp_free(EA);
-        return;
-#endif
     } else if (ctx->le_mode) {
         tcg_gen_qemu_ld_i64(lo, EA, ctx->mem_idx, MO_LEQ | MO_ALIGN_16);
         tcg_gen_mov_tl(cpu_reserve, EA);
@@ -3461,20 +3462,22 @@ static void gen_stqcx_(DisasContext *ctx)
     hi = cpu_gpr[rs];
 
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
-        TCGv_i32 oi = tcg_const_i32(DEF_MEMOP(MO_Q) | MO_ALIGN_16);
-#ifdef CONFIG_ATOMIC128
-        if (ctx->le_mode) {
-            gen_helper_stqcx_le_parallel(cpu_crf[0], cpu_env, EA, lo, hi, oi);
+        if (HAVE_CMPXCHG128) {
+            TCGv_i32 oi = tcg_const_i32(DEF_MEMOP(MO_Q) | MO_ALIGN_16);
+            if (ctx->le_mode) {
+                gen_helper_stqcx_le_parallel(cpu_crf[0], cpu_env,
+                                             EA, lo, hi, oi);
+            } else {
+                gen_helper_stqcx_be_parallel(cpu_crf[0], cpu_env,
+                                             EA, lo, hi, oi);
+            }
+            tcg_temp_free_i32(oi);
         } else {
-            gen_helper_stqcx_le_parallel(cpu_crf[0], cpu_env, EA, lo, hi, oi);
+            /* Restart with exclusive lock.  */
+            gen_helper_exit_atomic(cpu_env);
+            ctx->base.is_jmp = DISAS_NORETURN;
         }
-#else
-        /* Restart with exclusive lock.  */
-        gen_helper_exit_atomic(cpu_env);
-        ctx->base.is_jmp = DISAS_NORETURN;
-#endif
         tcg_temp_free(EA);
-        tcg_temp_free_i32(oi);
     } else {
         TCGLabel *lab_fail = gen_new_label();
         TCGLabel *lab_over = gen_new_label();

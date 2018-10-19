@@ -32,6 +32,7 @@
 #include "exec/log.h"
 #include "exec/helper-proto.h"
 #include "qemu/atomic.h"
+#include "qemu/atomic128.h"
 
 /* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */
 /* #define DEBUG_TLB */
@@ -58,9 +59,9 @@
     } \
 } while (0)
 
-#define assert_cpu_is_self(this_cpu) do {                         \
+#define assert_cpu_is_self(cpu) do {                              \
         if (DEBUG_TLB_GATE) {                                     \
-            g_assert(!cpu->created || qemu_cpu_is_self(cpu));     \
+            g_assert(!(cpu)->created || qemu_cpu_is_self(cpu));   \
         }                                                         \
     } while (0)
 
@@ -72,6 +73,13 @@ QEMU_BUILD_BUG_ON(sizeof(target_ulong) > sizeof(run_on_cpu_data));
  */
 QEMU_BUILD_BUG_ON(NB_MMU_MODES > 16);
 #define ALL_MMUIDX_BITS ((1 << NB_MMU_MODES) - 1)
+
+void tlb_init(CPUState *cpu)
+{
+    CPUArchState *env = cpu->env_ptr;
+
+    qemu_spin_init(&env->tlb_lock);
+}
 
 /* flush_all_helper: run fn across all cpus
  *
@@ -125,8 +133,17 @@ static void tlb_flush_nocheck(CPUState *cpu)
     atomic_set(&env->tlb_flush_count, env->tlb_flush_count + 1);
     tlb_debug("(count: %zu)\n", tlb_flush_count());
 
+    /*
+     * tlb_table/tlb_v_table updates from any thread must hold tlb_lock.
+     * However, updates from the owner thread (as is the case here; see the
+     * above assert_cpu_is_self) do not need atomic_set because all reads
+     * that do not hold the lock are performed by the same owner thread.
+     */
+    qemu_spin_lock(&env->tlb_lock);
     memset(env->tlb_table, -1, sizeof(env->tlb_table));
     memset(env->tlb_v_table, -1, sizeof(env->tlb_v_table));
+    qemu_spin_unlock(&env->tlb_lock);
+
     cpu_tb_jmp_cache_clear(cpu);
 
     env->vtlb_index = 0;
@@ -178,6 +195,7 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
 
     tlb_debug("start: mmu_idx:0x%04lx\n", mmu_idx_bitmask);
 
+    qemu_spin_lock(&env->tlb_lock);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
 
         if (test_bit(mmu_idx, &mmu_idx_bitmask)) {
@@ -187,6 +205,7 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
             memset(env->tlb_v_table[mmu_idx], -1, sizeof(env->tlb_v_table[0]));
         }
     }
+    qemu_spin_unlock(&env->tlb_lock);
 
     cpu_tb_jmp_cache_clear(cpu);
 
@@ -239,23 +258,28 @@ static inline bool tlb_hit_page_anyprot(CPUTLBEntry *tlb_entry,
                                         target_ulong page)
 {
     return tlb_hit_page(tlb_entry->addr_read, page) ||
-           tlb_hit_page(tlb_entry->addr_write, page) ||
+           tlb_hit_page(tlb_addr_write(tlb_entry), page) ||
            tlb_hit_page(tlb_entry->addr_code, page);
 }
 
-static inline void tlb_flush_entry(CPUTLBEntry *tlb_entry, target_ulong page)
+/* Called with tlb_lock held */
+static inline void tlb_flush_entry_locked(CPUTLBEntry *tlb_entry,
+                                          target_ulong page)
 {
     if (tlb_hit_page_anyprot(tlb_entry, page)) {
         memset(tlb_entry, -1, sizeof(*tlb_entry));
     }
 }
 
-static inline void tlb_flush_vtlb_page(CPUArchState *env, int mmu_idx,
-                                       target_ulong page)
+/* Called with tlb_lock held */
+static inline void tlb_flush_vtlb_page_locked(CPUArchState *env, int mmu_idx,
+                                              target_ulong page)
 {
     int k;
+
+    assert_cpu_is_self(ENV_GET_CPU(env));
     for (k = 0; k < CPU_VTLB_SIZE; k++) {
-        tlb_flush_entry(&env->tlb_v_table[mmu_idx][k], page);
+        tlb_flush_entry_locked(&env->tlb_v_table[mmu_idx][k], page);
     }
 }
 
@@ -263,7 +287,6 @@ static void tlb_flush_page_async_work(CPUState *cpu, run_on_cpu_data data)
 {
     CPUArchState *env = cpu->env_ptr;
     target_ulong addr = (target_ulong) data.target_ptr;
-    int i;
     int mmu_idx;
 
     assert_cpu_is_self(cpu);
@@ -281,11 +304,12 @@ static void tlb_flush_page_async_work(CPUState *cpu, run_on_cpu_data data)
     }
 
     addr &= TARGET_PAGE_MASK;
-    i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    qemu_spin_lock(&env->tlb_lock);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        tlb_flush_entry(&env->tlb_table[mmu_idx][i], addr);
-        tlb_flush_vtlb_page(env, mmu_idx, addr);
+        tlb_flush_entry_locked(tlb_entry(env, mmu_idx, addr), addr);
+        tlb_flush_vtlb_page_locked(env, mmu_idx, addr);
     }
+    qemu_spin_unlock(&env->tlb_lock);
 
     tb_flush_jmp_cache(cpu, addr);
 }
@@ -314,20 +338,21 @@ static void tlb_flush_page_by_mmuidx_async_work(CPUState *cpu,
     target_ulong addr_and_mmuidx = (target_ulong) data.target_ptr;
     target_ulong addr = addr_and_mmuidx & TARGET_PAGE_MASK;
     unsigned long mmu_idx_bitmap = addr_and_mmuidx & ALL_MMUIDX_BITS;
-    int page = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     int mmu_idx;
 
     assert_cpu_is_self(cpu);
 
-    tlb_debug("page:%d addr:"TARGET_FMT_lx" mmu_idx:0x%lx\n",
-              page, addr, mmu_idx_bitmap);
+    tlb_debug("flush page addr:"TARGET_FMT_lx" mmu_idx:0x%lx\n",
+              addr, mmu_idx_bitmap);
 
+    qemu_spin_lock(&env->tlb_lock);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         if (test_bit(mmu_idx, &mmu_idx_bitmap)) {
-            tlb_flush_entry(&env->tlb_table[mmu_idx][page], addr);
-            tlb_flush_vtlb_page(env, mmu_idx, addr);
+            tlb_flush_entry_locked(tlb_entry(env, mmu_idx, addr), addr);
+            tlb_flush_vtlb_page_locked(env, mmu_idx, addr);
         }
     }
+    qemu_spin_unlock(&env->tlb_lock);
 
     tb_flush_jmp_cache(cpu, addr);
 }
@@ -450,72 +475,44 @@ void tlb_unprotect_code(ram_addr_t ram_addr)
  * most usual is detecting writes to code regions which may invalidate
  * generated code.
  *
- * Because we want other vCPUs to respond to changes straight away we
- * update the te->addr_write field atomically. If the TLB entry has
- * been changed by the vCPU in the mean time we skip the update.
+ * Other vCPUs might be reading their TLBs during guest execution, so we update
+ * te->addr_write with atomic_set. We don't need to worry about this for
+ * oversized guests as MTTCG is disabled for them.
  *
- * As this function uses atomic accesses we also need to ensure
- * updates to tlb_entries follow the same access rules. We don't need
- * to worry about this for oversized guests as MTTCG is disabled for
- * them.
+ * Called with tlb_lock held.
  */
-
-static void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry, uintptr_t start,
-                           uintptr_t length)
+static void tlb_reset_dirty_range_locked(CPUTLBEntry *tlb_entry,
+                                         uintptr_t start, uintptr_t length)
 {
-#if TCG_OVERSIZED_GUEST
     uintptr_t addr = tlb_entry->addr_write;
 
     if ((addr & (TLB_INVALID_MASK | TLB_MMIO | TLB_NOTDIRTY)) == 0) {
         addr &= TARGET_PAGE_MASK;
         addr += tlb_entry->addend;
         if ((addr - start) < length) {
+#if TCG_OVERSIZED_GUEST
             tlb_entry->addr_write |= TLB_NOTDIRTY;
-        }
-    }
 #else
-    /* paired with atomic_mb_set in tlb_set_page_with_attrs */
-    uintptr_t orig_addr = atomic_mb_read(&tlb_entry->addr_write);
-    uintptr_t addr = orig_addr;
-
-    if ((addr & (TLB_INVALID_MASK | TLB_MMIO | TLB_NOTDIRTY)) == 0) {
-        addr &= TARGET_PAGE_MASK;
-        addr += atomic_read(&tlb_entry->addend);
-        if ((addr - start) < length) {
-            uintptr_t notdirty_addr = orig_addr | TLB_NOTDIRTY;
-            atomic_cmpxchg(&tlb_entry->addr_write, orig_addr, notdirty_addr);
+            atomic_set(&tlb_entry->addr_write,
+                       tlb_entry->addr_write | TLB_NOTDIRTY);
+#endif
         }
     }
-#endif
 }
 
-/* For atomic correctness when running MTTCG we need to use the right
- * primitives when copying entries */
-static inline void copy_tlb_helper(CPUTLBEntry *d, CPUTLBEntry *s,
-                                   bool atomic_set)
+/*
+ * Called with tlb_lock held.
+ * Called only from the vCPU context, i.e. the TLB's owner thread.
+ */
+static inline void copy_tlb_helper_locked(CPUTLBEntry *d, const CPUTLBEntry *s)
 {
-#if TCG_OVERSIZED_GUEST
     *d = *s;
-#else
-    if (atomic_set) {
-        d->addr_read = s->addr_read;
-        d->addr_code = s->addr_code;
-        atomic_set(&d->addend, atomic_read(&s->addend));
-        /* Pairs with flag setting in tlb_reset_dirty_range */
-        atomic_mb_set(&d->addr_write, atomic_read(&s->addr_write));
-    } else {
-        d->addr_read = s->addr_read;
-        d->addr_write = atomic_read(&s->addr_write);
-        d->addr_code = s->addr_code;
-        d->addend = atomic_read(&s->addend);
-    }
-#endif
 }
 
 /* This is a cross vCPU call (i.e. another vCPU resetting the flags of
- * the target vCPU). As such care needs to be taken that we don't
- * dangerously race with another vCPU update. The only thing actually
- * updated is the target TLB entry ->addr_write flags.
+ * the target vCPU).
+ * We must take tlb_lock to avoid racing with another vCPU update. The only
+ * thing actually updated is the target TLB entry ->addr_write flags.
  */
 void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length)
 {
@@ -524,22 +521,26 @@ void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length)
     int mmu_idx;
 
     env = cpu->env_ptr;
+    qemu_spin_lock(&env->tlb_lock);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         unsigned int i;
 
         for (i = 0; i < CPU_TLB_SIZE; i++) {
-            tlb_reset_dirty_range(&env->tlb_table[mmu_idx][i],
-                                  start1, length);
+            tlb_reset_dirty_range_locked(&env->tlb_table[mmu_idx][i], start1,
+                                         length);
         }
 
         for (i = 0; i < CPU_VTLB_SIZE; i++) {
-            tlb_reset_dirty_range(&env->tlb_v_table[mmu_idx][i],
-                                  start1, length);
+            tlb_reset_dirty_range_locked(&env->tlb_v_table[mmu_idx][i], start1,
+                                         length);
         }
     }
+    qemu_spin_unlock(&env->tlb_lock);
 }
 
-static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, target_ulong vaddr)
+/* Called with tlb_lock held */
+static inline void tlb_set_dirty1_locked(CPUTLBEntry *tlb_entry,
+                                         target_ulong vaddr)
 {
     if (tlb_entry->addr_write == (vaddr | TLB_NOTDIRTY)) {
         tlb_entry->addr_write = vaddr;
@@ -551,23 +552,23 @@ static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, target_ulong vaddr)
 void tlb_set_dirty(CPUState *cpu, target_ulong vaddr)
 {
     CPUArchState *env = cpu->env_ptr;
-    int i;
     int mmu_idx;
 
     assert_cpu_is_self(cpu);
 
     vaddr &= TARGET_PAGE_MASK;
-    i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+    qemu_spin_lock(&env->tlb_lock);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        tlb_set_dirty1(&env->tlb_table[mmu_idx][i], vaddr);
+        tlb_set_dirty1_locked(tlb_entry(env, mmu_idx, vaddr), vaddr);
     }
 
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         int k;
         for (k = 0; k < CPU_VTLB_SIZE; k++) {
-            tlb_set_dirty1(&env->tlb_v_table[mmu_idx][k], vaddr);
+            tlb_set_dirty1_locked(&env->tlb_v_table[mmu_idx][k], vaddr);
         }
     }
+    qemu_spin_unlock(&env->tlb_lock);
 }
 
 /* Our TLB does not support large pages, so remember the area covered by
@@ -654,15 +655,24 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
         addend = (uintptr_t)memory_region_get_ram_ptr(section->mr) + xlat;
     }
 
-    /* Make sure there's no cached translation for the new page.  */
-    tlb_flush_vtlb_page(env, mmu_idx, vaddr_page);
-
     code_address = address;
     iotlb = memory_region_section_get_iotlb(cpu, section, vaddr_page,
                                             paddr_page, xlat, prot, &address);
 
-    index = (vaddr_page >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    te = &env->tlb_table[mmu_idx][index];
+    index = tlb_index(env, mmu_idx, vaddr_page);
+    te = tlb_entry(env, mmu_idx, vaddr_page);
+
+    /*
+     * Hold the TLB lock for the rest of the function. We could acquire/release
+     * the lock several times in the function, but it is faster to amortize the
+     * acquisition cost by acquiring it just once. Note that this leads to
+     * a longer critical section, but this is not a concern since the TLB lock
+     * is unlikely to be contended.
+     */
+    qemu_spin_lock(&env->tlb_lock);
+
+    /* Make sure there's no cached translation for the new page.  */
+    tlb_flush_vtlb_page_locked(env, mmu_idx, vaddr_page);
 
     /*
      * Only evict the old entry to the victim tlb if it's for a
@@ -673,7 +683,7 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
         CPUTLBEntry *tv = &env->tlb_v_table[mmu_idx][vidx];
 
         /* Evict the old entry into the victim tlb.  */
-        copy_tlb_helper(tv, te, true);
+        copy_tlb_helper_locked(tv, te);
         env->iotlb_v[mmu_idx][vidx] = env->iotlb[mmu_idx][index];
     }
 
@@ -725,9 +735,8 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
         }
     }
 
-    /* Pairs with flag setting in tlb_reset_dirty_range */
-    copy_tlb_helper(te, &tn, true);
-    /* atomic_mb_set(&te->addr_write, write_address); */
+    copy_tlb_helper_locked(te, &tn);
+    qemu_spin_unlock(&env->tlb_lock);
 }
 
 /* Add a new TLB entry, but without specifying the memory
@@ -773,16 +782,16 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
          * repeat the MMU check here. This tlb_fill() call might
          * longjump out if this access should cause a guest exception.
          */
-        int index;
+        CPUTLBEntry *entry;
         target_ulong tlb_addr;
 
         tlb_fill(cpu, addr, size, MMU_DATA_LOAD, mmu_idx, retaddr);
 
-        index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-        tlb_addr = env->tlb_table[mmu_idx][index].addr_read;
+        entry = tlb_entry(env, mmu_idx, addr);
+        tlb_addr = entry->addr_read;
         if (!(tlb_addr & ~(TARGET_PAGE_MASK | TLB_RECHECK))) {
             /* RAM access */
-            uintptr_t haddr = addr + env->tlb_table[mmu_idx][index].addend;
+            uintptr_t haddr = addr + entry->addend;
 
             return ldn_p((void *)haddr, size);
         }
@@ -840,16 +849,16 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
          * repeat the MMU check here. This tlb_fill() call might
          * longjump out if this access should cause a guest exception.
          */
-        int index;
+        CPUTLBEntry *entry;
         target_ulong tlb_addr;
 
         tlb_fill(cpu, addr, size, MMU_DATA_STORE, mmu_idx, retaddr);
 
-        index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-        tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
+        entry = tlb_entry(env, mmu_idx, addr);
+        tlb_addr = tlb_addr_write(entry);
         if (!(tlb_addr & ~(TARGET_PAGE_MASK | TLB_RECHECK))) {
             /* RAM access */
-            uintptr_t haddr = addr + env->tlb_table[mmu_idx][index].addend;
+            uintptr_t haddr = addr + entry->addend;
 
             stn_p((void *)haddr, size, val);
             return;
@@ -891,17 +900,28 @@ static bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
                            size_t elt_ofs, target_ulong page)
 {
     size_t vidx;
+
+    assert_cpu_is_self(ENV_GET_CPU(env));
     for (vidx = 0; vidx < CPU_VTLB_SIZE; ++vidx) {
         CPUTLBEntry *vtlb = &env->tlb_v_table[mmu_idx][vidx];
-        target_ulong cmp = *(target_ulong *)((uintptr_t)vtlb + elt_ofs);
+        target_ulong cmp;
+
+        /* elt_ofs might correspond to .addr_write, so use atomic_read */
+#if TCG_OVERSIZED_GUEST
+        cmp = *(target_ulong *)((uintptr_t)vtlb + elt_ofs);
+#else
+        cmp = atomic_read((target_ulong *)((uintptr_t)vtlb + elt_ofs));
+#endif
 
         if (cmp == page) {
             /* Found entry in victim tlb, swap tlb and iotlb.  */
             CPUTLBEntry tmptlb, *tlb = &env->tlb_table[mmu_idx][index];
 
-            copy_tlb_helper(&tmptlb, tlb, false);
-            copy_tlb_helper(tlb, vtlb, true);
-            copy_tlb_helper(vtlb, &tmptlb, true);
+            qemu_spin_lock(&env->tlb_lock);
+            copy_tlb_helper_locked(&tmptlb, tlb);
+            copy_tlb_helper_locked(tlb, vtlb);
+            copy_tlb_helper_locked(vtlb, &tmptlb);
+            qemu_spin_unlock(&env->tlb_lock);
 
             CPUIOTLBEntry tmpio, *io = &env->iotlb[mmu_idx][index];
             CPUIOTLBEntry *vio = &env->iotlb_v[mmu_idx][vidx];
@@ -924,20 +944,19 @@ static bool victim_tlb_hit(CPUArchState *env, size_t mmu_idx, size_t index,
  */
 tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
 {
-    int mmu_idx, index;
+    uintptr_t mmu_idx = cpu_mmu_index(env, true);
+    uintptr_t index = tlb_index(env, mmu_idx, addr);
+    CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
     void *p;
 
-    index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    mmu_idx = cpu_mmu_index(env, true);
-    if (unlikely(!tlb_hit(env->tlb_table[mmu_idx][index].addr_code, addr))) {
+    if (unlikely(!tlb_hit(entry->addr_code, addr))) {
         if (!VICTIM_TLB_HIT(addr_code, addr)) {
             tlb_fill(ENV_GET_CPU(env), addr, 0, MMU_INST_FETCH, mmu_idx, 0);
         }
-        assert(tlb_hit(env->tlb_table[mmu_idx][index].addr_code, addr));
+        assert(tlb_hit(entry->addr_code, addr));
     }
 
-    if (unlikely(env->tlb_table[mmu_idx][index].addr_code &
-                 (TLB_RECHECK | TLB_MMIO))) {
+    if (unlikely(entry->addr_code & (TLB_RECHECK | TLB_MMIO))) {
         /*
          * Return -1 if we can't translate and execute from an entire
          * page of RAM here, which will cause us to execute by loading
@@ -949,7 +968,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
         return -1;
     }
 
-    p = (void *)((uintptr_t)addr + env->tlb_table[mmu_idx][index].addend);
+    p = (void *)((uintptr_t)addr + entry->addend);
     return qemu_ram_addr_from_host_nofail(p);
 }
 
@@ -962,10 +981,10 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
 void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
                  uintptr_t retaddr)
 {
-    int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    target_ulong tlb_addr = env->tlb_table[mmu_idx][index].addr_write;
+    uintptr_t index = tlb_index(env, mmu_idx, addr);
+    CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
 
-    if (!tlb_hit(tlb_addr, addr)) {
+    if (!tlb_hit(tlb_addr_write(entry), addr)) {
         /* TLB entry is for a different page */
         if (!VICTIM_TLB_HIT(addr_write, addr)) {
             tlb_fill(ENV_GET_CPU(env), addr, size, MMU_DATA_STORE,
@@ -981,9 +1000,9 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
                                NotDirtyInfo *ndi)
 {
     size_t mmu_idx = get_mmuidx(oi);
-    size_t index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    CPUTLBEntry *tlbe = &env->tlb_table[mmu_idx][index];
-    target_ulong tlb_addr = tlbe->addr_write;
+    uintptr_t index = tlb_index(env, mmu_idx, addr);
+    CPUTLBEntry *tlbe = tlb_entry(env, mmu_idx, addr);
+    target_ulong tlb_addr = tlb_addr_write(tlbe);
     TCGMemOp mop = get_memop(oi);
     int a_bits = get_alignment_bits(mop);
     int s_bits = mop & MO_SIZE;
@@ -1014,7 +1033,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
             tlb_fill(ENV_GET_CPU(env), addr, 1 << s_bits, MMU_DATA_STORE,
                      mmu_idx, retaddr);
         }
-        tlb_addr = tlbe->addr_write & ~TLB_INVALID_MASK;
+        tlb_addr = tlb_addr_write(tlbe) & ~TLB_INVALID_MASK;
     }
 
     /* Notice an IO access or a needs-MMU-lookup access */
@@ -1101,7 +1120,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #include "atomic_template.h"
 #endif
 
-#ifdef CONFIG_ATOMIC128
+#if HAVE_CMPXCHG128 || HAVE_ATOMIC128
 #define DATA_SIZE 16
 #include "atomic_template.h"
 #endif

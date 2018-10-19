@@ -146,6 +146,17 @@
 # define QEMU_FLATTEN
 #endif
 
+/*
+ * If __attribute__((error)) is present, use it to produce an error at
+ * compile time.  Otherwise, one must wait for the linker to diagnose
+ * the missing symbol.
+ */
+#if __has_attribute(error)
+# define QEMU_ERROR(X) __attribute__((error(X)))
+#else
+# define QEMU_ERROR(X)
+#endif
+
 /* Implement C11 _Generic via GCC builtins.  Example:
  *
  *    QEMU_GENERIC(x, (float, sinf), (long double, sinl), sin) (x)
