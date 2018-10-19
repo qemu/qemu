@@ -100,17 +100,21 @@ static void flush_all_helper(CPUState *src, run_on_cpu_func fn,
     }
 }
 
-size_t tlb_flush_count(void)
+void tlb_flush_counts(size_t *pfull, size_t *ppart, size_t *pelide)
 {
     CPUState *cpu;
-    size_t count = 0;
+    size_t full = 0, part = 0, elide = 0;
 
     CPU_FOREACH(cpu) {
         CPUArchState *env = cpu->env_ptr;
 
-        count += atomic_read(&env->tlb_flush_count);
+        full += atomic_read(&env->tlb_c.full_flush_count);
+        part += atomic_read(&env->tlb_c.part_flush_count);
+        elide += atomic_read(&env->tlb_c.elide_flush_count);
     }
-    return count;
+    *pfull = full;
+    *ppart = part;
+    *pelide = elide;
 }
 
 static void tlb_flush_one_mmuidx_locked(CPUArchState *env, int mmu_idx)
@@ -145,7 +149,11 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
     cpu_tb_jmp_cache_clear(cpu);
 
     if (mmu_idx_bitmask == ALL_MMUIDX_BITS) {
-        atomic_set(&env->tlb_flush_count, env->tlb_flush_count + 1);
+        atomic_set(&env->tlb_c.full_flush_count,
+                   env->tlb_c.full_flush_count + 1);
+    } else {
+        atomic_set(&env->tlb_c.part_flush_count,
+                   env->tlb_c.part_flush_count + ctpop16(mmu_idx_bitmask));
     }
 }
 
