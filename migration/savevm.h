@@ -55,8 +55,13 @@ void qemu_savevm_send_postcopy_ram_discard(QEMUFile *f, const char *name,
                                            uint16_t len,
                                            uint64_t *start_list,
                                            uint64_t *length_list);
+void qemu_savevm_send_colo_enable(QEMUFile *f);
+void qemu_savevm_live_state(QEMUFile *f);
+int qemu_save_device_state(QEMUFile *f);
 
 int qemu_loadvm_state(QEMUFile *f);
 void qemu_loadvm_state_cleanup(void);
+int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis);
+int qemu_load_device_state(QEMUFile *f);
 
 #endif

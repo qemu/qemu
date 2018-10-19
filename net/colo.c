@@ -137,7 +137,7 @@ Connection *connection_new(ConnectionKey *key)
     conn->ip_proto = key->ip_proto;
     conn->processing = false;
     conn->offset = 0;
-    conn->syn_flag = 0;
+    conn->tcp_state = TCPS_CLOSED;
     conn->pack = 0;
     conn->sack = 0;
     g_queue_init(&conn->primary_list);
@@ -220,4 +220,12 @@ Connection *connection_get(GHashTable *connection_track_table,
     }
 
     return conn;
+}
+
+bool connection_has_tracked(GHashTable *connection_track_table,
+                            ConnectionKey *key)
+{
+    Connection *conn = g_hash_table_lookup(connection_track_table, key);
+
+    return conn ? true : false;
 }

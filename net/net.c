@@ -712,10 +712,15 @@ ssize_t qemu_deliver_packet_iov(NetClientState *sender,
                                 void *opaque)
 {
     NetClientState *nc = opaque;
+    size_t size = iov_size(iov, iovcnt);
     int ret;
 
+    if (size > INT_MAX) {
+        return size;
+    }
+
     if (nc->link_down) {
-        return iov_size(iov, iovcnt);
+        return size;
     }
 
     if (nc->receive_disabled) {
@@ -1331,6 +1336,25 @@ void hmp_info_network(Monitor *mon, const QDict *qdict)
         if (peer && type == NET_CLIENT_DRIVER_NIC) {
             monitor_printf(mon, " \\ ");
             print_net_client(mon, peer);
+        }
+    }
+}
+
+void colo_notify_filters_event(int event, Error **errp)
+{
+    NetClientState *nc;
+    NetFilterState *nf;
+    NetFilterClass *nfc = NULL;
+    Error *local_err = NULL;
+
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        QTAILQ_FOREACH(nf, &nc->filters, next) {
+            nfc = NETFILTER_GET_CLASS(OBJECT(nf));
+            nfc->handle_event(nf, event, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
         }
     }
 }

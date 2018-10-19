@@ -110,6 +110,40 @@ Note:
 HeartBeat has not been implemented yet, so you need to trigger failover process
 by using 'x-colo-lost-heartbeat' command.
 
+== COLO operation status ==
+
++-----------------+
+|                 |
+|    Start COLO   |
+|                 |
++--------+--------+
+         |
+         |  Main qmp command:
+         |  migrate-set-capabilities with x-colo
+         |  migrate
+         |
+         v
++--------+--------+
+|                 |
+|  COLO running   |
+|                 |
++--------+--------+
+         |
+         |  Main qmp command:
+         |  x-colo-lost-heartbeat
+         |  or
+         |  some error happened
+         v
++--------+--------+
+|                 |  send qmp event:
+|  COLO failover  |  COLO_EXIT
+|                 |
++-----------------+
+
+COLO use the qmp command to switch and report operation status.
+The diagram just shows the main qmp command, you can get the detail
+in test procedure.
+
 == Test procedure ==
 1. Startup qemu
 Primary:
