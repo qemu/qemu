@@ -1648,7 +1648,7 @@ enum {
 enum {
     OPC_MXU_S32MADD  = 0x00,
     OPC_MXU_S32MADDU = 0x01,
-    /* not assigned 0x02 */
+    OPC__MXU_MUL     = 0x02,
     OPC_MXU__POOL00  = 0x03,
     OPC_MXU_S32MSUB  = 0x04,
     OPC_MXU_S32MSUBU = 0x05,
@@ -24909,6 +24909,11 @@ static void decode_opc_mxu__pool20(CPUMIPSState *env, DisasContext *ctx)
  */
 static void decode_opc_mxu(CPUMIPSState *env, DisasContext *ctx)
 {
+    /*
+     * TODO: Investigate necessity of including handling of
+     * CLZ, CLO, SDBB in this function, as they belong to
+     * SPECIAL2 opcode space for regular pre-R6 MIPS ISAs.
+     */
     uint32_t opcode = extract32(ctx->opcode, 0, 6);
 
     switch (opcode) {
@@ -24921,6 +24926,18 @@ static void decode_opc_mxu(CPUMIPSState *env, DisasContext *ctx)
         /* TODO: Implement emulation of S32MADDU instruction. */
         MIPS_INVAL("OPC_MXU_S32MADDU");
         generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC__MXU_MUL:     /* 0x2 - unused in MXU specs */
+        {
+            uint32_t  rs, rt, rd, op1;
+
+            rs = extract32(ctx->opcode, 21, 5);
+            rt = extract32(ctx->opcode, 16, 5);
+            rd = extract32(ctx->opcode, 11, 5);
+            op1 = MASK_SPECIAL2(ctx->opcode);
+
+            gen_arith(ctx, op1, rd, rs, rt);
+        }
         break;
     case OPC_MXU__POOL00:
         decode_opc_mxu__pool00(env, ctx);
