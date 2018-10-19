@@ -79,6 +79,7 @@ struct KVMState
     int fd;
     int vmfd;
     int coalesced_mmio;
+    int coalesced_pio;
     struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
     bool coalesced_flush_in_progress;
     int vcpu_events;
@@ -559,6 +560,45 @@ static void kvm_uncoalesce_mmio_region(MemoryListener *listener,
         (void)kvm_vm_ioctl(s, KVM_UNREGISTER_COALESCED_MMIO, &zone);
     }
 }
+
+static void kvm_coalesce_pio_add(MemoryListener *listener,
+                                MemoryRegionSection *section,
+                                hwaddr start, hwaddr size)
+{
+    KVMState *s = kvm_state;
+
+    if (s->coalesced_pio) {
+        struct kvm_coalesced_mmio_zone zone;
+
+        zone.addr = start;
+        zone.size = size;
+        zone.pio = 1;
+
+        (void)kvm_vm_ioctl(s, KVM_REGISTER_COALESCED_MMIO, &zone);
+    }
+}
+
+static void kvm_coalesce_pio_del(MemoryListener *listener,
+                                MemoryRegionSection *section,
+                                hwaddr start, hwaddr size)
+{
+    KVMState *s = kvm_state;
+
+    if (s->coalesced_pio) {
+        struct kvm_coalesced_mmio_zone zone;
+
+        zone.addr = start;
+        zone.size = size;
+        zone.pio = 1;
+
+        (void)kvm_vm_ioctl(s, KVM_UNREGISTER_COALESCED_MMIO, &zone);
+     }
+}
+
+static MemoryListener kvm_coalesced_pio_listener = {
+    .coalesced_io_add = kvm_coalesce_pio_add,
+    .coalesced_io_del = kvm_coalesce_pio_del,
+};
 
 int kvm_check_extension(KVMState *s, unsigned int extension)
 {
@@ -1616,6 +1656,8 @@ static int kvm_init(MachineState *ms)
     }
 
     s->coalesced_mmio = kvm_check_extension(s, KVM_CAP_COALESCED_MMIO);
+    s->coalesced_pio = s->coalesced_mmio &&
+                       kvm_check_extension(s, KVM_CAP_COALESCED_PIO);
 
 #ifdef KVM_CAP_VCPU_EVENTS
     s->vcpu_events = kvm_check_extension(s, KVM_CAP_VCPU_EVENTS);
@@ -1686,12 +1728,14 @@ static int kvm_init(MachineState *ms)
         s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;
         s->memory_listener.listener.eventfd_del = kvm_mem_ioeventfd_del;
     }
-    s->memory_listener.listener.coalesced_mmio_add = kvm_coalesce_mmio_region;
-    s->memory_listener.listener.coalesced_mmio_del = kvm_uncoalesce_mmio_region;
+    s->memory_listener.listener.coalesced_io_add = kvm_coalesce_mmio_region;
+    s->memory_listener.listener.coalesced_io_del = kvm_uncoalesce_mmio_region;
 
     kvm_memory_listener_register(s, &s->memory_listener,
                                  &address_space_memory, 0);
     memory_listener_register(&kvm_io_listener,
+                             &address_space_io);
+    memory_listener_register(&kvm_coalesced_pio_listener,
                              &address_space_io);
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
@@ -1778,7 +1822,13 @@ void kvm_flush_coalesced_mmio_buffer(void)
 
             ent = &ring->coalesced_mmio[ring->first];
 
-            cpu_physical_memory_write(ent->phys_addr, ent->data, ent->len);
+            if (ent->pio == 1) {
+                address_space_rw(&address_space_io, ent->phys_addr,
+                                 MEMTXATTRS_UNSPECIFIED, ent->data,
+                                 ent->len, true);
+            } else {
+                cpu_physical_memory_write(ent->phys_addr, ent->data, ent->len);
+            }
             smp_wmb();
             ring->first = (ring->first + 1) % KVM_COALESCED_MMIO_MAX;
         }

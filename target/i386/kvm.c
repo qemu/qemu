@@ -608,7 +608,8 @@ static bool hyperv_enabled(X86CPU *cpu)
             cpu->hyperv_synic ||
             cpu->hyperv_stimer ||
             cpu->hyperv_reenlightenment ||
-            cpu->hyperv_tlbflush);
+            cpu->hyperv_tlbflush ||
+            cpu->hyperv_ipi);
 }
 
 static int kvm_arch_set_tsc_khz(CPUState *cs)
@@ -733,9 +734,20 @@ static int hyperv_handle_properties(CPUState *cs)
         env->features[FEAT_HYPERV_EAX] |= HV_VP_RUNTIME_AVAILABLE;
     }
     if (cpu->hyperv_synic) {
-        if (!has_msr_hv_synic ||
-            kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC, 0)) {
-            fprintf(stderr, "Hyper-V SynIC is not supported by kernel\n");
+        unsigned int cap = KVM_CAP_HYPERV_SYNIC;
+        if (!cpu->hyperv_synic_kvm_only) {
+            if (!cpu->hyperv_vpindex) {
+                fprintf(stderr, "Hyper-V SynIC "
+                        "(requested by 'hv-synic' cpu flag) "
+                        "requires Hyper-V VP_INDEX ('hv-vpindex')\n");
+            return -ENOSYS;
+            }
+            cap = KVM_CAP_HYPERV_SYNIC2;
+        }
+
+        if (!has_msr_hv_synic || !kvm_check_extension(cs->kvm_state, cap)) {
+            fprintf(stderr, "Hyper-V SynIC (requested by 'hv-synic' cpu flag) "
+                    "is not supported by kernel\n");
             return -ENOSYS;
         }
 
@@ -753,12 +765,14 @@ static int hyperv_handle_properties(CPUState *cs)
 
 static int hyperv_init_vcpu(X86CPU *cpu)
 {
+    CPUState *cs = CPU(cpu);
+    int ret;
+
     if (cpu->hyperv_vpindex && !hv_vpindex_settable) {
         /*
          * the kernel doesn't support setting vp_index; assert that its value
          * is in sync
          */
-        int ret;
         struct {
             struct kvm_msrs info;
             struct kvm_msr_entry entries[1];
@@ -767,15 +781,35 @@ static int hyperv_init_vcpu(X86CPU *cpu)
             .entries[0].index = HV_X64_MSR_VP_INDEX,
         };
 
-        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_MSRS, &msr_data);
         if (ret < 0) {
             return ret;
         }
         assert(ret == 1);
 
-        if (msr_data.entries[0].data != hyperv_vp_index(cpu)) {
+        if (msr_data.entries[0].data != hyperv_vp_index(CPU(cpu))) {
             error_report("kernel's vp_index != QEMU's vp_index");
             return -ENXIO;
+        }
+    }
+
+    if (cpu->hyperv_synic) {
+        uint32_t synic_cap = cpu->hyperv_synic_kvm_only ?
+            KVM_CAP_HYPERV_SYNIC : KVM_CAP_HYPERV_SYNIC2;
+        ret = kvm_vcpu_enable_cap(cs, synic_cap, 0);
+        if (ret < 0) {
+            error_report("failed to turn on HyperV SynIC in KVM: %s",
+                         strerror(-ret));
+            return ret;
+        }
+
+        if (!cpu->hyperv_synic_kvm_only) {
+            ret = hyperv_x86_synic_add(cpu);
+            if (ret < 0) {
+                error_report("failed to create HyperV SynIC: %s",
+                             strerror(-ret));
+                return ret;
+            }
         }
     }
 
@@ -886,6 +920,17 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 return -ENOSYS;
             }
             c->eax |= HV_REMOTE_TLB_FLUSH_RECOMMENDED;
+            c->eax |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
+        }
+        if (cpu->hyperv_ipi) {
+            if (kvm_check_extension(cs->kvm_state,
+                                    KVM_CAP_HYPERV_SEND_IPI) <= 0) {
+                fprintf(stderr, "Hyper-V IPI send support "
+                        "(requested by 'hv-ipi' cpu flag) "
+                        " is not supported by kernel\n");
+                return -ENOSYS;
+            }
+            c->eax |= HV_CLUSTER_IPI_RECOMMENDED;
             c->eax |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
         }
 
@@ -1153,7 +1198,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             if (local_err) {
                 error_report_err(local_err);
                 error_free(invtsc_mig_blocker);
-                goto fail;
+                return r;
             }
             /* for savevm */
             vmstate_x86_cpu.unmigratable = 1;
@@ -1226,6 +1271,8 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
         for (i = 0; i < ARRAY_SIZE(env->msr_hv_synic_sint); i++) {
             env->msr_hv_synic_sint[i] = HV_SINT_MASKED;
         }
+
+        hyperv_x86_synic_reset(cpu);
     }
 }
 
@@ -1937,7 +1984,8 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_add(cpu, HV_X64_MSR_VP_RUNTIME, env->msr_hv_runtime);
         }
         if (cpu->hyperv_vpindex && hv_vpindex_settable) {
-            kvm_msr_entry_add(cpu, HV_X64_MSR_VP_INDEX, hyperv_vp_index(cpu));
+            kvm_msr_entry_add(cpu, HV_X64_MSR_VP_INDEX,
+                              hyperv_vp_index(CPU(cpu)));
         }
         if (cpu->hyperv_synic) {
             int j;
@@ -2686,7 +2734,6 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     events.exception.nr = env->exception_injected;
     events.exception.has_error_code = env->has_error_code;
     events.exception.error_code = env->error_code;
-    events.exception.pad = 0;
 
     events.interrupt.injected = (env->interrupt_injected >= 0);
     events.interrupt.nr = env->interrupt_injected;
@@ -2695,7 +2742,6 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     events.nmi.injected = env->nmi_injected;
     events.nmi.pending = env->nmi_pending;
     events.nmi.masked = !!(env->hflags2 & HF2_NMI_MASK);
-    events.nmi.pad = 0;
 
     events.sipi_vector = env->sipi_vector;
     events.flags = 0;

@@ -327,6 +327,10 @@ static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
 
     sysbus_add_io(sbd, 0xcfc, &s->data_mem);
     sysbus_init_ioports(sbd, 0xcfc, 4);
+
+    /* register i440fx 0xcf8 port as coalesced pio */
+    memory_region_set_flush_coalesced(&s->data_mem);
+    memory_region_add_coalescing(&s->conf_mem, 0, 4);
 }
 
 static void i440fx_realize(PCIDevice *dev, Error **errp)

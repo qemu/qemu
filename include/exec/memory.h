@@ -419,9 +419,9 @@ struct MemoryListener {
                         bool match_data, uint64_t data, EventNotifier *e);
     void (*eventfd_del)(MemoryListener *listener, MemoryRegionSection *section,
                         bool match_data, uint64_t data, EventNotifier *e);
-    void (*coalesced_mmio_add)(MemoryListener *listener, MemoryRegionSection *section,
+    void (*coalesced_io_add)(MemoryListener *listener, MemoryRegionSection *section,
                                hwaddr addr, hwaddr len);
-    void (*coalesced_mmio_del)(MemoryListener *listener, MemoryRegionSection *section,
+    void (*coalesced_io_del)(MemoryListener *listener, MemoryRegionSection *section,
                                hwaddr addr, hwaddr len);
     /* Lower = earlier (during add), later (during del) */
     unsigned priority;

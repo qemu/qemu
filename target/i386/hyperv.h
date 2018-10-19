@@ -16,30 +16,14 @@
 
 #include "cpu.h"
 #include "sysemu/kvm.h"
-#include "qemu/event_notifier.h"
+#include "hw/hyperv/hyperv.h"
 
-typedef struct HvSintRoute HvSintRoute;
-typedef void (*HvSintAckClb)(HvSintRoute *sint_route);
-
-struct HvSintRoute {
-    uint32_t sint;
-    uint32_t vp_index;
-    int gsi;
-    EventNotifier sint_set_notifier;
-    EventNotifier sint_ack_notifier;
-    HvSintAckClb sint_ack_clb;
-};
-
+#ifdef CONFIG_KVM
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit);
+#endif
 
-HvSintRoute *kvm_hv_sint_route_create(uint32_t vp_index, uint32_t sint,
-                                      HvSintAckClb sint_ack_clb);
-
-void kvm_hv_sint_route_destroy(HvSintRoute *sint_route);
-
-int kvm_hv_sint_route_set_sint(HvSintRoute *sint_route);
-
-uint32_t hyperv_vp_index(X86CPU *cpu);
-X86CPU *hyperv_find_vcpu(uint32_t vp_index);
+int hyperv_x86_synic_add(X86CPU *cpu);
+void hyperv_x86_synic_reset(X86CPU *cpu);
+void hyperv_x86_synic_update(X86CPU *cpu);
 
 #endif

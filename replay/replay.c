@@ -214,7 +214,14 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint)
         /* This checkpoint belongs to several threads.
            Processing events from different threads is
            non-deterministic */
-        if (checkpoint != CHECKPOINT_CLOCK_WARP_START) {
+        if (checkpoint != CHECKPOINT_CLOCK_WARP_START
+            /* FIXME: this is temporary fix, other checkpoints
+                      may also be invoked from the different threads someday.
+                      Asynchronous event processing should be refactored
+                      to create additional replay event kind which is
+                      nailed to the one of the threads and which processes
+                      the event queue. */
+            && checkpoint != CHECKPOINT_CLOCK_VIRTUAL) {
             replay_save_events(checkpoint);
         }
         res = true;

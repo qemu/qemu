@@ -339,14 +339,19 @@ int qemu_poll_ns(GPollFD *fds, guint nfds, int64_t timeout)
 }
 
 
-void timer_init_tl(QEMUTimer *ts,
-                   QEMUTimerList *timer_list, int scale,
-                   QEMUTimerCB *cb, void *opaque)
+void timer_init_full(QEMUTimer *ts,
+                     QEMUTimerListGroup *timer_list_group, QEMUClockType type,
+                     int scale, int attributes,
+                     QEMUTimerCB *cb, void *opaque)
 {
-    ts->timer_list = timer_list;
+    if (!timer_list_group) {
+        timer_list_group = &main_loop_tlg;
+    }
+    ts->timer_list = timer_list_group->tl[type];
     ts->cb = cb;
     ts->opaque = opaque;
     ts->scale = scale;
+    ts->attributes = attributes;
     ts->expire_time = -1;
 }
 
@@ -484,6 +489,7 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
     bool progress = false;
     QEMUTimerCB *cb;
     void *opaque;
+    bool need_replay_checkpoint = false;
 
     if (!atomic_read(&timer_list->active_timers)) {
         return false;
@@ -496,12 +502,18 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
 
     switch (timer_list->clock->type) {
     case QEMU_CLOCK_REALTIME:
-    case QEMU_CLOCK_VIRTUAL_EXT:
         break;
     default:
     case QEMU_CLOCK_VIRTUAL:
-        if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL)) {
-            goto out;
+        if (replay_mode != REPLAY_MODE_NONE) {
+            /* Checkpoint for virtual clock is redundant in cases where
+             * it's being triggered with only non-EXTERNAL timers, because
+             * these timers don't change guest state directly.
+             * Since it has conditional dependence on specific timers, it is
+             * subject to race conditions and requires special handling.
+             * See below.
+             */
+            need_replay_checkpoint = true;
         }
         break;
     case QEMU_CLOCK_HOST:
@@ -516,13 +528,38 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         break;
     }
 
+    /*
+     * Extract expired timers from active timers list and and process them.
+     *
+     * In rr mode we need "filtered" checkpointing for virtual clock.  The
+     * checkpoint must be recorded/replayed before processing any non-EXTERNAL timer,
+     * and that must only be done once since the clock value stays the same. Because
+     * non-EXTERNAL timers may appear in the timers list while it being processed,
+     * the checkpoint can be issued at a time until no timers are left and we are
+     * done".
+     */
     current_time = qemu_clock_get_ns(timer_list->clock->type);
-    for(;;) {
-        qemu_mutex_lock(&timer_list->active_timers_lock);
-        ts = timer_list->active_timers;
+    qemu_mutex_lock(&timer_list->active_timers_lock);
+    while ((ts = timer_list->active_timers)) {
         if (!timer_expired_ns(ts, current_time)) {
-            qemu_mutex_unlock(&timer_list->active_timers_lock);
+            /* No expired timers left.  The checkpoint can be skipped
+             * if no timers fired or they were all external.
+             */
             break;
+        }
+        if (need_replay_checkpoint
+                && !(ts->attributes & QEMU_TIMER_ATTR_EXTERNAL)) {
+            /* once we got here, checkpoint clock only once */
+            need_replay_checkpoint = false;
+            qemu_mutex_unlock(&timer_list->active_timers_lock);
+            if (!replay_checkpoint(CHECKPOINT_CLOCK_VIRTUAL)) {
+                goto out;
+            }
+            qemu_mutex_lock(&timer_list->active_timers_lock);
+            /* The lock was released; start over again in case the list was
+             * modified.
+             */
+            continue;
         }
 
         /* remove timer from the list before calling the callback */
@@ -531,12 +568,15 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         ts->expire_time = -1;
         cb = ts->cb;
         opaque = ts->opaque;
-        qemu_mutex_unlock(&timer_list->active_timers_lock);
 
         /* run the callback (the timer list can be modified) */
+        qemu_mutex_unlock(&timer_list->active_timers_lock);
         cb(opaque);
+        qemu_mutex_lock(&timer_list->active_timers_lock);
+
         progress = true;
     }
+    qemu_mutex_unlock(&timer_list->active_timers_lock);
 
 out:
     qemu_event_set(&timer_list->timers_done_ev);
@@ -598,7 +638,6 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
         return get_clock();
     default:
     case QEMU_CLOCK_VIRTUAL:
-    case QEMU_CLOCK_VIRTUAL_EXT:
         if (use_icount) {
             return cpu_get_icount();
         } else {

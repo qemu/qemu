@@ -14,16 +14,36 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "hyperv.h"
+#include "hw/hyperv/hyperv.h"
 #include "hyperv-proto.h"
 
-uint32_t hyperv_vp_index(X86CPU *cpu)
+int hyperv_x86_synic_add(X86CPU *cpu)
 {
-    return CPU(cpu)->cpu_index;
+    hyperv_synic_add(CPU(cpu));
+    return 0;
 }
 
-X86CPU *hyperv_find_vcpu(uint32_t vp_index)
+void hyperv_x86_synic_reset(X86CPU *cpu)
 {
-    return X86_CPU(qemu_get_cpu(vp_index));
+    hyperv_synic_reset(CPU(cpu));
+}
+
+void hyperv_x86_synic_update(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    bool enable = env->msr_hv_synic_control & HV_SYNIC_ENABLE;
+    hwaddr msg_page_addr = (env->msr_hv_synic_msg_page & HV_SIMP_ENABLE) ?
+        (env->msr_hv_synic_msg_page & TARGET_PAGE_MASK) : 0;
+    hwaddr event_page_addr = (env->msr_hv_synic_evt_page & HV_SIEFP_ENABLE) ?
+        (env->msr_hv_synic_evt_page & TARGET_PAGE_MASK) : 0;
+    hyperv_synic_update(CPU(cpu), enable, msg_page_addr, event_page_addr);
+}
+
+static void async_synic_update(CPUState *cs, run_on_cpu_data data)
+{
+    qemu_mutex_lock_iothread();
+    hyperv_x86_synic_update(X86_CPU(cs));
+    qemu_mutex_unlock_iothread();
 }
 
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
@@ -36,11 +56,6 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
             return -1;
         }
 
-        /*
-         * For now just track changes in SynIC control and msg/evt pages msr's.
-         * When SynIC messaging/events processing will be added in future
-         * here we will do messages queues flushing and pages remapping.
-         */
         switch (exit->u.synic.msr) {
         case HV_X64_MSR_SCONTROL:
             env->msr_hv_synic_control = exit->u.synic.control;
@@ -54,98 +69,33 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
         default:
             return -1;
         }
+
+        /*
+         * this will run in this cpu thread before it returns to KVM, but in a
+         * safe environment (i.e. when all cpus are quiescent) -- this is
+         * necessary because memory hierarchy is being changed
+         */
+        async_safe_run_on_cpu(CPU(cpu), async_synic_update, RUN_ON_CPU_NULL);
+
         return 0;
     case KVM_EXIT_HYPERV_HCALL: {
-        uint16_t code;
+        uint16_t code = exit->u.hcall.input & 0xffff;
+        bool fast = exit->u.hcall.input & HV_HYPERCALL_FAST;
+        uint64_t param = exit->u.hcall.params[0];
 
-        code  = exit->u.hcall.input & 0xffff;
         switch (code) {
         case HV_POST_MESSAGE:
+            exit->u.hcall.result = hyperv_hcall_post_message(param, fast);
+            break;
         case HV_SIGNAL_EVENT:
+            exit->u.hcall.result = hyperv_hcall_signal_event(param, fast);
+            break;
         default:
             exit->u.hcall.result = HV_STATUS_INVALID_HYPERCALL_CODE;
-            return 0;
         }
+        return 0;
     }
     default:
         return -1;
     }
-}
-
-static void kvm_hv_sint_ack_handler(EventNotifier *notifier)
-{
-    HvSintRoute *sint_route = container_of(notifier, HvSintRoute,
-                                           sint_ack_notifier);
-    event_notifier_test_and_clear(notifier);
-    if (sint_route->sint_ack_clb) {
-        sint_route->sint_ack_clb(sint_route);
-    }
-}
-
-HvSintRoute *kvm_hv_sint_route_create(uint32_t vp_index, uint32_t sint,
-                                      HvSintAckClb sint_ack_clb)
-{
-    HvSintRoute *sint_route;
-    int r, gsi;
-
-    sint_route = g_malloc0(sizeof(*sint_route));
-    r = event_notifier_init(&sint_route->sint_set_notifier, false);
-    if (r) {
-        goto err;
-    }
-
-    r = event_notifier_init(&sint_route->sint_ack_notifier, false);
-    if (r) {
-        goto err_sint_set_notifier;
-    }
-
-    event_notifier_set_handler(&sint_route->sint_ack_notifier,
-                               kvm_hv_sint_ack_handler);
-
-    gsi = kvm_irqchip_add_hv_sint_route(kvm_state, vp_index, sint);
-    if (gsi < 0) {
-        goto err_gsi;
-    }
-
-    r = kvm_irqchip_add_irqfd_notifier_gsi(kvm_state,
-                                           &sint_route->sint_set_notifier,
-                                           &sint_route->sint_ack_notifier, gsi);
-    if (r) {
-        goto err_irqfd;
-    }
-    sint_route->gsi = gsi;
-    sint_route->sint_ack_clb = sint_ack_clb;
-    sint_route->vp_index = vp_index;
-    sint_route->sint = sint;
-
-    return sint_route;
-
-err_irqfd:
-    kvm_irqchip_release_virq(kvm_state, gsi);
-err_gsi:
-    event_notifier_set_handler(&sint_route->sint_ack_notifier, NULL);
-    event_notifier_cleanup(&sint_route->sint_ack_notifier);
-err_sint_set_notifier:
-    event_notifier_cleanup(&sint_route->sint_set_notifier);
-err:
-    g_free(sint_route);
-
-    return NULL;
-}
-
-void kvm_hv_sint_route_destroy(HvSintRoute *sint_route)
-{
-    kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state,
-                                          &sint_route->sint_set_notifier,
-                                          sint_route->gsi);
-    kvm_irqchip_release_virq(kvm_state, sint_route->gsi);
-    event_notifier_set_handler(&sint_route->sint_ack_notifier, NULL);
-    event_notifier_cleanup(&sint_route->sint_ack_notifier);
-    event_notifier_cleanup(&sint_route->sint_set_notifier);
-    g_free(sint_route);
-}
-
-int kvm_hv_sint_route_set_sint(HvSintRoute *sint_route)
-{
-    return event_notifier_set(&sint_route->sint_set_notifier);
 }

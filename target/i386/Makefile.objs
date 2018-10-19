@@ -3,17 +3,20 @@ obj-$(CONFIG_TCG) += translate.o
 obj-$(CONFIG_TCG) += bpt_helper.o cc_helper.o excp_helper.o fpu_helper.o
 obj-$(CONFIG_TCG) += int_helper.o mem_helper.o misc_helper.o mpx_helper.o
 obj-$(CONFIG_TCG) += seg_helper.o smm_helper.o svm_helper.o
-obj-$(CONFIG_SOFTMMU) += machine.o arch_memory_mapping.o arch_dump.o monitor.o
-obj-$(CONFIG_KVM) += kvm.o hyperv.o
-obj-$(CONFIG_SEV) += sev.o
+ifeq ($(CONFIG_SOFTMMU),y)
+obj-y += machine.o arch_memory_mapping.o arch_dump.o monitor.o
+obj-$(CONFIG_KVM) += kvm.o
 obj-$(call lnot,$(CONFIG_KVM)) += kvm-stub.o
-obj-$(call lnot,$(CONFIG_SEV)) += sev-stub.o
-# HAX support
-ifdef CONFIG_WIN32
+obj-$(CONFIG_HYPERV) += hyperv.o
+obj-$(call lnot,$(CONFIG_HYPERV)) += hyperv-stub.o
+ifeq ($(CONFIG_WIN32),y)
 obj-$(CONFIG_HAX) += hax-all.o hax-mem.o hax-windows.o
 endif
-ifdef CONFIG_DARWIN
+ifeq ($(CONFIG_DARWIN),y)
 obj-$(CONFIG_HAX) += hax-all.o hax-mem.o hax-darwin.o
 obj-$(CONFIG_HVF) += hvf/
 endif
 obj-$(CONFIG_WHPX) += whpx-all.o
+endif
+obj-$(CONFIG_SEV) += sev.o
+obj-$(call lnot,$(CONFIG_SEV)) += sev-stub.o

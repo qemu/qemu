@@ -51,6 +51,10 @@ static void q35_host_realize(DeviceState *dev, Error **errp)
     sysbus_add_io(sbd, MCH_HOST_BRIDGE_CONFIG_DATA, &pci->data_mem);
     sysbus_init_ioports(sbd, MCH_HOST_BRIDGE_CONFIG_DATA, 4);
 
+    /* register q35 0xcf8 port as coalesced pio */
+    memory_region_set_flush_coalesced(&pci->data_mem);
+    memory_region_add_coalescing(&pci->conf_mem, 0, 4);
+
     pci->bus = pci_root_bus_new(DEVICE(s), "pcie.0",
                                 s->mch.pci_address_space,
                                 s->mch.address_space_io,
