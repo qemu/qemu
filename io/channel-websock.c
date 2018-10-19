@@ -163,6 +163,7 @@ qio_channel_websock_handshake_send_res(QIOChannelWebsock *ioc,
     responselen = strlen(response);
     buffer_reserve(&ioc->encoutput, responselen);
     buffer_append(&ioc->encoutput, response, responselen);
+    g_free(response);
     va_end(vargs);
 }
 
