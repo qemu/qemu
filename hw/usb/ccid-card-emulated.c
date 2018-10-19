@@ -409,6 +409,12 @@ static int init_event_notifier(EmulatedState *card, Error **errp)
     return 0;
 }
 
+static void clean_event_notifier(EmulatedState *card)
+{
+    event_notifier_set_handler(&card->notifier, NULL);
+    event_notifier_cleanup(&card->notifier);
+}
+
 #define CERTIFICATES_DEFAULT_DB "/etc/pki/nssdb"
 #define CERTIFICATES_ARGS_TEMPLATE\
     "db=\"%s\" use_hw=no soft=(,Virtual Reader,CAC,,%s,%s,%s)"
@@ -556,6 +562,7 @@ static void emulated_unrealize(CCIDCardState *base, Error **errp)
     qemu_cond_signal(&card->handle_apdu_cond);
     qemu_thread_join(&card->apdu_thread_id);
 
+    clean_event_notifier(card);
     /* threads exited, can destroy all condvars/mutexes */
     qemu_cond_destroy(&card->handle_apdu_cond);
     qemu_mutex_destroy(&card->handle_apdu_mutex);
