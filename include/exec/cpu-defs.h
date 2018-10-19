@@ -150,6 +150,8 @@ typedef struct CPUTLBDesc {
      */
     target_ulong large_page_addr;
     target_ulong large_page_mask;
+    /* The next index to use in the tlb victim table.  */
+    size_t vindex;
 } CPUTLBDesc;
 
 /*
@@ -178,8 +180,7 @@ typedef struct CPUTLBCommon {
     CPUTLBEntry tlb_v_table[NB_MMU_MODES][CPU_VTLB_SIZE];               \
     CPUIOTLBEntry iotlb[NB_MMU_MODES][CPU_TLB_SIZE];                    \
     CPUIOTLBEntry iotlb_v[NB_MMU_MODES][CPU_VTLB_SIZE];                 \
-    size_t tlb_flush_count;                                             \
-    target_ulong vtlb_index;                                            \
+    size_t tlb_flush_count;
 
 #else
 
