@@ -537,6 +537,342 @@ hwaddr mips_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 }
 #endif
 
+#if !defined(CONFIG_USER_ONLY)
+#if !defined(TARGET_MIPS64)
+
+/*
+ * Perform hardware page table walk
+ *
+ * Memory accesses are performed using the KERNEL privilege level.
+ * Synchronous exceptions detected on memory accesses cause a silent exit
+ * from page table walking, resulting in a TLB or XTLB Refill exception.
+ *
+ * Implementations are not required to support page table walk memory
+ * accesses from mapped memory regions. When an unsupported access is
+ * attempted, a silent exit is taken, resulting in a TLB or XTLB Refill
+ * exception.
+ *
+ * Note that if an exception is caused by AddressTranslation or LoadMemory
+ * functions, the exception is not taken, a silent exit is taken,
+ * resulting in a TLB or XTLB Refill exception.
+ */
+
+static bool get_pte(CPUMIPSState *env, uint64_t vaddr, int entry_size,
+        uint64_t *pte)
+{
+    if ((vaddr & ((entry_size >> 3) - 1)) != 0) {
+        return false;
+    }
+    if (entry_size == 64) {
+        *pte = cpu_ldq_code(env, vaddr);
+    } else {
+        *pte = cpu_ldl_code(env, vaddr);
+    }
+    return true;
+}
+
+static uint64_t get_tlb_entry_layout(CPUMIPSState *env, uint64_t entry,
+        int entry_size, int ptei)
+{
+    uint64_t result = entry;
+    uint64_t rixi;
+    if (ptei > entry_size) {
+        ptei -= 32;
+    }
+    result >>= (ptei - 2);
+    rixi = result & 3;
+    result >>= 2;
+    result |= rixi << CP0EnLo_XI;
+    return result;
+}
+
+static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
+        int directory_index, bool *huge_page, bool *hgpg_directory_hit,
+        uint64_t *pw_entrylo0, uint64_t *pw_entrylo1)
+{
+    int dph = (env->CP0_PWCtl >> CP0PC_DPH) & 0x1;
+    int psn = (env->CP0_PWCtl >> CP0PC_PSN) & 0x3F;
+    int hugepg = (env->CP0_PWCtl >> CP0PC_HUGEPG) & 0x1;
+    int pf_ptew = (env->CP0_PWField >> CP0PF_PTEW) & 0x3F;
+    int ptew = (env->CP0_PWSize >> CP0PS_PTEW) & 0x3F;
+    int native_shift = (((env->CP0_PWSize >> CP0PS_PS) & 1) == 0) ? 2 : 3;
+    int directory_shift = (ptew > 1) ? -1 :
+            (hugepg && (ptew == 1)) ? native_shift + 1 : native_shift;
+    int leaf_shift = (ptew > 1) ? -1 :
+            (ptew == 1) ? native_shift + 1 : native_shift;
+    uint32_t direntry_size = 1 << (directory_shift + 3);
+    uint32_t leafentry_size = 1 << (leaf_shift + 3);
+    uint64_t entry;
+    uint64_t paddr;
+    int prot;
+    uint64_t lsb = 0;
+    uint64_t w = 0;
+
+    if (get_physical_address(env, &paddr, &prot, *vaddr, MMU_DATA_LOAD,
+                             ACCESS_INT, cpu_mmu_index(env, false)) !=
+                             TLBRET_MATCH) {
+        /* wrong base address */
+        return 0;
+    }
+    if (!get_pte(env, *vaddr, direntry_size, &entry)) {
+        return 0;
+    }
+
+    if ((entry & (1 << psn)) && hugepg) {
+        *huge_page = true;
+        *hgpg_directory_hit = true;
+        entry = get_tlb_entry_layout(env, entry, leafentry_size, pf_ptew);
+        w = directory_index - 1;
+        if (directory_index & 0x1) {
+            /* Generate adjacent page from same PTE for odd TLB page */
+            lsb = (1 << w) >> 6;
+            *pw_entrylo0 = entry & ~lsb; /* even page */
+            *pw_entrylo1 = entry | lsb; /* odd page */
+        } else if (dph) {
+            int oddpagebit = 1 << leaf_shift;
+            uint64_t vaddr2 = *vaddr ^ oddpagebit;
+            if (*vaddr & oddpagebit) {
+                *pw_entrylo1 = entry;
+            } else {
+                *pw_entrylo0 = entry;
+            }
+            if (get_physical_address(env, &paddr, &prot, vaddr2, MMU_DATA_LOAD,
+                                     ACCESS_INT, cpu_mmu_index(env, false)) !=
+                                     TLBRET_MATCH) {
+                return 0;
+            }
+            if (!get_pte(env, vaddr2, leafentry_size, &entry)) {
+                return 0;
+            }
+            entry = get_tlb_entry_layout(env, entry, leafentry_size, pf_ptew);
+            if (*vaddr & oddpagebit) {
+                *pw_entrylo0 = entry;
+            } else {
+                *pw_entrylo1 = entry;
+            }
+        } else {
+            return 0;
+        }
+        return 1;
+    } else {
+        *vaddr = entry;
+        return 2;
+    }
+}
+
+static bool page_table_walk_refill(CPUMIPSState *env, vaddr address, int rw,
+        int mmu_idx)
+{
+    int gdw = (env->CP0_PWSize >> CP0PS_GDW) & 0x3F;
+    int udw = (env->CP0_PWSize >> CP0PS_UDW) & 0x3F;
+    int mdw = (env->CP0_PWSize >> CP0PS_MDW) & 0x3F;
+    int ptw = (env->CP0_PWSize >> CP0PS_PTW) & 0x3F;
+    int ptew = (env->CP0_PWSize >> CP0PS_PTEW) & 0x3F;
+
+    /* Initial values */
+    bool huge_page = false;
+    bool hgpg_bdhit = false;
+    bool hgpg_gdhit = false;
+    bool hgpg_udhit = false;
+    bool hgpg_mdhit = false;
+
+    int32_t pw_pagemask = 0;
+    target_ulong pw_entryhi = 0;
+    uint64_t pw_entrylo0 = 0;
+    uint64_t pw_entrylo1 = 0;
+
+    /* Native pointer size */
+    /*For the 32-bit architectures, this bit is fixed to 0.*/
+    int native_shift = (((env->CP0_PWSize >> CP0PS_PS) & 1) == 0) ? 2 : 3;
+
+    /* Indices from PWField */
+    int pf_gdw = (env->CP0_PWField >> CP0PF_GDW) & 0x3F;
+    int pf_udw = (env->CP0_PWField >> CP0PF_UDW) & 0x3F;
+    int pf_mdw = (env->CP0_PWField >> CP0PF_MDW) & 0x3F;
+    int pf_ptw = (env->CP0_PWField >> CP0PF_PTW) & 0x3F;
+    int pf_ptew = (env->CP0_PWField >> CP0PF_PTEW) & 0x3F;
+
+    /* Indices computed from faulting address */
+    int gindex = (address >> pf_gdw) & ((1 << gdw) - 1);
+    int uindex = (address >> pf_udw) & ((1 << udw) - 1);
+    int mindex = (address >> pf_mdw) & ((1 << mdw) - 1);
+    int ptindex = (address >> pf_ptw) & ((1 << ptw) - 1);
+
+    /* Other HTW configs */
+    int hugepg = (env->CP0_PWCtl >> CP0PC_HUGEPG) & 0x1;
+
+    /* HTW Shift values (depend on entry size) */
+    int directory_shift = (ptew > 1) ? -1 :
+            (hugepg && (ptew == 1)) ? native_shift + 1 : native_shift;
+    int leaf_shift = (ptew > 1) ? -1 :
+            (ptew == 1) ? native_shift + 1 : native_shift;
+
+    /* Offsets into tables */
+    int goffset = gindex << directory_shift;
+    int uoffset = uindex << directory_shift;
+    int moffset = mindex << directory_shift;
+    int ptoffset0 = (ptindex >> 1) << (leaf_shift + 1);
+    int ptoffset1 = ptoffset0 | (1 << (leaf_shift));
+
+    uint32_t leafentry_size = 1 << (leaf_shift + 3);
+
+    /* Starting address - Page Table Base */
+    uint64_t vaddr = env->CP0_PWBase;
+
+    uint64_t dir_entry;
+    uint64_t paddr;
+    int prot;
+    int m;
+
+    if (!(env->CP0_Config3 & (1 << CP0C3_PW))) {
+        /* walker is unimplemented */
+        return false;
+    }
+    if (!(env->CP0_PWCtl & (1 << CP0PC_PWEN))) {
+        /* walker is disabled */
+        return false;
+    }
+    if (!(gdw > 0 || udw > 0 || mdw > 0)) {
+        /* no structure to walk */
+        return false;
+    }
+    if ((directory_shift == -1) || (leaf_shift == -1)) {
+        return false;
+    }
+
+    /* Global Directory */
+    if (gdw > 0) {
+        vaddr |= goffset;
+        switch (walk_directory(env, &vaddr, pf_gdw, &huge_page, &hgpg_gdhit,
+                               &pw_entrylo0, &pw_entrylo1))
+        {
+        case 0:
+            return false;
+        case 1:
+            goto refill;
+        case 2:
+        default:
+            break;
+        }
+    }
+
+    /* Upper directory */
+    if (udw > 0) {
+        vaddr |= uoffset;
+        switch (walk_directory(env, &vaddr, pf_udw, &huge_page, &hgpg_udhit,
+                               &pw_entrylo0, &pw_entrylo1))
+        {
+        case 0:
+            return false;
+        case 1:
+            goto refill;
+        case 2:
+        default:
+            break;
+        }
+    }
+
+    /* Middle directory */
+    if (mdw > 0) {
+        vaddr |= moffset;
+        switch (walk_directory(env, &vaddr, pf_mdw, &huge_page, &hgpg_mdhit,
+                               &pw_entrylo0, &pw_entrylo1))
+        {
+        case 0:
+            return false;
+        case 1:
+            goto refill;
+        case 2:
+        default:
+            break;
+        }
+    }
+
+    /* Leaf Level Page Table - First half of PTE pair */
+    vaddr |= ptoffset0;
+    if (get_physical_address(env, &paddr, &prot, vaddr, MMU_DATA_LOAD,
+                             ACCESS_INT, cpu_mmu_index(env, false)) !=
+                             TLBRET_MATCH) {
+        return false;
+    }
+    if (!get_pte(env, vaddr, leafentry_size, &dir_entry)) {
+        return false;
+    }
+    dir_entry = get_tlb_entry_layout(env, dir_entry, leafentry_size, pf_ptew);
+    pw_entrylo0 = dir_entry;
+
+    /* Leaf Level Page Table - Second half of PTE pair */
+    vaddr |= ptoffset1;
+    if (get_physical_address(env, &paddr, &prot, vaddr, MMU_DATA_LOAD,
+                             ACCESS_INT, cpu_mmu_index(env, false)) !=
+                             TLBRET_MATCH) {
+        return false;
+    }
+    if (!get_pte(env, vaddr, leafentry_size, &dir_entry)) {
+        return false;
+    }
+    dir_entry = get_tlb_entry_layout(env, dir_entry, leafentry_size, pf_ptew);
+    pw_entrylo1 = dir_entry;
+
+refill:
+
+    m = (1 << pf_ptw) - 1;
+
+    if (huge_page) {
+        switch (hgpg_bdhit << 3 | hgpg_gdhit << 2 | hgpg_udhit << 1 |
+                hgpg_mdhit)
+        {
+        case 4:
+            m = (1 << pf_gdw) - 1;
+            if (pf_gdw & 1) {
+                m >>= 1;
+            }
+            break;
+        case 2:
+            m = (1 << pf_udw) - 1;
+            if (pf_udw & 1) {
+                m >>= 1;
+            }
+            break;
+        case 1:
+            m = (1 << pf_mdw) - 1;
+            if (pf_mdw & 1) {
+                m >>= 1;
+            }
+            break;
+        }
+    }
+    pw_pagemask = m >> 12;
+    update_pagemask(env, pw_pagemask << 13, &pw_pagemask);
+    pw_entryhi = (address & ~0x1fff) | (env->CP0_EntryHi & 0xFF);
+    {
+        target_ulong tmp_entryhi = env->CP0_EntryHi;
+        int32_t tmp_pagemask = env->CP0_PageMask;
+        uint64_t tmp_entrylo0 = env->CP0_EntryLo0;
+        uint64_t tmp_entrylo1 = env->CP0_EntryLo1;
+
+        env->CP0_EntryHi = pw_entryhi;
+        env->CP0_PageMask = pw_pagemask;
+        env->CP0_EntryLo0 = pw_entrylo0;
+        env->CP0_EntryLo1 = pw_entrylo1;
+
+        /*
+         * The hardware page walker inserts a page into the TLB in a manner
+         * identical to a TLBWR instruction as executed by the software refill
+         * handler.
+         */
+        r4k_helper_tlbwr(env);
+
+        env->CP0_EntryHi = tmp_entryhi;
+        env->CP0_PageMask = tmp_pagemask;
+        env->CP0_EntryLo0 = tmp_entrylo0;
+        env->CP0_EntryLo1 = tmp_entrylo1;
+    }
+    return true;
+}
+#endif
+#endif
+
 int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                               int mmu_idx)
 {
@@ -558,8 +894,7 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
 
     /* data access */
 #if !defined(CONFIG_USER_ONLY)
-    /* XXX: put correct access by using cpu_restore_state()
-       correctly */
+    /* XXX: put correct access by using cpu_restore_state() correctly */
     access_type = ACCESS_INT;
     ret = get_physical_address(env, &physical, &prot,
                                address, rw, access_type, mmu_idx);
@@ -583,6 +918,32 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
     } else if (ret < 0)
 #endif
     {
+#if !defined(CONFIG_USER_ONLY)
+#if !defined(TARGET_MIPS64)
+        if ((ret == TLBRET_NOMATCH) && (env->tlb->nb_tlb > 1)) {
+            /*
+             * Memory reads during hardware page table walking are performed
+             * as if they were kernel-mode load instructions.
+             */
+            int mode = (env->hflags & MIPS_HFLAG_KSU);
+            bool ret_walker;
+            env->hflags &= ~MIPS_HFLAG_KSU;
+            ret_walker = page_table_walk_refill(env, address, rw, mmu_idx);
+            env->hflags |= mode;
+            if (ret_walker) {
+                ret = get_physical_address(env, &physical, &prot,
+                                           address, rw, access_type, mmu_idx);
+                if (ret == TLBRET_MATCH) {
+                    tlb_set_page(cs, address & TARGET_PAGE_MASK,
+                            physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
+                            mmu_idx, TARGET_PAGE_SIZE);
+                    ret = 0;
+                    return ret;
+                }
+            }
+        }
+#endif
+#endif
         raise_mmu_exception(env, address, rw, ret);
         ret = 1;
     }

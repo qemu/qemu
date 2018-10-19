@@ -59,7 +59,7 @@ struct mips_def_t {
     int32_t CP0_PageGrain_rw_bitmask;
     int32_t CP0_PageGrain;
     target_ulong CP0_EBaseWG_rw_bitmask;
-    int insn_flags;
+    uint64_t insn_flags;
     enum mips_mmu_types mmu_type;
 };
 
@@ -211,6 +211,7 @@ uint64_t float_class_d(uint64_t arg, float_status *fst);
 
 extern unsigned int ieee_rm[];
 int ieee_ex_to_mips(int xcpt);
+void update_pagemask(CPUMIPSState *env, target_ulong arg1, int32_t *pagemask);
 
 static inline void restore_rounding_mode(CPUMIPSState *env)
 {
@@ -306,9 +307,9 @@ static inline void compute_hflags(CPUMIPSState *env)
 {
     env->hflags &= ~(MIPS_HFLAG_COP1X | MIPS_HFLAG_64 | MIPS_HFLAG_CP0 |
                      MIPS_HFLAG_F64 | MIPS_HFLAG_FPU | MIPS_HFLAG_KSU |
-                     MIPS_HFLAG_AWRAP | MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2 |
-                     MIPS_HFLAG_SBRI | MIPS_HFLAG_MSA | MIPS_HFLAG_FRE |
-                     MIPS_HFLAG_ELPA | MIPS_HFLAG_ERL);
+                     MIPS_HFLAG_AWRAP | MIPS_HFLAG_DSP | MIPS_HFLAG_DSP_R2 |
+                     MIPS_HFLAG_DSP_R3 | MIPS_HFLAG_SBRI | MIPS_HFLAG_MSA |
+                     MIPS_HFLAG_FRE | MIPS_HFLAG_ELPA | MIPS_HFLAG_ERL);
     if (env->CP0_Status & (1 << CP0St_ERL)) {
         env->hflags |= MIPS_HFLAG_ERL;
     }
@@ -355,16 +356,29 @@ static inline void compute_hflags(CPUMIPSState *env)
         (env->CP0_Config5 & (1 << CP0C5_SBRI))) {
         env->hflags |= MIPS_HFLAG_SBRI;
     }
-    if (env->insn_flags & ASE_DSPR2) {
-        /* Enables access MIPS DSP resources, now our cpu is DSP ASER2,
-           so enable to access DSPR2 resources. */
+    if (env->insn_flags & ASE_DSP_R3) {
+        /*
+         * Our cpu supports DSP R3 ASE, so enable
+         * access to DSP R3 resources.
+         */
         if (env->CP0_Status & (1 << CP0St_MX)) {
-            env->hflags |= MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2;
+            env->hflags |= MIPS_HFLAG_DSP | MIPS_HFLAG_DSP_R2 |
+                           MIPS_HFLAG_DSP_R3;
+        }
+    } else if (env->insn_flags & ASE_DSP_R2) {
+        /*
+         * Our cpu supports DSP R2 ASE, so enable
+         * access to DSP R2 resources.
+         */
+        if (env->CP0_Status & (1 << CP0St_MX)) {
+            env->hflags |= MIPS_HFLAG_DSP | MIPS_HFLAG_DSP_R2;
         }
 
     } else if (env->insn_flags & ASE_DSP) {
-        /* Enables access MIPS DSP resources, now our cpu is DSP ASE,
-           so enable to access DSP resources. */
+        /*
+         * Our cpu supports DSP ASE, so enable
+         * access to DSP resources.
+         */
         if (env->CP0_Status & (1 << CP0St_MX)) {
             env->hflags |= MIPS_HFLAG_DSP;
         }

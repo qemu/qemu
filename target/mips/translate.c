@@ -1389,6 +1389,545 @@ enum {
     OPC_BINSRI_df   = (0x7 << 23) | OPC_MSA_BIT_09,
 };
 
+
+/*
+ *    AN OVERVIEW OF MXU EXTENSION INSTRUCTION SET
+ *    ============================================
+ *
+ * MXU (full name: MIPS eXtension/enhanced Unit) is an SIMD extension of MIPS32
+ * instructions set. It is designed to fit the needs of signal, graphical and
+ * video processing applications. MXU instruction set is used in Xburst family
+ * of microprocessors by Ingenic.
+ *
+ * MXU unit contains 17 registers called X0-X16. X0 is always zero, and X16 is
+ * the control register.
+ *
+ * The notation used in MXU assembler mnemonics:
+ *
+ *   XRa, XRb, XRc, XRd - MXU registers
+ *   Rb, Rc, Rd, Rs, Rt - general purpose MIPS registers
+ *   s12                - a subfield of an instruction code
+ *   strd2              - a subfield of an instruction code
+ *   eptn2              - a subfield of an instruction code
+ *   eptn3              - a subfield of an instruction code
+ *   optn2              - a subfield of an instruction code
+ *   optn3              - a subfield of an instruction code
+ *   sft4               - a subfield of an instruction code
+ *
+ * Load/Store instructions           Multiplication instructions
+ * -----------------------           ---------------------------
+ *
+ *  S32LDD XRa, Rb, s12               S32MADD XRa, XRd, Rs, Rt
+ *  S32STD XRa, Rb, s12               S32MADDU XRa, XRd, Rs, Rt
+ *  S32LDDV XRa, Rb, rc, strd2        S32SUB XRa, XRd, Rs, Rt
+ *  S32STDV XRa, Rb, rc, strd2        S32SUBU XRa, XRd, Rs, Rt
+ *  S32LDI XRa, Rb, s12               S32MUL XRa, XRd, Rs, Rt
+ *  S32SDI XRa, Rb, s12               S32MULU XRa, XRd, Rs, Rt
+ *  S32LDIV XRa, Rb, rc, strd2        D16MUL XRa, XRb, XRc, XRd, optn2
+ *  S32SDIV XRa, Rb, rc, strd2        D16MULE XRa, XRb, XRc, optn2
+ *  S32LDDR XRa, Rb, s12              D16MULF XRa, XRb, XRc, optn2
+ *  S32STDR XRa, Rb, s12              D16MAC XRa, XRb, XRc, XRd, aptn2, optn2
+ *  S32LDDVR XRa, Rb, rc, strd2       D16MACE XRa, XRb, XRc, XRd, aptn2, optn2
+ *  S32STDVR XRa, Rb, rc, strd2       D16MACF XRa, XRb, XRc, XRd, aptn2, optn2
+ *  S32LDIR XRa, Rb, s12              D16MADL XRa, XRb, XRc, XRd, aptn2, optn2
+ *  S32SDIR XRa, Rb, s12              S16MAD XRa, XRb, XRc, XRd, aptn1, optn2
+ *  S32LDIVR XRa, Rb, rc, strd2       Q8MUL XRa, XRb, XRc, XRd
+ *  S32SDIVR XRa, Rb, rc, strd2       Q8MULSU XRa, XRb, XRc, XRd
+ *  S16LDD XRa, Rb, s10, eptn2        Q8MAC XRa, XRb, XRc, XRd, aptn2
+ *  S16STD XRa, Rb, s10, eptn2        Q8MACSU XRa, XRb, XRc, XRd, aptn2
+ *  S16LDI XRa, Rb, s10, eptn2        Q8MADL XRa, XRb, XRc, XRd, aptn2
+ *  S16SDI XRa, Rb, s10, eptn2
+ *  S8LDD XRa, Rb, s8, eptn3
+ *  S8STD XRa, Rb, s8, eptn3         Addition and subtraction instructions
+ *  S8LDI XRa, Rb, s8, eptn3         -------------------------------------
+ *  S8SDI XRa, Rb, s8, eptn3
+ *  LXW Rd, Rs, Rt, strd2             D32ADD XRa, XRb, XRc, XRd, eptn2
+ *  LXH Rd, Rs, Rt, strd2             D32ADDC XRa, XRb, XRc, XRd
+ *  LXHU Rd, Rs, Rt, strd2            D32ACC XRa, XRb, XRc, XRd, eptn2
+ *  LXB Rd, Rs, Rt, strd2             D32ACCM XRa, XRb, XRc, XRd, eptn2
+ *  LXBU Rd, Rs, Rt, strd2            D32ASUM XRa, XRb, XRc, XRd, eptn2
+ *                                    S32CPS XRa, XRb, XRc
+ *                                    Q16ADD XRa, XRb, XRc, XRd, eptn2, optn2
+ * Comparison instructions            Q16ACC XRa, XRb, XRc, XRd, eptn2
+ * -----------------------            Q16ACCM XRa, XRb, XRc, XRd, eptn2
+ *                                    D16ASUM XRa, XRb, XRc, XRd, eptn2
+ *  S32MAX XRa, XRb, XRc              D16CPS XRa, XRb,
+ *  S32MIN XRa, XRb, XRc              D16AVG XRa, XRb, XRc
+ *  S32SLT XRa, XRb, XRc              D16AVGR XRa, XRb, XRc
+ *  S32MOVZ XRa, XRb, XRc             Q8ADD XRa, XRb, XRc, eptn2
+ *  S32MOVN XRa, XRb, XRc             Q8ADDE XRa, XRb, XRc, XRd, eptn2
+ *  D16MAX XRa, XRb, XRc              Q8ACCE XRa, XRb, XRc, XRd, eptn2
+ *  D16MIN XRa, XRb, XRc              Q8ABD XRa, XRb, XRc
+ *  D16SLT XRa, XRb, XRc              Q8SAD XRa, XRb, XRc, XRd
+ *  D16MOVZ XRa, XRb, XRc             Q8AVG XRa, XRb, XRc
+ *  D16MOVN XRa, XRb, XRc             Q8AVGR XRa, XRb, XRc
+ *  Q8MAX XRa, XRb, XRc               D8SUM XRa, XRb, XRc, XRd
+ *  Q8MIN XRa, XRb, XRc               D8SUMC XRa, XRb, XRc, XRd
+ *  Q8SLT XRa, XRb, XRc
+ *  Q8SLTU XRa, XRb, XRc
+ *  Q8MOVZ XRa, XRb, XRc             Shift instructions
+ *  Q8MOVN XRa, XRb, XRc             ------------------
+ *
+ *                                    D32SLL XRa, XRb, XRc, XRd, sft4
+ * Bitwise instructions               D32SLR XRa, XRb, XRc, XRd, sft4
+ * --------------------               D32SAR XRa, XRb, XRc, XRd, sft4
+ *                                    D32SARL XRa, XRb, XRc, sft4
+ *  S32NOR XRa, XRb, XRc              D32SLLV XRa, XRb, Rb
+ *  S32AND XRa, XRb, XRc              D32SLRV XRa, XRb, Rb
+ *  S32XOR XRa, XRb, XRc              D32SARV XRa, XRb, Rb
+ *  S32OR XRa, XRb, XRc               D32SARW XRa, XRb, XRc, Rb
+ *                                    Q16SLL XRa, XRb, XRc, XRd, sft4
+ *                                    Q16SLR XRa, XRb, XRc, XRd, sft4
+ * Miscelaneous instructions          Q16SAR XRa, XRb, XRc, XRd, sft4
+ * -------------------------          Q16SLLV XRa, XRb, Rb
+ *                                    Q16SLRV XRa, XRb, Rb
+ *  S32SFL XRa, XRb, XRc, XRd, optn2  Q16SARV XRa, XRb, Rb
+ *  S32ALN XRa, XRb, XRc, Rb
+ *  S32ALNI XRa, XRb, XRc, s3
+ *  S32LUI XRa, s8, optn3            Move instructions
+ *  S32EXTR XRa, XRb, Rb, bits5      -----------------
+ *  S32EXTRV XRa, XRb, Rs, Rt
+ *  Q16SCOP XRa, XRb, XRc, XRd        S32M2I XRa, Rb
+ *  Q16SAT XRa, XRb, XRc              S32I2M XRa, Rb
+ *
+ *
+ *              bits
+ *             05..00
+ *
+ *          ┌─ 000000 ─ OPC_MXU_S32MADD
+ *          ├─ 000001 ─ OPC_MXU_S32MADDU
+ *          ├─ 000010 ─ <not assigned>
+ *          │                               20..18
+ *          ├─ 000011 ─ OPC_MXU__POOL00 ─┬─ 000 ─ OPC_MXU_S32MAX
+ *          │                            ├─ 001 ─ OPC_MXU_S32MIN
+ *          │                            ├─ 010 ─ OPC_MXU_D16MAX
+ *          │                            ├─ 011 ─ OPC_MXU_D16MIN
+ *          │                            ├─ 100 ─ OPC_MXU_Q8MAX
+ *          │                            ├─ 101 ─ OPC_MXU_Q8MIN
+ *          │                            ├─ 110 ─ OPC_MXU_Q8SLT
+ *          │                            └─ 111 ─ OPC_MXU_Q8SLTU
+ *          ├─ 000100 ─ OPC_MXU_S32MSUB
+ *          ├─ 000101 ─ OPC_MXU_S32MSUBU    20..18
+ *          ├─ 000110 ─ OPC_MXU__POOL01 ─┬─ 000 ─ OPC_MXU_S32SLT
+ *          │                            ├─ 001 ─ OPC_MXU_D16SLT
+ *          │                            ├─ 010 ─ OPC_MXU_D16AVG
+ *          │                            ├─ 011 ─ OPC_MXU_D16AVGR
+ *          │                            ├─ 100 ─ OPC_MXU_Q8AVG
+ *          │                            ├─ 101 ─ OPC_MXU_Q8AVGR
+ *          │                            └─ 111 ─ OPC_MXU_Q8ADD
+ *          │
+ *          │                               20..18
+ *          ├─ 000111 ─ OPC_MXU__POOL02 ─┬─ 000 ─ OPC_MXU_S32CPS
+ *          │                            ├─ 010 ─ OPC_MXU_D16CPS
+ *          │                            ├─ 100 ─ OPC_MXU_Q8ABD
+ *          │                            └─ 110 ─ OPC_MXU_Q16SAT
+ *          ├─ 001000 ─ OPC_MXU_D16MUL
+ *          │                               25..24
+ *          ├─ 001001 ─ OPC_MXU__POOL03 ─┬─ 00 ─ OPC_MXU_D16MULF
+ *          │                            └─ 01 ─ OPC_MXU_D16MULE
+ *          ├─ 001010 ─ OPC_MXU_D16MAC
+ *          ├─ 001011 ─ OPC_MXU_D16MACF
+ *          ├─ 001100 ─ OPC_MXU_D16MADL
+ *          │                               25..24
+ *          ├─ 001101 ─ OPC_MXU__POOL04 ─┬─ 00 ─ OPC_MXU_S16MAD
+ *          │                            └─ 01 ─ OPC_MXU_S16MAD_1
+ *          ├─ 001110 ─ OPC_MXU_Q16ADD
+ *          ├─ 001111 ─ OPC_MXU_D16MACE
+ *          │                               23
+ *          ├─ 010000 ─ OPC_MXU__POOL05 ─┬─ 0 ─ OPC_MXU_S32LDD
+ *          │                            └─ 1 ─ OPC_MXU_S32LDDR
+ *          │
+ *          │                               23
+ *          ├─ 010001 ─ OPC_MXU__POOL06 ─┬─ 0 ─ OPC_MXU_S32STD
+ *          │                            └─ 1 ─ OPC_MXU_S32STDR
+ *          │
+ *          │                               13..10
+ *          ├─ 010010 ─ OPC_MXU__POOL07 ─┬─ 0000 ─ OPC_MXU_S32LDDV
+ *          │                            └─ 0001 ─ OPC_MXU_S32LDDVR
+ *          │
+ *          │                               13..10
+ *          ├─ 010011 ─ OPC_MXU__POOL08 ─┬─ 0000 ─ OPC_MXU_S32STDV
+ *          │                            └─ 0001 ─ OPC_MXU_S32STDVR
+ *          │
+ *          │                               23
+ *          ├─ 010100 ─ OPC_MXU__POOL09 ─┬─ 0 ─ OPC_MXU_S32LDI
+ *          │                            └─ 1 ─ OPC_MXU_S32LDIR
+ *          │
+ *          │                               23
+ *          ├─ 010101 ─ OPC_MXU__POOL10 ─┬─ 0 ─ OPC_MXU_S32SDI
+ *          │                            └─ 1 ─ OPC_MXU_S32SDIR
+ *          │
+ *          │                               13..10
+ *          ├─ 010110 ─ OPC_MXU__POOL11 ─┬─ 0000 ─ OPC_MXU_S32LDIV
+ *          │                            └─ 0001 ─ OPC_MXU_S32LDIVR
+ *          │
+ *          │                               13..10
+ *          ├─ 010111 ─ OPC_MXU__POOL12 ─┬─ 0000 ─ OPC_MXU_S32SDIV
+ *          │                            └─ 0001 ─ OPC_MXU_S32SDIVR
+ *          ├─ 011000 ─ OPC_MXU_D32ADD
+ *          │                               23..22
+ *   MXU    ├─ 011001 ─ OPC_MXU__POOL13 ─┬─ 00 ─ OPC_MXU_D32ACC
+ * opcodes ─┤                            ├─ 01 ─ OPC_MXU_D32ACCM
+ *          │                            └─ 10 ─ OPC_MXU_D32ASUM
+ *          ├─ 011010 ─ <not assigned>
+ *          │                               23..22
+ *          ├─ 011011 ─ OPC_MXU__POOL14 ─┬─ 00 ─ OPC_MXU_Q16ACC
+ *          │                            ├─ 01 ─ OPC_MXU_Q16ACCM
+ *          │                            └─ 10 ─ OPC_MXU_Q16ASUM
+ *          │
+ *          │                               23..22
+ *          ├─ 011100 ─ OPC_MXU__POOL15 ─┬─ 00 ─ OPC_MXU_Q8ADDE
+ *          │                            ├─ 01 ─ OPC_MXU_D8SUM
+ *          ├─ 011101 ─ OPC_MXU_Q8ACCE   └─ 10 ─ OPC_MXU_D8SUMC
+ *          ├─ 011110 ─ <not assigned>
+ *          ├─ 011111 ─ <not assigned>
+ *          ├─ 100000 ─ <not assigned>
+ *          ├─ 100001 ─ <not assigned>
+ *          ├─ 100010 ─ OPC_MXU_S8LDD
+ *          ├─ 100011 ─ OPC_MXU_S8STD
+ *          ├─ 100100 ─ OPC_MXU_S8LDI
+ *          ├─ 100101 ─ OPC_MXU_S8SDI
+ *          │                               15..14
+ *          ├─ 100110 ─ OPC_MXU__POOL16 ─┬─ 00 ─ OPC_MXU_S32MUL
+ *          │                            ├─ 00 ─ OPC_MXU_S32MULU
+ *          │                            ├─ 00 ─ OPC_MXU_S32EXTR
+ *          │                            └─ 00 ─ OPC_MXU_S32EXTRV
+ *          │
+ *          │                               20..18
+ *          ├─ 100111 ─ OPC_MXU__POOL17 ─┬─ 000 ─ OPC_MXU_D32SARW
+ *          │                            ├─ 001 ─ OPC_MXU_S32ALN
+ *          ├─ 101000 ─ OPC_MXU_LXB      ├─ 010 ─ OPC_MXU_S32ALNI
+ *          ├─ 101001 ─ <not assigned>   ├─ 011 ─ OPC_MXU_S32NOR
+ *          ├─ 101010 ─ OPC_MXU_S16LDD   ├─ 100 ─ OPC_MXU_S32AND
+ *          ├─ 101011 ─ OPC_MXU_S16STD   ├─ 101 ─ OPC_MXU_S32OR
+ *          ├─ 101100 ─ OPC_MXU_S16LDI   ├─ 110 ─ OPC_MXU_S32XOR
+ *          ├─ 101101 ─ OPC_MXU_S16SDI   └─ 111 ─ OPC_MXU_S32LUI
+ *          ├─ 101000 ─ <not assigned>
+ *          ├─ 101001 ─ <not assigned>
+ *          ├─ 101010 ─ <not assigned>
+ *          ├─ 101011 ─ <not assigned>
+ *          ├─ 101100 ─ <not assigned>
+ *          ├─ 101101 ─ <not assigned>
+ *          ├─ 101110 ─ OPC_MXU_S32M2I
+ *          ├─ 101111 ─ OPC_MXU_S32I2M
+ *          ├─ 110000 ─ OPC_MXU_D32SLL
+ *          ├─ 110001 ─ OPC_MXU_D32SLR
+ *          ├─ 110010 ─ OPC_MXU_D32SARL
+ *          ├─ 110011 ─ OPC_MXU_D32SAR
+ *          ├─ 110100 ─ OPC_MXU_Q16SLL
+ *          ├─ 110101 ─ OPC_MXU_Q16SLR      20..18
+ *          ├─ 110110 ─ OPC_MXU__POOL18 ─┬─ 000 ─ OPC_MXU_D32SLLV
+ *          │                            ├─ 001 ─ OPC_MXU_D32SLRV
+ *          │                            ├─ 010 ─ OPC_MXU_D32SARV
+ *          │                            ├─ 011 ─ OPC_MXU_Q16SLLV
+ *          │                            ├─ 100 ─ OPC_MXU_Q16SLRV
+ *          │                            └─ 101 ─ OPC_MXU_Q16SARV
+ *          ├─ 110111 ─ OPC_MXU_Q16SAR
+ *          │                               23..22
+ *          ├─ 111000 ─ OPC_MXU__POOL19 ─┬─ 00 ─ OPC_MXU_Q8MUL
+ *          │                            └─ 01 ─ OPC_MXU_Q8MULSU
+ *          │
+ *          │                               20..18
+ *          ├─ 111001 ─ OPC_MXU__POOL20 ─┬─ 000 ─ OPC_MXU_Q8MOVZ
+ *          │                            ├─ 001 ─ OPC_MXU_Q8MOVN
+ *          │                            ├─ 010 ─ OPC_MXU_D16MOVZ
+ *          │                            ├─ 011 ─ OPC_MXU_D16MOVN
+ *          │                            ├─ 100 ─ OPC_MXU_S32MOVZ
+ *          │                            └─ 101 ─ OPC_MXU_S32MOV
+ *          │
+ *          │                               23..22
+ *          ├─ 111010 ─ OPC_MXU__POOL21 ─┬─ 00 ─ OPC_MXU_Q8MAC
+ *          │                            └─ 10 ─ OPC_MXU_Q8MACSU
+ *          ├─ 111011 ─ OPC_MXU_Q16SCOP
+ *          ├─ 111100 ─ OPC_MXU_Q8MADL
+ *          ├─ 111101 ─ OPC_MXU_S32SFL
+ *          ├─ 111110 ─ OPC_MXU_Q8SAD
+ *          └─ 111111 ─ <not assigned>
+ *
+ *
+ *   Compiled after:
+ *
+ *   "XBurst® Instruction Set Architecture MIPS eXtension/enhanced Unit
+ *   Programming Manual", Ingenic Semiconductor Co, Ltd., 2017
+ */
+
+enum {
+    OPC_MXU_S32MADD  = 0x00,
+    OPC_MXU_S32MADDU = 0x01,
+    /* not assigned 0x02 */
+    OPC_MXU__POOL00  = 0x03,
+    OPC_MXU_S32MSUB  = 0x04,
+    OPC_MXU_S32MSUBU = 0x05,
+    OPC_MXU__POOL01  = 0x06,
+    OPC_MXU__POOL02  = 0x07,
+    OPC_MXU_D16MUL   = 0x08,
+    OPC_MXU__POOL03  = 0x09,
+    OPC_MXU_D16MAC   = 0x0A,
+    OPC_MXU_D16MACF  = 0x0B,
+    OPC_MXU_D16MADL  = 0x0C,
+    OPC_MXU__POOL04  = 0x0D,
+    OPC_MXU_Q16ADD   = 0x0E,
+    OPC_MXU_D16MACE  = 0x0F,
+    OPC_MXU__POOL05  = 0x10,
+    OPC_MXU__POOL06  = 0x11,
+    OPC_MXU__POOL07  = 0x12,
+    OPC_MXU__POOL08  = 0x13,
+    OPC_MXU__POOL09  = 0x14,
+    OPC_MXU__POOL10  = 0x15,
+    OPC_MXU__POOL11  = 0x16,
+    OPC_MXU__POOL12  = 0x17,
+    OPC_MXU_D32ADD   = 0x18,
+    OPC_MXU__POOL13  = 0x19,
+    /* not assigned 0x1A */
+    OPC_MXU__POOL14  = 0x1B,
+    OPC_MXU__POOL15  = 0x1C,
+    OPC_MXU_Q8ACCE   = 0x1D,
+    /* not assigned 0x1E */
+    /* not assigned 0x1F */
+    /* not assigned 0x20 */
+    /* not assigned 0x21 */
+    OPC_MXU_S8LDD    = 0x22,
+    OPC_MXU_S8STD    = 0x23,
+    OPC_MXU_S8LDI    = 0x24,
+    OPC_MXU_S8SDI    = 0x25,
+    OPC_MXU__POOL16  = 0x26,
+    OPC_MXU__POOL17  = 0x27,
+    OPC_MXU_LXB      = 0x28,
+    /* not assigned 0x29 */
+    OPC_MXU_S16LDD   = 0x2A,
+    OPC_MXU_S16STD   = 0x2B,
+    OPC_MXU_S16LDI   = 0x2C,
+    OPC_MXU_S16SDI   = 0x2D,
+    OPC_MXU_S32M2I   = 0x2E,
+    OPC_MXU_S32I2M   = 0x2F,
+    OPC_MXU_D32SLL   = 0x30,
+    OPC_MXU_D32SLR   = 0x31,
+    OPC_MXU_D32SARL  = 0x32,
+    OPC_MXU_D32SAR   = 0x33,
+    OPC_MXU_Q16SLL   = 0x34,
+    OPC_MXU_Q16SLR   = 0x35,
+    OPC_MXU__POOL18  = 0x36,
+    OPC_MXU_Q16SAR   = 0x37,
+    OPC_MXU__POOL19  = 0x38,
+    OPC_MXU__POOL20  = 0x39,
+    OPC_MXU__POOL21  = 0x3A,
+    OPC_MXU_Q16SCOP  = 0x3B,
+    OPC_MXU_Q8MADL   = 0x3C,
+    OPC_MXU_S32SFL   = 0x3D,
+    OPC_MXU_Q8SAD    = 0x3E,
+    /* not assigned 0x3F */
+};
+
+
+/*
+ * MXU pool 00
+ */
+enum {
+    OPC_MXU_S32MAX   = 0x00,
+    OPC_MXU_S32MIN   = 0x01,
+    OPC_MXU_D16MAX   = 0x02,
+    OPC_MXU_D16MIN   = 0x03,
+    OPC_MXU_Q8MAX    = 0x04,
+    OPC_MXU_Q8MIN    = 0x05,
+    OPC_MXU_Q8SLT    = 0x06,
+    OPC_MXU_Q8SLTU   = 0x07,
+};
+
+/*
+ * MXU pool 01
+ */
+enum {
+    OPC_MXU_S32SLT   = 0x00,
+    OPC_MXU_D16SLT   = 0x01,
+    OPC_MXU_D16AVG   = 0x02,
+    OPC_MXU_D16AVGR  = 0x03,
+    OPC_MXU_Q8AVG    = 0x04,
+    OPC_MXU_Q8AVGR   = 0x05,
+    OPC_MXU_Q8ADD    = 0x07,
+};
+
+/*
+ * MXU pool 02
+ */
+enum {
+    OPC_MXU_S32CPS   = 0x00,
+    OPC_MXU_D16CPS   = 0x02,
+    OPC_MXU_Q8ABD    = 0x04,
+    OPC_MXU_Q16SAT   = 0x06,
+};
+
+/*
+ * MXU pool 03
+ */
+enum {
+    OPC_MXU_D16MULF  = 0x00,
+    OPC_MXU_D16MULE  = 0x01,
+};
+
+/*
+ * MXU pool 04
+ */
+enum {
+    OPC_MXU_S16MAD   = 0x00,
+    OPC_MXU_S16MAD_1 = 0x01,
+};
+
+/*
+ * MXU pool 05
+ */
+enum {
+    OPC_MXU_S32LDD   = 0x00,
+    OPC_MXU_S32LDDR  = 0x01,
+};
+
+/*
+ * MXU pool 06
+ */
+enum {
+    OPC_MXU_S32STD   = 0x00,
+    OPC_MXU_S32STDR  = 0x01,
+};
+
+/*
+ * MXU pool 07
+ */
+enum {
+    OPC_MXU_S32LDDV  = 0x00,
+    OPC_MXU_S32LDDVR = 0x01,
+};
+
+/*
+ * MXU pool 08
+ */
+enum {
+    OPC_MXU_S32STDV  = 0x00,
+    OPC_MXU_S32STDVR = 0x01,
+};
+
+/*
+ * MXU pool 09
+ */
+enum {
+    OPC_MXU_S32LDI   = 0x00,
+    OPC_MXU_S32LDIR  = 0x01,
+};
+
+/*
+ * MXU pool 10
+ */
+enum {
+    OPC_MXU_S32SDI   = 0x00,
+    OPC_MXU_S32SDIR  = 0x01,
+};
+
+/*
+ * MXU pool 11
+ */
+enum {
+    OPC_MXU_S32LDIV  = 0x00,
+    OPC_MXU_S32LDIVR = 0x01,
+};
+
+/*
+ * MXU pool 12
+ */
+enum {
+    OPC_MXU_S32SDIV  = 0x00,
+    OPC_MXU_S32SDIVR = 0x01,
+};
+
+/*
+ * MXU pool 13
+ */
+enum {
+    OPC_MXU_D32ACC   = 0x00,
+    OPC_MXU_D32ACCM  = 0x01,
+    OPC_MXU_D32ASUM  = 0x02,
+};
+
+/*
+ * MXU pool 14
+ */
+enum {
+    OPC_MXU_Q16ACC   = 0x00,
+    OPC_MXU_Q16ACCM  = 0x01,
+    OPC_MXU_Q16ASUM  = 0x02,
+};
+
+/*
+ * MXU pool 15
+ */
+enum {
+    OPC_MXU_Q8ADDE   = 0x00,
+    OPC_MXU_D8SUM    = 0x01,
+    OPC_MXU_D8SUMC   = 0x02,
+};
+
+/*
+ * MXU pool 16
+ */
+enum {
+    OPC_MXU_S32MUL   = 0x00,
+    OPC_MXU_S32MULU  = 0x01,
+    OPC_MXU_S32EXTR  = 0x02,
+    OPC_MXU_S32EXTRV = 0x03,
+};
+
+/*
+ * MXU pool 17
+ */
+enum {
+    OPC_MXU_D32SARW  = 0x00,
+    OPC_MXU_S32ALN   = 0x01,
+    OPC_MXU_S32ALNI  = 0x02,
+    OPC_MXU_S32NOR   = 0x03,
+    OPC_MXU_S32AND   = 0x04,
+    OPC_MXU_S32OR    = 0x05,
+    OPC_MXU_S32XOR   = 0x06,
+    OPC_MXU_S32LUI   = 0x07,
+};
+
+/*
+ * MXU pool 18
+ */
+enum {
+    OPC_MXU_D32SLLV  = 0x00,
+    OPC_MXU_D32SLRV  = 0x01,
+    OPC_MXU_D32SARV  = 0x03,
+    OPC_MXU_Q16SLLV  = 0x04,
+    OPC_MXU_Q16SLRV  = 0x05,
+    OPC_MXU_Q16SARV  = 0x07,
+};
+
+/*
+ * MXU pool 19
+ */
+enum {
+    OPC_MXU_Q8MUL    = 0x00,
+    OPC_MXU_Q8MULSU  = 0x01,
+};
+
+/*
+ * MXU pool 20
+ */
+enum {
+    OPC_MXU_Q8MOVZ   = 0x00,
+    OPC_MXU_Q8MOVN   = 0x01,
+    OPC_MXU_D16MOVZ  = 0x02,
+    OPC_MXU_D16MOVN  = 0x03,
+    OPC_MXU_S32MOVZ  = 0x04,
+    OPC_MXU_S32MOVN  = 0x05,
+};
+
+/*
+ * MXU pool 21
+ */
+enum {
+    OPC_MXU_Q8MAC    = 0x00,
+    OPC_MXU_Q8MACSU  = 0x01,
+};
+
+
 /* global register indices */
 static TCGv cpu_gpr[32], cpu_PC;
 static TCGv cpu_HI[MIPS_DSP_ACC], cpu_LO[MIPS_DSP_ACC];
@@ -1447,8 +1986,9 @@ typedef struct DisasContext {
     target_ulong saved_pc;
     target_ulong page_start;
     uint32_t opcode;
-    int insn_flags;
+    uint64_t insn_flags;
     int32_t CP0_Config1;
+    int32_t CP0_Config2;
     int32_t CP0_Config3;
     int32_t CP0_Config5;
     /* Routine used to access memory */
@@ -1857,9 +2397,20 @@ static inline void check_dsp(DisasContext *ctx)
     }
 }
 
-static inline void check_dspr2(DisasContext *ctx)
+static inline void check_dsp_r2(DisasContext *ctx)
 {
-    if (unlikely(!(ctx->hflags & MIPS_HFLAG_DSPR2))) {
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_DSP_R2))) {
+        if (ctx->insn_flags & ASE_DSP) {
+            generate_exception_end(ctx, EXCP_DSPDIS);
+        } else {
+            generate_exception_end(ctx, EXCP_RI);
+        }
+    }
+}
+
+static inline void check_dsp_r3(DisasContext *ctx)
+{
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_DSP_R3))) {
         if (ctx->insn_flags & ASE_DSP) {
             generate_exception_end(ctx, EXCP_DSPDIS);
         } else {
@@ -1870,7 +2421,7 @@ static inline void check_dspr2(DisasContext *ctx)
 
 /* This code generates a "reserved instruction" exception if the
    CPU does not support the instruction set corresponding to flags. */
-static inline void check_insn(DisasContext *ctx, int flags)
+static inline void check_insn(DisasContext *ctx, uint64_t flags)
 {
     if (unlikely(!(ctx->insn_flags & flags))) {
         generate_exception_end(ctx, EXCP_RI);
@@ -1880,7 +2431,7 @@ static inline void check_insn(DisasContext *ctx, int flags)
 /* This code generates a "reserved instruction" exception if the
    CPU has corresponding flag set which indicates that the instruction
    has been removed. */
-static inline void check_insn_opc_removed(DisasContext *ctx, int flags)
+static inline void check_insn_opc_removed(DisasContext *ctx, uint64_t flags)
 {
     if (unlikely(ctx->insn_flags & flags)) {
         generate_exception_end(ctx, EXCP_RI);
@@ -1926,6 +2477,19 @@ static inline void check_xnp(DisasContext *ctx)
         generate_exception_end(ctx, EXCP_RI);
     }
 }
+
+#ifndef CONFIG_USER_ONLY
+/*
+ * This code generates a "reserved instruction" exception if the
+ * Config3 PW bit is NOT set.
+ */
+static inline void check_pw(DisasContext *ctx)
+{
+    if (unlikely(!(ctx->CP0_Config3 & (1 << CP0C3_PW)))) {
+        generate_exception_end(ctx, EXCP_RI);
+    }
+}
+#endif
 
 /*
  * This code generates a "reserved instruction" exception if the
@@ -5537,6 +6101,21 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             tcg_gen_ext32s_tl(arg, arg);
             rn = "SegCtl2";
             break;
+        case 5:
+            check_pw(ctx);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PWBase));
+            rn = "PWBase";
+            break;
+        case 6:
+            check_pw(ctx);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PWField));
+            rn = "PWField";
+            break;
+        case 7:
+            check_pw(ctx);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PWSize));
+            rn = "PWSize";
+            break;
         default:
             goto cp0_unimplemented;
         }
@@ -5571,6 +6150,11 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             check_insn(ctx, ISA_MIPS32R2);
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSConf4));
             rn = "SRSConf4";
+            break;
+        case 6:
+            check_pw(ctx);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PWCtl));
+            rn = "PWCtl";
             break;
         default:
             goto cp0_unimplemented;
@@ -6238,6 +6822,21 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             gen_helper_mtc0_segctl2(cpu_env, arg);
             rn = "SegCtl2";
             break;
+        case 5:
+            check_pw(ctx);
+            gen_mtc0_store32(arg, offsetof(CPUMIPSState, CP0_PWBase));
+            rn = "PWBase";
+            break;
+        case 6:
+            check_pw(ctx);
+            gen_helper_mtc0_pwfield(cpu_env, arg);
+            rn = "PWField";
+            break;
+        case 7:
+            check_pw(ctx);
+            gen_helper_mtc0_pwsize(cpu_env, arg);
+            rn = "PWSize";
+            break;
         default:
             goto cp0_unimplemented;
         }
@@ -6272,6 +6871,11 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_srsconf4(cpu_env, arg);
             rn = "SRSConf4";
+            break;
+        case 6:
+            check_pw(ctx);
+            gen_helper_mtc0_pwctl(cpu_env, arg);
+            rn = "PWCtl";
             break;
         default:
             goto cp0_unimplemented;
@@ -6948,6 +7552,21 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_SegCtl2));
             rn = "SegCtl2";
             break;
+        case 5:
+            check_pw(ctx);
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_PWBase));
+            rn = "PWBase";
+            break;
+        case 6:
+            check_pw(ctx);
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_PWField));
+            rn = "PWField";
+            break;
+        case 7:
+            check_pw(ctx);
+            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_PWSize));
+            rn = "PWSize";
+            break;
         default:
             goto cp0_unimplemented;
         }
@@ -6982,6 +7601,11 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             check_insn(ctx, ISA_MIPS32R2);
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSConf4));
             rn = "SRSConf4";
+            break;
+        case 6:
+            check_pw(ctx);
+            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PWCtl));
+            rn = "PWCtl";
             break;
         default:
             goto cp0_unimplemented;
@@ -7631,6 +8255,21 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             gen_helper_mtc0_segctl2(cpu_env, arg);
             rn = "SegCtl2";
             break;
+        case 5:
+            check_pw(ctx);
+            tcg_gen_st_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_PWBase));
+            rn = "PWBase";
+            break;
+        case 6:
+            check_pw(ctx);
+            gen_helper_mtc0_pwfield(cpu_env, arg);
+            rn = "PWField";
+            break;
+        case 7:
+            check_pw(ctx);
+            gen_helper_mtc0_pwsize(cpu_env, arg);
+            rn = "PWSize";
+            break;
         default:
             goto cp0_unimplemented;
         }
@@ -7665,6 +8304,11 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_srsconf4(cpu_env, arg);
             rn = "SRSConf4";
+            break;
+        case 6:
+            check_pw(ctx);
+            gen_helper_mtc0_pwctl(cpu_env, arg);
+            rn = "PWCtl";
             break;
         default:
             goto cp0_unimplemented;
@@ -14999,15 +15643,15 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             case 0x38:
                 /* cmovs */
                 switch ((ctx->opcode >> 6) & 0x7) {
-                case MOVN_FMT: /* SELNEZ_FMT */
+                case MOVN_FMT: /* SELEQZ_FMT */
                     if (ctx->insn_flags & ISA_MIPS32R6) {
-                        /* SELNEZ_FMT */
+                        /* SELEQZ_FMT */
                         switch ((ctx->opcode >> 9) & 0x3) {
                         case FMT_SDPS_S:
-                            gen_sel_s(ctx, OPC_SELNEZ_S, rd, rt, rs);
+                            gen_sel_s(ctx, OPC_SELEQZ_S, rd, rt, rs);
                             break;
                         case FMT_SDPS_D:
-                            gen_sel_d(ctx, OPC_SELNEZ_D, rd, rt, rs);
+                            gen_sel_d(ctx, OPC_SELEQZ_D, rd, rt, rs);
                             break;
                         default:
                             goto pool32f_invalid;
@@ -15021,15 +15665,15 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                     check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     FINSN_3ARG_SDPS(MOVN);
                     break;
-                case MOVZ_FMT: /* SELEQZ_FMT */
+                case MOVZ_FMT: /* SELNEZ_FMT */
                     if (ctx->insn_flags & ISA_MIPS32R6) {
-                        /* SELEQZ_FMT */
+                        /* SELNEZ_FMT */
                         switch ((ctx->opcode >> 9) & 0x3) {
                         case FMT_SDPS_S:
-                            gen_sel_s(ctx, OPC_SELEQZ_S, rd, rt, rs);
+                            gen_sel_s(ctx, OPC_SELNEZ_S, rd, rt, rs);
                             break;
                         case FMT_SDPS_D:
-                            gen_sel_d(ctx, OPC_SELEQZ_D, rd, rt, rs);
+                            gen_sel_d(ctx, OPC_SELNEZ_D, rd, rt, rs);
                             break;
                         default:
                             goto pool32f_invalid;
@@ -16488,6 +17132,40 @@ enum {
     NM_P_SC      = 0x0b,
 };
 
+/* P.LS.E0 instruction pool */
+enum {
+    NM_LBE      = 0x00,
+    NM_SBE      = 0x01,
+    NM_LBUE     = 0x02,
+    NM_P_PREFE  = 0x03,
+    NM_LHE      = 0x04,
+    NM_SHE      = 0x05,
+    NM_LHUE     = 0x06,
+    NM_CACHEE   = 0x07,
+    NM_LWE      = 0x08,
+    NM_SWE      = 0x09,
+    NM_P_LLE    = 0x0a,
+    NM_P_SCE    = 0x0b,
+};
+
+/* P.PREFE instruction pool */
+enum {
+    NM_SYNCIE   = 0x00,
+    NM_PREFE    = 0x01,
+};
+
+/* P.LLE instruction pool */
+enum {
+    NM_LLE      = 0x00,
+    NM_LLWPE    = 0x01,
+};
+
+/* P.SCE instruction pool */
+enum {
+    NM_SCE      = 0x00,
+    NM_SCWPE    = 0x01,
+};
+
 /* P.LS.WM instruction pool */
 enum {
     NM_LWM       = 0x00,
@@ -17444,7 +18122,7 @@ static void gen_pool32axf_2_multiply(DisasContext *ctx, uint32_t opc,
     case NM_POOL32AXF_2_0_7:
         switch (extract32(ctx->opcode, 9, 3)) {
         case NM_DPA_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpa_w_ph(t0, v1, v0, cpu_env);
             break;
         case NM_DPAQ_S_W_PH:
@@ -17452,7 +18130,7 @@ static void gen_pool32axf_2_multiply(DisasContext *ctx, uint32_t opc,
             gen_helper_dpaq_s_w_ph(t0, v1, v0, cpu_env);
             break;
         case NM_DPS_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dps_w_ph(t0, v1, v0, cpu_env);
             break;
         case NM_DPSQ_S_W_PH:
@@ -17467,7 +18145,7 @@ static void gen_pool32axf_2_multiply(DisasContext *ctx, uint32_t opc,
     case NM_POOL32AXF_2_8_15:
         switch (extract32(ctx->opcode, 9, 3)) {
         case NM_DPAX_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpax_w_ph(t0, v0, v1, cpu_env);
             break;
         case NM_DPAQ_SA_L_W:
@@ -17475,7 +18153,7 @@ static void gen_pool32axf_2_multiply(DisasContext *ctx, uint32_t opc,
             gen_helper_dpaq_sa_l_w(t0, v0, v1, cpu_env);
             break;
         case NM_DPSX_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpsx_w_ph(t0, v0, v1, cpu_env);
             break;
         case NM_DPSQ_SA_L_W:
@@ -17494,7 +18172,7 @@ static void gen_pool32axf_2_multiply(DisasContext *ctx, uint32_t opc,
             gen_helper_dpau_h_qbl(t0, v0, v1, cpu_env);
             break;
         case NM_DPAQX_S_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpaqx_s_w_ph(t0, v0, v1, cpu_env);
             break;
         case NM_DPSU_H_QBL:
@@ -17502,11 +18180,11 @@ static void gen_pool32axf_2_multiply(DisasContext *ctx, uint32_t opc,
             gen_helper_dpsu_h_qbl(t0, v0, v1, cpu_env);
             break;
         case NM_DPSQX_S_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpsqx_s_w_ph(t0, v0, v1, cpu_env);
             break;
         case NM_MULSA_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_mulsa_w_ph(t0, v0, v1, cpu_env);
             break;
         default:
@@ -17521,7 +18199,7 @@ static void gen_pool32axf_2_multiply(DisasContext *ctx, uint32_t opc,
             gen_helper_dpau_h_qbr(t0, v1, v0, cpu_env);
             break;
         case NM_DPAQX_SA_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpaqx_sa_w_ph(t0, v1, v0, cpu_env);
             break;
         case NM_DPSU_H_QBR:
@@ -17529,7 +18207,7 @@ static void gen_pool32axf_2_multiply(DisasContext *ctx, uint32_t opc,
             gen_helper_dpsu_h_qbr(t0, v1, v0, cpu_env);
             break;
         case NM_DPSQX_SA_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpsqx_sa_w_ph(t0, v1, v0, cpu_env);
             break;
         case NM_MULSAQ_S_W_PH:
@@ -17571,7 +18249,7 @@ static void gen_pool32axf_2_nanomips_insn(DisasContext *ctx, uint32_t opc,
             gen_pool32axf_2_multiply(ctx, opc, v0_t, v1_t, rd);
             break;
         case NM_BALIGN:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             if (rt != 0) {
                 gen_load_gpr(t0, rs);
                 rd &= 3;
@@ -17801,7 +18479,7 @@ static void gen_pool32axf_4_nanomips_insn(DisasContext *ctx, uint32_t opc,
 
     switch (opc) {
     case NM_ABSQ_S_QB:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         gen_helper_absq_s_qb(v0_t, v0_t, cpu_env);
         gen_store_gpr(v0_t, ret);
         break;
@@ -17940,7 +18618,7 @@ static void gen_pool32axf_7_nanomips_insn(DisasContext *ctx, uint32_t opc,
 
     switch (opc) {
     case NM_SHRA_R_QB:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         tcg_gen_movi_tl(t0, rd >> 2);
         switch (extract32(ctx->opcode, 12, 1)) {
         case 0:
@@ -17956,7 +18634,7 @@ static void gen_pool32axf_7_nanomips_insn(DisasContext *ctx, uint32_t opc,
         }
         break;
     case NM_SHRL_PH:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         tcg_gen_movi_tl(t0, rd >> 1);
         gen_helper_shrl_ph(t0, t0, rs_t);
         gen_store_gpr(t0, rt);
@@ -18881,19 +19559,19 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         gen_store_gpr(v1_t, ret);
         break;
     case NM_CMPGDU_EQ_QB:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         gen_helper_cmpgu_eq_qb(v1_t, v1_t, v2_t);
         tcg_gen_deposit_tl(cpu_dspctrl, cpu_dspctrl, v1_t, 24, 4);
         gen_store_gpr(v1_t, ret);
         break;
     case NM_CMPGDU_LT_QB:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         gen_helper_cmpgu_lt_qb(v1_t, v1_t, v2_t);
         tcg_gen_deposit_tl(cpu_dspctrl, cpu_dspctrl, v1_t, 24, 4);
         gen_store_gpr(v1_t, ret);
         break;
     case NM_CMPGDU_LE_QB:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         gen_helper_cmpgu_le_qb(v1_t, v1_t, v2_t);
         tcg_gen_deposit_tl(cpu_dspctrl, cpu_dspctrl, v1_t, 24, 4);
         gen_store_gpr(v1_t, ret);
@@ -18949,7 +19627,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_ADDQH_R_PH:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* ADDQH_PH */
@@ -18964,7 +19642,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_ADDQH_R_W:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* ADDQH_W */
@@ -18994,7 +19672,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_ADDU_S_PH:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* ADDU_PH */
@@ -19009,7 +19687,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_ADDUH_R_QB:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* ADDUH_QB */
@@ -19039,7 +19717,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_SHRAV_R_QB:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* SHRAV_QB */
@@ -19069,7 +19747,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_SUBQH_R_PH:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* SUBQH_PH */
@@ -19084,7 +19762,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_SUBQH_R_W:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* SUBQH_W */
@@ -19114,7 +19792,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_SUBU_S_PH:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* SUBU_PH */
@@ -19129,7 +19807,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_SUBUH_R_QB:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* SUBUH_QB */
@@ -19159,7 +19837,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_PRECR_SRA_R_PH_W:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* PRECR_SRA_PH_W */
@@ -19199,22 +19877,22 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         gen_store_gpr(v1_t, ret);
         break;
     case NM_MULQ_S_PH:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         gen_helper_mulq_s_ph(v1_t, v1_t, v2_t, cpu_env);
         gen_store_gpr(v1_t, ret);
         break;
     case NM_MULQ_RS_W:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         gen_helper_mulq_rs_w(v1_t, v1_t, v2_t, cpu_env);
         gen_store_gpr(v1_t, ret);
         break;
     case NM_MULQ_S_W:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         gen_helper_mulq_s_w(v1_t, v1_t, v2_t, cpu_env);
         gen_store_gpr(v1_t, ret);
         break;
     case NM_APPEND:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         gen_load_gpr(t0, rs);
         if (rd != 0) {
             tcg_gen_deposit_tl(cpu_gpr[rt], t0, cpu_gpr[rt], rd, 32 - rd);
@@ -19232,7 +19910,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         gen_store_gpr(v1_t, ret);
         break;
     case NM_SHRLV_PH:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         gen_helper_shrl_ph(v1_t, v1_t, v2_t);
         gen_store_gpr(v1_t, ret);
         break;
@@ -19274,7 +19952,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         gen_store_gpr(v1_t, ret);
         break;
     case NM_MUL_S_PH:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (extract32(ctx->opcode, 10, 1)) {
         case 0:
             /* MUL_PH */
@@ -19289,7 +19967,7 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         }
         break;
     case NM_PRECR_QB_PH:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         gen_helper_precr_qb_ph(v1_t, v1_t, v2_t);
         gen_store_gpr(v1_t, ret);
         break;
@@ -19326,8 +20004,8 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
         case 0:
             /* SHRA_PH */
             gen_helper_shra_ph(v1_t, t0, v1_t);
-            break;
             gen_store_gpr(v1_t, rt);
+            break;
         case 1:
             /* SHRA_R_PH */
             gen_helper_shra_r_ph(v1_t, t0, v1_t);
@@ -20098,7 +20776,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     gen_compute_branch_cp1_nm(ctx, OPC_BC1NEZ, rt, s);
                     break;
                 case NM_BPOSGE32C:
-                    check_dspr2(ctx);
+                    check_dsp_r3(ctx);
                     {
                         int32_t imm = extract32(ctx->opcode, 1, 13) |
                                       extract32(ctx->opcode, 0, 1) << 13;
@@ -20607,7 +21285,7 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
     switch (op1) {
     /* OPC_MULT_G_2E is equal OPC_ADDUH_QB_DSP */
     case OPC_MULT_G_2E:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (op2) {
         case OPC_ADDUH_QB:
             gen_helper_adduh_qb(cpu_gpr[ret], v1_t, v2_t);
@@ -20650,7 +21328,7 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
     case OPC_ABSQ_S_PH_DSP:
         switch (op2) {
         case OPC_ABSQ_S_QB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_absq_s_qb(cpu_gpr[ret], v2_t, cpu_env);
             break;
         case OPC_ABSQ_S_PH:
@@ -20729,11 +21407,11 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_addu_s_qb(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_ADDU_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_addu_ph(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_ADDU_S_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_addu_s_ph(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_SUBQ_PH:
@@ -20757,11 +21435,11 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_subu_s_qb(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_SUBU_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_subu_ph(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_SUBU_S_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_subu_s_ph(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_ADDSC:
@@ -20785,7 +21463,7 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
     case OPC_CMPU_EQ_QB_DSP:
         switch (op2) {
         case OPC_PRECR_QB_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_precr_qb_ph(cpu_gpr[ret], v1_t, v2_t);
             break;
         case OPC_PRECRQ_QB_PH:
@@ -20793,7 +21471,7 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_precrq_qb_ph(cpu_gpr[ret], v1_t, v2_t);
             break;
         case OPC_PRECR_SRA_PH_W:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             {
                 TCGv_i32 sa_t = tcg_const_i32(v2);
                 gen_helper_precr_sra_ph_w(cpu_gpr[ret], sa_t, v1_t,
@@ -20802,7 +21480,7 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
                 break;
             }
         case OPC_PRECR_SRA_R_PH_W:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             {
                 TCGv_i32 sa_t = tcg_const_i32(v2);
                 gen_helper_precr_sra_r_ph_w(cpu_gpr[ret], sa_t, v1_t,
@@ -20884,7 +21562,7 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_preceu_qh_obra(cpu_gpr[ret], v2_t);
             break;
         case OPC_ABSQ_S_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_absq_s_ob(cpu_gpr[ret], v2_t, cpu_env);
             break;
         case OPC_ABSQ_S_PW:
@@ -20928,19 +21606,19 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_subu_s_ob(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_SUBU_QH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_subu_qh(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_SUBU_S_QH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_subu_s_qh(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_SUBUH_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_subuh_ob(cpu_gpr[ret], v1_t, v2_t);
             break;
         case OPC_SUBUH_R_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_subuh_r_ob(cpu_gpr[ret], v1_t, v2_t);
             break;
         case OPC_ADDQ_PW:
@@ -20968,19 +21646,19 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_addu_s_ob(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_ADDU_QH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_addu_qh(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_ADDU_S_QH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_addu_s_qh(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_ADDUH_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_adduh_ob(cpu_gpr[ret], v1_t, v2_t);
             break;
         case OPC_ADDUH_R_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_adduh_r_ob(cpu_gpr[ret], v1_t, v2_t);
             break;
         }
@@ -20988,11 +21666,11 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
     case OPC_CMPU_EQ_OB_DSP:
         switch (op2) {
         case OPC_PRECR_OB_QH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_precr_ob_qh(cpu_gpr[ret], v1_t, v2_t);
             break;
         case OPC_PRECR_SRA_QH_PW:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             {
                 TCGv_i32 ret_t = tcg_const_i32(ret);
                 gen_helper_precr_sra_qh_pw(v2_t, v1_t, v2_t, ret_t);
@@ -21000,7 +21678,7 @@ static void gen_mipsdsp_arith(DisasContext *ctx, uint32_t op1, uint32_t op2,
                 break;
             }
         case OPC_PRECR_SRA_R_QH_PW:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             {
                 TCGv_i32 sa_v = tcg_const_i32(ret);
                 gen_helper_precr_sra_r_qh_pw(v2_t, v1_t, v2_t, sa_v);
@@ -21103,27 +21781,27 @@ static void gen_mipsdsp_shift(DisasContext *ctx, uint32_t opc,
                 gen_helper_shrl_qb(cpu_gpr[ret], v1_t, v2_t);
                 break;
             case OPC_SHRL_PH:
-                check_dspr2(ctx);
+                check_dsp_r2(ctx);
                 gen_helper_shrl_ph(cpu_gpr[ret], t0, v2_t);
                 break;
             case OPC_SHRLV_PH:
-                check_dspr2(ctx);
+                check_dsp_r2(ctx);
                 gen_helper_shrl_ph(cpu_gpr[ret], v1_t, v2_t);
                 break;
             case OPC_SHRA_QB:
-                check_dspr2(ctx);
+                check_dsp_r2(ctx);
                 gen_helper_shra_qb(cpu_gpr[ret], t0, v2_t);
                 break;
             case OPC_SHRA_R_QB:
-                check_dspr2(ctx);
+                check_dsp_r2(ctx);
                 gen_helper_shra_r_qb(cpu_gpr[ret], t0, v2_t);
                 break;
             case OPC_SHRAV_QB:
-                check_dspr2(ctx);
+                check_dsp_r2(ctx);
                 gen_helper_shra_qb(cpu_gpr[ret], v1_t, v2_t);
                 break;
             case OPC_SHRAV_R_QB:
-                check_dspr2(ctx);
+                check_dsp_r2(ctx);
                 gen_helper_shra_r_qb(cpu_gpr[ret], v1_t, v2_t);
                 break;
             case OPC_SHRA_PH:
@@ -21202,19 +21880,19 @@ static void gen_mipsdsp_shift(DisasContext *ctx, uint32_t opc,
             gen_helper_shll_s_qh(cpu_gpr[ret], v2_t, v1_t, cpu_env);
             break;
         case OPC_SHRA_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_shra_ob(cpu_gpr[ret], v2_t, t0);
             break;
         case OPC_SHRAV_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_shra_ob(cpu_gpr[ret], v2_t, v1_t);
             break;
         case OPC_SHRA_R_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_shra_r_ob(cpu_gpr[ret], v2_t, t0);
             break;
         case OPC_SHRAV_R_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_shra_r_ob(cpu_gpr[ret], v2_t, v1_t);
             break;
         case OPC_SHRA_PW:
@@ -21258,11 +21936,11 @@ static void gen_mipsdsp_shift(DisasContext *ctx, uint32_t opc,
             gen_helper_shrl_ob(cpu_gpr[ret], v2_t, v1_t);
             break;
         case OPC_SHRL_QH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_shrl_qh(cpu_gpr[ret], v2_t, t0);
             break;
         case OPC_SHRLV_QH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_shrl_qh(cpu_gpr[ret], v2_t, v1_t);
             break;
         default:            /* Invalid */
@@ -21303,7 +21981,7 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
     /* OPC_MULT_G_2E, OPC_ADDUH_QB_DSP, OPC_MUL_PH_DSP have
      * the same mask and op1. */
     case OPC_MULT_G_2E:
-        check_dspr2(ctx);
+        check_dsp_r2(ctx);
         switch (op2) {
         case  OPC_MUL_PH:
             gen_helper_mul_ph(cpu_gpr[ret], v1_t, v2_t, cpu_env);
@@ -21338,11 +22016,11 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_dpsu_h_qbr(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_DPA_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpa_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_DPAX_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpax_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_DPAQ_S_W_PH:
@@ -21350,19 +22028,19 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_dpaq_s_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_DPAQX_S_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpaqx_s_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_DPAQX_SA_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpaqx_sa_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_DPS_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dps_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_DPSX_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpsx_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_DPSQ_S_W_PH:
@@ -21370,11 +22048,11 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_dpsq_s_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_DPSQX_S_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpsqx_s_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_DPSQX_SA_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_dpsqx_sa_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_MULSAQ_S_W_PH:
@@ -21406,7 +22084,7 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_maq_sa_w_phr(t0, v1_t, v2_t, cpu_env);
             break;
         case OPC_MULSA_W_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_mulsa_w_ph(t0, v1_t, v2_t, cpu_env);
             break;
         }
@@ -21435,7 +22113,7 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
                 gen_helper_dmsubu(v1_t, v2_t, t0, cpu_env);
                 break;
             case OPC_DPA_W_QH:
-                check_dspr2(ctx);
+                check_dsp_r2(ctx);
                 gen_helper_dpa_w_qh(v1_t, v2_t, t0, cpu_env);
                 break;
             case OPC_DPAQ_S_W_QH:
@@ -21455,7 +22133,7 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
                 gen_helper_dpau_h_obr(v1_t, v2_t, t0, cpu_env);
                 break;
             case OPC_DPS_W_QH:
-                check_dspr2(ctx);
+                check_dsp_r2(ctx);
                 gen_helper_dps_w_qh(v1_t, v2_t, t0, cpu_env);
                 break;
             case OPC_DPSQ_S_W_QH:
@@ -21549,7 +22227,7 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
             gen_helper_muleq_s_w_phr(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_MULQ_S_PH:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_mulq_s_ph(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         }
@@ -21773,7 +22451,7 @@ static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
             gen_helper_cmpgu_le_qb(cpu_gpr[ret], v1_t, v2_t);
             break;
         case OPC_CMPGDU_EQ_QB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_cmpgu_eq_qb(t1, v1_t, v2_t);
             tcg_gen_mov_tl(cpu_gpr[ret], t1);
             tcg_gen_andi_tl(cpu_dspctrl, cpu_dspctrl, 0xF0FFFFFF);
@@ -21781,7 +22459,7 @@ static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
             tcg_gen_or_tl(cpu_dspctrl, cpu_dspctrl, t1);
             break;
         case OPC_CMPGDU_LT_QB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_cmpgu_lt_qb(t1, v1_t, v2_t);
             tcg_gen_mov_tl(cpu_gpr[ret], t1);
             tcg_gen_andi_tl(cpu_dspctrl, cpu_dspctrl, 0xF0FFFFFF);
@@ -21789,7 +22467,7 @@ static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
             tcg_gen_or_tl(cpu_dspctrl, cpu_dspctrl, t1);
             break;
         case OPC_CMPGDU_LE_QB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_cmpgu_le_qb(t1, v1_t, v2_t);
             tcg_gen_mov_tl(cpu_gpr[ret], t1);
             tcg_gen_andi_tl(cpu_dspctrl, cpu_dspctrl, 0xF0FFFFFF);
@@ -21850,15 +22528,15 @@ static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
             gen_helper_cmp_le_qh(v1_t, v2_t, cpu_env);
             break;
         case OPC_CMPGDU_EQ_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_cmpgdu_eq_ob(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_CMPGDU_LT_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_cmpgdu_lt_ob(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_CMPGDU_LE_OB:
-            check_dspr2(ctx);
+            check_dsp_r2(ctx);
             gen_helper_cmpgdu_le_ob(cpu_gpr[ret], v1_t, v2_t, cpu_env);
             break;
         case OPC_CMPGU_EQ_OB:
@@ -21916,7 +22594,7 @@ static void gen_mipsdsp_append(CPUMIPSState *env, DisasContext *ctx,
 {
     TCGv t0;
 
-    check_dspr2(ctx);
+    check_dsp_r2(ctx);
 
     if (rt == 0) {
         /* Treat as NOP. */
@@ -22801,7 +23479,7 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
     case OPC_MULTU_G_2E:
         /* OPC_MULT_G_2E, OPC_ADDUH_QB_DSP, OPC_MUL_PH_DSP have
          * the same mask and op1. */
-        if ((ctx->insn_flags & ASE_DSPR2) && (op1 == OPC_MULT_G_2E)) {
+        if ((ctx->insn_flags & ASE_DSP_R2) && (op1 == OPC_MULT_G_2E)) {
             op2 = MASK_ADDUH_QB(ctx->opcode);
             switch (op2) {
             case OPC_ADDUH_QB:
@@ -25285,6 +25963,7 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->saved_pc = -1;
     ctx->insn_flags = env->insn_flags;
     ctx->CP0_Config1 = env->CP0_Config1;
+    ctx->CP0_Config2 = env->CP0_Config2;
     ctx->CP0_Config3 = env->CP0_Config3;
     ctx->CP0_Config5 = env->CP0_Config5;
     ctx->btarget = 0;
@@ -25797,6 +26476,24 @@ void cpu_state_reset(CPUMIPSState *env)
         (env->active_fpu.fcr0 & (1 << FCR0_F64))) {
         /* Status.FR = 0 mode in 64-bit FPU not allowed in R6 */
         env->CP0_Status |= (1 << CP0St_FR);
+    }
+
+    if (env->insn_flags & ISA_MIPS32R6) {
+        /* PTW  =  1 */
+        env->CP0_PWSize = 0x40;
+        /* GDI  = 12 */
+        /* UDI  = 12 */
+        /* MDI  = 12 */
+        /* PRI  = 12 */
+        /* PTEI =  2 */
+        env->CP0_PWField = 0x0C30C302;
+    } else {
+        /* GDI  =  0 */
+        /* UDI  =  0 */
+        /* MDI  =  0 */
+        /* PRI  =  0 */
+        /* PTEI =  2 */
+        env->CP0_PWField = 0x02;
     }
 
     if (env->CP0_Config3 & (1 << CP0C3_ISA) & (1 << (CP0C3_ISA + 1))) {

@@ -28,8 +28,11 @@ typedef int64_t  Elf64_Sxword;
 #define PT_PHDR    6
 #define PT_LOPROC  0x70000000
 #define PT_HIPROC  0x7fffffff
-#define PT_MIPS_REGINFO		0x70000000
-#define PT_MIPS_OPTIONS		0x70000001
+
+#define PT_MIPS_REGINFO   0x70000000
+#define PT_MIPS_RTPROC    0x70000001
+#define PT_MIPS_OPTIONS   0x70000002
+#define PT_MIPS_ABIFLAGS  0x70000003
 
 /* Flags in the e_flags field of the header */
 /* MIPS architecture level. */
@@ -76,14 +79,38 @@ typedef int64_t  Elf64_Sxword;
 #define EF_MIPS_MACH_OCTEON2  0x008d0000  /* Cavium Networks Octeon2         */
 #define EF_MIPS_MACH_OCTEON3  0x008e0000  /* Cavium Networks Octeon3         */
 #define EF_MIPS_MACH_5400     0x00910000  /* NEC VR5400                      */
-#define EF_MIPS_MACH_5900     0x00920000  /* MIPS R5900                      */
+#define EF_MIPS_MACH_5900     0x00920000  /* Toshiba/Sony R5900              */
 #define EF_MIPS_MACH_5500     0x00980000  /* NEC VR5500                      */
-#define EF_MIPS_MACH_9000     0x00990000  /* PMC-Sierra's RM9000             */
+#define EF_MIPS_MACH_9000     0x00990000  /* PMC-Sierra RM9000               */
 #define EF_MIPS_MACH_LS2E     0x00a00000  /* ST Microelectronics Loongson 2E */
 #define EF_MIPS_MACH_LS2F     0x00a10000  /* ST Microelectronics Loongson 2F */
 #define EF_MIPS_MACH_LS3A     0x00a20000  /* ST Microelectronics Loongson 3A */
 #define EF_MIPS_MACH          0x00ff0000  /* EF_MIPS_MACH_xxx selection mask */
 
+#define MIPS_ABI_FP_ANY       0x0         /* FP ABI doesn't matter           */
+#define MIPS_ABI_FP_DOUBLE    0x1         /* -mdouble-float                  */
+#define MIPS_ABI_FP_SINGLE    0x2         /* -msingle-float                  */
+#define MIPS_ABI_FP_SOFT      0x3         /* -msoft-float                    */
+#define MIPS_ABI_FP_OLD_64    0x4         /* -mips32r2 -mfp64                */
+#define MIPS_ABI_FP_XX        0x5         /* -mfpxx                          */
+#define MIPS_ABI_FP_64        0x6         /* -mips32r2 -mfp64                */
+#define MIPS_ABI_FP_64A       0x7         /* -mips32r2 -mfp64 -mno-odd-spreg */
+
+typedef struct mips_elf_abiflags_v0 {
+  uint16_t version;           /* Version of flags structure                  */
+  uint8_t isa_level;          /* The level of the ISA: 1-5, 32, 64           */
+  uint8_t isa_rev;            /* The revision of ISA:                        */
+                              /*   - 0 for MIPS V and below,                 */
+                              /*   - 1-n otherwise.                          */
+  uint8_t gpr_size;           /* The size of general purpose registers       */
+  uint8_t cpr1_size;          /* The size of co-processor 1 registers        */
+  uint8_t cpr2_size;          /* The size of co-processor 2 registers        */
+  uint8_t fp_abi;             /* The floating-point ABI                      */
+  uint32_t isa_ext;           /* Mask of processor-specific extensions       */
+  uint32_t ases;              /* Mask of ASEs used                           */
+  uint32_t flags1;            /* Mask of general flags                       */
+  uint32_t flags2;
+} Mips_elf_abiflags_v0;
 
 /* These constants define the different elf file types */
 #define ET_NONE   0

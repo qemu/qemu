@@ -195,10 +195,125 @@ struct CPUMIPSState {
 #define MSAIR_ProcID    8
 #define MSAIR_Rev       0
 
+/*
+ *     Summary of CP0 registers
+ *     ========================
+ *
+ *
+ *     Register 0        Register 1        Register 2        Register 3
+ *     ----------        ----------        ----------        ----------
+ *
+ * 0   Index             Random            EntryLo0          EntryLo1
+ * 1   MVPControl        VPEControl        TCStatus          GlobalNumber
+ * 2   MVPConf0          VPEConf0          TCBind
+ * 3   MVPConf1          VPEConf1          TCRestart
+ * 4   VPControl         YQMask            TCHalt
+ * 5                     VPESchedule       TCContext
+ * 6                     VPEScheFBack      TCSchedule
+ * 7                     VPEOpt            TCScheFBack       TCOpt
+ *
+ *
+ *     Register 4        Register 5        Register 6        Register 7
+ *     ----------        ----------        ----------        ----------
+ *
+ * 0   Context           PageMask          Wired             HWREna
+ * 1   ContextConfig     PageGrain         SRSConf0
+ * 2   UserLocal         SegCtl0           SRSConf1
+ * 3   XContextConfig    SegCtl1           SRSConf2
+ * 4   DebugContextID    SegCtl2           SRSConf3
+ * 5   MemoryMapID       PWBase            SRSConf4
+ * 6                     PWField           PWCtl
+ * 7                     PWSize
+ *
+ *
+ *     Register 8        Register 9        Register 10       Register 11
+ *     ----------        ----------        -----------       -----------
+ *
+ * 0   BadVAddr          Count             EntryHi           Compare
+ * 1   BadInstr
+ * 2   BadInstrP
+ * 3   BadInstrX
+ * 4                                       GuestCtl1         GuestCtl0Ext
+ * 5                                       GuestCtl2
+ * 6                                       GuestCtl3
+ * 7
+ *
+ *
+ *     Register 12       Register 13       Register 14       Register 15
+ *     -----------       -----------       -----------       -----------
+ *
+ * 0   Status            Cause             EPC               PRId
+ * 1   IntCtl                                                EBase
+ * 2   SRSCtl                              NestedEPC         CDMMBase
+ * 3   SRSMap                                                CMGCRBase
+ * 4   View_IPL          View_RIPL                           BEVVA
+ * 5   SRSMap2           NestedExc
+ * 6   GuestCtl0
+ * 7   GTOffset
+ *
+ *
+ *     Register 16       Register 17       Register 18       Register 19
+ *     -----------       -----------       -----------       -----------
+ *
+ * 0   Config            LLAddr            WatchLo           WatchHi
+ * 1   Config1           MAAR              WatchLo           WatchHi
+ * 2   Config2           MAARI             WatchLo           WatchHi
+ * 3   Config3                             WatchLo           WatchHi
+ * 4   Config4                             WatchLo           WatchHi
+ * 5   Config5                             WatchLo           WatchHi
+ * 6                                       WatchLo           WatchHi
+ * 7                                       WatchLo           WatchHi
+ *
+ *
+ *     Register 20       Register 21       Register 22       Register 23
+ *     -----------       -----------       -----------       -----------
+ *
+ * 0   XContext                                              Debug
+ * 1                                                         TraceControl
+ * 2                                                         TraceControl2
+ * 3                                                         UserTraceData1
+ * 4                                                         TraceIBPC
+ * 5                                                         TraceDBPC
+ * 6                                                         Debug2
+ * 7
+ *
+ *
+ *     Register 24       Register 25       Register 26       Register 27
+ *     -----------       -----------       -----------       -----------
+ *
+ * 0   DEPC              PerfCnt            ErrCtl          CacheErr
+ * 1                     PerfCnt
+ * 2   TraceControl3     PerfCnt
+ * 3   UserTraceData2    PerfCnt
+ * 4                     PerfCnt
+ * 5                     PerfCnt
+ * 6                     PerfCnt
+ * 7                     PerfCnt
+ *
+ *
+ *     Register 28       Register 29       Register 30       Register 31
+ *     -----------       -----------       -----------       -----------
+ *
+ * 0   DataLo            DataHi            ErrorEPC          DESAVE
+ * 1   TagLo             TagHi
+ * 2   DataLo            DataHi                              KScratch<n>
+ * 3   TagLo             TagHi                               KScratch<n>
+ * 4   DataLo            DataHi                              KScratch<n>
+ * 5   TagLo             TagHi                               KScratch<n>
+ * 6   DataLo            DataHi                              KScratch<n>
+ * 7   TagLo             TagHi                               KScratch<n>
+ *
+ */
+/*
+ * CP0 Register 0
+ */
     int32_t CP0_Index;
     /* CP0_MVP* are per MVP registers. */
     int32_t CP0_VPControl;
 #define CP0VPCtl_DIS    0
+/*
+ * CP0 Register 1
+ */
     int32_t CP0_Random;
     int32_t CP0_VPEControl;
 #define CP0VPECo_YSI	21
@@ -239,7 +354,13 @@ struct CPUMIPSState {
 #define CP0VPEOpt_DWX2	2
 #define CP0VPEOpt_DWX1	1
 #define CP0VPEOpt_DWX0	0
+/*
+ * CP0 Register 2
+ */
     uint64_t CP0_EntryLo0;
+/*
+ * CP0 Register 3
+ */
     uint64_t CP0_EntryLo1;
 #if defined(TARGET_MIPS64)
 # define CP0EnLo_RI 63
@@ -250,8 +371,14 @@ struct CPUMIPSState {
 #endif
     int32_t CP0_GlobalNumber;
 #define CP0GN_VPId 0
+/*
+ * CP0 Register 4
+ */
     target_ulong CP0_Context;
     target_ulong CP0_KScratch[MIPS_KSCRATCH_NUM];
+/*
+ * CP0 Register 5
+ */
     int32_t CP0_PageMask;
     int32_t CP0_PageGrain_rw_bitmask;
     int32_t CP0_PageGrain;
@@ -289,7 +416,47 @@ struct CPUMIPSState {
 #define CP0SC2_XR       56
 #define CP0SC2_XR_MASK  (0xFFULL << CP0SC2_XR)
 #define CP0SC2_MASK     (CP0SC_1GMASK | (CP0SC_1GMASK << 16) | CP0SC2_XR_MASK)
+    target_ulong CP0_PWBase;
+    target_ulong CP0_PWField;
+#if defined(TARGET_MIPS64)
+#define CP0PF_BDI  32    /* 37..32 */
+#define CP0PF_GDI  24    /* 29..24 */
+#define CP0PF_UDI  18    /* 23..18 */
+#define CP0PF_MDI  12    /* 17..12 */
+#define CP0PF_PTI  6     /* 11..6  */
+#define CP0PF_PTEI 0     /*  5..0  */
+#else
+#define CP0PF_GDW  24    /* 29..24 */
+#define CP0PF_UDW  18    /* 23..18 */
+#define CP0PF_MDW  12    /* 17..12 */
+#define CP0PF_PTW  6     /* 11..6  */
+#define CP0PF_PTEW 0     /*  5..0  */
+#endif
+    target_ulong CP0_PWSize;
+#if defined(TARGET_MIPS64)
+#define CP0PS_BDW  32    /* 37..32 */
+#endif
+#define CP0PS_PS   30
+#define CP0PS_GDW  24    /* 29..24 */
+#define CP0PS_UDW  18    /* 23..18 */
+#define CP0PS_MDW  12    /* 17..12 */
+#define CP0PS_PTW  6     /* 11..6  */
+#define CP0PS_PTEW 0     /*  5..0  */
+/*
+ * CP0 Register 6
+ */
     int32_t CP0_Wired;
+    int32_t CP0_PWCtl;
+#define CP0PC_PWEN      31
+#if defined(TARGET_MIPS64)
+#define CP0PC_PWDIREXT  30
+#define CP0PC_XK        28
+#define CP0PC_XS        27
+#define CP0PC_XU        26
+#endif
+#define CP0PC_DPH       7
+#define CP0PC_HUGEPG    6
+#define CP0PC_PSN       0     /*  5..0  */
     int32_t CP0_SRSConf0_rw_bitmask;
     int32_t CP0_SRSConf0;
 #define CP0SRSC0_M	31
@@ -319,16 +486,34 @@ struct CPUMIPSState {
 #define CP0SRSC4_SRS15	20
 #define CP0SRSC4_SRS14	10
 #define CP0SRSC4_SRS13	0
+/*
+ * CP0 Register 7
+ */
     int32_t CP0_HWREna;
+/*
+ * CP0 Register 8
+ */
     target_ulong CP0_BadVAddr;
     uint32_t CP0_BadInstr;
     uint32_t CP0_BadInstrP;
     uint32_t CP0_BadInstrX;
+/*
+ * CP0 Register 9
+ */
     int32_t CP0_Count;
+/*
+ * CP0 Register 10
+ */
     target_ulong CP0_EntryHi;
 #define CP0EnHi_EHINV 10
     target_ulong CP0_EntryHi_ASID_mask;
+/*
+ * CP0 Register 11
+ */
     int32_t CP0_Compare;
+/*
+ * CP0 Register 12
+ */
     int32_t CP0_Status;
 #define CP0St_CU3   31
 #define CP0St_CU2   30
@@ -370,6 +555,9 @@ struct CPUMIPSState {
 #define CP0SRSMap_SSV2 8
 #define CP0SRSMap_SSV1 4
 #define CP0SRSMap_SSV0 0
+/*
+ * CP0 Register 13
+ */
     int32_t CP0_Cause;
 #define CP0Ca_BD   31
 #define CP0Ca_TI   30
@@ -381,12 +569,21 @@ struct CPUMIPSState {
 #define CP0Ca_IP    8
 #define CP0Ca_IP_mask 0x0000FF00
 #define CP0Ca_EC    2
+/*
+ * CP0 Register 14
+ */
     target_ulong CP0_EPC;
+/*
+ * CP0 Register 15
+ */
     int32_t CP0_PRid;
     target_ulong CP0_EBase;
     target_ulong CP0_EBaseWG_rw_bitmask;
 #define CP0EBase_WG 11
     target_ulong CP0_CMGCRBase;
+/*
+ * CP0 Register 16
+ */
     int32_t CP0_Config0;
 #define CP0C0_M    31
 #define CP0C0_K23  28    /* 30..28 */
@@ -503,6 +700,9 @@ struct CPUMIPSState {
     uint64_t CP0_MAAR[MIPS_MAAR_MAX];
     int32_t CP0_MAARI;
     /* XXX: Maybe make LLAddr per-TC? */
+/*
+ * CP0 Register 17
+ */
     uint64_t lladdr;
     target_ulong llval;
     target_ulong llnewval;
@@ -511,11 +711,23 @@ struct CPUMIPSState {
     target_ulong llreg;
     uint64_t CP0_LLAddr_rw_bitmask;
     int CP0_LLAddr_shift;
+/*
+ * CP0 Register 18
+ */
     target_ulong CP0_WatchLo[8];
+/*
+ * CP0 Register 19
+ */
     int32_t CP0_WatchHi[8];
 #define CP0WH_ASID 16
+/*
+ * CP0 Register 20
+ */
     target_ulong CP0_XContext;
     int32_t CP0_Framemask;
+/*
+ * CP0 Register 23
+ */
     int32_t CP0_Debug;
 #define CP0DB_DBD  31
 #define CP0DB_DM   30
@@ -535,18 +747,40 @@ struct CPUMIPSState {
 #define CP0DB_DDBL 2
 #define CP0DB_DBp  1
 #define CP0DB_DSS  0
+/*
+ * CP0 Register 24
+ */
     target_ulong CP0_DEPC;
+/*
+ * CP0 Register 25
+ */
     int32_t CP0_Performance0;
+/*
+ * CP0 Register 26
+ */
     int32_t CP0_ErrCtl;
 #define CP0EC_WST 29
 #define CP0EC_SPR 28
 #define CP0EC_ITC 26
+/*
+ * CP0 Register 28
+ */
     uint64_t CP0_TagLo;
     int32_t CP0_DataLo;
+/*
+ * CP0 Register 29
+ */
     int32_t CP0_TagHi;
     int32_t CP0_DataHi;
+/*
+ * CP0 Register 30
+ */
     target_ulong CP0_ErrorEPC;
+/*
+ * CP0 Register 31
+ */
     int32_t CP0_DESAVE;
+
     /* We waste some space so we can handle shadow registers like TCs. */
     TCState tcs[MIPS_SHADOW_SET_MAX];
     CPUMIPSFPUContext fpus[MIPS_FPU_MAX];
@@ -596,8 +830,9 @@ struct CPUMIPSState {
 #define MIPS_HFLAG_BX     0x40000 /* branch exchanges execution mode    */
 #define MIPS_HFLAG_BMASK  (MIPS_HFLAG_BMASK_BASE | MIPS_HFLAG_BMASK_EXT)
     /* MIPS DSP resources access. */
-#define MIPS_HFLAG_DSP   0x080000  /* Enable access to MIPS DSP resources. */
-#define MIPS_HFLAG_DSPR2 0x100000  /* Enable access to MIPS DSPR2 resources. */
+#define MIPS_HFLAG_DSP    0x080000   /* Enable access to DSP resources.    */
+#define MIPS_HFLAG_DSP_R2 0x100000   /* Enable access to DSP R2 resources. */
+#define MIPS_HFLAG_DSP_R3 0x20000000 /* Enable access to DSP R3 resources. */
     /* Extra flag about HWREna register. */
 #define MIPS_HFLAG_HWRENA_ULR 0x200000 /* ULR bit from HWREna is set. */
 #define MIPS_HFLAG_SBRI  0x400000 /* R6 SDBBP causes RI excpt. in user mode */
@@ -614,7 +849,7 @@ struct CPUMIPSState {
     int CCRes; /* Cycle count resolution/divisor */
     uint32_t CP0_Status_rw_bitmask; /* Read/write bits in CP0_Status */
     uint32_t CP0_TCStatus_rw_bitmask; /* Read/write bits in CP0_TCStatus */
-    int insn_flags; /* Supported instruction set */
+    uint64_t insn_flags; /* Supported instruction set */
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
