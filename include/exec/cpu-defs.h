@@ -145,8 +145,14 @@ typedef struct CPUIOTLBEntry {
  * Data elements that are shared between all MMU modes.
  */
 typedef struct CPUTLBCommon {
-    /* lock serializes updates to tlb_table and tlb_v_table */
+    /* Serialize updates to tlb_table and tlb_v_table, and others as noted. */
     QemuSpin lock;
+    /*
+     * Within pending_flush, for each bit N, there exists an outstanding
+     * cross-cpu flush for mmu_idx N.  Further cross-cpu flushes to that
+     * mmu_idx may be discarded.  Protected by tlb_c.lock.
+     */
+    uint16_t pending_flush;
 } CPUTLBCommon;
 
 /*

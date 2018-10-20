@@ -133,6 +133,7 @@ static void tlb_flush_nocheck(CPUState *cpu)
      * that do not hold the lock are performed by the same owner thread.
      */
     qemu_spin_lock(&env->tlb_c.lock);
+    env->tlb_c.pending_flush = 0;
     memset(env->tlb_table, -1, sizeof(env->tlb_table));
     memset(env->tlb_v_table, -1, sizeof(env->tlb_v_table));
     qemu_spin_unlock(&env->tlb_c.lock);
@@ -142,8 +143,6 @@ static void tlb_flush_nocheck(CPUState *cpu)
     env->vtlb_index = 0;
     env->tlb_flush_addr = -1;
     env->tlb_flush_mask = 0;
-
-    atomic_mb_set(&cpu->pending_tlb_flush, 0);
 }
 
 static void tlb_flush_global_async_work(CPUState *cpu, run_on_cpu_data data)
@@ -154,8 +153,15 @@ static void tlb_flush_global_async_work(CPUState *cpu, run_on_cpu_data data)
 void tlb_flush(CPUState *cpu)
 {
     if (cpu->created && !qemu_cpu_is_self(cpu)) {
-        if (atomic_mb_read(&cpu->pending_tlb_flush) != ALL_MMUIDX_BITS) {
-            atomic_mb_set(&cpu->pending_tlb_flush, ALL_MMUIDX_BITS);
+        CPUArchState *env = cpu->env_ptr;
+        uint16_t pending;
+
+        qemu_spin_lock(&env->tlb_c.lock);
+        pending = env->tlb_c.pending_flush;
+        env->tlb_c.pending_flush = ALL_MMUIDX_BITS;
+        qemu_spin_unlock(&env->tlb_c.lock);
+
+        if (pending != ALL_MMUIDX_BITS) {
             async_run_on_cpu(cpu, tlb_flush_global_async_work,
                              RUN_ON_CPU_NULL);
         }
@@ -189,6 +195,8 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
     tlb_debug("start: mmu_idx:0x%04lx\n", mmu_idx_bitmask);
 
     qemu_spin_lock(&env->tlb_c.lock);
+    env->tlb_c.pending_flush &= ~mmu_idx_bitmask;
+
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
 
         if (test_bit(mmu_idx, &mmu_idx_bitmask)) {
@@ -210,19 +218,22 @@ void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
     tlb_debug("mmu_idx: 0x%" PRIx16 "\n", idxmap);
 
     if (!qemu_cpu_is_self(cpu)) {
-        uint16_t pending_flushes = idxmap;
-        pending_flushes &= ~atomic_mb_read(&cpu->pending_tlb_flush);
+        CPUArchState *env = cpu->env_ptr;
+        uint16_t pending, to_clean;
 
-        if (pending_flushes) {
-            tlb_debug("reduced mmu_idx: 0x%" PRIx16 "\n", pending_flushes);
+        qemu_spin_lock(&env->tlb_c.lock);
+        pending = env->tlb_c.pending_flush;
+        to_clean = idxmap & ~pending;
+        env->tlb_c.pending_flush = pending | idxmap;
+        qemu_spin_unlock(&env->tlb_c.lock);
 
-            atomic_or(&cpu->pending_tlb_flush, pending_flushes);
+        if (to_clean) {
+            tlb_debug("reduced mmu_idx: 0x%" PRIx16 "\n", to_clean);
             async_run_on_cpu(cpu, tlb_flush_by_mmuidx_async_work,
-                             RUN_ON_CPU_HOST_INT(pending_flushes));
+                             RUN_ON_CPU_HOST_INT(to_clean));
         }
     } else {
-        tlb_flush_by_mmuidx_async_work(cpu,
-                                       RUN_ON_CPU_HOST_INT(idxmap));
+        tlb_flush_by_mmuidx_async_work(cpu, RUN_ON_CPU_HOST_INT(idxmap));
     }
 }
 
