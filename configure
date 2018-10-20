@@ -7178,6 +7178,7 @@ case "$target_name" in
   ;;
   xtensa|xtensaeb)
     TARGET_ARCH=xtensa
+    bflt="yes"
     mttcg="yes"
     target_compiler=$cross_cc_xtensa
   ;;
