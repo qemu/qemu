@@ -1825,6 +1825,8 @@ void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
 #define ATOMIC_MMU_CLEANUP
 #define ATOMIC_MMU_IDX   get_mmuidx(oi)
 
+#include "atomic_common.inc.c"
+
 #define DATA_SIZE 1
 #include "atomic_template.h"
 
