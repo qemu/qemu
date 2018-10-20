@@ -79,6 +79,9 @@ void tlb_init(CPUState *cpu)
     CPUArchState *env = cpu->env_ptr;
 
     qemu_spin_init(&env->tlb_c.lock);
+
+    /* Ensure that cpu_reset performs a full flush.  */
+    env->tlb_c.dirty = ALL_MMUIDX_BITS;
 }
 
 /* flush_all_helper: run fn across all cpus
@@ -129,31 +132,40 @@ static void tlb_flush_one_mmuidx_locked(CPUArchState *env, int mmu_idx)
 static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
 {
     CPUArchState *env = cpu->env_ptr;
-    unsigned long mmu_idx_bitmask = data.host_int;
-    int mmu_idx;
+    uint16_t asked = data.host_int;
+    uint16_t all_dirty, work, to_clean;
 
     assert_cpu_is_self(cpu);
 
-    tlb_debug("mmu_idx:0x%04lx\n", mmu_idx_bitmask);
+    tlb_debug("mmu_idx:0x%04" PRIx16 "\n", asked);
 
     qemu_spin_lock(&env->tlb_c.lock);
-    env->tlb_c.pending_flush &= ~mmu_idx_bitmask;
 
-    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        if (test_bit(mmu_idx, &mmu_idx_bitmask)) {
-            tlb_flush_one_mmuidx_locked(env, mmu_idx);
-        }
+    all_dirty = env->tlb_c.dirty;
+    to_clean = asked & all_dirty;
+    all_dirty &= ~to_clean;
+    env->tlb_c.dirty = all_dirty;
+
+    for (work = to_clean; work != 0; work &= work - 1) {
+        int mmu_idx = ctz32(work);
+        tlb_flush_one_mmuidx_locked(env, mmu_idx);
     }
+
     qemu_spin_unlock(&env->tlb_c.lock);
 
     cpu_tb_jmp_cache_clear(cpu);
 
-    if (mmu_idx_bitmask == ALL_MMUIDX_BITS) {
+    if (to_clean == ALL_MMUIDX_BITS) {
         atomic_set(&env->tlb_c.full_flush_count,
                    env->tlb_c.full_flush_count + 1);
     } else {
         atomic_set(&env->tlb_c.part_flush_count,
-                   env->tlb_c.part_flush_count + ctpop16(mmu_idx_bitmask));
+                   env->tlb_c.part_flush_count + ctpop16(to_clean));
+        if (to_clean != asked) {
+            atomic_set(&env->tlb_c.elide_flush_count,
+                       env->tlb_c.elide_flush_count +
+                       ctpop16(asked & ~to_clean));
+        }
     }
 }
 
@@ -580,6 +592,9 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
      * is unlikely to be contended.
      */
     qemu_spin_lock(&env->tlb_c.lock);
+
+    /* Note that the tlb is no longer clean.  */
+    env->tlb_c.dirty |= 1 << mmu_idx;
 
     /* Make sure there's no cached translation for the new page.  */
     tlb_flush_vtlb_page_locked(env, mmu_idx, vaddr_page);

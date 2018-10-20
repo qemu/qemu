@@ -166,7 +166,12 @@ typedef struct CPUTLBCommon {
      * mmu_idx may be discarded.  Protected by tlb_c.lock.
      */
     uint16_t pending_flush;
-
+    /*
+     * Within dirty, for each bit N, modifications have been made to
+     * mmu_idx N since the last time that mmu_idx was flushed.
+     * Protected by tlb_c.lock.
+     */
+    uint16_t dirty;
     /*
      * Statistics.  These are not lock protected, but are read and
      * written atomically.  This allows the monitor to print a snapshot
