@@ -61,7 +61,7 @@
 #include "qemu/timer.h"
 #include "qemu/qht.h"
 #include "qemu/rcu.h"
-#include "exec/tb-hash-xx.h"
+#include "qemu/xxhash.h"
 
 enum QSPType {
     QSP_MUTEX,

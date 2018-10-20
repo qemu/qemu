@@ -20,7 +20,7 @@
 #ifndef EXEC_TB_HASH_H
 #define EXEC_TB_HASH_H
 
-#include "exec/tb-hash-xx.h"
+#include "qemu/xxhash.h"
 
 #ifdef CONFIG_SOFTMMU
 

@@ -31,8 +31,8 @@
  * - xxHash source repository : https://github.com/Cyan4973/xxHash
  */
 
-#ifndef EXEC_TB_HASH_XX_H
-#define EXEC_TB_HASH_XX_H
+#ifndef QEMU_XXHASH_H
+#define QEMU_XXHASH_H
 
 #include "qemu/bitops.h"
 
@@ -119,4 +119,4 @@ static inline uint32_t qemu_xxhash6(uint64_t ab, uint64_t cd, uint32_t e,
     return qemu_xxhash7(ab, cd, e, f, 0);
 }
 
-#endif /* EXEC_TB_HASH_XX_H */
+#endif /* QEMU_XXHASH_H */
