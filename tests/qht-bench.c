@@ -105,7 +105,7 @@ static bool is_equal(const void *ap, const void *bp)
 
 static uint32_t h(unsigned long v)
 {
-    return tb_hash_func7(v, 0, 0, 0, 0);
+    return qemu_xxhash2(v);
 }
 
 static uint32_t hval(unsigned long v)

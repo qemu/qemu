@@ -135,13 +135,13 @@ QemuCondWaitFunc qemu_cond_wait_func = qemu_cond_wait_impl;
  * without it we still get a pretty unique hash.
  */
 static inline
-uint32_t do_qsp_callsite_hash(const QSPCallSite *callsite, uint64_t a)
+uint32_t do_qsp_callsite_hash(const QSPCallSite *callsite, uint64_t ab)
 {
-    uint64_t b = (uint64_t)(uintptr_t)callsite->obj;
+    uint64_t cd = (uint64_t)(uintptr_t)callsite->obj;
     uint32_t e = callsite->line;
     uint32_t f = callsite->type;
 
-    return tb_hash_func7(a, b, e, f, 0);
+    return qemu_xxhash6(ab, cd, e, f);
 }
 
 static inline
@@ -169,11 +169,11 @@ static uint32_t qsp_entry_no_thread_hash(const QSPEntry *entry)
 static uint32_t qsp_entry_no_thread_obj_hash(const QSPEntry *entry)
 {
     const QSPCallSite *callsite = entry->callsite;
-    uint64_t a = g_str_hash(callsite->file);
-    uint64_t b = callsite->line;
+    uint64_t ab = g_str_hash(callsite->file);
+    uint64_t cd = callsite->line;
     uint32_t e = callsite->type;
 
-    return tb_hash_func7(a, b, e, 0, 0);
+    return qemu_xxhash5(ab, cd, e);
 }
 
 static bool qsp_callsite_cmp(const void *ap, const void *bp)
