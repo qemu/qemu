@@ -24459,6 +24459,38 @@ static void decode_tx79_mmi0(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+static void decode_tx79_mmi1(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opc = MASK_TX79_MMI1(ctx->opcode);
+
+    switch (opc) {
+    case TX79_MMI1_PABSW:     /* TODO: TX79_MMI1_PABSW */
+    case TX79_MMI1_PCEQW:     /* TODO: TX79_MMI1_PCEQW */
+    case TX79_MMI1_PMINW:     /* TODO: TX79_MMI1_PMINW */
+    case TX79_MMI1_PADSBH:    /* TODO: TX79_MMI1_PADSBH */
+    case TX79_MMI1_PABSH:     /* TODO: TX79_MMI1_PABSH */
+    case TX79_MMI1_PCEQH:     /* TODO: TX79_MMI1_PCEQH */
+    case TX79_MMI1_PMINH:     /* TODO: TX79_MMI1_PMINH */
+    case TX79_MMI1_PCEQB:     /* TODO: TX79_MMI1_PCEQB */
+    case TX79_MMI1_PADDUW:    /* TODO: TX79_MMI1_PADDUW */
+    case TX79_MMI1_PSUBUW:    /* TODO: TX79_MMI1_PSUBUW */
+    case TX79_MMI1_PEXTUW:    /* TODO: TX79_MMI1_PEXTUW */
+    case TX79_MMI1_PADDUH:    /* TODO: TX79_MMI1_PADDUH */
+    case TX79_MMI1_PSUBUH:    /* TODO: TX79_MMI1_PSUBUH */
+    case TX79_MMI1_PEXTUH:    /* TODO: TX79_MMI1_PEXTUH */
+    case TX79_MMI1_PADDUB:    /* TODO: TX79_MMI1_PADDUB */
+    case TX79_MMI1_PSUBUB:    /* TODO: TX79_MMI1_PSUBUB */
+    case TX79_MMI1_PEXTUB:    /* TODO: TX79_MMI1_PEXTUB */
+    case TX79_MMI1_QFSRV:     /* TODO: TX79_MMI1_QFSRV */
+        generate_exception_end(ctx, EXCP_RI); /* TODO: TX79_MMI_CLASS_MMI1 */
+        break;
+    default:
+        MIPS_INVAL("TX79 MMI class MMI1");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
 static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_TX79_MMI(ctx->opcode);
@@ -24466,6 +24498,9 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
     switch (opc) {
     case TX79_MMI_CLASS_MMI0:
         decode_tx79_mmi0(env, ctx);
+        break;
+    case TX79_MMI_CLASS_MMI1:
+        decode_tx79_mmi1(env, ctx);
         break;
     case TX79_MMI_MADD:          /* TODO: TX79_MMI_MADD */
     case TX79_MMI_MADDU:         /* TODO: TX79_MMI_MADDU */
@@ -24481,7 +24516,6 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
     case TX79_MMI_DIVU1:         /* TODO: TX79_MMI_DIVU1 */
     case TX79_MMI_MADD1:         /* TODO: TX79_MMI_MADD1 */
     case TX79_MMI_MADDU1:        /* TODO: TX79_MMI_MADDU1 */
-    case TX79_MMI_CLASS_MMI1:    /* TODO: TX79_MMI_CLASS_MMI1 */
     case TX79_MMI_CLASS_MMI3:    /* TODO: TX79_MMI_CLASS_MMI3 */
     case TX79_MMI_PMFHL:         /* TODO: TX79_MMI_PMFHL */
     case TX79_MMI_PMTHL:         /* TODO: TX79_MMI_PMTHL */
