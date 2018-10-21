@@ -24420,6 +24420,45 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opc = MASK_TX79_MMI(ctx->opcode);
+
+    switch (opc) {
+    case TX79_MMI_MADD:          /* TODO: TX79_MMI_MADD */
+    case TX79_MMI_MADDU:         /* TODO: TX79_MMI_MADDU */
+    case TX79_MMI_PLZCW:         /* TODO: TX79_MMI_PLZCW */
+    case TX79_MMI_CLASS_MMI0:    /* TODO: TX79_MMI_CLASS_MMI0 */
+    case TX79_MMI_CLASS_MMI2:    /* TODO: TX79_MMI_CLASS_MMI2 */
+    case TX79_MMI_MFHI1:         /* TODO: TX79_MMI_MFHI1 */
+    case TX79_MMI_MTHI1:         /* TODO: TX79_MMI_MTHI1 */
+    case TX79_MMI_MFLO1:         /* TODO: TX79_MMI_MFLO1 */
+    case TX79_MMI_MTLO1:         /* TODO: TX79_MMI_MTLO1 */
+    case TX79_MMI_MULT1:         /* TODO: TX79_MMI_MULT1 */
+    case TX79_MMI_MULTU1:        /* TODO: TX79_MMI_MULTU1 */
+    case TX79_MMI_DIV1:          /* TODO: TX79_MMI_DIV1 */
+    case TX79_MMI_DIVU1:         /* TODO: TX79_MMI_DIVU1 */
+    case TX79_MMI_MADD1:         /* TODO: TX79_MMI_MADD1 */
+    case TX79_MMI_MADDU1:        /* TODO: TX79_MMI_MADDU1 */
+    case TX79_MMI_CLASS_MMI1:    /* TODO: TX79_MMI_CLASS_MMI1 */
+    case TX79_MMI_CLASS_MMI3:    /* TODO: TX79_MMI_CLASS_MMI3 */
+    case TX79_MMI_PMFHL:         /* TODO: TX79_MMI_PMFHL */
+    case TX79_MMI_PMTHL:         /* TODO: TX79_MMI_PMTHL */
+    case TX79_MMI_PSLLH:         /* TODO: TX79_MMI_PSLLH */
+    case TX79_MMI_PSRLH:         /* TODO: TX79_MMI_PSRLH */
+    case TX79_MMI_PSRAH:         /* TODO: TX79_MMI_PSRAH */
+    case TX79_MMI_PSLLW:         /* TODO: TX79_MMI_PSLLW */
+    case TX79_MMI_PSRLW:         /* TODO: TX79_MMI_PSRLW */
+    case TX79_MMI_PSRAW:         /* TODO: TX79_MMI_PSRAW */
+        generate_exception_end(ctx, EXCP_RI);    /* TODO: TX79_CLASS_MMI */
+        break;
+    default:
+        MIPS_INVAL("TX79 MMI class");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
 static void decode_tx79_lq(CPUMIPSState *env, DisasContext *ctx)
 {
     generate_exception_end(ctx, EXCP_RI);    /* TODO: TX79_LQ */
@@ -25769,7 +25808,11 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         decode_opc_special(env, ctx);
         break;
     case OPC_SPECIAL2:
-        decode_opc_special2_legacy(env, ctx);
+        if ((ctx->insn_flags & INSN_R5900) && (ctx->insn_flags & ASE_MMI)) {
+            decode_tx79_mmi(env, ctx);
+        } else {
+            decode_opc_special2_legacy(env, ctx);
+        }
         break;
     case OPC_SPECIAL3:
         if (ctx->insn_flags & INSN_R5900) {
