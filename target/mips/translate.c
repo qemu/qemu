@@ -2872,6 +2872,21 @@ static inline void check_insn_opc_removed(DisasContext *ctx, uint64_t flags)
     }
 }
 
+/*
+ * The Linux kernel traps certain reserved instruction exceptions to
+ * emulate the corresponding instructions. QEMU is the kernel in user
+ * mode, so those traps are emulated by accepting the instructions.
+ *
+ * A reserved instruction exception is generated for flagged CPUs if
+ * QEMU runs in system mode.
+ */
+static inline void check_insn_opc_user_only(DisasContext *ctx, uint64_t flags)
+{
+#ifndef CONFIG_USER_ONLY
+    check_insn_opc_removed(ctx, flags);
+#endif
+}
+
 /* This code generates a "reserved instruction" exception if the
    CPU does not support 64-bit paired-single (PS) floating point data type */
 static inline void check_ps(DisasContext *ctx)
@@ -23595,6 +23610,7 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
     case OPC_DDIV:
     case OPC_DDIVU:
         check_insn(ctx, ISA_MIPS3);
+        check_insn_opc_user_only(ctx, INSN_R5900);
         check_mips_64(ctx);
         gen_muldiv(ctx, op1, 0, rs, rt);
         break;
@@ -26350,6 +26366,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
          break;
     case OPC_LL: /* Load and stores */
         check_insn(ctx, ISA_MIPS2);
+        check_insn_opc_user_only(ctx, INSN_R5900);
         /* Fallthrough */
     case OPC_LWL:
     case OPC_LWR:
@@ -26375,6 +26392,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     case OPC_SC:
         check_insn(ctx, ISA_MIPS2);
          check_insn_opc_removed(ctx, ISA_MIPS32R6);
+        check_insn_opc_user_only(ctx, INSN_R5900);
          gen_st_cond(ctx, op, rt, rs, imm);
          break;
     case OPC_CACHE:
@@ -26641,9 +26659,11 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
 
 #if defined(TARGET_MIPS64)
     /* MIPS64 opcodes */
+    case OPC_LLD:
+        check_insn_opc_user_only(ctx, INSN_R5900);
+        /* fall through */
     case OPC_LDL:
     case OPC_LDR:
-    case OPC_LLD:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
         /* fall through */
     case OPC_LWU:
@@ -26664,6 +26684,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     case OPC_SCD:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
         check_insn(ctx, ISA_MIPS3);
+        check_insn_opc_user_only(ctx, INSN_R5900);
         check_mips_64(ctx);
         gen_st_cond(ctx, op, rt, rs, imm);
         break;
