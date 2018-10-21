@@ -4771,7 +4771,7 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
  * Toshiba/Sony R5900 and the Toshiba TX19, TX39 and TX79 core
  * architectures are special three-operand variants with the syntax
  *
- *     MULT[U] rd, rs, rt
+ *     MULT[U][1] rd, rs, rt
  *
  * such that
  *
@@ -4795,6 +4795,9 @@ static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
     gen_load_gpr(t1, rt);
 
     switch (opc) {
+    case TX79_MMI_MULT1:
+        acc = 1;
+        /* Fall through */
     case OPC_MULT:
         {
             TCGv_i32 t2 = tcg_temp_new_i32();
@@ -4811,6 +4814,9 @@ static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
             tcg_temp_free_i32(t3);
         }
         break;
+    case TX79_MMI_MULTU1:
+        acc = 1;
+        /* Fall through */
     case OPC_MULTU:
         {
             TCGv_i32 t2 = tcg_temp_new_i32();
@@ -24631,6 +24637,9 @@ static void decode_tx79_mmi3(CPUMIPSState *env, DisasContext *ctx)
 static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_TX79_MMI(ctx->opcode);
+    int rs = extract32(ctx->opcode, 21, 5);
+    int rt = extract32(ctx->opcode, 16, 5);
+    int rd = extract32(ctx->opcode, 11, 5);
 
     switch (opc) {
     case TX79_MMI_CLASS_MMI0:
@@ -24645,6 +24654,10 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
     case TX79_MMI_CLASS_MMI3:
         decode_tx79_mmi3(env, ctx);
         break;
+    case TX79_MMI_MULT1:
+    case TX79_MMI_MULTU1:
+        gen_mul_txx9(ctx, opc, rd, rs, rt);
+        break;
     case TX79_MMI_MADD:          /* TODO: TX79_MMI_MADD */
     case TX79_MMI_MADDU:         /* TODO: TX79_MMI_MADDU */
     case TX79_MMI_PLZCW:         /* TODO: TX79_MMI_PLZCW */
@@ -24652,8 +24665,6 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
     case TX79_MMI_MTHI1:         /* TODO: TX79_MMI_MTHI1 */
     case TX79_MMI_MFLO1:         /* TODO: TX79_MMI_MFLO1 */
     case TX79_MMI_MTLO1:         /* TODO: TX79_MMI_MTLO1 */
-    case TX79_MMI_MULT1:         /* TODO: TX79_MMI_MULT1 */
-    case TX79_MMI_MULTU1:        /* TODO: TX79_MMI_MULTU1 */
     case TX79_MMI_DIV1:          /* TODO: TX79_MMI_DIV1 */
     case TX79_MMI_DIVU1:         /* TODO: TX79_MMI_DIVU1 */
     case TX79_MMI_MADD1:         /* TODO: TX79_MMI_MADD1 */
