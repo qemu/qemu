@@ -2087,7 +2087,47 @@ enum {
  * MTSAB   rs, immediate     Move Byte Count to Shift Amount Register
  * MTSAH   rs, immediate     Move Halfword Count to Shift Amount Register
  * PROT3W  rd, rt            Parallel Rotate 3 Words
+ *
+ *     The TX79-specific Multimedia Instruction encodings
+ *     ==================================================
+ *
+ * TX79 Multimedia Instruction encoding table keys:
+ *
+ *     *   This code is reserved for future use. An attempt to execute it
+ *         causes a Reserved Instruction exception.
+ *     %   This code indicates an instruction class. The instruction word
+ *         must be further decoded by examining additional tables that show
+ *         the values for other instruction fields.
+ *     #   This code is reserved for the unsupported instructions DMULT,
+ *         DMULTU, DDIV, DDIVU, LL, LLD, SC, SCD, LWC2 and SWC2. An attempt
+ *         to execute it causes a Reserved Instruction exception.
+ *
+ * TX79 Multimedia Instructions encoded by opcode field (MMI, LQ, SQ):
+ *
+ *  31    26                                        0
+ * +--------+----------------------------------------+
+ * | opcode |                                        |
+ * +--------+----------------------------------------+
+ *
+ *   opcode  bits 28..26
+ *     bits |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7
+ *   31..29 |  000  |  001  |  010  |  011  |  100  |  101  |  110  |  111
+ *   -------+-------+-------+-------+-------+-------+-------+-------+-------
+ *    0 000 |SPECIAL| REGIMM|   J   |  JAL  |  BEQ  |  BNE  |  BLEZ |  BGTZ
+ *    1 001 |  ADDI | ADDIU |  SLTI | SLTIU |  ANDI |  ORI  |  XORI |  LUI
+ *    2 010 |  COP0 |  COP1 |   *   |   *   |  BEQL |  BNEL | BLEZL | BGTZL
+ *    3 011 | DADDI | DADDIU|  LDL  |  LDR  |  MMI% |   *   |   LQ  |   SQ
+ *    4 100 |   LB  |   LH  |  LWL  |   LW  |  LBU  |  LHU  |  LWR  |  LWU
+ *    5 101 |   SB  |   SH  |  SWL  |   SW  |  SDL  |  SDR  |  SWR  | CACHE
+ *    6 110 |   #   |  LWC1 |   #   |  PREF |   #   |  LDC1 |   #   |   LD
+ *    7 111 |   #   |  SWC1 |   #   |   *   |   #   |  SDC1 |   #   |   SD
  */
+
+enum {
+    TX79_CLASS_MMI = 0x1C << 26,    /* Same as OPC_SPECIAL2 */
+    TX79_LQ        = 0x1E << 26,    /* Same as OPC_MSA */
+    TX79_SQ        = 0x1F << 26,    /* Same as OPC_SPECIAL3 */
+};
 
 /* global register indices */
 static TCGv cpu_gpr[32], cpu_PC;
