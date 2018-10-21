@@ -24527,6 +24527,33 @@ static void decode_tx79_mmi2(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+static void decode_tx79_mmi3(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opc = MASK_TX79_MMI3(ctx->opcode);
+
+    switch (opc) {
+    case TX79_MMI3_PMADDUW:    /* TODO: TX79_MMI3_PMADDUW */
+    case TX79_MMI3_PSRAVW:     /* TODO: TX79_MMI3_PSRAVW */
+    case TX79_MMI3_PMTHI:      /* TODO: TX79_MMI3_PMTHI */
+    case TX79_MMI3_PMTLO:      /* TODO: TX79_MMI3_PMTLO */
+    case TX79_MMI3_PINTEH:     /* TODO: TX79_MMI3_PINTEH */
+    case TX79_MMI3_PMULTUW:    /* TODO: TX79_MMI3_PMULTUW */
+    case TX79_MMI3_PDIVUW:     /* TODO: TX79_MMI3_PDIVUW */
+    case TX79_MMI3_PCPYUD:     /* TODO: TX79_MMI3_PCPYUD */
+    case TX79_MMI3_POR:        /* TODO: TX79_MMI3_POR */
+    case TX79_MMI3_PNOR:       /* TODO: TX79_MMI3_PNOR */
+    case TX79_MMI3_PEXCH:      /* TODO: TX79_MMI3_PEXCH */
+    case TX79_MMI3_PCPYH:      /* TODO: TX79_MMI3_PCPYH */
+    case TX79_MMI3_PEXCW:      /* TODO: TX79_MMI3_PEXCW */
+        generate_exception_end(ctx, EXCP_RI); /* TODO: TX79_MMI_CLASS_MMI3 */
+        break;
+    default:
+        MIPS_INVAL("TX79 MMI class MMI3");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
 static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_TX79_MMI(ctx->opcode);
@@ -24541,6 +24568,9 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
     case TX79_MMI_CLASS_MMI2:
         decode_tx79_mmi2(env, ctx);
         break;
+    case TX79_MMI_CLASS_MMI3:
+        decode_tx79_mmi3(env, ctx);
+        break;
     case TX79_MMI_MADD:          /* TODO: TX79_MMI_MADD */
     case TX79_MMI_MADDU:         /* TODO: TX79_MMI_MADDU */
     case TX79_MMI_PLZCW:         /* TODO: TX79_MMI_PLZCW */
@@ -24554,7 +24584,6 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
     case TX79_MMI_DIVU1:         /* TODO: TX79_MMI_DIVU1 */
     case TX79_MMI_MADD1:         /* TODO: TX79_MMI_MADD1 */
     case TX79_MMI_MADDU1:        /* TODO: TX79_MMI_MADDU1 */
-    case TX79_MMI_CLASS_MMI3:    /* TODO: TX79_MMI_CLASS_MMI3 */
     case TX79_MMI_PMFHL:         /* TODO: TX79_MMI_PMFHL */
     case TX79_MMI_PMTHL:         /* TODO: TX79_MMI_PMTHL */
     case TX79_MMI_PSLLH:         /* TODO: TX79_MMI_PSLLH */
