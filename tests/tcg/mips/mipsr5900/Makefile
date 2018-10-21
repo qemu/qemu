@@ -8,7 +8,8 @@ SIM_FLAGS=-cpu R5900
 CC      = $(CROSS)gcc
 CFLAGS  = -Wall -mabi=32 -march=r5900 -static
 
-TESTCASES = mult.tst
+TESTCASES = mflohi1.tst
+TESTCASES += mult.tst
 TESTCASES += multu.tst
 
 all: $(TESTCASES)
