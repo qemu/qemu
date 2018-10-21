@@ -25,6 +25,8 @@ void atomic_trace_rmw_pre(CPUArchState *env, target_ulong addr, uint16_t info)
 static inline void
 atomic_trace_rmw_post(CPUArchState *env, target_ulong addr, uint16_t info)
 {
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, info);
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, info | TRACE_MEM_ST);
 }
 
 static inline
@@ -36,6 +38,7 @@ void atomic_trace_ld_pre(CPUArchState *env, target_ulong addr, uint16_t info)
 static inline
 void atomic_trace_ld_post(CPUArchState *env, target_ulong addr, uint16_t info)
 {
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, info);
 }
 
 static inline
@@ -47,4 +50,5 @@ void atomic_trace_st_pre(CPUArchState *env, target_ulong addr, uint16_t info)
 static inline
 void atomic_trace_st_post(CPUArchState *env, target_ulong addr, uint16_t info)
 {
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, info);
 }
