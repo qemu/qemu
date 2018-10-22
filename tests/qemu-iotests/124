@@ -39,7 +39,7 @@ def try_remove(img):
 def transaction_action(action, **kwargs):
     return {
         'type': action,
-        'data': dict((k.replace('_', '-'), v) for k, v in kwargs.iteritems())
+        'data': dict((k.replace('_', '-'), v) for k, v in kwargs.items())
     }
 
 
@@ -134,7 +134,7 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
     def img_create(self, img, fmt=iotests.imgfmt, size='64M',
                    parent=None, parentFormat=None, **kwargs):
         optargs = []
-        for k,v in kwargs.iteritems():
+        for k,v in kwargs.items():
             optargs = optargs + ['-o', '%s=%s' % (k,v)]
         args = ['create', '-f', fmt] + optargs + [img, size]
         if parent:
