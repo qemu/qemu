@@ -280,7 +280,7 @@ static const VMStateDescription mv88w8618_audio_vmsd = {
 };
 
 static Property mv88w8618_audio_properties[] = {
-    DEFINE_PROP_PTR("wm8750", mv88w8618_audio_state, wm),
+    DEFINE_PROP_PTR(TYPE_WM8750, mv88w8618_audio_state, wm),
     {/* end of list */},
 };
 
