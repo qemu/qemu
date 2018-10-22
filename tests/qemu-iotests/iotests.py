@@ -178,6 +178,7 @@ class QemuIoInteractive:
         cmd = cmd.strip()
         assert cmd != 'q' and cmd != 'quit'
         self._p.stdin.write(cmd + '\n')
+        self._p.stdin.flush()
         return self._read_output()
 
 
