@@ -123,6 +123,18 @@ extern int daemon(int, int);
 #include "qemu/typedefs.h"
 
 /*
+ * For mingw, as of v6.0.0, the function implementing the assert macro is
+ * not marked as noreturn, so the compiler cannot delete code following an
+ * assert(false) as unused.  We rely on this within the code base to delete
+ * code that is unreachable when features are disabled.
+ * All supported versions of Glib's g_assert() satisfy this requirement.
+ */
+#ifdef __MINGW32__
+#undef assert
+#define assert(x)  g_assert(x)
+#endif
+
+/*
  * According to waitpid man page:
  * WCOREDUMP
  *  This  macro  is  not  specified  in POSIX.1-2001 and is not
