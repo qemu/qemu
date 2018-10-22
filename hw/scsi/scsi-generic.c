@@ -144,7 +144,7 @@ static int execute_command(BlockBackend *blk,
 
 static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
 {
-    uint8_t page, page_len;
+    uint8_t page, page_idx;
 
     /*
      *  EVPD set to zero returns the standard INQUIRY data.
@@ -190,10 +190,21 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
              *
              * This way, the guest kernel will be aware of the support
              * and will use it to proper setup the SCSI device.
+             *
+             * VPD page numbers must be sorted, so insert 0xb0 at the
+             * right place with an in-place insert.  After the initialization
+             * part of the for loop is executed, the device response is
+             * at r[0] to r[page_idx - 1].
              */
-            page_len = r->buf[3];
-            r->buf[page_len + 4] = 0xb0;
-            r->buf[3] = ++page_len;
+            for (page_idx = lduw_be_p(r->buf + 2) + 4;
+                 page_idx > 4 && r->buf[page_idx - 1] >= 0xb0;
+                 page_idx--) {
+                if (page_idx < r->buflen) {
+                    r->buf[page_idx] = r->buf[page_idx - 1];
+                }
+            }
+            r->buf[page_idx] = 0xb0;
+            stw_be_p(r->buf + 2, lduw_be_p(r->buf + 2) + 1);
         }
     }
 }
