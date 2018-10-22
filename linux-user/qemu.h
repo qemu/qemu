@@ -61,6 +61,10 @@ struct image_info {
         abi_ulong       interpreter_loadmap_addr;
         abi_ulong       interpreter_pt_dynamic_addr;
         struct image_info *other_info;
+#ifdef TARGET_MIPS
+        int             fp_abi;
+        int             interp_fp_abi;
+#endif
 };
 
 #ifdef TARGET_I386
