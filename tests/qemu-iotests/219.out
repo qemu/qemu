@@ -2,326 +2,326 @@ Launching VM...
 
 
 Starting block job: drive-mirror (auto-finalize: True; auto-dismiss: True)
-{u'return': {}}
-{u'return': [{u'status': u'running', u'current-progress': 'FILTERED', u'total-progress': 'FILTERED', u'id': u'job0', u'type': u'mirror'}]}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'created', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
+{"return": {}}
+{"return": [{"current-progress": "FILTERED", "id": "job0", "status": "running", "total-progress": "FILTERED", "type": "mirror"}]}
+{"data": {"id": "job0", "status": "created"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 
 Pause/resume in RUNNING
 === Testing block-job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 65536, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 131072, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 65536, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "mirror"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 131072, "id": "job0", "status": "running", "total-progress": 4194304, "type": "mirror"}]}
 === Testing block-job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 131072, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 196608, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 131072, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "mirror"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 196608, "id": "job0", "status": "running", "total-progress": 4194304, "type": "mirror"}]}
 === Testing job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 196608, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 262144, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 196608, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "mirror"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 262144, "id": "job0", "status": "running", "total-progress": 4194304, "type": "mirror"}]}
 === Testing job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 262144, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 327680, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
-{u'return': {}}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 262144, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "mirror"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 327680, "id": "job0", "status": "running", "total-progress": 4194304, "type": "mirror"}]}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
+{"return": {}}
 
 Waiting for READY state...
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'ready', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'ready', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
+{"data": {"id": "job0", "status": "ready"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "ready", "total-progress": 4194304, "type": "mirror"}]}
 
 Pause/resume in READY
 === Testing block-job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'standby', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'standby', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'ready', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'ready', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "standby"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "standby", "total-progress": 4194304, "type": "mirror"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "ready"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "ready", "total-progress": 4194304, "type": "mirror"}]}
 === Testing block-job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'standby', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'standby', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'ready', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'ready', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "standby"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "standby", "total-progress": 4194304, "type": "mirror"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "ready"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "ready", "total-progress": 4194304, "type": "mirror"}]}
 === Testing job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'standby', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'standby', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'ready', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'ready', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "standby"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "standby", "total-progress": 4194304, "type": "mirror"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "ready"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "ready", "total-progress": 4194304, "type": "mirror"}]}
 === Testing job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'standby', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'standby', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'ready', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'ready', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'mirror'}]}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'ready' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'ready' cannot accept command verb 'dismiss'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'ready' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'ready' cannot accept command verb 'dismiss'"}}
-{u'return': {}}
+{"return": {}}
+{"data": {"id": "job0", "status": "standby"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "standby", "total-progress": 4194304, "type": "mirror"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "ready"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "ready", "total-progress": 4194304, "type": "mirror"}]}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'ready' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'ready' cannot accept command verb 'dismiss'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'ready' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'ready' cannot accept command verb 'dismiss'"}}
+{"return": {}}
 
 Waiting for PENDING state...
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'waiting', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'pending', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'concluded', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'null', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': []}
+{"data": {"id": "job0", "status": "waiting"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "pending"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "concluded"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "null"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": []}
 
 
 Starting block job: drive-backup (auto-finalize: True; auto-dismiss: True)
-{u'return': {}}
-{u'return': [{u'status': u'running', u'current-progress': 'FILTERED', u'total-progress': 'FILTERED', u'id': u'job0', u'type': u'backup'}]}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'created', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
+{"return": {}}
+{"return": [{"current-progress": "FILTERED", "id": "job0", "status": "running", "total-progress": "FILTERED", "type": "backup"}]}
+{"data": {"id": "job0", "status": "created"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 
 Pause/resume in RUNNING
 === Testing block-job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 65536, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 131072, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 65536, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 131072, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing block-job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 131072, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 196608, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 131072, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 196608, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 196608, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 262144, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 196608, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 262144, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 262144, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 327680, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
-{u'return': {}}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 262144, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 327680, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
+{"return": {}}
 
 Waiting for PENDING state...
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'waiting', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'pending', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'concluded', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'null', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': []}
+{"data": {"id": "job0", "status": "waiting"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "pending"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "concluded"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "null"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": []}
 
 
 Starting block job: drive-backup (auto-finalize: True; auto-dismiss: False)
-{u'return': {}}
-{u'return': [{u'status': u'running', u'current-progress': 'FILTERED', u'total-progress': 'FILTERED', u'id': u'job0', u'type': u'backup'}]}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'created', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
+{"return": {}}
+{"return": [{"current-progress": "FILTERED", "id": "job0", "status": "running", "total-progress": "FILTERED", "type": "backup"}]}
+{"data": {"id": "job0", "status": "created"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 
 Pause/resume in RUNNING
 === Testing block-job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 65536, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 131072, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 65536, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 131072, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing block-job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 131072, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 196608, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 131072, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 196608, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 196608, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 262144, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 196608, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 262144, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 262144, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 327680, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
-{u'return': {}}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 262144, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 327680, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
+{"return": {}}
 
 Waiting for PENDING state...
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'waiting', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'pending', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'concluded', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'concluded', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'pause'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'pause'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'finalize'"}}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'null', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': []}
+{"data": {"id": "job0", "status": "waiting"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "pending"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "concluded"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "concluded", "total-progress": 4194304, "type": "backup"}]}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'pause'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'pause'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'finalize'"}}
+{"return": {}}
+{"data": {"id": "job0", "status": "null"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": []}
 
 
 Starting block job: drive-backup (auto-finalize: False; auto-dismiss: True)
-{u'return': {}}
-{u'return': [{u'status': u'running', u'current-progress': 'FILTERED', u'total-progress': 'FILTERED', u'id': u'job0', u'type': u'backup'}]}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'created', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
+{"return": {}}
+{"return": [{"current-progress": "FILTERED", "id": "job0", "status": "running", "total-progress": "FILTERED", "type": "backup"}]}
+{"data": {"id": "job0", "status": "created"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 
 Pause/resume in RUNNING
 === Testing block-job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 65536, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 131072, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 65536, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 131072, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing block-job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 131072, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 196608, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 131072, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 196608, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 196608, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 262144, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 196608, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 262144, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 262144, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 327680, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
-{u'return': {}}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 262144, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 327680, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
+{"return": {}}
 
 Waiting for PENDING state...
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'waiting', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'pending', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'pending', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'pause'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'dismiss'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'pause'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'dismiss'"}}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'concluded', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'null', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': []}
+{"data": {"id": "job0", "status": "waiting"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "pending"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "pending", "total-progress": 4194304, "type": "backup"}]}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'pause'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'dismiss'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'pause'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'dismiss'"}}
+{"return": {}}
+{"data": {"id": "job0", "status": "concluded"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "null"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": []}
 
 
 Starting block job: drive-backup (auto-finalize: False; auto-dismiss: False)
-{u'return': {}}
-{u'return': [{u'status': u'running', u'current-progress': 'FILTERED', u'total-progress': 'FILTERED', u'id': u'job0', u'type': u'backup'}]}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'created', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
+{"return": {}}
+{"return": [{"current-progress": "FILTERED", "id": "job0", "status": "running", "total-progress": "FILTERED", "type": "backup"}]}
+{"data": {"id": "job0", "status": "created"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 
 Pause/resume in RUNNING
 === Testing block-job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 65536, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 131072, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 65536, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 131072, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing block-job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 131072, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 196608, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 131072, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 196608, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing job-pause/block-job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 196608, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 262144, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 196608, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 262144, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
 === Testing job-pause/job-resume ===
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'paused', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'paused', u'current-progress': 262144, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'running', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'running', u'current-progress': 327680, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
-{u'return': {}}
+{"return": {}}
+{"data": {"id": "job0", "status": "paused"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 262144, "id": "job0", "status": "paused", "total-progress": 4194304, "type": "backup"}]}
+{"return": {}}
+{"data": {"id": "job0", "status": "running"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 327680, "id": "job0", "status": "running", "total-progress": 4194304, "type": "backup"}]}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'running' cannot accept command verb 'dismiss'"}}
+{"return": {}}
 
 Waiting for PENDING state...
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'waiting', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'pending', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'pending', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'pause'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'dismiss'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'pause'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'pending' cannot accept command verb 'dismiss'"}}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'concluded', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': [{u'status': u'concluded', u'current-progress': 4194304, u'total-progress': 4194304, u'id': u'job0', u'type': u'backup'}]}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'pause'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'finalize'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'pause'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'complete'"}}
-{u'error': {u'class': u'GenericError', u'desc': u"Job 'job0' in state 'concluded' cannot accept command verb 'finalize'"}}
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'status': u'null', u'id': u'job0'}, u'event': u'JOB_STATUS_CHANGE'}
-{u'return': []}
+{"data": {"id": "job0", "status": "waiting"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"id": "job0", "status": "pending"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "pending", "total-progress": 4194304, "type": "backup"}]}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'pause'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'dismiss'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'pause'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'pending' cannot accept command verb 'dismiss'"}}
+{"return": {}}
+{"data": {"id": "job0", "status": "concluded"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": [{"current-progress": 4194304, "id": "job0", "status": "concluded", "total-progress": 4194304, "type": "backup"}]}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'pause'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'finalize'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'pause'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'complete'"}}
+{"error": {"class": "GenericError", "desc": "Job 'job0' in state 'concluded' cannot accept command verb 'finalize'"}}
+{"return": {}}
+{"data": {"id": "job0", "status": "null"}, "event": "JOB_STATUS_CHANGE", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": []}

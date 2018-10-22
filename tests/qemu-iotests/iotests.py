@@ -254,7 +254,10 @@ def filter_img_info(output, filename):
 def log(msg, filters=[]):
     for flt in filters:
         msg = flt(msg)
-    print(msg)
+    if type(msg) is dict or type(msg) is list:
+        print(json.dumps(msg, sort_keys=True))
+    else:
+        print(msg)
 
 class Timeout:
     def __init__(self, seconds, errmsg = "Timeout"):
@@ -442,10 +445,11 @@ class VM(qtest.QEMUQtestMachine):
         return result
 
     def qmp_log(self, cmd, filters=[filter_testfiles], **kwargs):
-        logmsg = "{'execute': '%s', 'arguments': %s}" % (cmd, kwargs)
+        logmsg = '{"execute": "%s", "arguments": %s}' % \
+            (cmd, json.dumps(kwargs, sort_keys=True))
         log(logmsg, filters)
         result = self.qmp(cmd, **kwargs)
-        log(str(result), filters)
+        log(json.dumps(result, sort_keys=True), filters)
         return result
 
     def run_job(self, job, auto_finalize=True, auto_dismiss=False):

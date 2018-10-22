@@ -28,7 +28,7 @@ iotests.verify_image_format(supported_fmts=['raw'])
 iotests.verify_protocol(supported=['ssh'])
 
 def filter_hash(msg):
-    return re.sub("'hash': '[0-9a-f]+'", "'hash': HASH", msg)
+    return re.sub('"hash": "[0-9a-f]+"', '"hash": HASH', msg)
 
 def blockdev_create(vm, options):
     result = vm.qmp_log('blockdev-create', job_id='job0', options=options,

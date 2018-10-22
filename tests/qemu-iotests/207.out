@@ -1,9 +1,9 @@
 === Successful image creation (defaults) ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'ssh', 'location': {'path': 'TEST_DIR/PID-t.img', 'server': {'host': '127.0.0.1', 'port': '22'}}, 'size': 4194304}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "ssh", "location": {"path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 4194304}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_IMG"}}
 file format: IMGFMT
@@ -16,49 +16,49 @@ virtual size: 4.0M (4194304 bytes)
 
 === Test host-key-check options ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'ssh', 'location': {'path': 'TEST_DIR/PID-t.img', 'host-key-check': {'mode': 'none'}, 'server': {'host': '127.0.0.1', 'port': '22'}}, 'size': 8388608}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"mode": "none"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 8388608}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_IMG"}}
 file format: IMGFMT
 virtual size: 8.0M (8388608 bytes)
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'ssh', 'location': {'path': 'TEST_DIR/PID-t.img', 'host-key-check': {'mode': 'known_hosts'}, 'server': {'host': '127.0.0.1', 'port': '22'}}, 'size': 4194304}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"mode": "known_hosts"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 4194304}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_IMG"}}
 file format: IMGFMT
 virtual size: 4.0M (4194304 bytes)
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'ssh', 'location': {'path': 'TEST_DIR/PID-t.img', 'host-key-check': {'hash': 'wrong', 'type': 'md5', 'mode': 'hash'}, 'server': {'host': '127.0.0.1', 'port': '22'}}, 'size': 2097152}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": "wrong", "mode": "hash", "type": "md5"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 2097152}}}
+{"return": {}}
 Job failed: remote host key does not match host_key_check 'wrong'
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'ssh', 'location': {'path': 'TEST_DIR/PID-t.img', 'host-key-check': {'hash': HASH, 'type': 'md5', 'mode': 'hash'}, 'server': {'host': '127.0.0.1', 'port': '22'}}, 'size': 8388608}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": HASH, "mode": "hash", "type": "md5"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 8388608}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_IMG"}}
 file format: IMGFMT
 virtual size: 8.0M (8388608 bytes)
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'ssh', 'location': {'path': 'TEST_DIR/PID-t.img', 'host-key-check': {'hash': 'wrong', 'type': 'sha1', 'mode': 'hash'}, 'server': {'host': '127.0.0.1', 'port': '22'}}, 'size': 2097152}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": "wrong", "mode": "hash", "type": "sha1"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 2097152}}}
+{"return": {}}
 Job failed: remote host key does not match host_key_check 'wrong'
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'ssh', 'location': {'path': 'TEST_DIR/PID-t.img', 'host-key-check': {'hash': HASH, 'type': 'sha1', 'mode': 'hash'}, 'server': {'host': '127.0.0.1', 'port': '22'}}, 'size': 4194304}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"hash": HASH, "mode": "hash", "type": "sha1"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 4194304}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_IMG"}}
 file format: IMGFMT
@@ -66,15 +66,15 @@ virtual size: 4.0M (4194304 bytes)
 
 === Invalid path and user ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'ssh', 'location': {'path': '/this/is/not/an/existing/path', 'host-key-check': {'mode': 'none'}, 'server': {'host': '127.0.0.1', 'port': '22'}}, 'size': 4194304}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"mode": "none"}, "path": "/this/is/not/an/existing/path", "server": {"host": "127.0.0.1", "port": "22"}}, "size": 4194304}}}
+{"return": {}}
 Job failed: failed to open remote file '/this/is/not/an/existing/path': Failed opening remote file (libssh2 error code: -31)
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'ssh', 'location': {'path': 'TEST_DIR/PID-t.img', 'host-key-check': {'mode': 'none'}, 'user': 'invalid user', 'server': {'host': '127.0.0.1', 'port': '22'}}, 'size': 4194304}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"mode": "none"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}, "user": "invalid user"}, "size": 4194304}}}
+{"return": {}}
 Job failed: failed to authenticate using publickey authentication and the identities held by your ssh-agent
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
