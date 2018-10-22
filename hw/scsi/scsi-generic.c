@@ -16,6 +16,7 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
+#include "hw/scsi/emulation.h"
 #include "sysemu/block-backend.h"
 
 #ifdef __linux__
@@ -181,7 +182,7 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
             /* Also take care of the opt xfer len. */
             stl_be_p(&r->buf[12],
                     MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
-        } else if (page == 0x00 && s->needs_vpd_bl_emulation) {
+        } else if (s->needs_vpd_bl_emulation && page == 0x00) {
             /*
              * Now we're capable of supplying the VPD Block Limits
              * response if the hardware can't. Add it in the INQUIRY
@@ -209,9 +210,24 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
     }
 }
 
-static int scsi_emulate_block_limits(SCSIGenericReq *r)
+static int scsi_generic_emulate_block_limits(SCSIGenericReq *r, SCSIDevice *s)
 {
-    r->buflen = scsi_disk_emulate_vpd_page(&r->req, r->buf);
+    int len;
+    uint8_t buf[64];
+
+    SCSIBlockLimits bl = {
+        .max_io_sectors = blk_get_max_transfer(s->conf.blk) / s->blocksize
+    };
+
+    memset(r->buf, 0, r->buflen);
+    stb_p(buf, s->type);
+    stb_p(buf + 1, 0xb0);
+    len = scsi_emulate_block_limits(buf + 4, &bl);
+    assert(len <= sizeof(buf) - 4);
+    stw_be_p(buf + 2, len);
+
+    memcpy(r->buf, buf, MIN(r->buflen, len + 4));
+
     r->io_header.sb_len_wr = 0;
 
     /*
@@ -253,13 +269,12 @@ static void scsi_read_complete(void * opaque, int ret)
      * resulted in sense error but would need emulation.
      * In this case, emulate a valid VPD response.
      */
-    if (s->needs_vpd_bl_emulation) {
-        int is_vpd_bl = r->req.cmd.buf[0] == INQUIRY &&
-                         r->req.cmd.buf[1] & 0x01 &&
-                         r->req.cmd.buf[2] == 0xb0;
-
-        if (is_vpd_bl && sg_io_sense_from_errno(-ret, &r->io_header, &sense)) {
-            len = scsi_emulate_block_limits(r);
+    if (s->needs_vpd_bl_emulation &&
+        r->req.cmd.buf[0] == INQUIRY &&
+        (r->req.cmd.buf[1] & 0x01) &&
+        r->req.cmd.buf[2] == 0xb0) {
+        if (sg_io_sense_from_errno(-ret, &r->io_header, &sense)) {
+            len = scsi_generic_emulate_block_limits(r, s);
             /*
              * No need to let scsi_read_complete go on and handle an
              * INQUIRY VPD BL request we created manually.
