@@ -246,7 +246,6 @@ static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIDevice *s = r->req.dev;
-    SCSISense sense;
     int len;
 
     assert(r->req.aiocb != NULL);
@@ -269,11 +268,14 @@ static void scsi_read_complete(void * opaque, int ret)
      * resulted in sense error but would need emulation.
      * In this case, emulate a valid VPD response.
      */
-    if (s->needs_vpd_bl_emulation &&
+    if (s->needs_vpd_bl_emulation && ret == 0 &&
+        (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) &&
         r->req.cmd.buf[0] == INQUIRY &&
         (r->req.cmd.buf[1] & 0x01) &&
         r->req.cmd.buf[2] == 0xb0) {
-        if (sg_io_sense_from_errno(-ret, &r->io_header, &sense)) {
+        SCSISense sense =
+            scsi_parse_sense_buf(r->req.sense, r->io_header.sb_len_wr);
+        if (sense.key == ILLEGAL_REQUEST) {
             len = scsi_generic_emulate_block_limits(r, s);
             /*
              * No need to let scsi_read_complete go on and handle an
