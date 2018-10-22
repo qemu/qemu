@@ -86,7 +86,7 @@ class TestRefcountTableGrowth(iotests.QMPTestCase):
                 off = off + 1024 * 512
 
             table = b''.join(struct.pack('>Q', (1 << 63) | off + 512 * j)
-                for j in xrange(0, remaining / 512))
+                for j in xrange(0, remaining // 512))
             fd.write(table)
 
 

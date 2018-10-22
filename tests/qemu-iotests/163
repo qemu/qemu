@@ -38,7 +38,7 @@ class ShrinkBaseClass(iotests.QMPTestCase):
         entry_bits = 3
         entry_size = 1 << entry_bits
         l1_mask = 0x00fffffffffffe00
-        div_roundup = lambda n, d: (n + d - 1) / d
+        div_roundup = lambda n, d: (n + d - 1) // d
 
         def split_by_n(data, n):
             for x in xrange(0, len(data), n):

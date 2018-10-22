@@ -199,7 +199,7 @@ def create_image(name, size):
     file = open(name, 'wb')
     i = 0
     while i < size:
-        sector = struct.pack('>l504xl', i / 512, i / 512)
+        sector = struct.pack('>l504xl', i // 512, i // 512)
         file.write(sector)
         i = i + 512
     file.close()

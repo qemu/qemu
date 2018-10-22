@@ -195,7 +195,7 @@ class TestSingleDrive(ImageCommitTestCase):
 
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('block-commit', device='drive0', top=mid_img,
-                             base=backing_img, speed=(self.image_len / 4))
+                             base=backing_img, speed=(self.image_len // 4))
         self.assert_qmp(result, 'return', {})
         result = self.vm.qmp('device_del', id='scsi0')
         self.assert_qmp(result, 'return', {})
@@ -225,7 +225,7 @@ class TestSingleDrive(ImageCommitTestCase):
 
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('block-commit', device='drive0', top=mid_img,
-                             base=backing_img, speed=(self.image_len / 4))
+                             base=backing_img, speed=(self.image_len // 4))
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('query-block')
