@@ -148,11 +148,19 @@ class QEMUMachine(object):
         if opts:
             options.append(opts)
 
+        # This did not exist before 3.4, but since then it is
+        # mandatory for our purpose
+        if hasattr(os, 'set_inheritable'):
+            os.set_inheritable(fd, True)
+
         self._args.append('-add-fd')
         self._args.append(','.join(options))
         return self
 
-    def send_fd_scm(self, fd_file_path):
+    # Exactly one of fd and file_path must be given.
+    # (If it is file_path, the helper will open that file and pass its
+    # own fd)
+    def send_fd_scm(self, fd=None, file_path=None):
         # In iotest.py, the qmp should always use unix socket.
         assert self._qmp.is_scm_available()
         if self._socket_scm_helper is None:
@@ -160,12 +168,27 @@ class QEMUMachine(object):
         if not os.path.exists(self._socket_scm_helper):
             raise QEMUMachineError("%s does not exist" %
                                    self._socket_scm_helper)
+
+        # This did not exist before 3.4, but since then it is
+        # mandatory for our purpose
+        if hasattr(os, 'set_inheritable'):
+            os.set_inheritable(self._qmp.get_sock_fd(), True)
+            if fd is not None:
+                os.set_inheritable(fd, True)
+
         fd_param = ["%s" % self._socket_scm_helper,
-                    "%d" % self._qmp.get_sock_fd(),
-                    "%s" % fd_file_path]
+                    "%d" % self._qmp.get_sock_fd()]
+
+        if file_path is not None:
+            assert fd is None
+            fd_param.append(file_path)
+        else:
+            assert fd is not None
+            fd_param.append(str(fd))
+
         devnull = open(os.path.devnull, 'rb')
         proc = subprocess.Popen(fd_param, stdin=devnull, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
+                                stderr=subprocess.STDOUT, close_fds=False)
         output = proc.communicate()[0]
         if output:
             LOG.debug(output)
@@ -286,7 +309,8 @@ class QEMUMachine(object):
                                        stdin=devnull,
                                        stdout=self._qemu_log_file,
                                        stderr=subprocess.STDOUT,
-                                       shell=False)
+                                       shell=False,
+                                       close_fds=False)
         self._post_launch()
 
     def wait(self):
