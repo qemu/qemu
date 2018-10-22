@@ -463,8 +463,10 @@ enum {
     OPC_WSBH      = (0x02 << 6) | OPC_BSHFL,
     OPC_SEB       = (0x10 << 6) | OPC_BSHFL,
     OPC_SEH       = (0x18 << 6) | OPC_BSHFL,
-    OPC_ALIGN     = (0x08 << 6) | OPC_BSHFL, /* 010.bp */
-    OPC_ALIGN_END = (0x0B << 6) | OPC_BSHFL, /* 010.00 to 010.11 */
+    OPC_ALIGN     = (0x08 << 6) | OPC_BSHFL, /* 010.bp (010.00 to 010.11) */
+    OPC_ALIGN_1   = (0x09 << 6) | OPC_BSHFL,
+    OPC_ALIGN_2   = (0x0A << 6) | OPC_BSHFL,
+    OPC_ALIGN_3   = (0x0B << 6) | OPC_BSHFL,
     OPC_BITSWAP   = (0x00 << 6) | OPC_BSHFL  /* 00000 */
 };
 
@@ -474,8 +476,14 @@ enum {
 enum {
     OPC_DSBH       = (0x02 << 6) | OPC_DBSHFL,
     OPC_DSHD       = (0x05 << 6) | OPC_DBSHFL,
-    OPC_DALIGN     = (0x08 << 6) | OPC_DBSHFL, /* 01.bp */
-    OPC_DALIGN_END = (0x0F << 6) | OPC_DBSHFL, /* 01.000 to 01.111 */
+    OPC_DALIGN     = (0x08 << 6) | OPC_DBSHFL, /* 01.bp (01.000 to 01.111) */
+    OPC_DALIGN_1   = (0x09 << 6) | OPC_DBSHFL,
+    OPC_DALIGN_2   = (0x0A << 6) | OPC_DBSHFL,
+    OPC_DALIGN_3   = (0x0B << 6) | OPC_DBSHFL,
+    OPC_DALIGN_4   = (0x0C << 6) | OPC_DBSHFL,
+    OPC_DALIGN_5   = (0x0D << 6) | OPC_DBSHFL,
+    OPC_DALIGN_6   = (0x0E << 6) | OPC_DBSHFL,
+    OPC_DALIGN_7   = (0x0F << 6) | OPC_DBSHFL,
     OPC_DBITSWAP   = (0x00 << 6) | OPC_DBSHFL, /* 00000 */
 };
 
@@ -23957,7 +23965,9 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
             op2 = MASK_BSHFL(ctx->opcode);
             switch (op2) {
             case OPC_ALIGN:
-            case OPC_ALIGN_END:
+            case OPC_ALIGN_1:
+            case OPC_ALIGN_2:
+            case OPC_ALIGN_3:
                 gen_align(ctx, 32, rd, rs, rt, sa & 3);
                 break;
             case OPC_BITSWAP:
@@ -23983,7 +23993,13 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
             op2 = MASK_DBSHFL(ctx->opcode);
             switch (op2) {
             case OPC_DALIGN:
-            case OPC_DALIGN_END:
+            case OPC_DALIGN_1:
+            case OPC_DALIGN_2:
+            case OPC_DALIGN_3:
+            case OPC_DALIGN_4:
+            case OPC_DALIGN_5:
+            case OPC_DALIGN_6:
+            case OPC_DALIGN_7:
                 gen_align(ctx, 64, rd, rs, rt, sa & 7);
                 break;
             case OPC_DBITSWAP:
@@ -24843,7 +24859,9 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
         op2 = MASK_BSHFL(ctx->opcode);
         switch (op2) {
         case OPC_ALIGN:
-        case OPC_ALIGN_END:
+        case OPC_ALIGN_1:
+        case OPC_ALIGN_2:
+        case OPC_ALIGN_3:
         case OPC_BITSWAP:
             check_insn(ctx, ISA_MIPS32R6);
             decode_opc_special3_r6(env, ctx);
@@ -24869,7 +24887,13 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
         op2 = MASK_DBSHFL(ctx->opcode);
         switch (op2) {
         case OPC_DALIGN:
-        case OPC_DALIGN_END:
+        case OPC_DALIGN_1:
+        case OPC_DALIGN_2:
+        case OPC_DALIGN_3:
+        case OPC_DALIGN_4:
+        case OPC_DALIGN_5:
+        case OPC_DALIGN_6:
+        case OPC_DALIGN_7:
         case OPC_DBITSWAP:
             check_insn(ctx, ISA_MIPS32R6);
             decode_opc_special3_r6(env, ctx);
