@@ -18,6 +18,7 @@
 #define HV_CPUID_FEATURES                     0x40000003
 #define HV_CPUID_ENLIGHTMENT_INFO             0x40000004
 #define HV_CPUID_IMPLEMENT_LIMITS             0x40000005
+#define HV_CPUID_NESTED_FEATURES              0x4000000A
 #define HV_CPUID_MIN                          0x40000005
 #define HV_CPUID_MAX                          0x4000ffff
 #define HV_HYPERVISOR_PRESENT_BIT             0x80000000
@@ -60,6 +61,7 @@
 #define HV_RELAXED_TIMING_RECOMMENDED       (1u << 5)
 #define HV_CLUSTER_IPI_RECOMMENDED          (1u << 10)
 #define HV_EX_PROCESSOR_MASKS_RECOMMENDED   (1u << 11)
+#define HV_ENLIGHTENED_VMCS_RECOMMENDED     (1u << 14)
 
 /*
  * Basic virtualized MSRs
