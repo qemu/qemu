@@ -26,8 +26,8 @@ typedef struct QVirtioNetDevice QVirtioNetDevice;
 
 struct QVirtioNet {
     QVirtioDevice *vdev;
-    QVirtQueue *rx;
-    QVirtQueue *tx;
+    int n_queues;
+    QVirtQueue **queues;
 };
 
 struct QVirtioNetPCI {

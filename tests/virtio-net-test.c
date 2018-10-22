@@ -136,8 +136,8 @@ static void send_recv_test(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QVirtioNet *net_if = obj;
     QVirtioDevice *dev = net_if->vdev;
-    QVirtQueue *rx = net_if->rx;
-    QVirtQueue *tx = net_if->tx;
+    QVirtQueue *rx = net_if->queues[0];
+    QVirtQueue *tx = net_if->queues[1];
     int *sv = data;
 
     rx_test(dev, t_alloc, rx, sv[0]);
@@ -148,7 +148,7 @@ static void stop_cont_test(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QVirtioNet *net_if = obj;
     QVirtioDevice *dev = net_if->vdev;
-    QVirtQueue *rx = net_if->rx;
+    QVirtQueue *rx = net_if->queues[0];
     int *sv = data;
 
     rx_stop_cont_test(dev, t_alloc, rx, sv[0]);

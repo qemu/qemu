@@ -27,14 +27,19 @@ static QGuestAllocator *alloc;
 
 static void virtio_net_cleanup(QVirtioNet *interface)
 {
-    qvirtqueue_cleanup(interface->vdev->bus, interface->rx, alloc);
-    qvirtqueue_cleanup(interface->vdev->bus, interface->tx, alloc);
+    int i;
+
+    for (i = 0; i < interface->n_queues; i++) {
+        qvirtqueue_cleanup(interface->vdev->bus, interface->queues[i], alloc);
+    }
+    g_free(interface->queues);
 }
 
 static void virtio_net_setup(QVirtioNet *interface)
 {
     QVirtioDevice *vdev = interface->vdev;
     uint64_t features;
+    int i;
 
     features = qvirtio_get_features(vdev);
     features &= ~(QVIRTIO_F_BAD_FEATURE |
@@ -42,8 +47,16 @@ static void virtio_net_setup(QVirtioNet *interface)
                   (1u << VIRTIO_RING_F_EVENT_IDX));
     qvirtio_set_features(vdev, features);
 
-    interface->rx = qvirtqueue_setup(vdev, alloc, 0);
-    interface->tx = qvirtqueue_setup(vdev, alloc, 1);
+    if (features & (1u << VIRTIO_NET_F_MQ)) {
+        interface->n_queues = qvirtio_config_readw(vdev, 8) * 2;
+    } else {
+        interface->n_queues = 2;
+    }
+
+    interface->queues = g_new(QVirtQueue *, interface->n_queues);
+    for (i = 0; i < interface->n_queues; i++) {
+        interface->queues[i] = qvirtqueue_setup(vdev, alloc, i);
+    }
     qvirtio_set_driver_ok(vdev);
 }
 
