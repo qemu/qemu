@@ -23,7 +23,6 @@ import iotests
 import time
 import itertools
 import operator
-import new
 import re
 from iotests import qemu_img
 
@@ -204,7 +203,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
 
 def inject_test_case(klass, name, method, *args, **kwargs):
     mc = operator.methodcaller(method, *args, **kwargs)
-    setattr(klass, 'test_' + method + name, new.instancemethod(mc, None, klass))
+    setattr(klass, 'test_' + method + name, lambda self: mc(self))
 
 for cmb in list(itertools.product((True, False), repeat=4)):
     name = ('_' if cmb[0] else '_not_') + 'persistent_'
