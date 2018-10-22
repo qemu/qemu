@@ -538,7 +538,7 @@ static void scsi_generic_set_vpd_bl_emulation(SCSIDevice *s)
     }
 
     page_len = buf[3];
-    for (i = 4; i < page_len + 4; i++) {
+    for (i = 4; i < MIN(sizeof(buf), page_len + 4); i++) {
         if (buf[i] == 0xb0) {
             s->needs_vpd_bl_emulation = false;
             return;
