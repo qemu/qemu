@@ -29,6 +29,7 @@ import json
 import signal
 import logging
 import atexit
+import io
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
 import qtest
@@ -681,15 +682,19 @@ def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[],
     verify_platform(supported_oses)
     verify_cache_mode(supported_cache_modes)
 
-    # We need to filter out the time taken from the output so that qemu-iotest
-    # can reliably diff the results against master output.
-    import StringIO
     if debug:
         output = sys.stdout
         verbosity = 2
         sys.argv.remove('-d')
     else:
-        output = StringIO.StringIO()
+        # We need to filter out the time taken from the output so that
+        # qemu-iotest can reliably diff the results against master output.
+        if sys.version_info.major >= 3:
+            output = io.StringIO()
+        else:
+            # io.StringIO is for unicode strings, which is not what
+            # 2.x's test runner emits.
+            output = io.BytesIO()
 
     logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
 
