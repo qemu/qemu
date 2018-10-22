@@ -86,7 +86,7 @@ def recvall(sock, bufsize):
             raise Exception('unexpected disconnect')
         chunks.append(chunk)
         received += len(chunk)
-    return ''.join(chunks)
+    return b''.join(chunks)
 
 class Rule(object):
     def __init__(self, name, event, io, when):
@@ -177,7 +177,7 @@ def handle_connection(conn, use_export):
         req = read_request(conn)
         if req.type == NBD_CMD_READ:
             write_reply(conn, 0, req.handle)
-            conn.send('\0' * req.len, event='data')
+            conn.send(b'\0' * req.len, event='data')
         elif req.type == NBD_CMD_WRITE:
             _ = conn.recv(req.len, event='data')
             write_reply(conn, 0, req.handle)

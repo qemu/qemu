@@ -10,7 +10,7 @@ class QcowHeaderExtension:
     def __init__(self, magic, length, data):
         if length % 8 != 0:
             padding = 8 - (length % 8)
-            data += "\0" * padding
+            data += b"\0" * padding
 
         self.magic  = magic
         self.length = length
@@ -103,7 +103,7 @@ class QcowHeader:
 
         fd.seek(self.header_length)
         extensions = self.extensions
-        extensions.append(QcowHeaderExtension(0, 0, ""))
+        extensions.append(QcowHeaderExtension(0, 0, b""))
         for ex in extensions:
             buf = struct.pack('>II', ex.magic, ex.length)
             fd.write(buf)
@@ -137,8 +137,8 @@ class QcowHeader:
         for ex in self.extensions:
 
             data = ex.data[:ex.length]
-            if all(c in string.printable for c in data):
-                data = "'%s'" % data
+            if all(c in string.printable.encode('ascii') for c in data):
+                data = "'%s'" % data.decode('ascii')
             else:
                 data = "<binary>"
 
@@ -178,7 +178,7 @@ def cmd_add_header_ext(fd, magic, data):
         sys.exit(1)
 
     h = QcowHeader(fd)
-    h.extensions.append(QcowHeaderExtension.create(magic, data))
+    h.extensions.append(QcowHeaderExtension.create(magic, data.encode('ascii')))
     h.update(fd)
 
 def cmd_add_header_ext_stdio(fd, magic):

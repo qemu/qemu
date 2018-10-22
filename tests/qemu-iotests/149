@@ -79,7 +79,7 @@ class LUKSConfig(object):
 
     def first_password_base64(self):
         (pw, slot) = self.first_password()
-        return base64.b64encode(pw)
+        return base64.b64encode(pw.encode('ascii')).decode('ascii')
 
     def active_slots(self):
         slots = []
@@ -98,7 +98,8 @@ def verify_passwordless_sudo():
     proc = subprocess.Popen(args,
                             stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
 
     msg = proc.communicate()[0]
 
@@ -116,7 +117,8 @@ def cryptsetup(args, password=None):
     proc = subprocess.Popen(fullargs,
                             stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
 
     msg = proc.communicate(password)[0]
 

@@ -104,7 +104,8 @@ def qemu_img_pipe(*args):
     '''Run qemu-img and return its output'''
     subp = subprocess.Popen(qemu_img_args + list(args),
                             stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
     exitcode = subp.wait()
     if exitcode < 0:
         sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
@@ -128,7 +129,8 @@ def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
     subp = subprocess.Popen(args, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
     exitcode = subp.wait()
     if exitcode < 0:
         sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
@@ -149,7 +151,8 @@ class QemuIoInteractive:
         self.args = qemu_io_args + list(args)
         self._p = subprocess.Popen(self.args, stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                   stderr=subprocess.STDOUT,
+                                   universal_newlines=True)
         assert self._p.stdout.read(9) == 'qemu-io> '
 
     def close(self):
@@ -193,7 +196,7 @@ def compare_images(img1, img2, fmt1=imgfmt, fmt2=imgfmt):
 
 def create_image(name, size):
     '''Create a fully-allocated raw image with sector markers'''
-    file = open(name, 'w')
+    file = open(name, 'wb')
     i = 0
     while i < size:
         sector = struct.pack('>l504xl', i / 512, i / 512)
