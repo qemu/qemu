@@ -120,7 +120,7 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
     g_assert(address_space_end >= address_space_start);
 
     /* address_space_start indicates the maximum alignment we expect */
-    if (QEMU_ALIGN_UP(address_space_start, align) != address_space_start) {
+    if (!QEMU_IS_ALIGNED(address_space_start, align)) {
         error_setg(errp, "the alignment (0x%" PRIx64 ") is not supported",
                    align);
         return 0;
@@ -131,13 +131,13 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
         return 0;
     }
 
-    if (hint && QEMU_ALIGN_UP(*hint, align) != *hint) {
+    if (hint && !QEMU_IS_ALIGNED(*hint, align)) {
         error_setg(errp, "address must be aligned to 0x%" PRIx64 " bytes",
                    align);
         return 0;
     }
 
-    if (QEMU_ALIGN_UP(size, align) != size) {
+    if (!QEMU_IS_ALIGNED(size, align)) {
         error_setg(errp, "backend memory size must be multiple of 0x%"
                    PRIx64, align);
         return 0;
