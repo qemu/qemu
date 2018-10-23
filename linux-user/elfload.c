@@ -2396,6 +2396,7 @@ static void load_elf_image(const char *image_name, int image_fd,
                 }
             }
             bswap_mips_abiflags(&abiflags);
+            info->fp_abi = abiflags.fp_abi;
 #endif
         }
     }
@@ -2708,6 +2709,9 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
             target_mmap(0, qemu_host_page_size, PROT_READ | PROT_EXEC,
                         MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         }
+#ifdef TARGET_MIPS
+        info->interp_fp_abi = interp_info.fp_abi;
+#endif
     }
 
     bprm->p = create_elf_tables(bprm->p, bprm->argc, bprm->envc, &elf_ex,
