@@ -23989,6 +23989,12 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
 #define MXU_APTN2_SA    2
 #define MXU_APTN2_SS    3
 
+/* MXU execute add/subtract 2-bit pattern 'eptn2' */
+#define MXU_EPTN2_AA    0
+#define MXU_EPTN2_AS    1
+#define MXU_EPTN2_SA    2
+#define MXU_EPTN2_SS    3
+
 
 /*
  *
