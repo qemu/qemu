@@ -950,7 +950,12 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
     if (udev == NULL || udevice == NULL) {
         g_debug("failed to query udev");
     } else {
-        const char *serial;
+        const char *devnode, *serial;
+        devnode = udev_device_get_devnode(udevice);
+        if (devnode != NULL) {
+            disk->dev = g_strdup(devnode);
+            disk->has_dev = true;
+        }
         serial = udev_device_get_property_value(udevice, "ID_SERIAL");
         if (serial != NULL && *serial != 0) {
             disk->serial = g_strdup(serial);
