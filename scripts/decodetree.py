@@ -63,12 +63,15 @@
 #
 # *** Argument set syntax:
 #
-# args_def    := '&' identifier ( args_elt )+
+# args_def    := '&' identifier ( args_elt )+ ( !extern )?
 # args_elt    := identifier
 #
 # Each args_elt defines an argument within the argument set.
 # Each argument set will be rendered as a C structure "arg_$name"
 # with each of the fields being one of the member arguments.
+#
+# If !extern is specified, the backing structure is assumed to
+# have been already declared, typically via a second decoder.
 #
 # Argument set examples:
 #
@@ -167,6 +170,7 @@ input_file = ''
 output_file = None
 output_fd = None
 insntype = 'uint32_t'
+decode_function = 'decode'
 
 re_ident = '[a-zA-Z][a-zA-Z0-9_]*'
 
@@ -392,8 +396,9 @@ class FunctionField:
 
 class Arguments:
     """Class representing the extracted fields of a format"""
-    def __init__(self, nm, flds):
+    def __init__(self, nm, flds, extern):
         self.name = nm
+        self.extern = extern
         self.fields = sorted(flds)
 
     def __str__(self):
@@ -403,10 +408,11 @@ class Arguments:
         return 'arg_' + self.name
 
     def output_def(self):
-        output('typedef struct {\n')
-        for n in self.fields:
-            output('    int ', n, ';\n')
-        output('} ', self.struct_name(), ';\n\n')
+        if not self.extern:
+            output('typedef struct {\n')
+            for n in self.fields:
+                output('    int ', n, ';\n')
+            output('} ', self.struct_name(), ';\n\n')
 # end Arguments
 
 
@@ -540,7 +546,11 @@ def parse_arguments(lineno, name, toks):
     global re_ident
 
     flds = []
+    extern = False
     for t in toks:
+        if re_fullmatch('!extern', t):
+            extern = True
+            continue
         if not re_fullmatch(re_ident, t):
             error(lineno, 'invalid argument set token "{0}"'.format(t))
         if t in flds:
@@ -549,7 +559,7 @@ def parse_arguments(lineno, name, toks):
 
     if name in arguments:
         error(lineno, 'duplicate argument set', name)
-    arguments[name] = Arguments(name, flds)
+    arguments[name] = Arguments(name, flds, extern)
 # end parse_arguments
 
 
@@ -573,13 +583,14 @@ def add_field_byname(lineno, flds, new_name, old_name):
 
 def infer_argument_set(flds):
     global arguments
+    global decode_function
 
     for arg in arguments.values():
         if eq_fields_for_args(flds, arg.fields):
             return arg
 
-    name = str(len(arguments))
-    arg = Arguments(name, flds.keys())
+    name = decode_function + str(len(arguments))
+    arg = Arguments(name, flds.keys(), False)
     arguments[name] = arg
     return arg
 
@@ -587,6 +598,7 @@ def infer_argument_set(flds):
 def infer_format(arg, fieldmask, flds):
     global arguments
     global formats
+    global decode_function
 
     const_flds = {}
     var_flds = {}
@@ -606,7 +618,7 @@ def infer_format(arg, fieldmask, flds):
             continue
         return (fmt, const_flds)
 
-    name = 'Fmt_' + str(len(formats))
+    name = decode_function + '_Fmt_' + str(len(formats))
     if not arg:
         arg = infer_argument_set(flds)
 
@@ -971,8 +983,8 @@ def main():
     global insnwidth
     global insntype
     global insnmask
+    global decode_function
 
-    decode_function = 'decode'
     decode_scope = 'static '
 
     long_opts = ['decode=', 'translate=', 'output=', 'insnwidth=']
