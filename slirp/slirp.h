@@ -212,6 +212,7 @@ struct Slirp {
     /* tftp states */
     char *tftp_prefix;
     struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
+    char *tftp_server_name;
 
     ArpTable arp_table;
     NdpTable ndp_table;

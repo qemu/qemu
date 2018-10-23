@@ -1823,7 +1823,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "         [,ipv6[=on|off]][,ipv6-net=addr[/int]][,ipv6-host=addr]\n"
     "         [,restrict=on|off][,hostname=host][,dhcpstart=addr]\n"
     "         [,dns=addr][,ipv6-dns=addr][,dnssearch=domain][,domainname=domain]\n"
-    "         [,tftp=dir][,bootfile=f][,hostfwd=rule][,guestfwd=rule]"
+    "         [,tftp=dir][,tftp-server-name=name][,bootfile=f][,hostfwd=rule][,guestfwd=rule]"
 #ifndef _WIN32
                                              "[,smb=dir[,smbserver=addr]]\n"
 #endif
@@ -2059,6 +2059,11 @@ When using the user mode network stack, activate a built-in TFTP
 server. The files in @var{dir} will be exposed as the root of a TFTP server.
 The TFTP client on the guest must be configured in binary mode (use the command
 @code{bin} of the Unix TFTP client).
+
+@item tftp-server-name=@var{name}
+In BOOTP reply, broadcast @var{name} as the "TFTP server name" (RFC2132 option
+66). This can be used to advise the guest to load boot files or configurations
+from a different server than the host address.
 
 @item bootfile=@var{file}
 When using the user mode network stack, broadcast @var{file} as the BOOTP
