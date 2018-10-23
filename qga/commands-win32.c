@@ -684,8 +684,7 @@ out_free:
     return;
 }
 
-static void get_single_disk_info(char *name, GuestDiskAddress *disk,
-    Error **errp)
+static void get_single_disk_info(GuestDiskAddress *disk, Error **errp)
 {
     SCSI_ADDRESS addr, *scsi_ad;
     DWORD len;
@@ -694,8 +693,8 @@ static void get_single_disk_info(char *name, GuestDiskAddress *disk,
 
     scsi_ad = &addr;
 
-    g_debug("getting disk info for: %s", name);
-    disk_h = CreateFile(name, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+    g_debug("getting disk info for: %s", disk->dev);
+    disk_h = CreateFile(disk->dev, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
                        0, NULL);
     if (disk_h == INVALID_HANDLE_VALUE) {
         error_setg_win32(errp, GetLastError(), "failed to open disk");
@@ -714,7 +713,7 @@ static void get_single_disk_info(char *name, GuestDiskAddress *disk,
      * if that doesn't hold since that suggests some other unexpected
      * breakage
      */
-    disk->pci_controller = get_pci_info(name, &local_err);
+    disk->pci_controller = get_pci_info(disk->dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto err_close;
@@ -797,7 +796,9 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
             /* Possibly CD-ROM or a shared drive. Try to pass the volume */
             g_debug("volume not on disk");
             disk = g_malloc0(sizeof(GuestDiskAddress));
-            get_single_disk_info(name, disk, &local_err);
+            disk->has_dev = true;
+            disk->dev = g_strdup(name);
+            get_single_disk_info(disk, &local_err);
             if (local_err) {
                 g_debug("failed to get disk info, ignoring error: %s",
                     error_get_pretty(local_err));
@@ -819,7 +820,6 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
 
     /* Go through each extent */
     for (i = 0; i < extents->NumberOfDiskExtents; i++) {
-        char *disk_name = NULL;
         disk = g_malloc0(sizeof(GuestDiskAddress));
 
         /* Disk numbers directly correspond to numbers used in UNCs
@@ -830,10 +830,11 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
          * See also Naming Files, Paths and Namespaces:
          * https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#win32-device-namespaces
          */
-        disk_name = g_strdup_printf("\\\\.\\PhysicalDrive%lu",
+        disk->has_dev = true;
+        disk->dev = g_strdup_printf("\\\\.\\PhysicalDrive%lu",
             extents->Extents[i].DiskNumber);
-        get_single_disk_info(disk_name, disk, &local_err);
-        g_free(disk_name);
+
+        get_single_disk_info(disk, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             goto out;
