@@ -40,7 +40,7 @@
 
 /*
  * I440FX chipset data sheet.
- * http://download.intel.com/design/chipsets/datashts/29054901.pdf
+ * https://wiki.qemu.org/File:29054901.pdf
  */
 
 #define I440FX_PCI_HOST_BRIDGE(obj) \
