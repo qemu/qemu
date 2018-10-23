@@ -466,8 +466,7 @@ class Pattern(General):
         output('typedef ', self.base.base.struct_name(),
                ' arg_', self.name, ';\n')
         output(translate_scope, 'bool ', translate_prefix, '_', self.name,
-               '(DisasContext *ctx, arg_', self.name,
-               ' *a, ', insntype, ' insn);\n')
+               '(DisasContext *ctx, arg_', self.name, ' *a);\n')
 
     def output_code(self, i, extracted, outerbits, outermask):
         global translate_prefix
@@ -479,7 +478,7 @@ class Pattern(General):
         for n, f in self.fields.items():
             output(ind, 'u.f_', arg, '.', n, ' = ', f.str_extract(), ';\n')
         output(ind, 'return ', translate_prefix, '_', self.name,
-               '(ctx, &u.f_', arg, ', insn);\n')
+               '(ctx, &u.f_', arg, ');\n')
 # end Pattern
 
 
