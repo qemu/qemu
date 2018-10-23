@@ -161,12 +161,6 @@ typedef struct CPUTLBCommon {
     /* Serialize updates to tlb_table and tlb_v_table, and others as noted. */
     QemuSpin lock;
     /*
-     * Within pending_flush, for each bit N, there exists an outstanding
-     * cross-cpu flush for mmu_idx N.  Further cross-cpu flushes to that
-     * mmu_idx may be discarded.  Protected by tlb_c.lock.
-     */
-    uint16_t pending_flush;
-    /*
      * Within dirty, for each bit N, modifications have been made to
      * mmu_idx N since the last time that mmu_idx was flushed.
      * Protected by tlb_c.lock.

@@ -174,20 +174,8 @@ void tlb_flush_by_mmuidx(CPUState *cpu, uint16_t idxmap)
     tlb_debug("mmu_idx: 0x%" PRIx16 "\n", idxmap);
 
     if (cpu->created && !qemu_cpu_is_self(cpu)) {
-        CPUArchState *env = cpu->env_ptr;
-        uint16_t pending, to_clean;
-
-        qemu_spin_lock(&env->tlb_c.lock);
-        pending = env->tlb_c.pending_flush;
-        to_clean = idxmap & ~pending;
-        env->tlb_c.pending_flush = pending | idxmap;
-        qemu_spin_unlock(&env->tlb_c.lock);
-
-        if (to_clean) {
-            tlb_debug("reduced mmu_idx: 0x%" PRIx16 "\n", to_clean);
-            async_run_on_cpu(cpu, tlb_flush_by_mmuidx_async_work,
-                             RUN_ON_CPU_HOST_INT(to_clean));
-        }
+        async_run_on_cpu(cpu, tlb_flush_by_mmuidx_async_work,
+                         RUN_ON_CPU_HOST_INT(idxmap));
     } else {
         tlb_flush_by_mmuidx_async_work(cpu, RUN_ON_CPU_HOST_INT(idxmap));
     }
