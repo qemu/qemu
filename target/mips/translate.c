@@ -23978,6 +23978,12 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+
+/* MXU accumulate add/subtract 1-bit pattern 'aptn1' */
+#define MXU_APTN1_A    0
+#define MXU_APTN1_S    1
+
+
 /*
  *
  * Decode MXU pool00
