@@ -90,13 +90,7 @@ qcrypto_tls_session_pull(void *opaque, void *buf, size_t len)
 }
 
 #define TLS_PRIORITY_ADDITIONAL_ANON "+ANON-DH"
-
-#if GNUTLS_VERSION_MAJOR >= 3
-#define TLS_ECDHE_PSK "+ECDHE-PSK:"
-#else
-#define TLS_ECDHE_PSK ""
-#endif
-#define TLS_PRIORITY_ADDITIONAL_PSK TLS_ECDHE_PSK "+DHE-PSK:+PSK"
+#define TLS_PRIORITY_ADDITIONAL_PSK "+ECDHE-PSK:+DHE-PSK:+PSK"
 
 QCryptoTLSSession *
 qcrypto_tls_session_new(QCryptoTLSCreds *creds,

@@ -72,14 +72,6 @@ qcrypto_tls_creds_check_cert_times(gnutls_x509_crt_t cert,
 }
 
 
-#if LIBGNUTLS_VERSION_NUMBER >= 2
-/*
- * The gnutls_x509_crt_get_basic_constraints function isn't
- * available in GNUTLS 1.0.x branches. This isn't critical
- * though, since gnutls_certificate_verify_peers2 will do
- * pretty much the same check at runtime, so we can just
- * disable this code
- */
 static int
 qcrypto_tls_creds_check_cert_basic_constraints(QCryptoTLSCredsX509 *creds,
                                                gnutls_x509_crt_t cert,
@@ -130,7 +122,6 @@ qcrypto_tls_creds_check_cert_basic_constraints(QCryptoTLSCredsX509 *creds,
 
     return 0;
 }
-#endif
 
 
 static int
@@ -299,14 +290,12 @@ qcrypto_tls_creds_check_cert(QCryptoTLSCredsX509 *creds,
         return -1;
     }
 
-#if LIBGNUTLS_VERSION_NUMBER >= 2
     if (qcrypto_tls_creds_check_cert_basic_constraints(creds,
                                                        cert, certFile,
                                                        isServer, isCA,
                                                        errp) < 0) {
         return -1;
     }
-#endif
 
     if (qcrypto_tls_creds_check_cert_key_usage(creds,
                                                cert, certFile,
@@ -615,7 +604,6 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
     }
 
     if (cert != NULL && key != NULL) {
-#if LIBGNUTLS_VERSION_NUMBER >= 0x030111
         char *password = NULL;
         if (creds->passwordid) {
             password = qcrypto_secret_lookup_as_utf8(creds->passwordid,
@@ -630,15 +618,6 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
                                                     password,
                                                     0);
         g_free(password);
-#else /* LIBGNUTLS_VERSION_NUMBER < 0x030111 */
-        if (creds->passwordid) {
-            error_setg(errp, "PKCS8 decryption requires GNUTLS >= 3.1.11");
-            goto cleanup;
-        }
-        ret = gnutls_certificate_set_x509_key_file(creds->data,
-                                                   cert, key,
-                                                   GNUTLS_X509_FMT_PEM);
-#endif
         if (ret < 0) {
             error_setg(errp, "Cannot load certificate '%s' & key '%s': %s",
                        cert, key, gnutls_strerror(ret));

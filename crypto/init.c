@@ -37,33 +37,14 @@
 /* #define DEBUG_GNUTLS */
 
 /*
- * If GNUTLS is built against GCrypt then
- *
- *  - When GNUTLS >= 2.12, we must not initialize gcrypt threading
- *    because GNUTLS will do that itself
- *  - When GNUTLS < 2.12 we must always initialize gcrypt threading
- *  - When GNUTLS is disabled we must always initialize gcrypt threading
- *
- * But....
- *
- *    When gcrypt >= 1.6.0 we must not initialize gcrypt threading
- *    because gcrypt will do that itself.
- *
- * So we need to init gcrypt threading if
+ * We need to init gcrypt threading if
  *
  *   - gcrypt < 1.6.0
- * AND
- *      - gnutls < 2.12
- *   OR
- *      - gnutls is disabled
  *
  */
 
 #if (defined(CONFIG_GCRYPT) &&                  \
-     (!defined(CONFIG_GNUTLS) ||                \
-     (LIBGNUTLS_VERSION_NUMBER < 0x020c00)) &&    \
-     (!defined(GCRYPT_VERSION_NUMBER) ||        \
-      (GCRYPT_VERSION_NUMBER < 0x010600)))
+     (GCRYPT_VERSION_NUMBER < 0x010600))
 #define QCRYPTO_INIT_GCRYPT_THREADS
 #else
 #undef QCRYPTO_INIT_GCRYPT_THREADS
