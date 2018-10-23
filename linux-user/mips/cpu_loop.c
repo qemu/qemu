@@ -740,6 +740,34 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     struct image_info *info = ts->info;
     int i;
 
+    struct mode_req {
+        bool single;
+        bool soft;
+        bool fr1;
+        bool frdefault;
+        bool fre;
+    };
+
+    static const struct mode_req fpu_reqs[] = {
+        [MIPS_ABI_FP_ANY]    = { true,  true,  true,  true,  true  },
+        [MIPS_ABI_FP_DOUBLE] = { false, false, false, true,  true  },
+        [MIPS_ABI_FP_SINGLE] = { true,  false, false, false, false },
+        [MIPS_ABI_FP_SOFT]   = { false, true,  false, false, false },
+        [MIPS_ABI_FP_OLD_64] = { false, false, false, false, false },
+        [MIPS_ABI_FP_XX]     = { false, false, true,  true,  true  },
+        [MIPS_ABI_FP_64]     = { false, false, true,  false, false },
+        [MIPS_ABI_FP_64A]    = { false, false, true,  false, true  }
+    };
+
+    /*
+     * Mode requirements when .MIPS.abiflags is not present in the ELF.
+     * Not present means that everything is acceptable except FR1.
+     */
+    static struct mode_req none_req = { true, true, false, true, true };
+
+    struct mode_req prog_req;
+    struct mode_req interp_req;
+
     for(i = 0; i < 32; i++) {
         env->active_tc.gpr[i] = regs->regs[i];
     }
@@ -747,6 +775,53 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     if (regs->cp0_epc & 1) {
         env->hflags |= MIPS_HFLAG_M16;
     }
+
+#ifdef TARGET_ABI_MIPSO32
+# define MAX_FP_ABI MIPS_ABI_FP_64A
+#else
+# define MAX_FP_ABI MIPS_ABI_FP_SOFT
+#endif
+     if ((info->fp_abi > MAX_FP_ABI && info->fp_abi != MIPS_ABI_FP_UNKNOWN)
+        || (info->interp_fp_abi > MAX_FP_ABI &&
+            info->interp_fp_abi != MIPS_ABI_FP_UNKNOWN)) {
+        fprintf(stderr, "qemu: Unexpected FPU mode\n");
+        exit(1);
+    }
+
+    prog_req = (info->fp_abi == MIPS_ABI_FP_UNKNOWN) ? none_req
+                                            : fpu_reqs[info->fp_abi];
+    interp_req = (info->interp_fp_abi == MIPS_ABI_FP_UNKNOWN) ? none_req
+                                            : fpu_reqs[info->interp_fp_abi];
+
+    prog_req.single &= interp_req.single;
+    prog_req.soft &= interp_req.soft;
+    prog_req.fr1 &= interp_req.fr1;
+    prog_req.frdefault &= interp_req.frdefault;
+    prog_req.fre &= interp_req.fre;
+
+    bool cpu_has_mips_r2_r6 = env->insn_flags & ISA_MIPS32R2 ||
+                              env->insn_flags & ISA_MIPS64R2 ||
+                              env->insn_flags & ISA_MIPS32R6 ||
+                              env->insn_flags & ISA_MIPS64R6;
+
+    if (prog_req.fre && !prog_req.frdefault && !prog_req.fr1) {
+        env->CP0_Config5 |= (1 << CP0C5_FRE);
+        if (env->active_fpu.fcr0 & (1 << FCR0_FREP)) {
+            env->hflags |= MIPS_HFLAG_FRE;
+        }
+    } else if ((prog_req.fr1 && prog_req.frdefault) ||
+         (prog_req.single && !prog_req.frdefault)) {
+        if ((env->active_fpu.fcr0 & (1 << FCR0_F64)
+            && cpu_has_mips_r2_r6) || prog_req.fr1) {
+            env->CP0_Status |= (1 << CP0St_FR);
+            env->hflags |= MIPS_HFLAG_F64;
+        }
+    } else  if (!prog_req.fre && !prog_req.frdefault &&
+          !prog_req.fr1 && !prog_req.single && !prog_req.soft) {
+        fprintf(stderr, "qemu: Can't find a matching FPU mode\n");
+        exit(1);
+    }
+
     if (env->insn_flags & ISA_NANOMIPS32) {
         return;
     }
