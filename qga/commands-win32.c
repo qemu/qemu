@@ -634,6 +634,36 @@ static void get_disk_properties(HANDLE vol_h, GuestDiskAddress *disk,
     disk->bus_type = find_bus_type(dev_desc->BusType);
     g_debug("bus type %d", disk->bus_type);
 
+    /* Query once more. Now with long enough buffer. */
+    size = dev_desc->Size;
+    dev_desc = g_malloc0(size);
+    if (!DeviceIoControl(vol_h, IOCTL_STORAGE_QUERY_PROPERTY, &query,
+                         sizeof(STORAGE_PROPERTY_QUERY), dev_desc,
+                         size, &received, NULL)) {
+        error_setg_win32(errp, GetLastError(), "failed to get serial number");
+        g_debug("failed to get serial number");
+        goto out_free;
+    }
+    if (dev_desc->SerialNumberOffset > 0) {
+        const char *serial;
+        size_t len;
+
+        if (dev_desc->SerialNumberOffset >= received) {
+            error_setg(errp, "failed to get serial number: offset outside the buffer");
+            g_debug("serial number offset outside the buffer");
+            goto out_free;
+        }
+        serial = (char *)dev_desc + dev_desc->SerialNumberOffset;
+        len = received - dev_desc->SerialNumberOffset;
+        g_debug("serial number \"%s\"", serial);
+        if (*serial != 0) {
+            disk->serial = g_strndup(serial, len);
+            disk->has_serial = true;
+        }
+    }
+out_free:
+    g_free(dev_desc);
+
     return;
 }
 
