@@ -1486,7 +1486,7 @@ enum {
  *  S32OR XRa, XRb, XRc               D32SARW XRa, XRb, XRc, Rb
  *                                    Q16SLL XRa, XRb, XRc, XRd, sft4
  *                                    Q16SLR XRa, XRb, XRc, XRd, sft4
- * Miscelaneous instructions          Q16SAR XRa, XRb, XRc, XRd, sft4
+ * Miscellaneous instructions         Q16SAR XRa, XRb, XRc, XRd, sft4
  * -------------------------          Q16SLLV XRa, XRb, Rb
  *                                    Q16SLRV XRa, XRb, Rb
  *  S32SFL XRa, XRb, XRc, XRd, optn2  Q16SARV XRa, XRb, Rb
@@ -1504,7 +1504,8 @@ enum {
  *
  *          ┌─ 000000 ─ OPC_MXU_S32MADD
  *          ├─ 000001 ─ OPC_MXU_S32MADDU
- *          ├─ 000010 ─ <not assigned>
+ *          ├─ 000010 ─ <not assigned>   (non-MXU OPC_MUL)
+ *          │
  *          │                               20..18
  *          ├─ 000011 ─ OPC_MXU__POOL00 ─┬─ 000 ─ OPC_MXU_S32MAX
  *          │                            ├─ 001 ─ OPC_MXU_S32MIN
@@ -1536,73 +1537,67 @@ enum {
  *          ├─ 001010 ─ OPC_MXU_D16MAC
  *          ├─ 001011 ─ OPC_MXU_D16MACF
  *          ├─ 001100 ─ OPC_MXU_D16MADL
- *          │                               25..24
- *          ├─ 001101 ─ OPC_MXU__POOL04 ─┬─ 00 ─ OPC_MXU_S16MAD
- *          │                            └─ 01 ─ OPC_MXU_S16MAD_1
+ *          ├─ 001101 ─ OPC_MXU_S16MAD
  *          ├─ 001110 ─ OPC_MXU_Q16ADD
- *          ├─ 001111 ─ OPC_MXU_D16MACE
- *          │                               23
- *          ├─ 010000 ─ OPC_MXU__POOL05 ─┬─ 0 ─ OPC_MXU_S32LDD
- *          │                            └─ 1 ─ OPC_MXU_S32LDDR
+ *          ├─ 001111 ─ OPC_MXU_D16MACE     23
+ *          │                            ┌─ 0 ─ OPC_MXU_S32LDD
+ *          ├─ 010000 ─ OPC_MXU__POOL04 ─┴─ 1 ─ OPC_MXU_S32LDDR
  *          │
  *          │                               23
- *          ├─ 010001 ─ OPC_MXU__POOL06 ─┬─ 0 ─ OPC_MXU_S32STD
+ *          ├─ 010001 ─ OPC_MXU__POOL05 ─┬─ 0 ─ OPC_MXU_S32STD
  *          │                            └─ 1 ─ OPC_MXU_S32STDR
  *          │
  *          │                               13..10
- *          ├─ 010010 ─ OPC_MXU__POOL07 ─┬─ 0000 ─ OPC_MXU_S32LDDV
+ *          ├─ 010010 ─ OPC_MXU__POOL06 ─┬─ 0000 ─ OPC_MXU_S32LDDV
  *          │                            └─ 0001 ─ OPC_MXU_S32LDDVR
  *          │
  *          │                               13..10
- *          ├─ 010011 ─ OPC_MXU__POOL08 ─┬─ 0000 ─ OPC_MXU_S32STDV
+ *          ├─ 010011 ─ OPC_MXU__POOL07 ─┬─ 0000 ─ OPC_MXU_S32STDV
  *          │                            └─ 0001 ─ OPC_MXU_S32STDVR
  *          │
  *          │                               23
- *          ├─ 010100 ─ OPC_MXU__POOL09 ─┬─ 0 ─ OPC_MXU_S32LDI
+ *          ├─ 010100 ─ OPC_MXU__POOL08 ─┬─ 0 ─ OPC_MXU_S32LDI
  *          │                            └─ 1 ─ OPC_MXU_S32LDIR
  *          │
  *          │                               23
- *          ├─ 010101 ─ OPC_MXU__POOL10 ─┬─ 0 ─ OPC_MXU_S32SDI
+ *          ├─ 010101 ─ OPC_MXU__POOL09 ─┬─ 0 ─ OPC_MXU_S32SDI
  *          │                            └─ 1 ─ OPC_MXU_S32SDIR
  *          │
  *          │                               13..10
- *          ├─ 010110 ─ OPC_MXU__POOL11 ─┬─ 0000 ─ OPC_MXU_S32LDIV
+ *          ├─ 010110 ─ OPC_MXU__POOL10 ─┬─ 0000 ─ OPC_MXU_S32LDIV
  *          │                            └─ 0001 ─ OPC_MXU_S32LDIVR
  *          │
  *          │                               13..10
- *          ├─ 010111 ─ OPC_MXU__POOL12 ─┬─ 0000 ─ OPC_MXU_S32SDIV
+ *          ├─ 010111 ─ OPC_MXU__POOL11 ─┬─ 0000 ─ OPC_MXU_S32SDIV
  *          │                            └─ 0001 ─ OPC_MXU_S32SDIVR
  *          ├─ 011000 ─ OPC_MXU_D32ADD
  *          │                               23..22
- *   MXU    ├─ 011001 ─ OPC_MXU__POOL13 ─┬─ 00 ─ OPC_MXU_D32ACC
+ *   MXU    ├─ 011001 ─ OPC_MXU__POOL12 ─┬─ 00 ─ OPC_MXU_D32ACC
  * opcodes ─┤                            ├─ 01 ─ OPC_MXU_D32ACCM
  *          │                            └─ 10 ─ OPC_MXU_D32ASUM
  *          ├─ 011010 ─ <not assigned>
  *          │                               23..22
- *          ├─ 011011 ─ OPC_MXU__POOL14 ─┬─ 00 ─ OPC_MXU_Q16ACC
+ *          ├─ 011011 ─ OPC_MXU__POOL13 ─┬─ 00 ─ OPC_MXU_Q16ACC
  *          │                            ├─ 01 ─ OPC_MXU_Q16ACCM
  *          │                            └─ 10 ─ OPC_MXU_Q16ASUM
  *          │
  *          │                               23..22
- *          ├─ 011100 ─ OPC_MXU__POOL15 ─┬─ 00 ─ OPC_MXU_Q8ADDE
+ *          ├─ 011100 ─ OPC_MXU__POOL14 ─┬─ 00 ─ OPC_MXU_Q8ADDE
  *          │                            ├─ 01 ─ OPC_MXU_D8SUM
  *          ├─ 011101 ─ OPC_MXU_Q8ACCE   └─ 10 ─ OPC_MXU_D8SUMC
  *          ├─ 011110 ─ <not assigned>
  *          ├─ 011111 ─ <not assigned>
- *          ├─ 100000 ─ <not assigned>
- *          ├─ 100001 ─ <not assigned>
+ *          ├─ 100000 ─ <not assigned>   (overlaps with CLZ)
+ *          ├─ 100001 ─ <not assigned>   (overlaps with CLO)
  *          ├─ 100010 ─ OPC_MXU_S8LDD
- *          ├─ 100011 ─ OPC_MXU_S8STD
- *          ├─ 100100 ─ OPC_MXU_S8LDI
- *          ├─ 100101 ─ OPC_MXU_S8SDI
- *          │                               15..14
- *          ├─ 100110 ─ OPC_MXU__POOL16 ─┬─ 00 ─ OPC_MXU_S32MUL
- *          │                            ├─ 00 ─ OPC_MXU_S32MULU
+ *          ├─ 100011 ─ OPC_MXU_S8STD       15..14
+ *          ├─ 100100 ─ OPC_MXU_S8LDI    ┌─ 00 ─ OPC_MXU_S32MUL
+ *          ├─ 100101 ─ OPC_MXU_S8SDI    ├─ 00 ─ OPC_MXU_S32MULU
  *          │                            ├─ 00 ─ OPC_MXU_S32EXTR
- *          │                            └─ 00 ─ OPC_MXU_S32EXTRV
+ *          ├─ 100110 ─ OPC_MXU__POOL15 ─┴─ 00 ─ OPC_MXU_S32EXTRV
  *          │
  *          │                               20..18
- *          ├─ 100111 ─ OPC_MXU__POOL17 ─┬─ 000 ─ OPC_MXU_D32SARW
+ *          ├─ 100111 ─ OPC_MXU__POOL16 ─┬─ 000 ─ OPC_MXU_D32SARW
  *          │                            ├─ 001 ─ OPC_MXU_S32ALN
  *          ├─ 101000 ─ OPC_MXU_LXB      ├─ 010 ─ OPC_MXU_S32ALNI
  *          ├─ 101001 ─ <not assigned>   ├─ 011 ─ OPC_MXU_S32NOR
@@ -1610,33 +1605,24 @@ enum {
  *          ├─ 101011 ─ OPC_MXU_S16STD   ├─ 101 ─ OPC_MXU_S32OR
  *          ├─ 101100 ─ OPC_MXU_S16LDI   ├─ 110 ─ OPC_MXU_S32XOR
  *          ├─ 101101 ─ OPC_MXU_S16SDI   └─ 111 ─ OPC_MXU_S32LUI
- *          ├─ 101000 ─ <not assigned>
- *          ├─ 101001 ─ <not assigned>
- *          ├─ 101010 ─ <not assigned>
- *          ├─ 101011 ─ <not assigned>
- *          ├─ 101100 ─ <not assigned>
- *          ├─ 101101 ─ <not assigned>
  *          ├─ 101110 ─ OPC_MXU_S32M2I
  *          ├─ 101111 ─ OPC_MXU_S32I2M
  *          ├─ 110000 ─ OPC_MXU_D32SLL
- *          ├─ 110001 ─ OPC_MXU_D32SLR
- *          ├─ 110010 ─ OPC_MXU_D32SARL
- *          ├─ 110011 ─ OPC_MXU_D32SAR
- *          ├─ 110100 ─ OPC_MXU_Q16SLL
- *          ├─ 110101 ─ OPC_MXU_Q16SLR      20..18
- *          ├─ 110110 ─ OPC_MXU__POOL18 ─┬─ 000 ─ OPC_MXU_D32SLLV
- *          │                            ├─ 001 ─ OPC_MXU_D32SLRV
- *          │                            ├─ 010 ─ OPC_MXU_D32SARV
- *          │                            ├─ 011 ─ OPC_MXU_Q16SLLV
+ *          ├─ 110001 ─ OPC_MXU_D32SLR      20..18
+ *          ├─ 110010 ─ OPC_MXU_D32SARL  ┌─ 000 ─ OPC_MXU_D32SLLV
+ *          ├─ 110011 ─ OPC_MXU_D32SAR   ├─ 001 ─ OPC_MXU_D32SLRV
+ *          ├─ 110100 ─ OPC_MXU_Q16SLL   ├─ 010 ─ OPC_MXU_D32SARV
+ *          ├─ 110101 ─ OPC_MXU_Q16SLR   ├─ 011 ─ OPC_MXU_Q16SLLV
  *          │                            ├─ 100 ─ OPC_MXU_Q16SLRV
- *          │                            └─ 101 ─ OPC_MXU_Q16SARV
+ *          ├─ 110110 ─ OPC_MXU__POOL17 ─┴─ 101 ─ OPC_MXU_Q16SARV
+ *          │
  *          ├─ 110111 ─ OPC_MXU_Q16SAR
  *          │                               23..22
- *          ├─ 111000 ─ OPC_MXU__POOL19 ─┬─ 00 ─ OPC_MXU_Q8MUL
+ *          ├─ 111000 ─ OPC_MXU__POOL18 ─┬─ 00 ─ OPC_MXU_Q8MUL
  *          │                            └─ 01 ─ OPC_MXU_Q8MULSU
  *          │
  *          │                               20..18
- *          ├─ 111001 ─ OPC_MXU__POOL20 ─┬─ 000 ─ OPC_MXU_Q8MOVZ
+ *          ├─ 111001 ─ OPC_MXU__POOL19 ─┬─ 000 ─ OPC_MXU_Q8MOVZ
  *          │                            ├─ 001 ─ OPC_MXU_Q8MOVN
  *          │                            ├─ 010 ─ OPC_MXU_D16MOVZ
  *          │                            ├─ 011 ─ OPC_MXU_D16MOVN
@@ -1644,13 +1630,13 @@ enum {
  *          │                            └─ 101 ─ OPC_MXU_S32MOV
  *          │
  *          │                               23..22
- *          ├─ 111010 ─ OPC_MXU__POOL21 ─┬─ 00 ─ OPC_MXU_Q8MAC
+ *          ├─ 111010 ─ OPC_MXU__POOL20 ─┬─ 00 ─ OPC_MXU_Q8MAC
  *          │                            └─ 10 ─ OPC_MXU_Q8MACSU
  *          ├─ 111011 ─ OPC_MXU_Q16SCOP
  *          ├─ 111100 ─ OPC_MXU_Q8MADL
  *          ├─ 111101 ─ OPC_MXU_S32SFL
  *          ├─ 111110 ─ OPC_MXU_Q8SAD
- *          └─ 111111 ─ <not assigned>
+ *          └─ 111111 ─ <not assigned>   (overlaps with SDBBP)
  *
  *
  *   Compiled after:
@@ -1673,22 +1659,22 @@ enum {
     OPC_MXU_D16MAC   = 0x0A,
     OPC_MXU_D16MACF  = 0x0B,
     OPC_MXU_D16MADL  = 0x0C,
-    OPC_MXU__POOL04  = 0x0D,
+    OPC_MXU_S16MAD   = 0x0D,
     OPC_MXU_Q16ADD   = 0x0E,
     OPC_MXU_D16MACE  = 0x0F,
-    OPC_MXU__POOL05  = 0x10,
-    OPC_MXU__POOL06  = 0x11,
-    OPC_MXU__POOL07  = 0x12,
-    OPC_MXU__POOL08  = 0x13,
-    OPC_MXU__POOL09  = 0x14,
-    OPC_MXU__POOL10  = 0x15,
-    OPC_MXU__POOL11  = 0x16,
-    OPC_MXU__POOL12  = 0x17,
+    OPC_MXU__POOL04  = 0x10,
+    OPC_MXU__POOL05  = 0x11,
+    OPC_MXU__POOL06  = 0x12,
+    OPC_MXU__POOL07  = 0x13,
+    OPC_MXU__POOL08  = 0x14,
+    OPC_MXU__POOL09  = 0x15,
+    OPC_MXU__POOL10  = 0x16,
+    OPC_MXU__POOL11  = 0x17,
     OPC_MXU_D32ADD   = 0x18,
-    OPC_MXU__POOL13  = 0x19,
+    OPC_MXU__POOL12  = 0x19,
     /* not assigned 0x1A */
-    OPC_MXU__POOL14  = 0x1B,
-    OPC_MXU__POOL15  = 0x1C,
+    OPC_MXU__POOL13  = 0x1B,
+    OPC_MXU__POOL14  = 0x1C,
     OPC_MXU_Q8ACCE   = 0x1D,
     /* not assigned 0x1E */
     /* not assigned 0x1F */
@@ -1698,8 +1684,8 @@ enum {
     OPC_MXU_S8STD    = 0x23,
     OPC_MXU_S8LDI    = 0x24,
     OPC_MXU_S8SDI    = 0x25,
-    OPC_MXU__POOL16  = 0x26,
-    OPC_MXU__POOL17  = 0x27,
+    OPC_MXU__POOL15  = 0x26,
+    OPC_MXU__POOL16  = 0x27,
     OPC_MXU_LXB      = 0x28,
     /* not assigned 0x29 */
     OPC_MXU_S16LDD   = 0x2A,
@@ -1714,11 +1700,11 @@ enum {
     OPC_MXU_D32SAR   = 0x33,
     OPC_MXU_Q16SLL   = 0x34,
     OPC_MXU_Q16SLR   = 0x35,
-    OPC_MXU__POOL18  = 0x36,
+    OPC_MXU__POOL17  = 0x36,
     OPC_MXU_Q16SAR   = 0x37,
-    OPC_MXU__POOL19  = 0x38,
-    OPC_MXU__POOL20  = 0x39,
-    OPC_MXU__POOL21  = 0x3A,
+    OPC_MXU__POOL18  = 0x38,
+    OPC_MXU__POOL19  = 0x39,
+    OPC_MXU__POOL20  = 0x3A,
     OPC_MXU_Q16SCOP  = 0x3B,
     OPC_MXU_Q8MADL   = 0x3C,
     OPC_MXU_S32SFL   = 0x3D,
@@ -1776,20 +1762,12 @@ enum {
  * MXU pool 04
  */
 enum {
-    OPC_MXU_S16MAD   = 0x00,
-    OPC_MXU_S16MAD_1 = 0x01,
-};
-
-/*
- * MXU pool 05
- */
-enum {
     OPC_MXU_S32LDD   = 0x00,
     OPC_MXU_S32LDDR  = 0x01,
 };
 
 /*
- * MXU pool 06
+ * MXU pool 05
  */
 enum {
     OPC_MXU_S32STD   = 0x00,
@@ -1797,7 +1775,7 @@ enum {
 };
 
 /*
- * MXU pool 07
+ * MXU pool 06
  */
 enum {
     OPC_MXU_S32LDDV  = 0x00,
@@ -1805,7 +1783,7 @@ enum {
 };
 
 /*
- * MXU pool 08
+ * MXU pool 07
  */
 enum {
     OPC_MXU_S32STDV  = 0x00,
@@ -1813,7 +1791,7 @@ enum {
 };
 
 /*
- * MXU pool 09
+ * MXU pool 08
  */
 enum {
     OPC_MXU_S32LDI   = 0x00,
@@ -1821,7 +1799,7 @@ enum {
 };
 
 /*
- * MXU pool 10
+ * MXU pool 09
  */
 enum {
     OPC_MXU_S32SDI   = 0x00,
@@ -1829,7 +1807,7 @@ enum {
 };
 
 /*
- * MXU pool 11
+ * MXU pool 10
  */
 enum {
     OPC_MXU_S32LDIV  = 0x00,
@@ -1837,7 +1815,7 @@ enum {
 };
 
 /*
- * MXU pool 12
+ * MXU pool 11
  */
 enum {
     OPC_MXU_S32SDIV  = 0x00,
@@ -1845,7 +1823,7 @@ enum {
 };
 
 /*
- * MXU pool 13
+ * MXU pool 12
  */
 enum {
     OPC_MXU_D32ACC   = 0x00,
@@ -1854,7 +1832,7 @@ enum {
 };
 
 /*
- * MXU pool 14
+ * MXU pool 13
  */
 enum {
     OPC_MXU_Q16ACC   = 0x00,
@@ -1863,7 +1841,7 @@ enum {
 };
 
 /*
- * MXU pool 15
+ * MXU pool 14
  */
 enum {
     OPC_MXU_Q8ADDE   = 0x00,
@@ -1872,7 +1850,7 @@ enum {
 };
 
 /*
- * MXU pool 16
+ * MXU pool 15
  */
 enum {
     OPC_MXU_S32MUL   = 0x00,
@@ -1882,7 +1860,7 @@ enum {
 };
 
 /*
- * MXU pool 17
+ * MXU pool 16
  */
 enum {
     OPC_MXU_D32SARW  = 0x00,
@@ -1896,7 +1874,7 @@ enum {
 };
 
 /*
- * MXU pool 18
+ * MXU pool 17
  */
 enum {
     OPC_MXU_D32SLLV  = 0x00,
@@ -1908,7 +1886,7 @@ enum {
 };
 
 /*
- * MXU pool 19
+ * MXU pool 18
  */
 enum {
     OPC_MXU_Q8MUL    = 0x00,
@@ -1916,7 +1894,7 @@ enum {
 };
 
 /*
- * MXU pool 20
+ * MXU pool 19
  */
 enum {
     OPC_MXU_Q8MOVZ   = 0x00,
@@ -1928,7 +1906,7 @@ enum {
 };
 
 /*
- * MXU pool 21
+ * MXU pool 20
  */
 enum {
     OPC_MXU_Q8MAC    = 0x00,
