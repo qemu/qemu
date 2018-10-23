@@ -823,7 +823,7 @@ static void tcx_realizefn(DeviceState *dev, Error **errp)
         ret = load_image_mr(fcode_filename, &s->rom);
         g_free(fcode_filename);
         if (ret < 0 || ret > FCODE_MAX_ROM_SIZE) {
-            error_report("tcx: could not load prom '%s'", TCX_ROM_FILE);
+            warn_report("tcx: could not load prom '%s'", TCX_ROM_FILE);
         }
     }
 

@@ -252,7 +252,7 @@ static void vfio_intx_update(PCIDevice *pdev)
 
     vfio_intx_enable_kvm(vdev, &err);
     if (err) {
-        error_reportf_err(err, WARN_PREFIX, vdev->vbasedev.name);
+        warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 
     /* Re-enable the interrupt in cased we missed an EOI */
@@ -317,7 +317,7 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 
     vfio_intx_enable_kvm(vdev, &err);
     if (err) {
-        error_reportf_err(err, WARN_PREFIX, vdev->vbasedev.name);
+        warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 
     vdev->interrupt = VFIO_INT_INTx;
@@ -745,7 +745,7 @@ static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
 
     vfio_intx_enable(vdev, &err);
     if (err) {
-        error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
+        error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 }
 
@@ -1283,8 +1283,7 @@ static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
         if (ret == -ENOTSUP) {
             return 0;
         }
-        error_prepend(&err, "msi_init failed: ");
-        error_propagate(errp, err);
+        error_propagate_prepend(errp, err, "msi_init failed: ");
         return ret;
     }
     vdev->msi_cap_size = 0xa + (msi_maskbit ? 0xa : 0) + (msi_64bit ? 0x4 : 0);
@@ -1558,7 +1557,7 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
                     &err);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
-            error_report_err(err);
+            warn_report_err(err);
             return 0;
         }
 
@@ -2197,7 +2196,7 @@ static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
 
     vfio_intx_enable(vdev, &err);
     if (err) {
-        error_reportf_err(err, ERR_PREFIX, vdev->vbasedev.name);
+        error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 
     for (nr = 0; nr < PCI_NUM_REGIONS - 1; ++nr) {
@@ -2591,9 +2590,9 @@ static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
     } else {
-        error_report(WARN_PREFIX
-                     "Could not enable error recovery for the device",
-                     vbasedev->name);
+        warn_report(VFIO_MSG_PREFIX
+                    "Could not enable error recovery for the device",
+                    vbasedev->name);
     }
 }
 
@@ -2718,7 +2717,7 @@ static void vfio_req_notifier_handler(void *opaque)
 
     qdev_unplug(&vdev->pdev.qdev, &err);
     if (err) {
-        error_reportf_err(err, WARN_PREFIX, vdev->vbasedev.name);
+        warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 }
 
@@ -2831,7 +2830,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     if (stat(vdev->vbasedev.sysfsdev, &st) < 0) {
         error_setg_errno(errp, errno, "no such host device");
-        error_prepend(errp, ERR_PREFIX, vdev->vbasedev.sysfsdev);
+        error_prepend(errp, VFIO_MSG_PREFIX, vdev->vbasedev.sysfsdev);
         return;
     }
 
@@ -3086,7 +3085,7 @@ out_teardown:
     vfio_teardown_msi(vdev);
     vfio_bars_exit(vdev);
 error:
-    error_prepend(errp, ERR_PREFIX, vdev->vbasedev.name);
+    error_prepend(errp, VFIO_MSG_PREFIX, vdev->vbasedev.name);
 }
 
 static void vfio_instance_finalize(Object *obj)

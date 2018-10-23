@@ -2209,8 +2209,9 @@ static void pc_machine_set_nvdimm_persistence(Object *obj, const char *value,
     else if (strcmp(value, "mem-ctrl") == 0)
         nvdimm_state->persistence = 2;
     else {
-        error_report("-machine nvdimm-persistence=%s: unsupported option", value);
-        exit(EXIT_FAILURE);
+        error_setg(errp, "-machine nvdimm-persistence=%s: unsupported option",
+                   value);
+        return;
     }
 
     g_free(nvdimm_state->persistence_string);

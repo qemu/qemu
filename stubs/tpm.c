@@ -9,9 +9,8 @@
 #include "qapi/qapi-commands-tpm.h"
 #include "sysemu/tpm.h"
 
-int tpm_init(void)
+void tpm_init(void)
 {
-    return 0;
 }
 
 void tpm_cleanup(void)

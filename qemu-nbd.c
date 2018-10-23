@@ -766,11 +766,9 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
-        exit(EXIT_FAILURE);
-    }
+    qemu_opts_foreach(&qemu_object_opts,
+                      user_creatable_add_opts_foreach,
+                      NULL, &error_fatal);
 
     if (!trace_init_backends()) {
         exit(1);
@@ -1002,11 +1000,7 @@ int main(int argc, char **argv)
     }
 
     exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags, nbd_export_closed,
-                         writethrough, NULL, &local_err);
-    if (!exp) {
-        error_report_err(local_err);
-        exit(EXIT_FAILURE);
-    }
+                         writethrough, NULL, &error_fatal);
     nbd_export_set_name(exp, export_name);
     nbd_export_set_description(exp, export_description);
 

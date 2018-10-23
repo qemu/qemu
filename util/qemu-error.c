@@ -194,7 +194,6 @@ bool enable_timestamp_msg;
  * Format arguments like vsprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
- * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
 static void vreport(report_type type, const char *fmt, va_list ap)
 {
@@ -242,7 +241,6 @@ void error_vreport(const char *fmt, va_list ap)
  * Format arguments like vsprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
- * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
 void warn_vreport(const char *fmt, va_list ap)
 {
@@ -255,7 +253,6 @@ void warn_vreport(const char *fmt, va_list ap)
  * Format arguments like vsprintf().  The resulting message should be
  * a single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
- * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
 void info_vreport(const char *fmt, va_list ap)
 {
@@ -283,7 +280,6 @@ void error_report(const char *fmt, ...)
  * Format arguments like sprintf(). The resulting message should be a
  * single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
- * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
 void warn_report(const char *fmt, ...)
 {
@@ -300,7 +296,6 @@ void warn_report(const char *fmt, ...)
  * Format arguments like sprintf(). The resulting message should be a
  * single phrase, with no newline or trailing punctuation.
  * Prepend the current location and append a newline.
- * It's wrong to call this in a QMP monitor.  Use error_setg() there.
  */
 void info_report(const char *fmt, ...)
 {

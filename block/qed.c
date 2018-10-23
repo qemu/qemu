@@ -1606,8 +1606,8 @@ static void coroutine_fn bdrv_qed_co_invalidate_cache(BlockDriverState *bs,
     ret = bdrv_qed_do_open(bs, NULL, bs->open_flags, &local_err);
     qemu_co_mutex_unlock(&s->table_lock);
     if (local_err) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "Could not reopen qed layer: ");
+        error_propagate_prepend(errp, local_err,
+                                "Could not reopen qed layer: ");
         return;
     } else if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not reopen qed layer");

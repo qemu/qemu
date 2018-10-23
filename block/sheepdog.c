@@ -572,7 +572,7 @@ static int connect_to_sdog(BDRVSheepdogState *s, Error **errp)
     if (s->addr->type == SOCKET_ADDRESS_TYPE_INET && fd >= 0) {
         int ret = socket_set_nodelay(fd);
         if (ret < 0) {
-            error_report("%s", strerror(errno));
+            warn_report("can't set TCP_NODELAY: %s", strerror(errno));
         }
     }
 

@@ -2208,8 +2208,8 @@ static void coroutine_fn qcow2_co_invalidate_cache(BlockDriverState *bs,
     qemu_co_mutex_unlock(&s->lock);
     qobject_unref(options);
     if (local_err) {
-        error_propagate(errp, local_err);
-        error_prepend(errp, "Could not reopen qcow2 layer: ");
+        error_propagate_prepend(errp, local_err,
+                                "Could not reopen qcow2 layer: ");
         bs->drv = NULL;
         return;
     } else if (ret < 0) {

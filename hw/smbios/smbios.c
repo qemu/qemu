@@ -950,6 +950,7 @@ static void save_opt_list(size_t *ndest, const char ***dest,
 
 void smbios_entry_add(QemuOpts *opts, Error **errp)
 {
+    Error *err = NULL;
     const char *val;
 
     assert(!smbios_immutable);
@@ -960,12 +961,16 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
         int size;
         struct smbios_table *table; /* legacy mode only */
 
-        qemu_opts_validate(opts, qemu_smbios_file_opts, &error_fatal);
+        qemu_opts_validate(opts, qemu_smbios_file_opts, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
 
         size = get_image_size(val);
         if (size == -1 || size < sizeof(struct smbios_structure_header)) {
-            error_report("Cannot read SMBIOS file %s", val);
-            exit(1);
+            error_setg(errp, "Cannot read SMBIOS file %s", val);
+            return;
         }
 
         /*
@@ -978,14 +983,15 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
                                                     smbios_tables_len);
 
         if (load_image(val, (uint8_t *)header) != size) {
-            error_report("Failed to load SMBIOS file %s", val);
-            exit(1);
+            error_setg(errp, "Failed to load SMBIOS file %s", val);
+            return;
         }
 
         if (test_bit(header->type, have_fields_bitmap)) {
-            error_report("can't load type %d struct, fields already specified!",
-                         header->type);
-            exit(1);
+            error_setg(errp,
+                       "can't load type %d struct, fields already specified!",
+                       header->type);
+            return;
         }
         set_bit(header->type, have_binfile_bitmap);
 
@@ -1030,19 +1036,23 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
         unsigned long type = strtoul(val, NULL, 0);
 
         if (type > SMBIOS_MAX_TYPE) {
-            error_report("out of range!");
-            exit(1);
+            error_setg(errp, "out of range!");
+            return;
         }
 
         if (test_bit(type, have_binfile_bitmap)) {
-            error_report("can't add fields, binary file already loaded!");
-            exit(1);
+            error_setg(errp, "can't add fields, binary file already loaded!");
+            return;
         }
         set_bit(type, have_fields_bitmap);
 
         switch (type) {
         case 0:
-            qemu_opts_validate(opts, qemu_smbios_type0_opts, &error_fatal);
+            qemu_opts_validate(opts, qemu_smbios_type0_opts, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
             save_opt(&type0.vendor, opts, "vendor");
             save_opt(&type0.version, opts, "version");
             save_opt(&type0.date, opts, "date");
@@ -1051,14 +1061,18 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             val = qemu_opt_get(opts, "release");
             if (val) {
                 if (sscanf(val, "%hhu.%hhu", &type0.major, &type0.minor) != 2) {
-                    error_report("Invalid release");
-                    exit(1);
+                    error_setg(errp, "Invalid release");
+                    return;
                 }
                 type0.have_major_minor = true;
             }
             return;
         case 1:
-            qemu_opts_validate(opts, qemu_smbios_type1_opts, &error_fatal);
+            qemu_opts_validate(opts, qemu_smbios_type1_opts, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
             save_opt(&type1.manufacturer, opts, "manufacturer");
             save_opt(&type1.product, opts, "product");
             save_opt(&type1.version, opts, "version");
@@ -1069,14 +1083,18 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             val = qemu_opt_get(opts, "uuid");
             if (val) {
                 if (qemu_uuid_parse(val, &qemu_uuid) != 0) {
-                    error_report("Invalid UUID");
-                    exit(1);
+                    error_setg(errp, "Invalid UUID");
+                    return;
                 }
                 qemu_uuid_set = true;
             }
             return;
         case 2:
-            qemu_opts_validate(opts, qemu_smbios_type2_opts, &error_fatal);
+            qemu_opts_validate(opts, qemu_smbios_type2_opts, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
             save_opt(&type2.manufacturer, opts, "manufacturer");
             save_opt(&type2.product, opts, "product");
             save_opt(&type2.version, opts, "version");
@@ -1085,7 +1103,11 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             save_opt(&type2.location, opts, "location");
             return;
         case 3:
-            qemu_opts_validate(opts, qemu_smbios_type3_opts, &error_fatal);
+            qemu_opts_validate(opts, qemu_smbios_type3_opts, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
             save_opt(&type3.manufacturer, opts, "manufacturer");
             save_opt(&type3.version, opts, "version");
             save_opt(&type3.serial, opts, "serial");
@@ -1093,7 +1115,11 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             save_opt(&type3.sku, opts, "sku");
             return;
         case 4:
-            qemu_opts_validate(opts, qemu_smbios_type4_opts, &error_fatal);
+            qemu_opts_validate(opts, qemu_smbios_type4_opts, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
             save_opt(&type4.sock_pfx, opts, "sock_pfx");
             save_opt(&type4.manufacturer, opts, "manufacturer");
             save_opt(&type4.version, opts, "version");
@@ -1102,11 +1128,19 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             save_opt(&type4.part, opts, "part");
             return;
         case 11:
-            qemu_opts_validate(opts, qemu_smbios_type11_opts, &error_fatal);
+            qemu_opts_validate(opts, qemu_smbios_type11_opts, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
             save_opt_list(&type11.nvalues, &type11.values, opts, "value");
             return;
         case 17:
-            qemu_opts_validate(opts, qemu_smbios_type17_opts, &error_fatal);
+            qemu_opts_validate(opts, qemu_smbios_type17_opts, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
             save_opt(&type17.loc_pfx, opts, "loc_pfx");
             save_opt(&type17.bank, opts, "bank");
             save_opt(&type17.manufacturer, opts, "manufacturer");
@@ -1116,12 +1150,12 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             type17.speed = qemu_opt_get_number(opts, "speed", 0);
             return;
         default:
-            error_report("Don't know how to build fields for SMBIOS type %ld",
-                         type);
-            exit(1);
+            error_setg(errp,
+                       "Don't know how to build fields for SMBIOS type %ld",
+                       type);
+            return;
         }
     }
 
-    error_report("Must specify type= or file=");
-    exit(1);
+    error_setg(errp, "Must specify type= or file=");
 }

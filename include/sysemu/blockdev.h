@@ -54,7 +54,8 @@ DriveInfo *drive_get_next(BlockInterfaceType type);
 QemuOpts *drive_def(const char *optstr);
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
                     const char *optstr);
-DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type);
+DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type,
+                     Error **errp);
 
 /* device-hotplug */
 

@@ -198,17 +198,12 @@ static void ics_get_kvm_state(ICSState *ics)
 {
     uint64_t state;
     int i;
-    Error *local_err = NULL;
 
     for (i = 0; i < ics->nr_irqs; i++) {
         ICSIRQState *irq = &ics->irqs[i];
 
         kvm_device_access(kernel_xics_fd, KVM_DEV_XICS_GRP_SOURCES,
-                          i + ics->offset, &state, false, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            exit(1);
-        }
+                          i + ics->offset, &state, false, &error_fatal);
 
         irq->server = state & KVM_XICS_DESTINATION_MASK;
         irq->saved_priority = (state >> KVM_XICS_PRIORITY_SHIFT)

@@ -89,19 +89,19 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     int i;
 
     if (!QLIST_EMPTY(&tpm_backends)) {
-        error_report("Only one TPM is allowed.");
+        error_setg(errp, "Only one TPM is allowed.");
         return 1;
     }
 
     id = qemu_opts_id(opts);
     if (id == NULL) {
-        error_report(QERR_MISSING_PARAMETER, "id");
+        error_setg(errp, QERR_MISSING_PARAMETER, "id");
         return 1;
     }
 
     value = qemu_opt_get(opts, "type");
     if (!value) {
-        error_report(QERR_MISSING_PARAMETER, "type");
+        error_setg(errp, QERR_MISSING_PARAMETER, "type");
         tpm_display_backend_drivers();
         return 1;
     }
@@ -109,8 +109,8 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     i = qapi_enum_parse(&TpmType_lookup, value, -1, NULL);
     be = i >= 0 ? tpm_be_find_by_type(i) : NULL;
     if (be == NULL) {
-        error_report(QERR_INVALID_PARAMETER_VALUE,
-                     "type", "a TPM backend type");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+                   "a TPM backend type");
         tpm_display_backend_drivers();
         return 1;
     }
@@ -118,7 +118,7 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     /* validate backend specific opts */
     qemu_opts_validate(opts, be->opts, &local_err);
     if (local_err) {
-        error_report_err(local_err);
+        error_propagate(errp, local_err);
         return 1;
     }
 
@@ -151,14 +151,10 @@ void tpm_cleanup(void)
  * Initialize the TPM. Process the tpmdev command line options describing the
  * TPM backend.
  */
-int tpm_init(void)
+void tpm_init(void)
 {
-    if (qemu_opts_foreach(qemu_find_opts("tpmdev"),
-                          tpm_init_tpmdev, NULL, NULL)) {
-        return -1;
-    }
-
-    return 0;
+    qemu_opts_foreach(qemu_find_opts("tpmdev"),
+                      tpm_init_tpmdev, NULL, &error_fatal);
 }
 
 /*

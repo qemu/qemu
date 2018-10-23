@@ -60,6 +60,7 @@ NodeInfo numa_info[MAX_NODES];
 static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
                             Error **errp)
 {
+    Error *err = NULL;
     uint16_t nodenr;
     uint16List *cpus = NULL;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
@@ -82,8 +83,8 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
     }
 
     if (!mc->cpu_index_to_instance_props || !mc->get_default_cpu_node_id) {
-        error_report("NUMA is not supported by this machine-type");
-        exit(1);
+        error_setg(errp, "NUMA is not supported by this machine-type");
+        return;
     }
     for (cpus = node->cpus; cpus; cpus = cpus->next) {
         CpuInstanceProperties props;
@@ -97,7 +98,11 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         props = mc->cpu_index_to_instance_props(ms, cpus->value);
         props.node_id = nodenr;
         props.has_node_id = true;
-        machine_set_cpu_numa_node(ms, &props, &error_fatal);
+        machine_set_cpu_numa_node(ms, &props, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
     }
 
     if (node->has_mem && node->has_memdev) {
@@ -210,7 +215,7 @@ end:
     error_propagate(errp, err);
 }
 
-int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
+static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 {
     NumaOptions *object = NULL;
     MachineState *ms = MACHINE(opaque);
@@ -234,7 +239,7 @@ int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 end:
     qapi_free_NumaOptions(object);
     if (err) {
-        error_report_err(err);
+        error_propagate(errp, err);
         return -1;
     }
 
@@ -367,7 +372,7 @@ void numa_complete_configuration(MachineState *ms)
     if (ms->ram_slots > 0 && nb_numa_nodes == 0 &&
         mc->auto_enable_numa_with_memhp) {
             NumaNodeOptions node = { };
-            parse_numa_node(ms, &node, NULL);
+            parse_numa_node(ms, &node, &error_abort);
     }
 
     assert(max_numa_nodeid <= MAX_NODES);
@@ -439,9 +444,7 @@ void numa_complete_configuration(MachineState *ms)
 
 void parse_numa_opts(MachineState *ms)
 {
-    if (qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, &error_fatal);
 }
 
 void qmp_set_numa_node(NumaOptions *cmd, Error **errp)

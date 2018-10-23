@@ -597,9 +597,9 @@ static int add_channel(void *opaque, const char *name, const char *value,
     if (strcmp(name, "tls-channel") == 0) {
         int *tls_port = opaque;
         if (!*tls_port) {
-            error_report("spice: tried to setup tls-channel"
-                         " without specifying a TLS port");
-            exit(1);
+            error_setg(errp, "spice: tried to setup tls-channel"
+                       " without specifying a TLS port");
+            return -1;
         }
         security = SPICE_CHANNEL_SECURITY_SSL;
     }
@@ -615,8 +615,9 @@ static int add_channel(void *opaque, const char *name, const char *value,
         rc = spice_server_set_channel_security(spice_server, value, security);
     }
     if (rc != 0) {
-        error_report("spice: failed to set channel security for %s", value);
-        exit(1);
+        error_setg(errp, "spice: failed to set channel security for %s",
+                   value);
+        return -1;
     }
     return 0;
 }
@@ -787,7 +788,7 @@ void qemu_spice_init(void)
     spice_server_set_playback_compression
         (spice_server, qemu_opt_get_bool(opts, "playback-compression", 1));
 
-    qemu_opt_foreach(opts, add_channel, &tls_port, NULL);
+    qemu_opt_foreach(opts, add_channel, &tls_port, &error_fatal);
 
     spice_server_set_name(spice_server, qemu_name);
     spice_server_set_uuid(spice_server, (unsigned char *)&qemu_uuid);

@@ -750,8 +750,8 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         /* Take care whenever deciding to actually deprecate; once this ability
          * is removed, we will not be able to open any images with legacy-styled
          * backing image strings. */
-        error_report("RBD options encoded in the filename as keyvalue pairs "
-                     "is deprecated");
+        warn_report("RBD options encoded in the filename as keyvalue pairs "
+                    "is deprecated");
     }
 
     /* Remove the processed options from the QDict (the visitor processes

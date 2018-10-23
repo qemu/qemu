@@ -1288,8 +1288,8 @@ static void ivshmem_realize(PCIDevice *dev, Error **errp)
     IVShmemState *s = IVSHMEM_COMMON(dev);
 
     if (!qtest_enabled()) {
-        error_report("ivshmem is deprecated, please use ivshmem-plain"
-                     " or ivshmem-doorbell instead");
+        warn_report("ivshmem is deprecated, please use ivshmem-plain"
+                    " or ivshmem-doorbell instead");
     }
 
     if (qemu_chr_fe_backend_connected(&s->server_chr) + !!s->shmobj != 1) {

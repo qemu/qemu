@@ -1577,9 +1577,9 @@ static GSList *migration_blockers;
 int migrate_add_blocker(Error *reason, Error **errp)
 {
     if (migrate_get_current()->only_migratable) {
-        error_propagate(errp, error_copy(reason));
-        error_prepend(errp, "disallowing migration blocker "
-                          "(--only_migratable) for: ");
+        error_propagate_prepend(errp, error_copy(reason),
+                                "disallowing migration blocker "
+                                "(--only_migratable) for: ");
         return -EACCES;
     }
 
@@ -1588,9 +1588,9 @@ int migrate_add_blocker(Error *reason, Error **errp)
         return 0;
     }
 
-    error_propagate(errp, error_copy(reason));
-    error_prepend(errp, "disallowing migration blocker (migration in "
-                      "progress) for: ");
+    error_propagate_prepend(errp, error_copy(reason),
+                            "disallowing migration blocker "
+                            "(migration in progress) for: ");
     return -EBUSY;
 }
 

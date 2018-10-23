@@ -1093,12 +1093,12 @@ static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
     fd_opaque = qemu_opt_get(opts, "opaque");
 
     if (fd < 0) {
-        error_report("fd option is required and must be non-negative");
+        error_setg(errp, "fd option is required and must be non-negative");
         return -1;
     }
 
     if (fd <= STDERR_FILENO) {
-        error_report("fd cannot be a standard I/O stream");
+        error_setg(errp, "fd cannot be a standard I/O stream");
         return -1;
     }
 
@@ -1108,12 +1108,12 @@ static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
      */
     flags = fcntl(fd, F_GETFD);
     if (flags == -1 || (flags & FD_CLOEXEC)) {
-        error_report("fd is not valid or already in use");
+        error_setg(errp, "fd is not valid or already in use");
         return -1;
     }
 
     if (fdset_id < 0) {
-        error_report("set option is required and must be non-negative");
+        error_setg(errp, "set option is required and must be non-negative");
         return -1;
     }
 
@@ -1126,7 +1126,7 @@ static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
     }
 #endif
     if (dupfd == -1) {
-        error_report("error duplicating fd: %s", strerror(errno));
+        error_setg(errp, "error duplicating fd: %s", strerror(errno));
         return -1;
     }
 
@@ -1163,7 +1163,7 @@ static int drive_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     BlockInterfaceType *block_default_type = opaque;
 
-    return drive_new(opts, *block_default_type) == NULL;
+    return drive_new(opts, *block_default_type, errp) == NULL;
 }
 
 static int drive_enable_snapshot(void *opaque, QemuOpts *opts, Error **errp)
@@ -1189,10 +1189,7 @@ static void default_drive(int enable, int snapshot, BlockInterfaceType type,
         drive_enable_snapshot(NULL, opts, NULL);
     }
 
-    dinfo = drive_new(opts, type);
-    if (!dinfo) {
-        exit(1);
-    }
+    dinfo = drive_new(opts, type, &error_abort);
     dinfo->is_default = true;
 
 }
@@ -2036,15 +2033,10 @@ static void select_vgahw(const char *p)
 
 static void parse_display_qapi(const char *optarg)
 {
-    Error *err = NULL;
     DisplayOptions *opts;
     Visitor *v;
 
-    v = qobject_input_visitor_new_str(optarg, "type", &err);
-    if (!v) {
-        error_report_err(err);
-        exit(1);
-    }
+    v = qobject_input_visitor_new_str(optarg, "type", &error_fatal);
 
     visit_type_DisplayOptions(v, NULL, &opts, &error_fatal);
     QAPI_CLONE_MEMBERS(DisplayOptions, &dpy, opts);
@@ -2213,7 +2205,7 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     FWCfgState *fw_cfg = (FWCfgState *) opaque;
 
     if (fw_cfg == NULL) {
-        error_report("fw_cfg device not available");
+        error_setg(errp, "fw_cfg device not available");
         return -1;
     }
     name = qemu_opt_get(opts, "name");
@@ -2222,15 +2214,16 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
 
     /* we need name and either a file or the content string */
     if (!(nonempty_str(name) && (nonempty_str(file) || nonempty_str(str)))) {
-        error_report("invalid argument(s)");
+        error_setg(errp, "invalid argument(s)");
         return -1;
     }
     if (nonempty_str(file) && nonempty_str(str)) {
-        error_report("file and string are mutually exclusive");
+        error_setg(errp, "file and string are mutually exclusive");
         return -1;
     }
     if (strlen(name) > FW_CFG_MAX_FILE_PATH - 1) {
-        error_report("name too long (max. %d char)", FW_CFG_MAX_FILE_PATH - 1);
+        error_setg(errp, "name too long (max. %d char)",
+                   FW_CFG_MAX_FILE_PATH - 1);
         return -1;
     }
     if (strncmp(name, "opt/", 4) != 0) {
@@ -2242,7 +2235,7 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
         buf = g_memdup(str, size);
     } else {
         if (!g_file_get_contents(file, &buf, &size, NULL)) {
-            error_report("can't load %s", file);
+            error_setg(errp, "can't load %s", file);
             return -1;
         }
     }
@@ -2260,12 +2253,10 @@ static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
 
 static int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    Error *err = NULL;
     DeviceState *dev;
 
-    dev = qdev_device_add(opts, &err);
+    dev = qdev_device_add(opts, errp);
     if (!dev) {
-        error_report_err(err);
         return -1;
     }
     object_unref(OBJECT(dev));
@@ -2278,7 +2269,7 @@ static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 
     if (!qemu_chr_new_from_opts(opts, &local_err)) {
         if (local_err) {
-            error_report_err(local_err);
+            error_propagate(errp, local_err);
             return -1;
         }
         exit(0);
@@ -2289,7 +2280,7 @@ static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 #ifdef CONFIG_VIRTFS
 static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    return qemu_fsdev_add(opts);
+    return qemu_fsdev_add(opts, errp);
 }
 #endif
 
@@ -2309,8 +2300,8 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     } else if (strcmp(mode, "control") == 0) {
         flags = MONITOR_USE_CONTROL;
     } else {
-        error_report("unknown monitor mode \"%s\"", mode);
-        exit(1);
+        error_setg(errp, "unknown monitor mode \"%s\"", mode);
+        return -1;
     }
 
     if (qemu_opt_get_bool(opts, "pretty", 0))
@@ -2324,8 +2315,8 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     chardev = qemu_opt_get(opts, "chardev");
     chr = qemu_chr_find(chardev);
     if (chr == NULL) {
-        error_report("chardev \"%s\" not found", chardev);
-        exit(1);
+        error_setg(errp, "chardev \"%s\" not found", chardev);
+        return -1;
     }
 
     monitor_init(chr, flags);
@@ -2500,6 +2491,7 @@ static int debugcon_parse(const char *devname)
     QemuOpts *opts;
 
     if (!qemu_chr_new_mux_mon("debugcon", devname)) {
+        error_report("invalid character backend '%s'", devname);
         exit(1);
     }
     opts = qemu_opts_create(qemu_find_opts("device"), "debugcon", 1, NULL);
@@ -2715,7 +2707,7 @@ static int machine_set_property(void *opaque,
     g_free(qom_name);
 
     if (local_err) {
-        error_report_err(local_err);
+        error_propagate(errp, local_err);
         return -1;
     }
 
@@ -4011,26 +4003,20 @@ int main(int argc, char **argv, char **envp)
 
 #ifdef CONFIG_SECCOMP
     olist = qemu_find_opts_err("sandbox", NULL);
-    if (olist && qemu_opts_foreach(olist, parse_sandbox, NULL, NULL)) {
-        exit(1);
+    if (olist) {
+        qemu_opts_foreach(olist, parse_sandbox, NULL, &error_fatal);
     }
 #endif
 
-    if (qemu_opts_foreach(qemu_find_opts("name"),
-                          parse_name, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("name"),
+                      parse_name, NULL, &error_fatal);
 
 #ifndef _WIN32
-    if (qemu_opts_foreach(qemu_find_opts("add-fd"),
-                          parse_add_fd, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("add-fd"),
+                      parse_add_fd, NULL, &error_fatal);
 
-    if (qemu_opts_foreach(qemu_find_opts("add-fd"),
-                          cleanup_add_fd, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("add-fd"),
+                      cleanup_add_fd, NULL, &error_fatal);
 #endif
 
     current_machine = MACHINE(object_new(object_class_get_name(
@@ -4271,22 +4257,16 @@ int main(int argc, char **argv, char **envp)
     page_size_init();
     socket_init();
 
-    if (qemu_opts_foreach(qemu_find_opts("object"),
-                          user_creatable_add_opts_foreach,
-                          object_create_initial, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("object"),
+                      user_creatable_add_opts_foreach,
+                      object_create_initial, &error_fatal);
 
-    if (qemu_opts_foreach(qemu_find_opts("chardev"),
-                          chardev_init_func, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("chardev"),
+                      chardev_init_func, NULL, &error_fatal);
 
 #ifdef CONFIG_VIRTFS
-    if (qemu_opts_foreach(qemu_find_opts("fsdev"),
-                          fsdev_init_func, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("fsdev"),
+                      fsdev_init_func, NULL, &error_fatal);
 #endif
 
     if (qemu_opts_foreach(qemu_find_opts("device"),
@@ -4295,11 +4275,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     machine_opts = qemu_get_machine_opts();
-    if (qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
-                         NULL)) {
-        object_unref(OBJECT(current_machine));
-        exit(1);
-    }
+    qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
+                     &error_fatal);
 
     configure_accelerator(current_machine);
 
@@ -4404,15 +4381,11 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("object"),
-                          user_creatable_add_opts_foreach,
-                          object_create_delayed, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("object"),
+                      user_creatable_add_opts_foreach,
+                      object_create_delayed, &error_fatal);
 
-    if (tpm_init() < 0) {
-        exit(1);
-    }
+    tpm_init();
 
     /* init the bluetooth world */
     if (foreach_device_config(DEV_BT, bt_parse))
@@ -4453,8 +4426,9 @@ int main(int argc, char **argv, char **envp)
                           NULL, NULL);
     }
     if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func,
-                          &machine_class->block_default_type, NULL)) {
-        exit(1);
+                          &machine_class->block_default_type, &error_fatal)) {
+        /* We printed help */
+        exit(0);
     }
 
     default_drive(default_cdrom, snapshot, machine_class->block_default_type, 2,
@@ -4462,10 +4436,8 @@ int main(int argc, char **argv, char **envp)
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
     default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
 
-    if (qemu_opts_foreach(qemu_find_opts("mon"),
-                          mon_init_func, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("mon"),
+                      mon_init_func, NULL, &error_fatal);
 
     if (foreach_device_config(DEV_SERIAL, serial_parse) < 0)
         exit(1);
@@ -4528,10 +4500,8 @@ int main(int argc, char **argv, char **envp)
         hax_sync_vcpus();
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("fw_cfg"),
-                          parse_fw_cfg, fw_cfg_find(), NULL) != 0) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("fw_cfg"),
+                      parse_fw_cfg, fw_cfg_find(), &error_fatal);
 
     /* init USB devices */
     if (machine_usb(current_machine)) {
@@ -4544,10 +4514,8 @@ int main(int argc, char **argv, char **envp)
 
     /* init generic devices */
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
-    if (qemu_opts_foreach(qemu_find_opts("device"),
-                          device_init_func, NULL, NULL)) {
-        exit(1);
-    }
+    qemu_opts_foreach(qemu_find_opts("device"),
+                      device_init_func, NULL, &error_fatal);
 
     cpu_synchronize_all_post_init();
 
@@ -4583,7 +4551,7 @@ int main(int argc, char **argv, char **envp)
     /* init remote displays */
 #ifdef CONFIG_VNC
     qemu_opts_foreach(qemu_find_opts("vnc"),
-                      vnc_init_func, NULL, NULL);
+                      vnc_init_func, NULL, &error_fatal);
 #endif
 
     if (using_spice) {
