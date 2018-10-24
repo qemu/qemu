@@ -7,6 +7,7 @@
 /* internal defines */
 typedef struct DisasContext {
     DisasContextBase base;
+    const ARMISARegisters *isar;
 
     target_ulong pc;
     target_ulong page_start;
@@ -189,5 +190,25 @@ static inline TCGv_i32 get_ahp_flag(void)
 
     return ret;
 }
+
+
+/* Vector operations shared between ARM and AArch64.  */
+extern const GVecGen3 bsl_op;
+extern const GVecGen3 bit_op;
+extern const GVecGen3 bif_op;
+extern const GVecGen3 mla_op[4];
+extern const GVecGen3 mls_op[4];
+extern const GVecGen3 cmtst_op[4];
+extern const GVecGen2i ssra_op[4];
+extern const GVecGen2i usra_op[4];
+extern const GVecGen2i sri_op[4];
+extern const GVecGen2i sli_op[4];
+void gen_cmtst_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b);
+
+/*
+ * Forward to the isar_feature_* tests given a DisasContext pointer.
+ */
+#define dc_isar_feature(name, ctx) \
+    ({ DisasContext *ctx_ = (ctx); isar_feature_##name(ctx_->isar); })
 
 #endif /* TARGET_ARM_TRANSLATE_H */

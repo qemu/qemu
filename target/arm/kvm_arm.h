@@ -121,6 +121,30 @@ bool write_kvmstate_to_list(ARMCPU *cpu);
  */
 void kvm_arm_reset_vcpu(ARMCPU *cpu);
 
+/**
+ * kvm_arm_init_serror_injection:
+ * @cs: CPUState
+ *
+ * Check whether KVM can set guest SError syndrome.
+ */
+void kvm_arm_init_serror_injection(CPUState *cs);
+
+/**
+ * kvm_get_vcpu_events:
+ * @cpu: ARMCPU
+ *
+ * Get VCPU related state from kvm.
+ */
+int kvm_get_vcpu_events(ARMCPU *cpu);
+
+/**
+ * kvm_put_vcpu_events:
+ * @cpu: ARMCPU
+ *
+ * Put VCPU related state to kvm.
+ */
+int kvm_put_vcpu_events(ARMCPU *cpu);
+
 #ifdef CONFIG_KVM
 /**
  * kvm_arm_create_scratch_host_vcpu:

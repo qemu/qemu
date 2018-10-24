@@ -142,6 +142,7 @@
 #define GEM_DESCONF4      (0x0000028C/4)
 #define GEM_DESCONF5      (0x00000290/4)
 #define GEM_DESCONF6      (0x00000294/4)
+#define GEM_DESCONF6_64B_MASK (1U << 23)
 #define GEM_DESCONF7      (0x00000298/4)
 
 #define GEM_INT_Q1_STATUS               (0x00000400 / 4)
@@ -1283,6 +1284,7 @@ static void gem_reset(DeviceState *d)
     int i;
     CadenceGEMState *s = CADENCE_GEM(d);
     const uint8_t *a;
+    uint32_t queues_mask = 0;
 
     DB_PRINT("\n");
 
@@ -1299,7 +1301,12 @@ static void gem_reset(DeviceState *d)
     s->regs[GEM_DESCONF] = 0x02500111;
     s->regs[GEM_DESCONF2] = 0x2ab13fff;
     s->regs[GEM_DESCONF5] = 0x002f2045;
-    s->regs[GEM_DESCONF6] = 0x00000200;
+    s->regs[GEM_DESCONF6] = GEM_DESCONF6_64B_MASK;
+
+    if (s->num_priority_queues > 1) {
+        queues_mask = MAKE_64BIT_MASK(1, s->num_priority_queues - 1);
+        s->regs[GEM_DESCONF6] |= queues_mask;
+    }
 
     /* Set MAC address */
     a = &s->conf.macaddr.a[0];

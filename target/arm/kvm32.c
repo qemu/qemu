@@ -217,6 +217,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
     cpu->mp_affinity = mpidr & ARM32_AFFINITY_MASK;
 
+    /* Check whether userspace can specify guest syndrome value */
+    kvm_arm_init_serror_injection(cs);
+
     return kvm_arm_init_cpreg_list(cpu);
 }
 
@@ -358,6 +361,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
+    ret = kvm_put_vcpu_events(cpu);
+    if (ret) {
+        return ret;
+    }
+
     /* Note that we do not call write_cpustate_to_list()
      * here, so we are only writing the tuple list back to
      * KVM. This is safe because nothing can change the
@@ -444,6 +452,11 @@ int kvm_arch_get_registers(CPUState *cs)
         return ret;
     }
     vfp_set_fpscr(env, fpscr);
+
+    ret = kvm_get_vcpu_events(cpu);
+    if (ret) {
+        return ret;
+    }
 
     if (!write_kvmstate_to_list(cpu)) {
         return EINVAL;

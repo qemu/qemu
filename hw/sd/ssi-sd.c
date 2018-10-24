@@ -284,6 +284,8 @@ static void ssi_sd_class_init(ObjectClass *klass, void *data)
     k->cs_polarity = SSI_CS_LOW;
     dc->vmsd = &vmstate_ssi_sd;
     dc->reset = ssi_sd_reset;
+    /* Reason: init() method uses drive_get_next() */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo ssi_sd_info = {

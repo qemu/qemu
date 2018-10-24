@@ -42,7 +42,7 @@ void raise_exception(CPUARMState *env, uint32_t excp,
          * (see DDI0478C.a D1.10.4)
          */
         target_el = 2;
-        if (syndrome >> ARM_EL_EC_SHIFT == EC_ADVSIMDFPACCESSTRAP) {
+        if (syn_get_ec(syndrome) == EC_ADVSIMDFPACCESSTRAP) {
             syndrome = syn_uncategorized();
         }
     }

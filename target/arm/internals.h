@@ -145,7 +145,6 @@ static inline int bank_number(int mode)
     g_assert_not_reached();
 }
 
-void switch_mode(CPUARMState *, int);
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu);
 void arm_translate_init(void);
 
@@ -279,14 +278,19 @@ enum arm_exception_class {
 #define ARM_EL_IL (1 << ARM_EL_IL_SHIFT)
 #define ARM_EL_ISV (1 << ARM_EL_ISV_SHIFT)
 
+static inline uint32_t syn_get_ec(uint32_t syn)
+{
+    return syn >> ARM_EL_EC_SHIFT;
+}
+
 /* Utility functions for constructing various kinds of syndrome value.
  * Note that in general we follow the AArch64 syndrome values; in a
  * few cases the value in HSR for exceptions taken to AArch32 Hyp
- * mode differs slightly, so if we ever implemented Hyp mode then the
- * syndrome value would need some massaging on exception entry.
- * (One example of this is that AArch64 defaults to IL bit set for
- * exceptions which don't specifically indicate information about the
- * trapping instruction, whereas AArch32 defaults to IL bit clear.)
+ * mode differs slightly, and we fix this up when populating HSR in
+ * arm_cpu_do_interrupt_aarch32_hyp().
+ * The exception is FP/SIMD access traps -- these report extra information
+ * when taking an exception to AArch32. For those we include the extra coproc
+ * and TA fields, and mask them out when taking the exception to AArch64.
  */
 static inline uint32_t syn_uncategorized(void)
 {
@@ -386,9 +390,18 @@ static inline uint32_t syn_cp15_rrt_trap(int cv, int cond, int opc1, int crm,
 
 static inline uint32_t syn_fp_access_trap(int cv, int cond, bool is_16bit)
 {
+    /* AArch32 FP trap or any AArch64 FP/SIMD trap: TA == 0 coproc == 0xa */
     return (EC_ADVSIMDFPACCESSTRAP << ARM_EL_EC_SHIFT)
         | (is_16bit ? 0 : ARM_EL_IL)
-        | (cv << 24) | (cond << 20);
+        | (cv << 24) | (cond << 20) | 0xa;
+}
+
+static inline uint32_t syn_simd_access_trap(int cv, int cond, bool is_16bit)
+{
+    /* AArch32 SIMD trap: TA == 1 coproc == 0 */
+    return (EC_ADVSIMDFPACCESSTRAP << ARM_EL_EC_SHIFT)
+        | (is_16bit ? 0 : ARM_EL_IL)
+        | (cv << 24) | (cond << 20) | (1 << 5);
 }
 
 static inline uint32_t syn_sve_access_trap(void)
@@ -838,6 +851,24 @@ static inline uint32_t v7m_sp_limit(CPUARMState *env)
     } else {
         return env->v7m.msplim[env->v7m.secure];
     }
+}
+
+/**
+ * aarch32_mode_name(): Return name of the AArch32 CPU mode
+ * @psr: Program Status Register indicating CPU mode
+ *
+ * Returns, for debug logging purposes, a printable representation
+ * of the AArch32 CPU mode ("svc", "usr", etc) as indicated by
+ * the low bits of the specified PSR.
+ */
+static inline const char *aarch32_mode_name(uint32_t psr)
+{
+    static const char cpu_mode_names[16][4] = {
+        "usr", "fiq", "irq", "svc", "???", "???", "mon", "abt",
+        "???", "???", "hyp", "und", "???", "???", "???", "sys"
+    };
+
+    return cpu_mode_names[psr & 0xf];
 }
 
 #endif

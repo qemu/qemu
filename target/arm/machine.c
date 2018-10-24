@@ -131,9 +131,8 @@ static const VMStateDescription vmstate_iwmmxt = {
 static bool sve_needed(void *opaque)
 {
     ARMCPU *cpu = opaque;
-    CPUARMState *env = &cpu->env;
 
-    return arm_feature(env, ARM_FEATURE_SVE);
+    return cpu_isar_feature(aa64_sve, cpu);
 }
 
 /* The first two words of each Zreg is stored in VFP state.  */
@@ -171,6 +170,27 @@ static const VMStateDescription vmstate_sve = {
     }
 };
 #endif /* AARCH64 */
+
+static bool serror_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return env->serror.pending != 0;
+}
+
+static const VMStateDescription vmstate_serror = {
+    .name = "cpu/serror",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = serror_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(env.serror.pending, ARMCPU),
+        VMSTATE_UINT8(env.serror.has_esr, ARMCPU),
+        VMSTATE_UINT64(env.serror.esr, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static bool m_needed(void *opaque)
 {
@@ -726,6 +746,7 @@ const VMStateDescription vmstate_arm_cpu = {
 #ifdef TARGET_AARCH64
         &vmstate_sve,
 #endif
+        &vmstate_serror,
         NULL
     }
 };
