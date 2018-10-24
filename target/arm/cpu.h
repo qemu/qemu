@@ -1563,7 +1563,6 @@ enum arm_features {
     ARM_FEATURE_VFP3,
     ARM_FEATURE_VFP_FP16,
     ARM_FEATURE_NEON,
-    ARM_FEATURE_THUMB_DIV, /* divide supported in Thumb encoding */
     ARM_FEATURE_M, /* Microcontroller profile.  */
     ARM_FEATURE_OMAPCP, /* OMAP specific CP15 ops handling.  */
     ARM_FEATURE_THUMB2EE,
@@ -1573,7 +1572,6 @@ enum arm_features {
     ARM_FEATURE_V5,
     ARM_FEATURE_STRONGARM,
     ARM_FEATURE_VAPA, /* cp15 VA to PA lookups */
-    ARM_FEATURE_ARM_DIV, /* divide supported in ARM encoding */
     ARM_FEATURE_VFP4, /* VFPv4 (implies that NEON is v2) */
     ARM_FEATURE_GENERIC_TIMER,
     ARM_FEATURE_MVFR, /* Media and VFP Feature Registers 0 and 1 */
@@ -3152,6 +3150,16 @@ extern const uint64_t pred_esz_masks[4];
 /*
  * 32-bit feature tests via id registers.
  */
+static inline bool isar_feature_thumb_div(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar0, ID_ISAR0, DIVIDE) != 0;
+}
+
+static inline bool isar_feature_arm_div(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar0, ID_ISAR0, DIVIDE) > 1;
+}
+
 static inline bool isar_feature_aa32_aes(const ARMISARegisters *id)
 {
     return FIELD_EX32(id->id_isar5, ID_ISAR5, AES) != 0;

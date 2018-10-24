@@ -9755,7 +9755,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                     case 1:
                     case 3:
                         /* SDIV, UDIV */
-                        if (!arm_dc_feature(s, ARM_FEATURE_ARM_DIV)) {
+                        if (!dc_isar_feature(arm_div, s)) {
                             goto illegal_op;
                         }
                         if (((insn >> 5) & 7) || (rd != 15)) {
@@ -10963,7 +10963,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             tmp2 = load_reg(s, rm);
             if ((op & 0x50) == 0x10) {
                 /* sdiv, udiv */
-                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DIV)) {
+                if (!dc_isar_feature(thumb_div, s)) {
                     goto illegal_op;
                 }
                 if (op & 0x20)
