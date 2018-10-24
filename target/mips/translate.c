@@ -1,5 +1,5 @@
 /*
- *  MIPS32 emulation for qemu: main translation routines.
+ *  MIPS emulation for QEMU - main translation routines
  *
  *  Copyright (c) 2004-2005 Jocelyn Mayer
  *  Copyright (c) 2006 Marius Groeger (FPU operations)
@@ -463,8 +463,10 @@ enum {
     OPC_WSBH      = (0x02 << 6) | OPC_BSHFL,
     OPC_SEB       = (0x10 << 6) | OPC_BSHFL,
     OPC_SEH       = (0x18 << 6) | OPC_BSHFL,
-    OPC_ALIGN     = (0x08 << 6) | OPC_BSHFL, /* 010.bp */
-    OPC_ALIGN_END = (0x0B << 6) | OPC_BSHFL, /* 010.00 to 010.11 */
+    OPC_ALIGN     = (0x08 << 6) | OPC_BSHFL, /* 010.bp (010.00 to 010.11) */
+    OPC_ALIGN_1   = (0x09 << 6) | OPC_BSHFL,
+    OPC_ALIGN_2   = (0x0A << 6) | OPC_BSHFL,
+    OPC_ALIGN_3   = (0x0B << 6) | OPC_BSHFL,
     OPC_BITSWAP   = (0x00 << 6) | OPC_BSHFL  /* 00000 */
 };
 
@@ -474,8 +476,14 @@ enum {
 enum {
     OPC_DSBH       = (0x02 << 6) | OPC_DBSHFL,
     OPC_DSHD       = (0x05 << 6) | OPC_DBSHFL,
-    OPC_DALIGN     = (0x08 << 6) | OPC_DBSHFL, /* 01.bp */
-    OPC_DALIGN_END = (0x0F << 6) | OPC_DBSHFL, /* 01.000 to 01.111 */
+    OPC_DALIGN     = (0x08 << 6) | OPC_DBSHFL, /* 01.bp (01.000 to 01.111) */
+    OPC_DALIGN_1   = (0x09 << 6) | OPC_DBSHFL,
+    OPC_DALIGN_2   = (0x0A << 6) | OPC_DBSHFL,
+    OPC_DALIGN_3   = (0x0B << 6) | OPC_DBSHFL,
+    OPC_DALIGN_4   = (0x0C << 6) | OPC_DBSHFL,
+    OPC_DALIGN_5   = (0x0D << 6) | OPC_DBSHFL,
+    OPC_DALIGN_6   = (0x0E << 6) | OPC_DBSHFL,
+    OPC_DALIGN_7   = (0x0F << 6) | OPC_DBSHFL,
     OPC_DBITSWAP   = (0x00 << 6) | OPC_DBSHFL, /* 00000 */
 };
 
@@ -1927,6 +1935,440 @@ enum {
     OPC_MXU_Q8MACSU  = 0x01,
 };
 
+/*
+ *     Overview of the TX79-specific instruction set
+ *     =============================================
+ *
+ * The R5900 and the C790 have 128-bit wide GPRs, where the upper 64 bits
+ * are only used by the specific quadword (128-bit) LQ/SQ load/store
+ * instructions and certain multimedia instructions (MMIs). These MMIs
+ * configure the 128-bit data path as two 64-bit, four 32-bit, eight 16-bit
+ * or sixteen 8-bit paths.
+ *
+ * Reference:
+ *
+ * The Toshiba TX System RISC TX79 Core Architecture manual,
+ * https://wiki.qemu.org/File:C790.pdf
+ *
+ *     Three-Operand Multiply and Multiply-Add (4 instructions)
+ *     --------------------------------------------------------
+ * MADD    [rd,] rs, rt      Multiply/Add
+ * MADDU   [rd,] rs, rt      Multiply/Add Unsigned
+ * MULT    [rd,] rs, rt      Multiply (3-operand)
+ * MULTU   [rd,] rs, rt      Multiply Unsigned (3-operand)
+ *
+ *     Multiply Instructions for Pipeline 1 (10 instructions)
+ *     ------------------------------------------------------
+ * MULT1   [rd,] rs, rt      Multiply Pipeline 1
+ * MULTU1  [rd,] rs, rt      Multiply Unsigned Pipeline 1
+ * DIV1    rs, rt            Divide Pipeline 1
+ * DIVU1   rs, rt            Divide Unsigned Pipeline 1
+ * MADD1   [rd,] rs, rt      Multiply-Add Pipeline 1
+ * MADDU1  [rd,] rs, rt      Multiply-Add Unsigned Pipeline 1
+ * MFHI1   rd                Move From HI1 Register
+ * MFLO1   rd                Move From LO1 Register
+ * MTHI1   rs                Move To HI1 Register
+ * MTLO1   rs                Move To LO1 Register
+ *
+ *     Arithmetic (19 instructions)
+ *     ----------------------------
+ * PADDB   rd, rs, rt        Parallel Add Byte
+ * PSUBB   rd, rs, rt        Parallel Subtract Byte
+ * PADDH   rd, rs, rt        Parallel Add Halfword
+ * PSUBH   rd, rs, rt        Parallel Subtract Halfword
+ * PADDW   rd, rs, rt        Parallel Add Word
+ * PSUBW   rd, rs, rt        Parallel Subtract Word
+ * PADSBH  rd, rs, rt        Parallel Add/Subtract Halfword
+ * PADDSB  rd, rs, rt        Parallel Add with Signed Saturation Byte
+ * PSUBSB  rd, rs, rt        Parallel Subtract with Signed Saturation Byte
+ * PADDSH  rd, rs, rt        Parallel Add with Signed Saturation Halfword
+ * PSUBSH  rd, rs, rt        Parallel Subtract with Signed Saturation Halfword
+ * PADDSW  rd, rs, rt        Parallel Add with Signed Saturation Word
+ * PSUBSW  rd, rs, rt        Parallel Subtract with Signed Saturation Word
+ * PADDUB  rd, rs, rt        Parallel Add with Unsigned saturation Byte
+ * PSUBUB  rd, rs, rt        Parallel Subtract with Unsigned saturation Byte
+ * PADDUH  rd, rs, rt        Parallel Add with Unsigned saturation Halfword
+ * PSUBUH  rd, rs, rt        Parallel Subtract with Unsigned saturation Halfword
+ * PADDUW  rd, rs, rt        Parallel Add with Unsigned saturation Word
+ * PSUBUW  rd, rs, rt        Parallel Subtract with Unsigned saturation Word
+ *
+ *     Min/Max (4 instructions)
+ *     ------------------------
+ * PMAXH   rd, rs, rt        Parallel Maximum Halfword
+ * PMINH   rd, rs, rt        Parallel Minimum Halfword
+ * PMAXW   rd, rs, rt        Parallel Maximum Word
+ * PMINW   rd, rs, rt        Parallel Minimum Word
+ *
+ *     Absolute (2 instructions)
+ *     -------------------------
+ * PABSH   rd, rt            Parallel Absolute Halfword
+ * PABSW   rd, rt            Parallel Absolute Word
+ *
+ *     Logical (4 instructions)
+ *     ------------------------
+ * PAND    rd, rs, rt        Parallel AND
+ * POR     rd, rs, rt        Parallel OR
+ * PXOR    rd, rs, rt        Parallel XOR
+ * PNOR    rd, rs, rt        Parallel NOR
+ *
+ *     Shift (9 instructions)
+ *     ----------------------
+ * PSLLH   rd, rt, sa        Parallel Shift Left Logical Halfword
+ * PSRLH   rd, rt, sa        Parallel Shift Right Logical Halfword
+ * PSRAH   rd, rt, sa        Parallel Shift Right Arithmetic Halfword
+ * PSLLW   rd, rt, sa        Parallel Shift Left Logical Word
+ * PSRLW   rd, rt, sa        Parallel Shift Right Logical Word
+ * PSRAW   rd, rt, sa        Parallel Shift Right Arithmetic Word
+ * PSLLVW  rd, rt, rs        Parallel Shift Left Logical Variable Word
+ * PSRLVW  rd, rt, rs        Parallel Shift Right Logical Variable Word
+ * PSRAVW  rd, rt, rs        Parallel Shift Right Arithmetic Variable Word
+ *
+ *     Compare (6 instructions)
+ *     ------------------------
+ * PCGTB   rd, rs, rt        Parallel Compare for Greater Than Byte
+ * PCEQB   rd, rs, rt        Parallel Compare for Equal Byte
+ * PCGTH   rd, rs, rt        Parallel Compare for Greater Than Halfword
+ * PCEQH   rd, rs, rt        Parallel Compare for Equal Halfword
+ * PCGTW   rd, rs, rt        Parallel Compare for Greater Than Word
+ * PCEQW   rd, rs, rt        Parallel Compare for Equal Word
+ *
+ *     LZC (1 instruction)
+ *     -------------------
+ * PLZCW   rd, rs            Parallel Leading Zero or One Count Word
+ *
+ *     Quadword Load and Store (2 instructions)
+ *     ----------------------------------------
+ * LQ      rt, offset(base)  Load Quadword
+ * SQ      rt, offset(base)  Store Quadword
+ *
+ *     Multiply and Divide (19 instructions)
+ *     -------------------------------------
+ * PMULTW  rd, rs, rt        Parallel Multiply Word
+ * PMULTUW rd, rs, rt        Parallel Multiply Unsigned Word
+ * PDIVW   rs, rt            Parallel Divide Word
+ * PDIVUW  rs, rt            Parallel Divide Unsigned Word
+ * PMADDW  rd, rs, rt        Parallel Multiply-Add Word
+ * PMADDUW rd, rs, rt        Parallel Multiply-Add Unsigned Word
+ * PMSUBW  rd, rs, rt        Parallel Multiply-Subtract Word
+ * PMULTH  rd, rs, rt        Parallel Multiply Halfword
+ * PMADDH  rd, rs, rt        Parallel Multiply-Add Halfword
+ * PMSUBH  rd, rs, rt        Parallel Multiply-Subtract Halfword
+ * PHMADH  rd, rs, rt        Parallel Horizontal Multiply-Add Halfword
+ * PHMSBH  rd, rs, rt        Parallel Horizontal Multiply-Subtract Halfword
+ * PDIVBW  rs, rt            Parallel Divide Broadcast Word
+ * PMFHI   rd                Parallel Move From HI Register
+ * PMFLO   rd                Parallel Move From LO Register
+ * PMTHI   rs                Parallel Move To HI Register
+ * PMTLO   rs                Parallel Move To LO Register
+ * PMFHL   rd                Parallel Move From HI/LO Register
+ * PMTHL   rs                Parallel Move To HI/LO Register
+ *
+ *     Pack/Extend (11 instructions)
+ *     -----------------------------
+ * PPAC5   rd, rt            Parallel Pack to 5 bits
+ * PPACB   rd, rs, rt        Parallel Pack to Byte
+ * PPACH   rd, rs, rt        Parallel Pack to Halfword
+ * PPACW   rd, rs, rt        Parallel Pack to Word
+ * PEXT5   rd, rt            Parallel Extend Upper from 5 bits
+ * PEXTUB  rd, rs, rt        Parallel Extend Upper from Byte
+ * PEXTLB  rd, rs, rt        Parallel Extend Lower from Byte
+ * PEXTUH  rd, rs, rt        Parallel Extend Upper from Halfword
+ * PEXTLH  rd, rs, rt        Parallel Extend Lower from Halfword
+ * PEXTUW  rd, rs, rt        Parallel Extend Upper from Word
+ * PEXTLW  rd, rs, rt        Parallel Extend Lower from Word
+ *
+ *     Others (16 instructions)
+ *     ------------------------
+ * PCPYH   rd, rt            Parallel Copy Halfword
+ * PCPYLD  rd, rs, rt        Parallel Copy Lower Doubleword
+ * PCPYUD  rd, rs, rt        Parallel Copy Upper Doubleword
+ * PREVH   rd, rt            Parallel Reverse Halfword
+ * PINTH   rd, rs, rt        Parallel Interleave Halfword
+ * PINTEH  rd, rs, rt        Parallel Interleave Even Halfword
+ * PEXEH   rd, rt            Parallel Exchange Even Halfword
+ * PEXCH   rd, rt            Parallel Exchange Center Halfword
+ * PEXEW   rd, rt            Parallel Exchange Even Word
+ * PEXCW   rd, rt            Parallel Exchange Center Word
+ * QFSRV   rd, rs, rt        Quadword Funnel Shift Right Variable
+ * MFSA    rd                Move from Shift Amount Register
+ * MTSA    rs                Move to Shift Amount Register
+ * MTSAB   rs, immediate     Move Byte Count to Shift Amount Register
+ * MTSAH   rs, immediate     Move Halfword Count to Shift Amount Register
+ * PROT3W  rd, rt            Parallel Rotate 3 Words
+ *
+ *     The TX79-specific Multimedia Instruction encodings
+ *     ==================================================
+ *
+ * TX79 Multimedia Instruction encoding table keys:
+ *
+ *     *   This code is reserved for future use. An attempt to execute it
+ *         causes a Reserved Instruction exception.
+ *     %   This code indicates an instruction class. The instruction word
+ *         must be further decoded by examining additional tables that show
+ *         the values for other instruction fields.
+ *     #   This code is reserved for the unsupported instructions DMULT,
+ *         DMULTU, DDIV, DDIVU, LL, LLD, SC, SCD, LWC2 and SWC2. An attempt
+ *         to execute it causes a Reserved Instruction exception.
+ *
+ * TX79 Multimedia Instructions encoded by opcode field (MMI, LQ, SQ):
+ *
+ *  31    26                                        0
+ * +--------+----------------------------------------+
+ * | opcode |                                        |
+ * +--------+----------------------------------------+
+ *
+ *   opcode  bits 28..26
+ *     bits |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7
+ *   31..29 |  000  |  001  |  010  |  011  |  100  |  101  |  110  |  111
+ *   -------+-------+-------+-------+-------+-------+-------+-------+-------
+ *    0 000 |SPECIAL| REGIMM|   J   |  JAL  |  BEQ  |  BNE  |  BLEZ |  BGTZ
+ *    1 001 |  ADDI | ADDIU |  SLTI | SLTIU |  ANDI |  ORI  |  XORI |  LUI
+ *    2 010 |  COP0 |  COP1 |   *   |   *   |  BEQL |  BNEL | BLEZL | BGTZL
+ *    3 011 | DADDI | DADDIU|  LDL  |  LDR  |  MMI% |   *   |   LQ  |   SQ
+ *    4 100 |   LB  |   LH  |  LWL  |   LW  |  LBU  |  LHU  |  LWR  |  LWU
+ *    5 101 |   SB  |   SH  |  SWL  |   SW  |  SDL  |  SDR  |  SWR  | CACHE
+ *    6 110 |   #   |  LWC1 |   #   |  PREF |   #   |  LDC1 |   #   |   LD
+ *    7 111 |   #   |  SWC1 |   #   |   *   |   #   |  SDC1 |   #   |   SD
+ */
+
+enum {
+    TX79_CLASS_MMI = 0x1C << 26,    /* Same as OPC_SPECIAL2 */
+    TX79_LQ        = 0x1E << 26,    /* Same as OPC_MSA */
+    TX79_SQ        = 0x1F << 26,    /* Same as OPC_SPECIAL3 */
+};
+
+/*
+ * TX79 Multimedia Instructions with opcode field = MMI:
+ *
+ *  31    26                                 5      0
+ * +--------+-------------------------------+--------+
+ * |   MMI  |                               |function|
+ * +--------+-------------------------------+--------+
+ *
+ * function  bits 2..0
+ *     bits |   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7
+ *     5..3 |  000  |  001  |  010  |  011  |  100  |  101  |  110  |  111
+ *   -------+-------+-------+-------+-------+-------+-------+-------+-------
+ *    0 000 |  MADD | MADDU |   *   |   *   | PLZCW |   *   |   *   |   *
+ *    1 001 | MMI0% | MMI2% |   *   |   *   |   *   |   *   |   *   |   *
+ *    2 010 | MFHI1 | MTHI1 | MFLO1 | MTLO1 |   *   |   *   |   *   |   *
+ *    3 011 | MULT1 | MULTU1|  DIV1 | DIVU1 |   *   |   *   |   *   |   *
+ *    4 100 | MADD1 | MADDU1|   *   |   *   |   *   |   *   |   *   |   *
+ *    5 101 | MMI1% | MMI3% |   *   |   *   |   *   |   *   |   *   |   *
+ *    6 110 | PMFHL | PMTHL |   *   |   *   | PSLLH |   *   | PSRLH | PSRAH
+ *    7 111 |   *   |   *   |   *   |   *   | PSLLW |   *   | PSRLW | PSRAW
+ */
+
+#define MASK_TX79_MMI(op) (MASK_OP_MAJOR(op) | ((op) & 0x3F))
+enum {
+    TX79_MMI_MADD       = 0x00 | TX79_CLASS_MMI, /* Same as OPC_MADD */
+    TX79_MMI_MADDU      = 0x01 | TX79_CLASS_MMI, /* Same as OPC_MADDU */
+    TX79_MMI_PLZCW      = 0x04 | TX79_CLASS_MMI,
+    TX79_MMI_CLASS_MMI0 = 0x08 | TX79_CLASS_MMI,
+    TX79_MMI_CLASS_MMI2 = 0x09 | TX79_CLASS_MMI,
+    TX79_MMI_MFHI1      = 0x10 | TX79_CLASS_MMI, /* Same minor as OPC_MFHI */
+    TX79_MMI_MTHI1      = 0x11 | TX79_CLASS_MMI, /* Same minor as OPC_MTHI */
+    TX79_MMI_MFLO1      = 0x12 | TX79_CLASS_MMI, /* Same minor as OPC_MFLO */
+    TX79_MMI_MTLO1      = 0x13 | TX79_CLASS_MMI, /* Same minor as OPC_MTLO */
+    TX79_MMI_MULT1      = 0x18 | TX79_CLASS_MMI, /* Same minor as OPC_MULT */
+    TX79_MMI_MULTU1     = 0x19 | TX79_CLASS_MMI, /* Same minor as OPC_MULTU */
+    TX79_MMI_DIV1       = 0x1A | TX79_CLASS_MMI, /* Same minor as OPC_DIV */
+    TX79_MMI_DIVU1      = 0x1B | TX79_CLASS_MMI, /* Same minor as OPC_DIVU */
+    TX79_MMI_MADD1      = 0x20 | TX79_CLASS_MMI,
+    TX79_MMI_MADDU1     = 0x21 | TX79_CLASS_MMI,
+    TX79_MMI_CLASS_MMI1 = 0x28 | TX79_CLASS_MMI,
+    TX79_MMI_CLASS_MMI3 = 0x29 | TX79_CLASS_MMI,
+    TX79_MMI_PMFHL      = 0x30 | TX79_CLASS_MMI,
+    TX79_MMI_PMTHL      = 0x31 | TX79_CLASS_MMI,
+    TX79_MMI_PSLLH      = 0x34 | TX79_CLASS_MMI,
+    TX79_MMI_PSRLH      = 0x36 | TX79_CLASS_MMI,
+    TX79_MMI_PSRAH      = 0x37 | TX79_CLASS_MMI,
+    TX79_MMI_PSLLW      = 0x3C | TX79_CLASS_MMI,
+    TX79_MMI_PSRLW      = 0x3E | TX79_CLASS_MMI,
+    TX79_MMI_PSRAW      = 0x3F | TX79_CLASS_MMI,
+};
+
+/*
+ * TX79 Multimedia Instructions with opcode field = MMI and bits 5..0 = MMI0:
+ *
+ *  31    26                        10     6 5      0
+ * +--------+----------------------+--------+--------+
+ * |   MMI  |                      |function|  MMI0  |
+ * +--------+----------------------+--------+--------+
+ *
+ * function  bits 7..6
+ *     bits |   0   |   1   |   2   |   3
+ *    10..8 |   00  |   01  |   10  |   11
+ *   -------+-------+-------+-------+-------
+ *    0 000 | PADDW | PSUBW | PCGTW | PMAXW
+ *    1 001 | PADDH | PSUBH | PCGTH | PMAXH
+ *    2 010 | PADDB | PSUBB | PCGTB |   *
+ *    3 011 |   *   |   *   |   *   |   *
+ *    4 100 | PADDSW| PSUBSW| PEXTLW| PPACW
+ *    5 101 | PADDSH| PSUBSH| PEXTLH| PPACH
+ *    6 110 | PADDSB| PSUBSB| PEXTLB| PPACB
+ *    7 111 |   *   |   *   | PEXT5 | PPAC5
+ */
+
+#define MASK_TX79_MMI0(op) (MASK_OP_MAJOR(op) | ((op) & 0x7FF))
+enum {
+    TX79_MMI0_PADDW  = (0x00 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PSUBW  = (0x01 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PCGTW  = (0x02 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PMAXW  = (0x03 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PADDH  = (0x04 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PSUBH  = (0x05 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PCGTH  = (0x06 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PMAXH  = (0x07 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PADDB  = (0x08 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PSUBB  = (0x09 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PCGTB  = (0x0A << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PADDSW = (0x10 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PSUBSW = (0x11 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PEXTLW = (0x12 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PPACW  = (0x13 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PADDSH = (0x14 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PSUBSH = (0x15 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PEXTLH = (0x16 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PPACH  = (0x17 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PADDSB = (0x18 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PSUBSB = (0x19 << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PEXTLB = (0x1A << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PPACB  = (0x1B << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PEXT5  = (0x1E << 6) | TX79_MMI_CLASS_MMI0,
+    TX79_MMI0_PPAC5  = (0x1F << 6) | TX79_MMI_CLASS_MMI0,
+};
+
+/*
+ * TX79 Multimedia Instructions with opcode field = MMI and bits 5..0 = MMI1:
+ *
+ *  31    26                        10     6 5      0
+ * +--------+----------------------+--------+--------+
+ * |   MMI  |                      |function|  MMI1  |
+ * +--------+----------------------+--------+--------+
+ *
+ * function  bits 7..6
+ *     bits |   0   |   1   |   2   |   3
+ *    10..8 |   00  |   01  |   10  |   11
+ *   -------+-------+-------+-------+-------
+ *    0 000 |   *   | PABSW | PCEQW | PMINW
+ *    1 001 | PADSBH| PABSH | PCEQH | PMINH
+ *    2 010 |   *   |   *   | PCEQB |   *
+ *    3 011 |   *   |   *   |   *   |   *
+ *    4 100 | PADDUW| PSUBUW| PEXTUW|   *
+ *    5 101 | PADDUH| PSUBUH| PEXTUH|   *
+ *    6 110 | PADDUB| PSUBUB| PEXTUB| QFSRV
+ *    7 111 |   *   |   *   |   *   |   *
+ */
+
+#define MASK_TX79_MMI1(op) (MASK_OP_MAJOR(op) | ((op) & 0x7FF))
+enum {
+    TX79_MMI1_PABSW  = (0x01 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PCEQW  = (0x02 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PMINW  = (0x03 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PADSBH = (0x04 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PABSH  = (0x05 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PCEQH  = (0x06 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PMINH  = (0x07 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PCEQB  = (0x0A << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PADDUW = (0x10 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PSUBUW = (0x11 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PEXTUW = (0x12 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PADDUH = (0x14 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PSUBUH = (0x15 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PEXTUH = (0x16 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PADDUB = (0x18 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PSUBUB = (0x19 << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_PEXTUB = (0x1A << 6) | TX79_MMI_CLASS_MMI1,
+    TX79_MMI1_QFSRV  = (0x1B << 6) | TX79_MMI_CLASS_MMI1,
+};
+
+/*
+ * TX79 Multimedia Instructions with opcode field = MMI and bits 5..0 = MMI2:
+ *
+ *  31    26                        10     6 5      0
+ * +--------+----------------------+--------+--------+
+ * |   MMI  |                      |function|  MMI2  |
+ * +--------+----------------------+--------+--------+
+ *
+ * function  bits 7..6
+ *     bits |   0   |   1   |   2   |   3
+ *    10..8 |   00  |   01  |   10  |   11
+ *   -------+-------+-------+-------+-------
+ *    0 000 | PMADDW|   *   | PSLLVW| PSRLVW
+ *    1 001 | PMSUBW|   *   |   *   |   *
+ *    2 010 | PMFHI | PMFLO | PINTH |   *
+ *    3 011 | PMULTW| PDIVW | PCPYLD|   *
+ *    4 100 | PMADDH| PHMADH|  PAND |  PXOR
+ *    5 101 | PMSUBH| PHMSBH|   *   |   *
+ *    6 110 |   *   |   *   | PEXEH | PREVH
+ *    7 111 | PMULTH| PDIVBW| PEXEW | PROT3W
+ */
+
+#define MASK_TX79_MMI2(op) (MASK_OP_MAJOR(op) | ((op) & 0x7FF))
+enum {
+    TX79_MMI2_PMADDW = (0x00 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PSLLVW = (0x02 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PSRLVW = (0x03 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PMSUBW = (0x04 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PMFHI  = (0x08 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PMFLO  = (0x09 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PINTH  = (0x0A << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PMULTW = (0x0C << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PDIVW  = (0x0D << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PCPYLD = (0x0E << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PMADDH = (0x10 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PHMADH = (0x11 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PAND   = (0x12 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PXOR   = (0x13 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PMSUBH = (0x14 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PHMSBH = (0x15 << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PEXEH  = (0x1A << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PREVH  = (0x1B << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PMULTH = (0x1C << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PDIVBW = (0x1D << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PEXEW  = (0x1E << 6) | TX79_MMI_CLASS_MMI2,
+    TX79_MMI2_PROT3W = (0x1F << 6) | TX79_MMI_CLASS_MMI2,
+};
+
+/*
+ * TX79 Multimedia Instructions with opcode field = MMI and bits 5..0 = MMI3:
+ *
+ *  31    26                        10     6 5      0
+ * +--------+----------------------+--------+--------+
+ * |   MMI  |                      |function|  MMI3  |
+ * +--------+----------------------+--------+--------+
+ *
+ * function  bits 7..6
+ *     bits |   0   |   1   |   2   |   3
+ *    10..8 |   00  |   01  |   10  |   11
+ *   -------+-------+-------+-------+-------
+ *    0 000 |PMADDUW|   *   |   *   | PSRAVW
+ *    1 001 |   *   |   *   |   *   |   *
+ *    2 010 | PMTHI | PMTLO | PINTEH|   *
+ *    3 011 |PMULTUW| PDIVUW| PCPYUD|   *
+ *    4 100 |   *   |   *   |  POR  |  PNOR
+ *    5 101 |   *   |   *   |   *   |   *
+ *    6 110 |   *   |   *   | PEXCH | PCPYH
+ *    7 111 |   *   |   *   | PEXCW |   *
+ */
+
+#define MASK_TX79_MMI3(op) (MASK_OP_MAJOR(op) | ((op) & 0x7FF))
+enum {
+    TX79_MMI3_PMADDUW = (0x00 << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PSRAVW  = (0x03 << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PMTHI   = (0x08 << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PMTLO   = (0x09 << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PINTEH  = (0x0A << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PMULTUW = (0x0C << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PDIVUW  = (0x0D << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PCPYUD  = (0x0E << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_POR     = (0x12 << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PNOR    = (0x13 << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PEXCH   = (0x1A << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PCPYH   = (0x1B << 6) | TX79_MMI_CLASS_MMI3,
+    TX79_MMI3_PEXCW   = (0x1E << 6) | TX79_MMI_CLASS_MMI3,
+};
 
 /* global register indices */
 static TCGv cpu_gpr[32], cpu_PC;
@@ -2436,6 +2878,21 @@ static inline void check_insn_opc_removed(DisasContext *ctx, uint64_t flags)
     if (unlikely(ctx->insn_flags & flags)) {
         generate_exception_end(ctx, EXCP_RI);
     }
+}
+
+/*
+ * The Linux kernel traps certain reserved instruction exceptions to
+ * emulate the corresponding instructions. QEMU is the kernel in user
+ * mode, so those traps are emulated by accepting the instructions.
+ *
+ * A reserved instruction exception is generated for flagged CPUs if
+ * QEMU runs in system mode.
+ */
+static inline void check_insn_opc_user_only(DisasContext *ctx, uint64_t flags)
+{
+#ifndef CONFIG_USER_ONLY
+    check_insn_opc_removed(ctx, flags);
+#endif
 }
 
 /* This code generates a "reserved instruction" exception if the
@@ -3795,17 +4252,21 @@ static void gen_shift(DisasContext *ctx, uint32_t opc,
 /* Arithmetic on HI/LO registers */
 static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
 {
-    if (reg == 0 && (opc == OPC_MFHI || opc == OPC_MFLO)) {
+    if (reg == 0 && (opc == OPC_MFHI || opc == TX79_MMI_MFHI1 ||
+                     opc == OPC_MFLO || opc == TX79_MMI_MFLO1)) {
         /* Treat as NOP. */
         return;
     }
 
     if (acc != 0) {
-        check_dsp(ctx);
+        if (!(ctx->insn_flags & INSN_R5900)) {
+            check_dsp(ctx);
+        }
     }
 
     switch (opc) {
     case OPC_MFHI:
+    case TX79_MMI_MFHI1:
 #if defined(TARGET_MIPS64)
         if (acc != 0) {
             tcg_gen_ext32s_tl(cpu_gpr[reg], cpu_HI[acc]);
@@ -3816,6 +4277,7 @@ static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
         }
         break;
     case OPC_MFLO:
+    case TX79_MMI_MFLO1:
 #if defined(TARGET_MIPS64)
         if (acc != 0) {
             tcg_gen_ext32s_tl(cpu_gpr[reg], cpu_LO[acc]);
@@ -3826,6 +4288,7 @@ static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
         }
         break;
     case OPC_MTHI:
+    case TX79_MMI_MTHI1:
         if (reg != 0) {
 #if defined(TARGET_MIPS64)
             if (acc != 0) {
@@ -3840,6 +4303,7 @@ static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
         }
         break;
     case OPC_MTLO:
+    case TX79_MMI_MTLO1:
         if (reg != 0) {
 #if defined(TARGET_MIPS64)
             if (acc != 0) {
@@ -4152,11 +4616,14 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
     gen_load_gpr(t1, rt);
 
     if (acc != 0) {
-        check_dsp(ctx);
+        if (!(ctx->insn_flags & INSN_R5900)) {
+            check_dsp(ctx);
+        }
     }
 
     switch (opc) {
     case OPC_DIV:
+    case TX79_MMI_DIV1:
         {
             TCGv t2 = tcg_temp_new();
             TCGv t3 = tcg_temp_new();
@@ -4178,6 +4645,7 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
         }
         break;
     case OPC_DIVU:
+    case TX79_MMI_DIVU1:
         {
             TCGv t2 = tcg_const_tl(0);
             TCGv t3 = tcg_const_tl(1);
@@ -4327,6 +4795,84 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
         generate_exception_end(ctx, EXCP_RI);
         goto out;
     }
+ out:
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+/*
+ * These MULT and MULTU instructions implemented in for example the
+ * Toshiba/Sony R5900 and the Toshiba TX19, TX39 and TX79 core
+ * architectures are special three-operand variants with the syntax
+ *
+ *     MULT[U][1] rd, rs, rt
+ *
+ * such that
+ *
+ *     (rd, LO, HI) <- rs * rt
+ *
+ * where the low-order 32-bits of the result is placed into both the
+ * GPR rd and the special register LO. The high-order 32-bits of the
+ * result is placed into the special register HI.
+ *
+ * If the GPR rd is omitted in assembly language, it is taken to be 0,
+ * which is the zero register that always reads as 0.
+ */
+static void gen_mul_txx9(DisasContext *ctx, uint32_t opc,
+                         int rd, int rs, int rt)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int acc = 0;
+
+    gen_load_gpr(t0, rs);
+    gen_load_gpr(t1, rt);
+
+    switch (opc) {
+    case TX79_MMI_MULT1:
+        acc = 1;
+        /* Fall through */
+    case OPC_MULT:
+        {
+            TCGv_i32 t2 = tcg_temp_new_i32();
+            TCGv_i32 t3 = tcg_temp_new_i32();
+            tcg_gen_trunc_tl_i32(t2, t0);
+            tcg_gen_trunc_tl_i32(t3, t1);
+            tcg_gen_muls2_i32(t2, t3, t2, t3);
+            if (rd) {
+                tcg_gen_ext_i32_tl(cpu_gpr[rd], t2);
+            }
+            tcg_gen_ext_i32_tl(cpu_LO[acc], t2);
+            tcg_gen_ext_i32_tl(cpu_HI[acc], t3);
+            tcg_temp_free_i32(t2);
+            tcg_temp_free_i32(t3);
+        }
+        break;
+    case TX79_MMI_MULTU1:
+        acc = 1;
+        /* Fall through */
+    case OPC_MULTU:
+        {
+            TCGv_i32 t2 = tcg_temp_new_i32();
+            TCGv_i32 t3 = tcg_temp_new_i32();
+            tcg_gen_trunc_tl_i32(t2, t0);
+            tcg_gen_trunc_tl_i32(t3, t1);
+            tcg_gen_mulu2_i32(t2, t3, t2, t3);
+            if (rd) {
+                tcg_gen_ext_i32_tl(cpu_gpr[rd], t2);
+            }
+            tcg_gen_ext_i32_tl(cpu_LO[acc], t2);
+            tcg_gen_ext_i32_tl(cpu_HI[acc], t3);
+            tcg_temp_free_i32(t2);
+            tcg_temp_free_i32(t3);
+        }
+        break;
+    default:
+        MIPS_INVAL("mul TXx9");
+        generate_exception_end(ctx, EXCP_RI);
+        goto out;
+    }
+
  out:
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -23029,7 +23575,7 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
     case OPC_MOVN:         /* Conditional move */
     case OPC_MOVZ:
         check_insn(ctx, ISA_MIPS4 | ISA_MIPS32 |
-                   INSN_LOONGSON2E | INSN_LOONGSON2F);
+                   INSN_LOONGSON2E | INSN_LOONGSON2F | INSN_R5900);
         gen_cond_move(ctx, op1, rd, rs, rt);
         break;
     case OPC_MFHI:          /* Move from HI/LO */
@@ -23056,6 +23602,8 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
             check_insn(ctx, INSN_VR54XX);
             op1 = MASK_MUL_VR54XX(ctx->opcode);
             gen_mul_vr54xx(ctx, op1, rd, rs, rt);
+        } else if (ctx->insn_flags & INSN_R5900) {
+            gen_mul_txx9(ctx, op1, rd, rs, rt);
         } else {
             gen_muldiv(ctx, op1, rd & 3, rs, rt);
         }
@@ -23070,6 +23618,7 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
     case OPC_DDIV:
     case OPC_DDIVU:
         check_insn(ctx, ISA_MIPS3);
+        check_insn_opc_user_only(ctx, INSN_R5900);
         check_mips_64(ctx);
         gen_muldiv(ctx, op1, 0, rs, rt);
         break;
@@ -23416,7 +23965,9 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
             op2 = MASK_BSHFL(ctx->opcode);
             switch (op2) {
             case OPC_ALIGN:
-            case OPC_ALIGN_END:
+            case OPC_ALIGN_1:
+            case OPC_ALIGN_2:
+            case OPC_ALIGN_3:
                 gen_align(ctx, 32, rd, rs, rt, sa & 3);
                 break;
             case OPC_BITSWAP:
@@ -23442,7 +23993,13 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
             op2 = MASK_DBSHFL(ctx->opcode);
             switch (op2) {
             case OPC_DALIGN:
-            case OPC_DALIGN_END:
+            case OPC_DALIGN_1:
+            case OPC_DALIGN_2:
+            case OPC_DALIGN_3:
+            case OPC_DALIGN_4:
+            case OPC_DALIGN_5:
+            case OPC_DALIGN_6:
+            case OPC_DALIGN_7:
                 gen_align(ctx, 64, rd, rs, rt, sa & 7);
                 break;
             case OPC_DBITSWAP:
@@ -23986,6 +24543,250 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+static void decode_tx79_mmi0(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opc = MASK_TX79_MMI0(ctx->opcode);
+
+    switch (opc) {
+    case TX79_MMI0_PADDW:     /* TODO: TX79_MMI0_PADDW */
+    case TX79_MMI0_PSUBW:     /* TODO: TX79_MMI0_PSUBW */
+    case TX79_MMI0_PCGTW:     /* TODO: TX79_MMI0_PCGTW */
+    case TX79_MMI0_PMAXW:     /* TODO: TX79_MMI0_PMAXW */
+    case TX79_MMI0_PADDH:     /* TODO: TX79_MMI0_PADDH */
+    case TX79_MMI0_PSUBH:     /* TODO: TX79_MMI0_PSUBH */
+    case TX79_MMI0_PCGTH:     /* TODO: TX79_MMI0_PCGTH */
+    case TX79_MMI0_PMAXH:     /* TODO: TX79_MMI0_PMAXH */
+    case TX79_MMI0_PADDB:     /* TODO: TX79_MMI0_PADDB */
+    case TX79_MMI0_PSUBB:     /* TODO: TX79_MMI0_PSUBB */
+    case TX79_MMI0_PCGTB:     /* TODO: TX79_MMI0_PCGTB */
+    case TX79_MMI0_PADDSW:    /* TODO: TX79_MMI0_PADDSW */
+    case TX79_MMI0_PSUBSW:    /* TODO: TX79_MMI0_PSUBSW */
+    case TX79_MMI0_PEXTLW:    /* TODO: TX79_MMI0_PEXTLW */
+    case TX79_MMI0_PPACW:     /* TODO: TX79_MMI0_PPACW */
+    case TX79_MMI0_PADDSH:    /* TODO: TX79_MMI0_PADDSH */
+    case TX79_MMI0_PSUBSH:    /* TODO: TX79_MMI0_PSUBSH */
+    case TX79_MMI0_PEXTLH:    /* TODO: TX79_MMI0_PEXTLH */
+    case TX79_MMI0_PPACH:     /* TODO: TX79_MMI0_PPACH */
+    case TX79_MMI0_PADDSB:    /* TODO: TX79_MMI0_PADDSB */
+    case TX79_MMI0_PSUBSB:    /* TODO: TX79_MMI0_PSUBSB */
+    case TX79_MMI0_PEXTLB:    /* TODO: TX79_MMI0_PEXTLB */
+    case TX79_MMI0_PPACB:     /* TODO: TX79_MMI0_PPACB */
+    case TX79_MMI0_PEXT5:     /* TODO: TX79_MMI0_PEXT5 */
+    case TX79_MMI0_PPAC5:     /* TODO: TX79_MMI0_PPAC5 */
+        generate_exception_end(ctx, EXCP_RI); /* TODO: TX79_MMI_CLASS_MMI0 */
+        break;
+    default:
+        MIPS_INVAL("TX79 MMI class MMI0");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+static void decode_tx79_mmi1(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opc = MASK_TX79_MMI1(ctx->opcode);
+
+    switch (opc) {
+    case TX79_MMI1_PABSW:     /* TODO: TX79_MMI1_PABSW */
+    case TX79_MMI1_PCEQW:     /* TODO: TX79_MMI1_PCEQW */
+    case TX79_MMI1_PMINW:     /* TODO: TX79_MMI1_PMINW */
+    case TX79_MMI1_PADSBH:    /* TODO: TX79_MMI1_PADSBH */
+    case TX79_MMI1_PABSH:     /* TODO: TX79_MMI1_PABSH */
+    case TX79_MMI1_PCEQH:     /* TODO: TX79_MMI1_PCEQH */
+    case TX79_MMI1_PMINH:     /* TODO: TX79_MMI1_PMINH */
+    case TX79_MMI1_PCEQB:     /* TODO: TX79_MMI1_PCEQB */
+    case TX79_MMI1_PADDUW:    /* TODO: TX79_MMI1_PADDUW */
+    case TX79_MMI1_PSUBUW:    /* TODO: TX79_MMI1_PSUBUW */
+    case TX79_MMI1_PEXTUW:    /* TODO: TX79_MMI1_PEXTUW */
+    case TX79_MMI1_PADDUH:    /* TODO: TX79_MMI1_PADDUH */
+    case TX79_MMI1_PSUBUH:    /* TODO: TX79_MMI1_PSUBUH */
+    case TX79_MMI1_PEXTUH:    /* TODO: TX79_MMI1_PEXTUH */
+    case TX79_MMI1_PADDUB:    /* TODO: TX79_MMI1_PADDUB */
+    case TX79_MMI1_PSUBUB:    /* TODO: TX79_MMI1_PSUBUB */
+    case TX79_MMI1_PEXTUB:    /* TODO: TX79_MMI1_PEXTUB */
+    case TX79_MMI1_QFSRV:     /* TODO: TX79_MMI1_QFSRV */
+        generate_exception_end(ctx, EXCP_RI); /* TODO: TX79_MMI_CLASS_MMI1 */
+        break;
+    default:
+        MIPS_INVAL("TX79 MMI class MMI1");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+static void decode_tx79_mmi2(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opc = MASK_TX79_MMI2(ctx->opcode);
+
+    switch (opc) {
+    case TX79_MMI2_PMADDW:    /* TODO: TX79_MMI2_PMADDW */
+    case TX79_MMI2_PSLLVW:    /* TODO: TX79_MMI2_PSLLVW */
+    case TX79_MMI2_PSRLVW:    /* TODO: TX79_MMI2_PSRLVW */
+    case TX79_MMI2_PMSUBW:    /* TODO: TX79_MMI2_PMSUBW */
+    case TX79_MMI2_PMFHI:     /* TODO: TX79_MMI2_PMFHI */
+    case TX79_MMI2_PMFLO:     /* TODO: TX79_MMI2_PMFLO */
+    case TX79_MMI2_PINTH:     /* TODO: TX79_MMI2_PINTH */
+    case TX79_MMI2_PMULTW:    /* TODO: TX79_MMI2_PMULTW */
+    case TX79_MMI2_PDIVW:     /* TODO: TX79_MMI2_PDIVW */
+    case TX79_MMI2_PCPYLD:    /* TODO: TX79_MMI2_PCPYLD */
+    case TX79_MMI2_PMADDH:    /* TODO: TX79_MMI2_PMADDH */
+    case TX79_MMI2_PHMADH:    /* TODO: TX79_MMI2_PHMADH */
+    case TX79_MMI2_PAND:      /* TODO: TX79_MMI2_PAND */
+    case TX79_MMI2_PXOR:      /* TODO: TX79_MMI2_PXOR */
+    case TX79_MMI2_PMSUBH:    /* TODO: TX79_MMI2_PMSUBH */
+    case TX79_MMI2_PHMSBH:    /* TODO: TX79_MMI2_PHMSBH */
+    case TX79_MMI2_PEXEH:     /* TODO: TX79_MMI2_PEXEH */
+    case TX79_MMI2_PREVH:     /* TODO: TX79_MMI2_PREVH */
+    case TX79_MMI2_PMULTH:    /* TODO: TX79_MMI2_PMULTH */
+    case TX79_MMI2_PDIVBW:    /* TODO: TX79_MMI2_PDIVBW */
+    case TX79_MMI2_PEXEW:     /* TODO: TX79_MMI2_PEXEW */
+    case TX79_MMI2_PROT3W:    /* TODO: TX79_MMI2_PROT3W */
+        generate_exception_end(ctx, EXCP_RI); /* TODO: TX79_MMI_CLASS_MMI2 */
+        break;
+    default:
+        MIPS_INVAL("TX79 MMI class MMI2");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+static void decode_tx79_mmi3(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opc = MASK_TX79_MMI3(ctx->opcode);
+
+    switch (opc) {
+    case TX79_MMI3_PMADDUW:    /* TODO: TX79_MMI3_PMADDUW */
+    case TX79_MMI3_PSRAVW:     /* TODO: TX79_MMI3_PSRAVW */
+    case TX79_MMI3_PMTHI:      /* TODO: TX79_MMI3_PMTHI */
+    case TX79_MMI3_PMTLO:      /* TODO: TX79_MMI3_PMTLO */
+    case TX79_MMI3_PINTEH:     /* TODO: TX79_MMI3_PINTEH */
+    case TX79_MMI3_PMULTUW:    /* TODO: TX79_MMI3_PMULTUW */
+    case TX79_MMI3_PDIVUW:     /* TODO: TX79_MMI3_PDIVUW */
+    case TX79_MMI3_PCPYUD:     /* TODO: TX79_MMI3_PCPYUD */
+    case TX79_MMI3_POR:        /* TODO: TX79_MMI3_POR */
+    case TX79_MMI3_PNOR:       /* TODO: TX79_MMI3_PNOR */
+    case TX79_MMI3_PEXCH:      /* TODO: TX79_MMI3_PEXCH */
+    case TX79_MMI3_PCPYH:      /* TODO: TX79_MMI3_PCPYH */
+    case TX79_MMI3_PEXCW:      /* TODO: TX79_MMI3_PEXCW */
+        generate_exception_end(ctx, EXCP_RI); /* TODO: TX79_MMI_CLASS_MMI3 */
+        break;
+    default:
+        MIPS_INVAL("TX79 MMI class MMI3");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opc = MASK_TX79_MMI(ctx->opcode);
+    int rs = extract32(ctx->opcode, 21, 5);
+    int rt = extract32(ctx->opcode, 16, 5);
+    int rd = extract32(ctx->opcode, 11, 5);
+
+    switch (opc) {
+    case TX79_MMI_CLASS_MMI0:
+        decode_tx79_mmi0(env, ctx);
+        break;
+    case TX79_MMI_CLASS_MMI1:
+        decode_tx79_mmi1(env, ctx);
+        break;
+    case TX79_MMI_CLASS_MMI2:
+        decode_tx79_mmi2(env, ctx);
+        break;
+    case TX79_MMI_CLASS_MMI3:
+        decode_tx79_mmi3(env, ctx);
+        break;
+    case TX79_MMI_MULT1:
+    case TX79_MMI_MULTU1:
+        gen_mul_txx9(ctx, opc, rd, rs, rt);
+        break;
+    case TX79_MMI_DIV1:
+    case TX79_MMI_DIVU1:
+        gen_muldiv(ctx, opc, 1, rs, rt);
+        break;
+    case TX79_MMI_MTLO1:
+    case TX79_MMI_MTHI1:
+        gen_HILO(ctx, opc, 1, rs);
+        break;
+    case TX79_MMI_MFLO1:
+    case TX79_MMI_MFHI1:
+        gen_HILO(ctx, opc, 1, rd);
+        break;
+    case TX79_MMI_MADD:          /* TODO: TX79_MMI_MADD */
+    case TX79_MMI_MADDU:         /* TODO: TX79_MMI_MADDU */
+    case TX79_MMI_PLZCW:         /* TODO: TX79_MMI_PLZCW */
+    case TX79_MMI_MADD1:         /* TODO: TX79_MMI_MADD1 */
+    case TX79_MMI_MADDU1:        /* TODO: TX79_MMI_MADDU1 */
+    case TX79_MMI_PMFHL:         /* TODO: TX79_MMI_PMFHL */
+    case TX79_MMI_PMTHL:         /* TODO: TX79_MMI_PMTHL */
+    case TX79_MMI_PSLLH:         /* TODO: TX79_MMI_PSLLH */
+    case TX79_MMI_PSRLH:         /* TODO: TX79_MMI_PSRLH */
+    case TX79_MMI_PSRAH:         /* TODO: TX79_MMI_PSRAH */
+    case TX79_MMI_PSLLW:         /* TODO: TX79_MMI_PSLLW */
+    case TX79_MMI_PSRLW:         /* TODO: TX79_MMI_PSRLW */
+    case TX79_MMI_PSRAW:         /* TODO: TX79_MMI_PSRAW */
+        generate_exception_end(ctx, EXCP_RI);    /* TODO: TX79_CLASS_MMI */
+        break;
+    default:
+        MIPS_INVAL("TX79 MMI class");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+static void decode_tx79_lq(CPUMIPSState *env, DisasContext *ctx)
+{
+    generate_exception_end(ctx, EXCP_RI);    /* TODO: TX79_LQ */
+}
+
+static void gen_tx79_sq(DisasContext *ctx, int base, int rt, int offset)
+{
+    generate_exception_end(ctx, EXCP_RI);    /* TODO: TX79_SQ */
+}
+
+/*
+ * The TX79-specific instruction Store Quadword
+ *
+ * +--------+-------+-------+------------------------+
+ * | 011111 |  base |   rt  |           offset       | SQ
+ * +--------+-------+-------+------------------------+
+ *      6       5       5                 16
+ *
+ * has the same opcode as the Read Hardware Register instruction
+ *
+ * +--------+-------+-------+-------+-------+--------+
+ * | 011111 | 00000 |   rt  |   rd  | 00000 | 111011 | RDHWR
+ * +--------+-------+-------+-------+-------+--------+
+ *      6       5       5       5       5        6
+ *
+ * that is required, trapped and emulated by the Linux kernel. However, all
+ * RDHWR encodings yield address error exceptions on the TX79 since the SQ
+ * offset is odd. Therefore all valid SQ instructions can execute normally.
+ * In user mode, QEMU must verify the upper and lower 11 bits to distinguish
+ * between SQ and RDHWR, as the Linux kernel does.
+ */
+static void decode_tx79_sq(CPUMIPSState *env, DisasContext *ctx)
+{
+    int base = extract32(ctx->opcode, 21, 5);
+    int rt = extract32(ctx->opcode, 16, 5);
+    int offset = extract32(ctx->opcode, 0, 16);
+
+#ifdef CONFIG_USER_ONLY
+    uint32_t op1 = MASK_SPECIAL3(ctx->opcode);
+    uint32_t op2 = extract32(ctx->opcode, 6, 5);
+
+    if (base == 0 && op2 == 0 && op1 == OPC_RDHWR) {
+        int rd = extract32(ctx->opcode, 11, 5);
+
+        gen_rdhwr(ctx, rt, rd, 0);
+        return;
+    }
+#endif
+
+    gen_tx79_sq(ctx, base, rt, offset);
+}
+
 static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd, sa;
@@ -24058,7 +24859,9 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
         op2 = MASK_BSHFL(ctx->opcode);
         switch (op2) {
         case OPC_ALIGN:
-        case OPC_ALIGN_END:
+        case OPC_ALIGN_1:
+        case OPC_ALIGN_2:
+        case OPC_ALIGN_3:
         case OPC_BITSWAP:
             check_insn(ctx, ISA_MIPS32R6);
             decode_opc_special3_r6(env, ctx);
@@ -24084,7 +24887,13 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
         op2 = MASK_DBSHFL(ctx->opcode);
         switch (op2) {
         case OPC_DALIGN:
-        case OPC_DALIGN_END:
+        case OPC_DALIGN_1:
+        case OPC_DALIGN_2:
+        case OPC_DALIGN_3:
+        case OPC_DALIGN_4:
+        case OPC_DALIGN_5:
+        case OPC_DALIGN_6:
+        case OPC_DALIGN_7:
         case OPC_DBITSWAP:
             check_insn(ctx, ISA_MIPS32R6);
             decode_opc_special3_r6(env, ctx);
@@ -25283,10 +26092,18 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         decode_opc_special(env, ctx);
         break;
     case OPC_SPECIAL2:
-        decode_opc_special2_legacy(env, ctx);
+        if ((ctx->insn_flags & INSN_R5900) && (ctx->insn_flags & ASE_MMI)) {
+            decode_tx79_mmi(env, ctx);
+        } else {
+            decode_opc_special2_legacy(env, ctx);
+        }
         break;
     case OPC_SPECIAL3:
-        decode_opc_special3(env, ctx);
+        if (ctx->insn_flags & INSN_R5900) {
+            decode_tx79_sq(env, ctx);    /* TX79_SQ */
+        } else {
+            decode_opc_special3(env, ctx);
+        }
         break;
     case OPC_REGIMM:
         op1 = MASK_REGIMM(ctx->opcode);
@@ -25573,6 +26390,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
          break;
     case OPC_LL: /* Load and stores */
         check_insn(ctx, ISA_MIPS2);
+        check_insn_opc_user_only(ctx, INSN_R5900);
         /* Fallthrough */
     case OPC_LWL:
     case OPC_LWR:
@@ -25598,6 +26416,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     case OPC_SC:
         check_insn(ctx, ISA_MIPS2);
          check_insn_opc_removed(ctx, ISA_MIPS32R6);
+        check_insn_opc_user_only(ctx, INSN_R5900);
          gen_st_cond(ctx, op, rt, rs, imm);
          break;
     case OPC_CACHE:
@@ -25611,7 +26430,8 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_PREF:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
-        check_insn(ctx, ISA_MIPS4 | ISA_MIPS32);
+        check_insn(ctx, ISA_MIPS4 | ISA_MIPS32 |
+                   INSN_R5900);
         /* Treat as NOP. */
         break;
 
@@ -25863,9 +26683,11 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
 
 #if defined(TARGET_MIPS64)
     /* MIPS64 opcodes */
+    case OPC_LLD:
+        check_insn_opc_user_only(ctx, INSN_R5900);
+        /* fall through */
     case OPC_LDL:
     case OPC_LDR:
-    case OPC_LLD:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
         /* fall through */
     case OPC_LWU:
@@ -25886,6 +26708,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     case OPC_SCD:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
         check_insn(ctx, ISA_MIPS3);
+        check_insn_opc_user_only(ctx, INSN_R5900);
         check_mips_64(ctx);
         gen_st_cond(ctx, op, rt, rs, imm);
         break;
@@ -25940,8 +26763,12 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case OPC_MSA: /* OPC_MDMX */
-        /* MDMX: Not implemented. */
-        gen_msa(env, ctx);
+        if (ctx->insn_flags & INSN_R5900) {
+            decode_tx79_lq(env, ctx);    /* TX79_LQ */
+        } else {
+            /* MDMX: Not implemented. */
+            gen_msa(env, ctx);
+        }
         break;
     case OPC_PCREL:
         check_insn(ctx, ISA_MIPS32R6);
