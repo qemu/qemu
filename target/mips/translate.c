@@ -17475,6 +17475,16 @@ enum {
     NM_SOV      = 0x7a,
 };
 
+/* CRC32 instruction pool */
+enum {
+    NM_CRC32B   = 0x00,
+    NM_CRC32H   = 0x01,
+    NM_CRC32W   = 0x02,
+    NM_CRC32CB  = 0x04,
+    NM_CRC32CH  = 0x05,
+    NM_CRC32CW  = 0x06,
+};
+
 /* POOL32A5 instruction pool */
 enum {
     NM_CMP_EQ_PH        = 0x00,
