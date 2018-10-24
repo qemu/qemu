@@ -9398,85 +9398,10 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     }
 }
 
-static void gen_shr8_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    uint64_t mask = dup_const(MO_8, 0xff >> shift);
-    TCGv_i64 t = tcg_temp_new_i64();
-
-    tcg_gen_shri_i64(t, a, shift);
-    tcg_gen_andi_i64(t, t, mask);
-    tcg_gen_andi_i64(d, d, ~mask);
-    tcg_gen_or_i64(d, d, t);
-    tcg_temp_free_i64(t);
-}
-
-static void gen_shr16_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    uint64_t mask = dup_const(MO_16, 0xffff >> shift);
-    TCGv_i64 t = tcg_temp_new_i64();
-
-    tcg_gen_shri_i64(t, a, shift);
-    tcg_gen_andi_i64(t, t, mask);
-    tcg_gen_andi_i64(d, d, ~mask);
-    tcg_gen_or_i64(d, d, t);
-    tcg_temp_free_i64(t);
-}
-
-static void gen_shr32_ins_i32(TCGv_i32 d, TCGv_i32 a, int32_t shift)
-{
-    tcg_gen_shri_i32(a, a, shift);
-    tcg_gen_deposit_i32(d, d, a, 0, 32 - shift);
-}
-
-static void gen_shr64_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    tcg_gen_shri_i64(a, a, shift);
-    tcg_gen_deposit_i64(d, d, a, 0, 64 - shift);
-}
-
-static void gen_shr_ins_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
-{
-    uint64_t mask = (2ull << ((8 << vece) - 1)) - 1;
-    TCGv_vec t = tcg_temp_new_vec_matching(d);
-    TCGv_vec m = tcg_temp_new_vec_matching(d);
-
-    tcg_gen_dupi_vec(vece, m, mask ^ (mask >> sh));
-    tcg_gen_shri_vec(vece, t, a, sh);
-    tcg_gen_and_vec(vece, d, d, m);
-    tcg_gen_or_vec(vece, d, d, t);
-
-    tcg_temp_free_vec(t);
-    tcg_temp_free_vec(m);
-}
-
 /* SSHR[RA]/USHR[RA] - Vector shift right (optional rounding/accumulate) */
 static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
                                  int immh, int immb, int opcode, int rn, int rd)
 {
-    static const GVecGen2i sri_op[4] = {
-        { .fni8 = gen_shr8_ins_i64,
-          .fniv = gen_shr_ins_vec,
-          .load_dest = true,
-          .opc = INDEX_op_shri_vec,
-          .vece = MO_8 },
-        { .fni8 = gen_shr16_ins_i64,
-          .fniv = gen_shr_ins_vec,
-          .load_dest = true,
-          .opc = INDEX_op_shri_vec,
-          .vece = MO_16 },
-        { .fni4 = gen_shr32_ins_i32,
-          .fniv = gen_shr_ins_vec,
-          .load_dest = true,
-          .opc = INDEX_op_shri_vec,
-          .vece = MO_32 },
-        { .fni8 = gen_shr64_ins_i64,
-          .fniv = gen_shr_ins_vec,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-          .load_dest = true,
-          .opc = INDEX_op_shri_vec,
-          .vece = MO_64 },
-    };
-
     int size = 32 - clz32(immh) - 1;
     int immhb = immh << 3 | immb;
     int shift = 2 * (8 << size) - immhb;
@@ -9572,85 +9497,10 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
     clear_vec_high(s, is_q, rd);
 }
 
-static void gen_shl8_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    uint64_t mask = dup_const(MO_8, 0xff << shift);
-    TCGv_i64 t = tcg_temp_new_i64();
-
-    tcg_gen_shli_i64(t, a, shift);
-    tcg_gen_andi_i64(t, t, mask);
-    tcg_gen_andi_i64(d, d, ~mask);
-    tcg_gen_or_i64(d, d, t);
-    tcg_temp_free_i64(t);
-}
-
-static void gen_shl16_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    uint64_t mask = dup_const(MO_16, 0xffff << shift);
-    TCGv_i64 t = tcg_temp_new_i64();
-
-    tcg_gen_shli_i64(t, a, shift);
-    tcg_gen_andi_i64(t, t, mask);
-    tcg_gen_andi_i64(d, d, ~mask);
-    tcg_gen_or_i64(d, d, t);
-    tcg_temp_free_i64(t);
-}
-
-static void gen_shl32_ins_i32(TCGv_i32 d, TCGv_i32 a, int32_t shift)
-{
-    tcg_gen_deposit_i32(d, d, a, shift, 32 - shift);
-}
-
-static void gen_shl64_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    tcg_gen_deposit_i64(d, d, a, shift, 64 - shift);
-}
-
-static void gen_shl_ins_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
-{
-    uint64_t mask = (1ull << sh) - 1;
-    TCGv_vec t = tcg_temp_new_vec_matching(d);
-    TCGv_vec m = tcg_temp_new_vec_matching(d);
-
-    tcg_gen_dupi_vec(vece, m, mask);
-    tcg_gen_shli_vec(vece, t, a, sh);
-    tcg_gen_and_vec(vece, d, d, m);
-    tcg_gen_or_vec(vece, d, d, t);
-
-    tcg_temp_free_vec(t);
-    tcg_temp_free_vec(m);
-}
-
 /* SHL/SLI - Vector shift left */
 static void handle_vec_simd_shli(DisasContext *s, bool is_q, bool insert,
                                  int immh, int immb, int opcode, int rn, int rd)
 {
-    static const GVecGen2i shi_op[4] = {
-        { .fni8 = gen_shl8_ins_i64,
-          .fniv = gen_shl_ins_vec,
-          .opc = INDEX_op_shli_vec,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-          .load_dest = true,
-          .vece = MO_8 },
-        { .fni8 = gen_shl16_ins_i64,
-          .fniv = gen_shl_ins_vec,
-          .opc = INDEX_op_shli_vec,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-          .load_dest = true,
-          .vece = MO_16 },
-        { .fni4 = gen_shl32_ins_i32,
-          .fniv = gen_shl_ins_vec,
-          .opc = INDEX_op_shli_vec,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-          .load_dest = true,
-          .vece = MO_32 },
-        { .fni8 = gen_shl64_ins_i64,
-          .fniv = gen_shl_ins_vec,
-          .opc = INDEX_op_shli_vec,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-          .load_dest = true,
-          .vece = MO_64 },
-    };
     int size = 32 - clz32(immh) - 1;
     int immhb = immh << 3 | immb;
     int shift = immhb - (8 << size);
@@ -9670,7 +9520,7 @@ static void handle_vec_simd_shli(DisasContext *s, bool is_q, bool insert,
     }
 
     if (insert) {
-        gen_gvec_op2i(s, is_q, rd, rn, shift, &shi_op[size]);
+        gen_gvec_op2i(s, is_q, rd, rn, shift, &sli_op[size]);
     } else {
         gen_gvec_fn2i(s, is_q, rd, rn, shift, tcg_gen_gvec_shli, size);
     }
