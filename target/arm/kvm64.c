@@ -933,7 +933,7 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 
 bool kvm_arm_handle_debug(CPUState *cs, struct kvm_debug_exit_arch *debug_exit)
 {
-    int hsr_ec = debug_exit->hsr >> ARM_EL_EC_SHIFT;
+    int hsr_ec = syn_get_ec(debug_exit->hsr);
     ARMCPU *cpu = ARM_CPU(cs);
     CPUClass *cc = CPU_GET_CLASS(cs);
     CPUARMState *env = &cpu->env;
