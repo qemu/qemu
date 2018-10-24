@@ -546,6 +546,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     kvm_arm_init_debug(cs);
 
+    /* Check whether user space can specify guest syndrome value */
+    kvm_arm_init_serror_injection(cs);
+
     return kvm_arm_init_cpreg_list(cpu);
 }
 
@@ -727,6 +730,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
+    ret = kvm_put_vcpu_events(cpu);
+    if (ret) {
+        return ret;
+    }
+
     if (!write_list_to_kvmstate(cpu, level)) {
         return EINVAL;
     }
@@ -862,6 +870,11 @@ int kvm_arch_get_registers(CPUState *cs)
         return ret;
     }
     vfp_set_fpcr(env, fpr);
+
+    ret = kvm_get_vcpu_events(cpu);
+    if (ret) {
+        return ret;
+    }
 
     if (!write_kvmstate_to_list(cpu)) {
         return EINVAL;
