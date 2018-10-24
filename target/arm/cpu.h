@@ -676,6 +676,8 @@ typedef enum ARMPSCIState {
     PSCI_ON_PENDING = 2
 } ARMPSCIState;
 
+typedef struct ARMISARegisters ARMISARegisters;
+
 /**
  * ARMCPU:
  * @env: #CPUARMState
@@ -1584,30 +1586,18 @@ enum arm_features {
     ARM_FEATURE_LPAE, /* has Large Physical Address Extension */
     ARM_FEATURE_V8,
     ARM_FEATURE_AARCH64, /* supports 64 bit mode */
-    ARM_FEATURE_V8_AES, /* implements AES part of v8 Crypto Extensions */
     ARM_FEATURE_CBAR, /* has cp15 CBAR */
     ARM_FEATURE_CRC, /* ARMv8 CRC instructions */
     ARM_FEATURE_CBAR_RO, /* has cp15 CBAR and it is read-only */
     ARM_FEATURE_EL2, /* has EL2 Virtualization support */
     ARM_FEATURE_EL3, /* has EL3 Secure monitor support */
-    ARM_FEATURE_V8_SHA1, /* implements SHA1 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_SHA256, /* implements SHA256 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_PMULL, /* implements PMULL part of v8 Crypto Extensions */
     ARM_FEATURE_THUMB_DSP, /* DSP insns supported in the Thumb encodings */
     ARM_FEATURE_PMU, /* has PMU support */
     ARM_FEATURE_VBAR, /* has cp15 VBAR */
     ARM_FEATURE_M_SECURITY, /* M profile Security Extension */
     ARM_FEATURE_JAZELLE, /* has (trivial) Jazelle implementation */
     ARM_FEATURE_SVE, /* has Scalable Vector Extension */
-    ARM_FEATURE_V8_SHA512, /* implements SHA512 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_SHA3, /* implements SHA3 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_SM3, /* implements SM3 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_SM4, /* implements SM4 part of v8 Crypto Extensions */
-    ARM_FEATURE_V8_ATOMICS, /* ARMv8.1-Atomics feature */
-    ARM_FEATURE_V8_RDM, /* implements v8.1 simd round multiply */
-    ARM_FEATURE_V8_DOTPROD, /* implements v8.2 simd dot product */
     ARM_FEATURE_V8_FP16, /* implements v8.2 half-precision float */
-    ARM_FEATURE_V8_FCMA, /* has complex number part of v8.3 extensions.  */
     ARM_FEATURE_M_MAIN, /* M profile Main Extension */
 };
 
@@ -3158,5 +3148,122 @@ static inline uint64_t *aa64_vfp_qreg(CPUARMState *env, unsigned regno)
 
 /* Shared between translate-sve.c and sve_helper.c.  */
 extern const uint64_t pred_esz_masks[4];
+
+/*
+ * 32-bit feature tests via id registers.
+ */
+static inline bool isar_feature_aa32_aes(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar5, ID_ISAR5, AES) != 0;
+}
+
+static inline bool isar_feature_aa32_pmull(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar5, ID_ISAR5, AES) > 1;
+}
+
+static inline bool isar_feature_aa32_sha1(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar5, ID_ISAR5, SHA1) != 0;
+}
+
+static inline bool isar_feature_aa32_sha2(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar5, ID_ISAR5, SHA2) != 0;
+}
+
+static inline bool isar_feature_aa32_crc32(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar5, ID_ISAR5, CRC32) != 0;
+}
+
+static inline bool isar_feature_aa32_rdm(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar5, ID_ISAR5, RDM) != 0;
+}
+
+static inline bool isar_feature_aa32_vcma(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar5, ID_ISAR5, VCMA) != 0;
+}
+
+static inline bool isar_feature_aa32_dp(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar6, ID_ISAR6, DP) != 0;
+}
+
+/*
+ * 64-bit feature tests via id registers.
+ */
+static inline bool isar_feature_aa64_aes(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, AES) != 0;
+}
+
+static inline bool isar_feature_aa64_pmull(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, AES) > 1;
+}
+
+static inline bool isar_feature_aa64_sha1(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SHA1) != 0;
+}
+
+static inline bool isar_feature_aa64_sha256(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SHA2) != 0;
+}
+
+static inline bool isar_feature_aa64_sha512(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SHA2) > 1;
+}
+
+static inline bool isar_feature_aa64_crc32(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, CRC32) != 0;
+}
+
+static inline bool isar_feature_aa64_atomics(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, ATOMIC) != 0;
+}
+
+static inline bool isar_feature_aa64_rdm(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, RDM) != 0;
+}
+
+static inline bool isar_feature_aa64_sha3(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SHA3) != 0;
+}
+
+static inline bool isar_feature_aa64_sm3(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SM3) != 0;
+}
+
+static inline bool isar_feature_aa64_sm4(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SM4) != 0;
+}
+
+static inline bool isar_feature_aa64_dp(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, DP) != 0;
+}
+
+static inline bool isar_feature_aa64_fcma(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, FCMA) != 0;
+}
+
+/*
+ * Forward to the above feature tests given an ARMCPU pointer.
+ */
+#define cpu_isar_feature(name, cpu) \
+    ({ ARMCPU *cpu_ = (cpu); isar_feature_##name(&cpu_->isar); })
 
 #endif

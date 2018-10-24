@@ -2328,7 +2328,7 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
         }
         if (rt2 == 31
             && ((rt | rs) & 1) == 0
-            && arm_dc_feature(s, ARM_FEATURE_V8_ATOMICS)) {
+            && dc_isar_feature(aa64_atomics, s)) {
             /* CASP / CASPL */
             gen_compare_and_swap_pair(s, rs, rt, rn, size | 2);
             return;
@@ -2350,7 +2350,7 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
         }
         if (rt2 == 31
             && ((rt | rs) & 1) == 0
-            && arm_dc_feature(s, ARM_FEATURE_V8_ATOMICS)) {
+            && dc_isar_feature(aa64_atomics, s)) {
             /* CASPA / CASPAL */
             gen_compare_and_swap_pair(s, rs, rt, rn, size | 2);
             return;
@@ -2361,7 +2361,7 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
     case 0xb: /* CASL */
     case 0xe: /* CASA */
     case 0xf: /* CASAL */
-        if (rt2 == 31 && arm_dc_feature(s, ARM_FEATURE_V8_ATOMICS)) {
+        if (rt2 == 31 && dc_isar_feature(aa64_atomics, s)) {
             gen_compare_and_swap(s, rs, rt, rn, size);
             return;
         }
@@ -2900,11 +2900,10 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
     int rs = extract32(insn, 16, 5);
     int rn = extract32(insn, 5, 5);
     int o3_opc = extract32(insn, 12, 4);
-    int feature = ARM_FEATURE_V8_ATOMICS;
     TCGv_i64 tcg_rn, tcg_rs;
     AtomicThreeOpFn *fn;
 
-    if (is_vector) {
+    if (is_vector || !dc_isar_feature(aa64_atomics, s)) {
         unallocated_encoding(s);
         return;
     }
@@ -2937,10 +2936,6 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
         fn = tcg_gen_atomic_xchg_i64;
         break;
     default:
-        unallocated_encoding(s);
-        return;
-    }
-    if (!arm_dc_feature(s, feature)) {
         unallocated_encoding(s);
         return;
     }
@@ -4574,7 +4569,7 @@ static void handle_crc32(DisasContext *s,
     TCGv_i64 tcg_acc, tcg_val;
     TCGv_i32 tcg_bytes;
 
-    if (!arm_dc_feature(s, ARM_FEATURE_CRC)
+    if (!dc_isar_feature(aa64_crc32, s)
         || (sf == 1 && sz != 3)
         || (sf == 0 && sz == 3)) {
         unallocated_encoding(s);
@@ -8618,7 +8613,7 @@ static void disas_simd_scalar_three_reg_same_extra(DisasContext *s,
     bool u = extract32(insn, 29, 1);
     TCGv_i32 ele1, ele2, ele3;
     TCGv_i64 res;
-    int feature;
+    bool feature;
 
     switch (u * 16 + opcode) {
     case 0x10: /* SQRDMLAH (vector) */
@@ -8627,13 +8622,13 @@ static void disas_simd_scalar_three_reg_same_extra(DisasContext *s,
             unallocated_encoding(s);
             return;
         }
-        feature = ARM_FEATURE_V8_RDM;
+        feature = dc_isar_feature(aa64_rdm, s);
         break;
     default:
         unallocated_encoding(s);
         return;
     }
-    if (!arm_dc_feature(s, feature)) {
+    if (!feature) {
         unallocated_encoding(s);
         return;
     }
@@ -10362,7 +10357,7 @@ static void disas_simd_three_reg_diff(DisasContext *s, uint32_t insn)
             return;
         }
         if (size == 3) {
-            if (!arm_dc_feature(s, ARM_FEATURE_V8_PMULL)) {
+            if (!dc_isar_feature(aa64_pmull, s)) {
                 unallocated_encoding(s);
                 return;
             }
@@ -11414,7 +11409,8 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
     int size = extract32(insn, 22, 2);
     bool u = extract32(insn, 29, 1);
     bool is_q = extract32(insn, 30, 1);
-    int feature, rot;
+    bool feature;
+    int rot;
 
     switch (u * 16 + opcode) {
     case 0x10: /* SQRDMLAH (vector) */
@@ -11423,7 +11419,7 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        feature = ARM_FEATURE_V8_RDM;
+        feature = dc_isar_feature(aa64_rdm, s);
         break;
     case 0x02: /* SDOT (vector) */
     case 0x12: /* UDOT (vector) */
@@ -11431,7 +11427,7 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        feature = ARM_FEATURE_V8_DOTPROD;
+        feature = dc_isar_feature(aa64_dp, s);
         break;
     case 0x18: /* FCMLA, #0 */
     case 0x19: /* FCMLA, #90 */
@@ -11445,13 +11441,13 @@ static void disas_simd_three_reg_same_extra(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             return;
         }
-        feature = ARM_FEATURE_V8_FCMA;
+        feature = dc_isar_feature(aa64_fcma, s);
         break;
     default:
         unallocated_encoding(s);
         return;
     }
-    if (!arm_dc_feature(s, feature)) {
+    if (!feature) {
         unallocated_encoding(s);
         return;
     }
@@ -12665,14 +12661,14 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         break;
     case 0x1d: /* SQRDMLAH */
     case 0x1f: /* SQRDMLSH */
-        if (!arm_dc_feature(s, ARM_FEATURE_V8_RDM)) {
+        if (!dc_isar_feature(aa64_rdm, s)) {
             unallocated_encoding(s);
             return;
         }
         break;
     case 0x0e: /* SDOT */
     case 0x1e: /* UDOT */
-        if (size != MO_32 || !arm_dc_feature(s, ARM_FEATURE_V8_DOTPROD)) {
+        if (size != MO_32 || !dc_isar_feature(aa64_dp, s)) {
             unallocated_encoding(s);
             return;
         }
@@ -12681,7 +12677,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     case 0x13: /* FCMLA #90 */
     case 0x15: /* FCMLA #180 */
     case 0x17: /* FCMLA #270 */
-        if (!arm_dc_feature(s, ARM_FEATURE_V8_FCMA)) {
+        if (!dc_isar_feature(aa64_fcma, s)) {
             unallocated_encoding(s);
             return;
         }
@@ -13208,8 +13204,7 @@ static void disas_crypto_aes(DisasContext *s, uint32_t insn)
     TCGv_i32 tcg_decrypt;
     CryptoThreeOpIntFn *genfn;
 
-    if (!arm_dc_feature(s, ARM_FEATURE_V8_AES)
-        || size != 0) {
+    if (!dc_isar_feature(aa64_aes, s) || size != 0) {
         unallocated_encoding(s);
         return;
     }
@@ -13266,7 +13261,7 @@ static void disas_crypto_three_reg_sha(DisasContext *s, uint32_t insn)
     int rd = extract32(insn, 0, 5);
     CryptoThreeOpFn *genfn;
     TCGv_ptr tcg_rd_ptr, tcg_rn_ptr, tcg_rm_ptr;
-    int feature = ARM_FEATURE_V8_SHA256;
+    bool feature;
 
     if (size != 0) {
         unallocated_encoding(s);
@@ -13279,23 +13274,26 @@ static void disas_crypto_three_reg_sha(DisasContext *s, uint32_t insn)
     case 2: /* SHA1M */
     case 3: /* SHA1SU0 */
         genfn = NULL;
-        feature = ARM_FEATURE_V8_SHA1;
+        feature = dc_isar_feature(aa64_sha1, s);
         break;
     case 4: /* SHA256H */
         genfn = gen_helper_crypto_sha256h;
+        feature = dc_isar_feature(aa64_sha256, s);
         break;
     case 5: /* SHA256H2 */
         genfn = gen_helper_crypto_sha256h2;
+        feature = dc_isar_feature(aa64_sha256, s);
         break;
     case 6: /* SHA256SU1 */
         genfn = gen_helper_crypto_sha256su1;
+        feature = dc_isar_feature(aa64_sha256, s);
         break;
     default:
         unallocated_encoding(s);
         return;
     }
 
-    if (!arm_dc_feature(s, feature)) {
+    if (!feature) {
         unallocated_encoding(s);
         return;
     }
@@ -13336,7 +13334,7 @@ static void disas_crypto_two_reg_sha(DisasContext *s, uint32_t insn)
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
     CryptoTwoOpFn *genfn;
-    int feature;
+    bool feature;
     TCGv_ptr tcg_rd_ptr, tcg_rn_ptr;
 
     if (size != 0) {
@@ -13346,15 +13344,15 @@ static void disas_crypto_two_reg_sha(DisasContext *s, uint32_t insn)
 
     switch (opcode) {
     case 0: /* SHA1H */
-        feature = ARM_FEATURE_V8_SHA1;
+        feature = dc_isar_feature(aa64_sha1, s);
         genfn = gen_helper_crypto_sha1h;
         break;
     case 1: /* SHA1SU1 */
-        feature = ARM_FEATURE_V8_SHA1;
+        feature = dc_isar_feature(aa64_sha1, s);
         genfn = gen_helper_crypto_sha1su1;
         break;
     case 2: /* SHA256SU0 */
-        feature = ARM_FEATURE_V8_SHA256;
+        feature = dc_isar_feature(aa64_sha256, s);
         genfn = gen_helper_crypto_sha256su0;
         break;
     default:
@@ -13362,7 +13360,7 @@ static void disas_crypto_two_reg_sha(DisasContext *s, uint32_t insn)
         return;
     }
 
-    if (!arm_dc_feature(s, feature)) {
+    if (!feature) {
         unallocated_encoding(s);
         return;
     }
@@ -13393,40 +13391,40 @@ static void disas_crypto_three_reg_sha512(DisasContext *s, uint32_t insn)
     int rm = extract32(insn, 16, 5);
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
-    int feature;
+    bool feature;
     CryptoThreeOpFn *genfn;
 
     if (o == 0) {
         switch (opcode) {
         case 0: /* SHA512H */
-            feature = ARM_FEATURE_V8_SHA512;
+            feature = dc_isar_feature(aa64_sha512, s);
             genfn = gen_helper_crypto_sha512h;
             break;
         case 1: /* SHA512H2 */
-            feature = ARM_FEATURE_V8_SHA512;
+            feature = dc_isar_feature(aa64_sha512, s);
             genfn = gen_helper_crypto_sha512h2;
             break;
         case 2: /* SHA512SU1 */
-            feature = ARM_FEATURE_V8_SHA512;
+            feature = dc_isar_feature(aa64_sha512, s);
             genfn = gen_helper_crypto_sha512su1;
             break;
         case 3: /* RAX1 */
-            feature = ARM_FEATURE_V8_SHA3;
+            feature = dc_isar_feature(aa64_sha3, s);
             genfn = NULL;
             break;
         }
     } else {
         switch (opcode) {
         case 0: /* SM3PARTW1 */
-            feature = ARM_FEATURE_V8_SM3;
+            feature = dc_isar_feature(aa64_sm3, s);
             genfn = gen_helper_crypto_sm3partw1;
             break;
         case 1: /* SM3PARTW2 */
-            feature = ARM_FEATURE_V8_SM3;
+            feature = dc_isar_feature(aa64_sm3, s);
             genfn = gen_helper_crypto_sm3partw2;
             break;
         case 2: /* SM4EKEY */
-            feature = ARM_FEATURE_V8_SM4;
+            feature = dc_isar_feature(aa64_sm4, s);
             genfn = gen_helper_crypto_sm4ekey;
             break;
         default:
@@ -13435,7 +13433,7 @@ static void disas_crypto_three_reg_sha512(DisasContext *s, uint32_t insn)
         }
     }
 
-    if (!arm_dc_feature(s, feature)) {
+    if (!feature) {
         unallocated_encoding(s);
         return;
     }
@@ -13494,16 +13492,16 @@ static void disas_crypto_two_reg_sha512(DisasContext *s, uint32_t insn)
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
     TCGv_ptr tcg_rd_ptr, tcg_rn_ptr;
-    int feature;
+    bool feature;
     CryptoTwoOpFn *genfn;
 
     switch (opcode) {
     case 0: /* SHA512SU0 */
-        feature = ARM_FEATURE_V8_SHA512;
+        feature = dc_isar_feature(aa64_sha512, s);
         genfn = gen_helper_crypto_sha512su0;
         break;
     case 1: /* SM4E */
-        feature = ARM_FEATURE_V8_SM4;
+        feature = dc_isar_feature(aa64_sm4, s);
         genfn = gen_helper_crypto_sm4e;
         break;
     default:
@@ -13511,7 +13509,7 @@ static void disas_crypto_two_reg_sha512(DisasContext *s, uint32_t insn)
         return;
     }
 
-    if (!arm_dc_feature(s, feature)) {
+    if (!feature) {
         unallocated_encoding(s);
         return;
     }
@@ -13542,22 +13540,22 @@ static void disas_crypto_four_reg(DisasContext *s, uint32_t insn)
     int ra = extract32(insn, 10, 5);
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
-    int feature;
+    bool feature;
 
     switch (op0) {
     case 0: /* EOR3 */
     case 1: /* BCAX */
-        feature = ARM_FEATURE_V8_SHA3;
+        feature = dc_isar_feature(aa64_sha3, s);
         break;
     case 2: /* SM3SS1 */
-        feature = ARM_FEATURE_V8_SM3;
+        feature = dc_isar_feature(aa64_sm3, s);
         break;
     default:
         unallocated_encoding(s);
         return;
     }
 
-    if (!arm_dc_feature(s, feature)) {
+    if (!feature) {
         unallocated_encoding(s);
         return;
     }
@@ -13644,7 +13642,7 @@ static void disas_crypto_xar(DisasContext *s, uint32_t insn)
     TCGv_i64 tcg_op1, tcg_op2, tcg_res[2];
     int pass;
 
-    if (!arm_dc_feature(s, ARM_FEATURE_V8_SHA3)) {
+    if (!dc_isar_feature(aa64_sha3, s)) {
         unallocated_encoding(s);
         return;
     }
@@ -13690,7 +13688,7 @@ static void disas_crypto_three_reg_imm2(DisasContext *s, uint32_t insn)
     TCGv_ptr tcg_rd_ptr, tcg_rn_ptr, tcg_rm_ptr;
     TCGv_i32 tcg_imm2, tcg_opcode;
 
-    if (!arm_dc_feature(s, ARM_FEATURE_V8_SM3)) {
+    if (!dc_isar_feature(aa64_sm3, s)) {
         unallocated_encoding(s);
         return;
     }
@@ -13839,6 +13837,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     ARMCPU *arm_cpu = arm_env_get_cpu(env);
     int bound;
 
+    dc->isar = &arm_cpu->isar;
     dc->pc = dc->base.pc_first;
     dc->condjmp = 0;
 

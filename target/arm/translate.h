@@ -7,6 +7,7 @@
 /* internal defines */
 typedef struct DisasContext {
     DisasContextBase base;
+    const ARMISARegisters *isar;
 
     target_ulong pc;
     target_ulong page_start;
@@ -189,5 +190,11 @@ static inline TCGv_i32 get_ahp_flag(void)
 
     return ret;
 }
+
+/*
+ * Forward to the isar_feature_* tests given a DisasContext pointer.
+ */
+#define dc_isar_feature(name, ctx) \
+    ({ DisasContext *ctx_ = (ctx); isar_feature_##name(ctx_->isar); })
 
 #endif /* TARGET_ARM_TRANSLATE_H */
