@@ -5949,6 +5949,16 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 break;
             }
             return 0;
+
+        case NEON_3R_VADD_VSUB:
+            if (u) {
+                tcg_gen_gvec_sub(size, rd_ofs, rn_ofs, rm_ofs,
+                                 vec_size, vec_size);
+            } else {
+                tcg_gen_gvec_add(size, rd_ofs, rn_ofs, rm_ofs,
+                                 vec_size, vec_size);
+            }
+            return 0;
         }
         if (size == 3) {
             /* 64-bit element instructions. */
@@ -6004,13 +6014,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     } else {
                         gen_helper_neon_qrshl_s64(cpu_V0, cpu_env,
                                                   cpu_V1, cpu_V0);
-                    }
-                    break;
-                case NEON_3R_VADD_VSUB:
-                    if (u) {
-                        tcg_gen_sub_i64(CPU_V001);
-                    } else {
-                        tcg_gen_add_i64(CPU_V001);
                     }
                     break;
                 default:
@@ -6146,18 +6149,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             tcg_temp_free_i32(tmp2);
             tmp2 = neon_load_reg(rd, pass);
             gen_neon_add(size, tmp, tmp2);
-            break;
-        case NEON_3R_VADD_VSUB:
-            if (!u) { /* VADD */
-                gen_neon_add(size, tmp, tmp2);
-            } else { /* VSUB */
-                switch (size) {
-                case 0: gen_helper_neon_sub_u8(tmp, tmp, tmp2); break;
-                case 1: gen_helper_neon_sub_u16(tmp, tmp, tmp2); break;
-                case 2: tcg_gen_sub_i32(tmp, tmp, tmp2); break;
-                default: abort();
-                }
-            }
             break;
         case NEON_3R_VTST_VCEQ:
             if (!u) { /* VTST */
