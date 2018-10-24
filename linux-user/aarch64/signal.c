@@ -314,7 +314,7 @@ static int target_restore_sigframe(CPUARMState *env,
             break;
 
         case TARGET_SVE_MAGIC:
-            if (arm_feature(env, ARM_FEATURE_SVE)) {
+            if (cpu_isar_feature(aa64_sve, arm_env_get_cpu(env))) {
                 vq = (env->vfp.zcr_el[1] & 0xf) + 1;
                 sve_size = QEMU_ALIGN_UP(TARGET_SVE_SIG_CONTEXT_SIZE(vq), 16);
                 if (!sve && size == sve_size) {
@@ -433,7 +433,7 @@ static void target_setup_frame(int usig, struct target_sigaction *ka,
                                       &layout);
 
     /* SVE state needs saving only if it exists.  */
-    if (arm_feature(env, ARM_FEATURE_SVE)) {
+    if (cpu_isar_feature(aa64_sve, arm_env_get_cpu(env))) {
         vq = (env->vfp.zcr_el[1] & 0xf) + 1;
         sve_size = QEMU_ALIGN_UP(TARGET_SVE_SIG_CONTEXT_SIZE(vq), 16);
         sve_ofs = alloc_sigframe_space(sve_size, &layout);
