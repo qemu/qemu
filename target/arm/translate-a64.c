@@ -3018,7 +3018,7 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
     bool is_store = !extract32(insn, 22, 1);
     bool is_postidx = extract32(insn, 23, 1);
     bool is_q = extract32(insn, 30, 1);
-    TCGv_i64 tcg_addr, tcg_rn;
+    TCGv_i64 tcg_addr, tcg_rn, tcg_ebytes;
 
     int ebytes = 1 << size;
     int elements = (is_q ? 128 : 64) / (8 << size);
@@ -3083,6 +3083,7 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
     tcg_rn = cpu_reg_sp(s, rn);
     tcg_addr = tcg_temp_new_i64();
     tcg_gen_mov_i64(tcg_addr, tcg_rn);
+    tcg_ebytes = tcg_const_i64(ebytes);
 
     for (r = 0; r < rpt; r++) {
         int e;
@@ -3107,7 +3108,7 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
                         clear_vec_high(s, is_q, tt);
                     }
                 }
-                tcg_gen_addi_i64(tcg_addr, tcg_addr, ebytes);
+                tcg_gen_add_i64(tcg_addr, tcg_addr, tcg_ebytes);
                 tt = (tt + 1) % 32;
             }
         }
@@ -3121,6 +3122,7 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
             tcg_gen_add_i64(tcg_rn, tcg_rn, cpu_reg(s, rm));
         }
     }
+    tcg_temp_free_i64(tcg_ebytes);
     tcg_temp_free_i64(tcg_addr);
 }
 
@@ -3163,7 +3165,7 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
     bool replicate = false;
     int index = is_q << 3 | S << 2 | size;
     int ebytes, xs;
-    TCGv_i64 tcg_addr, tcg_rn;
+    TCGv_i64 tcg_addr, tcg_rn, tcg_ebytes;
 
     switch (scale) {
     case 3:
@@ -3216,6 +3218,7 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
     tcg_rn = cpu_reg_sp(s, rn);
     tcg_addr = tcg_temp_new_i64();
     tcg_gen_mov_i64(tcg_addr, tcg_rn);
+    tcg_ebytes = tcg_const_i64(ebytes);
 
     for (xs = 0; xs < selem; xs++) {
         if (replicate) {
@@ -3258,7 +3261,7 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
                 do_vec_st(s, rt, index, tcg_addr, scale);
             }
         }
-        tcg_gen_addi_i64(tcg_addr, tcg_addr, ebytes);
+        tcg_gen_add_i64(tcg_addr, tcg_addr, tcg_ebytes);
         rt = (rt + 1) % 32;
     }
 
@@ -3270,6 +3273,7 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
             tcg_gen_add_i64(tcg_rn, tcg_rn, cpu_reg(s, rm));
         }
     }
+    tcg_temp_free_i64(tcg_ebytes);
     tcg_temp_free_i64(tcg_addr);
 }
 
