@@ -191,6 +191,12 @@ static inline TCGv_i32 get_ahp_flag(void)
     return ret;
 }
 
+
+/* Vector operations shared between ARM and AArch64.  */
+extern const GVecGen3 bsl_op;
+extern const GVecGen3 bit_op;
+extern const GVecGen3 bif_op;
+
 /*
  * Forward to the isar_feature_* tests given a DisasContext pointer.
  */
