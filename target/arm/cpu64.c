@@ -320,6 +320,8 @@ static void aarch64_max_initfn(Object *obj)
 
         t = cpu->isar.id_aa64pfr0;
         t = FIELD_DP64(t, ID_AA64PFR0, SVE, 1);
+        t = FIELD_DP64(t, ID_AA64PFR0, FP, 1);
+        t = FIELD_DP64(t, ID_AA64PFR0, ADVSIMD, 1);
         cpu->isar.id_aa64pfr0 = t;
 
         /* Replicate the same data to the 32-bit id registers.  */
@@ -336,14 +338,14 @@ static void aarch64_max_initfn(Object *obj)
         u = FIELD_DP32(u, ID_ISAR6, DP, 1);
         cpu->isar.id_isar6 = u;
 
-#ifdef CONFIG_USER_ONLY
-        /* We don't set these in system emulation mode for the moment,
-         * since we don't correctly set the ID registers to advertise them,
-         * and in some cases they're only available in AArch64 and not AArch32,
-         * whereas the architecture requires them to be present in both if
-         * present in either.
+        /*
+         * FIXME: We do not yet support ARMv8.2-fp16 for AArch32 yet,
+         * so do not set MVFR1.FPHP.  Strictly speaking this is not legal,
+         * but it is also not legal to enable SVE without support for FP16,
+         * and enabling SVE in system mode is more useful in the short term.
          */
-        set_feature(&cpu->env, ARM_FEATURE_V8_FP16);
+
+#ifdef CONFIG_USER_ONLY
         /* For usermode -cpu max we can use a larger and more efficient DCZ
          * blocksize since we don't have to follow what the hardware does.
          */

@@ -7812,7 +7812,7 @@ static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
         int size = extract32(insn, 20, 1);
         data = extract32(insn, 23, 2); /* rot */
         if (!dc_isar_feature(aa32_vcma, s)
-            || (!size && !arm_dc_feature(s, ARM_FEATURE_V8_FP16))) {
+            || (!size && !dc_isar_feature(aa32_fp16_arith, s))) {
             return 1;
         }
         fn_gvec_ptr = size ? gen_helper_gvec_fcmlas : gen_helper_gvec_fcmlah;
@@ -7821,7 +7821,7 @@ static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
         int size = extract32(insn, 20, 1);
         data = extract32(insn, 24, 1); /* rot */
         if (!dc_isar_feature(aa32_vcma, s)
-            || (!size && !arm_dc_feature(s, ARM_FEATURE_V8_FP16))) {
+            || (!size && !dc_isar_feature(aa32_fp16_arith, s))) {
             return 1;
         }
         fn_gvec_ptr = size ? gen_helper_gvec_fcadds : gen_helper_gvec_fcaddh;
@@ -7894,7 +7894,7 @@ static int disas_neon_insn_2reg_scalar_ext(DisasContext *s, uint32_t insn)
             return 1;
         }
         if (size == 0) {
-            if (!arm_dc_feature(s, ARM_FEATURE_V8_FP16)) {
+            if (!dc_isar_feature(aa32_fp16_arith, s)) {
                 return 1;
             }
             /* For fp16, rm is just Vm, and index is M.  */

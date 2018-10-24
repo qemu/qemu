@@ -11612,7 +11612,7 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
     uint32_t changed;
 
     /* When ARMv8.2-FP16 is not supported, FZ16 is RES0.  */
-    if (!arm_feature(env, ARM_FEATURE_V8_FP16)) {
+    if (!cpu_isar_feature(aa64_fp16, arm_env_get_cpu(env))) {
         val &= ~FPCR_FZ16;
     }
 
