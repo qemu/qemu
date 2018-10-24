@@ -5770,6 +5770,113 @@ const GVecGen3 bif_op = {
     .load_dest = true
 };
 
+static void gen_ssra8_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_vec_sar8i_i64(a, a, shift);
+    tcg_gen_vec_add8_i64(d, d, a);
+}
+
+static void gen_ssra16_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_vec_sar16i_i64(a, a, shift);
+    tcg_gen_vec_add16_i64(d, d, a);
+}
+
+static void gen_ssra32_i32(TCGv_i32 d, TCGv_i32 a, int32_t shift)
+{
+    tcg_gen_sari_i32(a, a, shift);
+    tcg_gen_add_i32(d, d, a);
+}
+
+static void gen_ssra64_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_sari_i64(a, a, shift);
+    tcg_gen_add_i64(d, d, a);
+}
+
+static void gen_ssra_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
+{
+    tcg_gen_sari_vec(vece, a, a, sh);
+    tcg_gen_add_vec(vece, d, d, a);
+}
+
+const GVecGen2i ssra_op[4] = {
+    { .fni8 = gen_ssra8_i64,
+      .fniv = gen_ssra_vec,
+      .load_dest = true,
+      .opc = INDEX_op_sari_vec,
+      .vece = MO_8 },
+    { .fni8 = gen_ssra16_i64,
+      .fniv = gen_ssra_vec,
+      .load_dest = true,
+      .opc = INDEX_op_sari_vec,
+      .vece = MO_16 },
+    { .fni4 = gen_ssra32_i32,
+      .fniv = gen_ssra_vec,
+      .load_dest = true,
+      .opc = INDEX_op_sari_vec,
+      .vece = MO_32 },
+    { .fni8 = gen_ssra64_i64,
+      .fniv = gen_ssra_vec,
+      .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+      .load_dest = true,
+      .opc = INDEX_op_sari_vec,
+      .vece = MO_64 },
+};
+
+static void gen_usra8_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_vec_shr8i_i64(a, a, shift);
+    tcg_gen_vec_add8_i64(d, d, a);
+}
+
+static void gen_usra16_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_vec_shr16i_i64(a, a, shift);
+    tcg_gen_vec_add16_i64(d, d, a);
+}
+
+static void gen_usra32_i32(TCGv_i32 d, TCGv_i32 a, int32_t shift)
+{
+    tcg_gen_shri_i32(a, a, shift);
+    tcg_gen_add_i32(d, d, a);
+}
+
+static void gen_usra64_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
+{
+    tcg_gen_shri_i64(a, a, shift);
+    tcg_gen_add_i64(d, d, a);
+}
+
+static void gen_usra_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
+{
+    tcg_gen_shri_vec(vece, a, a, sh);
+    tcg_gen_add_vec(vece, d, d, a);
+}
+
+const GVecGen2i usra_op[4] = {
+    { .fni8 = gen_usra8_i64,
+      .fniv = gen_usra_vec,
+      .load_dest = true,
+      .opc = INDEX_op_shri_vec,
+      .vece = MO_8, },
+    { .fni8 = gen_usra16_i64,
+      .fniv = gen_usra_vec,
+      .load_dest = true,
+      .opc = INDEX_op_shri_vec,
+      .vece = MO_16, },
+    { .fni4 = gen_usra32_i32,
+      .fniv = gen_usra_vec,
+      .load_dest = true,
+      .opc = INDEX_op_shri_vec,
+      .vece = MO_32, },
+    { .fni8 = gen_usra64_i64,
+      .fniv = gen_usra_vec,
+      .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+      .load_dest = true,
+      .opc = INDEX_op_shri_vec,
+      .vece = MO_64, },
+};
 
 /* Translate a NEON data processing instruction.  Return nonzero if the
    instruction is invalid.
@@ -6408,6 +6515,25 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     }
                     return 0;
 
+                case 1:  /* VSRA */
+                    /* Right shift comes here negative.  */
+                    shift = -shift;
+                    /* Shifts larger than the element size are architecturally
+                     * valid.  Unsigned results in all zeros; signed results
+                     * in all sign bits.
+                     */
+                    if (!u) {
+                        tcg_gen_gvec_2i(rd_ofs, rm_ofs, vec_size, vec_size,
+                                        MIN(shift, (8 << size) - 1),
+                                        &ssra_op[size]);
+                    } else if (shift >= 8 << size) {
+                        /* rd += 0 */
+                    } else {
+                        tcg_gen_gvec_2i(rd_ofs, rm_ofs, vec_size, vec_size,
+                                        shift, &usra_op[size]);
+                    }
+                    return 0;
+
                 case 5: /* VSHL, VSLI */
                     if (!u) { /* VSHL */
                         /* Shifts larger than the element size are
@@ -6440,12 +6566,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         neon_load_reg64(cpu_V0, rm + pass);
                         tcg_gen_movi_i64(cpu_V1, imm);
                         switch (op) {
-                        case 1:  /* VSRA */
-                            if (u)
-                                gen_helper_neon_shl_u64(cpu_V0, cpu_V0, cpu_V1);
-                            else
-                                gen_helper_neon_shl_s64(cpu_V0, cpu_V0, cpu_V1);
-                            break;
                         case 2: /* VRSHR */
                         case 3: /* VRSRA */
                             if (u)
@@ -6473,7 +6593,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         default:
                             g_assert_not_reached();
                         }
-                        if (op == 1 || op == 3) {
+                        if (op == 3) {
                             /* Accumulate.  */
                             neon_load_reg64(cpu_V1, rd + pass);
                             tcg_gen_add_i64(cpu_V0, cpu_V0, cpu_V1);
@@ -6500,9 +6620,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         tmp2 = tcg_temp_new_i32();
                         tcg_gen_movi_i32(tmp2, imm);
                         switch (op) {
-                        case 1:  /* VSRA */
-                            GEN_NEON_INTEGER_OP(shl);
-                            break;
                         case 2: /* VRSHR */
                         case 3: /* VRSRA */
                             GEN_NEON_INTEGER_OP(rshl);
@@ -6542,7 +6659,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         }
                         tcg_temp_free_i32(tmp2);
 
-                        if (op == 1 || op == 3) {
+                        if (op == 3) {
                             /* Accumulate.  */
                             tmp2 = neon_load_reg(rd, pass);
                             gen_neon_add(size, tmp, tmp2);

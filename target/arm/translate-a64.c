@@ -9398,66 +9398,6 @@ static void disas_simd_scalar_two_reg_misc(DisasContext *s, uint32_t insn)
     }
 }
 
-static void gen_ssra8_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    tcg_gen_vec_sar8i_i64(a, a, shift);
-    tcg_gen_vec_add8_i64(d, d, a);
-}
-
-static void gen_ssra16_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    tcg_gen_vec_sar16i_i64(a, a, shift);
-    tcg_gen_vec_add16_i64(d, d, a);
-}
-
-static void gen_ssra32_i32(TCGv_i32 d, TCGv_i32 a, int32_t shift)
-{
-    tcg_gen_sari_i32(a, a, shift);
-    tcg_gen_add_i32(d, d, a);
-}
-
-static void gen_ssra64_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    tcg_gen_sari_i64(a, a, shift);
-    tcg_gen_add_i64(d, d, a);
-}
-
-static void gen_ssra_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
-{
-    tcg_gen_sari_vec(vece, a, a, sh);
-    tcg_gen_add_vec(vece, d, d, a);
-}
-
-static void gen_usra8_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    tcg_gen_vec_shr8i_i64(a, a, shift);
-    tcg_gen_vec_add8_i64(d, d, a);
-}
-
-static void gen_usra16_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    tcg_gen_vec_shr16i_i64(a, a, shift);
-    tcg_gen_vec_add16_i64(d, d, a);
-}
-
-static void gen_usra32_i32(TCGv_i32 d, TCGv_i32 a, int32_t shift)
-{
-    tcg_gen_shri_i32(a, a, shift);
-    tcg_gen_add_i32(d, d, a);
-}
-
-static void gen_usra64_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
-{
-    tcg_gen_shri_i64(a, a, shift);
-    tcg_gen_add_i64(d, d, a);
-}
-
-static void gen_usra_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
-{
-    tcg_gen_shri_vec(vece, a, a, sh);
-    tcg_gen_add_vec(vece, d, d, a);
-}
-
 static void gen_shr8_ins_i64(TCGv_i64 d, TCGv_i64 a, int64_t shift)
 {
     uint64_t mask = dup_const(MO_8, 0xff >> shift);
@@ -9513,52 +9453,6 @@ static void gen_shr_ins_vec(unsigned vece, TCGv_vec d, TCGv_vec a, int64_t sh)
 static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
                                  int immh, int immb, int opcode, int rn, int rd)
 {
-    static const GVecGen2i ssra_op[4] = {
-        { .fni8 = gen_ssra8_i64,
-          .fniv = gen_ssra_vec,
-          .load_dest = true,
-          .opc = INDEX_op_sari_vec,
-          .vece = MO_8 },
-        { .fni8 = gen_ssra16_i64,
-          .fniv = gen_ssra_vec,
-          .load_dest = true,
-          .opc = INDEX_op_sari_vec,
-          .vece = MO_16 },
-        { .fni4 = gen_ssra32_i32,
-          .fniv = gen_ssra_vec,
-          .load_dest = true,
-          .opc = INDEX_op_sari_vec,
-          .vece = MO_32 },
-        { .fni8 = gen_ssra64_i64,
-          .fniv = gen_ssra_vec,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-          .load_dest = true,
-          .opc = INDEX_op_sari_vec,
-          .vece = MO_64 },
-    };
-    static const GVecGen2i usra_op[4] = {
-        { .fni8 = gen_usra8_i64,
-          .fniv = gen_usra_vec,
-          .load_dest = true,
-          .opc = INDEX_op_shri_vec,
-          .vece = MO_8, },
-        { .fni8 = gen_usra16_i64,
-          .fniv = gen_usra_vec,
-          .load_dest = true,
-          .opc = INDEX_op_shri_vec,
-          .vece = MO_16, },
-        { .fni4 = gen_usra32_i32,
-          .fniv = gen_usra_vec,
-          .load_dest = true,
-          .opc = INDEX_op_shri_vec,
-          .vece = MO_32, },
-        { .fni8 = gen_usra64_i64,
-          .fniv = gen_usra_vec,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-          .load_dest = true,
-          .opc = INDEX_op_shri_vec,
-          .vece = MO_64, },
-    };
     static const GVecGen2i sri_op[4] = {
         { .fni8 = gen_shr8_ins_i64,
           .fniv = gen_shr_ins_vec,
