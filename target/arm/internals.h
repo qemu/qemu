@@ -840,4 +840,22 @@ static inline uint32_t v7m_sp_limit(CPUARMState *env)
     }
 }
 
+/**
+ * aarch32_mode_name(): Return name of the AArch32 CPU mode
+ * @psr: Program Status Register indicating CPU mode
+ *
+ * Returns, for debug logging purposes, a printable representation
+ * of the AArch32 CPU mode ("svc", "usr", etc) as indicated by
+ * the low bits of the specified PSR.
+ */
+static inline const char *aarch32_mode_name(uint32_t psr)
+{
+    static const char cpu_mode_names[16][4] = {
+        "usr", "fiq", "irq", "svc", "???", "???", "mon", "abt",
+        "???", "???", "hyp", "und", "???", "???", "???", "sys"
+    };
+
+    return cpu_mode_names[psr & 0xf];
+}
+
 #endif
