@@ -10416,66 +10416,6 @@ static void disas_simd_3same_float(DisasContext *s, uint32_t insn)
     }
 }
 
-static void gen_mla8_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
-{
-    gen_helper_neon_mul_u8(a, a, b);
-    gen_helper_neon_add_u8(d, d, a);
-}
-
-static void gen_mla16_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
-{
-    gen_helper_neon_mul_u16(a, a, b);
-    gen_helper_neon_add_u16(d, d, a);
-}
-
-static void gen_mla32_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
-{
-    tcg_gen_mul_i32(a, a, b);
-    tcg_gen_add_i32(d, d, a);
-}
-
-static void gen_mla64_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
-{
-    tcg_gen_mul_i64(a, a, b);
-    tcg_gen_add_i64(d, d, a);
-}
-
-static void gen_mla_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
-{
-    tcg_gen_mul_vec(vece, a, a, b);
-    tcg_gen_add_vec(vece, d, d, a);
-}
-
-static void gen_mls8_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
-{
-    gen_helper_neon_mul_u8(a, a, b);
-    gen_helper_neon_sub_u8(d, d, a);
-}
-
-static void gen_mls16_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
-{
-    gen_helper_neon_mul_u16(a, a, b);
-    gen_helper_neon_sub_u16(d, d, a);
-}
-
-static void gen_mls32_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
-{
-    tcg_gen_mul_i32(a, a, b);
-    tcg_gen_sub_i32(d, d, a);
-}
-
-static void gen_mls64_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
-{
-    tcg_gen_mul_i64(a, a, b);
-    tcg_gen_sub_i64(d, d, a);
-}
-
-static void gen_mls_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
-{
-    tcg_gen_mul_vec(vece, a, a, b);
-    tcg_gen_sub_vec(vece, d, d, a);
-}
-
 /* Integer op subgroup of C3.6.16. */
 static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
 {
@@ -10492,52 +10432,6 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
         { .fni8 = gen_cmtst_i64,
           .fniv = gen_cmtst_vec,
           .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-          .vece = MO_64 },
-    };
-    static const GVecGen3 mla_op[4] = {
-        { .fni4 = gen_mla8_i32,
-          .fniv = gen_mla_vec,
-          .opc = INDEX_op_mul_vec,
-          .load_dest = true,
-          .vece = MO_8 },
-        { .fni4 = gen_mla16_i32,
-          .fniv = gen_mla_vec,
-          .opc = INDEX_op_mul_vec,
-          .load_dest = true,
-          .vece = MO_16 },
-        { .fni4 = gen_mla32_i32,
-          .fniv = gen_mla_vec,
-          .opc = INDEX_op_mul_vec,
-          .load_dest = true,
-          .vece = MO_32 },
-        { .fni8 = gen_mla64_i64,
-          .fniv = gen_mla_vec,
-          .opc = INDEX_op_mul_vec,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-          .load_dest = true,
-          .vece = MO_64 },
-    };
-    static const GVecGen3 mls_op[4] = {
-        { .fni4 = gen_mls8_i32,
-          .fniv = gen_mls_vec,
-          .opc = INDEX_op_mul_vec,
-          .load_dest = true,
-          .vece = MO_8 },
-        { .fni4 = gen_mls16_i32,
-          .fniv = gen_mls_vec,
-          .opc = INDEX_op_mul_vec,
-          .load_dest = true,
-          .vece = MO_16 },
-        { .fni4 = gen_mls32_i32,
-          .fniv = gen_mls_vec,
-          .opc = INDEX_op_mul_vec,
-          .load_dest = true,
-          .vece = MO_32 },
-        { .fni8 = gen_mls64_i64,
-          .fniv = gen_mls_vec,
-          .opc = INDEX_op_mul_vec,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-          .load_dest = true,
           .vece = MO_64 },
     };
 

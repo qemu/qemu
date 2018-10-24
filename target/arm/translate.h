@@ -196,6 +196,8 @@ static inline TCGv_i32 get_ahp_flag(void)
 extern const GVecGen3 bsl_op;
 extern const GVecGen3 bit_op;
 extern const GVecGen3 bif_op;
+extern const GVecGen3 mla_op[4];
+extern const GVecGen3 mls_op[4];
 extern const GVecGen2i ssra_op[4];
 extern const GVecGen2i usra_op[4];
 extern const GVecGen2i sri_op[4];
