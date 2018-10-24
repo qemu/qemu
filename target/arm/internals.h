@@ -286,11 +286,8 @@ static inline uint32_t syn_get_ec(uint32_t syn)
 /* Utility functions for constructing various kinds of syndrome value.
  * Note that in general we follow the AArch64 syndrome values; in a
  * few cases the value in HSR for exceptions taken to AArch32 Hyp
- * mode differs slightly, so if we ever implemented Hyp mode then the
- * syndrome value would need some massaging on exception entry.
- * (One example of this is that AArch64 defaults to IL bit set for
- * exceptions which don't specifically indicate information about the
- * trapping instruction, whereas AArch32 defaults to IL bit clear.)
+ * mode differs slightly, and we fix this up when populating HSR in
+ * arm_cpu_do_interrupt_aarch32_hyp().
  */
 static inline uint32_t syn_uncategorized(void)
 {
