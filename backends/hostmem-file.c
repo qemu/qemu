@@ -145,26 +145,20 @@ static void file_memory_backend_set_pmem(Object *o, bool value, Error **errp)
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
 
     if (host_memory_backend_mr_inited(backend)) {
-        char *path = object_get_canonical_path_component(o);
 
-        error_setg(errp, "cannot change property 'pmem' of %s '%s'",
-                   object_get_typename(o),
-                   path);
-        g_free(path);
+        error_setg(errp, "cannot change property 'pmem' of %s.",
+                   object_get_typename(o));
         return;
     }
 
 #ifndef CONFIG_LIBPMEM
     if (value) {
         Error *local_err = NULL;
-        char *path = object_get_canonical_path_component(o);
 
         error_setg(&local_err,
                    "Lack of libpmem support while setting the 'pmem=on'"
-                   " of %s '%s'. We can't ensure data persistence.",
-                   object_get_typename(o),
-                   path);
-        g_free(path);
+                   " of %s. We can't ensure data persistence.",
+                   object_get_typename(o));
         error_propagate(errp, local_err);
         return;
     }
