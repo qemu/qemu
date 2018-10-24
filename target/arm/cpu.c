@@ -144,9 +144,9 @@ static void arm_cpu_reset(CPUState *s)
     g_hash_table_foreach(cpu->cp_regs, cp_reg_check_reset, cpu);
 
     env->vfp.xregs[ARM_VFP_FPSID] = cpu->reset_fpsid;
-    env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;
-    env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
-    env->vfp.xregs[ARM_VFP_MVFR2] = cpu->mvfr2;
+    env->vfp.xregs[ARM_VFP_MVFR0] = cpu->isar.mvfr0;
+    env->vfp.xregs[ARM_VFP_MVFR1] = cpu->isar.mvfr1;
+    env->vfp.xregs[ARM_VFP_MVFR2] = cpu->isar.mvfr2;
 
     cpu->power_state = cpu->start_powered_off ? PSCI_OFF : PSCI_ON;
     s->halted = cpu->start_powered_off;
@@ -938,7 +938,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          * registers as well. These are id_pfr1[7:4] and id_aa64pfr0[15:12].
          */
         cpu->id_pfr1 &= ~0xf0;
-        cpu->id_aa64pfr0 &= ~0xf000;
+        cpu->isar.id_aa64pfr0 &= ~0xf000;
     }
 
     if (!cpu->has_el2) {
@@ -955,7 +955,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          * registers if we don't have EL2. These are id_pfr1[15:12] and
          * id_aa64pfr0_el1[11:8].
          */
-        cpu->id_aa64pfr0 &= ~0xf00;
+        cpu->isar.id_aa64pfr0 &= ~0xf00;
         cpu->id_pfr1 &= ~0xf000;
     }
 
@@ -1151,8 +1151,8 @@ static void arm1136_r2_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
     cpu->midr = 0x4107b362;
     cpu->reset_fpsid = 0x410120b4;
-    cpu->mvfr0 = 0x11111111;
-    cpu->mvfr1 = 0x00000000;
+    cpu->isar.mvfr0 = 0x11111111;
+    cpu->isar.mvfr1 = 0x00000000;
     cpu->ctr = 0x1dd20d2;
     cpu->reset_sctlr = 0x00050078;
     cpu->id_pfr0 = 0x111;
@@ -1162,11 +1162,11 @@ static void arm1136_r2_initfn(Object *obj)
     cpu->id_mmfr0 = 0x01130003;
     cpu->id_mmfr1 = 0x10030302;
     cpu->id_mmfr2 = 0x01222110;
-    cpu->id_isar0 = 0x00140011;
-    cpu->id_isar1 = 0x12002111;
-    cpu->id_isar2 = 0x11231111;
-    cpu->id_isar3 = 0x01102131;
-    cpu->id_isar4 = 0x141;
+    cpu->isar.id_isar0 = 0x00140011;
+    cpu->isar.id_isar1 = 0x12002111;
+    cpu->isar.id_isar2 = 0x11231111;
+    cpu->isar.id_isar3 = 0x01102131;
+    cpu->isar.id_isar4 = 0x141;
     cpu->reset_auxcr = 7;
 }
 
@@ -1183,8 +1183,8 @@ static void arm1136_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
     cpu->midr = 0x4117b363;
     cpu->reset_fpsid = 0x410120b4;
-    cpu->mvfr0 = 0x11111111;
-    cpu->mvfr1 = 0x00000000;
+    cpu->isar.mvfr0 = 0x11111111;
+    cpu->isar.mvfr1 = 0x00000000;
     cpu->ctr = 0x1dd20d2;
     cpu->reset_sctlr = 0x00050078;
     cpu->id_pfr0 = 0x111;
@@ -1194,11 +1194,11 @@ static void arm1136_initfn(Object *obj)
     cpu->id_mmfr0 = 0x01130003;
     cpu->id_mmfr1 = 0x10030302;
     cpu->id_mmfr2 = 0x01222110;
-    cpu->id_isar0 = 0x00140011;
-    cpu->id_isar1 = 0x12002111;
-    cpu->id_isar2 = 0x11231111;
-    cpu->id_isar3 = 0x01102131;
-    cpu->id_isar4 = 0x141;
+    cpu->isar.id_isar0 = 0x00140011;
+    cpu->isar.id_isar1 = 0x12002111;
+    cpu->isar.id_isar2 = 0x11231111;
+    cpu->isar.id_isar3 = 0x01102131;
+    cpu->isar.id_isar4 = 0x141;
     cpu->reset_auxcr = 7;
 }
 
@@ -1216,8 +1216,8 @@ static void arm1176_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_EL3);
     cpu->midr = 0x410fb767;
     cpu->reset_fpsid = 0x410120b5;
-    cpu->mvfr0 = 0x11111111;
-    cpu->mvfr1 = 0x00000000;
+    cpu->isar.mvfr0 = 0x11111111;
+    cpu->isar.mvfr1 = 0x00000000;
     cpu->ctr = 0x1dd20d2;
     cpu->reset_sctlr = 0x00050078;
     cpu->id_pfr0 = 0x111;
@@ -1227,11 +1227,11 @@ static void arm1176_initfn(Object *obj)
     cpu->id_mmfr0 = 0x01130003;
     cpu->id_mmfr1 = 0x10030302;
     cpu->id_mmfr2 = 0x01222100;
-    cpu->id_isar0 = 0x0140011;
-    cpu->id_isar1 = 0x12002111;
-    cpu->id_isar2 = 0x11231121;
-    cpu->id_isar3 = 0x01102131;
-    cpu->id_isar4 = 0x01141;
+    cpu->isar.id_isar0 = 0x0140011;
+    cpu->isar.id_isar1 = 0x12002111;
+    cpu->isar.id_isar2 = 0x11231121;
+    cpu->isar.id_isar3 = 0x01102131;
+    cpu->isar.id_isar4 = 0x01141;
     cpu->reset_auxcr = 7;
 }
 
@@ -1247,8 +1247,8 @@ static void arm11mpcore_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     cpu->midr = 0x410fb022;
     cpu->reset_fpsid = 0x410120b4;
-    cpu->mvfr0 = 0x11111111;
-    cpu->mvfr1 = 0x00000000;
+    cpu->isar.mvfr0 = 0x11111111;
+    cpu->isar.mvfr1 = 0x00000000;
     cpu->ctr = 0x1d192992; /* 32K icache 32K dcache */
     cpu->id_pfr0 = 0x111;
     cpu->id_pfr1 = 0x1;
@@ -1257,11 +1257,11 @@ static void arm11mpcore_initfn(Object *obj)
     cpu->id_mmfr0 = 0x01100103;
     cpu->id_mmfr1 = 0x10020302;
     cpu->id_mmfr2 = 0x01222000;
-    cpu->id_isar0 = 0x00100011;
-    cpu->id_isar1 = 0x12002111;
-    cpu->id_isar2 = 0x11221011;
-    cpu->id_isar3 = 0x01102131;
-    cpu->id_isar4 = 0x141;
+    cpu->isar.id_isar0 = 0x00100011;
+    cpu->isar.id_isar1 = 0x12002111;
+    cpu->isar.id_isar2 = 0x11221011;
+    cpu->isar.id_isar3 = 0x01102131;
+    cpu->isar.id_isar4 = 0x141;
     cpu->reset_auxcr = 1;
 }
 
@@ -1290,13 +1290,13 @@ static void cortex_m3_initfn(Object *obj)
     cpu->id_mmfr1 = 0x00000000;
     cpu->id_mmfr2 = 0x00000000;
     cpu->id_mmfr3 = 0x00000000;
-    cpu->id_isar0 = 0x01141110;
-    cpu->id_isar1 = 0x02111000;
-    cpu->id_isar2 = 0x21112231;
-    cpu->id_isar3 = 0x01111110;
-    cpu->id_isar4 = 0x01310102;
-    cpu->id_isar5 = 0x00000000;
-    cpu->id_isar6 = 0x00000000;
+    cpu->isar.id_isar0 = 0x01141110;
+    cpu->isar.id_isar1 = 0x02111000;
+    cpu->isar.id_isar2 = 0x21112231;
+    cpu->isar.id_isar3 = 0x01111110;
+    cpu->isar.id_isar4 = 0x01310102;
+    cpu->isar.id_isar5 = 0x00000000;
+    cpu->isar.id_isar6 = 0x00000000;
 }
 
 static void cortex_m4_initfn(Object *obj)
@@ -1317,13 +1317,13 @@ static void cortex_m4_initfn(Object *obj)
     cpu->id_mmfr1 = 0x00000000;
     cpu->id_mmfr2 = 0x00000000;
     cpu->id_mmfr3 = 0x00000000;
-    cpu->id_isar0 = 0x01141110;
-    cpu->id_isar1 = 0x02111000;
-    cpu->id_isar2 = 0x21112231;
-    cpu->id_isar3 = 0x01111110;
-    cpu->id_isar4 = 0x01310102;
-    cpu->id_isar5 = 0x00000000;
-    cpu->id_isar6 = 0x00000000;
+    cpu->isar.id_isar0 = 0x01141110;
+    cpu->isar.id_isar1 = 0x02111000;
+    cpu->isar.id_isar2 = 0x21112231;
+    cpu->isar.id_isar3 = 0x01111110;
+    cpu->isar.id_isar4 = 0x01310102;
+    cpu->isar.id_isar5 = 0x00000000;
+    cpu->isar.id_isar6 = 0x00000000;
 }
 
 static void cortex_m33_initfn(Object *obj)
@@ -1346,13 +1346,13 @@ static void cortex_m33_initfn(Object *obj)
     cpu->id_mmfr1 = 0x00000000;
     cpu->id_mmfr2 = 0x01000000;
     cpu->id_mmfr3 = 0x00000000;
-    cpu->id_isar0 = 0x01101110;
-    cpu->id_isar1 = 0x02212000;
-    cpu->id_isar2 = 0x20232232;
-    cpu->id_isar3 = 0x01111131;
-    cpu->id_isar4 = 0x01310132;
-    cpu->id_isar5 = 0x00000000;
-    cpu->id_isar6 = 0x00000000;
+    cpu->isar.id_isar0 = 0x01101110;
+    cpu->isar.id_isar1 = 0x02212000;
+    cpu->isar.id_isar2 = 0x20232232;
+    cpu->isar.id_isar3 = 0x01111131;
+    cpu->isar.id_isar4 = 0x01310132;
+    cpu->isar.id_isar5 = 0x00000000;
+    cpu->isar.id_isar6 = 0x00000000;
     cpu->clidr = 0x00000000;
     cpu->ctr = 0x8000c000;
 }
@@ -1397,13 +1397,13 @@ static void cortex_r5_initfn(Object *obj)
     cpu->id_mmfr1 = 0x00000000;
     cpu->id_mmfr2 = 0x01200000;
     cpu->id_mmfr3 = 0x0211;
-    cpu->id_isar0 = 0x02101111;
-    cpu->id_isar1 = 0x13112111;
-    cpu->id_isar2 = 0x21232141;
-    cpu->id_isar3 = 0x01112131;
-    cpu->id_isar4 = 0x0010142;
-    cpu->id_isar5 = 0x0;
-    cpu->id_isar6 = 0x0;
+    cpu->isar.id_isar0 = 0x02101111;
+    cpu->isar.id_isar1 = 0x13112111;
+    cpu->isar.id_isar2 = 0x21232141;
+    cpu->isar.id_isar3 = 0x01112131;
+    cpu->isar.id_isar4 = 0x0010142;
+    cpu->isar.id_isar5 = 0x0;
+    cpu->isar.id_isar6 = 0x0;
     cpu->mp_is_up = true;
     cpu->pmsav7_dregion = 16;
     define_arm_cp_regs(cpu, cortexr5_cp_reginfo);
@@ -1438,8 +1438,8 @@ static void cortex_a8_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_EL3);
     cpu->midr = 0x410fc080;
     cpu->reset_fpsid = 0x410330c0;
-    cpu->mvfr0 = 0x11110222;
-    cpu->mvfr1 = 0x00011111;
+    cpu->isar.mvfr0 = 0x11110222;
+    cpu->isar.mvfr1 = 0x00011111;
     cpu->ctr = 0x82048004;
     cpu->reset_sctlr = 0x00c50078;
     cpu->id_pfr0 = 0x1031;
@@ -1450,11 +1450,11 @@ static void cortex_a8_initfn(Object *obj)
     cpu->id_mmfr1 = 0x20000000;
     cpu->id_mmfr2 = 0x01202000;
     cpu->id_mmfr3 = 0x11;
-    cpu->id_isar0 = 0x00101111;
-    cpu->id_isar1 = 0x12112111;
-    cpu->id_isar2 = 0x21232031;
-    cpu->id_isar3 = 0x11112131;
-    cpu->id_isar4 = 0x00111142;
+    cpu->isar.id_isar0 = 0x00101111;
+    cpu->isar.id_isar1 = 0x12112111;
+    cpu->isar.id_isar2 = 0x21232031;
+    cpu->isar.id_isar3 = 0x11112131;
+    cpu->isar.id_isar4 = 0x00111142;
     cpu->dbgdidr = 0x15141000;
     cpu->clidr = (1 << 27) | (2 << 24) | 3;
     cpu->ccsidr[0] = 0xe007e01a; /* 16k L1 dcache. */
@@ -1512,8 +1512,8 @@ static void cortex_a9_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_CBAR);
     cpu->midr = 0x410fc090;
     cpu->reset_fpsid = 0x41033090;
-    cpu->mvfr0 = 0x11110222;
-    cpu->mvfr1 = 0x01111111;
+    cpu->isar.mvfr0 = 0x11110222;
+    cpu->isar.mvfr1 = 0x01111111;
     cpu->ctr = 0x80038003;
     cpu->reset_sctlr = 0x00c50078;
     cpu->id_pfr0 = 0x1031;
@@ -1524,11 +1524,11 @@ static void cortex_a9_initfn(Object *obj)
     cpu->id_mmfr1 = 0x20000000;
     cpu->id_mmfr2 = 0x01230000;
     cpu->id_mmfr3 = 0x00002111;
-    cpu->id_isar0 = 0x00101111;
-    cpu->id_isar1 = 0x13112111;
-    cpu->id_isar2 = 0x21232041;
-    cpu->id_isar3 = 0x11112131;
-    cpu->id_isar4 = 0x00111142;
+    cpu->isar.id_isar0 = 0x00101111;
+    cpu->isar.id_isar1 = 0x13112111;
+    cpu->isar.id_isar2 = 0x21232041;
+    cpu->isar.id_isar3 = 0x11112131;
+    cpu->isar.id_isar4 = 0x00111142;
     cpu->dbgdidr = 0x35141000;
     cpu->clidr = (1 << 27) | (1 << 24) | 3;
     cpu->ccsidr[0] = 0xe00fe019; /* 16k L1 dcache. */
@@ -1573,8 +1573,8 @@ static void cortex_a7_initfn(Object *obj)
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A7;
     cpu->midr = 0x410fc075;
     cpu->reset_fpsid = 0x41023075;
-    cpu->mvfr0 = 0x10110222;
-    cpu->mvfr1 = 0x11111111;
+    cpu->isar.mvfr0 = 0x10110222;
+    cpu->isar.mvfr1 = 0x11111111;
     cpu->ctr = 0x84448003;
     cpu->reset_sctlr = 0x00c50078;
     cpu->id_pfr0 = 0x00001131;
@@ -1590,11 +1590,11 @@ static void cortex_a7_initfn(Object *obj)
     /* a7_mpcore_r0p5_trm, page 4-4 gives 0x01101110; but
      * table 4-41 gives 0x02101110, which includes the arm div insns.
      */
-    cpu->id_isar0 = 0x02101110;
-    cpu->id_isar1 = 0x13112111;
-    cpu->id_isar2 = 0x21232041;
-    cpu->id_isar3 = 0x11112131;
-    cpu->id_isar4 = 0x10011142;
+    cpu->isar.id_isar0 = 0x02101110;
+    cpu->isar.id_isar1 = 0x13112111;
+    cpu->isar.id_isar2 = 0x21232041;
+    cpu->isar.id_isar3 = 0x11112131;
+    cpu->isar.id_isar4 = 0x10011142;
     cpu->dbgdidr = 0x3515f005;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32K L1 dcache */
@@ -1619,8 +1619,8 @@ static void cortex_a15_initfn(Object *obj)
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A15;
     cpu->midr = 0x412fc0f1;
     cpu->reset_fpsid = 0x410430f0;
-    cpu->mvfr0 = 0x10110222;
-    cpu->mvfr1 = 0x11111111;
+    cpu->isar.mvfr0 = 0x10110222;
+    cpu->isar.mvfr1 = 0x11111111;
     cpu->ctr = 0x8444c004;
     cpu->reset_sctlr = 0x00c50078;
     cpu->id_pfr0 = 0x00001131;
@@ -1633,11 +1633,11 @@ static void cortex_a15_initfn(Object *obj)
     cpu->id_mmfr1 = 0x20000000;
     cpu->id_mmfr2 = 0x01240000;
     cpu->id_mmfr3 = 0x02102211;
-    cpu->id_isar0 = 0x02101110;
-    cpu->id_isar1 = 0x13112111;
-    cpu->id_isar2 = 0x21232041;
-    cpu->id_isar3 = 0x11112131;
-    cpu->id_isar4 = 0x10011142;
+    cpu->isar.id_isar0 = 0x02101110;
+    cpu->isar.id_isar1 = 0x13112111;
+    cpu->isar.id_isar2 = 0x21232041;
+    cpu->isar.id_isar3 = 0x11112131;
+    cpu->isar.id_isar4 = 0x10011142;
     cpu->dbgdidr = 0x3515f021;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32K L1 dcache */
