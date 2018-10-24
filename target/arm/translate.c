@@ -5959,6 +5959,19 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                                  vec_size, vec_size);
             }
             return 0;
+
+        case NEON_3R_VMUL: /* VMUL */
+            if (u) {
+                /* Polynomial case allows only P8 and is handled below.  */
+                if (size != 0) {
+                    return 1;
+                }
+            } else {
+                tcg_gen_gvec_mul(size, rd_ofs, rn_ofs, rm_ofs,
+                                 vec_size, vec_size);
+                return 0;
+            }
+            break;
         }
         if (size == 3) {
             /* 64-bit element instructions. */
@@ -6062,12 +6075,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         case NEON_3R_FLOAT_MISC:
             /* VMAXNM/VMINNM in ARMv8 */
             if (u && !arm_dc_feature(s, ARM_FEATURE_V8)) {
-                return 1;
-            }
-            break;
-        case NEON_3R_VMUL:
-            if (u && (size != 0)) {
-                /* UNDEF on invalid size for polynomial subcase */
                 return 1;
             }
             break;
@@ -6183,16 +6190,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             }
             break;
         case NEON_3R_VMUL:
-            if (u) { /* polynomial */
-                gen_helper_neon_mul_p8(tmp, tmp, tmp2);
-            } else { /* Integer */
-                switch (size) {
-                case 0: gen_helper_neon_mul_u8(tmp, tmp, tmp2); break;
-                case 1: gen_helper_neon_mul_u16(tmp, tmp, tmp2); break;
-                case 2: tcg_gen_mul_i32(tmp, tmp, tmp2); break;
-                default: abort();
-                }
-            }
+            /* VMUL.P8; other cases already eliminated.  */
+            gen_helper_neon_mul_p8(tmp, tmp, tmp2);
             break;
         case NEON_3R_VPMAX:
             GEN_NEON_INTEGER_OP(pmax);
