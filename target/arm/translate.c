@@ -4948,7 +4948,7 @@ static int disas_neon_ls_insn(DisasContext *s, uint32_t insn)
      */
     if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
+                           syn_simd_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
 
@@ -5727,7 +5727,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
      */
     if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
+                           syn_simd_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
 
@@ -7838,7 +7838,7 @@ static int disas_neon_insn_3same_ext(DisasContext *s, uint32_t insn)
 
     if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
+                           syn_simd_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
     if (!s->vfp_enabled) {
@@ -7924,7 +7924,7 @@ static int disas_neon_insn_2reg_scalar_ext(DisasContext *s, uint32_t insn)
 
     if (s->fp_excp_el) {
         gen_exception_insn(s, 4, EXCP_UDEF,
-                           syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
+                           syn_simd_access_trap(1, 0xe, false), s->fp_excp_el);
         return 0;
     }
     if (!s->vfp_enabled) {
