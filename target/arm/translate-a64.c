@@ -3223,36 +3223,14 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
     for (xs = 0; xs < selem; xs++) {
         if (replicate) {
             /* Load and replicate to all elements */
-            uint64_t mulconst;
             TCGv_i64 tcg_tmp = tcg_temp_new_i64();
 
             tcg_gen_qemu_ld_i64(tcg_tmp, tcg_addr,
                                 get_mem_index(s), s->be_data + scale);
-            switch (scale) {
-            case 0:
-                mulconst = 0x0101010101010101ULL;
-                break;
-            case 1:
-                mulconst = 0x0001000100010001ULL;
-                break;
-            case 2:
-                mulconst = 0x0000000100000001ULL;
-                break;
-            case 3:
-                mulconst = 0;
-                break;
-            default:
-                g_assert_not_reached();
-            }
-            if (mulconst) {
-                tcg_gen_muli_i64(tcg_tmp, tcg_tmp, mulconst);
-            }
-            write_vec_element(s, tcg_tmp, rt, 0, MO_64);
-            if (is_q) {
-                write_vec_element(s, tcg_tmp, rt, 1, MO_64);
-            }
+            tcg_gen_gvec_dup_i64(scale, vec_full_reg_offset(s, rt),
+                                 (is_q + 1) * 8, vec_full_reg_size(s),
+                                 tcg_tmp);
             tcg_temp_free_i64(tcg_tmp);
-            clear_vec_high(s, is_q, rt);
         } else {
             /* Load/store one element per register */
             if (is_load) {
