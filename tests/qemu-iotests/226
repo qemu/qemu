@@ -25,7 +25,6 @@ owner=jsnow@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1    # failure is the default!
 
 _cleanup()
