@@ -2,7 +2,7 @@
 #
 # Simple wrapper for debootstrap, run in the docker build context
 #
-FAKEROOT=`which fakeroot 2> /dev/null`
+FAKEROOT=$(which fakeroot 2> /dev/null)
 # debootstrap < 1.0.67 generates empty sources.list, see Debian#732255
 MIN_DEBOOTSTRAP_VERSION=1.0.67
 
@@ -52,7 +52,7 @@ fi
 
 if [ -z $DEBOOTSTRAP_DIR ]; then
     NEED_DEBOOTSTRAP=false
-    DEBOOTSTRAP=`which debootstrap 2> /dev/null`
+    DEBOOTSTRAP=$(which debootstrap 2> /dev/null)
     if [ -z $DEBOOTSTRAP ]; then
         echo "No debootstrap installed, attempting to install from SCM"
         NEED_DEBOOTSTRAP=true

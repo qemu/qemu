@@ -18,7 +18,7 @@
 #include "hw/boards.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
-#include "cpu.h"
+#include "qom/cpu.h"
 
 static void machine_none_init(MachineState *mch)
 {

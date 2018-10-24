@@ -803,6 +803,22 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    /*
+     * Similar to ppc64, s390x seems to be touchy with TCG, so disable it
+     * there until the problems are resolved
+     */
+    if (g_str_equal(qtest_get_arch(), "s390x")) {
+#if defined(HOST_S390X)
+        if (access("/dev/kvm", R_OK | W_OK)) {
+            g_test_message("Skipping test: kvm not available");
+            return 0;
+        }
+#else
+        g_test_message("Skipping test: Need s390x host to work properly");
+        return 0;
+#endif
+    }
+
     tmpfs = mkdtemp(template);
     if (!tmpfs) {
         g_test_message("mkdtemp on path (%s): %s\n", template, strerror(errno));
