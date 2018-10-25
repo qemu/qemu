@@ -1608,8 +1608,9 @@ static int handle_aiocb_copy_range(void *opaque)
     return 0;
 }
 
-static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
+static int handle_aiocb_discard(void *opaque)
 {
+    RawPosixAIOData *aiocb = opaque;
     int ret = -EOPNOTSUPP;
     BDRVRawState *s = aiocb->bs->opaque;
 
@@ -1804,8 +1805,6 @@ static int aio_worker(void *arg)
         ret = handle_aiocb_ioctl(aiocb);
         break;
     case QEMU_AIO_DISCARD:
-        ret = handle_aiocb_discard(aiocb);
-        break;
     case QEMU_AIO_WRITE_ZEROES:
     case QEMU_AIO_WRITE_ZEROES | QEMU_AIO_DISCARD:
     case QEMU_AIO_COPY_RANGE:
@@ -2622,11 +2621,30 @@ static void coroutine_fn raw_co_invalidate_cache(BlockDriverState *bs,
 }
 
 static coroutine_fn int
-raw_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
+raw_do_pdiscard(BlockDriverState *bs, int64_t offset, int bytes, bool blkdev)
 {
     BDRVRawState *s = bs->opaque;
+    RawPosixAIOData acb;
 
-    return paio_submit_co(bs, s->fd, offset, NULL, bytes, QEMU_AIO_DISCARD);
+    acb = (RawPosixAIOData) {
+        .bs             = bs,
+        .aio_fildes     = s->fd,
+        .aio_type       = QEMU_AIO_DISCARD,
+        .aio_offset     = offset,
+        .aio_nbytes     = bytes,
+    };
+
+    if (blkdev) {
+        acb.aio_type |= QEMU_AIO_BLKDEV;
+    }
+
+    return raw_thread_pool_submit(bs, handle_aiocb_discard, &acb);
+}
+
+static coroutine_fn int
+raw_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
+{
+    return raw_do_pdiscard(bs, offset, bytes, false);
 }
 
 static int coroutine_fn
@@ -3154,15 +3172,13 @@ static int fd_open(BlockDriverState *bs)
 static coroutine_fn int
 hdev_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
 {
-    BDRVRawState *s = bs->opaque;
     int ret;
 
     ret = fd_open(bs);
     if (ret < 0) {
         return ret;
     }
-    return paio_submit_co(bs, s->fd, offset, NULL, bytes,
-                          QEMU_AIO_DISCARD | QEMU_AIO_BLKDEV);
+    return raw_do_pdiscard(bs, offset, bytes, true);
 }
 
 static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,
