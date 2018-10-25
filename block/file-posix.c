@@ -1572,8 +1572,9 @@ static off_t copy_file_range(int in_fd, off_t *in_off, int out_fd,
 }
 #endif
 
-static ssize_t handle_aiocb_copy_range(RawPosixAIOData *aiocb)
+static int handle_aiocb_copy_range(void *opaque)
 {
+    RawPosixAIOData *aiocb = opaque;
     uint64_t bytes = aiocb->aio_nbytes;
     off_t in_off = aiocb->aio_offset;
     off_t out_off = aiocb->copy_range.aio_offset2;
@@ -1810,8 +1811,6 @@ static int aio_worker(void *arg)
         ret = handle_aiocb_write_zeroes_unmap(aiocb);
         break;
     case QEMU_AIO_COPY_RANGE:
-        ret = handle_aiocb_copy_range(aiocb);
-        break;
     case QEMU_AIO_TRUNCATE:
         g_assert_not_reached();
     default:
@@ -2714,6 +2713,7 @@ static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
                                              BdrvRequestFlags read_flags,
                                              BdrvRequestFlags write_flags)
 {
+    RawPosixAIOData acb;
     BDRVRawState *s = bs->opaque;
     BDRVRawState *src_s;
 
@@ -2726,8 +2726,20 @@ static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
     if (fd_open(src->bs) < 0 || fd_open(dst->bs) < 0) {
         return -EIO;
     }
-    return paio_submit_co_full(bs, src_s->fd, src_offset, s->fd, dst_offset,
-                               NULL, bytes, QEMU_AIO_COPY_RANGE);
+
+    acb = (RawPosixAIOData) {
+        .bs             = bs,
+        .aio_type       = QEMU_AIO_COPY_RANGE,
+        .aio_fildes     = src_s->fd,
+        .aio_offset     = src_offset,
+        .aio_nbytes     = bytes,
+        .copy_range     = {
+            .aio_fd2        = s->fd,
+            .aio_offset2    = dst_offset,
+        },
+    };
+
+    return raw_thread_pool_submit(bs, handle_aiocb_copy_range, &acb);
 }
 
 BlockDriver bdrv_file = {
