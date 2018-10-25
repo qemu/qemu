@@ -182,25 +182,29 @@ static int64_t raw_getlength(BlockDriverState *bs);
 
 typedef struct RawPosixAIOData {
     BlockDriverState *bs;
-    int aio_fildes;
-    union {
-        struct iovec *aio_iov;
-        void *aio_ioctl_buf;
-    };
-    int aio_niov;
-    uint64_t aio_nbytes;
-#define aio_ioctl_cmd   aio_nbytes /* for QEMU_AIO_IOCTL */
-    off_t aio_offset;
     int aio_type;
+    int aio_fildes;
+
+    off_t aio_offset;
+    uint64_t aio_nbytes;
+
     union {
+        struct {
+            struct iovec *iov;
+            int niov;
+        } io;
+        struct {
+            uint64_t cmd;
+            void *buf;
+        } ioctl;
         struct {
             int aio_fd2;
             off_t aio_offset2;
-        };
+        } copy_range;
         struct {
             PreallocMode prealloc;
             Error **errp;
-        };
+        } truncate;
     };
 } RawPosixAIOData;
 
@@ -1152,7 +1156,7 @@ static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
 {
     int ret;
 
-    ret = ioctl(aiocb->aio_fildes, aiocb->aio_ioctl_cmd, aiocb->aio_ioctl_buf);
+    ret = ioctl(aiocb->aio_fildes, aiocb->ioctl.cmd, aiocb->ioctl.buf);
     if (ret == -1) {
         return -errno;
     }
@@ -1233,13 +1237,13 @@ static ssize_t handle_aiocb_rw_vector(RawPosixAIOData *aiocb)
     do {
         if (aiocb->aio_type & QEMU_AIO_WRITE)
             len = qemu_pwritev(aiocb->aio_fildes,
-                               aiocb->aio_iov,
-                               aiocb->aio_niov,
+                               aiocb->io.iov,
+                               aiocb->io.niov,
                                aiocb->aio_offset);
          else
             len = qemu_preadv(aiocb->aio_fildes,
-                              aiocb->aio_iov,
-                              aiocb->aio_niov,
+                              aiocb->io.iov,
+                              aiocb->io.niov,
                               aiocb->aio_offset);
     } while (len == -1 && errno == EINTR);
 
@@ -1305,8 +1309,8 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
          * If there is just a single buffer, and it is properly aligned
          * we can just use plain pread/pwrite without any problems.
          */
-        if (aiocb->aio_niov == 1) {
-             return handle_aiocb_rw_linear(aiocb, aiocb->aio_iov->iov_base);
+        if (aiocb->io.niov == 1) {
+            return handle_aiocb_rw_linear(aiocb, aiocb->io.iov->iov_base);
         }
         /*
          * We have more than one iovec, and all are properly aligned.
@@ -1343,9 +1347,9 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
         char *p = buf;
         int i;
 
-        for (i = 0; i < aiocb->aio_niov; ++i) {
-            memcpy(p, aiocb->aio_iov[i].iov_base, aiocb->aio_iov[i].iov_len);
-            p += aiocb->aio_iov[i].iov_len;
+        for (i = 0; i < aiocb->io.niov; ++i) {
+            memcpy(p, aiocb->io.iov[i].iov_base, aiocb->io.iov[i].iov_len);
+            p += aiocb->io.iov[i].iov_len;
         }
         assert(p - buf == aiocb->aio_nbytes);
     }
@@ -1356,12 +1360,12 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
         size_t count = aiocb->aio_nbytes, copy;
         int i;
 
-        for (i = 0; i < aiocb->aio_niov && count; ++i) {
+        for (i = 0; i < aiocb->io.niov && count; ++i) {
             copy = count;
-            if (copy > aiocb->aio_iov[i].iov_len) {
-                copy = aiocb->aio_iov[i].iov_len;
+            if (copy > aiocb->io.iov[i].iov_len) {
+                copy = aiocb->io.iov[i].iov_len;
             }
-            memcpy(aiocb->aio_iov[i].iov_base, p, copy);
+            memcpy(aiocb->io.iov[i].iov_base, p, copy);
             assert(count >= copy);
             p     += copy;
             count -= copy;
@@ -1572,14 +1576,15 @@ static ssize_t handle_aiocb_copy_range(RawPosixAIOData *aiocb)
 {
     uint64_t bytes = aiocb->aio_nbytes;
     off_t in_off = aiocb->aio_offset;
-    off_t out_off = aiocb->aio_offset2;
+    off_t out_off = aiocb->copy_range.aio_offset2;
 
     while (bytes) {
         ssize_t ret = copy_file_range(aiocb->aio_fildes, &in_off,
-                                      aiocb->aio_fd2, &out_off,
+                                      aiocb->copy_range.aio_fd2, &out_off,
                                       bytes, 0);
         trace_file_copy_file_range(aiocb->bs, aiocb->aio_fildes, in_off,
-                                   aiocb->aio_fd2, out_off, bytes, 0, ret);
+                                   aiocb->copy_range.aio_fd2, out_off, bytes,
+                                   0, ret);
         if (ret == 0) {
             /* No progress (e.g. when beyond EOF), let the caller fall back to
              * buffer I/O. */
@@ -1648,7 +1653,8 @@ static int handle_aiocb_truncate(RawPosixAIOData *aiocb)
     struct stat st;
     int fd = aiocb->aio_fildes;
     int64_t offset = aiocb->aio_offset;
-    Error **errp = aiocb->errp;
+    PreallocMode prealloc = aiocb->truncate.prealloc;
+    Error **errp = aiocb->truncate.errp;
 
     if (fstat(fd, &st) < 0) {
         result = -errno;
@@ -1657,12 +1663,12 @@ static int handle_aiocb_truncate(RawPosixAIOData *aiocb)
     }
 
     current_length = st.st_size;
-    if (current_length > offset && aiocb->prealloc != PREALLOC_MODE_OFF) {
+    if (current_length > offset && prealloc != PREALLOC_MODE_OFF) {
         error_setg(errp, "Cannot use preallocation for shrinking files");
         return -ENOTSUP;
     }
 
-    switch (aiocb->prealloc) {
+    switch (prealloc) {
 #ifdef CONFIG_POSIX_FALLOCATE
     case PREALLOC_MODE_FALLOC:
         /*
@@ -1743,7 +1749,7 @@ static int handle_aiocb_truncate(RawPosixAIOData *aiocb)
     default:
         result = -ENOTSUP;
         error_setg(errp, "Unsupported preallocation mode: %s",
-                   PreallocMode_str(aiocb->prealloc));
+                   PreallocMode_str(prealloc));
         return result;
     }
 
@@ -1768,7 +1774,7 @@ static int aio_worker(void *arg)
     case QEMU_AIO_READ:
         ret = handle_aiocb_rw(aiocb);
         if (ret >= 0 && ret < aiocb->aio_nbytes) {
-            iov_memset(aiocb->aio_iov, aiocb->aio_niov, ret,
+            iov_memset(aiocb->io.iov, aiocb->io.niov, ret,
                       0, aiocb->aio_nbytes - ret);
 
             ret = aiocb->aio_nbytes;
@@ -1829,16 +1835,17 @@ static int paio_submit_co_full(BlockDriverState *bs, int fd,
     acb->bs = bs;
     acb->aio_type = type;
     acb->aio_fildes = fd;
-    acb->aio_fd2 = fd2;
-    acb->aio_offset2 = offset2;
 
     acb->aio_nbytes = bytes;
     acb->aio_offset = offset;
 
     if (qiov) {
-        acb->aio_iov = qiov->iov;
-        acb->aio_niov = qiov->niov;
+        acb->io.iov = qiov->iov;
+        acb->io.niov = qiov->niov;
         assert(qiov->size == bytes);
+    } else {
+        acb->copy_range.aio_fd2 = fd2;
+        acb->copy_range.aio_offset2 = offset2;
     }
 
     trace_file_paio_submit_co(offset, bytes, type);
@@ -1976,8 +1983,10 @@ raw_regular_truncate(BlockDriverState *bs, int fd, int64_t offset,
         .aio_fildes     = fd,
         .aio_type       = QEMU_AIO_TRUNCATE,
         .aio_offset     = offset,
-        .prealloc       = prealloc,
-        .errp           = errp,
+        .truncate       = {
+            .prealloc       = prealloc,
+            .errp           = errp,
+        },
     };
 
     /* @bs can be NULL, bdrv_get_aio_context() returns the main context then */
@@ -3089,8 +3098,8 @@ static BlockAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
     acb->aio_type = QEMU_AIO_IOCTL;
     acb->aio_fildes = s->fd;
     acb->aio_offset = 0;
-    acb->aio_ioctl_buf = buf;
-    acb->aio_ioctl_cmd = req;
+    acb->ioctl.buf = buf;
+    acb->ioctl.cmd = req;
     pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     return thread_pool_submit_aio(pool, aio_worker, acb, cb, opaque);
 }
