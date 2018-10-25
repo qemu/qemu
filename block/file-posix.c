@@ -1300,8 +1300,9 @@ static ssize_t handle_aiocb_rw_linear(RawPosixAIOData *aiocb, char *buf)
     return offset;
 }
 
-static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
+static int handle_aiocb_rw(void *opaque)
 {
+    RawPosixAIOData *aiocb = opaque;
     ssize_t nbytes;
     char *buf;
 
@@ -1793,15 +1794,11 @@ static int aio_worker(void *arg)
     ssize_t ret = 0;
 
     switch (aiocb->aio_type & QEMU_AIO_TYPE_MASK) {
-    case QEMU_AIO_READ:
-        ret = handle_aiocb_rw(aiocb);
-        break;
-    case QEMU_AIO_WRITE:
-        ret = handle_aiocb_rw(aiocb);
-        break;
     case QEMU_AIO_IOCTL:
         ret = handle_aiocb_ioctl(aiocb);
         break;
+    case QEMU_AIO_READ:
+    case QEMU_AIO_WRITE:
     case QEMU_AIO_FLUSH:
     case QEMU_AIO_DISCARD:
     case QEMU_AIO_WRITE_ZEROES:
@@ -1865,6 +1862,7 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
                                    uint64_t bytes, QEMUIOVector *qiov, int type)
 {
     BDRVRawState *s = bs->opaque;
+    RawPosixAIOData acb;
 
     if (fd_open(bs) < 0)
         return -EIO;
@@ -1887,7 +1885,20 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
         }
     }
 
-    return paio_submit_co(bs, s->fd, offset, qiov, bytes, type);
+    acb = (RawPosixAIOData) {
+        .bs             = bs,
+        .aio_fildes     = s->fd,
+        .aio_type       = type,
+        .aio_offset     = offset,
+        .aio_nbytes     = bytes,
+        .io             = {
+            .iov            = qiov->iov,
+            .niov           = qiov->niov,
+        },
+    };
+
+    assert(qiov->size == bytes);
+    return raw_thread_pool_submit(bs, handle_aiocb_rw, &acb);
 }
 
 static int coroutine_fn raw_co_preadv(BlockDriverState *bs, uint64_t offset,
