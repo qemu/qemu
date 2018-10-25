@@ -47,12 +47,12 @@ static void sifive_clint_write_timecmp(RISCVCPU *cpu, uint64_t value)
     if (cpu->env.timecmp <= rtc_r) {
         /* if we're setting an MTIMECMP value in the "past",
            immediately raise the timer interrupt */
-        riscv_set_local_interrupt(cpu, MIP_MTIP, 1);
+        riscv_cpu_update_mip(cpu, MIP_MTIP, BOOL_TO_MASK(1));
         return;
     }
 
     /* otherwise, set up the future timer interrupt */
-    riscv_set_local_interrupt(cpu, MIP_MTIP, 0);
+    riscv_cpu_update_mip(cpu, MIP_MTIP, BOOL_TO_MASK(0));
     diff = cpu->env.timecmp - rtc_r;
     /* back to ns (note args switched in muldiv64) */
     next = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
@@ -67,7 +67,7 @@ static void sifive_clint_write_timecmp(RISCVCPU *cpu, uint64_t value)
 static void sifive_clint_timer_cb(void *opaque)
 {
     RISCVCPU *cpu = opaque;
-    riscv_set_local_interrupt(cpu, MIP_MTIP, 1);
+    riscv_cpu_update_mip(cpu, MIP_MTIP, BOOL_TO_MASK(1));
 }
 
 /* CPU wants to read rtc or timecmp register */
@@ -132,7 +132,7 @@ static void sifive_clint_write(void *opaque, hwaddr addr, uint64_t value,
         if (!env) {
             error_report("clint: invalid timecmp hartid: %zu", hartid);
         } else if ((addr & 0x3) == 0) {
-            riscv_set_local_interrupt(RISCV_CPU(cpu), MIP_MSIP, value != 0);
+            riscv_cpu_update_mip(RISCV_CPU(cpu), MIP_MSIP, BOOL_TO_MASK(value));
         } else {
             error_report("clint: invalid sip write: %08x", (uint32_t)addr);
         }

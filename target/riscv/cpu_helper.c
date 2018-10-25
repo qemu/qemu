@@ -1,5 +1,5 @@
 /*
- * RISC-V emulation helpers for qemu.
+ * RISC-V CPU helpers for qemu.
  *
  * Copyright (c) 2016-2017 Sagar Karandikar, sagark@eecs.berkeley.edu
  * Copyright (c) 2017-2018 SiFive, Inc.
@@ -71,6 +71,39 @@ bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 }
 
 #if !defined(CONFIG_USER_ONLY)
+
+/* iothread_mutex must be held */
+uint32_t riscv_cpu_update_mip(RISCVCPU *cpu, uint32_t mask, uint32_t value)
+{
+    CPURISCVState *env = &cpu->env;
+    uint32_t old, new, cmp = atomic_read(&env->mip);
+
+    do {
+        old = cmp;
+        new = (old & ~mask) | (value & mask);
+        cmp = atomic_cmpxchg(&env->mip, old, new);
+    } while (old != cmp);
+
+    if (new && !old) {
+        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+    } else if (!new && old) {
+        cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+    }
+
+    return old;
+}
+
+void riscv_set_mode(CPURISCVState *env, target_ulong newpriv)
+{
+    if (newpriv > PRV_M) {
+        g_assert_not_reached();
+    }
+    if (newpriv == PRV_H) {
+        newpriv = PRV_U;
+    }
+    /* tlb_flush is unnecessary as mode is contained in mmu_idx */
+    env->priv = newpriv;
+}
 
 /* get_physical_address - get the physical address for this virtual address
  *

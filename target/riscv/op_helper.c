@@ -90,7 +90,7 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
         target_ulong csrno)
 {
 #ifndef CONFIG_USER_ONLY
-    uint64_t delegable_ints = MIP_SSIP | MIP_STIP | MIP_SEIP | (1 << IRQ_X_COP);
+    uint64_t delegable_ints = MIP_SSIP | MIP_STIP | MIP_SEIP;
     uint64_t all_ints = delegable_ints | MIP_MSIP | MIP_MTIP;
 #endif
 
@@ -171,10 +171,8 @@ void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
          */
         qemu_mutex_lock_iothread();
         RISCVCPU *cpu = riscv_env_get_cpu(env);
-        riscv_set_local_interrupt(cpu, MIP_SSIP,
-                                  (val_to_write & MIP_SSIP) != 0);
-        riscv_set_local_interrupt(cpu, MIP_STIP,
-                                  (val_to_write & MIP_STIP) != 0);
+        riscv_cpu_update_mip(cpu, MIP_SSIP | MIP_STIP,
+                                  (val_to_write & (MIP_SSIP | MIP_STIP)));
         /*
          * csrs, csrc on mip.SEIP is not decomposable into separate read and
          * write steps, so a different implementation is needed
@@ -656,31 +654,6 @@ target_ulong helper_csrrc(CPURISCVState *env, target_ulong src,
 
 #ifndef CONFIG_USER_ONLY
 
-/* iothread_mutex must be held */
-void riscv_set_local_interrupt(RISCVCPU *cpu, target_ulong mask, int value)
-{
-    target_ulong old_mip = cpu->env.mip;
-    cpu->env.mip = (old_mip & ~mask) | (value ? mask : 0);
-
-    if (cpu->env.mip && !old_mip) {
-        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-    } else if (!cpu->env.mip && old_mip) {
-        cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-    }
-}
-
-void riscv_set_mode(CPURISCVState *env, target_ulong newpriv)
-{
-    if (newpriv > PRV_M) {
-        g_assert_not_reached();
-    }
-    if (newpriv == PRV_H) {
-        newpriv = PRV_U;
-    }
-    /* tlb_flush is unnecessary as mode is contained in mmu_idx */
-    env->priv = newpriv;
-}
-
 target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
 {
     if (!(env->priv >= PRV_S)) {
@@ -730,7 +703,6 @@ target_ulong helper_mret(CPURISCVState *env, target_ulong cpu_pc_deb)
 
     return retpc;
 }
-
 
 void helper_wfi(CPURISCVState *env)
 {
