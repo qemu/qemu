@@ -1164,8 +1164,9 @@ static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
     return 0;
 }
 
-static ssize_t handle_aiocb_flush(RawPosixAIOData *aiocb)
+static int handle_aiocb_flush(void *opaque)
 {
+    RawPosixAIOData *aiocb = opaque;
     BDRVRawState *s = aiocb->bs->opaque;
     int ret;
 
@@ -1798,12 +1799,10 @@ static int aio_worker(void *arg)
             ret = -EINVAL;
         }
         break;
-    case QEMU_AIO_FLUSH:
-        ret = handle_aiocb_flush(aiocb);
-        break;
     case QEMU_AIO_IOCTL:
         ret = handle_aiocb_ioctl(aiocb);
         break;
+    case QEMU_AIO_FLUSH:
     case QEMU_AIO_DISCARD:
     case QEMU_AIO_WRITE_ZEROES:
     case QEMU_AIO_WRITE_ZEROES | QEMU_AIO_DISCARD:
@@ -1931,6 +1930,7 @@ static void raw_aio_unplug(BlockDriverState *bs)
 static int raw_co_flush_to_disk(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
+    RawPosixAIOData acb;
     int ret;
 
     ret = fd_open(bs);
@@ -1938,7 +1938,13 @@ static int raw_co_flush_to_disk(BlockDriverState *bs)
         return ret;
     }
 
-    return paio_submit_co(bs, s->fd, 0, NULL, 0, QEMU_AIO_FLUSH);
+    acb = (RawPosixAIOData) {
+        .bs             = bs,
+        .aio_fildes     = s->fd,
+        .aio_type       = QEMU_AIO_FLUSH,
+    };
+
+    return raw_thread_pool_submit(bs, handle_aiocb_flush, &acb);
 }
 
 static void raw_aio_attach_aio_context(BlockDriverState *bs,
