@@ -1645,8 +1645,9 @@ static ssize_t handle_aiocb_discard(RawPosixAIOData *aiocb)
     return ret;
 }
 
-static int handle_aiocb_truncate(RawPosixAIOData *aiocb)
+static int handle_aiocb_truncate(void *opaque)
 {
+    RawPosixAIOData *aiocb = opaque;
     int result = 0;
     int64_t current_length = 0;
     char *buf = NULL;
@@ -1812,8 +1813,7 @@ static int aio_worker(void *arg)
         ret = handle_aiocb_copy_range(aiocb);
         break;
     case QEMU_AIO_TRUNCATE:
-        ret = handle_aiocb_truncate(aiocb);
-        break;
+        g_assert_not_reached();
     default:
         error_report("invalid aio request (0x%x)", aiocb->aio_type);
         ret = -EINVAL;
@@ -1981,9 +1981,9 @@ static int coroutine_fn
 raw_regular_truncate(BlockDriverState *bs, int fd, int64_t offset,
                      PreallocMode prealloc, Error **errp)
 {
-    RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
+    RawPosixAIOData acb;
 
-    *acb = (RawPosixAIOData) {
+    acb = (RawPosixAIOData) {
         .bs             = bs,
         .aio_fildes     = fd,
         .aio_type       = QEMU_AIO_TRUNCATE,
@@ -1994,7 +1994,7 @@ raw_regular_truncate(BlockDriverState *bs, int fd, int64_t offset,
         },
     };
 
-    return raw_thread_pool_submit(bs, aio_worker, acb);
+    return raw_thread_pool_submit(bs, handle_aiocb_truncate, &acb);
 }
 
 static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
