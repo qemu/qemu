@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/cris/etraxfs.h"
@@ -126,7 +127,7 @@ tdk_write(struct qemu_phy *phy, unsigned int req, unsigned int data)
 }
 
 static void
-tdk_init(struct qemu_phy *phy)
+tdk_reset(struct qemu_phy *phy)
 {
     phy->regs[0] = 0x3100;
     /* PHY Id.  */
@@ -135,9 +136,6 @@ tdk_init(struct qemu_phy *phy)
     /* Autonegotiation advertisement reg.  */
     phy->regs[4] = 0x01E1;
     phy->link = 1;
-
-    phy->read = tdk_read;
-    phy->write = tdk_write;
 }
 
 struct qemu_mdio
@@ -584,14 +582,35 @@ static NetClientInfo net_etraxfs_info = {
     .link_status_changed = eth_set_link,
 };
 
-static int fs_eth_init(SysBusDevice *sbd)
+static void etraxfs_eth_reset(DeviceState *dev)
 {
-    DeviceState *dev = DEVICE(sbd);
+    ETRAXFSEthState *s = ETRAX_FS_ETH(dev);
+
+    memset(s->regs, 0, sizeof(s->regs));
+    memset(s->macaddr, 0, sizeof(s->macaddr));
+    s->duplex_mismatch = 0;
+
+    s->mdio_bus.mdc = 0;
+    s->mdio_bus.mdio = 0;
+    s->mdio_bus.state = 0;
+    s->mdio_bus.drive = 0;
+    s->mdio_bus.cnt = 0;
+    s->mdio_bus.addr = 0;
+    s->mdio_bus.opc = 0;
+    s->mdio_bus.req = 0;
+    s->mdio_bus.data = 0;
+
+    tdk_reset(&s->phy);
+}
+
+static void etraxfs_eth_realize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     ETRAXFSEthState *s = ETRAX_FS_ETH(dev);
 
     if (!s->dma_out || !s->dma_in) {
-        error_report("Unconnected ETRAX-FS Ethernet MAC");
-        return -1;
+        error_setg(errp, "Unconnected ETRAX-FS Ethernet MAC");
+        return;
     }
 
     s->dma_out->client.push = eth_tx_push;
@@ -608,10 +627,9 @@ static int fs_eth_init(SysBusDevice *sbd)
                           object_get_typename(OBJECT(s)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
-
-    tdk_init(&s->phy);
+    s->phy.read = tdk_read;
+    s->phy.write = tdk_write;
     mdio_attach(&s->mdio_bus, &s->phy, s->phyaddr);
-    return 0;
 }
 
 static Property etraxfs_eth_properties[] = {
@@ -625,9 +643,9 @@ static Property etraxfs_eth_properties[] = {
 static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = fs_eth_init;
+    dc->realize = etraxfs_eth_realize;
+    dc->reset = etraxfs_eth_reset;
     dc->props = etraxfs_eth_properties;
     /* Reason: pointer properties "dma_out", "dma_in" */
     dc->user_creatable = false;

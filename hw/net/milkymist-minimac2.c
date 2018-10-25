@@ -452,9 +452,9 @@ static NetClientInfo net_milkymist_minimac2_info = {
     .receive = minimac2_rx,
 };
 
-static int milkymist_minimac2_init(SysBusDevice *sbd)
+static void milkymist_minimac2_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     MilkymistMinimac2State *s = MILKYMIST_MINIMAC2(dev);
     size_t buffers_size = TARGET_PAGE_ALIGN(3 * MINIMAC2_BUFFER_SIZE);
 
@@ -479,8 +479,6 @@ static int milkymist_minimac2_init(SysBusDevice *sbd)
     s->nic = qemu_new_nic(&net_milkymist_minimac2_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_milkymist_minimac2_mdio = {
@@ -521,9 +519,8 @@ static Property milkymist_minimac2_properties[] = {
 static void milkymist_minimac2_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = milkymist_minimac2_init;
+    dc->realize = milkymist_minimac2_realize;
     dc->reset = milkymist_minimac2_reset;
     dc->vmsd = &vmstate_milkymist_minimac2;
     dc->props = milkymist_minimac2_properties;

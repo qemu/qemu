@@ -992,9 +992,9 @@ static void gt64120_pci_set_irq(void *opaque, int irq_num, int level)
 }
 
 
-static void gt64120_reset(void *opaque)
+static void gt64120_reset(DeviceState *dev)
 {
-    GT64120State *s = opaque;
+    GT64120State *s = GT64120_PCI_HOST_BRIDGE(dev);
 
     /* FIXME: Malta specific hw assumptions ahead */
 
@@ -1184,16 +1184,6 @@ PCIBus *gt64120_register(qemu_irq *pic)
     return phb->bus;
 }
 
-static int gt64120_init(SysBusDevice *dev)
-{
-    GT64120State *s;
-
-    s = GT64120_PCI_HOST_BRIDGE(dev);
-
-    qemu_register_reset(gt64120_reset, s);
-    return 0;
-}
-
 static void gt64120_pci_realize(PCIDevice *d, Error **errp)
 {
     /* FIXME: Malta specific hw assumptions ahead */
@@ -1241,9 +1231,9 @@ static const TypeInfo gt64120_pci_info = {
 static void gt64120_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
 
-    sdc->init = gt64120_init;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->reset = gt64120_reset;
     dc->vmsd = &vmstate_gt64120;
 }
 

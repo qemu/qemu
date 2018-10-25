@@ -595,7 +595,7 @@ static const VMStateDescription vmstate_bonito = {
     }
 };
 
-static int bonito_pcihost_initfn(SysBusDevice *dev)
+static void bonito_pcihost_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
 
@@ -603,8 +603,6 @@ static int bonito_pcihost_initfn(SysBusDevice *dev)
                                      pci_bonito_set_irq, pci_bonito_map_irq,
                                      dev, get_system_memory(), get_system_io(),
                                      0x28, 32, TYPE_PCI_BUS);
-
-    return 0;
 }
 
 static void bonito_realize(PCIDevice *dev, Error **errp)
@@ -684,7 +682,6 @@ PCIBus *bonito_init(qemu_irq *pic)
     pcihost->pic = pic;
     qdev_init_nofail(dev);
 
-    /* set the pcihost pointer before bonito_initfn is called */
     d = pci_create(phb->bus, PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
     s = PCI_BONITO(d);
     s->pcihost = pcihost;
@@ -726,9 +723,9 @@ static const TypeInfo bonito_info = {
 
 static void bonito_pcihost_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = bonito_pcihost_initfn;
+    dc->realize = bonito_pcihost_realize;
 }
 
 static const TypeInfo bonito_pcihost_info = {

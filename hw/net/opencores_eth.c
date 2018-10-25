@@ -715,9 +715,9 @@ static const MemoryRegionOps open_eth_desc_ops = {
     .write = open_eth_desc_write,
 };
 
-static int sysbus_open_eth_init(SysBusDevice *sbd)
+static void sysbus_open_eth_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     OpenEthState *s = OPEN_ETH(dev);
 
     memory_region_init_io(&s->reg_io, OBJECT(dev), &open_eth_reg_ops, s,
@@ -732,7 +732,6 @@ static int sysbus_open_eth_init(SysBusDevice *sbd)
 
     s->nic = qemu_new_nic(&net_open_eth_info, &s->conf,
                           object_get_typename(OBJECT(s)), dev->id, s);
-    return 0;
 }
 
 static void qdev_open_eth_reset(DeviceState *dev)
@@ -750,9 +749,8 @@ static Property open_eth_properties[] = {
 static void open_eth_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = sysbus_open_eth_init;
+    dc->realize = sysbus_open_eth_realize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Opencores 10/100 Mbit Ethernet";
     dc->reset = qdev_open_eth_reset;

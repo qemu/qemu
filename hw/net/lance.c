@@ -97,9 +97,9 @@ static const VMStateDescription vmstate_lance = {
     }
 };
 
-static int lance_init(SysBusDevice *sbd)
+static void lance_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     SysBusPCNetState *d = SYSBUS_PCNET(dev);
     PCNetState *s = &d->state;
 
@@ -115,7 +115,6 @@ static int lance_init(SysBusDevice *sbd)
     s->phys_mem_read = ledma_memory_read;
     s->phys_mem_write = ledma_memory_write;
     pcnet_common_init(dev, s, &net_lance_info);
-    return 0;
 }
 
 static void lance_reset(DeviceState *dev)
@@ -144,9 +143,8 @@ static Property lance_properties[] = {
 static void lance_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = lance_init;
+    dc->realize = lance_realize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->fw_name = "ethernet";
     dc->reset = lance_reset;

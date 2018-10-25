@@ -766,9 +766,9 @@ static NetClientInfo net_smc91c111_info = {
     .receive = smc91c111_receive,
 };
 
-static int smc91c111_init1(SysBusDevice *sbd)
+static void smc91c111_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     smc91c111_state *s = SMC91C111(dev);
 
     memory_region_init_io(&s->mmio, OBJECT(s), &smc91c111_mem_ops, s,
@@ -780,7 +780,6 @@ static int smc91c111_init1(SysBusDevice *sbd)
                           object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     /* ??? Save/restore.  */
-    return 0;
 }
 
 static Property smc91c111_properties[] = {
@@ -791,9 +790,8 @@ static Property smc91c111_properties[] = {
 static void smc91c111_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = smc91c111_init1;
+    dc->realize = smc91c111_realize;
     dc->reset = smc91c111_reset;
     dc->vmsd = &vmstate_smc91c111;
     dc->props = smc91c111_properties;

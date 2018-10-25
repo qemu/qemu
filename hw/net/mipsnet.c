@@ -236,9 +236,9 @@ static const MemoryRegionOps mipsnet_ioport_ops = {
     .impl.max_access_size = 4,
 };
 
-static int mipsnet_sysbus_init(SysBusDevice *sbd)
+static void mipsnet_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(sbd);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     MIPSnetState *s = MIPS_NET(dev);
 
     memory_region_init_io(&s->io, OBJECT(dev), &mipsnet_ioport_ops, s,
@@ -249,8 +249,6 @@ static int mipsnet_sysbus_init(SysBusDevice *sbd)
     s->nic = qemu_new_nic(&net_mipsnet_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
-
-    return 0;
 }
 
 static void mipsnet_sysbus_reset(DeviceState *dev)
@@ -267,9 +265,8 @@ static Property mipsnet_properties[] = {
 static void mipsnet_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = mipsnet_sysbus_init;
+    dc->realize = mipsnet_realize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "MIPS Simulator network device";
     dc->reset = mipsnet_sysbus_reset;
