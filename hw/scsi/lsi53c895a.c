@@ -865,10 +865,11 @@ static void lsi_do_status(LSIState *s)
 
 static void lsi_do_msgin(LSIState *s)
 {
-    int len;
+    uint8_t len;
     DPRINTF("Message in len=%d/%d\n", s->dbc, s->msg_len);
     s->sfbr = s->msg[0];
     len = s->msg_len;
+    assert(len > 0 && len <= LSI_MAX_MSGIN_LEN);
     if (len > s->dbc)
         len = s->dbc;
     pci_dma_write(PCI_DEVICE(s), s->dnad, s->msg, len);
@@ -1703,8 +1704,10 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         break;
     case 0x58: /* SBDL */
         /* Some drivers peek at the data bus during the MSG IN phase.  */
-        if ((s->sstat1 & PHASE_MASK) == PHASE_MI)
+        if ((s->sstat1 & PHASE_MASK) == PHASE_MI) {
+            assert(s->msg_len > 0);
             return s->msg[0];
+        }
         ret = 0;
         break;
     case 0x59: /* SBDL high */
@@ -2096,11 +2099,23 @@ static int lsi_pre_save(void *opaque)
     return 0;
 }
 
+static int lsi_post_load(void *opaque, int version_id)
+{
+    LSIState *s = opaque;
+
+    if (s->msg_len < 0 || s->msg_len > LSI_MAX_MSGIN_LEN) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_lsi_scsi = {
     .name = "lsiscsi",
     .version_id = 0,
     .minimum_version_id = 0,
     .pre_save = lsi_pre_save,
+    .post_load = lsi_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, LSIState),
 
