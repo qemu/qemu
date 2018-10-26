@@ -202,6 +202,8 @@ F: include/hw/intc/mips_gic.h
 F: include/hw/timer/mips_gictimer.h
 F: tests/tcg/mips/
 F: disas/mips.c
+F: disas/nanomips.h
+F: disas/nanomips.cpp
 
 Moxie
 M: Anthony Green <green@moxielogic.com>

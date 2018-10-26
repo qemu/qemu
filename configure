@@ -7264,6 +7264,9 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
   ;;
   mips*)
     disas_config "MIPS"
+    if test -n "${cxx}"; then
+      disas_config "NANOMIPS"
+    fi
   ;;
   moxie*)
     disas_config "MOXIE"
