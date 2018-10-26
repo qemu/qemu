@@ -12,9 +12,14 @@ consult qemu-devel and not any specific individual privately.
 Descriptions of section entries:
 
 	M: Mail patches to: FullName <address@domain>
+	   Maintainers are looking after a certain area and must be CCed on
+	   patches. They are considered the main contact point.
 	R: Designated reviewer: FullName <address@domain>
 	   These reviewers should be CCed on patches.
+	   Reviewers are familiar with the subject matter and provide feedback
+	   even though they are not maintainers.
 	L: Mailing list that is relevant to this area
+	   These lists should be CCed on patches.
 	W: Web-page with status/info
 	Q: Patchwork web based patch tracking system site
 	T: SCM tree type and location.  Type is one of: git, hg, quilt, stgit.
