@@ -175,15 +175,15 @@ decode_function = 'decode'
 re_ident = '[a-zA-Z][a-zA-Z0-9_]*'
 
 
-def error(lineno, *args):
+def error_with_file(file, lineno, *args):
     """Print an error message from file:line and args and exit."""
     global output_file
     global output_fd
 
     if lineno:
-        r = '{0}:{1}: error:'.format(input_file, lineno)
+        r = '{0}:{1}: error:'.format(file, lineno)
     elif input_file:
-        r = '{0}: error:'.format(input_file)
+        r = '{0}: error:'.format(file)
     else:
         r = 'error:'
     for a in args:
@@ -195,6 +195,8 @@ def error(lineno, *args):
         os.remove(output_file)
     exit(1)
 
+def error(lineno, *args):
+    error_with_file(input_file, lineno, args)
 
 def output(*args):
     global output_fd
@@ -420,6 +422,7 @@ class General:
     """Common code between instruction formats and instruction patterns"""
     def __init__(self, name, lineno, base, fixb, fixm, udfm, fldm, flds):
         self.name = name
+        self.file = input_file
         self.lineno = lineno
         self.base = base
         self.fixedbits = fixb
@@ -472,7 +475,7 @@ class Pattern(General):
         global translate_prefix
         ind = str_indent(i)
         arg = self.base.base.name
-        output(ind, '/* line ', str(self.lineno), ' */\n')
+        output(ind, '/* ', self.file, ':', str(self.lineno), ' */\n')
         if not extracted:
             output(ind, self.base.extract_name(), '(&u.f_', arg, ', insn);\n')
         for n, f in self.fields.items():
@@ -920,8 +923,9 @@ def build_tree(pats, outerbits, outermask):
     if innermask == 0:
         pnames = []
         for p in pats:
-            pnames.append(p.name + ':' + str(p.lineno))
-        error(pats[0].lineno, 'overlapping patterns:', pnames)
+            pnames.append(p.name + ':' + p.file + ':' + str(p.lineno))
+        error_with_file(pats[0].file, pats[0].lineno,
+                        'overlapping patterns:', pnames)
 
     fullmask = outermask | innermask
 
@@ -1012,10 +1016,11 @@ def main():
 
     if len(args) < 1:
         error(0, 'missing input file')
-    input_file = args[0]
-    f = open(input_file, 'r')
-    parse_file(f)
-    f.close()
+    for filename in args:
+        input_file = filename
+        f = open(filename, 'r')
+        parse_file(f)
+        f.close()
 
     t = build_tree(patterns, 0, 0)
     prop_format(t)
