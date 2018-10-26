@@ -87,6 +87,8 @@ typedef int64_t  Elf64_Sxword;
 #define EF_MIPS_MACH_LS3A     0x00a20000  /* ST Microelectronics Loongson 3A */
 #define EF_MIPS_MACH          0x00ff0000  /* EF_MIPS_MACH_xxx selection mask */
 
+#define MIPS_ABI_FP_UNKNOWN   (-1)        /* Unknown FP ABI (internal)       */
+
 #define MIPS_ABI_FP_ANY       0x0         /* FP ABI doesn't matter           */
 #define MIPS_ABI_FP_DOUBLE    0x1         /* -mdouble-float                  */
 #define MIPS_ABI_FP_SINGLE    0x2         /* -msingle-float                  */
