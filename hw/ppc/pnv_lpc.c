@@ -155,8 +155,14 @@ static void pnv_lpc_do_eccb(PnvLpcController *lpc, uint64_t cmd)
     /* XXX Check for magic bits at the top, addr size etc... */
     unsigned int sz = (cmd & ECCB_CTL_SZ_MASK) >> ECCB_CTL_SZ_LSH;
     uint32_t opb_addr = cmd & ECCB_CTL_ADDR_MASK;
-    uint8_t data[4];
+    uint8_t data[8];
     bool success;
+
+    if (sz > sizeof(data)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "ECCB: invalid operation at @0x%08x size %d\n", opb_addr, sz);
+        return;
+    }
 
     if (cmd & ECCB_CTL_READ) {
         success = opb_read(lpc, opb_addr, data, sz);
