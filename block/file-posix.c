@@ -1824,13 +1824,20 @@ static int aio_worker(void *arg)
     return ret;
 }
 
+static int coroutine_fn raw_thread_pool_submit(BlockDriverState *bs,
+                                               ThreadPoolFunc func, void *arg)
+{
+    /* @bs can be NULL, bdrv_get_aio_context() returns the main context then */
+    ThreadPool *pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+    return thread_pool_submit_co(pool, func, arg);
+}
+
 static int paio_submit_co_full(BlockDriverState *bs, int fd,
                                int64_t offset, int fd2, int64_t offset2,
                                QEMUIOVector *qiov,
                                int bytes, int type)
 {
     RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
-    ThreadPool *pool;
 
     acb->bs = bs;
     acb->aio_type = type;
@@ -1849,8 +1856,7 @@ static int paio_submit_co_full(BlockDriverState *bs, int fd,
     }
 
     trace_file_paio_submit_co(offset, bytes, type);
-    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
-    return thread_pool_submit_co(pool, aio_worker, acb);
+    return raw_thread_pool_submit(bs, aio_worker, acb);
 }
 
 static inline int paio_submit_co(BlockDriverState *bs, int fd,
@@ -1976,7 +1982,6 @@ raw_regular_truncate(BlockDriverState *bs, int fd, int64_t offset,
                      PreallocMode prealloc, Error **errp)
 {
     RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
-    ThreadPool *pool;
 
     *acb = (RawPosixAIOData) {
         .bs             = bs,
@@ -1989,9 +1994,7 @@ raw_regular_truncate(BlockDriverState *bs, int fd, int64_t offset,
         },
     };
 
-    /* @bs can be NULL, bdrv_get_aio_context() returns the main context then */
-    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
-    return thread_pool_submit_co(pool, aio_worker, acb);
+    return raw_thread_pool_submit(bs, aio_worker, acb);
 }
 
 static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
