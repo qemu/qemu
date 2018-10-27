@@ -19,6 +19,7 @@ import time
 
 class UbuntuX86VM(basevm.BaseVM):
     name = "ubuntu.i386"
+    arch = "i386"
     BUILD_SCRIPT = """
         set -e;
         cd $(mktemp -d);

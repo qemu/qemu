@@ -18,6 +18,7 @@ import basevm
 
 class FreeBSDVM(basevm.BaseVM):
     name = "freebsd"
+    arch = "x86_64"
     BUILD_SCRIPT = """
         set -e;
         rm -rf /var/tmp/qemu-test.*
