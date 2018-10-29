@@ -58,7 +58,6 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
                   'granularity': granularity}
         if persistent:
             params['persistent'] = True
-            params['autoload'] = True
 
         result = vm.qmp('block-dirty-bitmap-add', **params)
         self.assert_qmp(result, 'return', {});
