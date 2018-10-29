@@ -48,6 +48,7 @@
 # - @block-dirty-bitmap-clear: since 2.5
 # - @x-block-dirty-bitmap-enable: since 3.0
 # - @x-block-dirty-bitmap-disable: since 3.0
+# - @x-block-dirty-bitmap-merge: since 3.1
 # - @blockdev-backup: since 2.3
 # - @blockdev-snapshot: since 2.5
 # - @blockdev-snapshot-internal-sync: since 1.7
@@ -63,6 +64,7 @@
        'block-dirty-bitmap-clear': 'BlockDirtyBitmap',
        'x-block-dirty-bitmap-enable': 'BlockDirtyBitmap',
        'x-block-dirty-bitmap-disable': 'BlockDirtyBitmap',
+       'x-block-dirty-bitmap-merge': 'BlockDirtyBitmapMerge',
        'blockdev-backup': 'BlockdevBackup',
        'blockdev-snapshot': 'BlockdevSnapshot',
        'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal',
