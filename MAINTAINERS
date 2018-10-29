@@ -956,6 +956,12 @@ F: pc-bios/s390-ccw.img
 T: git git://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
+S390 PCI
+M: Collin Walling <walling@linux.ibm.com>
+S: Supported
+F: hw/s390x/s390-pci*
+L: qemu-s390x@nongnu.org
+
 UniCore32 Machines
 -------------
 PKUnity-3 SoC initramfs-with-busybox
