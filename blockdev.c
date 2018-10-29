@@ -2033,7 +2033,7 @@ static void block_dirty_bitmap_clear_abort(BlkActionState *common)
                                              common, common);
 
     if (state->backup) {
-        bdrv_undo_clear_dirty_bitmap(state->bitmap, state->backup);
+        bdrv_restore_dirty_bitmap(state->bitmap, state->backup);
     }
 }
 
