@@ -944,10 +944,11 @@ T: git git://github.com/cohuck/qemu.git s390-next
 T: git git://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
-S390-ccw Bios
+S390-ccw boot
 M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Thomas Huth <thuth@redhat.com>
 S: Supported
+F: hw/s390x/ipl.*
 F: pc-bios/s390-ccw/
 F: pc-bios/s390-ccw.img
 T: git git://github.com/borntraeger/qemu.git s390-next
