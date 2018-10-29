@@ -798,12 +798,23 @@ void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
 
     qemu_mutex_lock(dest->mutex);
 
-    assert(bdrv_dirty_bitmap_enabled(dest));
-    assert(!bdrv_dirty_bitmap_readonly(dest));
+    if (bdrv_dirty_bitmap_frozen(dest)) {
+        error_setg(errp, "Bitmap '%s' is frozen and cannot be modified",
+                   dest->name);
+        goto out;
+    }
+
+    if (bdrv_dirty_bitmap_readonly(dest)) {
+        error_setg(errp, "Bitmap '%s' is readonly and cannot be modified",
+                   dest->name);
+        goto out;
+    }
 
     if (!hbitmap_merge(dest->bitmap, src->bitmap)) {
         error_setg(errp, "Bitmaps are incompatible and can't be merged");
+        goto out;
     }
 
+out:
     qemu_mutex_unlock(dest->mutex);
 }

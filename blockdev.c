@@ -2962,16 +2962,6 @@ void qmp_x_block_dirty_bitmap_merge(const char *node, const char *dst_name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(dst)) {
-        error_setg(errp, "Bitmap '%s' is frozen and cannot be modified",
-                   dst_name);
-        return;
-    } else if (bdrv_dirty_bitmap_readonly(dst)) {
-        error_setg(errp, "Bitmap '%s' is readonly and cannot be modified",
-                   dst_name);
-        return;
-    }
-
     src = bdrv_find_dirty_bitmap(bs, src_name);
     if (!src) {
         error_setg(errp, "Dirty bitmap '%s' not found", src_name);
