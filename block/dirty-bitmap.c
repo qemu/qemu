@@ -806,9 +806,9 @@ void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
 
     qemu_mutex_lock(dest->mutex);
 
-    if (bdrv_dirty_bitmap_frozen(dest)) {
-        error_setg(errp, "Bitmap '%s' is frozen and cannot be modified",
-                   dest->name);
+    if (bdrv_dirty_bitmap_user_locked(dest)) {
+        error_setg(errp, "Bitmap '%s' is currently in use by another"
+        " operation and cannot be modified", dest->name);
         goto out;
     }
 
