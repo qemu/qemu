@@ -77,6 +77,58 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
             self.assert_qmp(result, 'error/desc',
                             "Dirty bitmap 'bitmap0' not found");
 
+    def do_test_migration_resume_source(self, persistent, migrate_bitmaps):
+        granularity = 512
+
+        # regions = ((start, count), ...)
+        regions = ((0, 0x10000),
+                   (0xf0000, 0x10000),
+                   (0xa0201, 0x1000))
+
+        mig_caps = [{'capability': 'events', 'state': True}]
+        if migrate_bitmaps:
+            mig_caps.append({'capability': 'dirty-bitmaps', 'state': True})
+
+        result = self.vm_a.qmp('migrate-set-capabilities',
+                               capabilities=mig_caps)
+        self.assert_qmp(result, 'return', {})
+
+        self.add_bitmap(self.vm_a, granularity, persistent)
+        for r in regions:
+            self.vm_a.hmp_qemu_io('drive0', 'write %d %d' % r)
+        sha256 = self.get_bitmap_hash(self.vm_a)
+
+        result = self.vm_a.qmp('migrate', uri=mig_cmd)
+        while True:
+            event = self.vm_a.event_wait('MIGRATION')
+            if event['data']['status'] == 'completed':
+                break
+
+        # test that bitmap is still here
+        removed = (not migrate_bitmaps) and persistent
+        self.check_bitmap(self.vm_a, False if removed else sha256)
+
+        self.vm_a.qmp('cont')
+
+        # test that bitmap is still here after invalidation
+        self.check_bitmap(self.vm_a, sha256)
+
+        # shutdown and check that invalidation didn't fail
+        self.vm_a.shutdown()
+
+        # catch 'Could not reopen qcow2 layer: Bitmap already exists'
+        # possible error
+        log = self.vm_a.get_log()
+        log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
+        log = re.sub(r'^(wrote .* bytes at offset .*\n.*KiB.*ops.*sec.*\n){3}',
+                     '', log)
+        log = re.sub(r'\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
+        self.assertEqual(log, '')
+
+        # test that bitmap is still persistent
+        self.vm_a.launch()
+        self.check_bitmap(self.vm_a, sha256 if persistent else False)
+
     def do_test_migration(self, persistent, migrate_bitmaps, online,
                           shared_storage):
         granularity = 512
@@ -152,7 +204,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
 
 def inject_test_case(klass, name, method, *args, **kwargs):
     mc = operator.methodcaller(method, *args, **kwargs)
-    setattr(klass, 'test_' + name, new.instancemethod(mc, None, klass))
+    setattr(klass, 'test_' + method + name, new.instancemethod(mc, None, klass))
 
 for cmb in list(itertools.product((True, False), repeat=4)):
     name = ('_' if cmb[0] else '_not_') + 'persistent_'
@@ -163,6 +215,12 @@ for cmb in list(itertools.product((True, False), repeat=4)):
     inject_test_case(TestDirtyBitmapMigration, name, 'do_test_migration',
                      *list(cmb))
 
+for cmb in list(itertools.product((True, False), repeat=2)):
+    name = ('_' if cmb[0] else '_not_') + 'persistent_'
+    name += ('_' if cmb[1] else '_not_') + 'migbitmap'
+
+    inject_test_case(TestDirtyBitmapMigration, name,
+                     'do_test_migration_resume_source', *list(cmb))
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'])
