@@ -1332,6 +1332,9 @@ static void nvme_exit(PCIDevice *pci_dev)
     g_free(n->cq);
     g_free(n->sq);
 
+    if (n->cmb_size_mb) {
+        g_free(n->cmbuf);
+    }
     msix_uninit_exclusive_bar(pci_dev);
 }
 
