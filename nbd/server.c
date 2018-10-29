@@ -2456,8 +2456,8 @@ void nbd_export_bitmap(NBDExport *exp, const char *bitmap,
         return;
     }
 
-    if (bdrv_dirty_bitmap_qmp_locked(bm)) {
-        error_setg(errp, "Bitmap '%s' is locked", bitmap);
+    if (bdrv_dirty_bitmap_user_locked(bm)) {
+        error_setg(errp, "Bitmap '%s' is in use", bitmap);
         return;
     }
 
