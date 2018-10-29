@@ -123,6 +123,10 @@ enum {
 
 #define MUTE_SHIFT 15
 
+#define TYPE_AC97 "AC97"
+#define AC97(obj) \
+    OBJECT_CHECK(AC97LinkState, (obj), TYPE_AC97)
+
 #define REC_MASK 7
 enum {
     REC_MIC = 0,
@@ -1340,7 +1344,7 @@ static void ac97_on_reset (DeviceState *dev)
 
 static void ac97_realize(PCIDevice *dev, Error **errp)
 {
-    AC97LinkState *s = DO_UPCAST (AC97LinkState, dev, dev);
+    AC97LinkState *s = AC97(dev);
     uint8_t *c = s->dev.config;
 
     /* TODO: no need to override */
@@ -1389,7 +1393,7 @@ static void ac97_realize(PCIDevice *dev, Error **errp)
 
 static void ac97_exit(PCIDevice *dev)
 {
-    AC97LinkState *s = DO_UPCAST(AC97LinkState, dev, dev);
+    AC97LinkState *s = AC97(dev);
 
     AUD_close_in(&s->card, s->voice_pi);
     AUD_close_out(&s->card, s->voice_po);
@@ -1399,7 +1403,7 @@ static void ac97_exit(PCIDevice *dev)
 
 static int ac97_init (PCIBus *bus)
 {
-    pci_create_simple (bus, -1, "AC97");
+    pci_create_simple(bus, -1, TYPE_AC97);
     return 0;
 }
 
@@ -1427,7 +1431,7 @@ static void ac97_class_init (ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ac97_info = {
-    .name          = "AC97",
+    .name          = TYPE_AC97,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof (AC97LinkState),
     .class_init    = ac97_class_init,

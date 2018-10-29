@@ -15,6 +15,7 @@
 #include "hw/i2c/i2c.h"
 #include "hw/audio/wm8750.h"
 #include "audio/audio.h"
+#include "qapi/error.h"
 
 #define MP_AUDIO_SIZE           0x00001000
 
@@ -38,7 +39,6 @@
 #define MP_AUDIO_CLOCK_24MHZ    (1 << 9)
 #define MP_AUDIO_MONO           (1 << 14)
 
-#define TYPE_MV88W8618_AUDIO "mv88w8618_audio"
 #define MV88W8618_AUDIO(obj) \
     OBJECT_CHECK(mv88w8618_audio_state, (obj), TYPE_MV88W8618_AUDIO)
 
@@ -252,6 +252,11 @@ static void mv88w8618_audio_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &mv88w8618_audio_ops, s,
                           "audio", MP_AUDIO_SIZE);
     sysbus_init_mmio(dev, &s->iomem);
+
+    object_property_add_link(OBJECT(dev), "wm8750", TYPE_WM8750,
+                             (Object **) &s->wm,
+                             qdev_prop_allow_set_link_before_realize,
+                             0, &error_abort);
 }
 
 static void mv88w8618_audio_realize(DeviceState *dev, Error **errp)
@@ -279,11 +284,6 @@ static const VMStateDescription mv88w8618_audio_vmsd = {
     }
 };
 
-static Property mv88w8618_audio_properties[] = {
-    DEFINE_PROP_PTR("wm8750", mv88w8618_audio_state, wm),
-    {/* end of list */},
-};
-
 static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -291,8 +291,6 @@ static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
     dc->realize = mv88w8618_audio_realize;
     dc->reset = mv88w8618_audio_reset;
     dc->vmsd = &mv88w8618_audio_vmsd;
-    dc->props = mv88w8618_audio_properties;
-    /* Reason: pointer property "wm8750" */
     dc->user_creatable = false;
 }
 
