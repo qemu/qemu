@@ -24,6 +24,7 @@ import time
 import itertools
 import operator
 import new
+import re
 from iotests import qemu_img
 
 
@@ -133,6 +134,14 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
 
         if should_migrate:
             self.vm_b.shutdown()
+
+            # catch 'Could not reopen qcow2 layer: Bitmap already exists'
+            # possible error
+            log = self.vm_b.get_log()
+            log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
+            log = re.sub(r'\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
+            self.assertEqual(log, '')
+
             # recreate vm_b, as we don't want -incoming option (this will lead
             # to "cat" process left alive after test finish)
             self.vm_b = iotests.VM(path_suffix='b')
