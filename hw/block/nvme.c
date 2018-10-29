@@ -1331,9 +1331,6 @@ static void nvme_exit(PCIDevice *pci_dev)
     g_free(n->namespaces);
     g_free(n->cq);
     g_free(n->sq);
-    if (n->cmbsz) {
-        memory_region_unref(&n->ctrl_mem);
-    }
 
     msix_uninit_exclusive_bar(pci_dev);
 }
