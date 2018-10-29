@@ -21321,6 +21321,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         check_eva(ctx);
                         check_cp0_enabled(ctx);
                         gen_llwp(ctx, rs, 0, rt, extract32(ctx->opcode, 3, 5));
+                        break;
                     default:
                         generate_exception_end(ctx, EXCP_RI);
                         break;
@@ -21339,6 +21340,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         check_eva(ctx);
                         check_cp0_enabled(ctx);
                         gen_scwp(ctx, rs, 0, rt, extract32(ctx->opcode, 3, 5));
+                        break;
                     default:
                         generate_exception_end(ctx, EXCP_RI);
                         break;
