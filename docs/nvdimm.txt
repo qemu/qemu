@@ -49,8 +49,9 @@ Multiple vNVDIMM devices can be created if multiple pairs of "-object"
 and "-device" are provided.
 
 For above command line options, if the guest OS has the proper NVDIMM
-driver, it should be able to detect a NVDIMM device which is in the
-persistent memory mode and whose size is $NVDIMM_SIZE.
+driver (e.g. "CONFIG_ACPI_NFIT=y" under Linux), it should be able to
+detect a NVDIMM device which is in the persistent memory mode and whose
+size is $NVDIMM_SIZE.
 
 Note:
 
