@@ -176,6 +176,12 @@ bool bdrv_dirty_bitmap_frozen(BdrvDirtyBitmap *bitmap)
     return bitmap->successor;
 }
 
+/* Both conditions disallow user-modification via QMP. */
+bool bdrv_dirty_bitmap_user_locked(BdrvDirtyBitmap *bitmap) {
+    return bdrv_dirty_bitmap_frozen(bitmap) ||
+           bdrv_dirty_bitmap_qmp_locked(bitmap);
+}
+
 void bdrv_dirty_bitmap_set_qmp_locked(BdrvDirtyBitmap *bitmap, bool qmp_locked)
 {
     qemu_mutex_lock(bitmap->mutex);

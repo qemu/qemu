@@ -301,14 +301,8 @@ static int init_dirty_bitmap_migration(void)
                 goto fail;
             }
 
-            if (bdrv_dirty_bitmap_frozen(bitmap)) {
-                error_report("Can't migrate frozen dirty bitmap: '%s",
-                             bdrv_dirty_bitmap_name(bitmap));
-                goto fail;
-            }
-
-            if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
-                error_report("Can't migrate locked dirty bitmap: '%s",
+            if (bdrv_dirty_bitmap_user_locked(bitmap)) {
+                error_report("Can't migrate a bitmap that is in use by another operation: '%s'",
                              bdrv_dirty_bitmap_name(bitmap));
                 goto fail;
             }
