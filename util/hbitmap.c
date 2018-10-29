@@ -754,6 +754,9 @@ bool hbitmap_merge(HBitmap *a, const HBitmap *b)
         }
     }
 
+    /* Recompute the dirty count */
+    a->count = hb_count_between(a, 0, a->size - 1);
+
     return true;
 }
 
