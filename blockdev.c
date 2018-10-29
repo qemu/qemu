@@ -2059,6 +2059,13 @@ static void block_dirty_bitmap_enable_prepare(BlkActionState *common,
         return;
     }
 
+    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently in use by another operation"
+                   " and cannot be enabled", action->name);
+        return;
+    }
+
     state->was_enabled = bdrv_dirty_bitmap_enabled(state->bitmap);
     bdrv_enable_dirty_bitmap(state->bitmap);
 }
@@ -2090,6 +2097,13 @@ static void block_dirty_bitmap_disable_prepare(BlkActionState *common,
                                               NULL,
                                               errp);
     if (!state->bitmap) {
+        return;
+    }
+
+    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently in use by another operation"
+                   " and cannot be disabled", action->name);
         return;
     }
 
@@ -2934,10 +2948,10 @@ void qmp_x_block_dirty_bitmap_enable(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
         error_setg(errp,
-                   "Bitmap '%s' is currently frozen and cannot be enabled",
-                   name);
+                   "Bitmap '%s' is currently in use by another operation"
+                   " and cannot be enabled", name);
         return;
     }
 
@@ -2955,10 +2969,10 @@ void qmp_x_block_dirty_bitmap_disable(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
         error_setg(errp,
-                   "Bitmap '%s' is currently frozen and cannot be disabled",
-                   name);
+                   "Bitmap '%s' is currently in use by another operation"
+                   " and cannot be disabled", name);
         return;
     }
 
