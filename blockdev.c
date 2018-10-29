@@ -3513,10 +3513,10 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
             bdrv_unref(target_bs);
             goto out;
         }
-        if (bdrv_dirty_bitmap_qmp_locked(bmap)) {
+        if (bdrv_dirty_bitmap_user_locked(bmap)) {
             error_setg(errp,
-                       "Bitmap '%s' is currently locked and cannot be used for "
-                       "backup", backup->bitmap);
+                       "Bitmap '%s' is currently in use by another operation"
+                       " and cannot be used for backup", backup->bitmap);
             goto out;
         }
     }
@@ -3621,10 +3621,10 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
             error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
             goto out;
         }
-        if (bdrv_dirty_bitmap_qmp_locked(bmap)) {
+        if (bdrv_dirty_bitmap_user_locked(bmap)) {
             error_setg(errp,
-                       "Bitmap '%s' is currently locked and cannot be used for "
-                       "backup", backup->bitmap);
+                       "Bitmap '%s' is currently in use by another operation"
+                       " and cannot be used for backup", backup->bitmap);
             goto out;
         }
     }
