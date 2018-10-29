@@ -4403,6 +4403,7 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
     uint64_t perm, shared_perm;
     Error *local_err = NULL;
     int ret;
+    BdrvDirtyBitmap *bm;
 
     if (!bs->drv)  {
         return;
@@ -4450,6 +4451,12 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
             error_propagate(errp, local_err);
             return;
         }
+    }
+
+    for (bm = bdrv_dirty_bitmap_next(bs, NULL); bm;
+         bm = bdrv_dirty_bitmap_next(bs, bm))
+    {
+        bdrv_dirty_bitmap_set_migration(bm, false);
     }
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
@@ -4565,10 +4572,6 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs,
             return ret;
         }
     }
-
-    /* At this point persistent bitmaps should be already stored by the format
-     * driver */
-    bdrv_release_persistent_dirty_bitmaps(bs);
 
     return 0;
 }

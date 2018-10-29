@@ -55,6 +55,10 @@ struct BdrvDirtyBitmap {
                                    and this bitmap must remain unchanged while
                                    this flag is set. */
     bool persistent;            /* bitmap must be saved to owner disk image */
+    bool migration;             /* Bitmap is selected for migration, it should
+                                   not be stored on the next inactivation
+                                   (persistent flag doesn't matter until next
+                                   invalidation).*/
     QLIST_ENTRY(BdrvDirtyBitmap) list;
 };
 
@@ -383,26 +387,6 @@ void bdrv_release_named_dirty_bitmaps(BlockDriverState *bs)
     bdrv_dirty_bitmaps_lock(bs);
     QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
         if (bdrv_dirty_bitmap_name(bm)) {
-            bdrv_release_dirty_bitmap_locked(bm);
-        }
-    }
-    bdrv_dirty_bitmaps_unlock(bs);
-}
-
-/**
- * Release all persistent dirty bitmaps attached to a BDS (for use in
- * bdrv_inactivate_recurse()).
- * There must not be any frozen bitmaps attached.
- * This function does not remove persistent bitmaps from the storage.
- * Called with BQL taken.
- */
-void bdrv_release_persistent_dirty_bitmaps(BlockDriverState *bs)
-{
-    BdrvDirtyBitmap *bm, *next;
-
-    bdrv_dirty_bitmaps_lock(bs);
-    QLIST_FOREACH_SAFE(bm, &bs->dirty_bitmaps, list, next) {
-        if (bdrv_dirty_bitmap_get_persistance(bm)) {
             bdrv_release_dirty_bitmap_locked(bm);
         }
     }
@@ -761,16 +745,24 @@ void bdrv_dirty_bitmap_set_persistance(BdrvDirtyBitmap *bitmap, bool persistent)
     qemu_mutex_unlock(bitmap->mutex);
 }
 
+/* Called with BQL taken. */
+void bdrv_dirty_bitmap_set_migration(BdrvDirtyBitmap *bitmap, bool migration)
+{
+    qemu_mutex_lock(bitmap->mutex);
+    bitmap->migration = migration;
+    qemu_mutex_unlock(bitmap->mutex);
+}
+
 bool bdrv_dirty_bitmap_get_persistance(BdrvDirtyBitmap *bitmap)
 {
-    return bitmap->persistent;
+    return bitmap->persistent && !bitmap->migration;
 }
 
 bool bdrv_has_changed_persistent_bitmaps(BlockDriverState *bs)
 {
     BdrvDirtyBitmap *bm;
     QLIST_FOREACH(bm, &bs->dirty_bitmaps, list) {
-        if (bm->persistent && !bm->readonly) {
+        if (bm->persistent && !bm->readonly && !bm->migration) {
             return true;
         }
     }

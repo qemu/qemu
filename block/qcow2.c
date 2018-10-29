@@ -1491,8 +1491,69 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         s->autoclear_features &= QCOW2_AUTOCLEAR_MASK;
     }
 
-    if (qcow2_load_dirty_bitmaps(bs, &local_err)) {
-        update_header = false;
+    /* == Handle persistent dirty bitmaps ==
+     *
+     * We want load dirty bitmaps in three cases:
+     *
+     * 1. Normal open of the disk in active mode, not related to invalidation
+     *    after migration.
+     *
+     * 2. Invalidation of the target vm after pre-copy phase of migration, if
+     *    bitmaps are _not_ migrating through migration channel, i.e.
+     *    'dirty-bitmaps' capability is disabled.
+     *
+     * 3. Invalidation of source vm after failed or canceled migration.
+     *    This is a very interesting case. There are two possible types of
+     *    bitmaps:
+     *
+     *    A. Stored on inactivation and removed. They should be loaded from the
+     *       image.
+     *
+     *    B. Not stored: not-persistent bitmaps and bitmaps, migrated through
+     *       the migration channel (with dirty-bitmaps capability).
+     *
+     *    On the other hand, there are two possible sub-cases:
+     *
+     *    3.1 disk was changed by somebody else while were inactive. In this
+     *        case all in-RAM dirty bitmaps (both persistent and not) are
+     *        definitely invalid. And we don't have any method to determine
+     *        this.
+     *
+     *        Simple and safe thing is to just drop all the bitmaps of type B on
+     *        inactivation. But in this case we lose bitmaps in valid 4.2 case.
+     *
+     *        On the other hand, resuming source vm, if disk was already changed
+     *        is a bad thing anyway: not only bitmaps, the whole vm state is
+     *        out of sync with disk.
+     *
+     *        This means, that user or management tool, who for some reason
+     *        decided to resume source vm, after disk was already changed by
+     *        target vm, should at least drop all dirty bitmaps by hand.
+     *
+     *        So, we can ignore this case for now, but TODO: "generation"
+     *        extension for qcow2, to determine, that image was changed after
+     *        last inactivation. And if it is changed, we will drop (or at least
+     *        mark as 'invalid' all the bitmaps of type B, both persistent
+     *        and not).
+     *
+     *    3.2 disk was _not_ changed while were inactive. Bitmaps may be saved
+     *        to disk ('dirty-bitmaps' capability disabled), or not saved
+     *        ('dirty-bitmaps' capability enabled), but we don't need to care
+     *        of: let's load bitmaps as always: stored bitmaps will be loaded,
+     *        and not stored has flag IN_USE=1 in the image and will be skipped
+     *        on loading.
+     *
+     * One remaining possible case when we don't want load bitmaps:
+     *
+     * 4. Open disk in inactive mode in target vm (bitmaps are migrating or
+     *    will be loaded on invalidation, no needs try loading them before)
+     */
+
+    if (!(bdrv_get_flags(bs) & BDRV_O_INACTIVE)) {
+        /* It's case 1, 2 or 3.2. Or 3.1 which is BUG in management layer. */
+        bool header_updated = qcow2_load_dirty_bitmaps(bs, &local_err);
+
+        update_header = update_header && !header_updated;
     }
     if (local_err != NULL) {
         error_propagate(errp, local_err);
