@@ -409,6 +409,12 @@ static int init_event_notifier(EmulatedState *card, Error **errp)
     return 0;
 }
 
+static void clean_event_notifier(EmulatedState *card)
+{
+    event_notifier_set_handler(&card->notifier, NULL);
+    event_notifier_cleanup(&card->notifier);
+}
+
 #define CERTIFICATES_DEFAULT_DB "/etc/pki/nssdb"
 #define CERTIFICATES_ARGS_TEMPLATE\
     "db=\"%s\" use_hw=no soft=(,Virtual Reader,CAC,,%s,%s,%s)"
@@ -493,7 +499,7 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
     card->reader = NULL;
     card->quit_apdu_thread = 0;
     if (init_event_notifier(card, errp) < 0) {
-        return;
+        goto out1;
     }
 
     card->backend = 0;
@@ -507,7 +513,7 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
         for (ptable = backend_enum_table; ptable->name != NULL; ++ptable) {
             error_append_hint(errp, "%s\n", ptable->name);
         }
-        return;
+        goto out2;
     }
 
     /* TODO: a passthru backened that works on local machine. third card type?*/
@@ -517,31 +523,39 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
         } else {
             error_setg(errp, "%s: you must provide all three certs for"
                        " certificates backend", TYPE_EMULATED_CCID);
-            return;
+            goto out2;
         }
     } else {
         if (card->backend != BACKEND_NSS_EMULATED) {
             error_setg(errp, "%s: bad backend specified. The options are:%s"
                        " (default), %s.", TYPE_EMULATED_CCID,
                        BACKEND_NSS_EMULATED_NAME, BACKEND_CERTIFICATES_NAME);
-            return;
+            goto out2;
         }
         if (card->cert1 != NULL || card->cert2 != NULL || card->cert3 != NULL) {
             error_setg(errp, "%s: unexpected cert parameters to nss emulated "
                        "backend", TYPE_EMULATED_CCID);
-            return;
+            goto out2;
         }
         /* default to mirroring the local hardware readers */
         ret = wrap_vcard_emul_init(NULL);
     }
     if (ret != VCARD_EMUL_OK) {
         error_setg(errp, "%s: failed to initialize vcard", TYPE_EMULATED_CCID);
-        return;
+        goto out2;
     }
     qemu_thread_create(&card->event_thread_id, "ccid/event", event_thread,
                        card, QEMU_THREAD_JOINABLE);
     qemu_thread_create(&card->apdu_thread_id, "ccid/apdu", handle_apdu_thread,
                        card, QEMU_THREAD_JOINABLE);
+
+out2:
+    clean_event_notifier(card);
+out1:
+    qemu_cond_destroy(&card->handle_apdu_cond);
+    qemu_mutex_destroy(&card->handle_apdu_mutex);
+    qemu_mutex_destroy(&card->vreader_mutex);
+    qemu_mutex_destroy(&card->event_list_mutex);
 }
 
 static void emulated_unrealize(CCIDCardState *base, Error **errp)
@@ -556,6 +570,7 @@ static void emulated_unrealize(CCIDCardState *base, Error **errp)
     qemu_cond_signal(&card->handle_apdu_cond);
     qemu_thread_join(&card->apdu_thread_id);
 
+    clean_event_notifier(card);
     /* threads exited, can destroy all condvars/mutexes */
     qemu_cond_destroy(&card->handle_apdu_cond);
     qemu_mutex_destroy(&card->handle_apdu_mutex);

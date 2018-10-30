@@ -57,7 +57,7 @@ typedef struct {
     qemu_irq irq;
     MemoryRegion mem;
     AddressSpace *as;
-    int num_ports;
+    uint32_t num_ports;
     const char *name;
 
     QEMUTimer *eof_timer;
@@ -1850,7 +1850,7 @@ static USBBusOps ohci_bus_ops = {
 };
 
 static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
-                          int num_ports, dma_addr_t localmem_base,
+                          uint32_t num_ports, dma_addr_t localmem_base,
                           char *masterbus, uint32_t firstport,
                           AddressSpace *as, Error **errp)
 {
@@ -1860,7 +1860,7 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
     ohci->as = as;
 
     if (num_ports > OHCI_MAX_PORTS) {
-        error_setg(errp, "OHCI num-ports=%d is too big (limit is %d ports)",
+        error_setg(errp, "OHCI num-ports=%u is too big (limit is %u ports)",
                    num_ports, OHCI_MAX_PORTS);
         return;
     }
