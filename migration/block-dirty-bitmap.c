@@ -301,14 +301,14 @@ static int init_dirty_bitmap_migration(void)
                 goto fail;
             }
 
-            if (bdrv_dirty_bitmap_frozen(bitmap)) {
-                error_report("Can't migrate frozen dirty bitmap: '%s",
+            if (bdrv_dirty_bitmap_user_locked(bitmap)) {
+                error_report("Can't migrate a bitmap that is in use by another operation: '%s'",
                              bdrv_dirty_bitmap_name(bitmap));
                 goto fail;
             }
 
-            if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
-                error_report("Can't migrate locked dirty bitmap: '%s",
+            if (bdrv_dirty_bitmap_readonly(bitmap)) {
+                error_report("Can't migrate read-only dirty bitmap: '%s",
                              bdrv_dirty_bitmap_name(bitmap));
                 goto fail;
             }
@@ -335,9 +335,9 @@ static int init_dirty_bitmap_migration(void)
         }
     }
 
-    /* unset persistance here, to not roll back it */
+    /* unset migration flags here, to not roll back it */
     QSIMPLEQ_FOREACH(dbms, &dirty_bitmap_mig_state.dbms_list, entry) {
-        bdrv_dirty_bitmap_set_persistance(dbms->bitmap, false);
+        bdrv_dirty_bitmap_set_migration(dbms->bitmap, true);
     }
 
     if (QSIMPLEQ_EMPTY(&dirty_bitmap_mig_state.dbms_list)) {

@@ -73,16 +73,23 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size);
 
 /**
  * hbitmap_merge:
- * @a: The bitmap to store the result in.
- * @b: The bitmap to merge into @a.
- * @return true if the merge was successful,
- *         false if it was not attempted.
  *
- * Merge two bitmaps together.
- * A := A (BITOR) B.
- * B is left unmodified.
+ * Store result of merging @a and @b into @result.
+ * @result is allowed to be equal to @a or @b.
+ *
+ * Return true if the merge was successful,
+ *        false if it was not attempted.
  */
-bool hbitmap_merge(HBitmap *a, const HBitmap *b);
+bool hbitmap_merge(const HBitmap *a, const HBitmap *b, HBitmap *result);
+
+/**
+ * hbitmap_can_merge:
+ *
+ * hbitmap_can_merge(a, b) && hbitmap_can_merge(a, result) is sufficient and
+ * necessary for hbitmap_merge will not fail.
+ *
+ */
+bool hbitmap_can_merge(const HBitmap *a, const HBitmap *b);
 
 /**
  * hbitmap_empty:

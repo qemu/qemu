@@ -1418,6 +1418,22 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         g_free(tb);
     }
 
+    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
+        /* For safety, we remove bitmap after storing.
+         * We may be here in two cases:
+         * 1. bdrv_close. It's ok to drop bitmap.
+         * 2. inactivation. It means migration without 'dirty-bitmaps'
+         *    capability, so bitmaps are not marked with
+         *    BdrvDirtyBitmap.migration flags. It's not bad to drop them too,
+         *    and reload on invalidation.
+         */
+        if (bm->dirty_bitmap == NULL) {
+            continue;
+        }
+
+        bdrv_release_dirty_bitmap(bs, bm->dirty_bitmap);
+    }
+
     bitmap_list_free(bm_list);
     return;
 

@@ -723,6 +723,10 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size)
     }
 }
 
+bool hbitmap_can_merge(const HBitmap *a, const HBitmap *b)
+{
+    return (a->size == b->size) && (a->granularity == b->granularity);
+}
 
 /**
  * Given HBitmaps A and B, let A := A (BITOR) B.
@@ -731,14 +735,15 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size)
  * @return true if the merge was successful,
  *         false if it was not attempted.
  */
-bool hbitmap_merge(HBitmap *a, const HBitmap *b)
+bool hbitmap_merge(const HBitmap *a, const HBitmap *b, HBitmap *result)
 {
     int i;
     uint64_t j;
 
-    if ((a->size != b->size) || (a->granularity != b->granularity)) {
+    if (!hbitmap_can_merge(a, b) || !hbitmap_can_merge(a, result)) {
         return false;
     }
+    assert(hbitmap_can_merge(b, result));
 
     if (hbitmap_count(b) == 0) {
         return true;
@@ -750,9 +755,12 @@ bool hbitmap_merge(HBitmap *a, const HBitmap *b)
      */
     for (i = HBITMAP_LEVELS - 1; i >= 0; i--) {
         for (j = 0; j < a->sizes[i]; j++) {
-            a->levels[i][j] |= b->levels[i][j];
+            result->levels[i][j] = a->levels[i][j] | b->levels[i][j];
         }
     }
+
+    /* Recompute the dirty count */
+    result->count = hb_count_between(result, 0, result->size - 1);
 
     return true;
 }

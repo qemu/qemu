@@ -2010,14 +2010,8 @@ static void block_dirty_bitmap_clear_prepare(BlkActionState *common,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(state->bitmap)) {
-        error_setg(errp, "Cannot modify a frozen bitmap");
-        return;
-    } else if (bdrv_dirty_bitmap_qmp_locked(state->bitmap)) {
-        error_setg(errp, "Cannot modify a locked bitmap");
-        return;
-    } else if (!bdrv_dirty_bitmap_enabled(state->bitmap)) {
-        error_setg(errp, "Cannot clear a disabled bitmap");
+    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
+        error_setg(errp, "Cannot modify a bitmap in use by another operation");
         return;
     } else if (bdrv_dirty_bitmap_readonly(state->bitmap)) {
         error_setg(errp, "Cannot clear a readonly bitmap");
@@ -2027,17 +2021,17 @@ static void block_dirty_bitmap_clear_prepare(BlkActionState *common,
     bdrv_clear_dirty_bitmap(state->bitmap, &state->backup);
 }
 
-static void block_dirty_bitmap_clear_abort(BlkActionState *common)
+static void block_dirty_bitmap_restore(BlkActionState *common)
 {
     BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
                                              common, common);
 
     if (state->backup) {
-        bdrv_undo_clear_dirty_bitmap(state->bitmap, state->backup);
+        bdrv_restore_dirty_bitmap(state->bitmap, state->backup);
     }
 }
 
-static void block_dirty_bitmap_clear_commit(BlkActionState *common)
+static void block_dirty_bitmap_free_backup(BlkActionState *common)
 {
     BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
                                              common, common);
@@ -2062,6 +2056,13 @@ static void block_dirty_bitmap_enable_prepare(BlkActionState *common,
                                               NULL,
                                               errp);
     if (!state->bitmap) {
+        return;
+    }
+
+    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently in use by another operation"
+                   " and cannot be enabled", action->name);
         return;
     }
 
@@ -2099,6 +2100,13 @@ static void block_dirty_bitmap_disable_prepare(BlkActionState *common,
         return;
     }
 
+    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
+        error_setg(errp,
+                   "Bitmap '%s' is currently in use by another operation"
+                   " and cannot be disabled", action->name);
+        return;
+    }
+
     state->was_enabled = bdrv_dirty_bitmap_enabled(state->bitmap);
     bdrv_disable_dirty_bitmap(state->bitmap);
 }
@@ -2111,6 +2119,35 @@ static void block_dirty_bitmap_disable_abort(BlkActionState *common)
     if (state->was_enabled) {
         bdrv_enable_dirty_bitmap(state->bitmap);
     }
+}
+
+static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
+                                             Error **errp)
+{
+    BlockDirtyBitmapMerge *action;
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+    BdrvDirtyBitmap *merge_source;
+
+    if (action_check_completion_mode(common, errp) < 0) {
+        return;
+    }
+
+    action = common->action->u.x_block_dirty_bitmap_merge.data;
+    state->bitmap = block_dirty_bitmap_lookup(action->node,
+                                              action->dst_name,
+                                              &state->bs,
+                                              errp);
+    if (!state->bitmap) {
+        return;
+    }
+
+    merge_source = bdrv_find_dirty_bitmap(state->bs, action->src_name);
+    if (!merge_source) {
+        return;
+    }
+
+    bdrv_merge_dirty_bitmap(state->bitmap, merge_source, &state->backup, errp);
 }
 
 static void abort_prepare(BlkActionState *common, Error **errp)
@@ -2171,8 +2208,8 @@ static const BlkActionOps actions[] = {
     [TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_CLEAR] = {
         .instance_size = sizeof(BlockDirtyBitmapState),
         .prepare = block_dirty_bitmap_clear_prepare,
-        .commit = block_dirty_bitmap_clear_commit,
-        .abort = block_dirty_bitmap_clear_abort,
+        .commit = block_dirty_bitmap_free_backup,
+        .abort = block_dirty_bitmap_restore,
     },
     [TRANSACTION_ACTION_KIND_X_BLOCK_DIRTY_BITMAP_ENABLE] = {
         .instance_size = sizeof(BlockDirtyBitmapState),
@@ -2183,6 +2220,12 @@ static const BlkActionOps actions[] = {
         .instance_size = sizeof(BlockDirtyBitmapState),
         .prepare = block_dirty_bitmap_disable_prepare,
         .abort = block_dirty_bitmap_disable_abort,
+    },
+    [TRANSACTION_ACTION_KIND_X_BLOCK_DIRTY_BITMAP_MERGE] = {
+        .instance_size = sizeof(BlockDirtyBitmapState),
+        .prepare = block_dirty_bitmap_merge_prepare,
+        .commit = block_dirty_bitmap_free_backup,
+        .abort = block_dirty_bitmap_restore,
     },
     /* Where are transactions for MIRROR, COMMIT and STREAM?
      * Although these blockjobs use transaction callbacks like the backup job,
@@ -2848,15 +2891,10 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
         error_setg(errp,
-                   "Bitmap '%s' is currently frozen and cannot be removed",
-                   name);
-        return;
-    } else if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently locked and cannot be removed",
-                   name);
+                   "Bitmap '%s' is currently in use by another operation and"
+                   " cannot be removed", name);
         return;
     }
 
@@ -2886,20 +2924,10 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
         error_setg(errp,
-                   "Bitmap '%s' is currently frozen and cannot be modified",
-                   name);
-        return;
-    } else if (bdrv_dirty_bitmap_qmp_locked(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently locked and cannot be modified",
-                   name);
-        return;
-    } else if (!bdrv_dirty_bitmap_enabled(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently disabled and cannot be cleared",
-                   name);
+                   "Bitmap '%s' is currently in use by another operation"
+                   " and cannot be cleared", name);
         return;
     } else if (bdrv_dirty_bitmap_readonly(bitmap)) {
         error_setg(errp, "Bitmap '%s' is readonly and cannot be cleared", name);
@@ -2920,10 +2948,10 @@ void qmp_x_block_dirty_bitmap_enable(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
         error_setg(errp,
-                   "Bitmap '%s' is currently frozen and cannot be enabled",
-                   name);
+                   "Bitmap '%s' is currently in use by another operation"
+                   " and cannot be enabled", name);
         return;
     }
 
@@ -2941,10 +2969,10 @@ void qmp_x_block_dirty_bitmap_disable(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(bitmap)) {
+    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
         error_setg(errp,
-                   "Bitmap '%s' is currently frozen and cannot be disabled",
-                   name);
+                   "Bitmap '%s' is currently in use by another operation"
+                   " and cannot be disabled", name);
         return;
     }
 
@@ -2962,23 +2990,13 @@ void qmp_x_block_dirty_bitmap_merge(const char *node, const char *dst_name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_frozen(dst)) {
-        error_setg(errp, "Bitmap '%s' is frozen and cannot be modified",
-                   dst_name);
-        return;
-    } else if (bdrv_dirty_bitmap_readonly(dst)) {
-        error_setg(errp, "Bitmap '%s' is readonly and cannot be modified",
-                   dst_name);
-        return;
-    }
-
     src = bdrv_find_dirty_bitmap(bs, src_name);
     if (!src) {
         error_setg(errp, "Dirty bitmap '%s' not found", src_name);
         return;
     }
 
-    bdrv_merge_dirty_bitmap(dst, src, errp);
+    bdrv_merge_dirty_bitmap(dst, src, NULL, errp);
 }
 
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
@@ -3495,10 +3513,10 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
             bdrv_unref(target_bs);
             goto out;
         }
-        if (bdrv_dirty_bitmap_qmp_locked(bmap)) {
+        if (bdrv_dirty_bitmap_user_locked(bmap)) {
             error_setg(errp,
-                       "Bitmap '%s' is currently locked and cannot be used for "
-                       "backup", backup->bitmap);
+                       "Bitmap '%s' is currently in use by another operation"
+                       " and cannot be used for backup", backup->bitmap);
             goto out;
         }
     }
@@ -3545,6 +3563,7 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     Error *local_err = NULL;
+    BdrvDirtyBitmap *bmap = NULL;
     AioContext *aio_context;
     BlockJob *job = NULL;
     int job_flags = JOB_DEFAULT;
@@ -3595,6 +3614,21 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
             goto out;
         }
     }
+
+    if (backup->has_bitmap) {
+        bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
+        if (!bmap) {
+            error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
+            goto out;
+        }
+        if (bdrv_dirty_bitmap_user_locked(bmap)) {
+            error_setg(errp,
+                       "Bitmap '%s' is currently in use by another operation"
+                       " and cannot be used for backup", backup->bitmap);
+            goto out;
+        }
+    }
+
     if (!backup->auto_finalize) {
         job_flags |= JOB_MANUAL_FINALIZE;
     }
@@ -3602,7 +3636,7 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
         job_flags |= JOB_MANUAL_DISMISS;
     }
     job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
-                            backup->sync, NULL, backup->compress,
+                            backup->sync, bmap, backup->compress,
                             backup->on_source_error, backup->on_target_error,
                             job_flags, NULL, NULL, txn, &local_err);
     if (local_err != NULL) {
