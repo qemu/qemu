@@ -253,7 +253,6 @@ F: disas/riscv.c
 
 S390
 M: Richard Henderson <rth@twiddle.net>
-M: Alexander Graf <agraf@suse.de>
 M: David Hildenbrand <david@redhat.com>
 S: Maintained
 F: target/s390x/
@@ -349,7 +348,6 @@ F: target/ppc/kvm.c
 S390
 M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Cornelia Huck <cohuck@redhat.com>
-M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target/s390x/kvm.c
 F: target/s390x/kvm_s390x.h
@@ -934,7 +932,6 @@ S390 Machines
 S390 Virtio-ccw
 M: Cornelia Huck <cohuck@redhat.com>
 M: Christian Borntraeger <borntraeger@de.ibm.com>
-M: Alexander Graf <agraf@suse.de>
 S: Supported
 F: hw/char/sclp*.[hc]
 F: hw/char/terminal3270.c
@@ -1998,7 +1995,6 @@ F: tcg/ppc/
 F: disas/ppc.c
 
 S390 target
-M: Alexander Graf <agraf@suse.de>
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: tcg/s390/
