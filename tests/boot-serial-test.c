@@ -62,6 +62,24 @@ static const uint8_t kernel_aarch64[] = {
     0xfd, 0xff, 0xff, 0x17,                 /* b       -12 (loop) */
 };
 
+static const uint8_t kernel_nrf51[] = {
+    0x00, 0x00, 0x00, 0x00,                 /* Stack top address */
+    0x09, 0x00, 0x00, 0x00,                 /* Reset handler address */
+    0x04, 0x4a,                             /* ldr  r2, [pc, #16] Get ENABLE */
+    0x04, 0x21,                             /* movs r1, #4 */
+    0x11, 0x60,                             /* str  r1, [r2] */
+    0x04, 0x4a,                             /* ldr  r2, [pc, #16] Get STARTTX */
+    0x01, 0x21,                             /* movs r1, #1 */
+    0x11, 0x60,                             /* str  r1, [r2] */
+    0x03, 0x4a,                             /* ldr  r2, [pc, #12] Get TXD */
+    0x54, 0x21,                             /* movs r1, 'T' */
+    0x11, 0x60,                             /* str  r1, [r2] */
+    0xfe, 0xe7,                             /* b    . */
+    0x00, 0x25, 0x00, 0x40,                 /* 0x40002500 = UART ENABLE */
+    0x08, 0x20, 0x00, 0x40,                 /* 0x40002008 = UART STARTTX */
+    0x1c, 0x25, 0x00, 0x40                  /* 0x4000251c = UART TXD */
+};
+
 typedef struct testdef {
     const char *arch;       /* Target architecture */
     const char *machine;    /* Name of the machine */
@@ -105,6 +123,7 @@ static testdef_t tests[] = {
     { "hppa", "hppa", "", "SeaBIOS wants SYSTEM HALT" },
     { "aarch64", "virt", "-cpu cortex-a57", "TT", sizeof(kernel_aarch64),
       kernel_aarch64 },
+    { "arm", "microbit", "", "T", sizeof(kernel_nrf51), kernel_nrf51 },
 
     { NULL }
 };
