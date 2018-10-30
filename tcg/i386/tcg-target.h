@@ -84,6 +84,8 @@ typedef enum {
     TCG_REG_RBP = TCG_REG_EBP,
     TCG_REG_RSI = TCG_REG_ESI,
     TCG_REG_RDI = TCG_REG_EDI,
+
+    TCG_AREG0 = TCG_REG_EBP,
 } TCGReg;
 
 /* used for function call generation */
@@ -193,12 +195,6 @@ extern bool have_avx2;
 #define TCG_TARGET_extract_i32_valid(ofs, len) ((ofs) == 8 && (len) == 8)
 #define TCG_TARGET_extract_i64_valid(ofs, len) \
     (((ofs) == 8 && (len) == 8) || ((ofs) + (len)) == 32)
-
-#if TCG_TARGET_REG_BITS == 64
-# define TCG_AREG0 TCG_REG_R14
-#else
-# define TCG_AREG0 TCG_REG_EBP
-#endif
 
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
