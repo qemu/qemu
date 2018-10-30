@@ -1553,7 +1553,7 @@ DISAS_INSN(undef)
        but actually illegal for CPU32 or pre-68020.  */
     qemu_log_mask(LOG_UNIMP, "Illegal instruction: %04x @ %08x\n",
                   insn, s->base.pc_next);
-    gen_exception(s, s->base.pc_next, EXCP_UNSUPPORTED);
+    gen_exception(s, s->base.pc_next, EXCP_ILLEGAL);
 }
 
 DISAS_INSN(mulw)
@@ -2800,7 +2800,7 @@ DISAS_INSN(mull)
 
     if (ext & 0x400) {
         if (!m68k_feature(s->env, M68K_FEATURE_QUAD_MULDIV)) {
-            gen_exception(s, s->base.pc_next, EXCP_UNSUPPORTED);
+            gen_exception(s, s->base.pc_next, EXCP_ILLEGAL);
             return;
         }
 
@@ -4510,7 +4510,7 @@ DISAS_INSN(strldsr)
     addr = s->pc - 2;
     ext = read_im16(env, s);
     if (ext != 0x46FC) {
-        gen_exception(s, addr, EXCP_UNSUPPORTED);
+        gen_exception(s, addr, EXCP_ILLEGAL);
         return;
     }
     ext = read_im16(env, s);

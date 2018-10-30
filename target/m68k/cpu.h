@@ -70,7 +70,6 @@
 #define EXCP_MMU_CONF       56  /* MMU Configuration Error */
 #define EXCP_MMU_ILLEGAL    57  /* MMU Illegal Operation Error */
 #define EXCP_MMU_ACCESS     58  /* MMU Access Level Violation Error */
-#define EXCP_UNSUPPORTED    61
 
 #define EXCP_RTE            0x100
 #define EXCP_HALT_INSN      0x101
