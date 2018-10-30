@@ -73,3 +73,7 @@ cmsdk_apb_uart_receive(uint8_t c) "CMSDK APB UART: got character 0x%x from backe
 cmsdk_apb_uart_tx_pending(void) "CMSDK APB UART: character send to backend pending"
 cmsdk_apb_uart_tx(uint8_t c) "CMSDK APB UART: character 0x%x sent to backend"
 cmsdk_apb_uart_set_params(int speed) "CMSDK APB UART: params set to %d 8N1"
+
+# hw/char/nrf51_uart.c
+nrf51_uart_read(uint64_t addr, uint64_t r, unsigned int size) "addr 0x%" PRIx64 " value 0x%" PRIx64 " size %u"
+nrf51_uart_write(uint64_t addr, uint64_t value, unsigned int size) "addr 0x%" PRIx64 " value 0x%" PRIx64 " size %u"
