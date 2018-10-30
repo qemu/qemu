@@ -559,11 +559,7 @@ static target_ulong sdram_size(uint32_t bcr)
     int sh;
 
     sh = 1024 - ((bcr >> 6) & 0x3ff);
-    if (sh == 0) {
-        size = -1;
-    } else {
-        size = 8 * MiB * sh;
-    }
+    size = 8 * MiB * sh;
 
     return size;
 }
