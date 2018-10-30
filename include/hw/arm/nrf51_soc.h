@@ -12,6 +12,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/arm/armv7m.h"
+#include "hw/char/nrf51_uart.h"
 
 #define TYPE_NRF51_SOC "nrf51-soc"
 #define NRF51_SOC(obj) \
@@ -23,6 +24,8 @@ typedef struct NRF51State {
 
     /*< public >*/
     ARMv7MState cpu;
+
+    NRF51UARTState uart;
 
     MemoryRegion iomem;
     MemoryRegion sram;
