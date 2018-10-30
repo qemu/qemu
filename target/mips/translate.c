@@ -1410,25 +1410,89 @@ enum {
  * MXU unit contains 17 registers called X0-X16. X0 is always zero, and X16 is
  * the control register.
  *
- * The notation used in MXU assembler mnemonics:
+ * The notation used in MXU assembler mnemonics
+ * --------------------------------------------
+ *
+ *  Registers:
  *
  *   XRa, XRb, XRc, XRd - MXU registers
  *   Rb, Rc, Rd, Rs, Rt - general purpose MIPS registers
- *   s12                - a subfield of an instruction code
- *   strd2              - a subfield of an instruction code
- *   eptn2              - a subfield of an instruction code
- *   eptn3              - a subfield of an instruction code
- *   optn2              - a subfield of an instruction code
- *   optn3              - a subfield of an instruction code
- *   sft4               - a subfield of an instruction code
+ *
+ *  Subfields:
+ *
+ *   aptn1              - 1-bit accumulate add/subtract pattern
+ *   aptn2              - 2-bit accumulate add/subtract pattern
+ *   eptn2              - 2-bit execute add/subtract pattern
+ *   optn2              - 2-bit operand pattern
+ *   optn3              - 3-bit operand pattern
+ *   sft4               - 4-bit shift amount
+ *   strd2              - 2-bit stride amount
+ *
+ *  Prefixes:
+ *
+ *   <Operation parallel level><Operand size>
+ *     S                         32
+ *     D                         16
+ *     Q                          8
+ *
+ *  Suffixes:
+ *
+ *   E - Expand results
+ *   F - Fixed point multiplication
+ *   L - Low part result
+ *   R - Doing rounding
+ *   V - Variable instead of immediate
+ *   W - Combine above L and V
+ *
+ *  Operations:
+ *
+ *   ADD   - Add or subtract
+ *   ADDC  - Add with carry-in
+ *   ACC   - Accumulate
+ *   ASUM  - Sum together then accumulate (add or subtract)
+ *   ASUMC - Sum together then accumulate (add or subtract) with carry-in
+ *   AVG   - Average between 2 operands
+ *   ABD   - Absolute difference
+ *   ALN   - Align data
+ *   AND   - Logical bitwise 'and' operation
+ *   CPS   - Copy sign
+ *   EXTR  - Extract bits
+ *   I2M   - Move from GPR register to MXU register
+ *   LDD   - Load data from memory to XRF
+ *   LDI   - Load data from memory to XRF (and increase the address base)
+ *   LUI   - Load unsigned immediate
+ *   MUL   - Multiply
+ *   MULU  - Unsigned multiply
+ *   MADD  - 64-bit operand add 32x32 product
+ *   MSUB  - 64-bit operand subtract 32x32 product
+ *   MAC   - Multiply and accumulate (add or subtract)
+ *   MAD   - Multiply and add or subtract
+ *   MAX   - Maximum between 2 operands
+ *   MIN   - Minimum between 2 operands
+ *   M2I   - Move from MXU register to GPR register
+ *   MOVZ  - Move if zero
+ *   MOVN  - Move if non-zero
+ *   NOR   - Logical bitwise 'nor' operation
+ *   OR    - Logical bitwise 'or' operation
+ *   STD   - Store data from XRF to memory
+ *   SDI   - Store data from XRF to memory (and increase the address base)
+ *   SLT   - Set of less than comparison
+ *   SAD   - Sum of absolute differences
+ *   SLL   - Logical shift left
+ *   SLR   - Logical shift right
+ *   SAR   - Arithmetic shift right
+ *   SAT   - Saturation
+ *   SFL   - Shuffle
+ *   SCOP  - Calculate x’s scope (-1, means x<0; 0, means x==0; 1, means x>0)
+ *   XOR   - Logical bitwise 'exclusive or' operation
  *
  * Load/Store instructions           Multiplication instructions
  * -----------------------           ---------------------------
  *
  *  S32LDD XRa, Rb, s12               S32MADD XRa, XRd, Rs, Rt
  *  S32STD XRa, Rb, s12               S32MADDU XRa, XRd, Rs, Rt
- *  S32LDDV XRa, Rb, rc, strd2        S32SUB XRa, XRd, Rs, Rt
- *  S32STDV XRa, Rb, rc, strd2        S32SUBU XRa, XRd, Rs, Rt
+ *  S32LDDV XRa, Rb, rc, strd2        S32MSUB XRa, XRd, Rs, Rt
+ *  S32STDV XRa, Rb, rc, strd2        S32MSUBU XRa, XRd, Rs, Rt
  *  S32LDI XRa, Rb, s12               S32MUL XRa, XRd, Rs, Rt
  *  S32SDI XRa, Rb, s12               S32MULU XRa, XRd, Rs, Rt
  *  S32LDIV XRa, Rb, rc, strd2        D16MUL XRa, XRb, XRc, XRd, optn2
@@ -1486,7 +1550,7 @@ enum {
  *  S32OR XRa, XRb, XRc               D32SARW XRa, XRb, XRc, Rb
  *                                    Q16SLL XRa, XRb, XRc, XRd, sft4
  *                                    Q16SLR XRa, XRb, XRc, XRd, sft4
- * Miscelaneous instructions          Q16SAR XRa, XRb, XRc, XRd, sft4
+ * Miscellaneous instructions         Q16SAR XRa, XRb, XRc, XRd, sft4
  * -------------------------          Q16SLLV XRa, XRb, Rb
  *                                    Q16SLRV XRa, XRb, Rb
  *  S32SFL XRa, XRb, XRc, XRd, optn2  Q16SARV XRa, XRb, Rb
@@ -1504,7 +1568,8 @@ enum {
  *
  *          ┌─ 000000 ─ OPC_MXU_S32MADD
  *          ├─ 000001 ─ OPC_MXU_S32MADDU
- *          ├─ 000010 ─ <not assigned>
+ *          ├─ 000010 ─ <not assigned>   (non-MXU OPC_MUL)
+ *          │
  *          │                               20..18
  *          ├─ 000011 ─ OPC_MXU__POOL00 ─┬─ 000 ─ OPC_MXU_S32MAX
  *          │                            ├─ 001 ─ OPC_MXU_S32MIN
@@ -1536,73 +1601,67 @@ enum {
  *          ├─ 001010 ─ OPC_MXU_D16MAC
  *          ├─ 001011 ─ OPC_MXU_D16MACF
  *          ├─ 001100 ─ OPC_MXU_D16MADL
- *          │                               25..24
- *          ├─ 001101 ─ OPC_MXU__POOL04 ─┬─ 00 ─ OPC_MXU_S16MAD
- *          │                            └─ 01 ─ OPC_MXU_S16MAD_1
+ *          ├─ 001101 ─ OPC_MXU_S16MAD
  *          ├─ 001110 ─ OPC_MXU_Q16ADD
- *          ├─ 001111 ─ OPC_MXU_D16MACE
- *          │                               23
- *          ├─ 010000 ─ OPC_MXU__POOL05 ─┬─ 0 ─ OPC_MXU_S32LDD
- *          │                            └─ 1 ─ OPC_MXU_S32LDDR
+ *          ├─ 001111 ─ OPC_MXU_D16MACE     23
+ *          │                            ┌─ 0 ─ OPC_MXU_S32LDD
+ *          ├─ 010000 ─ OPC_MXU__POOL04 ─┴─ 1 ─ OPC_MXU_S32LDDR
  *          │
  *          │                               23
- *          ├─ 010001 ─ OPC_MXU__POOL06 ─┬─ 0 ─ OPC_MXU_S32STD
+ *          ├─ 010001 ─ OPC_MXU__POOL05 ─┬─ 0 ─ OPC_MXU_S32STD
  *          │                            └─ 1 ─ OPC_MXU_S32STDR
  *          │
  *          │                               13..10
- *          ├─ 010010 ─ OPC_MXU__POOL07 ─┬─ 0000 ─ OPC_MXU_S32LDDV
+ *          ├─ 010010 ─ OPC_MXU__POOL06 ─┬─ 0000 ─ OPC_MXU_S32LDDV
  *          │                            └─ 0001 ─ OPC_MXU_S32LDDVR
  *          │
  *          │                               13..10
- *          ├─ 010011 ─ OPC_MXU__POOL08 ─┬─ 0000 ─ OPC_MXU_S32STDV
+ *          ├─ 010011 ─ OPC_MXU__POOL07 ─┬─ 0000 ─ OPC_MXU_S32STDV
  *          │                            └─ 0001 ─ OPC_MXU_S32STDVR
  *          │
  *          │                               23
- *          ├─ 010100 ─ OPC_MXU__POOL09 ─┬─ 0 ─ OPC_MXU_S32LDI
+ *          ├─ 010100 ─ OPC_MXU__POOL08 ─┬─ 0 ─ OPC_MXU_S32LDI
  *          │                            └─ 1 ─ OPC_MXU_S32LDIR
  *          │
  *          │                               23
- *          ├─ 010101 ─ OPC_MXU__POOL10 ─┬─ 0 ─ OPC_MXU_S32SDI
+ *          ├─ 010101 ─ OPC_MXU__POOL09 ─┬─ 0 ─ OPC_MXU_S32SDI
  *          │                            └─ 1 ─ OPC_MXU_S32SDIR
  *          │
  *          │                               13..10
- *          ├─ 010110 ─ OPC_MXU__POOL11 ─┬─ 0000 ─ OPC_MXU_S32LDIV
+ *          ├─ 010110 ─ OPC_MXU__POOL10 ─┬─ 0000 ─ OPC_MXU_S32LDIV
  *          │                            └─ 0001 ─ OPC_MXU_S32LDIVR
  *          │
  *          │                               13..10
- *          ├─ 010111 ─ OPC_MXU__POOL12 ─┬─ 0000 ─ OPC_MXU_S32SDIV
+ *          ├─ 010111 ─ OPC_MXU__POOL11 ─┬─ 0000 ─ OPC_MXU_S32SDIV
  *          │                            └─ 0001 ─ OPC_MXU_S32SDIVR
  *          ├─ 011000 ─ OPC_MXU_D32ADD
  *          │                               23..22
- *   MXU    ├─ 011001 ─ OPC_MXU__POOL13 ─┬─ 00 ─ OPC_MXU_D32ACC
+ *   MXU    ├─ 011001 ─ OPC_MXU__POOL12 ─┬─ 00 ─ OPC_MXU_D32ACC
  * opcodes ─┤                            ├─ 01 ─ OPC_MXU_D32ACCM
  *          │                            └─ 10 ─ OPC_MXU_D32ASUM
  *          ├─ 011010 ─ <not assigned>
  *          │                               23..22
- *          ├─ 011011 ─ OPC_MXU__POOL14 ─┬─ 00 ─ OPC_MXU_Q16ACC
+ *          ├─ 011011 ─ OPC_MXU__POOL13 ─┬─ 00 ─ OPC_MXU_Q16ACC
  *          │                            ├─ 01 ─ OPC_MXU_Q16ACCM
  *          │                            └─ 10 ─ OPC_MXU_Q16ASUM
  *          │
  *          │                               23..22
- *          ├─ 011100 ─ OPC_MXU__POOL15 ─┬─ 00 ─ OPC_MXU_Q8ADDE
+ *          ├─ 011100 ─ OPC_MXU__POOL14 ─┬─ 00 ─ OPC_MXU_Q8ADDE
  *          │                            ├─ 01 ─ OPC_MXU_D8SUM
  *          ├─ 011101 ─ OPC_MXU_Q8ACCE   └─ 10 ─ OPC_MXU_D8SUMC
  *          ├─ 011110 ─ <not assigned>
  *          ├─ 011111 ─ <not assigned>
- *          ├─ 100000 ─ <not assigned>
- *          ├─ 100001 ─ <not assigned>
+ *          ├─ 100000 ─ <not assigned>   (overlaps with CLZ)
+ *          ├─ 100001 ─ <not assigned>   (overlaps with CLO)
  *          ├─ 100010 ─ OPC_MXU_S8LDD
- *          ├─ 100011 ─ OPC_MXU_S8STD
- *          ├─ 100100 ─ OPC_MXU_S8LDI
- *          ├─ 100101 ─ OPC_MXU_S8SDI
- *          │                               15..14
- *          ├─ 100110 ─ OPC_MXU__POOL16 ─┬─ 00 ─ OPC_MXU_S32MUL
- *          │                            ├─ 00 ─ OPC_MXU_S32MULU
+ *          ├─ 100011 ─ OPC_MXU_S8STD       15..14
+ *          ├─ 100100 ─ OPC_MXU_S8LDI    ┌─ 00 ─ OPC_MXU_S32MUL
+ *          ├─ 100101 ─ OPC_MXU_S8SDI    ├─ 00 ─ OPC_MXU_S32MULU
  *          │                            ├─ 00 ─ OPC_MXU_S32EXTR
- *          │                            └─ 00 ─ OPC_MXU_S32EXTRV
+ *          ├─ 100110 ─ OPC_MXU__POOL15 ─┴─ 00 ─ OPC_MXU_S32EXTRV
  *          │
  *          │                               20..18
- *          ├─ 100111 ─ OPC_MXU__POOL17 ─┬─ 000 ─ OPC_MXU_D32SARW
+ *          ├─ 100111 ─ OPC_MXU__POOL16 ─┬─ 000 ─ OPC_MXU_D32SARW
  *          │                            ├─ 001 ─ OPC_MXU_S32ALN
  *          ├─ 101000 ─ OPC_MXU_LXB      ├─ 010 ─ OPC_MXU_S32ALNI
  *          ├─ 101001 ─ <not assigned>   ├─ 011 ─ OPC_MXU_S32NOR
@@ -1610,33 +1669,24 @@ enum {
  *          ├─ 101011 ─ OPC_MXU_S16STD   ├─ 101 ─ OPC_MXU_S32OR
  *          ├─ 101100 ─ OPC_MXU_S16LDI   ├─ 110 ─ OPC_MXU_S32XOR
  *          ├─ 101101 ─ OPC_MXU_S16SDI   └─ 111 ─ OPC_MXU_S32LUI
- *          ├─ 101000 ─ <not assigned>
- *          ├─ 101001 ─ <not assigned>
- *          ├─ 101010 ─ <not assigned>
- *          ├─ 101011 ─ <not assigned>
- *          ├─ 101100 ─ <not assigned>
- *          ├─ 101101 ─ <not assigned>
  *          ├─ 101110 ─ OPC_MXU_S32M2I
  *          ├─ 101111 ─ OPC_MXU_S32I2M
  *          ├─ 110000 ─ OPC_MXU_D32SLL
- *          ├─ 110001 ─ OPC_MXU_D32SLR
- *          ├─ 110010 ─ OPC_MXU_D32SARL
- *          ├─ 110011 ─ OPC_MXU_D32SAR
- *          ├─ 110100 ─ OPC_MXU_Q16SLL
- *          ├─ 110101 ─ OPC_MXU_Q16SLR      20..18
- *          ├─ 110110 ─ OPC_MXU__POOL18 ─┬─ 000 ─ OPC_MXU_D32SLLV
- *          │                            ├─ 001 ─ OPC_MXU_D32SLRV
- *          │                            ├─ 010 ─ OPC_MXU_D32SARV
- *          │                            ├─ 011 ─ OPC_MXU_Q16SLLV
+ *          ├─ 110001 ─ OPC_MXU_D32SLR      20..18
+ *          ├─ 110010 ─ OPC_MXU_D32SARL  ┌─ 000 ─ OPC_MXU_D32SLLV
+ *          ├─ 110011 ─ OPC_MXU_D32SAR   ├─ 001 ─ OPC_MXU_D32SLRV
+ *          ├─ 110100 ─ OPC_MXU_Q16SLL   ├─ 010 ─ OPC_MXU_D32SARV
+ *          ├─ 110101 ─ OPC_MXU_Q16SLR   ├─ 011 ─ OPC_MXU_Q16SLLV
  *          │                            ├─ 100 ─ OPC_MXU_Q16SLRV
- *          │                            └─ 101 ─ OPC_MXU_Q16SARV
+ *          ├─ 110110 ─ OPC_MXU__POOL17 ─┴─ 101 ─ OPC_MXU_Q16SARV
+ *          │
  *          ├─ 110111 ─ OPC_MXU_Q16SAR
  *          │                               23..22
- *          ├─ 111000 ─ OPC_MXU__POOL19 ─┬─ 00 ─ OPC_MXU_Q8MUL
+ *          ├─ 111000 ─ OPC_MXU__POOL18 ─┬─ 00 ─ OPC_MXU_Q8MUL
  *          │                            └─ 01 ─ OPC_MXU_Q8MULSU
  *          │
  *          │                               20..18
- *          ├─ 111001 ─ OPC_MXU__POOL20 ─┬─ 000 ─ OPC_MXU_Q8MOVZ
+ *          ├─ 111001 ─ OPC_MXU__POOL19 ─┬─ 000 ─ OPC_MXU_Q8MOVZ
  *          │                            ├─ 001 ─ OPC_MXU_Q8MOVN
  *          │                            ├─ 010 ─ OPC_MXU_D16MOVZ
  *          │                            ├─ 011 ─ OPC_MXU_D16MOVN
@@ -1644,13 +1694,13 @@ enum {
  *          │                            └─ 101 ─ OPC_MXU_S32MOV
  *          │
  *          │                               23..22
- *          ├─ 111010 ─ OPC_MXU__POOL21 ─┬─ 00 ─ OPC_MXU_Q8MAC
+ *          ├─ 111010 ─ OPC_MXU__POOL20 ─┬─ 00 ─ OPC_MXU_Q8MAC
  *          │                            └─ 10 ─ OPC_MXU_Q8MACSU
  *          ├─ 111011 ─ OPC_MXU_Q16SCOP
  *          ├─ 111100 ─ OPC_MXU_Q8MADL
  *          ├─ 111101 ─ OPC_MXU_S32SFL
  *          ├─ 111110 ─ OPC_MXU_Q8SAD
- *          └─ 111111 ─ <not assigned>
+ *          └─ 111111 ─ <not assigned>   (overlaps with SDBBP)
  *
  *
  *   Compiled after:
@@ -1662,7 +1712,7 @@ enum {
 enum {
     OPC_MXU_S32MADD  = 0x00,
     OPC_MXU_S32MADDU = 0x01,
-    /* not assigned 0x02 */
+    OPC__MXU_MUL     = 0x02,
     OPC_MXU__POOL00  = 0x03,
     OPC_MXU_S32MSUB  = 0x04,
     OPC_MXU_S32MSUBU = 0x05,
@@ -1673,22 +1723,22 @@ enum {
     OPC_MXU_D16MAC   = 0x0A,
     OPC_MXU_D16MACF  = 0x0B,
     OPC_MXU_D16MADL  = 0x0C,
-    OPC_MXU__POOL04  = 0x0D,
+    OPC_MXU_S16MAD   = 0x0D,
     OPC_MXU_Q16ADD   = 0x0E,
     OPC_MXU_D16MACE  = 0x0F,
-    OPC_MXU__POOL05  = 0x10,
-    OPC_MXU__POOL06  = 0x11,
-    OPC_MXU__POOL07  = 0x12,
-    OPC_MXU__POOL08  = 0x13,
-    OPC_MXU__POOL09  = 0x14,
-    OPC_MXU__POOL10  = 0x15,
-    OPC_MXU__POOL11  = 0x16,
-    OPC_MXU__POOL12  = 0x17,
+    OPC_MXU__POOL04  = 0x10,
+    OPC_MXU__POOL05  = 0x11,
+    OPC_MXU__POOL06  = 0x12,
+    OPC_MXU__POOL07  = 0x13,
+    OPC_MXU__POOL08  = 0x14,
+    OPC_MXU__POOL09  = 0x15,
+    OPC_MXU__POOL10  = 0x16,
+    OPC_MXU__POOL11  = 0x17,
     OPC_MXU_D32ADD   = 0x18,
-    OPC_MXU__POOL13  = 0x19,
+    OPC_MXU__POOL12  = 0x19,
     /* not assigned 0x1A */
-    OPC_MXU__POOL14  = 0x1B,
-    OPC_MXU__POOL15  = 0x1C,
+    OPC_MXU__POOL13  = 0x1B,
+    OPC_MXU__POOL14  = 0x1C,
     OPC_MXU_Q8ACCE   = 0x1D,
     /* not assigned 0x1E */
     /* not assigned 0x1F */
@@ -1698,8 +1748,8 @@ enum {
     OPC_MXU_S8STD    = 0x23,
     OPC_MXU_S8LDI    = 0x24,
     OPC_MXU_S8SDI    = 0x25,
-    OPC_MXU__POOL16  = 0x26,
-    OPC_MXU__POOL17  = 0x27,
+    OPC_MXU__POOL15  = 0x26,
+    OPC_MXU__POOL16  = 0x27,
     OPC_MXU_LXB      = 0x28,
     /* not assigned 0x29 */
     OPC_MXU_S16LDD   = 0x2A,
@@ -1714,11 +1764,11 @@ enum {
     OPC_MXU_D32SAR   = 0x33,
     OPC_MXU_Q16SLL   = 0x34,
     OPC_MXU_Q16SLR   = 0x35,
-    OPC_MXU__POOL18  = 0x36,
+    OPC_MXU__POOL17  = 0x36,
     OPC_MXU_Q16SAR   = 0x37,
-    OPC_MXU__POOL19  = 0x38,
-    OPC_MXU__POOL20  = 0x39,
-    OPC_MXU__POOL21  = 0x3A,
+    OPC_MXU__POOL18  = 0x38,
+    OPC_MXU__POOL19  = 0x39,
+    OPC_MXU__POOL20  = 0x3A,
     OPC_MXU_Q16SCOP  = 0x3B,
     OPC_MXU_Q8MADL   = 0x3C,
     OPC_MXU_S32SFL   = 0x3D,
@@ -1776,20 +1826,12 @@ enum {
  * MXU pool 04
  */
 enum {
-    OPC_MXU_S16MAD   = 0x00,
-    OPC_MXU_S16MAD_1 = 0x01,
-};
-
-/*
- * MXU pool 05
- */
-enum {
     OPC_MXU_S32LDD   = 0x00,
     OPC_MXU_S32LDDR  = 0x01,
 };
 
 /*
- * MXU pool 06
+ * MXU pool 05
  */
 enum {
     OPC_MXU_S32STD   = 0x00,
@@ -1797,7 +1839,7 @@ enum {
 };
 
 /*
- * MXU pool 07
+ * MXU pool 06
  */
 enum {
     OPC_MXU_S32LDDV  = 0x00,
@@ -1805,7 +1847,7 @@ enum {
 };
 
 /*
- * MXU pool 08
+ * MXU pool 07
  */
 enum {
     OPC_MXU_S32STDV  = 0x00,
@@ -1813,7 +1855,7 @@ enum {
 };
 
 /*
- * MXU pool 09
+ * MXU pool 08
  */
 enum {
     OPC_MXU_S32LDI   = 0x00,
@@ -1821,7 +1863,7 @@ enum {
 };
 
 /*
- * MXU pool 10
+ * MXU pool 09
  */
 enum {
     OPC_MXU_S32SDI   = 0x00,
@@ -1829,7 +1871,7 @@ enum {
 };
 
 /*
- * MXU pool 11
+ * MXU pool 10
  */
 enum {
     OPC_MXU_S32LDIV  = 0x00,
@@ -1837,7 +1879,7 @@ enum {
 };
 
 /*
- * MXU pool 12
+ * MXU pool 11
  */
 enum {
     OPC_MXU_S32SDIV  = 0x00,
@@ -1845,7 +1887,7 @@ enum {
 };
 
 /*
- * MXU pool 13
+ * MXU pool 12
  */
 enum {
     OPC_MXU_D32ACC   = 0x00,
@@ -1854,7 +1896,7 @@ enum {
 };
 
 /*
- * MXU pool 14
+ * MXU pool 13
  */
 enum {
     OPC_MXU_Q16ACC   = 0x00,
@@ -1863,7 +1905,7 @@ enum {
 };
 
 /*
- * MXU pool 15
+ * MXU pool 14
  */
 enum {
     OPC_MXU_Q8ADDE   = 0x00,
@@ -1872,7 +1914,7 @@ enum {
 };
 
 /*
- * MXU pool 16
+ * MXU pool 15
  */
 enum {
     OPC_MXU_S32MUL   = 0x00,
@@ -1882,7 +1924,7 @@ enum {
 };
 
 /*
- * MXU pool 17
+ * MXU pool 16
  */
 enum {
     OPC_MXU_D32SARW  = 0x00,
@@ -1896,7 +1938,7 @@ enum {
 };
 
 /*
- * MXU pool 18
+ * MXU pool 17
  */
 enum {
     OPC_MXU_D32SLLV  = 0x00,
@@ -1908,7 +1950,7 @@ enum {
 };
 
 /*
- * MXU pool 19
+ * MXU pool 18
  */
 enum {
     OPC_MXU_Q8MUL    = 0x00,
@@ -1916,7 +1958,7 @@ enum {
 };
 
 /*
- * MXU pool 20
+ * MXU pool 19
  */
 enum {
     OPC_MXU_Q8MOVZ   = 0x00,
@@ -1928,7 +1970,7 @@ enum {
 };
 
 /*
- * MXU pool 21
+ * MXU pool 20
  */
 enum {
     OPC_MXU_Q8MAC    = 0x00,
@@ -2379,6 +2421,10 @@ static TCGv_i32 fpu_fcr0, fpu_fcr31;
 static TCGv_i64 fpu_f64[32];
 static TCGv_i64 msa_wr_d[64];
 
+/* MXU registers */
+static TCGv mxu_gpr[NUMBER_OF_MXU_REGISTERS - 1];
+static TCGv mxu_CR;
+
 #include "exec/gen-icount.h"
 
 #define gen_helper_0e0i(name, arg) do {                           \
@@ -2501,6 +2547,11 @@ static const char * const msaregnames[] = {
     "w30.d0", "w30.d1", "w31.d0", "w31.d1",
 };
 
+static const char * const mxuregnames[] = {
+    "XR1",  "XR2",  "XR3",  "XR4",  "XR5",  "XR6",  "XR7",  "XR8",
+    "XR9",  "XR10", "XR11", "XR12", "XR13", "XR14", "XR15", "MXU_CR",
+};
+
 #define LOG_DISAS(...)                                                        \
     do {                                                                      \
         if (MIPS_DEBUG_DISAS) {                                               \
@@ -2581,6 +2632,36 @@ static inline void gen_store_srsgpr (int from, int to)
         tcg_temp_free(t0);
     }
 }
+
+/* MXU General purpose registers moves. */
+static inline void gen_load_mxu_gpr(TCGv t, unsigned int reg)
+{
+    if (reg == 0) {
+        tcg_gen_movi_tl(t, 0);
+    } else if (reg <= 15) {
+        tcg_gen_mov_tl(t, mxu_gpr[reg - 1]);
+    }
+}
+
+static inline void gen_store_mxu_gpr(TCGv t, unsigned int reg)
+{
+    if (reg > 0 && reg <= 15) {
+        tcg_gen_mov_tl(mxu_gpr[reg - 1], t);
+    }
+}
+
+/* MXU control register moves. */
+static inline void gen_load_mxu_cr(TCGv t)
+{
+    tcg_gen_mov_tl(t, mxu_CR);
+}
+
+static inline void gen_store_mxu_cr(TCGv t)
+{
+    /* TODO: Add handling of RW rules for MXU_CR. */
+    tcg_gen_mov_tl(mxu_CR, t);
+}
+
 
 /* Tests */
 static inline void gen_save_pc(target_ulong pc)
@@ -21321,6 +21402,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         check_eva(ctx);
                         check_cp0_enabled(ctx);
                         gen_llwp(ctx, rs, 0, rt, extract32(ctx->opcode, 3, 5));
+                        break;
                     default:
                         generate_exception_end(ctx, EXCP_RI);
                         break;
@@ -21339,6 +21421,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                         check_eva(ctx);
                         check_cp0_enabled(ctx);
                         gen_scwp(ctx, rs, 0, rt, extract32(ctx->opcode, 3, 5));
+                        break;
                     default:
                         generate_exception_end(ctx, EXCP_RI);
                         break;
@@ -23989,6 +24072,1578 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+
+/* MXU accumulate add/subtract 1-bit pattern 'aptn1' */
+#define MXU_APTN1_A    0
+#define MXU_APTN1_S    1
+
+/* MXU accumulate add/subtract 2-bit pattern 'aptn2' */
+#define MXU_APTN2_AA    0
+#define MXU_APTN2_AS    1
+#define MXU_APTN2_SA    2
+#define MXU_APTN2_SS    3
+
+/* MXU execute add/subtract 2-bit pattern 'eptn2' */
+#define MXU_EPTN2_AA    0
+#define MXU_EPTN2_AS    1
+#define MXU_EPTN2_SA    2
+#define MXU_EPTN2_SS    3
+
+/* MXU operand getting pattern 'optn2' */
+#define MXU_OPTN2_WW    0
+#define MXU_OPTN2_LW    1
+#define MXU_OPTN2_HW    2
+#define MXU_OPTN2_XW    3
+
+/* MXU operand getting pattern 'optn3' */
+#define MXU_OPTN3_PTN0  0
+#define MXU_OPTN3_PTN1  1
+#define MXU_OPTN3_PTN2  2
+#define MXU_OPTN3_PTN3  3
+#define MXU_OPTN3_PTN4  4
+#define MXU_OPTN3_PTN5  5
+#define MXU_OPTN3_PTN6  6
+#define MXU_OPTN3_PTN7  7
+
+
+/*
+ * S32I2M XRa, rb - Register move from GRF to XRF
+ */
+static void gen_mxu_s32i2m(DisasContext *ctx)
+{
+    TCGv t0;
+    uint32_t XRa, Rb;
+
+    t0 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 5);
+    Rb = extract32(ctx->opcode, 16, 5);
+
+    gen_load_gpr(t0, Rb);
+    if (XRa <= 15) {
+        gen_store_mxu_gpr(t0, XRa);
+    } else if (XRa == 16) {
+        gen_store_mxu_cr(t0);
+    }
+
+    tcg_temp_free(t0);
+}
+
+/*
+ * S32M2I XRa, rb - Register move from XRF to GRF
+ */
+static void gen_mxu_s32m2i(DisasContext *ctx)
+{
+    TCGv t0;
+    uint32_t XRa, Rb;
+
+    t0 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 5);
+    Rb = extract32(ctx->opcode, 16, 5);
+
+    if (XRa <= 15) {
+        gen_load_mxu_gpr(t0, XRa);
+    } else if (XRa == 16) {
+        gen_load_mxu_cr(t0);
+    }
+
+    gen_store_gpr(t0, Rb);
+
+    tcg_temp_free(t0);
+}
+
+/*
+ * S8LDD XRa, Rb, s8, optn3 - Load a byte from memory to XRF
+ */
+static void gen_mxu_s8ldd(DisasContext *ctx)
+{
+    TCGv t0, t1;
+    uint32_t XRa, Rb, s8, optn3;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    s8 = extract32(ctx->opcode, 10, 8);
+    optn3 = extract32(ctx->opcode, 18, 3);
+    Rb = extract32(ctx->opcode, 21, 5);
+
+    gen_load_gpr(t0, Rb);
+    tcg_gen_addi_tl(t0, t0, (int8_t)s8);
+
+    switch (optn3) {
+    /* XRa[7:0] = tmp8 */
+    case MXU_OPTN3_PTN0:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        gen_load_mxu_gpr(t0, XRa);
+        tcg_gen_deposit_tl(t0, t0, t1, 0, 8);
+        break;
+    /* XRa[15:8] = tmp8 */
+    case MXU_OPTN3_PTN1:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        gen_load_mxu_gpr(t0, XRa);
+        tcg_gen_deposit_tl(t0, t0, t1, 8, 8);
+        break;
+    /* XRa[23:16] = tmp8 */
+    case MXU_OPTN3_PTN2:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        gen_load_mxu_gpr(t0, XRa);
+        tcg_gen_deposit_tl(t0, t0, t1, 16, 8);
+        break;
+    /* XRa[31:24] = tmp8 */
+    case MXU_OPTN3_PTN3:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        gen_load_mxu_gpr(t0, XRa);
+        tcg_gen_deposit_tl(t0, t0, t1, 24, 8);
+        break;
+    /* XRa = {8'b0, tmp8, 8'b0, tmp8} */
+    case MXU_OPTN3_PTN4:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_deposit_tl(t0, t1, t1, 16, 16);
+        break;
+    /* XRa = {tmp8, 8'b0, tmp8, 8'b0} */
+    case MXU_OPTN3_PTN5:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_shli_tl(t1, t1, 8);
+        tcg_gen_deposit_tl(t0, t1, t1, 16, 16);
+        break;
+    /* XRa = {{8{sign of tmp8}}, tmp8, {8{sign of tmp8}}, tmp8} */
+    case MXU_OPTN3_PTN6:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_SB);
+        tcg_gen_mov_tl(t0, t1);
+        tcg_gen_andi_tl(t0, t0, 0xFF00FFFF);
+        tcg_gen_shli_tl(t1, t1, 16);
+        tcg_gen_or_tl(t0, t0, t1);
+        break;
+    /* XRa = {tmp8, tmp8, tmp8, tmp8} */
+    case MXU_OPTN3_PTN7:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
+        tcg_gen_deposit_tl(t1, t1, t1, 8, 8);
+        tcg_gen_deposit_tl(t0, t1, t1, 16, 16);
+        break;
+    }
+
+    gen_store_mxu_gpr(t0, XRa);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+/*
+ * D16MUL XRa, XRb, XRc, XRd, optn2 - Signed 16 bit pattern multiplication
+ */
+static void gen_mxu_d16mul(DisasContext *ctx)
+{
+    TCGv t0, t1, t2, t3;
+    uint32_t XRa, XRb, XRc, XRd, optn2;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+    t3 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRd = extract32(ctx->opcode, 18, 4);
+    optn2 = extract32(ctx->opcode, 22, 2);
+
+    gen_load_mxu_gpr(t1, XRb);
+    tcg_gen_sextract_tl(t0, t1, 0, 16);
+    tcg_gen_sextract_tl(t1, t1, 16, 16);
+    gen_load_mxu_gpr(t3, XRc);
+    tcg_gen_sextract_tl(t2, t3, 0, 16);
+    tcg_gen_sextract_tl(t3, t3, 16, 16);
+
+    switch (optn2) {
+    case MXU_OPTN2_WW: /* XRB.H*XRC.H == lop, XRB.L*XRC.L == rop */
+        tcg_gen_mul_tl(t3, t1, t3);
+        tcg_gen_mul_tl(t2, t0, t2);
+        break;
+    case MXU_OPTN2_LW: /* XRB.L*XRC.H == lop, XRB.L*XRC.L == rop */
+        tcg_gen_mul_tl(t3, t0, t3);
+        tcg_gen_mul_tl(t2, t0, t2);
+        break;
+    case MXU_OPTN2_HW: /* XRB.H*XRC.H == lop, XRB.H*XRC.L == rop */
+        tcg_gen_mul_tl(t3, t1, t3);
+        tcg_gen_mul_tl(t2, t1, t2);
+        break;
+    case MXU_OPTN2_XW: /* XRB.L*XRC.H == lop, XRB.H*XRC.L == rop */
+        tcg_gen_mul_tl(t3, t0, t3);
+        tcg_gen_mul_tl(t2, t1, t2);
+        break;
+    }
+    gen_store_mxu_gpr(t3, XRa);
+    gen_store_mxu_gpr(t2, XRd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    tcg_temp_free(t3);
+}
+
+/*
+ * D16MAC XRa, XRb, XRc, XRd, aptn2, optn2 - Signed 16 bit pattern multiply
+ *                                           and accumulate
+ */
+static void gen_mxu_d16mac(DisasContext *ctx)
+{
+    TCGv t0, t1, t2, t3;
+    uint32_t XRa, XRb, XRc, XRd, optn2, aptn2;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+    t3 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRd = extract32(ctx->opcode, 18, 4);
+    optn2 = extract32(ctx->opcode, 22, 2);
+    aptn2 = extract32(ctx->opcode, 24, 2);
+
+    gen_load_mxu_gpr(t1, XRb);
+    tcg_gen_sextract_tl(t0, t1, 0, 16);
+    tcg_gen_sextract_tl(t1, t1, 16, 16);
+
+    gen_load_mxu_gpr(t3, XRc);
+    tcg_gen_sextract_tl(t2, t3, 0, 16);
+    tcg_gen_sextract_tl(t3, t3, 16, 16);
+
+    switch (optn2) {
+    case MXU_OPTN2_WW: /* XRB.H*XRC.H == lop, XRB.L*XRC.L == rop */
+        tcg_gen_mul_tl(t3, t1, t3);
+        tcg_gen_mul_tl(t2, t0, t2);
+        break;
+    case MXU_OPTN2_LW: /* XRB.L*XRC.H == lop, XRB.L*XRC.L == rop */
+        tcg_gen_mul_tl(t3, t0, t3);
+        tcg_gen_mul_tl(t2, t0, t2);
+        break;
+    case MXU_OPTN2_HW: /* XRB.H*XRC.H == lop, XRB.H*XRC.L == rop */
+        tcg_gen_mul_tl(t3, t1, t3);
+        tcg_gen_mul_tl(t2, t1, t2);
+        break;
+    case MXU_OPTN2_XW: /* XRB.L*XRC.H == lop, XRB.H*XRC.L == rop */
+        tcg_gen_mul_tl(t3, t0, t3);
+        tcg_gen_mul_tl(t2, t1, t2);
+        break;
+    }
+    gen_load_mxu_gpr(t0, XRa);
+    gen_load_mxu_gpr(t1, XRd);
+
+    switch (aptn2) {
+    case MXU_APTN2_AA:
+        tcg_gen_add_tl(t3, t0, t3);
+        tcg_gen_add_tl(t2, t1, t2);
+        break;
+    case MXU_APTN2_AS:
+        tcg_gen_add_tl(t3, t0, t3);
+        tcg_gen_sub_tl(t2, t1, t2);
+        break;
+    case MXU_APTN2_SA:
+        tcg_gen_sub_tl(t3, t0, t3);
+        tcg_gen_add_tl(t2, t1, t2);
+        break;
+    case MXU_APTN2_SS:
+        tcg_gen_sub_tl(t3, t0, t3);
+        tcg_gen_sub_tl(t2, t1, t2);
+        break;
+    }
+    gen_store_mxu_gpr(t3, XRa);
+    gen_store_mxu_gpr(t2, XRd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    tcg_temp_free(t3);
+}
+
+/*
+ * Q8MUL   XRa, XRb, XRc, XRd - Parallel unsigned 8 bit pattern multiply
+ * Q8MULSU XRa, XRb, XRc, XRd - Parallel signed 8 bit pattern multiply
+ */
+static void gen_mxu_q8mul_q8mulsu(DisasContext *ctx)
+{
+    TCGv t0, t1, t2, t3, t4, t5, t6, t7;
+    uint32_t XRa, XRb, XRc, XRd, sel;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+    t3 = tcg_temp_new();
+    t4 = tcg_temp_new();
+    t5 = tcg_temp_new();
+    t6 = tcg_temp_new();
+    t7 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRd = extract32(ctx->opcode, 18, 4);
+    sel = extract32(ctx->opcode, 22, 2);
+
+    gen_load_mxu_gpr(t3, XRb);
+    gen_load_mxu_gpr(t7, XRc);
+
+    if (sel == 0x2) {
+        /* Q8MULSU */
+        tcg_gen_ext8s_tl(t0, t3);
+        tcg_gen_shri_tl(t3, t3, 8);
+        tcg_gen_ext8s_tl(t1, t3);
+        tcg_gen_shri_tl(t3, t3, 8);
+        tcg_gen_ext8s_tl(t2, t3);
+        tcg_gen_shri_tl(t3, t3, 8);
+        tcg_gen_ext8s_tl(t3, t3);
+    } else {
+        /* Q8MUL */
+        tcg_gen_ext8u_tl(t0, t3);
+        tcg_gen_shri_tl(t3, t3, 8);
+        tcg_gen_ext8u_tl(t1, t3);
+        tcg_gen_shri_tl(t3, t3, 8);
+        tcg_gen_ext8u_tl(t2, t3);
+        tcg_gen_shri_tl(t3, t3, 8);
+        tcg_gen_ext8u_tl(t3, t3);
+    }
+
+    tcg_gen_ext8u_tl(t4, t7);
+    tcg_gen_shri_tl(t7, t7, 8);
+    tcg_gen_ext8u_tl(t5, t7);
+    tcg_gen_shri_tl(t7, t7, 8);
+    tcg_gen_ext8u_tl(t6, t7);
+    tcg_gen_shri_tl(t7, t7, 8);
+    tcg_gen_ext8u_tl(t7, t7);
+
+    tcg_gen_mul_tl(t0, t0, t4);
+    tcg_gen_mul_tl(t1, t1, t5);
+    tcg_gen_mul_tl(t2, t2, t6);
+    tcg_gen_mul_tl(t3, t3, t7);
+
+    tcg_gen_andi_tl(t0, t0, 0xFFFF);
+    tcg_gen_andi_tl(t1, t1, 0xFFFF);
+    tcg_gen_andi_tl(t2, t2, 0xFFFF);
+    tcg_gen_andi_tl(t3, t3, 0xFFFF);
+
+    tcg_gen_shli_tl(t1, t1, 16);
+    tcg_gen_shli_tl(t3, t3, 16);
+
+    tcg_gen_or_tl(t0, t0, t1);
+    tcg_gen_or_tl(t1, t2, t3);
+
+    gen_store_mxu_gpr(t0, XRd);
+    gen_store_mxu_gpr(t1, XRa);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    tcg_temp_free(t3);
+    tcg_temp_free(t4);
+    tcg_temp_free(t5);
+    tcg_temp_free(t6);
+    tcg_temp_free(t7);
+}
+
+/*
+ * S32LDD  XRa, Rb, S12 - Load a word from memory to XRF
+ * S32LDDR XRa, Rb, S12 - Load a word from memory to XRF, reversed byte seq.
+ */
+static void gen_mxu_s32ldd_s32lddr(DisasContext *ctx)
+{
+    TCGv t0, t1;
+    uint32_t XRa, Rb, s12, sel;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    s12 = extract32(ctx->opcode, 10, 10);
+    sel = extract32(ctx->opcode, 20, 1);
+    Rb = extract32(ctx->opcode, 21, 5);
+
+    gen_load_gpr(t0, Rb);
+
+    tcg_gen_movi_tl(t1, s12);
+    tcg_gen_shli_tl(t1, t1, 2);
+    if (s12 & 0x200) {
+        tcg_gen_ori_tl(t1, t1, 0xFFFFF000);
+    }
+    tcg_gen_add_tl(t1, t0, t1);
+    tcg_gen_qemu_ld_tl(t1, t1, ctx->mem_idx, MO_SL);
+
+    if (sel == 1) {
+        /* S32LDDR */
+        tcg_gen_bswap32_tl(t1, t1);
+    }
+    gen_store_mxu_gpr(t1, XRa);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+
+/*
+ * Decoding engine for MXU
+ * =======================
+ */
+
+/*
+ *
+ * Decode MXU pool00
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0 0 0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL00|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool00(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 18, 3);
+
+    switch (opcode) {
+    case OPC_MXU_S32MAX:
+        /* TODO: Implement emulation of S32MAX instruction. */
+        MIPS_INVAL("OPC_MXU_S32MAX");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32MIN:
+        /* TODO: Implement emulation of S32MIN instruction. */
+        MIPS_INVAL("OPC_MXU_S32MIN");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D16MAX:
+        /* TODO: Implement emulation of D16MAX instruction. */
+        MIPS_INVAL("OPC_MXU_D16MAX");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D16MIN:
+        /* TODO: Implement emulation of D16MIN instruction. */
+        MIPS_INVAL("OPC_MXU_D16MIN");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q8MAX:
+        /* TODO: Implement emulation of Q8MAX instruction. */
+        MIPS_INVAL("OPC_MXU_Q8MAX");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q8MIN:
+        /* TODO: Implement emulation of Q8MIN instruction. */
+        MIPS_INVAL("OPC_MXU_Q8MIN");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q8SLT:
+        /* TODO: Implement emulation of Q8SLT instruction. */
+        MIPS_INVAL("OPC_MXU_Q8SLT");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q8SLTU:
+        /* TODO: Implement emulation of Q8SLTU instruction. */
+        MIPS_INVAL("OPC_MXU_Q8SLTU");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool01
+ *
+ *  S32SLT, D16SLT, D16AVG, D16AVGR, Q8AVG, Q8AVGR:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0 0 0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL01|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *
+ *  Q8ADD:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---+-----+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |en2|0 0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL01|
+ *  +-----------+---+-----+-----+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool01(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 18, 3);
+
+    switch (opcode) {
+    case OPC_MXU_S32SLT:
+        /* TODO: Implement emulation of S32SLT instruction. */
+        MIPS_INVAL("OPC_MXU_S32SLT");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D16SLT:
+        /* TODO: Implement emulation of D16SLT instruction. */
+        MIPS_INVAL("OPC_MXU_D16SLT");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D16AVG:
+        /* TODO: Implement emulation of D16AVG instruction. */
+        MIPS_INVAL("OPC_MXU_D16AVG");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D16AVGR:
+        /* TODO: Implement emulation of D16AVGR instruction. */
+        MIPS_INVAL("OPC_MXU_D16AVGR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q8AVG:
+        /* TODO: Implement emulation of Q8AVG instruction. */
+        MIPS_INVAL("OPC_MXU_Q8AVG");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q8AVGR:
+        /* TODO: Implement emulation of Q8AVGR instruction. */
+        MIPS_INVAL("OPC_MXU_Q8AVGR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q8ADD:
+        /* TODO: Implement emulation of Q8ADD instruction. */
+        MIPS_INVAL("OPC_MXU_Q8ADD");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool02
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0 0 0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL02|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool02(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 18, 3);
+
+    switch (opcode) {
+    case OPC_MXU_S32CPS:
+        /* TODO: Implement emulation of S32CPS instruction. */
+        MIPS_INVAL("OPC_MXU_S32CPS");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D16CPS:
+        /* TODO: Implement emulation of D16CPS instruction. */
+        MIPS_INVAL("OPC_MXU_D16CPS");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q8ABD:
+        /* TODO: Implement emulation of Q8ABD instruction. */
+        MIPS_INVAL("OPC_MXU_Q8ABD");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q16SAT:
+        /* TODO: Implement emulation of Q16SAT instruction. */
+        MIPS_INVAL("OPC_MXU_Q16SAT");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool03
+ *
+ *  D16MULF:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |x x|on2|0 0 0 0|  XRc  |  XRb  |  XRa  |MXU__POOL03|
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *
+ *  D16MULE:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |x x|on2|   Xd  |  XRc  |  XRb  |  XRa  |MXU__POOL03|
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool03(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 24, 2);
+
+    switch (opcode) {
+    case OPC_MXU_D16MULF:
+        /* TODO: Implement emulation of D16MULF instruction. */
+        MIPS_INVAL("OPC_MXU_D16MULF");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D16MULE:
+        /* TODO: Implement emulation of D16MULE instruction. */
+        MIPS_INVAL("OPC_MXU_D16MULE");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool04
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-+-------------------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |x|        s12        |  XRa  |MXU__POOL04|
+ *  +-----------+---------+-+-------------------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool04(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 20, 1);
+
+    switch (opcode) {
+    case OPC_MXU_S32LDD:
+    case OPC_MXU_S32LDDR:
+        gen_mxu_s32ldd_s32lddr(ctx);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool05
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-+-------------------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |x|        s12        |  XRa  |MXU__POOL05|
+ *  +-----------+---------+-+-------------------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool05(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 20, 1);
+
+    switch (opcode) {
+    case OPC_MXU_S32STD:
+        /* TODO: Implement emulation of S32STD instruction. */
+        MIPS_INVAL("OPC_MXU_S32STD");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32STDR:
+        /* TODO: Implement emulation of S32STDR instruction. */
+        MIPS_INVAL("OPC_MXU_S32STDR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool06
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |    rc   |st2|x x x x|  XRa  |MXU__POOL06|
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool06(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+
+    switch (opcode) {
+    case OPC_MXU_S32LDDV:
+        /* TODO: Implement emulation of S32LDDV instruction. */
+        MIPS_INVAL("OPC_MXU_S32LDDV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32LDDVR:
+        /* TODO: Implement emulation of S32LDDVR instruction. */
+        MIPS_INVAL("OPC_MXU_S32LDDVR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool07
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |    rc   |st2|x x x x|  XRa  |MXU__POOL07|
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool07(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+
+    switch (opcode) {
+    case OPC_MXU_S32STDV:
+        /* TODO: Implement emulation of S32TDV instruction. */
+        MIPS_INVAL("OPC_MXU_S32TDV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32STDVR:
+        /* TODO: Implement emulation of S32TDVR instruction. */
+        MIPS_INVAL("OPC_MXU_S32TDVR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool08
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-+-------------------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |x|        s12        |  XRa  |MXU__POOL08|
+ *  +-----------+---------+-+-------------------+-------+-----------+
+ *
+*/
+static void decode_opc_mxu__pool08(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 20, 1);
+
+    switch (opcode) {
+    case OPC_MXU_S32LDI:
+        /* TODO: Implement emulation of S32LDI instruction. */
+        MIPS_INVAL("OPC_MXU_S32LDI");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32LDIR:
+        /* TODO: Implement emulation of S32LDIR instruction. */
+        MIPS_INVAL("OPC_MXU_S32LDIR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool09
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-+-------------------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |x|        s12        |  XRa  |MXU__POOL09|
+ *  +-----------+---------+-+-------------------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool09(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 5, 0);
+
+    switch (opcode) {
+    case OPC_MXU_S32SDI:
+        /* TODO: Implement emulation of S32SDI instruction. */
+        MIPS_INVAL("OPC_MXU_S32SDI");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32SDIR:
+        /* TODO: Implement emulation of S32SDIR instruction. */
+        MIPS_INVAL("OPC_MXU_S32SDIR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool10
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |    rc   |st2|x x x x|  XRa  |MXU__POOL10|
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool10(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 5, 0);
+
+    switch (opcode) {
+    case OPC_MXU_S32LDIV:
+        /* TODO: Implement emulation of S32LDIV instruction. */
+        MIPS_INVAL("OPC_MXU_S32LDIV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32LDIVR:
+        /* TODO: Implement emulation of S32LDIVR instruction. */
+        MIPS_INVAL("OPC_MXU_S32LDIVR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool11
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |    rc   |st2|x x x x|  XRa  |MXU__POOL11|
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool11(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+
+    switch (opcode) {
+    case OPC_MXU_S32SDIV:
+        /* TODO: Implement emulation of S32SDIV instruction. */
+        MIPS_INVAL("OPC_MXU_S32SDIV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32SDIVR:
+        /* TODO: Implement emulation of S32SDIVR instruction. */
+        MIPS_INVAL("OPC_MXU_S32SDIVR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool12
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |an2|x x|   Xd  |  XRc  |  XRb  |  XRa  |MXU__POOL12|
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool12(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 22, 2);
+
+    switch (opcode) {
+    case OPC_MXU_D32ACC:
+        /* TODO: Implement emulation of D32ACC instruction. */
+        MIPS_INVAL("OPC_MXU_D32ACC");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D32ACCM:
+        /* TODO: Implement emulation of D32ACCM instruction. */
+        MIPS_INVAL("OPC_MXU_D32ACCM");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D32ASUM:
+        /* TODO: Implement emulation of D32ASUM instruction. */
+        MIPS_INVAL("OPC_MXU_D32ASUM");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool13
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |en2|x x|0 0 0 0|  XRc  |  XRb  |  XRa  |MXU__POOL13|
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool13(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 22, 2);
+
+    switch (opcode) {
+    case OPC_MXU_Q16ACC:
+        /* TODO: Implement emulation of Q16ACC instruction. */
+        MIPS_INVAL("OPC_MXU_Q16ACC");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q16ACCM:
+        /* TODO: Implement emulation of Q16ACCM instruction. */
+        MIPS_INVAL("OPC_MXU_Q16ACCM");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q16ASUM:
+        /* TODO: Implement emulation of Q16ASUM instruction. */
+        MIPS_INVAL("OPC_MXU_Q16ASUM");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool14
+ *
+ *  Q8ADDE, Q8ACCE:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0|x x|  XRd  |  XRc  |  XRb  |  XRa  |MXU__POOL14|
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *
+ *  D8SUM, D8SUMC:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |en2|x x|0 0 0 0|  XRc  |  XRb  |  XRa  |MXU__POOL14|
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool14(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 22, 2);
+
+    switch (opcode) {
+    case OPC_MXU_Q8ADDE:
+        /* TODO: Implement emulation of Q8ADDE instruction. */
+        MIPS_INVAL("OPC_MXU_Q8ADDE");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D8SUM:
+        /* TODO: Implement emulation of D8SUM instruction. */
+        MIPS_INVAL("OPC_MXU_D8SUM");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D8SUMC:
+        /* TODO: Implement emulation of D8SUMC instruction. */
+        MIPS_INVAL("OPC_MXU_D8SUMC");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool15
+ *
+ *  S32MUL, S32MULU, S32EXTRV:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *  |  SPECIAL2 |    rs   |    rt   |x x|  XRd  |  XRa  |MXU__POOL15|
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *
+ *  S32EXTR:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |   sft5  |x x|  XRd  |  XRa  |MXU__POOL15|
+ *  +-----------+---------+---------+---+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool15(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 14, 2);
+
+    switch (opcode) {
+    case OPC_MXU_S32MUL:
+        /* TODO: Implement emulation of S32MUL instruction. */
+        MIPS_INVAL("OPC_MXU_S32MUL");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32MULU:
+        /* TODO: Implement emulation of S32MULU instruction. */
+        MIPS_INVAL("OPC_MXU_S32MULU");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32EXTR:
+        /* TODO: Implement emulation of S32EXTR instruction. */
+        MIPS_INVAL("OPC_MXU_S32EXTR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32EXTRV:
+        /* TODO: Implement emulation of S32EXTRV instruction. */
+        MIPS_INVAL("OPC_MXU_S32EXTRV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool16
+ *
+ *  D32SARW:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |x x x|  XRc  |  XRb  |  XRa  |MXU__POOL16|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *
+ *  S32ALN:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |    rs   |x x x|  XRc  |  XRb  |  XRa  |MXU__POOL16|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *
+ *  S32ALNI:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+-----+---+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |  s3 |0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL16|
+ *  +-----------+-----+---+-----+-------+-------+-------+-----------+
+ *
+ *  S32NOR, S32AND, S32OR, S32XOR:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0 0 0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL16|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *
+ *  S32LUI:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+-----+---+-----+-------+---------------+-----------+
+ *  |  SPECIAL2 |optn3|0 0|x x x|  XRc  |       s8      |MXU__POOL16|
+ *  +-----------+-----+---+-----+-------+---------------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool16(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 18, 3);
+
+    switch (opcode) {
+    case OPC_MXU_D32SARW:
+        /* TODO: Implement emulation of D32SARW instruction. */
+        MIPS_INVAL("OPC_MXU_D32SARW");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32ALN:
+        /* TODO: Implement emulation of S32ALN instruction. */
+        MIPS_INVAL("OPC_MXU_S32ALN");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32ALNI:
+        /* TODO: Implement emulation of S32ALNI instruction. */
+        MIPS_INVAL("OPC_MXU_S32ALNI");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32NOR:
+        /* TODO: Implement emulation of S32NOR instruction. */
+        MIPS_INVAL("OPC_MXU_S32NOR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32AND:
+        /* TODO: Implement emulation of S32AND instruction. */
+        MIPS_INVAL("OPC_MXU_S32AND");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32OR:
+        /* TODO: Implement emulation of S32OR instruction. */
+        MIPS_INVAL("OPC_MXU_S32OR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32XOR:
+        /* TODO: Implement emulation of S32XOR instruction. */
+        MIPS_INVAL("OPC_MXU_S32XOR");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32LUI:
+        /* TODO: Implement emulation of S32LUI instruction. */
+        MIPS_INVAL("OPC_MXU_S32LUI");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool17
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |    rb   |x x x|  XRd  |  XRa  |0 0 0 0|MXU__POOL17|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool17(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 18, 3);
+
+    switch (opcode) {
+    case OPC_MXU_D32SLLV:
+        /* TODO: Implement emulation of D32SLLV instruction. */
+        MIPS_INVAL("OPC_MXU_D32SLLV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D32SLRV:
+        /* TODO: Implement emulation of D32SLRV instruction. */
+        MIPS_INVAL("OPC_MXU_D32SLRV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D32SARV:
+        /* TODO: Implement emulation of D32SARV instruction. */
+        MIPS_INVAL("OPC_MXU_D32SARV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q16SLLV:
+        /* TODO: Implement emulation of Q16SLLV instruction. */
+        MIPS_INVAL("OPC_MXU_Q16SLLV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q16SLRV:
+        /* TODO: Implement emulation of Q16SLRV instruction. */
+        MIPS_INVAL("OPC_MXU_Q16SLRV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q16SARV:
+        /* TODO: Implement emulation of Q16SARV instruction. */
+        MIPS_INVAL("OPC_MXU_Q16SARV");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool18
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0|x x|  XRd  |  XRc  |  XRb  |  XRa  |MXU__POOL18|
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool18(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 22, 2);
+
+    switch (opcode) {
+    case OPC_MXU_Q8MUL:
+    case OPC_MXU_Q8MULSU:
+        gen_mxu_q8mul_q8mulsu(ctx);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool19
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0 0 0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL19|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool19(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 18, 3);
+
+    switch (opcode) {
+    case OPC_MXU_Q8MOVZ:
+        /* TODO: Implement emulation of Q8MOVZ instruction. */
+        MIPS_INVAL("OPC_MXU_Q8MOVZ");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q8MOVN:
+        /* TODO: Implement emulation of Q8MOVN instruction. */
+        MIPS_INVAL("OPC_MXU_Q8MOVN");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D16MOVZ:
+        /* TODO: Implement emulation of D16MOVZ instruction. */
+        MIPS_INVAL("OPC_MXU_D16MOVZ");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_D16MOVN:
+        /* TODO: Implement emulation of D16MOVN instruction. */
+        MIPS_INVAL("OPC_MXU_D16MOVN");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32MOVZ:
+        /* TODO: Implement emulation of S32MOVZ instruction. */
+        MIPS_INVAL("OPC_MXU_S32MOVZ");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32MOVN:
+        /* TODO: Implement emulation of S32MOVN instruction. */
+        MIPS_INVAL("OPC_MXU_S32MOVN");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+/*
+ *
+ * Decode MXU pool20
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |an2|x x|  XRd  |  XRc  |  XRb  |  XRa  |MXU__POOL20|
+ *  +-----------+---+---+-------+-------+-------+-------+-----------+
+ *
+ */
+static void decode_opc_mxu__pool20(CPUMIPSState *env, DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 22, 2);
+
+    switch (opcode) {
+    case OPC_MXU_Q8MAC:
+        /* TODO: Implement emulation of Q8MAC instruction. */
+        MIPS_INVAL("OPC_MXU_Q8MAC");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_Q8MACSU:
+        /* TODO: Implement emulation of Q8MACSU instruction. */
+        MIPS_INVAL("OPC_MXU_Q8MACSU");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
+
+/*
+ * Main MXU decoding function
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------------------------------------+-----------+
+ *  |  SPECIAL2 |                                       |x x x x x x|
+ *  +-----------+---------------------------------------+-----------+
+ *
+ */
+static void decode_opc_mxu(CPUMIPSState *env, DisasContext *ctx)
+{
+    /*
+     * TODO: Investigate necessity of including handling of
+     * CLZ, CLO, SDBB in this function, as they belong to
+     * SPECIAL2 opcode space for regular pre-R6 MIPS ISAs.
+     */
+    uint32_t opcode = extract32(ctx->opcode, 0, 6);
+
+    if (opcode == OPC__MXU_MUL) {
+        uint32_t  rs, rt, rd, op1;
+
+        rs = extract32(ctx->opcode, 21, 5);
+        rt = extract32(ctx->opcode, 16, 5);
+        rd = extract32(ctx->opcode, 11, 5);
+        op1 = MASK_SPECIAL2(ctx->opcode);
+
+        gen_arith(ctx, op1, rd, rs, rt);
+
+        return;
+    }
+
+    if (opcode == OPC_MXU_S32M2I) {
+        gen_mxu_s32m2i(ctx);
+        return;
+    }
+
+    if (opcode == OPC_MXU_S32I2M) {
+        gen_mxu_s32i2m(ctx);
+        return;
+    }
+
+    {
+        TCGv t_mxu_cr = tcg_temp_new();
+        TCGLabel *l_exit = gen_new_label();
+
+        gen_load_mxu_cr(t_mxu_cr);
+        tcg_gen_andi_tl(t_mxu_cr, t_mxu_cr, MXU_CR_MXU_EN);
+        tcg_gen_brcondi_tl(TCG_COND_NE, t_mxu_cr, MXU_CR_MXU_EN, l_exit);
+
+        switch (opcode) {
+        case OPC_MXU_S32MADD:
+            /* TODO: Implement emulation of S32MADD instruction. */
+            MIPS_INVAL("OPC_MXU_S32MADD");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S32MADDU:
+            /* TODO: Implement emulation of S32MADDU instruction. */
+            MIPS_INVAL("OPC_MXU_S32MADDU");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU__POOL00:
+            decode_opc_mxu__pool00(env, ctx);
+            break;
+        case OPC_MXU_S32MSUB:
+            /* TODO: Implement emulation of S32MSUB instruction. */
+            MIPS_INVAL("OPC_MXU_S32MSUB");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S32MSUBU:
+            /* TODO: Implement emulation of S32MSUBU instruction. */
+            MIPS_INVAL("OPC_MXU_S32MSUBU");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU__POOL01:
+            decode_opc_mxu__pool01(env, ctx);
+            break;
+        case OPC_MXU__POOL02:
+            decode_opc_mxu__pool02(env, ctx);
+            break;
+        case OPC_MXU_D16MUL:
+            gen_mxu_d16mul(ctx);
+            break;
+        case OPC_MXU__POOL03:
+            decode_opc_mxu__pool03(env, ctx);
+            break;
+        case OPC_MXU_D16MAC:
+            gen_mxu_d16mac(ctx);
+            break;
+        case OPC_MXU_D16MACF:
+            /* TODO: Implement emulation of D16MACF instruction. */
+            MIPS_INVAL("OPC_MXU_D16MACF");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_D16MADL:
+            /* TODO: Implement emulation of D16MADL instruction. */
+            MIPS_INVAL("OPC_MXU_D16MADL");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S16MAD:
+            /* TODO: Implement emulation of S16MAD instruction. */
+            MIPS_INVAL("OPC_MXU_S16MAD");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_Q16ADD:
+            /* TODO: Implement emulation of Q16ADD instruction. */
+            MIPS_INVAL("OPC_MXU_Q16ADD");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_D16MACE:
+            /* TODO: Implement emulation of D16MACE instruction. */
+            MIPS_INVAL("OPC_MXU_D16MACE");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU__POOL04:
+            decode_opc_mxu__pool04(env, ctx);
+            break;
+        case OPC_MXU__POOL05:
+            decode_opc_mxu__pool05(env, ctx);
+            break;
+        case OPC_MXU__POOL06:
+            decode_opc_mxu__pool06(env, ctx);
+            break;
+        case OPC_MXU__POOL07:
+            decode_opc_mxu__pool07(env, ctx);
+            break;
+        case OPC_MXU__POOL08:
+            decode_opc_mxu__pool08(env, ctx);
+            break;
+        case OPC_MXU__POOL09:
+            decode_opc_mxu__pool09(env, ctx);
+            break;
+        case OPC_MXU__POOL10:
+            decode_opc_mxu__pool10(env, ctx);
+            break;
+        case OPC_MXU__POOL11:
+            decode_opc_mxu__pool11(env, ctx);
+            break;
+        case OPC_MXU_D32ADD:
+            /* TODO: Implement emulation of D32ADD instruction. */
+            MIPS_INVAL("OPC_MXU_D32ADD");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU__POOL12:
+            decode_opc_mxu__pool12(env, ctx);
+            break;
+        case OPC_MXU__POOL13:
+            decode_opc_mxu__pool13(env, ctx);
+            break;
+        case OPC_MXU__POOL14:
+            decode_opc_mxu__pool14(env, ctx);
+            break;
+        case OPC_MXU_Q8ACCE:
+            /* TODO: Implement emulation of Q8ACCE instruction. */
+            MIPS_INVAL("OPC_MXU_Q8ACCE");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S8LDD:
+            gen_mxu_s8ldd(ctx);
+            break;
+        case OPC_MXU_S8STD:
+            /* TODO: Implement emulation of S8STD instruction. */
+            MIPS_INVAL("OPC_MXU_S8STD");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S8LDI:
+            /* TODO: Implement emulation of S8LDI instruction. */
+            MIPS_INVAL("OPC_MXU_S8LDI");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S8SDI:
+            /* TODO: Implement emulation of S8SDI instruction. */
+            MIPS_INVAL("OPC_MXU_S8SDI");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU__POOL15:
+            decode_opc_mxu__pool15(env, ctx);
+            break;
+        case OPC_MXU__POOL16:
+            decode_opc_mxu__pool16(env, ctx);
+            break;
+        case OPC_MXU_LXB:
+            /* TODO: Implement emulation of LXB instruction. */
+            MIPS_INVAL("OPC_MXU_LXB");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S16LDD:
+            /* TODO: Implement emulation of S16LDD instruction. */
+            MIPS_INVAL("OPC_MXU_S16LDD");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S16STD:
+            /* TODO: Implement emulation of S16STD instruction. */
+            MIPS_INVAL("OPC_MXU_S16STD");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S16LDI:
+            /* TODO: Implement emulation of S16LDI instruction. */
+            MIPS_INVAL("OPC_MXU_S16LDI");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S16SDI:
+            /* TODO: Implement emulation of S16SDI instruction. */
+            MIPS_INVAL("OPC_MXU_S16SDI");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_D32SLL:
+            /* TODO: Implement emulation of D32SLL instruction. */
+            MIPS_INVAL("OPC_MXU_D32SLL");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_D32SLR:
+            /* TODO: Implement emulation of D32SLR instruction. */
+            MIPS_INVAL("OPC_MXU_D32SLR");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_D32SARL:
+            /* TODO: Implement emulation of D32SARL instruction. */
+            MIPS_INVAL("OPC_MXU_D32SARL");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_D32SAR:
+            /* TODO: Implement emulation of D32SAR instruction. */
+            MIPS_INVAL("OPC_MXU_D32SAR");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_Q16SLL:
+            /* TODO: Implement emulation of Q16SLL instruction. */
+            MIPS_INVAL("OPC_MXU_Q16SLL");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_Q16SLR:
+            /* TODO: Implement emulation of Q16SLR instruction. */
+            MIPS_INVAL("OPC_MXU_Q16SLR");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU__POOL17:
+            decode_opc_mxu__pool17(env, ctx);
+            break;
+        case OPC_MXU_Q16SAR:
+            /* TODO: Implement emulation of Q16SAR instruction. */
+            MIPS_INVAL("OPC_MXU_Q16SAR");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU__POOL18:
+            decode_opc_mxu__pool18(env, ctx);
+            break;
+        case OPC_MXU__POOL19:
+            decode_opc_mxu__pool19(env, ctx);
+            break;
+        case OPC_MXU__POOL20:
+            decode_opc_mxu__pool20(env, ctx);
+            break;
+        case OPC_MXU_Q16SCOP:
+            /* TODO: Implement emulation of Q16SCOP instruction. */
+            MIPS_INVAL("OPC_MXU_Q16SCOP");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_Q8MADL:
+            /* TODO: Implement emulation of Q8MADL instruction. */
+            MIPS_INVAL("OPC_MXU_Q8MADL");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_S32SFL:
+            /* TODO: Implement emulation of S32SFL instruction. */
+            MIPS_INVAL("OPC_MXU_S32SFL");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        case OPC_MXU_Q8SAD:
+            /* TODO: Implement emulation of Q8SAD instruction. */
+            MIPS_INVAL("OPC_MXU_Q8SAD");
+            generate_exception_end(ctx, EXCP_RI);
+            break;
+        default:
+            MIPS_INVAL("decode_opc_mxu");
+            generate_exception_end(ctx, EXCP_RI);
+        }
+
+        gen_set_label(l_exit);
+        tcg_temp_free(t_mxu_cr);
+    }
+}
+
+
 static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd;
@@ -26232,6 +27887,8 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     case OPC_SPECIAL2:
         if ((ctx->insn_flags & INSN_R5900) && (ctx->insn_flags & ASE_MMI)) {
             decode_tx79_mmi(env, ctx);
+        } else if (ctx->insn_flags & ASE_MXU) {
+            decode_opc_mxu(env, ctx);
         } else {
             decode_opc_special2_legacy(env, ctx);
         }
@@ -27229,6 +28886,17 @@ void mips_tcg_init(void)
     fpu_fcr31 = tcg_global_mem_new_i32(cpu_env,
                                        offsetof(CPUMIPSState, active_fpu.fcr31),
                                        "fcr31");
+
+    for (i = 0; i < NUMBER_OF_MXU_REGISTERS - 1; i++) {
+        mxu_gpr[i] = tcg_global_mem_new(cpu_env,
+                                        offsetof(CPUMIPSState,
+                                                 active_tc.mxu_gpr[i]),
+                                        mxuregnames[i]);
+    }
+
+    mxu_CR = tcg_global_mem_new(cpu_env,
+                                offsetof(CPUMIPSState, active_tc.mxu_cr),
+                                mxuregnames[NUMBER_OF_MXU_REGISTERS - 1]);
 }
 
 #include "translate_init.inc.c"
