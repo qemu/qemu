@@ -1849,14 +1849,16 @@ ETEXI
         .name       = "cpu-add",
         .args_type  = "id:i",
         .params     = "id",
-        .help       = "add cpu",
+        .help       = "add cpu (deprecated, use device_add instead)",
         .cmd        = hmp_cpu_add,
     },
 
 STEXI
 @item cpu-add @var{id}
 @findex cpu-add
-Add CPU with id @var{id}
+Add CPU with id @var{id}.  This command is deprecated, please
++use @code{device_add} instead. For details, refer to
+'docs/cpu-hotplug.rst'.
 ETEXI
 
     {

@@ -2372,6 +2372,8 @@ void hmp_cpu_add(Monitor *mon, const QDict *qdict)
     int cpuid;
     Error *err = NULL;
 
+    error_report("cpu_add is deprecated, please use device_add instead");
+
     cpuid = qdict_get_int(qdict, "id");
     qmp_cpu_add(cpuid, &err);
     hmp_handle_error(mon, &err);
