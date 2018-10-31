@@ -3855,6 +3855,8 @@ BlockDriverState *bdrv_find_base(BlockDriverState *bs)
 int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
                            const char *backing_file_str)
 {
+    BlockDriverState *explicit_top = top;
+    bool update_inherits_from;
     BdrvChild *c, *next;
     Error *local_err = NULL;
     int ret = -EIO;
@@ -3869,6 +3871,16 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     if (!bdrv_chain_contains(top, base)) {
         goto exit;
     }
+
+    /* If 'base' recursively inherits from 'top' then we should set
+     * base->inherits_from to top->inherits_from after 'top' and all
+     * other intermediate nodes have been dropped.
+     * If 'top' is an implicit node (e.g. "commit_top") we should skip
+     * it because no one inherits from it. We use explicit_top for that. */
+    while (explicit_top && explicit_top->implicit) {
+        explicit_top = backing_bs(explicit_top);
+    }
+    update_inherits_from = bdrv_inherits_from_recursive(base, explicit_top);
 
     /* success - we can delete the intermediate states, and link top->base */
     /* TODO Check graph modification op blockers (BLK_PERM_GRAPH_MOD) once
@@ -3903,6 +3915,10 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
         bdrv_ref(base);
         bdrv_replace_child(c, base);
         bdrv_unref(top);
+    }
+
+    if (update_inherits_from) {
+        base->inherits_from = explicit_top->inherits_from;
     }
 
     ret = 0;
