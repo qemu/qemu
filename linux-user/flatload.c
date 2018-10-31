@@ -37,7 +37,7 @@
 
 #include "qemu.h"
 #include "flat.h"
-#include "target_flat.h"
+#include <target_flat.h>
 
 //#define DEBUG
 
@@ -771,10 +771,10 @@ int load_flt_binary(struct linux_binprm *bprm, struct image_info *info)
     /* Enforce final stack alignment of 16 bytes.  This is sufficient
        for all current targets, and excess alignment is harmless.  */
     stack_len = bprm->envc + bprm->argc + 2;
-    stack_len += 3;	/* argc, arvg, argp */
+    stack_len += flat_argvp_envp_on_stack() ? 2 : 0; /* arvg, argp */
+    stack_len += 1; /* argc */
     stack_len *= sizeof(abi_ulong);
-    if ((sp + stack_len) & 15)
-        sp -= 16 - ((sp + stack_len) & 15);
+    sp -= (sp - stack_len) & 15;
     sp = loader_build_argptr(bprm->envc, bprm->argc, sp, p,
                              flat_argvp_envp_on_stack());
 
