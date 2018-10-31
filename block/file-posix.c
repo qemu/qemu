@@ -1824,40 +1824,6 @@ static int coroutine_fn raw_thread_pool_submit(BlockDriverState *bs,
     return thread_pool_submit_co(pool, func, arg);
 }
 
-static int paio_submit_co_full(BlockDriverState *bs, int fd,
-                               int64_t offset, int fd2, int64_t offset2,
-                               QEMUIOVector *qiov,
-                               int bytes, int type)
-{
-    RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
-
-    acb->bs = bs;
-    acb->aio_type = type;
-    acb->aio_fildes = fd;
-
-    acb->aio_nbytes = bytes;
-    acb->aio_offset = offset;
-
-    if (qiov) {
-        acb->io.iov = qiov->iov;
-        acb->io.niov = qiov->niov;
-        assert(qiov->size == bytes);
-    } else {
-        acb->copy_range.aio_fd2 = fd2;
-        acb->copy_range.aio_offset2 = offset2;
-    }
-
-    trace_file_paio_submit_co(offset, bytes, type);
-    return raw_thread_pool_submit(bs, aio_worker, acb);
-}
-
-static inline int paio_submit_co(BlockDriverState *bs, int fd,
-                                 int64_t offset, QEMUIOVector *qiov,
-                                 int bytes, int type)
-{
-    return paio_submit_co_full(bs, fd, offset, -1, 0, qiov, bytes, type);
-}
-
 static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
                                    uint64_t bytes, QEMUIOVector *qiov, int type)
 {
