@@ -1152,8 +1152,10 @@ static int hdev_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
 }
 #endif
 
-static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
+#if defined(__linux__)
+static int handle_aiocb_ioctl(void *opaque)
 {
+    RawPosixAIOData *aiocb = opaque;
     int ret;
 
     ret = ioctl(aiocb->aio_fildes, aiocb->ioctl.cmd, aiocb->ioctl.buf);
@@ -1163,6 +1165,7 @@ static ssize_t handle_aiocb_ioctl(RawPosixAIOData *aiocb)
 
     return 0;
 }
+#endif /* linux */
 
 static int handle_aiocb_flush(void *opaque)
 {
@@ -1786,34 +1789,6 @@ out:
 
     g_free(buf);
     return result;
-}
-
-static int aio_worker(void *arg)
-{
-    RawPosixAIOData *aiocb = arg;
-    ssize_t ret = 0;
-
-    switch (aiocb->aio_type & QEMU_AIO_TYPE_MASK) {
-    case QEMU_AIO_IOCTL:
-        ret = handle_aiocb_ioctl(aiocb);
-        break;
-    case QEMU_AIO_READ:
-    case QEMU_AIO_WRITE:
-    case QEMU_AIO_FLUSH:
-    case QEMU_AIO_DISCARD:
-    case QEMU_AIO_WRITE_ZEROES:
-    case QEMU_AIO_WRITE_ZEROES | QEMU_AIO_DISCARD:
-    case QEMU_AIO_COPY_RANGE:
-    case QEMU_AIO_TRUNCATE:
-        g_assert_not_reached();
-    default:
-        error_report("invalid aio request (0x%x)", aiocb->aio_type);
-        ret = -EINVAL;
-        break;
-    }
-
-    g_free(aiocb);
-    return ret;
 }
 
 static int coroutine_fn raw_thread_pool_submit(BlockDriverState *bs,
@@ -3113,8 +3088,7 @@ static int coroutine_fn
 hdev_co_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 {
     BDRVRawState *s = bs->opaque;
-    RawPosixAIOData *acb;
-    ThreadPool *pool;
+    RawPosixAIOData acb;
     int ret;
 
     ret = fd_open(bs);
@@ -3131,15 +3105,18 @@ hdev_co_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
         }
     }
 
-    acb = g_new(RawPosixAIOData, 1);
-    acb->bs = bs;
-    acb->aio_type = QEMU_AIO_IOCTL;
-    acb->aio_fildes = s->fd;
-    acb->aio_offset = 0;
-    acb->ioctl.buf = buf;
-    acb->ioctl.cmd = req;
-    pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
-    return thread_pool_submit_co(pool, aio_worker, acb);
+    acb = (RawPosixAIOData) {
+        .bs         = bs,
+        .aio_type   = QEMU_AIO_IOCTL,
+        .aio_fildes = s->fd,
+        .aio_offset = 0,
+        .ioctl      = {
+            .buf        = buf,
+            .cmd        = req,
+        },
+    };
+
+    return raw_thread_pool_submit(bs, handle_aiocb_ioctl, &acb);
 }
 #endif /* linux */
 
