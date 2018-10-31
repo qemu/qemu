@@ -1,6 +1,7 @@
 #ifndef _QEMU_VIRTIO_9P_H
 #define _QEMU_VIRTIO_9P_H
 
+#include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <sys/time.h>
