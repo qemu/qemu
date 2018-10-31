@@ -1311,7 +1311,8 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
          * we can just use plain pread/pwrite without any problems.
          */
         if (aiocb->io.niov == 1) {
-            return handle_aiocb_rw_linear(aiocb, aiocb->io.iov->iov_base);
+            nbytes = handle_aiocb_rw_linear(aiocb, aiocb->io.iov->iov_base);
+            goto out;
         }
         /*
          * We have more than one iovec, and all are properly aligned.
@@ -1323,7 +1324,7 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
             nbytes = handle_aiocb_rw_vector(aiocb);
             if (nbytes == aiocb->aio_nbytes ||
                 (nbytes < 0 && nbytes != -ENOSYS)) {
-                return nbytes;
+                goto out;
             }
             preadv_present = false;
         }
@@ -1341,7 +1342,8 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
      */
     buf = qemu_try_blockalign(aiocb->bs, aiocb->aio_nbytes);
     if (buf == NULL) {
-        return -ENOMEM;
+        nbytes = -ENOMEM;
+        goto out;
     }
 
     if (aiocb->aio_type & QEMU_AIO_WRITE) {
@@ -1375,7 +1377,21 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
     }
     qemu_vfree(buf);
 
-    return nbytes;
+out:
+    if (nbytes == aiocb->aio_nbytes) {
+        return 0;
+    } else if (nbytes >= 0 && nbytes < aiocb->aio_nbytes) {
+        if (aiocb->aio_type & QEMU_AIO_WRITE) {
+            return -EINVAL;
+        } else {
+            iov_memset(aiocb->io.iov, aiocb->io.niov, nbytes,
+                      0, aiocb->aio_nbytes - nbytes);
+            return 0;
+        }
+    } else {
+        assert(nbytes < 0);
+        return nbytes;
+    }
 }
 
 #ifdef CONFIG_XFS
@@ -1779,25 +1795,9 @@ static int aio_worker(void *arg)
     switch (aiocb->aio_type & QEMU_AIO_TYPE_MASK) {
     case QEMU_AIO_READ:
         ret = handle_aiocb_rw(aiocb);
-        if (ret >= 0 && ret < aiocb->aio_nbytes) {
-            iov_memset(aiocb->io.iov, aiocb->io.niov, ret,
-                      0, aiocb->aio_nbytes - ret);
-
-            ret = aiocb->aio_nbytes;
-        }
-        if (ret == aiocb->aio_nbytes) {
-            ret = 0;
-        } else if (ret >= 0 && ret < aiocb->aio_nbytes) {
-            ret = -EINVAL;
-        }
         break;
     case QEMU_AIO_WRITE:
         ret = handle_aiocb_rw(aiocb);
-        if (ret == aiocb->aio_nbytes) {
-            ret = 0;
-        } else if (ret >= 0 && ret < aiocb->aio_nbytes) {
-            ret = -EINVAL;
-        }
         break;
     case QEMU_AIO_IOCTL:
         ret = handle_aiocb_ioctl(aiocb);
