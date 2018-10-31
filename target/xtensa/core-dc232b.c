@@ -40,8 +40,6 @@
 static XtensaConfig dc232b __attribute__((unused)) = {
     .name = "dc232b",
     .gdb_regmap = {
-        .num_regs = 120,
-        .num_core_regs = 52,
         .reg = {
 #include "core-dc232b/gdb-config.inc.c"
         }
