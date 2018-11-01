@@ -3957,17 +3957,19 @@ fail:
     return ret;
 }
 
-int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
+int coroutine_fn
+qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
 {
     BDRVQcow2State *s = bs->opaque;
-    int ret, csize, nb_csectors, sector_offset;
+    int ret, csize, nb_csectors;
     uint64_t coffset;
+    struct iovec iov;
+    QEMUIOVector local_qiov;
 
     coffset = cluster_offset & s->cluster_offset_mask;
     if (s->cluster_cache_offset != coffset) {
         nb_csectors = ((cluster_offset >> s->csize_shift) & s->csize_mask) + 1;
-        sector_offset = coffset & 511;
-        csize = nb_csectors * 512 - sector_offset;
+        csize = nb_csectors * 512 - (coffset & 511);
 
         /* Allocate buffers on first decompress operation, most images are
          * uncompressed and the memory overhead can be avoided.  The buffers
@@ -3985,14 +3987,17 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
             s->cluster_cache = g_malloc(s->cluster_size);
         }
 
+        iov.iov_base = s->cluster_data;
+        iov.iov_len = csize;
+        qemu_iovec_init_external(&local_qiov, &iov, 1);
+
         BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
-        ret = bdrv_read(bs->file, coffset >> 9, s->cluster_data,
-                        nb_csectors);
+        ret = bdrv_co_preadv(bs->file, coffset, csize, &local_qiov, 0);
         if (ret < 0) {
             return ret;
         }
         if (qcow2_decompress(s->cluster_cache, s->cluster_size,
-                             s->cluster_data + sector_offset, csize) < 0) {
+                             s->cluster_data, csize) < 0) {
             return -EIO;
         }
         s->cluster_cache_offset = coffset;
