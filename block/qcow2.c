@@ -3807,20 +3807,24 @@ static ssize_t qcow2_decompress(void *dest, size_t dest_size,
 
 #define MAX_COMPRESS_THREADS 4
 
+typedef ssize_t (*Qcow2CompressFunc)(void *dest, size_t dest_size,
+                                     const void *src, size_t src_size);
 typedef struct Qcow2CompressData {
     void *dest;
     size_t dest_size;
     const void *src;
     size_t src_size;
     ssize_t ret;
+
+    Qcow2CompressFunc func;
 } Qcow2CompressData;
 
 static int qcow2_compress_pool_func(void *opaque)
 {
     Qcow2CompressData *data = opaque;
 
-    data->ret = qcow2_compress(data->dest, data->dest_size,
-                               data->src, data->src_size);
+    data->ret = data->func(data->dest, data->dest_size,
+                           data->src, data->src_size);
 
     return 0;
 }
@@ -3830,10 +3834,9 @@ static void qcow2_compress_complete(void *opaque, int ret)
     qemu_coroutine_enter(opaque);
 }
 
-/* See qcow2_compress definition for parameters description */
-static ssize_t qcow2_co_compress(BlockDriverState *bs,
-                                 void *dest, size_t dest_size,
-                                 const void *src, size_t src_size)
+static ssize_t coroutine_fn
+qcow2_co_do_compress(BlockDriverState *bs, void *dest, size_t dest_size,
+                     const void *src, size_t src_size, Qcow2CompressFunc func)
 {
     BDRVQcow2State *s = bs->opaque;
     BlockAIOCB *acb;
@@ -3843,6 +3846,7 @@ static ssize_t qcow2_co_compress(BlockDriverState *bs,
         .dest_size = dest_size,
         .src = src,
         .src_size = src_size,
+        .func = func,
     };
 
     while (s->nb_compress_threads >= MAX_COMPRESS_THREADS) {
@@ -3863,6 +3867,22 @@ static ssize_t qcow2_co_compress(BlockDriverState *bs,
     qemu_co_queue_next(&s->compress_wait_queue);
 
     return arg.ret;
+}
+
+static ssize_t coroutine_fn
+qcow2_co_compress(BlockDriverState *bs, void *dest, size_t dest_size,
+                  const void *src, size_t src_size)
+{
+    return qcow2_co_do_compress(bs, dest, dest_size, src, src_size,
+                                qcow2_compress);
+}
+
+static ssize_t coroutine_fn
+qcow2_co_decompress(BlockDriverState *bs, void *dest, size_t dest_size,
+                    const void *src, size_t src_size)
+{
+    return qcow2_co_do_compress(bs, dest, dest_size, src, src_size,
+                                qcow2_decompress);
 }
 
 /* XXX: put compressed sectors first, then all the cluster aligned
@@ -3993,7 +4013,7 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
         goto fail;
     }
 
-    if (qcow2_decompress(out_buf, s->cluster_size, buf, csize) < 0) {
+    if (qcow2_co_decompress(bs, out_buf, s->cluster_size, buf, csize) < 0) {
         ret = -EIO;
         goto fail;
     }
