@@ -51,12 +51,11 @@ int print_insn_or1k(bfd_vma addr, disassemble_info *info)
     return 4;
 }
 
-#define INSN(opcode, format, ...) \
-static bool trans_l_##opcode(disassemble_info *info,    \
-    arg_l_##opcode *a, uint32_t insn)                   \
-{                                                       \
-    output("l." #opcode, format, ##__VA_ARGS__);        \
-    return true;                                        \
+#define INSN(opcode, format, ...)                                       \
+static bool trans_l_##opcode(disassemble_info *info, arg_l_##opcode *a) \
+{                                                                       \
+    output("l." #opcode, format, ##__VA_ARGS__);                        \
+    return true;                                                        \
 }
 
 INSN(add,    "r%d, r%d, r%d", a->d, a->a, a->b)
@@ -146,12 +145,12 @@ INSN(psync,  "")
 INSN(csync,  "")
 INSN(rfe,    "")
 
-#define FP_INSN(opcode, suffix, format, ...) \
-static bool trans_lf_##opcode##_##suffix(disassemble_info *info, \
-    arg_lf_##opcode##_##suffix *a, uint32_t insn)                \
-{                                                                \
-    output("lf." #opcode "." #suffix, format, ##__VA_ARGS__);    \
-    return true;                                                 \
+#define FP_INSN(opcode, suffix, format, ...)                            \
+static bool trans_lf_##opcode##_##suffix(disassemble_info *info,        \
+                                         arg_lf_##opcode##_##suffix *a) \
+{                                                                       \
+    output("lf." #opcode "." #suffix, format, ##__VA_ARGS__);           \
+    return true;                                                        \
 }
 
 FP_INSN(add, s,  "r%d, r%d, r%d", a->d, a->a, a->b)

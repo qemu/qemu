@@ -63,12 +63,15 @@
 #
 # *** Argument set syntax:
 #
-# args_def    := '&' identifier ( args_elt )+
+# args_def    := '&' identifier ( args_elt )+ ( !extern )?
 # args_elt    := identifier
 #
 # Each args_elt defines an argument within the argument set.
 # Each argument set will be rendered as a C structure "arg_$name"
 # with each of the fields being one of the member arguments.
+#
+# If !extern is specified, the backing structure is assumed to
+# have been already declared, typically via a second decoder.
 #
 # Argument set examples:
 #
@@ -167,19 +170,20 @@ input_file = ''
 output_file = None
 output_fd = None
 insntype = 'uint32_t'
+decode_function = 'decode'
 
 re_ident = '[a-zA-Z][a-zA-Z0-9_]*'
 
 
-def error(lineno, *args):
+def error_with_file(file, lineno, *args):
     """Print an error message from file:line and args and exit."""
     global output_file
     global output_fd
 
     if lineno:
-        r = '{0}:{1}: error:'.format(input_file, lineno)
+        r = '{0}:{1}: error:'.format(file, lineno)
     elif input_file:
-        r = '{0}: error:'.format(input_file)
+        r = '{0}: error:'.format(file)
     else:
         r = 'error:'
     for a in args:
@@ -191,6 +195,8 @@ def error(lineno, *args):
         os.remove(output_file)
     exit(1)
 
+def error(lineno, *args):
+    error_with_file(input_file, lineno, args)
 
 def output(*args):
     global output_fd
@@ -392,8 +398,9 @@ class FunctionField:
 
 class Arguments:
     """Class representing the extracted fields of a format"""
-    def __init__(self, nm, flds):
+    def __init__(self, nm, flds, extern):
         self.name = nm
+        self.extern = extern
         self.fields = sorted(flds)
 
     def __str__(self):
@@ -403,10 +410,11 @@ class Arguments:
         return 'arg_' + self.name
 
     def output_def(self):
-        output('typedef struct {\n')
-        for n in self.fields:
-            output('    int ', n, ';\n')
-        output('} ', self.struct_name(), ';\n\n')
+        if not self.extern:
+            output('typedef struct {\n')
+            for n in self.fields:
+                output('    int ', n, ';\n')
+            output('} ', self.struct_name(), ';\n\n')
 # end Arguments
 
 
@@ -414,6 +422,7 @@ class General:
     """Common code between instruction formats and instruction patterns"""
     def __init__(self, name, lineno, base, fixb, fixm, udfm, fldm, flds):
         self.name = name
+        self.file = input_file
         self.lineno = lineno
         self.base = base
         self.fixedbits = fixb
@@ -460,20 +469,19 @@ class Pattern(General):
         output('typedef ', self.base.base.struct_name(),
                ' arg_', self.name, ';\n')
         output(translate_scope, 'bool ', translate_prefix, '_', self.name,
-               '(DisasContext *ctx, arg_', self.name,
-               ' *a, ', insntype, ' insn);\n')
+               '(DisasContext *ctx, arg_', self.name, ' *a);\n')
 
     def output_code(self, i, extracted, outerbits, outermask):
         global translate_prefix
         ind = str_indent(i)
         arg = self.base.base.name
-        output(ind, '/* line ', str(self.lineno), ' */\n')
+        output(ind, '/* ', self.file, ':', str(self.lineno), ' */\n')
         if not extracted:
             output(ind, self.base.extract_name(), '(&u.f_', arg, ', insn);\n')
         for n, f in self.fields.items():
             output(ind, 'u.f_', arg, '.', n, ' = ', f.str_extract(), ';\n')
         output(ind, 'return ', translate_prefix, '_', self.name,
-               '(ctx, &u.f_', arg, ', insn);\n')
+               '(ctx, &u.f_', arg, ');\n')
 # end Pattern
 
 
@@ -540,7 +548,11 @@ def parse_arguments(lineno, name, toks):
     global re_ident
 
     flds = []
+    extern = False
     for t in toks:
+        if re_fullmatch('!extern', t):
+            extern = True
+            continue
         if not re_fullmatch(re_ident, t):
             error(lineno, 'invalid argument set token "{0}"'.format(t))
         if t in flds:
@@ -549,7 +561,7 @@ def parse_arguments(lineno, name, toks):
 
     if name in arguments:
         error(lineno, 'duplicate argument set', name)
-    arguments[name] = Arguments(name, flds)
+    arguments[name] = Arguments(name, flds, extern)
 # end parse_arguments
 
 
@@ -573,13 +585,14 @@ def add_field_byname(lineno, flds, new_name, old_name):
 
 def infer_argument_set(flds):
     global arguments
+    global decode_function
 
     for arg in arguments.values():
         if eq_fields_for_args(flds, arg.fields):
             return arg
 
-    name = str(len(arguments))
-    arg = Arguments(name, flds.keys())
+    name = decode_function + str(len(arguments))
+    arg = Arguments(name, flds.keys(), False)
     arguments[name] = arg
     return arg
 
@@ -587,6 +600,7 @@ def infer_argument_set(flds):
 def infer_format(arg, fieldmask, flds):
     global arguments
     global formats
+    global decode_function
 
     const_flds = {}
     var_flds = {}
@@ -606,7 +620,7 @@ def infer_format(arg, fieldmask, flds):
             continue
         return (fmt, const_flds)
 
-    name = 'Fmt_' + str(len(formats))
+    name = decode_function + '_Fmt_' + str(len(formats))
     if not arg:
         arg = infer_argument_set(flds)
 
@@ -909,8 +923,9 @@ def build_tree(pats, outerbits, outermask):
     if innermask == 0:
         pnames = []
         for p in pats:
-            pnames.append(p.name + ':' + str(p.lineno))
-        error(pats[0].lineno, 'overlapping patterns:', pnames)
+            pnames.append(p.name + ':' + p.file + ':' + str(p.lineno))
+        error_with_file(pats[0].file, pats[0].lineno,
+                        'overlapping patterns:', pnames)
 
     fullmask = outermask | innermask
 
@@ -971,8 +986,8 @@ def main():
     global insnwidth
     global insntype
     global insnmask
+    global decode_function
 
-    decode_function = 'decode'
     decode_scope = 'static '
 
     long_opts = ['decode=', 'translate=', 'output=', 'insnwidth=']
@@ -1001,10 +1016,11 @@ def main():
 
     if len(args) < 1:
         error(0, 'missing input file')
-    input_file = args[0]
-    f = open(input_file, 'r')
-    parse_file(f)
-    f.close()
+    for filename in args:
+        input_file = filename
+        f = open(filename, 'r')
+        parse_file(f)
+        f.close()
 
     t = build_tree(patterns, 0, 0)
     prop_format(t)
