@@ -303,6 +303,7 @@ static void ppc_core99_init(MachineState *machine)
             sysbus_connect_irq(s, k++, openpic_irqs[i][j]);
         }
     }
+    g_free(openpic_irqs);
 
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
         /* 970 gets a U3 bus */
