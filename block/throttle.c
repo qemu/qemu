@@ -41,7 +41,7 @@ static QemuOptsList throttle_opts = {
  * @group and must be freed by the caller.
  * If there's an error then @group remains unmodified.
  */
-static int throttle_parse_options(QDict *options, char **group, Error **errp)
+static int throttle_parse_group(QDict *options, char **group, Error **errp)
 {
     int ret;
     const char *group_name;
@@ -90,7 +90,7 @@ static int throttle_open(BlockDriverState *bs, QDict *options,
     bs->supported_zero_flags = bs->file->bs->supported_zero_flags |
                                BDRV_REQ_WRITE_UNCHANGED;
 
-    ret = throttle_parse_options(options, &group, errp);
+    ret = throttle_parse_group(options, &group, errp);
     if (ret == 0) {
         /* Register membership to group with name group_name */
         throttle_group_register_tgm(tgm, group, bdrv_get_aio_context(bs));
@@ -179,7 +179,7 @@ static int throttle_reopen_prepare(BDRVReopenState *reopen_state,
     assert(reopen_state != NULL);
     assert(reopen_state->bs != NULL);
 
-    ret = throttle_parse_options(reopen_state->options, &group, errp);
+    ret = throttle_parse_group(reopen_state->options, &group, errp);
     reopen_state->opaque = group;
     return ret;
 }

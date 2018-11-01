@@ -9,6 +9,7 @@
  */
 #ifndef THROTTLE_OPTIONS_H
 #define THROTTLE_OPTIONS_H
+#include "typedefs.h"
 
 #define QEMU_OPT_IOPS_TOTAL "iops-total"
 #define QEMU_OPT_IOPS_TOTAL_MAX "iops-total-max"
@@ -110,5 +111,6 @@
             .type = QEMU_OPT_NUMBER,\
             .help = "when limiting by iops max size of an I/O in bytes",\
         }
-
+    
+    void throttle_parse_options(ThrottleConfig *, QemuOpts *);
 #endif

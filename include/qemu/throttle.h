@@ -90,10 +90,10 @@ typedef struct LeakyBucket {
  * However it allows to keep the code clean and the bucket field is reset to
  * zero at the right time.
  */
-typedef struct ThrottleConfig {
+struct ThrottleConfig {
     LeakyBucket buckets[BUCKETS_COUNT]; /* leaky buckets */
     uint64_t op_size;         /* size of an operation in bytes */
-} ThrottleConfig;
+};
 
 typedef struct ThrottleState {
     ThrottleConfig cfg;       /* configuration */

@@ -1716,6 +1716,21 @@ Change I/O throttle limits for a block drive to @var{bps} @var{bps_rd} @var{bps_
 @var{device} can be a block device name, a qdev ID or a QOM path.
 ETEXI
 
+#if defined(CONFIG_VIRTFS)
+     {
+        .name       = "fsdev_set_io_throttle",
+        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l",
+        .params     = "device bps bps_rd bps_wr iops iops_rd iops_wr",
+        .help       = "change I/O throttle limits for a fs devices",
+        .cmd        = hmp_fsdev_set_io_throttle,
+    },
+#endif
+STEXI
+@item fsdev_set_io_throttle @var{device} @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
+@findex fsdev_set_io_throttle
+Change I/O throttle limits for a fs devices to @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
+ETEXI
+
     {
         .name       = "set_password",
         .args_type  = "protocol:s,password:s,connected:s?",
