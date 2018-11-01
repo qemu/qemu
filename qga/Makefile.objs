@@ -1,3 +1,4 @@
+commands-posix.o-libs := $(LIBUDEV_LIBS)
 qga-obj-y = commands.o guest-agent-command-state.o main.o
 qga-obj-$(CONFIG_POSIX) += commands-posix.o channel-posix.o
 qga-obj-$(CONFIG_WIN32) += commands-win32.o channel-win32.o service-win32.o

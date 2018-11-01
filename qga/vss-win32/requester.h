@@ -34,9 +34,16 @@ typedef struct ErrorSet {
 STDAPI requester_init(void);
 STDAPI requester_deinit(void);
 
-typedef void (*QGAVSSRequesterFunc)(int *, ErrorSet *);
-void requester_freeze(int *num_vols, ErrorSet *errset);
-void requester_thaw(int *num_vols, ErrorSet *errset);
+typedef struct volList volList;
+
+struct volList {
+    volList *next;
+    char *value;
+};
+
+typedef void (*QGAVSSRequesterFunc)(int *, void *, ErrorSet *);
+void requester_freeze(int *num_vols, void *volList, ErrorSet *errset);
+void requester_thaw(int *num_vols, void *volList, ErrorSet *errset);
 
 #ifdef __cplusplus
 }

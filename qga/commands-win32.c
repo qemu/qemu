@@ -89,6 +89,12 @@ static OpenFlags guest_file_open_modes[] = {
     {"a+b", FILE_GENERIC_APPEND|GENERIC_READ, OPEN_ALWAYS  }
 };
 
+#define debug_error(msg) do { \
+    char *suffix = g_win32_error_message(GetLastError()); \
+    g_debug("%s: %s", (msg), suffix); \
+    g_free(suffix); \
+} while (0)
+
 static OpenFlags *find_open_flag(const char *mode_str)
 {
     int mode;
@@ -160,13 +166,15 @@ static void handle_set_nonblocking(HANDLE fh)
 int64_t qmp_guest_file_open(const char *path, bool has_mode,
                             const char *mode, Error **errp)
 {
-    int64_t fd;
+    int64_t fd = -1;
     HANDLE fh;
     HANDLE templ_file = NULL;
     DWORD share_mode = FILE_SHARE_READ;
     DWORD flags_and_attr = FILE_ATTRIBUTE_NORMAL;
     LPSECURITY_ATTRIBUTES sa_attr = NULL;
     OpenFlags *guest_flags;
+    GError *gerr = NULL;
+    wchar_t *w_path = NULL;
 
     if (!has_mode) {
         mode = "r";
@@ -175,16 +183,21 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode,
     guest_flags = find_open_flag(mode);
     if (guest_flags == NULL) {
         error_setg(errp, "invalid file open mode");
-        return -1;
+        goto done;
     }
 
-    fh = CreateFile(path, guest_flags->desired_access, share_mode, sa_attr,
+    w_path = g_utf8_to_utf16(path, -1, NULL, NULL, &gerr);
+    if (!w_path) {
+        goto done;
+    }
+
+    fh = CreateFileW(w_path, guest_flags->desired_access, share_mode, sa_attr,
                     guest_flags->creation_disposition, flags_and_attr,
                     templ_file);
     if (fh == INVALID_HANDLE_VALUE) {
         error_setg_win32(errp, GetLastError(), "failed to open file '%s'",
                          path);
-        return -1;
+        goto done;
     }
 
     /* set fd non-blocking to avoid common use cases (like reading from a
@@ -196,10 +209,17 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode,
     if (fd < 0) {
         CloseHandle(fh);
         error_setg(errp, "failed to add handle to qmp handle table");
-        return -1;
+        goto done;
     }
 
     slog("guest-file-open, handle: % " PRId64, fd);
+
+done:
+    if (gerr) {
+        error_setg(errp, QERR_QGA_COMMAND_FAILED, gerr->message);
+        g_error_free(gerr);
+    }
+    g_free(w_path);
     return fd;
 }
 
@@ -465,15 +485,32 @@ static STORAGE_BUS_TYPE win2qemu[] = {
 
 static GuestDiskBusType find_bus_type(STORAGE_BUS_TYPE bus)
 {
-    if (bus > ARRAY_SIZE(win2qemu) || (int)bus < 0) {
+    if (bus >= ARRAY_SIZE(win2qemu) || (int)bus < 0) {
         return GUEST_DISK_BUS_TYPE_UNKNOWN;
     }
     return win2qemu[(int)bus];
 }
 
+/* XXX: The following function is BROKEN!
+ *
+ * It does not work and probably has never worked. When we query for list of
+ * disks we get cryptic names like "\Device\0000001d" instead of
+ * "\PhysicalDriveX" or "\HarddiskX". Whether the names can be translated one
+ * way or the other for comparison is an open question.
+ *
+ * When we query volume names (the original version) we are able to match those
+ * but then the property queries report error "Invalid function". (duh!)
+ */
+
+/*
 DEFINE_GUID(GUID_DEVINTERFACE_VOLUME,
         0x53f5630dL, 0xb6bf, 0x11d0, 0x94, 0xf2,
         0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b);
+*/
+DEFINE_GUID(GUID_DEVINTERFACE_DISK,
+        0x53f56307L, 0xb6bf, 0x11d0, 0x94, 0xf2,
+        0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b);
+
 
 static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
 {
@@ -484,23 +521,38 @@ static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
     char dev_name[MAX_PATH];
     char *buffer = NULL;
     GuestPCIAddress *pci = NULL;
-    char *name = g_strdup(&guid[4]);
+    char *name = NULL;
+    bool partial_pci = false;
+    pci = g_malloc0(sizeof(*pci));
+    pci->domain = -1;
+    pci->slot = -1;
+    pci->function = -1;
+    pci->bus = -1;
+
+    if (g_str_has_prefix(guid, "\\\\.\\") ||
+        g_str_has_prefix(guid, "\\\\?\\")) {
+        name = g_strdup(guid + 4);
+    } else {
+        name = g_strdup(guid);
+    }
 
     if (!QueryDosDevice(name, dev_name, ARRAY_SIZE(dev_name))) {
         error_setg_win32(errp, GetLastError(), "failed to get dos device name");
         goto out;
     }
 
-    dev_info = SetupDiGetClassDevs(&GUID_DEVINTERFACE_VOLUME, 0, 0,
+    dev_info = SetupDiGetClassDevs(&GUID_DEVINTERFACE_DISK, 0, 0,
                                    DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
     if (dev_info == INVALID_HANDLE_VALUE) {
         error_setg_win32(errp, GetLastError(), "failed to get devices tree");
         goto out;
     }
 
+    g_debug("enumerating devices");
     dev_info_data.cbSize = sizeof(SP_DEVINFO_DATA);
     for (i = 0; SetupDiEnumDeviceInfo(dev_info, i, &dev_info_data); i++) {
-        DWORD addr, bus, slot, func, dev, data, size2;
+        DWORD addr, bus, slot, data, size2;
+        int func, dev;
         while (!SetupDiGetDeviceRegistryProperty(dev_info, &dev_info_data,
                                             SPDRP_PHYSICAL_DEVICE_OBJECT_NAME,
                                             &data, (PBYTE)buffer, size,
@@ -522,6 +574,7 @@ static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
         if (g_strcmp0(buffer, dev_name)) {
             continue;
         }
+        g_debug("found device %s", dev_name);
 
         /* There is no need to allocate buffer in the next functions. The size
          * is known and ULONG according to
@@ -530,21 +583,27 @@ static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
          */
         if (!SetupDiGetDeviceRegistryProperty(dev_info, &dev_info_data,
                    SPDRP_BUSNUMBER, &data, (PBYTE)&bus, size, NULL)) {
-            break;
+            debug_error("failed to get bus");
+            bus = -1;
+            partial_pci = true;
         }
 
         /* The function retrieves the device's address. This value will be
          * transformed into device function and number */
         if (!SetupDiGetDeviceRegistryProperty(dev_info, &dev_info_data,
                    SPDRP_ADDRESS, &data, (PBYTE)&addr, size, NULL)) {
-            break;
+            debug_error("failed to get address");
+            addr = -1;
+            partial_pci = true;
         }
 
         /* This call returns UINumber of DEVICE_CAPABILITIES structure.
          * This number is typically a user-perceived slot number. */
         if (!SetupDiGetDeviceRegistryProperty(dev_info, &dev_info_data,
                    SPDRP_UI_NUMBER, &data, (PBYTE)&slot, size, NULL)) {
-            break;
+            debug_error("failed to get slot");
+            slot = -1;
+            partial_pci = true;
         }
 
         /* SetupApi gives us the same information as driver with
@@ -554,13 +613,19 @@ static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
          * DeviceNumber = (USHORT)(((propertyAddress) >> 16) & 0x0000FFFF);
          * SPDRP_ADDRESS is propertyAddress, so we do the same.*/
 
-        func = addr & 0x0000FFFF;
-        dev = (addr >> 16) & 0x0000FFFF;
-        pci = g_malloc0(sizeof(*pci));
-        pci->domain = dev;
-        pci->slot = slot;
-        pci->function = func;
-        pci->bus = bus;
+        if (partial_pci) {
+            pci->domain = -1;
+            pci->slot = -1;
+            pci->function = -1;
+            pci->bus = -1;
+        } else {
+            func = ((int) addr == -1) ? -1 : addr & 0x0000FFFF;
+            dev = ((int) addr == -1) ? -1 : (addr >> 16) & 0x0000FFFF;
+            pci->domain = dev;
+            pci->slot = (int) slot;
+            pci->function = func;
+            pci->bus = (int) bus;
+        }
         break;
     }
 
@@ -572,25 +637,119 @@ out:
     return pci;
 }
 
-static int get_disk_bus_type(HANDLE vol_h, Error **errp)
+static void get_disk_properties(HANDLE vol_h, GuestDiskAddress *disk,
+    Error **errp)
 {
     STORAGE_PROPERTY_QUERY query;
     STORAGE_DEVICE_DESCRIPTOR *dev_desc, buf;
     DWORD received;
+    ULONG size = sizeof(buf);
 
     dev_desc = &buf;
-    dev_desc->Size = sizeof(buf);
     query.PropertyId = StorageDeviceProperty;
     query.QueryType = PropertyStandardQuery;
 
     if (!DeviceIoControl(vol_h, IOCTL_STORAGE_QUERY_PROPERTY, &query,
                          sizeof(STORAGE_PROPERTY_QUERY), dev_desc,
-                         dev_desc->Size, &received, NULL)) {
+                         size, &received, NULL)) {
         error_setg_win32(errp, GetLastError(), "failed to get bus type");
-        return -1;
+        return;
+    }
+    disk->bus_type = find_bus_type(dev_desc->BusType);
+    g_debug("bus type %d", disk->bus_type);
+
+    /* Query once more. Now with long enough buffer. */
+    size = dev_desc->Size;
+    dev_desc = g_malloc0(size);
+    if (!DeviceIoControl(vol_h, IOCTL_STORAGE_QUERY_PROPERTY, &query,
+                         sizeof(STORAGE_PROPERTY_QUERY), dev_desc,
+                         size, &received, NULL)) {
+        error_setg_win32(errp, GetLastError(), "failed to get serial number");
+        g_debug("failed to get serial number");
+        goto out_free;
+    }
+    if (dev_desc->SerialNumberOffset > 0) {
+        const char *serial;
+        size_t len;
+
+        if (dev_desc->SerialNumberOffset >= received) {
+            error_setg(errp, "failed to get serial number: offset outside the buffer");
+            g_debug("serial number offset outside the buffer");
+            goto out_free;
+        }
+        serial = (char *)dev_desc + dev_desc->SerialNumberOffset;
+        len = received - dev_desc->SerialNumberOffset;
+        g_debug("serial number \"%s\"", serial);
+        if (*serial != 0) {
+            disk->serial = g_strndup(serial, len);
+            disk->has_serial = true;
+        }
+    }
+out_free:
+    g_free(dev_desc);
+
+    return;
+}
+
+static void get_single_disk_info(GuestDiskAddress *disk, Error **errp)
+{
+    SCSI_ADDRESS addr, *scsi_ad;
+    DWORD len;
+    HANDLE disk_h;
+    Error *local_err = NULL;
+
+    scsi_ad = &addr;
+
+    g_debug("getting disk info for: %s", disk->dev);
+    disk_h = CreateFile(disk->dev, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                       0, NULL);
+    if (disk_h == INVALID_HANDLE_VALUE) {
+        error_setg_win32(errp, GetLastError(), "failed to open disk");
+        return;
     }
 
-    return dev_desc->BusType;
+    get_disk_properties(disk_h, disk, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto err_close;
+    }
+
+    g_debug("bus type %d", disk->bus_type);
+    /* always set pci_controller as required by schema. get_pci_info() should
+     * report -1 values for non-PCI buses rather than fail. fail the command
+     * if that doesn't hold since that suggests some other unexpected
+     * breakage
+     */
+    disk->pci_controller = get_pci_info(disk->dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto err_close;
+    }
+    if (disk->bus_type == GUEST_DISK_BUS_TYPE_SCSI
+            || disk->bus_type == GUEST_DISK_BUS_TYPE_IDE
+            || disk->bus_type == GUEST_DISK_BUS_TYPE_RAID
+#if (_WIN32_WINNT >= 0x0600)
+            /* This bus type is not supported before Windows Server 2003 SP1 */
+            || disk->bus_type == GUEST_DISK_BUS_TYPE_SAS
+#endif
+        ) {
+        /* We are able to use the same ioctls for different bus types
+         * according to Microsoft docs
+         * https://technet.microsoft.com/en-us/library/ee851589(v=ws.10).aspx */
+        g_debug("getting pci-controller info");
+        if (DeviceIoControl(disk_h, IOCTL_SCSI_GET_ADDRESS, NULL, 0, scsi_ad,
+                            sizeof(SCSI_ADDRESS), &len, NULL)) {
+            disk->unit = addr.Lun;
+            disk->target = addr.TargetId;
+            disk->bus = addr.PathId;
+        }
+        /* We do not set error in this case, because we still have enough
+         * information about volume. */
+    }
+
+err_close:
+    CloseHandle(disk_h);
+    return;
 }
 
 /* VSS provider works with volumes, thus there is no difference if
@@ -598,59 +757,108 @@ static int get_disk_bus_type(HANDLE vol_h, Error **errp)
  * volume is returned for the spanned disk group (LVM) */
 static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
 {
-    GuestDiskAddressList *list = NULL;
-    GuestDiskAddress *disk;
-    SCSI_ADDRESS addr, *scsi_ad;
-    DWORD len;
-    int bus;
+    Error *local_err = NULL;
+    GuestDiskAddressList *list = NULL, *cur_item = NULL;
+    GuestDiskAddress *disk = NULL;
+    int i;
     HANDLE vol_h;
+    DWORD size;
+    PVOLUME_DISK_EXTENTS extents = NULL;
 
-    scsi_ad = &addr;
-    char *name = g_strndup(guid, strlen(guid)-1);
+    /* strip final backslash */
+    char *name = g_strdup(guid);
+    if (g_str_has_suffix(name, "\\")) {
+        name[strlen(name) - 1] = 0;
+    }
 
+    g_debug("opening %s", name);
     vol_h = CreateFile(name, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
                        0, NULL);
     if (vol_h == INVALID_HANDLE_VALUE) {
         error_setg_win32(errp, GetLastError(), "failed to open volume");
-        goto out_free;
+        goto out;
     }
 
-    bus = get_disk_bus_type(vol_h, errp);
-    if (bus < 0) {
-        goto out_close;
-    }
-
-    disk = g_malloc0(sizeof(*disk));
-    disk->bus_type = find_bus_type(bus);
-    if (bus == BusTypeScsi || bus == BusTypeAta || bus == BusTypeRAID
-#if (_WIN32_WINNT >= 0x0600)
-            /* This bus type is not supported before Windows Server 2003 SP1 */
-            || bus == BusTypeSas
-#endif
-        ) {
-        /* We are able to use the same ioctls for different bus types
-         * according to Microsoft docs
-         * https://technet.microsoft.com/en-us/library/ee851589(v=ws.10).aspx */
-        if (DeviceIoControl(vol_h, IOCTL_SCSI_GET_ADDRESS, NULL, 0, scsi_ad,
-                            sizeof(SCSI_ADDRESS), &len, NULL)) {
-            disk->unit = addr.Lun;
-            disk->target = addr.TargetId;
-            disk->bus = addr.PathId;
-            disk->pci_controller = get_pci_info(name, errp);
+    /* Get list of extents */
+    g_debug("getting disk extents");
+    size = sizeof(VOLUME_DISK_EXTENTS);
+    extents = g_malloc0(size);
+    if (!DeviceIoControl(vol_h, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL,
+                         0, extents, size, NULL, NULL)) {
+        DWORD last_err = GetLastError();
+        if (last_err == ERROR_MORE_DATA) {
+            /* Try once more with big enough buffer */
+            size = sizeof(VOLUME_DISK_EXTENTS)
+                + extents->NumberOfDiskExtents*sizeof(DISK_EXTENT);
+            g_free(extents);
+            extents = g_malloc0(size);
+            if (!DeviceIoControl(
+                    vol_h, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL,
+                    0, extents, size, NULL, NULL)) {
+                error_setg_win32(errp, GetLastError(),
+                    "failed to get disk extents");
+                return NULL;
+            }
+        } else if (last_err == ERROR_INVALID_FUNCTION) {
+            /* Possibly CD-ROM or a shared drive. Try to pass the volume */
+            g_debug("volume not on disk");
+            disk = g_malloc0(sizeof(GuestDiskAddress));
+            disk->has_dev = true;
+            disk->dev = g_strdup(name);
+            get_single_disk_info(disk, &local_err);
+            if (local_err) {
+                g_debug("failed to get disk info, ignoring error: %s",
+                    error_get_pretty(local_err));
+                error_free(local_err);
+                goto out;
+            }
+            list = g_malloc0(sizeof(*list));
+            list->value = disk;
+            disk = NULL;
+            list->next = NULL;
+            goto out;
+        } else {
+            error_setg_win32(errp, GetLastError(),
+                "failed to get disk extents");
+            goto out;
         }
-        /* We do not set error in this case, because we still have enough
-         * information about volume. */
-    } else {
-         disk->pci_controller = NULL;
+    }
+    g_debug("Number of extents: %lu", extents->NumberOfDiskExtents);
+
+    /* Go through each extent */
+    for (i = 0; i < extents->NumberOfDiskExtents; i++) {
+        disk = g_malloc0(sizeof(GuestDiskAddress));
+
+        /* Disk numbers directly correspond to numbers used in UNCs
+         *
+         * See documentation for DISK_EXTENT:
+         * https://docs.microsoft.com/en-us/windows/desktop/api/winioctl/ns-winioctl-_disk_extent
+         *
+         * See also Naming Files, Paths and Namespaces:
+         * https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#win32-device-namespaces
+         */
+        disk->has_dev = true;
+        disk->dev = g_strdup_printf("\\\\.\\PhysicalDrive%lu",
+            extents->Extents[i].DiskNumber);
+
+        get_single_disk_info(disk, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto out;
+        }
+        cur_item = g_malloc0(sizeof(*list));
+        cur_item->value = disk;
+        disk = NULL;
+        cur_item->next = list;
+        list = cur_item;
     }
 
-    list = g_malloc0(sizeof(*list));
-    list->value = disk;
-    list->next = NULL;
-out_close:
-    CloseHandle(vol_h);
-out_free:
+
+out:
+    qapi_free_GuestDiskAddress(disk);
+    g_free(extents);
     g_free(name);
+
     return list;
 }
 
@@ -777,6 +985,13 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
  */
 int64_t qmp_guest_fsfreeze_freeze(Error **errp)
 {
+    return qmp_guest_fsfreeze_freeze_list(false, NULL, errp);
+}
+
+int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
+                                       strList *mountpoints,
+                                       Error **errp)
+{
     int i;
     Error *local_err = NULL;
 
@@ -790,7 +1005,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **errp)
     /* cannot risk guest agent blocking itself on a write in this state */
     ga_set_frozen(ga_state);
 
-    qga_vss_fsfreeze(&i, true, &local_err);
+    qga_vss_fsfreeze(&i, true, mountpoints, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto error;
@@ -808,15 +1023,6 @@ error:
     return 0;
 }
 
-int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
-                                       strList *mountpoints,
-                                       Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
-
-    return 0;
-}
-
 /*
  * Thaw local file systems using Volume Shadow-copy Service.
  */
@@ -829,7 +1035,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
         return 0;
     }
 
-    qga_vss_fsfreeze(&i, false, errp);
+    qga_vss_fsfreeze(&i, false, NULL, errp);
 
     ga_unset_frozen(ga_state);
     return i;
@@ -1646,7 +1852,6 @@ GList *ga_command_blacklist_init(GList *blacklist)
         "guest-set-vcpus",
         "guest-get-memory-blocks", "guest-set-memory-blocks",
         "guest-get-memory-block-size",
-        "guest-fsfreeze-freeze-list",
         NULL};
     char **p = (char **)list_unsupported;
 

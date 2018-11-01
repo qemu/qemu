@@ -147,7 +147,8 @@ void ga_uninstall_vss_provider(void)
 }
 
 /* Call VSS requester and freeze/thaw filesystems and applications */
-void qga_vss_fsfreeze(int *nr_volume, bool freeze, Error **errp)
+void qga_vss_fsfreeze(int *nr_volume, bool freeze,
+                      strList *mountpoints, Error **errp)
 {
     const char *func_name = freeze ? "requester_freeze" : "requester_thaw";
     QGAVSSRequesterFunc func;
@@ -164,5 +165,5 @@ void qga_vss_fsfreeze(int *nr_volume, bool freeze, Error **errp)
         return;
     }
 
-    func(nr_volume, &errset);
+    func(nr_volume, mountpoints, &errset);
 }
