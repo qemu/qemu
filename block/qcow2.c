@@ -74,6 +74,13 @@ typedef struct {
 #define  QCOW2_EXT_MAGIC_CRYPTO_HEADER 0x0537be77
 #define  QCOW2_EXT_MAGIC_BITMAPS 0x23852875
 
+static int coroutine_fn
+qcow2_co_preadv_compressed(BlockDriverState *bs,
+                           uint64_t file_cluster_offset,
+                           uint64_t offset,
+                           uint64_t bytes,
+                           QEMUIOVector *qiov);
+
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const QCowHeader *cow_header = (const void *)buf;
@@ -1414,7 +1421,6 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         goto fail;
     }
 
-    s->cluster_cache_offset = -1;
     s->flags = flags;
 
     ret = qcow2_refcount_init(bs);
@@ -1914,15 +1920,15 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
             break;
 
         case QCOW2_CLUSTER_COMPRESSED:
-            /* add AIO support for compressed blocks ? */
-            ret = qcow2_decompress_cluster(bs, cluster_offset);
+            qemu_co_mutex_unlock(&s->lock);
+            ret = qcow2_co_preadv_compressed(bs, cluster_offset,
+                                             offset, cur_bytes,
+                                             &hd_qiov);
+            qemu_co_mutex_lock(&s->lock);
             if (ret < 0) {
                 goto fail;
             }
 
-            qemu_iovec_from_buf(&hd_qiov, 0,
-                                s->cluster_cache + offset_in_cluster,
-                                cur_bytes);
             break;
 
         case QCOW2_CLUSTER_NORMAL:
@@ -2057,8 +2063,6 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
     trace_qcow2_writev_start_req(qemu_coroutine_self(), offset, bytes);
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
-
-    s->cluster_cache_offset = -1; /* disable compressed cache */
 
     qemu_co_mutex_lock(&s->lock);
 
@@ -2223,8 +2227,6 @@ static void qcow2_close(BlockDriverState *bs)
     g_free(s->image_backing_file);
     g_free(s->image_backing_format);
 
-    g_free(s->cluster_cache);
-    qemu_vfree(s->cluster_data);
     qcow2_refcount_close(bs);
     qcow2_free_snapshots(bs);
 }
@@ -3401,7 +3403,6 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
     QCowL2Meta *l2meta = NULL;
 
     assert(!bs->encrypted);
-    s->cluster_cache_offset = -1; /* disable compressed cache */
 
     qemu_co_mutex_lock(&s->lock);
 
@@ -3957,52 +3958,53 @@ fail:
     return ret;
 }
 
-int coroutine_fn
-qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
+static int coroutine_fn
+qcow2_co_preadv_compressed(BlockDriverState *bs,
+                           uint64_t file_cluster_offset,
+                           uint64_t offset,
+                           uint64_t bytes,
+                           QEMUIOVector *qiov)
 {
     BDRVQcow2State *s = bs->opaque;
-    int ret, csize, nb_csectors;
+    int ret = 0, csize, nb_csectors;
     uint64_t coffset;
+    uint8_t *buf, *out_buf;
     struct iovec iov;
     QEMUIOVector local_qiov;
+    int offset_in_cluster = offset_into_cluster(s, offset);
 
-    coffset = cluster_offset & s->cluster_offset_mask;
-    if (s->cluster_cache_offset != coffset) {
-        nb_csectors = ((cluster_offset >> s->csize_shift) & s->csize_mask) + 1;
-        csize = nb_csectors * 512 - (coffset & 511);
+    coffset = file_cluster_offset & s->cluster_offset_mask;
+    nb_csectors = ((file_cluster_offset >> s->csize_shift) & s->csize_mask) + 1;
+    csize = nb_csectors * 512 - (coffset & 511);
 
-        /* Allocate buffers on first decompress operation, most images are
-         * uncompressed and the memory overhead can be avoided.  The buffers
-         * are freed in .bdrv_close().
-         */
-        if (!s->cluster_data) {
-            /* one more sector for decompressed data alignment */
-            s->cluster_data = qemu_try_blockalign(bs->file->bs,
-                    QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size + 512);
-            if (!s->cluster_data) {
-                return -ENOMEM;
-            }
-        }
-        if (!s->cluster_cache) {
-            s->cluster_cache = g_malloc(s->cluster_size);
-        }
-
-        iov.iov_base = s->cluster_data;
-        iov.iov_len = csize;
-        qemu_iovec_init_external(&local_qiov, &iov, 1);
-
-        BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
-        ret = bdrv_co_preadv(bs->file, coffset, csize, &local_qiov, 0);
-        if (ret < 0) {
-            return ret;
-        }
-        if (qcow2_decompress(s->cluster_cache, s->cluster_size,
-                             s->cluster_data, csize) < 0) {
-            return -EIO;
-        }
-        s->cluster_cache_offset = coffset;
+    buf = g_try_malloc(csize);
+    if (!buf) {
+        return -ENOMEM;
     }
-    return 0;
+    iov.iov_base = buf;
+    iov.iov_len = csize;
+    qemu_iovec_init_external(&local_qiov, &iov, 1);
+
+    out_buf = qemu_blockalign(bs, s->cluster_size);
+
+    BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
+    ret = bdrv_co_preadv(bs->file, coffset, csize, &local_qiov, 0);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    if (qcow2_decompress(out_buf, s->cluster_size, buf, csize) < 0) {
+        ret = -EIO;
+        goto fail;
+    }
+
+    qemu_iovec_from_buf(qiov, 0, out_buf + offset_in_cluster, bytes);
+
+fail:
+    qemu_vfree(out_buf);
+    g_free(buf);
+
+    return ret;
 }
 
 static int make_completely_empty(BlockDriverState *bs)
