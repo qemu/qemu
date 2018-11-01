@@ -647,8 +647,8 @@ static inline uint64_t udiv_qrnnd(uint64_t *r, uint64_t n1,
     asm("dlgr %0, %1" : "+r"(n) : "r"(d));
     *r = n >> 64;
     return n;
-#elif defined(_ARCH_PPC64)
-    /* From Power ISA 3.0B, programming note for divdeu.  */
+#elif defined(_ARCH_PPC64) && defined(_ARCH_PWR7)
+    /* From Power ISA 2.06, programming note for divdeu.  */
     uint64_t q1, q2, Q, r1, r2, R;
     asm("divdeu %0,%2,%4; divdu %1,%3,%4"
         : "=&r"(q1), "=r"(q2)
