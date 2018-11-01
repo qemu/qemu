@@ -23,6 +23,6 @@
 /* cputlb.c */
 void tlb_protect_code(ram_addr_t ram_addr);
 void tlb_unprotect_code(ram_addr_t ram_addr);
-size_t tlb_flush_count(void);
+void tlb_flush_counts(size_t *full, size_t *part, size_t *elide);
 #endif
 #endif

@@ -429,12 +429,6 @@ struct CPUState {
 
     struct hax_vcpu_state *hax_vcpu;
 
-    /* The pending_tlb_flush flag is set and cleared atomically to
-     * avoid potential races. The aim of the flag is to avoid
-     * unnecessary flushes.
-     */
-    uint16_t pending_tlb_flush;
-
     int hvf_fd;
 
     /* track IOMMUs whose translations we've cached in the TCG TLB */
