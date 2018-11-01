@@ -1796,7 +1796,7 @@ F: docs/devel/tracing.txt
 T: git git://github.com/stefanha/qemu.git tracing
 
 TPM
-M: Stefan Berger <stefanb@linux.vnet.ibm.com>
+M: Stefan Berger <stefanb@linux.ibm.com>
 S: Maintained
 F: tpm.c
 F: stubs/tpm.c

@@ -18,6 +18,17 @@
 #include "libqtest.h"
 #include "tpm-tests.h"
 
+static bool
+tpm_test_swtpm_skip(void)
+{
+    if (!tpm_util_swtpm_has_tpm2()) {
+        fprintf(stderr, "swtpm not in PATH or missing --tpm2 support; ");
+        return true;
+    }
+
+    return false;
+}
+
 void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx,
                          const char *ifmodel)
 {
@@ -28,11 +39,12 @@ void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx,
     GPid swtpm_pid;
     GError *error = NULL;
 
-    succ = tpm_util_swtpm_start(src_tpm_path, &swtpm_pid, &addr, &error);
-    /* succ may be false if swtpm is not available */
-    if (!succ) {
+    if (tpm_test_swtpm_skip()) {
         return;
     }
+
+    succ = tpm_util_swtpm_start(src_tpm_path, &swtpm_pid, &addr, &error);
+    g_assert_true(succ);
 
     args = g_strdup_printf(
         "-chardev socket,id=chr,path=%s "
@@ -74,19 +86,17 @@ void tpm_test_swtpm_migration_test(const char *src_tpm_path,
     GError *error = NULL;
     QTestState *src_qemu, *dst_qemu;
 
-    succ = tpm_util_swtpm_start(src_tpm_path, &src_tpm_pid,
-                                &src_tpm_addr, &error);
-    /* succ may be false if swtpm is not available */
-    if (!succ) {
+    if (tpm_test_swtpm_skip()) {
         return;
     }
 
+    succ = tpm_util_swtpm_start(src_tpm_path, &src_tpm_pid,
+                                &src_tpm_addr, &error);
+    g_assert_true(succ);
+
     succ = tpm_util_swtpm_start(dst_tpm_path, &dst_tpm_pid,
                                 &dst_tpm_addr, &error);
-    /* succ may be false if swtpm is not available */
-    if (!succ) {
-        goto err_src_tpm_kill;
-    }
+    g_assert_true(succ);
 
     tpm_util_migration_start_qemu(&src_qemu, &dst_qemu,
                                   src_tpm_addr, dst_tpm_addr, uri,
@@ -118,7 +128,6 @@ void tpm_test_swtpm_migration_test(const char *src_tpm_path,
         qapi_free_SocketAddress(dst_tpm_addr);
     }
 
-err_src_tpm_kill:
     tpm_util_swtpm_kill(src_tpm_pid);
     if (src_tpm_addr) {
         g_unlink(src_tpm_addr->u.q_unix.path);

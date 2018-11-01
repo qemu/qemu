@@ -20,6 +20,21 @@ QEMU files related to TPM TIS interface:
  - hw/tpm/tpm_tis.h
 
 
+QEMU also implements a TPM CRB interface following the Trusted Computing
+Group's specification "TCG PC Client Platform TPM Profile (PTP)
+Specification", Family "2.0", Level 00 Revision 01.03 v22, May 22, 2017.
+This specification, or a later version of it, can be accessed from the
+following URL:
+
+https://trustedcomputinggroup.org/resource/pc-client-platform-tpm-profile-ptp-specification/
+
+The CRB interface makes a memory mapped IO region in the area 0xfed40000 -
+0xfed40fff (1 locality) available to the guest operating system.
+
+QEMU files related to TPM CRB interface:
+ - hw/tpm/tpm_crb.c
+
+
 = ACPI Interface =
 
 The TPM device is defined with ACPI ID "PNP0C31". QEMU builds a SSDT and passes
