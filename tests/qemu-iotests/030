@@ -521,7 +521,7 @@ new_state = "2"
 state = "2"
 event = "%s"
 new_state = "1"
-''' % (event, errno, self.STREAM_BUFFER_SIZE / 512, event, event))
+''' % (event, errno, self.STREAM_BUFFER_SIZE // 512, event, event))
         file.close()
 
 class TestEIO(TestErrors):

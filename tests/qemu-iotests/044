@@ -26,6 +26,10 @@ import iotests
 from iotests import qemu_img, qemu_img_verbose, qemu_io
 import struct
 import subprocess
+import sys
+
+if sys.version_info.major == 2:
+    range = xrange
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
@@ -52,23 +56,23 @@ class TestRefcountTableGrowth(iotests.QMPTestCase):
             # Write a refcount table
             fd.seek(off_reftable)
 
-            for i in xrange(0, h.refcount_table_clusters):
-                sector = ''.join(struct.pack('>Q',
+            for i in range(0, h.refcount_table_clusters):
+                sector = b''.join(struct.pack('>Q',
                     off_refblock + i * 64 * 512 + j * 512)
-                    for j in xrange(0, 64))
+                    for j in range(0, 64))
                 fd.write(sector)
 
             # Write the refcount blocks
             assert(fd.tell() == off_refblock)
-            sector = ''.join(struct.pack('>H', 1) for j in xrange(0, 64 * 256))
-            for block in xrange(0, h.refcount_table_clusters):
+            sector = b''.join(struct.pack('>H', 1) for j in range(0, 64 * 256))
+            for block in range(0, h.refcount_table_clusters):
                 fd.write(sector)
 
             # Write the L1 table
             assert(fd.tell() == off_l1)
             assert(off_l2 + 512 * h.l1_size == off_data)
-            table = ''.join(struct.pack('>Q', (1 << 63) | off_l2 + 512 * j)
-                for j in xrange(0, h.l1_size))
+            table = b''.join(struct.pack('>Q', (1 << 63) | off_l2 + 512 * j)
+                for j in range(0, h.l1_size))
             fd.write(table)
 
             # Write the L2 tables
@@ -79,14 +83,14 @@ class TestRefcountTableGrowth(iotests.QMPTestCase):
             off = off_data
             while remaining > 1024 * 512:
                 pytable = list((1 << 63) | off + 512 * j
-                    for j in xrange(0, 1024))
+                    for j in range(0, 1024))
                 table = struct.pack('>1024Q', *pytable)
                 fd.write(table)
                 remaining = remaining - 1024 * 512
                 off = off + 1024 * 512
 
-            table = ''.join(struct.pack('>Q', (1 << 63) | off + 512 * j)
-                for j in xrange(0, remaining / 512))
+            table = b''.join(struct.pack('>Q', (1 << 63) | off + 512 * j)
+                for j in range(0, remaining // 512))
             fd.write(table)
 
 

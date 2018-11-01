@@ -24,7 +24,7 @@ import os
 
 interval_length = 10
 nsec_per_sec = 1000000000
-op_latency = nsec_per_sec / 1000 # See qtest_latency_ns in accounting.c
+op_latency = nsec_per_sec // 1000 # See qtest_latency_ns in accounting.c
 bad_sector = 8192
 bad_offset = bad_sector * 512
 blkdebug_file = os.path.join(iotests.test_dir, 'blkdebug.conf')

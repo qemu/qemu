@@ -80,7 +80,7 @@ class QED(object):
 
     def load_l1_table(self):
         self.l1_table = self.read_table(self.header['l1_table_offset'])
-        self.table_nelems = self.header['table_size'] * self.header['cluster_size'] / table_elem_size
+        self.table_nelems = self.header['table_size'] * self.header['cluster_size'] // table_elem_size
 
     def write_table(self, offset, table):
         s = ''.join(pack_table_elem(x) for x in table)
@@ -167,14 +167,14 @@ def cmd_zero_cluster(qed, pos, *args):
         n = int(args[0])
 
     for i in xrange(n):
-        l1_index = pos / qed.header['cluster_size'] / len(qed.l1_table)
+        l1_index = pos // qed.header['cluster_size'] // len(qed.l1_table)
         if qed.l1_table[l1_index] == 0:
             err('no l2 table allocated')
 
         l2_offset = qed.l1_table[l1_index]
         l2_table = qed.read_table(l2_offset)
 
-        l2_index = (pos / qed.header['cluster_size']) % len(qed.l1_table)
+        l2_index = (pos // qed.header['cluster_size']) % len(qed.l1_table)
         l2_table[l2_index] = 1 # zero the data cluster
         qed.write_table(l2_offset, l2_table)
         pos += qed.header['cluster_size']

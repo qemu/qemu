@@ -79,7 +79,7 @@ class LUKSConfig(object):
 
     def first_password_base64(self):
         (pw, slot) = self.first_password()
-        return base64.b64encode(pw)
+        return base64.b64encode(pw.encode('ascii')).decode('ascii')
 
     def active_slots(self):
         slots = []
@@ -98,7 +98,8 @@ def verify_passwordless_sudo():
     proc = subprocess.Popen(args,
                             stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
 
     msg = proc.communicate()[0]
 
@@ -116,7 +117,8 @@ def cryptsetup(args, password=None):
     proc = subprocess.Popen(fullargs,
                             stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
 
     msg = proc.communicate(password)[0]
 
@@ -312,13 +314,13 @@ def test_once(config, qemu_img=False):
     image_size = 4 * oneTB
     if qemu_img:
         iotests.log("# Create image")
-        qemu_img_create(config, image_size / oneMB)
+        qemu_img_create(config, image_size // oneMB)
     else:
         iotests.log("# Create image")
-        create_image(config, image_size / oneMB)
+        create_image(config, image_size // oneMB)
 
     lowOffsetMB = 100
-    highOffsetMB = 3 * oneTB / oneMB
+    highOffsetMB = 3 * oneTB // oneMB
 
     try:
         if not qemu_img:

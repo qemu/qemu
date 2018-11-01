@@ -1,16 +1,16 @@
 === Successful image creation (defaults) ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.luks", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-add', 'arguments': {'node_name': 'imgfile', 'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}}
-{u'return': {}}
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'iter-time': 10, 'driver': 'luks', 'file': 'imgfile', 'size': 134217728}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.luks", "node_name": "imgfile"}}
+{"return": {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "imgfile", "iter-time": 10, "key-secret": "keysec0", "size": 134217728}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_IMG"}, "key-secret": "keysec0"}
 file format: IMGFMT
@@ -54,15 +54,15 @@ Format specific information:
 
 === Successful image creation (with non-default options) ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.luks", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'hash-alg': 'sha1', 'cipher-mode': 'ctr', 'cipher-alg': 'twofish-128', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-t.luks'}, 'iter-time': 10, 'ivgen-alg': 'plain64', 'ivgen-hash-alg': 'md5', 'driver': 'luks', 'size': 67108864}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"cipher-alg": "twofish-128", "cipher-mode": "ctr", "driver": "luks", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.luks"}, "hash-alg": "sha1", "iter-time": 10, "ivgen-alg": "plain64", "ivgen-hash-alg": "md5", "key-secret": "keysec0", "size": 67108864}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_IMG"}, "key-secret": "keysec0"}
 file format: IMGFMT
@@ -106,18 +106,18 @@ Format specific information:
 
 === Invalid BlockdevRef ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'luks', 'file': "this doesn't exist", 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "this doesn't exist", "size": 67108864}}}
+{"return": {}}
 Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exist
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 === Zero size ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'iter-time': 10, 'driver': 'luks', 'file': 'node0', 'size': 0}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "node0", "iter-time": 10, "key-secret": "keysec0", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_IMG"}, "key-secret": "keysec0"}
 file format: IMGFMT
@@ -161,34 +161,34 @@ Format specific information:
 
 === Invalid sizes ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'driver': 'luks', 'file': 'node0', 'size': 18446744073709551104L}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "node0", "key-secret": "keysec0", "size": 18446744073709551104}}}
+{"return": {}}
 Job failed: The requested file size is too large
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'driver': 'luks', 'file': 'node0', 'size': 9223372036854775808L}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "node0", "key-secret": "keysec0", "size": 9223372036854775808}}}
+{"return": {}}
 Job failed: The requested file size is too large
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'key-secret': 'keysec0', 'driver': 'luks', 'file': 'node0', 'size': 9223372036854775296}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "node0", "key-secret": "keysec0", "size": 9223372036854775296}}}
+{"return": {}}
 Job failed: The requested file size is too large
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 === Resize image with invalid sizes ===
 
-{'execute': 'block_resize', 'arguments': {'size': 9223372036854775296, 'node_name': 'node1'}}
-{u'error': {u'class': u'GenericError', u'desc': u'The requested file size is too large'}}
-{'execute': 'block_resize', 'arguments': {'size': 9223372036854775808L, 'node_name': 'node1'}}
-{u'error': {u'class': u'GenericError', u'desc': u"Invalid parameter type for 'size', expected: integer"}}
-{'execute': 'block_resize', 'arguments': {'size': 18446744073709551104L, 'node_name': 'node1'}}
-{u'error': {u'class': u'GenericError', u'desc': u"Invalid parameter type for 'size', expected: integer"}}
-{'execute': 'block_resize', 'arguments': {'size': -9223372036854775808, 'node_name': 'node1'}}
-{u'error': {u'class': u'GenericError', u'desc': u"Parameter 'size' expects a >0 size"}}
+{"execute": "block_resize", "arguments": {"node_name": "node1", "size": 9223372036854775296}}
+{"error": {"class": "GenericError", "desc": "The requested file size is too large"}}
+{"execute": "block_resize", "arguments": {"node_name": "node1", "size": 9223372036854775808}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter type for 'size', expected: integer"}}
+{"execute": "block_resize", "arguments": {"node_name": "node1", "size": 18446744073709551104}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter type for 'size', expected: integer"}}
+{"execute": "block_resize", "arguments": {"node_name": "node1", "size": -9223372036854775808}}
+{"error": {"class": "GenericError", "desc": "Parameter 'size' expects a >0 size"}}
 image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_IMG"}, "key-secret": "keysec0"}
 file format: IMGFMT
 virtual size: 0 (0 bytes)

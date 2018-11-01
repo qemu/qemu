@@ -48,7 +48,10 @@ import sys
 import socket
 import struct
 import collections
-import ConfigParser
+if sys.version_info.major >= 3:
+    import configparser
+else:
+    import ConfigParser as configparser
 
 FAKE_DISK_SIZE = 8 * 1024 * 1024 * 1024 # 8 GB
 
@@ -86,7 +89,7 @@ def recvall(sock, bufsize):
             raise Exception('unexpected disconnect')
         chunks.append(chunk)
         received += len(chunk)
-    return ''.join(chunks)
+    return b''.join(chunks)
 
 class Rule(object):
     def __init__(self, name, event, io, when):
@@ -112,6 +115,7 @@ class FaultInjectionSocket(object):
             if rule.match(event, io):
                 if rule.when == 0 or bufsize is None:
                     print('Closing connection on rule match %s' % rule.name)
+                    self.sock.flush()
                     sys.exit(0)
                 if rule.when != -1:
                     return rule.when
@@ -176,7 +180,7 @@ def handle_connection(conn, use_export):
         req = read_request(conn)
         if req.type == NBD_CMD_READ:
             write_reply(conn, 0, req.handle)
-            conn.send('\0' * req.len, event='data')
+            conn.send(b'\0' * req.len, event='data')
         elif req.type == NBD_CMD_WRITE:
             _ = conn.recv(req.len, event='data')
             write_reply(conn, 0, req.handle)
@@ -224,7 +228,7 @@ def parse_config(config):
     return rules
 
 def load_rules(filename):
-    config = ConfigParser.RawConfigParser()
+    config = configparser.RawConfigParser()
     with open(filename, 'rt') as f:
         config.readfp(f, filename)
     return parse_config(config)

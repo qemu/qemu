@@ -59,7 +59,7 @@ class TestQemuImgInfo(TestImageInfoSpecific):
                     :data.index('')]
         for field in data:
             self.assertTrue(re.match('^ {4}[^ ]', field) is not None)
-        data = map(lambda line: line.strip(), data)
+        data = [line.strip() for line in data]
         self.assertEqual(data, self.human_compare)
 
 class TestQMP(TestImageInfoSpecific):
@@ -80,7 +80,7 @@ class TestQMP(TestImageInfoSpecific):
 
     def test_qmp(self):
         result = self.vm.qmp('query-block')['return']
-        drive = filter(lambda drive: drive['device'] == 'drive0', result)[0]
+        drive = next(drive for drive in result if drive['device'] == 'drive0')
         data = drive['inserted']['image']['format-specific']
         self.assertEqual(data['type'], iotests.imgfmt)
         self.assertEqual(data['data'], self.compare)

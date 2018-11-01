@@ -140,7 +140,7 @@ class TestSCMFd(iotests.QMPTestCase):
         os.remove(image0)
 
     def _send_fd_by_SCM(self):
-        ret = self.vm.send_fd_scm(image0)
+        ret = self.vm.send_fd_scm(file_path=image0)
         self.assertEqual(ret, 0, 'Failed to send fd with UNIX SCM')
 
     def test_add_fd(self):

@@ -32,7 +32,7 @@ target_img = os.path.join(iotests.test_dir, 'target.img')
 def img_create(img, fmt=iotests.imgfmt, size='64M', **kwargs):
     fullname = os.path.join(iotests.test_dir, '%s.%s' % (img, fmt))
     optargs = []
-    for k,v in kwargs.iteritems():
+    for k,v in kwargs.items():
         optargs = optargs + ['-o', '%s=%s' % (k,v)]
     args = ['create', '-f', fmt] + optargs + [fullname, size]
     iotests.qemu_img(*args)

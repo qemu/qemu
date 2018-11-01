@@ -1,16 +1,16 @@
 === Successful image creation (defaults) ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.qcow2'}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-add', 'arguments': {'node_name': 'imgfile', 'driver': 'file', 'filename': 'TEST_DIR/PID-t.qcow2'}}
-{u'return': {}}
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'qcow2', 'file': 'imgfile', 'size': 134217728}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2", "node_name": "imgfile"}}
+{"return": {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "imgfile", "size": 134217728}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: TEST_IMG
 file format: IMGFMT
@@ -24,15 +24,15 @@ Format specific information:
 
 === Successful image creation (inline blockdev-add, explicit defaults) ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'nocow': False, 'preallocation': 'off', 'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.qcow2'}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2", "nocow": false, "preallocation": "off", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 65536, 'refcount-bits': 16, 'version': 'v3', 'preallocation': 'off', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-t.qcow2'}, 'lazy-refcounts': False, 'driver': 'qcow2', 'size': 67108864}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"cluster-size": 65536, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2"}, "lazy-refcounts": false, "preallocation": "off", "refcount-bits": 16, "size": 67108864, "version": "v3"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: TEST_IMG
 file format: IMGFMT
@@ -46,15 +46,15 @@ Format specific information:
 
 === Successful image creation (v3 non-default options) ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'nocow': True, 'preallocation': 'falloc', 'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.qcow2'}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2", "nocow": true, "preallocation": "falloc", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 2097152, 'refcount-bits': 1, 'version': 'v3', 'preallocation': 'metadata', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-t.qcow2'}, 'lazy-refcounts': True, 'driver': 'qcow2', 'size': 33554432}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"cluster-size": 2097152, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2"}, "lazy-refcounts": true, "preallocation": "metadata", "refcount-bits": 1, "size": 33554432, "version": "v3"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: TEST_IMG
 file format: IMGFMT
@@ -68,15 +68,15 @@ Format specific information:
 
 === Successful image creation (v2 non-default options) ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'size': 0, 'driver': 'file', 'filename': 'TEST_DIR/PID-t.qcow2'}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 512, 'backing-fmt': 'qcow2', 'driver': 'qcow2', 'version': 'v2', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-t.qcow2'}, 'backing-file': 'TEST_DIR/PID-t.qcow2.base', 'size': 33554432}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"backing-file": "TEST_DIR/PID-t.qcow2.base", "backing-fmt": "qcow2", "cluster-size": 512, "driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2"}, "size": 33554432, "version": "v2"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: TEST_IMG
 file format: IMGFMT
@@ -90,10 +90,10 @@ Format specific information:
 
 === Successful image creation (encrypted) ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'encrypt': {'key-secret': 'keysec0', 'iter-time': 10, 'cipher-mode': 'ctr', 'ivgen-hash-alg': 'md5', 'cipher-alg': 'twofish-128', 'format': 'luks', 'ivgen-alg': 'plain64', 'hash-alg': 'sha1'}, 'driver': 'qcow2', 'file': {'driver': 'file', 'filename': 'TEST_DIR/PID-t.qcow2'}, 'size': 33554432}}}
-{u'return': {}}
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "encrypt": {"cipher-alg": "twofish-128", "cipher-mode": "ctr", "format": "luks", "hash-alg": "sha1", "iter-time": 10, "ivgen-alg": "plain64", "ivgen-hash-alg": "md5", "key-secret": "keysec0"}, "file": {"driver": "file", "filename": "TEST_DIR/PID-t.qcow2"}, "size": 33554432}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 image: TEST_IMG
 file format: IMGFMT
@@ -144,113 +144,113 @@ Format specific information:
 
 === Invalid BlockdevRef ===
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'qcow2', 'file': "this doesn't exist", 'size': 33554432}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "this doesn't exist", "size": 33554432}}}
+{"return": {}}
 Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exist
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 === Invalid sizes ===
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'qcow2', 'file': 'node0', 'size': 1234}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "node0", "size": 1234}}}
+{"return": {}}
 Job failed: Image size must be a multiple of 512 bytes
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'qcow2', 'file': 'node0', 'size': 18446744073709551104L}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "node0", "size": 18446744073709551104}}}
+{"return": {}}
 Job failed: Could not resize image: Image size cannot be negative
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'qcow2', 'file': 'node0', 'size': 9223372036854775808L}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "node0", "size": 9223372036854775808}}}
+{"return": {}}
 Job failed: Could not resize image: Image size cannot be negative
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'driver': 'qcow2', 'file': 'node0', 'size': 9223372036854775296}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "node0", "size": 9223372036854775296}}}
+{"return": {}}
 Job failed: Could not resize image: Failed to grow the L1 table: File too large
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 === Invalid version ===
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'version': 'v1', 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'error': {u'class': u'GenericError', u'desc': u"Invalid parameter 'v1'"}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "node0", "size": 67108864, "version": "v1"}}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter 'v1'"}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'lazy-refcounts': True, 'version': 'v2', 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "node0", "lazy-refcounts": true, "size": 67108864, "version": "v2"}}}
+{"return": {}}
 Job failed: Lazy refcounts only supported with compatibility level 1.1 and above (use version=v3 or greater)
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'refcount-bits': 8, 'version': 'v2', 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "node0", "refcount-bits": 8, "size": 67108864, "version": "v2"}}}
+{"return": {}}
 Job failed: Different refcount widths than 16 bits require compatibility level 1.1 or above (use version=v3 or greater)
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 === Invalid backing file options ===
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'preallocation': 'full', 'driver': 'qcow2', 'backing-file': '/dev/null', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"backing-file": "/dev/null", "driver": "qcow2", "file": "node0", "preallocation": "full", "size": 67108864}}}
+{"return": {}}
 Job failed: Backing file and preallocation cannot be used at the same time
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'backing-fmt': 'qcow2', 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"backing-fmt": "qcow2", "driver": "qcow2", "file": "node0", "size": 67108864}}}
+{"return": {}}
 Job failed: Backing format cannot be used without backing file
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 === Invalid cluster size ===
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 1234, 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"cluster-size": 1234, "driver": "qcow2", "file": "node0", "size": 67108864}}}
+{"return": {}}
 Job failed: Cluster size must be a power of two between 512 and 2048k
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 128, 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"cluster-size": 128, "driver": "qcow2", "file": "node0", "size": 67108864}}}
+{"return": {}}
 Job failed: Cluster size must be a power of two between 512 and 2048k
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 4194304, 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"cluster-size": 4194304, "driver": "qcow2", "file": "node0", "size": 67108864}}}
+{"return": {}}
 Job failed: Cluster size must be a power of two between 512 and 2048k
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 0, 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"cluster-size": 0, "driver": "qcow2", "file": "node0", "size": 67108864}}}
+{"return": {}}
 Job failed: Cluster size must be a power of two between 512 and 2048k
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'cluster-size': 512, 'driver': 'qcow2', 'file': 'node0', 'size': 281474976710656}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"cluster-size": 512, "driver": "qcow2", "file": "node0", "size": 281474976710656}}}
+{"return": {}}
 Job failed: Could not resize image: Failed to grow the L1 table: File too large
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
 === Invalid refcount width ===
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'refcount-bits': 128, 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "node0", "refcount-bits": 128, "size": 67108864}}}
+{"return": {}}
 Job failed: Refcount width must be a power of two and may not exceed 64 bits
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'refcount-bits': 0, 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "node0", "refcount-bits": 0, "size": 67108864}}}
+{"return": {}}
 Job failed: Refcount width must be a power of two and may not exceed 64 bits
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 
-{'execute': 'blockdev-create', 'arguments': {'job_id': 'job0', 'options': {'refcount-bits': 7, 'driver': 'qcow2', 'file': 'node0', 'size': 67108864}}}
-{u'return': {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "qcow2", "file": "node0", "refcount-bits": 7, "size": 67108864}}}
+{"return": {}}
 Job failed: Refcount width must be a power of two and may not exceed 64 bits
-{'execute': 'job-dismiss', 'arguments': {'id': 'job0'}}
-{u'return': {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
 

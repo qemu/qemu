@@ -18,8 +18,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import os, random, iotests, struct, qcow2
+import os, random, iotests, struct, qcow2, sys
 from iotests import qemu_img, qemu_io, image_size
+
+if sys.version_info.major == 2:
+    range = xrange
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
 check_img = os.path.join(iotests.test_dir, 'check.img')
@@ -38,10 +41,10 @@ class ShrinkBaseClass(iotests.QMPTestCase):
         entry_bits = 3
         entry_size = 1 << entry_bits
         l1_mask = 0x00fffffffffffe00
-        div_roundup = lambda n, d: (n + d - 1) / d
+        div_roundup = lambda n, d: (n + d - 1) // d
 
         def split_by_n(data, n):
-            for x in xrange(0, len(data), n):
+            for x in range(0, len(data), n):
                 yield struct.unpack('>Q', data[x:x + n])[0] & l1_mask
 
         def check_l1_table(h, l1_data):
@@ -135,8 +138,8 @@ class ShrinkBaseClass(iotests.QMPTestCase):
         self.image_verify()
 
     def test_random_write(self):
-        offs_list = range(0, size_to_int(self.image_len),
-                          size_to_int(self.chunk_size))
+        offs_list = list(range(0, size_to_int(self.image_len),
+                               size_to_int(self.chunk_size)))
         random.shuffle(offs_list)
         for offs in offs_list:
             qemu_io('-c', 'write -P 0xff %d %s' % (offs, self.chunk_size),

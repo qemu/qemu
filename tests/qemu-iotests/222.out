@@ -8,13 +8,13 @@ Done
 
 --- Setting up Fleecing Graph ---
 
-{u'return': {}}
-{u'return': {}}
+{"return": {}}
+{"return": {}}
 
 --- Setting up NBD Export ---
 
-{u'return': {}}
-{u'return': {}}
+{"return": {}}
+{"return": {}}
 
 --- Sanity Check ---
 
@@ -29,13 +29,13 @@ read -P0 0x3fe0000 64k
 --- Testing COW ---
 
 write -P0xab 0 64k
-{u'return': u''}
+{"return": ""}
 write -P0xad 0x00f8000 64k
-{u'return': u''}
+{"return": ""}
 write -P0x1d 0x2008000 64k
-{u'return': u''}
+{"return": ""}
 write -P0xea 0x3fe0000 64k
-{u'return': u''}
+{"return": ""}
 
 --- Verifying Data ---
 
@@ -49,10 +49,10 @@ read -P0 0x3fe0000 64k
 
 --- Cleanup ---
 
-{u'return': {}}
-{u'timestamp': {u'seconds': 'SECS', u'microseconds': 'USECS'}, u'data': {u'device': u'drive0', u'type': u'backup', u'speed': 0, u'len': 67108864, u'offset': 393216}, u'event': u'BLOCK_JOB_CANCELLED'}
-{u'return': {}}
-{u'return': {}}
+{"return": {}}
+{"data": {"device": "drive0", "len": 67108864, "offset": 393216, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"return": {}}
+{"return": {}}
 
 --- Confirming writes ---
 

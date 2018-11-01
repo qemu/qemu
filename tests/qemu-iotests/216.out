@@ -7,8 +7,8 @@ Done
 
 --- Doing COR ---
 
-{u'return': {}}
-{u'return': u''}
+{"return": {}}
+{"return": ""}
 
 --- Checking COR result ---
 

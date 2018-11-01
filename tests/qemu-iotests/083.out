@@ -41,6 +41,7 @@ can't open device nbd+tcp://127.0.0.1:PORT/foo
 
 === Check disconnect after neg2 ===
 
+Unable to read from socket: Connection reset by peer
 Connection closed
 read failed: Input/output error
 
@@ -54,6 +55,7 @@ can't open device nbd+tcp://127.0.0.1:PORT/foo
 
 === Check disconnect before request ===
 
+Unable to read from socket: Connection reset by peer
 Connection closed
 read failed: Input/output error
 
@@ -116,6 +118,7 @@ can't open device nbd+tcp://127.0.0.1:PORT/
 
 === Check disconnect after neg-classic ===
 
+Unable to read from socket: Connection reset by peer
 Connection closed
 read failed: Input/output error
 
@@ -161,6 +164,8 @@ can't open device nbd+unix:///foo?socket=TEST_DIR/nbd.sock
 
 === Check disconnect after neg2 ===
 
+Unable to read from socket: Connection reset by peer
+Connection closed
 read failed: Input/output error
 
 === Check disconnect 8 neg2 ===
@@ -173,6 +178,8 @@ can't open device nbd+unix:///foo?socket=TEST_DIR/nbd.sock
 
 === Check disconnect before request ===
 
+Unable to read from socket: Connection reset by peer
+Connection closed
 read failed: Input/output error
 
 === Check disconnect after request ===
@@ -234,6 +241,8 @@ can't open device nbd+unix:///?socket=TEST_DIR/nbd.sock
 
 === Check disconnect after neg-classic ===
 
+Unable to read from socket: Connection reset by peer
+Connection closed
 read failed: Input/output error
 
 *** done

@@ -69,18 +69,18 @@ class ThrottleTestCase(iotests.QMPTestCase):
         # in. The throttled requests won't be executed until we
         # advance the virtual clock.
         rq_size = 512
-        rd_nr = max(params['bps'] / rq_size / 2,
-                    params['bps_rd'] / rq_size,
-                    params['iops'] / 2,
+        rd_nr = max(params['bps'] // rq_size // 2,
+                    params['bps_rd'] // rq_size,
+                    params['iops'] // 2,
                     params['iops_rd'])
         rd_nr *= seconds * 2
-        rd_nr /= ndrives
-        wr_nr = max(params['bps'] / rq_size / 2,
-                    params['bps_wr'] / rq_size,
-                    params['iops'] / 2,
+        rd_nr //= ndrives
+        wr_nr = max(params['bps'] // rq_size // 2,
+                    params['bps_wr'] // rq_size,
+                    params['iops'] // 2,
                     params['iops_wr'])
         wr_nr *= seconds * 2
-        wr_nr /= ndrives
+        wr_nr //= ndrives
 
         # Send I/O requests to all drives
         for i in range(rd_nr):
@@ -196,7 +196,7 @@ class ThrottleTestCase(iotests.QMPTestCase):
             self.configure_throttle(ndrives, settings)
 
             # Wait for the bucket to empty so we can do bursts
-            wait_ns = nsec_per_sec * burst_length * burst_rate / rate
+            wait_ns = nsec_per_sec * burst_length * burst_rate // rate
             self.vm.qtest("clock_step %d" % wait_ns)
 
             # Test I/O at the max burst rate

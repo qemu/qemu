@@ -59,9 +59,9 @@ class QEMUMachineAddDeviceError(QEMUMachineError):
     """
 
 class MonitorResponseError(qmp.qmp.QMPError):
-    '''
+    """
     Represents erroneous QMP monitor reply
-    '''
+    """
     def __init__(self, reply):
         try:
             desc = reply["error"]["desc"]
@@ -72,14 +72,15 @@ class MonitorResponseError(qmp.qmp.QMPError):
 
 
 class QEMUMachine(object):
-    '''A QEMU VM
+    """
+    A QEMU VM
 
     Use this object as a context manager to ensure the QEMU process terminates::
 
         with VM(binary) as vm:
             ...
         # vm is guaranteed to be shut down here
-    '''
+    """
 
     def __init__(self, binary, args=None, wrapper=None, name=None,
                  test_dir="/var/tmp", monitor_address=None,
@@ -141,18 +142,28 @@ class QEMUMachine(object):
         self._args.append(args)
 
     def add_fd(self, fd, fdset, opaque, opts=''):
-        '''Pass a file descriptor to the VM'''
+        """
+        Pass a file descriptor to the VM
+        """
         options = ['fd=%d' % fd,
                    'set=%d' % fdset,
                    'opaque=%s' % opaque]
         if opts:
             options.append(opts)
 
+        # This did not exist before 3.4, but since then it is
+        # mandatory for our purpose
+        if hasattr(os, 'set_inheritable'):
+            os.set_inheritable(fd, True)
+
         self._args.append('-add-fd')
         self._args.append(','.join(options))
         return self
 
-    def send_fd_scm(self, fd_file_path):
+    # Exactly one of fd and file_path must be given.
+    # (If it is file_path, the helper will open that file and pass its
+    # own fd)
+    def send_fd_scm(self, fd=None, file_path=None):
         # In iotest.py, the qmp should always use unix socket.
         assert self._qmp.is_scm_available()
         if self._socket_scm_helper is None:
@@ -160,12 +171,27 @@ class QEMUMachine(object):
         if not os.path.exists(self._socket_scm_helper):
             raise QEMUMachineError("%s does not exist" %
                                    self._socket_scm_helper)
+
+        # This did not exist before 3.4, but since then it is
+        # mandatory for our purpose
+        if hasattr(os, 'set_inheritable'):
+            os.set_inheritable(self._qmp.get_sock_fd(), True)
+            if fd is not None:
+                os.set_inheritable(fd, True)
+
         fd_param = ["%s" % self._socket_scm_helper,
-                    "%d" % self._qmp.get_sock_fd(),
-                    "%s" % fd_file_path]
+                    "%d" % self._qmp.get_sock_fd()]
+
+        if file_path is not None:
+            assert fd is None
+            fd_param.append(file_path)
+        else:
+            assert fd is not None
+            fd_param.append(str(fd))
+
         devnull = open(os.path.devnull, 'rb')
         proc = subprocess.Popen(fd_param, stdin=devnull, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
+                                stderr=subprocess.STDOUT, close_fds=False)
         output = proc.communicate()[0]
         if output:
             LOG.debug(output)
@@ -174,7 +200,9 @@ class QEMUMachine(object):
 
     @staticmethod
     def _remove_if_exists(path):
-        '''Remove file object at path if it exists'''
+        """
+        Remove file object at path if it exists
+        """
         try:
             os.remove(path)
         except OSError as exception:
@@ -277,7 +305,9 @@ class QEMUMachine(object):
             raise
 
     def _launch(self):
-        '''Launch the VM and establish a QMP connection'''
+        """
+        Launch the VM and establish a QMP connection
+        """
         devnull = open(os.path.devnull, 'rb')
         self._pre_launch()
         self._qemu_full_args = (self._wrapper + [self._binary] +
@@ -286,18 +316,23 @@ class QEMUMachine(object):
                                        stdin=devnull,
                                        stdout=self._qemu_log_file,
                                        stderr=subprocess.STDOUT,
-                                       shell=False)
+                                       shell=False,
+                                       close_fds=False)
         self._post_launch()
 
     def wait(self):
-        '''Wait for the VM to power off'''
+        """
+        Wait for the VM to power off
+        """
         self._popen.wait()
         self._qmp.close()
         self._load_io_log()
         self._post_shutdown()
 
     def shutdown(self):
-        '''Terminate the VM and clean up'''
+        """
+        Terminate the VM and clean up
+        """
         if self.is_running():
             try:
                 self._qmp.cmd('quit')
@@ -321,7 +356,9 @@ class QEMUMachine(object):
         self._launched = False
 
     def qmp(self, cmd, conv_keys=True, **args):
-        '''Invoke a QMP command and return the response dict'''
+        """
+        Invoke a QMP command and return the response dict
+        """
         qmp_args = dict()
         for key, value in args.items():
             if conv_keys:
@@ -332,11 +369,11 @@ class QEMUMachine(object):
         return self._qmp.cmd(cmd, args=qmp_args)
 
     def command(self, cmd, conv_keys=True, **args):
-        '''
+        """
         Invoke a QMP command.
         On success return the response dict.
         On failure raise an exception.
-        '''
+        """
         reply = self.qmp(cmd, conv_keys, **args)
         if reply is None:
             raise qmp.qmp.QMPError("Monitor is closed")
@@ -345,13 +382,17 @@ class QEMUMachine(object):
         return reply["return"]
 
     def get_qmp_event(self, wait=False):
-        '''Poll for one queued QMP events and return it'''
+        """
+        Poll for one queued QMP events and return it
+        """
         if len(self._events) > 0:
             return self._events.pop(0)
         return self._qmp.pull_event(wait=wait)
 
     def get_qmp_events(self, wait=False):
-        '''Poll for queued QMP events and return a list of dicts'''
+        """
+        Poll for queued QMP events and return a list of dicts
+        """
         events = self._qmp.get_events(wait=wait)
         events.extend(self._events)
         del self._events[:]
@@ -359,7 +400,7 @@ class QEMUMachine(object):
         return events
 
     def event_wait(self, name, timeout=60.0, match=None):
-        '''
+        """
         Wait for specified timeout on named event in QMP; optionally filter
         results by match.
 
@@ -367,7 +408,7 @@ class QEMUMachine(object):
         branch processing on match's value None
            {"foo": {"bar": 1}} matches {"foo": None}
            {"foo": {"bar": 1}} does not matches {"foo": {"baz": None}}
-        '''
+        """
         def event_match(event, match=None):
             if match is None:
                 return True
@@ -400,29 +441,29 @@ class QEMUMachine(object):
         return None
 
     def get_log(self):
-        '''
+        """
         After self.shutdown or failed qemu execution, this returns the output
         of the qemu process.
-        '''
+        """
         return self._iolog
 
     def add_args(self, *args):
-        '''
+        """
         Adds to the list of extra arguments to be given to the QEMU binary
-        '''
+        """
         self._args.extend(args)
 
     def set_machine(self, machine_type):
-        '''
+        """
         Sets the machine type
 
         If set, the machine type will be added to the base arguments
         of the resulting QEMU command line.
-        '''
+        """
         self._machine = machine_type
 
     def set_console(self, device_type=None):
-        '''
+        """
         Sets the device type for a console device
 
         If set, the console device and a backing character device will
@@ -440,7 +481,7 @@ class QEMUMachine(object):
         @param device_type: the device type, such as "isa-serial"
         @raises: QEMUMachineAddDeviceError if the device type is not given
                  and can not be determined.
-        '''
+        """
         if device_type is None:
             if self._machine is None:
                 raise QEMUMachineAddDeviceError("Can not add a console device:"

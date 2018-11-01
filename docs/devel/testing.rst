@@ -545,10 +545,39 @@ Tests based on ``avocado_qemu.Test`` can easily:
    - http://avocado-framework.readthedocs.io/en/latest/api/test/avocado.html#avocado.Test
    - http://avocado-framework.readthedocs.io/en/latest/api/utils/avocado.utils.html
 
-Installation
-------------
+Running tests
+-------------
 
-To install Avocado and its dependencies, run:
+You can run the acceptance tests simply by executing:
+
+.. code::
+
+  make check-acceptance
+
+This involves the automatic creation of Python virtual environment
+within the build tree (at ``tests/venv``) which will have all the
+right dependencies, and will save tests results also within the
+build tree (at ``tests/results``).
+
+Note: the build environment must be using a Python 3 stack, and have
+the ``venv`` and ``pip`` packages installed.  If necessary, make sure
+``configure`` is called with ``--python=`` and that those modules are
+available.  On Debian and Ubuntu based systems, depending on the
+specific version, they may be on packages named ``python3-venv`` and
+``python3-pip``.
+
+The scripts installed inside the virtual environment may be used
+without an "activation".  For instance, the Avocado test runner
+may be invoked by running:
+
+ .. code::
+
+  tests/venv/bin/avocado run $OPTION1 $OPTION2 tests/acceptance/
+
+Manual Installation
+-------------------
+
+To manually install Avocado and its dependencies, run:
 
 .. code::
 
@@ -689,11 +718,15 @@ The exact QEMU binary to be used on QEMUMachine.
 Uninstalling Avocado
 --------------------
 
-If you've followed the installation instructions above, you can easily
-uninstall Avocado.  Start by listing the packages you have installed::
+If you've followed the manual installation instructions above, you can
+easily uninstall Avocado.  Start by listing the packages you have
+installed::
 
   pip list --user
 
 And remove any package you want with::
 
   pip uninstall <package_name>
+
+If you've used ``make check-acceptance``, the Python virtual environment where
+Avocado is installed will be cleaned up as part of ``make check-clean``.

@@ -29,6 +29,7 @@ import json
 import signal
 import logging
 import atexit
+import io
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
 import qtest
@@ -104,7 +105,8 @@ def qemu_img_pipe(*args):
     '''Run qemu-img and return its output'''
     subp = subprocess.Popen(qemu_img_args + list(args),
                             stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
     exitcode = subp.wait()
     if exitcode < 0:
         sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
@@ -128,7 +130,8 @@ def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
     subp = subprocess.Popen(args, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
     exitcode = subp.wait()
     if exitcode < 0:
         sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
@@ -149,7 +152,8 @@ class QemuIoInteractive:
         self.args = qemu_io_args + list(args)
         self._p = subprocess.Popen(self.args, stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                   stderr=subprocess.STDOUT,
+                                   universal_newlines=True)
         assert self._p.stdout.read(9) == 'qemu-io> '
 
     def close(self):
@@ -178,6 +182,7 @@ class QemuIoInteractive:
         cmd = cmd.strip()
         assert cmd != 'q' and cmd != 'quit'
         self._p.stdin.write(cmd + '\n')
+        self._p.stdin.flush()
         return self._read_output()
 
 
@@ -192,10 +197,10 @@ def compare_images(img1, img2, fmt1=imgfmt, fmt2=imgfmt):
 
 def create_image(name, size):
     '''Create a fully-allocated raw image with sector markers'''
-    file = open(name, 'w')
+    file = open(name, 'wb')
     i = 0
     while i < size:
-        sector = struct.pack('>l504xl', i / 512, i / 512)
+        sector = struct.pack('>l504xl', i // 512, i // 512)
         file.write(sector)
         i = i + 512
     file.close()
@@ -249,7 +254,10 @@ def filter_img_info(output, filename):
 def log(msg, filters=[]):
     for flt in filters:
         msg = flt(msg)
-    print(msg)
+    if type(msg) is dict or type(msg) is list:
+        print(json.dumps(msg, sort_keys=True))
+    else:
+        print(msg)
 
 class Timeout:
     def __init__(self, seconds, errmsg = "Timeout"):
@@ -437,10 +445,11 @@ class VM(qtest.QEMUQtestMachine):
         return result
 
     def qmp_log(self, cmd, filters=[filter_testfiles], **kwargs):
-        logmsg = "{'execute': '%s', 'arguments': %s}" % (cmd, kwargs)
+        logmsg = '{"execute": "%s", "arguments": %s}' % \
+            (cmd, json.dumps(kwargs, sort_keys=True))
         log(logmsg, filters)
         result = self.qmp(cmd, **kwargs)
-        log(str(result), filters)
+        log(json.dumps(result, sort_keys=True), filters)
         return result
 
     def run_job(self, job, auto_finalize=True, auto_dismiss=False):
@@ -677,15 +686,19 @@ def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[],
     verify_platform(supported_oses)
     verify_cache_mode(supported_cache_modes)
 
-    # We need to filter out the time taken from the output so that qemu-iotest
-    # can reliably diff the results against master output.
-    import StringIO
     if debug:
         output = sys.stdout
         verbosity = 2
         sys.argv.remove('-d')
     else:
-        output = StringIO.StringIO()
+        # We need to filter out the time taken from the output so that
+        # qemu-iotest can reliably diff the results against master output.
+        if sys.version_info.major >= 3:
+            output = io.StringIO()
+        else:
+            # io.StringIO is for unicode strings, which is not what
+            # 2.x's test runner emits.
+            output = io.BytesIO()
 
     logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
 

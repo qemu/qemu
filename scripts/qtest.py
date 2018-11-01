@@ -64,7 +64,7 @@ class QEMUQtestProtocol(object):
 
         @param qtest_cmd: qtest command text to be sent
         """
-        self._sock.sendall(qtest_cmd + "\n")
+        self._sock.sendall((qtest_cmd + "\n").encode('utf-8'))
 
     def close(self):
         self._sock.close()

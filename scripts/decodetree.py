@@ -298,7 +298,7 @@ class Field:
             s = 's'
         else:
             s = ''
-        return str(pos) + ':' + s + str(len)
+        return str(self.pos) + ':' + s + str(self.len)
 
     def str_extract(self):
         if self.sign:
