@@ -3762,32 +3762,46 @@ static ssize_t qcow2_compress(void *dest, size_t dest_size,
     return ret;
 }
 
-static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
-                             const uint8_t *buf, int buf_size)
+/*
+ * qcow2_decompress()
+ *
+ * Decompress some data (not more than @src_size bytes) to produce exactly
+ * @dest_size bytes.
+ *
+ * @dest - destination buffer, @dest_size bytes
+ * @src - source buffer, @src_size bytes
+ *
+ * Returns: 0 on success
+ *          -1 on fail
+ */
+static ssize_t qcow2_decompress(void *dest, size_t dest_size,
+                                const void *src, size_t src_size)
 {
-    z_stream strm1, *strm = &strm1;
-    int ret, out_len;
+    int ret = 0;
+    z_stream strm;
 
-    memset(strm, 0, sizeof(*strm));
+    memset(&strm, 0, sizeof(strm));
+    strm.avail_in = src_size;
+    strm.next_in = (void *) src;
+    strm.avail_out = dest_size;
+    strm.next_out = dest;
 
-    strm->next_in = (uint8_t *)buf;
-    strm->avail_in = buf_size;
-    strm->next_out = out_buf;
-    strm->avail_out = out_buf_size;
-
-    ret = inflateInit2(strm, -12);
+    ret = inflateInit2(&strm, -12);
     if (ret != Z_OK) {
         return -1;
     }
-    ret = inflate(strm, Z_FINISH);
-    out_len = strm->next_out - out_buf;
-    if ((ret != Z_STREAM_END && ret != Z_BUF_ERROR) ||
-        out_len != out_buf_size) {
-        inflateEnd(strm);
-        return -1;
+
+    ret = inflate(&strm, Z_FINISH);
+    if ((ret != Z_STREAM_END && ret != Z_BUF_ERROR) || strm.avail_out != 0) {
+        /* We approve Z_BUF_ERROR because we need @dest buffer to be filled, but
+         * @src buffer may be processed partly (because in qcow2 we know size of
+         * compressed data with precision of one sector) */
+        ret = -1;
     }
-    inflateEnd(strm);
-    return 0;
+
+    inflateEnd(&strm);
+
+    return ret;
 }
 
 #define MAX_COMPRESS_THREADS 4
@@ -3977,8 +3991,8 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
         if (ret < 0) {
             return ret;
         }
-        if (decompress_buffer(s->cluster_cache, s->cluster_size,
-                              s->cluster_data + sector_offset, csize) < 0) {
+        if (qcow2_decompress(s->cluster_cache, s->cluster_size,
+                             s->cluster_data + sector_offset, csize) < 0) {
             return -EIO;
         }
         s->cluster_cache_offset = coffset;
