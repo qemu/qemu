@@ -116,7 +116,7 @@ void fsdev_get_io_throttle(FsThrottle *fst, FsdevIOThrottle **fs9pcfg,
     ThrottleLimits *tlimits;
     FsdevIOThrottle *fscfg = g_malloc(sizeof(*fscfg));
     tlimits = qapi_FsdevIOThrottle_base(fscfg);
-     fscfg->has_id = true;
+    fscfg->has_id = true;
     fscfg->id = g_strdup(fsdevice);
     throttle_config_to_limits(&cfg, tlimits);
     *fs9pcfg = fscfg;
