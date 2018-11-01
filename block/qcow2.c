@@ -3738,7 +3738,7 @@ static ssize_t qcow2_compress(void *dest, const void *src, size_t size)
     memset(&strm, 0, sizeof(strm));
     ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
                        -12, 9, Z_DEFAULT_STRATEGY);
-    if (ret != 0) {
+    if (ret != Z_OK) {
         return -2;
     }
 
