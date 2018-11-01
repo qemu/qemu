@@ -1402,6 +1402,10 @@ sub process {
 			$is_patch = 1;
 		}
 
+		if ($line =~ /^Author: .*via Qemu-devel.*<qemu-devel\@nongnu.org>/) {
+		    ERROR("Author email address is mangled by the mailing list\n" . $herecurr);
+		}
+
 #check the patch for a signoff:
 		if ($line =~ /^\s*signed-off-by:/i) {
 			# This is a signoff, if ugly, so do not double report.
