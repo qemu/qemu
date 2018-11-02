@@ -32,5 +32,3 @@ fi
 TEST_ACPI_REBUILD_AML=y QTEST_QEMU_BINARY=$qemu tests/bios-tables-test
 
 echo "The files were rebuilt and can be added to git."
-echo "However, if new files were created, please copy them manually" \
-     "to tests/acpi-test-data/pc/ or tests/acpi-test-data/q35/ ."

@@ -42,7 +42,7 @@ typedef struct {
 } test_data;
 
 static char disk[] = "tests/acpi-test-disk-XXXXXX";
-static const char *data_dir = "tests/acpi-test-data";
+static const char *data_dir = "tests/data/acpi";
 #ifdef CONFIG_IASL
 static const char *iasl = stringify(CONFIG_IASL);
 #else
