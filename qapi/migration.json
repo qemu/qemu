@@ -1317,7 +1317,7 @@
 #
 # @reason: describes the reason for the COLO exit.
 #
-# Since: 3.0
+# Since: 3.1
 ##
 { 'struct': 'COLOStatus',
   'data': { 'mode': 'COLOMode', 'reason': 'COLOExitReason' } }
@@ -1334,7 +1334,7 @@
 # -> { "execute": "query-colo-status" }
 # <- { "return": { "mode": "primary", "active": true, "reason": "request" } }
 #
-# Since: 3.0
+# Since: 3.1
 ##
 { 'command': 'query-colo-status',
   'returns': 'COLOStatus' }
