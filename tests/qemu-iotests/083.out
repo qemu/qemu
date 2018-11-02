@@ -41,8 +41,6 @@ can't open device nbd+tcp://127.0.0.1:PORT/foo
 
 === Check disconnect after neg2 ===
 
-Unable to read from socket: Connection reset by peer
-Connection closed
 read failed: Input/output error
 
 === Check disconnect 8 neg2 ===
@@ -55,40 +53,30 @@ can't open device nbd+tcp://127.0.0.1:PORT/foo
 
 === Check disconnect before request ===
 
-Unable to read from socket: Connection reset by peer
-Connection closed
 read failed: Input/output error
 
 === Check disconnect after request ===
 
-Connection closed
 read failed: Input/output error
 
 === Check disconnect before reply ===
 
-Connection closed
 read failed: Input/output error
 
 === Check disconnect after reply ===
 
-Unexpected end-of-file before all bytes were read
 read failed: Input/output error
 
 === Check disconnect 4 reply ===
 
-Unexpected end-of-file before all bytes were read
-Connection closed
 read failed: Input/output error
 
 === Check disconnect 8 reply ===
 
-Unexpected end-of-file before all bytes were read
-Connection closed
 read failed: Input/output error
 
 === Check disconnect before data ===
 
-Unexpected end-of-file before all bytes were read
 read failed: Input/output error
 
 === Check disconnect after data ===
@@ -118,8 +106,6 @@ can't open device nbd+tcp://127.0.0.1:PORT/
 
 === Check disconnect after neg-classic ===
 
-Unable to read from socket: Connection reset by peer
-Connection closed
 read failed: Input/output error
 
 === Check disconnect before neg1 ===
@@ -164,8 +150,6 @@ can't open device nbd+unix:///foo?socket=TEST_DIR/nbd.sock
 
 === Check disconnect after neg2 ===
 
-Unable to read from socket: Connection reset by peer
-Connection closed
 read failed: Input/output error
 
 === Check disconnect 8 neg2 ===
@@ -178,40 +162,30 @@ can't open device nbd+unix:///foo?socket=TEST_DIR/nbd.sock
 
 === Check disconnect before request ===
 
-Unable to read from socket: Connection reset by peer
-Connection closed
 read failed: Input/output error
 
 === Check disconnect after request ===
 
-Connection closed
 read failed: Input/output error
 
 === Check disconnect before reply ===
 
-Connection closed
 read failed: Input/output error
 
 === Check disconnect after reply ===
 
-Unexpected end-of-file before all bytes were read
 read failed: Input/output error
 
 === Check disconnect 4 reply ===
 
-Unexpected end-of-file before all bytes were read
-Connection closed
 read failed: Input/output error
 
 === Check disconnect 8 reply ===
 
-Unexpected end-of-file before all bytes were read
-Connection closed
 read failed: Input/output error
 
 === Check disconnect before data ===
 
-Unexpected end-of-file before all bytes were read
 read failed: Input/output error
 
 === Check disconnect after data ===
@@ -241,8 +215,6 @@ can't open device nbd+unix:///?socket=TEST_DIR/nbd.sock
 
 === Check disconnect after neg-classic ===
 
-Unable to read from socket: Connection reset by peer
-Connection closed
 read failed: Input/output error
 
 *** done

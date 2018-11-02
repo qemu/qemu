@@ -28,6 +28,8 @@
  */
 
 #include "qemu/osdep.h"
+
+#include "trace.h"
 #include "qapi/error.h"
 #include "nbd-client.h"
 
@@ -79,7 +81,8 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         assert(s->reply.handle == 0);
         ret = nbd_receive_reply(s->ioc, &s->reply, &local_err);
         if (local_err) {
-            error_report_err(local_err);
+            trace_nbd_read_reply_entry_fail(ret, error_get_pretty(local_err));
+            error_free(local_err);
         }
         if (ret <= 0) {
             break;
@@ -771,7 +774,11 @@ static int nbd_co_request(BlockDriverState *bs, NBDRequest *request,
 
     ret = nbd_co_receive_return_code(client, request->handle, &local_err);
     if (local_err) {
-        error_report_err(local_err);
+        trace_nbd_co_request_fail(request->from, request->len, request->handle,
+                                  request->flags, request->type,
+                                  nbd_cmd_lookup(request->type),
+                                  ret, error_get_pretty(local_err));
+        error_free(local_err);
     }
     return ret;
 }
@@ -802,7 +809,11 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     ret = nbd_co_receive_cmdread_reply(client, request.handle, offset, qiov,
                                        &local_err);
     if (local_err) {
-        error_report_err(local_err);
+        trace_nbd_co_request_fail(request.from, request.len, request.handle,
+                                  request.flags, request.type,
+                                  nbd_cmd_lookup(request.type),
+                                  ret, error_get_pretty(local_err));
+        error_free(local_err);
     }
     return ret;
 }
@@ -925,7 +936,11 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
     ret = nbd_co_receive_blockstatus_reply(client, request.handle, bytes,
                                            &extent, &local_err);
     if (local_err) {
-        error_report_err(local_err);
+        trace_nbd_co_request_fail(request.from, request.len, request.handle,
+                                  request.flags, request.type,
+                                  nbd_cmd_lookup(request.type),
+                                  ret, error_get_pretty(local_err));
+        error_free(local_err);
     }
     if (ret < 0) {
         return ret;
