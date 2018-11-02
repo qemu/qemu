@@ -43,9 +43,12 @@
 #define NRF51822_FLASH_SIZE     (256 * 1024)
 #define NRF51822_SRAM_SIZE      (16 * 1024)
 
+#define BASE_TO_IRQ(base) ((base >> 12) & 0x1F)
+
 static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 {
     NRF51State *s = NRF51_SOC(dev_soc);
+    MemoryRegion *mr;
     Error *err = NULL;
 
     if (!s->board_memory) {
@@ -82,6 +85,18 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     }
     memory_region_add_subregion(&s->container, SRAM_BASE, &s->sram);
 
+    /* UART */
+    object_property_set_bool(OBJECT(&s->uart), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->uart), 0);
+    memory_region_add_subregion_overlap(&s->container, UART_BASE, mr, 0);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart), 0,
+                       qdev_get_gpio_in(DEVICE(&s->cpu),
+                       BASE_TO_IRQ(UART_BASE)));
+
     create_unimplemented_device("nrf51_soc.io", IOMEM_BASE, IOMEM_SIZE);
     create_unimplemented_device("nrf51_soc.ficr", FICR_BASE, FICR_SIZE);
     create_unimplemented_device("nrf51_soc.private",
@@ -99,6 +114,11 @@ static void nrf51_soc_init(Object *obj)
     qdev_prop_set_string(DEVICE(&s->cpu), "cpu-type",
                          ARM_CPU_TYPE_NAME("cortex-m0"));
     qdev_prop_set_uint32(DEVICE(&s->cpu), "num-irq", 32);
+
+    sysbus_init_child_obj(obj, "uart", &s->uart, sizeof(s->uart),
+                           TYPE_NRF51_UART);
+    object_property_add_alias(obj, "serial0", OBJECT(&s->uart), "chardev",
+                              &error_abort);
 }
 
 static Property nrf51_soc_properties[] = {

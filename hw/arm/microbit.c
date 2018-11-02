@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "hw/boards.h"
 #include "hw/arm/arm.h"
+#include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 
 #include "hw/arm/nrf51_soc.h"
@@ -35,6 +36,7 @@ static void microbit_init(MachineState *machine)
 
     sysbus_init_child_obj(OBJECT(machine), "nrf51", soc, sizeof(s->nrf51),
                           TYPE_NRF51_SOC);
+    qdev_prop_set_chr(DEVICE(&s->nrf51), "serial0", serial_hd(0));
     object_property_set_link(soc, OBJECT(system_memory), "memory",
                              &error_fatal);
     object_property_set_bool(soc, true, "realized", &error_fatal);
