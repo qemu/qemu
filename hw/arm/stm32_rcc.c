@@ -523,6 +523,9 @@ static void stm32_rcc_RCC_AHBENR_write(Stm32Rcc *s, uint32_t new_value,
     stm32_rcc_periph_enable(s, new_value, init, STM32_CRC,
                             RCC_AHBENR_CRCEN_BIT);
 
+    stm32_rcc_periph_enable(s, new_value, init, STM32_DMA1,
+                            RCC_AHBENR_DMA1EN_BIT);
+
     s->RCC_AHBENR = new_value & 0x0000fffd;
 }
 
@@ -905,6 +908,7 @@ static void stm32_rcc_init_clk(Stm32Rcc *s)
                               s->LSECLK,s->LSICLK,s->HSE_DIV128, NULL);
     s->PERIPHCLK[STM32_DAC]  = clktree_create_clk("DAC", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->PCLK1, NULL);
     s->PERIPHCLK[STM32_CRC]  = clktree_create_clk("CRC", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->HCLK, NULL);
+    s->PERIPHCLK[STM32_DMA1]  = clktree_create_clk("DMA1", 1, 1, false, CLKTREE_NO_MAX_FREQ, 0, s->HCLK, NULL);
 }
 
 
