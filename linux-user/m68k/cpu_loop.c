@@ -55,7 +55,6 @@ void cpu_loop(CPUM68KState *env)
             break;
         case EXCP_LINEA:
         case EXCP_LINEF:
-        case EXCP_UNSUPPORTED:
         do_sigill:
             info.si_signo = TARGET_SIGILL;
             info.si_errno = 0;
