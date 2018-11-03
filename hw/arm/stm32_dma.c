@@ -55,6 +55,10 @@
 
 #define DMA_Reg_Total_Size             (DMA_Stream_Reg_Total_Size+DMA_Total_Size)
 
+
+/* Circular mode delay */
+#define DMA_Circular_delay 1e6
+
 //#define R_DMA_Sx             (0x8 / 4)
 //#define R_DMA_Sx_COUNT           8
 //#define R_DMA_Sx_REGS            4
@@ -97,6 +101,10 @@ typedef struct stm32_dma_stream {
 	uint32_t ndtr; //length & remaining bytes
 	uint32_t par; //source
 	uint32_t mar; //destination
+
+	uint32_t circular_par;    //original source for circular mode
+	uint32_t circular_mar;    //original destination for circular mode
+	uint32_t circular_ndtr;   //original (length & remaining bytes) for circular mode
 } stm32_dma_stream;
 
 //static int msize_table[] = {1, 2, 4, 0};
@@ -105,6 +113,8 @@ static int msize_table[] = {1, 0, 2, 0}; //in bytes
 typedef struct stm32_dma {
 	SysBusDevice busdev;
 	MemoryRegion iomem;
+	struct QEMUTimer *circular_timer;
+	uint32_t chan_circular_mode;
 
 	uint32_t isr; //read only
 	uint32_t ifcr; //write only
@@ -114,6 +124,30 @@ typedef struct stm32_dma {
 qemu_irq *stm32_DMA1_irq;
 static void stm32_dma_stream_start_once(stm32_dma *s, uint32_t stream_no, bool skip_enabled_check);
 static void stm32_dma_stream_start_whole(stm32_dma *s, uint32_t stream_no, bool skip_enabled_check);
+
+static void stm32_dma_stream_circular_timer(void *opaque) {
+	stm32_dma *s = (stm32_dma *)opaque;
+	stm32_dma_stream *s_stream = &(s->stream[s->chan_circular_mode-1]);
+
+	uint64_t curr_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+	stm32_dma_stream_start_once(s, s->chan_circular_mode, false);
+
+	if (s_stream->ndtr == 0) {
+		//if in circular mode, reset the addreses and the length
+		if (s_stream->cr & DMA_CCR_CIRC) {
+			s_stream->mar = s_stream->circular_mar;
+			s_stream->par = s_stream->circular_par;
+			s_stream->ndtr = s_stream->circular_ndtr;
+
+			//Enable the chennel, Because it is disabled in stm32_dma_stream_start_once
+			s_stream->cr |= DMA_CCR_EN;
+		}
+	}
+
+	if ((s_stream->cr & DMA_CCR_EN) != 0)
+		timer_mod(s->circular_timer, curr_time + DMA_Circular_delay);
+}
 
 //Find the channel from destination address
 static int dma_find_channel(stm32_dma *s, uint32_t address, uint8_t search_in_dest) {
@@ -243,21 +277,26 @@ stm32_dma_stream_start_once(stm32_dma *s, uint32_t stream_no, bool skip_enabled_
 	if (s_stream->ndtr == 0) {
 		/* Transfer complete. */
 
-		//Disable the stream
-		s_stream->cr &= ~DMA_CCR_EN;
+		if ((s_stream->cr & DMA_CCR_CIRC) == 0) {
+			//Disable the stream
+			s_stream->cr &= ~DMA_CCR_EN;
+		}
 
 		//Set Transfer complete flag
 		s->isr |= (DMA_ISR_TCIF << ((stream_no-1) * 4));
 
 		if (s_stream->cr & DMA_CCR_TCIE) {
-			//Do the actual inturrupt
-			qemu_irq_pulse(s->stream[stream_no-1].irq);
+			if ((s_stream->cr & DMA_CCR_CIRC) == 0) {
+				//Do the actual inturrupt
+				qemu_irq_pulse(s->stream[stream_no-1].irq);
+			} else {
+				printf("Warning: Skipping an inturrupt, because the inturrupt with circular mode will crash the emulator");
+			}
 		}
 
 		//printf("DMA channel %zu Transfer Completed!\n", stream_no);
 
 	}
-
 }
 
 /* Start a DMA Whole transfer for a given stream. */
@@ -349,14 +388,27 @@ stm32_dma_read(void *arg, hwaddr addr, unsigned int size)
 static void
 stm32_dma_stream_write(stm32_dma_stream *s, stm32_dma *s_o, int stream_no, uint32_t addr, uint32_t data)
 {
+	uint64_t curr_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
 	switch (addr) {
 	case R_DMA_SxCR:
 		DPRINTF("%s: stream: %d, register CR, data:0x%x\n", __func__, stream_no, data);
-		if ((s->cr & DMA_CCR_EN) == 0 && (data & DMA_CCR_EN) != 0 && (data & DMA_CCR_MEM2MEM) != 0) {
-			////printf("mem2mem\n\n");
-			//Do the whole stream only in memory to memory mode
-			//Here, stream_no is starting from zero, and stm32_dma_stream_start_whole is expecting 1 or more
-			stm32_dma_stream_start_whole(s_o, stream_no+1, true);
+		if ((s->cr & DMA_CCR_EN) == 0 && (data & DMA_CCR_EN) != 0) {
+			if ((data & DMA_CCR_MEM2MEM) != 0) {
+				//Do the whole stream only in memory to memory mode
+				//Here, stream_no is starting from zero, and stm32_dma_stream_start_whole is expecting 1 or more
+				stm32_dma_stream_start_whole(s_o, stream_no+1, true);
+			} else if (data & DMA_CCR_CIRC) {
+				//Continuosly transfer in dma circular mode
+				if (data & DMA_CCR_DIR)
+					hw_error("stm32 dma Circular mode is not supported in Memory to Peripheral mode\n");
+
+				if (s_o->chan_circular_mode != 0)
+					hw_error("stm32 dma Circular mode: Currently only one channel supports circular mode!\n");
+
+				s_o->chan_circular_mode = stream_no+1;
+				timer_mod(s_o->circular_timer, curr_time + DMA_Circular_delay);
+			}
 		}
 		s->cr = data;
 		break;
@@ -366,15 +418,15 @@ stm32_dma_stream_write(stm32_dma_stream *s, stm32_dma *s_o, int stream_no, uint3
 			hw_error("stm32 dma write to NDTR while enabled\n");
 			return;
 		}
-		s->ndtr = data;
+		s->ndtr = s->circular_ndtr = data;
 		break;
 	case R_DMA_SxPAR:
 		DPRINTF("%s: stream: %d, register PAR, data:0x%x\n", __func__, stream_no, data);
-		s->par = data;
+		s->par = s->circular_par = data;
 		break;
 	case R_DMA_SxMAR:
 		DPRINTF("%s: stream: %d, register MAR, data:0x%x\n", __func__, stream_no, data);
-		s->mar = data;
+		s->mar = s->circular_mar = data;
 		break;
 	}
 }
@@ -444,6 +496,8 @@ stm32_dma_init(SysBusDevice *dev)
 
 	stm32_DMA1_irq = qemu_allocate_irqs(dma_irq_handler, (void *)s, 1);
 
+	s->circular_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *)stm32_dma_stream_circular_timer, s);
+
 	return 0;
 }
 
@@ -453,6 +507,8 @@ stm32_dma_reset(DeviceState *ds)
 	stm32_dma *s = STM32_DMA(ds);
 
 	memset(&s->ifcr, 0, sizeof(s->ifcr));
+
+	s->chan_circular_mode = 0;
 
 	int i;
 	for (i=0; i < DMA_Stream_Count; i++) {
