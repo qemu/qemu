@@ -591,7 +591,7 @@ virtio_address_space_read(VirtIOPCIProxy *proxy, hwaddr addr,
 static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
                                 uint32_t val, int len)
 {
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     struct virtio_pci_cfg_cap *cfg;
 
@@ -624,7 +624,7 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
 static uint32_t virtio_read_config(PCIDevice *pci_dev,
                                    uint32_t address, int len)
 {
-    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
     struct virtio_pci_cfg_cap *cfg;
 
     if (proxy->config_cap &&
