@@ -4065,7 +4065,7 @@ arch_query_cpu_model_expansion(CpuModelExpansionType type,
         x86_cpu_to_dict_full(xc, props);
     break;
     default:
-        error_setg(&err, "Unsupportted expansion type");
+        error_setg(&err, "Unsupported expansion type");
         goto out;
     }
 
