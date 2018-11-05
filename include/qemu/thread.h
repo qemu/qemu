@@ -162,7 +162,29 @@ void qemu_thread_exit(void *retval);
 void qemu_thread_naming(bool enable);
 
 struct Notifier;
+/**
+ * qemu_thread_atexit_add:
+ * @notifier: Notifier to add
+ *
+ * Add the specified notifier to a list which will be run via
+ * notifier_list_notify() when this thread exits (either by calling
+ * qemu_thread_exit() or by returning from its start_routine).
+ * The usual usage is that the caller passes a Notifier which is
+ * a per-thread variable; it can then use the callback to free
+ * other per-thread data.
+ *
+ * If the thread exits as part of the entire process exiting,
+ * it is unspecified whether notifiers are called or not.
+ */
 void qemu_thread_atexit_add(struct Notifier *notifier);
+/**
+ * qemu_thread_atexit_remove:
+ * @notifier: Notifier to remove
+ *
+ * Remove the specified notifier from the thread-exit notification
+ * list. It is not valid to try to remove a notifier which is not
+ * on the list.
+ */
 void qemu_thread_atexit_remove(struct Notifier *notifier);
 
 struct QemuSpin {
