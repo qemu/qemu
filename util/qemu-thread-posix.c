@@ -443,41 +443,33 @@ void qemu_event_wait(QemuEvent *ev)
     }
 }
 
-static pthread_key_t exit_key;
+static __thread NotifierList thread_exit;
 
-union NotifierThreadData {
-    void *ptr;
-    NotifierList list;
-};
-QEMU_BUILD_BUG_ON(sizeof(union NotifierThreadData) != sizeof(void *));
-
+/*
+ * Note that in this implementation you can register a thread-exit
+ * notifier for the main thread, but it will never be called.
+ * This is OK because main thread exit can only happen when the
+ * entire process is exiting, and the API allows notifiers to not
+ * be called on process exit.
+ */
 void qemu_thread_atexit_add(Notifier *notifier)
 {
-    union NotifierThreadData ntd;
-    ntd.ptr = pthread_getspecific(exit_key);
-    notifier_list_add(&ntd.list, notifier);
-    pthread_setspecific(exit_key, ntd.ptr);
+    notifier_list_add(&thread_exit, notifier);
 }
 
 void qemu_thread_atexit_remove(Notifier *notifier)
 {
-    union NotifierThreadData ntd;
-    ntd.ptr = pthread_getspecific(exit_key);
     notifier_remove(notifier);
-    pthread_setspecific(exit_key, ntd.ptr);
 }
 
-static void qemu_thread_atexit_run(void *arg)
+static void qemu_thread_atexit_notify(void *arg)
 {
-    union NotifierThreadData ntd = { .ptr = arg };
-    notifier_list_notify(&ntd.list, NULL);
+    /*
+     * Called when non-main thread exits (via qemu_thread_exit()
+     * or by returning from its start routine.)
+     */
+    notifier_list_notify(&thread_exit, NULL);
 }
-
-static void __attribute__((constructor)) qemu_thread_atexit_init(void)
-{
-    pthread_key_create(&exit_key, qemu_thread_atexit_run);
-}
-
 
 typedef struct {
     void *(*start_routine)(void *);
@@ -490,6 +482,7 @@ static void *qemu_thread_start(void *args)
     QemuThreadArgs *qemu_thread_args = args;
     void *(*start_routine)(void *) = qemu_thread_args->start_routine;
     void *arg = qemu_thread_args->arg;
+    void *r;
 
 #ifdef CONFIG_PTHREAD_SETNAME_NP
     /* Attempt to set the threads name; note that this is for debug, so
@@ -501,7 +494,10 @@ static void *qemu_thread_start(void *args)
 #endif
     g_free(qemu_thread_args->name);
     g_free(qemu_thread_args);
-    return start_routine(arg);
+    pthread_cleanup_push(qemu_thread_atexit_notify, NULL);
+    r = start_routine(arg);
+    pthread_cleanup_pop(1);
+    return r;
 }
 
 void qemu_thread_create(QemuThread *thread, const char *name,
