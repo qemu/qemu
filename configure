@@ -434,6 +434,7 @@ capstone=""
 lzo=""
 snappy=""
 bzip2=""
+lzfse=""
 guest_agent=""
 guest_agent_with_vss="no"
 guest_agent_ntddscsi="no"
@@ -1310,6 +1311,10 @@ for opt do
   ;;
   --enable-bzip2) bzip2="yes"
   ;;
+  --enable-lzfse) lzfse="yes"
+  ;;
+  --disable-lzfse) lzfse="no"
+  ;;
   --enable-guest-agent) guest_agent="yes"
   ;;
   --disable-guest-agent) guest_agent="no"
@@ -1745,6 +1750,8 @@ disabled with --disable-FEATURE, default is enabled if available:
   snappy          support of snappy compression library
   bzip2           support of bzip2 compression library
                   (for reading bzip2-compressed dmg images)
+  lzfse           support of lzfse compression library
+                  (for reading lzfse-compressed dmg images)
   seccomp         seccomp support
   coroutine-pool  coroutine freelist (better performance)
   glusterfs       GlusterFS backend
@@ -2260,6 +2267,24 @@ EOF
             feature_not_found "libbzip2" "Install libbzip2 devel"
         fi
         bzip2="no"
+    fi
+fi
+
+##########################################
+# lzfse check
+
+if test "$lzfse" != "no" ; then
+    cat > $TMPC << EOF
+#include <lzfse.h>
+int main(void) { lzfse_decode_scratch_size(); return 0; }
+EOF
+    if compile_prog "" "-llzfse" ; then
+        lzfse="yes"
+    else
+        if test "$lzfse" = "yes"; then
+            feature_not_found "lzfse" "Install lzfse devel"
+        fi
+        lzfse="no"
     fi
 fi
 
@@ -6090,6 +6115,7 @@ echo "Live block migration $live_block_migration"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
+echo "lzfse support     $lzfse"
 echo "NUMA host support $numa"
 echo "libxml2           $libxml2"
 echo "tcmalloc support  $tcmalloc"
@@ -6610,6 +6636,11 @@ fi
 if test "$bzip2" = "yes" ; then
   echo "CONFIG_BZIP2=y" >> $config_host_mak
   echo "BZIP2_LIBS=-lbz2" >> $config_host_mak
+fi
+
+if test "$lzfse" = "yes" ; then
+  echo "CONFIG_LZFSE=y" >> $config_host_mak
+  echo "LZFSE_LIBS=-llzfse" >> $config_host_mak
 fi
 
 if test "$libiscsi" = "yes" ; then
