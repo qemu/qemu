@@ -55,4 +55,7 @@ typedef struct BDRVDMGState {
 extern int (*dmg_uncompress_bz2)(char *next_in, unsigned int avail_in,
                                  char *next_out, unsigned int avail_out);
 
+extern int (*dmg_uncompress_lzfse)(char *next_in, unsigned int avail_in,
+                                   char *next_out, unsigned int avail_out);
+
 #endif
