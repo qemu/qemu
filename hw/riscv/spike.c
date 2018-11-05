@@ -316,9 +316,7 @@ static void spike_v1_09_1_board_init(MachineState *machine)
 
     /* build config string with supplied memory size */
     char *isa = riscv_isa_string(&s->soc.harts[0]);
-    size_t config_string_size = strlen(config_string_tmpl) + 48;
-    char *config_string = malloc(config_string_size);
-    snprintf(config_string, config_string_size, config_string_tmpl,
+    char *config_string = g_strdup_printf(config_string_tmpl,
         (uint64_t)memmap[SPIKE_CLINT].base + SIFIVE_TIME_BASE,
         (uint64_t)memmap[SPIKE_DRAM].base,
         (uint64_t)ram_size, isa,
@@ -345,6 +343,8 @@ static void spike_v1_09_1_board_init(MachineState *machine)
     /* Core Local Interruptor (timer and IPI) */
     sifive_clint_create(memmap[SPIKE_CLINT].base, memmap[SPIKE_CLINT].size,
         smp_cpus, SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE);
+
+    g_free(config_string);
 }
 
 static void spike_v1_09_1_machine_init(MachineClass *mc)
