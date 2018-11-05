@@ -4413,6 +4413,7 @@ void qmp_x_block_latency_histogram_set(
 {
     BlockBackend *blk = blk_by_name(device);
     BlockAcctStats *stats;
+    int ret;
 
     if (!blk) {
         error_setg(errp, "Device '%s' not found", device);
@@ -4428,21 +4429,33 @@ void qmp_x_block_latency_histogram_set(
     }
 
     if (has_boundaries || has_boundaries_read) {
-        block_latency_histogram_set(
+        ret = block_latency_histogram_set(
             stats, BLOCK_ACCT_READ,
             has_boundaries_read ? boundaries_read : boundaries);
+        if (ret) {
+            error_setg(errp, "Device '%s' set read boundaries fail", device);
+            return;
+        }
     }
 
     if (has_boundaries || has_boundaries_write) {
-        block_latency_histogram_set(
+        ret = block_latency_histogram_set(
             stats, BLOCK_ACCT_WRITE,
             has_boundaries_write ? boundaries_write : boundaries);
+        if (ret) {
+            error_setg(errp, "Device '%s' set write boundaries fail", device);
+            return;
+        }
     }
 
     if (has_boundaries || has_boundaries_flush) {
-        block_latency_histogram_set(
+        ret = block_latency_histogram_set(
             stats, BLOCK_ACCT_FLUSH,
             has_boundaries_flush ? boundaries_flush : boundaries);
+        if (ret) {
+            error_setg(errp, "Device '%s' set flush boundaries fail", device);
+            return;
+        }
     }
 }
 
