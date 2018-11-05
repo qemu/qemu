@@ -918,7 +918,8 @@ char *blk_get_attached_dev_id(BlockBackend *blk)
     } else if (dev->id) {
         return g_strdup(dev->id);
     }
-    return object_get_canonical_path(OBJECT(dev));
+
+    return object_get_canonical_path(OBJECT(dev)) ?: g_strdup("");
 }
 
 /*
