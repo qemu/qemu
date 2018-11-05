@@ -1,0 +1,59 @@
+QA output created by 232
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+
+=== -drive with read-write image: read-only/auto-read-only combinations ===
+
+NODE_NAME: TEST_DIR/t.IMGFMT (file, read-only)
+NODE_NAME: TEST_DIR/t.IMGFMT (file, read-only)
+NODE_NAME: TEST_DIR/t.IMGFMT (file, read-only)
+
+NODE_NAME: TEST_DIR/t.IMGFMT (file)
+NODE_NAME: TEST_DIR/t.IMGFMT (file)
+NODE_NAME: TEST_DIR/t.IMGFMT (file)
+
+NODE_NAME: TEST_DIR/t.IMGFMT (file)
+NODE_NAME: TEST_DIR/t.IMGFMT (file)
+NODE_NAME: TEST_DIR/t.IMGFMT (file)
+
+=== -drive with read-only image: read-only/auto-read-only combinations ===
+
+NODE_NAME: TEST_DIR/t.IMGFMT (file, read-only)
+NODE_NAME: TEST_DIR/t.IMGFMT (file, read-only)
+NODE_NAME: TEST_DIR/t.IMGFMT (file, read-only)
+
+QEMU_PROG: -drive driver=file,file=TEST_DIR/t.IMGFMT,if=none,read-only=off,auto-read-only=off: Could not open 'TEST_DIR/t.IMGFMT': Permission denied
+NODE_NAME: TEST_DIR/t.IMGFMT (file, read-only)
+NODE_NAME: TEST_DIR/t.IMGFMT (file, read-only)
+
+QEMU_PROG: -drive driver=file,file=TEST_DIR/t.IMGFMT,if=none,auto-read-only=off: Could not open 'TEST_DIR/t.IMGFMT': Permission denied
+NODE_NAME: TEST_DIR/t.IMGFMT (file, read-only)
+NODE_NAME: TEST_DIR/t.IMGFMT (file, read-only)
+
+=== -blockdev with read-write image: read-only/auto-read-only combinations ===
+
+node0: TEST_DIR/t.IMGFMT (file, read-only)
+node0: TEST_DIR/t.IMGFMT (file, read-only)
+node0: TEST_DIR/t.IMGFMT (file, read-only)
+
+node0: TEST_DIR/t.IMGFMT (file)
+node0: TEST_DIR/t.IMGFMT (file)
+node0: TEST_DIR/t.IMGFMT (file)
+
+node0: TEST_DIR/t.IMGFMT (file)
+node0: TEST_DIR/t.IMGFMT (file)
+node0: TEST_DIR/t.IMGFMT (file)
+
+=== -blockdev with read-only image: read-only/auto-read-only combinations ===
+
+node0: TEST_DIR/t.IMGFMT (file, read-only)
+node0: TEST_DIR/t.IMGFMT (file, read-only)
+node0: TEST_DIR/t.IMGFMT (file, read-only)
+
+QEMU_PROG: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0,read-only=off,auto-read-only=off: Could not open 'TEST_DIR/t.IMGFMT': Permission denied
+node0: TEST_DIR/t.IMGFMT (file, read-only)
+QEMU_PROG: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0,read-only=off: Could not open 'TEST_DIR/t.IMGFMT': Permission denied
+
+QEMU_PROG: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0,auto-read-only=off: Could not open 'TEST_DIR/t.IMGFMT': Permission denied
+node0: TEST_DIR/t.IMGFMT (file, read-only)
+QEMU_PROG: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=node0: Could not open 'TEST_DIR/t.IMGFMT': Permission denied
+*** done

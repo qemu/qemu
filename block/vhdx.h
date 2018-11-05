@@ -420,16 +420,16 @@ int vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,
 
 static inline void leguid_to_cpus(MSGUID *guid)
 {
-    le32_to_cpus(&guid->data1);
-    le16_to_cpus(&guid->data2);
-    le16_to_cpus(&guid->data3);
+    guid->data1 = le32_to_cpu(guid->data1);
+    guid->data2 = le16_to_cpu(guid->data2);
+    guid->data3 = le16_to_cpu(guid->data3);
 }
 
 static inline void cpu_to_leguids(MSGUID *guid)
 {
-    cpu_to_le32s(&guid->data1);
-    cpu_to_le16s(&guid->data2);
-    cpu_to_le16s(&guid->data3);
+    guid->data1 = cpu_to_le32(guid->data1);
+    guid->data2 = cpu_to_le16(guid->data2);
+    guid->data3 = cpu_to_le16(guid->data3);
 }
 
 void vhdx_header_le_import(VHDXHeader *h);

@@ -118,7 +118,7 @@ static inline void bitmap_table_to_be(uint64_t *bitmap_table, size_t size)
     size_t i;
 
     for (i = 0; i < size; ++i) {
-        cpu_to_be64s(&bitmap_table[i]);
+        bitmap_table[i] = cpu_to_be64(bitmap_table[i]);
     }
 }
 
@@ -231,7 +231,7 @@ static int bitmap_table_load(BlockDriverState *bs, Qcow2BitmapTable *tb,
     }
 
     for (i = 0; i < tb->size; ++i) {
-        be64_to_cpus(&table[i]);
+        table[i] = be64_to_cpu(table[i]);
         ret = check_table_entry(table[i], s->cluster_size);
         if (ret < 0) {
             goto fail;
@@ -394,20 +394,20 @@ fail:
 
 static inline void bitmap_dir_entry_to_cpu(Qcow2BitmapDirEntry *entry)
 {
-    be64_to_cpus(&entry->bitmap_table_offset);
-    be32_to_cpus(&entry->bitmap_table_size);
-    be32_to_cpus(&entry->flags);
-    be16_to_cpus(&entry->name_size);
-    be32_to_cpus(&entry->extra_data_size);
+    entry->bitmap_table_offset = be64_to_cpu(entry->bitmap_table_offset);
+    entry->bitmap_table_size = be32_to_cpu(entry->bitmap_table_size);
+    entry->flags = be32_to_cpu(entry->flags);
+    entry->name_size = be16_to_cpu(entry->name_size);
+    entry->extra_data_size = be32_to_cpu(entry->extra_data_size);
 }
 
 static inline void bitmap_dir_entry_to_be(Qcow2BitmapDirEntry *entry)
 {
-    cpu_to_be64s(&entry->bitmap_table_offset);
-    cpu_to_be32s(&entry->bitmap_table_size);
-    cpu_to_be32s(&entry->flags);
-    cpu_to_be16s(&entry->name_size);
-    cpu_to_be32s(&entry->extra_data_size);
+    entry->bitmap_table_offset = cpu_to_be64(entry->bitmap_table_offset);
+    entry->bitmap_table_size = cpu_to_be32(entry->bitmap_table_size);
+    entry->flags = cpu_to_be32(entry->flags);
+    entry->name_size = cpu_to_be16(entry->name_size);
+    entry->extra_data_size = cpu_to_be32(entry->extra_data_size);
 }
 
 static inline int calc_dir_entry_size(size_t name_size, size_t extra_data_size)

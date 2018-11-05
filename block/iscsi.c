@@ -1878,9 +1878,11 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     /* Check the write protect flag of the LUN if we want to write */
     if (iscsilun->type == TYPE_DISK && (flags & BDRV_O_RDWR) &&
         iscsilun->write_protected) {
-        error_setg(errp, "Cannot open a write protected LUN as read-write");
-        ret = -EACCES;
-        goto out;
+        ret = bdrv_apply_auto_read_only(bs, "LUN is write protected", errp);
+        if (ret < 0) {
+            goto out;
+        }
+        flags &= ~BDRV_O_RDWR;
     }
 
     iscsi_readcapacity_sync(iscsilun, &local_err);

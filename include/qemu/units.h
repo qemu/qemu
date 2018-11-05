@@ -17,6 +17,24 @@
 #define PiB     (INT64_C(1) << 50)
 #define EiB     (INT64_C(1) << 60)
 
+/*
+ * The following lookup table is intended to be used when a literal string of
+ * the number of bytes is required (for example if it needs to be stringified).
+ * It can also be used for generic shortcuts of power-of-two sizes.
+ * This table is generated using the AWK script below:
+ *
+ *  BEGIN {
+ *      suffix="KMGTPE";
+ *      for(i=10; i<64; i++) {
+ *          val=2**i;
+ *          s=substr(suffix, int(i/10), 1);
+ *          n=2**(i%10);
+ *          pad=21-int(log(n)/log(10));
+ *          printf("#define S_%d%siB %*d\n", n, s, pad, val);
+ *      }
+ *  }
+ */
+
 #define S_1KiB                  1024
 #define S_2KiB                  2048
 #define S_4KiB                  4096

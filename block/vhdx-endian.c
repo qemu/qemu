@@ -35,18 +35,18 @@ void vhdx_header_le_import(VHDXHeader *h)
 {
     assert(h != NULL);
 
-    le32_to_cpus(&h->signature);
-    le32_to_cpus(&h->checksum);
-    le64_to_cpus(&h->sequence_number);
+    h->signature = le32_to_cpu(h->signature);
+    h->checksum = le32_to_cpu(h->checksum);
+    h->sequence_number = le64_to_cpu(h->sequence_number);
 
     leguid_to_cpus(&h->file_write_guid);
     leguid_to_cpus(&h->data_write_guid);
     leguid_to_cpus(&h->log_guid);
 
-    le16_to_cpus(&h->log_version);
-    le16_to_cpus(&h->version);
-    le32_to_cpus(&h->log_length);
-    le64_to_cpus(&h->log_offset);
+    h->log_version = le16_to_cpu(h->log_version);
+    h->version = le16_to_cpu(h->version);
+    h->log_length = le32_to_cpu(h->log_length);
+    h->log_offset = le64_to_cpu(h->log_offset);
 }
 
 void vhdx_header_le_export(VHDXHeader *orig_h, VHDXHeader *new_h)
@@ -80,68 +80,68 @@ void vhdx_log_desc_le_import(VHDXLogDescriptor *d)
 {
     assert(d != NULL);
 
-    le32_to_cpus(&d->signature);
-    le64_to_cpus(&d->file_offset);
-    le64_to_cpus(&d->sequence_number);
+    d->signature = le32_to_cpu(d->signature);
+    d->file_offset = le64_to_cpu(d->file_offset);
+    d->sequence_number = le64_to_cpu(d->sequence_number);
 }
 
 void vhdx_log_desc_le_export(VHDXLogDescriptor *d)
 {
     assert(d != NULL);
 
-    cpu_to_le32s(&d->signature);
-    cpu_to_le32s(&d->trailing_bytes);
-    cpu_to_le64s(&d->leading_bytes);
-    cpu_to_le64s(&d->file_offset);
-    cpu_to_le64s(&d->sequence_number);
+    d->signature = cpu_to_le32(d->signature);
+    d->trailing_bytes = cpu_to_le32(d->trailing_bytes);
+    d->leading_bytes = cpu_to_le64(d->leading_bytes);
+    d->file_offset = cpu_to_le64(d->file_offset);
+    d->sequence_number = cpu_to_le64(d->sequence_number);
 }
 
 void vhdx_log_data_le_import(VHDXLogDataSector *d)
 {
     assert(d != NULL);
 
-    le32_to_cpus(&d->data_signature);
-    le32_to_cpus(&d->sequence_high);
-    le32_to_cpus(&d->sequence_low);
+    d->data_signature = le32_to_cpu(d->data_signature);
+    d->sequence_high = le32_to_cpu(d->sequence_high);
+    d->sequence_low = le32_to_cpu(d->sequence_low);
 }
 
 void vhdx_log_data_le_export(VHDXLogDataSector *d)
 {
     assert(d != NULL);
 
-    cpu_to_le32s(&d->data_signature);
-    cpu_to_le32s(&d->sequence_high);
-    cpu_to_le32s(&d->sequence_low);
+    d->data_signature = cpu_to_le32(d->data_signature);
+    d->sequence_high = cpu_to_le32(d->sequence_high);
+    d->sequence_low = cpu_to_le32(d->sequence_low);
 }
 
 void vhdx_log_entry_hdr_le_import(VHDXLogEntryHeader *hdr)
 {
     assert(hdr != NULL);
 
-    le32_to_cpus(&hdr->signature);
-    le32_to_cpus(&hdr->checksum);
-    le32_to_cpus(&hdr->entry_length);
-    le32_to_cpus(&hdr->tail);
-    le64_to_cpus(&hdr->sequence_number);
-    le32_to_cpus(&hdr->descriptor_count);
+    hdr->signature = le32_to_cpu(hdr->signature);
+    hdr->checksum = le32_to_cpu(hdr->checksum);
+    hdr->entry_length = le32_to_cpu(hdr->entry_length);
+    hdr->tail = le32_to_cpu(hdr->tail);
+    hdr->sequence_number = le64_to_cpu(hdr->sequence_number);
+    hdr->descriptor_count = le32_to_cpu(hdr->descriptor_count);
     leguid_to_cpus(&hdr->log_guid);
-    le64_to_cpus(&hdr->flushed_file_offset);
-    le64_to_cpus(&hdr->last_file_offset);
+    hdr->flushed_file_offset = le64_to_cpu(hdr->flushed_file_offset);
+    hdr->last_file_offset = le64_to_cpu(hdr->last_file_offset);
 }
 
 void vhdx_log_entry_hdr_le_export(VHDXLogEntryHeader *hdr)
 {
     assert(hdr != NULL);
 
-    cpu_to_le32s(&hdr->signature);
-    cpu_to_le32s(&hdr->checksum);
-    cpu_to_le32s(&hdr->entry_length);
-    cpu_to_le32s(&hdr->tail);
-    cpu_to_le64s(&hdr->sequence_number);
-    cpu_to_le32s(&hdr->descriptor_count);
+    hdr->signature = cpu_to_le32(hdr->signature);
+    hdr->checksum = cpu_to_le32(hdr->checksum);
+    hdr->entry_length = cpu_to_le32(hdr->entry_length);
+    hdr->tail = cpu_to_le32(hdr->tail);
+    hdr->sequence_number = cpu_to_le64(hdr->sequence_number);
+    hdr->descriptor_count = cpu_to_le32(hdr->descriptor_count);
     cpu_to_leguids(&hdr->log_guid);
-    cpu_to_le64s(&hdr->flushed_file_offset);
-    cpu_to_le64s(&hdr->last_file_offset);
+    hdr->flushed_file_offset = cpu_to_le64(hdr->flushed_file_offset);
+    hdr->last_file_offset = cpu_to_le64(hdr->last_file_offset);
 }
 
 
@@ -150,18 +150,18 @@ void vhdx_region_header_le_import(VHDXRegionTableHeader *hdr)
 {
     assert(hdr != NULL);
 
-    le32_to_cpus(&hdr->signature);
-    le32_to_cpus(&hdr->checksum);
-    le32_to_cpus(&hdr->entry_count);
+    hdr->signature = le32_to_cpu(hdr->signature);
+    hdr->checksum = le32_to_cpu(hdr->checksum);
+    hdr->entry_count = le32_to_cpu(hdr->entry_count);
 }
 
 void vhdx_region_header_le_export(VHDXRegionTableHeader *hdr)
 {
     assert(hdr != NULL);
 
-    cpu_to_le32s(&hdr->signature);
-    cpu_to_le32s(&hdr->checksum);
-    cpu_to_le32s(&hdr->entry_count);
+    hdr->signature = cpu_to_le32(hdr->signature);
+    hdr->checksum = cpu_to_le32(hdr->checksum);
+    hdr->entry_count = cpu_to_le32(hdr->entry_count);
 }
 
 void vhdx_region_entry_le_import(VHDXRegionTableEntry *e)
@@ -169,9 +169,9 @@ void vhdx_region_entry_le_import(VHDXRegionTableEntry *e)
     assert(e != NULL);
 
     leguid_to_cpus(&e->guid);
-    le64_to_cpus(&e->file_offset);
-    le32_to_cpus(&e->length);
-    le32_to_cpus(&e->data_bits);
+    e->file_offset = le64_to_cpu(e->file_offset);
+    e->length = le32_to_cpu(e->length);
+    e->data_bits = le32_to_cpu(e->data_bits);
 }
 
 void vhdx_region_entry_le_export(VHDXRegionTableEntry *e)
@@ -179,9 +179,9 @@ void vhdx_region_entry_le_export(VHDXRegionTableEntry *e)
     assert(e != NULL);
 
     cpu_to_leguids(&e->guid);
-    cpu_to_le64s(&e->file_offset);
-    cpu_to_le32s(&e->length);
-    cpu_to_le32s(&e->data_bits);
+    e->file_offset = cpu_to_le64(e->file_offset);
+    e->length = cpu_to_le32(e->length);
+    e->data_bits = cpu_to_le32(e->data_bits);
 }
 
 
@@ -190,16 +190,16 @@ void vhdx_metadata_header_le_import(VHDXMetadataTableHeader *hdr)
 {
     assert(hdr != NULL);
 
-    le64_to_cpus(&hdr->signature);
-    le16_to_cpus(&hdr->entry_count);
+    hdr->signature = le64_to_cpu(hdr->signature);
+    hdr->entry_count = le16_to_cpu(hdr->entry_count);
 }
 
 void vhdx_metadata_header_le_export(VHDXMetadataTableHeader *hdr)
 {
     assert(hdr != NULL);
 
-    cpu_to_le64s(&hdr->signature);
-    cpu_to_le16s(&hdr->entry_count);
+    hdr->signature = cpu_to_le64(hdr->signature);
+    hdr->entry_count = cpu_to_le16(hdr->entry_count);
 }
 
 void vhdx_metadata_entry_le_import(VHDXMetadataTableEntry *e)
@@ -207,16 +207,16 @@ void vhdx_metadata_entry_le_import(VHDXMetadataTableEntry *e)
     assert(e != NULL);
 
     leguid_to_cpus(&e->item_id);
-    le32_to_cpus(&e->offset);
-    le32_to_cpus(&e->length);
-    le32_to_cpus(&e->data_bits);
+    e->offset = le32_to_cpu(e->offset);
+    e->length = le32_to_cpu(e->length);
+    e->data_bits = le32_to_cpu(e->data_bits);
 }
 void vhdx_metadata_entry_le_export(VHDXMetadataTableEntry *e)
 {
     assert(e != NULL);
 
     cpu_to_leguids(&e->item_id);
-    cpu_to_le32s(&e->offset);
-    cpu_to_le32s(&e->length);
-    cpu_to_le32s(&e->data_bits);
+    e->offset = cpu_to_le32(e->offset);
+    e->length = cpu_to_le32(e->length);
+    e->data_bits = cpu_to_le32(e->data_bits);
 }

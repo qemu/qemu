@@ -973,10 +973,10 @@ static int init_directories(BDRVVVFATState* s,
         mapping = array_get(&(s->mapping), i);
 
         if (mapping->mode & MODE_DIRECTORY) {
+            char *path = mapping->path;
             mapping->begin = cluster;
             if(read_directory(s, i)) {
-                error_setg(errp, "Could not read directory %s",
-                           mapping->path);
+                error_setg(errp, "Could not read directory %s", path);
                 return -1;
             }
             mapping = array_get(&(s->mapping), i);
@@ -1262,15 +1262,9 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
                        "Unable to set VVFAT to 'rw' when drive is read-only");
             goto fail;
         }
-    } else  if (!bdrv_is_read_only(bs)) {
-        error_report("Opening non-rw vvfat images without an explicit "
-                     "read-only=on option is deprecated. Future versions "
-                     "will refuse to open the image instead of "
-                     "automatically marking the image read-only.");
-        /* read only is the default for safety */
-        ret = bdrv_set_read_only(bs, true, &local_err);
+    } else {
+        ret = bdrv_apply_auto_read_only(bs, NULL, errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             goto fail;
         }
     }
@@ -3130,6 +3124,7 @@ static void vvfat_qcow_options(int *child_flags, QDict *child_options,
                                int parent_flags, QDict *parent_options)
 {
     qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "off");
+    qdict_set_default_str(child_options, BDRV_OPT_AUTO_READ_ONLY, "off");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 }
 

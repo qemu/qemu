@@ -269,7 +269,7 @@ static int print_block_option_help(const char *filename, const char *fmt)
     }
 
     printf("Supported options:\n");
-    qemu_opts_print_help(create_opts);
+    qemu_opts_print_help(create_opts, false);
     qemu_opts_free(create_opts);
     return 0;
 }
@@ -3773,7 +3773,7 @@ static int print_amend_option_help(const char *format)
     assert(drv->create_opts);
 
     printf("Creation options for '%s':\n", format);
-    qemu_opts_print_help(drv->create_opts);
+    qemu_opts_print_help(drv->create_opts, false);
     printf("\nNote that not all of these options may be amendable.\n");
     return 0;
 }

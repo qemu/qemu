@@ -85,7 +85,7 @@
 #define BLOCK_OPT_STATIC "static"
 
 #define SECTOR_SIZE 512
-#define DEFAULT_CLUSTER_SIZE (1 * MiB)
+#define DEFAULT_CLUSTER_SIZE S_1MiB
 
 #if defined(CONFIG_VDI_DEBUG)
 #define VDI_DEBUG 1
@@ -187,22 +187,22 @@ typedef struct {
 
 static void vdi_header_to_cpu(VdiHeader *header)
 {
-    le32_to_cpus(&header->signature);
-    le32_to_cpus(&header->version);
-    le32_to_cpus(&header->header_size);
-    le32_to_cpus(&header->image_type);
-    le32_to_cpus(&header->image_flags);
-    le32_to_cpus(&header->offset_bmap);
-    le32_to_cpus(&header->offset_data);
-    le32_to_cpus(&header->cylinders);
-    le32_to_cpus(&header->heads);
-    le32_to_cpus(&header->sectors);
-    le32_to_cpus(&header->sector_size);
-    le64_to_cpus(&header->disk_size);
-    le32_to_cpus(&header->block_size);
-    le32_to_cpus(&header->block_extra);
-    le32_to_cpus(&header->blocks_in_image);
-    le32_to_cpus(&header->blocks_allocated);
+    header->signature = le32_to_cpu(header->signature);
+    header->version = le32_to_cpu(header->version);
+    header->header_size = le32_to_cpu(header->header_size);
+    header->image_type = le32_to_cpu(header->image_type);
+    header->image_flags = le32_to_cpu(header->image_flags);
+    header->offset_bmap = le32_to_cpu(header->offset_bmap);
+    header->offset_data = le32_to_cpu(header->offset_data);
+    header->cylinders = le32_to_cpu(header->cylinders);
+    header->heads = le32_to_cpu(header->heads);
+    header->sectors = le32_to_cpu(header->sectors);
+    header->sector_size = le32_to_cpu(header->sector_size);
+    header->disk_size = le64_to_cpu(header->disk_size);
+    header->block_size = le32_to_cpu(header->block_size);
+    header->block_extra = le32_to_cpu(header->block_extra);
+    header->blocks_in_image = le32_to_cpu(header->blocks_in_image);
+    header->blocks_allocated = le32_to_cpu(header->blocks_allocated);
     qemu_uuid_bswap(&header->uuid_image);
     qemu_uuid_bswap(&header->uuid_last_snap);
     qemu_uuid_bswap(&header->uuid_link);
@@ -211,22 +211,22 @@ static void vdi_header_to_cpu(VdiHeader *header)
 
 static void vdi_header_to_le(VdiHeader *header)
 {
-    cpu_to_le32s(&header->signature);
-    cpu_to_le32s(&header->version);
-    cpu_to_le32s(&header->header_size);
-    cpu_to_le32s(&header->image_type);
-    cpu_to_le32s(&header->image_flags);
-    cpu_to_le32s(&header->offset_bmap);
-    cpu_to_le32s(&header->offset_data);
-    cpu_to_le32s(&header->cylinders);
-    cpu_to_le32s(&header->heads);
-    cpu_to_le32s(&header->sectors);
-    cpu_to_le32s(&header->sector_size);
-    cpu_to_le64s(&header->disk_size);
-    cpu_to_le32s(&header->block_size);
-    cpu_to_le32s(&header->block_extra);
-    cpu_to_le32s(&header->blocks_in_image);
-    cpu_to_le32s(&header->blocks_allocated);
+    header->signature = cpu_to_le32(header->signature);
+    header->version = cpu_to_le32(header->version);
+    header->header_size = cpu_to_le32(header->header_size);
+    header->image_type = cpu_to_le32(header->image_type);
+    header->image_flags = cpu_to_le32(header->image_flags);
+    header->offset_bmap = cpu_to_le32(header->offset_bmap);
+    header->offset_data = cpu_to_le32(header->offset_data);
+    header->cylinders = cpu_to_le32(header->cylinders);
+    header->heads = cpu_to_le32(header->heads);
+    header->sectors = cpu_to_le32(header->sectors);
+    header->sector_size = cpu_to_le32(header->sector_size);
+    header->disk_size = cpu_to_le64(header->disk_size);
+    header->block_size = cpu_to_le32(header->block_size);
+    header->block_extra = cpu_to_le32(header->block_extra);
+    header->blocks_in_image = cpu_to_le32(header->blocks_in_image);
+    header->blocks_allocated = cpu_to_le32(header->blocks_allocated);
     qemu_uuid_bswap(&header->uuid_image);
     qemu_uuid_bswap(&header->uuid_last_snap);
     qemu_uuid_bswap(&header->uuid_link);
@@ -432,7 +432,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     } else if (header.block_size != DEFAULT_CLUSTER_SIZE) {
         error_setg(errp, "unsupported VDI image (block size %" PRIu32
-                         " is not %" PRIu64 ")",
+                         " is not %" PRIu32 ")",
                    header.block_size, DEFAULT_CLUSTER_SIZE);
         ret = -ENOTSUP;
         goto fail;

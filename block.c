@@ -266,22 +266,41 @@ int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
     return 0;
 }
 
-/* TODO Remove (deprecated since 2.11)
- * Block drivers are not supposed to automatically change bs->read_only.
- * Instead, they should just check whether they can provide what the user
- * explicitly requested and error out if read-write is requested, but they can
- * only provide read-only access. */
-int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp)
+/*
+ * Called by a driver that can only provide a read-only image.
+ *
+ * Returns 0 if the node is already read-only or it could switch the node to
+ * read-only because BDRV_O_AUTO_RDONLY is set.
+ *
+ * Returns -EACCES if the node is read-write and BDRV_O_AUTO_RDONLY is not set
+ * or bdrv_can_set_read_only() forbids making the node read-only. If @errmsg
+ * is not NULL, it is used as the error message for the Error object.
+ */
+int bdrv_apply_auto_read_only(BlockDriverState *bs, const char *errmsg,
+                              Error **errp)
 {
     int ret = 0;
 
-    ret = bdrv_can_set_read_only(bs, read_only, false, errp);
-    if (ret < 0) {
-        return ret;
+    if (!(bs->open_flags & BDRV_O_RDWR)) {
+        return 0;
+    }
+    if (!(bs->open_flags & BDRV_O_AUTO_RDONLY)) {
+        goto fail;
     }
 
-    bs->read_only = read_only;
+    ret = bdrv_can_set_read_only(bs, true, false, NULL);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    bs->read_only = true;
+    bs->open_flags &= ~BDRV_O_RDWR;
+
     return 0;
+
+fail:
+    error_setg(errp, "%s", errmsg ?: "Image is read-only");
+    return -EACCES;
 }
 
 void bdrv_get_full_backing_filename_from_filename(const char *backed,
@@ -923,6 +942,7 @@ static void bdrv_inherited_options(int *child_flags, QDict *child_options,
 
     /* Inherit the read-only option from the parent if it's not set */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_AUTO_READ_ONLY);
 
     /* Our block drivers take care to send flushes and respect unmap policy,
      * so we can default to enable both on lower layers regardless of the
@@ -1046,6 +1066,7 @@ static void bdrv_backing_options(int *child_flags, QDict *child_options,
 
     /* backing files always opened read-only */
     qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "on");
+    qdict_set_default_str(child_options, BDRV_OPT_AUTO_READ_ONLY, "off");
     flags &= ~BDRV_O_COPY_ON_READ;
 
     /* snapshot=on is handled on the top layer */
@@ -1135,6 +1156,10 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
         *flags |= BDRV_O_RDWR;
     }
 
+    assert(qemu_opt_find(opts, BDRV_OPT_AUTO_READ_ONLY));
+    if (qemu_opt_get_bool_del(opts, BDRV_OPT_AUTO_READ_ONLY, false)) {
+        *flags |= BDRV_O_AUTO_RDONLY;
+    }
 }
 
 static void update_options_from_flags(QDict *options, int flags)
@@ -1148,6 +1173,10 @@ static void update_options_from_flags(QDict *options, int flags)
     }
     if (!qdict_haskey(options, BDRV_OPT_READ_ONLY)) {
         qdict_put_bool(options, BDRV_OPT_READ_ONLY, !(flags & BDRV_O_RDWR));
+    }
+    if (!qdict_haskey(options, BDRV_OPT_AUTO_READ_ONLY)) {
+        qdict_put_bool(options, BDRV_OPT_AUTO_READ_ONLY,
+                       flags & BDRV_O_AUTO_RDONLY);
     }
 }
 
@@ -1322,12 +1351,17 @@ QemuOptsList bdrv_runtime_opts = {
             .help = "Node is opened in read-only mode",
         },
         {
+            .name = BDRV_OPT_AUTO_READ_ONLY,
+            .type = QEMU_OPT_BOOL,
+            .help = "Node can become read-only if opening read-write fails",
+        },
+        {
             .name = "detect-zeroes",
             .type = QEMU_OPT_STRING,
             .help = "try to optimize zero writes (off, on, unmap)",
         },
         {
-            .name = "discard",
+            .name = BDRV_OPT_DISCARD,
             .type = QEMU_OPT_STRING,
             .help = "discard operation (ignore/off, unmap/on)",
         },
@@ -1432,7 +1466,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
         }
     }
 
-    discard = qemu_opt_get(opts, "discard");
+    discard = qemu_opt_get(opts, BDRV_OPT_DISCARD);
     if (discard != NULL) {
         if (bdrv_parse_discard_flags(discard, &bs->open_flags) != 0) {
             error_setg(errp, "Invalid discard option");
@@ -2479,6 +2513,8 @@ BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp)
         qdict_set_default_str(qdict, BDRV_OPT_CACHE_DIRECT, "off");
         qdict_set_default_str(qdict, BDRV_OPT_CACHE_NO_FLUSH, "off");
         qdict_set_default_str(qdict, BDRV_OPT_READ_ONLY, "off");
+        qdict_set_default_str(qdict, BDRV_OPT_AUTO_READ_ONLY, "off");
+
     }
 
     bs = bdrv_open_inherit(NULL, reference, qdict, 0, NULL, NULL, errp);
@@ -3186,7 +3222,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
 
     update_flags_from_options(&reopen_state->flags, opts);
 
-    discard = qemu_opt_get_del(opts, "discard");
+    discard = qemu_opt_get_del(opts, BDRV_OPT_DISCARD);
     if (discard != NULL) {
         if (bdrv_parse_discard_flags(discard, &reopen_state->flags) != 0) {
             error_setg(errp, "Invalid discard option");
