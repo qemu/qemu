@@ -67,7 +67,7 @@ bool qemu_chr_fe_backend_connected(CharBackend *be);
 bool qemu_chr_fe_backend_open(CharBackend *be);
 
 /**
- * qemu_chr_fe_set_handlers:
+ * qemu_chr_fe_set_handlers_full:
  * @b: a CharBackend
  * @fd_can_read: callback to get the amount of data the frontend may
  *               receive
@@ -79,11 +79,27 @@ bool qemu_chr_fe_backend_open(CharBackend *be);
  * @context: a main loop context or NULL for the default
  * @set_open: whether to call qemu_chr_fe_set_open() implicitely when
  * any of the handler is non-NULL
+ * @sync_state: whether to issue event callback with updated state
  *
  * Set the front end char handlers. The front end takes the focus if
  * any of the handler is non-NULL.
  *
  * Without associated Chardev, nothing is changed.
+ */
+void qemu_chr_fe_set_handlers_full(CharBackend *b,
+                                   IOCanReadHandler *fd_can_read,
+                                   IOReadHandler *fd_read,
+                                   IOEventHandler *fd_event,
+                                   BackendChangeHandler *be_change,
+                                   void *opaque,
+                                   GMainContext *context,
+                                   bool set_open,
+                                   bool sync_state);
+
+/**
+ * qemu_chr_fe_set_handlers:
+ *
+ * Version of qemu_chr_fe_set_handlers_full() with sync_state = true.
  */
 void qemu_chr_fe_set_handlers(CharBackend *b,
                               IOCanReadHandler *fd_can_read,
