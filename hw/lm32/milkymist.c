@@ -138,7 +138,10 @@ milkymist_init(MachineState *machine)
     bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
 
     if (bios_filename) {
-        load_image_targphys(bios_filename, BIOS_OFFSET, BIOS_SIZE);
+        if (load_image_targphys(bios_filename, BIOS_OFFSET, BIOS_SIZE) < 0) {
+            error_report("could not load bios '%s'", bios_filename);
+            exit(1);
+        }
     }
 
     reset_info->bootstrap_pc = BIOS_OFFSET;

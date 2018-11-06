@@ -2319,7 +2319,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
          *
          * (Note that HCR.DC makes HCR.VM behave as if it is 1.)
          *
-         * ATS1Hx always uses the 64bit format (not supported yet).
+         * ATS1Hx always uses the 64bit format.
          */
         format64 = arm_s1_regime_using_lpae_format(env, mmu_idx);
 
@@ -2347,10 +2347,12 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
 
             par64 |= 1; /* F */
             par64 |= (fsr & 0x3f) << 1; /* FS */
-            /* Note that S2WLK and FSTAGE are always zero, because we don't
-             * implement virtualization and therefore there can't be a stage 2
-             * fault.
-             */
+            if (fi.stage2) {
+                par64 |= (1 << 9); /* S */
+            }
+            if (fi.s1ptw) {
+                par64 |= (1 << 8); /* PTW */
+            }
         }
     } else {
         /* fsr is a DFSR/IFSR value for the short descriptor
@@ -2442,7 +2444,7 @@ static void ats1h_write(CPUARMState *env, const ARMCPRegInfo *ri,
     MMUAccessType access_type = ri->opc2 & 1 ? MMU_DATA_STORE : MMU_DATA_LOAD;
     uint64_t par64;
 
-    par64 = do_ats_write(env, value, access_type, ARMMMUIdx_S2NS);
+    par64 = do_ats_write(env, value, access_type, ARMMMUIdx_S1E2);
 
     A32_BANKED_CURRENT_REG_SET(env, par, par64);
 }
