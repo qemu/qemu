@@ -2323,6 +2323,10 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
     }
 
     chardev = qemu_opt_get(opts, "chardev");
+    if (!chardev) {
+        error_report("chardev is required");
+        exit(1);
+    }
     chr = qemu_chr_find(chardev);
     if (chr == NULL) {
         error_setg(errp, "chardev \"%s\" not found", chardev);
