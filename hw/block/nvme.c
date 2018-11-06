@@ -797,6 +797,8 @@ static void nvme_clear_ctrl(NvmeCtrl *n)
 {
     int i;
 
+    blk_drain(n->conf.blk);
+
     for (i = 0; i < n->num_queues; i++) {
         if (n->sq[i] != NULL) {
             nvme_free_sq(n->sq[i], n);
