@@ -16,6 +16,9 @@ static bool quit;
 
 typedef struct FeHandler {
     int read_count;
+    bool is_open;
+    int openclose_count;
+    bool openclose_mismatch;
     int last_event;
     char read_buf[128];
 } FeHandler;
@@ -49,10 +52,24 @@ static void fe_read(void *opaque, const uint8_t *buf, int size)
 static void fe_event(void *opaque, int event)
 {
     FeHandler *h = opaque;
+    bool new_open_state;
 
     h->last_event = event;
-    if (event != CHR_EVENT_BREAK) {
+    switch (event) {
+    case CHR_EVENT_BREAK:
+        break;
+    case CHR_EVENT_OPENED:
+    case CHR_EVENT_CLOSED:
+        h->openclose_count++;
+        new_open_state = (event == CHR_EVENT_OPENED);
+        if (h->is_open == new_open_state) {
+            h->openclose_mismatch = true;
+        }
+        h->is_open = new_open_state;
+        /* no break */
+    default:
         quit = true;
+        break;
     }
 }
 
@@ -161,7 +178,7 @@ static void char_mux_test(void)
     QemuOpts *opts;
     Chardev *chr, *base;
     char *data;
-    FeHandler h1 = { 0, }, h2 = { 0, };
+    FeHandler h1 = { 0, false, 0, false, }, h2 = { 0, false, 0, false, };
     CharBackend chr_be1, chr_be2;
 
     opts = qemu_opts_create(qemu_find_opts("chardev"), "mux-label",
@@ -232,6 +249,65 @@ static void char_mux_test(void)
     qemu_chr_be_write(base, (void *)"\1b", 2);
     g_assert_cmpint(h1.last_event, ==, CHR_EVENT_BREAK);
     g_assert_cmpint(h2.last_event, ==, CHR_EVENT_MUX_OUT);
+
+    /* open/close state and corresponding events */
+    g_assert_true(qemu_chr_fe_backend_open(&chr_be1));
+    g_assert_true(qemu_chr_fe_backend_open(&chr_be2));
+    g_assert_true(h1.is_open);
+    g_assert_false(h1.openclose_mismatch);
+    g_assert_true(h2.is_open);
+    g_assert_false(h2.openclose_mismatch);
+
+    h1.openclose_count = h2.openclose_count = 0;
+
+    qemu_chr_fe_set_handlers(&chr_be1, NULL, NULL, NULL, NULL,
+                             NULL, NULL, false);
+    qemu_chr_fe_set_handlers(&chr_be2, NULL, NULL, NULL, NULL,
+                             NULL, NULL, false);
+    g_assert_cmpint(h1.openclose_count, ==, 0);
+    g_assert_cmpint(h2.openclose_count, ==, 0);
+
+    h1.is_open = h2.is_open = false;
+    qemu_chr_fe_set_handlers(&chr_be1,
+                             NULL,
+                             NULL,
+                             fe_event,
+                             NULL,
+                             &h1,
+                             NULL, false);
+    qemu_chr_fe_set_handlers(&chr_be2,
+                             NULL,
+                             NULL,
+                             fe_event,
+                             NULL,
+                             &h2,
+                             NULL, false);
+    g_assert_cmpint(h1.openclose_count, ==, 1);
+    g_assert_false(h1.openclose_mismatch);
+    g_assert_cmpint(h2.openclose_count, ==, 1);
+    g_assert_false(h2.openclose_mismatch);
+
+    qemu_chr_be_event(base, CHR_EVENT_CLOSED);
+    qemu_chr_be_event(base, CHR_EVENT_OPENED);
+    g_assert_cmpint(h1.openclose_count, ==, 3);
+    g_assert_false(h1.openclose_mismatch);
+    g_assert_cmpint(h2.openclose_count, ==, 3);
+    g_assert_false(h2.openclose_mismatch);
+
+    qemu_chr_fe_set_handlers(&chr_be2,
+                             fe_can_read,
+                             fe_read,
+                             fe_event,
+                             NULL,
+                             &h2,
+                             NULL, false);
+    qemu_chr_fe_set_handlers(&chr_be1,
+                             fe_can_read,
+                             fe_read,
+                             fe_event,
+                             NULL,
+                             &h1,
+                             NULL, false);
 
     /* remove first handler */
     qemu_chr_fe_set_handlers(&chr_be1, NULL, NULL, NULL, NULL,
