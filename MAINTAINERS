@@ -253,7 +253,6 @@ F: disas/riscv.c
 
 S390
 M: Richard Henderson <rth@twiddle.net>
-M: Alexander Graf <agraf@suse.de>
 M: David Hildenbrand <david@redhat.com>
 S: Maintained
 F: target/s390x/
@@ -349,7 +348,6 @@ F: target/ppc/kvm.c
 S390
 M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Cornelia Huck <cohuck@redhat.com>
-M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target/s390x/kvm.c
 F: target/s390x/kvm_s390x.h
@@ -934,7 +932,6 @@ S390 Machines
 S390 Virtio-ccw
 M: Cornelia Huck <cohuck@redhat.com>
 M: Christian Borntraeger <borntraeger@de.ibm.com>
-M: Alexander Graf <agraf@suse.de>
 S: Supported
 F: hw/char/sclp*.[hc]
 F: hw/char/terminal3270.c
@@ -947,13 +944,20 @@ T: git git://github.com/cohuck/qemu.git s390-next
 T: git git://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
-S390-ccw Bios
+S390-ccw boot
 M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Thomas Huth <thuth@redhat.com>
 S: Supported
+F: hw/s390x/ipl.*
 F: pc-bios/s390-ccw/
 F: pc-bios/s390-ccw.img
 T: git git://github.com/borntraeger/qemu.git s390-next
+L: qemu-s390x@nongnu.org
+
+S390 PCI
+M: Collin Walling <walling@linux.ibm.com>
+S: Supported
+F: hw/s390x/s390-pci*
 L: qemu-s390x@nongnu.org
 
 UniCore32 Machines
@@ -1205,6 +1209,8 @@ F: include/hw/vfio/
 
 vfio-ccw
 M: Cornelia Huck <cohuck@redhat.com>
+M: Eric Farman <farman@linux.ibm.com>
+M: Farhan Ali <alifm@linux.ibm.com>
 S: Supported
 F: hw/vfio/ccw.c
 F: hw/s390x/s390-ccw.c
@@ -1261,7 +1267,7 @@ T: git git://github.com/stefanha/qemu.git block
 
 virtio-ccw
 M: Cornelia Huck <cohuck@redhat.com>
-M: Christian Borntraeger <borntraeger@de.ibm.com>
+M: Halil Pasic <pasic@linux.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw*.[hc]
 F: hw/s390x/vhost-vsock-ccw.c
@@ -1990,7 +1996,6 @@ F: tcg/ppc/
 F: disas/ppc.c
 
 S390 target
-M: Alexander Graf <agraf@suse.de>
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: tcg/s390/
