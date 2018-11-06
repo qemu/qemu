@@ -217,7 +217,32 @@ static uint64_t vhost_user_blk_get_features(VirtIODevice *vdev,
 
 static void vhost_user_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
+    VHostUserBlk *s = VHOST_USER_BLK(vdev);
+    int i;
 
+    if (!(virtio_host_has_feature(vdev, VIRTIO_F_VERSION_1) &&
+        !virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1))) {
+        return;
+    }
+
+    if (s->dev.started) {
+        return;
+    }
+
+    /* Some guests kick before setting VIRTIO_CONFIG_S_DRIVER_OK so start
+     * vhost here instead of waiting for .set_status().
+     */
+    vhost_user_blk_start(vdev);
+
+    /* Kick right away to begin processing requests already in vring */
+    for (i = 0; i < s->dev.nvqs; i++) {
+        VirtQueue *kick_vq = virtio_get_queue(vdev, i);
+
+        if (!virtio_queue_get_desc_addr(vdev, i)) {
+            continue;
+        }
+        event_notifier_set(virtio_queue_get_host_notifier(kick_vq));
+    }
 }
 
 static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)

@@ -22,6 +22,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
 
 #define  TYPE_X86_IOMMU_DEVICE  ("x86-iommu")
 #define  X86_IOMMU_DEVICE(obj) \
@@ -35,6 +36,8 @@
 
 typedef struct X86IOMMUState X86IOMMUState;
 typedef struct X86IOMMUClass X86IOMMUClass;
+typedef struct X86IOMMUIrq X86IOMMUIrq;
+typedef struct X86IOMMU_MSIMessage X86IOMMU_MSIMessage;
 
 typedef enum IommuType {
     TYPE_INTEL,
@@ -78,6 +81,63 @@ struct X86IOMMUState {
     QLIST_HEAD(, IEC_Notifier) iec_notifiers; /* IEC notify list */
 };
 
+/* Generic IRQ entry information when interrupt remapping is enabled */
+struct X86IOMMUIrq {
+    /* Used by both IOAPIC/MSI interrupt remapping */
+    uint8_t trigger_mode;
+    uint8_t vector;
+    uint8_t delivery_mode;
+    uint32_t dest;
+    uint8_t dest_mode;
+
+    /* only used by MSI interrupt remapping */
+    uint8_t redir_hint;
+    uint8_t msi_addr_last_bits;
+};
+
+struct X86IOMMU_MSIMessage {
+    union {
+        struct {
+#ifdef HOST_WORDS_BIGENDIAN
+            uint32_t __addr_head:12; /* 0xfee */
+            uint32_t dest:8;
+            uint32_t __reserved:8;
+            uint32_t redir_hint:1;
+            uint32_t dest_mode:1;
+            uint32_t __not_used:2;
+#else
+            uint32_t __not_used:2;
+            uint32_t dest_mode:1;
+            uint32_t redir_hint:1;
+            uint32_t __reserved:8;
+            uint32_t dest:8;
+            uint32_t __addr_head:12; /* 0xfee */
+#endif
+            uint32_t __addr_hi;
+        } QEMU_PACKED;
+        uint64_t msi_addr;
+    };
+    union {
+        struct {
+#ifdef HOST_WORDS_BIGENDIAN
+            uint16_t trigger_mode:1;
+            uint16_t level:1;
+            uint16_t __resved:3;
+            uint16_t delivery_mode:3;
+            uint16_t vector:8;
+#else
+            uint16_t vector:8;
+            uint16_t delivery_mode:3;
+            uint16_t __resved:3;
+            uint16_t level:1;
+            uint16_t trigger_mode:1;
+#endif
+            uint16_t __resved1;
+        } QEMU_PACKED;
+        uint32_t msi_data;
+    };
+};
+
 /**
  * x86_iommu_get_default - get default IOMMU device
  * @return: pointer to default IOMMU device
@@ -110,4 +170,10 @@ void x86_iommu_iec_register_notifier(X86IOMMUState *iommu,
 void x86_iommu_iec_notify_all(X86IOMMUState *iommu, bool global,
                               uint32_t index, uint32_t mask);
 
+/**
+ * x86_iommu_irq_to_msi_message - Populate one MSIMessage from X86IOMMUIrq
+ * @X86IOMMUIrq: The IRQ information
+ * @out: Output MSI message
+ */
+void x86_iommu_irq_to_msi_message(X86IOMMUIrq *irq, MSIMessage *out);
 #endif

@@ -97,8 +97,8 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
 
         if (req->qiov.nalloc != -1) {
             /* If nalloc is != 1 req->qiov is a local copy of the original
-             * external iovec. It was allocated in submit_merged_requests
-             * to be able to merge requests. */
+             * external iovec. It was allocated in submit_requests to be
+             * able to merge requests. */
             qemu_iovec_destroy(&req->qiov);
         }
 

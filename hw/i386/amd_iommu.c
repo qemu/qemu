@@ -26,7 +26,9 @@
 #include "amd_iommu.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "hw/i386/apic_internal.h"
 #include "trace.h"
+#include "hw/i386/apic-msidef.h"
 
 /* used AMD-Vi MMIO registers */
 const char *amdvi_mmio_low[] = {
@@ -55,6 +57,7 @@ struct AMDVIAddressSpace {
     uint8_t bus_num;            /* bus number                           */
     uint8_t devfn;              /* device function                      */
     AMDVIState *iommu_state;    /* AMDVI - one per machine              */
+    MemoryRegion root;          /* AMDVI Root memory map region */
     IOMMUMemoryRegion iommu;    /* Device's address translation region  */
     MemoryRegion iommu_ir;      /* Device's interrupt remapping region  */
     AddressSpace as;            /* device's corresponding address space */
@@ -605,6 +608,7 @@ static void amdvi_handle_control_write(AMDVIState *s)
     s->completion_wait_intr = !!(control & AMDVI_MMIO_CONTROL_COMWAITINTEN);
     s->cmdbuf_enabled = s->enabled && !!(control &
                         AMDVI_MMIO_CONTROL_CMDBUFLEN);
+    s->ga_enabled = !!(control & AMDVI_MMIO_CONTROL_GAEN);
 
     /* update the flags depending on the control register */
     if (s->cmdbuf_enabled) {
@@ -807,7 +811,7 @@ static inline uint64_t amdvi_get_perms(uint64_t entry)
            AMDVI_DEV_PERM_SHIFT;
 }
 
-/* a valid entry should have V = 1 and reserved bits honoured */
+/* validate that reserved bits are honoured */
 static bool amdvi_validate_dte(AMDVIState *s, uint16_t devid,
                                uint64_t *dte)
 {
@@ -820,7 +824,7 @@ static bool amdvi_validate_dte(AMDVIState *s, uint16_t devid,
         return false;
     }
 
-    return dte[0] & AMDVI_DEV_VALID;
+    return true;
 }
 
 /* get a device table entry given the devid */
@@ -966,8 +970,12 @@ static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
         return;
     }
 
-    /* devices with V = 0 are not translated */
     if (!amdvi_get_dte(s, devid, entry)) {
+        return;
+    }
+
+    /* devices with V = 0 are not translated */
+    if (!(entry[0] & AMDVI_DEV_VALID)) {
         goto out;
     }
 
@@ -1026,10 +1034,366 @@ static IOMMUTLBEntry amdvi_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
+static int amdvi_get_irte(AMDVIState *s, MSIMessage *origin, uint64_t *dte,
+                          union irte *irte, uint16_t devid)
+{
+    uint64_t irte_root, offset;
+
+    irte_root = dte[2] & AMDVI_IR_PHYS_ADDR_MASK;
+    offset = (origin->data & AMDVI_IRTE_OFFSET) << 2;
+
+    trace_amdvi_ir_irte(irte_root, offset);
+
+    if (dma_memory_read(&address_space_memory, irte_root + offset,
+                        irte, sizeof(*irte))) {
+        trace_amdvi_ir_err("failed to get irte");
+        return -AMDVI_IR_GET_IRTE;
+    }
+
+    trace_amdvi_ir_irte_val(irte->val);
+
+    return 0;
+}
+
+static int amdvi_int_remap_legacy(AMDVIState *iommu,
+                                  MSIMessage *origin,
+                                  MSIMessage *translated,
+                                  uint64_t *dte,
+                                  X86IOMMUIrq *irq,
+                                  uint16_t sid)
+{
+    int ret;
+    union irte irte;
+
+    /* get interrupt remapping table */
+    ret = amdvi_get_irte(iommu, origin, dte, &irte, sid);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (!irte.fields.valid) {
+        trace_amdvi_ir_target_abort("RemapEn is disabled");
+        return -AMDVI_IR_TARGET_ABORT;
+    }
+
+    if (irte.fields.guest_mode) {
+        error_report_once("guest mode is not zero");
+        return -AMDVI_IR_ERR;
+    }
+
+    if (irte.fields.int_type > AMDVI_IOAPIC_INT_TYPE_ARBITRATED) {
+        error_report_once("reserved int_type");
+        return -AMDVI_IR_ERR;
+    }
+
+    irq->delivery_mode = irte.fields.int_type;
+    irq->vector = irte.fields.vector;
+    irq->dest_mode = irte.fields.dm;
+    irq->redir_hint = irte.fields.rq_eoi;
+    irq->dest = irte.fields.destination;
+
+    return 0;
+}
+
+static int amdvi_get_irte_ga(AMDVIState *s, MSIMessage *origin, uint64_t *dte,
+                             struct irte_ga *irte, uint16_t devid)
+{
+    uint64_t irte_root, offset;
+
+    irte_root = dte[2] & AMDVI_IR_PHYS_ADDR_MASK;
+    offset = (origin->data & AMDVI_IRTE_OFFSET) << 4;
+    trace_amdvi_ir_irte(irte_root, offset);
+
+    if (dma_memory_read(&address_space_memory, irte_root + offset,
+                        irte, sizeof(*irte))) {
+        trace_amdvi_ir_err("failed to get irte_ga");
+        return -AMDVI_IR_GET_IRTE;
+    }
+
+    trace_amdvi_ir_irte_ga_val(irte->hi.val, irte->lo.val);
+    return 0;
+}
+
+static int amdvi_int_remap_ga(AMDVIState *iommu,
+                              MSIMessage *origin,
+                              MSIMessage *translated,
+                              uint64_t *dte,
+                              X86IOMMUIrq *irq,
+                              uint16_t sid)
+{
+    int ret;
+    struct irte_ga irte;
+
+    /* get interrupt remapping table */
+    ret = amdvi_get_irte_ga(iommu, origin, dte, &irte, sid);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (!irte.lo.fields_remap.valid) {
+        trace_amdvi_ir_target_abort("RemapEn is disabled");
+        return -AMDVI_IR_TARGET_ABORT;
+    }
+
+    if (irte.lo.fields_remap.guest_mode) {
+        error_report_once("guest mode is not zero");
+        return -AMDVI_IR_ERR;
+    }
+
+    if (irte.lo.fields_remap.int_type > AMDVI_IOAPIC_INT_TYPE_ARBITRATED) {
+        error_report_once("reserved int_type is set");
+        return -AMDVI_IR_ERR;
+    }
+
+    irq->delivery_mode = irte.lo.fields_remap.int_type;
+    irq->vector = irte.hi.fields.vector;
+    irq->dest_mode = irte.lo.fields_remap.dm;
+    irq->redir_hint = irte.lo.fields_remap.rq_eoi;
+    irq->dest = irte.lo.fields_remap.destination;
+
+    return 0;
+}
+
+static int __amdvi_int_remap_msi(AMDVIState *iommu,
+                                 MSIMessage *origin,
+                                 MSIMessage *translated,
+                                 uint64_t *dte,
+                                 X86IOMMUIrq *irq,
+                                 uint16_t sid)
+{
+    int ret;
+    uint8_t int_ctl;
+
+    int_ctl = (dte[2] >> AMDVI_IR_INTCTL_SHIFT) & 3;
+    trace_amdvi_ir_intctl(int_ctl);
+
+    switch (int_ctl) {
+    case AMDVI_IR_INTCTL_PASS:
+        memcpy(translated, origin, sizeof(*origin));
+        return 0;
+    case AMDVI_IR_INTCTL_REMAP:
+        break;
+    case AMDVI_IR_INTCTL_ABORT:
+        trace_amdvi_ir_target_abort("int_ctl abort");
+        return -AMDVI_IR_TARGET_ABORT;
+    default:
+        trace_amdvi_ir_err("int_ctl reserved");
+        return -AMDVI_IR_ERR;
+    }
+
+    if (iommu->ga_enabled) {
+        ret = amdvi_int_remap_ga(iommu, origin, translated, dte, irq, sid);
+    } else {
+        ret = amdvi_int_remap_legacy(iommu, origin, translated, dte, irq, sid);
+    }
+
+    return ret;
+}
+
+/* Interrupt remapping for MSI/MSI-X entry */
+static int amdvi_int_remap_msi(AMDVIState *iommu,
+                               MSIMessage *origin,
+                               MSIMessage *translated,
+                               uint16_t sid)
+{
+    int ret = 0;
+    uint64_t pass = 0;
+    uint64_t dte[4] = { 0 };
+    X86IOMMUIrq irq = { 0 };
+    uint8_t dest_mode, delivery_mode;
+
+    assert(origin && translated);
+
+    /*
+     * When IOMMU is enabled, interrupt remap request will come either from
+     * IO-APIC or PCI device. If interrupt is from PCI device then it will
+     * have a valid requester id but if the interrupt is from IO-APIC
+     * then requester id will be invalid.
+     */
+    if (sid == X86_IOMMU_SID_INVALID) {
+        sid = AMDVI_IOAPIC_SB_DEVID;
+    }
+
+    trace_amdvi_ir_remap_msi_req(origin->address, origin->data, sid);
+
+    /* check if device table entry is set before we go further. */
+    if (!iommu || !iommu->devtab_len) {
+        memcpy(translated, origin, sizeof(*origin));
+        goto out;
+    }
+
+    if (!amdvi_get_dte(iommu, sid, dte)) {
+        return -AMDVI_IR_ERR;
+    }
+
+    /* Check if IR is enabled in DTE */
+    if (!(dte[2] & AMDVI_IR_REMAP_ENABLE)) {
+        memcpy(translated, origin, sizeof(*origin));
+        goto out;
+    }
+
+    /* validate that we are configure with intremap=on */
+    if (!X86_IOMMU_DEVICE(iommu)->intr_supported) {
+        trace_amdvi_err("Interrupt remapping is enabled in the guest but "
+                        "not in the host. Use intremap=on to enable interrupt "
+                        "remapping in amd-iommu.");
+        return -AMDVI_IR_ERR;
+    }
+
+    if (origin->address & AMDVI_MSI_ADDR_HI_MASK) {
+        trace_amdvi_err("MSI address high 32 bits non-zero when "
+                        "Interrupt Remapping enabled.");
+        return -AMDVI_IR_ERR;
+    }
+
+    if ((origin->address & AMDVI_MSI_ADDR_LO_MASK) != APIC_DEFAULT_ADDRESS) {
+        trace_amdvi_err("MSI is not from IOAPIC.");
+        return -AMDVI_IR_ERR;
+    }
+
+    /*
+     * The MSI data register [10:8] are used to get the upstream interrupt type.
+     *
+     * See MSI/MSI-X format:
+     * https://pdfs.semanticscholar.org/presentation/9420/c279e942eca568157711ef5c92b800c40a79.pdf
+     * (page 5)
+     */
+    delivery_mode = (origin->data >> MSI_DATA_DELIVERY_MODE_SHIFT) & 7;
+
+    switch (delivery_mode) {
+    case AMDVI_IOAPIC_INT_TYPE_FIXED:
+    case AMDVI_IOAPIC_INT_TYPE_ARBITRATED:
+        trace_amdvi_ir_delivery_mode("fixed/arbitrated");
+        ret = __amdvi_int_remap_msi(iommu, origin, translated, dte, &irq, sid);
+        if (ret < 0) {
+            goto remap_fail;
+        } else {
+            /* Translate IRQ to MSI messages */
+            x86_iommu_irq_to_msi_message(&irq, translated);
+            goto out;
+        }
+        break;
+    case AMDVI_IOAPIC_INT_TYPE_SMI:
+        error_report("SMI is not supported!");
+        ret = -AMDVI_IR_ERR;
+        break;
+    case AMDVI_IOAPIC_INT_TYPE_NMI:
+        pass = dte[3] & AMDVI_DEV_NMI_PASS_MASK;
+        trace_amdvi_ir_delivery_mode("nmi");
+        break;
+    case AMDVI_IOAPIC_INT_TYPE_INIT:
+        pass = dte[3] & AMDVI_DEV_INT_PASS_MASK;
+        trace_amdvi_ir_delivery_mode("init");
+        break;
+    case AMDVI_IOAPIC_INT_TYPE_EINT:
+        pass = dte[3] & AMDVI_DEV_EINT_PASS_MASK;
+        trace_amdvi_ir_delivery_mode("eint");
+        break;
+    default:
+        trace_amdvi_ir_delivery_mode("unsupported delivery_mode");
+        ret = -AMDVI_IR_ERR;
+        break;
+    }
+
+    if (ret < 0) {
+        goto remap_fail;
+    }
+
+    /*
+     * The MSI address register bit[2] is used to get the destination
+     * mode. The dest_mode 1 is valid for fixed and arbitrated interrupts
+     * only.
+     */
+    dest_mode = (origin->address >> MSI_ADDR_DEST_MODE_SHIFT) & 1;
+    if (dest_mode) {
+        trace_amdvi_ir_err("invalid dest_mode");
+        ret = -AMDVI_IR_ERR;
+        goto remap_fail;
+    }
+
+    if (pass) {
+        memcpy(translated, origin, sizeof(*origin));
+    } else {
+        trace_amdvi_ir_err("passthrough is not enabled");
+        ret = -AMDVI_IR_ERR;
+        goto remap_fail;
+    }
+
+out:
+    trace_amdvi_ir_remap_msi(origin->address, origin->data,
+                             translated->address, translated->data);
+    return 0;
+
+remap_fail:
+    return ret;
+}
+
+static int amdvi_int_remap(X86IOMMUState *iommu,
+                           MSIMessage *origin,
+                           MSIMessage *translated,
+                           uint16_t sid)
+{
+    return amdvi_int_remap_msi(AMD_IOMMU_DEVICE(iommu), origin,
+                               translated, sid);
+}
+
+static MemTxResult amdvi_mem_ir_write(void *opaque, hwaddr addr,
+                                      uint64_t value, unsigned size,
+                                      MemTxAttrs attrs)
+{
+    int ret;
+    MSIMessage from = { 0, 0 }, to = { 0, 0 };
+    uint16_t sid = AMDVI_IOAPIC_SB_DEVID;
+
+    from.address = (uint64_t) addr + AMDVI_INT_ADDR_FIRST;
+    from.data = (uint32_t) value;
+
+    trace_amdvi_mem_ir_write_req(addr, value, size);
+
+    if (!attrs.unspecified) {
+        /* We have explicit Source ID */
+        sid = attrs.requester_id;
+    }
+
+    ret = amdvi_int_remap_msi(opaque, &from, &to, sid);
+    if (ret < 0) {
+        /* TODO: log the event using IOMMU log event interface */
+        error_report_once("failed to remap interrupt from devid 0x%x", sid);
+        return MEMTX_ERROR;
+    }
+
+    apic_get_class()->send_msi(&to);
+
+    trace_amdvi_mem_ir_write(to.address, to.data);
+    return MEMTX_OK;
+}
+
+static MemTxResult amdvi_mem_ir_read(void *opaque, hwaddr addr,
+                                     uint64_t *data, unsigned size,
+                                     MemTxAttrs attrs)
+{
+    return MEMTX_OK;
+}
+
+static const MemoryRegionOps amdvi_ir_ops = {
+    .read_with_attrs = amdvi_mem_ir_read,
+    .write_with_attrs = amdvi_mem_ir_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    }
+};
+
 static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
+    char name[128];
     AMDVIState *s = opaque;
-    AMDVIAddressSpace **iommu_as;
+    AMDVIAddressSpace **iommu_as, *amdvi_dev_as;
     int bus_num = pci_bus_num(bus);
 
     iommu_as = s->address_spaces[bus_num];
@@ -1042,19 +1406,45 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
     /* set up AMD-Vi region */
     if (!iommu_as[devfn]) {
+        snprintf(name, sizeof(name), "amd_iommu_devfn_%d", devfn);
+
         iommu_as[devfn] = g_malloc0(sizeof(AMDVIAddressSpace));
         iommu_as[devfn]->bus_num = (uint8_t)bus_num;
         iommu_as[devfn]->devfn = (uint8_t)devfn;
         iommu_as[devfn]->iommu_state = s;
 
-        memory_region_init_iommu(&iommu_as[devfn]->iommu,
-                                 sizeof(iommu_as[devfn]->iommu),
+        amdvi_dev_as = iommu_as[devfn];
+
+        /*
+         * Memory region relationships looks like (Address range shows
+         * only lower 32 bits to make it short in length...):
+         *
+         * |-----------------+-------------------+----------|
+         * | Name            | Address range     | Priority |
+         * |-----------------+-------------------+----------+
+         * | amdvi_root      | 00000000-ffffffff |        0 |
+         * |  amdvi_iommu    | 00000000-ffffffff |        1 |
+         * |  amdvi_iommu_ir | fee00000-feefffff |       64 |
+         * |-----------------+-------------------+----------|
+         */
+        memory_region_init_iommu(&amdvi_dev_as->iommu,
+                                 sizeof(amdvi_dev_as->iommu),
                                  TYPE_AMD_IOMMU_MEMORY_REGION,
                                  OBJECT(s),
-                                 "amd-iommu", UINT64_MAX);
-        address_space_init(&iommu_as[devfn]->as,
-                           MEMORY_REGION(&iommu_as[devfn]->iommu),
-                           "amd-iommu");
+                                 "amd_iommu", UINT64_MAX);
+        memory_region_init(&amdvi_dev_as->root, OBJECT(s),
+                           "amdvi_root", UINT64_MAX);
+        address_space_init(&amdvi_dev_as->as, &amdvi_dev_as->root, name);
+        memory_region_init_io(&amdvi_dev_as->iommu_ir, OBJECT(s),
+                              &amdvi_ir_ops, s, "amd_iommu_ir",
+                              AMDVI_INT_ADDR_SIZE);
+        memory_region_add_subregion_overlap(&amdvi_dev_as->root,
+                                            AMDVI_INT_ADDR_FIRST,
+                                            &amdvi_dev_as->iommu_ir,
+                                            64);
+        memory_region_add_subregion_overlap(&amdvi_dev_as->root, 0,
+                                            MEMORY_REGION(&amdvi_dev_as->iommu),
+                                            1);
     }
     return &iommu_as[devfn]->as;
 }
@@ -1172,6 +1562,9 @@ static void amdvi_realize(DeviceState *dev, Error **err)
         return;
     }
 
+    /* Pseudo address space under root PCI bus. */
+    pcms->ioapic_as = amdvi_host_dma_iommu(bus, s, AMDVI_IOAPIC_SB_DEVID);
+
     /* set up MMIO */
     memory_region_init_io(&s->mmio, OBJECT(s), &mmio_mem_ops, s, "amdvi-mmio",
                           AMDVI_MMIO_SIZE);
@@ -1205,6 +1598,7 @@ static void amdvi_class_init(ObjectClass *klass, void* data)
     dc->vmsd = &vmstate_amdvi;
     dc->hotpluggable = false;
     dc_class->realize = amdvi_realize;
+    dc_class->int_remap = amdvi_int_remap;
     /* Supported by the pc-q35-* machine types */
     dc->user_creatable = true;
 }

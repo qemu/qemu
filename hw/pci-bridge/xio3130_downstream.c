@@ -23,7 +23,7 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/pcie.h"
-#include "xio3130_downstream.h"
+#include "hw/pci/pcie_port.h"
 #include "qapi/error.h"
 
 #define PCI_DEVICE_ID_TI_XIO3130D       0x8233  /* downstream port */
@@ -125,32 +125,6 @@ static void xio3130_downstream_exitfn(PCIDevice *d)
     pcie_cap_exit(d);
     msi_uninit(d);
     pci_bridge_exitfn(d);
-}
-
-PCIESlot *xio3130_downstream_init(PCIBus *bus, int devfn, bool multifunction,
-                                  const char *bus_name, pci_map_irq_fn map_irq,
-                                  uint8_t port, uint8_t chassis,
-                                  uint16_t slot)
-{
-    PCIDevice *d;
-    PCIBridge *br;
-    DeviceState *qdev;
-
-    d = pci_create_multifunction(bus, devfn, multifunction,
-                                 "xio3130-downstream");
-    if (!d) {
-        return NULL;
-    }
-    br = PCI_BRIDGE(d);
-
-    qdev = DEVICE(d);
-    pci_bridge_map_irq(br, bus_name, map_irq);
-    qdev_prop_set_uint8(qdev, "port", port);
-    qdev_prop_set_uint8(qdev, "chassis", chassis);
-    qdev_prop_set_uint16(qdev, "slot", slot);
-    qdev_init_nofail(qdev);
-
-    return PCIE_SLOT(d);
 }
 
 static Property xio3130_downstream_props[] = {

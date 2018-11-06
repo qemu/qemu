@@ -103,6 +103,7 @@
 #define AMDVI_MMIO_CONTROL_EVENTINTEN     (1ULL << 3)
 #define AMDVI_MMIO_CONTROL_COMWAITINTEN   (1ULL << 4)
 #define AMDVI_MMIO_CONTROL_CMDBUFLEN      (1ULL << 12)
+#define AMDVI_MMIO_CONTROL_GAEN           (1ULL << 17)
 
 /* MMIO status register bits */
 #define AMDVI_MMIO_STATUS_CMDBUF_RUN  (1 << 4)
@@ -175,7 +176,7 @@
 /* extended feature support */
 #define AMDVI_EXT_FEATURES (AMDVI_FEATURE_PREFETCH | AMDVI_FEATURE_PPR | \
         AMDVI_FEATURE_IA | AMDVI_FEATURE_GT | AMDVI_FEATURE_HE | \
-        AMDVI_GATS_MODE | AMDVI_HATS_MODE)
+        AMDVI_GATS_MODE | AMDVI_HATS_MODE | AMDVI_FEATURE_GA)
 
 /* capabilities header */
 #define AMDVI_CAPAB_FEATURES (AMDVI_CAPAB_FLAT_EXT | \
@@ -206,8 +207,94 @@
 
 #define AMDVI_COMMAND_SIZE   16
 
-#define AMDVI_INT_ADDR_FIRST 0xfee00000
-#define AMDVI_INT_ADDR_LAST  0xfeefffff
+#define AMDVI_INT_ADDR_FIRST    0xfee00000
+#define AMDVI_INT_ADDR_LAST     0xfeefffff
+#define AMDVI_INT_ADDR_SIZE     (AMDVI_INT_ADDR_LAST - AMDVI_INT_ADDR_FIRST + 1)
+#define AMDVI_MSI_ADDR_HI_MASK  (0xffffffff00000000ULL)
+#define AMDVI_MSI_ADDR_LO_MASK  (0x00000000ffffffffULL)
+
+/* SB IOAPIC is always on this device in AMD systems */
+#define AMDVI_IOAPIC_SB_DEVID   PCI_BUILD_BDF(0, PCI_DEVFN(0x14, 0))
+
+/* Interrupt remapping errors */
+#define AMDVI_IR_ERR            0x1
+#define AMDVI_IR_GET_IRTE       0x2
+#define AMDVI_IR_TARGET_ABORT   0x3
+
+/* Interrupt remapping */
+#define AMDVI_IR_REMAP_ENABLE           1ULL
+#define AMDVI_IR_INTCTL_SHIFT           60
+#define AMDVI_IR_INTCTL_ABORT           0
+#define AMDVI_IR_INTCTL_PASS            1
+#define AMDVI_IR_INTCTL_REMAP           2
+
+#define AMDVI_IR_PHYS_ADDR_MASK         (((1ULL << 45) - 1) << 6)
+
+/* MSI data 10:0 bits (section 2.2.5.1 Fig 14) */
+#define AMDVI_IRTE_OFFSET               0x7ff
+
+/* Delivery mode of MSI data (same as IOAPIC deilver mode encoding) */
+#define AMDVI_IOAPIC_INT_TYPE_FIXED          0x0
+#define AMDVI_IOAPIC_INT_TYPE_ARBITRATED     0x1
+#define AMDVI_IOAPIC_INT_TYPE_SMI            0x2
+#define AMDVI_IOAPIC_INT_TYPE_NMI            0x4
+#define AMDVI_IOAPIC_INT_TYPE_INIT           0x5
+#define AMDVI_IOAPIC_INT_TYPE_EINT           0x7
+
+/* Pass through interrupt */
+#define AMDVI_DEV_INT_PASS_MASK         (1ULL << 56)
+#define AMDVI_DEV_EINT_PASS_MASK        (1ULL << 57)
+#define AMDVI_DEV_NMI_PASS_MASK         (1ULL << 58)
+#define AMDVI_DEV_LINT0_PASS_MASK       (1ULL << 62)
+#define AMDVI_DEV_LINT1_PASS_MASK       (1ULL << 63)
+
+/* Interrupt remapping table fields (Guest VAPIC not enabled) */
+union irte {
+    uint32_t val;
+    struct {
+        uint32_t valid:1,
+                 no_fault:1,
+                 int_type:3,
+                 rq_eoi:1,
+                 dm:1,
+                 guest_mode:1,
+                 destination:8,
+                 vector:8,
+                 rsvd:8;
+    } fields;
+};
+
+/* Interrupt remapping table fields (Guest VAPIC is enabled) */
+union irte_ga_lo {
+  uint64_t val;
+
+  /* For int remapping */
+  struct {
+      uint64_t  valid:1,
+                no_fault:1,
+                /* ------ */
+                int_type:3,
+                rq_eoi:1,
+                dm:1,
+                /* ------ */
+                guest_mode:1,
+                destination:8,
+                rsvd_1:48;
+  } fields_remap;
+};
+
+union irte_ga_hi {
+  uint64_t val;
+  struct {
+      uint64_t  vector:8,
+                rsvd_2:56;
+  } fields;
+};
+
+struct irte_ga {
+  union irte_ga_lo lo;
+  union irte_ga_hi hi;
+};
 
 #define TYPE_AMD_IOMMU_DEVICE "amd-iommu"
 #define AMD_IOMMU_DEVICE(obj)\
@@ -278,6 +365,9 @@ typedef struct AMDVIState {
 
     /* IOTLB */
     GHashTable *iotlb;
+
+    /* Interrupt remapping */
+    bool ga_enabled;
 } AMDVIState;
 
 #endif

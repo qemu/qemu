@@ -66,8 +66,6 @@ typedef struct VTDIOTLBEntry VTDIOTLBEntry;
 typedef struct VTDBus VTDBus;
 typedef union VTD_IR_TableEntry VTD_IR_TableEntry;
 typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
-typedef struct VTDIrq VTDIrq;
-typedef struct VTD_MSIMessage VTD_MSIMessage;
 
 /* Context-Entry */
 struct VTDContextEntry {
@@ -195,63 +193,6 @@ union VTD_IR_MSIAddress {
 #endif
     } QEMU_PACKED addr;
     uint32_t data;
-};
-
-/* Generic IRQ entry information */
-struct VTDIrq {
-    /* Used by both IOAPIC/MSI interrupt remapping */
-    uint8_t trigger_mode;
-    uint8_t vector;
-    uint8_t delivery_mode;
-    uint32_t dest;
-    uint8_t dest_mode;
-
-    /* only used by MSI interrupt remapping */
-    uint8_t redir_hint;
-    uint8_t msi_addr_last_bits;
-};
-
-struct VTD_MSIMessage {
-    union {
-        struct {
-#ifdef HOST_WORDS_BIGENDIAN
-            uint32_t __addr_head:12; /* 0xfee */
-            uint32_t dest:8;
-            uint32_t __reserved:8;
-            uint32_t redir_hint:1;
-            uint32_t dest_mode:1;
-            uint32_t __not_used:2;
-#else
-            uint32_t __not_used:2;
-            uint32_t dest_mode:1;
-            uint32_t redir_hint:1;
-            uint32_t __reserved:8;
-            uint32_t dest:8;
-            uint32_t __addr_head:12; /* 0xfee */
-#endif
-            uint32_t __addr_hi;
-        } QEMU_PACKED;
-        uint64_t msi_addr;
-    };
-    union {
-        struct {
-#ifdef HOST_WORDS_BIGENDIAN
-            uint16_t trigger_mode:1;
-            uint16_t level:1;
-            uint16_t __resved:3;
-            uint16_t delivery_mode:3;
-            uint16_t vector:8;
-#else
-            uint16_t vector:8;
-            uint16_t delivery_mode:3;
-            uint16_t __resved:3;
-            uint16_t level:1;
-            uint16_t trigger_mode:1;
-#endif
-            uint16_t __resved1;
-        } QEMU_PACKED;
-        uint32_t msi_data;
-    };
 };
 
 /* When IR is enabled, all MSI/MSI-X data bits should be zero */

@@ -40,7 +40,7 @@
 
 /*
  * I440FX chipset data sheet.
- * http://download.intel.com/design/chipsets/datashts/29054901.pdf
+ * https://wiki.qemu.org/File:29054901.pdf
  */
 
 #define I440FX_PCI_HOST_BRIDGE(obj) \
@@ -95,6 +95,9 @@ typedef struct PIIX3State {
 #define I440FX_PCI_DEVICE(obj) \
     OBJECT_CHECK(PCII440FXState, (obj), TYPE_I440FX_PCI_DEVICE)
 
+#define TYPE_PIIX3_DEVICE "PIIX3"
+#define TYPE_PIIX3_XEN_DEVICE "PIIX3-xen"
+
 struct PCII440FXState {
     /*< private >*/
     PCIDevice parent_obj;
@@ -142,7 +145,7 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
     PCIDevice *pd = PCI_DEVICE(d);
 
     memory_region_transaction_begin();
-    for (i = 0; i < 13; i++) {
+    for (i = 0; i < ARRAY_SIZE(d->pam_regions); i++) {
         pam_update(&d->pam_regions[i], i,
                    pd->config[I440FX_PAM + DIV_ROUND_UP(i, 2)]);
     }
@@ -249,9 +252,7 @@ static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
  * the 64bit PCI hole will start after "over 4G RAM" and the
  * reserved space for memory hotplug if any.
  */
-static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
-                                                const char *name,
-                                                void *opaque, Error **errp)
+static uint64_t i440fx_pcihost_get_pci_hole64_start_value(Object *obj)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
@@ -263,7 +264,16 @@ static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
     if (!value && s->pci_hole64_fix) {
         value = pc_pci_hole64_start();
     }
-    visit_type_uint64(v, name, &value, errp);
+    return value;
+}
+
+static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
+                                                const char *name,
+                                                void *opaque, Error **errp)
+{
+    uint64_t hole64_start = i440fx_pcihost_get_pci_hole64_start_value(obj);
+
+    visit_type_uint64(v, name, &hole64_start, errp);
 }
 
 /*
@@ -278,7 +288,7 @@ static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
-    uint64_t hole64_start = pc_pci_hole64_start();
+    uint64_t hole64_start = i440fx_pcihost_get_pci_hole64_start_value(obj);
     Range w64;
     uint64_t value, hole64_end;
 
@@ -405,7 +415,7 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
 
     init_pam(dev, f->ram_memory, f->system_memory, f->pci_address_space,
              &f->pam_regions[0], PAM_BIOS_BASE, PAM_BIOS_SIZE);
-    for (i = 0; i < 12; ++i) {
+    for (i = 0; i < ARRAY_SIZE(f->pam_regions) - 1; ++i) {
         init_pam(dev, f->ram_memory, f->system_memory, f->pci_address_space,
                  &f->pam_regions[i+1], PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE,
                  PAM_EXPAN_SIZE);
@@ -417,13 +427,13 @@ PCIBus *i440fx_init(const char *host_type, const char *pci_type,
      * These additional routes can be discovered through ACPI. */
     if (xen_enabled()) {
         PCIDevice *pci_dev = pci_create_simple_multifunction(b,
-                             -1, true, "PIIX3-xen");
+                             -1, true, TYPE_PIIX3_XEN_DEVICE);
         piix3 = PIIX3_PCI_DEVICE(pci_dev);
         pci_bus_irqs(b, xen_piix3_set_irq, xen_pci_slot_get_pirq,
                 piix3, XEN_PIIX_NUM_PIRQS);
     } else {
         PCIDevice *pci_dev = pci_create_simple_multifunction(b,
-                             -1, true, "PIIX3");
+                             -1, true, TYPE_PIIX3_DEVICE);
         piix3 = PIIX3_PCI_DEVICE(pci_dev);
         pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
                 PIIX_NUM_PIRQS);
@@ -741,7 +751,7 @@ static void piix3_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo piix3_info = {
-    .name          = "PIIX3",
+    .name          = TYPE_PIIX3_DEVICE,
     .parent        = TYPE_PIIX3_PCI_DEVICE,
     .class_init    = piix3_class_init,
 };
@@ -754,7 +764,7 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
 };
 
 static const TypeInfo piix3_xen_info = {
-    .name          = "PIIX3-xen",
+    .name          = TYPE_PIIX3_XEN_DEVICE,
     .parent        = TYPE_PIIX3_PCI_DEVICE,
     .class_init    = piix3_xen_class_init,
 };

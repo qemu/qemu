@@ -1120,6 +1120,8 @@ F: hw/i386/acpi-build.[hc]
 F: hw/arm/virt-acpi-build.c
 F: tests/bios-tables-test.c
 F: tests/acpi-utils.[hc]
+F: tests/acpi-test-data/*
+F: tests/acpi-test-data/*/*
 
 ppc4xx
 M: Alexander Graf <agraf@suse.de>
@@ -1376,7 +1378,7 @@ Intel Hexadecimal Object File Loader
 M: Su Hang <suhang16@mails.ucas.ac.cn>
 S: Maintained
 F: tests/hexloader-test.c
-F: tests/hex-loader-check-data/test.hex
+F: tests/data/hex-loader/test.hex
 
 CHRP NVRAM
 M: Thomas Huth <thuth@redhat.com>

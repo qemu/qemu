@@ -37,6 +37,9 @@
 #include "kvm_i386.h"
 #include "trace.h"
 
+static void vtd_address_space_refresh_all(IntelIOMMUState *s);
+static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n);
+
 static void vtd_define_quad(IntelIOMMUState *s, hwaddr addr, uint64_t val,
                             uint64_t wmask, uint64_t w1cmask)
 {
@@ -224,6 +227,14 @@ static void vtd_reset_iotlb(IntelIOMMUState *s)
 {
     vtd_iommu_lock(s);
     vtd_reset_iotlb_locked(s);
+    vtd_iommu_unlock(s);
+}
+
+static void vtd_reset_caches(IntelIOMMUState *s)
+{
+    vtd_iommu_lock(s);
+    vtd_reset_iotlb_locked(s);
+    vtd_reset_context_cache_locked(s);
     vtd_iommu_unlock(s);
 }
 
@@ -1035,7 +1046,6 @@ static int vtd_sync_shadow_page_hook(IOMMUTLBEntry *entry,
     return 0;
 }
 
-/* If context entry is NULL, we'll try to fetch it on our own. */
 static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
                                             VTDContextEntry *ce,
                                             hwaddr addr, hwaddr size)
@@ -1047,39 +1057,41 @@ static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
         .notify_unmap = true,
         .aw = s->aw_bits,
         .as = vtd_as,
+        .domain_id = VTD_CONTEXT_ENTRY_DID(ce->hi),
     };
-    VTDContextEntry ce_cache;
-    int ret;
 
-    if (ce) {
-        /* If the caller provided context entry, use it */
-        ce_cache = *ce;
-    } else {
-        /* If the caller didn't provide ce, try to fetch */
-        ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
-                                       vtd_as->devfn, &ce_cache);
-        if (ret) {
-            /*
-             * This should not really happen, but in case it happens,
-             * we just skip the sync for this time.  After all we even
-             * don't have the root table pointer!
-             */
-            error_report_once("%s: invalid context entry for bus 0x%x"
-                              " devfn 0x%x",
-                              __func__, pci_bus_num(vtd_as->bus),
-                              vtd_as->devfn);
-            return 0;
-        }
-    }
-
-    info.domain_id = VTD_CONTEXT_ENTRY_DID(ce_cache.hi);
-
-    return vtd_page_walk(&ce_cache, addr, addr + size, &info);
+    return vtd_page_walk(ce, addr, addr + size, &info);
 }
 
 static int vtd_sync_shadow_page_table(VTDAddressSpace *vtd_as)
 {
-    return vtd_sync_shadow_page_table_range(vtd_as, NULL, 0, UINT64_MAX);
+    int ret;
+    VTDContextEntry ce;
+    IOMMUNotifier *n;
+
+    ret = vtd_dev_to_context_entry(vtd_as->iommu_state,
+                                   pci_bus_num(vtd_as->bus),
+                                   vtd_as->devfn, &ce);
+    if (ret) {
+        if (ret == -VTD_FR_CONTEXT_ENTRY_P) {
+            /*
+             * It's a valid scenario to have a context entry that is
+             * not present.  For example, when a device is removed
+             * from an existing domain then the context entry will be
+             * zeroed by the guest before it was put into another
+             * domain.  When this happens, instead of synchronizing
+             * the shadow pages we should invalidate all existing
+             * mappings and notify the backends.
+             */
+            IOMMU_NOTIFIER_FOREACH(n, &vtd_as->iommu) {
+                vtd_address_space_unmap(vtd_as, n);
+            }
+            ret = 0;
+        }
+        return ret;
+    }
+
+    return vtd_sync_shadow_page_table_range(vtd_as, &ce, 0, UINT64_MAX);
 }
 
 /*
@@ -1428,7 +1440,7 @@ static void vtd_context_global_invalidate(IntelIOMMUState *s)
         vtd_reset_context_cache_locked(s);
     }
     vtd_iommu_unlock(s);
-    vtd_switch_address_space_all(s);
+    vtd_address_space_refresh_all(s);
     /*
      * From VT-d spec 6.5.2.1, a global context entry invalidation
      * should be followed by a IOTLB global invalidation, so we should
@@ -1719,6 +1731,8 @@ static void vtd_handle_gcmd_srtp(IntelIOMMUState *s)
     vtd_root_table_setup(s);
     /* Ok - report back to driver */
     vtd_set_clear_mask_long(s, DMAR_GSTS_REG, 0, VTD_GSTS_RTPS);
+    vtd_reset_caches(s);
+    vtd_address_space_refresh_all(s);
 }
 
 /* Set Interrupt Remap Table Pointer */
@@ -1751,7 +1765,8 @@ static void vtd_handle_gcmd_te(IntelIOMMUState *s, bool en)
         vtd_set_clear_mask_long(s, DMAR_GSTS_REG, VTD_GSTS_TES, 0);
     }
 
-    vtd_switch_address_space_all(s);
+    vtd_reset_caches(s);
+    vtd_address_space_refresh_all(s);
 }
 
 /* Handle Interrupt Remap Enable/Disable */
@@ -2701,7 +2716,7 @@ static int vtd_irte_get(IntelIOMMUState *iommu, uint16_t index,
 
 /* Fetch IRQ information of specific IR index */
 static int vtd_remap_irq_get(IntelIOMMUState *iommu, uint16_t index,
-                             VTDIrq *irq, uint16_t sid)
+                             X86IOMMUIrq *irq, uint16_t sid)
 {
     VTD_IR_TableEntry irte = {};
     int ret = 0;
@@ -2730,30 +2745,6 @@ static int vtd_remap_irq_get(IntelIOMMUState *iommu, uint16_t index,
     return 0;
 }
 
-/* Generate one MSI message from VTDIrq info */
-static void vtd_generate_msi_message(VTDIrq *irq, MSIMessage *msg_out)
-{
-    VTD_MSIMessage msg = {};
-
-    /* Generate address bits */
-    msg.dest_mode = irq->dest_mode;
-    msg.redir_hint = irq->redir_hint;
-    msg.dest = irq->dest;
-    msg.__addr_hi = irq->dest & 0xffffff00;
-    msg.__addr_head = cpu_to_le32(0xfee);
-    /* Keep this from original MSI address bits */
-    msg.__not_used = irq->msi_addr_last_bits;
-
-    /* Generate data bits */
-    msg.vector = irq->vector;
-    msg.delivery_mode = irq->delivery_mode;
-    msg.level = 1;
-    msg.trigger_mode = irq->trigger_mode;
-
-    msg_out->address = msg.msi_addr;
-    msg_out->data = msg.msi_data;
-}
-
 /* Interrupt remapping for MSI/MSI-X entry */
 static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
                                    MSIMessage *origin,
@@ -2763,7 +2754,7 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
     int ret = 0;
     VTD_IR_MSIAddress addr;
     uint16_t index;
-    VTDIrq irq = {};
+    X86IOMMUIrq irq = {};
 
     assert(origin && translated);
 
@@ -2842,8 +2833,8 @@ static int vtd_interrupt_remap_msi(IntelIOMMUState *iommu,
      */
     irq.msi_addr_last_bits = addr.addr.__not_care;
 
-    /* Translate VTDIrq to MSI message */
-    vtd_generate_msi_message(&irq, translated);
+    /* Translate X86IOMMUIrq to MSI message */
+    x86_iommu_irq_to_msi_message(&irq, translated);
 
 out:
     trace_vtd_ir_remap_msi(origin->address, origin->data,
@@ -3051,6 +3042,12 @@ static void vtd_address_space_unmap_all(IntelIOMMUState *s)
     }
 }
 
+static void vtd_address_space_refresh_all(IntelIOMMUState *s)
+{
+    vtd_address_space_unmap_all(s);
+    vtd_switch_address_space_all(s);
+}
+
 static int vtd_replay_hook(IOMMUTLBEntry *entry, void *private)
 {
     memory_region_notify_one((IOMMUNotifier *)private, entry);
@@ -3160,10 +3157,7 @@ static void vtd_init(IntelIOMMUState *s)
         s->cap |= VTD_CAP_CM;
     }
 
-    vtd_iommu_lock(s);
-    vtd_reset_context_cache_locked(s);
-    vtd_reset_iotlb_locked(s);
-    vtd_iommu_unlock(s);
+    vtd_reset_caches(s);
 
     /* Define registers with default values and bit semantics */
     vtd_define_long(s, DMAR_VER_REG, 0x10UL, 0, 0);
@@ -3226,11 +3220,7 @@ static void vtd_reset(DeviceState *dev)
     IntelIOMMUState *s = INTEL_IOMMU_DEVICE(dev);
 
     vtd_init(s);
-
-    /*
-     * When device reset, throw away all mappings and external caches
-     */
-    vtd_address_space_unmap_all(s);
+    vtd_address_space_refresh_all(s);
 }
 
 static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
@@ -3248,13 +3238,6 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
-    /* Currently Intel IOMMU IR only support "kernel-irqchip={off|split}" */
-    if (x86_iommu->intr_supported && kvm_irqchip_in_kernel() &&
-        !kvm_irqchip_is_split()) {
-        error_setg(errp, "Intel Interrupt Remapping cannot work with "
-                         "kernel-irqchip=on, please use 'split|off'.");
-        return false;
-    }
     if (s->intr_eim == ON_OFF_AUTO_ON && !x86_iommu->intr_supported) {
         error_setg(errp, "eim=on cannot be selected without intremap=on");
         return false;
