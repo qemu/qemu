@@ -46,17 +46,15 @@ struct socket *solookup(struct socket **last, struct socket *head,
 struct socket *
 socreate(Slirp *slirp)
 {
-  struct socket *so;
+    struct socket *so = g_new(struct socket, 1);
 
-  so = (struct socket *)malloc(sizeof(struct socket));
-  if(so) {
     memset(so, 0, sizeof(struct socket));
     so->so_state = SS_NOFDREF;
     so->s = -1;
     so->slirp = slirp;
     so->pollfds_idx = -1;
-  }
-  return(so);
+
+    return so;
 }
 
 /*
@@ -110,7 +108,7 @@ sofree(struct socket *so)
   if (so->so_tcpcb) {
       free(so->so_tcpcb);
   }
-  free(so);
+  g_free(so);
 }
 
 size_t sopreprbuf(struct socket *so, struct iovec *iov, int *np)
@@ -721,8 +719,8 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 
 	/* Don't tcp_attach... we don't need so_snd nor so_rcv */
 	if ((so->so_tcpcb = tcp_newtcpcb(so)) == NULL) {
-		free(so);
-		return NULL;
+            g_free(so);
+            return NULL;
 	}
 	insque(so, &slirp->tcb);
 

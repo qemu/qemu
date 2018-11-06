@@ -475,7 +475,7 @@ void tcp_connect(struct socket *inso)
             return;
         }
         if (tcp_attach(so) < 0) {
-            free(so); /* NOT sofree */
+            g_free(so); /* NOT sofree */
             return;
         }
         so->lhost = inso->lhost;

@@ -432,8 +432,8 @@ findso:
 	  if ((so = socreate(slirp)) == NULL)
 	    goto dropwithreset;
 	  if (tcp_attach(so) < 0) {
-	    free(so); /* Not sofree (if it failed, it's not insqued) */
-	    goto dropwithreset;
+            g_free(so); /* Not sofree (if it failed, it's not insqued) */
+            goto dropwithreset;
 	  }
 
 	  sbreserve(&so->so_snd, TCP_SNDSPACE);
