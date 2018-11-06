@@ -1091,6 +1091,17 @@ ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
         return len;
     }
 
+    if (so->s == -1) {
+        /*
+         * This should in theory not happen but it is hard to be
+         * sure because some code paths will end up with so->s == -1
+         * on a failure but don't dispose of the struct socket.
+         * Check specifically, so we don't pass -1 to send().
+         */
+        errno = EBADF;
+        return -1;
+    }
+
     return send(so->s, buf, len, flags);
 }
 
