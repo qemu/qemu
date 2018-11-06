@@ -1192,9 +1192,6 @@ int qdev_prop_check_globals(void)
         if (prop->used) {
             continue;
         }
-        if (!prop->user_provided) {
-            continue;
-        }
         oc = object_class_by_name(prop->driver);
         oc = object_class_dynamic_cast(oc, TYPE_DEVICE);
         if (!oc) {
@@ -1233,7 +1230,6 @@ void qdev_prop_set_globals(DeviceState *dev)
             if (!dev->hotplugged && prop->errp) {
                 error_propagate(prop->errp, err);
             } else {
-                assert(prop->user_provided);
                 warn_report_err(err);
             }
         }
