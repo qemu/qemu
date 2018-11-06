@@ -469,11 +469,6 @@ void tcp_connect(struct socket *inso)
         so = inso;
     } else {
         so = socreate(slirp);
-        if (so == NULL) {
-            /* If it failed, get rid of the pending connection */
-            closesocket(accept(inso->s, (struct sockaddr *)&addr, &addrlen));
-            return;
-        }
         if (tcp_attach(so) < 0) {
             g_free(so); /* NOT sofree */
             return;

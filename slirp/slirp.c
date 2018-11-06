@@ -1477,9 +1477,6 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
         int ret;
         struct socket *so = socreate(slirp);
 
-        if (!so)
-            return -ENOMEM;
-
         ret = vmstate_load_state(f, &vmstate_slirp_socket, so, version_id);
 
         if (ret < 0)

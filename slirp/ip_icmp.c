@@ -160,7 +160,7 @@ icmp_input(struct mbuf *m, int hlen)
     } else {
       struct socket *so;
       struct sockaddr_storage addr;
-      if ((so = socreate(slirp)) == NULL) goto freeit;
+      so = socreate(slirp);
       if (icmp_send(so, m, hlen) == 0) {
         return;
       }

@@ -713,9 +713,6 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	DEBUG_ARG("flags = %x", flags);
 
 	so = socreate(slirp);
-	if (!so) {
-	  return NULL;
-	}
 
 	/* Don't tcp_attach... we don't need so_snd nor so_rcv */
 	if ((so->so_tcpcb = tcp_newtcpcb(so)) == NULL) {
