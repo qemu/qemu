@@ -295,7 +295,7 @@ static void tpm_tis_request_completed(TPMIf *ti, int ret)
 
     if (s->cmd.selftest_done) {
         for (l = 0; l < TPM_TIS_NUM_LOCALITIES; l++) {
-            s->loc[locty].sts |= TPM_TIS_STS_SELFTEST_DONE;
+            s->loc[l].sts |= TPM_TIS_STS_SELFTEST_DONE;
         }
     }
 
