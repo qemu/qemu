@@ -35,6 +35,12 @@ static void replay_write_error(void)
     }
 }
 
+static void replay_read_error(void)
+{
+    error_report("error reading the replay data");
+    exit(1);
+}
+
 void replay_put_byte(uint8_t byte)
 {
     if (replay_file) {
@@ -83,7 +89,11 @@ uint8_t replay_get_byte(void)
 {
     uint8_t byte = 0;
     if (replay_file) {
-        byte = getc(replay_file);
+        int r = getc(replay_file);
+        if (r == EOF) {
+            replay_read_error();
+        }
+        byte = r;
     }
     return byte;
 }
@@ -126,7 +136,7 @@ void replay_get_array(uint8_t *buf, size_t *size)
     if (replay_file) {
         *size = replay_get_dword();
         if (fread(buf, 1, *size, replay_file) != *size) {
-            error_report("replay read error");
+            replay_read_error();
         }
     }
 }
@@ -137,7 +147,7 @@ void replay_get_array_alloc(uint8_t **buf, size_t *size)
         *size = replay_get_dword();
         *buf = g_malloc(*size);
         if (fread(*buf, 1, *size, replay_file) != *size) {
-            error_report("replay read error");
+            replay_read_error();
         }
     }
 }
