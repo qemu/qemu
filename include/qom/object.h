@@ -20,7 +20,6 @@
 struct TypeImpl;
 typedef struct TypeImpl *Type;
 
-typedef struct ObjectClass ObjectClass;
 typedef struct Object Object;
 
 typedef struct TypeInfo TypeInfo;
