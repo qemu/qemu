@@ -68,8 +68,15 @@ void gd_egl_draw(VirtualConsole *vc)
         return;
     }
 
+    window = gtk_widget_get_window(vc->gfx.drawing_area);
+    ww = gdk_window_get_width(window);
+    wh = gdk_window_get_height(window);
+
     if (vc->gfx.scanout_mode) {
         gd_egl_scanout_flush(&vc->gfx.dcl, 0, 0, vc->gfx.w, vc->gfx.h);
+
+        vc->gfx.scale_x = (double)ww / vc->gfx.w;
+        vc->gfx.scale_y = (double)wh / vc->gfx.h;
     } else {
         if (!vc->gfx.ds) {
             return;
@@ -77,13 +84,13 @@ void gd_egl_draw(VirtualConsole *vc)
         eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                        vc->gfx.esurface, vc->gfx.ectx);
 
-        window = gtk_widget_get_window(vc->gfx.drawing_area);
-        ww = gdk_window_get_width(window);
-        wh = gdk_window_get_height(window);
         surface_gl_setup_viewport(vc->gfx.gls, vc->gfx.ds, ww, wh);
         surface_gl_render_texture(vc->gfx.gls, vc->gfx.ds);
 
         eglSwapBuffers(qemu_egl_display, vc->gfx.esurface);
+
+        vc->gfx.scale_x = (double)ww / surface_width(vc->gfx.ds);
+        vc->gfx.scale_y = (double)wh / surface_height(vc->gfx.ds);
     }
 }
 
@@ -232,8 +239,8 @@ void gd_egl_cursor_position(DisplayChangeListener *dcl,
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
-    vc->gfx.cursor_x = pos_x;
-    vc->gfx.cursor_y = pos_y;
+    vc->gfx.cursor_x = pos_x * vc->gfx.scale_x;
+    vc->gfx.cursor_y = pos_y * vc->gfx.scale_y;
 }
 
 void gd_egl_release_dmabuf(DisplayChangeListener *dcl,
