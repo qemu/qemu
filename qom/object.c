@@ -390,7 +390,17 @@ void object_apply_global_props(Object *obj, const GPtrArray *props, Error **errp
         if (err != NULL) {
             error_prepend(&err, "can't apply global %s.%s=%s: ",
                           p->driver, p->property, p->value);
-            error_propagate(errp, err);
+            /*
+             * If errp != NULL, propagate error and return.
+             * If errp == NULL, report a warning, but keep going
+             * with the remaining globals.
+             */
+            if (errp) {
+                error_propagate(errp, err);
+                return;
+            } else {
+                warn_report_err(err);
+            }
         }
     }
 }

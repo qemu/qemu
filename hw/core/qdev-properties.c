@@ -1223,28 +1223,8 @@ int qdev_prop_check_globals(void)
 
 void qdev_prop_set_globals(DeviceState *dev)
 {
-    int i;
-
-    for (i = 0; i < global_props()->len; i++) {
-        GlobalProperty *prop;
-        Error *err = NULL;
-
-        prop = g_ptr_array_index(global_props(), i);
-        if (object_dynamic_cast(OBJECT(dev), prop->driver) == NULL) {
-            continue;
-        }
-        prop->used = true;
-        object_property_parse(OBJECT(dev), prop->value, prop->property, &err);
-        if (err != NULL) {
-            error_prepend(&err, "can't apply global %s.%s=%s: ",
-                          prop->driver, prop->property, prop->value);
-            if (!dev->hotplugged) {
-                error_propagate(&error_fatal, err);
-            } else {
-                warn_report_err(err);
-            }
-        }
-    }
+    object_apply_global_props(OBJECT(dev), global_props(),
+                              dev->hotplugged ? NULL : &error_fatal);
 }
 
 /* --- 64bit unsigned int 'size' type --- */
