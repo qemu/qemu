@@ -63,7 +63,7 @@ int bdrv_snapshot_find(BlockDriverState *bs, QEMUSnapshotInfo *sn_info,
     }
     for (i = 0; i < nb_sns; i++) {
         sn = &sn_tab[i];
-        if (!strcmp(sn->id_str, name) || !strcmp(sn->name, name)) {
+        if (!strcmp(sn->name, name)) {
             *sn_info = *sn;
             ret = 0;
             break;
@@ -448,7 +448,8 @@ int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bad_bs,
         aio_context_acquire(ctx);
         if (bdrv_can_snapshot(bs) &&
                 bdrv_snapshot_find(bs, snapshot, name) >= 0) {
-            ret = bdrv_snapshot_delete_by_id_or_name(bs, name, err);
+            ret = bdrv_snapshot_delete(bs, snapshot->id_str,
+                                       snapshot->name, err);
         }
         aio_context_release(ctx);
         if (ret < 0) {
