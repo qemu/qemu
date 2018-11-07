@@ -4359,24 +4359,56 @@ static void gen_shift(DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t1);
 }
 
+/* Copy GPR to and from TX79 HI1/LO1 register. */
+static void gen_HILO1_tx79(DisasContext *ctx, uint32_t opc, int reg)
+{
+    if (reg == 0 && (opc == TX79_MMI_MFHI1 || opc == TX79_MMI_MFLO1)) {
+        /* Treat as NOP. */
+        return;
+    }
+
+    switch (opc) {
+    case TX79_MMI_MFHI1:
+        tcg_gen_mov_tl(cpu_gpr[reg], cpu_HI[1]);
+        break;
+    case TX79_MMI_MFLO1:
+        tcg_gen_mov_tl(cpu_gpr[reg], cpu_LO[1]);
+        break;
+    case TX79_MMI_MTHI1:
+        if (reg != 0) {
+            tcg_gen_mov_tl(cpu_HI[1], cpu_gpr[reg]);
+        } else {
+            tcg_gen_movi_tl(cpu_HI[1], 0);
+        }
+        break;
+    case TX79_MMI_MTLO1:
+        if (reg != 0) {
+            tcg_gen_mov_tl(cpu_LO[1], cpu_gpr[reg]);
+        } else {
+            tcg_gen_movi_tl(cpu_LO[1], 0);
+        }
+        break;
+    default:
+        MIPS_INVAL("mfthilo1 TX79");
+        generate_exception_end(ctx, EXCP_RI);
+        break;
+    }
+}
+
 /* Arithmetic on HI/LO registers */
 static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
 {
-    if (reg == 0 && (opc == OPC_MFHI || opc == TX79_MMI_MFHI1 ||
-                     opc == OPC_MFLO || opc == TX79_MMI_MFLO1)) {
+    if (reg == 0 && (opc == OPC_MFHI || opc == OPC_MFLO)) {
         /* Treat as NOP. */
         return;
     }
 
     if (acc != 0) {
-        if (!(ctx->insn_flags & INSN_R5900)) {
-            check_dsp(ctx);
-        }
+        check_dsp(ctx);
     }
 
     switch (opc) {
     case OPC_MFHI:
-    case TX79_MMI_MFHI1:
 #if defined(TARGET_MIPS64)
         if (acc != 0) {
             tcg_gen_ext32s_tl(cpu_gpr[reg], cpu_HI[acc]);
@@ -4387,7 +4419,6 @@ static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
         }
         break;
     case OPC_MFLO:
-    case TX79_MMI_MFLO1:
 #if defined(TARGET_MIPS64)
         if (acc != 0) {
             tcg_gen_ext32s_tl(cpu_gpr[reg], cpu_LO[acc]);
@@ -4398,7 +4429,6 @@ static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
         }
         break;
     case OPC_MTHI:
-    case TX79_MMI_MTHI1:
         if (reg != 0) {
 #if defined(TARGET_MIPS64)
             if (acc != 0) {
@@ -4413,7 +4443,6 @@ static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
         }
         break;
     case OPC_MTLO:
-    case TX79_MMI_MTLO1:
         if (reg != 0) {
 #if defined(TARGET_MIPS64)
             if (acc != 0) {
@@ -26500,11 +26529,11 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
         break;
     case TX79_MMI_MTLO1:
     case TX79_MMI_MTHI1:
-        gen_HILO(ctx, opc, 1, rs);
+        gen_HILO1_tx79(ctx, opc, rs);
         break;
     case TX79_MMI_MFLO1:
     case TX79_MMI_MFHI1:
-        gen_HILO(ctx, opc, 1, rd);
+        gen_HILO1_tx79(ctx, opc, rd);
         break;
     case TX79_MMI_MADD:          /* TODO: TX79_MMI_MADD */
     case TX79_MMI_MADDU:         /* TODO: TX79_MMI_MADDU */
