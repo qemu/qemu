@@ -358,11 +358,6 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     /* Generate an ID */
     find_new_snapshot_id(bs, sn_info->id_str, sizeof(sn_info->id_str));
 
-    /* Check that the ID is unique */
-    if (find_snapshot_by_id_and_name(bs, sn_info->id_str, NULL) >= 0) {
-        return -EEXIST;
-    }
-
     /* Populate sn with passed data */
     sn->id_str = g_strdup(sn_info->id_str);
     sn->name = g_strdup(sn_info->name);
