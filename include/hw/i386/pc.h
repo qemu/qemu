@@ -49,9 +49,9 @@ struct PCMachineState {
     AcpiNVDIMMState acpi_nvdimm_state;
 
     bool acpi_build_enabled;
-    bool smbus;
-    bool sata;
-    bool pit;
+    bool smbus_enabled;
+    bool sata_enabled;
+    bool pit_enabled;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;

@@ -2222,42 +2222,42 @@ static bool pc_machine_get_smbus(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    return pcms->smbus;
+    return pcms->smbus_enabled;
 }
 
 static void pc_machine_set_smbus(Object *obj, bool value, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    pcms->smbus = value;
+    pcms->smbus_enabled = value;
 }
 
 static bool pc_machine_get_sata(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    return pcms->sata;
+    return pcms->sata_enabled;
 }
 
 static void pc_machine_set_sata(Object *obj, bool value, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    pcms->sata = value;
+    pcms->sata_enabled = value;
 }
 
 static bool pc_machine_get_pit(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    return pcms->pit;
+    return pcms->pit_enabled;
 }
 
 static void pc_machine_set_pit(Object *obj, bool value, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    pcms->pit = value;
+    pcms->pit_enabled = value;
 }
 
 static void pc_machine_initfn(Object *obj)
@@ -2271,9 +2271,9 @@ static void pc_machine_initfn(Object *obj)
     pcms->acpi_nvdimm_state.is_enabled = false;
     /* acpi build is enabled by default if machine supports it */
     pcms->acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)->has_acpi_build;
-    pcms->smbus = true;
-    pcms->sata = true;
-    pcms->pit = true;
+    pcms->smbus_enabled = true;
+    pcms->sata_enabled = true;
+    pcms->pit_enabled = true;
 }
 
 static void pc_machine_reset(void)

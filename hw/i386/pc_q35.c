@@ -236,13 +236,13 @@ static void pc_q35_init(MachineState *machine)
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, pcms->gsi, &rtc_state, !mc->no_floppy,
-                         (pcms->vmport != ON_OFF_AUTO_ON), pcms->pit,
+                         (pcms->vmport != ON_OFF_AUTO_ON), pcms->pit_enabled,
                          0xff0104);
 
     /* connect pm stuff to lpc */
     ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pcms));
 
-    if (pcms->sata) {
+    if (pcms->sata_enabled) {
         /* ahci and SATA device, for q35 1 ahci controller is built-in */
         ahci = pci_create_simple_multifunction(host_bus,
                                                PCI_DEVFN(ICH9_SATA1_DEV,
@@ -262,7 +262,7 @@ static void pc_q35_init(MachineState *machine)
         ehci_create_ich9_with_companions(host_bus, 0x1d);
     }
 
-    if (pcms->smbus) {
+    if (pcms->smbus_enabled) {
         /* TODO: Populate SPD eeprom data.  */
         smbus_eeprom_init(ich9_smb_init(host_bus,
                                         PCI_DEVFN(ICH9_SMB_DEV, ICH9_SMB_FUNC),
