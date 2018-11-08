@@ -70,8 +70,10 @@ typedef enum {
 #define SPAPR_CAP_IBS                   0x05
 /* HPT Maximum Page Size (encoded as a shift) */
 #define SPAPR_CAP_HPT_MAXPAGESIZE       0x06
+/* Nested KVM-HV */
+#define SPAPR_CAP_NESTED_KVM_HV         0x07
 /* Num Caps */
-#define SPAPR_CAP_NUM                   (SPAPR_CAP_HPT_MAXPAGESIZE + 1)
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_NESTED_KVM_HV + 1)
 
 /*
  * Capability Values
@@ -745,8 +747,6 @@ int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);
 
 #define TYPE_SPAPR_RNG "spapr-rng"
 
-int spapr_rng_populate_dt(void *fdt);
-
 #define SPAPR_MEMORY_BLOCK_SIZE (1 << 28) /* 256MB */
 
 /*
@@ -793,6 +793,7 @@ extern const VMStateDescription vmstate_spapr_cap_dfp;
 extern const VMStateDescription vmstate_spapr_cap_cfpc;
 extern const VMStateDescription vmstate_spapr_cap_sbbc;
 extern const VMStateDescription vmstate_spapr_cap_ibs;
+extern const VMStateDescription vmstate_spapr_cap_nested_kvm_hv;
 
 static inline uint8_t spapr_get_cap(sPAPRMachineState *spapr, int cap)
 {

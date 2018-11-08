@@ -686,6 +686,7 @@ static const VMStateDescription vmstate_pmu_adb = {
         VMSTATE_TIMER_PTR(adb_poll_timer, PMUState),
         VMSTATE_UINT8(adb_reply_size, PMUState),
         VMSTATE_BUFFER(adb_reply, PMUState),
+        VMSTATE_END_OF_LIST()
     }
 };
 

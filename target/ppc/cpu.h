@@ -918,6 +918,19 @@ enum {
 /* number of possible TLBs */
 #define BOOKE206_MAX_TLBN      4
 
+#define EPID_EPID_SHIFT 0x0
+#define EPID_EPID 0xFF
+#define EPID_ELPID_SHIFT 0x10
+#define EPID_ELPID 0x3F0000
+#define EPID_EGS 0x20000000
+#define EPID_EGS_SHIFT 29
+#define EPID_EAS 0x40000000
+#define EPID_EAS_SHIFT 30
+#define EPID_EPR 0x80000000
+#define EPID_EPR_SHIFT 31
+/* We don't support EGS and ELPID */
+#define EPID_MASK (EPID_EPID | EPID_EAS | EPID_EPR)
+
 /*****************************************************************************/
 /* Server and Embedded Processor Control */
 
@@ -947,7 +960,16 @@ struct ppc_radix_page_info {
 
 /*****************************************************************************/
 /* The whole PowerPC CPU context */
-#define NB_MMU_MODES    8
+
+/* PowerPC needs eight modes for different hypervisor/supervisor/guest +
+ * real/paged mode combinations. The other two modes are for external PID
+ * load/store.
+ */
+#define NB_MMU_MODES    10
+#define MMU_MODE8_SUFFIX _epl
+#define MMU_MODE9_SUFFIX _eps
+#define PPC_TLB_EPID_LOAD 8
+#define PPC_TLB_EPID_STORE 9
 
 #define PPC_CPU_OPCODES_LEN          0x40
 #define PPC_CPU_INDIRECT_OPCODES_LEN 0x20

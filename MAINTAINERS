@@ -230,7 +230,6 @@ F: tests/tcg/openrisc/
 
 PowerPC
 M: David Gibson <david@gibson.dropbear.id.au>
-M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: target/ppc/
@@ -341,7 +340,7 @@ S: Maintained
 F: target/mips/kvm.c
 
 PPC
-M: Alexander Graf <agraf@suse.de>
+M: David Gibson <david@gibson.dropbear.id.au>
 S: Maintained
 F: target/ppc/kvm.c
 
@@ -779,21 +778,21 @@ F: hw/openrisc/openrisc_sim.c
 PowerPC Machines
 ----------------
 405
-M: Alexander Graf <agraf@suse.de>
+M: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/ppc405_boards.c
 
 Bamboo
-M: Alexander Graf <agraf@suse.de>
+M: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/ppc440_bamboo.c
 
 e500
-M: Alexander Graf <agraf@suse.de>
+M: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
-S: Supported
+S: Odd Fixes
 F: hw/ppc/e500.[hc]
 F: hw/ppc/e500plat.c
 F: include/hw/ppc/ppc_e500.h
@@ -801,16 +800,16 @@ F: include/hw/pci-host/ppce500.h
 F: pc-bios/u-boot.e500
 
 mpc8544ds
-M: Alexander Graf <agraf@suse.de>
+M: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
-S: Supported
+S: Odd Fixes
 F: hw/ppc/mpc8544ds.c
 F: hw/ppc/mpc8544_guts.c
 
 New World
-M: Alexander Graf <agraf@suse.de>
+M: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/ppc/mac_newworld.c
 F: hw/pci-host/uninorth.c
 F: hw/pci-bridge/dec.[hc]
@@ -822,9 +821,9 @@ F: include/hw/misc/mos6522.h
 F: include/hw/ppc/mac_dbdma.h
 
 Old World
-M: Alexander Graf <agraf@suse.de>
+M: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/ppc/mac_oldworld.c
 F: hw/pci-host/grackle.c
 F: hw/misc/macio/
@@ -849,7 +848,6 @@ F: pc-bios/ppc_rom.bin
 
 sPAPR
 M: David Gibson <david@gibson.dropbear.id.au>
-M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Supported
 F: hw/*/spapr*
@@ -1124,7 +1122,7 @@ F: tests/acpi-test-data/*
 F: tests/acpi-test-data/*/*
 
 ppc4xx
-M: Alexander Graf <agraf@suse.de>
+M: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/ppc4*.c
@@ -1133,9 +1131,9 @@ F: include/hw/ppc/ppc4xx.h
 F: include/hw/i2c/ppc4xx_i2c.h
 
 ppce500
-M: Alexander Graf <agraf@suse.de>
+M: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
-S: Supported
+S: Odd Fixes
 F: hw/ppc/e500*
 F: hw/pci-host/ppce500.c
 F: hw/net/fsl_etsec/

@@ -2579,6 +2579,26 @@ GEN_LDS(lha, ld16s, 0x0A, PPC_INTEGER);
 GEN_LDS(lhz, ld16u, 0x08, PPC_INTEGER);
 /* lwz lwzu lwzux lwzx */
 GEN_LDS(lwz, ld32u, 0x00, PPC_INTEGER);
+
+#define GEN_LDEPX(name, ldop, opc2, opc3)                                     \
+static void glue(gen_, name##epx)(DisasContext *ctx)                          \
+{                                                                             \
+    TCGv EA;                                                                  \
+    CHK_SV;                                                                   \
+    gen_set_access_type(ctx, ACCESS_INT);                                     \
+    EA = tcg_temp_new();                                                      \
+    gen_addr_reg_index(ctx, EA);                                              \
+    tcg_gen_qemu_ld_tl(cpu_gpr[rD(ctx->opcode)], EA, PPC_TLB_EPID_LOAD, ldop);\
+    tcg_temp_free(EA);                                                        \
+}
+
+GEN_LDEPX(lb, DEF_MEMOP(MO_UB), 0x1F, 0x02)
+GEN_LDEPX(lh, DEF_MEMOP(MO_UW), 0x1F, 0x08)
+GEN_LDEPX(lw, DEF_MEMOP(MO_UL), 0x1F, 0x00)
+#if defined(TARGET_PPC64)
+GEN_LDEPX(ld, DEF_MEMOP(MO_Q), 0x1D, 0x00)
+#endif
+
 #if defined(TARGET_PPC64)
 /* lwaux */
 GEN_LDUX(lwa, ld32s, 0x15, 0x0B, PPC_64B);
@@ -2760,6 +2780,27 @@ GEN_STS(stb, st8, 0x06, PPC_INTEGER);
 GEN_STS(sth, st16, 0x0C, PPC_INTEGER);
 /* stw stwu stwux stwx */
 GEN_STS(stw, st32, 0x04, PPC_INTEGER);
+
+#define GEN_STEPX(name, stop, opc2, opc3)                                     \
+static void glue(gen_, name##epx)(DisasContext *ctx)                          \
+{                                                                             \
+    TCGv EA;                                                                  \
+    CHK_SV;                                                                   \
+    gen_set_access_type(ctx, ACCESS_INT);                                     \
+    EA = tcg_temp_new();                                                      \
+    gen_addr_reg_index(ctx, EA);                                              \
+    tcg_gen_qemu_st_tl(                                                       \
+        cpu_gpr[rD(ctx->opcode)], EA, PPC_TLB_EPID_STORE, stop);              \
+    tcg_temp_free(EA);                                                        \
+}
+
+GEN_STEPX(stb, DEF_MEMOP(MO_UB), 0x1F, 0x06)
+GEN_STEPX(sth, DEF_MEMOP(MO_UW), 0x1F, 0x0C)
+GEN_STEPX(stw, DEF_MEMOP(MO_UL), 0x1F, 0x04)
+#if defined(TARGET_PPC64)
+GEN_STEPX(std, DEF_MEMOP(MO_Q), 0x1d, 0x04)
+#endif
+
 #if defined(TARGET_PPC64)
 GEN_STUX(std, st64_i64, 0x15, 0x05, PPC_64B);
 GEN_STX(std, st64_i64, 0x15, 0x04, PPC_64B);
@@ -3878,9 +3919,15 @@ static void gen_rfi(DisasContext *ctx)
     }
     /* Restore CPU state */
     CHK_SV;
+    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_update_cfar(ctx, ctx->base.pc_next - 4);
     gen_helper_rfi(cpu_env);
     gen_sync_exception(ctx);
+    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+        gen_io_end();
+    }
 #endif
 }
 
@@ -3892,9 +3939,15 @@ static void gen_rfid(DisasContext *ctx)
 #else
     /* Restore CPU state */
     CHK_SV;
+    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_update_cfar(ctx, ctx->base.pc_next - 4);
     gen_helper_rfid(cpu_env);
     gen_sync_exception(ctx);
+    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+        gen_io_end();
+    }
 #endif
 }
 
@@ -4257,11 +4310,17 @@ static void gen_mtmsrd(DisasContext *ctx)
          *      if we enter power saving mode, we will exit the loop
          *      directly from ppc_store_msr
          */
+        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+            gen_io_start();
+        }
         gen_update_nip(ctx, ctx->base.pc_next);
         gen_helper_store_msr(cpu_env, cpu_gpr[rS(ctx->opcode)]);
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsr is not always defined as context-synchronizing */
         gen_stop_exception(ctx);
+        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+            gen_io_end();
+        }
     }
 #endif /* !defined(CONFIG_USER_ONLY) */
 }
@@ -4286,6 +4345,9 @@ static void gen_mtmsr(DisasContext *ctx)
          *      if we enter power saving mode, we will exit the loop
          *      directly from ppc_store_msr
          */
+        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+            gen_io_start();
+        }
         gen_update_nip(ctx, ctx->base.pc_next);
 #if defined(TARGET_PPC64)
         tcg_gen_deposit_tl(msr, cpu_msr, cpu_gpr[rS(ctx->opcode)], 0, 32);
@@ -4293,6 +4355,9 @@ static void gen_mtmsr(DisasContext *ctx)
         tcg_gen_mov_tl(msr, cpu_gpr[rS(ctx->opcode)]);
 #endif
         gen_helper_store_msr(cpu_env, msr);
+        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+            gen_io_end();
+        }
         tcg_temp_free(msr);
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsr is not always defined as context-synchronizing */
@@ -4392,6 +4457,19 @@ static void gen_dcbf(DisasContext *ctx)
     tcg_temp_free(t0);
 }
 
+/* dcbfep (external PID dcbf) */
+static void gen_dcbfep(DisasContext *ctx)
+{
+    /* XXX: specification says this is treated as a load by the MMU */
+    TCGv t0;
+    CHK_SV;
+    gen_set_access_type(ctx, ACCESS_CACHE);
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(ctx, t0);
+    tcg_gen_qemu_ld_tl(t0, t0, PPC_TLB_EPID_LOAD, DEF_MEMOP(MO_UB));
+    tcg_temp_free(t0);
+}
+
 /* dcbi (Supervisor only) */
 static void gen_dcbi(DisasContext *ctx)
 {
@@ -4425,6 +4503,18 @@ static void gen_dcbst(DisasContext *ctx)
     tcg_temp_free(t0);
 }
 
+/* dcbstep (dcbstep External PID version) */
+static void gen_dcbstep(DisasContext *ctx)
+{
+    /* XXX: specification say this is treated as a load by the MMU */
+    TCGv t0;
+    gen_set_access_type(ctx, ACCESS_CACHE);
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(ctx, t0);
+    tcg_gen_qemu_ld_tl(t0, t0, PPC_TLB_EPID_LOAD, DEF_MEMOP(MO_UB));
+    tcg_temp_free(t0);
+}
+
 /* dcbt */
 static void gen_dcbt(DisasContext *ctx)
 {
@@ -4434,8 +4524,26 @@ static void gen_dcbt(DisasContext *ctx)
      */
 }
 
+/* dcbtep */
+static void gen_dcbtep(DisasContext *ctx)
+{
+    /* interpreted as no-op */
+    /* XXX: specification say this is treated as a load by the MMU
+     *      but does not generate any exception
+     */
+}
+
 /* dcbtst */
 static void gen_dcbtst(DisasContext *ctx)
+{
+    /* interpreted as no-op */
+    /* XXX: specification say this is treated as a load by the MMU
+     *      but does not generate any exception
+     */
+}
+
+/* dcbtstep */
+static void gen_dcbtstep(DisasContext *ctx)
 {
     /* interpreted as no-op */
     /* XXX: specification say this is treated as a load by the MMU
@@ -4465,6 +4573,21 @@ static void gen_dcbz(DisasContext *ctx)
     tcgv_op = tcg_const_i32(ctx->opcode & 0x03FF000);
     gen_addr_reg_index(ctx, tcgv_addr);
     gen_helper_dcbz(cpu_env, tcgv_addr, tcgv_op);
+    tcg_temp_free(tcgv_addr);
+    tcg_temp_free_i32(tcgv_op);
+}
+
+/* dcbzep */
+static void gen_dcbzep(DisasContext *ctx)
+{
+    TCGv tcgv_addr;
+    TCGv_i32 tcgv_op;
+
+    gen_set_access_type(ctx, ACCESS_CACHE);
+    tcgv_addr = tcg_temp_new();
+    tcgv_op = tcg_const_i32(ctx->opcode & 0x03FF000);
+    gen_addr_reg_index(ctx, tcgv_addr);
+    gen_helper_dcbzep(cpu_env, tcgv_addr, tcgv_op);
     tcg_temp_free(tcgv_addr);
     tcg_temp_free_i32(tcgv_op);
 }
@@ -4504,6 +4627,17 @@ static void gen_icbi(DisasContext *ctx)
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
     gen_helper_icbi(cpu_env, t0);
+    tcg_temp_free(t0);
+}
+
+/* icbiep */
+static void gen_icbiep(DisasContext *ctx)
+{
+    TCGv t0;
+    gen_set_access_type(ctx, ACCESS_CACHE);
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(ctx, t0);
+    gen_helper_icbiep(cpu_env, t0);
     tcg_temp_free(t0);
 }
 
@@ -6774,16 +6908,22 @@ GEN_HANDLER_E(mcrxrx, 0x1F, 0x00, 0x12, 0x007FF801, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(mtmsr, 0x1F, 0x12, 0x04, 0x001EF801, PPC_MISC),
 GEN_HANDLER(mtspr, 0x1F, 0x13, 0x0E, 0x00000000, PPC_MISC),
 GEN_HANDLER(dcbf, 0x1F, 0x16, 0x02, 0x03C00001, PPC_CACHE),
+GEN_HANDLER_E(dcbfep, 0x1F, 0x1F, 0x03, 0x03C00001, PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER(dcbi, 0x1F, 0x16, 0x0E, 0x03E00001, PPC_CACHE),
 GEN_HANDLER(dcbst, 0x1F, 0x16, 0x01, 0x03E00001, PPC_CACHE),
+GEN_HANDLER_E(dcbstep, 0x1F, 0x1F, 0x01, 0x03E00001, PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER(dcbt, 0x1F, 0x16, 0x08, 0x00000001, PPC_CACHE),
+GEN_HANDLER_E(dcbtep, 0x1F, 0x1F, 0x09, 0x00000001, PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER(dcbtst, 0x1F, 0x16, 0x07, 0x00000001, PPC_CACHE),
+GEN_HANDLER_E(dcbtstep, 0x1F, 0x1F, 0x07, 0x00000001, PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER_E(dcbtls, 0x1F, 0x06, 0x05, 0x02000001, PPC_BOOKE, PPC2_BOOKE206),
 GEN_HANDLER(dcbz, 0x1F, 0x16, 0x1F, 0x03C00001, PPC_CACHE_DCBZ),
+GEN_HANDLER_E(dcbzep, 0x1F, 0x1F, 0x1F, 0x03C00001, PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER(dst, 0x1F, 0x16, 0x0A, 0x01800001, PPC_ALTIVEC),
 GEN_HANDLER(dstst, 0x1F, 0x16, 0x0B, 0x01800001, PPC_ALTIVEC),
 GEN_HANDLER(dss, 0x1F, 0x16, 0x19, 0x019FF801, PPC_ALTIVEC),
 GEN_HANDLER(icbi, 0x1F, 0x16, 0x1E, 0x03E00001, PPC_CACHE_ICBI),
+GEN_HANDLER_E(icbiep, 0x1F, 0x1F, 0x1E, 0x03E00001, PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER(dcba, 0x1F, 0x16, 0x17, 0x03E00001, PPC_CACHE_DCBA),
 GEN_HANDLER(mfsr, 0x1F, 0x13, 0x12, 0x0010F801, PPC_SEGMENT),
 GEN_HANDLER(mfsrin, 0x1F, 0x13, 0x14, 0x001F0001, PPC_SEGMENT),
@@ -7086,6 +7226,19 @@ GEN_LDX_HVRM(lbzcix, ld8u, 0x15, 0x1a, PPC_CILDST)
 GEN_LDX(lhbr, ld16ur, 0x16, 0x18, PPC_INTEGER)
 GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER)
 
+/* External PID based load */
+#undef GEN_LDEPX
+#define GEN_LDEPX(name, ldop, opc2, opc3)                                     \
+GEN_HANDLER_E(name##epx, 0x1F, opc2, opc3,                                    \
+              0x00000001, PPC_NONE, PPC2_BOOKE206),
+
+GEN_LDEPX(lb, DEF_MEMOP(MO_UB), 0x1F, 0x02)
+GEN_LDEPX(lh, DEF_MEMOP(MO_UW), 0x1F, 0x08)
+GEN_LDEPX(lw, DEF_MEMOP(MO_UL), 0x1F, 0x00)
+#if defined(TARGET_PPC64)
+GEN_LDEPX(ld, DEF_MEMOP(MO_Q), 0x1D, 0x00)
+#endif
+
 #undef GEN_ST
 #undef GEN_STU
 #undef GEN_STUX
@@ -7119,6 +7272,18 @@ GEN_STX_HVRM(stbcix, st8, 0x15, 0x1e, PPC_CILDST)
 #endif
 GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER)
 GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER)
+
+#undef GEN_STEPX
+#define GEN_STEPX(name, ldop, opc2, opc3)                                     \
+GEN_HANDLER_E(name##epx, 0x1F, opc2, opc3,                                    \
+              0x00000001, PPC_NONE, PPC2_BOOKE206),
+
+GEN_STEPX(stb, DEF_MEMOP(MO_UB), 0x1F, 0x06)
+GEN_STEPX(sth, DEF_MEMOP(MO_UW), 0x1F, 0x0C)
+GEN_STEPX(stw, DEF_MEMOP(MO_UL), 0x1F, 0x04)
+#if defined(TARGET_PPC64)
+GEN_STEPX(std, DEF_MEMOP(MO_Q), 0x1D, 0x04)
+#endif
 
 #undef GEN_CRLOGIC
 #define GEN_CRLOGIC(name, tcg_op, opc)                                        \

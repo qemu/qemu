@@ -466,17 +466,18 @@ const MemoryRegionOps ppc440_pcix_host_data_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int ppc440_pcix_initfn(SysBusDevice *dev)
+static void ppc440_pcix_realize(DeviceState *dev, Error **errp)
 {
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     PPC440PCIXState *s;
     PCIHostState *h;
 
     h = PCI_HOST_BRIDGE(dev);
     s = PPC440_PCIX_HOST_BRIDGE(dev);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(sbd, &s->irq);
     memory_region_init(&s->busmem, OBJECT(dev), "pci bus memory", UINT64_MAX);
-    h->bus = pci_register_root_bus(DEVICE(dev), NULL, ppc440_pcix_set_irq,
+    h->bus = pci_register_root_bus(dev, NULL, ppc440_pcix_set_irq,
                          ppc440_pcix_map_irq, &s->irq, &s->busmem,
                          get_system_io(), PCI_DEVFN(0, 0), 1, TYPE_PCI_BUS);
 
@@ -497,17 +498,14 @@ static int ppc440_pcix_initfn(SysBusDevice *dev)
     memory_region_add_subregion(&s->container, PCIC0_CFGADDR, &h->conf_mem);
     memory_region_add_subregion(&s->container, PCIC0_CFGDATA, &h->data_mem);
     memory_region_add_subregion(&s->container, PPC440_REG_BASE, &s->iomem);
-    sysbus_init_mmio(dev, &s->container);
-
-    return 0;
+    sysbus_init_mmio(sbd, &s->container);
 }
 
 static void ppc440_pcix_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = ppc440_pcix_initfn;
+    dc->realize = ppc440_pcix_realize;
     dc->reset = ppc440_pcix_reset;
 }
 

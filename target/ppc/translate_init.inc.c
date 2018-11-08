@@ -1653,6 +1653,15 @@ static void spr_write_booke_pid(DisasContext *ctx, int sprn, int gprn)
     gen_helper_booke_setpid(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
+static void spr_write_eplc(DisasContext *ctx, int sprn, int gprn)
+{
+    gen_helper_booke_set_eplc(cpu_env, cpu_gpr[gprn]);
+}
+static void spr_write_epsc(DisasContext *ctx, int sprn, int gprn)
+{
+    gen_helper_booke_set_epsc(cpu_env, cpu_gpr[gprn]);
+}
+
 #endif
 
 static void gen_spr_usprg3(CPUPPCState *env)
@@ -1912,6 +1921,16 @@ static void gen_spr_BookE206(CPUPPCState *env, uint32_t mas_mask,
                      &spr_read_generic, &spr_write_booke_pid,
                      0x00000000);
     }
+
+    spr_register(env, SPR_BOOKE_EPLC, "EPLC",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_eplc,
+                 0x00000000);
+    spr_register(env, SPR_BOOKE_EPSC, "EPSC",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_epsc,
+                 0x00000000);
+
     /* XXX : not implemented */
     spr_register(env, SPR_MMUCFG, "MMUCFG",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -2797,8 +2816,6 @@ static void gen_spr_8xx(CPUPPCState *env)
  * perf    => 768-783 (Power 2.04)
  * perf    => 784-799 (Power 2.04)
  * PPR     => SPR 896 (Power 2.04)
- * EPLC    => SPR 947 (Power 2.04 emb)
- * EPSC    => SPR 948 (Power 2.04 emb)
  * DABRX   => 1015    (Power 2.04 hypv)
  * FPECR   => SPR 1022 (?)
  * ... and more (thermal management, performance counters, ...)
@@ -8197,11 +8214,11 @@ static void gen_spr_power9_mmu(CPUPPCState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
     /* Partition Table Control */
-    spr_register_hv(env, SPR_PTCR, "PTCR",
-                    SPR_NOACCESS, SPR_NOACCESS,
-                    SPR_NOACCESS, SPR_NOACCESS,
-                    &spr_read_generic, &spr_write_ptcr,
-                    0x00000000);
+    spr_register_kvm_hv(env, SPR_PTCR, "PTCR",
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        SPR_NOACCESS, SPR_NOACCESS,
+                        &spr_read_generic, &spr_write_ptcr,
+                        KVM_REG_PPC_PTCR, 0x00000000);
 #endif
 }
 
