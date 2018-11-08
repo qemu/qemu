@@ -16,6 +16,7 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
+#include "hw/scsi/emulation.h"
 #include "sysemu/block-backend.h"
 
 #ifdef __linux__
@@ -144,7 +145,7 @@ static int execute_command(BlockBackend *blk,
 
 static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
 {
-    uint8_t page, page_len;
+    uint8_t page, page_idx;
 
     /*
      *  EVPD set to zero returns the standard INQUIRY data.
@@ -181,7 +182,7 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
             /* Also take care of the opt xfer len. */
             stl_be_p(&r->buf[12],
                     MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
-        } else if (page == 0x00 && s->needs_vpd_bl_emulation) {
+        } else if (s->needs_vpd_bl_emulation && page == 0x00) {
             /*
              * Now we're capable of supplying the VPD Block Limits
              * response if the hardware can't. Add it in the INQUIRY
@@ -190,17 +191,43 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
              *
              * This way, the guest kernel will be aware of the support
              * and will use it to proper setup the SCSI device.
+             *
+             * VPD page numbers must be sorted, so insert 0xb0 at the
+             * right place with an in-place insert.  After the initialization
+             * part of the for loop is executed, the device response is
+             * at r[0] to r[page_idx - 1].
              */
-            page_len = r->buf[3];
-            r->buf[page_len + 4] = 0xb0;
-            r->buf[3] = ++page_len;
+            for (page_idx = lduw_be_p(r->buf + 2) + 4;
+                 page_idx > 4 && r->buf[page_idx - 1] >= 0xb0;
+                 page_idx--) {
+                if (page_idx < r->buflen) {
+                    r->buf[page_idx] = r->buf[page_idx - 1];
+                }
+            }
+            r->buf[page_idx] = 0xb0;
+            stw_be_p(r->buf + 2, lduw_be_p(r->buf + 2) + 1);
         }
     }
 }
 
-static int scsi_emulate_block_limits(SCSIGenericReq *r)
+static int scsi_generic_emulate_block_limits(SCSIGenericReq *r, SCSIDevice *s)
 {
-    r->buflen = scsi_disk_emulate_vpd_page(&r->req, r->buf);
+    int len;
+    uint8_t buf[64];
+
+    SCSIBlockLimits bl = {
+        .max_io_sectors = blk_get_max_transfer(s->conf.blk) / s->blocksize
+    };
+
+    memset(r->buf, 0, r->buflen);
+    stb_p(buf, s->type);
+    stb_p(buf + 1, 0xb0);
+    len = scsi_emulate_block_limits(buf + 4, &bl);
+    assert(len <= sizeof(buf) - 4);
+    stw_be_p(buf + 2, len);
+
+    memcpy(r->buf, buf, MIN(r->buflen, len + 4));
+
     r->io_header.sb_len_wr = 0;
 
     /*
@@ -219,7 +246,6 @@ static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIDevice *s = r->req.dev;
-    SCSISense sense;
     int len;
 
     assert(r->req.aiocb != NULL);
@@ -242,13 +268,15 @@ static void scsi_read_complete(void * opaque, int ret)
      * resulted in sense error but would need emulation.
      * In this case, emulate a valid VPD response.
      */
-    if (s->needs_vpd_bl_emulation) {
-        int is_vpd_bl = r->req.cmd.buf[0] == INQUIRY &&
-                         r->req.cmd.buf[1] & 0x01 &&
-                         r->req.cmd.buf[2] == 0xb0;
-
-        if (is_vpd_bl && sg_io_sense_from_errno(-ret, &r->io_header, &sense)) {
-            len = scsi_emulate_block_limits(r);
+    if (s->needs_vpd_bl_emulation && ret == 0 &&
+        (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) &&
+        r->req.cmd.buf[0] == INQUIRY &&
+        (r->req.cmd.buf[1] & 0x01) &&
+        r->req.cmd.buf[2] == 0xb0) {
+        SCSISense sense =
+            scsi_parse_sense_buf(r->req.sense, r->io_header.sb_len_wr);
+        if (sense.key == ILLEGAL_REQUEST) {
+            len = scsi_generic_emulate_block_limits(r, s);
             /*
              * No need to let scsi_read_complete go on and handle an
              * INQUIRY VPD BL request we created manually.
@@ -527,7 +555,7 @@ static void scsi_generic_set_vpd_bl_emulation(SCSIDevice *s)
     }
 
     page_len = buf[3];
-    for (i = 4; i < page_len + 4; i++) {
+    for (i = 4; i < MIN(sizeof(buf), page_len + 4); i++) {
         if (buf[i] == 0xb0) {
             s->needs_vpd_bl_emulation = false;
             return;

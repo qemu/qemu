@@ -1279,6 +1279,7 @@ static void desugar_shm(IVShmemState *s)
     object_property_set_bool(obj, true, "share", &error_abort);
     object_property_add_child(OBJECT(s), "internal-shm-backend", obj,
                               &error_abort);
+    object_unref(obj);
     user_creatable_complete(obj, &error_abort);
     s->hostmem = MEMORY_BACKEND(obj);
 }

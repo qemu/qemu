@@ -417,7 +417,9 @@ def get_guest_phys_blocks():
         memory_region = flat_range["mr"].dereference()
 
         # we only care about RAM
-        if not memory_region["ram"]:
+        if (not memory_region["ram"] or
+            memory_region["ram_device"] or
+            memory_region["nonvolatile"]):
             continue
 
         section_size = int128_get64(flat_range["addr"]["size"])

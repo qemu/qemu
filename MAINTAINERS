@@ -105,9 +105,9 @@ Guest CPU cores (TCG):
 ----------------------
 Overall
 L: qemu-devel@nongnu.org
-M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
 M: Richard Henderson <rth@twiddle.net>
+R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: cpus.c
 F: exec.c
@@ -1141,7 +1141,8 @@ F: hw/pci-host/ppce500.c
 F: hw/net/fsl_etsec/
 
 Character devices
-M: Paolo Bonzini <pbonzini@redhat.com>
+M: Marc-André Lureau <marcandre.lureau@redhat.com>
+R: Paolo Bonzini <pbonzini@redhat.com>
 S: Odd Fixes
 F: hw/char/
 
@@ -1528,8 +1529,8 @@ T: git git://github.com/famz/qemu.git bitmaps
 T: git git://github.com/jnsnow/qemu.git bitmaps
 
 Character device backends
-M: Paolo Bonzini <pbonzini@redhat.com>
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
+R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: chardev/
 F: include/chardev/
@@ -1762,9 +1763,9 @@ F: tests/qmp-cmd-test.c
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
 qtest
-M: Paolo Bonzini <pbonzini@redhat.com>
 M: Thomas Huth <thuth@redhat.com>
 M: Laurent Vivier <lvivier@redhat.com>
+R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: qtest.c
 F: tests/libqtest.*
@@ -1871,7 +1872,6 @@ F: tests/test-io-*
 Sockets
 M: Daniel P. Berrange <berrange@redhat.com>
 M: Gerd Hoffmann <kraxel@redhat.com>
-M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: include/qemu/sockets.h
 F: util/qemu-sockets.c
@@ -2058,13 +2058,12 @@ M: Ronnie Sahlberg <ronniesahlberg@gmail.com>
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Lieven <pl@kamp.de>
 L: qemu-block@nongnu.org
-S: Supported
+S: Odd Fixes
 F: block/iscsi.c
 F: block/iscsi-opts.c
 
 Network Block Device (NBD)
 M: Eric Blake <eblake@redhat.com>
-M: Paolo Bonzini <pbonzini@redhat.com>
 L: qemu-block@nongnu.org
 S: Maintained
 F: block/nbd*

@@ -33,6 +33,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/scsi/scsi.h"
+#include "hw/scsi/emulation.h"
 #include "scsi/constants.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
@@ -589,7 +590,7 @@ static uint8_t *scsi_get_buf(SCSIRequest *req)
     return (uint8_t *)r->iov.iov_base;
 }
 
-int scsi_disk_emulate_vpd_page(SCSIRequest *req, uint8_t *outbuf)
+static int scsi_disk_emulate_vpd_page(SCSIRequest *req, uint8_t *outbuf)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     uint8_t page_code = req->cmd.buf[2];
@@ -691,89 +692,36 @@ int scsi_disk_emulate_vpd_page(SCSIRequest *req, uint8_t *outbuf)
     }
     case 0xb0: /* block limits */
     {
-        unsigned int unmap_sectors =
-            s->qdev.conf.discard_granularity / s->qdev.blocksize;
-        unsigned int min_io_size =
-            s->qdev.conf.min_io_size / s->qdev.blocksize;
-        unsigned int opt_io_size =
-            s->qdev.conf.opt_io_size / s->qdev.blocksize;
-        unsigned int max_unmap_sectors =
-            s->max_unmap_size / s->qdev.blocksize;
-        unsigned int max_io_sectors =
-            s->max_io_size / s->qdev.blocksize;
+        SCSIBlockLimits bl = {};
 
         if (s->qdev.type == TYPE_ROM) {
             DPRINTF("Inquiry (EVPD[%02X] not supported for CDROM\n",
                     page_code);
             return -1;
         }
+        bl.wsnz = 1;
+        bl.unmap_sectors =
+            s->qdev.conf.discard_granularity / s->qdev.blocksize;
+        bl.min_io_size =
+            s->qdev.conf.min_io_size / s->qdev.blocksize;
+        bl.opt_io_size =
+            s->qdev.conf.opt_io_size / s->qdev.blocksize;
+        bl.max_unmap_sectors =
+            s->max_unmap_size / s->qdev.blocksize;
+        bl.max_io_sectors =
+            s->max_io_size / s->qdev.blocksize;
+        /* 255 descriptors fit in 4 KiB with an 8-byte header */
+        bl.max_unmap_descr = 255;
+
         if (s->qdev.type == TYPE_DISK) {
             int max_transfer_blk = blk_get_max_transfer(s->qdev.conf.blk);
             int max_io_sectors_blk =
                 max_transfer_blk / s->qdev.blocksize;
 
-            max_io_sectors =
-                MIN_NON_ZERO(max_io_sectors_blk, max_io_sectors);
-
-            /* min_io_size and opt_io_size can't be greater than
-             * max_io_sectors */
-            if (min_io_size) {
-                min_io_size = MIN(min_io_size, max_io_sectors);
-            }
-            if (opt_io_size) {
-                opt_io_size = MIN(opt_io_size, max_io_sectors);
-            }
+            bl.max_io_sectors =
+                MIN_NON_ZERO(max_io_sectors_blk, bl.max_io_sectors);
         }
-        /* required VPD size with unmap support */
-        buflen = 0x40;
-        memset(outbuf + 4, 0, buflen - 4);
-
-        outbuf[4] = 0x1; /* wsnz */
-
-        /* optimal transfer length granularity */
-        outbuf[6] = (min_io_size >> 8) & 0xff;
-        outbuf[7] = min_io_size & 0xff;
-
-        /* maximum transfer length */
-        outbuf[8] = (max_io_sectors >> 24) & 0xff;
-        outbuf[9] = (max_io_sectors >> 16) & 0xff;
-        outbuf[10] = (max_io_sectors >> 8) & 0xff;
-        outbuf[11] = max_io_sectors & 0xff;
-
-        /* optimal transfer length */
-        outbuf[12] = (opt_io_size >> 24) & 0xff;
-        outbuf[13] = (opt_io_size >> 16) & 0xff;
-        outbuf[14] = (opt_io_size >> 8) & 0xff;
-        outbuf[15] = opt_io_size & 0xff;
-
-        /* max unmap LBA count, default is 1GB */
-        outbuf[20] = (max_unmap_sectors >> 24) & 0xff;
-        outbuf[21] = (max_unmap_sectors >> 16) & 0xff;
-        outbuf[22] = (max_unmap_sectors >> 8) & 0xff;
-        outbuf[23] = max_unmap_sectors & 0xff;
-
-        /* max unmap descriptors, 255 fit in 4 kb with an 8-byte header */
-        outbuf[24] = 0;
-        outbuf[25] = 0;
-        outbuf[26] = 0;
-        outbuf[27] = 255;
-
-        /* optimal unmap granularity */
-        outbuf[28] = (unmap_sectors >> 24) & 0xff;
-        outbuf[29] = (unmap_sectors >> 16) & 0xff;
-        outbuf[30] = (unmap_sectors >> 8) & 0xff;
-        outbuf[31] = unmap_sectors & 0xff;
-
-        /* max write same size */
-        outbuf[36] = 0;
-        outbuf[37] = 0;
-        outbuf[38] = 0;
-        outbuf[39] = 0;
-
-        outbuf[40] = (max_io_sectors >> 24) & 0xff;
-        outbuf[41] = (max_io_sectors >> 16) & 0xff;
-        outbuf[42] = (max_io_sectors >> 8) & 0xff;
-        outbuf[43] = max_io_sectors & 0xff;
+        buflen += scsi_emulate_block_limits(outbuf + buflen, &bl);
         break;
     }
     case 0xb1: /* block device characteristics */

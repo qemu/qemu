@@ -116,6 +116,7 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
     nvdimm->nvdimm_mr = g_new(MemoryRegion, 1);
     memory_region_init_alias(nvdimm->nvdimm_mr, OBJECT(dimm),
                              "nvdimm-memory", mr, 0, pmem_size);
+    memory_region_set_nonvolatile(nvdimm->nvdimm_mr, true);
     nvdimm->nvdimm_mr->align = align;
 }
 

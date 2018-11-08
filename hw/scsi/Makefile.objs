@@ -1,4 +1,4 @@
-common-obj-y += scsi-disk.o
+common-obj-y += scsi-disk.o emulation.o
 common-obj-y += scsi-generic.o scsi-bus.o
 common-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
 common-obj-$(CONFIG_MPTSAS_SCSI_PCI) += mptsas.o mptconfig.o mptendian.o

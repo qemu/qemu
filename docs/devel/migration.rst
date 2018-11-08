@@ -435,6 +435,7 @@ Examples of such memory API functions are:
   - memory_region_add_subregion()
   - memory_region_del_subregion()
   - memory_region_set_readonly()
+  - memory_region_set_nonvolatile()
   - memory_region_set_enabled()
   - memory_region_set_address()
   - memory_region_set_alias_offset()
