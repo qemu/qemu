@@ -5,7 +5,7 @@
   project (http://www.nongnu.org/vgabios/).
 
 - The PowerPC Open Hack'Ware Open Firmware Compatible BIOS is
-  available at http://repo.or.cz/w/openhackware.git.
+  available at https://repo.or.cz/openhackware.git.
 
 - OpenBIOS (http://www.openbios.org/) is a free (GPL v2) portable
   firmware implementation. The goal is to implement a 100% IEEE

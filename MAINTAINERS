@@ -1463,7 +1463,7 @@ F: tests/qemu-iotests/
 F: util/qemu-progress.c
 F: qobject/block-qdict.c
 F: tests/check-block-qdict.c
-T: git git://repo.or.cz/qemu/kevin.git block
+T: git https://repo.or.cz/qemu/kevin.git block
 
 Block I/O path
 M: Stefan Hajnoczi <stefanha@redhat.com>
@@ -1510,7 +1510,7 @@ F: blockdev.c
 F: block/qapi.c
 F: qapi/block*.json
 F: qapi/transaction.json
-T: git git://repo.or.cz/qemu/armbru.git block-next
+T: git https://repo.or.cz/qemu/armbru.git block-next
 
 Dirty Bitmaps
 M: Fam Zheng <famz@redhat.com>
@@ -1705,14 +1705,14 @@ F: tests/test-visitor-serialization.c
 F: scripts/qapi-gen.py
 F: scripts/qapi/*
 F: docs/devel/qapi*
-T: git git://repo.or.cz/qemu/armbru.git qapi-next
+T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 QAPI Schema
 M: Eric Blake <eblake@redhat.com>
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: qapi/*.json
-T: git git://repo.or.cz/qemu/armbru.git qapi-next
+T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 QObject
 M: Markus Armbruster <armbru@redhat.com>
@@ -1726,7 +1726,7 @@ F: tests/check-qnum.c
 F: tests/check-qjson.c
 F: tests/check-qlist.c
 F: tests/check-qstring.c
-T: git git://repo.or.cz/qemu/armbru.git qapi-next
+T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 QEMU Guest Agent
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
@@ -1758,7 +1758,7 @@ F: docs/devel/*qmp-*
 F: scripts/qmp/
 F: tests/qmp-test.c
 F: tests/qmp-cmd-test.c
-T: git git://repo.or.cz/qemu/armbru.git qapi-next
+T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 qtest
 M: Thomas Huth <thuth@redhat.com>
@@ -2070,7 +2070,7 @@ F: include/block/nbd*
 F: qemu-nbd.*
 F: blockdev-nbd.c
 F: docs/interop/nbd.txt
-T: git git://repo.or.cz/qemu/ericb.git nbd
+T: git https://repo.or.cz/qemu/ericb.git nbd
 
 NFS
 M: Jeff Cody <jcody@redhat.com>
