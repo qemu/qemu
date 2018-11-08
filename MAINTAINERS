@@ -74,7 +74,7 @@ S: Maintained
 L: qemu-trivial@nongnu.org
 K: ^Subject:.*(?i)trivial
 T: git git://git.corpit.ru/qemu.git trivial-patches
-T: git git://github.com/vivier/qemu.git trivial-patches
+T: git https://github.com/vivier/qemu.git trivial-patches
 
 Architecture support
 --------------------
@@ -98,7 +98,7 @@ F: pc-bios/s390-ccw.img
 F: target/s390x/
 F: docs/vfio-ap.txt
 K: ^Subject:.*(?i)s390x?
-T: git git://github.com/cohuck/qemu.git s390-next
+T: git https://github.com/cohuck/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 Guest CPU cores (TCG):
@@ -295,7 +295,7 @@ F: tests/tcg/x86_64/
 F: hw/i386/
 F: disas/i386.c
 F: docs/qemu-cpu-models.texi
-T: git git://github.com/ehabkost/qemu.git x86-next
+T: git https://github.com/ehabkost/qemu.git x86-next
 
 Xtensa
 M: Max Filippov <jcmvbkbc@gmail.com>
@@ -358,8 +358,8 @@ F: hw/intc/s390_flic.c
 F: hw/intc/s390_flic_kvm.c
 F: include/hw/s390x/s390_flic.h
 F: gdb-xml/s390*.xml
-T: git git://github.com/cohuck/qemu.git s390-next
-T: git git://github.com/borntraeger/qemu.git s390-next
+T: git https://github.com/cohuck/qemu.git s390-next
+T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 X86
@@ -938,8 +938,8 @@ F: include/hw/s390x/
 F: hw/watchdog/wdt_diag288.c
 F: include/hw/watchdog/wdt_diag288.h
 F: default-configs/s390x-softmmu.mak
-T: git git://github.com/cohuck/qemu.git s390-next
-T: git git://github.com/borntraeger/qemu.git s390-next
+T: git https://github.com/cohuck/qemu.git s390-next
+T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 S390-ccw boot
@@ -949,7 +949,7 @@ S: Supported
 F: hw/s390x/ipl.*
 F: pc-bios/s390-ccw/
 F: pc-bios/s390-ccw.img
-T: git git://github.com/borntraeger/qemu.git s390-next
+T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 S390 PCI
@@ -1025,7 +1025,7 @@ S: Supported
 F: hw/core/machine.c
 F: hw/core/null-machine.c
 F: include/hw/boards.h
-T: git git://github.com/ehabkost/qemu.git machine-next
+T: git https://github.com/ehabkost/qemu.git machine-next
 
 Xtensa Machines
 ---------------
@@ -1061,7 +1061,7 @@ F: tests/ide-test.c
 F: tests/ahci-test.c
 F: tests/cdrom-test.c
 F: tests/libqos/ahci*
-T: git git://github.com/jnsnow/qemu.git ide
+T: git https://github.com/jnsnow/qemu.git ide
 
 IPMI
 M: Corey Minyard <minyard@acm.org>
@@ -1070,7 +1070,7 @@ F: include/hw/ipmi/*
 F: hw/ipmi/*
 F: hw/smbios/smbios_type_38.c
 F: tests/ipmi*
-T: git git://github.com/cminyard/qemu.git master-ipmi-rebase
+T: git https://github.com/cminyard/qemu.git master-ipmi-rebase
 
 Floppy
 M: John Snow <jsnow@redhat.com>
@@ -1079,7 +1079,7 @@ S: Supported
 F: hw/block/fdc.c
 F: include/hw/block/fdc.h
 F: tests/fdc-test.c
-T: git git://github.com/jnsnow/qemu.git ide
+T: git https://github.com/jnsnow/qemu.git ide
 
 OMAP
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -1150,7 +1150,7 @@ S: Odd Fixes
 F: hw/net/
 F: include/hw/net/
 F: tests/virtio-net-test.c
-T: git git://github.com/jasowang/qemu.git net
+T: git https://github.com/jasowang/qemu.git net
 
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
@@ -1159,7 +1159,7 @@ S: Supported
 F: include/hw/scsi/*
 F: hw/scsi/*
 F: tests/virtio-scsi-test.c
-T: git git://github.com/bonzini/qemu.git scsi-next
+T: git https://github.com/bonzini/qemu.git scsi-next
 
 SSI
 M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
@@ -1216,7 +1216,7 @@ S: Supported
 F: hw/vfio/ccw.c
 F: hw/s390x/s390-ccw.c
 F: include/hw/s390x/s390-ccw.h
-T: git git://github.com/cohuck/qemu.git s390-next
+T: git https://github.com/cohuck/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 vfio-ap
@@ -1255,7 +1255,7 @@ S: Supported
 F: hw/9pfs/
 F: fsdev/
 F: tests/virtio-9p-test.c
-T: git git://github.com/gkurz/qemu.git 9p-next
+T: git https://github.com/gkurz/qemu.git 9p-next
 
 virtio-blk
 M: Stefan Hajnoczi <stefanha@redhat.com>
@@ -1264,7 +1264,7 @@ S: Supported
 F: hw/block/virtio-blk.c
 F: hw/block/dataplane/*
 F: tests/virtio-blk-test.c
-T: git git://github.com/stefanha/qemu.git block
+T: git https://github.com/stefanha/qemu.git block
 
 virtio-ccw
 M: Cornelia Huck <cohuck@redhat.com>
@@ -1272,8 +1272,8 @@ M: Halil Pasic <pasic@linux.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw*.[hc]
 F: hw/s390x/vhost-vsock-ccw.c
-T: git git://github.com/cohuck/qemu.git s390-next
-T: git git://github.com/borntraeger/qemu.git s390-next
+T: git https://github.com/cohuck/qemu.git s390-next
+T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 virtio-input
@@ -1477,7 +1477,7 @@ F: migration/block*
 F: include/block/aio.h
 F: include/block/aio-wait.h
 F: scripts/qemugdb/aio.py
-T: git git://github.com/stefanha/qemu.git block
+T: git https://github.com/stefanha/qemu.git block
 
 Block SCSI subsystem
 M: Paolo Bonzini <pbonzini@redhat.com>
@@ -1501,7 +1501,7 @@ F: block/commit.c
 F: block/stream.c
 F: block/mirror.c
 F: qapi/job.json
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 Block QAPI, monitor, command line
 M: Markus Armbruster <armbru@redhat.com>
@@ -1523,8 +1523,8 @@ F: include/qemu/hbitmap.h
 F: include/block/dirty-bitmap.h
 F: tests/test-hbitmap.c
 F: docs/interop/bitmaps.rst
-T: git git://github.com/famz/qemu.git bitmaps
-T: git git://github.com/jnsnow/qemu.git bitmaps
+T: git https://github.com/famz/qemu.git bitmaps
+T: git https://github.com/jnsnow/qemu.git bitmaps
 
 Character device backends
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
@@ -1648,7 +1648,7 @@ M: Jason Wang <jasowang@redhat.com>
 S: Maintained
 F: net/
 F: include/net/
-T: git git://github.com/jasowang/qemu.git net
+T: git https://github.com/jasowang/qemu.git net
 F: qapi/net.json
 
 Netmap network backend
@@ -1664,7 +1664,7 @@ M: Eduardo Habkost <ehabkost@redhat.com>
 S: Maintained
 F: numa.c
 F: include/sysemu/numa.h
-T: git git://github.com/ehabkost/qemu.git machine-next
+T: git https://github.com/ehabkost/qemu.git machine-next
 
 Host Memory Backends
 M: Eduardo Habkost <ehabkost@redhat.com>
@@ -1672,7 +1672,7 @@ M: Igor Mammedov <imammedo@redhat.com>
 S: Maintained
 F: backends/hostmem*.c
 F: include/sysemu/hostmem.h
-T: git git://github.com/ehabkost/qemu.git machine-next
+T: git https://github.com/ehabkost/qemu.git machine-next
 
 Cryptodev Backends
 M: Gonglei <arei.gonglei@huawei.com>
@@ -1736,12 +1736,12 @@ F: qemu-ga.texi
 F: scripts/qemu-guest-agent/
 F: tests/test-qga.c
 F: docs/interop/qemu-ga-ref.texi
-T: git git://github.com/mdroth/qemu.git qga
+T: git https://github.com/mdroth/qemu.git qga
 
 QOM
 M: Andreas Färber <afaerber@suse.de>
 S: Supported
-T: git git://github.com/afaerber/qemu-cpu.git qom-next
+T: git https://github.com/afaerber/qemu-cpu.git qom-next
 F: include/qom/
 X: include/qom/cpu.h
 F: qom/
@@ -1801,7 +1801,7 @@ F: qemu-option-trace.texi
 F: scripts/tracetool.py
 F: scripts/tracetool/
 F: docs/devel/tracing.txt
-T: git git://github.com/stefanha/qemu.git tracing
+T: git https://github.com/stefanha/qemu.git tracing
 
 TPM
 M: Stefan Berger <stefanb@linux.ibm.com>
@@ -1814,7 +1814,7 @@ F: include/sysemu/tpm*
 F: qapi/tpm.json
 F: backends/tpm.c
 F: tests/*tpm*
-T: git git://github.com/stefanberger/qemu-tpm.git tpm-next
+T: git https://github.com/stefanberger/qemu-tpm.git tpm-next
 
 Checkpatch
 S: Odd Fixes
@@ -2028,7 +2028,7 @@ M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 Sheepdog
 M: Liu Yuan <namei.unix@gmail.com>
@@ -2036,14 +2036,14 @@ M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/sheepdog.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 VHDX
 M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/vhdx*
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 VDI
 M: Stefan Weil <sw@weilnetz.de>
@@ -2078,7 +2078,7 @@ M: Peter Lieven <pl@kamp.de>
 L: qemu-block@nongnu.org
 S: Maintained
 F: block/nfs.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 SSH
 M: Richard W.M. Jones <rjones@redhat.com>
@@ -2086,21 +2086,21 @@ M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/ssh.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 CURL
 M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/curl.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 GLUSTER
 M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/gluster.c
-T: git git://github.com/codyprime/qemu-kvm-jtc.git block
+T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 Null Block Driver
 M: Fam Zheng <famz@redhat.com>
