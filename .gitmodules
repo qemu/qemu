@@ -1,51 +1,51 @@
 [submodule "roms/seabios"]
 	path = roms/seabios
-	url = git://git.qemu-project.org/seabios.git/
+	url = https://git.qemu.org/git/seabios.git/
 [submodule "roms/SLOF"]
 	path = roms/SLOF
-	url = git://git.qemu-project.org/SLOF.git
+	url = https://git.qemu.org/git/SLOF.git
 [submodule "roms/ipxe"]
 	path = roms/ipxe
-	url = git://git.qemu-project.org/ipxe.git
+	url = https://git.qemu.org/git/ipxe.git
 [submodule "roms/openbios"]
 	path = roms/openbios
-	url = git://git.qemu-project.org/openbios.git
+	url = https://git.qemu.org/git/openbios.git
 [submodule "roms/openhackware"]
 	path = roms/openhackware
-	url = git://git.qemu-project.org/openhackware.git
+	url = https://git.qemu.org/git/openhackware.git
 [submodule "roms/qemu-palcode"]
 	path = roms/qemu-palcode
-	url = git://git.qemu.org/qemu-palcode.git
+	url = https://git.qemu.org/git/qemu-palcode.git
 [submodule "roms/sgabios"]
 	path = roms/sgabios
-	url = git://git.qemu-project.org/sgabios.git
+	url = https://git.qemu.org/git/sgabios.git
 [submodule "dtc"]
 	path = dtc
-	url = git://git.qemu-project.org/dtc.git
+	url = https://git.qemu.org/git/dtc.git
 [submodule "roms/u-boot"]
 	path = roms/u-boot
-	url = git://git.qemu-project.org/u-boot.git
+	url = https://git.qemu.org/git/u-boot.git
 [submodule "roms/skiboot"]
 	path = roms/skiboot
-	url = git://git.qemu.org/skiboot.git
+	url = https://git.qemu.org/git/skiboot.git
 [submodule "roms/QemuMacDrivers"]
 	path = roms/QemuMacDrivers
-	url = git://git.qemu.org/QemuMacDrivers.git
+	url = https://git.qemu.org/git/QemuMacDrivers.git
 [submodule "ui/keycodemapdb"]
 	path = ui/keycodemapdb
-	url = git://git.qemu.org/keycodemapdb.git
+	url = https://git.qemu.org/git/keycodemapdb.git
 [submodule "capstone"]
 	path = capstone
-	url = git://git.qemu.org/capstone.git
+	url = https://git.qemu.org/git/capstone.git
 [submodule "roms/seabios-hppa"]
 	path = roms/seabios-hppa
-	url = git://github.com/hdeller/seabios-hppa.git
+	url = https://github.com/hdeller/seabios-hppa.git
 [submodule "roms/u-boot-sam460ex"]
 	path = roms/u-boot-sam460ex
-	url = git://git.qemu.org/u-boot-sam460ex.git
+	url = https://git.qemu.org/git/u-boot-sam460ex.git
 [submodule "tests/fp/berkeley-testfloat-3"]
 	path = tests/fp/berkeley-testfloat-3
-	url = git://github.com/cota/berkeley-testfloat-3
+	url = https://github.com/cota/berkeley-testfloat-3
 [submodule "tests/fp/berkeley-softfloat-3"]
 	path = tests/fp/berkeley-softfloat-3
-	url = git://github.com/cota/berkeley-softfloat-3
+	url = https://github.com/cota/berkeley-softfloat-3
