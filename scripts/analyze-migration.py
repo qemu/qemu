@@ -23,7 +23,6 @@ import json
 import os
 import argparse
 import collections
-import pprint
 
 def mkdir_p(path):
     try:

@@ -11,7 +11,6 @@
 
 from __future__ import print_function
 import struct
-import re
 import inspect
 from tracetool import read_events, Event
 from tracetool.backend.simple import is_string

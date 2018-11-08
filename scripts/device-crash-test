@@ -26,7 +26,6 @@ check for crashes and unexpected errors.
 from __future__ import print_function
 
 import sys
-import os
 import glob
 import logging
 import traceback
