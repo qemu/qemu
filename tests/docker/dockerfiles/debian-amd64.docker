@@ -24,7 +24,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         libegl1-mesa-dev \
         libepoxy-dev \
         libgbm-dev
-RUN git clone git://anongit.freedesktop.org/virglrenderer /usr/src/virglrenderer
+RUN git clone https://anongit.freedesktop.org/git/virglrenderer.git /usr/src/virglrenderer
 RUN cd /usr/src/virglrenderer && ./autogen.sh && ./configure --with-glx --disable-tests && make install
 
 # netmap
