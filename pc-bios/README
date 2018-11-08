@@ -23,7 +23,7 @@
   legacy x86 software to communicate with an attached serial console as
   if a video card were attached.  The master sources reside in a subversion
   repository at http://sgabios.googlecode.com/svn/trunk.  A git mirror is
-  available at git://git.qemu.org/sgabios.git.
+  available at https://git.qemu.org/git/sgabios.git.
 
 - The PXE roms come from the iPXE project. Built with BANNER_TIME 0.
   Sources available at http://ipxe.org.  Vendor:Device ID -> ROM mapping:
@@ -40,7 +40,7 @@
 
 - The u-boot binary for e500 comes from the upstream denx u-boot project where
   it was compiled using the qemu-ppce500 target.
-  A git mirror is available at: git://git.qemu.org/u-boot.git
+  A git mirror is available at: https://git.qemu.org/git/u-boot.git
   The hash used to compile the current version is: 2072e72
 
 - Skiboot (https://github.com/open-power/skiboot/) is an OPAL

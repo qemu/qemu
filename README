@@ -54,7 +54,7 @@ Submitting patches
 
 The QEMU source code is maintained under the GIT version control system.
 
-   git clone git://git.qemu.org/qemu.git
+   git clone https://git.qemu.org/git/qemu.git
 
 When submitting patches, one common approach is to use 'git
 format-patch' and/or 'git send-email' to format & send the mail to the
@@ -70,7 +70,7 @@ the QEMU website
 
 The QEMU website is also maintained under source control.
 
-  git clone git://git.qemu.org/qemu-web.git
+  git clone https://git.qemu.org/git/qemu-web.git
   https://www.qemu.org/2017/02/04/the-new-qemu-website-is-up/
 
 A 'git-publish' utility was created to make above process less
