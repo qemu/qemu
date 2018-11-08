@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 
+#ifndef TCG_TCG_OP_H
+#define TCG_TCG_OP_H
+
 #include "tcg.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -1267,3 +1270,5 @@ static inline void tcg_gen_trunc_ptr_i32(TCGv_i32 r, TCGv_ptr a)
 
 #undef PTR
 #undef NAT
+
+#endif /* TCG_TCG_OP_H */
