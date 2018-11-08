@@ -574,12 +574,10 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
          * It can fail only on 64-bit host with 32-bit target.
          * On any other target/host host mmap() handles this error correctly.
          */
-#if TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64
-        if ((unsigned long)start + len - 1 > (abi_ulong) -1) {
+        if (!guest_range_valid_untagged(start, len)) {
             errno = EINVAL;
             goto fail;
         }
-#endif
 
         /*
          * worst case: we cannot map the file because the offset is not
@@ -612,6 +610,12 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                 }
             }
             goto the_end;
+        }
+
+        /* Reject the mapping if any page within the range is mapped */
+        if ((flags & MAP_EXCL) && page_check_range(start, len, 0) < 0) {
+            errno = EINVAL;
+            goto fail;
         }
 
         /* handle the start of the mapping */
