@@ -32,6 +32,11 @@
 
 //#define DEBUG
 
+#define TYPE_SMBUS_EEPROM "smbus-eeprom"
+
+#define SMBUS_EEPROM(obj) \
+    OBJECT_CHECK(SMBusEEPROMDevice, (obj), TYPE_SMBUS_EEPROM)
+
 typedef struct SMBusEEPROMDevice {
     SMBusDevice smbusdev;
     void *data;
@@ -40,7 +45,7 @@ typedef struct SMBusEEPROMDevice {
 
 static uint8_t eeprom_receive_byte(SMBusDevice *dev)
 {
-    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
+    SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
     uint8_t *data = eeprom->data;
     uint8_t val = data[eeprom->offset++];
 
@@ -53,7 +58,7 @@ static uint8_t eeprom_receive_byte(SMBusDevice *dev)
 
 static int eeprom_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
 {
-    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
+    SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
     uint8_t *data = eeprom->data;
 
 #ifdef DEBUG
@@ -75,7 +80,7 @@ static int eeprom_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
 
 static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
 {
-    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *)dev;
+    SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
 
     eeprom->offset = 0;
 }
@@ -99,7 +104,7 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo smbus_eeprom_info = {
-    .name          = "smbus-eeprom",
+    .name          = TYPE_SMBUS_EEPROM,
     .parent        = TYPE_SMBUS_DEVICE,
     .instance_size = sizeof(SMBusEEPROMDevice),
     .class_init    = smbus_eeprom_class_initfn,
@@ -116,7 +121,7 @@ void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf)
 {
     DeviceState *dev;
 
-    dev = qdev_create((BusState *) smbus, "smbus-eeprom");
+    dev = qdev_create((BusState *) smbus, TYPE_SMBUS_EEPROM);
     qdev_prop_set_uint8(dev, "address", address);
     qdev_prop_set_ptr(dev, "data", eeprom_buf);
     qdev_init_nofail(dev);
