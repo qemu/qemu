@@ -3,7 +3,8 @@
 check-help:
 	@echo "Regression testing targets:"
 	@echo
-	@echo " $(MAKE) check                Run all tests"
+	@echo " $(MAKE) check                Run unit, qapi-schema, qtest and decodetree"
+	@echo
 	@echo " $(MAKE) check-qtest-TARGET   Run qtest tests for given target"
 	@echo " $(MAKE) check-qtest          Run qtest tests"
 	@echo " $(MAKE) check-unit           Run qobject tests"
@@ -12,12 +13,13 @@ check-help:
 	@echo " $(MAKE) check-block          Run block tests"
 	@echo " $(MAKE) check-tcg            Run TCG tests"
 	@echo " $(MAKE) check-acceptance     Run all acceptance (functional) tests"
+	@echo
 	@echo " $(MAKE) check-report.html    Generates an HTML test report"
 	@echo " $(MAKE) check-venv           Creates a Python venv for tests"
-	@echo " $(MAKE) check-clean          Clean the tests"
+	@echo " $(MAKE) check-clean          Clean the tests and related data"
 	@echo
 	@echo "Please note that HTML reports do not regenerate if the unit tests"
-	@echo "has not changed."
+	@echo "have not changed."
 	@echo
 	@echo "The variable SPEED can be set to control the gtester speed setting."
 	@echo "Default options are -k and (for $(MAKE) V=1) --verbose; they can be"
