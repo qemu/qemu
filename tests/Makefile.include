@@ -958,8 +958,7 @@ TESTS_RESULTS_DIR=$(BUILD_DIR)/tests/results
 # information please refer to "avocado --help".
 AVOCADO_SHOW=none
 
-PYTHON3 = $(shell $(PYTHON) -c 'import sys; print(1 if sys.version_info >= (3, 0) else 0)')
-ifeq ($(PYTHON3), 1)
+ifneq ($(findstring v2,"v$(PYTHON_VERSION)"),v2)
 $(TESTS_VENV_DIR): $(TESTS_VENV_REQ)
 	$(call quiet-command, \
             $(PYTHON) -m venv --system-site-packages $@, \
