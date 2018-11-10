@@ -88,11 +88,8 @@ fork_exec(struct socket *so, const char *ex)
 	socklen_t addrlen = sizeof(addr);
         socklen_t csaddrlen = sizeof(csaddr);
 	int opt;
-	const char *argv[256];
-	/* don't want to clobber the original */
-	char *bptr;
-	const char *curarg;
-	int c, i, ret;
+	char **argv;
+	int ret;
 	pid_t pid;
 
 	DEBUG_CALL("fork_exec");
@@ -156,19 +153,7 @@ fork_exec(struct socket *so, const char *ex)
 		for (s = getdtablesize() - 1; s >= 3; s--)
 		   close(s);
 
-		i = 0;
-		bptr = g_strdup(ex); /* No need to free() this */
-        do {
-			/* Change the string into argv[] */
-			curarg = bptr;
-			while (*bptr != ' ' && *bptr != (char)0)
-			   bptr++;
-			c = *bptr;
-			*bptr++ = (char)0;
-			argv[i++] = g_strdup(curarg);
-        } while (c);
-
-                argv[i] = NULL;
+                argv = g_strsplit(ex, " ", -1);
 		execvp(argv[0], (char **)argv);
 
 		/* Ooops, failed, let's tell the user why */
