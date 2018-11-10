@@ -8,7 +8,6 @@
 #include "qemu/osdep.h"
 #include "slirp.h"
 #include "libslirp.h"
-#include "monitor/monitor.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 
@@ -198,8 +197,9 @@ fork_exec(struct socket *so, const char *ex)
 }
 #endif
 
-void slirp_connection_info(Slirp *slirp, Monitor *mon)
+char *slirp_connection_info(Slirp *slirp)
 {
+    GString *str = g_string_new(NULL);
     const char * const tcpstates[] = {
         [TCPS_CLOSED]       = "CLOSED",
         [TCPS_LISTEN]       = "LISTEN",
@@ -221,8 +221,9 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
     const char *state;
     char buf[20];
 
-    monitor_printf(mon, "  Protocol[State]    FD  Source Address  Port   "
-                        "Dest. Address  Port RecvQ SendQ\n");
+    g_string_append_printf(str,
+        "  Protocol[State]    FD  Source Address  Port   "
+        "Dest. Address  Port RecvQ SendQ\n");
 
     for (so = slirp->tcb.so_next; so != &slirp->tcb; so = so->so_next) {
         if (so->so_state & SS_HOSTFWD) {
@@ -244,10 +245,10 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
             dst_port = so->so_fport;
         }
         snprintf(buf, sizeof(buf), "  TCP[%s]", state);
-        monitor_printf(mon, "%-19s %3d %15s %5d ", buf, so->s,
+        g_string_append_printf(str, "%-19s %3d %15s %5d ", buf, so->s,
                        src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*",
                        ntohs(src.sin_port));
-        monitor_printf(mon, "%15s %5d %5d %5d\n",
+        g_string_append_printf(str, "%15s %5d %5d %5d\n",
                        inet_ntoa(dst_addr), ntohs(dst_port),
                        so->so_rcv.sb_cc, so->so_snd.sb_cc);
     }
@@ -267,10 +268,10 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
             dst_addr = so->so_faddr;
             dst_port = so->so_fport;
         }
-        monitor_printf(mon, "%-19s %3d %15s %5d ", buf, so->s,
+        g_string_append_printf(str, "%-19s %3d %15s %5d ", buf, so->s,
                        src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*",
                        ntohs(src.sin_port));
-        monitor_printf(mon, "%15s %5d %5d %5d\n",
+        g_string_append_printf(str, "%15s %5d %5d %5d\n",
                        inet_ntoa(dst_addr), ntohs(dst_port),
                        so->so_rcv.sb_cc, so->so_snd.sb_cc);
     }
@@ -280,9 +281,11 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
                      (so->so_expire - curtime) / 1000);
         src.sin_addr = so->so_laddr;
         dst_addr = so->so_faddr;
-        monitor_printf(mon, "%-19s %3d %15s  -    ", buf, so->s,
+        g_string_append_printf(str, "%-19s %3d %15s  -    ", buf, so->s,
                        src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*");
-        monitor_printf(mon, "%15s  -    %5d %5d\n", inet_ntoa(dst_addr),
+        g_string_append_printf(str, "%15s  -    %5d %5d\n", inet_ntoa(dst_addr),
                        so->so_rcv.sb_cc, so->so_snd.sb_cc);
     }
+
+    return g_string_free(str, FALSE);
 }

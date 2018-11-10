@@ -828,10 +828,11 @@ void hmp_info_usernet(Monitor *mon, const QDict *qdict)
     QTAILQ_FOREACH(s, &slirp_stacks, entry) {
         int id;
         bool got_hub_id = net_hub_id_for_client(&s->nc, &id) == 0;
-        monitor_printf(mon, "Hub %d (%s):\n",
+        char *info = slirp_connection_info(s->slirp);
+        monitor_printf(mon, "Hub %d (%s):\n%s",
                        got_hub_id ? id : -1,
-                       s->nc.name);
-        slirp_connection_info(s->slirp, mon);
+                       s->nc.name, info);
+        g_free(info);
     }
 }
 

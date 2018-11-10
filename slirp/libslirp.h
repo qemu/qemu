@@ -35,7 +35,7 @@ int slirp_remove_hostfwd(Slirp *slirp, int is_udp,
 int slirp_add_exec(Slirp *slirp, void *chardev, const char *cmdline,
                    struct in_addr *guest_addr, int guest_port);
 
-void slirp_connection_info(Slirp *slirp, Monitor *mon);
+char *slirp_connection_info(Slirp *slirp);
 
 void slirp_socket_recv(Slirp *slirp, struct in_addr guest_addr,
                        int guest_port, const uint8_t *buf, int size);
