@@ -1088,10 +1088,10 @@ int slirp_add_exec(Slirp *slirp, void *chardev, const char *cmdline,
 
 ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
 {
-    if (so->s == -1 && so->extra) {
+    if (so->s == -1 && so->chardev) {
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(so->extra, buf, len);
+        qemu_chr_fe_write_all(so->chardev, buf, len);
         return len;
     }
 
