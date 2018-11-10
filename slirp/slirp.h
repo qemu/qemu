@@ -232,6 +232,9 @@ extern Slirp *slirp_instance;
 
 void if_start(Slirp *);
 
+int get_dns_addr(struct in_addr *pdns_addr);
+int get_dns6_addr(struct in6_addr *pdns6_addr, uint32_t *scope_id);
+
 /* ncsi.c */
 void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len);
 
