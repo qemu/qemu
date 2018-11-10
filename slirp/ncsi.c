@@ -163,5 +163,5 @@ void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
     *pchecksum = htonl(checksum);
     ncsi_rsp_len += 4;
 
-    slirp_output(slirp->opaque, ncsi_reply, ETH_HLEN + ncsi_rsp_len);
+    slirp->output(slirp->opaque, ncsi_reply, ETH_HLEN + ncsi_rsp_len);
 }

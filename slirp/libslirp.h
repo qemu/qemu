@@ -5,6 +5,8 @@
 
 typedef struct Slirp Slirp;
 
+typedef void (*slirp_output)(void *opaque, const uint8_t *pkt, int pkt_len);
+
 int get_dns_addr(struct in_addr *pdns_addr);
 int get_dns6_addr(struct in6_addr *pdns6_addr, uint32_t *scope_id);
 
@@ -17,7 +19,9 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
                   const char *tftp_path, const char *bootfile,
                   struct in_addr vdhcp_start, struct in_addr vnameserver,
                   struct in6_addr vnameserver6, const char **vdnssearch,
-                  const char *vdomainname, void *opaque);
+                  const char *vdomainname,
+                  slirp_output output,
+                  void *opaque);
 void slirp_cleanup(Slirp *slirp);
 
 void slirp_pollfds_fill(GArray *pollfds, uint32_t *timeout);
@@ -25,9 +29,6 @@ void slirp_pollfds_fill(GArray *pollfds, uint32_t *timeout);
 void slirp_pollfds_poll(GArray *pollfds, int select_error);
 
 void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len);
-
-/* you must provide the following functions: */
-void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len);
 
 int slirp_add_hostfwd(Slirp *slirp, int is_udp,
                       struct in_addr host_addr, int host_port,

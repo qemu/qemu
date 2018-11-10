@@ -287,12 +287,15 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
                   const char *tftp_path, const char *bootfile,
                   struct in_addr vdhcp_start, struct in_addr vnameserver,
                   struct in6_addr vnameserver6, const char **vdnssearch,
-                  const char *vdomainname, void *opaque)
+                  const char *vdomainname,
+                  slirp_output output,
+                  void *opaque)
 {
     Slirp *slirp = g_malloc0(sizeof(Slirp));
 
     slirp_init_once();
 
+    slirp->output = output;
     slirp->grand = g_rand_new();
     slirp->restricted = restricted;
 
@@ -832,7 +835,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             rah->ar_sip = ah->ar_tip;
             memcpy(rah->ar_tha, ah->ar_sha, ETH_ALEN);
             rah->ar_tip = ah->ar_sip;
-            slirp_output(slirp->opaque, arp_reply, sizeof(arp_reply));
+            slirp->output(slirp->opaque, arp_reply, sizeof(arp_reply));
         }
         break;
     case ARPOP_REPLY:
@@ -932,7 +935,7 @@ static int if_encap4(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
             /* target IP */
             rah->ar_tip = iph->ip_dst.s_addr;
             slirp->client_ipaddr = iph->ip_dst;
-            slirp_output(slirp->opaque, arp_req, sizeof(arp_req));
+            slirp->output(slirp->opaque, arp_req, sizeof(arp_req));
             ifm->resolution_requested = true;
 
             /* Expire request and drop outgoing packet after 1 second */
@@ -1018,7 +1021,7 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
                 eh->h_dest[0], eh->h_dest[1], eh->h_dest[2],
                 eh->h_dest[3], eh->h_dest[4], eh->h_dest[5]));
     memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
-    slirp_output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
+    slirp->output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
     return 1;
 }
 

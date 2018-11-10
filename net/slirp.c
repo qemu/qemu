@@ -99,7 +99,7 @@ static void slirp_smb_cleanup(SlirpState *s);
 static inline void slirp_smb_cleanup(SlirpState *s) { }
 #endif
 
-void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
+static void net_slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
 {
     SlirpState *s = opaque;
 
@@ -378,7 +378,8 @@ static int net_slirp_init(NetClientState *peer, const char *model,
                           ipv6, ip6_prefix, vprefix6_len, ip6_host,
                           vhostname, tftp_server_name,
                           tftp_export, bootfile, dhcp,
-                          dns, ip6_dns, dnssearch, vdomainname, s);
+                          dns, ip6_dns, dnssearch, vdomainname,
+                          net_slirp_output, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
 
     for (config = slirp_configs; config; config = config->next) {
