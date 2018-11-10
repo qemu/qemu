@@ -26,7 +26,6 @@ struct ex_list {
 #define EMU_REALAUDIO 0x5
 #define EMU_RLOGIN 0x6
 #define EMU_IDENT 0x7
-#define EMU_RSH 0x8
 
 #define EMU_NOCONNECT 0x10	/* Don't connect */
 

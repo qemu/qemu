@@ -89,10 +89,6 @@ sofree(struct socket *so)
   soqfree(so, &slirp->if_fastq);
   soqfree(so, &slirp->if_batchq);
 
-  if (so->so_emu==EMU_RSH && so->extra) {
-	sofree(so->extra);
-	so->extra=NULL;
-  }
   if (so == slirp->tcp_last_so) {
       slirp->tcp_last_so = &slirp->tcb;
   } else if (so == slirp->udp_last_so) {

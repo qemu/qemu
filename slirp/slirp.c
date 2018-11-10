@@ -1499,8 +1499,6 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
         }
         if (!ex_ptr)
             return -EINVAL;
-
-        so->extra = (void *)ex_ptr->ex_exec;
     }
 
     return vmstate_load_state(f, &vmstate_slirp, slirp, version_id);
