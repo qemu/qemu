@@ -12,7 +12,7 @@ struct ex_list {
 	void *ex_chardev;
 	struct in_addr ex_addr;		/* Server address */
 	int ex_fport;                   /* Port to telnet to */
-	const char *ex_exec;            /* Command line of what to exec */
+	char *ex_exec;                  /* Command line of what to exec */
 	struct ex_list *ex_next;
 };
 

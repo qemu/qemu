@@ -342,6 +342,14 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
 
 void slirp_cleanup(Slirp *slirp)
 {
+    struct ex_list *e, *next;
+
+    for (e = slirp->exec_list; e; e = next) {
+        next = e->ex_next;
+        g_free(e->ex_exec);
+        g_free(e);
+    }
+
     QTAILQ_REMOVE(&slirp_instances, slirp, entry);
 
     unregister_savevm(NULL, "slirp", slirp);
