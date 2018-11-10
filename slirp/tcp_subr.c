@@ -960,7 +960,7 @@ int tcp_ctl(struct socket *so)
         for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
             if (ex_ptr->ex_fport == so->so_fport &&
                 so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr) {
-                if (ex_ptr->ex_pty == 3) {
+                if (ex_ptr->ex_chardev) {
                     so->s = -1;
                     so->extra = (void *)ex_ptr->ex_exec;
                     return 1;

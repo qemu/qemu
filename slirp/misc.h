@@ -9,7 +9,7 @@
 #define MISC_H
 
 struct ex_list {
-	int ex_pty;			/* Do we want a pty? */
+	int ex_chardev;
 	struct in_addr ex_addr;		/* Server address */
 	int ex_fport;                   /* Port to telnet to */
 	const char *ex_exec;            /* Command line of what to exec */
