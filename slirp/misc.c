@@ -37,7 +37,7 @@ remque(void *a)
   element->qh_rlink = NULL;
 }
 
-int add_exec(struct ex_list **ex_ptr, int do_pty, char *exec,
+int add_exec(struct ex_list **ex_ptr, void *chardev, const char *cmdline,
              struct in_addr addr, int port)
 {
 	struct ex_list *tmp_ptr;
@@ -50,11 +50,14 @@ int add_exec(struct ex_list **ex_ptr, int do_pty, char *exec,
 	}
 
 	tmp_ptr = *ex_ptr;
-	*ex_ptr = g_new(struct ex_list, 1);
+	*ex_ptr = g_new0(struct ex_list, 1);
 	(*ex_ptr)->ex_fport = port;
 	(*ex_ptr)->ex_addr = addr;
-	(*ex_ptr)->ex_chardev = do_pty == 3;
-	(*ex_ptr)->ex_exec = (do_pty == 3) ? exec : g_strdup(exec);
+	if (chardev) {
+		(*ex_ptr)->ex_chardev = chardev;
+	} else {
+		(*ex_ptr)->ex_exec = g_strdup(cmdline);
+	}
 	(*ex_ptr)->ex_next = tmp_ptr;
 	return 0;
 }

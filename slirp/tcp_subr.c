@@ -962,7 +962,7 @@ int tcp_ctl(struct socket *so)
                 so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr) {
                 if (ex_ptr->ex_chardev) {
                     so->s = -1;
-                    so->extra = (void *)ex_ptr->ex_exec;
+                    so->extra = ex_ptr->ex_chardev;
                     return 1;
                 }
                 DEBUG_MISC((dfd, " executing %s\n", ex_ptr->ex_exec));

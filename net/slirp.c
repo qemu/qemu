@@ -709,8 +709,8 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
              CONFIG_SMBD_COMMAND, s->smb_dir, smb_conf);
     g_free(smb_conf);
 
-    if (slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 139) < 0 ||
-        slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 445) < 0) {
+    if (slirp_add_exec(s->slirp, NULL, smb_cmdline, &vserver_addr, 139) < 0 ||
+        slirp_add_exec(s->slirp, NULL, smb_cmdline, &vserver_addr, 445) < 0) {
         slirp_smb_cleanup(s);
         g_free(smb_cmdline);
         error_setg(errp, "Conflicting/invalid smbserver address");
@@ -774,7 +774,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
     snprintf(buf, sizeof(buf), "guestfwd.tcp.%d", port);
 
     if ((strlen(p) > 4) && !strncmp(p, "cmd:", 4)) {
-        if (slirp_add_exec(s->slirp, 0, &p[4], &server, port) < 0) {
+        if (slirp_add_exec(s->slirp, NULL, &p[4], &server, port) < 0) {
             error_setg(errp, "Conflicting/invalid host:port in guest "
                        "forwarding rule '%s'", config_str);
             return -1;
@@ -801,7 +801,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
             return -1;
         }
 
-        if (slirp_add_exec(s->slirp, 3, &fwd->hd, &server, port) < 0) {
+        if (slirp_add_exec(s->slirp, &fwd->hd, NULL, &server, port) < 0) {
             error_setg(errp, "Conflicting/invalid host:port in guest "
                        "forwarding rule '%s'", config_str);
             g_free(fwd);

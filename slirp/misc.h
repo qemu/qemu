@@ -9,7 +9,7 @@
 #define MISC_H
 
 struct ex_list {
-	int ex_chardev;
+	void *ex_chardev;
 	struct in_addr ex_addr;		/* Server address */
 	int ex_fport;                   /* Port to telnet to */
 	const char *ex_exec;            /* Command line of what to exec */
@@ -52,7 +52,7 @@ struct slirp_quehead {
 
 void slirp_insque(void *, void *);
 void slirp_remque(void *);
-int add_exec(struct ex_list **, int, char *, struct in_addr, int);
+int add_exec(struct ex_list **, void *, const char *, struct in_addr, int);
 int fork_exec(struct socket *so, const char *ex);
 
 #endif
