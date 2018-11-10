@@ -53,6 +53,6 @@ struct slirp_quehead {
 void slirp_insque(void *, void *);
 void slirp_remque(void *);
 int add_exec(struct ex_list **, int, char *, struct in_addr, int);
-int fork_exec(struct socket *so, const char *ex, int do_pty);
+int fork_exec(struct socket *so, const char *ex);
 
 #endif

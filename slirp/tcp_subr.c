@@ -951,7 +951,6 @@ int tcp_ctl(struct socket *so)
     Slirp *slirp = so->slirp;
     struct sbuf *sb = &so->so_snd;
     struct ex_list *ex_ptr;
-    int do_pty;
 
     DEBUG_CALL("tcp_ctl");
     DEBUG_ARG("so = %p", so);
@@ -966,9 +965,8 @@ int tcp_ctl(struct socket *so)
                     so->extra = (void *)ex_ptr->ex_exec;
                     return 1;
                 }
-                do_pty = ex_ptr->ex_pty;
                 DEBUG_MISC((dfd, " executing %s\n", ex_ptr->ex_exec));
-                return fork_exec(so, ex_ptr->ex_exec, do_pty);
+                return fork_exec(so, ex_ptr->ex_exec);
             }
         }
     }

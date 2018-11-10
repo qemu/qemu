@@ -63,7 +63,7 @@ int add_exec(struct ex_list **ex_ptr, int do_pty, char *exec,
 #ifdef _WIN32
 
 int
-fork_exec(struct socket *so, const char *ex, int do_pty)
+fork_exec(struct socket *so, const char *ex)
 {
     /* not implemented */
     return 0;
@@ -77,13 +77,9 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
  * process, which connects to this socket, after which we
  * exec the wanted program.  If something (strange) happens,
  * the accept() call could block us forever.
- *
- * do_pty = 0   Fork/exec inetd style
- * do_pty = 1   Fork/exec using slirp.telnetd
- * do_ptr = 2   Fork/exec using pty
  */
 int
-fork_exec(struct socket *so, const char *ex, int do_pty)
+fork_exec(struct socket *so, const char *ex)
 {
         int s, cs;
         struct sockaddr_in addr, csaddr;
@@ -100,26 +96,20 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 	DEBUG_CALL("fork_exec");
 	DEBUG_ARG("so = %p", so);
 	DEBUG_ARG("ex = %p", ex);
-	DEBUG_ARG("do_pty = %x", do_pty);
 
-	if (do_pty == 2) {
-                return 0;
-	} else {
-		addr.sin_family = AF_INET;
-		addr.sin_port = 0;
-		addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_family = AF_INET;
+    addr.sin_port = 0;
+    addr.sin_addr.s_addr = INADDR_ANY;
 
-		if ((s = qemu_socket(AF_INET, SOCK_STREAM, 0)) < 0 ||
-		    bind(s, (struct sockaddr *)&addr, addrlen) < 0 ||
-		    listen(s, 1) < 0) {
-			error_report("Error: inet socket: %s", strerror(errno));
-			if (s >= 0) {
-			    closesocket(s);
-			}
-
-			return 0;
-		}
-	}
+    s = qemu_socket(AF_INET, SOCK_STREAM, 0);
+    if (s < 0 || bind(s, (struct sockaddr *)&addr, addrlen) < 0 ||
+        listen(s, 1) < 0) {
+        error_report("Error: inet socket: %s", strerror(errno));
+        if (s >= 0) {
+            closesocket(s);
+        }
+        return 0;
+    }
 
         if (getsockname(s, (struct sockaddr *)&csaddr, &csaddrlen) < 0) {
             closesocket(s);
@@ -166,13 +156,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 
 		i = 0;
 		bptr = g_strdup(ex); /* No need to free() this */
-		if (do_pty == 1) {
-			/* Setup "slirp.telnetd -x" */
-			argv[i++] = "slirp.telnetd";
-			argv[i++] = "-x";
-			argv[i++] = bptr;
-		} else
-		   do {
+        do {
 			/* Change the string into argv[] */
 			curarg = bptr;
 			while (*bptr != ' ' && *bptr != (char)0)
@@ -180,7 +164,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 			c = *bptr;
 			*bptr++ = (char)0;
 			argv[i++] = g_strdup(curarg);
-		   } while (c);
+        } while (c);
 
                 argv[i] = NULL;
 		execvp(argv[0], (char **)argv);
@@ -206,13 +190,6 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
                 opt = 1;
                 qemu_setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
 		qemu_set_nonblock(so->s);
-
-		/* Append the telnet options now */
-                if (so->so_m != NULL && do_pty == 1)  {
-			sbappend(so, so->so_m);
-                        so->so_m = NULL;
-		}
-
 		return 1;
 	}
 }
