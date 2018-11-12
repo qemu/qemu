@@ -20,6 +20,7 @@
 #include "block/block_backup.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "replication.h"
 
 typedef enum {
@@ -39,8 +40,8 @@ typedef struct BDRVReplicationState {
     char *top_id;
     ReplicationState *rs;
     Error *blocker;
-    int orig_hidden_flags;
-    int orig_secondary_flags;
+    bool orig_hidden_read_only;
+    bool orig_secondary_read_only;
     int error;
 } BDRVReplicationState;
 
@@ -349,44 +350,40 @@ static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
     }
 }
 
+/* This function is supposed to be called twice:
+ * first with writable = true, then with writable = false.
+ * The first call puts s->hidden_disk and s->secondary_disk in
+ * r/w mode, and the second puts them back in their original state.
+ */
 static void reopen_backing_file(BlockDriverState *bs, bool writable,
                                 Error **errp)
 {
     BDRVReplicationState *s = bs->opaque;
     BlockReopenQueue *reopen_queue = NULL;
-    int orig_hidden_flags, orig_secondary_flags;
-    int new_hidden_flags, new_secondary_flags;
     Error *local_err = NULL;
 
     if (writable) {
-        orig_hidden_flags = s->orig_hidden_flags =
-                                bdrv_get_flags(s->hidden_disk->bs);
-        new_hidden_flags = (orig_hidden_flags | BDRV_O_RDWR) &
-                                                    ~BDRV_O_INACTIVE;
-        orig_secondary_flags = s->orig_secondary_flags =
-                                bdrv_get_flags(s->secondary_disk->bs);
-        new_secondary_flags = (orig_secondary_flags | BDRV_O_RDWR) &
-                                                     ~BDRV_O_INACTIVE;
-    } else {
-        orig_hidden_flags = (s->orig_hidden_flags | BDRV_O_RDWR) &
-                                                    ~BDRV_O_INACTIVE;
-        new_hidden_flags = s->orig_hidden_flags;
-        orig_secondary_flags = (s->orig_secondary_flags | BDRV_O_RDWR) &
-                                                    ~BDRV_O_INACTIVE;
-        new_secondary_flags = s->orig_secondary_flags;
+        s->orig_hidden_read_only = bdrv_is_read_only(s->hidden_disk->bs);
+        s->orig_secondary_read_only = bdrv_is_read_only(s->secondary_disk->bs);
     }
 
     bdrv_subtree_drained_begin(s->hidden_disk->bs);
     bdrv_subtree_drained_begin(s->secondary_disk->bs);
 
-    if (orig_hidden_flags != new_hidden_flags) {
-        reopen_queue = bdrv_reopen_queue(reopen_queue, s->hidden_disk->bs, NULL,
-                                         new_hidden_flags);
+    if (s->orig_hidden_read_only) {
+        int flags = bdrv_get_flags(s->hidden_disk->bs);
+        QDict *opts = qdict_new();
+        qdict_put_bool(opts, BDRV_OPT_READ_ONLY, !writable);
+        reopen_queue = bdrv_reopen_queue(reopen_queue, s->hidden_disk->bs,
+                                         opts, flags);
     }
 
-    if (!(orig_secondary_flags & BDRV_O_RDWR)) {
+    if (s->orig_secondary_read_only) {
+        int flags = bdrv_get_flags(s->secondary_disk->bs);
+        QDict *opts = qdict_new();
+        qdict_put_bool(opts, BDRV_OPT_READ_ONLY, !writable);
         reopen_queue = bdrv_reopen_queue(reopen_queue, s->secondary_disk->bs,
-                                         NULL, new_secondary_flags);
+                                         opts, flags);
     }
 
     if (reopen_queue) {
