@@ -161,6 +161,7 @@ static void test_machine(const void *data)
     char codetmp[] = "/tmp/qtest-boot-serial-cXXXXXX";
     const char *codeparam = "";
     const uint8_t *code = NULL;
+    QTestState *qts;
     int ser_fd;
 
     ser_fd = mkstemp(serialtmp);
@@ -189,11 +190,11 @@ static void test_machine(const void *data)
      * Make sure that this test uses tcg if available: It is used as a
      * fast-enough smoketest for that.
      */
-    global_qtest = qtest_initf("%s %s -M %s,accel=tcg:kvm "
-                               "-chardev file,id=serial0,path=%s "
-                               "-no-shutdown -serial chardev:serial0 %s",
-                               codeparam, code ? codetmp : "",
-                               test->machine, serialtmp, test->extra);
+    qts = qtest_initf("%s %s -M %s,accel=tcg:kvm -no-shutdown "
+                      "-chardev file,id=serial0,path=%s "
+                      "-serial chardev:serial0 %s",
+                      codeparam, code ? codetmp : "", test->machine,
+                      serialtmp, test->extra);
     if (code) {
         unlink(codetmp);
     }
@@ -204,7 +205,7 @@ static void test_machine(const void *data)
     }
     unlink(serialtmp);
 
-    qtest_quit(global_qtest);
+    qtest_quit(qts);
 
     close(ser_fd);
 }
