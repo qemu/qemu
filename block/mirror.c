@@ -669,9 +669,10 @@ static int mirror_exit_common(Job *job)
 
     if (s->should_complete && !abort) {
         BlockDriverState *to_replace = s->to_replace ?: src;
+        bool ro = bdrv_is_read_only(to_replace);
 
-        if (bdrv_get_flags(target_bs) != bdrv_get_flags(to_replace)) {
-            bdrv_reopen(target_bs, bdrv_get_flags(to_replace), NULL);
+        if (ro != bdrv_is_read_only(target_bs)) {
+            bdrv_reopen_set_read_only(target_bs, ro, NULL);
         }
 
         /* The mirror job has no requests in flight any more, but we need to
@@ -1689,13 +1690,15 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
                          BlockCompletionFunc *cb, void *opaque,
                          bool auto_complete, Error **errp)
 {
-    int orig_base_flags;
+    bool base_read_only;
     Error *local_err = NULL;
 
-    orig_base_flags = bdrv_get_flags(base);
+    base_read_only = bdrv_is_read_only(base);
 
-    if (bdrv_reopen(base, bs->open_flags, errp)) {
-        return;
+    if (base_read_only) {
+        if (bdrv_reopen_set_read_only(base, false, errp) < 0) {
+            return;
+        }
     }
 
     mirror_start_job(job_id, bs, creation_flags, base, NULL, speed, 0, 0,
@@ -1714,6 +1717,8 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
 error_restore_flags:
     /* ignore error and errp for bdrv_reopen, because we want to propagate
      * the original error */
-    bdrv_reopen(base, orig_base_flags, NULL);
+    if (base_read_only) {
+        bdrv_reopen_set_read_only(base, true, NULL);
+    }
     return;
 }
