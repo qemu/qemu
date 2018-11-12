@@ -24,4 +24,12 @@ Cannot change the option 'driver'
 
 format name: null-co
 format name: null-co
+
+=== Check that mixing -c/-r/-w and their corresponding options is forbidden ===
+
+Cannot set both -r/-w and 'read-only'
+Cannot set both -r/-w and 'read-only'
+Cannot set both -c and the cache options
+Cannot set both -c and the cache options
+Cannot set both -c and the cache options
 *** done
