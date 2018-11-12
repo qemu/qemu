@@ -128,6 +128,13 @@ The @option{[hub_id name]} parameter tuple of the 'hostfwd_add' and
 The ``ivshmem'' device type is replaced by either the ``ivshmem-plain''
 or ``ivshmem-doorbell`` device types.
 
+@subsection bluetooth (since 3.1)
+
+The bluetooth subsystem is unmaintained since many years and likely bitrotten
+quite a bit. It will be removed without replacement unless some users speaks
+up at the @email{qemu-devel@@nongnu.org} mailing list with information about
+their usecases.
+
 @section System emulator machines
 
 @subsection pc-0.10 and pc-0.11 (since 3.0)
