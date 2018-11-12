@@ -159,7 +159,7 @@ bool job_is_internal(Job *job)
 static void job_state_transition(Job *job, JobStatus s1)
 {
     JobStatus s0 = job->status;
-    assert(s1 >= 0 && s1 <= JOB_STATUS__MAX);
+    assert(s1 >= 0 && s1 < JOB_STATUS__MAX);
     trace_job_state_transition(job, job->ret,
                                JobSTT[s0][s1] ? "allowed" : "disallowed",
                                JobStatus_str(s0), JobStatus_str(s1));
@@ -174,7 +174,7 @@ static void job_state_transition(Job *job, JobStatus s1)
 int job_apply_verb(Job *job, JobVerb verb, Error **errp)
 {
     JobStatus s0 = job->status;
-    assert(verb >= 0 && verb <= JOB_VERB__MAX);
+    assert(verb >= 0 && verb < JOB_VERB__MAX);
     trace_job_apply_verb(job, JobStatus_str(s0), JobVerb_str(verb),
                          JobVerbTable[verb][s0] ? "allowed" : "prohibited");
     if (JobVerbTable[verb][s0]) {

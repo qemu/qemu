@@ -142,7 +142,6 @@ do { \
 
 typedef struct BDRVRawState {
     int fd;
-    int lock_fd;
     bool use_lock;
     int type;
     int open_flags;
@@ -151,6 +150,11 @@ typedef struct BDRVRawState {
     /* The current permissions. */
     uint64_t perm;
     uint64_t shared_perm;
+
+    /* The perms bits whose corresponding bytes are already locked in
+     * s->fd. */
+    uint64_t locked_perm;
+    uint64_t locked_shared_perm;
 
 #ifdef CONFIG_XFS
     bool is_xfs:1;
@@ -205,7 +209,7 @@ static int cdrom_reopen(BlockDriverState *bs);
 #endif
 
 #if defined(__NetBSD__)
-static int raw_normalize_devicepath(const char **filename)
+static int raw_normalize_devicepath(const char **filename, Error **errp)
 {
     static char namebuf[PATH_MAX];
     const char *dp, *fname;
@@ -214,8 +218,7 @@ static int raw_normalize_devicepath(const char **filename)
     fname = *filename;
     dp = strrchr(fname, '/');
     if (lstat(fname, &sb) < 0) {
-        fprintf(stderr, "%s: stat failed: %s\n",
-            fname, strerror(errno));
+        error_setg_errno(errp, errno, "%s: stat failed", fname);
         return -errno;
     }
 
@@ -229,14 +232,13 @@ static int raw_normalize_devicepath(const char **filename)
         snprintf(namebuf, PATH_MAX, "%.*s/r%s",
             (int)(dp - fname), fname, dp + 1);
     }
-    fprintf(stderr, "%s is a block device", fname);
     *filename = namebuf;
-    fprintf(stderr, ", using %s\n", *filename);
+    warn_report("%s is a block device, using %s", fname, *filename);
 
     return 0;
 }
 #else
-static int raw_normalize_devicepath(const char **filename)
+static int raw_normalize_devicepath(const char **filename, Error **errp)
 {
     return 0;
 }
@@ -461,9 +463,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     filename = qemu_opt_get(opts, "filename");
 
-    ret = raw_normalize_devicepath(&filename);
+    ret = raw_normalize_devicepath(&filename, errp);
     if (ret != 0) {
-        error_setg_errno(errp, -ret, "Could not normalize device path");
         goto fail;
     }
 
@@ -492,11 +493,10 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     case ON_OFF_AUTO_ON:
         s->use_lock = true;
         if (!qemu_has_ofd_lock()) {
-            fprintf(stderr,
-                    "File lock requested but OFD locking syscall is "
-                    "unavailable, falling back to POSIX file locks.\n"
-                    "Due to the implementation, locks can be lost "
-                    "unexpectedly.\n");
+            warn_report("File lock requested but OFD locking syscall is "
+                        "unavailable, falling back to POSIX file locks");
+            error_printf("Due to the implementation, locks can be lost "
+                         "unexpectedly.\n");
         }
         break;
     case ON_OFF_AUTO_OFF:
@@ -550,18 +550,6 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
     s->fd = fd;
 
-    s->lock_fd = -1;
-    if (s->use_lock) {
-        fd = qemu_open(filename, s->open_flags);
-        if (fd < 0) {
-            ret = -errno;
-            error_setg_errno(errp, errno, "Could not open '%s' for locking",
-                             filename);
-            qemu_close(s->fd);
-            goto fail;
-        }
-        s->lock_fd = fd;
-    }
     s->perm = 0;
     s->shared_perm = BLK_PERM_ALL;
 
@@ -693,43 +681,72 @@ typedef enum {
  * file; if @unlock == true, also unlock the unneeded bytes.
  * @shared_perm_lock_bits is the mask of all permissions that are NOT shared.
  */
-static int raw_apply_lock_bytes(int fd,
+static int raw_apply_lock_bytes(BDRVRawState *s, int fd,
                                 uint64_t perm_lock_bits,
                                 uint64_t shared_perm_lock_bits,
                                 bool unlock, Error **errp)
 {
     int ret;
     int i;
+    uint64_t locked_perm, locked_shared_perm;
+
+    if (s) {
+        locked_perm = s->locked_perm;
+        locked_shared_perm = s->locked_shared_perm;
+    } else {
+        /*
+         * We don't have the previous bits, just lock/unlock for each of the
+         * requested bits.
+         */
+        if (unlock) {
+            locked_perm = BLK_PERM_ALL;
+            locked_shared_perm = BLK_PERM_ALL;
+        } else {
+            locked_perm = 0;
+            locked_shared_perm = 0;
+        }
+    }
 
     PERM_FOREACH(i) {
         int off = RAW_LOCK_PERM_BASE + i;
-        if (perm_lock_bits & (1ULL << i)) {
+        uint64_t bit = (1ULL << i);
+        if ((perm_lock_bits & bit) && !(locked_perm & bit)) {
             ret = qemu_lock_fd(fd, off, 1, false);
             if (ret) {
                 error_setg(errp, "Failed to lock byte %d", off);
                 return ret;
+            } else if (s) {
+                s->locked_perm |= bit;
             }
-        } else if (unlock) {
+        } else if (unlock && (locked_perm & bit) && !(perm_lock_bits & bit)) {
             ret = qemu_unlock_fd(fd, off, 1);
             if (ret) {
                 error_setg(errp, "Failed to unlock byte %d", off);
                 return ret;
+            } else if (s) {
+                s->locked_perm &= ~bit;
             }
         }
     }
     PERM_FOREACH(i) {
         int off = RAW_LOCK_SHARED_BASE + i;
-        if (shared_perm_lock_bits & (1ULL << i)) {
+        uint64_t bit = (1ULL << i);
+        if ((shared_perm_lock_bits & bit) && !(locked_shared_perm & bit)) {
             ret = qemu_lock_fd(fd, off, 1, false);
             if (ret) {
                 error_setg(errp, "Failed to lock byte %d", off);
                 return ret;
+            } else if (s) {
+                s->locked_shared_perm |= bit;
             }
-        } else if (unlock) {
+        } else if (unlock && (locked_shared_perm & bit) &&
+                   !(shared_perm_lock_bits & bit)) {
             ret = qemu_unlock_fd(fd, off, 1);
             if (ret) {
                 error_setg(errp, "Failed to unlock byte %d", off);
                 return ret;
+            } else if (s) {
+                s->locked_shared_perm &= ~bit;
             }
         }
     }
@@ -793,15 +810,13 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
         return 0;
     }
 
-    assert(s->lock_fd > 0);
-
     switch (op) {
     case RAW_PL_PREPARE:
-        ret = raw_apply_lock_bytes(s->lock_fd, s->perm | new_perm,
+        ret = raw_apply_lock_bytes(s, s->fd, s->perm | new_perm,
                                    ~s->shared_perm | ~new_shared,
                                    false, errp);
         if (!ret) {
-            ret = raw_check_lock_bytes(s->lock_fd, new_perm, new_shared, errp);
+            ret = raw_check_lock_bytes(s->fd, new_perm, new_shared, errp);
             if (!ret) {
                 return 0;
             }
@@ -812,23 +827,23 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
         op = RAW_PL_ABORT;
         /* fall through to unlock bytes. */
     case RAW_PL_ABORT:
-        raw_apply_lock_bytes(s->lock_fd, s->perm, ~s->shared_perm,
+        raw_apply_lock_bytes(s, s->fd, s->perm, ~s->shared_perm,
                              true, &local_err);
         if (local_err) {
             /* Theoretically the above call only unlocks bytes and it cannot
              * fail. Something weird happened, report it.
              */
-            error_report_err(local_err);
+            warn_report_err(local_err);
         }
         break;
     case RAW_PL_COMMIT:
-        raw_apply_lock_bytes(s->lock_fd, new_perm, ~new_shared,
+        raw_apply_lock_bytes(s, s->fd, new_perm, ~new_shared,
                              true, &local_err);
         if (local_err) {
             /* Theoretically the above call only unlocks bytes and it cannot
              * fail. Something weird happened, report it.
              */
-            error_report_err(local_err);
+            warn_report_err(local_err);
         }
         break;
     }
@@ -905,10 +920,8 @@ static int raw_reopen_prepare(BDRVReopenState *state,
     /* If we cannot use fcntl, or fcntl failed, fall back to qemu_open() */
     if (rs->fd == -1) {
         const char *normalized_filename = state->bs->filename;
-        ret = raw_normalize_devicepath(&normalized_filename);
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Could not normalize device path");
-        } else {
+        ret = raw_normalize_devicepath(&normalized_filename, errp);
+        if (ret >= 0) {
             assert(!(rs->open_flags & O_CREAT));
             rs->fd = qemu_open(normalized_filename, rs->open_flags);
             if (rs->fd == -1) {
@@ -939,10 +952,18 @@ static void raw_reopen_commit(BDRVReopenState *state)
 {
     BDRVRawReopenState *rs = state->opaque;
     BDRVRawState *s = state->bs->opaque;
+    Error *local_err = NULL;
 
     s->check_cache_dropped = rs->check_cache_dropped;
     s->open_flags = rs->open_flags;
 
+    /* Copy locks to the new fd before closing the old one. */
+    raw_apply_lock_bytes(NULL, rs->fd, s->locked_perm,
+                         ~s->locked_shared_perm, false, &local_err);
+    if (local_err) {
+        /* shouldn't fail in a sane host, but report it just in case. */
+        error_report_err(local_err);
+    }
     qemu_close(s->fd);
     s->fd = rs->fd;
 
@@ -1788,7 +1809,7 @@ static int aio_worker(void *arg)
         ret = handle_aiocb_truncate(aiocb);
         break;
     default:
-        fprintf(stderr, "invalid aio request (0x%x)\n", aiocb->aio_type);
+        error_report("invalid aio request (0x%x)", aiocb->aio_type);
         ret = -EINVAL;
         break;
     }
@@ -1934,10 +1955,6 @@ static void raw_close(BlockDriverState *bs)
     if (s->fd >= 0) {
         qemu_close(s->fd);
         s->fd = -1;
-    }
-    if (s->lock_fd >= 0) {
-        qemu_close(s->lock_fd);
-        s->lock_fd = -1;
     }
 }
 
@@ -2226,7 +2243,7 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
     shared = BLK_PERM_ALL & ~BLK_PERM_RESIZE;
 
     /* Step one: Take locks */
-    result = raw_apply_lock_bytes(fd, perm, ~shared, false, errp);
+    result = raw_apply_lock_bytes(NULL, fd, perm, ~shared, false, errp);
     if (result < 0) {
         goto out_close;
     }
@@ -2270,13 +2287,13 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
     }
 
 out_unlock:
-    raw_apply_lock_bytes(fd, 0, 0, true, &local_err);
+    raw_apply_lock_bytes(NULL, fd, 0, 0, true, &local_err);
     if (local_err) {
         /* The above call should not fail, and if it does, that does
          * not mean the whole creation operation has failed.  So
          * report it the user for their convenience, but do not report
          * it to the caller. */
-        error_report_err(local_err);
+        warn_report_err(local_err);
     }
 
 out_close:
@@ -3141,9 +3158,8 @@ static int coroutine_fn hdev_co_create_opts(const char *filename, QemuOpts *opts
 
     (void)has_prefix;
 
-    ret = raw_normalize_devicepath(&filename);
+    ret = raw_normalize_devicepath(&filename, errp);
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "Could not normalize device path");
         return ret;
     }
 

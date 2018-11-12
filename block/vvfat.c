@@ -100,30 +100,26 @@ static inline void array_free(array_t* array)
 /* does not automatically grow */
 static inline void* array_get(array_t* array,unsigned int index) {
     assert(index < array->next);
+    assert(array->pointer);
     return array->pointer + index * array->item_size;
 }
 
-static inline int array_ensure_allocated(array_t* array, int index)
+static inline void array_ensure_allocated(array_t *array, int index)
 {
     if((index + 1) * array->item_size > array->size) {
         int new_size = (index + 32) * array->item_size;
         array->pointer = g_realloc(array->pointer, new_size);
-        if (!array->pointer)
-            return -1;
+        assert(array->pointer);
         memset(array->pointer + array->size, 0, new_size - array->size);
         array->size = new_size;
         array->next = index + 1;
     }
-
-    return 0;
 }
 
 static inline void* array_get_next(array_t* array) {
     unsigned int next = array->next;
 
-    if (array_ensure_allocated(array, next) < 0)
-        return NULL;
-
+    array_ensure_allocated(array, next);
     array->next = next + 1;
     return array_get(array, next);
 }
@@ -2422,15 +2418,12 @@ static int commit_direntries(BDRVVVFATState* s,
     direntry_t* direntry = array_get(&(s->directory), dir_index);
     uint32_t first_cluster = dir_index == 0 ? 0 : begin_of_direntry(direntry);
     mapping_t* mapping = find_mapping_for_cluster(s, first_cluster);
-
     int factor = 0x10 * s->sectors_per_cluster;
     int old_cluster_count, new_cluster_count;
-    int current_dir_index = mapping->info.dir.first_dir_index;
-    int first_dir_index = current_dir_index;
+    int current_dir_index;
+    int first_dir_index;
     int ret, i;
     uint32_t c;
-
-DLOG(fprintf(stderr, "commit_direntries for %s, parent_mapping_index %d\n", mapping->path, parent_mapping_index));
 
     assert(direntry);
     assert(mapping);
@@ -2439,6 +2432,11 @@ DLOG(fprintf(stderr, "commit_direntries for %s, parent_mapping_index %d\n", mapp
     assert(mapping->mode & MODE_DIRECTORY);
     assert(dir_index == 0 || is_directory(direntry));
 
+    DLOG(fprintf(stderr, "commit_direntries for %s, parent_mapping_index %d\n",
+                 mapping->path, parent_mapping_index));
+
+    current_dir_index = mapping->info.dir.first_dir_index;
+    first_dir_index = current_dir_index;
     mapping->info.dir.parent_mapping_index = parent_mapping_index;
 
     if (first_cluster == 0) {
@@ -2488,6 +2486,9 @@ DLOG(fprintf(stderr, "commit_direntries for %s, parent_mapping_index %d\n", mapp
         direntry = array_get(&(s->directory), first_dir_index + i);
         if (is_directory(direntry) && !is_dot(direntry)) {
             mapping = find_mapping_for_cluster(s, first_cluster);
+            if (mapping == NULL) {
+                return -1;
+            }
             assert(mapping->mode & MODE_DIRECTORY);
             ret = commit_direntries(s, first_dir_index + i,
                 array_index(&(s->mapping), mapping));
@@ -2515,6 +2516,10 @@ static int commit_one_file(BDRVVVFATState* s,
 
     assert(offset < size);
     assert((offset % s->cluster_size) == 0);
+
+    if (mapping == NULL) {
+        return -1;
+    }
 
     for (i = s->cluster_size; i < offset; i += s->cluster_size)
         c = modified_fat_get(s, c);
@@ -2662,8 +2667,12 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
         if (commit->action == ACTION_RENAME) {
             mapping_t* mapping = find_mapping_for_cluster(s,
                     commit->param.rename.cluster);
-            char* old_path = mapping->path;
+            char *old_path;
 
+            if (mapping == NULL) {
+                return -1;
+            }
+            old_path = mapping->path;
             assert(commit->path);
             mapping->path = commit->path;
             if (rename(old_path, mapping->path))
@@ -2684,10 +2693,15 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
                         direntry_t* d = direntry + i;
 
                         if (is_file(d) || (is_directory(d) && !is_dot(d))) {
+                            int l;
+                            char *new_path;
                             mapping_t* m = find_mapping_for_cluster(s,
                                     begin_of_direntry(d));
-                            int l = strlen(m->path);
-                            char* new_path = g_malloc(l + diff + 1);
+                            if (m == NULL) {
+                                return -1;
+                            }
+                            l = strlen(m->path);
+                            new_path = g_malloc(l + diff + 1);
 
                             assert(!strncmp(m->path, mapping->path, l2));
 
