@@ -38,7 +38,7 @@ typedef struct CommitBlockJob {
     BlockBackend *base;
     BlockDriverState *base_bs;
     BlockdevOnError on_error;
-    int base_flags;
+    bool base_read_only;
     char *backing_file_str;
 } CommitBlockJob;
 
@@ -124,8 +124,8 @@ static void commit_clean(Job *job)
     /* restore base open flags here if appropriate (e.g., change the base back
      * to r/o). These reopens do not need to be atomic, since we won't abort
      * even on failure here */
-    if (s->base_flags != bdrv_get_flags(s->base_bs)) {
-        bdrv_reopen(s->base_bs, s->base_flags, NULL);
+    if (s->base_read_only) {
+        bdrv_reopen_set_read_only(s->base_bs, true, NULL);
     }
 
     g_free(s->backing_file_str);
@@ -264,7 +264,6 @@ void commit_start(const char *job_id, BlockDriverState *bs,
                   const char *filter_node_name, Error **errp)
 {
     CommitBlockJob *s;
-    int orig_base_flags;
     BlockDriverState *iter;
     BlockDriverState *commit_top_bs = NULL;
     Error *local_err = NULL;
@@ -283,11 +282,9 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     }
 
     /* convert base to r/w, if necessary */
-    orig_base_flags = bdrv_get_flags(base);
-    if (!(orig_base_flags & BDRV_O_RDWR)) {
-        bdrv_reopen(base, orig_base_flags | BDRV_O_RDWR, &local_err);
-        if (local_err != NULL) {
-            error_propagate(errp, local_err);
+    s->base_read_only = bdrv_is_read_only(base);
+    if (s->base_read_only) {
+        if (bdrv_reopen_set_read_only(base, false, errp) != 0) {
             goto fail;
         }
     }
@@ -363,7 +360,6 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         goto fail;
     }
 
-    s->base_flags = orig_base_flags;
     s->backing_file_str = g_strdup(backing_file_str);
     s->on_error = on_error;
 
