@@ -391,7 +391,7 @@ int bdrv_commit(BlockDriverState *bs)
     BlockDriverState *commit_top_bs = NULL;
     BlockDriver *drv = bs->drv;
     int64_t offset, length, backing_length;
-    int ro, open_flags;
+    int ro;
     int64_t n;
     int ret = 0;
     uint8_t *buf = NULL;
@@ -410,10 +410,9 @@ int bdrv_commit(BlockDriverState *bs)
     }
 
     ro = bs->backing->bs->read_only;
-    open_flags =  bs->backing->bs->open_flags;
 
     if (ro) {
-        if (bdrv_reopen(bs->backing->bs, open_flags | BDRV_O_RDWR, NULL)) {
+        if (bdrv_reopen_set_read_only(bs->backing->bs, false, NULL)) {
             return -EACCES;
         }
     }
@@ -523,7 +522,7 @@ ro_cleanup:
 
     if (ro) {
         /* ignoring error return here */
-        bdrv_reopen(bs->backing->bs, open_flags & ~BDRV_O_RDWR, NULL);
+        bdrv_reopen_set_read_only(bs->backing->bs, true, NULL);
     }
 
     return ret;
