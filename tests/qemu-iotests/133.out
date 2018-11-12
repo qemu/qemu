@@ -32,4 +32,11 @@ Cannot set both -r/-w and 'read-only'
 Cannot set both -c and the cache options
 Cannot set both -c and the cache options
 Cannot set both -c and the cache options
+
+=== Check that invalid options are handled correctly ===
+
+Parameter 'read-only' expects 'on' or 'off'
+Parameter 'cache.no-flush' expects 'on' or 'off'
+Parameter 'cache.direct' expects 'on' or 'off'
+Parameter 'auto-read-only' expects 'on' or 'off'
 *** done
