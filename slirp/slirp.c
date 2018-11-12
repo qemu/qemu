@@ -1091,6 +1091,17 @@ ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
         return len;
     }
 
+    if (so->s == -1) {
+        /*
+         * This should in theory not happen but it is hard to be
+         * sure because some code paths will end up with so->s == -1
+         * on a failure but don't dispose of the struct socket.
+         * Check specifically, so we don't pass -1 to send().
+         */
+        errno = EBADF;
+        return -1;
+    }
+
     return send(so->s, buf, len, flags);
 }
 
@@ -1465,9 +1476,6 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
     while (qemu_get_byte(f)) {
         int ret;
         struct socket *so = socreate(slirp);
-
-        if (!so)
-            return -ENOMEM;
 
         ret = vmstate_load_state(f, &vmstate_slirp_socket, so, version_id);
 

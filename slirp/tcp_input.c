@@ -429,11 +429,10 @@ findso:
 	  if ((tiflags & (TH_SYN|TH_FIN|TH_RST|TH_URG|TH_ACK)) != TH_SYN)
 	    goto dropwithreset;
 
-	  if ((so = socreate(slirp)) == NULL)
-	    goto dropwithreset;
+          so = socreate(slirp);
 	  if (tcp_attach(so) < 0) {
-	    free(so); /* Not sofree (if it failed, it's not insqued) */
-	    goto dropwithreset;
+            g_free(so); /* Not sofree (if it failed, it's not insqued) */
+            goto dropwithreset;
 	  }
 
 	  sbreserve(&so->so_snd, TCP_SNDSPACE);
