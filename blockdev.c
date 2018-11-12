@@ -4100,7 +4100,6 @@ void qmp_change_backing_file(const char *device,
     BlockDriverState *image_bs = NULL;
     Error *local_err = NULL;
     bool ro;
-    int open_flags;
     int ret;
 
     bs = qmp_get_root_bs(device, errp);
@@ -4142,13 +4141,10 @@ void qmp_change_backing_file(const char *device,
     }
 
     /* if not r/w, reopen to make r/w */
-    open_flags = image_bs->open_flags;
     ro = bdrv_is_read_only(image_bs);
 
     if (ro) {
-        bdrv_reopen(image_bs, open_flags | BDRV_O_RDWR, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (bdrv_reopen_set_read_only(image_bs, false, errp) != 0) {
             goto out;
         }
     }
@@ -4164,7 +4160,7 @@ void qmp_change_backing_file(const char *device,
     }
 
     if (ro) {
-        bdrv_reopen(image_bs, open_flags, &local_err);
+        bdrv_reopen_set_read_only(image_bs, true, &local_err);
         error_propagate(errp, local_err);
     }
 
