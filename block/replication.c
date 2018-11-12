@@ -371,19 +371,17 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
     bdrv_subtree_drained_begin(s->secondary_disk->bs);
 
     if (s->orig_hidden_read_only) {
-        int flags = bdrv_get_flags(s->hidden_disk->bs);
         QDict *opts = qdict_new();
         qdict_put_bool(opts, BDRV_OPT_READ_ONLY, !writable);
         reopen_queue = bdrv_reopen_queue(reopen_queue, s->hidden_disk->bs,
-                                         opts, flags);
+                                         opts);
     }
 
     if (s->orig_secondary_read_only) {
-        int flags = bdrv_get_flags(s->secondary_disk->bs);
         QDict *opts = qdict_new();
         qdict_put_bool(opts, BDRV_OPT_READ_ONLY, !writable);
         reopen_queue = bdrv_reopen_queue(reopen_queue, s->secondary_disk->bs,
-                                         opts, flags);
+                                         opts);
     }
 
     if (reopen_queue) {

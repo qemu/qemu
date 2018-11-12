@@ -3060,8 +3060,9 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     BlockDriverState *bs,
-                                    QDict *options, int flags)
+                                    QDict *options)
 {
+    int flags = bdrv_get_flags(bs);
     return bdrv_reopen_queue_child(bs_queue, bs, options, flags,
                                    NULL, NULL, 0);
 }
@@ -3135,7 +3136,7 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
     qdict_put_bool(opts, BDRV_OPT_READ_ONLY, read_only);
 
     bdrv_subtree_drained_begin(bs);
-    queue = bdrv_reopen_queue(NULL, bs, opts, bdrv_get_flags(bs));
+    queue = bdrv_reopen_queue(NULL, bs, opts);
     ret = bdrv_reopen_multiple(bdrv_get_aio_context(bs), queue, errp);
     bdrv_subtree_drained_end(bs);
 
