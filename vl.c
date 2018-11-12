@@ -3269,6 +3269,10 @@ int main(int argc, char **argv, char **envp)
                 break;
 #endif
             case QEMU_OPTION_bt:
+                warn_report("The bluetooth subsystem is deprecated and will "
+                            "be removed soon. If the bluetooth subsystem is "
+                            "still useful for you, please send a mail to "
+                            "qemu-devel@nongnu.org with your usecase.");
                 add_device_config(DEV_BT, optarg);
                 break;
             case QEMU_OPTION_audio_help:
