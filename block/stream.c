@@ -34,7 +34,7 @@ typedef struct StreamBlockJob {
     BlockDriverState *base;
     BlockdevOnError on_error;
     char *backing_file_str;
-    int bs_flags;
+    bool bs_read_only;
 } StreamBlockJob;
 
 static int coroutine_fn stream_populate(BlockBackend *blk,
@@ -89,10 +89,10 @@ static void stream_clean(Job *job)
     BlockDriverState *bs = blk_bs(bjob->blk);
 
     /* Reopen the image back in read-only mode if necessary */
-    if (s->bs_flags != bdrv_get_flags(bs)) {
+    if (s->bs_read_only) {
         /* Give up write permissions before making it read-only */
         blk_set_perm(bjob->blk, 0, BLK_PERM_ALL, &error_abort);
-        bdrv_reopen(bs, s->bs_flags, NULL);
+        bdrv_reopen_set_read_only(bs, true, NULL);
     }
 
     g_free(s->backing_file_str);
@@ -226,12 +226,12 @@ void stream_start(const char *job_id, BlockDriverState *bs,
 {
     StreamBlockJob *s;
     BlockDriverState *iter;
-    int orig_bs_flags;
+    bool bs_read_only;
 
     /* Make sure that the image is opened in read-write mode */
-    orig_bs_flags = bdrv_get_flags(bs);
-    if (!(orig_bs_flags & BDRV_O_RDWR)) {
-        if (bdrv_reopen(bs, orig_bs_flags | BDRV_O_RDWR, errp) != 0) {
+    bs_read_only = bdrv_is_read_only(bs);
+    if (bs_read_only) {
+        if (bdrv_reopen_set_read_only(bs, false, errp) != 0) {
             return;
         }
     }
@@ -261,7 +261,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
 
     s->base = base;
     s->backing_file_str = g_strdup(backing_file_str);
-    s->bs_flags = orig_bs_flags;
+    s->bs_read_only = bs_read_only;
 
     s->on_error = on_error;
     trace_stream_start(bs, base, s);
@@ -269,7 +269,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     return;
 
 fail:
-    if (orig_bs_flags != bdrv_get_flags(bs)) {
-        bdrv_reopen(bs, orig_bs_flags, NULL);
+    if (bs_read_only) {
+        bdrv_reopen_set_read_only(bs, true, NULL);
     }
 }
