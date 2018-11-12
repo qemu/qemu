@@ -2931,7 +2931,6 @@ BlockDriverState *bdrv_open(const char *filename, const char *reference,
 static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
                                                  BlockDriverState *bs,
                                                  QDict *options,
-                                                 int flags,
                                                  const BdrvChildRole *role,
                                                  QDict *parent_options,
                                                  int parent_flags)
@@ -2940,7 +2939,9 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
     BlockReopenQueueEntry *bs_entry;
     BdrvChild *child;
-    QDict *old_options, *explicit_options;
+    QDict *old_options, *explicit_options, *options_copy;
+    int flags;
+    QemuOpts *opts;
 
     /* Make sure that the caller remembered to use a drained section. This is
      * important to avoid graph changes between the recursive queuing here and
@@ -2966,21 +2967,10 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     /*
      * Precedence of options:
      * 1. Explicitly passed in options (highest)
-     * 2. Set in flags (only for top level)
-     * 3. Retained from explicitly set options of bs
-     * 4. Inherited from parent node
-     * 5. Retained from effective options of bs
+     * 2. Retained from explicitly set options of bs
+     * 3. Inherited from parent node
+     * 4. Retained from effective options of bs
      */
-
-    if (!parent_options) {
-        /*
-         * Any setting represented by flags is always updated. If the
-         * corresponding QDict option is set, it takes precedence. Otherwise
-         * the flag is translated into a QDict option. The old setting of bs is
-         * not considered.
-         */
-        update_options_from_flags(options, flags);
-    }
 
     /* Old explicitly set values (don't overwrite by inherited value) */
     if (bs_entry) {
@@ -2995,22 +2985,24 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
     /* Inherit from parent node */
     if (parent_options) {
-        QemuOpts *opts;
-        QDict *options_copy;
-        assert(!flags);
+        flags = 0;
         role->inherit_options(&flags, options, parent_flags, parent_options);
-        options_copy = qdict_clone_shallow(options);
-        opts = qemu_opts_create(&bdrv_runtime_opts, NULL, 0, &error_abort);
-        qemu_opts_absorb_qdict(opts, options_copy, NULL);
-        update_flags_from_options(&flags, opts);
-        qemu_opts_del(opts);
-        qobject_unref(options_copy);
+    } else {
+        flags = bdrv_get_flags(bs);
     }
 
     /* Old values are used for options that aren't set yet */
     old_options = qdict_clone_shallow(bs->options);
     bdrv_join_options(bs, options, old_options);
     qobject_unref(old_options);
+
+    /* We have the final set of options so let's update the flags */
+    options_copy = qdict_clone_shallow(options);
+    opts = qemu_opts_create(&bdrv_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options_copy, NULL);
+    update_flags_from_options(&flags, opts);
+    qemu_opts_del(opts);
+    qobject_unref(options_copy);
 
     /* bdrv_open_inherit() sets and clears some additional flags internally */
     flags &= ~BDRV_O_PROTOCOL;
@@ -3051,7 +3043,7 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         qdict_extract_subqdict(options, &new_child_options, child_key_dot);
         g_free(child_key_dot);
 
-        bdrv_reopen_queue_child(bs_queue, child->bs, new_child_options, 0,
+        bdrv_reopen_queue_child(bs_queue, child->bs, new_child_options,
                                 child->role, options, flags);
     }
 
@@ -3062,9 +3054,7 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     BlockDriverState *bs,
                                     QDict *options)
 {
-    int flags = bdrv_get_flags(bs);
-    return bdrv_reopen_queue_child(bs_queue, bs, options, flags,
-                                   NULL, NULL, 0);
+    return bdrv_reopen_queue_child(bs_queue, bs, options, NULL, NULL, 0);
 }
 
 /*
