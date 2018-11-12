@@ -1029,6 +1029,7 @@ static int img_commit(int argc, char **argv)
     }
 
     job = block_job_get("commit");
+    assert(job);
     run_block_job(job, &local_err);
     if (local_err) {
         goto unref_backing;

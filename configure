@@ -470,6 +470,15 @@ tcmalloc="no"
 jemalloc="no"
 replication="yes"
 vxhs=""
+bochs="yes"
+cloop="yes"
+dmg="yes"
+qcow1="yes"
+vdi="yes"
+vvfat="yes"
+qed="yes"
+parallels="yes"
+sheepdog="yes"
 libxml2=""
 docker="no"
 debug_mutex="no"
@@ -1416,6 +1425,42 @@ for opt do
   ;;
   --enable-vxhs) vxhs="yes"
   ;;
+  --disable-bochs) bochs="no"
+  ;;
+  --enable-bochs) bochs="yes"
+  ;;
+  --disable-cloop) cloop="no"
+  ;;
+  --enable-cloop) cloop="yes"
+  ;;
+  --disable-dmg) dmg="no"
+  ;;
+  --enable-dmg) dmg="yes"
+  ;;
+  --disable-qcow1) qcow1="no"
+  ;;
+  --enable-qcow1) qcow1="yes"
+  ;;
+  --disable-vdi) vdi="no"
+  ;;
+  --enable-vdi) vdi="yes"
+  ;;
+  --disable-vvfat) vvfat="no"
+  ;;
+  --enable-vvfat) vvfat="yes"
+  ;;
+  --disable-qed) qed="no"
+  ;;
+  --enable-qed) qed="yes"
+  ;;
+  --disable-parallels) parallels="no"
+  ;;
+  --enable-parallels) parallels="yes"
+  ;;
+  --disable-sheepdog) sheepdog="no"
+  ;;
+  --enable-sheepdog) sheepdog="yes"
+  ;;
   --disable-vhost-user) vhost_user="no"
   ;;
   --enable-vhost-user)
@@ -1718,6 +1763,15 @@ disabled with --disable-FEATURE, default is enabled if available:
   qom-cast-debug  cast debugging support
   tools           build qemu-io, qemu-nbd and qemu-image tools
   vxhs            Veritas HyperScale vDisk backend support
+  bochs           bochs image format support
+  cloop           cloop image format support
+  dmg             dmg image format support
+  qcow1           qcow v1 image format support
+  vdi             vdi image format support
+  vvfat           vvfat image format support
+  qed             qed image format support
+  parallels       parallels image format support
+  sheepdog        sheepdog block driver support
   crypto-afalg    Linux AF_ALG crypto backend driver
   vhost-user      vhost-user support
   capstone        capstone disassembler support
@@ -6043,6 +6097,15 @@ echo "jemalloc support  $jemalloc"
 echo "avx2 optimization $avx2_opt"
 echo "replication support $replication"
 echo "VxHS block device $vxhs"
+echo "bochs support     $bochs"
+echo "cloop support     $cloop"
+echo "dmg support       $dmg"
+echo "qcow v1 support   $qcow1"
+echo "vdi support       $vdi"
+echo "vvfat support     $vvfat"
+echo "qed support       $qed"
+echo "parallels support $parallels"
+echo "sheepdog support  $sheepdog"
 echo "capstone          $capstone"
 echo "docker            $docker"
 echo "libpmem support   $libpmem"
@@ -6797,6 +6860,34 @@ fi
 
 if test "$libpmem" = "yes" ; then
   echo "CONFIG_LIBPMEM=y" >> $config_host_mak
+fi
+
+if test "$bochs" = "yes" ; then
+  echo "CONFIG_BOCHS=y" >> $config_host_mak
+fi
+if test "$cloop" = "yes" ; then
+  echo "CONFIG_CLOOP=y" >> $config_host_mak
+fi
+if test "$dmg" = "yes" ; then
+  echo "CONFIG_DMG=y" >> $config_host_mak
+fi
+if test "$qcow1" = "yes" ; then
+  echo "CONFIG_QCOW1=y" >> $config_host_mak
+fi
+if test "$vdi" = "yes" ; then
+  echo "CONFIG_VDI=y" >> $config_host_mak
+fi
+if test "$vvfat" = "yes" ; then
+  echo "CONFIG_VVFAT=y" >> $config_host_mak
+fi
+if test "$qed" = "yes" ; then
+  echo "CONFIG_QED=y" >> $config_host_mak
+fi
+if test "$parallels" = "yes" ; then
+  echo "CONFIG_PARALLELS=y" >> $config_host_mak
+fi
+if test "$sheepdog" = "yes" ; then
+  echo "CONFIG_SHEEPDOG=y" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then
