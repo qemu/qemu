@@ -3197,6 +3197,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
                         Error **errp)
 {
     int ret = -1;
+    int old_flags;
     Error *local_err = NULL;
     BlockDriver *drv;
     QemuOpts *opts;
@@ -3223,7 +3224,12 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         goto error;
     }
 
+    /* This was already called in bdrv_reopen_queue_child() so the flags
+     * are up-to-date. This time we simply want to remove the options from
+     * QemuOpts in order to indicate that they have been processed. */
+    old_flags = reopen_state->flags;
     update_flags_from_options(&reopen_state->flags, opts);
+    assert(old_flags == reopen_state->flags);
 
     discard = qemu_opt_get_del(opts, BDRV_OPT_DISCARD);
     if (discard != NULL) {
