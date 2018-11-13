@@ -871,4 +871,22 @@ static inline const char *aarch32_mode_name(uint32_t psr)
     return cpu_mode_names[psr & 0xf];
 }
 
+/**
+ * arm_cpu_update_virq: Update CPU_INTERRUPT_VIRQ bit in cs->interrupt_request
+ *
+ * Update the CPU_INTERRUPT_VIRQ bit in cs->interrupt_request, following
+ * a change to either the input VIRQ line from the GIC or the HCR_EL2.VI bit.
+ * Must be called with the iothread lock held.
+ */
+void arm_cpu_update_virq(ARMCPU *cpu);
+
+/**
+ * arm_cpu_update_vfiq: Update CPU_INTERRUPT_VFIQ bit in cs->interrupt_request
+ *
+ * Update the CPU_INTERRUPT_VFIQ bit in cs->interrupt_request, following
+ * a change to either the input VFIQ line from the GIC or the HCR_EL2.VF bit.
+ * Must be called with the iothread lock held.
+ */
+void arm_cpu_update_vfiq(ARMCPU *cpu);
+
 #endif
