@@ -780,17 +780,31 @@ static void s390_pci_msix_free(S390PCIBusDevice *pbdev)
 }
 
 static S390PCIBusDevice *s390_pci_device_new(S390pciState *s,
-                                             const char *target)
+                                             const char *target, Error **errp)
 {
-    DeviceState *dev = NULL;
+    Error *local_err = NULL;
+    DeviceState *dev;
 
     dev = qdev_try_create(BUS(s->bus), TYPE_S390_PCI_DEVICE);
     if (!dev) {
+        error_setg(errp, "zPCI device could not be created");
         return NULL;
     }
 
-    qdev_prop_set_string(dev, "target", target);
-    qdev_init_nofail(dev);
+    object_property_set_str(OBJECT(dev), target, "target", &local_err);
+    if (local_err) {
+        object_unparent(OBJECT(dev));
+        error_propagate_prepend(errp, local_err,
+                                "zPCI device could not be created: ");
+        return NULL;
+    }
+    object_property_set_bool(OBJECT(dev), true, "realized", &local_err);
+    if (local_err) {
+        object_unparent(OBJECT(dev));
+        error_propagate_prepend(errp, local_err,
+                                "zPCI device could not be created: ");
+        return NULL;
+    }
 
     return S390_PCI_DEVICE(dev);
 }
@@ -865,9 +879,8 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
 
         pbdev = s390_pci_find_dev_by_target(s, dev->id);
         if (!pbdev) {
-            pbdev = s390_pci_device_new(s, dev->id);
+            pbdev = s390_pci_device_new(s, dev->id, errp);
             if (!pbdev) {
-                error_setg(errp, "create zpci device failed");
                 return;
             }
         }
