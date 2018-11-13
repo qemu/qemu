@@ -17,7 +17,7 @@
 #include "qemu/main-loop.h"
 
 /* TODO actually test the results and get rid of this */
-#define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))
+#define qmp_discard_response(qs, ...) qobject_unref(qtest_qmp(qs, __VA_ARGS__))
 
 static void test_mirror(void)
 {
@@ -29,6 +29,7 @@ static void test_mirror(void)
     uint32_t size = sizeof(send_buf);
     size = htonl(size);
     const char *devstr = "e1000";
+    QTestState *qts;
 
     if (g_str_equal(qtest_get_arch(), "s390x")) {
         devstr = "virtio-net-ccw";
@@ -40,7 +41,7 @@ static void test_mirror(void)
     ret = mkstemp(sock_path);
     g_assert_cmpint(ret, !=, -1);
 
-    global_qtest = qtest_initf(
+    qts = qtest_initf(
         "-netdev socket,id=qtest-bn0,fd=%d "
         "-device %s,netdev=qtest-bn0,id=qtest-e0 "
         "-chardev socket,id=mirror0,path=%s,server,nowait "
@@ -61,7 +62,7 @@ static void test_mirror(void)
     };
 
     /* send a qmp command to guarantee that 'connected' is setting to true. */
-    qmp_discard_response("{ 'execute' : 'query-status'}");
+    qmp_discard_response(qts, "{ 'execute' : 'query-status'}");
     ret = iov_send(send_sock[0], iov, 2, 0, sizeof(size) + sizeof(send_buf));
     g_assert_cmpint(ret, ==, sizeof(send_buf) + sizeof(size));
     close(send_sock[0]);
@@ -78,6 +79,7 @@ static void test_mirror(void)
     g_free(recv_buf);
     close(recv_sock);
     unlink(sock_path);
+    qtest_quit(qts);
 }
 
 int main(int argc, char **argv)
@@ -88,7 +90,6 @@ int main(int argc, char **argv)
 
     qtest_add_func("/netfilter/mirror", test_mirror);
     ret = g_test_run();
-    qtest_end();
 
     return ret;
 }
