@@ -179,14 +179,10 @@ void cpu_loop(CPUAlphaState *env)
             }
             break;
         case EXCP_DEBUG:
-            info.si_signo = gdb_handlesig(cs, TARGET_SIGTRAP);
-            if (info.si_signo) {
-                info.si_errno = 0;
-                info.si_code = TARGET_TRAP_BRKPT;
-                queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-            } else {
-                arch_interrupt = false;
-            }
+            info.si_signo = TARGET_SIGTRAP;
+            info.si_errno = 0;
+            info.si_code = TARGET_TRAP_BRKPT;
+            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
         case EXCP_INTERRUPT:
             /* Just indicate that signals should be handled asap.  */

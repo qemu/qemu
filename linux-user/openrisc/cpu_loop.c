@@ -85,13 +85,10 @@ void cpu_loop(CPUOpenRISCState *env)
             /* We processed the pending cpu work above.  */
             break;
         case EXCP_DEBUG:
-            trapnr = gdb_handlesig(cs, TARGET_SIGTRAP);
-            if (trapnr) {
-                info.si_signo = trapnr;
-                info.si_errno = 0;
-                info.si_code = TARGET_TRAP_BRKPT;
-                queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-            }
+            info.si_signo = TARGET_SIGTRAP;
+            info.si_errno = 0;
+            info.si_code = TARGET_TRAP_BRKPT;
+            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);

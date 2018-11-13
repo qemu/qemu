@@ -61,12 +61,9 @@ void cpu_loop(CPUS390XState *env)
             break;
 
         case EXCP_DEBUG:
-            sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-            if (sig) {
-                n = TARGET_TRAP_BRKPT;
-                goto do_signal_pc;
-            }
-            break;
+            sig = TARGET_SIGTRAP;
+            n = TARGET_TRAP_BRKPT;
+            goto do_signal_pc;
         case EXCP_PGM:
             n = env->int_pgm_code;
             switch (n) {

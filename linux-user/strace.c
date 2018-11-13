@@ -1742,6 +1742,9 @@ print_optint:
         case TARGET_SO_REUSEADDR:
             gemu_log("SO_REUSEADDR,");
             goto print_optint;
+        case TARGET_SO_REUSEPORT:
+            gemu_log("SO_REUSEPORT,");
+            goto print_optint;
         case TARGET_SO_TYPE:
             gemu_log("SO_TYPE,");
             goto print_optint;

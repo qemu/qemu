@@ -88,7 +88,7 @@ void cpu_loop(CPURISCVState *env)
             break;
         case EXCP_DEBUG:
         gdbstep:
-            signum = gdb_handlesig(cs, TARGET_SIGTRAP);
+            signum = TARGET_SIGTRAP;
             sigcode = TARGET_TRAP_BRKPT;
             break;
         default:

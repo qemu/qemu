@@ -279,7 +279,6 @@ long do_sigreturn(CPUSH4State *regs)
     sigset_t blocked;
     target_sigset_t target_set;
     int i;
-    int err = 0;
 
     frame_addr = regs->gregs[15];
     trace_user_do_sigreturn(regs, frame_addr);
@@ -291,9 +290,6 @@ long do_sigreturn(CPUSH4State *regs)
     for(i = 1; i < TARGET_NSIG_WORDS; i++) {
         __get_user(target_set.sig[i], &frame->extramask[i - 1]);
     }
-
-    if (err)
-        goto badframe;
 
     target_to_host_sigset_internal(&blocked, &target_set);
     set_sigmask(&blocked);

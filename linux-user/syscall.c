@@ -2061,6 +2061,11 @@ set_timeout:
         case TARGET_SO_REUSEADDR:
 		optname = SO_REUSEADDR;
 		break;
+#ifdef SO_REUSEPORT
+        case TARGET_SO_REUSEPORT:
+                optname = SO_REUSEPORT;
+                break;
+#endif
         case TARGET_SO_TYPE:
 		optname = SO_TYPE;
 		break;
@@ -2222,6 +2227,11 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
         case TARGET_SO_REUSEADDR:
             optname = SO_REUSEADDR;
             goto int_case;
+#ifdef SO_REUSEPORT
+        case TARGET_SO_REUSEPORT:
+            optname = SO_REUSEPORT;
+            goto int_case;
+#endif
         case TARGET_SO_TYPE:
             optname = SO_TYPE;
             goto int_case;

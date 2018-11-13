@@ -69,7 +69,7 @@ void cpu_loop(CPUPPCState *env)
 {
     CPUState *cs = CPU(ppc_env_get_cpu(env));
     target_siginfo_t info;
-    int trapnr, sig;
+    int trapnr;
     target_ulong ret;
 
     for(;;) {
@@ -449,15 +449,10 @@ void cpu_loop(CPUPPCState *env)
             env->gpr[3] = ret;
             break;
         case EXCP_DEBUG:
-            sig = gdb_handlesig(cs, TARGET_SIGTRAP);
-            if (sig) {
-                info.si_signo = sig;
-                info.si_errno = 0;
-                info.si_code = TARGET_TRAP_BRKPT;
-                queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-            } else {
-                arch_interrupt = false;
-            }
+            info.si_signo = TARGET_SIGTRAP;
+            info.si_errno = 0;
+            info.si_code = TARGET_TRAP_BRKPT;
+            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */

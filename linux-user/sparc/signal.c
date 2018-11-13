@@ -256,8 +256,6 @@ void setup_frame(int sig, struct target_sigaction *ka,
         /* t 0x10 */
         val32 = 0x91d02010;
         __put_user(val32, &sf->insns[1]);
-        if (err)
-            goto sigsegv;
     }
     unlock_user(sf, sf_addr, sizeof(struct target_signal_frame));
     return;
