@@ -10560,18 +10560,6 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
 
     ret = pmsav8_mpu_lookup(env, address, access_type, mmu_idx, phys_ptr,
                             txattrs, prot, &mpu_is_subpage, fi, NULL);
-    /*
-     * TODO: this is a temporary hack to ignore the fact that the SAU region
-     * is smaller than a page if this is an executable region. We never
-     * supported small MPU regions, but we did (accidentally) allow small
-     * SAU regions, and if we now made small SAU regions not be executable
-     * then this would break previously working guest code. We can't
-     * remove this until/unless we implement support for execution from
-     * small regions.
-     */
-    if (*prot & PAGE_EXEC) {
-        sattrs.subpage = false;
-    }
     *page_size = sattrs.subpage || mpu_is_subpage ? 1 : TARGET_PAGE_SIZE;
     return ret;
 }
