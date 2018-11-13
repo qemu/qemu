@@ -142,6 +142,10 @@ static void ide_test_start(const char *cmdline_fmt, ...)
 
 static void ide_test_quit(void)
 {
+    if (pcibus) {
+        qpci_free_pc(pcibus);
+        pcibus = NULL;
+    }
     pc_alloc_uninit(guest_malloc);
     guest_malloc = NULL;
     qtest_end();
