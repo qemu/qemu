@@ -318,8 +318,8 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         memcpy(env->usr_regs, env->regs + 8, 5 * sizeof(uint32_t));
     }
     env->banked_r13[bn] = env->regs[13];
-    env->banked_r14[bn] = env->regs[14];
     env->banked_spsr[bn] = env->spsr;
+    env->banked_r14[r14_bank_number(mode)] = env->regs[14];
 
     /* Now we can safely copy stuff down to the kernel */
     for (i = 0; i < ARRAY_SIZE(regs); i++) {
@@ -430,8 +430,8 @@ int kvm_arch_get_registers(CPUState *cs)
         memcpy(env->regs + 8, env->usr_regs, 5 * sizeof(uint32_t));
     }
     env->regs[13] = env->banked_r13[bn];
-    env->regs[14] = env->banked_r14[bn];
     env->spsr = env->banked_spsr[bn];
+    env->regs[14] = env->banked_r14[r14_bank_number(mode)];
 
     /* VFP registers */
     r.id = KVM_REG_ARM | KVM_REG_SIZE_U64 | KVM_REG_ARM_VFP;

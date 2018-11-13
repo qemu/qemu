@@ -538,6 +538,9 @@ typedef struct CPUARMState {
         uint64_t esr;
     } serror;
 
+    /* State of our input IRQ/FIQ/VIRQ/VFIQ lines */
+    uint32_t irq_line_state;
+
     /* Thumb-2 EE state.  */
     uint32_t teecr;
     uint32_t teehbr;
@@ -2743,7 +2746,7 @@ static inline int arm_debug_target_el(CPUARMState *env)
 
     if (arm_feature(env, ARM_FEATURE_EL2) && !secure) {
         route_to_el2 = env->cp15.hcr_el2 & HCR_TGE ||
-                       env->cp15.mdcr_el2 & (1 << 8);
+                       env->cp15.mdcr_el2 & MDCR_TDE;
     }
 
     if (route_to_el2) {
@@ -2764,23 +2767,35 @@ static inline bool arm_v7m_csselr_razwi(ARMCPU *cpu)
     return (cpu->clidr & R_V7M_CLIDR_CTYPE_ALL_MASK) != 0;
 }
 
+/* See AArch64.GenerateDebugExceptionsFrom() in ARM ARM pseudocode */
 static inline bool aa64_generate_debug_exceptions(CPUARMState *env)
 {
-    if (arm_is_secure(env)) {
-        /* MDCR_EL3.SDD disables debug events from Secure state */
-        if (extract32(env->cp15.mdcr_el3, 16, 1) != 0
-            || arm_current_el(env) == 3) {
-            return false;
-        }
+    int cur_el = arm_current_el(env);
+    int debug_el;
+
+    if (cur_el == 3) {
+        return false;
     }
 
-    if (arm_current_el(env) == arm_debug_target_el(env)) {
-        if ((extract32(env->cp15.mdscr_el1, 13, 1) == 0)
-            || (env->daif & PSTATE_D)) {
-            return false;
-        }
+    /* MDCR_EL3.SDD disables debug events from Secure state */
+    if (arm_is_secure_below_el3(env)
+        && extract32(env->cp15.mdcr_el3, 16, 1)) {
+        return false;
     }
-    return true;
+
+    /*
+     * Same EL to same EL debug exceptions need MDSCR_KDE enabled
+     * while not masking the (D)ebug bit in DAIF.
+     */
+    debug_el = arm_debug_target_el(env);
+
+    if (cur_el == debug_el) {
+        return extract32(env->cp15.mdscr_el1, 13, 1)
+            && !(env->daif & PSTATE_D);
+    }
+
+    /* Otherwise the debug target needs to be a higher EL */
+    return debug_el > cur_el;
 }
 
 static inline bool aa32_generate_debug_exceptions(CPUARMState *env)
@@ -2833,9 +2848,6 @@ static inline bool aa32_generate_debug_exceptions(CPUARMState *env)
  * since the pseudocode has it at all callsites except for the one in
  * CheckSoftwareStep(), where it is elided because both branches would
  * always return the same value.
- *
- * Parts of the pseudocode relating to EL2 and EL3 are omitted because we
- * don't yet implement those exception levels or their associated trap bits.
  */
 static inline bool arm_generate_debug_exceptions(CPUARMState *env)
 {
