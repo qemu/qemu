@@ -3155,7 +3155,7 @@ static void tlbi_aa64_vmalle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     CPUState *cs = ENV_GET_CPU(env);
 
     if (tlb_force_broadcast(env)) {
-        tlbi_aa64_vmalle1_write(env, NULL, value);
+        tlbi_aa64_vmalle1is_write(env, NULL, value);
         return;
     }
 
