@@ -145,6 +145,22 @@ static inline int bank_number(int mode)
     g_assert_not_reached();
 }
 
+/**
+ * r14_bank_number: Map CPU mode onto register bank for r14
+ *
+ * Given an AArch32 CPU mode, return the index into the saved register
+ * banks to use for the R14 (LR) in that mode. This is the same as
+ * bank_number(), except for the special case of Hyp mode, where
+ * R14 is shared with USR and SYS, unlike its R13 and SPSR.
+ * This should be used as the index into env->banked_r14[], and
+ * bank_number() used for the index into env->banked_r13[] and
+ * env->banked_spsr[].
+ */
+static inline int r14_bank_number(int mode)
+{
+    return (mode == ARM_CPU_MODE_HYP) ? BANK_USRSYS : bank_number(mode);
+}
+
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu);
 void arm_translate_init(void);
 
