@@ -797,7 +797,7 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
                     0, extents, size, NULL, NULL)) {
                 error_setg_win32(errp, GetLastError(),
                     "failed to get disk extents");
-                return NULL;
+                goto out;
             }
         } else if (last_err == ERROR_INVALID_FUNCTION) {
             /* Possibly CD-ROM or a shared drive. Try to pass the volume */
@@ -855,6 +855,9 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
 
 
 out:
+    if (vol_h != INVALID_HANDLE_VALUE) {
+        CloseHandle(vol_h);
+    }
     qapi_free_GuestDiskAddress(disk);
     g_free(extents);
     g_free(name);
