@@ -538,6 +538,9 @@ typedef struct CPUARMState {
         uint64_t esr;
     } serror;
 
+    /* State of our input IRQ/FIQ/VIRQ/VFIQ lines */
+    uint32_t irq_line_state;
+
     /* Thumb-2 EE state.  */
     uint32_t teecr;
     uint32_t teehbr;

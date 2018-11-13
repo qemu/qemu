@@ -192,6 +192,22 @@ static const VMStateDescription vmstate_serror = {
     }
 };
 
+static bool irq_line_state_needed(void *opaque)
+{
+    return true;
+}
+
+static const VMStateDescription vmstate_irq_line_state = {
+    .name = "cpu/irq-line-state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = irq_line_state_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.irq_line_state, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool m_needed(void *opaque)
 {
     ARMCPU *cpu = opaque;
@@ -625,10 +641,43 @@ static int cpu_pre_save(void *opaque)
     return 0;
 }
 
+static int cpu_pre_load(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    /*
+     * Pre-initialize irq_line_state to a value that's never valid as
+     * real data, so cpu_post_load() can tell whether we've seen the
+     * irq-line-state subsection in the incoming migration state.
+     */
+    env->irq_line_state = UINT32_MAX;
+
+    return 0;
+}
+
 static int cpu_post_load(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
     int i, v;
+
+    /*
+     * Handle migration compatibility from old QEMU which didn't
+     * send the irq-line-state subsection. A QEMU without it did not
+     * implement the HCR_EL2.{VI,VF} bits as generating interrupts,
+     * so for TCG the line state matches the bits set in cs->interrupt_request.
+     * For KVM the line state is not stored in cs->interrupt_request
+     * and so this will leave irq_line_state as 0, but this is OK because
+     * we only need to care about it for TCG.
+     */
+    if (env->irq_line_state == UINT32_MAX) {
+        CPUState *cs = CPU(cpu);
+
+        env->irq_line_state = cs->interrupt_request &
+            (CPU_INTERRUPT_HARD | CPU_INTERRUPT_FIQ |
+             CPU_INTERRUPT_VIRQ | CPU_INTERRUPT_VFIQ);
+    }
 
     /* Update the values list from the incoming migration data.
      * Anything in the incoming data which we don't know about is
@@ -680,6 +729,7 @@ const VMStateDescription vmstate_arm_cpu = {
     .version_id = 22,
     .minimum_version_id = 22,
     .pre_save = cpu_pre_save,
+    .pre_load = cpu_pre_load,
     .post_load = cpu_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.regs, ARMCPU, 16),
@@ -747,6 +797,7 @@ const VMStateDescription vmstate_arm_cpu = {
         &vmstate_sve,
 #endif
         &vmstate_serror,
+        &vmstate_irq_line_state,
         NULL
     }
 };

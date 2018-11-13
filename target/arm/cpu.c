@@ -449,6 +449,12 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
         [ARM_CPU_VFIQ] = CPU_INTERRUPT_VFIQ
     };
 
+    if (level) {
+        env->irq_line_state |= mask[irq];
+    } else {
+        env->irq_line_state &= ~mask[irq];
+    }
+
     switch (irq) {
     case ARM_CPU_VIRQ:
     case ARM_CPU_VFIQ:
@@ -471,19 +477,30 @@ static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
 {
 #ifdef CONFIG_KVM
     ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     int kvm_irq = KVM_ARM_IRQ_TYPE_CPU << KVM_ARM_IRQ_TYPE_SHIFT;
+    uint32_t linestate_bit;
 
     switch (irq) {
     case ARM_CPU_IRQ:
         kvm_irq |= KVM_ARM_IRQ_CPU_IRQ;
+        linestate_bit = CPU_INTERRUPT_HARD;
         break;
     case ARM_CPU_FIQ:
         kvm_irq |= KVM_ARM_IRQ_CPU_FIQ;
+        linestate_bit = CPU_INTERRUPT_FIQ;
         break;
     default:
         g_assert_not_reached();
     }
+
+    if (level) {
+        env->irq_line_state |= linestate_bit;
+    } else {
+        env->irq_line_state &= ~linestate_bit;
+    }
+
     kvm_irq |= cs->cpu_index << KVM_ARM_IRQ_VCPU_SHIFT;
     kvm_set_irq(kvm_state, kvm_irq, level ? 1 : 0);
 #endif
