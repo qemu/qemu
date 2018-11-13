@@ -532,12 +532,12 @@
 #
 # Suspend guest to disk.
 #
-# This command tries to execute the scripts provided by the pm-utils package.
-# If it's not available, the suspend operation will be performed by manually
-# writing to a sysfs file.
+# This command attempts to suspend the guest using three strategies, in this
+# order:
 #
-# For the best results it's strongly recommended to have the pm-utils
-# package installed in the guest.
+# - systemd hibernate
+# - pm-utils (via pm-hibernate)
+# - manual write into sysfs
 #
 # This command does NOT return a response on success. There is a high chance
 # the command succeeded if the VM exits with a zero exit status or, when
@@ -560,12 +560,12 @@
 #
 # Suspend guest to ram.
 #
-# This command tries to execute the scripts provided by the pm-utils package.
-# If it's not available, the suspend operation will be performed by manually
-# writing to a sysfs file.
+# This command attempts to suspend the guest using three strategies, in this
+# order:
 #
-# For the best results it's strongly recommended to have the pm-utils
-# package installed in the guest.
+# - systemd suspend
+# - pm-utils (via pm-suspend)
+# - manual write into sysfs
 #
 # IMPORTANT: guest-suspend-ram requires QEMU to support the 'system_wakeup'
 # command.  Thus, it's *required* to query QEMU for the presence of the
@@ -592,7 +592,10 @@
 #
 # Save guest state to disk and suspend to ram.
 #
-# This command requires the pm-utils package to be installed in the guest.
+# This command attempts to suspend the guest by executing, in this order:
+#
+# - systemd hybrid-sleep
+# - pm-utils (via pm-suspend-hybrid)
 #
 # IMPORTANT: guest-suspend-hybrid requires QEMU to support the 'system_wakeup'
 # command.  Thus, it's *required* to query QEMU for the presence of the
