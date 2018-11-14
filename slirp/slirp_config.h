@@ -32,12 +32,6 @@
 #define DECLARE_IOVEC
 #endif
 
-/* Define if you have sys/select.h */
-#undef HAVE_SYS_SELECT_H
-#ifndef _WIN32
-#define HAVE_SYS_SELECT_H
-#endif
-
 /* Define to sizeof(char *) */
 #define SIZEOF_CHAR_P (HOST_LONG_BITS / 8)
 

@@ -36,10 +36,6 @@ typedef char *caddr_t;
 # include <sys/ioctl.h>
 #endif
 
-#ifdef HAVE_SYS_SELECT_H
-# include <sys/select.h>
-#endif
-
 #ifdef HAVE_SYS_FILIO_H
 # include <sys/filio.h>
 #endif
