@@ -187,12 +187,7 @@ soread(struct socket *so)
 	 */
 	sopreprbuf(so, iov, &n);
 
-#ifdef HAVE_READV
-	nn = readv(so->s, (struct iovec *)iov, n);
-	DEBUG_MISC((dfd, " ... read nn = %d bytes\n", nn));
-#else
 	nn = qemu_recv(so->s, iov[0].iov_base, iov[0].iov_len,0);
-#endif
 	if (nn <= 0) {
 		if (nn < 0 && (errno == EINTR || errno == EAGAIN))
 			return 0;
@@ -226,7 +221,6 @@ soread(struct socket *so)
 		}
 	}
 
-#ifndef HAVE_READV
 	/*
 	 * If there was no error, try and read the second time round
 	 * We read again if n = 2 (ie, there's another part of the buffer)
@@ -244,7 +238,6 @@ soread(struct socket *so)
         }
 
 	DEBUG_MISC((dfd, " ... read nn = %d bytes\n", nn));
-#endif
 
 	/* Update fields */
 	sb->sb_cc += nn;
@@ -452,13 +445,7 @@ sowrite(struct socket *so)
 	}
 	/* Check if there's urgent data to send, and if so, send it */
 
-#ifdef HAVE_READV
-	nn = writev(so->s, (const struct iovec *)iov, n);
-
-	DEBUG_MISC((dfd, "  ... wrote nn = %d bytes\n", nn));
-#else
 	nn = slirp_send(so, iov[0].iov_base, iov[0].iov_len,0);
-#endif
 	/* This should never happen, but people tell me it does *shrug* */
 	if (nn < 0 && (errno == EAGAIN || errno == EINTR))
 		return 0;
@@ -467,7 +454,6 @@ sowrite(struct socket *so)
 		goto err_disconnected;
 	}
 
-#ifndef HAVE_READV
 	if (n == 2 && nn == iov[0].iov_len) {
             int ret;
             ret = slirp_send(so, iov[1].iov_base, iov[1].iov_len,0);
@@ -475,7 +461,6 @@ sowrite(struct socket *so)
                 nn += ret;
         }
         DEBUG_MISC((dfd, "  ... wrote nn = %d bytes\n", nn));
-#endif
 
 	/* Update sbuf */
 	sb->sb_cc -= nn;

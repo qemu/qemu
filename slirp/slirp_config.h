@@ -29,9 +29,6 @@
 /* Define if the machine is big endian */
 //#undef HOST_WORDS_BIGENDIAN
 
-/* Define if you have readv */
-#undef HAVE_READV
-
 /* Define if iovec needs to be declared */
 #undef DECLARE_IOVEC
 #ifdef _WIN32
