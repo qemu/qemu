@@ -220,7 +220,7 @@ struct Slirp {
     GRand *grand;
     QEMUTimer *ra_timer;
 
-    slirp_output output;
+    const SlirpCb *cb;
     void *opaque;
 };
 

@@ -140,6 +140,10 @@ static NetClientInfo net_slirp_info = {
     .cleanup = net_slirp_cleanup,
 };
 
+static const SlirpCb slirp_cb = {
+    .output = net_slirp_output,
+};
+
 static int net_slirp_init(NetClientState *peer, const char *model,
                           const char *name, int restricted,
                           bool ipv4, const char *vnetwork, const char *vhost,
@@ -379,7 +383,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
                           vhostname, tftp_server_name,
                           tftp_export, bootfile, dhcp,
                           dns, ip6_dns, dnssearch, vdomainname,
-                          net_slirp_output, s);
+                          &slirp_cb, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
 
     for (config = slirp_configs; config; config = config->next) {
