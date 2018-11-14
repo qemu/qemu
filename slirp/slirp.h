@@ -28,9 +28,6 @@ typedef char *caddr_t;
 #include <arpa/inet.h>
 #endif
 
-#ifndef NO_UNIX_SOCKETS
-#include <sys/un.h>
-#endif
 #ifndef _WIN32
 #include <sys/socket.h>
 #endif

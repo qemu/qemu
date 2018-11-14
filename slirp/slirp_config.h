@@ -58,9 +58,3 @@
 #ifndef _WIN32
 #define HAVE_INET_ATON
 #endif
-
-/* Define if you DON'T have unix-domain sockets */
-#undef NO_UNIX_SOCKETS
-#ifdef _WIN32
-#define NO_UNIX_SOCKETS
-#endif
