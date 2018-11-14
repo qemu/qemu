@@ -131,12 +131,10 @@ diddit:
 		}
 	}
 
-#ifndef FULL_BOLT
 	/*
 	 * This prevents us from malloc()ing too many mbufs
 	 */
 	if_start(ifm->slirp);
-#endif
 }
 
 /*
