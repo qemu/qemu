@@ -699,47 +699,6 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
                         }
                     }
                 }
-
-                /*
-                 * Probe a still-connecting, non-blocking socket
-                 * to check if it's still alive
-                 */
-#ifdef PROBE_CONN
-                if (so->so_state & SS_ISFCONNECTING) {
-                    ret = qemu_recv(so->s, &ret, 0, 0);
-
-                    if (ret < 0) {
-                        /* XXX */
-                        if (errno == EAGAIN || errno == EWOULDBLOCK ||
-                            errno == EINPROGRESS || errno == ENOTCONN) {
-                            continue; /* Still connecting, continue */
-                        }
-
-                        /* else failed */
-                        so->so_state &= SS_PERSISTENT_MASK;
-                        so->so_state |= SS_NOFDREF;
-
-                        /* tcp_input will take care of it */
-                    } else {
-                        ret = send(so->s, &ret, 0, 0);
-                        if (ret < 0) {
-                            /* XXX */
-                            if (errno == EAGAIN || errno == EWOULDBLOCK ||
-                                errno == EINPROGRESS || errno == ENOTCONN) {
-                                continue;
-                            }
-                            /* else failed */
-                            so->so_state &= SS_PERSISTENT_MASK;
-                            so->so_state |= SS_NOFDREF;
-                        } else {
-                            so->so_state &= ~SS_ISFCONNECTING;
-                        }
-
-                    }
-                    tcp_input((struct mbuf *)NULL, sizeof(struct ip), so,
-                              so->so_ffamily);
-                } /* SS_ISFCONNECTING */
-#endif
             }
 
             /*

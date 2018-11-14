@@ -2,10 +2,6 @@
  * User definable configuration options
  */
 
-/* Define if you want the connection to be probed */
-/* XXX Not working yet, so ignore this for now */
-#undef PROBE_CONN
-
 /* Define to 1 if you want KEEPALIVE timers */
 #define DO_KEEPALIVE 0
 
