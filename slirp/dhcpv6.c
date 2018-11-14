@@ -92,14 +92,14 @@ static int dhcpv6_parse_info_request(uint8_t *odata, int olen,
                     ri->want_boot_url = true;
                     break;
                 default:
-                    DEBUG_MISC((dfd, "dhcpv6: Unsupported option request %d\n",
-                                req_opt));
+                    DEBUG_MISC("dhcpv6: Unsupported option request %d\n",
+                               req_opt);
                 }
             }
             break;
         default:
-            DEBUG_MISC((dfd, "dhcpv6 info req: Unsupported option %d, len=%d\n",
-                        option, len));
+            DEBUG_MISC("dhcpv6 info req: Unsupported option %d, len=%d\n",
+                       option, len);
         }
 
         odata += len + 4;
@@ -203,7 +203,6 @@ void dhcpv6_input(struct sockaddr_in6 *srcsas, struct mbuf *m)
         dhcpv6_info_request(m->slirp, srcsas, xid, &data[4], data_len - 4);
         break;
     default:
-        DEBUG_MISC((dfd, "dhcpv6_input: Unsupported message type 0x%x\n",
-                    data[0]));
+        DEBUG_MISC("dhcpv6_input: Unsupported message type 0x%x\n", data[0]);
     }
 }

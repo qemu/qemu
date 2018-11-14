@@ -92,8 +92,8 @@ void udp6_input(struct mbuf *m)
         /* If there's no socket for this packet, create one. */
         so = socreate(slirp);
         if (udp_attach(so, AF_INET6) == -1) {
-            DEBUG_MISC((dfd, " udp6_attach errno = %d-%s\n",
-                        errno, strerror(errno)));
+            DEBUG_MISC(" udp6_attach errno = %d-%s\n",
+                       errno, strerror(errno));
             sofree(so);
             goto bad;
         }
@@ -119,7 +119,7 @@ void udp6_input(struct mbuf *m)
         m->m_len += iphlen;
         m->m_data -= iphlen;
         *ip = save_ip;
-        DEBUG_MISC((dfd, "udp tx errno = %d-%s\n", errno, strerror(errno)));
+        DEBUG_MISC("udp tx errno = %d-%s\n", errno, strerror(errno));
         icmp6_send_error(m, ICMP6_UNREACH, ICMP6_UNREACH_NO_ROUTE);
         goto bad;
     }

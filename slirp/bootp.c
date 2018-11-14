@@ -37,8 +37,7 @@
 static const uint8_t rfc1533_cookie[] = { RFC1533_COOKIE };
 
 #ifdef DEBUG
-#define DPRINTF(fmt, ...) \
-do if (slirp_debug & DBG_CALL) { fprintf(dfd, fmt, ##  __VA_ARGS__); fflush(dfd); } while (0)
+#define DPRINTF(fmt, ...) DEBUG_CALL(fmt, ##__VA_ARGS__)
 #else
 #define DPRINTF(fmt, ...) do{}while(0)
 #endif

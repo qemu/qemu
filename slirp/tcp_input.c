@@ -236,8 +236,8 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso, unsigned short af)
     Slirp *slirp;
 
 	DEBUG_CALL("tcp_input");
-	DEBUG_ARGS((dfd, " m = %p  iphlen = %2d  inso = %p\n",
-		    m, iphlen, inso));
+	DEBUG_ARGS(" m = %p  iphlen = %2d  inso = %p\n",
+               m, iphlen, inso);
 
 	/*
 	 * If called with m == 0, then we're continuing the connect
@@ -662,8 +662,8 @@ findso:
               (errno != EINPROGRESS) && (errno != EWOULDBLOCK)
           ) {
 	    uint8_t code;
-	    DEBUG_MISC((dfd, " tcp fconnect errno = %d-%s\n",
-			errno,strerror(errno)));
+	    DEBUG_MISC(" tcp fconnect errno = %d-%s\n",
+                   errno,strerror(errno));
 	    if(errno == ECONNREFUSED) {
 	      /* ACK the SYN, send RST to refuse the connection */
 	      tcp_respond(tp, ti, m, ti->ti_seq + 1, (tcp_seq) 0,
@@ -1032,8 +1032,7 @@ trimthenstep6:
 
 		if (SEQ_LEQ(ti->ti_ack, tp->snd_una)) {
 			if (ti->ti_len == 0 && tiwin == tp->snd_wnd) {
-			  DEBUG_MISC((dfd, " dup ack  m = %p  so = %p\n",
-				      m, so));
+			  DEBUG_MISC(" dup ack  m = %p  so = %p\n", m, so);
 				/*
 				 * If we have outstanding data (other than
 				 * a window probe), this is a completely
@@ -1411,7 +1410,7 @@ tcp_dooptions(struct tcpcb *tp, u_char *cp, int cnt, struct tcpiphdr *ti)
 	int opt, optlen;
 
 	DEBUG_CALL("tcp_dooptions");
-	DEBUG_ARGS((dfd, " tp = %p  cnt=%i\n", tp, cnt));
+	DEBUG_ARGS(" tp = %p  cnt=%i\n", tp, cnt);
 
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[0];
@@ -1611,7 +1610,7 @@ tcp_mss(struct tcpcb *tp, u_int offer)
                                                (mss - (TCP_RCVSPACE % mss)) :
                                                0));
 
-	DEBUG_MISC((dfd, " returning mss = %d\n", mss));
+	DEBUG_MISC(" returning mss = %d\n", mss);
 
 	return mss;
 }

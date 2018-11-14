@@ -124,8 +124,8 @@ int cksum(struct mbuf *m, int len)
 cont:
 #ifdef DEBUG
 	if (len) {
-		DEBUG_ERROR((dfd, "cksum: out of data\n"));
-		DEBUG_ERROR((dfd, " len = %d\n", len));
+		DEBUG_ERROR("cksum: out of data\n");
+		DEBUG_ERROR(" len = %d\n", len);
 	}
 #endif
 	if (mlen == -1) {

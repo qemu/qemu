@@ -17,18 +17,45 @@
 
 extern int slirp_debug;
 
-#define DEBUG_CALL(x) if (slirp_debug & DBG_CALL) { fprintf(dfd, "%s...\n", x); fflush(dfd); }
-#define DEBUG_ARG(x, y) if (slirp_debug & DBG_CALL) { fputc(' ', dfd); fprintf(dfd, x, y); fputc('\n', dfd); fflush(dfd); }
-#define DEBUG_ARGS(x) if (slirp_debug & DBG_CALL) { fprintf x ; fflush(dfd); }
-#define DEBUG_MISC(x) if (slirp_debug & DBG_MISC) { fprintf x ; fflush(dfd); }
-#define DEBUG_ERROR(x) if (slirp_debug & DBG_ERROR) {fprintf x ; fflush(dfd); }
+#define DEBUG_CALL(fmt, ...) do {               \
+    if (slirp_debug & DBG_CALL) {               \
+        fprintf(dfd, fmt, ##__VA_ARGS__);       \
+        fprintf(dfd, "...\n");                  \
+        fflush(dfd);                            \
+    }                                           \
+} while (0)
+
+#define DEBUG_ARG(fmt, ...) do {                \
+    if (slirp_debug & DBG_CALL) {               \
+        fputc(' ', dfd);                        \
+        fprintf(dfd, fmt, ##__VA_ARGS__);       \
+        fputc('\n', dfd);                       \
+        fflush(dfd);                            \
+    }                                           \
+} while (0)
+
+#define DEBUG_ARGS(fmt, ...) DEBUG_ARG(fmt, ##__VA_ARGS__)
+
+#define DEBUG_MISC(fmt, ...) do {               \
+    if (slirp_debug & DBG_MISC) {               \
+        fprintf(dfd, fmt, ##__VA_ARGS__);       \
+        fflush(dfd);                            \
+    }                                           \
+} while (0)
+
+#define DEBUG_ERROR(fmt, ...) do {              \
+    if (slirp_debug & DBG_ERROR) {              \
+        fprintf(dfd, fmt, ##__VA_ARGS__);       \
+        fflush(dfd);                            \
+    }                                           \
+} while (0)
 
 #else
 
-#define DEBUG_CALL(x)
-#define DEBUG_ARG(x, y)
-#define DEBUG_ARGS(x)
-#define DEBUG_MISC(x)
-#define DEBUG_ERROR(x)
+#define DEBUG_CALL(fmt, ...)
+#define DEBUG_ARG(fmt, ...)
+#define DEBUG_ARGS(fmt, ...)
+#define DEBUG_MISC(fmt, ...)
+#define DEBUG_ERROR(fmt, ...)
 
 #endif

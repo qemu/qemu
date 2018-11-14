@@ -208,7 +208,7 @@ soread(struct socket *so)
 				}
 			}
 
-			DEBUG_MISC((dfd, " --- soread() disconnected, nn = %d, errno = %d-%s\n", nn, errno,strerror(errno)));
+			DEBUG_MISC(" --- soread() disconnected, nn = %d, errno = %d-%s\n", nn, errno,strerror(errno));
 			sofcantrcvmore(so);
 
 			if (err == ECONNRESET || err == ECONNREFUSED
@@ -237,7 +237,7 @@ soread(struct socket *so)
                 nn += ret;
         }
 
-	DEBUG_MISC((dfd, " ... read nn = %d bytes\n", nn));
+	DEBUG_MISC(" ... read nn = %d bytes\n", nn);
 
 	/* Update fields */
 	sb->sb_cc += nn;
@@ -370,7 +370,7 @@ sosendoob(struct socket *so)
 		n = slirp_send(so, buff, len, (MSG_OOB)); /* |MSG_DONTWAIT)); */
 #ifdef DEBUG
 		if (n != len) {
-			DEBUG_ERROR((dfd, "Didn't send all data urgently XXXXX\n"));
+			DEBUG_ERROR("Didn't send all data urgently XXXXX\n");
 		}
 #endif
 	}
@@ -379,7 +379,7 @@ sosendoob(struct socket *so)
 		return n;
 	}
 	so->so_urgc -= n;
-	DEBUG_MISC((dfd, " ---2 sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc));
+	DEBUG_MISC(" ---2 sent %d bytes urgent data, %d urgent bytes left\n", n, so->so_urgc);
 
 	sb->sb_cc -= n;
 	sb->sb_rptr += n;
@@ -460,7 +460,7 @@ sowrite(struct socket *so)
             if (ret > 0)
                 nn += ret;
         }
-        DEBUG_MISC((dfd, "  ... wrote nn = %d bytes\n", nn));
+        DEBUG_MISC("  ... wrote nn = %d bytes\n", nn);
 
 	/* Update sbuf */
 	sb->sb_cc -= nn;
@@ -478,8 +478,8 @@ sowrite(struct socket *so)
 	return nn;
 
 err_disconnected:
-	DEBUG_MISC((dfd, " --- sowrite disconnected, so->so_state = %x, errno = %d\n",
-		    so->so_state, errno));
+	DEBUG_MISC(" --- sowrite disconnected, so->so_state = %x, errno = %d\n",
+               so->so_state, errno);
 	sofcantsendmore(so);
 	tcp_sockclosed(sototcpcb(so));
 	return -1;
@@ -512,8 +512,8 @@ sorecvfrom(struct socket *so)
 	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
 	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
 
-	    DEBUG_MISC((dfd," udp icmp rx errno = %d-%s\n",
-			errno,strerror(errno)));
+	    DEBUG_MISC(" udp icmp rx errno = %d-%s\n",
+                   errno,strerror(errno));
 	    icmp_send_error(so->so_m, ICMP_UNREACH, code, 0, strerror(errno));
 	  } else {
 	    icmp_reflect(so->so_m);
@@ -564,8 +564,8 @@ sorecvfrom(struct socket *so)
 
 	  m->m_len = recvfrom(so->s, m->m_data, len, 0,
 			      (struct sockaddr *)&addr, &addrlen);
-	  DEBUG_MISC((dfd, " did recvfrom %d, errno = %d-%s\n",
-		      m->m_len, errno,strerror(errno)));
+	  DEBUG_MISC(" did recvfrom %d, errno = %d-%s\n",
+                 m->m_len, errno,strerror(errno));
 	  if(m->m_len<0) {
 	    /* Report error as ICMP */
 	    switch (so->so_lfamily) {
@@ -579,7 +579,7 @@ sorecvfrom(struct socket *so)
 		code = ICMP_UNREACH_NET;
 	      }
 
-	      DEBUG_MISC((dfd, " rx error, tx icmp ICMP_UNREACH:%i\n", code));
+	      DEBUG_MISC(" rx error, tx icmp ICMP_UNREACH:%i\n", code);
 	      icmp_send_error(so->so_m, ICMP_UNREACH, code, 0, strerror(errno));
 	      break;
 	    case AF_INET6:
@@ -591,7 +591,7 @@ sorecvfrom(struct socket *so)
 		code = ICMP6_UNREACH_NO_ROUTE;
 	      }
 
-	      DEBUG_MISC((dfd, " rx error, tx icmp6 ICMP_UNREACH:%i\n", code));
+	      DEBUG_MISC(" rx error, tx icmp6 ICMP_UNREACH:%i\n", code);
 	      icmp6_send_error(so->so_m, ICMP6_UNREACH, code);
 	      break;
 	    default:
@@ -839,9 +839,9 @@ void sotranslate_out(struct socket *so, struct sockaddr_storage *addr)
             }
         }
 
-        DEBUG_MISC((dfd, " addr.sin_port=%d, "
-            "addr.sin_addr.s_addr=%.16s\n",
-            ntohs(sin->sin_port), inet_ntoa(sin->sin_addr)));
+        DEBUG_MISC(" addr.sin_port=%d, "
+                   "addr.sin_addr.s_addr=%.16s\n",
+                   ntohs(sin->sin_port), inet_ntoa(sin->sin_addr));
         break;
 
     case AF_INET6:
