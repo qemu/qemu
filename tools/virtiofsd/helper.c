@@ -142,7 +142,10 @@ void fuse_cmdline_help(void)
            "    --daemonize                run in background\n"
            "    -o max_idle_threads        the maximum number of idle worker "
            "threads\n"
-           "                               allowed (default: 10)\n");
+           "                               allowed (default: 10)\n"
+           "    -o norace                  disable racy fallback\n"
+           "                               default: false\n"
+          );
 }
 
 static int fuse_helper_opt_proc(void *data, const char *arg, int key,
