@@ -1220,16 +1220,20 @@ static void qemu_wait_io_event_common(CPUState *cpu)
     process_queued_cpu_work(cpu);
 }
 
-static void qemu_tcg_rr_wait_io_event(CPUState *cpu)
+static void qemu_tcg_rr_wait_io_event(void)
 {
+    CPUState *cpu;
+
     while (all_cpu_threads_idle()) {
         stop_tcg_kick_timer();
-        qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
+        qemu_cond_wait(first_cpu->halt_cond, &qemu_global_mutex);
     }
 
     start_tcg_kick_timer();
 
-    qemu_wait_io_event_common(cpu);
+    CPU_FOREACH(cpu) {
+        qemu_wait_io_event_common(cpu);
+    }
 }
 
 static void qemu_wait_io_event(CPUState *cpu)
@@ -1562,7 +1566,7 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
             qemu_notify_event();
         }
 
-        qemu_tcg_rr_wait_io_event(cpu ? cpu : first_cpu);
+        qemu_tcg_rr_wait_io_event();
         deal_with_unplugged_cpus();
     }
 
