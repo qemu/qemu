@@ -47,9 +47,6 @@
 #define HAVE_ARPA_INET_H
 #endif
 
-/* Define if you have sys/stropts.h */
-#undef HAVE_SYS_STROPTS_H
-
 /* Define to sizeof(char *) */
 #define SIZEOF_CHAR_P (HOST_LONG_BITS / 8)
 

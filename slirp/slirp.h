@@ -54,11 +54,6 @@ typedef char *caddr_t;
 #define remque slirp_remque
 #define quehead slirp_quehead
 
-#ifdef HAVE_SYS_STROPTS_H
-#include <sys/stropts.h>
-#endif
-
-
 #include "debug.h"
 
 #include "qemu/queue.h"
