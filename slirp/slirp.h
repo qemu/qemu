@@ -199,8 +199,6 @@ struct Slirp {
     void *opaque;
 };
 
-extern Slirp *slirp_instance;
-
 #ifndef NULL
 #define NULL (void *)0
 #endif
