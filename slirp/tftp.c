@@ -359,7 +359,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct sockaddr_storage *srcsas,
       return;
   }
 
-  while (k < pktlen && nb_options < ARRAY_SIZE(option_name)) {
+  while (k < pktlen && nb_options < G_N_ELEMENTS(option_name)) {
       const char *key, *value;
 
       key = &tp->x.tp_buf[k];
@@ -403,7 +403,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct sockaddr_storage *srcsas,
   }
 
   if (nb_options > 0) {
-      assert(nb_options <= ARRAY_SIZE(option_name));
+      assert(nb_options <= G_N_ELEMENTS(option_name));
       tftp_send_oack(spt, option_name, option_value, nb_options, tp);
       return;
   }

@@ -128,7 +128,7 @@ void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
     memset(reh->h_source, 0xff, ETH_ALEN);
     reh->h_proto = htons(ETH_P_NCSI);
 
-    for (i = 0; i < ARRAY_SIZE(ncsi_rsp_handlers); i++) {
+    for (i = 0; i < G_N_ELEMENTS(ncsi_rsp_handlers); i++) {
         if (ncsi_rsp_handlers[i].type == nh->type + 0x80) {
             handler = &ncsi_rsp_handlers[i];
             break;
