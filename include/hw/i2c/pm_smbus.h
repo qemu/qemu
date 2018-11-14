@@ -33,6 +33,12 @@ typedef struct PMSMBus {
     /* Set on block transfers after the last byte has been read, so the
        INTR bit can be set at the right time. */
     bool op_done;
+
+    /* Set during an I2C block read, so we know how to handle data. */
+    bool in_i2c_block_read;
+
+    /* Used to work around a bug in AMIBIOS, see smb_transaction_start() */
+    bool start_transaction_on_status_read;
 } PMSMBus;
 
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb, bool force_aux_blk);
