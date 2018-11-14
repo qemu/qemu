@@ -401,7 +401,7 @@ static int lm_i2c_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static int lm_i2c_rx(I2CSlave *i2c)
+static uint8_t lm_i2c_rx(I2CSlave *i2c)
 {
     LM823KbdState *s = LM8323(i2c);
 

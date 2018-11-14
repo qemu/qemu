@@ -156,11 +156,11 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
     return 0;
 }
 
-static int smbus_i2c_recv(I2CSlave *s)
+static uint8_t smbus_i2c_recv(I2CSlave *s)
 {
     SMBusDevice *dev = SMBUS_DEVICE(s);
     SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
-    int ret;
+    uint8_t ret;
 
     switch (dev->mode) {
     case SMBUS_RECV_BYTE:

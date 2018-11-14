@@ -115,7 +115,7 @@ static void pca9552_autoinc(PCA9552State *s)
     }
 }
 
-static int pca9552_recv(I2CSlave *i2c)
+static uint8_t pca9552_recv(I2CSlave *i2c)
 {
     PCA9552State *s = PCA9552(i2c);
     uint8_t ret;

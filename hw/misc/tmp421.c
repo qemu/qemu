@@ -249,7 +249,7 @@ static void tmp421_write(TMP421State *s)
     }
 }
 
-static int tmp421_rx(I2CSlave *i2c)
+static uint8_t tmp421_rx(I2CSlave *i2c)
 {
     TMP421State *s = TMP421(i2c);
 

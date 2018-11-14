@@ -33,10 +33,9 @@ typedef struct I2CSlaveClass {
 
     /*
      * Slave to master.  This cannot fail, the device should always
-     * return something here.  Negative values probably result in 0xff
-     * and a possible log from the driver, and shouldn't be used.
+     * return something here.
      */
-    int (*recv)(I2CSlave *s);
+    uint8_t (*recv)(I2CSlave *s);
 
     /*
      * Notify the slave of a bus state change.  For start event,
@@ -78,7 +77,7 @@ void i2c_end_transfer(I2CBus *bus);
 void i2c_nack(I2CBus *bus);
 int i2c_send_recv(I2CBus *bus, uint8_t *data, bool send);
 int i2c_send(I2CBus *bus, uint8_t data);
-int i2c_recv(I2CBus *bus);
+uint8_t i2c_recv(I2CBus *bus);
 
 DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr);
 

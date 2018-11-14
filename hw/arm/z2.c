@@ -243,7 +243,7 @@ static int aer915_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static int aer915_recv(I2CSlave *slave)
+static uint8_t aer915_recv(I2CSlave *slave)
 {
     AER915State *s = AER915(slave);
     int retval = 0x00;

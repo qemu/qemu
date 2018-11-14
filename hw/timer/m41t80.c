@@ -40,7 +40,7 @@ static int m41t80_send(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int m41t80_recv(I2CSlave *i2c)
+static uint8_t m41t80_recv(I2CSlave *i2c)
 {
     M41t80State *s = M41T80(i2c);
     struct tm now;
