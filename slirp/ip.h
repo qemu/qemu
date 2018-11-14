@@ -177,7 +177,7 @@ struct	ip_timestamp {
 
 #define	IP_MSS		576		/* default maximum segment size */
 
-#if SIZEOF_CHAR_P == 4
+#if GLIB_SIZEOF_VOID_P == 4
 struct mbuf_ptr {
 	struct mbuf *mptr;
 	uint32_t dummy;
