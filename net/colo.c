@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "trace.h"
 #include "colo.h"
+#include "util.h"
 
 uint32_t connection_key_hash(const void *opaque)
 {

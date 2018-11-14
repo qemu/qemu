@@ -38,12 +38,12 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "slirp/libslirp.h"
-#include "slirp/ip6.h"
 #include "chardev/char-fe.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
+#include "util.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {
