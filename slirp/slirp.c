@@ -1214,8 +1214,8 @@ static int sbuf_tmp_post_load(void *opaque, int version)
     }
     if (tmp->woff >= requested_len ||
         tmp->roff >= requested_len) {
-        error_report("invalid sbuf offsets r/w=%u/%u len=%u",
-                     tmp->roff, tmp->woff, requested_len);
+        g_critical("invalid sbuf offsets r/w=%u/%u len=%u",
+                   tmp->roff, tmp->woff, requested_len);
         return -EINVAL;
     }
 
@@ -1323,7 +1323,7 @@ static int ss_family_post_load(void *opaque, int version_id)
         tss->parent->ss.ss_family = AF_INET6;
         break;
     default:
-        error_report("invalid ss_family type %x", tss->portable_family);
+        g_critical("invalid ss_family type %x", tss->portable_family);
         return -EINVAL;
     }
 

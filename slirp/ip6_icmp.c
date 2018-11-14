@@ -417,7 +417,7 @@ void icmp6_input(struct mbuf *m)
             icmp6_send_echoreply(m, slirp, ip, icmp);
         } else {
             /* TODO */
-            error_report("external icmpv6 not supported yet");
+            g_critical("external icmpv6 not supported yet");
         }
         break;
 
