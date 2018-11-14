@@ -41,12 +41,6 @@
 #define HAVE_SYS_SELECT_H
 #endif
 
-/* Define if you have arpa/inet.h */
-#undef HAVE_ARPA_INET_H
-#ifndef _WIN32
-#define HAVE_ARPA_INET_H
-#endif
-
 /* Define to sizeof(char *) */
 #define SIZEOF_CHAR_P (HOST_LONG_BITS / 8)
 
