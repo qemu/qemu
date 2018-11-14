@@ -14,12 +14,6 @@
 /* Define if the machine is big endian */
 //#undef HOST_WORDS_BIGENDIAN
 
-/* Define if iovec needs to be declared */
-#undef DECLARE_IOVEC
-#ifdef _WIN32
-#define DECLARE_IOVEC
-#endif
-
 /* Define to sizeof(char *) */
 #define SIZEOF_CHAR_P (HOST_LONG_BITS / 8)
 
