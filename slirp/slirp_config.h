@@ -11,8 +11,5 @@
  * You shouldn't need to touch any of these
  */
 
-/* Define if the machine is big endian */
-//#undef HOST_WORDS_BIGENDIAN
-
 /* Define to sizeof(char *) */
 #define SIZEOF_CHAR_P (HOST_LONG_BITS / 8)

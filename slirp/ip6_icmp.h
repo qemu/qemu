@@ -34,7 +34,7 @@ struct ndp_rs {     /* Router Solicitation Message */
 
 struct ndp_ra {     /* Router Advertisement Message */
     uint8_t chl;    /* Cur Hop Limit */
-#ifdef HOST_WORDS_BIGENDIAN
+#if G_BYTE_ORDER == G_BIG_ENDIAN
     uint8_t
         M:1,
         O:1,
@@ -56,7 +56,7 @@ struct ndp_ns {     /* Neighbor Solicitation Message */
 } QEMU_PACKED;
 
 struct ndp_na {     /* Neighbor Advertisement Message */
-#ifdef HOST_WORDS_BIGENDIAN
+#if G_BYTE_ORDER == G_BIG_ENDIAN
     uint32_t
         R:1,                /* Router Flag */
         S:1,                /* Solicited Flag */
@@ -125,7 +125,7 @@ struct ndpopt {
 #define ndpopt_linklayer ndpopt_body.linklayer_addr
         struct prefixinfo {                     /* Prefix Information */
             uint8_t     prefix_length;
-#ifdef HOST_WORDS_BIGENDIAN
+#if G_BYTE_ORDER == G_BIG_ENDIAN
             uint8_t     L:1, A:1, reserved1:6;
 #else
             uint8_t     reserved1:6, A:1, L:1;
