@@ -11,12 +11,6 @@
  * You shouldn't need to touch any of these
  */
 
-/* Define if you have sys/filio.h */
-#undef HAVE_SYS_FILIO_H
-#ifdef __APPLE__
-#define HAVE_SYS_FILIO_H
-#endif
-
 /* Define if the machine is big endian */
 //#undef HOST_WORDS_BIGENDIAN
 

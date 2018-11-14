@@ -36,7 +36,7 @@ typedef char *caddr_t;
 # include <sys/ioctl.h>
 #endif
 
-#ifdef HAVE_SYS_FILIO_H
+#ifdef __APPLE__
 # include <sys/filio.h>
 #endif
 
