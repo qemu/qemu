@@ -2510,7 +2510,7 @@ static int commit_one_file(BDRVVVFATState* s,
     uint32_t first_cluster = c;
     mapping_t* mapping = find_mapping_for_cluster(s, c);
     uint32_t size = filesize_of_direntry(direntry);
-    char* cluster = g_malloc(s->cluster_size);
+    char *cluster;
     uint32_t i;
     int fd = 0;
 
@@ -2528,16 +2528,16 @@ static int commit_one_file(BDRVVVFATState* s,
     if (fd < 0) {
         fprintf(stderr, "Could not open %s... (%s, %d)\n", mapping->path,
                 strerror(errno), errno);
-        g_free(cluster);
         return fd;
     }
     if (offset > 0) {
         if (lseek(fd, offset, SEEK_SET) != offset) {
             qemu_close(fd);
-            g_free(cluster);
             return -3;
         }
     }
+
+    cluster = g_malloc(s->cluster_size);
 
     while (offset < size) {
         uint32_t c1;
