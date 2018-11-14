@@ -32,7 +32,7 @@ typedef char *caddr_t;
 #include <sys/socket.h>
 #endif
 
-#if defined(HAVE_SYS_IOCTL_H)
+#ifndef _WIN32
 # include <sys/ioctl.h>
 #endif
 

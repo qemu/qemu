@@ -11,12 +11,6 @@
  * You shouldn't need to touch any of these
  */
 
-/* Define if you have sys/ioctl.h */
-#undef HAVE_SYS_IOCTL_H
-#ifndef _WIN32
-#define HAVE_SYS_IOCTL_H
-#endif
-
 /* Define if you have sys/filio.h */
 #undef HAVE_SYS_FILIO_H
 #ifdef __APPLE__
