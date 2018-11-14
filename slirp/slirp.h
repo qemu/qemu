@@ -19,10 +19,6 @@ typedef char *caddr_t;
 # endif
 #endif
 
-#ifdef HAVE_SYS_BITYPES_H
-# include <sys/bitypes.h>
-#endif
-
 #ifndef _WIN32
 #include <sys/uio.h>
 #endif

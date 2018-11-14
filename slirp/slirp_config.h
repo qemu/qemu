@@ -23,9 +23,6 @@
 #define HAVE_SYS_FILIO_H
 #endif
 
-/* Define if you have sys/bitypes.h */
-#undef HAVE_SYS_BITYPES_H
-
 /* Define if the machine is big endian */
 //#undef HOST_WORDS_BIGENDIAN
 
