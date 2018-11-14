@@ -1,8 +1,5 @@
-#ifndef QEMU_SMBUS_H
-#define QEMU_SMBUS_H
-
 /*
- * QEMU SMBus API
+ * QEMU SMBus device (slave) API
  *
  * Copyright (c) 2007 Arastra, Inc.
  *
@@ -24,6 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#ifndef HW_SMBUS_SLAVE_H
+#define HW_SMBUS_SLAVE_H
 
 #include "hw/i2c/i2c.h"
 
@@ -65,37 +65,5 @@ struct SMBusDevice {
     uint8_t data_buf[34]; /* command + len + 32 bytes of data.  */
     uint8_t command;
 };
-
-/* Master device commands.  */
-int smbus_quick_command(I2CBus *bus, uint8_t addr, int read);
-int smbus_receive_byte(I2CBus *bus, uint8_t addr);
-int smbus_send_byte(I2CBus *bus, uint8_t addr, uint8_t data);
-int smbus_read_byte(I2CBus *bus, uint8_t addr, uint8_t command);
-int smbus_write_byte(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t data);
-int smbus_read_word(I2CBus *bus, uint8_t addr, uint8_t command);
-int smbus_write_word(I2CBus *bus, uint8_t addr, uint8_t command, uint16_t data);
-
-/*
- * Do a block transfer from an I2C device.  If recv_len is set, then the
- * first received byte is a length field and is used to know how much data
- * to receive.  Otherwise receive "len" bytes.  If send_cmd is set, send
- * the command byte first before receiving the data.
- */
-int smbus_read_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data,
-                     int len, bool recv_len, bool send_cmd);
-
-/*
- * Do a block transfer to an I2C device.  If send_len is set, send the
- * "len" value before the data.
- */
-int smbus_write_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data,
-                      int len, bool send_len);
-
-void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf);
-void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
-                       const uint8_t *eeprom_spd, int size);
-
-enum sdram_type { SDR = 0x4, DDR = 0x7, DDR2 = 0x8 };
-uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t size, Error **errp);
 
 #endif

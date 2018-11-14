@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/i2c/pm_smbus.h"
-#include "hw/i2c/smbus.h"
+#include "hw/i2c/smbus_master.h"
 
 #define SMBHSTSTS       0x00
 #define SMBHSTCNT       0x02

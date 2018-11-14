@@ -29,8 +29,6 @@
 #include "hw/i2c/pm_smbus.h"
 #include "hw/pci/pci.h"
 #include "sysemu/sysemu.h"
-#include "hw/i2c/i2c.h"
-#include "hw/i2c/smbus.h"
 
 #include "hw/i386/ich9.h"
 
