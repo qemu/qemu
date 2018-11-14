@@ -162,7 +162,7 @@ fork_exec(struct socket *so, const char *ex)
     g_strfreev(argv);
 
     if (err) {
-        error_report("%s", err->message);
+        g_critical("fork_exec: %s", err->message);
         g_error_free(err);
         closesocket(sp[0]);
         closesocket(sp[1]);
