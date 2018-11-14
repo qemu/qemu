@@ -1266,7 +1266,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (!env->user_tsc_khz) {
         if ((env->features[FEAT_8000_0007_EDX] & CPUID_APM_INVTSC) &&
             invtsc_mig_blocker == NULL) {
-            /* for migration */
             error_setg(&invtsc_mig_blocker,
                        "State blocked by non-migratable CPU device"
                        " (invtsc flag)");
@@ -1276,8 +1275,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 error_free(invtsc_mig_blocker);
                 return r;
             }
-            /* for savevm */
-            vmstate_x86_cpu.unmigratable = 1;
         }
     }
 
