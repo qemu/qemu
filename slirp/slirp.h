@@ -1,8 +1,6 @@
 #ifndef SLIRP_H
 #define SLIRP_H
 
-#include "slirp_config.h"
-
 #ifdef _WIN32
 
 typedef char *caddr_t;
@@ -219,7 +217,9 @@ void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len);
 #include <netdb.h>
 #endif
 
-#define SO_OPTIONS DO_KEEPALIVE
+
+extern bool slirp_do_keepalive;
+
 #define TCP_MAXIDLE (TCPTV_KEEPCNT * TCPTV_KEEPINTVL)
 
 /* dnssearch.c */

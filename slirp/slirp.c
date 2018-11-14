@@ -35,6 +35,9 @@
 #include <net/if.h>
 #endif
 
+/* Define to 1 if you want KEEPALIVE timers */
+bool slirp_do_keepalive;
+
 /* host loopback address */
 struct in_addr loopback_addr;
 /* host loopback network mask */
