@@ -129,56 +129,53 @@ err:
     return -1;
 }
 
+static void
+fork_exec_child_setup(gpointer data)
+{
+    setsid();
+}
+
 int
 fork_exec(struct socket *so, const char *ex)
 {
-	char **argv;
-	int opt, c, sp[2];
-	pid_t pid;
+    GError *err = NULL;
+    char **argv;
+    int opt, sp[2];
 
-	DEBUG_CALL("fork_exec");
-	DEBUG_ARG("so = %p", so);
-	DEBUG_ARG("ex = %p", ex);
+    DEBUG_CALL("fork_exec");
+    DEBUG_ARG("so = %p", so);
+    DEBUG_ARG("ex = %p", ex);
 
     if (slirp_socketpair_with_oob(sp) < 0) {
         return 0;
     }
 
-	pid = fork();
-	switch(pid) {
-	 case -1:
-		error_report("Error: fork failed: %s", strerror(errno));
-		closesocket(sp[0]);
-		closesocket(sp[1]);
-		return 0;
+    argv = g_strsplit(ex, " ", -1);
+    g_spawn_async_with_fds(NULL /* cwd */,
+                           argv,
+                           NULL /* env */,
+                           G_SPAWN_SEARCH_PATH,
+                           fork_exec_child_setup, NULL /* data */,
+                           NULL /* child_pid */,
+                           sp[1], sp[1], sp[1],
+                           &err);
+    g_strfreev(argv);
 
-	 case 0:
-		setsid();
-		dup2(sp[1], 0);
-		dup2(sp[1], 1);
-		dup2(sp[1], 2);
-		for (c = getdtablesize() - 1; c >= 3; c--)
-		   close(c);
+    if (err) {
+        error_report("%s", err->message);
+        g_error_free(err);
+        closesocket(sp[0]);
+        closesocket(sp[1]);
+        return 0;
+    }
 
-                argv = g_strsplit(ex, " ", -1);
-		execvp(argv[0], (char **)argv);
-
-		/* Ooops, failed, let's tell the user why */
-        fprintf(stderr, "Error: execvp of %s failed: %s\n",
-                argv[0], strerror(errno));
-		close(0); close(1); close(2); /* XXX */
-		exit(1);
-
-	 default:
-		so->s = sp[0];
-		closesocket(sp[1]);
-		qemu_add_child_watch(pid);
-		socket_set_fast_reuse(so->s);
-		opt = 1;
-		qemu_setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
-		qemu_set_nonblock(so->s);
-		return 1;
-	}
+    so->s = sp[0];
+    closesocket(sp[1]);
+    socket_set_fast_reuse(so->s);
+    opt = 1;
+    qemu_setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+    qemu_set_nonblock(so->s);
+    return 1;
 }
 #endif
 
