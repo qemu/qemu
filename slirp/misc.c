@@ -73,85 +73,92 @@ fork_exec(struct socket *so, const char *ex)
 
 #else
 
-/*
- * XXX This is ugly
- * We create and bind a socket, then fork off to another
- * process, which connects to this socket, after which we
- * exec the wanted program.  If something (strange) happens,
- * the accept() call could block us forever.
- */
+static int
+slirp_socketpair_with_oob(int sv[2])
+{
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = 0,
+        .sin_addr.s_addr = INADDR_ANY,
+    };
+    socklen_t addrlen = sizeof(addr);
+    int ret, s;
+
+    sv[1] = -1;
+    s = qemu_socket(AF_INET, SOCK_STREAM, 0);
+    if (s < 0 || bind(s, (struct sockaddr *)&addr, addrlen) < 0 ||
+        listen(s, 1) < 0 ||
+        getsockname(s, (struct sockaddr *)&addr, &addrlen) < 0) {
+        goto err;
+    }
+
+    sv[1] = qemu_socket(AF_INET, SOCK_STREAM, 0);
+    if (sv[1] < 0) {
+        goto err;
+    }
+    /*
+     * This connect won't block because we've already listen()ed on
+     * the server end (even though we won't accept() the connection
+     * until later on).
+     */
+    do {
+        ret = connect(sv[1], (struct sockaddr *)&addr, addrlen);
+    } while (ret < 0 && errno == EINTR);
+    if (ret < 0) {
+        goto err;
+    }
+
+    do {
+        sv[0] = accept(s, (struct sockaddr *)&addr, &addrlen);
+    } while (sv[0] < 0 && errno == EINTR);
+    if (sv[0] < 0) {
+        goto err;
+    }
+
+    closesocket(s);
+    return 0;
+
+err:
+    error_report("Error: slirp_socketpair(): %s", strerror(errno));
+    if (s >= 0) {
+        closesocket(s);
+    }
+    if (sv[1] >= 0) {
+        closesocket(sv[1]);
+    }
+    return -1;
+}
+
 int
 fork_exec(struct socket *so, const char *ex)
 {
-        int s, cs;
-        struct sockaddr_in addr, csaddr;
-	socklen_t addrlen = sizeof(addr);
-        socklen_t csaddrlen = sizeof(csaddr);
-	int opt;
 	char **argv;
-	int ret;
+	int opt, c, sp[2];
 	pid_t pid;
 
 	DEBUG_CALL("fork_exec");
 	DEBUG_ARG("so = %p", so);
 	DEBUG_ARG("ex = %p", ex);
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = 0;
-    addr.sin_addr.s_addr = INADDR_ANY;
-
-    s = qemu_socket(AF_INET, SOCK_STREAM, 0);
-    if (s < 0 || bind(s, (struct sockaddr *)&addr, addrlen) < 0 ||
-        listen(s, 1) < 0) {
-        error_report("Error: inet socket: %s", strerror(errno));
-        if (s >= 0) {
-            closesocket(s);
-        }
+    if (slirp_socketpair_with_oob(sp) < 0) {
         return 0;
     }
-
-        if (getsockname(s, (struct sockaddr *)&csaddr, &csaddrlen) < 0) {
-            closesocket(s);
-            return 0;
-        }
-        cs = qemu_socket(AF_INET, SOCK_STREAM, 0);
-        if (cs < 0) {
-            closesocket(s);
-            return 0;
-        }
-        csaddr.sin_addr = loopback_addr;
-        /*
-         * This connect won't block because we've already listen()ed on
-         * the server end (even though we won't accept() the connection
-         * until later on).
-         */
-        do {
-            ret = connect(cs, (struct sockaddr *)&csaddr, csaddrlen);
-        } while (ret < 0 && errno == EINTR);
-        if (ret < 0) {
-            closesocket(s);
-            closesocket(cs);
-            return 0;
-        }
 
 	pid = fork();
 	switch(pid) {
 	 case -1:
 		error_report("Error: fork failed: %s", strerror(errno));
-                closesocket(cs);
-		close(s);
+		closesocket(sp[0]);
+		closesocket(sp[1]);
 		return 0;
 
 	 case 0:
-                setsid();
-
-		/* Set the DISPLAY */
-                close(s);
-                dup2(cs, 0);
-                dup2(cs, 1);
-                dup2(cs, 2);
-		for (s = getdtablesize() - 1; s >= 3; s--)
-		   close(s);
+		setsid();
+		dup2(sp[1], 0);
+		dup2(sp[1], 1);
+		dup2(sp[1], 2);
+		for (c = getdtablesize() - 1; c >= 3; c--)
+		   close(c);
 
                 argv = g_strsplit(ex, " ", -1);
 		execvp(argv[0], (char **)argv);
@@ -163,19 +170,12 @@ fork_exec(struct socket *so, const char *ex)
 		exit(1);
 
 	 default:
+		so->s = sp[0];
+		closesocket(sp[1]);
 		qemu_add_child_watch(pid);
-                closesocket(cs);
-                /*
-                 * This should never block, because we already connect()ed
-                 * on the child end before we forked.
-                 */
-                do {
-                    so->s = accept(s, (struct sockaddr *)&addr, &addrlen);
-                } while (so->s < 0 && errno == EINTR);
-                closesocket(s);
-                socket_set_fast_reuse(so->s);
-                opt = 1;
-                qemu_setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+		socket_set_fast_reuse(so->s);
+		opt = 1;
+		qemu_setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
 		qemu_set_nonblock(so->s);
 		return 1;
 	}
