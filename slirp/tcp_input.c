@@ -1441,45 +1441,6 @@ tcp_dooptions(struct tcpcb *tp, u_char *cp, int cnt, struct tcpiphdr *ti)
 	}
 }
 
-
-/*
- * Pull out of band byte out of a segment so
- * it doesn't appear in the user's data queue.
- * It is still reflected in the segment length for
- * sequencing purposes.
- */
-
-#ifdef notdef
-
-void
-tcp_pulloutofband(so, ti, m)
-	struct socket *so;
-	struct tcpiphdr *ti;
-	register struct mbuf *m;
-{
-	int cnt = ti->ti_urp - 1;
-
-	while (cnt >= 0) {
-		if (m->m_len > cnt) {
-			char *cp = mtod(m, caddr_t) + cnt;
-			struct tcpcb *tp = sototcpcb(so);
-
-			tp->t_iobc = *cp;
-			tp->t_oobflags |= TCPOOB_HAVEDATA;
-			memcpy(sp, cp+1, (unsigned)(m->m_len - cnt - 1));
-			m->m_len--;
-			return;
-		}
-		cnt -= m->m_len;
-		m = m->m_next; /* XXX WRONG! Fix it! */
-		if (m == 0)
-			break;
-	}
-	panic("tcp_pulloutofband");
-}
-
-#endif /* notdef */
-
 /*
  * Collect new round-trip time estimate
  * and update averages and current timeout.
