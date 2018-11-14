@@ -35,9 +35,6 @@ typedef char *caddr_t;
 #ifndef NO_UNIX_SOCKETS
 #include <sys/un.h>
 #endif
-#ifdef HAVE_SYS_SIGNAL_H
-# include <sys/signal.h>
-#endif
 #ifndef _WIN32
 #include <sys/socket.h>
 #endif

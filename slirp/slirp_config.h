@@ -50,9 +50,6 @@
 #define HAVE_ARPA_INET_H
 #endif
 
-/* Define if you have sys/signal.h */
-#undef HAVE_SYS_SIGNAL_H
-
 /* Define if you have sys/stropts.h */
 #undef HAVE_SYS_STROPTS_H
 
