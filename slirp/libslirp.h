@@ -13,6 +13,8 @@ typedef struct Slirp Slirp;
 typedef struct SlirpCb {
     /* Send an ethernet frame to the guest network.  */
     void (*output)(void *opaque, const uint8_t *pkt, int pkt_len);
+    /* Print a message for an error due to guest misbehavior.  */
+    void (*guest_error)(const char *msg);
 } SlirpCb;
 
 

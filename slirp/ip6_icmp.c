@@ -342,8 +342,7 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
 
     case ICMP6_NDP_RA:
         DEBUG_CALL(" type = Router Advertisement");
-        qemu_log_mask(LOG_GUEST_ERROR,
-                "Warning: guest sent NDP RA, but shouldn't");
+        slirp->cb->guest_error("Warning: guest sent NDP RA, but shouldn't");
         break;
 
     case ICMP6_NDP_NS:
@@ -376,8 +375,8 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
 
     case ICMP6_NDP_REDIRECT:
         DEBUG_CALL(" type = Redirect");
-        qemu_log_mask(LOG_GUEST_ERROR,
-                "Warning: guest sent NDP REDIRECT, but shouldn't");
+        slirp->cb->guest_error(
+            "Warning: guest sent NDP REDIRECT, but shouldn't");
         break;
     }
 }

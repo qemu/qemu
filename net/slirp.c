@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "net/slirp.h"
 
 
@@ -140,8 +141,14 @@ static NetClientInfo net_slirp_info = {
     .cleanup = net_slirp_cleanup,
 };
 
+static void net_slirp_guest_error(const char *msg)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "%s", msg);
+}
+
 static const SlirpCb slirp_cb = {
     .output = net_slirp_output,
+    .guest_error = net_slirp_guest_error,
 };
 
 static int net_slirp_init(NetClientState *peer, const char *model,

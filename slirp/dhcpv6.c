@@ -50,7 +50,7 @@ struct requested_infos {
  * the odata region, thus the caller must keep odata valid as long as it
  * needs to access the requested_infos struct.
  */
-static int dhcpv6_parse_info_request(uint8_t *odata, int olen,
+static int dhcpv6_parse_info_request(Slirp *slirp, uint8_t *odata, int olen,
                                      struct requested_infos *ri)
 {
     int i, req_opt;
@@ -61,7 +61,7 @@ static int dhcpv6_parse_info_request(uint8_t *odata, int olen,
         int len = odata[2] << 8 | odata[3];
 
         if (len + 4 > olen) {
-            qemu_log_mask(LOG_GUEST_ERROR, "Guest sent bad DHCPv6 packet!\n");
+            slirp->cb->guest_error("Guest sent bad DHCPv6 packet!");
             return -E2BIG;
         }
 
@@ -121,7 +121,7 @@ static void dhcpv6_info_request(Slirp *slirp, struct sockaddr_in6 *srcsas,
     struct mbuf *m;
     uint8_t *resp;
 
-    if (dhcpv6_parse_info_request(odata, olen, &ri) < 0) {
+    if (dhcpv6_parse_info_request(slirp, odata, olen, &ri) < 0) {
         return;
     }
 
