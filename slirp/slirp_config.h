@@ -32,9 +32,6 @@
 #define DECLARE_IOVEC
 #endif
 
-/* Define if you have a POSIX.1 sys/wait.h */
-#undef HAVE_SYS_WAIT_H
-
 /* Define if you have sys/select.h */
 #undef HAVE_SYS_SELECT_H
 #ifndef _WIN32

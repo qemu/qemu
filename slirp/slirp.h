@@ -40,10 +40,6 @@ typedef char *caddr_t;
 # include <sys/select.h>
 #endif
 
-#ifdef HAVE_SYS_WAIT_H
-# include <sys/wait.h>
-#endif
-
 #ifdef HAVE_SYS_FILIO_H
 # include <sys/filio.h>
 #endif
