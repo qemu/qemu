@@ -1073,7 +1073,7 @@ static const VMStateDescription vmstate_virtio_gpu_scanouts = {
 };
 
 static int virtio_gpu_save(QEMUFile *f, void *opaque, size_t size,
-                           VMStateField *field, QJSON *vmdesc)
+                           const VMStateField *field, QJSON *vmdesc)
 {
     VirtIOGPU *g = opaque;
     struct virtio_gpu_simple_resource *res;
@@ -1101,7 +1101,7 @@ static int virtio_gpu_save(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
-                           VMStateField *field)
+                           const VMStateField *field)
 {
     VirtIOGPU *g = opaque;
     struct virtio_gpu_simple_resource *res;

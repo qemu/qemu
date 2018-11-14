@@ -2155,7 +2155,7 @@ static int usbredir_post_load(void *priv, int version_id)
 
 /* For usbredirparser migration */
 static int usbredir_put_parser(QEMUFile *f, void *priv, size_t unused,
-                               VMStateField *field, QJSON *vmdesc)
+                               const VMStateField *field, QJSON *vmdesc)
 {
     USBRedirDevice *dev = priv;
     uint8_t *data;
@@ -2178,7 +2178,7 @@ static int usbredir_put_parser(QEMUFile *f, void *priv, size_t unused,
 }
 
 static int usbredir_get_parser(QEMUFile *f, void *priv, size_t unused,
-                               VMStateField *field)
+                               const VMStateField *field)
 {
     USBRedirDevice *dev = priv;
     uint8_t *data;
@@ -2222,7 +2222,7 @@ static const VMStateInfo usbredir_parser_vmstate_info = {
 
 /* For buffered packets (iso/irq) queue migration */
 static int usbredir_put_bufpq(QEMUFile *f, void *priv, size_t unused,
-                              VMStateField *field, QJSON *vmdesc)
+                              const VMStateField *field, QJSON *vmdesc)
 {
     struct endp_data *endp = priv;
     USBRedirDevice *dev = endp->dev;
@@ -2245,7 +2245,7 @@ static int usbredir_put_bufpq(QEMUFile *f, void *priv, size_t unused,
 }
 
 static int usbredir_get_bufpq(QEMUFile *f, void *priv, size_t unused,
-                              VMStateField *field)
+                              const VMStateField *field)
 {
     struct endp_data *endp = priv;
     USBRedirDevice *dev = endp->dev;
@@ -2349,7 +2349,7 @@ static const VMStateDescription usbredir_ep_vmstate = {
 
 /* For PacketIdQueue migration */
 static int usbredir_put_packet_id_q(QEMUFile *f, void *priv, size_t unused,
-                                    VMStateField *field, QJSON *vmdesc)
+                                    const VMStateField *field, QJSON *vmdesc)
 {
     struct PacketIdQueue *q = priv;
     USBRedirDevice *dev = q->dev;
@@ -2368,7 +2368,7 @@ static int usbredir_put_packet_id_q(QEMUFile *f, void *priv, size_t unused,
 }
 
 static int usbredir_get_packet_id_q(QEMUFile *f, void *priv, size_t unused,
-                                    VMStateField *field)
+                                    const VMStateField *field)
 {
     struct PacketIdQueue *q = priv;
     USBRedirDevice *dev = q->dev;

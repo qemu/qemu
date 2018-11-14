@@ -18,7 +18,7 @@ static bool vfp_needed(void *opaque)
 }
 
 static int get_fpscr(QEMUFile *f, void *opaque, size_t size,
-                     VMStateField *field)
+                     const VMStateField *field)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
@@ -29,7 +29,7 @@ static int get_fpscr(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int put_fpscr(QEMUFile *f, void *opaque, size_t size,
-                     VMStateField *field, QJSON *vmdesc)
+                     const VMStateField *field, QJSON *vmdesc)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
@@ -503,7 +503,7 @@ static const VMStateDescription vmstate_m_security = {
 };
 
 static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
-                    VMStateField *field)
+                    const VMStateField *field)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
@@ -559,7 +559,7 @@ static int get_cpsr(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int put_cpsr(QEMUFile *f, void *opaque, size_t size,
-                    VMStateField *field, QJSON *vmdesc)
+                    const VMStateField *field, QJSON *vmdesc)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
@@ -585,7 +585,7 @@ static const VMStateInfo vmstate_cpsr = {
 };
 
 static int get_power(QEMUFile *f, void *opaque, size_t size,
-                    VMStateField *field)
+                    const VMStateField *field)
 {
     ARMCPU *cpu = opaque;
     bool powered_off = qemu_get_byte(f);
@@ -594,7 +594,7 @@ static int get_power(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int put_power(QEMUFile *f, void *opaque, size_t size,
-                    VMStateField *field, QJSON *vmdesc)
+                    const VMStateField *field, QJSON *vmdesc)
 {
     ARMCPU *cpu = opaque;
 

@@ -450,7 +450,7 @@ int pci_bus_numa_node(PCIBus *bus)
 }
 
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
-                                 VMStateField *field)
+                                 const VMStateField *field)
 {
     PCIDevice *s = container_of(pv, PCIDevice, config);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(s);
@@ -490,7 +490,7 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
 
 /* just put buffer */
 static int put_pci_config_device(QEMUFile *f, void *pv, size_t size,
-                                 VMStateField *field, QJSON *vmdesc)
+                                 const VMStateField *field, QJSON *vmdesc)
 {
     const uint8_t **v = pv;
     assert(size == pci_config_size(container_of(pv, PCIDevice, config)));
@@ -506,7 +506,7 @@ static VMStateInfo vmstate_info_pci_config = {
 };
 
 static int get_pci_irq_state(QEMUFile *f, void *pv, size_t size,
-                             VMStateField *field)
+                             const VMStateField *field)
 {
     PCIDevice *s = container_of(pv, PCIDevice, irq_state);
     uint32_t irq_state[PCI_NUM_PINS];
@@ -528,7 +528,7 @@ static int get_pci_irq_state(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_pci_irq_state(QEMUFile *f, void *pv, size_t size,
-                             VMStateField *field, QJSON *vmdesc)
+                             const VMStateField *field, QJSON *vmdesc)
 {
     int i;
     PCIDevice *s = container_of(pv, PCIDevice, irq_state);
