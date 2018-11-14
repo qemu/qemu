@@ -199,10 +199,6 @@ struct Slirp {
     void *opaque;
 };
 
-#ifndef NULL
-#define NULL (void *)0
-#endif
-
 void if_start(Slirp *);
 
 int get_dns_addr(struct in_addr *pdns_addr);
