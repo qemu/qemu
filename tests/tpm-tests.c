@@ -22,7 +22,7 @@ static bool
 tpm_test_swtpm_skip(void)
 {
     if (!tpm_util_swtpm_has_tpm2()) {
-        fprintf(stderr, "swtpm not in PATH or missing --tpm2 support; ");
+        g_test_message("swtpm not in PATH or missing --tpm2 support");
         return true;
     }
 
