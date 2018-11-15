@@ -35,64 +35,12 @@
  * original qvirtio_pci_destructor and qvirtio_pci_start_hw.
  */
 
-typedef struct QVirtioPCIForeachData {
-    void (*func)(QVirtioDevice *d, void *data);
-    uint16_t device_type;
-    bool has_slot;
-    int slot;
-    void *user_data;
-} QVirtioPCIForeachData;
-
 static inline bool qvirtio_pci_is_big_endian(QVirtioPCIDevice *dev)
 {
     QPCIBus *bus = dev->pdev->bus;
 
     /* FIXME: virtio 1.0 is always little-endian */
     return qtest_big_endian(bus->qts);
-}
-
-void qvirtio_pci_device_free(QVirtioPCIDevice *dev)
-{
-    g_free(dev->pdev);
-}
-
-static void qvirtio_pci_init_from_pcidev(QVirtioPCIDevice *dev, QPCIDevice *pci_dev)
-{
-    dev->pdev = pci_dev;
-    dev->vdev.device_type = qpci_config_readw(pci_dev, PCI_SUBSYSTEM_ID);
-
-    dev->config_msix_entry = -1;
-
-    dev->vdev.bus = &qvirtio_pci;
-    dev->vdev.big_endian = qvirtio_pci_is_big_endian(dev);
-
-    /* each virtio-xxx-pci device should override at least this function */
-    dev->obj.get_driver = NULL;
-    dev->obj.start_hw = qvirtio_pci_start_hw;
-    dev->obj.destructor = qvirtio_pci_destructor;
-}
-
-static void qvirtio_pci_foreach_callback(
-                        QPCIDevice *dev, int devfn, void *data)
-{
-    QVirtioPCIForeachData *d = data;
-    QVirtioPCIDevice *vpcidev = g_new0(QVirtioPCIDevice, 1);
-
-    qvirtio_pci_init_from_pcidev(vpcidev, dev);
-    if (vpcidev->vdev.device_type == d->device_type &&
-        (!d->has_slot || vpcidev->pdev->devfn == d->slot << 3)) {
-        d->func(&vpcidev->vdev, d->user_data);
-    } else {
-        qvirtio_pci_device_free(vpcidev);
-        g_free(vpcidev);
-    }
-}
-
-static void qvirtio_pci_assign_device(QVirtioDevice *d, void *data)
-{
-    QVirtioPCIDevice **vpcidev = data;
-    assert(!*vpcidev);
-    *vpcidev = container_of(d, QVirtioPCIDevice, vdev);
 }
 
 #define CONFIG_BASE(dev) (VIRTIO_PCI_CONFIG_OFF((dev)->pdev->msix_enabled))
@@ -317,48 +265,6 @@ const QVirtioBus qvirtio_pci = {
     .virtqueue_kick = qvirtio_pci_virtqueue_kick,
 };
 
-/* TODO: delete this once qgraph is completed */
-static void qvirtio_pci_foreach(QPCIBus *bus, uint16_t device_type,
-                bool has_slot, int slot,
-                void (*func)(QVirtioDevice *d, void *data), void *data)
-{
-    QVirtioPCIForeachData d = { .func = func,
-                                .device_type = device_type,
-                                .has_slot = has_slot,
-                                .slot = slot,
-                                .user_data = data };
-
-    qpci_device_foreach(bus, PCI_VENDOR_ID_REDHAT_QUMRANET, -1,
-                        qvirtio_pci_foreach_callback, &d);
-}
-
-QVirtioPCIDevice *qvirtio_pci_device_find(QPCIBus *bus, uint16_t device_type)
-{
-    QVirtioPCIDevice *dev = NULL;
-
-    qvirtio_pci_foreach(bus, device_type, false, 0,
-                        qvirtio_pci_assign_device, &dev);
-
-    if (dev) {
-        dev->vdev.bus = &qvirtio_pci;
-    }
-
-    return dev;
-}
-
-QVirtioPCIDevice *qvirtio_pci_device_find_slot(QPCIBus *bus,
-                                               uint16_t device_type, int slot)
-{
-    QVirtioPCIDevice *dev = NULL;
-
-    qvirtio_pci_foreach(bus, device_type, true, slot,
-                        qvirtio_pci_assign_device, &dev);
-
-    dev->vdev.bus = &qvirtio_pci;
-
-    return dev;
-}
-
 void qvirtio_pci_device_enable(QVirtioPCIDevice *d)
 {
     qpci_device_enable(d->pdev);
@@ -445,7 +351,7 @@ void qvirtio_pci_destructor(QOSGraphObject *obj)
 {
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)obj;
     qvirtio_pci_device_disable(dev);
-    qvirtio_pci_device_free(dev);
+    g_free(dev->pdev);
 }
 
 void qvirtio_pci_start_hw(QOSGraphObject *obj)
@@ -453,6 +359,22 @@ void qvirtio_pci_start_hw(QOSGraphObject *obj)
     QVirtioPCIDevice *dev = (QVirtioPCIDevice *)obj;
     qvirtio_pci_device_enable(dev);
     qvirtio_start_device(&dev->vdev);
+}
+
+static void qvirtio_pci_init_from_pcidev(QVirtioPCIDevice *dev, QPCIDevice *pci_dev)
+{
+    dev->pdev = pci_dev;
+    dev->vdev.device_type = qpci_config_readw(pci_dev, PCI_SUBSYSTEM_ID);
+
+    dev->config_msix_entry = -1;
+
+    dev->vdev.bus = &qvirtio_pci;
+    dev->vdev.big_endian = qvirtio_pci_is_big_endian(dev);
+
+    /* each virtio-xxx-pci device should override at least this function */
+    dev->obj.get_driver = NULL;
+    dev->obj.start_hw = qvirtio_pci_start_hw;
+    dev->obj.destructor = qvirtio_pci_destructor;
 }
 
 void virtio_pci_init(QVirtioPCIDevice *dev, QPCIBus *bus, QPCIAddress * addr)

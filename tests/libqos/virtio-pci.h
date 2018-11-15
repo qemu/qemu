@@ -35,10 +35,6 @@ extern const QVirtioBus qvirtio_pci;
 
 void virtio_pci_init(QVirtioPCIDevice *dev, QPCIBus *bus, QPCIAddress * addr);
 QVirtioPCIDevice *virtio_pci_new(QPCIBus *bus, QPCIAddress * addr);
-QVirtioPCIDevice *qvirtio_pci_device_find(QPCIBus *bus, uint16_t device_type);
-QVirtioPCIDevice *qvirtio_pci_device_find_slot(QPCIBus *bus,
-                                               uint16_t device_type, int slot);
-void qvirtio_pci_device_free(QVirtioPCIDevice *dev);
 
 /* virtio-pci object functions available for subclasses that
  * override the original start_hw and destroy
