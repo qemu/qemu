@@ -145,6 +145,9 @@ void fuse_cmdline_help(void)
            "    --syslog                   log to syslog (default stderr)\n"
            "    -f                         foreground operation\n"
            "    --daemonize                run in background\n"
+           "    -o cache=<mode>            cache mode. could be one of \"auto, "
+           "always, none\"\n"
+           "                               default: auto\n"
            "    -o log_level=<level>       log level, default to \"info\"\n"
            "                               level could be one of \"debug, "
            "info, warn, err\"\n"
@@ -156,7 +159,7 @@ void fuse_cmdline_help(void)
            "    -o readdirplus|no_readdirplus\n"
            "                               enable/disable readirplus\n"
            "                               default: readdirplus except with "
-           "cache=never\n"
+           "cache=none\n"
           );
 }
 
