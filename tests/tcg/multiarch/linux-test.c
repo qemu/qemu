@@ -83,7 +83,7 @@ static void test_file(void)
     struct utimbuf tbuf;
     struct iovec vecs[2];
     DIR *dir;
-    struct dirent *de;
+    struct dirent64 *de;
     /* TODO: make common tempdir creation for tcg tests */
     char template[] = "/tmp/linux-test-XXXXXX";
     char *tmpdir = mkdtemp(template);
@@ -186,7 +186,7 @@ static void test_file(void)
         error("opendir");
     len = 0;
     for(;;) {
-        de = readdir(dir);
+        de = readdir64(dir);
         if (!de)
             break;
         if (strcmp(de->d_name, ".") != 0 &&
