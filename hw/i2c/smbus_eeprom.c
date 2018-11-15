@@ -108,12 +108,27 @@ static const VMStateDescription vmstate_smbus_eeprom = {
     }
 };
 
-static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
+/*
+ * Reset the EEPROM contents to the initial state on a reset.  This
+ * isn't really how an EEPROM works, of course, but the general
+ * principle of QEMU is to restore function on reset to what it would
+ * be if QEMU was stopped and started.
+ *
+ * The proper thing to do would be to have a backing blockdev to hold
+ * the contents and restore that on startup, and not do this on reset.
+ * But until that time, act as if we had been stopped and restarted.
+ */
+static void smbus_eeprom_reset(DeviceState *dev)
 {
     SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
 
     memcpy(eeprom->data, eeprom->init_data, SMBUS_EEPROM_SIZE);
     eeprom->offset = 0;
+}
+
+static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
+{
+    smbus_eeprom_reset(dev);
 }
 
 static Property smbus_eeprom_properties[] = {
@@ -127,6 +142,7 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
 
     dc->realize = smbus_eeprom_realize;
+    dc->reset = smbus_eeprom_reset;
     sc->receive_byte = eeprom_receive_byte;
     sc->write_data = eeprom_write_data;
     dc->props = smbus_eeprom_properties;
