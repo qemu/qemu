@@ -282,7 +282,7 @@ long do_sigreturn(CPUSPARCState *env)
     uint32_t up_psr, pc, npc;
     target_sigset_t set;
     sigset_t host_set;
-    int err=0, i;
+    int i;
 
     sf_addr = env->regwptr[UREG_FP];
     trace_user_do_sigreturn(env, sf_addr);
@@ -320,10 +320,13 @@ long do_sigreturn(CPUSPARCState *env)
     }
 
     /* FIXME: implement FPU save/restore:
-         * __get_user(fpu_save, &sf->fpu_save);
-         * if (fpu_save)
-         *        err |= restore_fpu_state(env, fpu_save);
-         */
+     * __get_user(fpu_save, &sf->fpu_save);
+     * if (fpu_save) {
+     *     if (restore_fpu_state(env, fpu_save)) {
+     *         goto segv_and_exit;
+     *     }
+     * }
+     */
 
     /* This is pretty much atomic, no amount locking would prevent
          * the races which exist anyways.
@@ -336,9 +339,6 @@ long do_sigreturn(CPUSPARCState *env)
     target_to_host_sigset_internal(&host_set, &set);
     set_sigmask(&host_set);
 
-    if (err) {
-        goto segv_and_exit;
-    }
     unlock_user_struct(sf, sf_addr, 0);
     return -TARGET_QEMU_ESIGRETURN;
 
