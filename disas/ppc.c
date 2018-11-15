@@ -3734,6 +3734,8 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "addmeo.", XO(31,234,1,1), XORB_MASK, PPCCOM,		{ RT, RA } },
 { "ameo.",   XO(31,234,1,1), XORB_MASK, PWRCOM,		{ RT, RA } },
 
+{ "addex",   XO(31,170,0,0), XO_MASK,   POWER9,         { RT, RA, RB } },
+
 { "mullw",   XO(31,235,0,0), XO_MASK,	PPCCOM,		{ RT, RA, RB } },
 { "muls",    XO(31,235,0,0), XO_MASK,	PWRCOM,		{ RT, RA, RB } },
 { "mullw.",  XO(31,235,0,1), XO_MASK,	PPCCOM,		{ RT, RA, RB } },
