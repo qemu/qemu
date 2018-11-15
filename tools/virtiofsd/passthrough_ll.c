@@ -84,13 +84,15 @@ struct lo_map {
     ssize_t freelist;
 };
 
-struct lo_inode {
-    struct lo_inode *next; /* protected by lo->mutex */
-    struct lo_inode *prev; /* protected by lo->mutex */
-    int fd;
-    bool is_symlink;
+struct lo_key {
     ino_t ino;
     dev_t dev;
+};
+
+struct lo_inode {
+    int fd;
+    bool is_symlink;
+    struct lo_key key;
     uint64_t refcount; /* protected by lo->mutex */
     fuse_ino_t fuse_ino;
 };
@@ -119,7 +121,8 @@ struct lo_data {
     int timeout_set;
     int readdirplus_set;
     int readdirplus_clear;
-    struct lo_inode root; /* protected by lo->mutex */
+    struct lo_inode root;
+    GHashTable *inodes; /* protected by lo->mutex */
     struct lo_map ino_map; /* protected by lo->mutex */
     struct lo_map dirp_map; /* protected by lo->mutex */
     struct lo_map fd_map; /* protected by lo->mutex */
@@ -573,7 +576,7 @@ retry:
         }
         goto fail_unref;
     }
-    if (stat.st_dev != inode->dev || stat.st_ino != inode->ino) {
+    if (stat.st_dev != inode->key.dev || stat.st_ino != inode->key.ino) {
         if (!retries) {
             fuse_log(FUSE_LOG_WARNING,
                      "%s: failed to match last\n", __func__);
@@ -753,19 +756,20 @@ out_err:
 static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st)
 {
     struct lo_inode *p;
-    struct lo_inode *ret = NULL;
+    struct lo_key key = {
+        .ino = st->st_ino,
+        .dev = st->st_dev,
+    };
 
     pthread_mutex_lock(&lo->mutex);
-    for (p = lo->root.next; p != &lo->root; p = p->next) {
-        if (p->ino == st->st_ino && p->dev == st->st_dev) {
-            assert(p->refcount > 0);
-            ret = p;
-            ret->refcount++;
-            break;
-        }
+    p = g_hash_table_lookup(lo->inodes, &key);
+    if (p) {
+        assert(p->refcount > 0);
+        p->refcount++;
     }
     pthread_mutex_unlock(&lo->mutex);
-    return ret;
+
+    return p;
 }
 
 static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
@@ -810,8 +814,6 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         close(newfd);
         newfd = -1;
     } else {
-        struct lo_inode *prev, *next;
-
         saverr = ENOMEM;
         inode = calloc(1, sizeof(struct lo_inode));
         if (!inode) {
@@ -822,17 +824,12 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         inode->refcount = 1;
         inode->fd = newfd;
         newfd = -1;
-        inode->ino = e->attr.st_ino;
-        inode->dev = e->attr.st_dev;
+        inode->key.ino = e->attr.st_ino;
+        inode->key.dev = e->attr.st_dev;
 
         pthread_mutex_lock(&lo->mutex);
         inode->fuse_ino = lo_add_inode_mapping(req, inode);
-        prev = &lo->root;
-        next = prev->next;
-        next->prev = inode;
-        inode->next = next;
-        inode->prev = prev;
-        prev->next = inode;
+        g_hash_table_insert(lo->inodes, &inode->key, inode);
         pthread_mutex_unlock(&lo->mutex);
     }
     e->ino = inode->fuse_ino;
@@ -1162,14 +1159,8 @@ static void unref_inode_lolocked(struct lo_data *lo, struct lo_inode *inode,
     assert(inode->refcount >= n);
     inode->refcount -= n;
     if (!inode->refcount) {
-        struct lo_inode *prev, *next;
-
-        prev = inode->prev;
-        next = inode->next;
-        next->prev = prev;
-        prev->next = next;
-
         lo_map_remove(&lo->ino_map, inode->fuse_ino);
+        g_hash_table_remove(lo->inodes, &inode->key);
         pthread_mutex_unlock(&lo->mutex);
         close(inode->fd);
         free(inode);
@@ -1369,7 +1360,7 @@ static void lo_do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 
         /* Hide root's parent directory */
         if (dinode == &lo->root && strcmp(name, "..") == 0) {
-            e.attr.st_ino = lo->root.ino;
+            e.attr.st_ino = lo->root.key.ino;
             e.attr.st_mode = DT_DIR << 12;
         }
 
@@ -2370,9 +2361,24 @@ static void setup_root(struct lo_data *lo, struct lo_inode *root)
 
     root->is_symlink = false;
     root->fd = fd;
-    root->ino = stat.st_ino;
-    root->dev = stat.st_dev;
+    root->key.ino = stat.st_ino;
+    root->key.dev = stat.st_dev;
     root->refcount = 2;
+}
+
+static guint lo_key_hash(gconstpointer key)
+{
+    const struct lo_key *lkey = key;
+
+    return (guint)lkey->ino + (guint)lkey->dev;
+}
+
+static gboolean lo_key_equal(gconstpointer a, gconstpointer b)
+{
+    const struct lo_key *la = a;
+    const struct lo_key *lb = b;
+
+    return la->ino == lb->ino && la->dev == lb->dev;
 }
 
 int main(int argc, char *argv[])
@@ -2392,7 +2398,7 @@ int main(int argc, char *argv[])
     umask(0);
 
     pthread_mutex_init(&lo.mutex, NULL);
-    lo.root.next = lo.root.prev = &lo.root;
+    lo.inodes = g_hash_table_new(lo_key_hash, lo_key_equal);
     lo.root.fd = -1;
     lo.root.fuse_ino = FUSE_ROOT_ID;
     lo.cache = CACHE_AUTO;
@@ -2522,6 +2528,9 @@ err_out2:
 err_out1:
     fuse_opt_free_args(&args);
 
+    if (lo.inodes) {
+        g_hash_table_destroy(lo.inodes);
+    }
     lo_map_destroy(&lo.fd_map);
     lo_map_destroy(&lo.dirp_map);
     lo_map_destroy(&lo.ino_map);
