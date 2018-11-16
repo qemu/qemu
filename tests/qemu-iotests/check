@@ -99,7 +99,7 @@ set_prog_path()
 }
 
 if [ -z "$TEST_DIR" ]; then
-        TEST_DIR=`pwd`/scratch
+        TEST_DIR=$PWD/scratch
 fi
 
 if [ ! -e "$TEST_DIR" ]; then

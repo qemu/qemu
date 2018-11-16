@@ -17,7 +17,7 @@
 //     --keep-comments --in-place \
 //     --use-gitgrep --dir target
 //
-// $ docker run --rm -v `pwd`:`pwd` -w `pwd` philmd/coccinelle \
+// $ docker run --rm -v $PWD:$PWD -w $PWD philmd/coccinelle \
 //     --macro-file scripts/cocci-macro-file.h \
 //     --sp-file scripts/coccinelle/tcg_gen_extract.cocci \
 //     --keep-comments --in-place \
