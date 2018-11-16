@@ -1,63 +1,18 @@
+QAPI_MODULES = block-core block char common crypto introspect job migration
+QAPI_MODULES += misc net rocker run-state sockets tpm trace transaction ui
+
 #######################################################################
 # Common libraries for tools and emulators
 stub-obj-y = stubs/ crypto/
 util-obj-y = util/ qobject/ qapi/
 util-obj-y += qapi/qapi-builtin-types.o
 util-obj-y += qapi/qapi-types.o
-util-obj-y += qapi/qapi-types-block-core.o
-util-obj-y += qapi/qapi-types-block.o
-util-obj-y += qapi/qapi-types-char.o
-util-obj-y += qapi/qapi-types-common.o
-util-obj-y += qapi/qapi-types-crypto.o
-util-obj-y += qapi/qapi-types-introspect.o
-util-obj-y += qapi/qapi-types-job.o
-util-obj-y += qapi/qapi-types-migration.o
-util-obj-y += qapi/qapi-types-misc.o
-util-obj-y += qapi/qapi-types-net.o
-util-obj-y += qapi/qapi-types-rocker.o
-util-obj-y += qapi/qapi-types-run-state.o
-util-obj-y += qapi/qapi-types-sockets.o
-util-obj-y += qapi/qapi-types-tpm.o
-util-obj-y += qapi/qapi-types-trace.o
-util-obj-y += qapi/qapi-types-transaction.o
-util-obj-y += qapi/qapi-types-ui.o
+util-obj-y += $(QAPI_MODULES:%=qapi/qapi-types-%.o)
 util-obj-y += qapi/qapi-builtin-visit.o
 util-obj-y += qapi/qapi-visit.o
-util-obj-y += qapi/qapi-visit-block-core.o
-util-obj-y += qapi/qapi-visit-block.o
-util-obj-y += qapi/qapi-visit-char.o
-util-obj-y += qapi/qapi-visit-common.o
-util-obj-y += qapi/qapi-visit-crypto.o
-util-obj-y += qapi/qapi-visit-introspect.o
-util-obj-y += qapi/qapi-visit-job.o
-util-obj-y += qapi/qapi-visit-migration.o
-util-obj-y += qapi/qapi-visit-misc.o
-util-obj-y += qapi/qapi-visit-net.o
-util-obj-y += qapi/qapi-visit-rocker.o
-util-obj-y += qapi/qapi-visit-run-state.o
-util-obj-y += qapi/qapi-visit-sockets.o
-util-obj-y += qapi/qapi-visit-tpm.o
-util-obj-y += qapi/qapi-visit-trace.o
-util-obj-y += qapi/qapi-visit-transaction.o
-util-obj-y += qapi/qapi-visit-ui.o
+util-obj-y += $(QAPI_MODULES:%=qapi/qapi-visit-%.o)
 util-obj-y += qapi/qapi-events.o
-util-obj-y += qapi/qapi-events-block-core.o
-util-obj-y += qapi/qapi-events-block.o
-util-obj-y += qapi/qapi-events-char.o
-util-obj-y += qapi/qapi-events-common.o
-util-obj-y += qapi/qapi-events-crypto.o
-util-obj-y += qapi/qapi-events-introspect.o
-util-obj-y += qapi/qapi-events-job.o
-util-obj-y += qapi/qapi-events-migration.o
-util-obj-y += qapi/qapi-events-misc.o
-util-obj-y += qapi/qapi-events-net.o
-util-obj-y += qapi/qapi-events-rocker.o
-util-obj-y += qapi/qapi-events-run-state.o
-util-obj-y += qapi/qapi-events-sockets.o
-util-obj-y += qapi/qapi-events-tpm.o
-util-obj-y += qapi/qapi-events-trace.o
-util-obj-y += qapi/qapi-events-transaction.o
-util-obj-y += qapi/qapi-events-ui.o
+util-obj-y += $(QAPI_MODULES:%=qapi/qapi-events-%.o)
 util-obj-y += qapi/qapi-introspect.o
 
 chardev-obj-y = chardev/
@@ -138,23 +93,7 @@ common-obj-$(CONFIG_FDT) += device_tree.o
 # qapi
 
 common-obj-y += qapi/qapi-commands.o
-common-obj-y += qapi/qapi-commands-block-core.o
-common-obj-y += qapi/qapi-commands-block.o
-common-obj-y += qapi/qapi-commands-char.o
-common-obj-y += qapi/qapi-commands-common.o
-common-obj-y += qapi/qapi-commands-crypto.o
-common-obj-y += qapi/qapi-commands-introspect.o
-common-obj-y += qapi/qapi-commands-job.o
-common-obj-y += qapi/qapi-commands-migration.o
-common-obj-y += qapi/qapi-commands-misc.o
-common-obj-y += qapi/qapi-commands-net.o
-common-obj-y += qapi/qapi-commands-rocker.o
-common-obj-y += qapi/qapi-commands-run-state.o
-common-obj-y += qapi/qapi-commands-sockets.o
-common-obj-y += qapi/qapi-commands-tpm.o
-common-obj-y += qapi/qapi-commands-trace.o
-common-obj-y += qapi/qapi-commands-transaction.o
-common-obj-y += qapi/qapi-commands-ui.o
+common-obj-y += $(QAPI_MODULES:%=qapi/qapi-commands-%.o)
 common-obj-y += qapi/qapi-introspect.o
 common-obj-y += qmp.o hmp.o
 endif
