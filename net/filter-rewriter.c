@@ -155,12 +155,13 @@ static int handle_primary_tcp_pkt(RewriterState *rf,
          * Active close step 2.
          */
         if (conn->tcp_state == TCPS_FIN_WAIT_1) {
-            conn->tcp_state = TCPS_TIME_WAIT;
             /*
              * For simplify implementation, we needn't wait 2MSL time
              * in filter rewriter. Because guest kernel will track the
              * TCP status and wait 2MSL time, if client resend the FIN
              * packet, guest will apply the last ACK too.
+             * So, we skip the TCPS_TIME_WAIT state here and go straight
+             * to TCPS_CLOSED state.
              */
             conn->tcp_state = TCPS_CLOSED;
             g_hash_table_remove(rf->connection_track_table, key);
