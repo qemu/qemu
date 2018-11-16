@@ -115,10 +115,9 @@ static int parse_keyboard_layout(kbd_layout_t *k,
             continue;
         }
         if (!strncmp(line, "include ", 8)) {
-            if (parse_keyboard_layout(k, table, line + 8, errp) < 0) {
-                ret = -1;
-                goto out;
-            }
+            error_setg(errp, "keymap include files are not supported any more");
+            ret = -1;
+            goto out;
         } else {
             int offset = 0;
             while (line[offset] != 0 &&
