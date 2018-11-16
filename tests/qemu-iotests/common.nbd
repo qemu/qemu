@@ -23,7 +23,7 @@ nbd_unix_socket="${TEST_DIR}/qemu-nbd.sock"
 nbd_tcp_addr="127.0.0.1"
 nbd_pid_file="${TEST_DIR}/qemu-nbd.pid"
 
-function nbd_server_stop()
+nbd_server_stop()
 {
     local NBD_PID
     if [ -f "$nbd_pid_file" ]; then
@@ -36,7 +36,7 @@ function nbd_server_stop()
     rm -f "$nbd_unix_socket"
 }
 
-function nbd_server_wait_for_unix_socket()
+nbd_server_wait_for_unix_socket()
 {
     pid=$1
 
@@ -57,14 +57,14 @@ function nbd_server_wait_for_unix_socket()
     exit 1
 }
 
-function nbd_server_start_unix_socket()
+nbd_server_start_unix_socket()
 {
     nbd_server_stop
     $QEMU_NBD -v -t -k "$nbd_unix_socket" "$@" &
     nbd_server_wait_for_unix_socket $!
 }
 
-function nbd_server_set_tcp_port()
+nbd_server_set_tcp_port()
 {
     (ss --help) >/dev/null 2>&1 || _notrun "ss utility not found, skipping test"
 
@@ -80,7 +80,7 @@ function nbd_server_set_tcp_port()
     exit 1
 }
 
-function nbd_server_wait_for_tcp_socket()
+nbd_server_wait_for_tcp_socket()
 {
     pid=$1
 
@@ -101,7 +101,7 @@ function nbd_server_wait_for_tcp_socket()
     exit 1
 }
 
-function nbd_server_start_tcp_socket()
+nbd_server_start_tcp_socket()
 {
     nbd_server_stop
     $QEMU_NBD -v -t -b $nbd_tcp_addr -p $nbd_tcp_port "$@" &

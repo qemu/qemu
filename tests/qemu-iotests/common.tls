@@ -20,7 +20,7 @@
 
 tls_dir="${TEST_DIR}/tls"
 
-function tls_x509_cleanup()
+tls_x509_cleanup()
 {
     rm -f "${tls_dir}"/*.pem
     rm -f "${tls_dir}"/*/*.pem
@@ -29,7 +29,7 @@ function tls_x509_cleanup()
 }
 
 
-function tls_x509_init()
+tls_x509_init()
 {
     mkdir -p "${tls_dir}"
 
@@ -58,7 +58,7 @@ EOF
 }
 
 
-function tls_x509_create_root_ca()
+tls_x509_create_root_ca()
 {
     name=${1:-ca-cert}
 
@@ -77,7 +77,7 @@ EOF
 }
 
 
-function tls_x509_create_server()
+tls_x509_create_server()
 {
     caname=$1
     name=$2
@@ -108,7 +108,7 @@ EOF
 }
 
 
-function tls_x509_create_client()
+tls_x509_create_client()
 {
     caname=$1
     name=$2

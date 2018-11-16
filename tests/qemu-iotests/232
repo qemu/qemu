@@ -41,7 +41,7 @@ _supported_fmt generic
 _supported_proto file
 _supported_os Linux
 
-function do_run_qemu()
+do_run_qemu()
 {
     echo Testing: "$@"
     (
@@ -55,13 +55,13 @@ function do_run_qemu()
     echo
 }
 
-function run_qemu()
+run_qemu()
 {
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_hmp |
         _filter_generated_node_ids | _filter_imgfmt
 }
 
-function run_qemu_info_block()
+run_qemu_info_block()
 {
     echo "info block -n" | run_qemu "$@" | grep -e "(file" -e "QEMU_PROG"
 }
