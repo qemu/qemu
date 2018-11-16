@@ -1,0 +1,56 @@
+#!/bin/bash
+# -*- shell-script-mode -*-
+#
+# Helpers for NBD server related config
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+nbd_unix_socket="${TEST_DIR}/qemu-nbd.sock"
+nbd_pid_file="${TEST_DIR}/qemu-nbd.pid"
+
+function nbd_server_stop()
+{
+    local NBD_PID
+    if [ -f "$nbd_pid_file" ]; then
+        read NBD_PID < "$nbd_pid_file"
+        rm -f "$nbd_pid_file"
+        if [ -n "$NBD_PID" ]; then
+            kill "$NBD_PID"
+        fi
+    fi
+    rm -f "$nbd_unix_socket"
+}
+
+function nbd_server_wait_for_unix_socket()
+{
+    for ((i = 0; i < 300; i++))
+    do
+        if [ -r "$nbd_unix_socket" ]; then
+            return
+        fi
+        sleep 0.1
+    done
+    echo "Failed in check of unix socket created by qemu-nbd"
+    exit 1
+}
+
+function nbd_server_start_unix_socket()
+{
+    nbd_server_stop
+    $QEMU_NBD -v -t -k "$nbd_unix_socket" "$@" &
+    nbd_server_wait_for_unix_socket
+}
