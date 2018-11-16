@@ -37,10 +37,18 @@ function nbd_server_stop()
 
 function nbd_server_wait_for_unix_socket()
 {
+    pid=$1
+
     for ((i = 0; i < 300; i++))
     do
         if [ -r "$nbd_unix_socket" ]; then
             return
+        fi
+        kill -s 0 $pid 2>/dev/null
+        if test $? != 0
+        then
+            echo "qemu-nbd unexpectedly quit"
+            exit 1
         fi
         sleep 0.1
     done
@@ -52,5 +60,5 @@ function nbd_server_start_unix_socket()
 {
     nbd_server_stop
     $QEMU_NBD -v -t -k "$nbd_unix_socket" "$@" &
-    nbd_server_wait_for_unix_socket
+    nbd_server_wait_for_unix_socket $!
 }
