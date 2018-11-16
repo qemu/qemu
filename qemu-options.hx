@@ -1216,7 +1216,8 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
     "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
     "-display vnc=<display>[,<optargs>]\n"
     "-display curses\n"
-    "-display none"
+    "-display none\n"
+    "-display egl-headless[,rendernode=<file>]"
     "                select display type\n"
     "The default display is equivalent to\n"
 #if defined(CONFIG_GTK)
@@ -1258,6 +1259,9 @@ menus and other UI elements to configure and control the VM during
 runtime.
 @item vnc
 Start a VNC server on display <arg>
+@item egl-headless
+Offload all OpenGL operations to a local DRI device. For any graphical display,
+this display needs to be paired with either VNC or SPICE displays.
 @end table
 ETEXI
 
