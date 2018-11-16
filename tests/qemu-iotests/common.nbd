@@ -20,6 +20,7 @@
 #
 
 nbd_unix_socket="${TEST_DIR}/qemu-nbd.sock"
+nbd_tcp_addr="127.0.0.1"
 nbd_pid_file="${TEST_DIR}/qemu-nbd.pid"
 
 function nbd_server_stop()
@@ -61,4 +62,48 @@ function nbd_server_start_unix_socket()
     nbd_server_stop
     $QEMU_NBD -v -t -k "$nbd_unix_socket" "$@" &
     nbd_server_wait_for_unix_socket $!
+}
+
+function nbd_server_set_tcp_port()
+{
+    (ss --help) >/dev/null 2>&1 || _notrun "ss utility not found, skipping test"
+
+    for ((port = 10809; port <= 10909; port++))
+    do
+        if ! ss -tln | grep -sqE ":$port\b"; then
+            nbd_tcp_port=$port
+            return
+        fi
+    done
+
+    echo "Cannot find free TCP port for nbd in range 10809-10909"
+    exit 1
+}
+
+function nbd_server_wait_for_tcp_socket()
+{
+    pid=$1
+
+    for ((i = 0; i < 300; i++))
+    do
+        if ss -tln | grep -sqE ":$nbd_tcp_port\b"; then
+            return
+        fi
+        kill -s 0 $pid 2>/dev/null
+        if test $? != 0
+        then
+            echo "qemu-nbd unexpectedly quit"
+            exit 1
+        fi
+        sleep 0.1
+    done
+    echo "Failed in check of TCP socket created by qemu-nbd"
+    exit 1
+}
+
+function nbd_server_start_tcp_socket()
+{
+    nbd_server_stop
+    $QEMU_NBD -v -t -b $nbd_tcp_addr -p $nbd_tcp_port "$@" &
+    nbd_server_wait_for_tcp_socket $!
 }
