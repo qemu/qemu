@@ -26464,7 +26464,7 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void decode_tx79_mmi0(CPUMIPSState *env, DisasContext *ctx)
+static void decode_mmi0(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_MMI0(ctx->opcode);
 
@@ -26503,7 +26503,7 @@ static void decode_tx79_mmi0(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void decode_tx79_mmi1(CPUMIPSState *env, DisasContext *ctx)
+static void decode_mmi1(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_MMI1(ctx->opcode);
 
@@ -26535,7 +26535,7 @@ static void decode_tx79_mmi1(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void decode_tx79_mmi2(CPUMIPSState *env, DisasContext *ctx)
+static void decode_mmi2(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_MMI2(ctx->opcode);
 
@@ -26571,7 +26571,7 @@ static void decode_tx79_mmi2(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void decode_tx79_mmi3(CPUMIPSState *env, DisasContext *ctx)
+static void decode_mmi3(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_MMI3(ctx->opcode);
 
@@ -26598,7 +26598,7 @@ static void decode_tx79_mmi3(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
+static void decode_mmi(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_MMI(ctx->opcode);
     int rs = extract32(ctx->opcode, 21, 5);
@@ -26607,16 +26607,16 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
 
     switch (opc) {
     case MMI_OPC_CLASS_MMI0:
-        decode_tx79_mmi0(env, ctx);
+        decode_mmi0(env, ctx);
         break;
     case MMI_OPC_CLASS_MMI1:
-        decode_tx79_mmi1(env, ctx);
+        decode_mmi1(env, ctx);
         break;
     case MMI_OPC_CLASS_MMI2:
-        decode_tx79_mmi2(env, ctx);
+        decode_mmi2(env, ctx);
         break;
     case MMI_OPC_CLASS_MMI3:
-        decode_tx79_mmi3(env, ctx);
+        decode_mmi3(env, ctx);
         break;
     case MMI_OPC_MULT1:
     case MMI_OPC_MULTU1:
@@ -26656,12 +26656,12 @@ static void decode_tx79_mmi(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void decode_tx79_lq(CPUMIPSState *env, DisasContext *ctx)
+static void gen_mmi_lq(CPUMIPSState *env, DisasContext *ctx)
 {
     generate_exception_end(ctx, EXCP_RI);    /* TODO: MMI_OPC_LQ */
 }
 
-static void gen_tx79_sq(DisasContext *ctx, int base, int rt, int offset)
+static void gen_mmi_sq(DisasContext *ctx, int base, int rt, int offset)
 {
     generate_exception_end(ctx, EXCP_RI);    /* TODO: MMI_OPC_SQ */
 }
@@ -26687,7 +26687,7 @@ static void gen_tx79_sq(DisasContext *ctx, int base, int rt, int offset)
  * In user mode, QEMU must verify the upper and lower 11 bits to distinguish
  * between SQ and RDHWR, as the Linux kernel does.
  */
-static void decode_tx79_sq(CPUMIPSState *env, DisasContext *ctx)
+static void decode_mmi_sq(CPUMIPSState *env, DisasContext *ctx)
 {
     int base = extract32(ctx->opcode, 21, 5);
     int rt = extract32(ctx->opcode, 16, 5);
@@ -26705,7 +26705,7 @@ static void decode_tx79_sq(CPUMIPSState *env, DisasContext *ctx)
     }
 #endif
 
-    gen_tx79_sq(ctx, base, rt, offset);
+    gen_mmi_sq(ctx, base, rt, offset);
 }
 
 static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
@@ -28014,7 +28014,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_SPECIAL2:
         if ((ctx->insn_flags & INSN_R5900) && (ctx->insn_flags & ASE_MMI)) {
-            decode_tx79_mmi(env, ctx);
+            decode_mmi(env, ctx);
         } else if (ctx->insn_flags & ASE_MXU) {
             decode_opc_mxu(env, ctx);
         } else {
@@ -28023,7 +28023,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_SPECIAL3:
         if (ctx->insn_flags & INSN_R5900) {
-            decode_tx79_sq(env, ctx);    /* MMI_OPC_SQ */
+            decode_mmi_sq(env, ctx);    /* MMI_OPC_SQ */
         } else {
             decode_opc_special3(env, ctx);
         }
@@ -28698,7 +28698,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_MSA: /* OPC_MDMX */
         if (ctx->insn_flags & INSN_R5900) {
-            decode_tx79_lq(env, ctx);    /* MMI_OPC_LQ */
+            gen_mmi_lq(env, ctx);    /* MMI_OPC_LQ */
         } else {
             /* MDMX: Not implemented. */
             gen_msa(env, ctx);
