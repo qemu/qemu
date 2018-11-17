@@ -1134,12 +1134,16 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
                 return -EINVAL;
 
             default:
-                ret = nbd_opt_drop(client, NBD_REP_ERR_TLS_REQD, errp,
+                /* Let the client keep trying, unless they asked to
+                 * quit. Always try to give an error back to the
+                 * client; but when replying to OPT_ABORT, be aware
+                 * that the client may hang up before receiving the
+                 * error, in which case we are fine ignoring the
+                 * resulting EPIPE. */
+                ret = nbd_opt_drop(client, NBD_REP_ERR_TLS_REQD,
+                                   option == NBD_OPT_ABORT ? NULL : errp,
                                    "Option 0x%" PRIx32
                                    " not permitted before TLS", option);
-                /* Let the client keep trying, unless they asked to
-                 * quit. In this mode, we've already sent an error, so
-                 * we can't ack the abort.  */
                 if (option == NBD_OPT_ABORT) {
                     return 1;
                 }
