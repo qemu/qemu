@@ -62,7 +62,7 @@ tls_x509_create_client "ca2" "client2"
 echo
 echo "== preparing image =="
 _make_test_img 64M
-
+$QEMU_IO -c 'w -P 0x11 1m 1m' "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== check TLS client to plain server fails =="
@@ -95,6 +95,16 @@ $QEMU_IMG info --image-opts \
     --object tls-creds-x509,dir=${tls_dir}/client2,endpoint=client,id=tls0 \
     driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0 \
     2>&1 | sed "s/$nbd_tcp_port/PORT/g"
+
+echo
+echo "== perform I/O over TLS =="
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
+$QEMU_IO -c 'r -P 0x11 1m 1m' -c 'w -P 0x22 1m 1m' --image-opts \
+    --object tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0 \
+    driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0 \
+    2>&1 | _filter_qemu_io
+
+$QEMU_IO -f qcow2 -r -U -c 'r -P 0x22 1m 1m' "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"
