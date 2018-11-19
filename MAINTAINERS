@@ -528,14 +528,15 @@ L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/gumstix.c
 
-i.MX31
+i.MX31 (kzm)
 M: Peter Chubb <peter.chubb@nicta.com.au>
 L: qemu-arm@nongnu.org
-S: Odd fixes
-F: hw/*/imx*
-F: include/hw/*/imx*
+S: Odd Fixes
 F: hw/arm/kzm.c
-F: include/hw/arm/fsl-imx31.h
+F: hw/*/imx_*
+F: hw/*/*imx31*
+F: include/hw/*/imx_*
+F: include/hw/*/*imx31*
 
 Integrator CP
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -543,6 +544,28 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/integratorcp.c
 F: hw/misc/arm_integrator_debug.c
+
+MCIMX6UL EVK / i.MX6ul
+M: Peter Maydell <peter.maydell@linaro.org>
+R: Jean-Christophe Dubois <jcd@tribudubois.net>
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: hw/arm/mcimx6ul-evk.c
+F: hw/arm/fsl-imx6ul.c
+F: hw/misc/imx6ul_ccm.c
+F: include/hw/arm/fsl-imx6ul.h
+F: include/hw/misc/imx6ul_ccm.h
+
+MCIMX7D SABRE / i.MX7
+M: Peter Maydell <peter.maydell@linaro.org>
+R: Andrey Smirnov <andrew.smirnov@gmail.com>
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: hw/arm/mcimx7d-sabre.c
+F: hw/arm/fsl-imx7.c
+F: include/hw/arm/fsl-imx7.h
+F: hw/pci-host/designware.c
+F: include/hw/pci-host/designware.h
 
 MPS2
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -577,6 +600,17 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/palm.c
 
+Raspberry Pi
+M: Peter Maydell <peter.maydell@linaro.org>
+R: Andrew Baumann <Andrew.Baumann@microsoft.com>
+R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: hw/arm/raspi_platform.h
+F: hw/*/bcm283*
+F: include/hw/arm/raspi*
+F: include/hw/*/bcm283*
+
 Real View
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
@@ -598,6 +632,19 @@ F: hw/*/pxa2xx*
 F: hw/misc/mst_fpga.c
 F: include/hw/arm/pxa.h
 
+SABRELITE / i.MX6
+M: Peter Maydell <peter.maydell@linaro.org>
+R: Jean-Christophe Dubois <jcd@tribudubois.net>
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: hw/arm/sabrelite.c
+F: hw/arm/fsl-imx6.c
+F: hw/misc/imx6_src.c
+F: hw/ssi/imx_spi.c
+F: include/hw/arm/fsl-imx6.h
+F: include/hw/misc/imx6_src.h
+F: include/hw/ssi/imx_spi.h
+
 Sharp SL-5500 (Collie) PDA
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
@@ -611,12 +658,25 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/stellaris*
 
+Versatile Express
+M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/vexpress.c
+
 Versatile PB
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/versatile*
 F: hw/misc/arm_sysctl.c
+
+Virt
+M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/virt*
+F: include/hw/arm/virt.h
 
 Xilinx Zynq
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
