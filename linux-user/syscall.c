@@ -9554,9 +9554,25 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         {
             CPUMIPSState *env = ((CPUMIPSState *)cpu_env);
             bool old_fr = env->CP0_Status & (1 << CP0St_FR);
+            bool old_fre = env->CP0_Config5 & (1 << CP0C5_FRE);
             bool new_fr = arg2 & TARGET_PR_FP_MODE_FR;
             bool new_fre = arg2 & TARGET_PR_FP_MODE_FRE;
 
+            const unsigned int known_bits = TARGET_PR_FP_MODE_FR |
+                                            TARGET_PR_FP_MODE_FRE;
+
+            /* If nothing to change, return right away, successfully.  */
+            if (old_fr == new_fr && old_fre == new_fre) {
+                return 0;
+            }
+            /* Check the value is valid */
+            if (arg2 & ~known_bits) {
+                return -TARGET_EOPNOTSUPP;
+            }
+            /* Setting FRE without FR is not supported.  */
+            if (new_fre && !new_fr) {
+                return -TARGET_EOPNOTSUPP;
+            }
             if (new_fr && !(env->active_fpu.fcr0 & (1 << FCR0_F64))) {
                 /* FR1 is not supported */
                 return -TARGET_EOPNOTSUPP;
@@ -9586,6 +9602,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 env->hflags |= MIPS_HFLAG_F64;
             } else {
                 env->CP0_Status &= ~(1 << CP0St_FR);
+                env->hflags &= ~MIPS_HFLAG_F64;
             }
             if (new_fre) {
                 env->CP0_Config5 |= (1 << CP0C5_FRE);
@@ -9594,6 +9611,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 }
             } else {
                 env->CP0_Config5 &= ~(1 << CP0C5_FRE);
+                env->hflags &= ~MIPS_HFLAG_FRE;
             }
 
             return 0;
