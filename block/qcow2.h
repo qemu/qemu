@@ -42,6 +42,12 @@
 #define QCOW_MAX_CRYPT_CLUSTERS 32
 #define QCOW_MAX_SNAPSHOTS 65536
 
+/* Field widths in qcow2 mean normal cluster offsets cannot reach
+ * 64PB; depending on cluster size, compressed clusters can have a
+ * smaller limit (64PB for up to 16k clusters, then ramps down to
+ * 512TB for 2M clusters).  */
+#define QCOW_MAX_CLUSTER_OFFSET ((1ULL << 56) - 1)
+
 /* 8 MB refcount table is enough for 2 PB images at 64k cluster size
  * (128 GB for 512 byte clusters, 2 EB for 2 MB clusters) */
 #define QCOW_MAX_REFTABLE_SIZE S_8MiB

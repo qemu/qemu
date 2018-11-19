@@ -40,7 +40,18 @@ The first cluster of a qcow2 image contains the file header:
                     with larger cluster sizes.
 
          24 - 31:   size
-                    Virtual disk size in bytes
+                    Virtual disk size in bytes.
+
+                    Note: qemu has an implementation limit of 32 MB as
+                    the maximum L1 table size.  With a 2 MB cluster
+                    size, it is unable to populate a virtual cluster
+                    beyond 2 EB (61 bits); with a 512 byte cluster
+                    size, it is unable to populate a virtual size
+                    larger than 128 GB (37 bits).  Meanwhile, L1/L2
+                    table layouts limit an image to no more than 64 PB
+                    (56 bits) of populated clusters, and an image may
+                    hit other limits first (such as a file system's
+                    maximum size).
 
          32 - 35:   crypt_method
                     0 for no encryption
@@ -326,6 +337,17 @@ in the image file.
 It contains pointers to the second level structures which are called refcount
 blocks and are exactly one cluster in size.
 
+Although a large enough refcount table can reserve clusters past 64 PB
+(56 bits) (assuming the underlying protocol can even be sized that
+large), note that some qcow2 metadata such as L1/L2 tables must point
+to clusters prior to that point.
+
+Note: qemu has an implementation limit of 8 MB as the maximum refcount
+table size.  With a 2 MB cluster size and a default refcount_order of
+4, it is unable to reference host resources beyond 2 EB (61 bits); in
+the worst case, with a 512 cluster size and refcount_order of 6, it is
+unable to access beyond 32 GB (35 bits).
+
 Given an offset into the image file, the refcount of its cluster can be
 obtained as follows:
 
@@ -364,6 +386,16 @@ guest clusters to host clusters. They are called L1 and L2 table.
 The L1 table has a variable size (stored in the header) and may use multiple
 clusters, however it must be contiguous in the image file. L2 tables are
 exactly one cluster in size.
+
+The L1 and L2 tables have implications on the maximum virtual file
+size; for a given L1 table size, a larger cluster size is required for
+the guest to have access to more space.  Furthermore, a virtual
+cluster must currently map to a host offset below 64 PB (56 bits)
+(although this limit could be relaxed by putting reserved bits into
+use).  Additionally, as cluster size increases, the maximum host
+offset for a compressed cluster is reduced (a 2M cluster size requires
+compressed clusters to reside below 512 TB (49 bits), and this limit
+cannot be relaxed without an incompatible layout change).
 
 Given an offset into the virtual disk, the offset into the image file can be
 obtained as follows:
@@ -427,7 +459,9 @@ Standard Cluster Descriptor:
 Compressed Clusters Descriptor (x = 62 - (cluster_bits - 8)):
 
     Bit  0 - x-1:   Host cluster offset. This is usually _not_ aligned to a
-                    cluster or sector boundary!
+                    cluster or sector boundary!  If cluster_bits is
+                    small enough that this field includes bits beyond
+                    55, those upper bits must be set to 0.
 
          x - 61:    Number of additional 512-byte sectors used for the
                     compressed data, beyond the sector containing the offset

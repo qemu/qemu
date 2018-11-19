@@ -1617,7 +1617,7 @@ static void fdctrl_stop_transfer(FDCtrl *fdctrl, uint8_t status0,
     fdctrl->fifo[5] = cur_drv->sect;
     fdctrl->fifo[6] = FD_SECTOR_SC;
     fdctrl->data_dir = FD_DIR_READ;
-    if (!(fdctrl->msr & FD_MSR_NONDMA)) {
+    if (fdctrl->dma_chann != -1 && !(fdctrl->msr & FD_MSR_NONDMA)) {
         IsaDmaClass *k = ISADMA_GET_CLASS(fdctrl->dma);
         k->release_DREQ(fdctrl->dma, fdctrl->dma_chann);
     }

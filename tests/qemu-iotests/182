@@ -31,6 +31,7 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
+    rm -f "$TEST_IMG.overlay"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -68,6 +69,76 @@ echo 'quit' | $QEMU -nographic -monitor stdio \
     _filter_qemu |
     sed -e '/falling back to POSIX file/d' \
         -e '/locks can be lost unexpectedly/d'
+
+_cleanup_qemu
+
+echo
+echo '=== Testing reopen ==='
+echo
+
+# This tests that reopening does not unshare any permissions it should
+# not unshare
+# (There was a bug where reopening shared exactly the opposite of the
+# permissions it was supposed to share)
+
+_launch_qemu
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'qmp_capabilities'}" \
+    'return'
+
+# Open the image without any format layer (we are not going to access
+# it, so that is fine)
+# This should keep all permissions shared.
+success_or_failure=y _send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'blockdev-add',
+      'arguments': {
+          'node-name': 'node0',
+          'driver': 'file',
+          'filename': '$TEST_IMG',
+          'locking': 'on'
+          } }" \
+    'return' \
+    'error'
+
+# This snapshot will perform a reopen to drop R/W to RO.
+# It should still keep all permissions shared.
+success_or_failure=y _send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'blockdev-snapshot-sync',
+      'arguments': {
+          'node-name': 'node0',
+          'snapshot-file': '$TEST_IMG.overlay',
+          'snapshot-node-name': 'node1'
+      } }" \
+    'return' \
+    'error'
+
+# Now open the same file again
+# This does not require any permissions (and does not unshare any), so
+# this will not conflict with node0.
+success_or_failure=y _send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'blockdev-add',
+      'arguments': {
+          'node-name': 'node1',
+          'driver': 'file',
+          'filename': '$TEST_IMG',
+          'locking': 'on'
+          } }" \
+    'return' \
+    'error'
+
+# Now we attach the image to a virtio-blk device.  This device does
+# require some permissions (at least WRITE and READ_CONSISTENT), so if
+# reopening node0 unshared any (which it should not have), this will
+# fail (but it should not).
+success_or_failure=y _send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'device_add',
+      'arguments': {
+          'driver': 'virtio-blk',
+          'drive': 'node1'
+      } }" \
+    'return' \
+    'error'
 
 _cleanup_qemu
 

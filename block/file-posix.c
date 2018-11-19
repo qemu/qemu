@@ -959,7 +959,7 @@ static void raw_reopen_commit(BDRVReopenState *state)
 
     /* Copy locks to the new fd before closing the old one. */
     raw_apply_lock_bytes(NULL, rs->fd, s->locked_perm,
-                         ~s->locked_shared_perm, false, &local_err);
+                         s->locked_shared_perm, false, &local_err);
     if (local_err) {
         /* shouldn't fail in a sane host, but report it just in case. */
         error_report_err(local_err);

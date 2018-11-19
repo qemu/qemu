@@ -31,7 +31,8 @@
 #include "qemu/bswap.h"
 #include "qemu/cutils.h"
 
-static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size);
+static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size,
+                                    uint64_t max);
 static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
                             int64_t offset, int64_t length, uint64_t addend,
                             bool decrease, enum qcow2_discard_type type);
@@ -362,7 +363,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     }
 
     /* Allocate the refcount block itself and mark it as used */
-    int64_t new_block = alloc_clusters_noref(bs, s->cluster_size);
+    int64_t new_block = alloc_clusters_noref(bs, s->cluster_size, INT64_MAX);
     if (new_block < 0) {
         return new_block;
     }
@@ -954,7 +955,8 @@ int qcow2_update_cluster_refcount(BlockDriverState *bs,
 
 
 /* return < 0 if error */
-static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size)
+static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size,
+                                    uint64_t max)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t i, nb_clusters, refcount;
@@ -979,9 +981,9 @@ retry:
     }
 
     /* Make sure that all offsets in the "allocated" range are representable
-     * in an int64_t */
+     * in the requested max */
     if (s->free_cluster_index > 0 &&
-        s->free_cluster_index - 1 > (INT64_MAX >> s->cluster_bits))
+        s->free_cluster_index - 1 > (max >> s->cluster_bits))
     {
         return -EFBIG;
     }
@@ -1001,7 +1003,7 @@ int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size)
 
     BLKDBG_EVENT(bs->file, BLKDBG_CLUSTER_ALLOC);
     do {
-        offset = alloc_clusters_noref(bs, size);
+        offset = alloc_clusters_noref(bs, size, QCOW_MAX_CLUSTER_OFFSET);
         if (offset < 0) {
             return offset;
         }
@@ -1083,7 +1085,11 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
     free_in_cluster = s->cluster_size - offset_into_cluster(s, offset);
     do {
         if (!offset || free_in_cluster < size) {
-            int64_t new_cluster = alloc_clusters_noref(bs, s->cluster_size);
+            int64_t new_cluster;
+
+            new_cluster = alloc_clusters_noref(bs, s->cluster_size,
+                                               MIN(s->cluster_offset_mask,
+                                                   QCOW_MAX_CLUSTER_OFFSET));
             if (new_cluster < 0) {
                 return new_cluster;
             }
