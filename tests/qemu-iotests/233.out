@@ -1,0 +1,40 @@
+QA output created by 233
+
+== preparing TLS creds ==
+Generating a self signed certificate...
+Generating a self signed certificate...
+Generating a signed certificate...
+Generating a signed certificate...
+Generating a signed certificate...
+
+== preparing image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+wrote 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== check TLS client to plain server fails ==
+qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': Denied by server for option 5 (starttls)
+server reported: TLS not configured
+
+== check plain client to TLS server fails ==
+qemu-img: Could not open 'nbd://localhost:PORT': TLS negotiation required before option 8 (structured reply)
+server reported: Option 0x8 not permitted before TLS
+
+== check TLS works ==
+image: nbd://127.0.0.1:PORT
+file format: nbd
+virtual size: 64M (67108864 bytes)
+disk size: unavailable
+
+== check TLS with different CA fails ==
+option negotiation failed: Verify failed: No certificate was found.
+qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': The certificate hasn't got a known issuer
+
+== perform I/O over TLS ==
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done

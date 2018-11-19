@@ -24,7 +24,6 @@ owner=mreitz@redhat.com
 seq="$(basename $0)"
 echo "QA output created by $seq"
 
-here="$PWD"
 status=1	# failure is the default!
 
 _cleanup()
@@ -41,14 +40,14 @@ _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 
-function do_run_qemu()
+do_run_qemu()
 {
     echo Testing: "$@" | _filter_imgfmt
     $QEMU -nographic -qmp stdio -serial none "$@"
     echo
 }
 
-function run_qemu()
+run_qemu()
 {
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp | _filter_qemu_io
 }

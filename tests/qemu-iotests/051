@@ -24,7 +24,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 _cleanup()
@@ -44,7 +43,7 @@ _supported_os Linux
 # other than refcount_bits=16
 _unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
 
-function do_run_qemu()
+do_run_qemu()
 {
     echo Testing: "$@"
     (
@@ -58,7 +57,7 @@ function do_run_qemu()
     echo
 }
 
-function run_qemu()
+run_qemu()
 {
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu |
         _filter_generated_node_ids | _filter_hmp

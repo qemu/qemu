@@ -24,7 +24,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 _cleanup()
@@ -47,7 +46,7 @@ if [ "$QEMU_DEFAULT_MACHINE" != "pc" ]; then
     _notrun "Requires a PC machine"
 fi
 
-function do_run_qemu()
+do_run_qemu()
 {
     (
         if ! test -t 0; then
@@ -60,7 +59,7 @@ function do_run_qemu()
     echo
 }
 
-function check_floppy_qtree()
+check_floppy_qtree()
 {
     echo
     echo Testing: "$@" | _filter_testdir
@@ -76,7 +75,7 @@ function check_floppy_qtree()
     _filter_win32 | _filter_qemu
 }
 
-function check_cache_mode()
+check_cache_mode()
 {
     echo "info block none0" |
     QEMU_OPTIONS="" do_run_qemu -drive if=none,file="$TEST_IMG" "$@" |

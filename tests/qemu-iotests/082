@@ -24,7 +24,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 _cleanup()
@@ -41,7 +40,7 @@ _supported_fmt qcow2
 _supported_proto file nfs
 _supported_os Linux
 
-function run_qemu_img()
+run_qemu_img()
 {
     echo
     echo Testing: "$@" | _filter_testdir

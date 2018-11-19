@@ -24,7 +24,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 # get standard environment, filters and checks
@@ -37,7 +36,7 @@ _supported_os Linux
 # Because anything other than 16 would change the output of query-block
 _unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
 
-function do_run_qemu()
+do_run_qemu()
 {
     echo Testing: "$@"
     $QEMU -nographic -qmp-pretty stdio -serial none "$@"
@@ -53,7 +52,7 @@ _filter_qmp_events()
 	| tr '\t' '\n'
 }
 
-function run_qemu()
+run_qemu()
 {
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp | _filter_qemu \
                           | _filter_actual_image_size \

@@ -24,7 +24,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 _cleanup()
@@ -55,7 +54,7 @@ TEST_IMG="$TEST_IMG.base"
 
 _make_test_img $size
 
-function backing_io()
+backing_io()
 {
     local offset=$1
     local sectors=$2

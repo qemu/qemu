@@ -25,7 +25,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 _cleanup()
@@ -46,7 +45,7 @@ size=128M
 
 _make_test_img $size
 
-function qemu_io_cmds()
+qemu_io_cmds()
 {
 cat <<EOF
 write -P 0x66 0 320k

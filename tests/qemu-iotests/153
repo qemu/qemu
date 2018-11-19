@@ -24,7 +24,6 @@ owner=famz@redhat.com
 seq="$(basename $0)"
 echo "QA output created by $seq"
 
-here="$PWD"
 tmp=/tmp/$$
 status=1	# failure is the default!
 
@@ -71,7 +70,7 @@ _run_cmd()
     (echo "$@"; "$@" 2>&1 1>/dev/null) | _filter_testdir
 }
 
-function _do_run_qemu()
+_do_run_qemu()
 {
     (
         if ! test -t 0; then
@@ -83,7 +82,7 @@ function _do_run_qemu()
     ) | $QEMU -nographic -monitor stdio -serial none "$@" 1>/dev/null
 }
 
-function _run_qemu_with_images()
+_run_qemu_with_images()
 {
     _do_run_qemu \
         $(for i in $@; do echo "-drive if=none,file=$i"; done) 2>&1 \

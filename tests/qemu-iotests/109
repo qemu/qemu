@@ -24,7 +24,6 @@ owner=kwolf@redhat.com
 seq="$(basename $0)"
 echo "QA output created by $seq"
 
-here="$PWD"
 status=1	# failure is the default!
 
 _cleanup()
@@ -46,7 +45,7 @@ _supported_os Linux
 
 qemu_comm_method=qmp
 
-function run_qemu()
+run_qemu()
 {
     local raw_img="$1"
     local source_img="$2"

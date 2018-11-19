@@ -80,17 +80,17 @@ _full_imgfmt_details()
 
 _full_platform_details()
 {
-    os=`uname -s`
-    host=`hostname -s`
-    kernel=`uname -r`
-    platform=`uname -m`
+    os=$(uname -s)
+    host=$(hostname -s)
+    kernel=$(uname -r)
+    platform=$(uname -m)
     echo "$os/$platform $host $kernel"
 }
 
 # $1 = prog to look for
 set_prog_path()
 {
-    p=`command -v $1 2> /dev/null`
+    p=$(command -v $1 2> /dev/null)
     if [ -n "$p" -a -x "$p" ]; then
         type -p "$p"
     else
@@ -99,7 +99,7 @@ set_prog_path()
 }
 
 if [ -z "$TEST_DIR" ]; then
-        TEST_DIR=`pwd`/scratch
+        TEST_DIR=$PWD/scratch
 fi
 
 if [ ! -e "$TEST_DIR" ]; then
@@ -147,9 +147,9 @@ do
     if $group
     then
         # arg after -g
-        group_list=`sed -n <"$source_iotests/group" -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
+        group_list=$(sed -n <"$source_iotests/group" -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
 s/ .*//p
-}'`
+}')
         if [ -z "$group_list" ]
         then
             echo "Group \"$r\" is empty or not defined?"
@@ -173,9 +173,9 @@ s/ .*//p
         # arg after -x
         # Populate $tmp.list with all tests
         awk '/^[0-9]{3,}/ {print $1}' "${source_iotests}/group" > $tmp.list 2>/dev/null
-        group_list=`sed -n <"$source_iotests/group" -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
+        group_list=$(sed -n <"$source_iotests/group" -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
 s/ .*//p
-}'`
+}')
         if [ -z "$group_list" ]
         then
             echo "Group \"$r\" is empty or not defined?"
@@ -193,7 +193,7 @@ s/ .*//p
                 rm -f $tmp.sed
             fi
             echo "/^$t\$/d" >>$tmp.sed
-            numsed=`expr $numsed + 1`
+            numsed=$(expr $numsed + 1)
         done
         sed -f $tmp.sed <$tmp.list >$tmp.tmp
         mv $tmp.tmp $tmp.list
@@ -433,12 +433,12 @@ testlist options
             ;;
 
         [0-9]*-[0-9]*)
-            eval `echo $r | sed -e 's/^/start=/' -e 's/-/ end=/'`
+            eval $(echo $r | sed -e 's/^/start=/' -e 's/-/ end=/')
             ;;
 
         [0-9]*-)
-            eval `echo $r | sed -e 's/^/start=/' -e 's/-//'`
-            end=`echo [0-9][0-9][0-9] [0-9][0-9][0-9][0-9] | sed -e 's/\[0-9]//g' -e 's/  *$//' -e 's/.* //'`
+            eval $(echo $r | sed -e 's/^/start=/' -e 's/-//')
+            end=$(echo [0-9][0-9][0-9] [0-9][0-9][0-9][0-9] | sed -e 's/\[0-9]//g' -e 's/  *$//' -e 's/.* //')
             if [ -z "$end" ]
             then
                 echo "No tests in range \"$r\"?"
@@ -455,8 +455,8 @@ testlist options
     esac
 
     # get rid of leading 0s as can be interpreted as octal
-    start=`echo $start | sed 's/^0*//'`
-    end=`echo $end | sed 's/^0*//'`
+    start=$(echo $start | sed 's/^0*//')
+    end=$(echo $end | sed 's/^0*//')
 
     if $xpand
     then
@@ -531,7 +531,7 @@ fi
 # should be sort -n, but this did not work for Linux when this
 # was ported from IRIX
 #
-list=`sort $tmp.list`
+list=$(sort $tmp.list)
 rm -f $tmp.list $tmp.tmp $tmp.sed
 
 if [ -z "$QEMU_PROG" ]
@@ -590,7 +590,7 @@ fi
 export QEMU_NBD_PROG="$(type -p "$QEMU_NBD_PROG")"
 
 if [ -z "$QEMU_VXHS_PROG" ]; then
-  export QEMU_VXHS_PROG="`set_prog_path qnio_server`"
+    export QEMU_VXHS_PROG="$(set_prog_path qnio_server)"
 fi
 
 if [ -x "$build_iotests/socket_scm_helper" ]
@@ -616,7 +616,7 @@ _wallclock()
 
 _timestamp()
 {
-    now=`date "+%T"`
+    now=$(date "+%T")
     printf %s " [$now]"
 }
 
@@ -642,9 +642,9 @@ END        { if (NR > 0) {
 
         if [ -f $tmp.expunged ]
         then
-            notrun=`wc -l <$tmp.expunged | sed -e 's/  *//g'`
-            try=`expr $try - $notrun`
-            list=`echo "$list" | sed -f $tmp.expunged`
+            notrun=$(wc -l <$tmp.expunged | sed -e 's/  *//g')
+            try=$(expr $try - $notrun)
+            list=$(echo "$list" | sed -f $tmp.expunged)
         fi
 
         echo "" >>check.log
@@ -682,8 +682,8 @@ trap "_wrapup; exit \$status" 0 1 2 3 15
 
 [ -f $TIMESTAMP_FILE ] || touch $TIMESTAMP_FILE
 
-FULL_IMGFMT_DETAILS=`_full_imgfmt_details`
-FULL_HOST_DETAILS=`_full_platform_details`
+FULL_IMGFMT_DETAILS=$(_full_imgfmt_details)
+FULL_HOST_DETAILS=$(_full_platform_details)
 
 cat <<EOF
 QEMU          -- "$QEMU_PROG" $QEMU_OPTIONS
@@ -729,7 +729,7 @@ do
         # really going to try and run this one
         #
         rm -f $seq.out.bad
-        lasttime=`sed -n -e "/^$seq /s/.* //p" <$TIMESTAMP_FILE`
+        lasttime=$(sed -n -e "/^$seq /s/.* //p" <$TIMESTAMP_FILE)
         if [ "X$lasttime" != X ]; then
                 printf %s " ${lasttime}s ..."
         else
@@ -737,7 +737,7 @@ do
         fi
         rm -f core $seq.notrun
 
-        start=`_wallclock`
+        start=$(_wallclock)
         $timestamp && printf %s "        [$(date "+%T")]"
 
         if [ "$(head -n 1 "$source_iotests/$seq")" == "#!/usr/bin/env python" ]; then
@@ -757,7 +757,7 @@ do
         fi
         sts=$?
         $timestamp && _timestamp
-        stop=`_wallclock`
+        stop=$(_wallclock)
 
         if [ -f core ]
         then
@@ -806,7 +806,7 @@ do
                     then
                         :
                     else
-                        echo "$seq `expr $stop - $start`" >>$tmp.time
+                        echo "$seq $(expr $stop - $start)" >>$tmp.time
                     fi
                 else
                     echo " - output mismatch (see $seq.out.bad)"
@@ -824,14 +824,14 @@ do
     if $err
     then
         bad="$bad $seq"
-        n_bad=`expr $n_bad + 1`
+        n_bad=$(expr $n_bad + 1)
         quick=false
     fi
-    [ -f $seq.notrun ] || try=`expr $try + 1`
+    [ -f $seq.notrun ] || try=$(expr $try + 1)
 
     seq="after_$seq"
 done
 
 interrupt=false
-status=`expr $n_bad`
+status=$(expr $n_bad)
 exit

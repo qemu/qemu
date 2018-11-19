@@ -29,7 +29,6 @@ owner=jcody@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 snapshot_virt0="snapshot-v0.qcow2"
@@ -61,7 +60,7 @@ _supported_os Linux
 
 
 # ${1}: unique identifier for the snapshot filename
-function create_single_snapshot()
+create_single_snapshot()
 {
     cmd="{ 'execute': 'blockdev-snapshot-sync',
                       'arguments': { 'device': 'virtio0',
@@ -71,7 +70,7 @@ function create_single_snapshot()
 }
 
 # ${1}: unique identifier for the snapshot filename
-function create_group_snapshot()
+create_group_snapshot()
 {
     cmd="{ 'execute': 'transaction', 'arguments':
            {'actions': [
@@ -89,7 +88,7 @@ function create_group_snapshot()
 # ${1}: unique identifier for the snapshot filename
 # ${2}: extra_params to the blockdev-add command
 # ${3}: filename
-function do_blockdev_add()
+do_blockdev_add()
 {
     cmd="{ 'execute': 'blockdev-add', 'arguments':
            { 'driver': 'qcow2', 'node-name': 'snap_${1}', ${2}
@@ -100,7 +99,7 @@ function do_blockdev_add()
 }
 
 # ${1}: unique identifier for the snapshot filename
-function add_snapshot_image()
+add_snapshot_image()
 {
     base_image="${TEST_DIR}/$((${1}-1))-${snapshot_virt0}"
     snapshot_file="${TEST_DIR}/${1}-${snapshot_virt0}"
@@ -111,7 +110,7 @@ function add_snapshot_image()
 
 # ${1}: unique identifier for the snapshot filename
 # ${2}: expected response, defaults to 'return'
-function blockdev_snapshot()
+blockdev_snapshot()
 {
     cmd="{ 'execute': 'blockdev-snapshot',
                       'arguments': { 'node': 'virtio0',

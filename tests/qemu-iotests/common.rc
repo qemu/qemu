@@ -160,7 +160,7 @@ fi
 ORIG_TEST_IMG="$TEST_IMG"
 
 if [ -z "$TEST_DIR" ]; then
-        TEST_DIR=`pwd`/scratch
+        TEST_DIR=$PWD/scratch
 fi
 
 QEMU_TEST_DIR="${TEST_DIR}"

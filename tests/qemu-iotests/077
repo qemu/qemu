@@ -24,7 +24,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 _cleanup()
@@ -49,7 +48,7 @@ _make_test_img $size
 echo
 echo "== Some concurrent requests involving RMW =="
 
-function test_io()
+test_io()
 {
 echo "open -o driver=$IMGFMT,file.align=4k blkdebug::$TEST_IMG"
 # A simple RMW request
@@ -194,7 +193,7 @@ test_io | $QEMU_IO  | _filter_qemu_io | \
 echo
 echo "== Verify image content =="
 
-function verify_io()
+verify_io()
 {
     # A simple RMW request
     echo read -P 0       0 0x200

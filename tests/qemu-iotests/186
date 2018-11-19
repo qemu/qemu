@@ -24,7 +24,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 _cleanup()
@@ -45,7 +44,7 @@ if [ "$QEMU_DEFAULT_MACHINE" != "pc" ]; then
     _notrun "Requires a PC machine"
 fi
 
-function do_run_qemu()
+do_run_qemu()
 {
     echo Testing: "$@"
 
@@ -60,7 +59,7 @@ function do_run_qemu()
     echo
 }
 
-function check_info_block()
+check_info_block()
 {
     echo "info block" |
     do_run_qemu "$@" | _filter_win32 | _filter_hmp | _filter_qemu |

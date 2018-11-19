@@ -60,7 +60,7 @@ _in_fd=4
 # $3: A string to search for in the response; if found, this indicates
 #     failure and the test is either aborted (if $qemu_error_no_exit
 #     is not set) or ${QEMU_STATUS[$1]} is set to -1 (otherwise).
-function _timed_wait_for()
+_timed_wait_for()
 {
     local h=${1}
     shift
@@ -131,7 +131,7 @@ function _timed_wait_for()
 # strings the response will be scanned for.  The first of the two
 # indicates success, the latter indicates failure.  Failure is handled
 # like a timeout.
-function _send_qemu_cmd()
+_send_qemu_cmd()
 {
     local h=${1}
     local count=1
@@ -186,7 +186,7 @@ function _send_qemu_cmd()
 # Returns:
 # $QEMU_HANDLE: set to a handle value to communicate with this QEMU instance.
 #
-function _launch_qemu()
+_launch_qemu()
 {
     local comm=
     local fifo_out=
@@ -262,7 +262,7 @@ function _launch_qemu()
 # If $wait is set to anything other than the empty string, the process will not
 # be killed but only waited for, and any output will be forwarded to stdout. If
 # $wait is empty, the process will be killed and all output will be suppressed.
-function _cleanup_qemu()
+_cleanup_qemu()
 {
     # QEMU_PID[], QEMU_IN[], QEMU_OUT[] all use same indices
     for i in "${!QEMU_OUT[@]}"

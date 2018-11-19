@@ -1,0 +1,109 @@
+#!/bin/bash
+# -*- shell-script-mode -*-
+#
+# Helpers for NBD server related config
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+nbd_unix_socket="${TEST_DIR}/qemu-nbd.sock"
+nbd_tcp_addr="127.0.0.1"
+nbd_pid_file="${TEST_DIR}/qemu-nbd.pid"
+
+nbd_server_stop()
+{
+    local NBD_PID
+    if [ -f "$nbd_pid_file" ]; then
+        read NBD_PID < "$nbd_pid_file"
+        rm -f "$nbd_pid_file"
+        if [ -n "$NBD_PID" ]; then
+            kill "$NBD_PID"
+        fi
+    fi
+    rm -f "$nbd_unix_socket"
+}
+
+nbd_server_wait_for_unix_socket()
+{
+    pid=$1
+
+    for ((i = 0; i < 300; i++))
+    do
+        if [ -r "$nbd_unix_socket" ]; then
+            return
+        fi
+        kill -s 0 $pid 2>/dev/null
+        if test $? != 0
+        then
+            echo "qemu-nbd unexpectedly quit"
+            exit 1
+        fi
+        sleep 0.1
+    done
+    echo "Failed in check of unix socket created by qemu-nbd"
+    exit 1
+}
+
+nbd_server_start_unix_socket()
+{
+    nbd_server_stop
+    $QEMU_NBD -v -t -k "$nbd_unix_socket" "$@" &
+    nbd_server_wait_for_unix_socket $!
+}
+
+nbd_server_set_tcp_port()
+{
+    (ss --help) >/dev/null 2>&1 || _notrun "ss utility not found, skipping test"
+
+    for ((port = 10809; port <= 10909; port++))
+    do
+        if ! ss -tln | grep -sqE ":$port\b"; then
+            nbd_tcp_port=$port
+            return
+        fi
+    done
+
+    echo "Cannot find free TCP port for nbd in range 10809-10909"
+    exit 1
+}
+
+nbd_server_wait_for_tcp_socket()
+{
+    pid=$1
+
+    for ((i = 0; i < 300; i++))
+    do
+        if ss -tln | grep -sqE ":$nbd_tcp_port\b"; then
+            return
+        fi
+        kill -s 0 $pid 2>/dev/null
+        if test $? != 0
+        then
+            echo "qemu-nbd unexpectedly quit"
+            exit 1
+        fi
+        sleep 0.1
+    done
+    echo "Failed in check of TCP socket created by qemu-nbd"
+    exit 1
+}
+
+nbd_server_start_tcp_socket()
+{
+    nbd_server_stop
+    $QEMU_NBD -v -t -b $nbd_tcp_addr -p $nbd_tcp_port "$@" &
+    nbd_server_wait_for_tcp_socket $!
+}

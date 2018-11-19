@@ -24,7 +24,6 @@ owner="Manos Pitsidianakis"
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 trap "exit \$status" 0 1 2 3 15
@@ -35,14 +34,14 @@ trap "exit \$status" 0 1 2 3 15
 
 _supported_os Linux
 
-function do_run_qemu()
+do_run_qemu()
 {
     echo Testing: "$@" | _filter_imgfmt
     $QEMU -nographic -qmp-pretty stdio -serial none "$@"
     echo
 }
 
-function run_qemu()
+run_qemu()
 {
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp\
                           | _filter_qemu_io | _filter_generated_node_ids \

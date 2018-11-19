@@ -25,7 +25,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 _cleanup()
@@ -50,7 +49,7 @@ echo
 echo "creating image"
 _make_test_img $size
 
-function generate_requests() {
+generate_requests() {
     for i in $(seq 0 63); do
         echo "aio_write ${i}M 512"
         echo "aio_write ${i}M 512"

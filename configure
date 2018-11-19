@@ -878,7 +878,7 @@ Linux)
   vhost_crypto="yes"
   vhost_scsi="yes"
   vhost_vsock="yes"
-  QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$(pwd)/linux-headers $QEMU_INCLUDES"
+  QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$PWD/linux-headers $QEMU_INCLUDES"
   supported_os="yes"
   libudev="yes"
 ;;

@@ -24,7 +24,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 _cleanup()
@@ -52,7 +51,7 @@ TEST_IMG="$TEST_IMG.base"
 
 _make_test_img $size
 
-function backing_io()
+backing_io()
 {
     local offset=$1
     local sectors=$2
@@ -77,7 +76,7 @@ _make_test_img -b "$TEST_IMG.base" 6G
 echo
 echo "== Some concurrent requests touching the same cluster =="
 
-function overlay_io()
+overlay_io()
 {
     # Start with a request touching two clusters
     echo aio_write -P 0x80 2020k 80k
@@ -103,7 +102,7 @@ overlay_io | $QEMU_IO "$TEST_IMG" | _filter_qemu_io |\
 echo
 echo "== Verify image content =="
 
-function verify_io()
+verify_io()
 {
     echo read -P 31 2016k 4k
     echo read -P 0x80 2020k 80k

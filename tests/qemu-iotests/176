@@ -29,7 +29,6 @@ owner=mreitz@redhat.com
 seq="$(basename $0)"
 echo "QA output created by $seq"
 
-here="$PWD"
 status=1	# failure is the default!
 
 _cleanup()
@@ -51,7 +50,7 @@ _supported_os Linux
 # Persistent dirty bitmaps require compat=1.1
 _unsupported_imgopts 'compat=0.10'
 
-function run_qemu()
+run_qemu()
 {
     $QEMU -nographic -qmp stdio -serial none "$@" 2>&1 \
 	| _filter_testdir | _filter_qmp | _filter_qemu \

@@ -24,7 +24,6 @@ owner=kwolf@redhat.com
 seq=`basename $0`
 echo "QA output created by $seq"
 
-here=`pwd`
 status=1	# failure is the default!
 
 _cleanup()
@@ -49,7 +48,7 @@ echo "== creating backing file for COW tests =="
 
 _make_test_img $size
 
-function backing_io()
+backing_io()
 {
     local offset=$1
     local sectors=$2
@@ -74,7 +73,7 @@ _make_test_img -b "$TEST_IMG.base" 6G
 echo
 echo "== Some concurrent requests touching the same cluster =="
 
-function overlay_io()
+overlay_io()
 {
 # Allocate middle of cluster 1, then write to somewhere before and after it
 cat  <<EOF
@@ -190,7 +189,7 @@ overlay_io | $QEMU_IO blkdebug::"$TEST_IMG" | _filter_qemu_io |\
 echo
 echo "== Verify image content =="
 
-function verify_io()
+verify_io()
 {
     if ($QEMU_IMG info -U -f "$IMGFMT" "$TEST_IMG" | grep "compat: 0.10" > /dev/null); then
         # For v2 images, discarded clusters are read from the backing file

@@ -5,9 +5,9 @@ if [ "$#" -ne 0 ]; then
     FORMAT_LIST="$@"
 fi
 
-export QEMU_PROG="$(pwd)/x86_64-softmmu/qemu-system-x86_64"
-export QEMU_IMG_PROG="$(pwd)/qemu-img"
-export QEMU_IO_PROG="$(pwd)/qemu-io"
+export QEMU_PROG="$PWD/x86_64-softmmu/qemu-system-x86_64"
+export QEMU_IMG_PROG="$PWD/qemu-img"
+export QEMU_IO_PROG="$PWD/qemu-io"
 
 if [ ! -x $QEMU_PROG ]; then
     echo "'make check-block' requires qemu-system-x86_64"

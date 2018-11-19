@@ -25,7 +25,6 @@ owner=mreitz@redhat.com
 seq="$(basename $0)"
 echo "QA output created by $seq"
 
-here="$PWD"
 status=1	# failure is the default!
 
 _cleanup()
@@ -46,12 +45,12 @@ _supported_os Linux
 _unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat" \
     "subformat=twoGbMaxExtentSparse"
 
-function do_run_qemu()
+do_run_qemu()
 {
     $QEMU -nographic -qmp stdio -serial none "$@"
 }
 
-function run_qemu()
+run_qemu()
 {
     # Get the "file": "foo" entry ($foo may only contain escaped double quotes,
     # which is how we can extract it)
@@ -60,7 +59,7 @@ function run_qemu()
         | sed -e 's/^.*"file": "\(\(\\"\|[^"]\)*\)".*$/\1/' -e 's/\\"/"/g'
 }
 
-function test_qemu()
+test_qemu()
 {
     run_qemu -drive "if=none,id=drv0,$1" <<EOF
         { 'execute': 'qmp_capabilities' }
