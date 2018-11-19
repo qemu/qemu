@@ -62,17 +62,6 @@ int add_exec(struct ex_list **ex_ptr, void *chardev, const char *cmdline,
 }
 
 
-#ifdef _WIN32
-
-int
-fork_exec(struct socket *so, const char *ex)
-{
-    /* not implemented */
-    return 0;
-}
-
-#else
-
 static int
 slirp_socketpair_with_oob(int sv[2])
 {
@@ -132,7 +121,9 @@ err:
 static void
 fork_exec_child_setup(gpointer data)
 {
+#ifndef _WIN32
     setsid();
+#endif
 }
 
 int
@@ -177,7 +168,6 @@ fork_exec(struct socket *so, const char *ex)
     qemu_set_nonblock(so->s);
     return 1;
 }
-#endif
 
 char *slirp_connection_info(Slirp *slirp)
 {
