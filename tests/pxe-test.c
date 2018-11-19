@@ -61,6 +61,7 @@ static testdef_t s390x_tests[] = {
 
 static void test_pxe_one(const testdef_t *test, bool ipv6)
 {
+    QTestState *qts;
     char *args;
 
     args = g_strdup_printf(
@@ -70,9 +71,9 @@ static void test_pxe_one(const testdef_t *test, bool ipv6)
         test->machine, disk, ipv6 ? "off" : "on", ipv6 ? "on" : "off",
         test->model);
 
-    qtest_start(args);
-    boot_sector_test(global_qtest);
-    qtest_quit(global_qtest);
+    qts = qtest_init(args);
+    boot_sector_test(qts);
+    qtest_quit(qts);
     g_free(args);
 }
 
