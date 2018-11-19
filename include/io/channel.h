@@ -51,9 +51,9 @@ enum QIOChannelFeature {
 typedef enum QIOChannelShutdown QIOChannelShutdown;
 
 enum QIOChannelShutdown {
-    QIO_CHANNEL_SHUTDOWN_BOTH,
-    QIO_CHANNEL_SHUTDOWN_READ,
-    QIO_CHANNEL_SHUTDOWN_WRITE,
+    QIO_CHANNEL_SHUTDOWN_READ = 1,
+    QIO_CHANNEL_SHUTDOWN_WRITE = 2,
+    QIO_CHANNEL_SHUTDOWN_BOTH = 3,
 };
 
 typedef gboolean (*QIOChannelFunc)(QIOChannel *ioc,

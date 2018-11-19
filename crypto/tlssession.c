@@ -473,6 +473,9 @@ qcrypto_tls_session_read(QCryptoTLSSession *session,
         case GNUTLS_E_INTERRUPTED:
             errno = EINTR;
             break;
+        case GNUTLS_E_PREMATURE_TERMINATION:
+            errno = ECONNABORTED;
+            break;
         default:
             errno = EIO;
             break;
