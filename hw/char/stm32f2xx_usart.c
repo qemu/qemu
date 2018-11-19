@@ -202,7 +202,7 @@ static void stm32f2xx_usart_init(Object *obj)
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
 
     memory_region_init_io(&s->mmio, obj, &stm32f2xx_usart_ops, s,
-                          TYPE_STM32F2XX_USART, 0x2000);
+                          TYPE_STM32F2XX_USART, 0x400);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
 }
 

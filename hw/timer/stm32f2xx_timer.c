@@ -308,7 +308,7 @@ static void stm32f2xx_timer_init(Object *obj)
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
 
     memory_region_init_io(&s->iomem, obj, &stm32f2xx_timer_ops, s,
-                          "stm32f2xx_timer", 0x4000);
+                          "stm32f2xx_timer", 0x400);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
 
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, stm32f2xx_timer_interrupt, s);
