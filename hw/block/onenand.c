@@ -28,6 +28,7 @@
 #include "exec/memory.h"
 #include "hw/sysbus.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 
 /* 11 for 2kB-page OneNAND ("2nd generation") and 10 for 1kB-page chips */
 #define PAGE_SHIFT	11
@@ -594,8 +595,8 @@ static void onenand_command(OneNANDState *s)
     default:
         s->status |= ONEN_ERR_CMD;
         s->intstatus |= ONEN_INT;
-        fprintf(stderr, "%s: unknown OneNAND command %x\n",
-                        __func__, s->command);
+        qemu_log_mask(LOG_GUEST_ERROR, "unknown OneNAND command %x\n",
+                      s->command);
     }
 
     onenand_intr_update(s);
@@ -608,7 +609,7 @@ static uint64_t onenand_read(void *opaque, hwaddr addr,
     int offset = addr >> s->shift;
 
     switch (offset) {
-    case 0x0000 ... 0xc000:
+    case 0x0000 ... 0xbffe:
         return lduw_le_p(s->boot[0] + addr);
 
     case 0xf000:	/* Manufacturer ID */
@@ -657,12 +658,13 @@ static uint64_t onenand_read(void *opaque, hwaddr addr,
     case 0xff02:	/* ECC Result of spare area data */
     case 0xff03:	/* ECC Result of main area data */
     case 0xff04:	/* ECC Result of spare area data */
-        hw_error("%s: implement ECC\n", __func__);
+        qemu_log_mask(LOG_UNIMP,
+                      "onenand: ECC result registers unimplemented\n");
         return 0x0000;
     }
 
-    fprintf(stderr, "%s: unknown OneNAND register %x\n",
-                    __func__, offset);
+    qemu_log_mask(LOG_GUEST_ERROR, "read of unknown OneNAND register 0x%x\n",
+                  offset);
     return 0;
 }
 
@@ -706,8 +708,9 @@ static void onenand_write(void *opaque, hwaddr addr,
             break;
 
         default:
-            fprintf(stderr, "%s: unknown OneNAND boot command %"PRIx64"\n",
-                            __func__, value);
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "unknown OneNAND boot command %" PRIx64 "\n",
+                          value);
         }
         break;
 
@@ -757,8 +760,9 @@ static void onenand_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        fprintf(stderr, "%s: unknown OneNAND register %x\n",
-                        __func__, offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "write to unknown OneNAND register 0x%x\n",
+                      offset);
     }
 }
 

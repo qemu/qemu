@@ -442,8 +442,9 @@ ARM Machines
 ------------
 Allwinner-a10
 M: Beniamino Galvani <b.galvani@gmail.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/*/allwinner*
 F: include/hw/*/allwinner*
 F: hw/arm/cubieboard.c
@@ -502,40 +503,46 @@ F: tests/test-arm-mptimer.c
 
 Exynos
 M: Igor Mitsyanko <i.mitsyanko@gmail.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/*/exynos*
 F: include/hw/arm/exynos4210.h
 
 Calxeda Highbank
 M: Rob Herring <robh@kernel.org>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/arm/highbank.c
 F: hw/net/xgmac.c
 
 Canon DIGIC
 M: Antony Pavlov <antonynpavlov@gmail.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: include/hw/arm/digic.h
 F: hw/*/digic*
 
 Gumstix
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Peter Maydell <peter.maydell@linaro.org>
+R: Philippe Mathieu-Daudé <f4bug@amsat.org>
 L: qemu-devel@nongnu.org
 L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/gumstix.c
 
-i.MX31
+i.MX31 (kzm)
 M: Peter Chubb <peter.chubb@nicta.com.au>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Odd fixes
-F: hw/*/imx*
-F: include/hw/*/imx*
+S: Odd Fixes
 F: hw/arm/kzm.c
-F: include/hw/arm/fsl-imx31.h
+F: hw/*/imx_*
+F: hw/*/*imx31*
+F: include/hw/*/imx_*
+F: include/hw/*/*imx31*
 
 Integrator CP
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -543,6 +550,28 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/integratorcp.c
 F: hw/misc/arm_integrator_debug.c
+
+MCIMX6UL EVK / i.MX6ul
+M: Peter Maydell <peter.maydell@linaro.org>
+R: Jean-Christophe Dubois <jcd@tribudubois.net>
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: hw/arm/mcimx6ul-evk.c
+F: hw/arm/fsl-imx6ul.c
+F: hw/misc/imx6ul_ccm.c
+F: include/hw/arm/fsl-imx6ul.h
+F: include/hw/misc/imx6ul_ccm.h
+
+MCIMX7D SABRE / i.MX7
+M: Peter Maydell <peter.maydell@linaro.org>
+R: Andrey Smirnov <andrew.smirnov@gmail.com>
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: hw/arm/mcimx7d-sabre.c
+F: hw/arm/fsl-imx7.c
+F: include/hw/arm/fsl-imx7.h
+F: hw/pci-host/designware.c
+F: include/hw/pci-host/designware.h
 
 MPS2
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -561,21 +590,35 @@ F: include/hw/misc/iotkit-sysinfo.h
 
 Musicpal
 M: Jan Kiszka <jan.kiszka@web.de>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/arm/musicpal.c
 
 nSeries
 M: Andrzej Zaborowski <balrogg@gmail.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/arm/nseries.c
 
 Palm
 M: Andrzej Zaborowski <balrogg@gmail.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/arm/palm.c
+
+Raspberry Pi
+M: Peter Maydell <peter.maydell@linaro.org>
+R: Andrew Baumann <Andrew.Baumann@microsoft.com>
+R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: hw/arm/raspi_platform.h
+F: hw/*/bcm283*
+F: include/hw/arm/raspi*
+F: include/hw/*/bcm283*
 
 Real View
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -588,8 +631,9 @@ F: include/hw/intc/realview_gic.h
 
 PXA2XX
 M: Andrzej Zaborowski <balrogg@gmail.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/arm/mainstone.c
 F: hw/arm/spitz.c
 F: hw/arm/tosa.c
@@ -597,6 +641,19 @@ F: hw/arm/z2.c
 F: hw/*/pxa2xx*
 F: hw/misc/mst_fpga.c
 F: include/hw/arm/pxa.h
+
+SABRELITE / i.MX6
+M: Peter Maydell <peter.maydell@linaro.org>
+R: Jean-Christophe Dubois <jcd@tribudubois.net>
+L: qemu-arm@nongnu.org
+S: Odd Fixes
+F: hw/arm/sabrelite.c
+F: hw/arm/fsl-imx6.c
+F: hw/misc/imx6_src.c
+F: hw/ssi/imx_spi.c
+F: include/hw/arm/fsl-imx6.h
+F: include/hw/misc/imx6_src.h
+F: include/hw/ssi/imx_spi.h
 
 Sharp SL-5500 (Collie) PDA
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -611,6 +668,12 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/stellaris*
 
+Versatile Express
+M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/vexpress.c
+
 Versatile PB
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
@@ -618,9 +681,17 @@ S: Maintained
 F: hw/*/versatile*
 F: hw/misc/arm_sysctl.c
 
+Virt
+M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/virt*
+F: include/hw/arm/virt.h
+
 Xilinx Zynq
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 M: Alistair Francis <alistair@alistair23.me>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/xilinx_*
@@ -632,6 +703,7 @@ X: hw/ssi/xilinx_*
 Xilinx ZynqMP
 M: Alistair Francis <alistair@alistair23.me>
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/xlnx*.c
@@ -645,6 +717,7 @@ F: hw/arm/virt-acpi-build.c
 
 STM32F205
 M: Alistair Francis <alistair@alistair23.me>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/stm32f205_soc.c
 F: hw/misc/stm32f2xx_syscfg.c
@@ -656,11 +729,13 @@ F: include/hw/*/stm32*.h
 
 Netduino 2
 M: Alistair Francis <alistair@alistair23.me>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/netduino2.c
 
 SmartFusion2
 M: Subbaraya Sundeep <sundeep.lkml@gmail.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/msf2-soc.c
 F: hw/misc/msf2-sysreg.c
@@ -673,11 +748,13 @@ F: include/hw/ssi/mss-spi.h
 
 Emcraft M2S-FG484
 M: Subbaraya Sundeep <sundeep.lkml@gmail.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/msf2-som.c
 
 ASPEED BMCs
 M: Cédric Le Goater <clg@kaod.org>
+M: Peter Maydell <peter.maydell@linaro.org>
 R: Andrew Jeffery <andrew@aj.id.au>
 R: Joel Stanley <joel@jms.id.au>
 L: qemu-arm@nongnu.org
@@ -689,6 +766,7 @@ F: include/hw/net/ftgmac100.h
 
 NRF51
 M: Joel Stanley <joel@jms.id.au>
+M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/nrf51_soc.c
