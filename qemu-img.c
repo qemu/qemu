@@ -261,7 +261,7 @@ static int print_block_option_help(const char *filename, const char *fmt)
             return 1;
         }
         if (!proto_drv->create_opts) {
-            error_report("Protocal driver '%s' does not support image creation",
+            error_report("Protocol driver '%s' does not support image creation",
                          proto_drv->format_name);
             return 1;
         }
