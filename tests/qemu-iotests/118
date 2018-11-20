@@ -53,21 +53,17 @@ class ChangeBaseClass(iotests.QMPTestCase):
         if not self.has_real_tray:
             return
 
-        timeout = time.clock() + 3
-        while not self.has_opened and time.clock() < timeout:
-            self.process_events()
-        if not self.has_opened:
-            self.fail('Timeout while waiting for the tray to open')
+        with iotests.Timeout(3, 'Timeout while waiting for the tray to open'):
+            while not self.has_opened:
+                self.process_events()
 
     def wait_for_close(self):
         if not self.has_real_tray:
             return
 
-        timeout = time.clock() + 3
-        while not self.has_closed and time.clock() < timeout:
-            self.process_events()
-        if not self.has_opened:
-            self.fail('Timeout while waiting for the tray to close')
+        with iotests.Timeout(3, 'Timeout while waiting for the tray to close'):
+            while not self.has_closed:
+                self.process_events()
 
 class GeneralChangeTestsBaseClass(ChangeBaseClass):
 
