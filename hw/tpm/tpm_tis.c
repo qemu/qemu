@@ -233,7 +233,7 @@ static void tpm_tis_new_active_locality(TPMState *s, uint8_t new_active_locty)
 }
 
 /* abort -- this function switches the locality */
-static void tpm_tis_abort(TPMState *s, uint8_t locty)
+static void tpm_tis_abort(TPMState *s)
 {
     s->rw_offset = 0;
 
@@ -281,7 +281,7 @@ static void tpm_tis_prep_abort(TPMState *s, uint8_t locty, uint8_t newlocty)
         }
     }
 
-    tpm_tis_abort(s, locty);
+    tpm_tis_abort(s);
 }
 
 /*
@@ -311,7 +311,7 @@ static void tpm_tis_request_completed(TPMIf *ti, int ret)
     }
 
     if (TPM_TIS_IS_VALID_LOCTY(s->next_locty)) {
-        tpm_tis_abort(s, locty);
+        tpm_tis_abort(s);
     }
 
     tpm_tis_raise_irq(s, locty,
