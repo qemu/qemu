@@ -120,7 +120,7 @@ static uint64_t imx_i2c_read(void *opaque, hwaddr offset,
         value = s->i2dr_read;
 
         if (imx_i2c_is_master(s)) {
-            int ret = 0xff;
+            uint8_t ret = 0xff;
 
             if (s->address == ADDR_RESET) {
                 /* something is wrong as the address is not set */
@@ -133,15 +133,7 @@ static uint64_t imx_i2c_read(void *opaque, hwaddr offset,
             } else {
                 /* get the next byte */
                 ret = i2c_recv(s->bus);
-
-                if (ret >= 0) {
-                    imx_i2c_raise_interrupt(s);
-                } else {
-                    qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: read failed "
-                                  "for device 0x%02x\n", TYPE_IMX_I2C,
-                                  __func__, s->address);
-                    ret = 0xff;
-                }
+                imx_i2c_raise_interrupt(s);
             }
 
             s->i2dr_read = ret;
