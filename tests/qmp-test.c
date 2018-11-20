@@ -318,6 +318,19 @@ static void test_qmp_preconfig(void)
     qtest_quit(qs);
 }
 
+static void test_qmp_missing_any_arg(void)
+{
+    QTestState *qts;
+    QDict *resp;
+
+    qts = qtest_init(common_args);
+    resp = qtest_qmp(qts, "{'execute': 'qom-set', 'arguments':"
+                     " { 'path': '/machine', 'property': 'rtc-time' } }");
+    g_assert_nonnull(resp);
+    qmp_assert_error_class(resp, "GenericError");
+    qtest_quit(qts);
+}
+
 int main(int argc, char *argv[])
 {
     g_test_init(&argc, &argv, NULL);
@@ -325,6 +338,7 @@ int main(int argc, char *argv[])
     qtest_add_func("qmp/protocol", test_qmp_protocol);
     qtest_add_func("qmp/oob", test_qmp_oob);
     qtest_add_func("qmp/preconfig", test_qmp_preconfig);
+    qtest_add_func("qmp/missing-any-arg", test_qmp_missing_any_arg);
 
     return g_test_run();
 }
