@@ -79,7 +79,7 @@ static void tmp105_set_temperature(Object *obj, Visitor *v, const char *name,
         return;
     }
     if (temp >= 128000 || temp < -128000) {
-        error_setg(errp, "value %" PRId64 ".%03" PRIu64 " °C is out of range",
+        error_setg(errp, "value %" PRId64 ".%03" PRIu64 " C is out of range",
                    temp / 1000, temp % 1000);
         return;
     }
