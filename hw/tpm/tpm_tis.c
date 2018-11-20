@@ -263,7 +263,9 @@ static void tpm_tis_prep_abort(TPMState *s, uint8_t locty, uint8_t newlocty)
 {
     uint8_t busy_locty;
 
-    s->aborting_locty = locty;
+    assert(TPM_TIS_IS_VALID_LOCTY(newlocty));
+
+    s->aborting_locty = locty; /* may also be TPM_TIS_NO_LOCALITY */
     s->next_locty = newlocty;  /* locality after successful abort */
 
     /*
