@@ -1012,24 +1012,24 @@ void tcg_gen_bswap32_i32(TCGv_i32 ret, TCGv_i32 arg)
     if (TCG_TARGET_HAS_bswap32_i32) {
         tcg_gen_op2_i32(INDEX_op_bswap32_i32, ret, arg);
     } else {
-        TCGv_i32 t0, t1;
-        t0 = tcg_temp_new_i32();
-        t1 = tcg_temp_new_i32();
+        TCGv_i32 t0 = tcg_temp_new_i32();
+        TCGv_i32 t1 = tcg_temp_new_i32();
+        TCGv_i32 t2 = tcg_const_i32(0x00ff00ff);
 
-        tcg_gen_shli_i32(t0, arg, 24);
+                                        /* arg = abcd */
+        tcg_gen_shri_i32(t0, arg, 8);   /*  t0 = .abc */
+        tcg_gen_and_i32(t1, arg, t2);   /*  t1 = .b.d */
+        tcg_gen_and_i32(t0, t0, t2);    /*  t0 = .a.c */
+        tcg_gen_shli_i32(t1, t1, 8);    /*  t1 = b.d. */
+        tcg_gen_or_i32(ret, t0, t1);    /* ret = badc */
 
-        tcg_gen_andi_i32(t1, arg, 0x0000ff00);
-        tcg_gen_shli_i32(t1, t1, 8);
-        tcg_gen_or_i32(t0, t0, t1);
+        tcg_gen_shri_i32(t0, ret, 16);  /*  t0 = ..ba */
+        tcg_gen_shli_i32(t1, ret, 16);  /*  t1 = dc.. */
+        tcg_gen_or_i32(ret, t0, t1);    /* ret = dcba */
 
-        tcg_gen_shri_i32(t1, arg, 8);
-        tcg_gen_andi_i32(t1, t1, 0x0000ff00);
-        tcg_gen_or_i32(t0, t0, t1);
-
-        tcg_gen_shri_i32(t1, arg, 24);
-        tcg_gen_or_i32(ret, t0, t1);
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);
+        tcg_temp_free_i32(t2);
     }
 }
 
@@ -1638,25 +1638,25 @@ void tcg_gen_bswap32_i64(TCGv_i64 ret, TCGv_i64 arg)
     } else if (TCG_TARGET_HAS_bswap32_i64) {
         tcg_gen_op2_i64(INDEX_op_bswap32_i64, ret, arg);
     } else {
-        TCGv_i64 t0, t1;
-        t0 = tcg_temp_new_i64();
-        t1 = tcg_temp_new_i64();
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        TCGv_i64 t1 = tcg_temp_new_i64();
+        TCGv_i64 t2 = tcg_const_i64(0x00ff00ff);
 
-        tcg_gen_shli_i64(t0, arg, 24);
-        tcg_gen_ext32u_i64(t0, t0);
+                                        /* arg = ....abcd */
+        tcg_gen_shri_i64(t0, arg, 8);   /*  t0 = .....abc */
+        tcg_gen_and_i64(t1, arg, t2);   /*  t1 = .....b.d */
+        tcg_gen_and_i64(t0, t0, t2);    /*  t0 = .....a.c */
+        tcg_gen_shli_i64(t1, t1, 8);    /*  t1 = ....b.d. */
+        tcg_gen_or_i64(ret, t0, t1);    /* ret = ....badc */
 
-        tcg_gen_andi_i64(t1, arg, 0x0000ff00);
-        tcg_gen_shli_i64(t1, t1, 8);
-        tcg_gen_or_i64(t0, t0, t1);
+        tcg_gen_shli_i64(t1, ret, 48);  /*  t1 = dc...... */
+        tcg_gen_shri_i64(t0, ret, 16);  /*  t0 = ......ba */
+        tcg_gen_shri_i64(t1, t1, 32);   /*  t1 = ....dc.. */
+        tcg_gen_or_i64(ret, t0, t1);    /* ret = ....dcba */
 
-        tcg_gen_shri_i64(t1, arg, 8);
-        tcg_gen_andi_i64(t1, t1, 0x0000ff00);
-        tcg_gen_or_i64(t0, t0, t1);
-
-        tcg_gen_shri_i64(t1, arg, 24);
-        tcg_gen_or_i64(ret, t0, t1);
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
+        tcg_temp_free_i64(t2);
     }
 }
 
