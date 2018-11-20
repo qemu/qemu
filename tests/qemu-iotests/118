@@ -261,7 +261,7 @@ class GeneralChangeTestsBaseClass(ChangeBaseClass):
         result = self.vm.qmp('blockdev-close-tray', id=self.device_name)
         # Should be a no-op
         self.assert_qmp(result, 'return', {})
-        self.assertEquals(self.vm.get_qmp_events(wait=False), [])
+        self.assertEqual(self.vm.get_qmp_events(wait=False), [])
 
     def test_remove_on_closed(self):
         if not self.has_real_tray:
@@ -448,7 +448,7 @@ class TestChangeReadOnly(ChangeBaseClass):
                                                        read_only_mode='retain')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-        self.assertEquals(self.vm.get_qmp_events(wait=False), [])
+        self.assertEqual(self.vm.get_qmp_events(wait=False), [])
 
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/inserted/ro', False)

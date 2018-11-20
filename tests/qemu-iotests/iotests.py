@@ -581,7 +581,7 @@ class QMPTestCase(unittest.TestCase):
     def wait_ready_and_cancel(self, drive='drive0'):
         self.wait_ready(drive=drive)
         event = self.cancel_and_wait(drive=drive)
-        self.assertEquals(event['event'], 'BLOCK_JOB_COMPLETED')
+        self.assertEqual(event['event'], 'BLOCK_JOB_COMPLETED')
         self.assert_qmp(event, 'data/type', 'mirror')
         self.assert_qmp(event, 'data/offset', event['data']['len'])
 
