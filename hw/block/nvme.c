@@ -1192,7 +1192,7 @@ static const MemoryRegionOps nvme_cmb_ops = {
     .write = nvme_cmb_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
-        .min_access_size = 2,
+        .min_access_size = 1,
         .max_access_size = 8,
     },
 };
