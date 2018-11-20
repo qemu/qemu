@@ -45,15 +45,20 @@ void xtensa_count_regs(const XtensaConfig *config,
                        unsigned *n_regs, unsigned *n_core_regs)
 {
     unsigned i;
+    bool count_core_regs = true;
 
     for (i = 0; config->gdb_regmap.reg[i].targno >= 0; ++i) {
         if (config->gdb_regmap.reg[i].type != xtRegisterTypeTieState &&
             config->gdb_regmap.reg[i].type != xtRegisterTypeMapped &&
             config->gdb_regmap.reg[i].type != xtRegisterTypeUnmapped) {
             ++*n_regs;
-            if ((config->gdb_regmap.reg[i].flags &
-                 XTENSA_REGISTER_FLAGS_PRIVILEGED) == 0) {
-                ++*n_core_regs;
+            if (count_core_regs) {
+                if ((config->gdb_regmap.reg[i].flags &
+                     XTENSA_REGISTER_FLAGS_PRIVILEGED) == 0) {
+                    ++*n_core_regs;
+                } else {
+                    count_core_regs = false;
+                }
             }
         }
     }
