@@ -211,7 +211,7 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso, unsigned short af)
 	struct sockaddr_storage lhost, fhost;
 	struct sockaddr_in *lhost4, *fhost4;
 	struct sockaddr_in6 *lhost6, *fhost6;
-    struct ex_list *ex_ptr;
+    struct gfwd_list *ex_ptr;
     Slirp *slirp;
 
 	DEBUG_CALL("tcp_input");
@@ -394,7 +394,7 @@ findso:
              * for non-hostfwd connections. These should be dropped, unless it
              * happens to be a guestfwd.
              */
-            for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+            for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
                 if (ex_ptr->ex_fport == ti->ti_dport &&
                     ti->ti_dst.s_addr == ex_ptr->ex_addr.s_addr) {
                     break;
@@ -616,7 +616,7 @@ findso:
 	    if (so->so_faddr.s_addr != slirp->vhost_addr.s_addr &&
 		so->so_faddr.s_addr != slirp->vnameserver_addr.s_addr) {
 		/* May be an add exec */
-		for (ex_ptr = slirp->exec_list; ex_ptr;
+		for (ex_ptr = slirp->guestfwd_list; ex_ptr;
 		     ex_ptr = ex_ptr->ex_next) {
 		  if(ex_ptr->ex_fport == so->so_fport &&
 		     so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr) {

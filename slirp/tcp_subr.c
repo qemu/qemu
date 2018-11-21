@@ -949,14 +949,14 @@ int tcp_ctl(struct socket *so)
 {
     Slirp *slirp = so->slirp;
     struct sbuf *sb = &so->so_snd;
-    struct ex_list *ex_ptr;
+    struct gfwd_list *ex_ptr;
 
     DEBUG_CALL("tcp_ctl");
     DEBUG_ARG("so = %p", so);
 
     if (so->so_faddr.s_addr != slirp->vhost_addr.s_addr) {
         /* Check if it's pty_exec */
-        for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+        for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
             if (ex_ptr->ex_fport == so->so_fport &&
                 so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr) {
                 if (ex_ptr->ex_chardev) {

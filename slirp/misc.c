@@ -36,10 +36,10 @@ remque(void *a)
   element->qh_rlink = NULL;
 }
 
-int add_exec(struct ex_list **ex_ptr, void *chardev, const char *cmdline,
+int add_exec(struct gfwd_list **ex_ptr, void *chardev, const char *cmdline,
              struct in_addr addr, int port)
 {
-	struct ex_list *tmp_ptr;
+	struct gfwd_list *tmp_ptr;
 
 	/* First, check if the port is "bound" */
 	for (tmp_ptr = *ex_ptr; tmp_ptr; tmp_ptr = tmp_ptr->ex_next) {
@@ -49,7 +49,7 @@ int add_exec(struct ex_list **ex_ptr, void *chardev, const char *cmdline,
 	}
 
 	tmp_ptr = *ex_ptr;
-	*ex_ptr = g_new0(struct ex_list, 1);
+	*ex_ptr = g_new0(struct gfwd_list, 1);
 	(*ex_ptr)->ex_fport = port;
 	(*ex_ptr)->ex_addr = addr;
 	if (chardev) {

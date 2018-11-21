@@ -345,9 +345,9 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
 
 void slirp_cleanup(Slirp *slirp)
 {
-    struct ex_list *e, *next;
+    struct gfwd_list *e, *next;
 
-    for (e = slirp->exec_list; e; e = next) {
+    for (e = slirp->guestfwd_list; e; e = next) {
         next = e->ex_next;
         g_free(e->ex_exec);
         g_free(e);
@@ -760,7 +760,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
     struct ethhdr *reh = (struct ethhdr *)arp_reply;
     struct slirp_arphdr *rah = (struct slirp_arphdr *)(arp_reply + ETH_HLEN);
     int ar_op;
-    struct ex_list *ex_ptr;
+    struct gfwd_list *ex_ptr;
 
     if (!slirp->in_enabled) {
         return;
@@ -780,7 +780,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             if (ah->ar_tip == slirp->vnameserver_addr.s_addr ||
                 ah->ar_tip == slirp->vhost_addr.s_addr)
                 goto arp_ok;
-            for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+            for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
                 if (ex_ptr->ex_addr.s_addr == ah->ar_tip)
                     goto arp_ok;
             }
@@ -1052,7 +1052,7 @@ int slirp_add_exec(Slirp *slirp, void *chardev, const char *cmdline,
         return -1;
     }
 
-    return add_exec(&slirp->exec_list, chardev, cmdline, *guest_addr,
+    return add_exec(&slirp->guestfwd_list, chardev, cmdline, *guest_addr,
                     htons(guest_port));
 }
 
@@ -1423,9 +1423,9 @@ static const VMStateDescription vmstate_slirp = {
 static void slirp_state_save(QEMUFile *f, void *opaque)
 {
     Slirp *slirp = opaque;
-    struct ex_list *ex_ptr;
+    struct gfwd_list *ex_ptr;
 
-    for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
+    for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
         if (ex_ptr->ex_chardev) {
             struct socket *so;
             so = slirp_find_ctl_socket(slirp, ex_ptr->ex_addr,
@@ -1445,7 +1445,7 @@ static void slirp_state_save(QEMUFile *f, void *opaque)
 static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
 {
     Slirp *slirp = opaque;
-    struct ex_list *ex_ptr;
+    struct gfwd_list *ex_ptr;
 
     while (qemu_get_byte(f)) {
         int ret;
@@ -1460,7 +1460,7 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
             slirp->vnetwork_addr.s_addr) {
             return -EINVAL;
         }
-        for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+        for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
             if (ex_ptr->ex_chardev &&
                 so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr &&
                 so->so_fport == ex_ptr->ex_fport) {

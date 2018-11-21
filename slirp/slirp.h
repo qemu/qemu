@@ -147,7 +147,7 @@ struct Slirp {
     char client_hostname[33];
 
     int restricted;
-    struct ex_list *exec_list;
+    struct gfwd_list *guestfwd_list;
 
     /* mbuf states */
     struct quehead m_freelist;

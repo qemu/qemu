@@ -8,12 +8,12 @@
 #ifndef MISC_H
 #define MISC_H
 
-struct ex_list {
+struct gfwd_list {
 	void *ex_chardev;
 	struct in_addr ex_addr;		/* Server address */
 	int ex_fport;                   /* Port to telnet to */
 	char *ex_exec;                  /* Command line of what to exec */
-	struct ex_list *ex_next;
+	struct gfwd_list *ex_next;
 };
 
 #define EMU_NONE 0x0
@@ -51,7 +51,7 @@ struct slirp_quehead {
 
 void slirp_insque(void *, void *);
 void slirp_remque(void *);
-int add_exec(struct ex_list **, void *, const char *, struct in_addr, int);
+int add_exec(struct gfwd_list **, void *, const char *, struct in_addr, int);
 int fork_exec(struct socket *so, const char *ex);
 
 #endif
