@@ -1301,7 +1301,7 @@ T: git https://github.com/jasowang/qemu.git net
 
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
-R: Fam Zheng <famz@redhat.com>
+R: Fam Zheng <fam@euphon.net>
 S: Supported
 F: include/hw/scsi/*
 F: hw/scsi/*
@@ -1629,7 +1629,7 @@ T: git https://repo.or.cz/qemu/kevin.git block
 
 Block I/O path
 M: Stefan Hajnoczi <stefanha@redhat.com>
-M: Fam Zheng <famz@redhat.com>
+M: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org
 S: Supported
 F: util/async.c
@@ -1643,7 +1643,7 @@ T: git https://github.com/stefanha/qemu.git block
 
 Block SCSI subsystem
 M: Paolo Bonzini <pbonzini@redhat.com>
-R: Fam Zheng <famz@redhat.com>
+R: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org
 S: Supported
 F: include/scsi/*
@@ -1675,7 +1675,7 @@ F: qapi/transaction.json
 T: git https://repo.or.cz/qemu/armbru.git block-next
 
 Dirty Bitmaps
-M: Fam Zheng <famz@redhat.com>
+M: Fam Zheng <fam@euphon.net>
 M: John Snow <jsnow@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
@@ -2051,7 +2051,7 @@ F: tests/test-throttle.c
 L: qemu-block@nongnu.org
 
 UUID
-M: Fam Zheng <famz@redhat.com>
+M: Fam Zheng <fam@euphon.net>
 S: Supported
 F: util/uuid.c
 F: include/qemu/uuid.h
@@ -2182,7 +2182,7 @@ F: disas/tci.c
 Block drivers
 -------------
 VMDK
-M: Fam Zheng <famz@redhat.com>
+M: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/vmdk.c
@@ -2268,13 +2268,13 @@ F: block/gluster.c
 T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 Null Block Driver
-M: Fam Zheng <famz@redhat.com>
+M: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/null.c
 
 NVMe Block Driver
-M: Fam Zheng <famz@redhat.com>
+M: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/nvme*
@@ -2405,7 +2405,7 @@ Build and test automation
 -------------------------
 Build and test automation
 M: Alex Bennée <alex.bennee@linaro.org>
-M: Fam Zheng <famz@redhat.com>
+M: Fam Zheng <fam@euphon.net>
 R: Philippe Mathieu-Daudé <philmd@redhat.com>
 L: qemu-devel@nongnu.org
 S: Maintained
