@@ -70,9 +70,7 @@ int cksum(struct mbuf *m, int len)
 
 	if (len < mlen)
 	   mlen = len;
-#ifdef DEBUG
 	len -= mlen;
-#endif
 	/*
 	 * Force to even boundary.
 	 */
@@ -122,12 +120,10 @@ int cksum(struct mbuf *m, int len)
 	   s_util.c[0] = *(uint8_t *)w;
 
 cont:
-#ifdef DEBUG
 	if (len) {
 		DEBUG_ERROR("cksum: out of data\n");
 		DEBUG_ERROR(" len = %d\n", len);
 	}
-#endif
 	if (mlen == -1) {
 		/* The last mbuf has odd # of bytes. Follow the
 		 standard (the odd byte may be shifted left by 8 bits

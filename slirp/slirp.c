@@ -195,9 +195,7 @@ static int get_dns_addr_resolv_conf(int af, void *pdns_addr, void *cached_addr,
             if (++found > 3) {
                 DEBUG_MISC("(more)");
                 break;
-            }
-#ifdef DEBUG
-            else {
+            } else if (slirp_debug & DBG_MISC) {
                 char s[INET6_ADDRSTRLEN];
                 const char *res = inet_ntop(af, tmp_addr, s, sizeof(s));
                 if (!res) {
@@ -205,7 +203,6 @@ static int get_dns_addr_resolv_conf(int af, void *pdns_addr, void *cached_addr,
                 }
                 DEBUG_MISC("%s", res);
             }
-#endif
         }
     }
     fclose(f);
