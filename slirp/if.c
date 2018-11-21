@@ -148,7 +148,7 @@ diddit:
  */
 void if_start(Slirp *slirp)
 {
-    uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     bool from_batchq = false;
     struct mbuf *ifm, *ifm_next, *ifqt;
 

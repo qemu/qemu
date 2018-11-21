@@ -582,7 +582,7 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
         return;
     }
 
-    curtime = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    curtime = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
 
     QTAILQ_FOREACH(slirp, &slirp_instances, entry) {
         /*
@@ -909,7 +909,8 @@ static int if_encap4(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
             ifm->resolution_requested = true;
 
             /* Expire request and drop outgoing packet after 1 second */
-            ifm->expiration_date = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 1000000000ULL;
+            ifm->expiration_date =
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 1000000000ULL;
         }
         return 0;
     } else {
@@ -936,7 +937,7 @@ static int if_encap6(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
             ndp_send_ns(slirp, ip6h->ip_dst);
             ifm->resolution_requested = true;
             ifm->expiration_date =
-                qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 1000000000ULL;
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 1000000000ULL;
         }
         return 0;
     } else {
