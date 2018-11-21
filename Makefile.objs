@@ -17,6 +17,7 @@ util-obj-y += $(QAPI_MODULES:%=qapi/qapi-events-%.o)
 util-obj-y += qapi/qapi-introspect.o
 
 chardev-obj-y = chardev/
+slirp-obj-$(CONFIG_SLIRP) = slirp/
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
@@ -78,8 +79,6 @@ common-obj-y += dma-helpers.o
 common-obj-y += vl.o
 vl.o-cflags := $(GPROF_CFLAGS) $(SDL_CFLAGS)
 common-obj-$(CONFIG_TPM) += tpm.o
-
-common-obj-$(CONFIG_SLIRP) += slirp/
 
 common-obj-y += backends/
 common-obj-y += chardev/
