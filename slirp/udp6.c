@@ -20,7 +20,7 @@ void udp6_input(struct mbuf *m)
     struct sockaddr_in6 lhost;
 
     DEBUG_CALL("udp6_input");
-    DEBUG_ARG("m = %lx", (long)m);
+    DEBUG_ARG("m = %p", m);
 
     if (slirp->restricted) {
         goto bad;
@@ -144,8 +144,8 @@ int udp6_output(struct socket *so, struct mbuf *m,
     struct udphdr *uh;
 
     DEBUG_CALL("udp6_output");
-    DEBUG_ARG("so = %lx", (long)so);
-    DEBUG_ARG("m = %lx", (long)m);
+    DEBUG_ARG("so = %p", so);
+    DEBUG_ARG("m = %p", m);
 
     /* adjust for header */
     m->m_data -= sizeof(struct udphdr);

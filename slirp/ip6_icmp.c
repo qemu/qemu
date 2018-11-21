@@ -390,7 +390,7 @@ void icmp6_input(struct mbuf *m)
     int hlen = sizeof(struct ip6);
 
     DEBUG_CALL("icmp6_input");
-    DEBUG_ARG("m = %lx", (long) m);
+    DEBUG_ARG("m = %p", m);
     DEBUG_ARG("m_len = %d", m->m_len);
 
     if (ntohs(ip->ip_pl) < ICMP6_MINLEN) {
