@@ -112,6 +112,7 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     int64_t expect2[] = { 32767, -32768, -32767 };
     int64_t expect3[] = { INT64_MIN, INT64_MAX };
     int64_t expect4[] = { 1 };
+    int64_t expect5[] = { INT64_MAX - 2,  INT64_MAX - 1, INT64_MAX };
     Error *err = NULL;
     int64List *res = NULL;
     Visitor *v;
@@ -131,6 +132,10 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "1-1");
     check_ilist(v, expect4, ARRAY_SIZE(expect4));
+
+    v = visitor_input_test_init(data,
+                                "9223372036854775805-9223372036854775807");
+    check_ilist(v, expect5, ARRAY_SIZE(expect5));
 
     /* Value too large */
 
@@ -216,6 +221,7 @@ static void test_visitor_in_uintList(TestInputVisitorData *data,
     uint64_t expect3[] = { INT64_MIN, INT64_MAX };
     uint64_t expect4[] = { 1 };
     uint64_t expect5[] = { UINT64_MAX };
+    uint64_t expect6[] = { UINT64_MAX - 2,  UINT64_MAX - 1, UINT64_MAX };
     Error *err = NULL;
     uint64List *res = NULL;
     Visitor *v;
@@ -238,6 +244,10 @@ static void test_visitor_in_uintList(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "18446744073709551615");
     check_ulist(v, expect5, ARRAY_SIZE(expect5));
+
+    v = visitor_input_test_init(data,
+                                "18446744073709551613-18446744073709551615");
+    check_ulist(v, expect6, ARRAY_SIZE(expect6));
 
     /* Value too large */
 
