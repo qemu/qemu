@@ -17,7 +17,7 @@ static void ra_timer_handler(void *opaque)
 {
     Slirp *slirp = opaque;
     timer_mod(slirp->ra_timer,
-              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + NDP_Interval);
+              slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
     ndp_send_ra(slirp);
 }
 
@@ -31,7 +31,7 @@ void icmp6_init(Slirp *slirp)
                                      SCALE_MS, QEMU_TIMER_ATTR_EXTERNAL,
                                      ra_timer_handler, slirp);
     timer_mod(slirp->ra_timer,
-              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + NDP_Interval);
+              slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
 }
 
 void icmp6_cleanup(Slirp *slirp)

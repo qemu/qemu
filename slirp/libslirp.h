@@ -15,6 +15,8 @@ typedef struct SlirpCb {
     void (*output)(void *opaque, const uint8_t *pkt, int pkt_len);
     /* Print a message for an error due to guest misbehavior.  */
     void (*guest_error)(const char *msg);
+    /* Return the virtual clock value in nanoseconds */
+    int64_t (*clock_get_ns)(void);
 } SlirpCb;
 
 

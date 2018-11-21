@@ -146,9 +146,15 @@ static void net_slirp_guest_error(const char *msg)
     qemu_log_mask(LOG_GUEST_ERROR, "%s", msg);
 }
 
+static int64_t net_slirp_clock_get_ns(void)
+{
+    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+}
+
 static const SlirpCb slirp_cb = {
     .output = net_slirp_output,
     .guest_error = net_slirp_guest_error,
+    .clock_get_ns = net_slirp_clock_get_ns,
 };
 
 static int net_slirp_init(NetClientState *peer, const char *model,
