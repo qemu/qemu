@@ -92,16 +92,6 @@ static void check_ulist(Visitor *v, uint64_t *expected, size_t n)
     uint64List *tail;
     int i;
 
-    /* BUG: unsigned numbers above INT64_MAX don't work */
-    for (i = 0; i < n; i++) {
-        if (expected[i] > INT64_MAX) {
-            Error *err = NULL;
-            visit_type_uint64List(v, NULL, &res, &err);
-            error_free_or_abort(&err);
-            return;
-        }
-    }
-
     visit_type_uint64List(v, NULL, &res, &error_abort);
     tail = res;
     for (i = 0; i < n; i++) {
@@ -117,10 +107,10 @@ static void check_ulist(Visitor *v, uint64_t *expected, size_t n)
 static void test_visitor_in_intList(TestInputVisitorData *data,
                                     const void *unused)
 {
-    /* Note: the visitor *sorts* ranges *unsigned* */
-    int64_t expect1[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 20 };
+    int64_t expect1[] = { 1, 2, 0, 2, 3, 4, 20, 5, 6, 7,
+                          8, 9, 1, 2, 3, 4, 5, 6, 7, 8 };
     int64_t expect2[] = { 32767, -32768, -32767 };
-    int64_t expect3[] = { INT64_MAX, INT64_MIN };
+    int64_t expect3[] = { INT64_MIN, INT64_MAX };
     int64_t expect4[] = { 1 };
     uint64_t expect5[] = { UINT64_MAX };
     Error *err = NULL;
@@ -226,7 +216,7 @@ static void test_visitor_in_intList(TestInputVisitorData *data,
     visit_type_int64(v, NULL, &tail->value, &err);
     g_assert_cmpint(tail->value, ==, 0);
     visit_type_int64(v, NULL, &val, &err);
-    g_assert_cmpint(val, ==, 1); /* BUG */
+    error_free_or_abort(&err);
     visit_check_list(v, &error_abort);
     visit_end_list(v, (void **)&res);
 
