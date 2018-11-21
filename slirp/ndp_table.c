@@ -10,15 +10,14 @@
 void ndp_table_add(Slirp *slirp, struct in6_addr ip_addr,
                     uint8_t ethaddr[ETH_ALEN])
 {
+    char addrstr[INET6_ADDRSTRLEN];
     NdpTable *ndp_table = &slirp->ndp_table;
     int i;
 
-    DEBUG_CALL("ndp_table_add");
-#if !defined(_WIN32) || (_WIN32_WINNT >= 0x0600)
-    char addrstr[INET6_ADDRSTRLEN];
     inet_ntop(AF_INET6, &(ip_addr), addrstr, INET6_ADDRSTRLEN);
+
+    DEBUG_CALL("ndp_table_add");
     DEBUG_ARG("ip = %s", addrstr);
-#endif
     DEBUG_ARGS(" hw addr = %02x:%02x:%02x:%02x:%02x:%02x\n",
                ethaddr[0], ethaddr[1], ethaddr[2],
                ethaddr[3], ethaddr[4], ethaddr[5]);
@@ -50,15 +49,14 @@ void ndp_table_add(Slirp *slirp, struct in6_addr ip_addr,
 bool ndp_table_search(Slirp *slirp, struct in6_addr ip_addr,
                       uint8_t out_ethaddr[ETH_ALEN])
 {
+    char addrstr[INET6_ADDRSTRLEN];
     NdpTable *ndp_table = &slirp->ndp_table;
     int i;
 
-    DEBUG_CALL("ndp_table_search");
-#if !defined(_WIN32) || (_WIN32_WINNT >= 0x0600)
-    char addrstr[INET6_ADDRSTRLEN];
     inet_ntop(AF_INET6, &(ip_addr), addrstr, INET6_ADDRSTRLEN);
+
+    DEBUG_CALL("ndp_table_search");
     DEBUG_ARG("ip = %s", addrstr);
-#endif
 
     assert(!in6_zero(&ip_addr));
 

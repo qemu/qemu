@@ -290,17 +290,6 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     }
 #endif
 
-#if defined(_WIN32) && (_WIN32_WINNT < 0x0600)
-    /* No inet_pton helper before Vista... */
-    if (vprefix6) {
-        /* Unsupported */
-        error_setg(errp, "IPv6 prefix not supported");
-        return -1;
-    }
-    memset(&ip6_prefix, 0, sizeof(ip6_prefix));
-    ip6_prefix.s6_addr[0] = 0xfe;
-    ip6_prefix.s6_addr[1] = 0xc0;
-#else
     if (!vprefix6) {
         vprefix6 = "fec0::";
     }
@@ -308,7 +297,6 @@ static int net_slirp_init(NetClientState *peer, const char *model,
         error_setg(errp, "Failed to parse IPv6 prefix");
         return -1;
     }
-#endif
 
     if (!vprefix6_len) {
         vprefix6_len = 64;
@@ -320,10 +308,6 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     }
 
     if (vhost6) {
-#if defined(_WIN32) && (_WIN32_WINNT < 0x0600)
-        error_setg(errp, "IPv6 host not supported");
-        return -1;
-#else
         if (!inet_pton(AF_INET6, vhost6, &ip6_host)) {
             error_setg(errp, "Failed to parse IPv6 host");
             return -1;
@@ -332,17 +316,12 @@ static int net_slirp_init(NetClientState *peer, const char *model,
             error_setg(errp, "IPv6 Host doesn't belong to network");
             return -1;
         }
-#endif
     } else {
         ip6_host = ip6_prefix;
         ip6_host.s6_addr[15] |= 2;
     }
 
     if (vnameserver6) {
-#if defined(_WIN32) && (_WIN32_WINNT < 0x0600)
-        error_setg(errp, "IPv6 DNS not supported");
-        return -1;
-#else
         if (!inet_pton(AF_INET6, vnameserver6, &ip6_dns)) {
             error_setg(errp, "Failed to parse IPv6 DNS");
             return -1;
@@ -351,7 +330,6 @@ static int net_slirp_init(NetClientState *peer, const char *model,
             error_setg(errp, "IPv6 DNS doesn't belong to network");
             return -1;
         }
-#endif
     } else {
         ip6_dns = ip6_prefix;
         ip6_dns.s6_addr[15] |= 3;

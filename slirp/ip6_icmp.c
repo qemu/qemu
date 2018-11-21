@@ -74,6 +74,7 @@ void icmp6_send_error(struct mbuf *m, uint8_t type, uint8_t code)
     Slirp *slirp = m->slirp;
     struct mbuf *t;
     struct ip6 *ip = mtod(m, struct ip6 *);
+    char addrstr[INET6_ADDRSTRLEN];
 
     DEBUG_CALL("icmp6_send_error");
     DEBUG_ARGS(" type = %d, code = %d\n", type, code);
@@ -90,11 +91,8 @@ void icmp6_send_error(struct mbuf *m, uint8_t type, uint8_t code)
     struct ip6 *rip = mtod(t, struct ip6 *);
     rip->ip_src = (struct in6_addr)LINKLOCAL_ADDR;
     rip->ip_dst = ip->ip_src;
-#if !defined(_WIN32) || (_WIN32_WINNT >= 0x0600)
-    char addrstr[INET6_ADDRSTRLEN];
     inet_ntop(AF_INET6, &rip->ip_dst, addrstr, INET6_ADDRSTRLEN);
     DEBUG_ARG("target = %s", addrstr);
-#endif
 
     rip->ip_nh = IPPROTO_ICMPV6;
     const int error_data_len = MIN(m->m_len,
@@ -222,12 +220,12 @@ void ndp_send_ra(Slirp *slirp)
  */
 void ndp_send_ns(Slirp *slirp, struct in6_addr addr)
 {
-    DEBUG_CALL("ndp_send_ns");
-#if !defined(_WIN32) || (_WIN32_WINNT >= 0x0600)
     char addrstr[INET6_ADDRSTRLEN];
+
     inet_ntop(AF_INET6, &addr, addrstr, INET6_ADDRSTRLEN);
+
+    DEBUG_CALL("ndp_send_ns");
     DEBUG_ARG("target = %s", addrstr);
-#endif
 
     /* Build IPv6 packet */
     struct mbuf *t = m_get(slirp);
