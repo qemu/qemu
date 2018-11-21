@@ -34,6 +34,10 @@
 #include "slirp.h"
 #include "ip_icmp.h"
 
+#ifndef WITH_ICMP_ERROR_MSG
+#define WITH_ICMP_ERROR_MSG 0
+#endif
+
 /* The message sent when emulating PING */
 /* Be nice and tell them it's just a pseudo-ping packet */
 static const char icmp_ping_msg[] = "This is a pseudo-PING packet used by Slirp to emulate ICMP ECHO-REQUEST packets.\n";
@@ -319,8 +323,7 @@ icmp_send_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
   HTONS(icp->icmp_ip.ip_id);
   HTONS(icp->icmp_ip.ip_off);
 
-#ifdef DEBUG
-  if(message) {           /* DEBUG : append message to ICMP packet */
+  if (message && WITH_ICMP_ERROR_MSG) { /* append message to ICMP packet */
     int message_len;
     char *cpnt;
     message_len=strlen(message);
@@ -329,7 +332,6 @@ icmp_send_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
     memcpy(cpnt, message, message_len);
     m->m_len+=message_len;
   }
-#endif
 
   icp->icmp_cksum = 0;
   icp->icmp_cksum = cksum(m, m->m_len);
