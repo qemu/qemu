@@ -12,8 +12,12 @@
 #include "qemu/main-loop.h"
 
 #ifdef DEBUG
-int slirp_debug = DBG_CALL|DBG_MISC|DBG_ERROR;
+#define SLIRP_DEBUG (DBG_CALL | DBG_MISC | DBG_ERROR)
+#else
+#define SLIRP_DEBUG 0
 #endif
+
+int slirp_debug = SLIRP_DEBUG;
 
 inline void
 insque(void *a, void *b)
