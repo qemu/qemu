@@ -191,7 +191,6 @@ int boot_menu;
 bool boot_strict;
 uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
-uint8_t qemu_extra_params_fw[2];
 bool wakeup_suspend_enabled;
 
 int icount_align_option;

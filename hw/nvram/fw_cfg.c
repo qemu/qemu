@@ -119,6 +119,7 @@ static void fw_cfg_bootsplash(FWCfgState *s)
 {
     const char *boot_splash_filename = NULL;
     const char *boot_splash_time = NULL;
+    uint8_t qemu_extra_params_fw[2];
     char *filename, *file_data;
     gsize file_size;
     int file_type;
