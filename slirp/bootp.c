@@ -36,11 +36,7 @@
 
 static const uint8_t rfc1533_cookie[] = { RFC1533_COOKIE };
 
-#ifdef DEBUG
 #define DPRINTF(fmt, ...) DEBUG_CALL(fmt, ##__VA_ARGS__)
-#else
-#define DPRINTF(fmt, ...) do{}while(0)
-#endif
 
 static BOOTPClient *get_new_addr(Slirp *slirp, struct in_addr *paddr,
                                  const uint8_t *macaddr)
@@ -166,8 +162,9 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
     DPRINTF("bootp packet op=%d msgtype=%d", bp->bp_op, dhcp_msg_type);
     if (preq_addr.s_addr != htonl(0L))
         DPRINTF(" req_addr=%08" PRIx32 "\n", ntohl(preq_addr.s_addr));
-    else
+    else {
         DPRINTF("\n");
+    }
 
     if (dhcp_msg_type == 0)
         dhcp_msg_type = DHCPREQUEST; /* Force reply for old BOOTP clients */
