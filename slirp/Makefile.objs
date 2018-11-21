@@ -28,3 +28,5 @@ slirp.mo-objs = \
 	udp.o \
 	udp6.o \
 	$(NULL)
+
+slirp.mo-cflags = -DG_LOG_DOMAIN=\"Slirp\"
