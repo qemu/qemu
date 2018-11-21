@@ -252,6 +252,19 @@ static void test_visitor_in_number(TestInputVisitorData *data,
     visit_type_number(v, NULL, &res, &err);
     g_assert(!err);
     g_assert_cmpfloat(res, ==, value);
+
+    /* NaN and infinity has to be rejected */
+
+    v = visitor_input_test_init(data, "NaN");
+
+    visit_type_number(v, NULL, &res, &err);
+    error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "inf");
+
+    visit_type_number(v, NULL, &res, &err);
+    error_free_or_abort(&err);
+
 }
 
 static void test_visitor_in_string(TestInputVisitorData *data,
