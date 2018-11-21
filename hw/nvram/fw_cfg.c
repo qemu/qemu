@@ -176,26 +176,25 @@ static void fw_cfg_bootsplash(FWCfgState *s)
 
 static void fw_cfg_reboot(FWCfgState *s)
 {
-    int reboot_timeout = -1;
-    char *p;
-    const char *temp;
+    const char *reboot_timeout = NULL;
+    int64_t rt_val = -1;
 
     /* get user configuration */
     QemuOptsList *plist = qemu_find_opts("boot-opts");
     QemuOpts *opts = QTAILQ_FIRST(&plist->head);
-    if (opts != NULL) {
-        temp = qemu_opt_get(opts, "reboot-timeout");
-        if (temp != NULL) {
-            p = (char *)temp;
-            reboot_timeout = strtol(p, &p, 10);
+    reboot_timeout = qemu_opt_get(opts, "reboot-timeout");
+
+    if (reboot_timeout) {
+        rt_val = qemu_opt_get_number(opts, "reboot-timeout", -1);
+        /* validate the input */
+        if (rt_val < 0 || rt_val > 0xffff) {
+            error_report("reboot timeout is invalid,"
+                         "it should be a value between 0 and 65535");
+            exit(1);
         }
     }
-    /* validate the input */
-    if (reboot_timeout > 0xffff) {
-        error_report("reboot timeout is larger than 65535, force it to 65535.");
-        reboot_timeout = 0xffff;
-    }
-    fw_cfg_add_file(s, "etc/boot-fail-wait", g_memdup(&reboot_timeout, 4), 4);
+
+    fw_cfg_add_file(s, "etc/boot-fail-wait", g_memdup(&rt_val, 4), 4);
 }
 
 static void fw_cfg_write(FWCfgState *s, uint8_t value)
