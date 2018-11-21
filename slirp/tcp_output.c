@@ -92,7 +92,7 @@ again:
 
 	flags = tcp_outflags[tp->t_state];
 
-	DEBUG_MISC(" --- tcp_output flags = 0x%x\n", flags);
+	DEBUG_MISC(" --- tcp_output flags = 0x%x", flags);
 
 	/*
 	 * If in persist timeout with window of 0, send 1 byte.

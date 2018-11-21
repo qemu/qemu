@@ -121,8 +121,8 @@ int cksum(struct mbuf *m, int len)
 
 cont:
 	if (len) {
-		DEBUG_ERROR("cksum: out of data\n");
-		DEBUG_ERROR(" len = %d\n", len);
+		DEBUG_ERROR("cksum: out of data");
+		DEBUG_ERROR(" len = %d", len);
 	}
 	if (mlen == -1) {
 		/* The last mbuf has odd # of bytes. Follow the

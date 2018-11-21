@@ -964,7 +964,7 @@ int tcp_ctl(struct socket *so)
                     so->chardev = ex_ptr->ex_chardev;
                     return 1;
                 }
-                DEBUG_MISC(" executing %s\n", ex_ptr->ex_exec);
+                DEBUG_MISC(" executing %s", ex_ptr->ex_exec);
                 return fork_exec(so, ex_ptr->ex_exec);
             }
         }

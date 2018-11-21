@@ -103,7 +103,7 @@ static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
 
     if (sendto(so->s, m->m_data + hlen, m->m_len - hlen, 0,
                (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-        DEBUG_MISC("icmp_input icmp sendto tx errno = %d-%s\n",
+        DEBUG_MISC("icmp_input icmp sendto tx errno = %d-%s",
                    errno, strerror(errno));
         icmp_send_error(m, ICMP_UNREACH, ICMP_UNREACH_NET, 0, strerror(errno));
         icmp_detach(so);
@@ -169,7 +169,7 @@ icmp_input(struct mbuf *m, int hlen)
         return;
       }
       if (udp_attach(so, AF_INET) == -1) {
-	DEBUG_MISC("icmp_input udp_attach errno = %d-%s\n",
+	DEBUG_MISC("icmp_input udp_attach errno = %d-%s",
                errno,strerror(errno));
 	sofree(so);
 	m_free(m);
@@ -192,7 +192,7 @@ icmp_input(struct mbuf *m, int hlen)
 
       if(sendto(so->s, icmp_ping_msg, strlen(icmp_ping_msg), 0,
 		(struct sockaddr *)&addr, sockaddr_size(&addr)) == -1) {
-	DEBUG_MISC("icmp_input udp sendto tx errno = %d-%s\n",
+	DEBUG_MISC("icmp_input udp sendto tx errno = %d-%s",
                errno,strerror(errno));
 	icmp_send_error(m, ICMP_UNREACH, ICMP_UNREACH_NET, 0, strerror(errno));
 	udp_detach(so);
@@ -261,7 +261,7 @@ icmp_send_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
     char bufa[20], bufb[20];
     strcpy(bufa, inet_ntoa(ip->ip_src));
     strcpy(bufb, inet_ntoa(ip->ip_dst));
-    DEBUG_MISC(" %.16s to %.16s\n", bufa, bufb);
+    DEBUG_MISC(" %.16s to %.16s", bufa, bufb);
   }
   if(ip->ip_off & IP_OFFMASK) goto end_error;    /* Only reply to fragment 0 */
 
@@ -458,7 +458,7 @@ void icmp_receive(struct socket *so)
         } else {
             error_code = ICMP_UNREACH_HOST;
         }
-        DEBUG_MISC(" udp icmp rx errno = %d-%s\n", errno,
+        DEBUG_MISC(" udp icmp rx errno = %d-%s", errno,
                    strerror(errno));
         icmp_send_error(so->so_m, ICMP_UNREACH, error_code, 0, strerror(errno));
     } else {

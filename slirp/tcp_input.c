@@ -641,8 +641,7 @@ findso:
               (errno != EINPROGRESS) && (errno != EWOULDBLOCK)
           ) {
 	    uint8_t code;
-	    DEBUG_MISC(" tcp fconnect errno = %d-%s\n",
-                   errno,strerror(errno));
+	    DEBUG_MISC(" tcp fconnect errno = %d-%s", errno, strerror(errno));
 	    if(errno == ECONNREFUSED) {
 	      /* ACK the SYN, send RST to refuse the connection */
 	      tcp_respond(tp, ti, m, ti->ti_seq + 1, (tcp_seq) 0,
@@ -1011,7 +1010,7 @@ trimthenstep6:
 
 		if (SEQ_LEQ(ti->ti_ack, tp->snd_una)) {
 			if (ti->ti_len == 0 && tiwin == tp->snd_wnd) {
-			  DEBUG_MISC(" dup ack  m = %p  so = %p\n", m, so);
+			  DEBUG_MISC(" dup ack  m = %p  so = %p", m, so);
 				/*
 				 * If we have outstanding data (other than
 				 * a window probe), this is a completely
@@ -1550,7 +1549,7 @@ tcp_mss(struct tcpcb *tp, u_int offer)
                                                (mss - (TCP_RCVSPACE % mss)) :
                                                0));
 
-	DEBUG_MISC(" returning mss = %d\n", mss);
+	DEBUG_MISC(" returning mss = %d", mss);
 
 	return mss;
 }
