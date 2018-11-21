@@ -77,7 +77,7 @@ void icmp6_send_error(struct mbuf *m, uint8_t type, uint8_t code)
     char addrstr[INET6_ADDRSTRLEN];
 
     DEBUG_CALL("icmp6_send_error");
-    DEBUG_ARGS(" type = %d, code = %d\n", type, code);
+    DEBUG_ARG("type = %d, code = %d", type, code);
 
     if (IN6_IS_ADDR_MULTICAST(&ip->ip_src) ||
             in6_zero(&ip->ip_src)) {

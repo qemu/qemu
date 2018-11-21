@@ -992,12 +992,12 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
     }
 
     memcpy(eh->h_dest, ethaddr, ETH_ALEN);
-    DEBUG_ARGS(" src = %02x:%02x:%02x:%02x:%02x:%02x\n",
-               eh->h_source[0], eh->h_source[1], eh->h_source[2],
-               eh->h_source[3], eh->h_source[4], eh->h_source[5]);
-    DEBUG_ARGS(" dst = %02x:%02x:%02x:%02x:%02x:%02x\n",
-               eh->h_dest[0], eh->h_dest[1], eh->h_dest[2],
-               eh->h_dest[3], eh->h_dest[4], eh->h_dest[5]);
+    DEBUG_ARG("src = %02x:%02x:%02x:%02x:%02x:%02x",
+              eh->h_source[0], eh->h_source[1], eh->h_source[2],
+              eh->h_source[3], eh->h_source[4], eh->h_source[5]);
+    DEBUG_ARG("dst = %02x:%02x:%02x:%02x:%02x:%02x",
+              eh->h_dest[0], eh->h_dest[1], eh->h_dest[2],
+              eh->h_dest[3], eh->h_dest[4], eh->h_dest[5]);
     memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
     slirp->cb->output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
     return 1;

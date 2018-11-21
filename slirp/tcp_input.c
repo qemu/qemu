@@ -215,8 +215,8 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso, unsigned short af)
     Slirp *slirp;
 
 	DEBUG_CALL("tcp_input");
-	DEBUG_ARGS(" m = %p  iphlen = %2d  inso = %p\n",
-               m, iphlen, inso);
+	DEBUG_ARG("m = %p  iphlen = %2d  inso = %p",
+              m, iphlen, inso);
 
 	/*
 	 * If called with m == 0, then we're continuing the connect
@@ -1389,7 +1389,7 @@ tcp_dooptions(struct tcpcb *tp, u_char *cp, int cnt, struct tcpiphdr *ti)
 	int opt, optlen;
 
 	DEBUG_CALL("tcp_dooptions");
-	DEBUG_ARGS(" tp = %p  cnt=%i\n", tp, cnt);
+	DEBUG_ARG("tp = %p  cnt=%i", tp, cnt);
 
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[0];

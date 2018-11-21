@@ -33,8 +33,6 @@ extern int slirp_debug;
     }                                           \
 } while (0)
 
-#define DEBUG_ARGS(fmt, ...) DEBUG_ARG(fmt, ##__VA_ARGS__)
-
 #define DEBUG_MISC(fmt, ...) do {               \
     if (slirp_debug & DBG_MISC) {               \
         fprintf(dfd, fmt, ##__VA_ARGS__);       \
