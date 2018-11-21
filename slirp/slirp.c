@@ -35,6 +35,8 @@
 #include <net/if.h>
 #endif
 
+int slirp_debug;
+
 /* Define to 1 if you want KEEPALIVE timers */
 bool slirp_do_keepalive;
 
@@ -250,6 +252,7 @@ int get_dns6_addr(struct in6_addr *pdns6_addr, uint32_t *scope_id)
 static void slirp_init_once(void)
 {
     static int initialized;
+    const char *debug;
 #ifdef _WIN32
     WSADATA Data;
 #endif
@@ -266,6 +269,18 @@ static void slirp_init_once(void)
 
     loopback_addr.s_addr = htonl(INADDR_LOOPBACK);
     loopback_mask = htonl(IN_CLASSA_NET);
+
+    debug = g_getenv("SLIRP_DEBUG");
+    if (debug) {
+        const GDebugKey keys[] = {
+            { "call", DBG_CALL },
+            { "misc", DBG_MISC },
+            { "error", DBG_ERROR },
+        };
+        slirp_debug = g_parse_debug_string(debug, keys, G_N_ELEMENTS(keys));
+    }
+
+
 }
 
 static void slirp_state_save(QEMUFile *f, void *opaque);
