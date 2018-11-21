@@ -153,9 +153,9 @@ int parse_uint(const char *s, unsigned long long *value, char **endptr,
                int base);
 int parse_uint_full(const char *s, unsigned long long *value, int base);
 
-int qemu_strtosz(const char *nptr, char **end, uint64_t *result);
-int qemu_strtosz_MiB(const char *nptr, char **end, uint64_t *result);
-int qemu_strtosz_metric(const char *nptr, char **end, uint64_t *result);
+int qemu_strtosz(const char *nptr, const char **end, uint64_t *result);
+int qemu_strtosz_MiB(const char *nptr, const char **end, uint64_t *result);
+int qemu_strtosz_metric(const char *nptr, const char **end, uint64_t *result);
 
 /* used to print char* safely */
 #define STR_OR_NULL(str) ((str) ? (str) : "null")

@@ -3232,7 +3232,7 @@ static QDict *monitor_parse_arguments(Monitor *mon,
             {
                 int ret;
                 uint64_t val;
-                char *end;
+                const char *end;
 
                 while (qemu_isspace(*p)) {
                     p++;
