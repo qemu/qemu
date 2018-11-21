@@ -285,7 +285,7 @@ err:
 
     sofcantrcvmore(so);
     tcp_sockclosed(sototcpcb(so));
-    fprintf(stderr, "soreadbuf buffer to small");
+    g_critical("soreadbuf buffer too small");
     return -1;
 }
 
