@@ -37,13 +37,6 @@ int add_exec(struct gfwd_list **ex_ptr, void *chardev, const char *cmdline,
 {
 	struct gfwd_list *tmp_ptr;
 
-	/* First, check if the port is "bound" */
-	for (tmp_ptr = *ex_ptr; tmp_ptr; tmp_ptr = tmp_ptr->ex_next) {
-		if (port == tmp_ptr->ex_fport &&
-		    addr.s_addr == tmp_ptr->ex_addr.s_addr)
-			return -1;
-	}
-
 	tmp_ptr = *ex_ptr;
 	*ex_ptr = g_new0(struct gfwd_list, 1);
 	(*ex_ptr)->ex_fport = port;

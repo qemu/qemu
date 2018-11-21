@@ -1046,9 +1046,11 @@ int slirp_add_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
     return 0;
 }
 
-int slirp_add_exec(Slirp *slirp, void *chardev, const char *cmdline,
-                   struct in_addr *guest_addr, int guest_port)
+static bool
+check_guestfwd(Slirp *slirp, struct in_addr *guest_addr, int guest_port)
 {
+    struct gfwd_list *tmp_ptr;
+
     if (!guest_addr->s_addr) {
         guest_addr->s_addr = slirp->vnetwork_addr.s_addr |
             (htonl(0x0204) & ~slirp->vnetwork_mask.s_addr);
@@ -1057,6 +1059,23 @@ int slirp_add_exec(Slirp *slirp, void *chardev, const char *cmdline,
         slirp->vnetwork_addr.s_addr ||
         guest_addr->s_addr == slirp->vhost_addr.s_addr ||
         guest_addr->s_addr == slirp->vnameserver_addr.s_addr) {
+        return false;
+    }
+
+    /* check if the port is "bound" */
+    for (tmp_ptr = slirp->guestfwd_list; tmp_ptr; tmp_ptr = tmp_ptr->ex_next) {
+        if (guest_port == tmp_ptr->ex_fport &&
+            guest_addr->s_addr == tmp_ptr->ex_addr.s_addr)
+            return false;
+    }
+
+    return true;
+}
+
+int slirp_add_exec(Slirp *slirp, void *chardev, const char *cmdline,
+                   struct in_addr *guest_addr, int guest_port)
+{
+    if (!check_guestfwd(slirp, guest_addr, guest_port)) {
         return -1;
     }
 
