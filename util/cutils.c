@@ -552,6 +552,71 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
 }
 
 /**
+ * Convert string @nptr to a double.
+  *
+ * This is a wrapper around strtod() that is harder to misuse.
+ * Semantics of @nptr and @endptr match strtod() with differences
+ * noted below.
+ *
+ * @nptr may be null, and no conversion is performed then.
+ *
+ * If no conversion is performed, store @nptr in *@endptr and return
+ * -EINVAL.
+ *
+ * If @endptr is null, and the string isn't fully converted, return
+ * -EINVAL. This is the case when the pointer that would be stored in
+ * a non-null @endptr points to a character other than '\0'.
+ *
+ * If the conversion overflows, store +/-HUGE_VAL in @result, depending
+ * on the sign, and return -ERANGE.
+ *
+ * If the conversion underflows, store +/-0.0 in @result, depending on the
+ * sign, and return -ERANGE.
+ *
+ * Else store the converted value in @result, and return zero.
+ */
+int qemu_strtod(const char *nptr, const char **endptr, double *result)
+{
+    char *ep;
+
+    if (!nptr) {
+        if (endptr) {
+            *endptr = nptr;
+        }
+        return -EINVAL;
+    }
+
+    errno = 0;
+    *result = strtod(nptr, &ep);
+    return check_strtox_error(nptr, ep, endptr, errno);
+}
+
+/**
+ * Convert string @nptr to a finite double.
+ *
+ * Works like qemu_strtod(), except that "NaN" and "inf" are rejected
+ * with -EINVAL and no conversion is performed.
+ */
+int qemu_strtod_finite(const char *nptr, const char **endptr, double *result)
+{
+    double tmp;
+    int ret;
+
+    ret = qemu_strtod(nptr, endptr, &tmp);
+    if (!ret && !isfinite(tmp)) {
+        if (endptr) {
+            *endptr = nptr;
+        }
+        ret = -EINVAL;
+    }
+
+    if (ret != -EINVAL) {
+        *result = tmp;
+    }
+    return ret;
+}
+
+/**
  * Searches for the first occurrence of 'c' in 's', and returns a pointer
  * to the trailing null byte if none was found.
  */
