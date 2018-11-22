@@ -10,12 +10,8 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-
-#ifndef _WIN32_WINNT
-#   define _WIN32_WINNT 0x0600
-#endif
-
 #include "qemu/osdep.h"
+
 #include <wtypes.h>
 #include <powrprof.h>
 #include <winsock2.h>
