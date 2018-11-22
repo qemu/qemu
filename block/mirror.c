@@ -1649,6 +1649,9 @@ fail:
         g_free(s->replaces);
         blk_unref(s->target);
         bs_opaque->job = NULL;
+        if (s->dirty_bitmap) {
+            bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
+        }
         job_early_fail(&s->common.job);
     }
 
