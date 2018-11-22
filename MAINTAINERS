@@ -311,6 +311,8 @@ F: target/xtensa/
 F: hw/xtensa/
 F: tests/tcg/xtensa/
 F: disas/xtensa.c
+F: include/hw/xtensa/xtensa-isa.h
+F: default-configs/xtensa*.mak
 
 TriCore
 M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
