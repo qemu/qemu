@@ -151,6 +151,13 @@ F: disas/arm.c
 F: disas/arm-a64.cc
 F: disas/libvixl/
 
+ARM SMMU
+M: Eric Auger <eric.auger@redhat.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/smmu*
+F: include/hw/arm/smmu*
+
 CRIS
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
