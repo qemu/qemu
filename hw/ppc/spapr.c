@@ -889,8 +889,6 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     /* ibm,associativity-lookup-arrays */
     buf_len = (nr_nodes * 4 + 2) * sizeof(uint32_t);
     cur_index = int_buf = g_malloc0(buf_len);
-
-    cur_index = int_buf;
     int_buf[0] = cpu_to_be32(nr_nodes);
     int_buf[1] = cpu_to_be32(4); /* Number of entries per associativity list */
     cur_index += 2;
