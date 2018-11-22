@@ -1564,6 +1564,19 @@ F: hw/display/edid*
 F: include/hw/display/edid.h
 F: qemu-edid.c
 
+Firmware configuration (fw_cfg)
+M: Philippe Mathieu-DaudÃ© <philmd@redhat.com>
+R: Laszlo Ersek <lersek@redhat.com>
+R: Gerd Hoffmann <kraxel@redhat.com>
+S: Supported
+F: docs/specs/fw_cfg.txt
+F: hw/nvram/fw_cfg.c
+F: include/hw/nvram/fw_cfg.h
+F: include/standard-headers/linux/qemu_fw_cfg.h
+F: tests/libqos/fw_cfg.c
+F: tests/fw_cfg-test.c
+T: git https://github.com/philmd/qemu.git fw_cfg-next
+
 Subsystems
 ----------
 Audio
