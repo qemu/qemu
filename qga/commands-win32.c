@@ -466,13 +466,11 @@ static STORAGE_BUS_TYPE win2qemu[] = {
     [BusTypeFibre] = GUEST_DISK_BUS_TYPE_SSA,
     [BusTypeUsb] = GUEST_DISK_BUS_TYPE_USB,
     [BusTypeRAID] = GUEST_DISK_BUS_TYPE_RAID,
-#if (_WIN32_WINNT >= 0x0600)
     [BusTypeiScsi] = GUEST_DISK_BUS_TYPE_ISCSI,
     [BusTypeSas] = GUEST_DISK_BUS_TYPE_SAS,
     [BusTypeSata] = GUEST_DISK_BUS_TYPE_SATA,
     [BusTypeSd] =  GUEST_DISK_BUS_TYPE_SD,
     [BusTypeMmc] = GUEST_DISK_BUS_TYPE_MMC,
-#endif
 #if (_WIN32_WINNT >= 0x0601)
     [BusTypeVirtual] = GUEST_DISK_BUS_TYPE_VIRTUAL,
     [BusTypeFileBackedVirtual] = GUEST_DISK_BUS_TYPE_FILE_BACKED_VIRTUAL,
@@ -724,10 +722,8 @@ static void get_single_disk_info(GuestDiskAddress *disk, Error **errp)
     if (disk->bus_type == GUEST_DISK_BUS_TYPE_SCSI
             || disk->bus_type == GUEST_DISK_BUS_TYPE_IDE
             || disk->bus_type == GUEST_DISK_BUS_TYPE_RAID
-#if (_WIN32_WINNT >= 0x0600)
             /* This bus type is not supported before Windows Server 2003 SP1 */
             || disk->bus_type == GUEST_DISK_BUS_TYPE_SAS
-#endif
         ) {
         /* We are able to use the same ioctls for different bus types
          * according to Microsoft docs
@@ -1322,7 +1318,6 @@ static char *guest_addr_to_str(IP_ADAPTER_UNICAST_ADDRESS *ip_addr,
     return NULL;
 }
 
-#if (_WIN32_WINNT >= 0x0600)
 static int64_t guest_ip_prefix(IP_ADAPTER_UNICAST_ADDRESS *ip_addr)
 {
     /* For Windows Vista/2008 and newer, use the OnLinkPrefixLength
@@ -1330,60 +1325,6 @@ static int64_t guest_ip_prefix(IP_ADAPTER_UNICAST_ADDRESS *ip_addr)
      */
     return ip_addr->OnLinkPrefixLength;
 }
-#else
-/* When using the Windows XP and 2003 build environment, do the best we can to
- * figure out the prefix.
- */
-static IP_ADAPTER_INFO *guest_get_adapters_info(void)
-{
-    IP_ADAPTER_INFO *adptr_info = NULL;
-    ULONG adptr_info_len = 0;
-    DWORD ret;
-
-    /* Call the first time to get the adptr_info_len. */
-    GetAdaptersInfo(adptr_info, &adptr_info_len);
-
-    adptr_info = g_malloc(adptr_info_len);
-    ret = GetAdaptersInfo(adptr_info, &adptr_info_len);
-    if (ret != ERROR_SUCCESS) {
-        g_free(adptr_info);
-        adptr_info = NULL;
-    }
-    return adptr_info;
-}
-
-static int64_t guest_ip_prefix(IP_ADAPTER_UNICAST_ADDRESS *ip_addr)
-{
-    int64_t prefix = -1; /* Use for AF_INET6 and unknown/undetermined values. */
-    IP_ADAPTER_INFO *adptr_info, *info;
-    IP_ADDR_STRING *ip;
-    struct in_addr *p;
-
-    if (ip_addr->Address.lpSockaddr->sa_family != AF_INET) {
-        return prefix;
-    }
-    adptr_info = guest_get_adapters_info();
-    if (adptr_info == NULL) {
-        return prefix;
-    }
-
-    /* Match up the passed in ip_addr with one found in adaptr_info.
-     * The matching one in adptr_info will have the netmask.
-     */
-    p = &((struct sockaddr_in *)ip_addr->Address.lpSockaddr)->sin_addr;
-    for (info = adptr_info; info; info = info->Next) {
-        for (ip = &info->IpAddressList; ip; ip = ip->Next) {
-            if (p->S_un.S_addr == inet_addr(ip->IpAddress.String)) {
-                prefix = ctpop32(inet_addr(ip->IpMask.String));
-                goto out;
-            }
-        }
-    }
-out:
-    g_free(adptr_info);
-    return prefix;
-}
-#endif
 
 #define INTERFACE_PATH_BUF_SZ 512
 
@@ -1904,7 +1845,6 @@ typedef struct _GA_WTSINFOA {
 
 GuestUserList *qmp_guest_get_users(Error **err)
 {
-#if (_WIN32_WINNT >= 0x0600)
 #define QGA_NANOSECONDS 10000000
 
     GHashTable *cache = NULL;
@@ -1974,10 +1914,6 @@ GuestUserList *qmp_guest_get_users(Error **err)
     }
     g_hash_table_destroy(cache);
     return head;
-#else
-    error_setg(err, QERR_UNSUPPORTED);
-    return NULL;
-#endif
 }
 
 typedef struct _ga_matrix_lookup_t {
