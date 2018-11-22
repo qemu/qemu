@@ -918,6 +918,15 @@ static bool migrate_caps_check(bool *cap_list,
     }
 #endif
 
+#ifndef CONFIG_REPLICATION
+    if (cap_list[MIGRATION_CAPABILITY_X_COLO]) {
+        error_setg(errp, "QEMU compiled without replication module"
+                   " can't enable COLO");
+        error_append_hint(errp, "Please enable replication before COLO.\n");
+        return false;
+    }
+#endif
+
     if (cap_list[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
         if (cap_list[MIGRATION_CAPABILITY_COMPRESS]) {
             /* The decompression threads asynchronously write into RAM
