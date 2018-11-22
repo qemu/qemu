@@ -1033,7 +1033,7 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
         cpu_to_be32(0),
         cpu_to_be32(0),
         cpu_to_be32(0),
-        cpu_to_be32(nb_numa_nodes ? nb_numa_nodes - 1 : 0),
+        cpu_to_be32(nb_numa_nodes ? nb_numa_nodes : 1),
     };
 
     _FDT(rtas = fdt_add_subnode(fdt, 0, "rtas"));
