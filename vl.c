@@ -128,6 +128,7 @@ int main(int argc, char **argv)
 #include "qapi/qapi-commands-block-core.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-run-state.h"
+#include "qapi/qapi-commands-ui.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
 
@@ -2053,6 +2054,11 @@ static void parse_display_qapi(const char *optarg)
 
     qapi_free_DisplayOptions(opts);
     visit_free(v);
+}
+
+DisplayOptions *qmp_query_display_options(Error **errp)
+{
+    return QAPI_CLONE(DisplayOptions, &dpy);
 }
 
 static void parse_display(const char *p)
