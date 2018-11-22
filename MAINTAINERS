@@ -117,6 +117,7 @@ S: Maintained
 F: cpus.c
 F: exec.c
 F: accel/tcg/
+F: accel/stubs/tcg-stub.c
 F: include/exec/cpu*.h
 F: include/exec/exec-all.h
 F: include/exec/helper*.h
@@ -341,7 +342,10 @@ L: kvm@vger.kernel.org
 S: Supported
 F: */kvm.*
 F: accel/kvm/
+F: accel/stubs/kvm-stub.c
+F: include/hw/kvm/
 F: include/sysemu/kvm*.h
+F: scripts/kvm/kvm_flightrecorder
 
 ARM
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -384,6 +388,7 @@ M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
 F: target/i386/kvm.c
+F: scripts/kvm/vmxcap
 
 Guest CPU Cores (Xen):
 ----------------------
