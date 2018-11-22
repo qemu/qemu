@@ -257,10 +257,6 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height,
                                                 pixman_format_code_t format,
                                                 int linesize, uint8_t *data);
 DisplaySurface *qemu_create_displaysurface_pixman(pixman_image_t *image);
-DisplaySurface *qemu_create_displaysurface_guestmem(int width, int height,
-                                                    pixman_format_code_t format,
-                                                    int linesize,
-                                                    uint64_t addr);
 DisplaySurface *qemu_create_message_surface(int w, int h,
                                             const char *msg);
 PixelFormat qemu_default_pixelformat(int bpp);
