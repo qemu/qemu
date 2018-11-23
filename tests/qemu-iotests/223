@@ -57,10 +57,11 @@ run_qemu()
 }
 
 echo
-echo "=== Create partially sparse image, then add dirty bitmap ==="
+echo "=== Create partially sparse image, then add dirty bitmaps ==="
 echo
 
-_make_test_img 4M
+# Two bitmaps, to contrast granularity issues
+_make_test_img -o cluster_size=4k 4M
 $QEMU_IO -c 'w -P 0x11 1M 2M' "$TEST_IMG" | _filter_qemu_io
 run_qemu <<EOF
 { "execute": "qmp_capabilities" }
@@ -78,7 +79,16 @@ run_qemu <<EOF
   "arguments": {
     "node": "n",
     "name": "b",
-    "persistent": true
+    "persistent": true,
+    "granularity": 65536
+  }
+}
+{ "execute": "block-dirty-bitmap-add",
+  "arguments": {
+    "node": "n",
+    "name": "b2",
+    "persistent": true,
+    "granularity": 512
   }
 }
 { "execute": "quit" }
@@ -88,10 +98,11 @@ echo
 echo "=== Write part of the file under active bitmap ==="
 echo
 
-$QEMU_IO -c 'w -P 0x22 2M 2M' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'w -P 0x22 512 512' -c 'w -P 0x33 2M 2M' "$TEST_IMG" \
+    | _filter_qemu_io
 
 echo
-echo "=== End dirty bitmap, and start serving image over NBD ==="
+echo "=== End dirty bitmaps, and start serving image over NBD ==="
 echo
 
 _launch_qemu 2> >(_filter_nbd)
@@ -103,6 +114,8 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"blockdev-add",
     "file":{"driver":"file", "filename":"'"$TEST_IMG"'"}}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"x-block-dirty-bitmap-disable",
   "arguments":{"node":"n", "name":"b"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"x-block-dirty-bitmap-disable",
+  "arguments":{"node":"n", "name":"b2"}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
   "arguments":{"addr":{"type":"unix",
     "data":{"path":"'"$TEST_DIR/nbd"'"}}}}' "return"
@@ -110,19 +123,31 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"n"}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"x-nbd-server-add-bitmap",
   "arguments":{"name":"n", "bitmap":"b"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "name":"n2"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"x-nbd-server-add-bitmap",
+  "arguments":{"name":"n2", "bitmap":"b2"}}' "return"
 
 echo
-echo "=== Contrast normal status with dirty-bitmap status ==="
+echo "=== Contrast normal status to large granularity dirty-bitmap ==="
 echo
 
 QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
 IMG="driver=nbd,export=n,server.type=unix,server.path=$TEST_DIR/nbd"
-$QEMU_IO -r -c 'r -P 0 0 1m' -c 'r -P 0x11 1m 1m' \
-  -c 'r -P 0x22 2m 2m' --image-opts "$IMG" | _filter_qemu_io
+$QEMU_IO -r -c 'r -P 0x22 512 512' -c 'r -P 0 512k 512k' -c 'r -P 0x11 1m 1m' \
+  -c 'r -P 0x33 2m 2m' --image-opts "$IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json --image-opts \
   "$IMG" | _filter_qemu_img_map
 $QEMU_IMG map --output=json --image-opts \
   "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b" | _filter_qemu_img_map
+
+echo
+echo "=== Contrast to small granularity dirty-bitmap ==="
+echo
+
+IMG="driver=nbd,export=n2,server.type=unix,server.path=$TEST_DIR/nbd"
+$QEMU_IMG map --output=json --image-opts \
+  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b2" | _filter_qemu_img_map
 
 echo
 echo "=== End NBD server ==="
@@ -130,6 +155,8 @@ echo
 
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-remove",
   "arguments":{"name":"n"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-remove",
+  "arguments":{"name":"n2"}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-stop"}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"quit"}' "return"
 

@@ -469,7 +469,7 @@ new_state = "1"
             self.assert_qmp(event, 'data/id', 'drive0')
             event = self.vm.get_qmp_event(wait=True)
 
-        self.assertEquals(event['event'], 'BLOCK_JOB_ERROR')
+        self.assertEqual(event['event'], 'BLOCK_JOB_ERROR')
         self.assert_qmp(event, 'data/device', 'drive0')
         self.assert_qmp(event, 'data/operation', 'read')
         result = self.vm.qmp('query-block-jobs')
@@ -494,7 +494,7 @@ new_state = "1"
             self.assert_qmp(event, 'data/id', 'drive0')
             event = self.vm.get_qmp_event(wait=True)
 
-        self.assertEquals(event['event'], 'BLOCK_JOB_ERROR')
+        self.assertEqual(event['event'], 'BLOCK_JOB_ERROR')
         self.assert_qmp(event, 'data/device', 'drive0')
         self.assert_qmp(event, 'data/operation', 'read')
         result = self.vm.qmp('query-block-jobs')
@@ -625,7 +625,7 @@ new_state = "1"
         self.assert_qmp(result, 'return', {})
 
         event = self.vm.event_wait(name='BLOCK_JOB_ERROR')
-        self.assertEquals(event['event'], 'BLOCK_JOB_ERROR')
+        self.assertEqual(event['event'], 'BLOCK_JOB_ERROR')
         self.assert_qmp(event, 'data/device', 'drive0')
         self.assert_qmp(event, 'data/operation', 'write')
         result = self.vm.qmp('query-block-jobs')

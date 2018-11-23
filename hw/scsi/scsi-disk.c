@@ -482,7 +482,7 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
     if (action == BLOCK_ERROR_ACTION_STOP) {
         scsi_req_retry(&r->req);
     }
-    return false;
+    return true;
 }
 
 static void scsi_write_complete_noio(SCSIDiskReq *r, int ret)

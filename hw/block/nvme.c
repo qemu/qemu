@@ -554,6 +554,7 @@ static uint16_t nvme_del_cq(NvmeCtrl *n, NvmeCmd *cmd)
         trace_nvme_err_invalid_del_cq_notempty(qid);
         return NVME_INVALID_QUEUE_DEL;
     }
+    nvme_irq_deassert(n, cq);
     trace_nvme_del_cq(qid);
     nvme_free_cq(cq, n);
     return NVME_SUCCESS;
@@ -796,6 +797,8 @@ static void nvme_process_sq(void *opaque)
 static void nvme_clear_ctrl(NvmeCtrl *n)
 {
     int i;
+
+    blk_drain(n->conf.blk);
 
     for (i = 0; i < n->num_queues; i++) {
         if (n->sq[i] != NULL) {
@@ -1175,23 +1178,13 @@ static void nvme_cmb_write(void *opaque, hwaddr addr, uint64_t data,
     unsigned size)
 {
     NvmeCtrl *n = (NvmeCtrl *)opaque;
-
-    if (addr + size > NVME_CMBSZ_GETSIZE(n->bar.cmbsz)) {
-        return;
-    }
-    memcpy(&n->cmbuf[addr], &data, size);
+    stn_le_p(&n->cmbuf[addr], size, data);
 }
 
 static uint64_t nvme_cmb_read(void *opaque, hwaddr addr, unsigned size)
 {
-    uint64_t val;
     NvmeCtrl *n = (NvmeCtrl *)opaque;
-
-    if (addr + size > NVME_CMBSZ_GETSIZE(n->bar.cmbsz)) {
-        return 0;
-    }
-    memcpy(&val, &n->cmbuf[addr], size);
-    return val;
+    return ldn_le_p(&n->cmbuf[addr], size);
 }
 
 static const MemoryRegionOps nvme_cmb_ops = {
@@ -1199,7 +1192,7 @@ static const MemoryRegionOps nvme_cmb_ops = {
     .write = nvme_cmb_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
-        .min_access_size = 2,
+        .min_access_size = 1,
         .max_access_size = 8,
     },
 };

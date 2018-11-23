@@ -31,6 +31,9 @@ tls_x509_cleanup()
 
 tls_x509_init()
 {
+    (certtool --help) >/dev/null 2>&1 || \
+	_notrun "certtool utility not found, skipping test"
+
     mkdir -p "${tls_dir}"
 
     # use a fixed key so we don't waste system entropy on

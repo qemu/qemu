@@ -1,6 +1,6 @@
 QA output created by 223
 
-=== Create partially sparse image, then add dirty bitmap ===
+=== Create partially sparse image, then add dirty bitmaps ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
 wrote 2097152/2097152 bytes at offset 1048576
@@ -11,15 +11,18 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
+{"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false}}
 
 
 === Write part of the file under active bitmap ===
 
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 2097152/2097152 bytes at offset 2097152
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-=== End dirty bitmap, and start serving image over NBD ===
+=== End dirty bitmaps, and start serving image over NBD ===
 
 {"return": {}}
 {"return": {}}
@@ -27,22 +30,37 @@ wrote 2097152/2097152 bytes at offset 2097152
 {"return": {}}
 {"return": {}}
 {"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
 
-=== Contrast normal status with dirty-bitmap status ===
+=== Contrast normal status to large granularity dirty-bitmap ===
 
-read 1048576/1048576 bytes at offset 0
-1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 524288/524288 bytes at offset 524288
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 2097152/2097152 bytes at offset 2097152
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-[{ "start": 0, "length": 1048576, "depth": 0, "zero": true, "data": false},
+[{ "start": 0, "length": 4096, "depth": 0, "zero": false, "data": true},
+{ "start": 4096, "length": 1044480, "depth": 0, "zero": true, "data": false},
 { "start": 1048576, "length": 3145728, "depth": 0, "zero": false, "data": true}]
-[{ "start": 0, "length": 2097152, "depth": 0, "zero": false, "data": true},
+[{ "start": 0, "length": 65536, "depth": 0, "zero": false, "data": false},
+{ "start": 65536, "length": 2031616, "depth": 0, "zero": false, "data": true},
+{ "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
+
+=== Contrast to small granularity dirty-bitmap ===
+
+[{ "start": 0, "length": 512, "depth": 0, "zero": false, "data": true},
+{ "start": 512, "length": 512, "depth": 0, "zero": false, "data": false},
+{ "start": 1024, "length": 2096128, "depth": 0, "zero": false, "data": true},
 { "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
 
 === End NBD server ===
 
+{"return": {}}
 {"return": {}}
 {"return": {}}
 {"return": {}}

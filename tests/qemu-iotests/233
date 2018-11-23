@@ -66,7 +66,7 @@ $QEMU_IO -c 'w -P 0x11 1m 1m' "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== check TLS client to plain server fails =="
-nbd_server_start_tcp_socket "$TEST_IMG"
+nbd_server_start_tcp_socket -f $IMGFMT "$TEST_IMG"
 
 $QEMU_IMG info --image-opts \
     --object tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0 \
@@ -78,7 +78,10 @@ nbd_server_stop
 echo
 echo "== check plain client to TLS server fails =="
 
-nbd_server_start_tcp_socket --object tls-creds-x509,dir=${tls_dir}/server1,endpoint=server,id=tls0,verify-peer=yes --tls-creds tls0 "$TEST_IMG"
+nbd_server_start_tcp_socket \
+    --object tls-creds-x509,dir=${tls_dir}/server1,endpoint=server,id=tls0,verify-peer=yes \
+    --tls-creds tls0 \
+    -f $IMGFMT "$TEST_IMG"
 
 $QEMU_IMG info nbd://localhost:$nbd_tcp_port 2>&1 | sed "s/$nbd_tcp_port/PORT/g"
 
@@ -104,7 +107,7 @@ $QEMU_IO -c 'r -P 0x11 1m 1m' -c 'w -P 0x22 1m 1m' --image-opts \
     driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0 \
     2>&1 | _filter_qemu_io
 
-$QEMU_IO -f qcow2 -r -U -c 'r -P 0x22 1m 1m' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -f $IMGFMT -r -U -c 'r -P 0x22 1m 1m' "$TEST_IMG" | _filter_qemu_io
 
 # success, all done
 echo "*** done"

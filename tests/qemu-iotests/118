@@ -53,21 +53,17 @@ class ChangeBaseClass(iotests.QMPTestCase):
         if not self.has_real_tray:
             return
 
-        timeout = time.clock() + 3
-        while not self.has_opened and time.clock() < timeout:
-            self.process_events()
-        if not self.has_opened:
-            self.fail('Timeout while waiting for the tray to open')
+        with iotests.Timeout(3, 'Timeout while waiting for the tray to open'):
+            while not self.has_opened:
+                self.process_events()
 
     def wait_for_close(self):
         if not self.has_real_tray:
             return
 
-        timeout = time.clock() + 3
-        while not self.has_closed and time.clock() < timeout:
-            self.process_events()
-        if not self.has_opened:
-            self.fail('Timeout while waiting for the tray to close')
+        with iotests.Timeout(3, 'Timeout while waiting for the tray to close'):
+            while not self.has_closed:
+                self.process_events()
 
 class GeneralChangeTestsBaseClass(ChangeBaseClass):
 
@@ -265,7 +261,7 @@ class GeneralChangeTestsBaseClass(ChangeBaseClass):
         result = self.vm.qmp('blockdev-close-tray', id=self.device_name)
         # Should be a no-op
         self.assert_qmp(result, 'return', {})
-        self.assertEquals(self.vm.get_qmp_events(wait=False), [])
+        self.assertEqual(self.vm.get_qmp_events(wait=False), [])
 
     def test_remove_on_closed(self):
         if not self.has_real_tray:
@@ -452,7 +448,7 @@ class TestChangeReadOnly(ChangeBaseClass):
                                                        read_only_mode='retain')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-        self.assertEquals(self.vm.get_qmp_events(wait=False), [])
+        self.assertEqual(self.vm.get_qmp_events(wait=False), [])
 
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/inserted/ro', False)
