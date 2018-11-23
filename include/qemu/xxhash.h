@@ -55,10 +55,10 @@ qemu_xxhash7(uint64_t ab, uint64_t cd, uint32_t e, uint32_t f, uint32_t g)
     uint32_t v2 = QEMU_XXHASH_SEED + PRIME32_2;
     uint32_t v3 = QEMU_XXHASH_SEED + 0;
     uint32_t v4 = QEMU_XXHASH_SEED - PRIME32_1;
-    uint32_t a = ab >> 32;
-    uint32_t b = ab;
-    uint32_t c = cd >> 32;
-    uint32_t d = cd;
+    uint32_t a = ab;
+    uint32_t b = ab >> 32;
+    uint32_t c = cd;
+    uint32_t d = cd >> 32;
     uint32_t h32;
 
     v1 += a * PRIME32_2;
