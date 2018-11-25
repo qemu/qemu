@@ -967,6 +967,7 @@ F: hw/ppc/mac_oldworld.c
 F: hw/pci-host/grackle.c
 F: hw/misc/macio/
 F: hw/intc/heathrow_pic.c
+F: include/hw/intc/heathrow_pic.h
 
 PReP
 M: Hervé Poussineau <hpoussin@reactos.org>
