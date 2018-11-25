@@ -1498,6 +1498,7 @@ S: Maintained
 F: hw/acpi/nvdimm.c
 F: hw/mem/nvdimm.c
 F: include/hw/mem/nvdimm.h
+F: docs/nvdimm.txt
 
 e1000x
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
