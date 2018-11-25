@@ -865,6 +865,8 @@ M: Hervé Poussineau <hpoussin@reactos.org>
 R: Stefan Markovic <smarkovic@wavecomp.com>
 S: Maintained
 F: hw/mips/mips_jazz.c
+F: hw/display/jazz_led.c
+F: hw/dma/rc4030.c
 
 Malta
 M: Aurelien Jarno <aurelien@aurel32.net>
