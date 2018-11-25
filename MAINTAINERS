@@ -1917,6 +1917,7 @@ S: Supported
 F: qmp.c
 F: monitor.c
 F: docs/devel/*qmp-*
+F: docs/interop/*qmp-*
 F: scripts/qmp/
 F: tests/qmp-test.c
 F: tests/qmp-cmd-test.c
