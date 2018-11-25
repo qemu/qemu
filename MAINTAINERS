@@ -2406,7 +2406,7 @@ Build and test automation
 Build and test automation
 M: Alex Bennée <alex.bennee@linaro.org>
 M: Fam Zheng <famz@redhat.com>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@redhat.com>
 L: qemu-devel@nongnu.org
 S: Maintained
 F: .travis.yml
