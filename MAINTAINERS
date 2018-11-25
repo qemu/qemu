@@ -1044,6 +1044,7 @@ F: hw/misc/eccmemctl.c
 F: hw/misc/slavio_misc.c
 F: include/hw/sparc/sparc32_dma.h
 F: pc-bios/openbios-sparc32
+F: include/hw/sparc/sun4m_iommu.h
 
 Sun4u
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
