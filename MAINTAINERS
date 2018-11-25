@@ -291,6 +291,7 @@ S: Maintained
 F: target/sparc/
 F: hw/sparc/
 F: hw/sparc64/
+F: include/hw/sparc/sparc64.h
 F: disas/sparc.c
 
 UniCore32
