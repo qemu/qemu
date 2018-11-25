@@ -1772,6 +1772,7 @@ F: ui/spice-*.c
 F: audio/spiceaudio.c
 F: hw/display/qxl*
 F: qapi/ui.json
+F: docs/spice-port-fqdn.txt
 
 Graphics
 M: Gerd Hoffmann <kraxel@redhat.com>
