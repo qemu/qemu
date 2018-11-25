@@ -741,6 +741,9 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/xlnx*.c
 F: include/hw/*/xlnx*.h
+F: include/hw/ssi/xilinx_spips.h
+F: hw/display/dpcd.c
+F: include/hw/display/dpcd.h
 
 ARM ACPI Subsystem
 M: Shannon Zhao <shannon.zhaosl@gmail.com>
