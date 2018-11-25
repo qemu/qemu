@@ -852,6 +852,7 @@ petalogix_s3adsp1800
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: hw/microblaze/petalogix_s3adsp1800_mmu.c
+F: include/hw/char/xilinx_uartlite.h
 
 petalogix_ml605
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
