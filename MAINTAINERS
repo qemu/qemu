@@ -541,6 +541,7 @@ L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: include/hw/arm/digic.h
 F: hw/*/digic*
+F: include/hw/*/digic*
 
 Gumstix
 M: Peter Maydell <peter.maydell@linaro.org>
