@@ -1382,6 +1382,7 @@ M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: hw/*/*vhost*
 F: docs/interop/vhost-user.txt
+F: contrib/vhost-user-*/
 
 virtio
 M: Michael S. Tsirkin <mst@redhat.com>
