@@ -1252,8 +1252,7 @@ F: hw/i386/acpi-build.[hc]
 F: hw/arm/virt-acpi-build.c
 F: tests/bios-tables-test.c
 F: tests/acpi-utils.[hc]
-F: tests/acpi-test-data/*
-F: tests/acpi-test-data/*/*
+F: tests/data/acpi/
 
 ppc4xx
 M: David Gibson <david@gibson.dropbear.id.au>
