@@ -1,0 +1,121 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+#
+# Check that block node activation and inactivation works with a block graph
+# that is built with individually created nodes
+
+import iotests
+import os
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.verify_platform(['linux'])
+
+with iotests.FilePath('img') as img_path, \
+     iotests.FilePath('backing') as backing_path, \
+     iotests.FilePath('mig_fifo_a') as fifo_a, \
+     iotests.FilePath('mig_fifo_b') as fifo_b, \
+     iotests.VM(path_suffix='a') as vm_a, \
+     iotests.VM(path_suffix='b') as vm_b:
+
+    iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, backing_path, '64M')
+    iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, img_path, '64M')
+
+    os.mkfifo(fifo_a)
+    os.mkfifo(fifo_b)
+
+    iotests.log('Launching source VM...')
+    (vm_a.add_blockdev('file,filename=%s,node-name=drive0-file' % (img_path))
+         .add_blockdev('%s,file=drive0-file,node-name=drive0' % (iotests.imgfmt))
+         .add_blockdev('file,filename=%s,node-name=drive0-backing-file' % (backing_path))
+         .add_blockdev('%s,file=drive0-backing-file,node-name=drive0-backing' % (iotests.imgfmt))
+         .launch())
+
+    iotests.log('Launching destination VM...')
+    (vm_b.add_blockdev('file,filename=%s,node-name=drive0-file' % (img_path))
+         .add_blockdev('%s,file=drive0-file,node-name=drive0' % (iotests.imgfmt))
+         .add_blockdev('file,filename=%s,node-name=drive0-backing-file' % (backing_path))
+         .add_blockdev('%s,file=drive0-backing-file,node-name=drive0-backing' % (iotests.imgfmt))
+         .add_incoming("exec: cat '%s'" % (fifo_a))
+         .launch())
+
+    # Add a child node that was created after the parent node. The reverse case
+    # is covered by the -blockdev options above.
+    iotests.log(vm_a.qmp('blockdev-snapshot', node='drive0-backing',
+                         overlay='drive0'))
+    iotests.log(vm_b.qmp('blockdev-snapshot', node='drive0-backing',
+                         overlay='drive0'))
+
+    iotests.log('Enabling migration QMP events on A...')
+    iotests.log(vm_a.qmp('migrate-set-capabilities', capabilities=[
+        {
+            'capability': 'events',
+            'state': True
+        }
+    ]))
+
+    iotests.log('Starting migration to B...')
+    iotests.log(vm_a.qmp('migrate', uri='exec:cat >%s' % (fifo_a)))
+    with iotests.Timeout(3, 'Migration does not complete'):
+        while True:
+            event = vm_a.event_wait('MIGRATION')
+            iotests.log(event, filters=[iotests.filter_qmp_event])
+            if event['data']['status'] == 'completed':
+                break
+
+    iotests.log(vm_a.qmp('query-migrate')['return']['status'])
+    iotests.log(vm_b.qmp('query-migrate')['return']['status'])
+
+    iotests.log(vm_a.qmp('query-status'))
+    iotests.log(vm_b.qmp('query-status'))
+
+    iotests.log('Add a second parent to drive0-file...')
+    iotests.log(vm_b.qmp('blockdev-add', driver='raw', file='drive0-file',
+                         node_name='drive0-raw'))
+
+    iotests.log('Restart A with -incoming and second parent...')
+    vm_a.shutdown()
+    (vm_a.add_blockdev('raw,file=drive0-file,node-name=drive0-raw')
+         .add_incoming("exec: cat '%s'" % (fifo_b))
+         .launch())
+
+    iotests.log(vm_a.qmp('blockdev-snapshot', node='drive0-backing',
+                         overlay='drive0'))
+
+    iotests.log('Enabling migration QMP events on B...')
+    iotests.log(vm_b.qmp('migrate-set-capabilities', capabilities=[
+        {
+            'capability': 'events',
+            'state': True
+        }
+    ]))
+
+    iotests.log('Starting migration back to A...')
+    iotests.log(vm_b.qmp('migrate', uri='exec:cat >%s' % (fifo_b)))
+    with iotests.Timeout(3, 'Migration does not complete'):
+        while True:
+            event = vm_b.event_wait('MIGRATION')
+            iotests.log(event, filters=[iotests.filter_qmp_event])
+            if event['data']['status'] == 'completed':
+                break
+
+    iotests.log(vm_a.qmp('query-migrate')['return']['status'])
+    iotests.log(vm_b.qmp('query-migrate')['return']['status'])
+
+    iotests.log(vm_a.qmp('query-status'))
+    iotests.log(vm_b.qmp('query-status'))
