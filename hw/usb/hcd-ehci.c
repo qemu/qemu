@@ -1783,9 +1783,17 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     EHCIqtd qtd;
     EHCIPacket *p;
     int again = 1;
+    uint32_t addr;
 
-    if (get_dwords(q->ehci, NLPTR_GET(q->qtdaddr), (uint32_t *) &qtd,
-                   sizeof(EHCIqtd) >> 2) < 0) {
+    addr = NLPTR_GET(q->qtdaddr);
+    if (get_dwords(q->ehci, addr +  8, &qtd.token,   1) < 0) {
+        return 0;
+    }
+    barrier();
+    if (get_dwords(q->ehci, addr +  0, &qtd.next,    1) < 0 ||
+        get_dwords(q->ehci, addr +  4, &qtd.altnext, 1) < 0 ||
+        get_dwords(q->ehci, addr + 12, qtd.bufptr,
+                   ARRAY_SIZE(qtd.bufptr)) < 0) {
         return 0;
     }
     ehci_trace_qtd(q, NLPTR_GET(q->qtdaddr), &qtd);
