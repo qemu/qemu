@@ -136,7 +136,11 @@ void hyperv_synic_add(CPUState *cs)
 
 void hyperv_synic_reset(CPUState *cs)
 {
-    device_reset(DEVICE(get_synic(cs)));
+    SynICState *synic = get_synic(cs);
+
+    if (synic) {
+        device_reset(DEVICE(synic));
+    }
 }
 
 static const TypeInfo synic_type_info = {
