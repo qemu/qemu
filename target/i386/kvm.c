@@ -798,6 +798,48 @@ static int hyperv_handle_properties(CPUState *cs)
         }
         env->features[FEAT_HYPERV_EAX] |= HV_SYNTIMERS_AVAILABLE;
     }
+    if (cpu->hyperv_relaxed_timing) {
+        env->features[FEAT_HV_RECOMM_EAX] |= HV_RELAXED_TIMING_RECOMMENDED;
+    }
+    if (cpu->hyperv_vapic) {
+        env->features[FEAT_HV_RECOMM_EAX] |= HV_APIC_ACCESS_RECOMMENDED;
+    }
+    if (cpu->hyperv_tlbflush) {
+        if (kvm_check_extension(cs->kvm_state,
+                                KVM_CAP_HYPERV_TLBFLUSH) <= 0) {
+            fprintf(stderr, "Hyper-V TLB flush support "
+                    "(requested by 'hv-tlbflush' cpu flag) "
+                    " is not supported by kernel\n");
+            return -ENOSYS;
+        }
+        env->features[FEAT_HV_RECOMM_EAX] |= HV_REMOTE_TLB_FLUSH_RECOMMENDED;
+        env->features[FEAT_HV_RECOMM_EAX] |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
+    }
+    if (cpu->hyperv_ipi) {
+        if (kvm_check_extension(cs->kvm_state,
+                                KVM_CAP_HYPERV_SEND_IPI) <= 0) {
+            fprintf(stderr, "Hyper-V IPI send support "
+                    "(requested by 'hv-ipi' cpu flag) "
+                    " is not supported by kernel\n");
+            return -ENOSYS;
+        }
+        env->features[FEAT_HV_RECOMM_EAX] |= HV_CLUSTER_IPI_RECOMMENDED;
+        env->features[FEAT_HV_RECOMM_EAX] |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
+    }
+    if (cpu->hyperv_evmcs) {
+        uint16_t evmcs_version;
+
+        if (kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_ENLIGHTENED_VMCS, 0,
+                                (uintptr_t)&evmcs_version)) {
+            fprintf(stderr, "Hyper-V Enlightened VMCS "
+                    "(requested by 'hv-evmcs' cpu flag) "
+                    "is not supported by kernel\n");
+            return -ENOSYS;
+        }
+        env->features[FEAT_HV_RECOMM_EAX] |= HV_ENLIGHTENED_VMCS_RECOMMENDED;
+        env->features[FEAT_HV_NESTED_EAX] = evmcs_version;
+    }
+
     return 0;
 }
 
@@ -879,7 +921,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
-    uint16_t evmcs_version;
     int kvm_base = KVM_CPUID_SIGNATURE;
     int r;
     Error *local_err = NULL;
@@ -954,44 +995,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HV_CPUID_ENLIGHTMENT_INFO;
-        if (cpu->hyperv_relaxed_timing) {
-            c->eax |= HV_RELAXED_TIMING_RECOMMENDED;
-        }
-        if (cpu->hyperv_vapic) {
-            c->eax |= HV_APIC_ACCESS_RECOMMENDED;
-        }
-        if (cpu->hyperv_tlbflush) {
-            if (kvm_check_extension(cs->kvm_state,
-                                    KVM_CAP_HYPERV_TLBFLUSH) <= 0) {
-                fprintf(stderr, "Hyper-V TLB flush support "
-                        "(requested by 'hv-tlbflush' cpu flag) "
-                        " is not supported by kernel\n");
-                return -ENOSYS;
-            }
-            c->eax |= HV_REMOTE_TLB_FLUSH_RECOMMENDED;
-            c->eax |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
-        }
-        if (cpu->hyperv_ipi) {
-            if (kvm_check_extension(cs->kvm_state,
-                                    KVM_CAP_HYPERV_SEND_IPI) <= 0) {
-                fprintf(stderr, "Hyper-V IPI send support "
-                        "(requested by 'hv-ipi' cpu flag) "
-                        " is not supported by kernel\n");
-                return -ENOSYS;
-            }
-            c->eax |= HV_CLUSTER_IPI_RECOMMENDED;
-            c->eax |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
-        }
-        if (cpu->hyperv_evmcs) {
-            if (kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_ENLIGHTENED_VMCS, 0,
-                                    (uintptr_t)&evmcs_version)) {
-                fprintf(stderr, "Hyper-V Enlightened VMCS "
-                        "(requested by 'hv-evmcs' cpu flag) "
-                        "is not supported by kernel\n");
-                return -ENOSYS;
-            }
-            c->eax |= HV_ENLIGHTENED_VMCS_RECOMMENDED;
-        }
+
+        c->eax = env->features[FEAT_HV_RECOMM_EAX];
         c->ebx = cpu->hyperv_spinlock_attempts;
 
         c = &cpuid_data.entries[cpuid_i++];
@@ -1015,7 +1020,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
             c = &cpuid_data.entries[cpuid_i++];
             c->function = HV_CPUID_NESTED_FEATURES;
-            c->eax = evmcs_version;
+            c->eax = env->features[FEAT_HV_NESTED_EAX];
         }
     }
 
