@@ -174,18 +174,21 @@ static GlobalProperty xen_compat_props[] = {
         .driver = "migration",
         .property = "send-section-footer",
         .value = "off",
-    },
-    { /* end of list */ },
+    }
 };
 
 static void xen_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
+
     ac->name = "Xen";
     ac->init_machine = xen_init;
     ac->setup_post = xen_setup_post;
     ac->allowed = &xen_allowed;
-    ac->global_props = xen_compat_props;
+    ac->compat_props = g_ptr_array_new();
+
+    compat_props_add(ac->compat_props,
+                     xen_compat_props, G_N_ELEMENTS(xen_compat_props));
 }
 
 #define TYPE_XEN_ACCEL ACCEL_CLASS_NAME("xen")

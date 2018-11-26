@@ -370,6 +370,31 @@ static void object_post_init_with_type(Object *obj, TypeImpl *ti)
     }
 }
 
+void object_apply_global_props(Object *obj, const GPtrArray *props, Error **errp)
+{
+    Error *err = NULL;
+    int i;
+
+    if (!props) {
+        return;
+    }
+
+    for (i = 0; i < props->len; i++) {
+        GlobalProperty *p = g_ptr_array_index(props, i);
+
+        if (object_dynamic_cast(obj, p->driver) == NULL) {
+            continue;
+        }
+        p->used = true;
+        object_property_parse(obj, p->value, p->property, &err);
+        if (err != NULL) {
+            error_prepend(&err, "can't apply global %s.%s=%s: ",
+                          p->driver, p->property, p->value);
+            error_propagate(errp, err);
+        }
+    }
+}
+
 static void object_initialize_with_type(void *data, size_t size, TypeImpl *type)
 {
     Object *obj = data;

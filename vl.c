@@ -2996,7 +2996,6 @@ static void user_register_global_props(void)
  */
 static void register_global_properties(MachineState *ms)
 {
-    accel_register_compat_props(ms->accelerator);
     machine_register_compat_props(ms);
     user_register_global_props();
 }

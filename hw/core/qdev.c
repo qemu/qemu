@@ -972,6 +972,15 @@ static void device_initfn(Object *obj)
 
 static void device_post_init(Object *obj)
 {
+    if (object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
+        MachineState *m = MACHINE(qdev_get_machine());
+        AccelClass *ac = ACCEL_GET_CLASS(m->accelerator);
+
+        if (ac->compat_props) {
+            object_apply_global_props(obj, ac->compat_props, &error_abort);
+        }
+    }
+
     qdev_prop_set_globals(DEVICE(obj));
 }
 
