@@ -446,6 +446,8 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     }
 }
 
+#define XTFPGA_MMU_RESERVED_MEMORY_SIZE (128 * MiB)
+
 static const hwaddr xtfpga_mmu_io[2] = {
     0xf0000000,
 };
@@ -568,6 +570,7 @@ static void xtfpga_lx60_class_init(ObjectClass *oc, void *data)
     mc->init = xtfpga_lx60_init;
     mc->max_cpus = 4;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_ram_size = 64 * MiB;
 }
 
 static const TypeInfo xtfpga_lx60_type = {
@@ -584,6 +587,7 @@ static void xtfpga_lx60_nommu_class_init(ObjectClass *oc, void *data)
     mc->init = xtfpga_lx60_nommu_init;
     mc->max_cpus = 4;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
+    mc->default_ram_size = 64 * MiB;
 }
 
 static const TypeInfo xtfpga_lx60_nommu_type = {
@@ -600,6 +604,7 @@ static void xtfpga_lx200_class_init(ObjectClass *oc, void *data)
     mc->init = xtfpga_lx200_init;
     mc->max_cpus = 4;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_ram_size = 96 * MiB;
 }
 
 static const TypeInfo xtfpga_lx200_type = {
@@ -616,6 +621,7 @@ static void xtfpga_lx200_nommu_class_init(ObjectClass *oc, void *data)
     mc->init = xtfpga_lx200_nommu_init;
     mc->max_cpus = 4;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
+    mc->default_ram_size = 96 * MiB;
 }
 
 static const TypeInfo xtfpga_lx200_nommu_type = {
@@ -632,6 +638,7 @@ static void xtfpga_ml605_class_init(ObjectClass *oc, void *data)
     mc->init = xtfpga_ml605_init;
     mc->max_cpus = 4;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_ram_size = 512 * MiB - XTFPGA_MMU_RESERVED_MEMORY_SIZE;
 }
 
 static const TypeInfo xtfpga_ml605_type = {
@@ -648,6 +655,7 @@ static void xtfpga_ml605_nommu_class_init(ObjectClass *oc, void *data)
     mc->init = xtfpga_ml605_nommu_init;
     mc->max_cpus = 4;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
+    mc->default_ram_size = 256 * MiB;
 }
 
 static const TypeInfo xtfpga_ml605_nommu_type = {
@@ -664,6 +672,7 @@ static void xtfpga_kc705_class_init(ObjectClass *oc, void *data)
     mc->init = xtfpga_kc705_init;
     mc->max_cpus = 4;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_ram_size = 1 * GiB - XTFPGA_MMU_RESERVED_MEMORY_SIZE;
 }
 
 static const TypeInfo xtfpga_kc705_type = {
@@ -680,6 +689,7 @@ static void xtfpga_kc705_nommu_class_init(ObjectClass *oc, void *data)
     mc->init = xtfpga_kc705_nommu_init;
     mc->max_cpus = 4;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
+    mc->default_ram_size = 256 * MiB;
 }
 
 static const TypeInfo xtfpga_kc705_nommu_type = {
