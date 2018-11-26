@@ -173,6 +173,7 @@ static int vmstate_acpi_post_load(void *opaque, int version_id)
     PIIX4PMState *s = opaque;
 
     pm_io_space_update(s);
+    smbus_io_space_update(s);
     return 0;
 }
 
