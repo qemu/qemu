@@ -108,6 +108,19 @@
 #define dh_is_signed_env dh_is_signed_ptr
 #define dh_is_signed(t) dh_is_signed_##t
 
+#define dh_callflag_i32  0
+#define dh_callflag_s32  0
+#define dh_callflag_int  0
+#define dh_callflag_i64  0
+#define dh_callflag_s64  0
+#define dh_callflag_f16  0
+#define dh_callflag_f32  0
+#define dh_callflag_f64  0
+#define dh_callflag_ptr  0
+#define dh_callflag_void 0
+#define dh_callflag_noreturn TCG_CALL_NO_RETURN
+#define dh_callflag(t) glue(dh_callflag_, dh_alias(t))
+
 #define dh_sizemask(t, n) \
   ((dh_is_64bit(t) << (n*2)) | (dh_is_signed(t) << (n*2+1)))
 
