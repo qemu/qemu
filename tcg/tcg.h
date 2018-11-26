@@ -244,7 +244,8 @@ typedef struct TCGRelocation {
 
 typedef struct TCGLabel {
     unsigned has_value : 1;
-    unsigned id : 31;
+    unsigned id : 15;
+    unsigned refs : 16;
     union {
         uintptr_t value;
         tcg_insn_unit *value_ptr;

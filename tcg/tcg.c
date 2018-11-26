@@ -2171,6 +2171,26 @@ static void process_op_defs(TCGContext *s)
 
 void tcg_op_remove(TCGContext *s, TCGOp *op)
 {
+    TCGLabel *label;
+
+    switch (op->opc) {
+    case INDEX_op_br:
+        label = arg_label(op->args[0]);
+        label->refs--;
+        break;
+    case INDEX_op_brcond_i32:
+    case INDEX_op_brcond_i64:
+        label = arg_label(op->args[3]);
+        label->refs--;
+        break;
+    case INDEX_op_brcond2_i32:
+        label = arg_label(op->args[5]);
+        label->refs--;
+        break;
+    default:
+        break;
+    }
+
     QTAILQ_REMOVE(&s->ops, op, link);
     QTAILQ_INSERT_TAIL(&s->free_ops, op, link);
     s->nb_ops--;
