@@ -372,6 +372,7 @@ struct CPUState {
     bool unplug;
     bool crash_occurred;
     bool exit_request;
+    bool in_exclusive_context;
     uint32_t cflags_next_tb;
     /* updates protected by BQL */
     uint32_t interrupt_request;
@@ -782,6 +783,18 @@ void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
  * BQL.
  */
 void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data);
+
+/**
+ * cpu_in_exclusive_context()
+ * @cpu: The vCPU to check
+ *
+ * Returns true if @cpu is an exclusive context, for example running
+ * something which has previously been queued via async_safe_run_on_cpu().
+ */
+static inline bool cpu_in_exclusive_context(const CPUState *cpu)
+{
+    return cpu->in_exclusive_context;
+}
 
 /**
  * qemu_get_cpu:

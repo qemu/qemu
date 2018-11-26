@@ -238,8 +238,6 @@ void cpu_exec_step_atomic(CPUState *cpu)
     uint32_t flags;
     uint32_t cflags = 1;
     uint32_t cf_mask = cflags & CF_HASH_MASK;
-    /* volatile because we modify it between setjmp and longjmp */
-    volatile bool in_exclusive_region = false;
 
     if (sigsetjmp(cpu->jmp_env, 0) == 0) {
         tb = tb_lookup__cpu_state(cpu, &pc, &cs_base, &flags, cf_mask);
@@ -253,7 +251,6 @@ void cpu_exec_step_atomic(CPUState *cpu)
 
         /* Since we got here, we know that parallel_cpus must be true.  */
         parallel_cpus = false;
-        in_exclusive_region = true;
         cc->cpu_exec_enter(cpu);
         /* execute the generated code */
         trace_exec_tb(tb, pc);
@@ -273,7 +270,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
         assert_no_pages_locked();
     }
 
-    if (in_exclusive_region) {
+    if (cpu_in_exclusive_context(cpu)) {
         /* We might longjump out of either the codegen or the
          * execution, so must make sure we only end the exclusive
          * region if we started it.
