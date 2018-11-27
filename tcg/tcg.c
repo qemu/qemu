@@ -2865,8 +2865,8 @@ static inline void temp_dead(TCGContext *s, TCGTemp *ts)
    registers needs to be allocated to store a constant.  If 'free_or_dead'
    is non-zero, subsequently release the temporary; if it is positive, the
    temp is dead; if it is negative, the temp is free.  */
-static void temp_sync(TCGContext *s, TCGTemp *ts,
-                      TCGRegSet allocated_regs, int free_or_dead)
+static void temp_sync(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs,
+                      TCGRegSet preferred_regs, int free_or_dead)
 {
     if (ts->fixed_reg) {
         return;
@@ -2886,7 +2886,7 @@ static void temp_sync(TCGContext *s, TCGTemp *ts,
                 break;
             }
             temp_load(s, ts, tcg_target_available_regs[ts->type],
-                      allocated_regs, 0);
+                      allocated_regs, preferred_regs);
             /* fallthrough */
 
         case TEMP_VAL_REG:
@@ -2913,7 +2913,7 @@ static void tcg_reg_free(TCGContext *s, TCGReg reg, TCGRegSet allocated_regs)
 {
     TCGTemp *ts = s->reg_to_temp[reg];
     if (ts != NULL) {
-        temp_sync(s, ts, allocated_regs, -1);
+        temp_sync(s, ts, allocated_regs, 0, -1);
     }
 }
 
@@ -3093,7 +3093,7 @@ static void tcg_reg_alloc_do_movi(TCGContext *s, TCGTemp *ots,
     ots->val = val;
     ots->mem_coherent = 0;
     if (NEED_SYNC_ARG(0)) {
-        temp_sync(s, ots, s->reserved_regs, IS_DEAD_ARG(0));
+        temp_sync(s, ots, s->reserved_regs, 0, IS_DEAD_ARG(0));
     } else if (IS_DEAD_ARG(0)) {
         temp_dead(s, ots);
     }
@@ -3176,7 +3176,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
         ots->mem_coherent = 0;
         s->reg_to_temp[ots->reg] = ots;
         if (NEED_SYNC_ARG(0)) {
-            temp_sync(s, ots, allocated_regs, 0);
+            temp_sync(s, ots, allocated_regs, 0, 0);
         }
     }
 }
@@ -3346,7 +3346,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             tcg_out_mov(s, ts->type, ts->reg, reg);
         }
         if (NEED_SYNC_ARG(i)) {
-            temp_sync(s, ts, o_allocated_regs, IS_DEAD_ARG(i));
+            temp_sync(s, ts, o_allocated_regs, 0, IS_DEAD_ARG(i));
         } else if (IS_DEAD_ARG(i)) {
             temp_dead(s, ts);
         }
@@ -3480,7 +3480,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
             ts->mem_coherent = 0;
             s->reg_to_temp[reg] = ts;
             if (NEED_SYNC_ARG(i)) {
-                temp_sync(s, ts, allocated_regs, IS_DEAD_ARG(i));
+                temp_sync(s, ts, allocated_regs, 0, IS_DEAD_ARG(i));
             } else if (IS_DEAD_ARG(i)) {
                 temp_dead(s, ts);
             }
