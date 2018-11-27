@@ -4612,45 +4612,68 @@ void bdrv_invalidate_cache_all(Error **errp)
     }
 }
 
-static int bdrv_inactivate_recurse(BlockDriverState *bs,
-                                   bool setting_flag)
+static bool bdrv_has_bds_parent(BlockDriverState *bs, bool only_active)
+{
+    BdrvChild *parent;
+
+    QLIST_FOREACH(parent, &bs->parents, next_parent) {
+        if (parent->role->parent_is_bds) {
+            BlockDriverState *parent_bs = parent->opaque;
+            if (!only_active || !(parent_bs->open_flags & BDRV_O_INACTIVE)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static int bdrv_inactivate_recurse(BlockDriverState *bs)
 {
     BdrvChild *child, *parent;
+    uint64_t perm, shared_perm;
     int ret;
 
     if (!bs->drv) {
         return -ENOMEDIUM;
     }
 
-    if (!setting_flag && bs->drv->bdrv_inactivate) {
+    /* Make sure that we don't inactivate a child before its parent.
+     * It will be covered by recursion from the yet active parent. */
+    if (bdrv_has_bds_parent(bs, true)) {
+        return 0;
+    }
+
+    assert(!(bs->open_flags & BDRV_O_INACTIVE));
+
+    /* Inactivate this node */
+    if (bs->drv->bdrv_inactivate) {
         ret = bs->drv->bdrv_inactivate(bs);
         if (ret < 0) {
             return ret;
         }
     }
 
-    if (setting_flag && !(bs->open_flags & BDRV_O_INACTIVE)) {
-        uint64_t perm, shared_perm;
-
-        QLIST_FOREACH(parent, &bs->parents, next_parent) {
-            if (parent->role->inactivate) {
-                ret = parent->role->inactivate(parent);
-                if (ret < 0) {
-                    return ret;
-                }
+    QLIST_FOREACH(parent, &bs->parents, next_parent) {
+        if (parent->role->inactivate) {
+            ret = parent->role->inactivate(parent);
+            if (ret < 0) {
+                return ret;
             }
         }
-
-        bs->open_flags |= BDRV_O_INACTIVE;
-
-        /* Update permissions, they may differ for inactive nodes */
-        bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
-        bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, &error_abort);
-        bdrv_set_perm(bs, perm, shared_perm);
     }
 
+    bs->open_flags |= BDRV_O_INACTIVE;
+
+    /* Update permissions, they may differ for inactive nodes */
+    bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
+    bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, &error_abort);
+    bdrv_set_perm(bs, perm, shared_perm);
+
+
+    /* Recursively inactivate children */
     QLIST_FOREACH(child, &bs->children, next) {
-        ret = bdrv_inactivate_recurse(child->bs, setting_flag);
+        ret = bdrv_inactivate_recurse(child->bs);
         if (ret < 0) {
             return ret;
         }
@@ -4664,7 +4687,6 @@ int bdrv_inactivate_all(void)
     BlockDriverState *bs = NULL;
     BdrvNextIterator it;
     int ret = 0;
-    int pass;
     GSList *aio_ctxs = NULL, *ctx;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
@@ -4676,17 +4698,17 @@ int bdrv_inactivate_all(void)
         }
     }
 
-    /* We do two passes of inactivation. The first pass calls to drivers'
-     * .bdrv_inactivate callbacks recursively so all cache is flushed to disk;
-     * the second pass sets the BDRV_O_INACTIVE flag so that no further write
-     * is allowed. */
-    for (pass = 0; pass < 2; pass++) {
-        for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-            ret = bdrv_inactivate_recurse(bs, pass);
-            if (ret < 0) {
-                bdrv_next_cleanup(&it);
-                goto out;
-            }
+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
+        /* Nodes with BDS parents are covered by recursion from the last
+         * parent that gets inactivated. Don't inactivate them a second
+         * time if that has already happened. */
+        if (bdrv_has_bds_parent(bs, false)) {
+            continue;
+        }
+        ret = bdrv_inactivate_recurse(bs);
+        if (ret < 0) {
+            bdrv_next_cleanup(&it);
+            goto out;
         }
     }
 

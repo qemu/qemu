@@ -272,7 +272,9 @@ static void nvme_post_cqes(void *opaque)
             sizeof(req->cqe));
         QTAILQ_INSERT_TAIL(&sq->req_list, req, entry);
     }
-    nvme_irq_assert(n, cq);
+    if (cq->tail != cq->head) {
+        nvme_irq_assert(n, cq);
+    }
 }
 
 static void nvme_enqueue_req_completion(NvmeCQueue *cq, NvmeRequest *req)
