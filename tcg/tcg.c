@@ -2837,7 +2837,7 @@ static void temp_allocate_frame(TCGContext *s, TCGTemp *ts)
     s->current_frame_offset += sizeof(tcg_target_long);
 }
 
-static void temp_load(TCGContext *, TCGTemp *, TCGRegSet, TCGRegSet);
+static void temp_load(TCGContext *, TCGTemp *, TCGRegSet, TCGRegSet, TCGRegSet);
 
 /* Mark a temporary as free or dead.  If 'free_or_dead' is negative,
    mark it free; otherwise mark it dead.  */
@@ -2886,7 +2886,7 @@ static void temp_sync(TCGContext *s, TCGTemp *ts,
                 break;
             }
             temp_load(s, ts, tcg_target_available_regs[ts->type],
-                      allocated_regs);
+                      allocated_regs, 0);
             /* fallthrough */
 
         case TEMP_VAL_REG:
@@ -2992,7 +2992,7 @@ static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet required_regs,
 /* Make sure the temporary is in a register.  If needed, allocate the register
    from DESIRED while avoiding ALLOCATED.  */
 static void temp_load(TCGContext *s, TCGTemp *ts, TCGRegSet desired_regs,
-                      TCGRegSet allocated_regs)
+                      TCGRegSet allocated_regs, TCGRegSet preferred_regs)
 {
     TCGReg reg;
 
@@ -3001,13 +3001,13 @@ static void temp_load(TCGContext *s, TCGTemp *ts, TCGRegSet desired_regs,
         return;
     case TEMP_VAL_CONST:
         reg = tcg_reg_alloc(s, desired_regs, allocated_regs,
-                            0, ts->indirect_base);
+                            preferred_regs, ts->indirect_base);
         tcg_out_movi(s, ts->type, reg, ts->val);
         ts->mem_coherent = 0;
         break;
     case TEMP_VAL_MEM:
         reg = tcg_reg_alloc(s, desired_regs, allocated_regs,
-                            0, ts->indirect_base);
+                            preferred_regs, ts->indirect_base);
         tcg_out_ld(s, ts->type, reg, ts->mem_base->reg, ts->mem_offset);
         ts->mem_coherent = 1;
         break;
@@ -3137,7 +3137,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
        the SOURCE value into its own register first, that way we
        don't have to reload SOURCE the next time it is used. */
     if (ts->val_type == TEMP_VAL_MEM) {
-        temp_load(s, ts, tcg_target_available_regs[itype], allocated_regs);
+        temp_load(s, ts, tcg_target_available_regs[itype], allocated_regs, 0);
     }
 
     tcg_debug_assert(ts->val_type == TEMP_VAL_REG);
@@ -3221,7 +3221,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             goto iarg_end;
         }
 
-        temp_load(s, ts, arg_ct->u.regs, i_allocated_regs);
+        temp_load(s, ts, arg_ct->u.regs, i_allocated_regs, 0);
 
         if (arg_ct->ct & TCG_CT_IALIAS) {
             if (ts->fixed_reg) {
@@ -3402,7 +3402,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
         if (arg != TCG_CALL_DUMMY_ARG) {
             ts = arg_temp(arg);
             temp_load(s, ts, tcg_target_available_regs[ts->type],
-                      s->reserved_regs);
+                      s->reserved_regs, 0);
             tcg_out_st(s, ts->type, ts->reg, TCG_REG_CALL_STACK, stack_offset);
         }
 #ifndef TCG_TARGET_STACK_GROWSUP
@@ -3427,7 +3427,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
                 TCGRegSet arg_set = 0;
 
                 tcg_regset_set_reg(arg_set, reg);
-                temp_load(s, ts, arg_set, allocated_regs);
+                temp_load(s, ts, arg_set, allocated_regs, 0);
             }
 
             tcg_regset_set_reg(allocated_regs, reg);
