@@ -685,7 +685,7 @@ static void ppce500_cpu_reset(void *opaque)
 }
 
 static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
-                                           qemu_irq **irqs)
+                                           IrqLines  *irqs)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -705,7 +705,7 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
     k = 0;
     for (i = 0; i < smp_cpus; i++) {
         for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
-            sysbus_connect_irq(s, k++, irqs[i][j]);
+            sysbus_connect_irq(s, k++, irqs[i].irq[j]);
         }
     }
 
@@ -713,7 +713,7 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
 }
 
 static DeviceState *ppce500_init_mpic_kvm(const PPCE500MachineClass *pmc,
-                                          qemu_irq **irqs, Error **errp)
+                                          IrqLines *irqs, Error **errp)
 {
     Error *err = NULL;
     DeviceState *dev;
@@ -742,7 +742,7 @@ static DeviceState *ppce500_init_mpic_kvm(const PPCE500MachineClass *pmc,
 
 static DeviceState *ppce500_init_mpic(PPCE500MachineState *pms,
                                       MemoryRegion *ccsr,
-                                      qemu_irq **irqs)
+                                      IrqLines *irqs)
 {
     MachineState *machine = MACHINE(pms);
     const PPCE500MachineClass *pmc = PPCE500_MACHINE_GET_CLASS(pms);
@@ -806,15 +806,14 @@ void ppce500_init(MachineState *machine)
     /* irq num for pin INTA, INTB, INTC and INTD is 1, 2, 3 and
      * 4 respectively */
     unsigned int pci_irq_nrs[PCI_NUM_PINS] = {1, 2, 3, 4};
-    qemu_irq **irqs;
+    IrqLines *irqs;
     DeviceState *dev, *mpicdev;
     CPUPPCState *firstenv = NULL;
     MemoryRegion *ccsr_addr_space;
     SysBusDevice *s;
     PPCE500CCSRState *ccsr;
 
-    irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
-    irqs[0] = g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
+    irqs = g_new0(IrqLines, smp_cpus);
     for (i = 0; i < smp_cpus; i++) {
         PowerPCCPU *cpu;
         CPUState *cs;
@@ -834,10 +833,9 @@ void ppce500_init(MachineState *machine)
             firstenv = env;
         }
 
-        irqs[i] = irqs[0] + (i * OPENPIC_OUTPUT_NB);
         input = (qemu_irq *)env->irq_inputs;
-        irqs[i][OPENPIC_OUTPUT_INT] = input[PPCE500_INPUT_INT];
-        irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
+        irqs[i].irq[OPENPIC_OUTPUT_INT] = input[PPCE500_INPUT_INT];
+        irqs[i].irq[OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
         env->spr_cb[SPR_BOOKE_PIR].default_value = cs->cpu_index = i;
         env->mpic_iack = pmc->ccsrbar_base + MPC8544_MPIC_REGS_OFFSET + 0xa0;
 
