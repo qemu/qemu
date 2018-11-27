@@ -2591,6 +2591,8 @@ static void liveness_pass_1(TCGContext *s)
             break;
         }
         op->life = arg_life;
+        op->output_pref[0] = 0;
+        op->output_pref[1] = 0;
     }
 }
 
@@ -3105,17 +3107,18 @@ static void tcg_reg_alloc_movi(TCGContext *s, const TCGOp *op)
     TCGTemp *ots = arg_temp(op->args[0]);
     tcg_target_ulong val = op->args[1];
 
-    tcg_reg_alloc_do_movi(s, ots, val, op->life, 0);
+    tcg_reg_alloc_do_movi(s, ots, val, op->life, op->output_pref[0]);
 }
 
 static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
 {
     const TCGLifeData arg_life = op->life;
-    TCGRegSet allocated_regs;
+    TCGRegSet allocated_regs, preferred_regs;
     TCGTemp *ts, *ots;
     TCGType otype, itype;
 
     allocated_regs = s->reserved_regs;
+    preferred_regs = op->output_pref[0];
     ots = arg_temp(op->args[0]);
     ts = arg_temp(op->args[1]);
 
@@ -3129,7 +3132,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
         if (IS_DEAD_ARG(1)) {
             temp_dead(s, ts);
         }
-        tcg_reg_alloc_do_movi(s, ots, val, arg_life, 0);
+        tcg_reg_alloc_do_movi(s, ots, val, arg_life, preferred_regs);
         return;
     }
 
@@ -3138,7 +3141,8 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
        the SOURCE value into its own register first, that way we
        don't have to reload SOURCE the next time it is used. */
     if (ts->val_type == TEMP_VAL_MEM) {
-        temp_load(s, ts, tcg_target_available_regs[itype], allocated_regs, 0);
+        temp_load(s, ts, tcg_target_available_regs[itype],
+                  allocated_regs, preferred_regs);
     }
 
     tcg_debug_assert(ts->val_type == TEMP_VAL_REG);
@@ -3168,7 +3172,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
                    input one. */
                 tcg_regset_set_reg(allocated_regs, ts->reg);
                 ots->reg = tcg_reg_alloc(s, tcg_target_available_regs[otype],
-                                         allocated_regs, 0,
+                                         allocated_regs, preferred_regs,
                                          ots->indirect_base);
             }
             tcg_out_mov(s, otype, ots->reg, ts->reg);
@@ -3302,7 +3306,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             } else if (arg_ct->ct & TCG_CT_NEWREG) {
                 reg = tcg_reg_alloc(s, arg_ct->u.regs,
                                     i_allocated_regs | o_allocated_regs,
-                                    0, ts->indirect_base);
+                                    op->output_pref[k], ts->indirect_base);
             } else {
                 /* if fixed register, we try to use it */
                 reg = ts->reg;
@@ -3311,7 +3315,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
                     goto oarg_end;
                 }
                 reg = tcg_reg_alloc(s, arg_ct->u.regs, o_allocated_regs,
-                                    0, ts->indirect_base);
+                                    op->output_pref[k], ts->indirect_base);
             }
             tcg_regset_set_reg(o_allocated_regs, reg);
             /* if a fixed register is used, then a move will be done afterwards */

@@ -619,6 +619,9 @@ typedef struct TCGOp {
 
     /* Arguments for the opcode.  */
     TCGArg args[MAX_OPC_PARAM];
+
+    /* Register preferences for the output(s).  */
+    TCGRegSet output_pref[2];
 } TCGOp;
 
 #define TCGOP_CALLI(X)    (X)->param1
