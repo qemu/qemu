@@ -2424,6 +2424,7 @@ static void liveness_pass_1(TCGContext *s)
     int nb_temps = s->nb_temps;
     TCGOp *op, *op_prev;
 
+    /* ??? Should be redundant with the exit_tb that ends the TB.  */
     la_func_end(s, nb_globals, nb_temps);
 
     QTAILQ_FOREACH_REVERSE_SAFE(op, &s->ops, TCGOpHead, link, op_prev) {
@@ -2612,7 +2613,9 @@ static void liveness_pass_1(TCGContext *s)
             }
 
             /* if end of basic block, update */
-            if (def->flags & TCG_OPF_BB_END) {
+            if (def->flags & TCG_OPF_BB_EXIT) {
+                la_func_end(s, nb_globals, nb_temps);
+            } else if (def->flags & TCG_OPF_BB_END) {
                 la_bb_end(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
                 la_global_sync(s, nb_globals);

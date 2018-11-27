@@ -1030,20 +1030,22 @@ typedef struct TCGArgConstraint {
 
 /* Bits for TCGOpDef->flags, 8 bits available.  */
 enum {
+    /* Instruction exits the translation block.  */
+    TCG_OPF_BB_EXIT      = 0x01,
     /* Instruction defines the end of a basic block.  */
-    TCG_OPF_BB_END       = 0x01,
+    TCG_OPF_BB_END       = 0x02,
     /* Instruction clobbers call registers and potentially update globals.  */
-    TCG_OPF_CALL_CLOBBER = 0x02,
+    TCG_OPF_CALL_CLOBBER = 0x04,
     /* Instruction has side effects: it cannot be removed if its outputs
        are not used, and might trigger exceptions.  */
-    TCG_OPF_SIDE_EFFECTS = 0x04,
+    TCG_OPF_SIDE_EFFECTS = 0x08,
     /* Instruction operands are 64-bits (otherwise 32-bits).  */
-    TCG_OPF_64BIT        = 0x08,
+    TCG_OPF_64BIT        = 0x10,
     /* Instruction is optional and not implemented by the host, or insn
        is generic and should not be implemened by the host.  */
-    TCG_OPF_NOT_PRESENT  = 0x10,
+    TCG_OPF_NOT_PRESENT  = 0x20,
     /* Instruction operands are vectors.  */
-    TCG_OPF_VECTOR       = 0x20,
+    TCG_OPF_VECTOR       = 0x40,
 };
 
 typedef struct TCGOpDef {
