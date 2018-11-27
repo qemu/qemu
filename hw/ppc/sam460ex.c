@@ -430,7 +430,7 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_plb_init(env);
 
     /* interrupt controllers */
-    irqs = g_malloc0(sizeof(*irqs) * PPCUIC_OUTPUT_NB);
+    irqs = g_new0(qemu_irq, PPCUIC_OUTPUT_NB);
     irqs[PPCUIC_OUTPUT_INT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT];
     irqs[PPCUIC_OUTPUT_CINT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT];
     uic[0] = ppcuic_init(env, irqs, 0xc0, 0, 1);
