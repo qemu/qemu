@@ -2395,6 +2395,26 @@ static void la_bb_end(TCGContext *s, int ng, int nt)
     }
 }
 
+/* liveness analysis: sync globals back to memory.  */
+static void la_global_sync(TCGContext *s, int ng)
+{
+    int i;
+
+    for (i = 0; i < ng; ++i) {
+        s->temps[i].state |= TS_MEM;
+    }
+}
+
+/* liveness analysis: sync globals back to memory and kill.  */
+static void la_global_kill(TCGContext *s, int ng)
+{
+    int i;
+
+    for (i = 0; i < ng; i++) {
+        s->temps[i].state = TS_DEAD | TS_MEM;
+    }
+}
+
 /* Liveness analysis : update the opc_arg_life array to tell if a
    given input arguments is dead. Instructions updating dead
    temporaries are removed. */
@@ -2450,15 +2470,9 @@ static void liveness_pass_1(TCGContext *s)
 
                 if (!(call_flags & (TCG_CALL_NO_WRITE_GLOBALS |
                                     TCG_CALL_NO_READ_GLOBALS))) {
-                    /* globals should go back to memory */
-                    for (i = 0; i < nb_globals; i++) {
-                        s->temps[i].state = TS_DEAD | TS_MEM;
-                    }
+                    la_global_kill(s, nb_globals);
                 } else if (!(call_flags & TCG_CALL_NO_READ_GLOBALS)) {
-                    /* globals should be synced to memory */
-                    for (i = 0; i < nb_globals; i++) {
-                        s->temps[i].state |= TS_MEM;
-                    }
+                    la_global_sync(s, nb_globals);
                 }
 
                 /* record arguments that die in this helper */
@@ -2601,10 +2615,7 @@ static void liveness_pass_1(TCGContext *s)
             if (def->flags & TCG_OPF_BB_END) {
                 la_bb_end(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
-                /* globals should be synced to memory */
-                for (i = 0; i < nb_globals; i++) {
-                    s->temps[i].state |= TS_MEM;
-                }
+                la_global_sync(s, nb_globals);
             }
 
             /* record arguments that die in this opcode */
