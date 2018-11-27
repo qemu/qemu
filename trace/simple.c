@@ -169,9 +169,9 @@ static gpointer writeout_thread(gpointer opaque)
         wait_for_trace_records_available();
 
         if (g_atomic_int_get(&dropped_events)) {
-            dropped.rec.event = DROPPED_EVENT_ID,
+            dropped.rec.event = DROPPED_EVENT_ID;
             dropped.rec.timestamp_ns = get_clock();
-            dropped.rec.length = sizeof(TraceRecord) + sizeof(uint64_t),
+            dropped.rec.length = sizeof(TraceRecord) + sizeof(uint64_t);
             dropped.rec.pid = trace_pid;
             do {
                 dropped_count = g_atomic_int_get(&dropped_events);
