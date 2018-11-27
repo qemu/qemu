@@ -3077,7 +3077,8 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
 }
 
 static void tcg_reg_alloc_do_movi(TCGContext *s, TCGTemp *ots,
-                                  tcg_target_ulong val, TCGLifeData arg_life)
+                                  tcg_target_ulong val, TCGLifeData arg_life,
+                                  TCGRegSet preferred_regs)
 {
     if (ots->fixed_reg) {
         /* For fixed registers, we do not do any constant propagation.  */
@@ -3093,7 +3094,7 @@ static void tcg_reg_alloc_do_movi(TCGContext *s, TCGTemp *ots,
     ots->val = val;
     ots->mem_coherent = 0;
     if (NEED_SYNC_ARG(0)) {
-        temp_sync(s, ots, s->reserved_regs, 0, IS_DEAD_ARG(0));
+        temp_sync(s, ots, s->reserved_regs, preferred_regs, IS_DEAD_ARG(0));
     } else if (IS_DEAD_ARG(0)) {
         temp_dead(s, ots);
     }
@@ -3104,7 +3105,7 @@ static void tcg_reg_alloc_movi(TCGContext *s, const TCGOp *op)
     TCGTemp *ots = arg_temp(op->args[0]);
     tcg_target_ulong val = op->args[1];
 
-    tcg_reg_alloc_do_movi(s, ots, val, op->life);
+    tcg_reg_alloc_do_movi(s, ots, val, op->life, 0);
 }
 
 static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
@@ -3128,7 +3129,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
         if (IS_DEAD_ARG(1)) {
             temp_dead(s, ts);
         }
-        tcg_reg_alloc_do_movi(s, ots, val, arg_life);
+        tcg_reg_alloc_do_movi(s, ots, val, arg_life, 0);
         return;
     }
 
