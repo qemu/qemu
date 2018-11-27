@@ -2436,47 +2436,46 @@ static void liveness_pass_1(TCGContext *s)
                         }
                     }
                     goto do_remove;
-                } else {
-                do_not_remove_call:
+                }
+            do_not_remove_call:
 
-                    /* output args are dead */
-                    for (i = 0; i < nb_oargs; i++) {
-                        arg_ts = arg_temp(op->args[i]);
-                        if (arg_ts->state & TS_DEAD) {
-                            arg_life |= DEAD_ARG << i;
-                        }
-                        if (arg_ts->state & TS_MEM) {
-                            arg_life |= SYNC_ARG << i;
-                        }
-                        arg_ts->state = TS_DEAD;
+                /* output args are dead */
+                for (i = 0; i < nb_oargs; i++) {
+                    arg_ts = arg_temp(op->args[i]);
+                    if (arg_ts->state & TS_DEAD) {
+                        arg_life |= DEAD_ARG << i;
                     }
+                    if (arg_ts->state & TS_MEM) {
+                        arg_life |= SYNC_ARG << i;
+                    }
+                    arg_ts->state = TS_DEAD;
+                }
 
-                    if (!(call_flags & (TCG_CALL_NO_WRITE_GLOBALS |
-                                        TCG_CALL_NO_READ_GLOBALS))) {
-                        /* globals should go back to memory */
-                        for (i = 0; i < nb_globals; i++) {
-                            s->temps[i].state = TS_DEAD | TS_MEM;
-                        }
-                    } else if (!(call_flags & TCG_CALL_NO_READ_GLOBALS)) {
-                        /* globals should be synced to memory */
-                        for (i = 0; i < nb_globals; i++) {
-                            s->temps[i].state |= TS_MEM;
-                        }
+                if (!(call_flags & (TCG_CALL_NO_WRITE_GLOBALS |
+                                    TCG_CALL_NO_READ_GLOBALS))) {
+                    /* globals should go back to memory */
+                    for (i = 0; i < nb_globals; i++) {
+                        s->temps[i].state = TS_DEAD | TS_MEM;
                     }
+                } else if (!(call_flags & TCG_CALL_NO_READ_GLOBALS)) {
+                    /* globals should be synced to memory */
+                    for (i = 0; i < nb_globals; i++) {
+                        s->temps[i].state |= TS_MEM;
+                    }
+                }
 
-                    /* record arguments that die in this helper */
-                    for (i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
-                        arg_ts = arg_temp(op->args[i]);
-                        if (arg_ts && arg_ts->state & TS_DEAD) {
-                            arg_life |= DEAD_ARG << i;
-                        }
+                /* record arguments that die in this helper */
+                for (i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
+                    arg_ts = arg_temp(op->args[i]);
+                    if (arg_ts && arg_ts->state & TS_DEAD) {
+                        arg_life |= DEAD_ARG << i;
                     }
-                    /* input arguments are live for preceding opcodes */
-                    for (i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
-                        arg_ts = arg_temp(op->args[i]);
-                        if (arg_ts) {
-                            arg_ts->state &= ~TS_DEAD;
-                        }
+                }
+                /* input arguments are live for preceding opcodes */
+                for (i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
+                    arg_ts = arg_temp(op->args[i]);
+                    if (arg_ts) {
+                        arg_ts->state &= ~TS_DEAD;
                     }
                 }
             }
@@ -2580,43 +2579,47 @@ static void liveness_pass_1(TCGContext *s)
                         goto do_not_remove;
                     }
                 }
-            do_remove:
-                tcg_op_remove(s, op);
-            } else {
-            do_not_remove:
-                /* output args are dead */
-                for (i = 0; i < nb_oargs; i++) {
-                    arg_ts = arg_temp(op->args[i]);
-                    if (arg_ts->state & TS_DEAD) {
-                        arg_life |= DEAD_ARG << i;
-                    }
-                    if (arg_ts->state & TS_MEM) {
-                        arg_life |= SYNC_ARG << i;
-                    }
-                    arg_ts->state = TS_DEAD;
-                }
+                goto do_remove;
+            }
+            goto do_not_remove;
 
-                /* if end of basic block, update */
-                if (def->flags & TCG_OPF_BB_END) {
-                    tcg_la_bb_end(s);
-                } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
-                    /* globals should be synced to memory */
-                    for (i = 0; i < nb_globals; i++) {
-                        s->temps[i].state |= TS_MEM;
-                    }
-                }
+        do_remove:
+            tcg_op_remove(s, op);
+            break;
 
-                /* record arguments that die in this opcode */
-                for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
-                    arg_ts = arg_temp(op->args[i]);
-                    if (arg_ts->state & TS_DEAD) {
-                        arg_life |= DEAD_ARG << i;
-                    }
+        do_not_remove:
+            /* output args are dead */
+            for (i = 0; i < nb_oargs; i++) {
+                arg_ts = arg_temp(op->args[i]);
+                if (arg_ts->state & TS_DEAD) {
+                    arg_life |= DEAD_ARG << i;
                 }
-                /* input arguments are live for preceding opcodes */
-                for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
-                    arg_temp(op->args[i])->state &= ~TS_DEAD;
+                if (arg_ts->state & TS_MEM) {
+                    arg_life |= SYNC_ARG << i;
                 }
+                arg_ts->state = TS_DEAD;
+            }
+
+            /* if end of basic block, update */
+            if (def->flags & TCG_OPF_BB_END) {
+                tcg_la_bb_end(s);
+            } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
+                /* globals should be synced to memory */
+                for (i = 0; i < nb_globals; i++) {
+                    s->temps[i].state |= TS_MEM;
+                }
+            }
+
+            /* record arguments that die in this opcode */
+            for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
+                arg_ts = arg_temp(op->args[i]);
+                if (arg_ts->state & TS_DEAD) {
+                    arg_life |= DEAD_ARG << i;
+                }
+            }
+            /* input arguments are live for preceding opcodes */
+            for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
+                arg_temp(op->args[i])->state &= ~TS_DEAD;
             }
             break;
         }
