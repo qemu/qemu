@@ -77,7 +77,6 @@ static int vmc_read(SpiceCharDeviceInstance *sin, uint8_t *buf, int len)
     return bytes;
 }
 
-#if SPICE_SERVER_VERSION >= 0x000c02
 static void vmc_event(SpiceCharDeviceInstance *sin, uint8_t event)
 {
     SpiceChardev *scd = container_of(sin, SpiceChardev, sin);
@@ -95,7 +94,6 @@ static void vmc_event(SpiceCharDeviceInstance *sin, uint8_t event)
     trace_spice_vmc_event(chr_event);
     qemu_chr_be_event(chr, chr_event);
 }
-#endif
 
 static void vmc_state(SpiceCharDeviceInstance *sin, int connected)
 {
@@ -119,9 +117,7 @@ static SpiceCharDeviceInterface vmc_interface = {
     .state              = vmc_state,
     .write              = vmc_write,
     .read               = vmc_read,
-#if SPICE_SERVER_VERSION >= 0x000c02
     .event              = vmc_event,
-#endif
 #if SPICE_SERVER_VERSION >= 0x000c06
     .flags              = SPICE_CHAR_DEVICE_NOTIFY_WRITABLE,
 #endif
@@ -223,9 +219,7 @@ static void char_spice_finalize(Object *obj)
     }
 
     g_free((char *)s->sin.subtype);
-#if SPICE_SERVER_VERSION >= 0x000c02
     g_free((char *)s->sin.portname);
-#endif
 }
 
 static void spice_vmc_set_fe_open(struct Chardev *chr, int fe_open)
@@ -240,7 +234,6 @@ static void spice_vmc_set_fe_open(struct Chardev *chr, int fe_open)
 
 static void spice_port_set_fe_open(struct Chardev *chr, int fe_open)
 {
-#if SPICE_SERVER_VERSION >= 0x000c02
     SpiceChardev *s = SPICE_CHARDEV(chr);
 
     if (fe_open) {
@@ -248,7 +241,6 @@ static void spice_port_set_fe_open(struct Chardev *chr, int fe_open)
     } else {
         spice_server_port_event(&s->sin, SPICE_PORT_EVENT_CLOSED);
     }
-#endif
 }
 
 static void spice_chr_accept_input(struct Chardev *chr)
@@ -298,7 +290,6 @@ static void qemu_chr_open_spice_vmc(Chardev *chr,
     chr_open(chr, type);
 }
 
-#if SPICE_SERVER_VERSION >= 0x000c02
 static void qemu_chr_open_spice_port(Chardev *chr,
                                      ChardevBackend *backend,
                                      bool *be_opened,
@@ -331,7 +322,6 @@ void qemu_spice_register_ports(void)
         vmc_register_interface(s);
     }
 }
-#endif
 
 static void qemu_chr_parse_spice_vmc(QemuOpts *opts, ChardevBackend *backend,
                                      Error **errp)
