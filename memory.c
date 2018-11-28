@@ -217,7 +217,7 @@ struct FlatRange {
     bool romd_mode;
     bool readonly;
     bool nonvolatile;
-    bool has_coalesced_range;
+    int has_coalesced_range;
 };
 
 #define FOR_EACH_FLAT_RANGE(var, view)          \
@@ -651,7 +651,7 @@ static void render_memory_region(FlatView *view,
     fr.romd_mode = mr->romd_mode;
     fr.readonly = readonly;
     fr.nonvolatile = nonvolatile;
-    fr.has_coalesced_range = false;
+    fr.has_coalesced_range = 0;
 
     /* Render the region itself into any gaps left by the current view. */
     for (i = 0; i < view->nr && int128_nz(remain); ++i) {
@@ -858,6 +858,10 @@ static void flat_range_coalesced_io_del(FlatRange *fr, AddressSpace *as)
         return;
     }
 
+    if (--fr->has_coalesced_range > 0) {
+        return;
+    }
+
     MEMORY_LISTENER_UPDATE_REGION(fr, as, Reverse, coalesced_io_del,
                                   int128_get64(fr->addr.start),
                                   int128_get64(fr->addr.size));
@@ -873,7 +877,10 @@ static void flat_range_coalesced_io_add(FlatRange *fr, AddressSpace *as)
         return;
     }
 
-    fr->has_coalesced_range = true;
+    if (fr->has_coalesced_range++) {
+        return;
+    }
+
     QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
         tmp = addrrange_shift(cmr->addr,
                               int128_sub(fr->addr.start,
@@ -920,6 +927,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
             /* In old but not in new, or in both but attributes changed. */
 
             if (!adding) {
+                flat_range_coalesced_io_del(frold, as);
                 MEMORY_LISTENER_UPDATE_REGION(frold, as, Reverse, region_del);
             }
 
@@ -927,7 +935,9 @@ static void address_space_update_topology_pass(AddressSpace *as,
         } else if (frold && frnew && flatrange_equal(frold, frnew)) {
             /* In both and unchanged (except logging may have changed) */
 
-            if (adding) {
+            if (!adding) {
+                flat_range_coalesced_io_del(frold, as);
+            } else {
                 MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_nop);
                 if (frnew->dirty_log_mask & ~frold->dirty_log_mask) {
                     MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, log_start,
@@ -939,6 +949,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
                                                   frold->dirty_log_mask,
                                                   frnew->dirty_log_mask);
                 }
+                flat_range_coalesced_io_add(frnew, as);
             }
 
             ++iold;
@@ -948,6 +959,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
             if (adding) {
                 MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_add);
+                flat_range_coalesced_io_add(frnew, as);
             }
 
             ++inew;
