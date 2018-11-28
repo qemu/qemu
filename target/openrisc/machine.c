@@ -49,7 +49,8 @@ static const VMStateDescription vmstate_cpu_tlb = {
     }
 };
 
-static int get_sr(QEMUFile *f, void *opaque, size_t size, VMStateField *field)
+static int get_sr(QEMUFile *f, void *opaque, size_t size,
+                  const VMStateField *field)
 {
     CPUOpenRISCState *env = opaque;
     cpu_set_sr(env, qemu_get_be32(f));
@@ -57,7 +58,7 @@ static int get_sr(QEMUFile *f, void *opaque, size_t size, VMStateField *field)
 }
 
 static int put_sr(QEMUFile *f, void *opaque, size_t size,
-                  VMStateField *field, QJSON *vmdesc)
+                  const VMStateField *field, QJSON *vmdesc)
 {
     CPUOpenRISCState *env = opaque;
     qemu_put_be32(f, cpu_get_sr(env));

@@ -263,15 +263,16 @@ void timer_get(QEMUFile *f, QEMUTimer *ts)
  * Not in vmstate.c to not add qemu-timer.c as dependency to vmstate.c
  */
 
-static int get_timer(QEMUFile *f, void *pv, size_t size, VMStateField *field)
+static int get_timer(QEMUFile *f, void *pv, size_t size,
+                     const VMStateField *field)
 {
     QEMUTimer *v = pv;
     timer_get(f, v);
     return 0;
 }
 
-static int put_timer(QEMUFile *f, void *pv, size_t size, VMStateField *field,
-                     QJSON *vmdesc)
+static int put_timer(QEMUFile *f, void *pv, size_t size,
+                     const VMStateField *field, QJSON *vmdesc)
 {
     QEMUTimer *v = pv;
     timer_put(f, v);
@@ -2454,6 +2455,10 @@ int save_snapshot(const char *name, Error **errp)
     qemu_timeval tv;
     struct tm tm;
     AioContext *aio_context;
+
+    if (migration_is_blocked(errp)) {
+        return false;
+    }
 
     if (!replay_can_snapshot()) {
         error_setg(errp, "Record/replay does not allow making snapshot "

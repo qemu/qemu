@@ -688,8 +688,8 @@ void shpc_cap_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
     shpc_cap_update_dword(d);
 }
 
-static int shpc_save(QEMUFile *f, void *pv, size_t size, VMStateField *field,
-                     QJSON *vmdesc)
+static int shpc_save(QEMUFile *f, void *pv, size_t size,
+                     const VMStateField *field, QJSON *vmdesc)
 {
     PCIDevice *d = container_of(pv, PCIDevice, shpc);
     qemu_put_buffer(f, d->shpc->config, SHPC_SIZEOF(d));
@@ -697,7 +697,8 @@ static int shpc_save(QEMUFile *f, void *pv, size_t size, VMStateField *field,
     return 0;
 }
 
-static int shpc_load(QEMUFile *f, void *pv, size_t size, VMStateField *field)
+static int shpc_load(QEMUFile *f, void *pv, size_t size,
+                     const VMStateField *field)
 {
     PCIDevice *d = container_of(pv, PCIDevice, shpc);
     int ret = qemu_get_buffer(f, d->shpc->config, SHPC_SIZEOF(d));

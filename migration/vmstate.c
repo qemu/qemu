@@ -26,7 +26,7 @@ static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
 static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
                                    void *opaque);
 
-static int vmstate_n_elems(void *opaque, VMStateField *field)
+static int vmstate_n_elems(void *opaque, const VMStateField *field)
 {
     int n_elems = 1;
 
@@ -50,7 +50,7 @@ static int vmstate_n_elems(void *opaque, VMStateField *field)
     return n_elems;
 }
 
-static int vmstate_size(void *opaque, VMStateField *field)
+static int vmstate_size(void *opaque, const VMStateField *field)
 {
     int size = field->size;
 
@@ -64,7 +64,8 @@ static int vmstate_size(void *opaque, VMStateField *field)
     return size;
 }
 
-static void vmstate_handle_alloc(void *ptr, VMStateField *field, void *opaque)
+static void vmstate_handle_alloc(void *ptr, const VMStateField *field,
+                                 void *opaque)
 {
     if (field->flags & VMS_POINTER && field->flags & VMS_ALLOC) {
         gsize size = vmstate_size(opaque, field);
@@ -78,7 +79,7 @@ static void vmstate_handle_alloc(void *ptr, VMStateField *field, void *opaque)
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id)
 {
-    VMStateField *field = vmsd->fields;
+    const VMStateField *field = vmsd->fields;
     int ret = 0;
 
     trace_vmstate_load_state(vmsd->name, version_id);
@@ -171,9 +172,10 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
     return ret;
 }
 
-static int vmfield_name_num(VMStateField *start, VMStateField *search)
+static int vmfield_name_num(const VMStateField *start,
+                            const VMStateField *search)
 {
-    VMStateField *field;
+    const VMStateField *field;
     int found = 0;
 
     for (field = start; field->name; field++) {
@@ -188,9 +190,10 @@ static int vmfield_name_num(VMStateField *start, VMStateField *search)
     return -1;
 }
 
-static bool vmfield_name_is_unique(VMStateField *start, VMStateField *search)
+static bool vmfield_name_is_unique(const VMStateField *start,
+                                   const VMStateField *search)
 {
-    VMStateField *field;
+    const VMStateField *field;
     int found = 0;
 
     for (field = start; field->name; field++) {
@@ -206,7 +209,7 @@ static bool vmfield_name_is_unique(VMStateField *start, VMStateField *search)
     return true;
 }
 
-static const char *vmfield_get_type_name(VMStateField *field)
+static const char *vmfield_get_type_name(const VMStateField *field)
 {
     const char *type = "unknown";
 
@@ -221,7 +224,7 @@ static const char *vmfield_get_type_name(VMStateField *field)
     return type;
 }
 
-static bool vmsd_can_compress(VMStateField *field)
+static bool vmsd_can_compress(const VMStateField *field)
 {
     if (field->field_exists) {
         /* Dynamically existing fields mess up compression */
@@ -229,7 +232,7 @@ static bool vmsd_can_compress(VMStateField *field)
     }
 
     if (field->flags & VMS_STRUCT) {
-        VMStateField *sfield = field->vmsd->fields;
+        const VMStateField *sfield = field->vmsd->fields;
         while (sfield->name) {
             if (!vmsd_can_compress(sfield)) {
                 /* Child elements can't compress, so can't we */
@@ -248,7 +251,7 @@ static bool vmsd_can_compress(VMStateField *field)
 }
 
 static void vmsd_desc_field_start(const VMStateDescription *vmsd, QJSON *vmdesc,
-                                  VMStateField *field, int i, int max)
+                                  const VMStateField *field, int i, int max)
 {
     char *name, *old_name;
     bool is_array = max > 1;
@@ -287,7 +290,7 @@ static void vmsd_desc_field_start(const VMStateDescription *vmsd, QJSON *vmdesc,
 }
 
 static void vmsd_desc_field_end(const VMStateDescription *vmsd, QJSON *vmdesc,
-                                VMStateField *field, size_t size, int i)
+                                const VMStateField *field, size_t size, int i)
 {
     if (!vmdesc) {
         return;
@@ -323,7 +326,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                          void *opaque, QJSON *vmdesc, int version_id)
 {
     int ret = 0;
-    VMStateField *field = vmsd->fields;
+    const VMStateField *field = vmsd->fields;
 
     trace_vmstate_save_state_top(vmsd->name);
 

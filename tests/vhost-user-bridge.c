@@ -323,7 +323,7 @@ vubr_backend_recv_cb(int sock, void *ctx)
             .msg_name = (struct sockaddr *) &vubr->backend_udp_dest,
             .msg_namelen = sizeof(struct sockaddr_in),
             .msg_iov = sg,
-            .msg_iovlen = elem->in_num,
+            .msg_iovlen = num,
             .msg_flags = MSG_DONTWAIT,
         };
         do {

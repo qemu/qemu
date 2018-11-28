@@ -750,7 +750,7 @@ static int menelaus_rx(I2CSlave *i2c)
  */
 
 static int get_int32_as_uint16(QEMUFile *f, void *pv, size_t size,
-                               VMStateField *field)
+                               const VMStateField *field)
 {
     int *v = pv;
     *v = qemu_get_be16(f);
@@ -758,7 +758,7 @@ static int get_int32_as_uint16(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_int32_as_uint16(QEMUFile *f, void *pv, size_t size,
-                               VMStateField *field, QJSON *vmdesc)
+                               const VMStateField *field, QJSON *vmdesc)
 {
     int *v = pv;
     qemu_put_be16(f, *v);

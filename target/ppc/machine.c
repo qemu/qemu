@@ -110,7 +110,8 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static int get_avr(QEMUFile *f, void *pv, size_t size, VMStateField *field)
+static int get_avr(QEMUFile *f, void *pv, size_t size,
+                   const VMStateField *field)
 {
     ppc_avr_t *v = pv;
 
@@ -120,8 +121,8 @@ static int get_avr(QEMUFile *f, void *pv, size_t size, VMStateField *field)
     return 0;
 }
 
-static int put_avr(QEMUFile *f, void *pv, size_t size, VMStateField *field,
-                   QJSON *vmdesc)
+static int put_avr(QEMUFile *f, void *pv, size_t size,
+                   const VMStateField *field, QJSON *vmdesc)
 {
     ppc_avr_t *v = pv;
 
@@ -452,7 +453,8 @@ static const VMStateDescription vmstate_sr = {
 };
 
 #ifdef TARGET_PPC64
-static int get_slbe(QEMUFile *f, void *pv, size_t size, VMStateField *field)
+static int get_slbe(QEMUFile *f, void *pv, size_t size,
+                    const VMStateField *field)
 {
     ppc_slb_t *v = pv;
 
@@ -462,8 +464,8 @@ static int get_slbe(QEMUFile *f, void *pv, size_t size, VMStateField *field)
     return 0;
 }
 
-static int put_slbe(QEMUFile *f, void *pv, size_t size, VMStateField *field,
-                    QJSON *vmdesc)
+static int put_slbe(QEMUFile *f, void *pv, size_t size,
+                    const VMStateField *field, QJSON *vmdesc)
 {
     ppc_slb_t *v = pv;
 

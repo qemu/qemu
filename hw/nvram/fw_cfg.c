@@ -520,15 +520,15 @@ static void fw_cfg_reset(DeviceState *d)
  */
 
 static int get_uint32_as_uint16(QEMUFile *f, void *pv, size_t size,
-                                VMStateField *field)
+                                const VMStateField *field)
 {
     uint32_t *v = pv;
     *v = qemu_get_be16(f);
     return 0;
 }
 
-static int put_unused(QEMUFile *f, void *pv, size_t size, VMStateField *field,
-                      QJSON *vmdesc)
+static int put_unused(QEMUFile *f, void *pv, size_t size,
+                      const VMStateField *field, QJSON *vmdesc)
 {
     fprintf(stderr, "uint32_as_uint16 is only used for backward compatibility.\n");
     fprintf(stderr, "This functions shouldn't be called.\n");
