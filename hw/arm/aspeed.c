@@ -29,11 +29,11 @@ static struct arm_boot_info aspeed_board_binfo = {
     .nb_cpus = 1,
 };
 
-typedef struct AspeedBoardState {
+struct AspeedBoardState {
     AspeedSoCState soc;
     MemoryRegion ram;
     MemoryRegion max_ram;
-} AspeedBoardState;
+};
 
 /* Palmetto hardware value: 0x120CE416 */
 #define PALMETTO_BMC_HW_STRAP1 (                                        \
