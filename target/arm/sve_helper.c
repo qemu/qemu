@@ -4382,20 +4382,20 @@ static void sve_ld4_r(CPUARMState *env, void *vg, target_ulong addr,
 }
 
 #define DO_LDN_1(N) \
-void __attribute__((flatten)) HELPER(sve_ld##N##bb_r)               \
+void QEMU_FLATTEN HELPER(sve_ld##N##bb_r) \
     (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)  \
 {                                                                   \
     sve_ld##N##_r(env, vg, addr, desc, 1, GETPC(), sve_ld1bb_tlb);  \
 }
 
 #define DO_LDN_2(N, SUFF, SIZE)                                       \
-void __attribute__((flatten)) HELPER(sve_ld##N##SUFF##_le_r)          \
+void QEMU_FLATTEN HELPER(sve_ld##N##SUFF##_le_r)                      \
     (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
 {                                                                     \
     sve_ld##N##_r(env, vg, addr, desc, SIZE, GETPC(),                 \
                   sve_ld1##SUFF##_le_tlb);                            \
 }                                                                     \
-void __attribute__((flatten)) HELPER(sve_ld##N##SUFF##_be_r)          \
+void QEMU_FLATTEN HELPER(sve_ld##N##SUFF##_be_r)                      \
     (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
 {                                                                     \
     sve_ld##N##_r(env, vg, addr, desc, SIZE, GETPC(),                 \
@@ -4832,7 +4832,7 @@ static void sve_st4_r(CPUARMState *env, void *vg, target_ulong addr,
 }
 
 #define DO_STN_1(N, NAME, ESIZE) \
-void __attribute__((flatten)) HELPER(sve_st##N##NAME##_r)           \
+void QEMU_FLATTEN HELPER(sve_st##N##NAME##_r) \
     (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)  \
 {                                                                   \
     sve_st##N##_r(env, vg, addr, desc, GETPC(), ESIZE, 1,           \
@@ -4840,13 +4840,13 @@ void __attribute__((flatten)) HELPER(sve_st##N##NAME##_r)           \
 }
 
 #define DO_STN_2(N, NAME, ESIZE, MSIZE) \
-void __attribute__((flatten)) HELPER(sve_st##N##NAME##_le_r)          \
+void QEMU_FLATTEN HELPER(sve_st##N##NAME##_le_r) \
     (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
 {                                                                     \
     sve_st##N##_r(env, vg, addr, desc, GETPC(), ESIZE, MSIZE,         \
                   sve_st1##NAME##_le_tlb);                            \
 }                                                                     \
-void __attribute__((flatten)) HELPER(sve_st##N##NAME##_be_r)          \
+void QEMU_FLATTEN HELPER(sve_st##N##NAME##_be_r)                      \
     (CPUARMState *env, void *vg, target_ulong addr, uint32_t desc)    \
 {                                                                     \
     sve_st##N##_r(env, vg, addr, desc, GETPC(), ESIZE, MSIZE,         \
@@ -4966,7 +4966,7 @@ static void sve_ld1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
 }
 
 #define DO_LD1_ZPZ_S(MEM, OFS) \
-void __attribute__((flatten)) HELPER(sve_ld##MEM##_##OFS)    \
+void QEMU_FLATTEN HELPER(sve_ld##MEM##_##OFS) \
     (CPUARMState *env, void *vd, void *vg, void *vm,         \
      target_ulong base, uint32_t desc)                       \
 {                                                            \
@@ -4975,7 +4975,7 @@ void __attribute__((flatten)) HELPER(sve_ld##MEM##_##OFS)    \
 }
 
 #define DO_LD1_ZPZ_D(MEM, OFS) \
-void __attribute__((flatten)) HELPER(sve_ld##MEM##_##OFS)    \
+void QEMU_FLATTEN HELPER(sve_ld##MEM##_##OFS) \
     (CPUARMState *env, void *vd, void *vg, void *vm,         \
      target_ulong base, uint32_t desc)                       \
 {                                                            \
@@ -5326,7 +5326,7 @@ static void sve_st1_zd(CPUARMState *env, void *vd, void *vg, void *vm,
 }
 
 #define DO_ST1_ZPZ_S(MEM, OFS) \
-void __attribute__((flatten)) HELPER(sve_st##MEM##_##OFS)    \
+void QEMU_FLATTEN HELPER(sve_st##MEM##_##OFS) \
     (CPUARMState *env, void *vd, void *vg, void *vm,         \
      target_ulong base, uint32_t desc)                       \
 {                                                            \
@@ -5335,7 +5335,7 @@ void __attribute__((flatten)) HELPER(sve_st##MEM##_##OFS)    \
 }
 
 #define DO_ST1_ZPZ_D(MEM, OFS) \
-void __attribute__((flatten)) HELPER(sve_st##MEM##_##OFS)    \
+void QEMU_FLATTEN HELPER(sve_st##MEM##_##OFS) \
     (CPUARMState *env, void *vd, void *vg, void *vm,         \
      target_ulong base, uint32_t desc)                       \
 {                                                            \
