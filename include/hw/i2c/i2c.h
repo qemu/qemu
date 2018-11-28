@@ -82,6 +82,8 @@ int i2c_recv(I2CBus *bus);
 
 DeviceState *i2c_create_slave(I2CBus *bus, const char *name, uint8_t addr);
 
+typedef struct bitbang_i2c_interface bitbang_i2c_interface;
+
 /* lm832x.c */
 void lm832x_key_event(DeviceState *dev, int key, int state);
 

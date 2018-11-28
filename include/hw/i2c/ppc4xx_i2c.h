@@ -31,9 +31,6 @@
 #include "hw/sysbus.h"
 #include "hw/i2c/i2c.h"
 
-/* from hw/i2c/bitbang_i2c.h */
-typedef struct bitbang_i2c_interface bitbang_i2c_interface;
-
 #define TYPE_PPC4xx_I2C "ppc4xx-i2c"
 #define PPC4xx_I2C(obj) OBJECT_CHECK(PPC4xxI2CState, (obj), TYPE_PPC4xx_I2C)
 
