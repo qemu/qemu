@@ -210,18 +210,6 @@ static void reloc_pc14(tcg_insn_unit *pc, tcg_insn_unit *target)
     *pc = (*pc & ~0xfffc) | reloc_pc14_val(pc, target);
 }
 
-static inline void tcg_out_b_noaddr(TCGContext *s, int insn)
-{
-    unsigned retrans = *s->code_ptr & 0x3fffffc;
-    tcg_out32(s, insn | retrans);
-}
-
-static inline void tcg_out_bc_noaddr(TCGContext *s, int insn)
-{
-    unsigned retrans = *s->code_ptr & 0xfffc;
-    tcg_out32(s, insn | retrans);
-}
-
 /* parse target specific constraints */
 static const char *target_parse_constraint(TCGArgConstraint *ct,
                                            const char *ct_str, TCGType type)
@@ -1179,11 +1167,11 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
 static void tcg_out_bc(TCGContext *s, int bc, TCGLabel *l)
 {
     if (l->has_value) {
-        tcg_out32(s, bc | reloc_pc14_val(s->code_ptr, l->u.value_ptr));
+        bc |= reloc_pc14_val(s->code_ptr, l->u.value_ptr);
     } else {
         tcg_out_reloc(s, s->code_ptr, R_PPC_REL14, l, 0);
-        tcg_out_bc_noaddr(s, bc);
     }
+    tcg_out32(s, bc);
 }
 
 static void tcg_out_brcond(TCGContext *s, TCGCond cond,
@@ -1771,7 +1759,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
 
     /* Load a pointer into the current opcode w/conditional branch-link. */
     label_ptr = s->code_ptr;
-    tcg_out_bc_noaddr(s, BC | BI(7, CR_EQ) | BO_COND_FALSE | LK);
+    tcg_out32(s, BC | BI(7, CR_EQ) | BO_COND_FALSE | LK);
 
     rbase = TCG_REG_R3;
 #else  /* !CONFIG_SOFTMMU */
@@ -1846,7 +1834,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 
     /* Load a pointer into the current opcode w/conditional branch-link. */
     label_ptr = s->code_ptr;
-    tcg_out_bc_noaddr(s, BC | BI(7, CR_EQ) | BO_COND_FALSE | LK);
+    tcg_out32(s, BC | BI(7, CR_EQ) | BO_COND_FALSE | LK);
 
     rbase = TCG_REG_R3;
 #else  /* !CONFIG_SOFTMMU */
@@ -2044,13 +2032,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_br:
         {
             TCGLabel *l = arg_label(args[0]);
+            uint32_t insn = B;
 
             if (l->has_value) {
-                tcg_out_b(s, 0, l->u.value_ptr);
+                insn |= reloc_pc24_val(s->code_ptr, l->u.value_ptr);
             } else {
                 tcg_out_reloc(s, s->code_ptr, R_PPC_REL24, l, 0);
-                tcg_out_b_noaddr(s, B);
             }
+            tcg_out32(s, insn);
         }
         break;
     case INDEX_op_ld8u_i32:
