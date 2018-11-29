@@ -339,13 +339,18 @@ my @lines = ();
 my $vname;
 if ($chk_branch) {
 	my @patches;
+	my %git_commits = ();
 	my $HASH;
-	open($HASH, "-|", "git", "log", "--format=%H", $ARGV[0]) ||
-		die "$P: git log --format=%H $ARGV[0] failed - $!\n";
+	open($HASH, "-|", "git", "log", "--reverse", "--no-merges", "--format=%H %s", $ARGV[0]) ||
+		die "$P: git log --reverse --no-merges --format='%H %s' $ARGV[0] failed - $!\n";
 
-	while (<$HASH>) {
-		chomp;
-		push @patches, $_;
+	for my $line (<$HASH>) {
+		$line =~ /^([0-9a-fA-F]{40,40}) (.*)$/;
+		next if (!defined($1) || !defined($2));
+		my $sha1 = $1;
+		my $subject = $2;
+		push(@patches, $sha1);
+		$git_commits{$sha1} = $subject;
 	}
 
 	close $HASH;
@@ -353,21 +358,31 @@ if ($chk_branch) {
 	die "$P: no revisions returned for revlist '$chk_branch'\n"
 	    unless @patches;
 
+	my $i = 1;
+	my $num_patches = @patches;
 	for my $hash (@patches) {
 		my $FILE;
 		open($FILE, '-|', "git", "show", $hash) ||
 			die "$P: git show $hash - $!\n";
-		$vname = $hash;
 		while (<$FILE>) {
 			chomp;
 			push(@rawlines, $_);
 		}
 		close($FILE);
+		$vname = substr($hash, 0, 12) . ' (' . $git_commits{$hash} . ')';
+		if ($num_patches > 1 && $quiet == 0) {
+			print "$i/$num_patches Checking commit $vname\n";
+			$vname = "Patch $i/$num_patches";
+		} else {
+			$vname = "Commit " . $vname;
+		}
 		if (!process($hash)) {
 			$exit = 1;
+			print "\n" if ($num_patches > 1 && $quiet == 0);
 		}
 		@rawlines = ();
 		@lines = ();
+		$i++;
 	}
 } else {
 	for my $filename (@ARGV) {
@@ -386,6 +401,7 @@ if ($chk_branch) {
 		} else {
 			$vname = $filename;
 		}
+		print "Checking $filename...\n" if @ARGV > 1 && $quiet == 0;
 		while (<$FILE>) {
 			chomp;
 			push(@rawlines, $_);
