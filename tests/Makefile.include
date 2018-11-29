@@ -222,18 +222,23 @@ check-qtest-x86_64-y += $(check-qtest-i386-y)
 check-qtest-x86_64-$(CONFIG_SDHCI) += tests/sdhci-test$(EXESUF)
 
 check-qtest-alpha-y += tests/boot-serial-test$(EXESUF)
+check-qtest-alpha-$(CONFIG_VGA) += tests/display-vga-test$(EXESUF)
 
 check-qtest-hppa-y += tests/boot-serial-test$(EXESUF)
+check-qtest-hppa-$(CONFIG_VGA) += tests/display-vga-test$(EXESUF)
 
 check-qtest-m68k-y = tests/boot-serial-test$(EXESUF)
 
 check-qtest-microblaze-y += tests/boot-serial-test$(EXESUF)
 
 check-qtest-mips-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
+check-qtest-mips-$(CONFIG_VGA) += tests/display-vga-test$(EXESUF)
 
 check-qtest-mips64-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
+check-qtest-mips64-$(CONFIG_VGA) += tests/display-vga-test$(EXESUF)
 
 check-qtest-mips64el-$(CONFIG_ISA_TESTDEV) = tests/endianness-test$(EXESUF)
+check-qtest-mips64el-$(CONFIG_VGA) += tests/display-vga-test$(EXESUF)
 
 check-qtest-moxie-y += tests/boot-serial-test$(EXESUF)
 
