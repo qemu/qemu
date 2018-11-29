@@ -313,8 +313,8 @@ static void esp_pci_hard_reset(DeviceState *dev)
 
 static const VMStateDescription vmstate_esp_pci_scsi = {
     .name = "pciespscsi",
-    .version_id = 0,
-    .minimum_version_id = 0,
+    .version_id = 1,
+    .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PCIESPState),
         VMSTATE_BUFFER_UNSAFE(dma_regs, PCIESPState, 0, 8 * sizeof(uint32_t)),
