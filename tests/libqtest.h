@@ -17,6 +17,9 @@
 #ifndef LIBQTEST_H
 #define LIBQTEST_H
 
+#include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qdict.h"
+
 typedef struct QTestState QTestState;
 
 extern QTestState *global_qtest;
