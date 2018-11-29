@@ -2864,6 +2864,10 @@ sub process {
 		}
 	}
 
+	if ($is_patch && $chk_signoff && $signoff == 0) {
+		ERROR("Missing Signed-off-by: line(s)\n");
+	}
+
 	# If we have no input at all, then there is nothing to report on
 	# so just keep quiet.
 	if ($#rawlines == -1) {
@@ -2884,9 +2888,6 @@ sub process {
 
 	if (!$is_patch) {
 		ERROR("Does not appear to be a unified-diff format patch\n");
-	}
-	if ($is_patch && $chk_signoff && $signoff == 0) {
-		ERROR("Missing Signed-off-by: line(s)\n");
 	}
 
 	print report_dump();
