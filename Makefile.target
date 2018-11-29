@@ -40,9 +40,7 @@ PROGS=$(QEMU_PROG) $(QEMU_PROGW)
 STPFILES=
 
 # Makefile Tests
-ifdef CONFIG_USER_ONLY
 include $(SRC_PATH)/tests/tcg/Makefile.include
-endif
 
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
