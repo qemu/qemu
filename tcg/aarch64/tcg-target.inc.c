@@ -1129,23 +1129,6 @@ static inline void tcg_out_goto_long(TCGContext *s, tcg_insn_unit *target)
     }
 }
 
-static inline void tcg_out_goto_noaddr(TCGContext *s)
-{
-    /* We pay attention here to not modify the branch target by reading from
-       the buffer. This ensure that caches and memory are kept coherent during
-       retranslation.  Mask away possible garbage in the high bits for the
-       first translation, while keeping the offset bits for retranslation. */
-    uint32_t old = tcg_in32(s);
-    tcg_out_insn(s, 3206, B, old);
-}
-
-static inline void tcg_out_goto_cond_noaddr(TCGContext *s, TCGCond c)
-{
-    /* See comments in tcg_out_goto_noaddr.  */
-    uint32_t old = tcg_in32(s) >> 5;
-    tcg_out_insn(s, 3202, B_C, c, old);
-}
-
 static inline void tcg_out_callr(TCGContext *s, TCGReg reg)
 {
     tcg_out_insn(s, 3207, BLR, reg);
@@ -1192,7 +1175,7 @@ static inline void tcg_out_goto_label(TCGContext *s, TCGLabel *l)
 {
     if (!l->has_value) {
         tcg_out_reloc(s, s->code_ptr, R_AARCH64_JUMP26, l, 0);
-        tcg_out_goto_noaddr(s);
+        tcg_out_insn(s, 3206, B, 0);
     } else {
         tcg_out_goto(s, l->u.value_ptr);
     }
@@ -1523,7 +1506,7 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp opc,
 
     /* If not equal, we jump to the slow path. */
     *label_ptr = s->code_ptr;
-    tcg_out_goto_cond_noaddr(s, TCG_COND_NE);
+    tcg_out_insn(s, 3202, B_C, TCG_COND_NE, 0);
 }
 
 #endif /* CONFIG_SOFTMMU */
