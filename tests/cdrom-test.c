@@ -169,7 +169,7 @@ int main(int argc, char **argv)
 
     if (exec_genisoimg(genisocheck)) {
         /* genisoimage not available - so can't run tests */
-        return 0;
+        return g_test_run();
     }
 
     ret = prepare_image(arch, isoimage);

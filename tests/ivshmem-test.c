@@ -492,7 +492,7 @@ int main(int argc, char **argv)
     /* shm */
     tmpshm = mktempshm(TMPSHMSIZE, &fd);
     if (!tmpshm) {
-        return 0;
+        goto out;
     }
     tmpshmem = mmap(0, TMPSHMSIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     g_assert(tmpshmem != MAP_FAILED);
@@ -514,9 +514,8 @@ int main(int argc, char **argv)
         }
     }
 
+out:
     ret = g_test_run();
-
     cleanup();
-
     return ret;
 }
