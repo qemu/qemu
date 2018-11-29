@@ -7,6 +7,7 @@
 
 use strict;
 use warnings;
+use Term::ANSIColor qw(:constants);
 
 my $P = $0;
 $P =~ s@.*/@@g;
@@ -26,6 +27,7 @@ my $tst_only;
 my $emacs = 0;
 my $terse = 0;
 my $file = undef;
+my $color = "auto";
 my $no_warnings = 0;
 my $summary = 1;
 my $mailback = 0;
@@ -64,12 +66,22 @@ Options:
                              is all off)
   --test-only=WORD           report only warnings/errors containing WORD
                              literally
+  --color[=WHEN]             Use colors 'always', 'never', or only when output
+                             is a terminal ('auto'). Default is 'auto'.
   -h, --help, --version      display this help and exit
 
 When FILE is - read standard input.
 EOM
 
 	exit($exitcode);
+}
+
+# Perl's Getopt::Long allows options to take optional arguments after a space.
+# Prevent --color by itself from consuming other arguments
+foreach (@ARGV) {
+	if ($_ eq "--color" || $_ eq "-color") {
+		$_ = "--color=$color";
+	}
 }
 
 GetOptions(
@@ -89,6 +101,8 @@ GetOptions(
 
 	'debug=s'	=> \%debug,
 	'test-only=s'	=> \$tst_only,
+	'color=s'       => \$color,
+	'no-color'      => sub { $color = 'never'; },
 	'h|help'	=> \$help,
 	'version'	=> \$help
 ) or help(1);
@@ -142,6 +156,16 @@ if (($chk_patch && $chk_branch) ||
 }
 if (!$chk_patch && !$chk_branch && !$file) {
 	die "One of --file, --branch, --patch is required\n";
+}
+
+if ($color =~ /^always$/i) {
+	$color = 1;
+} elsif ($color =~ /^never$/i) {
+	$color = 0;
+} elsif ($color =~ /^auto$/i) {
+	$color = (-t STDOUT);
+} else {
+	die "Invalid color mode: $color\n";
 }
 
 my $dbg_values = 0;
@@ -371,7 +395,9 @@ if ($chk_branch) {
 		close($FILE);
 		$vname = substr($hash, 0, 12) . ' (' . $git_commits{$hash} . ')';
 		if ($num_patches > 1 && $quiet == 0) {
-			print "$i/$num_patches Checking commit $vname\n";
+			my $prefix = "$i/$num_patches";
+			$prefix = BLUE . BOLD . $prefix . RESET if $color;
+			print "$prefix Checking commit $vname\n";
 			$vname = "Patch $i/$num_patches";
 		} else {
 			$vname = "Commit " . $vname;
@@ -1181,14 +1207,23 @@ sub possible {
 my $prefix = '';
 
 sub report {
-	if (defined $tst_only && $_[0] !~ /\Q$tst_only\E/) {
+	my ($level, $msg) = @_;
+	if (defined $tst_only && $msg !~ /\Q$tst_only\E/) {
 		return 0;
 	}
-	my $line = $prefix . $_[0];
 
-	$line = (split('\n', $line))[0] . "\n" if ($terse);
+	my $output = '';
+	$output .= BOLD if $color;
+	$output .= $prefix;
+	$output .= RED if $color && $level eq 'ERROR';
+	$output .= MAGENTA if $color && $level eq 'WARNING';
+	$output .= $level . ':';
+	$output .= RESET if $color;
+	$output .= ' ' . $msg . "\n";
 
-	push(our @report, $line);
+	$output = (split('\n', $output))[0] . "\n" if ($terse);
+
+	push(our @report, $output);
 
 	return 1;
 }
@@ -1196,13 +1231,13 @@ sub report_dump {
 	our @report;
 }
 sub ERROR {
-	if (report("ERROR: $_[0]\n")) {
+	if (report("ERROR", $_[0])) {
 		our $clean = 0;
 		our $cnt_error++;
 	}
 }
 sub WARN {
-	if (report("WARNING: $_[0]\n")) {
+	if (report("WARNING", $_[0])) {
 		our $clean = 0;
 		our $cnt_warn++;
 	}
