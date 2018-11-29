@@ -38,6 +38,14 @@ static void egl_gfx_switch(DisplayChangeListener *dcl,
     edpy->ds = new_surface;
 }
 
+static QEMUGLContext egl_create_context(DisplayChangeListener *dcl,
+                                        QEMUGLParams *params)
+{
+    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+                   qemu_egl_rn_ctx);
+    return qemu_egl_create_context(dcl, params);
+}
+
 static void egl_scanout_disable(DisplayChangeListener *dcl)
 {
     egl_dpy *edpy = container_of(dcl, egl_dpy, dcl);
@@ -150,7 +158,7 @@ static const DisplayChangeListenerOps egl_ops = {
     .dpy_gfx_update          = egl_gfx_update,
     .dpy_gfx_switch          = egl_gfx_switch,
 
-    .dpy_gl_ctx_create       = qemu_egl_create_context,
+    .dpy_gl_ctx_create       = egl_create_context,
     .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
     .dpy_gl_ctx_make_current = qemu_egl_make_context_current,
     .dpy_gl_ctx_get_current  = qemu_egl_get_current_context,
