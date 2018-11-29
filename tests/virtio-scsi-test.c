@@ -62,7 +62,7 @@ static void qvirtio_scsi_pci_free(QVirtIOSCSI *vs)
     int i;
 
     for (i = 0; i < vs->num_queues + 2; i++) {
-        qvirtqueue_cleanup(vs->dev->bus, vs->vq[i], vs->qs->alloc);
+        qvirtqueue_cleanup(vs->dev->bus, vs->vq[i], &vs->qs->alloc);
     }
     qvirtio_pci_device_disable(container_of(vs->dev, QVirtioPCIDevice, vdev));
     qvirtio_pci_device_free((QVirtioPCIDevice *)vs->dev);
@@ -75,7 +75,7 @@ static uint64_t qvirtio_scsi_alloc(QVirtIOSCSI *vs, size_t alloc_size,
 {
     uint64_t addr;
 
-    addr = guest_alloc(vs->qs->alloc, alloc_size);
+    addr = guest_alloc(&vs->qs->alloc, alloc_size);
     if (data) {
         memwrite(addr, data, alloc_size);
     }
@@ -133,10 +133,10 @@ static uint8_t virtio_scsi_do_command(QVirtIOSCSI *vs, const uint8_t *cdb,
         memread(resp_addr, resp_out, sizeof(*resp_out));
     }
 
-    guest_free(vs->qs->alloc, req_addr);
-    guest_free(vs->qs->alloc, resp_addr);
-    guest_free(vs->qs->alloc, data_in_addr);
-    guest_free(vs->qs->alloc, data_out_addr);
+    guest_free(&vs->qs->alloc, req_addr);
+    guest_free(&vs->qs->alloc, resp_addr);
+    guest_free(&vs->qs->alloc, data_in_addr);
+    guest_free(&vs->qs->alloc, data_out_addr);
     return response;
 }
 
@@ -166,7 +166,7 @@ static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
     g_assert_cmpint(vs->num_queues, <, MAX_NUM_QUEUES);
 
     for (i = 0; i < vs->num_queues + 2; i++) {
-        vs->vq[i] = qvirtqueue_setup(vs->dev, vs->qs->alloc, i);
+        vs->vq[i] = qvirtqueue_setup(vs->dev, &vs->qs->alloc, i);
     }
 
     /* Clear the POWER ON OCCURRED unit attention */

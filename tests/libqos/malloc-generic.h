@@ -12,10 +12,7 @@
 
 #include "libqos/malloc.h"
 
-QGuestAllocator *generic_alloc_init(uint64_t base_addr, uint64_t size,
-                                                            uint32_t page_size);
-QGuestAllocator *generic_alloc_init_flags(uint64_t base_addr, uint64_t size,
-                                        uint32_t page_size, QAllocOpts flags);
-void generic_alloc_uninit(QGuestAllocator *allocator);
+void generic_alloc_init(QGuestAllocator *s, uint64_t base_addr, uint64_t size,
+                        uint32_t page_size);
 
 #endif

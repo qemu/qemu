@@ -94,7 +94,7 @@ typedef struct e1000e_device {
 } e1000e_device;
 
 static int test_sockets[2];
-static QGuestAllocator *test_alloc;
+static QGuestAllocator test_alloc;
 static QPCIBus *test_bus;
 
 static void e1000e_pci_foreach_callback(QPCIDevice *dev, int devfn, void *data)
@@ -165,7 +165,7 @@ static void e1000e_device_init(QPCIBus *bus, e1000e_device *d)
         val | E1000E_CTRL_EXT_DRV_LOAD | E1000E_CTRL_EXT_TXLSFLOW);
 
     /* Allocate and setup TX ring */
-    d->tx_ring = guest_alloc(test_alloc, E1000E_RING_LEN);
+    d->tx_ring = guest_alloc(&test_alloc, E1000E_RING_LEN);
     g_assert(d->tx_ring != 0);
 
     e1000e_macreg_write(d, E1000E_TDBAL, (uint32_t) d->tx_ring);
@@ -178,7 +178,7 @@ static void e1000e_device_init(QPCIBus *bus, e1000e_device *d)
     e1000e_macreg_write(d, E1000E_TCTL, E1000E_TCTL_EN);
 
     /* Allocate and setup RX ring */
-    d->rx_ring = guest_alloc(test_alloc, E1000E_RING_LEN);
+    d->rx_ring = guest_alloc(&test_alloc, E1000E_RING_LEN);
     g_assert(d->rx_ring != 0);
 
     e1000e_macreg_write(d, E1000E_RDBAL, (uint32_t)d->rx_ring);
@@ -268,7 +268,7 @@ static void e1000e_send_verify(e1000e_device *d)
     uint32_t recv_len;
 
     /* Prepare test data buffer */
-    uint64_t data = guest_alloc(test_alloc, data_len);
+    uint64_t data = guest_alloc(&test_alloc, data_len);
     memwrite(data, "TEST", 5);
 
     /* Prepare TX descriptor */
@@ -296,7 +296,7 @@ static void e1000e_send_verify(e1000e_device *d)
     g_assert_cmpstr(buffer, == , "TEST");
 
     /* Free test data buffer */
-    guest_free(test_alloc, data);
+    guest_free(&test_alloc, data);
 }
 
 static void e1000e_receive_verify(e1000e_device *d)
@@ -348,7 +348,7 @@ static void e1000e_receive_verify(e1000e_device *d)
     g_assert_cmpint(ret, == , sizeof(test) + sizeof(len));
 
     /* Prepare test data buffer */
-    uint64_t data = guest_alloc(test_alloc, data_len);
+    uint64_t data = guest_alloc(&test_alloc, data_len);
 
     /* Prepare RX descriptor */
     memset(&descr, 0, sizeof(descr));
@@ -369,7 +369,7 @@ static void e1000e_receive_verify(e1000e_device *d)
     g_assert_cmpstr(buffer, == , "TEST");
 
     /* Free test data buffer */
-    guest_free(test_alloc, data);
+    guest_free(&test_alloc, data);
 }
 
 static void e1000e_device_clear(QPCIBus *bus, e1000e_device *d)
@@ -392,10 +392,8 @@ static void data_test_init(e1000e_device *d)
     qtest_start(cmdline);
     g_free(cmdline);
 
-    test_alloc = pc_alloc_init(global_qtest);
-    g_assert_nonnull(test_alloc);
-
-    test_bus = qpci_new_pc(global_qtest, test_alloc);
+    pc_alloc_init(&test_alloc, global_qtest, 0);
+    test_bus = qpci_new_pc(global_qtest, &test_alloc);
     g_assert_nonnull(test_bus);
 
     e1000e_device_init(test_bus, d);
@@ -405,7 +403,7 @@ static void data_test_clear(e1000e_device *d)
 {
     e1000e_device_clear(test_bus, d);
     close(test_sockets[0]);
-    pc_alloc_uninit(test_alloc);
+    alloc_destroy(&test_alloc);
     g_free(d->pci_dev);
     qpci_free_pc(test_bus);
     qtest_end();

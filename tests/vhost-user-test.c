@@ -158,7 +158,7 @@ typedef struct TestServer {
     bool test_fail;
     int test_flags;
     int queues;
-    QGuestAllocator *alloc;
+    QGuestAllocator alloc;
 } TestServer;
 
 static TestServer *test_server_new(const gchar *name);
@@ -206,10 +206,10 @@ static void init_virtio_dev(QTestState *qts, TestServer *s, uint32_t features_ma
     qvirtio_pci_device_enable(s->dev);
     qvirtio_start_device(&s->dev->vdev);
 
-    s->alloc = pc_alloc_init(qts);
+    pc_alloc_init(&s->alloc, qts, 0);
 
     for (i = 0; i < s->queues * 2; i++) {
-        s->vq[i] = qvirtqueue_setup(&s->dev->vdev, s->alloc, i);
+        s->vq[i] = qvirtqueue_setup(&s->dev->vdev, &s->alloc, i);
     }
 
     features = qvirtio_get_features(&s->dev->vdev);
@@ -224,9 +224,9 @@ static void uninit_virtio_dev(TestServer *s)
     int i;
 
     for (i = 0; i < s->queues * 2; i++) {
-        qvirtqueue_cleanup(s->dev->vdev.bus, s->vq[i], s->alloc);
+        qvirtqueue_cleanup(s->dev->vdev.bus, s->vq[i], &s->alloc);
     }
-    pc_alloc_uninit(s->alloc);
+    alloc_destroy(&s->alloc);
 
     qvirtio_pci_device_free(s->dev);
 }

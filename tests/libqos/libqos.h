@@ -3,13 +3,12 @@
 
 #include "libqtest.h"
 #include "libqos/pci.h"
-#include "libqos/malloc-pc.h"
+#include "libqos/malloc.h"
 
 typedef struct QOSState QOSState;
 
 typedef struct QOSOps {
-    QGuestAllocator *(*init_allocator)(QTestState *qts, QAllocOpts);
-    void (*uninit_allocator)(QGuestAllocator *);
+    void (*alloc_init)(QGuestAllocator *, QTestState *, QAllocOpts);
     QPCIBus *(*qpci_new)(QTestState *qts, QGuestAllocator *alloc);
     void (*qpci_free)(QPCIBus *bus);
     void (*shutdown)(QOSState *);
@@ -17,7 +16,7 @@ typedef struct QOSOps {
 
 struct QOSState {
     QTestState *qts;
-    QGuestAllocator *alloc;
+    QGuestAllocator alloc;
     QPCIBus *pcibus;
     QOSOps *ops;
 };
@@ -36,12 +35,12 @@ void generate_pattern(void *buffer, size_t len, size_t cycle_len);
 
 static inline uint64_t qmalloc(QOSState *q, size_t bytes)
 {
-    return guest_alloc(q->alloc, bytes);
+    return guest_alloc(&q->alloc, bytes);
 }
 
 static inline void qfree(QOSState *q, uint64_t addr)
 {
-    guest_free(q->alloc, addr);
+    guest_free(&q->alloc, addr);
 }
 
 #endif

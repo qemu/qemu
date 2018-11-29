@@ -228,16 +228,16 @@ static void pci_basic(gconstpointer data)
                         "virtio-net-pci,netdev=hs0", sv[1]);
     dev = virtio_net_pci_init(qs->pcibus, PCI_SLOT);
 
-    rx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 0);
-    tx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 1);
+    rx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, &qs->alloc, 0);
+    tx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, &qs->alloc, 1);
 
     driver_init(&dev->vdev);
-    func(&dev->vdev, qs->alloc, &rx->vq, &tx->vq, sv[0]);
+    func(&dev->vdev, &qs->alloc, &rx->vq, &tx->vq, sv[0]);
 
     /* End test */
     close(sv[0]);
-    qvirtqueue_cleanup(dev->vdev.bus, &tx->vq, qs->alloc);
-    qvirtqueue_cleanup(dev->vdev.bus, &rx->vq, qs->alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &tx->vq, &qs->alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &rx->vq, &qs->alloc);
     qvirtio_pci_device_disable(dev);
     g_free(dev->pdev);
     g_free(dev);

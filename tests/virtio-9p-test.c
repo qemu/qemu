@@ -67,7 +67,7 @@ static QVirtIO9P *qvirtio_9p_pci_start(void)
     qvirtio_pci_device_enable(dev);
     qvirtio_start_device(v9p->dev);
 
-    v9p->vq = qvirtqueue_setup(v9p->dev, v9p->qs->alloc, 0);
+    v9p->vq = qvirtqueue_setup(v9p->dev, &v9p->qs->alloc, 0);
 
     qvirtio_set_driver_ok(v9p->dev);
 
@@ -76,7 +76,7 @@ static QVirtIO9P *qvirtio_9p_pci_start(void)
 
 static void qvirtio_9p_pci_stop(QVirtIO9P *v9p)
 {
-    qvirtqueue_cleanup(v9p->dev->bus, v9p->vq, v9p->qs->alloc);
+    qvirtqueue_cleanup(v9p->dev->bus, v9p->vq, &v9p->qs->alloc);
     qvirtio_pci_device_disable(container_of(v9p->dev, QVirtioPCIDevice, vdev));
     qvirtio_pci_device_free((QVirtioPCIDevice *)v9p->dev);
     qvirtio_9p_stop(v9p);
@@ -222,7 +222,7 @@ static P9Req *v9fs_req_init(QVirtIO9P *v9p, uint32_t size, uint8_t id,
 
     req->v9p = v9p;
     req->t_size = total_size;
-    req->t_msg = guest_alloc(v9p->qs->alloc, req->t_size);
+    req->t_msg = guest_alloc(&v9p->qs->alloc, req->t_size);
     v9fs_memwrite(req, &hdr, 7);
     req->tag = tag;
     return req;
@@ -232,7 +232,7 @@ static void v9fs_req_send(P9Req *req)
 {
     QVirtIO9P *v9p = req->v9p;
 
-    req->r_msg = guest_alloc(v9p->qs->alloc, P9_MAX_SIZE);
+    req->r_msg = guest_alloc(&v9p->qs->alloc, P9_MAX_SIZE);
     req->free_head = qvirtqueue_add(v9p->vq, req->t_msg, req->t_size, false,
                                     true);
     qvirtqueue_add(v9p->vq, req->r_msg, P9_MAX_SIZE, true, false);
@@ -290,8 +290,8 @@ static void v9fs_req_free(P9Req *req)
 {
     QVirtIO9P *v9p = req->v9p;
 
-    guest_free(v9p->qs->alloc, req->t_msg);
-    guest_free(v9p->qs->alloc, req->r_msg);
+    guest_free(&v9p->qs->alloc, req->t_msg);
+    guest_free(&v9p->qs->alloc, req->r_msg);
     g_free(req);
 }
 

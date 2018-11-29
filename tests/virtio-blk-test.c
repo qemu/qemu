@@ -15,6 +15,7 @@
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"
 #include "libqos/virtio-mmio.h"
+#include "libqos/malloc.h"
 #include "libqos/malloc-generic.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/bswap.h"
@@ -403,12 +404,12 @@ static void pci_basic(void)
     qs = pci_test_start();
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT);
 
-    vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 0);
+    vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, &qs->alloc, 0);
 
-    test_basic(&dev->vdev, qs->alloc, &vqpci->vq);
+    test_basic(&dev->vdev, &qs->alloc, &vqpci->vq);
 
     /* End test */
-    qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, qs->alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, &qs->alloc);
     qvirtio_pci_device_disable(dev);
     qvirtio_pci_device_free(dev);
     qtest_shutdown(qs);
@@ -442,7 +443,7 @@ static void pci_indirect(void)
                             (1u << VIRTIO_BLK_F_SCSI));
     qvirtio_set_features(&dev->vdev, features);
 
-    vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 0);
+    vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, &qs->alloc, 0);
     qvirtio_set_driver_ok(&dev->vdev);
 
     /* Write request */
@@ -452,11 +453,11 @@ static void pci_indirect(void)
     req.data = g_malloc0(512);
     strcpy(req.data, "TEST");
 
-    req_addr = virtio_blk_request(qs->alloc, &dev->vdev, &req, 512);
+    req_addr = virtio_blk_request(&qs->alloc, &dev->vdev, &req, 512);
 
     g_free(req.data);
 
-    indirect = qvring_indirect_desc_setup(&dev->vdev, qs->alloc, 2);
+    indirect = qvring_indirect_desc_setup(&dev->vdev, &qs->alloc, 2);
     qvring_indirect_desc_add(indirect, req_addr, 528, false);
     qvring_indirect_desc_add(indirect, req_addr + 528, 1, true);
     free_head = qvirtqueue_add_indirect(&vqpci->vq, indirect);
@@ -468,7 +469,7 @@ static void pci_indirect(void)
     g_assert_cmpint(status, ==, 0);
 
     g_free(indirect);
-    guest_free(qs->alloc, req_addr);
+    guest_free(&qs->alloc, req_addr);
 
     /* Read request */
     req.type = VIRTIO_BLK_T_IN;
@@ -477,11 +478,11 @@ static void pci_indirect(void)
     req.data = g_malloc0(512);
     strcpy(req.data, "TEST");
 
-    req_addr = virtio_blk_request(qs->alloc, &dev->vdev, &req, 512);
+    req_addr = virtio_blk_request(&qs->alloc, &dev->vdev, &req, 512);
 
     g_free(req.data);
 
-    indirect = qvring_indirect_desc_setup(&dev->vdev, qs->alloc, 2);
+    indirect = qvring_indirect_desc_setup(&dev->vdev, &qs->alloc, 2);
     qvring_indirect_desc_add(indirect, req_addr, 16, false);
     qvring_indirect_desc_add(indirect, req_addr + 16, 513, true);
     free_head = qvirtqueue_add_indirect(&vqpci->vq, indirect);
@@ -498,10 +499,10 @@ static void pci_indirect(void)
     g_free(data);
 
     g_free(indirect);
-    guest_free(qs->alloc, req_addr);
+    guest_free(&qs->alloc, req_addr);
 
     /* End test */
-    qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, qs->alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, &qs->alloc);
     qvirtio_pci_device_disable(dev);
     qvirtio_pci_device_free(dev);
     qtest_shutdown(qs);
@@ -556,7 +557,7 @@ static void pci_msix(void)
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT);
     qpci_msix_enable(dev->pdev);
 
-    qvirtio_pci_set_msix_configuration_vector(dev, qs->alloc, 0);
+    qvirtio_pci_set_msix_configuration_vector(dev, &qs->alloc, 0);
 
     capacity = qvirtio_config_readq(&dev->vdev, 0);
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
@@ -568,8 +569,8 @@ static void pci_msix(void)
                             (1u << VIRTIO_BLK_F_SCSI));
     qvirtio_set_features(&dev->vdev, features);
 
-    vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 0);
-    qvirtqueue_pci_msix_setup(dev, vqpci, qs->alloc, 1);
+    vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, &qs->alloc, 0);
+    qvirtqueue_pci_msix_setup(dev, vqpci, &qs->alloc, 1);
 
     qvirtio_set_driver_ok(&dev->vdev);
 
@@ -589,7 +590,7 @@ static void pci_msix(void)
     req.data = g_malloc0(512);
     strcpy(req.data, "TEST");
 
-    req_addr = virtio_blk_request(qs->alloc, &dev->vdev, &req, 512);
+    req_addr = virtio_blk_request(&qs->alloc, &dev->vdev, &req, 512);
 
     g_free(req.data);
 
@@ -604,7 +605,7 @@ static void pci_msix(void)
     status = readb(req_addr + 528);
     g_assert_cmpint(status, ==, 0);
 
-    guest_free(qs->alloc, req_addr);
+    guest_free(&qs->alloc, req_addr);
 
     /* Read request */
     req.type = VIRTIO_BLK_T_IN;
@@ -612,7 +613,7 @@ static void pci_msix(void)
     req.sector = 0;
     req.data = g_malloc0(512);
 
-    req_addr = virtio_blk_request(qs->alloc, &dev->vdev, &req, 512);
+    req_addr = virtio_blk_request(&qs->alloc, &dev->vdev, &req, 512);
 
     g_free(req.data);
 
@@ -634,10 +635,10 @@ static void pci_msix(void)
     g_assert_cmpstr(data, ==, "TEST");
     g_free(data);
 
-    guest_free(qs->alloc, req_addr);
+    guest_free(&qs->alloc, req_addr);
 
     /* End test */
-    qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, qs->alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, &qs->alloc);
     qpci_msix_disable(dev->pdev);
     qvirtio_pci_device_disable(dev);
     qvirtio_pci_device_free(dev);
@@ -664,7 +665,7 @@ static void pci_idx(void)
     dev = virtio_blk_pci_init(qs->pcibus, PCI_SLOT);
     qpci_msix_enable(dev->pdev);
 
-    qvirtio_pci_set_msix_configuration_vector(dev, qs->alloc, 0);
+    qvirtio_pci_set_msix_configuration_vector(dev, &qs->alloc, 0);
 
     capacity = qvirtio_config_readq(&dev->vdev, 0);
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
@@ -676,8 +677,8 @@ static void pci_idx(void)
                             (1u << VIRTIO_BLK_F_SCSI));
     qvirtio_set_features(&dev->vdev, features);
 
-    vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 0);
-    qvirtqueue_pci_msix_setup(dev, vqpci, qs->alloc, 1);
+    vqpci = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, &qs->alloc, 0);
+    qvirtqueue_pci_msix_setup(dev, vqpci, &qs->alloc, 1);
 
     qvirtio_set_driver_ok(&dev->vdev);
 
@@ -688,7 +689,7 @@ static void pci_idx(void)
     req.data = g_malloc0(512);
     strcpy(req.data, "TEST");
 
-    req_addr = virtio_blk_request(qs->alloc, &dev->vdev, &req, 512);
+    req_addr = virtio_blk_request(&qs->alloc, &dev->vdev, &req, 512);
 
     g_free(req.data);
 
@@ -707,7 +708,7 @@ static void pci_idx(void)
     req.data = g_malloc0(512);
     strcpy(req.data, "TEST");
 
-    req_addr = virtio_blk_request(qs->alloc, &dev->vdev, &req, 512);
+    req_addr = virtio_blk_request(&qs->alloc, &dev->vdev, &req, 512);
 
     g_free(req.data);
 
@@ -725,7 +726,7 @@ static void pci_idx(void)
                                              QVIRTIO_BLK_TIMEOUT_US);
     g_assert_cmpint(status, ==, 0);
 
-    guest_free(qs->alloc, req_addr);
+    guest_free(&qs->alloc, req_addr);
 
     /* Read request */
     req.type = VIRTIO_BLK_T_IN;
@@ -733,7 +734,7 @@ static void pci_idx(void)
     req.sector = 1;
     req.data = g_malloc0(512);
 
-    req_addr = virtio_blk_request(qs->alloc, &dev->vdev, &req, 512);
+    req_addr = virtio_blk_request(&qs->alloc, &dev->vdev, &req, 512);
 
     g_free(req.data);
 
@@ -757,10 +758,10 @@ static void pci_idx(void)
     g_assert_cmpstr(data, ==, "TEST");
     g_free(data);
 
-    guest_free(qs->alloc, req_addr);
+    guest_free(&qs->alloc, req_addr);
 
     /* End test */
-    qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, qs->alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &vqpci->vq, &qs->alloc);
     qpci_msix_disable(dev->pdev);
     qvirtio_pci_device_disable(dev);
     qvirtio_pci_device_free(dev);
@@ -820,7 +821,7 @@ static void mmio_basic(void)
 {
     QVirtioMMIODevice *dev;
     QVirtQueue *vq;
-    QGuestAllocator *alloc;
+    QGuestAllocator alloc;
     int n_size = TEST_IMAGE_SIZE / 2;
     uint64_t capacity;
 
@@ -832,10 +833,10 @@ static void mmio_basic(void)
 
     qvirtio_start_device(&dev->vdev);
 
-    alloc = generic_alloc_init(MMIO_RAM_ADDR, MMIO_RAM_SIZE, MMIO_PAGE_SIZE);
-    vq = qvirtqueue_setup(&dev->vdev, alloc, 0);
+    generic_alloc_init(&alloc, MMIO_RAM_ADDR, MMIO_RAM_SIZE, MMIO_PAGE_SIZE);
+    vq = qvirtqueue_setup(&dev->vdev, &alloc, 0);
 
-    test_basic(&dev->vdev, alloc, vq);
+    test_basic(&dev->vdev, &alloc, vq);
 
     qmp_discard_response("{ 'execute': 'block_resize', "
                          " 'arguments': { 'device': 'drive0', "
@@ -847,9 +848,9 @@ static void mmio_basic(void)
     g_assert_cmpint(capacity, ==, n_size / 512);
 
     /* End test */
-    qvirtqueue_cleanup(dev->vdev.bus, vq, alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, vq, &alloc);
     g_free(dev);
-    generic_alloc_uninit(alloc);
+    alloc_destroy(&alloc);
     test_end();
 }
 
