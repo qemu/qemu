@@ -366,22 +366,6 @@ static inline void tcg_out_b(TCGContext *s, int cond, int32_t offset)
                     (((offset - 8) >> 2) & 0x00ffffff));
 }
 
-static inline void tcg_out_b_noaddr(TCGContext *s, int cond)
-{
-    /* We pay attention here to not modify the branch target by masking
-       the corresponding bytes.  This ensure that caches and memory are
-       kept coherent during retranslation. */
-    tcg_out32(s, deposit32(*s->code_ptr, 24, 8, (cond << 4) | 0x0a));
-}
-
-static inline void tcg_out_bl_noaddr(TCGContext *s, int cond)
-{
-    /* We pay attention here to not modify the branch target by masking
-       the corresponding bytes.  This ensure that caches and memory are
-       kept coherent during retranslation. */
-    tcg_out32(s, deposit32(*s->code_ptr, 24, 8, (cond << 4) | 0x0b));
-}
-
 static inline void tcg_out_bl(TCGContext *s, int cond, int32_t offset)
 {
     tcg_out32(s, (cond << 28) | 0x0b000000 |
@@ -1082,7 +1066,7 @@ static inline void tcg_out_goto_label(TCGContext *s, int cond, TCGLabel *l)
         tcg_out_goto(s, cond, l->u.value_ptr);
     } else {
         tcg_out_reloc(s, s->code_ptr, R_ARM_PC24, l, 0);
-        tcg_out_b_noaddr(s, cond);
+        tcg_out_b(s, cond, 0);
     }
 }
 
@@ -1628,7 +1612,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     /* This a conditional BL only to load a pointer within this opcode into LR
        for the slow path.  We will not be using the value for a tail call.  */
     label_ptr = s->code_ptr;
-    tcg_out_bl_noaddr(s, COND_NE);
+    tcg_out_bl(s, COND_NE, 0);
 
     tcg_out_qemu_ld_index(s, opc, datalo, datahi, addrlo, addend);
 
@@ -1760,7 +1744,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 
     /* The conditional call must come last, as we're going to return here.  */
     label_ptr = s->code_ptr;
-    tcg_out_bl_noaddr(s, COND_NE);
+    tcg_out_bl(s, COND_NE, 0);
 
     add_qemu_ldst_label(s, false, oi, datalo, datahi, addrlo, addrhi,
                         s->code_ptr, label_ptr);
