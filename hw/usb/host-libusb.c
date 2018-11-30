@@ -988,7 +988,9 @@ static void usb_host_exit_notifier(struct Notifier *n, void *data)
 
     if (s->dh) {
         usb_host_release_interfaces(s);
+        libusb_reset_device(s->dh);
         usb_host_attach_kernel(s);
+        libusb_close(s->dh);
     }
 }
 
