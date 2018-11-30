@@ -38,13 +38,6 @@ typedef struct SMBusEEPROMDevice {
     uint8_t offset;
 } SMBusEEPROMDevice;
 
-static void eeprom_quick_cmd(SMBusDevice *dev, uint8_t read)
-{
-#ifdef DEBUG
-    printf("eeprom_quick_cmd: addr=0x%02x read=%d\n", dev->i2c.address, read);
-#endif
-}
-
 static uint8_t eeprom_receive_byte(SMBusDevice *dev)
 {
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
@@ -97,7 +90,6 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
 
     dc->realize = smbus_eeprom_realize;
-    sc->quick_cmd = eeprom_quick_cmd;
     sc->receive_byte = eeprom_receive_byte;
     sc->write_data = eeprom_write_data;
     dc->props = smbus_eeprom_properties;
