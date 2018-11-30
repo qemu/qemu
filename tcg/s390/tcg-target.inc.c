@@ -1329,13 +1329,11 @@ static void tgen_branch(TCGContext *s, int cc, TCGLabel *l)
 static void tgen_compare_branch(TCGContext *s, S390Opcode opc, int cc,
                                 TCGReg r1, TCGReg r2, TCGLabel *l)
 {
-    intptr_t off;
+    intptr_t off = 0;
 
     if (l->has_value) {
         off = l->u.value_ptr - s->code_ptr;
     } else {
-        /* We need to keep the offset unchanged for retranslation.  */
-        off = s->code_ptr[1];
         tcg_out_reloc(s, s->code_ptr + 1, R_390_PC16DBL, l, 2);
     }
 
@@ -1347,13 +1345,11 @@ static void tgen_compare_branch(TCGContext *s, S390Opcode opc, int cc,
 static void tgen_compare_imm_branch(TCGContext *s, S390Opcode opc, int cc,
                                     TCGReg r1, int i2, TCGLabel *l)
 {
-    tcg_target_long off;
+    tcg_target_long off = 0;
 
     if (l->has_value) {
         off = l->u.value_ptr - s->code_ptr;
     } else {
-        /* We need to keep the offset unchanged for retranslation.  */
-        off = s->code_ptr[1];
         tcg_out_reloc(s, s->code_ptr + 1, R_390_PC16DBL, l, 2);
     }
 
@@ -1696,7 +1692,6 @@ static void tcg_out_qemu_ld(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
 
     base_reg = tcg_out_tlb_read(s, addr_reg, opc, mem_index, 1);
 
-    /* We need to keep the offset unchanged for retranslation.  */
     tcg_out16(s, RI_BRC | (S390_CC_NE << 4));
     label_ptr = s->code_ptr;
     s->code_ptr += 1;
@@ -1724,7 +1719,6 @@ static void tcg_out_qemu_st(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
 
     base_reg = tcg_out_tlb_read(s, addr_reg, opc, mem_index, 0);
 
-    /* We need to keep the offset unchanged for retranslation.  */
     tcg_out16(s, RI_BRC | (S390_CC_NE << 4));
     label_ptr = s->code_ptr;
     s->code_ptr += 1;
