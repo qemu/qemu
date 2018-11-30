@@ -513,7 +513,7 @@ static const uint32_t tcg_to_isel[] = {
     [TCG_COND_GTU] = ISEL | BC_(7, CR_GT),
 };
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     tcg_insn_unit *target;
@@ -548,6 +548,7 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
     default:
         g_assert_not_reached();
     }
+    return true;
 }
 
 static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,

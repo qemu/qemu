@@ -94,7 +94,7 @@ static inline void reloc_pc19(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
     *code_ptr = deposit32(*code_ptr, 5, 19, offset);
 }
 
-static inline void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static inline bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                                intptr_t value, intptr_t addend)
 {
     tcg_debug_assert(addend == 0);
@@ -109,6 +109,7 @@ static inline void patch_reloc(tcg_insn_unit *code_ptr, int type,
     default:
         tcg_abort();
     }
+    return true;
 }
 
 #define TCG_CT_CONST_AIMM 0x100

@@ -193,7 +193,7 @@ static inline void reloc_pc24(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
     *code_ptr = (*code_ptr & ~0xffffff) | (offset & 0xffffff);
 }
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     tcg_debug_assert(addend == 0);
@@ -229,6 +229,7 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
     } else {
         g_assert_not_reached();
     }
+    return true;
 }
 
 #define TCG_CT_CONST_ARM  0x100

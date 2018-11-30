@@ -366,7 +366,7 @@ static void * const qemu_st_helpers[16] = {
 static tcg_insn_unit *tb_ret_addr;
 uint64_t s390_facilities;
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     intptr_t pcrel2;
@@ -393,6 +393,7 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
     default:
         g_assert_not_reached();
     }
+    return true;
 }
 
 /* parse target specific constraints */

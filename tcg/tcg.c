@@ -66,7 +66,7 @@
 static void tcg_target_init(TCGContext *s);
 static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode);
 static void tcg_target_qemu_prologue(TCGContext *s);
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend);
 
 /* The CIE and FDE header definitions will be common to all hosts.  */
@@ -268,7 +268,8 @@ static void tcg_out_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
         /* FIXME: This may break relocations on RISC targets that
            modify instruction fields in place.  The caller may not have 
            written the initial value.  */
-        patch_reloc(code_ptr, type, l->u.value, addend);
+        bool ok = patch_reloc(code_ptr, type, l->u.value, addend);
+        tcg_debug_assert(ok);
     } else {
         /* add a new relocation entry */
         r = tcg_malloc(sizeof(TCGRelocation));
@@ -288,7 +289,8 @@ static void tcg_out_label(TCGContext *s, TCGLabel *l, tcg_insn_unit *ptr)
     tcg_debug_assert(!l->has_value);
 
     for (r = l->u.first_reloc; r != NULL; r = r->next) {
-        patch_reloc(r->ptr, r->type, value, r->addend);
+        bool ok = patch_reloc(r->ptr, r->type, value, r->addend);
+        tcg_debug_assert(ok);
     }
 
     l->has_value = 1;
