@@ -992,6 +992,11 @@ int nbd_client_init(BlockDriverState *bs,
         logout("Failed to negotiate with the NBD server\n");
         return ret;
     }
+    if (x_dirty_bitmap && !client->info.base_allocation) {
+        error_setg(errp, "requested x-dirty-bitmap %s not found",
+                   x_dirty_bitmap);
+        return -EINVAL;
+    }
     if (client->info.flags & NBD_FLAG_READ_ONLY) {
         ret = bdrv_apply_auto_read_only(bs, "NBD export is read-only", errp);
         if (ret < 0) {
