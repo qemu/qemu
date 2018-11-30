@@ -483,12 +483,7 @@ static inline void tcg_out_opc_bf64(TCGContext *s, MIPSInsn opc, MIPSInsn opm,
 static inline void tcg_out_opc_br(TCGContext *s, MIPSInsn opc,
                                   TCGReg rt, TCGReg rs)
 {
-    /* We pay attention here to not modify the branch target by reading
-       the existing value and using it again. This ensure that caches and
-       memory are kept coherent during retranslation. */
-    uint16_t offset = (uint16_t)*s->code_ptr;
-
-    tcg_out_opc_imm(s, opc, rt, rs, offset);
+    tcg_out_opc_imm(s, opc, rt, rs, 0);
 }
 
 /*
