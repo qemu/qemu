@@ -175,7 +175,7 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     case R_386_PC32:
         value -= (uintptr_t)code_ptr;
         if (value != (int32_t)value) {
-            tcg_abort();
+            return false;
         }
         /* FALLTHRU */
     case R_386_32:
@@ -184,7 +184,7 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     case R_386_PC8:
         value -= (uintptr_t)code_ptr;
         if (value != (int8_t)value) {
-            tcg_abort();
+            return false;
         }
         tcg_patch8(code_ptr, value);
         break;
