@@ -54,18 +54,9 @@ static void smbus_do_write(SMBusDevice *dev)
 {
     SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
 
-    if (dev->data_len == 1) {
-        DPRINTF("Send Byte\n");
-        if (sc->send_byte) {
-            sc->send_byte(dev, dev->data_buf[0]);
-        }
-    } else {
-        dev->command = dev->data_buf[0];
-        DPRINTF("Command %d len %d\n", dev->command, dev->data_len - 1);
-        if (sc->write_data) {
-            sc->write_data(dev, dev->command, dev->data_buf + 1,
-                           dev->data_len - 1);
-        }
+    DPRINTF("Command %d len %d\n", dev->data_buf[0], dev->data_len);
+    if (sc->write_data) {
+        sc->write_data(dev, dev->data_buf, dev->data_len);
     }
 }
 
@@ -98,13 +89,7 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
                 BADF("Read after write with no data\n");
                 dev->mode = SMBUS_CONFUSED;
             } else {
-                if (dev->data_len > 1) {
-                    smbus_do_write(dev);
-                } else {
-                    dev->command = dev->data_buf[0];
-                    DPRINTF("%02x: Command %d\n", dev->i2c.address,
-                            dev->command);
-                }
+                smbus_do_write(dev);
                 DPRINTF("Read mode\n");
                 dev->data_len = 0;
                 dev->mode = SMBUS_READ_DATA;
@@ -177,7 +162,7 @@ static uint8_t smbus_i2c_recv(I2CSlave *s)
         break;
     case SMBUS_READ_DATA:
         if (sc->read_data) {
-            ret = sc->read_data(dev, dev->command, dev->data_len);
+            ret = sc->read_data(dev, dev->data_len);
             dev->data_len++;
         } else {
             ret = 0;
