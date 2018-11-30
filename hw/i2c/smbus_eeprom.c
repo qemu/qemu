@@ -79,13 +79,6 @@ static int eeprom_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
     return 0;
 }
 
-static uint8_t eeprom_read_data(SMBusDevice *dev, int n)
-{
-    /* As with writes, we implement block reads without the
-       SMBus length byte.  */
-    return eeprom_receive_byte(dev);
-}
-
 static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
 {
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *)dev;
@@ -107,7 +100,6 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     sc->quick_cmd = eeprom_quick_cmd;
     sc->receive_byte = eeprom_receive_byte;
     sc->write_data = eeprom_write_data;
-    sc->read_data = eeprom_read_data;
     dc->props = smbus_eeprom_properties;
     /* Reason: pointer property "data" */
     dc->user_creatable = false;

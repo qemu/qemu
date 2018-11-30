@@ -47,8 +47,6 @@ typedef struct SMBusDeviceClass
      */
     void (*quick_cmd)(SMBusDevice *dev, uint8_t read);
 
-    uint8_t (*receive_byte)(SMBusDevice *dev);
-
     /*
      * We can't distinguish between a word write and a block write with
      * length 1, so pass the whole data block including the length byte
@@ -59,11 +57,16 @@ typedef struct SMBusDeviceClass
      */
     int (*write_data)(SMBusDevice *dev, uint8_t *buf, uint8_t len);
 
-    /* Likewise we can't distinguish between different reads, or even know
-       the length of the read until the read is complete, so read data a
-       byte at a time.  The device is responsible for adding the length
-       byte on block reads.  */
-    uint8_t (*read_data)(SMBusDevice *dev, int n);
+    /*
+     * Likewise we can't distinguish between different reads, or even know
+     * the length of the read until the read is complete, so read data a
+     * byte at a time.  The device is responsible for adding the length
+     * byte on block reads.  This call cannot fail, it should return
+     * something, preferably 0xff if nothing is available.
+     * This may be NULL if no data is read from the device.  Reads will
+     * return 0xff in that case.
+     */
+    uint8_t (*receive_byte)(SMBusDevice *dev);
 } SMBusDeviceClass;
 
 struct SMBusDevice {

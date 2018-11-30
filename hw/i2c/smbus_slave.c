@@ -34,7 +34,6 @@ do { fprintf(stderr, "smbus: error: " fmt , ## __VA_ARGS__);} while (0)
 enum {
     SMBUS_IDLE,
     SMBUS_WRITE_DATA,
-    SMBUS_RECV_BYTE,
     SMBUS_READ_DATA,
     SMBUS_DONE,
     SMBUS_CONFUSED = -1
@@ -82,7 +81,7 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
         switch (dev->mode) {
         case SMBUS_IDLE:
             DPRINTF("Read mode\n");
-            dev->mode = SMBUS_RECV_BYTE;
+            dev->mode = SMBUS_READ_DATA;
             break;
         case SMBUS_WRITE_DATA:
             if (dev->data_len == 0) {
@@ -91,7 +90,6 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
             } else {
                 smbus_do_write(dev);
                 DPRINTF("Read mode\n");
-                dev->data_len = 0;
                 dev->mode = SMBUS_READ_DATA;
             }
             break;
@@ -148,31 +146,18 @@ static uint8_t smbus_i2c_recv(I2CSlave *s)
 {
     SMBusDevice *dev = SMBUS_DEVICE(s);
     SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
-    uint8_t ret;
+    uint8_t ret = 0xff;
 
     switch (dev->mode) {
-    case SMBUS_RECV_BYTE:
+    case SMBUS_READ_DATA:
         if (sc->receive_byte) {
             ret = sc->receive_byte(dev);
-        } else {
-            ret = 0;
-        }
-        DPRINTF("Receive Byte %02x\n", ret);
-        dev->mode = SMBUS_DONE;
-        break;
-    case SMBUS_READ_DATA:
-        if (sc->read_data) {
-            ret = sc->read_data(dev, dev->data_len);
-            dev->data_len++;
-        } else {
-            ret = 0;
         }
         DPRINTF("Read data %02x\n", ret);
         break;
     default:
         BADF("Unexpected read in state %d\n", dev->mode);
         dev->mode = SMBUS_CONFUSED;
-        ret = 0;
         break;
     }
     return ret;
