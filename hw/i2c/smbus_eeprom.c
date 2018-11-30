@@ -43,6 +43,7 @@ static uint8_t eeprom_receive_byte(SMBusDevice *dev)
     SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
     uint8_t *data = eeprom->data;
     uint8_t val = data[eeprom->offset++];
+
 #ifdef DEBUG
     printf("eeprom_receive_byte: addr=0x%02x val=0x%02x\n",
            dev->i2c.address, val);

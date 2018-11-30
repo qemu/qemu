@@ -70,6 +70,7 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
             DPRINTF("Incoming data\n");
             dev->mode = SMBUS_WRITE_DATA;
             break;
+
         default:
             BADF("Unexpected send start condition in state %d\n", dev->mode);
             dev->mode = SMBUS_CONFUSED;
@@ -83,6 +84,7 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
             DPRINTF("Read mode\n");
             dev->mode = SMBUS_READ_DATA;
             break;
+
         case SMBUS_WRITE_DATA:
             if (dev->data_len == 0) {
                 BADF("Read after write with no data\n");
@@ -93,6 +95,7 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
                 dev->mode = SMBUS_READ_DATA;
             }
             break;
+
         default:
             BADF("Unexpected recv start condition in state %d\n", dev->mode);
             dev->mode = SMBUS_CONFUSED;
@@ -129,9 +132,11 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
         case SMBUS_DONE:
             /* Nothing to do.  */
             break;
+
         case SMBUS_READ_DATA:
             dev->mode = SMBUS_DONE;
             break;
+
         default:
             BADF("Unexpected NACK in state %d\n", dev->mode);
             dev->mode = SMBUS_CONFUSED;
@@ -155,11 +160,13 @@ static uint8_t smbus_i2c_recv(I2CSlave *s)
         }
         DPRINTF("Read data %02x\n", ret);
         break;
+
     default:
         BADF("Unexpected read in state %d\n", dev->mode);
         dev->mode = SMBUS_CONFUSED;
         break;
     }
+
     return ret;
 }
 
@@ -176,10 +183,12 @@ static int smbus_i2c_send(I2CSlave *s, uint8_t data)
             dev->data_buf[dev->data_len++] = data;
         }
         break;
+
     default:
         BADF("Unexpected write in state %d\n", dev->mode);
         break;
     }
+
     return 0;
 }
 
