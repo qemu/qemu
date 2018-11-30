@@ -610,13 +610,11 @@ static void tcg_out_bpcc0(TCGContext *s, int scond, int flags, int off19)
 
 static void tcg_out_bpcc(TCGContext *s, int scond, int flags, TCGLabel *l)
 {
-    int off19;
+    int off19 = 0;
 
     if (l->has_value) {
         off19 = INSN_OFF19(tcg_pcrel_diff(s, l->u.value_ptr));
     } else {
-        /* Make sure to preserve destinations during retranslation.  */
-        off19 = *s->code_ptr & INSN_OFF19(-1);
         tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP19, l, 0);
     }
     tcg_out_bpcc0(s, scond, flags, off19);
@@ -656,13 +654,11 @@ static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGReg arg1,
 {
     /* For 64-bit signed comparisons vs zero, we can avoid the compare.  */
     if (arg2 == 0 && !is_unsigned_cond(cond)) {
-        int off16;
+        int off16 = 0;
 
         if (l->has_value) {
             off16 = INSN_OFF16(tcg_pcrel_diff(s, l->u.value_ptr));
         } else {
-            /* Make sure to preserve destinations during retranslation.  */
-            off16 = *s->code_ptr & INSN_OFF16(-1);
             tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP16, l, 0);
         }
         tcg_out32(s, INSN_OP(0) | INSN_OP2(3) | BPR_PT | INSN_RS1(arg1)
