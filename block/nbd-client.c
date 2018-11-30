@@ -995,12 +995,13 @@ int nbd_client_init(BlockDriverState *bs,
     if (x_dirty_bitmap && !client->info.base_allocation) {
         error_setg(errp, "requested x-dirty-bitmap %s not found",
                    x_dirty_bitmap);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto fail;
     }
     if (client->info.flags & NBD_FLAG_READ_ONLY) {
         ret = bdrv_apply_auto_read_only(bs, "NBD export is read-only", errp);
         if (ret < 0) {
-            return ret;
+            goto fail;
         }
     }
     if (client->info.flags & NBD_FLAG_SEND_FUA) {
@@ -1029,4 +1030,17 @@ int nbd_client_init(BlockDriverState *bs,
 
     logout("Established connection with NBD server\n");
     return 0;
+
+ fail:
+    /*
+     * We have connected, but must fail for other reasons. The
+     * connection is still blocking; send NBD_CMD_DISC as a courtesy
+     * to the server.
+     */
+    {
+        NBDRequest request = { .type = NBD_CMD_DISC };
+
+        nbd_send_request(client->ioc ?: QIO_CHANNEL(sioc), &request);
+        return ret;
+    }
 }
