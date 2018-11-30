@@ -54,9 +54,7 @@ static void smbus_do_write(SMBusDevice *dev)
 {
     SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
 
-    if (dev->data_len == 0) {
-        smbus_do_quick_cmd(dev, 0);
-    } else if (dev->data_len == 1) {
+    if (dev->data_len == 1) {
         DPRINTF("Send Byte\n");
         if (sc->send_byte) {
             sc->send_byte(dev, dev->data_buf[0]);
@@ -120,19 +118,24 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
         break;
 
     case I2C_FINISH:
-        switch (dev->mode) {
-        case SMBUS_WRITE_DATA:
-            smbus_do_write(dev);
-            break;
-        case SMBUS_RECV_BYTE:
-            smbus_do_quick_cmd(dev, 1);
-            break;
-        case SMBUS_READ_DATA:
-            BADF("Unexpected stop during receive\n");
-            break;
-        default:
-            /* Nothing to do.  */
-            break;
+        if (dev->data_len == 0) {
+            if (dev->mode == SMBUS_WRITE_DATA || dev->mode == SMBUS_READ_DATA) {
+                smbus_do_quick_cmd(dev, dev->mode == SMBUS_READ_DATA);
+            }
+        } else {
+            switch (dev->mode) {
+            case SMBUS_WRITE_DATA:
+                smbus_do_write(dev);
+                break;
+
+            case SMBUS_READ_DATA:
+                BADF("Unexpected stop during receive\n");
+                break;
+
+            default:
+                /* Nothing to do.  */
+                break;
+            }
         }
         dev->mode = SMBUS_IDLE;
         dev->data_len = 0;

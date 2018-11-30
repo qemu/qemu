@@ -40,6 +40,11 @@ typedef struct SMBusDevice SMBusDevice;
 typedef struct SMBusDeviceClass
 {
     I2CSlaveClass parent_class;
+
+    /*
+     * An operation with no data, special in SMBus.
+     * This may be NULL, quick commands are ignore in that case.
+     */
     void (*quick_cmd)(SMBusDevice *dev, uint8_t read);
     void (*send_byte)(SMBusDevice *dev, uint8_t val);
     uint8_t (*receive_byte)(SMBusDevice *dev);
