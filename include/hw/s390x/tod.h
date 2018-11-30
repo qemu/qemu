@@ -31,13 +31,19 @@ typedef struct S390TODState {
     /* private */
     DeviceState parent_obj;
 
-    /* unused by KVM implementation */
+    /*
+     * Used by TCG to remember the time base. Used by KVM to backup the TOD
+     * while the TOD is stopped.
+     */
     S390TOD base;
+    /* Used by KVM to remember if the TOD is stopped and base is valid. */
+    bool stopped;
 } S390TODState;
 
 typedef struct S390TODClass {
     /* private */
     DeviceClass parent_class;
+    void (*parent_realize)(DeviceState *dev, Error **errp);
 
     /* public */
     void (*get)(const S390TODState *td, S390TOD *tod, Error **errp);
