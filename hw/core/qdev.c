@@ -970,7 +970,7 @@ static void device_initfn(Object *obj)
     QLIST_INIT(&dev->gpios);
 }
 
-static void device_post_init(Object *obj)
+void object_apply_compat_props(Object *obj)
 {
     if (object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
         MachineState *m = MACHINE(qdev_get_machine());
@@ -982,7 +982,11 @@ static void device_post_init(Object *obj)
         }
         object_apply_global_props(obj, mc->compat_props, &error_abort);
     }
+}
 
+static void device_post_init(Object *obj)
+{
+    object_apply_compat_props(obj);
     qdev_prop_set_globals(DEVICE(obj));
 }
 
