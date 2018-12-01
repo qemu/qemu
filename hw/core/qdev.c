@@ -974,11 +974,13 @@ static void device_post_init(Object *obj)
 {
     if (object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
         MachineState *m = MACHINE(qdev_get_machine());
+        MachineClass *mc = MACHINE_GET_CLASS(m);
         AccelClass *ac = ACCEL_GET_CLASS(m->accelerator);
 
         if (ac->compat_props) {
             object_apply_global_props(obj, ac->compat_props, &error_abort);
         }
+        object_apply_global_props(obj, mc->compat_props, &error_abort);
     }
 
     qdev_prop_set_globals(DEVICE(obj));
