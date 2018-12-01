@@ -2549,11 +2549,15 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_extu_i32_i64:
     case INDEX_op_ext32u_i64:
+    case INDEX_op_extrl_i64_i32:
         tcg_out_ext32u(s, a0, a1);
         break;
     case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
         tcg_out_ext32s(s, a0, a1);
+        break;
+    case INDEX_op_extrh_i64_i32:
+        tcg_out_shifti(s, SHIFT_SHR + P_REXW, a0, 32);
         break;
 #endif
 
@@ -2918,6 +2922,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_neg_i64:
     case INDEX_op_not_i32:
     case INDEX_op_not_i64:
+    case INDEX_op_extrh_i64_i32:
         return &r_0;
 
     case INDEX_op_ext8s_i32:
@@ -2933,6 +2938,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_ext32u_i64:
     case INDEX_op_ext_i32_i64:
     case INDEX_op_extu_i32_i64:
+    case INDEX_op_extrl_i64_i32:
     case INDEX_op_extract_i32:
     case INDEX_op_extract_i64:
     case INDEX_op_sextract_i32:
