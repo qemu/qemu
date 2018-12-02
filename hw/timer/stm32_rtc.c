@@ -35,7 +35,7 @@
 
 #ifdef DEBUG_STM32_RTC
 #define DPRINTF(fmt, ...)                                       \
-    do { printf("STM32_RTC: " fmt , ## __VA_ARGS__); } while (0)
+    do { fprintf(stderr, "STM32_RTC: " fmt , ## __VA_ARGS__); } while (0)
 #else
 #define DPRINTF(fmt, ...)
 #endif
