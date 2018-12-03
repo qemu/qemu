@@ -1719,6 +1719,12 @@ static void usb_mtp_write_metadata(MTPState *s)
 
     filename = utf16_to_str(dataset->length, dataset->filename);
 
+    if (strchr(filename, '/')) {
+        usb_mtp_queue_result(s, RES_PARAMETER_NOT_SUPPORTED, d->trans,
+                             0, 0, 0, 0);
+        return;
+    }
+
     o = usb_mtp_object_lookup_name(p, filename, dataset->length);
     if (o != NULL) {
         next_handle = o->handle;
