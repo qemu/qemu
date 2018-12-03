@@ -454,9 +454,9 @@ struct decode_x87_tbl {
 struct decode_tbl invl_inst = {0x0, 0, 0, false, NULL, NULL, NULL, NULL,
                                decode_invalid};
 
-struct decode_tbl _decode_tbl1[255];
-struct decode_tbl _decode_tbl2[255];
-struct decode_x87_tbl _decode_tbl3[255];
+struct decode_tbl _decode_tbl1[256];
+struct decode_tbl _decode_tbl2[256];
+struct decode_x87_tbl _decode_tbl3[256];
 
 static void decode_x87_ins(CPUX86State *env, struct x86_decode *decode)
 {
