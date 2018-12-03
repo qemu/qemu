@@ -1593,17 +1593,23 @@ static void usb_mtp_cancel_packet(USBDevice *dev, USBPacket *p)
     fprintf(stderr, "%s\n", __func__);
 }
 
-static void utf16_to_str(uint8_t len, uint16_t *arr, char *name)
+static char *utf16_to_str(uint8_t len, uint16_t *arr)
 {
-    int count;
-    wchar_t *wstr = g_new0(wchar_t, len);
+    wchar_t *wstr = g_new0(wchar_t, len + 1);
+    int count, dlen;
+    char *dest;
 
     for (count = 0; count < len; count++) {
+        /* FIXME: not working for surrogate pairs */
         wstr[count] = (wchar_t)arr[count];
     }
+    wstr[count] = 0;
 
-    wcstombs(name, wstr, len);
+    dlen = wcstombs(NULL, wstr, 0) + 1;
+    dest = g_malloc(dlen);
+    wcstombs(dest, wstr, dlen);
     g_free(wstr);
+    return dest;
 }
 
 /* Wrapper around write, returns 0 on failure */
@@ -1703,7 +1709,7 @@ static void usb_mtp_write_metadata(MTPState *s)
 {
     MTPData *d = s->data_out;
     ObjectInfo *dataset = (ObjectInfo *)d->data;
-    char *filename = g_new0(char, dataset->length);
+    char *filename;
     MTPObject *o;
     MTPObject *p = usb_mtp_object_lookup(s, s->dataset.parent_handle);
     uint32_t next_handle = s->next_handle;
@@ -1711,7 +1717,7 @@ static void usb_mtp_write_metadata(MTPState *s)
     assert(!s->write_pending);
     assert(p != NULL);
 
-    utf16_to_str(dataset->length, dataset->filename, filename);
+    filename = utf16_to_str(dataset->length, dataset->filename);
 
     o = usb_mtp_object_lookup_name(p, filename, dataset->length);
     if (o != NULL) {
