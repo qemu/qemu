@@ -193,7 +193,11 @@ static int smbus_i2c_send(I2CSlave *s, uint8_t data)
     switch (dev->mode) {
     case SMBUS_WRITE_DATA:
         DPRINTF("Write data %02x\n", data);
-        dev->data_buf[dev->data_len++] = data;
+        if (dev->data_len >= sizeof(dev->data_buf)) {
+            BADF("Too many bytes sent\n");
+        } else {
+            dev->data_buf[dev->data_len++] = data;
+        }
         break;
     default:
         BADF("Unexpected write in state %d\n", dev->mode);
