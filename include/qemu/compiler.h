@@ -127,7 +127,7 @@
 #define __has_builtin(x) 0 /* compatibility with non-clang compilers */
 #endif
 
-#if __has_builtin(__builtin_assume_aligned) || QEMU_GNUC_PREREQ(4, 7)
+#if __has_builtin(__builtin_assume_aligned) || !defined(__clang__)
 #define HAS_ASSUME_ALIGNED
 #endif
 
