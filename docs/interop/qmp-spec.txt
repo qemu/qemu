@@ -32,7 +32,7 @@ following format:
 Where DATA-STRUCTURE-NAME is any valid JSON data structure, as defined
 by the JSON standard:
 
-http://www.ietf.org/rfc/rfc7159.txt
+http://www.ietf.org/rfc/rfc8259.txt
 
 The server expects its input to be encoded in UTF-8, and sends its
 output encoded in ASCII.

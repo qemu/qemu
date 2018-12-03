@@ -26,7 +26,7 @@ how the schemas, scripts, and resulting code are used.
 == QMP/Guest agent schema ==
 
 A QAPI schema file is designed to be loosely based on JSON
-(http://www.ietf.org/rfc/rfc7159.txt) with changes for quoting style
+(http://www.ietf.org/rfc/rfc8259.txt) with changes for quoting style
 and the use of comments; a QAPI schema file is then parsed by a python
 code generation program.  A valid QAPI schema consists of a series of
 top-level expressions, with no commas between them.  Where
