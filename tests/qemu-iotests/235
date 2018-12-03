@@ -1,0 +1,76 @@
+#!/usr/bin/env python
+#
+# Simple mirror test
+#
+# Copyright (c) 2018 Virtuozzo International GmbH. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import sys
+import os
+import iotests
+from iotests import qemu_img_create, qemu_io, file_path, log
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
+
+from qemu import QEMUMachine
+
+# Note:
+# This test was added to check that mirror dead-lock was fixed (see previous
+# commit before this test addition).
+# And it didn't reproduce if at least one of the following:
+# 1. use small image size
+# 2. use raw format (not qcow2)
+# 3. drop kvm and use iotests.VM() (maybe, because of qtest) (however, it still
+#    reproduces, if just drop kvm, but gdb failed to produce full backtraces
+#    for me)
+# 4. add iothread
+
+size = 1 * 1024 * 1024 * 1024
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+disk = file_path('disk')
+
+# prepare source image
+qemu_img_create('-f', iotests.imgfmt, '-o', 'preallocation=metadata', disk,
+                str(size))
+
+vm = QEMUMachine(iotests.qemu_prog)
+vm.add_args('-machine', 'pc,accel=kvm')
+vm.add_args('-drive', 'id=src,file=' + disk)
+vm.launch()
+
+log(vm.qmp('object-add', qom_type='throttle-group', id='tg0',
+           props={ 'x-bps-total': size }))
+
+log(vm.qmp('blockdev-add',
+           **{ 'node-name': 'target',
+               'driver': 'throttle',
+               'throttle-group': 'tg0',
+               'file': {
+                   'driver': 'null-co',
+                   'size': size
+                } }))
+
+log(vm.qmp('blockdev-mirror', device='src', target='target', sync='full'))
+
+try:
+    vm.event_wait('BLOCK_JOB_READY', timeout=10.0)
+except:
+    vm.shutdown()
+    raise
+
+vm.shutdown()
