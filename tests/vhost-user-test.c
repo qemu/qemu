@@ -228,9 +228,11 @@ static void uninit_virtio_dev(TestServer *s)
     qvirtio_pci_device_free(s->dev);
 }
 
-static void wait_for_fds(TestServer *s)
+static bool wait_for_fds(TestServer *s)
 {
     gint64 end_time;
+    bool got_region;
+    int i;
 
     g_mutex_lock(&s->data_mutex);
 
@@ -248,6 +250,19 @@ static void wait_for_fds(TestServer *s)
     g_assert_cmpint(s->fds_num, ==, s->memory.nregions);
 
     g_mutex_unlock(&s->data_mutex);
+
+    got_region = false;
+    for (i = 0; i < s->memory.nregions; ++i) {
+        VhostUserMemoryRegion *reg = &s->memory.regions[i];
+        if (reg->guest_phys_addr == 0) {
+            got_region = true;
+            break;
+        }
+    }
+    if (!got_region) {
+        g_test_skip("No memory at address 0x0");
+    }
+    return got_region;
 }
 
 static void read_guest_mem_server(TestServer *s)
@@ -255,8 +270,6 @@ static void read_guest_mem_server(TestServer *s)
     uint8_t *guest_mem;
     int i, j;
     size_t size;
-
-    wait_for_fds(s);
 
     g_mutex_lock(&s->data_mutex);
 
@@ -577,8 +590,6 @@ static void write_guest_mem(TestServer *s, uint32_t seed)
     int i, j;
     size_t size;
 
-    wait_for_fds(s);
-
     /* iterate all regions */
     for (i = 0; i < s->fds_num; i++) {
 
@@ -661,8 +672,13 @@ static void test_read_guest_mem(const void *arg)
 
     init_virtio_dev(server, 1u << VIRTIO_NET_F_MAC);
 
+    if (!wait_for_fds(server)) {
+        goto exit;
+    }
+
     read_guest_mem_server(server);
 
+exit:
     uninit_virtio_dev(server);
 
     qtest_quit(s);
@@ -689,8 +705,10 @@ static void test_migrate(void)
     g_free(cmd);
 
     init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
-    init_virtio_dev(dest, 1u << VIRTIO_NET_F_MAC);
-    wait_for_fds(s);
+    if (!wait_for_fds(s)) {
+        goto exit;
+    }
+
     size = get_log_size(s);
     g_assert_cmpint(size, ==, (2 * 1024 * 1024) / (VHOST_LOG_PAGE * 8));
 
@@ -699,6 +717,7 @@ static void test_migrate(void)
     g_free(tmp);
     to = qtest_init(cmd);
     g_free(cmd);
+    init_virtio_dev(dest, 1u << VIRTIO_NET_F_MAC);
 
     source = g_source_new(&test_migrate_source_funcs,
                           sizeof(TestMigrateSource));
@@ -738,15 +757,18 @@ static void test_migrate(void)
     global_qtest = to;
     qmp_eventwait("RESUME");
 
+    g_assert(wait_for_fds(s));
     read_guest_mem_server(dest);
 
-    uninit_virtio_dev(s);
     uninit_virtio_dev(dest);
+    qtest_quit(to);
 
     g_source_destroy(source);
     g_source_unref(source);
 
-    qtest_quit(to);
+exit:
+    uninit_virtio_dev(s);
+
     test_server_free(dest);
     qtest_quit(from);
     test_server_free(s);
@@ -810,16 +832,20 @@ static void test_reconnect_subprocess(void)
     g_free(cmd);
 
     init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
-    wait_for_fds(s);
+    if (!wait_for_fds(s)) {
+        goto exit;
+    }
+
     wait_for_rings_started(s, 2);
 
     /* reconnect */
     s->fds_num = 0;
     s->rings = 0;
     g_idle_add(reconnect_cb, s);
-    wait_for_fds(s);
+    g_assert(wait_for_fds(s));
     wait_for_rings_started(s, 2);
 
+exit:
     uninit_virtio_dev(s);
 
     qtest_end();
@@ -848,9 +874,12 @@ static void test_connect_fail_subprocess(void)
     g_free(cmd);
 
     init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
-    wait_for_fds(s);
+    if (!wait_for_fds(s)) {
+        goto exit;
+    }
     wait_for_rings_started(s, 2);
 
+exit:
     uninit_virtio_dev(s);
 
     qtest_end();
@@ -878,9 +907,12 @@ static void test_flags_mismatch_subprocess(void)
     g_free(cmd);
 
     init_virtio_dev(s, 1u << VIRTIO_NET_F_MAC);
-    wait_for_fds(s);
+    if (!wait_for_fds(s)) {
+        goto exit;
+    }
     wait_for_rings_started(s, 2);
 
+exit:
     uninit_virtio_dev(s);
 
     qtest_end();
