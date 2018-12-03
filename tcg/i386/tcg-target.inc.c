@@ -1876,6 +1876,15 @@ static inline int setup_guest_base_seg(void)
     }
     return 0;
 }
+# elif defined (__FreeBSD__) || defined (__FreeBSD_kernel__)
+#  include <machine/sysarch.h>
+static inline int setup_guest_base_seg(void)
+{
+    if (sysarch(AMD64_SET_GSBASE, &guest_base) == 0) {
+        return P_GS;
+    }
+    return 0;
+}
 # else
 static inline int setup_guest_base_seg(void)
 {
