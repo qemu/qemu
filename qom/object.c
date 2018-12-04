@@ -417,6 +417,7 @@ void object_initialize_childv(Object *parentobj, const char *propname,
 {
     Error *local_err = NULL;
     Object *obj;
+    UserCreatable *uc;
 
     object_initialize(childobj, size, type);
     obj = OBJECT(childobj);
@@ -431,8 +432,9 @@ void object_initialize_childv(Object *parentobj, const char *propname,
         goto out;
     }
 
-    if (object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
-        user_creatable_complete(obj, &local_err);
+    uc = (UserCreatable *)object_dynamic_cast(obj, TYPE_USER_CREATABLE);
+    if (uc) {
+        user_creatable_complete(uc, &local_err);
         if (local_err) {
             object_unparent(obj);
             goto out;
@@ -590,6 +592,7 @@ Object *object_new_with_propv(const char *typename,
     Object *obj;
     ObjectClass *klass;
     Error *local_err = NULL;
+    UserCreatable *uc;
 
     klass = object_class_by_name(typename);
     if (!klass) {
@@ -612,8 +615,9 @@ Object *object_new_with_propv(const char *typename,
         goto error;
     }
 
-    if (object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
-        user_creatable_complete(obj, &local_err);
+    uc = (UserCreatable *)object_dynamic_cast(obj, TYPE_USER_CREATABLE);
+    if (uc) {
+        user_creatable_complete(uc, &local_err);
         if (local_err) {
             object_unparent(obj);
             goto error;
