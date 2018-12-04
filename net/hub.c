@@ -20,6 +20,7 @@
 #include "hub.h"
 #include "qemu/iov.h"
 #include "qemu/error-report.h"
+#include "sysemu/qtest.h"
 
 /*
  * A hub broadcasts incoming packets to all its ports except the source port.
@@ -346,7 +347,7 @@ void net_hub_check_clients(void)
         if (has_host_dev && !has_nic) {
             warn_report("hub %d with no nics", hub->id);
         }
-        if (has_nic && !has_host_dev) {
+        if (has_nic && !has_host_dev && !qtest_enabled()) {
             warn_report("hub %d is not connected to host network", hub->id);
         }
     }
