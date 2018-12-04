@@ -14,9 +14,7 @@
 #define STREAM_SLAVE(obj) \
      INTERFACE_CHECK(StreamSlave, (obj), TYPE_STREAM_SLAVE)
 
-typedef struct StreamSlave {
-    Object Parent;
-} StreamSlave;
+typedef struct StreamSlave StreamSlave;
 
 typedef void (*StreamCanPushNotifyFn)(void *opaque);
 

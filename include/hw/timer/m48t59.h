@@ -13,9 +13,7 @@
 #define NVRAM(obj) \
     INTERFACE_CHECK(Nvram, (obj), TYPE_NVRAM)
 
-typedef struct Nvram {
-    Object parent;
-} Nvram;
+typedef struct Nvram Nvram;
 
 typedef struct NvramClass {
     InterfaceClass parent;

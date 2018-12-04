@@ -16,10 +16,7 @@
 #define ARM_LINUX_BOOT_IF(obj) \
     INTERFACE_CHECK(ARMLinuxBootIf, (obj), TYPE_ARM_LINUX_BOOT_IF)
 
-typedef struct ARMLinuxBootIf {
-    /*< private >*/
-    Object parent_obj;
-} ARMLinuxBootIf;
+typedef struct ARMLinuxBootIf ARMLinuxBootIf;
 
 typedef struct ARMLinuxBootIfClass {
     /*< private >*/

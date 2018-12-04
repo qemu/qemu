@@ -16,11 +16,7 @@
      INTERFACE_CHECK(UserCreatable, (obj), \
                      TYPE_USER_CREATABLE)
 
-
-typedef struct UserCreatable {
-    /* <private> */
-    Object Parent;
-} UserCreatable;
+typedef struct UserCreatable UserCreatable;
 
 /**
  * UserCreatableClass:
