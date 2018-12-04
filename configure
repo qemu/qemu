@@ -5148,11 +5148,6 @@ fi
 
 int128=no
 cat > $TMPC << EOF
-#if defined(__clang_major__) && defined(__clang_minor__)
-# if ((__clang_major__ < 3) || (__clang_major__ == 3) && (__clang_minor__ < 2))
-#  error __int128_t does not work in CLANG before 3.2
-# endif
-#endif
 __int128_t a;
 __uint128_t b;
 int main (void) {
