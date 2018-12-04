@@ -256,35 +256,6 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
                                     Property *prop, const char *value);
 
 /**
- * register_compat_prop:
- *
- * Register internal (not user-provided) global property, changing the
- * default value of a given property in a device type.  This can be used
- * for enabling machine-type compatibility or for enabling
- * accelerator-specific defaults in devices.
- *
- * The property values set using this function must be always valid and
- * never report setter errors, as the property will have
- * GlobalProperty::errp set to &error_abort.
- *
- * User-provided global properties should override internal global
- * properties, so callers of this function should ensure that it is
- * called before user-provided global properties are registered.
- *
- * @driver: Device type to be affected
- * @property: Property whose default value is going to be changed
- * @value: New default value for the property
- */
-void register_compat_prop(const char *driver, const char *property,
-                          const char *value);
-/*
- * register_compat_props_array(): using register_compat_prop(), which
- * only registers internal global properties (which has lower priority
- * than user-provided global properties)
- */
-void register_compat_props_array(GlobalProperty *prop);
-
-/**
  * qdev_property_add_static:
  * @dev: Device to add the property to.
  * @prop: The qdev property definition.

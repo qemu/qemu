@@ -1180,27 +1180,6 @@ void qdev_prop_register_global(GlobalProperty *prop)
     global_props = g_list_append(global_props, prop);
 }
 
-void register_compat_prop(const char *driver,
-                          const char *property,
-                          const char *value)
-{
-    GlobalProperty *p = g_new0(GlobalProperty, 1);
-
-    /* Any compat_props must never cause error */
-    p->errp = &error_abort;
-    p->driver = driver;
-    p->property = property;
-    p->value = value;
-    qdev_prop_register_global(p);
-}
-
-void register_compat_props_array(GlobalProperty *prop)
-{
-    for (; prop && prop->driver; prop++) {
-        register_compat_prop(prop->driver, prop->property, prop->value);
-    }
-}
-
 void qdev_prop_register_global_list(GlobalProperty *props)
 {
     int i;
