@@ -245,6 +245,48 @@ static void pci_basic(gconstpointer data)
     g_free(dev);
     qtest_shutdown(qs);
 }
+
+static void large_tx(gconstpointer data)
+{
+    QVirtioPCIDevice *dev;
+    QOSState *qs;
+    QVirtQueuePCI *tx, *rx;
+    QVirtQueue *vq;
+    uint64_t req_addr;
+    uint32_t free_head;
+    size_t alloc_size = (size_t)data / 64;
+    int i;
+
+    qs = pci_test_start("-netdev hubport,id=hp0,hubid=0 "
+                        "-device virtio-net-pci,netdev=hp0");
+    dev = virtio_net_pci_init(qs->pcibus, PCI_SLOT);
+
+    rx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 0);
+    tx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 1);
+
+    driver_init(&dev->vdev);
+    vq = &tx->vq;
+
+    /* Bypass the limitation by pointing several descriptors to a single
+     * smaller area */
+    req_addr = guest_alloc(qs->alloc, alloc_size);
+    free_head = qvirtqueue_add(vq, req_addr, alloc_size, false, true);
+
+    for (i = 0; i < 64; i++) {
+        qvirtqueue_add(vq, req_addr, alloc_size, false, i != 63);
+    }
+    qvirtqueue_kick(&dev->vdev, vq, free_head);
+
+    qvirtio_wait_used_elem(&dev->vdev, vq, free_head, NULL,
+                           QVIRTIO_NET_TIMEOUT_US);
+
+    qvirtqueue_cleanup(dev->vdev.bus, &tx->vq, qs->alloc);
+    qvirtqueue_cleanup(dev->vdev.bus, &rx->vq, qs->alloc);
+    qvirtio_pci_device_disable(dev);
+    g_free(dev->pdev);
+    g_free(dev);
+    qtest_shutdown(qs);
+}
 #endif
 
 static void hotplug(void)
@@ -270,6 +312,10 @@ int main(int argc, char **argv)
     qtest_add_data_func("/virtio/net/pci/basic", send_recv_test, pci_basic);
     qtest_add_data_func("/virtio/net/pci/rx_stop_cont",
                         stop_cont_test, pci_basic);
+    qtest_add_data_func("/virtio/net/pci/large_tx_uint_max",
+                        (gconstpointer)UINT_MAX, large_tx);
+    qtest_add_data_func("/virtio/net/pci/large_tx_net_bufsize",
+                        (gconstpointer)NET_BUFSIZE, large_tx);
 #endif
     qtest_add_func("/virtio/net/pci/hotplug", hotplug);
 
