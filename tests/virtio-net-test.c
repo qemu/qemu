@@ -24,7 +24,6 @@
 
 #define PCI_SLOT_HP             0x06
 #define PCI_SLOT                0x04
-#define PCI_FN                  0x00
 
 #define QVIRTIO_NET_TIMEOUT_US (30 * 1000 * 1000)
 #define VNET_HDR_SIZE sizeof(struct virtio_net_hdr_mrg_rxbuf)
