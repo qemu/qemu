@@ -52,17 +52,21 @@ static QVirtioPCIDevice *virtio_net_pci_init(QPCIBus *bus, int slot)
     return dev;
 }
 
-static QOSState *pci_test_start(int socket)
+GCC_FMT_ATTR(1, 2)
+static QOSState *pci_test_start(const char *cmd, ...)
 {
     QOSState *qs;
+    va_list ap;
     const char *arch = qtest_get_arch();
-    const char *cmd = "-netdev socket,fd=%d,id=hs0 -device "
-                      "virtio-net-pci,netdev=hs0";
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qs = qtest_pc_boot(cmd, socket);
+        va_start(ap, cmd);
+        qs = qtest_pc_vboot(cmd, ap);
+        va_end(ap);
     } else if (strcmp(arch, "ppc64") == 0) {
-        qs = qtest_spapr_boot(cmd, socket);
+        va_start(ap, cmd);
+        qs = qtest_spapr_vboot(cmd, ap);
+        va_end(ap);
     } else {
         g_printerr("virtio-net tests are only available on x86 or ppc64\n");
         exit(EXIT_FAILURE);
@@ -223,7 +227,8 @@ static void pci_basic(gconstpointer data)
     ret = socketpair(PF_UNIX, SOCK_STREAM, 0, sv);
     g_assert_cmpint(ret, !=, -1);
 
-    qs = pci_test_start(sv[1]);
+    qs = pci_test_start("-netdev socket,fd=%d,id=hs0 -device "
+                        "virtio-net-pci,netdev=hs0", sv[1]);
     dev = virtio_net_pci_init(qs->pcibus, PCI_SLOT);
 
     rx = (QVirtQueuePCI *)qvirtqueue_setup(&dev->vdev, qs->alloc, 0);
