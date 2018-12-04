@@ -311,10 +311,20 @@ static void pc_q35_machine_options(MachineClass *m)
     m->max_cpus = 288;
 }
 
-static void pc_q35_3_1_machine_options(MachineClass *m)
+static void pc_q35_4_0_machine_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
     m->alias = "q35";
+}
+
+DEFINE_Q35_MACHINE(v4_0, "pc-q35-4.0", NULL,
+                   pc_q35_4_0_machine_options);
+
+static void pc_q35_3_1_machine_options(MachineClass *m)
+{
+    pc_q35_4_0_machine_options(m);
+    m->alias = NULL;
+    SET_MACHINE_COMPAT(m, PC_COMPAT_3_1);
 }
 
 DEFINE_Q35_MACHINE(v3_1, "pc-q35-3.1", NULL,
@@ -323,7 +333,6 @@ DEFINE_Q35_MACHINE(v3_1, "pc-q35-3.1", NULL,
 static void pc_q35_3_0_machine_options(MachineClass *m)
 {
     pc_q35_3_1_machine_options(m);
-    m->alias = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_3_0);
 }
 
