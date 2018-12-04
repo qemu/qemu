@@ -214,7 +214,7 @@ static void test_dynamic_globalprop_subprocess(void)
         { TYPE_NONDEVICE, "prop6", "106", true },
         {}
     };
-    int all_used;
+    int global_error;
 
     qdev_prop_register_global_list(props);
 
@@ -223,8 +223,8 @@ static void test_dynamic_globalprop_subprocess(void)
 
     g_assert_cmpuint(mt->prop1, ==, 101);
     g_assert_cmpuint(mt->prop2, ==, 102);
-    all_used = qdev_prop_check_globals();
-    g_assert_cmpuint(all_used, ==, 1);
+    global_error = qdev_prop_check_globals();
+    g_assert_cmpuint(global_error, ==, 1);
     g_assert(props[0].used);
     g_assert(props[1].used);
     g_assert(!props[2].used);
@@ -259,7 +259,7 @@ static void test_dynamic_globalprop_nouser_subprocess(void)
         { TYPE_NONDEVICE, "prop6", "106" },
         {}
     };
-    int all_used;
+    int global_error;
 
     qdev_prop_register_global_list(props);
 
@@ -268,8 +268,8 @@ static void test_dynamic_globalprop_nouser_subprocess(void)
 
     g_assert_cmpuint(mt->prop1, ==, 101);
     g_assert_cmpuint(mt->prop2, ==, 102);
-    all_used = qdev_prop_check_globals();
-    g_assert_cmpuint(all_used, ==, 0);
+    global_error = qdev_prop_check_globals();
+    g_assert_cmpuint(global_error, ==, 0);
     g_assert(props[0].used);
     g_assert(props[1].used);
     g_assert(!props[2].used);
