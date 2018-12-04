@@ -1,5 +1,4 @@
 #include "windows.h"
-#include <stdbool.h>
 
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>

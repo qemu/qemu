@@ -8,7 +8,6 @@
 #ifndef QEMU_ELF_H
 #define QEMU_ELF_H
 
-#include <stdint.h>
 #include <elf.h>
 
 typedef struct QEMUCPUSegment {

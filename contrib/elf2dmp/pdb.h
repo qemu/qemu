@@ -8,8 +8,6 @@
 #ifndef PDB_H
 #define PDB_H
 
-#include <stdint.h>
-#include <stdlib.h>
 
 typedef struct GUID {
     unsigned int Data1;

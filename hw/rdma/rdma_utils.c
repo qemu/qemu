@@ -13,6 +13,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "rdma_utils.h"
 
 #ifdef PVRDMA_DEBUG

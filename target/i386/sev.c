@@ -11,12 +11,13 @@
  *
  */
 
+#include "qemu/osdep.h"
+
 #include <linux/kvm.h>
 #include <linux/psp-sev.h>
 
 #include <sys/ioctl.h>
 
-#include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
 #include "qemu/base64.h"

@@ -13,7 +13,6 @@
 #ifndef TESTS_TPM_UTIL_H
 #define TESTS_TPM_UTIL_H
 
-#include "qemu/osdep.h"
 #include "io/channel-socket.h"
 
 typedef void (tx_func)(QTestState *s,

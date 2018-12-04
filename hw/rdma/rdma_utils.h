@@ -17,7 +17,6 @@
 #ifndef RDMA_UTILS_H
 #define RDMA_UTILS_H
 
-#include "qemu/osdep.h"
 #include "hw/pci/pci.h"
 #include "sysemu/dma.h"
 

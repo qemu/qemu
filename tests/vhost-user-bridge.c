@@ -29,8 +29,8 @@
 
 #define _FILE_OFFSET_BITS 64
 
-#include "qemu/atomic.h"
 #include "qemu/osdep.h"
+#include "qemu/atomic.h"
 #include "qemu/iov.h"
 #include "standard-headers/linux/virtio_net.h"
 #include "contrib/libvhost-user/libvhost-user.h"
