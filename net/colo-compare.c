@@ -957,6 +957,12 @@ static int find_and_check_chardev(Chardev **chr,
         return 1;
     }
 
+    if (!qemu_chr_has_feature(*chr, QEMU_CHAR_FEATURE_GCONTEXT)) {
+        error_setg(errp, "chardev \"%s\" cannot switch context",
+                   chr_name);
+        return 1;
+    }
+
     return 0;
 }
 
