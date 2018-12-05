@@ -141,6 +141,8 @@
 # a guest-initiated ACPI shutdown request or other hardware-specific action)
 # rather than a host request (such as sending qemu a SIGINT). (since 2.10)
 #
+# @reason: The @ShutdownCause which resulted in the SHUTDOWN. (since 4.0)
+#
 # Note: If the command-line option "-no-shutdown" has been specified, qemu will
 # not exit, and a STOP event will eventually follow the SHUTDOWN event
 #
@@ -152,7 +154,7 @@
 #      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
 #
 ##
-{ 'event': 'SHUTDOWN', 'data': { 'guest': 'bool' } }
+{ 'event': 'SHUTDOWN', 'data': { 'guest': 'bool', 'reason': 'ShutdownCause' } }
 
 ##
 # @POWERDOWN:
@@ -180,6 +182,8 @@
 # rather than a host request (such as the QMP command system_reset).
 # (since 2.10)
 #
+# @reason: The @ShutdownCause of the RESET. (since 4.0)
+#
 # Since: 0.12.0
 #
 # Example:
@@ -188,7 +192,7 @@
 #      "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
 #
 ##
-{ 'event': 'RESET', 'data': { 'guest': 'bool' } }
+{ 'event': 'RESET', 'data': { 'guest': 'bool', 'reason': 'ShutdownCause' } }
 
 ##
 # @STOP:

@@ -53,7 +53,8 @@ Testing: -drive driver=null-co,if=virtio
     },
     "event": "SHUTDOWN",
     "data": {
-        "guest": false
+        "guest": false,
+        "reason": "host-qmp"
     }
 }
 
@@ -110,7 +111,8 @@ Testing: -drive driver=null-co,if=none
     },
     "event": "SHUTDOWN",
     "data": {
-        "guest": false
+        "guest": false,
+        "reason": "host-qmp"
     }
 }
 
@@ -140,7 +142,8 @@ Testing: -blockdev driver=null-co,node-name=null
     },
     "event": "SHUTDOWN",
     "data": {
-        "guest": false
+        "guest": false,
+        "reason": "host-qmp"
     }
 }
 
@@ -198,7 +201,8 @@ Testing: -blockdev driver=null-co,node-name=null -device virtio-blk,drive=null,i
     },
     "event": "SHUTDOWN",
     "data": {
-        "guest": false
+        "guest": false,
+        "reason": "host-qmp"
     }
 }
 
