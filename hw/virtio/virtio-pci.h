@@ -417,4 +417,58 @@ struct VirtIOCryptoPCI {
 /* Virtio ABI version, if we increment this, we break the guest driver. */
 #define VIRTIO_PCI_ABI_VERSION          0
 
+/* Input for virtio_pci_types_register() */
+typedef struct VirtioPCIDeviceTypeInfo {
+    /*
+     * Common base class for the subclasses below.
+     *
+     * Required only if transitional_name or non_transitional_name is set.
+     *
+     * We need a separate base type instead of making all types
+     * inherit from generic_name for two reasons:
+     * 1) generic_name implements INTERFACE_PCIE_DEVICE, but
+     *    transitional_name does not.
+     * 2) generic_name has the "disable-legacy" and "disable-modern"
+     *    properties, transitional_name and non_transitional name don't.
+     */
+    const char *base_name;
+    /*
+     * Generic device type.  Optional.
+     *
+     * Supports both transitional and non-transitional modes,
+     * using the disable-legacy and disable-modern properties.
+     * If disable-legacy=auto, (non-)transitional mode is selected
+     * depending on the bus where the device is plugged.
+     *
+     * Implements both INTERFACE_PCIE_DEVICE and INTERFACE_CONVENTIONAL_PCI_DEVICE,
+     * but PCI Express is supported only in non-transitional mode.
+     *
+     * The only type implemented by QEMU 3.1 and older.
+     */
+    const char *generic_name;
+    /*
+     * The transitional device type.  Optional.
+     *
+     * Implements both INTERFACE_PCIE_DEVICE and INTERFACE_CONVENTIONAL_PCI_DEVICE.
+     */
+    const char *transitional_name;
+    /*
+     * The non-transitional device type.  Optional.
+     *
+     * Implements INTERFACE_CONVENTIONAL_PCI_DEVICE only.
+     */
+    const char *non_transitional_name;
+
+    /* Parent type.  If NULL, TYPE_VIRTIO_PCI is used */
+    const char *parent;
+
+    /* Same as TypeInfo fields: */
+    size_t instance_size;
+    void (*instance_init)(Object *obj);
+    void (*class_init)(ObjectClass *klass, void *data);
+} VirtioPCIDeviceTypeInfo;
+
+/* Register virtio-pci type(s).  @t must be static. */
+void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t);
+
 #endif

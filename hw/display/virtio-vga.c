@@ -207,9 +207,8 @@ static void virtio_vga_inst_initfn(Object *obj)
                                 TYPE_VIRTIO_GPU);
 }
 
-static TypeInfo virtio_vga_info = {
-    .name          = TYPE_VIRTIO_VGA,
-    .parent        = TYPE_VIRTIO_PCI,
+static VirtioPCIDeviceTypeInfo virtio_vga_info = {
+    .generic_name  = TYPE_VIRTIO_VGA,
     .instance_size = sizeof(struct VirtIOVGA),
     .instance_init = virtio_vga_inst_initfn,
     .class_init    = virtio_vga_class_init,
@@ -217,7 +216,7 @@ static TypeInfo virtio_vga_info = {
 
 static void virtio_vga_register_types(void)
 {
-    type_register_static(&virtio_vga_info);
+    virtio_pci_types_register(&virtio_vga_info);
 }
 
 type_init(virtio_vga_register_types)
