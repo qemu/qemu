@@ -150,7 +150,7 @@ static void pre_2_10_vmstate_unregister_dummy_icp(int i)
                        (void *)(uintptr_t) i);
 }
 
-static int xics_max_server_number(sPAPRMachineState *spapr)
+int spapr_max_server_number(sPAPRMachineState *spapr)
 {
     assert(spapr->vsmt);
     return DIV_ROUND_UP(max_cpus * spapr->vsmt, smp_threads);
@@ -1268,7 +1268,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
-    spapr_dt_xics(xics_max_server_number(spapr), fdt, PHANDLE_XICP);
+    spapr_dt_xics(spapr_max_server_number(spapr), fdt, PHANDLE_XICP);
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
@@ -2467,7 +2467,7 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
     if (smc->pre_2_10_has_unused_icps) {
         int i;
 
-        for (i = 0; i < xics_max_server_number(spapr); i++) {
+        for (i = 0; i < spapr_max_server_number(spapr); i++) {
             /* Dummy entries get deregistered when real ICPState objects
              * are registered during CPU core hotplug.
              */
@@ -2588,7 +2588,7 @@ static void spapr_machine_init(MachineState *machine)
 
     /*
      * VSMT must be set in order to be able to compute VCPU ids, ie to
-     * call xics_max_server_number() or spapr_vcpu_id().
+     * call spapr_max_server_number() or spapr_vcpu_id().
      */
     spapr_set_vsmt_mode(spapr, &error_fatal);
 
