@@ -2593,7 +2593,7 @@ static void spapr_machine_init(MachineState *machine)
     spapr_set_vsmt_mode(spapr, &error_fatal);
 
     /* Set up Interrupt Controller before we create the VCPUs */
-    smc->irq->init(spapr, &error_fatal);
+    spapr_irq_init(spapr, &error_fatal);
 
     /* Set up containers for ibm,client-architecture-support negotiated options
      */

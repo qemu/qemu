@@ -97,11 +97,6 @@ static void spapr_irq_init_xics(sPAPRMachineState *spapr, Error **errp)
     int nr_irqs = smc->irq->nr_irqs;
     Error *local_err = NULL;
 
-    /* Initialize the MSI IRQ allocator. */
-    if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
-        spapr_irq_msi_init(spapr, smc->irq->nr_msis);
-    }
-
     if (kvm_enabled()) {
         if (machine_kernel_irqchip_allowed(machine) &&
             !xics_kvm_init(spapr, &local_err)) {
@@ -213,6 +208,17 @@ sPAPRIrq spapr_irq_xics = {
 /*
  * sPAPR IRQ frontend routines for devices
  */
+void spapr_irq_init(sPAPRMachineState *spapr, Error **errp)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+
+    /* Initialize the MSI IRQ allocator. */
+    if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+        spapr_irq_msi_init(spapr, smc->irq->nr_msis);
+    }
+
+    smc->irq->init(spapr, errp);
+}
 
 int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp)
 {
