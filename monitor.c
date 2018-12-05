@@ -4297,7 +4297,7 @@ int monitor_suspend(Monitor *mon)
 
     atomic_inc(&mon->suspend_cnt);
 
-    if (monitor_is_qmp(mon) && mon->use_io_thread) {
+    if (mon->use_io_thread) {
         /*
          * Kick I/O thread to make sure this takes effect.  It'll be
          * evaluated again in prepare() of the watch object.
@@ -4309,6 +4309,13 @@ int monitor_suspend(Monitor *mon)
     return 0;
 }
 
+static void monitor_accept_input(void *opaque)
+{
+    Monitor *mon = opaque;
+
+    qemu_chr_fe_accept_input(&mon->chr);
+}
+
 void monitor_resume(Monitor *mon)
 {
     if (monitor_is_hmp_non_interactive(mon)) {
@@ -4316,20 +4323,22 @@ void monitor_resume(Monitor *mon)
     }
 
     if (atomic_dec_fetch(&mon->suspend_cnt) == 0) {
-        if (monitor_is_qmp(mon)) {
-            /*
-             * For QMP monitors that are running in the I/O thread,
-             * let's kick the thread in case it's sleeping.
-             */
-            if (mon->use_io_thread) {
-                aio_notify(iothread_get_aio_context(mon_iothread));
-            }
+        AioContext *ctx;
+
+        if (mon->use_io_thread) {
+            ctx = iothread_get_aio_context(mon_iothread);
         } else {
+            ctx = qemu_get_aio_context();
+        }
+
+        if (!monitor_is_qmp(mon)) {
             assert(mon->rs);
             readline_show_prompt(mon->rs);
         }
-        qemu_chr_fe_accept_input(&mon->chr);
+
+        aio_bh_schedule_oneshot(ctx, monitor_accept_input, mon);
     }
+
     trace_monitor_suspend(mon, -1);
 }
 
