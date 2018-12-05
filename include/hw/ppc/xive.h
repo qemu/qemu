@@ -143,6 +143,27 @@
 #include "hw/qdev-core.h"
 
 /*
+ * XIVE Fabric (Interface between Source and Router)
+ */
+
+typedef struct XiveNotifier {
+    Object parent;
+} XiveNotifier;
+
+#define TYPE_XIVE_NOTIFIER "xive-notifier"
+#define XIVE_NOTIFIER(obj)                                     \
+    OBJECT_CHECK(XiveNotifier, (obj), TYPE_XIVE_NOTIFIER)
+#define XIVE_NOTIFIER_CLASS(klass)                                     \
+    OBJECT_CLASS_CHECK(XiveNotifierClass, (klass), TYPE_XIVE_NOTIFIER)
+#define XIVE_NOTIFIER_GET_CLASS(obj)                                   \
+    OBJECT_GET_CLASS(XiveNotifierClass, (obj), TYPE_XIVE_NOTIFIER)
+
+typedef struct XiveNotifierClass {
+    InterfaceClass parent;
+    void (*notify)(XiveNotifier *xn, uint32_t lisn);
+} XiveNotifierClass;
+
+/*
  * XIVE Interrupt Source
  */
 
@@ -171,6 +192,8 @@ typedef struct XiveSource {
     uint64_t        esb_flags;
     uint32_t        esb_shift;
     MemoryRegion    esb_mmio;
+
+    XiveNotifier    *xive;
 } XiveSource;
 
 /*
