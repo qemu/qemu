@@ -1752,11 +1752,13 @@ void qemu_register_suspend_notifier(Notifier *notifier)
     notifier_list_add(&suspend_notifiers, notifier);
 }
 
-void qemu_system_wakeup_request(WakeupReason reason)
+void qemu_system_wakeup_request(WakeupReason reason, Error **errp)
 {
     trace_system_wakeup_request(reason);
 
     if (!runstate_check(RUN_STATE_SUSPENDED)) {
+        error_setg(errp,
+                   "Unable to wake up: guest is not in suspended state");
         return;
     }
     if (!(wakeup_reason_mask & (1 << reason))) {
@@ -1786,7 +1788,7 @@ void qemu_register_wakeup_support(void)
     wakeup_suspend_enabled = true;
 }
 
-static bool qemu_wakeup_suspend_enabled(void)
+bool qemu_wakeup_suspend_enabled(void)
 {
     return wakeup_suspend_enabled;
 }

@@ -183,7 +183,13 @@ void qmp_cont(Error **errp)
 
 void qmp_system_wakeup(Error **errp)
 {
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+    if (!qemu_wakeup_suspend_enabled()) {
+        error_setg(errp,
+                   "wake-up from suspend is not supported by this guest");
+        return;
+    }
+
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, errp);
 }
 
 ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
