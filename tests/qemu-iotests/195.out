@@ -29,7 +29,7 @@ Testing: -drive if=none,file=TEST_DIR/t.IMGFMT,backing.node-name=mid
     "event": "SHUTDOWN",
     "data": {
         "guest": false,
-        "reason": "host-qmp"
+        "reason": "host-qmp-quit"
     }
 }
 
@@ -67,7 +67,7 @@ Testing: -drive if=none,file=TEST_DIR/t.IMGFMT,node-name=top
     "event": "SHUTDOWN",
     "data": {
         "guest": false,
-        "reason": "host-qmp"
+        "reason": "host-qmp-quit"
     }
 }
 

@@ -390,7 +390,7 @@ wrote 65536/65536 bytes at offset 1048576
     "event": "SHUTDOWN",
     "data": {
         "guest": false,
-        "reason": "host-qmp"
+        "reason": "host-qmp-quit"
     }
 }
 image: TEST_DIR/t.IMGFMT
@@ -808,7 +808,7 @@ wrote 65536/65536 bytes at offset 1048576
     "event": "SHUTDOWN",
     "data": {
         "guest": false,
-        "reason": "host-qmp"
+        "reason": "host-qmp-quit"
     }
 }
 image: TEST_DIR/t.IMGFMT

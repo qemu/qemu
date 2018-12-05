@@ -68,7 +68,9 @@
 #
 # @host-error: An error prevents further use of guest
 #
-# @host-qmp: Reaction to a QMP command, like 'quit'
+# @host-qmp-quit: Reaction to the QMP command 'quit'
+#
+# @host-qmp-system-reset: Reaction to the QMP command 'system_reset'
 #
 # @host-signal: Reaction to a signal, such as SIGINT
 #
@@ -89,9 +91,9 @@
 ##
 { 'enum': 'ShutdownCause',
   # Beware, shutdown_caused_by_guest() depends on enumeration order
-  'data': [ 'none', 'host-error', 'host-qmp', 'host-signal', 'host-ui',
-            'guest-shutdown', 'guest-reset', 'guest-panic',
-            'subsystem-reset'] }
+  'data': [ 'none', 'host-error', 'host-qmp-quit', 'host-qmp-system-reset',
+            'host-signal', 'host-ui', 'guest-shutdown', 'guest-reset',
+            'guest-panic', 'subsystem-reset'] }
 
 ##
 # @StatusInfo:
