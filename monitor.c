@@ -4562,9 +4562,10 @@ void monitor_init(Chardev *chr, int flags)
     bool use_oob = flags & MONITOR_USE_OOB;
 
     if (use_oob) {
-        if (CHARDEV_IS_MUX(chr)) {
+        if (!qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT)) {
             error_report("Monitor out-of-band is not supported with "
-                         "MUX typed chardev backend");
+                         "%s typed chardev backend",
+                         object_get_typename(OBJECT(chr)));
             exit(1);
         }
         if (use_readline) {
