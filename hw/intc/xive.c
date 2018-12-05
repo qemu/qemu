@@ -92,11 +92,39 @@ uint8_t xive_source_esb_set(XiveSource *xsrc, uint32_t srcno, uint8_t pq)
 /*
  * Returns whether the event notification should be forwarded.
  */
+static bool xive_source_lsi_trigger(XiveSource *xsrc, uint32_t srcno)
+{
+    uint8_t old_pq = xive_source_esb_get(xsrc, srcno);
+
+    xsrc->status[srcno] |= XIVE_STATUS_ASSERTED;
+
+    switch (old_pq) {
+    case XIVE_ESB_RESET:
+        xive_source_esb_set(xsrc, srcno, XIVE_ESB_PENDING);
+        return true;
+    default:
+        return false;
+    }
+}
+
+/*
+ * Returns whether the event notification should be forwarded.
+ */
 static bool xive_source_esb_trigger(XiveSource *xsrc, uint32_t srcno)
 {
+    bool ret;
+
     assert(srcno < xsrc->nr_irqs);
 
-    return xive_esb_trigger(&xsrc->status[srcno]);
+    ret = xive_esb_trigger(&xsrc->status[srcno]);
+
+    if (xive_source_irq_is_lsi(xsrc, srcno) &&
+        xive_source_esb_get(xsrc, srcno) == XIVE_ESB_QUEUED) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "XIVE: queued an event on LSI IRQ %d\n", srcno);
+    }
+
+    return ret;
 }
 
 /*
@@ -104,9 +132,23 @@ static bool xive_source_esb_trigger(XiveSource *xsrc, uint32_t srcno)
  */
 static bool xive_source_esb_eoi(XiveSource *xsrc, uint32_t srcno)
 {
+    bool ret;
+
     assert(srcno < xsrc->nr_irqs);
 
-    return xive_esb_eoi(&xsrc->status[srcno]);
+    ret = xive_esb_eoi(&xsrc->status[srcno]);
+
+    /*
+     * LSI sources do not set the Q bit but they can still be
+     * asserted, in which case we should forward a new event
+     * notification
+     */
+    if (xive_source_irq_is_lsi(xsrc, srcno) &&
+        xsrc->status[srcno] & XIVE_STATUS_ASSERTED) {
+        ret = xive_source_lsi_trigger(xsrc, srcno);
+    }
+
+    return ret;
 }
 
 /*
@@ -271,8 +313,16 @@ static void xive_source_set_irq(void *opaque, int srcno, int val)
     XiveSource *xsrc = XIVE_SOURCE(opaque);
     bool notify = false;
 
-    if (val) {
-        notify = xive_source_esb_trigger(xsrc, srcno);
+    if (xive_source_irq_is_lsi(xsrc, srcno)) {
+        if (val) {
+            notify = xive_source_lsi_trigger(xsrc, srcno);
+        } else {
+            xsrc->status[srcno] &= ~XIVE_STATUS_ASSERTED;
+        }
+    } else {
+        if (val) {
+            notify = xive_source_esb_trigger(xsrc, srcno);
+        }
     }
 
     /* Forward the source event notification for routing */
@@ -292,15 +342,19 @@ void xive_source_pic_print_info(XiveSource *xsrc, uint32_t offset, Monitor *mon)
             continue;
         }
 
-        monitor_printf(mon, "  %08x %c%c\n", i + offset,
+        monitor_printf(mon, "  %08x %s %c%c%c\n", i + offset,
+                       xive_source_irq_is_lsi(xsrc, i) ? "LSI" : "MSI",
                        pq & XIVE_ESB_VAL_P ? 'P' : '-',
-                       pq & XIVE_ESB_VAL_Q ? 'Q' : '-');
+                       pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+                       xsrc->status[i] & XIVE_STATUS_ASSERTED ? 'A' : ' ');
     }
 }
 
 static void xive_source_reset(void *dev)
 {
     XiveSource *xsrc = XIVE_SOURCE(dev);
+
+    /* Do not clear the LSI bitmap */
 
     /* PQs are initialized to 0b01 (Q=1) which corresponds to "ints off" */
     memset(xsrc->status, XIVE_ESB_OFF, xsrc->nr_irqs);
@@ -324,6 +378,7 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     }
 
     xsrc->status = g_malloc0(xsrc->nr_irqs);
+    xsrc->lsi_map = bitmap_new(xsrc->nr_irqs);
 
     memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
                           &xive_source_esb_ops, xsrc, "xive.esb",
