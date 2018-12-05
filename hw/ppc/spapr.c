@@ -3939,16 +3939,10 @@ static const TypeInfo spapr_machine_info = {
             mc->is_default = 1;                                      \
         }                                                            \
     }                                                                \
-    static void spapr_machine_##suffix##_instance_init(Object *obj)  \
-    {                                                                \
-        MachineState *machine = MACHINE(obj);                        \
-        spapr_machine_##suffix##_instance_options(machine);          \
-    }                                                                \
     static const TypeInfo spapr_machine_##suffix##_info = {          \
         .name = MACHINE_TYPE_NAME("pseries-" verstr),                \
         .parent = TYPE_SPAPR_MACHINE,                                \
         .class_init = spapr_machine_##suffix##_class_init,           \
-        .instance_init = spapr_machine_##suffix##_instance_init,     \
     };                                                               \
     static void spapr_machine_register_##suffix(void)                \
     {                                                                \
@@ -3959,10 +3953,6 @@ static const TypeInfo spapr_machine_info = {
 /*
  * pseries-4.0
  */
-static void spapr_machine_4_0_instance_options(MachineState *machine)
-{
-}
-
 static void spapr_machine_4_0_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
@@ -3975,11 +3965,6 @@ DEFINE_SPAPR_MACHINE(4_0, "4.0", true);
  */
 #define SPAPR_COMPAT_3_1                                              \
     HW_COMPAT_3_1
-
-static void spapr_machine_3_1_instance_options(MachineState *machine)
-{
-    spapr_machine_4_0_instance_options(machine);
-}
 
 static void spapr_machine_3_1_class_options(MachineClass *mc)
 {
@@ -3994,11 +3979,6 @@ DEFINE_SPAPR_MACHINE(3_1, "3.1", false);
  */
 #define SPAPR_COMPAT_3_0                                              \
     HW_COMPAT_3_0
-
-static void spapr_machine_3_0_instance_options(MachineState *machine)
-{
-    spapr_machine_3_1_instance_options(machine);
-}
 
 static void spapr_machine_3_0_class_options(MachineClass *mc)
 {
@@ -4029,11 +4009,6 @@ DEFINE_SPAPR_MACHINE(3_0, "3.0", false);
         .value    = "on",                                              \
     },
 
-static void spapr_machine_2_12_instance_options(MachineState *machine)
-{
-    spapr_machine_3_0_instance_options(machine);
-}
-
 static void spapr_machine_2_12_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
@@ -4050,11 +4025,6 @@ static void spapr_machine_2_12_class_options(MachineClass *mc)
 }
 
 DEFINE_SPAPR_MACHINE(2_12, "2.12", false);
-
-static void spapr_machine_2_12_sxxm_instance_options(MachineState *machine)
-{
-    spapr_machine_2_12_instance_options(machine);
-}
 
 static void spapr_machine_2_12_sxxm_class_options(MachineClass *mc)
 {
@@ -4074,11 +4044,6 @@ DEFINE_SPAPR_MACHINE(2_12_sxxm, "2.12-sxxm", false);
 #define SPAPR_COMPAT_2_11                                              \
     HW_COMPAT_2_11
 
-static void spapr_machine_2_11_instance_options(MachineState *machine)
-{
-    spapr_machine_2_12_instance_options(machine);
-}
-
 static void spapr_machine_2_11_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
@@ -4095,11 +4060,6 @@ DEFINE_SPAPR_MACHINE(2_11, "2.11", false);
  */
 #define SPAPR_COMPAT_2_10                                              \
     HW_COMPAT_2_10
-
-static void spapr_machine_2_10_instance_options(MachineState *machine)
-{
-    spapr_machine_2_11_instance_options(machine);
-}
 
 static void spapr_machine_2_10_class_options(MachineClass *mc)
 {
@@ -4119,11 +4079,6 @@ DEFINE_SPAPR_MACHINE(2_10, "2.10", false);
         .property = "pre-2.10-migration",                              \
         .value    = "on",                                              \
     },                                                                 \
-
-static void spapr_machine_2_9_instance_options(MachineState *machine)
-{
-    spapr_machine_2_10_instance_options(machine);
-}
 
 static void spapr_machine_2_9_class_options(MachineClass *mc)
 {
@@ -4148,11 +4103,6 @@ DEFINE_SPAPR_MACHINE(2_9, "2.9", false);
         .property = "pcie-extended-configuration-space",        \
         .value    = "off",                                      \
     },
-
-static void spapr_machine_2_8_instance_options(MachineState *machine)
-{
-    spapr_machine_2_9_instance_options(machine);
-}
 
 static void spapr_machine_2_8_class_options(MachineClass *mc)
 {
@@ -4238,11 +4188,6 @@ static void phb_placement_2_7(sPAPRMachineState *spapr, uint32_t index,
      */
 }
 
-static void spapr_machine_2_7_instance_options(MachineState *machine)
-{
-    spapr_machine_2_8_instance_options(machine);
-}
-
 static void spapr_machine_2_7_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
@@ -4267,11 +4212,6 @@ DEFINE_SPAPR_MACHINE(2_7, "2.7", false);
         .value    = stringify(off),\
     },
 
-static void spapr_machine_2_6_instance_options(MachineState *machine)
-{
-    spapr_machine_2_7_instance_options(machine);
-}
-
 static void spapr_machine_2_6_class_options(MachineClass *mc)
 {
     spapr_machine_2_7_class_options(mc);
@@ -4292,11 +4232,6 @@ DEFINE_SPAPR_MACHINE(2_6, "2.6", false);
         .value    = "off", \
     },
 
-static void spapr_machine_2_5_instance_options(MachineState *machine)
-{
-    spapr_machine_2_6_instance_options(machine);
-}
-
 static void spapr_machine_2_5_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
@@ -4313,11 +4248,6 @@ DEFINE_SPAPR_MACHINE(2_5, "2.5", false);
  */
 #define SPAPR_COMPAT_2_4 \
         HW_COMPAT_2_4
-
-static void spapr_machine_2_4_instance_options(MachineState *machine)
-{
-    spapr_machine_2_5_instance_options(machine);
-}
 
 static void spapr_machine_2_4_class_options(MachineClass *mc)
 {
@@ -4341,11 +4271,6 @@ DEFINE_SPAPR_MACHINE(2_4, "2.4", false);
             .value    = "off",\
         },
 
-static void spapr_machine_2_3_instance_options(MachineState *machine)
-{
-    spapr_machine_2_4_instance_options(machine);
-}
-
 static void spapr_machine_2_3_class_options(MachineClass *mc)
 {
     spapr_machine_2_4_class_options(mc);
@@ -4365,11 +4290,6 @@ DEFINE_SPAPR_MACHINE(2_3, "2.3", false);
             .value    = "0x20000000",\
         },
 
-static void spapr_machine_2_2_instance_options(MachineState *machine)
-{
-    spapr_machine_2_3_instance_options(machine);
-}
-
 static void spapr_machine_2_2_class_options(MachineClass *mc)
 {
     spapr_machine_2_3_class_options(mc);
@@ -4383,11 +4303,6 @@ DEFINE_SPAPR_MACHINE(2_2, "2.2", false);
  */
 #define SPAPR_COMPAT_2_1 \
         HW_COMPAT_2_1
-
-static void spapr_machine_2_1_instance_options(MachineState *machine)
-{
-    spapr_machine_2_2_instance_options(machine);
-}
 
 static void spapr_machine_2_1_class_options(MachineClass *mc)
 {
