@@ -4240,10 +4240,7 @@ static void phb_placement_2_7(sPAPRMachineState *spapr, uint32_t index,
 
 static void spapr_machine_2_7_instance_options(MachineState *machine)
 {
-    sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
-
     spapr_machine_2_8_instance_options(machine);
-    spapr->use_hotplug_event_source = false;
 }
 
 static void spapr_machine_2_7_class_options(MachineClass *mc)
@@ -4252,6 +4249,7 @@ static void spapr_machine_2_7_class_options(MachineClass *mc)
 
     spapr_machine_2_8_class_options(mc);
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power7_v2.3");
+    mc->default_machine_opts = "modern-hotplug-events=off";
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_7);
     smc->phb_placement = phb_placement_2_7;
 }
