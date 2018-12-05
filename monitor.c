@@ -4651,8 +4651,11 @@ void monitor_cleanup(void)
     monitor_destroyed = true;
     QTAILQ_FOREACH_SAFE(mon, &mon_list, entry, next) {
         QTAILQ_REMOVE(&mon_list, mon, entry);
+        /* Permit QAPI event emission from character frontend release */
+        qemu_mutex_unlock(&monitor_lock);
         monitor_flush(mon);
         monitor_data_destroy(mon);
+        qemu_mutex_lock(&monitor_lock);
         g_free(mon);
     }
     qemu_mutex_unlock(&monitor_lock);
