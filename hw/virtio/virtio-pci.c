@@ -1120,7 +1120,10 @@ static void virtio_9p_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_9p_pci_info = {
-    .generic_name   = TYPE_VIRTIO_9P_PCI,
+    .base_name              = TYPE_VIRTIO_9P_PCI,
+    .generic_name           = "virtio-9p-pci",
+    .transitional_name      = "virtio-9p-pci-transitional",
+    .non_transitional_name  = "virtio-9p-pci-non-transitional",
     .instance_size = sizeof(V9fsPCIState),
     .instance_init = virtio_9p_pci_instance_init,
     .class_init    = virtio_9p_pci_class_init,
@@ -2102,7 +2105,10 @@ static void virtio_blk_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_blk_pci_info = {
-    .generic_name   = TYPE_VIRTIO_BLK_PCI,
+    .base_name              = TYPE_VIRTIO_BLK_PCI,
+    .generic_name           = "virtio-blk-pci",
+    .transitional_name      = "virtio-blk-pci-transitional",
+    .non_transitional_name  = "virtio-blk-pci-non-transitional",
     .instance_size = sizeof(VirtIOBlkPCI),
     .instance_init = virtio_blk_pci_instance_init,
     .class_init    = virtio_blk_pci_class_init,
@@ -2157,7 +2163,10 @@ static void vhost_user_blk_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo vhost_user_blk_pci_info = {
-    .generic_name    = TYPE_VHOST_USER_BLK_PCI,
+    .base_name               = TYPE_VHOST_USER_BLK_PCI,
+    .generic_name            = "vhost-user-blk-pci",
+    .transitional_name       = "vhost-user-blk-pci-transitional",
+    .non_transitional_name   = "vhost-user-blk-pci-non-transitional",
     .instance_size  = sizeof(VHostUserBlkPCI),
     .instance_init  = vhost_user_blk_pci_instance_init,
     .class_init     = vhost_user_blk_pci_class_init,
@@ -2224,7 +2233,10 @@ static void virtio_scsi_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_scsi_pci_info = {
-    .generic_name   = TYPE_VIRTIO_SCSI_PCI,
+    .base_name              = TYPE_VIRTIO_SCSI_PCI,
+    .generic_name           = "virtio-scsi-pci",
+    .transitional_name      = "virtio-scsi-pci-transitional",
+    .non_transitional_name  = "virtio-scsi-pci-non-transitional",
     .instance_size = sizeof(VirtIOSCSIPCI),
     .instance_init = virtio_scsi_pci_instance_init,
     .class_init    = virtio_scsi_pci_class_init,
@@ -2278,7 +2290,10 @@ static void vhost_scsi_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo vhost_scsi_pci_info = {
-    .generic_name  = TYPE_VHOST_SCSI_PCI,
+    .base_name             = TYPE_VHOST_SCSI_PCI,
+    .generic_name          = "vhost-scsi-pci",
+    .transitional_name     = "vhost-scsi-pci-transitional",
+    .non_transitional_name = "vhost-scsi-pci-non-transitional",
     .instance_size = sizeof(VHostSCSIPCI),
     .instance_init = vhost_scsi_pci_instance_init,
     .class_init    = vhost_scsi_pci_class_init,
@@ -2332,7 +2347,10 @@ static void vhost_user_scsi_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo vhost_user_scsi_pci_info = {
-    .generic_name  = TYPE_VHOST_USER_SCSI_PCI,
+    .base_name             = TYPE_VHOST_USER_SCSI_PCI,
+    .generic_name          = "vhost-user-scsi-pci",
+    .transitional_name     = "vhost-user-scsi-pci-transitional",
+    .non_transitional_name = "vhost-user-scsi-pci-non-transitional",
     .instance_size = sizeof(VHostUserSCSIPCI),
     .instance_init = vhost_user_scsi_pci_instance_init,
     .class_init    = vhost_user_scsi_pci_class_init,
@@ -2379,7 +2397,10 @@ static void vhost_vsock_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo vhost_vsock_pci_info = {
-    .generic_name  = TYPE_VHOST_VSOCK_PCI,
+    .base_name             = TYPE_VHOST_VSOCK_PCI,
+    .generic_name          = "vhost-vsock-pci",
+    .transitional_name     = "vhost-vsock-pci-transitional",
+    .non_transitional_name = "vhost-vsock-pci-non-transitional",
     .instance_size = sizeof(VHostVSockPCI),
     .instance_init = vhost_vsock_pci_instance_init,
     .class_init    = vhost_vsock_pci_class_init,
@@ -2435,7 +2456,10 @@ static void virtio_balloon_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_balloon_pci_info = {
-    .generic_name  = TYPE_VIRTIO_BALLOON_PCI,
+    .base_name             = TYPE_VIRTIO_BALLOON_PCI,
+    .generic_name          = "virtio-balloon-pci",
+    .transitional_name     = "virtio-balloon-pci-transitional",
+    .non_transitional_name = "virtio-balloon-pci-non-transitional",
     .instance_size = sizeof(VirtIOBalloonPCI),
     .instance_init = virtio_balloon_pci_instance_init,
     .class_init    = virtio_balloon_pci_class_init,
@@ -2507,7 +2531,10 @@ static void virtio_serial_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_serial_pci_info = {
-    .generic_name  = TYPE_VIRTIO_SERIAL_PCI,
+    .base_name             = TYPE_VIRTIO_SERIAL_PCI,
+    .generic_name          = "virtio-serial-pci",
+    .transitional_name     = "virtio-serial-pci-transitional",
+    .non_transitional_name = "virtio-serial-pci-non-transitional",
     .instance_size = sizeof(VirtIOSerialPCI),
     .instance_init = virtio_serial_pci_instance_init,
     .class_init    = virtio_serial_pci_class_init,
@@ -2561,7 +2588,10 @@ static void virtio_net_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_net_pci_info = {
-    .generic_name  = TYPE_VIRTIO_NET_PCI,
+    .base_name             = TYPE_VIRTIO_NET_PCI,
+    .generic_name          = "virtio-net-pci",
+    .transitional_name     = "virtio-net-pci-transitional",
+    .non_transitional_name = "virtio-net-pci-non-transitional",
     .instance_size = sizeof(VirtIONetPCI),
     .instance_init = virtio_net_pci_instance_init,
     .class_init    = virtio_net_pci_class_init,
@@ -2611,7 +2641,10 @@ static void virtio_rng_initfn(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_rng_pci_info = {
-    .generic_name  = TYPE_VIRTIO_RNG_PCI,
+    .base_name             = TYPE_VIRTIO_RNG_PCI,
+    .generic_name          = "virtio-rng-pci",
+    .transitional_name     = "virtio-rng-pci-transitional",
+    .non_transitional_name = "virtio-rng-pci-non-transitional",
     .instance_size = sizeof(VirtIORngPCI),
     .instance_init = virtio_rng_initfn,
     .class_init    = virtio_rng_pci_class_init,
@@ -2734,7 +2767,10 @@ static void virtio_host_initfn(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_host_pci_info = {
-    .generic_name  = TYPE_VIRTIO_INPUT_HOST_PCI,
+    .base_name             = TYPE_VIRTIO_INPUT_HOST_PCI,
+    .generic_name          = "virtio-input-host-pci",
+    .transitional_name     = "virtio-input-host-pci-transitional",
+    .non_transitional_name = "virtio-input-host-pci-non-transitional",
     .parent        = TYPE_VIRTIO_INPUT_PCI,
     .instance_size = sizeof(VirtIOInputHostPCI),
     .instance_init = virtio_host_initfn,
