@@ -99,7 +99,7 @@ struct UHCIQueue {
     UHCIState *uhci;
     USBEndpoint *ep;
     QTAILQ_ENTRY(UHCIQueue) next;
-    QTAILQ_HEAD(asyncs_head, UHCIAsync) asyncs;
+    QTAILQ_HEAD(, UHCIAsync) asyncs;
     int8_t    valid;
 };
 
@@ -837,7 +837,7 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
         }
         if (!async->done) {
             UHCI_TD last_td;
-            UHCIAsync *last = QTAILQ_LAST(&async->queue->asyncs, asyncs_head);
+            UHCIAsync *last = QTAILQ_LAST(&async->queue->asyncs);
             /*
              * While we are waiting for the current td to complete, the guest
              * may have added more tds to the queue. Note we re-read the td

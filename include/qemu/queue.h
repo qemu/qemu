@@ -432,14 +432,14 @@ union {                                                                 \
                 (var) && ((next_var) = ((var)->field.tqe_next), 1);     \
                 (var) = (next_var))
 
-#define QTAILQ_FOREACH_REVERSE(var, head, headname, field)              \
-        for ((var) = QTAILQ_LAST(head, headname);                       \
+#define QTAILQ_FOREACH_REVERSE(var, head, field)                        \
+        for ((var) = QTAILQ_LAST(head);                                 \
                 (var);                                                  \
-                (var) = QTAILQ_PREV(var, headname, field))
+                (var) = QTAILQ_PREV(var, field))
 
-#define QTAILQ_FOREACH_REVERSE_SAFE(var, head, headname, field, prev_var) \
-        for ((var) = QTAILQ_LAST(head, headname);                       \
-             (var) && ((prev_var) = QTAILQ_PREV(var, headname, field)); \
+#define QTAILQ_FOREACH_REVERSE_SAFE(var, head, field, prev_var)         \
+        for ((var) = QTAILQ_LAST(head);                                 \
+             (var) && ((prev_var) = QTAILQ_PREV(var, field));           \
              (var) = (prev_var))
 
 /*
@@ -452,9 +452,9 @@ union {                                                                 \
 
 #define QTAILQ_LINK_PREV(link)                                          \
         ((link).tql_prev->tql_prev->tql_next)
-#define QTAILQ_LAST(head, headname) \
+#define QTAILQ_LAST(head)                                               \
         ((typeof((head)->tqh_first)) QTAILQ_LINK_PREV((head)->tqh_circ))
-#define QTAILQ_PREV(elm, headname, field) \
+#define QTAILQ_PREV(elm, field)                                         \
         ((typeof((elm)->field.tqe_next)) QTAILQ_LINK_PREV((elm)->field.tqe_circ))
 
 #define field_at_offset(base, offset, type)                                    \

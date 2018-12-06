@@ -1291,7 +1291,7 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
     /* cannot risk guest agent blocking itself on a write in this state */
     ga_set_frozen(ga_state);
 
-    QTAILQ_FOREACH_REVERSE(mount, &mounts, FsMountList, next) {
+    QTAILQ_FOREACH_REVERSE(mount, &mounts, next) {
         /* To issue fsfreeze in the reverse order of mounts, check if the
          * mount is listed in the list here */
         if (has_mountpoints) {

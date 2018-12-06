@@ -408,7 +408,7 @@ struct USBPacket {
 
 struct USBCombinedPacket {
     USBPacket *first;
-    QTAILQ_HEAD(packets_head, USBPacket) packets;
+    QTAILQ_HEAD(, USBPacket) packets;
     QEMUIOVector iov;
 };
 

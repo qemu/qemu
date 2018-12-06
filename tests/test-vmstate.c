@@ -630,7 +630,7 @@ struct TestQtailqElement {
 
 typedef struct TestQtailq {
     int16_t  i16;
-    QTAILQ_HEAD(TestQtailqHead, TestQtailqElement) q;
+    QTAILQ_HEAD(, TestQtailqElement) q;
     int32_t  i32;
 } TestQtailq;
 
@@ -735,9 +735,9 @@ static void test_load_q(void)
     g_assert_cmpint(eof, ==, QEMU_VM_EOF);
 
     TestQtailqElement *qele_from = QTAILQ_FIRST(&obj_q.q);
-    TestQtailqElement *qlast_from = QTAILQ_LAST(&obj_q.q, TestQtailqHead);
+    TestQtailqElement *qlast_from = QTAILQ_LAST(&obj_q.q);
     TestQtailqElement *qele_to = QTAILQ_FIRST(&tgt.q);
-    TestQtailqElement *qlast_to = QTAILQ_LAST(&tgt.q, TestQtailqHead);
+    TestQtailqElement *qlast_to = QTAILQ_LAST(&tgt.q);
 
     while (1) {
         g_assert_cmpint(qele_to->b, ==, qele_from->b);
@@ -755,7 +755,7 @@ static void test_load_q(void)
     /* clean up */
     TestQtailqElement *qele;
     while (!QTAILQ_EMPTY(&tgt.q)) {
-        qele = QTAILQ_LAST(&tgt.q, TestQtailqHead);
+        qele = QTAILQ_LAST(&tgt.q);
         QTAILQ_REMOVE(&tgt.q, qele, next);
         free(qele);
         qele = NULL;

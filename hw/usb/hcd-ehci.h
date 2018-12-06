@@ -247,7 +247,7 @@ struct EHCIQueue {
     uint32_t qtdaddr;      /* address QTD read from                */
     int last_pid;          /* pid of last packet executed          */
     USBDevice *dev;
-    QTAILQ_HEAD(pkts_head, EHCIPacket) packets;
+    QTAILQ_HEAD(, EHCIPacket) packets;
 };
 
 typedef QTAILQ_HEAD(EHCIQueueHead, EHCIQueue) EHCIQueueHead;

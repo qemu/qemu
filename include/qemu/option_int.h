@@ -47,7 +47,7 @@ struct QemuOpts {
     char *id;
     QemuOptsList *list;
     Location loc;
-    QTAILQ_HEAD(QemuOptHead, QemuOpt) head;
+    QTAILQ_HEAD(, QemuOpt) head;
     QTAILQ_ENTRY(QemuOpts) next;
 };
 

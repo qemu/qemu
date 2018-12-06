@@ -445,7 +445,7 @@ struct AddressSpace {
 
     int ioeventfd_nb;
     struct MemoryRegionIoeventfd *ioeventfds;
-    QTAILQ_HEAD(memory_listeners_as, MemoryListener) listeners;
+    QTAILQ_HEAD(, MemoryListener) listeners;
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
 };
 

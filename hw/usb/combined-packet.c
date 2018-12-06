@@ -64,7 +64,7 @@ void usb_combined_input_packet_complete(USBDevice *dev, USBPacket *p)
 
     status = combined->first->status;
     actual_length = combined->first->actual_length;
-    short_not_ok = QTAILQ_LAST(&combined->packets, packets_head)->short_not_ok;
+    short_not_ok = QTAILQ_LAST(&combined->packets)->short_not_ok;
 
     QTAILQ_FOREACH_SAFE(p, &combined->packets, combined_entry, next) {
         if (!done) {

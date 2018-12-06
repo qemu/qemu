@@ -182,7 +182,7 @@ struct DisplayState {
 
 static DisplayState *display_state;
 static QemuConsole *active_console;
-static QTAILQ_HEAD(consoles_head, QemuConsole) consoles =
+static QTAILQ_HEAD(, QemuConsole) consoles =
     QTAILQ_HEAD_INITIALIZER(consoles);
 static bool cursor_visible_phase;
 static QEMUTimer *cursor_timer;
@@ -1303,7 +1303,7 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
         s->index = 0;
         QTAILQ_INSERT_TAIL(&consoles, s, next);
     } else if (console_type != GRAPHIC_CONSOLE || qdev_hotplug) {
-        QemuConsole *last = QTAILQ_LAST(&consoles, consoles_head);
+        QemuConsole *last = QTAILQ_LAST(&consoles);
         s->index = last->index + 1;
         QTAILQ_INSERT_TAIL(&consoles, s, next);
     } else {

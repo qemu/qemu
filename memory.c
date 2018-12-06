@@ -39,7 +39,7 @@ static bool memory_region_update_pending;
 static bool ioeventfd_update_pending;
 static bool global_dirty_log = false;
 
-static QTAILQ_HEAD(memory_listeners, MemoryListener) memory_listeners
+static QTAILQ_HEAD(, MemoryListener) memory_listeners
     = QTAILQ_HEAD_INITIALIZER(memory_listeners);
 
 static QTAILQ_HEAD(, AddressSpace) address_spaces
@@ -113,8 +113,7 @@ enum ListenerDirection { Forward, Reverse };
             }                                                           \
             break;                                                      \
         case Reverse:                                                   \
-            QTAILQ_FOREACH_REVERSE(_listener, &memory_listeners,        \
-                                   memory_listeners, link) {            \
+            QTAILQ_FOREACH_REVERSE(_listener, &memory_listeners, link) { \
                 if (_listener->_callback) {                             \
                     _listener->_callback(_listener, ##_args);           \
                 }                                                       \
@@ -128,19 +127,17 @@ enum ListenerDirection { Forward, Reverse };
 #define MEMORY_LISTENER_CALL(_as, _callback, _direction, _section, _args...) \
     do {                                                                \
         MemoryListener *_listener;                                      \
-        struct memory_listeners_as *list = &(_as)->listeners;           \
                                                                         \
         switch (_direction) {                                           \
         case Forward:                                                   \
-            QTAILQ_FOREACH(_listener, list, link_as) {                  \
+            QTAILQ_FOREACH(_listener, &(_as)->listeners, link_as) {     \
                 if (_listener->_callback) {                             \
                     _listener->_callback(_listener, _section, ##_args); \
                 }                                                       \
             }                                                           \
             break;                                                      \
         case Reverse:                                                   \
-            QTAILQ_FOREACH_REVERSE(_listener, list, memory_listeners_as, \
-                                   link_as) {                           \
+            QTAILQ_FOREACH_REVERSE(_listener, &(_as)->listeners, link_as) { \
                 if (_listener->_callback) {                             \
                     _listener->_callback(_listener, _section, ##_args); \
                 }                                                       \
@@ -2691,8 +2688,7 @@ void memory_listener_register(MemoryListener *listener, AddressSpace *as)
 
     listener->address_space = as;
     if (QTAILQ_EMPTY(&memory_listeners)
-        || listener->priority >= QTAILQ_LAST(&memory_listeners,
-                                             memory_listeners)->priority) {
+        || listener->priority >= QTAILQ_LAST(&memory_listeners)->priority) {
         QTAILQ_INSERT_TAIL(&memory_listeners, listener, link);
     } else {
         QTAILQ_FOREACH(other, &memory_listeners, link) {
@@ -2704,8 +2700,7 @@ void memory_listener_register(MemoryListener *listener, AddressSpace *as)
     }
 
     if (QTAILQ_EMPTY(&as->listeners)
-        || listener->priority >= QTAILQ_LAST(&as->listeners,
-                                             memory_listeners)->priority) {
+        || listener->priority >= QTAILQ_LAST(&as->listeners)->priority) {
         QTAILQ_INSERT_TAIL(&as->listeners, listener, link_as);
     } else {
         QTAILQ_FOREACH(other, &as->listeners, link_as) {

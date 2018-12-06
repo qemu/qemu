@@ -158,7 +158,7 @@ DeviceState *qdev_try_create(BusState *bus, const char *type)
     return dev;
 }
 
-static QTAILQ_HEAD(device_listeners, DeviceListener) device_listeners
+static QTAILQ_HEAD(, DeviceListener) device_listeners
     = QTAILQ_HEAD_INITIALIZER(device_listeners);
 
 enum ListenerDirection { Forward, Reverse };
@@ -177,7 +177,7 @@ enum ListenerDirection { Forward, Reverse };
             break;                                                \
         case Reverse:                                             \
             QTAILQ_FOREACH_REVERSE(_listener, &device_listeners,  \
-                                   device_listeners, link) {      \
+                                   link) {                        \
                 if (_listener->_callback) {                       \
                     _listener->_callback(_listener, ##_args);     \
                 }                                                 \

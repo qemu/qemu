@@ -55,7 +55,7 @@ static NetFilterState *netfilter_next(NetFilterState *nf,
         next = QTAILQ_NEXT(nf, next);
     } else {
         /* reverse order */
-        next = QTAILQ_PREV(nf, NetFilterHead, next);
+        next = QTAILQ_PREV(nf, next);
     }
 
     return next;
