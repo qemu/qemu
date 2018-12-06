@@ -178,6 +178,15 @@ const char *stm32_periph_name(stm32_periph_t periph);
 #define STM32_EXTI2_IRQ 8
 #define STM32_EXTI3_IRQ 9
 #define STM32_EXTI4_IRQ 10
+
+#define STM32_DMA1_STREAM0_IRQ 11
+#define STM32_DMA1_STREAM1_IRQ 12
+#define STM32_DMA1_STREAM2_IRQ 13
+#define STM32_DMA1_STREAM3_IRQ 14
+#define STM32_DMA1_STREAM4_IRQ 15
+#define STM32_DMA1_STREAM5_IRQ 16
+#define STM32_DMA1_STREAM6_IRQ 17
+
 #define STM32_EXTI9_5_IRQ 23
 
 #define TIM1_BRK_IRQn     24     /*!< TIM1 Break Interrupt                                 */
@@ -197,6 +206,9 @@ const char *stm32_periph_name(stm32_periph_t periph);
 #define TIM8_UP_TIM13_IRQn      44     /*!< TIM8 Update Interrupt and TIM13 global Interrupt     */
 #define TIM8_TRG_COM_TIM14_IRQn 45     /*!< TIM8 Trigger and Commutation Interrupt and TIM14 global interrupt */
 #define TIM8_CC_IRQn            46     /*!< TIM8 Capture Compare Interrupt                       */
+
+#define STM32_DMA1_STREAM7_IRQ 47
+
 #define TIM5_IRQn               50     /*!< TIM5 global Interrupt                                */
 #define TIM6_DAC_IRQn           54     /*!< TIM6 and DAC underrun Interrupt                      */
 #define TIM7_IRQn               55     /*!< TIM7 Interrupt                                       */       
@@ -371,6 +383,13 @@ typedef struct Stm32crc Stm32crc;
 
 #define TYPE_STM32_CRC "stm32-crc"
 #define STM32_CRC(obj) OBJECT_CHECK(Stm32crc, (obj), TYPE_STM32_CRC)
+
+/* DMA1 */
+typedef struct stm32_dma stm32_dma;
+
+#define TYPE_STM32_DMA "stm32_dma"
+#define STM32_DMA(obj) OBJECT_CHECK(stm32_dma, (obj), TYPE_STM32_DMA)
+extern qemu_irq *stm32_DMA1_irq;
 
 
 /* STM32 MICROCONTROLLER - GENERAL */

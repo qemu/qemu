@@ -72,6 +72,9 @@
 
 #define USART_GTPR_OFFSET 0x18
 
+#define USART_CR3_DMAR_BIT 0x40
+#define USART_CR3_DMAT_BIT 0x80
+
 
 struct Stm32Uart {
     /* Inherited */
@@ -123,6 +126,7 @@ struct Stm32Uart {
     /* Timers used to simulate a delay corresponding to the baud rate. */
     struct QEMUTimer *rx_timer;
     struct QEMUTimer *tx_timer;
+    struct QEMUTimer *tx_dma_timer;
 
     CharDriverState *chr;
 
@@ -354,6 +358,21 @@ static void stm32_uart_tx_timer_expire(void *opaque) {
     stm32_uart_tx_complete(s);
 }
 
+/* DMA tx delay */
+static void stm32_uart_tx_dma_timer_expire(void *opaque) {
+    Stm32Uart *s = (Stm32Uart *)opaque;
+    uint64_t curr_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    if (s->USART_CR3 & USART_CR3_DMAT_BIT) {
+        qemu_set_irq(*stm32_DMA1_irq, 0x00000011);
+        qemu_set_irq(*stm32_DMA1_irq, 0x00000000);
+
+        stm32_uart_tx_complete(s);
+
+        timer_mod(s->tx_dma_timer,  curr_time + s->ns_per_char);
+    }
+
+}
 
 
 
@@ -425,15 +444,21 @@ static void stm32_uart_receive(void *opaque, const uint8_t *buf, int size)
         stm32_uart_update_irq(s);
     }
 
+    if (s->USART_CR3 & USART_CR3_DMAR_BIT) {
+        qemu_set_irq(*stm32_DMA1_irq, 0x00000010);
+        qemu_set_irq(*stm32_DMA1_irq, 0x00000000);
+    } else {
+
 #ifdef STM32_UART_NO_BAUD_DELAY
-    /* Do nothing - there is no delay before the module reports it can receive
-     * the next character. */
-    curr_time = curr_time; //Avoid "variable unused" compiler error
+        /* Do nothing - there is no delay before the module reports it can receive
+         * the next character. */
+        curr_time = curr_time; //Avoid "variable unused" compiler error
 #else
-    /* Indicate the module is receiving and start the delay. */
-    s->receiving = true;
-    timer_mod(s->rx_timer,  curr_time + s->ns_per_char);
+        /* Indicate the module is receiving and start the delay. */
+        s->receiving = true;
+        timer_mod(s->rx_timer,  curr_time + s->ns_per_char);
 #endif
+	}
 }
 
 
@@ -598,7 +623,16 @@ static void stm32_uart_USART_CR2_write(Stm32Uart *s, uint32_t new_value,
 static void stm32_uart_USART_CR3_write(Stm32Uart *s, uint32_t new_value,
                                         bool init)
 {
+    uint64_t curr_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     s->USART_CR3 = new_value & 0x000007ff;
+
+    if (s->USART_CR3 & USART_CR3_DMAT_BIT) {
+#ifdef STM32_UART_NO_BAUD_DELAY
+        printf("Warning: Tx inturrupt does not work without uart delay!\n");
+#else
+        timer_mod(s->tx_dma_timer,  curr_time + s->ns_per_char);
+#endif
+    }
 }
 
 static void stm32_uart_reset(DeviceState *dev)
@@ -754,6 +788,11 @@ static int stm32_uart_init(SysBusDevice *dev)
     s->tx_timer =
         timer_new_ns(QEMU_CLOCK_VIRTUAL,
                   (QEMUTimerCB *)stm32_uart_tx_timer_expire, s);
+#ifndef STM32_UART_NO_BAUD_DELAY
+    s->tx_dma_timer =
+        timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                  (QEMUTimerCB *)stm32_uart_tx_dma_timer_expire, s);
+#endif
 
     /* Register handlers to handle updates to the USART's peripheral clock. */
     clk_irq =

@@ -340,4 +340,15 @@ void stm32_init(
 	/* CRC */
 	DeviceState *crc = qdev_create(NULL, "stm32-crc");
 	stm32_init_periph(crc, STM32_CRC, 0x40023000, NULL);
+
+    DeviceState *dma1 = qdev_create(NULL, "stm32_dma");
+    stm32_init_periph(dma1, STM32_DMA1, 0x40020000, NULL);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma1), 0, pic[STM32_DMA1_STREAM0_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma1), 1, pic[STM32_DMA1_STREAM1_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma1), 2, pic[STM32_DMA1_STREAM2_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma1), 3, pic[STM32_DMA1_STREAM3_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma1), 4, pic[STM32_DMA1_STREAM4_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma1), 5, pic[STM32_DMA1_STREAM5_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma1), 6, pic[STM32_DMA1_STREAM6_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dma1), 7, pic[STM32_DMA1_STREAM7_IRQ]);
 }
