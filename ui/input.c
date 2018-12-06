@@ -19,6 +19,9 @@ struct QemuInputHandlerState {
 };
 
 typedef struct QemuInputEventQueue QemuInputEventQueue;
+typedef QTAILQ_HEAD(QemuInputEventQueueHead, QemuInputEventQueue)
+    QemuInputEventQueueHead;
+
 struct QemuInputEventQueue {
     enum {
         QEMU_INPUT_QUEUE_DELAY = 1,
@@ -37,8 +40,7 @@ static QTAILQ_HEAD(, QemuInputHandlerState) handlers =
 static NotifierList mouse_mode_notifiers =
     NOTIFIER_LIST_INITIALIZER(mouse_mode_notifiers);
 
-static QTAILQ_HEAD(QemuInputEventQueueHead, QemuInputEventQueue) kbd_queue =
-    QTAILQ_HEAD_INITIALIZER(kbd_queue);
+static QemuInputEventQueueHead kbd_queue = QTAILQ_HEAD_INITIALIZER(kbd_queue);
 static QEMUTimer *kbd_timer;
 static uint32_t kbd_default_delay_ms = 10;
 static uint32_t queue_count;
@@ -257,7 +259,7 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
 
 static void qemu_input_queue_process(void *opaque)
 {
-    struct QemuInputEventQueueHead *queue = opaque;
+    QemuInputEventQueueHead *queue = opaque;
     QemuInputEventQueue *item;
 
     g_assert(!QTAILQ_EMPTY(queue));
@@ -288,7 +290,7 @@ static void qemu_input_queue_process(void *opaque)
     }
 }
 
-static void qemu_input_queue_delay(struct QemuInputEventQueueHead *queue,
+static void qemu_input_queue_delay(QemuInputEventQueueHead *queue,
                                    QEMUTimer *timer, uint32_t delay_ms)
 {
     QemuInputEventQueue *item = g_new0(QemuInputEventQueue, 1);
@@ -306,7 +308,7 @@ static void qemu_input_queue_delay(struct QemuInputEventQueueHead *queue,
     }
 }
 
-static void qemu_input_queue_event(struct QemuInputEventQueueHead *queue,
+static void qemu_input_queue_event(QemuInputEventQueueHead *queue,
                                    QemuConsole *src, InputEvent *evt)
 {
     QemuInputEventQueue *item = g_new0(QemuInputEventQueue, 1);
@@ -318,7 +320,7 @@ static void qemu_input_queue_event(struct QemuInputEventQueueHead *queue,
     queue_count++;
 }
 
-static void qemu_input_queue_sync(struct QemuInputEventQueueHead *queue)
+static void qemu_input_queue_sync(QemuInputEventQueueHead *queue)
 {
     QemuInputEventQueue *item = g_new0(QemuInputEventQueue, 1);
 

@@ -180,7 +180,8 @@ int vfio_get_device(VFIOGroup *group, const char *name,
                     VFIODevice *vbasedev, Error **errp);
 
 extern const MemoryRegionOps vfio_region_ops;
-extern QLIST_HEAD(vfio_group_head, VFIOGroup) vfio_group_list;
+typedef QLIST_HEAD(VFIOGroupList, VFIOGroup) VFIOGroupList;
+extern VFIOGroupList vfio_group_list;
 
 #ifdef CONFIG_LINUX
 int vfio_get_region_info(VFIODevice *vbasedev, int index,
