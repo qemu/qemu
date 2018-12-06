@@ -240,6 +240,9 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
             uint8_t read = s->smb_addr & 0x01;
 
             s->smb_index++;
+            if (s->smb_index >= PM_SMBUS_MAX_MSG_SIZE) {
+                s->smb_index = 0;
+            }
             if (!read && s->smb_index == s->smb_data0) {
                 uint8_t prot = (s->smb_ctl >> 2) & 0x07;
                 uint8_t cmd = s->smb_cmd;
