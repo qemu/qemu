@@ -77,7 +77,7 @@ static void clktree_print_state(Clk clk)
 {
     Clk input_clk = clktree_get_input_clk(clk);
 
-    printf("CLKTREE: %s Output Change (SrcClk:%s InFreq:%lu OutFreq:%lu Mul:%u Div:%u Enabled:%c)\n",
+    fprintf(stderr, "CLKTREE: %s Output Change (SrcClk:%s InFreq:%lu OutFreq:%lu Mul:%u Div:%u Enabled:%c)\n",
             clk->name,
             input_clk ? input_clk->name : "None",
             (unsigned long)clk->input_freq,

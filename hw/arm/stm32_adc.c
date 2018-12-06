@@ -31,7 +31,7 @@
 
 #ifdef DEBUG_STM32_ADC
 #define DPRINTF(fmt, ...)                                       \
-    do { printf("STM32_ADC: " fmt , ## __VA_ARGS__); } while (0)
+    do { fprintf(stderr, "STM32_ADC: " fmt , ## __VA_ARGS__); } while (0)
 #else
 #define DPRINTF(fmt, ...)
 #endif
@@ -912,7 +912,7 @@ static uint64_t stm32_adc_read(void *opaque, hwaddr offset,
 	case oADC_JDR4: return extract64(s->ADC_JDR4, start, length);
 	case oADC_DR  : return extract64(stm32_ADC_DR_read(s), start, length); 
         default:
-		printf("jmf unknown read : %lld, size %d\n",(long long)offset,size);
+		fprintf(stderr, "jmf unknown read : %lld, size %d\n",(long long)offset,size);
             STM32_BAD_REG(offset, size);
             return 0;
     }
@@ -942,7 +942,7 @@ static void stm32_adc_write(void *opaque, hwaddr offset,
 	case oADC_SQR3: (s->ADC_SQR3=value & 0x3fffffff);break;
 	case oADC_JSQR: (s->ADC_JSQR=value & 0x003fffff);break;
 	
-        default: printf("jmf unknown write : %lld, size %d\n",(long long)offset,size);
+        default: fprintf(stderr, "jmf unknown write : %lld, size %d\n",(long long)offset,size);
             STM32_BAD_REG(offset, 2);
             break;
     }

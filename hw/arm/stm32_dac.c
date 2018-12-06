@@ -30,7 +30,7 @@
 
 #ifdef DEBUG_STM32_DAC
 #define DPRINTF(fmt, ...)                                       \
-    do { printf("STM32_DAC: " fmt , ## __VA_ARGS__); } while (0)
+    do { fprintf(stderr, "STM32_DAC: " fmt , ## __VA_ARGS__); } while (0)
 #else
 #define DPRINTF(fmt, ...)
 #endif
@@ -355,6 +355,11 @@ static void stm32_dac_conv_DACC1(void *opaque)
 {
    Stm32Dac *s=(Stm32Dac *)opaque;
    stm32_dac_check_pin(s,4);
+
+   // TODO: add a `-device dac` option to qemu which allows qemu's full range of I/O redirection options
+   //       just writing to a file *in the current directory* is a quick hack that's not production-ready.
+
+   // TODO: factor this with stm32_dav_conv_DACC2
    printf("DAC1output:%d\n",(s->Vref*(s->DAC_DOR1 & 0xfff))/4095);
    FILE* fichier=fopen("DAC_OUT_PUT1.txt", "a");
    fprintf(fichier, "%d\n",(s->Vref*(s->DAC_DOR1 & 0xfff))/4095);
@@ -368,6 +373,11 @@ static void stm32_dac_conv_DACC2(void *opaque)
 
    Stm32Dac *s=(Stm32Dac *)opaque;
    stm32_dac_check_pin(s,5);
+
+   // TODO: add a `-device dac` option to qemu which allows qemu's full range of I/O redirection options
+   //       just writing to a file *in the current directory* is a quick hack that's not production-ready.
+
+   // TODO: factor this with stm32_dav_conv_DACC1
    printf("DAC2output:%d\n",(s->Vref*(s->DAC_DOR2 & 0xfff))/4095);
    FILE* fichier=fopen("DAC_OUT_PUT2.txt", "a");
    fprintf(fichier, "%d\n",(s->Vref*(s->DAC_DOR2 & 0xfff))/4095);
