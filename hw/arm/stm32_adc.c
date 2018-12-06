@@ -714,6 +714,7 @@ static void stm32_adc_start_conv(Stm32Adc *s)
       s->ADC_DR=((int)(1024.*(sin(2*M_PI*qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)/1e9)+1.))&0xfff);
       }
       s->ADC_SR&=~ADC_SR_EOC;  // jmf : indicates ongoing conversion
+      s->ADC_CR2&=~ADC_CR2_SWSTART;
       // calls conv_complete when expires      
       timer_mod(s->conv_timer,  curr_time + stm32_ADC_get_nbr_cycle_per_sample(s,channel_number)); 
 }
