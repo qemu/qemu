@@ -31,10 +31,10 @@ struct xs_dirs {
     QTAILQ_ENTRY(xs_dirs) list;
 };
 
-static QTAILQ_HEAD(xs_dirs_head, xs_dirs) xs_cleanup =
+static QTAILQ_HEAD(, xs_dirs) xs_cleanup =
     QTAILQ_HEAD_INITIALIZER(xs_cleanup);
 
-static QTAILQ_HEAD(XenDeviceHead, XenDevice) xendevs =
+static QTAILQ_HEAD(, XenDevice) xendevs =
     QTAILQ_HEAD_INITIALIZER(xendevs);
 
 /* ------------------------------------------------------------- */

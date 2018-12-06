@@ -35,7 +35,7 @@ typedef struct QEMUResetEntry {
     void *opaque;
 } QEMUResetEntry;
 
-static QTAILQ_HEAD(reset_handlers, QEMUResetEntry) reset_handlers =
+static QTAILQ_HEAD(, QEMUResetEntry) reset_handlers =
     QTAILQ_HEAD_INITIALIZER(reset_handlers);
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)

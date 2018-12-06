@@ -29,8 +29,8 @@ typedef struct NvmeSQueue {
     uint64_t    dma_addr;
     QEMUTimer   *timer;
     NvmeRequest *io_req;
-    QTAILQ_HEAD(sq_req_list, NvmeRequest) req_list;
-    QTAILQ_HEAD(out_req_list, NvmeRequest) out_req_list;
+    QTAILQ_HEAD(, NvmeRequest) req_list;
+    QTAILQ_HEAD(, NvmeRequest) out_req_list;
     QTAILQ_ENTRY(NvmeSQueue) entry;
 } NvmeSQueue;
 
@@ -45,8 +45,8 @@ typedef struct NvmeCQueue {
     uint32_t    size;
     uint64_t    dma_addr;
     QEMUTimer   *timer;
-    QTAILQ_HEAD(sq_list, NvmeSQueue) sq_list;
-    QTAILQ_HEAD(cq_req_list, NvmeRequest) req_list;
+    QTAILQ_HEAD(, NvmeSQueue) sq_list;
+    QTAILQ_HEAD(, NvmeRequest) req_list;
 } NvmeCQueue;
 
 typedef struct NvmeNamespace {

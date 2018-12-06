@@ -398,7 +398,7 @@ typedef struct BDRVVHDXState {
 
     bool log_replayed_on_open;
 
-    QLIST_HEAD(VHDXRegionHead, VHDXRegionEntry) regions;
+    QLIST_HEAD(, VHDXRegionEntry) regions;
 } BDRVVHDXState;
 
 void vhdx_guid_generate(MSGUID *guid);

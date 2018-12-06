@@ -3471,7 +3471,7 @@ typedef struct MapClient {
 } MapClient;
 
 QemuMutex map_client_list_lock;
-static QLIST_HEAD(map_client_list, MapClient) map_client_list
+static QLIST_HEAD(, MapClient) map_client_list
     = QLIST_HEAD_INITIALIZER(map_client_list);
 
 static void cpu_unregister_map_client_do(MapClient *client)

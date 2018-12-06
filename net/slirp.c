@@ -85,7 +85,7 @@ typedef struct SlirpState {
 } SlirpState;
 
 static struct slirp_config_str *slirp_configs;
-static QTAILQ_HEAD(slirp_stacks, SlirpState) slirp_stacks =
+static QTAILQ_HEAD(, SlirpState) slirp_stacks =
     QTAILQ_HEAD_INITIALIZER(slirp_stacks);
 
 static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp);

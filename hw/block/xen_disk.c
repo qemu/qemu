@@ -82,9 +82,9 @@ struct XenBlkDev {
     int                 more_work;
 
     /* request lists */
-    QLIST_HEAD(inflight_head, ioreq) inflight;
-    QLIST_HEAD(finished_head, ioreq) finished;
-    QLIST_HEAD(freelist_head, ioreq) freelist;
+    QLIST_HEAD(, ioreq) inflight;
+    QLIST_HEAD(, ioreq) finished;
+    QLIST_HEAD(, ioreq) freelist;
     int                 requests_total;
     int                 requests_inflight;
     int                 requests_finished;

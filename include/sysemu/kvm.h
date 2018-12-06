@@ -412,8 +412,6 @@ struct kvm_sw_breakpoint {
     QTAILQ_ENTRY(kvm_sw_breakpoint) entry;
 };
 
-QTAILQ_HEAD(kvm_sw_breakpoint_head, kvm_sw_breakpoint);
-
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
                                                  target_ulong pc);
 

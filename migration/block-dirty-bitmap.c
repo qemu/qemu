@@ -116,7 +116,7 @@ typedef struct DirtyBitmapMigBitmapState {
 } DirtyBitmapMigBitmapState;
 
 typedef struct DirtyBitmapMigState {
-    QSIMPLEQ_HEAD(dbms_list, DirtyBitmapMigBitmapState) dbms_list;
+    QSIMPLEQ_HEAD(, DirtyBitmapMigBitmapState) dbms_list;
 
     bool bulk_completed;
     bool no_bitmaps;

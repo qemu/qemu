@@ -77,8 +77,6 @@ typedef struct Qcow2BitmapTable {
     uint32_t size; /* number of 64bit entries */
     QSIMPLEQ_ENTRY(Qcow2BitmapTable) entry;
 } Qcow2BitmapTable;
-typedef QSIMPLEQ_HEAD(Qcow2BitmapTableList, Qcow2BitmapTable)
-    Qcow2BitmapTableList;
 
 typedef struct Qcow2Bitmap {
     Qcow2BitmapTable table;
@@ -1316,7 +1314,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
     int ret;
     Qcow2BitmapList *bm_list;
     Qcow2Bitmap *bm;
-    Qcow2BitmapTableList drop_tables;
+    QSIMPLEQ_HEAD(, Qcow2BitmapTable) drop_tables;
     Qcow2BitmapTable *tb, *tb_next;
 
     if (!bdrv_has_changed_persistent_bitmaps(bs)) {
