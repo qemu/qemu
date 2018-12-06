@@ -54,9 +54,12 @@ LDFLAGS=
 # The QEMU for this TARGET
 ifdef CONFIG_USER_ONLY
 QEMU=../qemu-$(TARGET_NAME)
+QEMU_OPTS=
 else
 QEMU=../qemu-system-$(TARGET_NAME)
+QEMU_OPTS=-monitor none -display none
 endif
+
 
 # If TCG debugging is enabled things are a lot slower
 ifeq ($(CONFIG_DEBUG_TCG),y)
@@ -108,7 +111,7 @@ RUN_TESTS=$(patsubst %,run-%, $(TESTS))
 RUN_TESTS+=$(EXTRA_RUNS)
 
 run-%: %
-	$(call run-test, $<, $(QEMU) $<, "$< on $(TARGET_NAME)")
+	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<, "$< on $(TARGET_NAME)")
 
 .PHONY: run
 run: $(RUN_TESTS)
