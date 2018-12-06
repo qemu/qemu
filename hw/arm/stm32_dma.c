@@ -124,6 +124,7 @@ typedef struct stm32_dma {
 qemu_irq *stm32_DMA1_irq;
 static void stm32_dma_stream_start_once(stm32_dma *s, uint32_t stream_no, bool skip_enabled_check);
 static void stm32_dma_stream_start_whole(stm32_dma *s, uint32_t stream_no, bool skip_enabled_check);
+void printall(stm32_dma *s);
 
 static void stm32_dma_stream_circular_timer(void *opaque) {
 	stm32_dma *s = (stm32_dma *)opaque;
@@ -152,8 +153,9 @@ static void stm32_dma_stream_circular_timer(void *opaque) {
 //Find the channel from destination address
 static int dma_find_channel(stm32_dma *s, uint32_t address, uint8_t search_in_dest) {
 	uint32_t reg_contents;
+	uint32_t i;
 
-	for (uint32_t i=0; i<DMA_Stream_Count; i++) {
+	for (i=0; i<DMA_Stream_Count; i++) {
 		if (search_in_dest != 0) { //Not zero
 			reg_contents = s->stream[i].mar;
 		} else { //Zero
@@ -169,7 +171,8 @@ static int dma_find_channel(stm32_dma *s, uint32_t address, uint8_t search_in_de
 }
 
 void printall(stm32_dma *s) {
-	for (uint32_t i=0; i<DMA_Stream_Count; i++) {
+    uint32_t i;
+	for (i=0; i<DMA_Stream_Count; i++) {
 		printf("ch%d: %08x\n", i , s->stream[i].par);
 	}
 }
@@ -201,6 +204,9 @@ static void dma_irq_handler(void *opaque, int n, int level) {
 				exit(1);
 			}
 		break;
+
+	    default:
+	        hw_error("Invalid level");
 	}
 
 	if (channel == -1) {
@@ -438,6 +444,11 @@ stm32_dma_write(void *arg, hwaddr addr, uint64_t data, unsigned int size)
 	stm32_dma *s = arg;
 	int offset = addr & 0x3;
 	int stream_no = (addr - 8) >> (DMA_Perstream_Reg_Total_Size/DMA_Perstream_Reg_Size);
+	// Using the following variable prevents "comparison of unsigned expression >= 0 is always true"
+	// compile error. This is a hack, but there does not seem to be a better way
+	// without either disabling the warning altogether, or removing the check.
+	// See: https://stackoverflow.com/questions/7542857/suppress-comparison-always-true-warning-for-macros
+	hwaddr r_dma_isr = R_DMA_ISR;
 
 	(void)offset;
 
@@ -462,7 +473,7 @@ stm32_dma_write(void *arg, hwaddr addr, uint64_t data, unsigned int size)
 		s->ifcr = data;
 		break;
 	default:
-		if (addr >= R_DMA_ISR && addr < DMA_Reg_Total_Size) {
+		if (addr >= r_dma_isr && addr < DMA_Reg_Total_Size) {
 			//printf("Write to stream %d\n", stream_no);
 			stm32_dma_stream_write(&s->stream[stream_no], s, stream_no, (addr - DMA_Total_Size) % DMA_Perstream_Reg_Total_Size, data);
 		} else {
