@@ -280,6 +280,7 @@ int qemu_strtosz_metric(const char *nptr, char **end, uint64_t *result)
 static int check_strtox_error(const char *nptr, char *ep,
                               const char **endptr, int libc_errno)
 {
+    assert(ep >= nptr);
     if (endptr) {
         *endptr = ep;
     }
@@ -327,6 +328,7 @@ int qemu_strtoi(const char *nptr, const char **endptr, int base,
     char *ep;
     long long lresult;
 
+    assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
         if (endptr) {
             *endptr = nptr;
@@ -379,6 +381,7 @@ int qemu_strtoui(const char *nptr, const char **endptr, int base,
     char *ep;
     long long lresult;
 
+    assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
         if (endptr) {
             *endptr = nptr;
@@ -435,6 +438,7 @@ int qemu_strtol(const char *nptr, const char **endptr, int base,
 {
     char *ep;
 
+    assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
         if (endptr) {
             *endptr = nptr;
@@ -477,6 +481,7 @@ int qemu_strtoul(const char *nptr, const char **endptr, int base,
 {
     char *ep;
 
+    assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
         if (endptr) {
             *endptr = nptr;
@@ -504,6 +509,7 @@ int qemu_strtoi64(const char *nptr, const char **endptr, int base,
 {
     char *ep;
 
+    assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
         if (endptr) {
             *endptr = nptr;
@@ -527,6 +533,7 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
 {
     char *ep;
 
+    assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
         if (endptr) {
             *endptr = nptr;
@@ -594,6 +601,7 @@ int parse_uint(const char *s, unsigned long long *value, char **endptr,
     char *endp = (char *)s;
     unsigned long long val = 0;
 
+    assert((unsigned) base <= 36 && base != 1);
     if (!s) {
         r = -EINVAL;
         goto out;
