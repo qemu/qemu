@@ -27,7 +27,7 @@ tar -xf "$OVERLAY" -O gdb/xtensa-config.c | \
 # Fix up known issues in the xtensa-modules.c
 #
 tar -xf "$OVERLAY" -O binutils/xtensa-modules.c | \
-    sed -e 's/\(xtensa_opcode_encode_fn.*\[\] =\)/static \1/' \
+    sed -e 's/^\(xtensa_opcode_encode_fn.*\[\] =\)/static \1/' \
         -e '/^int num_bypass_groups()/,/}/d' \
         -e '/^int num_bypass_group_chunks()/,/}/d' \
         -e '/^uint32 \*bypass_entry(int i)/,/}/d' \
