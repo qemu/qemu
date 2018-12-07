@@ -190,14 +190,21 @@ void qcrypto_block_free(QCryptoBlock *block)
 }
 
 
-int qcrypto_block_decrypt_helper(QCryptoCipher *cipher,
-                                 size_t niv,
-                                 QCryptoIVGen *ivgen,
-                                 int sectorsize,
-                                 uint64_t offset,
-                                 uint8_t *buf,
-                                 size_t len,
-                                 Error **errp)
+typedef int (*QCryptoCipherEncDecFunc)(QCryptoCipher *cipher,
+                                       const void *in,
+                                       void *out,
+                                       size_t len,
+                                       Error **errp);
+
+static int do_qcrypto_block_encdec(QCryptoCipher *cipher,
+                                   size_t niv,
+                                   QCryptoIVGen *ivgen,
+                                   int sectorsize,
+                                   uint64_t offset,
+                                   uint8_t *buf,
+                                   size_t len,
+                                   QCryptoCipherEncDecFunc func,
+                                   Error **errp)
 {
     uint8_t *iv;
     int ret = -1;
@@ -226,8 +233,7 @@ int qcrypto_block_decrypt_helper(QCryptoCipher *cipher,
         }
 
         nbytes = len > sectorsize ? sectorsize : len;
-        if (qcrypto_cipher_decrypt(cipher, buf, buf,
-                                   nbytes, errp) < 0) {
+        if (func(cipher, buf, buf, nbytes, errp) < 0) {
             goto cleanup;
         }
 
@@ -243,6 +249,20 @@ int qcrypto_block_decrypt_helper(QCryptoCipher *cipher,
 }
 
 
+int qcrypto_block_decrypt_helper(QCryptoCipher *cipher,
+                                 size_t niv,
+                                 QCryptoIVGen *ivgen,
+                                 int sectorsize,
+                                 uint64_t offset,
+                                 uint8_t *buf,
+                                 size_t len,
+                                 Error **errp)
+{
+    return do_qcrypto_block_encdec(cipher, niv, ivgen, sectorsize, offset,
+                                   buf, len, qcrypto_cipher_decrypt, errp);
+}
+
+
 int qcrypto_block_encrypt_helper(QCryptoCipher *cipher,
                                  size_t niv,
                                  QCryptoIVGen *ivgen,
@@ -252,45 +272,6 @@ int qcrypto_block_encrypt_helper(QCryptoCipher *cipher,
                                  size_t len,
                                  Error **errp)
 {
-    uint8_t *iv;
-    int ret = -1;
-    uint64_t startsector = offset / sectorsize;
-
-    assert(QEMU_IS_ALIGNED(offset, sectorsize));
-    assert(QEMU_IS_ALIGNED(len, sectorsize));
-
-    iv = niv ? g_new0(uint8_t, niv) : NULL;
-
-    while (len > 0) {
-        size_t nbytes;
-        if (niv) {
-            if (qcrypto_ivgen_calculate(ivgen,
-                                        startsector,
-                                        iv, niv,
-                                        errp) < 0) {
-                goto cleanup;
-            }
-
-            if (qcrypto_cipher_setiv(cipher,
-                                     iv, niv,
-                                     errp) < 0) {
-                goto cleanup;
-            }
-        }
-
-        nbytes = len > sectorsize ? sectorsize : len;
-        if (qcrypto_cipher_encrypt(cipher, buf, buf,
-                                   nbytes, errp) < 0) {
-            goto cleanup;
-        }
-
-        startsector++;
-        buf += nbytes;
-        len -= nbytes;
-    }
-
-    ret = 0;
- cleanup:
-    g_free(iv);
-    return ret;
+    return do_qcrypto_block_encdec(cipher, niv, ivgen, sectorsize, offset,
+                                   buf, len, qcrypto_cipher_encrypt, errp);
 }
