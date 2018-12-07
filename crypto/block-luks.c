@@ -1341,6 +1341,9 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     qcrypto_ivgen_free(ivgen);
     qcrypto_cipher_free(cipher);
 
+    qcrypto_cipher_free(block->cipher);
+    qcrypto_ivgen_free(block->ivgen);
+
     g_free(luks);
     return -1;
 }
