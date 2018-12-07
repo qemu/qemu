@@ -191,20 +191,20 @@ void qcrypto_block_free(QCryptoBlock *block)
 
 
 typedef int (*QCryptoCipherEncDecFunc)(QCryptoCipher *cipher,
-                                       const void *in,
-                                       void *out,
-                                       size_t len,
-                                       Error **errp);
+                                        const void *in,
+                                        void *out,
+                                        size_t len,
+                                        Error **errp);
 
-static int do_qcrypto_block_encdec(QCryptoCipher *cipher,
-                                   size_t niv,
-                                   QCryptoIVGen *ivgen,
-                                   int sectorsize,
-                                   uint64_t offset,
-                                   uint8_t *buf,
-                                   size_t len,
-                                   QCryptoCipherEncDecFunc func,
-                                   Error **errp)
+static int do_qcrypto_block_cipher_encdec(QCryptoCipher *cipher,
+                                          size_t niv,
+                                          QCryptoIVGen *ivgen,
+                                          int sectorsize,
+                                          uint64_t offset,
+                                          uint8_t *buf,
+                                          size_t len,
+                                          QCryptoCipherEncDecFunc func,
+                                          Error **errp)
 {
     uint8_t *iv;
     int ret = -1;
@@ -249,29 +249,31 @@ static int do_qcrypto_block_encdec(QCryptoCipher *cipher,
 }
 
 
-int qcrypto_block_decrypt_helper(QCryptoCipher *cipher,
-                                 size_t niv,
-                                 QCryptoIVGen *ivgen,
-                                 int sectorsize,
-                                 uint64_t offset,
-                                 uint8_t *buf,
-                                 size_t len,
-                                 Error **errp)
+int qcrypto_block_cipher_decrypt_helper(QCryptoCipher *cipher,
+                                        size_t niv,
+                                        QCryptoIVGen *ivgen,
+                                        int sectorsize,
+                                        uint64_t offset,
+                                        uint8_t *buf,
+                                        size_t len,
+                                        Error **errp)
 {
-    return do_qcrypto_block_encdec(cipher, niv, ivgen, sectorsize, offset,
-                                   buf, len, qcrypto_cipher_decrypt, errp);
+    return do_qcrypto_block_cipher_encdec(cipher, niv, ivgen, sectorsize,
+                                          offset, buf, len,
+                                          qcrypto_cipher_decrypt, errp);
 }
 
 
-int qcrypto_block_encrypt_helper(QCryptoCipher *cipher,
-                                 size_t niv,
-                                 QCryptoIVGen *ivgen,
-                                 int sectorsize,
-                                 uint64_t offset,
-                                 uint8_t *buf,
-                                 size_t len,
-                                 Error **errp)
+int qcrypto_block_cipher_encrypt_helper(QCryptoCipher *cipher,
+                                        size_t niv,
+                                        QCryptoIVGen *ivgen,
+                                        int sectorsize,
+                                        uint64_t offset,
+                                        uint8_t *buf,
+                                        size_t len,
+                                        Error **errp)
 {
-    return do_qcrypto_block_encdec(cipher, niv, ivgen, sectorsize, offset,
-                                   buf, len, qcrypto_cipher_encrypt, errp);
+    return do_qcrypto_block_cipher_encdec(cipher, niv, ivgen, sectorsize,
+                                          offset, buf, len,
+                                          qcrypto_cipher_encrypt, errp);
 }

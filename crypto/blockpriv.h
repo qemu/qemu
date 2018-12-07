@@ -78,22 +78,22 @@ struct QCryptoBlockDriver {
 };
 
 
-int qcrypto_block_decrypt_helper(QCryptoCipher *cipher,
-                                 size_t niv,
-                                 QCryptoIVGen *ivgen,
-                                 int sectorsize,
-                                 uint64_t offset,
-                                 uint8_t *buf,
-                                 size_t len,
-                                 Error **errp);
+int qcrypto_block_cipher_decrypt_helper(QCryptoCipher *cipher,
+                                        size_t niv,
+                                        QCryptoIVGen *ivgen,
+                                        int sectorsize,
+                                        uint64_t offset,
+                                        uint8_t *buf,
+                                        size_t len,
+                                        Error **errp);
 
-int qcrypto_block_encrypt_helper(QCryptoCipher *cipher,
-                                 size_t niv,
-                                 QCryptoIVGen *ivgen,
-                                 int sectorsize,
-                                 uint64_t offset,
-                                 uint8_t *buf,
-                                 size_t len,
-                                 Error **errp);
+int qcrypto_block_cipher_encrypt_helper(QCryptoCipher *cipher,
+                                        size_t niv,
+                                        QCryptoIVGen *ivgen,
+                                        int sectorsize,
+                                        uint64_t offset,
+                                        uint8_t *buf,
+                                        size_t len,
+                                        Error **errp);
 
 #endif /* QCRYPTO_BLOCKPRIV_H */
