@@ -636,6 +636,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                         QCryptoBlockReadFunc readfunc,
                         void *opaque,
                         unsigned int flags,
+                        size_t n_threads,
                         Error **errp)
 {
     QCryptoBlockLUKS *luks;
@@ -836,11 +837,10 @@ qcrypto_block_luks_open(QCryptoBlock *block,
             goto fail;
         }
 
-        block->cipher = qcrypto_cipher_new(cipheralg,
-                                           ciphermode,
-                                           masterkey, masterkeylen,
-                                           errp);
-        if (!block->cipher) {
+        ret = qcrypto_block_init_cipher(block, cipheralg, ciphermode,
+                                        masterkey, masterkeylen, n_threads,
+                                        errp);
+        if (ret < 0) {
             ret = -ENOTSUP;
             goto fail;
         }
@@ -863,7 +863,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
 
  fail:
     g_free(masterkey);
-    qcrypto_cipher_free(block->cipher);
+    qcrypto_block_free_cipher(block);
     qcrypto_ivgen_free(block->ivgen);
     g_free(luks);
     g_free(password);
@@ -1030,11 +1030,9 @@ qcrypto_block_luks_create(QCryptoBlock *block,
 
 
     /* Setup the block device payload encryption objects */
-    block->cipher = qcrypto_cipher_new(luks_opts.cipher_alg,
-                                       luks_opts.cipher_mode,
-                                       masterkey, luks->header.key_bytes,
-                                       errp);
-    if (!block->cipher) {
+    if (qcrypto_block_init_cipher(block, luks_opts.cipher_alg,
+                                  luks_opts.cipher_mode, masterkey,
+                                  luks->header.key_bytes, 1, errp) < 0) {
         goto error;
     }
 
@@ -1341,7 +1339,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     qcrypto_ivgen_free(ivgen);
     qcrypto_cipher_free(cipher);
 
-    qcrypto_cipher_free(block->cipher);
+    qcrypto_block_free_cipher(block);
     qcrypto_ivgen_free(block->ivgen);
 
     g_free(luks);

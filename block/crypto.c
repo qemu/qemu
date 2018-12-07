@@ -229,6 +229,7 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
                                        block_crypto_read_func,
                                        bs,
                                        cflags,
+                                       1,
                                        errp);
 
     if (!crypto->block) {
