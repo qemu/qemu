@@ -154,6 +154,7 @@ Job failed: Extent [0] not specified
 
 {"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 512, "subformat": "monolithicFlat"}}}
 {"return": {}}
+Job failed: List of extents contains unused extents
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
@@ -161,7 +162,7 @@ Job failed: Extent [0] not specified
 
 = twoGbMaxExtentFlat 512 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 512, "subformat": "twoGbMaxExtentFlat"}}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 512, "subformat": "twoGbMaxExtentFlat"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -181,7 +182,7 @@ Format specific information:
 
 = twoGbMaxExtentSparse 512 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 512, "subformat": "twoGbMaxExtentSparse"}}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 512, "subformat": "twoGbMaxExtentSparse"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -203,7 +204,7 @@ Format specific information:
 
 = twoGbMaxExtentFlat 1073741824 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 1073741824, "subformat": "twoGbMaxExtentFlat"}}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 1073741824, "subformat": "twoGbMaxExtentFlat"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -223,7 +224,7 @@ Format specific information:
 
 = twoGbMaxExtentSparse 1073741824 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 1073741824, "subformat": "twoGbMaxExtentSparse"}}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 1073741824, "subformat": "twoGbMaxExtentSparse"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -245,7 +246,7 @@ Format specific information:
 
 = twoGbMaxExtentFlat 2147483648 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 2147483648, "subformat": "twoGbMaxExtentFlat"}}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 2147483648, "subformat": "twoGbMaxExtentFlat"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -265,7 +266,7 @@ Format specific information:
 
 = twoGbMaxExtentSparse 2147483648 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 2147483648, "subformat": "twoGbMaxExtentSparse"}}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 2147483648, "subformat": "twoGbMaxExtentSparse"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}

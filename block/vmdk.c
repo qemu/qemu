@@ -1970,6 +1970,7 @@ static int coroutine_fn vmdk_co_do_create(int64_t size,
 {
     int extent_idx;
     BlockBackend *blk = NULL;
+    BlockBackend *extent_blk;
     Error *local_err = NULL;
     char *desc = NULL;
     int ret = 0;
@@ -2107,7 +2108,6 @@ static int coroutine_fn vmdk_co_do_create(int64_t size,
     }
     extent_idx = 1;
     while (created_size < size) {
-        BlockBackend *extent_blk;
         int64_t cur_size = MIN(size - created_size, extent_size);
         extent_blk = extent_fn(cur_size, extent_idx, flat, split, compress,
                                zeroed_grain, opaque, errp);
@@ -2121,6 +2121,17 @@ static int coroutine_fn vmdk_co_do_create(int64_t size,
         extent_idx++;
         blk_unref(extent_blk);
     }
+
+    /* Check whether we got excess extents */
+    extent_blk = extent_fn(-1, extent_idx, flat, split, compress, zeroed_grain,
+                           opaque, NULL);
+    if (extent_blk) {
+        blk_unref(extent_blk);
+        error_setg(errp, "List of extents contains unused extents");
+        ret = -EINVAL;
+        goto exit;
+    }
+
     /* generate descriptor file */
     desc = g_strdup_printf(desc_template,
                            g_random_int(),
@@ -2180,6 +2191,12 @@ static BlockBackend *vmdk_co_create_opts_cb(int64_t size, int idx,
     VMDKCreateOptsData *data = opaque;
     char *ext_filename = NULL;
     char *rel_filename = NULL;
+
+    /* We're done, don't create excess extents. */
+    if (size == -1) {
+        assert(errp == NULL);
+        return NULL;
+    }
 
     if (idx == 0) {
         rel_filename = g_strdup_printf("%s%s", data->prefix, data->postfix);
@@ -2342,10 +2359,12 @@ static BlockBackend *vmdk_co_create_cb(int64_t size, int idx,
     blk_set_allow_write_beyond_eof(blk, true);
     bdrv_unref(bs);
 
-    ret = vmdk_init_extent(blk, size, flat, compress, zeroed_grain, errp);
-    if (ret) {
-        blk_unref(blk);
-        blk = NULL;
+    if (size != -1) {
+        ret = vmdk_init_extent(blk, size, flat, compress, zeroed_grain, errp);
+        if (ret) {
+            blk_unref(blk);
+            blk = NULL;
+        }
     }
     return blk;
 }

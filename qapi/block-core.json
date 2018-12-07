@@ -4184,7 +4184,8 @@
 #               twoGbMaxExtentSparse and twoGbMaxExtentFlat formats. For
 #               monolithicFlat, only one entry is required; for
 #               twoGbMaxExtent* formats, the number of entries required is
-#               calculated as extent_number = virtual_size / 2GB.
+#               calculated as extent_number = virtual_size / 2GB. Providing
+#               more extents than will be used is an error.
 # @subformat    The subformat of the VMDK image. Default: "monolithicSparse".
 # @backing-file The path of backing file. Default: no backing file is used.
 # @adapter-type The adapter type used to fill in the descriptor. Default: ide.
