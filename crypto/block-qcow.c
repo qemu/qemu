@@ -152,10 +152,9 @@ qcrypto_block_qcow_decrypt(QCryptoBlock *block,
 {
     assert(QEMU_IS_ALIGNED(offset, QCRYPTO_BLOCK_QCOW_SECTOR_SIZE));
     assert(QEMU_IS_ALIGNED(len, QCRYPTO_BLOCK_QCOW_SECTOR_SIZE));
-    return qcrypto_block_cipher_decrypt_helper(block->cipher,
-                                               block->niv, block->ivgen,
-                                               QCRYPTO_BLOCK_QCOW_SECTOR_SIZE,
-                                               offset, buf, len, errp);
+    return qcrypto_block_decrypt_helper(block,
+                                        QCRYPTO_BLOCK_QCOW_SECTOR_SIZE,
+                                        offset, buf, len, errp);
 }
 
 
@@ -168,10 +167,9 @@ qcrypto_block_qcow_encrypt(QCryptoBlock *block,
 {
     assert(QEMU_IS_ALIGNED(offset, QCRYPTO_BLOCK_QCOW_SECTOR_SIZE));
     assert(QEMU_IS_ALIGNED(len, QCRYPTO_BLOCK_QCOW_SECTOR_SIZE));
-    return qcrypto_block_cipher_encrypt_helper(block->cipher,
-                                               block->niv, block->ivgen,
-                                               QCRYPTO_BLOCK_QCOW_SECTOR_SIZE,
-                                               offset, buf, len, errp);
+    return qcrypto_block_encrypt_helper(block,
+                                        QCRYPTO_BLOCK_QCOW_SECTOR_SIZE,
+                                        offset, buf, len, errp);
 }
 
 
