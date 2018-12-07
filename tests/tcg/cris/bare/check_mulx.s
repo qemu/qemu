@@ -3,6 +3,8 @@
 
  .include "testutils.inc"
  start
+
+ .align 4
  moveq -1,r3
  moveq 2,r4
  muls.d r4,r3
@@ -11,6 +13,7 @@
  move mof,r3
  checkr3 ffffffff
 
+ .align 4
  moveq -1,r3
  moveq 2,r4
  mulu.d r4,r3
@@ -19,6 +22,7 @@
  move mof,r3
  checkr3 1
 
+ .align 4
  moveq 2,r3
  moveq -1,r4
  muls.d r4,r3
@@ -27,6 +31,7 @@
  move mof,r3
  checkr3 ffffffff
 
+ .align 4
  moveq 2,r3
  moveq -1,r4
  mulu.d r4,r3
@@ -98,6 +103,7 @@
  checkr3 1fffe
  move mof,r3
  checkr3 0
+ nop
 
  moveq 2,r3
  move.d 0xffff,r4
@@ -138,6 +144,7 @@
  checkr3 fdbdade2
  move mof,r3
  checkr3 ffffffff
+ nop
 
  move.d 0x5432f789,r4
  move.d 0x78134452,r3
@@ -146,6 +153,7 @@
  checkr3 420fade2
  move mof,r3
  checkr3 0
+ nop
 
  move.d 0xff,r3
  moveq 2,r4
@@ -186,6 +194,7 @@
  checkr3 1
  move mof,r3
  checkr3 0
+ nop
 
  moveq -1,r4
  move.d r4,r3
@@ -194,6 +203,7 @@
  checkr3 fe01
  move mof,r3
  checkr3 0
+ nop
 
  move.d 0xfeda49ff,r4
  move.d r4,r3
@@ -202,6 +212,7 @@
  checkr3 1
  move mof,r3
  checkr3 0
+ nop
 
  move.d 0xfeda49ff,r4
  move.d r4,r3
