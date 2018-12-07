@@ -85,12 +85,12 @@
  checkr3 1111
 
  ; check that X gets cleared and that only the NZ flags are touched.
- move.d	0xff, $r0
- move $r0, $ccs
- btst r3,r3
- move $ccs, $r0
- and.d 0xff, $r0
- cmp.d	0xe3, $r0
- test_cc 0 1 0 0
+ ;; move.d	0xff, $r0
+ ;; move $r0, $ccs
+ ;; btst r3,r3
+ ;; move $ccs, $r0
+ ;; and.d 0xff, $r0
+ ;; cmp.d	0xe3, $r0
+ ;; test_cc 0 1 0 0
 
  quit
