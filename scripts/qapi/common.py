@@ -1161,22 +1161,22 @@ class QAPISchemaBuiltinType(QAPISchemaType):
 
 
 class QAPISchemaEnumType(QAPISchemaType):
-    def __init__(self, name, info, doc, ifcond, values, prefix):
+    def __init__(self, name, info, doc, ifcond, members, prefix):
         QAPISchemaType.__init__(self, name, info, doc, ifcond)
-        for v in values:
-            assert isinstance(v, QAPISchemaMember)
-            v.set_owner(name)
+        for m in members:
+            assert isinstance(m, QAPISchemaMember)
+            m.set_owner(name)
         assert prefix is None or isinstance(prefix, str)
-        self.values = values
+        self.members = members
         self.prefix = prefix
 
     def check(self, schema):
         QAPISchemaType.check(self, schema)
         seen = {}
-        for v in self.values:
-            v.check_clash(self.info, seen)
+        for m in self.members:
+            m.check_clash(self.info, seen)
             if self.doc:
-                self.doc.connect_member(v)
+                self.doc.connect_member(m)
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_enum_type() and ._def_predefineds()
@@ -1186,7 +1186,7 @@ class QAPISchemaEnumType(QAPISchemaType):
         return c_name(self.name)
 
     def member_names(self):
-        return [v.name for v in self.values]
+        return [m.name for m in self.members]
 
     def json_type(self):
         return 'string'
@@ -1403,9 +1403,9 @@ class QAPISchemaObjectTypeVariants(object):
         if self._tag_name:    # flat union
             # branches that are not explicitly covered get an empty type
             cases = set([v.name for v in self.variants])
-            for val in self.tag_member.type.values:
-                if val.name not in cases:
-                    v = QAPISchemaObjectTypeVariant(val.name, 'q_empty')
+            for m in self.tag_member.type.members:
+                if m.name not in cases:
+                    v = QAPISchemaObjectTypeVariant(m.name, 'q_empty')
                     v.set_owner(self.tag_member.owner)
                     self.variants.append(v)
         for v in self.variants:
