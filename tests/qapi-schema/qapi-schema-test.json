@@ -210,8 +210,14 @@
 { 'union': 'TestIfUnion', 'data': { 'foo': 'TestStruct' },
   'if': 'defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)' }
 
+{ 'command': 'TestIfUnionCmd', 'data': { 'union_cmd_arg': 'TestIfUnion' },
+  'if': 'defined(TEST_IF_UNION)' }
+
 { 'alternate': 'TestIfAlternate', 'data': { 'foo': 'int', 'bar': 'TestStruct' },
   'if': 'defined(TEST_IF_ALT) && defined(TEST_IF_STRUCT)' }
+
+{ 'command': 'TestIfAlternateCmd', 'data': { 'alt_cmd_arg': 'TestIfAlternate' },
+  'if': 'defined(TEST_IF_ALT)' }
 
 { 'command': 'TestIfCmd', 'data': { 'foo': 'TestIfStruct' },
   'returns': 'UserDefThree',
