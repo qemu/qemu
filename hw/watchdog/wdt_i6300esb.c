@@ -449,7 +449,6 @@ static void i6300esb_realize(PCIDevice *dev, Error **errp)
     memory_region_init_io(&d->io_mem, OBJECT(d), &i6300esb_ops, d,
                           "i6300esb", 0x10);
     pci_register_bar(&d->dev, 0, 0, &d->io_mem);
-    /* qemu_register_coalesced_mmio (addr, 0x10); ? */
 }
 
 static void i6300esb_exit(PCIDevice *dev)
