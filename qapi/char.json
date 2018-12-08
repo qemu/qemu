@@ -25,9 +25,10 @@
 #
 # Since: 0.14.0
 ##
-{ 'struct': 'ChardevInfo', 'data': {'label': 'str',
-                                  'filename': 'str',
-                                  'frontend-open': 'bool'} }
+{ 'struct': 'ChardevInfo',
+  'data': { 'label': 'str',
+            'filename': 'str',
+            'frontend-open': 'bool' } }
 
 ##
 # @query-chardev:
@@ -152,7 +153,8 @@
 #
 ##
 { 'command': 'ringbuf-write',
-  'data': {'device': 'str', 'data': 'str',
+  'data': { 'device': 'str',
+            'data': 'str',
            '*format': 'DataFormat'} }
 
 ##
@@ -202,8 +204,9 @@
 #
 # Since: 2.6
 ##
-{ 'struct': 'ChardevCommon', 'data': { '*logfile': 'str',
-                                       '*logappend': 'bool' } }
+{ 'struct': 'ChardevCommon',
+  'data': { '*logfile': 'str',
+            '*logappend': 'bool' } }
 
 ##
 # @ChardevFile:
@@ -217,9 +220,10 @@
 #
 # Since: 1.4
 ##
-{ 'struct': 'ChardevFile', 'data': { '*in' : 'str',
-                                   'out' : 'str',
-                                   '*append': 'bool' },
+{ 'struct': 'ChardevFile',
+  'data': { '*in': 'str',
+            'out': 'str',
+            '*append': 'bool' },
   'base': 'ChardevCommon' }
 
 ##
@@ -232,7 +236,8 @@
 #
 # Since: 1.4
 ##
-{ 'struct': 'ChardevHostdev', 'data': { 'device' : 'str' },
+{ 'struct': 'ChardevHostdev',
+  'data': { 'device': 'str' },
   'base': 'ChardevCommon' }
 
 ##
@@ -260,15 +265,16 @@
 #
 # Since: 1.4
 ##
-{ 'struct': 'ChardevSocket', 'data': { 'addr'       : 'SocketAddressLegacy',
-                                     '*tls-creds'  : 'str',
-                                     '*server'    : 'bool',
-                                     '*wait'      : 'bool',
-                                     '*nodelay'   : 'bool',
-                                     '*telnet'    : 'bool',
-                                     '*tn3270'    : 'bool',
-                                     '*websocket' : 'bool',
-                                     '*reconnect' : 'int' },
+{ 'struct': 'ChardevSocket',
+  'data': { 'addr': 'SocketAddressLegacy',
+            '*tls-creds': 'str',
+            '*server': 'bool',
+            '*wait': 'bool',
+            '*nodelay': 'bool',
+            '*telnet': 'bool',
+            '*tn3270': 'bool',
+            '*websocket': 'bool',
+            '*reconnect': 'int' },
   'base': 'ChardevCommon' }
 
 ##
@@ -281,8 +287,9 @@
 #
 # Since: 1.5
 ##
-{ 'struct': 'ChardevUdp', 'data': { 'remote' : 'SocketAddressLegacy',
-                                  '*local' : 'SocketAddressLegacy' },
+{ 'struct': 'ChardevUdp',
+  'data': { 'remote': 'SocketAddressLegacy',
+            '*local': 'SocketAddressLegacy' },
   'base': 'ChardevCommon' }
 
 ##
@@ -294,7 +301,8 @@
 #
 # Since: 1.5
 ##
-{ 'struct': 'ChardevMux', 'data': { 'chardev' : 'str' },
+{ 'struct': 'ChardevMux',
+  'data': { 'chardev': 'str' },
   'base': 'ChardevCommon' }
 
 ##
@@ -308,7 +316,8 @@
 #
 # Since: 1.5
 ##
-{ 'struct': 'ChardevStdio', 'data': { '*signal' : 'bool' },
+{ 'struct': 'ChardevStdio',
+  'data': { '*signal': 'bool' },
   'base': 'ChardevCommon' }
 
 
@@ -321,7 +330,8 @@
 #
 # Since: 1.5
 ##
-{ 'struct': 'ChardevSpiceChannel', 'data': { 'type'  : 'str' },
+{ 'struct': 'ChardevSpiceChannel',
+  'data': { 'type': 'str' },
   'base': 'ChardevCommon' }
 # TODO: 'if': 'defined(CONFIG_SPICE)'
 
@@ -334,7 +344,8 @@
 #
 # Since: 1.5
 ##
-{ 'struct': 'ChardevSpicePort', 'data': { 'fqdn'  : 'str' },
+{ 'struct': 'ChardevSpicePort',
+  'data': { 'fqdn': 'str' },
   'base': 'ChardevCommon' }
 # TODO: 'if': 'defined(CONFIG_SPICE)'
 
@@ -350,10 +361,11 @@
 #
 # Since: 1.5
 ##
-{ 'struct': 'ChardevVC', 'data': { '*width'  : 'int',
-                                 '*height' : 'int',
-                                 '*cols'   : 'int',
-                                 '*rows'   : 'int' },
+{ 'struct': 'ChardevVC',
+  'data': { '*width': 'int',
+            '*height': 'int',
+            '*cols': 'int',
+            '*rows': 'int' },
   'base': 'ChardevCommon' }
 
 ##
@@ -365,7 +377,8 @@
 #
 # Since: 1.5
 ##
-{ 'struct': 'ChardevRingbuf', 'data': { '*size'  : 'int' },
+{ 'struct': 'ChardevRingbuf',
+  'data': { '*size': 'int' },
   'base': 'ChardevCommon' }
 
 ##
@@ -375,29 +388,30 @@
 #
 # Since: 1.4 (testdev since 2.2, wctablet since 2.9)
 ##
-{ 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
-                                       'serial' : 'ChardevHostdev',
-                                       'parallel': 'ChardevHostdev',
-                                       'pipe'   : 'ChardevHostdev',
-                                       'socket' : 'ChardevSocket',
-                                       'udp'    : 'ChardevUdp',
-                                       'pty'    : 'ChardevCommon',
-                                       'null'   : 'ChardevCommon',
-                                       'mux'    : 'ChardevMux',
-                                       'msmouse': 'ChardevCommon',
-                                       'wctablet' : 'ChardevCommon',
-                                       'braille': 'ChardevCommon',
-                                       'testdev': 'ChardevCommon',
-                                       'stdio'  : 'ChardevStdio',
-                                       'console': 'ChardevCommon',
-                                       'spicevmc': 'ChardevSpiceChannel',
+{ 'union': 'ChardevBackend',
+  'data': { 'file': 'ChardevFile',
+            'serial': 'ChardevHostdev',
+            'parallel': 'ChardevHostdev',
+            'pipe': 'ChardevHostdev',
+            'socket': 'ChardevSocket',
+            'udp': 'ChardevUdp',
+            'pty': 'ChardevCommon',
+            'null': 'ChardevCommon',
+            'mux': 'ChardevMux',
+            'msmouse': 'ChardevCommon',
+            'wctablet': 'ChardevCommon',
+            'braille': 'ChardevCommon',
+            'testdev': 'ChardevCommon',
+            'stdio': 'ChardevStdio',
+            'console': 'ChardevCommon',
+            'spicevmc': 'ChardevSpiceChannel',
 # TODO: { 'type': 'ChardevSpiceChannel', 'if': 'defined(CONFIG_SPICE)' },
-                                       'spiceport': 'ChardevSpicePort',
+            'spiceport': 'ChardevSpicePort',
 # TODO: { 'type': 'ChardevSpicePort', 'if': 'defined(CONFIG_SPICE)' },
-                                       'vc'     : 'ChardevVC',
-                                       'ringbuf': 'ChardevRingbuf',
-                                       # next one is just for compatibility
-                                       'memory' : 'ChardevRingbuf' } }
+            'vc': 'ChardevVC',
+            'ringbuf': 'ChardevRingbuf',
+            # next one is just for compatibility
+            'memory': 'ChardevRingbuf' } }
 
 ##
 # @ChardevReturn:
@@ -409,7 +423,8 @@
 #
 # Since: 1.4
 ##
-{ 'struct' : 'ChardevReturn', 'data': { '*pty' : 'str' } }
+{ 'struct' : 'ChardevReturn',
+  'data': { '*pty': 'str' } }
 
 ##
 # @chardev-add:
@@ -442,8 +457,9 @@
 # <- { "return": { "pty" : "/dev/pty/42" } }
 #
 ##
-{ 'command': 'chardev-add', 'data': {'id'      : 'str',
-                                     'backend' : 'ChardevBackend' },
+{ 'command': 'chardev-add',
+  'data': { 'id': 'str',
+            'backend': 'ChardevBackend' },
   'returns': 'ChardevReturn' }
 
 ##
@@ -482,8 +498,9 @@
 # <- {"return": {}}
 #
 ##
-{ 'command': 'chardev-change', 'data': {'id'      : 'str',
-                                        'backend' : 'ChardevBackend' },
+{ 'command': 'chardev-change',
+  'data': { 'id': 'str',
+            'backend': 'ChardevBackend' },
   'returns': 'ChardevReturn' }
 
 ##
@@ -503,7 +520,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'chardev-remove', 'data': {'id': 'str'} }
+{ 'command': 'chardev-remove',
+  'data': { 'id': 'str' } }
 
 ##
 # @chardev-send-break:
@@ -522,7 +540,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'chardev-send-break', 'data': {'id': 'str'} }
+{ 'command': 'chardev-send-break',
+  'data': { 'id': 'str' } }
 
 ##
 # @VSERPORT_CHANGE:
@@ -543,4 +562,5 @@
 #
 ##
 { 'event': 'VSERPORT_CHANGE',
-  'data': { 'id': 'str', 'open': 'bool' } }
+  'data': { 'id': 'str',
+            'open': 'bool' } }

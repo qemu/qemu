@@ -598,7 +598,8 @@
 # Notes:  An empty password in this command will set the password to the empty
 #         string.  Existing clients are unaffected by executing this command.
 ##
-{ 'command': 'change-vnc-password', 'data': {'password': 'str'},
+{ 'command': 'change-vnc-password',
+  'data': { 'password': 'str' },
   'if': 'defined(CONFIG_VNC)' }
 
 ##

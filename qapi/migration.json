@@ -1356,7 +1356,8 @@
 #
 # Since: 3.0
 ##
-{ 'command': 'migrate-recover', 'data': { 'uri': 'str' },
+{ 'command': 'migrate-recover',
+  'data': { 'uri': 'str' },
   'allow-oob': true }
 
 ##

@@ -1143,8 +1143,10 @@
 # This command is now obsolete and will always return an error since 2.10
 #
 ##
-{ 'command': 'block_passwd', 'data': {'*device': 'str',
-                                      '*node-name': 'str', 'password': 'str'} }
+{ 'command': 'block_passwd',
+  'data': { '*device': 'str',
+            '*node-name': 'str',
+            'password': 'str' } }
 
 ##
 # @block_resize:
@@ -1171,9 +1173,10 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'block_resize', 'data': { '*device': 'str',
-                                       '*node-name': 'str',
-                                       'size': 'int' }}
+{ 'command': 'block_resize',
+  'data': { '*device': 'str',
+            '*node-name': 'str',
+            'size': 'int' } }
 
 ##
 # @NewImageMode:
