@@ -16,6 +16,429 @@
 #include "hw/qdev-properties.h"
 #include "monitor/monitor.h"
 #include "hw/ppc/xive.h"
+#include "hw/ppc/xive_regs.h"
+
+/*
+ * XIVE Thread Interrupt Management context
+ */
+
+static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
+{
+    return 0;
+}
+
+static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
+{
+    if (cppr > XIVE_PRIORITY_MAX) {
+        cppr = 0xff;
+    }
+
+    tctx->regs[ring + TM_CPPR] = cppr;
+}
+
+/*
+ * XIVE Thread Interrupt Management Area (TIMA)
+ */
+
+/*
+ * Define an access map for each page of the TIMA that we will use in
+ * the memory region ops to filter values when doing loads and stores
+ * of raw registers values
+ *
+ * Registers accessibility bits :
+ *
+ *    0x0 - no access
+ *    0x1 - write only
+ *    0x2 - read only
+ *    0x3 - read/write
+ */
+
+static const uint8_t xive_tm_hw_view[] = {
+    /* QW-0 User */   3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0,
+    /* QW-1 OS   */   3, 3, 3, 3,   3, 3, 0, 3,   3, 3, 3, 3,   0, 0, 0, 0,
+    /* QW-2 POOL */   0, 0, 3, 3,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0,
+    /* QW-3 PHYS */   3, 3, 3, 3,   0, 3, 0, 3,   3, 0, 0, 3,   3, 3, 3, 0,
+};
+
+static const uint8_t xive_tm_hv_view[] = {
+    /* QW-0 User */   3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0,
+    /* QW-1 OS   */   3, 3, 3, 3,   3, 3, 0, 3,   3, 3, 3, 3,   0, 0, 0, 0,
+    /* QW-2 POOL */   0, 0, 3, 3,   0, 0, 0, 0,   0, 3, 3, 3,   0, 0, 0, 0,
+    /* QW-3 PHYS */   3, 3, 3, 3,   0, 3, 0, 3,   3, 0, 0, 3,   0, 0, 0, 0,
+};
+
+static const uint8_t xive_tm_os_view[] = {
+    /* QW-0 User */   3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0,
+    /* QW-1 OS   */   2, 3, 2, 2,   2, 2, 0, 2,   0, 0, 0, 0,   0, 0, 0, 0,
+    /* QW-2 POOL */   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
+    /* QW-3 PHYS */   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
+};
+
+static const uint8_t xive_tm_user_view[] = {
+    /* QW-0 User */   3, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
+    /* QW-1 OS   */   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
+    /* QW-2 POOL */   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
+    /* QW-3 PHYS */   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
+};
+
+/*
+ * Overall TIMA access map for the thread interrupt management context
+ * registers
+ */
+static const uint8_t *xive_tm_views[] = {
+    [XIVE_TM_HW_PAGE]   = xive_tm_hw_view,
+    [XIVE_TM_HV_PAGE]   = xive_tm_hv_view,
+    [XIVE_TM_OS_PAGE]   = xive_tm_os_view,
+    [XIVE_TM_USER_PAGE] = xive_tm_user_view,
+};
+
+/*
+ * Computes a register access mask for a given offset in the TIMA
+ */
+static uint64_t xive_tm_mask(hwaddr offset, unsigned size, bool write)
+{
+    uint8_t page_offset = (offset >> TM_SHIFT) & 0x3;
+    uint8_t reg_offset = offset & 0x3F;
+    uint8_t reg_mask = write ? 0x1 : 0x2;
+    uint64_t mask = 0x0;
+    int i;
+
+    for (i = 0; i < size; i++) {
+        if (xive_tm_views[page_offset][reg_offset + i] & reg_mask) {
+            mask |= (uint64_t) 0xff << (8 * (size - i - 1));
+        }
+    }
+
+    return mask;
+}
+
+static void xive_tm_raw_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
+                              unsigned size)
+{
+    uint8_t ring_offset = offset & 0x30;
+    uint8_t reg_offset = offset & 0x3F;
+    uint64_t mask = xive_tm_mask(offset, size, true);
+    int i;
+
+    /*
+     * Only 4 or 8 bytes stores are allowed and the User ring is
+     * excluded
+     */
+    if (size < 4 || !mask || ring_offset == TM_QW0_USER) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid write access at TIMA @%"
+                      HWADDR_PRIx"\n", offset);
+        return;
+    }
+
+    /*
+     * Use the register offset for the raw values and filter out
+     * reserved values
+     */
+    for (i = 0; i < size; i++) {
+        uint8_t byte_mask = (mask >> (8 * (size - i - 1)));
+        if (byte_mask) {
+            tctx->regs[reg_offset + i] = (value >> (8 * (size - i - 1))) &
+                byte_mask;
+        }
+    }
+}
+
+static uint64_t xive_tm_raw_read(XiveTCTX *tctx, hwaddr offset, unsigned size)
+{
+    uint8_t ring_offset = offset & 0x30;
+    uint8_t reg_offset = offset & 0x3F;
+    uint64_t mask = xive_tm_mask(offset, size, false);
+    uint64_t ret;
+    int i;
+
+    /*
+     * Only 4 or 8 bytes loads are allowed and the User ring is
+     * excluded
+     */
+    if (size < 4 || !mask || ring_offset == TM_QW0_USER) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid read access at TIMA @%"
+                      HWADDR_PRIx"\n", offset);
+        return -1;
+    }
+
+    /* Use the register offset for the raw values */
+    ret = 0;
+    for (i = 0; i < size; i++) {
+        ret |= (uint64_t) tctx->regs[reg_offset + i] << (8 * (size - i - 1));
+    }
+
+    /* filter out reserved values */
+    return ret & mask;
+}
+
+/*
+ * The TM context is mapped twice within each page. Stores and loads
+ * to the first mapping below 2K write and read the specified values
+ * without modification. The second mapping above 2K performs specific
+ * state changes (side effects) in addition to setting/returning the
+ * interrupt management area context of the processor thread.
+ */
+static uint64_t xive_tm_ack_os_reg(XiveTCTX *tctx, hwaddr offset, unsigned size)
+{
+    return xive_tctx_accept(tctx, TM_QW1_OS);
+}
+
+static void xive_tm_set_os_cppr(XiveTCTX *tctx, hwaddr offset,
+                                uint64_t value, unsigned size)
+{
+    xive_tctx_set_cppr(tctx, TM_QW1_OS, value & 0xff);
+}
+
+/*
+ * Define a mapping of "special" operations depending on the TIMA page
+ * offset and the size of the operation.
+ */
+typedef struct XiveTmOp {
+    uint8_t  page_offset;
+    uint32_t op_offset;
+    unsigned size;
+    void     (*write_handler)(XiveTCTX *tctx, hwaddr offset, uint64_t value,
+                              unsigned size);
+    uint64_t (*read_handler)(XiveTCTX *tctx, hwaddr offset, unsigned size);
+} XiveTmOp;
+
+static const XiveTmOp xive_tm_operations[] = {
+    /*
+     * MMIOs below 2K : raw values and special operations without side
+     * effects
+     */
+    { XIVE_TM_OS_PAGE, TM_QW1_OS + TM_CPPR,   1, xive_tm_set_os_cppr, NULL },
+
+    /* MMIOs above 2K : special operations with side effects */
+    { XIVE_TM_OS_PAGE, TM_SPC_ACK_OS_REG,     2, NULL, xive_tm_ack_os_reg },
+};
+
+static const XiveTmOp *xive_tm_find_op(hwaddr offset, unsigned size, bool write)
+{
+    uint8_t page_offset = (offset >> TM_SHIFT) & 0x3;
+    uint32_t op_offset = offset & 0xFFF;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(xive_tm_operations); i++) {
+        const XiveTmOp *xto = &xive_tm_operations[i];
+
+        /* Accesses done from a more privileged TIMA page is allowed */
+        if (xto->page_offset >= page_offset &&
+            xto->op_offset == op_offset &&
+            xto->size == size &&
+            ((write && xto->write_handler) || (!write && xto->read_handler))) {
+            return xto;
+        }
+    }
+    return NULL;
+}
+
+/*
+ * TIMA MMIO handlers
+ */
+static void xive_tm_write(void *opaque, hwaddr offset,
+                          uint64_t value, unsigned size)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
+    const XiveTmOp *xto;
+
+    /*
+     * TODO: check V bit in Q[0-3]W2, check PTER bit associated with CPU
+     */
+
+    /*
+     * First, check for special operations in the 2K region
+     */
+    if (offset & 0x800) {
+        xto = xive_tm_find_op(offset, size, true);
+        if (!xto) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid write access at TIMA"
+                          "@%"HWADDR_PRIx"\n", offset);
+        } else {
+            xto->write_handler(tctx, offset, value, size);
+        }
+        return;
+    }
+
+    /*
+     * Then, for special operations in the region below 2K.
+     */
+    xto = xive_tm_find_op(offset, size, true);
+    if (xto) {
+        xto->write_handler(tctx, offset, value, size);
+        return;
+    }
+
+    /*
+     * Finish with raw access to the register values
+     */
+    xive_tm_raw_write(tctx, offset, value, size);
+}
+
+static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
+    XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
+    const XiveTmOp *xto;
+
+    /*
+     * TODO: check V bit in Q[0-3]W2, check PTER bit associated with CPU
+     */
+
+    /*
+     * First, check for special operations in the 2K region
+     */
+    if (offset & 0x800) {
+        xto = xive_tm_find_op(offset, size, false);
+        if (!xto) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid read access to TIMA"
+                          "@%"HWADDR_PRIx"\n", offset);
+            return -1;
+        }
+        return xto->read_handler(tctx, offset, size);
+    }
+
+    /*
+     * Then, for special operations in the region below 2K.
+     */
+    xto = xive_tm_find_op(offset, size, false);
+    if (xto) {
+        return xto->read_handler(tctx, offset, size);
+    }
+
+    /*
+     * Finish with raw access to the register values
+     */
+    return xive_tm_raw_read(tctx, offset, size);
+}
+
+const MemoryRegionOps xive_tm_ops = {
+    .read = xive_tm_read,
+    .write = xive_tm_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+static inline uint32_t xive_tctx_word2(uint8_t *ring)
+{
+    return *((uint32_t *) &ring[TM_WORD2]);
+}
+
+static char *xive_tctx_ring_print(uint8_t *ring)
+{
+    uint32_t w2 = xive_tctx_word2(ring);
+
+    return g_strdup_printf("%02x   %02x  %02x    %02x   %02x  "
+                   "%02x  %02x   %02x  %08x",
+                   ring[TM_NSR], ring[TM_CPPR], ring[TM_IPB], ring[TM_LSMFB],
+                   ring[TM_ACK_CNT], ring[TM_INC], ring[TM_AGE], ring[TM_PIPR],
+                   be32_to_cpu(w2));
+}
+
+static const char * const xive_tctx_ring_names[] = {
+    "USER", "OS", "POOL", "PHYS",
+};
+
+void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
+{
+    int cpu_index = tctx->cs ? tctx->cs->cpu_index : -1;
+    int i;
+
+    monitor_printf(mon, "CPU[%04x]:   QW   NSR CPPR IPB LSMFB ACK# INC AGE PIPR"
+                   "  W2\n", cpu_index);
+
+    for (i = 0; i < XIVE_TM_RING_COUNT; i++) {
+        char *s = xive_tctx_ring_print(&tctx->regs[i * XIVE_TM_RING_SIZE]);
+        monitor_printf(mon, "CPU[%04x]: %4s    %s\n", cpu_index,
+                       xive_tctx_ring_names[i], s);
+        g_free(s);
+    }
+}
+
+static void xive_tctx_reset(void *dev)
+{
+    XiveTCTX *tctx = XIVE_TCTX(dev);
+
+    memset(tctx->regs, 0, sizeof(tctx->regs));
+
+    /* Set some defaults */
+    tctx->regs[TM_QW1_OS + TM_LSMFB] = 0xFF;
+    tctx->regs[TM_QW1_OS + TM_ACK_CNT] = 0xFF;
+    tctx->regs[TM_QW1_OS + TM_AGE] = 0xFF;
+}
+
+static void xive_tctx_realize(DeviceState *dev, Error **errp)
+{
+    XiveTCTX *tctx = XIVE_TCTX(dev);
+    PowerPCCPU *cpu;
+    CPUPPCState *env;
+    Object *obj;
+    Error *local_err = NULL;
+
+    obj = object_property_get_link(OBJECT(dev), "cpu", &local_err);
+    if (!obj) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "required link 'cpu' not found: ");
+        return;
+    }
+
+    cpu = POWERPC_CPU(obj);
+    tctx->cs = CPU(obj);
+
+    env = &cpu->env;
+    switch (PPC_INPUT(env)) {
+    case PPC_FLAGS_INPUT_POWER7:
+        tctx->output = env->irq_inputs[POWER7_INPUT_INT];
+        break;
+
+    default:
+        error_setg(errp, "XIVE interrupt controller does not support "
+                   "this CPU bus model");
+        return;
+    }
+
+    qemu_register_reset(xive_tctx_reset, dev);
+}
+
+static void xive_tctx_unrealize(DeviceState *dev, Error **errp)
+{
+    qemu_unregister_reset(xive_tctx_reset, dev);
+}
+
+static const VMStateDescription vmstate_xive_tctx = {
+    .name = TYPE_XIVE_TCTX,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_BUFFER(regs, XiveTCTX),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static void xive_tctx_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "XIVE Interrupt Thread Context";
+    dc->realize = xive_tctx_realize;
+    dc->unrealize = xive_tctx_unrealize;
+    dc->vmsd = &vmstate_xive_tctx;
+}
+
+static const TypeInfo xive_tctx_info = {
+    .name          = TYPE_XIVE_TCTX,
+    .parent        = TYPE_DEVICE,
+    .instance_size = sizeof(XiveTCTX),
+    .class_init    = xive_tctx_class_init,
+};
 
 /*
  * XIVE ESB helpers
@@ -864,6 +1287,7 @@ static void xive_register_types(void)
     type_register_static(&xive_fabric_info);
     type_register_static(&xive_router_info);
     type_register_static(&xive_end_source_info);
+    type_register_static(&xive_tctx_info);
 }
 
 type_init(xive_register_types)

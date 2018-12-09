@@ -367,4 +367,48 @@ typedef struct XiveENDSource {
 void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
 void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon);
 
+/*
+ * XIVE Thread interrupt Management (TM) context
+ */
+
+#define TYPE_XIVE_TCTX "xive-tctx"
+#define XIVE_TCTX(obj) OBJECT_CHECK(XiveTCTX, (obj), TYPE_XIVE_TCTX)
+
+/*
+ * XIVE Thread interrupt Management register rings :
+ *
+ *   QW-0  User       event-based exception state
+ *   QW-1  O/S        OS context for priority management, interrupt acks
+ *   QW-2  Pool       hypervisor pool context for virtual processors dispatched
+ *   QW-3  Physical   physical thread context and security context
+ */
+#define XIVE_TM_RING_COUNT      4
+#define XIVE_TM_RING_SIZE       0x10
+
+typedef struct XiveTCTX {
+    DeviceState parent_obj;
+
+    CPUState    *cs;
+    qemu_irq    output;
+
+    uint8_t     regs[XIVE_TM_RING_COUNT * XIVE_TM_RING_SIZE];
+} XiveTCTX;
+
+/*
+ * XIVE Thread Interrupt Management Aera (TIMA)
+ *
+ * This region gives access to the registers of the thread interrupt
+ * management context. It is four page wide, each page providing a
+ * different view of the registers. The page with the lower offset is
+ * the most privileged and gives access to the entire context.
+ */
+#define XIVE_TM_HW_PAGE         0x0
+#define XIVE_TM_HV_PAGE         0x1
+#define XIVE_TM_OS_PAGE         0x2
+#define XIVE_TM_USER_PAGE       0x3
+
+extern const MemoryRegionOps xive_tm_ops;
+
+void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon);
+
 #endif /* PPC_XIVE_H */
