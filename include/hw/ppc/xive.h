@@ -325,6 +325,10 @@ typedef struct XiveRouterClass {
                    XiveEND *end);
     int (*write_end)(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
                      XiveEND *end, uint8_t word_number);
+    int (*get_nvt)(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
+                   XiveNVT *nvt);
+    int (*write_nvt)(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
+                     XiveNVT *nvt, uint8_t word_number);
 } XiveRouterClass;
 
 void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon);
@@ -335,6 +339,11 @@ int xive_router_get_end(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
                         XiveEND *end);
 int xive_router_write_end(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
                           XiveEND *end, uint8_t word_number);
+int xive_router_get_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
+                        XiveNVT *nvt);
+int xive_router_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
+                          XiveNVT *nvt, uint8_t word_number);
+
 
 /*
  * XIVE END ESBs
@@ -410,5 +419,10 @@ typedef struct XiveTCTX {
 extern const MemoryRegionOps xive_tm_ops;
 
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon);
+
+static inline uint32_t xive_nvt_cam_line(uint8_t nvt_blk, uint32_t nvt_idx)
+{
+    return (nvt_blk << 19) | nvt_idx;
+}
 
 #endif /* PPC_XIVE_H */
