@@ -613,8 +613,18 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
      * even futher coalescing in the Router
      */
     if (!xive_end_is_notify(&end)) {
-        qemu_log_mask(LOG_UNIMP, "XIVE: !UCOND_NOTIFY not implemented\n");
-        return;
+        uint8_t pq = xive_get_field32(END_W1_ESn, end.w1);
+        bool notify = xive_esb_trigger(&pq);
+
+        if (pq != xive_get_field32(END_W1_ESn, end.w1)) {
+            end.w1 = xive_set_field32(END_W1_ESn, end.w1, pq);
+            xive_router_write_end(xrtr, end_blk, end_idx, &end, 1);
+        }
+
+        /* ESn[Q]=1 : end of notification */
+        if (!notify) {
+            return;
+        }
     }
 
     /*
@@ -695,6 +705,151 @@ void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon)
 }
 
 /*
+ * END ESB MMIO loads
+ */
+static uint64_t xive_end_source_read(void *opaque, hwaddr addr, unsigned size)
+{
+    XiveENDSource *xsrc = XIVE_END_SOURCE(opaque);
+    uint32_t offset = addr & 0xFFF;
+    uint8_t end_blk;
+    uint32_t end_idx;
+    XiveEND end;
+    uint32_t end_esmask;
+    uint8_t pq;
+    uint64_t ret = -1;
+
+    end_blk = xsrc->block_id;
+    end_idx = addr >> (xsrc->esb_shift + 1);
+
+    if (xive_router_get_end(xsrc->xrtr, end_blk, end_idx, &end)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No END %x/%x\n", end_blk,
+                      end_idx);
+        return -1;
+    }
+
+    if (!xive_end_is_valid(&end)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: END %x/%x is invalid\n",
+                      end_blk, end_idx);
+        return -1;
+    }
+
+    end_esmask = addr_is_even(addr, xsrc->esb_shift) ? END_W1_ESn : END_W1_ESe;
+    pq = xive_get_field32(end_esmask, end.w1);
+
+    switch (offset) {
+    case XIVE_ESB_LOAD_EOI ... XIVE_ESB_LOAD_EOI + 0x7FF:
+        ret = xive_esb_eoi(&pq);
+
+        /* Forward the source event notification for routing ?? */
+        break;
+
+    case XIVE_ESB_GET ... XIVE_ESB_GET + 0x3FF:
+        ret = pq;
+        break;
+
+    case XIVE_ESB_SET_PQ_00 ... XIVE_ESB_SET_PQ_00 + 0x0FF:
+    case XIVE_ESB_SET_PQ_01 ... XIVE_ESB_SET_PQ_01 + 0x0FF:
+    case XIVE_ESB_SET_PQ_10 ... XIVE_ESB_SET_PQ_10 + 0x0FF:
+    case XIVE_ESB_SET_PQ_11 ... XIVE_ESB_SET_PQ_11 + 0x0FF:
+        ret = xive_esb_set(&pq, (offset >> 8) & 0x3);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid END ESB load addr %d\n",
+                      offset);
+        return -1;
+    }
+
+    if (pq != xive_get_field32(end_esmask, end.w1)) {
+        end.w1 = xive_set_field32(end_esmask, end.w1, pq);
+        xive_router_write_end(xsrc->xrtr, end_blk, end_idx, &end, 1);
+    }
+
+    return ret;
+}
+
+/*
+ * END ESB MMIO stores are invalid
+ */
+static void xive_end_source_write(void *opaque, hwaddr addr,
+                                  uint64_t value, unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid ESB write addr 0x%"
+                  HWADDR_PRIx"\n", addr);
+}
+
+static const MemoryRegionOps xive_end_source_ops = {
+    .read = xive_end_source_read,
+    .write = xive_end_source_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 8,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 8,
+        .max_access_size = 8,
+    },
+};
+
+static void xive_end_source_realize(DeviceState *dev, Error **errp)
+{
+    XiveENDSource *xsrc = XIVE_END_SOURCE(dev);
+    Object *obj;
+    Error *local_err = NULL;
+
+    obj = object_property_get_link(OBJECT(dev), "xive", &local_err);
+    if (!obj) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "required link 'xive' not found: ");
+        return;
+    }
+
+    xsrc->xrtr = XIVE_ROUTER(obj);
+
+    if (!xsrc->nr_ends) {
+        error_setg(errp, "Number of interrupt needs to be greater than 0");
+        return;
+    }
+
+    if (xsrc->esb_shift != XIVE_ESB_4K &&
+        xsrc->esb_shift != XIVE_ESB_64K) {
+        error_setg(errp, "Invalid ESB shift setting");
+        return;
+    }
+
+    /*
+     * Each END is assigned an even/odd pair of MMIO pages, the even page
+     * manages the ESn field while the odd page manages the ESe field.
+     */
+    memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
+                          &xive_end_source_ops, xsrc, "xive.end",
+                          (1ull << (xsrc->esb_shift + 1)) * xsrc->nr_ends);
+}
+
+static Property xive_end_source_properties[] = {
+    DEFINE_PROP_UINT8("block-id", XiveENDSource, block_id, 0),
+    DEFINE_PROP_UINT32("nr-ends", XiveENDSource, nr_ends, 0),
+    DEFINE_PROP_UINT32("shift", XiveENDSource, esb_shift, XIVE_ESB_64K),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void xive_end_source_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc    = "XIVE END Source";
+    dc->props   = xive_end_source_properties;
+    dc->realize = xive_end_source_realize;
+}
+
+static const TypeInfo xive_end_source_info = {
+    .name          = TYPE_XIVE_END_SOURCE,
+    .parent        = TYPE_DEVICE,
+    .instance_size = sizeof(XiveENDSource),
+    .class_init    = xive_end_source_class_init,
+};
+
+/*
  * XIVE Fabric
  */
 static const TypeInfo xive_fabric_info = {
@@ -708,6 +863,7 @@ static void xive_register_types(void)
     type_register_static(&xive_source_info);
     type_register_static(&xive_fabric_info);
     type_register_static(&xive_router_info);
+    type_register_static(&xive_end_source_info);
 }
 
 type_init(xive_register_types)
