@@ -22,9 +22,75 @@
  * XIVE Thread Interrupt Management context
  */
 
+/*
+ * Convert a priority number to an Interrupt Pending Buffer (IPB)
+ * register, which indicates a pending interrupt at the priority
+ * corresponding to the bit number
+ */
+static uint8_t priority_to_ipb(uint8_t priority)
+{
+    return priority > XIVE_PRIORITY_MAX ?
+        0 : 1 << (XIVE_PRIORITY_MAX - priority);
+}
+
+/*
+ * Convert an Interrupt Pending Buffer (IPB) register to a Pending
+ * Interrupt Priority Register (PIPR), which contains the priority of
+ * the most favored pending notification.
+ */
+static uint8_t ipb_to_pipr(uint8_t ibp)
+{
+    return ibp ? clz32((uint32_t)ibp << 24) : 0xff;
+}
+
+static void ipb_update(uint8_t *regs, uint8_t priority)
+{
+    regs[TM_IPB] |= priority_to_ipb(priority);
+    regs[TM_PIPR] = ipb_to_pipr(regs[TM_IPB]);
+}
+
+static uint8_t exception_mask(uint8_t ring)
+{
+    switch (ring) {
+    case TM_QW1_OS:
+        return TM_QW1_NSR_EO;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
 {
-    return 0;
+    uint8_t *regs = &tctx->regs[ring];
+    uint8_t nsr = regs[TM_NSR];
+    uint8_t mask = exception_mask(ring);
+
+    qemu_irq_lower(tctx->output);
+
+    if (regs[TM_NSR] & mask) {
+        uint8_t cppr = regs[TM_PIPR];
+
+        regs[TM_CPPR] = cppr;
+
+        /* Reset the pending buffer bit */
+        regs[TM_IPB] &= ~priority_to_ipb(cppr);
+        regs[TM_PIPR] = ipb_to_pipr(regs[TM_IPB]);
+
+        /* Drop Exception bit */
+        regs[TM_NSR] &= ~mask;
+    }
+
+    return (nsr << 8) | regs[TM_CPPR];
+}
+
+static void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring)
+{
+    uint8_t *regs = &tctx->regs[ring];
+
+    if (regs[TM_PIPR] < regs[TM_CPPR]) {
+        regs[TM_NSR] |= exception_mask(ring);
+        qemu_irq_raise(tctx->output);
+    }
 }
 
 static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
@@ -34,6 +100,9 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
     }
 
     tctx->regs[ring + TM_CPPR] = cppr;
+
+    /* CPPR has changed, check if we need to raise a pending exception */
+    xive_tctx_notify(tctx, ring);
 }
 
 /*
@@ -190,6 +259,17 @@ static void xive_tm_set_os_cppr(XiveTCTX *tctx, hwaddr offset,
 }
 
 /*
+ * Adjust the IPB to allow a CPU to process event queues of other
+ * priorities during one physical interrupt cycle.
+ */
+static void xive_tm_set_os_pending(XiveTCTX *tctx, hwaddr offset,
+                                   uint64_t value, unsigned size)
+{
+    ipb_update(&tctx->regs[TM_QW1_OS], value & 0xff);
+    xive_tctx_notify(tctx, TM_QW1_OS);
+}
+
+/*
  * Define a mapping of "special" operations depending on the TIMA page
  * offset and the size of the operation.
  */
@@ -211,6 +291,7 @@ static const XiveTmOp xive_tm_operations[] = {
 
     /* MMIOs above 2K : special operations with side effects */
     { XIVE_TM_OS_PAGE, TM_SPC_ACK_OS_REG,     2, NULL, xive_tm_ack_os_reg },
+    { XIVE_TM_OS_PAGE, TM_SPC_SET_OS_PENDING, 1, xive_tm_set_os_pending, NULL },
 };
 
 static const XiveTmOp *xive_tm_find_op(hwaddr offset, unsigned size, bool write)
@@ -373,6 +454,13 @@ static void xive_tctx_reset(void *dev)
     tctx->regs[TM_QW1_OS + TM_LSMFB] = 0xFF;
     tctx->regs[TM_QW1_OS + TM_ACK_CNT] = 0xFF;
     tctx->regs[TM_QW1_OS + TM_AGE] = 0xFF;
+
+    /*
+     * Initialize PIPR to 0xFF to avoid phantom interrupts when the
+     * CPPR is first set.
+     */
+    tctx->regs[TM_QW1_OS + TM_PIPR] =
+        ipb_to_pipr(tctx->regs[TM_QW1_OS + TM_IPB]);
 }
 
 static void xive_tctx_realize(DeviceState *dev, Error **errp)
@@ -1155,8 +1243,14 @@ static void xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
     found = xive_presenter_match(xrtr, format, nvt_blk, nvt_idx, cam_ignore,
                                  priority, logic_serv, &match);
     if (found) {
+        ipb_update(&match.tctx->regs[match.ring], priority);
+        xive_tctx_notify(match.tctx, match.ring);
         return;
     }
+
+    /* Record the IPB in the associated NVT structure */
+    ipb_update((uint8_t *) &nvt.w4, priority);
+    xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
 
     /*
      * If no matching NVT is dispatched on a HW thread :
