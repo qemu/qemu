@@ -27,6 +27,26 @@
 #define SPAPR_XIVE_TM_BASE   0x0006030203180000ull
 
 /*
+ * The allocation of VP blocks is a complex operation in OPAL and the
+ * VP identifiers have a relation with the number of HW chips, the
+ * size of the VP blocks, VP grouping, etc. The QEMU sPAPR XIVE
+ * controller model does not have the same constraints and can use a
+ * simple mapping scheme of the CPU vcpu_id
+ *
+ * These identifiers are never returned to the OS.
+ */
+
+#define SPAPR_XIVE_NVT_BASE 0x400
+
+/*
+ * sPAPR NVT and END indexing helpers
+ */
+static uint32_t spapr_xive_nvt_to_target(uint8_t nvt_blk, uint32_t nvt_idx)
+{
+    return nvt_idx - SPAPR_XIVE_NVT_BASE;
+}
+
+/*
  * On sPAPR machines, use a simplified output for the XIVE END
  * structure dumping only the information related to the OS EQ.
  */
@@ -40,7 +60,8 @@ static void spapr_xive_end_pic_print_info(sPAPRXive *xive, XiveEND *end,
     uint32_t nvt = xive_get_field32(END_W6_NVT_INDEX, end->w6);
     uint8_t priority = xive_get_field32(END_W7_F0_PRIORITY, end->w7);
 
-    monitor_printf(mon, "%3d/%d % 6d/%5d ^%d", nvt,
+    monitor_printf(mon, "%3d/%d % 6d/%5d ^%d",
+                   spapr_xive_nvt_to_target(0, nvt),
                    priority, qindex, qentries, qgen);
 
     xive_end_queue_pic_print_info(end, 6, mon);
@@ -246,6 +267,37 @@ static int spapr_xive_write_end(XiveRouter *xrtr, uint8_t end_blk,
     return 0;
 }
 
+static int spapr_xive_get_nvt(XiveRouter *xrtr,
+                              uint8_t nvt_blk, uint32_t nvt_idx, XiveNVT *nvt)
+{
+    uint32_t vcpu_id = spapr_xive_nvt_to_target(nvt_blk, nvt_idx);
+    PowerPCCPU *cpu = spapr_find_cpu(vcpu_id);
+
+    if (!cpu) {
+        /* TODO: should we assert() if we can find a NVT ? */
+        return -1;
+    }
+
+    /*
+     * sPAPR does not maintain a NVT table. Return that the NVT is
+     * valid if we have found a matching CPU
+     */
+    nvt->w0 = cpu_to_be32(NVT_W0_VALID);
+    return 0;
+}
+
+static int spapr_xive_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk,
+                                uint32_t nvt_idx, XiveNVT *nvt,
+                                uint8_t word_number)
+{
+    /*
+     * We don't need to write back to the NVTs because the sPAPR
+     * machine should never hit a non-scheduled NVT. It should never
+     * get called.
+     */
+    g_assert_not_reached();
+}
+
 static const VMStateDescription vmstate_spapr_xive_end = {
     .name = TYPE_SPAPR_XIVE "/end",
     .version_id = 1,
@@ -308,6 +360,8 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     xrc->get_eas = spapr_xive_get_eas;
     xrc->get_end = spapr_xive_get_end;
     xrc->write_end = spapr_xive_write_end;
+    xrc->get_nvt = spapr_xive_get_nvt;
+    xrc->write_nvt = spapr_xive_write_nvt;
 }
 
 static const TypeInfo spapr_xive_info = {
