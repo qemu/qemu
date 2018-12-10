@@ -297,7 +297,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
 #ifdef CONFIG_USER_ONLY
     cc->handle_mmu_fault = mb_cpu_handle_mmu_fault;
 #else
-    cc->do_unassigned_access = mb_cpu_unassigned_access;
+    cc->do_transaction_failed = mb_cpu_transaction_failed;
     cc->get_phys_page_debug = mb_cpu_get_phys_page_debug;
 #endif
     dc->vmsd = &vmstate_mb_cpu;
