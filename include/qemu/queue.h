@@ -350,22 +350,20 @@ struct {                                                                \
 /*
  * Tail queue definitions.
  */
-#define Q_TAILQ_HEAD(name, type, qual)                                  \
+#define QTAILQ_HEAD(name, type)                                         \
 struct name {                                                           \
-        qual type *tqh_first;           /* first element */             \
-        qual type *qual *tqh_last;      /* addr of last next element */ \
+        type *tqh_first;      /* first element */                       \
+        type **tqh_last;      /* addr of last next element */           \
 }
-#define QTAILQ_HEAD(name, type)  Q_TAILQ_HEAD(name, struct type,)
 
 #define QTAILQ_HEAD_INITIALIZER(head)                                   \
         { NULL, &(head).tqh_first }
 
-#define Q_TAILQ_ENTRY(type, qual)                                       \
+#define QTAILQ_ENTRY(type)                                              \
 struct {                                                                \
-        qual type *tqe_next;            /* next element */              \
-        qual type *qual *tqe_prev;      /* address of previous next element */\
+        type *tqe_next;       /* next element */                   \
+        type **tqe_prev;      /* address of previous next element */    \
 }
-#define QTAILQ_ENTRY(type)       Q_TAILQ_ENTRY(struct type,)
 
 /*
  * Tail queue functions.

@@ -92,11 +92,6 @@ struct {                                                                \
 /*
  * Tail queue definitions.
  */
-#define Q_TAILQ_HEAD(name, type, qual)                                  \
-struct name {                                                           \
-        qual type *tqh_first;           /* first element */             \
-        qual type *qual *tqh_last;      /* addr of last next element */ \
-}
 #define QTAILQ_HEAD(name, type)                                         \
 struct name {                                                           \
         type *tqh_first;      /* first element */                       \
@@ -106,11 +101,6 @@ struct name {                                                           \
 #define QTAILQ_HEAD_INITIALIZER(head)                                   \
         { NULL, &(head).tqh_first }
 
-#define Q_TAILQ_ENTRY(type, qual)                                       \
-struct {                                                                \
-        qual type *tqe_next;            /* next element */              \
-        qual type *qual *tqe_prev;      /* address of previous next element */\
-}
 #define QTAILQ_ENTRY(type)                                              \
 struct {                                                                \
         type *tqe_next;       /* next element */                        \
