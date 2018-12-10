@@ -979,6 +979,7 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     int64_t total_size;
     int disk_type;
     int ret = -EIO;
+    QemuUUID uuid;
 
     assert(opts->driver == BLOCKDEV_DRIVER_VPC);
     vpc_opts = &opts->u.vpc;
@@ -1062,7 +1063,8 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
 
     footer->type = cpu_to_be32(disk_type);
 
-    qemu_uuid_generate(&footer->uuid);
+    qemu_uuid_generate(&uuid);
+    footer->uuid = uuid;
 
     footer->checksum = cpu_to_be32(vpc_checksum(buf, HEADER_SIZE));
 
