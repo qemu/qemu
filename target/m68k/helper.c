@@ -651,6 +651,7 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
     bool debug = access_type & ACCESS_DEBUG;
     int page_bits;
     int i;
+    MemTxResult txres;
 
     /* Transparent Translation (physical = logical) */
     for (i = 0; i < M68K_MAX_TTR; i++) {
@@ -680,12 +681,19 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
     /* Root Index */
     entry = M68K_POINTER_BASE(next) | M68K_ROOT_INDEX(address);
 
-    next = ldl_phys(cs->as, entry);
+    next = address_space_ldl(cs->as, entry, MEMTXATTRS_UNSPECIFIED, &txres);
+    if (txres != MEMTX_OK) {
+        goto txfail;
+    }
     if (!M68K_UDT_VALID(next)) {
         return -1;
     }
     if (!(next & M68K_DESC_USED) && !debug) {
-        stl_phys(cs->as, entry, next | M68K_DESC_USED);
+        address_space_stl(cs->as, entry, next | M68K_DESC_USED,
+                          MEMTXATTRS_UNSPECIFIED, &txres);
+        if (txres != MEMTX_OK) {
+            goto txfail;
+        }
     }
     if (next & M68K_DESC_WRITEPROT) {
         if (access_type & ACCESS_PTEST) {
@@ -700,12 +708,19 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
     /* Pointer Index */
     entry = M68K_POINTER_BASE(next) | M68K_POINTER_INDEX(address);
 
-    next = ldl_phys(cs->as, entry);
+    next = address_space_ldl(cs->as, entry, MEMTXATTRS_UNSPECIFIED, &txres);
+    if (txres != MEMTX_OK) {
+        goto txfail;
+    }
     if (!M68K_UDT_VALID(next)) {
         return -1;
     }
     if (!(next & M68K_DESC_USED) && !debug) {
-        stl_phys(cs->as, entry, next | M68K_DESC_USED);
+        address_space_stl(cs->as, entry, next | M68K_DESC_USED,
+                          MEMTXATTRS_UNSPECIFIED, &txres);
+        if (txres != MEMTX_OK) {
+            goto txfail;
+        }
     }
     if (next & M68K_DESC_WRITEPROT) {
         if (access_type & ACCESS_PTEST) {
@@ -724,27 +739,46 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
         entry = M68K_4K_PAGE_BASE(next) | M68K_4K_PAGE_INDEX(address);
     }
 
-    next = ldl_phys(cs->as, entry);
+    next = address_space_ldl(cs->as, entry, MEMTXATTRS_UNSPECIFIED, &txres);
+    if (txres != MEMTX_OK) {
+        goto txfail;
+    }
 
     if (!M68K_PDT_VALID(next)) {
         return -1;
     }
     if (M68K_PDT_INDIRECT(next)) {
-        next = ldl_phys(cs->as, M68K_INDIRECT_POINTER(next));
+        next = address_space_ldl(cs->as, M68K_INDIRECT_POINTER(next),
+                                 MEMTXATTRS_UNSPECIFIED, &txres);
+        if (txres != MEMTX_OK) {
+            goto txfail;
+        }
     }
     if (access_type & ACCESS_STORE) {
         if (next & M68K_DESC_WRITEPROT) {
             if (!(next & M68K_DESC_USED) && !debug) {
-                stl_phys(cs->as, entry, next | M68K_DESC_USED);
+                address_space_stl(cs->as, entry, next | M68K_DESC_USED,
+                                  MEMTXATTRS_UNSPECIFIED, &txres);
+                if (txres != MEMTX_OK) {
+                    goto txfail;
+                }
             }
         } else if ((next & (M68K_DESC_MODIFIED | M68K_DESC_USED)) !=
                            (M68K_DESC_MODIFIED | M68K_DESC_USED) && !debug) {
-                stl_phys(cs->as, entry,
-                         next | (M68K_DESC_MODIFIED | M68K_DESC_USED));
+            address_space_stl(cs->as, entry,
+                              next | (M68K_DESC_MODIFIED | M68K_DESC_USED),
+                              MEMTXATTRS_UNSPECIFIED, &txres);
+            if (txres != MEMTX_OK) {
+                goto txfail;
+            }
         }
     } else {
         if (!(next & M68K_DESC_USED) && !debug) {
-            stl_phys(cs->as, entry, next | M68K_DESC_USED);
+            address_space_stl(cs->as, entry, next | M68K_DESC_USED,
+                              MEMTXATTRS_UNSPECIFIED, &txres);
+            if (txres != MEMTX_OK) {
+                goto txfail;
+            }
         }
     }
 
@@ -776,6 +810,14 @@ static int get_physical_address(CPUM68KState *env, hwaddr *physical,
     }
 
     return 0;
+
+txfail:
+    /*
+     * A page table load/store failed. TODO: we should really raise a
+     * suitable guest fault here if this is not a debug access.
+     * For now just return that the translation failed.
+     */
+    return -1;
 }
 
 hwaddr m68k_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
