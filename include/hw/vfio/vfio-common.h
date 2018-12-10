@@ -181,7 +181,6 @@ int vfio_get_device(VFIOGroup *group, const char *name,
 
 extern const MemoryRegionOps vfio_region_ops;
 extern QLIST_HEAD(vfio_group_head, VFIOGroup) vfio_group_list;
-extern QLIST_HEAD(vfio_as_head, VFIOAddressSpace) vfio_address_spaces;
 
 #ifdef CONFIG_LINUX
 int vfio_get_region_info(VFIODevice *vbasedev, int index,
