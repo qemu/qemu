@@ -287,18 +287,18 @@ static int virtio_ccw_handle_set_vq(SubchDev *sch, CCW1 ccw, bool check_len,
     }
     if (is_legacy) {
         ccw_dstream_read(&sch->cds, linfo);
-        be64_to_cpus(&linfo.queue);
-        be32_to_cpus(&linfo.align);
-        be16_to_cpus(&linfo.index);
-        be16_to_cpus(&linfo.num);
+        linfo.queue = be64_to_cpu(linfo.queue);
+        linfo.align = be32_to_cpu(linfo.align);
+        linfo.index = be16_to_cpu(linfo.index);
+        linfo.num = be16_to_cpu(linfo.num);
         ret = virtio_ccw_set_vqs(sch, NULL, &linfo);
     } else {
         ccw_dstream_read(&sch->cds, info);
-        be64_to_cpus(&info.desc);
-        be16_to_cpus(&info.index);
-        be16_to_cpus(&info.num);
-        be64_to_cpus(&info.avail);
-        be64_to_cpus(&info.used);
+        info.desc = be64_to_cpu(info.desc);
+        info.index = be16_to_cpu(info.index);
+        info.num = be16_to_cpu(info.num);
+        info.avail = be64_to_cpu(info.avail);
+        info.used = be64_to_cpu(info.used);
         ret = virtio_ccw_set_vqs(sch, &info, NULL);
     }
     sch->curr_status.scsw.count = 0;
@@ -382,7 +382,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 features.features = 0;
             }
             ccw_dstream_rewind(&sch->cds);
-            cpu_to_le32s(&features.features);
+            features.features = cpu_to_le32(features.features);
             ccw_dstream_write(&sch->cds, features.features);
             sch->curr_status.scsw.count = ccw.count - sizeof(features);
             ret = 0;
@@ -403,7 +403,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             ccw_dstream_read(&sch->cds, features);
-            le32_to_cpus(&features.features);
+            features.features = le32_to_cpu(features.features);
             if (features.index == 0) {
                 virtio_set_features(vdev,
                                     (vdev->guest_features & 0xffffffff00000000ULL) |
@@ -546,7 +546,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             ccw_dstream_read(&sch->cds, indicators);
-            be64_to_cpus(&indicators);
+            indicators = be64_to_cpu(indicators);
             dev->indicators = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
             ret = 0;
@@ -567,7 +567,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             ccw_dstream_read(&sch->cds, indicators);
-            be64_to_cpus(&indicators);
+            indicators = be64_to_cpu(indicators);
             dev->indicators2 = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
             ret = 0;
@@ -588,14 +588,14 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = -EFAULT;
         } else {
             ccw_dstream_read(&sch->cds, vq_config.index);
-            be16_to_cpus(&vq_config.index);
+            vq_config.index = be16_to_cpu(vq_config.index);
             if (vq_config.index >= VIRTIO_QUEUE_MAX) {
                 ret = -EINVAL;
                 break;
             }
             vq_config.num_max = virtio_queue_get_num(vdev,
                                                      vq_config.index);
-            cpu_to_be16s(&vq_config.num_max);
+            vq_config.num_max = cpu_to_be16(vq_config.num_max);
             ccw_dstream_write(&sch->cds, vq_config.num_max);
             sch->curr_status.scsw.count = ccw.count - sizeof(vq_config);
             ret = 0;
@@ -621,9 +621,11 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             if (ccw_dstream_read(&sch->cds, thinint)) {
                 ret = -EFAULT;
             } else {
-                be64_to_cpus(&thinint.ind_bit);
-                be64_to_cpus(&thinint.summary_indicator);
-                be64_to_cpus(&thinint.device_indicator);
+                thinint.ind_bit = be64_to_cpu(thinint.ind_bit);
+                thinint.summary_indicator =
+                    be64_to_cpu(thinint.summary_indicator);
+                thinint.device_indicator =
+                    be64_to_cpu(thinint.device_indicator);
 
                 dev->summary_indicator =
                     get_indicator(thinint.summary_indicator, sizeof(uint8_t));
@@ -654,8 +656,8 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             break;
         }
         ccw_dstream_read_buf(&sch->cds, &revinfo, 4);
-        be16_to_cpus(&revinfo.revision);
-        be16_to_cpus(&revinfo.length);
+        revinfo.revision = be16_to_cpu(revinfo.revision);
+        revinfo.length = be16_to_cpu(revinfo.length);
         if (ccw.count < len + revinfo.length ||
             (check_len && ccw.count > len + revinfo.length)) {
             ret = -EINVAL;
