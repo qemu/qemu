@@ -203,10 +203,10 @@ static void vdi_header_to_cpu(VdiHeader *header)
     header->block_extra = le32_to_cpu(header->block_extra);
     header->blocks_in_image = le32_to_cpu(header->blocks_in_image);
     header->blocks_allocated = le32_to_cpu(header->blocks_allocated);
-    qemu_uuid_bswap(&header->uuid_image);
-    qemu_uuid_bswap(&header->uuid_last_snap);
-    qemu_uuid_bswap(&header->uuid_link);
-    qemu_uuid_bswap(&header->uuid_parent);
+    header->uuid_image = qemu_uuid_bswap(header->uuid_image);
+    header->uuid_last_snap = qemu_uuid_bswap(header->uuid_last_snap);
+    header->uuid_link = qemu_uuid_bswap(header->uuid_link);
+    header->uuid_parent = qemu_uuid_bswap(header->uuid_parent);
 }
 
 static void vdi_header_to_le(VdiHeader *header)
@@ -227,10 +227,10 @@ static void vdi_header_to_le(VdiHeader *header)
     header->block_extra = cpu_to_le32(header->block_extra);
     header->blocks_in_image = cpu_to_le32(header->blocks_in_image);
     header->blocks_allocated = cpu_to_le32(header->blocks_allocated);
-    qemu_uuid_bswap(&header->uuid_image);
-    qemu_uuid_bswap(&header->uuid_last_snap);
-    qemu_uuid_bswap(&header->uuid_link);
-    qemu_uuid_bswap(&header->uuid_parent);
+    header->uuid_image = qemu_uuid_bswap(header->uuid_image);
+    header->uuid_last_snap = qemu_uuid_bswap(header->uuid_last_snap);
+    header->uuid_link = qemu_uuid_bswap(header->uuid_link);
+    header->uuid_parent = qemu_uuid_bswap(header->uuid_parent);
 }
 
 static void vdi_header_print(VdiHeader *header)

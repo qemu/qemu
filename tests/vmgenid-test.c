@@ -88,7 +88,7 @@ static void read_guid_from_memory(QTestState *qts, QemuUUID *guid)
     /* The GUID is in little-endian format in the guest, while QEMU
      * uses big-endian.  Swap after reading.
      */
-    qemu_uuid_bswap(guid);
+    *guid = qemu_uuid_bswap(*guid);
 }
 
 static void read_guid_from_monitor(QTestState *qts, QemuUUID *guid)
