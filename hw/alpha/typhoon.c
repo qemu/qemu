@@ -75,7 +75,9 @@ static void cpu_irq_change(AlphaCPU *cpu, uint64_t req)
     }
 }
 
-static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
+static MemTxResult cchip_read(void *opaque, hwaddr addr,
+                              uint64_t *data, unsigned size,
+                              MemTxAttrs attrs)
 {
     CPUState *cpu = current_cpu;
     TyphoonState *s = opaque;
@@ -196,11 +198,11 @@ static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     default:
-        cpu_unassigned_access(cpu, addr, false, false, 0, size);
-        return -1;
+        return MEMTX_ERROR;
     }
 
-    return ret;
+    *data = ret;
+    return MEMTX_OK;
 }
 
 static uint64_t dchip_read(void *opaque, hwaddr addr, unsigned size)
@@ -209,7 +211,8 @@ static uint64_t dchip_read(void *opaque, hwaddr addr, unsigned size)
     return 0;
 }
 
-static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
+static MemTxResult pchip_read(void *opaque, hwaddr addr, uint64_t *data,
+                              unsigned size, MemTxAttrs attrs)
 {
     TyphoonState *s = opaque;
     uint64_t ret = 0;
@@ -294,15 +297,16 @@ static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     default:
-        cpu_unassigned_access(current_cpu, addr, false, false, 0, size);
-        return -1;
+        return MEMTX_ERROR;
     }
 
-    return ret;
+    *data = ret;
+    return MEMTX_OK;
 }
 
-static void cchip_write(void *opaque, hwaddr addr,
-                        uint64_t val, unsigned size)
+static MemTxResult cchip_write(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned size,
+                               MemTxAttrs attrs)
 {
     TyphoonState *s = opaque;
     uint64_t oldval, newval;
@@ -446,9 +450,10 @@ static void cchip_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
-        return;
+        return MEMTX_ERROR;
     }
+
+    return MEMTX_OK;
 }
 
 static void dchip_write(void *opaque, hwaddr addr,
@@ -457,8 +462,9 @@ static void dchip_write(void *opaque, hwaddr addr,
     /* Skip this.  It's all related to DRAM timing and setup.  */
 }
 
-static void pchip_write(void *opaque, hwaddr addr,
-                        uint64_t val, unsigned size)
+static MemTxResult pchip_write(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned size,
+                               MemTxAttrs attrs)
 {
     TyphoonState *s = opaque;
     uint64_t oldval;
@@ -553,14 +559,15 @@ static void pchip_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
-        return;
+        return MEMTX_ERROR;
     }
+
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps cchip_ops = {
-    .read = cchip_read,
-    .write = cchip_write,
+    .read_with_attrs = cchip_read,
+    .write_with_attrs = cchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 8,
@@ -587,8 +594,8 @@ static const MemoryRegionOps dchip_ops = {
 };
 
 static const MemoryRegionOps pchip_ops = {
-    .read = pchip_read,
-    .write = pchip_write,
+    .read_with_attrs = pchip_read,
+    .write_with_attrs = pchip_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 8,
