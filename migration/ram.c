@@ -316,6 +316,8 @@ struct RAMState {
     uint32_t last_version;
     /* We are in the first round */
     bool ram_bulk_stage;
+    /* The free page optimization is enabled */
+    bool fpo_enabled;
     /* How many times we have dirty too many pages */
     int dirty_rate_high_cnt;
     /* these variables are used for bitmap sync */
@@ -378,6 +380,15 @@ int precopy_notify(PrecopyNotifyReason reason, Error **errp)
     pnd.errp = errp;
 
     return notifier_with_return_list_notify(&precopy_notifier_list, &pnd);
+}
+
+void precopy_enable_free_page_optimization(void)
+{
+    if (!ram_state) {
+        return;
+    }
+
+    ram_state->fpo_enabled = true;
 }
 
 uint64_t ram_bytes_remaining(void)
@@ -1601,7 +1612,11 @@ unsigned long migration_bitmap_find_dirty(RAMState *rs, RAMBlock *rb,
         return size;
     }
 
-    if (rs->ram_bulk_stage && start > 0) {
+    /*
+     * When the free page optimization is enabled, we need to check the bitmap
+     * to send the non-free pages rather than all the pages in the bulk stage.
+     */
+    if (!rs->fpo_enabled && rs->ram_bulk_stage && start > 0) {
         next = start + 1;
     } else {
         next = find_next_bit(bitmap, size, start);
@@ -2651,6 +2666,7 @@ static void ram_state_reset(RAMState *rs)
     rs->last_page = 0;
     rs->last_version = ram_list.version;
     rs->ram_bulk_stage = true;
+    rs->fpo_enabled = false;
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
