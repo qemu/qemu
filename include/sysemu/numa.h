@@ -9,7 +9,7 @@
 extern int nb_numa_nodes;   /* Number of NUMA nodes */
 extern bool have_numa_distance;
 
-struct node_info {
+struct NodeInfo {
     uint64_t node_mem;
     struct HostMemoryBackend *node_memdev;
     bool present;

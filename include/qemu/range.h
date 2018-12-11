@@ -39,7 +39,7 @@ struct Range {
     uint64_t upb;        /* inclusive upper bound */
 };
 
-static inline void range_invariant(Range *range)
+static inline void range_invariant(const Range *range)
 {
     assert(range->lob <= range->upb || range->lob == range->upb + 1);
 }
@@ -48,14 +48,14 @@ static inline void range_invariant(Range *range)
 #define range_empty ((Range){ .lob = 1, .upb = 0 })
 
 /* Is @range empty? */
-static inline bool range_is_empty(Range *range)
+static inline bool range_is_empty(const Range *range)
 {
     range_invariant(range);
     return range->lob > range->upb;
 }
 
 /* Does @range contain @val? */
-static inline bool range_contains(Range *range, uint64_t val)
+static inline bool range_contains(const Range *range, uint64_t val)
 {
     return val >= range->lob && val <= range->upb;
 }

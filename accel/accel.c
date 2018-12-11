@@ -34,6 +34,7 @@
 #include "qom/object.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
+#include "qapi/error.h"
 
 static const TypeInfo accel_type = {
     .name = TYPE_ACCEL,
@@ -121,7 +122,13 @@ void configure_accelerator(MachineState *ms)
 void accel_register_compat_props(AccelState *accel)
 {
     AccelClass *class = ACCEL_GET_CLASS(accel);
-    register_compat_props_array(class->global_props);
+    GlobalProperty *prop = class->global_props;
+
+    for (; prop && prop->driver; prop++) {
+        /* Any compat_props must never cause error */
+        prop->errp = &error_abort;
+        qdev_prop_register_global(prop);
+    }
 }
 
 void accel_setup_post(MachineState *ms)

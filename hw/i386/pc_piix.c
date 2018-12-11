@@ -239,7 +239,8 @@ static void pc_init1(MachineState *machine,
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, pcms->gsi, &rtc_state, true,
-                         (pcms->vmport != ON_OFF_AUTO_ON), pcms->pit, 0x4);
+                         (pcms->vmport != ON_OFF_AUTO_ON), pcms->pit_enabled,
+                         0x4);
 
     pc_nic_init(pcmc, isa_bus, pci_bus);
 
@@ -320,7 +321,6 @@ static void pc_compat_2_3(MachineState *machine)
 static void pc_compat_2_2(MachineState *machine)
 {
     pc_compat_2_3(machine);
-    machine->suppress_vmdesc = true;
 }
 
 static void pc_compat_2_1(MachineState *machine)
@@ -428,11 +428,22 @@ static void pc_i440fx_machine_options(MachineClass *m)
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);
 }
 
-static void pc_i440fx_3_1_machine_options(MachineClass *m)
+static void pc_i440fx_4_0_machine_options(MachineClass *m)
 {
     pc_i440fx_machine_options(m);
     m->alias = "pc";
     m->is_default = 1;
+}
+
+DEFINE_I440FX_MACHINE(v4_0, "pc-i440fx-4.0", NULL,
+                      pc_i440fx_4_0_machine_options);
+
+static void pc_i440fx_3_1_machine_options(MachineClass *m)
+{
+    pc_i440fx_4_0_machine_options(m);
+    m->is_default = 0;
+    m->alias = NULL;
+    SET_MACHINE_COMPAT(m, PC_COMPAT_3_1);
 }
 
 DEFINE_I440FX_MACHINE(v3_1, "pc-i440fx-3.1", NULL,
@@ -441,8 +452,6 @@ DEFINE_I440FX_MACHINE(v3_1, "pc-i440fx-3.1", NULL,
 static void pc_i440fx_3_0_machine_options(MachineClass *m)
 {
     pc_i440fx_3_1_machine_options(m);
-    m->is_default = 0;
-    m->alias = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_3_0);
 }
 
@@ -562,6 +571,7 @@ static void pc_i440fx_2_2_machine_options(MachineClass *m)
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_i440fx_2_3_machine_options(m);
     m->hw_version = "2.2.0";
+    m->default_machine_opts = "firmware=bios-256k.bin,suppress-vmdesc=on";
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_2);
     pcmc->rsdp_in_ram = false;
 }

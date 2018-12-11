@@ -49,9 +49,9 @@ struct PCMachineState {
     AcpiNVDIMMState acpi_nvdimm_state;
 
     bool acpi_build_enabled;
-    bool smbus;
-    bool sata;
-    bool pit;
+    bool smbus_enabled;
+    bool sata_enabled;
+    bool pit_enabled;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
@@ -293,6 +293,9 @@ void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
 int e820_add_entry(uint64_t, uint64_t, uint32_t);
 int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
+
+#define PC_COMPAT_3_1 \
+    HW_COMPAT_3_1 \
 
 #define PC_COMPAT_3_0 \
     HW_COMPAT_3_0 \

@@ -85,7 +85,8 @@ static void memory_device_check_addable(MachineState *ms, uint64_t size,
 
     /* will we exceed the total amount of memory specified */
     memory_device_used_region_size(OBJECT(ms), &used_region_size);
-    if (used_region_size + size > ms->maxram_size - ms->ram_size) {
+    if (used_region_size + size < used_region_size ||
+        used_region_size + size > ms->maxram_size - ms->ram_size) {
         error_setg(errp, "not enough space, currently 0x%" PRIx64
                    " in use of total space for memory devices 0x" RAM_ADDR_FMT,
                    used_region_size, ms->maxram_size - ms->ram_size);
@@ -120,7 +121,7 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
     g_assert(address_space_end >= address_space_start);
 
     /* address_space_start indicates the maximum alignment we expect */
-    if (QEMU_ALIGN_UP(address_space_start, align) != address_space_start) {
+    if (!QEMU_IS_ALIGNED(address_space_start, align)) {
         error_setg(errp, "the alignment (0x%" PRIx64 ") is not supported",
                    align);
         return 0;
@@ -131,13 +132,13 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
         return 0;
     }
 
-    if (hint && QEMU_ALIGN_UP(*hint, align) != *hint) {
+    if (hint && !QEMU_IS_ALIGNED(*hint, align)) {
         error_setg(errp, "address must be aligned to 0x%" PRIx64 " bytes",
                    align);
         return 0;
     }
 
-    if (QEMU_ALIGN_UP(size, align) != size) {
+    if (!QEMU_IS_ALIGNED(size, align)) {
         error_setg(errp, "backend memory size must be multiple of 0x%"
                    PRIx64, align);
         return 0;

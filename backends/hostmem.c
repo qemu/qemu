@@ -103,14 +103,23 @@ host_memory_backend_set_host_nodes(Object *obj, Visitor *v, const char *name,
 {
 #ifdef CONFIG_NUMA
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-    uint16List *l = NULL;
+    uint16List *l, *host_nodes = NULL;
 
-    visit_type_uint16List(v, name, &l, errp);
+    visit_type_uint16List(v, name, &host_nodes, errp);
 
-    while (l) {
-        bitmap_set(backend->host_nodes, l->value, 1);
-        l = l->next;
+    for (l = host_nodes; l; l = l->next) {
+        if (l->value >= MAX_NODES) {
+            error_setg(errp, "Invalid host-nodes value: %d", l->value);
+            goto out;
+        }
     }
+
+    for (l = host_nodes; l; l = l->next) {
+        bitmap_set(backend->host_nodes, l->value, 1);
+    }
+
+out:
+    qapi_free_uint16List(host_nodes);
 #else
     error_setg(errp, "NUMA node binding are not supported by this QEMU");
 #endif

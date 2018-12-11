@@ -15,9 +15,7 @@
     INTERFACE_CHECK(InterruptStatsProvider, (obj), \
                     TYPE_INTERRUPT_STATS_PROVIDER)
 
-typedef struct InterruptStatsProvider {
-    Object parent;
-} InterruptStatsProvider;
+typedef struct InterruptStatsProvider InterruptStatsProvider;
 
 typedef struct InterruptStatsProviderClass {
     InterfaceClass parent;

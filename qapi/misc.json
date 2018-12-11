@@ -1109,13 +1109,17 @@
 ##
 # @cpu-add:
 #
-# Adds CPU with specified ID
+# Adds CPU with specified ID.
 #
 # @id: ID of CPU to be created, valid values [0..max_cpus)
 #
 # Returns: Nothing on success
 #
 # Since: 1.5
+#
+# Note: This command is deprecated.  The `device_add` command should be
+#       used instead.  See the `query-hotpluggable-cpus` command for
+#       details.
 #
 # Example:
 #
@@ -3218,6 +3222,8 @@
 
 ##
 # @query-hotpluggable-cpus:
+#
+# TODO: Better documentation; currently there is none.
 #
 # Returns: a list of HotpluggableCPU objects.
 #

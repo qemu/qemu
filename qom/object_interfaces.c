@@ -8,18 +8,10 @@
 #include "qapi/opts-visitor.h"
 #include "qemu/config-file.h"
 
-void user_creatable_complete(Object *obj, Error **errp)
+void user_creatable_complete(UserCreatable *uc, Error **errp)
 {
+    UserCreatableClass *ucc = USER_CREATABLE_GET_CLASS(uc);
 
-    UserCreatableClass *ucc;
-    UserCreatable *uc =
-        (UserCreatable *)object_dynamic_cast(obj, TYPE_USER_CREATABLE);
-
-    if (!uc) {
-        return;
-    }
-
-    ucc = USER_CREATABLE_GET_CLASS(uc);
     if (ucc->complete) {
         ucc->complete(uc, errp);
     }
@@ -89,7 +81,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
         goto out;
     }
 
-    user_creatable_complete(obj, &local_err);
+    user_creatable_complete(USER_CREATABLE(obj), &local_err);
     if (local_err) {
         object_property_del(object_get_objects_root(),
                             id, &error_abort);

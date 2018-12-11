@@ -121,6 +121,11 @@ replaced by the ``target'' output member.
 The @option{[hub_id name]} parameter tuple of the 'hostfwd_add' and
 'hostfwd_remove' HMP commands has been replaced by @option{netdev_id}.
 
+@subsection cpu-add (since 3.1)
+
+Use ``device_add'' for hotplugging vCPUs instead of ``cpu-add''.  See
+documentation of ``query-hotpluggable-cpus'' for additional details.
+
 @section System emulator devices
 
 @subsection ivshmem (since 2.6.0)

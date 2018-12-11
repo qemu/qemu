@@ -33,9 +33,7 @@ typedef enum TPMVersion {
 #define TPM_IF(obj)                             \
     INTERFACE_CHECK(TPMIf, (obj), TYPE_TPM_IF)
 
-typedef struct TPMIf {
-    Object parent_obj;
-} TPMIf;
+typedef struct TPMIf TPMIf;
 
 typedef struct TPMIfClass {
     InterfaceClass parent_class;
