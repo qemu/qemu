@@ -244,7 +244,8 @@ void xics_spapr_init(sPAPRMachineState *spapr)
     spapr_register_hypercall(H_IPOLL, h_ipoll);
 }
 
-void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle)
+void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
+                   uint32_t phandle)
 {
     uint32_t interrupt_server_ranges_prop[] = {
         0, cpu_to_be32(nr_servers),

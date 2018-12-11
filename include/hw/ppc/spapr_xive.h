@@ -45,5 +45,7 @@ qemu_irq spapr_xive_qirq(sPAPRXive *xive, uint32_t lisn);
 typedef struct sPAPRMachineState sPAPRMachineState;
 
 void spapr_xive_hcall_init(sPAPRMachineState *spapr);
+void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
+                   uint32_t phandle);
 
 #endif /* PPC_SPAPR_XIVE_H */

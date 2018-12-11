@@ -181,8 +181,6 @@ typedef struct XICSFabricClass {
     ICPState *(*icp_get)(XICSFabric *xi, int server);
 } XICSFabricClass;
 
-void spapr_dt_xics(int nr_servers, void *fdt, uint32_t phandle);
-
 ICPState *xics_icp_get(XICSFabric *xi, int server);
 
 /* Internal XICS interfaces */
@@ -204,6 +202,8 @@ void icp_resend(ICPState *ss);
 
 typedef struct sPAPRMachineState sPAPRMachineState;
 
+void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
+                   uint32_t phandle);
 int xics_kvm_init(sPAPRMachineState *spapr, Error **errp);
 void xics_spapr_init(sPAPRMachineState *spapr);
 
