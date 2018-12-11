@@ -221,6 +221,10 @@ static inline int bitmap_intersects(const unsigned long *src1,
 
 static inline long bitmap_count_one(const unsigned long *bitmap, long nbits)
 {
+    if (unlikely(!nbits)) {
+        return 0;
+    }
+
     if (small_nbits(nbits)) {
         return ctpopl(*bitmap & BITMAP_LAST_WORD_MASK(nbits));
     } else {
