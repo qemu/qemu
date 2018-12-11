@@ -354,6 +354,32 @@ typedef struct RAMState RAMState;
 
 static RAMState *ram_state;
 
+static NotifierWithReturnList precopy_notifier_list;
+
+void precopy_infrastructure_init(void)
+{
+    notifier_with_return_list_init(&precopy_notifier_list);
+}
+
+void precopy_add_notifier(NotifierWithReturn *n)
+{
+    notifier_with_return_list_add(&precopy_notifier_list, n);
+}
+
+void precopy_remove_notifier(NotifierWithReturn *n)
+{
+    notifier_with_return_remove(n);
+}
+
+int precopy_notify(PrecopyNotifyReason reason, Error **errp)
+{
+    PrecopyNotifyData pnd;
+    pnd.reason = reason;
+    pnd.errp = errp;
+
+    return notifier_with_return_list_notify(&precopy_notifier_list, &pnd);
+}
+
 uint64_t ram_bytes_remaining(void)
 {
     return ram_state ? (ram_state->migration_dirty_pages * TARGET_PAGE_SIZE) :
@@ -1741,6 +1767,25 @@ static void migration_bitmap_sync(RAMState *rs)
     }
 }
 
+static void migration_bitmap_sync_precopy(RAMState *rs)
+{
+    Error *local_err = NULL;
+
+    /*
+     * The current notifier usage is just an optimization to migration, so we
+     * don't stop the normal migration process in the error case.
+     */
+    if (precopy_notify(PRECOPY_NOTIFY_BEFORE_BITMAP_SYNC, &local_err)) {
+        error_report_err(local_err);
+    }
+
+    migration_bitmap_sync(rs);
+
+    if (precopy_notify(PRECOPY_NOTIFY_AFTER_BITMAP_SYNC, &local_err)) {
+        error_report_err(local_err);
+    }
+}
+
 /**
  * save_zero_page_to_file: send the zero page to the file
  *
@@ -3123,7 +3168,7 @@ static void ram_init_bitmaps(RAMState *rs)
 
     ram_list_init_bitmaps();
     memory_global_dirty_log_start();
-    migration_bitmap_sync(rs);
+    migration_bitmap_sync_precopy(rs);
 
     rcu_read_unlock();
     qemu_mutex_unlock_ramlist();
@@ -3403,7 +3448,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     rcu_read_lock();
 
     if (!migration_in_postcopy()) {
-        migration_bitmap_sync(rs);
+        migration_bitmap_sync_precopy(rs);
     }
 
     ram_control_before_iterate(f, RAM_CONTROL_FINISH);
@@ -3452,7 +3497,7 @@ static void ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
         remaining_size < max_size) {
         qemu_mutex_lock_iothread();
         rcu_read_lock();
-        migration_bitmap_sync(rs);
+        migration_bitmap_sync_precopy(rs);
         rcu_read_unlock();
         qemu_mutex_unlock_iothread();
         remaining_size = rs->migration_dirty_pages * TARGET_PAGE_SIZE;
