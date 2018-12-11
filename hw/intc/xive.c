@@ -528,6 +528,28 @@ static const TypeInfo xive_tctx_info = {
     .class_init    = xive_tctx_class_init,
 };
 
+Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
+{
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = object_new(TYPE_XIVE_TCTX);
+    object_property_add_child(cpu, TYPE_XIVE_TCTX, obj, &error_abort);
+    object_unref(obj);
+    object_property_add_const_link(obj, "cpu", cpu, &error_abort);
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        goto error;
+    }
+
+    return obj;
+
+error:
+    object_unparent(obj);
+    error_propagate(errp, local_err);
+    return NULL;
+}
+
 /*
  * XIVE ESB helpers
  */
