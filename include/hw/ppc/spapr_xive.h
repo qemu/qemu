@@ -42,4 +42,8 @@ bool spapr_xive_irq_free(sPAPRXive *xive, uint32_t lisn);
 void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon);
 qemu_irq spapr_xive_qirq(sPAPRXive *xive, uint32_t lisn);
 
+typedef struct sPAPRMachineState sPAPRMachineState;
+
+void spapr_xive_hcall_init(sPAPRMachineState *spapr);
+
 #endif /* PPC_SPAPR_XIVE_H */

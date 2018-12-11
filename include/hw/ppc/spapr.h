@@ -452,7 +452,20 @@ struct sPAPRMachineState {
 #define H_INVALIDATE_PID        0x378
 #define H_REGISTER_PROC_TBL     0x37C
 #define H_SIGNAL_SYS_RESET      0x380
-#define MAX_HCALL_OPCODE        H_SIGNAL_SYS_RESET
+
+#define H_INT_GET_SOURCE_INFO   0x3A8
+#define H_INT_SET_SOURCE_CONFIG 0x3AC
+#define H_INT_GET_SOURCE_CONFIG 0x3B0
+#define H_INT_GET_QUEUE_INFO    0x3B4
+#define H_INT_SET_QUEUE_CONFIG  0x3B8
+#define H_INT_GET_QUEUE_CONFIG  0x3BC
+#define H_INT_SET_OS_REPORTING_LINE 0x3C0
+#define H_INT_GET_OS_REPORTING_LINE 0x3C4
+#define H_INT_ESB               0x3C8
+#define H_INT_SYNC              0x3CC
+#define H_INT_RESET             0x3D0
+
+#define MAX_HCALL_OPCODE        H_INT_RESET
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.

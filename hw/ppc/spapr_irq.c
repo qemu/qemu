@@ -239,6 +239,8 @@ static void spapr_irq_init_xive(sPAPRMachineState *spapr, Error **errp)
     for (i = 0; i < nr_servers; ++i) {
         spapr_xive_irq_claim(spapr->xive, SPAPR_IRQ_IPI + i, false);
     }
+
+    spapr_xive_hcall_init(spapr);
 }
 
 static int spapr_irq_claim_xive(sPAPRMachineState *spapr, int irq, bool lsi,
