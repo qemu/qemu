@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/smbios/ipmi.h"
+#include "smbios_ipmi.h"
 
 void smbios_build_type_38_table(void)
 {
