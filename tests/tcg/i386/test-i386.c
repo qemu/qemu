@@ -1137,7 +1137,7 @@ void test_xchg(void)
     TEST_XCHG(xchgb, "b", "+q");
 
 #if defined(__x86_64__)
-    TEST_XCHG(xchgq, "", "=m");
+    TEST_XCHG(xchgq, "", "+m");
 #endif
     TEST_XCHG(xchgl, "k", "+m");
     TEST_XCHG(xchgw, "w", "+m");

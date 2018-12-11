@@ -288,10 +288,6 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
     }
 
     for (i = 0; i < queues; i++) {
-        if (peers[i] == NULL) {
-            err = -ENOENT;
-            goto out;
-        }
 
         if (peers[i]->peer) {
             err = -EEXIST;
