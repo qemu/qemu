@@ -47,5 +47,6 @@ typedef struct sPAPRMachineState sPAPRMachineState;
 void spapr_xive_hcall_init(sPAPRMachineState *spapr);
 void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle);
+void spapr_xive_set_tctx_os_cam(XiveTCTX *tctx);
 
 #endif /* PPC_SPAPR_XIVE_H */

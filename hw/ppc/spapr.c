@@ -1619,6 +1619,12 @@ static void spapr_machine_reset(void)
 
     qemu_devices_reset();
 
+    /*
+     * This is fixing some of the default configuration of the XIVE
+     * devices. To be called after the reset of the machine devices.
+     */
+    spapr_irq_reset(spapr, &error_fatal);
+
     /* DRC reset may cause a device to be unplugged. This will cause troubles
      * if this device is used by another device (eg, a running vhost backend
      * will crash QEMU if the DIMM holding the vring goes away). To avoid such

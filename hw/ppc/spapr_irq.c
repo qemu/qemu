@@ -305,12 +305,31 @@ static void spapr_irq_print_info_xive(sPAPRMachineState *spapr,
 static Object *spapr_irq_cpu_intc_create_xive(sPAPRMachineState *spapr,
                                               Object *cpu, Error **errp)
 {
-    return xive_tctx_create(cpu, XIVE_ROUTER(spapr->xive), errp);
+    Object *obj = xive_tctx_create(cpu, XIVE_ROUTER(spapr->xive), errp);
+
+    /*
+     * (TCG) Early setting the OS CAM line for hotplugged CPUs as they
+     * don't benificiate from the reset of the XIVE IRQ backend
+     */
+    spapr_xive_set_tctx_os_cam(XIVE_TCTX(obj));
+    return obj;
 }
 
 static int spapr_irq_post_load_xive(sPAPRMachineState *spapr, int version_id)
 {
     return 0;
+}
+
+static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
+{
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        /* (TCG) Set the OS CAM line of the thread interrupt context. */
+        spapr_xive_set_tctx_os_cam(XIVE_TCTX(cpu->intc));
+    }
 }
 
 /*
@@ -333,6 +352,7 @@ sPAPRIrq spapr_irq_xive = {
     .dt_populate = spapr_dt_xive,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xive,
     .post_load   = spapr_irq_post_load_xive,
+    .reset       = spapr_irq_reset_xive,
 };
 
 /*
@@ -376,6 +396,15 @@ int spapr_irq_post_load(sPAPRMachineState *spapr, int version_id)
     sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
     return smc->irq->post_load(spapr, version_id);
+}
+
+void spapr_irq_reset(sPAPRMachineState *spapr, Error **errp)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+
+    if (smc->irq->reset) {
+        smc->irq->reset(spapr, errp);
+    }
 }
 
 /*

@@ -44,6 +44,7 @@ typedef struct sPAPRIrq {
     Object *(*cpu_intc_create)(sPAPRMachineState *spapr, Object *cpu,
                                Error **errp);
     int (*post_load)(sPAPRMachineState *spapr, int version_id);
+    void (*reset)(sPAPRMachineState *spapr, Error **errp);
 } sPAPRIrq;
 
 extern sPAPRIrq spapr_irq_xics;
@@ -55,6 +56,7 @@ int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp);
 void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num);
 qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq);
 int spapr_irq_post_load(sPAPRMachineState *spapr, int version_id);
+void spapr_irq_reset(sPAPRMachineState *spapr, Error **errp);
 
 /*
  * XICS legacy routines

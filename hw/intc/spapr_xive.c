@@ -179,6 +179,23 @@ static void spapr_xive_map_mmio(sPAPRXive *xive)
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 2, xive->tm_base);
 }
 
+/*
+ * When a Virtual Processor is scheduled to run on a HW thread, the
+ * hypervisor pushes its identifier in the OS CAM line. Emulate the
+ * same behavior under QEMU.
+ */
+void spapr_xive_set_tctx_os_cam(XiveTCTX *tctx)
+{
+    uint8_t  nvt_blk;
+    uint32_t nvt_idx;
+    uint32_t nvt_cam;
+
+    spapr_xive_cpu_to_nvt(POWERPC_CPU(tctx->cs), &nvt_blk, &nvt_idx);
+
+    nvt_cam = cpu_to_be32(TM_QW1W2_VO | xive_nvt_cam_line(nvt_blk, nvt_idx));
+    memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &nvt_cam, 4);
+}
+
 static void spapr_xive_end_reset(XiveEND *end)
 {
     memset(end, 0, sizeof(*end));
