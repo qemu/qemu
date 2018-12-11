@@ -28,7 +28,6 @@
 #include "hw/loader.h"
 #include "exec/cpu-common.h"
 #include "smbios_build.h"
-#include "smbios_ipmi.h"
 
 /* legacy structures and constants for <= 2.0 machines */
 struct smbios_header {

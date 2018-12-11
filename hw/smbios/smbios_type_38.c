@@ -12,7 +12,6 @@
 #include "hw/smbios/smbios.h"
 #include "qemu/error-report.h"
 #include "smbios_build.h"
-#include "smbios_ipmi.h"
 
 /* SMBIOS type 38 - IPMI */
 struct smbios_type_38 {
