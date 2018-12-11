@@ -3611,15 +3611,16 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
         if (arg != TCG_CALL_DUMMY_ARG) {
             ts = arg_temp(arg);
             reg = tcg_target_call_iarg_regs[i];
-            tcg_reg_free(s, reg, allocated_regs);
 
             if (ts->val_type == TEMP_VAL_REG) {
                 if (ts->reg != reg) {
+                    tcg_reg_free(s, reg, allocated_regs);
                     tcg_out_mov(s, ts->type, reg, ts->reg);
                 }
             } else {
                 TCGRegSet arg_set = 0;
 
+                tcg_reg_free(s, reg, allocated_regs);
                 tcg_regset_set_reg(arg_set, reg);
                 temp_load(s, ts, arg_set, allocated_regs, 0);
             }
