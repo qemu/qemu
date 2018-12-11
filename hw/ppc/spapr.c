@@ -1730,14 +1730,6 @@ static int spapr_post_load(void *opaque, int version_id)
         return err;
     }
 
-    if (!object_dynamic_cast(OBJECT(spapr->ics), TYPE_ICS_KVM)) {
-        CPUState *cs;
-        CPU_FOREACH(cs) {
-            PowerPCCPU *cpu = POWERPC_CPU(cs);
-            icp_resend(ICP(cpu->intc));
-        }
-    }
-
     /* In earlier versions, there was no separate qdev for the PAPR
      * RTC, so the RTC offset was stored directly in sPAPREnvironment.
      * So when migrating from those versions, poke the incoming offset
@@ -1756,6 +1748,11 @@ static int spapr_post_load(void *opaque, int version_id)
             error_report("Process table config unsupported by the host");
             return -EINVAL;
         }
+    }
+
+    err = spapr_irq_post_load(spapr, version_id);
+    if (err) {
+        return err;
     }
 
     return err;
