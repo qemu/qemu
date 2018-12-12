@@ -335,6 +335,21 @@ extern const size_t pc_compat_2_2_len;
 extern GlobalProperty pc_compat_2_1[];
 extern const size_t pc_compat_2_1_len;
 
+extern GlobalProperty pc_compat_2_0[];
+extern const size_t pc_compat_2_0_len;
+
+extern GlobalProperty pc_compat_1_7[];
+extern const size_t pc_compat_1_7_len;
+
+extern GlobalProperty pc_compat_1_6[];
+extern const size_t pc_compat_1_6_len;
+
+extern GlobalProperty pc_compat_1_5[];
+extern const size_t pc_compat_1_5_len;
+
+extern GlobalProperty pc_compat_1_4[];
+extern const size_t pc_compat_1_4_len;
+
 /* Helper for setting model-id for CPU models that changed model-id
  * depending on QEMU versions up to QEMU 2.4.
  */
@@ -353,227 +368,6 @@ extern const size_t pc_compat_2_1_len;
         .driver   = "athlon-" TYPE_X86_CPU,\
         .property = "model-id",\
         .value    = "QEMU Virtual CPU version " v,\
-    },
-
-#define PC_COMPAT_2_0 \
-    PC_CPU_MODEL_IDS("2.0.0") \
-    {\
-        .driver   = "virtio-scsi-pci",\
-        .property = "any_layout",\
-        .value    = "off",\
-    },{\
-        .driver   = "PIIX4_PM",\
-        .property = "memory-hotplug-support",\
-        .value    = "off",\
-    },\
-    {\
-        .driver   = "apic",\
-        .property = "version",\
-        .value    = stringify(0x11),\
-    },\
-    {\
-        .driver   = "nec-usb-xhci",\
-        .property = "superspeed-ports-first",\
-        .value    = "off",\
-    },\
-    {\
-        .driver   = "nec-usb-xhci",\
-        .property = "force-pcie-endcap",\
-        .value    = "on",\
-    },\
-    {\
-        .driver   = "pci-serial",\
-        .property = "prog_if",\
-        .value    = stringify(0),\
-    },\
-    {\
-        .driver   = "pci-serial-2x",\
-        .property = "prog_if",\
-        .value    = stringify(0),\
-    },\
-    {\
-        .driver   = "pci-serial-4x",\
-        .property = "prog_if",\
-        .value    = stringify(0),\
-    },\
-    {\
-        .driver   = "virtio-net-pci",\
-        .property = "guest_announce",\
-        .value    = "off",\
-    },\
-    {\
-        .driver   = "ICH9-LPC",\
-        .property = "memory-hotplug-support",\
-        .value    = "off",\
-    },{\
-        .driver   = "xio3130-downstream",\
-        .property = COMPAT_PROP_PCP,\
-        .value    = "off",\
-    },{\
-        .driver   = "ioh3420",\
-        .property = COMPAT_PROP_PCP,\
-        .value    = "off",\
-    },
-
-#define PC_COMPAT_1_7 \
-    PC_CPU_MODEL_IDS("1.7.0") \
-    {\
-        .driver   = TYPE_USB_DEVICE,\
-        .property = "msos-desc",\
-        .value    = "no",\
-    },\
-    {\
-        .driver   = "PIIX4_PM",\
-        .property = "acpi-pci-hotplug-with-bridge-support",\
-        .value    = "off",\
-    },\
-    {\
-        .driver   = "hpet",\
-        .property = HPET_INTCAP,\
-        .value    = stringify(4),\
-    },
-
-#define PC_COMPAT_1_6 \
-    PC_CPU_MODEL_IDS("1.6.0") \
-    {\
-        .driver   = "e1000",\
-        .property = "mitigation",\
-        .value    = "off",\
-    },{\
-        .driver   = "qemu64-" TYPE_X86_CPU,\
-        .property = "model",\
-        .value    = stringify(2),\
-    },{\
-        .driver   = "qemu32-" TYPE_X86_CPU,\
-        .property = "model",\
-        .value    = stringify(3),\
-    },{\
-        .driver   = "i440FX-pcihost",\
-        .property = "short_root_bus",\
-        .value    = stringify(1),\
-    },{\
-        .driver   = "q35-pcihost",\
-        .property = "short_root_bus",\
-        .value    = stringify(1),\
-    },
-
-#define PC_COMPAT_1_5 \
-    PC_CPU_MODEL_IDS("1.5.0") \
-    {\
-        .driver   = "Conroe-" TYPE_X86_CPU,\
-        .property = "model",\
-        .value    = stringify(2),\
-    },{\
-        .driver   = "Conroe-" TYPE_X86_CPU,\
-        .property = "min-level",\
-        .value    = stringify(2),\
-    },{\
-        .driver   = "Penryn-" TYPE_X86_CPU,\
-        .property = "model",\
-        .value    = stringify(2),\
-    },{\
-        .driver   = "Penryn-" TYPE_X86_CPU,\
-        .property = "min-level",\
-        .value    = stringify(2),\
-    },{\
-        .driver   = "Nehalem-" TYPE_X86_CPU,\
-        .property = "model",\
-        .value    = stringify(2),\
-    },{\
-        .driver   = "Nehalem-" TYPE_X86_CPU,\
-        .property = "min-level",\
-        .value    = stringify(2),\
-    },{\
-        .driver   = "virtio-net-pci",\
-        .property = "any_layout",\
-        .value    = "off",\
-    },{\
-        .driver = TYPE_X86_CPU,\
-        .property = "pmu",\
-        .value = "on",\
-    },{\
-        .driver   = "i440FX-pcihost",\
-        .property = "short_root_bus",\
-        .value    = stringify(0),\
-    },{\
-        .driver   = "q35-pcihost",\
-        .property = "short_root_bus",\
-        .value    = stringify(0),\
-    },
-
-#define PC_COMPAT_1_4 \
-    PC_CPU_MODEL_IDS("1.4.0") \
-    {\
-        .driver   = "scsi-hd",\
-        .property = "discard_granularity",\
-        .value    = stringify(0),\
-    },{\
-        .driver   = "scsi-cd",\
-        .property = "discard_granularity",\
-        .value    = stringify(0),\
-    },{\
-        .driver   = "scsi-disk",\
-        .property = "discard_granularity",\
-        .value    = stringify(0),\
-    },{\
-        .driver   = "ide-hd",\
-        .property = "discard_granularity",\
-        .value    = stringify(0),\
-    },{\
-        .driver   = "ide-cd",\
-        .property = "discard_granularity",\
-        .value    = stringify(0),\
-    },{\
-        .driver   = "ide-drive",\
-        .property = "discard_granularity",\
-        .value    = stringify(0),\
-    },{\
-        .driver   = "virtio-blk-pci",\
-        .property = "discard_granularity",\
-        .value    = stringify(0),\
-    },{\
-        .driver   = "virtio-serial-pci",\
-        .property = "vectors",\
-        /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */\
-        .value    = stringify(0xFFFFFFFF),\
-    },{ \
-        .driver   = "virtio-net-pci", \
-        .property = "ctrl_guest_offloads", \
-        .value    = "off", \
-    },{\
-        .driver   = "e1000",\
-        .property = "romfile",\
-        .value    = "pxe-e1000.rom",\
-    },{\
-        .driver   = "ne2k_pci",\
-        .property = "romfile",\
-        .value    = "pxe-ne2k_pci.rom",\
-    },{\
-        .driver   = "pcnet",\
-        .property = "romfile",\
-        .value    = "pxe-pcnet.rom",\
-    },{\
-        .driver   = "rtl8139",\
-        .property = "romfile",\
-        .value    = "pxe-rtl8139.rom",\
-    },{\
-        .driver   = "virtio-net-pci",\
-        .property = "romfile",\
-        .value    = "pxe-virtio.rom",\
-    },{\
-        .driver   = "486-" TYPE_X86_CPU,\
-        .property = "model",\
-        .value    = stringify(0),\
-    },\
-    {\
-        .driver = "n270" "-" TYPE_X86_CPU,\
-        .property = "movbe",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Westmere" "-" TYPE_X86_CPU,\
-        .property = "pclmulqdq",\
-        .value = "off",\
     },
 
 #define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
