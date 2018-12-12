@@ -482,8 +482,8 @@ static const MemoryRegionOps shpc_mmio_ops = {
         .max_access_size = 4,
     },
 };
-static void shpc_device_hotplug_common(PCIDevice *affected_dev, int *slot,
-                                       SHPCDevice *shpc, Error **errp)
+static void shpc_device_plug_common(PCIDevice *affected_dev, int *slot,
+                                    SHPCDevice *shpc, Error **errp)
 {
     int pci_slot = PCI_SLOT(affected_dev->devfn);
     *slot = SHPC_PCI_TO_IDX(pci_slot);
@@ -497,7 +497,7 @@ static void shpc_device_hotplug_common(PCIDevice *affected_dev, int *slot,
     }
 }
 
-void shpc_device_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void shpc_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                             Error **errp)
 {
     Error *local_err = NULL;
@@ -505,7 +505,7 @@ void shpc_device_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     SHPCDevice *shpc = pci_hotplug_dev->shpc;
     int slot;
 
-    shpc_device_hotplug_common(PCI_DEVICE(dev), &slot, shpc, &local_err);
+    shpc_device_plug_common(PCI_DEVICE(dev), &slot, shpc, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -540,8 +540,8 @@ void shpc_device_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     shpc_interrupt_update(pci_hotplug_dev);
 }
 
-void shpc_device_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
-                                       DeviceState *dev, Error **errp)
+void shpc_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp)
 {
     Error *local_err = NULL;
     PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);
@@ -550,7 +550,7 @@ void shpc_device_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
     uint8_t led;
     int slot;
 
-    shpc_device_hotplug_common(PCI_DEVICE(dev), &slot, shpc, &local_err);
+    shpc_device_plug_common(PCI_DEVICE(dev), &slot, shpc, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;

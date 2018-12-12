@@ -45,10 +45,10 @@ void shpc_free(PCIDevice *dev);
 void shpc_cap_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len);
 
 
-void shpc_device_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
-                            Error **errp);
-void shpc_device_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
-                                       DeviceState *dev, Error **errp);
+void shpc_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                         Error **errp);
+void shpc_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp);
 
 extern VMStateInfo shpc_vmstate_info;
 #define SHPC_VMSTATE(_field, _type,  _test) \
