@@ -391,10 +391,10 @@ static void pcie_cap_slot_event(PCIDevice *dev, PCIExpressHotPlugEvent event)
 }
 
 static void pcie_cap_slot_plug_common(PCIDevice *hotplug_dev, DeviceState *dev,
-                                      uint8_t **exp_cap, Error **errp)
+                                      Error **errp)
 {
-    *exp_cap = hotplug_dev->config + hotplug_dev->exp.exp_cap;
-    uint16_t sltsta = pci_get_word(*exp_cap + PCI_EXP_SLTSTA);
+    uint8_t *exp_cap = hotplug_dev->config + hotplug_dev->exp.exp_cap;
+    uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
 
     PCIE_DEV_PRINTF(PCI_DEVICE(dev), "hotplug state: 0x%x\n", sltsta);
     if (sltsta & PCI_EXP_SLTSTA_EIS) {
@@ -405,13 +405,18 @@ static void pcie_cap_slot_plug_common(PCIDevice *hotplug_dev, DeviceState *dev,
     }
 }
 
+void pcie_cap_slot_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                               Error **errp)
+{
+    pcie_cap_slot_plug_common(PCI_DEVICE(hotplug_dev), dev, errp);
+}
+
 void pcie_cap_slot_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                            Error **errp)
 {
-    uint8_t *exp_cap;
+    PCIDevice *hotplug_pdev = PCI_DEVICE(hotplug_dev);
+    uint8_t *exp_cap = hotplug_pdev->config + hotplug_pdev->exp.exp_cap;
     PCIDevice *pci_dev = PCI_DEVICE(dev);
-
-    pcie_cap_slot_plug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
 
     /* Don't send event when device is enabled during qemu machine creation:
      * it is present on boot, no hotplug event is necessary. We do send an
@@ -458,11 +463,15 @@ static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
 void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
-    uint8_t *exp_cap;
+    Error *local_err = NULL;
     PCIDevice *pci_dev = PCI_DEVICE(dev);
     PCIBus *bus = pci_get_bus(pci_dev);
 
-    pcie_cap_slot_plug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
+    pcie_cap_slot_plug_common(PCI_DEVICE(hotplug_dev), dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     /* In case user cancel the operation of multi-function hot-add,
      * remove the function that is unexposed to guest individually,
