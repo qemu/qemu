@@ -236,6 +236,35 @@ GlobalProperty hw_compat_2_5[] = {
 };
 const size_t hw_compat_2_5_len = G_N_ELEMENTS(hw_compat_2_5);
 
+GlobalProperty hw_compat_2_4[] = {
+    {
+        .driver   = "virtio-blk-device",
+        .property = "scsi",
+        .value    = "true",
+    },{
+        .driver   = "e1000",
+        .property = "extra_mac_registers",
+        .value    = "off",
+    },{
+        .driver   = "virtio-pci",
+        .property = "x-disable-pcie",
+        .value    = "on",
+    },{
+        .driver   = "virtio-pci",
+        .property = "migrate-extra",
+        .value    = "off",
+    },{
+        .driver   = "fw_cfg_mem",
+        .property = "dma_enabled",
+        .value    = "off",
+    },{
+        .driver   = "fw_cfg_io",
+        .property = "dma_enabled",
+        .value    = "off",
+    }
+};
+const size_t hw_compat_2_4_len = G_N_ELEMENTS(hw_compat_2_4);
+
 static char *machine_get_accel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);

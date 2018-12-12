@@ -284,6 +284,77 @@ const size_t pc_compat_2_6_len = G_N_ELEMENTS(pc_compat_2_6);
 GlobalProperty pc_compat_2_5[] = {};
 const size_t pc_compat_2_5_len = G_N_ELEMENTS(pc_compat_2_5);
 
+GlobalProperty pc_compat_2_4[] = {
+    PC_CPU_MODEL_IDS("2.4.0")
+    {
+        .driver   = "Haswell-" TYPE_X86_CPU,
+        .property = "abm",
+        .value    = "off",
+    },
+    {
+        .driver   = "Haswell-noTSX-" TYPE_X86_CPU,
+        .property = "abm",
+        .value    = "off",
+    },
+    {
+        .driver   = "Broadwell-" TYPE_X86_CPU,
+        .property = "abm",
+        .value    = "off",
+    },
+    {
+        .driver   = "Broadwell-noTSX-" TYPE_X86_CPU,
+        .property = "abm",
+        .value    = "off",
+    },
+    {
+        .driver   = "host" "-" TYPE_X86_CPU,
+        .property = "host-cache-info",
+        .value    = "on",
+    },
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "check",
+        .value    = "off",
+    },
+    {
+        .driver   = "qemu64" "-" TYPE_X86_CPU,
+        .property = "sse4a",
+        .value    = "on",
+    },
+    {
+        .driver   = "qemu64" "-" TYPE_X86_CPU,
+        .property = "abm",
+        .value    = "on",
+    },
+    {
+        .driver   = "qemu64" "-" TYPE_X86_CPU,
+        .property = "popcnt",
+        .value    = "on",
+    },
+    {
+        .driver   = "qemu32" "-" TYPE_X86_CPU,
+        .property = "popcnt",
+        .value    = "on",
+    },{
+        .driver   = "Opteron_G2" "-" TYPE_X86_CPU,
+        .property = "rdtscp",
+        .value    = "on",
+    },{
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,
+        .property = "rdtscp",
+        .value    = "on",
+    },{
+        .driver   = "Opteron_G4" "-" TYPE_X86_CPU,
+        .property = "rdtscp",
+        .value    = "on",
+    },{
+        .driver   = "Opteron_G5" "-" TYPE_X86_CPU,
+        .property = "rdtscp",
+        .value    = "on",
+    }
+};
+const size_t pc_compat_2_4_len = G_N_ELEMENTS(pc_compat_2_4);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;

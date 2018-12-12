@@ -849,7 +849,6 @@ static void ccw_machine_2_4_instance_options(MachineState *machine)
 static void ccw_machine_2_4_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        HW_COMPAT_2_4
         {
             .driver   = TYPE_S390_SKEYS,
             .property = "migration-enabled",
@@ -890,6 +889,7 @@ static void ccw_machine_2_4_class_options(MachineClass *mc)
     };
 
     ccw_machine_2_5_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_2_4, hw_compat_2_4_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 DEFINE_CCW_MACHINE(2_4, "2.4", false);

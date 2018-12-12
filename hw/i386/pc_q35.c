@@ -440,14 +440,12 @@ DEFINE_Q35_MACHINE(v2_5, "pc-q35-2.5", NULL,
 static void pc_q35_2_4_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-    static GlobalProperty compat[] = {
-        PC_COMPAT_2_4
-    };
 
     pc_q35_2_5_machine_options(m);
     m->hw_version = "2.4.0";
     pcmc->broken_reserved_end = true;
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_2_4, hw_compat_2_4_len);
+    compat_props_add(m->compat_props, pc_compat_2_4, pc_compat_2_4_len);
 }
 
 DEFINE_Q35_MACHINE(v2_4, "pc-q35-2.4", NULL,
