@@ -70,7 +70,6 @@ static void reset_request(XenBlockRequest *request)
     memset(&request->req, 0, sizeof(request->req));
     request->status = 0;
     request->start = 0;
-    request->buf = NULL;
     request->size = 0;
     request->presync = 0;
 
@@ -95,6 +94,14 @@ static XenBlockRequest *xen_block_start_request(XenBlockDataPlane *dataplane)
         /* allocate new struct */
         request = g_malloc0(sizeof(*request));
         request->dataplane = dataplane;
+        /*
+         * We cannot need more pages per requests than this, and since we
+         * re-use requests, allocate the memory once here. It will be freed
+         * xen_block_dataplane_destroy() when the request list is freed.
+         */
+        request->buf = qemu_memalign(XC_PAGE_SIZE,
+                                     BLKIF_MAX_SEGMENTS_PER_REQUEST *
+                                     XC_PAGE_SIZE);
         dataplane->requests_total++;
         qemu_iovec_init(&request->v, 1);
     } else {
@@ -272,14 +279,12 @@ static void xen_block_complete_aio(void *opaque, int ret)
         if (ret == 0) {
             xen_block_copy_request(request);
         }
-        qemu_vfree(request->buf);
         break;
     case BLKIF_OP_WRITE:
     case BLKIF_OP_FLUSH_DISKCACHE:
         if (!request->req.nr_segments) {
             break;
         }
-        qemu_vfree(request->buf);
         break;
     default:
         break;
@@ -360,12 +365,10 @@ static int xen_block_do_aio(XenBlockRequest *request)
 {
     XenBlockDataPlane *dataplane = request->dataplane;
 
-    request->buf = qemu_memalign(XC_PAGE_SIZE, request->size);
     if (request->req.nr_segments &&
         (request->req.operation == BLKIF_OP_WRITE ||
          request->req.operation == BLKIF_OP_FLUSH_DISKCACHE) &&
         xen_block_copy_request(request)) {
-        qemu_vfree(request->buf);
         goto err;
     }
 
@@ -665,6 +668,7 @@ void xen_block_dataplane_destroy(XenBlockDataPlane *dataplane)
         request = QLIST_FIRST(&dataplane->freelist);
         QLIST_REMOVE(request, list);
         qemu_iovec_destroy(&request->v);
+        qemu_vfree(request->buf);
         g_free(request);
     }
 
