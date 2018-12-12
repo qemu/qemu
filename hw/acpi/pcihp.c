@@ -217,17 +217,24 @@ void acpi_pcihp_reset(AcpiPciHpState *s)
     acpi_pcihp_update(s);
 }
 
+void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+                                   DeviceState *dev, Error **errp)
+{
+    /* Only hotplugged devices need the hotplug capability. */
+    if (dev->hotplugged &&
+        acpi_pcihp_get_bsel(pci_get_bus(PCI_DEVICE(dev))) < 0) {
+        error_setg(errp, "Unsupported bus. Bus doesn't have property '"
+                   ACPI_PCIHP_PROP_BSEL "' set");
+        return;
+    }
+}
+
 void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
                                DeviceState *dev, Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(dev);
     int slot = PCI_SLOT(pdev->devfn);
-    int bsel = acpi_pcihp_get_bsel(pci_get_bus(pdev));
-    if (bsel < 0) {
-        error_setg(errp, "Unsupported bus. Bus doesn't have property '"
-                   ACPI_PCIHP_PROP_BSEL "' set");
-        return;
-    }
+    int bsel;
 
     /* Don't send event when device is enabled during qemu machine creation:
      * it is present on boot, no hotplug event is necessary. We do send an
@@ -236,6 +243,8 @@ void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
         return;
     }
 
+    bsel = acpi_pcihp_get_bsel(pci_get_bus(pdev));
+    g_assert(bsel >= 0);
     s->acpi_pcihp_pci_status[bsel].up |= (1U << slot);
     acpi_send_event(DEVICE(hotplug_dev), ACPI_PCI_HOTPLUG_STATUS);
 }

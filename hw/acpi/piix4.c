@@ -371,6 +371,18 @@ static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
     acpi_pm1_evt_power_down(&s->ar);
 }
 
+static void piix4_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+                                    DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        acpi_pcihp_device_pre_plug_cb(hotplug_dev, dev, errp);
+    } else if (!object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) &&
+               !object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
+        error_setg(errp, "acpi: device pre plug request for not supported"
+                   " device type: %s", object_get_typename(OBJECT(dev)));
+    }
+}
+
 static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
                                  DeviceState *dev, Error **errp)
 {
@@ -393,8 +405,7 @@ static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
             acpi_cpu_plug_cb(hotplug_dev, &s->cpuhp_state, dev, errp);
         }
     } else {
-        error_setg(errp, "acpi: device plug request for not supported device"
-                   " type: %s", object_get_typename(OBJECT(dev)));
+        g_assert_not_reached();
     }
 }
 
@@ -703,6 +714,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
      */
     dc->user_creatable = false;
     dc->hotpluggable = false;
+    hc->pre_plug = piix4_device_pre_plug_cb;
     hc->plug = piix4_device_plug_cb;
     hc->unplug_request = piix4_device_unplug_request_cb;
     hc->unplug = piix4_device_unplug_cb;
