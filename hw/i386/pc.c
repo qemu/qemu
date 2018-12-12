@@ -186,6 +186,15 @@ GlobalProperty pc_compat_2_10[] = {
 };
 const size_t pc_compat_2_10_len = G_N_ELEMENTS(pc_compat_2_10);
 
+GlobalProperty pc_compat_2_9[] = {
+    {
+        .driver   = "mch",
+        .property = "extended-tseg-mbytes",
+        .value    = stringify(0),
+    },
+};
+const size_t pc_compat_2_9_len = G_N_ELEMENTS(pc_compat_2_9);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;

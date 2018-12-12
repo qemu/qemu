@@ -309,13 +309,8 @@ extern const size_t pc_compat_2_11_len;
 extern GlobalProperty pc_compat_2_10[];
 extern const size_t pc_compat_2_10_len;
 
-#define PC_COMPAT_2_9 \
-    HW_COMPAT_2_9 \
-    {\
-        .driver   = "mch",\
-        .property = "extended-tseg-mbytes",\
-        .value    = stringify(0),\
-    },\
+extern GlobalProperty pc_compat_2_9[];
+extern const size_t pc_compat_2_9_len;
 
 #define PC_COMPAT_2_8 \
     HW_COMPAT_2_8 \

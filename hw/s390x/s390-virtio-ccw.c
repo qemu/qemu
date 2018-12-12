@@ -752,7 +752,6 @@ static void ccw_machine_2_9_class_options(MachineClass *mc)
 {
     S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        HW_COMPAT_2_9
         {
             .driver   = TYPE_S390_STATTRIB,
             .property = "migration-enabled",
@@ -761,6 +760,7 @@ static void ccw_machine_2_9_class_options(MachineClass *mc)
     };
 
     ccw_machine_2_10_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_2_9, hw_compat_2_9_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     s390mc->css_migration_enabled = false;
 }

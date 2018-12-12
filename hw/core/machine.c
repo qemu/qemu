@@ -101,6 +101,27 @@ GlobalProperty hw_compat_2_10[] = {
 };
 const size_t hw_compat_2_10_len = G_N_ELEMENTS(hw_compat_2_10);
 
+GlobalProperty hw_compat_2_9[] = {
+    {
+        .driver   = "pci-bridge",
+        .property = "shpc",
+        .value    = "off",
+    },{
+        .driver   = "intel-iommu",
+        .property = "pt",
+        .value    = "off",
+    },{
+        .driver   = "virtio-net-device",
+        .property = "x-mtu-bypass-backend",
+        .value    = "off",
+    },{
+        .driver   = "pcie-root-port",
+        .property = "x-migrate-msix",
+        .value    = "false",
+    },
+};
+const size_t hw_compat_2_9_len = G_N_ELEMENTS(hw_compat_2_9);
+
 static char *machine_get_accel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);

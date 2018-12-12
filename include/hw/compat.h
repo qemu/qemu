@@ -1,25 +1,6 @@
 #ifndef HW_COMPAT_H
 #define HW_COMPAT_H
 
-#define HW_COMPAT_2_9 \
-    {\
-        .driver   = "pci-bridge",\
-        .property = "shpc",\
-        .value    = "off",\
-    },{\
-        .driver   = "intel-iommu",\
-        .property = "pt",\
-        .value    = "off",\
-    },{\
-        .driver   = "virtio-net-device",\
-        .property = "x-mtu-bypass-backend",\
-        .value    = "off",\
-    },{\
-        .driver   = "pcie-root-port",\
-        .property = "x-migrate-msix",\
-        .value    = "false",\
-    },
-
 #define HW_COMPAT_2_8 \
     {\
         .driver   = "fw_cfg_mem",\

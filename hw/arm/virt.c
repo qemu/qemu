@@ -1918,12 +1918,8 @@ DEFINE_VIRT_MACHINE(2, 10)
 
 static void virt_machine_2_9_options(MachineClass *mc)
 {
-    static GlobalProperty compat[] = {
-        HW_COMPAT_2_9
-    };
-
     virt_machine_2_10_options(mc);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(mc->compat_props, hw_compat_2_9, hw_compat_2_9_len);
 }
 DEFINE_VIRT_MACHINE(2, 9)
 
