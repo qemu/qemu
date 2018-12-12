@@ -1,49 +1,6 @@
 #ifndef HW_COMPAT_H
 #define HW_COMPAT_H
 
-#define HW_COMPAT_2_8 \
-    {\
-        .driver   = "fw_cfg_mem",\
-        .property = "x-file-slots",\
-        .value    = stringify(0x10),\
-    },{\
-        .driver   = "fw_cfg_io",\
-        .property = "x-file-slots",\
-        .value    = stringify(0x10),\
-    },{\
-        .driver   = "pflash_cfi01",\
-        .property = "old-multiple-chip-handling",\
-        .value    = "on",\
-    },{\
-        .driver   = "pci-bridge",\
-        .property = "shpc",\
-        .value    = "on",\
-    },{\
-        .driver   = TYPE_PCI_DEVICE,\
-        .property = "x-pcie-extcap-init",\
-        .value    = "off",\
-    },{\
-        .driver   = "virtio-pci",\
-        .property = "x-pcie-deverr-init",\
-        .value    = "off",\
-    },{\
-        .driver   = "virtio-pci",\
-        .property = "x-pcie-lnkctl-init",\
-        .value    = "off",\
-    },{\
-        .driver   = "virtio-pci",\
-        .property = "x-pcie-pm-init",\
-        .value    = "off",\
-    },{\
-        .driver   = "cirrus-vga",\
-        .property = "vgamem_mb",\
-        .value    = "8",\
-    },{\
-        .driver   = "isa-cirrus-vga",\
-        .property = "vgamem_mb",\
-        .value    = "8",\
-    },
-
 #define HW_COMPAT_2_7 \
     {\
         .driver   = "virtio-pci",\

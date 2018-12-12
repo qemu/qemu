@@ -195,6 +195,35 @@ GlobalProperty pc_compat_2_9[] = {
 };
 const size_t pc_compat_2_9_len = G_N_ELEMENTS(pc_compat_2_9);
 
+GlobalProperty pc_compat_2_8[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "tcg-cpuid",
+        .value    = "off",
+    },
+    {
+        .driver   = "kvmclock",
+        .property = "x-mach-use-reliable-get-clock",
+        .value    = "off",
+    },
+    {
+        .driver   = "ICH9-LPC",
+        .property = "x-smi-broadcast",
+        .value    = "off",
+    },
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "vmware-cpuid-freq",
+        .value    = "off",
+    },
+    {
+        .driver   = "Haswell-" TYPE_X86_CPU,
+        .property = "stepping",
+        .value    = "1",
+    },
+};
+const size_t pc_compat_2_8_len = G_N_ELEMENTS(pc_compat_2_8);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;

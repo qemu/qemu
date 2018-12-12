@@ -4151,7 +4151,6 @@ DEFINE_SPAPR_MACHINE(2_9, "2.9", false);
 static void spapr_machine_2_8_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        HW_COMPAT_2_8
         {
             .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
             .property = "pcie-extended-configuration-space",
@@ -4160,6 +4159,7 @@ static void spapr_machine_2_8_class_options(MachineClass *mc)
     };
 
     spapr_machine_2_9_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_2_8, hw_compat_2_8_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     mc->numa_mem_align_shift = 23;
 }

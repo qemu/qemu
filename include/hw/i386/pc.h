@@ -312,33 +312,8 @@ extern const size_t pc_compat_2_10_len;
 extern GlobalProperty pc_compat_2_9[];
 extern const size_t pc_compat_2_9_len;
 
-#define PC_COMPAT_2_8 \
-    HW_COMPAT_2_8 \
-    {\
-        .driver   = TYPE_X86_CPU,\
-        .property = "tcg-cpuid",\
-        .value    = "off",\
-    },\
-    {\
-        .driver   = "kvmclock",\
-        .property = "x-mach-use-reliable-get-clock",\
-        .value    = "off",\
-    },\
-    {\
-        .driver   = "ICH9-LPC",\
-        .property = "x-smi-broadcast",\
-        .value    = "off",\
-    },\
-    {\
-        .driver   = TYPE_X86_CPU,\
-        .property = "vmware-cpuid-freq",\
-        .value    = "off",\
-    },\
-    {\
-        .driver   = "Haswell-" TYPE_X86_CPU,\
-        .property = "stepping",\
-        .value    = "1",\
-    },
+extern GlobalProperty pc_compat_2_8[];
+extern const size_t pc_compat_2_8_len;
 
 #define PC_COMPAT_2_7 \
     HW_COMPAT_2_7 \
