@@ -333,6 +333,9 @@ extern const size_t pc_compat_2_3_len;
 extern GlobalProperty pc_compat_2_2[];
 extern const size_t pc_compat_2_2_len;
 
+extern GlobalProperty pc_compat_2_1[];
+extern const size_t pc_compat_2_1_len;
+
 /* Helper for setting model-id for CPU models that changed model-id
  * depending on QEMU versions up to QEMU 2.4.
  */
@@ -351,20 +354,6 @@ extern const size_t pc_compat_2_2_len;
         .driver   = "athlon-" TYPE_X86_CPU,\
         .property = "model-id",\
         .value    = "QEMU Virtual CPU version " v,\
-    },
-
-#define PC_COMPAT_2_1 \
-    HW_COMPAT_2_1 \
-    PC_CPU_MODEL_IDS("2.1.0") \
-    {\
-        .driver = "coreduo" "-" TYPE_X86_CPU,\
-        .property = "vmx",\
-        .value = "on",\
-    },\
-    {\
-        .driver = "core2duo" "-" TYPE_X86_CPU,\
-        .property = "vmx",\
-        .value = "on",\
     },
 
 #define PC_COMPAT_2_0 \

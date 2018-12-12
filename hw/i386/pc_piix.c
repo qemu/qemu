@@ -323,7 +323,7 @@ static void pc_compat_2_2_fn(MachineState *machine)
     pc_compat_2_3_fn(machine);
 }
 
-static void pc_compat_2_1(MachineState *machine)
+static void pc_compat_2_1_fn(MachineState *machine)
 {
     pc_compat_2_2_fn(machine);
     x86_cpu_change_kvm_default("svm", NULL);
@@ -331,7 +331,7 @@ static void pc_compat_2_1(MachineState *machine)
 
 static void pc_compat_2_0(MachineState *machine)
 {
-    pc_compat_2_1(machine);
+    pc_compat_2_1_fn(machine);
 }
 
 static void pc_compat_1_7(MachineState *machine)
@@ -593,19 +593,17 @@ DEFINE_I440FX_MACHINE(v2_2, "pc-i440fx-2.2", pc_compat_2_2_fn,
 static void pc_i440fx_2_1_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-    static GlobalProperty compat[] = {
-        PC_COMPAT_2_1
-    };
 
     pc_i440fx_2_2_machine_options(m);
     m->hw_version = "2.1.0";
     m->default_display = NULL;
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_2_1, hw_compat_2_1_len);
+    compat_props_add(m->compat_props, pc_compat_2_1, pc_compat_2_1_len);
     pcmc->smbios_uuid_encoded = false;
     pcmc->enforce_aligned_dimm = false;
 }
 
-DEFINE_I440FX_MACHINE(v2_1, "pc-i440fx-2.1", pc_compat_2_1,
+DEFINE_I440FX_MACHINE(v2_1, "pc-i440fx-2.1", pc_compat_2_1_fn,
                       pc_i440fx_2_1_machine_options);
 
 static void pc_i440fx_2_0_machine_options(MachineClass *m)

@@ -536,6 +536,21 @@ GlobalProperty pc_compat_2_2[] = {
 };
 const size_t pc_compat_2_2_len = G_N_ELEMENTS(pc_compat_2_2);
 
+GlobalProperty pc_compat_2_1[] = {
+    PC_CPU_MODEL_IDS("2.1.0")
+    {
+        .driver = "coreduo" "-" TYPE_X86_CPU,
+        .property = "vmx",
+        .value = "on",
+    },
+    {
+        .driver = "core2duo" "-" TYPE_X86_CPU,
+        .property = "vmx",
+        .value = "on",
+    },
+};
+const size_t pc_compat_2_1_len = G_N_ELEMENTS(pc_compat_2_1);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;

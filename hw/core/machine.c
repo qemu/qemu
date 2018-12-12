@@ -309,6 +309,39 @@ const size_t hw_compat_2_3_len = G_N_ELEMENTS(hw_compat_2_3);
 GlobalProperty hw_compat_2_2[] = {};
 const size_t hw_compat_2_2_len = G_N_ELEMENTS(hw_compat_2_2);
 
+GlobalProperty hw_compat_2_1[] = {
+    {
+        .driver   = "intel-hda",
+        .property = "old_msi_addr",
+        .value    = "on",
+    },{
+        .driver   = "VGA",
+        .property = "qemu-extended-regs",
+        .value    = "off",
+    },{
+        .driver   = "secondary-vga",
+        .property = "qemu-extended-regs",
+        .value    = "off",
+    },{
+        .driver   = "virtio-scsi-pci",
+        .property = "any_layout",
+        .value    = "off",
+    },{
+        .driver   = "usb-mouse",
+        .property = "usb_version",
+        .value    = stringify(1),
+    },{
+        .driver   = "usb-kbd",
+        .property = "usb_version",
+        .value    = stringify(1),
+    },{
+        .driver   = "virtio-pci",
+        .property = "virtio-pci-bus-master-bug-migration",
+        .value    = "on",
+    },
+};
+const size_t hw_compat_2_1_len = G_N_ELEMENTS(hw_compat_2_1);
+
 static char *machine_get_accel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
