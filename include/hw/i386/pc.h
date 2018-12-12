@@ -327,6 +327,9 @@ extern const size_t pc_compat_2_5_len;
 extern GlobalProperty pc_compat_2_4[];
 extern const size_t pc_compat_2_4_len;
 
+extern GlobalProperty pc_compat_2_3[];
+extern const size_t pc_compat_2_3_len;
+
 /* Helper for setting model-id for CPU models that changed model-id
  * depending on QEMU versions up to QEMU 2.4.
  */
@@ -345,91 +348,6 @@ extern const size_t pc_compat_2_4_len;
         .driver   = "athlon-" TYPE_X86_CPU,\
         .property = "model-id",\
         .value    = "QEMU Virtual CPU version " v,\
-    },
-
-#define PC_COMPAT_2_3 \
-    HW_COMPAT_2_3 \
-    PC_CPU_MODEL_IDS("2.3.0") \
-    {\
-        .driver   = TYPE_X86_CPU,\
-        .property = "arat",\
-        .value    = "off",\
-    },{\
-        .driver   = "qemu64" "-" TYPE_X86_CPU,\
-        .property = "min-level",\
-        .value    = stringify(4),\
-    },{\
-        .driver   = "kvm64" "-" TYPE_X86_CPU,\
-        .property = "min-level",\
-        .value    = stringify(5),\
-    },{\
-        .driver   = "pentium3" "-" TYPE_X86_CPU,\
-        .property = "min-level",\
-        .value    = stringify(2),\
-    },{\
-        .driver   = "n270" "-" TYPE_X86_CPU,\
-        .property = "min-level",\
-        .value    = stringify(5),\
-    },{\
-        .driver   = "Conroe" "-" TYPE_X86_CPU,\
-        .property = "min-level",\
-        .value    = stringify(4),\
-    },{\
-        .driver   = "Penryn" "-" TYPE_X86_CPU,\
-        .property = "min-level",\
-        .value    = stringify(4),\
-    },{\
-        .driver   = "Nehalem" "-" TYPE_X86_CPU,\
-        .property = "min-level",\
-        .value    = stringify(4),\
-    },{\
-        .driver   = "n270" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "Penryn" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "Conroe" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "Nehalem" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "Westmere" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "SandyBridge" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "IvyBridge" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "Haswell" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "Haswell-noTSX" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "Broadwell" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "Broadwell-noTSX" "-" TYPE_X86_CPU,\
-        .property = "min-xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver = TYPE_X86_CPU,\
-        .property = "kvm-no-smi-migration",\
-        .value    = "on",\
     },
 
 #define PC_COMPAT_2_2 \

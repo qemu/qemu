@@ -310,7 +310,7 @@ static void pc_init1(MachineState *machine,
  * HW_COMPAT_*, PC_COMPAT_*, or * pc_*_machine_options().
  */
 
-static void pc_compat_2_3(MachineState *machine)
+static void pc_compat_2_3_fn(MachineState *machine)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
     if (kvm_enabled()) {
@@ -320,7 +320,7 @@ static void pc_compat_2_3(MachineState *machine)
 
 static void pc_compat_2_2(MachineState *machine)
 {
-    pc_compat_2_3(machine);
+    pc_compat_2_3_fn(machine);
 }
 
 static void pc_compat_2_1(MachineState *machine)
@@ -566,16 +566,13 @@ DEFINE_I440FX_MACHINE(v2_4, "pc-i440fx-2.4", NULL,
 
 static void pc_i440fx_2_3_machine_options(MachineClass *m)
 {
-    static GlobalProperty compat[] = {
-        PC_COMPAT_2_3
-    };
-
     pc_i440fx_2_4_machine_options(m);
     m->hw_version = "2.3.0";
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_2_3, hw_compat_2_3_len);
+    compat_props_add(m->compat_props, pc_compat_2_3, pc_compat_2_3_len);
 }
 
-DEFINE_I440FX_MACHINE(v2_3, "pc-i440fx-2.3", pc_compat_2_3,
+DEFINE_I440FX_MACHINE(v2_3, "pc-i440fx-2.3", pc_compat_2_3_fn,
                       pc_i440fx_2_3_machine_options);
 
 static void pc_i440fx_2_2_machine_options(MachineClass *m)

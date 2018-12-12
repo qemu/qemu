@@ -265,6 +265,47 @@ GlobalProperty hw_compat_2_4[] = {
 };
 const size_t hw_compat_2_4_len = G_N_ELEMENTS(hw_compat_2_4);
 
+GlobalProperty hw_compat_2_3[] = {
+    {
+        .driver   = "virtio-blk-pci",
+        .property = "any_layout",
+        .value    = "off",
+    },{
+        .driver   = "virtio-balloon-pci",
+        .property = "any_layout",
+        .value    = "off",
+    },{
+        .driver   = "virtio-serial-pci",
+        .property = "any_layout",
+        .value    = "off",
+    },{
+        .driver   = "virtio-9p-pci",
+        .property = "any_layout",
+        .value    = "off",
+    },{
+        .driver   = "virtio-rng-pci",
+        .property = "any_layout",
+        .value    = "off",
+    },{
+        .driver   = TYPE_PCI_DEVICE,
+        .property = "x-pcie-lnksta-dllla",
+        .value    = "off",
+    },{
+        .driver   = "migration",
+        .property = "send-configuration",
+        .value    = "off",
+    },{
+        .driver   = "migration",
+        .property = "send-section-footer",
+        .value    = "off",
+    },{
+        .driver   = "migration",
+        .property = "store-global-state",
+        .value    = "off",
+    },
+};
+const size_t hw_compat_2_3_len = G_N_ELEMENTS(hw_compat_2_3);
+
 static char *machine_get_accel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);

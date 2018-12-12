@@ -4322,7 +4322,6 @@ DEFINE_SPAPR_MACHINE(2_4, "2.4", false);
 static void spapr_machine_2_3_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        HW_COMPAT_2_3
         {
             .driver   = "spapr-pci-host-bridge",
             .property = "dynamic-reconfiguration",
@@ -4330,6 +4329,7 @@ static void spapr_machine_2_3_class_options(MachineClass *mc)
         },
     };
     spapr_machine_2_4_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_2_3, hw_compat_2_3_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 DEFINE_SPAPR_MACHINE(2_3, "2.3", false);
