@@ -447,15 +447,6 @@ static void piix4_device_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void piix4_update_bus_hotplug(PCIBus *pci_bus, void *opaque)
-{
-    PIIX4PMState *s = opaque;
-
-    /* pci_bus cannot outlive PIIX4PMState, because /machine keeps it alive
-     * and it's not hot-unpluggable */
-    qbus_set_hotplug_handler(BUS(pci_bus), DEVICE(s), &error_abort);
-}
-
 static void piix4_pm_machine_ready(Notifier *n, void *opaque)
 {
     PIIX4PMState *s = container_of(n, PIIX4PMState, machine_ready);
@@ -469,12 +460,6 @@ static void piix4_pm_machine_ready(Notifier *n, void *opaque)
     pci_conf[0x63] = 0x60;
     pci_conf[0x67] = (memory_region_present(io_as, 0x3f8) ? 0x08 : 0) |
         (memory_region_present(io_as, 0x2f8) ? 0x90 : 0);
-
-    if (s->use_acpi_pci_hotplug) {
-        pci_for_each_bus(pci_get_bus(d), piix4_update_bus_hotplug, s);
-    } else {
-        piix4_update_bus_hotplug(pci_get_bus(d), s);
-    }
 }
 
 static void piix4_pm_add_propeties(PIIX4PMState *s)
@@ -548,6 +533,7 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
 
     piix4_acpi_system_hot_add_init(pci_address_space_io(dev),
                                    pci_get_bus(dev), s);
+    qbus_set_hotplug_handler(BUS(pci_get_bus(dev)), DEVICE(s), &error_abort);
 
     piix4_pm_add_propeties(s);
 }

@@ -30,6 +30,7 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bridge.h"
 #include "hw/acpi/acpi.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
@@ -240,6 +241,20 @@ void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
      * it is present on boot, no hotplug event is necessary. We do send an
      * event when the device is disabled later. */
     if (!dev->hotplugged) {
+        /*
+         * Overwrite the default hotplug handler with the ACPI PCI one
+         * for cold plugged bridges only.
+         */
+        if (!s->legacy_piix &&
+            object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
+            PCIBus *sec = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
+
+            qbus_set_hotplug_handler(BUS(sec), DEVICE(hotplug_dev),
+                                     &error_abort);
+            /* We don't have to overwrite any other hotplug handler yet */
+            assert(QLIST_EMPTY(&sec->child));
+        }
+
         return;
     }
 
