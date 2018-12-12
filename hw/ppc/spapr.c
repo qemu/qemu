@@ -70,7 +70,6 @@
 #include "hw/nmi.h"
 #include "hw/intc/intc.h"
 
-#include "hw/compat.h"
 #include "qemu/cutils.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/mem/memory-device.h"

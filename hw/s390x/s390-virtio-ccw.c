@@ -28,7 +28,6 @@
 #include "hw/s390x/storage-keys.h"
 #include "hw/s390x/storage-attributes.h"
 #include "hw/s390x/event-facility.h"
-#include "hw/compat.h"
 #include "ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/css-bridge.h"
