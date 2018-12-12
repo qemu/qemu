@@ -442,9 +442,17 @@ void pcie_cap_slot_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
+void pcie_cap_slot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                             Error **errp)
 {
     object_unparent(OBJECT(dev));
+}
+
+static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
+{
+    HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(dev));
+
+    hotplug_handler_unplug(hotplug_ctrl, DEVICE(dev), &error_abort);
 }
 
 void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
