@@ -741,6 +741,45 @@ void pcie_add_capability(PCIDevice *dev,
     memset(dev->cmask + offset, 0xFF, size);
 }
 
+/*
+ * Sync the PCIe Link Status negotiated speed and width of a bridge with the
+ * downstream device.  If downstream device is not present, re-write with the
+ * Link Capability fields.  Limit width and speed to bridge capabilities for
+ * compatibility.  Use config_read to access the downstream device since it
+ * could be an assigned device with volatile link information.
+ */
+void pcie_sync_bridge_lnk(PCIDevice *bridge_dev)
+{
+    PCIBridge *br = PCI_BRIDGE(bridge_dev);
+    PCIBus *bus = pci_bridge_get_sec_bus(br);
+    PCIDevice *target = bus->devices[0];
+    uint8_t *exp_cap = bridge_dev->config + bridge_dev->exp.exp_cap;
+    uint16_t lnksta, lnkcap = pci_get_word(exp_cap + PCI_EXP_LNKCAP);
+
+    if (!target || !target->exp.exp_cap) {
+        lnksta = lnkcap;
+    } else {
+        lnksta = target->config_read(target,
+                                     target->exp.exp_cap + PCI_EXP_LNKSTA,
+                                     sizeof(lnksta));
+
+        if ((lnksta & PCI_EXP_LNKSTA_NLW) > (lnkcap & PCI_EXP_LNKCAP_MLW)) {
+            lnksta &= ~PCI_EXP_LNKSTA_NLW;
+            lnksta |= lnkcap & PCI_EXP_LNKCAP_MLW;
+        }
+
+        if ((lnksta & PCI_EXP_LNKSTA_CLS) > (lnkcap & PCI_EXP_LNKCAP_SLS)) {
+            lnksta &= ~PCI_EXP_LNKSTA_CLS;
+            lnksta |= lnkcap & PCI_EXP_LNKCAP_SLS;
+        }
+    }
+
+    pci_word_test_and_clear_mask(exp_cap + PCI_EXP_LNKSTA,
+                                 PCI_EXP_LNKSTA_CLS | PCI_EXP_LNKSTA_NLW);
+    pci_word_test_and_set_mask(exp_cap + PCI_EXP_LNKSTA, lnksta &
+                               (PCI_EXP_LNKSTA_CLS | PCI_EXP_LNKSTA_NLW));
+}
+
 /**************************************************************************
  * pci express extended capability helper functions
  */
