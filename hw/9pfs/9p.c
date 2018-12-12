@@ -1331,8 +1331,8 @@ static void coroutine_fn v9fs_walk(void *opaque)
     trace_v9fs_walk(pdu->tag, pdu->id, fid, newfid, nwnames);
 
     if (nwnames && nwnames <= P9_MAXWELEM) {
-        wnames = g_malloc0(sizeof(wnames[0]) * nwnames);
-        qids   = g_malloc0(sizeof(qids[0]) * nwnames);
+        wnames = g_new0(V9fsString, nwnames);
+        qids   = g_new0(V9fsQID, nwnames);
         for (i = 0; i < nwnames; i++) {
             err = pdu_unmarshal(pdu, offset, "s", &wnames[i]);
             if (err < 0) {
