@@ -528,10 +528,18 @@ static int xen_block_get_request(XenBlockDataPlane *dataplane,
     return 0;
 }
 
+/*
+ * Threshold of in-flight requests above which we will start using
+ * blk_io_plug()/blk_io_unplug() to batch requests.
+ */
+#define IO_PLUG_THRESHOLD 1
+
 static void xen_block_handle_requests(XenBlockDataPlane *dataplane)
 {
     RING_IDX rc, rp;
     XenBlockRequest *request;
+    int inflight_atstart = dataplane->requests_inflight;
+    int batched = 0;
 
     dataplane->more_work = 0;
 
@@ -540,6 +548,18 @@ static void xen_block_handle_requests(XenBlockDataPlane *dataplane)
     xen_rmb(); /* Ensure we see queued requests up to 'rp'. */
 
     xen_block_send_response_all(dataplane);
+    /*
+     * If there was more than IO_PLUG_THRESHOLD requests in flight
+     * when we got here, this is an indication that there the bottleneck
+     * is below us, so it's worth beginning to batch up I/O requests
+     * rather than submitting them immediately. The maximum number
+     * of requests we're willing to batch is the number already in
+     * flight, so it can grow up to max_requests when the bottleneck
+     * is below us.
+     */
+    if (inflight_atstart > IO_PLUG_THRESHOLD) {
+        blk_io_plug(dataplane->blk);
+    }
     while (rc != rp) {
         /* pull request from ring */
         if (RING_REQUEST_CONS_OVERFLOW(&dataplane->rings.common, rc)) {
@@ -585,7 +605,22 @@ static void xen_block_handle_requests(XenBlockDataPlane *dataplane)
             continue;
         }
 
+        if (inflight_atstart > IO_PLUG_THRESHOLD &&
+            batched >= inflight_atstart) {
+            blk_io_unplug(dataplane->blk);
+        }
         xen_block_do_aio(request);
+        if (inflight_atstart > IO_PLUG_THRESHOLD) {
+            if (batched >= inflight_atstart) {
+                blk_io_plug(dataplane->blk);
+                batched = 0;
+            } else {
+                batched++;
+            }
+        }
+    }
+    if (inflight_atstart > IO_PLUG_THRESHOLD) {
+        blk_io_unplug(dataplane->blk);
     }
 
     if (dataplane->more_work &&
