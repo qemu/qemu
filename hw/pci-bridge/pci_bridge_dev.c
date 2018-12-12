@@ -206,27 +206,27 @@ static const VMStateDescription pci_bridge_dev_vmstate = {
     }
 };
 
-static void pci_bridge_dev_plug_cb(HotplugHandler *hotplug_dev,
-                                   DeviceState *dev, Error **errp)
+void pci_bridge_dev_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                            Error **errp)
 {
     PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);
 
     if (!shpc_present(pci_hotplug_dev)) {
         error_setg(errp, "standard hotplug controller has been disabled for "
-                   "this %s", TYPE_PCI_BRIDGE_DEV);
+                   "this %s", object_get_typename(OBJECT(hotplug_dev)));
         return;
     }
     shpc_device_plug_cb(hotplug_dev, dev, errp);
 }
 
-static void pci_bridge_dev_unplug_request_cb(HotplugHandler *hotplug_dev,
-                                             DeviceState *dev, Error **errp)
+void pci_bridge_dev_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                      DeviceState *dev, Error **errp)
 {
     PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);
 
     if (!shpc_present(pci_hotplug_dev)) {
         error_setg(errp, "standard hotplug controller has been disabled for "
-                   "this %s", TYPE_PCI_BRIDGE_DEV);
+                   "this %s", object_get_typename(OBJECT(hotplug_dev)));
         return;
     }
     shpc_device_unplug_request_cb(hotplug_dev, dev, errp);
