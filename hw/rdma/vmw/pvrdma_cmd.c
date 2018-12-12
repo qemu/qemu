@@ -313,6 +313,14 @@ out:
     return rc;
 }
 
+static void destroy_cq_ring(PvrdmaRing *ring)
+{
+    pvrdma_ring_free(ring);
+    /* ring_state was in slot 1, not 0 so need to jump back */
+    rdma_pci_dma_unmap(ring->dev, --ring->ring_state, TARGET_PAGE_SIZE);
+    g_free(ring);
+}
+
 static int create_cq(PVRDMADev *dev, union pvrdma_cmd_req *req,
                      union pvrdma_cmd_resp *rsp)
 {
@@ -335,6 +343,10 @@ static int create_cq(PVRDMADev *dev, union pvrdma_cmd_req *req,
 
     rc = rdma_rm_alloc_cq(&dev->rdma_dev_res, &dev->backend_dev, cmd->cqe,
                           &resp->cq_handle, ring);
+    if (rc) {
+        destroy_cq_ring(ring);
+    }
+
     resp->cqe = cmd->cqe;
 
     return rc;
@@ -356,10 +368,7 @@ static int destroy_cq(PVRDMADev *dev, union pvrdma_cmd_req *req,
     }
 
     ring = (PvrdmaRing *)cq->opaque;
-    pvrdma_ring_free(ring);
-    /* ring_state was in slot 1, not 0 so need to jump back */
-    rdma_pci_dma_unmap(PCI_DEVICE(dev), --ring->ring_state, TARGET_PAGE_SIZE);
-    g_free(ring);
+    destroy_cq_ring(ring);
 
     rdma_rm_dealloc_cq(&dev->rdma_dev_res, cmd->cq_handle);
 
@@ -457,6 +466,17 @@ out:
     return rc;
 }
 
+static void destroy_qp_rings(PvrdmaRing *ring)
+{
+    pr_dbg("sring=%p\n", &ring[0]);
+    pvrdma_ring_free(&ring[0]);
+    pr_dbg("rring=%p\n", &ring[1]);
+    pvrdma_ring_free(&ring[1]);
+
+    rdma_pci_dma_unmap(ring->dev, ring->ring_state, TARGET_PAGE_SIZE);
+    g_free(ring);
+}
+
 static int create_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
                      union pvrdma_cmd_resp *rsp)
 {
@@ -486,6 +506,7 @@ static int create_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
                           cmd->max_recv_sge, cmd->recv_cq_handle, rings,
                           &resp->qpn);
     if (rc) {
+        destroy_qp_rings(rings);
         return rc;
     }
 
@@ -558,13 +579,7 @@ static int destroy_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
     rdma_rm_dealloc_qp(&dev->rdma_dev_res, cmd->qp_handle);
 
     ring = (PvrdmaRing *)qp->opaque;
-    pr_dbg("sring=%p\n", &ring[0]);
-    pvrdma_ring_free(&ring[0]);
-    pr_dbg("rring=%p\n", &ring[1]);
-    pvrdma_ring_free(&ring[1]);
-
-    rdma_pci_dma_unmap(PCI_DEVICE(dev), ring->ring_state, TARGET_PAGE_SIZE);
-    g_free(ring);
+    destroy_qp_rings(ring);
 
     return 0;
 }
