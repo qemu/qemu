@@ -34,10 +34,29 @@
 
 /* PCI_EXP_LINK{CAP, STA} */
 /* link speed */
-#define PCI_EXP_LNK_LS_25               1
+typedef enum PCIExpLinkSpeed {
+    QEMU_PCI_EXP_LNK_2_5GT = 1,
+    QEMU_PCI_EXP_LNK_5GT,
+    QEMU_PCI_EXP_LNK_8GT,
+    QEMU_PCI_EXP_LNK_16GT,
+} PCIExpLinkSpeed;
+
+#define QEMU_PCI_EXP_LNKCAP_MLS(speed)  (speed)
+#define QEMU_PCI_EXP_LNKSTA_CLS         QEMU_PCI_EXP_LNKCAP_MLS
+
+typedef enum PCIExpLinkWidth {
+    QEMU_PCI_EXP_LNK_X1 = 1,
+    QEMU_PCI_EXP_LNK_X2 = 2,
+    QEMU_PCI_EXP_LNK_X4 = 4,
+    QEMU_PCI_EXP_LNK_X8 = 8,
+    QEMU_PCI_EXP_LNK_X12 = 12,
+    QEMU_PCI_EXP_LNK_X16 = 16,
+    QEMU_PCI_EXP_LNK_X32 = 32,
+} PCIExpLinkWidth;
 
 #define PCI_EXP_LNK_MLW_SHIFT           ctz32(PCI_EXP_LNKCAP_MLW)
-#define PCI_EXP_LNK_MLW_1               (1 << PCI_EXP_LNK_MLW_SHIFT)
+#define QEMU_PCI_EXP_LNKCAP_MLW(width)  (width << PCI_EXP_LNK_MLW_SHIFT)
+#define QEMU_PCI_EXP_LNKSTA_NLW         QEMU_PCI_EXP_LNKCAP_MLW
 
 /* PCI_EXP_LINKCAP */
 #define PCI_EXP_LNKCAP_ASPMS_SHIFT      ctz32(PCI_EXP_LNKCAP_ASPMS)

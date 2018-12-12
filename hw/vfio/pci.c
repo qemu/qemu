@@ -1897,7 +1897,8 @@ static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
                                    PCI_EXP_TYPE_ENDPOINT << 4,
                                    PCI_EXP_FLAGS_TYPE);
             vfio_add_emulated_long(vdev, pos + PCI_EXP_LNKCAP,
-                                   PCI_EXP_LNK_MLW_1 | PCI_EXP_LNK_LS_25, ~0);
+                           QEMU_PCI_EXP_LNKCAP_MLW(QEMU_PCI_EXP_LNK_X1) |
+                           QEMU_PCI_EXP_LNKCAP_MLS(QEMU_PCI_EXP_LNK_2_5GT), ~0);
             vfio_add_emulated_word(vdev, pos + PCI_EXP_LNKCTL, 0, ~0);
         }
 
