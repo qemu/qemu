@@ -573,7 +573,7 @@ static void pvrdma_shutdown_notifier(Notifier *n, void *opaque)
 
 static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 {
-    int rc;
+    int rc = 0;
     PVRDMADev *dev = PVRDMA_DEV(pdev);
     Object *memdev_root;
     bool ram_shared = false;
@@ -649,6 +649,7 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 
 out:
     if (rc) {
+        pvrdma_fini(pdev);
         error_append_hint(errp, "Device fail to load\n");
     }
 }
