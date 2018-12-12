@@ -37,12 +37,11 @@
 #define VENDOR_ERR_TOO_MANY_SGES    0x202
 #define VENDOR_ERR_NOMEM            0x203
 #define VENDOR_ERR_QP0              0x204
-#define VENDOR_ERR_NO_SGE           0x205
+#define VENDOR_ERR_INV_NUM_SGE      0x205
 #define VENDOR_ERR_MAD_SEND         0x206
 #define VENDOR_ERR_INVLKEY          0x207
 #define VENDOR_ERR_MR_SMALL         0x208
 #define VENDOR_ERR_INV_MAD_BUFF     0x209
-#define VENDOR_ERR_INV_NUM_SGE      0x210
 
 #define THR_NAME_LEN 16
 #define THR_POLL_TO  5000
