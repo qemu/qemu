@@ -22,6 +22,19 @@
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
 
+GlobalProperty hw_compat_3_1[] = {
+    {
+        .driver   = "pcie-root-port",
+        .property = "x-speed",
+        .value    = "2_5",
+    },{
+        .driver   = "pcie-root-port",
+        .property = "x-width",
+        .value    = "1",
+    },
+};
+const size_t hw_compat_3_1_len = G_N_ELEMENTS(hw_compat_3_1);
+
 static char *machine_get_accel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);

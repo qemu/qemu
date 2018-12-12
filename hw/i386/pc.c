@@ -109,6 +109,15 @@ static struct e820_entry *e820_table;
 static unsigned e820_entries;
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
+GlobalProperty pc_compat_3_1[] = {
+    {
+        .driver   = "intel-iommu",
+        .property = "dma-drain",
+        .value    = "off",
+    },
+};
+const size_t pc_compat_3_1_len = G_N_ELEMENTS(pc_compat_3_1);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;

@@ -323,14 +323,11 @@ DEFINE_Q35_MACHINE(v4_0, "pc-q35-4.0", NULL,
 
 static void pc_q35_3_1_machine_options(MachineClass *m)
 {
-    static GlobalProperty compat[] = {
-        PC_COMPAT_3_1
-    };
-
     pc_q35_4_0_machine_options(m);
     m->default_kernel_irqchip_split = false;
     m->alias = NULL;
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_3_1, hw_compat_3_1_len);
+    compat_props_add(m->compat_props, pc_compat_3_1, pc_compat_3_1_len);
 }
 
 DEFINE_Q35_MACHINE(v3_1, "pc-q35-3.1", NULL,

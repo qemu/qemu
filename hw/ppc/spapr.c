@@ -4023,12 +4023,8 @@ DEFINE_SPAPR_MACHINE(4_0, "4.0", true);
  */
 static void spapr_machine_3_1_class_options(MachineClass *mc)
 {
-    static GlobalProperty compat[] = {
-        HW_COMPAT_3_1
-    };
-
     spapr_machine_4_0_class_options(mc);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(mc->compat_props, hw_compat_3_1, hw_compat_3_1_len);
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
 }
 

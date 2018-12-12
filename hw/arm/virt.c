@@ -1874,12 +1874,8 @@ DEFINE_VIRT_MACHINE_AS_LATEST(4, 0)
 
 static void virt_machine_3_1_options(MachineClass *mc)
 {
-    static GlobalProperty compat[] = {
-        HW_COMPAT_3_1
-    };
-
     virt_machine_4_0_options(mc);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(mc->compat_props, hw_compat_3_1, hw_compat_3_1_len);
 }
 DEFINE_VIRT_MACHINE(3, 1)
 
