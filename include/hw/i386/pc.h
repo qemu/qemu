@@ -297,21 +297,8 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 extern GlobalProperty pc_compat_3_1[];
 extern const size_t pc_compat_3_1_len;
 
-#define PC_COMPAT_3_0 \
-    HW_COMPAT_3_0 \
-    {\
-        .driver   = TYPE_X86_CPU,\
-        .property = "x-hv-synic-kvm-only",\
-        .value    = "on",\
-    },{\
-        .driver   = "Skylake-Server" "-" TYPE_X86_CPU,\
-        .property = "pku",\
-        .value    = "off",\
-    },{\
-        .driver   = "Skylake-Server-IBRS" "-" TYPE_X86_CPU,\
-        .property = "pku",\
-        .value    = "off",\
-    },
+extern GlobalProperty pc_compat_3_0[];
+extern const size_t pc_compat_3_0_len;
 
 #define PC_COMPAT_2_12 \
     HW_COMPAT_2_12 \

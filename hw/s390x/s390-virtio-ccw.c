@@ -680,13 +680,10 @@ static void ccw_machine_3_0_instance_options(MachineState *machine)
 static void ccw_machine_3_0_class_options(MachineClass *mc)
 {
     S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
-    static GlobalProperty compat[] = {
-        HW_COMPAT_3_0
-    };
 
     s390mc->hpage_1m_allowed = false;
     ccw_machine_3_1_class_options(mc);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(mc->compat_props, hw_compat_3_0, hw_compat_3_0_len);
 }
 DEFINE_CCW_MACHINE(3_0, "3.0", false);
 

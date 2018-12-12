@@ -35,6 +35,9 @@ GlobalProperty hw_compat_3_1[] = {
 };
 const size_t hw_compat_3_1_len = G_N_ELEMENTS(hw_compat_3_1);
 
+GlobalProperty hw_compat_3_0[] = {};
+const size_t hw_compat_3_0_len = G_N_ELEMENTS(hw_compat_3_0);
+
 static char *machine_get_accel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);

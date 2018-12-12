@@ -4037,12 +4037,9 @@ DEFINE_SPAPR_MACHINE(3_1, "3.1", false);
 static void spapr_machine_3_0_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
-    static GlobalProperty compat[] = {
-        HW_COMPAT_3_0
-    };
 
     spapr_machine_3_1_class_options(mc);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(mc->compat_props, hw_compat_3_0, hw_compat_3_0_len);
 
     smc->legacy_irq_allocation = true;
     smc->irq = &spapr_irq_xics_legacy;

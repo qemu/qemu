@@ -335,12 +335,9 @@ DEFINE_Q35_MACHINE(v3_1, "pc-q35-3.1", NULL,
 
 static void pc_q35_3_0_machine_options(MachineClass *m)
 {
-    static GlobalProperty compat[] = {
-        PC_COMPAT_3_0
-    };
-
     pc_q35_3_1_machine_options(m);
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_3_0, hw_compat_3_0_len);
+    compat_props_add(m->compat_props, pc_compat_3_0, pc_compat_3_0_len);
 }
 
 DEFINE_Q35_MACHINE(v3_0, "pc-q35-3.0", NULL,

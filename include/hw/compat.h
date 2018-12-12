@@ -1,9 +1,6 @@
 #ifndef HW_COMPAT_H
 #define HW_COMPAT_H
 
-#define HW_COMPAT_3_0 \
-    /* empty */
-
 #define HW_COMPAT_2_12 \
     {\
         .driver   = "migration",\

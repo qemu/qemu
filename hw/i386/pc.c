@@ -118,6 +118,23 @@ GlobalProperty pc_compat_3_1[] = {
 };
 const size_t pc_compat_3_1_len = G_N_ELEMENTS(pc_compat_3_1);
 
+GlobalProperty pc_compat_3_0[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "x-hv-synic-kvm-only",
+        .value    = "on",
+    },{
+        .driver   = "Skylake-Server" "-" TYPE_X86_CPU,
+        .property = "pku",
+        .value    = "off",
+    },{
+        .driver   = "Skylake-Server-IBRS" "-" TYPE_X86_CPU,
+        .property = "pku",
+        .value    = "off",
+    },
+};
+const size_t pc_compat_3_0_len = G_N_ELEMENTS(pc_compat_3_0);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;
