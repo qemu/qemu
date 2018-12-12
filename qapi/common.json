@@ -128,6 +128,48 @@
   'data': [ 'off', 'auto', 'bar0', 'bar1', 'bar2', 'bar3', 'bar4', 'bar5' ] }
 
 ##
+# @PCIELinkSpeed:
+#
+# An enumeration of PCIe link speeds in units of GT/s
+#
+# @2_5: 2.5GT/s
+#
+# @5: 5.0GT/s
+#
+# @8: 8.0GT/s
+#
+# @16: 16.0GT/s
+#
+# Since: 4.0
+##
+{ 'enum': 'PCIELinkSpeed',
+  'data': [ '2_5', '5', '8', '16' ] }
+
+##
+# @PCIELinkWidth:
+#
+# An enumeration of PCIe link width
+#
+# @1: x1
+#
+# @2: x2
+#
+# @4: x4
+#
+# @8: x8
+#
+# @12: x12
+#
+# @16: x16
+#
+# @32: x32
+#
+# Since: 4.0
+##
+{ 'enum': 'PCIELinkWidth',
+  'data': [ '1', '2', '4', '8', '12', '16', '32' ] }
+
+##
 # @SysEmuTarget:
 #
 # The comprehensive enumeration of QEMU system emulation ("softmmu")
