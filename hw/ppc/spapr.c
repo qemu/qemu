@@ -4054,7 +4054,6 @@ static void spapr_machine_2_12_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        HW_COMPAT_2_12
         {
             .driver = TYPE_POWERPC_CPU,
             .property = "pre-3.0-migration",
@@ -4068,6 +4067,7 @@ static void spapr_machine_2_12_class_options(MachineClass *mc)
     };
 
     spapr_machine_3_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_2_12, hw_compat_2_12_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 
     /* We depend on kvm_enabled() to choose a default value for the

@@ -462,12 +462,9 @@ DEFINE_I440FX_MACHINE(v3_0, "pc-i440fx-3.0", NULL,
 
 static void pc_i440fx_2_12_machine_options(MachineClass *m)
 {
-    static GlobalProperty compat[] = {
-        PC_COMPAT_2_12
-    };
-
     pc_i440fx_3_0_machine_options(m);
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_2_12, hw_compat_2_12_len);
+    compat_props_add(m->compat_props, pc_compat_2_12, pc_compat_2_12_len);
 }
 
 DEFINE_I440FX_MACHINE(v2_12, "pc-i440fx-2.12", NULL,

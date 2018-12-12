@@ -38,6 +38,35 @@ const size_t hw_compat_3_1_len = G_N_ELEMENTS(hw_compat_3_1);
 GlobalProperty hw_compat_3_0[] = {};
 const size_t hw_compat_3_0_len = G_N_ELEMENTS(hw_compat_3_0);
 
+GlobalProperty hw_compat_2_12[] = {
+    {
+        .driver   = "migration",
+        .property = "decompress-error-check",
+        .value    = "off",
+    },{
+        .driver   = "hda-audio",
+        .property = "use-timer",
+        .value    = "false",
+    },{
+        .driver   = "cirrus-vga",
+        .property = "global-vmstate",
+        .value    = "true",
+    },{
+        .driver   = "VGA",
+        .property = "global-vmstate",
+        .value    = "true",
+    },{
+        .driver   = "vmware-svga",
+        .property = "global-vmstate",
+        .value    = "true",
+    },{
+        .driver   = "qxl-vga",
+        .property = "global-vmstate",
+        .value    = "true",
+    },
+};
+const size_t hw_compat_2_12_len = G_N_ELEMENTS(hw_compat_2_12);
+
 static char *machine_get_accel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);

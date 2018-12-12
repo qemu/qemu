@@ -135,6 +135,27 @@ GlobalProperty pc_compat_3_0[] = {
 };
 const size_t pc_compat_3_0_len = G_N_ELEMENTS(pc_compat_3_0);
 
+GlobalProperty pc_compat_2_12[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "legacy-cache",
+        .value    = "on",
+    },{
+        .driver   = TYPE_X86_CPU,
+        .property = "topoext",
+        .value    = "off",
+    },{
+        .driver   = "EPYC-" TYPE_X86_CPU,
+        .property = "xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "EPYC-IBPB-" TYPE_X86_CPU,
+        .property = "xlevel",
+        .value    = stringify(0x8000000a),
+    },
+};
+const size_t pc_compat_2_12_len = G_N_ELEMENTS(pc_compat_2_12);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;

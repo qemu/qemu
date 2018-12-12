@@ -300,25 +300,8 @@ extern const size_t pc_compat_3_1_len;
 extern GlobalProperty pc_compat_3_0[];
 extern const size_t pc_compat_3_0_len;
 
-#define PC_COMPAT_2_12 \
-    HW_COMPAT_2_12 \
-    {\
-        .driver   = TYPE_X86_CPU,\
-        .property = "legacy-cache",\
-        .value    = "on",\
-    },{\
-        .driver   = TYPE_X86_CPU,\
-        .property = "topoext",\
-        .value    = "off",\
-    },{\
-        .driver   = "EPYC-" TYPE_X86_CPU,\
-        .property = "xlevel",\
-        .value    = stringify(0x8000000a),\
-    },{\
-        .driver   = "EPYC-IBPB-" TYPE_X86_CPU,\
-        .property = "xlevel",\
-        .value    = stringify(0x8000000a),\
-    },
+extern GlobalProperty pc_compat_2_12[];
+extern const size_t pc_compat_2_12_len;
 
 #define PC_COMPAT_2_11 \
     HW_COMPAT_2_11 \
