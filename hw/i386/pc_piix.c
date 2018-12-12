@@ -482,12 +482,9 @@ DEFINE_I440FX_MACHINE(v2_11, "pc-i440fx-2.11", NULL,
 
 static void pc_i440fx_2_10_machine_options(MachineClass *m)
 {
-    static GlobalProperty compat[] = {
-        PC_COMPAT_2_10
-    };
-
     pc_i440fx_2_11_machine_options(m);
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_2_10, hw_compat_2_10_len);
+    compat_props_add(m->compat_props, pc_compat_2_10, pc_compat_2_10_len);
     m->auto_enable_numa_with_memhp = false;
 }
 

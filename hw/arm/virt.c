@@ -1909,12 +1909,8 @@ DEFINE_VIRT_MACHINE(2, 11)
 
 static void virt_machine_2_10_options(MachineClass *mc)
 {
-    static GlobalProperty compat[] = {
-        HW_COMPAT_2_10
-    };
-
     virt_machine_2_11_options(mc);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(mc->compat_props, hw_compat_2_10, hw_compat_2_10_len);
     /* before 2.11 we never faulted accesses to bad addresses */
     mc->ignore_memory_transaction_failures = true;
 }

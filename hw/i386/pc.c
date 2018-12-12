@@ -169,6 +169,23 @@ GlobalProperty pc_compat_2_11[] = {
 };
 const size_t pc_compat_2_11_len = G_N_ELEMENTS(pc_compat_2_11);
 
+GlobalProperty pc_compat_2_10[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "x-hv-max-vps",
+        .value    = "0x40",
+    },{
+        .driver   = "i440FX-pcihost",
+        .property = "x-pci-hole64-fix",
+        .value    = "off",
+    },{
+        .driver   = "q35-pcihost",
+        .property = "x-pci-hole64-fix",
+        .value    = "off",
+    },
+};
+const size_t pc_compat_2_10_len = G_N_ELEMENTS(pc_compat_2_10);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;

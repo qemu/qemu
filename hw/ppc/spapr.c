@@ -4113,12 +4113,8 @@ DEFINE_SPAPR_MACHINE(2_11, "2.11", false);
 
 static void spapr_machine_2_10_class_options(MachineClass *mc)
 {
-    static GlobalProperty compat[] = {
-        HW_COMPAT_2_10
-    };
-
     spapr_machine_2_11_class_options(mc);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(mc->compat_props, hw_compat_2_10, hw_compat_2_10_len);
 }
 
 DEFINE_SPAPR_MACHINE(2_10, "2.10", false);

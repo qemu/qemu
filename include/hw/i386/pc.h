@@ -306,21 +306,8 @@ extern const size_t pc_compat_2_12_len;
 extern GlobalProperty pc_compat_2_11[];
 extern const size_t pc_compat_2_11_len;
 
-#define PC_COMPAT_2_10 \
-    HW_COMPAT_2_10 \
-    {\
-        .driver   = TYPE_X86_CPU,\
-        .property = "x-hv-max-vps",\
-        .value    = "0x40",\
-    },{\
-        .driver   = "i440FX-pcihost",\
-        .property = "x-pci-hole64-fix",\
-        .value    = "off",\
-    },{\
-        .driver   = "q35-pcihost",\
-        .property = "x-pci-hole64-fix",\
-        .value    = "off",\
-    },
+extern GlobalProperty pc_compat_2_10[];
+extern const size_t pc_compat_2_10_len;
 
 #define PC_COMPAT_2_9 \
     HW_COMPAT_2_9 \
