@@ -101,6 +101,8 @@ void pci_bridge_exitfn(PCIDevice *pci_dev);
 
 void pci_bridge_dev_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                             Error **errp);
+void pci_bridge_dev_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                              Error **errp);
 void pci_bridge_dev_unplug_request_cb(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp);
 

@@ -238,6 +238,7 @@ static void shpc_invalid_command(SHPCDevice *shpc)
 
 static void shpc_free_devices_in_slot(SHPCDevice *shpc, int slot)
 {
+    HotplugHandler *hotplug_ctrl;
     int devfn;
     int pci_slot = SHPC_IDX_TO_PCI(slot);
     for (devfn = PCI_DEVFN(pci_slot, 0);
@@ -245,7 +246,9 @@ static void shpc_free_devices_in_slot(SHPCDevice *shpc, int slot)
          ++devfn) {
         PCIDevice *affected_dev = shpc->sec_bus->devices[devfn];
         if (affected_dev) {
-            object_unparent(OBJECT(affected_dev));
+            hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(affected_dev));
+            hotplug_handler_unplug(hotplug_ctrl, DEVICE(affected_dev),
+                                   &error_abort);
         }
     }
 }
@@ -538,6 +541,12 @@ void shpc_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
     shpc_set_status(shpc, slot, 0, SHPC_SLOT_STATUS_66);
     shpc_interrupt_update(pci_hotplug_dev);
+}
+
+void shpc_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                           Error **errp)
+{
+    object_unparent(OBJECT(dev));
 }
 
 void shpc_device_unplug_request_cb(HotplugHandler *hotplug_dev,
