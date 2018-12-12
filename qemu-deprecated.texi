@@ -46,14 +46,6 @@ would automatically enable USB support on the machine type.
 If using the new syntax, USB support must be explicitly
 enabled via the ``-machine usb=on'' argument.
 
-@subsection -fsdev handle (since 2.12.0)
-
-The ``handle'' fsdev backend does not support symlinks and causes the 9p
-filesystem in the guest to fail a fair amount of tests from the PJD POSIX
-filesystem test suite. Also it requires the CAP_DAC_READ_SEARCH capability,
-which is not the recommended way to run QEMU. This backend should not be
-used and it will be removed with no replacement.
-
 @subsection -no-frame (since 2.12.0)
 
 The @code{--no-frame} argument works with SDL 1.2 only. The other user
