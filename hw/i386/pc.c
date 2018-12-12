@@ -224,6 +224,40 @@ GlobalProperty pc_compat_2_8[] = {
 };
 const size_t pc_compat_2_8_len = G_N_ELEMENTS(pc_compat_2_8);
 
+GlobalProperty pc_compat_2_7[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "l3-cache",
+        .value    = "off",
+    },
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "full-cpuid-auto-level",
+        .value    = "off",
+    },
+    {
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,
+        .property = "family",
+        .value    = "15",
+    },
+    {
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,
+        .property = "model",
+        .value    = "6",
+    },
+    {
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,
+        .property = "stepping",
+        .value    = "1",
+    },
+    {
+        .driver   = "isa-pcspk",
+        .property = "migrate",
+        .value    = "off",
+    },
+};
+const size_t pc_compat_2_7_len = G_N_ELEMENTS(pc_compat_2_7);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;

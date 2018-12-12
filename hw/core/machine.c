@@ -168,6 +168,31 @@ GlobalProperty hw_compat_2_8[] = {
 };
 const size_t hw_compat_2_8_len = G_N_ELEMENTS(hw_compat_2_8);
 
+GlobalProperty hw_compat_2_7[] = {
+    {
+        .driver   = "virtio-pci",
+        .property = "page-per-vq",
+        .value    = "on",
+    },{
+        .driver   = "virtio-serial-device",
+        .property = "emergency-write",
+        .value    = "off",
+    },{
+        .driver   = "ioapic",
+        .property = "version",
+        .value    = "0x11",
+    },{
+        .driver   = "intel-iommu",
+        .property = "x-buggy-eim",
+        .value    = "true",
+    },{
+        .driver   = "virtio-pci",
+        .property = "x-ignore-backend-features",
+        .value    = "on",
+    },
+};
+const size_t hw_compat_2_7_len = G_N_ELEMENTS(hw_compat_2_7);
+
 static char *machine_get_accel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);

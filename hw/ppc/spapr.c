@@ -4223,7 +4223,6 @@ static void spapr_machine_2_7_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        HW_COMPAT_2_7
         {
             .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
             .property = "mem_win_size",
@@ -4249,6 +4248,7 @@ static void spapr_machine_2_7_class_options(MachineClass *mc)
     spapr_machine_2_8_class_options(mc);
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power7_v2.3");
     mc->default_machine_opts = "modern-hotplug-events=off";
+    compat_props_add(mc->compat_props, hw_compat_2_7, hw_compat_2_7_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     smc->phb_placement = phb_placement_2_7;
 }
