@@ -259,6 +259,11 @@ static int create_cq_ring(PCIDevice *pci_dev , PvrdmaRing **ring,
     int rc = -EINVAL;
     char ring_name[MAX_RING_NAME_SZ];
 
+    if (!nchunks || nchunks > PVRDMA_MAX_FAST_REG_PAGES) {
+        pr_dbg("invalid nchunks: %d\n", nchunks);
+        return rc;
+    }
+
     pr_dbg("pdir_dma=0x%llx\n", (long long unsigned int)pdir_dma);
     dir = rdma_pci_dma_map(pci_dev, pdir_dma, TARGET_PAGE_SIZE);
     if (!dir) {
@@ -371,6 +376,12 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
     int rc = -EINVAL;
     char ring_name[MAX_RING_NAME_SZ];
     uint32_t wqe_sz;
+
+    if (!spages || spages > PVRDMA_MAX_FAST_REG_PAGES
+        || !rpages || rpages > PVRDMA_MAX_FAST_REG_PAGES) {
+        pr_dbg("invalid pages: %d, %d\n", spages, rpages);
+        return rc;
+    }
 
     pr_dbg("pdir_dma=0x%llx\n", (long long unsigned int)pdir_dma);
     dir = rdma_pci_dma_map(pci_dev, pdir_dma, TARGET_PAGE_SIZE);
