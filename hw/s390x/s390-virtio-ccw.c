@@ -811,7 +811,6 @@ static void ccw_machine_2_6_class_options(MachineClass *mc)
 {
     S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        HW_COMPAT_2_6
         {
             .driver   = TYPE_S390_IPL,
             .property = "iplbext_migration",
@@ -825,6 +824,7 @@ static void ccw_machine_2_6_class_options(MachineClass *mc)
 
     s390mc->ri_allowed = false;
     ccw_machine_2_7_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_2_6, hw_compat_2_6_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 DEFINE_CCW_MACHINE(2_6, "2.6", false);

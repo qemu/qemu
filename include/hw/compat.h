@@ -1,21 +1,6 @@
 #ifndef HW_COMPAT_H
 #define HW_COMPAT_H
 
-#define HW_COMPAT_2_6 \
-    {\
-        .driver   = "virtio-mmio",\
-        .property = "format_transport_address",\
-        .value    = "off",\
-    },{\
-        .driver   = "virtio-pci",\
-        .property = "disable-modern",\
-        .value    = "on",\
-    },{\
-        .driver   = "virtio-pci",\
-        .property = "disable-legacy",\
-        .value    = "off",\
-    },
-
 #define HW_COMPAT_2_5 \
     {\
         .driver   = "isa-fdc",\

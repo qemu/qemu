@@ -412,14 +412,12 @@ DEFINE_Q35_MACHINE(v2_7, "pc-q35-2.7", NULL,
 static void pc_q35_2_6_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-    static GlobalProperty compat[] = {
-        PC_COMPAT_2_6
-    };
 
     pc_q35_2_7_machine_options(m);
     pcmc->legacy_cpu_hotplug = true;
     pcmc->linuxboot_dma_enabled = false;
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_2_6, hw_compat_2_6_len);
+    compat_props_add(m->compat_props, pc_compat_2_6, pc_compat_2_6_len);
 }
 
 DEFINE_Q35_MACHINE(v2_6, "pc-q35-2.6", NULL,

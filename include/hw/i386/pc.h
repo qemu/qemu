@@ -318,27 +318,8 @@ extern const size_t pc_compat_2_8_len;
 extern GlobalProperty pc_compat_2_7[];
 extern const size_t pc_compat_2_7_len;
 
-#define PC_COMPAT_2_6 \
-    HW_COMPAT_2_6 \
-    {\
-        .driver   = TYPE_X86_CPU,\
-        .property = "cpuid-0xb",\
-        .value    = "off",\
-    },{\
-        .driver   = "vmxnet3",\
-        .property = "romfile",\
-        .value    = "",\
-    },\
-    {\
-        .driver = TYPE_X86_CPU,\
-        .property = "fill-mtrr-mask",\
-        .value = "off",\
-    },\
-    {\
-        .driver   = "apic-common",\
-        .property = "legacy-instance-id",\
-        .value    = "on",\
-    },
+extern GlobalProperty pc_compat_2_6[];
+extern const size_t pc_compat_2_6_len;
 
 #define PC_COMPAT_2_5 \
     HW_COMPAT_2_5

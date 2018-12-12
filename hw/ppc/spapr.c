@@ -4262,7 +4262,6 @@ DEFINE_SPAPR_MACHINE(2_7, "2.7", false);
 static void spapr_machine_2_6_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        HW_COMPAT_2_6
         {
             .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
             .property = "ddw",
@@ -4272,6 +4271,7 @@ static void spapr_machine_2_6_class_options(MachineClass *mc)
 
     spapr_machine_2_7_class_options(mc);
     mc->has_hotpluggable_cpus = false;
+    compat_props_add(mc->compat_props, hw_compat_2_6, hw_compat_2_6_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 

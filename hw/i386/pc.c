@@ -258,6 +258,29 @@ GlobalProperty pc_compat_2_7[] = {
 };
 const size_t pc_compat_2_7_len = G_N_ELEMENTS(pc_compat_2_7);
 
+GlobalProperty pc_compat_2_6[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "cpuid-0xb",
+        .value    = "off",
+    },{
+        .driver   = "vmxnet3",
+        .property = "romfile",
+        .value    = "",
+    },
+    {
+        .driver = TYPE_X86_CPU,
+        .property = "fill-mtrr-mask",
+        .value = "off",
+    },
+    {
+        .driver   = "apic-common",
+        .property = "legacy-instance-id",
+        .value    = "on",
+    }
+};
+const size_t pc_compat_2_6_len = G_N_ELEMENTS(pc_compat_2_6);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;
