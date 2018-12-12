@@ -27,6 +27,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pcie_regs.h"
+#include "hw/pci/pcie_port.h"
 #include "qemu/range.h"
 
 //#define DEBUG_PCIE
@@ -87,6 +88,76 @@ pcie_cap_v1_fill(PCIDevice *dev, uint8_t port, uint8_t type, uint8_t version)
     pci_set_word(cmask + PCI_EXP_LNKSTA, 0);
 }
 
+static void pcie_cap_fill_slot_lnk(PCIDevice *dev)
+{
+    PCIESlot *s = (PCIESlot *)object_dynamic_cast(OBJECT(dev), TYPE_PCIE_SLOT);
+    uint8_t *exp_cap = dev->config + dev->exp.exp_cap;
+
+    /* Skip anything that isn't a PCIESlot */
+    if (!s) {
+        return;
+    }
+
+    /* Clear and fill LNKCAP from what was configured above */
+    pci_long_test_and_clear_mask(exp_cap + PCI_EXP_LNKCAP,
+                                 PCI_EXP_LNKCAP_MLW | PCI_EXP_LNKCAP_SLS);
+    pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP,
+                               QEMU_PCI_EXP_LNKCAP_MLW(s->width) |
+                               QEMU_PCI_EXP_LNKCAP_MLS(s->speed));
+
+    /*
+     * Link bandwidth notification is required for all root ports and
+     * downstream ports supporting links wider than x1 or multiple link
+     * speeds.
+     */
+    if (s->width > QEMU_PCI_EXP_LNK_X1 ||
+        s->speed > QEMU_PCI_EXP_LNK_2_5GT) {
+        pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP,
+                                   PCI_EXP_LNKCAP_LBNC);
+    }
+
+    if (s->speed > QEMU_PCI_EXP_LNK_2_5GT) {
+        /*
+         * Hot-plug capable downstream ports and downstream ports supporting
+         * link speeds greater than 5GT/s must hardwire PCI_EXP_LNKCAP_DLLLARC
+         * to 1b.  PCI_EXP_LNKCAP_DLLLARC implies PCI_EXP_LNKSTA_DLLLA, which
+         * we also hardwire to 1b here.  2.5GT/s hot-plug slots should also
+         * technically implement this, but it's not done here for compatibility.
+         */
+        pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP,
+                                   PCI_EXP_LNKCAP_DLLLARC);
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_LNKSTA,
+                                   PCI_EXP_LNKSTA_DLLLA);
+
+        /*
+         * Target Link Speed defaults to the highest link speed supported by
+         * the component.  2.5GT/s devices are permitted to hardwire to zero.
+         */
+        pci_word_test_and_clear_mask(exp_cap + PCI_EXP_LNKCTL2,
+                                     PCI_EXP_LNKCTL2_TLS);
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_LNKCTL2,
+                                   QEMU_PCI_EXP_LNKCAP_MLS(s->speed) &
+                                   PCI_EXP_LNKCTL2_TLS);
+    }
+
+    /*
+     * 2.5 & 5.0GT/s can be fully described by LNKCAP, but 8.0GT/s is
+     * actually a reference to the highest bit supported in this register.
+     * We assume the device supports all link speeds.
+     */
+    if (s->speed > QEMU_PCI_EXP_LNK_5GT) {
+        pci_long_test_and_clear_mask(exp_cap + PCI_EXP_LNKCAP2, ~0U);
+        pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP2,
+                                   PCI_EXP_LNKCAP2_SLS_2_5GB |
+                                   PCI_EXP_LNKCAP2_SLS_5_0GB |
+                                   PCI_EXP_LNKCAP2_SLS_8_0GB);
+        if (s->speed > QEMU_PCI_EXP_LNK_8GT) {
+            pci_long_test_and_set_mask(exp_cap + PCI_EXP_LNKCAP2,
+                                       PCI_EXP_LNKCAP2_SLS_16_0GB);
+        }
+    }
+}
+
 int pcie_cap_init(PCIDevice *dev, uint8_t offset,
                   uint8_t type, uint8_t port,
                   Error **errp)
@@ -107,6 +178,9 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset,
 
     /* Filling values common with v1 */
     pcie_cap_v1_fill(dev, port, type, PCI_EXP_FLAGS_VER2);
+
+    /* Fill link speed and width options */
+    pcie_cap_fill_slot_lnk(dev);
 
     /* Filling v2 specific values */
     pci_set_long(exp_cap + PCI_EXP_DEVCAP2,
