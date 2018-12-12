@@ -448,6 +448,11 @@ static const MemoryRegionOps regs_ops = {
     },
 };
 
+static uint64_t uar_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0xffffffff;
+}
+
 static void uar_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     PVRDMADev *dev = opaque;
@@ -489,6 +494,7 @@ static void uar_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 }
 
 static const MemoryRegionOps uar_ops = {
+    .read = uar_read,
     .write = uar_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
