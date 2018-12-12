@@ -4285,7 +4285,6 @@ static void spapr_machine_2_5_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        HW_COMPAT_2_5
         {
             .driver   = "spapr-vlan",
             .property = "use-rx-buffer-pools",
@@ -4295,6 +4294,7 @@ static void spapr_machine_2_5_class_options(MachineClass *mc)
 
     spapr_machine_2_6_class_options(mc);
     smc->use_ohci_by_default = true;
+    compat_props_add(mc->compat_props, hw_compat_2_5, hw_compat_2_5_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 

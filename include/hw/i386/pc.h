@@ -321,8 +321,8 @@ extern const size_t pc_compat_2_7_len;
 extern GlobalProperty pc_compat_2_6[];
 extern const size_t pc_compat_2_6_len;
 
-#define PC_COMPAT_2_5 \
-    HW_COMPAT_2_5
+extern GlobalProperty pc_compat_2_5[];
+extern const size_t pc_compat_2_5_len;
 
 /* Helper for setting model-id for CPU models that changed model-id
  * depending on QEMU versions up to QEMU 2.4.

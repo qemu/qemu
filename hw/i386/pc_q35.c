@@ -426,14 +426,12 @@ DEFINE_Q35_MACHINE(v2_6, "pc-q35-2.6", NULL,
 static void pc_q35_2_5_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-    static GlobalProperty compat[] = {
-        PC_COMPAT_2_5
-    };
 
     pc_q35_2_6_machine_options(m);
     pcmc->save_tsc_khz = false;
     m->legacy_fw_cfg_order = 1;
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_2_5, hw_compat_2_5_len);
+    compat_props_add(m->compat_props, pc_compat_2_5, pc_compat_2_5_len);
 }
 
 DEFINE_Q35_MACHINE(v2_5, "pc-q35-2.5", NULL,

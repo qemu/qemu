@@ -210,6 +210,32 @@ GlobalProperty hw_compat_2_6[] = {
 };
 const size_t hw_compat_2_6_len = G_N_ELEMENTS(hw_compat_2_6);
 
+GlobalProperty hw_compat_2_5[] = {
+    {
+        .driver   = "isa-fdc",
+        .property = "fallback",
+        .value    = "144",
+    },{
+        .driver   = "pvscsi",
+        .property = "x-old-pci-configuration",
+        .value    = "on",
+    },{
+        .driver   = "pvscsi",
+        .property = "x-disable-pcie",
+        .value    = "on",
+    },
+    {
+        .driver   = "vmxnet3",
+        .property = "x-old-msi-offsets",
+        .value    = "on",
+    },{
+        .driver   = "vmxnet3",
+        .property = "x-disable-pcie",
+        .value    = "on",
+    },
+};
+const size_t hw_compat_2_5_len = G_N_ELEMENTS(hw_compat_2_5);
+
 static char *machine_get_accel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);

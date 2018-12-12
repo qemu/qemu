@@ -836,12 +836,8 @@ static void ccw_machine_2_5_instance_options(MachineState *machine)
 
 static void ccw_machine_2_5_class_options(MachineClass *mc)
 {
-    static GlobalProperty compat[] = {
-        HW_COMPAT_2_5
-    };
-
     ccw_machine_2_6_class_options(mc);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(mc->compat_props, hw_compat_2_5, hw_compat_2_5_len);
 }
 DEFINE_CCW_MACHINE(2_5, "2.5", false);
 
