@@ -321,34 +321,50 @@ static void pc_q35_4_0_machine_options(MachineClass *m)
 DEFINE_Q35_MACHINE(v4_0, "pc-q35-4.0", NULL,
                    pc_q35_4_0_machine_options);
 
+static GlobalProperty pc_compat_3_1[] = {
+    PC_COMPAT_3_1
+};
+
 static void pc_q35_3_1_machine_options(MachineClass *m)
 {
     pc_q35_4_0_machine_options(m);
     m->default_kernel_irqchip_split = false;
     m->alias = NULL;
-    SET_MACHINE_COMPAT(m, PC_COMPAT_3_1);
+    SET_MACHINE_COMPAT(m, pc_compat_3_1);
 }
 
 DEFINE_Q35_MACHINE(v3_1, "pc-q35-3.1", NULL,
                    pc_q35_3_1_machine_options);
 
+static GlobalProperty pc_compat_3_0[] = {
+    PC_COMPAT_3_0
+};
+
 static void pc_q35_3_0_machine_options(MachineClass *m)
 {
     pc_q35_3_1_machine_options(m);
-    SET_MACHINE_COMPAT(m, PC_COMPAT_3_0);
+    SET_MACHINE_COMPAT(m, pc_compat_3_0);
 }
 
 DEFINE_Q35_MACHINE(v3_0, "pc-q35-3.0", NULL,
                     pc_q35_3_0_machine_options);
 
+static GlobalProperty pc_compat_2_12[] = {
+    PC_COMPAT_2_12
+};
+
 static void pc_q35_2_12_machine_options(MachineClass *m)
 {
     pc_q35_3_0_machine_options(m);
-    SET_MACHINE_COMPAT(m, PC_COMPAT_2_12);
+    SET_MACHINE_COMPAT(m, pc_compat_2_12);
 }
 
 DEFINE_Q35_MACHINE(v2_12, "pc-q35-2.12", NULL,
                    pc_q35_2_12_machine_options);
+
+static GlobalProperty pc_compat_2_11[] = {
+    PC_COMPAT_2_11
+};
 
 static void pc_q35_2_11_machine_options(MachineClass *m)
 {
@@ -356,16 +372,20 @@ static void pc_q35_2_11_machine_options(MachineClass *m)
 
     pc_q35_2_12_machine_options(m);
     pcmc->default_nic_model = "e1000";
-    SET_MACHINE_COMPAT(m, PC_COMPAT_2_11);
+    SET_MACHINE_COMPAT(m, pc_compat_2_11);
 }
 
 DEFINE_Q35_MACHINE(v2_11, "pc-q35-2.11", NULL,
                    pc_q35_2_11_machine_options);
 
+static GlobalProperty pc_compat_2_10[] = {
+    PC_COMPAT_2_10
+};
+
 static void pc_q35_2_10_machine_options(MachineClass *m)
 {
     pc_q35_2_11_machine_options(m);
-    SET_MACHINE_COMPAT(m, PC_COMPAT_2_10);
+    SET_MACHINE_COMPAT(m, pc_compat_2_10);
     m->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
     m->auto_enable_numa_with_memhp = false;
 }
@@ -373,33 +393,49 @@ static void pc_q35_2_10_machine_options(MachineClass *m)
 DEFINE_Q35_MACHINE(v2_10, "pc-q35-2.10", NULL,
                    pc_q35_2_10_machine_options);
 
+static GlobalProperty pc_compat_2_9[] = {
+    PC_COMPAT_2_9
+};
+
 static void pc_q35_2_9_machine_options(MachineClass *m)
 {
     pc_q35_2_10_machine_options(m);
-    SET_MACHINE_COMPAT(m, PC_COMPAT_2_9);
+    SET_MACHINE_COMPAT(m, pc_compat_2_9);
 }
 
 DEFINE_Q35_MACHINE(v2_9, "pc-q35-2.9", NULL,
                    pc_q35_2_9_machine_options);
 
+static GlobalProperty pc_compat_2_8[] = {
+    PC_COMPAT_2_8
+};
+
 static void pc_q35_2_8_machine_options(MachineClass *m)
 {
     pc_q35_2_9_machine_options(m);
-    SET_MACHINE_COMPAT(m, PC_COMPAT_2_8);
+    SET_MACHINE_COMPAT(m, pc_compat_2_8);
 }
 
 DEFINE_Q35_MACHINE(v2_8, "pc-q35-2.8", NULL,
                    pc_q35_2_8_machine_options);
 
+static GlobalProperty pc_compat_2_7[] = {
+    PC_COMPAT_2_7
+};
+
 static void pc_q35_2_7_machine_options(MachineClass *m)
 {
     pc_q35_2_8_machine_options(m);
     m->max_cpus = 255;
-    SET_MACHINE_COMPAT(m, PC_COMPAT_2_7);
+    SET_MACHINE_COMPAT(m, pc_compat_2_7);
 }
 
 DEFINE_Q35_MACHINE(v2_7, "pc-q35-2.7", NULL,
                    pc_q35_2_7_machine_options);
+
+static GlobalProperty pc_compat_2_6[] = {
+    PC_COMPAT_2_6
+};
 
 static void pc_q35_2_6_machine_options(MachineClass *m)
 {
@@ -407,11 +443,15 @@ static void pc_q35_2_6_machine_options(MachineClass *m)
     pc_q35_2_7_machine_options(m);
     pcmc->legacy_cpu_hotplug = true;
     pcmc->linuxboot_dma_enabled = false;
-    SET_MACHINE_COMPAT(m, PC_COMPAT_2_6);
+    SET_MACHINE_COMPAT(m, pc_compat_2_6);
 }
 
 DEFINE_Q35_MACHINE(v2_6, "pc-q35-2.6", NULL,
                    pc_q35_2_6_machine_options);
+
+static GlobalProperty pc_compat_2_5[] = {
+    PC_COMPAT_2_5
+};
 
 static void pc_q35_2_5_machine_options(MachineClass *m)
 {
@@ -419,11 +459,15 @@ static void pc_q35_2_5_machine_options(MachineClass *m)
     pc_q35_2_6_machine_options(m);
     pcmc->save_tsc_khz = false;
     m->legacy_fw_cfg_order = 1;
-    SET_MACHINE_COMPAT(m, PC_COMPAT_2_5);
+    SET_MACHINE_COMPAT(m, pc_compat_2_5);
 }
 
 DEFINE_Q35_MACHINE(v2_5, "pc-q35-2.5", NULL,
                    pc_q35_2_5_machine_options);
+
+static GlobalProperty pc_compat_2_4[] = {
+    PC_COMPAT_2_4
+};
 
 static void pc_q35_2_4_machine_options(MachineClass *m)
 {
@@ -431,7 +475,7 @@ static void pc_q35_2_4_machine_options(MachineClass *m)
     pc_q35_2_5_machine_options(m);
     m->hw_version = "2.4.0";
     pcmc->broken_reserved_end = true;
-    SET_MACHINE_COMPAT(m, PC_COMPAT_2_4);
+    SET_MACHINE_COMPAT(m, pc_compat_2_4);
 }
 
 DEFINE_Q35_MACHINE(v2_4, "pc-q35-2.4", NULL,

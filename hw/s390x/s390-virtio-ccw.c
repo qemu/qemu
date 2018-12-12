@@ -651,99 +651,110 @@ bool css_migration_enabled(void)
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
-#define CCW_COMPAT_3_1 \
-        HW_COMPAT_3_1
+static GlobalProperty ccw_compat_3_1[] = {
+    HW_COMPAT_3_1
+};
 
-#define CCW_COMPAT_3_0 \
-        HW_COMPAT_3_0
+static GlobalProperty ccw_compat_3_0[] = {
+    HW_COMPAT_3_0
+};
 
-#define CCW_COMPAT_2_12 \
-        HW_COMPAT_2_12
+static GlobalProperty ccw_compat_2_12[] = {
+    HW_COMPAT_2_12
+};
 
-#define CCW_COMPAT_2_11 \
-        HW_COMPAT_2_11 \
-        {\
-            .driver   = TYPE_SCLP_EVENT_FACILITY,\
-            .property = "allow_all_mask_sizes",\
-            .value    = "off",\
-        },
+static GlobalProperty ccw_compat_2_11[] = {
+    HW_COMPAT_2_11
+    {
+        .driver   = TYPE_SCLP_EVENT_FACILITY,
+        .property = "allow_all_mask_sizes",
+        .value    = "off",
+    },
+};
 
-#define CCW_COMPAT_2_10 \
-        HW_COMPAT_2_10
+static GlobalProperty ccw_compat_2_10[] = {
+    HW_COMPAT_2_10
+};
 
-#define CCW_COMPAT_2_9 \
-        HW_COMPAT_2_9 \
-        {\
-            .driver   = TYPE_S390_STATTRIB,\
-            .property = "migration-enabled",\
-            .value    = "off",\
-        },
+static GlobalProperty ccw_compat_2_9[] = {
+    HW_COMPAT_2_9
+    {
+        .driver   = TYPE_S390_STATTRIB,
+        .property = "migration-enabled",
+        .value    = "off",
+    },
+};
 
-#define CCW_COMPAT_2_8 \
-        HW_COMPAT_2_8 \
-        {\
-            .driver   = TYPE_S390_FLIC_COMMON,\
-            .property = "adapter_routes_max_batch",\
-            .value    = "64",\
-        },
+static GlobalProperty ccw_compat_2_8[] = {
+    HW_COMPAT_2_8
+    {
+        .driver   = TYPE_S390_FLIC_COMMON,
+        .property = "adapter_routes_max_batch",
+        .value    = "64",
+    },
+};
 
-#define CCW_COMPAT_2_7 \
-        HW_COMPAT_2_7
+static GlobalProperty ccw_compat_2_7[] = {
+    HW_COMPAT_2_7
+};
 
-#define CCW_COMPAT_2_6 \
-        HW_COMPAT_2_6 \
-        {\
-            .driver   = TYPE_S390_IPL,\
-            .property = "iplbext_migration",\
-            .value    = "off",\
-        }, {\
-            .driver   = TYPE_VIRTUAL_CSS_BRIDGE,\
-            .property = "css_dev_path",\
-            .value    = "off",\
-        },
+static GlobalProperty ccw_compat_2_6[] = {
+    HW_COMPAT_2_6
+    {
+        .driver   = TYPE_S390_IPL,
+        .property = "iplbext_migration",
+        .value    = "off",
+    }, {
+        .driver   = TYPE_VIRTUAL_CSS_BRIDGE,
+        .property = "css_dev_path",
+        .value    = "off",
+    },
+};
 
-#define CCW_COMPAT_2_5 \
-        HW_COMPAT_2_5
+static GlobalProperty ccw_compat_2_5[] = {
+    HW_COMPAT_2_5
+};
 
-#define CCW_COMPAT_2_4 \
-        HW_COMPAT_2_4 \
-        {\
-            .driver   = TYPE_S390_SKEYS,\
-            .property = "migration-enabled",\
-            .value    = "off",\
-        },{\
-            .driver   = "virtio-blk-ccw",\
-            .property = "max_revision",\
-            .value    = "0",\
-        },{\
-            .driver   = "virtio-balloon-ccw",\
-            .property = "max_revision",\
-            .value    = "0",\
-        },{\
-            .driver   = "virtio-serial-ccw",\
-            .property = "max_revision",\
-            .value    = "0",\
-        },{\
-            .driver   = "virtio-9p-ccw",\
-            .property = "max_revision",\
-            .value    = "0",\
-        },{\
-            .driver   = "virtio-rng-ccw",\
-            .property = "max_revision",\
-            .value    = "0",\
-        },{\
-            .driver   = "virtio-net-ccw",\
-            .property = "max_revision",\
-            .value    = "0",\
-        },{\
-            .driver   = "virtio-scsi-ccw",\
-            .property = "max_revision",\
-            .value    = "0",\
-        },{\
-            .driver   = "vhost-scsi-ccw",\
-            .property = "max_revision",\
-            .value    = "0",\
-        },
+static GlobalProperty ccw_compat_2_4[] = {
+    HW_COMPAT_2_4
+    {
+        .driver   = TYPE_S390_SKEYS,
+        .property = "migration-enabled",
+        .value    = "off",
+    },{
+        .driver   = "virtio-blk-ccw",
+        .property = "max_revision",
+        .value    = "0",
+    },{
+        .driver   = "virtio-balloon-ccw",
+        .property = "max_revision",
+        .value    = "0",
+    },{
+        .driver   = "virtio-serial-ccw",
+        .property = "max_revision",
+        .value    = "0",
+    },{
+        .driver   = "virtio-9p-ccw",
+        .property = "max_revision",
+        .value    = "0",
+    },{
+        .driver   = "virtio-rng-ccw",
+        .property = "max_revision",
+        .value    = "0",
+    },{
+        .driver   = "virtio-net-ccw",
+        .property = "max_revision",
+        .value    = "0",
+    },{
+        .driver   = "virtio-scsi-ccw",
+        .property = "max_revision",
+        .value    = "0",
+    },{
+        .driver   = "vhost-scsi-ccw",
+        .property = "max_revision",
+        .value    = "0",
+    },
+};
 
 static void ccw_machine_4_0_instance_options(MachineState *machine)
 {
@@ -762,7 +773,7 @@ static void ccw_machine_3_1_instance_options(MachineState *machine)
 static void ccw_machine_3_1_class_options(MachineClass *mc)
 {
     ccw_machine_4_0_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_3_1);
+    SET_MACHINE_COMPAT(mc, ccw_compat_3_1);
 }
 DEFINE_CCW_MACHINE(3_1, "3.1", false);
 
@@ -777,7 +788,7 @@ static void ccw_machine_3_0_class_options(MachineClass *mc)
 
     s390mc->hpage_1m_allowed = false;
     ccw_machine_3_1_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_3_0);
+    SET_MACHINE_COMPAT(mc, ccw_compat_3_0);
 }
 DEFINE_CCW_MACHINE(3_0, "3.0", false);
 
@@ -791,7 +802,7 @@ static void ccw_machine_2_12_instance_options(MachineState *machine)
 static void ccw_machine_2_12_class_options(MachineClass *mc)
 {
     ccw_machine_3_0_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_12);
+    SET_MACHINE_COMPAT(mc, ccw_compat_2_12);
 }
 DEFINE_CCW_MACHINE(2_12, "2.12", false);
 
@@ -807,7 +818,7 @@ static void ccw_machine_2_11_instance_options(MachineState *machine)
 static void ccw_machine_2_11_class_options(MachineClass *mc)
 {
     ccw_machine_2_12_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_11);
+    SET_MACHINE_COMPAT(mc, ccw_compat_2_11);
 }
 DEFINE_CCW_MACHINE(2_11, "2.11", false);
 
@@ -819,7 +830,7 @@ static void ccw_machine_2_10_instance_options(MachineState *machine)
 static void ccw_machine_2_10_class_options(MachineClass *mc)
 {
     ccw_machine_2_11_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_10);
+    SET_MACHINE_COMPAT(mc, ccw_compat_2_10);
 }
 DEFINE_CCW_MACHINE(2_10, "2.10", false);
 
@@ -838,7 +849,7 @@ static void ccw_machine_2_9_class_options(MachineClass *mc)
     S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
 
     ccw_machine_2_10_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_9);
+    SET_MACHINE_COMPAT(mc, ccw_compat_2_9);
     s390mc->css_migration_enabled = false;
 }
 DEFINE_CCW_MACHINE(2_9, "2.9", false);
@@ -851,7 +862,7 @@ static void ccw_machine_2_8_instance_options(MachineState *machine)
 static void ccw_machine_2_8_class_options(MachineClass *mc)
 {
     ccw_machine_2_9_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_8);
+    SET_MACHINE_COMPAT(mc, ccw_compat_2_8);
 }
 DEFINE_CCW_MACHINE(2_8, "2.8", false);
 
@@ -866,7 +877,7 @@ static void ccw_machine_2_7_class_options(MachineClass *mc)
 
     s390mc->cpu_model_allowed = false;
     ccw_machine_2_8_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_7);
+    SET_MACHINE_COMPAT(mc, ccw_compat_2_7);
 }
 DEFINE_CCW_MACHINE(2_7, "2.7", false);
 
@@ -881,7 +892,7 @@ static void ccw_machine_2_6_class_options(MachineClass *mc)
 
     s390mc->ri_allowed = false;
     ccw_machine_2_7_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_6);
+    SET_MACHINE_COMPAT(mc, ccw_compat_2_6);
 }
 DEFINE_CCW_MACHINE(2_6, "2.6", false);
 
@@ -893,7 +904,7 @@ static void ccw_machine_2_5_instance_options(MachineState *machine)
 static void ccw_machine_2_5_class_options(MachineClass *mc)
 {
     ccw_machine_2_6_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_5);
+    SET_MACHINE_COMPAT(mc, ccw_compat_2_5);
 }
 DEFINE_CCW_MACHINE(2_5, "2.5", false);
 
@@ -905,7 +916,7 @@ static void ccw_machine_2_4_instance_options(MachineState *machine)
 static void ccw_machine_2_4_class_options(MachineClass *mc)
 {
     ccw_machine_2_5_class_options(mc);
-    SET_MACHINE_COMPAT(mc, CCW_COMPAT_2_4);
+    SET_MACHINE_COMPAT(mc, ccw_compat_2_4);
 }
 DEFINE_CCW_MACHINE(2_4, "2.4", false);
 
