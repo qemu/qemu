@@ -4021,15 +4021,14 @@ DEFINE_SPAPR_MACHINE(4_0, "4.0", true);
 /*
  * pseries-3.1
  */
-static GlobalProperty spapr_compat_3_1[] = {
-    HW_COMPAT_3_1
-};
-
 static void spapr_machine_3_1_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        HW_COMPAT_3_1
+    };
+
     spapr_machine_4_0_class_options(mc);
-    compat_props_add(mc->compat_props,
-                     spapr_compat_3_1, G_N_ELEMENTS(spapr_compat_3_1));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
 }
 
@@ -4038,17 +4037,16 @@ DEFINE_SPAPR_MACHINE(3_1, "3.1", false);
 /*
  * pseries-3.0
  */
-static GlobalProperty spapr_compat_3_0[] = {
-    HW_COMPAT_3_0
-};
 
 static void spapr_machine_3_0_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        HW_COMPAT_3_0
+    };
 
     spapr_machine_3_1_class_options(mc);
-    compat_props_add(mc->compat_props,
-                     spapr_compat_3_0, G_N_ELEMENTS(spapr_compat_3_0));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 
     smc->legacy_irq_allocation = true;
     smc->irq = &spapr_irq_xics_legacy;
@@ -4059,27 +4057,25 @@ DEFINE_SPAPR_MACHINE(3_0, "3.0", false);
 /*
  * pseries-2.12
  */
-static GlobalProperty spapr_compat_2_12[] = {
-    HW_COMPAT_2_12
-    {
-        .driver = TYPE_POWERPC_CPU,
-        .property = "pre-3.0-migration",
-        .value    = "on",
-    },
-    {
-        .driver = TYPE_SPAPR_CPU_CORE,
-        .property = "pre-3.0-migration",
-        .value    = "on",
-    },
-};
-
 static void spapr_machine_2_12_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_12
+        {
+            .driver = TYPE_POWERPC_CPU,
+            .property = "pre-3.0-migration",
+            .value    = "on",
+        },
+        {
+            .driver = TYPE_SPAPR_CPU_CORE,
+            .property = "pre-3.0-migration",
+            .value    = "on",
+        },
+    };
 
     spapr_machine_3_0_class_options(mc);
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_12, G_N_ELEMENTS(spapr_compat_2_12));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 
     /* We depend on kvm_enabled() to choose a default value for the
      * hpt-max-page-size capability. Of course we can't do it here
@@ -4106,18 +4102,17 @@ DEFINE_SPAPR_MACHINE(2_12_sxxm, "2.12-sxxm", false);
 /*
  * pseries-2.11
  */
-static GlobalProperty spapr_compat_2_11[] = {
-    HW_COMPAT_2_11
-};
 
 static void spapr_machine_2_11_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_11
+    };
 
     spapr_machine_2_12_class_options(mc);
     smc->default_caps.caps[SPAPR_CAP_HTM] = SPAPR_CAP_ON;
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_11, G_N_ELEMENTS(spapr_compat_2_11));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 
 DEFINE_SPAPR_MACHINE(2_11, "2.11", false);
@@ -4125,15 +4120,15 @@ DEFINE_SPAPR_MACHINE(2_11, "2.11", false);
 /*
  * pseries-2.10
  */
-static GlobalProperty spapr_compat_2_10[] = {
-    HW_COMPAT_2_10
-};
 
 static void spapr_machine_2_10_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_10
+    };
+
     spapr_machine_2_11_class_options(mc);
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_10, G_N_ELEMENTS(spapr_compat_2_10));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 
 DEFINE_SPAPR_MACHINE(2_10, "2.10", false);
@@ -4141,22 +4136,21 @@ DEFINE_SPAPR_MACHINE(2_10, "2.10", false);
 /*
  * pseries-2.9
  */
-static GlobalProperty spapr_compat_2_9[] = {
-    HW_COMPAT_2_9
-    {
-        .driver = TYPE_POWERPC_CPU,
-        .property = "pre-2.10-migration",
-        .value    = "on",
-    },
-};
 
 static void spapr_machine_2_9_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_9
+        {
+            .driver = TYPE_POWERPC_CPU,
+            .property = "pre-2.10-migration",
+            .value    = "on",
+        },
+    };
 
     spapr_machine_2_10_class_options(mc);
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_9, G_N_ELEMENTS(spapr_compat_2_9));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     mc->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
     smc->pre_2_10_has_unused_icps = true;
     smc->resize_hpt_default = SPAPR_RESIZE_HPT_DISABLED;
@@ -4167,20 +4161,20 @@ DEFINE_SPAPR_MACHINE(2_9, "2.9", false);
 /*
  * pseries-2.8
  */
-static GlobalProperty spapr_compat_2_8[] = {
-    HW_COMPAT_2_8
-    {
-        .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
-        .property = "pcie-extended-configuration-space",
-        .value    = "off",
-    },
-};
 
 static void spapr_machine_2_8_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_8
+        {
+            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
+            .property = "pcie-extended-configuration-space",
+            .value    = "off",
+        },
+    };
+
     spapr_machine_2_9_class_options(mc);
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_8, G_N_ELEMENTS(spapr_compat_2_8));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     mc->numa_mem_align_shift = 23;
 }
 
@@ -4189,29 +4183,6 @@ DEFINE_SPAPR_MACHINE(2_8, "2.8", false);
 /*
  * pseries-2.7
  */
-static GlobalProperty spapr_compat_2_7[] = {
-    HW_COMPAT_2_7
-    {
-        .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
-        .property = "mem_win_size",
-        .value    = stringify(SPAPR_PCI_2_7_MMIO_WIN_SIZE),
-    },
-    {
-        .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
-        .property = "mem64_win_size",
-        .value    = "0",
-    },
-    {
-        .driver = TYPE_POWERPC_CPU,
-        .property = "pre-2.8-migration",
-        .value    = "on",
-    },
-    {
-        .driver = TYPE_SPAPR_PCI_HOST_BRIDGE,
-        .property = "pre-2.8-migration",
-        .value    = "on",
-    },
-};
 
 static void phb_placement_2_7(sPAPRMachineState *spapr, uint32_t index,
                               uint64_t *buid, hwaddr *pio,
@@ -4265,12 +4236,34 @@ static void phb_placement_2_7(sPAPRMachineState *spapr, uint32_t index,
 static void spapr_machine_2_7_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_7
+        {
+            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
+            .property = "mem_win_size",
+            .value    = stringify(SPAPR_PCI_2_7_MMIO_WIN_SIZE),
+        },
+        {
+            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
+            .property = "mem64_win_size",
+            .value    = "0",
+        },
+        {
+            .driver = TYPE_POWERPC_CPU,
+            .property = "pre-2.8-migration",
+            .value    = "on",
+        },
+        {
+            .driver = TYPE_SPAPR_PCI_HOST_BRIDGE,
+            .property = "pre-2.8-migration",
+            .value    = "on",
+        },
+    };
 
     spapr_machine_2_8_class_options(mc);
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power7_v2.3");
     mc->default_machine_opts = "modern-hotplug-events=off";
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_7, G_N_ELEMENTS(spapr_compat_2_7));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     smc->phb_placement = phb_placement_2_7;
 }
 
@@ -4279,21 +4272,21 @@ DEFINE_SPAPR_MACHINE(2_7, "2.7", false);
 /*
  * pseries-2.6
  */
-static GlobalProperty spapr_compat_2_6[] = {
-    HW_COMPAT_2_6
-    {
-        .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
-        .property = "ddw",
-        .value    = stringify(off),
-    },
-};
 
 static void spapr_machine_2_6_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_6
+        {
+            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
+            .property = "ddw",
+            .value    = stringify(off),
+        },
+    };
+
     spapr_machine_2_7_class_options(mc);
     mc->has_hotpluggable_cpus = false;
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_6, G_N_ELEMENTS(spapr_compat_2_6));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 
 DEFINE_SPAPR_MACHINE(2_6, "2.6", false);
@@ -4301,23 +4294,22 @@ DEFINE_SPAPR_MACHINE(2_6, "2.6", false);
 /*
  * pseries-2.5
  */
-static GlobalProperty spapr_compat_2_5[] = {
-    HW_COMPAT_2_5
-    {
-        .driver   = "spapr-vlan",
-        .property = "use-rx-buffer-pools",
-        .value    = "off",
-    },
-};
 
 static void spapr_machine_2_5_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_5
+        {
+            .driver   = "spapr-vlan",
+            .property = "use-rx-buffer-pools",
+            .value    = "off",
+        },
+    };
 
     spapr_machine_2_6_class_options(mc);
     smc->use_ohci_by_default = true;
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_5, G_N_ELEMENTS(spapr_compat_2_5));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 
 DEFINE_SPAPR_MACHINE(2_5, "2.5", false);
@@ -4325,18 +4317,17 @@ DEFINE_SPAPR_MACHINE(2_5, "2.5", false);
 /*
  * pseries-2.4
  */
-static GlobalProperty spapr_compat_2_4[] = {
-    HW_COMPAT_2_4
-};
 
 static void spapr_machine_2_4_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_4
+    };
 
     spapr_machine_2_5_class_options(mc);
     smc->dr_lmb_enabled = false;
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_4, G_N_ELEMENTS(spapr_compat_2_4));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 
 DEFINE_SPAPR_MACHINE(2_4, "2.4", false);
@@ -4344,40 +4335,39 @@ DEFINE_SPAPR_MACHINE(2_4, "2.4", false);
 /*
  * pseries-2.3
  */
-static GlobalProperty spapr_compat_2_3[] = {
-    HW_COMPAT_2_3
-    {
-        .driver   = "spapr-pci-host-bridge",
-        .property = "dynamic-reconfiguration",
-        .value    = "off",
-    },
-};
 
 static void spapr_machine_2_3_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_3
+        {
+            .driver   = "spapr-pci-host-bridge",
+            .property = "dynamic-reconfiguration",
+            .value    = "off",
+        },
+    };
     spapr_machine_2_4_class_options(mc);
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_3, G_N_ELEMENTS(spapr_compat_2_3));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 DEFINE_SPAPR_MACHINE(2_3, "2.3", false);
 
 /*
  * pseries-2.2
  */
-static GlobalProperty spapr_compat_2_2[] = {
-    HW_COMPAT_2_2
-    {
-        .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
-        .property = "mem_win_size",
-        .value    = "0x20000000",
-    },
-};
 
 static void spapr_machine_2_2_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_2
+        {
+            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
+            .property = "mem_win_size",
+            .value    = "0x20000000",
+        },
+    };
+
     spapr_machine_2_3_class_options(mc);
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_2, G_N_ELEMENTS(spapr_compat_2_2));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     mc->default_machine_opts = "modern-hotplug-events=off,suppress-vmdesc=on";
 }
 DEFINE_SPAPR_MACHINE(2_2, "2.2", false);
@@ -4385,15 +4375,15 @@ DEFINE_SPAPR_MACHINE(2_2, "2.2", false);
 /*
  * pseries-2.1
  */
-static GlobalProperty spapr_compat_2_1[] = {
-    HW_COMPAT_2_1
-};
 
 static void spapr_machine_2_1_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        HW_COMPAT_2_1
+    };
+
     spapr_machine_2_2_class_options(mc);
-    compat_props_add(mc->compat_props,
-                     spapr_compat_2_1, G_N_ELEMENTS(spapr_compat_2_1));
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 DEFINE_SPAPR_MACHINE(2_1, "2.1", false);
 
