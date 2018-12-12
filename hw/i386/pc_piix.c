@@ -318,14 +318,14 @@ static void pc_compat_2_3_fn(MachineState *machine)
     }
 }
 
-static void pc_compat_2_2(MachineState *machine)
+static void pc_compat_2_2_fn(MachineState *machine)
 {
     pc_compat_2_3_fn(machine);
 }
 
 static void pc_compat_2_1(MachineState *machine)
 {
-    pc_compat_2_2(machine);
+    pc_compat_2_2_fn(machine);
     x86_cpu_change_kvm_default("svm", NULL);
 }
 
@@ -578,18 +578,16 @@ DEFINE_I440FX_MACHINE(v2_3, "pc-i440fx-2.3", pc_compat_2_3_fn,
 static void pc_i440fx_2_2_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-    static GlobalProperty compat[] = {
-        PC_COMPAT_2_2
-    };
 
     pc_i440fx_2_3_machine_options(m);
     m->hw_version = "2.2.0";
     m->default_machine_opts = "firmware=bios-256k.bin,suppress-vmdesc=on";
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_2_2, hw_compat_2_2_len);
+    compat_props_add(m->compat_props, pc_compat_2_2, pc_compat_2_2_len);
     pcmc->rsdp_in_ram = false;
 }
 
-DEFINE_I440FX_MACHINE(v2_2, "pc-i440fx-2.2", pc_compat_2_2,
+DEFINE_I440FX_MACHINE(v2_2, "pc-i440fx-2.2", pc_compat_2_2_fn,
                       pc_i440fx_2_2_machine_options);
 
 static void pc_i440fx_2_1_machine_options(MachineClass *m)

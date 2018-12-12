@@ -330,6 +330,9 @@ extern const size_t pc_compat_2_4_len;
 extern GlobalProperty pc_compat_2_3[];
 extern const size_t pc_compat_2_3_len;
 
+extern GlobalProperty pc_compat_2_2[];
+extern const size_t pc_compat_2_2_len;
+
 /* Helper for setting model-id for CPU models that changed model-id
  * depending on QEMU versions up to QEMU 2.4.
  */
@@ -348,100 +351,6 @@ extern const size_t pc_compat_2_3_len;
         .driver   = "athlon-" TYPE_X86_CPU,\
         .property = "model-id",\
         .value    = "QEMU Virtual CPU version " v,\
-    },
-
-#define PC_COMPAT_2_2 \
-    HW_COMPAT_2_2 \
-    PC_CPU_MODEL_IDS("2.2.0") \
-    {\
-        .driver = "kvm64" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "kvm32" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Conroe" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Penryn" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Nehalem" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Westmere" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "SandyBridge" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Haswell" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Broadwell" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Opteron_G1" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Opteron_G2" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Opteron_G3" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Opteron_G4" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Opteron_G5" "-" TYPE_X86_CPU,\
-        .property = "vme",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Haswell" "-" TYPE_X86_CPU,\
-        .property = "f16c",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Haswell" "-" TYPE_X86_CPU,\
-        .property = "rdrand",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Broadwell" "-" TYPE_X86_CPU,\
-        .property = "f16c",\
-        .value = "off",\
-    },\
-    {\
-        .driver = "Broadwell" "-" TYPE_X86_CPU,\
-        .property = "rdrand",\
-        .value = "off",\
     },
 
 #define PC_COMPAT_2_1 \

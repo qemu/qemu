@@ -441,6 +441,101 @@ GlobalProperty pc_compat_2_3[] = {
 };
 const size_t pc_compat_2_3_len = G_N_ELEMENTS(pc_compat_2_3);
 
+GlobalProperty pc_compat_2_2[] = {
+    PC_CPU_MODEL_IDS("2.2.0")
+    {
+        .driver = "kvm64" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "kvm32" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Conroe" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Penryn" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Nehalem" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Westmere" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "SandyBridge" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Haswell" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Broadwell" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Opteron_G1" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Opteron_G2" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Opteron_G3" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Opteron_G4" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Opteron_G5" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Haswell" "-" TYPE_X86_CPU,
+        .property = "f16c",
+        .value = "off",
+    },
+    {
+        .driver = "Haswell" "-" TYPE_X86_CPU,
+        .property = "rdrand",
+        .value = "off",
+    },
+    {
+        .driver = "Broadwell" "-" TYPE_X86_CPU,
+        .property = "f16c",
+        .value = "off",
+    },
+    {
+        .driver = "Broadwell" "-" TYPE_X86_CPU,
+        .property = "rdrand",
+        .value = "off",
+    },
+};
+const size_t pc_compat_2_2_len = G_N_ELEMENTS(pc_compat_2_2);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;
