@@ -476,9 +476,9 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
     }
 
     pr_dbg("num_sge=%d\n", num_sge);
-    if (!num_sge) {
-        pr_dbg("num_sge=0\n");
-        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_NO_SGE, ctx);
+    if (!num_sge || num_sge > MAX_SGE) {
+        pr_dbg("invalid num_sge=%d\n", num_sge);
+        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_INV_NUM_SGE, ctx);
         return;
     }
 
@@ -603,9 +603,9 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     }
 
     pr_dbg("num_sge=%d\n", num_sge);
-    if (!num_sge) {
-        pr_dbg("num_sge=0\n");
-        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_NO_SGE, ctx);
+    if (!num_sge || num_sge > MAX_SGE) {
+        pr_dbg("invalid num_sge=%d\n", num_sge);
+        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_INV_NUM_SGE, ctx);
         return;
     }
 
