@@ -1900,12 +1900,9 @@ DEFINE_VIRT_MACHINE(2, 12)
 static void virt_machine_2_11_options(MachineClass *mc)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
-    static GlobalProperty compat[] = {
-        HW_COMPAT_2_11
-    };
 
     virt_machine_2_12_options(mc);
-    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(mc->compat_props, hw_compat_2_11, hw_compat_2_11_len);
     vmc->smbios_old_sys_ver = true;
 }
 DEFINE_VIRT_MACHINE(2, 11)

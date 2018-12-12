@@ -303,17 +303,8 @@ extern const size_t pc_compat_3_0_len;
 extern GlobalProperty pc_compat_2_12[];
 extern const size_t pc_compat_2_12_len;
 
-#define PC_COMPAT_2_11 \
-    HW_COMPAT_2_11 \
-    {\
-        .driver   = TYPE_X86_CPU,\
-        .property = "x-migrate-smi-count",\
-        .value    = "off",\
-    },{\
-        .driver   = "Skylake-Server" "-" TYPE_X86_CPU,\
-        .property = "clflushopt",\
-        .value    = "off",\
-    },
+extern GlobalProperty pc_compat_2_11[];
+extern const size_t pc_compat_2_11_len;
 
 #define PC_COMPAT_2_10 \
     HW_COMPAT_2_10 \

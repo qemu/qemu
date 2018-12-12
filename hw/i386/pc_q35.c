@@ -356,14 +356,11 @@ DEFINE_Q35_MACHINE(v2_12, "pc-q35-2.12", NULL,
 static void pc_q35_2_11_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-    static GlobalProperty compat[] = {
-        PC_COMPAT_2_11
-    };
-
 
     pc_q35_2_12_machine_options(m);
     pcmc->default_nic_model = "e1000";
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
+    compat_props_add(m->compat_props, hw_compat_2_11, hw_compat_2_11_len);
+    compat_props_add(m->compat_props, pc_compat_2_11, pc_compat_2_11_len);
 }
 
 DEFINE_Q35_MACHINE(v2_11, "pc-q35-2.11", NULL,

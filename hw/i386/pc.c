@@ -156,6 +156,19 @@ GlobalProperty pc_compat_2_12[] = {
 };
 const size_t pc_compat_2_12_len = G_N_ELEMENTS(pc_compat_2_12);
 
+GlobalProperty pc_compat_2_11[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "x-migrate-smi-count",
+        .value    = "off",
+    },{
+        .driver   = "Skylake-Server" "-" TYPE_X86_CPU,
+        .property = "clflushopt",
+        .value    = "off",
+    },
+};
+const size_t pc_compat_2_11_len = G_N_ELEMENTS(pc_compat_2_11);
+
 void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;

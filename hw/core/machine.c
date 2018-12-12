@@ -67,6 +67,27 @@ GlobalProperty hw_compat_2_12[] = {
 };
 const size_t hw_compat_2_12_len = G_N_ELEMENTS(hw_compat_2_12);
 
+GlobalProperty hw_compat_2_11[] = {
+    {
+        .driver   = "hpet",
+        .property = "hpet-offset-saved",
+        .value    = "false",
+    },{
+        .driver   = "virtio-blk-pci",
+        .property = "vectors",
+        .value    = "2",
+    },{
+        .driver   = "vhost-user-blk-pci",
+        .property = "vectors",
+        .value    = "2",
+    },{
+        .driver   = "e1000",
+        .property = "migrate_tso_props",
+        .value    = "off",
+    },
+};
+const size_t hw_compat_2_11_len = G_N_ELEMENTS(hw_compat_2_11);
+
 static char *machine_get_accel(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
