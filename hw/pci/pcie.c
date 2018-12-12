@@ -390,9 +390,8 @@ static void pcie_cap_slot_event(PCIDevice *dev, PCIExpressHotPlugEvent event)
     hotplug_event_notify(dev);
 }
 
-static void pcie_cap_slot_hotplug_common(PCIDevice *hotplug_dev,
-                                         DeviceState *dev,
-                                         uint8_t **exp_cap, Error **errp)
+static void pcie_cap_slot_plug_common(PCIDevice *hotplug_dev, DeviceState *dev,
+                                      uint8_t **exp_cap, Error **errp)
 {
     *exp_cap = hotplug_dev->config + hotplug_dev->exp.exp_cap;
     uint16_t sltsta = pci_get_word(*exp_cap + PCI_EXP_SLTSTA);
@@ -406,13 +405,13 @@ static void pcie_cap_slot_hotplug_common(PCIDevice *hotplug_dev,
     }
 }
 
-void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
-                              Error **errp)
+void pcie_cap_slot_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                           Error **errp)
 {
     uint8_t *exp_cap;
     PCIDevice *pci_dev = PCI_DEVICE(dev);
 
-    pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
+    pcie_cap_slot_plug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
 
     /* Don't send event when device is enabled during qemu machine creation:
      * it is present on boot, no hotplug event is necessary. We do send an
@@ -448,14 +447,14 @@ static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
     object_unparent(OBJECT(dev));
 }
 
-void pcie_cap_slot_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
-                                         DeviceState *dev, Error **errp)
+void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
 {
     uint8_t *exp_cap;
     PCIDevice *pci_dev = PCI_DEVICE(dev);
     PCIBus *bus = pci_get_bus(pci_dev);
 
-    pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
+    pcie_cap_slot_plug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
 
     /* In case user cancel the operation of multi-function hot-add,
      * remove the function that is unexposed to guest individually,

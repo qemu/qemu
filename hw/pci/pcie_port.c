@@ -154,8 +154,8 @@ static void pcie_slot_class_init(ObjectClass *oc, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     dc->props = pcie_slot_props;
-    hc->plug = pcie_cap_slot_hotplug_cb;
-    hc->unplug_request = pcie_cap_slot_hot_unplug_request_cb;
+    hc->plug = pcie_cap_slot_plug_cb;
+    hc->unplug_request = pcie_cap_slot_unplug_request_cb;
 }
 
 static const TypeInfo pcie_slot_type_info = {
