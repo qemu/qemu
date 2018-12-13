@@ -275,9 +275,9 @@ send:
 			memcpy((caddr_t)(opt + 2), (caddr_t)&mss, sizeof(mss));
 			optlen = 4;
 		}
- 	}
+	}
 
- 	hdrlen += optlen;
+	hdrlen += optlen;
 
 	/*
 	 * Adjust data length if insertion of options will

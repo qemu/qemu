@@ -1056,8 +1056,8 @@ static void uhci_process_frame(UHCIState *s)
                 link = qh.link;
             } else {
                 /* QH with elements */
-            	curr_qh = link;
-            	link = qh.el_link;
+                curr_qh = link;
+                link = qh.el_link;
             }
             continue;
         }

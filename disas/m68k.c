@@ -350,7 +350,7 @@ struct m68k_opcode_alias
 
    *  all					(modes 0-6,7.0-4)
    ~  alterable memory				(modes 2-6,7.0,7.1)
-   						(not 0,1,7.2-4)
+						(not 0,1,7.2-4)
    %  alterable					(modes 0-6,7.0,7.1)
 						(not 7.2-4)
    ;  data					(modes 0,2-6,7.0-4)
@@ -1647,7 +1647,7 @@ print_insn_arg (const char *d,
 	  case 0x15: name = "%val"; break;
 	  case 0x16: name = "%scc"; break;
 	  case 0x17: name = "%ac"; break;
- 	  case 0x18: name = "%psr"; break;
+	  case 0x18: name = "%psr"; break;
 	  case 0x19: name = "%pcsr"; break;
 	  case 0x1c:
 	  case 0x1d:

@@ -54,7 +54,7 @@ static int prepare_binprm(struct linux_binprm *bprm)
 
     /* Set-uid? */
     if(mode & S_ISUID) {
-    	bprm->e_uid = st.st_uid;
+	bprm->e_uid = st.st_uid;
     }
 
     /* Set-gid? */
