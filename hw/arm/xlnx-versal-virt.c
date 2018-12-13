@@ -364,7 +364,6 @@ static void create_virtio_regions(VersalVirt *s)
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic_irq);
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->soc.mr_ps, base, mr);
-        sysbus_create_simple("virtio-mmio", base, pic_irq);
     }
 
     for (i = 0; i < NUM_VIRTIO_TRANSPORT; i++) {
