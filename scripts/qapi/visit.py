@@ -54,6 +54,7 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                      c_type=base.c_name())
 
     for memb in members:
+        ret += gen_if(memb.ifcond)
         if memb.optional:
             ret += mcgen('''
     if (visit_optional(v, "%(name)s", &obj->has_%(c_name)s)) {
@@ -73,6 +74,7 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
             ret += mcgen('''
     }
 ''')
+        ret += gen_endif(memb.ifcond)
 
     if variants:
         ret += mcgen('''
@@ -84,6 +86,7 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
             case_str = c_enum_const(variants.tag_member.type.name,
                                     var.name,
                                     variants.tag_member.type.prefix)
+            ret += gen_if(var.ifcond)
             if var.type.name == 'q_empty':
                 # valid variant and nothing to do
                 ret += mcgen('''
@@ -100,6 +103,7 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                              case=case_str,
                              c_type=var.type.c_name(), c_name=c_name(var.name))
 
+            ret += gen_endif(var.ifcond)
         ret += mcgen('''
     default:
         abort();
@@ -190,6 +194,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
                 c_name=c_name(name))
 
     for var in variants.variants:
+        ret += gen_if(var.ifcond)
         ret += mcgen('''
     case %(case)s:
 ''',
@@ -217,6 +222,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
         ret += mcgen('''
         break;
 ''')
+        ret += gen_endif(var.ifcond)
 
     ret += mcgen('''
     case QTYPE_NONE:

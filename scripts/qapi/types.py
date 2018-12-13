@@ -43,6 +43,7 @@ struct %(c_name)s {
 def gen_struct_members(members):
     ret = ''
     for memb in members:
+        ret += gen_if(memb.ifcond)
         if memb.optional:
             ret += mcgen('''
     bool has_%(c_name)s;
@@ -52,6 +53,7 @@ def gen_struct_members(members):
     %(c_type)s %(c_name)s;
 ''',
                      c_type=memb.type.c_type(), c_name=c_name(memb.name))
+        ret += gen_endif(memb.ifcond)
     return ret
 
 
@@ -131,11 +133,13 @@ def gen_variants(variants):
     for var in variants.variants:
         if var.type.name == 'q_empty':
             continue
+        ret += gen_if(var.ifcond)
         ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',
                      c_type=var.type.c_unboxed_type(),
                      c_name=c_name(var.name))
+        ret += gen_endif(var.ifcond)
 
     ret += mcgen('''
     } u;

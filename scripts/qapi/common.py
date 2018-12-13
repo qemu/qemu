@@ -2078,11 +2078,13 @@ const QEnumLookup %(c_name)s_lookup = {
 ''',
                 c_name=c_name(name))
     for m in members:
+        ret += gen_if(m.ifcond)
         index = c_enum_const(name, m.name, prefix)
         ret += mcgen('''
         [%(index)s] = "%(name)s",
 ''',
                      index=index, name=m.name)
+        ret += gen_endif(m.ifcond)
 
     ret += mcgen('''
     },
@@ -2104,10 +2106,12 @@ typedef enum %(c_name)s {
                 c_name=c_name(name))
 
     for m in enum_members:
+        ret += gen_if(m.ifcond)
         ret += mcgen('''
     %(c_enum)s,
 ''',
                      c_enum=c_enum_const(name, m.name, prefix))
+        ret += gen_endif(m.ifcond)
 
     ret += mcgen('''
 } %(c_name)s;
