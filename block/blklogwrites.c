@@ -295,10 +295,9 @@ static void blk_log_writes_refresh_filename(BlockDriverState *bs,
         qdict_put_str(opts, "driver", "blklogwrites");
 
         qobject_ref(bs->file->bs->full_open_options);
-        qdict_put_obj(opts, "file", QOBJECT(bs->file->bs->full_open_options));
+        qdict_put(opts, "file", bs->file->bs->full_open_options);
         qobject_ref(s->log_file->bs->full_open_options);
-        qdict_put_obj(opts, "log",
-                      QOBJECT(s->log_file->bs->full_open_options));
+        qdict_put(opts, "log", s->log_file->bs->full_open_options);
         qdict_put_int(opts, "log-sector-size", s->sectorsize);
 
         bs->full_open_options = opts;
