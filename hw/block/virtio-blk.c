@@ -96,7 +96,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
         trace_virtio_blk_rw_complete(vdev, req, ret);
 
         if (req->qiov.nalloc != -1) {
-            /* If nalloc is != 1 req->qiov is a local copy of the original
+            /* If nalloc is != -1 req->qiov is a local copy of the original
              * external iovec. It was allocated in submit_requests to be
              * able to merge requests. */
             qemu_iovec_destroy(&req->qiov);
@@ -482,7 +482,7 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
     uint32_t type;
     struct iovec *in_iov = req->elem.in_sg;
-    struct iovec *iov = req->elem.out_sg;
+    struct iovec *out_iov = req->elem.out_sg;
     unsigned in_num = req->elem.in_num;
     unsigned out_num = req->elem.out_num;
     VirtIOBlock *s = req->dev;
@@ -493,13 +493,13 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         return -1;
     }
 
-    if (unlikely(iov_to_buf(iov, out_num, 0, &req->out,
+    if (unlikely(iov_to_buf(out_iov, out_num, 0, &req->out,
                             sizeof(req->out)) != sizeof(req->out))) {
         virtio_error(vdev, "virtio-blk request outhdr too short");
         return -1;
     }
 
-    iov_discard_front(&iov, &out_num, sizeof(req->out));
+    iov_discard_front(&out_iov, &out_num, sizeof(req->out));
 
     if (in_iov[in_num - 1].iov_len < sizeof(struct virtio_blk_inhdr)) {
         virtio_error(vdev, "virtio-blk request inhdr too short");
@@ -526,7 +526,7 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
                                        &req->out.sector);
 
         if (is_write) {
-            qemu_iovec_init_external(&req->qiov, iov, out_num);
+            qemu_iovec_init_external(&req->qiov, out_iov, out_num);
             trace_virtio_blk_handle_write(vdev, req, req->sector_num,
                                           req->qiov.size / BDRV_SECTOR_SIZE);
         } else {
