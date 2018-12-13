@@ -342,7 +342,7 @@ static void *versal_virt_get_dtb(const struct arm_boot_info *binfo,
     return board->fdt;
 }
 
-#define NUM_VIRTIO_TRANSPORT 32
+#define NUM_VIRTIO_TRANSPORT 8
 static void create_virtio_regions(VersalVirt *s)
 {
     int virtio_mmio_size = 0x200;
