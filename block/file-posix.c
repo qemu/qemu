@@ -102,19 +102,7 @@
 #include <xfs/xfs.h>
 #endif
 
-//#define DEBUG_BLOCK
-
-#ifdef DEBUG_BLOCK
-# define DEBUG_BLOCK_PRINT 1
-#else
-# define DEBUG_BLOCK_PRINT 0
-#endif
-#define DPRINTF(fmt, ...) \
-do { \
-    if (DEBUG_BLOCK_PRINT) { \
-        printf(fmt, ## __VA_ARGS__); \
-    } \
-} while (0)
+#include "trace.h"
 
 /* OS X does not have O_DSYNC */
 #ifndef O_DSYNC
@@ -1411,7 +1399,7 @@ static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
 
     if (xfsctl(NULL, s->fd, XFS_IOC_ZERO_RANGE, &fl) < 0) {
         err = errno;
-        DPRINTF("cannot write zero range (%s)\n", strerror(errno));
+        trace_file_xfs_write_zeroes(strerror(errno));
         return -err;
     }
 
@@ -1430,7 +1418,7 @@ static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
 
     if (xfsctl(NULL, s->fd, XFS_IOC_UNRESVSP64, &fl) < 0) {
         err = errno;
-        DPRINTF("cannot punch hole (%s)\n", strerror(errno));
+        trace_file_xfs_discard(strerror(errno));
         return -err;
     }
 
@@ -2819,7 +2807,7 @@ static char *FindEjectableOpticalMedia(io_iterator_t *mediaIterator)
 
         /* If a match was found, leave the loop */
         if (*mediaIterator != 0) {
-            DPRINTF("Matching using %s\n", matching_array[index]);
+            trace_file_FindEjectableOpticalMedia(matching_array[index]);
             mediaType = g_strdup(matching_array[index]);
             break;
         }
@@ -2879,7 +2867,7 @@ static bool setup_cdrom(char *bsd_path, Error **errp)
     if (partition_found == false) {
         error_setg(errp, "Failed to find a working partition on disc");
     } else {
-        DPRINTF("Using %s as optical disc\n", test_partition);
+        trace_file_setup_cdrom(test_partition);
         pstrcpy(bsd_path, MAXPATHLEN, test_partition);
     }
     return partition_found;
@@ -2974,8 +2962,7 @@ static bool hdev_is_sg(BlockDriverState *bs)
 
     ret = ioctl(s->fd, SG_GET_SCSI_ID, &scsiid);
     if (ret >= 0) {
-        DPRINTF("SG device found: type=%d, version=%d\n",
-            scsiid.scsi_type, sg_version);
+        trace_file_hdev_is_sg(scsiid.scsi_type, sg_version);
         return true;
     }
 

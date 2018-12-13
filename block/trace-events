@@ -186,3 +186,10 @@ curl_open(const char *file) "opening %s"
 curl_open_size(uint64_t size) "size = %" PRIu64
 curl_setup_preadv(uint64_t bytes, uint64_t start, const char *range) "reading %" PRIu64 " at %" PRIu64 " (%s)"
 curl_close(void) "close"
+
+# block/file-posix.c
+file_xfs_write_zeroes(const char *error) "cannot write zero range (%s)"
+file_xfs_discard(const char *error) "cannot punch hole (%s)"
+file_FindEjectableOpticalMedia(const char *media) "Matching using %s"
+file_setup_cdrom(const char *partition) "Using %s as optical disc"
+file_hdev_is_sg(int type, int version) "SG device found: type=%d, version=%d"
