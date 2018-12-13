@@ -7,5 +7,5 @@
 { 'union': 'TestUnion',
   'base': 'Base',
   'discriminator': 'enum1',
-  'data': { 'value1': { 'type': {} },
+  'data': { 'value1': { 'string': 'str' },
             'value2': { 'integer': 'int' } } }

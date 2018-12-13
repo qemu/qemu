@@ -1,0 +1,1 @@
+tests/qapi-schema/event-member-invalid-dict.json:1: Key 'type' is missing from member 'a' of 'data' for event 'EVENT_A'

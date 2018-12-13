@@ -588,11 +588,11 @@ def discriminator_find_enum_define(expr):
     if not base_members:
         return None
 
-    discriminator_type = base_members.get(discriminator)
-    if not discriminator_type:
+    discriminator_value = base_members.get(discriminator)
+    if not discriminator_value:
         return None
 
-    return enum_types.get(discriminator_type)
+    return enum_types.get(discriminator_value['type'])
 
 
 # Names must be letters, numbers, -, and _.  They must start with letter,
@@ -704,8 +704,10 @@ def check_type(info, source, value, allow_array=False,
                                % (source, key))
         # Todo: allow dictionaries to represent default values of
         # an optional argument.
-        check_type(info, "Member '%s' of %s" % (key, source), arg,
-                   allow_array=True,
+        check_known_keys(info, "member '%s' of %s" % (key, source),
+                         arg, ['type'], [])
+        check_type(info, "Member '%s' of %s" % (key, source),
+                   arg['type'], allow_array=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
                                 'enum'])
 
@@ -776,13 +778,13 @@ def check_union(expr, info):
         # member of the base struct.
         check_name(info, "Discriminator of flat union '%s'" % name,
                    discriminator)
-        discriminator_type = base_members.get(discriminator)
-        if not discriminator_type:
+        discriminator_value = base_members.get(discriminator)
+        if not discriminator_value:
             raise QAPISemError(info,
                                "Discriminator '%s' is not a member of base "
                                "struct '%s'"
                                % (discriminator, base))
-        enum_define = enum_types.get(discriminator_type)
+        enum_define = enum_types.get(discriminator_value['type'])
         allow_metas = ['struct']
         # Do not allow string discriminator
         if not enum_define:
@@ -796,9 +798,12 @@ def check_union(expr, info):
     for (key, value) in members.items():
         check_name(info, "Member of union '%s'" % name, key)
 
+        check_known_keys(info, "member '%s' of union '%s'" % (key, name),
+                         value, ['type'], [])
         # Each value must name a known type
         check_type(info, "Member '%s' of union '%s'" % (key, name),
-                   value, allow_array=not base, allow_metas=allow_metas)
+                   value['type'],
+                   allow_array=not base, allow_metas=allow_metas)
 
         # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
@@ -822,18 +827,21 @@ def check_alternate(expr, info):
                            "in 'data'" % name)
     for (key, value) in members.items():
         check_name(info, "Member of alternate '%s'" % name, key)
+        check_known_keys(info,
+                         "member '%s' of alternate '%s'" % (key, name),
+                         value, ['type'], [])
+        typ = value['type']
 
         # Ensure alternates have no type conflicts.
-        check_type(info, "Member '%s' of alternate '%s'" % (key, name),
-                   value,
+        check_type(info, "Member '%s' of alternate '%s'" % (key, name), typ,
                    allow_metas=['built-in', 'union', 'struct', 'enum'])
-        qtype = find_alternate_member_qtype(value)
+        qtype = find_alternate_member_qtype(typ)
         if not qtype:
             raise QAPISemError(info, "Alternate '%s' member '%s' cannot use "
-                               "type '%s'" % (name, key, value))
+                               "type '%s'" % (name, key, typ))
         conflicting = set([qtype])
         if qtype == 'QTYPE_QSTRING':
-            enum_expr = enum_types.get(value)
+            enum_expr = enum_types.get(typ)
             if enum_expr:
                 for v in enum_get_names(enum_expr):
                     if v in ['on', 'off']:
@@ -849,12 +857,6 @@ def check_alternate(expr, info):
                                    "be distinguished from member '%s'"
                                    % (name, key, types_seen[qt]))
             types_seen[qt] = key
-
-
-def normalize_enum(expr):
-    if isinstance(expr['data'], list):
-        expr['data'] = [m if isinstance(m, dict) else {'name': m}
-                        for m in expr['data']]
 
 
 def check_enum(expr, info):
@@ -928,6 +930,20 @@ def check_keys(expr_elem, meta, required, optional=[]):
             check_if(expr, info)
 
 
+def normalize_enum(expr):
+    if isinstance(expr['data'], list):
+        expr['data'] = [m if isinstance(m, dict) else {'name': m}
+                        for m in expr['data']]
+
+
+def normalize_members(members):
+    if isinstance(members, OrderedDict):
+        for key, arg in members.items():
+            if isinstance(arg, dict):
+                continue
+            members[key] = {'type': arg}
+
+
 def check_exprs(exprs):
     global all_names
 
@@ -957,22 +973,28 @@ def check_exprs(exprs):
             meta = 'union'
             check_keys(expr_elem, 'union', ['data'],
                        ['base', 'discriminator', 'if'])
+            normalize_members(expr.get('base'))
+            normalize_members(expr['data'])
             union_types[expr[meta]] = expr
         elif 'alternate' in expr:
             meta = 'alternate'
             check_keys(expr_elem, 'alternate', ['data'], ['if'])
+            normalize_members(expr['data'])
         elif 'struct' in expr:
             meta = 'struct'
             check_keys(expr_elem, 'struct', ['data'], ['base', 'if'])
+            normalize_members(expr['data'])
             struct_types[expr[meta]] = expr
         elif 'command' in expr:
             meta = 'command'
             check_keys(expr_elem, 'command', [],
                        ['data', 'returns', 'gen', 'success-response',
                         'boxed', 'allow-oob', 'allow-preconfig', 'if'])
+            normalize_members(expr.get('data'))
         elif 'event' in expr:
             meta = 'event'
             check_keys(expr_elem, 'event', [], ['data', 'boxed', 'if'])
+            normalize_members(expr.get('data'))
         else:
             raise QAPISemError(expr_elem['info'],
                                "Expression is missing metatype")
@@ -1716,7 +1738,7 @@ class QAPISchema(object):
         return QAPISchemaObjectTypeMember(name, typ, optional)
 
     def _make_members(self, data, info):
-        return [self._make_member(key, value, info)
+        return [self._make_member(key, value['type'], info)
                 for (key, value) in data.items()]
 
     def _def_struct_type(self, expr, info, doc):
@@ -1752,11 +1774,11 @@ class QAPISchema(object):
                 name, info, doc, ifcond,
                 'base', self._make_members(base, info))
         if tag_name:
-            variants = [self._make_variant(key, value)
+            variants = [self._make_variant(key, value['type'])
                         for (key, value) in data.items()]
             members = []
         else:
-            variants = [self._make_simple_variant(key, value, info)
+            variants = [self._make_simple_variant(key, value['type'], info)
                         for (key, value) in data.items()]
             enum = [{'name': v.name} for v in variants]
             typ = self._make_implicit_enum_type(name, info, ifcond, enum)
@@ -1772,7 +1794,7 @@ class QAPISchema(object):
         name = expr['alternate']
         data = expr['data']
         ifcond = expr.get('if')
-        variants = [self._make_variant(key, value)
+        variants = [self._make_variant(key, value['type'])
                     for (key, value) in data.items()]
         tag_member = QAPISchemaObjectTypeMember('type', 'QType', False)
         self._def_entity(

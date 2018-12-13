@@ -1,2 +1,2 @@
 { 'event': 'EVENT_A',
-  'data': { 'a' : { 'string' : 'str', 'integer': 'int' }, 'b' : 'str' } }
+  'data': { 'a' : { 'type' : { 'integer': 'int' } }, 'b' : 'str' } }

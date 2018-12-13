@@ -11,7 +11,7 @@
         'guest-sync' ] } }
 
 { 'struct': 'TestStruct',
-  'data': { 'integer': 'int', 'boolean': 'bool', 'string': 'str' } }
+  'data': { 'integer': {'type': 'int'}, 'boolean': 'bool', 'string': 'str' } }
 
 # for testing enums
 { 'struct': 'NestedEnumsOne',
@@ -77,7 +77,7 @@
 { 'union': 'UserDefFlatUnion',
   'base': 'UserDefUnionBase',   # intentional forward reference
   'discriminator': 'enum1',
-  'data': { 'value1' : 'UserDefA',
+  'data': { 'value1' : {'type': 'UserDefA'},
             'value2' : 'UserDefB',
             'value3' : 'UserDefB'
             # 'value4' defaults to empty
@@ -98,7 +98,7 @@
 { 'struct': 'WrapAlternate',
   'data': { 'alt': 'UserDefAlternate' } }
 { 'alternate': 'UserDefAlternate',
-  'data': { 'udfu': 'UserDefFlatUnion', 'e': 'EnumOne', 'i': 'int',
+  'data': { 'udfu': {'type': 'UserDefFlatUnion'}, 'e': 'EnumOne', 'i': 'int',
             'n': 'null' } }
 
 { 'struct': 'UserDefC',
@@ -134,7 +134,7 @@
 { 'command': 'user_def_cmd', 'data': {} }
 { 'command': 'user_def_cmd1', 'data': {'ud1a': 'UserDefOne'} }
 { 'command': 'user_def_cmd2',
-  'data': {'ud1a': 'UserDefOne', '*ud1b': 'UserDefOne'},
+  'data': {'ud1a': {'type': 'UserDefOne'}, '*ud1b': 'UserDefOne'},
   'returns': 'UserDefTwo' }
 
 { 'command': 'cmd-success-response', 'data': {}, 'success-response': false }
@@ -166,7 +166,7 @@
 
 # testing event
 { 'struct': 'EventStructOne',
-  'data': { 'struct1': 'UserDefOne', 'string': 'str', '*enum2': 'EnumOne' } }
+  'data': { 'struct1': {'type': 'UserDefOne'}, 'string': 'str', '*enum2': 'EnumOne' } }
 
 { 'event': 'EVENT_A' }
 { 'event': 'EVENT_B',
