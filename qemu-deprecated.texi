@@ -106,6 +106,12 @@ The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.
 The ``arch'' output member of the ``query-cpus-fast'' command is
 replaced by the ``target'' output member.
 
+@subsection cpu-add (since 4.0)
+
+Use ``device_add'' for hotplugging vCPUs instead of ``cpu-add''.  See
+documentation of ``query-hotpluggable-cpus'' for additional
+details.
+
 @section Human Monitor Protocol (HMP) commands
 
 @subsection The hub_id parameter of 'hostfwd_add' / 'hostfwd_remove' (since 3.1)
