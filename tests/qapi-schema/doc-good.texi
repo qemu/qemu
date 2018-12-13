@@ -84,11 +84,11 @@ Examples:
 @table @asis
 @item @code{one}
 The @emph{one} @{and only@}
+@*@b{If:} @code{defined(IFONE)}
 @item @code{two}
 Not documented
 @end table
 @code{two} is undocumented
-
 
 @b{If:} @code{defined(IFCOND)}
 @end deftp

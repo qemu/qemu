@@ -11,6 +11,7 @@ enum QType
 module doc-good.json
 enum Enum
     member one
+        if ['defined(IFONE)']
     member two
     if ['defined(IFCOND)']
 object Base
