@@ -2728,6 +2728,7 @@ static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
+    TCR *tcr = raw_ptr(env, ri);
 
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         /* With LPAE the TTBCR could result in a change of ASID
@@ -2735,6 +2736,8 @@ static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
          */
         tlb_flush(CPU(cpu));
     }
+    /* Preserve the high half of TCR_EL1, set via TTBCR2.  */
+    value = deposit64(tcr->raw_tcr, 0, 32, value);
     vmsa_ttbcr_raw_write(env, ri, value);
 }
 
@@ -2835,6 +2838,16 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.tcr_el[3]),
                              offsetoflow32(CPUARMState, cp15.tcr_el[1])} },
     REGINFO_SENTINEL
+};
+
+/* Note that unlike TTBCR, writing to TTBCR2 does not require flushing
+ * qemu tlbs nor adjusting cached masks.
+ */
+static const ARMCPRegInfo ttbcr2_reginfo = {
+    .name = "TTBCR2", .cp = 15, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 3,
+    .access = PL1_RW, .type = ARM_CP_ALIAS,
+    .bank_fieldoffsets = { offsetofhigh32(CPUARMState, cp15.tcr_el[3]),
+                           offsetofhigh32(CPUARMState, cp15.tcr_el[1]) },
 };
 
 static void omap_ticonfig_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -5437,6 +5450,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     } else {
         define_arm_cp_regs(cpu, vmsa_pmsa_cp_reginfo);
         define_arm_cp_regs(cpu, vmsa_cp_reginfo);
+        /* TTCBR2 is introduced with ARMv8.2-A32HPD.  */
+        if (FIELD_EX32(cpu->id_mmfr4, ID_MMFR4, HPDS) != 0) {
+            define_one_arm_cp_reg(cpu, &ttbcr2_reginfo);
+        }
     }
     if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
         define_arm_cp_regs(cpu, t2ee_cp_reginfo);
@@ -9751,12 +9768,14 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         if (tg == 2) { /* 16KB pages */
             stride = 11;
         }
-        if (aarch64) {
-            if (el > 1) {
-                hpd = extract64(tcr->raw_tcr, 24, 1);
-            } else {
-                hpd = extract64(tcr->raw_tcr, 41, 1);
-            }
+        if (aarch64 && el > 1) {
+            hpd = extract64(tcr->raw_tcr, 24, 1);
+        } else {
+            hpd = extract64(tcr->raw_tcr, 41, 1);
+        }
+        if (!aarch64) {
+            /* For aarch32, hpd0 is not enabled without t2e as well.  */
+            hpd &= extract64(tcr->raw_tcr, 6, 1);
         }
     } else {
         /* We should only be here if TTBR1 is valid */
@@ -9773,8 +9792,10 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         if (tg == 1) { /* 16KB pages */
             stride = 11;
         }
-        if (aarch64) {
-            hpd = extract64(tcr->raw_tcr, 42, 1);
+        hpd = extract64(tcr->raw_tcr, 42, 1);
+        if (!aarch64) {
+            /* For aarch32, hpd1 is not enabled without t2e as well.  */
+            hpd &= extract64(tcr->raw_tcr, 6, 1);
         }
     }
 
