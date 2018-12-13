@@ -41,26 +41,16 @@
 #include "qapi/qmp/qstring.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
+#include "trace.h"
 
-/* DEBUG_SSH=1 enables the DPRINTF (debugging printf) statements in
- * this block driver code.
- *
+/*
  * TRACE_LIBSSH2=<bitmask> enables tracing in libssh2 itself.  Note
  * that this requires that libssh2 was specially compiled with the
  * `./configure --enable-debug' option, so most likely you will have
  * to compile it yourself.  The meaning of <bitmask> is described
  * here: http://www.libssh2.org/libssh2_trace.html
  */
-#define DEBUG_SSH     0
 #define TRACE_LIBSSH2 0 /* or try: LIBSSH2_TRACE_SFTP */
-
-#define DPRINTF(fmt, ...)                           \
-    do {                                            \
-        if (DEBUG_SSH) {                            \
-            fprintf(stderr, "ssh: %-15s " fmt "\n", \
-                    __func__, ##__VA_ARGS__);       \
-        }                                           \
-    } while (0)
 
 typedef struct BDRVSSHState {
     /* Coroutine. */
@@ -336,7 +326,7 @@ static int check_host_key_knownhosts(BDRVSSHState *s,
     switch (r) {
     case LIBSSH2_KNOWNHOST_CHECK_MATCH:
         /* OK */
-        DPRINTF("host key OK: %s", found->key);
+        trace_ssh_check_host_key_knownhosts(found->key);
         break;
     case LIBSSH2_KNOWNHOST_CHECK_MISMATCH:
         ret = -EINVAL;
@@ -721,8 +711,7 @@ static int connect_to_ssh(BDRVSSHState *s, BlockdevOptionsSsh *opts,
     }
 
     /* Open the remote file. */
-    DPRINTF("opening file %s flags=0x%x creat_mode=0%o",
-            opts->path, ssh_flags, creat_mode);
+    trace_ssh_connect_to_ssh(opts->path, ssh_flags, creat_mode);
     s->sftp_handle = libssh2_sftp_open(s->sftp, opts->path, ssh_flags,
                                        creat_mode);
     if (!s->sftp_handle) {
@@ -890,7 +879,7 @@ static int coroutine_fn ssh_co_create_opts(const char *filename, QemuOpts *opts,
     /* Get desired file size. */
     ssh_opts->size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
                               BDRV_SECTOR_SIZE);
-    DPRINTF("total_size=%" PRIi64, ssh_opts->size);
+    trace_ssh_co_create_opts(ssh_opts->size);
 
     uri_options = qdict_new();
     ret = parse_uri(filename, uri_options, errp);
@@ -946,7 +935,7 @@ static void restart_coroutine(void *opaque)
     BDRVSSHState *s = bs->opaque;
     AioContext *ctx = bdrv_get_aio_context(bs);
 
-    DPRINTF("co=%p", restart->co);
+    trace_ssh_restart_coroutine(restart->co);
     aio_set_fd_handler(ctx, s->sock, false, NULL, NULL, NULL, NULL);
 
     aio_co_wake(restart->co);
@@ -974,13 +963,12 @@ static coroutine_fn void co_yield(BDRVSSHState *s, BlockDriverState *bs)
         wr_handler = restart_coroutine;
     }
 
-    DPRINTF("s->sock=%d rd_handler=%p wr_handler=%p", s->sock,
-            rd_handler, wr_handler);
+    trace_ssh_co_yield(s->sock, rd_handler, wr_handler);
 
     aio_set_fd_handler(bdrv_get_aio_context(bs), s->sock,
                        false, rd_handler, wr_handler, NULL, &restart);
     qemu_coroutine_yield();
-    DPRINTF("s->sock=%d - back", s->sock);
+    trace_ssh_co_yield_back(s->sock);
 }
 
 /* SFTP has a function `libssh2_sftp_seek64' which seeks to a position
@@ -1003,7 +991,7 @@ static void ssh_seek(BDRVSSHState *s, int64_t offset, int flags)
     bool force = (flags & SSH_SEEK_FORCE) != 0;
 
     if (force || op_read != s->offset_op_read || offset != s->offset) {
-        DPRINTF("seeking to offset=%" PRIi64, offset);
+        trace_ssh_seek(offset);
         libssh2_sftp_seek64(s->sftp_handle, offset);
         s->offset = offset;
         s->offset_op_read = op_read;
@@ -1019,7 +1007,7 @@ static coroutine_fn int ssh_read(BDRVSSHState *s, BlockDriverState *bs,
     char *buf, *end_of_vec;
     struct iovec *i;
 
-    DPRINTF("offset=%" PRIi64 " size=%zu", offset, size);
+    trace_ssh_read(offset, size);
 
     ssh_seek(s, offset, SSH_SEEK_READ);
 
@@ -1038,9 +1026,9 @@ static coroutine_fn int ssh_read(BDRVSSHState *s, BlockDriverState *bs,
      */
     for (got = 0; got < size; ) {
     again:
-        DPRINTF("sftp_read buf=%p size=%zu", buf, end_of_vec - buf);
+        trace_ssh_read_buf(buf, end_of_vec - buf);
         r = libssh2_sftp_read(s->sftp_handle, buf, end_of_vec - buf);
-        DPRINTF("sftp_read returned %zd", r);
+        trace_ssh_read_return(r);
 
         if (r == LIBSSH2_ERROR_EAGAIN || r == LIBSSH2_ERROR_TIMEOUT) {
             co_yield(s, bs);
@@ -1094,7 +1082,7 @@ static int ssh_write(BDRVSSHState *s, BlockDriverState *bs,
     char *buf, *end_of_vec;
     struct iovec *i;
 
-    DPRINTF("offset=%" PRIi64 " size=%zu", offset, size);
+    trace_ssh_write(offset, size);
 
     ssh_seek(s, offset, SSH_SEEK_WRITE);
 
@@ -1108,9 +1096,9 @@ static int ssh_write(BDRVSSHState *s, BlockDriverState *bs,
 
     for (written = 0; written < size; ) {
     again:
-        DPRINTF("sftp_write buf=%p size=%zu", buf, end_of_vec - buf);
+        trace_ssh_write_buf(buf, end_of_vec - buf);
         r = libssh2_sftp_write(s->sftp_handle, buf, end_of_vec - buf);
-        DPRINTF("sftp_write returned %zd", r);
+        trace_ssh_write_return(r);
 
         if (r == LIBSSH2_ERROR_EAGAIN || r == LIBSSH2_ERROR_TIMEOUT) {
             co_yield(s, bs);
@@ -1187,7 +1175,7 @@ static coroutine_fn int ssh_flush(BDRVSSHState *s, BlockDriverState *bs)
 {
     int r;
 
-    DPRINTF("fsync");
+    trace_ssh_flush();
  again:
     r = libssh2_sftp_fsync(s->sftp_handle);
     if (r == LIBSSH2_ERROR_EAGAIN || r == LIBSSH2_ERROR_TIMEOUT) {
@@ -1238,7 +1226,7 @@ static int64_t ssh_getlength(BlockDriverState *bs)
 
     /* Note we cannot make a libssh2 call here. */
     length = (int64_t) s->attrs.filesize;
-    DPRINTF("length=%" PRIi64, length);
+    trace_ssh_getlength(length);
 
     return length;
 }

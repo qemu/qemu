@@ -160,3 +160,20 @@ iscsi_xcopy(void *src_lun, uint64_t src_off, void *dst_lun, uint64_t dst_off, ui
 # block/nbd-client.c
 nbd_read_reply_entry_fail(int ret, const char *err) "ret = %d, err: %s"
 nbd_co_request_fail(uint64_t from, uint32_t len, uint64_t handle, uint16_t flags, uint16_t type, const char *name, int ret, const char *err) "Request failed { .from = %" PRIu64", .len = %" PRIu32 ", .handle = %" PRIu64 ", .flags = 0x%" PRIx16 ", .type = %" PRIu16 " (%s) } ret = %d, err: %s"
+
+# block/ssh.c
+ssh_restart_coroutine(void *co) "co=%p"
+ssh_flush(void) "fsync"
+ssh_check_host_key_knownhosts(const char *key) "host key OK: %s"
+ssh_connect_to_ssh(char *path, int flags, int mode) "opening file %s flags=0x%x creat_mode=0%o"
+ssh_co_yield(int sock, void *rd_handler, void *wr_handler) "s->sock=%d rd_handler=%p wr_handler=%p"
+ssh_co_yield_back(int sock) "s->sock=%d - back"
+ssh_getlength(int64_t length) "length=%" PRIi64
+ssh_co_create_opts(uint64_t size) "total_size=%" PRIu64
+ssh_read(int64_t offset, size_t size) "offset=%" PRIi64 " size=%zu"
+ssh_read_buf(void *buf, size_t size) "sftp_read buf=%p size=%zu"
+ssh_read_return(ssize_t ret) "sftp_read returned %zd"
+ssh_write(int64_t offset, size_t size) "offset=%" PRIi64 " size=%zu"
+ssh_write_buf(void *buf, size_t size) "sftp_write buf=%p size=%zu"
+ssh_write_return(ssize_t ret) "sftp_write returned %zd"
+ssh_seek(int64_t offset) "seeking to offset=%" PRIi64
