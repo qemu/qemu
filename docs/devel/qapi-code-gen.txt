@@ -754,7 +754,7 @@ gets its generated code guarded like this:
 
 Where a member can be defined with a single string value for its type,
 it is also possible to supply a dictionary instead with both 'type'
-and 'if' keys. (TODO: alternate)
+and 'if' keys.
 
 Example: a conditional 'bar' member
 

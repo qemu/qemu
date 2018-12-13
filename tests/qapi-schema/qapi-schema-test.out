@@ -300,6 +300,7 @@ alternate TestIfAlternate
     tag type
     case foo: int
     case bar: TestStruct
+        if ['defined(TEST_IF_ALT_BAR)']
     if ['defined(TEST_IF_ALT) && defined(TEST_IF_STRUCT)']
 object q_obj_TestIfAlternateCmd-arg
     member alt_cmd_arg: TestIfAlternate optional=False

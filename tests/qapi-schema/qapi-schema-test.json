@@ -218,7 +218,9 @@
 { 'command': 'TestIfUnionCmd', 'data': { 'union_cmd_arg': 'TestIfUnion' },
   'if': 'defined(TEST_IF_UNION)' }
 
-{ 'alternate': 'TestIfAlternate', 'data': { 'foo': 'int', 'bar': 'TestStruct' },
+{ 'alternate': 'TestIfAlternate', 'data':
+  { 'foo': 'int',
+    'bar': { 'type': 'TestStruct', 'if': 'defined(TEST_IF_ALT_BAR)'} },
   'if': 'defined(TEST_IF_ALT) && defined(TEST_IF_STRUCT)' }
 
 { 'command': 'TestIfAlternateCmd', 'data': { 'alt_cmd_arg': 'TestIfAlternate' },
