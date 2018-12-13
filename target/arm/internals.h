@@ -229,7 +229,8 @@ static inline unsigned int arm_pamax(ARMCPU *cpu)
         [4] = 44,
         [5] = 48,
     };
-    unsigned int parange = extract32(cpu->id_aa64mmfr0, 0, 4);
+    unsigned int parange =
+        FIELD_EX64(cpu->isar.id_aa64mmfr0, ID_AA64MMFR0, PARANGE);
 
     /* id_aa64mmfr0 is a read-only register so values outside of the
      * supported mappings can be considered an implementation error.  */
