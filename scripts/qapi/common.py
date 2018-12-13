@@ -740,6 +740,10 @@ def check_event(expr, info):
                allow_metas=meta)
 
 
+def enum_get_names(expr):
+    return [e['name'] for e in expr['data']]
+
+
 def check_union(expr, info):
     name = expr['union']
     base = expr.get('base')
@@ -799,7 +803,7 @@ def check_union(expr, info):
         # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
         if enum_define:
-            if key not in enum_define['data']:
+            if key not in enum_get_names(enum_define):
                 raise QAPISemError(info,
                                    "Discriminator value '%s' is not found in "
                                    "enum '%s'"
@@ -831,7 +835,7 @@ def check_alternate(expr, info):
         if qtype == 'QTYPE_QSTRING':
             enum_expr = enum_types.get(value)
             if enum_expr:
-                for v in enum_expr['data']:
+                for v in enum_get_names(enum_expr):
                     if v in ['on', 'off']:
                         conflicting.add('QTYPE_QBOOL')
                     if re.match(r'[-+0-9.]', v): # lazy, could be tightened
@@ -847,9 +851,15 @@ def check_alternate(expr, info):
             types_seen[qt] = key
 
 
+def normalize_enum(expr):
+    if isinstance(expr['data'], list):
+        expr['data'] = [m if isinstance(m, dict) else {'name': m}
+                        for m in expr['data']]
+
+
 def check_enum(expr, info):
     name = expr['enum']
-    members = expr.get('data')
+    members = expr['data']
     prefix = expr.get('prefix')
 
     if not isinstance(members, list):
@@ -858,8 +868,11 @@ def check_enum(expr, info):
     if prefix is not None and not isinstance(prefix, str):
         raise QAPISemError(info,
                            "Enum '%s' requires a string for 'prefix'" % name)
+
     for member in members:
-        check_name(info, "Member of enum '%s'" % name, member,
+        source = "dictionary member of enum '%s'" % name
+        check_known_keys(info, source, member, ['name'], [])
+        check_name(info, "Member of enum '%s'" % name, member['name'],
                    enum_member=True)
 
 
@@ -937,6 +950,7 @@ def check_exprs(exprs):
         if 'enum' in expr:
             meta = 'enum'
             check_keys(expr_elem, 'enum', ['data'], ['if', 'prefix'])
+            normalize_enum(expr)
             enum_types[expr[meta]] = expr
         elif 'union' in expr:
             meta = 'union'
@@ -1633,14 +1647,16 @@ class QAPISchema(object):
         self.the_empty_object_type = QAPISchemaObjectType(
             'q_empty', None, None, None, None, [], None)
         self._def_entity(self.the_empty_object_type)
-        qtype_values = self._make_enum_members(['none', 'qnull', 'qnum',
-                                                'qstring', 'qdict', 'qlist',
-                                                'qbool'])
+
+        qtypes = ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist',
+                  'qbool']
+        qtype_values = self._make_enum_members([{'name': n} for n in qtypes])
+
         self._def_entity(QAPISchemaEnumType('QType', None, None, None,
                                             qtype_values, 'QTYPE'))
 
     def _make_enum_members(self, values):
-        return [QAPISchemaMember(v) for v in values]
+        return [QAPISchemaMember(v['name']) for v in values]
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
         # See also QAPISchemaObjectTypeMember._pretty_owner()
@@ -1740,8 +1756,8 @@ class QAPISchema(object):
         else:
             variants = [self._make_simple_variant(key, value, info)
                         for (key, value) in data.items()]
-            typ = self._make_implicit_enum_type(name, info, ifcond,
-                                                [v.name for v in variants])
+            enum = [{'name': v.name} for v in variants]
+            typ = self._make_implicit_enum_type(name, info, ifcond, enum)
             tag_member = QAPISchemaObjectTypeMember('type', typ, False)
             members = [tag_member]
         self._def_entity(

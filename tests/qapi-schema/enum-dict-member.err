@@ -1,1 +1,0 @@
-tests/qapi-schema/enum-dict-member.json:2: Member of enum 'MyEnum' requires a string name
