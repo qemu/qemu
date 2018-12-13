@@ -2290,6 +2290,12 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
         }
         return;
 
+    case 0x8: /* STLLR */
+        if (!dc_isar_feature(aa64_lor, s)) {
+            break;
+        }
+        /* StoreLORelease is the same as Store-Release for QEMU.  */
+        /* fall through */
     case 0x9: /* STLR */
         /* Generate ISS for non-exclusive accesses including LASR.  */
         if (rn == 31) {
@@ -2301,6 +2307,12 @@ static void disas_ldst_excl(DisasContext *s, uint32_t insn)
                   disas_ldst_compute_iss_sf(size, false, 0), is_lasr);
         return;
 
+    case 0xc: /* LDLAR */
+        if (!dc_isar_feature(aa64_lor, s)) {
+            break;
+        }
+        /* LoadLOAcquire is the same as Load-Acquire for QEMU.  */
+        /* fall through */
     case 0xd: /* LDAR */
         /* Generate ISS for non-exclusive accesses including LASR.  */
         if (rn == 31) {

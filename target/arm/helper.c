@@ -1281,6 +1281,7 @@ static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     /* Begin with base v8.0 state.  */
     uint32_t valid_mask = 0x3fff;
+    ARMCPU *cpu = arm_env_get_cpu(env);
 
     if (arm_el_is_aa64(env, 3)) {
         value |= SCR_FW | SCR_AW;   /* these two bits are RES1.  */
@@ -1302,6 +1303,9 @@ static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
             !arm_feature(env, ARM_FEATURE_V8)) {
             valid_mask &= ~SCR_SMD;
         }
+    }
+    if (cpu_isar_feature(aa64_lor, cpu)) {
+        valid_mask |= SCR_TLOR;
     }
 
     /* Clear all-context RES0 bits.  */
@@ -3963,6 +3967,9 @@ static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
          */
         valid_mask &= ~HCR_TSC;
     }
+    if (cpu_isar_feature(aa64_lor, cpu)) {
+        valid_mask |= HCR_TLOR;
+    }
 
     /* Clear RES0 bits.  */
     value &= valid_mask;
@@ -5018,6 +5025,42 @@ static uint64_t id_aa64pfr0_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return pfr0;
 }
 
+/* Shared logic between LORID and the rest of the LOR* registers.
+ * Secure state has already been delt with.
+ */
+static CPAccessResult access_lor_ns(CPUARMState *env)
+{
+    int el = arm_current_el(env);
+
+    if (el < 2 && (arm_hcr_el2_eff(env) & HCR_TLOR)) {
+        return CP_ACCESS_TRAP_EL2;
+    }
+    if (el < 3 && (env->cp15.scr_el3 & SCR_TLOR)) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    return CP_ACCESS_OK;
+}
+
+static CPAccessResult access_lorid(CPUARMState *env, const ARMCPRegInfo *ri,
+                                   bool isread)
+{
+    if (arm_is_secure_below_el3(env)) {
+        /* Access ok in secure mode.  */
+        return CP_ACCESS_OK;
+    }
+    return access_lor_ns(env);
+}
+
+static CPAccessResult access_lor_other(CPUARMState *env,
+                                       const ARMCPRegInfo *ri, bool isread)
+{
+    if (arm_is_secure_below_el3(env)) {
+        /* Access denied in secure mode.  */
+        return CP_ACCESS_TRAP;
+    }
+    return access_lor_ns(env);
+}
+
 void register_cp_regs_for_features(ARMCPU *cpu)
 {
     /* Register all the coprocessor registers based on feature bits */
@@ -5757,6 +5800,38 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             sctlr.type |= ARM_CP_SUPPRESS_TB_END;
         }
         define_one_arm_cp_reg(cpu, &sctlr);
+    }
+
+    if (cpu_isar_feature(aa64_lor, cpu)) {
+        /*
+         * A trivial implementation of ARMv8.1-LOR leaves all of these
+         * registers fixed at 0, which indicates that there are zero
+         * supported Limited Ordering regions.
+         */
+        static const ARMCPRegInfo lor_reginfo[] = {
+            { .name = "LORSA_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 10, .crm = 4, .opc2 = 0,
+              .access = PL1_RW, .accessfn = access_lor_other,
+              .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "LOREA_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 10, .crm = 4, .opc2 = 1,
+              .access = PL1_RW, .accessfn = access_lor_other,
+              .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "LORN_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 10, .crm = 4, .opc2 = 2,
+              .access = PL1_RW, .accessfn = access_lor_other,
+              .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "LORC_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 10, .crm = 4, .opc2 = 3,
+              .access = PL1_RW, .accessfn = access_lor_other,
+              .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "LORID_EL1", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 0, .crn = 10, .crm = 4, .opc2 = 7,
+              .access = PL1_R, .accessfn = access_lorid,
+              .type = ARM_CP_CONST, .resetvalue = 0 },
+            REGINFO_SENTINEL
+        };
+        define_arm_cp_regs(cpu, lor_reginfo);
     }
 
     if (cpu_isar_feature(aa64_sve, cpu)) {
