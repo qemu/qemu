@@ -263,10 +263,11 @@ typedef struct QMPRequest QMPRequest;
 /* QMP checker flags */
 #define QMP_ACCEPT_UNKNOWNS 1
 
-/* Protects mon_list, monitor_qapi_event_state.  */
+/* Protects mon_list, monitor_qapi_event_state, monitor_destroyed.  */
 static QemuMutex monitor_lock;
 static GHashTable *monitor_qapi_event_state;
 static QTAILQ_HEAD(mon_list, Monitor) mon_list;
+static bool monitor_destroyed;
 
 /* Protects mon_fdsets */
 static QemuMutex mon_fdsets_lock;
@@ -4109,8 +4110,12 @@ static void monitor_qmp_dispatch(Monitor *mon, QObject *req, QObject *id)
  * processing commands only on a very busy monitor.  To achieve that,
  * when we process one request on a specific monitor, we put that
  * monitor to the end of mon_list queue.
+ *
+ * Note: if the function returned with non-NULL, then the caller will
+ * be with mon->qmp.qmp_queue_lock held, and the caller is responsible
+ * to release it.
  */
-static QMPRequest *monitor_qmp_requests_pop_any(void)
+static QMPRequest *monitor_qmp_requests_pop_any_with_lock(void)
 {
     QMPRequest *req_obj = NULL;
     Monitor *mon;
@@ -4120,10 +4125,11 @@ static QMPRequest *monitor_qmp_requests_pop_any(void)
     QTAILQ_FOREACH(mon, &mon_list, entry) {
         qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
         req_obj = g_queue_pop_head(mon->qmp.qmp_requests);
-        qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
         if (req_obj) {
+            /* With the lock of corresponding queue held */
             break;
         }
+        qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
     }
 
     if (req_obj) {
@@ -4142,38 +4148,40 @@ static QMPRequest *monitor_qmp_requests_pop_any(void)
 
 static void monitor_qmp_bh_dispatcher(void *data)
 {
-    QMPRequest *req_obj = monitor_qmp_requests_pop_any();
+    QMPRequest *req_obj = monitor_qmp_requests_pop_any_with_lock();
     QDict *rsp;
     bool need_resume;
+    Monitor *mon;
 
     if (!req_obj) {
         return;
     }
 
+    mon = req_obj->mon;
     /*  qmp_oob_enabled() might change after "qmp_capabilities" */
-    need_resume = !qmp_oob_enabled(req_obj->mon);
+    need_resume = !qmp_oob_enabled(mon) ||
+        mon->qmp.qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX - 1;
+    qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
     if (req_obj->req) {
         trace_monitor_qmp_cmd_in_band(qobject_get_try_str(req_obj->id) ?: "");
-        monitor_qmp_dispatch(req_obj->mon, req_obj->req, req_obj->id);
+        monitor_qmp_dispatch(mon, req_obj->req, req_obj->id);
     } else {
         assert(req_obj->err);
         rsp = qmp_error_response(req_obj->err);
         req_obj->err = NULL;
-        monitor_qmp_respond(req_obj->mon, rsp, NULL);
+        monitor_qmp_respond(mon, rsp, NULL);
         qobject_unref(rsp);
     }
 
     if (need_resume) {
         /* Pairs with the monitor_suspend() in handle_qmp_command() */
-        monitor_resume(req_obj->mon);
+        monitor_resume(mon);
     }
     qmp_request_free(req_obj);
 
     /* Reschedule instead of looping so the main loop stays responsive */
     qemu_bh_schedule(qmp_dispatcher_bh);
 }
-
-#define  QMP_REQ_QUEUE_LEN_MAX  (8)
 
 static void handle_qmp_command(void *opaque, QObject *req, Error *err)
 {
@@ -4216,28 +4224,14 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
     qemu_mutex_lock(&mon->qmp.qmp_queue_lock);
 
     /*
-     * If OOB is not enabled on the current monitor, we'll emulate the
-     * old behavior that we won't process the current monitor any more
-     * until it has responded.  This helps make sure that as long as
-     * OOB is not enabled, the server will never drop any command.
+     * Suspend the monitor when we can't queue more requests after
+     * this one.  Dequeuing in monitor_qmp_bh_dispatcher() will resume
+     * it.  Note that when OOB is disabled, we queue at most one
+     * command, for backward compatibility.
      */
-    if (!qmp_oob_enabled(mon)) {
+    if (!qmp_oob_enabled(mon) ||
+        mon->qmp.qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX - 1) {
         monitor_suspend(mon);
-    } else {
-        /* Drop the request if queue is full. */
-        if (mon->qmp.qmp_requests->length >= QMP_REQ_QUEUE_LEN_MAX) {
-            qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
-            /*
-             * FIXME @id's scope is just @mon, and broadcasting it is
-             * wrong.  If another monitor's client has a command with
-             * the same ID in flight, the event will incorrectly claim
-             * that command was dropped.
-             */
-            qapi_event_send_command_dropped(id,
-                                            COMMAND_DROP_REASON_QUEUE_FULL);
-            qmp_request_free(req_obj);
-            return;
-        }
     }
 
     /*
@@ -4245,6 +4239,7 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
      * handled in time order.  Ownership for req_obj, req, id,
      * etc. will be delivered to the handler side.
      */
+    assert(mon->qmp.qmp_requests->length < QMP_REQ_QUEUE_LEN_MAX);
     g_queue_push_tail(mon->qmp.qmp_requests, req_obj);
     qemu_mutex_unlock(&mon->qmp.qmp_queue_lock);
 
@@ -4297,7 +4292,7 @@ int monitor_suspend(Monitor *mon)
 
     atomic_inc(&mon->suspend_cnt);
 
-    if (monitor_is_qmp(mon) && mon->use_io_thread) {
+    if (mon->use_io_thread) {
         /*
          * Kick I/O thread to make sure this takes effect.  It'll be
          * evaluated again in prepare() of the watch object.
@@ -4309,6 +4304,13 @@ int monitor_suspend(Monitor *mon)
     return 0;
 }
 
+static void monitor_accept_input(void *opaque)
+{
+    Monitor *mon = opaque;
+
+    qemu_chr_fe_accept_input(&mon->chr);
+}
+
 void monitor_resume(Monitor *mon)
 {
     if (monitor_is_hmp_non_interactive(mon)) {
@@ -4316,20 +4318,22 @@ void monitor_resume(Monitor *mon)
     }
 
     if (atomic_dec_fetch(&mon->suspend_cnt) == 0) {
-        if (monitor_is_qmp(mon)) {
-            /*
-             * For QMP monitors that are running in the I/O thread,
-             * let's kick the thread in case it's sleeping.
-             */
-            if (mon->use_io_thread) {
-                aio_notify(iothread_get_aio_context(mon_iothread));
-            }
+        AioContext *ctx;
+
+        if (mon->use_io_thread) {
+            ctx = iothread_get_aio_context(mon_iothread);
         } else {
+            ctx = qemu_get_aio_context();
+        }
+
+        if (!monitor_is_qmp(mon)) {
             assert(mon->rs);
             readline_show_prompt(mon->rs);
         }
-        qemu_chr_fe_accept_input(&mon->chr);
+
+        aio_bh_schedule_oneshot(ctx, monitor_accept_input, mon);
     }
+
     trace_monitor_suspend(mon, -1);
 }
 
@@ -4453,16 +4457,6 @@ static void sortcmdlist(void)
     qsort((void *)info_cmds, array_num, elem_size, compare_mon_cmd);
 }
 
-static GMainContext *monitor_get_io_context(void)
-{
-    return iothread_get_g_main_context(mon_iothread);
-}
-
-static AioContext *monitor_get_aio_context(void)
-{
-    return iothread_get_aio_context(mon_iothread);
-}
-
 static void monitor_iothread_init(void)
 {
     mon_iothread = iothread_create("mon_iothread", &error_abort);
@@ -4539,8 +4533,21 @@ void error_vprintf_unless_qmp(const char *fmt, va_list ap)
 static void monitor_list_append(Monitor *mon)
 {
     qemu_mutex_lock(&monitor_lock);
-    QTAILQ_INSERT_HEAD(&mon_list, mon, entry);
+    /*
+     * This prevents inserting new monitors during monitor_cleanup().
+     * A cleaner solution would involve the main thread telling other
+     * threads to terminate, waiting for their termination.
+     */
+    if (!monitor_destroyed) {
+        QTAILQ_INSERT_HEAD(&mon_list, mon, entry);
+        mon = NULL;
+    }
     qemu_mutex_unlock(&monitor_lock);
+
+    if (mon) {
+        monitor_data_destroy(mon);
+        g_free(mon);
+    }
 }
 
 static void monitor_qmp_setup_handlers_bh(void *opaque)
@@ -4549,7 +4556,7 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     GMainContext *context;
 
     assert(mon->use_io_thread);
-    context = monitor_get_io_context();
+    context = iothread_get_g_main_context(mon_iothread);
     assert(context);
     qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_qmp_read,
                              monitor_qmp_event, NULL, mon, context, true);
@@ -4560,21 +4567,12 @@ void monitor_init(Chardev *chr, int flags)
 {
     Monitor *mon = g_malloc(sizeof(*mon));
     bool use_readline = flags & MONITOR_USE_READLINE;
-    bool use_oob = flags & MONITOR_USE_OOB;
 
-    if (use_oob) {
-        if (CHARDEV_IS_MUX(chr)) {
-            error_report("Monitor out-of-band is not supported with "
-                         "MUX typed chardev backend");
-            exit(1);
-        }
-        if (use_readline) {
-            error_report("Monitor out-of-band is only supported by QMP");
-            exit(1);
-        }
-    }
-
-    monitor_data_init(mon, false, use_oob);
+    /* Note: we run QMP monitor in I/O thread when @chr supports that */
+    monitor_data_init(mon, false,
+                      (flags & MONITOR_USE_CONTROL)
+                      && qemu_chr_has_feature(chr,
+                                              QEMU_CHAR_FEATURE_GCONTEXT));
 
     qemu_chr_fe_init(&mon->chr, chr, &error_abort);
     mon->flags = flags;
@@ -4601,7 +4599,7 @@ void monitor_init(Chardev *chr, int flags)
              * since chardev might be running in the monitor I/O
              * thread.  Schedule a bottom half.
              */
-            aio_bh_schedule_oneshot(monitor_get_aio_context(),
+            aio_bh_schedule_oneshot(iothread_get_aio_context(mon_iothread),
                                     monitor_qmp_setup_handlers_bh, mon);
             /* The bottom half will add @mon to @mon_list */
             return;
@@ -4634,10 +4632,14 @@ void monitor_cleanup(void)
 
     /* Flush output buffers and destroy monitors */
     qemu_mutex_lock(&monitor_lock);
+    monitor_destroyed = true;
     QTAILQ_FOREACH_SAFE(mon, &mon_list, entry, next) {
         QTAILQ_REMOVE(&mon_list, mon, entry);
+        /* Permit QAPI event emission from character frontend release */
+        qemu_mutex_unlock(&monitor_lock);
         monitor_flush(mon);
         monitor_data_destroy(mon);
+        qemu_mutex_lock(&monitor_lock);
         g_free(mon);
     }
     qemu_mutex_unlock(&monitor_lock);
@@ -4664,9 +4666,6 @@ QemuOptsList qemu_mon_opts = {
             .type = QEMU_OPT_STRING,
         },{
             .name = "pretty",
-            .type = QEMU_OPT_BOOL,
-        },{
-            .name = "x-oob",
             .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
