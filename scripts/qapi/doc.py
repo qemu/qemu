@@ -143,10 +143,10 @@ def texi_member(member, desc, suffix):
     """Format a table of members item for an object type member"""
     typ = member.type.doc_type()
     membertype = ': ' + typ if typ else ''
-    return '@item @code{%s%s}%s%s\n%s' % (
+    return '@item @code{%s%s}%s%s\n%s%s' % (
         member.name, membertype,
         ' (optional)' if member.optional else '',
-        suffix, desc)
+        suffix, desc, texi_if(member.ifcond, prefix='@*'))
 
 
 def texi_members(doc, what, base, variants, member_func):

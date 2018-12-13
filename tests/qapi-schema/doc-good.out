@@ -18,6 +18,7 @@ object Base
     member base1: Enum optional=False
 object Variant1
     member var1: str optional=False
+        if ['defined(IFSTR)']
 object Variant2
 object Object
     base Base
