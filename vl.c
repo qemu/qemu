@@ -3133,11 +3133,8 @@ int main(int argc, char **argv, char **envp)
                     Visitor *v;
                     BlockdevOptions_queue *bdo;
 
-                    v = qobject_input_visitor_new_str(optarg, "driver", &err);
-                    if (!v) {
-                        error_report_err(err);
-                        exit(1);
-                    }
+                    v = qobject_input_visitor_new_str(optarg, "driver",
+                                                      &error_fatal);
 
                     bdo = g_new(BlockdevOptions_queue, 1);
                     visit_type_BlockdevOptions(v, NULL, &bdo->bdo,
