@@ -187,7 +187,7 @@ static uint32_t vpc_checksum(uint8_t* buf, size_t size)
 static int vpc_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     if (buf_size >= 8 && !strncmp((char *)buf, "conectix", 8))
-	return 100;
+        return 100;
     return 0;
 }
 

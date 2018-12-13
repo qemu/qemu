@@ -319,7 +319,7 @@ static void tc6393xb_scr_writeb(TC6393xbState *s, hwaddr addr, uint32_t value)
         SCR_REG_B(DEBUG);
     }
     fprintf(stderr, "tc6393xb_scr: unhandled write at %08x: %02x\n",
-					(uint32_t) addr, value & 0xff);
+                                        (uint32_t) addr, value & 0xff);
 }
 #undef SCR_REG_B
 #undef SCR_REG_W
@@ -358,7 +358,7 @@ static void tc6393xb_nand_cfg_writeb(TC6393xbState *s, hwaddr addr, uint32_t val
             return;
     }
     fprintf(stderr, "tc6393xb_nand_cfg: unhandled write at %08x: %02x\n",
-					(uint32_t) addr, value & 0xff);
+                                        (uint32_t) addr, value & 0xff);
 }
 
 static uint32_t tc6393xb_nand_readb(TC6393xbState *s, hwaddr addr) {
@@ -421,7 +421,7 @@ static void tc6393xb_nand_writeb(TC6393xbState *s, hwaddr addr, uint32_t value) 
             return;
     }
     fprintf(stderr, "tc6393xb_nand: unhandled write at %08x: %02x\n",
-					(uint32_t) addr, value & 0xff);
+                                        (uint32_t) addr, value & 0xff);
 }
 
 #define BITS 8

@@ -384,7 +384,7 @@ static unsigned int dec10_setclrf(DisasContext *dc)
 }
 
 static inline void dec10_reg_prep_sext(DisasContext *dc, int size, int sext,
-				       TCGv dd, TCGv ds, TCGv sd, TCGv ss)
+                                       TCGv dd, TCGv ds, TCGv sd, TCGv ss)
 {
     if (sext) {
         t_gen_sext(dd, sd, size);

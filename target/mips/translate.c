@@ -7036,7 +7036,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             /* Mark as an IO operation because we read the time.  */
             if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
                 gen_io_start();
-	    }
+            }
             gen_helper_mfc0_count(arg, cpu_env);
             if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
                 gen_io_end();

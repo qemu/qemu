@@ -118,7 +118,7 @@ static int max7310_tx(I2CSlave *i2c, uint8_t data)
         break;
 
     case 0x00:	/* Input port - ignore writes */
-	break;
+        break;
     default:
 #ifdef VERBOSE
         printf("%s: unknown register %02x\n", __func__, s->command);

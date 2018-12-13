@@ -27,11 +27,11 @@ static int xenstore_domain_mkdir(char *path)
 
     if (!xs_mkdir(xenstore, 0, path)) {
         fprintf(stderr, "%s: xs_mkdir %s: failed\n", __func__, path);
-	return -1;
+        return -1;
     }
     if (!xs_set_permissions(xenstore, 0, path, perms_ro, 2)) {
         fprintf(stderr, "%s: xs_set_permissions failed\n", __func__);
-	return -1;
+        return -1;
     }
 
     for (i = 0; writable[i]; i++) {
@@ -82,8 +82,8 @@ int xenstore_domain_init1(const char *kernel, const char *ramdisk,
 
     /* cpus */
     for (i = 0; i < smp_cpus; i++) {
-	snprintf(path, sizeof(path), "cpu/%d/availability",i);
-	xenstore_write_str(dom, path, "online");
+        snprintf(path, sizeof(path), "cpu/%d/availability",i);
+        xenstore_write_str(dom, path, "online");
     }
     xenstore_write_int(vm, "vcpu_avail",  smp_cpus);
     xenstore_write_int(vm, "vcpus",       smp_cpus);

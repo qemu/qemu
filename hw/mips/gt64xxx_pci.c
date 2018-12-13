@@ -395,7 +395,7 @@ static void gt64120_writel (void *opaque, hwaddr addr,
         s->regs[GT_CPU] = val;
         break;
     case GT_MULTI:
-	/* Read-only register as only one GT64xxx is present on the CPU bus */
+        /* Read-only register as only one GT64xxx is present on the CPU bus */
         break;
 
     /* CPU Address Decode */
@@ -457,13 +457,13 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     case GT_CPUERR_DATALO:
     case GT_CPUERR_DATAHI:
     case GT_CPUERR_PARITY:
-	/* Read-only registers, do nothing */
+        /* Read-only registers, do nothing */
         break;
 
     /* CPU Sync Barrier */
     case GT_PCI0SYNC:
     case GT_PCI1SYNC:
-	/* Read-only registers, do nothing */
+        /* Read-only registers, do nothing */
         break;
 
     /* SDRAM and Device Address Decode */

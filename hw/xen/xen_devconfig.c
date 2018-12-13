@@ -6,7 +6,7 @@
 /* ------------------------------------------------------------- */
 
 static int xen_config_dev_dirs(const char *ftype, const char *btype, int vdev,
-			       char *fe, char *be, int len)
+                               char *fe, char *be, int len)
 {
     char *dom;
 

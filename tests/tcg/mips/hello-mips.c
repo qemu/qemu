@@ -24,9 +24,9 @@ static inline void exit1(int status)
         "	syscall		\n"
         "	.set pop	"
         :
-	: "i" (__NR_exit), "r" (__a0)
-	: "$2", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$24",
-	  "memory");
+        : "i" (__NR_exit), "r" (__a0)
+        : "$2", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$24",
+          "memory");
 }
 
 static inline int write(int fd, const char *buf, int len)
@@ -46,8 +46,8 @@ static inline int write(int fd, const char *buf, int len)
         "	.set pop	"
         : "=r" (__v0), "=r" (__a3)
         : "i" (__NR_write), "r" (__a0), "r" (__a1), "r" (__a2)
-	: "$2", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$24",
-	  "memory");
+        : "$2", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$24",
+          "memory");
 
 /*    if (__a3 == 0) */
         return (int) __v0;

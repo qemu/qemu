@@ -442,7 +442,7 @@ static int apic_find_dest(uint8_t dest)
 
     for (i = 0; i < MAX_APICS; i++) {
         apic = local_apics[i];
-	if (apic && apic->id == dest)
+        if (apic && apic->id == dest)
             return i;
         if (!apic)
             break;

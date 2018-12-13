@@ -498,9 +498,9 @@ static void virgl_write_fence(void *opaque, uint32_t fence)
 
     QTAILQ_FOREACH_SAFE(cmd, &g->fenceq, next, tmp) {
         /*
-	 * the guest can end up emitting fences out of order
-	 * so we should check all fenced cmds not just the first one.
-	 */
+         * the guest can end up emitting fences out of order
+         * so we should check all fenced cmds not just the first one.
+         */
         if (cmd->cmd_hdr.fence_id > fence) {
             continue;
         }

@@ -342,7 +342,7 @@ enum ide_dma_cmd {
 extern const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT];
 
 #define ide_cmd_is_read(s) \
-	((s)->dma_cmd == IDE_DMA_READ)
+        ((s)->dma_cmd == IDE_DMA_READ)
 
 typedef struct IDEBufferedRequest {
     QLIST_ENTRY(IDEBufferedRequest) list;

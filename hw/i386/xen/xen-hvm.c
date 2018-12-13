@@ -570,7 +570,7 @@ static void xen_io_del(MemoryListener *listener,
 }
 
 static void xen_device_realize(DeviceListener *listener,
-			       DeviceState *dev)
+                               DeviceState *dev)
 {
     XenIOState *state = container_of(listener, XenIOState, device_listener);
 
@@ -588,7 +588,7 @@ static void xen_device_realize(DeviceListener *listener,
 }
 
 static void xen_device_unrealize(DeviceListener *listener,
-				 DeviceState *dev)
+                                 DeviceState *dev)
 {
     XenIOState *state = container_of(listener, XenIOState, device_listener);
 

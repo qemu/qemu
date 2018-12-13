@@ -354,8 +354,8 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         break;
 
     case VHOST_USER_SET_FEATURES:
-	g_assert_cmpint(msg.payload.u64 & (0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES),
-			!=, 0ULL);
+        g_assert_cmpint(msg.payload.u64 & (0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES),
+                        !=, 0ULL);
         if (s->test_flags == TEST_FLAGS_DISCONNECT) {
             qemu_chr_fe_disconnect(chr);
             s->test_flags = TEST_FLAGS_BAD;

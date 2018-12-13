@@ -244,26 +244,26 @@ int load_aout(const char *filename, hwaddr addr, int max_sz,
     case OMAGIC:
         if (e.a_text + e.a_data > max_sz)
             goto fail;
-	lseek(fd, N_TXTOFF(e), SEEK_SET);
-	size = read_targphys(filename, fd, addr, e.a_text + e.a_data);
-	if (size < 0)
-	    goto fail;
-	break;
+        lseek(fd, N_TXTOFF(e), SEEK_SET);
+        size = read_targphys(filename, fd, addr, e.a_text + e.a_data);
+        if (size < 0)
+            goto fail;
+        break;
     case NMAGIC:
         if (N_DATADDR(e, target_page_size) + e.a_data > max_sz)
             goto fail;
-	lseek(fd, N_TXTOFF(e), SEEK_SET);
-	size = read_targphys(filename, fd, addr, e.a_text);
-	if (size < 0)
-	    goto fail;
+        lseek(fd, N_TXTOFF(e), SEEK_SET);
+        size = read_targphys(filename, fd, addr, e.a_text);
+        if (size < 0)
+            goto fail;
         ret = read_targphys(filename, fd, addr + N_DATADDR(e, target_page_size),
                             e.a_data);
-	if (ret < 0)
-	    goto fail;
-	size += ret;
-	break;
+        if (ret < 0)
+            goto fail;
+        size += ret;
+        break;
     default:
-	goto fail;
+        goto fail;
     }
     close(fd);
     return size;

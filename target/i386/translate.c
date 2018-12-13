@@ -3445,7 +3445,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         case 0x172:
         case 0x173:
             if (b1 >= 2) {
-	        goto unknown_op;
+                goto unknown_op;
             }
             val = x86_ldub_code(env, s);
             if (is_xmm) {
@@ -6400,7 +6400,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                      SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes));
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
             gen_io_start();
-	}
+        }
         tcg_gen_movi_i32(s->tmp2_i32, val);
         gen_helper_in_func(ot, s->T1, s->tmp2_i32);
         gen_op_mov_reg_v(s, ot, R_EAX, s->T1);
@@ -6421,7 +6421,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
             gen_io_start();
-	}
+        }
         tcg_gen_movi_i32(s->tmp2_i32, val);
         tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T1);
         gen_helper_out_func(ot, s->tmp2_i32, s->tmp3_i32);
@@ -6439,7 +6439,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                      SVM_IOIO_TYPE_MASK | svm_is_rep(prefixes));
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
             gen_io_start();
-	}
+        }
         tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
         gen_helper_in_func(ot, s->T1, s->tmp2_i32);
         gen_op_mov_reg_v(s, ot, R_EAX, s->T1);
@@ -6459,7 +6459,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
             gen_io_start();
-	}
+        }
         tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
         tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T1);
         gen_helper_out_func(ot, s->tmp2_i32, s->tmp3_i32);
@@ -7166,7 +7166,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         gen_jmp_im(s, pc_start - s->cs_base);
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
             gen_io_start();
-	}
+        }
         gen_helper_rdtsc(cpu_env);
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
             gen_io_end();

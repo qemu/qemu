@@ -402,7 +402,7 @@ static int count_contiguous_clusters(int nb_clusters, int cluster_size,
         }
     }
 
-	return i;
+        return i;
 }
 
 /*

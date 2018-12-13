@@ -782,11 +782,11 @@ typedef struct {
 /* ARM-specific values for sh_flags */
 #define SHF_ARM_ENTRYSECT  0x10000000   /* Section contains an entry point */
 #define SHF_ARM_COMDEF     0x80000000   /* Section may be multiply defined
-					   in the input to a link step */
+                                           in the input to a link step */
 
 /* ARM-specific program header flags */
 #define PF_ARM_SB          0x10000000   /* Segment contains the location
-					   addressed by the static base */
+                                           addressed by the static base */
 
 /* ARM relocs.  */
 #define R_ARM_NONE		0	/* No reloc */
@@ -1047,7 +1047,7 @@ typedef struct {
 #define R_X86_64_JUMP_SLOT	7	/* Create PLT entry */
 #define R_X86_64_RELATIVE	8	/* Adjust by program base */
 #define R_X86_64_GOTPCREL	9	/* 32 bit signed pc relative
-					   offset to GOT */
+                                           offset to GOT */
 #define R_X86_64_32		10	/* Direct 32 bit zero extended */
 #define R_X86_64_32S		11	/* Direct 32 bit sign extended */
 #define R_X86_64_16		12	/* Direct 16 bit zero extended */
@@ -1070,7 +1070,7 @@ typedef struct {
 #define EF_PARISC_LSB		0x00040000 /* Program expects little endian. */
 #define EF_PARISC_WIDE		0x00080000 /* Program expects wide mode.  */
 #define EF_PARISC_NO_KABP	0x00100000 /* No kernel assisted branch
-					      prediction.  */
+                                              prediction.  */
 #define EF_PARISC_LAZYSWAP	0x00400000 /* Allow lazy swapping.  */
 #define EF_PARISC_ARCH		0x0000ffff /* Architecture version.  */
 
@@ -1083,7 +1083,7 @@ typedef struct {
 /* Additional section indeces.  */
 
 #define SHN_PARISC_ANSI_COMMON	0xff00	   /* Section for tenatively declared
-					      symbols in ANSI C.  */
+                                              symbols in ANSI C.  */
 #define SHN_PARISC_HUGE_COMMON	0xff01	   /* Common blocks in huge model.  */
 
 /* Legal values for sh_type field of Elf32_Shdr.  */

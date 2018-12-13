@@ -61,21 +61,21 @@ struct intc_desc {
 int sh_intc_get_pending_vector(struct intc_desc *desc, int imask);
 struct intc_source *sh_intc_source(struct intc_desc *desc, intc_enum id);
 void sh_intc_toggle_source(struct intc_source *source,
-			   int enable_adj, int assert_adj);
+                           int enable_adj, int assert_adj);
 
 void sh_intc_register_sources(struct intc_desc *desc,
-			      struct intc_vect *vectors,
-			      int nr_vectors,
-			      struct intc_group *groups,
-			      int nr_groups);
+                              struct intc_vect *vectors,
+                              int nr_vectors,
+                              struct intc_group *groups,
+                              int nr_groups);
 
 int sh_intc_init(MemoryRegion *sysmem,
                  struct intc_desc *desc,
-		 int nr_sources,
-		 struct intc_mask_reg *mask_regs,
-		 int nr_mask_regs,
-		 struct intc_prio_reg *prio_regs,
-		 int nr_prio_regs);
+                 int nr_sources,
+                 struct intc_mask_reg *mask_regs,
+                 int nr_mask_regs,
+                 struct intc_prio_reg *prio_regs,
+                 int nr_prio_regs);
 
 void sh_intc_set_irl(void *opaque, int n, int level);
 

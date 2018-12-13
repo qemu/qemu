@@ -35,7 +35,7 @@ int main (void)
     syscall (SYS_set_thread_area, old_tp);
 
     if (tp != 0xeddeed00) {
-	* (volatile int *) 0 = 0;
+        * (volatile int *) 0 = 0;
         perror ("tls2");
         abort ();
     }

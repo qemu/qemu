@@ -112,27 +112,27 @@ static uint64_t mipsnet_ioport_read(void *opaque, hwaddr addr,
     addr &= 0x3f;
     switch (addr) {
     case MIPSNET_DEV_ID:
-	ret = be32_to_cpu(0x4d495053);		/* MIPS */
+        ret = be32_to_cpu(0x4d495053);		/* MIPS */
         break;
     case MIPSNET_DEV_ID + 4:
-	ret = be32_to_cpu(0x4e455430);		/* NET0 */
+        ret = be32_to_cpu(0x4e455430);		/* NET0 */
         break;
     case MIPSNET_BUSY:
-	ret = s->busy;
+        ret = s->busy;
         break;
     case MIPSNET_RX_DATA_COUNT:
-	ret = s->rx_count;
+        ret = s->rx_count;
         break;
     case MIPSNET_TX_DATA_COUNT:
-	ret = s->tx_count;
+        ret = s->tx_count;
         break;
     case MIPSNET_INT_CTL:
-	ret = s->intctl;
+        ret = s->intctl;
         s->intctl &= ~MIPSNET_INTCTL_TESTBIT;
         break;
     case MIPSNET_INTERRUPT_INFO:
         /* XXX: This seems to be a per-VPE interrupt number. */
-	ret = 0;
+        ret = 0;
         break;
     case MIPSNET_RX_DATA_BUFFER:
         if (s->rx_count) {
@@ -161,7 +161,7 @@ static void mipsnet_ioport_write(void *opaque, hwaddr addr,
     trace_mipsnet_write(addr, val);
     switch (addr) {
     case MIPSNET_TX_DATA_COUNT:
-	s->tx_count = (val <= MAX_ETH_FRAME_SIZE) ? val : 0;
+        s->tx_count = (val <= MAX_ETH_FRAME_SIZE) ? val : 0;
         s->tx_written = 0;
         break;
     case MIPSNET_INT_CTL:

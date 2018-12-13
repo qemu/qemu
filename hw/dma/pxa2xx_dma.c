@@ -228,7 +228,7 @@ static void pxa2xx_dma_run(PXA2xxDMAState *s)
                                         !(ch->state & DCSR_NODESCFETCH))
                             pxa2xx_dma_descriptor_fetch(s, c);
                         break;
-		    }
+                    }
                 }
 
                 ch->cmd = (ch->cmd & ~DCMD_LEN) | length;
@@ -283,7 +283,7 @@ static uint64_t pxa2xx_dma_read(void *opaque, hwaddr offset,
 
     case DCSR0 ... DCSR31:
         channel = offset >> 2;
-	if (s->chan[channel].request)
+        if (s->chan[channel].request)
             return s->chan[channel].state | DCSR_REQPEND;
         return s->chan[channel].state;
 

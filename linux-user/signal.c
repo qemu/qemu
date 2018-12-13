@@ -727,7 +727,7 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
         }
 #endif
 
-	ret = -TARGET_EFAULT;
+        ret = -TARGET_EFAULT;
         if (!lock_user_struct(VERIFY_READ, uss, uss_addr, 1)) {
             goto out;
         }
@@ -736,25 +736,25 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
         __get_user(ss.ss_flags, &uss->ss_flags);
         unlock_user_struct(uss, uss_addr, 0);
 
-	ret = -TARGET_EPERM;
-	if (on_sig_stack(sp))
+        ret = -TARGET_EPERM;
+        if (on_sig_stack(sp))
             goto out;
 
-	ret = -TARGET_EINVAL;
-	if (ss.ss_flags != TARGET_SS_DISABLE
+        ret = -TARGET_EINVAL;
+        if (ss.ss_flags != TARGET_SS_DISABLE
             && ss.ss_flags != TARGET_SS_ONSTACK
             && ss.ss_flags != 0)
             goto out;
 
-	if (ss.ss_flags == TARGET_SS_DISABLE) {
+        if (ss.ss_flags == TARGET_SS_DISABLE) {
             ss.ss_size = 0;
             ss.ss_sp = 0;
-	} else {
+        } else {
             ret = -TARGET_ENOMEM;
             if (ss.ss_size < minstacksize) {
                 goto out;
             }
-	}
+        }
 
         target_sigaltstack_used.ss_sp = ss.ss_sp;
         target_sigaltstack_used.ss_size = ss.ss_size;

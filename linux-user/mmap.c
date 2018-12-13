@@ -485,11 +485,11 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
         end = start + len;
         real_end = HOST_PAGE_ALIGN(end);
 
-	/*
-	 * Test if requested memory area fits target address space
-	 * It can fail only on 64-bit host with 32-bit target.
-	 * On any other target/host host mmap() handles this error correctly.
-	 */
+        /*
+         * Test if requested memory area fits target address space
+         * It can fail only on 64-bit host with 32-bit target.
+         * On any other target/host host mmap() handles this error correctly.
+         */
         if (!guest_range_valid(start, len)) {
             errno = ENOMEM;
             goto fail;

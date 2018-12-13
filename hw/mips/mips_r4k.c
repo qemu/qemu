@@ -239,7 +239,7 @@ void mips_r4k_init(MachineState *machine)
                                    sector_len, mips_rom / sector_len,
                                    4, 0, 0, 0, 0, be)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
-	}
+        }
     } else if (!qtest_enabled()) {
         /* not fatal */
         warn_report("could not load MIPS bios '%s'", bios_name);
@@ -285,7 +285,7 @@ void mips_r4k_init(MachineState *machine)
     for(i = 0; i < MAX_IDE_BUS; i++)
         isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      hd[MAX_IDE_DEVS * i],
-		     hd[MAX_IDE_DEVS * i + 1]);
+                     hd[MAX_IDE_DEVS * i + 1]);
 
     isa_create_simple(isa_bus, TYPE_I8042);
 }

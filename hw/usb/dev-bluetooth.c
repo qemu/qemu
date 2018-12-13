@@ -46,7 +46,7 @@ struct USBBtState {
 
     struct usb_hci_out_fifo_s {
         uint8_t data[4096];
-	int len;
+        int len;
     } outcmd, outacl, outsco;
 };
 

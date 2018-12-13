@@ -3392,8 +3392,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_addi(s, TCG_REG_ESP, -stack_addend);
     /* jmp *tb.  */
     tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, TCG_REG_ESP,
-		         (ARRAY_SIZE(tcg_target_callee_save_regs) + 2) * 4
-			 + stack_addend);
+                         (ARRAY_SIZE(tcg_target_callee_save_regs) + 2) * 4
+                         + stack_addend);
 #else
 # if !defined(CONFIG_SOFTMMU) && TCG_TARGET_REG_BITS == 64
     if (guest_base) {

@@ -592,12 +592,12 @@ static void usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         switch (value >> 8) {
         case 0x22:
             if (hs->kind == HID_MOUSE) {
-		memcpy(data, qemu_mouse_hid_report_descriptor,
-		       sizeof(qemu_mouse_hid_report_descriptor));
+                memcpy(data, qemu_mouse_hid_report_descriptor,
+                       sizeof(qemu_mouse_hid_report_descriptor));
                 p->actual_length = sizeof(qemu_mouse_hid_report_descriptor);
             } else if (hs->kind == HID_TABLET) {
                 memcpy(data, qemu_tablet_hid_report_descriptor,
-		       sizeof(qemu_tablet_hid_report_descriptor));
+                       sizeof(qemu_tablet_hid_report_descriptor));
                 p->actual_length = sizeof(qemu_tablet_hid_report_descriptor);
             } else if (hs->kind == HID_KEYBOARD) {
                 memcpy(data, qemu_keyboard_hid_report_descriptor,

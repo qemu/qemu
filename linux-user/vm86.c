@@ -257,7 +257,7 @@ void handle_vm86_trap(CPUX86State *env, int trapno)
 #define CHECK_IF_IN_TRAP() \
       if ((ts->vm86plus.vm86plus.flags & TARGET_vm86dbg_active) && \
           (ts->vm86plus.vm86plus.flags & TARGET_vm86dbg_TFpendig)) \
-		newflags |= TF_MASK
+                newflags |= TF_MASK
 
 #define VM86_FAULT_RETURN \
         if ((ts->vm86plus.vm86plus.flags & TARGET_force_return_for_pic) && \

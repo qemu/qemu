@@ -85,14 +85,14 @@ static int bochs_probe(const uint8_t *buf, int buf_size, const char *filename)
     const struct bochs_header *bochs = (const void *)buf;
 
     if (buf_size < HEADER_SIZE)
-	return 0;
+        return 0;
 
     if (!strcmp(bochs->magic, HEADER_MAGIC) &&
-	!strcmp(bochs->type, REDOLOG_TYPE) &&
-	!strcmp(bochs->subtype, GROWING_TYPE) &&
-	((le32_to_cpu(bochs->version) == HEADER_VERSION) ||
-	(le32_to_cpu(bochs->version) == HEADER_V1)))
-	return 100;
+        !strcmp(bochs->type, REDOLOG_TYPE) &&
+        !strcmp(bochs->subtype, GROWING_TYPE) &&
+        ((le32_to_cpu(bochs->version) == HEADER_VERSION) ||
+        (le32_to_cpu(bochs->version) == HEADER_V1)))
+        return 100;
 
     return 0;
 }
@@ -125,8 +125,8 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     if (strcmp(bochs.magic, HEADER_MAGIC) ||
         strcmp(bochs.type, REDOLOG_TYPE) ||
         strcmp(bochs.subtype, GROWING_TYPE) ||
-	((le32_to_cpu(bochs.version) != HEADER_VERSION) &&
-	(le32_to_cpu(bochs.version) != HEADER_V1))) {
+        ((le32_to_cpu(bochs.version) != HEADER_VERSION) &&
+        (le32_to_cpu(bochs.version) != HEADER_V1))) {
         error_setg(errp, "Image not in Bochs format");
         return -EINVAL;
     }
@@ -158,7 +158,7 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     for (i = 0; i < s->catalog_size; i++)
-	le32_to_cpus(&s->catalog_bitmap[i]);
+        le32_to_cpus(&s->catalog_bitmap[i]);
 
     s->data_offset = le32_to_cpu(bochs.header) + (s->catalog_size * 4);
 
@@ -217,7 +217,7 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     extent_offset = (offset % s->extent_size) / 512;
 
     if (s->catalog_bitmap[extent_index] == 0xffffffff) {
-	return 0; /* not allocated */
+        return 0; /* not allocated */
     }
 
     bitmap_offset = s->data_offset +
@@ -232,7 +232,7 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     }
 
     if (!((bitmap_entry >> (extent_offset % 8)) & 1)) {
-	return 0; /* not allocated */
+        return 0; /* not allocated */
     }
 
     return bitmap_offset + (512 * (s->bitmap_blocks + extent_offset));

@@ -28,8 +28,8 @@
 #include "qemu-common.h"
 
 typedef struct {
-	const char* name;
-	int keysym;
+    const char* name;
+    int keysym;
 } name2keysym_t;
 
 /* scancode without modifiers */

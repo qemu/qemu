@@ -176,7 +176,7 @@ int qemu_ftruncate64(int fd, int64_t length)
     BOOL res;
 
     if ((GetVersion() & 0x80000000UL) && (length >> 32) != 0)
-	return -1;
+        return -1;
 
     h = (HANDLE)_get_osfhandle(fd);
 
@@ -184,13 +184,13 @@ int qemu_ftruncate64(int fd, int64_t length)
     li.HighPart = 0;
     li.LowPart = SetFilePointer (h, 0, &li.HighPart, FILE_CURRENT);
     if (li.LowPart == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
-	return -1;
+        return -1;
     }
 
     high = length >> 32;
     dw = SetFilePointer(h, (DWORD) length, &high, FILE_BEGIN);
     if (dw == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
-	return -1;
+        return -1;
     }
     res = SetEndOfFile(h);
 
@@ -203,7 +203,7 @@ static int set_sparse(int fd)
 {
     DWORD returned;
     return (int) DeviceIoControl((HANDLE)_get_osfhandle(fd), FSCTL_SET_SPARSE,
-				 NULL, 0, NULL, 0, &returned, NULL);
+                                 NULL, 0, NULL, 0, &returned, NULL);
 }
 
 static void raw_detach_aio_context(BlockDriverState *bs)

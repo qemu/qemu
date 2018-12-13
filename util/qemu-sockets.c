@@ -270,8 +270,8 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     /* create socket + bind/listen */
     for (e = res; e != NULL; e = e->ai_next) {
         getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
-		        uaddr,INET6_ADDRSTRLEN,uport,32,
-		        NI_NUMERICHOST | NI_NUMERICSERV);
+                        uaddr,INET6_ADDRSTRLEN,uport,32,
+                        NI_NUMERICHOST | NI_NUMERICSERV);
 
         port_min = inet_getport(e);
         port_max = saddr->has_to ? saddr->to + port_offset : port_min;

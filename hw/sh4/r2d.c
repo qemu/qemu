@@ -139,11 +139,11 @@ static uint64_t r2d_fpga_read(void *opaque, hwaddr addr, unsigned int size)
     case PA_IRLMSK:
         return s->irlmsk;
     case PA_OUTPORT:
-	return s->outport;
+        return s->outport;
     case PA_POWOFF:
-	return 0x00;
+        return 0x00;
     case PA_VERREG:
-	return 0x10;
+        return 0x10;
     }
 
     return 0;
@@ -158,18 +158,18 @@ r2d_fpga_write(void *opaque, hwaddr addr, uint64_t value, unsigned int size)
     case PA_IRLMSK:
         s->irlmsk = value;
         update_irl(s);
-	break;
+        break;
     case PA_OUTPORT:
-	s->outport = value;
-	break;
+        s->outport = value;
+        break;
     case PA_POWOFF:
         if (value & 1) {
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         }
         break;
     case PA_VERREG:
-	/* Discard writes */
-	break;
+        /* Discard writes */
+        break;
     }
 }
 

@@ -538,7 +538,7 @@ static void ppc_prep_init(MachineState *machine)
         nb_nics1 = NE2000_NB_MAX;
     for(i = 0; i < nb_nics1; i++) {
         if (nd_table[i].model == NULL) {
-	    nd_table[i].model = g_strdup("ne2k_isa");
+            nd_table[i].model = g_strdup("ne2k_isa");
         }
         if (strcmp(nd_table[i].model, "ne2k_isa") == 0) {
             isa_ne2000_init(isa_bus, ne2000_io[i], ne2000_irq[i],
@@ -552,7 +552,7 @@ static void ppc_prep_init(MachineState *machine)
     for(i = 0; i < MAX_IDE_BUS; i++) {
         isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      hd[2 * i],
-		     hd[2 * i + 1]);
+                     hd[2 * i + 1]);
     }
 
     cpu = POWERPC_CPU(first_cpu);
