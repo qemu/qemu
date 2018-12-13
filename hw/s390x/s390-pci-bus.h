@@ -252,7 +252,6 @@ typedef struct ChscSeiNt2Res {
 } QEMU_PACKED ChscSeiNt2Res;
 
 typedef struct S390MsixInfo {
-    bool available;
     uint8_t table_bar;
     uint8_t pba_bar;
     uint16_t entries;
