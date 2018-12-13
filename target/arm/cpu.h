@@ -1729,6 +1729,14 @@ static inline bool arm_is_secure(CPUARMState *env)
 }
 #endif
 
+/**
+ * arm_hcr_el2_eff(): Return the effective value of HCR_EL2.
+ * E.g. when in secure state, fields in HCR_EL2 are suppressed,
+ * "for all purposes other than a direct read or write access of HCR_EL2."
+ * Not included here is HCR_RW.
+ */
+uint64_t arm_hcr_el2_eff(CPUARMState *env);
+
 /* Return true if the specified exception level is running in AArch64 state. */
 static inline bool arm_el_is_aa64(CPUARMState *env, int el)
 {
@@ -2414,54 +2422,6 @@ bool write_cpustate_to_list(ARMCPU *cpu);
 #  define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
-/**
- * arm_hcr_el2_imo(): Return the effective value of HCR_EL2.IMO.
- * Depending on the values of HCR_EL2.E2H and TGE, this may be
- * "behaves as 1 for all purposes other than direct read/write" or
- * "behaves as 0 for all purposes other than direct read/write"
- */
-static inline bool arm_hcr_el2_imo(CPUARMState *env)
-{
-    switch (env->cp15.hcr_el2 & (HCR_TGE | HCR_E2H)) {
-    case HCR_TGE:
-        return true;
-    case HCR_TGE | HCR_E2H:
-        return false;
-    default:
-        return env->cp15.hcr_el2 & HCR_IMO;
-    }
-}
-
-/**
- * arm_hcr_el2_fmo(): Return the effective value of HCR_EL2.FMO.
- */
-static inline bool arm_hcr_el2_fmo(CPUARMState *env)
-{
-    switch (env->cp15.hcr_el2 & (HCR_TGE | HCR_E2H)) {
-    case HCR_TGE:
-        return true;
-    case HCR_TGE | HCR_E2H:
-        return false;
-    default:
-        return env->cp15.hcr_el2 & HCR_FMO;
-    }
-}
-
-/**
- * arm_hcr_el2_amo(): Return the effective value of HCR_EL2.AMO.
- */
-static inline bool arm_hcr_el2_amo(CPUARMState *env)
-{
-    switch (env->cp15.hcr_el2 & (HCR_TGE | HCR_E2H)) {
-    case HCR_TGE:
-        return true;
-    case HCR_TGE | HCR_E2H:
-        return false;
-    default:
-        return env->cp15.hcr_el2 & HCR_AMO;
-    }
-}
-
 static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
                                      unsigned int target_el)
 {
@@ -2470,6 +2430,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
     bool secure = arm_is_secure(env);
     bool pstate_unmasked;
     int8_t unmasked = 0;
+    uint64_t hcr_el2;
 
     /* Don't take exceptions if they target a lower EL.
      * This check should catch any exceptions that would not be taken but left
@@ -2478,6 +2439,8 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
     if (cur_el > target_el) {
         return false;
     }
+
+    hcr_el2 = arm_hcr_el2_eff(env);
 
     switch (excp_idx) {
     case EXCP_FIQ:
@@ -2489,13 +2452,13 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
         break;
 
     case EXCP_VFIQ:
-        if (secure || !arm_hcr_el2_fmo(env) || (env->cp15.hcr_el2 & HCR_TGE)) {
+        if (secure || !(hcr_el2 & HCR_FMO) || (hcr_el2 & HCR_TGE)) {
             /* VFIQs are only taken when hypervized and non-secure.  */
             return false;
         }
         return !(env->daif & PSTATE_F);
     case EXCP_VIRQ:
-        if (secure || !arm_hcr_el2_imo(env) || (env->cp15.hcr_el2 & HCR_TGE)) {
+        if (secure || !(hcr_el2 & HCR_IMO) || (hcr_el2 & HCR_TGE)) {
             /* VIRQs are only taken when hypervized and non-secure.  */
             return false;
         }
@@ -2534,7 +2497,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
                  * to the CPSR.F setting otherwise we further assess the state
                  * below.
                  */
-                hcr = arm_hcr_el2_fmo(env);
+                hcr = hcr_el2 & HCR_FMO;
                 scr = (env->cp15.scr_el3 & SCR_FIQ);
 
                 /* When EL3 is 32-bit, the SCR.FW bit controls whether the
@@ -2551,7 +2514,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
                  * when setting the target EL, so it does not have a further
                  * affect here.
                  */
-                hcr = arm_hcr_el2_imo(env);
+                hcr = hcr_el2 & HCR_IMO;
                 scr = false;
                 break;
             default:
