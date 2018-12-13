@@ -201,18 +201,13 @@ void sysbus_init_ioports(SysBusDevice *dev, uint32_t ioport, uint32_t size)
     }
 }
 
-/* TODO remove once all sysbus devices have been converted to realize */
+/* The purpose of preserving this empty realize function
+ * is to prevent the parent_realize field of some subclasses
+ * from being set to NULL to break the normal init/realize
+ * of some devices.
+ */
 static void sysbus_realize(DeviceState *dev, Error **errp)
 {
-    SysBusDevice *sd = SYS_BUS_DEVICE(dev);
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(sd);
-
-    if (!sbc->init) {
-        return;
-    }
-    if (sbc->init(sd) < 0) {
-        error_setg(errp, "Device initialization failed");
-    }
 }
 
 DeviceState *sysbus_create_varargs(const char *name,
