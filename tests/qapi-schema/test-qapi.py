@@ -24,9 +24,11 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         print('include %s' % name)
 
     def visit_enum_type(self, name, info, ifcond, members, prefix):
-        print('enum %s %s' % (name, [m.name for m in members]))
+        print('enum %s' % name)
         if prefix:
             print('    prefix %s' % prefix)
+        for m in members:
+            print('    member %s' % m.name)
         self._print_if(ifcond)
 
     def visit_object_type(self, name, info, ifcond, base, members, variants):
