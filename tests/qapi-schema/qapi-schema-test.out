@@ -268,6 +268,8 @@ command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> __org.qemu_x-Unio
    gen=True success_response=True boxed=False oob=False preconfig=False
 object TestIfStruct
     member foo: int optional=False
+    member bar: int optional=False
+        if ['defined(TEST_IF_STRUCT_BAR)']
     if ['defined(TEST_IF_STRUCT)']
 enum TestIfEnum
     member foo
@@ -304,6 +306,7 @@ command TestIfAlternateCmd q_obj_TestIfAlternateCmd-arg -> None
 object q_obj_TestIfCmd-arg
     member foo: TestIfStruct optional=False
     member bar: TestIfEnum optional=False
+        if ['defined(TEST_IF_CMD_BAR)']
     if ['defined(TEST_IF_CMD)', 'defined(TEST_IF_STRUCT)']
 command TestIfCmd q_obj_TestIfCmd-arg -> UserDefThree
    gen=True success_response=True boxed=False oob=False preconfig=False
@@ -312,6 +315,8 @@ command TestCmdReturnDefThree None -> UserDefThree
    gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_TestIfEvent-arg
     member foo: TestIfStruct optional=False
+    member bar: TestIfEnum optional=False
+        if ['defined(TEST_IF_EVT_BAR)']
     if ['defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)']
 event TestIfEvent q_obj_TestIfEvent-arg
    boxed=False

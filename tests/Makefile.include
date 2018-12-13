@@ -409,6 +409,7 @@ qapi-schema += flat-union-inline-invalid-dict.json
 qapi-schema += flat-union-int-branch.json
 qapi-schema += flat-union-invalid-branch-key.json
 qapi-schema += flat-union-invalid-discriminator.json
+qapi-schema += flat-union-invalid-if-discriminator.json
 qapi-schema += flat-union-no-base.json
 qapi-schema += flat-union-optional-discriminator.json
 qapi-schema += flat-union-string-discriminator.json
