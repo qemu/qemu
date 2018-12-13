@@ -32,21 +32,9 @@
 #include "crypto/secret.h"
 #include <curl/curl.h>
 #include "qemu/cutils.h"
+#include "trace.h"
 
-// #define DEBUG_CURL
 // #define DEBUG_VERBOSE
-
-#ifdef DEBUG_CURL
-#define DEBUG_CURL_PRINT 1
-#else
-#define DEBUG_CURL_PRINT 0
-#endif
-#define DPRINTF(fmt, ...)                                            \
-    do {                                                             \
-        if (DEBUG_CURL_PRINT) {                                      \
-            fprintf(stderr, fmt, ## __VA_ARGS__);                    \
-        }                                                            \
-    } while (0)
 
 #if LIBCURL_VERSION_NUM >= 0x071000
 /* The multi interface timer callback was introduced in 7.16.0 */
@@ -154,7 +142,7 @@ static int curl_timer_cb(CURLM *multi, long timeout_ms, void *opaque)
 {
     BDRVCURLState *s = opaque;
 
-    DPRINTF("CURL: timer callback timeout_ms %ld\n", timeout_ms);
+    trace_curl_timer_cb(timeout_ms);
     if (timeout_ms == -1) {
         timer_del(&s->timer);
     } else {
@@ -193,7 +181,7 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
     }
     socket = NULL;
 
-    DPRINTF("CURL (AIO): Sock action %d on fd %d\n", action, (int)fd);
+    trace_curl_sock_cb(action, (int)fd);
     switch (action) {
         case CURL_POLL_IN:
             aio_set_fd_handler(s->aio_context, fd, false,
@@ -238,7 +226,7 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
     size_t realsize = size * nmemb;
     int i;
 
-    DPRINTF("CURL: Just reading %zd bytes\n", realsize);
+    trace_curl_read_cb(realsize);
 
     if (!s || !s->orig_buf) {
         goto read_end;
@@ -777,7 +765,7 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    DPRINTF("CURL: Opening %s\n", file);
+    trace_curl_open(file);
     qemu_co_queue_init(&s->free_state_waitq);
     s->aio_context = bdrv_get_aio_context(bs);
     s->url = g_strdup(file);
@@ -830,7 +818,7 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
                 "Server does not support 'range' (byte ranges).");
         goto out;
     }
-    DPRINTF("CURL: Size = %" PRIu64 "\n", s->len);
+    trace_curl_open_size(s->len);
 
     qemu_mutex_lock(&s->mutex);
     curl_clean_state(state);
@@ -908,8 +896,7 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
     state->acb[0] = acb;
 
     snprintf(state->range, 127, "%" PRIu64 "-%" PRIu64, start, end);
-    DPRINTF("CURL (AIO): Reading %" PRIu64 " at %" PRIu64 " (%s)\n",
-            acb->bytes, start, state->range);
+    trace_curl_setup_preadv(acb->bytes, start, state->range);
     curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
 
     curl_multi_add_handle(s->multi, state->curl);
@@ -943,7 +930,7 @@ static void curl_close(BlockDriverState *bs)
 {
     BDRVCURLState *s = bs->opaque;
 
-    DPRINTF("CURL: Close\n");
+    trace_curl_close();
     curl_detach_aio_context(bs);
     qemu_mutex_destroy(&s->mutex);
 

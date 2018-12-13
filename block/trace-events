@@ -177,3 +177,12 @@ ssh_write(int64_t offset, size_t size) "offset=%" PRIi64 " size=%zu"
 ssh_write_buf(void *buf, size_t size) "sftp_write buf=%p size=%zu"
 ssh_write_return(ssize_t ret) "sftp_write returned %zd"
 ssh_seek(int64_t offset) "seeking to offset=%" PRIi64
+
+# block/curl.c
+curl_timer_cb(long timeout_ms) "timer callback timeout_ms %ld"
+curl_sock_cb(int action, int fd) "sock action %d on fd %d"
+curl_read_cb(size_t realsize) "just reading %zu bytes"
+curl_open(const char *file) "opening %s"
+curl_open_size(uint64_t size) "size = %" PRIu64
+curl_setup_preadv(uint64_t bytes, uint64_t start, const char *range) "reading %" PRIu64 " at %" PRIu64 " (%s)"
+curl_close(void) "close"
