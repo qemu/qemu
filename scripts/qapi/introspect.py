@@ -174,8 +174,9 @@ const QLitObject %(c_name)s = %(c_string)s;
     def visit_builtin_type(self, name, info, json_type):
         self._gen_qlit(name, 'builtin', {'json-type': json_type}, [])
 
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
-        self._gen_qlit(name, 'enum', {'values': values}, ifcond)
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
+        self._gen_qlit(name, 'enum',
+                       {'values': [m.name for m in members]}, ifcond)
 
     def visit_array_type(self, name, info, ifcond, element_type):
         element = self._use_type(element_type)

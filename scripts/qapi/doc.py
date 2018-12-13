@@ -206,7 +206,7 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
     def write(self, output_dir):
         self._gen.write(output_dir, self._prefix + 'qapi-doc.texi')
 
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
         doc = self.cur_doc
         self._gen.add(TYPE_FMT(type='Enum',
                                name=doc.symbol,

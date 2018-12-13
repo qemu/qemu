@@ -1063,7 +1063,7 @@ class QAPISchemaVisitor(object):
     def visit_builtin_type(self, name, info, json_type):
         pass
 
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
         pass
 
     def visit_array_type(self, name, info, ifcond, element_type):
@@ -1193,7 +1193,7 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def visit(self, visitor):
         visitor.visit_enum_type(self.name, self.info, self.ifcond,
-                                self.member_names(), self.prefix)
+                                self.members, self.prefix)
 
 
 class QAPISchemaArrayType(QAPISchemaType):
@@ -2012,19 +2012,19 @@ def _wrap_ifcond(ifcond, before, after):
     return out
 
 
-def gen_enum_lookup(name, values, prefix=None):
+def gen_enum_lookup(name, members, prefix=None):
     ret = mcgen('''
 
 const QEnumLookup %(c_name)s_lookup = {
     .array = (const char *const[]) {
 ''',
                 c_name=c_name(name))
-    for value in values:
-        index = c_enum_const(name, value, prefix)
+    for m in members:
+        index = c_enum_const(name, m.name, prefix)
         ret += mcgen('''
-        [%(index)s] = "%(value)s",
+        [%(index)s] = "%(name)s",
 ''',
-                     index=index, value=value)
+                     index=index, name=m.name)
 
     ret += mcgen('''
     },
@@ -2035,9 +2035,9 @@ const QEnumLookup %(c_name)s_lookup = {
     return ret
 
 
-def gen_enum(name, values, prefix=None):
+def gen_enum(name, members, prefix=None):
     # append automatically generated _MAX value
-    enum_values = values + ['_MAX']
+    enum_members = members + [QAPISchemaMember('_MAX')]
 
     ret = mcgen('''
 
@@ -2045,11 +2045,11 @@ typedef enum %(c_name)s {
 ''',
                 c_name=c_name(name))
 
-    for value in enum_values:
+    for m in enum_members:
         ret += mcgen('''
     %(c_enum)s,
 ''',
-                     c_enum=c_enum_const(name, value, prefix))
+                     c_enum=c_enum_const(name, m.name, prefix))
 
     ret += mcgen('''
 } %(c_name)s;

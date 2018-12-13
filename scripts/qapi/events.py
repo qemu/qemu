@@ -143,8 +143,8 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
         QAPISchemaModularCVisitor.__init__(
             self, prefix, 'qapi-events',
             ' * Schema-defined QAPI/QMP events', __doc__)
-        self._enum_name = c_name(prefix + 'QAPIEvent', protect=False)
-        self._event_names = []
+        self._event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
+        self._event_enum_members = []
 
     def _begin_module(self, name):
         types = self._module_basename('qapi-types', name)
@@ -170,15 +170,16 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 
     def visit_end(self):
         (genc, genh) = self._module[self._main_module]
-        genh.add(gen_enum(self._enum_name, self._event_names))
-        genc.add(gen_enum_lookup(self._enum_name, self._event_names))
+        genh.add(gen_enum(self._event_enum_name, self._event_enum_members))
+        genc.add(gen_enum_lookup(self._event_enum_name,
+                                 self._event_enum_members))
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_event_send_decl(name, arg_type, boxed))
             self._genc.add(gen_event_send(name, arg_type, boxed,
-                                          self._enum_name))
-        self._event_names.append(name)
+                                          self._event_enum_name))
+        self._event_enum_members.append(QAPISchemaMember(name))
 
 
 def gen_events(schema, output_dir, prefix):

@@ -212,10 +212,10 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         self._genh.add(gen_type_cleanup_decl(name))
         self._genc.add(gen_type_cleanup(name))
 
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
         with ifcontext(ifcond, self._genh, self._genc):
-            self._genh.preamble_add(gen_enum(name, values, prefix))
-            self._genc.add(gen_enum_lookup(name, values, prefix))
+            self._genh.preamble_add(gen_enum(name, members, prefix))
+            self._genc.add(gen_enum_lookup(name, members, prefix))
 
     def visit_array_type(self, name, info, ifcond, element_type):
         with ifcontext(ifcond, self._genh, self._genc):
