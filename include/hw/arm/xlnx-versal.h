@@ -75,9 +75,9 @@ typedef struct Versal {
 #define VERSAL_GEM1_IRQ_0          58
 #define VERSAL_GEM1_WAKE_IRQ_0     59
 
-/* Architecturally eserved IRQs suitable for virtualization.  */
-#define VERSAL_RSVD_HIGH_IRQ_FIRST 160
-#define VERSAL_RSVD_HIGH_IRQ_LAST  255
+/* Architecturally reserved IRQs suitable for virtualization.  */
+#define VERSAL_RSVD_IRQ_FIRST 111
+#define VERSAL_RSVD_IRQ_LAST  118
 
 #define MM_TOP_RSVD                 0xa0000000U
 #define MM_TOP_RSVD_SIZE            0x4000000
