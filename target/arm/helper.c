@@ -1279,11 +1279,15 @@ static void vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
 static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    /* We only mask off bits that are RES0 both for AArch64 and AArch32.
-     * For bits that vary between AArch32/64, code needs to check the
-     * current execution mode before directly using the feature bit.
-     */
-    uint32_t valid_mask = SCR_AARCH64_MASK | SCR_AARCH32_MASK;
+    /* Begin with base v8.0 state.  */
+    uint32_t valid_mask = 0x3fff;
+
+    if (arm_el_is_aa64(env, 3)) {
+        value |= SCR_FW | SCR_AW;   /* these two bits are RES1.  */
+        valid_mask &= ~SCR_NET;
+    } else {
+        valid_mask &= ~(SCR_RW | SCR_ST);
+    }
 
     if (!arm_feature(env, ARM_FEATURE_EL2)) {
         valid_mask &= ~SCR_HCE;
