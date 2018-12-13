@@ -1,1 +1,2 @@
 tests/qapi-schema/alternate-base.json:4: Unknown key 'base' in alternate 'Alt'
+Valid keys are 'alternate', 'data', 'if'.

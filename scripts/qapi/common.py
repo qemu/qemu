@@ -874,14 +874,21 @@ def check_struct(expr, info):
 
 
 def check_known_keys(info, source, keys, required, optional):
-    for key in keys:
-        if key not in required and key not in optional:
-            raise QAPISemError(info, "Unknown key '%s' in %s" % (key, source))
 
-    for key in required:
-        if key not in keys:
-            raise QAPISemError(info, "Key '%s' is missing from %s"
-                               % (key, source))
+    def pprint(elems):
+        return ', '.join("'" + e + "'" for e in sorted(elems))
+
+    missing = set(required) - set(keys)
+    if missing:
+        raise QAPISemError(info, "Key%s %s %s missing from %s"
+                           % ('s' if len(missing) > 1 else '', pprint(missing),
+                              'are' if len(missing) > 1 else 'is', source))
+    allowed = set(required + optional)
+    unknown = set(keys) - allowed
+    if unknown:
+        raise QAPISemError(info, "Unknown key%s %s in %s\nValid keys are %s."
+                           % ('s' if len(unknown) > 1 else '', pprint(unknown),
+                              source, pprint(allowed)))
 
 
 def check_keys(expr_elem, meta, required, optional=[]):

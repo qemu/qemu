@@ -1,1 +1,2 @@
 tests/qapi-schema/double-type.json:2: Unknown key 'command' in struct 'bar'
+Valid keys are 'base', 'data', 'if', 'struct'.
