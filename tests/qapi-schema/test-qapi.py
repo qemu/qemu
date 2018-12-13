@@ -29,6 +29,7 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             print('    prefix %s' % prefix)
         for m in members:
             print('    member %s' % m.name)
+            self._print_if(m.ifcond, indent=8)
         self._print_if(ifcond)
 
     def visit_object_type(self, name, info, ifcond, base, members, variants):

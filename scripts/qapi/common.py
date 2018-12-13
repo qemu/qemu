@@ -871,7 +871,8 @@ def check_enum(expr, info):
 
     for member in members:
         source = "dictionary member of enum '%s'" % name
-        check_known_keys(info, source, member, ['name'], [])
+        check_known_keys(info, source, member, ['name'], ['if'])
+        check_if(member, info)
         check_name(info, "Member of enum '%s'" % name, member['name'],
                    enum_member=True)
 
@@ -1345,9 +1346,10 @@ class QAPISchemaObjectType(QAPISchemaType):
 class QAPISchemaMember(object):
     role = 'member'
 
-    def __init__(self, name):
+    def __init__(self, name, ifcond=None):
         assert isinstance(name, str)
         self.name = name
+        self.ifcond = listify_cond(ifcond)
         self.owner = None
 
     def set_owner(self, name):
@@ -1656,7 +1658,7 @@ class QAPISchema(object):
                                             qtype_values, 'QTYPE'))
 
     def _make_enum_members(self, values):
-        return [QAPISchemaMember(v['name']) for v in values]
+        return [QAPISchemaMember(v['name'], v.get('if')) for v in values]
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
         # See also QAPISchemaObjectTypeMember._pretty_owner()
