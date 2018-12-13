@@ -39,7 +39,7 @@ def generate_h(event, group):
         '        struct timeval _now;',
         '        gettimeofday(&_now, NULL);',
         '        qemu_log("%%d@%%zu.%%06zu:%(name)s " %(fmt)s "\\n",',
-        '                 getpid(),',
+        '                 qemu_get_thread_id(),',
         '                 (size_t)_now.tv_sec, (size_t)_now.tv_usec',
         '                 %(argnames)s);',
         '    }',
