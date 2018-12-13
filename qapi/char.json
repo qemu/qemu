@@ -332,8 +332,8 @@
 ##
 { 'struct': 'ChardevSpiceChannel',
   'data': { 'type': 'str' },
-  'base': 'ChardevCommon' }
-# TODO: 'if': 'defined(CONFIG_SPICE)'
+  'base': 'ChardevCommon',
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @ChardevSpicePort:
@@ -346,8 +346,8 @@
 ##
 { 'struct': 'ChardevSpicePort',
   'data': { 'fqdn': 'str' },
-  'base': 'ChardevCommon' }
-# TODO: 'if': 'defined(CONFIG_SPICE)'
+  'base': 'ChardevCommon',
+  'if': 'defined(CONFIG_SPICE)' }
 
 ##
 # @ChardevVC:
@@ -404,10 +404,10 @@
             'testdev': 'ChardevCommon',
             'stdio': 'ChardevStdio',
             'console': 'ChardevCommon',
-            'spicevmc': 'ChardevSpiceChannel',
-# TODO: { 'type': 'ChardevSpiceChannel', 'if': 'defined(CONFIG_SPICE)' },
-            'spiceport': 'ChardevSpicePort',
-# TODO: { 'type': 'ChardevSpicePort', 'if': 'defined(CONFIG_SPICE)' },
+            'spicevmc': { 'type': 'ChardevSpiceChannel',
+                          'if': 'defined(CONFIG_SPICE)' },
+            'spiceport': { 'type': 'ChardevSpicePort',
+                           'if': 'defined(CONFIG_SPICE)' },
             'vc': 'ChardevVC',
             'ringbuf': 'ChardevRingbuf',
             # next one is just for compatibility
