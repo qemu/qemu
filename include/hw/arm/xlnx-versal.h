@@ -22,7 +22,7 @@
 #define XLNX_VERSAL_NR_ACPUS   2
 #define XLNX_VERSAL_NR_UARTS   2
 #define XLNX_VERSAL_NR_GEMS    2
-#define XLNX_VERSAL_NR_IRQS    256
+#define XLNX_VERSAL_NR_IRQS    192
 
 typedef struct Versal {
     /*< private >*/
