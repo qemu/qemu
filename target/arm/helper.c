@@ -448,7 +448,7 @@ static CPAccessResult access_tdosa(CPUARMState *env, const ARMCPRegInfo *ri,
     int el = arm_current_el(env);
     bool mdcr_el2_tdosa = (env->cp15.mdcr_el2 & MDCR_TDOSA) ||
         (env->cp15.mdcr_el2 & MDCR_TDE) ||
-        (env->cp15.hcr_el2 & HCR_TGE);
+        (arm_hcr_el2_eff(env) & HCR_TGE);
 
     if (el < 2 && mdcr_el2_tdosa && !arm_is_secure_below_el3(env)) {
         return CP_ACCESS_TRAP_EL2;
@@ -468,7 +468,7 @@ static CPAccessResult access_tdra(CPUARMState *env, const ARMCPRegInfo *ri,
     int el = arm_current_el(env);
     bool mdcr_el2_tdra = (env->cp15.mdcr_el2 & MDCR_TDRA) ||
         (env->cp15.mdcr_el2 & MDCR_TDE) ||
-        (env->cp15.hcr_el2 & HCR_TGE);
+        (arm_hcr_el2_eff(env) & HCR_TGE);
 
     if (el < 2 && mdcr_el2_tdra && !arm_is_secure_below_el3(env)) {
         return CP_ACCESS_TRAP_EL2;
@@ -488,7 +488,7 @@ static CPAccessResult access_tda(CPUARMState *env, const ARMCPRegInfo *ri,
     int el = arm_current_el(env);
     bool mdcr_el2_tda = (env->cp15.mdcr_el2 & MDCR_TDA) ||
         (env->cp15.mdcr_el2 & MDCR_TDE) ||
-        (env->cp15.hcr_el2 & HCR_TGE);
+        (arm_hcr_el2_eff(env) & HCR_TGE);
 
     if (el < 2 && mdcr_el2_tda && !arm_is_secure_below_el3(env)) {
         return CP_ACCESS_TRAP_EL2;
@@ -4566,8 +4566,7 @@ int sve_exception_el(CPUARMState *env, int el)
         if (disabled) {
             /* route_to_el2 */
             return (arm_feature(env, ARM_FEATURE_EL2)
-                    && !arm_is_secure(env)
-                    && (env->cp15.hcr_el2 & HCR_TGE) ? 2 : 1);
+                    && (arm_hcr_el2_eff(env) & HCR_TGE) ? 2 : 1);
         }
 
         /* Check CPACR.FPEN.  */
@@ -6216,9 +6215,8 @@ static int bad_mode_switch(CPUARMState *env, int mode, CPSRWriteType write_type)
          * and CPS are treated as illegal mode changes.
          */
         if (write_type == CPSRWriteByInstr &&
-            (env->cp15.hcr_el2 & HCR_TGE) &&
             (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_MON &&
-            !arm_is_secure_below_el3(env)) {
+            (arm_hcr_el2_eff(env) & HCR_TGE)) {
             return 1;
         }
         return 0;
