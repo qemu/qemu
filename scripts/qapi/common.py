@@ -2045,14 +2045,11 @@ typedef enum %(c_name)s {
 ''',
                 c_name=c_name(name))
 
-    i = 0
     for value in enum_values:
         ret += mcgen('''
-    %(c_enum)s = %(i)d,
+    %(c_enum)s,
 ''',
-                     c_enum=c_enum_const(name, value, prefix),
-                     i=i)
-        i += 1
+                     c_enum=c_enum_const(name, value, prefix))
 
     ret += mcgen('''
 } %(c_name)s;
