@@ -2261,7 +2261,11 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
     pdev->has_rom = true;
     memory_region_init_rom(&pdev->rom, OBJECT(pdev), name, size, &error_fatal);
     ptr = memory_region_get_ram_ptr(&pdev->rom);
-    load_image(path, ptr);
+    if (load_image_size(path, ptr, size) < 0) {
+        error_setg(errp, "failed to load romfile \"%s\"", pdev->romfile);
+        g_free(path);
+        return;
+    }
     g_free(path);
 
     if (is_default_rom) {
