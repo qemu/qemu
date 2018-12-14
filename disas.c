@@ -588,7 +588,10 @@ static int
 physical_read_memory(bfd_vma memaddr, bfd_byte *myaddr, int length,
                      struct disassemble_info *info)
 {
-    cpu_physical_memory_read(memaddr, myaddr, length);
+    CPUDebug *s = container_of(info, CPUDebug, info);
+
+    address_space_read(s->cpu->as, memaddr, MEMTXATTRS_UNSPECIFIED,
+                       myaddr, length);
     return 0;
 }
 
