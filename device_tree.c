@@ -91,7 +91,7 @@ void *load_device_tree(const char *filename_path, int *sizep)
     /* First allocate space in qemu for device tree */
     fdt = g_malloc0(dt_size);
 
-    dt_file_load_size = load_image(filename_path, fdt);
+    dt_file_load_size = load_image_size(filename_path, fdt, dt_size);
     if (dt_file_load_size < 0) {
         error_report("Unable to open device tree file '%s'",
                      filename_path);
