@@ -482,7 +482,9 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                     rom_add_elf_program(label, data, file_size, mem_size,
                                         addr, as);
                 } else {
-                    cpu_physical_memory_write(addr, data, file_size);
+                    address_space_write(as ? as : &address_space_memory,
+                                        addr, MEMTXATTRS_UNSPECIFIED,
+                                        data, file_size);
                     g_free(data);
                 }
             }
