@@ -11,6 +11,22 @@
  * On error, errno is also set as appropriate.
  */
 int64_t get_image_size(const char *filename);
+/**
+ * load_image_size: load an image file into specified buffer
+ * @filename: Path to the image file
+ * @addr: Buffer to load image into
+ * @size: Size of buffer in bytes
+ *
+ * Load an image file from disk into the specified buffer.
+ * If the image is larger than the specified buffer, only
+ * @size bytes are read (this is not considered an error).
+ *
+ * Prefer to use the GLib function g_file_get_contents() rather
+ * than a "get_image_size()/g_malloc()/load_image_size()" sequence.
+ *
+ * Returns the number of bytes read, or -1 on error. On error,
+ * errno is also set as appropriate.
+ */
 ssize_t load_image_size(const char *filename, void *addr, size_t size);
 
 /**load_image_targphys_as:
