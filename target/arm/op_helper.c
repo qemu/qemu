@@ -33,8 +33,7 @@ void raise_exception(CPUARMState *env, uint32_t excp,
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
 
-    if ((env->cp15.hcr_el2 & HCR_TGE) &&
-        target_el == 1 && !arm_is_secure(env)) {
+    if (target_el == 1 && (arm_hcr_el2_eff(env) & HCR_TGE)) {
         /*
          * Redirect NS EL1 exceptions to NS EL2. These are reported with
          * their original syndrome register value, with the exception of
@@ -428,9 +427,9 @@ static inline int check_wfx_trap(CPUARMState *env, bool is_wfe)
      * No need for ARM_FEATURE check as if HCR_EL2 doesn't exist the
      * bits will be zero indicating no trap.
      */
-    if (cur_el < 2 && !arm_is_secure(env)) {
-        mask = (is_wfe) ? HCR_TWE : HCR_TWI;
-        if (env->cp15.hcr_el2 & mask) {
+    if (cur_el < 2) {
+        mask = is_wfe ? HCR_TWE : HCR_TWI;
+        if (arm_hcr_el2_eff(env) & mask) {
             return 2;
         }
     }
@@ -995,7 +994,7 @@ void HELPER(pre_smc)(CPUARMState *env, uint32_t syndrome)
                         exception_target_el(env));
     }
 
-    if (!secure && cur_el == 1 && (env->cp15.hcr_el2 & HCR_TSC)) {
+    if (cur_el == 1 && (arm_hcr_el2_eff(env) & HCR_TSC)) {
         /* In NS EL1, HCR controlled routing to EL2 has priority over SMD.
          * We also want an EL2 guest to be able to forbid its EL1 from
          * making PSCI calls into QEMU's "firmware" via HCR.TSC.
@@ -1098,8 +1097,7 @@ void HELPER(exception_return)(CPUARMState *env)
         goto illegal_return;
     }
 
-    if (new_el == 1 && (env->cp15.hcr_el2 & HCR_TGE)
-        && !arm_is_secure_below_el3(env)) {
+    if (new_el == 1 && (arm_hcr_el2_eff(env) & HCR_TGE)) {
         goto illegal_return;
     }
 

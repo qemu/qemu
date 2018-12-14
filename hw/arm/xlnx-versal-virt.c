@@ -342,7 +342,7 @@ static void *versal_virt_get_dtb(const struct arm_boot_info *binfo,
     return board->fdt;
 }
 
-#define NUM_VIRTIO_TRANSPORT 32
+#define NUM_VIRTIO_TRANSPORT 8
 static void create_virtio_regions(VersalVirt *s)
 {
     int virtio_mmio_size = 0x200;
@@ -351,7 +351,7 @@ static void create_virtio_regions(VersalVirt *s)
     for (i = 0; i < NUM_VIRTIO_TRANSPORT; i++) {
         char *name = g_strdup_printf("virtio%d", i);;
         hwaddr base = MM_TOP_RSVD + i * virtio_mmio_size;
-        int irq = VERSAL_RSVD_HIGH_IRQ_FIRST + i;
+        int irq = VERSAL_RSVD_IRQ_FIRST + i;
         MemoryRegion *mr;
         DeviceState *dev;
         qemu_irq pic_irq;
@@ -364,12 +364,11 @@ static void create_virtio_regions(VersalVirt *s)
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic_irq);
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->soc.mr_ps, base, mr);
-        sysbus_create_simple("virtio-mmio", base, pic_irq);
     }
 
     for (i = 0; i < NUM_VIRTIO_TRANSPORT; i++) {
         hwaddr base = MM_TOP_RSVD + i * virtio_mmio_size;
-        int irq = VERSAL_RSVD_HIGH_IRQ_FIRST + i;
+        int irq = VERSAL_RSVD_IRQ_FIRST + i;
         char *name = g_strdup_printf("/virtio_mmio@%" PRIx64, base);
 
         qemu_fdt_add_subnode(s->fdt, name);

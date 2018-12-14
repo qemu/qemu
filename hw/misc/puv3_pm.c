@@ -119,7 +119,7 @@ static const MemoryRegionOps puv3_pm_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int puv3_pm_init(SysBusDevice *dev)
+static void puv3_pm_realize(DeviceState *dev, Error **errp)
 {
     PUV3PMState *s = PUV3_PM(dev);
 
@@ -127,16 +127,14 @@ static int puv3_pm_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, OBJECT(s), &puv3_pm_ops, s, "puv3_pm",
             PUV3_REGS_OFFSET);
-    sysbus_init_mmio(dev, &s->iomem);
-
-    return 0;
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 }
 
 static void puv3_pm_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    sdc->init = puv3_pm_init;
+    dc->realize = puv3_pm_realize;
 }
 
 static const TypeInfo puv3_pm_info = {

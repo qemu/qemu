@@ -818,6 +818,8 @@ struct ARMCPU {
         uint64_t id_aa64isar1;
         uint64_t id_aa64pfr0;
         uint64_t id_aa64pfr1;
+        uint64_t id_aa64mmfr0;
+        uint64_t id_aa64mmfr1;
     } isar;
     uint32_t midr;
     uint32_t revidr;
@@ -839,8 +841,6 @@ struct ARMCPU {
     uint64_t id_aa64dfr1;
     uint64_t id_aa64afr0;
     uint64_t id_aa64afr1;
-    uint64_t id_aa64mmfr0;
-    uint64_t id_aa64mmfr1;
     uint32_t dbgdidr;
     uint32_t clidr;
     uint64_t mp_affinity; /* MP ID without feature bits */
@@ -1249,7 +1249,7 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 #define HCR_TIDCP     (1ULL << 20)
 #define HCR_TACR      (1ULL << 21)
 #define HCR_TSW       (1ULL << 22)
-#define HCR_TPC       (1ULL << 23)
+#define HCR_TPCP      (1ULL << 23)
 #define HCR_TPU       (1ULL << 24)
 #define HCR_TTLB      (1ULL << 25)
 #define HCR_TVM       (1ULL << 26)
@@ -1261,6 +1261,26 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 #define HCR_CD        (1ULL << 32)
 #define HCR_ID        (1ULL << 33)
 #define HCR_E2H       (1ULL << 34)
+#define HCR_TLOR      (1ULL << 35)
+#define HCR_TERR      (1ULL << 36)
+#define HCR_TEA       (1ULL << 37)
+#define HCR_MIOCNCE   (1ULL << 38)
+#define HCR_APK       (1ULL << 40)
+#define HCR_API       (1ULL << 41)
+#define HCR_NV        (1ULL << 42)
+#define HCR_NV1       (1ULL << 43)
+#define HCR_AT        (1ULL << 44)
+#define HCR_NV2       (1ULL << 45)
+#define HCR_FWB       (1ULL << 46)
+#define HCR_FIEN      (1ULL << 47)
+#define HCR_TID4      (1ULL << 49)
+#define HCR_TICAB     (1ULL << 50)
+#define HCR_TOCU      (1ULL << 52)
+#define HCR_TTLBIS    (1ULL << 54)
+#define HCR_TTLBOS    (1ULL << 55)
+#define HCR_ATA       (1ULL << 56)
+#define HCR_DCT       (1ULL << 57)
+
 /*
  * When we actually implement ARMv8.1-VHE we should add HCR_E2H to
  * HCR_MASK and then clear it again if the feature bit is not set in
@@ -1282,8 +1302,16 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 #define SCR_ST                (1U << 11)
 #define SCR_TWI               (1U << 12)
 #define SCR_TWE               (1U << 13)
-#define SCR_AARCH32_MASK      (0x3fff & ~(SCR_RW | SCR_ST))
-#define SCR_AARCH64_MASK      (0x3fff & ~SCR_NET)
+#define SCR_TLOR              (1U << 14)
+#define SCR_TERR              (1U << 15)
+#define SCR_APK               (1U << 16)
+#define SCR_API               (1U << 17)
+#define SCR_EEL2              (1U << 18)
+#define SCR_EASE              (1U << 19)
+#define SCR_NMEA              (1U << 20)
+#define SCR_FIEN              (1U << 21)
+#define SCR_ENSCXT            (1U << 25)
+#define SCR_ATA               (1U << 26)
 
 /* Return the current FPSCR value.  */
 uint32_t vfp_get_fpscr(CPUARMState *env);
@@ -1520,6 +1548,15 @@ FIELD(ID_ISAR6, FHM, 8, 4)
 FIELD(ID_ISAR6, SB, 12, 4)
 FIELD(ID_ISAR6, SPECRES, 16, 4)
 
+FIELD(ID_MMFR4, SPECSEI, 0, 4)
+FIELD(ID_MMFR4, AC2, 4, 4)
+FIELD(ID_MMFR4, XNX, 8, 4)
+FIELD(ID_MMFR4, CNP, 12, 4)
+FIELD(ID_MMFR4, HPDS, 16, 4)
+FIELD(ID_MMFR4, LSM, 20, 4)
+FIELD(ID_MMFR4, CCIDX, 24, 4)
+FIELD(ID_MMFR4, EVT, 28, 4)
+
 FIELD(ID_AA64ISAR0, AES, 4, 4)
 FIELD(ID_AA64ISAR0, SHA1, 8, 4)
 FIELD(ID_AA64ISAR0, SHA2, 12, 4)
@@ -1556,6 +1593,28 @@ FIELD(ID_AA64PFR0, ADVSIMD, 20, 4)
 FIELD(ID_AA64PFR0, GIC, 24, 4)
 FIELD(ID_AA64PFR0, RAS, 28, 4)
 FIELD(ID_AA64PFR0, SVE, 32, 4)
+
+FIELD(ID_AA64MMFR0, PARANGE, 0, 4)
+FIELD(ID_AA64MMFR0, ASIDBITS, 4, 4)
+FIELD(ID_AA64MMFR0, BIGEND, 8, 4)
+FIELD(ID_AA64MMFR0, SNSMEM, 12, 4)
+FIELD(ID_AA64MMFR0, BIGENDEL0, 16, 4)
+FIELD(ID_AA64MMFR0, TGRAN16, 20, 4)
+FIELD(ID_AA64MMFR0, TGRAN64, 24, 4)
+FIELD(ID_AA64MMFR0, TGRAN4, 28, 4)
+FIELD(ID_AA64MMFR0, TGRAN16_2, 32, 4)
+FIELD(ID_AA64MMFR0, TGRAN64_2, 36, 4)
+FIELD(ID_AA64MMFR0, TGRAN4_2, 40, 4)
+FIELD(ID_AA64MMFR0, EXS, 44, 4)
+
+FIELD(ID_AA64MMFR1, HAFDBS, 0, 4)
+FIELD(ID_AA64MMFR1, VMIDBITS, 4, 4)
+FIELD(ID_AA64MMFR1, VH, 8, 4)
+FIELD(ID_AA64MMFR1, HPDS, 12, 4)
+FIELD(ID_AA64MMFR1, LO, 16, 4)
+FIELD(ID_AA64MMFR1, PAN, 20, 4)
+FIELD(ID_AA64MMFR1, SPECSEI, 24, 4)
+FIELD(ID_AA64MMFR1, XNX, 28, 4)
 
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(((ARMCPU *)0)->ccsidr) <= R_V7M_CSSELR_INDEX_MASK);
 
@@ -1669,6 +1728,14 @@ static inline bool arm_is_secure(CPUARMState *env)
     return false;
 }
 #endif
+
+/**
+ * arm_hcr_el2_eff(): Return the effective value of HCR_EL2.
+ * E.g. when in secure state, fields in HCR_EL2 are suppressed,
+ * "for all purposes other than a direct read or write access of HCR_EL2."
+ * Not included here is HCR_RW.
+ */
+uint64_t arm_hcr_el2_eff(CPUARMState *env);
 
 /* Return true if the specified exception level is running in AArch64 state. */
 static inline bool arm_el_is_aa64(CPUARMState *env, int el)
@@ -2355,54 +2422,6 @@ bool write_cpustate_to_list(ARMCPU *cpu);
 #  define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
-/**
- * arm_hcr_el2_imo(): Return the effective value of HCR_EL2.IMO.
- * Depending on the values of HCR_EL2.E2H and TGE, this may be
- * "behaves as 1 for all purposes other than direct read/write" or
- * "behaves as 0 for all purposes other than direct read/write"
- */
-static inline bool arm_hcr_el2_imo(CPUARMState *env)
-{
-    switch (env->cp15.hcr_el2 & (HCR_TGE | HCR_E2H)) {
-    case HCR_TGE:
-        return true;
-    case HCR_TGE | HCR_E2H:
-        return false;
-    default:
-        return env->cp15.hcr_el2 & HCR_IMO;
-    }
-}
-
-/**
- * arm_hcr_el2_fmo(): Return the effective value of HCR_EL2.FMO.
- */
-static inline bool arm_hcr_el2_fmo(CPUARMState *env)
-{
-    switch (env->cp15.hcr_el2 & (HCR_TGE | HCR_E2H)) {
-    case HCR_TGE:
-        return true;
-    case HCR_TGE | HCR_E2H:
-        return false;
-    default:
-        return env->cp15.hcr_el2 & HCR_FMO;
-    }
-}
-
-/**
- * arm_hcr_el2_amo(): Return the effective value of HCR_EL2.AMO.
- */
-static inline bool arm_hcr_el2_amo(CPUARMState *env)
-{
-    switch (env->cp15.hcr_el2 & (HCR_TGE | HCR_E2H)) {
-    case HCR_TGE:
-        return true;
-    case HCR_TGE | HCR_E2H:
-        return false;
-    default:
-        return env->cp15.hcr_el2 & HCR_AMO;
-    }
-}
-
 static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
                                      unsigned int target_el)
 {
@@ -2411,6 +2430,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
     bool secure = arm_is_secure(env);
     bool pstate_unmasked;
     int8_t unmasked = 0;
+    uint64_t hcr_el2;
 
     /* Don't take exceptions if they target a lower EL.
      * This check should catch any exceptions that would not be taken but left
@@ -2419,6 +2439,8 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
     if (cur_el > target_el) {
         return false;
     }
+
+    hcr_el2 = arm_hcr_el2_eff(env);
 
     switch (excp_idx) {
     case EXCP_FIQ:
@@ -2430,13 +2452,13 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
         break;
 
     case EXCP_VFIQ:
-        if (secure || !arm_hcr_el2_fmo(env) || (env->cp15.hcr_el2 & HCR_TGE)) {
+        if (secure || !(hcr_el2 & HCR_FMO) || (hcr_el2 & HCR_TGE)) {
             /* VFIQs are only taken when hypervized and non-secure.  */
             return false;
         }
         return !(env->daif & PSTATE_F);
     case EXCP_VIRQ:
-        if (secure || !arm_hcr_el2_imo(env) || (env->cp15.hcr_el2 & HCR_TGE)) {
+        if (secure || !(hcr_el2 & HCR_IMO) || (hcr_el2 & HCR_TGE)) {
             /* VIRQs are only taken when hypervized and non-secure.  */
             return false;
         }
@@ -2475,7 +2497,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
                  * to the CPSR.F setting otherwise we further assess the state
                  * below.
                  */
-                hcr = arm_hcr_el2_fmo(env);
+                hcr = hcr_el2 & HCR_FMO;
                 scr = (env->cp15.scr_el3 & SCR_FIQ);
 
                 /* When EL3 is 32-bit, the SCR.FW bit controls whether the
@@ -2492,7 +2514,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
                  * when setting the target EL, so it does not have a further
                  * affect here.
                  */
-                hcr = arm_hcr_el2_imo(env);
+                hcr = hcr_el2 & HCR_IMO;
                 scr = false;
                 break;
             default:
@@ -3316,6 +3338,11 @@ static inline bool isar_feature_aa64_aa32(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_sve(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->id_aa64pfr0, ID_AA64PFR0, SVE) != 0;
+}
+
+static inline bool isar_feature_aa64_lor(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64mmfr1, ID_AA64MMFR1, LO) != 0;
 }
 
 /*
