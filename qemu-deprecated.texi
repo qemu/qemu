@@ -53,11 +53,6 @@ Option @option{-virtioconsole} has been replaced by
 The @code{-clock} option is ignored since QEMU version 1.7.0. There is no
 replacement since it is not needed anymore.
 
-@subsection -enable-hax (since 3.0.0)
-
-The @option{-enable-hax} option has been replaced by @option{-accel hax}.
-Both options have been introduced in QEMU version 2.9.0.
-
 @subsection -drive file=json:@{...@{'driver':'file'@}@} (since 3.0)
 
 The 'file' driver for drives is no longer appropriate for character or host
