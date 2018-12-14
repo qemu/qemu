@@ -23,7 +23,6 @@
 #define QEMU_NORETURN __attribute__ ((__noreturn__))
 #define QEMU_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #define QEMU_SENTINEL __attribute__((sentinel))
-#define QEMU_ARTIFICIAL __attribute__((always_inline, artificial))
 #define QEMU_PACKED __attribute__((gcc_struct, packed))
 
 #define cat(x,y) x ## y

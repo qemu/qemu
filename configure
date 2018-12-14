@@ -1840,6 +1840,31 @@ if test "$bogus_os" = "yes"; then
     error_exit "Unrecognized host OS (uname -s reports '$(uname -s)')"
 fi
 
+# Check whether the compiler matches our minimum requirements:
+cat > $TMPC << EOF
+#if defined(__clang_major__) && defined(__clang_minor__)
+# ifdef __apple_build_version__
+#  if __clang_major__ < 5 || (__clang_major__ == 5 && __clang_minor__ < 1)
+#   error You need at least XCode Clang v5.1 to compile QEMU
+#  endif
+# else
+#  if __clang_major__ < 3 || (__clang_major__ == 3 && __clang_minor__ < 4)
+#   error You need at least Clang v3.4 to compile QEMU
+#  endif
+# endif
+#elif defined(__GNUC__) && defined(__GNUC_MINOR__)
+# if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8)
+#  error You need at least GCC v4.8 to compile QEMU
+# endif
+#else
+# error You either need GCC or Clang to compiler QEMU
+#endif
+int main (void) { return 0; }
+EOF
+if ! compile_prog "" "" ; then
+    error_exit "You need at least GCC v4.8 or Clang v3.4 (or XCode Clang v5.1)"
+fi
+
 gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
 gcc_flags="-Wno-missing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
@@ -1911,21 +1936,7 @@ else
   QEMU_CFLAGS="$QEMU_CFLAGS -Wno-missing-braces"
 fi
 
-# Workaround for http://gcc.gnu.org/PR55489.  Happens with -fPIE/-fPIC and
-# large functions that use global variables.  The bug is in all releases of
-# GCC, but it became particularly acute in 4.6.x and 4.7.x.  It is fixed in
-# 4.7.3 and 4.8.0.  We should be able to delete this at the end of 2013.
-cat > $TMPC << EOF
-#if __GNUC__ == 4 && (__GNUC_MINOR__ == 6 || (__GNUC_MINOR__ == 7 && __GNUC_PATCHLEVEL__ <= 2))
-int main(void) { return 0; }
-#else
-#error No bug in this compiler.
-#endif
-EOF
-if compile_prog "-Werror -fno-gcse" "" ; then
-  TRANSLATE_OPT_CFLAGS=-fno-gcse
-fi
-
+# Static linking is not possible with modules or PIE
 if test "$static" = "yes" ; then
   if test "$modules" = "yes" ; then
     error_exit "static and modules are mutually incompatible"
@@ -5123,11 +5134,6 @@ fi
 
 int128=no
 cat > $TMPC << EOF
-#if defined(__clang_major__) && defined(__clang_minor__)
-# if ((__clang_major__ < 3) || (__clang_major__ == 3) && (__clang_minor__ < 2))
-#  error __int128_t does not work in CLANG before 3.2
-# endif
-#endif
 __int128_t a;
 __uint128_t b;
 int main (void) {
@@ -6963,7 +6969,6 @@ echo "LIBS_QGA+=$libs_qga" >> $config_host_mak
 echo "TASN1_LIBS=$tasn1_libs" >> $config_host_mak
 echo "TASN1_CFLAGS=$tasn1_cflags" >> $config_host_mak
 echo "POD2MAN=$POD2MAN" >> $config_host_mak
-echo "TRANSLATE_OPT_CFLAGS=$TRANSLATE_OPT_CFLAGS" >> $config_host_mak
 if test "$gcov" = "yes" ; then
   echo "CONFIG_GCOV=y" >> $config_host_mak
   echo "GCOV=$gcov_tool" >> $config_host_mak
