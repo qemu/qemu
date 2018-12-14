@@ -96,9 +96,8 @@ static void rtas_ibm_query_pe_dma_window(PowerPCCPU *cpu,
                                          uint32_t nret, target_ulong rets)
 {
     sPAPRPHBState *sphb;
-    uint64_t buid, max_window_size;
+    uint64_t buid;
     uint32_t avail, addr, pgmask = 0;
-    MachineState *machine = MACHINE(spapr);
 
     if ((nargs != 3) || (nret != 5)) {
         goto param_error_exit;
@@ -114,27 +113,15 @@ static void rtas_ibm_query_pe_dma_window(PowerPCCPU *cpu,
     /* Translate page mask to LoPAPR format */
     pgmask = spapr_page_mask_to_query_mask(sphb->page_size_mask);
 
-    /*
-     * This is "Largest contiguous block of TCEs allocated specifically
-     * for (that is, are reserved for) this PE".
-     * Return the maximum number as maximum supported RAM size was in 4K pages.
-     */
-    if (machine->ram_size == machine->maxram_size) {
-        max_window_size = machine->ram_size;
-    } else {
-        max_window_size = machine->device_memory->base +
-                          memory_region_size(&machine->device_memory->mr);
-    }
-
     avail = SPAPR_PCI_DMA_MAX_WINDOWS - spapr_phb_get_active_win_num(sphb);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, avail);
-    rtas_st(rets, 2, max_window_size >> SPAPR_TCE_PAGE_SHIFT);
+    rtas_st(rets, 2, 0x80000000); /* The largest window we can possibly have */
     rtas_st(rets, 3, pgmask);
     rtas_st(rets, 4, 0); /* DMA migration mask, not supported */
 
-    trace_spapr_iommu_ddw_query(buid, addr, avail, max_window_size, pgmask);
+    trace_spapr_iommu_ddw_query(buid, addr, avail, 0x80000000, pgmask);
     return;
 
 param_error_exit:
