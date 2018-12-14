@@ -74,31 +74,6 @@ int64_t get_image_size(const char *filename)
 }
 
 /* return the size or -1 if error */
-/* deprecated, because caller does not specify buffer size! */
-int load_image(const char *filename, uint8_t *addr)
-{
-    int fd, size;
-    fd = open(filename, O_RDONLY | O_BINARY);
-    if (fd < 0)
-        return -1;
-    size = lseek(fd, 0, SEEK_END);
-    if (size == -1) {
-        fprintf(stderr, "file %-20s: get size error: %s\n",
-                filename, strerror(errno));
-        close(fd);
-        return -1;
-    }
-
-    lseek(fd, 0, SEEK_SET);
-    if (read(fd, addr, size) != size) {
-        close(fd);
-        return -1;
-    }
-    close(fd);
-    return size;
-}
-
-/* return the size or -1 if error */
 ssize_t load_image_size(const char *filename, void *addr, size_t size)
 {
     int fd;
