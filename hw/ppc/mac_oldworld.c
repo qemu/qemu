@@ -99,8 +99,7 @@ static void ppc_heathrow_init(MachineState *machine)
     SysBusDevice *s;
     DeviceState *dev, *pic_dev;
     BusState *adb_bus;
-    int bios_size, ndrv_size;
-    uint8_t *ndrv_file;
+    int bios_size;
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
@@ -361,11 +360,10 @@ static void ppc_heathrow_init(MachineState *machine)
     /* MacOS NDRV VGA driver */
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, NDRV_VGA_FILENAME);
     if (filename) {
-        ndrv_size = get_image_size(filename);
-        if (ndrv_size != -1) {
-            ndrv_file = g_malloc(ndrv_size);
-            ndrv_size = load_image(filename, ndrv_file);
+        gchar *ndrv_file;
+        gsize ndrv_size;
 
+        if (g_file_get_contents(filename, &ndrv_file, &ndrv_size, NULL)) {
             fw_cfg_add_file(fw_cfg, "ndrv/qemu_vga.ndrv", ndrv_file, ndrv_size);
         }
         g_free(filename);
