@@ -343,7 +343,11 @@ int load_multiboot(FWCfgState *fw_cfg,
             mbs.mb_buf_size = TARGET_PAGE_ALIGN(mb_mod_length + mbs.mb_buf_size);
             mbs.mb_buf = g_realloc(mbs.mb_buf, mbs.mb_buf_size);
 
-            load_image(one_file, (unsigned char *)mbs.mb_buf + offs);
+            if (load_image_size(one_file, (unsigned char *)mbs.mb_buf + offs,
+                                mbs.mb_buf_size - offs) < 0) {
+                error_report("Error loading file '%s'", one_file);
+                exit(1);
+            }
             mb_add_mod(&mbs, mbs.mb_buf_phys + offs,
                        mbs.mb_buf_phys + offs + mb_mod_length, c);
 
