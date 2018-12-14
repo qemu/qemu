@@ -3388,8 +3388,12 @@ enum write_rom_type {
     FLUSH_CACHE,
 };
 
-static inline void cpu_physical_memory_write_rom_internal(AddressSpace *as,
-    hwaddr addr, const uint8_t *buf, int len, enum write_rom_type type)
+static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
+                                                           hwaddr addr,
+                                                           MemTxAttrs attrs,
+                                                           const uint8_t *buf,
+                                                           int len,
+                                                           enum write_rom_type type)
 {
     hwaddr l;
     uint8_t *ptr;
@@ -3399,8 +3403,7 @@ static inline void cpu_physical_memory_write_rom_internal(AddressSpace *as,
     rcu_read_lock();
     while (len > 0) {
         l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, true,
-                                     MEMTXATTRS_UNSPECIFIED);
+        mr = address_space_translate(as, addr, &addr1, &l, true, attrs);
 
         if (!(memory_region_is_ram(mr) ||
               memory_region_is_romd(mr))) {
@@ -3423,13 +3426,15 @@ static inline void cpu_physical_memory_write_rom_internal(AddressSpace *as,
         addr += l;
     }
     rcu_read_unlock();
+    return MEMTX_OK;
 }
 
 /* used for ROM loading : can write in RAM and ROM */
 void cpu_physical_memory_write_rom(AddressSpace *as, hwaddr addr,
                                    const uint8_t *buf, int len)
 {
-    cpu_physical_memory_write_rom_internal(as, addr, buf, len, WRITE_DATA);
+    address_space_write_rom_internal(as, addr, MEMTXATTRS_UNSPECIFIED,
+                                     buf, len, WRITE_DATA);
 }
 
 void cpu_flush_icache_range(hwaddr start, int len)
@@ -3444,8 +3449,9 @@ void cpu_flush_icache_range(hwaddr start, int len)
         return;
     }
 
-    cpu_physical_memory_write_rom_internal(&address_space_memory,
-                                           start, NULL, len, FLUSH_CACHE);
+    address_space_write_rom_internal(&address_space_memory,
+                                     start, MEMTXATTRS_UNSPECIFIED,
+                                     NULL, len, FLUSH_CACHE);
 }
 
 typedef struct {
