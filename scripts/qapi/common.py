@@ -588,11 +588,11 @@ def discriminator_find_enum_define(expr):
     if not base_members:
         return None
 
-    discriminator_type = base_members.get(discriminator)
-    if not discriminator_type:
+    discriminator_value = base_members.get(discriminator)
+    if not discriminator_value:
         return None
 
-    return enum_types.get(discriminator_type)
+    return enum_types.get(discriminator_value['type'])
 
 
 # Names must be letters, numbers, -, and _.  They must start with letter,
@@ -704,8 +704,10 @@ def check_type(info, source, value, allow_array=False,
                                % (source, key))
         # Todo: allow dictionaries to represent default values of
         # an optional argument.
-        check_type(info, "Member '%s' of %s" % (key, source), arg,
-                   allow_array=True,
+        check_known_keys(info, "member '%s' of %s" % (key, source),
+                         arg, ['type'], ['if'])
+        check_type(info, "Member '%s' of %s" % (key, source),
+                   arg['type'], allow_array=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
                                 'enum'])
 
@@ -740,6 +742,10 @@ def check_event(expr, info):
                allow_metas=meta)
 
 
+def enum_get_names(expr):
+    return [e['name'] for e in expr['data']]
+
+
 def check_union(expr, info):
     name = expr['union']
     base = expr.get('base')
@@ -772,13 +778,17 @@ def check_union(expr, info):
         # member of the base struct.
         check_name(info, "Discriminator of flat union '%s'" % name,
                    discriminator)
-        discriminator_type = base_members.get(discriminator)
-        if not discriminator_type:
+        discriminator_value = base_members.get(discriminator)
+        if not discriminator_value:
             raise QAPISemError(info,
                                "Discriminator '%s' is not a member of base "
                                "struct '%s'"
                                % (discriminator, base))
-        enum_define = enum_types.get(discriminator_type)
+        if discriminator_value.get('if'):
+            raise QAPISemError(info, 'The discriminator %s.%s for union %s '
+                               'must not be conditional' %
+                               (base, discriminator, name))
+        enum_define = enum_types.get(discriminator_value['type'])
         allow_metas = ['struct']
         # Do not allow string discriminator
         if not enum_define:
@@ -792,14 +802,17 @@ def check_union(expr, info):
     for (key, value) in members.items():
         check_name(info, "Member of union '%s'" % name, key)
 
+        check_known_keys(info, "member '%s' of union '%s'" % (key, name),
+                         value, ['type'], ['if'])
         # Each value must name a known type
         check_type(info, "Member '%s' of union '%s'" % (key, name),
-                   value, allow_array=not base, allow_metas=allow_metas)
+                   value['type'],
+                   allow_array=not base, allow_metas=allow_metas)
 
         # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
         if enum_define:
-            if key not in enum_define['data']:
+            if key not in enum_get_names(enum_define):
                 raise QAPISemError(info,
                                    "Discriminator value '%s' is not found in "
                                    "enum '%s'"
@@ -818,20 +831,23 @@ def check_alternate(expr, info):
                            "in 'data'" % name)
     for (key, value) in members.items():
         check_name(info, "Member of alternate '%s'" % name, key)
+        check_known_keys(info,
+                         "member '%s' of alternate '%s'" % (key, name),
+                         value, ['type'], ['if'])
+        typ = value['type']
 
         # Ensure alternates have no type conflicts.
-        check_type(info, "Member '%s' of alternate '%s'" % (key, name),
-                   value,
+        check_type(info, "Member '%s' of alternate '%s'" % (key, name), typ,
                    allow_metas=['built-in', 'union', 'struct', 'enum'])
-        qtype = find_alternate_member_qtype(value)
+        qtype = find_alternate_member_qtype(typ)
         if not qtype:
             raise QAPISemError(info, "Alternate '%s' member '%s' cannot use "
-                               "type '%s'" % (name, key, value))
+                               "type '%s'" % (name, key, typ))
         conflicting = set([qtype])
         if qtype == 'QTYPE_QSTRING':
-            enum_expr = enum_types.get(value)
+            enum_expr = enum_types.get(typ)
             if enum_expr:
-                for v in enum_expr['data']:
+                for v in enum_get_names(enum_expr):
                     if v in ['on', 'off']:
                         conflicting.add('QTYPE_QBOOL')
                     if re.match(r'[-+0-9.]', v): # lazy, could be tightened
@@ -849,7 +865,7 @@ def check_alternate(expr, info):
 
 def check_enum(expr, info):
     name = expr['enum']
-    members = expr.get('data')
+    members = expr['data']
     prefix = expr.get('prefix')
 
     if not isinstance(members, list):
@@ -858,8 +874,12 @@ def check_enum(expr, info):
     if prefix is not None and not isinstance(prefix, str):
         raise QAPISemError(info,
                            "Enum '%s' requires a string for 'prefix'" % name)
+
     for member in members:
-        check_name(info, "Member of enum '%s'" % name, member,
+        source = "dictionary member of enum '%s'" % name
+        check_known_keys(info, source, member, ['name'], ['if'])
+        check_if(member, info)
+        check_name(info, "Member of enum '%s'" % name, member['name'],
                    enum_member=True)
 
 
@@ -873,6 +893,24 @@ def check_struct(expr, info):
                allow_metas=['struct'])
 
 
+def check_known_keys(info, source, keys, required, optional):
+
+    def pprint(elems):
+        return ', '.join("'" + e + "'" for e in sorted(elems))
+
+    missing = set(required) - set(keys)
+    if missing:
+        raise QAPISemError(info, "Key%s %s %s missing from %s"
+                           % ('s' if len(missing) > 1 else '', pprint(missing),
+                              'are' if len(missing) > 1 else 'is', source))
+    allowed = set(required + optional)
+    unknown = set(keys) - allowed
+    if unknown:
+        raise QAPISemError(info, "Unknown key%s %s in %s\nValid keys are %s."
+                           % ('s' if len(unknown) > 1 else '', pprint(unknown),
+                              source, pprint(allowed)))
+
+
 def check_keys(expr_elem, meta, required, optional=[]):
     expr = expr_elem['expr']
     info = expr_elem['info']
@@ -880,10 +918,9 @@ def check_keys(expr_elem, meta, required, optional=[]):
     if not isinstance(name, str):
         raise QAPISemError(info, "'%s' key must have a string value" % meta)
     required = required + [meta]
+    source = "%s '%s'" % (meta, name)
+    check_known_keys(info, source, expr.keys(), required, optional)
     for (key, value) in expr.items():
-        if key not in required and key not in optional:
-            raise QAPISemError(info, "Unknown key '%s' in %s '%s'"
-                               % (key, meta, name))
         if key in ['gen', 'success-response'] and value is not False:
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use false value"
@@ -895,10 +932,20 @@ def check_keys(expr_elem, meta, required, optional=[]):
                                % (key, meta, name))
         if key == 'if':
             check_if(expr, info)
-    for key in required:
-        if key not in expr:
-            raise QAPISemError(info, "Key '%s' is missing from %s '%s'"
-                               % (key, meta, name))
+
+
+def normalize_enum(expr):
+    if isinstance(expr['data'], list):
+        expr['data'] = [m if isinstance(m, dict) else {'name': m}
+                        for m in expr['data']]
+
+
+def normalize_members(members):
+    if isinstance(members, OrderedDict):
+        for key, arg in members.items():
+            if isinstance(arg, dict):
+                continue
+            members[key] = {'type': arg}
 
 
 def check_exprs(exprs):
@@ -924,27 +971,34 @@ def check_exprs(exprs):
         if 'enum' in expr:
             meta = 'enum'
             check_keys(expr_elem, 'enum', ['data'], ['if', 'prefix'])
+            normalize_enum(expr)
             enum_types[expr[meta]] = expr
         elif 'union' in expr:
             meta = 'union'
             check_keys(expr_elem, 'union', ['data'],
                        ['base', 'discriminator', 'if'])
+            normalize_members(expr.get('base'))
+            normalize_members(expr['data'])
             union_types[expr[meta]] = expr
         elif 'alternate' in expr:
             meta = 'alternate'
             check_keys(expr_elem, 'alternate', ['data'], ['if'])
+            normalize_members(expr['data'])
         elif 'struct' in expr:
             meta = 'struct'
             check_keys(expr_elem, 'struct', ['data'], ['base', 'if'])
+            normalize_members(expr['data'])
             struct_types[expr[meta]] = expr
         elif 'command' in expr:
             meta = 'command'
             check_keys(expr_elem, 'command', [],
                        ['data', 'returns', 'gen', 'success-response',
                         'boxed', 'allow-oob', 'allow-preconfig', 'if'])
+            normalize_members(expr.get('data'))
         elif 'event' in expr:
             meta = 'event'
             check_keys(expr_elem, 'event', [], ['data', 'boxed', 'if'])
+            normalize_members(expr.get('data'))
         else:
             raise QAPISemError(expr_elem['info'],
                                "Expression is missing metatype")
@@ -1063,7 +1117,7 @@ class QAPISchemaVisitor(object):
     def visit_builtin_type(self, name, info, json_type):
         pass
 
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
         pass
 
     def visit_array_type(self, name, info, ifcond, element_type):
@@ -1161,22 +1215,22 @@ class QAPISchemaBuiltinType(QAPISchemaType):
 
 
 class QAPISchemaEnumType(QAPISchemaType):
-    def __init__(self, name, info, doc, ifcond, values, prefix):
+    def __init__(self, name, info, doc, ifcond, members, prefix):
         QAPISchemaType.__init__(self, name, info, doc, ifcond)
-        for v in values:
-            assert isinstance(v, QAPISchemaMember)
-            v.set_owner(name)
+        for m in members:
+            assert isinstance(m, QAPISchemaMember)
+            m.set_owner(name)
         assert prefix is None or isinstance(prefix, str)
-        self.values = values
+        self.members = members
         self.prefix = prefix
 
     def check(self, schema):
         QAPISchemaType.check(self, schema)
         seen = {}
-        for v in self.values:
-            v.check_clash(self.info, seen)
+        for m in self.members:
+            m.check_clash(self.info, seen)
             if self.doc:
-                self.doc.connect_member(v)
+                self.doc.connect_member(m)
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_enum_type() and ._def_predefineds()
@@ -1186,14 +1240,14 @@ class QAPISchemaEnumType(QAPISchemaType):
         return c_name(self.name)
 
     def member_names(self):
-        return [v.name for v in self.values]
+        return [m.name for m in self.members]
 
     def json_type(self):
         return 'string'
 
     def visit(self, visitor):
         visitor.visit_enum_type(self.name, self.info, self.ifcond,
-                                self.member_names(), self.prefix)
+                                self.members, self.prefix)
 
 
 class QAPISchemaArrayType(QAPISchemaType):
@@ -1318,9 +1372,10 @@ class QAPISchemaObjectType(QAPISchemaType):
 class QAPISchemaMember(object):
     role = 'member'
 
-    def __init__(self, name):
+    def __init__(self, name, ifcond=None):
         assert isinstance(name, str)
         self.name = name
+        self.ifcond = listify_cond(ifcond)
         self.owner = None
 
     def set_owner(self, name):
@@ -1361,8 +1416,8 @@ class QAPISchemaMember(object):
 
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
-    def __init__(self, name, typ, optional):
-        QAPISchemaMember.__init__(self, name)
+    def __init__(self, name, typ, optional, ifcond=None):
+        QAPISchemaMember.__init__(self, name, ifcond)
         assert isinstance(typ, str)
         assert isinstance(optional, bool)
         self._type_name = typ
@@ -1403,9 +1458,9 @@ class QAPISchemaObjectTypeVariants(object):
         if self._tag_name:    # flat union
             # branches that are not explicitly covered get an empty type
             cases = set([v.name for v in self.variants])
-            for val in self.tag_member.type.values:
-                if val.name not in cases:
-                    v = QAPISchemaObjectTypeVariant(val.name, 'q_empty')
+            for m in self.tag_member.type.members:
+                if m.name not in cases:
+                    v = QAPISchemaObjectTypeVariant(m.name, 'q_empty')
                     v.set_owner(self.tag_member.owner)
                     self.variants.append(v)
         for v in self.variants:
@@ -1428,8 +1483,8 @@ class QAPISchemaObjectTypeVariants(object):
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     role = 'branch'
 
-    def __init__(self, name, typ):
-        QAPISchemaObjectTypeMember.__init__(self, name, typ, False)
+    def __init__(self, name, typ, ifcond=None):
+        QAPISchemaObjectTypeMember.__init__(self, name, typ, False, ifcond)
 
 
 class QAPISchemaAlternateType(QAPISchemaType):
@@ -1620,14 +1675,16 @@ class QAPISchema(object):
         self.the_empty_object_type = QAPISchemaObjectType(
             'q_empty', None, None, None, None, [], None)
         self._def_entity(self.the_empty_object_type)
-        qtype_values = self._make_enum_members(['none', 'qnull', 'qnum',
-                                                'qstring', 'qdict', 'qlist',
-                                                'qbool'])
+
+        qtypes = ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist',
+                  'qbool']
+        qtype_values = self._make_enum_members([{'name': n} for n in qtypes])
+
         self._def_entity(QAPISchemaEnumType('QType', None, None, None,
                                             qtype_values, 'QTYPE'))
 
     def _make_enum_members(self, values):
-        return [QAPISchemaMember(v) for v in values]
+        return [QAPISchemaMember(v['name'], v.get('if')) for v in values]
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
         # See also QAPISchemaObjectTypeMember._pretty_owner()
@@ -1674,7 +1731,7 @@ class QAPISchema(object):
             name, info, doc, ifcond,
             self._make_enum_members(data), prefix))
 
-    def _make_member(self, name, typ, info):
+    def _make_member(self, name, typ, ifcond, info):
         optional = False
         if name.startswith('*'):
             name = name[1:]
@@ -1682,10 +1739,10 @@ class QAPISchema(object):
         if isinstance(typ, list):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
-        return QAPISchemaObjectTypeMember(name, typ, optional)
+        return QAPISchemaObjectTypeMember(name, typ, optional, ifcond)
 
     def _make_members(self, data, info):
-        return [self._make_member(key, value, info)
+        return [self._make_member(key, value['type'], value.get('if'), info)
                 for (key, value) in data.items()]
 
     def _def_struct_type(self, expr, info, doc):
@@ -1697,17 +1754,17 @@ class QAPISchema(object):
                                               self._make_members(data, info),
                                               None))
 
-    def _make_variant(self, case, typ):
-        return QAPISchemaObjectTypeVariant(case, typ)
+    def _make_variant(self, case, typ, ifcond):
+        return QAPISchemaObjectTypeVariant(case, typ, ifcond)
 
-    def _make_simple_variant(self, case, typ, info):
+    def _make_simple_variant(self, case, typ, ifcond, info):
         if isinstance(typ, list):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
         typ = self._make_implicit_object_type(
             typ, info, None, self.lookup_type(typ),
-            'wrapper', [self._make_member('data', typ, info)])
-        return QAPISchemaObjectTypeVariant(case, typ)
+            'wrapper', [self._make_member('data', typ, None, info)])
+        return QAPISchemaObjectTypeVariant(case, typ, ifcond)
 
     def _def_union_type(self, expr, info, doc):
         name = expr['union']
@@ -1721,14 +1778,15 @@ class QAPISchema(object):
                 name, info, doc, ifcond,
                 'base', self._make_members(base, info))
         if tag_name:
-            variants = [self._make_variant(key, value)
+            variants = [self._make_variant(key, value['type'], value.get('if'))
                         for (key, value) in data.items()]
             members = []
         else:
-            variants = [self._make_simple_variant(key, value, info)
+            variants = [self._make_simple_variant(key, value['type'],
+                                                  value.get('if'), info)
                         for (key, value) in data.items()]
-            typ = self._make_implicit_enum_type(name, info, ifcond,
-                                                [v.name for v in variants])
+            enum = [{'name': v.name, 'if': v.ifcond} for v in variants]
+            typ = self._make_implicit_enum_type(name, info, ifcond, enum)
             tag_member = QAPISchemaObjectTypeMember('type', typ, False)
             members = [tag_member]
         self._def_entity(
@@ -1741,7 +1799,7 @@ class QAPISchema(object):
         name = expr['alternate']
         data = expr['data']
         ifcond = expr.get('if')
-        variants = [self._make_variant(key, value)
+        variants = [self._make_variant(key, value['type'], value.get('if'))
                     for (key, value) in data.items()]
         tag_member = QAPISchemaObjectTypeMember('type', 'QType', False)
         self._def_entity(
@@ -2012,19 +2070,21 @@ def _wrap_ifcond(ifcond, before, after):
     return out
 
 
-def gen_enum_lookup(name, values, prefix=None):
+def gen_enum_lookup(name, members, prefix=None):
     ret = mcgen('''
 
 const QEnumLookup %(c_name)s_lookup = {
     .array = (const char *const[]) {
 ''',
                 c_name=c_name(name))
-    for value in values:
-        index = c_enum_const(name, value, prefix)
+    for m in members:
+        ret += gen_if(m.ifcond)
+        index = c_enum_const(name, m.name, prefix)
         ret += mcgen('''
-        [%(index)s] = "%(value)s",
+        [%(index)s] = "%(name)s",
 ''',
-                     index=index, value=value)
+                     index=index, name=m.name)
+        ret += gen_endif(m.ifcond)
 
     ret += mcgen('''
     },
@@ -2035,9 +2095,9 @@ const QEnumLookup %(c_name)s_lookup = {
     return ret
 
 
-def gen_enum(name, values, prefix=None):
+def gen_enum(name, members, prefix=None):
     # append automatically generated _MAX value
-    enum_values = values + ['_MAX']
+    enum_members = members + [QAPISchemaMember('_MAX')]
 
     ret = mcgen('''
 
@@ -2045,14 +2105,13 @@ typedef enum %(c_name)s {
 ''',
                 c_name=c_name(name))
 
-    i = 0
-    for value in enum_values:
+    for m in enum_members:
+        ret += gen_if(m.ifcond)
         ret += mcgen('''
-    %(c_enum)s = %(i)d,
+    %(c_enum)s,
 ''',
-                     c_enum=c_enum_const(name, value, prefix),
-                     i=i)
-        i += 1
+                     c_enum=c_enum_const(name, m.name, prefix))
+        ret += gen_endif(m.ifcond)
 
     ret += mcgen('''
 } %(c_name)s;

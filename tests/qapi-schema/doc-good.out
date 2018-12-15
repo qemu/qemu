@@ -1,29 +1,45 @@
 object q_empty
-enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+enum QType
     prefix QTYPE
+    member none
+    member qnull
+    member qnum
+    member qstring
+    member qdict
+    member qlist
+    member qbool
 module doc-good.json
-enum Enum ['one', 'two']
+enum Enum
+    member one
+        if ['defined(IFONE)']
+    member two
     if ['defined(IFCOND)']
 object Base
     member base1: Enum optional=False
 object Variant1
     member var1: str optional=False
+        if ['defined(IFSTR)']
 object Variant2
 object Object
     base Base
     tag base1
     case one: Variant1
     case two: Variant2
+        if ['IFTWO']
 object q_obj_Variant1-wrapper
     member data: Variant1 optional=False
 object q_obj_Variant2-wrapper
     member data: Variant2 optional=False
-enum SugaredUnionKind ['one', 'two']
+enum SugaredUnionKind
+    member one
+    member two
+        if ['IFTWO']
 object SugaredUnion
     member type: SugaredUnionKind optional=False
     tag type
     case one: q_obj_Variant1-wrapper
     case two: q_obj_Variant2-wrapper
+        if ['IFTWO']
 object q_obj_cmd-arg
     member arg1: int optional=False
     member arg2: str optional=True

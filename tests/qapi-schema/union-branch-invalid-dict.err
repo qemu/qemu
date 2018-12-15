@@ -1,0 +1,1 @@
+tests/qapi-schema/union-branch-invalid-dict.json:2: Key 'type' is missing from member 'integer' of union 'UnionInvalidBranch'

@@ -43,6 +43,7 @@ struct %(c_name)s {
 def gen_struct_members(members):
     ret = ''
     for memb in members:
+        ret += gen_if(memb.ifcond)
         if memb.optional:
             ret += mcgen('''
     bool has_%(c_name)s;
@@ -52,6 +53,7 @@ def gen_struct_members(members):
     %(c_type)s %(c_name)s;
 ''',
                      c_type=memb.type.c_type(), c_name=c_name(memb.name))
+        ret += gen_endif(memb.ifcond)
     return ret
 
 
@@ -131,11 +133,13 @@ def gen_variants(variants):
     for var in variants.variants:
         if var.type.name == 'q_empty':
             continue
+        ret += gen_if(var.ifcond)
         ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',
                      c_type=var.type.c_unboxed_type(),
                      c_name=c_name(var.name))
+        ret += gen_endif(var.ifcond)
 
     ret += mcgen('''
     } u;
@@ -212,10 +216,10 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         self._genh.add(gen_type_cleanup_decl(name))
         self._genc.add(gen_type_cleanup(name))
 
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
         with ifcontext(ifcond, self._genh, self._genc):
-            self._genh.preamble_add(gen_enum(name, values, prefix))
-            self._genc.add(gen_enum_lookup(name, values, prefix))
+            self._genh.preamble_add(gen_enum(name, members, prefix))
+            self._genc.add(gen_enum_lookup(name, members, prefix))
 
     def visit_array_type(self, name, info, ifcond, element_type):
         with ifcontext(ifcond, self._genh, self._genc):

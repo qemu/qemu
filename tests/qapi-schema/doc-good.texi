@@ -84,11 +84,11 @@ Examples:
 @table @asis
 @item @code{one}
 The @emph{one} @{and only@}
+@*@b{If:} @code{defined(IFONE)}
 @item @code{two}
 Not documented
 @end table
 @code{two} is undocumented
-
 
 @b{If:} @code{defined(IFCOND)}
 @end deftp
@@ -119,6 +119,7 @@ Another paragraph (but no @code{var}: line)
 @table @asis
 @item @code{var1: string}
 Not documented
+@*@b{If:} @code{defined(IFSTR)}
 @end table
 
 @end deftp
@@ -141,7 +142,7 @@ Not documented
 @table @asis
 @item The members of @code{Base}
 @item The members of @code{Variant1} when @code{base1} is @t{"one"}
-@item The members of @code{Variant2} when @code{base1} is @t{"two"}
+@item The members of @code{Variant2} when @code{base1} is @t{"two"} (@b{If:} @code{IFTWO})
 @end table
 
 @end deftp
@@ -157,7 +158,7 @@ Not documented
 @item @code{type}
 One of @t{"one"}, @t{"two"}
 @item @code{data: Variant1} when @code{type} is @t{"one"}
-@item @code{data: Variant2} when @code{type} is @t{"two"}
+@item @code{data: Variant2} when @code{type} is @t{"two"} (@b{If:} @code{IFTWO})
 @end table
 
 @end deftp

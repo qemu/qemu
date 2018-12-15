@@ -657,7 +657,8 @@
 #    }
 #
 ##
-{ 'command': 'query-rx-filter', 'data': { '*name': 'str' },
+{ 'command': 'query-rx-filter',
+  'data': { '*name': 'str' },
   'returns': ['RxFilterInfo'] }
 
 ##

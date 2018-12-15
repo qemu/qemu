@@ -288,6 +288,11 @@ static int parse_pair(JSONParserContext *ctxt, QDict *dict)
         goto out;
     }
 
+    if (qdict_haskey(dict, qstring_get_str(key))) {
+        parse_error(ctxt, token, "duplicate key");
+        goto out;
+    }
+
     qdict_put_obj(dict, qstring_get_str(key), value);
 
     qobject_unref(key);

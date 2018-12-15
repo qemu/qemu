@@ -1,6 +1,13 @@
 object q_empty
-enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+enum QType
     prefix QTYPE
+    member none
+    member qnull
+    member qnum
+    member qstring
+    member qdict
+    member qlist
+    member qbool
 module qapi-schema-test.json
 object TestStruct
     member integer: int optional=False
@@ -11,19 +18,25 @@ object NestedEnumsOne
     member enum2: EnumOne optional=True
     member enum3: EnumOne optional=False
     member enum4: EnumOne optional=True
-enum MyEnum []
+enum MyEnum
 object Empty1
 object Empty2
     base Empty1
 command user_def_cmd0 Empty2 -> Empty2
    gen=True success_response=True boxed=False oob=False preconfig=False
-enum QEnumTwo ['value1', 'value2']
+enum QEnumTwo
     prefix QENUM_TWO
+    member value1
+    member value2
 object UserDefOne
     base UserDefZero
     member string: str optional=False
     member enum1: EnumOne optional=True
-enum EnumOne ['value1', 'value2', 'value3', 'value4']
+enum EnumOne
+    member value1
+    member value2
+    member value3
+    member value4
 object UserDefZero
     member integer: int optional=False
 object UserDefTwoDictDict
@@ -127,7 +140,21 @@ object q_obj_sizeList-wrapper
     member data: sizeList optional=False
 object q_obj_anyList-wrapper
     member data: anyList optional=False
-enum UserDefNativeListUnionKind ['integer', 's8', 's16', 's32', 's64', 'u8', 'u16', 'u32', 'u64', 'number', 'boolean', 'string', 'sizes', 'any']
+enum UserDefNativeListUnionKind
+    member integer
+    member s8
+    member s16
+    member s32
+    member s64
+    member u8
+    member u16
+    member u32
+    member u64
+    member number
+    member boolean
+    member string
+    member sizes
+    member any
 object UserDefNativeListUnion
     member type: UserDefNativeListUnionKind optional=False
     tag type
@@ -204,7 +231,8 @@ event EVENT_E UserDefZero
    boxed=True
 event EVENT_F UserDefAlternate
    boxed=True
-enum __org.qemu_x-Enum ['__org.qemu_x-value']
+enum __org.qemu_x-Enum
+    member __org.qemu_x-value
 object __org.qemu_x-Base
     member __org.qemu_x-member1: __org.qemu_x-Enum optional=False
 object __org.qemu_x-Struct
@@ -213,7 +241,8 @@ object __org.qemu_x-Struct
     member wchar-t: int optional=True
 object q_obj_str-wrapper
     member data: str optional=False
-enum __org.qemu_x-Union1Kind ['__org.qemu_x-branch']
+enum __org.qemu_x-Union1Kind
+    member __org.qemu_x-branch
 object __org.qemu_x-Union1
     member type: __org.qemu_x-Union1Kind optional=False
     tag type
@@ -239,25 +268,50 @@ command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> __org.qemu_x-Unio
    gen=True success_response=True boxed=False oob=False preconfig=False
 object TestIfStruct
     member foo: int optional=False
+    member bar: int optional=False
+        if ['defined(TEST_IF_STRUCT_BAR)']
     if ['defined(TEST_IF_STRUCT)']
-enum TestIfEnum ['foo', 'bar']
+enum TestIfEnum
+    member foo
+    member bar
+        if ['defined(TEST_IF_ENUM_BAR)']
     if ['defined(TEST_IF_ENUM)']
 object q_obj_TestStruct-wrapper
     member data: TestStruct optional=False
-enum TestIfUnionKind ['foo']
+enum TestIfUnionKind
+    member foo
+    member union_bar
+        if ['defined(TEST_IF_UNION_BAR)']
     if ['defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)']
 object TestIfUnion
     member type: TestIfUnionKind optional=False
     tag type
     case foo: q_obj_TestStruct-wrapper
+    case union_bar: q_obj_str-wrapper
+        if ['defined(TEST_IF_UNION_BAR)']
     if ['defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)']
+object q_obj_TestIfUnionCmd-arg
+    member union_cmd_arg: TestIfUnion optional=False
+    if ['defined(TEST_IF_UNION)']
+command TestIfUnionCmd q_obj_TestIfUnionCmd-arg -> None
+   gen=True success_response=True boxed=False oob=False preconfig=False
+    if ['defined(TEST_IF_UNION)']
 alternate TestIfAlternate
     tag type
     case foo: int
     case bar: TestStruct
+        if ['defined(TEST_IF_ALT_BAR)']
     if ['defined(TEST_IF_ALT) && defined(TEST_IF_STRUCT)']
+object q_obj_TestIfAlternateCmd-arg
+    member alt_cmd_arg: TestIfAlternate optional=False
+    if ['defined(TEST_IF_ALT)']
+command TestIfAlternateCmd q_obj_TestIfAlternateCmd-arg -> None
+   gen=True success_response=True boxed=False oob=False preconfig=False
+    if ['defined(TEST_IF_ALT)']
 object q_obj_TestIfCmd-arg
     member foo: TestIfStruct optional=False
+    member bar: TestIfEnum optional=False
+        if ['defined(TEST_IF_CMD_BAR)']
     if ['defined(TEST_IF_CMD)', 'defined(TEST_IF_STRUCT)']
 command TestIfCmd q_obj_TestIfCmd-arg -> UserDefThree
    gen=True success_response=True boxed=False oob=False preconfig=False
@@ -266,6 +320,8 @@ command TestCmdReturnDefThree None -> UserDefThree
    gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_TestIfEvent-arg
     member foo: TestIfStruct optional=False
+    member bar: TestIfEnum optional=False
+        if ['defined(TEST_IF_EVT_BAR)']
     if ['defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)']
 event TestIfEvent q_obj_TestIfEvent-arg
    boxed=False

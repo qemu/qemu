@@ -1,8 +1,17 @@
 object q_empty
-enum QType ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist', 'qbool']
+enum QType
     prefix QTYPE
+    member none
+    member qnull
+    member qnum
+    member qstring
+    member qdict
+    member qlist
+    member qbool
 module doc-bad-section.json
-enum Enum ['one', 'two']
+enum Enum
+    member one
+    member two
 doc symbol=Enum
     body=
 == Produces *invalid* texinfo

@@ -26,7 +26,7 @@ how the schemas, scripts, and resulting code are used.
 == QMP/Guest agent schema ==
 
 A QAPI schema file is designed to be loosely based on JSON
-(http://www.ietf.org/rfc/rfc7159.txt) with changes for quoting style
+(http://www.ietf.org/rfc/rfc8259.txt) with changes for quoting style
 and the use of comments; a QAPI schema file is then parsed by a python
 code generation program.  A valid QAPI schema consists of a series of
 top-level expressions, with no commas between them.  Where
@@ -751,6 +751,25 @@ gets its generated code guarded like this:
  ... generated code ...
  #endif /* defined(HAVE_BAR) */
  #endif /* defined(CONFIG_FOO) */
+
+Where a member can be defined with a single string value for its type,
+it is also possible to supply a dictionary instead with both 'type'
+and 'if' keys.
+
+Example: a conditional 'bar' member
+
+{ 'struct': 'IfStruct', 'data':
+  { 'foo': 'int',
+    'bar': { 'type': 'int', 'if': 'defined(IFCOND)'} } }
+
+An enum value can be replaced by a dictionary with a 'name' and a 'if'
+key.
+
+Example: a conditional 'bar' enum member.
+
+{ 'enum': 'IfEnum', 'data':
+  [ 'foo',
+    { 'name' : 'bar', 'if': 'defined(IFCOND)' } ] }
 
 Please note that you are responsible to ensure that the C code will
 compile with an arbitrary combination of conditions, since the

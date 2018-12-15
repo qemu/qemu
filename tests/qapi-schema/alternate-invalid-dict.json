@@ -1,0 +1,4 @@
+# exploded member form must have a 'type'
+{ 'alternate': 'Alt',
+  'data': { 'one': 'str',
+            'two': { 'if': 'foo' } } }

@@ -23,10 +23,13 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
     def visit_include(self, name, info):
         print('include %s' % name)
 
-    def visit_enum_type(self, name, info, ifcond, values, prefix):
-        print('enum %s %s' % (name, values))
+    def visit_enum_type(self, name, info, ifcond, members, prefix):
+        print('enum %s' % name)
         if prefix:
             print('    prefix %s' % prefix)
+        for m in members:
+            print('    member %s' % m.name)
+            self._print_if(m.ifcond, indent=8)
         self._print_if(ifcond)
 
     def visit_object_type(self, name, info, ifcond, base, members, variants):
@@ -36,6 +39,7 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         for m in members:
             print('    member %s: %s optional=%s'
                   % (m.name, m.type.name, m.optional))
+            self._print_if(m.ifcond, 8)
         self._print_variants(variants)
         self._print_if(ifcond)
 
@@ -64,6 +68,7 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             print('    tag %s' % variants.tag_member.name)
             for v in variants.variants:
                 print('    case %s: %s' % (v.name, v.type.name))
+                QAPISchemaTestVisitor._print_if(v.ifcond, indent=8)
 
     @staticmethod
     def _print_if(ifcond, indent=4):

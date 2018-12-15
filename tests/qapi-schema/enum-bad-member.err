@@ -1,0 +1,1 @@
+tests/qapi-schema/enum-bad-member.json:2: Member of enum 'MyEnum' requires a string name

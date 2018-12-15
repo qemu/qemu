@@ -1,0 +1,2 @@
+# we reject any enum member that is not a string
+{ 'enum': 'MyEnum', 'data': [ [ ] ] }

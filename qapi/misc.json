@@ -2385,7 +2385,9 @@
 # <- { "return": { "fdset-id": 1, "fd": 3 } }
 #
 ##
-{ 'command': 'add-fd', 'data': {'*fdset-id': 'int', '*opaque': 'str'},
+{ 'command': 'add-fd',
+  'data': { '*fdset-id': 'int',
+            '*opaque': 'str' },
   'returns': 'AddfdInfo' }
 
 ##
@@ -2657,7 +2659,8 @@
 #    }
 #
 ##
-{'command': 'query-command-line-options', 'data': { '*option': 'str' },
+{'command': 'query-command-line-options',
+ 'data': { '*option': 'str' },
  'returns': ['CommandLineOptionInfo'],
  'allow-preconfig': true }
 

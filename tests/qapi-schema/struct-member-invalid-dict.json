@@ -1,0 +1,3 @@
+# Long form of member must have a value member 'type'
+{ 'struct': 'foo',
+  'data': { '*a': { 'case': 'foo' } } }

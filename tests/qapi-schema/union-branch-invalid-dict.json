@@ -1,0 +1,4 @@
+# Long form of member must have a value member 'type'
+{ 'union': 'UnionInvalidBranch',
+  'data': { 'integer': { 'if': 'foo'},
+            's8': 'int8' } }
