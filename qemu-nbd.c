@@ -571,6 +571,7 @@ int main(int argc, char **argv)
 #endif
 
     module_call_init(MODULE_INIT_TRACE);
+    error_set_progname(argv[0]);
     qcrypto_init(&error_fatal);
 
     module_call_init(MODULE_INIT_QOM);
