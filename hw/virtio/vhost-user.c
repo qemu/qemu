@@ -207,7 +207,7 @@ struct vhost_user {
 
 static bool ioeventfd_enabled(void)
 {
-    return kvm_enabled() && kvm_eventfds_enabled();
+    return !kvm_enabled() || kvm_eventfds_enabled();
 }
 
 static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
