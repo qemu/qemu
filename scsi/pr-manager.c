@@ -48,24 +48,21 @@ static int pr_manager_worker(void *opaque)
 }
 
 
-BlockAIOCB *pr_manager_execute(PRManager *pr_mgr,
-                               AioContext *ctx, int fd,
-                               struct sg_io_hdr *hdr,
-                               BlockCompletionFunc *complete,
-                               void *opaque)
+int coroutine_fn pr_manager_execute(PRManager *pr_mgr, AioContext *ctx, int fd,
+                                    struct sg_io_hdr *hdr)
 {
-    PRManagerData *data = g_new(PRManagerData, 1);
     ThreadPool *pool = aio_get_thread_pool(ctx);
+    PRManagerData data = {
+        .pr_mgr = pr_mgr,
+        .fd     = fd,
+        .hdr    = hdr,
+    };
 
-    trace_pr_manager_execute(fd, hdr->cmdp[0], hdr->cmdp[1], opaque);
-    data->pr_mgr = pr_mgr;
-    data->fd = fd;
-    data->hdr = hdr;
+    trace_pr_manager_execute(fd, hdr->cmdp[0], hdr->cmdp[1]);
 
     /* The matching object_unref is in pr_manager_worker.  */
     object_ref(OBJECT(pr_mgr));
-    return thread_pool_submit_aio(pool, pr_manager_worker,
-                                  data, complete, opaque);
+    return thread_pool_submit_co(pool, pr_manager_worker, &data);
 }
 
 bool pr_manager_is_connected(PRManager *pr_mgr)

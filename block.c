@@ -1079,11 +1079,11 @@ static int bdrv_backing_update_filename(BdrvChild *c, BlockDriverState *base,
                                         const char *filename, Error **errp)
 {
     BlockDriverState *parent = c->opaque;
-    int orig_flags = bdrv_get_flags(parent);
+    bool read_only = bdrv_is_read_only(parent);
     int ret;
 
-    if (!(orig_flags & BDRV_O_RDWR)) {
-        ret = bdrv_reopen(parent, orig_flags | BDRV_O_RDWR, errp);
+    if (read_only) {
+        ret = bdrv_reopen_set_read_only(parent, false, errp);
         if (ret < 0) {
             return ret;
         }
@@ -1095,8 +1095,8 @@ static int bdrv_backing_update_filename(BdrvChild *c, BlockDriverState *base,
         error_setg_errno(errp, -ret, "Could not update backing file link");
     }
 
-    if (!(orig_flags & BDRV_O_RDWR)) {
-        bdrv_reopen(parent, orig_flags, NULL);
+    if (read_only) {
+        bdrv_reopen_set_read_only(parent, true, NULL);
     }
 
     return ret;
@@ -1139,22 +1139,18 @@ static void update_flags_from_options(int *flags, QemuOpts *opts)
 {
     *flags &= ~(BDRV_O_CACHE_MASK | BDRV_O_RDWR | BDRV_O_AUTO_RDONLY);
 
-    assert(qemu_opt_find(opts, BDRV_OPT_CACHE_NO_FLUSH));
     if (qemu_opt_get_bool_del(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
         *flags |= BDRV_O_NO_FLUSH;
     }
 
-    assert(qemu_opt_find(opts, BDRV_OPT_CACHE_DIRECT));
     if (qemu_opt_get_bool_del(opts, BDRV_OPT_CACHE_DIRECT, false)) {
         *flags |= BDRV_O_NOCACHE;
     }
 
-    assert(qemu_opt_find(opts, BDRV_OPT_READ_ONLY));
     if (!qemu_opt_get_bool_del(opts, BDRV_OPT_READ_ONLY, false)) {
         *flags |= BDRV_O_RDWR;
     }
 
-    assert(qemu_opt_find(opts, BDRV_OPT_AUTO_READ_ONLY));
     if (qemu_opt_get_bool_del(opts, BDRV_OPT_AUTO_READ_ONLY, false)) {
         *flags |= BDRV_O_AUTO_RDONLY;
     }
@@ -2931,7 +2927,6 @@ BlockDriverState *bdrv_open(const char *filename, const char *reference,
 static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
                                                  BlockDriverState *bs,
                                                  QDict *options,
-                                                 int flags,
                                                  const BdrvChildRole *role,
                                                  QDict *parent_options,
                                                  int parent_flags)
@@ -2940,7 +2935,9 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
     BlockReopenQueueEntry *bs_entry;
     BdrvChild *child;
-    QDict *old_options, *explicit_options;
+    QDict *old_options, *explicit_options, *options_copy;
+    int flags;
+    QemuOpts *opts;
 
     /* Make sure that the caller remembered to use a drained section. This is
      * important to avoid graph changes between the recursive queuing here and
@@ -2966,21 +2963,10 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     /*
      * Precedence of options:
      * 1. Explicitly passed in options (highest)
-     * 2. Set in flags (only for top level)
-     * 3. Retained from explicitly set options of bs
-     * 4. Inherited from parent node
-     * 5. Retained from effective options of bs
+     * 2. Retained from explicitly set options of bs
+     * 3. Inherited from parent node
+     * 4. Retained from effective options of bs
      */
-
-    if (!parent_options) {
-        /*
-         * Any setting represented by flags is always updated. If the
-         * corresponding QDict option is set, it takes precedence. Otherwise
-         * the flag is translated into a QDict option. The old setting of bs is
-         * not considered.
-         */
-        update_options_from_flags(options, flags);
-    }
 
     /* Old explicitly set values (don't overwrite by inherited value) */
     if (bs_entry) {
@@ -2995,22 +2981,24 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
     /* Inherit from parent node */
     if (parent_options) {
-        QemuOpts *opts;
-        QDict *options_copy;
-        assert(!flags);
+        flags = 0;
         role->inherit_options(&flags, options, parent_flags, parent_options);
-        options_copy = qdict_clone_shallow(options);
-        opts = qemu_opts_create(&bdrv_runtime_opts, NULL, 0, &error_abort);
-        qemu_opts_absorb_qdict(opts, options_copy, NULL);
-        update_flags_from_options(&flags, opts);
-        qemu_opts_del(opts);
-        qobject_unref(options_copy);
+    } else {
+        flags = bdrv_get_flags(bs);
     }
 
     /* Old values are used for options that aren't set yet */
     old_options = qdict_clone_shallow(bs->options);
     bdrv_join_options(bs, options, old_options);
     qobject_unref(old_options);
+
+    /* We have the final set of options so let's update the flags */
+    options_copy = qdict_clone_shallow(options);
+    opts = qemu_opts_create(&bdrv_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options_copy, NULL);
+    update_flags_from_options(&flags, opts);
+    qemu_opts_del(opts);
+    qobject_unref(options_copy);
 
     /* bdrv_open_inherit() sets and clears some additional flags internally */
     flags &= ~BDRV_O_PROTOCOL;
@@ -3051,7 +3039,7 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         qdict_extract_subqdict(options, &new_child_options, child_key_dot);
         g_free(child_key_dot);
 
-        bdrv_reopen_queue_child(bs_queue, child->bs, new_child_options, 0,
+        bdrv_reopen_queue_child(bs_queue, child->bs, new_child_options,
                                 child->role, options, flags);
     }
 
@@ -3060,10 +3048,9 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     BlockDriverState *bs,
-                                    QDict *options, int flags)
+                                    QDict *options)
 {
-    return bdrv_reopen_queue_child(bs_queue, bs, options, flags,
-                                   NULL, NULL, 0);
+    return bdrv_reopen_queue_child(bs_queue, bs, options, NULL, NULL, 0);
 }
 
 /*
@@ -3125,22 +3112,18 @@ cleanup:
     return ret;
 }
 
-
-/* Reopen a single BlockDriverState with the specified flags. */
-int bdrv_reopen(BlockDriverState *bs, int bdrv_flags, Error **errp)
+int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
+                              Error **errp)
 {
-    int ret = -1;
-    Error *local_err = NULL;
+    int ret;
     BlockReopenQueue *queue;
+    QDict *opts = qdict_new();
+
+    qdict_put_bool(opts, BDRV_OPT_READ_ONLY, read_only);
 
     bdrv_subtree_drained_begin(bs);
-
-    queue = bdrv_reopen_queue(NULL, bs, NULL, bdrv_flags);
-    ret = bdrv_reopen_multiple(bdrv_get_aio_context(bs), queue, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-    }
-
+    queue = bdrv_reopen_queue(NULL, bs, opts);
+    ret = bdrv_reopen_multiple(bdrv_get_aio_context(bs), queue, errp);
     bdrv_subtree_drained_end(bs);
 
     return ret;
@@ -3214,6 +3197,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
                         Error **errp)
 {
     int ret = -1;
+    int old_flags;
     Error *local_err = NULL;
     BlockDriver *drv;
     QemuOpts *opts;
@@ -3240,7 +3224,12 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         goto error;
     }
 
+    /* This was already called in bdrv_reopen_queue_child() so the flags
+     * are up-to-date. This time we simply want to remove the options from
+     * QemuOpts in order to indicate that they have been processed. */
+    old_flags = reopen_state->flags;
     update_flags_from_options(&reopen_state->flags, opts);
+    assert(old_flags == reopen_state->flags);
 
     discard = qemu_opt_get_del(opts, BDRV_OPT_DISCARD);
     if (discard != NULL) {

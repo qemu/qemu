@@ -74,6 +74,13 @@ typedef struct {
 #define  QCOW2_EXT_MAGIC_CRYPTO_HEADER 0x0537be77
 #define  QCOW2_EXT_MAGIC_BITMAPS 0x23852875
 
+static int coroutine_fn
+qcow2_co_preadv_compressed(BlockDriverState *bs,
+                           uint64_t file_cluster_offset,
+                           uint64_t offset,
+                           uint64_t bytes,
+                           QEMUIOVector *qiov);
+
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
     const QCowHeader *cow_header = (const void *)buf;
@@ -1414,7 +1421,6 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         goto fail;
     }
 
-    s->cluster_cache_offset = -1;
     s->flags = flags;
 
     ret = qcow2_refcount_init(bs);
@@ -1914,15 +1920,15 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
             break;
 
         case QCOW2_CLUSTER_COMPRESSED:
-            /* add AIO support for compressed blocks ? */
-            ret = qcow2_decompress_cluster(bs, cluster_offset);
+            qemu_co_mutex_unlock(&s->lock);
+            ret = qcow2_co_preadv_compressed(bs, cluster_offset,
+                                             offset, cur_bytes,
+                                             &hd_qiov);
+            qemu_co_mutex_lock(&s->lock);
             if (ret < 0) {
                 goto fail;
             }
 
-            qemu_iovec_from_buf(&hd_qiov, 0,
-                                s->cluster_cache + offset_in_cluster,
-                                cur_bytes);
             break;
 
         case QCOW2_CLUSTER_NORMAL:
@@ -2057,8 +2063,6 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
     trace_qcow2_writev_start_req(qemu_coroutine_self(), offset, bytes);
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
-
-    s->cluster_cache_offset = -1; /* disable compressed cache */
 
     qemu_co_mutex_lock(&s->lock);
 
@@ -2223,8 +2227,6 @@ static void qcow2_close(BlockDriverState *bs)
     g_free(s->image_backing_file);
     g_free(s->image_backing_format);
 
-    g_free(s->cluster_cache);
-    qemu_vfree(s->cluster_data);
     qcow2_refcount_close(bs);
     qcow2_free_snapshots(bs);
 }
@@ -3401,7 +3403,6 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
     QCowL2Meta *l2meta = NULL;
 
     assert(!bs->encrypted);
-    s->cluster_cache_offset = -1; /* disable compressed cache */
 
     qemu_co_mutex_lock(&s->lock);
 
@@ -3722,14 +3723,15 @@ fail:
 /*
  * qcow2_compress()
  *
- * @dest - destination buffer, at least of @size-1 bytes
- * @src - source buffer, @size bytes
+ * @dest - destination buffer, @dest_size bytes
+ * @src - source buffer, @src_size bytes
  *
  * Returns: compressed size on success
- *          -1 if compression is inefficient
+ *          -1 destination buffer is not enough to store compressed data
  *          -2 on any other error
  */
-static ssize_t qcow2_compress(void *dest, const void *src, size_t size)
+static ssize_t qcow2_compress(void *dest, size_t dest_size,
+                              const void *src, size_t src_size)
 {
     ssize_t ret;
     z_stream strm;
@@ -3738,20 +3740,20 @@ static ssize_t qcow2_compress(void *dest, const void *src, size_t size)
     memset(&strm, 0, sizeof(strm));
     ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
                        -12, 9, Z_DEFAULT_STRATEGY);
-    if (ret != 0) {
+    if (ret != Z_OK) {
         return -2;
     }
 
     /* strm.next_in is not const in old zlib versions, such as those used on
      * OpenBSD/NetBSD, so cast the const away */
-    strm.avail_in = size;
+    strm.avail_in = src_size;
     strm.next_in = (void *) src;
-    strm.avail_out = size - 1;
+    strm.avail_out = dest_size;
     strm.next_out = dest;
 
     ret = deflate(&strm, Z_FINISH);
     if (ret == Z_STREAM_END) {
-        ret = size - 1 - strm.avail_out;
+        ret = dest_size - strm.avail_out;
     } else {
         ret = (ret == Z_OK ? -1 : -2);
     }
@@ -3761,20 +3763,68 @@ static ssize_t qcow2_compress(void *dest, const void *src, size_t size)
     return ret;
 }
 
+/*
+ * qcow2_decompress()
+ *
+ * Decompress some data (not more than @src_size bytes) to produce exactly
+ * @dest_size bytes.
+ *
+ * @dest - destination buffer, @dest_size bytes
+ * @src - source buffer, @src_size bytes
+ *
+ * Returns: 0 on success
+ *          -1 on fail
+ */
+static ssize_t qcow2_decompress(void *dest, size_t dest_size,
+                                const void *src, size_t src_size)
+{
+    int ret = 0;
+    z_stream strm;
+
+    memset(&strm, 0, sizeof(strm));
+    strm.avail_in = src_size;
+    strm.next_in = (void *) src;
+    strm.avail_out = dest_size;
+    strm.next_out = dest;
+
+    ret = inflateInit2(&strm, -12);
+    if (ret != Z_OK) {
+        return -1;
+    }
+
+    ret = inflate(&strm, Z_FINISH);
+    if ((ret != Z_STREAM_END && ret != Z_BUF_ERROR) || strm.avail_out != 0) {
+        /* We approve Z_BUF_ERROR because we need @dest buffer to be filled, but
+         * @src buffer may be processed partly (because in qcow2 we know size of
+         * compressed data with precision of one sector) */
+        ret = -1;
+    }
+
+    inflateEnd(&strm);
+
+    return ret;
+}
+
 #define MAX_COMPRESS_THREADS 4
 
+typedef ssize_t (*Qcow2CompressFunc)(void *dest, size_t dest_size,
+                                     const void *src, size_t src_size);
 typedef struct Qcow2CompressData {
     void *dest;
+    size_t dest_size;
     const void *src;
-    size_t size;
+    size_t src_size;
     ssize_t ret;
+
+    Qcow2CompressFunc func;
 } Qcow2CompressData;
 
 static int qcow2_compress_pool_func(void *opaque)
 {
     Qcow2CompressData *data = opaque;
 
-    data->ret = qcow2_compress(data->dest, data->src, data->size);
+    data->ret = data->func(data->dest, data->dest_size,
+                           data->src, data->src_size);
 
     return 0;
 }
@@ -3784,17 +3834,19 @@ static void qcow2_compress_complete(void *opaque, int ret)
     qemu_coroutine_enter(opaque);
 }
 
-/* See qcow2_compress definition for parameters description */
-static ssize_t qcow2_co_compress(BlockDriverState *bs,
-                                 void *dest, const void *src, size_t size)
+static ssize_t coroutine_fn
+qcow2_co_do_compress(BlockDriverState *bs, void *dest, size_t dest_size,
+                     const void *src, size_t src_size, Qcow2CompressFunc func)
 {
     BDRVQcow2State *s = bs->opaque;
     BlockAIOCB *acb;
     ThreadPool *pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     Qcow2CompressData arg = {
         .dest = dest,
+        .dest_size = dest_size,
         .src = src,
-        .size = size,
+        .src_size = src_size,
+        .func = func,
     };
 
     while (s->nb_compress_threads >= MAX_COMPRESS_THREADS) {
@@ -3815,6 +3867,22 @@ static ssize_t qcow2_co_compress(BlockDriverState *bs,
     qemu_co_queue_next(&s->compress_wait_queue);
 
     return arg.ret;
+}
+
+static ssize_t coroutine_fn
+qcow2_co_compress(BlockDriverState *bs, void *dest, size_t dest_size,
+                  const void *src, size_t src_size)
+{
+    return qcow2_co_do_compress(bs, dest, dest_size, src, src_size,
+                                qcow2_compress);
+}
+
+static ssize_t coroutine_fn
+qcow2_co_decompress(BlockDriverState *bs, void *dest, size_t dest_size,
+                    const void *src, size_t src_size)
+{
+    return qcow2_co_do_compress(bs, dest, dest_size, src, src_size,
+                                qcow2_decompress);
 }
 
 /* XXX: put compressed sectors first, then all the cluster aligned
@@ -3861,7 +3929,8 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
 
     out_buf = g_malloc(s->cluster_size);
 
-    out_len = qcow2_co_compress(bs, out_buf, buf, s->cluster_size);
+    out_len = qcow2_co_compress(bs, out_buf, s->cluster_size - 1,
+                                buf, s->cluster_size);
     if (out_len == -2) {
         ret = -EINVAL;
         goto fail;
@@ -3906,6 +3975,55 @@ success:
 fail:
     qemu_vfree(buf);
     g_free(out_buf);
+    return ret;
+}
+
+static int coroutine_fn
+qcow2_co_preadv_compressed(BlockDriverState *bs,
+                           uint64_t file_cluster_offset,
+                           uint64_t offset,
+                           uint64_t bytes,
+                           QEMUIOVector *qiov)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int ret = 0, csize, nb_csectors;
+    uint64_t coffset;
+    uint8_t *buf, *out_buf;
+    struct iovec iov;
+    QEMUIOVector local_qiov;
+    int offset_in_cluster = offset_into_cluster(s, offset);
+
+    coffset = file_cluster_offset & s->cluster_offset_mask;
+    nb_csectors = ((file_cluster_offset >> s->csize_shift) & s->csize_mask) + 1;
+    csize = nb_csectors * 512 - (coffset & 511);
+
+    buf = g_try_malloc(csize);
+    if (!buf) {
+        return -ENOMEM;
+    }
+    iov.iov_base = buf;
+    iov.iov_len = csize;
+    qemu_iovec_init_external(&local_qiov, &iov, 1);
+
+    out_buf = qemu_blockalign(bs, s->cluster_size);
+
+    BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
+    ret = bdrv_co_preadv(bs->file, coffset, csize, &local_qiov, 0);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    if (qcow2_co_decompress(bs, out_buf, s->cluster_size, buf, csize) < 0) {
+        ret = -EIO;
+        goto fail;
+    }
+
+    qemu_iovec_from_buf(qiov, 0, out_buf + offset_in_cluster, bytes);
+
+fail:
+    qemu_vfree(out_buf);
+    g_free(buf);
+
     return ret;
 }
 

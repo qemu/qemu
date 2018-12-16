@@ -91,6 +91,24 @@ echo
 IMGOPTSSYNTAX=false $QEMU_IO -f null-co -c 'reopen' -c 'info' \
     "json:{'driver': 'null-co', 'size': 65536}"
 
+echo
+echo "=== Check that mixing -c/-r/-w and their corresponding options is forbidden ==="
+echo
+
+$QEMU_IO -c 'reopen -r -o read-only=on' $TEST_IMG
+$QEMU_IO -c 'reopen -w -o read-only=on' $TEST_IMG
+$QEMU_IO -c 'reopen -c none -o cache.direct=on' $TEST_IMG
+$QEMU_IO -c 'reopen -c writeback -o cache.direct=on' $TEST_IMG
+$QEMU_IO -c 'reopen -c directsync -o cache.no-flush=on' $TEST_IMG
+
+echo
+echo "=== Check that invalid options are handled correctly ==="
+echo
+
+$QEMU_IO -c 'reopen -o read-only=foo' $TEST_IMG
+$QEMU_IO -c 'reopen -o cache.no-flush=bar' $TEST_IMG
+$QEMU_IO -c 'reopen -o cache.direct=baz' $TEST_IMG
+$QEMU_IO -c 'reopen -o auto-read-only=qux' $TEST_IMG
 # success, all done
 echo "*** done"
 rm -f $seq.full
