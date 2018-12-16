@@ -860,9 +860,13 @@ static int usbback_connect(struct XenDevice *xendev)
     struct usbif_conn_sring *conn_sring;
     int urb_ring_ref;
     int conn_ring_ref;
-    unsigned int i;
+    unsigned int i, max_grants;
 
     TR_BUS(xendev, "start\n");
+
+    /* max_grants: for each request and for the rings (request and connect). */
+    max_grants = USBIF_MAX_SEGMENTS_PER_REQUEST * USB_URB_RING_SIZE + 2;
+    xen_be_set_max_grant_refs(xendev, max_grants);
 
     usbif = container_of(xendev, struct usbback_info, xendev);
 
@@ -1005,7 +1009,7 @@ static void usbback_alloc(struct XenDevice *xendev)
 {
     struct usbback_info *usbif;
     USBPort *p;
-    unsigned int i, max_grants;
+    unsigned int i;
 
     usbif = container_of(xendev, struct usbback_info, xendev);
 
@@ -1021,10 +1025,6 @@ static void usbback_alloc(struct XenDevice *xendev)
     QTAILQ_INIT(&usbif->req_free_q);
     QSIMPLEQ_INIT(&usbif->hotplug_q);
     usbif->bh = qemu_bh_new(usbback_bh, usbif);
-
-    /* max_grants: for each request and for the rings (request and connect). */
-    max_grants = USBIF_MAX_SEGMENTS_PER_REQUEST * USB_URB_RING_SIZE + 2;
-    xen_be_set_max_grant_refs(xendev, max_grants);
 }
 
 static int usbback_free(struct XenDevice *xendev)
