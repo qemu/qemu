@@ -322,6 +322,7 @@ static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
     sysbus_connect_irq(s, 2, qdev_get_gpio_in_named(iotkitdev,
                                                     "EXP_IRQ", 57 + i * 3));
 
+    g_free(mscname);
     return sysbus_mmio_get_region(s, 0);
 }
 

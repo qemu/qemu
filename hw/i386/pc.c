@@ -839,10 +839,9 @@ static void load_linux(PCMachineState *pcms,
 {
     uint16_t protocol;
     int setup_size, kernel_size, cmdline_size;
-    int64_t initrd_size = 0;
     int dtb_size, setup_data_offset;
     uint32_t initrd_max;
-    uint8_t header[8192], *setup, *kernel, *initrd_data;
+    uint8_t header[8192], *setup, *kernel;
     hwaddr real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
     FILE *f;
     char *vmode;
@@ -965,26 +964,29 @@ static void load_linux(PCMachineState *pcms,
 
     /* load initrd */
     if (initrd_filename) {
+        gsize initrd_size;
+        gchar *initrd_data;
+        GError *gerr = NULL;
+
         if (protocol < 0x200) {
             fprintf(stderr, "qemu: linux kernel too old to load a ram disk\n");
             exit(1);
         }
 
-        initrd_size = get_image_size(initrd_filename);
-        if (initrd_size < 0) {
+        if (!g_file_get_contents(initrd_filename, &initrd_data,
+                                 &initrd_size, &gerr)) {
             fprintf(stderr, "qemu: error reading initrd %s: %s\n",
-                    initrd_filename, strerror(errno));
+                    initrd_filename, gerr->message);
             exit(1);
-        } else if (initrd_size >= initrd_max) {
+        }
+        if (initrd_size >= initrd_max) {
             fprintf(stderr, "qemu: initrd is too large, cannot support."
-                    "(max: %"PRIu32", need %"PRId64")\n", initrd_max, initrd_size);
+                    "(max: %"PRIu32", need %"PRId64")\n",
+                    initrd_max, (uint64_t)initrd_size);
             exit(1);
         }
 
         initrd_addr = (initrd_max-initrd_size) & ~4095;
-
-        initrd_data = g_malloc(initrd_size);
-        load_image(initrd_filename, initrd_data);
 
         fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
         fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);

@@ -219,9 +219,11 @@ static void ref405ep_init(MachineState *machine)
             bios_name = BIOS_FILENAME;
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
-            bios_size = load_image(filename, memory_region_get_ram_ptr(bios));
+            bios_size = load_image_size(filename,
+                                        memory_region_get_ram_ptr(bios),
+                                        BIOS_SIZE);
             g_free(filename);
-            if (bios_size < 0 || bios_size > BIOS_SIZE) {
+            if (bios_size < 0) {
                 error_report("Could not load PowerPC BIOS '%s'", bios_name);
                 exit(1);
             }
@@ -515,9 +517,11 @@ static void taihu_405ep_init(MachineState *machine)
                                &error_fatal);
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
-            bios_size = load_image(filename, memory_region_get_ram_ptr(bios));
+            bios_size = load_image_size(filename,
+                                        memory_region_get_ram_ptr(bios),
+                                        BIOS_SIZE);
             g_free(filename);
-            if (bios_size < 0 || bios_size > BIOS_SIZE) {
+            if (bios_size < 0) {
                 error_report("Could not load PowerPC BIOS '%s'", bios_name);
                 exit(1);
             }

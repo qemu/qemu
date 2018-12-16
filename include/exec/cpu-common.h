@@ -111,8 +111,6 @@ bool cpu_physical_memory_is_io(hwaddr phys_addr);
  */
 void qemu_flush_coalesced_mmio_buffer(void);
 
-void cpu_physical_memory_write_rom(AddressSpace *as, hwaddr addr,
-                                   const uint8_t *buf, int len);
 void cpu_flush_icache_range(hwaddr start, int len);
 
 extern struct MemoryRegion io_mem_rom;

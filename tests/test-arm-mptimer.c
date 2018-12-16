@@ -991,10 +991,25 @@ static void test_timer_zero_load_nonscaled_periodic_to_prescaled_oneshot(void)
     g_assert_cmpuint(timer_get_and_clr_int_sts(), ==, 0);
 }
 
+/*
+ * Add a qtest test that comes in two versions: one with
+ * a timer scaler setting, and one with the timer nonscaled.
+ */
+static void add_scaler_test(const char *str, bool scale,
+                            void (*fn)(const void *))
+{
+    char *name;
+    int *scaler = scale ? &scaled : &nonscaled;
+
+    name = g_strdup_printf("%s=%d", str, *scaler);
+    qtest_add_data_func(name, scaler, fn);
+    g_free(name);
+}
+
 int main(int argc, char **argv)
 {
-    int *scaler = &nonscaled;
     int ret;
+    int scale;
 
     g_test_init(&argc, &argv, NULL);
 
@@ -1012,89 +1027,59 @@ int main(int argc, char **argv)
     qtest_add_func("mptimer/prescaler", test_timer_prescaler);
     qtest_add_func("mptimer/prescaler_on_the_fly", test_timer_prescaler_on_the_fly);
 
-tests_with_prescaler_arg:
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/oneshot scaler=%d", *scaler),
-                        scaler, test_timer_oneshot);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/pause scaler=%d", *scaler),
-                        scaler, test_timer_pause);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/reload scaler=%d", *scaler),
-                        scaler, test_timer_reload);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/periodic scaler=%d", *scaler),
-                        scaler, test_timer_periodic);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/oneshot_to_periodic scaler=%d", *scaler),
-                        scaler, test_timer_oneshot_to_periodic);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/periodic_to_oneshot scaler=%d", *scaler),
-                        scaler, test_timer_periodic_to_oneshot);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/set_oneshot_counter_to_0 scaler=%d", *scaler),
-                        scaler, test_timer_set_oneshot_counter_to_0);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/set_periodic_counter_to_0 scaler=%d", *scaler),
-                        scaler, test_timer_set_periodic_counter_to_0);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/noload_oneshot scaler=%d", *scaler),
-                        scaler, test_timer_noload_oneshot);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/noload_periodic scaler=%d", *scaler),
-                        scaler, test_timer_noload_periodic);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/zero_load_oneshot scaler=%d", *scaler),
-                        scaler, test_timer_zero_load_oneshot);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/zero_load_periodic scaler=%d", *scaler),
-                        scaler, test_timer_zero_load_periodic);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/zero_load_oneshot_to_nonzero scaler=%d", *scaler),
-                        scaler, test_timer_zero_load_oneshot_to_nonzero);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/zero_load_periodic_to_nonzero scaler=%d", *scaler),
-                        scaler, test_timer_zero_load_periodic_to_nonzero);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/nonzero_load_oneshot_to_zero scaler=%d", *scaler),
-                        scaler, test_timer_nonzero_load_oneshot_to_zero);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/nonzero_load_periodic_to_zero scaler=%d", *scaler),
-                        scaler, test_timer_nonzero_load_periodic_to_zero);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/set_periodic_counter_on_the_fly scaler=%d", *scaler),
-                        scaler, test_timer_set_periodic_counter_on_the_fly);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/enable_and_set_counter scaler=%d", *scaler),
-                        scaler, test_timer_enable_and_set_counter);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/set_counter_and_enable scaler=%d", *scaler),
-                        scaler, test_timer_set_counter_and_enable);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/oneshot_with_counter_0_on_start scaler=%d", *scaler),
-                        scaler, test_timer_oneshot_with_counter_0_on_start);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/periodic_with_counter_0_on_start scaler=%d", *scaler),
-                        scaler, test_timer_periodic_with_counter_0_on_start);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/periodic_counter scaler=%d", *scaler),
-                        scaler, test_periodic_counter);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/set_counter_periodic_with_zero_load scaler=%d", *scaler),
-                        scaler, test_timer_set_counter_periodic_with_zero_load);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/set_oneshot_load_to_0 scaler=%d", *scaler),
-                        scaler, test_timer_set_oneshot_load_to_0);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/set_periodic_load_to_0 scaler=%d", *scaler),
-                        scaler, test_timer_set_periodic_load_to_0);
-    qtest_add_data_func(
-        g_strdup_printf("mptimer/zero_load_mode_switch scaler=%d", *scaler),
-                        scaler, test_timer_zero_load_mode_switch);
-
-    if (scaler == &nonscaled) {
-        scaler = &scaled;
-        goto tests_with_prescaler_arg;
+    for (scale = 0; scale < 2; scale++) {
+        add_scaler_test("mptimer/oneshot scaler",
+                        scale, test_timer_oneshot);
+        add_scaler_test("mptimer/pause scaler",
+                        scale, test_timer_pause);
+        add_scaler_test("mptimer/reload scaler",
+                        scale, test_timer_reload);
+        add_scaler_test("mptimer/periodic scaler",
+                        scale, test_timer_periodic);
+        add_scaler_test("mptimer/oneshot_to_periodic scaler",
+                        scale, test_timer_oneshot_to_periodic);
+        add_scaler_test("mptimer/periodic_to_oneshot scaler",
+                        scale, test_timer_periodic_to_oneshot);
+        add_scaler_test("mptimer/set_oneshot_counter_to_0 scaler",
+                        scale, test_timer_set_oneshot_counter_to_0);
+        add_scaler_test("mptimer/set_periodic_counter_to_0 scaler",
+                        scale, test_timer_set_periodic_counter_to_0);
+        add_scaler_test("mptimer/noload_oneshot scaler",
+                        scale, test_timer_noload_oneshot);
+        add_scaler_test("mptimer/noload_periodic scaler",
+                        scale, test_timer_noload_periodic);
+        add_scaler_test("mptimer/zero_load_oneshot scaler",
+                        scale, test_timer_zero_load_oneshot);
+        add_scaler_test("mptimer/zero_load_periodic scaler",
+                        scale, test_timer_zero_load_periodic);
+        add_scaler_test("mptimer/zero_load_oneshot_to_nonzero scaler",
+                        scale, test_timer_zero_load_oneshot_to_nonzero);
+        add_scaler_test("mptimer/zero_load_periodic_to_nonzero scaler",
+                        scale, test_timer_zero_load_periodic_to_nonzero);
+        add_scaler_test("mptimer/nonzero_load_oneshot_to_zero scaler",
+                        scale, test_timer_nonzero_load_oneshot_to_zero);
+        add_scaler_test("mptimer/nonzero_load_periodic_to_zero scaler",
+                        scale, test_timer_nonzero_load_periodic_to_zero);
+        add_scaler_test("mptimer/set_periodic_counter_on_the_fly scaler",
+                        scale, test_timer_set_periodic_counter_on_the_fly);
+        add_scaler_test("mptimer/enable_and_set_counter scaler",
+                        scale, test_timer_enable_and_set_counter);
+        add_scaler_test("mptimer/set_counter_and_enable scaler",
+                        scale, test_timer_set_counter_and_enable);
+        add_scaler_test("mptimer/oneshot_with_counter_0_on_start scaler",
+                        scale, test_timer_oneshot_with_counter_0_on_start);
+        add_scaler_test("mptimer/periodic_with_counter_0_on_start scaler",
+                        scale, test_timer_periodic_with_counter_0_on_start);
+        add_scaler_test("mptimer/periodic_counter scaler",
+                        scale, test_periodic_counter);
+        add_scaler_test("mptimer/set_counter_periodic_with_zero_load scaler",
+                        scale, test_timer_set_counter_periodic_with_zero_load);
+        add_scaler_test("mptimer/set_oneshot_load_to_0 scaler",
+                        scale, test_timer_set_oneshot_load_to_0);
+        add_scaler_test("mptimer/set_periodic_load_to_0 scaler",
+                        scale, test_timer_set_periodic_load_to_0);
+        add_scaler_test("mptimer/zero_load_mode_switch scaler",
+                        scale, test_timer_zero_load_mode_switch);
     }
 
     qtest_start("-machine vexpress-a9");

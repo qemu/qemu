@@ -38,7 +38,8 @@ static void init_dev(tc58128_dev * dev, const char *filename)
     memset(dev->flash_contents, 0xff, FLASH_SIZE);
     if (filename) {
 	/* Load flash image skipping the first block */
-	ret = load_image(filename, dev->flash_contents + 528 * 32);
+        ret = load_image_size(filename, dev->flash_contents + 528 * 32,
+                              FLASH_SIZE - 528 * 32);
 	if (ret < 0) {
             if (!qtest_enabled()) {
                 error_report("Could not load flash image %s", filename);
