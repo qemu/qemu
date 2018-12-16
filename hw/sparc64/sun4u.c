@@ -596,7 +596,15 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 4,
         qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_SER_IRQ));
 
-    pci_dev = pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
+    switch (vga_interface_type) {
+    case VGA_STD:
+        pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
+        break;
+    case VGA_NONE:
+        break;
+    default:
+        abort();   /* Should not happen - types are checked in vl.c already */
+    }
 
     memset(&macaddr, 0, sizeof(MACAddr));
     onboard_nic = false;
