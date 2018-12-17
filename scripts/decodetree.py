@@ -784,7 +784,7 @@ class Tree:
 
 def build_tree(pats, outerbits, outermask):
     # Find the intersection of all remaining fixedmask.
-    innermask = ~outermask
+    innermask = ~outermask & insnmask
     for i in pats:
         innermask &= i.fixedmask
 
