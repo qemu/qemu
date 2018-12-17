@@ -524,6 +524,11 @@ void qemu_thread_create(QemuThread *thread, const char *name,
 
     /* Leave signal handling to the iothread.  */
     sigfillset(&set);
+    /* Blocking the signals can result in undefined behaviour. */
+    sigdelset(&set, SIGSEGV);
+    sigdelset(&set, SIGFPE);
+    sigdelset(&set, SIGILL);
+    /* TODO avoid SIGBUS loss on macOS */
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
 
     qemu_thread_args = g_new0(QemuThreadArgs, 1);
