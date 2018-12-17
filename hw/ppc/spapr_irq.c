@@ -94,8 +94,7 @@ error:
 static void spapr_irq_init_xics(sPAPRMachineState *spapr, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-    int nr_irqs = smc->irq->nr_irqs;
+    int nr_irqs = spapr->irq->nr_irqs;
     Error *local_err = NULL;
 
     if (kvm_enabled()) {
@@ -234,7 +233,6 @@ sPAPRIrq spapr_irq_xics = {
 static void spapr_irq_init_xive(sPAPRMachineState *spapr, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     uint32_t nr_servers = spapr_max_server_number(spapr);
     DeviceState *dev;
     int i;
@@ -248,7 +246,7 @@ static void spapr_irq_init_xive(sPAPRMachineState *spapr, Error **errp)
     }
 
     dev = qdev_create(NULL, TYPE_SPAPR_XIVE);
-    qdev_prop_set_uint32(dev, "nr-irqs", smc->irq->nr_irqs);
+    qdev_prop_set_uint32(dev, "nr-irqs", spapr->irq->nr_irqs);
     /*
      * 8 XIVE END structures per CPU. One for each available priority
      */
@@ -362,50 +360,38 @@ sPAPRIrq spapr_irq_xive = {
  */
 void spapr_irq_init(sPAPRMachineState *spapr, Error **errp)
 {
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-
     /* Initialize the MSI IRQ allocator. */
     if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
-        spapr_irq_msi_init(spapr, smc->irq->nr_msis);
+        spapr_irq_msi_init(spapr, spapr->irq->nr_msis);
     }
 
-    smc->irq->init(spapr, errp);
+    spapr->irq->init(spapr, errp);
 }
 
 int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp)
 {
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-
-    return smc->irq->claim(spapr, irq, lsi, errp);
+    return spapr->irq->claim(spapr, irq, lsi, errp);
 }
 
 void spapr_irq_free(sPAPRMachineState *spapr, int irq, int num)
 {
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-
-    smc->irq->free(spapr, irq, num);
+    spapr->irq->free(spapr, irq, num);
 }
 
 qemu_irq spapr_qirq(sPAPRMachineState *spapr, int irq)
 {
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-
-    return smc->irq->qirq(spapr, irq);
+    return spapr->irq->qirq(spapr, irq);
 }
 
 int spapr_irq_post_load(sPAPRMachineState *spapr, int version_id)
 {
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-
-    return smc->irq->post_load(spapr, version_id);
+    return spapr->irq->post_load(spapr, version_id);
 }
 
 void spapr_irq_reset(sPAPRMachineState *spapr, Error **errp)
 {
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-
-    if (smc->irq->reset) {
-        smc->irq->reset(spapr, errp);
+    if (spapr->irq->reset) {
+        spapr->irq->reset(spapr, errp);
     }
 }
 

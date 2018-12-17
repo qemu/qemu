@@ -1104,10 +1104,9 @@ static void spapr_dt_ov5_platform_support(sPAPRMachineState *spapr, void *fdt,
                                           int chosen)
 {
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
     char val[2 * 4] = {
-        23, smc->irq->ov5, /* Xive mode. */
+        23, spapr->irq->ov5, /* Xive mode. */
         24, 0x00, /* Hash/Radix, filled in below. */
         25, 0x00, /* Hash options: Segment Tables == no, GTSE == no. */
         26, 0x40, /* Radix options: GTSE == yes. */
@@ -1276,7 +1275,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
-    smc->irq->dt_populate(spapr, spapr_max_server_number(spapr), fdt,
+    spapr->irq->dt_populate(spapr, spapr_max_server_number(spapr), fdt,
                           PHANDLE_XICP);
 
     ret = spapr_populate_memory(spapr, fdt);
@@ -1297,7 +1296,8 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     }
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt, smc->irq->nr_msis);
+        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt,
+                                    spapr->irq->nr_msis);
         if (ret < 0) {
             error_report("couldn't setup PCI devices in fdt");
             exit(1);
@@ -2633,7 +2633,7 @@ static void spapr_machine_init(MachineState *machine)
     spapr_ovec_set(spapr->ov5, OV5_DRMEM_V2);
 
     /* advertise XIVE on POWER9 machines */
-    if (smc->irq->ov5 & SPAPR_OV5_XIVE_EXPLOIT) {
+    if (spapr->irq->ov5 & SPAPR_OV5_XIVE_EXPLOIT) {
         if (ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00,
                                   0, spapr->max_compat_pvr)) {
             spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
@@ -3053,9 +3053,38 @@ static void spapr_set_vsmt(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, (uint32_t *)opaque, errp);
 }
 
+static char *spapr_get_ic_mode(Object *obj, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    if (spapr->irq == &spapr_irq_xics_legacy) {
+        return g_strdup("legacy");
+    } else if (spapr->irq == &spapr_irq_xics) {
+        return g_strdup("xics");
+    } else if (spapr->irq == &spapr_irq_xive) {
+        return g_strdup("xive");
+    }
+    g_assert_not_reached();
+}
+
+static void spapr_set_ic_mode(Object *obj, const char *value, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    /* The legacy IRQ backend can not be set */
+    if (strcmp(value, "xics") == 0) {
+        spapr->irq = &spapr_irq_xics;
+    } else if (strcmp(value, "xive") == 0) {
+        spapr->irq = &spapr_irq_xive;
+    } else {
+        error_setg(errp, "Bad value for \"ic-mode\" property");
+    }
+}
+
 static void spapr_instance_init(Object *obj)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
     spapr->htab_fd = -1;
     spapr->use_hotplug_event_source = true;
@@ -3089,6 +3118,14 @@ static void spapr_instance_init(Object *obj)
                                     " the host's SMT mode", &error_abort);
     object_property_add_bool(obj, "vfio-no-msix-emulation",
                              spapr_get_msix_emulation, NULL, NULL);
+
+    /* The machine class defines the default interrupt controller mode */
+    spapr->irq = smc->irq;
+    object_property_add_str(obj, "ic-mode", spapr_get_ic_mode,
+                            spapr_set_ic_mode, NULL);
+    object_property_set_description(obj, "ic-mode",
+                 "Specifies the interrupt controller mode (xics, xive)",
+                 NULL);
 }
 
 static void spapr_machine_finalizefn(Object *obj)
@@ -3811,9 +3848,8 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
                                  Monitor *mon)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
-    smc->irq->print_info(spapr, mon);
+    spapr->irq->print_info(spapr, mon);
 }
 
 int spapr_get_vcpu_id(PowerPCCPU *cpu)
