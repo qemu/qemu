@@ -168,12 +168,13 @@ static inline void reloc_26(tcg_insn_unit *pc, tcg_insn_unit *target)
     *pc = deposit32(*pc, 0, 26, reloc_26_val(pc, target));
 }
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     tcg_debug_assert(type == R_MIPS_PC16);
     tcg_debug_assert(addend == 0);
     reloc_pc16(code_ptr, (tcg_insn_unit *)value);
+    return true;
 }
 
 #define TCG_CT_CONST_ZERO 0x100
@@ -483,12 +484,7 @@ static inline void tcg_out_opc_bf64(TCGContext *s, MIPSInsn opc, MIPSInsn opm,
 static inline void tcg_out_opc_br(TCGContext *s, MIPSInsn opc,
                                   TCGReg rt, TCGReg rs)
 {
-    /* We pay attention here to not modify the branch target by reading
-       the existing value and using it again. This ensure that caches and
-       memory are kept coherent during retranslation. */
-    uint16_t offset = (uint16_t)*s->code_ptr;
-
-    tcg_out_opc_imm(s, opc, rt, rs, offset);
+    tcg_out_opc_imm(s, opc, rt, rs, 0);
 }
 
 /*
@@ -796,7 +792,7 @@ static void tcg_out_addsub2(TCGContext *s, TCGReg rl, TCGReg rh, TCGReg al,
             tcg_out_opc_imm(s, OPC_ADDIU, rl, al, bl);
             tcg_out_opc_imm(s, OPC_SLTIU, TCG_TMP0, rl, bl);
         } else if (rl == al && rl == bl) {
-            tcg_out_opc_sa(s, OPC_SRL, TCG_TMP0, al, 31);
+            tcg_out_opc_sa(s, OPC_SRL, TCG_TMP0, al, TCG_TARGET_REG_BITS - 1);
             tcg_out_opc_reg(s, OPC_ADDU, rl, al, bl);
         } else {
             tcg_out_opc_reg(s, OPC_ADDU, rl, al, bl);

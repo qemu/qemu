@@ -78,48 +78,40 @@ static const int tcg_target_call_oarg_regs[1] = {
 #define TCG_REG_GUEST_BASE TCG_REG_X28
 #endif
 
-static inline void reloc_pc26(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
+static inline bool reloc_pc26(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 {
     ptrdiff_t offset = target - code_ptr;
-    tcg_debug_assert(offset == sextract64(offset, 0, 26));
-    /* read instruction, mask away previous PC_REL26 parameter contents,
-       set the proper offset, then write back the instruction. */
-    *code_ptr = deposit32(*code_ptr, 0, 26, offset);
+    if (offset == sextract64(offset, 0, 26)) {
+        /* read instruction, mask away previous PC_REL26 parameter contents,
+           set the proper offset, then write back the instruction. */
+        *code_ptr = deposit32(*code_ptr, 0, 26, offset);
+        return true;
+    }
+    return false;
 }
 
-static inline void reloc_pc26_atomic(tcg_insn_unit *code_ptr,
-                                     tcg_insn_unit *target)
+static inline bool reloc_pc19(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 {
     ptrdiff_t offset = target - code_ptr;
-    tcg_insn_unit insn;
-    tcg_debug_assert(offset == sextract64(offset, 0, 26));
-    /* read instruction, mask away previous PC_REL26 parameter contents,
-       set the proper offset, then write back the instruction. */
-    insn = atomic_read(code_ptr);
-    atomic_set(code_ptr, deposit32(insn, 0, 26, offset));
+    if (offset == sextract64(offset, 0, 19)) {
+        *code_ptr = deposit32(*code_ptr, 5, 19, offset);
+        return true;
+    }
+    return false;
 }
 
-static inline void reloc_pc19(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
-{
-    ptrdiff_t offset = target - code_ptr;
-    tcg_debug_assert(offset == sextract64(offset, 0, 19));
-    *code_ptr = deposit32(*code_ptr, 5, 19, offset);
-}
-
-static inline void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static inline bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                                intptr_t value, intptr_t addend)
 {
     tcg_debug_assert(addend == 0);
     switch (type) {
     case R_AARCH64_JUMP26:
     case R_AARCH64_CALL26:
-        reloc_pc26(code_ptr, (tcg_insn_unit *)value);
-        break;
+        return reloc_pc26(code_ptr, (tcg_insn_unit *)value);
     case R_AARCH64_CONDBR19:
-        reloc_pc19(code_ptr, (tcg_insn_unit *)value);
-        break;
+        return reloc_pc19(code_ptr, (tcg_insn_unit *)value);
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 }
 
@@ -1141,23 +1133,6 @@ static inline void tcg_out_goto_long(TCGContext *s, tcg_insn_unit *target)
     }
 }
 
-static inline void tcg_out_goto_noaddr(TCGContext *s)
-{
-    /* We pay attention here to not modify the branch target by reading from
-       the buffer. This ensure that caches and memory are kept coherent during
-       retranslation.  Mask away possible garbage in the high bits for the
-       first translation, while keeping the offset bits for retranslation. */
-    uint32_t old = tcg_in32(s);
-    tcg_out_insn(s, 3206, B, old);
-}
-
-static inline void tcg_out_goto_cond_noaddr(TCGContext *s, TCGCond c)
-{
-    /* See comments in tcg_out_goto_noaddr.  */
-    uint32_t old = tcg_in32(s) >> 5;
-    tcg_out_insn(s, 3202, B_C, c, old);
-}
-
 static inline void tcg_out_callr(TCGContext *s, TCGReg reg)
 {
     tcg_out_insn(s, 3207, BLR, reg);
@@ -1204,7 +1179,7 @@ static inline void tcg_out_goto_label(TCGContext *s, TCGLabel *l)
 {
     if (!l->has_value) {
         tcg_out_reloc(s, s->code_ptr, R_AARCH64_JUMP26, l, 0);
-        tcg_out_goto_noaddr(s);
+        tcg_out_insn(s, 3206, B, 0);
     } else {
         tcg_out_goto(s, l->u.value_ptr);
     }
@@ -1415,7 +1390,8 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     TCGMemOp opc = get_memop(oi);
     TCGMemOp size = opc & MO_SIZE;
 
-    reloc_pc19(lb->label_ptr[0], s->code_ptr);
+    bool ok = reloc_pc19(lb->label_ptr[0], s->code_ptr);
+    tcg_debug_assert(ok);
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_X0, TCG_AREG0);
     tcg_out_mov(s, TARGET_LONG_BITS == 64, TCG_REG_X1, lb->addrlo_reg);
@@ -1437,7 +1413,8 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     TCGMemOp opc = get_memop(oi);
     TCGMemOp size = opc & MO_SIZE;
 
-    reloc_pc19(lb->label_ptr[0], s->code_ptr);
+    bool ok = reloc_pc19(lb->label_ptr[0], s->code_ptr);
+    tcg_debug_assert(ok);
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_X0, TCG_AREG0);
     tcg_out_mov(s, TARGET_LONG_BITS == 64, TCG_REG_X1, lb->addrlo_reg);
@@ -1535,7 +1512,7 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp opc,
 
     /* If not equal, we jump to the slow path. */
     *label_ptr = s->code_ptr;
-    tcg_out_goto_cond_noaddr(s, TCG_COND_NE);
+    tcg_out_insn(s, 3202, B_C, TCG_COND_NE, 0);
 }
 
 #endif /* CONFIG_SOFTMMU */

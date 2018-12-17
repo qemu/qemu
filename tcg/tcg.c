@@ -66,7 +66,7 @@
 static void tcg_target_init(TCGContext *s);
 static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode);
 static void tcg_target_qemu_prologue(TCGContext *s);
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend);
 
 /* The CIE and FDE header definitions will be common to all hosts.  */
@@ -268,7 +268,8 @@ static void tcg_out_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
         /* FIXME: This may break relocations on RISC targets that
            modify instruction fields in place.  The caller may not have 
            written the initial value.  */
-        patch_reloc(code_ptr, type, l->u.value, addend);
+        bool ok = patch_reloc(code_ptr, type, l->u.value, addend);
+        tcg_debug_assert(ok);
     } else {
         /* add a new relocation entry */
         r = tcg_malloc(sizeof(TCGRelocation));
@@ -288,7 +289,8 @@ static void tcg_out_label(TCGContext *s, TCGLabel *l, tcg_insn_unit *ptr)
     tcg_debug_assert(!l->has_value);
 
     for (r = l->u.first_reloc; r != NULL; r = r->next) {
-        patch_reloc(r->ptr, r->type, value, r->addend);
+        bool ok = patch_reloc(r->ptr, r->type, value, r->addend);
+        tcg_debug_assert(ok);
     }
 
     l->has_value = 1;
@@ -2203,16 +2205,14 @@ TCGOp *tcg_emit_op(TCGOpcode opc)
     return op;
 }
 
-TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *old_op,
-                            TCGOpcode opc, int nargs)
+TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *old_op, TCGOpcode opc)
 {
     TCGOp *new_op = tcg_op_alloc(opc);
     QTAILQ_INSERT_BEFORE(old_op, new_op, link);
     return new_op;
 }
 
-TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *old_op,
-                           TCGOpcode opc, int nargs)
+TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *old_op, TCGOpcode opc)
 {
     TCGOp *new_op = tcg_op_alloc(opc);
     QTAILQ_INSERT_AFTER(&s->ops, old_op, new_op, link);
@@ -2550,7 +2550,7 @@ static bool liveness_pass_2(TCGContext *s)
                     TCGOpcode lopc = (arg_ts->type == TCG_TYPE_I32
                                       ? INDEX_op_ld_i32
                                       : INDEX_op_ld_i64);
-                    TCGOp *lop = tcg_op_insert_before(s, op, lopc, 3);
+                    TCGOp *lop = tcg_op_insert_before(s, op, lopc);
 
                     lop->args[0] = temp_arg(dir_ts);
                     lop->args[1] = temp_arg(arg_ts->mem_base);
@@ -2619,7 +2619,7 @@ static bool liveness_pass_2(TCGContext *s)
                 TCGOpcode sopc = (arg_ts->type == TCG_TYPE_I32
                                   ? INDEX_op_st_i32
                                   : INDEX_op_st_i64);
-                TCGOp *sop = tcg_op_insert_after(s, op, sopc, 3);
+                TCGOp *sop = tcg_op_insert_after(s, op, sopc);
 
                 sop->args[0] = temp_arg(dir_ts);
                 sop->args[1] = temp_arg(arg_ts->mem_base);

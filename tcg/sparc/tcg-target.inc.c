@@ -291,7 +291,7 @@ static inline int check_fit_i32(int32_t val, unsigned int bits)
 # define check_fit_ptr  check_fit_i32
 #endif
 
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     uint32_t insn = *code_ptr;
@@ -311,29 +311,12 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
         insn &= ~INSN_OFF19(-1);
         insn |= INSN_OFF19(pcrel);
         break;
-    case R_SPARC_13:
-        /* Note that we're abusing this reloc type for our own needs.  */
-        if (!check_fit_ptr(value, 13)) {
-            int adj = (value > 0 ? 0xff8 : -0x1000);
-            value -= adj;
-            assert(check_fit_ptr(value, 13));
-            *code_ptr++ = (ARITH_ADD | INSN_RD(TCG_REG_T2)
-                           | INSN_RS1(TCG_REG_TB) | INSN_IMM13(adj));
-            insn ^= INSN_RS1(TCG_REG_TB) ^ INSN_RS1(TCG_REG_T2);
-        }
-        insn &= ~INSN_IMM13(-1);
-        insn |= INSN_IMM13(value);
-        break;
-    case R_SPARC_32:
-        /* Note that we're abusing this reloc type for our own needs.  */
-        code_ptr[0] = deposit32(code_ptr[0], 0, 22, value >> 10);
-        code_ptr[1] = deposit32(code_ptr[1], 0, 10, value);
-        return;
     default:
         g_assert_not_reached();
     }
 
     *code_ptr = insn;
+    return true;
 }
 
 /* parse target specific constraints */
@@ -459,6 +442,15 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
         return;
     }
 
+    /* A 13-bit constant relative to the TB.  */
+    if (!in_prologue && USE_REG_TB) {
+        test = arg - (uintptr_t)s->code_gen_ptr;
+        if (check_fit_ptr(test, 13)) {
+            tcg_out_arithi(s, ret, TCG_REG_TB, test, ARITH_ADD);
+            return;
+        }
+    }
+
     /* A 32-bit constant, or 32-bit zero-extended to 64-bits.  */
     if (type == TCG_TYPE_I32 || arg == (uint32_t)arg) {
         tcg_out_sethi(s, ret, arg);
@@ -485,26 +477,6 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     } else if (lsb > 10 && test == extract64(test, 0, 21)) {
         tcg_out_sethi(s, ret, test << 10);
         tcg_out_arithi(s, ret, ret, lsb - 10, SHIFT_SLLX);
-        return;
-    }
-
-    if (!in_prologue) {
-        if (USE_REG_TB) {
-            intptr_t diff = arg - (uintptr_t)s->code_gen_ptr;
-            if (check_fit_ptr(diff, 13)) {
-                tcg_out_arithi(s, ret, TCG_REG_TB, diff, ARITH_ADD);
-            } else {
-                new_pool_label(s, arg, R_SPARC_13, s->code_ptr,
-                               -(intptr_t)s->code_gen_ptr);
-                tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(TCG_REG_TB));
-                /* May be used to extend the 13-bit range in patch_reloc.  */
-                tcg_out32(s, NOP);
-            }
-        } else {
-            new_pool_label(s, arg, R_SPARC_32, s->code_ptr, 0);
-            tcg_out_sethi(s, ret, 0);
-            tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(ret) | INSN_IMM13(0));
-        }
         return;
     }
 
@@ -639,13 +611,11 @@ static void tcg_out_bpcc0(TCGContext *s, int scond, int flags, int off19)
 
 static void tcg_out_bpcc(TCGContext *s, int scond, int flags, TCGLabel *l)
 {
-    int off19;
+    int off19 = 0;
 
     if (l->has_value) {
         off19 = INSN_OFF19(tcg_pcrel_diff(s, l->u.value_ptr));
     } else {
-        /* Make sure to preserve destinations during retranslation.  */
-        off19 = *s->code_ptr & INSN_OFF19(-1);
         tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP19, l, 0);
     }
     tcg_out_bpcc0(s, scond, flags, off19);
@@ -685,13 +655,11 @@ static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGReg arg1,
 {
     /* For 64-bit signed comparisons vs zero, we can avoid the compare.  */
     if (arg2 == 0 && !is_unsigned_cond(cond)) {
-        int off16;
+        int off16 = 0;
 
         if (l->has_value) {
             off16 = INSN_OFF16(tcg_pcrel_diff(s, l->u.value_ptr));
         } else {
-            /* Make sure to preserve destinations during retranslation.  */
-            off16 = *s->code_ptr & INSN_OFF16(-1);
             tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP16, l, 0);
         }
         tcg_out32(s, INSN_OP(0) | INSN_OP2(3) | BPR_PT | INSN_RS1(arg1)

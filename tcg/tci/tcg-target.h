@@ -198,6 +198,8 @@ static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
    We prefer consistency across hosts on this.  */
 #define TCG_TARGET_DEFAULT_MO  (0)
 
+#define TCG_TARGET_HAS_MEMORY_BSWAP     1
+
 static inline void tb_target_set_jmp_target(uintptr_t tc_ptr,
                                             uintptr_t jmp_addr, uintptr_t addr)
 {

@@ -353,6 +353,15 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
     CASE_OP_32_64(ext16u):
         return (uint16_t)x;
 
+    CASE_OP_32_64(bswap16):
+        return bswap16(x);
+
+    CASE_OP_32_64(bswap32):
+        return bswap32(x);
+
+    case INDEX_op_bswap64_i64:
+        return bswap64(x);
+
     case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
         return (int32_t)x;
@@ -1105,6 +1114,9 @@ void tcg_optimize(TCGContext *s)
         CASE_OP_32_64(ext16s):
         CASE_OP_32_64(ext16u):
         CASE_OP_32_64(ctpop):
+        CASE_OP_32_64(bswap16):
+        CASE_OP_32_64(bswap32):
+        case INDEX_op_bswap64_i64:
         case INDEX_op_ext32s_i64:
         case INDEX_op_ext32u_i64:
         case INDEX_op_ext_i32_i64:
@@ -1249,7 +1261,7 @@ void tcg_optimize(TCGContext *s)
                 uint64_t a = ((uint64_t)ah << 32) | al;
                 uint64_t b = ((uint64_t)bh << 32) | bl;
                 TCGArg rl, rh;
-                TCGOp *op2 = tcg_op_insert_before(s, op, INDEX_op_movi_i32, 2);
+                TCGOp *op2 = tcg_op_insert_before(s, op, INDEX_op_movi_i32);
 
                 if (opc == INDEX_op_add2_i32) {
                     a += b;
@@ -1271,7 +1283,7 @@ void tcg_optimize(TCGContext *s)
                 uint32_t b = arg_info(op->args[3])->val;
                 uint64_t r = (uint64_t)a * b;
                 TCGArg rl, rh;
-                TCGOp *op2 = tcg_op_insert_before(s, op, INDEX_op_movi_i32, 2);
+                TCGOp *op2 = tcg_op_insert_before(s, op, INDEX_op_movi_i32);
 
                 rl = op->args[0];
                 rh = op->args[1];

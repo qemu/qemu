@@ -84,10 +84,12 @@ typedef enum {
     TCG_REG_RBP = TCG_REG_EBP,
     TCG_REG_RSI = TCG_REG_ESI,
     TCG_REG_RDI = TCG_REG_EDI,
+
+    TCG_AREG0 = TCG_REG_EBP,
+    TCG_REG_CALL_STACK = TCG_REG_ESP
 } TCGReg;
 
 /* used for function call generation */
-#define TCG_REG_CALL_STACK TCG_REG_ESP 
 #define TCG_TARGET_STACK_ALIGN 16
 #if defined(_WIN64)
 #define TCG_TARGET_CALL_STACK_OFFSET 32
@@ -133,8 +135,9 @@ extern bool have_avx2;
 #define TCG_TARGET_HAS_direct_jump      1
 
 #if TCG_TARGET_REG_BITS == 64
-#define TCG_TARGET_HAS_extrl_i64_i32    0
-#define TCG_TARGET_HAS_extrh_i64_i32    0
+/* Keep target addresses zero-extended in a register.  */
+#define TCG_TARGET_HAS_extrl_i64_i32    (TARGET_LONG_BITS == 32)
+#define TCG_TARGET_HAS_extrh_i64_i32    (TARGET_LONG_BITS == 32)
 #define TCG_TARGET_HAS_div2_i64         1
 #define TCG_TARGET_HAS_rot_i64          1
 #define TCG_TARGET_HAS_ext8s_i64        1
@@ -194,12 +197,6 @@ extern bool have_avx2;
 #define TCG_TARGET_extract_i64_valid(ofs, len) \
     (((ofs) == 8 && (len) == 8) || ((ofs) + (len)) == 32)
 
-#if TCG_TARGET_REG_BITS == 64
-# define TCG_AREG0 TCG_REG_R14
-#else
-# define TCG_AREG0 TCG_REG_EBP
-#endif
-
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
 }
@@ -222,6 +219,8 @@ static inline void tb_target_set_jmp_target(uintptr_t tc_ptr,
 #include "tcg-mo.h"
 
 #define TCG_TARGET_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
+
+#define TCG_TARGET_HAS_MEMORY_BSWAP  1
 
 #ifdef CONFIG_SOFTMMU
 #define TCG_TARGET_NEED_LDST_LABELS

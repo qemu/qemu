@@ -187,27 +187,23 @@ static const uint8_t tcg_cond_to_arm_cond[] = {
     [TCG_COND_GTU] = COND_HI,
 };
 
-static inline void reloc_pc24(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
+static inline bool reloc_pc24(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 {
     ptrdiff_t offset = (tcg_ptr_byte_diff(target, code_ptr) - 8) >> 2;
-    *code_ptr = (*code_ptr & ~0xffffff) | (offset & 0xffffff);
+    if (offset == sextract32(offset, 0, 24)) {
+        *code_ptr = (*code_ptr & ~0xffffff) | (offset & 0xffffff);
+        return true;
+    }
+    return false;
 }
 
-static inline void reloc_pc24_atomic(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
-{
-    ptrdiff_t offset = (tcg_ptr_byte_diff(target, code_ptr) - 8) >> 2;
-    tcg_insn_unit insn = atomic_read(code_ptr);
-    tcg_debug_assert(offset == sextract32(offset, 0, 24));
-    atomic_set(code_ptr, deposit32(insn, 0, 24, offset));
-}
-
-static void patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     tcg_debug_assert(addend == 0);
 
     if (type == R_ARM_PC24) {
-        reloc_pc24(code_ptr, (tcg_insn_unit *)value);
+        return reloc_pc24(code_ptr, (tcg_insn_unit *)value);
     } else if (type == R_ARM_PC13) {
         intptr_t diff = value - (uintptr_t)(code_ptr + 2);
         tcg_insn_unit insn = *code_ptr;
@@ -221,7 +217,11 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
         } else {
             int rd = extract32(insn, 12, 4);
             int rt = rd == TCG_REG_PC ? TCG_REG_TMP : rd;
-            assert(diff >= 0x1000 && diff < 0x100000);
+
+            if (diff < 0x1000 || diff >= 0x100000) {
+                return false;
+            }
+
             /* add rt, pc, #high */
             *code_ptr++ = ((insn & 0xf0000000) | (1 << 25) | ARITH_ADD
                            | (TCG_REG_PC << 16) | (rt << 12)
@@ -237,6 +237,7 @@ static void patch_reloc(tcg_insn_unit *code_ptr, int type,
     } else {
         g_assert_not_reached();
     }
+    return true;
 }
 
 #define TCG_CT_CONST_ARM  0x100
@@ -372,22 +373,6 @@ static inline void tcg_out_b(TCGContext *s, int cond, int32_t offset)
 {
     tcg_out32(s, (cond << 28) | 0x0a000000 |
                     (((offset - 8) >> 2) & 0x00ffffff));
-}
-
-static inline void tcg_out_b_noaddr(TCGContext *s, int cond)
-{
-    /* We pay attention here to not modify the branch target by masking
-       the corresponding bytes.  This ensure that caches and memory are
-       kept coherent during retranslation. */
-    tcg_out32(s, deposit32(*s->code_ptr, 24, 8, (cond << 4) | 0x0a));
-}
-
-static inline void tcg_out_bl_noaddr(TCGContext *s, int cond)
-{
-    /* We pay attention here to not modify the branch target by masking
-       the corresponding bytes.  This ensure that caches and memory are
-       kept coherent during retranslation. */
-    tcg_out32(s, deposit32(*s->code_ptr, 24, 8, (cond << 4) | 0x0b));
 }
 
 static inline void tcg_out_bl(TCGContext *s, int cond, int32_t offset)
@@ -1090,7 +1075,7 @@ static inline void tcg_out_goto_label(TCGContext *s, int cond, TCGLabel *l)
         tcg_out_goto(s, cond, l->u.value_ptr);
     } else {
         tcg_out_reloc(s, s->code_ptr, R_ARM_PC24, l, 0);
-        tcg_out_b_noaddr(s, cond);
+        tcg_out_b(s, cond, 0);
     }
 }
 
@@ -1395,7 +1380,8 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     TCGMemOp opc = get_memop(oi);
     void *func;
 
-    reloc_pc24(lb->label_ptr[0], s->code_ptr);
+    bool ok = reloc_pc24(lb->label_ptr[0], s->code_ptr);
+    tcg_debug_assert(ok);
 
     argreg = tcg_out_arg_reg32(s, TCG_REG_R0, TCG_AREG0);
     if (TARGET_LONG_BITS == 64) {
@@ -1455,7 +1441,8 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     TCGMemOpIdx oi = lb->oi;
     TCGMemOp opc = get_memop(oi);
 
-    reloc_pc24(lb->label_ptr[0], s->code_ptr);
+    bool ok = reloc_pc24(lb->label_ptr[0], s->code_ptr);
+    tcg_debug_assert(ok);
 
     argreg = TCG_REG_R0;
     argreg = tcg_out_arg_reg32(s, argreg, TCG_AREG0);
@@ -1636,7 +1623,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     /* This a conditional BL only to load a pointer within this opcode into LR
        for the slow path.  We will not be using the value for a tail call.  */
     label_ptr = s->code_ptr;
-    tcg_out_bl_noaddr(s, COND_NE);
+    tcg_out_bl(s, COND_NE, 0);
 
     tcg_out_qemu_ld_index(s, opc, datalo, datahi, addrlo, addend);
 
@@ -1768,7 +1755,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 
     /* The conditional call must come last, as we're going to return here.  */
     label_ptr = s->code_ptr;
-    tcg_out_bl_noaddr(s, COND_NE);
+    tcg_out_bl(s, COND_NE, 0);
 
     add_qemu_ldst_label(s, false, oi, datalo, datahi, addrlo, addrhi,
                         s->code_ptr, label_ptr);
