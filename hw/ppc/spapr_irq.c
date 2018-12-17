@@ -216,6 +216,7 @@ static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
 sPAPRIrq spapr_irq_xics = {
     .nr_irqs     = SPAPR_IRQ_XICS_NR_IRQS,
     .nr_msis     = SPAPR_IRQ_XICS_NR_MSIS,
+    .ov5         = SPAPR_OV5_XIVE_LEGACY,
 
     .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,
@@ -343,6 +344,7 @@ static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
 sPAPRIrq spapr_irq_xive = {
     .nr_irqs     = SPAPR_IRQ_XIVE_NR_IRQS,
     .nr_msis     = SPAPR_IRQ_XIVE_NR_MSIS,
+    .ov5         = SPAPR_OV5_XIVE_EXPLOIT,
 
     .init        = spapr_irq_init_xive,
     .claim       = spapr_irq_claim_xive,
@@ -467,6 +469,7 @@ int spapr_irq_find(sPAPRMachineState *spapr, int num, bool align, Error **errp)
 sPAPRIrq spapr_irq_xics_legacy = {
     .nr_irqs     = SPAPR_IRQ_XICS_LEGACY_NR_IRQS,
     .nr_msis     = SPAPR_IRQ_XICS_LEGACY_NR_IRQS,
+    .ov5         = SPAPR_OV5_XIVE_LEGACY,
 
     .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,

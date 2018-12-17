@@ -824,5 +824,11 @@ int spapr_caps_post_migration(sPAPRMachineState *spapr);
 
 void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
                           Error **errp);
+/*
+ * XIVE definitions
+ */
+#define SPAPR_OV5_XIVE_LEGACY   0x0
+#define SPAPR_OV5_XIVE_EXPLOIT  0x40
+#define SPAPR_OV5_XIVE_BOTH     0x80 /* Only to advertise on the platform */
 
 #endif /* HW_SPAPR_H */

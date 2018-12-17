@@ -1095,15 +1095,19 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
     spapr_dt_rtas_tokens(fdt, rtas);
 }
 
-/* Prepare ibm,arch-vec-5-platform-support, which indicates the MMU features
- * that the guest may request and thus the valid values for bytes 24..26 of
- * option vector 5: */
-static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
+/*
+ * Prepare ibm,arch-vec-5-platform-support, which indicates the MMU
+ * and the XIVE features that the guest may request and thus the valid
+ * values for bytes 23..26 of option vector 5:
+ */
+static void spapr_dt_ov5_platform_support(sPAPRMachineState *spapr, void *fdt,
+                                          int chosen)
 {
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
     char val[2 * 4] = {
-        23, 0x00, /* Xive mode, filled in below. */
+        23, smc->irq->ov5, /* Xive mode. */
         24, 0x00, /* Hash/Radix, filled in below. */
         25, 0x00, /* Hash options: Segment Tables == no, GTSE == no. */
         26, 0x40, /* Radix options: GTSE == yes. */
@@ -1111,7 +1115,11 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
 
     if (!ppc_check_compat(first_ppc_cpu, CPU_POWERPC_LOGICAL_3_00, 0,
                           first_ppc_cpu->compat_pvr)) {
-        /* If we're in a pre POWER9 compat mode then the guest should do hash */
+        /*
+         * If we're in a pre POWER9 compat mode then the guest should
+         * do hash and use the legacy interrupt mode
+         */
+        val[1] = 0x00; /* XICS */
         val[3] = 0x00; /* Hash */
     } else if (kvm_enabled()) {
         if (kvmppc_has_cap_mmu_radix() && kvmppc_has_cap_mmu_hash_v3()) {
@@ -1189,7 +1197,7 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
         _FDT(fdt_setprop_string(fdt, chosen, "stdout-path", stdout_path));
     }
 
-    spapr_dt_ov5_platform_support(fdt, chosen);
+    spapr_dt_ov5_platform_support(spapr, fdt, chosen);
 
     g_free(stdout_path);
     g_free(bootlist);
@@ -2623,6 +2631,17 @@ static void spapr_machine_init(MachineState *machine)
 
     /* advertise support for ibm,dyamic-memory-v2 */
     spapr_ovec_set(spapr->ov5, OV5_DRMEM_V2);
+
+    /* advertise XIVE on POWER9 machines */
+    if (smc->irq->ov5 & SPAPR_OV5_XIVE_EXPLOIT) {
+        if (ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00,
+                                  0, spapr->max_compat_pvr)) {
+            spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
+        } else {
+            error_report("XIVE-only machines require a POWER9 CPU");
+            exit(1);
+        }
+    }
 
     /* init CPUs */
     spapr_init_cpus(spapr);
