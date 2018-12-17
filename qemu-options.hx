@@ -538,8 +538,8 @@ ETEXI
 DEF("name", HAS_ARG, QEMU_OPTION_name,
     "-name string1[,process=string2][,debug-threads=on|off]\n"
     "                set the name of the guest\n"
-    "                string1 sets the window title and string2 the process name (on Linux)\n"
-    "                When debug-threads is enabled, individual threads are given a separate name (on Linux)\n"
+    "                string1 sets the window title and string2 the process name\n"
+    "                When debug-threads is enabled, individual threads are given a separate name\n"
     "                NOTE: The thread names are for debugging and not a stable API.\n",
     QEMU_ARCH_ALL)
 STEXI
