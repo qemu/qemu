@@ -2540,7 +2540,7 @@ static IOMMUTLBEntry vtd_iommu_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
                           __func__, pci_bus_num(vtd_as->bus),
                           VTD_PCI_SLOT(vtd_as->devfn),
                           VTD_PCI_FUNC(vtd_as->devfn),
-                          iotlb.iova);
+                          addr);
     }
 
     return iotlb;
