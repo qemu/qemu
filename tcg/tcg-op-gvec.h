@@ -181,6 +181,8 @@ typedef struct {
     uint8_t vece;
     /* Prefer i64 to v64.  */
     bool prefer_i64;
+    /* Write aofs as a 2nd dest operand.  */
+    bool write_aofs;
 } GVecGen4;
 
 void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,

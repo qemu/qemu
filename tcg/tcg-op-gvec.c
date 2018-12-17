@@ -665,7 +665,7 @@ static void expand_3_i32(uint32_t dofs, uint32_t aofs,
 
 /* Expand OPSZ bytes worth of three-operand operations using i32 elements.  */
 static void expand_4_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
-                         uint32_t cofs, uint32_t oprsz,
+                         uint32_t cofs, uint32_t oprsz, bool write_aofs,
                          void (*fni)(TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32))
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
@@ -680,6 +680,9 @@ static void expand_4_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
         tcg_gen_ld_i32(t3, cpu_env, cofs + i);
         fni(t0, t1, t2, t3);
         tcg_gen_st_i32(t0, cpu_env, dofs + i);
+        if (write_aofs) {
+            tcg_gen_st_i32(t1, cpu_env, aofs + i);
+        }
     }
     tcg_temp_free_i32(t3);
     tcg_temp_free_i32(t2);
@@ -769,7 +772,7 @@ static void expand_3_i64(uint32_t dofs, uint32_t aofs,
 
 /* Expand OPSZ bytes worth of three-operand operations using i64 elements.  */
 static void expand_4_i64(uint32_t dofs, uint32_t aofs, uint32_t bofs,
-                         uint32_t cofs, uint32_t oprsz,
+                         uint32_t cofs, uint32_t oprsz, bool write_aofs,
                          void (*fni)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
@@ -784,6 +787,9 @@ static void expand_4_i64(uint32_t dofs, uint32_t aofs, uint32_t bofs,
         tcg_gen_ld_i64(t3, cpu_env, cofs + i);
         fni(t0, t1, t2, t3);
         tcg_gen_st_i64(t0, cpu_env, dofs + i);
+        if (write_aofs) {
+            tcg_gen_st_i64(t1, cpu_env, aofs + i);
+        }
     }
     tcg_temp_free_i64(t3);
     tcg_temp_free_i64(t2);
@@ -880,7 +886,7 @@ static void expand_3_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
 /* Expand OPSZ bytes worth of four-operand operations using host vectors.  */
 static void expand_4_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
                          uint32_t bofs, uint32_t cofs, uint32_t oprsz,
-                         uint32_t tysz, TCGType type,
+                         uint32_t tysz, TCGType type, bool write_aofs,
                          void (*fni)(unsigned, TCGv_vec, TCGv_vec,
                                      TCGv_vec, TCGv_vec))
 {
@@ -896,6 +902,9 @@ static void expand_4_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
         tcg_gen_ld_vec(t3, cpu_env, cofs + i);
         fni(vece, t0, t1, t2, t3);
         tcg_gen_st_vec(t0, cpu_env, dofs + i);
+        if (write_aofs) {
+            tcg_gen_st_vec(t1, cpu_env, aofs + i);
+        }
     }
     tcg_temp_free_vec(t3);
     tcg_temp_free_vec(t2);
@@ -1187,7 +1196,7 @@ void tcg_gen_gvec_4(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
          */
         some = QEMU_ALIGN_DOWN(oprsz, 32);
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, some,
-                     32, TCG_TYPE_V256, g->fniv);
+                     32, TCG_TYPE_V256, g->write_aofs, g->fniv);
         if (some == oprsz) {
             break;
         }
@@ -1200,18 +1209,20 @@ void tcg_gen_gvec_4(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
         /* fallthru */
     case TCG_TYPE_V128:
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, oprsz,
-                     16, TCG_TYPE_V128, g->fniv);
+                     16, TCG_TYPE_V128, g->write_aofs, g->fniv);
         break;
     case TCG_TYPE_V64:
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, oprsz,
-                     8, TCG_TYPE_V64, g->fniv);
+                     8, TCG_TYPE_V64, g->write_aofs, g->fniv);
         break;
 
     case 0:
         if (g->fni8 && check_size_impl(oprsz, 8)) {
-            expand_4_i64(dofs, aofs, bofs, cofs, oprsz, g->fni8);
+            expand_4_i64(dofs, aofs, bofs, cofs, oprsz,
+                         g->write_aofs, g->fni8);
         } else if (g->fni4 && check_size_impl(oprsz, 4)) {
-            expand_4_i32(dofs, aofs, bofs, cofs, oprsz, g->fni4);
+            expand_4_i32(dofs, aofs, bofs, cofs, oprsz,
+                         g->write_aofs, g->fni4);
         } else {
             assert(g->fno != NULL);
             tcg_gen_gvec_4_ool(dofs, aofs, bofs, cofs,
