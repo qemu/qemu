@@ -191,7 +191,7 @@ private:
     uint64 extract_rdl_25_24(uint64 instruction);
     uint64 extract_rd2_3_8(uint64 instruction);
     uint64 extract_rd3_3_2_1(uint64 instruction);
-    uint64 extract_rd_20_19_18_17_16(uint64 instruction);
+    uint64 extract_rd_15_14_13_12_11(uint64 instruction);
     uint64 extract_rs3_6_5_4(uint64 instruction);
     uint64 extract_rs4_4_2_1_0(uint64 instruction);
     uint64 extract_rs_4_3_2_1_0(uint64 instruction);
