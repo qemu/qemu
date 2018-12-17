@@ -1,0 +1,146 @@
+# -*- coding:utf-8 -*-
+# Copyright (C)  2006 Libresoft
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option  any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Library General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Authors : Gregorio Robles <grex@gsyc.escet.urjc.es>
+# Authors : Germán Póo-Caamaño <gpoo@gnome.org>
+#
+# This QEMU version is a cut-down version of what originally shipped
+# in the gitdm sample-config directory.
+#
+# This file contains associations parameters regarding filetypes
+# (documentation, develompent, multimedia, images...)
+#
+# format:
+# filetype <type> <regex> [<comment>]
+#
+# Order:
+#   The list should keep an order, so filetypes can be counted properly.
+#   ie. we want ltmain.sh -> 'build' instead of 'code'.
+#
+#   If there is an filetype which is not in order but has values, it will
+#   be added at the end.
+#
+order build,tests,code,documentation,devel-doc,blobs
+
+#
+#
+# Code files (headers and the like included
+# (most common languages first
+#
+filetype code \.c$	# C
+filetype code \.inc.c$	# C
+filetype code \.C$	# C++
+filetype code \.cpp$	# C++
+filetype code \.c\+\+$	# C++
+filetype code \.cxx$	# C++
+filetype code \.cc$	# C++
+filetype code \.h$	# C or C++ header
+filetype code \.hh$	# C++ header
+filetype code \.hpp$	# C++ header
+filetype code \.hxx$	# C++ header
+filetype code \.sh$	# Shell
+filetype code \.pl$	# Perl
+filetype code \.py$	# Python
+filetype code \.s$	# Assembly
+filetype code \.S$	# Assembly
+filetype code \.asm$	# Assembly
+filetype code \.awk$	# awk
+filetype code ^common$  # script fragements
+filetype code ^common.*$  # script fragements
+filetype code (qom|qmp)-\w+$  # python script fragments
+
+#
+# Interface/api files
+#
+filetype interface \.json$   # json
+filetype interface \.hx$     # documented options
+
+#
+# Test related blobs (unfortunately we can't filter out test code)
+#
+filetype tests \.hex$
+filetype tests \d{2,3}$     # test data 00-999
+filetype tests ^[A-Z]{4}$   # ACPI test data
+filetype tests ^[A-Z]{4}\.*$   # ACPI test data
+filetype tests \.out$
+filetype tests \.out\.nocache$
+filetype tests \.err$
+filetype tests \.exit$      # bad-if-FOO.exit etc
+filetype tests \.decode$
+filetype tests \.yml$        # travis/shippable config
+
+#
+# Development documentation files (for hacking generally)
+#
+filetype devel-doc ^readme.*$
+filetype devel-doc ^changelog.*
+filetype devel-doc ^hacking.*$
+filetype devel-doc ^licen(s|c)e.*$
+filetype devel-doc ^copying.*$
+filetype devel-doc ^MAINTAINERS$
+filetype devel-doc ^BSD-2-Clause$
+filetype devel-doc ^BSD-3-Clause$
+filetype devel-doc ^GPL-2.0$
+filetype devel-doc \.txt$
+filetype devel-doc \.rst$
+filetype devel-doc \.texi$
+filetype devel-doc \.pod$
+
+#
+# Building, compiling, and configuration admin files
+#
+filetype build configure.*$
+filetype build Makefile$
+filetype build Makefile\.*$
+filetype build config$
+filetype build conf$
+filetype build \.cfg$
+filetype build \.mk$
+filetype build \.mak$
+filetype build \.docker$
+filetype build \.pre$
+filetype build ^.gitignore$
+filetype build ^.gitmodules$
+filetype build ^.gitpublish$
+filetype build ^.mailmap$
+filetype build ^.dir-locals.el$
+filetype build ^.editorconfig$
+filetype build ^.exrc$
+filetype build ^.gdbinit$
+filetype build \.cocci$         # Coccinelle semantic patches
+
+#
+# Misc blobs
+#
+filetype blobs \.bin$
+filetype blobs \.dtb$
+filetype blobs \.dts$
+filetype blobs \.rom$
+filetype blobs \.img$
+filetype blobs \.ndrv$
+filetype blobs \.bmp$
+filetype blobs \.svg$
+filetype blobs ^pi_10.com$
+
+
+#
+# Documentation files
+#
+filetype documentation \.html$
+filetype documentation \.txt$
+filetype documentation \.texi$
+filetype documentation \.po$            # translation files

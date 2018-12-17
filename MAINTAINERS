@@ -127,9 +127,11 @@ F: include/sysemu/cpus.h
 FPU emulation
 M: Aurelien Jarno <aurelien@aurel32.net>
 M: Peter Maydell <peter.maydell@linaro.org>
-S: Odd Fixes
+M: Alex Bennée <alex.bennee@linaro.org>
+S: Maintained
 F: fpu/
 F: include/fpu/
+F: tests/fp/
 
 Alpha
 M: Richard Henderson <rth@twiddle.net>
