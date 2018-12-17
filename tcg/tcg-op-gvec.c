@@ -1920,6 +1920,57 @@ void tcg_gen_gvec_orc(unsigned vece, uint32_t dofs, uint32_t aofs,
     }
 }
 
+void tcg_gen_gvec_nand(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g = {
+        .fni8 = tcg_gen_nand_i64,
+        .fniv = tcg_gen_nand_vec,
+        .fno = gen_helper_gvec_nand,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+    };
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_not(vece, dofs, aofs, oprsz, maxsz);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
+}
+
+void tcg_gen_gvec_nor(unsigned vece, uint32_t dofs, uint32_t aofs,
+                      uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g = {
+        .fni8 = tcg_gen_nor_i64,
+        .fniv = tcg_gen_nor_vec,
+        .fno = gen_helper_gvec_nor,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+    };
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_not(vece, dofs, aofs, oprsz, maxsz);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
+}
+
+void tcg_gen_gvec_eqv(unsigned vece, uint32_t dofs, uint32_t aofs,
+                      uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g = {
+        .fni8 = tcg_gen_eqv_i64,
+        .fniv = tcg_gen_eqv_vec,
+        .fno = gen_helper_gvec_eqv,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+    };
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_dup8i(dofs, oprsz, maxsz, -1);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
+}
+
 static const GVecGen2s gop_ands = {
     .fni8 = tcg_gen_and_i64,
     .fniv = tcg_gen_and_vec,
