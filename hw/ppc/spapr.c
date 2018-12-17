@@ -3931,7 +3931,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug = spapr_machine_device_unplug;
 
     smc->dr_lmb_enabled = true;
-    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power9_v2.0");
     mc->has_hotpluggable_cpus = true;
     smc->resize_hpt_default = SPAPR_RESIZE_HPT_ENABLED;
     fwc->get_dev_path = spapr_get_fw_dev_path;
@@ -4028,6 +4028,7 @@ static void spapr_machine_3_1_class_options(MachineClass *mc)
 {
     spapr_machine_4_0_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_3_1);
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
 }
 
 DEFINE_SPAPR_MACHINE(3_1, "3.1", false);
