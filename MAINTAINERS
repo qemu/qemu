@@ -221,6 +221,7 @@ F: tests/tcg/mips/
 F: disas/mips.c
 F: disas/nanomips.h
 F: disas/nanomips.cpp
+K: ^Subject:.*(?i)mips
 
 Moxie
 M: Anthony Green <green@moxielogic.com>
