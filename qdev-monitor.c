@@ -414,7 +414,7 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
 static inline bool qbus_is_full(BusState *bus)
 {
     BusClass *bus_class = BUS_GET_CLASS(bus);
-    return bus_class->max_dev && bus->max_index >= bus_class->max_dev;
+    return bus_class->max_dev && bus->num_children >= bus_class->max_dev;
 }
 
 /*
