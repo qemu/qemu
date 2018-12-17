@@ -70,9 +70,9 @@
 #define PPC_ELF_MACHINE     EM_PPC
 #endif
 
-#define PPC_BIT(bit)            (0x8000000000000000UL >> (bit))
-#define PPC_BIT32(bit)          (0x80000000UL >> (bit))
-#define PPC_BIT8(bit)           (0x80UL >> (bit))
+#define PPC_BIT(bit)            (0x8000000000000000ULL >> (bit))
+#define PPC_BIT32(bit)          (0x80000000 >> (bit))
+#define PPC_BIT8(bit)           (0x80 >> (bit))
 #define PPC_BITMASK(bs, be)     ((PPC_BIT(bs) - PPC_BIT(be)) | PPC_BIT(bs))
 #define PPC_BITMASK32(bs, be)   ((PPC_BIT32(bs) - PPC_BIT32(be)) | \
                                  PPC_BIT32(bs))
