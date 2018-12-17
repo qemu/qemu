@@ -2659,6 +2659,7 @@ static Property vtd_properties[] = {
     DEFINE_PROP_UINT8("x-aw-bits", IntelIOMMUState, aw_bits,
                       VTD_HOST_ADDRESS_WIDTH),
     DEFINE_PROP_BOOL("caching-mode", IntelIOMMUState, caching_mode, FALSE),
+    DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -3147,6 +3148,9 @@ static void vtd_init(IntelIOMMUState *s)
     s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND |
              VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS |
              VTD_CAP_SAGAW_39bit | VTD_CAP_MGAW(s->aw_bits);
+    if (s->dma_drain) {
+        s->cap |= VTD_CAP_DRAIN;
+    }
     if (s->aw_bits == VTD_HOST_AW_48BIT) {
         s->cap |= VTD_CAP_SAGAW_48bit;
     }
