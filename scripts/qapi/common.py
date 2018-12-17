@@ -1460,7 +1460,8 @@ class QAPISchemaObjectTypeVariants(object):
             cases = set([v.name for v in self.variants])
             for m in self.tag_member.type.members:
                 if m.name not in cases:
-                    v = QAPISchemaObjectTypeVariant(m.name, 'q_empty')
+                    v = QAPISchemaObjectTypeVariant(m.name, 'q_empty',
+                                                    m.ifcond)
                     v.set_owner(self.tag_member.owner)
                     self.variants.append(v)
         for v in self.variants:
