@@ -208,6 +208,7 @@ M: Aleksandar Markovic <amarkovic@wavecomp.com>
 R: Stefan Markovic <smarkovic@wavecomp.com>
 S: Maintained
 F: target/mips/
+F: default-configs/*mips*
 F: hw/mips/
 F: hw/misc/mips_*
 F: hw/intc/mips_gic.c
