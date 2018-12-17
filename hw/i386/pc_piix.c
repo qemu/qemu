@@ -368,7 +368,7 @@ static void pc_compat_1_2(MachineState *machine)
     x86_cpu_change_kvm_default("kvm-pv-eoi", NULL);
 }
 
-/* PC compat function for pc-0.10 to pc-0.13 */
+/* PC compat function for pc-0.12 and pc-0.13 */
 static void pc_compat_0_13(MachineState *machine)
 {
     pc_compat_1_2(machine);
@@ -834,6 +834,7 @@ static void pc_i440fx_0_15_machine_options(MachineClass *m)
 {
     pc_i440fx_1_0_machine_options(m);
     m->hw_version = "0.15";
+    m->deprecation_reason = "use a newer machine type instead";
     SET_MACHINE_COMPAT(m, PC_COMPAT_0_15);
 }
 
@@ -950,73 +951,6 @@ static void pc_i440fx_0_12_machine_options(MachineClass *m)
 
 DEFINE_I440FX_MACHINE(v0_12, "pc-0.12", pc_compat_0_13,
                       pc_i440fx_0_12_machine_options);
-
-
-#define PC_COMPAT_0_11 \
-        PC_CPU_MODEL_IDS("0.11") \
-        {\
-            .driver   = "virtio-blk-pci",\
-            .property = "vectors",\
-            .value    = stringify(0),\
-        },{\
-            .driver   = TYPE_PCI_DEVICE,\
-            .property = "rombar",\
-            .value    = stringify(0),\
-        },{\
-            .driver   = "ide-drive",\
-            .property = "ver",\
-            .value    = "0.11",\
-        },{\
-            .driver   = "scsi-disk",\
-            .property = "ver",\
-            .value    = "0.11",\
-        },
-
-static void pc_i440fx_0_11_machine_options(MachineClass *m)
-{
-    pc_i440fx_0_12_machine_options(m);
-    m->hw_version = "0.11";
-    m->deprecation_reason = "use a newer machine type instead";
-    SET_MACHINE_COMPAT(m, PC_COMPAT_0_11);
-}
-
-DEFINE_I440FX_MACHINE(v0_11, "pc-0.11", pc_compat_0_13,
-                      pc_i440fx_0_11_machine_options);
-
-
-#define PC_COMPAT_0_10 \
-    PC_CPU_MODEL_IDS("0.10") \
-    {\
-        .driver   = "virtio-blk-pci",\
-        .property = "class",\
-        .value    = stringify(PCI_CLASS_STORAGE_OTHER),\
-    },{\
-        .driver   = "virtio-serial-pci",\
-        .property = "class",\
-        .value    = stringify(PCI_CLASS_DISPLAY_OTHER),\
-    },{\
-        .driver   = "virtio-net-pci",\
-        .property = "vectors",\
-        .value    = stringify(0),\
-    },{\
-        .driver   = "ide-drive",\
-        .property = "ver",\
-        .value    = "0.10",\
-    },{\
-        .driver   = "scsi-disk",\
-        .property = "ver",\
-        .value    = "0.10",\
-    },
-
-static void pc_i440fx_0_10_machine_options(MachineClass *m)
-{
-    pc_i440fx_0_11_machine_options(m);
-    m->hw_version = "0.10";
-    SET_MACHINE_COMPAT(m, PC_COMPAT_0_10);
-}
-
-DEFINE_I440FX_MACHINE(v0_10, "pc-0.10", pc_compat_0_13,
-                      pc_i440fx_0_10_machine_options);
 
 typedef struct {
     uint16_t gpu_device_id;
