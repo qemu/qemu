@@ -39,10 +39,11 @@ struct QTestState
 {
     int fd;
     int qmp_fd;
+    pid_t qemu_pid;  /* our child QEMU process */
+    int wstatus;
+    bool big_endian;
     bool irq_level[MAX_IRQ];
     GString *rx;
-    pid_t qemu_pid;  /* our child QEMU process */
-    bool big_endian;
 };
 
 static GHookList abrt_hooks;
@@ -96,36 +97,52 @@ static int socket_accept(int sock)
     return ret;
 }
 
+bool qtest_probe_child(QTestState *s)
+{
+    pid_t pid = s->qemu_pid;
+
+    if (pid != -1) {
+        pid = waitpid(pid, &s->wstatus, WNOHANG);
+        if (pid == 0) {
+            return true;
+        }
+        s->qemu_pid = -1;
+    }
+    return false;
+}
+
 static void kill_qemu(QTestState *s)
 {
-    if (s->qemu_pid != -1) {
-        int wstatus = 0;
-        pid_t pid;
+    pid_t pid = s->qemu_pid;
+    int wstatus;
 
-        kill(s->qemu_pid, SIGTERM);
-        TFR(pid = waitpid(s->qemu_pid, &wstatus, 0));
-
+    /* Skip wait if qtest_probe_child already reaped.  */
+    if (pid != -1) {
+        kill(pid, SIGTERM);
+        TFR(pid = waitpid(s->qemu_pid, &s->wstatus, 0));
         assert(pid == s->qemu_pid);
-        /*
-         * We expect qemu to exit with status 0; anything else is
-         * fishy and should be logged with as much detail as possible.
-         */
-        if (wstatus) {
-            if (WIFEXITED(wstatus)) {
-                fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
-                        "process but encountered exit status %d\n",
-                        __FILE__, __LINE__, WEXITSTATUS(wstatus));
-            } else if (WIFSIGNALED(wstatus)) {
-                int sig = WTERMSIG(wstatus);
-                const char *signame = strsignal(sig) ?: "unknown ???";
-                const char *dump = WCOREDUMP(wstatus) ? " (core dumped)" : "";
+    }
 
-                fprintf(stderr, "%s:%d: kill_qemu() detected QEMU death "
-                        "from signal %d (%s)%s\n",
-                        __FILE__, __LINE__, sig, signame, dump);
-            }
-            abort();
+    /*
+     * We expect qemu to exit with status 0; anything else is
+     * fishy and should be logged with as much detail as possible.
+     */
+    wstatus = s->wstatus;
+    if (wstatus) {
+        if (WIFEXITED(wstatus)) {
+            fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
+                    "process but encountered exit status %d\n",
+                    __FILE__, __LINE__, WEXITSTATUS(wstatus));
+        } else if (WIFSIGNALED(wstatus)) {
+            int sig = WTERMSIG(wstatus);
+            const char *signame = strsignal(sig) ?: "unknown ???";
+            const char *dump = WCOREDUMP(wstatus) ? " (core dumped)" : "";
+
+            fprintf(stderr, "%s:%d: kill_qemu() detected QEMU death "
+                    "from signal %d (%s)%s\n",
+                    __FILE__, __LINE__, sig, signame, dump);
         }
+        abort();
     }
 }
 
@@ -228,6 +245,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
 
     g_test_message("starting QEMU: %s", command);
 
+    s->wstatus = 0;
     s->qemu_pid = fork();
     if (s->qemu_pid == 0) {
         setenv("QEMU_AUDIO_DRV", "none", true);

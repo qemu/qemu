@@ -1011,4 +1011,12 @@ bool qmp_rsp_is_err(QDict *rsp);
  */
 void qmp_assert_error_class(QDict *rsp, const char *class);
 
+/**
+ * qtest_probe_child:
+ * @s: QTestState instance to operate on.
+ *
+ * Returns: true if the child is still alive.
+ */
+bool qtest_probe_child(QTestState *s);
+
 #endif
