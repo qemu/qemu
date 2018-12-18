@@ -176,7 +176,7 @@ private:
     uint64 extract_ct_25_24_23_22_21(uint64 instruction);
     uint64 extract_eu_3_2_1_0(uint64 instruction);
     uint64 extract_eu_6_5_4_3_2_1_0(uint64 instruction);
-    uint64 extract_fd_10_9_8_7_6(uint64 instruction);
+    uint64 extract_fd_15_14_13_12_11(uint64 instruction);
     uint64 extract_fs_15_14_13_12_11(uint64 instruction);
     uint64 extract_ft_15_14_13_12_11(uint64 instruction);
     uint64 extract_ft_20_19_18_17_16(uint64 instruction);
