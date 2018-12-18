@@ -1810,6 +1810,114 @@ void tcg_gen_gvec_ussub(unsigned vece, uint32_t dofs, uint32_t aofs,
     tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
 }
 
+void tcg_gen_gvec_smin(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_smin_vec,
+          .fno = gen_helper_gvec_smin8,
+          .opc = INDEX_op_smin_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_smin_vec,
+          .fno = gen_helper_gvec_smin16,
+          .opc = INDEX_op_smin_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_smin_i32,
+          .fniv = tcg_gen_smin_vec,
+          .fno = gen_helper_gvec_smin32,
+          .opc = INDEX_op_smin_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_smin_i64,
+          .fniv = tcg_gen_smin_vec,
+          .fno = gen_helper_gvec_smin64,
+          .opc = INDEX_op_smin_vec,
+          .vece = MO_64 }
+    };
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+void tcg_gen_gvec_umin(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_umin_vec,
+          .fno = gen_helper_gvec_umin8,
+          .opc = INDEX_op_umin_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_umin_vec,
+          .fno = gen_helper_gvec_umin16,
+          .opc = INDEX_op_umin_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_umin_i32,
+          .fniv = tcg_gen_umin_vec,
+          .fno = gen_helper_gvec_umin32,
+          .opc = INDEX_op_umin_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_umin_i64,
+          .fniv = tcg_gen_umin_vec,
+          .fno = gen_helper_gvec_umin64,
+          .opc = INDEX_op_umin_vec,
+          .vece = MO_64 }
+    };
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+void tcg_gen_gvec_smax(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_smax_vec,
+          .fno = gen_helper_gvec_smax8,
+          .opc = INDEX_op_smax_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_smax_vec,
+          .fno = gen_helper_gvec_smax16,
+          .opc = INDEX_op_smax_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_smax_i32,
+          .fniv = tcg_gen_smax_vec,
+          .fno = gen_helper_gvec_smax32,
+          .opc = INDEX_op_smax_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_smax_i64,
+          .fniv = tcg_gen_smax_vec,
+          .fno = gen_helper_gvec_smax64,
+          .opc = INDEX_op_smax_vec,
+          .vece = MO_64 }
+    };
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+void tcg_gen_gvec_umax(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_umax_vec,
+          .fno = gen_helper_gvec_umax8,
+          .opc = INDEX_op_umax_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_umax_vec,
+          .fno = gen_helper_gvec_umax16,
+          .opc = INDEX_op_umax_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_umax_i32,
+          .fniv = tcg_gen_umax_vec,
+          .fno = gen_helper_gvec_umax32,
+          .opc = INDEX_op_umax_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_umax_i64,
+          .fniv = tcg_gen_umax_vec,
+          .fno = gen_helper_gvec_umax64,
+          .opc = INDEX_op_umax_vec,
+          .vece = MO_64 }
+    };
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
 /* Perform a vector negation using normal negation and a mask.
    Compare gen_subv_mask above.  */
 static void gen_negv_mask(TCGv_i64 d, TCGv_i64 b, TCGv_i64 m)

@@ -554,6 +554,16 @@ E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
 
   Similarly, v0 = -v1.
 
+* smin_vec:
+* umin_vec:
+
+  Similarly, v0 = MIN(v1, v2), for signed and unsigned element types.
+
+* smax_vec:
+* umax_vec:
+
+  Similarly, v0 = MAX(v1, v2), for signed and unsigned element types.
+
 * ssadd_vec:
 * sssub_vec:
 * usadd_vec:
