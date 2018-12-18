@@ -171,6 +171,8 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
             goto cleanup;
         }
         msg[reply->length] = '\0';
+        trace_nbd_server_error_msg(reply->type,
+                                   nbd_reply_type_lookup(reply->type), msg);
     }
 
     switch (reply->type) {
