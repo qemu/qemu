@@ -528,8 +528,12 @@ typedef enum {
     I3616_CMHI      = 0x2e203400,
     I3616_CMHS      = 0x2e203c00,
     I3616_CMEQ      = 0x2e208c00,
+    I3616_SMAX      = 0x0e206400,
+    I3616_SMIN      = 0x0e206c00,
     I3616_SQADD     = 0x0e200c00,
     I3616_SQSUB     = 0x0e202c00,
+    I3616_UMAX      = 0x2e206400,
+    I3616_UMIN      = 0x2e206c00,
     I3616_UQADD     = 0x2e200c00,
     I3616_UQSUB     = 0x2e202c00,
 
@@ -2153,6 +2157,18 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ussub_vec:
         tcg_out_insn(s, 3616, UQSUB, is_q, vece, a0, a1, a2);
         break;
+    case INDEX_op_smax_vec:
+        tcg_out_insn(s, 3616, SMAX, is_q, vece, a0, a1, a2);
+        break;
+    case INDEX_op_smin_vec:
+        tcg_out_insn(s, 3616, SMIN, is_q, vece, a0, a1, a2);
+        break;
+    case INDEX_op_umax_vec:
+        tcg_out_insn(s, 3616, UMAX, is_q, vece, a0, a1, a2);
+        break;
+    case INDEX_op_umin_vec:
+        tcg_out_insn(s, 3616, UMIN, is_q, vece, a0, a1, a2);
+        break;
     case INDEX_op_not_vec:
         tcg_out_insn(s, 3617, NOT, is_q, 0, a0, a1);
         break;
@@ -2227,6 +2243,10 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_sssub_vec:
     case INDEX_op_usadd_vec:
     case INDEX_op_ussub_vec:
+    case INDEX_op_smax_vec:
+    case INDEX_op_smin_vec:
+    case INDEX_op_umax_vec:
+    case INDEX_op_umin_vec:
         return 1;
     case INDEX_op_mul_vec:
         return vece < MO_64;
@@ -2410,6 +2430,10 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_sssub_vec:
     case INDEX_op_usadd_vec:
     case INDEX_op_ussub_vec:
+    case INDEX_op_smax_vec:
+    case INDEX_op_smin_vec:
+    case INDEX_op_umax_vec:
+    case INDEX_op_umin_vec:
         return &w_w_w;
     case INDEX_op_not_vec:
     case INDEX_op_neg_vec:
