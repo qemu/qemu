@@ -431,9 +431,12 @@ F: linux-*
 F: linux-headers/
 
 POSIX
-L: qemu-devel@nongnu.org
+M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: *posix*
+F: os-posix.c
+F: include/sysemu/os-posix.h
+F: util/*posix*.c
+F: include/qemu/*posix*.h
 
 NETBSD
 L: qemu-devel@nongnu.org
