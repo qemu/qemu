@@ -425,10 +425,12 @@ Hosts:
 ------
 
 LINUX
-L: qemu-devel@nongnu.org
+M: Michael S. Tsirkin <mst@redhat.com>
+M: Cornelia Huck <cohuck@redhat.com>
+M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: linux-*
 F: linux-headers/
+F: scripts/update-linux-headers.sh
 
 POSIX
 M: Paolo Bonzini <pbonzini@redhat.com>
