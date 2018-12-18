@@ -1385,16 +1385,10 @@ Example:
     void qapi_event_send_my_event(void)
     {
         QDict *qmp;
-        QMPEventFuncEmit emit;
-
-        emit = qmp_event_get_func_emit();
-        if (!emit) {
-            return;
-        }
 
         qmp = qmp_event_build_dict("MY_EVENT");
 
-        emit(EXAMPLE_QAPI_EVENT_MY_EVENT, qmp);
+        example_qapi_event_emit(EXAMPLE_QAPI_EVENT_MY_EVENT, qmp);
 
         qobject_unref(qmp);
     }

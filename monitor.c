@@ -590,8 +590,7 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
     qemu_mutex_unlock(&monitor_lock);
 }
 
-static void
-monitor_qapi_event_queue(QAPIEvent event, QDict *qdict)
+void qapi_event_emit(QAPIEvent event, QDict *qdict)
 {
     /*
      * monitor_qapi_event_queue_no_reenter() is not reentrant: it
@@ -704,7 +703,6 @@ static void monitor_qapi_event_init(void)
 {
     monitor_qapi_event_state = g_hash_table_new(qapi_event_throttle_hash,
                                                 qapi_event_throttle_equal);
-    qmp_event_set_func_emit(monitor_qapi_event_queue);
 }
 
 static void handle_hmp_command(Monitor *mon, const char *cmdline);

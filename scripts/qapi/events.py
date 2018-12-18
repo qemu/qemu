@@ -58,7 +58,7 @@ def gen_param_var(typ):
     return ret
 
 
-def gen_event_send(name, arg_type, boxed, event_enum_name):
+def gen_event_send(name, arg_type, boxed, event_enum_name, event_emit):
     # FIXME: Our declaration of local variables (and of 'errp' in the
     # parameter list) can collide with exploded members of the event's
     # data type passed in as parameters.  If this collision ever hits in
@@ -70,7 +70,6 @@ def gen_event_send(name, arg_type, boxed, event_enum_name):
 %(proto)s
 {
     QDict *qmp;
-    QMPEventFuncEmit emit;
 ''',
                 proto=build_event_send_proto(name, arg_type, boxed))
 
@@ -85,11 +84,6 @@ def gen_event_send(name, arg_type, boxed, event_enum_name):
         assert not boxed
 
     ret += mcgen('''
-
-    emit = qmp_event_get_func_emit();
-    if (!emit) {
-        return;
-    }
 
     qmp = qmp_event_build_dict("%(name)s");
 
@@ -121,9 +115,10 @@ def gen_event_send(name, arg_type, boxed, event_enum_name):
 ''')
 
     ret += mcgen('''
-    emit(%(c_enum)s, qmp);
+    %(event_emit)s(%(c_enum)s, qmp);
 
 ''',
+                 event_emit=event_emit,
                  c_enum=c_enum_const(event_enum_name, name))
 
     if arg_type and not arg_type.is_empty():
@@ -145,6 +140,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
             ' * Schema-defined QAPI/QMP events', __doc__)
         self._event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
         self._event_enum_members = []
+        self._event_emit_name = c_name(prefix + 'qapi_event_emit')
 
     def _begin_module(self, name):
         types = self._module_basename('qapi-types', name)
@@ -170,15 +166,23 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 
     def visit_end(self):
         (genc, genh) = self._module[self._main_module]
-        genh.add(gen_enum(self._event_enum_name, self._event_enum_members))
+        genh.add(gen_enum(self._event_enum_name,
+                          self._event_enum_members))
         genc.add(gen_enum_lookup(self._event_enum_name,
                                  self._event_enum_members))
+        genh.add(mcgen('''
+
+void %(event_emit)s(%(event_enum)s event, QDict *qdict);
+''',
+                       event_emit=self._event_emit_name,
+                       event_enum=self._event_enum_name))
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_event_send_decl(name, arg_type, boxed))
             self._genc.add(gen_event_send(name, arg_type, boxed,
-                                          self._event_enum_name))
+                                          self._event_enum_name,
+                                          self._event_emit_name))
         self._event_enum_members.append(QAPISchemaMember(name, ifcond))
 
 

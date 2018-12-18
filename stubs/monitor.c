@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events.h"
 #include "qemu-common.h"
 #include "monitor/monitor.h"
 
@@ -12,5 +13,9 @@ int monitor_get_fd(Monitor *mon, const char *name, Error **errp)
 }
 
 void monitor_init(Chardev *chr, int flags)
+{
+}
+
+void qapi_event_emit(QAPIEvent event, QDict *qdict)
 {
 }

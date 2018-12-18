@@ -93,9 +93,7 @@ static bool qdict_cmp_simple(QDict *a, QDict *b)
     return d.result;
 }
 
-/* This function is hooked as final emit function, which can verify the
-   correctness. */
-static void event_test_emit(test_QAPIEvent event, QDict *d)
+void test_qapi_event_emit(test_QAPIEvent event, QDict *d)
 {
     QDict *t;
     int64_t s, ms;
@@ -241,8 +239,6 @@ static void test_event_d(TestEventData *data,
 
 int main(int argc, char **argv)
 {
-    qmp_event_set_func_emit(event_test_emit);
-
     g_test_init(&argc, &argv, NULL);
 
     event_test_add("/event/event_a", test_event_a);
