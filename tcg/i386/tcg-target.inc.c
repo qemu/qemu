@@ -377,6 +377,10 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define OPC_PADDW       (0xfd | P_EXT | P_DATA16)
 #define OPC_PADDD       (0xfe | P_EXT | P_DATA16)
 #define OPC_PADDQ       (0xd4 | P_EXT | P_DATA16)
+#define OPC_PADDSB      (0xec | P_EXT | P_DATA16)
+#define OPC_PADDSW      (0xed | P_EXT | P_DATA16)
+#define OPC_PADDUB      (0xdc | P_EXT | P_DATA16)
+#define OPC_PADDUW      (0xdd | P_EXT | P_DATA16)
 #define OPC_PAND        (0xdb | P_EXT | P_DATA16)
 #define OPC_PANDN       (0xdf | P_EXT | P_DATA16)
 #define OPC_PBLENDW     (0x0e | P_EXT3A | P_DATA16)
@@ -408,6 +412,10 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define OPC_PSUBW       (0xf9 | P_EXT | P_DATA16)
 #define OPC_PSUBD       (0xfa | P_EXT | P_DATA16)
 #define OPC_PSUBQ       (0xfb | P_EXT | P_DATA16)
+#define OPC_PSUBSB      (0xe8 | P_EXT | P_DATA16)
+#define OPC_PSUBSW      (0xe9 | P_EXT | P_DATA16)
+#define OPC_PSUBUB      (0xd8 | P_EXT | P_DATA16)
+#define OPC_PSUBUW      (0xd9 | P_EXT | P_DATA16)
 #define OPC_PUNPCKLBW   (0x60 | P_EXT | P_DATA16)
 #define OPC_PUNPCKLWD   (0x61 | P_EXT | P_DATA16)
 #define OPC_PUNPCKLDQ   (0x62 | P_EXT | P_DATA16)
@@ -2591,8 +2599,20 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     static int const add_insn[4] = {
         OPC_PADDB, OPC_PADDW, OPC_PADDD, OPC_PADDQ
     };
+    static int const ssadd_insn[4] = {
+        OPC_PADDSB, OPC_PADDSW, OPC_UD2, OPC_UD2
+    };
+    static int const usadd_insn[4] = {
+        OPC_PADDSB, OPC_PADDSW, OPC_UD2, OPC_UD2
+    };
     static int const sub_insn[4] = {
         OPC_PSUBB, OPC_PSUBW, OPC_PSUBD, OPC_PSUBQ
+    };
+    static int const sssub_insn[4] = {
+        OPC_PSUBSB, OPC_PSUBSW, OPC_UD2, OPC_UD2
+    };
+    static int const ussub_insn[4] = {
+        OPC_PSUBSB, OPC_PSUBSW, OPC_UD2, OPC_UD2
     };
     static int const mul_insn[4] = {
         OPC_UD2, OPC_PMULLW, OPC_PMULLD, OPC_UD2
@@ -2631,8 +2651,20 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_add_vec:
         insn = add_insn[vece];
         goto gen_simd;
+    case INDEX_op_ssadd_vec:
+        insn = ssadd_insn[vece];
+        goto gen_simd;
+    case INDEX_op_usadd_vec:
+        insn = usadd_insn[vece];
+        goto gen_simd;
     case INDEX_op_sub_vec:
         insn = sub_insn[vece];
+        goto gen_simd;
+    case INDEX_op_sssub_vec:
+        insn = sssub_insn[vece];
+        goto gen_simd;
+    case INDEX_op_ussub_vec:
+        insn = ussub_insn[vece];
         goto gen_simd;
     case INDEX_op_mul_vec:
         insn = mul_insn[vece];
@@ -3007,6 +3039,10 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_or_vec:
     case INDEX_op_xor_vec:
     case INDEX_op_andc_vec:
+    case INDEX_op_ssadd_vec:
+    case INDEX_op_usadd_vec:
+    case INDEX_op_sssub_vec:
+    case INDEX_op_ussub_vec:
     case INDEX_op_cmp_vec:
     case INDEX_op_x86_shufps_vec:
     case INDEX_op_x86_blend_vec:
@@ -3073,6 +3109,12 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
             return 0;
         }
         return 1;
+
+    case INDEX_op_ssadd_vec:
+    case INDEX_op_usadd_vec:
+    case INDEX_op_sssub_vec:
+    case INDEX_op_ussub_vec:
+        return vece <= MO_16;
 
     default:
         return 0;
