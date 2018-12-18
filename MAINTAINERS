@@ -851,6 +851,15 @@ S: Maintained
 F: hw/cris/axis_dev88.c
 F: hw/*/etraxfs_*.c
 
+HP-PARISC Machines
+------------------
+Dino
+M: Richard Henderson <rth@twiddle.net>
+R: Helge Deller <deller@gmx.de>
+S: Odd Fixes
+F: hw/hppa/
+F: pc-bios/hppa-firmware.img
+
 LM32 Machines
 -------------
 EVR32 and uclinux BSP
