@@ -2232,7 +2232,7 @@ F: tcg/arm/
 F: disas/arm.c
 
 i386 target
-L: qemu-devel@nongnu.org
+M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: tcg/i386/
 F: disas/i386.c
