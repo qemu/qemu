@@ -1100,9 +1100,13 @@ Sun4u
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Maintained
 F: hw/sparc64/sun4u.c
-F: pc-bios/openbios-sparc64
+F: hw/sparc64/sun4u_iommu.c
+F: include/hw/sparc/sun4u_iommu.h
 F: hw/pci-host/sabre.c
 F: include/hw/pci-host/sabre.h
+F: hw/pci-bridge/simba.c
+F: include/hw/pci-bridge/simba.h
+F: pc-bios/openbios-sparc64
 
 Sun4v
 M: Artyom Tarasenko <atar4qemu@gmail.com>
