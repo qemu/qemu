@@ -291,7 +291,7 @@ static void qdict_stress_test(void)
     FILE *test_file;
     QDict *qdict;
     QString *value;
-    const char *test_file_path = "qdict-test-data.txt";
+    const char *test_file_path = "tests/data/qobject/qdict.txt";
 
     test_file = fopen(test_file_path, "r");
     g_assert(test_file != NULL);
