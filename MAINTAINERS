@@ -1185,6 +1185,10 @@ F: hw/acpi/ich9.c
 F: include/hw/acpi/ich9.h
 F: include/hw/acpi/piix4.h
 F: hw/misc/sga.c
+F: hw/isa/apm.c
+F: include/hw/isa/apm.h
+F: tests/test-x86-cpuid.c
+F: tests/test-x86-cpuid-compat.c
 
 PC Chipset
 M: Michael S. Tsirkin <mst@redhat.com>
