@@ -1369,8 +1369,8 @@ Example:
     void qapi_event_send_my_event(void);
 
     typedef enum example_QAPIEvent {
-        EXAMPLE_QAPI_EVENT_MY_EVENT = 0,
-        EXAMPLE_QAPI_EVENT__MAX = 1,
+        EXAMPLE_QAPI_EVENT_MY_EVENT,
+        EXAMPLE_QAPI_EVENT__MAX,
     } example_QAPIEvent;
 
     #define example_QAPIEvent_str(val) \
