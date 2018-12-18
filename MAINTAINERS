@@ -1815,8 +1815,7 @@ F: util/error.c
 F: util/qemu-error.c
 
 GDB stub
-L: qemu-devel@nongnu.org
-S: Odd Fixes
+S: Orphan
 F: gdbstub*
 F: gdb-xml/
 
