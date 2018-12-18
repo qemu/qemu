@@ -32,7 +32,7 @@ uint8_t acpi_calc_checksum(const uint8_t *data, int len)
     return sum;
 }
 
-uint32_t acpi_find_rsdp_address(void)
+uint32_t acpi_find_rsdp_address(QTestState *qts)
 {
     uint32_t off;
 
@@ -42,7 +42,7 @@ uint32_t acpi_find_rsdp_address(void)
         int i;
 
         for (i = 0; i < sizeof sig - 1; ++i) {
-            sig[i] = readb(off + i);
+            sig[i] = qtest_readb(qts, off + i);
         }
 
         if (!memcmp(sig, "RSD PTR ", sizeof sig)) {
@@ -52,14 +52,15 @@ uint32_t acpi_find_rsdp_address(void)
     return off;
 }
 
-void acpi_parse_rsdp_table(uint32_t addr, AcpiRsdpDescriptor *rsdp_table)
+void acpi_parse_rsdp_table(QTestState *qts, uint32_t addr,
+                           AcpiRsdpDescriptor *rsdp_table)
 {
-    ACPI_READ_FIELD(rsdp_table->signature, addr);
+    ACPI_READ_FIELD(qts, rsdp_table->signature, addr);
     ACPI_ASSERT_CMP64(rsdp_table->signature, "RSD PTR ");
 
-    ACPI_READ_FIELD(rsdp_table->checksum, addr);
-    ACPI_READ_ARRAY(rsdp_table->oem_id, addr);
-    ACPI_READ_FIELD(rsdp_table->revision, addr);
-    ACPI_READ_FIELD(rsdp_table->rsdt_physical_address, addr);
-    ACPI_READ_FIELD(rsdp_table->length, addr);
+    ACPI_READ_FIELD(qts, rsdp_table->checksum, addr);
+    ACPI_READ_ARRAY(qts, rsdp_table->oem_id, addr);
+    ACPI_READ_FIELD(qts, rsdp_table->revision, addr);
+    ACPI_READ_FIELD(qts, rsdp_table->rsdt_physical_address, addr);
+    ACPI_READ_FIELD(qts, rsdp_table->length, addr);
 }

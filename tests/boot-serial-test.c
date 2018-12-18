@@ -128,13 +128,14 @@ static testdef_t tests[] = {
     { NULL }
 };
 
-static bool check_guest_output(const testdef_t *test, int fd)
+static bool check_guest_output(QTestState *qts, const testdef_t *test, int fd)
 {
-    int i, nbr = 0, pos = 0, ccnt;
+    int nbr = 0, pos = 0, ccnt;
+    time_t now, start = time(NULL);
     char ch;
 
-    /* Poll serial output... Wait at most 360 seconds */
-    for (i = 0; i < 36000; ++i) {
+    /* Poll serial output... */
+    while (1) {
         ccnt = 0;
         while (ccnt++ < 512 && (nbr = read(fd, &ch, 1)) == 1) {
             if (ch == test->expect[pos]) {
@@ -148,6 +149,15 @@ static bool check_guest_output(const testdef_t *test, int fd)
             }
         }
         g_assert(nbr >= 0);
+        /* Wait only if the child is still alive.  */
+        if (!qtest_probe_child(qts)) {
+            break;
+        }
+        /* Wait at most 360 seconds.  */
+        now = time(NULL);
+        if (now - start >= 360) {
+            break;
+        }
         g_usleep(10000);
     }
 
@@ -161,6 +171,7 @@ static void test_machine(const void *data)
     char codetmp[] = "/tmp/qtest-boot-serial-cXXXXXX";
     const char *codeparam = "";
     const uint8_t *code = NULL;
+    QTestState *qts;
     int ser_fd;
 
     ser_fd = mkstemp(serialtmp);
@@ -189,22 +200,22 @@ static void test_machine(const void *data)
      * Make sure that this test uses tcg if available: It is used as a
      * fast-enough smoketest for that.
      */
-    global_qtest = qtest_initf("%s %s -M %s,accel=tcg:kvm "
-                               "-chardev file,id=serial0,path=%s "
-                               "-no-shutdown -serial chardev:serial0 %s",
-                               codeparam, code ? codetmp : "",
-                               test->machine, serialtmp, test->extra);
+    qts = qtest_initf("%s %s -M %s,accel=tcg:kvm -no-shutdown "
+                      "-chardev file,id=serial0,path=%s "
+                      "-serial chardev:serial0 %s",
+                      codeparam, code ? codetmp : "", test->machine,
+                      serialtmp, test->extra);
     if (code) {
         unlink(codetmp);
     }
 
-    if (!check_guest_output(test, ser_fd)) {
+    if (!check_guest_output(qts, test, ser_fd)) {
         g_error("Failed to find expected string. Please check '%s'",
                 serialtmp);
     }
     unlink(serialtmp);
 
-    qtest_quit(global_qtest);
+    qtest_quit(qts);
 
     close(ser_fd);
 }

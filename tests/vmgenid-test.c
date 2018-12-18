@@ -31,7 +31,7 @@ typedef struct {
     uint32_t vgia_val;
 } QEMU_PACKED VgidTable;
 
-static uint32_t acpi_find_vgia(void)
+static uint32_t acpi_find_vgia(QTestState *qts)
 {
     uint32_t rsdp_offset;
     uint32_t guid_offset = 0;
@@ -45,18 +45,18 @@ static uint32_t acpi_find_vgia(void)
     int i;
 
     /* Wait for guest firmware to finish and start the payload. */
-    boot_sector_test(global_qtest);
+    boot_sector_test(qts);
 
     /* Tables should be initialized now. */
-    rsdp_offset = acpi_find_rsdp_address();
+    rsdp_offset = acpi_find_rsdp_address(qts);
 
     g_assert_cmphex(rsdp_offset, <, RSDP_ADDR_INVALID);
 
-    acpi_parse_rsdp_table(rsdp_offset, &rsdp_table);
+    acpi_parse_rsdp_table(qts, rsdp_offset, &rsdp_table);
 
     rsdt = le32_to_cpu(rsdp_table.rsdt_physical_address);
     /* read the header */
-    ACPI_READ_TABLE_HEADER(&rsdt_table, rsdt);
+    ACPI_READ_TABLE_HEADER(qts, &rsdt_table, rsdt);
     ACPI_ASSERT_CMP(rsdt_table.signature, "RSDT");
     rsdt_table_length = le32_to_cpu(rsdt_table.length);
 
@@ -67,22 +67,22 @@ static uint32_t acpi_find_vgia(void)
 
     /* get the addresses of the tables pointed by rsdt */
     tables = g_new0(uint32_t, tables_nr);
-    ACPI_READ_ARRAY_PTR(tables, tables_nr, rsdt);
+    ACPI_READ_ARRAY_PTR(qts, tables, tables_nr, rsdt);
 
     for (i = 0; i < tables_nr; i++) {
         uint32_t addr = le32_to_cpu(tables[i]);
-        ACPI_READ_TABLE_HEADER(&ssdt_table, addr);
+        ACPI_READ_TABLE_HEADER(qts, &ssdt_table, addr);
         if (!strncmp((char *)ssdt_table.oem_table_id, "VMGENID", 7)) {
             /* the first entry in the table should be VGIA
              * That's all we need
              */
-            ACPI_READ_FIELD(vgid_table.name_op, addr);
+            ACPI_READ_FIELD(qts, vgid_table.name_op, addr);
             g_assert(vgid_table.name_op == 0x08);  /* name */
-            ACPI_READ_ARRAY(vgid_table.vgia, addr);
+            ACPI_READ_ARRAY(qts, vgid_table.vgia, addr);
             g_assert(memcmp(vgid_table.vgia, "VGIA", 4) == 0);
-            ACPI_READ_FIELD(vgid_table.val_op, addr);
+            ACPI_READ_FIELD(qts, vgid_table.val_op, addr);
             g_assert(vgid_table.val_op == 0x0C);  /* dword */
-            ACPI_READ_FIELD(vgid_table.vgia_val, addr);
+            ACPI_READ_FIELD(qts, vgid_table.vgia_val, addr);
             /* The GUID is written at a fixed offset into the fw_cfg file
              * in order to implement the "OVMF SDT Header probe suppressor"
              * see docs/specs/vmgenid.txt for more details
@@ -95,17 +95,17 @@ static uint32_t acpi_find_vgia(void)
     return guid_offset;
 }
 
-static void read_guid_from_memory(QemuUUID *guid)
+static void read_guid_from_memory(QTestState *qts, QemuUUID *guid)
 {
     uint32_t vmgenid_addr;
     int i;
 
-    vmgenid_addr = acpi_find_vgia();
+    vmgenid_addr = acpi_find_vgia(qts);
     g_assert(vmgenid_addr);
 
     /* Read the GUID directly from guest memory */
     for (i = 0; i < 16; i++) {
-        guid->data[i] = readb(vmgenid_addr + i);
+        guid->data[i] = qtest_readb(qts, vmgenid_addr + i);
     }
     /* The GUID is in little-endian format in the guest, while QEMU
      * uses big-endian.  Swap after reading.
@@ -113,12 +113,12 @@ static void read_guid_from_memory(QemuUUID *guid)
     qemu_uuid_bswap(guid);
 }
 
-static void read_guid_from_monitor(QemuUUID *guid)
+static void read_guid_from_monitor(QTestState *qts, QemuUUID *guid)
 {
     QDict *rsp, *rsp_ret;
     const char *guid_str;
 
-    rsp = qmp("{ 'execute': 'query-vm-generation-id' }");
+    rsp = qtest_qmp(qts, "{ 'execute': 'query-vm-generation-id' }");
     if (qdict_haskey(rsp, "return")) {
         rsp_ret = qdict_get_qdict(rsp, "return");
         g_assert(qdict_haskey(rsp_ret, "guid"));
@@ -139,45 +139,48 @@ static char disk[] = "tests/vmgenid-test-disk-XXXXXX";
 static void vmgenid_set_guid_test(void)
 {
     QemuUUID expected, measured;
+    QTestState *qts;
 
     g_assert(qemu_uuid_parse(VGID_GUID, &expected) == 0);
 
-    global_qtest = qtest_initf(GUID_CMD(VGID_GUID));
+    qts = qtest_initf(GUID_CMD(VGID_GUID));
 
     /* Read the GUID from accessing guest memory */
-    read_guid_from_memory(&measured);
+    read_guid_from_memory(qts, &measured);
     g_assert(memcmp(measured.data, expected.data, sizeof(measured.data)) == 0);
 
-    qtest_quit(global_qtest);
+    qtest_quit(qts);
 }
 
 static void vmgenid_set_guid_auto_test(void)
 {
     QemuUUID measured;
+    QTestState *qts;
 
-    global_qtest = qtest_initf(GUID_CMD("auto"));
+    qts = qtest_initf(GUID_CMD("auto"));
 
-    read_guid_from_memory(&measured);
+    read_guid_from_memory(qts, &measured);
 
     /* Just check that the GUID is non-null */
     g_assert(!qemu_uuid_is_null(&measured));
 
-    qtest_quit(global_qtest);
+    qtest_quit(qts);
 }
 
 static void vmgenid_query_monitor_test(void)
 {
     QemuUUID expected, measured;
+    QTestState *qts;
 
     g_assert(qemu_uuid_parse(VGID_GUID, &expected) == 0);
 
-    global_qtest = qtest_initf(GUID_CMD(VGID_GUID));
+    qts = qtest_initf(GUID_CMD(VGID_GUID));
 
     /* Read the GUID via the monitor */
-    read_guid_from_monitor(&measured);
+    read_guid_from_monitor(qts, &measured);
     g_assert(memcmp(measured.data, expected.data, sizeof(measured.data)) == 0);
 
-    qtest_quit(global_qtest);
+    qtest_quit(qts);
 }
 
 int main(int argc, char **argv)

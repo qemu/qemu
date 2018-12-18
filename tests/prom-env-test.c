@@ -25,14 +25,14 @@
 #define MAGIC   0xcafec0de
 #define ADDRESS 0x4000
 
-static void check_guest_memory(void)
+static void check_guest_memory(QTestState *qts)
 {
     uint32_t signature;
     int i;
 
     /* Poll until code has run and modified memory. Wait at most 600 seconds */
     for (i = 0; i < 60000; ++i) {
-        signature = readl(ADDRESS);
+        signature = qtest_readl(qts, ADDRESS);
         if (signature == MAGIC) {
             break;
         }
@@ -45,17 +45,16 @@ static void check_guest_memory(void)
 static void test_machine(const void *machine)
 {
     const char *extra_args;
+    QTestState *qts;
 
     /* The pseries firmware boots much faster without the default devices */
     extra_args = strcmp(machine, "pseries") == 0 ? "-nodefaults" : "";
 
-    global_qtest = qtest_initf("-M %s,accel=tcg %s "
-                               "-prom-env 'use-nvramrc?=true' "
-                               "-prom-env 'nvramrc=%x %x l!' ",
-                               (const char *)machine, extra_args,
-                               MAGIC, ADDRESS);
-    check_guest_memory();
-    qtest_quit(global_qtest);
+    qts = qtest_initf("-M %s,accel=tcg %s -prom-env 'use-nvramrc?=true' "
+                      "-prom-env 'nvramrc=%x %x l!' ", (const char *)machine,
+                      extra_args, MAGIC, ADDRESS);
+    check_guest_memory(qts);
+    qtest_quit(qts);
 }
 
 static void add_tests(const char *machines[])
