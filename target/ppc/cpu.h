@@ -78,18 +78,6 @@
                                  PPC_BIT32(bs))
 #define PPC_BITMASK8(bs, be)    ((PPC_BIT8(bs) - PPC_BIT8(be)) | PPC_BIT8(bs))
 
-#if HOST_LONG_BITS == 32
-# define MASK_TO_LSH(m)          (__builtin_ffsll(m) - 1)
-#elif HOST_LONG_BITS == 64
-# define MASK_TO_LSH(m)          (__builtin_ffsl(m) - 1)
-#else
-# error Unknown sizeof long
-#endif
-
-#define GETFIELD(m, v)          (((v) & (m)) >> MASK_TO_LSH(m))
-#define SETFIELD(m, v, val)                             \
-        (((v) & ~(m)) | ((((typeof(v))(val)) << MASK_TO_LSH(m)) & (m)))
-
 /*****************************************************************************/
 /* Exception vectors definitions                                             */
 enum {
