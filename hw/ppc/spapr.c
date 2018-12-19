@@ -1048,6 +1048,7 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
     add_str(hypertas, "hcall-sprg0");
     add_str(hypertas, "hcall-copy");
     add_str(hypertas, "hcall-debug");
+    add_str(hypertas, "hcall-vphn");
     add_str(qemu_hypertas, "hcall-memop1");
 
     if (!kvm_enabled() || kvmppc_spapr_use_multitce()) {
