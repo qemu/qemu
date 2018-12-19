@@ -31,26 +31,6 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
 void vm_state_notify(int running, RunState state);
 
-/* Enumeration of various causes for shutdown. */
-typedef enum ShutdownCause {
-    SHUTDOWN_CAUSE_NONE,          /* No shutdown request pending */
-    SHUTDOWN_CAUSE_HOST_ERROR,    /* An error prevents further use of guest */
-    SHUTDOWN_CAUSE_HOST_QMP,      /* Reaction to a QMP command, like 'quit' */
-    SHUTDOWN_CAUSE_HOST_SIGNAL,   /* Reaction to a signal, such as SIGINT */
-    SHUTDOWN_CAUSE_HOST_UI,       /* Reaction to UI event, like window close */
-    SHUTDOWN_CAUSE_GUEST_SHUTDOWN,/* Guest shutdown/suspend request, via
-                                     ACPI or other hardware-specific means */
-    SHUTDOWN_CAUSE_GUEST_RESET,   /* Guest reset request, and command line
-                                     turns that into a shutdown */
-    SHUTDOWN_CAUSE_GUEST_PANIC,   /* Guest panicked, and command line turns
-                                     that into a shutdown */
-    SHUTDOWN_CAUSE_SUBSYSTEM_RESET,/* Partial guest reset that does not trigger
-                                      QMP events and ignores --no-reboot. This
-                                      is useful for sanitize hypercalls on s390
-                                      that are used during kexec/kdump/boot */
-    SHUTDOWN_CAUSE__MAX,
-} ShutdownCause;
-
 static inline bool shutdown_caused_by_guest(ShutdownCause cause)
 {
     return cause >= SHUTDOWN_CAUSE_GUEST_SHUTDOWN;
@@ -74,9 +54,11 @@ void qemu_exit_preconfig_request(void);
 void qemu_system_reset_request(ShutdownCause reason);
 void qemu_system_suspend_request(void);
 void qemu_register_suspend_notifier(Notifier *notifier);
-void qemu_system_wakeup_request(WakeupReason reason);
+bool qemu_wakeup_suspend_enabled(void);
+void qemu_system_wakeup_request(WakeupReason reason, Error **errp);
 void qemu_system_wakeup_enable(WakeupReason reason, bool enabled);
 void qemu_register_wakeup_notifier(Notifier *notifier);
+void qemu_register_wakeup_support(void);
 void qemu_system_shutdown_request(ShutdownCause reason);
 void qemu_system_powerdown_request(void);
 void qemu_register_powerdown_notifier(Notifier *notifier);

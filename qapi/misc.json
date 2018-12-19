@@ -1239,11 +1239,17 @@
 ##
 # @system_wakeup:
 #
-# Wakeup guest from suspend.  Does nothing in case the guest isn't suspended.
+# Wake up guest from suspend. If the guest has wake-up from suspend
+# support enabled (wakeup-suspend-support flag from
+# query-current-machine), wake-up guest from suspend if the guest is
+# in SUSPENDED state. Return an error otherwise.
 #
 # Since:  1.1
 #
 # Returns:  nothing.
+#
+# Note: prior to 4.0, this command does nothing in case the guest
+# isn't suspended.
 #
 # Example:
 #
@@ -2011,6 +2017,30 @@
 # Since: 1.2.0
 ##
 { 'command': 'query-machines', 'returns': ['MachineInfo'] }
+
+##
+# @CurrentMachineParams:
+#
+# Information describing the running machine parameters.
+#
+# @wakeup-suspend-support: true if the machine supports wake up from
+#                          suspend
+#
+# Since: 4.0
+##
+{ 'struct': 'CurrentMachineParams',
+  'data': { 'wakeup-suspend-support': 'bool'} }
+
+##
+# @query-current-machine:
+#
+# Return information on the current virtual machine.
+#
+# Returns: CurrentMachineParams
+#
+# Since: 4.0
+##
+{ 'command': 'query-current-machine', 'returns': 'CurrentMachineParams' }
 
 ##
 # @CpuDefinitionInfo:

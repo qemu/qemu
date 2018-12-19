@@ -60,6 +60,42 @@
             'guest-panicked', 'colo', 'preconfig' ] }
 
 ##
+# @ShutdownCause:
+#
+# An enumeration of reasons for a Shutdown.
+#
+# @none: No shutdown request pending
+#
+# @host-error: An error prevents further use of guest
+#
+# @host-qmp-quit: Reaction to the QMP command 'quit'
+#
+# @host-qmp-system-reset: Reaction to the QMP command 'system_reset'
+#
+# @host-signal: Reaction to a signal, such as SIGINT
+#
+# @host-ui: Reaction to a UI event, like window close
+#
+# @guest-shutdown: Guest shutdown/suspend request, via ACPI or other
+#                  hardware-specific means
+#
+# @guest-reset: Guest reset request, and command line turns that into
+#               a shutdown
+#
+# @guest-panic: Guest panicked, and command line turns that into a shutdown
+#
+# @subsystem-reset: Partial guest reset that does not trigger QMP events and
+#                  ignores --no-reboot. This is useful for sanitizing
+#                  hypercalls on s390 that are used during kexec/kdump/boot
+#
+##
+{ 'enum': 'ShutdownCause',
+  # Beware, shutdown_caused_by_guest() depends on enumeration order
+  'data': [ 'none', 'host-error', 'host-qmp-quit', 'host-qmp-system-reset',
+            'host-signal', 'host-ui', 'guest-shutdown', 'guest-reset',
+            'guest-panic', 'subsystem-reset'] }
+
+##
 # @StatusInfo:
 #
 # Information about VCPU run state
@@ -107,6 +143,8 @@
 # a guest-initiated ACPI shutdown request or other hardware-specific action)
 # rather than a host request (such as sending qemu a SIGINT). (since 2.10)
 #
+# @reason: The @ShutdownCause which resulted in the SHUTDOWN. (since 4.0)
+#
 # Note: If the command-line option "-no-shutdown" has been specified, qemu will
 # not exit, and a STOP event will eventually follow the SHUTDOWN event
 #
@@ -118,7 +156,7 @@
 #      "timestamp": { "seconds": 1267040730, "microseconds": 682951 } }
 #
 ##
-{ 'event': 'SHUTDOWN', 'data': { 'guest': 'bool' } }
+{ 'event': 'SHUTDOWN', 'data': { 'guest': 'bool', 'reason': 'ShutdownCause' } }
 
 ##
 # @POWERDOWN:
@@ -146,6 +184,8 @@
 # rather than a host request (such as the QMP command system_reset).
 # (since 2.10)
 #
+# @reason: The @ShutdownCause of the RESET. (since 4.0)
+#
 # Since: 0.12.0
 #
 # Example:
@@ -154,7 +194,7 @@
 #      "timestamp": { "seconds": 1267041653, "microseconds": 9518 } }
 #
 ##
-{ 'event': 'RESET', 'data': { 'guest': 'bool' } }
+{ 'event': 'RESET', 'data': { 'guest': 'bool', 'reason': 'ShutdownCause' } }
 
 ##
 # @STOP:

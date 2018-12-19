@@ -192,6 +192,7 @@ bool boot_strict;
 uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
 uint8_t qemu_extra_params_fw[2];
+bool wakeup_suspend_enabled;
 
 int icount_align_option;
 
@@ -1675,7 +1676,7 @@ void qemu_system_reset(ShutdownCause reason)
         qemu_devices_reset();
     }
     if (reason != SHUTDOWN_CAUSE_SUBSYSTEM_RESET) {
-        qapi_event_send_reset(shutdown_caused_by_guest(reason));
+        qapi_event_send_reset(shutdown_caused_by_guest(reason), reason);
     }
     cpu_synchronize_all_post_reset();
 }
@@ -1751,11 +1752,13 @@ void qemu_register_suspend_notifier(Notifier *notifier)
     notifier_list_add(&suspend_notifiers, notifier);
 }
 
-void qemu_system_wakeup_request(WakeupReason reason)
+void qemu_system_wakeup_request(WakeupReason reason, Error **errp)
 {
     trace_system_wakeup_request(reason);
 
     if (!runstate_check(RUN_STATE_SUSPENDED)) {
+        error_setg(errp,
+                   "Unable to wake up: guest is not in suspended state");
         return;
     }
     if (!(wakeup_reason_mask & (1 << reason))) {
@@ -1778,6 +1781,24 @@ void qemu_system_wakeup_enable(WakeupReason reason, bool enabled)
 void qemu_register_wakeup_notifier(Notifier *notifier)
 {
     notifier_list_add(&wakeup_notifiers, notifier);
+}
+
+void qemu_register_wakeup_support(void)
+{
+    wakeup_suspend_enabled = true;
+}
+
+bool qemu_wakeup_suspend_enabled(void)
+{
+    return wakeup_suspend_enabled;
+}
+
+CurrentMachineParams *qmp_query_current_machine(Error **errp)
+{
+    CurrentMachineParams *params = g_malloc0(sizeof(*params));
+    params->wakeup_suspend_support = qemu_wakeup_suspend_enabled();
+
+    return params;
 }
 
 void qemu_system_killed(int signal, pid_t pid)
@@ -1846,7 +1867,7 @@ static bool main_loop_should_exit(void)
     request = qemu_shutdown_requested();
     if (request) {
         qemu_kill_report();
-        qapi_event_send_shutdown(shutdown_caused_by_guest(request));
+        qapi_event_send_shutdown(shutdown_caused_by_guest(request), request);
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
