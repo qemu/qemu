@@ -1573,10 +1573,7 @@ static bool systemd_supports_mode(SuspendMode mode, Error **errp)
         return true;
     }
 
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
-
+    error_propagate(errp, local_err);
     return false;
 }
 
@@ -1782,7 +1779,7 @@ static void guest_suspend(SuspendMode mode, Error **errp)
     if (!mode_supported) {
         error_setg(errp,
                    "the requested suspend mode is not supported by the guest");
-    } else if (local_err) {
+    } else {
         error_propagate(errp, local_err);
     }
 }

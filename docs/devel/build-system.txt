@@ -393,7 +393,7 @@ all use $(obj) as a prefix to the target, e.g.
 This file provides the entry point used to build each individual system
 or userspace emulator target. Each enabled target has its own
 subdirectory. For example if configure is run with the argument
-'--target-list=x86_64-softmmu', then a sub-directory 'x86_64-softmu'
+'--target-list=x86_64-softmmu', then a sub-directory 'x86_64-softmmu'
 will be created, containing a 'Makefile' which symlinks back to
 Makefile.target
 
