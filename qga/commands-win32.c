@@ -1941,10 +1941,22 @@ static ga_matrix_lookup_t const WIN_VERSION_MATRIX[2][8] = {
         { 6, 1, "Microsoft Windows Server 2008 R2",     "2008r2"},
         { 6, 2, "Microsoft Windows Server 2012",        "2012"},
         { 6, 3, "Microsoft Windows Server 2012 R2",     "2012r2"},
-        {10, 0, "Microsoft Windows Server 2016",        "2016"},
+        { 0, 0, 0},
         { 0, 0, 0},
         { 0, 0, 0}
     }
+};
+
+typedef struct _ga_win_10_0_server_t {
+    int final_build;
+    char const *version;
+    char const *version_id;
+} ga_win_10_0_server_t;
+
+static ga_win_10_0_server_t const WIN_10_0_SERVER_VERSION_MATRIX[3] = {
+    {14393, "Microsoft Windows Server 2016",    "2016"},
+    {17763, "Microsoft Windows Server 2019",    "2019"},
+    {0, 0}
 };
 
 static void ga_get_win_version(RTL_OSVERSIONINFOEXW *info, Error **errp)
@@ -1971,10 +1983,23 @@ static char *ga_get_win_name(OSVERSIONINFOEXW const *os_version, bool id)
 {
     DWORD major = os_version->dwMajorVersion;
     DWORD minor = os_version->dwMinorVersion;
+    DWORD build = os_version->dwBuildNumber;
     int tbl_idx = (os_version->wProductType != VER_NT_WORKSTATION);
     ga_matrix_lookup_t const *table = WIN_VERSION_MATRIX[tbl_idx];
+    ga_win_10_0_server_t const *win_10_0_table = WIN_10_0_SERVER_VERSION_MATRIX;
     while (table->version != NULL) {
-        if (major == table->major && minor == table->minor) {
+        if (major == 10 && minor == 0 && tbl_idx) {
+            while (win_10_0_table->version != NULL) {
+                if (build <= win_10_0_table->final_build) {
+                    if (id) {
+                        return g_strdup(win_10_0_table->version_id);
+                    } else {
+                        return g_strdup(win_10_0_table->version);
+                    }
+                }
+                win_10_0_table++;
+            }
+        } else if (major == table->major && minor == table->minor) {
             if (id) {
                 return g_strdup(table->version_id);
             } else {
