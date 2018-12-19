@@ -266,6 +266,7 @@ S: Maintained
 F: target/riscv/
 F: hw/riscv/
 F: include/hw/riscv/
+F: linux-user/host/riscv32/
 F: disas/riscv.c
 
 S390
