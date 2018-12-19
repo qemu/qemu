@@ -715,7 +715,6 @@ static void pc_i440fx_1_2_machine_options(MachineClass *m)
         PC_CPU_MODEL_IDS("1.2.0")
         { "nec-usb-xhci", "msi", "off" },
         { "nec-usb-xhci", "msix", "off" },
-        { "ivshmem", "use64", "0" },
         { "qxl", "revision", "3" },
         { "qxl-vga", "revision", "3" },
         { "VGA", "mmio", "off" },
