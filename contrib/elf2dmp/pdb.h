@@ -216,7 +216,7 @@ typedef struct pdb_seg {
 #define IMAGE_FILE_MACHINE_AMD64 0x8664
 
 struct pdb_reader {
-    int fd;
+    GMappedFile *gmf;
     size_t file_size;
     struct {
         PDB_DS_HEADER *header;
