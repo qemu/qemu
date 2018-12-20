@@ -115,6 +115,13 @@ GlobalProperty pc_compat_3_1[] = {
     { "Opteron_G3" "-" TYPE_X86_CPU, "rdtscp", "off" },
     { "Opteron_G4" "-" TYPE_X86_CPU, "rdtscp", "off" },
     { "Opteron_G5" "-" TYPE_X86_CPU, "rdtscp", "off" },
+    { "Skylake-Client" "-" TYPE_X86_CPU,      "mpx", "on" },
+    { "Skylake-Client-IBRS" "-" TYPE_X86_CPU, "mpx", "on" },
+    { "Skylake-Server" "-" TYPE_X86_CPU,      "mpx", "on" },
+    { "Skylake-Server-IBRS" "-" TYPE_X86_CPU, "mpx", "on" },
+    { "Cascadelake-Server" "-" TYPE_X86_CPU,  "mpx", "on" },
+    { "Icelake-Client" "-" TYPE_X86_CPU,      "mpx", "on" },
+    { "Icelake-Server" "-" TYPE_X86_CPU,      "mpx", "on" },
 };
 const size_t pc_compat_3_1_len = G_N_ELEMENTS(pc_compat_3_1);
 
