@@ -1233,7 +1233,7 @@ static int amdvi_int_remap_msi(AMDVIState *iommu,
     }
 
     /* validate that we are configure with intremap=on */
-    if (!X86_IOMMU_DEVICE(iommu)->intr_supported) {
+    if (!x86_iommu_ir_supported(X86_IOMMU_DEVICE(iommu))) {
         trace_amdvi_err("Interrupt remapping is enabled in the guest but "
                         "not in the host. Use intremap=on to enable interrupt "
                         "remapping in amd-iommu.");

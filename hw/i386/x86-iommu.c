@@ -119,8 +119,13 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* If the user didn't specify IR, choose a default value for it */
+    if (x86_iommu->intr_supported == ON_OFF_AUTO_AUTO) {
+        x86_iommu->intr_supported = ON_OFF_AUTO_OFF;
+    }
+
     /* Both Intel and AMD IOMMU IR only support "kernel-irqchip={off|split}" */
-    if (x86_iommu->intr_supported && kvm_irqchip_in_kernel() &&
+    if (x86_iommu_ir_supported(x86_iommu) && kvm_irqchip_in_kernel() &&
         !kvm_irqchip_is_split()) {
         error_setg(errp, "Interrupt Remapping cannot work with "
                          "kernel-irqchip=on, please use 'split|off'.");
@@ -135,7 +140,8 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
 }
 
 static Property x86_iommu_properties[] = {
-    DEFINE_PROP_BOOL("intremap", X86IOMMUState, intr_supported, false),
+    DEFINE_PROP_ON_OFF_AUTO("intremap", X86IOMMUState,
+                            intr_supported, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BOOL("device-iotlb", X86IOMMUState, dt_supported, false),
     DEFINE_PROP_BOOL("pt", X86IOMMUState, pt_supported, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -146,6 +152,11 @@ static void x86_iommu_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = x86_iommu_realize;
     dc->props = x86_iommu_properties;
+}
+
+bool x86_iommu_ir_supported(X86IOMMUState *s)
+{
+    return s->intr_supported == ON_OFF_AUTO_ON;
 }
 
 static const TypeInfo x86_iommu_info = {

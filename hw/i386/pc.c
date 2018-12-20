@@ -1244,7 +1244,7 @@ void pc_machine_done(Notifier *notifier, void *data)
     if (pcms->apic_id_limit > 255 && !xen_enabled()) {
         IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
 
-        if (!iommu || !iommu->x86_iommu.intr_supported ||
+        if (!iommu || !x86_iommu_ir_supported(X86_IOMMU_DEVICE(iommu)) ||
             iommu->intr_eim != ON_OFF_AUTO_ON) {
             error_report("current -smp configuration requires "
                          "Extended Interrupt Mode enabled. "

@@ -3169,7 +3169,7 @@ static void vtd_init(IntelIOMMUState *s)
     vtd_paging_entry_rsvd_field[7] = VTD_SPTE_LPAGE_L3_RSVD_MASK(s->aw_bits);
     vtd_paging_entry_rsvd_field[8] = VTD_SPTE_LPAGE_L4_RSVD_MASK(s->aw_bits);
 
-    if (x86_iommu->intr_supported) {
+    if (x86_iommu_ir_supported(x86_iommu)) {
         s->ecap |= VTD_ECAP_IR | VTD_ECAP_MHMV;
         if (s->intr_eim == ON_OFF_AUTO_ON) {
             s->ecap |= VTD_ECAP_EIM;
@@ -3270,14 +3270,14 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
-    if (s->intr_eim == ON_OFF_AUTO_ON && !x86_iommu->intr_supported) {
+    if (s->intr_eim == ON_OFF_AUTO_ON && !x86_iommu_ir_supported(x86_iommu)) {
         error_setg(errp, "eim=on cannot be selected without intremap=on");
         return false;
     }
 
     if (s->intr_eim == ON_OFF_AUTO_AUTO) {
         s->intr_eim = (kvm_irqchip_in_kernel() || s->buggy_eim)
-                      && x86_iommu->intr_supported ?
+                      && x86_iommu_ir_supported(x86_iommu) ?
                                               ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
     if (s->intr_eim == ON_OFF_AUTO_ON && !s->buggy_eim) {

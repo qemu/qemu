@@ -2426,7 +2426,7 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     IntelIOMMUState *intel_iommu = INTEL_IOMMU_DEVICE(iommu);
 
     assert(iommu);
-    if (iommu->intr_supported) {
+    if (x86_iommu_ir_supported(iommu)) {
         dmar_flags |= 0x1;      /* Flags: 0x1: INT_REMAP */
     }
 
@@ -2499,7 +2499,7 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker)
      * When interrupt remapping is supported, we add a special IVHD device
      * for type IO-APIC.
      */
-    if (x86_iommu_get_default()->intr_supported) {
+    if (x86_iommu_ir_supported(x86_iommu_get_default())) {
         ivhd_table_len += 8;
     }
     /* IVHD length */
@@ -2535,7 +2535,7 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker)
      * Linux IOMMU driver checks for the special IVHD device (type IO-APIC).
      * See Linux kernel commit 'c2ff5cf5294bcbd7fa50f7d860e90a66db7e5059'
      */
-    if (x86_iommu_get_default()->intr_supported) {
+    if (x86_iommu_ir_supported(x86_iommu_get_default())) {
         build_append_int_noprefix(table_data,
                                  (0x1ull << 56) |           /* type IOAPIC */
                                  (IOAPIC_SB_DEVID << 40) |  /* IOAPIC devid */
