@@ -112,6 +112,7 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
     PCMachineState *pcms =
         PC_MACHINE(object_dynamic_cast(OBJECT(ms), TYPE_PC_MACHINE));
     QLIST_INIT(&x86_iommu->iec_notifiers);
+    bool irq_all_kernel = kvm_irqchip_in_kernel() && !kvm_irqchip_is_split();
 
     if (!pcms || !pcms->bus) {
         error_setg(errp, "Machine-type '%s' not supported by IOMMU",
@@ -121,12 +122,12 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
 
     /* If the user didn't specify IR, choose a default value for it */
     if (x86_iommu->intr_supported == ON_OFF_AUTO_AUTO) {
-        x86_iommu->intr_supported = ON_OFF_AUTO_OFF;
+        x86_iommu->intr_supported = irq_all_kernel ?
+            ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
     }
 
     /* Both Intel and AMD IOMMU IR only support "kernel-irqchip={off|split}" */
-    if (x86_iommu_ir_supported(x86_iommu) && kvm_irqchip_in_kernel() &&
-        !kvm_irqchip_is_split()) {
+    if (x86_iommu_ir_supported(x86_iommu) && irq_all_kernel) {
         error_setg(errp, "Interrupt Remapping cannot work with "
                          "kernel-irqchip=on, please use 'split|off'.");
         return;
