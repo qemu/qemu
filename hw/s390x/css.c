@@ -1290,9 +1290,19 @@ void copy_scsw_to_guest(SCSW *dest, const SCSW *src)
 static void copy_schib_to_guest(SCHIB *dest, const SCHIB *src)
 {
     int i;
+    /*
+     * We copy the PMCW and SCSW in and out of local variables to
+     * avoid taking the address of members of a packed struct.
+     */
+    PMCW src_pmcw, dest_pmcw;
+    SCSW src_scsw, dest_scsw;
 
-    copy_pmcw_to_guest(&dest->pmcw, &src->pmcw);
-    copy_scsw_to_guest(&dest->scsw, &src->scsw);
+    src_pmcw = src->pmcw;
+    copy_pmcw_to_guest(&dest_pmcw, &src_pmcw);
+    dest->pmcw = dest_pmcw;
+    src_scsw = src->scsw;
+    copy_scsw_to_guest(&dest_scsw, &src_scsw);
+    dest->scsw = dest_scsw;
     dest->mba = cpu_to_be64(src->mba);
     for (i = 0; i < ARRAY_SIZE(dest->mda); i++) {
         dest->mda[i] = src->mda[i];
@@ -1339,9 +1349,19 @@ static void copy_scsw_from_guest(SCSW *dest, const SCSW *src)
 static void copy_schib_from_guest(SCHIB *dest, const SCHIB *src)
 {
     int i;
+    /*
+     * We copy the PMCW and SCSW in and out of local variables to
+     * avoid taking the address of members of a packed struct.
+     */
+    PMCW src_pmcw, dest_pmcw;
+    SCSW src_scsw, dest_scsw;
 
-    copy_pmcw_from_guest(&dest->pmcw, &src->pmcw);
-    copy_scsw_from_guest(&dest->scsw, &src->scsw);
+    src_pmcw = src->pmcw;
+    copy_pmcw_from_guest(&dest_pmcw, &src_pmcw);
+    dest->pmcw = dest_pmcw;
+    src_scsw = src->scsw;
+    copy_scsw_from_guest(&dest_scsw, &src_scsw);
+    dest->scsw = dest_scsw;
     dest->mba = be64_to_cpu(src->mba);
     for (i = 0; i < ARRAY_SIZE(dest->mda); i++) {
         dest->mda[i] = src->mda[i];
