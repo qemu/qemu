@@ -5,10 +5,10 @@
  *
  */
 
-#ifndef QEMU_ELF_H
-#define QEMU_ELF_H
+#ifndef ELF2DMP_ELF_H
+#define ELF2DMP_ELF_H
 
-#include <elf.h>
+#include "elf.h"
 
 typedef struct QEMUCPUSegment {
     uint32_t selector;
@@ -47,4 +47,4 @@ void QEMU_Elf_exit(QEMU_Elf *qe);
 Elf64_Phdr *elf64_getphdr(void *map);
 Elf64_Half elf_getphdrnum(void *map);
 
-#endif /* QEMU_ELF_H */
+#endif /* ELF2DMP_ELF_H */
