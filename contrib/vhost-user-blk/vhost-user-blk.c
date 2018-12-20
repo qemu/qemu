@@ -20,7 +20,6 @@
 #include "contrib/libvhost-user/libvhost-user-glib.h"
 #include "contrib/libvhost-user/libvhost-user.h"
 
-#include <glib.h>
 
 struct virtio_blk_inhdr {
     unsigned char status;

@@ -12,7 +12,6 @@
 
 #ifndef QEMU_VFIO_HELPERS_H
 #define QEMU_VFIO_HELPERS_H
-#include "qemu/typedefs.h"
 
 typedef struct QEMUVFIOState QEMUVFIOState;
 

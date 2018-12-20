@@ -16,7 +16,6 @@
 #ifndef PVRDMA_DEV_RING_H
 #define PVRDMA_DEV_RING_H
 
-#include "qemu/typedefs.h"
 
 #define MAX_RING_NAME_SZ 32
 

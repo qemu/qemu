@@ -13,7 +13,6 @@
 #ifndef QEMU_WHPX_H
 #define QEMU_WHPX_H
 
-#include "config-host.h"
 #include "qemu-common.h"
 
 int whpx_init_vcpu(CPUState *cpu);

@@ -17,7 +17,6 @@
  */
 
 #include "qemu/osdep.h"
-#include <stdlib.h>
 #include "cpu.h"
 #include "qemu/host-utils.h"
 #include "exec/exec-all.h"

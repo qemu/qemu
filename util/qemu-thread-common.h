@@ -13,7 +13,6 @@
 #ifndef QEMU_THREAD_COMMON_H
 #define QEMU_THREAD_COMMON_H
 
-#include "qemu/typedefs.h"
 #include "qemu/thread.h"
 #include "trace.h"
 

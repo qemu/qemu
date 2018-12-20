@@ -8,7 +8,6 @@
 #ifndef PE_H
 #define PE_H
 
-#include <stdint.h>
 
 typedef struct IMAGE_DOS_HEADER {
     uint16_t  e_magic;      /* 0x00: MZ Header signature */
