@@ -195,6 +195,7 @@ struct MachineClass {
     const char *hw_version;
     ram_addr_t default_ram_size;
     const char *default_cpu_type;
+    bool default_kernel_irqchip_split;
     bool option_rom_has_mr;
     bool rom_file_has_mr;
     int minimum_page_bits;

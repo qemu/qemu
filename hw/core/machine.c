@@ -653,8 +653,10 @@ static void machine_class_base_init(ObjectClass *oc, void *data)
 static void machine_initfn(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
 
     ms->kernel_irqchip_allowed = true;
+    ms->kernel_irqchip_split = mc->default_kernel_irqchip_split;
     ms->kvm_shadow_mem = -1;
     ms->dump_guest_core = true;
     ms->mem_merge = true;

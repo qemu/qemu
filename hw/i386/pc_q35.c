@@ -304,6 +304,7 @@ static void pc_q35_machine_options(MachineClass *m)
     m->units_per_default_bus = 1;
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
+    m->default_kernel_irqchip_split = true;
     m->no_floppy = 1;
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_AMD_IOMMU_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_INTEL_IOMMU_DEVICE);
@@ -323,6 +324,7 @@ DEFINE_Q35_MACHINE(v4_0, "pc-q35-4.0", NULL,
 static void pc_q35_3_1_machine_options(MachineClass *m)
 {
     pc_q35_4_0_machine_options(m);
+    m->default_kernel_irqchip_split = false;
     m->alias = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_3_1);
 }
