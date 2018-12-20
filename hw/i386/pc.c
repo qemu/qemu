@@ -112,6 +112,9 @@ struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
 GlobalProperty pc_compat_3_1[] = {
     { "intel-iommu", "dma-drain", "off" },
+    { "Opteron_G3" "-" TYPE_X86_CPU, "rdtscp", "off" },
+    { "Opteron_G4" "-" TYPE_X86_CPU, "rdtscp", "off" },
+    { "Opteron_G5" "-" TYPE_X86_CPU, "rdtscp", "off" },
 };
 const size_t pc_compat_3_1_len = G_N_ELEMENTS(pc_compat_3_1);
 
