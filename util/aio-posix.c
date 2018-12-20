@@ -245,6 +245,9 @@ void aio_set_fd_handler(AioContext *ctx,
             QLIST_REMOVE(node, node);
             deleted = true;
         }
+        /* Clean events in order to unregister fd from the ctx epoll. */
+        node->pfd.events = 0;
+
         poll_disable_change = -!node->io_poll;
     } else {
         poll_disable_change = !io_poll - (node && !node->io_poll);
