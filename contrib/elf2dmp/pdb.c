@@ -18,6 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#include <inttypes.h>
+
 #include "qemu/osdep.h"
 #include "pdb.h"
 #include "err.h"
@@ -66,7 +68,7 @@ uint64_t pdb_find_public_v3_symbol(struct pdb_reader *r, const char *name)
             uint32_t sect_rva = segment->dword[1];
             uint64_t rva = sect_rva + sym->public_v3.offset;
 
-            printf("%s: 0x%016x(%d:\'%.8s\') + 0x%08x = 0x%09lx\n", name,
+            printf("%s: 0x%016x(%d:\'%.8s\') + 0x%08x = 0x%09"PRIx64"\n", name,
                     sect_rva, sym->public_v3.segment,
                     ((char *)segment - 8), sym->public_v3.offset, rva);
             return rva;
