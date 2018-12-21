@@ -545,7 +545,7 @@ int rdma_rm_add_gid(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
         return -EINVAL;
     }
 
-    memcpy(&dev_res->ports[0].gid_tbl[gid_idx].gid, gid, sizeof(*gid));
+    memcpy(&dev_res->port.gid_tbl[gid_idx].gid, gid, sizeof(*gid));
 
     return 0;
 }
@@ -556,15 +556,15 @@ int rdma_rm_del_gid(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
     int rc;
 
     rc = rdma_backend_del_gid(backend_dev, ifname,
-                              &dev_res->ports[0].gid_tbl[gid_idx].gid);
+                              &dev_res->port.gid_tbl[gid_idx].gid);
     if (rc) {
         pr_dbg("Fail to delete gid\n");
         return -EINVAL;
     }
 
-    memset(dev_res->ports[0].gid_tbl[gid_idx].gid.raw, 0,
-           sizeof(dev_res->ports[0].gid_tbl[gid_idx].gid));
-    dev_res->ports[0].gid_tbl[gid_idx].backend_gid_index = -1;
+    memset(dev_res->port.gid_tbl[gid_idx].gid.raw, 0,
+           sizeof(dev_res->port.gid_tbl[gid_idx].gid));
+    dev_res->port.gid_tbl[gid_idx].backend_gid_index = -1;
 
     return 0;
 }
@@ -577,16 +577,16 @@ int rdma_rm_get_backend_gid_index(RdmaDeviceResources *dev_res,
         return -EINVAL;
     }
 
-    if (unlikely(dev_res->ports[0].gid_tbl[sgid_idx].backend_gid_index == -1)) {
-        dev_res->ports[0].gid_tbl[sgid_idx].backend_gid_index =
+    if (unlikely(dev_res->port.gid_tbl[sgid_idx].backend_gid_index == -1)) {
+        dev_res->port.gid_tbl[sgid_idx].backend_gid_index =
         rdma_backend_get_gid_index(backend_dev,
-                                   &dev_res->ports[0].gid_tbl[sgid_idx].gid);
+                                   &dev_res->port.gid_tbl[sgid_idx].gid);
     }
 
     pr_dbg("backend_gid_index=%d\n",
-           dev_res->ports[0].gid_tbl[sgid_idx].backend_gid_index);
+           dev_res->port.gid_tbl[sgid_idx].backend_gid_index);
 
-    return dev_res->ports[0].gid_tbl[sgid_idx].backend_gid_index;
+    return dev_res->port.gid_tbl[sgid_idx].backend_gid_index;
 }
 
 static void destroy_qp_hash_key(gpointer data)
@@ -596,15 +596,13 @@ static void destroy_qp_hash_key(gpointer data)
 
 static void init_ports(RdmaDeviceResources *dev_res)
 {
-    int i, j;
+    int i;
 
-    memset(dev_res->ports, 0, sizeof(dev_res->ports));
+    memset(&dev_res->port, 0, sizeof(dev_res->port));
 
-    for (i = 0; i < MAX_PORTS; i++) {
-        dev_res->ports[i].state = IBV_PORT_DOWN;
-        for (j = 0; j < MAX_PORT_GIDS; j++) {
-            dev_res->ports[i].gid_tbl[j].backend_gid_index = -1;
-        }
+    dev_res->port.state = IBV_PORT_DOWN;
+    for (i = 0; i < MAX_PORT_GIDS; i++) {
+        dev_res->port.gid_tbl[i].backend_gid_index = -1;
     }
 }
 
@@ -613,7 +611,7 @@ static void fini_ports(RdmaDeviceResources *dev_res,
 {
     int i;
 
-    dev_res->ports[0].state = IBV_PORT_DOWN;
+    dev_res->port.state = IBV_PORT_DOWN;
     for (i = 0; i < MAX_PORT_GIDS; i++) {
         rdma_rm_del_gid(dev_res, backend_dev, ifname, i);
     }

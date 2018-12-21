@@ -79,7 +79,7 @@ int rdma_rm_get_backend_gid_index(RdmaDeviceResources *dev_res,
 static inline union ibv_gid *rdma_rm_get_gid(RdmaDeviceResources *dev_res,
                                              int sgid_idx)
 {
-    return &dev_res->ports[0].gid_tbl[sgid_idx].gid;
+    return &dev_res->port.gid_tbl[sgid_idx].gid;
 }
 
 #endif

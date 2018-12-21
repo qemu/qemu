@@ -18,7 +18,7 @@
 
 #include "rdma_backend_defs.h"
 
-#define MAX_PORTS             1
+#define MAX_PORTS             1 /* Do not change - we support only one port */
 #define MAX_PORT_GIDS         255
 #define MAX_GIDS              MAX_PORT_GIDS
 #define MAX_PORT_PKEYS        1
@@ -97,7 +97,7 @@ typedef struct RdmaRmPort {
 } RdmaRmPort;
 
 typedef struct RdmaDeviceResources {
-    RdmaRmPort ports[MAX_PORTS];
+    RdmaRmPort port;
     RdmaRmResTbl pd_tbl;
     RdmaRmResTbl mr_tbl;
     RdmaRmResTbl uc_tbl;
