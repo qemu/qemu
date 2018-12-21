@@ -264,7 +264,7 @@ static void init_dsr_dev_caps(PVRDMADev *dev)
     dsr->caps.sys_image_guid = 0;
     pr_dbg("sys_image_guid=%" PRIx64 "\n", dsr->caps.sys_image_guid);
 
-    dsr->caps.node_guid = cpu_to_be64(dev->node_guid);
+    dsr->caps.node_guid = dev->node_guid;
     pr_dbg("node_guid=%" PRIx64 "\n", be64_to_cpu(dsr->caps.node_guid));
 
     dsr->caps.phys_port_cnt = MAX_PORTS;
@@ -587,6 +587,9 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
         return;
     }
     dev->func0 = VMXNET3(func0);
+
+    addrconf_addr_eui48((unsigned char *)&dev->node_guid,
+                        (const char *)&dev->func0->conf.macaddr.a);
 
     memdev_root = object_resolve_path("/objects", NULL);
     if (memdev_root) {

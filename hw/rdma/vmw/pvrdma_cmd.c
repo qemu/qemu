@@ -592,16 +592,6 @@ static int create_bind(PVRDMADev *dev, union pvrdma_cmd_req *req,
         return -EINVAL;
     }
 
-    /* TODO: Since drivers stores node_guid at load_dsr phase then this
-     * assignment is not relevant, i need to figure out a way how to
-     * retrieve MAC of our netdev */
-    if (!cmd->index) {
-        dev->node_guid =
-            dev->rdma_dev_res.ports[0].gid_tbl[0].gid.global.interface_id;
-        pr_dbg("dev->node_guid=0x%llx\n",
-               (long long unsigned int)be64_to_cpu(dev->node_guid));
-    }
-
     return 0;
 }
 

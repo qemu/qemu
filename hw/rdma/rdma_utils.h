@@ -63,4 +63,13 @@ extern unsigned long pr_dbg_cnt;
 void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen);
 void rdma_pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len);
 
+static inline void addrconf_addr_eui48(uint8_t *eui, const char *addr)
+{
+    memcpy(eui, addr, 3);
+    eui[3] = 0xFF;
+    eui[4] = 0xFE;
+    memcpy(eui + 5, addr + 3, 3);
+    eui[0] ^= 2;
+}
+
 #endif
