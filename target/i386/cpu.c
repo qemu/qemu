@@ -929,6 +929,13 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
          */
         .no_autoenable_flags = ~0U,
     },
+    /*
+     * .feat_names are commented out for Hyper-V enlightenments because we
+     * don't want to have two different ways for enabling them on QEMU command
+     * line. Some features (e.g. "hyperv_time", "hyperv_vapic", ...) require
+     * enabling several feature bits simultaneously, exposing these bits
+     * individually may just confuse guests.
+     */
     [FEAT_HYPERV_EAX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
