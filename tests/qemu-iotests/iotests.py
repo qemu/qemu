@@ -63,7 +63,7 @@ socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
 debug = False
 
 luks_default_secret_object = 'secret,id=keysec0,data=' + \
-                             os.environ['IMGKEYSECRET']
+                             os.environ.get('IMGKEYSECRET', '')
 luks_default_key_secret_opt = 'key-secret=keysec0'
 
 
