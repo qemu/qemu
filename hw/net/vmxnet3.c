@@ -18,7 +18,6 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
-#include "net/net.h"
 #include "net/tap.h"
 #include "net/checksum.h"
 #include "sysemu/sysemu.h"
@@ -29,6 +28,7 @@
 #include "migration/register.h"
 
 #include "vmxnet3.h"
+#include "vmxnet3_defs.h"
 #include "vmxnet_debug.h"
 #include "vmware_utils.h"
 #include "net_tx_pkt.h"
@@ -131,22 +131,10 @@ typedef struct VMXNET3Class {
     DeviceRealize parent_dc_realize;
 } VMXNET3Class;
 
-#define TYPE_VMXNET3 "vmxnet3"
-#define VMXNET3(obj) OBJECT_CHECK(VMXNET3State, (obj), TYPE_VMXNET3)
-
 #define VMXNET3_DEVICE_CLASS(klass) \
     OBJECT_CLASS_CHECK(VMXNET3Class, (klass), TYPE_VMXNET3)
 #define VMXNET3_DEVICE_GET_CLASS(obj) \
     OBJECT_GET_CLASS(VMXNET3Class, (obj), TYPE_VMXNET3)
-
-/* Cyclic ring abstraction */
-typedef struct {
-    hwaddr pa;
-    uint32_t size;
-    uint32_t cell_size;
-    uint32_t next;
-    uint8_t gen;
-} Vmxnet3Ring;
 
 static inline void vmxnet3_ring_init(PCIDevice *d,
 				     Vmxnet3Ring *ring,
@@ -244,108 +232,6 @@ vmxnet3_dump_rx_descr(struct Vmxnet3_RxDesc *descr)
               descr->addr, descr->len, descr->gen,
               descr->rsvd, descr->dtype, descr->ext1, descr->btype);
 }
-
-/* Device state and helper functions */
-#define VMXNET3_RX_RINGS_PER_QUEUE (2)
-
-typedef struct {
-    Vmxnet3Ring tx_ring;
-    Vmxnet3Ring comp_ring;
-
-    uint8_t intr_idx;
-    hwaddr tx_stats_pa;
-    struct UPT1_TxStats txq_stats;
-} Vmxnet3TxqDescr;
-
-typedef struct {
-    Vmxnet3Ring rx_ring[VMXNET3_RX_RINGS_PER_QUEUE];
-    Vmxnet3Ring comp_ring;
-    uint8_t intr_idx;
-    hwaddr rx_stats_pa;
-    struct UPT1_RxStats rxq_stats;
-} Vmxnet3RxqDescr;
-
-typedef struct {
-    bool is_masked;
-    bool is_pending;
-    bool is_asserted;
-} Vmxnet3IntState;
-
-typedef struct {
-        PCIDevice parent_obj;
-        NICState *nic;
-        NICConf conf;
-        MemoryRegion bar0;
-        MemoryRegion bar1;
-        MemoryRegion msix_bar;
-
-        Vmxnet3RxqDescr rxq_descr[VMXNET3_DEVICE_MAX_RX_QUEUES];
-        Vmxnet3TxqDescr txq_descr[VMXNET3_DEVICE_MAX_TX_QUEUES];
-
-        /* Whether MSI-X support was installed successfully */
-        bool msix_used;
-        hwaddr drv_shmem;
-        hwaddr temp_shared_guest_driver_memory;
-
-        uint8_t txq_num;
-
-        /* This boolean tells whether RX packet being indicated has to */
-        /* be split into head and body chunks from different RX rings  */
-        bool rx_packets_compound;
-
-        bool rx_vlan_stripping;
-        bool lro_supported;
-
-        uint8_t rxq_num;
-
-        /* Network MTU */
-        uint32_t mtu;
-
-        /* Maximum number of fragments for indicated TX packets */
-        uint32_t max_tx_frags;
-
-        /* Maximum number of fragments for indicated RX packets */
-        uint16_t max_rx_frags;
-
-        /* Index for events interrupt */
-        uint8_t event_int_idx;
-
-        /* Whether automatic interrupts masking enabled */
-        bool auto_int_masking;
-
-        bool peer_has_vhdr;
-
-        /* TX packets to QEMU interface */
-        struct NetTxPkt *tx_pkt;
-        uint32_t offload_mode;
-        uint32_t cso_or_gso_size;
-        uint16_t tci;
-        bool needs_vlan;
-
-        struct NetRxPkt *rx_pkt;
-
-        bool tx_sop;
-        bool skip_current_tx_pkt;
-
-        uint32_t device_active;
-        uint32_t last_command;
-
-        uint32_t link_status_and_speed;
-
-        Vmxnet3IntState interrupt_states[VMXNET3_MAX_INTRS];
-
-        uint32_t temp_mac;   /* To store the low part first */
-
-        MACAddr perm_mac;
-        uint32_t vlan_table[VMXNET3_VFT_SIZE];
-        uint32_t rx_mode;
-        MACAddr *mcast_list;
-        uint32_t mcast_list_len;
-        uint32_t mcast_list_buff_size; /* needed for live migration. */
-
-        /* Compatibility flags for migration */
-        uint32_t compat_flags;
-} VMXNET3State;
 
 /* Interrupt management */
 
