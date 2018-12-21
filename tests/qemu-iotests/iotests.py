@@ -30,6 +30,7 @@ import signal
 import logging
 import atexit
 import io
+from collections import OrderedDict
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
 import qtest
@@ -74,6 +75,16 @@ def qemu_img(*args):
     if exitcode < 0:
         sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
     return exitcode
+
+def ordered_kwargs(kwargs):
+    # kwargs prior to 3.6 are not ordered, so:
+    od = OrderedDict()
+    for k, v in sorted(kwargs.items()):
+        if isinstance(v, dict):
+            od[k] = ordered_kwargs(v)
+        else:
+            od[k] = v
+    return od
 
 def qemu_img_create(*args):
     args = list(args)
@@ -257,8 +268,10 @@ def filter_img_info(output, filename):
 def log(msg, filters=[]):
     for flt in filters:
         msg = flt(msg)
-    if type(msg) is dict or type(msg) is list:
-        print(json.dumps(msg, sort_keys=True))
+    if isinstance(msg, dict) or isinstance(msg, list):
+        # Don't sort if it's already sorted
+        do_sort = not isinstance(msg, OrderedDict)
+        print(json.dumps(msg, sort_keys=do_sort))
     else:
         print(msg)
 
@@ -448,8 +461,11 @@ class VM(qtest.QEMUQtestMachine):
         return result
 
     def qmp_log(self, cmd, filters=[filter_testfiles], **kwargs):
-        logmsg = '{"execute": "%s", "arguments": %s}' % \
-            (cmd, json.dumps(kwargs, sort_keys=True))
+        full_cmd = OrderedDict((
+            ("execute", cmd),
+            ("arguments", ordered_kwargs(kwargs))
+        ))
+        logmsg = json.dumps(full_cmd)
         log(logmsg, filters)
         result = self.qmp(cmd, **kwargs)
         log(json.dumps(result, sort_keys=True), filters)
