@@ -2552,6 +2552,17 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
     }
 }
 
+static PCIHostState *spapr_create_default_phb(void)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, TYPE_SPAPR_PCI_HOST_BRIDGE);
+    qdev_prop_set_uint32(dev, "index", 0);
+    qdev_init_nofail(dev);
+
+    return PCI_HOST_BRIDGE(dev);
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void spapr_machine_init(MachineState *machine)
 {
@@ -2784,7 +2795,7 @@ static void spapr_machine_init(MachineState *machine)
     /* Set up PCI */
     spapr_pci_rtas_init();
 
-    phb = spapr_create_phb(spapr, 0);
+    phb = spapr_create_default_phb();
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
