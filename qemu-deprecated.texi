@@ -134,7 +134,7 @@ their usecases.
 
 @section System emulator machines
 
-@subsection pc-0.10 and pc-0.11 (since 3.0)
+@subsection pc-0.12, pc-0.13, pc-0.14 and pc-0.15 (since 4.0)
 
 These machine types are very old and likely can not be used for live migration
 from old QEMU versions anymore. A newer machine type should be used instead.

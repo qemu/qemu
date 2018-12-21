@@ -2,7 +2,15 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_3_1 \
-    /* empty */
+    {\
+        .driver   = "pcie-root-port",\
+        .property = "x-speed",\
+        .value    = "2_5",\
+    },{\
+        .driver   = "pcie-root-port",\
+        .property = "x-width",\
+        .value    = "1",\
+    },
 
 #define HW_COMPAT_3_0 \
     /* empty */

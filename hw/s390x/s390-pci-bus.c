@@ -823,8 +823,8 @@ static bool s390_pci_alloc_idx(S390pciState *s, S390PCIBusDevice *pbdev)
     return true;
 }
 
-static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
-                                  DeviceState *dev, Error **errp)
+static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                              Error **errp)
 {
     PCIDevice *pdev = NULL;
     S390PCIBusDevice *pbdev = NULL;
@@ -932,8 +932,8 @@ static void s390_pcihost_timer_cb(void *opaque)
     qdev_unplug(DEVICE(pbdev), NULL);
 }
 
-static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,
-                                    DeviceState *dev, Error **errp)
+static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                Error **errp)
 {
     PCIDevice *pci_dev = NULL;
     PCIBus *bus;
@@ -1041,8 +1041,8 @@ static void s390_pcihost_class_init(ObjectClass *klass, void *data)
 
     dc->reset = s390_pcihost_reset;
     dc->realize = s390_pcihost_realize;
-    hc->plug = s390_pcihost_hot_plug;
-    hc->unplug = s390_pcihost_hot_unplug;
+    hc->plug = s390_pcihost_plug;
+    hc->unplug = s390_pcihost_unplug;
     msi_nonbroken = true;
 }
 

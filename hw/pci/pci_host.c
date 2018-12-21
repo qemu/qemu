@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pci_bus.h"
 #include "trace.h"
@@ -50,9 +51,29 @@ static inline PCIDevice *pci_dev_find_by_addr(PCIBus *bus, uint32_t addr)
     return pci_find_device(bus, bus_num, devfn);
 }
 
+static void pci_adjust_config_limit(PCIBus *bus, uint32_t *limit)
+{
+    if (*limit > PCI_CONFIG_SPACE_SIZE) {
+        if (!pci_bus_is_express(bus)) {
+            *limit = PCI_CONFIG_SPACE_SIZE;
+            return;
+        }
+
+        if (!pci_bus_is_root(bus)) {
+            PCIDevice *bridge = pci_bridge_get_device(bus);
+            pci_adjust_config_limit(pci_get_bus(bridge), limit);
+        }
+    }
+}
+
 void pci_host_config_write_common(PCIDevice *pci_dev, uint32_t addr,
                                   uint32_t limit, uint32_t val, uint32_t len)
 {
+    pci_adjust_config_limit(pci_get_bus(pci_dev), &limit);
+    if (limit <= addr) {
+        return;
+    }
+
     assert(len <= 4);
     /* non-zero functions are only exposed when function 0 is present,
      * allowing direct removal of unexposed functions.
@@ -70,6 +91,11 @@ uint32_t pci_host_config_read_common(PCIDevice *pci_dev, uint32_t addr,
                                      uint32_t limit, uint32_t len)
 {
     uint32_t ret;
+
+    pci_adjust_config_limit(pci_get_bus(pci_dev), &limit);
+    if (limit <= addr) {
+        return ~0x0;
+    }
 
     assert(len <= 4);
     /* non-zero functions are only exposed when function 0 is present,

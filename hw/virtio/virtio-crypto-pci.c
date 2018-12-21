@@ -64,9 +64,8 @@ static void virtio_crypto_initfn(Object *obj)
                                 TYPE_VIRTIO_CRYPTO);
 }
 
-static const TypeInfo virtio_crypto_pci_info = {
-    .name          = TYPE_VIRTIO_CRYPTO_PCI,
-    .parent        = TYPE_VIRTIO_PCI,
+static const VirtioPCIDeviceTypeInfo virtio_crypto_pci_info = {
+    .generic_name  = TYPE_VIRTIO_CRYPTO_PCI,
     .instance_size = sizeof(VirtIOCryptoPCI),
     .instance_init = virtio_crypto_initfn,
     .class_init    = virtio_crypto_pci_class_init,
@@ -74,6 +73,6 @@ static const TypeInfo virtio_crypto_pci_info = {
 
 static void virtio_crypto_pci_register_types(void)
 {
-    type_register_static(&virtio_crypto_pci_info);
+    virtio_pci_types_register(&virtio_crypto_pci_info);
 }
 type_init(virtio_crypto_pci_register_types)

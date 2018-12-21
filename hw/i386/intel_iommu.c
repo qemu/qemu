@@ -524,7 +524,6 @@ static int vtd_get_root_entry(IntelIOMMUState *s, uint8_t index,
 
     addr = s->root + index * sizeof(*re);
     if (dma_memory_read(&address_space_memory, addr, re, sizeof(*re))) {
-        trace_vtd_re_invalid(re->rsvd, re->val);
         re->val = 0;
         return -VTD_FR_ROOT_TABLE_INV;
     }
@@ -545,7 +544,6 @@ static int vtd_get_context_entry_from_root(VTDRootEntry *root, uint8_t index,
     /* we have checked that root entry is present */
     addr = (root->val & VTD_ROOT_ENTRY_CTP) + index * sizeof(*ce);
     if (dma_memory_read(&address_space_memory, addr, ce, sizeof(*ce))) {
-        trace_vtd_re_invalid(root->rsvd, root->val);
         return -VTD_FR_CONTEXT_TABLE_INV;
     }
     ce->lo = le64_to_cpu(ce->lo);
@@ -630,16 +628,20 @@ static inline bool vtd_ce_type_check(X86IOMMUState *x86_iommu,
         break;
     case VTD_CONTEXT_TT_DEV_IOTLB:
         if (!x86_iommu->dt_supported) {
+            error_report_once("%s: DT specified but not supported", __func__);
             return false;
         }
         break;
     case VTD_CONTEXT_TT_PASS_THROUGH:
         if (!x86_iommu->pt_supported) {
+            error_report_once("%s: PT specified but not supported", __func__);
             return false;
         }
         break;
     default:
         /* Unknwon type */
+        error_report_once("%s: unknown ce type: %"PRIu32, __func__,
+                          vtd_ce_get_type(ce));
         return false;
     }
     return true;
@@ -1003,7 +1005,9 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
     }
 
     if (re.rsvd || (re.val & VTD_ROOT_ENTRY_RSVD(s->aw_bits))) {
-        trace_vtd_re_invalid(re.rsvd, re.val);
+        error_report_once("%s: invalid root entry: rsvd=0x%"PRIx64
+                          ", val=0x%"PRIx64" (reserved nonzero)",
+                          __func__, re.rsvd, re.val);
         return -VTD_FR_ROOT_ENTRY_RSVD;
     }
 
@@ -1020,19 +1024,23 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
 
     if ((ce->hi & VTD_CONTEXT_ENTRY_RSVD_HI) ||
                (ce->lo & VTD_CONTEXT_ENTRY_RSVD_LO(s->aw_bits))) {
-        trace_vtd_ce_invalid(ce->hi, ce->lo);
+        error_report_once("%s: invalid context entry: hi=%"PRIx64
+                          ", lo=%"PRIx64" (reserved nonzero)",
+                          __func__, ce->hi, ce->lo);
         return -VTD_FR_CONTEXT_ENTRY_RSVD;
     }
 
     /* Check if the programming of context-entry is valid */
     if (!vtd_is_level_supported(s, vtd_ce_get_level(ce))) {
-        trace_vtd_ce_invalid(ce->hi, ce->lo);
+        error_report_once("%s: invalid context entry: hi=%"PRIx64
+                          ", lo=%"PRIx64" (level %d not supported)",
+                          __func__, ce->hi, ce->lo, vtd_ce_get_level(ce));
         return -VTD_FR_CONTEXT_ENTRY_INV;
     }
 
     /* Do translation type check */
     if (!vtd_ce_type_check(x86_iommu, ce)) {
-        trace_vtd_ce_invalid(ce->hi, ce->lo);
+        /* Errors dumped in vtd_ce_type_check() */
         return -VTD_FR_CONTEXT_ENTRY_INV;
     }
 
@@ -1878,7 +1886,9 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 {
     if ((inv_desc->hi & VTD_INV_DESC_WAIT_RSVD_HI) ||
         (inv_desc->lo & VTD_INV_DESC_WAIT_RSVD_LO)) {
-        trace_vtd_inv_desc_wait_invalid(inv_desc->hi, inv_desc->lo);
+        error_report_once("%s: invalid wait desc: hi=%"PRIx64", lo=%"PRIx64
+                          " (reserved nonzero)", __func__, inv_desc->hi,
+                          inv_desc->lo);
         return false;
     }
     if (inv_desc->lo & VTD_INV_DESC_WAIT_SW) {
@@ -1901,7 +1911,9 @@ static bool vtd_process_wait_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
         /* Interrupt flag */
         vtd_generate_completion_event(s);
     } else {
-        trace_vtd_inv_desc_wait_invalid(inv_desc->hi, inv_desc->lo);
+        error_report_once("%s: invalid wait desc: hi=%"PRIx64", lo=%"PRIx64
+                          " (unknown type)", __func__, inv_desc->hi,
+                          inv_desc->lo);
         return false;
     }
     return true;
@@ -1913,7 +1925,9 @@ static bool vtd_process_context_cache_desc(IntelIOMMUState *s,
     uint16_t sid, fmask;
 
     if ((inv_desc->lo & VTD_INV_DESC_CC_RSVD) || inv_desc->hi) {
-        trace_vtd_inv_desc_cc_invalid(inv_desc->hi, inv_desc->lo);
+        error_report_once("%s: invalid cc inv desc: hi=%"PRIx64", lo=%"PRIx64
+                          " (reserved nonzero)", __func__, inv_desc->hi,
+                          inv_desc->lo);
         return false;
     }
     switch (inv_desc->lo & VTD_INV_DESC_CC_G) {
@@ -1932,7 +1946,9 @@ static bool vtd_process_context_cache_desc(IntelIOMMUState *s,
         break;
 
     default:
-        trace_vtd_inv_desc_cc_invalid(inv_desc->hi, inv_desc->lo);
+        error_report_once("%s: invalid cc inv desc: hi=%"PRIx64", lo=%"PRIx64
+                          " (invalid type)", __func__, inv_desc->hi,
+                          inv_desc->lo);
         return false;
     }
     return true;
@@ -1946,7 +1962,9 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 
     if ((inv_desc->lo & VTD_INV_DESC_IOTLB_RSVD_LO) ||
         (inv_desc->hi & VTD_INV_DESC_IOTLB_RSVD_HI)) {
-        trace_vtd_inv_desc_iotlb_invalid(inv_desc->hi, inv_desc->lo);
+        error_report_once("%s: invalid iotlb inv desc: hi=0x%"PRIx64
+                          ", lo=0x%"PRIx64" (reserved bits unzero)\n",
+                          __func__, inv_desc->hi, inv_desc->lo);
         return false;
     }
 
@@ -1965,14 +1983,20 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
         addr = VTD_INV_DESC_IOTLB_ADDR(inv_desc->hi);
         am = VTD_INV_DESC_IOTLB_AM(inv_desc->hi);
         if (am > VTD_MAMV) {
-            trace_vtd_inv_desc_iotlb_invalid(inv_desc->hi, inv_desc->lo);
+            error_report_once("%s: invalid iotlb inv desc: hi=0x%"PRIx64
+                              ", lo=0x%"PRIx64" (am=%u > VTD_MAMV=%u)\n",
+                              __func__, inv_desc->hi, inv_desc->lo,
+                              am, (unsigned)VTD_MAMV);
             return false;
         }
         vtd_iotlb_page_invalidate(s, domain_id, addr, am);
         break;
 
     default:
-        trace_vtd_inv_desc_iotlb_invalid(inv_desc->hi, inv_desc->lo);
+        error_report_once("%s: invalid iotlb inv desc: hi=0x%"PRIx64
+                          ", lo=0x%"PRIx64" (type mismatch: 0x%llx)\n",
+                          __func__, inv_desc->hi, inv_desc->lo,
+                          inv_desc->lo & VTD_INV_DESC_IOTLB_G);
         return false;
     }
     return true;
@@ -2012,7 +2036,9 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
 
     if ((inv_desc->lo & VTD_INV_DESC_DEVICE_IOTLB_RSVD_LO) ||
         (inv_desc->hi & VTD_INV_DESC_DEVICE_IOTLB_RSVD_HI)) {
-        trace_vtd_inv_desc_iotlb_invalid(inv_desc->hi, inv_desc->lo);
+        error_report_once("%s: invalid dev-iotlb inv desc: hi=%"PRIx64
+                          ", lo=%"PRIx64" (reserved nonzero)", __func__,
+                          inv_desc->hi, inv_desc->lo);
         return false;
     }
 
@@ -2103,7 +2129,9 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
         break;
 
     default:
-        trace_vtd_inv_desc_invalid(inv_desc.hi, inv_desc.lo);
+        error_report_once("%s: invalid inv desc: hi=%"PRIx64", lo=%"PRIx64
+                          " (unknown type)", __func__, inv_desc.hi,
+                          inv_desc.lo);
         return false;
     }
     s->iq_head++;
@@ -2540,7 +2568,7 @@ static IOMMUTLBEntry vtd_iommu_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
                           __func__, pci_bus_num(vtd_as->bus),
                           VTD_PCI_SLOT(vtd_as->devfn),
                           VTD_PCI_FUNC(vtd_as->devfn),
-                          iotlb.iova);
+                          addr);
     }
 
     return iotlb;
@@ -2628,9 +2656,10 @@ static Property vtd_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("eim", IntelIOMMUState, intr_eim,
                             ON_OFF_AUTO_AUTO),
     DEFINE_PROP_BOOL("x-buggy-eim", IntelIOMMUState, buggy_eim, false),
-    DEFINE_PROP_UINT8("x-aw-bits", IntelIOMMUState, aw_bits,
+    DEFINE_PROP_UINT8("aw-bits", IntelIOMMUState, aw_bits,
                       VTD_HOST_ADDRESS_WIDTH),
     DEFINE_PROP_BOOL("caching-mode", IntelIOMMUState, caching_mode, FALSE),
+    DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -3119,6 +3148,9 @@ static void vtd_init(IntelIOMMUState *s)
     s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND |
              VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS |
              VTD_CAP_SAGAW_39bit | VTD_CAP_MGAW(s->aw_bits);
+    if (s->dma_drain) {
+        s->cap |= VTD_CAP_DRAIN;
+    }
     if (s->aw_bits == VTD_HOST_AW_48BIT) {
         s->cap |= VTD_CAP_SAGAW_48bit;
     }
@@ -3137,7 +3169,7 @@ static void vtd_init(IntelIOMMUState *s)
     vtd_paging_entry_rsvd_field[7] = VTD_SPTE_LPAGE_L3_RSVD_MASK(s->aw_bits);
     vtd_paging_entry_rsvd_field[8] = VTD_SPTE_LPAGE_L4_RSVD_MASK(s->aw_bits);
 
-    if (x86_iommu->intr_supported) {
+    if (x86_iommu_ir_supported(x86_iommu)) {
         s->ecap |= VTD_ECAP_IR | VTD_ECAP_MHMV;
         if (s->intr_eim == ON_OFF_AUTO_ON) {
             s->ecap |= VTD_ECAP_EIM;
@@ -3238,14 +3270,14 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
-    if (s->intr_eim == ON_OFF_AUTO_ON && !x86_iommu->intr_supported) {
+    if (s->intr_eim == ON_OFF_AUTO_ON && !x86_iommu_ir_supported(x86_iommu)) {
         error_setg(errp, "eim=on cannot be selected without intremap=on");
         return false;
     }
 
     if (s->intr_eim == ON_OFF_AUTO_AUTO) {
         s->intr_eim = (kvm_irqchip_in_kernel() || s->buggy_eim)
-                      && x86_iommu->intr_supported ?
+                      && x86_iommu_ir_supported(x86_iommu) ?
                                               ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
     if (s->intr_eim == ON_OFF_AUTO_ON && !s->buggy_eim) {
