@@ -288,13 +288,18 @@ def filter_img_info(output, filename):
         lines.append(line)
     return '\n'.join(lines)
 
-def log(msg, filters=[]):
+def log(msg, filters=[], indent=None):
+    '''Logs either a string message or a JSON serializable message (like QMP).
+    If indent is provided, JSON serializable messages are pretty-printed.'''
     for flt in filters:
         msg = flt(msg)
     if isinstance(msg, dict) or isinstance(msg, list):
+        # Python < 3.4 needs to know not to add whitespace when pretty-printing:
+        separators = (', ', ': ') if indent is None else (',', ': ')
         # Don't sort if it's already sorted
         do_sort = not isinstance(msg, OrderedDict)
-        print(json.dumps(msg, sort_keys=do_sort))
+        print(json.dumps(msg, sort_keys=do_sort,
+                         indent=indent, separators=separators))
     else:
         print(msg)
 
@@ -483,14 +488,14 @@ class VM(qtest.QEMUQtestMachine):
             result.append(filter_qmp_event(ev))
         return result
 
-    def qmp_log(self, cmd, filters=[], **kwargs):
+    def qmp_log(self, cmd, filters=[], indent=None, **kwargs):
         full_cmd = OrderedDict((
             ("execute", cmd),
             ("arguments", ordered_kwargs(kwargs))
         ))
-        log(full_cmd, filters)
+        log(full_cmd, filters, indent=indent)
         result = self.qmp(cmd, **kwargs)
-        log(result, filters)
+        log(result, filters, indent=indent)
         return result
 
     def run_job(self, job, auto_finalize=True, auto_dismiss=False):
