@@ -92,7 +92,7 @@ class QemuNBD(NBDBlockdevAddBase):
         self.assertEqual(qemu_nbd('-f', imgfmt, test_img, *args), 0)
 
     def test_inet(self):
-        self._server_up('-p', str(NBD_PORT))
+        self._server_up('-b', 'localhost', '-p', str(NBD_PORT))
         address = { 'type': 'inet',
                     'data': {
                         'host': 'localhost',
