@@ -47,7 +47,7 @@ typedef struct PvrdmaRqWqe {
  * 3. Interrupt host
  */
 static int pvrdma_post_cqe(PVRDMADev *dev, uint32_t cq_handle,
-                           struct pvrdma_cqe *cqe)
+                           struct pvrdma_cqe *cqe, struct ibv_wc *wc)
 {
     struct pvrdma_cqe *cqe1;
     struct pvrdma_cqne *cqne;
@@ -66,6 +66,7 @@ static int pvrdma_post_cqe(PVRDMADev *dev, uint32_t cq_handle,
     pr_dbg("Writing CQE\n");
     cqe1 = pvrdma_ring_next_elem_write(ring);
     if (unlikely(!cqe1)) {
+        pr_dbg("No CQEs in ring\n");
         return -EINVAL;
     }
 
@@ -73,8 +74,20 @@ static int pvrdma_post_cqe(PVRDMADev *dev, uint32_t cq_handle,
     cqe1->wr_id = cqe->wr_id;
     cqe1->qp = cqe->qp;
     cqe1->opcode = cqe->opcode;
-    cqe1->status = cqe->status;
-    cqe1->vendor_err = cqe->vendor_err;
+    cqe1->status = wc->status;
+    cqe1->byte_len = wc->byte_len;
+    cqe1->src_qp = wc->src_qp;
+    cqe1->wc_flags = wc->wc_flags;
+    cqe1->vendor_err = wc->vendor_err;
+
+    pr_dbg("wr_id=%" PRIx64 "\n", cqe1->wr_id);
+    pr_dbg("qp=0x%lx\n", cqe1->qp);
+    pr_dbg("opcode=%d\n", cqe1->opcode);
+    pr_dbg("status=%d\n", cqe1->status);
+    pr_dbg("byte_len=%d\n", cqe1->byte_len);
+    pr_dbg("src_qp=%d\n", cqe1->src_qp);
+    pr_dbg("wc_flags=%d\n", cqe1->wc_flags);
+    pr_dbg("vendor_err=%d\n", cqe1->vendor_err);
 
     pvrdma_ring_write_inc(ring);
 
@@ -99,18 +112,12 @@ static int pvrdma_post_cqe(PVRDMADev *dev, uint32_t cq_handle,
     return 0;
 }
 
-static void pvrdma_qp_ops_comp_handler(int status, unsigned int vendor_err,
-                                       void *ctx)
+static void pvrdma_qp_ops_comp_handler(void *ctx, struct ibv_wc *wc)
 {
     CompHandlerCtx *comp_ctx = (CompHandlerCtx *)ctx;
 
-    pr_dbg("cq_handle=%d\n", comp_ctx->cq_handle);
-    pr_dbg("wr_id=%" PRIx64 "\n", comp_ctx->cqe.wr_id);
-    pr_dbg("status=%d\n", status);
-    pr_dbg("vendor_err=0x%x\n", vendor_err);
-    comp_ctx->cqe.status = status;
-    comp_ctx->cqe.vendor_err = vendor_err;
-    pvrdma_post_cqe(comp_ctx->dev, comp_ctx->cq_handle, &comp_ctx->cqe);
+    pvrdma_post_cqe(comp_ctx->dev, comp_ctx->cq_handle, &comp_ctx->cqe, wc);
+
     g_free(ctx);
 }
 

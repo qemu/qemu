@@ -57,8 +57,8 @@ int rdma_backend_get_gid_index(RdmaBackendDev *backend_dev,
                                union ibv_gid *gid);
 void rdma_backend_start(RdmaBackendDev *backend_dev);
 void rdma_backend_stop(RdmaBackendDev *backend_dev);
-void rdma_backend_register_comp_handler(void (*handler)(int status,
-                                        unsigned int vendor_err, void *ctx));
+void rdma_backend_register_comp_handler(void (*handler)(void *ctx,
+                                                        struct ibv_wc *wc));
 void rdma_backend_unregister_comp_handler(void);
 
 int rdma_backend_query_port(RdmaBackendDev *backend_dev,

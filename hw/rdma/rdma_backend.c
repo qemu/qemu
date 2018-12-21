@@ -60,11 +60,22 @@ struct backend_umad {
     char mad[RDMA_MAX_PRIVATE_DATA];
 };
 
-static void (*comp_handler)(int status, unsigned int vendor_err, void *ctx);
+static void (*comp_handler)(void *ctx, struct ibv_wc *wc);
 
-static void dummy_comp_handler(int status, unsigned int vendor_err, void *ctx)
+static void dummy_comp_handler(void *ctx, struct ibv_wc *wc)
 {
     pr_err("No completion handler is registered\n");
+}
+
+static inline void complete_work(enum ibv_wc_status status, uint32_t vendor_err,
+                                 void *ctx)
+{
+    struct ibv_wc wc = {0};
+
+    wc.status = status;
+    wc.vendor_err = vendor_err;
+
+    comp_handler(ctx, &wc);
 }
 
 static void poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
@@ -91,7 +102,7 @@ static void poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
             }
             pr_dbg("Processing %s CQE\n", bctx->is_tx_req ? "send" : "recv");
 
-            comp_handler(wc[i].status, wc[i].vendor_err, bctx->up_ctx);
+            comp_handler(bctx->up_ctx, &wc[i]);
 
             rdma_rm_dealloc_cqe_ctx(rdma_dev_res, wc[i].wr_id);
             g_free(bctx);
@@ -256,8 +267,8 @@ static void start_comp_thread(RdmaBackendDev *backend_dev)
                        comp_handler_thread, backend_dev, QEMU_THREAD_DETACHED);
 }
 
-void rdma_backend_register_comp_handler(void (*handler)(int status,
-                                        unsigned int vendor_err, void *ctx))
+void rdma_backend_register_comp_handler(void (*handler)(void *ctx,
+                                                         struct ibv_wc *wc))
 {
     comp_handler = handler;
 }
@@ -451,14 +462,14 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
     if (!qp->ibqp) { /* This field does not get initialized for QP0 and QP1 */
         if (qp_type == IBV_QPT_SMI) {
             pr_dbg("QP0 unsupported\n");
-            comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_QP0, ctx);
+            complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_QP0, ctx);
         } else if (qp_type == IBV_QPT_GSI) {
             pr_dbg("QP1\n");
             rc = mad_send(backend_dev, sgid_idx, sgid, sge, num_sge);
             if (rc) {
-                comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_MAD_SEND, ctx);
+                complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_MAD_SEND, ctx);
             } else {
-                comp_handler(IBV_WC_SUCCESS, 0, ctx);
+                complete_work(IBV_WC_SUCCESS, 0, ctx);
             }
         }
         return;
@@ -467,7 +478,7 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
     pr_dbg("num_sge=%d\n", num_sge);
     if (!num_sge) {
         pr_dbg("num_sge=0\n");
-        comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_NO_SGE, ctx);
+        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_NO_SGE, ctx);
         return;
     }
 
@@ -478,21 +489,21 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
     rc = rdma_rm_alloc_cqe_ctx(backend_dev->rdma_dev_res, &bctx_id, bctx);
     if (unlikely(rc)) {
         pr_dbg("Failed to allocate cqe_ctx\n");
-        comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_NOMEM, ctx);
+        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_NOMEM, ctx);
         goto out_free_bctx;
     }
 
     rc = build_host_sge_array(backend_dev->rdma_dev_res, new_sge, sge, num_sge);
     if (rc) {
         pr_dbg("Error: Failed to build host SGE array\n");
-        comp_handler(IBV_WC_GENERAL_ERR, rc, ctx);
+        complete_work(IBV_WC_GENERAL_ERR, rc, ctx);
         goto out_dealloc_cqe_ctx;
     }
 
     if (qp_type == IBV_QPT_UD) {
         wr.wr.ud.ah = create_ah(backend_dev, qp->ibpd, sgid_idx, dgid);
         if (!wr.wr.ud.ah) {
-            comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_FAIL_BACKEND, ctx);
+            complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_FAIL_BACKEND, ctx);
             goto out_dealloc_cqe_ctx;
         }
         wr.wr.ud.remote_qpn = dqpn;
@@ -510,7 +521,7 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
     if (rc) {
         pr_dbg("Fail (%d, %d) to post send WQE to qpn %d\n", rc, errno,
                 qp->ibqp->qp_num);
-        comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_FAIL_BACKEND, ctx);
+        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_FAIL_BACKEND, ctx);
         goto out_dealloc_cqe_ctx;
     }
 
@@ -579,13 +590,13 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     if (!qp->ibqp) { /* This field does not get initialized for QP0 and QP1 */
         if (qp_type == IBV_QPT_SMI) {
             pr_dbg("QP0 unsupported\n");
-            comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_QP0, ctx);
+            complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_QP0, ctx);
         }
         if (qp_type == IBV_QPT_GSI) {
             pr_dbg("QP1\n");
             rc = save_mad_recv_buffer(backend_dev, sge, num_sge, ctx);
             if (rc) {
-                comp_handler(IBV_WC_GENERAL_ERR, rc, ctx);
+                complete_work(IBV_WC_GENERAL_ERR, rc, ctx);
             }
         }
         return;
@@ -594,7 +605,7 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     pr_dbg("num_sge=%d\n", num_sge);
     if (!num_sge) {
         pr_dbg("num_sge=0\n");
-        comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_NO_SGE, ctx);
+        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_NO_SGE, ctx);
         return;
     }
 
@@ -605,14 +616,14 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     rc = rdma_rm_alloc_cqe_ctx(rdma_dev_res, &bctx_id, bctx);
     if (unlikely(rc)) {
         pr_dbg("Failed to allocate cqe_ctx\n");
-        comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_NOMEM, ctx);
+        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_NOMEM, ctx);
         goto out_free_bctx;
     }
 
     rc = build_host_sge_array(rdma_dev_res, new_sge, sge, num_sge);
     if (rc) {
         pr_dbg("Error: Failed to build host SGE array\n");
-        comp_handler(IBV_WC_GENERAL_ERR, rc, ctx);
+        complete_work(IBV_WC_GENERAL_ERR, rc, ctx);
         goto out_dealloc_cqe_ctx;
     }
 
@@ -624,7 +635,7 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     if (rc) {
         pr_dbg("Fail (%d, %d) to post recv WQE to qpn %d\n", rc, errno,
                 qp->ibqp->qp_num);
-        comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_FAIL_BACKEND, ctx);
+        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_FAIL_BACKEND, ctx);
         goto out_dealloc_cqe_ctx;
     }
 
@@ -998,9 +1009,10 @@ static void process_incoming_mad_req(RdmaBackendDev *backend_dev,
     mad = rdma_pci_dma_map(backend_dev->dev, bctx->sge.addr,
                            bctx->sge.length);
     if (!mad || bctx->sge.length < msg->umad_len + MAD_HDR_SIZE) {
-        comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_INV_MAD_BUFF,
-                     bctx->up_ctx);
+        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_INV_MAD_BUFF,
+                      bctx->up_ctx);
     } else {
+        struct ibv_wc wc = {0};
         pr_dbg_buf("mad", msg->umad.mad, msg->umad_len);
         memset(mad, 0, bctx->sge.length);
         build_mad_hdr((struct ibv_grh *)mad,
@@ -1009,7 +1021,10 @@ static void process_incoming_mad_req(RdmaBackendDev *backend_dev,
         memcpy(&mad[MAD_HDR_SIZE], msg->umad.mad, msg->umad_len);
         rdma_pci_dma_unmap(backend_dev->dev, mad, bctx->sge.length);
 
-        comp_handler(IBV_WC_SUCCESS, 0, bctx->up_ctx);
+        wc.byte_len = msg->umad_len;
+        wc.status = IBV_WC_SUCCESS;
+        wc.wc_flags = IBV_WC_GRH;
+        comp_handler(bctx->up_ctx, &wc);
     }
 
     g_free(bctx);
