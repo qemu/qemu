@@ -730,7 +730,7 @@ void spapr_dt_vdevice(VIOsPAPRBus *bus, void *fdt)
     }
 
     /* Copy out into an array of pointers */
-    qdevs = g_malloc(sizeof(qdev) * num);
+    qdevs = g_new(DeviceState *, num);
     num = 0;
     QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
         qdevs[num++] = kid->child;

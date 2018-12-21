@@ -150,7 +150,7 @@ static void pre_2_10_vmstate_unregister_dummy_icp(int i)
                        (void *)(uintptr_t) i);
 }
 
-static int xics_max_server_number(sPAPRMachineState *spapr)
+int spapr_max_server_number(sPAPRMachineState *spapr)
 {
     assert(spapr->vsmt);
     return DIV_ROUND_UP(max_cpus * spapr->vsmt, smp_threads);
@@ -889,8 +889,6 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     /* ibm,associativity-lookup-arrays */
     buf_len = (nr_nodes * 4 + 2) * sizeof(uint32_t);
     cur_index = int_buf = g_malloc0(buf_len);
-
-    cur_index = int_buf;
     int_buf[0] = cpu_to_be32(nr_nodes);
     int_buf[1] = cpu_to_be32(4); /* Number of entries per associativity list */
     cur_index += 2;
@@ -1033,7 +1031,7 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
         cpu_to_be32(0),
         cpu_to_be32(0),
         cpu_to_be32(0),
-        cpu_to_be32(nb_numa_nodes ? nb_numa_nodes - 1 : 0),
+        cpu_to_be32(nb_numa_nodes ? nb_numa_nodes : 1),
     };
 
     _FDT(rtas = fdt_add_subnode(fdt, 0, "rtas"));
@@ -1097,15 +1095,18 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
     spapr_dt_rtas_tokens(fdt, rtas);
 }
 
-/* Prepare ibm,arch-vec-5-platform-support, which indicates the MMU features
- * that the guest may request and thus the valid values for bytes 24..26 of
- * option vector 5: */
-static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
+/*
+ * Prepare ibm,arch-vec-5-platform-support, which indicates the MMU
+ * and the XIVE features that the guest may request and thus the valid
+ * values for bytes 23..26 of option vector 5:
+ */
+static void spapr_dt_ov5_platform_support(sPAPRMachineState *spapr, void *fdt,
+                                          int chosen)
 {
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
 
     char val[2 * 4] = {
-        23, 0x00, /* Xive mode, filled in below. */
+        23, spapr->irq->ov5, /* Xive mode. */
         24, 0x00, /* Hash/Radix, filled in below. */
         25, 0x00, /* Hash options: Segment Tables == no, GTSE == no. */
         26, 0x40, /* Radix options: GTSE == yes. */
@@ -1113,7 +1114,11 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
 
     if (!ppc_check_compat(first_ppc_cpu, CPU_POWERPC_LOGICAL_3_00, 0,
                           first_ppc_cpu->compat_pvr)) {
-        /* If we're in a pre POWER9 compat mode then the guest should do hash */
+        /*
+         * If we're in a pre POWER9 compat mode then the guest should
+         * do hash and use the legacy interrupt mode
+         */
+        val[1] = 0x00; /* XICS */
         val[3] = 0x00; /* Hash */
     } else if (kvm_enabled()) {
         if (kvmppc_has_cap_mmu_radix() && kvmppc_has_cap_mmu_hash_v3()) {
@@ -1191,7 +1196,7 @@ static void spapr_dt_chosen(sPAPRMachineState *spapr, void *fdt)
         _FDT(fdt_setprop_string(fdt, chosen, "stdout-path", stdout_path));
     }
 
-    spapr_dt_ov5_platform_support(fdt, chosen);
+    spapr_dt_ov5_platform_support(spapr, fdt, chosen);
 
     g_free(stdout_path);
     g_free(bootlist);
@@ -1270,7 +1275,8 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
-    spapr_dt_xics(xics_max_server_number(spapr), fdt, PHANDLE_XICP);
+    spapr->irq->dt_populate(spapr, spapr_max_server_number(spapr), fdt,
+                          PHANDLE_XICP);
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
@@ -1290,7 +1296,8 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr,
     }
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt, smc->irq->nr_msis);
+        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt,
+                                    spapr->irq->nr_msis);
         if (ret < 0) {
             error_report("couldn't setup PCI devices in fdt");
             exit(1);
@@ -1620,6 +1627,12 @@ static void spapr_machine_reset(void)
 
     qemu_devices_reset();
 
+    /*
+     * This is fixing some of the default configuration of the XIVE
+     * devices. To be called after the reset of the machine devices.
+     */
+    spapr_irq_reset(spapr, &error_fatal);
+
     /* DRC reset may cause a device to be unplugged. This will cause troubles
      * if this device is used by another device (eg, a running vhost backend
      * will crash QEMU if the DIMM holding the vring goes away). To avoid such
@@ -1731,14 +1744,6 @@ static int spapr_post_load(void *opaque, int version_id)
         return err;
     }
 
-    if (!object_dynamic_cast(OBJECT(spapr->ics), TYPE_ICS_KVM)) {
-        CPUState *cs;
-        CPU_FOREACH(cs) {
-            PowerPCCPU *cpu = POWERPC_CPU(cs);
-            icp_resend(ICP(cpu->intc));
-        }
-    }
-
     /* In earlier versions, there was no separate qdev for the PAPR
      * RTC, so the RTC offset was stored directly in sPAPREnvironment.
      * So when migrating from those versions, poke the incoming offset
@@ -1757,6 +1762,11 @@ static int spapr_post_load(void *opaque, int version_id)
             error_report("Process table config unsupported by the host");
             return -EINVAL;
         }
+    }
+
+    err = spapr_irq_post_load(spapr, version_id);
+    if (err) {
+        return err;
     }
 
     return err;
@@ -2466,15 +2476,10 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
         boot_cores_nr = possible_cpus->len;
     }
 
-    /* VSMT must be set in order to be able to compute VCPU ids, ie to
-     * call xics_max_server_number() or spapr_vcpu_id().
-     */
-    spapr_set_vsmt_mode(spapr, &error_fatal);
-
     if (smc->pre_2_10_has_unused_icps) {
         int i;
 
-        for (i = 0; i < xics_max_server_number(spapr); i++) {
+        for (i = 0; i < spapr_max_server_number(spapr); i++) {
             /* Dummy entries get deregistered when real ICPState objects
              * are registered during CPU core hotplug.
              */
@@ -2593,8 +2598,14 @@ static void spapr_machine_init(MachineState *machine)
     /* Setup a load limit for the ramdisk leaving room for SLOF and FDT */
     load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
 
+    /*
+     * VSMT must be set in order to be able to compute VCPU ids, ie to
+     * call spapr_max_server_number() or spapr_vcpu_id().
+     */
+    spapr_set_vsmt_mode(spapr, &error_fatal);
+
     /* Set up Interrupt Controller before we create the VCPUs */
-    smc->irq->init(spapr, &error_fatal);
+    spapr_irq_init(spapr, &error_fatal);
 
     /* Set up containers for ibm,client-architecture-support negotiated options
      */
@@ -2620,6 +2631,17 @@ static void spapr_machine_init(MachineState *machine)
 
     /* advertise support for ibm,dyamic-memory-v2 */
     spapr_ovec_set(spapr->ov5, OV5_DRMEM_V2);
+
+    /* advertise XIVE on POWER9 machines */
+    if (spapr->irq->ov5 & SPAPR_OV5_XIVE_EXPLOIT) {
+        if (ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00,
+                                  0, spapr->max_compat_pvr)) {
+            spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
+        } else {
+            error_report("XIVE-only machines require a POWER9 CPU");
+            exit(1);
+        }
+    }
 
     /* init CPUs */
     spapr_init_cpus(spapr);
@@ -3031,9 +3053,38 @@ static void spapr_set_vsmt(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, (uint32_t *)opaque, errp);
 }
 
+static char *spapr_get_ic_mode(Object *obj, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    if (spapr->irq == &spapr_irq_xics_legacy) {
+        return g_strdup("legacy");
+    } else if (spapr->irq == &spapr_irq_xics) {
+        return g_strdup("xics");
+    } else if (spapr->irq == &spapr_irq_xive) {
+        return g_strdup("xive");
+    }
+    g_assert_not_reached();
+}
+
+static void spapr_set_ic_mode(Object *obj, const char *value, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    /* The legacy IRQ backend can not be set */
+    if (strcmp(value, "xics") == 0) {
+        spapr->irq = &spapr_irq_xics;
+    } else if (strcmp(value, "xive") == 0) {
+        spapr->irq = &spapr_irq_xive;
+    } else {
+        error_setg(errp, "Bad value for \"ic-mode\" property");
+    }
+}
+
 static void spapr_instance_init(Object *obj)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
     spapr->htab_fd = -1;
     spapr->use_hotplug_event_source = true;
@@ -3067,6 +3118,14 @@ static void spapr_instance_init(Object *obj)
                                     " the host's SMT mode", &error_abort);
     object_property_add_bool(obj, "vfio-no-msix-emulation",
                              spapr_get_msix_emulation, NULL, NULL);
+
+    /* The machine class defines the default interrupt controller mode */
+    spapr->irq = smc->irq;
+    object_property_add_str(obj, "ic-mode", spapr_get_ic_mode,
+                            spapr_set_ic_mode, NULL);
+    object_property_set_description(obj, "ic-mode",
+                 "Specifies the interrupt controller mode (xics, xive)",
+                 NULL);
 }
 
 static void spapr_machine_finalizefn(Object *obj)
@@ -3789,9 +3848,8 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
                                  Monitor *mon)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
 
-    smc->irq->print_info(spapr, mon);
+    spapr->irq->print_info(spapr, mon);
 }
 
 int spapr_get_vcpu_id(PowerPCCPU *cpu)
@@ -3873,7 +3931,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug = spapr_machine_device_unplug;
 
     smc->dr_lmb_enabled = true;
-    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power9_v2.0");
     mc->has_hotpluggable_cpus = true;
     smc->resize_hpt_default = SPAPR_RESIZE_HPT_ENABLED;
     fwc->get_dev_path = spapr_get_fw_dev_path;
@@ -3970,6 +4028,7 @@ static void spapr_machine_3_1_class_options(MachineClass *mc)
 {
     spapr_machine_4_0_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_3_1);
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
 }
 
 DEFINE_SPAPR_MACHINE(3_1, "3.1", false);
