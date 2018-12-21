@@ -17,6 +17,7 @@
 #define PVRDMA_PVRDMA_H
 
 #include "qemu/units.h"
+#include "qemu/notify.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msix.h"
 #include "chardev/char-fe.h"
@@ -87,6 +88,7 @@ typedef struct PVRDMADev {
     RdmaDeviceResources rdma_dev_res;
     CharBackend mad_chr;
     VMXNET3State *func0;
+    Notifier shutdown_notifier;
 } PVRDMADev;
 #define PVRDMA_DEV(dev) OBJECT_CHECK(PVRDMADev, (dev), PVRDMA_HW_NAME)
 
