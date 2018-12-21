@@ -460,7 +460,7 @@ class VM(qtest.QEMUQtestMachine):
             result.append(filter_qmp_event(ev))
         return result
 
-    def qmp_log(self, cmd, filters=[filter_testfiles], **kwargs):
+    def qmp_log(self, cmd, filters=[], **kwargs):
         full_cmd = OrderedDict((
             ("execute", cmd),
             ("arguments", ordered_kwargs(kwargs))
