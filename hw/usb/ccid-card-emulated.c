@@ -549,6 +549,8 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
     qemu_thread_create(&card->apdu_thread_id, "ccid/apdu", handle_apdu_thread,
                        card, QEMU_THREAD_JOINABLE);
 
+    return;
+
 out2:
     clean_event_notifier(card);
 out1:
