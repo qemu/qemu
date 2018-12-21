@@ -3840,8 +3840,6 @@ static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
      * 1TiB 64-bit MMIO windows for each PHB.
      */
     const uint64_t base_buid = 0x800000020000000ULL;
-#define SPAPR_MAX_PHBS ((SPAPR_PCI_LIMIT - SPAPR_PCI_BASE) / \
-                        SPAPR_PCI_MEM64_WIN_SIZE - 1)
     int i;
 
     /* Sanity check natural alignments */
