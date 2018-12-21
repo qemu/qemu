@@ -89,8 +89,10 @@ static int pvrdma_post_cqe(PVRDMADev *dev, uint32_t cq_handle,
     pvrdma_ring_write_inc(&dev->dsr_info.cq);
 
     pr_dbg("cq->notify=%d\n", cq->notify);
-    if (cq->notify) {
-        cq->notify = false;
+    if (cq->notify != CNT_CLEAR) {
+        if (cq->notify == CNT_ARM) {
+            cq->notify = CNT_CLEAR;
+        }
         post_interrupt(dev, INTR_VEC_CMD_COMPLETION_Q);
     }
 

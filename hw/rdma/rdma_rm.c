@@ -263,7 +263,7 @@ int rdma_rm_alloc_cq(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
     }
 
     cq->opaque = opaque;
-    cq->notify = false;
+    cq->notify = CNT_CLEAR;
 
     rc = rdma_backend_create_cq(backend_dev, &cq->backend_cq, cqe);
     if (rc) {
@@ -291,7 +291,10 @@ void rdma_rm_req_notify_cq(RdmaDeviceResources *dev_res, uint32_t cq_handle,
         return;
     }
 
-    cq->notify = notify;
+    if (cq->notify != CNT_SET) {
+        cq->notify = notify ? CNT_ARM : CNT_CLEAR;
+    }
+
     pr_dbg("notify=%d\n", cq->notify);
 }
 
@@ -347,6 +350,11 @@ int rdma_rm_alloc_qp(RdmaDeviceResources *dev_res, uint32_t pd_handle,
         pr_err("Invalid send_cqn or recv_cqn (%d, %d)\n",
                send_cq_handle, recv_cq_handle);
         return -EINVAL;
+    }
+
+    if (qp_type == IBV_QPT_GSI) {
+        scq->notify = CNT_SET;
+        rcq->notify = CNT_SET;
     }
 
     qp = res_tbl_alloc(&dev_res->qp_tbl, &rm_qpn);

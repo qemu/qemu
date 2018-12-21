@@ -49,10 +49,16 @@ typedef struct RdmaRmPD {
     uint32_t ctx_handle;
 } RdmaRmPD;
 
+typedef enum CQNotificationType {
+    CNT_CLEAR,
+    CNT_ARM,
+    CNT_SET,
+} CQNotificationType;
+
 typedef struct RdmaRmCQ {
     RdmaBackendCQ backend_cq;
     void *opaque;
-    bool notify;
+    CQNotificationType notify;
 } RdmaRmCQ;
 
 /* MR (DMA region) */
