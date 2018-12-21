@@ -16,8 +16,9 @@
 #ifndef RDMA_BACKEND_DEFS_H
 #define RDMA_BACKEND_DEFS_H
 
-#include <infiniband/verbs.h>
 #include "qemu/thread.h"
+#include "chardev/char-fe.h"
+#include <infiniband/verbs.h>
 
 typedef struct RdmaDeviceResources RdmaDeviceResources;
 
@@ -27,6 +28,11 @@ typedef struct RdmaBackendThread {
     bool run; /* Set by thread manager to let thread know it should exit */
     bool is_running; /* Set by the thread to report its status */
 } RdmaBackendThread;
+
+typedef struct RecvMadList {
+    QemuMutex lock;
+    QList *list;
+} RecvMadList;
 
 typedef struct RdmaBackendDev {
     struct ibv_device_attr dev_attr;
@@ -39,6 +45,8 @@ typedef struct RdmaBackendDev {
     struct ibv_comp_channel *channel;
     uint8_t port_num;
     uint8_t backend_gid_idx;
+    RecvMadList recv_mads_list;
+    CharBackend *mad_chr_be;
 } RdmaBackendDev;
 
 typedef struct RdmaBackendPD {

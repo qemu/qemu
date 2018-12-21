@@ -17,6 +17,8 @@
 #define RDMA_BACKEND_H
 
 #include "qapi/error.h"
+#include "chardev/char-fe.h"
+
 #include "rdma_rm_defs.h"
 #include "rdma_backend_defs.h"
 
@@ -50,7 +52,7 @@ int rdma_backend_init(RdmaBackendDev *backend_dev, PCIDevice *pdev,
                       RdmaDeviceResources *rdma_dev_res,
                       const char *backend_device_name, uint8_t port_num,
                       uint8_t backend_gid_idx, struct ibv_device_attr *dev_attr,
-                      Error **errp);
+                      CharBackend *mad_chr_be, Error **errp);
 void rdma_backend_fini(RdmaBackendDev *backend_dev);
 void rdma_backend_start(RdmaBackendDev *backend_dev);
 void rdma_backend_stop(RdmaBackendDev *backend_dev);

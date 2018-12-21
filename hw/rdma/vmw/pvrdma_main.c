@@ -51,6 +51,7 @@ static Property pvrdma_dev_properties[] = {
     DEFINE_PROP_INT32("dev-caps-max-qp-init-rd-atom", PVRDMADev,
                       dev_attr.max_qp_init_rd_atom, MAX_QP_INIT_RD_ATOM),
     DEFINE_PROP_INT32("dev-caps-max-ah", PVRDMADev, dev_attr.max_ah, MAX_AH),
+    DEFINE_PROP_CHR("mad-chardev", PVRDMADev, mad_chr),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -613,7 +614,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 
     rc = rdma_backend_init(&dev->backend_dev, pdev, &dev->rdma_dev_res,
                            dev->backend_device_name, dev->backend_port_num,
-                           dev->backend_gid_idx, &dev->dev_attr, errp);
+                           dev->backend_gid_idx, &dev->dev_attr, &dev->mad_chr,
+                           errp);
     if (rc) {
         goto out;
     }

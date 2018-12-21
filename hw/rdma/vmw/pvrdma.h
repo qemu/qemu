@@ -19,6 +19,7 @@
 #include "qemu/units.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msix.h"
+#include "chardev/char-fe.h"
 
 #include "../rdma_backend_defs.h"
 #include "../rdma_rm_defs.h"
@@ -83,6 +84,7 @@ typedef struct PVRDMADev {
     uint8_t backend_port_num;
     RdmaBackendDev backend_dev;
     RdmaDeviceResources rdma_dev_res;
+    CharBackend mad_chr;
 } PVRDMADev;
 #define PVRDMA_DEV(dev) OBJECT_CHECK(PVRDMADev, (dev), PVRDMA_HW_NAME)
 
