@@ -565,6 +565,7 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     PVRDMADev *dev = PVRDMA_DEV(pdev);
     Object *memdev_root;
     bool ram_shared = false;
+    PCIDevice *func0;
 
     init_pr_dbg();
 
@@ -575,6 +576,17 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
         error_setg(errp, "Target page size must be the same as host page size");
         return;
     }
+
+    func0 = pci_get_function_0(pdev);
+    /* Break if not vmxnet3 device in slot 0 */
+    if (strcmp(object_get_typename(&func0->qdev.parent_obj), TYPE_VMXNET3)) {
+        pr_dbg("func0 type is %s\n",
+               object_get_typename(&func0->qdev.parent_obj));
+        error_setg(errp, "Device on %x.0 must be %s", PCI_SLOT(pdev->devfn),
+                   TYPE_VMXNET3);
+        return;
+    }
+    dev->func0 = VMXNET3(func0);
 
     memdev_root = object_resolve_path("/objects", NULL);
     if (memdev_root) {

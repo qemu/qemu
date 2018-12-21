@@ -20,6 +20,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/msix.h"
 #include "chardev/char-fe.h"
+#include "hw/net/vmxnet3_defs.h"
 
 #include "../rdma_backend_defs.h"
 #include "../rdma_rm_defs.h"
@@ -85,6 +86,7 @@ typedef struct PVRDMADev {
     RdmaBackendDev backend_dev;
     RdmaDeviceResources rdma_dev_res;
     CharBackend mad_chr;
+    VMXNET3State *func0;
 } PVRDMADev;
 #define PVRDMA_DEV(dev) OBJECT_CHECK(PVRDMADev, (dev), PVRDMA_HW_NAME)
 
