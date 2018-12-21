@@ -131,6 +131,8 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
     RdmaRmQP *qp;
     PvrdmaSqWqe *wqe;
     PvrdmaRing *ring;
+    int sgid_idx;
+    union ibv_gid *sgid;
 
     pr_dbg("qp_handle=0x%x\n", qp_handle);
 
@@ -156,8 +158,26 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
         comp_ctx->cqe.qp = qp_handle;
         comp_ctx->cqe.opcode = IBV_WC_SEND;
 
+        sgid = rdma_rm_get_gid(&dev->rdma_dev_res, wqe->hdr.wr.ud.av.gid_index);
+        if (!sgid) {
+            pr_dbg("Fail to get gid for idx %d\n", wqe->hdr.wr.ud.av.gid_index);
+            return -EIO;
+        }
+        pr_dbg("sgid_id=%d, sgid=0x%llx\n", wqe->hdr.wr.ud.av.gid_index,
+               sgid->global.interface_id);
+
+        sgid_idx = rdma_rm_get_backend_gid_index(&dev->rdma_dev_res,
+                                                 &dev->backend_dev,
+                                                 wqe->hdr.wr.ud.av.gid_index);
+        if (sgid_idx <= 0) {
+            pr_dbg("Fail to get bk sgid_idx for sgid_idx %d\n",
+                   wqe->hdr.wr.ud.av.gid_index);
+            return -EIO;
+        }
+
         rdma_backend_post_send(&dev->backend_dev, &qp->backend_qp, qp->qp_type,
                                (struct ibv_sge *)&wqe->sge[0], wqe->hdr.num_sge,
+                               sgid_idx, sgid,
                                (union ibv_gid *)wqe->hdr.wr.ud.av.dgid,
                                wqe->hdr.wr.ud.remote_qpn,
                                wqe->hdr.wr.ud.remote_qkey, comp_ctx);

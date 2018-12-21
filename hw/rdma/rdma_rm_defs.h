@@ -19,7 +19,7 @@
 #include "rdma_backend_defs.h"
 
 #define MAX_PORTS             1
-#define MAX_PORT_GIDS         1
+#define MAX_PORT_GIDS         255
 #define MAX_GIDS              MAX_PORT_GIDS
 #define MAX_PORT_PKEYS        1
 #define MAX_PKEYS             MAX_PORT_PKEYS
@@ -86,8 +86,13 @@ typedef struct RdmaRmQP {
     enum ibv_qp_state qp_state;
 } RdmaRmQP;
 
+typedef struct RdmaRmGid {
+    union ibv_gid gid;
+    int backend_gid_index;
+} RdmaRmGid;
+
 typedef struct RdmaRmPort {
-    union ibv_gid gid_tbl[MAX_PORT_GIDS];
+    RdmaRmGid gid_tbl[MAX_PORT_GIDS];
     enum ibv_port_state state;
 } RdmaRmPort;
 

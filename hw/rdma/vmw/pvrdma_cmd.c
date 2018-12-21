@@ -504,13 +504,16 @@ static int modify_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
     rsp->hdr.response = cmd->hdr.response;
     rsp->hdr.ack = PVRDMA_CMD_MODIFY_QP_RESP;
 
-    rsp->hdr.err = rdma_rm_modify_qp(&dev->rdma_dev_res, &dev->backend_dev,
-                                 cmd->qp_handle, cmd->attr_mask,
-                                 (union ibv_gid *)&cmd->attrs.ah_attr.grh.dgid,
-                                 cmd->attrs.dest_qp_num,
-                                 (enum ibv_qp_state)cmd->attrs.qp_state,
-                                 cmd->attrs.qkey, cmd->attrs.rq_psn,
-                                 cmd->attrs.sq_psn);
+    /* No need to verify sgid_index since it is u8 */
+
+    rsp->hdr.err =
+        rdma_rm_modify_qp(&dev->rdma_dev_res, &dev->backend_dev, cmd->qp_handle,
+                          cmd->attr_mask, cmd->attrs.ah_attr.grh.sgid_index,
+                          (union ibv_gid *)&cmd->attrs.ah_attr.grh.dgid,
+                          cmd->attrs.dest_qp_num,
+                          (enum ibv_qp_state)cmd->attrs.qp_state,
+                          cmd->attrs.qkey, cmd->attrs.rq_psn,
+                          cmd->attrs.sq_psn);
 
     pr_dbg("ret=%d\n", rsp->hdr.err);
     return rsp->hdr.err;
@@ -570,10 +573,8 @@ static int create_bind(PVRDMADev *dev, union pvrdma_cmd_req *req,
                        union pvrdma_cmd_resp *rsp)
 {
     struct pvrdma_cmd_create_bind *cmd = &req->create_bind;
-#ifdef PVRDMA_DEBUG
-    __be64 *subnet = (__be64 *)&cmd->new_gid[0];
-    __be64 *if_id = (__be64 *)&cmd->new_gid[8];
-#endif
+    int rc;
+    union ibv_gid *gid = (union ibv_gid *)&cmd->new_gid;
 
     pr_dbg("index=%d\n", cmd->index);
 
@@ -582,19 +583,24 @@ static int create_bind(PVRDMADev *dev, union pvrdma_cmd_req *req,
     }
 
     pr_dbg("gid[%d]=0x%llx,0x%llx\n", cmd->index,
-           (long long unsigned int)be64_to_cpu(*subnet),
-           (long long unsigned int)be64_to_cpu(*if_id));
+           (long long unsigned int)be64_to_cpu(gid->global.subnet_prefix),
+           (long long unsigned int)be64_to_cpu(gid->global.interface_id));
 
-    /* Driver forces to one port only */
-    memcpy(dev->rdma_dev_res.ports[0].gid_tbl[cmd->index].raw, &cmd->new_gid,
-           sizeof(cmd->new_gid));
+    rc = rdma_rm_add_gid(&dev->rdma_dev_res, &dev->backend_dev,
+                         dev->backend_eth_device_name, gid, cmd->index);
+    if (rc < 0) {
+        return -EINVAL;
+    }
 
     /* TODO: Since drivers stores node_guid at load_dsr phase then this
      * assignment is not relevant, i need to figure out a way how to
      * retrieve MAC of our netdev */
-    dev->node_guid = dev->rdma_dev_res.ports[0].gid_tbl[0].global.interface_id;
-    pr_dbg("dev->node_guid=0x%llx\n",
-           (long long unsigned int)be64_to_cpu(dev->node_guid));
+    if (!cmd->index) {
+        dev->node_guid =
+            dev->rdma_dev_res.ports[0].gid_tbl[0].gid.global.interface_id;
+        pr_dbg("dev->node_guid=0x%llx\n",
+               (long long unsigned int)be64_to_cpu(dev->node_guid));
+    }
 
     return 0;
 }
@@ -602,6 +608,8 @@ static int create_bind(PVRDMADev *dev, union pvrdma_cmd_req *req,
 static int destroy_bind(PVRDMADev *dev, union pvrdma_cmd_req *req,
                         union pvrdma_cmd_resp *rsp)
 {
+    int rc;
+
     struct pvrdma_cmd_destroy_bind *cmd = &req->destroy_bind;
 
     pr_dbg("index=%d\n", cmd->index);
@@ -610,8 +618,13 @@ static int destroy_bind(PVRDMADev *dev, union pvrdma_cmd_req *req,
         return -EINVAL;
     }
 
-    memset(dev->rdma_dev_res.ports[0].gid_tbl[cmd->index].raw, 0,
-           sizeof(dev->rdma_dev_res.ports[0].gid_tbl[cmd->index].raw));
+    rc = rdma_rm_del_gid(&dev->rdma_dev_res, &dev->backend_dev,
+                        dev->backend_eth_device_name, cmd->index);
+
+    if (rc < 0) {
+        rsp->hdr.err = rc;
+        goto out;
+    }
 
     return 0;
 }

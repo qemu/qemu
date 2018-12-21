@@ -79,8 +79,8 @@ typedef struct PVRDMADev {
     int interrupt_mask;
     struct ibv_device_attr dev_attr;
     uint64_t node_guid;
+    char *backend_eth_device_name;
     char *backend_device_name;
-    uint8_t backend_gid_idx;
     uint8_t backend_port_num;
     RdmaBackendDev backend_dev;
     RdmaDeviceResources rdma_dev_res;

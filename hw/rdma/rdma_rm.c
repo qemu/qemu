@@ -391,7 +391,7 @@ out_dealloc_qp:
 }
 
 int rdma_rm_modify_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
-                      uint32_t qp_handle, uint32_t attr_mask,
+                      uint32_t qp_handle, uint32_t attr_mask, uint8_t sgid_idx,
                       union ibv_gid *dgid, uint32_t dqpn,
                       enum ibv_qp_state qp_state, uint32_t qkey,
                       uint32_t rq_psn, uint32_t sq_psn)
@@ -400,6 +400,7 @@ int rdma_rm_modify_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
     int ret;
 
     pr_dbg("qpn=0x%x\n", qp_handle);
+    pr_dbg("qkey=0x%x\n", qkey);
 
     qp = rdma_rm_get_qp(dev_res, qp_handle);
     if (!qp) {
@@ -430,9 +431,19 @@ int rdma_rm_modify_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
         }
 
         if (qp->qp_state == IBV_QPS_RTR) {
+            /* Get backend gid index */
+            pr_dbg("Guest sgid_idx=%d\n", sgid_idx);
+            sgid_idx = rdma_rm_get_backend_gid_index(dev_res, backend_dev,
+                                                     sgid_idx);
+            if (sgid_idx <= 0) { /* TODO check also less than bk.max_sgid */
+                pr_dbg("Fail to get bk sgid_idx for sgid_idx %d\n", sgid_idx);
+                return -EIO;
+            }
+
             ret = rdma_backend_qp_state_rtr(backend_dev, &qp->backend_qp,
-                                            qp->qp_type, dgid, dqpn, rq_psn,
-                                            qkey, attr_mask & IBV_QP_QKEY);
+                                            qp->qp_type, sgid_idx, dgid, dqpn,
+                                            rq_psn, qkey,
+                                            attr_mask & IBV_QP_QKEY);
             if (ret) {
                 return -EIO;
             }
@@ -523,9 +534,89 @@ void rdma_rm_dealloc_cqe_ctx(RdmaDeviceResources *dev_res, uint32_t cqe_ctx_id)
     res_tbl_dealloc(&dev_res->cqe_ctx_tbl, cqe_ctx_id);
 }
 
+int rdma_rm_add_gid(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
+                    const char *ifname, union ibv_gid *gid, int gid_idx)
+{
+    int rc;
+
+    rc = rdma_backend_add_gid(backend_dev, ifname, gid);
+    if (rc) {
+        pr_dbg("Fail to add gid\n");
+        return -EINVAL;
+    }
+
+    memcpy(&dev_res->ports[0].gid_tbl[gid_idx].gid, gid, sizeof(*gid));
+
+    return 0;
+}
+
+int rdma_rm_del_gid(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
+                    const char *ifname, int gid_idx)
+{
+    int rc;
+
+    rc = rdma_backend_del_gid(backend_dev, ifname,
+                              &dev_res->ports[0].gid_tbl[gid_idx].gid);
+    if (rc) {
+        pr_dbg("Fail to delete gid\n");
+        return -EINVAL;
+    }
+
+    memset(dev_res->ports[0].gid_tbl[gid_idx].gid.raw, 0,
+           sizeof(dev_res->ports[0].gid_tbl[gid_idx].gid));
+    dev_res->ports[0].gid_tbl[gid_idx].backend_gid_index = -1;
+
+    return 0;
+}
+
+int rdma_rm_get_backend_gid_index(RdmaDeviceResources *dev_res,
+                                  RdmaBackendDev *backend_dev, int sgid_idx)
+{
+    if (unlikely(sgid_idx < 0 || sgid_idx > MAX_PORT_GIDS)) {
+        pr_dbg("Got invalid sgid_idx %d\n", sgid_idx);
+        return -EINVAL;
+    }
+
+    if (unlikely(dev_res->ports[0].gid_tbl[sgid_idx].backend_gid_index == -1)) {
+        dev_res->ports[0].gid_tbl[sgid_idx].backend_gid_index =
+        rdma_backend_get_gid_index(backend_dev,
+                                   &dev_res->ports[0].gid_tbl[sgid_idx].gid);
+    }
+
+    pr_dbg("backend_gid_index=%d\n",
+           dev_res->ports[0].gid_tbl[sgid_idx].backend_gid_index);
+
+    return dev_res->ports[0].gid_tbl[sgid_idx].backend_gid_index;
+}
+
 static void destroy_qp_hash_key(gpointer data)
 {
     g_bytes_unref(data);
+}
+
+static void init_ports(RdmaDeviceResources *dev_res)
+{
+    int i, j;
+
+    memset(dev_res->ports, 0, sizeof(dev_res->ports));
+
+    for (i = 0; i < MAX_PORTS; i++) {
+        dev_res->ports[i].state = IBV_PORT_DOWN;
+        for (j = 0; j < MAX_PORT_GIDS; j++) {
+            dev_res->ports[i].gid_tbl[j].backend_gid_index = -1;
+        }
+    }
+}
+
+static void fini_ports(RdmaDeviceResources *dev_res,
+                       RdmaBackendDev *backend_dev, const char *ifname)
+{
+    int i;
+
+    dev_res->ports[0].state = IBV_PORT_DOWN;
+    for (i = 0; i < MAX_PORT_GIDS; i++) {
+        rdma_rm_del_gid(dev_res, backend_dev, ifname, i);
+    }
 }
 
 int rdma_rm_init(RdmaDeviceResources *dev_res, struct ibv_device_attr *dev_attr,
@@ -545,11 +636,16 @@ int rdma_rm_init(RdmaDeviceResources *dev_res, struct ibv_device_attr *dev_attr,
                        dev_attr->max_qp_wr, sizeof(void *));
     res_tbl_init("UC", &dev_res->uc_tbl, MAX_UCS, sizeof(RdmaRmUC));
 
+    init_ports(dev_res);
+
     return 0;
 }
 
-void rdma_rm_fini(RdmaDeviceResources *dev_res)
+void rdma_rm_fini(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
+                  const char *ifname)
 {
+    fini_ports(dev_res, backend_dev, ifname);
+
     res_tbl_free(&dev_res->uc_tbl);
     res_tbl_free(&dev_res->cqe_ctx_tbl);
     res_tbl_free(&dev_res->qp_tbl);

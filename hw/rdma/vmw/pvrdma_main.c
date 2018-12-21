@@ -36,9 +36,9 @@
 #include "pvrdma_qp_ops.h"
 
 static Property pvrdma_dev_properties[] = {
-    DEFINE_PROP_STRING("backend-dev", PVRDMADev, backend_device_name),
-    DEFINE_PROP_UINT8("backend-port", PVRDMADev, backend_port_num, 1),
-    DEFINE_PROP_UINT8("backend-gid-idx", PVRDMADev, backend_gid_idx, 0),
+    DEFINE_PROP_STRING("netdev", PVRDMADev, backend_eth_device_name),
+    DEFINE_PROP_STRING("ibdev", PVRDMADev, backend_device_name),
+    DEFINE_PROP_UINT8("ibport", PVRDMADev, backend_port_num, 1),
     DEFINE_PROP_UINT64("dev-caps-max-mr-size", PVRDMADev, dev_attr.max_mr_size,
                        MAX_MR_SIZE),
     DEFINE_PROP_INT32("dev-caps-max-qp", PVRDMADev, dev_attr.max_qp, MAX_QP),
@@ -276,17 +276,6 @@ static void init_dsr_dev_caps(PVRDMADev *dev)
     pr_dbg("Initialized\n");
 }
 
-static void init_ports(PVRDMADev *dev, Error **errp)
-{
-    int i;
-
-    memset(dev->rdma_dev_res.ports, 0, sizeof(dev->rdma_dev_res.ports));
-
-    for (i = 0; i < MAX_PORTS; i++) {
-        dev->rdma_dev_res.ports[i].state = IBV_PORT_DOWN;
-    }
-}
-
 static void uninit_msix(PCIDevice *pdev, int used_vectors)
 {
     PVRDMADev *dev = PVRDMA_DEV(pdev);
@@ -335,7 +324,8 @@ static void pvrdma_fini(PCIDevice *pdev)
 
     pvrdma_qp_ops_fini();
 
-    rdma_rm_fini(&dev->rdma_dev_res);
+    rdma_rm_fini(&dev->rdma_dev_res, &dev->backend_dev,
+                 dev->backend_eth_device_name);
 
     rdma_backend_fini(&dev->backend_dev);
 
@@ -612,8 +602,7 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 
     rc = rdma_backend_init(&dev->backend_dev, pdev, &dev->rdma_dev_res,
                            dev->backend_device_name, dev->backend_port_num,
-                           dev->backend_gid_idx, &dev->dev_attr, &dev->mad_chr,
-                           errp);
+                           &dev->dev_attr, &dev->mad_chr, errp);
     if (rc) {
         goto out;
     }
@@ -622,8 +611,6 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     if (rc) {
         goto out;
     }
-
-    init_ports(dev, errp);
 
     rc = pvrdma_qp_ops_init();
     if (rc) {

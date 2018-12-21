@@ -15,15 +15,18 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qnum.h"
+#include "qapi/qapi-events-rdma.h"
 
 #include <infiniband/verbs.h>
 #include <infiniband/umad_types.h>
 #include <infiniband/umad.h>
 #include <rdma/rdma_user_cm.h>
 
+#include "contrib/rdmacm-mux/rdmacm-mux.h"
 #include "trace.h"
 #include "rdma_utils.h"
 #include "rdma_rm.h"
@@ -158,6 +161,77 @@ static void *comp_handler_thread(void *arg)
     qemu_thread_exit(0);
 
     return NULL;
+}
+
+static inline void disable_rdmacm_mux_async(RdmaBackendDev *backend_dev)
+{
+    atomic_set(&backend_dev->rdmacm_mux.can_receive, 0);
+}
+
+static inline void enable_rdmacm_mux_async(RdmaBackendDev *backend_dev)
+{
+    atomic_set(&backend_dev->rdmacm_mux.can_receive, sizeof(RdmaCmMuxMsg));
+}
+
+static inline int rdmacm_mux_can_process_async(RdmaBackendDev *backend_dev)
+{
+    return atomic_read(&backend_dev->rdmacm_mux.can_receive);
+}
+
+static int check_mux_op_status(CharBackend *mad_chr_be)
+{
+    RdmaCmMuxMsg msg = {0};
+    int ret;
+
+    pr_dbg("Reading response\n");
+    ret = qemu_chr_fe_read_all(mad_chr_be, (uint8_t *)&msg, sizeof(msg));
+    if (ret != sizeof(msg)) {
+        pr_dbg("Invalid message size %d, expecting %ld\n", ret, sizeof(msg));
+        return -EIO;
+    }
+
+    pr_dbg("msg_type=%d\n", msg.hdr.msg_type);
+    pr_dbg("op_code=%d\n", msg.hdr.op_code);
+    pr_dbg("err_code=%d\n", msg.hdr.err_code);
+
+    if (msg.hdr.msg_type != RDMACM_MUX_MSG_TYPE_RESP) {
+        pr_dbg("Invalid message type %d\n", msg.hdr.msg_type);
+        return -EIO;
+    }
+
+    if (msg.hdr.err_code != RDMACM_MUX_ERR_CODE_OK) {
+        pr_dbg("Operation failed in mux, error code %d\n", msg.hdr.err_code);
+        return -EIO;
+    }
+
+    return 0;
+}
+
+static int exec_rdmacm_mux_req(RdmaBackendDev *backend_dev, RdmaCmMuxMsg *msg)
+{
+    int rc = 0;
+
+    pr_dbg("Executing request %d\n", msg->hdr.op_code);
+
+    msg->hdr.msg_type = RDMACM_MUX_MSG_TYPE_REQ;
+    disable_rdmacm_mux_async(backend_dev);
+    rc = qemu_chr_fe_write(backend_dev->rdmacm_mux.chr_be,
+                           (const uint8_t *)msg, sizeof(*msg));
+    if (rc != sizeof(*msg)) {
+        enable_rdmacm_mux_async(backend_dev);
+        pr_dbg("Fail to send request to rdmacm_mux (rc=%d)\n", rc);
+        return -EIO;
+    }
+
+    rc = check_mux_op_status(backend_dev->rdmacm_mux.chr_be);
+    if (rc) {
+        pr_dbg("Fail to execute rdmacm_mux request %d (rc=%d)\n",
+               msg->hdr.op_code, rc);
+    }
+
+    enable_rdmacm_mux_async(backend_dev);
+
+    return 0;
 }
 
 static void stop_backend_thread(RdmaBackendThread *thread)
@@ -300,11 +374,11 @@ static int build_host_sge_array(RdmaDeviceResources *rdma_dev_res,
     return 0;
 }
 
-static int mad_send(RdmaBackendDev *backend_dev, struct ibv_sge *sge,
-                    uint32_t num_sge)
+static int mad_send(RdmaBackendDev *backend_dev, uint8_t sgid_idx,
+                    union ibv_gid *sgid, struct ibv_sge *sge, uint32_t num_sge)
 {
-    struct backend_umad umad = {0};
-    char *hdr, *msg;
+    RdmaCmMuxMsg msg = {0};
+    char *hdr, *data;
     int ret;
 
     pr_dbg("num_sge=%d\n", num_sge);
@@ -313,26 +387,31 @@ static int mad_send(RdmaBackendDev *backend_dev, struct ibv_sge *sge,
         return -EINVAL;
     }
 
-    umad.hdr.length = sge[0].length + sge[1].length;
-    pr_dbg("msg_len=%d\n", umad.hdr.length);
+    msg.hdr.op_code = RDMACM_MUX_OP_CODE_MAD;
+    memcpy(msg.hdr.sgid.raw, sgid->raw, sizeof(msg.hdr.sgid));
 
-    if (umad.hdr.length > sizeof(umad.mad)) {
+    msg.umad_len = sge[0].length + sge[1].length;
+    pr_dbg("umad_len=%d\n", msg.umad_len);
+
+    if (msg.umad_len > sizeof(msg.umad.mad)) {
         return -ENOMEM;
     }
 
-    umad.hdr.addr.qpn = htobe32(1);
-    umad.hdr.addr.grh_present = 1;
-    umad.hdr.addr.gid_index = backend_dev->backend_gid_idx;
-    memcpy(umad.hdr.addr.gid, backend_dev->gid.raw, sizeof(umad.hdr.addr.gid));
-    umad.hdr.addr.hop_limit = 0xFF;
+    msg.umad.hdr.addr.qpn = htobe32(1);
+    msg.umad.hdr.addr.grh_present = 1;
+    pr_dbg("sgid_idx=%d\n", sgid_idx);
+    pr_dbg("sgid=0x%llx\n", sgid->global.interface_id);
+    msg.umad.hdr.addr.gid_index = sgid_idx;
+    memcpy(msg.umad.hdr.addr.gid, sgid->raw, sizeof(msg.umad.hdr.addr.gid));
+    msg.umad.hdr.addr.hop_limit = 0xFF;
 
     hdr = rdma_pci_dma_map(backend_dev->dev, sge[0].addr, sge[0].length);
     if (!hdr) {
         pr_dbg("Fail to map to sge[0]\n");
         return -ENOMEM;
     }
-    msg = rdma_pci_dma_map(backend_dev->dev, sge[1].addr, sge[1].length);
-    if (!msg) {
+    data = rdma_pci_dma_map(backend_dev->dev, sge[1].addr, sge[1].length);
+    if (!data) {
         pr_dbg("Fail to map to sge[1]\n");
         rdma_pci_dma_unmap(backend_dev->dev, hdr, sge[0].length);
         return -ENOMEM;
@@ -341,25 +420,27 @@ static int mad_send(RdmaBackendDev *backend_dev, struct ibv_sge *sge,
     pr_dbg_buf("mad_hdr", hdr, sge[0].length);
     pr_dbg_buf("mad_data", data, sge[1].length);
 
-    memcpy(&umad.mad[0], hdr, sge[0].length);
-    memcpy(&umad.mad[sge[0].length], msg, sge[1].length);
+    memcpy(&msg.umad.mad[0], hdr, sge[0].length);
+    memcpy(&msg.umad.mad[sge[0].length], data, sge[1].length);
 
-    rdma_pci_dma_unmap(backend_dev->dev, msg, sge[1].length);
+    rdma_pci_dma_unmap(backend_dev->dev, data, sge[1].length);
     rdma_pci_dma_unmap(backend_dev->dev, hdr, sge[0].length);
 
-    ret = qemu_chr_fe_write(backend_dev->mad_chr_be, (const uint8_t *)&umad,
-                            sizeof(umad));
+    ret = exec_rdmacm_mux_req(backend_dev, &msg);
+    if (ret) {
+        pr_dbg("Fail to send MAD to rdma_umadmux (%d)\n", ret);
+        return -EIO;
+    }
 
-    pr_dbg("qemu_chr_fe_write=%d\n", ret);
-
-    return (ret != sizeof(umad));
+    return 0;
 }
 
 void rdma_backend_post_send(RdmaBackendDev *backend_dev,
                             RdmaBackendQP *qp, uint8_t qp_type,
                             struct ibv_sge *sge, uint32_t num_sge,
-                            union ibv_gid *dgid, uint32_t dqpn,
-                            uint32_t dqkey, void *ctx)
+                            uint8_t sgid_idx, union ibv_gid *sgid,
+                            union ibv_gid *dgid, uint32_t dqpn, uint32_t dqkey,
+                            void *ctx)
 {
     BackendCtx *bctx;
     struct ibv_sge new_sge[MAX_SGE];
@@ -373,7 +454,7 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
             comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_QP0, ctx);
         } else if (qp_type == IBV_QPT_GSI) {
             pr_dbg("QP1\n");
-            rc = mad_send(backend_dev, sge, num_sge);
+            rc = mad_send(backend_dev, sgid_idx, sgid, sge, num_sge);
             if (rc) {
                 comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_MAD_SEND, ctx);
             } else {
@@ -409,8 +490,7 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
     }
 
     if (qp_type == IBV_QPT_UD) {
-        wr.wr.ud.ah = create_ah(backend_dev, qp->ibpd,
-                                backend_dev->backend_gid_idx, dgid);
+        wr.wr.ud.ah = create_ah(backend_dev, qp->ibpd, sgid_idx, dgid);
         if (!wr.wr.ud.ah) {
             comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_FAIL_BACKEND, ctx);
             goto out_dealloc_cqe_ctx;
@@ -715,9 +795,9 @@ int rdma_backend_qp_state_init(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
 }
 
 int rdma_backend_qp_state_rtr(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
-                              uint8_t qp_type, union ibv_gid *dgid,
-                              uint32_t dqpn, uint32_t rq_psn, uint32_t qkey,
-                              bool use_qkey)
+                              uint8_t qp_type, uint8_t sgid_idx,
+                              union ibv_gid *dgid, uint32_t dqpn,
+                              uint32_t rq_psn, uint32_t qkey, bool use_qkey)
 {
     struct ibv_qp_attr attr = {0};
     union ibv_gid ibv_gid = {
@@ -729,13 +809,15 @@ int rdma_backend_qp_state_rtr(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
     attr.qp_state = IBV_QPS_RTR;
     attr_mask = IBV_QP_STATE;
 
+    qp->sgid_idx = sgid_idx;
+
     switch (qp_type) {
     case IBV_QPT_RC:
         pr_dbg("dgid=0x%" PRIx64 ",%" PRIx64 "\n",
                be64_to_cpu(ibv_gid.global.subnet_prefix),
                be64_to_cpu(ibv_gid.global.interface_id));
         pr_dbg("dqpn=0x%x\n", dqpn);
-        pr_dbg("sgid_idx=%d\n", backend_dev->backend_gid_idx);
+        pr_dbg("sgid_idx=%d\n", qp->sgid_idx);
         pr_dbg("sport_num=%d\n", backend_dev->port_num);
         pr_dbg("rq_psn=0x%x\n", rq_psn);
 
@@ -747,7 +829,7 @@ int rdma_backend_qp_state_rtr(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
         attr.ah_attr.is_global      = 1;
         attr.ah_attr.grh.hop_limit  = 1;
         attr.ah_attr.grh.dgid       = ibv_gid;
-        attr.ah_attr.grh.sgid_index = backend_dev->backend_gid_idx;
+        attr.ah_attr.grh.sgid_index = qp->sgid_idx;
         attr.rq_psn                 = rq_psn;
 
         attr_mask |= IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
@@ -756,8 +838,8 @@ int rdma_backend_qp_state_rtr(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
         break;
 
     case IBV_QPT_UD:
+        pr_dbg("qkey=0x%x\n", qkey);
         if (use_qkey) {
-            pr_dbg("qkey=0x%x\n", qkey);
             attr.qkey = qkey;
             attr_mask |= IBV_QP_QKEY;
         }
@@ -873,29 +955,19 @@ static inline void build_mad_hdr(struct ibv_grh *grh, union ibv_gid *sgid,
     grh->dgid = *my_gid;
 
     pr_dbg("paylen=%d (net=0x%x)\n", paylen, grh->paylen);
-    pr_dbg("my_gid=0x%llx\n", my_gid->global.interface_id);
-    pr_dbg("gid=0x%llx\n", sgid->global.interface_id);
+    pr_dbg("dgid=0x%llx\n", my_gid->global.interface_id);
+    pr_dbg("sgid=0x%llx\n", sgid->global.interface_id);
 }
 
-static inline int mad_can_receieve(void *opaque)
+static void process_incoming_mad_req(RdmaBackendDev *backend_dev,
+                                     RdmaCmMuxMsg *msg)
 {
-    return sizeof(struct backend_umad);
-}
-
-static void mad_read(void *opaque, const uint8_t *buf, int size)
-{
-    RdmaBackendDev *backend_dev = (RdmaBackendDev *)opaque;
     QObject *o_ctx_id;
     unsigned long cqe_ctx_id;
     BackendCtx *bctx;
     char *mad;
-    struct backend_umad *umad;
 
-    assert(size != sizeof(umad));
-    umad = (struct backend_umad *)buf;
-
-    pr_dbg("Got %d bytes\n", size);
-    pr_dbg("umad->hdr.length=%d\n", umad->hdr.length);
+    pr_dbg("umad_len=%d\n", msg->umad_len);
 
 #ifdef PVRDMA_DEBUG
     struct umad_hdr *hdr = (struct umad_hdr *)&msg->umad.mad;
@@ -925,15 +997,16 @@ static void mad_read(void *opaque, const uint8_t *buf, int size)
 
     mad = rdma_pci_dma_map(backend_dev->dev, bctx->sge.addr,
                            bctx->sge.length);
-    if (!mad || bctx->sge.length < umad->hdr.length + MAD_HDR_SIZE) {
+    if (!mad || bctx->sge.length < msg->umad_len + MAD_HDR_SIZE) {
         comp_handler(IBV_WC_GENERAL_ERR, VENDOR_ERR_INV_MAD_BUFF,
                      bctx->up_ctx);
     } else {
+        pr_dbg_buf("mad", msg->umad.mad, msg->umad_len);
         memset(mad, 0, bctx->sge.length);
         build_mad_hdr((struct ibv_grh *)mad,
-                      (union ibv_gid *)&umad->hdr.addr.gid,
-                      &backend_dev->gid, umad->hdr.length);
-        memcpy(&mad[MAD_HDR_SIZE], umad->mad, umad->hdr.length);
+                      (union ibv_gid *)&msg->umad.hdr.addr.gid, &msg->hdr.sgid,
+                      msg->umad_len);
+        memcpy(&mad[MAD_HDR_SIZE], msg->umad.mad, msg->umad_len);
         rdma_pci_dma_unmap(backend_dev->dev, mad, bctx->sge.length);
 
         comp_handler(IBV_WC_SUCCESS, 0, bctx->up_ctx);
@@ -943,56 +1016,151 @@ static void mad_read(void *opaque, const uint8_t *buf, int size)
     rdma_rm_dealloc_cqe_ctx(backend_dev->rdma_dev_res, cqe_ctx_id);
 }
 
-static int mad_init(RdmaBackendDev *backend_dev)
+static inline int rdmacm_mux_can_receive(void *opaque)
 {
-    struct backend_umad umad = {0};
+    RdmaBackendDev *backend_dev = (RdmaBackendDev *)opaque;
+
+    return rdmacm_mux_can_process_async(backend_dev);
+}
+
+static void rdmacm_mux_read(void *opaque, const uint8_t *buf, int size)
+{
+    RdmaBackendDev *backend_dev = (RdmaBackendDev *)opaque;
+    RdmaCmMuxMsg *msg = (RdmaCmMuxMsg *)buf;
+
+    pr_dbg("Got %d bytes\n", size);
+    pr_dbg("msg_type=%d\n", msg->hdr.msg_type);
+    pr_dbg("op_code=%d\n", msg->hdr.op_code);
+
+    if (msg->hdr.msg_type != RDMACM_MUX_MSG_TYPE_REQ &&
+        msg->hdr.op_code != RDMACM_MUX_OP_CODE_MAD) {
+            pr_dbg("Error: Not a MAD request, skipping\n");
+            return;
+    }
+    process_incoming_mad_req(backend_dev, msg);
+}
+
+static int mad_init(RdmaBackendDev *backend_dev, CharBackend *mad_chr_be)
+{
     int ret;
 
-    if (!qemu_chr_fe_backend_connected(backend_dev->mad_chr_be)) {
+    backend_dev->rdmacm_mux.chr_be = mad_chr_be;
+
+    ret = qemu_chr_fe_backend_connected(backend_dev->rdmacm_mux.chr_be);
+    if (!ret) {
         pr_dbg("Missing chardev for MAD multiplexer\n");
         return -EIO;
     }
 
-    qemu_chr_fe_set_handlers(backend_dev->mad_chr_be, mad_can_receieve,
-                             mad_read, NULL, NULL, backend_dev, NULL, true);
-
-    /* Register ourself */
-    memcpy(umad.hdr.addr.gid, backend_dev->gid.raw, sizeof(umad.hdr.addr.gid));
-    ret = qemu_chr_fe_write(backend_dev->mad_chr_be, (const uint8_t *)&umad,
-                            sizeof(umad.hdr));
-    if (ret != sizeof(umad.hdr)) {
-        pr_dbg("Fail to register to rdma_umadmux (%d)\n", ret);
-    }
-
     qemu_mutex_init(&backend_dev->recv_mads_list.lock);
     backend_dev->recv_mads_list.list = qlist_new();
+
+    enable_rdmacm_mux_async(backend_dev);
+
+    qemu_chr_fe_set_handlers(backend_dev->rdmacm_mux.chr_be,
+                             rdmacm_mux_can_receive, rdmacm_mux_read, NULL,
+                             NULL, backend_dev, NULL, true);
 
     return 0;
 }
 
 static void mad_fini(RdmaBackendDev *backend_dev)
 {
+    pr_dbg("Stopping MAD\n");
+    disable_rdmacm_mux_async(backend_dev);
+    qemu_chr_fe_disconnect(backend_dev->rdmacm_mux.chr_be);
     qlist_destroy_obj(QOBJECT(backend_dev->recv_mads_list.list));
     qemu_mutex_destroy(&backend_dev->recv_mads_list.lock);
+}
+
+int rdma_backend_get_gid_index(RdmaBackendDev *backend_dev,
+                               union ibv_gid *gid)
+{
+    union ibv_gid sgid;
+    int ret;
+    int i = 0;
+
+    pr_dbg("0x%llx, 0x%llx\n",
+           (long long unsigned int)be64_to_cpu(gid->global.subnet_prefix),
+           (long long unsigned int)be64_to_cpu(gid->global.interface_id));
+
+    do {
+        ret = ibv_query_gid(backend_dev->context, backend_dev->port_num, i,
+                            &sgid);
+        i++;
+    } while (!ret && (memcmp(&sgid, gid, sizeof(*gid))));
+
+    pr_dbg("gid_index=%d\n", i - 1);
+
+    return ret ? ret : i - 1;
+}
+
+int rdma_backend_add_gid(RdmaBackendDev *backend_dev, const char *ifname,
+                         union ibv_gid *gid)
+{
+    RdmaCmMuxMsg msg = {0};
+    int ret;
+
+    pr_dbg("0x%llx, 0x%llx\n",
+           (long long unsigned int)be64_to_cpu(gid->global.subnet_prefix),
+           (long long unsigned int)be64_to_cpu(gid->global.interface_id));
+
+    msg.hdr.op_code = RDMACM_MUX_OP_CODE_REG;
+    memcpy(msg.hdr.sgid.raw, gid->raw, sizeof(msg.hdr.sgid));
+
+    ret = exec_rdmacm_mux_req(backend_dev, &msg);
+    if (ret) {
+        pr_dbg("Fail to register GID to rdma_umadmux (%d)\n", ret);
+        return -EIO;
+    }
+
+    qapi_event_send_rdma_gid_status_changed(ifname, true,
+                                            gid->global.subnet_prefix,
+                                            gid->global.interface_id);
+
+    return ret;
+}
+
+int rdma_backend_del_gid(RdmaBackendDev *backend_dev, const char *ifname,
+                         union ibv_gid *gid)
+{
+    RdmaCmMuxMsg msg = {0};
+    int ret;
+
+    pr_dbg("0x%llx, 0x%llx\n",
+           (long long unsigned int)be64_to_cpu(gid->global.subnet_prefix),
+           (long long unsigned int)be64_to_cpu(gid->global.interface_id));
+
+    msg.hdr.op_code = RDMACM_MUX_OP_CODE_UNREG;
+    memcpy(msg.hdr.sgid.raw, gid->raw, sizeof(msg.hdr.sgid));
+
+    ret = exec_rdmacm_mux_req(backend_dev, &msg);
+    if (ret) {
+        pr_dbg("Fail to unregister GID from rdma_umadmux (%d)\n", ret);
+        return -EIO;
+    }
+
+    qapi_event_send_rdma_gid_status_changed(ifname, false,
+                                            gid->global.subnet_prefix,
+                                            gid->global.interface_id);
+
+    return 0;
 }
 
 int rdma_backend_init(RdmaBackendDev *backend_dev, PCIDevice *pdev,
                       RdmaDeviceResources *rdma_dev_res,
                       const char *backend_device_name, uint8_t port_num,
-                      uint8_t backend_gid_idx, struct ibv_device_attr *dev_attr,
-                      CharBackend *mad_chr_be, Error **errp)
+                      struct ibv_device_attr *dev_attr, CharBackend *mad_chr_be,
+                      Error **errp)
 {
     int i;
     int ret = 0;
     int num_ibv_devices;
     struct ibv_device **dev_list;
-    struct ibv_port_attr port_attr;
 
     memset(backend_dev, 0, sizeof(*backend_dev));
 
     backend_dev->dev = pdev;
-    backend_dev->mad_chr_be = mad_chr_be;
-    backend_dev->backend_gid_idx = backend_gid_idx;
     backend_dev->port_num = port_num;
     backend_dev->rdma_dev_res = rdma_dev_res;
 
@@ -1029,9 +1197,9 @@ int rdma_backend_init(RdmaBackendDev *backend_dev, PCIDevice *pdev,
         backend_dev->ib_dev = *dev_list;
     }
 
-    pr_dbg("Using backend device %s, port %d, gid_idx %d\n",
-           ibv_get_device_name(backend_dev->ib_dev),
-           backend_dev->port_num, backend_dev->backend_gid_idx);
+    pr_dbg("Using backend device %s, port %d\n",
+           ibv_get_device_name(backend_dev->ib_dev), backend_dev->port_num);
+    pr_dbg("uverb device %s\n", backend_dev->ib_dev->dev_name);
 
     backend_dev->context = ibv_open_device(backend_dev->ib_dev);
     if (!backend_dev->context) {
@@ -1048,20 +1216,6 @@ int rdma_backend_init(RdmaBackendDev *backend_dev, PCIDevice *pdev,
     }
     pr_dbg("dev->backend_dev.channel=%p\n", backend_dev->channel);
 
-    ret = ibv_query_port(backend_dev->context, backend_dev->port_num,
-                         &port_attr);
-    if (ret) {
-        error_setg(errp, "Error %d from ibv_query_port", ret);
-        ret = -EIO;
-        goto out_destroy_comm_channel;
-    }
-
-    if (backend_dev->backend_gid_idx >= port_attr.gid_tbl_len) {
-        error_setg(errp, "Invalid backend_gid_idx, should be less than %d",
-                   port_attr.gid_tbl_len);
-        goto out_destroy_comm_channel;
-    }
-
     ret = init_device_caps(backend_dev, dev_attr);
     if (ret) {
         error_setg(errp, "Failed to initialize device capabilities");
@@ -1069,20 +1223,8 @@ int rdma_backend_init(RdmaBackendDev *backend_dev, PCIDevice *pdev,
         goto out_destroy_comm_channel;
     }
 
-    ret = ibv_query_gid(backend_dev->context, backend_dev->port_num,
-                         backend_dev->backend_gid_idx, &backend_dev->gid);
-    if (ret) {
-        error_setg(errp, "Failed to query gid %d",
-                   backend_dev->backend_gid_idx);
-        ret = -EIO;
-        goto out_destroy_comm_channel;
-    }
-    pr_dbg("subnet_prefix=0x%" PRIx64 "\n",
-           be64_to_cpu(backend_dev->gid.global.subnet_prefix));
-    pr_dbg("interface_id=0x%" PRIx64 "\n",
-           be64_to_cpu(backend_dev->gid.global.interface_id));
 
-    ret = mad_init(backend_dev);
+    ret = mad_init(backend_dev, mad_chr_be);
     if (ret) {
         error_setg(errp, "Fail to initialize mad");
         ret = -EIO;
