@@ -237,4 +237,6 @@ int coroutine_fn blk_co_copy_range(BlockBackend *blk_in, int64_t off_in,
                                    int bytes, BdrvRequestFlags read_flags,
                                    BdrvRequestFlags write_flags);
 
+const BdrvChild *blk_root(BlockBackend *blk);
+
 #endif

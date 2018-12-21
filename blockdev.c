@@ -3582,6 +3582,11 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
     return bdrv_named_nodes_list(errp);
 }
 
+XDbgBlockGraph *qmp_x_debug_query_block_graph(Error **errp)
+{
+    return bdrv_get_xdbg_block_graph(errp);
+}
+
 BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
                              Error **errp)
 {
