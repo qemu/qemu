@@ -24,6 +24,7 @@
 #include "hw/qdev-properties.h"
 #include "cpu.h"
 #include "trace.h"
+#include "sysemu/sysemu.h"
 
 #include "../rdma_rm.h"
 #include "../rdma_backend.h"
@@ -36,9 +37,9 @@
 #include "pvrdma_qp_ops.h"
 
 static Property pvrdma_dev_properties[] = {
-    DEFINE_PROP_STRING("backend-dev", PVRDMADev, backend_device_name),
-    DEFINE_PROP_UINT8("backend-port", PVRDMADev, backend_port_num, 1),
-    DEFINE_PROP_UINT8("backend-gid-idx", PVRDMADev, backend_gid_idx, 0),
+    DEFINE_PROP_STRING("netdev", PVRDMADev, backend_eth_device_name),
+    DEFINE_PROP_STRING("ibdev", PVRDMADev, backend_device_name),
+    DEFINE_PROP_UINT8("ibport", PVRDMADev, backend_port_num, 1),
     DEFINE_PROP_UINT64("dev-caps-max-mr-size", PVRDMADev, dev_attr.max_mr_size,
                        MAX_MR_SIZE),
     DEFINE_PROP_INT32("dev-caps-max-qp", PVRDMADev, dev_attr.max_qp, MAX_QP),
@@ -51,6 +52,7 @@ static Property pvrdma_dev_properties[] = {
     DEFINE_PROP_INT32("dev-caps-max-qp-init-rd-atom", PVRDMADev,
                       dev_attr.max_qp_init_rd_atom, MAX_QP_INIT_RD_ATOM),
     DEFINE_PROP_INT32("dev-caps-max-ah", PVRDMADev, dev_attr.max_ah, MAX_AH),
+    DEFINE_PROP_CHR("mad-chardev", PVRDMADev, mad_chr),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -263,7 +265,7 @@ static void init_dsr_dev_caps(PVRDMADev *dev)
     dsr->caps.sys_image_guid = 0;
     pr_dbg("sys_image_guid=%" PRIx64 "\n", dsr->caps.sys_image_guid);
 
-    dsr->caps.node_guid = cpu_to_be64(dev->node_guid);
+    dsr->caps.node_guid = dev->node_guid;
     pr_dbg("node_guid=%" PRIx64 "\n", be64_to_cpu(dsr->caps.node_guid));
 
     dsr->caps.phys_port_cnt = MAX_PORTS;
@@ -273,17 +275,6 @@ static void init_dsr_dev_caps(PVRDMADev *dev)
     pr_dbg("max_pkeys=%d\n", dsr->caps.max_pkeys);
 
     pr_dbg("Initialized\n");
-}
-
-static void init_ports(PVRDMADev *dev, Error **errp)
-{
-    int i;
-
-    memset(dev->rdma_dev_res.ports, 0, sizeof(dev->rdma_dev_res.ports));
-
-    for (i = 0; i < MAX_PORTS; i++) {
-        dev->rdma_dev_res.ports[i].state = IBV_PORT_DOWN;
-    }
 }
 
 static void uninit_msix(PCIDevice *pdev, int used_vectors)
@@ -334,7 +325,8 @@ static void pvrdma_fini(PCIDevice *pdev)
 
     pvrdma_qp_ops_fini();
 
-    rdma_rm_fini(&dev->rdma_dev_res);
+    rdma_rm_fini(&dev->rdma_dev_res, &dev->backend_dev,
+                 dev->backend_eth_device_name);
 
     rdma_backend_fini(&dev->backend_dev);
 
@@ -343,6 +335,9 @@ static void pvrdma_fini(PCIDevice *pdev)
     if (msix_enabled(pdev)) {
         uninit_msix(pdev, RDMA_MAX_INTRS);
     }
+
+    pr_dbg("Device %s %x.%x is down\n", pdev->name, PCI_SLOT(pdev->devfn),
+           PCI_FUNC(pdev->devfn));
 }
 
 static void pvrdma_stop(PVRDMADev *dev)
@@ -368,13 +363,11 @@ static int unquiesce_device(PVRDMADev *dev)
     return 0;
 }
 
-static int reset_device(PVRDMADev *dev)
+static void reset_device(PVRDMADev *dev)
 {
     pvrdma_stop(dev);
 
     pr_dbg("Device reset complete\n");
-
-    return 0;
 }
 
 static uint64_t regs_read(void *opaque, hwaddr addr, unsigned size)
@@ -455,6 +448,11 @@ static const MemoryRegionOps regs_ops = {
     },
 };
 
+static uint64_t uar_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0xffffffff;
+}
+
 static void uar_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     PVRDMADev *dev = opaque;
@@ -496,6 +494,7 @@ static void uar_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 }
 
 static const MemoryRegionOps uar_ops = {
+    .read = uar_read,
     .write = uar_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
@@ -570,12 +569,21 @@ static int pvrdma_check_ram_shared(Object *obj, void *opaque)
     return 0;
 }
 
+static void pvrdma_shutdown_notifier(Notifier *n, void *opaque)
+{
+    PVRDMADev *dev = container_of(n, PVRDMADev, shutdown_notifier);
+    PCIDevice *pci_dev = PCI_DEVICE(dev);
+
+    pvrdma_fini(pci_dev);
+}
+
 static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 {
-    int rc;
+    int rc = 0;
     PVRDMADev *dev = PVRDMA_DEV(pdev);
     Object *memdev_root;
     bool ram_shared = false;
+    PCIDevice *func0;
 
     init_pr_dbg();
 
@@ -586,6 +594,20 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
         error_setg(errp, "Target page size must be the same as host page size");
         return;
     }
+
+    func0 = pci_get_function_0(pdev);
+    /* Break if not vmxnet3 device in slot 0 */
+    if (strcmp(object_get_typename(&func0->qdev.parent_obj), TYPE_VMXNET3)) {
+        pr_dbg("func0 type is %s\n",
+               object_get_typename(&func0->qdev.parent_obj));
+        error_setg(errp, "Device on %x.0 must be %s", PCI_SLOT(pdev->devfn),
+                   TYPE_VMXNET3);
+        return;
+    }
+    dev->func0 = VMXNET3(func0);
+
+    addrconf_addr_eui48((unsigned char *)&dev->node_guid,
+                        (const char *)&dev->func0->conf.macaddr.a);
 
     memdev_root = object_resolve_path("/objects", NULL);
     if (memdev_root) {
@@ -613,7 +635,7 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 
     rc = rdma_backend_init(&dev->backend_dev, pdev, &dev->rdma_dev_res,
                            dev->backend_device_name, dev->backend_port_num,
-                           dev->backend_gid_idx, &dev->dev_attr, errp);
+                           &dev->dev_attr, &dev->mad_chr, errp);
     if (rc) {
         goto out;
     }
@@ -623,15 +645,17 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
         goto out;
     }
 
-    init_ports(dev, errp);
-
     rc = pvrdma_qp_ops_init();
     if (rc) {
         goto out;
     }
 
+    dev->shutdown_notifier.notify = pvrdma_shutdown_notifier;
+    qemu_register_shutdown_notifier(&dev->shutdown_notifier);
+
 out:
     if (rc) {
+        pvrdma_fini(pdev);
         error_append_hint(errp, "Device fail to load\n");
     }
 }

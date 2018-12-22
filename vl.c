@@ -1577,6 +1577,8 @@ static NotifierList suspend_notifiers =
     NOTIFIER_LIST_INITIALIZER(suspend_notifiers);
 static NotifierList wakeup_notifiers =
     NOTIFIER_LIST_INITIALIZER(wakeup_notifiers);
+static NotifierList shutdown_notifiers =
+    NOTIFIER_LIST_INITIALIZER(shutdown_notifiers);
 static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
 
 ShutdownCause qemu_shutdown_requested_get(void)
@@ -1828,6 +1830,12 @@ static void qemu_system_powerdown(void)
     notifier_list_notify(&powerdown_notifiers, NULL);
 }
 
+static void qemu_system_shutdown(ShutdownCause cause)
+{
+    qapi_event_send_shutdown(shutdown_caused_by_guest(cause), cause);
+    notifier_list_notify(&shutdown_notifiers, &cause);
+}
+
 void qemu_system_powerdown_request(void)
 {
     trace_qemu_system_powerdown_request();
@@ -1838,6 +1846,11 @@ void qemu_system_powerdown_request(void)
 void qemu_register_powerdown_notifier(Notifier *notifier)
 {
     notifier_list_add(&powerdown_notifiers, notifier);
+}
+
+void qemu_register_shutdown_notifier(Notifier *notifier)
+{
+    notifier_list_add(&shutdown_notifiers, notifier);
 }
 
 void qemu_system_debug_request(void)
@@ -1867,7 +1880,7 @@ static bool main_loop_should_exit(void)
     request = qemu_shutdown_requested();
     if (request) {
         qemu_kill_report();
-        qapi_event_send_shutdown(shutdown_caused_by_guest(request), request);
+        qemu_system_shutdown(request);
         if (no_shutdown) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {

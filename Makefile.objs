@@ -1,5 +1,6 @@
 QAPI_MODULES = block-core block char common crypto introspect job migration
-QAPI_MODULES += misc net rocker run-state sockets tpm trace transaction ui
+QAPI_MODULES += misc net rdma rocker run-state sockets tpm trace transaction
+QAPI_MODULES += ui
 
 #######################################################################
 # Common libraries for tools and emulators
@@ -133,6 +134,7 @@ vhost-user-scsi.o-cflags := $(LIBISCSI_CFLAGS)
 vhost-user-scsi.o-libs := $(LIBISCSI_LIBS)
 vhost-user-scsi-obj-y = contrib/vhost-user-scsi/
 vhost-user-blk-obj-y = contrib/vhost-user-blk/
+rdmacm-mux-obj-y = contrib/rdmacm-mux/
 
 ######################################################################
 trace-events-subdirs =

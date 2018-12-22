@@ -16,8 +16,10 @@
 #ifndef RDMA_BACKEND_DEFS_H
 #define RDMA_BACKEND_DEFS_H
 
-#include <infiniband/verbs.h>
 #include "qemu/thread.h"
+#include "chardev/char-fe.h"
+#include <infiniband/verbs.h>
+#include "contrib/rdmacm-mux/rdmacm-mux.h"
 
 typedef struct RdmaDeviceResources RdmaDeviceResources;
 
@@ -28,17 +30,27 @@ typedef struct RdmaBackendThread {
     bool is_running; /* Set by the thread to report its status */
 } RdmaBackendThread;
 
+typedef struct RecvMadList {
+    QemuMutex lock;
+    QList *list;
+} RecvMadList;
+
+typedef struct RdmaCmMux {
+    CharBackend *chr_be;
+    int can_receive;
+} RdmaCmMux;
+
 typedef struct RdmaBackendDev {
     struct ibv_device_attr dev_attr;
     RdmaBackendThread comp_thread;
-    union ibv_gid gid;
     PCIDevice *dev;
     RdmaDeviceResources *rdma_dev_res;
     struct ibv_device *ib_dev;
     struct ibv_context *context;
     struct ibv_comp_channel *channel;
     uint8_t port_num;
-    uint8_t backend_gid_idx;
+    RecvMadList recv_mads_list;
+    RdmaCmMux rdmacm_mux;
 } RdmaBackendDev;
 
 typedef struct RdmaBackendPD {
@@ -58,6 +70,7 @@ typedef struct RdmaBackendCQ {
 typedef struct RdmaBackendQP {
     struct ibv_pd *ibpd;
     struct ibv_qp *ibqp;
+    uint8_t sgid_idx;
 } RdmaBackendQP;
 
 #endif

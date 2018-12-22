@@ -18,8 +18,8 @@
 
 #include "rdma_backend_defs.h"
 
-#define MAX_PORTS             1
-#define MAX_PORT_GIDS         1
+#define MAX_PORTS             1 /* Do not change - we support only one port */
+#define MAX_PORT_GIDS         255
 #define MAX_GIDS              MAX_PORT_GIDS
 #define MAX_PORT_PKEYS        1
 #define MAX_PKEYS             MAX_PORT_PKEYS
@@ -49,10 +49,16 @@ typedef struct RdmaRmPD {
     uint32_t ctx_handle;
 } RdmaRmPD;
 
+typedef enum CQNotificationType {
+    CNT_CLEAR,
+    CNT_ARM,
+    CNT_SET,
+} CQNotificationType;
+
 typedef struct RdmaRmCQ {
     RdmaBackendCQ backend_cq;
     void *opaque;
-    bool notify;
+    CQNotificationType notify;
 } RdmaRmCQ;
 
 /* MR (DMA region) */
@@ -80,13 +86,18 @@ typedef struct RdmaRmQP {
     enum ibv_qp_state qp_state;
 } RdmaRmQP;
 
+typedef struct RdmaRmGid {
+    union ibv_gid gid;
+    int backend_gid_index;
+} RdmaRmGid;
+
 typedef struct RdmaRmPort {
-    union ibv_gid gid_tbl[MAX_PORT_GIDS];
+    RdmaRmGid gid_tbl[MAX_PORT_GIDS];
     enum ibv_port_state state;
 } RdmaRmPort;
 
 typedef struct RdmaDeviceResources {
-    RdmaRmPort ports[MAX_PORTS];
+    RdmaRmPort port;
     RdmaRmResTbl pd_tbl;
     RdmaRmResTbl mr_tbl;
     RdmaRmResTbl uc_tbl;

@@ -73,23 +73,16 @@ out:
 
 void *pvrdma_ring_next_elem_read(PvrdmaRing *ring)
 {
+    int e;
     unsigned int idx = 0, offset;
 
-    /*
-    pr_dbg("%s: t=%d, h=%d\n", ring->name, ring->ring_state->prod_tail,
-           ring->ring_state->cons_head);
-    */
-
-    if (!pvrdma_idx_ring_has_data(ring->ring_state, ring->max_elems, &idx)) {
+    e = pvrdma_idx_ring_has_data(ring->ring_state, ring->max_elems, &idx);
+    if (e <= 0) {
         pr_dbg("No more data in ring\n");
         return NULL;
     }
 
     offset = idx * ring->elem_sz;
-    /*
-    pr_dbg("idx=%d\n", idx);
-    pr_dbg("offset=%d\n", offset);
-    */
     return ring->pages[offset / TARGET_PAGE_SIZE] + (offset % TARGET_PAGE_SIZE);
 }
 
@@ -105,20 +98,20 @@ void pvrdma_ring_read_inc(PvrdmaRing *ring)
 
 void *pvrdma_ring_next_elem_write(PvrdmaRing *ring)
 {
-    unsigned int idx, offset, tail;
+    int idx;
+    unsigned int offset, tail;
 
-    /*
-    pr_dbg("%s: t=%d, h=%d\n", ring->name, ring->ring_state->prod_tail,
-           ring->ring_state->cons_head);
-    */
-
-    if (!pvrdma_idx_ring_has_space(ring->ring_state, ring->max_elems, &tail)) {
+    idx = pvrdma_idx_ring_has_space(ring->ring_state, ring->max_elems, &tail);
+    if (idx <= 0) {
         pr_dbg("CQ is full\n");
         return NULL;
     }
 
     idx = pvrdma_idx(&ring->ring_state->prod_tail, ring->max_elems);
-    /* TODO: tail == idx */
+    if (idx < 0 || tail != idx) {
+        pr_dbg("invalid idx\n");
+        return NULL;
+    }
 
     offset = idx * ring->elem_sz;
     return ring->pages[offset / TARGET_PAGE_SIZE] + (offset % TARGET_PAGE_SIZE);

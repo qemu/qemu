@@ -1,0 +1,4 @@
+ifdef CONFIG_PVRDMA
+CFLAGS += -libumad -Wno-format-truncation
+rdmacm-mux-obj-y = main.o
+endif
