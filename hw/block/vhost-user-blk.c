@@ -250,6 +250,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
     VhostUserState *user;
+    struct vhost_virtqueue *vqs = NULL;
     int i, ret;
 
     if (!s->chardev.chr) {
@@ -288,6 +289,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     s->dev.vqs = g_new(struct vhost_virtqueue, s->dev.nvqs);
     s->dev.vq_index = 0;
     s->dev.backend_features = 0;
+    vqs = s->dev.vqs;
 
     vhost_dev_set_config_notifier(&s->dev, &blk_ops);
 
@@ -314,7 +316,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 vhost_err:
     vhost_dev_cleanup(&s->dev);
 virtio_err:
-    g_free(s->dev.vqs);
+    g_free(vqs);
     virtio_cleanup(vdev);
 
     vhost_user_cleanup(user);
@@ -326,10 +328,11 @@ static void vhost_user_blk_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(dev);
+    struct vhost_virtqueue *vqs = s->dev.vqs;
 
     vhost_user_blk_set_status(vdev, 0);
     vhost_dev_cleanup(&s->dev);
-    g_free(s->dev.vqs);
+    g_free(vqs);
     virtio_cleanup(vdev);
 
     if (s->vhost_user) {
