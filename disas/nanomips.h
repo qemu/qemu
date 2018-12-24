@@ -143,20 +143,20 @@ private:
     std::string CPR(uint64 reg);
     std::string ADDRESS(uint64 value, int instruction_size);
 
-    int64 extract_s_4_2_1_0(uint64 instruction);
-    int64 extr_sil0il0bs8_il15il8bs1Tmsb8(uint64 instruction);
-    int64 extr_sil0il10bs1_il1il1bs9Tmsb10(uint64 instruction);
-    int64 extr_sil0il11bs1_il1il1bs10Tmsb11(uint64 instruction);
-    int64 extr_sil0il14bs1_il1il1bs13Tmsb14(uint64 instruction);
-    int64 extr_sil0il16bs16_il16il0bs16Tmsb31(uint64 instruction);
-    int64 extr_sil0il21bs1_il1il1bs20Tmsb21(uint64 instruction);
-    int64 extr_sil0il25bs1_il1il1bs24Tmsb25(uint64 instruction);
-    int64 extr_sil0il31bs1_il2il21bs10_il12il12bs9Tmsb31(uint64 instruction);
-    int64 extr_sil0il7bs1_il1il1bs6Tmsb7(uint64 instruction);
-    int64 extr_sil11il0bs10Tmsb9(uint64 instruction);
-    int64 extract_shift_21_20_19_18_17_16(uint64 instruction);
-    int64 extr_sil2il2bs6_il15il8bs1Tmsb8(uint64 instruction);
-    int64 extr_sil3il3bs5_il15il8bs1Tmsb8(uint64 instruction);
+    int64 extract_s__se3_4_2_1_0(uint64 instruction);
+    int64 extract_s__se7_0_6_5_4_3_2_1_s1(uint64 instruction);
+    int64 extract_s__se8_15_7_6_5_4_3_s3(uint64 instruction);
+    int64 extract_s__se8_15_7_6_5_4_3_2_s2(uint64 instruction);
+    int64 extract_s__se8_15_7_6_5_4_3_2_1_0(uint64 instruction);
+    int64 extract_s__se9_20_19_18_17_16_15_14_13_12_11(uint64 instruction);
+    int64 extract_s__se10_0_9_8_7_6_5_4_3_2_1_s1(uint64 instruction);
+    int64 extract_s__se11_0_10_9_8_7_6_5_4_3_2_1_0_s1(uint64 instruction);
+    int64 extract_s__se14_0_13_to_1_s1(uint64 instruction);
+    int64 extract_s__se21_0_20_to_1_s1(uint64 instruction);
+    int64 extract_s__se25_0_24_to_1_s1(uint64 instruction);
+    int64 extract_s__se31_15_to_0_31_to_16(uint64 instruction);
+    int64 extract_s__se31_0_11_to_2_20_to_12_s12(uint64 instruction);
+    int64 extract_shift__se5_21_20_19_18_17_16(uint64 instruction);
 
     uint64 extract_ac_13_12(uint64 instruction);
     uint64 extract_bit_16_15_14_13_12_11(uint64 instruction);
