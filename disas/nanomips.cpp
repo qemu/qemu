@@ -349,7 +349,7 @@ uint64 NMD::decode_gpr_gpr3(uint64 d)
 }
 
 
-uint64 NMD::encode_gpr3_store(uint64 d)
+uint64 NMD::decode_gpr_gpr3_src_store(uint64 d)
 {
     static uint64 register_list[] = {  0, 17, 18, 19,  4,  5,  6,  7 };
     return renumber_registers(d, register_list,
@@ -12786,7 +12786,7 @@ std::string NMD::SB_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_1_0(instruction);
 
-    std::string rtz3 = GPR(encode_gpr3_store(rtz3_value));
+    std::string rtz3 = GPR(decode_gpr_gpr3_src_store(rtz3_value));
     std::string u = IMMEDIATE(copy(u_value));
     std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
@@ -13632,7 +13632,7 @@ std::string NMD::SH_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_2_1__s1(instruction);
 
-    std::string rtz3 = GPR(encode_gpr3_store(rtz3_value));
+    std::string rtz3 = GPR(decode_gpr_gpr3_src_store(rtz3_value));
     std::string u = IMMEDIATE(copy(u_value));
     std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
@@ -15206,7 +15206,7 @@ std::string NMD::SW_16_(uint64 instruction)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_3_2_1_0__s2(instruction);
 
-    std::string rtz3 = GPR(encode_gpr3_store(rtz3_value));
+    std::string rtz3 = GPR(decode_gpr_gpr3_src_store(rtz3_value));
     std::string u = IMMEDIATE(copy(u_value));
     std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
 
@@ -15253,7 +15253,7 @@ std::string NMD::SW_GP16_(uint64 instruction)
     uint64 u_value = extract_u_6_5_4_3_2_1_0__s2(instruction);
     uint64 rtz3_value = extract_rtz3_9_8_7(instruction);
 
-    std::string rtz3 = GPR(encode_gpr3_store(rtz3_value));
+    std::string rtz3 = GPR(decode_gpr_gpr3_src_store(rtz3_value));
     std::string u = IMMEDIATE(copy(u_value));
 
     return img::format("SW %s, %s($%d)", rtz3, u, 28);
