@@ -397,7 +397,7 @@ uint64 NMD::encode_rd1_from_rd(uint64 d)
 }
 
 
-uint64 NMD::encode_gpr4_zero(uint64 d)
+uint64 NMD::decode_gpr_gpr4_zero(uint64 d)
 {
     static uint64 register_list[] = {  8,  9, 10,  0,  4,  5,  6,  7,
                                       16, 17, 18, 19, 20, 21, 22, 23 };
@@ -10395,7 +10395,7 @@ std::string NMD::MOVE_BALC(uint64 instruction)
     int64 s_value = extract_s__se21_0_20_to_1_s1(instruction);
 
     std::string rd1 = GPR(encode_rd1_from_rd(rd1_value));
-    std::string rtz4 = GPR(encode_gpr4_zero(rtz4_value));
+    std::string rtz4 = GPR(decode_gpr_gpr4_zero(rtz4_value));
     std::string s = ADDRESS(encode_s_from_address(s_value), 4);
 
     return img::format("MOVE.BALC %s, %s, %s", rd1, rtz4, s);
@@ -10421,8 +10421,8 @@ std::string NMD::MOVEP(uint64 instruction)
     std::string rd2 = GPR(encode_rd2_reg1(rd2_value));
     std::string re2 = GPR(encode_rd2_reg2(rd2_value));
     /* !!!!!!!!!! - no conversion function */
-    std::string rsz4 = GPR(encode_gpr4_zero(rsz4_value));
-    std::string rtz4 = GPR(encode_gpr4_zero(rtz4_value));
+    std::string rsz4 = GPR(decode_gpr_gpr4_zero(rsz4_value));
+    std::string rtz4 = GPR(decode_gpr_gpr4_zero(rtz4_value));
 
     return img::format("MOVEP %s, %s, %s, %s", rd2, re2, rsz4, rtz4);
     /* hand edited */
@@ -15288,7 +15288,7 @@ std::string NMD::SW_4X4_(uint64 instruction)
     uint64 rs4_value = extract_rs4_4_2_1_0(instruction);
     uint64 u_value = extract_u_3_8__s2(instruction);
 
-    std::string rtz4 = GPR(encode_gpr4_zero(rtz4_value));
+    std::string rtz4 = GPR(decode_gpr_gpr4_zero(rtz4_value));
     std::string u = IMMEDIATE(copy(u_value));
     std::string rs4 = GPR(decode_gpr_gpr4(rs4_value));
 
