@@ -105,7 +105,7 @@ private:
 
     uint64 renumber_registers(uint64 index, uint64 *register_list,
                               size_t register_list_size);
-    uint64 encode_gpr3(uint64 d);
+    uint64 decode_gpr_gpr3(uint64 d);
     uint64 encode_gpr3_store(uint64 d);
     uint64 encode_rd1_from_rd(uint64 d);
     uint64 encode_gpr4_zero(uint64 d);
