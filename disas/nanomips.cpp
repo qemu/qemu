@@ -349,6 +349,38 @@ uint64 NMD::decode_gpr_gpr3(uint64 d)
 }
 
 
+/*
+ * NMD::decode_gpr_gpr3_src_store() - decoder for 'gpr3.src.store' gpr encoding
+ *     type
+ *
+ *   Map a 3-bit code to the 5-bit register space according to this pattern:
+ *
+ *                            7 6 5 4 3 2 1 0
+ *                            | | | | | | | |
+ *                            | | | | | | | └-----------------------┐
+ *                            | | | └-----------------------┐       |
+ *                            | | └-----------------------┐ |       |
+ *                            | └-----------------------┐ | |       |
+ *                            └-----------------------┐ | | |       |
+ *                                    | | |           | | | |       |
+ *                            ┌-------┘ | |           | | | |       |
+ *                            | ┌-------┘ |           | | | |       |
+ *                            | | ┌-------┘           | | | |       |
+ *                            | | |                   | | | |       |
+ *                            | | |                   | | | |       |
+ *    1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *      3                   2                   1                   0
+ *
+ *   This pattern is the same one used for 'gpr3' gpr encoding type, except for
+ * the input value 0, that is mapped to the output value 0 instead of 16.
+ *
+ *   Used in handling following instructions:
+ *
+ *     - SB[16]
+ *     - SH[16]
+ *     - SW[16]
+ *     - SW[GP16]
+ */
 uint64 NMD::decode_gpr_gpr3_src_store(uint64 d)
 {
     static uint64 register_list[] = {  0, 17, 18, 19,  4,  5,  6,  7 };
