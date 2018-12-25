@@ -406,6 +406,32 @@ uint64 NMD::encode_gpr4_zero(uint64 d)
 }
 
 
+/*
+ * NMD::decode_gpr_gpr4() - decoder for 'gpr4' gpr encoding type
+ *
+ *   Map a 4-bit code to the 5-bit register space according to this pattern:
+ *
+ *                              1                   0
+ *                    5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *                    | | | | | | | | | | | | | | | |
+ *                    | | | | | | | | | | | | | | | |
+ *                    | | | | | | | | | | | └---------------┐
+ *                    | | | | | | | | | | └---------------┐ |
+ *                    | | | | | | | | | └---------------┐ | |
+ *                    | | | | | | | | └---------------┐ | | |
+ *                    | | | | | | | |         | | | | | | | |
+ *                    | | | | | | | |         | | | | | | | |
+ *    1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *      3                   2                   1                   0
+ *
+ *   Used in handling following instructions:
+ *
+ *     - ADDU[4X4]
+ *     - LW[4X4]
+ *     - MOVEP[REV]
+ *     - MUL[4X4]
+ *     - SW[4X4]
+ */
 uint64 NMD::decode_gpr_gpr4(uint64 d)
 {
     static uint64 register_list[] = {  8,  9, 10, 11,  4,  5,  6,  7,
