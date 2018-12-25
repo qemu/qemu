@@ -292,9 +292,54 @@ uint64 NMD::renumber_registers(uint64 index, uint64 *register_list,
 
 
 /*
- * these functions should be decode functions but the json does not have
- * decode sections so they are based on the encode, the equivalent decode
- * functions need writing eventually.
+ * NMD::decode_gpr_gpr3() - decoder for 'gpr3' gpr encoding type
+ *
+ *   Map a 3-bit code to the 5-bit register space according to this pattern:
+ *
+ *                            7 6 5 4 3 2 1 0
+ *                            | | | | | | | |
+ *                            | | | | | | | |
+ *                            | | | └-----------------------┐
+ *                            | | └-----------------------┐ |
+ *                            | └-----------------------┐ | |
+ *                            └-----------------------┐ | | |
+ *                                    | | | |         | | | |
+ *                            ┌-------┘ | | |         | | | |
+ *                            | ┌-------┘ | |         | | | |
+ *                            | | ┌-------┘ |         | | | |
+ *                            | | | ┌-------┘         | | | |
+ *                            | | | |                 | | | |
+ *    1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *      3                   2                   1                   0
+ *
+ *   Used in handling following instructions:
+ *
+ *     - ADDIU[R1.SP]
+ *     - ADDIU[R2]
+ *     - ADDU[16]
+ *     - AND[16]
+ *     - ANDI[16]
+ *     - BEQC[16]
+ *     - BEQZC[16]
+ *     - BNEC[16]
+ *     - BNEZC[16]
+ *     - LB[16]
+ *     - LBU[16]
+ *     - LH[16]
+ *     - LHU[16]
+ *     - LI[16]
+ *     - LW[16]
+ *     - LW[GP16]
+ *     - LWXS[16]
+ *     - NOT[16]
+ *     - OR[16]
+ *     - SB[16]
+ *     - SH[16]
+ *     - SLL[16]
+ *     - SRL[16]
+ *     - SUBU[16]
+ *     - SW[16]
+ *     - XOR[16]
  */
 uint64 NMD::decode_gpr_gpr3(uint64 d)
 {
