@@ -389,7 +389,7 @@ uint64 NMD::decode_gpr_gpr3_src_store(uint64 d)
 }
 
 
-uint64 NMD::encode_rd1_from_rd(uint64 d)
+uint64 NMD::decode_gpr_gpr1(uint64 d)
 {
     static uint64 register_list[] = {  4,  5 };
     return renumber_registers(d, register_list,
@@ -10465,7 +10465,7 @@ std::string NMD::MOVE_BALC(uint64 instruction)
     uint64 rd1_value = extract_rdl_25_24(instruction);
     int64 s_value = extract_s__se21_0_20_to_1_s1(instruction);
 
-    std::string rd1 = GPR(encode_rd1_from_rd(rd1_value));
+    std::string rd1 = GPR(decode_gpr_gpr1(rd1_value));
     std::string rtz4 = GPR(decode_gpr_gpr4_zero(rtz4_value));
     std::string s = ADDRESS(encode_s_from_address(s_value), 4);
 
