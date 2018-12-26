@@ -1074,54 +1074,72 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
    The result of the TLB comparison is in %[ix]cc.  The sanitized address
    is in the returned register, maybe %o0.  The TLB addend is in %o1.  */
 
+/* We expect tlb_mask to be before tlb_table.  */
+QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table) <
+                  offsetof(CPUArchState, tlb_mask));
+
+/* We expect tlb_mask to be "near" tlb_table.  */
+QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table) -
+                  offsetof(CPUArchState, tlb_mask) >= (1 << 13));
+
 static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
                                TCGMemOp opc, int which)
 {
+    int mask_off = offsetof(CPUArchState, tlb_mask[mem_index]);
+    int table_off = offsetof(CPUArchState, tlb_table[mem_index]);
+    TCGReg base = TCG_AREG0;
     const TCGReg r0 = TCG_REG_O0;
     const TCGReg r1 = TCG_REG_O1;
     const TCGReg r2 = TCG_REG_O2;
     unsigned s_bits = opc & MO_SIZE;
     unsigned a_bits = get_alignment_bits(opc);
-    int tlb_ofs;
+    tcg_target_long compare_mask;
 
-    /* Shift the page number down.  */
-    tcg_out_arithi(s, r1, addr, TARGET_PAGE_BITS, SHIFT_SRL);
+    if (!check_fit_i32(table_off, 13)) {
+        int table_hi;
+
+        base = r1;
+        if (table_off <= 2 * 0xfff) {
+            table_hi = 0xfff;
+            tcg_out_arithi(s, base, TCG_AREG0, table_hi, ARITH_ADD);
+        } else {
+            table_hi = table_off & ~0x3ff;
+            tcg_out_sethi(s, base, table_hi);
+            tcg_out_arith(s, base, TCG_AREG0, base, ARITH_ADD);
+        }
+        mask_off -= table_hi;
+        table_off -= table_hi;
+        tcg_debug_assert(check_fit_i32(mask_off, 13));
+    }
+
+    /* Load tlb_mask[mmu_idx] and tlb_table[mmu_idx].  */
+    tcg_out_ld(s, TCG_TYPE_PTR, r0, base, mask_off);
+    tcg_out_ld(s, TCG_TYPE_PTR, r1, base, table_off);
+
+    /* Extract the page index, shifted into place for tlb index.  */
+    tcg_out_arithi(s, r2, addr, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS,
+                   SHIFT_SRL);
+    tcg_out_arith(s, r2, r2, r0, ARITH_AND);
+
+    /* Add the tlb_table pointer, creating the CPUTLBEntry address into R2.  */
+    tcg_out_arith(s, r2, r2, r1, ARITH_ADD);
+
+    /* Load the tlb comparator and the addend.  */
+    tcg_out_ld(s, TCG_TYPE_TL, r0, r2, which);
+    tcg_out_ld(s, TCG_TYPE_PTR, r1, r2, offsetof(CPUTLBEntry, addend));
 
     /* Mask out the page offset, except for the required alignment.
        We don't support unaligned accesses.  */
     if (a_bits < s_bits) {
         a_bits = s_bits;
     }
-    tcg_out_movi(s, TCG_TYPE_TL, TCG_REG_T1,
-                 TARGET_PAGE_MASK | ((1 << a_bits) - 1));
-
-    /* Mask the tlb index.  */
-    tcg_out_arithi(s, r1, r1, CPU_TLB_SIZE - 1, ARITH_AND);
-    
-    /* Mask page, part 2.  */
-    tcg_out_arith(s, r0, addr, TCG_REG_T1, ARITH_AND);
-
-    /* Shift the tlb index into place.  */
-    tcg_out_arithi(s, r1, r1, CPU_TLB_ENTRY_BITS, SHIFT_SLL);
-
-    /* Relative to the current ENV.  */
-    tcg_out_arith(s, r1, TCG_AREG0, r1, ARITH_ADD);
-
-    /* Find a base address that can load both tlb comparator and addend.  */
-    tlb_ofs = offsetof(CPUArchState, tlb_table[mem_index][0]);
-    if (!check_fit_ptr(tlb_ofs + sizeof(CPUTLBEntry), 13)) {
-        if (tlb_ofs & ~0x3ff) {
-            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, tlb_ofs & ~0x3ff);
-            tcg_out_arith(s, r1, r1, TCG_REG_T1, ARITH_ADD);
-        }
-        tlb_ofs &= 0x3ff;
+    compare_mask = (tcg_target_ulong)TARGET_PAGE_MASK | ((1 << a_bits) - 1);
+    if (check_fit_tl(compare_mask, 13)) {
+        tcg_out_arithi(s, r2, addr, compare_mask, ARITH_AND);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_TL, r2, compare_mask);
+        tcg_out_arith(s, r2, addr, r2, ARITH_AND);
     }
-
-    /* Load the tlb comparator and the addend.  */
-    tcg_out_ld(s, TCG_TYPE_TL, r2, r1, tlb_ofs + which);
-    tcg_out_ld(s, TCG_TYPE_PTR, r1, r1, tlb_ofs+offsetof(CPUTLBEntry, addend));
-
-    /* subcc arg0, arg2, %g0 */
     tcg_out_cmp(s, r0, r2, 0);
 
     /* If the guest address must be zero-extended, do so now.  */
