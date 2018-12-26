@@ -111,7 +111,7 @@ private:
     uint64 decode_gpr_gpr4_zero(uint64 d);
     uint64 decode_gpr_gpr4(uint64 d);
     uint64 decode_gpr_gpr2_reg1(uint64 d);
-    uint64 encode_rd2_reg2(uint64 d);
+    uint64 decode_gpr_gpr2_reg2(uint64 d);
 
     uint64 copy(uint64 d);
     int64 copy(int64 d);
