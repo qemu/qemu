@@ -1537,10 +1537,10 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp opc, TCGReg data,
 #if defined(CONFIG_SOFTMMU)
 #include "tcg-ldst.inc.c"
 
-/* We're expecting to use a 20-bit signed offset on the tlb memory ops.
-   Using the offset of the second entry in the last tlb table ensures
-   that we can index all of the elements of the first entry.  */
-QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
+/* We're expecting to use a 20-bit signed offset on the tlb memory ops.  */
+QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_mask[NB_MMU_MODES - 1])
+                  > 0x7ffff);
+QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1])
                   > 0x7ffff);
 
 /* Load and compare a TLB entry, leaving the flags set.  Loads the TLB
@@ -1552,48 +1552,41 @@ static TCGReg tcg_out_tlb_read(TCGContext* s, TCGReg addr_reg, TCGMemOp opc,
     unsigned a_bits = get_alignment_bits(opc);
     unsigned s_mask = (1 << s_bits) - 1;
     unsigned a_mask = (1 << a_bits) - 1;
+    int mask_off = offsetof(CPUArchState, tlb_mask[mem_index]);
+    int table_off = offsetof(CPUArchState, tlb_table[mem_index]);
     int ofs, a_off;
     uint64_t tlb_mask;
+
+    tcg_out_sh64(s, RSY_SRLG, TCG_REG_R2, addr_reg, TCG_REG_NONE,
+                 TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
+    tcg_out_insn(s, RXY, NG, TCG_REG_R2, TCG_AREG0, TCG_REG_NONE, mask_off);
+    tcg_out_insn(s, RXY, AG, TCG_REG_R2, TCG_AREG0, TCG_REG_NONE, table_off);
 
     /* For aligned accesses, we check the first byte and include the alignment
        bits within the address.  For unaligned access, we check that we don't
        cross pages using the address of the last byte of the access.  */
     a_off = (a_bits >= s_bits ? 0 : s_mask - a_mask);
     tlb_mask = (uint64_t)TARGET_PAGE_MASK | a_mask;
-
-    if (s390_facilities & FACILITY_GEN_INST_EXT) {
-        tcg_out_risbg(s, TCG_REG_R2, addr_reg,
-                      64 - CPU_TLB_BITS - CPU_TLB_ENTRY_BITS,
-                      63 - CPU_TLB_ENTRY_BITS,
-                      64 + CPU_TLB_ENTRY_BITS - TARGET_PAGE_BITS, 1);
-        if (a_off) {
-            tcg_out_insn(s, RX, LA, TCG_REG_R3, addr_reg, TCG_REG_NONE, a_off);
-            tgen_andi(s, TCG_TYPE_TL, TCG_REG_R3, tlb_mask);
-        } else {
-            tgen_andi_risbg(s, TCG_REG_R3, addr_reg, tlb_mask);
-        }
+    if ((s390_facilities & FACILITY_GEN_INST_EXT) && a_off == 0) {
+        tgen_andi_risbg(s, TCG_REG_R3, addr_reg, tlb_mask);
     } else {
-        tcg_out_sh64(s, RSY_SRLG, TCG_REG_R2, addr_reg, TCG_REG_NONE,
-                     TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
         tcg_out_insn(s, RX, LA, TCG_REG_R3, addr_reg, TCG_REG_NONE, a_off);
-        tgen_andi(s, TCG_TYPE_I64, TCG_REG_R2,
-                  (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
         tgen_andi(s, TCG_TYPE_TL, TCG_REG_R3, tlb_mask);
     }
 
     if (is_ld) {
-        ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addr_read);
+        ofs = offsetof(CPUTLBEntry, addr_read);
     } else {
-        ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
+        ofs = offsetof(CPUTLBEntry, addr_write);
     }
     if (TARGET_LONG_BITS == 32) {
-        tcg_out_mem(s, RX_C, RXY_CY, TCG_REG_R3, TCG_REG_R2, TCG_AREG0, ofs);
+        tcg_out_insn(s, RX, C, TCG_REG_R3, TCG_REG_R2, TCG_REG_NONE, ofs);
     } else {
-        tcg_out_mem(s, 0, RXY_CG, TCG_REG_R3, TCG_REG_R2, TCG_AREG0, ofs);
+        tcg_out_insn(s, RXY, CG, TCG_REG_R3, TCG_REG_R2, TCG_REG_NONE, ofs);
     }
 
-    ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addend);
-    tcg_out_mem(s, 0, RXY_LG, TCG_REG_R2, TCG_REG_R2, TCG_AREG0, ofs);
+    tcg_out_insn(s, RXY, LG, TCG_REG_R2, TCG_REG_R2, TCG_REG_NONE,
+                 offsetof(CPUTLBEntry, addend));
 
     if (TARGET_LONG_BITS == 32) {
         tgen_ext32u(s, TCG_REG_R3, addr_reg);
