@@ -20,6 +20,13 @@
  *
  */
 
+/*
+ *  Documentation used while implementing this component:
+ *
+ *  [1] "MIPS® Architecture Base: nanoMIPS32(tm) Instruction Set Technical
+ *      Reference Manual", Revision 01.01, April 27, 2018
+ */
+
 extern "C" {
 #include "qemu/osdep.h"
 #include "disas/bfd.h"
