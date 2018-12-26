@@ -468,7 +468,7 @@ uint64 NMD::decode_gpr_gpr4(uint64 d)
 }
 
 
-uint64 NMD::encode_rd2_reg1(uint64 d)
+uint64 NMD::decode_gpr_gpr2_reg1(uint64 d)
 {
     static uint64 register_list[] = {  4,  5,  6,  7 };
     return renumber_registers(d, register_list,
@@ -10445,7 +10445,7 @@ std::string NMD::MOVEP(uint64 instruction)
     uint64 rd2_value = extract_rd2_3_8(instruction);
     uint64 rsz4_value = extract_rsz4_4_2_1_0(instruction);
 
-    std::string rd2 = GPR(encode_rd2_reg1(rd2_value));
+    std::string rd2 = GPR(decode_gpr_gpr2_reg1(rd2_value));
     std::string re2 = GPR(encode_rd2_reg2(rd2_value));
     /* !!!!!!!!!! - no conversion function */
     std::string rsz4 = GPR(decode_gpr_gpr4_zero(rsz4_value));
@@ -10474,7 +10474,7 @@ std::string NMD::MOVEP_REV_(uint64 instruction)
 
     std::string rs4 = GPR(decode_gpr_gpr4(rs4_value));
     std::string rt4 = GPR(decode_gpr_gpr4(rt4_value));
-    std::string rd2 = GPR(encode_rd2_reg1(rd2_value));
+    std::string rd2 = GPR(decode_gpr_gpr2_reg1(rd2_value));
     std::string rs2 = GPR(encode_rd2_reg2(rd2_value));
     /* !!!!!!!!!! - no conversion function */
 
