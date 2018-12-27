@@ -122,6 +122,7 @@ GlobalProperty pc_compat_3_1[] = {
     { "Cascadelake-Server" "-" TYPE_X86_CPU,  "mpx", "on" },
     { "Icelake-Client" "-" TYPE_X86_CPU,      "mpx", "on" },
     { "Icelake-Server" "-" TYPE_X86_CPU,      "mpx", "on" },
+    { "Cascadelake-Server" "-" TYPE_X86_CPU, "stepping", "5" },
 };
 const size_t pc_compat_3_1_len = G_N_ELEMENTS(pc_compat_3_1);
 
