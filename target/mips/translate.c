@@ -24238,6 +24238,11 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
 #define MXU_EPTN2_SS    3
 
 /* MXU operand getting pattern 'optn2' */
+#define MXU_OPTN2_PTN0  0
+#define MXU_OPTN2_PTN1  1
+#define MXU_OPTN2_PTN2  2
+#define MXU_OPTN2_PTN3  3
+/* alternative naming scheme for 'optn2' */
 #define MXU_OPTN2_WW    0
 #define MXU_OPTN2_LW    1
 #define MXU_OPTN2_HW    2
