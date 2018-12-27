@@ -10,6 +10,7 @@ CFLAGS  = -Wall -mabi=32 -march=r5900 -static
 
 TESTCASES = div1.tst
 TESTCASES += divu1.tst
+TESTCASES += madd.tst
 TESTCASES += mflohi1.tst
 TESTCASES += mtlohi1.tst
 TESTCASES += mult.tst
