@@ -44,6 +44,11 @@ static const char *iasl = stringify(CONFIG_IASL);
 static const char *iasl;
 #endif
 
+static bool compare_signature(const AcpiSdtTable *sdt, const char *signature)
+{
+   return !memcmp(sdt->aml, signature, 4);
+}
+
 static void cleanup_table_descriptor(AcpiSdtTable *table)
 {
     g_free(table->aml);
@@ -130,7 +135,7 @@ static void test_acpi_fadt_table(test_data *data)
     uint8_t *fadt_aml = table.aml;
     uint32_t fadt_len = table.aml_len;
 
-    ACPI_ASSERT_CMP(table.header->signature, "FACP");
+    g_assert(compare_signature(&table, "FACP"));
 
     /* Since DSDT/FACS isn't in RSDT, add them to ASL test list manually */
     acpi_fetch_table(data->qts, &table.aml, &table.aml_len,
@@ -169,7 +174,7 @@ static void dump_aml_files(test_data *data, bool rebuild)
 
         if (rebuild) {
             aml_file = g_strdup_printf("%s/%s/%.4s%s", data_dir, data->machine,
-                                       (gchar *)&sdt->header->signature, ext);
+                                       sdt->aml, ext);
             fd = g_open(aml_file, O_WRONLY|O_TRUNC|O_CREAT,
                         S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
         } else {
@@ -185,11 +190,6 @@ static void dump_aml_files(test_data *data, bool rebuild)
 
         g_free(aml_file);
     }
-}
-
-static bool compare_signature(AcpiSdtTable *sdt, const char *signature)
-{
-   return !memcmp(&sdt->header->signature, signature, 4);
 }
 
 static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
@@ -291,7 +291,7 @@ static GArray *load_expected_aml(test_data *data)
 
 try_again:
         aml_file = g_strdup_printf("%s/%s/%.4s%s", data_dir, data->machine,
-                                   (gchar *)&sdt->header->signature, ext);
+                                   sdt->aml, ext);
         if (getenv("V")) {
             fprintf(stderr, "Looking for expected file '%s'\n", aml_file);
         }
@@ -352,14 +352,12 @@ static void test_acpi_asl(test_data *data)
                 fprintf(stderr,
                         "Warning! iasl couldn't parse the expected aml\n");
             } else {
-                uint32_t signature = cpu_to_le32(exp_sdt->header->signature);
                 sdt->tmp_files_retain = true;
                 exp_sdt->tmp_files_retain = true;
                 fprintf(stderr,
                         "acpi-test: Warning! %.4s mismatch. "
                         "Actual [asl:%s, aml:%s], Expected [asl:%s, aml:%s].\n",
-                        (gchar *)&signature,
-                        sdt->asl_file, sdt->aml_file,
+                        exp_sdt->aml, sdt->asl_file, sdt->aml_file,
                         exp_sdt->asl_file, exp_sdt->aml_file);
                 if (getenv("V")) {
                     const char *diff_cmd = getenv("DIFF");

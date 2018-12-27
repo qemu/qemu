@@ -13,15 +13,11 @@
 #ifndef TEST_ACPI_UTILS_H
 #define TEST_ACPI_UTILS_H
 
-#include "hw/acpi/acpi-defs.h"
 #include "libqtest.h"
 
 /* DSDT and SSDTs format */
 typedef struct {
-    union {
-        AcpiTableHeader *header;
-        uint8_t *aml;            /* aml bytecode from guest */
-    };
+    uint8_t *aml;            /* aml bytecode from guest */
     uint32_t aml_len;
     gchar *aml_file;
     gchar *asl;            /* asl code generated from aml */
