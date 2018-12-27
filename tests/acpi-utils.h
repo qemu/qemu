@@ -30,23 +30,6 @@ typedef struct {
     bool tmp_files_retain;   /* do not delete the temp asl/aml */
 } AcpiSdtTable;
 
-#define ACPI_READ_FIELD(qts, field, addr)                \
-    do {                                                 \
-        qtest_memread(qts, addr, &field, sizeof(field)); \
-        addr += sizeof(field);                           \
-    } while (0)
-
-#define ACPI_READ_ARRAY_PTR(qts, arr, length, addr)      \
-    do {                                                 \
-        int idx;                                         \
-        for (idx = 0; idx < length; ++idx) {             \
-            ACPI_READ_FIELD(qts, arr[idx], addr);        \
-        }                                                \
-    } while (0)
-
-#define ACPI_READ_ARRAY(qts, arr, addr)                                 \
-    ACPI_READ_ARRAY_PTR(qts, arr, sizeof(arr) / sizeof(arr[0]), addr)
-
 #define ACPI_ASSERT_CMP(actual, expected) do { \
     char ACPI_ASSERT_CMP_str[5] = {}; \
     memcpy(ACPI_ASSERT_CMP_str, &actual, 4); \

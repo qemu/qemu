@@ -408,32 +408,19 @@ static bool smbios_ep_table_ok(test_data *data)
     struct smbios_21_entry_point *ep_table = &data->smbios_ep_table;
     uint32_t addr = data->smbios_ep_addr;
 
-    ACPI_READ_ARRAY(data->qts, ep_table->anchor_string, addr);
+    qtest_memread(data->qts, addr, ep_table, sizeof(*ep_table));
     if (memcmp(ep_table->anchor_string, "_SM_", 4)) {
         return false;
     }
-    ACPI_READ_FIELD(data->qts, ep_table->checksum, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->length, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->smbios_major_version, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->smbios_minor_version, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->max_structure_size, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->entry_point_revision, addr);
-    ACPI_READ_ARRAY(data->qts, ep_table->formatted_area, addr);
-    ACPI_READ_ARRAY(data->qts, ep_table->intermediate_anchor_string, addr);
     if (memcmp(ep_table->intermediate_anchor_string, "_DMI_", 5)) {
         return false;
     }
-    ACPI_READ_FIELD(data->qts, ep_table->intermediate_checksum, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->structure_table_length, addr);
     if (ep_table->structure_table_length == 0) {
         return false;
     }
-    ACPI_READ_FIELD(data->qts, ep_table->structure_table_address, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->number_of_structures, addr);
     if (ep_table->number_of_structures == 0) {
         return false;
     }
-    ACPI_READ_FIELD(data->qts, ep_table->smbios_bcd_revision, addr);
     if (acpi_calc_checksum((uint8_t *)ep_table, sizeof *ep_table) ||
         acpi_calc_checksum((uint8_t *)ep_table + 0x10,
                            sizeof *ep_table - 0x10)) {
