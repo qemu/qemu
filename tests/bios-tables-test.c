@@ -141,18 +141,15 @@ static void test_acpi_rsdt_table(test_data *data)
     data->rsdt_tables_nr = tables_nr;
 }
 
-static void fadt_fetch_facs_and_dsdt_ptrs(test_data *data)
+static void test_acpi_fadt_table(test_data *data)
 {
-    uint32_t addr;
-    AcpiTableHeader hdr;
+    /* FADT table is 1st */
+    AcpiSdtTable *fadt = &g_array_index(data->tables, typeof(*fadt), 0);
 
-    /* FADT table comes first */
-    addr = le32_to_cpu(data->rsdt_tables_addr[0]);
-    ACPI_READ_TABLE_HEADER(data->qts, &hdr, addr);
-    ACPI_ASSERT_CMP(hdr.signature, "FACP");
+    ACPI_ASSERT_CMP(fadt->header->signature, "FACP");
 
-    ACPI_READ_FIELD(data->qts, data->facs_addr, addr);
-    ACPI_READ_FIELD(data->qts, data->dsdt_addr, addr);
+    memcpy(&data->facs_addr, fadt->aml + 36 /* FIRMWARE_CTRL */, 4);
+    memcpy(&data->dsdt_addr, fadt->aml + 40 /* DSDT */, 4);
 }
 
 static void sanitize_fadt_ptrs(test_data *data)
@@ -628,10 +625,10 @@ static void test_acpi_one(const char *params, test_data *data)
     test_acpi_rsdp_address(data);
     test_acpi_rsdp_table(data);
     test_acpi_rsdt_table(data);
-    fadt_fetch_facs_and_dsdt_ptrs(data);
+    fetch_rsdt_referenced_tables(data);
+    test_acpi_fadt_table(data);
     test_acpi_facs_table(data);
     test_acpi_dsdt_table(data);
-    fetch_rsdt_referenced_tables(data);
 
     sanitize_fadt_ptrs(data);
 
