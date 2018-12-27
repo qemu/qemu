@@ -258,7 +258,7 @@ namespace img
 std::string to_string(img::address a)
 {
     char buffer[256];
-    sprintf(buffer, "0x%08llx", a);
+    sprintf(buffer, "0x%" PRIx64, a);
     return buffer;
 }
 
@@ -284,7 +284,8 @@ uint64 NMD::renumber_registers(uint64 index, uint64 *register_list,
     }
 
     throw std::runtime_error(img::format(
-                   "Invalid register mapping index %d, size of list = %d",
+                   "Invalid register mapping index %" PRIu64
+                   ", size of list = %zu",
                    index, register_list_size));
 }
 
@@ -501,7 +502,8 @@ std::string NMD::GPR(uint64 reg)
         return gpr_reg[reg];
     }
 
-    throw std::runtime_error(img::format("Invalid GPR register index %d", reg));
+    throw std::runtime_error(img::format("Invalid GPR register index %" PRIu64,
+                                         reg));
 }
 
 
@@ -518,7 +520,8 @@ std::string NMD::FPR(uint64 reg)
         return fpr_reg[reg];
     }
 
-    throw std::runtime_error(img::format("Invalid FPR register index %d", reg));
+    throw std::runtime_error(img::format("Invalid FPR register index %" PRIu64,
+                                         reg));
 }
 
 
@@ -532,26 +535,27 @@ std::string NMD::AC(uint64 reg)
         return ac_reg[reg];
     }
 
-    throw std::runtime_error(img::format("Invalid AC register index %d", reg));
+    throw std::runtime_error(img::format("Invalid AC register index %" PRIu64,
+                                         reg));
 }
 
 
 std::string NMD::IMMEDIATE(uint64 value)
 {
-    return img::format("0x%x", value);
+    return img::format("0x%" PRIx64, value);
 }
 
 
 std::string NMD::IMMEDIATE(int64 value)
 {
-    return img::format("%d", value);
+    return img::format("%" PRId64, value);
 }
 
 
 std::string NMD::CPR(uint64 reg)
 {
     /* needs more work */
-    return img::format("CP%d", reg);
+    return img::format("CP%" PRIu64, reg);
 }
 
 
