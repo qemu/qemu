@@ -18,8 +18,10 @@
 
 /* DSDT and SSDTs format */
 typedef struct {
-    AcpiTableHeader header;
-    gchar *aml;            /* aml bytecode from guest */
+    union {
+        AcpiTableHeader *header;
+        uint8_t *aml;            /* aml bytecode from guest */
+    };
     gsize aml_len;
     gchar *aml_file;
     gchar *asl;            /* asl code generated from aml */
