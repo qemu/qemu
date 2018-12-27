@@ -1399,10 +1399,12 @@ enum {
 
 
 /*
- *    AN OVERVIEW OF MXU EXTENSION INSTRUCTION SET
- *    ============================================
  *
- * MXU (full name: MIPS eXtension/enhanced Unit) is an SIMD extension of MIPS32
+ *       AN OVERVIEW OF MXU EXTENSION INSTRUCTION SET
+ *       ============================================
+ *
+ *
+ * MXU (full name: MIPS eXtension/enhanced Unit) is a SIMD extension of MIPS32
  * instructions set. It is designed to fit the needs of signal, graphical and
  * video processing applications. MXU instruction set is used in Xburst family
  * of microprocessors by Ingenic.
@@ -1410,39 +1412,31 @@ enum {
  * MXU unit contains 17 registers called X0-X16. X0 is always zero, and X16 is
  * the control register.
  *
- * The notation used in MXU assembler mnemonics
- * --------------------------------------------
  *
- *  Registers:
+ *     The notation used in MXU assembler mnemonics
+ *     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ *  Register operands:
  *
  *   XRa, XRb, XRc, XRd - MXU registers
  *   Rb, Rc, Rd, Rs, Rt - general purpose MIPS registers
  *
- *  Subfields:
+ *  Non-register operands:
  *
- *   aptn1              - 1-bit accumulate add/subtract pattern
- *   aptn2              - 2-bit accumulate add/subtract pattern
- *   eptn2              - 2-bit execute add/subtract pattern
- *   optn2              - 2-bit operand pattern
- *   optn3              - 3-bit operand pattern
- *   sft4               - 4-bit shift amount
- *   strd2              - 2-bit stride amount
+ *   aptn1 - 1-bit accumulate add/subtract pattern
+ *   aptn2 - 2-bit accumulate add/subtract pattern
+ *   eptn2 - 2-bit execute add/subtract pattern
+ *   optn2 - 2-bit operand pattern
+ *   optn3 - 3-bit operand pattern
+ *   sft4  - 4-bit shift amount
+ *   strd2 - 2-bit stride amount
  *
  *  Prefixes:
  *
- *   <Operation parallel level><Operand size>
- *     S                         32
- *     D                         16
- *     Q                          8
- *
- *  Suffixes:
- *
- *   E - Expand results
- *   F - Fixed point multiplication
- *   L - Low part result
- *   R - Doing rounding
- *   V - Variable instead of immediate
- *   W - Combine above L and V
+ *   Level of parallelism:                Operand size:
+ *    S - single operation at a time       32 - word
+ *    D - two operations in parallel       16 - half word
+ *    Q - four operations in parallel       8 - byte
  *
  *  Operations:
  *
@@ -1485,6 +1479,19 @@ enum {
  *   SFL   - Shuffle
  *   SCOP  - Calculate x’s scope (-1, means x<0; 0, means x==0; 1, means x>0)
  *   XOR   - Logical bitwise 'exclusive or' operation
+ *
+ *  Suffixes:
+ *
+ *   E - Expand results
+ *   F - Fixed point multiplication
+ *   L - Low part result
+ *   R - Doing rounding
+ *   V - Variable instead of immediate
+ *   W - Combine above L and V
+ *
+ *
+ *     The list of MXU instructions grouped by functionality
+ *     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * Load/Store instructions           Multiplication instructions
  * -----------------------           ---------------------------
@@ -1562,6 +1569,13 @@ enum {
  *  Q16SCOP XRa, XRb, XRc, XRd        S32M2I XRa, Rb
  *  Q16SAT XRa, XRb, XRc              S32I2M XRa, Rb
  *
+ *
+ *     The opcode organization of MXU instructions
+ *     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * The bits 31..26 of all MXU instructions are equal to 0x1C (also referred
+ * as opcode SPECIAL2 in the base MIPS ISA). The organization and meaning of
+ * other bits up to the instruction level is as follows:
  *
  *              bits
  *             05..00
@@ -1700,7 +1714,7 @@ enum {
  *          │                            ├─ 010 ─ OPC_MXU_D16MOVZ
  *          │                            ├─ 011 ─ OPC_MXU_D16MOVN
  *          │                            ├─ 100 ─ OPC_MXU_S32MOVZ
- *          │                            └─ 101 ─ OPC_MXU_S32MOV
+ *          │                            └─ 101 ─ OPC_MXU_S32MOVN
  *          │
  *          │                               23..22
  *          ├─ 111010 ─ OPC_MXU__POOL21 ─┬─ 00 ─ OPC_MXU_Q8MAC
@@ -1712,10 +1726,10 @@ enum {
  *          └─ 111111 ─ <not assigned>   (overlaps with SDBBP)
  *
  *
- *   Compiled after:
+ * Compiled after:
  *
  *   "XBurst® Instruction Set Architecture MIPS eXtension/enhanced Unit
- *   Programming Manual", Ingenic Semiconductor Co, Ltd., 2017
+ *   Programming Manual", Ingenic Semiconductor Co, Ltd., revision June 2, 2017
  */
 
 enum {
