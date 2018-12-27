@@ -128,6 +128,7 @@ static void test_acpi_fadt_table(test_data *data)
     /* FADT table is 1st */
     AcpiSdtTable table = g_array_index(data->tables, typeof(table), 0);
     uint8_t *fadt_aml = table.aml;
+    uint32_t fadt_len = table.aml_len;
 
     ACPI_ASSERT_CMP(table.header->signature, "FACP");
 
@@ -139,35 +140,17 @@ static void test_acpi_fadt_table(test_data *data)
     acpi_fetch_table(data->qts, &table.aml, &table.aml_len,
                      fadt_aml + 40 /* DSDT */, "DSDT", true);
     g_array_append_val(data->tables, table);
-}
 
-static void sanitize_fadt_ptrs(test_data *data)
-{
-    /* fixup pointers in FADT */
-    int i;
-
-    for (i = 0; i < data->tables->len; i++) {
-        AcpiSdtTable *sdt = &g_array_index(data->tables, AcpiSdtTable, i);
-
-        if (memcmp(&sdt->header->signature, "FACP", 4)) {
-            continue;
-        }
-
-        /* check original FADT checksum before sanitizing table */
-        g_assert(!acpi_calc_checksum(sdt->aml, sdt->aml_len));
-
-        memset(sdt->aml + 36, 0, 4); /* sanitize FIRMWARE_CTRL ptr */
-        memset(sdt->aml + 40, 0, 4); /* sanitize DSDT ptr */
-        if (sdt->header->revision >= 3) {
-            memset(sdt->aml + 132, 0, 8); /* sanitize X_FIRMWARE_CTRL ptr */
-            memset(sdt->aml + 140, 0, 8); /* sanitize X_DSDT ptr */
-        }
-
-        /* update checksum */
-        sdt->header->checksum = 0;
-        sdt->header->checksum -= acpi_calc_checksum(sdt->aml, sdt->aml_len);
-        break;
+    memset(fadt_aml + 36, 0, 4); /* sanitize FIRMWARE_CTRL ptr */
+    memset(fadt_aml + 40, 0, 4); /* sanitize DSDT ptr */
+    if (fadt_aml[8 /* FADT Major Version */] >= 3) {
+        memset(fadt_aml + 132, 0, 8); /* sanitize X_FIRMWARE_CTRL ptr */
+        memset(fadt_aml + 140, 0, 8); /* sanitize X_DSDT ptr */
     }
+
+    /* update checksum */
+    fadt_aml[9 /* Checksum */] = 0;
+    fadt_aml[9 /* Checksum */] -= acpi_calc_checksum(fadt_aml, fadt_len);
 }
 
 static void dump_aml_files(test_data *data, bool rebuild)
@@ -542,8 +525,6 @@ static void test_acpi_one(const char *params, test_data *data)
     test_acpi_rsdp_table(data);
     test_acpi_rsdt_table(data);
     test_acpi_fadt_table(data);
-
-    sanitize_fadt_ptrs(data);
 
     if (iasl) {
         if (getenv(ACPI_REBUILD_EXPECTED_AML)) {
