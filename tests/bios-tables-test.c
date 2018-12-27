@@ -72,34 +72,6 @@ static void free_test_data(test_data *data)
     g_array_free(data->tables, true);
 }
 
-/** fetch_table
- *   load ACPI table at @addr_ptr offset pointer into table descriptor
- *   @sdt_table and check that signature/checksum matches actual one.
- */
-static void fetch_table(QTestState *qts, AcpiSdtTable *sdt_table,
-                        uint8_t *addr_ptr, const char *sig,
-                        bool verify_checksum)
-{
-    uint32_t addr;
-
-    memcpy(&addr, addr_ptr , sizeof(addr));
-    addr = le32_to_cpu(addr);
-
-    qtest_memread(qts, addr + 4 /* Length of ACPI table */,
-                  &sdt_table->aml_len, 4);
-    sdt_table->aml_len = le32_to_cpu(sdt_table->aml_len);
-    sdt_table->aml = g_malloc0(sdt_table->aml_len);
-    /* get whole table */
-    qtest_memread(qts, addr, sdt_table->aml, sdt_table->aml_len);
-
-    if (sig) {
-        ACPI_ASSERT_CMP(sdt_table->header->signature, sig);
-    }
-    if (verify_checksum) {
-        g_assert(!acpi_calc_checksum(sdt_table->aml, sdt_table->aml_len));
-    }
-}
-
 static void test_acpi_rsdp_address(test_data *data)
 {
     uint32_t off = acpi_find_rsdp_address(data->qts);
@@ -132,23 +104,19 @@ static void test_acpi_rsdp_table(test_data *data)
 
 static void test_acpi_rsdt_table(test_data *data)
 {
-    const int entry_size = 4 /* 32-bit Entry size */;
-    const int tables_off = 36 /* 1st Entry */;
     AcpiSdtTable rsdt = {};
-    int i, table_len, table_nr;
+    uint8_t *ent;
 
-    fetch_table(data->qts, &rsdt, &data->rsdp_table[16 /* RsdtAddress */],
-                "RSDT", true);
+    /* read RSDT table */
+    acpi_fetch_table(data->qts, &rsdt.aml, &rsdt.aml_len,
+                     &data->rsdp_table[16 /* RsdtAddress */], "RSDT", true);
 
     /* Load all tables and add to test list directly RSDT referenced tables */
-    table_len = le32_to_cpu(rsdt.header->length);
-    table_nr = (table_len - tables_off) / entry_size;
-    for (i = 0; i < table_nr; i++) {
+    ACPI_FOREACH_RSDT_ENTRY(rsdt.aml, rsdt.aml_len, ent, 4 /* Entry size */) {
         AcpiSdtTable ssdt_table = {};
 
-        fetch_table(data->qts, &ssdt_table,
-                    rsdt.aml + tables_off + i * entry_size, NULL, true);
-
+        acpi_fetch_table(data->qts, &ssdt_table.aml, &ssdt_table.aml_len, ent,
+                         NULL, true);
         /* Add table to ASL test tables list */
         g_array_append_val(data->tables, ssdt_table);
     }
@@ -164,11 +132,12 @@ static void test_acpi_fadt_table(test_data *data)
     ACPI_ASSERT_CMP(table.header->signature, "FACP");
 
     /* Since DSDT/FACS isn't in RSDT, add them to ASL test list manually */
-    fetch_table(data->qts, &table, fadt_aml + 36 /* FIRMWARE_CTRL */,
-                "FACS", false);
+    acpi_fetch_table(data->qts, &table.aml, &table.aml_len,
+                     fadt_aml + 36 /* FIRMWARE_CTRL */, "FACS", false);
     g_array_append_val(data->tables, table);
 
-    fetch_table(data->qts, &table, fadt_aml + 40 /* DSDT */, "DSDT", true);
+    acpi_fetch_table(data->qts, &table.aml, &table.aml_len,
+                     fadt_aml + 40 /* DSDT */, "DSDT", true);
     g_array_append_val(data->tables, table);
 }
 
@@ -322,6 +291,7 @@ static GArray *load_expected_aml(test_data *data)
     AcpiSdtTable *sdt;
     GError *error = NULL;
     gboolean ret;
+    gsize aml_len;
 
     GArray *exp_tables = g_array_new(false, true, sizeof(AcpiSdtTable));
     if (getenv("V")) {
@@ -355,7 +325,8 @@ try_again:
             fprintf(stderr, "Using expected file '%s'\n", aml_file);
         }
         ret = g_file_get_contents(aml_file, (gchar **)&exp_sdt.aml,
-                                  &exp_sdt.aml_len, &error);
+                                  &aml_len, &error);
+        exp_sdt.aml_len = aml_len;
         g_assert(ret);
         g_assert_no_error(error);
         g_assert(exp_sdt.aml);
