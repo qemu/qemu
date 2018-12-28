@@ -54,7 +54,7 @@ enum {
     UDBZ,
     ULFO,
     UDCM = 0x7ffffffe, /* Comments */
-    UDLE               /* Last Entry */
+    UDLE = 0xffffffff  /* Last Entry */
 };
 
 static int dmg_probe(const uint8_t *buf, int buf_size, const char *filename)
