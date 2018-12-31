@@ -1678,11 +1678,11 @@ enum {
  *          ├─ 100111 ─ OPC_MXU__POOL16 ─┬─ 000 ─ OPC_MXU_D32SARW
  *          │                            ├─ 001 ─ OPC_MXU_S32ALN
  *          │                            ├─ 010 ─ OPC_MXU_S32ALNI
- *          │                            ├─ 011 ─ OPC_MXU_S32NOR
- *          │                            ├─ 100 ─ OPC_MXU_S32AND
- *          │                            ├─ 101 ─ OPC_MXU_S32OR
- *          │                            ├─ 110 ─ OPC_MXU_S32XOR
- *          │                            └─ 111 ─ OPC_MXU_S32LUI
+ *          │                            ├─ 011 ─ OPC_MXU_S32LUI
+ *          │                            ├─ 100 ─ OPC_MXU_S32NOR
+ *          │                            ├─ 101 ─ OPC_MXU_S32AND
+ *          │                            ├─ 110 ─ OPC_MXU_S32OR
+ *          │                            └─ 111 ─ OPC_MXU_S32XOR
  *          │
  *          │                               7..5
  *          ├─ 101000 ─ OPC_MXU__POOL17 ─┬─ 000 ─ OPC_MXU_LXB
@@ -1953,11 +1953,11 @@ enum {
     OPC_MXU_D32SARW  = 0x00,
     OPC_MXU_S32ALN   = 0x01,
     OPC_MXU_S32ALNI  = 0x02,
-    OPC_MXU_S32NOR   = 0x03,
-    OPC_MXU_S32AND   = 0x04,
-    OPC_MXU_S32OR    = 0x05,
-    OPC_MXU_S32XOR   = 0x06,
-    OPC_MXU_S32LUI   = 0x07,
+    OPC_MXU_S32LUI   = 0x03,
+    OPC_MXU_S32NOR   = 0x04,
+    OPC_MXU_S32AND   = 0x05,
+    OPC_MXU_S32OR    = 0x06,
+    OPC_MXU_S32XOR   = 0x07,
 };
 
 /*
@@ -2455,9 +2455,11 @@ static TCGv_i32 fpu_fcr0, fpu_fcr31;
 static TCGv_i64 fpu_f64[32];
 static TCGv_i64 msa_wr_d[64];
 
+#if !defined(TARGET_MIPS64)
 /* MXU registers */
 static TCGv mxu_gpr[NUMBER_OF_MXU_REGISTERS - 1];
 static TCGv mxu_CR;
+#endif
 
 #include "exec/gen-icount.h"
 
@@ -2581,10 +2583,12 @@ static const char * const msaregnames[] = {
     "w30.d0", "w30.d1", "w31.d0", "w31.d1",
 };
 
+#if !defined(TARGET_MIPS64)
 static const char * const mxuregnames[] = {
     "XR1",  "XR2",  "XR3",  "XR4",  "XR5",  "XR6",  "XR7",  "XR8",
     "XR9",  "XR10", "XR11", "XR12", "XR13", "XR14", "XR15", "MXU_CR",
 };
+#endif
 
 #define LOG_DISAS(...)                                                        \
     do {                                                                      \
@@ -2667,6 +2671,7 @@ static inline void gen_store_srsgpr (int from, int to)
     }
 }
 
+#if !defined(TARGET_MIPS64)
 /* MXU General purpose registers moves. */
 static inline void gen_load_mxu_gpr(TCGv t, unsigned int reg)
 {
@@ -2695,6 +2700,7 @@ static inline void gen_store_mxu_cr(TCGv t)
     /* TODO: Add handling of RW rules for MXU_CR. */
     tcg_gen_mov_tl(mxu_CR, t);
 }
+#endif
 
 
 /* Tests */
@@ -24235,6 +24241,8 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
 }
 
 
+#if !defined(TARGET_MIPS64)
+
 /* MXU accumulate add/subtract 1-bit pattern 'aptn1' */
 #define MXU_APTN1_A    0
 #define MXU_APTN1_S    1
@@ -24646,6 +24654,172 @@ static void gen_mxu_s32ldd_s32lddr(DisasContext *ctx)
 
     tcg_temp_free(t0);
     tcg_temp_free(t1);
+}
+
+
+/*
+ *                 MXU instruction category: logic
+ *                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ *               S32NOR    S32AND    S32OR    S32XOR
+ */
+
+/*
+ *  S32NOR XRa, XRb, XRc
+ *    Update XRa with the result of logical bitwise 'nor' operation
+ *    applied to the content of XRb and XRc.
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0 0 0 0| opc |  XRc  |  XRb  |  XRa  |MXU__POOL16|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ */
+static void gen_mxu_S32NOR(DisasContext *ctx)
+{
+    uint32_t pad, XRc, XRb, XRa;
+
+    pad = extract32(ctx->opcode, 21, 5);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRa = extract32(ctx->opcode,  6, 4);
+
+    if (unlikely(pad != 0)) {
+        /* opcode padding incorrect -> do nothing */
+    } else if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+    } else if (unlikely((XRb == 0) && (XRc == 0))) {
+        /* both operands zero registers -> just set destination to all 1s */
+        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0xFFFFFFFF);
+    } else if (unlikely(XRb == 0)) {
+        /* XRb zero register -> just set destination to the negation of XRc */
+        tcg_gen_not_i32(mxu_gpr[XRa - 1], mxu_gpr[XRc - 1]);
+    } else if (unlikely(XRc == 0)) {
+        /* XRa zero register -> just set destination to the negation of XRb */
+        tcg_gen_not_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
+    } else if (unlikely(XRb == XRc)) {
+        /* both operands same -> just set destination to the negation of XRb */
+        tcg_gen_not_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
+    } else {
+        /* the most general case */
+        tcg_gen_nor_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1], mxu_gpr[XRc - 1]);
+    }
+}
+
+/*
+ *  S32AND XRa, XRb, XRc
+ *    Update XRa with the result of logical bitwise 'and' operation
+ *    applied to the content of XRb and XRc.
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0 0 0 0| opc |  XRc  |  XRb  |  XRa  |MXU__POOL16|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ */
+static void gen_mxu_S32AND(DisasContext *ctx)
+{
+    uint32_t pad, XRc, XRb, XRa;
+
+    pad = extract32(ctx->opcode, 21, 5);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRa = extract32(ctx->opcode,  6, 4);
+
+    if (unlikely(pad != 0)) {
+        /* opcode padding incorrect -> do nothing */
+    } else if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+    } else if (unlikely((XRb == 0) || (XRc == 0))) {
+        /* one of operands zero register -> just set destination to all 0s */
+        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
+    } else if (unlikely(XRb == XRc)) {
+        /* both operands same -> just set destination to one of them */
+        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
+    } else {
+        /* the most general case */
+        tcg_gen_and_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1], mxu_gpr[XRc - 1]);
+    }
+}
+
+/*
+ *  S32OR XRa, XRb, XRc
+ *    Update XRa with the result of logical bitwise 'or' operation
+ *    applied to the content of XRb and XRc.
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0 0 0 0| opc |  XRc  |  XRb  |  XRa  |MXU__POOL16|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ */
+static void gen_mxu_S32OR(DisasContext *ctx)
+{
+    uint32_t pad, XRc, XRb, XRa;
+
+    pad = extract32(ctx->opcode, 21, 5);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRa = extract32(ctx->opcode,  6, 4);
+
+    if (unlikely(pad != 0)) {
+        /* opcode padding incorrect -> do nothing */
+    } else if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+    } else if (unlikely((XRb == 0) && (XRc == 0))) {
+        /* both operands zero registers -> just set destination to all 0s */
+        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
+    } else if (unlikely(XRb == 0)) {
+        /* XRb zero register -> just set destination to the content of XRc */
+        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRc - 1]);
+    } else if (unlikely(XRc == 0)) {
+        /* XRc zero register -> just set destination to the content of XRb */
+        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
+    } else if (unlikely(XRb == XRc)) {
+        /* both operands same -> just set destination to one of them */
+        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
+    } else {
+        /* the most general case */
+        tcg_gen_or_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1], mxu_gpr[XRc - 1]);
+    }
+}
+
+/*
+ *  S32XOR XRa, XRb, XRc
+ *    Update XRa with the result of logical bitwise 'xor' operation
+ *    applied to the content of XRb and XRc.
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0 0 0 0| opc |  XRc  |  XRb  |  XRa  |MXU__POOL16|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ */
+static void gen_mxu_S32XOR(DisasContext *ctx)
+{
+    uint32_t pad, XRc, XRb, XRa;
+
+    pad = extract32(ctx->opcode, 21, 5);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRa = extract32(ctx->opcode,  6, 4);
+
+    if (unlikely(pad != 0)) {
+        /* opcode padding incorrect -> do nothing */
+    } else if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+    } else if (unlikely((XRb == 0) && (XRc == 0))) {
+        /* both operands zero registers -> just set destination to all 0s */
+        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
+    } else if (unlikely(XRb == 0)) {
+        /* XRb zero register -> just set destination to the content of XRc */
+        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRc - 1]);
+    } else if (unlikely(XRc == 0)) {
+        /* XRc zero register -> just set destination to the content of XRb */
+        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
+    } else if (unlikely(XRb == XRc)) {
+        /* both operands same -> just set destination to all 0s */
+        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
+    } else {
+        /* the most general case */
+        tcg_gen_xor_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1], mxu_gpr[XRc - 1]);
+    }
 }
 
 
@@ -25300,17 +25474,17 @@ static void decode_opc_mxu__pool15(CPUMIPSState *env, DisasContext *ctx)
  *  |  SPECIAL2 |  s3 |0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL16|
  *  +-----------+-----+---+-----+-------+-------+-------+-----------+
  *
- *  S32NOR, S32AND, S32OR, S32XOR:
- *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
- *  +-----------+---------+-----+-------+-------+-------+-----------+
- *  |  SPECIAL2 |0 0 0 0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL16|
- *  +-----------+---------+-----+-------+-------+-------+-----------+
- *
  *  S32LUI:
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  *  +-----------+-----+---+-----+-------+---------------+-----------+
  *  |  SPECIAL2 |optn3|0 0|x x x|  XRc  |       s8      |MXU__POOL16|
  *  +-----------+-----+---+-----+-------+---------------+-----------+
+ *
+ *  S32NOR, S32AND, S32OR, S32XOR:
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |0 0 0 0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL16|
+ *  +-----------+---------+-----+-------+-------+-------+-----------+
  *
  */
 static void decode_opc_mxu__pool16(CPUMIPSState *env, DisasContext *ctx)
@@ -25333,30 +25507,22 @@ static void decode_opc_mxu__pool16(CPUMIPSState *env, DisasContext *ctx)
         MIPS_INVAL("OPC_MXU_S32ALNI");
         generate_exception_end(ctx, EXCP_RI);
         break;
-    case OPC_MXU_S32NOR:
-        /* TODO: Implement emulation of S32NOR instruction. */
-        MIPS_INVAL("OPC_MXU_S32NOR");
-        generate_exception_end(ctx, EXCP_RI);
-        break;
-    case OPC_MXU_S32AND:
-        /* TODO: Implement emulation of S32AND instruction. */
-        MIPS_INVAL("OPC_MXU_S32AND");
-        generate_exception_end(ctx, EXCP_RI);
-        break;
-    case OPC_MXU_S32OR:
-        /* TODO: Implement emulation of S32OR instruction. */
-        MIPS_INVAL("OPC_MXU_S32OR");
-        generate_exception_end(ctx, EXCP_RI);
-        break;
-    case OPC_MXU_S32XOR:
-        /* TODO: Implement emulation of S32XOR instruction. */
-        MIPS_INVAL("OPC_MXU_S32XOR");
-        generate_exception_end(ctx, EXCP_RI);
-        break;
     case OPC_MXU_S32LUI:
         /* TODO: Implement emulation of S32LUI instruction. */
         MIPS_INVAL("OPC_MXU_S32LUI");
         generate_exception_end(ctx, EXCP_RI);
+        break;
+    case OPC_MXU_S32NOR:
+        gen_mxu_S32NOR(ctx);
+        break;
+    case OPC_MXU_S32AND:
+        gen_mxu_S32AND(ctx);
+        break;
+    case OPC_MXU_S32OR:
+        gen_mxu_S32OR(ctx);
+        break;
+    case OPC_MXU_S32XOR:
+        gen_mxu_S32XOR(ctx);
         break;
     default:
         MIPS_INVAL("decode_opc_mxu");
@@ -25853,6 +26019,8 @@ static void decode_opc_mxu(CPUMIPSState *env, DisasContext *ctx)
         tcg_temp_free(t_mxu_cr);
     }
 }
+
+#endif /* !defined(TARGET_MIPS64) */
 
 
 static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
@@ -28098,8 +28266,10 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     case OPC_SPECIAL2:
         if ((ctx->insn_flags & INSN_R5900) && (ctx->insn_flags & ASE_MMI)) {
             decode_mmi(env, ctx);
+#if !defined(TARGET_MIPS64)
         } else if (ctx->insn_flags & ASE_MXU) {
             decode_opc_mxu(env, ctx);
+#endif
         } else {
             decode_opc_special2_legacy(env, ctx);
         }
@@ -29108,7 +29278,7 @@ void mips_tcg_init(void)
     fpu_fcr31 = tcg_global_mem_new_i32(cpu_env,
                                        offsetof(CPUMIPSState, active_fpu.fcr31),
                                        "fcr31");
-
+#if !defined(TARGET_MIPS64)
     for (i = 0; i < NUMBER_OF_MXU_REGISTERS - 1; i++) {
         mxu_gpr[i] = tcg_global_mem_new(cpu_env,
                                         offsetof(CPUMIPSState,
@@ -29119,6 +29289,7 @@ void mips_tcg_init(void)
     mxu_CR = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUMIPSState, active_tc.mxu_cr),
                                 mxuregnames[NUMBER_OF_MXU_REGISTERS - 1]);
+#endif
 }
 
 #include "translate_init.inc.c"
