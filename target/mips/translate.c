@@ -25100,6 +25100,199 @@ static void gen_mxu_Q8MAX_Q8MIN(DisasContext *ctx)
 
 
 /*
+ *                 MXU instruction category: align
+ *                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ *                       S32ALN     S32ALNI
+ */
+
+/*
+ *  S32ALNI XRc, XRb, XRa, optn3
+ *    Arrange bytes from XRb and XRc according to one of five sets of
+ *    rules determined by optn3, and place the result in XRa.
+ *
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *  +-----------+-----+---+-----+-------+-------+-------+-----------+
+ *  |  SPECIAL2 |optn3|0 0|x x x|  XRc  |  XRb  |  XRa  |MXU__POOL16|
+ *  +-----------+-----+---+-----+-------+-------+-------+-----------+
+ *
+ */
+static void gen_mxu_S32ALNI(DisasContext *ctx)
+{
+    uint32_t optn3, pad, XRc, XRb, XRa;
+
+    optn3 = extract32(ctx->opcode,  23, 3);
+    pad   = extract32(ctx->opcode,  21, 2);
+    XRc   = extract32(ctx->opcode, 14, 4);
+    XRb   = extract32(ctx->opcode, 10, 4);
+    XRa   = extract32(ctx->opcode,  6, 4);
+
+    if (unlikely(pad != 0)) {
+        /* opcode padding incorrect -> do nothing */
+    } else if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+    } else if (unlikely((XRb == 0) && (XRc == 0))) {
+        /* both operands zero registers -> just set destination to all 0s */
+        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
+    } else if (unlikely(XRb == 0)) {
+        /* XRb zero register -> just appropriatelly shift XRc into XRa */
+        switch (optn3) {
+        case MXU_OPTN3_PTN0:
+            tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
+            break;
+        case MXU_OPTN3_PTN1:
+        case MXU_OPTN3_PTN2:
+        case MXU_OPTN3_PTN3:
+            tcg_gen_shri_i32(mxu_gpr[XRa - 1], mxu_gpr[XRc - 1],
+                             8 * (4 - optn3));
+            break;
+        case MXU_OPTN3_PTN4:
+            tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRc - 1]);
+            break;
+        }
+    } else if (unlikely(XRc == 0)) {
+        /* XRc zero register -> just appropriatelly shift XRb into XRa */
+        switch (optn3) {
+        case MXU_OPTN3_PTN0:
+            tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
+            break;
+        case MXU_OPTN3_PTN1:
+        case MXU_OPTN3_PTN2:
+        case MXU_OPTN3_PTN3:
+            tcg_gen_shri_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1], 8 * optn3);
+            break;
+        case MXU_OPTN3_PTN4:
+            tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
+            break;
+        }
+    } else if (unlikely(XRb == XRc)) {
+        /* both operands same -> just rotation or moving from any of them */
+        switch (optn3) {
+        case MXU_OPTN3_PTN0:
+        case MXU_OPTN3_PTN4:
+            tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
+            break;
+        case MXU_OPTN3_PTN1:
+        case MXU_OPTN3_PTN2:
+        case MXU_OPTN3_PTN3:
+            tcg_gen_rotli_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1], 8 * optn3);
+            break;
+        }
+    } else {
+        /* the most general case */
+        switch (optn3) {
+        case MXU_OPTN3_PTN0:
+            {
+                /*                                         */
+                /*         XRb                XRc          */
+                /*  +---------------+                      */
+                /*  | A   B   C   D |    E   F   G   H     */
+                /*  +-------+-------+                      */
+                /*          |                              */
+                /*         XRa                             */
+                /*                                         */
+
+                tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
+            }
+            break;
+        case MXU_OPTN3_PTN1:
+            {
+                /*                                         */
+                /*         XRb                 XRc         */
+                /*      +-------------------+              */
+                /*    A | B   C   D       E | F   G   H    */
+                /*      +---------+---------+              */
+                /*                |                        */
+                /*               XRa                       */
+                /*                                         */
+
+                TCGv_i32 t0 = tcg_temp_new();
+                TCGv_i32 t1 = tcg_temp_new();
+
+                tcg_gen_andi_i32(t0, mxu_gpr[XRb - 1], 0x00FFFFFF);
+                tcg_gen_shli_i32(t0, t0, 8);
+
+                tcg_gen_andi_i32(t1, mxu_gpr[XRc - 1], 0xFF000000);
+                tcg_gen_shri_i32(t1, t1, 24);
+
+                tcg_gen_or_i32(mxu_gpr[XRa - 1], t0, t1);
+
+                tcg_temp_free(t1);
+                tcg_temp_free(t0);
+            }
+            break;
+        case MXU_OPTN3_PTN2:
+            {
+                /*                                         */
+                /*         XRb                 XRc         */
+                /*          +-------------------+          */
+                /*    A   B | C   D       E   F | G   H    */
+                /*          +---------+---------+          */
+                /*                    |                    */
+                /*                   XRa                   */
+                /*                                         */
+
+                TCGv_i32 t0 = tcg_temp_new();
+                TCGv_i32 t1 = tcg_temp_new();
+
+                tcg_gen_andi_i32(t0, mxu_gpr[XRb - 1], 0x0000FFFF);
+                tcg_gen_shli_i32(t0, t0, 16);
+
+                tcg_gen_andi_i32(t1, mxu_gpr[XRc - 1], 0xFFFF0000);
+                tcg_gen_shri_i32(t1, t1, 16);
+
+                tcg_gen_or_i32(mxu_gpr[XRa - 1], t0, t1);
+
+                tcg_temp_free(t1);
+                tcg_temp_free(t0);
+            }
+            break;
+        case MXU_OPTN3_PTN3:
+            {
+                /*                                         */
+                /*         XRb                 XRc         */
+                /*              +-------------------+      */
+                /*    A   B   C | D       E   F   G | H    */
+                /*              +---------+---------+      */
+                /*                        |                */
+                /*                       XRa               */
+                /*                                         */
+
+                TCGv_i32 t0 = tcg_temp_new();
+                TCGv_i32 t1 = tcg_temp_new();
+
+                tcg_gen_andi_i32(t0, mxu_gpr[XRb - 1], 0x000000FF);
+                tcg_gen_shli_i32(t0, t0, 24);
+
+                tcg_gen_andi_i32(t1, mxu_gpr[XRc - 1], 0xFFFFFF00);
+                tcg_gen_shri_i32(t1, t1, 8);
+
+                tcg_gen_or_i32(mxu_gpr[XRa - 1], t0, t1);
+
+                tcg_temp_free(t1);
+                tcg_temp_free(t0);
+            }
+            break;
+        case MXU_OPTN3_PTN4:
+            {
+                /*                                         */
+                /*         XRb                 XRc         */
+                /*                     +---------------+   */
+                /*    A   B   C   D    | E   F   G   H |   */
+                /*                     +-------+-------+   */
+                /*                             |           */
+                /*                            XRa          */
+                /*                                         */
+
+                tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRc - 1]);
+            }
+            break;
+        }
+    }
+}
+
+
+/*
  * Decoding engine for MXU
  * =======================
  */
@@ -25761,9 +25954,7 @@ static void decode_opc_mxu__pool16(CPUMIPSState *env, DisasContext *ctx)
         generate_exception_end(ctx, EXCP_RI);
         break;
     case OPC_MXU_S32ALNI:
-        /* TODO: Implement emulation of S32ALNI instruction. */
-        MIPS_INVAL("OPC_MXU_S32ALNI");
-        generate_exception_end(ctx, EXCP_RI);
+        gen_mxu_S32ALNI(ctx);
         break;
     case OPC_MXU_S32LUI:
         /* TODO: Implement emulation of S32LUI instruction. */
