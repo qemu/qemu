@@ -321,7 +321,7 @@ static void xive_tm_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
-    XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
+    XiveTCTX *tctx = cpu->tctx;
     const XiveTmOp *xto;
 
     /*
@@ -360,7 +360,7 @@ static void xive_tm_write(void *opaque, hwaddr offset,
 static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
 {
     PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
-    XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
+    XiveTCTX *tctx = cpu->tctx;
     const XiveTmOp *xto;
 
     /*
@@ -1186,7 +1186,7 @@ static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
-        XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
+        XiveTCTX *tctx = cpu->tctx;
         int ring;
 
         /*

@@ -315,7 +315,7 @@ static void spapr_irq_print_info_xive(sPAPRMachineState *spapr,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        xive_tctx_pic_print_info(XIVE_TCTX(cpu->intc), mon);
+        xive_tctx_pic_print_info(cpu->tctx, mon);
     }
 
     spapr_xive_pic_print_info(spapr->xive, mon);
@@ -333,13 +333,13 @@ static void spapr_irq_cpu_intc_create_xive(sPAPRMachineState *spapr,
         return;
     }
 
-    cpu->intc = obj;
+    cpu->tctx = XIVE_TCTX(obj);
 
     /*
      * (TCG) Early setting the OS CAM line for hotplugged CPUs as they
      * don't beneficiate from the reset of the XIVE IRQ backend
      */
-    spapr_xive_set_tctx_os_cam(XIVE_TCTX(obj));
+    spapr_xive_set_tctx_os_cam(cpu->tctx);
 }
 
 static int spapr_irq_post_load_xive(sPAPRMachineState *spapr, int version_id)
@@ -355,7 +355,7 @@ static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         /* (TCG) Set the OS CAM line of the thread interrupt context. */
-        spapr_xive_set_tctx_os_cam(XIVE_TCTX(cpu->intc));
+        spapr_xive_set_tctx_os_cam(cpu->tctx);
     }
 }
 
