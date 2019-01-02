@@ -204,17 +204,6 @@ EXTRACT_HELPER(IMM8, 11, 8);
 EXTRACT_HELPER(DCMX, 16, 7);
 EXTRACT_HELPER_SPLIT_3(DCMX_XV, 5, 16, 0, 1, 2, 5, 1, 6, 6);
 
-typedef union _ppc_vsr_t {
-    uint8_t u8[16];
-    uint16_t u16[8];
-    uint32_t u32[4];
-    uint64_t u64[2];
-    float32 f32[4];
-    float64 f64[2];
-    float128 f128;
-    Int128  s128;
-} ppc_vsr_t;
-
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VsrB(i) u8[i]
 #define VsrH(i) u16[i]

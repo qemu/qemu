@@ -218,7 +218,6 @@ typedef struct opc_handler_t opc_handler_t;
 /* Types used to describe some PowerPC registers etc. */
 typedef struct DisasContext DisasContext;
 typedef struct ppc_spr_t ppc_spr_t;
-typedef union ppc_avr_t ppc_avr_t;
 typedef union ppc_tlb_t ppc_tlb_t;
 typedef struct ppc_hash_pte64 ppc_hash_pte64_t;
 
@@ -242,22 +241,26 @@ struct ppc_spr_t {
 #endif
 };
 
-/* Altivec registers (128 bits) */
-union ppc_avr_t {
-    float32 f[4];
+/* VSX/Altivec registers (128 bits) */
+typedef union _ppc_vsr_t {
     uint8_t u8[16];
     uint16_t u16[8];
     uint32_t u32[4];
+    uint64_t u64[2];
     int8_t s8[16];
     int16_t s16[8];
     int32_t s32[4];
-    uint64_t u64[2];
     int64_t s64[2];
+    float32 f32[4];
+    float64 f64[2];
+    float128 f128;
 #ifdef CONFIG_INT128
     __uint128_t u128;
 #endif
-    Int128 s128;
-};
+    Int128  s128;
+} ppc_vsr_t;
+
+typedef ppc_vsr_t ppc_avr_t;
 
 #if !defined(CONFIG_USER_ONLY)
 /* Software TLB cache */
