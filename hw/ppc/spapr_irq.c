@@ -284,7 +284,17 @@ static void spapr_irq_free_xive(sPAPRMachineState *spapr, int irq, int num)
 
 static qemu_irq spapr_qirq_xive(sPAPRMachineState *spapr, int irq)
 {
-    return spapr_xive_qirq(spapr->xive, irq);
+    sPAPRXive *xive = spapr->xive;
+    XiveSource *xsrc = &xive->source;
+
+    if (irq >= xive->nr_irqs) {
+        return NULL;
+    }
+
+    /* The sPAPR machine/device should have claimed the IRQ before */
+    assert(xive_eas_is_valid(&xive->eat[irq]));
+
+    return xsrc->qirqs[irq];
 }
 
 static void spapr_irq_print_info_xive(sPAPRMachineState *spapr,

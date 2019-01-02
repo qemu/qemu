@@ -488,20 +488,6 @@ bool spapr_xive_irq_free(sPAPRXive *xive, uint32_t lisn)
     return true;
 }
 
-qemu_irq spapr_xive_qirq(sPAPRXive *xive, uint32_t lisn)
-{
-    XiveSource *xsrc = &xive->source;
-
-    if (lisn >= xive->nr_irqs) {
-        return NULL;
-    }
-
-    /* The sPAPR machine/device should have claimed the IRQ before */
-    assert(xive_eas_is_valid(&xive->eat[lisn]));
-
-    return xive_source_qirq(xsrc, lisn);
-}
-
 /*
  * XIVE hcalls
  *

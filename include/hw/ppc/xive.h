@@ -278,12 +278,6 @@ uint8_t xive_source_esb_set(XiveSource *xsrc, uint32_t srcno, uint8_t pq);
 void xive_source_pic_print_info(XiveSource *xsrc, uint32_t offset,
                                 Monitor *mon);
 
-static inline qemu_irq xive_source_qirq(XiveSource *xsrc, uint32_t srcno)
-{
-    assert(srcno < xsrc->nr_irqs);
-    return xsrc->qirqs[srcno];
-}
-
 static inline bool xive_source_irq_is_lsi(XiveSource *xsrc, uint32_t srcno)
 {
     assert(srcno < xsrc->nr_irqs);
