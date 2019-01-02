@@ -232,7 +232,7 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     qemu_register_reset(spapr_cpu_reset, cpu);
     spapr_cpu_reset(cpu);
 
-    cpu->intc = spapr->irq->cpu_intc_create(spapr, OBJECT(cpu), &local_err);
+    spapr->irq->cpu_intc_create(spapr, cpu, &local_err);
     if (local_err) {
         goto error_unregister;
     }

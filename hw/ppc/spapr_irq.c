@@ -190,10 +190,20 @@ static void spapr_irq_print_info_xics(sPAPRMachineState *spapr, Monitor *mon)
     ics_pic_print_info(spapr->ics, mon);
 }
 
-static Object *spapr_irq_cpu_intc_create_xics(sPAPRMachineState *spapr,
-                                              Object *cpu, Error **errp)
+static void spapr_irq_cpu_intc_create_xics(sPAPRMachineState *spapr,
+                                           PowerPCCPU *cpu, Error **errp)
 {
-    return icp_create(cpu, spapr->icp_type, XICS_FABRIC(spapr), errp);
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = icp_create(OBJECT(cpu), spapr->icp_type, XICS_FABRIC(spapr),
+                     &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    cpu->intc = obj;
 }
 
 static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
@@ -311,17 +321,25 @@ static void spapr_irq_print_info_xive(sPAPRMachineState *spapr,
     spapr_xive_pic_print_info(spapr->xive, mon);
 }
 
-static Object *spapr_irq_cpu_intc_create_xive(sPAPRMachineState *spapr,
-                                              Object *cpu, Error **errp)
+static void spapr_irq_cpu_intc_create_xive(sPAPRMachineState *spapr,
+                                           PowerPCCPU *cpu, Error **errp)
 {
-    Object *obj = xive_tctx_create(cpu, XIVE_ROUTER(spapr->xive), errp);
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(spapr->xive), &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    cpu->intc = obj;
 
     /*
      * (TCG) Early setting the OS CAM line for hotplugged CPUs as they
-     * don't benificiate from the reset of the XIVE IRQ backend
+     * don't beneficiate from the reset of the XIVE IRQ backend
      */
     spapr_xive_set_tctx_os_cam(XIVE_TCTX(obj));
-    return obj;
 }
 
 static int spapr_irq_post_load_xive(sPAPRMachineState *spapr, int version_id)

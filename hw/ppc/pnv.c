@@ -668,11 +668,20 @@ static uint32_t pnv_chip_core_pir_p8(PnvChip *chip, uint32_t core_id)
     return (chip->chip_id << 7) | (core_id << 3);
 }
 
-static Object *pnv_chip_power8_intc_create(PnvChip *chip, Object *child,
-                                           Error **errp)
+static void pnv_chip_power8_intc_create(PnvChip *chip, PowerPCCPU *cpu,
+                                        Error **errp)
 {
-    return icp_create(child, TYPE_PNV_ICP, XICS_FABRIC(qdev_get_machine()),
-                      errp);
+    Error *local_err = NULL;
+    Object *obj;
+
+    obj = icp_create(OBJECT(cpu), TYPE_PNV_ICP, XICS_FABRIC(qdev_get_machine()),
+                     &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    cpu->intc = obj;
 }
 
 /*
@@ -690,10 +699,10 @@ static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
     return (chip->chip_id << 8) | (core_id << 2);
 }
 
-static Object *pnv_chip_power9_intc_create(PnvChip *chip, Object *child,
-                                           Error **errp)
+static void pnv_chip_power9_intc_create(PnvChip *chip, PowerPCCPU *cpu,
+                                        Error **errp)
 {
-    return NULL;
+    return;
 }
 
 /* Allowed core identifiers on a POWER8 Processor Chip :

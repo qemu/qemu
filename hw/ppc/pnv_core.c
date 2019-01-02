@@ -114,7 +114,7 @@ static void pnv_realize_vcpu(PowerPCCPU *cpu, PnvChip *chip, Error **errp)
         return;
     }
 
-    cpu->intc = pcc->intc_create(chip, OBJECT(cpu), &local_err);
+    pcc->intc_create(chip, cpu, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
