@@ -2686,11 +2686,11 @@ static void spapr_machine_init(MachineState *machine)
     spapr_ovec_set(spapr->ov5, OV5_DRMEM_V2);
 
     /* advertise XIVE on POWER9 machines */
-    if (spapr->irq->ov5 & SPAPR_OV5_XIVE_EXPLOIT) {
+    if (spapr->irq->ov5 & (SPAPR_OV5_XIVE_EXPLOIT | SPAPR_OV5_XIVE_BOTH)) {
         if (ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00,
                                   0, spapr->max_compat_pvr)) {
             spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
-        } else {
+        } else if (spapr->irq->ov5 & SPAPR_OV5_XIVE_EXPLOIT) {
             error_report("XIVE-only machines require a POWER9 CPU");
             exit(1);
         }
@@ -3116,6 +3116,8 @@ static char *spapr_get_ic_mode(Object *obj, Error **errp)
         return g_strdup("xics");
     } else if (spapr->irq == &spapr_irq_xive) {
         return g_strdup("xive");
+    } else if (spapr->irq == &spapr_irq_dual) {
+        return g_strdup("dual");
     }
     g_assert_not_reached();
 }
@@ -3129,6 +3131,8 @@ static void spapr_set_ic_mode(Object *obj, const char *value, Error **errp)
         spapr->irq = &spapr_irq_xics;
     } else if (strcmp(value, "xive") == 0) {
         spapr->irq = &spapr_irq_xive;
+    } else if (strcmp(value, "dual") == 0) {
+        spapr->irq = &spapr_irq_dual;
     } else {
         error_setg(errp, "Bad value for \"ic-mode\" property");
     }
@@ -3177,7 +3181,7 @@ static void spapr_instance_init(Object *obj)
     object_property_add_str(obj, "ic-mode", spapr_get_ic_mode,
                             spapr_set_ic_mode, NULL);
     object_property_set_description(obj, "ic-mode",
-                 "Specifies the interrupt controller mode (xics, xive)",
+                 "Specifies the interrupt controller mode (xics, xive, dual)",
                  NULL);
 }
 

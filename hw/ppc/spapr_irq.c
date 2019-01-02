@@ -230,6 +230,11 @@ static void spapr_irq_set_irq_xics(void *opaque, int srcno, int val)
     }
 }
 
+static void spapr_irq_reset_xics(sPAPRMachineState *spapr, Error **errp)
+{
+    /* TODO: create the KVM XICS device */
+}
+
 #define SPAPR_IRQ_XICS_NR_IRQS     0x1000
 #define SPAPR_IRQ_XICS_NR_MSIS     \
     (XICS_IRQ_BASE + SPAPR_IRQ_XICS_NR_IRQS - SPAPR_IRQ_MSI)
@@ -247,6 +252,7 @@ sPAPRIrq spapr_irq_xics = {
     .dt_populate = spapr_dt_xics,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
     .post_load   = spapr_irq_post_load_xics,
+    .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
 };
 
@@ -401,6 +407,179 @@ sPAPRIrq spapr_irq_xive = {
     .post_load   = spapr_irq_post_load_xive,
     .reset       = spapr_irq_reset_xive,
     .set_irq     = spapr_irq_set_irq_xive,
+};
+
+/*
+ * Dual XIVE and XICS IRQ backend.
+ *
+ * Both interrupt mode, XIVE and XICS, objects are created but the
+ * machine starts in legacy interrupt mode (XICS). It can be changed
+ * by the CAS negotiation process and, in that case, the new mode is
+ * activated after an extra machine reset.
+ */
+
+/*
+ * Returns the sPAPR IRQ backend negotiated by CAS. XICS is the
+ * default.
+ */
+static sPAPRIrq *spapr_irq_current(sPAPRMachineState *spapr)
+{
+    return spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT) ?
+        &spapr_irq_xive : &spapr_irq_xics;
+}
+
+static void spapr_irq_init_dual(sPAPRMachineState *spapr, Error **errp)
+{
+    MachineState *machine = MACHINE(spapr);
+    Error *local_err = NULL;
+
+    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+        error_setg(errp, "No KVM support for the 'dual' machine");
+        return;
+    }
+
+    spapr_irq_xics.init(spapr, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /*
+     * Align the XICS and the XIVE IRQ number space under QEMU.
+     *
+     * However, the XICS KVM device still considers that the IRQ
+     * numbers should start at XICS_IRQ_BASE (0x1000). Either we
+     * should introduce a KVM device ioctl to set the offset or ignore
+     * the lower 4K numbers when using the get/set ioctl of the XICS
+     * KVM device. The second option seems the least intrusive.
+     */
+    spapr->ics->offset = 0;
+
+    spapr_irq_xive.init(spapr, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+}
+
+static int spapr_irq_claim_dual(sPAPRMachineState *spapr, int irq, bool lsi,
+                                Error **errp)
+{
+    Error *local_err = NULL;
+    int ret;
+
+    ret = spapr_irq_xics.claim(spapr, irq, lsi, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return ret;
+    }
+
+    ret = spapr_irq_xive.claim(spapr, irq, lsi, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return ret;
+    }
+
+    return ret;
+}
+
+static void spapr_irq_free_dual(sPAPRMachineState *spapr, int irq, int num)
+{
+    spapr_irq_xics.free(spapr, irq, num);
+    spapr_irq_xive.free(spapr, irq, num);
+}
+
+static qemu_irq spapr_qirq_dual(sPAPRMachineState *spapr, int irq)
+{
+    sPAPRXive *xive = spapr->xive;
+    ICSState *ics = spapr->ics;
+
+    if (irq >= spapr->irq->nr_irqs) {
+        return NULL;
+    }
+
+    /*
+     * The IRQ number should have been claimed under both interrupt
+     * controllers.
+     */
+    assert(!ICS_IRQ_FREE(ics, irq - ics->offset));
+    assert(xive_eas_is_valid(&xive->eat[irq]));
+
+    return spapr->qirqs[irq];
+}
+
+static void spapr_irq_print_info_dual(sPAPRMachineState *spapr, Monitor *mon)
+{
+    spapr_irq_current(spapr)->print_info(spapr, mon);
+}
+
+static void spapr_irq_dt_populate_dual(sPAPRMachineState *spapr,
+                                       uint32_t nr_servers, void *fdt,
+                                       uint32_t phandle)
+{
+    spapr_irq_current(spapr)->dt_populate(spapr, nr_servers, fdt, phandle);
+}
+
+static void spapr_irq_cpu_intc_create_dual(sPAPRMachineState *spapr,
+                                           PowerPCCPU *cpu, Error **errp)
+{
+    Error *local_err = NULL;
+
+    spapr_irq_xive.cpu_intc_create(spapr, cpu, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    spapr_irq_xics.cpu_intc_create(spapr, cpu, errp);
+}
+
+static int spapr_irq_post_load_dual(sPAPRMachineState *spapr, int version_id)
+{
+    /*
+     * Force a reset of the XIVE backend after migration. The machine
+     * defaults to XICS at startup.
+     */
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        spapr_irq_xive.reset(spapr, &error_fatal);
+    }
+
+    return spapr_irq_current(spapr)->post_load(spapr, version_id);
+}
+
+static void spapr_irq_reset_dual(sPAPRMachineState *spapr, Error **errp)
+{
+    spapr_irq_current(spapr)->reset(spapr, errp);
+}
+
+static void spapr_irq_set_irq_dual(void *opaque, int srcno, int val)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    spapr_irq_current(spapr)->set_irq(spapr, srcno, val);
+}
+
+/*
+ * Define values in sync with the XIVE and XICS backend
+ */
+#define SPAPR_IRQ_DUAL_NR_IRQS     0x2000
+#define SPAPR_IRQ_DUAL_NR_MSIS     (SPAPR_IRQ_DUAL_NR_IRQS - SPAPR_IRQ_MSI)
+
+sPAPRIrq spapr_irq_dual = {
+    .nr_irqs     = SPAPR_IRQ_DUAL_NR_IRQS,
+    .nr_msis     = SPAPR_IRQ_DUAL_NR_MSIS,
+    .ov5         = SPAPR_OV5_XIVE_BOTH,
+
+    .init        = spapr_irq_init_dual,
+    .claim       = spapr_irq_claim_dual,
+    .free        = spapr_irq_free_dual,
+    .qirq        = spapr_qirq_dual,
+    .print_info  = spapr_irq_print_info_dual,
+    .dt_populate = spapr_irq_dt_populate_dual,
+    .cpu_intc_create = spapr_irq_cpu_intc_create_dual,
+    .post_load   = spapr_irq_post_load_dual,
+    .reset       = spapr_irq_reset_dual,
+    .set_irq     = spapr_irq_set_irq_dual
 };
 
 /*
