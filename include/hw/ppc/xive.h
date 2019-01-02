@@ -293,6 +293,8 @@ static inline void xive_source_irq_set(XiveSource *xsrc, uint32_t srcno,
     }
 }
 
+void xive_source_set_irq(void *opaque, int srcno, int val);
+
 /*
  * XIVE Router
  */

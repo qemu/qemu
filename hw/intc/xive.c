@@ -845,7 +845,7 @@ static const MemoryRegionOps xive_source_esb_ops = {
     },
 };
 
-static void xive_source_set_irq(void *opaque, int srcno, int val)
+void xive_source_set_irq(void *opaque, int srcno, int val)
 {
     XiveSource *xsrc = XIVE_SOURCE(opaque);
     bool notify = false;

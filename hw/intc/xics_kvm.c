@@ -298,7 +298,7 @@ static int ics_set_kvm_state(ICSState *ics, int version_id)
     return 0;
 }
 
-static void ics_kvm_set_irq(void *opaque, int srcno, int val)
+void ics_kvm_set_irq(void *opaque, int srcno, int val)
 {
     ICSState *ics = opaque;
     struct kvm_irq_level args;

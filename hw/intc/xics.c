@@ -461,7 +461,7 @@ static void ics_simple_set_irq_lsi(ICSState *ics, int srcno, int val)
     ics_simple_resend_lsi(ics, srcno);
 }
 
-static void ics_simple_set_irq(void *opaque, int srcno, int val)
+void ics_simple_set_irq(void *opaque, int srcno, int val)
 {
     ICSState *ics = (ICSState *)opaque;
 
