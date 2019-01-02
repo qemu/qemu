@@ -6699,6 +6699,16 @@ static inline void gen_##name(DisasContext *ctx)               \
 GEN_TM_PRIV_NOOP(treclaim);
 GEN_TM_PRIV_NOOP(trechkpt);
 
+static inline void get_fpr(TCGv_i64 dst, int regno)
+{
+    tcg_gen_mov_i64(dst, cpu_fpr[regno]);
+}
+
+static inline void set_fpr(int regno, TCGv_i64 src)
+{
+    tcg_gen_mov_i64(cpu_fpr[regno], src);
+}
+
 #include "translate/fp-impl.inc.c"
 
 #include "translate/vmx-impl.inc.c"
