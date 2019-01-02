@@ -176,6 +176,11 @@ static void utf8_string(void)
             "\xCE\xBA\xE1\xBD\xB9\xCF\x83\xCE\xBC\xCE\xB5",
             "\\u03BA\\u1F79\\u03C3\\u03BC\\u03B5",
         },
+            /* '%' character when not interpolating */
+        {
+            "100%",
+            "100%",
+        },
         /* 2  Boundary condition test cases */
         /* 2.1  First possible sequence of a certain length */
         /*
