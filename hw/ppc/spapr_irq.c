@@ -375,6 +375,9 @@ static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
         /* (TCG) Set the OS CAM line of the thread interrupt context. */
         spapr_xive_set_tctx_os_cam(cpu->tctx);
     }
+
+    /* Activate the XIVE MMIOs */
+    spapr_xive_mmio_set_enabled(spapr->xive, true);
 }
 
 static void spapr_irq_set_irq_xive(void *opaque, int srcno, int val)
@@ -549,6 +552,12 @@ static int spapr_irq_post_load_dual(sPAPRMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_dual(sPAPRMachineState *spapr, Error **errp)
 {
+    /*
+     * Deactivate the XIVE MMIOs. The XIVE backend will reenable them
+     * if selected.
+     */
+    spapr_xive_mmio_set_enabled(spapr->xive, false);
+
     spapr_irq_current(spapr)->reset(spapr, errp);
 }
 
