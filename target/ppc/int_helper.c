@@ -391,13 +391,9 @@ target_ulong helper_602_mfrom(target_ulong arg)
 #if defined(HOST_WORDS_BIGENDIAN)
 #define HI_IDX 0
 #define LO_IDX 1
-#define AVRB(i) u8[i]
-#define AVRW(i) u32[i]
 #else
 #define HI_IDX 1
 #define LO_IDX 0
-#define AVRB(i) u8[15-(i)]
-#define AVRW(i) u32[3-(i)]
 #endif
 
 #if defined(HOST_WORDS_BIGENDIAN)
@@ -3277,11 +3273,11 @@ void helper_vcipher(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     int i;
 
     VECTOR_FOR_INORDER_I(i, u32) {
-        result.AVRW(i) = b->AVRW(i) ^
-            (AES_Te0[a->AVRB(AES_shifts[4*i + 0])] ^
-             AES_Te1[a->AVRB(AES_shifts[4*i + 1])] ^
-             AES_Te2[a->AVRB(AES_shifts[4*i + 2])] ^
-             AES_Te3[a->AVRB(AES_shifts[4*i + 3])]);
+        result.VsrW(i) = b->VsrW(i) ^
+            (AES_Te0[a->VsrB(AES_shifts[4 * i + 0])] ^
+             AES_Te1[a->VsrB(AES_shifts[4 * i + 1])] ^
+             AES_Te2[a->VsrB(AES_shifts[4 * i + 2])] ^
+             AES_Te3[a->VsrB(AES_shifts[4 * i + 3])]);
     }
     *r = result;
 }
@@ -3292,7 +3288,7 @@ void helper_vcipherlast(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     int i;
 
     VECTOR_FOR_INORDER_I(i, u8) {
-        result.AVRB(i) = b->AVRB(i) ^ (AES_sbox[a->AVRB(AES_shifts[i])]);
+        result.VsrB(i) = b->VsrB(i) ^ (AES_sbox[a->VsrB(AES_shifts[i])]);
     }
     *r = result;
 }
@@ -3305,15 +3301,15 @@ void helper_vncipher(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     ppc_avr_t tmp;
 
     VECTOR_FOR_INORDER_I(i, u8) {
-        tmp.AVRB(i) = b->AVRB(i) ^ AES_isbox[a->AVRB(AES_ishifts[i])];
+        tmp.VsrB(i) = b->VsrB(i) ^ AES_isbox[a->VsrB(AES_ishifts[i])];
     }
 
     VECTOR_FOR_INORDER_I(i, u32) {
-        r->AVRW(i) =
-            AES_imc[tmp.AVRB(4*i + 0)][0] ^
-            AES_imc[tmp.AVRB(4*i + 1)][1] ^
-            AES_imc[tmp.AVRB(4*i + 2)][2] ^
-            AES_imc[tmp.AVRB(4*i + 3)][3];
+        r->VsrW(i) =
+            AES_imc[tmp.VsrB(4 * i + 0)][0] ^
+            AES_imc[tmp.VsrB(4 * i + 1)][1] ^
+            AES_imc[tmp.VsrB(4 * i + 2)][2] ^
+            AES_imc[tmp.VsrB(4 * i + 3)][3];
     }
 }
 
@@ -3323,7 +3319,7 @@ void helper_vncipherlast(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     int i;
 
     VECTOR_FOR_INORDER_I(i, u8) {
-        result.AVRB(i) = b->AVRB(i) ^ (AES_isbox[a->AVRB(AES_ishifts[i])]);
+        result.VsrB(i) = b->VsrB(i) ^ (AES_isbox[a->VsrB(AES_ishifts[i])]);
     }
     *r = result;
 }
