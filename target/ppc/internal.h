@@ -124,7 +124,7 @@ EXTRACT_SHELPER(SIMM, 0, 16);
 /* 16 bits unsigned immediate value */
 EXTRACT_HELPER(UIMM, 0, 16);
 /* 5 bits signed immediate value */
-EXTRACT_HELPER(SIMM5, 16, 5);
+EXTRACT_SHELPER(SIMM5, 16, 5);
 /* 5 bits signed immediate value */
 EXTRACT_HELPER(UIMM5, 16, 5);
 /* 4 bits unsigned immediate value */
