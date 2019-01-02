@@ -184,7 +184,7 @@ static void spapr_irq_print_info_xics(sPAPRMachineState *spapr, Monitor *mon)
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        icp_pic_print_info(ICP(cpu->intc), mon);
+        icp_pic_print_info(cpu->icp, mon);
     }
 
     ics_pic_print_info(spapr->ics, mon);
@@ -203,7 +203,7 @@ static void spapr_irq_cpu_intc_create_xics(sPAPRMachineState *spapr,
         return;
     }
 
-    cpu->intc = obj;
+    cpu->icp = ICP(obj);
 }
 
 static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
@@ -212,7 +212,7 @@ static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
         CPUState *cs;
         CPU_FOREACH(cs) {
             PowerPCCPU *cpu = POWERPC_CPU(cs);
-            icp_resend(ICP(cpu->intc));
+            icp_resend(cpu->icp);
         }
     }
     return 0;

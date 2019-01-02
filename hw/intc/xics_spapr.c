@@ -44,7 +44,7 @@ static target_ulong h_cppr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 {
     target_ulong cppr = args[0];
 
-    icp_set_cppr(ICP(cpu->intc), cppr);
+    icp_set_cppr(cpu->icp, cppr);
     return H_SUCCESS;
 }
 
@@ -65,7 +65,7 @@ static target_ulong h_ipi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_xirr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
-    uint32_t xirr = icp_accept(ICP(cpu->intc));
+    uint32_t xirr = icp_accept(cpu->icp);
 
     args[0] = xirr;
     return H_SUCCESS;
@@ -74,7 +74,7 @@ static target_ulong h_xirr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_xirr_x(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                              target_ulong opcode, target_ulong *args)
 {
-    uint32_t xirr = icp_accept(ICP(cpu->intc));
+    uint32_t xirr = icp_accept(cpu->icp);
 
     args[0] = xirr;
     args[1] = cpu_get_host_ticks();
@@ -86,7 +86,7 @@ static target_ulong h_eoi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 {
     target_ulong xirr = args[0];
 
-    icp_eoi(ICP(cpu->intc), xirr);
+    icp_eoi(cpu->icp, xirr);
     return H_SUCCESS;
 }
 
@@ -94,7 +94,7 @@ static target_ulong h_ipoll(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                             target_ulong opcode, target_ulong *args)
 {
     uint32_t mfrr;
-    uint32_t xirr = icp_ipoll(ICP(cpu->intc), &mfrr);
+    uint32_t xirr = icp_ipoll(cpu->icp, &mfrr);
 
     args[0] = xirr;
     args[1] = mfrr;
