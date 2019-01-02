@@ -258,8 +258,8 @@ static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)
     /* Save Altivec registers if necessary.  */
     if (env->insns_flags & PPC_ALTIVEC) {
         uint32_t *vrsave;
-        for (i = 0; i < ARRAY_SIZE(env->avr); i++) {
-            ppc_avr_t *avr = &env->avr[i];
+        for (i = 0; i < 32; i++) {
+            ppc_avr_t *avr = cpu_avr_ptr(env, i);
             ppc_avr_t *vreg = (ppc_avr_t *)&frame->mc_vregs.altivec[i];
 
             __put_user(avr->u64[PPC_VEC_HI], &vreg->u64[0]);
@@ -281,15 +281,17 @@ static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)
     /* Save VSX second halves */
     if (env->insns_flags2 & PPC2_VSX) {
         uint64_t *vsregs = (uint64_t *)&frame->mc_vregs.altivec[34];
-        for (i = 0; i < ARRAY_SIZE(env->vsr); i++) {
-            __put_user(env->vsr[i], &vsregs[i]);
+        for (i = 0; i < 32; i++) {
+            uint64_t *vsrl = cpu_vsrl_ptr(env, i);
+            __put_user(*vsrl, &vsregs[i]);
         }
     }
 
     /* Save floating point registers.  */
     if (env->insns_flags & PPC_FLOAT) {
-        for (i = 0; i < ARRAY_SIZE(env->fpr); i++) {
-            __put_user(env->fpr[i], &frame->mc_fregs[i]);
+        for (i = 0; i < 32; i++) {
+            uint64_t *fpr = cpu_fpr_ptr(env, i);
+            __put_user(*fpr, &frame->mc_fregs[i]);
         }
         __put_user((uint64_t) env->fpscr, &frame->mc_fregs[32]);
     }
@@ -373,8 +375,8 @@ static void restore_user_regs(CPUPPCState *env,
 #else
         v_regs = (ppc_avr_t *)frame->mc_vregs.altivec;
 #endif
-        for (i = 0; i < ARRAY_SIZE(env->avr); i++) {
-            ppc_avr_t *avr = &env->avr[i];
+        for (i = 0; i < 32; i++) {
+            ppc_avr_t *avr = cpu_avr_ptr(env, i);
             ppc_avr_t *vreg = &v_regs[i];
 
             __get_user(avr->u64[PPC_VEC_HI], &vreg->u64[0]);
@@ -393,16 +395,18 @@ static void restore_user_regs(CPUPPCState *env,
     /* Restore VSX second halves */
     if (env->insns_flags2 & PPC2_VSX) {
         uint64_t *vsregs = (uint64_t *)&frame->mc_vregs.altivec[34];
-        for (i = 0; i < ARRAY_SIZE(env->vsr); i++) {
-            __get_user(env->vsr[i], &vsregs[i]);
+        for (i = 0; i < 32; i++) {
+            uint64_t *vsrl = cpu_vsrl_ptr(env, i);
+            __get_user(*vsrl, &vsregs[i]);
         }
     }
 
     /* Restore floating point registers.  */
     if (env->insns_flags & PPC_FLOAT) {
         uint64_t fpscr;
-        for (i = 0; i < ARRAY_SIZE(env->fpr); i++) {
-            __get_user(env->fpr[i], &frame->mc_fregs[i]);
+        for (i = 0; i < 32; i++) {
+            uint64_t *fpr = cpu_fpr_ptr(env, i);
+            __get_user(*fpr, &frame->mc_fregs[i]);
         }
         __get_user(fpscr, &frame->mc_fregs[32]);
         env->fpscr = (uint32_t) fpscr;

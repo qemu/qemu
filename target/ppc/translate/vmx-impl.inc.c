@@ -10,8 +10,13 @@
 static inline TCGv_ptr gen_avr_ptr(int reg)
 {
     TCGv_ptr r = tcg_temp_new_ptr();
-    tcg_gen_addi_ptr(r, cpu_env, offsetof(CPUPPCState, avr[reg]));
+    tcg_gen_addi_ptr(r, cpu_env, offsetof(CPUPPCState, vsr[32 + reg].u64[0]));
     return r;
+}
+
+static inline long avr64_offset(int reg, bool high)
+{
+    return offsetof(CPUPPCState, vsr[32 + reg].u64[(high ? 0 : 1)]);
 }
 
 #define GEN_VR_LDX(name, opc2, opc3)                                          \

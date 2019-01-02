@@ -45,7 +45,7 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
             uint64_t l;
         } u;
         u.l = qemu_get_be64(f);
-        env->fpr[i] = u.d;
+        *cpu_fpr_ptr(env, i) = u.d;
     }
     qemu_get_be32s(f, &fpscr);
     env->fpscr = fpscr;
@@ -138,10 +138,72 @@ static const VMStateInfo vmstate_info_avr = {
 };
 
 #define VMSTATE_AVR_ARRAY_V(_f, _s, _n, _v)                       \
-    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_avr, ppc_avr_t)
+    VMSTATE_SUB_ARRAY(_f, _s, 32, _n, _v, vmstate_info_avr, ppc_avr_t)
 
 #define VMSTATE_AVR_ARRAY(_f, _s, _n)                             \
     VMSTATE_AVR_ARRAY_V(_f, _s, _n, 0)
+
+static int get_fpr(QEMUFile *f, void *pv, size_t size,
+                   const VMStateField *field)
+{
+    ppc_vsr_t *v = pv;
+
+    v->u64[0] = qemu_get_be64(f);
+
+    return 0;
+}
+
+static int put_fpr(QEMUFile *f, void *pv, size_t size,
+                   const VMStateField *field, QJSON *vmdesc)
+{
+    ppc_vsr_t *v = pv;
+
+    qemu_put_be64(f, v->u64[0]);
+    return 0;
+}
+
+static const VMStateInfo vmstate_info_fpr = {
+    .name = "fpr",
+    .get  = get_fpr,
+    .put  = put_fpr,
+};
+
+#define VMSTATE_FPR_ARRAY_V(_f, _s, _n, _v)                       \
+    VMSTATE_SUB_ARRAY(_f, _s, 0, _n, _v, vmstate_info_fpr, ppc_vsr_t)
+
+#define VMSTATE_FPR_ARRAY(_f, _s, _n)                             \
+    VMSTATE_FPR_ARRAY_V(_f, _s, _n, 0)
+
+static int get_vsr(QEMUFile *f, void *pv, size_t size,
+                   const VMStateField *field)
+{
+    ppc_vsr_t *v = pv;
+
+    v->u64[1] = qemu_get_be64(f);
+
+    return 0;
+}
+
+static int put_vsr(QEMUFile *f, void *pv, size_t size,
+                   const VMStateField *field, QJSON *vmdesc)
+{
+    ppc_vsr_t *v = pv;
+
+    qemu_put_be64(f, v->u64[1]);
+    return 0;
+}
+
+static const VMStateInfo vmstate_info_vsr = {
+    .name = "vsr",
+    .get  = get_vsr,
+    .put  = put_vsr,
+};
+
+#define VMSTATE_VSR_ARRAY_V(_f, _s, _n, _v)                       \
+    VMSTATE_SUB_ARRAY(_f, _s, 0, _n, _v, vmstate_info_vsr, ppc_vsr_t)
+
+#define VMSTATE_VSR_ARRAY(_f, _s, _n)                             \
+    VMSTATE_VSR_ARRAY_V(_f, _s, _n, 0)
 
 static bool cpu_pre_2_8_migration(void *opaque, int version_id)
 {
@@ -354,7 +416,7 @@ static const VMStateDescription vmstate_fpu = {
     .minimum_version_id = 1,
     .needed = fpu_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_FLOAT64_ARRAY(env.fpr, PowerPCCPU, 32),
+        VMSTATE_FPR_ARRAY(env.vsr, PowerPCCPU, 32),
         VMSTATE_UINTTL(env.fpscr, PowerPCCPU),
         VMSTATE_END_OF_LIST()
     },
@@ -373,7 +435,7 @@ static const VMStateDescription vmstate_altivec = {
     .minimum_version_id = 1,
     .needed = altivec_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_AVR_ARRAY(env.avr, PowerPCCPU, 32),
+        VMSTATE_AVR_ARRAY(env.vsr, PowerPCCPU, 32),
         VMSTATE_UINT32(env.vscr, PowerPCCPU),
         VMSTATE_END_OF_LIST()
     },
@@ -392,7 +454,7 @@ static const VMStateDescription vmstate_vsx = {
     .minimum_version_id = 1,
     .needed = vsx_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64_ARRAY(env.vsr, PowerPCCPU, 32),
+        VMSTATE_VSR_ARRAY(env.vsr, PowerPCCPU, 32),
         VMSTATE_END_OF_LIST()
     },
 };

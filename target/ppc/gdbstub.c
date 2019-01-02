@@ -126,7 +126,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
         gdb_get_regl(mem_buf, env->gpr[n]);
     } else if (n < 64) {
         /* fprs */
-        stfq_p(mem_buf, env->fpr[n-32]);
+        stfq_p(mem_buf, *cpu_fpr_ptr(env, n - 32));
     } else {
         switch (n) {
         case 64:
@@ -178,7 +178,7 @@ int ppc_cpu_gdb_read_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
         gdb_get_reg64(mem_buf, env->gpr[n]);
     } else if (n < 64) {
         /* fprs */
-        stfq_p(mem_buf, env->fpr[n-32]);
+        stfq_p(mem_buf, *cpu_fpr_ptr(env, n - 32));
     } else if (n < 96) {
         /* Altivec */
         stq_p(mem_buf, n - 64);
@@ -234,7 +234,7 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->gpr[n] = ldtul_p(mem_buf);
     } else if (n < 64) {
         /* fprs */
-        env->fpr[n-32] = ldfq_p(mem_buf);
+        *cpu_fpr_ptr(env, n - 32) = ldfq_p(mem_buf);
     } else {
         switch (n) {
         case 64:
@@ -284,7 +284,7 @@ int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
         env->gpr[n] = ldq_p(mem_buf);
     } else if (n < 64) {
         /* fprs */
-        env->fpr[n-32] = ldfq_p(mem_buf);
+        *cpu_fpr_ptr(env, n - 32) = ldfq_p(mem_buf);
     } else {
         switch (n) {
         case 64 + 32:

@@ -6662,22 +6662,22 @@ GEN_TM_PRIV_NOOP(trechkpt);
 
 static inline void get_fpr(TCGv_i64 dst, int regno)
 {
-    tcg_gen_ld_i64(dst, cpu_env, offsetof(CPUPPCState, fpr[regno]));
+    tcg_gen_ld_i64(dst, cpu_env, offsetof(CPUPPCState, vsr[regno].u64[0]));
 }
 
 static inline void set_fpr(int regno, TCGv_i64 src)
 {
-    tcg_gen_st_i64(src, cpu_env, offsetof(CPUPPCState, fpr[regno]));
+    tcg_gen_st_i64(src, cpu_env, offsetof(CPUPPCState, vsr[regno].u64[0]));
 }
 
 static inline void get_avr64(TCGv_i64 dst, int regno, bool high)
 {
 #ifdef HOST_WORDS_BIGENDIAN
     tcg_gen_ld_i64(dst, cpu_env, offsetof(CPUPPCState,
-                                          avr[regno].u64[(high ? 0 : 1)]));
+                                          vsr[32 + regno].u64[(high ? 0 : 1)]));
 #else
     tcg_gen_ld_i64(dst, cpu_env, offsetof(CPUPPCState,
-                                          avr[regno].u64[(high ? 1 : 0)]));
+                                          vsr[32 + regno].u64[(high ? 1 : 0)]));
 #endif
 }
 
@@ -6685,10 +6685,10 @@ static inline void set_avr64(int regno, TCGv_i64 src, bool high)
 {
 #ifdef HOST_WORDS_BIGENDIAN
     tcg_gen_st_i64(src, cpu_env, offsetof(CPUPPCState,
-                                          avr[regno].u64[(high ? 0 : 1)]));
+                                          vsr[32 + regno].u64[(high ? 0 : 1)]));
 #else
     tcg_gen_st_i64(src, cpu_env, offsetof(CPUPPCState,
-                                          avr[regno].u64[(high ? 1 : 0)]));
+                                          vsr[32 + regno].u64[(high ? 1 : 0)]));
 #endif
 }
 
@@ -7440,7 +7440,7 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
             if ((i & (RFPL - 1)) == 0) {
                 cpu_fprintf(f, "FPR%02d", i);
             }
-            cpu_fprintf(f, " %016" PRIx64, *((uint64_t *)&env->fpr[i]));
+            cpu_fprintf(f, " %016" PRIx64, *cpu_fpr_ptr(env, i));
             if ((i & (RFPL - 1)) == (RFPL - 1)) {
                 cpu_fprintf(f, "\n");
             }
