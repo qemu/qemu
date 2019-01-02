@@ -2,12 +2,12 @@
 
 static inline void get_vsr(TCGv_i64 dst, int n)
 {
-    tcg_gen_mov_i64(dst, cpu_vsr[n]);
+    tcg_gen_ld_i64(dst, cpu_env, offsetof(CPUPPCState, vsr[n]));
 }
 
 static inline void set_vsr(int n, TCGv_i64 src)
 {
-    tcg_gen_mov_i64(cpu_vsr[n], src);
+    tcg_gen_st_i64(src, cpu_env, offsetof(CPUPPCState, vsr[n]));
 }
 
 static inline void get_cpu_vsrh(TCGv_i64 dst, int n)
