@@ -184,7 +184,6 @@ typedef struct XiveSource {
 
     /* IRQs */
     uint32_t        nr_irqs;
-    qemu_irq        *qirqs;
     unsigned long   *lsi_map;
 
     /* PQ bits and LSI assertion bit */

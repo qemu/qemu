@@ -571,8 +571,6 @@ static void ics_simple_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    ics->qirqs = qemu_allocate_irqs(ics_simple_set_irq, ics, ics->nr_irqs);
-
     qemu_register_reset(ics_simple_reset_handler, ics);
 }
 

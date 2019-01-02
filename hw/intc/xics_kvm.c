@@ -344,7 +344,6 @@ static void ics_kvm_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    ics->qirqs = qemu_allocate_irqs(ics_kvm_set_irq, ics, ics->nr_irqs);
 
     qemu_register_reset(ics_kvm_reset_handler, ics);
 }

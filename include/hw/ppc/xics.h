@@ -131,7 +131,6 @@ struct ICSState {
     /*< public >*/
     uint32_t nr_irqs;
     uint32_t offset;
-    qemu_irq *qirqs;
     ICSIRQState *irqs;
     XICSFabric *xics;
 };

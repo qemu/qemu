@@ -932,9 +932,6 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
                           &xive_source_esb_ops, xsrc, "xive.esb",
                           (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
 
-    xsrc->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc,
-                                     xsrc->nr_irqs);
-
     qemu_register_reset(xive_source_reset, dev);
 }
 

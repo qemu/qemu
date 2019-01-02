@@ -182,6 +182,7 @@ struct sPAPRMachineState {
     unsigned long *irq_map;
     sPAPRXive  *xive;
     sPAPRIrq *irq;
+    qemu_irq *qirqs;
 
     bool cmd_line_caps[SPAPR_CAP_NUM];
     sPAPRCapabilities def, eff, mig;

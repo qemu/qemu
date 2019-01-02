@@ -171,7 +171,7 @@ static qemu_irq spapr_qirq_xics(sPAPRMachineState *spapr, int irq)
     uint32_t srcno = irq - ics->offset;
 
     if (ics_valid_irq(ics, irq)) {
-        return ics->qirqs[srcno];
+        return spapr->qirqs[srcno];
     }
 
     return NULL;
@@ -218,6 +218,18 @@ static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
     return 0;
 }
 
+static void spapr_irq_set_irq_xics(void *opaque, int srcno, int val)
+{
+    sPAPRMachineState *spapr = opaque;
+    MachineState *machine = MACHINE(opaque);
+
+    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+        ics_kvm_set_irq(spapr->ics, srcno, val);
+    } else {
+        ics_simple_set_irq(spapr->ics, srcno, val);
+    }
+}
+
 #define SPAPR_IRQ_XICS_NR_IRQS     0x1000
 #define SPAPR_IRQ_XICS_NR_MSIS     \
     (XICS_IRQ_BASE + SPAPR_IRQ_XICS_NR_IRQS - SPAPR_IRQ_MSI)
@@ -235,6 +247,7 @@ sPAPRIrq spapr_irq_xics = {
     .dt_populate = spapr_dt_xics,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
     .post_load   = spapr_irq_post_load_xics,
+    .set_irq     = spapr_irq_set_irq_xics,
 };
 
 /*
@@ -295,7 +308,6 @@ static void spapr_irq_free_xive(sPAPRMachineState *spapr, int irq, int num)
 static qemu_irq spapr_qirq_xive(sPAPRMachineState *spapr, int irq)
 {
     sPAPRXive *xive = spapr->xive;
-    XiveSource *xsrc = &xive->source;
 
     if (irq >= xive->nr_irqs) {
         return NULL;
@@ -304,7 +316,7 @@ static qemu_irq spapr_qirq_xive(sPAPRMachineState *spapr, int irq)
     /* The sPAPR machine/device should have claimed the IRQ before */
     assert(xive_eas_is_valid(&xive->eat[irq]));
 
-    return xsrc->qirqs[irq];
+    return spapr->qirqs[irq];
 }
 
 static void spapr_irq_print_info_xive(sPAPRMachineState *spapr,
@@ -359,6 +371,13 @@ static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
     }
 }
 
+static void spapr_irq_set_irq_xive(void *opaque, int srcno, int val)
+{
+    sPAPRMachineState *spapr = opaque;
+
+    xive_source_set_irq(&spapr->xive->source, srcno, val);
+}
+
 /*
  * XIVE uses the full IRQ number space. Set it to 8K to be compatible
  * with XICS.
@@ -381,6 +400,7 @@ sPAPRIrq spapr_irq_xive = {
     .cpu_intc_create = spapr_irq_cpu_intc_create_xive,
     .post_load   = spapr_irq_post_load_xive,
     .reset       = spapr_irq_reset_xive,
+    .set_irq     = spapr_irq_set_irq_xive,
 };
 
 /*
@@ -394,6 +414,9 @@ void spapr_irq_init(sPAPRMachineState *spapr, Error **errp)
     }
 
     spapr->irq->init(spapr, errp);
+
+    spapr->qirqs = qemu_allocate_irqs(spapr->irq->set_irq, spapr,
+                                      spapr->irq->nr_irqs);
 }
 
 int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp)
@@ -493,4 +516,5 @@ sPAPRIrq spapr_irq_xics_legacy = {
     .dt_populate = spapr_dt_xics,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
     .post_load   = spapr_irq_post_load_xics,
+    .set_irq     = spapr_irq_set_irq_xics,
 };
