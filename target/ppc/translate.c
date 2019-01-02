@@ -6709,6 +6709,16 @@ static inline void set_fpr(int regno, TCGv_i64 src)
     tcg_gen_mov_i64(cpu_fpr[regno], src);
 }
 
+static inline void get_avr64(TCGv_i64 dst, int regno, bool high)
+{
+    tcg_gen_mov_i64(dst, (high ? cpu_avrh : cpu_avrl)[regno]);
+}
+
+static inline void set_avr64(int regno, TCGv_i64 src, bool high)
+{
+    tcg_gen_mov_i64((high ? cpu_avrh : cpu_avrl)[regno], src);
+}
+
 #include "translate/fp-impl.inc.c"
 
 #include "translate/vmx-impl.inc.c"
