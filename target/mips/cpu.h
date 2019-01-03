@@ -233,6 +233,38 @@ typedef struct mips_def_t mips_def_t;
  * 7   TagLo             TagHi                               KScratch<n>
  *
  */
+#define CPO_REGISTER_00     0
+#define CPO_REGISTER_01     1
+#define CPO_REGISTER_02     2
+#define CPO_REGISTER_03     3
+#define CPO_REGISTER_04     4
+#define CPO_REGISTER_05     5
+#define CPO_REGISTER_06     6
+#define CPO_REGISTER_07     7
+#define CPO_REGISTER_08     8
+#define CPO_REGISTER_09     9
+#define CPO_REGISTER_10    10
+#define CPO_REGISTER_11    11
+#define CPO_REGISTER_12    12
+#define CPO_REGISTER_13    13
+#define CPO_REGISTER_14    14
+#define CPO_REGISTER_15    15
+#define CPO_REGISTER_16    16
+#define CPO_REGISTER_17    17
+#define CPO_REGISTER_18    18
+#define CPO_REGISTER_19    19
+#define CPO_REGISTER_20    20
+#define CPO_REGISTER_21    21
+#define CPO_REGISTER_22    22
+#define CPO_REGISTER_23    23
+#define CPO_REGISTER_24    24
+#define CPO_REGISTER_25    25
+#define CPO_REGISTER_26    26
+#define CPO_REGISTER_27    27
+#define CPO_REGISTER_28    28
+#define CPO_REGISTER_29    29
+#define CPO_REGISTER_30    30
+#define CPO_REGISTER_31    31
 
 
 typedef struct TCState TCState;
