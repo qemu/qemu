@@ -7490,7 +7490,7 @@ alpha)
 esac
 
 if test "$gprof" = "yes" ; then
-  echo "TARGET_GPROF=yes" >> $config_target_mak
+  echo "TARGET_GPROF=y" >> $config_target_mak
   if test "$target_linux_user" = "yes" ; then
     cflags="-p $cflags"
     ldflags="-p $ldflags"
