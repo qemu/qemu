@@ -55,8 +55,16 @@ typedef enum ITCView {
     ITCVIEW_EF_SYNC = 2,
     ITCVIEW_EF_TRY  = 3,
     ITCVIEW_PV_SYNC = 4,
-    ITCVIEW_PV_TRY  = 5
+    ITCVIEW_PV_TRY  = 5,
+    ITCVIEW_PV_ICR0 = 15,
 } ITCView;
+
+#define ITC_ICR0_CELL_NUM        16
+#define ITC_ICR0_BLK_GRAIN       8
+#define ITC_ICR0_BLK_GRAIN_MASK  0x7
+#define ITC_ICR0_ERR_AXI         2
+#define ITC_ICR0_ERR_PARITY      1
+#define ITC_ICR0_ERR_EXEC        0
 
 MemoryRegion *mips_itu_get_tag_region(MIPSITUState *itu)
 {
@@ -382,6 +390,9 @@ static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
     case ITCVIEW_PV_TRY:
         ret = view_pv_try_read(cell);
         break;
+    case ITCVIEW_PV_ICR0:
+        ret = s->icr0;
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "itc_storage_read: Bad ITC View %d\n", (int)view);
@@ -416,6 +427,15 @@ static void itc_storage_write(void *opaque, hwaddr addr, uint64_t data,
         break;
     case ITCVIEW_PV_TRY:
         view_pv_try_write(cell);
+        break;
+    case ITCVIEW_PV_ICR0:
+        if (data & 0x7) {
+            /* clear ERROR bits */
+            s->icr0 &= ~(data & 0x7);
+        }
+        /* set BLK_GRAIN */
+        s->icr0 &= ~0x700;
+        s->icr0 |= data & 0x700;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
