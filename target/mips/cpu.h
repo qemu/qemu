@@ -164,8 +164,8 @@ typedef struct mips_def_t mips_def_t;
  * 3   BadInstrX
  * 4                                       GuestCtl1         GuestCtl0Ext
  * 5                                       GuestCtl2
- * 6                                       GuestCtl3
- * 7
+ * 6                     SAARI             GuestCtl3
+ * 7                     SAAR
  *
  *
  *     Register 12       Register 13       Register 14       Register 15
@@ -546,6 +546,12 @@ struct CPUMIPSState {
  * CP0 Register 9
  */
     int32_t CP0_Count;
+    uint32_t CP0_SAARI;
+#define CP0SAARI_TARGET 0    /*  5..0  */
+    uint64_t CP0_SAAR[2];
+#define CP0SAAR_BASE    12   /* 43..12 */
+#define CP0SAAR_SIZE    1    /*  5..1  */
+#define CP0SAAR_EN      0
 /*
  * CP0 Register 10
  */
