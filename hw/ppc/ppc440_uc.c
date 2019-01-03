@@ -564,28 +564,26 @@ static target_ulong sdram_size(uint32_t bcr)
     return size;
 }
 
-static void sdram_set_bcr(ppc440_sdram_t *sdram,
-                          uint32_t *bcrp, uint32_t bcr, int enabled)
+static void sdram_set_bcr(ppc440_sdram_t *sdram, int i,
+                          uint32_t bcr, int enabled)
 {
-    unsigned n = bcrp - sdram->bcr;
-
-    if (*bcrp & 1) {
-        /* Unmap RAM */
+    if (sdram->bcr[i] & 1) {
+        /* First unmap RAM if enabled */
         memory_region_del_subregion(get_system_memory(),
-                                    &sdram->containers[n]);
-        memory_region_del_subregion(&sdram->containers[n],
-                                    &sdram->ram_memories[n]);
-        object_unparent(OBJECT(&sdram->containers[n]));
+                                    &sdram->containers[i]);
+        memory_region_del_subregion(&sdram->containers[i],
+                                    &sdram->ram_memories[i]);
+        object_unparent(OBJECT(&sdram->containers[i]));
     }
-    *bcrp = bcr & 0xFFDEE001;
+    sdram->bcr[i] = bcr & 0xFFDEE001;
     if (enabled && (bcr & 1)) {
-        memory_region_init(&sdram->containers[n], NULL, "sdram-containers",
+        memory_region_init(&sdram->containers[i], NULL, "sdram-containers",
                            sdram_size(bcr));
-        memory_region_add_subregion(&sdram->containers[n], 0,
-                                    &sdram->ram_memories[n]);
+        memory_region_add_subregion(&sdram->containers[i], 0,
+                                    &sdram->ram_memories[i]);
         memory_region_add_subregion(get_system_memory(),
                                     sdram_base(bcr),
-                                    &sdram->containers[n]);
+                                    &sdram->containers[i]);
     }
 }
 
@@ -595,12 +593,10 @@ static void sdram_map_bcr(ppc440_sdram_t *sdram)
 
     for (i = 0; i < sdram->nbanks; i++) {
         if (sdram->ram_sizes[i] != 0) {
-            sdram_set_bcr(sdram,
-                          &sdram->bcr[i],
-                          sdram_bcr(sdram->ram_bases[i], sdram->ram_sizes[i]),
-                          1);
+            sdram_set_bcr(sdram, i, sdram_bcr(sdram->ram_bases[i],
+                                              sdram->ram_sizes[i]), 1);
         } else {
-            sdram_set_bcr(sdram, &sdram->bcr[i], 0, 0);
+            sdram_set_bcr(sdram, i, 0, 0);
         }
     }
 }
