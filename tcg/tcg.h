@@ -244,7 +244,8 @@ typedef struct TCGRelocation {
 
 typedef struct TCGLabel {
     unsigned has_value : 1;
-    unsigned id : 31;
+    unsigned id : 15;
+    unsigned refs : 16;
     union {
         uintptr_t value;
         tcg_insn_unit *value_ptr;
@@ -462,11 +463,13 @@ typedef TCGv_ptr TCGv_env;
 /* call flags */
 /* Helper does not read globals (either directly or through an exception). It
    implies TCG_CALL_NO_WRITE_GLOBALS. */
-#define TCG_CALL_NO_READ_GLOBALS    0x0010
+#define TCG_CALL_NO_READ_GLOBALS    0x0001
 /* Helper does not write globals */
-#define TCG_CALL_NO_WRITE_GLOBALS   0x0020
+#define TCG_CALL_NO_WRITE_GLOBALS   0x0002
 /* Helper can be safely suppressed if the return value is not used. */
-#define TCG_CALL_NO_SIDE_EFFECTS    0x0040
+#define TCG_CALL_NO_SIDE_EFFECTS    0x0004
+/* Helper is QEMU_NORETURN.  */
+#define TCG_CALL_NO_RETURN          0x0008
 
 /* convenience version of most used call flags */
 #define TCG_CALL_NO_RWG         TCG_CALL_NO_READ_GLOBALS
@@ -616,6 +619,9 @@ typedef struct TCGOp {
 
     /* Arguments for the opcode.  */
     TCGArg args[MAX_OPC_PARAM];
+
+    /* Register preferences for the output(s).  */
+    TCGRegSet output_pref[2];
 } TCGOp;
 
 #define TCGOP_CALLI(X)    (X)->param1
@@ -1024,20 +1030,22 @@ typedef struct TCGArgConstraint {
 
 /* Bits for TCGOpDef->flags, 8 bits available.  */
 enum {
+    /* Instruction exits the translation block.  */
+    TCG_OPF_BB_EXIT      = 0x01,
     /* Instruction defines the end of a basic block.  */
-    TCG_OPF_BB_END       = 0x01,
+    TCG_OPF_BB_END       = 0x02,
     /* Instruction clobbers call registers and potentially update globals.  */
-    TCG_OPF_CALL_CLOBBER = 0x02,
+    TCG_OPF_CALL_CLOBBER = 0x04,
     /* Instruction has side effects: it cannot be removed if its outputs
        are not used, and might trigger exceptions.  */
-    TCG_OPF_SIDE_EFFECTS = 0x04,
+    TCG_OPF_SIDE_EFFECTS = 0x08,
     /* Instruction operands are 64-bits (otherwise 32-bits).  */
-    TCG_OPF_64BIT        = 0x08,
+    TCG_OPF_64BIT        = 0x10,
     /* Instruction is optional and not implemented by the host, or insn
        is generic and should not be implemened by the host.  */
-    TCG_OPF_NOT_PRESENT  = 0x10,
+    TCG_OPF_NOT_PRESENT  = 0x20,
     /* Instruction operands are vectors.  */
-    TCG_OPF_VECTOR       = 0x20,
+    TCG_OPF_VECTOR       = 0x40,
 };
 
 typedef struct TCGOpDef {
@@ -1075,9 +1083,6 @@ TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *op, TCGOpcode opc);
 TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *op, TCGOpcode opc);
 
 void tcg_optimize(TCGContext *s);
-
-/* only used for debugging purposes */
-void tcg_dump_ops(TCGContext *s);
 
 TCGv_i32 tcg_const_i32(int32_t val);
 TCGv_i64 tcg_const_i64(int64_t val);

@@ -176,7 +176,6 @@ enum microblaze_instr_type {
 #define REG_TLBSX 36869 /* MMU: TLB Search Index reg */
 
 /* alternate names for gen purpose regs */
-#define REG_SP  1 /* stack pointer */
 #define REG_ROSDP 2 /* read-only small data pointer */
 #define REG_RWSDP 13 /* read-write small data pointer */
 
