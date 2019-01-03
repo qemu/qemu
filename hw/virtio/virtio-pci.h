@@ -50,7 +50,6 @@ typedef struct VHostUserBlkPCI VHostUserBlkPCI;
 typedef struct VirtIORngPCI VirtIORngPCI;
 typedef struct VirtIOInputPCI VirtIOInputPCI;
 typedef struct VirtIOInputHIDPCI VirtIOInputHIDPCI;
-typedef struct VirtIOInputHostPCI VirtIOInputHostPCI;
 typedef struct VirtIOGPUPCI VirtIOGPUPCI;
 typedef struct VirtIOCryptoPCI VirtIOCryptoPCI;
 
@@ -358,19 +357,6 @@ struct VirtIOInputHIDPCI {
     VirtIOPCIProxy parent_obj;
     VirtIOInputHID vdev;
 };
-
-#ifdef CONFIG_LINUX
-
-#define TYPE_VIRTIO_INPUT_HOST_PCI "virtio-input-host-pci-base"
-#define VIRTIO_INPUT_HOST_PCI(obj) \
-        OBJECT_CHECK(VirtIOInputHostPCI, (obj), TYPE_VIRTIO_INPUT_HOST_PCI)
-
-struct VirtIOInputHostPCI {
-    VirtIOPCIProxy parent_obj;
-    VirtIOInputHost vdev;
-};
-
-#endif
 
 /*
  * virtio-gpu-pci: This extends VirtioPCIProxy.
