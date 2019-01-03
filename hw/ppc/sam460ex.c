@@ -77,7 +77,7 @@
 #define SDRAM_NR_BANKS 4
 
 /* FIXME: See u-boot.git 8ac41e, also fix in ppc440_uc.c */
-static const unsigned int ppc460ex_sdram_bank_sizes[] = {
+static const ram_addr_t ppc460ex_sdram_bank_sizes[] = {
     1 * GiB, 512 * MiB, 256 * MiB, 128 * MiB, 64 * MiB, 32 * MiB, 0
 };
 
