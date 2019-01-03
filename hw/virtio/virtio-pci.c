@@ -1077,57 +1077,6 @@ static void virtio_pci_vmstate_change(DeviceState *d, bool running)
     }
 }
 
-#ifdef CONFIG_VIRTFS
-static void virtio_9p_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
-{
-    V9fsPCIState *dev = VIRTIO_9P_PCI(vpci_dev);
-    DeviceState *vdev = DEVICE(&dev->vdev);
-
-    qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
-}
-
-static Property virtio_9p_pci_properties[] = {
-    DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
-                    VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
-    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void virtio_9p_pci_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
-    VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
-
-    k->realize = virtio_9p_pci_realize;
-    pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
-    pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_9P;
-    pcidev_k->revision = VIRTIO_PCI_ABI_VERSION;
-    pcidev_k->class_id = 0x2;
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->props = virtio_9p_pci_properties;
-}
-
-static void virtio_9p_pci_instance_init(Object *obj)
-{
-    V9fsPCIState *dev = VIRTIO_9P_PCI(obj);
-
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
-                                TYPE_VIRTIO_9P);
-}
-
-static const VirtioPCIDeviceTypeInfo virtio_9p_pci_info = {
-    .base_name              = TYPE_VIRTIO_9P_PCI,
-    .generic_name           = "virtio-9p-pci",
-    .transitional_name      = "virtio-9p-pci-transitional",
-    .non_transitional_name  = "virtio-9p-pci-non-transitional",
-    .instance_size = sizeof(V9fsPCIState),
-    .instance_init = virtio_9p_pci_instance_init,
-    .class_init    = virtio_9p_pci_class_init,
-};
-#endif /* CONFIG_VIRTFS */
-
 /*
  * virtio-pci: This is the PCIDevice which has a virtio-pci-bus.
  */
@@ -2539,9 +2488,6 @@ static void virtio_pci_register_types(void)
     type_register_static(&virtio_pci_info);
 
     /* Implementations: */
-#ifdef CONFIG_VIRTFS
-    virtio_pci_types_register(&virtio_9p_pci_info);
-#endif
     virtio_pci_types_register(&virtio_blk_pci_info);
 #if defined(CONFIG_VHOST_USER) && defined(CONFIG_LINUX)
     virtio_pci_types_register(&vhost_user_blk_pci_info);

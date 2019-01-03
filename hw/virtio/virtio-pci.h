@@ -28,9 +28,6 @@
 #include "hw/virtio/vhost-user-blk.h"
 #endif
 
-#ifdef CONFIG_VIRTFS
-#include "hw/9pfs/virtio-9p.h"
-#endif
 #ifdef CONFIG_VHOST_SCSI
 #include "hw/virtio/vhost-scsi.h"
 #endif
@@ -285,23 +282,6 @@ struct VirtIONetPCI {
     VirtIOPCIProxy parent_obj;
     VirtIONet vdev;
 };
-
-/*
- * virtio-9p-pci: This extends VirtioPCIProxy.
- */
-
-#ifdef CONFIG_VIRTFS
-
-#define TYPE_VIRTIO_9P_PCI "virtio-9p-pci-base"
-#define VIRTIO_9P_PCI(obj) \
-        OBJECT_CHECK(V9fsPCIState, (obj), TYPE_VIRTIO_9P_PCI)
-
-typedef struct V9fsPCIState {
-    VirtIOPCIProxy parent_obj;
-    V9fsVirtioState vdev;
-} V9fsPCIState;
-
-#endif
 
 /*
  * virtio-input-pci: This extends VirtioPCIProxy.

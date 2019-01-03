@@ -152,7 +152,7 @@ check-qtest-virtio-y += tests/virtio-blk-test$(EXESUF)
 check-qtest-virtio-$(CONFIG_VIRTIO_RNG) += tests/virtio-rng-test$(EXESUF)
 check-qtest-virtio-y += tests/virtio-scsi-test$(EXESUF)
 ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
-check-qtest-virtio-y += tests/virtio-9p-test$(EXESUF)
+check-qtest-virtio-$(CONFIG_VIRTIO_9P) += tests/virtio-9p-test$(EXESUF)
 endif
 check-qtest-virtio-y += tests/virtio-serial-test$(EXESUF)
 check-qtest-virtio-y += $(check-qtest-virtioserial-y)
