@@ -66,7 +66,7 @@
 #if !defined(VIRTIO_NET_HDR_F_RSC_INFO)
 
 #define VIRTIO_NET_HDR_F_RSC_INFO  4 /* rsc_ext data in csum_ fields */
-#define VIRTIO_NET_F_RSC_EXT       38
+#define VIRTIO_NET_F_RSC_EXT       61
 
 static inline __virtio16 *virtio_net_rsc_ext_num_packets(
     struct virtio_net_hdr *hdr)
