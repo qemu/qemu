@@ -18502,16 +18502,6 @@ static inline int decode_gpr_gpr4_zero(int r)
 }
 
 
-/* extraction utilities */
-
-#define NANOMIPS_EXTRACT_RD(op) ((op >> 7) & 0x7)
-#define NANOMIPS_EXTRACT_RS(op) ((op >> 4) & 0x7)
-#define NANOMIPS_EXTRACT_RS2(op) uMIPS_RS(op)
-#define NANOMIPS_EXTRACT_RS1(op) ((op >> 1) & 0x7)
-#define NANOMIPS_EXTRACT_RD5(op) ((op >> 5) & 0x1f)
-#define NANOMIPS_EXTRACT_RS5(op) (op & 0x1f)
-
-
 static void gen_adjust_sp(DisasContext *ctx, int u)
 {
     gen_op_addr_addi(ctx, cpu_gpr[29], cpu_gpr[29], u);
