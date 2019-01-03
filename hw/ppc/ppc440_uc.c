@@ -481,7 +481,7 @@ void ppc4xx_sdr_init(CPUPPCState *env)
 
 /*****************************************************************************/
 /* SDRAM controller */
-typedef struct ppc4xx_sdram_t {
+typedef struct ppc440_sdram_t {
     uint32_t addr;
     int nbanks;
     MemoryRegion containers[4]; /* used for clipping */
@@ -489,7 +489,7 @@ typedef struct ppc4xx_sdram_t {
     hwaddr ram_bases[4];
     hwaddr ram_sizes[4];
     uint32_t bcr[4];
-} ppc4xx_sdram_t;
+} ppc440_sdram_t;
 
 enum {
     SDRAM0_CFGADDR = 0x10,
@@ -564,7 +564,7 @@ static target_ulong sdram_size(uint32_t bcr)
     return size;
 }
 
-static void sdram_set_bcr(ppc4xx_sdram_t *sdram,
+static void sdram_set_bcr(ppc440_sdram_t *sdram,
                           uint32_t *bcrp, uint32_t bcr, int enabled)
 {
     unsigned n = bcrp - sdram->bcr;
@@ -589,7 +589,7 @@ static void sdram_set_bcr(ppc4xx_sdram_t *sdram,
     }
 }
 
-static void sdram_map_bcr(ppc4xx_sdram_t *sdram)
+static void sdram_map_bcr(ppc440_sdram_t *sdram)
 {
     int i;
 
@@ -607,7 +607,7 @@ static void sdram_map_bcr(ppc4xx_sdram_t *sdram)
 
 static uint32_t dcr_read_sdram(void *opaque, int dcrn)
 {
-    ppc4xx_sdram_t *sdram = opaque;
+    ppc440_sdram_t *sdram = opaque;
     uint32_t ret = 0;
 
     switch (dcrn) {
@@ -658,7 +658,7 @@ static uint32_t dcr_read_sdram(void *opaque, int dcrn)
 
 static void dcr_write_sdram(void *opaque, int dcrn, uint32_t val)
 {
-    ppc4xx_sdram_t *sdram = opaque;
+    ppc440_sdram_t *sdram = opaque;
 
     switch (dcrn) {
     case SDRAM_R0BAS:
@@ -689,7 +689,7 @@ static void dcr_write_sdram(void *opaque, int dcrn, uint32_t val)
 
 static void sdram_reset(void *opaque)
 {
-    ppc4xx_sdram_t *sdram = opaque;
+    ppc440_sdram_t *sdram = opaque;
 
     sdram->addr = 0;
 }
@@ -699,7 +699,7 @@ void ppc440_sdram_init(CPUPPCState *env, int nbanks,
                        hwaddr *ram_bases, hwaddr *ram_sizes,
                        int do_init)
 {
-    ppc4xx_sdram_t *sdram;
+    ppc440_sdram_t *sdram;
 
     sdram = g_malloc0(sizeof(*sdram));
     sdram->nbanks = nbanks;
