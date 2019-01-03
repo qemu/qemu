@@ -375,12 +375,26 @@ static void view_pv_try_write(ITCStorageCell *c)
     view_pv_common_write(c);
 }
 
+static void raise_exception(int excp)
+{
+    current_cpu->exception_index = excp;
+    cpu_loop_exit(current_cpu);
+}
+
 static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
 {
     MIPSITUState *s = (MIPSITUState *)opaque;
     ITCStorageCell *cell = get_cell(s, addr);
     ITCView view = get_itc_view(addr);
     uint64_t ret = -1;
+
+    switch (size) {
+    case 1:
+    case 2:
+        s->icr0 |= 1 << ITC_ICR0_ERR_AXI;
+        raise_exception(EXCP_DBE);
+        return 0;
+    }
 
     switch (view) {
     case ITCVIEW_BYPASS:
@@ -419,6 +433,14 @@ static void itc_storage_write(void *opaque, hwaddr addr, uint64_t data,
     MIPSITUState *s = (MIPSITUState *)opaque;
     ITCStorageCell *cell = get_cell(s, addr);
     ITCView view = get_itc_view(addr);
+
+    switch (size) {
+    case 1:
+    case 2:
+        s->icr0 |= 1 << ITC_ICR0_ERR_AXI;
+        raise_exception(EXCP_DBE);
+        return;
+    }
 
     switch (view) {
     case ITCVIEW_BYPASS:
