@@ -16,7 +16,6 @@
 #define QEMU_VIRTIO_PCI_H
 
 #include "hw/pci/msi.h"
-#include "hw/virtio/virtio-blk.h"
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/virtio-serial.h"
 #include "hw/virtio/virtio-bus.h"
@@ -24,7 +23,6 @@
 #include "hw/virtio/virtio-crypto.h"
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
-typedef struct VirtIOBlkPCI VirtIOBlkPCI;
 typedef struct VirtIOSerialPCI VirtIOSerialPCI;
 typedef struct VirtIONetPCI VirtIONetPCI;
 typedef struct VirtIOGPUPCI VirtIOGPUPCI;
@@ -184,18 +182,6 @@ static inline void virtio_pci_disable_modern(VirtIOPCIProxy *proxy)
 {
     proxy->disable_modern = true;
 }
-
-/*
- * virtio-blk-pci: This extends VirtioPCIProxy.
- */
-#define TYPE_VIRTIO_BLK_PCI "virtio-blk-pci-base"
-#define VIRTIO_BLK_PCI(obj) \
-        OBJECT_CHECK(VirtIOBlkPCI, (obj), TYPE_VIRTIO_BLK_PCI)
-
-struct VirtIOBlkPCI {
-    VirtIOPCIProxy parent_obj;
-    VirtIOBlock vdev;
-};
 
 /*
  * virtio-serial-pci: This extends VirtioPCIProxy.
