@@ -267,7 +267,7 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
 
         /* all-zeroes sector (type 2) does not need to be "uncompressed" and can
          * therefore be unbounded. */
-        if (s->types[i] != 2 && s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
+        if (s->types[i] != UDIG && s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
             error_report("sector count %" PRIu64 " for chunk %" PRIu32
                          " is larger than max (%u)",
                          s->sectorcounts[i], i, DMG_SECTORCOUNTS_MAX);
@@ -710,7 +710,7 @@ dmg_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
         /* Special case: current chunk is all zeroes. Do not perform a memcpy as
          * s->uncompressed_chunk may be too small to cover the large all-zeroes
          * section. dmg_read_chunk is called to find s->current_chunk */
-        if (s->types[s->current_chunk] == 2) { /* all zeroes block entry */
+        if (s->types[s->current_chunk] == UDIG) { /* all zeroes block entry */
             qemu_iovec_memset(qiov, i * 512, 0, 512);
             continue;
         }
