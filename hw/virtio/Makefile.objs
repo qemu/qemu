@@ -16,6 +16,7 @@ obj-$(CONFIG_VHOST_VSOCK) += vhost-vsock-pci.o
 obj-$(CONFIG_VIRTIO_INPUT_HOST) += virtio-input-host-pci.o
 obj-$(CONFIG_VIRTIO_INPUT) += virtio-input-pci.o
 obj-$(CONFIG_VIRTIO_RNG) += virtio-rng-pci.o
+obj-$(CONFIG_VIRTIO_BALLOON) += virtio-balloon-pci.o
 endif
 endif
 

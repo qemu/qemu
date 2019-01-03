@@ -23,7 +23,6 @@
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/virtio-serial.h"
 #include "hw/virtio/virtio-scsi.h"
-#include "hw/virtio/virtio-balloon.h"
 #include "hw/pci/pci.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -2356,64 +2355,6 @@ static const VirtioPCIDeviceTypeInfo vhost_user_scsi_pci_info = {
 };
 #endif
 
-/* virtio-balloon-pci */
-
-static Property virtio_balloon_pci_properties[] = {
-    DEFINE_PROP_UINT32("class", VirtIOPCIProxy, class_code, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void virtio_balloon_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
-{
-    VirtIOBalloonPCI *dev = VIRTIO_BALLOON_PCI(vpci_dev);
-    DeviceState *vdev = DEVICE(&dev->vdev);
-
-    if (vpci_dev->class_code != PCI_CLASS_OTHERS &&
-        vpci_dev->class_code != PCI_CLASS_MEMORY_RAM) { /* qemu < 1.1 */
-        vpci_dev->class_code = PCI_CLASS_OTHERS;
-    }
-
-    qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
-    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
-}
-
-static void virtio_balloon_pci_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
-    PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
-    k->realize = virtio_balloon_pci_realize;
-    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->props = virtio_balloon_pci_properties;
-    pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
-    pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_BALLOON;
-    pcidev_k->revision = VIRTIO_PCI_ABI_VERSION;
-    pcidev_k->class_id = PCI_CLASS_OTHERS;
-}
-
-static void virtio_balloon_pci_instance_init(Object *obj)
-{
-    VirtIOBalloonPCI *dev = VIRTIO_BALLOON_PCI(obj);
-
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
-                                TYPE_VIRTIO_BALLOON);
-    object_property_add_alias(obj, "guest-stats", OBJECT(&dev->vdev),
-                                  "guest-stats", &error_abort);
-    object_property_add_alias(obj, "guest-stats-polling-interval",
-                              OBJECT(&dev->vdev),
-                              "guest-stats-polling-interval", &error_abort);
-}
-
-static const VirtioPCIDeviceTypeInfo virtio_balloon_pci_info = {
-    .base_name             = TYPE_VIRTIO_BALLOON_PCI,
-    .generic_name          = "virtio-balloon-pci",
-    .transitional_name     = "virtio-balloon-pci-transitional",
-    .non_transitional_name = "virtio-balloon-pci-non-transitional",
-    .instance_size = sizeof(VirtIOBalloonPCI),
-    .instance_init = virtio_balloon_pci_instance_init,
-    .class_init    = virtio_balloon_pci_class_init,
-};
-
 /* virtio-serial-pci */
 
 static void virtio_serial_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
@@ -2606,7 +2547,6 @@ static void virtio_pci_register_types(void)
     virtio_pci_types_register(&vhost_user_blk_pci_info);
 #endif
     virtio_pci_types_register(&virtio_scsi_pci_info);
-    virtio_pci_types_register(&virtio_balloon_pci_info);
     virtio_pci_types_register(&virtio_serial_pci_info);
     virtio_pci_types_register(&virtio_net_pci_info);
 #ifdef CONFIG_VHOST_SCSI
@@ -2618,3 +2558,4 @@ static void virtio_pci_register_types(void)
 }
 
 type_init(virtio_pci_register_types)
+
