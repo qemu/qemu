@@ -24,6 +24,7 @@ obj-$(CONFIG_VIRTIO_9P) += virtio-9p-pci.o
 obj-$(CONFIG_VIRTIO_SCSI) += virtio-scsi-pci.o
 obj-$(CONFIG_VIRTIO_BLK) += virtio-blk-pci.o
 obj-$(CONFIG_VIRTIO_NET) += virtio-net-pci.o
+obj-$(CONFIG_VIRTIO_SERIAL) += virtio-serial-pci.o
 endif
 endif
 
