@@ -19,14 +19,12 @@
 #include "hw/virtio/virtio-blk.h"
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/virtio-serial.h"
-#include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-crypto.h"
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 typedef struct VirtIOBlkPCI VirtIOBlkPCI;
-typedef struct VirtIOSCSIPCI VirtIOSCSIPCI;
 typedef struct VirtIOSerialPCI VirtIOSerialPCI;
 typedef struct VirtIONetPCI VirtIONetPCI;
 typedef struct VirtIOGPUPCI VirtIOGPUPCI;
@@ -186,18 +184,6 @@ static inline void virtio_pci_disable_modern(VirtIOPCIProxy *proxy)
 {
     proxy->disable_modern = true;
 }
-
-/*
- * virtio-scsi-pci: This extends VirtioPCIProxy.
- */
-#define TYPE_VIRTIO_SCSI_PCI "virtio-scsi-pci-base"
-#define VIRTIO_SCSI_PCI(obj) \
-        OBJECT_CHECK(VirtIOSCSIPCI, (obj), TYPE_VIRTIO_SCSI_PCI)
-
-struct VirtIOSCSIPCI {
-    VirtIOPCIProxy parent_obj;
-    VirtIOSCSI vdev;
-};
 
 /*
  * virtio-blk-pci: This extends VirtioPCIProxy.
