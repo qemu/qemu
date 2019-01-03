@@ -18,7 +18,6 @@
 #include "hw/pci/msi.h"
 #include "hw/virtio/virtio-blk.h"
 #include "hw/virtio/virtio-net.h"
-#include "hw/virtio/virtio-rng.h"
 #include "hw/virtio/virtio-serial.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-balloon.h"
@@ -46,7 +45,6 @@ typedef struct VirtIONetPCI VirtIONetPCI;
 typedef struct VHostSCSIPCI VHostSCSIPCI;
 typedef struct VHostUserSCSIPCI VHostUserSCSIPCI;
 typedef struct VHostUserBlkPCI VHostUserBlkPCI;
-typedef struct VirtIORngPCI VirtIORngPCI;
 typedef struct VirtIOGPUPCI VirtIOGPUPCI;
 typedef struct VirtIOCryptoPCI VirtIOCryptoPCI;
 
@@ -318,18 +316,6 @@ typedef struct V9fsPCIState {
 } V9fsPCIState;
 
 #endif
-
-/*
- * virtio-rng-pci: This extends VirtioPCIProxy.
- */
-#define TYPE_VIRTIO_RNG_PCI "virtio-rng-pci-base"
-#define VIRTIO_RNG_PCI(obj) \
-        OBJECT_CHECK(VirtIORngPCI, (obj), TYPE_VIRTIO_RNG_PCI)
-
-struct VirtIORngPCI {
-    VirtIOPCIProxy parent_obj;
-    VirtIORNG vdev;
-};
 
 /*
  * virtio-input-pci: This extends VirtioPCIProxy.
