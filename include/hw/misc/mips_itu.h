@@ -70,6 +70,10 @@ typedef struct MIPSITUState {
     /* ITU Control Register */
     uint64_t icr0;
 
+    /* SAAR */
+    bool saar_present;
+    void *saar;
+
 } MIPSITUState;
 
 /* Get ITC Configuration Tag memory region. */

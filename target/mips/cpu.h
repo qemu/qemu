@@ -326,6 +326,7 @@ struct TCState {
 
 };
 
+struct MIPSITUState;
 typedef struct CPUMIPSState CPUMIPSState;
 struct CPUMIPSState {
     TCState active_tc;
@@ -917,6 +918,7 @@ struct CPUMIPSState {
     const mips_def_t *cpu_model;
     void *irq[8];
     QEMUTimer *timer; /* Internal timer */
+    struct MIPSITUState *itu;
     MemoryRegion *itc_tag; /* ITC Configuration Tags */
     target_ulong exception_base; /* ExceptionBase input to the core */
 };
@@ -1058,6 +1060,9 @@ void cpu_set_exception_base(int vp_index, target_ulong address);
 
 /* mips_int.c */
 void cpu_mips_soft_irq(CPUMIPSState *env, int irq, int level);
+
+/* mips_itu.c */
+void itc_reconfigure(struct MIPSITUState *tag);
 
 /* helper.c */
 target_ulong exception_resume_pc (CPUMIPSState *env);

@@ -84,13 +84,19 @@ static uint64_t itc_tag_read(void *opaque, hwaddr addr, unsigned size)
     return tag->ITCAddressMap[index];
 }
 
-static void itc_reconfigure(MIPSITUState *tag)
+void itc_reconfigure(MIPSITUState *tag)
 {
     uint64_t *am = &tag->ITCAddressMap[0];
     MemoryRegion *mr = &tag->storage_io;
     hwaddr address = am[0] & ITC_AM0_BASE_ADDRESS_MASK;
     uint64_t size = (1 * KiB) + (am[1] & ITC_AM1_ADDR_MASK_MASK);
     bool is_enabled = (am[0] & ITC_AM0_EN_MASK) != 0;
+
+    if (tag->saar_present) {
+        address = ((*(uint64_t *) tag->saar) & 0xFFFFFFFFE000ULL) << 4;
+        size = 1 << ((*(uint64_t *) tag->saar >> 1) & 0x1f);
+        is_enabled = *(uint64_t *) tag->saar & 1;
+    }
 
     memory_region_transaction_begin();
     if (!(size & (size - 1))) {
@@ -150,7 +156,12 @@ static inline ITCView get_itc_view(hwaddr addr)
 static inline int get_cell_stride_shift(const MIPSITUState *s)
 {
     /* Minimum interval (for EntryGain = 0) is 128 B */
-    return 7 + (s->ITCAddressMap[1] & ITC_AM1_ENTRY_GRAIN_MASK);
+    if (s->saar_present) {
+        return 7 + ((s->icr0 >> ITC_ICR0_BLK_GRAIN) &
+                    ITC_ICR0_BLK_GRAIN_MASK);
+    } else {
+        return 7 + (s->ITCAddressMap[1] & ITC_AM1_ENTRY_GRAIN_MASK);
+    }
 }
 
 static inline ITCStorageCell *get_cell(MIPSITUState *s,
@@ -499,10 +510,15 @@ static void mips_itu_reset(DeviceState *dev)
 {
     MIPSITUState *s = MIPS_ITU(dev);
 
-    s->ITCAddressMap[0] = 0;
-    s->ITCAddressMap[1] =
-        ((ITC_STORAGE_ADDRSPACE_SZ - 1) & ITC_AM1_ADDR_MASK_MASK) |
-        (get_num_cells(s) << ITC_AM1_NUMENTRIES_OFS);
+    if (s->saar_present) {
+        *(uint64_t *) s->saar = 0x11 << 1;
+        s->icr0 = get_num_cells(s) << ITC_ICR0_CELL_NUM;
+    } else {
+        s->ITCAddressMap[0] = 0;
+        s->ITCAddressMap[1] =
+            ((ITC_STORAGE_ADDRSPACE_SZ - 1) & ITC_AM1_ADDR_MASK_MASK) |
+            (get_num_cells(s) << ITC_AM1_NUMENTRIES_OFS);
+    }
     itc_reconfigure(s);
 
     itc_reset_cells(s);
@@ -513,6 +529,7 @@ static Property mips_itu_properties[] = {
                       ITC_FIFO_NUM_MAX),
     DEFINE_PROP_INT32("num-semaphores", MIPSITUState, num_semaphores,
                       ITC_SEMAPH_NUM_MAX),
+    DEFINE_PROP_BOOL("saar-present", MIPSITUState, saar_present, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
