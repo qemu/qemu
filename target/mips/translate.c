@@ -18460,9 +18460,9 @@ enum {
 
 /* extraction utilities */
 
-#define NANOMIPS_EXTRACT_RD(op) ((op >> 7) & 0x7)
-#define NANOMIPS_EXTRACT_RS(op) ((op >> 4) & 0x7)
-#define NANOMIPS_EXTRACT_RS1(op) ((op >> 1) & 0x7)
+#define NANOMIPS_EXTRACT_RT3(op) ((op >> 7) & 0x7)
+#define NANOMIPS_EXTRACT_RS3(op) ((op >> 4) & 0x7)
+#define NANOMIPS_EXTRACT_RD3(op) ((op >> 1) & 0x7)
 #define NANOMIPS_EXTRACT_RD5(op) ((op >> 5) & 0x1f)
 #define NANOMIPS_EXTRACT_RS5(op) (op & 0x1f)
 
@@ -18559,8 +18559,8 @@ static void gen_restore(DisasContext *ctx, uint8_t rt, uint8_t count,
 
 static void gen_pool16c_nanomips_insn(DisasContext *ctx)
 {
-    int rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RD(ctx->opcode));
-    int rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS(ctx->opcode));
+    int rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RT3(ctx->opcode));
+    int rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS3(ctx->opcode));
 
     switch (extract32(ctx->opcode, 2, 2)) {
     case NM_NOT16:
@@ -21861,9 +21861,9 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
 static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t op;
-    int rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RD(ctx->opcode));
-    int rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS(ctx->opcode));
-    int rd = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS1(ctx->opcode));
+    int rt = decode_gpr_gpr3(NANOMIPS_EXTRACT_RT3(ctx->opcode));
+    int rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS3(ctx->opcode));
+    int rd = decode_gpr_gpr3(NANOMIPS_EXTRACT_RD3(ctx->opcode));
     int offset;
     int imm;
 
@@ -22026,7 +22026,7 @@ static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
             break;
         case NM_SB16:
             rt = decode_gpr_gpr3_src_store(
-                     NANOMIPS_EXTRACT_RD(ctx->opcode));
+                     NANOMIPS_EXTRACT_RT3(ctx->opcode));
             gen_st(ctx, OPC_SB, rt, rs, offset);
             break;
         case NM_LBU16:
@@ -22045,7 +22045,7 @@ static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
             break;
         case NM_SH16:
             rt = decode_gpr_gpr3_src_store(
-                     NANOMIPS_EXTRACT_RD(ctx->opcode));
+                     NANOMIPS_EXTRACT_RT3(ctx->opcode));
             gen_st(ctx, OPC_SH, rt, rs, offset);
             break;
         case NM_LHU16:
@@ -22100,14 +22100,14 @@ static int decode_nanomips_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case NM_SW16:
         rt = decode_gpr_gpr3_src_store(
-                 NANOMIPS_EXTRACT_RD(ctx->opcode));
-        rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS(ctx->opcode));
+                 NANOMIPS_EXTRACT_RT3(ctx->opcode));
+        rs = decode_gpr_gpr3(NANOMIPS_EXTRACT_RS3(ctx->opcode));
         offset = extract32(ctx->opcode, 0, 4) << 2;
         gen_st(ctx, OPC_SW, rt, rs, offset);
         break;
     case NM_SWGP16:
         rt = decode_gpr_gpr3_src_store(
-                 NANOMIPS_EXTRACT_RD(ctx->opcode));
+                 NANOMIPS_EXTRACT_RT3(ctx->opcode));
         offset = extract32(ctx->opcode, 0, 7) << 2;
         gen_st(ctx, OPC_SW, rt, 28, offset);
         break;
