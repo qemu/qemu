@@ -666,6 +666,7 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
     }
     dir = fdopendir(fd);
     if (!dir) {
+        close(fd);
         return;
     }
 #ifdef CONFIG_INOTIFY1
