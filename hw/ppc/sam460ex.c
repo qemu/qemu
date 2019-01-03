@@ -76,9 +76,11 @@
 #define UART_FREQ 11059200
 #define SDRAM_NR_BANKS 4
 
-/* FIXME: See u-boot.git 8ac41e, also fix in ppc440_uc.c */
+/* The SoC could also handle 4 GiB but firmware does not work with that. */
+/* Maybe it overflows a signed 32 bit number somewhere? */
 static const ram_addr_t ppc460ex_sdram_bank_sizes[] = {
-    1 * GiB, 512 * MiB, 256 * MiB, 128 * MiB, 64 * MiB, 32 * MiB, 0
+    2 * GiB, 1 * GiB, 512 * MiB, 256 * MiB, 128 * MiB, 64 * MiB,
+    32 * MiB, 0
 };
 
 struct boot_info {

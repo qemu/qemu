@@ -2,7 +2,7 @@
  * QEMU PowerPC 440 embedded processors emulation
  *
  * Copyright (c) 2012 François Revol
- * Copyright (c) 2016-2018 BALATON Zoltan
+ * Copyright (c) 2016-2019 BALATON Zoltan
  *
  * This work is licensed under the GNU GPL license version 2 or later.
  *
@@ -505,10 +505,6 @@ enum {
     SDRAM_PLBADDUHB = 0x50,
 };
 
-/* XXX: TOFIX: some patches have made this code become inconsistent:
- *      there are type inconsistencies, mixing hwaddr, target_ulong
- *      and uint32_t
- */
 static uint32_t sdram_bcr(hwaddr ram_base, hwaddr ram_size)
 {
     uint32_t bcr;
@@ -538,11 +534,17 @@ static uint32_t sdram_bcr(hwaddr ram_base, hwaddr ram_size)
     case (1 * GiB):
         bcr = 0xe000;
         break;
+    case (2 * GiB):
+        bcr = 0xc000;
+        break;
+    case (4 * GiB):
+        bcr = 0x8000;
+        break;
     default:
         error_report("invalid RAM size " TARGET_FMT_plx, ram_size);
         return 0;
     }
-    bcr |= ram_base & 0xFF800000;
+    bcr |= ram_base >> 2 & 0xffe00000;
     bcr |= 1;
 
     return bcr;
@@ -550,12 +552,12 @@ static uint32_t sdram_bcr(hwaddr ram_base, hwaddr ram_size)
 
 static inline hwaddr sdram_base(uint32_t bcr)
 {
-    return bcr & 0xFF800000;
+    return (bcr & 0xffe00000) << 2;
 }
 
-static target_ulong sdram_size(uint32_t bcr)
+static uint64_t sdram_size(uint32_t bcr)
 {
-    target_ulong size;
+    uint64_t size;
     int sh;
 
     sh = 1024 - ((bcr >> 6) & 0x3ff);
@@ -575,7 +577,7 @@ static void sdram_set_bcr(ppc440_sdram_t *sdram, int i,
                                     &sdram->ram_memories[i]);
         object_unparent(OBJECT(&sdram->containers[i]));
     }
-    sdram->bcr[i] = bcr & 0xFFDEE001;
+    sdram->bcr[i] = bcr & 0xffe0ffc1;
     if (enabled && (bcr & 1)) {
         memory_region_init(&sdram->containers[i], NULL, "sdram-containers",
                            sdram_size(bcr));
