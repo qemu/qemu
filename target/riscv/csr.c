@@ -487,25 +487,31 @@ static int write_mbadaddr(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
-static int read_mip(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    *val = atomic_read(&env->mip);
-    return 0;
-}
-
-static int write_mip(CPURISCVState *env, int csrno, target_ulong val)
+static int rmw_mip(CPURISCVState *env, int csrno, target_ulong *ret_value,
+                   target_ulong new_value, target_ulong write_mask)
 {
     RISCVCPU *cpu = riscv_env_get_cpu(env);
+    target_ulong mask = write_mask & delegable_ints;
+    uint32_t old_mip;
 
-    /*
-     * csrs, csrc on mip.SEIP is not decomposable into separate read and
-     * write steps, so a different implementation is needed
-     */
+    /* We can't allow the supervisor to control SEIP as this would allow the
+     * supervisor to clear a pending external interrupt which will result in
+     * lost a interrupt in the case a PLIC is attached. The SEIP bit must be
+     * hardware controlled when a PLIC is attached. This should be an option
+     * for CPUs with software-delegated Supervisor External Interrupts. */
+    mask &= ~MIP_SEIP;
 
-    qemu_mutex_lock_iothread();
-    riscv_cpu_update_mip(cpu, MIP_SSIP | MIP_STIP,
-                         (val & (MIP_SSIP | MIP_STIP)));
-    qemu_mutex_unlock_iothread();
+    if (mask) {
+        qemu_mutex_lock_iothread();
+        old_mip = riscv_cpu_update_mip(cpu, mask, (new_value & mask));
+        qemu_mutex_unlock_iothread();
+    } else {
+        old_mip = atomic_read(&env->mip);
+    }
+
+    if (ret_value) {
+        *ret_value = old_mip;
+    }
 
     return 0;
 }
@@ -623,17 +629,11 @@ static int write_sbadaddr(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
-static int read_sip(CPURISCVState *env, int csrno, target_ulong *val)
+static int rmw_sip(CPURISCVState *env, int csrno, target_ulong *ret_value,
+                   target_ulong new_value, target_ulong write_mask)
 {
-    *val = atomic_read(&env->mip) & env->mideleg;
-    return 0;
-}
-
-static int write_sip(CPURISCVState *env, int csrno, target_ulong val)
-{
-    target_ulong newval = (atomic_read(&env->mip) & ~env->mideleg)
-                          | (val & env->mideleg);
-    return write_mip(env, CSR_MIP, newval);
+    return rmw_mip(env, CSR_MSTATUS, ret_value, new_value,
+                   write_mask & env->mideleg);
 }
 
 /* Supervisor Protection and Translation */
@@ -812,7 +812,7 @@ static riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MEPC] =                { read_mepc,        write_mepc        },
     [CSR_MCAUSE] =              { read_mcause,      write_mcause      },
     [CSR_MBADADDR] =            { read_mbadaddr,    write_mbadaddr    },
-    [CSR_MIP] =                 { read_mip,         write_mip         },
+    [CSR_MIP] =                 { NULL,     NULL,     rmw_mip         },
 
     /* Supervisor Trap Setup */
     [CSR_SSTATUS] =             { read_sstatus,     write_sstatus     },
@@ -825,7 +825,7 @@ static riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SEPC] =                { read_sepc,        write_sepc        },
     [CSR_SCAUSE] =              { read_scause,      write_scause      },
     [CSR_SBADADDR] =            { read_sbadaddr,    write_sbadaddr    },
-    [CSR_SIP] =                 { read_sip,         write_sip         },
+    [CSR_SIP] =                 { NULL,     NULL,     rmw_sip         },
 
     /* Supervisor Protection and Translation */
     [CSR_SATP] =                { read_satp,        write_satp        },
