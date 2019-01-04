@@ -1088,9 +1088,12 @@ static void *multifd_send_thread(void *opaque)
                 break;
             }
 
-            ret = qio_channel_writev_all(p->c, p->pages->iov, used, &local_err);
-            if (ret != 0) {
-                break;
+            if (used) {
+                ret = qio_channel_writev_all(p->c, p->pages->iov,
+                                             used, &local_err);
+                if (ret != 0) {
+                    break;
+                }
             }
 
             qemu_mutex_lock(&p->mutex);
@@ -1317,9 +1320,12 @@ static void *multifd_recv_thread(void *opaque)
         p->num_pages += used;
         qemu_mutex_unlock(&p->mutex);
 
-        ret = qio_channel_readv_all(p->c, p->pages->iov, used, &local_err);
-        if (ret != 0) {
-            break;
+        if (used) {
+            ret = qio_channel_readv_all(p->c, p->pages->iov,
+                                        used, &local_err);
+            if (ret != 0) {
+                break;
+            }
         }
 
         if (flags & MULTIFD_FLAG_SYNC) {
