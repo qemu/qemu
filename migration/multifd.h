@@ -23,12 +23,14 @@ void multifd_recv_sync_main(void);
 void multifd_send_sync_main(QEMUFile *f);
 int multifd_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset);
 
+/* Multifd Compression flags */
 #define MULTIFD_FLAG_SYNC (1 << 0)
 
 /* We reserve 3 bits for compression methods */
 #define MULTIFD_FLAG_COMPRESSION_MASK (7 << 1)
 /* we need to be compatible. Before compression value was 0 */
 #define MULTIFD_FLAG_NOCOMP (0 << 1)
+#define MULTIFD_FLAG_ZLIB (1 << 1)
 
 /* This value needs to be a multiple of qemu_target_page_size() */
 #define MULTIFD_PACKET_SIZE (512 * 1024)
@@ -160,6 +162,8 @@ typedef struct {
     /* Read all pages */
     int (*recv_pages)(MultiFDRecvParams *p, uint32_t used, Error **errp);
 } MultiFDMethods;
+
+void multifd_register_ops(int method, MultiFDMethods *ops);
 
 #endif
 

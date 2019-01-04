@@ -1323,6 +1323,11 @@ static void test_multifd_tcp_none(void)
     test_multifd_tcp("none");
 }
 
+static void test_multifd_tcp_zlib(void)
+{
+    test_multifd_tcp("zlib");
+}
+
 /*
  * This test does:
  *  source               target
@@ -1486,6 +1491,7 @@ int main(int argc, char **argv)
     qtest_add_func("/migration/auto_converge", test_migrate_auto_converge);
     qtest_add_func("/migration/multifd/tcp/none", test_multifd_tcp_none);
     qtest_add_func("/migration/multifd/tcp/cancel", test_multifd_tcp_cancel);
+    qtest_add_func("/migration/multifd/tcp/zlib", test_multifd_tcp_zlib);
 
     ret = g_test_run();
 
