@@ -1,13 +1,13 @@
 /*
  *  Header file for nanoMIPS disassembler component of QEMU
  *
- *  Copyright (C) 2018  Wave Computing
+ *  Copyright (C) 2018  Wave Computing, Inc.
  *  Copyright (C) 2018  Matthew Fortune <matthew.fortune@mips.com>
- *  Copyright (C) 2018  Aleksandar Markovic <aleksandar.markovic@wavecomp.com>
+ *  Copyright (C) 2018  Aleksandar Markovic <amarkovic@wavecomp.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
+ *  the Free Software Foundation, either version 2 of the License, or
  *  (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -17,6 +17,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
  */
 
 #ifndef NANOMIPS_DISASSEMBLER_H
@@ -24,14 +25,14 @@
 
 #include <string>
 
-typedef unsigned short uint16;
-typedef unsigned int uint32;
-typedef long long int64;
-typedef unsigned long long uint64;
+typedef int64_t int64;
+typedef uint64_t uint64;
+typedef uint32_t uint32;
+typedef uint16_t uint16;
 
 namespace img
 {
-    typedef unsigned long long address;
+    typedef uint64_t address;
 }
 
 
@@ -104,13 +105,14 @@ private:
 
     uint64 renumber_registers(uint64 index, uint64 *register_list,
                               size_t register_list_size);
-    uint64 encode_gpr3(uint64 d);
-    uint64 encode_gpr3_store(uint64 d);
-    uint64 encode_rd1_from_rd(uint64 d);
-    uint64 encode_gpr4_zero(uint64 d);
-    uint64 encode_gpr4(uint64 d);
-    uint64 encode_rd2_reg1(uint64 d);
-    uint64 encode_rd2_reg2(uint64 d);
+
+    uint64 decode_gpr_gpr4(uint64 d);
+    uint64 decode_gpr_gpr4_zero(uint64 d);
+    uint64 decode_gpr_gpr3(uint64 d);
+    uint64 decode_gpr_gpr3_src_store(uint64 d);
+    uint64 decode_gpr_gpr2_reg1(uint64 d);
+    uint64 decode_gpr_gpr2_reg2(uint64 d);
+    uint64 decode_gpr_gpr1(uint64 d);
 
     uint64 copy(uint64 d);
     int64 copy(int64 d);
@@ -142,20 +144,20 @@ private:
     std::string CPR(uint64 reg);
     std::string ADDRESS(uint64 value, int instruction_size);
 
-    int64 extract_s_4_2_1_0(uint64 instruction);
-    int64 extr_sil0il0bs8_il15il8bs1Tmsb8(uint64 instruction);
-    int64 extr_sil0il10bs1_il1il1bs9Tmsb10(uint64 instruction);
-    int64 extr_sil0il11bs1_il1il1bs10Tmsb11(uint64 instruction);
-    int64 extr_sil0il14bs1_il1il1bs13Tmsb14(uint64 instruction);
-    int64 extr_sil0il16bs16_il16il0bs16Tmsb31(uint64 instruction);
-    int64 extr_sil0il21bs1_il1il1bs20Tmsb21(uint64 instruction);
-    int64 extr_sil0il25bs1_il1il1bs24Tmsb25(uint64 instruction);
-    int64 extr_sil0il31bs1_il2il21bs10_il12il12bs9Tmsb31(uint64 instruction);
-    int64 extr_sil0il7bs1_il1il1bs6Tmsb7(uint64 instruction);
-    int64 extr_sil11il0bs10Tmsb9(uint64 instruction);
-    int64 extract_shift_21_20_19_18_17_16(uint64 instruction);
-    int64 extr_sil2il2bs6_il15il8bs1Tmsb8(uint64 instruction);
-    int64 extr_sil3il3bs5_il15il8bs1Tmsb8(uint64 instruction);
+    int64 extract_s__se3_4_2_1_0(uint64 instruction);
+    int64 extract_s__se7_0_6_5_4_3_2_1_s1(uint64 instruction);
+    int64 extract_s__se8_15_7_6_5_4_3_s3(uint64 instruction);
+    int64 extract_s__se8_15_7_6_5_4_3_2_s2(uint64 instruction);
+    int64 extract_s__se8_15_7_6_5_4_3_2_1_0(uint64 instruction);
+    int64 extract_s__se9_20_19_18_17_16_15_14_13_12_11(uint64 instruction);
+    int64 extract_s__se10_0_9_8_7_6_5_4_3_2_1_s1(uint64 instruction);
+    int64 extract_s__se11_0_10_9_8_7_6_5_4_3_2_1_0_s1(uint64 instruction);
+    int64 extract_s__se14_0_13_to_1_s1(uint64 instruction);
+    int64 extract_s__se21_0_20_to_1_s1(uint64 instruction);
+    int64 extract_s__se25_0_24_to_1_s1(uint64 instruction);
+    int64 extract_s__se31_15_to_0_31_to_16(uint64 instruction);
+    int64 extract_s__se31_0_11_to_2_20_to_12_s12(uint64 instruction);
+    int64 extract_shift__se5_21_20_19_18_17_16(uint64 instruction);
 
     uint64 extract_ac_13_12(uint64 instruction);
     uint64 extract_bit_16_15_14_13_12_11(uint64 instruction);
@@ -175,10 +177,10 @@ private:
     uint64 extract_ct_25_24_23_22_21(uint64 instruction);
     uint64 extract_eu_3_2_1_0(uint64 instruction);
     uint64 extract_eu_6_5_4_3_2_1_0(uint64 instruction);
-    uint64 extract_fd_10_9_8_7_6(uint64 instruction);
-    uint64 extract_fs_15_14_13_12_11(uint64 instruction);
+    uint64 extract_fd_15_14_13_12_11(uint64 instruction);
+    uint64 extract_fs_20_19_18_17_16(uint64 instruction);
     uint64 extract_ft_15_14_13_12_11(uint64 instruction);
-    uint64 extract_ft_20_19_18_17_16(uint64 instruction);
+    uint64 extract_ft_25_24_23_22_21(uint64 instruction);
     uint64 extract_gp_2(uint64 instruction);
     uint64 extract_hint_25_24_23_22_21(uint64 instruction);
     uint64 extract_hs_20_19_18_17_16(uint64 instruction);
@@ -190,7 +192,7 @@ private:
     uint64 extract_rdl_25_24(uint64 instruction);
     uint64 extract_rd2_3_8(uint64 instruction);
     uint64 extract_rd3_3_2_1(uint64 instruction);
-    uint64 extract_rd_20_19_18_17_16(uint64 instruction);
+    uint64 extract_rd_15_14_13_12_11(uint64 instruction);
     uint64 extract_rs3_6_5_4(uint64 instruction);
     uint64 extract_rs4_4_2_1_0(uint64 instruction);
     uint64 extract_rs_4_3_2_1_0(uint64 instruction);
@@ -217,7 +219,7 @@ private:
     uint64 extract_shift_20_19_18_17_16(uint64 instruction);
     uint64 extract_shift_10_9_8_7_6(uint64 instruction);
     uint64 extract_shiftx_11_10_9_8_7_6(uint64 instruction);
-    uint64 extr_shiftxil7il1bs4Fmsb4(uint64 instruction);
+    uint64 extract_shiftx_10_9_8_7__s1(uint64 instruction);
     uint64 extract_size_20_19_18_17_16(uint64 instruction);
     uint64 extract_stripe_6(uint64 instruction);
     uint64 extract_stype_20_19_18_17_16(uint64 instruction);
@@ -226,49 +228,24 @@ private:
     uint64 extract_u_15_to_0(uint64 instruction);
     uint64 extract_u_17_to_0(uint64 instruction);
     uint64 extract_u_1_0(uint64 instruction);
-    uint64 extr_uil0il1bs4Fmsb4(uint64 instruction);
-    uint64 extr_uil0il2bs3Fmsb4(uint64 instruction);
-    uint64 extr_uil0il2bs4Fmsb5(uint64 instruction);
-    uint64 extr_uil0il2bs5Fmsb6(uint64 instruction);
-    uint64 extr_uil0il2bs6Fmsb7(uint64 instruction);
-    uint64 extr_uil0il2bs7Fmsb8(uint64 instruction);
-    uint64 extr_uil0il32bs32Fmsb63(uint64 instruction);
+    uint64 extract_u_3_2_1_0__s1(uint64 instruction);
+    uint64 extract_u_2_1_0__s2(uint64 instruction);
+    uint64 extract_u_3_2_1_0__s2(uint64 instruction);
+    uint64 extract_u_4_3_2_1_0__s2(uint64 instruction);
+    uint64 extract_u_5_4_3_2_1_0__s2(uint64 instruction);
+    uint64 extract_u_6_5_4_3_2_1_0__s2(uint64 instruction);
+    uint64 extract_u_31_to_0__s32(uint64 instruction);
     uint64 extract_u_10(uint64 instruction);
     uint64 extract_u_17_16_15_14_13_12_11(uint64 instruction);
     uint64 extract_u_20_19_18_17_16_15_14_13(uint64 instruction);
-    uint64 extr_uil1il1bs17Fmsb17(uint64 instruction);
-    uint64 extr_uil1il1bs2Fmsb2(uint64 instruction);
-    uint64 extr_uil2il2bs16Fmsb17(uint64 instruction);
-    uint64 extr_uil2il2bs19Fmsb20(uint64 instruction);
-    uint64 extr_uil3il3bs18Fmsb20(uint64 instruction);
-    uint64 extr_uil3il3bs1_il8il2bs1Fmsb3(uint64 instruction);
-    uint64 extr_uil3il3bs9Fmsb11(uint64 instruction);
-    uint64 extr_uil4il4bs4Fmsb7(uint64 instruction);
-    uint64 extr_xil0il0bs12Fmsb11(uint64 instruction);
-    uint64 extr_xil0il0bs3_il4il0bs1Fmsb2(uint64 instruction);
-    uint64 extr_xil10il0bs1Fmsb0(uint64 instruction);
-    uint64 extr_xil10il0bs1_il11il0bs5Fmsb4(uint64 instruction);
-    uint64 extr_xil10il0bs1_il14il0bs2Fmsb1(uint64 instruction);
-    uint64 extr_xil10il0bs4_il22il0bs4Fmsb3(uint64 instruction);
-    uint64 extr_xil10il0bs6Fmsb5(uint64 instruction);
-    uint64 extr_xil11il0bs1Fmsb0(uint64 instruction);
-    uint64 extr_xil11il0bs5Fmsb4(uint64 instruction);
-    uint64 extr_xil12il0bs1Fmsb0(uint64 instruction);
-    uint64 extr_xil14il0bs1_il15il0bs1Fmsb0(uint64 instruction);
-    uint64 extr_xil14il0bs2Fmsb1(uint64 instruction);
-    uint64 extr_xil15il0bs1Fmsb0(uint64 instruction);
-    uint64 extr_xil16il0bs10Fmsb9(uint64 instruction);
-    uint64 extr_xil16il0bs5Fmsb4(uint64 instruction);
-    uint64 extr_xil17il0bs1Fmsb0(uint64 instruction);
-    uint64 extr_xil17il0bs9Fmsb8(uint64 instruction);
-    uint64 extr_xil21il0bs5Fmsb4(uint64 instruction);
-    uint64 extr_xil24il0bs1Fmsb0(uint64 instruction);
-    uint64 extr_xil2il0bs1_il15il0bs1Fmsb0(uint64 instruction);
-    uint64 extr_xil6il0bs3Fmsb2(uint64 instruction);
-    uint64 extr_xil6il0bs3_il10il0bs1Fmsb2(uint64 instruction);
-    uint64 extr_xil9il0bs2Fmsb1(uint64 instruction);
-    uint64 extr_xil9il0bs3Fmsb2(uint64 instruction);
-    uint64 extr_xil9il0bs3_il16il0bs5Fmsb4(uint64 instruction);
+    uint64 extract_u_17_to_1__s1(uint64 instruction);
+    uint64 extract_u_2_1__s1(uint64 instruction);
+    uint64 extract_u_17_to_2__s2(uint64 instruction);
+    uint64 extract_u_20_to_2__s2(uint64 instruction);
+    uint64 extract_u_20_to_3__s3(uint64 instruction);
+    uint64 extract_u_3_8__s2(uint64 instruction);
+    uint64 extract_u_11_10_9_8_7_6_5_4_3__s3(uint64 instruction);
+    uint64 extract_u_7_6_5_4__s4(uint64 instruction);
 
     bool ADDIU_32__cond(uint64 instruction);
     bool ADDIU_RS5__cond(uint64 instruction);
