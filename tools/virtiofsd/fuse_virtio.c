@@ -454,6 +454,10 @@ static void *fv_queue_thread(void *opaque)
                  __func__, qi->qidx, (size_t)evalue, in_bytes, out_bytes);
 
         while (1) {
+            bool allocated_bufv = false;
+            struct fuse_bufvec bufv;
+            struct fuse_bufvec *pbufv;
+
             /*
              * An element contains one request and the space to send our
              * response They're spread over multiple descriptors in a
@@ -495,14 +499,76 @@ static void *fv_queue_thread(void *opaque)
                          __func__, elem->index);
                 assert(0); /* TODO */
             }
-            copy_from_iov(&fbuf, out_num, out_sg);
-            fbuf.size = out_len;
+            /* Copy just the first element and look at it */
+            copy_from_iov(&fbuf, 1, out_sg);
 
-            /* TODO! Endianness of header */
+            if (out_num > 2 &&
+                out_sg[0].iov_len == sizeof(struct fuse_in_header) &&
+                ((struct fuse_in_header *)fbuf.mem)->opcode == FUSE_WRITE &&
+                out_sg[1].iov_len == sizeof(struct fuse_write_in)) {
+                /*
+                 * For a write we don't actually need to copy the
+                 * data, we can just do it straight out of guest memory
+                 * but we must still copy the headers in case the guest
+                 * was nasty and changed them while we were using them.
+                 */
+                fuse_log(FUSE_LOG_DEBUG, "%s: Write special case\n", __func__);
 
-            /* TODO: Add checks for fuse_session_exited */
-            struct fuse_bufvec bufv = { .buf[0] = fbuf, .count = 1 };
-            fuse_session_process_buf_int(se, &bufv, &ch);
+                /* copy the fuse_write_in header after the fuse_in_header */
+                fbuf.mem += out_sg->iov_len;
+                copy_from_iov(&fbuf, 1, out_sg + 1);
+                fbuf.mem -= out_sg->iov_len;
+                fbuf.size = out_sg[0].iov_len + out_sg[1].iov_len;
+
+                /* Allocate the bufv, with space for the rest of the iov */
+                allocated_bufv = true;
+                pbufv = malloc(sizeof(struct fuse_bufvec) +
+                               sizeof(struct fuse_buf) * (out_num - 2));
+                if (!pbufv) {
+                    vu_queue_unpop(dev, q, elem, 0);
+                    free(elem);
+                    fuse_log(FUSE_LOG_ERR, "%s: pbufv malloc failed\n",
+                             __func__);
+                    goto out;
+                }
+
+                pbufv->count = 1;
+                pbufv->buf[0] = fbuf;
+
+                size_t iovindex, pbufvindex;
+                iovindex = 2; /* 2 headers, separate iovs */
+                pbufvindex = 1; /* 2 headers, 1 fusebuf */
+
+                for (; iovindex < out_num; iovindex++, pbufvindex++) {
+                    pbufv->count++;
+                    pbufv->buf[pbufvindex].pos = ~0; /* Dummy */
+                    pbufv->buf[pbufvindex].flags = 0;
+                    pbufv->buf[pbufvindex].mem = out_sg[iovindex].iov_base;
+                    pbufv->buf[pbufvindex].size = out_sg[iovindex].iov_len;
+                }
+            } else {
+                /* Normal (non fast write) path */
+
+                /* Copy the rest of the buffer */
+                fbuf.mem += out_sg->iov_len;
+                copy_from_iov(&fbuf, out_num - 1, out_sg + 1);
+                fbuf.mem -= out_sg->iov_len;
+                fbuf.size = out_len;
+
+                /* TODO! Endianness of header */
+
+                /* TODO: Add checks for fuse_session_exited */
+                bufv.buf[0] = fbuf;
+                bufv.count = 1;
+                pbufv = &bufv;
+            }
+            pbufv->idx = 0;
+            pbufv->off = 0;
+            fuse_session_process_buf_int(se, pbufv, &ch);
+
+            if (allocated_bufv) {
+                free(pbufv);
+            }
 
             if (!qi->reply_sent) {
                 fuse_log(FUSE_LOG_DEBUG, "%s: elem %d no reply sent\n",
@@ -516,6 +582,7 @@ static void *fv_queue_thread(void *opaque)
             elem = NULL;
         }
     }
+out:
     pthread_mutex_destroy(&ch.lock);
     free(fbuf.mem);
 
