@@ -1747,12 +1747,17 @@ static int spapr_post_load(void *opaque, int version_id)
         return err;
     }
 
-    /* In earlier versions, there was no separate qdev for the PAPR
+    /*
+     * In earlier versions, there was no separate qdev for the PAPR
      * RTC, so the RTC offset was stored directly in sPAPREnvironment.
      * So when migrating from those versions, poke the incoming offset
-     * value into the RTC device */
+     * value into the RTC device
+     */
     if (version_id < 3) {
         err = spapr_rtc_import_offset(&spapr->rtc, spapr->rtc_offset);
+        if (err) {
+            return err;
+        }
     }
 
     if (kvm_enabled() && spapr->patb_entry) {
