@@ -38,7 +38,6 @@
  */
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "hw/isa/isa.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "qemu/main-loop.h"
 #include "qemu/log.h"
