@@ -191,7 +191,6 @@ int boot_menu;
 bool boot_strict;
 uint8_t *boot_splash_filedata;
 size_t boot_splash_filedata_size;
-uint8_t qemu_extra_params_fw[2];
 bool wakeup_suspend_enabled;
 
 int icount_align_option;
@@ -338,10 +337,10 @@ static QemuOptsList qemu_boot_opts = {
             .type = QEMU_OPT_STRING,
         }, {
             .name = "splash-time",
-            .type = QEMU_OPT_STRING,
+            .type = QEMU_OPT_NUMBER,
         }, {
             .name = "reboot-timeout",
-            .type = QEMU_OPT_STRING,
+            .type = QEMU_OPT_NUMBER,
         }, {
             .name = "strict",
             .type = QEMU_OPT_BOOL,

@@ -68,15 +68,14 @@ static char *read_splashfile(char *filename, gsize *file_sizep,
                              int *file_typep)
 {
     GError *err = NULL;
-    gboolean res;
     gchar *content;
     int file_type;
     unsigned int filehead;
     int bmp_bpp;
 
-    res = g_file_get_contents(filename, &content, file_sizep, &err);
-    if (res == FALSE) {
-        error_report("failed to read splash file '%s'", filename);
+    if (!g_file_get_contents(filename, &content, file_sizep, &err)) {
+        error_report("failed to read splash file '%s': %s",
+                     filename, err->message);
         g_error_free(err);
         return NULL;
     }
@@ -118,47 +117,39 @@ error:
 
 static void fw_cfg_bootsplash(FWCfgState *s)
 {
-    int boot_splash_time = -1;
     const char *boot_splash_filename = NULL;
-    char *p;
+    const char *boot_splash_time = NULL;
+    uint8_t qemu_extra_params_fw[2];
     char *filename, *file_data;
     gsize file_size;
     int file_type;
-    const char *temp;
 
     /* get user configuration */
     QemuOptsList *plist = qemu_find_opts("boot-opts");
     QemuOpts *opts = QTAILQ_FIRST(&plist->head);
-    if (opts != NULL) {
-        temp = qemu_opt_get(opts, "splash");
-        if (temp != NULL) {
-            boot_splash_filename = temp;
-        }
-        temp = qemu_opt_get(opts, "splash-time");
-        if (temp != NULL) {
-            p = (char *)temp;
-            boot_splash_time = strtol(p, &p, 10);
-        }
-    }
+    boot_splash_filename = qemu_opt_get(opts, "splash");
+    boot_splash_time = qemu_opt_get(opts, "splash-time");
 
     /* insert splash time if user configurated */
-    if (boot_splash_time >= 0) {
+    if (boot_splash_time) {
+        int64_t bst_val = qemu_opt_get_number(opts, "splash-time", -1);
         /* validate the input */
-        if (boot_splash_time > 0xffff) {
-            error_report("splash time is big than 65535, force it to 65535.");
-            boot_splash_time = 0xffff;
+        if (bst_val < 0 || bst_val > 0xffff) {
+            error_report("splash-time is invalid,"
+                         "it should be a value between 0 and 65535");
+            exit(1);
         }
         /* use little endian format */
-        qemu_extra_params_fw[0] = (uint8_t)(boot_splash_time & 0xff);
-        qemu_extra_params_fw[1] = (uint8_t)((boot_splash_time >> 8) & 0xff);
+        qemu_extra_params_fw[0] = (uint8_t)(bst_val & 0xff);
+        qemu_extra_params_fw[1] = (uint8_t)((bst_val >> 8) & 0xff);
         fw_cfg_add_file(s, "etc/boot-menu-wait", qemu_extra_params_fw, 2);
     }
 
     /* insert splash file if user configurated */
-    if (boot_splash_filename != NULL) {
+    if (boot_splash_filename) {
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, boot_splash_filename);
         if (filename == NULL) {
-            error_report("failed to find file '%s'.", boot_splash_filename);
+            error_report("failed to find file '%s'", boot_splash_filename);
             return;
         }
 
@@ -186,26 +177,25 @@ static void fw_cfg_bootsplash(FWCfgState *s)
 
 static void fw_cfg_reboot(FWCfgState *s)
 {
-    int reboot_timeout = -1;
-    char *p;
-    const char *temp;
+    const char *reboot_timeout = NULL;
+    int64_t rt_val = -1;
 
     /* get user configuration */
     QemuOptsList *plist = qemu_find_opts("boot-opts");
     QemuOpts *opts = QTAILQ_FIRST(&plist->head);
-    if (opts != NULL) {
-        temp = qemu_opt_get(opts, "reboot-timeout");
-        if (temp != NULL) {
-            p = (char *)temp;
-            reboot_timeout = strtol(p, &p, 10);
+    reboot_timeout = qemu_opt_get(opts, "reboot-timeout");
+
+    if (reboot_timeout) {
+        rt_val = qemu_opt_get_number(opts, "reboot-timeout", -1);
+        /* validate the input */
+        if (rt_val < 0 || rt_val > 0xffff) {
+            error_report("reboot timeout is invalid,"
+                         "it should be a value between 0 and 65535");
+            exit(1);
         }
     }
-    /* validate the input */
-    if (reboot_timeout > 0xffff) {
-        error_report("reboot timeout is larger than 65535, force it to 65535.");
-        reboot_timeout = 0xffff;
-    }
-    fw_cfg_add_file(s, "etc/boot-fail-wait", g_memdup(&reboot_timeout, 4), 4);
+
+    fw_cfg_add_file(s, "etc/boot-fail-wait", g_memdup(&rt_val, 4), 4);
 }
 
 static void fw_cfg_write(FWCfgState *s, uint8_t value)
