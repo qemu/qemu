@@ -35,6 +35,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/devices.h"
 #include "hw/boards.h"
+#include "hw/misc/unimp.h"
 #include "exec/address-spaces.h"
 #include "hw/char/xilinx_uartlite.h"
 
@@ -47,6 +48,7 @@
 
 #define MEMORY_BASEADDR 0x90000000
 #define FLASH_BASEADDR 0xa0000000
+#define GPIO_BASEADDR 0x81400000
 #define INTC_BASEADDR 0x81800000
 #define TIMER_BASEADDR 0x83c00000
 #define UARTLITE_BASEADDR 0x84000000
@@ -121,6 +123,8 @@ petalogix_s3adsp1800_init(MachineState *machine)
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, ETHLITE_BASEADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[ETHLITE_IRQ]);
+
+    create_unimplemented_device("gpio", GPIO_BASEADDR, 0x10000);
 
     microblaze_load_kernel(cpu, ddr_base, ram_size,
                            machine->initrd_filename,
