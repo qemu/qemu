@@ -308,6 +308,8 @@ struct MicroBlazeCPU {
         bool use_mmu;
         bool dcache_writeback;
         bool endi;
+        bool dopb_bus_exception;
+        bool iopb_bus_exception;
         char *version;
         uint8_t pvr;
     } cfg;
