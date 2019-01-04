@@ -42,6 +42,46 @@ void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops)
     csr_ops[csrno & (CSR_TABLE_SIZE - 1)] = *ops;
 }
 
+/* Predicates */
+static int fs(CPURISCVState *env, int csrno)
+{
+#if !defined(CONFIG_USER_ONLY)
+    if (!(env->mstatus & MSTATUS_FS)) {
+        return -1;
+    }
+#endif
+    return 0;
+}
+
+static int ctr(CPURISCVState *env, int csrno)
+{
+#if !defined(CONFIG_USER_ONLY)
+    target_ulong ctr_en = env->priv == PRV_U ? env->scounteren :
+                          env->priv == PRV_S ? env->mcounteren : -1U;
+    if (!(ctr_en & (1 << (csrno & 31)))) {
+        return -1;
+    }
+#endif
+    return 0;
+}
+
+#if !defined(CONFIG_USER_ONLY)
+static int any(CPURISCVState *env, int csrno)
+{
+    return 0;
+}
+
+static int smode(CPURISCVState *env, int csrno)
+{
+    return -!riscv_has_ext(env, RVS);
+}
+
+static int pmp(CPURISCVState *env, int csrno)
+{
+    return -!riscv_feature(env, RISCV_FEATURE_PMP);
+}
+#endif
+
 /* User Floating-Point CSRs */
 static int read_fflags(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -115,33 +155,8 @@ static int write_fcsr(CPURISCVState *env, int csrno, target_ulong val)
 }
 
 /* User Timers and Counters */
-static int counter_enabled(CPURISCVState *env, int csrno)
-{
-#ifndef CONFIG_USER_ONLY
-    target_ulong ctr_en = env->priv == PRV_U ? env->scounteren :
-                          env->priv == PRV_S ? env->mcounteren : -1U;
-#else
-    target_ulong ctr_en = -1;
-#endif
-    return (ctr_en >> (csrno & 31)) & 1;
-}
-
-#if !defined(CONFIG_USER_ONLY)
-static int read_zero_counter(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    if (!counter_enabled(env, csrno)) {
-        return -1;
-    }
-    *val = 0;
-    return 0;
-}
-#endif
-
 static int read_instret(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    if (!counter_enabled(env, csrno)) {
-        return -1;
-    }
 #if !defined(CONFIG_USER_ONLY)
     if (use_icount) {
         *val = cpu_get_icount();
@@ -157,9 +172,6 @@ static int read_instret(CPURISCVState *env, int csrno, target_ulong *val)
 #if defined(TARGET_RISCV32)
 static int read_instreth(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    if (!counter_enabled(env, csrno)) {
-        return -1;
-    }
 #if !defined(CONFIG_USER_ONLY)
     if (use_icount) {
         *val = cpu_get_icount() >> 32;
@@ -720,6 +732,11 @@ int riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
     }
 #endif
 
+    /* check predicate */
+    if (!csr_ops[csrno].predicate || csr_ops[csrno].predicate(env, csrno) < 0) {
+        return -1;
+    }
+
     /* execute combined read/write operation if it exists */
     if (csr_ops[csrno].op) {
         return csr_ops[csrno].op(env, csrno, ret_value, new_value, write_mask);
@@ -758,89 +775,89 @@ int riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
 /* Control and Status Register function table */
 static riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* User Floating-Point CSRs */
-    [CSR_FFLAGS] =              { read_fflags,      write_fflags      },
-    [CSR_FRM] =                 { read_frm,         write_frm         },
-    [CSR_FCSR] =                { read_fcsr,        write_fcsr        },
+    [CSR_FFLAGS] =              { fs,   read_fflags,      write_fflags      },
+    [CSR_FRM] =                 { fs,   read_frm,         write_frm         },
+    [CSR_FCSR] =                { fs,   read_fcsr,        write_fcsr        },
 
     /* User Timers and Counters */
-    [CSR_CYCLE] =               { read_instret                        },
-    [CSR_INSTRET] =             { read_instret                        },
+    [CSR_CYCLE] =               { ctr,  read_instret                        },
+    [CSR_INSTRET] =             { ctr,  read_instret                        },
 #if defined(TARGET_RISCV32)
-    [CSR_CYCLEH] =              { read_instreth                       },
-    [CSR_INSTRETH] =            { read_instreth                       },
+    [CSR_CYCLEH] =              { ctr,  read_instreth                       },
+    [CSR_INSTRETH] =            { ctr,  read_instreth                       },
 #endif
 
     /* User-level time CSRs are only available in linux-user
      * In privileged mode, the monitor emulates these CSRs */
 #if defined(CONFIG_USER_ONLY)
-    [CSR_TIME] =                { read_time                           },
+    [CSR_TIME] =                { ctr,  read_time                           },
 #if defined(TARGET_RISCV32)
-    [CSR_TIMEH] =               { read_timeh                          },
+    [CSR_TIMEH] =               { ctr,  read_timeh                          },
 #endif
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
     /* Machine Timers and Counters */
-    [CSR_MCYCLE] =              { read_instret                        },
-    [CSR_MINSTRET] =            { read_instret                        },
+    [CSR_MCYCLE] =              { any,  read_instret                        },
+    [CSR_MINSTRET] =            { any,  read_instret                        },
 #if defined(TARGET_RISCV32)
-    [CSR_MCYCLEH] =             { read_instreth                       },
-    [CSR_MINSTRETH] =           { read_instreth                       },
+    [CSR_MCYCLEH] =             { any,  read_instreth                       },
+    [CSR_MINSTRETH] =           { any,  read_instreth                       },
 #endif
 
     /* Machine Information Registers */
-    [CSR_MVENDORID] =           { read_zero                           },
-    [CSR_MARCHID] =             { read_zero                           },
-    [CSR_MIMPID] =              { read_zero                           },
-    [CSR_MHARTID] =             { read_mhartid                        },
+    [CSR_MVENDORID] =           { any,  read_zero                           },
+    [CSR_MARCHID] =             { any,  read_zero                           },
+    [CSR_MIMPID] =              { any,  read_zero                           },
+    [CSR_MHARTID] =             { any,  read_mhartid                        },
 
     /* Machine Trap Setup */
-    [CSR_MSTATUS] =             { read_mstatus,     write_mstatus     },
-    [CSR_MISA] =                { read_misa                           },
-    [CSR_MIDELEG] =             { read_mideleg,     write_mideleg     },
-    [CSR_MEDELEG] =             { read_medeleg,     write_medeleg     },
-    [CSR_MIE] =                 { read_mie,         write_mie         },
-    [CSR_MTVEC] =               { read_mtvec,       write_mtvec       },
-    [CSR_MCOUNTEREN] =          { read_mcounteren,  write_mcounteren  },
+    [CSR_MSTATUS] =             { any,  read_mstatus,     write_mstatus     },
+    [CSR_MISA] =                { any,  read_misa                           },
+    [CSR_MIDELEG] =             { any,  read_mideleg,     write_mideleg     },
+    [CSR_MEDELEG] =             { any,  read_medeleg,     write_medeleg     },
+    [CSR_MIE] =                 { any,  read_mie,         write_mie         },
+    [CSR_MTVEC] =               { any,  read_mtvec,       write_mtvec       },
+    [CSR_MCOUNTEREN] =          { any,  read_mcounteren,  write_mcounteren  },
 
     /* Legacy Counter Setup (priv v1.9.1) */
-    [CSR_MUCOUNTEREN] =         { read_mucounteren, write_mucounteren },
-    [CSR_MSCOUNTEREN] =         { read_mscounteren, write_mscounteren },
+    [CSR_MUCOUNTEREN] =         { any,  read_mucounteren, write_mucounteren },
+    [CSR_MSCOUNTEREN] =         { any,  read_mscounteren, write_mscounteren },
 
     /* Machine Trap Handling */
-    [CSR_MSCRATCH] =            { read_mscratch,    write_mscratch    },
-    [CSR_MEPC] =                { read_mepc,        write_mepc        },
-    [CSR_MCAUSE] =              { read_mcause,      write_mcause      },
-    [CSR_MBADADDR] =            { read_mbadaddr,    write_mbadaddr    },
-    [CSR_MIP] =                 { NULL,     NULL,     rmw_mip         },
+    [CSR_MSCRATCH] =            { any,  read_mscratch,    write_mscratch    },
+    [CSR_MEPC] =                { any,  read_mepc,        write_mepc        },
+    [CSR_MCAUSE] =              { any,  read_mcause,      write_mcause      },
+    [CSR_MBADADDR] =            { any,  read_mbadaddr,    write_mbadaddr    },
+    [CSR_MIP] =                 { any,  NULL,     NULL,     rmw_mip         },
 
     /* Supervisor Trap Setup */
-    [CSR_SSTATUS] =             { read_sstatus,     write_sstatus     },
-    [CSR_SIE] =                 { read_sie,         write_sie         },
-    [CSR_STVEC] =               { read_stvec,       write_stvec       },
-    [CSR_SCOUNTEREN] =          { read_scounteren,  write_scounteren  },
+    [CSR_SSTATUS] =             { smode, read_sstatus,     write_sstatus     },
+    [CSR_SIE] =                 { smode, read_sie,         write_sie         },
+    [CSR_STVEC] =               { smode, read_stvec,       write_stvec       },
+    [CSR_SCOUNTEREN] =          { smode, read_scounteren,  write_scounteren  },
 
     /* Supervisor Trap Handling */
-    [CSR_SSCRATCH] =            { read_sscratch,    write_sscratch    },
-    [CSR_SEPC] =                { read_sepc,        write_sepc        },
-    [CSR_SCAUSE] =              { read_scause,      write_scause      },
-    [CSR_SBADADDR] =            { read_sbadaddr,    write_sbadaddr    },
-    [CSR_SIP] =                 { NULL,     NULL,     rmw_sip         },
+    [CSR_SSCRATCH] =            { smode, read_sscratch,    write_sscratch    },
+    [CSR_SEPC] =                { smode, read_sepc,        write_sepc        },
+    [CSR_SCAUSE] =              { smode, read_scause,      write_scause      },
+    [CSR_SBADADDR] =            { smode, read_sbadaddr,    write_sbadaddr    },
+    [CSR_SIP] =                 { smode, NULL,     NULL,     rmw_sip         },
 
     /* Supervisor Protection and Translation */
-    [CSR_SATP] =                { read_satp,        write_satp        },
+    [CSR_SATP] =                { smode, read_satp,        write_satp        },
 
     /* Physical Memory Protection */
-    [CSR_PMPCFG0  ... CSR_PMPADDR9] =  { read_pmpcfg,  write_pmpcfg   },
-    [CSR_PMPADDR0 ... CSR_PMPADDR15] = { read_pmpaddr, write_pmpaddr  },
+    [CSR_PMPCFG0  ... CSR_PMPADDR9] =  { pmp,   read_pmpcfg,  write_pmpcfg   },
+    [CSR_PMPADDR0 ... CSR_PMPADDR15] = { pmp,   read_pmpaddr, write_pmpaddr  },
 
     /* Performance Counters */
-    [CSR_HPMCOUNTER3   ... CSR_HPMCOUNTER31] =    { read_zero_counter },
-    [CSR_MHPMCOUNTER3  ... CSR_MHPMCOUNTER31] =   { read_zero         },
-    [CSR_MHPMEVENT3    ... CSR_MHPMEVENT31] =     { read_zero         },
+    [CSR_HPMCOUNTER3   ... CSR_HPMCOUNTER31] =    { ctr,  read_zero          },
+    [CSR_MHPMCOUNTER3  ... CSR_MHPMCOUNTER31] =   { any,  read_zero          },
+    [CSR_MHPMEVENT3    ... CSR_MHPMEVENT31] =     { any,  read_zero          },
 #if defined(TARGET_RISCV32)
-    [CSR_HPMCOUNTER3H  ... CSR_HPMCOUNTER31H] =   { read_zero_counter },
-    [CSR_MHPMCOUNTER3H ... CSR_MHPMCOUNTER31H] =  { read_zero         },
+    [CSR_HPMCOUNTER3H  ... CSR_HPMCOUNTER31H] =   { ctr,  read_zero          },
+    [CSR_MHPMCOUNTER3H ... CSR_MHPMCOUNTER31H] =  { any,  read_zero          },
 #endif
 #endif /* !CONFIG_USER_ONLY */
 };
