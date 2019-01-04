@@ -355,5 +355,6 @@
 #define __NR_pkey_free (__NR_SYSCALL_BASE + 396)
 #define __NR_statx (__NR_SYSCALL_BASE + 397)
 #define __NR_rseq (__NR_SYSCALL_BASE + 398)
+#define __NR_io_pgetevents (__NR_SYSCALL_BASE + 399)
 
 #endif /* _ASM_ARM_UNISTD_COMMON_H */
