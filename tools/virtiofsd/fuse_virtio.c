@@ -501,7 +501,8 @@ static void *fv_queue_thread(void *opaque)
             /* TODO! Endianness of header */
 
             /* TODO: Add checks for fuse_session_exited */
-            fuse_session_process_buf_int(se, &fbuf, &ch);
+            struct fuse_bufvec bufv = { .buf[0] = fbuf, .count = 1 };
+            fuse_session_process_buf_int(se, &bufv, &ch);
 
             if (!qi->reply_sent) {
                 fuse_log(FUSE_LOG_DEBUG, "%s: elem %d no reply sent\n",

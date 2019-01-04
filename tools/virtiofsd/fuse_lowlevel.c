@@ -1004,11 +1004,12 @@ static void do_write(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
 }
 
 static void do_write_buf(fuse_req_t req, fuse_ino_t nodeid, const void *inarg,
-                         const struct fuse_buf *ibuf)
+                         struct fuse_bufvec *ibufv)
 {
     struct fuse_session *se = req->se;
-    struct fuse_bufvec bufv = {
-        .buf[0] = *ibuf,
+    struct fuse_bufvec *pbufv = ibufv;
+    struct fuse_bufvec tmpbufv = {
+        .buf[0] = ibufv->buf[0],
         .count = 1,
     };
     struct fuse_write_in *arg = (struct fuse_write_in *)inarg;
@@ -1018,22 +1019,31 @@ static void do_write_buf(fuse_req_t req, fuse_ino_t nodeid, const void *inarg,
     fi.fh = arg->fh;
     fi.writepage = arg->write_flags & FUSE_WRITE_CACHE;
 
-    fi.lock_owner = arg->lock_owner;
-    fi.flags = arg->flags;
-    if (!(bufv.buf[0].flags & FUSE_BUF_IS_FD)) {
-        bufv.buf[0].mem = PARAM(arg);
+    if (ibufv->count == 1) {
+        fi.lock_owner = arg->lock_owner;
+        fi.flags = arg->flags;
+        if (!(tmpbufv.buf[0].flags & FUSE_BUF_IS_FD)) {
+            tmpbufv.buf[0].mem = PARAM(arg);
+        }
+        tmpbufv.buf[0].size -=
+            sizeof(struct fuse_in_header) + sizeof(struct fuse_write_in);
+        if (tmpbufv.buf[0].size < arg->size) {
+            fuse_log(FUSE_LOG_ERR,
+                     "fuse: do_write_buf: buffer size too small\n");
+            fuse_reply_err(req, EIO);
+            return;
+        }
+        tmpbufv.buf[0].size = arg->size;
+        pbufv = &tmpbufv;
+    } else {
+        /*
+         *  Input bufv contains the headers in the first element
+         * and the data in the rest, we need to skip that first element
+         */
+        ibufv->buf[0].size = 0;
     }
 
-    bufv.buf[0].size -=
-        sizeof(struct fuse_in_header) + sizeof(struct fuse_write_in);
-    if (bufv.buf[0].size < arg->size) {
-        fuse_log(FUSE_LOG_ERR, "fuse: do_write_buf: buffer size too small\n");
-        fuse_reply_err(req, EIO);
-        return;
-    }
-    bufv.buf[0].size = arg->size;
-
-    se->op.write_buf(req, nodeid, &bufv, arg->offset, &fi);
+    se->op.write_buf(req, nodeid, pbufv, arg->offset, &fi);
 }
 
 static void do_flush(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
@@ -2024,13 +2034,24 @@ static const char *opname(enum fuse_opcode opcode)
 void fuse_session_process_buf(struct fuse_session *se,
                               const struct fuse_buf *buf)
 {
-    fuse_session_process_buf_int(se, buf, NULL);
+    struct fuse_bufvec bufv = { .buf[0] = *buf, .count = 1 };
+    fuse_session_process_buf_int(se, &bufv, NULL);
 }
 
+/*
+ * Restriction:
+ *   bufv is normally a single entry buffer, except for a write
+ *   where (if it's in memory) then the bufv may be multiple entries,
+ *   where the first entry contains all headers and subsequent entries
+ *   contain data
+ *   bufv shall not use any offsets etc to make the data anything
+ *   other than contiguous starting from 0.
+ */
 void fuse_session_process_buf_int(struct fuse_session *se,
-                                  const struct fuse_buf *buf,
+                                  struct fuse_bufvec *bufv,
                                   struct fuse_chan *ch)
 {
+    const struct fuse_buf *buf = bufv->buf;
     struct fuse_in_header *in;
     const void *inarg;
     struct fuse_req *req;
@@ -2108,7 +2129,7 @@ void fuse_session_process_buf_int(struct fuse_session *se,
 
     inarg = (void *)&in[1];
     if (in->opcode == FUSE_WRITE && se->op.write_buf) {
-        do_write_buf(req, in->nodeid, inarg, buf);
+        do_write_buf(req, in->nodeid, inarg, bufv);
     } else {
         fuse_ll_ops[in->opcode].func(req, in->nodeid, inarg);
     }
