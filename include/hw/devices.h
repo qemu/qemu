@@ -52,7 +52,6 @@ void retu_key_event(void *retu, int state);
 
 /* tc6393xb.c */
 typedef struct TC6393xbState TC6393xbState;
-#define TC6393XB_RAM	0x110000 /* amount of ram for Video and USB */
 TC6393xbState *tc6393xb_init(struct MemoryRegion *sysmem,
                              uint32_t base, qemu_irq irq);
 void tc6393xb_gpio_out_set(TC6393xbState *s, int line,
