@@ -54,7 +54,7 @@ enum {
     UDBZ,
     ULFO,
     UDCM = 0x7ffffffe, /* Comments */
-    UDLE               /* Last Entry */
+    UDLE = 0xffffffff  /* Last Entry */
 };
 
 static int dmg_probe(const uint8_t *buf, int buf_size, const char *filename)
@@ -130,7 +130,8 @@ static void update_max_chunk_size(BDRVDMGState *s, uint32_t chunk,
     case UDRW: /* copy */
         uncompressed_sectors = DIV_ROUND_UP(s->lengths[chunk], 512);
         break;
-    case UDIG: /* zero */
+    case UDZE: /* zero */
+    case UDIG: /* ignore */
         /* as the all-zeroes block may be large, it is treated specially: the
          * sector is not copied from a large buffer, a simple memset is used
          * instead. Therefore uncompressed_sectors does not need to be set. */
@@ -199,8 +200,9 @@ typedef struct DmgHeaderState {
 static bool dmg_is_known_block_type(uint32_t entry_type)
 {
     switch (entry_type) {
+    case UDZE:    /* zeros */
     case UDRW:    /* uncompressed */
-    case UDIG:    /* zeroes */
+    case UDIG:    /* ignore */
     case UDZO:    /* zlib */
         return true;
     case UDBZ:    /* bzip2 */
@@ -265,9 +267,10 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
         /* sector count */
         s->sectorcounts[i] = buff_read_uint64(buffer, offset + 0x10);
 
-        /* all-zeroes sector (type 2) does not need to be "uncompressed" and can
-         * therefore be unbounded. */
-        if (s->types[i] != 2 && s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
+        /* all-zeroes sector (type UDZE and UDIG) does not need to be
+         * "uncompressed" and can therefore be unbounded. */
+        if (s->types[i] != UDZE && s->types[i] != UDIG
+            && s->sectorcounts[i] > DMG_SECTORCOUNTS_MAX) {
             error_report("sector count %" PRIu64 " for chunk %" PRIu32
                          " is larger than max (%u)",
                          s->sectorcounts[i], i, DMG_SECTORCOUNTS_MAX);
@@ -572,16 +575,20 @@ static inline uint32_t search_chunk(BDRVDMGState *s, uint64_t sector_num)
 {
     /* binary search */
     uint32_t chunk1 = 0, chunk2 = s->n_chunks, chunk3;
-    while (chunk1 != chunk2) {
+    while (chunk1 <= chunk2) {
         chunk3 = (chunk1 + chunk2) / 2;
         if (s->sectors[chunk3] > sector_num) {
-            chunk2 = chunk3;
+            if (chunk3 == 0) {
+                goto err;
+            }
+            chunk2 = chunk3 - 1;
         } else if (s->sectors[chunk3] + s->sectorcounts[chunk3] > sector_num) {
             return chunk3;
         } else {
-            chunk1 = chunk3;
+            chunk1 = chunk3 + 1;
         }
     }
+err:
     return s->n_chunks; /* error */
 }
 
@@ -671,7 +678,8 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
                 return -1;
             }
             break;
-        case UDIG: /* zero */
+        case UDZE: /* zeros */
+        case UDIG: /* ignore */
             /* see dmg_read, it is treated specially. No buffer needs to be
              * pre-filled, the zeroes can be set directly. */
             break;
@@ -706,7 +714,8 @@ dmg_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
         /* Special case: current chunk is all zeroes. Do not perform a memcpy as
          * s->uncompressed_chunk may be too small to cover the large all-zeroes
          * section. dmg_read_chunk is called to find s->current_chunk */
-        if (s->types[s->current_chunk] == 2) { /* all zeroes block entry */
+        if (s->types[s->current_chunk] == UDZE
+            || s->types[s->current_chunk] == UDIG) { /* all zeroes block entry */
             qemu_iovec_memset(qiov, i * 512, 0, 512);
             continue;
         }
