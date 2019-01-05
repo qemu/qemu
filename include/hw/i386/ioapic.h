@@ -23,6 +23,9 @@
 #define IOAPIC_NUM_PINS 24
 #define IO_APIC_DEFAULT_ADDRESS 0xfec00000
 
+#define TYPE_KVM_IOAPIC "kvm-ioapic"
+#define TYPE_IOAPIC "ioapic"
+
 void ioapic_eoi_broadcast(int vector);
 
 #endif /* HW_IOAPIC_H */

@@ -2339,9 +2339,9 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
     unsigned int i;
 
     if (kvm_ioapic_in_kernel()) {
-        dev = qdev_create(NULL, "kvm-ioapic");
+        dev = qdev_create(NULL, TYPE_KVM_IOAPIC);
     } else {
-        dev = qdev_create(NULL, "ioapic");
+        dev = qdev_create(NULL, TYPE_IOAPIC);
     }
     if (parent_name) {
         object_property_add_child(object_resolve_path(parent_name, NULL),
