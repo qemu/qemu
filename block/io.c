@@ -806,6 +806,7 @@ static void coroutine_fn bdrv_rw_co_entry(void *opaque)
                                     rwco->qiov->size, rwco->qiov,
                                     rwco->flags);
     }
+    aio_wait_kick();
 }
 
 /*
@@ -2279,6 +2280,7 @@ static void coroutine_fn bdrv_block_status_above_co_entry(void *opaque)
                                            data->offset, data->bytes,
                                            data->pnum, data->map, data->file);
     data->done = true;
+    aio_wait_kick();
 }
 
 /*
@@ -2438,6 +2440,7 @@ static void coroutine_fn bdrv_co_rw_vmstate_entry(void *opaque)
 {
     BdrvVmstateCo *co = opaque;
     co->ret = bdrv_co_rw_vmstate(co->bs, co->qiov, co->pos, co->is_read);
+    aio_wait_kick();
 }
 
 static inline int
@@ -2559,6 +2562,7 @@ static void coroutine_fn bdrv_flush_co_entry(void *opaque)
     FlushCo *rwco = opaque;
 
     rwco->ret = bdrv_co_flush(rwco->bs);
+    aio_wait_kick();
 }
 
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
@@ -2704,6 +2708,7 @@ static void coroutine_fn bdrv_pdiscard_co_entry(void *opaque)
     DiscardCo *rwco = opaque;
 
     rwco->ret = bdrv_co_pdiscard(rwco->child, rwco->offset, rwco->bytes);
+    aio_wait_kick();
 }
 
 int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset, int bytes)
@@ -3217,6 +3222,7 @@ static void coroutine_fn bdrv_truncate_co_entry(void *opaque)
     TruncateCo *tco = opaque;
     tco->ret = bdrv_co_truncate(tco->child, tco->offset, tco->prealloc,
                                 tco->errp);
+    aio_wait_kick();
 }
 
 int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
@@ -3236,7 +3242,7 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
         bdrv_truncate_co_entry(&tco);
     } else {
         co = qemu_coroutine_create(bdrv_truncate_co_entry, &tco);
-        qemu_coroutine_enter(co);
+        bdrv_coroutine_enter(child->bs, co);
         BDRV_POLL_WHILE(child->bs, tco.ret == NOT_DONE);
     }
 

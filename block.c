@@ -3736,6 +3736,7 @@ static void bdrv_check_co_entry(void *opaque)
 {
     CheckCo *cco = opaque;
     cco->ret = bdrv_co_check(cco->bs, cco->res, cco->fix);
+    aio_wait_kick();
 }
 
 int bdrv_check(BlockDriverState *bs,
@@ -3754,7 +3755,7 @@ int bdrv_check(BlockDriverState *bs,
         bdrv_check_co_entry(&cco);
     } else {
         co = qemu_coroutine_create(bdrv_check_co_entry, &cco);
-        qemu_coroutine_enter(co);
+        bdrv_coroutine_enter(bs, co);
         BDRV_POLL_WHILE(bs, cco.ret == -EINPROGRESS);
     }
 
@@ -4572,6 +4573,7 @@ static void coroutine_fn bdrv_invalidate_cache_co_entry(void *opaque)
     InvalidateCacheCo *ico = opaque;
     bdrv_co_invalidate_cache(ico->bs, ico->errp);
     ico->done = true;
+    aio_wait_kick();
 }
 
 void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
@@ -4588,7 +4590,7 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
         bdrv_invalidate_cache_co_entry(&ico);
     } else {
         co = qemu_coroutine_create(bdrv_invalidate_cache_co_entry, &ico);
-        qemu_coroutine_enter(co);
+        bdrv_coroutine_enter(bs, co);
         BDRV_POLL_WHILE(bs, !ico.done);
     }
 }
