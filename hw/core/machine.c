@@ -24,23 +24,10 @@
 #include "hw/pci/pci.h"
 
 GlobalProperty hw_compat_3_1[] = {
-    {
-        .driver   = "pcie-root-port",
-        .property = "x-speed",
-        .value    = "2_5",
-    },{
-        .driver   = "pcie-root-port",
-        .property = "x-width",
-        .value    = "1",
-    },{
-        .driver   = "memory-backend-file",
-        .property = "x-use-canonical-path-for-ramblock-id",
-        .value    = "true",
-    },{
-        .driver   = "memory-backend-memfd",
-        .property = "x-use-canonical-path-for-ramblock-id",
-        .value    = "true",
-    },
+    { "pcie-root-port", "x-speed", "2_5" },
+    { "pcie-root-port", "x-width", "1" },
+    { "memory-backend-file", "x-use-canonical-path-for-ramblock-id", "true" },
+    { "memory-backend-memfd", "x-use-canonical-path-for-ramblock-id", "true" },
 };
 const size_t hw_compat_3_1_len = G_N_ELEMENTS(hw_compat_3_1);
 
@@ -48,269 +35,96 @@ GlobalProperty hw_compat_3_0[] = {};
 const size_t hw_compat_3_0_len = G_N_ELEMENTS(hw_compat_3_0);
 
 GlobalProperty hw_compat_2_12[] = {
-    {
-        .driver   = "migration",
-        .property = "decompress-error-check",
-        .value    = "off",
-    },{
-        .driver   = "hda-audio",
-        .property = "use-timer",
-        .value    = "false",
-    },{
-        .driver   = "cirrus-vga",
-        .property = "global-vmstate",
-        .value    = "true",
-    },{
-        .driver   = "VGA",
-        .property = "global-vmstate",
-        .value    = "true",
-    },{
-        .driver   = "vmware-svga",
-        .property = "global-vmstate",
-        .value    = "true",
-    },{
-        .driver   = "qxl-vga",
-        .property = "global-vmstate",
-        .value    = "true",
-    },
+    { "migration", "decompress-error-check", "off" },
+    { "hda-audio", "use-timer", "false" },
+    { "cirrus-vga", "global-vmstate", "true" },
+    { "VGA", "global-vmstate", "true" },
+    { "vmware-svga", "global-vmstate", "true" },
+    { "qxl-vga", "global-vmstate", "true" },
 };
 const size_t hw_compat_2_12_len = G_N_ELEMENTS(hw_compat_2_12);
 
 GlobalProperty hw_compat_2_11[] = {
-    {
-        .driver   = "hpet",
-        .property = "hpet-offset-saved",
-        .value    = "false",
-    },{
-        .driver   = "virtio-blk-pci",
-        .property = "vectors",
-        .value    = "2",
-    },{
-        .driver   = "vhost-user-blk-pci",
-        .property = "vectors",
-        .value    = "2",
-    },{
-        .driver   = "e1000",
-        .property = "migrate_tso_props",
-        .value    = "off",
-    },
+    { "hpet", "hpet-offset-saved", "false" },
+    { "virtio-blk-pci", "vectors", "2" },
+    { "vhost-user-blk-pci", "vectors", "2" },
+    { "e1000", "migrate_tso_props", "off" },
 };
 const size_t hw_compat_2_11_len = G_N_ELEMENTS(hw_compat_2_11);
 
 GlobalProperty hw_compat_2_10[] = {
-    {
-        .driver   = "virtio-mouse-device",
-        .property = "wheel-axis",
-        .value    = "false",
-    },{
-        .driver   = "virtio-tablet-device",
-        .property = "wheel-axis",
-        .value    = "false",
-    },
+    { "virtio-mouse-device", "wheel-axis", "false" },
+    { "virtio-tablet-device", "wheel-axis", "false" },
 };
 const size_t hw_compat_2_10_len = G_N_ELEMENTS(hw_compat_2_10);
 
 GlobalProperty hw_compat_2_9[] = {
-    {
-        .driver   = "pci-bridge",
-        .property = "shpc",
-        .value    = "off",
-    },{
-        .driver   = "intel-iommu",
-        .property = "pt",
-        .value    = "off",
-    },{
-        .driver   = "virtio-net-device",
-        .property = "x-mtu-bypass-backend",
-        .value    = "off",
-    },{
-        .driver   = "pcie-root-port",
-        .property = "x-migrate-msix",
-        .value    = "false",
-    },
+    { "pci-bridge", "shpc", "off" },
+    { "intel-iommu", "pt", "off" },
+    { "virtio-net-device", "x-mtu-bypass-backend", "off" },
+    { "pcie-root-port", "x-migrate-msix", "false" },
 };
 const size_t hw_compat_2_9_len = G_N_ELEMENTS(hw_compat_2_9);
 
 GlobalProperty hw_compat_2_8[] = {
-    {
-        .driver   = "fw_cfg_mem",
-        .property = "x-file-slots",
-        .value    = "0x10",
-    },{
-        .driver   = "fw_cfg_io",
-        .property = "x-file-slots",
-        .value    = "0x10",
-    },{
-        .driver   = "pflash_cfi01",
-        .property = "old-multiple-chip-handling",
-        .value    = "on",
-    },{
-        .driver   = "pci-bridge",
-        .property = "shpc",
-        .value    = "on",
-    },{
-        .driver   = TYPE_PCI_DEVICE,
-        .property = "x-pcie-extcap-init",
-        .value    = "off",
-    },{
-        .driver   = "virtio-pci",
-        .property = "x-pcie-deverr-init",
-        .value    = "off",
-    },{
-        .driver   = "virtio-pci",
-        .property = "x-pcie-lnkctl-init",
-        .value    = "off",
-    },{
-        .driver   = "virtio-pci",
-        .property = "x-pcie-pm-init",
-        .value    = "off",
-    },{
-        .driver   = "cirrus-vga",
-        .property = "vgamem_mb",
-        .value    = "8",
-    },{
-        .driver   = "isa-cirrus-vga",
-        .property = "vgamem_mb",
-        .value    = "8",
-    },
+    { "fw_cfg_mem", "x-file-slots", "0x10" },
+    { "fw_cfg_io", "x-file-slots", "0x10" },
+    { "pflash_cfi01", "old-multiple-chip-handling", "on" },
+    { "pci-bridge", "shpc", "on" },
+    { TYPE_PCI_DEVICE, "x-pcie-extcap-init", "off" },
+    { "virtio-pci", "x-pcie-deverr-init", "off" },
+    { "virtio-pci", "x-pcie-lnkctl-init", "off" },
+    { "virtio-pci", "x-pcie-pm-init", "off" },
+    { "cirrus-vga", "vgamem_mb", "8" },
+    { "isa-cirrus-vga", "vgamem_mb", "8" },
 };
 const size_t hw_compat_2_8_len = G_N_ELEMENTS(hw_compat_2_8);
 
 GlobalProperty hw_compat_2_7[] = {
-    {
-        .driver   = "virtio-pci",
-        .property = "page-per-vq",
-        .value    = "on",
-    },{
-        .driver   = "virtio-serial-device",
-        .property = "emergency-write",
-        .value    = "off",
-    },{
-        .driver   = "ioapic",
-        .property = "version",
-        .value    = "0x11",
-    },{
-        .driver   = "intel-iommu",
-        .property = "x-buggy-eim",
-        .value    = "true",
-    },{
-        .driver   = "virtio-pci",
-        .property = "x-ignore-backend-features",
-        .value    = "on",
-    },
+    { "virtio-pci", "page-per-vq", "on" },
+    { "virtio-serial-device", "emergency-write", "off" },
+    { "ioapic", "version", "0x11" },
+    { "intel-iommu", "x-buggy-eim", "true" },
+    { "virtio-pci", "x-ignore-backend-features", "on" },
 };
 const size_t hw_compat_2_7_len = G_N_ELEMENTS(hw_compat_2_7);
 
 GlobalProperty hw_compat_2_6[] = {
-    {
-        .driver   = "virtio-mmio",
-        .property = "format_transport_address",
-        .value    = "off",
-    },{
-        .driver   = "virtio-pci",
-        .property = "disable-modern",
-        .value    = "on",
-    },{
-        .driver   = "virtio-pci",
-        .property = "disable-legacy",
-        .value    = "off",
-    },
+    { "virtio-mmio", "format_transport_address", "off" },
+    { "virtio-pci", "disable-modern", "on" },
+    { "virtio-pci", "disable-legacy", "off" },
 };
 const size_t hw_compat_2_6_len = G_N_ELEMENTS(hw_compat_2_6);
 
 GlobalProperty hw_compat_2_5[] = {
-    {
-        .driver   = "isa-fdc",
-        .property = "fallback",
-        .value    = "144",
-    },{
-        .driver   = "pvscsi",
-        .property = "x-old-pci-configuration",
-        .value    = "on",
-    },{
-        .driver   = "pvscsi",
-        .property = "x-disable-pcie",
-        .value    = "on",
-    },
-    {
-        .driver   = "vmxnet3",
-        .property = "x-old-msi-offsets",
-        .value    = "on",
-    },{
-        .driver   = "vmxnet3",
-        .property = "x-disable-pcie",
-        .value    = "on",
-    },
+    { "isa-fdc", "fallback", "144" },
+    { "pvscsi", "x-old-pci-configuration", "on" },
+    { "pvscsi", "x-disable-pcie", "on" },
+    { "vmxnet3", "x-old-msi-offsets", "on" },
+    { "vmxnet3", "x-disable-pcie", "on" },
 };
 const size_t hw_compat_2_5_len = G_N_ELEMENTS(hw_compat_2_5);
 
 GlobalProperty hw_compat_2_4[] = {
-    {
-        .driver   = "virtio-blk-device",
-        .property = "scsi",
-        .value    = "true",
-    },{
-        .driver   = "e1000",
-        .property = "extra_mac_registers",
-        .value    = "off",
-    },{
-        .driver   = "virtio-pci",
-        .property = "x-disable-pcie",
-        .value    = "on",
-    },{
-        .driver   = "virtio-pci",
-        .property = "migrate-extra",
-        .value    = "off",
-    },{
-        .driver   = "fw_cfg_mem",
-        .property = "dma_enabled",
-        .value    = "off",
-    },{
-        .driver   = "fw_cfg_io",
-        .property = "dma_enabled",
-        .value    = "off",
-    }
+    { "virtio-blk-device", "scsi", "true" },
+    { "e1000", "extra_mac_registers", "off" },
+    { "virtio-pci", "x-disable-pcie", "on" },
+    { "virtio-pci", "migrate-extra", "off" },
+    { "fw_cfg_mem", "dma_enabled", "off" },
+    { "fw_cfg_io", "dma_enabled", "off" }
 };
 const size_t hw_compat_2_4_len = G_N_ELEMENTS(hw_compat_2_4);
 
 GlobalProperty hw_compat_2_3[] = {
-    {
-        .driver   = "virtio-blk-pci",
-        .property = "any_layout",
-        .value    = "off",
-    },{
-        .driver   = "virtio-balloon-pci",
-        .property = "any_layout",
-        .value    = "off",
-    },{
-        .driver   = "virtio-serial-pci",
-        .property = "any_layout",
-        .value    = "off",
-    },{
-        .driver   = "virtio-9p-pci",
-        .property = "any_layout",
-        .value    = "off",
-    },{
-        .driver   = "virtio-rng-pci",
-        .property = "any_layout",
-        .value    = "off",
-    },{
-        .driver   = TYPE_PCI_DEVICE,
-        .property = "x-pcie-lnksta-dllla",
-        .value    = "off",
-    },{
-        .driver   = "migration",
-        .property = "send-configuration",
-        .value    = "off",
-    },{
-        .driver   = "migration",
-        .property = "send-section-footer",
-        .value    = "off",
-    },{
-        .driver   = "migration",
-        .property = "store-global-state",
-        .value    = "off",
-    },
+    { "virtio-blk-pci", "any_layout", "off" },
+    { "virtio-balloon-pci", "any_layout", "off" },
+    { "virtio-serial-pci", "any_layout", "off" },
+    { "virtio-9p-pci", "any_layout", "off" },
+    { "virtio-rng-pci", "any_layout", "off" },
+    { TYPE_PCI_DEVICE, "x-pcie-lnksta-dllla", "off" },
+    { "migration", "send-configuration", "off" },
+    { "migration", "send-section-footer", "off" },
+    { "migration", "store-global-state", "off" },
 };
 const size_t hw_compat_2_3_len = G_N_ELEMENTS(hw_compat_2_3);
 
@@ -318,35 +132,13 @@ GlobalProperty hw_compat_2_2[] = {};
 const size_t hw_compat_2_2_len = G_N_ELEMENTS(hw_compat_2_2);
 
 GlobalProperty hw_compat_2_1[] = {
-    {
-        .driver   = "intel-hda",
-        .property = "old_msi_addr",
-        .value    = "on",
-    },{
-        .driver   = "VGA",
-        .property = "qemu-extended-regs",
-        .value    = "off",
-    },{
-        .driver   = "secondary-vga",
-        .property = "qemu-extended-regs",
-        .value    = "off",
-    },{
-        .driver   = "virtio-scsi-pci",
-        .property = "any_layout",
-        .value    = "off",
-    },{
-        .driver   = "usb-mouse",
-        .property = "usb_version",
-        .value    = "1",
-    },{
-        .driver   = "usb-kbd",
-        .property = "usb_version",
-        .value    = "1",
-    },{
-        .driver   = "virtio-pci",
-        .property = "virtio-pci-bus-master-bug-migration",
-        .value    = "on",
-    },
+    { "intel-hda", "old_msi_addr", "on" },
+    { "VGA", "qemu-extended-regs", "off" },
+    { "secondary-vga", "qemu-extended-regs", "off" },
+    { "virtio-scsi-pci", "any_layout", "off" },
+    { "usb-mouse", "usb_version", "1" },
+    { "usb-kbd", "usb_version", "1" },
+    { "virtio-pci", "virtio-pci-bus-master-bug-migration", "on" },
 };
 const size_t hw_compat_2_1_len = G_N_ELEMENTS(hw_compat_2_1);
 

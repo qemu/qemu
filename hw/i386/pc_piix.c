@@ -694,23 +694,10 @@ static void pc_i440fx_1_3_machine_options(MachineClass *m)
 {
     static GlobalProperty compat[] = {
         PC_CPU_MODEL_IDS("1.3.0")
-        {
-            .driver   = "usb-tablet",
-            .property = "usb_version",
-            .value    = "1",
-        },{
-            .driver   = "virtio-net-pci",
-            .property = "ctrl_mac_addr",
-            .value    = "off",
-        },{
-            .driver   = "virtio-net-pci",
-            .property = "mq",
-            .value    = "off",
-        }, {
-            .driver   = "e1000",
-            .property = "autonegotiation",
-            .value    = "off",
-        },
+        { "usb-tablet", "usb_version", "1" },
+        { "virtio-net-pci", "ctrl_mac_addr", "off" },
+        { "virtio-net-pci", "mq", "off" },
+        { "e1000", "autonegotiation", "off" },
     };
 
     pc_i440fx_1_4_machine_options(m);
@@ -726,31 +713,12 @@ static void pc_i440fx_1_2_machine_options(MachineClass *m)
 {
     static GlobalProperty compat[] = {
         PC_CPU_MODEL_IDS("1.2.0")
-        {
-            .driver   = "nec-usb-xhci",
-            .property = "msi",
-            .value    = "off",
-        },{
-            .driver   = "nec-usb-xhci",
-            .property = "msix",
-            .value    = "off",
-        },{
-            .driver   = "ivshmem",
-            .property = "use64",
-            .value    = "0",
-        },{
-            .driver   = "qxl",
-            .property = "revision",
-            .value    = "3",
-        },{
-            .driver   = "qxl-vga",
-            .property = "revision",
-            .value    = "3",
-        },{
-            .driver   = "VGA",
-            .property = "mmio",
-            .value    = "off",
-        },
+        { "nec-usb-xhci", "msi", "off" },
+        { "nec-usb-xhci", "msix", "off" },
+        { "ivshmem", "use64", "0" },
+        { "qxl", "revision", "3" },
+        { "qxl-vga", "revision", "3" },
+        { "VGA", "mmio", "off" },
     };
 
     pc_i440fx_1_3_machine_options(m);
@@ -766,35 +734,13 @@ static void pc_i440fx_1_1_machine_options(MachineClass *m)
 {
     static GlobalProperty compat[] = {
         PC_CPU_MODEL_IDS("1.1.0")
-        {
-            .driver   = "virtio-scsi-pci",
-            .property = "hotplug",
-            .value    = "off",
-        },{
-            .driver   = "virtio-scsi-pci",
-            .property = "param_change",
-            .value    = "off",
-        },{
-            .driver   = "VGA",
-            .property = "vgamem_mb",
-            .value    = "8",
-        },{
-            .driver   = "vmware-svga",
-            .property = "vgamem_mb",
-            .value    = "8",
-        },{
-            .driver   = "qxl-vga",
-            .property = "vgamem_mb",
-            .value    = "8",
-        },{
-            .driver   = "qxl",
-            .property = "vgamem_mb",
-            .value    = "8",
-        },{
-            .driver   = "virtio-blk-pci",
-            .property = "config-wce",
-            .value    = "off",
-        },
+        { "virtio-scsi-pci", "hotplug", "off" },
+        { "virtio-scsi-pci", "param_change", "off" },
+        { "VGA", "vgamem_mb", "8" },
+        { "vmware-svga", "vgamem_mb", "8" },
+        { "qxl-vga", "vgamem_mb", "8" },
+        { "qxl", "vgamem_mb", "8" },
+        { "virtio-blk-pci", "config-wce", "off" },
     };
 
     pc_i440fx_1_2_machine_options(m);
@@ -809,23 +755,10 @@ static void pc_i440fx_1_0_machine_options(MachineClass *m)
 {
     static GlobalProperty compat[] = {
         PC_CPU_MODEL_IDS("1.0")
-        {
-            .driver   = TYPE_ISA_FDC,
-            .property = "check_media_rate",
-            .value    = "off",
-        },{
-            .driver   = "virtio-balloon-pci",
-            .property = "class",
-            .value    = stringify(PCI_CLASS_MEMORY_RAM),
-        },{
-            .driver   = "apic-common",
-            .property = "vapic",
-            .value    = "off",
-        },{
-            .driver   = TYPE_USB_DEVICE,
-            .property = "full-path",
-            .value    = "no",
-        },
+        { TYPE_ISA_FDC, "check_media_rate", "off" },
+        { "virtio-balloon-pci", "class", stringify(PCI_CLASS_MEMORY_RAM) },
+        { "apic-common", "vapic", "off" },
+        { TYPE_USB_DEVICE, "full-path", "no" },
     };
 
     pc_i440fx_1_1_machine_options(m);
@@ -857,31 +790,12 @@ static void pc_i440fx_0_14_machine_options(MachineClass *m)
 {
     static GlobalProperty compat[] = {
         PC_CPU_MODEL_IDS("0.14")
-        {
-            .driver   = "virtio-blk-pci",
-            .property = "event_idx",
-            .value    = "off",
-        },{
-            .driver   = "virtio-serial-pci",
-            .property = "event_idx",
-            .value    = "off",
-        },{
-            .driver   = "virtio-net-pci",
-            .property = "event_idx",
-            .value    = "off",
-        },{
-            .driver   = "virtio-balloon-pci",
-            .property = "event_idx",
-            .value    = "off",
-        },{
-            .driver   = "qxl",
-            .property = "revision",
-            .value    = "2",
-        },{
-            .driver   = "qxl-vga",
-            .property = "revision",
-            .value    = "2",
-        },
+        { "virtio-blk-pci", "event_idx", "off" },
+        { "virtio-serial-pci", "event_idx", "off" },
+        { "virtio-net-pci", "event_idx", "off" },
+        { "virtio-balloon-pci", "event_idx", "off" },
+        { "qxl", "revision", "2" },
+        { "qxl-vga", "revision", "2" },
     };
 
     pc_i440fx_0_15_machine_options(m);
@@ -897,27 +811,11 @@ static void pc_i440fx_0_13_machine_options(MachineClass *m)
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     static GlobalProperty compat[] = {
         PC_CPU_MODEL_IDS("0.13")
-        {
-            .driver   = TYPE_PCI_DEVICE,
-            .property = "command_serr_enable",
-            .value    = "off",
-        },{
-            .driver   = "AC97",
-            .property = "use_broken_id",
-            .value    = "1",
-        },{
-            .driver   = "virtio-9p-pci",
-            .property = "vectors",
-            .value    = "0",
-        },{
-            .driver   = "VGA",
-            .property = "rombar",
-            .value    = "0",
-        },{
-            .driver   = "vmware-svga",
-            .property = "rombar",
-            .value    = "0",
-        },
+        { TYPE_PCI_DEVICE, "command_serr_enable", "off" },
+        { "AC97", "use_broken_id", "1" },
+        { "virtio-9p-pci", "vectors", "0" },
+        { "VGA", "rombar", "0" },
+        { "vmware-svga", "rombar", "0" },
     };
 
     pc_i440fx_0_14_machine_options(m);
@@ -933,27 +831,11 @@ static void pc_i440fx_0_12_machine_options(MachineClass *m)
 {
     static GlobalProperty compat[] = {
         PC_CPU_MODEL_IDS("0.12")
-        {
-            .driver   = "virtio-serial-pci",
-            .property = "max_ports",
-            .value    = "1",
-        },{
-            .driver   = "virtio-serial-pci",
-            .property = "vectors",
-            .value    = "0",
-        },{
-            .driver   = "usb-mouse",
-            .property = "serial",
-            .value    = "1",
-        },{
-            .driver   = "usb-tablet",
-            .property = "serial",
-            .value    = "1",
-        },{
-            .driver   = "usb-kbd",
-            .property = "serial",
-            .value    = "1",
-        },
+        { "virtio-serial-pci", "max_ports", "1" },
+        { "virtio-serial-pci", "vectors", "0" },
+        { "usb-mouse", "serial", "1" },
+        { "usb-tablet", "serial", "1" },
+        { "usb-kbd", "serial", "1" },
     };
 
     pc_i440fx_0_13_machine_options(m);

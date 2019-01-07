@@ -4113,16 +4113,8 @@ static void spapr_machine_2_12_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        {
-            .driver = TYPE_POWERPC_CPU,
-            .property = "pre-3.0-migration",
-            .value    = "on",
-        },
-        {
-            .driver = TYPE_SPAPR_CPU_CORE,
-            .property = "pre-3.0-migration",
-            .value    = "on",
-        },
+        { TYPE_POWERPC_CPU, "pre-3.0-migration", "on" },
+        { TYPE_SPAPR_CPU_CORE, "pre-3.0-migration", "on" },
     };
 
     spapr_machine_3_0_class_options(mc);
@@ -4186,11 +4178,7 @@ static void spapr_machine_2_9_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        {
-            .driver = TYPE_POWERPC_CPU,
-            .property = "pre-2.10-migration",
-            .value    = "on",
-        },
+        { TYPE_POWERPC_CPU, "pre-2.10-migration", "on" },
     };
 
     spapr_machine_2_10_class_options(mc);
@@ -4210,11 +4198,7 @@ DEFINE_SPAPR_MACHINE(2_9, "2.9", false);
 static void spapr_machine_2_8_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        {
-            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
-            .property = "pcie-extended-configuration-space",
-            .value    = "off",
-        },
+        { TYPE_SPAPR_PCI_HOST_BRIDGE, "pcie-extended-configuration-space", "off" },
     };
 
     spapr_machine_2_9_class_options(mc);
@@ -4282,26 +4266,10 @@ static void spapr_machine_2_7_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        {
-            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
-            .property = "mem_win_size",
-            .value    = "0xf80000000",
-        },
-        {
-            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
-            .property = "mem64_win_size",
-            .value    = "0",
-        },
-        {
-            .driver = TYPE_POWERPC_CPU,
-            .property = "pre-2.8-migration",
-            .value    = "on",
-        },
-        {
-            .driver = TYPE_SPAPR_PCI_HOST_BRIDGE,
-            .property = "pre-2.8-migration",
-            .value    = "on",
-        },
+        { TYPE_SPAPR_PCI_HOST_BRIDGE, "mem_win_size", "0xf80000000", },
+        { TYPE_SPAPR_PCI_HOST_BRIDGE, "mem64_win_size", "0", },
+        { TYPE_POWERPC_CPU, "pre-2.8-migration", "on", },
+        { TYPE_SPAPR_PCI_HOST_BRIDGE, "pre-2.8-migration", "on", },
     };
 
     spapr_machine_2_8_class_options(mc);
@@ -4321,11 +4289,7 @@ DEFINE_SPAPR_MACHINE(2_7, "2.7", false);
 static void spapr_machine_2_6_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        {
-            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
-            .property = "ddw",
-            .value    = "off",
-        },
+        { TYPE_SPAPR_PCI_HOST_BRIDGE, "ddw", "off" },
     };
 
     spapr_machine_2_7_class_options(mc);
@@ -4344,11 +4308,7 @@ static void spapr_machine_2_5_class_options(MachineClass *mc)
 {
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        {
-            .driver   = "spapr-vlan",
-            .property = "use-rx-buffer-pools",
-            .value    = "off",
-        },
+        { "spapr-vlan", "use-rx-buffer-pools", "off" },
     };
 
     spapr_machine_2_6_class_options(mc);
@@ -4381,11 +4341,7 @@ DEFINE_SPAPR_MACHINE(2_4, "2.4", false);
 static void spapr_machine_2_3_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        {
-            .driver   = "spapr-pci-host-bridge",
-            .property = "dynamic-reconfiguration",
-            .value    = "off",
-        },
+        { "spapr-pci-host-bridge", "dynamic-reconfiguration", "off" },
     };
     spapr_machine_2_4_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_2_3, hw_compat_2_3_len);
@@ -4400,11 +4356,7 @@ DEFINE_SPAPR_MACHINE(2_3, "2.3", false);
 static void spapr_machine_2_2_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        {
-            .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
-            .property = "mem_win_size",
-            .value    = "0x20000000",
-        },
+        { TYPE_SPAPR_PCI_HOST_BRIDGE, "mem_win_size", "0x20000000" },
     };
 
     spapr_machine_2_3_class_options(mc);
