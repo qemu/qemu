@@ -4285,7 +4285,7 @@ static void spapr_machine_2_7_class_options(MachineClass *mc)
         {
             .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
             .property = "mem_win_size",
-            .value    = stringify(SPAPR_PCI_2_7_MMIO_WIN_SIZE),
+            .value    = "0xf80000000",
         },
         {
             .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
