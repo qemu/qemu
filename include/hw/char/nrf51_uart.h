@@ -16,7 +16,6 @@
 #include "hw/registerfields.h"
 
 #define UART_FIFO_LENGTH 6
-#define UART_BASE 0x40002000
 #define UART_SIZE 0x1000
 
 #define TYPE_NRF51_UART "nrf51_soc.uart"
