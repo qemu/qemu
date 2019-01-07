@@ -46,8 +46,9 @@
 /* Size of oldstyle negotiation */
 #define NBD_OLDSTYLE_NEGOTIATE_SIZE (8 + 8 + 8 + 4 + 124)
 
+#define NBD_INIT_MAGIC              0x4e42444d41474943LL /* ASCII "NBDMAGIC" */
 #define NBD_REQUEST_MAGIC           0x25609513
-#define NBD_OPTS_MAGIC              0x49484156454F5054LL
+#define NBD_OPTS_MAGIC              0x49484156454F5054LL /* ASCII "IHAVEOPT" */
 #define NBD_CLIENT_MAGIC            0x0000420281861253LL
 #define NBD_REP_MAGIC               0x0003e889045565a9LL
 
@@ -100,11 +101,6 @@ struct NBDTLSHandshakeData {
 
 void nbd_tls_handshake(QIOTask *task,
                        void *opaque);
-const char *nbd_opt_lookup(uint32_t opt);
-const char *nbd_rep_lookup(uint32_t rep);
-const char *nbd_info_lookup(uint16_t info);
-const char *nbd_cmd_lookup(uint16_t info);
-const char *nbd_err_lookup(int err);
 
 int nbd_drop(QIOChannel *ioc, size_t size, Error **errp);
 

@@ -15,7 +15,6 @@ Qemu supports the "base:allocation" metadata context as defined in the
 NBD protocol specification, and also defines an additional metadata
 namespace "qemu".
 
-
 == "qemu" namespace ==
 
 The "qemu" namespace currently contains only one type of context,
@@ -36,3 +35,21 @@ in addition to "qemu:dirty-bitmap:<dirty-bitmap-export-name>":
             namespace.
 * "qemu:dirty-bitmap:" - returns list of all available dirty-bitmap
                          metadata contexts.
+
+= Features by version =
+
+The following list documents which qemu version first implemented
+various features (both as a server exposing the feature, and as a
+client taking advantage of the feature when present), to make it
+easier to plan for cross-version interoperability.  Note that in
+several cases, the initial release containing a feature may require
+additional patches from the corresponding stable branch to fix bugs in
+the operation of that feature.
+
+* 2.6: NBD_OPT_STARTTLS with TLS X.509 Certificates
+* 2.8: NBD_CMD_WRITE_ZEROES
+* 2.10: NBD_OPT_GO, NBD_INFO_BLOCK
+* 2.11: NBD_OPT_STRUCTURED_REPLY
+* 2.12: NBD_CMD_BLOCK_STATUS for "base:allocation"
+* 3.0: NBD_OPT_STARTTLS with TLS Pre-Shared Keys (PSK),
+NBD_CMD_BLOCK_STATUS for "qemu:dirty-bitmap:", NBD_CMD_CACHE

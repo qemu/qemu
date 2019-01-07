@@ -27,7 +27,7 @@ virtual size: 64M (67108864 bytes)
 disk size: unavailable
 
 == check TLS with different CA fails ==
-option negotiation failed: Verify failed: No certificate was found.
+qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
 qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': The certificate hasn't got a known issuer
 
 == perform I/O over TLS ==

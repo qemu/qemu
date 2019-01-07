@@ -132,8 +132,9 @@ static int nbd_receive_option_reply(QIOChannel *ioc, uint32_t opt,
         return -1;
     }
     if (reply->option != opt) {
-        error_setg(errp, "Unexpected option type %x expected %x",
-                   reply->option, opt);
+        error_setg(errp, "Unexpected option type %u (%s), expected %u (%s)",
+                   reply->option, nbd_opt_lookup(reply->option),
+                   opt, nbd_opt_lookup(opt));
         nbd_send_opt_abort(ioc);
         return -1;
     }
@@ -171,6 +172,8 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
             goto cleanup;
         }
         msg[reply->length] = '\0';
+        trace_nbd_server_error_msg(reply->type,
+                                   nbd_reply_type_lookup(reply->type), msg);
     }
 
     switch (reply->type) {
@@ -265,8 +268,9 @@ static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
         }
         return 0;
     } else if (reply.type != NBD_REP_SERVER) {
-        error_setg(errp, "Unexpected reply type %" PRIx32 " expected %x",
-                   reply.type, NBD_REP_SERVER);
+        error_setg(errp, "Unexpected reply type %u (%s), expected %u (%s)",
+                   reply.type, nbd_rep_lookup(reply.type),
+                   NBD_REP_SERVER, nbd_rep_lookup(NBD_REP_SERVER));
         nbd_send_opt_abort(ioc);
         return -1;
     }
@@ -378,9 +382,9 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
             return 1;
         }
         if (reply.type != NBD_REP_INFO) {
-            error_setg(errp, "unexpected reply type %" PRIu32
-                       " (%s), expected %u",
-                       reply.type, nbd_rep_lookup(reply.type), NBD_REP_INFO);
+            error_setg(errp, "unexpected reply type %u (%s), expected %u (%s)",
+                       reply.type, nbd_rep_lookup(reply.type),
+                       NBD_REP_INFO, nbd_rep_lookup(NBD_REP_INFO));
             nbd_send_opt_abort(ioc);
             return -1;
         }
@@ -704,8 +708,9 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
     }
 
     if (reply.type != NBD_REP_ACK) {
-        error_setg(errp, "Unexpected reply type %" PRIx32 " expected %x",
-                   reply.type, NBD_REP_ACK);
+        error_setg(errp, "Unexpected reply type %u (%s), expected %u (%s)",
+                   reply.type, nbd_rep_lookup(reply.type),
+                   NBD_REP_ACK, nbd_rep_lookup(NBD_REP_ACK));
         nbd_send_opt_abort(ioc);
         return -1;
     }
@@ -728,7 +733,6 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
                           QIOChannel **outioc, NBDExportInfo *info,
                           Error **errp)
 {
-    char buf[256];
     uint64_t magic;
     int rc;
     bool zeroes = true;
@@ -749,27 +753,20 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
         goto fail;
     }
 
-    if (nbd_read(ioc, buf, 8, errp) < 0) {
-        error_prepend(errp, "Failed to read data: ");
+    if (nbd_read(ioc, &magic, sizeof(magic), errp) < 0) {
+        error_prepend(errp, "Failed to read initial magic: ");
         goto fail;
     }
-
-    buf[8] = '\0';
-    if (strlen(buf) == 0) {
-        error_setg(errp, "Server connection closed unexpectedly");
-        goto fail;
-    }
-
-    magic = ldq_be_p(buf);
+    magic = be64_to_cpu(magic);
     trace_nbd_receive_negotiate_magic(magic);
 
-    if (memcmp(buf, "NBDMAGIC", 8) != 0) {
-        error_setg(errp, "Invalid magic received");
+    if (magic != NBD_INIT_MAGIC) {
+        error_setg(errp, "Bad initial magic received: 0x%" PRIx64, magic);
         goto fail;
     }
 
     if (nbd_read(ioc, &magic, sizeof(magic), errp) < 0) {
-        error_prepend(errp, "Failed to read magic: ");
+        error_prepend(errp, "Failed to read server magic: ");
         goto fail;
     }
     magic = be64_to_cpu(magic);
@@ -908,7 +905,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
         }
         info->flags = oldflags;
     } else {
-        error_setg(errp, "Bad magic received");
+        error_setg(errp, "Bad server magic received: 0x%" PRIx64, magic);
         goto fail;
     }
 
@@ -1026,23 +1023,7 @@ int nbd_disconnect(int fd)
     return 0;
 }
 
-#else
-int nbd_init(int fd, QIOChannelSocket *ioc, NBDExportInfo *info,
-	     Error **errp)
-{
-    error_setg(errp, "nbd_init is only supported on Linux");
-    return -ENOTSUP;
-}
-
-int nbd_client(int fd)
-{
-    return -ENOTSUP;
-}
-int nbd_disconnect(int fd)
-{
-    return -ENOTSUP;
-}
-#endif
+#endif /* __linux__ */
 
 int nbd_send_request(QIOChannel *ioc, NBDRequest *request)
 {
