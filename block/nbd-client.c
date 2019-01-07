@@ -119,6 +119,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
     s->quit = true;
     nbd_recv_coroutines_wake_all(s);
     s->read_reply_co = NULL;
+    aio_wait_kick();
 }
 
 static int nbd_co_send_request(BlockDriverState *bs,

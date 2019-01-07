@@ -390,6 +390,7 @@ static void nvme_cmd_sync_cb(void *opaque, int ret)
 {
     int *pret = opaque;
     *pret = ret;
+    aio_wait_kick();
 }
 
 static int nvme_cmd_sync(BlockDriverState *bs, NVMeQueuePair *q,

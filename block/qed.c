@@ -559,6 +559,7 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
     if (qemu_in_coroutine()) {
         bdrv_qed_open_entry(&qoc);
     } else {
+        assert(qemu_get_current_aio_context() == qemu_get_aio_context());
         qemu_coroutine_enter(qemu_coroutine_create(bdrv_qed_open_entry, &qoc));
         BDRV_POLL_WHILE(bs, qoc.ret == -EINPROGRESS);
     }
