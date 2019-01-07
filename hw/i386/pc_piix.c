@@ -697,7 +697,7 @@ static void pc_i440fx_1_3_machine_options(MachineClass *m)
         {
             .driver   = "usb-tablet",
             .property = "usb_version",
-            .value    = stringify(1),
+            .value    = "1",
         },{
             .driver   = "virtio-net-pci",
             .property = "ctrl_mac_addr",
@@ -741,11 +741,11 @@ static void pc_i440fx_1_2_machine_options(MachineClass *m)
         },{
             .driver   = "qxl",
             .property = "revision",
-            .value    = stringify(3),
+            .value    = "3",
         },{
             .driver   = "qxl-vga",
             .property = "revision",
-            .value    = stringify(3),
+            .value    = "3",
         },{
             .driver   = "VGA",
             .property = "mmio",
@@ -777,19 +777,19 @@ static void pc_i440fx_1_1_machine_options(MachineClass *m)
         },{
             .driver   = "VGA",
             .property = "vgamem_mb",
-            .value    = stringify(8),
+            .value    = "8",
         },{
             .driver   = "vmware-svga",
             .property = "vgamem_mb",
-            .value    = stringify(8),
+            .value    = "8",
         },{
             .driver   = "qxl-vga",
             .property = "vgamem_mb",
-            .value    = stringify(8),
+            .value    = "8",
         },{
             .driver   = "qxl",
             .property = "vgamem_mb",
-            .value    = stringify(8),
+            .value    = "8",
         },{
             .driver   = "virtio-blk-pci",
             .property = "config-wce",
@@ -876,11 +876,11 @@ static void pc_i440fx_0_14_machine_options(MachineClass *m)
         },{
             .driver   = "qxl",
             .property = "revision",
-            .value    = stringify(2),
+            .value    = "2",
         },{
             .driver   = "qxl-vga",
             .property = "revision",
-            .value    = stringify(2),
+            .value    = "2",
         },
     };
 
@@ -904,19 +904,19 @@ static void pc_i440fx_0_13_machine_options(MachineClass *m)
         },{
             .driver   = "AC97",
             .property = "use_broken_id",
-            .value    = stringify(1),
+            .value    = "1",
         },{
             .driver   = "virtio-9p-pci",
             .property = "vectors",
-            .value    = stringify(0),
+            .value    = "0",
         },{
             .driver   = "VGA",
             .property = "rombar",
-            .value    = stringify(0),
+            .value    = "0",
         },{
             .driver   = "vmware-svga",
             .property = "rombar",
-            .value    = stringify(0),
+            .value    = "0",
         },
     };
 
@@ -936,11 +936,11 @@ static void pc_i440fx_0_12_machine_options(MachineClass *m)
         {
             .driver   = "virtio-serial-pci",
             .property = "max_ports",
-            .value    = stringify(1),
+            .value    = "1",
         },{
             .driver   = "virtio-serial-pci",
             .property = "vectors",
-            .value    = stringify(0),
+            .value    = "0",
         },{
             .driver   = "usb-mouse",
             .property = "serial",

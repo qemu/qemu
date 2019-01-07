@@ -148,11 +148,11 @@ GlobalProperty pc_compat_2_12[] = {
     },{
         .driver   = "EPYC-" TYPE_X86_CPU,
         .property = "xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "EPYC-IBPB-" TYPE_X86_CPU,
         .property = "xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },
 };
 const size_t pc_compat_2_12_len = G_N_ELEMENTS(pc_compat_2_12);
@@ -191,7 +191,7 @@ GlobalProperty pc_compat_2_9[] = {
     {
         .driver   = "mch",
         .property = "extended-tseg-mbytes",
-        .value    = stringify(0),
+        .value    = "0",
     },
 };
 const size_t pc_compat_2_9_len = G_N_ELEMENTS(pc_compat_2_9);
@@ -365,75 +365,75 @@ GlobalProperty pc_compat_2_3[] = {
     },{
         .driver   = "qemu64" "-" TYPE_X86_CPU,
         .property = "min-level",
-        .value    = stringify(4),
+        .value    = "4",
     },{
         .driver   = "kvm64" "-" TYPE_X86_CPU,
         .property = "min-level",
-        .value    = stringify(5),
+        .value    = "5",
     },{
         .driver   = "pentium3" "-" TYPE_X86_CPU,
         .property = "min-level",
-        .value    = stringify(2),
+        .value    = "2",
     },{
         .driver   = "n270" "-" TYPE_X86_CPU,
         .property = "min-level",
-        .value    = stringify(5),
+        .value    = "5",
     },{
         .driver   = "Conroe" "-" TYPE_X86_CPU,
         .property = "min-level",
-        .value    = stringify(4),
+        .value    = "4",
     },{
         .driver   = "Penryn" "-" TYPE_X86_CPU,
         .property = "min-level",
-        .value    = stringify(4),
+        .value    = "4",
     },{
         .driver   = "Nehalem" "-" TYPE_X86_CPU,
         .property = "min-level",
-        .value    = stringify(4),
+        .value    = "4",
     },{
         .driver   = "n270" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "Penryn" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "Conroe" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "Nehalem" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "Westmere" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "SandyBridge" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "IvyBridge" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "Haswell" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "Haswell-noTSX" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "Broadwell" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver   = "Broadwell-noTSX" "-" TYPE_X86_CPU,
         .property = "min-xlevel",
-        .value    = stringify(0x8000000a),
+        .value    = "0x8000000a",
     },{
         .driver = TYPE_X86_CPU,
         .property = "kvm-no-smi-migration",
@@ -566,7 +566,7 @@ GlobalProperty pc_compat_2_0[] = {
     {
         .driver   = "apic",
         .property = "version",
-        .value    = stringify(0x11),
+        .value    = "0x11",
     },
     {
         .driver   = "nec-usb-xhci",
@@ -581,17 +581,17 @@ GlobalProperty pc_compat_2_0[] = {
     {
         .driver   = "pci-serial",
         .property = "prog_if",
-        .value    = stringify(0),
+        .value    = "0",
     },
     {
         .driver   = "pci-serial-2x",
         .property = "prog_if",
-        .value    = stringify(0),
+        .value    = "0",
     },
     {
         .driver   = "pci-serial-4x",
         .property = "prog_if",
-        .value    = stringify(0),
+        .value    = "0",
     },
     {
         .driver   = "virtio-net-pci",
@@ -629,7 +629,7 @@ GlobalProperty pc_compat_1_7[] = {
     {
         .driver   = "hpet",
         .property = HPET_INTCAP,
-        .value    = stringify(4),
+        .value    = "4",
     },
 };
 const size_t pc_compat_1_7_len = G_N_ELEMENTS(pc_compat_1_7);
@@ -643,19 +643,19 @@ GlobalProperty pc_compat_1_6[] = {
     },{
         .driver   = "qemu64-" TYPE_X86_CPU,
         .property = "model",
-        .value    = stringify(2),
+        .value    = "2",
     },{
         .driver   = "qemu32-" TYPE_X86_CPU,
         .property = "model",
-        .value    = stringify(3),
+        .value    = "3",
     },{
         .driver   = "i440FX-pcihost",
         .property = "short_root_bus",
-        .value    = stringify(1),
+        .value    = "1",
     },{
         .driver   = "q35-pcihost",
         .property = "short_root_bus",
-        .value    = stringify(1),
+        .value    = "1",
     },
 };
 const size_t pc_compat_1_6_len = G_N_ELEMENTS(pc_compat_1_6);
@@ -665,27 +665,27 @@ GlobalProperty pc_compat_1_5[] = {
     {
         .driver   = "Conroe-" TYPE_X86_CPU,
         .property = "model",
-        .value    = stringify(2),
+        .value    = "2",
     },{
         .driver   = "Conroe-" TYPE_X86_CPU,
         .property = "min-level",
-        .value    = stringify(2),
+        .value    = "2",
     },{
         .driver   = "Penryn-" TYPE_X86_CPU,
         .property = "model",
-        .value    = stringify(2),
+        .value    = "2",
     },{
         .driver   = "Penryn-" TYPE_X86_CPU,
         .property = "min-level",
-        .value    = stringify(2),
+        .value    = "2",
     },{
         .driver   = "Nehalem-" TYPE_X86_CPU,
         .property = "model",
-        .value    = stringify(2),
+        .value    = "2",
     },{
         .driver   = "Nehalem-" TYPE_X86_CPU,
         .property = "min-level",
-        .value    = stringify(2),
+        .value    = "2",
     },{
         .driver   = "virtio-net-pci",
         .property = "any_layout",
@@ -697,11 +697,11 @@ GlobalProperty pc_compat_1_5[] = {
     },{
         .driver   = "i440FX-pcihost",
         .property = "short_root_bus",
-        .value    = stringify(0),
+        .value    = "0",
     },{
         .driver   = "q35-pcihost",
         .property = "short_root_bus",
-        .value    = stringify(0),
+        .value    = "0",
     },
 };
 const size_t pc_compat_1_5_len = G_N_ELEMENTS(pc_compat_1_5);
@@ -711,36 +711,36 @@ GlobalProperty pc_compat_1_4[] = {
     {
         .driver   = "scsi-hd",
         .property = "discard_granularity",
-        .value    = stringify(0),
+        .value    = "0",
     },{
         .driver   = "scsi-cd",
         .property = "discard_granularity",
-        .value    = stringify(0),
+        .value    = "0",
     },{
         .driver   = "scsi-disk",
         .property = "discard_granularity",
-        .value    = stringify(0),
+        .value    = "0",
     },{
         .driver   = "ide-hd",
         .property = "discard_granularity",
-        .value    = stringify(0),
+        .value    = "0",
     },{
         .driver   = "ide-cd",
         .property = "discard_granularity",
-        .value    = stringify(0),
+        .value    = "0",
     },{
         .driver   = "ide-drive",
         .property = "discard_granularity",
-        .value    = stringify(0),
+        .value    = "0",
     },{
         .driver   = "virtio-blk-pci",
         .property = "discard_granularity",
-        .value    = stringify(0),
+        .value    = "0",
     },{
         .driver   = "virtio-serial-pci",
         .property = "vectors",
         /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */
-        .value    = stringify(0xFFFFFFFF),
+        .value    = "0xFFFFFFFF",
     },{
         .driver   = "virtio-net-pci",
         .property = "ctrl_guest_offloads",
@@ -768,7 +768,7 @@ GlobalProperty pc_compat_1_4[] = {
     },{
         .driver   = "486-" TYPE_X86_CPU,
         .property = "model",
-        .value    = stringify(0),
+        .value    = "0",
     },
     {
         .driver = "n270" "-" TYPE_X86_CPU,

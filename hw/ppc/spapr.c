@@ -4324,7 +4324,7 @@ static void spapr_machine_2_6_class_options(MachineClass *mc)
         {
             .driver   = TYPE_SPAPR_PCI_HOST_BRIDGE,
             .property = "ddw",
-            .value    = stringify(off),
+            .value    = "off",
         },
     };
 

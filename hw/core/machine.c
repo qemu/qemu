@@ -135,11 +135,11 @@ GlobalProperty hw_compat_2_8[] = {
     {
         .driver   = "fw_cfg_mem",
         .property = "x-file-slots",
-        .value    = stringify(0x10),
+        .value    = "0x10",
     },{
         .driver   = "fw_cfg_io",
         .property = "x-file-slots",
-        .value    = stringify(0x10),
+        .value    = "0x10",
     },{
         .driver   = "pflash_cfi01",
         .property = "old-multiple-chip-handling",
@@ -337,11 +337,11 @@ GlobalProperty hw_compat_2_1[] = {
     },{
         .driver   = "usb-mouse",
         .property = "usb_version",
-        .value    = stringify(1),
+        .value    = "1",
     },{
         .driver   = "usb-kbd",
         .property = "usb_version",
-        .value    = stringify(1),
+        .value    = "1",
     },{
         .driver   = "virtio-pci",
         .property = "virtio-pci-bus-master-bug-migration",
