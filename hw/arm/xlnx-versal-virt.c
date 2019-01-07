@@ -130,6 +130,7 @@ static void fdt_add_gic_nodes(VersalVirt *s)
                                  2, MM_GIC_APU_REDIST_0_SIZE);
     qemu_fdt_setprop_cell(s->fdt, nodename, "#interrupt-cells", 3);
     qemu_fdt_setprop_string(s->fdt, nodename, "compatible", "arm,gic-v3");
+    g_free(nodename);
 }
 
 static void fdt_add_timer_nodes(VersalVirt *s)
@@ -364,6 +365,7 @@ static void create_virtio_regions(VersalVirt *s)
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic_irq);
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->soc.mr_ps, base, mr);
+        g_free(name);
     }
 
     for (i = 0; i < NUM_VIRTIO_TRANSPORT; i++) {
