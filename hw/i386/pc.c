@@ -72,6 +72,7 @@
 #include "qapi/visitor.h"
 #include "qom/cpu.h"
 #include "hw/nmi.h"
+#include "hw/usb.h"
 #include "hw/i386/intel_iommu.h"
 #include "hw/net/ne2000-isa.h"
 
@@ -108,6 +109,679 @@ static struct e820_table e820_reserve;
 static struct e820_entry *e820_table;
 static unsigned e820_entries;
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
+
+GlobalProperty pc_compat_3_1[] = {
+    {
+        .driver   = "intel-iommu",
+        .property = "dma-drain",
+        .value    = "off",
+    },
+};
+const size_t pc_compat_3_1_len = G_N_ELEMENTS(pc_compat_3_1);
+
+GlobalProperty pc_compat_3_0[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "x-hv-synic-kvm-only",
+        .value    = "on",
+    },{
+        .driver   = "Skylake-Server" "-" TYPE_X86_CPU,
+        .property = "pku",
+        .value    = "off",
+    },{
+        .driver   = "Skylake-Server-IBRS" "-" TYPE_X86_CPU,
+        .property = "pku",
+        .value    = "off",
+    },
+};
+const size_t pc_compat_3_0_len = G_N_ELEMENTS(pc_compat_3_0);
+
+GlobalProperty pc_compat_2_12[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "legacy-cache",
+        .value    = "on",
+    },{
+        .driver   = TYPE_X86_CPU,
+        .property = "topoext",
+        .value    = "off",
+    },{
+        .driver   = "EPYC-" TYPE_X86_CPU,
+        .property = "xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "EPYC-IBPB-" TYPE_X86_CPU,
+        .property = "xlevel",
+        .value    = stringify(0x8000000a),
+    },
+};
+const size_t pc_compat_2_12_len = G_N_ELEMENTS(pc_compat_2_12);
+
+GlobalProperty pc_compat_2_11[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "x-migrate-smi-count",
+        .value    = "off",
+    },{
+        .driver   = "Skylake-Server" "-" TYPE_X86_CPU,
+        .property = "clflushopt",
+        .value    = "off",
+    },
+};
+const size_t pc_compat_2_11_len = G_N_ELEMENTS(pc_compat_2_11);
+
+GlobalProperty pc_compat_2_10[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "x-hv-max-vps",
+        .value    = "0x40",
+    },{
+        .driver   = "i440FX-pcihost",
+        .property = "x-pci-hole64-fix",
+        .value    = "off",
+    },{
+        .driver   = "q35-pcihost",
+        .property = "x-pci-hole64-fix",
+        .value    = "off",
+    },
+};
+const size_t pc_compat_2_10_len = G_N_ELEMENTS(pc_compat_2_10);
+
+GlobalProperty pc_compat_2_9[] = {
+    {
+        .driver   = "mch",
+        .property = "extended-tseg-mbytes",
+        .value    = stringify(0),
+    },
+};
+const size_t pc_compat_2_9_len = G_N_ELEMENTS(pc_compat_2_9);
+
+GlobalProperty pc_compat_2_8[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "tcg-cpuid",
+        .value    = "off",
+    },
+    {
+        .driver   = "kvmclock",
+        .property = "x-mach-use-reliable-get-clock",
+        .value    = "off",
+    },
+    {
+        .driver   = "ICH9-LPC",
+        .property = "x-smi-broadcast",
+        .value    = "off",
+    },
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "vmware-cpuid-freq",
+        .value    = "off",
+    },
+    {
+        .driver   = "Haswell-" TYPE_X86_CPU,
+        .property = "stepping",
+        .value    = "1",
+    },
+};
+const size_t pc_compat_2_8_len = G_N_ELEMENTS(pc_compat_2_8);
+
+GlobalProperty pc_compat_2_7[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "l3-cache",
+        .value    = "off",
+    },
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "full-cpuid-auto-level",
+        .value    = "off",
+    },
+    {
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,
+        .property = "family",
+        .value    = "15",
+    },
+    {
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,
+        .property = "model",
+        .value    = "6",
+    },
+    {
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,
+        .property = "stepping",
+        .value    = "1",
+    },
+    {
+        .driver   = "isa-pcspk",
+        .property = "migrate",
+        .value    = "off",
+    },
+};
+const size_t pc_compat_2_7_len = G_N_ELEMENTS(pc_compat_2_7);
+
+GlobalProperty pc_compat_2_6[] = {
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "cpuid-0xb",
+        .value    = "off",
+    },{
+        .driver   = "vmxnet3",
+        .property = "romfile",
+        .value    = "",
+    },
+    {
+        .driver = TYPE_X86_CPU,
+        .property = "fill-mtrr-mask",
+        .value = "off",
+    },
+    {
+        .driver   = "apic-common",
+        .property = "legacy-instance-id",
+        .value    = "on",
+    }
+};
+const size_t pc_compat_2_6_len = G_N_ELEMENTS(pc_compat_2_6);
+
+GlobalProperty pc_compat_2_5[] = {};
+const size_t pc_compat_2_5_len = G_N_ELEMENTS(pc_compat_2_5);
+
+GlobalProperty pc_compat_2_4[] = {
+    PC_CPU_MODEL_IDS("2.4.0")
+    {
+        .driver   = "Haswell-" TYPE_X86_CPU,
+        .property = "abm",
+        .value    = "off",
+    },
+    {
+        .driver   = "Haswell-noTSX-" TYPE_X86_CPU,
+        .property = "abm",
+        .value    = "off",
+    },
+    {
+        .driver   = "Broadwell-" TYPE_X86_CPU,
+        .property = "abm",
+        .value    = "off",
+    },
+    {
+        .driver   = "Broadwell-noTSX-" TYPE_X86_CPU,
+        .property = "abm",
+        .value    = "off",
+    },
+    {
+        .driver   = "host" "-" TYPE_X86_CPU,
+        .property = "host-cache-info",
+        .value    = "on",
+    },
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "check",
+        .value    = "off",
+    },
+    {
+        .driver   = "qemu64" "-" TYPE_X86_CPU,
+        .property = "sse4a",
+        .value    = "on",
+    },
+    {
+        .driver   = "qemu64" "-" TYPE_X86_CPU,
+        .property = "abm",
+        .value    = "on",
+    },
+    {
+        .driver   = "qemu64" "-" TYPE_X86_CPU,
+        .property = "popcnt",
+        .value    = "on",
+    },
+    {
+        .driver   = "qemu32" "-" TYPE_X86_CPU,
+        .property = "popcnt",
+        .value    = "on",
+    },{
+        .driver   = "Opteron_G2" "-" TYPE_X86_CPU,
+        .property = "rdtscp",
+        .value    = "on",
+    },{
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,
+        .property = "rdtscp",
+        .value    = "on",
+    },{
+        .driver   = "Opteron_G4" "-" TYPE_X86_CPU,
+        .property = "rdtscp",
+        .value    = "on",
+    },{
+        .driver   = "Opteron_G5" "-" TYPE_X86_CPU,
+        .property = "rdtscp",
+        .value    = "on",
+    }
+};
+const size_t pc_compat_2_4_len = G_N_ELEMENTS(pc_compat_2_4);
+
+GlobalProperty pc_compat_2_3[] = {
+    PC_CPU_MODEL_IDS("2.3.0")
+    {
+        .driver   = TYPE_X86_CPU,
+        .property = "arat",
+        .value    = "off",
+    },{
+        .driver   = "qemu64" "-" TYPE_X86_CPU,
+        .property = "min-level",
+        .value    = stringify(4),
+    },{
+        .driver   = "kvm64" "-" TYPE_X86_CPU,
+        .property = "min-level",
+        .value    = stringify(5),
+    },{
+        .driver   = "pentium3" "-" TYPE_X86_CPU,
+        .property = "min-level",
+        .value    = stringify(2),
+    },{
+        .driver   = "n270" "-" TYPE_X86_CPU,
+        .property = "min-level",
+        .value    = stringify(5),
+    },{
+        .driver   = "Conroe" "-" TYPE_X86_CPU,
+        .property = "min-level",
+        .value    = stringify(4),
+    },{
+        .driver   = "Penryn" "-" TYPE_X86_CPU,
+        .property = "min-level",
+        .value    = stringify(4),
+    },{
+        .driver   = "Nehalem" "-" TYPE_X86_CPU,
+        .property = "min-level",
+        .value    = stringify(4),
+    },{
+        .driver   = "n270" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "Penryn" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "Conroe" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "Nehalem" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "Westmere" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "SandyBridge" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "IvyBridge" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "Haswell" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "Haswell-noTSX" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "Broadwell" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver   = "Broadwell-noTSX" "-" TYPE_X86_CPU,
+        .property = "min-xlevel",
+        .value    = stringify(0x8000000a),
+    },{
+        .driver = TYPE_X86_CPU,
+        .property = "kvm-no-smi-migration",
+        .value    = "on",
+    },
+};
+const size_t pc_compat_2_3_len = G_N_ELEMENTS(pc_compat_2_3);
+
+GlobalProperty pc_compat_2_2[] = {
+    PC_CPU_MODEL_IDS("2.2.0")
+    {
+        .driver = "kvm64" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "kvm32" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Conroe" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Penryn" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Nehalem" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Westmere" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "SandyBridge" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Haswell" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Broadwell" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Opteron_G1" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Opteron_G2" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Opteron_G3" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Opteron_G4" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Opteron_G5" "-" TYPE_X86_CPU,
+        .property = "vme",
+        .value = "off",
+    },
+    {
+        .driver = "Haswell" "-" TYPE_X86_CPU,
+        .property = "f16c",
+        .value = "off",
+    },
+    {
+        .driver = "Haswell" "-" TYPE_X86_CPU,
+        .property = "rdrand",
+        .value = "off",
+    },
+    {
+        .driver = "Broadwell" "-" TYPE_X86_CPU,
+        .property = "f16c",
+        .value = "off",
+    },
+    {
+        .driver = "Broadwell" "-" TYPE_X86_CPU,
+        .property = "rdrand",
+        .value = "off",
+    },
+};
+const size_t pc_compat_2_2_len = G_N_ELEMENTS(pc_compat_2_2);
+
+GlobalProperty pc_compat_2_1[] = {
+    PC_CPU_MODEL_IDS("2.1.0")
+    {
+        .driver = "coreduo" "-" TYPE_X86_CPU,
+        .property = "vmx",
+        .value = "on",
+    },
+    {
+        .driver = "core2duo" "-" TYPE_X86_CPU,
+        .property = "vmx",
+        .value = "on",
+    },
+};
+const size_t pc_compat_2_1_len = G_N_ELEMENTS(pc_compat_2_1);
+
+GlobalProperty pc_compat_2_0[] = {
+    PC_CPU_MODEL_IDS("2.0.0")
+    {
+        .driver   = "virtio-scsi-pci",
+        .property = "any_layout",
+        .value    = "off",
+    },{
+        .driver   = "PIIX4_PM",
+        .property = "memory-hotplug-support",
+        .value    = "off",
+    },
+    {
+        .driver   = "apic",
+        .property = "version",
+        .value    = stringify(0x11),
+    },
+    {
+        .driver   = "nec-usb-xhci",
+        .property = "superspeed-ports-first",
+        .value    = "off",
+    },
+    {
+        .driver   = "nec-usb-xhci",
+        .property = "force-pcie-endcap",
+        .value    = "on",
+    },
+    {
+        .driver   = "pci-serial",
+        .property = "prog_if",
+        .value    = stringify(0),
+    },
+    {
+        .driver   = "pci-serial-2x",
+        .property = "prog_if",
+        .value    = stringify(0),
+    },
+    {
+        .driver   = "pci-serial-4x",
+        .property = "prog_if",
+        .value    = stringify(0),
+    },
+    {
+        .driver   = "virtio-net-pci",
+        .property = "guest_announce",
+        .value    = "off",
+    },
+    {
+        .driver   = "ICH9-LPC",
+        .property = "memory-hotplug-support",
+        .value    = "off",
+    },{
+        .driver   = "xio3130-downstream",
+        .property = COMPAT_PROP_PCP,
+        .value    = "off",
+    },{
+        .driver   = "ioh3420",
+        .property = COMPAT_PROP_PCP,
+        .value    = "off",
+    },
+};
+const size_t pc_compat_2_0_len = G_N_ELEMENTS(pc_compat_2_0);
+
+GlobalProperty pc_compat_1_7[] = {
+    PC_CPU_MODEL_IDS("1.7.0")
+    {
+        .driver   = TYPE_USB_DEVICE,
+        .property = "msos-desc",
+        .value    = "no",
+    },
+    {
+        .driver   = "PIIX4_PM",
+        .property = "acpi-pci-hotplug-with-bridge-support",
+        .value    = "off",
+    },
+    {
+        .driver   = "hpet",
+        .property = HPET_INTCAP,
+        .value    = stringify(4),
+    },
+};
+const size_t pc_compat_1_7_len = G_N_ELEMENTS(pc_compat_1_7);
+
+GlobalProperty pc_compat_1_6[] = {
+    PC_CPU_MODEL_IDS("1.6.0")
+    {
+        .driver   = "e1000",
+        .property = "mitigation",
+        .value    = "off",
+    },{
+        .driver   = "qemu64-" TYPE_X86_CPU,
+        .property = "model",
+        .value    = stringify(2),
+    },{
+        .driver   = "qemu32-" TYPE_X86_CPU,
+        .property = "model",
+        .value    = stringify(3),
+    },{
+        .driver   = "i440FX-pcihost",
+        .property = "short_root_bus",
+        .value    = stringify(1),
+    },{
+        .driver   = "q35-pcihost",
+        .property = "short_root_bus",
+        .value    = stringify(1),
+    },
+};
+const size_t pc_compat_1_6_len = G_N_ELEMENTS(pc_compat_1_6);
+
+GlobalProperty pc_compat_1_5[] = {
+    PC_CPU_MODEL_IDS("1.5.0")
+    {
+        .driver   = "Conroe-" TYPE_X86_CPU,
+        .property = "model",
+        .value    = stringify(2),
+    },{
+        .driver   = "Conroe-" TYPE_X86_CPU,
+        .property = "min-level",
+        .value    = stringify(2),
+    },{
+        .driver   = "Penryn-" TYPE_X86_CPU,
+        .property = "model",
+        .value    = stringify(2),
+    },{
+        .driver   = "Penryn-" TYPE_X86_CPU,
+        .property = "min-level",
+        .value    = stringify(2),
+    },{
+        .driver   = "Nehalem-" TYPE_X86_CPU,
+        .property = "model",
+        .value    = stringify(2),
+    },{
+        .driver   = "Nehalem-" TYPE_X86_CPU,
+        .property = "min-level",
+        .value    = stringify(2),
+    },{
+        .driver   = "virtio-net-pci",
+        .property = "any_layout",
+        .value    = "off",
+    },{
+        .driver = TYPE_X86_CPU,
+        .property = "pmu",
+        .value = "on",
+    },{
+        .driver   = "i440FX-pcihost",
+        .property = "short_root_bus",
+        .value    = stringify(0),
+    },{
+        .driver   = "q35-pcihost",
+        .property = "short_root_bus",
+        .value    = stringify(0),
+    },
+};
+const size_t pc_compat_1_5_len = G_N_ELEMENTS(pc_compat_1_5);
+
+GlobalProperty pc_compat_1_4[] = {
+    PC_CPU_MODEL_IDS("1.4.0")
+    {
+        .driver   = "scsi-hd",
+        .property = "discard_granularity",
+        .value    = stringify(0),
+    },{
+        .driver   = "scsi-cd",
+        .property = "discard_granularity",
+        .value    = stringify(0),
+    },{
+        .driver   = "scsi-disk",
+        .property = "discard_granularity",
+        .value    = stringify(0),
+    },{
+        .driver   = "ide-hd",
+        .property = "discard_granularity",
+        .value    = stringify(0),
+    },{
+        .driver   = "ide-cd",
+        .property = "discard_granularity",
+        .value    = stringify(0),
+    },{
+        .driver   = "ide-drive",
+        .property = "discard_granularity",
+        .value    = stringify(0),
+    },{
+        .driver   = "virtio-blk-pci",
+        .property = "discard_granularity",
+        .value    = stringify(0),
+    },{
+        .driver   = "virtio-serial-pci",
+        .property = "vectors",
+        /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */
+        .value    = stringify(0xFFFFFFFF),
+    },{
+        .driver   = "virtio-net-pci",
+        .property = "ctrl_guest_offloads",
+        .value    = "off",
+    },{
+        .driver   = "e1000",
+        .property = "romfile",
+        .value    = "pxe-e1000.rom",
+    },{
+        .driver   = "ne2k_pci",
+        .property = "romfile",
+        .value    = "pxe-ne2k_pci.rom",
+    },{
+        .driver   = "pcnet",
+        .property = "romfile",
+        .value    = "pxe-pcnet.rom",
+    },{
+        .driver   = "rtl8139",
+        .property = "romfile",
+        .value    = "pxe-rtl8139.rom",
+    },{
+        .driver   = "virtio-net-pci",
+        .property = "romfile",
+        .value    = "pxe-virtio.rom",
+    },{
+        .driver   = "486-" TYPE_X86_CPU,
+        .property = "model",
+        .value    = stringify(0),
+    },
+    {
+        .driver = "n270" "-" TYPE_X86_CPU,
+        .property = "movbe",
+        .value = "off",
+    },
+    {
+        .driver = "Westmere" "-" TYPE_X86_CPU,
+        .property = "pclmulqdq",
+        .value = "off",
+    },
+};
+const size_t pc_compat_1_4_len = G_N_ELEMENTS(pc_compat_1_4);
 
 void gsi_handler(void *opaque, int n, int level)
 {

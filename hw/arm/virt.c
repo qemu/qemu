@@ -43,7 +43,6 @@
 #include "sysemu/numa.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
-#include "hw/compat.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
 #include "qemu/bitops.h"
@@ -1872,84 +1871,63 @@ static void virt_machine_4_0_options(MachineClass *mc)
 }
 DEFINE_VIRT_MACHINE_AS_LATEST(4, 0)
 
-#define VIRT_COMPAT_3_1 \
-    HW_COMPAT_3_1
-
 static void virt_machine_3_1_options(MachineClass *mc)
 {
     virt_machine_4_0_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_3_1);
+    compat_props_add(mc->compat_props, hw_compat_3_1, hw_compat_3_1_len);
 }
 DEFINE_VIRT_MACHINE(3, 1)
-
-#define VIRT_COMPAT_3_0 \
-    HW_COMPAT_3_0
 
 static void virt_machine_3_0_options(MachineClass *mc)
 {
     virt_machine_3_1_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_3_0);
+    compat_props_add(mc->compat_props, hw_compat_3_0, hw_compat_3_0_len);
 }
 DEFINE_VIRT_MACHINE(3, 0)
-
-#define VIRT_COMPAT_2_12 \
-    HW_COMPAT_2_12
 
 static void virt_machine_2_12_options(MachineClass *mc)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_3_0_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_12);
+    compat_props_add(mc->compat_props, hw_compat_2_12, hw_compat_2_12_len);
     vmc->no_highmem_ecam = true;
     mc->max_cpus = 255;
 }
 DEFINE_VIRT_MACHINE(2, 12)
-
-#define VIRT_COMPAT_2_11 \
-    HW_COMPAT_2_11
 
 static void virt_machine_2_11_options(MachineClass *mc)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_12_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_11);
+    compat_props_add(mc->compat_props, hw_compat_2_11, hw_compat_2_11_len);
     vmc->smbios_old_sys_ver = true;
 }
 DEFINE_VIRT_MACHINE(2, 11)
 
-#define VIRT_COMPAT_2_10 \
-    HW_COMPAT_2_10
-
 static void virt_machine_2_10_options(MachineClass *mc)
 {
     virt_machine_2_11_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_10);
+    compat_props_add(mc->compat_props, hw_compat_2_10, hw_compat_2_10_len);
     /* before 2.11 we never faulted accesses to bad addresses */
     mc->ignore_memory_transaction_failures = true;
 }
 DEFINE_VIRT_MACHINE(2, 10)
 
-#define VIRT_COMPAT_2_9 \
-    HW_COMPAT_2_9
-
 static void virt_machine_2_9_options(MachineClass *mc)
 {
     virt_machine_2_10_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_9);
+    compat_props_add(mc->compat_props, hw_compat_2_9, hw_compat_2_9_len);
 }
 DEFINE_VIRT_MACHINE(2, 9)
-
-#define VIRT_COMPAT_2_8 \
-    HW_COMPAT_2_8
 
 static void virt_machine_2_8_options(MachineClass *mc)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_9_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_8);
+    compat_props_add(mc->compat_props, hw_compat_2_8, hw_compat_2_8_len);
     /* For 2.8 and earlier we falsely claimed in the DT that
      * our timers were edge-triggered, not level-triggered.
      */
@@ -1957,15 +1935,12 @@ static void virt_machine_2_8_options(MachineClass *mc)
 }
 DEFINE_VIRT_MACHINE(2, 8)
 
-#define VIRT_COMPAT_2_7 \
-    HW_COMPAT_2_7
-
 static void virt_machine_2_7_options(MachineClass *mc)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_8_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_7);
+    compat_props_add(mc->compat_props, hw_compat_2_7, hw_compat_2_7_len);
     /* ITS was introduced with 2.8 */
     vmc->no_its = true;
     /* Stick with 1K pages for migration compatibility */
@@ -1973,15 +1948,12 @@ static void virt_machine_2_7_options(MachineClass *mc)
 }
 DEFINE_VIRT_MACHINE(2, 7)
 
-#define VIRT_COMPAT_2_6 \
-    HW_COMPAT_2_6
-
 static void virt_machine_2_6_options(MachineClass *mc)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_7_options(mc);
-    SET_MACHINE_COMPAT(mc, VIRT_COMPAT_2_6);
+    compat_props_add(mc->compat_props, hw_compat_2_6, hw_compat_2_6_len);
     vmc->disallow_affinity_adjustment = true;
     /* Disable PMU for 2.6 as PMU support was first introduced in 2.7 */
     vmc->no_pmu = true;

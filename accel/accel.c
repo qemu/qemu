@@ -119,18 +119,6 @@ void configure_accelerator(MachineState *ms)
     }
 }
 
-void accel_register_compat_props(AccelState *accel)
-{
-    AccelClass *class = ACCEL_GET_CLASS(accel);
-    GlobalProperty *prop = class->global_props;
-
-    for (; prop && prop->driver; prop++) {
-        /* Any compat_props must never cause error */
-        prop->errp = &error_abort;
-        qdev_prop_register_global(prop);
-    }
-}
-
 void accel_setup_post(MachineState *ms)
 {
     AccelState *accel = ms->accelerator;

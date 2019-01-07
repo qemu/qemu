@@ -1173,26 +1173,33 @@ void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
     *ptr = value;
 }
 
-static GList *global_props;
+static GPtrArray *global_props(void)
+{
+    static GPtrArray *gp;
+
+    if (!gp) {
+        gp = g_ptr_array_new();
+    }
+
+    return gp;
+}
 
 void qdev_prop_register_global(GlobalProperty *prop)
 {
-    global_props = g_list_append(global_props, prop);
+    g_ptr_array_add(global_props(), prop);
 }
 
 int qdev_prop_check_globals(void)
 {
-    GList *l;
-    int ret = 0;
+    int i, ret = 0;
 
-    for (l = global_props; l; l = l->next) {
-        GlobalProperty *prop = l->data;
+    for (i = 0; i < global_props()->len; i++) {
+        GlobalProperty *prop;
         ObjectClass *oc;
         DeviceClass *dc;
+
+        prop = g_ptr_array_index(global_props(), i);
         if (prop->used) {
-            continue;
-        }
-        if (!prop->user_provided) {
             continue;
         }
         oc = object_class_by_name(prop->driver);
@@ -1216,28 +1223,8 @@ int qdev_prop_check_globals(void)
 
 void qdev_prop_set_globals(DeviceState *dev)
 {
-    GList *l;
-
-    for (l = global_props; l; l = l->next) {
-        GlobalProperty *prop = l->data;
-        Error *err = NULL;
-
-        if (object_dynamic_cast(OBJECT(dev), prop->driver) == NULL) {
-            continue;
-        }
-        prop->used = true;
-        object_property_parse(OBJECT(dev), prop->value, prop->property, &err);
-        if (err != NULL) {
-            error_prepend(&err, "can't apply global %s.%s=%s: ",
-                          prop->driver, prop->property, prop->value);
-            if (!dev->hotplugged && prop->errp) {
-                error_propagate(prop->errp, err);
-            } else {
-                assert(prop->user_provided);
-                warn_report_err(err);
-            }
-        }
-    }
+    object_apply_global_props(OBJECT(dev), global_props(),
+                              dev->hotplugged ? NULL : &error_fatal);
 }
 
 /* --- 64bit unsigned int 'size' type --- */
