@@ -18,7 +18,6 @@
 #include "qemu/osdep.h"
 #include <spice.h>
 
-#include <netdb.h>
 #include "sysemu/sysemu.h"
 
 #include "ui/qemu-spice.h"
