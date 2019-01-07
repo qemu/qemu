@@ -8,3 +8,4 @@ common-obj-$(CONFIG_GPIO_KEY) += gpio_key.o
 obj-$(CONFIG_OMAP) += omap_gpio.o
 obj-$(CONFIG_IMX) += imx_gpio.o
 obj-$(CONFIG_RASPI) += bcm2835_gpio.o
+obj-$(CONFIG_NRF51_SOC) += nrf51_gpio.o
