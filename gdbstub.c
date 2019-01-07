@@ -1554,9 +1554,15 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             put_packet(s, "OK");
             break;
         } else if (strcmp(p,"C") == 0) {
-            /* "Current thread" remains vague in the spec, so always return
-             *  the first CPU (gdb returns the first thread). */
-            put_packet(s, "QC1");
+            /*
+             * "Current thread" remains vague in the spec, so always return
+             * the first thread of the current process (gdb returns the
+             * first thread).
+             */
+            cpu = get_first_cpu_in_process(s, gdb_get_cpu_process(s, s->g_cpu));
+            snprintf(buf, sizeof(buf), "QC%s",
+                     gdb_fmt_thread_id(s, cpu, thread_id, sizeof(thread_id)));
+            put_packet(s, buf);
             break;
         } else if (strcmp(p,"fThreadInfo") == 0) {
             s->query_cpu = first_cpu;
