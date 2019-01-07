@@ -175,10 +175,15 @@ void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp);
 int load_aout(const char *filename, hwaddr addr, int max_sz,
               int bswap_needed, hwaddr target_page_size);
 
+#define LOAD_UIMAGE_LOADADDR_INVALID (-1)
+
 /** load_uimage_as:
  * @filename: Path of uimage file
  * @ep: Populated with program entry point. Ignored if NULL.
- * @loadaddr: Populated with the load address. Ignored if NULL.
+ * @loadaddr: load address if none specified in the image or when loading a
+ *            ramdisk. Populated with the load address. Ignored if NULL or
+ *            LOAD_UIMAGE_LOADADDR_INVALID (images which do not specify a load
+ *            address will not be loadable).
  * @is_linux: Is set to true if the image loaded is Linux. Ignored if NULL.
  * @translate_fn: optional function to translate load addresses
  * @translate_opaque: opaque data passed to @translate_fn

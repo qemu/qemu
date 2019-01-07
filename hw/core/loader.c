@@ -613,13 +613,26 @@ static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
         goto out;
 
     if (hdr->ih_type != image_type) {
-        fprintf(stderr, "Wrong image type %d, expected %d\n", hdr->ih_type,
-                image_type);
-        goto out;
+        if (!(image_type == IH_TYPE_KERNEL &&
+            hdr->ih_type == IH_TYPE_KERNEL_NOLOAD)) {
+            fprintf(stderr, "Wrong image type %d, expected %d\n", hdr->ih_type,
+                    image_type);
+            goto out;
+        }
     }
 
     /* TODO: Implement other image types.  */
     switch (hdr->ih_type) {
+    case IH_TYPE_KERNEL_NOLOAD:
+        if (!loadaddr || *loadaddr == LOAD_UIMAGE_LOADADDR_INVALID) {
+            fprintf(stderr, "this image format (kernel_noload) cannot be "
+                    "loaded on this machine type");
+            goto out;
+        }
+
+        hdr->ih_load = *loadaddr + sizeof(*hdr);
+        hdr->ih_ep += hdr->ih_load;
+        /* fall through */
     case IH_TYPE_KERNEL:
         address = hdr->ih_load;
         if (translate_fn) {
