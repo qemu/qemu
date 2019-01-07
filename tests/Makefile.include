@@ -12,6 +12,7 @@ check-help:
 	@echo " $(MAKE) check-qapi-schema    Run QAPI schema tests"
 	@echo " $(MAKE) check-block          Run block tests"
 	@echo " $(MAKE) check-tcg            Run TCG tests"
+	@echo " $(MAKE) check-softfloat      Run FPU emulation tests"
 	@echo " $(MAKE) check-acceptance     Run all acceptance (functional) tests"
 	@echo
 	@echo " $(MAKE) check-report.html    Generates an HTML test report"
@@ -1000,6 +1001,18 @@ SF_MATH_RULES=$(patsubst %,check-softfloat-%, $(SF_MATH_OPS))
 .PHONY: check-softfloat-ops
 check-softfloat-ops: $(SF_MATH_RULES)
 
+# Finally a generic rule to test all of softfoat. If TCG isnt't
+# enabled we define a null operation which skips the tests.
+
+.PHONY: check-softfloat
+ifeq ($(CONFIG_TCG),y)
+check-softfloat: check-softfloat-conv check-softfloat-compare check-softfloat-ops
+else
+check-softfloat:
+	$(call quiet-command, /bin/true, "FLOAT TEST", \
+		"SKIPPED for non-TCG builds")
+endif
+
 # Per guest TCG tests
 
 LINUX_USER_TARGETS=$(filter %-linux-user,$(TARGET_DIRS))
@@ -1032,7 +1045,7 @@ clean-tcg-tests-%:
 build-tcg: $(BUILD_TCG_TARGET_RULES)
 
 .PHONY: check-tcg
-check-tcg: $(RUN_TCG_TARGET_RULES)
+check-tcg: check-softfloat $(RUN_TCG_TARGET_RULES)
 
 .PHONY: clean-tcg
 clean-tcg: $(CLEAN_TCG_TARGET_RULES)
@@ -1113,7 +1126,7 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR)
 check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y)) check-tests/qapi-schema/doc-good.texi
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-block: $(patsubst %,check-%, $(check-block-y))
-check: check-qapi-schema check-unit check-qtest check-decodetree
+check: check-qapi-schema check-unit check-softfloat check-qtest check-decodetree
 check-clean:
 	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
 	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y)) $(check-qtest-generic-y))
