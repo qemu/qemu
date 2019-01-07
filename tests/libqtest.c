@@ -753,6 +753,16 @@ void qtest_irq_intercept_in(QTestState *s, const char *qom_path)
     qtest_rsp(s, 0);
 }
 
+void qtest_set_irq_in(QTestState *s, const char *qom_path, const char *name,
+                      int num, int level)
+{
+    if (!name) {
+        name = "unnamed-gpio-in";
+    }
+    qtest_sendf(s, "set_irq_in %s %s %d %d\n", qom_path, name, num, level);
+    qtest_rsp(s, 0);
+}
+
 static void qtest_out(QTestState *s, const char *cmd, uint16_t addr, uint32_t value)
 {
     qtest_sendf(s, "%s 0x%x 0x%x\n", cmd, addr, value);

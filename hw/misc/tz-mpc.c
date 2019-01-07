@@ -150,7 +150,7 @@ static MemTxResult tz_mpc_reg_read(void *opaque, hwaddr addr,
         r = s->ctrl;
         break;
     case A_BLK_MAX:
-        r = s->blk_max;
+        r = s->blk_max - 1;
         break;
     case A_BLK_CFG:
         /* We are never in "init in progress state", so this just indicates

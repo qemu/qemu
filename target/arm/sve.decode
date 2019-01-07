@@ -99,6 +99,7 @@
 
 # Two operand with governing predicate, flags setting
 @pd_pg_pn_s     ........ . s:1 ...... .. pg:4 . rn:4 . rd:4     &rpr_s
+@pd_pg_pn_s0    ........ . .   ...... .. pg:4 . rn:4 . rd:4     &rpr_s s=0
 
 # Three operand with unused vector element size
 @rd_rn_rm_e0    ........ ... rm:5 ... ... rn:5 rd:5             &rrr_esz esz=0
@@ -667,8 +668,8 @@ BRKPB           00100101 0. 00 .... 11 .... 0 .... 1 ....       @pd_pg_pn_pm_s
 # SVE partition break condition
 BRKA_z          00100101 0. 01000001 .... 0 .... 0 ....         @pd_pg_pn_s
 BRKB_z          00100101 1. 01000001 .... 0 .... 0 ....         @pd_pg_pn_s
-BRKA_m          00100101 0. 01000001 .... 0 .... 1 ....         @pd_pg_pn_s
-BRKB_m          00100101 1. 01000001 .... 0 .... 1 ....         @pd_pg_pn_s
+BRKA_m          00100101 00 01000001 .... 0 .... 1 ....         @pd_pg_pn_s0
+BRKB_m          00100101 10 01000001 .... 0 .... 1 ....         @pd_pg_pn_s0
 
 # SVE propagate break to next partition
 BRKN            00100101 0. 01100001 .... 0 .... 0 ....         @pd_pg_pn_s

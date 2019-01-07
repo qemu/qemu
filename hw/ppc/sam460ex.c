@@ -402,7 +402,7 @@ static void sam460ex_init(MachineState *machine)
     CPUPPCState *env;
     PPC4xxI2CState *i2c[2];
     hwaddr entry = UBOOT_ENTRY;
-    hwaddr loadaddr = 0;
+    hwaddr loadaddr = LOAD_UIMAGE_LOADADDR_INVALID;
     target_long initrd_size = 0;
     DeviceState *dev;
     SysBusDevice *sbdev;

@@ -2100,7 +2100,8 @@ void qemu_init_vcpu(CPUState *cpu)
 void cpu_stop_current(void)
 {
     if (current_cpu) {
-        qemu_cpu_stop(current_cpu, true);
+        current_cpu->stop = true;
+        cpu_exit(current_cpu);
     }
 }
 

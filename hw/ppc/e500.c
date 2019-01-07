@@ -995,6 +995,7 @@ void ppce500_init(MachineState *machine)
          * Hrm. No ELF image? Try a uImage, maybe someone is giving us an
          * ePAPR compliant kernel
          */
+        loadaddr = LOAD_UIMAGE_LOADADDR_INVALID;
         payload_size = load_uimage(filename, &bios_entry, &loadaddr, NULL,
                                    NULL, NULL);
         if (payload_size < 0) {

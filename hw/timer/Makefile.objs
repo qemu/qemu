@@ -23,6 +23,7 @@ common-obj-$(CONFIG_IMX) += imx_gpt.o
 common-obj-$(CONFIG_LM32) += lm32_timer.o
 common-obj-$(CONFIG_MILKYMIST) += milkymist-sysctl.o
 common-obj-$(CONFIG_XLNX_ZYNQMP) += xlnx-zynqmp-rtc.o
+common-obj-$(CONFIG_NRF51_SOC) += nrf51_timer.o
 
 obj-$(CONFIG_ALTERA_TIMER) += altera_timer.o
 obj-$(CONFIG_EXYNOS4) += exynos4210_mct.o

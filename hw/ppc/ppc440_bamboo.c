@@ -179,7 +179,7 @@ static void bamboo_init(MachineState *machine)
     CPUPPCState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
-    hwaddr loadaddr = 0;
+    hwaddr loadaddr = LOAD_UIMAGE_LOADADDR_INVALID;
     target_long initrd_size = 0;
     DeviceState *dev;
     int success;

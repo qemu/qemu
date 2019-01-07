@@ -156,7 +156,7 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
 
         /* If it wasn't an ELF image, try an u-boot image.  */
         if (kernel_size < 0) {
-            hwaddr uentry, loadaddr;
+            hwaddr uentry, loadaddr = LOAD_UIMAGE_LOADADDR_INVALID;
 
             kernel_size = load_uimage(kernel_filename, &uentry, &loadaddr, 0,
                                       NULL, NULL);

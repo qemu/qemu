@@ -29,6 +29,7 @@
 #include "chardev/char-fe.h"
 #include "sysemu/sysemu.h"
 #include "exec/gdbstub.h"
+#include "hw/cpu/cluster.h"
 #endif
 
 #define MAX_PACKET_LENGTH 4096
@@ -296,6 +297,13 @@ typedef struct GDBRegisterState {
     struct GDBRegisterState *next;
 } GDBRegisterState;
 
+typedef struct GDBProcess {
+    uint32_t pid;
+    bool attached;
+
+    char target_xml[1024];
+} GDBProcess;
+
 enum RSState {
     RS_INACTIVE,
     RS_IDLE,
@@ -324,6 +332,9 @@ typedef struct GDBState {
     CharBackend chr;
     Chardev *mon_chr;
 #endif
+    bool multiprocess;
+    GDBProcess *processes;
+    int process_num;
     char syscall_buf[256];
     gdb_syscall_complete_cb current_syscall_cb;
 } GDBState;
@@ -631,13 +642,186 @@ static int memtox(char *buf, const char *mem, int len)
     return p - buf;
 }
 
-static const char *get_feature_xml(const char *p, const char **newp,
-                                   CPUClass *cc)
+static uint32_t gdb_get_cpu_pid(const GDBState *s, CPUState *cpu)
+{
+#ifndef CONFIG_USER_ONLY
+    gchar *path, *name = NULL;
+    Object *obj;
+    CPUClusterState *cluster;
+    uint32_t ret;
+
+    path = object_get_canonical_path(OBJECT(cpu));
+
+    if (path == NULL) {
+        /* Return the default process' PID */
+        ret = s->processes[s->process_num - 1].pid;
+        goto out;
+    }
+
+    name = object_get_canonical_path_component(OBJECT(cpu));
+    assert(name != NULL);
+
+    /*
+     * Retrieve the CPU parent path by removing the last '/' and the CPU name
+     * from the CPU canonical path.
+     */
+    path[strlen(path) - strlen(name) - 1] = '\0';
+
+    obj = object_resolve_path_type(path, TYPE_CPU_CLUSTER, NULL);
+
+    if (obj == NULL) {
+        /* Return the default process' PID */
+        ret = s->processes[s->process_num - 1].pid;
+        goto out;
+    }
+
+    cluster = CPU_CLUSTER(obj);
+    ret = cluster->cluster_id + 1;
+
+out:
+    g_free(name);
+    g_free(path);
+
+    return ret;
+
+#else
+    /* TODO: In user mode, we should use the task state PID */
+    return s->processes[s->process_num - 1].pid;
+#endif
+}
+
+static GDBProcess *gdb_get_process(const GDBState *s, uint32_t pid)
+{
+    int i;
+
+    if (!pid) {
+        /* 0 means any process, we take the first one */
+        return &s->processes[0];
+    }
+
+    for (i = 0; i < s->process_num; i++) {
+        if (s->processes[i].pid == pid) {
+            return &s->processes[i];
+        }
+    }
+
+    return NULL;
+}
+
+static GDBProcess *gdb_get_cpu_process(const GDBState *s, CPUState *cpu)
+{
+    return gdb_get_process(s, gdb_get_cpu_pid(s, cpu));
+}
+
+static CPUState *find_cpu(uint32_t thread_id)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        if (cpu_gdb_index(cpu) == thread_id) {
+            return cpu;
+        }
+    }
+
+    return NULL;
+}
+
+static CPUState *get_first_cpu_in_process(const GDBState *s,
+                                          GDBProcess *process)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        if (gdb_get_cpu_pid(s, cpu) == process->pid) {
+            return cpu;
+        }
+    }
+
+    return NULL;
+}
+
+static CPUState *gdb_next_cpu_in_process(const GDBState *s, CPUState *cpu)
+{
+    uint32_t pid = gdb_get_cpu_pid(s, cpu);
+    cpu = CPU_NEXT(cpu);
+
+    while (cpu) {
+        if (gdb_get_cpu_pid(s, cpu) == pid) {
+            break;
+        }
+
+        cpu = CPU_NEXT(cpu);
+    }
+
+    return cpu;
+}
+
+static CPUState *gdb_get_cpu(const GDBState *s, uint32_t pid, uint32_t tid)
+{
+    GDBProcess *process;
+    CPUState *cpu;
+
+    if (!tid) {
+        /* 0 means any thread, we take the first one */
+        tid = 1;
+    }
+
+    cpu = find_cpu(tid);
+
+    if (cpu == NULL) {
+        return NULL;
+    }
+
+    process = gdb_get_cpu_process(s, cpu);
+
+    if (process->pid != pid) {
+        return NULL;
+    }
+
+    if (!process->attached) {
+        return NULL;
+    }
+
+    return cpu;
+}
+
+/* Return the cpu following @cpu, while ignoring unattached processes. */
+static CPUState *gdb_next_attached_cpu(const GDBState *s, CPUState *cpu)
+{
+    cpu = CPU_NEXT(cpu);
+
+    while (cpu) {
+        if (gdb_get_cpu_process(s, cpu)->attached) {
+            break;
+        }
+
+        cpu = CPU_NEXT(cpu);
+    }
+
+    return cpu;
+}
+
+/* Return the first attached cpu */
+static CPUState *gdb_first_attached_cpu(const GDBState *s)
+{
+    CPUState *cpu = first_cpu;
+    GDBProcess *process = gdb_get_cpu_process(s, cpu);
+
+    if (!process->attached) {
+        return gdb_next_attached_cpu(s, cpu);
+    }
+
+    return cpu;
+}
+
+static const char *get_feature_xml(const GDBState *s, const char *p,
+                                   const char **newp, GDBProcess *process)
 {
     size_t len;
     int i;
     const char *name;
-    static char target_xml[1024];
+    CPUState *cpu = get_first_cpu_in_process(s, process);
+    CPUClass *cc = CPU_GET_CLASS(cpu);
 
     len = 0;
     while (p[len] && p[len] != ':')
@@ -646,36 +830,37 @@ static const char *get_feature_xml(const char *p, const char **newp,
 
     name = NULL;
     if (strncmp(p, "target.xml", len) == 0) {
-        /* Generate the XML description for this CPU.  */
-        if (!target_xml[0]) {
-            GDBRegisterState *r;
-            CPUState *cpu = first_cpu;
+        char *buf = process->target_xml;
+        const size_t buf_sz = sizeof(process->target_xml);
 
-            pstrcat(target_xml, sizeof(target_xml),
+        /* Generate the XML description for this CPU.  */
+        if (!buf[0]) {
+            GDBRegisterState *r;
+
+            pstrcat(buf, buf_sz,
                     "<?xml version=\"1.0\"?>"
                     "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">"
                     "<target>");
             if (cc->gdb_arch_name) {
                 gchar *arch = cc->gdb_arch_name(cpu);
-                pstrcat(target_xml, sizeof(target_xml), "<architecture>");
-                pstrcat(target_xml, sizeof(target_xml), arch);
-                pstrcat(target_xml, sizeof(target_xml), "</architecture>");
+                pstrcat(buf, buf_sz, "<architecture>");
+                pstrcat(buf, buf_sz, arch);
+                pstrcat(buf, buf_sz, "</architecture>");
                 g_free(arch);
             }
-            pstrcat(target_xml, sizeof(target_xml), "<xi:include href=\"");
-            pstrcat(target_xml, sizeof(target_xml), cc->gdb_core_xml_file);
-            pstrcat(target_xml, sizeof(target_xml), "\"/>");
+            pstrcat(buf, buf_sz, "<xi:include href=\"");
+            pstrcat(buf, buf_sz, cc->gdb_core_xml_file);
+            pstrcat(buf, buf_sz, "\"/>");
             for (r = cpu->gdb_regs; r; r = r->next) {
-                pstrcat(target_xml, sizeof(target_xml), "<xi:include href=\"");
-                pstrcat(target_xml, sizeof(target_xml), r->xml);
-                pstrcat(target_xml, sizeof(target_xml), "\"/>");
+                pstrcat(buf, buf_sz, "<xi:include href=\"");
+                pstrcat(buf, buf_sz, r->xml);
+                pstrcat(buf, buf_sz, "\"/>");
             }
-            pstrcat(target_xml, sizeof(target_xml), "</target>");
+            pstrcat(buf, buf_sz, "</target>");
         }
-        return target_xml;
+        return buf;
     }
     if (cc->gdb_get_dynamic_xml) {
-        CPUState *cpu = first_cpu;
         char *xmlname = g_strndup(p, len);
         const char *xml = cc->gdb_get_dynamic_xml(cpu, xmlname);
 
@@ -862,6 +1047,24 @@ static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
     }
 }
 
+static inline void gdb_cpu_breakpoint_remove_all(CPUState *cpu)
+{
+    cpu_breakpoint_remove_all(cpu, BP_GDB);
+#ifndef CONFIG_USER_ONLY
+    cpu_watchpoint_remove_all(cpu, BP_GDB);
+#endif
+}
+
+static void gdb_process_breakpoint_remove_all(const GDBState *s, GDBProcess *p)
+{
+    CPUState *cpu = get_first_cpu_in_process(s, p);
+
+    while (cpu) {
+        gdb_cpu_breakpoint_remove_all(cpu);
+        cpu = gdb_next_cpu_in_process(s, cpu);
+    }
+}
+
 static void gdb_breakpoint_remove_all(void)
 {
     CPUState *cpu;
@@ -872,10 +1075,7 @@ static void gdb_breakpoint_remove_all(void)
     }
 
     CPU_FOREACH(cpu) {
-        cpu_breakpoint_remove_all(cpu, BP_GDB);
-#ifndef CONFIG_USER_ONLY
-        cpu_watchpoint_remove_all(cpu, BP_GDB);
-#endif
+        gdb_cpu_breakpoint_remove_all(cpu);
     }
 }
 
@@ -887,17 +1087,71 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
     cpu_set_pc(cpu, pc);
 }
 
-static CPUState *find_cpu(uint32_t thread_id)
+static char *gdb_fmt_thread_id(const GDBState *s, CPUState *cpu,
+                           char *buf, size_t buf_size)
 {
-    CPUState *cpu;
-
-    CPU_FOREACH(cpu) {
-        if (cpu_gdb_index(cpu) == thread_id) {
-            return cpu;
-        }
+    if (s->multiprocess) {
+        snprintf(buf, buf_size, "p%02x.%02x",
+                 gdb_get_cpu_pid(s, cpu), cpu_gdb_index(cpu));
+    } else {
+        snprintf(buf, buf_size, "%02x", cpu_gdb_index(cpu));
     }
 
-    return NULL;
+    return buf;
+}
+
+typedef enum GDBThreadIdKind {
+    GDB_ONE_THREAD = 0,
+    GDB_ALL_THREADS,     /* One process, all threads */
+    GDB_ALL_PROCESSES,
+    GDB_READ_THREAD_ERR
+} GDBThreadIdKind;
+
+static GDBThreadIdKind read_thread_id(const char *buf, const char **end_buf,
+                                      uint32_t *pid, uint32_t *tid)
+{
+    unsigned long p, t;
+    int ret;
+
+    if (*buf == 'p') {
+        buf++;
+        ret = qemu_strtoul(buf, &buf, 16, &p);
+
+        if (ret) {
+            return GDB_READ_THREAD_ERR;
+        }
+
+        /* Skip '.' */
+        buf++;
+    } else {
+        p = 1;
+    }
+
+    ret = qemu_strtoul(buf, &buf, 16, &t);
+
+    if (ret) {
+        return GDB_READ_THREAD_ERR;
+    }
+
+    *end_buf = buf;
+
+    if (p == -1) {
+        return GDB_ALL_PROCESSES;
+    }
+
+    if (pid) {
+        *pid = p;
+    }
+
+    if (t == -1) {
+        return GDB_ALL_THREADS;
+    }
+
+    if (tid) {
+        *tid = t;
+    }
+
+    return GDB_ONE_THREAD;
 }
 
 static int is_query_packet(const char *p, const char *query, char separator)
@@ -915,10 +1169,12 @@ static int is_query_packet(const char *p, const char *query, char separator)
  */
 static int gdb_handle_vcont(GDBState *s, const char *p)
 {
-    int res, idx, signal = 0;
+    int res, signal = 0;
     char cur_action;
     char *newstates;
     unsigned long tmp;
+    uint32_t pid, tid;
+    GDBProcess *process;
     CPUState *cpu;
 #ifdef CONFIG_USER_ONLY
     int max_cpus = 1; /* global variable max_cpus exists only in system mode */
@@ -961,25 +1217,48 @@ static int gdb_handle_vcont(GDBState *s, const char *p)
             res = -ENOTSUP;
             goto out;
         }
-        /* thread specification. special values: (none), -1 = all; 0 = any */
-        if ((p[0] == ':' && p[1] == '-' && p[2] == '1') || (p[0] != ':')) {
-            if (*p == ':') {
-                p += 3;
-            }
-            for (idx = 0; idx < max_cpus; idx++) {
-                if (newstates[idx] == 1) {
-                    newstates[idx] = cur_action;
+
+        if (*p++ != ':') {
+            res = -ENOTSUP;
+            goto out;
+        }
+
+        switch (read_thread_id(p, &p, &pid, &tid)) {
+        case GDB_READ_THREAD_ERR:
+            res = -EINVAL;
+            goto out;
+
+        case GDB_ALL_PROCESSES:
+            cpu = gdb_first_attached_cpu(s);
+            while (cpu) {
+                if (newstates[cpu->cpu_index] == 1) {
+                    newstates[cpu->cpu_index] = cur_action;
                 }
+
+                cpu = gdb_next_attached_cpu(s, cpu);
             }
-        } else if (*p == ':') {
-            p++;
-            res = qemu_strtoul(p, &p, 16, &tmp);
-            if (res) {
+            break;
+
+        case GDB_ALL_THREADS:
+            process = gdb_get_process(s, pid);
+
+            if (!process->attached) {
+                res = -EINVAL;
                 goto out;
             }
 
-            /* 0 means any thread, so we pick the first valid CPU */
-            cpu = tmp ? find_cpu(tmp) : first_cpu;
+            cpu = get_first_cpu_in_process(s, process);
+            while (cpu) {
+                if (newstates[cpu->cpu_index] == 1) {
+                    newstates[cpu->cpu_index] = cur_action;
+                }
+
+                cpu = gdb_next_cpu_in_process(s, cpu);
+            }
+            break;
+
+        case GDB_ONE_THREAD:
+            cpu = gdb_get_cpu(s, pid, tid);
 
             /* invalid CPU/thread specified */
             if (!cpu) {
@@ -991,6 +1270,7 @@ static int gdb_handle_vcont(GDBState *s, const char *p)
             if (newstates[cpu->cpu_index] == 1) {
                 newstates[cpu->cpu_index] = cur_action;
             }
+            break;
         }
     }
     s->signal = signal;
@@ -1005,24 +1285,30 @@ out:
 static int gdb_handle_packet(GDBState *s, const char *line_buf)
 {
     CPUState *cpu;
+    GDBProcess *process;
     CPUClass *cc;
     const char *p;
-    uint32_t thread;
+    uint32_t pid, tid;
     int ch, reg_size, type, res;
     uint8_t mem_buf[MAX_PACKET_LENGTH];
     char buf[sizeof(mem_buf) + 1 /* trailing NUL */];
+    char thread_id[16];
     uint8_t *registers;
     target_ulong addr, len;
+    GDBThreadIdKind thread_kind;
 
     trace_gdbstub_io_command(line_buf);
 
     p = line_buf;
     ch = *p++;
     switch(ch) {
+    case '!':
+        put_packet(s, "OK");
+        break;
     case '?':
         /* TODO: Make this return the correct value for user-mode.  */
-        snprintf(buf, sizeof(buf), "T%02xthread:%02x;", GDB_SIGNAL_TRAP,
-                 cpu_gdb_index(s->c_cpu));
+        snprintf(buf, sizeof(buf), "T%02xthread:%s;", GDB_SIGNAL_TRAP,
+                 gdb_fmt_thread_id(s, s->c_cpu, thread_id, sizeof(thread_id)));
         put_packet(s, buf);
         /* Remove all the breakpoints when this query is issued,
          * because gdb is doing and initial connect and the state
@@ -1062,6 +1348,41 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
                 goto unknown_command;
             }
             break;
+        } else if (strncmp(p, "Attach;", 7) == 0) {
+            unsigned long pid;
+
+            p += 7;
+
+            if (qemu_strtoul(p, &p, 16, &pid)) {
+                put_packet(s, "E22");
+                break;
+            }
+
+            process = gdb_get_process(s, pid);
+
+            if (process == NULL) {
+                put_packet(s, "E22");
+                break;
+            }
+
+            cpu = get_first_cpu_in_process(s, process);
+
+            if (cpu == NULL) {
+                /* Refuse to attach an empty process */
+                put_packet(s, "E22");
+                break;
+            }
+
+            process->attached = true;
+
+            s->g_cpu = cpu;
+            s->c_cpu = cpu;
+
+            snprintf(buf, sizeof(buf), "T%02xthread:%s;", GDB_SIGNAL_TRAP,
+                     gdb_fmt_thread_id(s, cpu, thread_id, sizeof(thread_id)));
+
+            put_packet(s, buf);
+            break;
         } else {
             goto unknown_command;
         }
@@ -1071,9 +1392,40 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         exit(0);
     case 'D':
         /* Detach packet */
-        gdb_breakpoint_remove_all();
-        gdb_syscall_mode = GDB_SYS_DISABLED;
-        gdb_continue(s);
+        pid = 1;
+
+        if (s->multiprocess) {
+            unsigned long lpid;
+            if (*p != ';') {
+                put_packet(s, "E22");
+                break;
+            }
+
+            if (qemu_strtoul(p + 1, &p, 16, &lpid)) {
+                put_packet(s, "E22");
+                break;
+            }
+
+            pid = lpid;
+        }
+
+        process = gdb_get_process(s, pid);
+        gdb_process_breakpoint_remove_all(s, process);
+        process->attached = false;
+
+        if (pid == gdb_get_cpu_pid(s, s->c_cpu)) {
+            s->c_cpu = gdb_first_attached_cpu(s);
+        }
+
+        if (pid == gdb_get_cpu_pid(s, s->g_cpu)) {
+            s->g_cpu = gdb_first_attached_cpu(s);
+        }
+
+        if (s->c_cpu == NULL) {
+            /* No more process attached */
+            gdb_syscall_mode = GDB_SYS_DISABLED;
+            gdb_continue(s);
+        }
         put_packet(s, "OK");
         break;
     case 's':
@@ -1220,12 +1572,18 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         break;
     case 'H':
         type = *p++;
-        thread = strtoull(p, (char **)&p, 16);
-        if (thread == -1 || thread == 0) {
+
+        thread_kind = read_thread_id(p, &p, &pid, &tid);
+        if (thread_kind == GDB_READ_THREAD_ERR) {
+            put_packet(s, "E22");
+            break;
+        }
+
+        if (thread_kind != GDB_ONE_THREAD) {
             put_packet(s, "OK");
             break;
         }
-        cpu = find_cpu(thread);
+        cpu = gdb_get_cpu(s, pid, tid);
         if (cpu == NULL) {
             put_packet(s, "E22");
             break;
@@ -1245,8 +1603,12 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         }
         break;
     case 'T':
-        thread = strtoull(p, (char **)&p, 16);
-        cpu = find_cpu(thread);
+        thread_kind = read_thread_id(p, &p, &pid, &tid);
+        if (thread_kind == GDB_READ_THREAD_ERR) {
+            put_packet(s, "E22");
+            break;
+        }
+        cpu = gdb_get_cpu(s, pid, tid);
 
         if (cpu != NULL) {
             put_packet(s, "OK");
@@ -1280,31 +1642,55 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             put_packet(s, "OK");
             break;
         } else if (strcmp(p,"C") == 0) {
-            /* "Current thread" remains vague in the spec, so always return
-             *  the first CPU (gdb returns the first thread). */
-            put_packet(s, "QC1");
+            /*
+             * "Current thread" remains vague in the spec, so always return
+             * the first thread of the current process (gdb returns the
+             * first thread).
+             */
+            cpu = get_first_cpu_in_process(s, gdb_get_cpu_process(s, s->g_cpu));
+            snprintf(buf, sizeof(buf), "QC%s",
+                     gdb_fmt_thread_id(s, cpu, thread_id, sizeof(thread_id)));
+            put_packet(s, buf);
             break;
         } else if (strcmp(p,"fThreadInfo") == 0) {
-            s->query_cpu = first_cpu;
+            s->query_cpu = gdb_first_attached_cpu(s);
             goto report_cpuinfo;
         } else if (strcmp(p,"sThreadInfo") == 0) {
         report_cpuinfo:
             if (s->query_cpu) {
-                snprintf(buf, sizeof(buf), "m%x", cpu_gdb_index(s->query_cpu));
+                snprintf(buf, sizeof(buf), "m%s",
+                         gdb_fmt_thread_id(s, s->query_cpu,
+                                       thread_id, sizeof(thread_id)));
                 put_packet(s, buf);
-                s->query_cpu = CPU_NEXT(s->query_cpu);
+                s->query_cpu = gdb_next_attached_cpu(s, s->query_cpu);
             } else
                 put_packet(s, "l");
             break;
         } else if (strncmp(p,"ThreadExtraInfo,", 16) == 0) {
-            thread = strtoull(p+16, (char **)&p, 16);
-            cpu = find_cpu(thread);
+            if (read_thread_id(p + 16, &p, &pid, &tid) == GDB_READ_THREAD_ERR) {
+                put_packet(s, "E22");
+                break;
+            }
+            cpu = gdb_get_cpu(s, pid, tid);
             if (cpu != NULL) {
                 cpu_synchronize_state(cpu);
-                /* memtohex() doubles the required space */
-                len = snprintf((char *)mem_buf, sizeof(buf) / 2,
-                               "CPU#%d [%s]", cpu->cpu_index,
-                               cpu->halted ? "halted " : "running");
+
+                if (s->multiprocess && (s->process_num > 1)) {
+                    /* Print the CPU model and name in multiprocess mode */
+                    ObjectClass *oc = object_get_class(OBJECT(cpu));
+                    const char *cpu_model = object_class_get_name(oc);
+                    char *cpu_name =
+                        object_get_canonical_path_component(OBJECT(cpu));
+                    len = snprintf((char *)mem_buf, sizeof(buf) / 2,
+                                   "%s %s [%s]", cpu_model, cpu_name,
+                                   cpu->halted ? "halted " : "running");
+                    g_free(cpu_name);
+                } else {
+                    /* memtohex() doubles the required space */
+                    len = snprintf((char *)mem_buf, sizeof(buf) / 2,
+                                   "CPU#%d [%s]", cpu->cpu_index,
+                                   cpu->halted ? "halted " : "running");
+                }
                 trace_gdbstub_op_extra_info((char *)mem_buf);
                 memtohex(buf, mem_buf, len);
                 put_packet(s, buf);
@@ -1346,6 +1732,12 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             if (cc->gdb_core_xml_file != NULL) {
                 pstrcat(buf, sizeof(buf), ";qXfer:features:read+");
             }
+
+            if (strstr(p, "multiprocess+")) {
+                s->multiprocess = true;
+            }
+            pstrcat(buf, sizeof(buf), ";multiprocess+");
+
             put_packet(s, buf);
             break;
         }
@@ -1353,14 +1745,15 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             const char *xml;
             target_ulong total_len;
 
-            cc = CPU_GET_CLASS(first_cpu);
+            process = gdb_get_cpu_process(s, s->g_cpu);
+            cc = CPU_GET_CLASS(s->g_cpu);
             if (cc->gdb_core_xml_file == NULL) {
                 goto unknown_command;
             }
 
             gdb_has_xml = true;
             p += 19;
-            xml = get_feature_xml(p, &p, cc);
+            xml = get_feature_xml(s, p, &p, process);
             if (!xml) {
                 snprintf(buf, sizeof(buf), "E00");
                 put_packet(s, buf);
@@ -1411,6 +1804,16 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
 
 void gdb_set_stop_cpu(CPUState *cpu)
 {
+    GDBProcess *p = gdb_get_cpu_process(gdbserver_state, cpu);
+
+    if (!p->attached) {
+        /*
+         * Having a stop CPU corresponding to a process that is not attached
+         * confuses GDB. So we ignore the request.
+         */
+        return;
+    }
+
     gdbserver_state->c_cpu = cpu;
     gdbserver_state->g_cpu = cpu;
 }
@@ -1421,6 +1824,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
     GDBState *s = gdbserver_state;
     CPUState *cpu = s->c_cpu;
     char buf[256];
+    char thread_id[16];
     const char *type;
     int ret;
 
@@ -1432,6 +1836,14 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
         put_packet(s, s->syscall_buf);
         return;
     }
+
+    if (cpu == NULL) {
+        /* No process attached */
+        return;
+    }
+
+    gdb_fmt_thread_id(s, cpu, thread_id, sizeof(thread_id));
+
     switch (state) {
     case RUN_STATE_DEBUG:
         if (cpu->watchpoint_hit) {
@@ -1449,8 +1861,8 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
             trace_gdbstub_hit_watchpoint(type, cpu_gdb_index(cpu),
                     (target_ulong)cpu->watchpoint_hit->vaddr);
             snprintf(buf, sizeof(buf),
-                     "T%02xthread:%02x;%swatch:" TARGET_FMT_lx ";",
-                     GDB_SIGNAL_TRAP, cpu_gdb_index(cpu), type,
+                     "T%02xthread:%s;%swatch:" TARGET_FMT_lx ";",
+                     GDB_SIGNAL_TRAP, thread_id, type,
                      (target_ulong)cpu->watchpoint_hit->vaddr);
             cpu->watchpoint_hit = NULL;
             goto send_packet;
@@ -1492,7 +1904,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
         break;
     }
     gdb_set_stop_cpu(cpu);
-    snprintf(buf, sizeof(buf), "T%02xthread:%02x;", ret, cpu_gdb_index(cpu));
+    snprintf(buf, sizeof(buf), "T%02xthread:%s;", ret, thread_id);
 
 send_packet:
     put_packet(s, buf);
@@ -1751,6 +2163,31 @@ void gdb_exit(CPUArchState *env, int code)
 #endif
 }
 
+/*
+ * Create the process that will contain all the "orphan" CPUs (that are not
+ * part of a CPU cluster). Note that if this process contains no CPUs, it won't
+ * be attachable and thus will be invisible to the user.
+ */
+static void create_default_process(GDBState *s)
+{
+    GDBProcess *process;
+    int max_pid = 0;
+
+    if (s->process_num) {
+        max_pid = s->processes[s->process_num - 1].pid;
+    }
+
+    s->processes = g_renew(GDBProcess, s->processes, ++s->process_num);
+    process = &s->processes[s->process_num - 1];
+
+    /* We need an available PID slot for this process */
+    assert(max_pid < UINT32_MAX);
+
+    process->pid = max_pid + 1;
+    process->attached = false;
+    process->target_xml[0] = '\0';
+}
+
 #ifdef CONFIG_USER_ONLY
 int
 gdb_handlesig(CPUState *cpu, int sig)
@@ -1846,8 +2283,10 @@ static bool gdb_accept(void)
     }
 
     s = g_malloc0(sizeof(GDBState));
-    s->c_cpu = first_cpu;
-    s->g_cpu = first_cpu;
+    create_default_process(s);
+    s->processes[0].attached = true;
+    s->c_cpu = gdb_first_attached_cpu(s);
+    s->g_cpu = s->c_cpu;
     s->fd = fd;
     gdb_has_xml = false;
 
@@ -1933,8 +2372,19 @@ static void gdb_chr_receive(void *opaque, const uint8_t *buf, int size)
 
 static void gdb_chr_event(void *opaque, int event)
 {
+    int i;
+    GDBState *s = (GDBState *) opaque;
+
     switch (event) {
     case CHR_EVENT_OPENED:
+        /* Start with first process attached, others detached */
+        for (i = 0; i < s->process_num; i++) {
+            s->processes[i].attached = !i;
+        }
+
+        s->c_cpu = gdb_first_attached_cpu(s);
+        s->g_cpu = s->c_cpu;
+
         vm_stop(RUN_STATE_PAUSED);
         gdb_has_xml = false;
         break;
@@ -2004,6 +2454,66 @@ static const TypeInfo char_gdb_type_info = {
     .class_init = char_gdb_class_init,
 };
 
+static int find_cpu_clusters(Object *child, void *opaque)
+{
+    if (object_dynamic_cast(child, TYPE_CPU_CLUSTER)) {
+        GDBState *s = (GDBState *) opaque;
+        CPUClusterState *cluster = CPU_CLUSTER(child);
+        GDBProcess *process;
+
+        s->processes = g_renew(GDBProcess, s->processes, ++s->process_num);
+
+        process = &s->processes[s->process_num - 1];
+
+        /*
+         * GDB process IDs -1 and 0 are reserved. To avoid subtle errors at
+         * runtime, we enforce here that the machine does not use a cluster ID
+         * that would lead to PID 0.
+         */
+        assert(cluster->cluster_id != UINT32_MAX);
+        process->pid = cluster->cluster_id + 1;
+        process->attached = false;
+        process->target_xml[0] = '\0';
+
+        return 0;
+    }
+
+    return object_child_foreach(child, find_cpu_clusters, opaque);
+}
+
+static int pid_order(const void *a, const void *b)
+{
+    GDBProcess *pa = (GDBProcess *) a;
+    GDBProcess *pb = (GDBProcess *) b;
+
+    if (pa->pid < pb->pid) {
+        return -1;
+    } else if (pa->pid > pb->pid) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+static void create_processes(GDBState *s)
+{
+    object_child_foreach(object_get_root(), find_cpu_clusters, s);
+
+    if (s->processes) {
+        /* Sort by PID */
+        qsort(s->processes, s->process_num, sizeof(s->processes[0]), pid_order);
+    }
+
+    create_default_process(s);
+}
+
+static void cleanup_processes(GDBState *s)
+{
+    g_free(s->processes);
+    s->process_num = 0;
+    s->processes = NULL;
+}
+
 int gdbserver_start(const char *device)
 {
     trace_gdbstub_op_start(device);
@@ -2060,15 +2570,17 @@ int gdbserver_start(const char *device)
     } else {
         qemu_chr_fe_deinit(&s->chr, true);
         mon_chr = s->mon_chr;
+        cleanup_processes(s);
         memset(s, 0, sizeof(GDBState));
         s->mon_chr = mon_chr;
     }
-    s->c_cpu = first_cpu;
-    s->g_cpu = first_cpu;
+
+    create_processes(s);
+
     if (chr) {
         qemu_chr_fe_init(&s->chr, chr, &error_abort);
         qemu_chr_fe_set_handlers(&s->chr, gdb_chr_can_receive, gdb_chr_receive,
-                                 gdb_chr_event, NULL, NULL, NULL, true);
+                                 gdb_chr_event, NULL, s, NULL, true);
     }
     s->state = chr ? RS_IDLE : RS_INACTIVE;
     s->mon_chr = mon_chr;

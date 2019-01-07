@@ -184,6 +184,7 @@ trace-events-subdirs += hw/vfio
 trace-events-subdirs += hw/virtio
 trace-events-subdirs += hw/watchdog
 trace-events-subdirs += hw/xen
+trace-events-subdirs += hw/gpio
 trace-events-subdirs += io
 trace-events-subdirs += linux-user
 trace-events-subdirs += migration

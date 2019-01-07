@@ -12955,16 +12955,18 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     ARMMMUIdx mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
     int current_el = arm_current_el(env);
     int fp_el = fp_exception_el(env, current_el);
-    uint32_t flags;
+    uint32_t flags = 0;
 
     if (is_a64(env)) {
         ARMCPU *cpu = arm_env_get_cpu(env);
 
         *pc = env->pc;
-        flags = ARM_TBFLAG_AARCH64_STATE_MASK;
+        flags = FIELD_DP32(flags, TBFLAG_ANY, AARCH64_STATE, 1);
         /* Get control bits for tagged addresses */
-        flags |= (arm_regime_tbi0(env, mmu_idx) << ARM_TBFLAG_TBI0_SHIFT);
-        flags |= (arm_regime_tbi1(env, mmu_idx) << ARM_TBFLAG_TBI1_SHIFT);
+        flags = FIELD_DP32(flags, TBFLAG_A64, TBI0,
+                           arm_regime_tbi0(env, mmu_idx));
+        flags = FIELD_DP32(flags, TBFLAG_A64, TBI1,
+                           arm_regime_tbi1(env, mmu_idx));
 
         if (cpu_isar_feature(aa64_sve, cpu)) {
             int sve_el = sve_exception_el(env, current_el);
@@ -12978,28 +12980,25 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
             } else {
                 zcr_len = sve_zcr_len_for_el(env, current_el);
             }
-            flags |= sve_el << ARM_TBFLAG_SVEEXC_EL_SHIFT;
-            flags |= zcr_len << ARM_TBFLAG_ZCR_LEN_SHIFT;
+            flags = FIELD_DP32(flags, TBFLAG_A64, SVEEXC_EL, sve_el);
+            flags = FIELD_DP32(flags, TBFLAG_A64, ZCR_LEN, zcr_len);
         }
     } else {
         *pc = env->regs[15];
-        flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
-            | (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
-            | (env->vfp.vec_stride << ARM_TBFLAG_VECSTRIDE_SHIFT)
-            | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT)
-            | (arm_sctlr_b(env) << ARM_TBFLAG_SCTLR_B_SHIFT);
-        if (!(access_secure_reg(env))) {
-            flags |= ARM_TBFLAG_NS_MASK;
-        }
+        flags = FIELD_DP32(flags, TBFLAG_A32, THUMB, env->thumb);
+        flags = FIELD_DP32(flags, TBFLAG_A32, VECLEN, env->vfp.vec_len);
+        flags = FIELD_DP32(flags, TBFLAG_A32, VECSTRIDE, env->vfp.vec_stride);
+        flags = FIELD_DP32(flags, TBFLAG_A32, CONDEXEC, env->condexec_bits);
+        flags = FIELD_DP32(flags, TBFLAG_A32, SCTLR_B, arm_sctlr_b(env));
+        flags = FIELD_DP32(flags, TBFLAG_A32, NS, !access_secure_reg(env));
         if (env->vfp.xregs[ARM_VFP_FPEXC] & (1 << 30)
             || arm_el_is_aa64(env, 1)) {
-            flags |= ARM_TBFLAG_VFPEN_MASK;
+            flags = FIELD_DP32(flags, TBFLAG_A32, VFPEN, 1);
         }
-        flags |= (extract32(env->cp15.c15_cpar, 0, 2)
-                  << ARM_TBFLAG_XSCALE_CPAR_SHIFT);
+        flags = FIELD_DP32(flags, TBFLAG_A32, XSCALE_CPAR, env->cp15.c15_cpar);
     }
 
-    flags |= (arm_to_core_mmu_idx(mmu_idx) << ARM_TBFLAG_MMUIDX_SHIFT);
+    flags = FIELD_DP32(flags, TBFLAG_ANY, MMUIDX, arm_to_core_mmu_idx(mmu_idx));
 
     /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
      * states defined in the ARM ARM for software singlestep:
@@ -13009,24 +13008,24 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
      *     1            1       Active-not-pending
      */
     if (arm_singlestep_active(env)) {
-        flags |= ARM_TBFLAG_SS_ACTIVE_MASK;
+        flags = FIELD_DP32(flags, TBFLAG_ANY, SS_ACTIVE, 1);
         if (is_a64(env)) {
             if (env->pstate & PSTATE_SS) {
-                flags |= ARM_TBFLAG_PSTATE_SS_MASK;
+                flags = FIELD_DP32(flags, TBFLAG_ANY, PSTATE_SS, 1);
             }
         } else {
             if (env->uncached_cpsr & PSTATE_SS) {
-                flags |= ARM_TBFLAG_PSTATE_SS_MASK;
+                flags = FIELD_DP32(flags, TBFLAG_ANY, PSTATE_SS, 1);
             }
         }
     }
     if (arm_cpu_data_is_big_endian(env)) {
-        flags |= ARM_TBFLAG_BE_DATA_MASK;
+        flags = FIELD_DP32(flags, TBFLAG_ANY, BE_DATA, 1);
     }
-    flags |= fp_el << ARM_TBFLAG_FPEXC_EL_SHIFT;
+    flags = FIELD_DP32(flags, TBFLAG_ANY, FPEXC_EL, fp_el);
 
     if (arm_v7m_is_handler_mode(env)) {
-        flags |= ARM_TBFLAG_HANDLER_MASK;
+        flags = FIELD_DP32(flags, TBFLAG_A32, HANDLER, 1);
     }
 
     /* v8M always applies stack limit checks unless CCR.STKOFHFNMIGN is
@@ -13036,7 +13035,7 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
         arm_feature(env, ARM_FEATURE_M) &&
         !((mmu_idx  & ARM_MMU_IDX_M_NEGPRI) &&
           (env->v7m.ccr[env->v7m.secure] & R_V7M_CCR_STKOFHFNMIGN_MASK))) {
-        flags |= ARM_TBFLAG_STACKCHECK_MASK;
+        flags = FIELD_DP32(flags, TBFLAG_A32, STACKCHECK, 1);
     }
 
     *pflags = flags;
