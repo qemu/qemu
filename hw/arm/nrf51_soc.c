@@ -39,6 +39,8 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     NRF51State *s = NRF51_SOC(dev_soc);
     MemoryRegion *mr;
     Error *err = NULL;
+    uint8_t i = 0;
+    hwaddr base_addr = 0;
 
     if (!s->board_memory) {
         error_setg(errp, "memory property was not set");
@@ -112,6 +114,22 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     /* Pass all GPIOs to the SOC layer so they are available to the board */
     qdev_pass_gpios(DEVICE(&s->gpio), dev_soc, NULL);
 
+    /* TIMER */
+    for (i = 0; i < NRF51_NUM_TIMERS; i++) {
+        object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        base_addr = NRF51_TIMER_BASE + i * NRF51_TIMER_SIZE;
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->timer[i]), 0, base_addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&s->cpu),
+                                            BASE_TO_IRQ(base_addr)));
+    }
+
     create_unimplemented_device("nrf51_soc.io", NRF51_IOMEM_BASE,
                                 NRF51_IOMEM_SIZE);
     create_unimplemented_device("nrf51_soc.ficr", NRF51_FICR_BASE,
@@ -122,6 +140,8 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
 static void nrf51_soc_init(Object *obj)
 {
+    uint8_t i = 0;
+
     NRF51State *s = NRF51_SOC(obj);
 
     memory_region_init(&s->container, obj, "nrf51-container", UINT64_MAX);
@@ -142,6 +162,12 @@ static void nrf51_soc_init(Object *obj)
 
     sysbus_init_child_obj(obj, "gpio", &s->gpio, sizeof(s->gpio),
                           TYPE_NRF51_GPIO);
+
+    for (i = 0; i < NRF51_NUM_TIMERS; i++) {
+        sysbus_init_child_obj(obj, "timer[*]", &s->timer[i],
+                              sizeof(s->timer[i]), TYPE_NRF51_TIMER);
+
+    }
 }
 
 static Property nrf51_soc_properties[] = {
