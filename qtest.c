@@ -164,6 +164,17 @@ static bool qtest_opened;
  * where NUM is an IRQ number.  For the PC, interrupts can be intercepted
  * simply with "irq_intercept_in ioapic" (note that IRQ0 comes out with
  * NUM=0 even though it is remapped to GSI 2).
+ *
+ * Setting interrupt level:
+ *
+ *  > set_irq_in QOM-PATH NAME NUM LEVEL
+ *  < OK
+ *
+ *  where NAME is the name of the irq/gpio list, NUM is an IRQ number and
+ *  LEVEL is an signed integer IRQ level.
+ *
+ * Forcibly set the given interrupt pin to the given level.
+ *
  */
 
 static int hex2nib(char ch)
@@ -326,7 +337,39 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         irq_intercept_dev = dev;
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
+    } else if (strcmp(words[0], "set_irq_in") == 0) {
+        DeviceState *dev;
+        qemu_irq irq;
+        char *name;
+        int ret;
+        int num;
+        int level;
 
+        g_assert(words[1] && words[2] && words[3] && words[4]);
+
+        dev = DEVICE(object_resolve_path(words[1], NULL));
+        if (!dev) {
+            qtest_send_prefix(chr);
+            qtest_send(chr, "FAIL Unknown device\n");
+            return;
+        }
+
+        if (strcmp(words[2], "unnamed-gpio-in") == 0) {
+            name = NULL;
+        } else {
+            name = words[2];
+        }
+
+        ret = qemu_strtoi(words[3], NULL, 0, &num);
+        g_assert(!ret);
+        ret = qemu_strtoi(words[4], NULL, 0, &level);
+        g_assert(!ret);
+
+        irq = qdev_get_gpio_in_named(dev, name, num);
+
+        qemu_set_irq(irq, level);
+        qtest_send_prefix(chr);
+        qtest_send(chr, "OK\n");
     } else if (strcmp(words[0], "outb") == 0 ||
                strcmp(words[0], "outw") == 0 ||
                strcmp(words[0], "outl") == 0) {
