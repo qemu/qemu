@@ -1047,6 +1047,24 @@ static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
     }
 }
 
+static inline void gdb_cpu_breakpoint_remove_all(CPUState *cpu)
+{
+    cpu_breakpoint_remove_all(cpu, BP_GDB);
+#ifndef CONFIG_USER_ONLY
+    cpu_watchpoint_remove_all(cpu, BP_GDB);
+#endif
+}
+
+static void gdb_process_breakpoint_remove_all(const GDBState *s, GDBProcess *p)
+{
+    CPUState *cpu = get_first_cpu_in_process(s, p);
+
+    while (cpu) {
+        gdb_cpu_breakpoint_remove_all(cpu);
+        cpu = gdb_next_cpu_in_process(s, cpu);
+    }
+}
+
 static void gdb_breakpoint_remove_all(void)
 {
     CPUState *cpu;
@@ -1057,10 +1075,7 @@ static void gdb_breakpoint_remove_all(void)
     }
 
     CPU_FOREACH(cpu) {
-        cpu_breakpoint_remove_all(cpu, BP_GDB);
-#ifndef CONFIG_USER_ONLY
-        cpu_watchpoint_remove_all(cpu, BP_GDB);
-#endif
+        gdb_cpu_breakpoint_remove_all(cpu);
     }
 }
 
@@ -1339,9 +1354,40 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         exit(0);
     case 'D':
         /* Detach packet */
-        gdb_breakpoint_remove_all();
-        gdb_syscall_mode = GDB_SYS_DISABLED;
-        gdb_continue(s);
+        pid = 1;
+
+        if (s->multiprocess) {
+            unsigned long lpid;
+            if (*p != ';') {
+                put_packet(s, "E22");
+                break;
+            }
+
+            if (qemu_strtoul(p + 1, &p, 16, &lpid)) {
+                put_packet(s, "E22");
+                break;
+            }
+
+            pid = lpid;
+        }
+
+        process = gdb_get_process(s, pid);
+        gdb_process_breakpoint_remove_all(s, process);
+        process->attached = false;
+
+        if (pid == gdb_get_cpu_pid(s, s->c_cpu)) {
+            s->c_cpu = gdb_first_attached_cpu(s);
+        }
+
+        if (pid == gdb_get_cpu_pid(s, s->g_cpu)) {
+            s->g_cpu = gdb_first_attached_cpu(s);
+        }
+
+        if (s->c_cpu == NULL) {
+            /* No more process attached */
+            gdb_syscall_mode = GDB_SYS_DISABLED;
+            gdb_continue(s);
+        }
         put_packet(s, "OK");
         break;
     case 's':
