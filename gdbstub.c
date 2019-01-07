@@ -2267,9 +2267,10 @@ static bool gdb_accept(void)
     }
 
     s = g_malloc0(sizeof(GDBState));
-    s->c_cpu = first_cpu;
-    s->g_cpu = first_cpu;
     create_default_process(s);
+    s->processes[0].attached = true;
+    s->c_cpu = gdb_first_attached_cpu(s);
+    s->g_cpu = s->c_cpu;
     s->fd = fd;
     gdb_has_xml = false;
 
@@ -2355,8 +2356,19 @@ static void gdb_chr_receive(void *opaque, const uint8_t *buf, int size)
 
 static void gdb_chr_event(void *opaque, int event)
 {
+    int i;
+    GDBState *s = (GDBState *) opaque;
+
     switch (event) {
     case CHR_EVENT_OPENED:
+        /* Start with first process attached, others detached */
+        for (i = 0; i < s->process_num; i++) {
+            s->processes[i].attached = !i;
+        }
+
+        s->c_cpu = gdb_first_attached_cpu(s);
+        s->g_cpu = s->c_cpu;
+
         vm_stop(RUN_STATE_PAUSED);
         gdb_has_xml = false;
         break;
@@ -2546,15 +2558,13 @@ int gdbserver_start(const char *device)
         memset(s, 0, sizeof(GDBState));
         s->mon_chr = mon_chr;
     }
-    s->c_cpu = first_cpu;
-    s->g_cpu = first_cpu;
 
     create_processes(s);
 
     if (chr) {
         qemu_chr_fe_init(&s->chr, chr, &error_abort);
         qemu_chr_fe_set_handlers(&s->chr, gdb_chr_can_receive, gdb_chr_receive,
-                                 gdb_chr_event, NULL, NULL, NULL, true);
+                                 gdb_chr_event, NULL, s, NULL, true);
     }
     s->state = chr ? RS_IDLE : RS_INACTIVE;
     s->mon_chr = mon_chr;
