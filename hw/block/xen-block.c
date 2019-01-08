@@ -10,7 +10,13 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/hw.h"
+#include "hw/xen/xen_common.h"
+#include "hw/block/xen_blkif.h"
 #include "hw/xen/xen-block.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
+#include "sysemu/iothread.h"
+#include "dataplane/xen-block.h"
 #include "trace.h"
 
 static char *xen_block_get_name(XenDevice *xendev, Error **errp)
@@ -28,6 +34,8 @@ static void xen_block_disconnect(XenDevice *xendev, Error **errp)
     XenBlockVdev *vdev = &blockdev->props.vdev;
 
     trace_xen_block_disconnect(type, vdev->disk, vdev->partition);
+
+    xen_block_dataplane_stop(blockdev->dataplane);
 }
 
 static void xen_block_connect(XenDevice *xendev, Error **errp)
@@ -35,8 +43,72 @@ static void xen_block_connect(XenDevice *xendev, Error **errp)
     XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
     const char *type = object_get_typename(OBJECT(blockdev));
     XenBlockVdev *vdev = &blockdev->props.vdev;
+    unsigned int order, nr_ring_ref, *ring_ref, event_channel, protocol;
+    char *str;
 
     trace_xen_block_connect(type, vdev->disk, vdev->partition);
+
+    if (xen_device_frontend_scanf(xendev, "ring-page-order", "%u",
+                                  &order) != 1) {
+        nr_ring_ref = 1;
+        ring_ref = g_new(unsigned int, nr_ring_ref);
+
+        if (xen_device_frontend_scanf(xendev, "ring-ref", "%u",
+                                      &ring_ref[0]) != 1) {
+            error_setg(errp, "failed to read ring-ref");
+            g_free(ring_ref);
+            return;
+        }
+    } else if (order <= blockdev->props.max_ring_page_order) {
+        unsigned int i;
+
+        nr_ring_ref = 1 << order;
+        ring_ref = g_new(unsigned int, nr_ring_ref);
+
+        for (i = 0; i < nr_ring_ref; i++) {
+            const char *key = g_strdup_printf("ring-ref%u", i);
+
+            if (xen_device_frontend_scanf(xendev, key, "%u",
+                                          &ring_ref[i]) != 1) {
+                error_setg(errp, "failed to read %s", key);
+                g_free((gpointer)key);
+                g_free(ring_ref);
+                return;
+            }
+
+            g_free((gpointer)key);
+        }
+    } else {
+        error_setg(errp, "invalid ring-page-order (%d)", order);
+        return;
+    }
+
+    if (xen_device_frontend_scanf(xendev, "event-channel", "%u",
+                                  &event_channel) != 1) {
+        error_setg(errp, "failed to read event-channel");
+        g_free(ring_ref);
+        return;
+    }
+
+    if (xen_device_frontend_scanf(xendev, "protocol", "%ms",
+                                  &str) != 1) {
+        protocol = BLKIF_PROTOCOL_NATIVE;
+    } else {
+        if (strcmp(str, XEN_IO_PROTO_ABI_X86_32) == 0) {
+            protocol = BLKIF_PROTOCOL_X86_32;
+        } else if (strcmp(str, XEN_IO_PROTO_ABI_X86_64) == 0) {
+            protocol = BLKIF_PROTOCOL_X86_64;
+        } else {
+            protocol = BLKIF_PROTOCOL_NATIVE;
+        }
+
+        free(str);
+    }
+
+    xen_block_dataplane_start(blockdev->dataplane, ring_ref, nr_ring_ref,
+                              event_channel, protocol, errp);
+
+    g_free(ring_ref);
 }
 
 static void xen_block_unrealize(XenDevice *xendev, Error **errp)
@@ -56,6 +128,9 @@ static void xen_block_unrealize(XenDevice *xendev, Error **errp)
     /* Disconnect from the frontend in case this has not already happened */
     xen_block_disconnect(xendev, NULL);
 
+    xen_block_dataplane_destroy(blockdev->dataplane);
+    blockdev->dataplane = NULL;
+
     if (blockdev_class->unrealize) {
         blockdev_class->unrealize(blockdev, errp);
     }
@@ -68,6 +143,7 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
         XEN_BLOCK_DEVICE_GET_CLASS(xendev);
     const char *type = object_get_typename(OBJECT(blockdev));
     XenBlockVdev *vdev = &blockdev->props.vdev;
+    BlockConf *conf = &blockdev->props.conf;
     Error *local_err = NULL;
 
     if (vdev->type == XEN_BLOCK_VDEV_TYPE_INVALID) {
@@ -81,8 +157,62 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
         blockdev_class->realize(blockdev, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
+            return;
         }
     }
+
+    /*
+     * The blkif protocol does not deal with removable media, so it must
+     * always be present, even for CDRom devices.
+     */
+    assert(conf->blk);
+    if (!blk_is_inserted(conf->blk)) {
+        error_setg(errp, "device needs media, but drive is empty");
+        return;
+    }
+
+    if (!blkconf_apply_backend_options(conf, blockdev->info & VDISK_READONLY,
+                                       false, errp)) {
+        return;
+    }
+
+    if (!(blockdev->info & VDISK_CDROM) &&
+        !blkconf_geometry(conf, NULL, 65535, 255, 255, errp)) {
+        return;
+    }
+
+    blkconf_blocksizes(conf);
+
+    if (conf->logical_block_size > conf->physical_block_size) {
+        error_setg(
+            errp, "logical_block_size > physical_block_size not supported");
+        return;
+    }
+
+    blk_set_guest_block_size(conf->blk, conf->logical_block_size);
+
+    if (conf->discard_granularity > 0) {
+        xen_device_backend_printf(xendev, "feature-discard", "%u", 1);
+    }
+
+    xen_device_backend_printf(xendev, "feature-flush-cache", "%u", 1);
+    xen_device_backend_printf(xendev, "max-ring-page-order", "%u",
+                              blockdev->props.max_ring_page_order);
+    xen_device_backend_printf(xendev, "info", "%u", blockdev->info);
+
+    xen_device_frontend_printf(xendev, "virtual-device", "%lu",
+                               vdev->number);
+    xen_device_frontend_printf(xendev, "device-type", "%s",
+                               blockdev->device_type);
+
+    xen_device_backend_printf(xendev, "sector-size", "%u",
+                              conf->logical_block_size);
+    xen_device_backend_printf(xendev, "sectors", "%lu",
+                              blk_getlength(conf->blk) /
+                              conf->logical_block_size);
+
+    blockdev->dataplane =
+        xen_block_dataplane_create(xendev, conf, blockdev->props.iothread);
 }
 
 static void xen_block_frontend_changed(XenDevice *xendev,
@@ -331,6 +461,11 @@ const PropertyInfo xen_block_prop_vdev = {
 static Property xen_block_props[] = {
     DEFINE_PROP("vdev", XenBlockDevice, props.vdev,
                 xen_block_prop_vdev, XenBlockVdev),
+    DEFINE_BLOCK_PROPERTIES(XenBlockDevice, props.conf),
+    DEFINE_PROP_UINT32("max-ring-page-order", XenBlockDevice,
+                       props.max_ring_page_order, 4),
+    DEFINE_PROP_LINK("iothread", XenBlockDevice, props.iothread,
+                     TYPE_IOTHREAD, IOThread *),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -339,6 +474,7 @@ static void xen_block_class_init(ObjectClass *class, void *data)
     DeviceClass *dev_class = DEVICE_CLASS(class);
     XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(class);
 
+    xendev_class->device = "vbd";
     xendev_class->get_name = xen_block_get_name;
     xendev_class->realize = xen_block_realize;
     xendev_class->frontend_changed = xen_block_frontend_changed;
@@ -363,7 +499,18 @@ static void xen_disk_unrealize(XenBlockDevice *blockdev, Error **errp)
 
 static void xen_disk_realize(XenBlockDevice *blockdev, Error **errp)
 {
+    BlockConf *conf = &blockdev->props.conf;
+
     trace_xen_disk_realize();
+
+    blockdev->device_type = "disk";
+
+    if (!conf->blk) {
+        error_setg(errp, "drive property not set");
+        return;
+    }
+
+    blockdev->info = blk_is_read_only(conf->blk) ? VDISK_READONLY : 0;
 }
 
 static void xen_disk_class_init(ObjectClass *class, void *data)
@@ -391,7 +538,26 @@ static void xen_cdrom_unrealize(XenBlockDevice *blockdev, Error **errp)
 
 static void xen_cdrom_realize(XenBlockDevice *blockdev, Error **errp)
 {
+    BlockConf *conf = &blockdev->props.conf;
+
     trace_xen_cdrom_realize();
+
+    blockdev->device_type = "cdrom";
+
+    if (!conf->blk) {
+        int rc;
+
+        /* Set up an empty drive */
+        conf->blk = blk_new(0, BLK_PERM_ALL);
+
+        rc = blk_attach_dev(conf->blk, DEVICE(blockdev));
+        if (!rc) {
+            error_setg_errno(errp, -rc, "failed to create drive");
+            return;
+        }
+    }
+
+    blockdev->info = VDISK_READONLY | VDISK_CDROM;
 }
 
 static void xen_cdrom_class_init(ObjectClass *class, void *data)

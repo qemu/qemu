@@ -23,7 +23,9 @@ typedef struct XenDevice {
     char *backend_path, *frontend_path;
     enum xenbus_state backend_state, frontend_state;
     Notifier exit;
-    XenWatch *frontend_state_watch;
+    XenWatch *backend_state_watch, *frontend_state_watch;
+    bool backend_online;
+    XenWatch *backend_online_watch;
     xengnttab_handle *xgth;
     bool feature_grant_copy;
     xenevtchn_handle *xeh;
@@ -82,6 +84,16 @@ void xen_bus_init(void);
 void xen_device_backend_set_state(XenDevice *xendev,
                                   enum xenbus_state state);
 enum xenbus_state xen_device_backend_get_state(XenDevice *xendev);
+
+void xen_device_backend_printf(XenDevice *xendev, const char *key,
+                               const char *fmt, ...)
+    GCC_FMT_ATTR(3, 4);
+void xen_device_frontend_printf(XenDevice *xendev, const char *key,
+                                const char *fmt, ...)
+    GCC_FMT_ATTR(3, 4);
+
+int xen_device_frontend_scanf(XenDevice *xendev, const char *key,
+                              const char *fmt, ...);
 
 void xen_device_set_max_grant_refs(XenDevice *xendev, unsigned int nr_refs,
                                    Error **errp);

@@ -9,6 +9,9 @@
 #define HW_XEN_BLOCK_H
 
 #include "hw/xen/xen-bus.h"
+#include "hw/block/block.h"
+#include "hw/block/dataplane/xen-block.h"
+#include "sysemu/iothread.h"
 
 typedef enum XenBlockVdevType {
     XEN_BLOCK_VDEV_TYPE_INVALID,
@@ -28,11 +31,17 @@ typedef struct XenBlockVdev {
 
 typedef struct XenBlockProperties {
     XenBlockVdev vdev;
+    BlockConf conf;
+    unsigned int max_ring_page_order;
+    IOThread *iothread;
 } XenBlockProperties;
 
 typedef struct XenBlockDevice {
     XenDevice xendev;
     XenBlockProperties props;
+    const char *device_type;
+    unsigned int info;
+    XenBlockDataPlane *dataplane;
 } XenBlockDevice;
 
 typedef void (*XenBlockDeviceRealize)(XenBlockDevice *blockdev, Error **errp);

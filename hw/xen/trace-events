@@ -22,8 +22,11 @@ xen_bus_watch(const char *token) "token: %s"
 xen_device_realize(const char *type, char *name) "type: %s name: %s"
 xen_device_unrealize(const char *type, char *name) "type: %s name: %s"
 xen_device_backend_state(const char *type, char *name, const char *state) "type: %s name: %s -> %s"
+xen_device_backend_online(const char *type, char *name, bool online) "type: %s name: %s -> %u"
+xen_device_backend_changed(const char *type, char *name) "type: %s name: %s"
 xen_device_frontend_state(const char *type, char *name, const char *state) "type: %s name: %s -> %s"
 xen_device_frontend_changed(const char *type, char *name) "type: %s name: %s"
+xen_device_unplug(const char *type, char *name) "type: %s name: %s"
 
 # include/hw/xen/xen-bus-helper.c
 xs_node_create(const char *node) "%s"

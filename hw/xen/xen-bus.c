@@ -48,6 +48,54 @@ static char *xen_device_get_frontend_path(XenDevice *xendev)
                            xendev->frontend_id, device, xendev->name);
 }
 
+static void xen_device_unplug(XenDevice *xendev, Error **errp)
+{
+    XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
+    const char *type = object_get_typename(OBJECT(xendev));
+    Error *local_err = NULL;
+    xs_transaction_t tid;
+
+    trace_xen_device_unplug(type, xendev->name);
+
+    /* Mimic the way the Xen toolstack does an unplug */
+again:
+    tid = xs_transaction_start(xenbus->xsh);
+    if (tid == XBT_NULL) {
+        error_setg_errno(errp, errno, "failed xs_transaction_start");
+        return;
+    }
+
+    xs_node_printf(xenbus->xsh, tid, xendev->backend_path, "online",
+                   &local_err, "%u", 0);
+    if (local_err) {
+        goto abort;
+    }
+
+    xs_node_printf(xenbus->xsh, tid, xendev->backend_path, "state",
+                   &local_err, "%u", XenbusStateClosing);
+    if (local_err) {
+        goto abort;
+    }
+
+    if (!xs_transaction_end(xenbus->xsh, tid, false)) {
+        if (errno == EAGAIN) {
+            goto again;
+        }
+
+        error_setg_errno(errp, errno, "failed xs_transaction_end");
+    }
+
+    return;
+
+abort:
+    /*
+     * We only abort if there is already a failure so ignore any error
+     * from ending the transaction.
+     */
+    xs_transaction_end(xenbus->xsh, tid, true);
+    error_propagate(errp, local_err);
+}
+
 static void xen_bus_print_dev(Monitor *mon, DeviceState *dev, int indent)
 {
     XenDevice *xendev = XEN_DEVICE(dev);
@@ -208,14 +256,26 @@ fail:
     xen_bus_unrealize(bus, &error_abort);
 }
 
+static void xen_bus_unplug_request(HotplugHandler *hotplug,
+                                   DeviceState *dev,
+                                   Error **errp)
+{
+    XenDevice *xendev = XEN_DEVICE(dev);
+
+    xen_device_unplug(xendev, errp);
+}
+
 static void xen_bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bus_class = BUS_CLASS(class);
+    HotplugHandlerClass *hotplug_class = HOTPLUG_HANDLER_CLASS(class);
 
     bus_class->print_dev = xen_bus_print_dev;
     bus_class->get_dev_path = xen_bus_get_dev_path;
     bus_class->realize = xen_bus_realize;
     bus_class->unrealize = xen_bus_unrealize;
+
+    hotplug_class->unplug_request = xen_bus_unplug_request;
 }
 
 static const TypeInfo xen_bus_type_info = {
@@ -230,8 +290,8 @@ static const TypeInfo xen_bus_type_info = {
     },
 };
 
-static void xen_device_backend_printf(XenDevice *xendev, const char *key,
-                                      const char *fmt, ...)
+void xen_device_backend_printf(XenDevice *xendev, const char *key,
+                               const char *fmt, ...)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     Error *local_err = NULL;
@@ -287,6 +347,70 @@ enum xenbus_state xen_device_backend_get_state(XenDevice *xendev)
     return xendev->backend_state;
 }
 
+static void xen_device_backend_set_online(XenDevice *xendev, bool online)
+{
+    const char *type = object_get_typename(OBJECT(xendev));
+
+    if (xendev->backend_online == online) {
+        return;
+    }
+
+    trace_xen_device_backend_online(type, xendev->name, online);
+
+    xendev->backend_online = online;
+    xen_device_backend_printf(xendev, "online", "%u", online);
+}
+
+static void xen_device_backend_changed(void *opaque)
+{
+    XenDevice *xendev = opaque;
+    const char *type = object_get_typename(OBJECT(xendev));
+    enum xenbus_state state;
+    unsigned int online;
+
+    trace_xen_device_backend_changed(type, xendev->name);
+
+    if (xen_device_backend_scanf(xendev, "state", "%u", &state) != 1) {
+        state = XenbusStateUnknown;
+    }
+
+    xen_device_backend_set_state(xendev, state);
+
+    if (xen_device_backend_scanf(xendev, "online", "%u", &online) != 1) {
+        online = 0;
+    }
+
+    xen_device_backend_set_online(xendev, !!online);
+
+    /*
+     * If the toolstack (or unplug request callback) has set the backend
+     * state to Closing, but there is no active frontend (i.e. the
+     * state is not Connected) then set the backend state to Closed.
+     */
+    if (xendev->backend_state == XenbusStateClosing &&
+        xendev->frontend_state != XenbusStateConnected) {
+        xen_device_backend_set_state(xendev, XenbusStateClosed);
+    }
+
+    /*
+     * If a backend is still 'online' then its state should be cycled
+     * back round to InitWait in order for a new frontend instance to
+     * connect. This may happen when, for example, a frontend driver is
+     * re-installed or updated.
+     * If a backend is not 'online' then the device should be destroyed.
+     */
+    if (xendev->backend_online &&
+        xendev->backend_state == XenbusStateClosed) {
+        xen_device_backend_set_state(xendev, XenbusStateInitWait);
+    } else if (!xendev->backend_online &&
+               (xendev->backend_state == XenbusStateClosed ||
+                xendev->backend_state == XenbusStateInitialising ||
+                xendev->backend_state == XenbusStateInitWait ||
+                xendev->backend_state == XenbusStateUnknown)) {
+        object_unparent(OBJECT(xendev));
+    }
+}
+
 static void xen_device_backend_create(XenDevice *xendev, Error **errp)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
@@ -307,6 +431,27 @@ static void xen_device_backend_create(XenDevice *xendev, Error **errp)
     if (local_err) {
         error_propagate_prepend(errp, local_err,
                                 "failed to create backend: ");
+        return;
+    }
+
+    xendev->backend_state_watch =
+        xen_bus_add_watch(xenbus, xendev->backend_path,
+                          "state", xen_device_backend_changed,
+                          xendev, &local_err);
+    if (local_err) {
+        error_propagate_prepend(errp, local_err,
+                                "failed to watch backend state: ");
+        return;
+    }
+
+    xendev->backend_online_watch =
+        xen_bus_add_watch(xenbus, xendev->backend_path,
+                          "online", xen_device_backend_changed,
+                          xendev, &local_err);
+    if (local_err) {
+        error_propagate_prepend(errp, local_err,
+                                "failed to watch backend online: ");
+        return;
     }
 }
 
@@ -314,6 +459,16 @@ static void xen_device_backend_destroy(XenDevice *xendev)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     Error *local_err = NULL;
+
+    if (xendev->backend_online_watch) {
+        xen_bus_remove_watch(xenbus, xendev->backend_online_watch, NULL);
+        xendev->backend_online_watch = NULL;
+    }
+
+    if (xendev->backend_state_watch) {
+        xen_bus_remove_watch(xenbus, xendev->backend_state_watch, NULL);
+        xendev->backend_state_watch = NULL;
+    }
 
     if (!xendev->backend_path) {
         return;
@@ -331,8 +486,8 @@ static void xen_device_backend_destroy(XenDevice *xendev)
     }
 }
 
-static void xen_device_frontend_printf(XenDevice *xendev, const char *key,
-                                       const char *fmt, ...)
+void xen_device_frontend_printf(XenDevice *xendev, const char *key,
+                                const char *fmt, ...)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     Error *local_err = NULL;
@@ -350,8 +505,8 @@ static void xen_device_frontend_printf(XenDevice *xendev, const char *key,
     }
 }
 
-static int xen_device_frontend_scanf(XenDevice *xendev, const char *key,
-                                     const char *fmt, ...)
+int xen_device_frontend_scanf(XenDevice *xendev, const char *key,
+                              const char *fmt, ...)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
     va_list ap;
@@ -405,24 +560,6 @@ static void xen_device_frontend_changed(void *opaque)
 
         if (local_err) {
             error_reportf_err(local_err, "frontend change error: ");
-        }
-    }
-
-    /*
-     * If a backend is still 'online' then its state should be cycled
-     * back round to InitWait in order for a new frontend instance to
-     * connect. This may happen when, for example, a frontend driver is
-     * re-installed or updated.
-     */
-    if (xendev->backend_state == XenbusStateClosed) {
-        unsigned int online;
-
-        if (xen_device_backend_scanf(xendev, "online", "%u", &online) != 1) {
-            online = 0;
-        }
-
-        if (online) {
-            xen_device_backend_set_state(xendev, XenbusStateInitWait);
         }
     }
 }
@@ -824,9 +961,9 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
                               xendev->frontend_path);
     xen_device_backend_printf(xendev, "frontend-id", "%u",
                               xendev->frontend_id);
-    xen_device_backend_printf(xendev, "online", "%u", 1);
     xen_device_backend_printf(xendev, "hotplug-status", "connected");
 
+    xen_device_backend_set_online(xendev, true);
     xen_device_backend_set_state(xendev, XenbusStateInitWait);
 
     xen_device_frontend_printf(xendev, "backend", "%s",
