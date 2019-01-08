@@ -21,6 +21,24 @@ static char *xen_block_get_name(XenDevice *xendev, Error **errp)
     return g_strdup_printf("%lu", vdev->number);
 }
 
+static void xen_block_disconnect(XenDevice *xendev, Error **errp)
+{
+    XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
+    const char *type = object_get_typename(OBJECT(blockdev));
+    XenBlockVdev *vdev = &blockdev->props.vdev;
+
+    trace_xen_block_disconnect(type, vdev->disk, vdev->partition);
+}
+
+static void xen_block_connect(XenDevice *xendev, Error **errp)
+{
+    XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
+    const char *type = object_get_typename(OBJECT(blockdev));
+    XenBlockVdev *vdev = &blockdev->props.vdev;
+
+    trace_xen_block_connect(type, vdev->disk, vdev->partition);
+}
+
 static void xen_block_unrealize(XenDevice *xendev, Error **errp)
 {
     XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
@@ -34,6 +52,9 @@ static void xen_block_unrealize(XenDevice *xendev, Error **errp)
     }
 
     trace_xen_block_unrealize(type, vdev->disk, vdev->partition);
+
+    /* Disconnect from the frontend in case this has not already happened */
+    xen_block_disconnect(xendev, NULL);
 
     if (blockdev_class->unrealize) {
         blockdev_class->unrealize(blockdev, errp);
@@ -61,6 +82,54 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
         if (local_err) {
             error_propagate(errp, local_err);
         }
+    }
+}
+
+static void xen_block_frontend_changed(XenDevice *xendev,
+                                       enum xenbus_state frontend_state,
+                                       Error **errp)
+{
+    enum xenbus_state backend_state = xen_device_backend_get_state(xendev);
+    Error *local_err = NULL;
+
+    switch (frontend_state) {
+    case XenbusStateInitialised:
+    case XenbusStateConnected:
+        if (backend_state == XenbusStateConnected) {
+            break;
+        }
+
+        xen_block_disconnect(xendev, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            break;
+        }
+
+        xen_block_connect(xendev, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            break;
+        }
+
+        xen_device_backend_set_state(xendev, XenbusStateConnected);
+        break;
+
+    case XenbusStateClosing:
+        xen_device_backend_set_state(xendev, XenbusStateClosing);
+        break;
+
+    case XenbusStateClosed:
+        xen_block_disconnect(xendev, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            break;
+        }
+
+        xen_device_backend_set_state(xendev, XenbusStateClosed);
+        break;
+
+    default:
+        break;
     }
 }
 
@@ -272,6 +341,7 @@ static void xen_block_class_init(ObjectClass *class, void *data)
 
     xendev_class->get_name = xen_block_get_name;
     xendev_class->realize = xen_block_realize;
+    xendev_class->frontend_changed = xen_block_frontend_changed;
     xendev_class->unrealize = xen_block_unrealize;
 
     dev_class->props = xen_block_props;

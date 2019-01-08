@@ -148,3 +148,37 @@ int xs_node_scanf(struct xs_handle *xsh,  xs_transaction_t tid,
 
     return rc;
 }
+
+void xs_node_watch(struct xs_handle *xsh, const char *node, const char *key,
+                   char *token, Error **errp)
+{
+    char *path;
+
+    path = (strlen(node) != 0) ? g_strdup_printf("%s/%s", node, key) :
+        g_strdup(key);
+
+    trace_xs_node_watch(path);
+
+    if (!xs_watch(xsh, path, token)) {
+        error_setg_errno(errp, errno, "failed to watch node '%s'", path);
+    }
+
+    g_free(path);
+}
+
+void xs_node_unwatch(struct xs_handle *xsh, const char *node,
+                     const char *key, const char *token, Error **errp)
+{
+    char *path;
+
+    path = (strlen(node) != 0) ? g_strdup_printf("%s/%s", node, key) :
+        g_strdup(key);
+
+    trace_xs_node_unwatch(path);
+
+    if (!xs_unwatch(xsh, path, token)) {
+        error_setg_errno(errp, errno, "failed to unwatch node '%s'", path);
+    }
+
+    g_free(path);
+}

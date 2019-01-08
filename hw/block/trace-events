@@ -130,6 +130,8 @@ xen_disk_free(char *name) "%s"
 
 # hw/block/xen-block.c
 xen_block_realize(const char *type, uint32_t disk, uint32_t partition) "%s d%up%u"
+xen_block_connect(const char *type, uint32_t disk, uint32_t partition) "%s d%up%u"
+xen_block_disconnect(const char *type, uint32_t disk, uint32_t partition) "%s d%up%u"
 xen_block_unrealize(const char *type, uint32_t disk, uint32_t partition) "%s d%up%u"
 xen_disk_realize(void) ""
 xen_disk_unrealize(void) ""

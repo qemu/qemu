@@ -36,4 +36,10 @@ int xs_node_scanf(struct xs_handle *xsh,  xs_transaction_t tid,
                   const char *node, const char *key, Error **errp,
                   const char *fmt, ...);
 
+/* Watch node/key unless node is empty, in which case watch key */
+void xs_node_watch(struct xs_handle *xsh, const char *node, const char *key,
+                   char *token, Error **errp);
+void xs_node_unwatch(struct xs_handle *xsh, const char *node, const char *key,
+                     const char *token, Error **errp);
+
 #endif /* HW_XEN_BUS_HELPER_H */
