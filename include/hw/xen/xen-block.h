@@ -29,6 +29,7 @@ typedef struct XenBlockVdev {
     unsigned long number;
 } XenBlockVdev;
 
+
 typedef struct XenBlockProperties {
     XenBlockVdev vdev;
     BlockConf conf;
@@ -36,12 +37,23 @@ typedef struct XenBlockProperties {
     IOThread *iothread;
 } XenBlockProperties;
 
+typedef struct XenBlockDrive {
+    char *id;
+    char *node_name;
+} XenBlockDrive;
+
+typedef struct XenBlockIOThread {
+    char *id;
+} XenBlockIOThread;
+
 typedef struct XenBlockDevice {
     XenDevice xendev;
     XenBlockProperties props;
     const char *device_type;
     unsigned int info;
     XenBlockDataPlane *dataplane;
+    XenBlockDrive *drive;
+    XenBlockIOThread *iothread;
 } XenBlockDevice;
 
 typedef void (*XenBlockDeviceRealize)(XenBlockDevice *blockdev, Error **errp);
