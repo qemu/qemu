@@ -16,7 +16,7 @@
 #include "hw/i386/pc.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/xen/xen_common.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qemu/error-report.h"

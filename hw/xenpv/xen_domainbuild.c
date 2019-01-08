@@ -1,6 +1,6 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "xen_domainbuild.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"

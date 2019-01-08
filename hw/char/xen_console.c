@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "chardev/char-fe.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 
 #include <xen/io/console.h>
 
@@ -39,7 +39,7 @@ struct buffer {
 };
 
 struct XenConsole {
-    struct XenDevice  xendev;  /* must be first */
+    struct XenLegacyDevice  xendev;  /* must be first */
     struct buffer     buffer;
     char              console[XEN_BUFSIZE];
     int               ring_ref;
@@ -173,7 +173,7 @@ static void xencons_send(struct XenConsole *con)
 
 /* -------------------------------------------------------------------- */
 
-static int con_init(struct XenDevice *xendev)
+static int con_init(struct XenLegacyDevice *xendev)
 {
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
     char *type, *dom, label[32];
@@ -222,7 +222,7 @@ out:
     return ret;
 }
 
-static int con_initialise(struct XenDevice *xendev)
+static int con_initialise(struct XenLegacyDevice *xendev)
 {
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
     int limit;
@@ -259,7 +259,7 @@ static int con_initialise(struct XenDevice *xendev)
     return 0;
 }
 
-static void con_disconnect(struct XenDevice *xendev)
+static void con_disconnect(struct XenLegacyDevice *xendev)
 {
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
 
@@ -276,7 +276,7 @@ static void con_disconnect(struct XenDevice *xendev)
     }
 }
 
-static void con_event(struct XenDevice *xendev)
+static void con_event(struct XenLegacyDevice *xendev)
 {
     struct XenConsole *con = container_of(xendev, struct XenConsole, xendev);
 

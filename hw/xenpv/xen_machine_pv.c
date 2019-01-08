@@ -26,7 +26,7 @@
 #include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "hw/boards.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "xen_domainbuild.h"
 #include "sysemu/block-backend.h"
 

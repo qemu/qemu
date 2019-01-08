@@ -28,14 +28,14 @@
 #include "net/net.h"
 #include "net/checksum.h"
 #include "net/util.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 
 #include <xen/io/netif.h>
 
 /* ------------------------------------------------------------- */
 
 struct XenNetDev {
-    struct XenDevice      xendev;  /* must be first */
+    struct XenLegacyDevice      xendev;  /* must be first */
     char                  *mac;
     int                   tx_work;
     int                   tx_ring_ref;
@@ -276,7 +276,7 @@ static NetClientInfo net_xen_info = {
     .receive = net_rx_packet,
 };
 
-static int net_init(struct XenDevice *xendev)
+static int net_init(struct XenLegacyDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
 
@@ -308,7 +308,7 @@ static int net_init(struct XenDevice *xendev)
     return 0;
 }
 
-static int net_connect(struct XenDevice *xendev)
+static int net_connect(struct XenLegacyDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
     int rx_copy;
@@ -363,7 +363,7 @@ static int net_connect(struct XenDevice *xendev)
     return 0;
 }
 
-static void net_disconnect(struct XenDevice *xendev)
+static void net_disconnect(struct XenLegacyDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
 
@@ -379,14 +379,14 @@ static void net_disconnect(struct XenDevice *xendev)
     }
 }
 
-static void net_event(struct XenDevice *xendev)
+static void net_event(struct XenLegacyDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
     net_tx_packets(netdev);
     qemu_flush_queued_packets(qemu_get_queue(netdev->nic));
 }
 
-static int net_free(struct XenDevice *xendev)
+static int net_free(struct XenLegacyDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
 

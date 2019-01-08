@@ -30,7 +30,7 @@
 #include "hw/boards.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen_pvdev.h"
 #include "monitor/qdev.h"
 
@@ -42,49 +42,54 @@ BusState *xen_sysbus;
 /* ------------------------------------------------------------- */
 
 /* public */
-struct xs_handle *xenstore = NULL;
+struct xs_handle *xenstore;
 const char *xen_protocol;
 
 /* private */
 static bool xen_feature_grant_copy;
 static int debug;
 
-int xenstore_write_be_str(struct XenDevice *xendev, const char *node, const char *val)
+int xenstore_write_be_str(struct XenLegacyDevice *xendev, const char *node,
+                          const char *val)
 {
     return xenstore_write_str(xendev->be, node, val);
 }
 
-int xenstore_write_be_int(struct XenDevice *xendev, const char *node, int ival)
+int xenstore_write_be_int(struct XenLegacyDevice *xendev, const char *node,
+                          int ival)
 {
     return xenstore_write_int(xendev->be, node, ival);
 }
 
-int xenstore_write_be_int64(struct XenDevice *xendev, const char *node, int64_t ival)
+int xenstore_write_be_int64(struct XenLegacyDevice *xendev, const char *node,
+                            int64_t ival)
 {
     return xenstore_write_int64(xendev->be, node, ival);
 }
 
-char *xenstore_read_be_str(struct XenDevice *xendev, const char *node)
+char *xenstore_read_be_str(struct XenLegacyDevice *xendev, const char *node)
 {
     return xenstore_read_str(xendev->be, node);
 }
 
-int xenstore_read_be_int(struct XenDevice *xendev, const char *node, int *ival)
+int xenstore_read_be_int(struct XenLegacyDevice *xendev, const char *node,
+                         int *ival)
 {
     return xenstore_read_int(xendev->be, node, ival);
 }
 
-char *xenstore_read_fe_str(struct XenDevice *xendev, const char *node)
+char *xenstore_read_fe_str(struct XenLegacyDevice *xendev, const char *node)
 {
     return xenstore_read_str(xendev->fe, node);
 }
 
-int xenstore_read_fe_int(struct XenDevice *xendev, const char *node, int *ival)
+int xenstore_read_fe_int(struct XenLegacyDevice *xendev, const char *node,
+                         int *ival)
 {
     return xenstore_read_int(xendev->fe, node, ival);
 }
 
-int xenstore_read_fe_uint64(struct XenDevice *xendev, const char *node,
+int xenstore_read_fe_uint64(struct XenLegacyDevice *xendev, const char *node,
                             uint64_t *uval)
 {
     return xenstore_read_uint64(xendev->fe, node, uval);
@@ -92,7 +97,7 @@ int xenstore_read_fe_uint64(struct XenDevice *xendev, const char *node,
 
 /* ------------------------------------------------------------- */
 
-int xen_be_set_state(struct XenDevice *xendev, enum xenbus_state state)
+int xen_be_set_state(struct XenLegacyDevice *xendev, enum xenbus_state state)
 {
     int rc;
 
@@ -106,7 +111,7 @@ int xen_be_set_state(struct XenDevice *xendev, enum xenbus_state state)
     return 0;
 }
 
-void xen_be_set_max_grant_refs(struct XenDevice *xendev,
+void xen_be_set_max_grant_refs(struct XenLegacyDevice *xendev,
                                unsigned int nr_refs)
 {
     assert(xendev->ops->flags & DEVOPS_FLAG_NEED_GNTDEV);
@@ -117,7 +122,7 @@ void xen_be_set_max_grant_refs(struct XenDevice *xendev,
     }
 }
 
-void *xen_be_map_grant_refs(struct XenDevice *xendev, uint32_t *refs,
+void *xen_be_map_grant_refs(struct XenLegacyDevice *xendev, uint32_t *refs,
                             unsigned int nr_refs, int prot)
 {
     void *ptr;
@@ -135,7 +140,7 @@ void *xen_be_map_grant_refs(struct XenDevice *xendev, uint32_t *refs,
     return ptr;
 }
 
-void xen_be_unmap_grant_refs(struct XenDevice *xendev, void *ptr,
+void xen_be_unmap_grant_refs(struct XenLegacyDevice *xendev, void *ptr,
                              unsigned int nr_refs)
 {
     assert(xendev->ops->flags & DEVOPS_FLAG_NEED_GNTDEV);
@@ -146,7 +151,7 @@ void xen_be_unmap_grant_refs(struct XenDevice *xendev, void *ptr,
     }
 }
 
-static int compat_copy_grant_refs(struct XenDevice *xendev,
+static int compat_copy_grant_refs(struct XenLegacyDevice *xendev,
                                   bool to_domain,
                                   XenGrantCopySegment segs[],
                                   unsigned int nr_segs)
@@ -195,7 +200,7 @@ static int compat_copy_grant_refs(struct XenDevice *xendev,
     return 0;
 }
 
-int xen_be_copy_grant_refs(struct XenDevice *xendev,
+int xen_be_copy_grant_refs(struct XenLegacyDevice *xendev,
                            bool to_domain,
                            XenGrantCopySegment segs[],
                            unsigned int nr_segs)
@@ -259,10 +264,11 @@ int xen_be_copy_grant_refs(struct XenDevice *xendev,
 /*
  * get xen backend device, allocate a new one if it doesn't exist.
  */
-static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
-                                           struct XenDevOps *ops)
+static struct XenLegacyDevice *xen_be_get_xendev(const char *type, int dom,
+                                                 int dev,
+                                                 struct XenDevOps *ops)
 {
-    struct XenDevice *xendev;
+    struct XenLegacyDevice *xendev;
 
     xendev = xen_pv_find_xendev(type, dom, dev);
     if (xendev) {
@@ -314,7 +320,8 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
  * Node specifies the changed field.  node = NULL means
  * update all fields (used for initialization).
  */
-static void xen_be_backend_changed(struct XenDevice *xendev, const char *node)
+static void xen_be_backend_changed(struct XenLegacyDevice *xendev,
+                                   const char *node)
 {
     if (node == NULL  ||  strcmp(node, "online") == 0) {
         if (xenstore_read_be_int(xendev, "online", &xendev->online) == -1) {
@@ -330,7 +337,8 @@ static void xen_be_backend_changed(struct XenDevice *xendev, const char *node)
     }
 }
 
-static void xen_be_frontend_changed(struct XenDevice *xendev, const char *node)
+static void xen_be_frontend_changed(struct XenLegacyDevice *xendev,
+                                    const char *node)
 {
     int fe_state;
 
@@ -373,7 +381,7 @@ static void xen_be_frontend_changed(struct XenDevice *xendev, const char *node)
  * only affects the xendev->be_state variable as xenbus should
  * already be put into that state by xend.
  */
-static int xen_be_try_setup(struct XenDevice *xendev)
+static int xen_be_try_setup(struct XenLegacyDevice *xendev)
 {
     char token[XEN_BUFSIZE];
     int be_state;
@@ -417,7 +425,7 @@ static int xen_be_try_setup(struct XenDevice *xendev)
  *
  * Goes to InitWait on success.
  */
-static int xen_be_try_init(struct XenDevice *xendev)
+static int xen_be_try_init(struct XenLegacyDevice *xendev)
 {
     int rc = 0;
 
@@ -446,7 +454,7 @@ static int xen_be_try_init(struct XenDevice *xendev)
  *
  * Goes to Connected on success.
  */
-static int xen_be_try_initialise(struct XenDevice *xendev)
+static int xen_be_try_initialise(struct XenLegacyDevice *xendev)
 {
     int rc = 0;
 
@@ -487,7 +495,7 @@ static int xen_be_try_initialise(struct XenDevice *xendev)
  * frontend being Connected.  Note that this may be called more
  * than once since the backend state is not modified.
  */
-static void xen_be_try_connected(struct XenDevice *xendev)
+static void xen_be_try_connected(struct XenLegacyDevice *xendev)
 {
     if (!xendev->ops->connected) {
         return;
@@ -510,7 +518,8 @@ static void xen_be_try_connected(struct XenDevice *xendev)
  *
  * Goes to Closed when done.
  */
-static void xen_be_disconnect(struct XenDevice *xendev, enum xenbus_state state)
+static void xen_be_disconnect(struct XenLegacyDevice *xendev,
+                              enum xenbus_state state)
 {
     if (xendev->be_state != XenbusStateClosing &&
         xendev->be_state != XenbusStateClosed  &&
@@ -529,7 +538,7 @@ static void xen_be_disconnect(struct XenDevice *xendev, enum xenbus_state state)
 /*
  * Try to reset xendev, for reconnection by another frontend instance.
  */
-static int xen_be_try_reset(struct XenDevice *xendev)
+static int xen_be_try_reset(struct XenLegacyDevice *xendev)
 {
     if (xendev->fe_state != XenbusStateInitialising) {
         return -1;
@@ -543,7 +552,7 @@ static int xen_be_try_reset(struct XenDevice *xendev)
 /*
  * state change dispatcher function
  */
-void xen_be_check_state(struct XenDevice *xendev)
+void xen_be_check_state(struct XenLegacyDevice *xendev)
 {
     int rc = 0;
 
@@ -587,7 +596,7 @@ void xen_be_check_state(struct XenDevice *xendev)
 
 static int xenstore_scan(const char *type, int dom, struct XenDevOps *ops)
 {
-    struct XenDevice *xendev;
+    struct XenLegacyDevice *xendev;
     char path[XEN_BUFSIZE], token[XEN_BUFSIZE];
     char **dev = NULL;
     unsigned int cdev, j;
@@ -620,7 +629,7 @@ static int xenstore_scan(const char *type, int dom, struct XenDevOps *ops)
 void xenstore_update_be(char *watch, char *type, int dom,
                         struct XenDevOps *ops)
 {
-    struct XenDevice *xendev;
+    struct XenLegacyDevice *xendev;
     char path[XEN_BUFSIZE], *bepath;
     unsigned int len, dev;
 
@@ -628,9 +637,9 @@ void xenstore_update_be(char *watch, char *type, int dom,
     if (strncmp(path, watch, len) != 0) {
         return;
     }
-    if (sscanf(watch+len, "/%u/%255s", &dev, path) != 2) {
+    if (sscanf(watch + len, "/%u/%255s", &dev, path) != 2) {
         strcpy(path, "");
-        if (sscanf(watch+len, "/%u", &dev) != 1) {
+        if (sscanf(watch + len, "/%u", &dev) != 1) {
             dev = -1;
         }
     }
@@ -651,7 +660,7 @@ void xenstore_update_be(char *watch, char *type, int dom,
     }
 }
 
-void xenstore_update_fe(char *watch, struct XenDevice *xendev)
+void xenstore_update_fe(char *watch, struct XenLegacyDevice *xendev)
 {
     char *node;
     unsigned int len;
@@ -753,7 +762,7 @@ void xen_be_register_common(void)
 #endif
 }
 
-int xen_be_bind_evtchn(struct XenDevice *xendev)
+int xen_be_bind_evtchn(struct XenLegacyDevice *xendev)
 {
     if (xendev->local_port != -1) {
         return 0;
@@ -789,7 +798,7 @@ static const TypeInfo xendev_type_info = {
     .name          = TYPE_XENBACKEND,
     .parent        = TYPE_XENSYSDEV,
     .class_init    = xendev_class_init,
-    .instance_size = sizeof(struct XenDevice),
+    .instance_size = sizeof(struct XenLegacyDevice),
 };
 
 static void xen_sysbus_class_init(ObjectClass *klass, void *data)

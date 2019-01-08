@@ -59,7 +59,7 @@
 #include "hw/pci/pci.h"
 #include "hw/xen/xen.h"
 #include "hw/i386/pc.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "xen_pt.h"
 #include "qemu/range.h"
 #include "exec/address-spaces.h"

@@ -25,7 +25,7 @@
 #include <sys/uio.h>
 
 #include "hw/hw.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "xen_blkif.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/iothread.h"
@@ -63,7 +63,7 @@ struct ioreq {
 #define MAX_RING_PAGE_ORDER 4
 
 struct XenBlkDev {
-    struct XenDevice    xendev;  /* must be first */
+    struct XenLegacyDevice    xendev;  /* must be first */
     char                *params;
     char                *mode;
     char                *type;
@@ -179,7 +179,7 @@ static void ioreq_release(struct ioreq *ioreq, bool finish)
 static int ioreq_parse(struct ioreq *ioreq)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
-    struct XenDevice *xendev = &blkdev->xendev;
+    struct XenLegacyDevice *xendev = &blkdev->xendev;
     size_t len;
     int i;
 
@@ -243,7 +243,7 @@ err:
 static int ioreq_grant_copy(struct ioreq *ioreq)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
-    struct XenDevice *xendev = &blkdev->xendev;
+    struct XenLegacyDevice *xendev = &blkdev->xendev;
     XenGrantCopySegment segs[BLKIF_MAX_SEGMENTS_PER_REQUEST];
     int i, count, rc;
     int64_t file_blk = blkdev->file_blk;
@@ -289,7 +289,7 @@ static void qemu_aio_complete(void *opaque, int ret)
 {
     struct ioreq *ioreq = opaque;
     struct XenBlkDev *blkdev = ioreq->blkdev;
-    struct XenDevice *xendev = &blkdev->xendev;
+    struct XenLegacyDevice *xendev = &blkdev->xendev;
 
     aio_context_acquire(blkdev->ctx);
 
@@ -608,7 +608,7 @@ static void blk_bh(void *opaque)
     aio_context_release(blkdev->ctx);
 }
 
-static void blk_alloc(struct XenDevice *xendev)
+static void blk_alloc(struct XenLegacyDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     Error *err = NULL;
@@ -628,7 +628,7 @@ static void blk_alloc(struct XenDevice *xendev)
 
 static void blk_parse_discard(struct XenBlkDev *blkdev)
 {
-    struct XenDevice *xendev = &blkdev->xendev;
+    struct XenLegacyDevice *xendev = &blkdev->xendev;
     int enable;
 
     blkdev->feature_discard = true;
@@ -642,7 +642,7 @@ static void blk_parse_discard(struct XenBlkDev *blkdev)
     }
 }
 
-static int blk_init(struct XenDevice *xendev)
+static int blk_init(struct XenLegacyDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     int info = 0;
@@ -737,7 +737,7 @@ out_error:
     return -1;
 }
 
-static int blk_connect(struct XenDevice *xendev)
+static int blk_connect(struct XenLegacyDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     int index, qflags;
@@ -941,7 +941,7 @@ static int blk_connect(struct XenDevice *xendev)
     return 0;
 }
 
-static void blk_disconnect(struct XenDevice *xendev)
+static void blk_disconnect(struct XenLegacyDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
 
@@ -966,7 +966,7 @@ static void blk_disconnect(struct XenDevice *xendev)
     }
 }
 
-static int blk_free(struct XenDevice *xendev)
+static int blk_free(struct XenLegacyDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     struct ioreq *ioreq;
@@ -992,7 +992,7 @@ static int blk_free(struct XenDevice *xendev)
     return 0;
 }
 
-static void blk_event(struct XenDevice *xendev)
+static void blk_event(struct XenLegacyDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
 

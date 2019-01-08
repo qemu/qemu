@@ -30,7 +30,7 @@
 #include "hw/pci/pci.h"
 #include "hw/irq.h"
 #include "hw/xen/xen_common.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
