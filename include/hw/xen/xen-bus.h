@@ -64,6 +64,7 @@ typedef struct XenBus {
     domid_t backend_id;
     struct xs_handle *xsh;
     NotifierList watch_notifiers;
+    XenWatch *backend_watch;
 } XenBus;
 
 typedef struct XenBusClass {

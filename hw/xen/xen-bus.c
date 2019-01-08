@@ -11,10 +11,12 @@
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
+#include "hw/xen/xen-backend.h"
 #include "hw/xen/xen-bus.h"
 #include "hw/xen/xen-bus-helper.h"
 #include "monitor/monitor.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
@@ -190,11 +192,150 @@ static void xen_bus_remove_watch(XenBus *xenbus, XenWatch *watch,
     free_watch(watch);
 }
 
+static void xen_bus_backend_create(XenBus *xenbus, const char *type,
+                                   const char *name, char *path,
+                                   Error **errp)
+{
+    xs_transaction_t tid;
+    char **key;
+    QDict *opts;
+    unsigned int i, n;
+    Error *local_err = NULL;
+
+    trace_xen_bus_backend_create(type, path);
+
+again:
+    tid = xs_transaction_start(xenbus->xsh);
+    if (tid == XBT_NULL) {
+        error_setg(errp, "failed xs_transaction_start");
+        return;
+    }
+
+    key = xs_directory(xenbus->xsh, tid, path, &n);
+    if (!key) {
+        if (!xs_transaction_end(xenbus->xsh, tid, true)) {
+            error_setg_errno(errp, errno, "failed xs_transaction_end");
+        }
+        return;
+    }
+
+    opts = qdict_new();
+    for (i = 0; i < n; i++) {
+        char *val;
+
+        /*
+         * Assume anything found in the xenstore backend area, other than
+         * the keys created for a generic XenDevice, are parameters
+         * to be used to configure the backend.
+         */
+        if (!strcmp(key[i], "state") ||
+            !strcmp(key[i], "online") ||
+            !strcmp(key[i], "frontend") ||
+            !strcmp(key[i], "frontend-id") ||
+            !strcmp(key[i], "hotplug-status"))
+            continue;
+
+        if (xs_node_scanf(xenbus->xsh, tid, path, key[i], NULL, "%ms",
+                          &val) == 1) {
+            qdict_put_str(opts, key[i], val);
+            free(val);
+        }
+    }
+
+    free(key);
+
+    if (!xs_transaction_end(xenbus->xsh, tid, false)) {
+        qobject_unref(opts);
+
+        if (errno == EAGAIN) {
+            goto again;
+        }
+
+        error_setg_errno(errp, errno, "failed xs_transaction_end");
+        return;
+    }
+
+    xen_backend_device_create(xenbus, type, name, opts, &local_err);
+    qobject_unref(opts);
+
+    if (local_err) {
+        error_propagate_prepend(errp, local_err,
+                                "failed to create '%s' device '%s': ",
+                                type, name);
+    }
+}
+
+static void xen_bus_type_enumerate(XenBus *xenbus, const char *type)
+{
+    char *domain_path = g_strdup_printf("backend/%s/%u", type, xen_domid);
+    char **backend;
+    unsigned int i, n;
+
+    trace_xen_bus_type_enumerate(type);
+
+    backend = xs_directory(xenbus->xsh, XBT_NULL, domain_path, &n);
+    if (!backend) {
+        goto out;
+    }
+
+    for (i = 0; i < n; i++) {
+        char *backend_path = g_strdup_printf("%s/%s", domain_path,
+                                             backend[i]);
+        enum xenbus_state backend_state;
+
+        if (xs_node_scanf(xenbus->xsh, XBT_NULL, backend_path, "state",
+                          NULL, "%u", &backend_state) != 1)
+            backend_state = XenbusStateUnknown;
+
+        if (backend_state == XenbusStateInitialising) {
+            Error *local_err = NULL;
+
+            xen_bus_backend_create(xenbus, type, backend[i], backend_path,
+                                   &local_err);
+            if (local_err) {
+                error_report_err(local_err);
+            }
+        }
+
+        g_free(backend_path);
+    }
+
+    free(backend);
+
+out:
+    g_free(domain_path);
+}
+
+static void xen_bus_enumerate(void *opaque)
+{
+    XenBus *xenbus = opaque;
+    char **type;
+    unsigned int i, n;
+
+    trace_xen_bus_enumerate();
+
+    type = xs_directory(xenbus->xsh, XBT_NULL, "backend", &n);
+    if (!type) {
+        return;
+    }
+
+    for (i = 0; i < n; i++) {
+        xen_bus_type_enumerate(xenbus, type[i]);
+    }
+
+    free(type);
+}
+
 static void xen_bus_unrealize(BusState *bus, Error **errp)
 {
     XenBus *xenbus = XEN_BUS(bus);
 
     trace_xen_bus_unrealize();
+
+    if (xenbus->backend_watch) {
+        xen_bus_remove_watch(xenbus, xenbus->backend_watch, NULL);
+        xenbus->backend_watch = NULL;
+    }
 
     if (!xenbus->xsh) {
         return;
@@ -231,6 +372,7 @@ static void xen_bus_realize(BusState *bus, Error **errp)
 {
     XenBus *xenbus = XEN_BUS(bus);
     unsigned int domid;
+    Error *local_err = NULL;
 
     trace_xen_bus_realize();
 
@@ -250,6 +392,18 @@ static void xen_bus_realize(BusState *bus, Error **errp)
     notifier_list_init(&xenbus->watch_notifiers);
     qemu_set_fd_handler(xs_fileno(xenbus->xsh), xen_bus_watch, NULL,
                         xenbus);
+
+    module_call_init(MODULE_INIT_XEN_BACKEND);
+
+    xenbus->backend_watch =
+        xen_bus_add_watch(xenbus, "", /* domain root node */
+                          "backend", xen_bus_enumerate, xenbus, &local_err);
+    if (local_err) {
+        /* This need not be treated as a hard error so don't propagate */
+        error_reportf_err(local_err,
+                          "failed to set up enumeration watch: ");
+    }
+
     return;
 
 fail:
@@ -407,7 +561,15 @@ static void xen_device_backend_changed(void *opaque)
                 xendev->backend_state == XenbusStateInitialising ||
                 xendev->backend_state == XenbusStateInitWait ||
                 xendev->backend_state == XenbusStateUnknown)) {
-        object_unparent(OBJECT(xendev));
+        Error *local_err = NULL;
+
+        if (!xen_backend_try_device_destroy(xendev, &local_err)) {
+            object_unparent(OBJECT(xendev));
+        }
+
+        if (local_err) {
+            error_report_err(local_err);
+        }
     }
 }
 
