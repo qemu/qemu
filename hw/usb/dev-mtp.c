@@ -1729,6 +1729,7 @@ static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
     if (strchr(filename, '/')) {
         usb_mtp_queue_result(s, RES_PARAMETER_NOT_SUPPORTED, d->trans,
                              0, 0, 0, 0);
+        g_free(filename);
         return;
     }
 
