@@ -32,6 +32,7 @@ extern xc_interface *xen_xc;
 typedef xc_interface xenforeignmemory_handle;
 typedef xc_evtchn xenevtchn_handle;
 typedef xc_gnttab xengnttab_handle;
+typedef evtchn_port_or_error_t xenevtchn_port_or_error_t;
 
 #define xenevtchn_open(l, f) xc_evtchn_open(l, f);
 #define xenevtchn_close(h) xc_evtchn_close(h)

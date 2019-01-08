@@ -26,6 +26,8 @@ typedef struct XenDevice {
     XenWatch *frontend_state_watch;
     xengnttab_handle *xgth;
     bool feature_grant_copy;
+    xenevtchn_handle *xeh;
+    NotifierList event_notifiers;
 } XenDevice;
 
 typedef char *(*XenDeviceGetName)(XenDevice *xendev, Error **errp);
@@ -103,5 +105,20 @@ typedef struct XenDeviceGrantCopySegment {
 void xen_device_copy_grant_refs(XenDevice *xendev, bool to_domain,
                                 XenDeviceGrantCopySegment segs[],
                                 unsigned int nr_segs, Error **errp);
+
+typedef struct XenEventChannel XenEventChannel;
+
+typedef void (*XenEventHandler)(void *opaque);
+
+XenEventChannel *xen_device_bind_event_channel(XenDevice *xendev,
+                                               unsigned int port,
+                                               XenEventHandler handler,
+                                               void *opaque, Error **errp);
+void xen_device_notify_event_channel(XenDevice *xendev,
+                                     XenEventChannel *channel,
+                                     Error **errp);
+void xen_device_unbind_event_channel(XenDevice *xendev,
+                                     XenEventChannel *channel,
+                                     Error **errp);
 
 #endif /* HW_XEN_BUS_H */
