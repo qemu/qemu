@@ -1000,6 +1000,7 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     bus = pci_get_bus(pci_dev);
     devfn = pci_dev->devfn;
     object_unparent(OBJECT(pci_dev));
+    fmb_timer_free(pbdev);
     s390_pci_msix_free(pbdev);
     s390_pci_iommu_free(s, bus, devfn);
     pbdev->pdev = NULL;
@@ -1148,6 +1149,7 @@ static void s390_pci_device_realize(DeviceState *dev, Error **errp)
     }
 
     zpci->state = ZPCI_FS_RESERVED;
+    zpci->fmb.format = ZPCI_FMB_FORMAT;
 }
 
 static void s390_pci_device_reset(DeviceState *dev)
@@ -1172,7 +1174,7 @@ static void s390_pci_device_reset(DeviceState *dev)
         pci_dereg_ioat(pbdev->iommu);
     }
 
-    pbdev->fmb_addr = 0;
+    fmb_timer_free(pbdev);
 }
 
 static void s390_pci_get_fid(Object *obj, Visitor *v, const char *name,
