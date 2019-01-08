@@ -205,9 +205,9 @@ static void alpha_cpu_initfn(Object *obj)
     env->lock_addr = -1;
 #if defined(CONFIG_USER_ONLY)
     env->flags = ENV_FLAG_PS_USER | ENV_FLAG_FEN;
-    cpu_alpha_store_fpcr(env, (FPCR_INVD | FPCR_DZED | FPCR_OVFD
-                               | FPCR_UNFD | FPCR_INED | FPCR_DNOD
-                               | FPCR_DYN_NORMAL));
+    cpu_alpha_store_fpcr(env, (uint64_t)(FPCR_INVD | FPCR_DZED | FPCR_OVFD
+                                         | FPCR_UNFD | FPCR_INED | FPCR_DNOD
+                                         | FPCR_DYN_NORMAL) << 32);
 #else
     env->flags = ENV_FLAG_PAL_MODE | ENV_FLAG_FEN;
 #endif
