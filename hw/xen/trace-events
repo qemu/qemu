@@ -16,5 +16,13 @@ xen_domid_restrict(int err) "err: %u"
 # include/hw/xen/xen-bus.c
 xen_bus_realize(void) ""
 xen_bus_unrealize(void) ""
-xen_device_realize(const char *type) "type: %s"
-xen_device_unrealize(const char *type) "type: %s"
+xen_device_realize(const char *type, char *name) "type: %s name: %s"
+xen_device_unrealize(const char *type, char *name) "type: %s name: %s"
+xen_device_backend_state(const char *type, char *name, const char *state) "type: %s name: %s -> %s"
+xen_device_frontend_state(const char *type, char *name, const char *state) "type: %s name: %s -> %s"
+
+# include/hw/xen/xen-bus-helper.c
+xs_node_create(const char *node) "%s"
+xs_node_destroy(const char *node) "%s"
+xs_node_vprintf(char *path, char *value) "%s %s"
+xs_node_vscanf(char *path, char *value) "%s %s"

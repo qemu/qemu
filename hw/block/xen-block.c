@@ -13,6 +13,14 @@
 #include "hw/xen/xen-block.h"
 #include "trace.h"
 
+static char *xen_block_get_name(XenDevice *xendev, Error **errp)
+{
+    XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
+    XenBlockVdev *vdev = &blockdev->props.vdev;
+
+    return g_strdup_printf("%lu", vdev->number);
+}
+
 static void xen_block_unrealize(XenDevice *xendev, Error **errp)
 {
     XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
@@ -262,6 +270,7 @@ static void xen_block_class_init(ObjectClass *class, void *data)
     DeviceClass *dev_class = DEVICE_CLASS(class);
     XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(class);
 
+    xendev_class->get_name = xen_block_get_name;
     xendev_class->realize = xen_block_realize;
     xendev_class->unrealize = xen_block_unrealize;
 
