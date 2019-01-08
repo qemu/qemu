@@ -127,3 +127,11 @@ xen_disk_init(char *name) "%s"
 xen_disk_connect(char *name) "%s"
 xen_disk_disconnect(char *name) "%s"
 xen_disk_free(char *name) "%s"
+
+# hw/block/xen-block.c
+xen_block_realize(const char *type, uint32_t disk, uint32_t partition) "%s d%up%u"
+xen_block_unrealize(const char *type, uint32_t disk, uint32_t partition) "%s d%up%u"
+xen_disk_realize(void) ""
+xen_disk_unrealize(void) ""
+xen_cdrom_realize(void) ""
+xen_cdrom_unrealize(void) ""
