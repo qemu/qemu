@@ -1,44 +1,22 @@
 /*
- *  xen paravirt block device backend
+ * Copyright (c) 2018  Citrix Systems Inc.
+ * (c) Gerd Hoffmann <kraxel@redhat.com>
  *
- *  (c) Gerd Hoffmann <kraxel@redhat.com>
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; under version 2 of the License.
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; under version 2 of the License.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, see <http://www.gnu.org/licenses/>.
- *
- *  Contributions after 2012-01-13 are licensed under the terms of the
- *  GNU GPL, version 2 or (at your option) any later version.
+ * Contributions after 2012-01-13 are licensed under the terms of the
+ * GNU GPL, version 2 or (at your option) any later version.
  */
-
-#include "qemu/osdep.h"
-#include "qemu/units.h"
-#include <sys/ioctl.h>
-#include <sys/uio.h>
-
-#include "hw/hw.h"
-#include "hw/xen/xen_backend.h"
-#include "xen_blkif.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/iothread.h"
-#include "sysemu/block-backend.h"
-#include "qapi/error.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qstring.h"
-#include "trace.h"
-
-/* ------------------------------------------------------------- */
-
-#define BLOCK_SIZE  512
-#define IOCB_COUNT  (BLKIF_MAX_SEGMENTS_PER_REQUEST + 2)
 
 struct ioreq {
     blkif_request_t     req;
@@ -100,8 +78,6 @@ struct XenBlkDev {
     IOThread            *iothread;
     AioContext          *ctx;
 };
-
-/* ------------------------------------------------------------- */
 
 static void ioreq_reset(struct ioreq *ioreq)
 {
@@ -183,11 +159,6 @@ static int ioreq_parse(struct ioreq *ioreq)
     size_t len;
     int i;
 
-    xen_pv_printf(
-        xendev, 3,
-        "op %d, nr %d, handle %d, id %" PRId64 ", sector %" PRId64 "\n",
-        ioreq->req.operation, ioreq->req.nr_segments,
-        ioreq->req.handle, ioreq->req.id, ioreq->req.sector_number);
     switch (ioreq->req.operation) {
     case BLKIF_OP_READ:
         break;
@@ -202,28 +173,27 @@ static int ioreq_parse(struct ioreq *ioreq)
     case BLKIF_OP_DISCARD:
         return 0;
     default:
-        xen_pv_printf(xendev, 0, "error: unknown operation (%d)\n",
-                      ioreq->req.operation);
+        error_report("error: unknown operation (%d)", ioreq->req.operation);
         goto err;
     };
 
     if (ioreq->req.operation != BLKIF_OP_READ && blkdev->mode[0] != 'w') {
-        xen_pv_printf(xendev, 0, "error: write req for ro device\n");
+        error_report("error: write req for ro device");
         goto err;
     }
 
     ioreq->start = ioreq->req.sector_number * blkdev->file_blk;
     for (i = 0; i < ioreq->req.nr_segments; i++) {
         if (i == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
-            xen_pv_printf(xendev, 0, "error: nr_segments too big\n");
+            error_report("error: nr_segments too big");
             goto err;
         }
         if (ioreq->req.seg[i].first_sect > ioreq->req.seg[i].last_sect) {
-            xen_pv_printf(xendev, 0, "error: first > last sector\n");
+            error_report("error: first > last sector");
             goto err;
         }
         if (ioreq->req.seg[i].last_sect * BLOCK_SIZE >= XC_PAGE_SIZE) {
-            xen_pv_printf(xendev, 0, "error: page crossing\n");
+            error_report("error: page crossing");
             goto err;
         }
 
@@ -232,7 +202,7 @@ static int ioreq_parse(struct ioreq *ioreq)
         ioreq->size += len;
     }
     if (ioreq->start + ioreq->size > blkdev->file_size) {
-        xen_pv_printf(xendev, 0, "error: access beyond end of file\n");
+        error_report("error: access beyond end of file");
         goto err;
     }
     return 0;
@@ -278,8 +248,7 @@ static int ioreq_grant_copy(struct ioreq *ioreq)
     rc = xen_be_copy_grant_refs(xendev, to_domain, segs, count);
 
     if (rc) {
-        xen_pv_printf(xendev, 0,
-                      "failed to copy data %d\n", rc);
+        error_report("failed to copy data %d", rc);
         ioreq->aio_errors++;
         return -1;
     }
@@ -298,8 +267,9 @@ static void qemu_aio_complete(void *opaque, int ret)
     aio_context_acquire(blkdev->ctx);
 
     if (ret != 0) {
-        xen_pv_printf(xendev, 0, "%s I/O error\n",
-                      ioreq->req.operation == BLKIF_OP_READ ? "read" : "write");
+        error_report("%s I/O error",
+                     ioreq->req.operation == BLKIF_OP_READ ?
+                     "read" : "write");
         ioreq->aio_errors++;
     }
 
@@ -605,8 +575,6 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
     }
 }
 
-/* ------------------------------------------------------------- */
-
 static void blk_bh(void *opaque)
 {
     struct XenBlkDev *blkdev = opaque;
@@ -632,346 +600,6 @@ static void blk_alloc(struct XenLegacyDevice *xendev)
 
     blkdev->ctx = iothread_get_aio_context(blkdev->iothread);
     blkdev->bh = aio_bh_new(blkdev->ctx, blk_bh, blkdev);
-}
-
-static void blk_parse_discard(struct XenBlkDev *blkdev)
-{
-    struct XenLegacyDevice *xendev = &blkdev->xendev;
-    int enable;
-
-    blkdev->feature_discard = true;
-
-    if (xenstore_read_be_int(xendev, "discard-enable", &enable) == 0) {
-        blkdev->feature_discard = !!enable;
-    }
-
-    if (blkdev->feature_discard) {
-        xenstore_write_be_int(xendev, "feature-discard", 1);
-    }
-}
-
-static int blk_init(struct XenLegacyDevice *xendev)
-{
-    struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
-    int info = 0;
-    char *directiosafe = NULL;
-
-    trace_xen_disk_init(xendev->name);
-
-    /* read xenstore entries */
-    if (blkdev->params == NULL) {
-        char *h = NULL;
-        blkdev->params = xenstore_read_be_str(xendev, "params");
-        if (blkdev->params != NULL) {
-            h = strchr(blkdev->params, ':');
-        }
-        if (h != NULL) {
-            blkdev->fileproto = blkdev->params;
-            blkdev->filename  = h + 1;
-            *h = 0;
-        } else {
-            blkdev->fileproto = "<unset>";
-            blkdev->filename  = blkdev->params;
-        }
-    }
-    if (!strcmp("aio", blkdev->fileproto)) {
-        blkdev->fileproto = "raw";
-    }
-    if (!strcmp("vhd", blkdev->fileproto)) {
-        blkdev->fileproto = "vpc";
-    }
-    if (blkdev->mode == NULL) {
-        blkdev->mode = xenstore_read_be_str(xendev, "mode");
-    }
-    if (blkdev->type == NULL) {
-        blkdev->type = xenstore_read_be_str(xendev, "type");
-    }
-    if (blkdev->dev == NULL) {
-        blkdev->dev = xenstore_read_be_str(xendev, "dev");
-    }
-    if (blkdev->devtype == NULL) {
-        blkdev->devtype = xenstore_read_be_str(xendev, "device-type");
-    }
-    directiosafe = xenstore_read_be_str(xendev, "direct-io-safe");
-    blkdev->directiosafe = (directiosafe && atoi(directiosafe));
-
-    /* do we have all we need? */
-    if (blkdev->params == NULL ||
-        blkdev->mode == NULL   ||
-        blkdev->type == NULL   ||
-        blkdev->dev == NULL) {
-        goto out_error;
-    }
-
-    /* read-only ? */
-    if (strcmp(blkdev->mode, "w")) {
-        info  |= VDISK_READONLY;
-    }
-
-    /* cdrom ? */
-    if (blkdev->devtype && !strcmp(blkdev->devtype, "cdrom")) {
-        info  |= VDISK_CDROM;
-    }
-
-    blkdev->file_blk  = BLOCK_SIZE;
-
-    /* fill info
-     * blk_connect supplies sector-size and sectors
-     */
-    xenstore_write_be_int(xendev, "feature-flush-cache", 1);
-    xenstore_write_be_int(xendev, "info", info);
-
-    xenstore_write_be_int(xendev, "max-ring-page-order",
-                          MAX_RING_PAGE_ORDER);
-
-    blk_parse_discard(blkdev);
-
-    g_free(directiosafe);
-    return 0;
-
-out_error:
-    g_free(blkdev->params);
-    blkdev->params = NULL;
-    g_free(blkdev->mode);
-    blkdev->mode = NULL;
-    g_free(blkdev->type);
-    blkdev->type = NULL;
-    g_free(blkdev->dev);
-    blkdev->dev = NULL;
-    g_free(blkdev->devtype);
-    blkdev->devtype = NULL;
-    g_free(directiosafe);
-    blkdev->directiosafe = false;
-    return -1;
-}
-
-static int blk_connect(struct XenLegacyDevice *xendev)
-{
-    struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
-    int index, qflags;
-    bool readonly = true;
-    bool writethrough = true;
-    int order, ring_ref;
-    unsigned int ring_size, max_grants;
-    unsigned int i;
-
-    trace_xen_disk_connect(xendev->name);
-
-    /* read-only ? */
-    if (blkdev->directiosafe) {
-        qflags = BDRV_O_NOCACHE | BDRV_O_NATIVE_AIO;
-    } else {
-        qflags = 0;
-        writethrough = false;
-    }
-    if (strcmp(blkdev->mode, "w") == 0) {
-        qflags |= BDRV_O_RDWR;
-        readonly = false;
-    }
-    if (blkdev->feature_discard) {
-        qflags |= BDRV_O_UNMAP;
-    }
-
-    /* init qemu block driver */
-    index = (xendev->dev - 202 * 256) / 16;
-    blkdev->dinfo = drive_get(IF_XEN, 0, index);
-    if (!blkdev->dinfo) {
-        Error *local_err = NULL;
-        QDict *options = NULL;
-
-        if (strcmp(blkdev->fileproto, "<unset>")) {
-            options = qdict_new();
-            qdict_put_str(options, "driver", blkdev->fileproto);
-        }
-
-        /* setup via xenbus -> create new block driver instance */
-        xen_pv_printf(xendev, 2, "create new bdrv (xenbus setup)\n");
-        blkdev->blk = blk_new_open(blkdev->filename, NULL, options,
-                                   qflags, &local_err);
-        if (!blkdev->blk) {
-            xen_pv_printf(xendev, 0, "error: %s\n",
-                          error_get_pretty(local_err));
-            error_free(local_err);
-            return -1;
-        }
-        blk_set_enable_write_cache(blkdev->blk, !writethrough);
-    } else {
-        /* setup via qemu cmdline -> already setup for us */
-        xen_pv_printf(xendev, 2,
-                      "get configured bdrv (cmdline setup)\n");
-        blkdev->blk = blk_by_legacy_dinfo(blkdev->dinfo);
-        if (blk_is_read_only(blkdev->blk) && !readonly) {
-            xen_pv_printf(xendev, 0, "Unexpected read-only drive");
-            blkdev->blk = NULL;
-            return -1;
-        }
-        /* blkdev->blk is not create by us, we get a reference
-         * so we can blk_unref() unconditionally */
-        blk_ref(blkdev->blk);
-    }
-    blk_attach_dev_legacy(blkdev->blk, blkdev);
-    blkdev->file_size = blk_getlength(blkdev->blk);
-    if (blkdev->file_size < 0) {
-        BlockDriverState *bs = blk_bs(blkdev->blk);
-        const char *drv_name = bs ? bdrv_get_format_name(bs) : NULL;
-        xen_pv_printf(xendev, 1, "blk_getlength: %d (%s) | drv %s\n",
-                      (int)blkdev->file_size, strerror(-blkdev->file_size),
-                      drv_name ?: "-");
-        blkdev->file_size = 0;
-    }
-
-    xen_pv_printf(xendev, 1, "type \"%s\", fileproto \"%s\", filename \"%s\","
-                  " size %" PRId64 " (%" PRId64 " MB)\n",
-                  blkdev->type, blkdev->fileproto, blkdev->filename,
-                  blkdev->file_size, blkdev->file_size / MiB);
-
-    /* Fill in number of sector size and number of sectors */
-    xenstore_write_be_int(xendev, "sector-size", blkdev->file_blk);
-    xenstore_write_be_int64(xendev, "sectors",
-                            blkdev->file_size / blkdev->file_blk);
-
-    if (xenstore_read_fe_int(xendev, "ring-page-order",
-                             &order) == -1) {
-        blkdev->nr_ring_ref = 1;
-
-        if (xenstore_read_fe_int(xendev, "ring-ref",
-                                 &ring_ref) == -1) {
-            return -1;
-        }
-        blkdev->ring_ref[0] = ring_ref;
-
-    } else if (order >= 0 && order <= MAX_RING_PAGE_ORDER) {
-        blkdev->nr_ring_ref = 1 << order;
-
-        for (i = 0; i < blkdev->nr_ring_ref; i++) {
-            char *key;
-
-            key = g_strdup_printf("ring-ref%u", i);
-            if (!key) {
-                return -1;
-            }
-
-            if (xenstore_read_fe_int(xendev, key,
-                                     &ring_ref) == -1) {
-                g_free(key);
-                return -1;
-            }
-            blkdev->ring_ref[i] = ring_ref;
-
-            g_free(key);
-        }
-    } else {
-        xen_pv_printf(xendev, 0, "invalid ring-page-order: %d\n",
-                      order);
-        return -1;
-    }
-
-    if (xenstore_read_fe_int(xendev, "event-channel",
-                             &xendev->remote_port) == -1) {
-        return -1;
-    }
-
-    if (!xendev->protocol) {
-        blkdev->protocol = BLKIF_PROTOCOL_NATIVE;
-    } else if (strcmp(xendev->protocol, XEN_IO_PROTO_ABI_NATIVE) == 0) {
-        blkdev->protocol = BLKIF_PROTOCOL_NATIVE;
-    } else if (strcmp(xendev->protocol, XEN_IO_PROTO_ABI_X86_32) == 0) {
-        blkdev->protocol = BLKIF_PROTOCOL_X86_32;
-    } else if (strcmp(xendev->protocol, XEN_IO_PROTO_ABI_X86_64) == 0) {
-        blkdev->protocol = BLKIF_PROTOCOL_X86_64;
-    } else {
-        blkdev->protocol = BLKIF_PROTOCOL_NATIVE;
-    }
-
-    ring_size = XC_PAGE_SIZE * blkdev->nr_ring_ref;
-    switch (blkdev->protocol) {
-    case BLKIF_PROTOCOL_NATIVE:
-    {
-        blkdev->max_requests = __CONST_RING_SIZE(blkif, ring_size);
-        break;
-    }
-    case BLKIF_PROTOCOL_X86_32:
-    {
-        blkdev->max_requests = __CONST_RING_SIZE(blkif_x86_32, ring_size);
-        break;
-    }
-    case BLKIF_PROTOCOL_X86_64:
-    {
-        blkdev->max_requests = __CONST_RING_SIZE(blkif_x86_64, ring_size);
-        break;
-    }
-    default:
-        return -1;
-    }
-
-    /* Add on the number needed for the ring pages */
-    max_grants = blkdev->nr_ring_ref;
-
-    xen_be_set_max_grant_refs(xendev, max_grants);
-    blkdev->sring = xen_be_map_grant_refs(xendev, blkdev->ring_ref,
-                                          blkdev->nr_ring_ref,
-                                          PROT_READ | PROT_WRITE);
-    if (!blkdev->sring) {
-        return -1;
-    }
-
-    switch (blkdev->protocol) {
-    case BLKIF_PROTOCOL_NATIVE:
-    {
-        blkif_sring_t *sring_native = blkdev->sring;
-        BACK_RING_INIT(&blkdev->rings.native, sring_native, ring_size);
-        break;
-    }
-    case BLKIF_PROTOCOL_X86_32:
-    {
-        blkif_x86_32_sring_t *sring_x86_32 = blkdev->sring;
-
-        BACK_RING_INIT(&blkdev->rings.x86_32_part, sring_x86_32, ring_size);
-        break;
-    }
-    case BLKIF_PROTOCOL_X86_64:
-    {
-        blkif_x86_64_sring_t *sring_x86_64 = blkdev->sring;
-
-        BACK_RING_INIT(&blkdev->rings.x86_64_part, sring_x86_64, ring_size);
-        break;
-    }
-    }
-
-    blk_set_aio_context(blkdev->blk, blkdev->ctx);
-
-    xen_be_bind_evtchn(xendev);
-
-    xen_pv_printf(xendev, 1, "ok: proto %s, nr-ring-ref %u, "
-                  "remote port %d, local port %d\n",
-                  xendev->protocol, blkdev->nr_ring_ref,
-                  xendev->remote_port, xendev->local_port);
-    return 0;
-}
-
-static void blk_disconnect(struct XenLegacyDevice *xendev)
-{
-    struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
-
-    trace_xen_disk_disconnect(xendev->name);
-
-    aio_context_acquire(blkdev->ctx);
-
-    if (blkdev->blk) {
-        blk_set_aio_context(blkdev->blk, qemu_get_aio_context());
-        blk_detach_dev(blkdev->blk, blkdev);
-        blk_unref(blkdev->blk);
-        blkdev->blk = NULL;
-    }
-    xen_pv_unbind_evtchn(xendev);
-
-    aio_context_release(blkdev->ctx);
-
-    if (blkdev->sring) {
-        xen_be_unmap_grant_refs(xendev, blkdev->sring,
-                                blkdev->nr_ring_ref);
-        blkdev->sring = NULL;
-    }
 }
 
 static int blk_free(struct XenLegacyDevice *xendev)
@@ -1006,14 +634,3 @@ static void blk_event(struct XenLegacyDevice *xendev)
 
     qemu_bh_schedule(blkdev->bh);
 }
-
-struct XenDevOps xen_blkdev_ops = {
-    .flags      = DEVOPS_FLAG_NEED_GNTDEV,
-    .size       = sizeof(struct XenBlkDev),
-    .alloc      = blk_alloc,
-    .init       = blk_init,
-    .initialise = blk_connect,
-    .disconnect = blk_disconnect,
-    .event      = blk_event,
-    .free       = blk_free,
-};
