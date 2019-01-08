@@ -12,7 +12,7 @@
 #include "hw/xen/xen-bus.h"
 #include "sysemu/iothread.h"
 
-typedef struct XenBlkDev XenBlockDataPlane;
+typedef struct XenBlockDataPlane XenBlockDataPlane;
 
 XenBlockDataPlane *xen_block_dataplane_create(XenDevice *xendev,
                                               BlockConf *conf,
