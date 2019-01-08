@@ -27,6 +27,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/xen/xen-legacy-backend.h"
+#include "hw/xen/xen-bus.h"
 #include "xen_domainbuild.h"
 #include "sysemu/block-backend.h"
 
@@ -92,6 +93,8 @@ static void xen_init_pv(MachineState *machine)
             continue;
         xen_config_dev_nic(nd_table + i);
     }
+
+    xen_bus_init();
 
     /* config cleanup hook */
     atexit(xen_config_cleanup);

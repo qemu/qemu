@@ -12,3 +12,9 @@ xen_unmap_portio_range(uint32_t id, uint64_t start_addr, uint64_t end_addr) "id:
 xen_map_pcidev(uint32_t id, uint8_t bus, uint8_t dev, uint8_t func) "id: %u bdf: %02x.%02x.%02x"
 xen_unmap_pcidev(uint32_t id, uint8_t bus, uint8_t dev, uint8_t func) "id: %u bdf: %02x.%02x.%02x"
 xen_domid_restrict(int err) "err: %u"
+
+# include/hw/xen/xen-bus.c
+xen_bus_realize(void) ""
+xen_bus_unrealize(void) ""
+xen_device_realize(const char *type) "type: %s"
+xen_device_unrealize(const char *type) "type: %s"

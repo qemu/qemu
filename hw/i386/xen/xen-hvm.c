@@ -17,6 +17,7 @@
 #include "hw/i386/apic-msidef.h"
 #include "hw/xen/xen_common.h"
 #include "hw/xen/xen-legacy-backend.h"
+#include "hw/xen/xen-bus.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qemu/error-report.h"
@@ -1483,6 +1484,8 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     state->device_listener = xen_device_listener;
     QLIST_INIT(&state->dev_list);
     device_listener_register(&state->device_listener);
+
+    xen_bus_init();
 
     /* Initialize backend core & drivers */
     if (xen_be_init() != 0) {
