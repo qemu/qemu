@@ -128,39 +128,33 @@ matrix:
         - CONFIG="--enable-gprof --enable-gcov --disable-pie --target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
       after_success:
         - ${SRC_DIR}/scripts/travis/coverage-summary.sh
-      compiler: gcc
 
 
     # We manually include builds which we disable "make check" for
     - env:
         - CONFIG="--enable-debug --enable-tcg-interpreter"
         - TEST_CMD=""
-      compiler: gcc
 
 
     # We don't need to exercise every backend with every front-end
     - env:
         - CONFIG="--enable-trace-backends=log,simple,syslog --disable-system"
         - TEST_CMD=""
-      compiler: gcc
 
 
     - env:
         - CONFIG="--enable-trace-backends=ftrace --target-list=x86_64-softmmu"
         - TEST_CMD=""
-      compiler: gcc
 
 
     - env:
         - CONFIG="--enable-trace-backends=ust --target-list=x86_64-softmmu"
         - TEST_CMD=""
-      compiler: gcc
 
 
     - env:
         - CONFIG="--disable-tcg"
         - TEST_CMD=""
-      compiler: gcc
 
 
     # MacOSX builds
@@ -251,5 +245,3 @@ matrix:
     - env:
         - CONFIG="--disable-system --disable-docs"
         - TEST_CMD="make -j3 check-tcg V=1"
-      dist: trusty
-      compiler: gcc
