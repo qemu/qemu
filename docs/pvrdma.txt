@@ -156,7 +156,6 @@ Ethernet function can be used for other Ethernet purposes such as IP.
   specify the port to use. If not set 1 will be used.
 - dev-caps-max-mr-size: The maximum size of MR.
 - dev-caps-max-qp:      Maximum number of QPs.
-- dev-caps-max-sge:     Maximum number of SGE elements in WR.
 - dev-caps-max-cq:      Maximum number of CQs.
 - dev-caps-max-mr:      Maximum number of MRs.
 - dev-caps-max-pd:      Maximum number of PDs.

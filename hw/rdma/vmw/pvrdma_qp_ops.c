@@ -121,6 +121,16 @@ static void pvrdma_qp_ops_comp_handler(void *ctx, struct ibv_wc *wc)
     g_free(ctx);
 }
 
+static void complete_with_error(uint32_t vendor_err, void *ctx)
+{
+    struct ibv_wc wc = {0};
+
+    wc.status = IBV_WC_GENERAL_ERR;
+    wc.vendor_err = vendor_err;
+
+    pvrdma_qp_ops_comp_handler(ctx, &wc);
+}
+
 void pvrdma_qp_ops_fini(void)
 {
     rdma_backend_unregister_comp_handler();
@@ -182,6 +192,13 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
             return -EIO;
         }
 
+        if (wqe->hdr.num_sge > dev->dev_attr.max_sge) {
+            pr_dbg("Invalid num_sge=%d (max %d)\n", wqe->hdr.num_sge,
+                   dev->dev_attr.max_sge);
+            complete_with_error(VENDOR_ERR_INV_NUM_SGE, comp_ctx);
+            continue;
+        }
+
         rdma_backend_post_send(&dev->backend_dev, &qp->backend_qp, qp->qp_type,
                                (struct ibv_sge *)&wqe->sge[0], wqe->hdr.num_sge,
                                sgid_idx, sgid,
@@ -226,6 +243,13 @@ int pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
         comp_ctx->cqe.wr_id = wqe->hdr.wr_id;
         comp_ctx->cqe.qp = qp_handle;
         comp_ctx->cqe.opcode = IBV_WC_RECV;
+
+        if (wqe->hdr.num_sge > dev->dev_attr.max_sge) {
+            pr_dbg("Invalid num_sge=%d (max %d)\n", wqe->hdr.num_sge,
+                   dev->dev_attr.max_sge);
+            complete_with_error(VENDOR_ERR_INV_NUM_SGE, comp_ctx);
+            continue;
+        }
 
         rdma_backend_post_recv(&dev->backend_dev, &dev->rdma_dev_res,
                                &qp->backend_qp, qp->qp_type,

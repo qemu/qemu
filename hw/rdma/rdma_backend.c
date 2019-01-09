@@ -32,17 +32,6 @@
 #include "rdma_rm.h"
 #include "rdma_backend.h"
 
-/* Vendor Errors */
-#define VENDOR_ERR_FAIL_BACKEND     0x201
-#define VENDOR_ERR_TOO_MANY_SGES    0x202
-#define VENDOR_ERR_NOMEM            0x203
-#define VENDOR_ERR_QP0              0x204
-#define VENDOR_ERR_INV_NUM_SGE      0x205
-#define VENDOR_ERR_MAD_SEND         0x206
-#define VENDOR_ERR_INVLKEY          0x207
-#define VENDOR_ERR_MR_SMALL         0x208
-#define VENDOR_ERR_INV_MAD_BUFF     0x209
-
 #define THR_NAME_LEN 16
 #define THR_POLL_TO  5000
 
@@ -475,11 +464,6 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
     }
 
     pr_dbg("num_sge=%d\n", num_sge);
-    if (!num_sge || num_sge > MAX_SGE) {
-        pr_dbg("invalid num_sge=%d\n", num_sge);
-        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_INV_NUM_SGE, ctx);
-        return;
-    }
 
     bctx = g_malloc0(sizeof(*bctx));
     bctx->up_ctx = ctx;
@@ -602,11 +586,6 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     }
 
     pr_dbg("num_sge=%d\n", num_sge);
-    if (!num_sge || num_sge > MAX_SGE) {
-        pr_dbg("invalid num_sge=%d\n", num_sge);
-        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_INV_NUM_SGE, ctx);
-        return;
-    }
 
     bctx = g_malloc0(sizeof(*bctx));
     bctx->up_ctx = ctx;
@@ -941,6 +920,8 @@ static int init_device_caps(RdmaBackendDev *backend_dev,
     if (ibv_query_device(backend_dev->context, &backend_dev->dev_attr)) {
         return -EIO;
     }
+
+    dev_attr->max_sge = MAX_SGE;
 
     CHK_ATTR(dev_attr, backend_dev->dev_attr, max_mr_size, "%" PRId64);
     CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp, "%d");
