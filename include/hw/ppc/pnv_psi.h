@@ -40,6 +40,7 @@ typedef struct PnvPsi {
 
     /* Interrupt generation */
     ICSState ics;
+    qemu_irq *qirqs;
 
     /* Registers */
     uint64_t regs[PSIHB_XSCOM_MAX];

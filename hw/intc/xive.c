@@ -321,7 +321,7 @@ static void xive_tm_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
-    XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
+    XiveTCTX *tctx = cpu->tctx;
     const XiveTmOp *xto;
 
     /*
@@ -360,7 +360,7 @@ static void xive_tm_write(void *opaque, hwaddr offset,
 static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
 {
     PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
-    XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
+    XiveTCTX *tctx = cpu->tctx;
     const XiveTmOp *xto;
 
     /*
@@ -845,7 +845,7 @@ static const MemoryRegionOps xive_source_esb_ops = {
     },
 };
 
-static void xive_source_set_irq(void *opaque, int srcno, int val)
+void xive_source_set_irq(void *opaque, int srcno, int val)
 {
     XiveSource *xsrc = XIVE_SOURCE(opaque);
     bool notify = false;
@@ -931,9 +931,6 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
                           &xive_source_esb_ops, xsrc, "xive.esb",
                           (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
-
-    xsrc->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc,
-                                     xsrc->nr_irqs);
 
     qemu_register_reset(xive_source_reset, dev);
 }
@@ -1186,7 +1183,7 @@ static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
-        XiveTCTX *tctx = XIVE_TCTX(cpu->intc);
+        XiveTCTX *tctx = cpu->tctx;
         int ring;
 
         /*

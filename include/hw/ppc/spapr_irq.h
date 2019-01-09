@@ -42,15 +42,17 @@ typedef struct sPAPRIrq {
     void (*print_info)(sPAPRMachineState *spapr, Monitor *mon);
     void (*dt_populate)(sPAPRMachineState *spapr, uint32_t nr_servers,
                         void *fdt, uint32_t phandle);
-    Object *(*cpu_intc_create)(sPAPRMachineState *spapr, Object *cpu,
-                               Error **errp);
+    void (*cpu_intc_create)(sPAPRMachineState *spapr, PowerPCCPU *cpu,
+                            Error **errp);
     int (*post_load)(sPAPRMachineState *spapr, int version_id);
     void (*reset)(sPAPRMachineState *spapr, Error **errp);
+    void (*set_irq)(void *opaque, int srcno, int val);
 } sPAPRIrq;
 
 extern sPAPRIrq spapr_irq_xics;
 extern sPAPRIrq spapr_irq_xics_legacy;
 extern sPAPRIrq spapr_irq_xive;
+extern sPAPRIrq spapr_irq_dual;
 
 void spapr_irq_init(sPAPRMachineState *spapr, Error **errp);
 int spapr_irq_claim(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp);

@@ -461,7 +461,7 @@ static void ics_simple_set_irq_lsi(ICSState *ics, int srcno, int val)
     ics_simple_resend_lsi(ics, srcno);
 }
 
-static void ics_simple_set_irq(void *opaque, int srcno, int val)
+void ics_simple_set_irq(void *opaque, int srcno, int val)
 {
     ICSState *ics = (ICSState *)opaque;
 
@@ -570,8 +570,6 @@ static void ics_simple_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-
-    ics->qirqs = qemu_allocate_irqs(ics_simple_set_irq, ics, ics->nr_irqs);
 
     qemu_register_reset(ics_simple_reset_handler, ics);
 }

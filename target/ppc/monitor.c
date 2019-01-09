@@ -123,8 +123,8 @@ int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
 
     /* Floating point registers */
     if ((qemu_tolower(name[0]) == 'f') &&
-        ppc_cpu_get_reg_num(name + 1, ARRAY_SIZE(env->fpr), &regnum)) {
-        *pval = env->fpr[regnum];
+        ppc_cpu_get_reg_num(name + 1, 32, &regnum)) {
+        *pval = *cpu_fpr_ptr(env, regnum);
         return 0;
     }
 

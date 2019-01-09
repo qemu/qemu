@@ -1988,17 +1988,6 @@ static const TypeInfo spapr_phb_info = {
     }
 };
 
-PCIHostState *spapr_create_phb(sPAPRMachineState *spapr, int index)
-{
-    DeviceState *dev;
-
-    dev = qdev_create(NULL, TYPE_SPAPR_PCI_HOST_BRIDGE);
-    qdev_prop_set_uint32(dev, "index", index);
-    qdev_init_nofail(dev);
-
-    return PCI_HOST_BRIDGE(dev);
-}
-
 typedef struct sPAPRFDT {
     void *fdt;
     int node_off;

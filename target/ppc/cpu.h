@@ -218,7 +218,6 @@ typedef struct opc_handler_t opc_handler_t;
 /* Types used to describe some PowerPC registers etc. */
 typedef struct DisasContext DisasContext;
 typedef struct ppc_spr_t ppc_spr_t;
-typedef union ppc_avr_t ppc_avr_t;
 typedef union ppc_tlb_t ppc_tlb_t;
 typedef struct ppc_hash_pte64 ppc_hash_pte64_t;
 
@@ -242,22 +241,26 @@ struct ppc_spr_t {
 #endif
 };
 
-/* Altivec registers (128 bits) */
-union ppc_avr_t {
-    float32 f[4];
+/* VSX/Altivec registers (128 bits) */
+typedef union _ppc_vsr_t {
     uint8_t u8[16];
     uint16_t u16[8];
     uint32_t u32[4];
+    uint64_t u64[2];
     int8_t s8[16];
     int16_t s16[8];
     int32_t s32[4];
-    uint64_t u64[2];
     int64_t s64[2];
+    float32 f32[4];
+    float64 f64[2];
+    float128 f128;
 #ifdef CONFIG_INT128
     __uint128_t u128;
 #endif
-    Int128 s128;
-};
+    Int128  s128;
+} ppc_vsr_t;
+
+typedef ppc_vsr_t ppc_avr_t;
 
 #if !defined(CONFIG_USER_ONLY)
 /* Software TLB cache */
@@ -1001,8 +1004,6 @@ struct CPUPPCState {
 
     /* Floating point execution context */
     float_status fp_status;
-    /* floating point registers */
-    float64 fpr[32];
     /* floating point status and control register */
     target_ulong fpscr;
 
@@ -1052,11 +1053,10 @@ struct CPUPPCState {
     /* Special purpose registers */
     target_ulong spr[1024];
     ppc_spr_t spr_cb[1024];
-    /* Altivec registers */
-    ppc_avr_t avr[32];
+    /* Vector status and control register */
     uint32_t vscr;
-    /* VSX registers */
-    uint64_t vsr[32];
+    /* VSX registers (including FP and AVR) */
+    ppc_vsr_t vsr[64] QEMU_ALIGNED(16);
     /* SPE registers */
     uint64_t spe_acc;
     uint32_t spe_fscr;
@@ -1177,6 +1177,8 @@ do {                                            \
 
 typedef struct PPCVirtualHypervisor PPCVirtualHypervisor;
 typedef struct PPCVirtualHypervisorClass PPCVirtualHypervisorClass;
+typedef struct XiveTCTX XiveTCTX;
+typedef struct ICPState ICPState;
 
 /**
  * PowerPCCPU:
@@ -1195,7 +1197,8 @@ struct PowerPCCPU {
     int vcpu_id;
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
-    Object *intc;
+    ICPState *icp;
+    XiveTCTX *tctx;
     void *machine_data;
     int32_t node_id; /* NUMA node this CPU belongs to */
     PPCHash64Options *hash64_opts;
@@ -2535,6 +2538,22 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
 {
     return (start + nregs <= 32 && rx >= start && rx < start + nregs) ||
            (start + nregs > 32 && (rx >= start || rx < start + nregs - 32));
+}
+
+/* Accessors for FP, VMX and VSX registers */
+static inline uint64_t *cpu_fpr_ptr(CPUPPCState *env, int i)
+{
+    return &env->vsr[i].u64[0];
+}
+
+static inline uint64_t *cpu_vsrl_ptr(CPUPPCState *env, int i)
+{
+    return &env->vsr[i].u64[1];
+}
+
+static inline ppc_avr_t *cpu_avr_ptr(CPUPPCState *env, int i)
+{
+    return &env->vsr[32 + i];
 }
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);

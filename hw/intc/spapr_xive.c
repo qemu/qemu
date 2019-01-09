@@ -179,6 +179,15 @@ static void spapr_xive_map_mmio(sPAPRXive *xive)
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 2, xive->tm_base);
 }
 
+void spapr_xive_mmio_set_enabled(sPAPRXive *xive, bool enable)
+{
+    memory_region_set_enabled(&xive->source.esb_mmio, enable);
+    memory_region_set_enabled(&xive->tm_mmio, enable);
+
+    /* Disable the END ESBs until a guest OS makes use of them */
+    memory_region_set_enabled(&xive->end_source.esb_mmio, false);
+}
+
 /*
  * When a Virtual Processor is scheduled to run on a HW thread, the
  * hypervisor pushes its identifier in the OS CAM line. Emulate the
@@ -486,20 +495,6 @@ bool spapr_xive_irq_free(sPAPRXive *xive, uint32_t lisn)
     xive->eat[lisn].w &= cpu_to_be64(~EAS_VALID);
     xive_source_irq_set(xsrc, lisn, false);
     return true;
-}
-
-qemu_irq spapr_xive_qirq(sPAPRXive *xive, uint32_t lisn)
-{
-    XiveSource *xsrc = &xive->source;
-
-    if (lisn >= xive->nr_irqs) {
-        return NULL;
-    }
-
-    /* The sPAPR machine/device should have claimed the IRQ before */
-    assert(xive_eas_is_valid(&xive->eat[lisn]));
-
-    return xive_source_qirq(xsrc, lisn);
 }
 
 /*

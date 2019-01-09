@@ -131,7 +131,6 @@ struct ICSState {
     /*< public >*/
     uint32_t nr_irqs;
     uint32_t offset;
-    qemu_irq *qirqs;
     ICSIRQState *irqs;
     XICSFabric *xics;
 };
@@ -140,8 +139,7 @@ struct ICSState {
 
 static inline bool ics_valid_irq(ICSState *ics, uint32_t nr)
 {
-    return (ics->offset != 0) && (nr >= ics->offset)
-        && (nr < (ics->offset + ics->nr_irqs));
+    return (nr >= ics->offset) && (nr < (ics->offset + ics->nr_irqs));
 }
 
 struct ICSIRQState {
@@ -192,6 +190,8 @@ void icp_eoi(ICPState *icp, uint32_t xirr);
 
 void ics_simple_write_xive(ICSState *ics, int nr, int server,
                            uint8_t priority, uint8_t saved_priority);
+void ics_simple_set_irq(void *opaque, int srcno, int val);
+void ics_kvm_set_irq(void *opaque, int srcno, int val);
 
 void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 void icp_pic_print_info(ICPState *icp, Monitor *mon);

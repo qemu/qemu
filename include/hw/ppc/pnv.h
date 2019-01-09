@@ -98,7 +98,7 @@ typedef struct PnvChipClass {
     DeviceRealize parent_realize;
 
     uint32_t (*core_pir)(PnvChip *chip, uint32_t core_id);
-    Object *(*intc_create)(PnvChip *chip, Object *child, Error **errp);
+    void (*intc_create)(PnvChip *chip, PowerPCCPU *cpu, Error **errp);
     ISABus *(*isa_create)(PnvChip *chip, Error **errp);
 } PnvChipClass;
 

@@ -32,8 +32,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 
-#define DEBUG_UIC
-
+/*#define DEBUG_UIC*/
 
 #ifdef DEBUG_UIC
 #  define LOG_UIC(...) qemu_log_mask(CPU_LOG_INT, ## __VA_ARGS__)

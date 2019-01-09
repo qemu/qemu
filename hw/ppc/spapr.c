@@ -1048,6 +1048,7 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
     add_str(hypertas, "hcall-sprg0");
     add_str(hypertas, "hcall-copy");
     add_str(hypertas, "hcall-debug");
+    add_str(hypertas, "hcall-vphn");
     add_str(qemu_hypertas, "hcall-memop1");
 
     if (!kvm_enabled() || kvmppc_spapr_use_multitce()) {
@@ -1668,7 +1669,10 @@ static void spapr_machine_reset(void)
     /* Load the fdt */
     qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
     cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
-    g_free(fdt);
+    g_free(spapr->fdt_blob);
+    spapr->fdt_size = fdt_totalsize(fdt);
+    spapr->fdt_initial_size = spapr->fdt_size;
+    spapr->fdt_blob = fdt;
 
     /* Set up the entry state */
     spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT, fdt_addr);
@@ -1743,12 +1747,17 @@ static int spapr_post_load(void *opaque, int version_id)
         return err;
     }
 
-    /* In earlier versions, there was no separate qdev for the PAPR
+    /*
+     * In earlier versions, there was no separate qdev for the PAPR
      * RTC, so the RTC offset was stored directly in sPAPREnvironment.
      * So when migrating from those versions, poke the incoming offset
-     * value into the RTC device */
+     * value into the RTC device
+     */
     if (version_id < 3) {
         err = spapr_rtc_import_offset(&spapr->rtc, spapr->rtc_offset);
+        if (err) {
+            return err;
+        }
     }
 
     if (kvm_enabled() && spapr->patb_entry) {
@@ -1919,6 +1928,39 @@ static const VMStateDescription vmstate_spapr_irq_map = {
     },
 };
 
+static bool spapr_dtb_needed(void *opaque)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(opaque);
+
+    return smc->update_dt_enabled;
+}
+
+static int spapr_dtb_pre_load(void *opaque)
+{
+    sPAPRMachineState *spapr = (sPAPRMachineState *)opaque;
+
+    g_free(spapr->fdt_blob);
+    spapr->fdt_blob = NULL;
+    spapr->fdt_size = 0;
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_spapr_dtb = {
+    .name = "spapr_dtb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_dtb_needed,
+    .pre_load = spapr_dtb_pre_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(fdt_initial_size, sPAPRMachineState),
+        VMSTATE_UINT32(fdt_size, sPAPRMachineState),
+        VMSTATE_VBUFFER_ALLOC_UINT32(fdt_blob, sPAPRMachineState, 0, NULL,
+                                     fdt_size),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1948,6 +1990,7 @@ static const VMStateDescription vmstate_spapr = {
         &vmstate_spapr_cap_ibs,
         &vmstate_spapr_irq_map,
         &vmstate_spapr_cap_nested_kvm_hv,
+        &vmstate_spapr_dtb,
         NULL
     }
 };
@@ -2514,6 +2557,17 @@ static void spapr_init_cpus(sPAPRMachineState *spapr)
     }
 }
 
+static PCIHostState *spapr_create_default_phb(void)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, TYPE_SPAPR_PCI_HOST_BRIDGE);
+    qdev_prop_set_uint32(dev, "index", 0);
+    qdev_init_nofail(dev);
+
+    return PCI_HOST_BRIDGE(dev);
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void spapr_machine_init(MachineState *machine)
 {
@@ -2632,11 +2686,11 @@ static void spapr_machine_init(MachineState *machine)
     spapr_ovec_set(spapr->ov5, OV5_DRMEM_V2);
 
     /* advertise XIVE on POWER9 machines */
-    if (spapr->irq->ov5 & SPAPR_OV5_XIVE_EXPLOIT) {
+    if (spapr->irq->ov5 & (SPAPR_OV5_XIVE_EXPLOIT | SPAPR_OV5_XIVE_BOTH)) {
         if (ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00,
                                   0, spapr->max_compat_pvr)) {
             spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
-        } else {
+        } else if (spapr->irq->ov5 & SPAPR_OV5_XIVE_EXPLOIT) {
             error_report("XIVE-only machines require a POWER9 CPU");
             exit(1);
         }
@@ -2746,7 +2800,7 @@ static void spapr_machine_init(MachineState *machine)
     /* Set up PCI */
     spapr_pci_rtas_init();
 
-    phb = spapr_create_phb(spapr, 0);
+    phb = spapr_create_default_phb();
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
@@ -3062,6 +3116,8 @@ static char *spapr_get_ic_mode(Object *obj, Error **errp)
         return g_strdup("xics");
     } else if (spapr->irq == &spapr_irq_xive) {
         return g_strdup("xive");
+    } else if (spapr->irq == &spapr_irq_dual) {
+        return g_strdup("dual");
     }
     g_assert_not_reached();
 }
@@ -3075,6 +3131,8 @@ static void spapr_set_ic_mode(Object *obj, const char *value, Error **errp)
         spapr->irq = &spapr_irq_xics;
     } else if (strcmp(value, "xive") == 0) {
         spapr->irq = &spapr_irq_xive;
+    } else if (strcmp(value, "dual") == 0) {
+        spapr->irq = &spapr_irq_dual;
     } else {
         error_setg(errp, "Bad value for \"ic-mode\" property");
     }
@@ -3123,7 +3181,7 @@ static void spapr_instance_init(Object *obj)
     object_property_add_str(obj, "ic-mode", spapr_get_ic_mode,
                             spapr_set_ic_mode, NULL);
     object_property_set_description(obj, "ic-mode",
-                 "Specifies the interrupt controller mode (xics, xive)",
+                 "Specifies the interrupt controller mode (xics, xive, dual)",
                  NULL);
 }
 
@@ -3791,8 +3849,6 @@ static void spapr_phb_placement(sPAPRMachineState *spapr, uint32_t index,
      * 1TiB 64-bit MMIO windows for each PHB.
      */
     const uint64_t base_buid = 0x800000020000000ULL;
-#define SPAPR_MAX_PHBS ((SPAPR_PCI_LIMIT - SPAPR_PCI_BASE) / \
-                        SPAPR_PCI_MEM64_WIN_SIZE - 1)
     int i;
 
     /* Sanity check natural alignments */
@@ -3840,7 +3896,7 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
 {
     PowerPCCPU *cpu = spapr_find_cpu(vcpu_id);
 
-    return cpu ? ICP(cpu->intc) : NULL;
+    return cpu ? cpu->icp : NULL;
 }
 
 static void spapr_pic_print_info(InterruptStatsProvider *obj,
@@ -3930,6 +3986,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug = spapr_machine_device_unplug;
 
     smc->dr_lmb_enabled = true;
+    smc->update_dt_enabled = true;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power9_v2.0");
     mc->has_hotpluggable_cpus = true;
     smc->resize_hpt_default = SPAPR_RESIZE_HPT_ENABLED;
@@ -4022,9 +4079,12 @@ DEFINE_SPAPR_MACHINE(4_0, "4.0", true);
  */
 static void spapr_machine_3_1_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_4_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_3_1, hw_compat_3_1_len);
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power8_v2.0");
+    smc->update_dt_enabled = false;
 }
 
 DEFINE_SPAPR_MACHINE(3_1, "3.1", false);

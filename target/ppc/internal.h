@@ -52,20 +52,20 @@ FUNC_MASK(mask_u64, uint64_t, 64, UINT64_MAX);
 #define EXTRACT_HELPER(name, shift, nb)                                       \
 static inline uint32_t name(uint32_t opcode)                                  \
 {                                                                             \
-    return (opcode >> (shift)) & ((1 << (nb)) - 1);                           \
+    return extract32(opcode, shift, nb);                                      \
 }
 
 #define EXTRACT_SHELPER(name, shift, nb)                                      \
 static inline int32_t name(uint32_t opcode)                                   \
 {                                                                             \
-    return (int16_t)((opcode >> (shift)) & ((1 << (nb)) - 1));                \
+    return sextract32(opcode, shift, nb);                                     \
 }
 
 #define EXTRACT_HELPER_SPLIT(name, shift1, nb1, shift2, nb2)                  \
 static inline uint32_t name(uint32_t opcode)                                  \
 {                                                                             \
-    return (((opcode >> (shift1)) & ((1 << (nb1)) - 1)) << nb2) |             \
-            ((opcode >> (shift2)) & ((1 << (nb2)) - 1));                      \
+    return extract32(opcode, shift1, nb1) << nb2 |                            \
+               extract32(opcode, shift2, nb2);                                \
 }
 
 #define EXTRACT_HELPER_SPLIT_3(name,                                          \
@@ -124,7 +124,7 @@ EXTRACT_SHELPER(SIMM, 0, 16);
 /* 16 bits unsigned immediate value */
 EXTRACT_HELPER(UIMM, 0, 16);
 /* 5 bits signed immediate value */
-EXTRACT_HELPER(SIMM5, 16, 5);
+EXTRACT_SHELPER(SIMM5, 16, 5);
 /* 5 bits signed immediate value */
 EXTRACT_HELPER(UIMM5, 16, 5);
 /* 4 bits unsigned immediate value */
@@ -204,17 +204,6 @@ EXTRACT_HELPER(IMM8, 11, 8);
 EXTRACT_HELPER(DCMX, 16, 7);
 EXTRACT_HELPER_SPLIT_3(DCMX_XV, 5, 16, 0, 1, 2, 5, 1, 6, 6);
 
-typedef union _ppc_vsr_t {
-    uint8_t u8[16];
-    uint16_t u16[8];
-    uint32_t u32[4];
-    uint64_t u64[2];
-    float32 f32[4];
-    float64 f64[2];
-    float128 f128;
-    Int128  s128;
-} ppc_vsr_t;
-
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VsrB(i) u8[i]
 #define VsrH(i) u16[i]
@@ -229,24 +218,14 @@ typedef union _ppc_vsr_t {
 
 static inline void getVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 {
-    if (n < 32) {
-        vsr->VsrD(0) = env->fpr[n];
-        vsr->VsrD(1) = env->vsr[n];
-    } else {
-        vsr->u64[0] = env->avr[n - 32].u64[0];
-        vsr->u64[1] = env->avr[n - 32].u64[1];
-    }
+    vsr->VsrD(0) = env->vsr[n].u64[0];
+    vsr->VsrD(1) = env->vsr[n].u64[1];
 }
 
 static inline void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 {
-    if (n < 32) {
-        env->fpr[n] = vsr->VsrD(0);
-        env->vsr[n] = vsr->VsrD(1);
-    } else {
-        env->avr[n - 32].u64[0] = vsr->u64[0];
-        env->avr[n - 32].u64[1] = vsr->u64[1];
-    }
+    env->vsr[n].u64[0] = vsr->VsrD(0);
+    env->vsr[n].u64[1] = vsr->VsrD(1);
 }
 
 void helper_compute_fprf_float16(CPUPPCState *env, float16 arg);

@@ -207,7 +207,6 @@ static const uint64_t stat_bits[] = {
 
 void pnv_psi_irq_set(PnvPsi *psi, PnvPsiIrq irq, bool state)
 {
-    ICSState *ics = &psi->ics;
     uint32_t xivr_reg;
     uint32_t stat_reg;
     uint32_t src;
@@ -227,14 +226,14 @@ void pnv_psi_irq_set(PnvPsi *psi, PnvPsiIrq irq, bool state)
         /* TODO: optimization, check mask here. That means
          * re-evaluating when unmasking
          */
-        qemu_irq_raise(ics->qirqs[src]);
+        qemu_irq_raise(psi->qirqs[src]);
     } else {
         psi->regs[stat_reg] &= ~stat_bits[irq];
 
         /* FSP and PSI are muxed so don't lower if either is still set */
         if (stat_reg != PSIHB_XSCOM_CR ||
             !(psi->regs[stat_reg] & (PSIHB_CR_PSI_IRQ | PSIHB_CR_FSP_IRQ))) {
-            qemu_irq_lower(ics->qirqs[src]);
+            qemu_irq_lower(psi->qirqs[src]);
         } else {
             state = true;
         }
@@ -490,6 +489,8 @@ static void pnv_psi_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < ics->nr_irqs; i++) {
         ics_set_irq_type(ics, i, true);
     }
+
+    psi->qirqs = qemu_allocate_irqs(ics_simple_set_irq, ics, ics->nr_irqs);
 
     /* XSCOM region for PSI registers */
     pnv_xscom_region_init(&psi->xscom_regs, OBJECT(dev), &pnv_psi_xscom_ops,

@@ -114,7 +114,7 @@ static void pnv_realize_vcpu(PowerPCCPU *cpu, PnvChip *chip, Error **errp)
         return;
     }
 
-    cpu->intc = pcc->intc_create(chip, OBJECT(cpu), &local_err);
+    pcc->intc_create(chip, cpu, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -190,7 +190,7 @@ err:
 static void pnv_unrealize_vcpu(PowerPCCPU *cpu)
 {
     qemu_unregister_reset(pnv_cpu_reset, cpu);
-    object_unparent(cpu->intc);
+    object_unparent(OBJECT(cpu->icp));
     cpu_remove_sync(CPU(cpu));
     object_unparent(OBJECT(cpu));
 }

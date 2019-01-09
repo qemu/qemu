@@ -1654,11 +1654,58 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
             (spapr_h_cas_compose_response(spapr, args[1], args[2],
                                           ov5_updates) != 0);
     }
+
+    /*
+     * Generate a machine reset when we have an update of the
+     * interrupt mode. Only required when the machine supports both
+     * modes.
+     */
+    if (!spapr->cas_reboot) {
+        spapr->cas_reboot = spapr_ovec_test(ov5_updates, OV5_XIVE_EXPLOIT)
+            && spapr->irq->ov5 & SPAPR_OV5_XIVE_BOTH;
+    }
+
     spapr_ovec_cleanup(ov5_updates);
 
     if (spapr->cas_reboot) {
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
     }
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_home_node_associativity(PowerPCCPU *cpu,
+                                              sPAPRMachineState *spapr,
+                                              target_ulong opcode,
+                                              target_ulong *args)
+{
+    target_ulong flags = args[0];
+    target_ulong procno = args[1];
+    PowerPCCPU *tcpu;
+    int idx;
+
+    /* only support procno from H_REGISTER_VPA */
+    if (flags != 0x1) {
+        return H_FUNCTION;
+    }
+
+    tcpu = spapr_find_cpu(procno);
+    if (tcpu == NULL) {
+        return H_P2;
+    }
+
+    /* sequence is the same as in the "ibm,associativity" property */
+
+    idx = 0;
+#define ASSOCIATIVITY(a, b) (((uint64_t)(a) << 32) | \
+                             ((uint64_t)(b) & 0xffffffff))
+    args[idx++] = ASSOCIATIVITY(0, 0);
+    args[idx++] = ASSOCIATIVITY(0, tcpu->node_id);
+    args[idx++] = ASSOCIATIVITY(procno, -1);
+    for ( ; idx < 6; idx++) {
+        args[idx] = -1;
+    }
+#undef ASSOCIATIVITY
 
     return H_SUCCESS;
 }
@@ -1717,6 +1764,46 @@ static target_ulong h_get_cpu_characteristics(PowerPCCPU *cpu,
 
     args[0] = characteristics;
     args[1] = behaviour;
+    return H_SUCCESS;
+}
+
+static target_ulong h_update_dt(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+                                target_ulong opcode, target_ulong *args)
+{
+    target_ulong dt = ppc64_phys_to_real(args[0]);
+    struct fdt_header hdr = { 0 };
+    unsigned cb;
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    void *fdt;
+
+    cpu_physical_memory_read(dt, &hdr, sizeof(hdr));
+    cb = fdt32_to_cpu(hdr.totalsize);
+
+    if (!smc->update_dt_enabled) {
+        return H_SUCCESS;
+    }
+
+    /* Check that the fdt did not grow out of proportion */
+    if (cb > spapr->fdt_initial_size * 2) {
+        trace_spapr_update_dt_failed_size(spapr->fdt_initial_size, cb,
+                                          fdt32_to_cpu(hdr.magic));
+        return H_PARAMETER;
+    }
+
+    fdt = g_malloc0(cb);
+    cpu_physical_memory_read(dt, fdt, cb);
+
+    /* Check the fdt consistency */
+    if (fdt_check_full(fdt, cb)) {
+        trace_spapr_update_dt_failed_check(spapr->fdt_initial_size, cb,
+                                           fdt32_to_cpu(hdr.magic));
+        return H_PARAMETER;
+    }
+
+    g_free(spapr->fdt_blob);
+    spapr->fdt_size = cb;
+    spapr->fdt_blob = fdt;
+    trace_spapr_update_dt(cb);
 
     return H_SUCCESS;
 }
@@ -1822,6 +1909,12 @@ static void hypercall_register_types(void)
 
     /* ibm,client-architecture-support support */
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
+
+    spapr_register_hypercall(KVMPPC_H_UPDATE_DT, h_update_dt);
+
+    /* Virtual Processor Home Node */
+    spapr_register_hypercall(H_HOME_NODE_ASSOCIATIVITY,
+                             h_home_node_associativity);
 }
 
 type_init(hypercall_register_types)

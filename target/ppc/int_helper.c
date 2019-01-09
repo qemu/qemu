@@ -391,13 +391,9 @@ target_ulong helper_602_mfrom(target_ulong arg)
 #if defined(HOST_WORDS_BIGENDIAN)
 #define HI_IDX 0
 #define LO_IDX 1
-#define AVRB(i) u8[i]
-#define AVRW(i) u32[i]
 #else
 #define HI_IDX 1
 #define LO_IDX 0
-#define AVRB(i) u8[15-(i)]
-#define AVRW(i) u32[3-(i)]
 #endif
 
 #if defined(HOST_WORDS_BIGENDIAN)
@@ -548,8 +544,8 @@ VARITH_DO(muluwm, *, u32)
     {                                                                   \
         int i;                                                          \
                                                                         \
-        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
-            r->f[i] = func(a->f[i], b->f[i], &env->vec_status);         \
+        for (i = 0; i < ARRAY_SIZE(r->f32); i++) {                      \
+            r->f32[i] = func(a->f32[i], b->f32[i], &env->vec_status);   \
         }                                                               \
     }
 VARITHFP(addfp, float32_add)
@@ -563,9 +559,9 @@ VARITHFP(maxfp, float32_max)
                            ppc_avr_t *b, ppc_avr_t *c)                  \
     {                                                                   \
         int i;                                                          \
-        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
-            r->f[i] = float32_muladd(a->f[i], c->f[i], b->f[i],         \
-                                     type, &env->vec_status);           \
+        for (i = 0; i < ARRAY_SIZE(r->f32); i++) {                      \
+            r->f32[i] = float32_muladd(a->f32[i], c->f32[i], b->f32[i], \
+                                       type, &env->vec_status);         \
         }                                                               \
     }
 VARITHFPFMA(maddfp, 0);
@@ -670,9 +666,9 @@ VABSDU(w, u32)
     {                                                                   \
         int i;                                                          \
                                                                         \
-        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+        for (i = 0; i < ARRAY_SIZE(r->f32); i++) {                      \
             float32 t = cvt(b->element[i], &env->vec_status);           \
-            r->f[i] = float32_scalbn(t, -uim, &env->vec_status);        \
+            r->f32[i] = float32_scalbn(t, -uim, &env->vec_status);      \
         }                                                               \
     }
 VCF(ux, uint32_to_float32, u32)
@@ -782,9 +778,9 @@ VCMPNE(w, u32, uint32_t, 0)
         uint32_t none = 0;                                              \
         int i;                                                          \
                                                                         \
-        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
+        for (i = 0; i < ARRAY_SIZE(r->f32); i++) {                      \
             uint32_t result;                                            \
-            int rel = float32_compare_quiet(a->f[i], b->f[i],           \
+            int rel = float32_compare_quiet(a->f32[i], b->f32[i],       \
                                             &env->vec_status);          \
             if (rel == float_relation_unordered) {                      \
                 result = 0;                                             \
@@ -816,14 +812,16 @@ static inline void vcmpbfp_internal(CPUPPCState *env, ppc_avr_t *r,
     int i;
     int all_in = 0;
 
-    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        int le_rel = float32_compare_quiet(a->f[i], b->f[i], &env->vec_status);
+    for (i = 0; i < ARRAY_SIZE(r->f32); i++) {
+        int le_rel = float32_compare_quiet(a->f32[i], b->f32[i],
+                                           &env->vec_status);
         if (le_rel == float_relation_unordered) {
             r->u32[i] = 0xc0000000;
             all_in = 1;
         } else {
-            float32 bneg = float32_chs(b->f[i]);
-            int ge_rel = float32_compare_quiet(a->f[i], bneg, &env->vec_status);
+            float32 bneg = float32_chs(b->f32[i]);
+            int ge_rel = float32_compare_quiet(a->f32[i], bneg,
+                                               &env->vec_status);
             int le = le_rel != float_relation_greater;
             int ge = ge_rel != float_relation_less;
 
@@ -856,11 +854,11 @@ void helper_vcmpbfp_dot(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
         float_status s = env->vec_status;                               \
                                                                         \
         set_float_rounding_mode(float_round_to_zero, &s);               \
-        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
-            if (float32_is_any_nan(b->f[i])) {                          \
+        for (i = 0; i < ARRAY_SIZE(r->f32); i++) {                      \
+            if (float32_is_any_nan(b->f32[i])) {                        \
                 r->element[i] = 0;                                      \
             } else {                                                    \
-                float64 t = float32_to_float64(b->f[i], &s);            \
+                float64 t = float32_to_float64(b->f32[i], &s);          \
                 int64_t j;                                              \
                                                                         \
                 t = float64_scalbn(t, uim, &s);                         \
@@ -1661,8 +1659,8 @@ void helper_vrefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
 {
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        r->f[i] = float32_div(float32_one, b->f[i], &env->vec_status);
+    for (i = 0; i < ARRAY_SIZE(r->f32); i++) {
+        r->f32[i] = float32_div(float32_one, b->f32[i], &env->vec_status);
     }
 }
 
@@ -1674,8 +1672,8 @@ void helper_vrefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
         float_status s = env->vec_status;                       \
                                                                 \
         set_float_rounding_mode(rounding, &s);                  \
-        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                \
-            r->f[i] = float32_round_to_int (b->f[i], &s);       \
+        for (i = 0; i < ARRAY_SIZE(r->f32); i++) {              \
+            r->f32[i] = float32_round_to_int (b->f32[i], &s);   \
         }                                                       \
     }
 VRFI(n, float_round_nearest_even)
@@ -1705,10 +1703,10 @@ void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
 {
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        float32 t = float32_sqrt(b->f[i], &env->vec_status);
+    for (i = 0; i < ARRAY_SIZE(r->f32); i++) {
+        float32 t = float32_sqrt(b->f32[i], &env->vec_status);
 
-        r->f[i] = float32_div(float32_one, t, &env->vec_status);
+        r->f32[i] = float32_div(float32_one, t, &env->vec_status);
     }
 }
 
@@ -1751,8 +1749,8 @@ void helper_vexptefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
 {
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        r->f[i] = float32_exp2(b->f[i], &env->vec_status);
+    for (i = 0; i < ARRAY_SIZE(r->f32); i++) {
+        r->f32[i] = float32_exp2(b->f32[i], &env->vec_status);
     }
 }
 
@@ -1760,8 +1758,8 @@ void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
 {
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        r->f[i] = float32_log2(b->f[i], &env->vec_status);
+    for (i = 0; i < ARRAY_SIZE(r->f32); i++) {
+        r->f32[i] = float32_log2(b->f32[i], &env->vec_status);
     }
 }
 
@@ -3275,11 +3273,11 @@ void helper_vcipher(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     int i;
 
     VECTOR_FOR_INORDER_I(i, u32) {
-        result.AVRW(i) = b->AVRW(i) ^
-            (AES_Te0[a->AVRB(AES_shifts[4*i + 0])] ^
-             AES_Te1[a->AVRB(AES_shifts[4*i + 1])] ^
-             AES_Te2[a->AVRB(AES_shifts[4*i + 2])] ^
-             AES_Te3[a->AVRB(AES_shifts[4*i + 3])]);
+        result.VsrW(i) = b->VsrW(i) ^
+            (AES_Te0[a->VsrB(AES_shifts[4 * i + 0])] ^
+             AES_Te1[a->VsrB(AES_shifts[4 * i + 1])] ^
+             AES_Te2[a->VsrB(AES_shifts[4 * i + 2])] ^
+             AES_Te3[a->VsrB(AES_shifts[4 * i + 3])]);
     }
     *r = result;
 }
@@ -3290,7 +3288,7 @@ void helper_vcipherlast(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     int i;
 
     VECTOR_FOR_INORDER_I(i, u8) {
-        result.AVRB(i) = b->AVRB(i) ^ (AES_sbox[a->AVRB(AES_shifts[i])]);
+        result.VsrB(i) = b->VsrB(i) ^ (AES_sbox[a->VsrB(AES_shifts[i])]);
     }
     *r = result;
 }
@@ -3303,15 +3301,15 @@ void helper_vncipher(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     ppc_avr_t tmp;
 
     VECTOR_FOR_INORDER_I(i, u8) {
-        tmp.AVRB(i) = b->AVRB(i) ^ AES_isbox[a->AVRB(AES_ishifts[i])];
+        tmp.VsrB(i) = b->VsrB(i) ^ AES_isbox[a->VsrB(AES_ishifts[i])];
     }
 
     VECTOR_FOR_INORDER_I(i, u32) {
-        r->AVRW(i) =
-            AES_imc[tmp.AVRB(4*i + 0)][0] ^
-            AES_imc[tmp.AVRB(4*i + 1)][1] ^
-            AES_imc[tmp.AVRB(4*i + 2)][2] ^
-            AES_imc[tmp.AVRB(4*i + 3)][3];
+        r->VsrW(i) =
+            AES_imc[tmp.VsrB(4 * i + 0)][0] ^
+            AES_imc[tmp.VsrB(4 * i + 1)][1] ^
+            AES_imc[tmp.VsrB(4 * i + 2)][2] ^
+            AES_imc[tmp.VsrB(4 * i + 3)][3];
     }
 }
 
@@ -3321,7 +3319,7 @@ void helper_vncipherlast(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     int i;
 
     VECTOR_FOR_INORDER_I(i, u8) {
-        result.AVRB(i) = b->AVRB(i) ^ (AES_isbox[a->AVRB(AES_ishifts[i])]);
+        result.VsrB(i) = b->VsrB(i) ^ (AES_isbox[a->VsrB(AES_ishifts[i])]);
     }
     *r = result;
 }
