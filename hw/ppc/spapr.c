@@ -2959,10 +2959,11 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
         if (spapr) {
             /*
              * Replace "channel@0/disk@0,0" with "disk@8000000000000000":
-             * We use SRP luns of the form 8000 | (bus << 8) | (id << 5) | lun
-             * in the top 16 bits of the 64-bit LUN
+             * In the top 16 bits of the 64-bit LUN, we use SRP luns of the form
+             * 0x8000 | (target << 8) | (bus << 5) | lun
+             * (see the "Logical unit addressing format" table in SAM5)
              */
-            unsigned id = 0x8000 | (d->id << 8) | d->lun;
+            unsigned id = 0x8000 | (d->id << 8) | (d->channel << 5) | d->lun;
             return g_strdup_printf("%s@%"PRIX64, qdev_fw_name(dev),
                                    (uint64_t)id << 48);
         } else if (virtio) {
