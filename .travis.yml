@@ -61,7 +61,7 @@ env:
   global:
     - SRC_DIR="."
     - BUILD_DIR="."
-    - TEST_CMD="make check -j3"
+    - TEST_CMD="make check -j3 V=1"
 
 
 git:
@@ -250,6 +250,6 @@ matrix:
 
     - env:
         - CONFIG="--disable-system --disable-docs"
-        - TEST_CMD="make -j3 check-tcg"
+        - TEST_CMD="make -j3 check-tcg V=1"
       dist: trusty
       compiler: gcc
