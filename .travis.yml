@@ -81,102 +81,123 @@ script:
 
 matrix:
   include:
-    - env: CONFIG="--disable-system"
+    - env:
+        - CONFIG="--disable-system"
 
 
-    - env: CONFIG="--disable-user"
+    - env:
+        - CONFIG="--disable-user"
 
 
-    - env: CONFIG="--enable-debug --enable-debug-tcg"
+    - env:
+        - CONFIG="--enable-debug --enable-debug-tcg"
 
 
-    - env: CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb --disable-user"
+    - env:
+        - CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb --disable-user"
 
 
-    - env: CONFIG="--enable-modules --disable-linux-user"
+    - env:
+        - CONFIG="--enable-modules --disable-linux-user"
 
 
-    - env: CONFIG="--with-coroutine=ucontext --disable-linux-user"
+    - env:
+        - CONFIG="--with-coroutine=ucontext --disable-linux-user"
 
 
-    - env: CONFIG="--with-coroutine=sigaltstack --disable-linux-user"
+    - env:
+        - CONFIG="--with-coroutine=sigaltstack --disable-linux-user"
 
 
     # Test out-of-tree builds
-    - env: CONFIG="--enable-debug --enable-debug-tcg"
-           BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
+    - env:
+        - CONFIG="--enable-debug --enable-debug-tcg"
+        - BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
 
 
     # Test with Clang for compile portability (Travis uses clang-5.0)
-    - env: CONFIG="--disable-system"
+    - env:
+        - CONFIG="--disable-system"
       compiler: clang
 
 
-    - env: CONFIG="--disable-user"
+    - env:
+        - CONFIG="--disable-user"
       compiler: clang
 
 
     # gprof/gcov are GCC features
-    - env: CONFIG="--enable-gprof --enable-gcov --disable-pie --target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
+    - env:
+        - CONFIG="--enable-gprof --enable-gcov --disable-pie --target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
       after_success:
         - ${SRC_DIR}/scripts/travis/coverage-summary.sh
       compiler: gcc
 
 
     # We manually include builds which we disable "make check" for
-    - env: CONFIG="--enable-debug --enable-tcg-interpreter"
-           TEST_CMD=""
+    - env:
+        - CONFIG="--enable-debug --enable-tcg-interpreter"
+        - TEST_CMD=""
       compiler: gcc
 
 
     # We don't need to exercise every backend with every front-end
-    - env: CONFIG="--enable-trace-backends=log,simple,syslog --disable-system"
-           TEST_CMD=""
+    - env:
+        - CONFIG="--enable-trace-backends=log,simple,syslog --disable-system"
+        - TEST_CMD=""
       compiler: gcc
 
 
-    - env: CONFIG="--enable-trace-backends=ftrace --target-list=x86_64-softmmu"
-           TEST_CMD=""
+    - env:
+        - CONFIG="--enable-trace-backends=ftrace --target-list=x86_64-softmmu"
+        - TEST_CMD=""
       compiler: gcc
 
 
-    - env: CONFIG="--enable-trace-backends=ust --target-list=x86_64-softmmu"
-           TEST_CMD=""
+    - env:
+        - CONFIG="--enable-trace-backends=ust --target-list=x86_64-softmmu"
+        - TEST_CMD=""
       compiler: gcc
 
 
-    - env: CONFIG="--disable-tcg"
-           TEST_CMD=""
+    - env:
+        - CONFIG="--disable-tcg"
+        - TEST_CMD=""
       compiler: gcc
 
 
     # MacOSX builds
-    - env: CONFIG="--target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
+    - env:
+        - CONFIG="--target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
       os: osx
       osx_image: xcode9.4
       compiler: clang
 
 
-    - env: CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu"
+    - env:
+        - CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu"
       os: osx
       osx_image: xcode10
       compiler: clang
 
 
     # Python builds
-    - env: CONFIG="--target-list=x86_64-softmmu"
+    - env:
+        - CONFIG="--target-list=x86_64-softmmu"
       python:
         - "3.0"
 
 
-    - env: CONFIG="--target-list=x86_64-softmmu"
+    - env:
+        - CONFIG="--target-list=x86_64-softmmu"
       python:
         - "3.6"
 
 
     # Acceptance (Functional) tests
-    - env: CONFIG="--python=/usr/bin/python3 --target-list=x86_64-softmmu"
-           TEST_CMD="make AVOCADO_SHOW=app check-acceptance"
+    - env:
+        - CONFIG="--python=/usr/bin/python3 --target-list=x86_64-softmmu"
+        - TEST_CMD="make AVOCADO_SHOW=app check-acceptance"
       addons:
         apt:
           packages:
