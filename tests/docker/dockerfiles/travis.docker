@@ -1,4 +1,4 @@
-FROM travisci/ci-garnet:packer-1512502276-986baf0
+FROM travisci/ci-sardonyx:packer-1546978056-2c98a19
 ENV DEBIAN_FRONTEND noninteractive
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
