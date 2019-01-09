@@ -1576,9 +1576,9 @@ static const TypeInfo xive_end_source_info = {
 };
 
 /*
- * XIVE Fabric
+ * XIVE Notifier
  */
-static const TypeInfo xive_fabric_info = {
+static const TypeInfo xive_notifier_info = {
     .name = TYPE_XIVE_NOTIFIER,
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(XiveNotifierClass),
@@ -1587,7 +1587,7 @@ static const TypeInfo xive_fabric_info = {
 static void xive_register_types(void)
 {
     type_register_static(&xive_source_info);
-    type_register_static(&xive_fabric_info);
+    type_register_static(&xive_notifier_info);
     type_register_static(&xive_router_info);
     type_register_static(&xive_end_source_info);
     type_register_static(&xive_tctx_info);

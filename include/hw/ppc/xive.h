@@ -145,7 +145,7 @@
 #include "hw/ppc/xive_regs.h"
 
 /*
- * XIVE Fabric (Interface between Source and Router)
+ * XIVE Notifier (Interface between Source and Router)
  */
 
 typedef struct XiveNotifier {
