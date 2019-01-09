@@ -61,14 +61,6 @@ env:
     - BUILD_DIR="."
     - TEST_CMD="make check"
     - MAKEFLAGS="-j3"
-  matrix:
-    - CONFIG="--disable-system"
-    - CONFIG="--disable-user"
-    - CONFIG="--enable-debug --enable-debug-tcg"
-    - CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb --disable-user"
-    - CONFIG="--enable-modules --disable-linux-user"
-    - CONFIG="--with-coroutine=ucontext --disable-linux-user"
-    - CONFIG="--with-coroutine=sigaltstack --disable-linux-user"
 
 
 git:
@@ -89,6 +81,27 @@ script:
 
 matrix:
   include:
+    - env: CONFIG="--disable-system"
+
+
+    - env: CONFIG="--disable-user"
+
+
+    - env: CONFIG="--enable-debug --enable-debug-tcg"
+
+
+    - env: CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb --disable-user"
+
+
+    - env: CONFIG="--enable-modules --disable-linux-user"
+
+
+    - env: CONFIG="--with-coroutine=ucontext --disable-linux-user"
+
+
+    - env: CONFIG="--with-coroutine=sigaltstack --disable-linux-user"
+
+
     # Test out-of-tree builds
     - env: CONFIG="--enable-debug --enable-debug-tcg"
            BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
