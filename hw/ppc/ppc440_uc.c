@@ -613,8 +613,10 @@ static uint32_t dcr_read_sdram(void *opaque, int dcrn)
     case SDRAM_R1BAS:
     case SDRAM_R2BAS:
     case SDRAM_R3BAS:
-        ret = sdram_bcr(sdram->ram_bases[dcrn - SDRAM_R0BAS],
-                        sdram->ram_sizes[dcrn - SDRAM_R0BAS]);
+        if (sdram->ram_sizes[dcrn - SDRAM_R0BAS]) {
+            ret = sdram_bcr(sdram->ram_bases[dcrn - SDRAM_R0BAS],
+                            sdram->ram_sizes[dcrn - SDRAM_R0BAS]);
+        }
         break;
     case SDRAM_CONF1HB:
     case SDRAM_CONF1LL:
