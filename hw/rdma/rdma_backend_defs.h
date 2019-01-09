@@ -41,7 +41,6 @@ typedef struct RdmaCmMux {
 } RdmaCmMux;
 
 typedef struct RdmaBackendDev {
-    struct ibv_device_attr dev_attr;
     RdmaBackendThread comp_thread;
     PCIDevice *dev;
     RdmaDeviceResources *rdma_dev_res;

@@ -917,23 +917,25 @@ void rdma_backend_destroy_qp(RdmaBackendQP *qp)
 static int init_device_caps(RdmaBackendDev *backend_dev,
                             struct ibv_device_attr *dev_attr)
 {
-    if (ibv_query_device(backend_dev->context, &backend_dev->dev_attr)) {
+    struct ibv_device_attr bk_dev_attr;
+
+    if (ibv_query_device(backend_dev->context, &bk_dev_attr)) {
         return -EIO;
     }
 
     dev_attr->max_sge = MAX_SGE;
 
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_mr_size, "%" PRId64);
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_sge, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp_wr, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_cq, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_cqe, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_mr, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_pd, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp_rd_atom, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp_init_rd_atom, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_ah, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_mr_size, "%" PRId64);
+    CHK_ATTR(dev_attr, bk_dev_attr, max_qp, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_sge, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_qp_wr, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_cq, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_cqe, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_mr, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_pd, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_qp_rd_atom, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_qp_init_rd_atom, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_ah, "%d");
 
     return 0;
 }
