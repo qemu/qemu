@@ -1,8 +1,8 @@
-
-dist: trusty
+# The current Travis default is a VM based 16.04 Xenial on GCE
+# Additional builds with specific requirements for a full VM need to
+# be added as additional matrix: entries later on
+dist: xenial
 language: c
-python:
-  - "2.6"
 compiler:
   - gcc
 cache: ccache
@@ -34,7 +34,7 @@ addons:
       - libssh2-1-dev
       - liburcu-dev
       - libusb-1.0-0-dev
-      - libvte-2.90-dev
+      - libvte-2.91-dev
       - sparse
       - uuid-dev
       - gcovr
@@ -193,9 +193,7 @@ matrix:
         apt:
           packages:
             - python3-pip
-            - python3.4-venv
-
-
+            - python3.5-venv
     # Using newer GCC with sanitizers
     - addons:
         apt:
@@ -229,7 +227,7 @@ matrix:
             - libssh2-1-dev
             - liburcu-dev
             - libusb-1.0-0-dev
-            - libvte-2.90-dev
+            - libvte-2.91-dev
             - sparse
             - uuid-dev
       language: generic
