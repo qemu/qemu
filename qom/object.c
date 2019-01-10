@@ -372,7 +372,6 @@ static void object_post_init_with_type(Object *obj, TypeImpl *ti)
 
 void object_apply_global_props(Object *obj, const GPtrArray *props, Error **errp)
 {
-    Error *err = NULL;
     int i;
 
     if (!props) {
@@ -381,6 +380,7 @@ void object_apply_global_props(Object *obj, const GPtrArray *props, Error **errp
 
     for (i = 0; i < props->len; i++) {
         GlobalProperty *p = g_ptr_array_index(props, i);
+        Error *err = NULL;
 
         if (object_dynamic_cast(obj, p->driver) == NULL) {
             continue;
