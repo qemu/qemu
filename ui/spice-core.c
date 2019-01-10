@@ -18,7 +18,6 @@
 #include "qemu/osdep.h"
 #include <spice.h>
 
-#include <netdb.h>
 #include "sysemu/sysemu.h"
 
 #include "ui/qemu-spice.h"
@@ -745,13 +744,7 @@ void qemu_spice_init(void)
     }
 
     if (qemu_opt_get_bool(opts, "disable-agent-file-xfer", 0)) {
-#if SPICE_SERVER_VERSION >= 0x000c04
         spice_server_set_agent_file_xfer(spice_server, false);
-#else
-        error_report("this qemu build does not support the "
-                     "\"disable-agent-file-xfer\" option");
-        exit(1);
-#endif
     }
 
     compression = SPICE_IMAGE_COMPRESS_AUTO_GLZ;
@@ -817,9 +810,7 @@ void qemu_spice_init(void)
     g_free(x509_cert_file);
     g_free(x509_cacert_file);
 
-#if SPICE_SERVER_VERSION >= 0x000c02
     qemu_spice_register_ports();
-#endif
 
 #ifdef HAVE_SPICE_GL
     if (qemu_opt_get_bool(opts, "gl", 0)) {
