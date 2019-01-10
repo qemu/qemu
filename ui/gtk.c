@@ -2226,6 +2226,7 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 
     theme = gtk_icon_theme_get_default();
     gtk_icon_theme_prepend_search_path(theme, CONFIG_QEMU_ICONDIR);
+    g_set_prgname("qemu");
 
     s->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     s->vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);

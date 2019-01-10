@@ -5746,6 +5746,7 @@ qemu_moddir=$libdir$confsuffix
 qemu_datadir=$datadir$confsuffix
 qemu_localedir="$datadir/locale"
 qemu_icondir="$datadir/icons"
+qemu_desktopdir="$datadir/applications"
 
 # We can only support ivshmem if we have eventfd
 if [ "$eventfd" = "yes" ]; then
@@ -6212,6 +6213,7 @@ fi
 echo "qemu_helperdir=$libexecdir" >> $config_host_mak
 echo "qemu_localedir=$qemu_localedir" >> $config_host_mak
 echo "qemu_icondir=$qemu_icondir" >> $config_host_mak
+echo "qemu_desktopdir=$qemu_desktopdir" >> $config_host_mak
 echo "libs_softmmu=$libs_softmmu" >> $config_host_mak
 echo "GIT=$git" >> $config_host_mak
 echo "GIT_SUBMODULES=$git_submodules" >> $config_host_mak
