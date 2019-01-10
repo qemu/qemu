@@ -59,9 +59,9 @@ disabled_wait:
         .globl consume_sclp_int
 consume_sclp_int:
         /* enable service interrupts in cr0 */
-        stctg 0,0,0(15)
-        oi 6(15), 0x2
-        lctlg 0,0,0(15)
+        stctg   %c0,%c0,0(%r15)
+        oi      6(%r15),0x2
+        lctlg   %c0,%c0,0(%r15)
         /* prepare external call handler */
         larl %r1, external_new_code
         stg %r1, 0x1b8
@@ -73,10 +73,10 @@ consume_sclp_int:
 
 external_new_code:
         /* disable service interrupts in cr0 */
-        stctg 0,0,0(15)
-        ni 6(15), 0xfd
-        lctlg 0,0,0(15)
-        br 14
+        stctg   %c0,%c0,0(%r15)
+        ni      6(%r15),0xfd
+        lctlg   %c0,%c0,0(%r15)
+        br      %r14
 
         .align  8
 disabled_wait_psw:
