@@ -321,6 +321,9 @@ static int streambuf_put(struct streambuf *buf, USBPacket *p)
     if (!free) {
         return 0;
     }
+    if (p->iov.size != USBAUDIO_PACKET_SIZE) {
+        return 0;
+    }
     assert(free >= USBAUDIO_PACKET_SIZE);
     usb_packet_copy(p, buf->data + (buf->prod % buf->size),
                     USBAUDIO_PACKET_SIZE);
