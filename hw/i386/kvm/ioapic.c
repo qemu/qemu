@@ -163,7 +163,7 @@ static void kvm_ioapic_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo kvm_ioapic_info = {
-    .name  = "kvm-ioapic",
+    .name  = TYPE_KVM_IOAPIC,
     .parent = TYPE_IOAPIC_COMMON,
     .instance_size = sizeof(KVMIOAPICState),
     .class_init = kvm_ioapic_class_init,
