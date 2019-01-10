@@ -36,7 +36,6 @@
 
 #include "hw/sysbus.h"
 #include "hw/ppc/spapr.h"
-#include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/ppc.h"
 #include "sysemu/watchdog.h"
