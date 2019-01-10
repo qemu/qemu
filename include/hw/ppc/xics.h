@@ -200,13 +200,6 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon);
 void ics_resend(ICSState *ics);
 void icp_resend(ICPState *ss);
 
-typedef struct sPAPRMachineState sPAPRMachineState;
-
-void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
-                   uint32_t phandle);
-int xics_kvm_init(sPAPRMachineState *spapr, Error **errp);
-void xics_spapr_init(sPAPRMachineState *spapr);
-
 Object *icp_create(Object *cpu, const char *type, XICSFabric *xi,
                    Error **errp);
 
