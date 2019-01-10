@@ -2214,8 +2214,8 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     VirtualConsole *vc;
 
     GtkDisplayState *s = g_malloc0(sizeof(*s));
-    char *filename;
     GdkDisplay *window_display;
+    GtkIconTheme *theme;
 
     if (!gtkinit) {
         fprintf(stderr, "gtk initialization failed\n");
@@ -2223,6 +2223,9 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     }
     assert(opts->type == DISPLAY_TYPE_GTK);
     s->opts = opts;
+
+    theme = gtk_icon_theme_get_default();
+    gtk_icon_theme_prepend_search_path(theme, CONFIG_QEMU_ICONDIR);
 
     s->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     s->vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -2248,17 +2251,7 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     qemu_add_mouse_mode_change_notifier(&s->mouse_mode_notifier);
     qemu_add_vm_change_state_handler(gd_change_runstate, s);
 
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "qemu_logo_no_text.svg");
-    if (filename) {
-        GError *error = NULL;
-        GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(filename, &error);
-        if (pixbuf) {
-            gtk_window_set_icon(GTK_WINDOW(s->window), pixbuf);
-        } else {
-            g_error_free(error);
-        }
-        g_free(filename);
-    }
+    gtk_window_set_icon_name(GTK_WINDOW(s->window), "qemu");
 
     gd_create_menus(s);
 
