@@ -73,7 +73,8 @@ void fw_cfg_build_smbios(PCMachineState *pcms, FWCfgState *fw_cfg,
 
     if (pcmc->smbios_defaults) {
         /* These values are guest ABI, do not change */
-        smbios_set_defaults("QEMU", mc->desc, mc->name);
+        smbios_set_defaults("QEMU", mc->desc, mc->name,
+                            pcmc->smbios_stream_product, pcmc->smbios_stream_version);
     }
 
     /* tell smbios about cpuid version and features */

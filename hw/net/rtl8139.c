@@ -3173,7 +3173,7 @@ static int rtl8139_pre_save(void *opaque)
 
 static const VMStateDescription vmstate_rtl8139 = {
     .name = "rtl8139",
-    .version_id = 5,
+    .version_id = 4,
     .minimum_version_id = 3,
     .post_load = rtl8139_post_load,
     .pre_save  = rtl8139_pre_save,
@@ -3254,7 +3254,9 @@ static const VMStateDescription vmstate_rtl8139 = {
         VMSTATE_UINT32(tally_counters.TxMCol, RTL8139State),
         VMSTATE_UINT64(tally_counters.RxOkPhy, RTL8139State),
         VMSTATE_UINT64(tally_counters.RxOkBrd, RTL8139State),
+#if 0 /* Disabled for Red Hat Enterprise Linux bz 1420195 */
         VMSTATE_UINT32_V(tally_counters.RxOkMul, RTL8139State, 5),
+#endif
         VMSTATE_UINT16(tally_counters.TxAbt, RTL8139State),
         VMSTATE_UINT16(tally_counters.TxUndrn, RTL8139State),
 

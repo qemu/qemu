@@ -1694,8 +1694,9 @@ static Property virtio_mem_properties[] = {
 #endif
     DEFINE_PROP_BOOL(VIRTIO_MEM_EARLY_MIGRATION_PROP, VirtIOMEM,
                      early_migration, true),
+    /* RHEL: default-enable "dynamic-memslots" (jira RHEL-24045) */
     DEFINE_PROP_BOOL(VIRTIO_MEM_DYNAMIC_MEMSLOTS_PROP, VirtIOMEM,
-                     dynamic_memslots, false),
+                     dynamic_memslots, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -40,6 +40,7 @@ typedef struct XHCIPciState {
     XHCIState xhci;
     OnOffAuto msi;
     OnOffAuto msix;
+    bool      rh_late_msi_cap;  /* bz 1912846 */
 } XHCIPciState;
 
 #endif

@@ -245,7 +245,7 @@ static bool vmstate_test_migrate_acpi_index(void *opaque, int version_id)
 static const VMStateDescription vmstate_acpi = {
     .name = "piix4_pm",
     .version_id = 3,
-    .minimum_version_id = 3,
+    .minimum_version_id = 2,
     .post_load = vmstate_acpi_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PIIX4PMState),

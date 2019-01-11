@@ -305,6 +305,287 @@ GlobalProperty hw_compat_2_1[] = {
 };
 const size_t hw_compat_2_1_len = G_N_ELEMENTS(hw_compat_2_1);
 
+/*
+ * RHEL only: machine types for previous major releases are deprecated
+ */
+const char *rhel_old_machine_deprecation =
+    "machine types for previous major releases are deprecated";
+
+GlobalProperty hw_compat_rhel_9_5[] = {
+  /* hw_compat_rhel_9_5 from hw_compat_8_2 */
+    { "migration", "zero-page-detection", "legacy"},
+  /* hw_compat_rhel_9_5 from hw_compat_8_2 */
+    { TYPE_VIRTIO_IOMMU_PCI, "granule", "4k" },
+  /* hw_compat_rhel_9_5 from hw_compat_8_2 */
+    { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "64" },
+  /* hw_compat_rhel_9_5 from hw_compat_8_2 */
+    { "virtio-gpu-device", "x-scanout-vmstate-version", "1" },
+};
+const size_t hw_compat_rhel_9_5_len = G_N_ELEMENTS(hw_compat_rhel_9_5);
+
+GlobalProperty hw_compat_rhel_9_4[] = {
+  /* hw_compat_rhel_9_4 from hw_compat_8_0 */
+    { TYPE_VIRTIO_NET, "host_uso", "off"},
+  /* hw_compat_rhel_9_4 from hw_compat_8_0 */
+    { TYPE_VIRTIO_NET, "guest_uso4", "off"},
+  /* hw_compat_rhel_9_4 from hw_compat_8_0 */
+    { TYPE_VIRTIO_NET, "guest_uso6", "off"},
+  /* hw_compat_rhel_9_4 from hw_compat_8_1 */
+     { TYPE_PCI_BRIDGE, "x-pci-express-writeable-slt-bug", "true" },
+  /* hw_compat_rhel_9_4 from hw_compat_8_1 */
+     { "ramfb", "x-migrate", "off" },
+  /* hw_compat_rhel_9_4 from hw_compat_8_1 */
+     { "vfio-pci-nohotplug", "x-ramfb-migrate", "off" },
+  /* hw_compat_rhel_9_4 from hw_compat_8_1 */
+     { "igb", "x-pcie-flr-init", "off" },
+  /* hw_compat_rhel_9_4 jira RHEL-24045 */
+     { "virtio-mem", "dynamic-memslots", "off" },
+};
+const size_t hw_compat_rhel_9_4_len = G_N_ELEMENTS(hw_compat_rhel_9_4);
+
+GlobalProperty hw_compat_rhel_9_3[] = {
+  /* hw_compat_rhel_9_3 from hw_compat_8_0 */
+  { "migration", "multifd-flush-after-each-section", "on"},
+  /* hw_compat_rhel_9_3 from hw_compat_8_0 */
+  { TYPE_PCI_DEVICE, "x-pcie-ari-nextfn-1", "on" },
+};
+const size_t hw_compat_rhel_9_3_len = G_N_ELEMENTS(hw_compat_rhel_9_3);
+
+GlobalProperty hw_compat_rhel_9_2[] = {
+  /* hw_compat_rhel_9_2 from hw_compat_7_2 */
+  { "e1000e", "migrate-timadj", "off" },
+  /* hw_compat_rhel_9_2 from hw_compat_7_2 */
+  { "virtio-mem", "x-early-migration", "false" },
+  /* hw_compat_rhel_9_2 from hw_compat_7_2 */
+  { "migration", "x-preempt-pre-7-2", "true" },
+  /* hw_compat_rhel_9_2 from hw_compat_7_2 */
+  { TYPE_PCI_DEVICE, "x-pcie-err-unc-mask", "off" },
+};
+const size_t hw_compat_rhel_9_2_len = G_N_ELEMENTS(hw_compat_rhel_9_2);
+
+/*
+ * Mostly the same as hw_compat_7_0
+ */
+GlobalProperty hw_compat_rhel_9_1[] = {
+  /* hw_compat_rhel_9_1 from hw_compat_7_0 */
+  { "arm-gicv3-common", "force-8-bit-prio", "on" },
+  /* hw_compat_rhel_9_1 from hw_compat_7_0 */
+  { "nvme-ns", "eui64-default", "on"},
+  /* hw_compat_rhel_9_1 from hw_compat_7_1 */
+  { "virtio-device", "queue_reset", "false" },
+  /* hw_compat_rhel_9_1 bz 2155749 */
+  { "virtio-rng-pci", "vectors", "0" },
+  /* hw_compat_rhel_9_1 bz 2162569 */
+  { "virtio-rng-pci-transitional", "vectors", "0" },
+  { "virtio-rng-pci-non-transitional", "vectors", "0" },
+};
+const size_t hw_compat_rhel_9_1_len = G_N_ELEMENTS(hw_compat_rhel_9_1);
+
+/*
+ * Mostly the same as hw_compat_6_2
+ */
+GlobalProperty hw_compat_rhel_9_0[] = {
+    /* hw_compat_rhel_9_0 from hw_compat_6_2 */
+    { "PIIX4_PM", "x-not-migrate-acpi-index", "on"},
+};
+const size_t hw_compat_rhel_9_0_len = G_N_ELEMENTS(hw_compat_rhel_9_0);
+
+GlobalProperty hw_compat_rhel_8_6[] = {
+    /* hw_compat_rhel_8_6 bz 2065589 */
+    /*
+     * vhost-vsock device in RHEL 8 kernels doesn't support seqpacket, so
+     * we need do disable it downstream on the latest hw_compat_rhel_8.
+     */
+    { "vhost-vsock-device", "seqpacket", "off" },
+};
+const size_t hw_compat_rhel_8_6_len = G_N_ELEMENTS(hw_compat_rhel_8_6);
+
+/*
+ * Mostly the same as hw_compat_6_0 and hw_compat_6_1
+ */
+GlobalProperty hw_compat_rhel_8_5[] = {
+    /* hw_compat_rhel_8_5 from hw_compat_6_0 */
+    { "gpex-pcihost", "allow-unmapped-accesses", "false" },
+    /* hw_compat_rhel_8_5 from hw_compat_6_0 */
+    { "i8042", "extended-state", "false"},
+    /* hw_compat_rhel_8_5 from hw_compat_6_0 */
+    { "nvme-ns", "eui64-default", "off"},
+    /* hw_compat_rhel_8_5 from hw_compat_6_0 */
+    { "e1000", "init-vet", "off" },
+    /* hw_compat_rhel_8_5 from hw_compat_6_0 */
+    { "e1000e", "init-vet", "off" },
+    /* hw_compat_rhel_8_5 from hw_compat_6_0 */
+    { "vhost-vsock-device", "seqpacket", "off" },
+    /* hw_compat_rhel_8_5 from hw_compat_6_1 */
+    { "vhost-user-vsock-device", "seqpacket", "off" },
+    /* hw_compat_rhel_8_5 from hw_compat_6_1 */
+    { "nvme-ns", "shared", "off" },
+};
+const size_t hw_compat_rhel_8_5_len = G_N_ELEMENTS(hw_compat_rhel_8_5);
+
+/*
+ * Mostly the same as hw_compat_5_2
+ */
+GlobalProperty hw_compat_rhel_8_4[] = {
+    /* hw_compat_rhel_8_4 from hw_compat_5_2 */
+    { "ICH9-LPC", "smm-compat", "on"},
+    /* hw_compat_rhel_8_4 from hw_compat_5_2 */
+    { "PIIX4_PM", "smm-compat", "on"},
+    /* hw_compat_rhel_8_4 from hw_compat_5_2 */
+    { "virtio-blk-device", "report-discard-granularity", "off" },
+    /* hw_compat_rhel_8_4 from hw_compat_5_2 */
+    /*
+     * Upstream incorrectly had "virtio-net-pci" instead of "virtio-net-pci-base",
+     * (https://bugzilla.redhat.com/show_bug.cgi?id=1999141)
+     */
+    { "virtio-net-pci-base", "vectors", "3"},
+};
+const size_t hw_compat_rhel_8_4_len = G_N_ELEMENTS(hw_compat_rhel_8_4);
+
+/*
+ * Mostly the same as hw_compat_5_1
+ */
+GlobalProperty hw_compat_rhel_8_3[] = {
+    /* hw_compat_rhel_8_3 from hw_compat_5_1 */
+    { "vhost-scsi", "num_queues", "1"},
+    /* hw_compat_rhel_8_3 from hw_compat_5_1 */
+    { "vhost-user-blk", "num-queues", "1"},
+    /* hw_compat_rhel_8_3 from hw_compat_5_1 */
+    { "vhost-user-scsi", "num_queues", "1"},
+    /* hw_compat_rhel_8_3 from hw_compat_5_1 */
+    { "virtio-blk-device", "num-queues", "1"},
+    /* hw_compat_rhel_8_3 from hw_compat_5_1 */
+    { "virtio-scsi-device", "num_queues", "1"},
+    /* hw_compat_rhel_8_3 from hw_compat_5_1 */
+    { "nvme", "use-intel-id", "on"},
+    /* hw_compat_rhel_8_3 from hw_compat_5_1 */
+    { "pvpanic", "events", "1"}, /* PVPANIC_PANICKED */
+    /* hw_compat_rhel_8_3 from hw_compat_5_1 */
+    { "pl011", "migrate-clk", "off" },
+    /* hw_compat_rhel_8_3 bz 1912846 */
+    { "pci-xhci", "x-rh-late-msi-cap", "off" },
+    /* hw_compat_rhel_8_3 from hw_compat_5_1 */
+    { "virtio-pci", "x-ats-page-aligned", "off"},
+};
+const size_t hw_compat_rhel_8_3_len = G_N_ELEMENTS(hw_compat_rhel_8_3);
+
+/*
+ * The same as hw_compat_4_2 + hw_compat_5_0
+ */
+GlobalProperty hw_compat_rhel_8_2[] = {
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "virtio-blk-device", "queue-size", "128"},
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "virtio-scsi-device", "virtqueue_size", "128"},
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "virtio-blk-device", "x-enable-wce-if-config-wce", "off" },
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "virtio-blk-device", "seg-max-adjust", "off"},
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "virtio-scsi-device", "seg_max_adjust", "off"},
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "vhost-blk-device", "seg_max_adjust", "off"},
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "usb-host", "suppress-remote-wake", "off" },
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "usb-redir", "suppress-remote-wake", "off" },
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "qxl", "revision", "4" },
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "qxl-vga", "revision", "4" },
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "fw_cfg", "acpi-mr-restore", "false" },
+    /* hw_compat_rhel_8_2 from hw_compat_4_2 */
+    { "virtio-device", "use-disabled-flag", "false" },
+    /* hw_compat_rhel_8_2 from hw_compat_5_0 */
+    { "pci-host-bridge", "x-config-reg-migration-enabled", "off" },
+    /* hw_compat_rhel_8_2 from hw_compat_5_0 */
+    { "virtio-balloon-device", "page-poison", "false" },
+    /* hw_compat_rhel_8_2 from hw_compat_5_0 */
+    { "vmport", "x-read-set-eax", "off" },
+    /* hw_compat_rhel_8_2 from hw_compat_5_0 */
+    { "vmport", "x-signal-unsupported-cmd", "off" },
+    /* hw_compat_rhel_8_2 from hw_compat_5_0 */
+    { "vmport", "x-report-vmx-type", "off" },
+    /* hw_compat_rhel_8_2 from hw_compat_5_0 */
+    { "vmport", "x-cmds-v2", "off" },
+    /* hw_compat_rhel_8_2 from hw_compat_5_0 */
+    { "virtio-device", "x-disable-legacy-check", "true" },
+};
+const size_t hw_compat_rhel_8_2_len = G_N_ELEMENTS(hw_compat_rhel_8_2);
+
+/*
+ * The same as hw_compat_4_1
+ */
+GlobalProperty hw_compat_rhel_8_1[] = {
+    /* hw_compat_rhel_8_1 from hw_compat_4_1 */
+    { "virtio-pci", "x-pcie-flr-init", "off" },
+};
+const size_t hw_compat_rhel_8_1_len = G_N_ELEMENTS(hw_compat_rhel_8_1);
+
+/* The same as hw_compat_3_1
+ * format of array has been changed by:
+ *     6c36bddf5340 ("machine: Use shorter format for GlobalProperty arrays")
+ */
+GlobalProperty hw_compat_rhel_8_0[] = {
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "pcie-root-port", "x-speed", "2_5" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "pcie-root-port", "x-width", "1" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "memory-backend-file", "x-use-canonical-path-for-ramblock-id", "true" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "memory-backend-memfd", "x-use-canonical-path-for-ramblock-id", "true" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "tpm-crb", "ppi", "false" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "tpm-tis", "ppi", "false" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "usb-kbd", "serial", "42" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "usb-mouse", "serial", "42" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "usb-tablet", "serial", "42" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "virtio-blk-device", "discard", "false" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 */
+    { "virtio-blk-device", "write-zeroes", "false" },
+    /* hw_compat_rhel_8_0 from hw_compat_4_0 */
+    { "VGA",            "edid", "false" },
+    /* hw_compat_rhel_8_0 from hw_compat_4_0 */
+    { "secondary-vga",  "edid", "false" },
+    /* hw_compat_rhel_8_0 from hw_compat_4_0 */
+    { "bochs-display",  "edid", "false" },
+    /* hw_compat_rhel_8_0 from hw_compat_4_0 */
+    { "virtio-vga",     "edid", "false" },
+    /* hw_compat_rhel_8_0 from hw_compat_4_0 */
+    { "virtio-gpu-device", "edid", "false" },
+    /* hw_compat_rhel_8_0 from hw_compat_4_0 */
+    { "virtio-device", "use-started", "false" },
+    /* hw_compat_rhel_8_0 from hw_compat_3_1 - that was added in 4.1 */
+    { "pcie-root-port-base", "disable-acs", "true" },
+};
+const size_t hw_compat_rhel_8_0_len = G_N_ELEMENTS(hw_compat_rhel_8_0);
+
+/* The same as hw_compat_3_0 + hw_compat_2_12
+ * except that
+ *   there's nothing in 3_0
+ *   migration.decompress-error-check=off was in 7.5 from bz 1584139
+ */
+GlobalProperty hw_compat_rhel_7_6[] = {
+    /* hw_compat_rhel_7_6 from hw_compat_2_12 */
+    { "hda-audio", "use-timer", "false" },
+    /* hw_compat_rhel_7_6 from hw_compat_2_12 */
+    { "cirrus-vga", "global-vmstate", "true" },
+    /* hw_compat_rhel_7_6 from hw_compat_2_12 */
+    { "VGA", "global-vmstate", "true" },
+    /* hw_compat_rhel_7_6 from hw_compat_2_12 */
+    { "vmware-svga", "global-vmstate", "true" },
+    /* hw_compat_rhel_7_6 from hw_compat_2_12 */
+    { "qxl-vga", "global-vmstate",  "true" },
+};
+const size_t hw_compat_rhel_7_6_len = G_N_ELEMENTS(hw_compat_rhel_7_6);
+
 MachineState *current_machine;
 
 static char *machine_get_kernel(Object *obj, Error **errp)

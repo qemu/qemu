@@ -822,4 +822,47 @@ extern const size_t hw_compat_2_2_len;
 extern GlobalProperty hw_compat_2_1[];
 extern const size_t hw_compat_2_1_len;
 
+extern GlobalProperty hw_compat_rhel_9_5[];
+extern const size_t hw_compat_rhel_9_5_len;
+
+extern GlobalProperty hw_compat_rhel_9_4[];
+extern const size_t hw_compat_rhel_9_4_len;
+
+extern GlobalProperty hw_compat_rhel_9_3[];
+extern const size_t hw_compat_rhel_9_3_len;
+
+extern GlobalProperty hw_compat_rhel_9_2[];
+extern const size_t hw_compat_rhel_9_2_len;
+
+extern GlobalProperty hw_compat_rhel_9_1[];
+extern const size_t hw_compat_rhel_9_1_len;
+
+extern GlobalProperty hw_compat_rhel_9_0[];
+extern const size_t hw_compat_rhel_9_0_len;
+
+extern GlobalProperty hw_compat_rhel_8_6[];
+extern const size_t hw_compat_rhel_8_6_len;
+
+extern GlobalProperty hw_compat_rhel_8_5[];
+extern const size_t hw_compat_rhel_8_5_len;
+
+extern GlobalProperty hw_compat_rhel_8_4[];
+extern const size_t hw_compat_rhel_8_4_len;
+
+extern GlobalProperty hw_compat_rhel_8_3[];
+extern const size_t hw_compat_rhel_8_3_len;
+
+extern GlobalProperty hw_compat_rhel_8_2[];
+extern const size_t hw_compat_rhel_8_2_len;
+
+extern GlobalProperty hw_compat_rhel_8_1[];
+extern const size_t hw_compat_rhel_8_1_len;
+
+extern GlobalProperty hw_compat_rhel_8_0[];
+extern const size_t hw_compat_rhel_8_0_len;
+
+extern GlobalProperty hw_compat_rhel_7_6[];
+extern const size_t hw_compat_rhel_7_6_len;
+
+extern const char *rhel_old_machine_deprecation;
 #endif

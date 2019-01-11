@@ -104,6 +104,33 @@ static int xhci_pci_vmstate_post_load(void *opaque, int version_id)
    return 0;
 }
 
+/* RH bz 1912846 */
+static bool usb_xhci_pci_add_msi(struct PCIDevice *dev, Error **errp)
+{
+    int ret;
+    Error *err = NULL;
+    XHCIPciState *s = XHCI_PCI(dev);
+
+    ret = msi_init(dev, 0x70, s->xhci.numintrs, true, false, &err);
+    /*
+     * Any error other than -ENOTSUP(board's MSI support is broken)
+     * is a programming error
+     */
+    assert(!ret || ret == -ENOTSUP);
+    if (ret && s->msi == ON_OFF_AUTO_ON) {
+        /* Can't satisfy user's explicit msi=on request, fail */
+        error_append_hint(&err, "You have to use msi=auto (default) or "
+                "msi=off with this machine type.\n");
+        error_propagate(errp, err);
+        return true;
+    }
+    assert(!err || s->msi == ON_OFF_AUTO_AUTO);
+    /* With msi=auto, we fall back to MSI off silently */
+    error_free(err);
+
+    return false;
+}
+
 static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
 {
     int ret;
@@ -125,23 +152,12 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
         s->xhci.nec_quirks = true;
     }
 
-    if (s->msi != ON_OFF_AUTO_OFF) {
-        ret = msi_init(dev, 0x70, s->xhci.numintrs, true, false, &err);
-        /*
-         * Any error other than -ENOTSUP(board's MSI support is broken)
-         * is a programming error
-         */
-        assert(!ret || ret == -ENOTSUP);
-        if (ret && s->msi == ON_OFF_AUTO_ON) {
-            /* Can't satisfy user's explicit msi=on request, fail */
-            error_append_hint(&err, "You have to use msi=auto (default) or "
-                    "msi=off with this machine type.\n");
+    if (s->msi != ON_OFF_AUTO_OFF && s->rh_late_msi_cap) {
+        /* This gives the behaviour from 5.2.0 onwards, lspci shows 90,a0,70 */
+        if (usb_xhci_pci_add_msi(dev, &err)) {
             error_propagate(errp, err);
             return;
         }
-        assert(!err || s->msi == ON_OFF_AUTO_AUTO);
-        /* With msi=auto, we fall back to MSI off silently */
-        error_free(err);
     }
     pci_register_bar(dev, 0,
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
@@ -153,6 +169,14 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
         assert(ret > 0);
     }
 
+    /* RH bz 1912846 */
+    if (s->msi != ON_OFF_AUTO_OFF && !s->rh_late_msi_cap) {
+        /* This gives the older RH machine behaviour, lspci shows 90,70,a0 */
+        if (usb_xhci_pci_add_msi(dev, &err)) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
     if (s->msix != ON_OFF_AUTO_OFF) {
         /* TODO check for errors, and should fail when msix=on */
         msix_init(dev, s->xhci.numintrs,
@@ -197,11 +221,18 @@ static void xhci_instance_init(Object *obj)
     qdev_alias_all_properties(DEVICE(&s->xhci), obj);
 }
 
+static Property xhci_pci_properties[] = {
+    /* RH bz 1912846 */
+    DEFINE_PROP_BOOL("x-rh-late-msi-cap", XHCIPciState, rh_late_msi_cap, true),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void xhci_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    device_class_set_props(dc, xhci_pci_properties);
     dc->reset   = xhci_pci_reset;
     dc->vmsd    = &vmstate_xhci_pci;
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
