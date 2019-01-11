@@ -27,10 +27,15 @@ wrote 2097152/2097152 bytes at offset 2097152
 {"return": {}}
 {"return": {}}
 {"return": {}}
+{"error": {"class": "GenericError", "desc": "NBD server not running"}}
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "NBD server already running"}}
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
+{"error": {"class": "GenericError", "desc": "NBD server already has export named 'n'"}}
 {"return": {}}
 {"return": {}}
-{"return": {}}
-{"return": {}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'b2' is enabled"}}
 {"return": {}}
 {"return": {}}
 
@@ -61,6 +66,8 @@ read 2097152/2097152 bytes at offset 2097152
 === End NBD server ===
 
 {"return": {}}
+{"return": {}}
+{"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
 {"return": {}}
 {"return": {}}
 {"return": {}}
