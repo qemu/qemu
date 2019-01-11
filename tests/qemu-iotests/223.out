@@ -35,7 +35,8 @@ wrote 2097152/2097152 bytes at offset 2097152
 {"error": {"class": "GenericError", "desc": "NBD server already has export named 'n'"}}
 {"return": {}}
 {"return": {}}
-{"error": {"class": "GenericError", "desc": "Bitmap 'b2' is enabled"}}
+{"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
+{"return": {}}
 {"return": {}}
 {"return": {}}
 

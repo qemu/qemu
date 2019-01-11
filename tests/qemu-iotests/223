@@ -61,6 +61,8 @@ echo "=== Create partially sparse image, then add dirty bitmaps ==="
 echo
 
 # Two bitmaps, to contrast granularity issues
+# Also note that b will be disabled, while b2 is left enabled, to
+# check for read-only interactions
 _make_test_img -o cluster_size=4k 4M
 $QEMU_IO -c 'w -P 0x11 1M 2M' "$TEST_IMG" | _filter_qemu_io
 run_qemu <<EOF
@@ -134,9 +136,11 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"x-nbd-server-add-bitmap",
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"n", "name":"n2"}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"x-nbd-server-add-bitmap",
-  "arguments":{"name":"n2", "bitmap":"b2"}}' "error" # Attempt enabled bitmap
-_send_qemu_cmd $QEMU_HANDLE '{"execute":"block-dirty-bitmap-disable",
-  "arguments":{"node":"n", "name":"b2"}}' "return"
+  "arguments":{"name":"n2", "bitmap":"b2"}}' "error" # Enabled vs. read-only
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-remove",
+  "arguments":{"name":"n2"}}' "return"
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "name":"n2", "writable":true}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"x-nbd-server-add-bitmap",
   "arguments":{"name":"n2", "bitmap":"b2"}}' "return"
 

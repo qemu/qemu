@@ -2456,8 +2456,11 @@ void nbd_export_bitmap(NBDExport *exp, const char *bitmap,
         return;
     }
 
-    if (bdrv_dirty_bitmap_enabled(bm)) {
-        error_setg(errp, "Bitmap '%s' is enabled", bitmap);
+    if ((exp->nbdflags & NBD_FLAG_READ_ONLY) && bdrv_is_writable(bs) &&
+        bdrv_dirty_bitmap_enabled(bm)) {
+        error_setg(errp,
+                   "Enabled bitmap '%s' incompatible with readonly export",
+                   bitmap);
         return;
     }
 
