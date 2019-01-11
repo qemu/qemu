@@ -182,7 +182,7 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
             /* Also take care of the opt xfer len. */
             stl_be_p(&r->buf[12],
                     MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
-        } else if (s->needs_vpd_bl_emulation && page == 0x00) {
+        } else if (s->needs_vpd_bl_emulation && page == 0x00 && r->buflen >= 4) {
             /*
              * Now we're capable of supplying the VPD Block Limits
              * response if the hardware can't. Add it in the INQUIRY
@@ -193,18 +193,20 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
              * and will use it to proper setup the SCSI device.
              *
              * VPD page numbers must be sorted, so insert 0xb0 at the
-             * right place with an in-place insert.  After the initialization
-             * part of the for loop is executed, the device response is
-             * at r[0] to r[page_idx - 1].
+             * right place with an in-place insert.  When the while loop
+             * begins the device response is at r[0] to r[page_idx - 1].
              */
-            for (page_idx = lduw_be_p(r->buf + 2) + 4;
-                 page_idx > 4 && r->buf[page_idx - 1] >= 0xb0;
-                 page_idx--) {
+            page_idx = lduw_be_p(r->buf + 2) + 4;
+            page_idx = MIN(page_idx, r->buflen);
+            while (page_idx > 4 && r->buf[page_idx - 1] >= 0xb0) {
                 if (page_idx < r->buflen) {
                     r->buf[page_idx] = r->buf[page_idx - 1];
                 }
+                page_idx--;
             }
-            r->buf[page_idx] = 0xb0;
+            if (page_idx < r->buflen) {
+                r->buf[page_idx] = 0xb0;
+            }
             stw_be_p(r->buf + 2, lduw_be_p(r->buf + 2) + 1);
         }
     }
