@@ -163,21 +163,9 @@ static void xen_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     static GlobalProperty compat[] = {
-        {
-            .driver = "migration",
-            .property = "store-global-state",
-            .value = "off",
-        },
-        {
-            .driver = "migration",
-            .property = "send-configuration",
-            .value = "off",
-        },
-        {
-            .driver = "migration",
-            .property = "send-section-footer",
-            .value = "off",
-        }
+        { "migration", "store-global-state", "off" },
+        { "migration", "send-configuration", "off" },
+        { "migration", "send-section-footer", "off" },
     };
 
     ac->name = "Xen";

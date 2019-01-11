@@ -975,10 +975,13 @@ void object_apply_compat_props(Object *obj)
     if (object_dynamic_cast(qdev_get_machine(), TYPE_MACHINE)) {
         MachineState *m = MACHINE(qdev_get_machine());
         MachineClass *mc = MACHINE_GET_CLASS(m);
-        AccelClass *ac = ACCEL_GET_CLASS(m->accelerator);
 
-        if (ac->compat_props) {
-            object_apply_global_props(obj, ac->compat_props, &error_abort);
+        if (m->accelerator) {
+            AccelClass *ac = ACCEL_GET_CLASS(m->accelerator);
+
+            if (ac->compat_props) {
+                object_apply_global_props(obj, ac->compat_props, &error_abort);
+            }
         }
         object_apply_global_props(obj, mc->compat_props, &error_abort);
     }

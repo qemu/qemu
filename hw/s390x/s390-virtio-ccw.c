@@ -712,11 +712,7 @@ static void ccw_machine_2_11_instance_options(MachineState *machine)
 static void ccw_machine_2_11_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        {
-            .driver   = TYPE_SCLP_EVENT_FACILITY,
-            .property = "allow_all_mask_sizes",
-            .value    = "off",
-        },
+        { TYPE_SCLP_EVENT_FACILITY, "allow_all_mask_sizes", "off", },
     };
 
     ccw_machine_2_12_class_options(mc);
@@ -751,11 +747,7 @@ static void ccw_machine_2_9_class_options(MachineClass *mc)
 {
     S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        {
-            .driver   = TYPE_S390_STATTRIB,
-            .property = "migration-enabled",
-            .value    = "off",
-        },
+        { TYPE_S390_STATTRIB, "migration-enabled", "off", },
     };
 
     ccw_machine_2_10_class_options(mc);
@@ -773,11 +765,7 @@ static void ccw_machine_2_8_instance_options(MachineState *machine)
 static void ccw_machine_2_8_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        {
-            .driver   = TYPE_S390_FLIC_COMMON,
-            .property = "adapter_routes_max_batch",
-            .value    = "64",
-        },
+        { TYPE_S390_FLIC_COMMON, "adapter_routes_max_batch", "64", },
     };
 
     ccw_machine_2_9_class_options(mc);
@@ -810,15 +798,8 @@ static void ccw_machine_2_6_class_options(MachineClass *mc)
 {
     S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
-        {
-            .driver   = TYPE_S390_IPL,
-            .property = "iplbext_migration",
-            .value    = "off",
-        }, {
-            .driver   = TYPE_VIRTUAL_CSS_BRIDGE,
-            .property = "css_dev_path",
-            .value    = "off",
-        },
+        { TYPE_S390_IPL, "iplbext_migration", "off", },
+         { TYPE_VIRTUAL_CSS_BRIDGE, "css_dev_path", "off", },
     };
 
     s390mc->ri_allowed = false;
@@ -848,43 +829,15 @@ static void ccw_machine_2_4_instance_options(MachineState *machine)
 static void ccw_machine_2_4_class_options(MachineClass *mc)
 {
     static GlobalProperty compat[] = {
-        {
-            .driver   = TYPE_S390_SKEYS,
-            .property = "migration-enabled",
-            .value    = "off",
-        },{
-            .driver   = "virtio-blk-ccw",
-            .property = "max_revision",
-            .value    = "0",
-        },{
-            .driver   = "virtio-balloon-ccw",
-            .property = "max_revision",
-            .value    = "0",
-        },{
-            .driver   = "virtio-serial-ccw",
-            .property = "max_revision",
-            .value    = "0",
-        },{
-            .driver   = "virtio-9p-ccw",
-            .property = "max_revision",
-            .value    = "0",
-        },{
-            .driver   = "virtio-rng-ccw",
-            .property = "max_revision",
-            .value    = "0",
-        },{
-            .driver   = "virtio-net-ccw",
-            .property = "max_revision",
-            .value    = "0",
-        },{
-            .driver   = "virtio-scsi-ccw",
-            .property = "max_revision",
-            .value    = "0",
-        },{
-            .driver   = "vhost-scsi-ccw",
-            .property = "max_revision",
-            .value    = "0",
-        },
+        { TYPE_S390_SKEYS, "migration-enabled", "off", },
+        { "virtio-blk-ccw", "max_revision", "0", },
+        { "virtio-balloon-ccw", "max_revision", "0", },
+        { "virtio-serial-ccw", "max_revision", "0", },
+        { "virtio-9p-ccw", "max_revision", "0", },
+        { "virtio-rng-ccw", "max_revision", "0", },
+        { "virtio-net-ccw", "max_revision", "0", },
+        { "virtio-scsi-ccw", "max_revision", "0", },
+        { "vhost-scsi-ccw", "max_revision", "0", },
     };
 
     ccw_machine_2_5_class_options(mc);
