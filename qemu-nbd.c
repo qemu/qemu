@@ -61,7 +61,7 @@
 
 #define MBR_SIZE 512
 
-static NBDExport *exp;
+static NBDExport *export;
 static int verbose;
 static char *srcpath;
 static SocketAddress *saddr;
@@ -335,7 +335,7 @@ static int nbd_can_accept(void)
     return state == RUNNING && nb_fds < shared;
 }
 
-static void nbd_export_closed(NBDExport *exp)
+static void nbd_export_closed(NBDExport *export)
 {
     assert(state == TERMINATING);
     state = TERMINATED;
@@ -1015,10 +1015,11 @@ int main(int argc, char **argv)
         }
     }
 
-    exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags, nbd_export_closed,
-                         writethrough, NULL, &error_fatal);
-    nbd_export_set_name(exp, export_name);
-    nbd_export_set_description(exp, export_description);
+    export = nbd_export_new(bs, dev_offset, fd_size, nbdflags,
+                            nbd_export_closed, writethrough,
+                            NULL, &error_fatal);
+    nbd_export_set_name(export, export_name);
+    nbd_export_set_description(export, export_description);
 
     if (device) {
 #if HAVE_NBD_DEVICE
@@ -1055,9 +1056,9 @@ int main(int argc, char **argv)
         main_loop_wait(false);
         if (state == TERMINATE) {
             state = TERMINATING;
-            nbd_export_close(exp);
-            nbd_export_put(exp);
-            exp = NULL;
+            nbd_export_close(export);
+            nbd_export_put(export);
+            export = NULL;
         }
     } while (state != TERMINATED);
 
