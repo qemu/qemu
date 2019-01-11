@@ -126,23 +126,20 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
   "arguments":{"addr":{"type":"unix",
     "data":{"path":"'"$TEST_DIR/nbd"1'"}}}}' "error" # Attempt second server
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
-  "arguments":{"device":"n"}}' "return"
+  "arguments":{"device":"n", "bitmap":"b"}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"nosuch"}}' "error" # Attempt to export missing node
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"n"}}' "error" # Attempt to export same name twice
-_send_qemu_cmd $QEMU_HANDLE '{"execute":"x-nbd-server-add-bitmap",
-  "arguments":{"name":"n", "bitmap":"b"}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
-  "arguments":{"device":"n", "name":"n2"}}' "return"
-_send_qemu_cmd $QEMU_HANDLE '{"execute":"x-nbd-server-add-bitmap",
-  "arguments":{"name":"n2", "bitmap":"b2"}}' "error" # Enabled vs. read-only
-_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-remove",
-  "arguments":{"name":"n2"}}' "return"
+  "arguments":{"device":"n", "name":"n2",
+  "bitmap":"b2"}}' "error" # enabled vs. read-only
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
-  "arguments":{"device":"n", "name":"n2", "writable":true}}' "return"
-_send_qemu_cmd $QEMU_HANDLE '{"execute":"x-nbd-server-add-bitmap",
-  "arguments":{"name":"n2", "bitmap":"b2"}}' "return"
+  "arguments":{"device":"n", "name":"n2",
+  "bitmap":"b3"}}' "error" # Missing bitmap
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "name":"n2", "writable":true,
+  "bitmap":"b2"}}' "return"
 
 echo
 echo "=== Contrast normal status to large granularity dirty-bitmap ==="

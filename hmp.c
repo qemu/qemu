@@ -2326,7 +2326,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
         }
 
         qmp_nbd_server_add(info->value->device, false, NULL,
-                           true, writable, &local_err);
+                           true, writable, false, NULL, &local_err);
 
         if (local_err != NULL) {
             qmp_nbd_server_stop(NULL);
@@ -2347,7 +2347,8 @@ void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
     bool writable = qdict_get_try_bool(qdict, "writable", false);
     Error *local_err = NULL;
 
-    qmp_nbd_server_add(device, !!name, name, true, writable, &local_err);
+    qmp_nbd_server_add(device, !!name, name, true, writable,
+                       false, NULL, &local_err);
     hmp_handle_error(mon, &local_err);
 }
 

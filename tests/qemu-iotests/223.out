@@ -33,11 +33,8 @@ wrote 2097152/2097152 bytes at offset 2097152
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
 {"error": {"class": "GenericError", "desc": "NBD server already has export named 'n'"}}
-{"return": {}}
-{"return": {}}
 {"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
-{"return": {}}
-{"return": {}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'b3' is not found"}}
 {"return": {}}
 
 === Contrast normal status to large granularity dirty-bitmap ===

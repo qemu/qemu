@@ -140,7 +140,8 @@ void qmp_nbd_server_start(SocketAddressLegacy *addr,
 }
 
 void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
-                        bool has_writable, bool writable, Error **errp)
+                        bool has_writable, bool writable,
+                        bool has_bitmap, const char *bitmap, Error **errp)
 {
     BlockDriverState *bs = NULL;
     BlockBackend *on_eject_blk;
@@ -185,6 +186,15 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
      * our only way of accessing it is through nbd_export_find(), so we can drop
      * the strong reference that is @exp. */
     nbd_export_put(exp);
+
+    if (has_bitmap) {
+        Error *err = NULL;
+        nbd_export_bitmap(exp, bitmap, bitmap, &err);
+        if (err) {
+            error_propagate(errp, err);
+            nbd_export_remove(exp, NBD_SERVER_REMOVE_MODE_HARD, NULL);
+        }
+    }
 }
 
 void qmp_nbd_server_remove(const char *name,
