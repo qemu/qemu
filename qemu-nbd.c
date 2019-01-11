@@ -1016,8 +1016,9 @@ int main(int argc, char **argv)
     }
 
     export = nbd_export_new(bs, dev_offset, fd_size, export_name,
-                            export_description, nbdflags, nbd_export_closed,
-                            writethrough, NULL, &error_fatal);
+                            export_description, NULL, nbdflags,
+                            nbd_export_closed, writethrough, NULL,
+                            &error_fatal);
 
     if (device) {
 #if HAVE_NBD_DEVICE

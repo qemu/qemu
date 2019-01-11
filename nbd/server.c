@@ -1457,9 +1457,9 @@ static void nbd_eject_notifier(Notifier *n, void *data)
 
 NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
                           const char *name, const char *description,
-                          uint16_t nbdflags, void (*close)(NBDExport *),
-                          bool writethrough, BlockBackend *on_eject_blk,
-                          Error **errp)
+                          const char *bitmap, uint16_t nbdflags,
+                          void (*close)(NBDExport *), bool writethrough,
+                          BlockBackend *on_eject_blk, Error **errp)
 {
     AioContext *ctx;
     BlockBackend *blk;
@@ -1506,6 +1506,43 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
         goto fail;
     }
     exp->size -= exp->size % BDRV_SECTOR_SIZE;
+
+    if (bitmap) {
+        BdrvDirtyBitmap *bm = NULL;
+        BlockDriverState *bs = blk_bs(blk);
+
+        while (true) {
+            bm = bdrv_find_dirty_bitmap(bs, bitmap);
+            if (bm != NULL || bs->backing == NULL) {
+                break;
+            }
+
+            bs = bs->backing->bs;
+        }
+
+        if (bm == NULL) {
+            error_setg(errp, "Bitmap '%s' is not found", bitmap);
+            goto fail;
+        }
+
+        if ((nbdflags & NBD_FLAG_READ_ONLY) && bdrv_is_writable(bs) &&
+            bdrv_dirty_bitmap_enabled(bm)) {
+            error_setg(errp,
+                       "Enabled bitmap '%s' incompatible with readonly export",
+                       bitmap);
+            goto fail;
+        }
+
+        if (bdrv_dirty_bitmap_user_locked(bm)) {
+            error_setg(errp, "Bitmap '%s' is in use", bitmap);
+            goto fail;
+        }
+
+        bdrv_dirty_bitmap_set_qmp_locked(bm, true);
+        exp->export_bitmap = bm;
+        exp->export_bitmap_context = g_strdup_printf("qemu:dirty-bitmap:%s",
+                                                     bitmap);
+    }
 
     exp->close = close;
     exp->ctx = blk_get_aio_context(blk);
@@ -2423,48 +2460,4 @@ void nbd_client_new(QIOChannelSocket *sioc,
 
     co = qemu_coroutine_create(nbd_co_client_start, client);
     qemu_coroutine_enter(co);
-}
-
-void nbd_export_bitmap(NBDExport *exp, const char *bitmap,
-                       const char *bitmap_export_name, Error **errp)
-{
-    BdrvDirtyBitmap *bm = NULL;
-    BlockDriverState *bs = blk_bs(exp->blk);
-
-    if (exp->export_bitmap) {
-        error_setg(errp, "Export bitmap is already set");
-        return;
-    }
-
-    while (true) {
-        bm = bdrv_find_dirty_bitmap(bs, bitmap);
-        if (bm != NULL || bs->backing == NULL) {
-            break;
-        }
-
-        bs = bs->backing->bs;
-    }
-
-    if (bm == NULL) {
-        error_setg(errp, "Bitmap '%s' is not found", bitmap);
-        return;
-    }
-
-    if ((exp->nbdflags & NBD_FLAG_READ_ONLY) && bdrv_is_writable(bs) &&
-        bdrv_dirty_bitmap_enabled(bm)) {
-        error_setg(errp,
-                   "Enabled bitmap '%s' incompatible with readonly export",
-                   bitmap);
-        return;
-    }
-
-    if (bdrv_dirty_bitmap_user_locked(bm)) {
-        error_setg(errp, "Bitmap '%s' is in use", bitmap);
-        return;
-    }
-
-    bdrv_dirty_bitmap_set_qmp_locked(bm, true);
-    exp->export_bitmap = bm;
-    exp->export_bitmap_context =
-            g_strdup_printf("qemu:dirty-bitmap:%s", bitmap_export_name);
 }
