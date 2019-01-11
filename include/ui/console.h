@@ -131,7 +131,7 @@ struct PixelFormat {
     uint8_t rbits, gbits, bbits, abits;
 };
 
-struct DisplaySurface {
+typedef struct DisplaySurface {
     pixman_format_code_t format;
     pixman_image_t *image;
     uint8_t flags;
@@ -140,7 +140,7 @@ struct DisplaySurface {
     GLenum gltype;
     GLuint texture;
 #endif
-};
+} DisplaySurface;
 
 typedef struct QemuUIInfo {
     /* geometry */
@@ -188,6 +188,8 @@ typedef struct QemuDmaBuf {
     uint32_t  texture;
     bool      y0_top;
 } QemuDmaBuf;
+
+typedef struct DisplayState DisplayState;
 
 typedef struct DisplayChangeListenerOps {
     const char *dpy_name;
