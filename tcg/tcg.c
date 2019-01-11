@@ -2319,7 +2319,7 @@ static void reachable_code_pass(TCGContext *s)
                  * wait until the dead code in between them was removed.
                  */
                 if (label->refs == 1) {
-                    TCGOp *op_prev = QTAILQ_PREV(op, TCGOpHead, link);
+                    TCGOp *op_prev = QTAILQ_PREV(op, link);
                     if (op_prev->opc == INDEX_op_br &&
                         label == arg_label(op_prev->args[0])) {
                         tcg_op_remove(s, op_prev);
@@ -2481,7 +2481,7 @@ static void liveness_pass_1(TCGContext *s)
     /* ??? Should be redundant with the exit_tb that ends the TB.  */
     la_func_end(s, nb_globals, nb_temps);
 
-    QTAILQ_FOREACH_REVERSE_SAFE(op, &s->ops, TCGOpHead, link, op_prev) {
+    QTAILQ_FOREACH_REVERSE_SAFE(op, &s->ops, link, op_prev) {
         int nb_iargs, nb_oargs;
         TCGOpcode opc_new, opc_new2;
         bool have_opc_new2;

@@ -575,16 +575,16 @@ int64_t ide_get_sector(IDEState *s)
     int64_t sector_num;
     if (s->select & 0x40) {
         /* lba */
-	if (!s->lba48) {
-	    sector_num = ((s->select & 0x0f) << 24) | (s->hcyl << 16) |
-		(s->lcyl << 8) | s->sector;
-	} else {
-	    sector_num = ((int64_t)s->hob_hcyl << 40) |
-		((int64_t) s->hob_lcyl << 32) |
-		((int64_t) s->hob_sector << 24) |
-		((int64_t) s->hcyl << 16) |
-		((int64_t) s->lcyl << 8) | s->sector;
-	}
+        if (!s->lba48) {
+            sector_num = ((s->select & 0x0f) << 24) | (s->hcyl << 16) |
+                (s->lcyl << 8) | s->sector;
+        } else {
+            sector_num = ((int64_t)s->hob_hcyl << 40) |
+                ((int64_t) s->hob_lcyl << 32) |
+                ((int64_t) s->hob_sector << 24) |
+                ((int64_t) s->hcyl << 16) |
+                ((int64_t) s->lcyl << 8) | s->sector;
+        }
     } else {
         sector_num = ((s->hcyl << 8) | s->lcyl) * s->heads * s->sectors +
             (s->select & 0x0f) * s->sectors + (s->sector - 1);
@@ -596,19 +596,19 @@ void ide_set_sector(IDEState *s, int64_t sector_num)
 {
     unsigned int cyl, r;
     if (s->select & 0x40) {
-	if (!s->lba48) {
+        if (!s->lba48) {
             s->select = (s->select & 0xf0) | (sector_num >> 24);
             s->hcyl = (sector_num >> 16);
             s->lcyl = (sector_num >> 8);
             s->sector = (sector_num);
-	} else {
-	    s->sector = sector_num;
-	    s->lcyl = sector_num >> 8;
-	    s->hcyl = sector_num >> 16;
-	    s->hob_sector = sector_num >> 24;
-	    s->hob_lcyl = sector_num >> 32;
-	    s->hob_hcyl = sector_num >> 40;
-	}
+        } else {
+            s->sector = sector_num;
+            s->lcyl = sector_num >> 8;
+            s->hcyl = sector_num >> 16;
+            s->hob_sector = sector_num >> 24;
+            s->hob_lcyl = sector_num >> 32;
+            s->hob_hcyl = sector_num >> 40;
+        }
     } else {
         cyl = sector_num / (s->heads * s->sectors);
         r = sector_num % (s->heads * s->sectors);
@@ -1188,17 +1188,17 @@ static void ide_cmd_lba48_transform(IDEState *s, int lba48)
      * full sector count in ->nsector and ignore ->hob_nsector from now
      */
     if (!s->lba48) {
-	if (!s->nsector)
-	    s->nsector = 256;
+        if (!s->nsector)
+            s->nsector = 256;
     } else {
-	if (!s->nsector && !s->hob_nsector)
-	    s->nsector = 65536;
-	else {
-	    int lo = s->nsector;
-	    int hi = s->hob_nsector;
+        if (!s->nsector && !s->hob_nsector)
+            s->nsector = 65536;
+        else {
+            int lo = s->nsector;
+            int hi = s->hob_nsector;
 
-	    s->nsector = (hi << 8) | lo;
-	}
+            s->nsector = (hi << 8) | lo;
+        }
     }
 }
 
@@ -1258,35 +1258,35 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         bus->ifs[1].feature = val;
         break;
     case ATA_IOPORT_WR_SECTOR_COUNT:
-	ide_clear_hob(bus);
-	bus->ifs[0].hob_nsector = bus->ifs[0].nsector;
-	bus->ifs[1].hob_nsector = bus->ifs[1].nsector;
+        ide_clear_hob(bus);
+        bus->ifs[0].hob_nsector = bus->ifs[0].nsector;
+        bus->ifs[1].hob_nsector = bus->ifs[1].nsector;
         bus->ifs[0].nsector = val;
         bus->ifs[1].nsector = val;
         break;
     case ATA_IOPORT_WR_SECTOR_NUMBER:
-	ide_clear_hob(bus);
-	bus->ifs[0].hob_sector = bus->ifs[0].sector;
-	bus->ifs[1].hob_sector = bus->ifs[1].sector;
+        ide_clear_hob(bus);
+        bus->ifs[0].hob_sector = bus->ifs[0].sector;
+        bus->ifs[1].hob_sector = bus->ifs[1].sector;
         bus->ifs[0].sector = val;
         bus->ifs[1].sector = val;
         break;
     case ATA_IOPORT_WR_CYLINDER_LOW:
-	ide_clear_hob(bus);
-	bus->ifs[0].hob_lcyl = bus->ifs[0].lcyl;
-	bus->ifs[1].hob_lcyl = bus->ifs[1].lcyl;
+        ide_clear_hob(bus);
+        bus->ifs[0].hob_lcyl = bus->ifs[0].lcyl;
+        bus->ifs[1].hob_lcyl = bus->ifs[1].lcyl;
         bus->ifs[0].lcyl = val;
         bus->ifs[1].lcyl = val;
         break;
     case ATA_IOPORT_WR_CYLINDER_HIGH:
-	ide_clear_hob(bus);
-	bus->ifs[0].hob_hcyl = bus->ifs[0].hcyl;
-	bus->ifs[1].hob_hcyl = bus->ifs[1].hcyl;
+        ide_clear_hob(bus);
+        bus->ifs[0].hob_hcyl = bus->ifs[0].hcyl;
+        bus->ifs[1].hob_hcyl = bus->ifs[1].hcyl;
         bus->ifs[0].hcyl = val;
         bus->ifs[1].hcyl = val;
         break;
     case ATA_IOPORT_WR_DEVICE_HEAD:
-	/* FIXME: HOB readback uses bit 7 */
+        /* FIXME: HOB readback uses bit 7 */
         bus->ifs[0].select = (val & ~0x10) | 0xa0;
         bus->ifs[1].select = (val | 0x10) | 0xa0;
         /* select drive */
@@ -2146,7 +2146,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr)
         } else if (!hob) {
             ret = s->error;
         } else {
-	    ret = s->hob_feature;
+            ret = s->hob_feature;
         }
         break;
     case ATA_IOPORT_RR_SECTOR_COUNT:
@@ -2155,7 +2155,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr)
         } else if (!hob) {
             ret = s->nsector & 0xff;
         } else {
-	    ret = s->hob_nsector;
+            ret = s->hob_nsector;
         }
         break;
     case ATA_IOPORT_RR_SECTOR_NUMBER:
@@ -2164,7 +2164,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr)
         } else if (!hob) {
             ret = s->sector;
         } else {
-	    ret = s->hob_sector;
+            ret = s->hob_sector;
         }
         break;
     case ATA_IOPORT_RR_CYLINDER_LOW:
@@ -2173,7 +2173,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr)
         } else if (!hob) {
             ret = s->lcyl;
         } else {
-	    ret = s->hob_lcyl;
+            ret = s->hob_lcyl;
         }
         break;
     case ATA_IOPORT_RR_CYLINDER_HIGH:
@@ -2182,7 +2182,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr)
         } else if (!hob) {
             ret = s->hcyl;
         } else {
-	    ret = s->hob_hcyl;
+            ret = s->hob_hcyl;
         }
         break;
     case ATA_IOPORT_RR_DEVICE_HEAD:
@@ -2847,7 +2847,7 @@ static const VMStateDescription vmstate_ide_drive_pio_state = {
     .fields = (VMStateField[]) {
         VMSTATE_INT32(req_nb_sectors, IDEState),
         VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 1,
-			     vmstate_info_uint8, uint8_t),
+                             vmstate_info_uint8, uint8_t),
         VMSTATE_INT32(cur_io_buffer_offset, IDEState),
         VMSTATE_INT32(cur_io_buffer_len, IDEState),
         VMSTATE_UINT8(end_transfer_fn_idx, IDEState),

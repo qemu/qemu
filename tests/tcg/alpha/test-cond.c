@@ -6,7 +6,7 @@
 int test_##N (long a)				\
 {						\
   int res = 1;					\
-						\
+                                                \
   asm ("cmov"#N" %1,$31,%0"			\
        : "+r" (res) : "r" (a));			\
   return !res;					\
@@ -18,7 +18,7 @@ int test_##N (long a)				\
 int test_##N (long a)				\
 {						\
   int res = 1;					\
-						\
+                                                \
   asm ("b"#N" %1,1f\n\t"			\
        "addq $31,$31,%0\n\t"			\
        "1: unop\n"				\

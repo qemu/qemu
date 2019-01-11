@@ -3097,8 +3097,8 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     buffer_init(&vs->zrle.zlib,      "vnc-zrle-zlib/%p", sioc);
 
     if (skipauth) {
-	vs->auth = VNC_AUTH_NONE;
-	vs->subauth = VNC_AUTH_INVALID;
+        vs->auth = VNC_AUTH_NONE;
+        vs->subauth = VNC_AUTH_INVALID;
     } else {
         if (websocket) {
             vs->auth = vd->ws_auth;

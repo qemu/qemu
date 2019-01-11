@@ -47,7 +47,7 @@ static const uint8_t special_ethaddr[ETH_ALEN] = {
 
 u_int curtime;
 
-static QTAILQ_HEAD(slirp_instances, Slirp) slirp_instances =
+static QTAILQ_HEAD(, Slirp) slirp_instances =
     QTAILQ_HEAD_INITIALIZER(slirp_instances);
 
 static struct in_addr dns_addr;

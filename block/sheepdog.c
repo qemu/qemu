@@ -391,12 +391,12 @@ struct BDRVSheepdogState {
     uint32_t aioreq_seq_num;
 
     /* Every aio request must be linked to either of these queues. */
-    QLIST_HEAD(inflight_aio_head, AIOReq) inflight_aio_head;
-    QLIST_HEAD(failed_aio_head, AIOReq) failed_aio_head;
+    QLIST_HEAD(, AIOReq) inflight_aio_head;
+    QLIST_HEAD(, AIOReq) failed_aio_head;
 
     CoMutex queue_lock;
     CoQueue overlapping_queue;
-    QLIST_HEAD(inflight_aiocb_head, SheepdogAIOCB) inflight_aiocb_head;
+    QLIST_HEAD(, SheepdogAIOCB) inflight_aiocb_head;
 };
 
 typedef struct BDRVSheepdogReopenState {

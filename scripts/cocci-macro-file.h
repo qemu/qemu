@@ -92,29 +92,19 @@ struct {                                                                \
 /*
  * Tail queue definitions.
  */
-#define Q_TAILQ_HEAD(name, type, qual)                                  \
-struct name {                                                           \
-        qual type *tqh_first;           /* first element */             \
-        qual type *qual *tqh_last;      /* addr of last next element */ \
-}
 #define QTAILQ_HEAD(name, type)                                         \
-struct name {                                                           \
-        type *tqh_first;      /* first element */                       \
-        type **tqh_last;      /* addr of last next element */           \
+union name {                                                            \
+        struct type *tqh_first;       /* first element */               \
+        QTailQLink tqh_circ;          /* link for last element */       \
 }
 
 #define QTAILQ_HEAD_INITIALIZER(head)                                   \
-        { NULL, &(head).tqh_first }
+        { .tqh_circ = { NULL, &(head).tqh_circ } }
 
-#define Q_TAILQ_ENTRY(type, qual)                                       \
-struct {                                                                \
-        qual type *tqe_next;            /* next element */              \
-        qual type *qual *tqe_prev;      /* address of previous next element */\
-}
 #define QTAILQ_ENTRY(type)                                              \
-struct {                                                                \
-        type *tqe_next;       /* next element */                        \
-        type **tqe_prev;      /* address of previous next element */    \
+union {                                                                 \
+        struct type *tqe_next;        /* next element */                \
+        QTailQLink tqe_circ;          /* link for prev element */       \
 }
 
 /* From glib */

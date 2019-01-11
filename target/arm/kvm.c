@@ -206,7 +206,7 @@ typedef struct KVMDevice {
     int dev_fd;
 } KVMDevice;
 
-static QSLIST_HEAD(kvm_devices_head, KVMDevice) kvm_devices_head;
+static QSLIST_HEAD(, KVMDevice) kvm_devices_head;
 
 static void kvm_arm_devlistener_add(MemoryListener *listener,
                                     MemoryRegionSection *section)

@@ -44,8 +44,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* Change Log:
      V0.02 : 2008/02/04 : Fix mis encode/decode when width != scanline
-	                     (Thanks Johannes Schindelin, author of LibVNC
-						  Server/Client)
+                             (Thanks Johannes Schindelin, author of LibVNC
+                                                  Server/Client)
      V0.01 : 2007/02/06 : Initial release
 */
 

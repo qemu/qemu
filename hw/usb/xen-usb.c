@@ -72,7 +72,7 @@ struct usbback_stub {
     USBPort       port;
     unsigned int  speed;
     bool          attached;
-    QTAILQ_HEAD(submit_q_head, usbback_req) submit_q;
+    QTAILQ_HEAD(, usbback_req) submit_q;
 };
 
 struct usbback_req {
@@ -108,8 +108,8 @@ struct usbback_info {
     int                      num_ports;
     int                      usb_ver;
     bool                     ring_error;
-    QTAILQ_HEAD(req_free_q_head, usbback_req) req_free_q;
-    QSIMPLEQ_HEAD(hotplug_q_head, usbback_hotplug) hotplug_q;
+    QTAILQ_HEAD(, usbback_req) req_free_q;
+    QSIMPLEQ_HEAD(, usbback_hotplug) hotplug_q;
     struct usbback_stub      ports[USBBACK_MAXPORTS];
     struct usbback_stub      *addr_table[USB_DEV_ADDR_SIZE];
     QEMUBH                   *bh;

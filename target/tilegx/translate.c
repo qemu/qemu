@@ -297,7 +297,7 @@ static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
     }
 
     tcg_gen_qemu_st_tl(load_gr(dc, srcb), load_gr(dc, srca),
-		       dc->mmuidx, memop);
+                       dc->mmuidx, memop);
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", name,
                   reg_names[srca], reg_names[srcb]);

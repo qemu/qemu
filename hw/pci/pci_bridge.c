@@ -369,7 +369,7 @@ void pci_bridge_initfn(PCIDevice *dev, const char *typename)
      * let users address the bus using the device name.
      */
     if (!br->bus_name && dev->qdev.id && *dev->qdev.id) {
-	    br->bus_name = dev->qdev.id;
+            br->bus_name = dev->qdev.id;
     }
 
     qbus_create_inplace(sec_bus, sizeof(br->sec_bus), typename, DEVICE(dev),

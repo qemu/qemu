@@ -12,10 +12,10 @@ obj-$(call lnot,$(CONFIG_HYPERV)) += hyperv-stub.o
 ifeq ($(CONFIG_WIN32),y)
 obj-$(CONFIG_HAX) += hax-all.o hax-mem.o hax-windows.o
 endif
-ifeq ($(CONFIG_DARWIN),y)
-obj-$(CONFIG_HAX) += hax-all.o hax-mem.o hax-darwin.o
-obj-$(CONFIG_HVF) += hvf/
+ifeq ($(CONFIG_POSIX),y)
+obj-$(CONFIG_HAX) += hax-all.o hax-mem.o hax-posix.o
 endif
+obj-$(CONFIG_HVF) += hvf/
 obj-$(CONFIG_WHPX) += whpx-all.o
 endif
 obj-$(CONFIG_SEV) += sev.o

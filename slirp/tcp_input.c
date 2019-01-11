@@ -74,7 +74,7 @@
                if (so->so_emu) { \
 		       if (tcp_emu((so),(m))) sbappend((so), (m)); \
 	       } else \
-	       	       sbappend((so), (m)); \
+		       sbappend((so), (m)); \
 	} else {\
                (flags) = tcp_reass((tp), (ti), (m)); \
                tp->t_flags |= TF_ACKNOW; \
@@ -1175,7 +1175,7 @@ trimthenstep6:
 			}
 			break;
 
-	 	/*
+		/*
 		 * In CLOSING STATE in addition to the processing for
 		 * the ESTABLISHED state if the ACK acknowledges our FIN
 		 * then enter the TIME-WAIT state, otherwise ignore
@@ -1325,7 +1325,7 @@ dodata:
 		}
 		switch (tp->t_state) {
 
-	 	/*
+		/*
 		 * In SYN_RECEIVED and ESTABLISHED STATES
 		 * enter the CLOSE_WAIT state.
 		 */
@@ -1337,7 +1337,7 @@ dodata:
 		    tp->t_state = TCPS_CLOSE_WAIT;
 		  break;
 
-	 	/*
+		/*
 		 * If still in FIN_WAIT_1 STATE FIN has not been acked so
 		 * enter the CLOSING state.
 		 */
@@ -1345,7 +1345,7 @@ dodata:
 			tp->t_state = TCPS_CLOSING;
 			break;
 
-	 	/*
+		/*
 		 * In FIN_WAIT_2 state enter the TIME_WAIT state,
 		 * starting the time-wait timer, turning off the other
 		 * standard timers.

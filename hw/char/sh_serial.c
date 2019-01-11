@@ -90,7 +90,7 @@ static void sh_serial_write(void *opaque, hwaddr offs,
 
 #ifdef DEBUG_SERIAL
     printf("sh_serial: write offs=0x%02x val=0x%02x\n",
-	   offs, val);
+           offs, val);
 #endif
     switch(offs) {
     case 0x00: /* SMR */
@@ -98,17 +98,17 @@ static void sh_serial_write(void *opaque, hwaddr offs,
         return;
     case 0x04: /* BRR */
         s->brr = val;
-	return;
+        return;
     case 0x08: /* SCR */
         /* TODO : For SH7751, SCIF mask should be 0xfb. */
         s->scr = val & ((s->feat & SH_SERIAL_FEAT_SCIF) ? 0xfa : 0xff);
         if (!(val & (1 << 5)))
             s->flags |= SH_SERIAL_FLAG_TEND;
         if ((s->feat & SH_SERIAL_FEAT_SCIF) && s->txi) {
-	    qemu_set_irq(s->txi, val & (1 << 7));
+            qemu_set_irq(s->txi, val & (1 << 7));
         }
         if (!(val & (1 << 6))) {
-	    qemu_set_irq(s->rxi, 0);
+            qemu_set_irq(s->rxi, 0);
         }
         return;
     case 0x0c: /* FTDR / TDR */
@@ -117,9 +117,9 @@ static void sh_serial_write(void *opaque, hwaddr offs,
             /* XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks */
             qemu_chr_fe_write_all(&s->chr, &ch, 1);
-	}
-	s->dr = val;
-	s->flags &= ~SH_SERIAL_FLAG_TDE;
+        }
+        s->dr = val;
+        s->flags &= ~SH_SERIAL_FLAG_TDE;
         return;
 #if 0
     case 0x14: /* FRDR / RDR */
@@ -210,7 +210,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
         break;
     case 0x04:
         ret = s->brr;
-	break;
+        break;
     case 0x08:
         ret = s->scr;
         break;
@@ -288,7 +288,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
     }
 #ifdef DEBUG_SERIAL
     printf("sh_serial: read offs=0x%02x val=0x%x\n",
-	   offs, ret);
+           offs, ret);
 #endif
 
     if (ret & ~((1 << 16) - 1)) {

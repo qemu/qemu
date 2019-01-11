@@ -50,7 +50,7 @@ struct image_info {
         abi_ulong       env_strings;
         abi_ulong       file_string;
         uint32_t        elf_flags;
-	int		personality;
+        int		personality;
         abi_ulong       alignment;
 
         /* The fields below are used in FDPIC mode.  */
@@ -174,7 +174,7 @@ extern unsigned long mmap_min_addr;
 struct linux_binprm {
         char buf[BPRM_BUF_SIZE] __attribute__((aligned));
         abi_ulong p;
-	int fd;
+        int fd;
         int e_uid, e_gid;
         int argc, envc;
         char **argv;

@@ -19,7 +19,7 @@ int main (int argc, char *argv[])
     {
       fnam = malloc (strlen (argv[0]) + 2);
       if (fnam == NULL)
-	abort ();
+        abort ();
       strcpy (fnam, "/");
       strcat (fnam, argv[0]);
     }

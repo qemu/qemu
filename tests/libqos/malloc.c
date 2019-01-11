@@ -104,7 +104,7 @@ static void mlist_coalesce(MemList *head, MemBlock *node)
 
     do {
         merge = 0;
-        left = QTAILQ_PREV(node, MemList, MLIST_ENTNAME);
+        left = QTAILQ_PREV(node, MLIST_ENTNAME);
         right = QTAILQ_NEXT(node, MLIST_ENTNAME);
 
         /* clowns to the left of me */

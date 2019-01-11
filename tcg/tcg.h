@@ -708,7 +708,7 @@ struct TCGContext {
 
     /* These structures are private to tcg-target.inc.c.  */
 #ifdef TCG_TARGET_NEED_LDST_LABELS
-    QSIMPLEQ_HEAD(ldst_labels, TCGLabelQemuLdst) ldst_labels;
+    QSIMPLEQ_HEAD(, TCGLabelQemuLdst) ldst_labels;
 #endif
 #ifdef TCG_TARGET_NEED_POOL_LABELS
     struct TCGLabelPoolData *pool_labels;
@@ -719,7 +719,7 @@ struct TCGContext {
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
 
-    QTAILQ_HEAD(TCGOpHead, TCGOp) ops, free_ops;
+    QTAILQ_HEAD(, TCGOp) ops, free_ops;
 
     /* Tells which temporary holds a given register.
        It does not take into account fixed registers */
@@ -847,7 +847,7 @@ static inline void tcg_set_insn_start_param(TCGOp *op, int arg, target_ulong v)
 /* The last op that was emitted.  */
 static inline TCGOp *tcg_last_op(void)
 {
-    return QTAILQ_LAST(&tcg_ctx->ops, TCGOpHead);
+    return QTAILQ_LAST(&tcg_ctx->ops);
 }
 
 /* Test for whether to terminate the TB for using too many opcodes.  */

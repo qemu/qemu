@@ -1557,7 +1557,7 @@ static void get_max_mapnr(DumpState *s)
 {
     GuestPhysBlock *last_block;
 
-    last_block = QTAILQ_LAST(&s->guest_phys_blocks.head, GuestPhysBlockHead);
+    last_block = QTAILQ_LAST(&s->guest_phys_blocks.head);
     s->max_mapnr = dump_paddr_to_pfn(s, last_block->target_end);
 }
 

@@ -93,12 +93,12 @@ typedef struct BlkMigBlock {
 } BlkMigBlock;
 
 typedef struct BlkMigState {
-    QSIMPLEQ_HEAD(bmds_list, BlkMigDevState) bmds_list;
+    QSIMPLEQ_HEAD(, BlkMigDevState) bmds_list;
     int64_t total_sector_sum;
     bool zero_blocks;
 
     /* Protected by lock.  */
-    QSIMPLEQ_HEAD(blk_list, BlkMigBlock) blk_list;
+    QSIMPLEQ_HEAD(, BlkMigBlock) blk_list;
     int submitted;
     int read_done;
 

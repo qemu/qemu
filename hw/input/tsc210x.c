@@ -577,7 +577,7 @@ static void tsc2102_control_register_write(
     case 0x01:	/* Status / Keypad Control */
         if ((s->model & 0xff00) == 0x2100)
             s->pin_func = value >> 14;
-	else {
+        else {
             s->kb.scan = (value >> 14) & 1;
             s->kb.debounce = (value >> 11) & 7;
             if (s->kb.intr && s->kb.scan) {

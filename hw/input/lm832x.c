@@ -66,7 +66,7 @@ typedef struct {
 
     struct {
         uint16_t file[256];
-	uint8_t faddr;
+        uint8_t faddr;
         uint8_t addr[3];
         QEMUTimer *tm[3];
     } pwm;

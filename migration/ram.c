@@ -322,7 +322,7 @@ struct RAMState {
     RAMBlock *last_req_rb;
     /* Queue of outstanding page requests from the destination */
     QemuMutex src_page_req_mutex;
-    QSIMPLEQ_HEAD(src_page_requests, RAMSrcPageRequest) src_page_requests;
+    QSIMPLEQ_HEAD(, RAMSrcPageRequest) src_page_requests;
 };
 typedef struct RAMState RAMState;
 

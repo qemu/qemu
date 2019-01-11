@@ -343,7 +343,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
     }
 
     if (pentry)
-   	*pentry = (uint64_t)(elf_sword)ehdr.e_entry;
+        *pentry = (uint64_t)(elf_sword)ehdr.e_entry;
 
     glue(load_symbols, SZ)(&ehdr, fd, must_swab, clear_lsb, sym_cb);
 

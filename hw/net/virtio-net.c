@@ -1375,10 +1375,10 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
                                    n->guest_hdr_len, -1);
                 if (out_num == VIRTQUEUE_MAX_SIZE) {
                     goto drop;
-		}
+                }
                 out_num += 1;
                 out_sg = sg2;
-	    }
+            }
         }
         /*
          * If host wants to see the guest header as is, we can

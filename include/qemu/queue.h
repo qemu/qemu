@@ -346,77 +346,80 @@ struct {                                                                \
 #define QSIMPLEQ_FIRST(head)        ((head)->sqh_first)
 #define QSIMPLEQ_NEXT(elm, field)   ((elm)->field.sqe_next)
 
+typedef struct QTailQLink {
+    void *tql_next;
+    struct QTailQLink *tql_prev;
+} QTailQLink;
 
 /*
- * Tail queue definitions.
+ * Tail queue definitions.  The union acts as a poor man template, as if
+ * it were QTailQLink<type>.
  */
-#define Q_TAILQ_HEAD(name, type, qual)                                  \
-struct name {                                                           \
-        qual type *tqh_first;           /* first element */             \
-        qual type *qual *tqh_last;      /* addr of last next element */ \
+#define QTAILQ_HEAD(name, type)                                         \
+union name {                                                            \
+        struct type *tqh_first;       /* first element */               \
+        QTailQLink tqh_circ;          /* link for circular backwards list */ \
 }
-#define QTAILQ_HEAD(name, type)  Q_TAILQ_HEAD(name, struct type,)
 
 #define QTAILQ_HEAD_INITIALIZER(head)                                   \
-        { NULL, &(head).tqh_first }
+        { .tqh_circ = { NULL, &(head).tqh_circ } }
 
-#define Q_TAILQ_ENTRY(type, qual)                                       \
-struct {                                                                \
-        qual type *tqe_next;            /* next element */              \
-        qual type *qual *tqe_prev;      /* address of previous next element */\
+#define QTAILQ_ENTRY(type)                                              \
+union {                                                                 \
+        struct type *tqe_next;        /* next element */                \
+        QTailQLink tqe_circ;          /* link for circular backwards list */ \
 }
-#define QTAILQ_ENTRY(type)       Q_TAILQ_ENTRY(struct type,)
 
 /*
  * Tail queue functions.
  */
 #define QTAILQ_INIT(head) do {                                          \
         (head)->tqh_first = NULL;                                       \
-        (head)->tqh_last = &(head)->tqh_first;                          \
+        (head)->tqh_circ.tql_prev = &(head)->tqh_circ;                  \
 } while (/*CONSTCOND*/0)
 
 #define QTAILQ_INSERT_HEAD(head, elm, field) do {                       \
         if (((elm)->field.tqe_next = (head)->tqh_first) != NULL)        \
-                (head)->tqh_first->field.tqe_prev =                     \
-                    &(elm)->field.tqe_next;                             \
+            (head)->tqh_first->field.tqe_circ.tql_prev =                \
+                &(elm)->field.tqe_circ;                                 \
         else                                                            \
-                (head)->tqh_last = &(elm)->field.tqe_next;              \
+            (head)->tqh_circ.tql_prev = &(elm)->field.tqe_circ;         \
         (head)->tqh_first = (elm);                                      \
-        (elm)->field.tqe_prev = &(head)->tqh_first;                     \
+        (elm)->field.tqe_circ.tql_prev = &(head)->tqh_circ;             \
 } while (/*CONSTCOND*/0)
 
 #define QTAILQ_INSERT_TAIL(head, elm, field) do {                       \
         (elm)->field.tqe_next = NULL;                                   \
-        (elm)->field.tqe_prev = (head)->tqh_last;                       \
-        *(head)->tqh_last = (elm);                                      \
-        (head)->tqh_last = &(elm)->field.tqe_next;                      \
+        (elm)->field.tqe_circ.tql_prev = (head)->tqh_circ.tql_prev;     \
+        (head)->tqh_circ.tql_prev->tql_next = (elm);                    \
+        (head)->tqh_circ.tql_prev = &(elm)->field.tqe_circ;             \
 } while (/*CONSTCOND*/0)
 
 #define QTAILQ_INSERT_AFTER(head, listelm, elm, field) do {             \
         if (((elm)->field.tqe_next = (listelm)->field.tqe_next) != NULL)\
-                (elm)->field.tqe_next->field.tqe_prev =                 \
-                    &(elm)->field.tqe_next;                             \
+            (elm)->field.tqe_next->field.tqe_circ.tql_prev =            \
+                &(elm)->field.tqe_circ;                                 \
         else                                                            \
-                (head)->tqh_last = &(elm)->field.tqe_next;              \
+            (head)->tqh_circ.tql_prev = &(elm)->field.tqe_circ;         \
         (listelm)->field.tqe_next = (elm);                              \
-        (elm)->field.tqe_prev = &(listelm)->field.tqe_next;             \
+        (elm)->field.tqe_circ.tql_prev = &(listelm)->field.tqe_circ;    \
 } while (/*CONSTCOND*/0)
 
-#define QTAILQ_INSERT_BEFORE(listelm, elm, field) do {                  \
-        (elm)->field.tqe_prev = (listelm)->field.tqe_prev;              \
-        (elm)->field.tqe_next = (listelm);                              \
-        *(listelm)->field.tqe_prev = (elm);                             \
-        (listelm)->field.tqe_prev = &(elm)->field.tqe_next;             \
+#define QTAILQ_INSERT_BEFORE(listelm, elm, field) do {                       \
+        (elm)->field.tqe_circ.tql_prev = (listelm)->field.tqe_circ.tql_prev; \
+        (elm)->field.tqe_next = (listelm);                                   \
+        (listelm)->field.tqe_circ.tql_prev->tql_next = (elm);                \
+        (listelm)->field.tqe_circ.tql_prev = &(elm)->field.tqe_circ;         \
 } while (/*CONSTCOND*/0)
 
 #define QTAILQ_REMOVE(head, elm, field) do {                            \
         if (((elm)->field.tqe_next) != NULL)                            \
-                (elm)->field.tqe_next->field.tqe_prev =                 \
-                    (elm)->field.tqe_prev;                              \
+            (elm)->field.tqe_next->field.tqe_circ.tql_prev =            \
+                (elm)->field.tqe_circ.tql_prev;                         \
         else                                                            \
-                (head)->tqh_last = (elm)->field.tqe_prev;               \
-        *(elm)->field.tqe_prev = (elm)->field.tqe_next;                 \
-        (elm)->field.tqe_prev = NULL;                                   \
+            (head)->tqh_circ.tql_prev = (elm)->field.tqe_circ.tql_prev; \
+        (elm)->field.tqe_circ.tql_prev->tql_next = (elm)->field.tqe_next; \
+        (elm)->field.tqe_circ.tql_prev = NULL;                          \
 } while (/*CONSTCOND*/0)
 
 #define QTAILQ_FOREACH(var, head, field)                                \
@@ -429,14 +432,14 @@ struct {                                                                \
                 (var) && ((next_var) = ((var)->field.tqe_next), 1);     \
                 (var) = (next_var))
 
-#define QTAILQ_FOREACH_REVERSE(var, head, headname, field)              \
-        for ((var) = (*(((struct headname *)((head)->tqh_last))->tqh_last));    \
+#define QTAILQ_FOREACH_REVERSE(var, head, field)                        \
+        for ((var) = QTAILQ_LAST(head);                                 \
                 (var);                                                  \
-                (var) = (*(((struct headname *)((var)->field.tqe_prev))->tqh_last)))
+                (var) = QTAILQ_PREV(var, field))
 
-#define QTAILQ_FOREACH_REVERSE_SAFE(var, head, headname, field, prev_var) \
-        for ((var) = (*(((struct headname *)((head)->tqh_last))->tqh_last)); \
-             (var) && ((prev_var) = (*(((struct headname *)((var)->field.tqe_prev))->tqh_last)), 1); \
+#define QTAILQ_FOREACH_REVERSE_SAFE(var, head, field, prev_var)         \
+        for ((var) = QTAILQ_LAST(head);                                 \
+             (var) && ((prev_var) = QTAILQ_PREV(var, field));           \
              (var) = (prev_var))
 
 /*
@@ -445,71 +448,49 @@ struct {                                                                \
 #define QTAILQ_EMPTY(head)               ((head)->tqh_first == NULL)
 #define QTAILQ_FIRST(head)               ((head)->tqh_first)
 #define QTAILQ_NEXT(elm, field)          ((elm)->field.tqe_next)
-#define QTAILQ_IN_USE(elm, field)        ((elm)->field.tqe_prev != NULL)
+#define QTAILQ_IN_USE(elm, field)        ((elm)->field.tqe_circ.tql_prev != NULL)
 
-#define QTAILQ_LAST(head, headname) \
-        (*(((struct headname *)((head)->tqh_last))->tqh_last))
-#define QTAILQ_PREV(elm, headname, field) \
-        (*(((struct headname *)((elm)->field.tqe_prev))->tqh_last))
+#define QTAILQ_LINK_PREV(link)                                          \
+        ((link).tql_prev->tql_prev->tql_next)
+#define QTAILQ_LAST(head)                                               \
+        ((typeof((head)->tqh_first)) QTAILQ_LINK_PREV((head)->tqh_circ))
+#define QTAILQ_PREV(elm, field)                                         \
+        ((typeof((elm)->field.tqe_next)) QTAILQ_LINK_PREV((elm)->field.tqe_circ))
 
 #define field_at_offset(base, offset, type)                                    \
-        ((type) (((char *) (base)) + (offset)))
-
-typedef struct DUMMY_Q_ENTRY DUMMY_Q_ENTRY;
-typedef struct DUMMY_Q DUMMY_Q;
-
-struct DUMMY_Q_ENTRY {
-        QTAILQ_ENTRY(DUMMY_Q_ENTRY) next;
-};
-
-struct DUMMY_Q {
-        QTAILQ_HEAD(DUMMY_Q_HEAD, DUMMY_Q_ENTRY) head;
-};
-
-#define dummy_q ((DUMMY_Q *) 0)
-#define dummy_qe ((DUMMY_Q_ENTRY *) 0)
+        ((type *) (((char *) (base)) + (offset)))
 
 /*
- * Offsets of layout of a tail queue head.
- */
-#define QTAILQ_FIRST_OFFSET (offsetof(typeof(dummy_q->head), tqh_first))
-#define QTAILQ_LAST_OFFSET  (offsetof(typeof(dummy_q->head), tqh_last))
-/*
- * Raw access of elements of a tail queue
+ * Raw access of elements of a tail queue head.  Offsets are all zero
+ * because it's a union.
  */
 #define QTAILQ_RAW_FIRST(head)                                                 \
-        (*field_at_offset(head, QTAILQ_FIRST_OFFSET, void **))
-#define QTAILQ_RAW_TQH_LAST(head)                                              \
-        (*field_at_offset(head, QTAILQ_LAST_OFFSET, void ***))
-
-/*
- * Offsets of layout of a tail queue element.
- */
-#define QTAILQ_NEXT_OFFSET (offsetof(typeof(dummy_qe->next), tqe_next))
-#define QTAILQ_PREV_OFFSET (offsetof(typeof(dummy_qe->next), tqe_prev))
+        field_at_offset(head, 0, void *)
+#define QTAILQ_RAW_TQH_CIRC(head)                                              \
+        field_at_offset(head, 0, QTailQLink)
 
 /*
  * Raw access of elements of a tail entry
  */
 #define QTAILQ_RAW_NEXT(elm, entry)                                            \
-        (*field_at_offset(elm, entry + QTAILQ_NEXT_OFFSET, void **))
-#define QTAILQ_RAW_TQE_PREV(elm, entry)                                        \
-        (*field_at_offset(elm, entry + QTAILQ_PREV_OFFSET, void ***))
+        field_at_offset(elm, entry, void *)
+#define QTAILQ_RAW_TQE_CIRC(elm, entry)                                        \
+        field_at_offset(elm, entry, QTailQLink)
 /*
- * Tail queue tranversal using pointer arithmetic.
+ * Tail queue traversal using pointer arithmetic.
  */
 #define QTAILQ_RAW_FOREACH(elm, head, entry)                                   \
-        for ((elm) = QTAILQ_RAW_FIRST(head);                                   \
+        for ((elm) = *QTAILQ_RAW_FIRST(head);                                  \
              (elm);                                                            \
-             (elm) = QTAILQ_RAW_NEXT(elm, entry))
+             (elm) = *QTAILQ_RAW_NEXT(elm, entry))
 /*
  * Tail queue insertion using pointer arithmetic.
  */
-#define QTAILQ_RAW_INSERT_TAIL(head, elm, entry) do {                          \
-        QTAILQ_RAW_NEXT(elm, entry) = NULL;                                    \
-        QTAILQ_RAW_TQE_PREV(elm, entry) = QTAILQ_RAW_TQH_LAST(head);           \
-        *QTAILQ_RAW_TQH_LAST(head) = (elm);                                    \
-        QTAILQ_RAW_TQH_LAST(head) = &QTAILQ_RAW_NEXT(elm, entry);              \
+#define QTAILQ_RAW_INSERT_TAIL(head, elm, entry) do {                           \
+        *QTAILQ_RAW_NEXT(elm, entry) = NULL;                                    \
+        QTAILQ_RAW_TQE_CIRC(elm, entry)->tql_prev = QTAILQ_RAW_TQH_CIRC(head)->tql_prev; \
+        QTAILQ_RAW_TQH_CIRC(head)->tql_prev->tql_next = (elm);                  \
+        QTAILQ_RAW_TQH_CIRC(head)->tql_prev = QTAILQ_RAW_TQE_CIRC(elm, entry);  \
 } while (/*CONSTCOND*/0)
 
 #endif /* QEMU_SYS_QUEUE_H */

@@ -38,15 +38,15 @@ static int prepare_binprm(struct linux_binprm *bprm)
     int retval;
 
     if(fstat(bprm->fd, &st) < 0) {
-	return(-errno);
+        return(-errno);
     }
 
     mode = st.st_mode;
     if(!S_ISREG(mode)) {	/* Must be regular file */
-	return(-EACCES);
+        return(-EACCES);
     }
     if(!(mode & 0111)) {	/* Must have at least one execute bit set */
-	return(-EACCES);
+        return(-EACCES);
     }
 
     bprm->e_uid = geteuid();
@@ -54,7 +54,7 @@ static int prepare_binprm(struct linux_binprm *bprm)
 
     /* Set-uid? */
     if(mode & S_ISUID) {
-    	bprm->e_uid = st.st_uid;
+        bprm->e_uid = st.st_uid;
     }
 
     /* Set-gid? */
@@ -64,13 +64,13 @@ static int prepare_binprm(struct linux_binprm *bprm)
      * executable.
      */
     if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
-	bprm->e_gid = st.st_gid;
+        bprm->e_gid = st.st_gid;
     }
 
     retval = read(bprm->fd, bprm->buf, BPRM_BUF_SIZE);
     if (retval < 0) {
-	perror("prepare_binprm");
-	exit(-1);
+        perror("prepare_binprm");
+        exit(-1);
     }
     if (retval < BPRM_BUF_SIZE) {
         /* Make sure the rest of the loader won't read garbage.  */

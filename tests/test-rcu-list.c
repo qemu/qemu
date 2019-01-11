@@ -108,7 +108,7 @@ static void reclaim_list_el(struct rcu_head *prcu)
 }
 
 #if TEST_LIST_TYPE == 1
-static QLIST_HEAD(q_list_head, list_element) Q_list_head;
+static QLIST_HEAD(, list_element) Q_list_head;
 
 #define TEST_NAME "qlist"
 #define TEST_LIST_REMOVE_RCU        QLIST_REMOVE_RCU

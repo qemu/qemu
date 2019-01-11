@@ -55,7 +55,7 @@
 #define KBD_CCMD_WRITE_OUTPORT	0xD1    /* write output port */
 #define KBD_CCMD_WRITE_OBUF	0xD2
 #define KBD_CCMD_WRITE_AUX_OBUF	0xD3    /* Write to output buffer as if
-					   initiated by the auxiliary device */
+                                           initiated by the auxiliary device */
 #define KBD_CCMD_WRITE_MOUSE	0xD4	/* Write the following byte to the mouse */
 #define KBD_CCMD_DISABLE_A20    0xDD    /* HP vectra only ? */
 #define KBD_CCMD_ENABLE_A20     0xDF    /* HP vectra only ? */

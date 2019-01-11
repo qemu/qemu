@@ -147,13 +147,13 @@ static const USBDesc desc_hub = {
 
 static const uint8_t qemu_hub_hub_descriptor[] =
 {
-	0x00,			/*  u8  bLength; patched in later */
-	0x29,			/*  u8  bDescriptorType; Hub-descriptor */
-	0x00,			/*  u8  bNbrPorts; (patched later) */
-	0x0a,			/* u16  wHubCharacteristics; */
-	0x00,			/*   (per-port OC, no power switching) */
-	0x01,			/*  u8  bPwrOn2pwrGood; 2ms */
-	0x00			/*  u8  bHubContrCurrent; 0 mA */
+        0x00,			/*  u8  bLength; patched in later */
+        0x29,			/*  u8  bDescriptorType; Hub-descriptor */
+        0x00,			/*  u8  bNbrPorts; (patched later) */
+        0x0a,			/* u16  wHubCharacteristics; */
+        0x00,			/*   (per-port OC, no power switching) */
+        0x01,			/*  u8  bPwrOn2pwrGood; 2ms */
+        0x00			/*  u8  bHubContrCurrent; 0 mA */
 
         /* DeviceRemovable and PortPwrCtrlMask patched in later */
 };

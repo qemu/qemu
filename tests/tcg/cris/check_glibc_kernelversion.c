@@ -109,8 +109,8 @@ int main(void)
 
         if (parts < 3)
           version <<= 8 * (3 - parts);
-	if (version < __LINUX_KERNEL_VERSION)
-		err();
-	pass();
-	exit(0);
+        if (version < __LINUX_KERNEL_VERSION)
+                err();
+        pass();
+        exit(0);
 }

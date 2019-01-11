@@ -191,7 +191,7 @@ struct MTPState {
 #ifdef CONFIG_INOTIFY1
     /* inotify descriptor */
     int          inotifyfd;
-    QTAILQ_HEAD(events, MTPMonEntry) events;
+    QTAILQ_HEAD(, MTPMonEntry) events;
 #endif
     /* Responder is expecting a write operation */
     bool write_pending;
@@ -1989,7 +1989,7 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
     case EP_EVENT:
 #ifdef CONFIG_INOTIFY1
         if (!QTAILQ_EMPTY(&s->events)) {
-            struct MTPMonEntry *e = QTAILQ_LAST(&s->events, events);
+            struct MTPMonEntry *e = QTAILQ_LAST(&s->events);
             uint32_t handle;
             int len = sizeof(container) + sizeof(uint32_t);
 

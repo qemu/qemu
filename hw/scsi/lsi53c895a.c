@@ -1850,7 +1850,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         break;
     case 0x0a: case 0x0b:
         /* Openserver writes to these readonly registers on startup */
-	return;
+        return;
     case 0x0c: case 0x0d: case 0x0e: case 0x0f:
         /* Linux writes to these readonly registers on startup.  */
         return;
@@ -1884,8 +1884,8 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         /* nothing to do */
         break;
     case 0x1a: /* CTEST2 */
-	s->ctest2 = val & LSI_CTEST2_PCICIE;
-	break;
+        s->ctest2 = val & LSI_CTEST2_PCICIE;
+        break;
     case 0x1b: /* CTEST3 */
         s->ctest3 = val & 0x0f;
         break;

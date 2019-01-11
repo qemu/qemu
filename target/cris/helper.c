@@ -240,7 +240,7 @@ void cris_cpu_do_interrupt(CPUState *cs)
         /* Exception starts with dslot cleared.  */
         env->dslot = 0;
     }
-	
+
     if (env->pregs[PR_CCS] & U_FLAG) {
         /* Swap stack pointers.  */
         env->pregs[PR_USP] = env->regs[R_SP];

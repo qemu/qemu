@@ -32,7 +32,7 @@
 #include "qemu/help_option.h"
 
 static WatchdogAction watchdog_action = WATCHDOG_ACTION_RESET;
-static QLIST_HEAD(watchdog_list, WatchdogTimerModel) watchdog_list;
+static QLIST_HEAD(, WatchdogTimerModel) watchdog_list;
 
 void watchdog_add_model(WatchdogTimerModel *model)
 {

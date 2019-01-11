@@ -42,7 +42,7 @@ enum sPAPRTCEAccess {
 #define IOMMU_PAGE_SIZE(shift)      (1ULL << (shift))
 #define IOMMU_PAGE_MASK(shift)      (~(IOMMU_PAGE_SIZE(shift) - 1))
 
-static QLIST_HEAD(spapr_tce_tables, sPAPRTCETable) spapr_tce_tables;
+static QLIST_HEAD(, sPAPRTCETable) spapr_tce_tables;
 
 sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn)
 {

@@ -37,9 +37,9 @@
 #include "trace.h"
 #include "qapi/error.h"
 
-struct vfio_group_head vfio_group_list =
+VFIOGroupList vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
-struct vfio_as_head vfio_address_spaces =
+static QLIST_HEAD(, VFIOAddressSpace) vfio_address_spaces =
     QLIST_HEAD_INITIALIZER(vfio_address_spaces);
 
 #ifdef CONFIG_KVM

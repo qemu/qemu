@@ -12,7 +12,7 @@ struct target_pt_regs {
 	abi_ulong rbp;
 	abi_ulong rbx;
 /* arguments: non interrupts/non tracing syscalls only save up to here */
- 	abi_ulong r11;
+	abi_ulong r11;
 	abi_ulong r10;
 	abi_ulong r9;
 	abi_ulong r8;

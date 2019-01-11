@@ -11,7 +11,7 @@
 
 #define __syscall_return(type, res)					\
 do {									\
-	return (type) (res);						\
+        return (type) (res);						\
 } while (0)
 
 #define _syscall0(type,name)						\
@@ -33,7 +33,7 @@ type name(type1 arg1) {							\
   "mov %0,r0"								\
         : "=r" (__res)							\
         : "r" ((long)(arg1))						\
-	: "r0","lr");							\
+        : "r0","lr");							\
   __syscall_return(type,__res);						\
 }
 
@@ -47,7 +47,7 @@ type name(type1 arg1,type2 arg2) {					\
   "mov\t%0,r0"								\
         : "=r" (__res)							\
         : "r" ((long)(arg1)),"r" ((long)(arg2))				\
-	: "r0","r1","lr");						\
+        : "r0","r1","lr");						\
   __syscall_return(type,__res);						\
 }
 
@@ -78,9 +78,9 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {				\
   "mov\tr3,%4\n\t"									\
   __syscall(name)									\
   "mov\t%0,r0"										\
-  	: "=r" (__res)									\
-  	: "r" ((long)(arg1)),"r" ((long)(arg2)),"r" ((long)(arg3)),"r" ((long)(arg4))	\
-  	: "r0","r1","r2","r3","lr");							\
+        : "=r" (__res)									\
+        : "r" ((long)(arg1)),"r" ((long)(arg2)),"r" ((long)(arg3)),"r" ((long)(arg4))	\
+        : "r0","r1","r2","r3","lr");							\
   __syscall_return(type,__res);								\
 }
 
@@ -96,10 +96,10 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {			\
   "mov\tr4,%5\n\t"									\
   __syscall(name)									\
   "mov\t%0,r0"										\
-  	: "=r" (__res)									\
-  	: "r" ((long)(arg1)),"r" ((long)(arg2)),"r" ((long)(arg3)),"r" ((long)(arg4)),	\
-	  "r" ((long)(arg5))								\
-	: "r0","r1","r2","r3","r4","lr");						\
+        : "=r" (__res)									\
+        : "r" ((long)(arg1)),"r" ((long)(arg2)),"r" ((long)(arg3)),"r" ((long)(arg4)),	\
+          "r" ((long)(arg5))								\
+        : "r0","r1","r2","r3","r4","lr");						\
   __syscall_return(type,__res);								\
 }
 

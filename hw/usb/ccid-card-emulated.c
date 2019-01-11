@@ -119,11 +119,11 @@ struct EmulatedState {
     char    *db;
     uint8_t  atr[MAX_ATR_SIZE];
     uint8_t  atr_length;
-    QSIMPLEQ_HEAD(event_list, EmulEvent) event_list;
+    QSIMPLEQ_HEAD(, EmulEvent) event_list;
     QemuMutex event_list_mutex;
     QemuThread event_thread_id;
     VReader *reader;
-    QSIMPLEQ_HEAD(guest_apdu_list, EmulEvent) guest_apdu_list;
+    QSIMPLEQ_HEAD(, EmulEvent) guest_apdu_list;
     QemuMutex vreader_mutex; /* and guest_apdu_list mutex */
     QemuMutex handle_apdu_mutex;
     QemuCond handle_apdu_cond;

@@ -1071,7 +1071,7 @@ int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 			AES_KEY *key) {
 
 	u32 *rk;
-   	int i = 0;
+	int i = 0;
 	u32 temp;
 
 	if (!userKey || !key)
@@ -1160,7 +1160,7 @@ int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 			rk[15] = rk[ 7] ^ rk[14];
 
 			rk += 8;
-        	}
+		}
 	}
         abort();
 }
@@ -1247,7 +1247,7 @@ void AES_encrypt(const unsigned char *in, unsigned char *out,
         t1 = AES_Te0[s1 >> 24] ^ AES_Te1[(s2 >> 16) & 0xff] ^ AES_Te2[(s3 >>  8) & 0xff] ^ AES_Te3[s0 & 0xff] ^ rk[ 5];
         t2 = AES_Te0[s2 >> 24] ^ AES_Te1[(s3 >> 16) & 0xff] ^ AES_Te2[(s0 >>  8) & 0xff] ^ AES_Te3[s1 & 0xff] ^ rk[ 6];
         t3 = AES_Te0[s3 >> 24] ^ AES_Te1[(s0 >> 16) & 0xff] ^ AES_Te2[(s1 >>  8) & 0xff] ^ AES_Te3[s2 & 0xff] ^ rk[ 7];
-   	/* round 2: */
+	/* round 2: */
         s0 = AES_Te0[t0 >> 24] ^ AES_Te1[(t1 >> 16) & 0xff] ^ AES_Te2[(t2 >>  8) & 0xff] ^ AES_Te3[t3 & 0xff] ^ rk[ 8];
         s1 = AES_Te0[t1 >> 24] ^ AES_Te1[(t2 >> 16) & 0xff] ^ AES_Te2[(t3 >>  8) & 0xff] ^ AES_Te3[t0 & 0xff] ^ rk[ 9];
         s2 = AES_Te0[t2 >> 24] ^ AES_Te1[(t3 >> 16) & 0xff] ^ AES_Te2[(t0 >>  8) & 0xff] ^ AES_Te3[t1 & 0xff] ^ rk[10];
@@ -1257,7 +1257,7 @@ void AES_encrypt(const unsigned char *in, unsigned char *out,
         t1 = AES_Te0[s1 >> 24] ^ AES_Te1[(s2 >> 16) & 0xff] ^ AES_Te2[(s3 >>  8) & 0xff] ^ AES_Te3[s0 & 0xff] ^ rk[13];
         t2 = AES_Te0[s2 >> 24] ^ AES_Te1[(s3 >> 16) & 0xff] ^ AES_Te2[(s0 >>  8) & 0xff] ^ AES_Te3[s1 & 0xff] ^ rk[14];
         t3 = AES_Te0[s3 >> 24] ^ AES_Te1[(s0 >> 16) & 0xff] ^ AES_Te2[(s1 >>  8) & 0xff] ^ AES_Te3[s2 & 0xff] ^ rk[15];
-   	/* round 4: */
+	/* round 4: */
         s0 = AES_Te0[t0 >> 24] ^ AES_Te1[(t1 >> 16) & 0xff] ^ AES_Te2[(t2 >>  8) & 0xff] ^ AES_Te3[t3 & 0xff] ^ rk[16];
         s1 = AES_Te0[t1 >> 24] ^ AES_Te1[(t2 >> 16) & 0xff] ^ AES_Te2[(t3 >>  8) & 0xff] ^ AES_Te3[t0 & 0xff] ^ rk[17];
         s2 = AES_Te0[t2 >> 24] ^ AES_Te1[(t3 >> 16) & 0xff] ^ AES_Te2[(t0 >>  8) & 0xff] ^ AES_Te3[t1 & 0xff] ^ rk[18];
@@ -1267,7 +1267,7 @@ void AES_encrypt(const unsigned char *in, unsigned char *out,
         t1 = AES_Te0[s1 >> 24] ^ AES_Te1[(s2 >> 16) & 0xff] ^ AES_Te2[(s3 >>  8) & 0xff] ^ AES_Te3[s0 & 0xff] ^ rk[21];
         t2 = AES_Te0[s2 >> 24] ^ AES_Te1[(s3 >> 16) & 0xff] ^ AES_Te2[(s0 >>  8) & 0xff] ^ AES_Te3[s1 & 0xff] ^ rk[22];
         t3 = AES_Te0[s3 >> 24] ^ AES_Te1[(s0 >> 16) & 0xff] ^ AES_Te2[(s1 >>  8) & 0xff] ^ AES_Te3[s2 & 0xff] ^ rk[23];
-   	/* round 6: */
+	/* round 6: */
         s0 = AES_Te0[t0 >> 24] ^ AES_Te1[(t1 >> 16) & 0xff] ^ AES_Te2[(t2 >>  8) & 0xff] ^ AES_Te3[t3 & 0xff] ^ rk[24];
         s1 = AES_Te0[t1 >> 24] ^ AES_Te1[(t2 >> 16) & 0xff] ^ AES_Te2[(t3 >>  8) & 0xff] ^ AES_Te3[t0 & 0xff] ^ rk[25];
         s2 = AES_Te0[t2 >> 24] ^ AES_Te1[(t3 >> 16) & 0xff] ^ AES_Te2[(t0 >>  8) & 0xff] ^ AES_Te3[t1 & 0xff] ^ rk[26];
@@ -1277,7 +1277,7 @@ void AES_encrypt(const unsigned char *in, unsigned char *out,
         t1 = AES_Te0[s1 >> 24] ^ AES_Te1[(s2 >> 16) & 0xff] ^ AES_Te2[(s3 >>  8) & 0xff] ^ AES_Te3[s0 & 0xff] ^ rk[29];
         t2 = AES_Te0[s2 >> 24] ^ AES_Te1[(s3 >> 16) & 0xff] ^ AES_Te2[(s0 >>  8) & 0xff] ^ AES_Te3[s1 & 0xff] ^ rk[30];
         t3 = AES_Te0[s3 >> 24] ^ AES_Te1[(s0 >> 16) & 0xff] ^ AES_Te2[(s1 >>  8) & 0xff] ^ AES_Te3[s2 & 0xff] ^ rk[31];
-   	/* round 8: */
+	/* round 8: */
         s0 = AES_Te0[t0 >> 24] ^ AES_Te1[(t1 >> 16) & 0xff] ^ AES_Te2[(t2 >>  8) & 0xff] ^ AES_Te3[t3 & 0xff] ^ rk[32];
         s1 = AES_Te0[t1 >> 24] ^ AES_Te1[(t2 >> 16) & 0xff] ^ AES_Te2[(t3 >>  8) & 0xff] ^ AES_Te3[t0 & 0xff] ^ rk[33];
         s2 = AES_Te0[t2 >> 24] ^ AES_Te1[(t3 >> 16) & 0xff] ^ AES_Te2[(t0 >>  8) & 0xff] ^ AES_Te3[t1 & 0xff] ^ rk[34];
@@ -1569,33 +1569,33 @@ void AES_decrypt(const unsigned char *in, unsigned char *out,
 	 * apply last round and
 	 * map cipher state to byte array block:
 	 */
-   	s0 =
+	s0 =
                 (AES_Td4[(t0 >> 24)       ] & 0xff000000) ^
                 (AES_Td4[(t3 >> 16) & 0xff] & 0x00ff0000) ^
                 (AES_Td4[(t2 >>  8) & 0xff] & 0x0000ff00) ^
                 (AES_Td4[(t1      ) & 0xff] & 0x000000ff) ^
-   		rk[0];
+		rk[0];
 	PUTU32(out     , s0);
-   	s1 =
+	s1 =
                 (AES_Td4[(t1 >> 24)       ] & 0xff000000) ^
                 (AES_Td4[(t0 >> 16) & 0xff] & 0x00ff0000) ^
                 (AES_Td4[(t3 >>  8) & 0xff] & 0x0000ff00) ^
                 (AES_Td4[(t2      ) & 0xff] & 0x000000ff) ^
-   		rk[1];
+		rk[1];
 	PUTU32(out +  4, s1);
-   	s2 =
+	s2 =
                 (AES_Td4[(t2 >> 24)       ] & 0xff000000) ^
                 (AES_Td4[(t1 >> 16) & 0xff] & 0x00ff0000) ^
                 (AES_Td4[(t0 >>  8) & 0xff] & 0x0000ff00) ^
                 (AES_Td4[(t3      ) & 0xff] & 0x000000ff) ^
-   		rk[2];
+		rk[2];
 	PUTU32(out +  8, s2);
-   	s3 =
+	s3 =
                 (AES_Td4[(t3 >> 24)       ] & 0xff000000) ^
                 (AES_Td4[(t2 >> 16) & 0xff] & 0x00ff0000) ^
                 (AES_Td4[(t1 >>  8) & 0xff] & 0x0000ff00) ^
                 (AES_Td4[(t0      ) & 0xff] & 0x000000ff) ^
-   		rk[3];
+		rk[3];
 	PUTU32(out + 12, s3);
 }
 

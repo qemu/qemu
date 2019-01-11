@@ -137,7 +137,7 @@ typedef struct VMXNET3Class {
     OBJECT_GET_CLASS(VMXNET3Class, (obj), TYPE_VMXNET3)
 
 static inline void vmxnet3_ring_init(PCIDevice *d,
-				     Vmxnet3Ring *ring,
+                                     Vmxnet3Ring *ring,
                                      hwaddr pa,
                                      uint32_t size,
                                      uint32_t cell_size,
@@ -181,13 +181,13 @@ static inline hwaddr vmxnet3_ring_curr_cell_pa(Vmxnet3Ring *ring)
 }
 
 static inline void vmxnet3_ring_read_curr_cell(PCIDevice *d, Vmxnet3Ring *ring,
-					       void *buff)
+                                               void *buff)
 {
     vmw_shmem_read(d, vmxnet3_ring_curr_cell_pa(ring), buff, ring->cell_size);
 }
 
 static inline void vmxnet3_ring_write_curr_cell(PCIDevice *d, Vmxnet3Ring *ring,
-						void *buff)
+                                                void *buff)
 {
     vmw_shmem_write(d, vmxnet3_ring_curr_cell_pa(ring), buff, ring->cell_size);
 }

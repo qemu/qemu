@@ -740,8 +740,8 @@ int main(int argc, char **argv, char **envp)
     target_argc = argc - optind;
     target_argv = calloc(target_argc + 1, sizeof (char *));
     if (target_argv == NULL) {
-	(void) fprintf(stderr, "Unable to allocate memory for target_argv\n");
-	exit(EXIT_FAILURE);
+        (void) fprintf(stderr, "Unable to allocate memory for target_argv\n");
+        exit(EXIT_FAILURE);
     }
 
     /*

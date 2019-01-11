@@ -206,7 +206,7 @@ struct BusState {
     HotplugHandler *hotplug_handler;
     int max_index;
     bool realized;
-    QTAILQ_HEAD(ChildrenHead, BusChild) children;
+    QTAILQ_HEAD(, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
 };
 

@@ -1367,7 +1367,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     if (!have_guest_base) {
         /*
          * Go through ELF program header table and find out whether
-	 * any of the segments drop below our current mmap_min_addr and
+         * any of the segments drop below our current mmap_min_addr and
          * in that case set guest_base to corresponding address.
          */
         for (i = 0, elf_ppnt = elf_phdata; i < elf_ex.e_phnum;

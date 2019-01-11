@@ -70,6 +70,7 @@ ENV PACKAGES \
     nss-devel \
     numactl-devel \
     perl \
+    perl-Test-Harness \
     pixman-devel \
     python3 \
     PyYAML \

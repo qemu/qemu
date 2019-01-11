@@ -263,7 +263,7 @@ tcp_timers(register struct tcpcb *tp, int timer)
 			goto dropit;
 
 		if ((SO_OPTIONS) && tp->t_state <= TCPS_CLOSE_WAIT) {
-		    	if (tp->t_idle >= TCPTV_KEEP_IDLE + TCP_MAXIDLE)
+			if (tp->t_idle >= TCPTV_KEEP_IDLE + TCP_MAXIDLE)
 				goto dropit;
 			/*
 			 * Send a packet designed to force a response

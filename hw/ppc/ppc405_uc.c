@@ -1885,7 +1885,7 @@ CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
     pic = ppcuic_init(env, irqs, 0x0C0, 0, 1);
     *picp = pic;
     /* SDRAM controller */
-	/* XXX 405EP has no ECC interrupt */
+        /* XXX 405EP has no ECC interrupt */
     ppc4xx_sdram_init(env, pic[17], 2, ram_memories,
                       ram_bases, ram_sizes, do_init);
     /* External bus controller */

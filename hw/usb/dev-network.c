@@ -648,7 +648,7 @@ typedef struct USBNetState {
     char usbstring_mac[13];
     NICState *nic;
     NICConf conf;
-    QTAILQ_HEAD(rndis_resp_head, rndis_response) rndis_resp;
+    QTAILQ_HEAD(, rndis_response) rndis_resp;
 } USBNetState;
 
 #define TYPE_USB_NET "usb-net"

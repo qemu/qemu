@@ -1823,7 +1823,7 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             break;
         case EHCI_ASYNC_INFLIGHT:
             /* Check if the guest has added new tds to the queue */
-            again = ehci_fill_queue(QTAILQ_LAST(&q->packets, pkts_head));
+            again = ehci_fill_queue(QTAILQ_LAST(&q->packets));
             /* Unfinished async handled packet, go horizontal */
             ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
             break;

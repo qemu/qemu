@@ -804,7 +804,7 @@ static void gen_cvttq(DisasContext *ctx, int rb, int rc, int fn11)
 
 static void gen_ieee_intcvt(DisasContext *ctx,
                             void (*helper)(TCGv, TCGv_ptr, TCGv),
-			    int rb, int rc, int fn11)
+                            int rb, int rc, int fn11)
 {
     TCGv vb, vc;
 

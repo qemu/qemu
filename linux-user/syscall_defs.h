@@ -1807,7 +1807,7 @@ struct target_stat {
 	abi_ulong	st_rdev;
 	abi_long	st_size;
 	abi_long	st_blksize;
-    	abi_long	st_blocks;	/* Number 512-byte blocks allocated. */
+	abi_long	st_blocks;	/* Number 512-byte blocks allocated. */
 
 	abi_ulong	target_st_atime;
 	abi_ulong 	target_st_atime_nsec; 
@@ -1816,7 +1816,7 @@ struct target_stat {
 	abi_ulong	target_st_ctime;
 	abi_ulong       target_st_ctime_nsec;
 
-  	abi_long	__unused[3];
+	abi_long	__unused[3];
 };
 #elif defined(TARGET_S390X)
 struct target_stat {

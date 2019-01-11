@@ -345,7 +345,7 @@ void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
             while (entry < dma->memmap + dma->memmap_size &&
                             entry->addr <= virt_base)
                 entry ++;
-	}
+        }
 
         memmove(entry + 1, entry,
                         (uint8_t *) (dma->memmap + dma->memmap_size ++) -

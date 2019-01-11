@@ -30,7 +30,7 @@ abi_long copy_to_user(abi_ulong gaddr, void *hptr, size_t len)
 
     if ((ghptr = lock_user(VERIFY_WRITE, gaddr, len, 0))) {
         memcpy(ghptr, hptr, len);
-	unlock_user(ghptr, gaddr, len);
+        unlock_user(ghptr, gaddr, len);
     } else
         ret = -TARGET_EFAULT;
 
