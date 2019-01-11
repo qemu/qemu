@@ -174,13 +174,12 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
         writable = false;
     }
 
-    exp = nbd_export_new(bs, 0, -1, writable ? 0 : NBD_FLAG_READ_ONLY,
+    exp = nbd_export_new(bs, 0, -1, name, NULL,
+                         writable ? 0 : NBD_FLAG_READ_ONLY,
                          NULL, false, on_eject_blk, errp);
     if (!exp) {
         return;
     }
-
-    nbd_export_set_name(exp, name);
 
     /* The list of named exports has a strong reference to this export now and
      * our only way of accessing it is through nbd_export_find(), so we can drop

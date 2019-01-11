@@ -1456,6 +1456,7 @@ static void nbd_eject_notifier(Notifier *n, void *data)
 }
 
 NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
+                          const char *name, const char *description,
                           uint16_t nbdflags, void (*close)(NBDExport *),
                           bool writethrough, BlockBackend *on_eject_blk,
                           Error **errp)
@@ -1471,6 +1472,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
      * that BDRV_O_INACTIVE is cleared and the image is ready for write
      * access since the export could be available before migration handover.
      */
+    assert(name);
     ctx = bdrv_get_aio_context(bs);
     aio_context_acquire(ctx);
     bdrv_invalidate_cache(bs, NULL);
@@ -1494,6 +1496,8 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
     QTAILQ_INIT(&exp->clients);
     exp->blk = blk;
     exp->dev_offset = dev_offset;
+    exp->name = g_strdup(name);
+    exp->description = g_strdup(description);
     exp->nbdflags = nbdflags;
     exp->size = size < 0 ? blk_getlength(blk) : size;
     if (exp->size < 0) {
@@ -1513,10 +1517,14 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
         exp->eject_notifier.notify = nbd_eject_notifier;
         blk_add_remove_bs_notifier(on_eject_blk, &exp->eject_notifier);
     }
+    QTAILQ_INSERT_TAIL(&exports, exp, next);
+    nbd_export_get(exp);
     return exp;
 
 fail:
     blk_unref(blk);
+    g_free(exp->name);
+    g_free(exp->description);
     g_free(exp);
     return NULL;
 }
@@ -1533,43 +1541,29 @@ NBDExport *nbd_export_find(const char *name)
     return NULL;
 }
 
-void nbd_export_set_name(NBDExport *exp, const char *name)
-{
-    if (exp->name == name) {
-        return;
-    }
-
-    nbd_export_get(exp);
-    if (exp->name != NULL) {
-        g_free(exp->name);
-        exp->name = NULL;
-        QTAILQ_REMOVE(&exports, exp, next);
-        nbd_export_put(exp);
-    }
-    if (name != NULL) {
-        nbd_export_get(exp);
-        exp->name = g_strdup(name);
-        QTAILQ_INSERT_TAIL(&exports, exp, next);
-    }
-    nbd_export_put(exp);
-}
-
-void nbd_export_set_description(NBDExport *exp, const char *description)
-{
-    g_free(exp->description);
-    exp->description = g_strdup(description);
-}
-
 void nbd_export_close(NBDExport *exp)
 {
     NBDClient *client, *next;
 
     nbd_export_get(exp);
+    /*
+     * TODO: Should we expand QMP NbdServerRemoveNode enum to allow a
+     * close mode that stops advertising the export to new clients but
+     * still permits existing clients to run to completion? Because of
+     * that possibility, nbd_export_close() can be called more than
+     * once on an export.
+     */
     QTAILQ_FOREACH_SAFE(client, &exp->clients, next, next) {
         client_close(client, true);
     }
-    nbd_export_set_name(exp, NULL);
-    nbd_export_set_description(exp, NULL);
+    if (exp->name) {
+        nbd_export_put(exp);
+        g_free(exp->name);
+        exp->name = NULL;
+        QTAILQ_REMOVE(&exports, exp, next);
+    }
+    g_free(exp->description);
+    exp->description = NULL;
     nbd_export_put(exp);
 }
 
