@@ -179,7 +179,7 @@ struct QEMUGLParams {
     int minor_ver;
 };
 
-struct QemuDmaBuf {
+typedef struct QemuDmaBuf {
     int       fd;
     uint32_t  width;
     uint32_t  height;
@@ -187,7 +187,7 @@ struct QemuDmaBuf {
     uint32_t  fourcc;
     uint32_t  texture;
     bool      y0_top;
-};
+} QemuDmaBuf;
 
 typedef struct DisplayChangeListenerOps {
     const char *dpy_name;
