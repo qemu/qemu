@@ -18,13 +18,13 @@ typedef struct PCMCIASocket {
 #define PCMCIA_CARD_CLASS(cls) \
     OBJECT_CLASS_CHECK(PCMCIACardClass, cls, TYPE_PCMCIA_CARD)
 
-struct PCMCIACardState {
+typedef struct PCMCIACardState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
 
     PCMCIASocket *slot;
-};
+} PCMCIACardState;
 
 typedef struct PCMCIACardClass {
     /*< private >*/
