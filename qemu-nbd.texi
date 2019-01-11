@@ -45,6 +45,10 @@ auto-detecting
 Export the disk as read-only
 @item -P, --partition=@var{num}
 Only expose partition @var{num}
+@item -B, --bitmap=@var{name}
+If @var{filename} has a qcow2 persistent bitmap @var{name}, expose
+that bitmap via the ``qemu:dirty-bitmap:@var{name}'' context
+accessible through NBD_OPT_SET_META_CONTEXT.
 @item -s, --snapshot
 Use @var{filename} as an external snapshot, create a temporary
 file with backing_file=@var{filename}, redirect the write to
