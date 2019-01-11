@@ -1601,6 +1601,12 @@ uint64_t ram_pagesize_summary(void)
     return summary;
 }
 
+uint64_t ram_get_total_transferred_pages(void)
+{
+    return  ram_counters.normal + ram_counters.duplicate +
+                compression_counters.pages + xbzrle_counters.pages;
+}
+
 static void migration_update_rates(RAMState *rs, int64_t end_time)
 {
     uint64_t page_count = rs->target_page_count - rs->target_page_count_prev;
