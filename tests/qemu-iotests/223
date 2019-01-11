@@ -172,7 +172,7 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-remove",
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-remove",
   "arguments":{"name":"n2"}}' "error" # Attempt duplicate clean
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-stop"}' "return"
-_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-stop"}' "return" # Oops
+_send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-stop"}' "error" # Again
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"quit"}' "return"
 
 # success, all done

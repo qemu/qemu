@@ -214,6 +214,11 @@ void qmp_nbd_server_remove(const char *name,
 
 void qmp_nbd_server_stop(Error **errp)
 {
+    if (!nbd_server) {
+        error_setg(errp, "NBD server not running");
+        return;
+    }
+
     nbd_export_close_all();
 
     nbd_server_free(nbd_server);

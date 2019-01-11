@@ -69,6 +69,6 @@ read 2097152/2097152 bytes at offset 2097152
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
 {"return": {}}
-{"return": {}}
+{"error": {"class": "GenericError", "desc": "NBD server not running"}}
 {"return": {}}
 *** done
