@@ -35,7 +35,7 @@
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
 
-struct SerialState {
+typedef struct SerialState {
     uint16_t divider;
     uint8_t rbr; /* receive register */
     uint8_t thr; /* transmit holding register */
@@ -77,7 +77,7 @@ struct SerialState {
 
     QEMUTimer *modem_status_poll;
     MemoryRegion io;
-};
+} SerialState;
 
 extern const VMStateDescription vmstate_serial;
 extern const MemoryRegionOps serial_io_ops;
