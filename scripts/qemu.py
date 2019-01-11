@@ -351,7 +351,7 @@ class QEMUMachine(object):
                 command = ' '.join(self._qemu_full_args)
             else:
                 command = ''
-            LOG.warn(msg, exitcode, command)
+            LOG.warn(msg, -exitcode, command)
 
         self._launched = False
 
