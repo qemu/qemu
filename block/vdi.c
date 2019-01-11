@@ -85,7 +85,8 @@
 #define BLOCK_OPT_STATIC "static"
 
 #define SECTOR_SIZE 512
-#define DEFAULT_CLUSTER_SIZE S_1MiB
+#define DEFAULT_CLUSTER_SIZE 1048576
+/* Note: can't use 1 * MiB, because it's passed to stringify() */
 
 #if defined(CONFIG_VDI_DEBUG)
 #define VDI_DEBUG 1

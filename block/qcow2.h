@@ -50,11 +50,11 @@
 
 /* 8 MB refcount table is enough for 2 PB images at 64k cluster size
  * (128 GB for 512 byte clusters, 2 EB for 2 MB clusters) */
-#define QCOW_MAX_REFTABLE_SIZE S_8MiB
+#define QCOW_MAX_REFTABLE_SIZE (8 * MiB)
 
 /* 32 MB L1 table is enough for 2 PB images at 64k cluster size
  * (128 GB for 512 byte clusters, 2 EB for 2 MB clusters) */
-#define QCOW_MAX_L1_SIZE S_32MiB
+#define QCOW_MAX_L1_SIZE (32 * MiB)
 
 /* Allow for an average of 1k per snapshot table entry, should be plenty of
  * space for snapshot names and IDs */
@@ -81,15 +81,15 @@
 #define MIN_REFCOUNT_CACHE_SIZE 4 /* clusters */
 
 #ifdef CONFIG_LINUX
-#define DEFAULT_L2_CACHE_MAX_SIZE S_32MiB
+#define DEFAULT_L2_CACHE_MAX_SIZE (32 * MiB)
 #define DEFAULT_CACHE_CLEAN_INTERVAL 600  /* seconds */
 #else
-#define DEFAULT_L2_CACHE_MAX_SIZE S_8MiB
+#define DEFAULT_L2_CACHE_MAX_SIZE (8 * MiB)
 /* Cache clean interval is currently available only on Linux, so must be 0 */
 #define DEFAULT_CACHE_CLEAN_INTERVAL 0
 #endif
 
-#define DEFAULT_CLUSTER_SIZE S_64KiB
+#define DEFAULT_CLUSTER_SIZE 65536
 
 #define QCOW2_OPT_LAZY_REFCOUNTS "lazy-refcounts"
 #define QCOW2_OPT_DISCARD_REQUEST "pass-discard-request"
