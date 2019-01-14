@@ -49,7 +49,6 @@ int qemu_input_key_value_to_scancode(const KeyValue *value, bool down,
                                      int *codes);
 int qemu_input_linux_to_qcode(unsigned int lnx);
 
-InputEvent *qemu_input_event_new_btn(InputButton btn, bool down);
 void qemu_input_queue_btn(QemuConsole *src, InputButton btn, bool down);
 void qemu_input_update_buttons(QemuConsole *src, uint32_t *button_map,
                                uint32_t button_old, uint32_t button_new);
@@ -58,8 +57,6 @@ bool qemu_input_is_absolute(void);
 int qemu_input_scale_axis(int value,
                           int min_in, int max_in,
                           int min_out, int max_out);
-InputEvent *qemu_input_event_new_move(InputEventKind kind,
-                                      InputAxis axis, int value);
 void qemu_input_queue_rel(QemuConsole *src, InputAxis axis, int value);
 void qemu_input_queue_abs(QemuConsole *src, InputAxis axis, int value,
                           int min_in, int max_in);
