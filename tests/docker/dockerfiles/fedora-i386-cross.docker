@@ -1,4 +1,4 @@
-FROM fedora:latest
+FROM fedora:29
 ENV PACKAGES \
     gcc \
     glib2-devel.i686 \

@@ -398,16 +398,14 @@ static void pr_stats(void)
 
 static void run_test(void)
 {
-    unsigned int remaining;
     int i;
 
     while (atomic_read(&n_ready_threads) != n_rw_threads + n_rz_threads) {
         cpu_relax();
     }
+
     atomic_set(&test_start, true);
-    do {
-        remaining = sleep(duration);
-    } while (remaining);
+    g_usleep(duration * G_USEC_PER_SEC);
     atomic_set(&test_stop, true);
 
     for (i = 0; i < n_rw_threads; i++) {

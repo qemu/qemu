@@ -1,14 +1,13 @@
-# The current Travis default is a container based 14.04 Trust on EC2
+# The current Travis default is a VM based 16.04 Xenial on GCE
 # Additional builds with specific requirements for a full VM need to
 # be added as additional matrix: entries later on
-sudo: false
-dist: trusty
+dist: xenial
 language: c
-python:
-  - "2.6"
 compiler:
   - gcc
 cache: ccache
+
+
 addons:
   apt:
     packages:
@@ -35,10 +34,17 @@ addons:
       - libssh2-1-dev
       - liburcu-dev
       - libusb-1.0-0-dev
-      - libvte-2.90-dev
+      - libvte-2.91-dev
       - sparse
       - uuid-dev
       - gcovr
+  homebrew:
+    packages:
+      - libffi
+      - gettext
+      - glib
+      - pixman
+
 
 # The channel name "irc.oftc.net#qemu" is encrypted against qemu/qemu
 # to prevent IRC notifications from forks. This was created using:
@@ -49,88 +55,145 @@ notifications:
       - secure: "F7GDRgjuOo5IUyRLqSkmDL7kvdU4UcH3Lm/W2db2JnDHTGCqgEdaYEYKciyCLZ57vOTsTsOgesN8iUT7hNHBd1KWKjZe9KDTZWppWRYVwAwQMzVeSOsbbU4tRoJ6Pp+3qhH1Z0eGYR9ZgKYAoTumDFgSAYRp4IscKS8jkoedOqM="
     on_success: change
     on_failure: always
+
+
 env:
   global:
     - SRC_DIR="."
     - BUILD_DIR="."
-    - TEST_CMD="make check"
-    - MAKEFLAGS="-j3"
-  matrix:
-    - CONFIG="--disable-system"
-    - CONFIG="--disable-user"
-    - CONFIG="--enable-debug --enable-debug-tcg"
-    - CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb --disable-user"
-    - CONFIG="--enable-modules --disable-linux-user"
-    - CONFIG="--with-coroutine=ucontext --disable-linux-user"
-    - CONFIG="--with-coroutine=sigaltstack --disable-linux-user"
+    - TEST_CMD="make check -j3 V=1"
+
+
 git:
   # we want to do this ourselves
   submodules: false
-before_install:
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update ; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libffi gettext glib pixman ; fi
-  - git submodule update --init --recursive capstone dtc ui/keycodemapdb
+
+
 before_script:
   - mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR}
   - ${SRC_DIR}/configure ${CONFIG} || { cat config.log && exit 1; }
 script:
-  - make ${MAKEFLAGS} && ${TEST_CMD}
+  - make -j3 && ${TEST_CMD}
+
+
 matrix:
   include:
+    - env:
+        - CONFIG="--disable-system"
+
+
+    - env:
+        - CONFIG="--disable-user"
+
+
+    - env:
+        - CONFIG="--enable-debug --enable-debug-tcg"
+
+
+    - env:
+        - CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb --disable-user"
+
+
+    - env:
+        - CONFIG="--enable-modules --disable-linux-user"
+
+
+    - env:
+        - CONFIG="--with-coroutine=ucontext --disable-linux-user"
+
+
+    - env:
+        - CONFIG="--with-coroutine=sigaltstack --disable-linux-user"
+
+
     # Test out-of-tree builds
-    - env: CONFIG="--enable-debug --enable-debug-tcg"
-           BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
+    - env:
+        - CONFIG="--enable-debug --enable-debug-tcg"
+        - BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
+
+
     # Test with Clang for compile portability (Travis uses clang-5.0)
-    - env: CONFIG="--disable-system"
+    - env:
+        - CONFIG="--disable-system"
       compiler: clang
-    - env: CONFIG="--disable-user"
+
+
+    - env:
+        - CONFIG="--disable-user"
       compiler: clang
+
+
     # gprof/gcov are GCC features
-    - env: CONFIG="--enable-gprof --enable-gcov --disable-pie --target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
+    - env:
+        - CONFIG="--enable-gprof --enable-gcov --disable-pie --target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
       after_success:
         - ${SRC_DIR}/scripts/travis/coverage-summary.sh
-      compiler: gcc
+
+
     # We manually include builds which we disable "make check" for
-    - env: CONFIG="--enable-debug --enable-tcg-interpreter"
-           TEST_CMD=""
-      compiler: gcc
+    - env:
+        - CONFIG="--enable-debug --enable-tcg-interpreter"
+        - TEST_CMD=""
+
+
     # We don't need to exercise every backend with every front-end
-    - env: CONFIG="--enable-trace-backends=log,simple,syslog --disable-system"
-           TEST_CMD=""
-      compiler: gcc
-    - env: CONFIG="--enable-trace-backends=ftrace --target-list=x86_64-softmmu"
-           TEST_CMD=""
-      compiler: gcc
-    - env: CONFIG="--enable-trace-backends=ust --target-list=x86_64-softmmu"
-           TEST_CMD=""
-      compiler: gcc
-    - env: CONFIG="--disable-tcg"
-           TEST_CMD=""
-      compiler: gcc
+    - env:
+        - CONFIG="--enable-trace-backends=log,simple,syslog --disable-system"
+        - TEST_CMD=""
+
+
+    - env:
+        - CONFIG="--enable-trace-backends=ftrace --target-list=x86_64-softmmu"
+        - TEST_CMD=""
+
+
+    - env:
+        - CONFIG="--enable-trace-backends=ust --target-list=x86_64-softmmu"
+        - TEST_CMD=""
+
+
+    - env:
+        - CONFIG="--disable-tcg"
+        - TEST_CMD=""
+
+
     # MacOSX builds
-    - env: CONFIG="--target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
+    - env:
+        - CONFIG="--target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
       os: osx
       osx_image: xcode9.4
       compiler: clang
-    - env: CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu"
+
+
+    - env:
+        - CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu"
       os: osx
       osx_image: xcode10
       compiler: clang
+
+
     # Python builds
-    - env: CONFIG="--target-list=x86_64-softmmu"
+    - env:
+        - CONFIG="--target-list=x86_64-softmmu"
       python:
         - "3.0"
-    - env: CONFIG="--target-list=x86_64-softmmu"
+
+
+    - env:
+        - CONFIG="--target-list=x86_64-softmmu"
       python:
         - "3.6"
+
+
     # Acceptance (Functional) tests
-    - env: CONFIG="--python=/usr/bin/python3 --target-list=x86_64-softmmu"
-           TEST_CMD="make AVOCADO_SHOW=app check-acceptance"
+    - env:
+        - CONFIG="--python=/usr/bin/python3 --target-list=x86_64-softmmu"
+        - TEST_CMD="make AVOCADO_SHOW=app check-acceptance"
       addons:
         apt:
           packages:
             - python3-pip
-            - python3.4-venv
+            - python3.5-venv
     # Using newer GCC with sanitizers
     - addons:
         apt:
@@ -164,7 +227,7 @@ matrix:
             - libssh2-1-dev
             - liburcu-dev
             - libusb-1.0-0-dev
-            - libvte-2.90-dev
+            - libvte-2.91-dev
             - sparse
             - uuid-dev
       language: generic
@@ -175,11 +238,8 @@ matrix:
         - TEST_CMD=""
       before_script:
         - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || { cat config.log && exit 1; }
+
+
     - env:
         - CONFIG="--disable-system --disable-docs"
-        - TEST_CMD="make check-tcg"
-      script:
-        - make ${MAKEFLAGS} && ${TEST_CMD} ${MAKEFLAGS}
-      sudo: required
-      dist: trusty
-      compiler: gcc
+        - TEST_CMD="make -j3 check-tcg V=1"

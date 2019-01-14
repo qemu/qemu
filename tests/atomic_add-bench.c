@@ -76,16 +76,14 @@ static void *thread_func(void *arg)
 
 static void run_test(void)
 {
-    unsigned int remaining;
     unsigned int i;
 
     while (atomic_read(&n_ready_threads) != n_threads) {
         cpu_relax();
     }
+
     atomic_set(&test_start, true);
-    do {
-        remaining = sleep(duration);
-    } while (remaining);
+    g_usleep(duration * G_USEC_PER_SEC);
     atomic_set(&test_stop, true);
 
     for (i = 0; i < n_threads; i++) {

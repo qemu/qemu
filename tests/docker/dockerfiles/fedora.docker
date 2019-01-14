@@ -1,4 +1,4 @@
-FROM fedora:28
+FROM fedora:29
 ENV PACKAGES \
     bc \
     bison \
@@ -82,7 +82,7 @@ ENV PACKAGES \
     tar \
     usbredir-devel \
     virglrenderer-devel \
-    vte3-devel \
+    vte291-devel \
     which \
     xen-devel \
     zlib-devel

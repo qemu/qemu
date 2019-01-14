@@ -11,7 +11,12 @@
 # updated and trigger a re-build.
 #
 
-FROM debian:sid-slim
+# This must be earlier than the snapshot date we are aiming for
+FROM debian:sid-20181011-slim
+
+# Use a snapshot known to work (see http://snapshot.debian.org/#Usage)
+ENV DEBIAN_SNAPSHOT_DATE "20181030"
+RUN sed -i "s%^deb \(https\?://\)deb.debian.org/debian/\? \(.*\)%deb [check-valid-until=no] \1snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT_DATE} \2%" /etc/apt/sources.list
 
 # Use a snapshot known to work (see http://snapshot.debian.org/#Usage)
 ENV DEBIAN_SNAPSHOT_DATE "20181030"
