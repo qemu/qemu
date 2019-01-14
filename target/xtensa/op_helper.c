@@ -93,17 +93,6 @@ void xtensa_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                   addr);
 }
 
-#endif
-
-void HELPER(dump_state)(CPUXtensaState *env)
-{
-    XtensaCPU *cpu = xtensa_env_get_cpu(env);
-
-    cpu_dump_state(CPU(cpu), stderr, fprintf, 0);
-}
-
-#ifndef CONFIG_USER_ONLY
-
 void HELPER(update_ccount)(CPUXtensaState *env)
 {
     uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
