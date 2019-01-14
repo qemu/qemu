@@ -81,6 +81,8 @@ typedef struct TPMState {
     TPMVersion be_tpm_version;
 
     size_t be_buffer_size;
+
+    bool ppi_enabled;
 } TPMState;
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
@@ -954,6 +956,7 @@ static const VMStateDescription vmstate_tpm_tis = {
 static Property tpm_tis_properties[] = {
     DEFINE_PROP_UINT32("irq", TPMState, irq_num, TPM_TIS_IRQ),
     DEFINE_PROP_TPMBE("tpmdev", TPMState, be_driver),
+    DEFINE_PROP_BOOL("ppi", TPMState, ppi_enabled, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

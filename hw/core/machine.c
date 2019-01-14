@@ -28,6 +28,8 @@ GlobalProperty hw_compat_3_1[] = {
     { "pcie-root-port", "x-width", "1" },
     { "memory-backend-file", "x-use-canonical-path-for-ramblock-id", "true" },
     { "memory-backend-memfd", "x-use-canonical-path-for-ramblock-id", "true" },
+    { "tpm-crb", "ppi", "false" },
+    { "tpm-tis", "ppi", "false" },
 };
 const size_t hw_compat_3_1_len = G_N_ELEMENTS(hw_compat_3_1);
 
