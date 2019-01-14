@@ -95,70 +95,6 @@ void xtensa_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
 
 #endif
 
-void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
-{
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
-
-    cs->exception_index = excp;
-    if (excp == EXCP_YIELD) {
-        env->yield_needed = 0;
-    }
-    if (excp == EXCP_DEBUG) {
-        env->exception_taken = 0;
-    }
-    cpu_loop_exit(cs);
-}
-
-void HELPER(exception_cause)(CPUXtensaState *env, uint32_t pc, uint32_t cause)
-{
-    uint32_t vector;
-
-    env->pc = pc;
-    if (env->sregs[PS] & PS_EXCM) {
-        if (env->config->ndepc) {
-            env->sregs[DEPC] = pc;
-        } else {
-            env->sregs[EPC1] = pc;
-        }
-        vector = EXC_DOUBLE;
-    } else {
-        env->sregs[EPC1] = pc;
-        vector = (env->sregs[PS] & PS_UM) ? EXC_USER : EXC_KERNEL;
-    }
-
-    env->sregs[EXCCAUSE] = cause;
-    env->sregs[PS] |= PS_EXCM;
-
-    HELPER(exception)(env, vector);
-}
-
-void HELPER(exception_cause_vaddr)(CPUXtensaState *env,
-        uint32_t pc, uint32_t cause, uint32_t vaddr)
-{
-    env->sregs[EXCVADDR] = vaddr;
-    HELPER(exception_cause)(env, pc, cause);
-}
-
-void debug_exception_env(CPUXtensaState *env, uint32_t cause)
-{
-    if (xtensa_get_cintlevel(env) < env->config->debug_level) {
-        HELPER(debug_exception)(env, env->pc, cause);
-    }
-}
-
-void HELPER(debug_exception)(CPUXtensaState *env, uint32_t pc, uint32_t cause)
-{
-    unsigned level = env->config->debug_level;
-
-    env->pc = pc;
-    env->sregs[DEBUGCAUSE] = cause;
-    env->sregs[EPC1 + level - 1] = pc;
-    env->sregs[EPS2 + level - 2] = env->sregs[PS];
-    env->sregs[PS] = (env->sregs[PS] & ~PS_INTLEVEL) | PS_EXCM |
-        (level << PS_INTLEVEL_SHIFT);
-    HELPER(exception)(env, EXC_DEBUG);
-}
-
 void HELPER(dump_state)(CPUXtensaState *env)
 {
     XtensaCPU *cpu = xtensa_env_get_cpu(env);
@@ -167,28 +103,6 @@ void HELPER(dump_state)(CPUXtensaState *env)
 }
 
 #ifndef CONFIG_USER_ONLY
-
-void HELPER(waiti)(CPUXtensaState *env, uint32_t pc, uint32_t intlevel)
-{
-    CPUState *cpu;
-
-    env->pc = pc;
-    env->sregs[PS] = (env->sregs[PS] & ~PS_INTLEVEL) |
-        (intlevel << PS_INTLEVEL_SHIFT);
-
-    qemu_mutex_lock_iothread();
-    check_interrupts(env);
-    qemu_mutex_unlock_iothread();
-
-    if (env->pending_irq_level) {
-        cpu_loop_exit(CPU(xtensa_env_get_cpu(env)));
-        return;
-    }
-
-    cpu = CPU(xtensa_env_get_cpu(env));
-    cpu->halted = 1;
-    HELPER(exception)(env, EXCP_HLT);
-}
 
 void HELPER(update_ccount)(CPUXtensaState *env)
 {
@@ -220,13 +134,6 @@ void HELPER(update_ccompare)(CPUXtensaState *env, uint32_t i)
     timer_mod(env->ccompare[i].timer,
               env->ccount_time + (dcc * 1000000) / env->config->clock_freq_khz);
     env->yield_needed = 1;
-}
-
-void HELPER(check_interrupts)(CPUXtensaState *env)
-{
-    qemu_mutex_lock_iothread();
-    check_interrupts(env);
-    qemu_mutex_unlock_iothread();
 }
 
 /*!
