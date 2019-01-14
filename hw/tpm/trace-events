@@ -51,3 +51,6 @@ tpm_tis_mmio_write_init_abort(void) "Initiating abort"
 tpm_tis_mmio_write_lowering_irq(void) "Lowering IRQ"
 tpm_tis_mmio_write_data2send(uint32_t value, unsigned size) "Data to send to TPM: 0x%08x (size=%d)"
 tpm_tis_pre_save(uint8_t locty, uint32_t rw_offset) "locty: %d, rw_offset = %u"
+
+# hw/tpm/tpm_ppi.c
+tpm_ppi_memset(uint8_t *ptr, size_t size) "memset: %p %zu"

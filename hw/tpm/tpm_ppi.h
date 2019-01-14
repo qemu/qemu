@@ -33,4 +33,14 @@ typedef struct TPMPPI {
 void tpm_ppi_init(TPMPPI *tpmppi, struct MemoryRegion *m,
                   hwaddr addr, Object *obj);
 
+/**
+ * tpm_ppi_reset:
+ * @tpmppi: a TPMPPI
+ *
+ * Function to call on machine reset. It will check if the "Memory
+ * overwrite" variable is set, and perform a memory clear on volatile
+ * memory if requested.
+ **/
+void tpm_ppi_reset(TPMPPI *tpmppi);
+
 #endif /* TPM_TPM_PPI_H */
