@@ -976,6 +976,9 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     case ZPCI_FS_STANDBY:
         break;
     default:
+        if (pbdev->release_timer) {
+            return;
+        }
         s390_pci_generate_plug_event(HP_EVENT_DECONFIGURE_REQUEST,
                                      pbdev->fh, pbdev->fid);
         pbdev->release_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
