@@ -9,4 +9,5 @@ obj-y += xtensa-isa.o
 obj-y += translate.o op_helper.o helper.o cpu.o
 obj-y += fpu_helper.o
 obj-y += gdbstub.o
+obj-$(CONFIG_SOFTMMU) += mmu_helper.o
 obj-y += win_helper.o
