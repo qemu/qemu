@@ -252,7 +252,7 @@ void xtensa_runstall(CPUXtensaState *env, bool runstall)
     if (runstall) {
         cpu_interrupt(cpu, CPU_INTERRUPT_HALT);
     } else {
-        cpu_reset_interrupt(cpu, CPU_INTERRUPT_HALT);
+        qemu_cpu_kick(cpu);
     }
 }
 #endif
