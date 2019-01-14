@@ -197,13 +197,15 @@ enum {
 
 /* Incompatible feature bits */
 enum {
-    QCOW2_INCOMPAT_DIRTY_BITNR   = 0,
-    QCOW2_INCOMPAT_CORRUPT_BITNR = 1,
-    QCOW2_INCOMPAT_DIRTY         = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
-    QCOW2_INCOMPAT_CORRUPT       = 1 << QCOW2_INCOMPAT_CORRUPT_BITNR,
+    QCOW2_INCOMPAT_DIRTY_BITNR      = 0,
+    QCOW2_INCOMPAT_CORRUPT_BITNR    = 1,
+    QCOW2_INCOMPAT_DATA_FILE_BITNR  = 2,
+    QCOW2_INCOMPAT_DIRTY            = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
+    QCOW2_INCOMPAT_CORRUPT          = 1 << QCOW2_INCOMPAT_CORRUPT_BITNR,
+    QCOW2_INCOMPAT_DATA_FILE        = 1 << QCOW2_INCOMPAT_DATA_FILE_BITNR,
 
-    QCOW2_INCOMPAT_MASK          = QCOW2_INCOMPAT_DIRTY
-                                 | QCOW2_INCOMPAT_CORRUPT,
+    QCOW2_INCOMPAT_MASK             = QCOW2_INCOMPAT_DIRTY
+                                    | QCOW2_INCOMPAT_CORRUPT,
 };
 
 /* Compatible feature bits */
@@ -216,10 +218,12 @@ enum {
 
 /* Autoclear feature bits */
 enum {
-    QCOW2_AUTOCLEAR_BITMAPS_BITNR = 0,
-    QCOW2_AUTOCLEAR_BITMAPS       = 1 << QCOW2_AUTOCLEAR_BITMAPS_BITNR,
+    QCOW2_AUTOCLEAR_BITMAPS_BITNR       = 0,
+    QCOW2_AUTOCLEAR_DATA_FILE_RAW_BITNR = 1,
+    QCOW2_AUTOCLEAR_BITMAPS             = 1 << QCOW2_AUTOCLEAR_BITMAPS_BITNR,
+    QCOW2_AUTOCLEAR_DATA_FILE_RAW       = 1 << QCOW2_AUTOCLEAR_DATA_FILE_RAW_BITNR,
 
-    QCOW2_AUTOCLEAR_MASK          = QCOW2_AUTOCLEAR_BITMAPS,
+    QCOW2_AUTOCLEAR_MASK                = QCOW2_AUTOCLEAR_BITMAPS,
 };
 
 enum qcow2_discard_type {
@@ -340,6 +344,8 @@ typedef struct BDRVQcow2State {
 
     CoQueue compress_wait_queue;
     int nb_compress_threads;
+
+    BdrvChild *data_file;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
@@ -456,6 +462,12 @@ typedef enum QCow2MetadataOverlap {
 #define L2E_COMPRESSED_OFFSET_SIZE_MASK 0x3fffffffffffffffULL
 
 #define REFT_OFFSET_MASK 0xfffffffffffffe00ULL
+
+static inline bool has_data_file(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    return (s->data_file != bs->file);
+}
 
 static inline int64_t start_of_cluster(BDRVQcow2State *s, int64_t offset)
 {
