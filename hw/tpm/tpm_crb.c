@@ -29,6 +29,7 @@
 #include "sysemu/reset.h"
 #include "tpm_int.h"
 #include "tpm_util.h"
+#include "tpm_ppi.h"
 #include "trace.h"
 
 typedef struct CRBState {
@@ -43,6 +44,7 @@ typedef struct CRBState {
     size_t be_buffer_size;
 
     bool ppi_enabled;
+    TPMPPI ppi;
 } CRBState;
 
 #define CRB(obj) OBJECT_CHECK(CRBState, (obj), TYPE_TPM_CRB)
@@ -293,6 +295,11 @@ static void tpm_crb_realize(DeviceState *dev, Error **errp)
         TPM_CRB_ADDR_BASE, &s->mmio);
     memory_region_add_subregion(get_system_memory(),
         TPM_CRB_ADDR_BASE + sizeof(s->regs), &s->cmdmem);
+
+    if (s->ppi_enabled) {
+        tpm_ppi_init(&s->ppi, get_system_memory(),
+                     TPM_PPI_ADDR_BASE, OBJECT(s));
+    }
 
     qemu_register_reset(tpm_crb_reset, dev);
 }

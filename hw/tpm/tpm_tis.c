@@ -31,6 +31,7 @@
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
 #include "tpm_util.h"
+#include "tpm_ppi.h"
 #include "trace.h"
 
 #define TPM_TIS_NUM_LOCALITIES      5     /* per spec */
@@ -83,6 +84,7 @@ typedef struct TPMState {
     size_t be_buffer_size;
 
     bool ppi_enabled;
+    TPMPPI ppi;
 } TPMState;
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
@@ -983,6 +985,11 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 
     memory_region_add_subregion(isa_address_space(ISA_DEVICE(dev)),
                                 TPM_TIS_ADDR_BASE, &s->mmio);
+
+    if (s->ppi_enabled) {
+        tpm_ppi_init(&s->ppi, isa_address_space(ISA_DEVICE(dev)),
+                     TPM_PPI_ADDR_BASE, OBJECT(s));
+    }
 }
 
 static void tpm_tis_initfn(Object *obj)
