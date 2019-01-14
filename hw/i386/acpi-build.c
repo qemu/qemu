@@ -1802,6 +1802,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     uint32_t nr_mem = machine->ram_slots;
     int root_bus_limit = 0xFF;
     PCIBus *bus = NULL;
+    TPMIf *tpm = tpm_find();
     int i;
 
     dsdt = init_aml_allocator();
@@ -2139,7 +2140,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             /* Scan all PCI buses. Generate tables to support hotplug. */
             build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
 
-            if (TPM_IS_TIS(tpm_find())) {
+            if (TPM_IS_TIS(tpm)) {
                 dev = aml_device("ISA.TPM");
                 aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C31")));
                 aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
@@ -2153,6 +2154,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                  */
                 /* aml_append(crs, aml_irq_no_flags(TPM_TIS_IRQ)); */
                 aml_append(dev, aml_name_decl("_CRS", crs));
+
+                tpm_build_ppi_acpi(tpm, dev);
+
                 aml_append(scope, dev);
             }
 
@@ -2160,7 +2164,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         }
     }
 
-    if (TPM_IS_CRB(tpm_find())) {
+    if (TPM_IS_CRB(tpm)) {
         dev = aml_device("TPM");
         aml_append(dev, aml_name_decl("_HID", aml_string("MSFT0101")));
         crs = aml_resource_template();
@@ -2171,6 +2175,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         method = aml_method("_STA", 0, AML_NOTSERIALIZED);
         aml_append(method, aml_return(aml_int(0x0f)));
         aml_append(dev, method);
+
+        tpm_build_ppi_acpi(tpm, dev);
 
         aml_append(sb_scope, dev);
     }
@@ -2894,7 +2900,7 @@ void acpi_setup(void)
         tpm_config = (FwCfgTPMConfig) {
             .tpmppi_address = cpu_to_le32(TPM_PPI_ADDR_BASE),
             .tpm_version = tpm_get_version(tpm),
-            .tpmppi_version = TPM_PPI_VERSION_NONE
+            .tpmppi_version = TPM_PPI_VERSION_1_30
         };
         fw_cfg_add_file(pcms->fw_cfg, "etc/tpm/config",
                         &tpm_config, sizeof tpm_config);
