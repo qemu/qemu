@@ -83,9 +83,10 @@
 /* S extension denotes that Supervisor mode exists, however it is possible
    to have a core that support S mode but does not have an MMU and there
    is currently no bit in misa to indicate whether an MMU exists or not
-   so a cpu features bitfield is required */
+   so a cpu features bitfield is required, likewise for optional PMP support */
 enum {
-    RISCV_FEATURE_MMU
+    RISCV_FEATURE_MMU,
+    RISCV_FEATURE_PMP
 };
 
 #define USER_VERSION_2_02_0 0x00020200
@@ -289,9 +290,39 @@ static inline void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
 #endif
 }
 
-void csr_write_helper(CPURISCVState *env, target_ulong val_to_write,
-        target_ulong csrno);
-target_ulong csr_read_helper(CPURISCVState *env, target_ulong csrno);
+int riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
+                target_ulong new_value, target_ulong write_mask);
+
+static inline void csr_write_helper(CPURISCVState *env, target_ulong val,
+                                    int csrno)
+{
+    riscv_csrrw(env, csrno, NULL, val, MAKE_64BIT_MASK(0, TARGET_LONG_BITS));
+}
+
+static inline target_ulong csr_read_helper(CPURISCVState *env, int csrno)
+{
+    target_ulong val = 0;
+    riscv_csrrw(env, csrno, &val, 0, 0);
+    return val;
+}
+
+typedef int (*riscv_csr_predicate_fn)(CPURISCVState *env, int csrno);
+typedef int (*riscv_csr_read_fn)(CPURISCVState *env, int csrno,
+    target_ulong *ret_value);
+typedef int (*riscv_csr_write_fn)(CPURISCVState *env, int csrno,
+    target_ulong new_value);
+typedef int (*riscv_csr_op_fn)(CPURISCVState *env, int csrno,
+    target_ulong *ret_value, target_ulong new_value, target_ulong write_mask);
+
+typedef struct {
+    riscv_csr_predicate_fn predicate;
+    riscv_csr_read_fn read;
+    riscv_csr_write_fn write;
+    riscv_csr_op_fn op;
+} riscv_csr_operations;
+
+void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
+void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
 
 #include "exec/cpu-all.h"
 

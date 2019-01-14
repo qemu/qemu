@@ -404,7 +404,8 @@ int riscv_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
     qemu_log_mask(CPU_LOG_MMU,
             "%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
              " prot %d\n", __func__, address, ret, pa, prot);
-    if (!pmp_hart_has_privs(env, pa, TARGET_PAGE_SIZE, 1 << rw)) {
+    if (riscv_feature(env, RISCV_FEATURE_PMP) &&
+        !pmp_hart_has_privs(env, pa, TARGET_PAGE_SIZE, 1 << rw)) {
         ret = TRANSLATE_FAIL;
     }
     if (ret == TRANSLATE_SUCCESS) {
@@ -528,7 +529,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             get_field(s, MSTATUS_SIE) : get_field(s, MSTATUS_UIE << env->priv));
         s = set_field(s, MSTATUS_SPP, env->priv);
         s = set_field(s, MSTATUS_SIE, 0);
-        csr_write_helper(env, s, CSR_MSTATUS);
+        env->mstatus = s;
         riscv_set_mode(env, PRV_S);
     } else {
         /* No need to check MTVEC for misaligned - lower 2 bits cannot be set */
@@ -553,7 +554,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             get_field(s, MSTATUS_MIE) : get_field(s, MSTATUS_UIE << env->priv));
         s = set_field(s, MSTATUS_MPP, env->priv);
         s = set_field(s, MSTATUS_MIE, 0);
-        csr_write_helper(env, s, CSR_MSTATUS);
+        env->mstatus = s;
         riscv_set_mode(env, PRV_M);
     }
     /* TODO yield load reservation  */

@@ -33,7 +33,10 @@ int riscv_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     } else if (n < 65) {
         return gdb_get_reg64(mem_buf, env->fpr[n - 33]);
     } else if (n < 4096 + 65) {
-        return gdb_get_regl(mem_buf, csr_read_helper(env, n - 65));
+        target_ulong val = 0;
+        if (riscv_csrrw(env, n - 65, &val, 0, 0) == 0) {
+            return gdb_get_regl(mem_buf, val);
+        }
     }
     return 0;
 }
@@ -56,7 +59,10 @@ int riscv_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->fpr[n - 33] = ldq_p(mem_buf); /* always 64-bit */
         return sizeof(uint64_t);
     } else if (n < 4096 + 65) {
-        csr_write_helper(env, ldtul_p(mem_buf), n - 65);
+        target_ulong val = ldtul_p(mem_buf);
+        if (riscv_csrrw(env, n - 65, NULL, val, -1) == 0) {
+            return sizeof(target_ulong);
+        }
     }
     return 0;
 }
