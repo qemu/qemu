@@ -29,10 +29,8 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
+#include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
-#if !defined(CONFIG_USER_ONLY)
-#include "hw/loader.h"
-#endif
 
 static struct XtensaConfigList *xtensa_cores;
 
@@ -187,6 +185,63 @@ int xtensa_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
 }
 
 #else
+
+void xtensa_cpu_do_unaligned_access(CPUState *cs,
+                                    vaddr addr, MMUAccessType access_type,
+                                    int mmu_idx, uintptr_t retaddr)
+{
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
+
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_UNALIGNED_EXCEPTION) &&
+        !xtensa_option_enabled(env->config, XTENSA_OPTION_HW_ALIGNMENT)) {
+        cpu_restore_state(CPU(cpu), retaddr, true);
+        HELPER(exception_cause_vaddr)(env,
+                                      env->pc, LOAD_STORE_ALIGNMENT_CAUSE,
+                                      addr);
+    }
+}
+
+void tlb_fill(CPUState *cs, target_ulong vaddr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
+{
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
+    uint32_t paddr;
+    uint32_t page_size;
+    unsigned access;
+    int ret = xtensa_get_physical_addr(env, true, vaddr, access_type, mmu_idx,
+                                       &paddr, &page_size, &access);
+
+    qemu_log_mask(CPU_LOG_MMU, "%s(%08x, %d, %d) -> %08x, ret = %d\n",
+                  __func__, vaddr, access_type, mmu_idx, paddr, ret);
+
+    if (ret == 0) {
+        tlb_set_page(cs,
+                     vaddr & TARGET_PAGE_MASK,
+                     paddr & TARGET_PAGE_MASK,
+                     access, mmu_idx, page_size);
+    } else {
+        cpu_restore_state(cs, retaddr, true);
+        HELPER(exception_cause_vaddr)(env, env->pc, ret, vaddr);
+    }
+}
+
+void xtensa_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
+                                      unsigned size, MMUAccessType access_type,
+                                      int mmu_idx, MemTxAttrs attrs,
+                                      MemTxResult response, uintptr_t retaddr)
+{
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
+
+    cpu_restore_state(cs, retaddr, true);
+    HELPER(exception_cause_vaddr)(env, env->pc,
+                                  access_type == MMU_INST_FETCH ?
+                                  INSTR_PIF_ADDR_ERROR_CAUSE :
+                                  LOAD_STORE_PIF_ADDR_ERROR_CAUSE,
+                                  addr);
+}
 
 void xtensa_runstall(CPUXtensaState *env, bool runstall)
 {
