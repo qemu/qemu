@@ -53,6 +53,16 @@
 
 /* -------------------------------------------------------------------- */
 
+typedef struct PixelFormat {
+    uint8_t bits_per_pixel;
+    uint8_t bytes_per_pixel;
+    uint8_t depth; /* color depth in bits */
+    uint32_t rmask, gmask, bmask, amask;
+    uint8_t rshift, gshift, bshift, ashift;
+    uint8_t rmax, gmax, bmax, amax;
+    uint8_t rbits, gbits, bbits, abits;
+} PixelFormat;
+
 PixelFormat qemu_pixelformat_from_pixman(pixman_format_code_t format);
 pixman_format_code_t qemu_default_pixman_format(int bpp, bool native_endian);
 pixman_format_code_t qemu_drm_format_to_pixman(uint32_t drm_format);
