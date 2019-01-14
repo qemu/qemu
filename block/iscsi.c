@@ -49,7 +49,9 @@
 /* Conflict between scsi/utils.h and libiscsi! :( */
 #define SCSI_XFER_NONE ISCSI_XFER_NONE
 #include <iscsi/iscsi.h>
+#define inline __attribute__((gnu_inline))  /* required for libiscsi v1.9.0 */
 #include <iscsi/scsi-lowlevel.h>
+#undef inline
 #undef SCSI_XFER_NONE
 QEMU_BUILD_BUG_ON((int)SCSI_XFER_NONE != (int)ISCSI_XFER_NONE);
 
