@@ -43,6 +43,11 @@ typedef struct ThrottleGroupMember {
      */
     unsigned int io_limits_disabled;
 
+    /* Number of pending throttle_group_restart_queue_entry() coroutines.
+     * Accessed with atomic operations.
+     */
+    unsigned int restart_pending;
+
     /* The following fields are protected by the ThrottleGroup lock.
      * See the ThrottleGroup documentation for details.
      * throttle_state tells us if I/O limits are configured. */
