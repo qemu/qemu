@@ -377,6 +377,7 @@ static void pci_edu_uninit(PCIDevice *pdev)
     qemu_mutex_destroy(&edu->thr_mutex);
 
     timer_del(&edu->dma_timer);
+    msi_uninit(pdev);
 }
 
 static void edu_obj_uint64(Object *obj, Visitor *v, const char *name,
