@@ -194,4 +194,7 @@ REG32(CRB_DATA_BUFFER, 0x80)
 #define TPM_PPI_ADDR_SIZE           0x400
 #define TPM_PPI_ADDR_BASE           0xFED45000
 
+#define TPM_PPI_VERSION_NONE        0
+#define TPM_PPI_VERSION_1_30        1
+
 #endif /* HW_ACPI_TPM_H */
