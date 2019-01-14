@@ -986,7 +986,7 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    if (pbdev->release_timer && timer_pending(pbdev->release_timer)) {
+    if (pbdev->release_timer) {
         timer_del(pbdev->release_timer);
         timer_free(pbdev->release_timer);
         pbdev->release_timer = NULL;
