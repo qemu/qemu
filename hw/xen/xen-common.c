@@ -10,7 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "chardev/char.h"
 #include "sysemu/accel.h"
 #include "migration/misc.h"

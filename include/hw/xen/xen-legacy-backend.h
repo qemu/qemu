@@ -11,7 +11,7 @@
 #define TYPE_XENBACKEND "xen-backend"
 
 #define XENBACKEND_DEVICE(obj) \
-    OBJECT_CHECK(XenDevice, (obj), TYPE_XENBACKEND)
+    OBJECT_CHECK(XenLegacyDevice, (obj), TYPE_XENBACKEND)
 
 /* variables */
 extern struct xs_handle *xenstore;
@@ -20,32 +20,37 @@ extern DeviceState *xen_sysdev;
 extern BusState *xen_sysbus;
 
 int xenstore_mkdir(char *path, int p);
-int xenstore_write_be_str(struct XenDevice *xendev, const char *node, const char *val);
-int xenstore_write_be_int(struct XenDevice *xendev, const char *node, int ival);
-int xenstore_write_be_int64(struct XenDevice *xendev, const char *node, int64_t ival);
-char *xenstore_read_be_str(struct XenDevice *xendev, const char *node);
-int xenstore_read_be_int(struct XenDevice *xendev, const char *node, int *ival);
-void xenstore_update_fe(char *watch, struct XenDevice *xendev);
+int xenstore_write_be_str(struct XenLegacyDevice *xendev, const char *node,
+                          const char *val);
+int xenstore_write_be_int(struct XenLegacyDevice *xendev, const char *node,
+                          int ival);
+int xenstore_write_be_int64(struct XenLegacyDevice *xendev, const char *node,
+                            int64_t ival);
+char *xenstore_read_be_str(struct XenLegacyDevice *xendev, const char *node);
+int xenstore_read_be_int(struct XenLegacyDevice *xendev, const char *node,
+                         int *ival);
+void xenstore_update_fe(char *watch, struct XenLegacyDevice *xendev);
 void xenstore_update_be(char *watch, char *type, int dom,
                         struct XenDevOps *ops);
-char *xenstore_read_fe_str(struct XenDevice *xendev, const char *node);
-int xenstore_read_fe_int(struct XenDevice *xendev, const char *node, int *ival);
-int xenstore_read_fe_uint64(struct XenDevice *xendev, const char *node,
+char *xenstore_read_fe_str(struct XenLegacyDevice *xendev, const char *node);
+int xenstore_read_fe_int(struct XenLegacyDevice *xendev, const char *node,
+                         int *ival);
+int xenstore_read_fe_uint64(struct XenLegacyDevice *xendev, const char *node,
                             uint64_t *uval);
 
-void xen_be_check_state(struct XenDevice *xendev);
+void xen_be_check_state(struct XenLegacyDevice *xendev);
 
 /* xen backend driver bits */
 int xen_be_init(void);
 void xen_be_register_common(void);
 int xen_be_register(const char *type, struct XenDevOps *ops);
-int xen_be_set_state(struct XenDevice *xendev, enum xenbus_state state);
-int xen_be_bind_evtchn(struct XenDevice *xendev);
-void xen_be_set_max_grant_refs(struct XenDevice *xendev,
+int xen_be_set_state(struct XenLegacyDevice *xendev, enum xenbus_state state);
+int xen_be_bind_evtchn(struct XenLegacyDevice *xendev);
+void xen_be_set_max_grant_refs(struct XenLegacyDevice *xendev,
                                unsigned int nr_refs);
-void *xen_be_map_grant_refs(struct XenDevice *xendev, uint32_t *refs,
+void *xen_be_map_grant_refs(struct XenLegacyDevice *xendev, uint32_t *refs,
                             unsigned int nr_refs, int prot);
-void xen_be_unmap_grant_refs(struct XenDevice *xendev, void *ptr,
+void xen_be_unmap_grant_refs(struct XenLegacyDevice *xendev, void *ptr,
                              unsigned int nr_refs);
 
 typedef struct XenGrantCopySegment {
@@ -59,17 +64,17 @@ typedef struct XenGrantCopySegment {
     size_t len;
 } XenGrantCopySegment;
 
-int xen_be_copy_grant_refs(struct XenDevice *xendev,
+int xen_be_copy_grant_refs(struct XenLegacyDevice *xendev,
                            bool to_domain, XenGrantCopySegment segs[],
                            unsigned int nr_segs);
 
-static inline void *xen_be_map_grant_ref(struct XenDevice *xendev,
+static inline void *xen_be_map_grant_ref(struct XenLegacyDevice *xendev,
                                          uint32_t ref, int prot)
 {
     return xen_be_map_grant_refs(xendev, &ref, 1, prot);
 }
 
-static inline void xen_be_unmap_grant_ref(struct XenDevice *xendev,
+static inline void xen_be_unmap_grant_ref(struct XenLegacyDevice *xendev,
                                           void *ptr)
 {
     return xen_be_unmap_grant_refs(xendev, ptr, 1);

@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "hw/qdev-core.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen_pvdev.h"
 
 /* private */
@@ -34,7 +34,7 @@ struct xs_dirs {
 static QTAILQ_HEAD(, xs_dirs) xs_cleanup =
     QTAILQ_HEAD_INITIALIZER(xs_cleanup);
 
-static QTAILQ_HEAD(, XenDevice) xendevs =
+static QTAILQ_HEAD(, XenLegacyDevice) xendevs =
     QTAILQ_HEAD_INITIALIZER(xendevs);
 
 /* ------------------------------------------------------------- */
@@ -195,7 +195,7 @@ const char *xenbus_strstate(enum xenbus_state state)
  *  2 == noisy debug messages (logfile only).
  *  3 == will flood your log (logfile only).
  */
-void xen_pv_printf(struct XenDevice *xendev, int msg_level,
+void xen_pv_printf(struct XenLegacyDevice *xendev, int msg_level,
                    const char *fmt, ...)
 {
     va_list args;
@@ -230,7 +230,7 @@ void xen_pv_printf(struct XenDevice *xendev, int msg_level,
 
 void xen_pv_evtchn_event(void *opaque)
 {
-    struct XenDevice *xendev = opaque;
+    struct XenLegacyDevice *xendev = opaque;
     evtchn_port_t port;
 
     port = xenevtchn_pending(xendev->evtchndev);
@@ -247,7 +247,7 @@ void xen_pv_evtchn_event(void *opaque)
     }
 }
 
-void xen_pv_unbind_evtchn(struct XenDevice *xendev)
+void xen_pv_unbind_evtchn(struct XenLegacyDevice *xendev)
 {
     if (xendev->local_port == -1) {
         return;
@@ -258,16 +258,16 @@ void xen_pv_unbind_evtchn(struct XenDevice *xendev)
     xendev->local_port = -1;
 }
 
-int xen_pv_send_notify(struct XenDevice *xendev)
+int xen_pv_send_notify(struct XenLegacyDevice *xendev)
 {
     return xenevtchn_notify(xendev->evtchndev, xendev->local_port);
 }
 
 /* ------------------------------------------------------------- */
 
-struct XenDevice *xen_pv_find_xendev(const char *type, int dom, int dev)
+struct XenLegacyDevice *xen_pv_find_xendev(const char *type, int dom, int dev)
 {
-    struct XenDevice *xendev;
+    struct XenLegacyDevice *xendev;
 
     QTAILQ_FOREACH(xendev, &xendevs, next) {
         if (xendev->dom != dom) {
@@ -287,7 +287,7 @@ struct XenDevice *xen_pv_find_xendev(const char *type, int dom, int dev)
 /*
  * release xen backend device.
  */
-void xen_pv_del_xendev(struct XenDevice *xendev)
+void xen_pv_del_xendev(struct XenLegacyDevice *xendev)
 {
     if (xendev->ops->free) {
         xendev->ops->free(xendev);
@@ -312,7 +312,7 @@ void xen_pv_del_xendev(struct XenDevice *xendev)
     qdev_unplug(&xendev->qdev, NULL);
 }
 
-void xen_pv_insert_xendev(struct XenDevice *xendev)
+void xen_pv_insert_xendev(struct XenLegacyDevice *xendev)
 {
     QTAILQ_INSERT_TAIL(&xendevs, xendev, next);
 }

@@ -15,7 +15,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "xen_pt.h"
 
 #define XEN_PT_MERGE_VALUE(value, data, val_mask) \
@@ -300,7 +300,9 @@ static int xen_pt_irqpin_reg_init(XenPCIPassthroughState *s,
                                   XenPTRegInfo *reg, uint32_t real_offset,
                                   uint32_t *data)
 {
-    *data = xen_pt_pci_read_intx(s);
+    if (s->real_device.irq) {
+        *data = xen_pt_pci_read_intx(s);
+    }
     return 0;
 }
 

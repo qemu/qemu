@@ -32,6 +32,7 @@ extern xc_interface *xen_xc;
 typedef xc_interface xenforeignmemory_handle;
 typedef xc_evtchn xenevtchn_handle;
 typedef xc_gnttab xengnttab_handle;
+typedef evtchn_port_or_error_t xenevtchn_port_or_error_t;
 
 #define xenevtchn_open(l, f) xc_evtchn_open(l, f);
 #define xenevtchn_close(h) xc_evtchn_close(h)
@@ -659,24 +660,6 @@ static inline int xen_set_ioreq_server_state(domid_t dom,
                                                  enable);
 }
 
-#endif
-
-#ifdef CONFIG_XEN_PV_DOMAIN_BUILD
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40700
-static inline int xen_domain_create(xc_interface *xc, uint32_t ssidref,
-                                    xen_domain_handle_t handle, uint32_t flags,
-                                    uint32_t *pdomid)
-{
-    return xc_domain_create(xc, ssidref, handle, flags, pdomid);
-}
-#else
-static inline int xen_domain_create(xc_interface *xc, uint32_t ssidref,
-                                    xen_domain_handle_t handle, uint32_t flags,
-                                    uint32_t *pdomid)
-{
-    return xc_domain_create(xc, ssidref, handle, flags, pdomid, NULL);
-}
-#endif
 #endif
 
 /* Xen before 4.8 */

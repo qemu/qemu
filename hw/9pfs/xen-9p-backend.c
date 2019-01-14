@@ -12,7 +12,7 @@
 
 #include "hw/hw.h"
 #include "hw/9pfs/9p.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "hw/9pfs/xen-9pfs.h"
 #include "qapi/error.h"
 #include "qemu/config-file.h"
@@ -45,7 +45,7 @@ typedef struct Xen9pfsRing {
 } Xen9pfsRing;
 
 typedef struct Xen9pfsDev {
-    struct XenDevice xendev;  /* must be first */
+    struct XenLegacyDevice xendev;  /* must be first */
     V9fsState state;
     char *path;
     char *security_model;
@@ -56,7 +56,7 @@ typedef struct Xen9pfsDev {
     Xen9pfsRing *rings;
 } Xen9pfsDev;
 
-static void xen_9pfs_disconnect(struct XenDevice *xendev);
+static void xen_9pfs_disconnect(struct XenLegacyDevice *xendev);
 
 static void xen_9pfs_in_sg(Xen9pfsRing *ring,
                            struct iovec *in_sg,
@@ -243,7 +243,7 @@ static const V9fsTransport xen_9p_transport = {
     .push_and_notify = xen_9pfs_push_and_notify,
 };
 
-static int xen_9pfs_init(struct XenDevice *xendev)
+static int xen_9pfs_init(struct XenLegacyDevice *xendev)
 {
     return 0;
 }
@@ -305,7 +305,7 @@ static void xen_9pfs_evtchn_event(void *opaque)
     qemu_bh_schedule(ring->bh);
 }
 
-static void xen_9pfs_disconnect(struct XenDevice *xendev)
+static void xen_9pfs_disconnect(struct XenLegacyDevice *xendev)
 {
     Xen9pfsDev *xen_9pdev = container_of(xendev, Xen9pfsDev, xendev);
     int i;
@@ -321,7 +321,7 @@ static void xen_9pfs_disconnect(struct XenDevice *xendev)
     }
 }
 
-static int xen_9pfs_free(struct XenDevice *xendev)
+static int xen_9pfs_free(struct XenLegacyDevice *xendev)
 {
     Xen9pfsDev *xen_9pdev = container_of(xendev, Xen9pfsDev, xendev);
     int i;
@@ -354,7 +354,7 @@ static int xen_9pfs_free(struct XenDevice *xendev)
     return 0;
 }
 
-static int xen_9pfs_connect(struct XenDevice *xendev)
+static int xen_9pfs_connect(struct XenLegacyDevice *xendev)
 {
     Error *err = NULL;
     int i;
@@ -467,7 +467,7 @@ out:
     return -1;
 }
 
-static void xen_9pfs_alloc(struct XenDevice *xendev)
+static void xen_9pfs_alloc(struct XenLegacyDevice *xendev)
 {
     xenstore_write_be_str(xendev, "versions", VERSIONS);
     xenstore_write_be_int(xendev, "max-rings", MAX_RINGS);

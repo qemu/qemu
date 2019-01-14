@@ -59,7 +59,7 @@
 #include "hw/pci/pci.h"
 #include "hw/xen/xen.h"
 #include "hw/i386/pc.h"
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "xen_pt.h"
 #include "qemu/range.h"
 #include "exec/address-spaces.h"
@@ -847,6 +847,12 @@ static void xen_pt_realize(PCIDevice *d, Error **errp)
     }
 
     machine_irq = s->real_device.irq;
+    if (machine_irq == 0) {
+        XEN_PT_LOG(d, "machine irq is 0\n");
+        cmd |= PCI_COMMAND_INTX_DISABLE;
+        goto out;
+    }
+
     rc = xc_physdev_map_pirq(xen_xc, xen_domid, machine_irq, &pirq);
     if (rc < 0) {
         error_setg_errno(errp, errno, "Mapping machine irq %u to"

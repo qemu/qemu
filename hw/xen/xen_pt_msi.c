@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/xen/xen_backend.h"
+#include "hw/xen/xen-legacy-backend.h"
 #include "xen_pt.h"
 #include "hw/i386/apic-msidef.h"
 
