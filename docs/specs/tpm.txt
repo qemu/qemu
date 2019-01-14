@@ -136,6 +136,8 @@ layout:
  | next_step|   0x1  |  0x159 | Operation to execute after reboot by      |
  |          |        |        | firmware. Used by firmware.               |
  +----------+--------+--------+-------------------------------------------+
+ | movv     |   0x1  |  0x15a | Memory overwrite variable                 |
+ +----------+--------+--------+-------------------------------------------+
 
    The following values are supported for the 'func' field. They correspond
    to the values used by ACPI function index 8.

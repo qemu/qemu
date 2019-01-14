@@ -53,6 +53,16 @@ void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev)
     pprq = aml_name("PPRQ");
     pprm = aml_name("PPRM");
 
+    aml_append(dev,
+               aml_operation_region(
+                   "TPP3", AML_SYSTEM_MEMORY,
+                   aml_int(TPM_PPI_ADDR_BASE +
+                           0x15a /* movv, docs/specs/tpm.txt */),
+                           0x1));
+    field = aml_field("TPP3", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("MOVV", 8));
+    aml_append(dev, field);
+
     /*
      * DerefOf in Windows is broken with SYSTEM_MEMORY.  Use a dynamic
      * operation region inside of a method for getting FUNC[op].
@@ -397,6 +407,51 @@ void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev)
             aml_append(ifctx, ifctx2);
 
             aml_append(ifctx, aml_return(aml_buffer(1, zerobyte)));
+        }
+        aml_append(method, ifctx);
+
+        /*
+         * "TCG Platform Reset Attack Mitigation Specification 1.00",
+         * Chapter 6 "ACPI _DSM Function"
+         */
+        ifctx = aml_if(
+            aml_equal(uuid,
+                      aml_touuid("376054ED-CC13-4675-901C-4756D7F2D45D")));
+        {
+            /* standard DSM query function */
+            ifctx2 = aml_if(aml_equal(function, zero));
+            {
+                uint8_t byte_list[1] = { 0x03 }; /* functions 1-2 supported */
+
+                aml_append(ifctx2,
+                           aml_return(aml_buffer(sizeof(byte_list),
+                                                 byte_list)));
+            }
+            aml_append(ifctx, ifctx2);
+
+            /*
+             * TCG Platform Reset Attack Mitigation Specification 1.0 Ch.6
+             *
+             * Arg 2 (Integer): Function Index = 1
+             * Arg 3 (Package): Arguments = Package: Type: Integer
+             *                  Operation Value of the Request
+             * Returns: Type: Integer
+             *          0: Success
+             *          1: General Failure
+             */
+            ifctx2 = aml_if(aml_equal(function, one));
+            {
+                aml_append(ifctx2,
+                           aml_store(aml_derefof(aml_index(arguments, zero)),
+                                     op));
+                {
+                    aml_append(ifctx2, aml_store(op, aml_name("MOVV")));
+
+                    /* 0: success */
+                    aml_append(ifctx2, aml_return(zero));
+                }
+            }
+            aml_append(ifctx, ifctx2);
         }
         aml_append(method, ifctx);
     }
