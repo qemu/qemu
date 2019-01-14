@@ -2880,6 +2880,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
      */
     BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
+    BlockDriverState *data_bs = NULL;
     QCowHeader *header;
     size_t cluster_size;
     int version;
@@ -2976,6 +2977,20 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
     refcount_order = ctz32(qcow2_opts->refcount_bits);
 
+    if (qcow2_opts->data_file) {
+        if (version < 3) {
+            error_setg(errp, "External data files are only supported with "
+                       "compatibility level 1.1 and above (use version=v3 or "
+                       "greater)");
+            ret = -EINVAL;
+            goto out;
+        }
+        data_bs = bdrv_open_blockdev_ref(qcow2_opts->data_file, errp);
+        if (bs == NULL) {
+            ret = -EIO;
+            goto out;
+        }
+    }
 
     /* Create BlockBackend to write to the image */
     blk = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
@@ -3014,6 +3029,10 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         header->compatible_features |=
             cpu_to_be64(QCOW2_COMPAT_LAZY_REFCOUNTS);
     }
+    if (data_bs) {
+        header->incompatible_features |=
+            cpu_to_be64(QCOW2_INCOMPAT_DATA_FILE);
+    }
 
     ret = blk_pwrite(blk, 0, header, cluster_size, 0);
     g_free(header);
@@ -3044,6 +3063,9 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     options = qdict_new();
     qdict_put_str(options, "driver", "qcow2");
     qdict_put_str(options, "file", bs->node_name);
+    if (data_bs) {
+        qdict_put_str(options, "data-file", data_bs->node_name);
+    }
     blk = blk_new_open(NULL, NULL, options,
                        BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_NO_FLUSH,
                        &local_err);
@@ -3116,6 +3138,9 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     options = qdict_new();
     qdict_put_str(options, "driver", "qcow2");
     qdict_put_str(options, "file", bs->node_name);
+    if (data_bs) {
+        qdict_put_str(options, "data-file", data_bs->node_name);
+    }
     blk = blk_new_open(NULL, NULL, options,
                        BDRV_O_RDWR | BDRV_O_NO_BACKING | BDRV_O_NO_IO,
                        &local_err);
@@ -3129,6 +3154,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
 out:
     blk_unref(blk);
     bdrv_unref(bs);
+    bdrv_unref(data_bs);
     return ret;
 }
 

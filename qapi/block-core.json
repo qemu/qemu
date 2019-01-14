@@ -4135,6 +4135,9 @@
 # Driver specific image creation options for qcow2.
 #
 # @file             Node to create the image format on
+# @data-file        Node to use as an external data file in which all guest
+#                   data is stored so that only metadata remains in the qcow2
+#                   file (since: 4.0)
 # @size             Size of the virtual disk in bytes
 # @version          Compatibility level (default: v3)
 # @backing-file     File name of the backing file if a backing file
@@ -4150,6 +4153,7 @@
 ##
 { 'struct': 'BlockdevCreateOptionsQcow2',
   'data': { 'file':             'BlockdevRef',
+            '*data-file':       'BlockdevRef',
             'size':             'size',
             '*version':         'BlockdevQcow2Version',
             '*backing-file':    'str',
