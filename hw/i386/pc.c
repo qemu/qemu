@@ -1222,24 +1222,44 @@ static void load_linux(PCMachineState *pcms,
          */
         if (load_elfboot(kernel_filename, kernel_size,
                          header, pvh_start_addr, fw_cfg)) {
-            struct hvm_modlist_entry ramdisk_mod = { 0 };
-
             fclose(f);
 
             fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
                 strlen(kernel_cmdline) + 1);
             fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
 
-            assert(machine->device_memory != NULL);
-            ramdisk_mod.paddr = machine->device_memory->base;
-            ramdisk_mod.size =
-                memory_region_size(&machine->device_memory->mr);
-
-            fw_cfg_add_bytes(fw_cfg, FW_CFG_KERNEL_DATA, &ramdisk_mod,
-                             sizeof(ramdisk_mod));
             fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, sizeof(header));
             fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA,
                              header, sizeof(header));
+
+            /* load initrd */
+            if (initrd_filename) {
+                gsize initrd_size;
+                gchar *initrd_data;
+                GError *gerr = NULL;
+
+                if (!g_file_get_contents(initrd_filename, &initrd_data,
+                            &initrd_size, &gerr)) {
+                    fprintf(stderr, "qemu: error reading initrd %s: %s\n",
+                            initrd_filename, gerr->message);
+                    exit(1);
+                }
+
+                initrd_max = pcms->below_4g_mem_size - pcmc->acpi_data_size - 1;
+                if (initrd_size >= initrd_max) {
+                    fprintf(stderr, "qemu: initrd is too large, cannot support."
+                            "(max: %"PRIu32", need %"PRId64")\n",
+                            initrd_max, (uint64_t)initrd_size);
+                    exit(1);
+                }
+
+                initrd_addr = (initrd_max - initrd_size) & ~4095;
+
+                fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
+                fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
+                fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, initrd_data,
+                                 initrd_size);
+            }
 
             return;
         }
