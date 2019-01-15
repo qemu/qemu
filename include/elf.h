@@ -1640,6 +1640,16 @@ typedef struct elf64_shdr {
 #define NT_ARM_HW_WATCH 0x403           /* ARM hardware watchpoint registers */
 #define NT_ARM_SYSTEM_CALL      0x404   /* ARM system call number */
 
+/*
+ * Physical entry point into the kernel.
+ *
+ * 32bit entry point into the kernel. When requested to launch the
+ * guest kernel, use this entry point to launch the guest in 32-bit
+ * protected mode with paging disabled.
+ *
+ * [ Corresponding definition in Linux kernel: include/xen/interface/elfnote.h ]
+ */
+#define XEN_ELFNOTE_PHYS32_ENTRY    18  /* 0x12 */
 
 /* Note header in a PT_NOTE section */
 typedef struct elf32_note {
