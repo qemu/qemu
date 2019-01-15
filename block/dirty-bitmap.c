@@ -787,6 +787,12 @@ int64_t bdrv_dirty_bitmap_next_zero(BdrvDirtyBitmap *bitmap, uint64_t offset,
     return hbitmap_next_zero(bitmap->bitmap, offset, bytes);
 }
 
+bool bdrv_dirty_bitmap_next_dirty_area(BdrvDirtyBitmap *bitmap,
+                                       uint64_t *offset, uint64_t *bytes)
+{
+    return hbitmap_next_dirty_area(bitmap->bitmap, offset, bytes);
+}
+
 void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
                              HBitmap **backup, Error **errp)
 {

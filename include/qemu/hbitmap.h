@@ -311,6 +311,22 @@ unsigned long hbitmap_iter_skip_words(HBitmapIter *hbi);
  */
 int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t count);
 
+/* hbitmap_next_dirty_area:
+ * @hb: The HBitmap to operate on
+ * @start: in-out parameter.
+ *         in: the offset to start from
+ *         out: (if area found) start of found area
+ * @count: in-out parameter.
+ *         in: length of requested region
+ *         out: length of found area
+ *
+ * If dirty area found within [@start, @start + @count), returns true and sets
+ * @offset and @bytes appropriately. Otherwise returns false and leaves @offset
+ * and @bytes unchanged.
+ */
+bool hbitmap_next_dirty_area(const HBitmap *hb, uint64_t *start,
+                             uint64_t *count);
+
 /* hbitmap_create_meta:
  * Create a "meta" hbitmap to track dirtiness of the bits in this HBitmap.
  * The caller owns the created bitmap and must call hbitmap_free_meta(hb) to
