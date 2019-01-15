@@ -233,38 +233,152 @@ typedef struct mips_def_t mips_def_t;
  * 7   TagLo             TagHi                               KScratch<n>
  *
  */
-#define CPO_REGISTER_00     0
-#define CPO_REGISTER_01     1
-#define CPO_REGISTER_02     2
-#define CPO_REGISTER_03     3
-#define CPO_REGISTER_04     4
-#define CPO_REGISTER_05     5
-#define CPO_REGISTER_06     6
-#define CPO_REGISTER_07     7
-#define CPO_REGISTER_08     8
-#define CPO_REGISTER_09     9
-#define CPO_REGISTER_10    10
-#define CPO_REGISTER_11    11
-#define CPO_REGISTER_12    12
-#define CPO_REGISTER_13    13
-#define CPO_REGISTER_14    14
-#define CPO_REGISTER_15    15
-#define CPO_REGISTER_16    16
-#define CPO_REGISTER_17    17
-#define CPO_REGISTER_18    18
-#define CPO_REGISTER_19    19
-#define CPO_REGISTER_20    20
-#define CPO_REGISTER_21    21
-#define CPO_REGISTER_22    22
-#define CPO_REGISTER_23    23
-#define CPO_REGISTER_24    24
-#define CPO_REGISTER_25    25
-#define CPO_REGISTER_26    26
-#define CPO_REGISTER_27    27
-#define CPO_REGISTER_28    28
-#define CPO_REGISTER_29    29
-#define CPO_REGISTER_30    30
-#define CPO_REGISTER_31    31
+#define CP0_REGISTER_00     0
+#define CP0_REGISTER_01     1
+#define CP0_REGISTER_02     2
+#define CP0_REGISTER_03     3
+#define CP0_REGISTER_04     4
+#define CP0_REGISTER_05     5
+#define CP0_REGISTER_06     6
+#define CP0_REGISTER_07     7
+#define CP0_REGISTER_08     8
+#define CP0_REGISTER_09     9
+#define CP0_REGISTER_10    10
+#define CP0_REGISTER_11    11
+#define CP0_REGISTER_12    12
+#define CP0_REGISTER_13    13
+#define CP0_REGISTER_14    14
+#define CP0_REGISTER_15    15
+#define CP0_REGISTER_16    16
+#define CP0_REGISTER_17    17
+#define CP0_REGISTER_18    18
+#define CP0_REGISTER_19    19
+#define CP0_REGISTER_20    20
+#define CP0_REGISTER_21    21
+#define CP0_REGISTER_22    22
+#define CP0_REGISTER_23    23
+#define CP0_REGISTER_24    24
+#define CP0_REGISTER_25    25
+#define CP0_REGISTER_26    26
+#define CP0_REGISTER_27    27
+#define CP0_REGISTER_28    28
+#define CP0_REGISTER_29    29
+#define CP0_REGISTER_30    30
+#define CP0_REGISTER_31    31
+
+
+/* CP0 Register 00 */
+#define CP0_REG00__INDEX           0
+#define CP0_REG00__VPCONTROL       4
+/* CP0 Register 01 */
+/* CP0 Register 02 */
+#define CP0_REG02__ENTRYLO0        0
+/* CP0 Register 03 */
+#define CP0_REG03__ENTRYLO1        0
+#define CP0_REG03__GLOBALNUM       1
+/* CP0 Register 04 */
+#define CP0_REG04__CONTEXT         0
+#define CP0_REG04__USERLOCAL       2
+#define CP0_REG04__DBGCONTEXTID    4
+#define CP0_REG00__MMID            5
+/* CP0 Register 05 */
+#define CP0_REG05__PAGEMASK        0
+#define CP0_REG05__PAGEGRAIN       1
+/* CP0 Register 06 */
+#define CP0_REG06__WIRED           0
+/* CP0 Register 07 */
+#define CP0_REG07__HWRENA          0
+/* CP0 Register 08 */
+#define CP0_REG08__BADVADDR        0
+#define CP0_REG08__BADINSTR        1
+#define CP0_REG08__BADINSTRP       2
+/* CP0 Register 09 */
+#define CP0_REG09__COUNT           0
+#define CP0_REG09__SAARI           6
+#define CP0_REG09__SAAR            7
+/* CP0 Register 10 */
+#define CP0_REG10__ENTRYHI         0
+#define CP0_REG10__GUESTCTL1       4
+#define CP0_REG10__GUESTCTL2       5
+/* CP0 Register 11 */
+#define CP0_REG11__COMPARE         0
+#define CP0_REG11__GUESTCTL0EXT    4
+/* CP0 Register 12 */
+#define CP0_REG12__STATUS          0
+#define CP0_REG12__INTCTL          1
+#define CP0_REG12__SRSCTL          2
+#define CP0_REG12__GUESTCTL0       6
+#define CP0_REG12__GTOFFSET        7
+/* CP0 Register 13 */
+#define CP0_REG13__CAUSE           0
+/* CP0 Register 14 */
+#define CP0_REG14__EPC             0
+/* CP0 Register 15 */
+#define CP0_REG15__PRID            0
+#define CP0_REG15__EBASE           1
+#define CP0_REG15__CDMMBASE        2
+#define CP0_REG15__CMGCRBASE       3
+/* CP0 Register 16 */
+#define CP0_REG16__CONFIG          0
+#define CP0_REG16__CONFIG1         1
+#define CP0_REG16__CONFIG2         2
+#define CP0_REG16__CONFIG3         3
+#define CP0_REG16__CONFIG4         4
+#define CP0_REG16__CONFIG5         5
+#define CP0_REG00__CONFIG7         7
+/* CP0 Register 17 */
+#define CP0_REG17__LLADDR          0
+#define CP0_REG17__MAAR            1
+#define CP0_REG17__MAARI           2
+/* CP0 Register 18 */
+#define CP0_REG18__WATCHLO0        0
+#define CP0_REG18__WATCHLO1        1
+#define CP0_REG18__WATCHLO2        2
+#define CP0_REG18__WATCHLO3        3
+/* CP0 Register 19 */
+#define CP0_REG19__WATCHHI0        0
+#define CP0_REG19__WATCHHI1        1
+#define CP0_REG19__WATCHHI2        2
+#define CP0_REG19__WATCHHI3        3
+/* CP0 Register 20 */
+#define CP0_REG20__XCONTEXT        0
+/* CP0 Register 21 */
+/* CP0 Register 22 */
+/* CP0 Register 23 */
+#define CP0_REG23__DEBUG           0
+/* CP0 Register 24 */
+#define CP0_REG24__DEPC            0
+/* CP0 Register 25 */
+#define CP0_REG25__PERFCTL0        0
+#define CP0_REG25__PERFCNT0        1
+#define CP0_REG25__PERFCTL1        2
+#define CP0_REG25__PERFCNT1        3
+#define CP0_REG25__PERFCTL2        4
+#define CP0_REG25__PERFCNT2        5
+#define CP0_REG25__PERFCTL3        6
+#define CP0_REG25__PERFCNT3        7
+/* CP0 Register 26 */
+#define CP0_REG00__ERRCTL          0
+/* CP0 Register 27 */
+#define CP0_REG27__CACHERR         0
+/* CP0 Register 28 */
+#define CP0_REG28__ITAGLO          0
+#define CP0_REG28__IDATALO         1
+#define CP0_REG28__DTAGLO          2
+#define CP0_REG28__DDATALO         3
+/* CP0 Register 29 */
+#define CP0_REG29__IDATAHI         1
+#define CP0_REG29__DDATAHI         3
+/* CP0 Register 30 */
+#define CP0_REG30__ERROREPC        0
+/* CP0 Register 31 */
+#define CP0_REG31__DESAVE          0
+#define CP0_REG31__KSCRATCH1       2
+#define CP0_REG31__KSCRATCH2       3
+#define CP0_REG31__KSCRATCH3       4
+#define CP0_REG31__KSCRATCH4       5
+#define CP0_REG31__KSCRATCH5       6
+#define CP0_REG31__KSCRATCH6       7
 
 
 typedef struct TCState TCState;
