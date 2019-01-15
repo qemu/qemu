@@ -140,7 +140,7 @@ static ssize_t qcow2_crypto_hdr_init_func(QCryptoBlock *block, size_t headerlen,
     /* Zero fill remaining space in cluster so it has predictable
      * content in case of future spec changes */
     clusterlen = size_to_clusters(s, headerlen) * s->cluster_size;
-    assert(qcow2_pre_write_overlap_check(bs, 0, ret, clusterlen) == 0);
+    assert(qcow2_pre_write_overlap_check(bs, 0, ret, clusterlen, false) == 0);
     ret = bdrv_pwrite_zeroes(bs->file,
                              ret + headerlen,
                              clusterlen - headerlen, 0);
@@ -1965,7 +1965,7 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
                  */
                 if (!cluster_data) {
                     cluster_data =
-                        qemu_try_blockalign(bs->file->bs,
+                        qemu_try_blockalign(s->data_file->bs,
                                             QCOW_MAX_CRYPT_CLUSTERS
                                             * s->cluster_size);
                     if (cluster_data == NULL) {
@@ -1981,7 +1981,7 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
 
             BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
             qemu_co_mutex_unlock(&s->lock);
-            ret = bdrv_co_preadv(bs->file,
+            ret = bdrv_co_preadv(s->data_file,
                                  cluster_offset + offset_in_cluster,
                                  cur_bytes, &hd_qiov, 0);
             qemu_co_mutex_lock(&s->lock);
@@ -2140,7 +2140,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         }
 
         ret = qcow2_pre_write_overlap_check(bs, 0,
-                cluster_offset + offset_in_cluster, cur_bytes);
+                cluster_offset + offset_in_cluster, cur_bytes, true);
         if (ret < 0) {
             goto fail;
         }
@@ -2154,7 +2154,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
             BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
             trace_qcow2_writev_data(qemu_coroutine_self(),
                                     cluster_offset + offset_in_cluster);
-            ret = bdrv_co_pwritev(bs->file,
+            ret = bdrv_co_pwritev(s->data_file,
                                   cluster_offset + offset_in_cluster,
                                   cur_bytes, &hd_qiov, 0);
             qemu_co_mutex_lock(&s->lock);
@@ -3356,7 +3356,7 @@ qcow2_co_copy_range_from(BlockDriverState *bs,
             goto out;
 
         case QCOW2_CLUSTER_NORMAL:
-            child = bs->file;
+            child = s->data_file;
             copy_offset += offset_into_cluster(s, src_offset);
             if ((copy_offset & 511) != 0) {
                 ret = -EIO;
@@ -3426,14 +3426,14 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
         assert((cluster_offset & 511) == 0);
 
         ret = qcow2_pre_write_overlap_check(bs, 0,
-                cluster_offset + offset_in_cluster, cur_bytes);
+                cluster_offset + offset_in_cluster, cur_bytes, true);
         if (ret < 0) {
             goto fail;
         }
 
         qemu_co_mutex_unlock(&s->lock);
         ret = bdrv_co_copy_range_to(src, src_offset,
-                                    bs->file,
+                                    s->data_file,
                                     cluster_offset + offset_in_cluster,
                                     cur_bytes, read_flags, write_flags);
         qemu_co_mutex_lock(&s->lock);
@@ -3588,6 +3588,17 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         int64_t old_file_size, new_file_size;
         uint64_t nb_new_data_clusters, nb_new_l2_tables;
 
+        /* With a data file, preallocation means just allocating the metadata
+         * and forwarding the truncate request to the data file */
+        if (has_data_file(bs)) {
+            ret = preallocate_co(bs, old_length, offset);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "Preallocation failed");
+                goto fail;
+            }
+            break;
+        }
+
         old_file_size = bdrv_getlength(bs->file->bs);
         if (old_file_size < 0) {
             error_setg_errno(errp, -old_file_size,
@@ -3695,6 +3706,16 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     }
 
     bs->total_sectors = offset / BDRV_SECTOR_SIZE;
+
+    if (has_data_file(bs)) {
+        if (prealloc == PREALLOC_MODE_METADATA) {
+            prealloc = PREALLOC_MODE_OFF;
+        }
+        ret = bdrv_co_truncate(s->data_file, offset, prealloc, errp);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
 
     /* write updated header.size */
     offset = cpu_to_be64(offset);
@@ -3898,6 +3919,10 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     uint8_t *buf, *out_buf;
     uint64_t cluster_offset;
 
+    if (has_data_file(bs)) {
+        return -ENOTSUP;
+    }
+
     if (bytes == 0) {
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
@@ -3949,7 +3974,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         goto fail;
     }
 
-    ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len);
+    ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len, true);
     qemu_co_mutex_unlock(&s->lock);
     if (ret < 0) {
         goto fail;
@@ -3957,8 +3982,8 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
 
     qemu_iovec_init_buf(&hd_qiov, out_buf, out_len);
 
-    BLKDBG_EVENT(bs->file, BLKDBG_WRITE_COMPRESSED);
-    ret = bdrv_co_pwritev(bs->file, cluster_offset, out_len, &hd_qiov, 0);
+    BLKDBG_EVENT(s->data_file, BLKDBG_WRITE_COMPRESSED);
+    ret = bdrv_co_pwritev(s->data_file, cluster_offset, out_len, &hd_qiov, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -4544,6 +4569,11 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
 
     if (s->refcount_order != 4) {
         error_setg(errp, "compat=0.10 requires refcount_bits=16");
+        return -ENOTSUP;
+    }
+
+    if (has_data_file(bs)) {
+        error_setg(errp, "Cannot downgrade an image with a data file");
         return -ENOTSUP;
     }
 

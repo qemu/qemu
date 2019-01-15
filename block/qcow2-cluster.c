@@ -153,7 +153,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     /* the L1 position has not yet been updated, so these clusters must
      * indeed be completely free */
     ret = qcow2_pre_write_overlap_check(bs, 0, new_l1_table_offset,
-                                        new_l1_size2);
+                                        new_l1_size2, false);
     if (ret < 0) {
         goto fail;
     }
@@ -238,7 +238,7 @@ int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
     }
 
     ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L1,
-            s->l1_table_offset + 8 * l1_start_index, sizeof(buf));
+            s->l1_table_offset + 8 * l1_start_index, sizeof(buf), false);
     if (ret < 0) {
         return ret;
     }
@@ -490,6 +490,7 @@ static int coroutine_fn do_perform_cow_write(BlockDriverState *bs,
                                              unsigned offset_in_cluster,
                                              QEMUIOVector *qiov)
 {
+    BDRVQcow2State *s = bs->opaque;
     int ret;
 
     if (qiov->size == 0) {
@@ -497,13 +498,13 @@ static int coroutine_fn do_perform_cow_write(BlockDriverState *bs,
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0,
-            cluster_offset + offset_in_cluster, qiov->size);
+            cluster_offset + offset_in_cluster, qiov->size, true);
     if (ret < 0) {
         return ret;
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_COW_WRITE);
-    ret = bdrv_co_pwritev(bs->file, cluster_offset + offset_in_cluster,
+    ret = bdrv_co_pwritev(s->data_file, cluster_offset + offset_in_cluster,
                           qiov->size, qiov, 0);
     if (ret < 0) {
         return ret;
@@ -607,6 +608,14 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     }
     switch (type) {
     case QCOW2_CLUSTER_COMPRESSED:
+        if (has_data_file(bs)) {
+            qcow2_signal_corruption(bs, true, -1, -1, "Compressed cluster "
+                                    "entry found in image with external data "
+                                    "file (L2 offset: %#" PRIx64 ", L2 index: "
+                                    "%#x)", l2_offset, l2_index);
+            ret = -EIO;
+            goto fail;
+        }
         /* Compressed clusters can only be processed one by one */
         c = 1;
         *cluster_offset &= L2E_COMPRESSED_OFFSET_SIZE_MASK;
@@ -630,6 +639,17 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
                                     PRIx64 " unaligned (L2 offset: %#" PRIx64
                                     ", L2 index: %#x)", *cluster_offset,
                                     l2_offset, l2_index);
+            ret = -EIO;
+            goto fail;
+        }
+        if (has_data_file(bs) && *cluster_offset != offset - offset_in_cluster)
+        {
+            qcow2_signal_corruption(bs, true, -1, -1,
+                                    "External data file host cluster offset %#"
+                                    PRIx64 " does not match guest cluster "
+                                    "offset: %#" PRIx64
+                                    ", L2 index: %#x)", *cluster_offset,
+                                    offset - offset_in_cluster, l2_index);
             ret = -EIO;
             goto fail;
         }
@@ -752,6 +772,10 @@ int qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     uint64_t *l2_slice;
     int64_t cluster_offset;
     int nb_csectors;
+
+    if (has_data_file(bs)) {
+        return 0;
+    }
 
     ret = get_cluster_table(bs, offset, &l2_slice, &l2_index);
     if (ret < 0) {
@@ -1242,6 +1266,13 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
 
     trace_qcow2_do_alloc_clusters_offset(qemu_coroutine_self(), guest_offset,
                                          *host_offset, *nb_clusters);
+
+    if (has_data_file(bs)) {
+        assert(*host_offset == INV_OFFSET ||
+               *host_offset == start_of_cluster(s, guest_offset));
+        *host_offset = start_of_cluster(s, guest_offset);
+        return 0;
+    }
 
     /* Allocate new clusters */
     trace_qcow2_cluster_alloc_phys(qemu_coroutine_self());
@@ -1919,7 +1950,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                 }
 
                 ret = qcow2_pre_write_overlap_check(bs, 0, offset,
-                                                    s->cluster_size);
+                                                    s->cluster_size, true);
                 if (ret < 0) {
                     if (cluster_type == QCOW2_CLUSTER_ZERO_PLAIN) {
                         qcow2_free_clusters(bs, offset, s->cluster_size,
@@ -1928,7 +1959,8 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                     goto fail;
                 }
 
-                ret = bdrv_pwrite_zeroes(bs->file, offset, s->cluster_size, 0);
+                ret = bdrv_pwrite_zeroes(s->data_file, offset,
+                                         s->cluster_size, 0);
                 if (ret < 0) {
                     if (cluster_type == QCOW2_CLUSTER_ZERO_PLAIN) {
                         qcow2_free_clusters(bs, offset, s->cluster_size,
@@ -1955,7 +1987,7 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                 if (l2_dirty) {
                     ret = qcow2_pre_write_overlap_check(
                         bs, QCOW2_OL_INACTIVE_L2 | QCOW2_OL_ACTIVE_L2,
-                        slice_offset, slice_size2);
+                        slice_offset, slice_size2, false);
                     if (ret < 0) {
                         goto fail;
                     }

@@ -778,7 +778,8 @@ static int bitmap_list_store(BlockDriverState *bs, Qcow2BitmapList *bm_list,
      * directory in-place (actually, turn-off the extension), which is checked
      * in qcow2_check_metadata_overlap() */
     ret = qcow2_pre_write_overlap_check(
-            bs, in_place ? QCOW2_OL_BITMAP_DIRECTORY : 0, dir_offset, dir_size);
+            bs, in_place ? QCOW2_OL_BITMAP_DIRECTORY : 0, dir_offset, dir_size,
+            false);
     if (ret < 0) {
         goto fail;
     }
@@ -1224,7 +1225,7 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
             memset(buf + write_size, 0, s->cluster_size - write_size);
         }
 
-        ret = qcow2_pre_write_overlap_check(bs, 0, off, s->cluster_size);
+        ret = qcow2_pre_write_overlap_check(bs, 0, off, s->cluster_size, false);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Qcow2 overlap check failed");
             goto fail;
@@ -1292,7 +1293,7 @@ static int store_bitmap(BlockDriverState *bs, Qcow2Bitmap *bm, Error **errp)
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0, tb_offset,
-                                        tb_size * sizeof(tb[0]));
+                                        tb_size * sizeof(tb[0]), false);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Qcow2 overlap check failed");
         goto fail;

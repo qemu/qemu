@@ -1156,8 +1156,20 @@ void qcow2_free_any_clusters(BlockDriverState *bs, uint64_t l2_entry,
                              int nb_clusters, enum qcow2_discard_type type)
 {
     BDRVQcow2State *s = bs->opaque;
+    QCow2ClusterType ctype = qcow2_get_cluster_type(bs, l2_entry);
 
-    switch (qcow2_get_cluster_type(bs, l2_entry)) {
+    if (has_data_file(bs)) {
+        if (s->discard_passthrough[type] &&
+            (ctype == QCOW2_CLUSTER_NORMAL ||
+             ctype == QCOW2_CLUSTER_ZERO_ALLOC))
+        {
+            bdrv_pdiscard(s->data_file, l2_entry & L2E_OFFSET_MASK,
+                          nb_clusters << s->cluster_bits);
+        }
+        return;
+    }
+
+    switch (ctype) {
     case QCOW2_CLUSTER_COMPRESSED:
         {
             int nb_csectors;
@@ -1649,7 +1661,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                         l2_table[i] = cpu_to_be64(l2_entry);
                         ret = qcow2_pre_write_overlap_check(bs,
                                 QCOW2_OL_ACTIVE_L2 | QCOW2_OL_INACTIVE_L2,
-                                l2e_offset, sizeof(uint64_t));
+                                l2e_offset, sizeof(uint64_t), false);
                         if (ret < 0) {
                             fprintf(stderr, "ERROR: Overlap check failed\n");
                             res->check_errors++;
@@ -1898,7 +1910,8 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
 
         if (l2_dirty) {
             ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L2,
-                                                l2_offset, s->cluster_size);
+                                                l2_offset, s->cluster_size,
+                                                false);
             if (ret < 0) {
                 fprintf(stderr, "ERROR: Could not write L2 table; metadata "
                         "overlap check failed: %s\n", strerror(-ret));
@@ -2366,7 +2379,7 @@ write_refblocks:
         }
 
         ret = qcow2_pre_write_overlap_check(bs, 0, refblock_offset,
-                                            s->cluster_size);
+                                            s->cluster_size, false);
         if (ret < 0) {
             fprintf(stderr, "ERROR writing refblock: %s\n", strerror(-ret));
             goto fail;
@@ -2417,7 +2430,8 @@ write_refblocks:
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0, reftable_offset,
-                                        reftable_size * sizeof(uint64_t));
+                                        reftable_size * sizeof(uint64_t),
+                                        false);
     if (ret < 0) {
         fprintf(stderr, "ERROR writing reftable: %s\n", strerror(-ret));
         goto fail;
@@ -2751,10 +2765,15 @@ QEMU_BUILD_BUG_ON(QCOW2_OL_MAX_BITNR != ARRAY_SIZE(metadata_ol_names));
  * overlaps; or a negative value (-errno) on error.
  */
 int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
-                                  int64_t size)
+                                  int64_t size, bool data_file)
 {
-    int ret = qcow2_check_metadata_overlap(bs, ign, offset, size);
+    int ret;
 
+    if (data_file && has_data_file(bs)) {
+        return 0;
+    }
+
+    ret = qcow2_check_metadata_overlap(bs, ign, offset, size);
     if (ret < 0) {
         return ret;
     } else if (ret > 0) {
@@ -2855,7 +2874,8 @@ static int flush_refblock(BlockDriverState *bs, uint64_t **reftable,
     if (reftable_index < *reftable_size && (*reftable)[reftable_index]) {
         offset = (*reftable)[reftable_index];
 
-        ret = qcow2_pre_write_overlap_check(bs, 0, offset, s->cluster_size);
+        ret = qcow2_pre_write_overlap_check(bs, 0, offset, s->cluster_size,
+                                            false);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Overlap check failed");
             return ret;
@@ -3121,7 +3141,8 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
 
     /* Write the new reftable */
     ret = qcow2_pre_write_overlap_check(bs, 0, new_reftable_offset,
-                                        new_reftable_size * sizeof(uint64_t));
+                                        new_reftable_size * sizeof(uint64_t),
+                                        false);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Overlap check failed");
         goto done;
