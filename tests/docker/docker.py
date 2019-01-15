@@ -127,6 +127,11 @@ def _check_binfmt_misc(executable):
 
     with open(binfmt_entry) as x: entry = x.read()
 
+    if re.search("flags:.*F.*\n", entry):
+        print("binfmt_misc for %s uses persistent(F) mapping to host binary\n" %
+              (binary))
+        return None
+
     m = re.search("interpreter (\S+)\n", entry)
     interp = m.group(1)
     if interp and interp != executable:
