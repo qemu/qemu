@@ -5,30 +5,37 @@
  * terms and conditions of the copyright.
  */
 
-//#define DEBUG 1
-
-#ifdef DEBUG
+#ifndef DEBUG_H_
+#define DEBUG_H_
 
 #define DBG_CALL 0x1
 #define DBG_MISC 0x2
 #define DBG_ERROR 0x4
 
-#define dfd stderr
-
 extern int slirp_debug;
 
-#define DEBUG_CALL(x) if (slirp_debug & DBG_CALL) { fprintf(dfd, "%s...\n", x); fflush(dfd); }
-#define DEBUG_ARG(x, y) if (slirp_debug & DBG_CALL) { fputc(' ', dfd); fprintf(dfd, x, y); fputc('\n', dfd); fflush(dfd); }
-#define DEBUG_ARGS(x) if (slirp_debug & DBG_CALL) { fprintf x ; fflush(dfd); }
-#define DEBUG_MISC(x) if (slirp_debug & DBG_MISC) { fprintf x ; fflush(dfd); }
-#define DEBUG_ERROR(x) if (slirp_debug & DBG_ERROR) {fprintf x ; fflush(dfd); }
+#define DEBUG_CALL(fmt, ...) do {               \
+    if (G_UNLIKELY(slirp_debug & DBG_CALL)) {   \
+        g_debug(fmt "...", ##__VA_ARGS__);      \
+    }                                           \
+} while (0)
 
-#else
+#define DEBUG_ARG(fmt, ...) do {                \
+    if (G_UNLIKELY(slirp_debug & DBG_CALL)) {   \
+        g_debug(" " fmt, ##__VA_ARGS__);        \
+    }                                           \
+} while (0)
 
-#define DEBUG_CALL(x)
-#define DEBUG_ARG(x, y)
-#define DEBUG_ARGS(x)
-#define DEBUG_MISC(x)
-#define DEBUG_ERROR(x)
+#define DEBUG_MISC(fmt, ...) do {               \
+    if (G_UNLIKELY(slirp_debug & DBG_MISC)) {   \
+        g_debug(fmt, ##__VA_ARGS__);            \
+    }                                           \
+} while (0)
 
-#endif
+#define DEBUG_ERROR(fmt, ...) do {              \
+    if (G_UNLIKELY(slirp_debug & DBG_ERROR)) {  \
+        g_debug(fmt, ##__VA_ARGS__);            \
+    }                                           \
+} while (0)
+
+#endif /* DEBUG_H_ */

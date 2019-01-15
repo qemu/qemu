@@ -165,6 +165,7 @@ target-obj-y :=
 block-obj-y :=
 common-obj-y :=
 chardev-obj-y :=
+slirp-obj-y :=
 include $(SRC_PATH)/Makefile.objs
 dummy := $(call unnest-vars,,target-obj-y)
 target-obj-y-save := $(target-obj-y)
@@ -177,7 +178,8 @@ dummy := $(call unnest-vars,.., \
                qom-obj-y \
                io-obj-y \
                common-obj-y \
-               common-obj-m)
+               common-obj-m \
+               slirp-obj-y)
 target-obj-y := $(target-obj-y-save)
 all-obj-y += $(common-obj-y)
 all-obj-y += $(target-obj-y)
@@ -186,6 +188,7 @@ all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y) $(chardev-obj-y)
 all-obj-$(CONFIG_USER_ONLY) += $(crypto-aes-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(crypto-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(io-obj-y)
+all-obj-$(CONFIG_SOFTMMU) += $(slirp-obj-y)
 
 $(QEMU_PROG_BUILD): config-devices.mak
 

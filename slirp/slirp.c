@@ -35,6 +35,11 @@
 #include <net/if.h>
 #endif
 
+int slirp_debug;
+
+/* Define to 1 if you want KEEPALIVE timers */
+bool slirp_do_keepalive;
+
 /* host loopback address */
 struct in_addr loopback_addr;
 /* host loopback network mask */
@@ -161,9 +166,7 @@ static int get_dns_addr_resolv_conf(int af, void *pdns_addr, void *cached_addr,
     if (!f)
         return -1;
 
-#ifdef DEBUG
-    fprintf(stderr, "IP address of your DNS(s): ");
-#endif
+    DEBUG_MISC("IP address of your DNS(s):");
     while (fgets(buff, 512, f) != NULL) {
         if (sscanf(buff, "nameserver%*[ \t]%256s", buff2) == 1) {
             char *c = strchr(buff2, '%');
@@ -186,26 +189,18 @@ static int get_dns_addr_resolv_conf(int af, void *pdns_addr, void *cached_addr,
                 }
                 *cached_time = curtime;
             }
-#ifdef DEBUG
-            else
-                fprintf(stderr, ", ");
-#endif
+
             if (++found > 3) {
-#ifdef DEBUG
-                fprintf(stderr, "(more)");
-#endif
+                DEBUG_MISC("  (more)");
                 break;
-            }
-#ifdef DEBUG
-            else {
+            } else if (slirp_debug & DBG_MISC) {
                 char s[INET6_ADDRSTRLEN];
                 const char *res = inet_ntop(af, tmp_addr, s, sizeof(s));
                 if (!res) {
-                    res = "(string conversion error)";
+                    res = "  (string conversion error)";
                 }
-                fprintf(stderr, "%s", res);
+                DEBUG_MISC("  %s", res);
             }
-#endif
         }
     }
     fclose(f);
@@ -252,6 +247,7 @@ int get_dns6_addr(struct in6_addr *pdns6_addr, uint32_t *scope_id)
 static void slirp_init_once(void)
 {
     static int initialized;
+    const char *debug;
 #ifdef _WIN32
     WSADATA Data;
 #endif
@@ -268,6 +264,18 @@ static void slirp_init_once(void)
 
     loopback_addr.s_addr = htonl(INADDR_LOOPBACK);
     loopback_mask = htonl(IN_CLASSA_NET);
+
+    debug = g_getenv("SLIRP_DEBUG");
+    if (debug) {
+        const GDebugKey keys[] = {
+            { "call", DBG_CALL },
+            { "misc", DBG_MISC },
+            { "error", DBG_ERROR },
+        };
+        slirp_debug = g_parse_debug_string(debug, keys, G_N_ELEMENTS(keys));
+    }
+
+
 }
 
 static void slirp_state_save(QEMUFile *f, void *opaque);
@@ -287,12 +295,15 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
                   const char *tftp_path, const char *bootfile,
                   struct in_addr vdhcp_start, struct in_addr vnameserver,
                   struct in6_addr vnameserver6, const char **vdnssearch,
-                  const char *vdomainname, void *opaque)
+                  const char *vdomainname,
+                  const SlirpCb *callbacks,
+                  void *opaque)
 {
     Slirp *slirp = g_malloc0(sizeof(Slirp));
 
     slirp_init_once();
 
+    slirp->cb = callbacks;
     slirp->grand = g_rand_new();
     slirp->restricted = restricted;
 
@@ -339,6 +350,14 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
 
 void slirp_cleanup(Slirp *slirp)
 {
+    struct gfwd_list *e, *next;
+
+    for (e = slirp->guestfwd_list; e; e = next) {
+        next = e->ex_next;
+        g_free(e->ex_exec);
+        g_free(e);
+    }
+
     QTAILQ_REMOVE(&slirp_instances, slirp, entry);
 
     unregister_savevm(NULL, "slirp", slirp);
@@ -560,15 +579,15 @@ void slirp_pollfds_fill(GArray *pollfds, uint32_t *timeout)
 
 void slirp_pollfds_poll(GArray *pollfds, int select_error)
 {
-    Slirp *slirp;
+    Slirp *slirp = QTAILQ_FIRST(&slirp_instances);
     struct socket *so, *so_next;
     int ret;
 
-    if (QTAILQ_EMPTY(&slirp_instances)) {
+    if (!slirp) {
         return;
     }
 
-    curtime = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    curtime = slirp->cb->clock_get_ns() / SCALE_MS;
 
     QTAILQ_FOREACH(slirp, &slirp_instances, entry) {
         /*
@@ -688,47 +707,6 @@ void slirp_pollfds_poll(GArray *pollfds, int select_error)
                         }
                     }
                 }
-
-                /*
-                 * Probe a still-connecting, non-blocking socket
-                 * to check if it's still alive
-                 */
-#ifdef PROBE_CONN
-                if (so->so_state & SS_ISFCONNECTING) {
-                    ret = qemu_recv(so->s, &ret, 0, 0);
-
-                    if (ret < 0) {
-                        /* XXX */
-                        if (errno == EAGAIN || errno == EWOULDBLOCK ||
-                            errno == EINPROGRESS || errno == ENOTCONN) {
-                            continue; /* Still connecting, continue */
-                        }
-
-                        /* else failed */
-                        so->so_state &= SS_PERSISTENT_MASK;
-                        so->so_state |= SS_NOFDREF;
-
-                        /* tcp_input will take care of it */
-                    } else {
-                        ret = send(so->s, &ret, 0, 0);
-                        if (ret < 0) {
-                            /* XXX */
-                            if (errno == EAGAIN || errno == EWOULDBLOCK ||
-                                errno == EINPROGRESS || errno == ENOTCONN) {
-                                continue;
-                            }
-                            /* else failed */
-                            so->so_state &= SS_PERSISTENT_MASK;
-                            so->so_state |= SS_NOFDREF;
-                        } else {
-                            so->so_state &= ~SS_ISFCONNECTING;
-                        }
-
-                    }
-                    tcp_input((struct mbuf *)NULL, sizeof(struct ip), so,
-                              so->so_ffamily);
-                } /* SS_ISFCONNECTING */
-#endif
             }
 
             /*
@@ -787,7 +765,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
     struct ethhdr *reh = (struct ethhdr *)arp_reply;
     struct slirp_arphdr *rah = (struct slirp_arphdr *)(arp_reply + ETH_HLEN);
     int ar_op;
-    struct ex_list *ex_ptr;
+    struct gfwd_list *ex_ptr;
 
     if (!slirp->in_enabled) {
         return;
@@ -807,7 +785,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             if (ah->ar_tip == slirp->vnameserver_addr.s_addr ||
                 ah->ar_tip == slirp->vhost_addr.s_addr)
                 goto arp_ok;
-            for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+            for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
                 if (ex_ptr->ex_addr.s_addr == ah->ar_tip)
                     goto arp_ok;
             }
@@ -832,7 +810,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             rah->ar_sip = ah->ar_tip;
             memcpy(rah->ar_tha, ah->ar_sha, ETH_ALEN);
             rah->ar_tip = ah->ar_sip;
-            slirp_output(slirp->opaque, arp_reply, sizeof(arp_reply));
+            slirp->cb->output(slirp->opaque, arp_reply, sizeof(arp_reply));
         }
         break;
     case ARPOP_REPLY:
@@ -932,11 +910,11 @@ static int if_encap4(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
             /* target IP */
             rah->ar_tip = iph->ip_dst.s_addr;
             slirp->client_ipaddr = iph->ip_dst;
-            slirp_output(slirp->opaque, arp_req, sizeof(arp_req));
+            slirp->cb->output(slirp->opaque, arp_req, sizeof(arp_req));
             ifm->resolution_requested = true;
 
             /* Expire request and drop outgoing packet after 1 second */
-            ifm->expiration_date = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 1000000000ULL;
+            ifm->expiration_date = slirp->cb->clock_get_ns() + 1000000000ULL;
         }
         return 0;
     } else {
@@ -962,8 +940,7 @@ static int if_encap6(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
         if (!ifm->resolution_requested) {
             ndp_send_ns(slirp, ip6h->ip_dst);
             ifm->resolution_requested = true;
-            ifm->expiration_date =
-                qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 1000000000ULL;
+            ifm->expiration_date = slirp->cb->clock_get_ns() + 1000000000ULL;
         }
         return 0;
     } else {
@@ -1011,14 +988,14 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
     }
 
     memcpy(eh->h_dest, ethaddr, ETH_ALEN);
-    DEBUG_ARGS((dfd, " src = %02x:%02x:%02x:%02x:%02x:%02x\n",
-                eh->h_source[0], eh->h_source[1], eh->h_source[2],
-                eh->h_source[3], eh->h_source[4], eh->h_source[5]));
-    DEBUG_ARGS((dfd, " dst = %02x:%02x:%02x:%02x:%02x:%02x\n",
-                eh->h_dest[0], eh->h_dest[1], eh->h_dest[2],
-                eh->h_dest[3], eh->h_dest[4], eh->h_dest[5]));
+    DEBUG_ARG("src = %02x:%02x:%02x:%02x:%02x:%02x",
+              eh->h_source[0], eh->h_source[1], eh->h_source[2],
+              eh->h_source[3], eh->h_source[4], eh->h_source[5]);
+    DEBUG_ARG("dst = %02x:%02x:%02x:%02x:%02x:%02x",
+              eh->h_dest[0], eh->h_dest[1], eh->h_dest[2],
+              eh->h_dest[3], eh->h_dest[4], eh->h_dest[5]);
     memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
-    slirp_output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
+    slirp->cb->output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
     return 1;
 }
 
@@ -1065,9 +1042,11 @@ int slirp_add_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
     return 0;
 }
 
-int slirp_add_exec(Slirp *slirp, int do_pty, const void *args,
-                   struct in_addr *guest_addr, int guest_port)
+static bool
+check_guestfwd(Slirp *slirp, struct in_addr *guest_addr, int guest_port)
 {
+    struct gfwd_list *tmp_ptr;
+
     if (!guest_addr->s_addr) {
         guest_addr->s_addr = slirp->vnetwork_addr.s_addr |
             (htonl(0x0204) & ~slirp->vnetwork_mask.s_addr);
@@ -1076,18 +1055,36 @@ int slirp_add_exec(Slirp *slirp, int do_pty, const void *args,
         slirp->vnetwork_addr.s_addr ||
         guest_addr->s_addr == slirp->vhost_addr.s_addr ||
         guest_addr->s_addr == slirp->vnameserver_addr.s_addr) {
+        return false;
+    }
+
+    /* check if the port is "bound" */
+    for (tmp_ptr = slirp->guestfwd_list; tmp_ptr; tmp_ptr = tmp_ptr->ex_next) {
+        if (guest_port == tmp_ptr->ex_fport &&
+            guest_addr->s_addr == tmp_ptr->ex_addr.s_addr)
+            return false;
+    }
+
+    return true;
+}
+
+int slirp_add_exec(Slirp *slirp, void *chardev, const char *cmdline,
+                   struct in_addr *guest_addr, int guest_port)
+{
+    if (!check_guestfwd(slirp, guest_addr, guest_port)) {
         return -1;
     }
-    return add_exec(&slirp->exec_list, do_pty, (char *)args, *guest_addr,
+
+    return add_exec(&slirp->guestfwd_list, chardev, cmdline, *guest_addr,
                     htons(guest_port));
 }
 
 ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
 {
-    if (so->s == -1 && so->extra) {
+    if (so->s == -1 && so->chardev) {
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(so->extra, buf, len);
+        qemu_chr_fe_write_all(so->chardev, buf, len);
         return len;
     }
 
@@ -1240,8 +1237,8 @@ static int sbuf_tmp_post_load(void *opaque, int version)
     }
     if (tmp->woff >= requested_len ||
         tmp->roff >= requested_len) {
-        error_report("invalid sbuf offsets r/w=%u/%u len=%u",
-                     tmp->roff, tmp->woff, requested_len);
+        g_critical("invalid sbuf offsets r/w=%u/%u len=%u",
+                   tmp->roff, tmp->woff, requested_len);
         return -EINVAL;
     }
 
@@ -1349,7 +1346,7 @@ static int ss_family_post_load(void *opaque, int version_id)
         tss->parent->ss.ss_family = AF_INET6;
         break;
     default:
-        error_report("invalid ss_family type %x", tss->portable_family);
+        g_critical("invalid ss_family type %x", tss->portable_family);
         return -EINVAL;
     }
 
@@ -1449,10 +1446,10 @@ static const VMStateDescription vmstate_slirp = {
 static void slirp_state_save(QEMUFile *f, void *opaque)
 {
     Slirp *slirp = opaque;
-    struct ex_list *ex_ptr;
+    struct gfwd_list *ex_ptr;
 
-    for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
-        if (ex_ptr->ex_pty == 3) {
+    for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
+        if (ex_ptr->ex_chardev) {
             struct socket *so;
             so = slirp_find_ctl_socket(slirp, ex_ptr->ex_addr,
                                        ntohs(ex_ptr->ex_fport));
@@ -1471,7 +1468,7 @@ static void slirp_state_save(QEMUFile *f, void *opaque)
 static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
 {
     Slirp *slirp = opaque;
-    struct ex_list *ex_ptr;
+    struct gfwd_list *ex_ptr;
 
     while (qemu_get_byte(f)) {
         int ret;
@@ -1486,8 +1483,8 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
             slirp->vnetwork_addr.s_addr) {
             return -EINVAL;
         }
-        for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
-            if (ex_ptr->ex_pty == 3 &&
+        for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+            if (ex_ptr->ex_chardev &&
                 so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr &&
                 so->so_fport == ex_ptr->ex_fport) {
                 break;
@@ -1495,8 +1492,6 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
         }
         if (!ex_ptr)
             return -EINVAL;
-
-        so->extra = (void *)ex_ptr->ex_exec;
     }
 
     return vmstate_load_state(f, &vmstate_slirp, slirp, version_id);

@@ -8,12 +8,12 @@
 #ifndef MISC_H
 #define MISC_H
 
-struct ex_list {
-	int ex_pty;			/* Do we want a pty? */
+struct gfwd_list {
+	void *ex_chardev;
 	struct in_addr ex_addr;		/* Server address */
 	int ex_fport;                   /* Port to telnet to */
-	const char *ex_exec;            /* Command line of what to exec */
-	struct ex_list *ex_next;
+	char *ex_exec;                  /* Command line of what to exec */
+	struct gfwd_list *ex_next;
 };
 
 #define EMU_NONE 0x0
@@ -26,7 +26,6 @@ struct ex_list {
 #define EMU_REALAUDIO 0x5
 #define EMU_RLOGIN 0x6
 #define EMU_IDENT 0x7
-#define EMU_RSH 0x8
 
 #define EMU_NOCONNECT 0x10	/* Don't connect */
 
@@ -52,7 +51,7 @@ struct slirp_quehead {
 
 void slirp_insque(void *, void *);
 void slirp_remque(void *);
-int add_exec(struct ex_list **, int, char *, struct in_addr, int);
-int fork_exec(struct socket *so, const char *ex, int do_pty);
+int add_exec(struct gfwd_list **, void *, const char *, struct in_addr, int);
+int fork_exec(struct socket *so, const char *ex);
 
 #endif

@@ -22,6 +22,7 @@
 #include "net/checksum.h"
 #include "net/colo.h"
 #include "migration/colo.h"
+#include "util.h"
 
 #define FILTER_COLO_REWRITER(obj) \
     OBJECT_CHECK(RewriterState, (obj), TYPE_FILTER_REWRITER)
@@ -73,9 +74,9 @@ static int handle_primary_tcp_pkt(RewriterState *rf,
                                   Connection *conn,
                                   Packet *pkt, ConnectionKey *key)
 {
-    struct tcphdr *tcp_pkt;
+    struct tcp_hdr *tcp_pkt;
 
-    tcp_pkt = (struct tcphdr *)pkt->transport_header;
+    tcp_pkt = (struct tcp_hdr *)pkt->transport_header;
     if (trace_event_get_state_backends(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
         trace_colo_filter_rewriter_pkt_info(__func__,
                     inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
@@ -176,9 +177,9 @@ static int handle_secondary_tcp_pkt(RewriterState *rf,
                                     Connection *conn,
                                     Packet *pkt, ConnectionKey *key)
 {
-    struct tcphdr *tcp_pkt;
+    struct tcp_hdr *tcp_pkt;
 
-    tcp_pkt = (struct tcphdr *)pkt->transport_header;
+    tcp_pkt = (struct tcp_hdr *)pkt->transport_header;
 
     if (trace_event_get_state_backends(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
         trace_colo_filter_rewriter_pkt_info(__func__,

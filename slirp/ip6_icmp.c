@@ -17,7 +17,7 @@ static void ra_timer_handler(void *opaque)
 {
     Slirp *slirp = opaque;
     timer_mod(slirp->ra_timer,
-              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + NDP_Interval);
+              slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
     ndp_send_ra(slirp);
 }
 
@@ -31,7 +31,7 @@ void icmp6_init(Slirp *slirp)
                                      SCALE_MS, QEMU_TIMER_ATTR_EXTERNAL,
                                      ra_timer_handler, slirp);
     timer_mod(slirp->ra_timer,
-              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + NDP_Interval);
+              slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
 }
 
 void icmp6_cleanup(Slirp *slirp)
@@ -74,9 +74,10 @@ void icmp6_send_error(struct mbuf *m, uint8_t type, uint8_t code)
     Slirp *slirp = m->slirp;
     struct mbuf *t;
     struct ip6 *ip = mtod(m, struct ip6 *);
+    char addrstr[INET6_ADDRSTRLEN];
 
     DEBUG_CALL("icmp6_send_error");
-    DEBUG_ARGS((dfd, " type = %d, code = %d\n", type, code));
+    DEBUG_ARG("type = %d, code = %d", type, code);
 
     if (IN6_IS_ADDR_MULTICAST(&ip->ip_src) ||
             in6_zero(&ip->ip_src)) {
@@ -90,11 +91,8 @@ void icmp6_send_error(struct mbuf *m, uint8_t type, uint8_t code)
     struct ip6 *rip = mtod(t, struct ip6 *);
     rip->ip_src = (struct in6_addr)LINKLOCAL_ADDR;
     rip->ip_dst = ip->ip_src;
-#if !defined(_WIN32) || (_WIN32_WINNT >= 0x0600)
-    char addrstr[INET6_ADDRSTRLEN];
     inet_ntop(AF_INET6, &rip->ip_dst, addrstr, INET6_ADDRSTRLEN);
     DEBUG_ARG("target = %s", addrstr);
-#endif
 
     rip->ip_nh = IPPROTO_ICMPV6;
     const int error_data_len = MIN(m->m_len,
@@ -222,12 +220,12 @@ void ndp_send_ra(Slirp *slirp)
  */
 void ndp_send_ns(Slirp *slirp, struct in6_addr addr)
 {
-    DEBUG_CALL("ndp_send_ns");
-#if !defined(_WIN32) || (_WIN32_WINNT >= 0x0600)
     char addrstr[INET6_ADDRSTRLEN];
+
     inet_ntop(AF_INET6, &addr, addrstr, INET6_ADDRSTRLEN);
+
+    DEBUG_CALL("ndp_send_ns");
     DEBUG_ARG("target = %s", addrstr);
-#endif
 
     /* Build IPv6 packet */
     struct mbuf *t = m_get(slirp);
@@ -342,8 +340,7 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
 
     case ICMP6_NDP_RA:
         DEBUG_CALL(" type = Router Advertisement");
-        qemu_log_mask(LOG_GUEST_ERROR,
-                "Warning: guest sent NDP RA, but shouldn't");
+        slirp->cb->guest_error("Warning: guest sent NDP RA, but shouldn't");
         break;
 
     case ICMP6_NDP_NS:
@@ -376,8 +373,8 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
 
     case ICMP6_NDP_REDIRECT:
         DEBUG_CALL(" type = Redirect");
-        qemu_log_mask(LOG_GUEST_ERROR,
-                "Warning: guest sent NDP REDIRECT, but shouldn't");
+        slirp->cb->guest_error(
+            "Warning: guest sent NDP REDIRECT, but shouldn't");
         break;
     }
 }
@@ -393,7 +390,7 @@ void icmp6_input(struct mbuf *m)
     int hlen = sizeof(struct ip6);
 
     DEBUG_CALL("icmp6_input");
-    DEBUG_ARG("m = %lx", (long) m);
+    DEBUG_ARG("m = %p", m);
     DEBUG_ARG("m_len = %d", m->m_len);
 
     if (ntohs(ip->ip_pl) < ICMP6_MINLEN) {
@@ -417,7 +414,7 @@ void icmp6_input(struct mbuf *m)
             icmp6_send_echoreply(m, slirp, ip, icmp);
         } else {
             /* TODO */
-            error_report("external icmpv6 not supported yet");
+            g_critical("external icmpv6 not supported yet");
         }
         break;
 

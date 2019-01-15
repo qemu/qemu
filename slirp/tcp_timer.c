@@ -262,7 +262,7 @@ tcp_timers(register struct tcpcb *tp, int timer)
 		if (tp->t_state < TCPS_ESTABLISHED)
 			goto dropit;
 
-		if ((SO_OPTIONS) && tp->t_state <= TCPS_CLOSE_WAIT) {
+		if (slirp_do_keepalive && tp->t_state <= TCPS_CLOSE_WAIT) {
 			if (tp->t_idle >= TCPTV_KEEP_IDLE + TCP_MAXIDLE)
 				goto dropit;
 			/*

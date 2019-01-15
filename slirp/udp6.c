@@ -20,7 +20,7 @@ void udp6_input(struct mbuf *m)
     struct sockaddr_in6 lhost;
 
     DEBUG_CALL("udp6_input");
-    DEBUG_ARG("m = %lx", (long)m);
+    DEBUG_ARG("m = %p", m);
 
     if (slirp->restricted) {
         goto bad;
@@ -92,8 +92,7 @@ void udp6_input(struct mbuf *m)
         /* If there's no socket for this packet, create one. */
         so = socreate(slirp);
         if (udp_attach(so, AF_INET6) == -1) {
-            DEBUG_MISC((dfd, " udp6_attach errno = %d-%s\n",
-                        errno, strerror(errno)));
+            DEBUG_MISC(" udp6_attach errno = %d-%s", errno, strerror(errno));
             sofree(so);
             goto bad;
         }
@@ -119,7 +118,7 @@ void udp6_input(struct mbuf *m)
         m->m_len += iphlen;
         m->m_data -= iphlen;
         *ip = save_ip;
-        DEBUG_MISC((dfd, "udp tx errno = %d-%s\n", errno, strerror(errno)));
+        DEBUG_MISC("udp tx errno = %d-%s", errno, strerror(errno));
         icmp6_send_error(m, ICMP6_UNREACH, ICMP6_UNREACH_NO_ROUTE);
         goto bad;
     }
@@ -144,8 +143,8 @@ int udp6_output(struct socket *so, struct mbuf *m,
     struct udphdr *uh;
 
     DEBUG_CALL("udp6_output");
-    DEBUG_ARG("so = %lx", (long)so);
-    DEBUG_ARG("m = %lx", (long)m);
+    DEBUG_ARG("so = %p", so);
+    DEBUG_ARG("m = %p", m);
 
     /* adjust for header */
     m->m_data -= sizeof(struct udphdr);

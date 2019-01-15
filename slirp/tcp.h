@@ -33,6 +33,8 @@
 #ifndef TCP_H
 #define TCP_H
 
+#include <glib.h>
+
 typedef	uint32_t tcp_seq;
 
 #define      PR_SLOWHZ       2               /* 2 slow timeouts per second (approx) */
@@ -51,7 +53,7 @@ struct tcphdr {
 	uint16_t th_dport;              /* destination port */
 	tcp_seq	th_seq;			/* sequence number */
 	tcp_seq	th_ack;			/* acknowledgement number */
-#ifdef HOST_WORDS_BIGENDIAN
+#if G_BYTE_ORDER == G_BIG_ENDIAN
 	uint8_t	th_off:4,		/* data offset */
 		th_x2:4;		/* (unused) */
 #else

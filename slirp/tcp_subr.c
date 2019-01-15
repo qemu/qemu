@@ -420,7 +420,7 @@ int tcp_fconnect(struct socket *so, unsigned short af)
     qemu_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
 
     addr = so->fhost.ss;
-    DEBUG_CALL(" connect()ing")
+    DEBUG_CALL(" connect()ing");
     sotranslate_out(so, &addr);
 
     /* We don't care what port we get */
@@ -541,7 +541,6 @@ static const struct tos_t tcptos[] = {
 	  {0, 23, IPTOS_LOWDELAY, 0},	/* telnet */
 	  {0, 80, IPTOS_THROUGHPUT, 0},	/* WWW */
 	  {0, 513, IPTOS_LOWDELAY, EMU_RLOGIN|EMU_NOCONNECT},	/* rlogin */
-	  {0, 514, IPTOS_LOWDELAY, EMU_RSH|EMU_NOCONNECT},	/* shell */
 	  {0, 544, IPTOS_LOWDELAY, EMU_KSH},		/* kshell */
 	  {0, 543, IPTOS_LOWDELAY, 0},	/* klogin */
 	  {0, 6667, IPTOS_THROUGHPUT, EMU_IRC},	/* IRC */
@@ -634,6 +633,11 @@ tcp_emu(struct socket *so, struct mbuf *m)
 			struct sockaddr_in addr;
 			socklen_t addrlen = sizeof(struct sockaddr_in);
 			struct sbuf *so_rcv = &so->so_rcv;
+
+			if (m->m_len > so_rcv->sb_datalen
+					- (so_rcv->sb_wptr - so_rcv->sb_data)) {
+			    return 1;
+			}
 
 			memcpy(so_rcv->sb_wptr, m->m_data, m->m_len);
 			so_rcv->sb_wptr += m->m_len;
@@ -950,25 +954,23 @@ int tcp_ctl(struct socket *so)
 {
     Slirp *slirp = so->slirp;
     struct sbuf *sb = &so->so_snd;
-    struct ex_list *ex_ptr;
-    int do_pty;
+    struct gfwd_list *ex_ptr;
 
     DEBUG_CALL("tcp_ctl");
     DEBUG_ARG("so = %p", so);
 
     if (so->so_faddr.s_addr != slirp->vhost_addr.s_addr) {
         /* Check if it's pty_exec */
-        for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
+        for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
             if (ex_ptr->ex_fport == so->so_fport &&
                 so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr) {
-                if (ex_ptr->ex_pty == 3) {
+                if (ex_ptr->ex_chardev) {
                     so->s = -1;
-                    so->extra = (void *)ex_ptr->ex_exec;
+                    so->chardev = ex_ptr->ex_chardev;
                     return 1;
                 }
-                do_pty = ex_ptr->ex_pty;
-                DEBUG_MISC((dfd, " executing %s\n", ex_ptr->ex_exec));
-                return fork_exec(so, ex_ptr->ex_exec, do_pty);
+                DEBUG_MISC(" executing %s", ex_ptr->ex_exec);
+                return fork_exec(so, ex_ptr->ex_exec);
             }
         }
     }

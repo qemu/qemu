@@ -30,6 +30,7 @@
 #include "net/colo-compare.h"
 #include "migration/colo.h"
 #include "migration/migration.h"
+#include "util.h"
 
 #define TYPE_COLO_COMPARE "colo-compare"
 #define COLO_COMPARE(obj) \
@@ -129,19 +130,19 @@ static int compare_chr_send(CompareState *s,
 
 static gint seq_sorter(Packet *a, Packet *b, gpointer data)
 {
-    struct tcphdr *atcp, *btcp;
+    struct tcp_hdr *atcp, *btcp;
 
-    atcp = (struct tcphdr *)(a->transport_header);
-    btcp = (struct tcphdr *)(b->transport_header);
+    atcp = (struct tcp_hdr *)(a->transport_header);
+    btcp = (struct tcp_hdr *)(b->transport_header);
     return ntohl(atcp->th_seq) - ntohl(btcp->th_seq);
 }
 
 static void fill_pkt_tcp_info(void *data, uint32_t *max_ack)
 {
     Packet *pkt = data;
-    struct tcphdr *tcphd;
+    struct tcp_hdr *tcphd;
 
-    tcphd = (struct tcphdr *)pkt->transport_header;
+    tcphd = (struct tcp_hdr *)pkt->transport_header;
 
     pkt->tcp_seq = ntohl(tcphd->th_seq);
     pkt->tcp_ack = ntohl(tcphd->th_ack);

@@ -1,8 +1,6 @@
 #ifndef SLIRP_H
 #define SLIRP_H
 
-#include "slirp_config.h"
-
 #ifdef _WIN32
 
 typedef char *caddr_t;
@@ -19,10 +17,6 @@ typedef char *caddr_t;
 # endif
 #endif
 
-#ifdef HAVE_SYS_BITYPES_H
-# include <sys/bitypes.h>
-#endif
-
 #ifndef _WIN32
 #include <sys/uio.h>
 #endif
@@ -32,29 +26,15 @@ typedef char *caddr_t;
 #include <arpa/inet.h>
 #endif
 
-#ifndef NO_UNIX_SOCKETS
-#include <sys/un.h>
-#endif
-#ifdef HAVE_SYS_SIGNAL_H
-# include <sys/signal.h>
-#endif
 #ifndef _WIN32
 #include <sys/socket.h>
 #endif
 
-#if defined(HAVE_SYS_IOCTL_H)
+#ifndef _WIN32
 # include <sys/ioctl.h>
 #endif
 
-#ifdef HAVE_SYS_SELECT_H
-# include <sys/select.h>
-#endif
-
-#ifdef HAVE_SYS_WAIT_H
-# include <sys/wait.h>
-#endif
-
-#ifdef HAVE_SYS_FILIO_H
+#ifdef __APPLE__
 # include <sys/filio.h>
 #endif
 
@@ -63,11 +43,6 @@ typedef char *caddr_t;
 #define insque slirp_insque
 #define remque slirp_remque
 #define quehead slirp_quehead
-
-#ifdef HAVE_SYS_STROPTS_H
-#include <sys/stropts.h>
-#endif
-
 
 #include "debug.h"
 
@@ -172,7 +147,7 @@ struct Slirp {
     char client_hostname[33];
 
     int restricted;
-    struct ex_list *exec_list;
+    struct gfwd_list *guestfwd_list;
 
     /* mbuf states */
     struct quehead m_freelist;
@@ -220,16 +195,14 @@ struct Slirp {
     GRand *grand;
     QEMUTimer *ra_timer;
 
+    const SlirpCb *cb;
     void *opaque;
 };
 
-extern Slirp *slirp_instance;
-
-#ifndef NULL
-#define NULL (void *)0
-#endif
-
 void if_start(Slirp *);
+
+int get_dns_addr(struct in_addr *pdns_addr);
+int get_dns6_addr(struct in6_addr *pdns6_addr, uint32_t *scope_id);
 
 /* ncsi.c */
 void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len);
@@ -238,7 +211,9 @@ void ncsi_input(Slirp *slirp, const uint8_t *pkt, int pkt_len);
 #include <netdb.h>
 #endif
 
-#define SO_OPTIONS DO_KEEPALIVE
+
+extern bool slirp_do_keepalive;
+
 #define TCP_MAXIDLE (TCPTV_KEEPCNT * TCPTV_KEEPINTVL)
 
 /* dnssearch.c */

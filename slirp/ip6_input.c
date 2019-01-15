@@ -31,7 +31,7 @@ void ip6_input(struct mbuf *m)
     }
 
     DEBUG_CALL("ip6_input");
-    DEBUG_ARG("m = %lx", (long)m);
+    DEBUG_ARG("m = %p", m);
     DEBUG_ARG("m_len = %d", m->m_len);
 
     if (m->m_len < sizeof(struct ip6)) {

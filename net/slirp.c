@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "net/slirp.h"
 
 
@@ -37,12 +38,12 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "slirp/libslirp.h"
-#include "slirp/ip6.h"
 #include "chardev/char-fe.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
+#include "util.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {
@@ -99,7 +100,7 @@ static void slirp_smb_cleanup(SlirpState *s);
 static inline void slirp_smb_cleanup(SlirpState *s) { }
 #endif
 
-void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
+static void net_slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
 {
     SlirpState *s = opaque;
 
@@ -138,6 +139,22 @@ static NetClientInfo net_slirp_info = {
     .size = sizeof(SlirpState),
     .receive = net_slirp_receive,
     .cleanup = net_slirp_cleanup,
+};
+
+static void net_slirp_guest_error(const char *msg)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "%s", msg);
+}
+
+static int64_t net_slirp_clock_get_ns(void)
+{
+    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+}
+
+static const SlirpCb slirp_cb = {
+    .output = net_slirp_output,
+    .guest_error = net_slirp_guest_error,
+    .clock_get_ns = net_slirp_clock_get_ns,
 };
 
 static int net_slirp_init(NetClientState *peer, const char *model,
@@ -279,17 +296,6 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     }
 #endif
 
-#if defined(_WIN32) && (_WIN32_WINNT < 0x0600)
-    /* No inet_pton helper before Vista... */
-    if (vprefix6) {
-        /* Unsupported */
-        error_setg(errp, "IPv6 prefix not supported");
-        return -1;
-    }
-    memset(&ip6_prefix, 0, sizeof(ip6_prefix));
-    ip6_prefix.s6_addr[0] = 0xfe;
-    ip6_prefix.s6_addr[1] = 0xc0;
-#else
     if (!vprefix6) {
         vprefix6 = "fec0::";
     }
@@ -297,7 +303,6 @@ static int net_slirp_init(NetClientState *peer, const char *model,
         error_setg(errp, "Failed to parse IPv6 prefix");
         return -1;
     }
-#endif
 
     if (!vprefix6_len) {
         vprefix6_len = 64;
@@ -309,10 +314,6 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     }
 
     if (vhost6) {
-#if defined(_WIN32) && (_WIN32_WINNT < 0x0600)
-        error_setg(errp, "IPv6 host not supported");
-        return -1;
-#else
         if (!inet_pton(AF_INET6, vhost6, &ip6_host)) {
             error_setg(errp, "Failed to parse IPv6 host");
             return -1;
@@ -321,17 +322,12 @@ static int net_slirp_init(NetClientState *peer, const char *model,
             error_setg(errp, "IPv6 Host doesn't belong to network");
             return -1;
         }
-#endif
     } else {
         ip6_host = ip6_prefix;
         ip6_host.s6_addr[15] |= 2;
     }
 
     if (vnameserver6) {
-#if defined(_WIN32) && (_WIN32_WINNT < 0x0600)
-        error_setg(errp, "IPv6 DNS not supported");
-        return -1;
-#else
         if (!inet_pton(AF_INET6, vnameserver6, &ip6_dns)) {
             error_setg(errp, "Failed to parse IPv6 DNS");
             return -1;
@@ -340,7 +336,6 @@ static int net_slirp_init(NetClientState *peer, const char *model,
             error_setg(errp, "IPv6 DNS doesn't belong to network");
             return -1;
         }
-#endif
     } else {
         ip6_dns = ip6_prefix;
         ip6_dns.s6_addr[15] |= 3;
@@ -378,7 +373,8 @@ static int net_slirp_init(NetClientState *peer, const char *model,
                           ipv6, ip6_prefix, vprefix6_len, ip6_host,
                           vhostname, tftp_server_name,
                           tftp_export, bootfile, dhcp,
-                          dns, ip6_dns, dnssearch, vdomainname, s);
+                          dns, ip6_dns, dnssearch, vdomainname,
+                          &slirp_cb, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
 
     for (config = slirp_configs; config; config = config->next) {
@@ -708,8 +704,8 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
              CONFIG_SMBD_COMMAND, s->smb_dir, smb_conf);
     g_free(smb_conf);
 
-    if (slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 139) < 0 ||
-        slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 445) < 0) {
+    if (slirp_add_exec(s->slirp, NULL, smb_cmdline, &vserver_addr, 139) < 0 ||
+        slirp_add_exec(s->slirp, NULL, smb_cmdline, &vserver_addr, 445) < 0) {
         slirp_smb_cleanup(s);
         g_free(smb_cmdline);
         error_setg(errp, "Conflicting/invalid smbserver address");
@@ -773,7 +769,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
     snprintf(buf, sizeof(buf), "guestfwd.tcp.%d", port);
 
     if ((strlen(p) > 4) && !strncmp(p, "cmd:", 4)) {
-        if (slirp_add_exec(s->slirp, 0, &p[4], &server, port) < 0) {
+        if (slirp_add_exec(s->slirp, NULL, &p[4], &server, port) < 0) {
             error_setg(errp, "Conflicting/invalid host:port in guest "
                        "forwarding rule '%s'", config_str);
             return -1;
@@ -800,7 +796,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
             return -1;
         }
 
-        if (slirp_add_exec(s->slirp, 3, &fwd->hd, &server, port) < 0) {
+        if (slirp_add_exec(s->slirp, &fwd->hd, NULL, &server, port) < 0) {
             error_setg(errp, "Conflicting/invalid host:port in guest "
                        "forwarding rule '%s'", config_str);
             g_free(fwd);
@@ -827,10 +823,11 @@ void hmp_info_usernet(Monitor *mon, const QDict *qdict)
     QTAILQ_FOREACH(s, &slirp_stacks, entry) {
         int id;
         bool got_hub_id = net_hub_id_for_client(&s->nc, &id) == 0;
-        monitor_printf(mon, "Hub %d (%s):\n",
+        char *info = slirp_connection_info(s->slirp);
+        monitor_printf(mon, "Hub %d (%s):\n%s",
                        got_hub_id ? id : -1,
-                       s->nc.name);
-        slirp_connection_info(s->slirp, mon);
+                       s->nc.name, info);
+        g_free(info);
     }
 }
 

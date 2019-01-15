@@ -72,7 +72,6 @@
  * How much free room there is
  */
 #define M_FREEROOM(m) (M_ROOM(m) - (m)->m_len)
-#define M_TRAILINGSPACE M_FREEROOM
 
 struct mbuf {
 	/* XXX should union some of these! */
