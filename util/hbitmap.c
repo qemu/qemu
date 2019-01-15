@@ -144,7 +144,7 @@ unsigned long hbitmap_iter_skip_words(HBitmapIter *hbi)
     return cur;
 }
 
-int64_t hbitmap_iter_next(HBitmapIter *hbi, bool advance)
+int64_t hbitmap_iter_next(HBitmapIter *hbi)
 {
     unsigned long cur = hbi->cur[HBITMAP_LEVELS - 1] &
             hbi->hb->levels[HBITMAP_LEVELS - 1][hbi->pos];
@@ -157,12 +157,8 @@ int64_t hbitmap_iter_next(HBitmapIter *hbi, bool advance)
         }
     }
 
-    if (advance) {
-        /* The next call will resume work from the next bit.  */
-        hbi->cur[HBITMAP_LEVELS - 1] = cur & (cur - 1);
-    } else {
-        hbi->cur[HBITMAP_LEVELS - 1] = cur;
-    }
+    /* The next call will resume work from the next bit.  */
+    hbi->cur[HBITMAP_LEVELS - 1] = cur & (cur - 1);
     item = ((uint64_t)hbi->pos << BITS_PER_LEVEL) + ctzl(cur);
 
     return item << hbi->granularity;
@@ -261,7 +257,7 @@ bool hbitmap_next_dirty_area(const HBitmap *hb, uint64_t *start,
     end = *count > hb->orig_size - *start ? hb->orig_size : *start + *count;
 
     hbitmap_iter_init(&hbi, hb, *start);
-    firt_dirty_off = hbitmap_iter_next(&hbi, false);
+    firt_dirty_off = hbitmap_iter_next(&hbi);
 
     if (firt_dirty_off < 0 || firt_dirty_off >= end) {
         return false;
