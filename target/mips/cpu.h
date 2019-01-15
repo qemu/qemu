@@ -536,6 +536,7 @@ struct CPUMIPSState {
  */
     target_ulong CP0_Context;
     target_ulong CP0_KScratch[MIPS_KSCRATCH_NUM];
+    int32_t CP0_MemoryMapID;
 /*
  * CP0 Register 5
  */
