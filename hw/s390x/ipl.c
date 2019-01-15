@@ -131,7 +131,8 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
             goto error;
         }
 
-        bios_size = load_elf(bios_filename, bios_translate_addr, &fwbase,
+        bios_size = load_elf(bios_filename, NULL,
+                             bios_translate_addr, &fwbase,
                              &ipl->bios_start_addr, NULL, NULL, 1,
                              EM_S390, 0, 0);
         if (bios_size > 0) {
@@ -155,7 +156,8 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
     }
 
     if (ipl->kernel) {
-        kernel_size = load_elf(ipl->kernel, NULL, NULL, &pentry, NULL,
+        kernel_size = load_elf(ipl->kernel, NULL, NULL, NULL,
+                               &pentry, NULL,
                                NULL, 1, EM_S390, 0, 0);
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
@@ -436,7 +438,8 @@ static int load_netboot_image(Error **errp)
         goto unref_mr;
     }
 
-    img_size = load_elf_ram(netboot_filename, NULL, NULL, &ipl->start_addr,
+    img_size = load_elf_ram(netboot_filename, NULL, NULL, NULL,
+                            &ipl->start_addr,
                             NULL, NULL, 1, EM_S390, 0, 0, NULL, false);
 
     if (img_size < 0) {

@@ -258,7 +258,7 @@ static void virtex_init(MachineState *machine)
         hwaddr boot_offset;
 
         /* Boots a kernel elf binary.  */
-        kernel_size = load_elf(kernel_filename, NULL, NULL,
+        kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
                                &entry, &low, &high, 1, PPC_ELF_MACHINE,
                                0, 0);
         boot_info.bootstrap_pc = entry & 0x00ffffff;

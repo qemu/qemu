@@ -136,7 +136,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
         AddressSpace *as = s->cpu ? s->cpu->as :  NULL;
 
         if (!s->force_raw) {
-            size = load_elf_as(s->file, NULL, NULL, &entry, NULL, NULL,
+            size = load_elf_as(s->file, NULL, NULL, NULL, &entry, NULL, NULL,
                                big_endian, 0, 0, 0, as);
 
             if (size < 0) {

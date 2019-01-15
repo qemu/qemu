@@ -199,7 +199,7 @@ int load_multiboot(FWCfgState *fw_cfg,
             exit(1);
         }
 
-        kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
+        kernel_size = load_elf(kernel_filename, NULL, NULL, NULL, &elf_entry,
                                &elf_low, &elf_high, 0, I386_ELF_MACHINE,
                                0, 0);
         if (kernel_size < 0) {

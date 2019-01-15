@@ -164,7 +164,7 @@ static void ppc_core99_init(MachineState *machine)
 
     /* Load OpenBIOS (ELF) */
     if (filename) {
-        bios_size = load_elf(filename, NULL, NULL, NULL,
+        bios_size = load_elf(filename, NULL, NULL, NULL, NULL,
                              NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
 
         g_free(filename);
@@ -187,7 +187,8 @@ static void ppc_core99_init(MachineState *machine)
 #endif
         kernel_base = KERNEL_LOAD_ADDR;
 
-        kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
+        kernel_size = load_elf(kernel_filename, NULL,
+                               translate_kernel_address, NULL,
                                NULL, &lowaddr, NULL, 1, PPC_ELF_MACHINE,
                                0, 0);
         if (kernel_size < 0)
