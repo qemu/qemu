@@ -422,7 +422,8 @@ static void backup_incremental_init_copy_bitmap(BackupBlockJob *job)
             break;
         }
 
-        offset = bdrv_dirty_bitmap_next_zero(job->sync_bitmap, offset);
+        offset = bdrv_dirty_bitmap_next_zero(job->sync_bitmap, offset,
+                                             UINT64_MAX);
         if (offset == -1) {
             hbitmap_set(job->copy_bitmap, cluster, end - cluster);
             break;

@@ -300,12 +300,16 @@ void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first);
 unsigned long hbitmap_iter_skip_words(HBitmapIter *hbi);
 
 /* hbitmap_next_zero:
+ *
+ * Find next not dirty bit within selected range. If not found, return -1.
+ *
  * @hb: The HBitmap to operate on
  * @start: The bit to start from.
- *
- * Find next not dirty bit.
+ * @count: Number of bits to proceed. If @start+@count > bitmap size, the whole
+ * bitmap is looked through. You can use UINT64_MAX as @count to search up to
+ * the bitmap end.
  */
-int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start);
+int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t count);
 
 /* hbitmap_create_meta:
  * Create a "meta" hbitmap to track dirtiness of the bits in this HBitmap.

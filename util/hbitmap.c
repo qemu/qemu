@@ -53,6 +53,9 @@
  */
 
 struct HBitmap {
+    /* Size of the bitmap, as requested in hbitmap_alloc. */
+    uint64_t orig_size;
+
     /* Number of total bits in the bottom level.  */
     uint64_t size;
 
@@ -192,16 +195,28 @@ void hbitmap_iter_init(HBitmapIter *hbi, const HBitmap *hb, uint64_t first)
     }
 }
 
-int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start)
+int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start, uint64_t count)
 {
     size_t pos = (start >> hb->granularity) >> BITS_PER_LEVEL;
     unsigned long *last_lev = hb->levels[HBITMAP_LEVELS - 1];
-    uint64_t sz = hb->sizes[HBITMAP_LEVELS - 1];
     unsigned long cur = last_lev[pos];
-    unsigned start_bit_offset =
-            (start >> hb->granularity) & (BITS_PER_LONG - 1);
+    unsigned start_bit_offset;
+    uint64_t end_bit, sz;
     int64_t res;
 
+    if (start >= hb->orig_size || count == 0) {
+        return -1;
+    }
+
+    end_bit = count > hb->orig_size - start ?
+                hb->size :
+                ((start + count - 1) >> hb->granularity) + 1;
+    sz = (end_bit + BITS_PER_LONG - 1) >> BITS_PER_LEVEL;
+
+    /* There may be some zero bits in @cur before @start. We are not interested
+     * in them, let's set them.
+     */
+    start_bit_offset = (start >> hb->granularity) & (BITS_PER_LONG - 1);
     cur |= (1UL << start_bit_offset) - 1;
     assert((start >> hb->granularity) < hb->size);
 
@@ -218,7 +233,7 @@ int64_t hbitmap_next_zero(const HBitmap *hb, uint64_t start)
     }
 
     res = (pos << BITS_PER_LEVEL) + ctol(cur);
-    if (res >= hb->size) {
+    if (res >= end_bit) {
         return -1;
     }
 
@@ -651,6 +666,8 @@ HBitmap *hbitmap_alloc(uint64_t size, int granularity)
 {
     HBitmap *hb = g_new0(struct HBitmap, 1);
     unsigned i;
+
+    hb->orig_size = size;
 
     assert(granularity >= 0 && granularity < 64);
     size = (size + (1ULL << granularity) - 1) >> granularity;

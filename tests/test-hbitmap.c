@@ -939,7 +939,7 @@ static void test_hbitmap_iter_and_reset(TestHBitmapData *data,
 
 static void test_hbitmap_next_zero_check(TestHBitmapData *data, int64_t start)
 {
-    int64_t ret1 = hbitmap_next_zero(data->hb, start);
+    int64_t ret1 = hbitmap_next_zero(data->hb, start, UINT64_MAX);
     int64_t ret2 = start;
     for ( ; ret2 < data->size && hbitmap_get(data->hb, ret2); ret2++) {
         ;
