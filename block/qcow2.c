@@ -398,6 +398,21 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 #endif
             break;
 
+        case QCOW2_EXT_MAGIC_DATA_FILE:
+        {
+            s->image_data_file = g_malloc0(ext.len + 1);
+            ret = bdrv_pread(bs->file, offset, s->image_data_file, ext.len);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret,
+                                 "ERROR: Could not read data file name");
+                return ret;
+            }
+#ifdef DEBUG_EXT
+            printf("Qcow2: Got external data file %s\n", s->image_data_file);
+#endif
+            break;
+        }
+
         default:
             /* unknown magic - save it in case we need to rewrite the header */
             /* If you add a new feature, make sure to also update the fast
@@ -1463,6 +1478,15 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     }
 
     if (s->incompatible_features & QCOW2_INCOMPAT_DATA_FILE) {
+        if (!s->data_file && s->image_data_file) {
+            s->data_file = bdrv_open_child(s->image_data_file, options,
+                                           "data-file", bs, &child_file,
+                                           false, errp);
+            if (!s->data_file) {
+                ret = -EINVAL;
+                goto fail;
+            }
+        }
         if (!s->data_file) {
             error_setg(errp, "'data-file' is required for this image");
             ret = -EINVAL;
@@ -1650,6 +1674,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     return ret;
 
  fail:
+    g_free(s->image_data_file);
     if (has_data_file(bs)) {
         bdrv_unref_child(bs, s->data_file);
     }
@@ -2269,6 +2294,7 @@ static void qcow2_close(BlockDriverState *bs)
     g_free(s->unknown_header_fields);
     cleanup_unknown_header_ext(bs);
 
+    g_free(s->image_data_file);
     g_free(s->image_backing_file);
     g_free(s->image_backing_format);
 
@@ -2436,6 +2462,19 @@ int qcow2_update_header(BlockDriverState *bs)
         ret = header_ext_add(buf, QCOW2_EXT_MAGIC_BACKING_FORMAT,
                              s->image_backing_format,
                              strlen(s->image_backing_format),
+                             buflen);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        buf += ret;
+        buflen -= ret;
+    }
+
+    /* External data file header extension */
+    if (has_data_file(bs) && s->image_data_file) {
+        ret = header_ext_add(buf, QCOW2_EXT_MAGIC_DATA_FILE,
+                             s->image_data_file, strlen(s->image_data_file),
                              buflen);
         if (ret < 0) {
             goto fail;
@@ -3086,6 +3125,12 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         abort();
     }
 
+    /* Set the external data file if necessary */
+    if (data_bs) {
+        BDRVQcow2State *s = blk_bs(blk)->opaque;
+        s->image_data_file = g_strdup(data_bs->filename);
+    }
+
     /* Create a full header (including things like feature table) */
     ret = qcow2_update_header(blk_bs(blk));
     if (ret < 0) {
@@ -3165,6 +3210,7 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
     QDict *qdict;
     Visitor *v;
     BlockDriverState *bs = NULL;
+    BlockDriverState *data_bs = NULL;
     Error *local_err = NULL;
     const char *val;
     int ret;
@@ -3228,6 +3274,26 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
         goto finish;
     }
 
+    /* Create and open an external data file (protocol layer) */
+    val = qdict_get_try_str(qdict, BLOCK_OPT_DATA_FILE);
+    if (val) {
+        ret = bdrv_create_file(val, opts, errp);
+        if (ret < 0) {
+            goto finish;
+        }
+
+        data_bs = bdrv_open(val, NULL, NULL,
+                            BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                            errp);
+        if (data_bs == NULL) {
+            ret = -EIO;
+            goto finish;
+        }
+
+        qdict_del(qdict, BLOCK_OPT_DATA_FILE);
+        qdict_put_str(qdict, "data-file", data_bs->node_name);
+    }
+
     /* Set 'driver' and 'node' options */
     qdict_put_str(qdict, "driver", "qcow2");
     qdict_put_str(qdict, "file", bs->node_name);
@@ -3262,6 +3328,7 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
 finish:
     qobject_unref(qdict);
     bdrv_unref(bs);
+    bdrv_unref(data_bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }
@@ -4552,6 +4619,8 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
             .refcount_bits      = s->refcount_bits,
             .has_bitmaps        = !!bitmaps,
             .bitmaps            = bitmaps,
+            .has_data_file      = !!s->image_data_file,
+            .data_file          = g_strdup(s->image_data_file),
         };
     } else {
         /* if this assertion fails, this probably means a new version was
@@ -4754,7 +4823,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     BDRVQcow2State *s = bs->opaque;
     int old_version = s->qcow_version, new_version = old_version;
     uint64_t new_size = 0;
-    const char *backing_file = NULL, *backing_format = NULL;
+    const char *backing_file = NULL, *backing_format = NULL, *data_file = NULL;
     bool lazy_refcounts = s->use_lazy_refcounts;
     const char *compat = NULL;
     uint64_t cluster_size = s->cluster_size;
@@ -4836,6 +4905,13 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                            "may not exceed 64 bits");
                 return -EINVAL;
             }
+        } else if (!strcmp(desc->name, BLOCK_OPT_DATA_FILE)) {
+            data_file = qemu_opt_get(opts, BLOCK_OPT_DATA_FILE);
+            if (data_file && !has_data_file(bs)) {
+                error_setg(errp, "data-file can only be set for images that "
+                                 "use an external data file");
+                return -EINVAL;
+            }
         } else {
             /* if this point is reached, this probably means a new option was
              * added without having it covered here */
@@ -4880,6 +4956,17 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
         if (ret < 0) {
             return ret;
         }
+    }
+
+    if (data_file) {
+        g_free(s->image_data_file);
+        s->image_data_file = *data_file ? g_strdup(data_file) : NULL;
+    }
+
+    ret = qcow2_update_header(bs);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to update the image header");
+        return ret;
     }
 
     if (backing_file || backing_format) {
@@ -5028,6 +5115,11 @@ static QemuOptsList qcow2_create_opts = {
             .name = BLOCK_OPT_BACKING_FMT,
             .type = QEMU_OPT_STRING,
             .help = "Image format of the base image"
+        },
+        {
+            .name = BLOCK_OPT_DATA_FILE,
+            .type = QEMU_OPT_STRING,
+            .help = "File name of an external data file"
         },
         {
             .name = BLOCK_OPT_ENCRYPT,

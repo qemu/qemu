@@ -59,6 +59,9 @@
 #
 # @compat: compatibility level
 #
+# @data-file: the filename of the external data file that is stored in the
+#             image and used as a default for opening the image (since: 4.0)
+#
 # @lazy-refcounts: on or off; only valid for compat >= 1.1
 #
 # @corrupt: true if the image has been marked corrupt; only valid for
@@ -76,6 +79,7 @@
 { 'struct': 'ImageInfoSpecificQCow2',
   'data': {
       'compat': 'str',
+      '*data-file': 'str',
       '*lazy-refcounts': 'bool',
       '*corrupt': 'bool',
       'refcount-bits': 'int',
@@ -3082,7 +3086,9 @@
 #
 # @data-file:             reference to or definition of the external data file.
 #                         This may only be specified for images that require an
-#                         external data file. (since 4.0)
+#                         external data file. If it is not specified for such
+#                         an image, the data file name is loaded from the image
+#                         file. (since 4.0)
 #
 # Since: 2.9
 ##

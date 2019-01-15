@@ -343,6 +343,7 @@ typedef struct BDRVQcow2State {
      * override) */
     char *image_backing_file;
     char *image_backing_format;
+    char *image_data_file;
 
     CoQueue compress_wait_queue;
     int nb_compress_threads;
