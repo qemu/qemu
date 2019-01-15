@@ -937,18 +937,28 @@ static void test_hbitmap_iter_and_reset(TestHBitmapData *data,
     check_hbitmap_iter_next(&hbi);
 }
 
-static void test_hbitmap_next_zero_check(TestHBitmapData *data, int64_t start)
+static void test_hbitmap_next_zero_check_range(TestHBitmapData *data,
+                                               uint64_t start,
+                                               uint64_t count)
 {
-    int64_t ret1 = hbitmap_next_zero(data->hb, start, UINT64_MAX);
+    int64_t ret1 = hbitmap_next_zero(data->hb, start, count);
     int64_t ret2 = start;
-    for ( ; ret2 < data->size && hbitmap_get(data->hb, ret2); ret2++) {
+    int64_t end = start >= data->size || data->size - start < count ?
+                data->size : start + count;
+
+    for ( ; ret2 < end && hbitmap_get(data->hb, ret2); ret2++) {
         ;
     }
-    if (ret2 == data->size) {
+    if (ret2 == end) {
         ret2 = -1;
     }
 
     g_assert_cmpint(ret1, ==, ret2);
+}
+
+static void test_hbitmap_next_zero_check(TestHBitmapData *data, int64_t start)
+{
+    test_hbitmap_next_zero_check_range(data, start, UINT64_MAX);
 }
 
 static void test_hbitmap_next_zero_do(TestHBitmapData *data, int granularity)
@@ -956,12 +966,20 @@ static void test_hbitmap_next_zero_do(TestHBitmapData *data, int granularity)
     hbitmap_test_init(data, L3, granularity);
     test_hbitmap_next_zero_check(data, 0);
     test_hbitmap_next_zero_check(data, L3 - 1);
+    test_hbitmap_next_zero_check_range(data, 0, 1);
+    test_hbitmap_next_zero_check_range(data, L3 - 1, 1);
 
     hbitmap_set(data->hb, L2, 1);
     test_hbitmap_next_zero_check(data, 0);
     test_hbitmap_next_zero_check(data, L2 - 1);
     test_hbitmap_next_zero_check(data, L2);
     test_hbitmap_next_zero_check(data, L2 + 1);
+    test_hbitmap_next_zero_check_range(data, 0, 1);
+    test_hbitmap_next_zero_check_range(data, 0, L2);
+    test_hbitmap_next_zero_check_range(data, L2 - 1, 1);
+    test_hbitmap_next_zero_check_range(data, L2 - 1, 2);
+    test_hbitmap_next_zero_check_range(data, L2, 1);
+    test_hbitmap_next_zero_check_range(data, L2 + 1, 1);
 
     hbitmap_set(data->hb, L2 + 5, L1);
     test_hbitmap_next_zero_check(data, 0);
@@ -970,6 +988,10 @@ static void test_hbitmap_next_zero_do(TestHBitmapData *data, int granularity)
     test_hbitmap_next_zero_check(data, L2 + 5);
     test_hbitmap_next_zero_check(data, L2 + L1 - 1);
     test_hbitmap_next_zero_check(data, L2 + L1);
+    test_hbitmap_next_zero_check_range(data, L2, 6);
+    test_hbitmap_next_zero_check_range(data, L2 + 1, 3);
+    test_hbitmap_next_zero_check_range(data, L2 + 4, L1);
+    test_hbitmap_next_zero_check_range(data, L2 + 5, L1);
 
     hbitmap_set(data->hb, L2 * 2, L3 - L2 * 2);
     test_hbitmap_next_zero_check(data, L2 * 2 - L1);
@@ -977,6 +999,8 @@ static void test_hbitmap_next_zero_do(TestHBitmapData *data, int granularity)
     test_hbitmap_next_zero_check(data, L2 * 2 - 1);
     test_hbitmap_next_zero_check(data, L2 * 2);
     test_hbitmap_next_zero_check(data, L3 - 1);
+    test_hbitmap_next_zero_check_range(data, L2 * 2 - L1, L1 + 1);
+    test_hbitmap_next_zero_check_range(data, L2 * 2, L2);
 
     hbitmap_set(data->hb, 0, L3);
     test_hbitmap_next_zero_check(data, 0);
