@@ -30,6 +30,7 @@ import signal
 import logging
 import atexit
 import io
+from collections import OrderedDict
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
 import qtest
@@ -63,7 +64,7 @@ socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
 debug = False
 
 luks_default_secret_object = 'secret,id=keysec0,data=' + \
-                             os.environ['IMGKEYSECRET']
+                             os.environ.get('IMGKEYSECRET', '')
 luks_default_key_secret_opt = 'key-secret=keysec0'
 
 
@@ -74,6 +75,16 @@ def qemu_img(*args):
     if exitcode < 0:
         sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
     return exitcode
+
+def ordered_kwargs(kwargs):
+    # kwargs prior to 3.6 are not ordered, so:
+    od = OrderedDict()
+    for k, v in sorted(kwargs.items()):
+        if isinstance(v, dict):
+            od[k] = ordered_kwargs(v)
+        else:
+            od[k] = v
+    return od
 
 def qemu_img_create(*args):
     args = list(args)
@@ -235,9 +246,35 @@ def filter_qmp_event(event):
         event['timestamp']['microseconds'] = 'USECS'
     return event
 
+def filter_qmp(qmsg, filter_fn):
+    '''Given a string filter, filter a QMP object's values.
+    filter_fn takes a (key, value) pair.'''
+    # Iterate through either lists or dicts;
+    if isinstance(qmsg, list):
+        items = enumerate(qmsg)
+    else:
+        items = qmsg.items()
+
+    for k, v in items:
+        if isinstance(v, list) or isinstance(v, dict):
+            qmsg[k] = filter_qmp(v, filter_fn)
+        else:
+            qmsg[k] = filter_fn(k, v)
+    return qmsg
+
 def filter_testfiles(msg):
     prefix = os.path.join(test_dir, "%s-" % (os.getpid()))
     return msg.replace(prefix, 'TEST_DIR/PID-')
+
+def filter_qmp_testfiles(qmsg):
+    def _filter(key, value):
+        if key == 'filename' or key == 'backing-file':
+            return filter_testfiles(value)
+        return value
+    return filter_qmp(qmsg, _filter)
+
+def filter_generated_node_ids(msg):
+    return re.sub("#block[0-9]+", "NODE_NAME", msg)
 
 def filter_img_info(output, filename):
     lines = []
@@ -251,11 +288,18 @@ def filter_img_info(output, filename):
         lines.append(line)
     return '\n'.join(lines)
 
-def log(msg, filters=[]):
+def log(msg, filters=[], indent=None):
+    '''Logs either a string message or a JSON serializable message (like QMP).
+    If indent is provided, JSON serializable messages are pretty-printed.'''
     for flt in filters:
         msg = flt(msg)
-    if type(msg) is dict or type(msg) is list:
-        print(json.dumps(msg, sort_keys=True))
+    if isinstance(msg, dict) or isinstance(msg, list):
+        # Python < 3.4 needs to know not to add whitespace when pretty-printing:
+        separators = (', ', ': ') if indent is None else (',', ': ')
+        # Don't sort if it's already sorted
+        do_sort = not isinstance(msg, OrderedDict)
+        print(json.dumps(msg, sort_keys=do_sort,
+                         indent=indent, separators=separators))
     else:
         print(msg)
 
@@ -444,12 +488,14 @@ class VM(qtest.QEMUQtestMachine):
             result.append(filter_qmp_event(ev))
         return result
 
-    def qmp_log(self, cmd, filters=[filter_testfiles], **kwargs):
-        logmsg = '{"execute": "%s", "arguments": %s}' % \
-            (cmd, json.dumps(kwargs, sort_keys=True))
-        log(logmsg, filters)
+    def qmp_log(self, cmd, filters=[], indent=None, **kwargs):
+        full_cmd = OrderedDict((
+            ("execute", cmd),
+            ("arguments", ordered_kwargs(kwargs))
+        ))
+        log(full_cmd, filters, indent=indent)
         result = self.qmp(cmd, **kwargs)
-        log(json.dumps(result, sort_keys=True), filters)
+        log(result, filters, indent=indent)
         return result
 
     def run_job(self, job, auto_finalize=True, auto_dismiss=False):

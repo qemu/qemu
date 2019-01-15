@@ -295,9 +295,10 @@ typedef struct NBDExport NBDExport;
 typedef struct NBDClient NBDClient;
 
 NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
-                          uint16_t nbdflags, void (*close)(NBDExport *),
-                          bool writethrough, BlockBackend *on_eject_blk,
-                          Error **errp);
+                          const char *name, const char *description,
+                          const char *bitmap, uint16_t nbdflags,
+                          void (*close)(NBDExport *), bool writethrough,
+                          BlockBackend *on_eject_blk, Error **errp);
 void nbd_export_close(NBDExport *exp);
 void nbd_export_remove(NBDExport *exp, NbdServerRemoveMode mode, Error **errp);
 void nbd_export_get(NBDExport *exp);
@@ -306,8 +307,6 @@ void nbd_export_put(NBDExport *exp);
 BlockBackend *nbd_export_get_blockdev(NBDExport *exp);
 
 NBDExport *nbd_export_find(const char *name);
-void nbd_export_set_name(NBDExport *exp, const char *name);
-void nbd_export_set_description(NBDExport *exp, const char *description);
 void nbd_export_close_all(void);
 
 void nbd_client_new(QIOChannelSocket *sioc,
@@ -319,9 +318,6 @@ void nbd_client_put(NBDClient *client);
 
 void nbd_server_start(SocketAddress *addr, const char *tls_creds,
                       Error **errp);
-
-void nbd_export_bitmap(NBDExport *exp, const char *bitmap,
-                       const char *bitmap_export_name, Error **errp);
 
 /* nbd_read
  * Reads @size bytes from @ioc. Returns 0 on success.

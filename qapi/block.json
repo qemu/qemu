@@ -246,6 +246,10 @@
 #
 # @writable: Whether clients should be able to write to the device via the
 #     NBD connection (default false).
+
+# @bitmap: Also export the dirty bitmap reachable from @device, so the
+#          NBD client can use NBD_OPT_SET_META_CONTEXT with
+#          "qemu:dirty-bitmap:NAME" to inspect the bitmap. (since 4.0)
 #
 # Returns: error if the server is not running, or export with the same name
 #          already exists.
@@ -253,7 +257,8 @@
 # Since: 1.3.0
 ##
 { 'command': 'nbd-server-add',
-  'data': {'device': 'str', '*name': 'str', '*writable': 'bool'} }
+  'data': {'device': 'str', '*name': 'str', '*writable': 'bool',
+           '*bitmap': 'str' } }
 
 ##
 # @NbdServerRemoveMode:
@@ -295,29 +300,6 @@
 ##
 { 'command': 'nbd-server-remove',
   'data': {'name': 'str', '*mode': 'NbdServerRemoveMode'} }
-
-##
-# @x-nbd-server-add-bitmap:
-#
-# Expose a dirty bitmap associated with the selected export. The bitmap search
-# starts at the device attached to the export, and includes all backing files.
-# The exported bitmap is then locked until the NBD export is removed.
-#
-# @name: Export name.
-#
-# @bitmap: Bitmap name to search for.
-#
-# @bitmap-export-name: How the bitmap will be seen by nbd clients
-#                      (default @bitmap)
-#
-# Note: the client must use NBD_OPT_SET_META_CONTEXT with a query of
-# "qemu:dirty-bitmap:NAME" (where NAME matches @bitmap-export-name) to access
-# the exposed bitmap.
-#
-# Since: 3.0
-##
-  { 'command': 'x-nbd-server-add-bitmap',
-    'data': {'name': 'str', 'bitmap': 'str', '*bitmap-export-name': 'str'} }
 
 ##
 # @nbd-server-stop:

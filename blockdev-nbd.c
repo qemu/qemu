@@ -140,7 +140,8 @@ void qmp_nbd_server_start(SocketAddressLegacy *addr,
 }
 
 void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
-                        bool has_writable, bool writable, Error **errp)
+                        bool has_writable, bool writable,
+                        bool has_bitmap, const char *bitmap, Error **errp)
 {
     BlockDriverState *bs = NULL;
     BlockBackend *on_eject_blk;
@@ -174,13 +175,12 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
         writable = false;
     }
 
-    exp = nbd_export_new(bs, 0, -1, writable ? 0 : NBD_FLAG_READ_ONLY,
+    exp = nbd_export_new(bs, 0, -1, name, NULL, bitmap,
+                         writable ? 0 : NBD_FLAG_READ_ONLY,
                          NULL, false, on_eject_blk, errp);
     if (!exp) {
         return;
     }
-
-    nbd_export_set_name(exp, name);
 
     /* The list of named exports has a strong reference to this export now and
      * our only way of accessing it is through nbd_export_find(), so we can drop
@@ -214,31 +214,13 @@ void qmp_nbd_server_remove(const char *name,
 
 void qmp_nbd_server_stop(Error **errp)
 {
-    nbd_export_close_all();
-
-    nbd_server_free(nbd_server);
-    nbd_server = NULL;
-}
-
-void qmp_x_nbd_server_add_bitmap(const char *name, const char *bitmap,
-                                 bool has_bitmap_export_name,
-                                 const char *bitmap_export_name,
-                                 Error **errp)
-{
-    NBDExport *exp;
-
     if (!nbd_server) {
         error_setg(errp, "NBD server not running");
         return;
     }
 
-    exp = nbd_export_find(name);
-    if (exp == NULL) {
-        error_setg(errp, "Export '%s' is not found", name);
-        return;
-    }
+    nbd_export_close_all();
 
-    nbd_export_bitmap(exp, bitmap,
-                      has_bitmap_export_name ? bitmap_export_name : bitmap,
-                      errp);
+    nbd_server_free(nbd_server);
+    nbd_server = NULL;
 }

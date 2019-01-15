@@ -1339,7 +1339,7 @@ struct BlkActionState {
     const BlkActionOps *ops;
     JobTxn *block_job_txn;
     TransactionProperties *txn_props;
-    QSIMPLEQ_ENTRY(BlkActionState) entry;
+    QTAILQ_ENTRY(BlkActionState) entry;
 };
 
 /* internal snapshot private data */
@@ -1963,7 +1963,7 @@ static void block_dirty_bitmap_add_prepare(BlkActionState *common,
                                action->has_granularity, action->granularity,
                                action->has_persistent, action->persistent,
                                action->has_autoload, action->autoload,
-                               action->has_x_disabled, action->x_disabled,
+                               action->has_disabled, action->disabled,
                                &local_err);
 
     if (!local_err) {
@@ -2048,7 +2048,7 @@ static void block_dirty_bitmap_enable_prepare(BlkActionState *common,
         return;
     }
 
-    action = common->action->u.x_block_dirty_bitmap_enable.data;
+    action = common->action->u.block_dirty_bitmap_enable.data;
     state->bitmap = block_dirty_bitmap_lookup(action->node,
                                               action->name,
                                               NULL,
@@ -2089,7 +2089,7 @@ static void block_dirty_bitmap_disable_prepare(BlkActionState *common,
         return;
     }
 
-    action = common->action->u.x_block_dirty_bitmap_disable.data;
+    action = common->action->u.block_dirty_bitmap_disable.data;
     state->bitmap = block_dirty_bitmap_lookup(action->node,
                                               action->name,
                                               NULL,
@@ -2119,33 +2119,28 @@ static void block_dirty_bitmap_disable_abort(BlkActionState *common)
     }
 }
 
+static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
+                                                    const char *target,
+                                                    strList *bitmaps,
+                                                    HBitmap **backup,
+                                                    Error **errp);
+
 static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
                                              Error **errp)
 {
     BlockDirtyBitmapMerge *action;
     BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
                                              common, common);
-    BdrvDirtyBitmap *merge_source;
 
     if (action_check_completion_mode(common, errp) < 0) {
         return;
     }
 
-    action = common->action->u.x_block_dirty_bitmap_merge.data;
-    state->bitmap = block_dirty_bitmap_lookup(action->node,
-                                              action->dst_name,
-                                              &state->bs,
-                                              errp);
-    if (!state->bitmap) {
-        return;
-    }
+    action = common->action->u.block_dirty_bitmap_merge.data;
 
-    merge_source = bdrv_find_dirty_bitmap(state->bs, action->src_name);
-    if (!merge_source) {
-        return;
-    }
-
-    bdrv_merge_dirty_bitmap(state->bitmap, merge_source, &state->backup, errp);
+    state->bitmap = do_block_dirty_bitmap_merge(action->node, action->target,
+                                                action->bitmaps, &state->backup,
+                                                errp);
 }
 
 static void abort_prepare(BlkActionState *common, Error **errp)
@@ -2209,17 +2204,17 @@ static const BlkActionOps actions[] = {
         .commit = block_dirty_bitmap_free_backup,
         .abort = block_dirty_bitmap_restore,
     },
-    [TRANSACTION_ACTION_KIND_X_BLOCK_DIRTY_BITMAP_ENABLE] = {
+    [TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_ENABLE] = {
         .instance_size = sizeof(BlockDirtyBitmapState),
         .prepare = block_dirty_bitmap_enable_prepare,
         .abort = block_dirty_bitmap_enable_abort,
     },
-    [TRANSACTION_ACTION_KIND_X_BLOCK_DIRTY_BITMAP_DISABLE] = {
+    [TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_DISABLE] = {
         .instance_size = sizeof(BlockDirtyBitmapState),
         .prepare = block_dirty_bitmap_disable_prepare,
         .abort = block_dirty_bitmap_disable_abort,
     },
-    [TRANSACTION_ACTION_KIND_X_BLOCK_DIRTY_BITMAP_MERGE] = {
+    [TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_MERGE] = {
         .instance_size = sizeof(BlockDirtyBitmapState),
         .prepare = block_dirty_bitmap_merge_prepare,
         .commit = block_dirty_bitmap_free_backup,
@@ -2266,8 +2261,8 @@ void qmp_transaction(TransactionActionList *dev_list,
     BlkActionState *state, *next;
     Error *local_err = NULL;
 
-    QSIMPLEQ_HEAD(, BlkActionState) snap_bdrv_states;
-    QSIMPLEQ_INIT(&snap_bdrv_states);
+    QTAILQ_HEAD(, BlkActionState) snap_bdrv_states;
+    QTAILQ_INIT(&snap_bdrv_states);
 
     /* Does this transaction get canceled as a group on failure?
      * If not, we don't really need to make a JobTxn.
@@ -2298,7 +2293,7 @@ void qmp_transaction(TransactionActionList *dev_list,
         state->action = dev_info;
         state->block_job_txn = block_job_txn;
         state->txn_props = props;
-        QSIMPLEQ_INSERT_TAIL(&snap_bdrv_states, state, entry);
+        QTAILQ_INSERT_TAIL(&snap_bdrv_states, state, entry);
 
         state->ops->prepare(state, &local_err);
         if (local_err) {
@@ -2307,7 +2302,7 @@ void qmp_transaction(TransactionActionList *dev_list,
         }
     }
 
-    QSIMPLEQ_FOREACH(state, &snap_bdrv_states, entry) {
+    QTAILQ_FOREACH(state, &snap_bdrv_states, entry) {
         if (state->ops->commit) {
             state->ops->commit(state);
         }
@@ -2318,13 +2313,13 @@ void qmp_transaction(TransactionActionList *dev_list,
 
 delete_and_fail:
     /* failure, and it is all-or-none; roll back all operations */
-    QSIMPLEQ_FOREACH(state, &snap_bdrv_states, entry) {
+    QTAILQ_FOREACH_REVERSE(state, &snap_bdrv_states, entry) {
         if (state->ops->abort) {
             state->ops->abort(state);
         }
     }
 exit:
-    QSIMPLEQ_FOREACH_SAFE(state, &snap_bdrv_states, entry, next) {
+    QTAILQ_FOREACH_SAFE(state, &snap_bdrv_states, entry, next) {
         if (state->ops->clean) {
             state->ops->clean(state);
         }
@@ -2935,7 +2930,7 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
     bdrv_clear_dirty_bitmap(bitmap, NULL);
 }
 
-void qmp_x_block_dirty_bitmap_enable(const char *node, const char *name,
+void qmp_block_dirty_bitmap_enable(const char *node, const char *name,
                                    Error **errp)
 {
     BlockDriverState *bs;
@@ -2956,7 +2951,7 @@ void qmp_x_block_dirty_bitmap_enable(const char *node, const char *name,
     bdrv_enable_dirty_bitmap(bitmap);
 }
 
-void qmp_x_block_dirty_bitmap_disable(const char *node, const char *name,
+void qmp_block_dirty_bitmap_disable(const char *node, const char *name,
                                     Error **errp)
 {
     BlockDriverState *bs;
@@ -2977,24 +2972,56 @@ void qmp_x_block_dirty_bitmap_disable(const char *node, const char *name,
     bdrv_disable_dirty_bitmap(bitmap);
 }
 
-void qmp_x_block_dirty_bitmap_merge(const char *node, const char *dst_name,
-                                    const char *src_name, Error **errp)
+static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
+                                                    const char *target,
+                                                    strList *bitmaps,
+                                                    HBitmap **backup,
+                                                    Error **errp)
 {
     BlockDriverState *bs;
-    BdrvDirtyBitmap *dst, *src;
+    BdrvDirtyBitmap *dst, *src, *anon;
+    strList *lst;
+    Error *local_err = NULL;
 
-    dst = block_dirty_bitmap_lookup(node, dst_name, &bs, errp);
+    dst = block_dirty_bitmap_lookup(node, target, &bs, errp);
     if (!dst) {
-        return;
+        return NULL;
     }
 
-    src = bdrv_find_dirty_bitmap(bs, src_name);
-    if (!src) {
-        error_setg(errp, "Dirty bitmap '%s' not found", src_name);
-        return;
+    anon = bdrv_create_dirty_bitmap(bs, bdrv_dirty_bitmap_granularity(dst),
+                                    NULL, errp);
+    if (!anon) {
+        return NULL;
     }
 
-    bdrv_merge_dirty_bitmap(dst, src, NULL, errp);
+    for (lst = bitmaps; lst; lst = lst->next) {
+        src = bdrv_find_dirty_bitmap(bs, lst->value);
+        if (!src) {
+            error_setg(errp, "Dirty bitmap '%s' not found", lst->value);
+            dst = NULL;
+            goto out;
+        }
+
+        bdrv_merge_dirty_bitmap(anon, src, NULL, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            dst = NULL;
+            goto out;
+        }
+    }
+
+    /* Merge into dst; dst is unchanged on failure. */
+    bdrv_merge_dirty_bitmap(dst, anon, backup, errp);
+
+ out:
+    bdrv_release_dirty_bitmap(bs, anon);
+    return dst;
+}
+
+void qmp_block_dirty_bitmap_merge(const char *node, const char *target,
+                                  strList *bitmaps, Error **errp)
+{
+    do_block_dirty_bitmap_merge(node, target, bitmaps, NULL, errp);
 }
 
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,

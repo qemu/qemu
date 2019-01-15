@@ -1456,9 +1456,10 @@ static void nbd_eject_notifier(Notifier *n, void *data)
 }
 
 NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
-                          uint16_t nbdflags, void (*close)(NBDExport *),
-                          bool writethrough, BlockBackend *on_eject_blk,
-                          Error **errp)
+                          const char *name, const char *description,
+                          const char *bitmap, uint16_t nbdflags,
+                          void (*close)(NBDExport *), bool writethrough,
+                          BlockBackend *on_eject_blk, Error **errp)
 {
     AioContext *ctx;
     BlockBackend *blk;
@@ -1471,6 +1472,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
      * that BDRV_O_INACTIVE is cleared and the image is ready for write
      * access since the export could be available before migration handover.
      */
+    assert(name);
     ctx = bdrv_get_aio_context(bs);
     aio_context_acquire(ctx);
     bdrv_invalidate_cache(bs, NULL);
@@ -1494,6 +1496,8 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
     QTAILQ_INIT(&exp->clients);
     exp->blk = blk;
     exp->dev_offset = dev_offset;
+    exp->name = g_strdup(name);
+    exp->description = g_strdup(description);
     exp->nbdflags = nbdflags;
     exp->size = size < 0 ? blk_getlength(blk) : size;
     if (exp->size < 0) {
@@ -1502,6 +1506,43 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
         goto fail;
     }
     exp->size -= exp->size % BDRV_SECTOR_SIZE;
+
+    if (bitmap) {
+        BdrvDirtyBitmap *bm = NULL;
+        BlockDriverState *bs = blk_bs(blk);
+
+        while (true) {
+            bm = bdrv_find_dirty_bitmap(bs, bitmap);
+            if (bm != NULL || bs->backing == NULL) {
+                break;
+            }
+
+            bs = bs->backing->bs;
+        }
+
+        if (bm == NULL) {
+            error_setg(errp, "Bitmap '%s' is not found", bitmap);
+            goto fail;
+        }
+
+        if ((nbdflags & NBD_FLAG_READ_ONLY) && bdrv_is_writable(bs) &&
+            bdrv_dirty_bitmap_enabled(bm)) {
+            error_setg(errp,
+                       "Enabled bitmap '%s' incompatible with readonly export",
+                       bitmap);
+            goto fail;
+        }
+
+        if (bdrv_dirty_bitmap_user_locked(bm)) {
+            error_setg(errp, "Bitmap '%s' is in use", bitmap);
+            goto fail;
+        }
+
+        bdrv_dirty_bitmap_set_qmp_locked(bm, true);
+        exp->export_bitmap = bm;
+        exp->export_bitmap_context = g_strdup_printf("qemu:dirty-bitmap:%s",
+                                                     bitmap);
+    }
 
     exp->close = close;
     exp->ctx = blk_get_aio_context(blk);
@@ -1513,10 +1554,14 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
         exp->eject_notifier.notify = nbd_eject_notifier;
         blk_add_remove_bs_notifier(on_eject_blk, &exp->eject_notifier);
     }
+    QTAILQ_INSERT_TAIL(&exports, exp, next);
+    nbd_export_get(exp);
     return exp;
 
 fail:
     blk_unref(blk);
+    g_free(exp->name);
+    g_free(exp->description);
     g_free(exp);
     return NULL;
 }
@@ -1533,43 +1578,29 @@ NBDExport *nbd_export_find(const char *name)
     return NULL;
 }
 
-void nbd_export_set_name(NBDExport *exp, const char *name)
-{
-    if (exp->name == name) {
-        return;
-    }
-
-    nbd_export_get(exp);
-    if (exp->name != NULL) {
-        g_free(exp->name);
-        exp->name = NULL;
-        QTAILQ_REMOVE(&exports, exp, next);
-        nbd_export_put(exp);
-    }
-    if (name != NULL) {
-        nbd_export_get(exp);
-        exp->name = g_strdup(name);
-        QTAILQ_INSERT_TAIL(&exports, exp, next);
-    }
-    nbd_export_put(exp);
-}
-
-void nbd_export_set_description(NBDExport *exp, const char *description)
-{
-    g_free(exp->description);
-    exp->description = g_strdup(description);
-}
-
 void nbd_export_close(NBDExport *exp)
 {
     NBDClient *client, *next;
 
     nbd_export_get(exp);
+    /*
+     * TODO: Should we expand QMP NbdServerRemoveNode enum to allow a
+     * close mode that stops advertising the export to new clients but
+     * still permits existing clients to run to completion? Because of
+     * that possibility, nbd_export_close() can be called more than
+     * once on an export.
+     */
     QTAILQ_FOREACH_SAFE(client, &exp->clients, next, next) {
         client_close(client, true);
     }
-    nbd_export_set_name(exp, NULL);
-    nbd_export_set_description(exp, NULL);
+    if (exp->name) {
+        nbd_export_put(exp);
+        g_free(exp->name);
+        exp->name = NULL;
+        QTAILQ_REMOVE(&exports, exp, next);
+    }
+    g_free(exp->description);
+    exp->description = NULL;
     nbd_export_put(exp);
 }
 
@@ -2429,45 +2460,4 @@ void nbd_client_new(QIOChannelSocket *sioc,
 
     co = qemu_coroutine_create(nbd_co_client_start, client);
     qemu_coroutine_enter(co);
-}
-
-void nbd_export_bitmap(NBDExport *exp, const char *bitmap,
-                       const char *bitmap_export_name, Error **errp)
-{
-    BdrvDirtyBitmap *bm = NULL;
-    BlockDriverState *bs = blk_bs(exp->blk);
-
-    if (exp->export_bitmap) {
-        error_setg(errp, "Export bitmap is already set");
-        return;
-    }
-
-    while (true) {
-        bm = bdrv_find_dirty_bitmap(bs, bitmap);
-        if (bm != NULL || bs->backing == NULL) {
-            break;
-        }
-
-        bs = bs->backing->bs;
-    }
-
-    if (bm == NULL) {
-        error_setg(errp, "Bitmap '%s' is not found", bitmap);
-        return;
-    }
-
-    if (bdrv_dirty_bitmap_enabled(bm)) {
-        error_setg(errp, "Bitmap '%s' is enabled", bitmap);
-        return;
-    }
-
-    if (bdrv_dirty_bitmap_user_locked(bm)) {
-        error_setg(errp, "Bitmap '%s' is in use", bitmap);
-        return;
-    }
-
-    bdrv_dirty_bitmap_set_qmp_locked(bm, true);
-    exp->export_bitmap = bm;
-    exp->export_bitmap_context =
-            g_strdup_printf("qemu:dirty-bitmap:%s", bitmap_export_name);
 }

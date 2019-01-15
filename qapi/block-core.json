@@ -1806,29 +1806,29 @@
 #            Currently, all dirty tracking bitmaps are loaded from Qcow2 on
 #            open.
 #
-# @x-disabled: the bitmap is created in the disabled state, which means that
-#              it will not track drive changes. The bitmap may be enabled with
-#              x-block-dirty-bitmap-enable. Default is false. (Since: 3.0)
+# @disabled: the bitmap is created in the disabled state, which means that
+#            it will not track drive changes. The bitmap may be enabled with
+#            block-dirty-bitmap-enable. Default is false. (Since: 4.0)
 #
 # Since: 2.4
 ##
 { 'struct': 'BlockDirtyBitmapAdd',
   'data': { 'node': 'str', 'name': 'str', '*granularity': 'uint32',
-            '*persistent': 'bool', '*autoload': 'bool', '*x-disabled': 'bool' } }
+            '*persistent': 'bool', '*autoload': 'bool', '*disabled': 'bool' } }
 
 ##
 # @BlockDirtyBitmapMerge:
 #
 # @node: name of device/node which the bitmap is tracking
 #
-# @dst_name: name of the destination dirty bitmap
+# @target: name of the destination dirty bitmap
 #
-# @src_name: name of the source dirty bitmap
+# @bitmaps: name(s) of the source dirty bitmap(s)
 #
-# Since: 3.0
+# Since: 4.0
 ##
 { 'struct': 'BlockDirtyBitmapMerge',
-  'data': { 'node': 'str', 'dst_name': 'str', 'src_name': 'str' } }
+  'data': { 'node': 'str', 'target': 'str', 'bitmaps': ['str'] } }
 
 ##
 # @block-dirty-bitmap-add:
@@ -1899,7 +1899,7 @@
   'data': 'BlockDirtyBitmap' }
 
 ##
-# @x-block-dirty-bitmap-enable:
+# @block-dirty-bitmap-enable:
 #
 # Enables a dirty bitmap so that it will begin tracking disk changes.
 #
@@ -1907,20 +1907,20 @@
 #          If @node is not a valid block device, DeviceNotFound
 #          If @name is not found, GenericError with an explanation
 #
-# Since: 3.0
+# Since: 4.0
 #
 # Example:
 #
-# -> { "execute": "x-block-dirty-bitmap-enable",
+# -> { "execute": "block-dirty-bitmap-enable",
 #      "arguments": { "node": "drive0", "name": "bitmap0" } }
 # <- { "return": {} }
 #
 ##
-  { 'command': 'x-block-dirty-bitmap-enable',
+  { 'command': 'block-dirty-bitmap-enable',
     'data': 'BlockDirtyBitmap' }
 
 ##
-# @x-block-dirty-bitmap-disable:
+# @block-dirty-bitmap-disable:
 #
 # Disables a dirty bitmap so that it will stop tracking disk changes.
 #
@@ -1928,42 +1928,42 @@
 #          If @node is not a valid block device, DeviceNotFound
 #          If @name is not found, GenericError with an explanation
 #
-# Since: 3.0
+# Since: 4.0
 #
 # Example:
 #
-# -> { "execute": "x-block-dirty-bitmap-disable",
+# -> { "execute": "block-dirty-bitmap-disable",
 #      "arguments": { "node": "drive0", "name": "bitmap0" } }
 # <- { "return": {} }
 #
 ##
-    { 'command': 'x-block-dirty-bitmap-disable',
+    { 'command': 'block-dirty-bitmap-disable',
       'data': 'BlockDirtyBitmap' }
 
 ##
-# @x-block-dirty-bitmap-merge:
+# @block-dirty-bitmap-merge:
 #
-# FIXME: Rename @src_name and @dst_name to src-name and dst-name.
-#
-# Merge @src_name dirty bitmap to @dst_name dirty bitmap. @src_name dirty
-# bitmap is unchanged. On error, @dst_name is unchanged.
+# Merge dirty bitmaps listed in @bitmaps to the @target dirty bitmap.
+# The @bitmaps dirty bitmaps are unchanged.
+# On error, @target is unchanged.
 #
 # Returns: nothing on success
 #          If @node is not a valid block device, DeviceNotFound
-#          If @dst_name or @src_name is not found, GenericError
-#          If bitmaps has different sizes or granularities, GenericError
+#          If any bitmap in @bitmaps or @target is not found, GenericError
+#          If any of the bitmaps have different sizes or granularities,
+#              GenericError
 #
-# Since: 3.0
+# Since: 4.0
 #
 # Example:
 #
-# -> { "execute": "x-block-dirty-bitmap-merge",
-#      "arguments": { "node": "drive0", "dst_name": "bitmap0",
-#                     "src_name": "bitmap1" } }
+# -> { "execute": "block-dirty-bitmap-merge",
+#      "arguments": { "node": "drive0", "target": "bitmap0",
+#                     "bitmaps": ["bitmap1"] } }
 # <- { "return": {} }
 #
 ##
-      { 'command': 'x-block-dirty-bitmap-merge',
+      { 'command': 'block-dirty-bitmap-merge',
         'data': 'BlockDirtyBitmapMerge' }
 
 ##

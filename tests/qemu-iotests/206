@@ -26,7 +26,9 @@ from iotests import imgfmt
 iotests.verify_image_format(supported_fmts=['qcow2'])
 
 def blockdev_create(vm, options):
-    result = vm.qmp_log('blockdev-create', job_id='job0', options=options)
+    result = vm.qmp_log('blockdev-create',
+                        filters=[iotests.filter_qmp_testfiles],
+                        job_id='job0', options=options)
 
     if 'return' in result:
         assert result['return'] == {}
@@ -52,7 +54,9 @@ with iotests.FilePath('t.qcow2') as disk_path, \
                           'filename': disk_path,
                           'size': 0 })
 
-    vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
+    vm.qmp_log('blockdev-add',
+               filters=[iotests.filter_qmp_testfiles],
+               driver='file', filename=disk_path,
                node_name='imgfile')
 
     blockdev_create(vm, { 'driver': imgfmt,

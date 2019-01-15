@@ -27,11 +27,14 @@ wrote 2097152/2097152 bytes at offset 2097152
 {"return": {}}
 {"return": {}}
 {"return": {}}
+{"error": {"class": "GenericError", "desc": "NBD server not running"}}
 {"return": {}}
+{"error": {"class": "GenericError", "desc": "NBD server already running"}}
 {"return": {}}
-{"return": {}}
-{"return": {}}
-{"return": {}}
+{"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
+{"error": {"class": "GenericError", "desc": "NBD server already has export named 'n'"}}
+{"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'b3' is not found"}}
 {"return": {}}
 
 === Contrast normal status to large granularity dirty-bitmap ===
@@ -58,10 +61,22 @@ read 2097152/2097152 bytes at offset 2097152
 { "start": 1024, "length": 2096128, "depth": 0, "zero": false, "data": true},
 { "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
 
-=== End NBD server ===
+=== End qemu NBD server ===
 
 {"return": {}}
 {"return": {}}
+{"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
 {"return": {}}
+{"error": {"class": "GenericError", "desc": "NBD server not running"}}
 {"return": {}}
+
+=== Use qemu-nbd as server ===
+
+[{ "start": 0, "length": 65536, "depth": 0, "zero": false, "data": false},
+{ "start": 65536, "length": 2031616, "depth": 0, "zero": false, "data": true},
+{ "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
+[{ "start": 0, "length": 512, "depth": 0, "zero": false, "data": true},
+{ "start": 512, "length": 512, "depth": 0, "zero": false, "data": false},
+{ "start": 1024, "length": 2096128, "depth": 0, "zero": false, "data": true},
+{ "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
 *** done

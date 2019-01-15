@@ -61,7 +61,7 @@
 
 #define MBR_SIZE 512
 
-static NBDExport *exp;
+static NBDExport *export;
 static int verbose;
 static char *srcpath;
 static SocketAddress *saddr;
@@ -95,6 +95,7 @@ static void usage(const char *name)
 "Exposing part of the image:\n"
 "  -o, --offset=OFFSET       offset into the image\n"
 "  -P, --partition=NUM       only expose partition NUM\n"
+"  -B, --bitmap=NAME         expose a persistent dirty bitmap\n"
 "\n"
 "General purpose options:\n"
 "  --object type,id=ID,...   define an object such as 'secret' for providing\n"
@@ -335,7 +336,7 @@ static int nbd_can_accept(void)
     return state == RUNNING && nb_fds < shared;
 }
 
-static void nbd_export_closed(NBDExport *exp)
+static void nbd_export_closed(NBDExport *export)
 {
     assert(state == TERMINATING);
     state = TERMINATED;
@@ -509,7 +510,7 @@ int main(int argc, char **argv)
     off_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:D:";
+    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:D:B:";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -519,6 +520,7 @@ int main(int argc, char **argv)
         { "offset", required_argument, NULL, 'o' },
         { "read-only", no_argument, NULL, 'r' },
         { "partition", required_argument, NULL, 'P' },
+        { "bitmap", required_argument, NULL, 'B' },
         { "connect", required_argument, NULL, 'c' },
         { "disconnect", no_argument, NULL, 'd' },
         { "snapshot", no_argument, NULL, 's' },
@@ -558,6 +560,7 @@ int main(int argc, char **argv)
     QDict *options = NULL;
     const char *export_name = ""; /* Default export name */
     const char *export_description = NULL;
+    const char *bitmap = NULL;
     const char *tlscredsid = NULL;
     bool imageOpts = false;
     bool writethrough = true;
@@ -694,6 +697,9 @@ int main(int argc, char **argv)
                 error_report("Invalid partition %d", partition);
                 exit(EXIT_FAILURE);
             }
+            break;
+        case 'B':
+            bitmap = optarg;
             break;
         case 'k':
             sockpath = optarg;
@@ -1015,10 +1021,10 @@ int main(int argc, char **argv)
         }
     }
 
-    exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags, nbd_export_closed,
-                         writethrough, NULL, &error_fatal);
-    nbd_export_set_name(exp, export_name);
-    nbd_export_set_description(exp, export_description);
+    export = nbd_export_new(bs, dev_offset, fd_size, export_name,
+                            export_description, bitmap, nbdflags,
+                            nbd_export_closed, writethrough, NULL,
+                            &error_fatal);
 
     if (device) {
 #if HAVE_NBD_DEVICE
@@ -1055,9 +1061,9 @@ int main(int argc, char **argv)
         main_loop_wait(false);
         if (state == TERMINATE) {
             state = TERMINATING;
-            nbd_export_close(exp);
-            nbd_export_put(exp);
-            exp = NULL;
+            nbd_export_close(export);
+            nbd_export_put(export);
+            export = NULL;
         }
     } while (state != TERMINATED);
 
