@@ -123,17 +123,17 @@ def _check_binfmt_misc(executable):
 
     if not os.path.exists(binfmt_entry):
         print ("No binfmt_misc entry for %s" % (binary))
-        return False
+        return None
 
     with open(binfmt_entry) as x: entry = x.read()
 
-    qpath = "/usr/bin/%s" % (binary)
-    if not re.search("interpreter %s\n" % (qpath), entry):
-        print ("binfmt_misc for %s does not point to %s" % (binary, qpath))
-        return False
+    m = re.search("interpreter (\S+)\n", entry)
+    interp = m.group(1)
+    if interp and interp != executable:
+        print("binfmt_misc for %s does not point to %s, using %s" %
+              (binary, executable, interp))
 
-    return True
-
+    return interp
 
 def _read_qemu_dockerfile(img_name):
     # special case for Debian linux-user images
@@ -394,9 +394,14 @@ class UpdateCommand(SubCommand):
         tmp = tempfile.NamedTemporaryFile(suffix="dckr.tar.gz")
         tmp_tar = TarFile(fileobj=tmp, mode='w')
 
-        # Add the executable to the tarball
-        bn = os.path.basename(args.executable)
-        ff = "/usr/bin/%s" % bn
+        # Add the executable to the tarball, using the current
+        # configured binfmt_misc path.
+        ff = _check_binfmt_misc(args.executable)
+        if not ff:
+            bn = os.path.basename(args.executable)
+            ff = "/usr/bin/%s" % bn
+            print ("No binfmt_misc configured: copied to %s" % (ff))
+
         tmp_tar.add(args.executable, arcname=ff)
 
         # Add any associated libraries
