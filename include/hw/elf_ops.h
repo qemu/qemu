@@ -265,6 +265,51 @@ fail:
     return ret;
 }
 
+/*
+ * Given 'nhdr', a pointer to a range of ELF Notes, search through them
+ * for a note matching type 'elf_note_type' and return a pointer to
+ * the matching ELF note.
+ */
+static struct elf_note *glue(get_elf_note_type, SZ)(struct elf_note *nhdr,
+                                                    elf_word note_size,
+                                                    elf_word phdr_align,
+                                                    elf_word elf_note_type)
+{
+    elf_word nhdr_size = sizeof(struct elf_note);
+    elf_word elf_note_entry_offset = 0;
+    elf_word note_type;
+    elf_word nhdr_namesz;
+    elf_word nhdr_descsz;
+
+    if (nhdr == NULL) {
+        return NULL;
+    }
+
+    note_type = nhdr->n_type;
+    while (note_type != elf_note_type) {
+        nhdr_namesz = nhdr->n_namesz;
+        nhdr_descsz = nhdr->n_descsz;
+
+        elf_note_entry_offset = nhdr_size +
+            QEMU_ALIGN_UP(nhdr_namesz, phdr_align) +
+            QEMU_ALIGN_UP(nhdr_descsz, phdr_align);
+
+        /*
+         * If the offset calculated in this iteration exceeds the
+         * supplied size, we are done and no matching note was found.
+         */
+        if (elf_note_entry_offset > note_size) {
+            return NULL;
+        }
+
+        /* skip to the next ELF Note entry */
+        nhdr = (void *)nhdr + elf_note_entry_offset;
+        note_type = nhdr->n_type;
+    }
+
+    return nhdr;
+}
+
 static int glue(load_elf, SZ)(const char *name, int fd,
                               uint64_t (*elf_note_fn)(void *, void *, bool),
                               uint64_t (*translate_fn)(void *, uint64_t),
@@ -496,6 +541,36 @@ static int glue(load_elf, SZ)(const char *name, int fd,
             if ((addr + mem_size) > high)
                 high = addr + mem_size;
 
+            data = NULL;
+
+        } else if (ph->p_type == PT_NOTE && elf_note_fn) {
+            struct elf_note *nhdr = NULL;
+
+            file_size = ph->p_filesz; /* Size of the range of ELF notes */
+            data = g_malloc0(file_size);
+            if (ph->p_filesz > 0) {
+                if (lseek(fd, ph->p_offset, SEEK_SET) < 0) {
+                    goto fail;
+                }
+                if (read(fd, data, file_size) != file_size) {
+                    goto fail;
+                }
+            }
+
+            /*
+             * Search the ELF notes to find one with a type matching the
+             * value passed in via 'translate_opaque'
+             */
+            nhdr = (struct elf_note *)data;
+            assert(translate_opaque != NULL);
+            nhdr = glue(get_elf_note_type, SZ)(nhdr, file_size, ph->p_align,
+                                               *(uint64_t *)translate_opaque);
+            if (nhdr != NULL) {
+                bool is64 =
+                    sizeof(struct elf_note) == sizeof(struct elf64_note);
+                elf_note_fn((void *)nhdr, (void *)&ph->p_align, is64);
+            }
+            g_free(data);
             data = NULL;
         }
     }
