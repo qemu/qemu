@@ -742,6 +742,17 @@ static void vnc_update_server_surface(VncDisplay *vd)
                        width, height);
 }
 
+static bool vnc_check_pageflip(DisplaySurface *s1,
+                               DisplaySurface *s2)
+{
+    return (s1 != NULL &&
+            s2 != NULL &&
+            surface_width(s1) == surface_width(s2) &&
+            surface_height(s1) == surface_height(s2) &&
+            surface_format(s1) == surface_format(s2));
+
+}
+
 static void vnc_dpy_switch(DisplayChangeListener *dcl,
                            DisplaySurface *surface)
 {
@@ -749,6 +760,7 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
         "Display output is not active.";
     static DisplaySurface *placeholder;
     VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
+    bool pageflip = vnc_check_pageflip(vd->ds, surface);
     VncState *vs;
 
     if (surface == NULL) {
@@ -761,13 +773,20 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
     vnc_abort_display_jobs(vd);
     vd->ds = surface;
 
-    /* server surface */
-    vnc_update_server_surface(vd);
-
     /* guest surface */
     qemu_pixman_image_unref(vd->guest.fb);
     vd->guest.fb = pixman_image_ref(surface->image);
     vd->guest.format = surface->format;
+
+    if (pageflip) {
+        vnc_set_area_dirty(vd->guest.dirty, vd, 0, 0,
+                           surface_width(surface),
+                           surface_height(surface));
+        return;
+    }
+
+    /* server surface */
+    vnc_update_server_surface(vd);
 
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         vnc_colordepth(vs);
