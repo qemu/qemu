@@ -41,6 +41,9 @@ static inline void res_tbl_init(const char *name, RdmaRmResTbl *tbl,
 
 static inline void res_tbl_free(RdmaRmResTbl *tbl)
 {
+    if (!tbl->bitmap) {
+        return;
+    }
     qemu_mutex_destroy(&tbl->lock);
     g_free(tbl->tbl);
     g_free(tbl->bitmap);
@@ -655,5 +658,7 @@ void rdma_rm_fini(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
     res_tbl_free(&dev_res->cq_tbl);
     res_tbl_free(&dev_res->pd_tbl);
 
-    g_hash_table_destroy(dev_res->qp_hash);
+    if (dev_res->qp_hash) {
+        g_hash_table_destroy(dev_res->qp_hash);
+    }
 }

@@ -1066,8 +1066,10 @@ static void mad_fini(RdmaBackendDev *backend_dev)
     pr_dbg("Stopping MAD\n");
     disable_rdmacm_mux_async(backend_dev);
     qemu_chr_fe_disconnect(backend_dev->rdmacm_mux.chr_be);
-    qlist_destroy_obj(QOBJECT(backend_dev->recv_mads_list.list));
-    qemu_mutex_destroy(&backend_dev->recv_mads_list.lock);
+    if (backend_dev->recv_mads_list.list) {
+        qlist_destroy_obj(QOBJECT(backend_dev->recv_mads_list.list));
+        qemu_mutex_destroy(&backend_dev->recv_mads_list.lock);
+    }
 }
 
 int rdma_backend_get_gid_index(RdmaBackendDev *backend_dev,
