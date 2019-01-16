@@ -557,7 +557,8 @@ def main():
         logger.info("Skipped %d test cases", skipped)
 
     if args.debug:
-        stats = sorted([(len(wl_stats.get(i, [])), wl) for i, wl in enumerate(ERROR_WHITELIST)])
+        stats = sorted([(len(wl_stats.get(i, [])), wl) for i, wl in
+                         enumerate(ERROR_WHITELIST)], key=lambda x: x[0])
         for count, wl in stats:
             dbg("whitelist entry stats: %d: %r", count, wl)
 
