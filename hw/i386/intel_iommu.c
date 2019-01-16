@@ -3138,6 +3138,7 @@ static void vtd_init(IntelIOMMUState *s)
     s->root = 0;
     s->root_extended = false;
     s->dmar_enabled = false;
+    s->intr_enabled = false;
     s->iq_head = 0;
     s->iq_tail = 0;
     s->iq = 0;
