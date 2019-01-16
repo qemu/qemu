@@ -378,7 +378,6 @@ static void migrate_check_parameter_str(QTestState *who, const char *parameter,
     g_free(result);
 }
 
-__attribute__((unused))
 static void migrate_set_parameter_str(QTestState *who, const char *parameter,
                                       const char *value)
 {
@@ -1261,7 +1260,7 @@ static void test_migrate_auto_converge(void)
     test_migrate_end(from, to, true);
 }
 
-static void test_multifd_tcp(void)
+static void test_multifd_tcp(const char *method)
 {
     MigrateStart *args = migrate_start_new();
     QTestState *from, *to;
@@ -1284,6 +1283,9 @@ static void test_multifd_tcp(void)
 
     migrate_set_parameter_int(from, "multifd-channels", 16);
     migrate_set_parameter_int(to, "multifd-channels", 16);
+
+    migrate_set_parameter_str(from, "multifd-compression", method);
+    migrate_set_parameter_str(to, "multifd-compression", method);
 
     migrate_set_capability(from, "multifd", "true");
     migrate_set_capability(to, "multifd", "true");
@@ -1316,6 +1318,11 @@ static void test_multifd_tcp(void)
     g_free(uri);
 }
 
+static void test_multifd_tcp_none(void)
+{
+    test_multifd_tcp("none");
+}
+
 /*
  * This test does:
  *  source               target
@@ -1327,7 +1334,6 @@ static void test_multifd_tcp(void)
  *
  *  And see that it works
  */
-
 static void test_multifd_tcp_cancel(void)
 {
     MigrateStart *args = migrate_start_new();
@@ -1478,7 +1484,7 @@ int main(int argc, char **argv)
                    test_validate_uuid_dst_not_set);
 
     qtest_add_func("/migration/auto_converge", test_migrate_auto_converge);
-    qtest_add_func("/migration/multifd/tcp", test_multifd_tcp);
+    qtest_add_func("/migration/multifd/tcp/none", test_multifd_tcp_none);
     qtest_add_func("/migration/multifd/tcp/cancel", test_multifd_tcp_cancel);
 
     ret = g_test_run();

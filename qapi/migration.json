@@ -489,6 +489,19 @@
 { 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
 
 ##
+# @MultiFDCompression:
+#
+# An enumeration of multifd compression methods.
+#
+# @none: no compression.
+#
+# Since: 5.0
+#
+##
+{ 'enum': 'MultiFDCompression',
+  'data': [ 'none' ] }
+
+##
 # @MigrationParameter:
 #
 # Migration parameters enumeration
@@ -586,6 +599,9 @@
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    Defaults to 99. (Since 3.1)
 #
+# @multifd-compression: Which compression method to use.
+#                       Defaults to none. (Since 5.0)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -598,7 +614,7 @@
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
            'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
-           'max-cpu-throttle' ] }
+           'max-cpu-throttle', 'multifd-compression' ] }
 
 ##
 # @MigrateSetParameters:
@@ -688,6 +704,9 @@
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    The default value is 99. (Since 3.1)
 #
+# @multifd-compression: Which compression method to use.
+#                       Defaults to none. (Since 5.0)
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -713,7 +732,8 @@
             '*multifd-channels': 'int',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
-            '*max-cpu-throttle': 'int' } }
+            '*max-cpu-throttle': 'int',
+            '*multifd-compression': 'MultiFDCompression' } }
 
 ##
 # @migrate-set-parameters:
@@ -823,6 +843,9 @@
 #                    Defaults to 99.
 #                    (Since 3.1)
 #
+# @multifd-compression: Which compression method to use.
+#                       Defaults to none. (Since 5.0)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -846,7 +869,8 @@
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
-            '*max-cpu-throttle':'uint8'} }
+            '*max-cpu-throttle': 'uint8',
+            '*multifd-compression': 'MultiFDCompression' } }
 
 ##
 # @query-migrate-parameters:
