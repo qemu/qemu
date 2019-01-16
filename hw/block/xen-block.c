@@ -215,7 +215,7 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
 
     xen_device_backend_printf(xendev, "sector-size", "%u",
                               conf->logical_block_size);
-    xen_device_backend_printf(xendev, "sectors", "%lu",
+    xen_device_backend_printf(xendev, "sectors", "%"PRIi64,
                               blk_getlength(conf->blk) /
                               conf->logical_block_size);
 
