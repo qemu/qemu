@@ -91,7 +91,9 @@ void configure_accelerator(MachineState *ms, const char *progname)
 #elif defined(CONFIG_KVM)
             accel = "kvm";
 #else
-#error "No default accelerator available"
+            error_report("No accelerator selected and"
+                         " no default accelerator available");
+            exit(1);
 #endif
         }
     }
