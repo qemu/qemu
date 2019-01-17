@@ -25,7 +25,6 @@
 #include "qemu/osdep.h"
 #include "slirp.h"
 #include "qemu-common.h"
-#include "qemu/cutils.h"
 
 static inline int tftp_session_in_use(struct tftp_session *spt)
 {

@@ -7,7 +7,6 @@
 
 #include "qemu/osdep.h"
 #include "slirp.h"
-#include "qemu/main-loop.h"
 
 static void sbappendsb(struct sbuf *sb, struct mbuf *m);
 

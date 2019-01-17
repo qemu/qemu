@@ -53,9 +53,7 @@
 #ifdef _WIN32
 int slirp_closesocket(int fd);
 int slirp_ioctlsocket(int fd, int req, void *val);
-#ifndef WITH_QEMU
 int inet_aton(const char *cp, struct in_addr *ia);
-#endif
 #define slirp_getsockopt(sockfd, level, optname, optval, optlen) \
     getsockopt(sockfd, level, optname, (void *)optval, optlen)
 #define slirp_setsockopt(sockfd, level, optname, optval, optlen)        \

@@ -8,8 +8,6 @@
 #include "qemu/osdep.h"
 #include "slirp.h"
 #include "libslirp.h"
-#include "qemu/error-report.h"
-#include "qemu/main-loop.h"
 
 inline void
 insque(void *a, void *b)

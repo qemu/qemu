@@ -21,7 +21,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "slirp.h"
 #include "dhcpv6.h"
 
