@@ -1,7 +1,17 @@
 #ifndef LIBSLIRP_H
 #define LIBSLIRP_H
 
-#include "qemu-common.h"
+#include <glib.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <in6addr.h>
+#else
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
 
 typedef struct Slirp Slirp;
 
