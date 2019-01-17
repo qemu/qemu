@@ -3,8 +3,6 @@
  * Guillaume Subiron
  */
 
-#include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "slirp.h"
 #include "udp.h"
 #include "dhcpv6.h"

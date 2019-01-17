@@ -5,9 +5,7 @@
  * terms and conditions of the copyright.
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
-#include "libslirp.h"
 
 inline void
 insque(void *a, void *b)

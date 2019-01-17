@@ -22,9 +22,11 @@
  * THE SOFTWARE.
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
-#include "qemu-common.h"
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 static inline int tftp_session_in_use(struct tftp_session *spt)
 {

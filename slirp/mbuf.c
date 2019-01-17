@@ -15,7 +15,6 @@
  * the flags
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
 
 #define MBUF_THRESH 30

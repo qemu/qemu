@@ -3,7 +3,6 @@
  * Guillaume Subiron, Yann Bordenave, Serigne Modou Wagne.
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
 #include "ip6_icmp.h"
 

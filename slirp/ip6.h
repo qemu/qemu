@@ -7,6 +7,7 @@
 #define SLIRP_IP6_H
 
 #include <glib.h>
+#include <string.h>
 
 #define ALLNODES_MULTICAST  { .s6_addr = \
                             { 0xff, 0x02, 0x00, 0x00,\

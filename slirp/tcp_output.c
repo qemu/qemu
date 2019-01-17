@@ -38,7 +38,6 @@
  * terms and conditions of the copyright.
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
 
 static const u_char  tcp_outflags[TCP_NSTATES] = {

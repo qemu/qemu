@@ -6,7 +6,6 @@
  * This code is licensed under the GPL version 2 or later. See the
  * COPYING file in the top-level directory.
  */
-#include "qemu/osdep.h"
 #include "slirp.h"
 
 #include "ncsi-pkt.h"

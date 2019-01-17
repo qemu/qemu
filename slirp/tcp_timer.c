@@ -30,7 +30,6 @@
  * tcp_timer.c,v 1.2 1994/08/02 07:49:10 davidg Exp
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
 
 static struct tcpcb *tcp_timers(register struct tcpcb *tp, int timer);

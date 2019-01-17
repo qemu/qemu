@@ -30,7 +30,6 @@
  * ip_icmp.c,v 1.7 1995/05/30 08:09:42 rgrimes Exp
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
 #include "ip_icmp.h"
 
