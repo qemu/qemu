@@ -281,7 +281,7 @@ int udp_output(struct socket *so, struct mbuf *m,
 int
 udp_attach(struct socket *so, unsigned short af)
 {
-  so->s = qemu_socket(af, SOCK_DGRAM, 0);
+  so->s = slirp_socket(af, SOCK_DGRAM, 0);
   if (so->s != -1) {
     so->so_expire = curtime + SO_EXPIRE;
     insque(so, &so->slirp->udb);
@@ -292,7 +292,7 @@ udp_attach(struct socket *so, unsigned short af)
 void
 udp_detach(struct socket *so)
 {
-	closesocket(so->s);
+	slirp_closesocket(so->s);
 	sofree(so);
 }
 
@@ -327,7 +327,7 @@ udp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	socklen_t addrlen = sizeof(struct sockaddr_in);
 
 	so = socreate(slirp);
-	so->s = qemu_socket(AF_INET,SOCK_DGRAM,0);
+	so->s = slirp_socket(AF_INET,SOCK_DGRAM,0);
         if (so->s < 0) {
             sofree(so);
             return NULL;
@@ -343,7 +343,7 @@ udp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 		udp_detach(so);
 		return NULL;
 	}
-	socket_set_fast_reuse(so->s);
+	slirp_socket_set_fast_reuse(so->s);
 
 	getsockname(so->s,(struct sockaddr *)&addr,&addrlen);
 	so->fhost.sin = addr;

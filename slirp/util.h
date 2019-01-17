@@ -23,10 +23,71 @@
 #ifndef UTIL_H_
 #define UTIL_H_
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
+#include <errno.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <inttypes.h>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <windows.h>
+#else
+#include <sys/socket.h>
+#include <netinet/tcp.h>
+#include <netinet/in.h>
+#endif
+
 #if defined(_WIN32)
 # define SLIRP_PACKED __attribute__((gcc_struct, packed))
 #else
 # define SLIRP_PACKED __attribute__((packed))
 #endif
+
+#ifdef _WIN32
+int slirp_closesocket(int fd);
+int slirp_ioctlsocket(int fd, int req, void *val);
+#ifndef WITH_QEMU
+int inet_aton(const char *cp, struct in_addr *ia);
+#endif
+#define slirp_getsockopt(sockfd, level, optname, optval, optlen) \
+    getsockopt(sockfd, level, optname, (void *)optval, optlen)
+#define slirp_setsockopt(sockfd, level, optname, optval, optlen)        \
+    setsockopt(sockfd, level, optname, (const void *)optval, optlen)
+#define slirp_recv(sockfd, buf, len, flags) recv(sockfd, (void *)buf, len, flags)
+#else
+#define slirp_setsockopt setsockopt
+#define slirp_getsockopt getsockopt
+#define slirp_recv recv
+#define slirp_closesocket close
+#define slirp_ioctlsocket ioctl
+#endif
+
+int slirp_socket(int domain, int type, int protocol);
+
+static inline int slirp_socket_set_nodelay(int fd)
+{
+    int v = 1;
+    return slirp_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
+}
+
+static inline int slirp_socket_set_fast_reuse(int fd)
+{
+#ifndef _WIN32
+    int v = 1;
+    return slirp_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
+#else
+    /* Enabling the reuse of an endpoint that was used by a socket still in
+     * TIME_WAIT state is usually performed by setting SO_REUSEADDR. On Windows
+     * fast reuse is the default and SO_REUSEADDR does strange things. So we
+     * don't have to do anything here. More info can be found at:
+     * http://msdn.microsoft.com/en-us/library/windows/desktop/ms740621.aspx */
+    return 0;
+#endif
+}
 
 #endif

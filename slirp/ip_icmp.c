@@ -83,7 +83,7 @@ static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
     struct ip *ip = mtod(m, struct ip *);
     struct sockaddr_in addr;
 
-    so->s = qemu_socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    so->s = slirp_socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
     if (so->s == -1) {
         return -1;
     }
@@ -114,7 +114,7 @@ static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
 
 void icmp_detach(struct socket *so)
 {
-    closesocket(so->s);
+    slirp_closesocket(so->s);
     sofree(so);
 }
 
@@ -421,7 +421,7 @@ void icmp_receive(struct socket *so)
     icp = mtod(m, struct icmp *);
 
     id = icp->icmp_id;
-    len = qemu_recv(so->s, icp, M_ROOM(m), 0);
+    len = slirp_recv(so->s, icp, M_ROOM(m), 0);
     /*
      * The behavior of reading SOCK_DGRAM+IPPROTO_ICMP sockets is inconsistent
      * between host OSes.  On Linux, only the ICMP header and payload is

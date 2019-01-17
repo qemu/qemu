@@ -337,7 +337,7 @@ tcp_close(struct tcpcb *tp)
 	/* clobber input socket cache if we're closing the cached connection */
 	if (so == slirp->tcp_last_so)
 		slirp->tcp_last_so = &slirp->tcb;
-	closesocket(so->s);
+	slirp_closesocket(so->s);
 	sbfree(&so->so_rcv);
 	sbfree(&so->so_snd);
 	sofree(so);
@@ -407,17 +407,17 @@ int tcp_fconnect(struct socket *so, unsigned short af)
   DEBUG_CALL("tcp_fconnect");
   DEBUG_ARG("so = %p", so);
 
-  ret = so->s = qemu_socket(af, SOCK_STREAM, 0);
+  ret = so->s = slirp_socket(af, SOCK_STREAM, 0);
   if (ret >= 0) {
     int opt, s=so->s;
     struct sockaddr_storage addr;
 
     qemu_set_nonblock(s);
-    socket_set_fast_reuse(s);
+    slirp_socket_set_fast_reuse(s);
     opt = 1;
-    qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(opt));
+    slirp_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(opt));
     opt = 1;
-    qemu_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+    slirp_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
 
     addr = so->fhost.ss;
     DEBUG_CALL(" connect()ing");
@@ -485,10 +485,10 @@ void tcp_connect(struct socket *inso)
         return;
     }
     qemu_set_nonblock(s);
-    socket_set_fast_reuse(s);
+    slirp_socket_set_fast_reuse(s);
     opt = 1;
-    qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
-    socket_set_nodelay(s);
+    slirp_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+    slirp_socket_set_nodelay(s);
 
     so->fhost.ss = addr;
     sotranslate_accept(so);
@@ -496,7 +496,7 @@ void tcp_connect(struct socket *inso)
     /* Close the accept() socket, set right state */
     if (inso->so_state & SS_FACCEPTONCE) {
         /* If we only accept once, close the accept() socket */
-        closesocket(so->s);
+        slirp_closesocket(so->s);
 
         /* Don't select it yet, even though we have an FD */
         /* if it's not FACCEPTONCE, it's already NOFDREF */
