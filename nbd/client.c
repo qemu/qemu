@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "nbd-internal.h"
+#include "qemu/cutils.h"
 
 /* Definitions for opaque data types */
 
@@ -828,6 +829,8 @@ static int nbd_list_meta_contexts(QIOChannel *ioc,
                                   Error **errp)
 {
     int ret;
+    int seen_any = false;
+    int seen_qemu = false;
 
     if (nbd_send_meta_query(ioc, NBD_OPT_LIST_META_CONTEXT,
                             info->name, NULL, errp) < 0) {
@@ -839,9 +842,25 @@ static int nbd_list_meta_contexts(QIOChannel *ioc,
 
         ret = nbd_receive_one_meta_context(ioc, NBD_OPT_LIST_META_CONTEXT,
                                            &context, NULL, errp);
+        if (ret == 0 && seen_any && !seen_qemu) {
+            /*
+             * Work around qemu 3.0 bug: the server forgot to send
+             * "qemu:" replies to 0 queries. If we saw at least one
+             * reply (probably base:allocation), but none of them were
+             * qemu:, then run a more specific query to make sure.
+             */
+            seen_qemu = true;
+            if (nbd_send_meta_query(ioc, NBD_OPT_LIST_META_CONTEXT,
+                                    info->name, "qemu:", errp) < 0) {
+                return -1;
+            }
+            continue;
+        }
         if (ret <= 0) {
             return ret;
         }
+        seen_any = true;
+        seen_qemu |= strstart(context, "qemu:", NULL);
         info->contexts = g_renew(char *, info->contexts, ++info->n_contexts);
         info->contexts[info->n_contexts - 1] = context;
     }
