@@ -77,8 +77,8 @@ struct NBDExport {
     BlockBackend *blk;
     char *name;
     char *description;
-    off_t dev_offset;
-    off_t size;
+    uint64_t dev_offset;
+    uint64_t size;
     uint16_t nbdflags;
     QTAILQ_HEAD(, NBDClient) clients;
     QTAILQ_ENTRY(NBDExport) next;
@@ -1455,8 +1455,8 @@ static void nbd_eject_notifier(Notifier *n, void *data)
     nbd_export_close(exp);
 }
 
-NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
-                          const char *name, const char *description,
+NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
+                          uint64_t size, const char *name, const char *desc,
                           const char *bitmap, uint16_t nbdflags,
                           void (*close)(NBDExport *), bool writethrough,
                           BlockBackend *on_eject_blk, Error **errp)
@@ -1495,12 +1495,12 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
     exp->refcount = 1;
     QTAILQ_INIT(&exp->clients);
     exp->blk = blk;
-    assert(dev_offset >= 0 && dev_offset <= INT64_MAX);
+    assert(dev_offset <= INT64_MAX);
     exp->dev_offset = dev_offset;
     exp->name = g_strdup(name);
-    exp->description = g_strdup(description);
+    exp->description = g_strdup(desc);
     exp->nbdflags = nbdflags;
-    assert(size >= 0 && size <= INT64_MAX - dev_offset);
+    assert(size <= INT64_MAX - dev_offset);
     exp->size = QEMU_ALIGN_DOWN(size, BDRV_SECTOR_SIZE);
 
     if (bitmap) {
@@ -2130,10 +2130,10 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         return -EROFS;
     }
     if (request->from > client->exp->size ||
-        request->from + request->len > client->exp->size) {
+        request->len > client->exp->size - request->from) {
         error_setg(errp, "operation past EOF; From: %" PRIu64 ", Len: %" PRIu32
                    ", Size: %" PRIu64, request->from, request->len,
-                   (uint64_t)client->exp->size);
+                   client->exp->size);
         return (request->type == NBD_CMD_WRITE ||
                 request->type == NBD_CMD_WRITE_ZEROES) ? -ENOSPC : -EINVAL;
     }

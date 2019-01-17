@@ -294,8 +294,8 @@ int nbd_errno_to_system_errno(int err);
 typedef struct NBDExport NBDExport;
 typedef struct NBDClient NBDClient;
 
-NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
-                          const char *name, const char *description,
+NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
+                          uint64_t size, const char *name, const char *desc,
                           const char *bitmap, uint16_t nbdflags,
                           void (*close)(NBDExport *), bool writethrough,
                           BlockBackend *on_eject_blk, Error **errp);
