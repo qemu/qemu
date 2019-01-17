@@ -789,7 +789,7 @@ static int set_init_flags(const char *flags)
     return 0;
 }
 
-static uint8_t slow_clear_flags(void)
+static uint_fast8_t slow_clear_flags(void)
 {
     uint8_t prev = slowfloat_exceptionFlags;
 
@@ -797,7 +797,7 @@ static uint8_t slow_clear_flags(void)
     return prev;
 }
 
-static uint8_t qemu_clear_flags(void)
+static uint_fast8_t qemu_clear_flags(void)
 {
     uint8_t prev = qemu_flags_to_sf(qsf.float_exception_flags);
 
