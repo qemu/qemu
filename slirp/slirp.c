@@ -25,7 +25,6 @@
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
-#include "chardev/char-fe.h"
 #include "migration/register.h"
 #include "slirp.h"
 #include "hw/hw.h"
@@ -1068,23 +1067,35 @@ check_guestfwd(Slirp *slirp, struct in_addr *guest_addr, int guest_port)
     return true;
 }
 
-int slirp_add_exec(Slirp *slirp, void *chardev, const char *cmdline,
+int slirp_add_exec(Slirp *slirp, const char *cmdline,
                    struct in_addr *guest_addr, int guest_port)
 {
     if (!check_guestfwd(slirp, guest_addr, guest_port)) {
         return -1;
     }
 
-    return add_exec(&slirp->guestfwd_list, chardev, cmdline, *guest_addr,
-                    htons(guest_port));
+    add_exec(&slirp->guestfwd_list, cmdline, *guest_addr, htons(guest_port));
+    return 0;
+}
+
+int slirp_add_guestfwd(Slirp *slirp, SlirpWriteCb write_cb, void *opaque,
+                       struct in_addr *guest_addr, int guest_port)
+{
+    if (!check_guestfwd(slirp, guest_addr, guest_port)) {
+        return -1;
+    }
+
+    add_guestfwd(&slirp->guestfwd_list, write_cb, opaque,
+                 *guest_addr, htons(guest_port));
+    return 0;
 }
 
 ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
 {
-    if (so->s == -1 && so->chardev) {
+    if (so->s == -1 && so->guestfwd) {
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(so->chardev, buf, len);
+        so->guestfwd->write_cb(buf, len, so->guestfwd->opaque);
         return len;
     }
 
@@ -1449,7 +1460,7 @@ static void slirp_state_save(QEMUFile *f, void *opaque)
     struct gfwd_list *ex_ptr;
 
     for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
-        if (ex_ptr->ex_chardev) {
+        if (ex_ptr->write_cb) {
             struct socket *so;
             so = slirp_find_ctl_socket(slirp, ex_ptr->ex_addr,
                                        ntohs(ex_ptr->ex_fport));
@@ -1484,7 +1495,7 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
             return -EINVAL;
         }
         for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
-            if (ex_ptr->ex_chardev &&
+            if (ex_ptr->write_cb &&
                 so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr &&
                 so->so_fport == ex_ptr->ex_fport) {
                 break;

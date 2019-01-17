@@ -8,8 +8,11 @@
 #ifndef MISC_H
 #define MISC_H
 
+#include "libslirp.h"
+
 struct gfwd_list {
-	void *ex_chardev;
+	SlirpWriteCb write_cb;
+	void *opaque;
 	struct in_addr ex_addr;		/* Server address */
 	int ex_fport;                   /* Port to telnet to */
 	char *ex_exec;                  /* Command line of what to exec */
@@ -51,7 +54,15 @@ struct slirp_quehead {
 
 void slirp_insque(void *, void *);
 void slirp_remque(void *);
-int add_exec(struct gfwd_list **, void *, const char *, struct in_addr, int);
 int fork_exec(struct socket *so, const char *ex);
+
+struct gfwd_list *
+add_guestfwd(struct gfwd_list **ex_ptr,
+             SlirpWriteCb write_cb, void *opaque,
+             struct in_addr addr, int port);
+
+struct gfwd_list *
+add_exec(struct gfwd_list **ex_ptr, const char *cmdline,
+         struct in_addr addr, int port);
 
 #endif

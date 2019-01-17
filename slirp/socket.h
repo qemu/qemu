@@ -8,6 +8,8 @@
 #ifndef SLIRP_SOCKET_H
 #define SLIRP_SOCKET_H
 
+#include "misc.h"
+
 #define SO_EXPIRE 240000
 #define SO_EXPIREFAST 10000
 
@@ -25,6 +27,7 @@ struct socket {
   struct socket *so_next,*so_prev;      /* For a linked list of sockets */
 
   int s;                           /* The actual socket */
+  struct gfwd_list *guestfwd;
 
   int pollfds_idx;                 /* GPollFD GArray index */
 
@@ -67,7 +70,6 @@ struct socket {
 
   struct sbuf so_rcv;		/* Receive buffer */
   struct sbuf so_snd;		/* Send buffer */
-  void * chardev;
 };
 
 

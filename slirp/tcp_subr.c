@@ -964,9 +964,9 @@ int tcp_ctl(struct socket *so)
         for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
             if (ex_ptr->ex_fport == so->so_fport &&
                 so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr) {
-                if (ex_ptr->ex_chardev) {
+                if (ex_ptr->write_cb) {
                     so->s = -1;
-                    so->chardev = ex_ptr->ex_chardev;
+                    so->guestfwd = ex_ptr;
                     return 1;
                 }
                 DEBUG_MISC(" executing %s", ex_ptr->ex_exec);

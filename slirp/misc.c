@@ -32,24 +32,33 @@ remque(void *a)
   element->qh_rlink = NULL;
 }
 
-int add_exec(struct gfwd_list **ex_ptr, void *chardev, const char *cmdline,
+struct gfwd_list *
+add_guestfwd(struct gfwd_list **ex_ptr,
+             SlirpWriteCb write_cb, void *opaque,
              struct in_addr addr, int port)
 {
-	struct gfwd_list *tmp_ptr;
+    struct gfwd_list *f = g_new0(struct gfwd_list, 1);
 
-	tmp_ptr = *ex_ptr;
-	*ex_ptr = g_new0(struct gfwd_list, 1);
-	(*ex_ptr)->ex_fport = port;
-	(*ex_ptr)->ex_addr = addr;
-	if (chardev) {
-		(*ex_ptr)->ex_chardev = chardev;
-	} else {
-		(*ex_ptr)->ex_exec = g_strdup(cmdline);
-	}
-	(*ex_ptr)->ex_next = tmp_ptr;
-	return 0;
+    f->write_cb = write_cb;
+    f->opaque = opaque;
+    f->ex_fport = port;
+    f->ex_addr = addr;
+    f->ex_next = *ex_ptr;
+    *ex_ptr = f;
+
+    return f;
 }
 
+struct gfwd_list *
+add_exec(struct gfwd_list **ex_ptr, const char *cmdline,
+         struct in_addr addr, int port)
+{
+    struct gfwd_list *f = add_guestfwd(ex_ptr, NULL, NULL, addr, port);
+
+    f->ex_exec = g_strdup(cmdline);
+
+    return f;
+}
 
 static int
 slirp_socketpair_with_oob(int sv[2])
