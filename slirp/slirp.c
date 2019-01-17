@@ -320,8 +320,8 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
     slirp->vprefix_len = vprefix_len;
     slirp->vhost_addr6 = vhost6;
     if (vhostname) {
-        pstrcpy(slirp->client_hostname, sizeof(slirp->client_hostname),
-                vhostname);
+        slirp_pstrcpy(slirp->client_hostname, sizeof(slirp->client_hostname),
+                      vhostname);
     }
     slirp->tftp_prefix = g_strdup(tftp_path);
     slirp->bootp_filename = g_strdup(bootfile);

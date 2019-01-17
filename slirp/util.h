@@ -91,4 +91,6 @@ static inline int slirp_socket_set_fast_reuse(int fd)
 #endif
 }
 
+void slirp_pstrcpy(char *buf, int buf_size, const char *str);
+
 #endif
