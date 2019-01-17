@@ -3,7 +3,7 @@
 #
 # Dump the contents of a recorded execution stream
 #
-#  Copyright (c) 2017 Alex BennÃ©e <alex.bennee@linaro.org>
+#  Copyright (c) 2017 Alex Bennée <alex.bennee@linaro.org>
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
