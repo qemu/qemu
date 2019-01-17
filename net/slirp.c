@@ -211,6 +211,71 @@ static const SlirpCb slirp_cb = {
     .notify = qemu_notify_event,
 };
 
+static int slirp_poll_to_gio(int events)
+{
+    int ret = 0;
+
+    if (events & SLIRP_POLL_IN) {
+        ret |= G_IO_IN;
+    }
+    if (events & SLIRP_POLL_OUT) {
+        ret |= G_IO_OUT;
+    }
+    if (events & SLIRP_POLL_PRI) {
+        ret |= G_IO_PRI;
+    }
+    if (events & SLIRP_POLL_ERR) {
+        ret |= G_IO_ERR;
+    }
+    if (events & SLIRP_POLL_HUP) {
+        ret |= G_IO_HUP;
+    }
+
+    return ret;
+}
+
+static int net_slirp_add_poll(int fd, int events, void *opaque)
+{
+    GArray *pollfds = opaque;
+    GPollFD pfd = {
+        .fd = fd,
+        .events = slirp_poll_to_gio(events),
+    };
+    int idx = pollfds->len;
+    g_array_append_val(pollfds, pfd);
+    return idx;
+}
+
+static int slirp_gio_to_poll(int events)
+{
+    int ret = 0;
+
+    if (events & G_IO_IN) {
+        ret |= SLIRP_POLL_IN;
+    }
+    if (events & G_IO_OUT) {
+        ret |= SLIRP_POLL_OUT;
+    }
+    if (events & G_IO_PRI) {
+        ret |= SLIRP_POLL_PRI;
+    }
+    if (events & G_IO_ERR) {
+        ret |= SLIRP_POLL_ERR;
+    }
+    if (events & G_IO_HUP) {
+        ret |= SLIRP_POLL_HUP;
+    }
+
+    return ret;
+}
+
+static int net_slirp_get_revents(int idx, void *opaque)
+{
+    GArray *pollfds = opaque;
+
+    return slirp_gio_to_poll(g_array_index(pollfds, GPollFD, idx).revents);
+}
+
 static void net_slirp_poll_notify(Notifier *notifier, void *data)
 {
     MainLoopPoll *poll = data;
@@ -218,12 +283,13 @@ static void net_slirp_poll_notify(Notifier *notifier, void *data)
 
     switch (poll->state) {
     case MAIN_LOOP_POLL_FILL:
-        slirp_pollfds_fill(s->slirp, poll->pollfds, &poll->timeout);
+        slirp_pollfds_fill(s->slirp, &poll->timeout,
+                           net_slirp_add_poll, poll->pollfds);
         break;
     case MAIN_LOOP_POLL_OK:
     case MAIN_LOOP_POLL_ERR:
-        slirp_pollfds_poll(s->slirp, poll->pollfds,
-                           poll->state == MAIN_LOOP_POLL_ERR);
+        slirp_pollfds_poll(s->slirp, poll->state == MAIN_LOOP_POLL_ERR,
+                           net_slirp_get_revents, poll->pollfds);
         break;
     default:
         g_assert_not_reached();

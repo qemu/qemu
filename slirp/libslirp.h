@@ -1,7 +1,6 @@
 #ifndef LIBSLIRP_H
 #define LIBSLIRP_H
 
-#include <glib.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -15,8 +14,18 @@
 
 typedef struct Slirp Slirp;
 
+enum {
+    SLIRP_POLL_IN  = 1 << 0,
+    SLIRP_POLL_OUT = 1 << 1,
+    SLIRP_POLL_PRI = 1 << 2,
+    SLIRP_POLL_ERR = 1 << 3,
+    SLIRP_POLL_HUP = 1 << 4,
+};
+
 typedef ssize_t (*SlirpWriteCb)(const void *buf, size_t len, void *opaque);
 typedef void (*SlirpTimerCb)(void *opaque);
+typedef int (*SlirpAddPollCb)(int fd, int events, void *opaque);
+typedef int (*SlirpGetREventsCb)(int idx, void *opaque);
 
 /*
  * Callbacks from slirp
@@ -63,9 +72,11 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
                   void *opaque);
 void slirp_cleanup(Slirp *slirp);
 
-void slirp_pollfds_fill(Slirp *slirp, GArray *pollfds, uint32_t *timeout);
+void slirp_pollfds_fill(Slirp *slirp, uint32_t *timeout,
+                        SlirpAddPollCb add_poll, void *opaque);
 
-void slirp_pollfds_poll(Slirp *slirp, GArray *pollfds, int select_error);
+void slirp_pollfds_poll(Slirp *slirp, int select_error,
+                        SlirpGetREventsCb get_revents, void *opaque);
 
 void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len);
 
