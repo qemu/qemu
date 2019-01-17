@@ -75,6 +75,13 @@ struct slirp_config_str {
     char str[1024];
 };
 
+struct GuestFwd {
+    CharBackend hd;
+    struct in_addr server;
+    int port;
+    Slirp *slirp;
+};
+
 typedef struct SlirpState {
     NetClientState nc;
     QTAILQ_ENTRY(SlirpState) entry;
@@ -83,6 +90,7 @@ typedef struct SlirpState {
 #ifndef _WIN32
     gchar *smb_dir;
 #endif
+    GSList *fwd;
 } SlirpState;
 
 static struct slirp_config_str *slirp_configs;
@@ -122,10 +130,19 @@ static void slirp_smb_exit(Notifier *n, void *data)
     slirp_smb_cleanup(s);
 }
 
+static void slirp_free_fwd(gpointer data)
+{
+    struct GuestFwd *fwd = data;
+
+    qemu_chr_fe_deinit(&fwd->hd, true);
+    g_free(data);
+}
+
 static void net_slirp_cleanup(NetClientState *nc)
 {
     SlirpState *s = DO_UPCAST(SlirpState, nc, nc);
 
+    g_slist_free_full(s->fwd, slirp_free_fwd);
     slirp_cleanup(s->slirp);
     if (s->exit_notifier.notify) {
         qemu_remove_exit_notifier(&s->exit_notifier);
@@ -717,13 +734,6 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
 
 #endif /* !defined(_WIN32) */
 
-struct GuestFwd {
-    CharBackend hd;
-    struct in_addr server;
-    int port;
-    Slirp *slirp;
-};
-
 static int guestfwd_can_read(void *opaque)
 {
     struct GuestFwd *fwd = opaque;
@@ -814,6 +824,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
 
         qemu_chr_fe_set_handlers(&fwd->hd, guestfwd_can_read, guestfwd_read,
                                  NULL, NULL, fwd, NULL, true);
+        s->fwd = g_slist_append(s->fwd, fwd);
     }
     return 0;
 
