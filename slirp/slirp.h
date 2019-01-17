@@ -271,4 +271,7 @@ int tcp_emu(struct socket *, struct mbuf *);
 int tcp_ctl(struct socket *);
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 
+struct socket *
+slirp_find_ctl_socket(Slirp *slirp, struct in_addr guest_addr, int guest_port);
+
 #endif
