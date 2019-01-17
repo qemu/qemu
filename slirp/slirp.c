@@ -829,7 +829,7 @@ void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
     if (pkt_len < ETH_HLEN)
         return;
 
-    proto = ntohs(*(uint16_t *)(pkt + 12));
+    proto = (((uint16_t) pkt[12]) << 8) + pkt[13];
     switch(proto) {
     case ETH_P_ARP:
         arp_input(slirp, pkt, pkt_len);
