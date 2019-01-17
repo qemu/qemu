@@ -320,8 +320,7 @@ static const XiveTmOp *xive_tm_find_op(hwaddr offset, unsigned size, bool write)
 static void xive_tm_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
-    XiveTCTX *tctx = cpu->tctx;
+    XiveTCTX *tctx = xive_router_get_tctx(XIVE_ROUTER(opaque), current_cpu);
     const XiveTmOp *xto;
 
     /*
@@ -359,8 +358,7 @@ static void xive_tm_write(void *opaque, hwaddr offset,
 
 static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
 {
-    PowerPCCPU *cpu = POWERPC_CPU(current_cpu);
-    XiveTCTX *tctx = cpu->tctx;
+    XiveTCTX *tctx = xive_router_get_tctx(XIVE_ROUTER(opaque), current_cpu);
     const XiveTmOp *xto;
 
     /*
@@ -1107,6 +1105,13 @@ int xive_router_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
    return xrc->write_nvt(xrtr, nvt_blk, nvt_idx, nvt, word_number);
 }
 
+XiveTCTX *xive_router_get_tctx(XiveRouter *xrtr, CPUState *cs)
+{
+    XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
+
+    return xrc->get_tctx(xrtr, cs);
+}
+
 /*
  * The thread context register words are in big-endian format.
  */
@@ -1182,8 +1187,7 @@ static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
      */
 
     CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-        XiveTCTX *tctx = cpu->tctx;
+        XiveTCTX *tctx = xive_router_get_tctx(xrtr, cs);
         int ring;
 
         /*
