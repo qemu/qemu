@@ -168,10 +168,31 @@ static int64_t net_slirp_clock_get_ns(void)
     return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 }
 
+static void *net_slirp_timer_new(SlirpTimerCb cb, void *opaque)
+{
+    return timer_new_full(NULL, QEMU_CLOCK_VIRTUAL,
+                          SCALE_MS, QEMU_TIMER_ATTR_EXTERNAL,
+                          cb, opaque);
+}
+
+static void net_slirp_timer_free(void *timer)
+{
+    timer_del(timer);
+    timer_free(timer);
+}
+
+static void net_slirp_timer_mod(void *timer, int64_t expire_timer)
+{
+    timer_mod(timer, expire_timer);
+}
+
 static const SlirpCb slirp_cb = {
     .output = net_slirp_output,
     .guest_error = net_slirp_guest_error,
     .clock_get_ns = net_slirp_clock_get_ns,
+    .timer_new = net_slirp_timer_new,
+    .timer_free = net_slirp_timer_free,
+    .timer_mod = net_slirp_timer_mod,
 };
 
 static int net_slirp_init(NetClientState *peer, const char *model,

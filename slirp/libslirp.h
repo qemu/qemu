@@ -6,19 +6,27 @@
 typedef struct Slirp Slirp;
 
 typedef int (*SlirpWriteCb)(const void *buf, size_t len, void *opaque);
+typedef void (*SlirpTimerCb)(void *opaque);
 
 /*
  * Callbacks from slirp
- *
- * The opaque parameter comes from the opaque parameter given to slirp_init().
  */
 typedef struct SlirpCb {
-    /* Send an ethernet frame to the guest network.  */
+    /*
+     * Send an ethernet frame to the guest network. The opaque parameter
+     * is the one given to slirp_init().
+     */
     void (*output)(void *opaque, const uint8_t *pkt, int pkt_len);
     /* Print a message for an error due to guest misbehavior.  */
     void (*guest_error)(const char *msg);
     /* Return the virtual clock value in nanoseconds */
     int64_t (*clock_get_ns)(void);
+    /* Create a new timer with the given callback and opaque data */
+    void *(*timer_new)(SlirpTimerCb cb, void *opaque);
+    /* Remove and free a timer */
+    void (*timer_free)(void *timer);
+    /* Modify a timer to expire at @expire_time */
+    void (*timer_mod)(void *timer, int64_t expire_time);
 } SlirpCb;
 
 

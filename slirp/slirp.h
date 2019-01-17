@@ -193,7 +193,7 @@ struct Slirp {
     NdpTable ndp_table;
 
     GRand *grand;
-    QEMUTimer *ra_timer;
+    void *ra_timer;
 
     const SlirpCb *cb;
     void *opaque;

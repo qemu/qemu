@@ -16,8 +16,9 @@
 static void ra_timer_handler(void *opaque)
 {
     Slirp *slirp = opaque;
-    timer_mod(slirp->ra_timer,
-              slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
+
+    slirp->cb->timer_mod(slirp->ra_timer,
+                         slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
     ndp_send_ra(slirp);
 }
 
@@ -27,11 +28,9 @@ void icmp6_init(Slirp *slirp)
         return;
     }
 
-    slirp->ra_timer = timer_new_full(NULL, QEMU_CLOCK_VIRTUAL,
-                                     SCALE_MS, QEMU_TIMER_ATTR_EXTERNAL,
-                                     ra_timer_handler, slirp);
-    timer_mod(slirp->ra_timer,
-              slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
+    slirp->ra_timer = slirp->cb->timer_new(ra_timer_handler, slirp);
+    slirp->cb->timer_mod(slirp->ra_timer,
+                         slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
 }
 
 void icmp6_cleanup(Slirp *slirp)
@@ -40,8 +39,7 @@ void icmp6_cleanup(Slirp *slirp)
         return;
     }
 
-    timer_del(slirp->ra_timer);
-    timer_free(slirp->ra_timer);
+    slirp->cb->timer_free(slirp->ra_timer);
 }
 
 static void icmp6_send_echoreply(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
