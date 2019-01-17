@@ -515,62 +515,7 @@ void bdrv_dirty_iter_free(BdrvDirtyBitmapIter *iter)
 
 int64_t bdrv_dirty_iter_next(BdrvDirtyBitmapIter *iter)
 {
-    return hbitmap_iter_next(&iter->hbi, true);
-}
-
-/**
- * Return the next consecutively dirty area in the dirty bitmap
- * belonging to the given iterator @iter.
- *
- * @max_offset: Maximum value that may be returned for
- *              *offset + *bytes
- * @offset:     Will contain the start offset of the next dirty area
- * @bytes:      Will contain the length of the next dirty area
- *
- * Returns: True if a dirty area could be found before max_offset
- *          (which means that *offset and *bytes then contain valid
- *          values), false otherwise.
- *
- * Note that @iter is never advanced if false is returned.  If an area
- * is found (which means that true is returned), it will be advanced
- * past that area.
- */
-bool bdrv_dirty_iter_next_area(BdrvDirtyBitmapIter *iter, uint64_t max_offset,
-                               uint64_t *offset, int *bytes)
-{
-    uint32_t granularity = bdrv_dirty_bitmap_granularity(iter->bitmap);
-    uint64_t gran_max_offset;
-    int64_t ret;
-    int size;
-
-    if (max_offset == iter->bitmap->size) {
-        /* If max_offset points to the image end, round it up by the
-         * bitmap granularity */
-        gran_max_offset = ROUND_UP(max_offset, granularity);
-    } else {
-        gran_max_offset = max_offset;
-    }
-
-    ret = hbitmap_iter_next(&iter->hbi, false);
-    if (ret < 0 || ret + granularity > gran_max_offset) {
-        return false;
-    }
-
-    *offset = ret;
-    size = 0;
-
-    assert(granularity <= INT_MAX);
-
-    do {
-        /* Advance iterator */
-        ret = hbitmap_iter_next(&iter->hbi, true);
-        size += granularity;
-    } while (ret + granularity <= gran_max_offset &&
-             hbitmap_iter_next(&iter->hbi, false) == ret + granularity &&
-             size <= INT_MAX - granularity);
-
-    *bytes = MIN(size, max_offset - *offset);
-    return true;
+    return hbitmap_iter_next(&iter->hbi);
 }
 
 /* Called within bdrv_dirty_bitmap_lock..unlock */
@@ -781,9 +726,16 @@ char *bdrv_dirty_bitmap_sha256(const BdrvDirtyBitmap *bitmap, Error **errp)
     return hbitmap_sha256(bitmap->bitmap, errp);
 }
 
-int64_t bdrv_dirty_bitmap_next_zero(BdrvDirtyBitmap *bitmap, uint64_t offset)
+int64_t bdrv_dirty_bitmap_next_zero(BdrvDirtyBitmap *bitmap, uint64_t offset,
+                                    uint64_t bytes)
 {
-    return hbitmap_next_zero(bitmap->bitmap, offset);
+    return hbitmap_next_zero(bitmap->bitmap, offset, bytes);
+}
+
+bool bdrv_dirty_bitmap_next_dirty_area(BdrvDirtyBitmap *bitmap,
+                                       uint64_t *offset, uint64_t *bytes)
+{
+    return hbitmap_next_dirty_area(bitmap->bitmap, offset, bytes);
 }
 
 void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
