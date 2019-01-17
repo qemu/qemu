@@ -289,6 +289,7 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
 
     slirp_init_once();
 
+    slirp->opaque = opaque;
     slirp->cb = callbacks;
     slirp->grand = g_rand_new();
     slirp->restricted = restricted;
@@ -325,12 +326,9 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
         translate_dnssearch(slirp, vdnssearch);
     }
 
-    slirp->opaque = opaque;
-
 #ifdef WITH_QEMU
     slirp_state_register(slirp);
 #endif
-
     return slirp;
 }
 
@@ -537,7 +535,7 @@ void slirp_pollfds_poll(Slirp *slirp, int select_error,
     struct socket *so, *so_next;
     int ret;
 
-    curtime = slirp->cb->clock_get_ns() / SCALE_MS;
+    curtime = slirp->cb->clock_get_ns(slirp->opaque) / SCALE_MS;
 
     /*
      * See if anything has timed out
@@ -860,7 +858,8 @@ static int if_encap4(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
             ifm->resolution_requested = true;
 
             /* Expire request and drop outgoing packet after 1 second */
-            ifm->expiration_date = slirp->cb->clock_get_ns() + 1000000000ULL;
+            ifm->expiration_date =
+                slirp->cb->clock_get_ns(slirp->opaque) + 1000000000ULL;
         }
         return 0;
     } else {
@@ -886,7 +885,7 @@ static int if_encap6(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
         if (!ifm->resolution_requested) {
             ndp_send_ns(slirp, ip6h->ip_dst);
             ifm->resolution_requested = true;
-            ifm->expiration_date = slirp->cb->clock_get_ns() + 1000000000ULL;
+            ifm->expiration_date = slirp->cb->clock_get_ns(slirp->opaque) + 1000000000ULL;
         }
         return 0;
     } else {
@@ -961,7 +960,7 @@ int slirp_remove_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
             getsockname(so->s, (struct sockaddr *)&addr, &addr_len) == 0 &&
             addr.sin_addr.s_addr == host_addr.s_addr &&
             addr.sin_port == port) {
-            so->slirp->cb->unregister_poll_fd(so->s);
+            so->slirp->cb->unregister_poll_fd(so->s, so->slirp->opaque);
             slirp_closesocket(so->s);
             sofree(so);
             return 0;

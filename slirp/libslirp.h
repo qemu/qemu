@@ -40,21 +40,21 @@ typedef struct SlirpCb {
      */
     SlirpWriteCb send_packet;
     /* Print a message for an error due to guest misbehavior.  */
-    void (*guest_error)(const char *msg);
+    void (*guest_error)(const char *msg, void *opaque);
     /* Return the virtual clock value in nanoseconds */
-    int64_t (*clock_get_ns)(void);
+    int64_t (*clock_get_ns)(void *opaque);
     /* Create a new timer with the given callback and opaque data */
-    void *(*timer_new)(SlirpTimerCb cb, void *opaque);
+    void *(*timer_new)(SlirpTimerCb cb, void *cb_opaque, void *opaque);
     /* Remove and free a timer */
-    void (*timer_free)(void *timer);
+    void (*timer_free)(void *timer, void *opaque);
     /* Modify a timer to expire at @expire_time */
-    void (*timer_mod)(void *timer, int64_t expire_time);
+    void (*timer_mod)(void *timer, int64_t expire_time, void *opaque);
     /* Register a fd for future polling */
-    void (*register_poll_fd)(int fd);
+    void (*register_poll_fd)(int fd, void *opaque);
     /* Unregister a fd */
-    void (*unregister_poll_fd)(int fd);
+    void (*unregister_poll_fd)(int fd, void *opaque);
     /* Kick the io-thread, to signal that new events may be processed */
-    void (*notify)(void);
+    void (*notify)(void *opaque);
 } SlirpCb;
 
 

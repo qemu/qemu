@@ -161,42 +161,49 @@ static NetClientInfo net_slirp_info = {
     .cleanup = net_slirp_cleanup,
 };
 
-static void net_slirp_guest_error(const char *msg)
+static void net_slirp_guest_error(const char *msg, void *opaque)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "%s", msg);
 }
 
-static int64_t net_slirp_clock_get_ns(void)
+static int64_t net_slirp_clock_get_ns(void *opaque)
 {
     return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 }
 
-static void *net_slirp_timer_new(SlirpTimerCb cb, void *opaque)
+static void *net_slirp_timer_new(SlirpTimerCb cb,
+                                 void *cb_opaque, void *opaque)
 {
     return timer_new_full(NULL, QEMU_CLOCK_VIRTUAL,
                           SCALE_MS, QEMU_TIMER_ATTR_EXTERNAL,
-                          cb, opaque);
+                          cb, cb_opaque);
 }
 
-static void net_slirp_timer_free(void *timer)
+static void net_slirp_timer_free(void *timer, void *opaque)
 {
     timer_del(timer);
     timer_free(timer);
 }
 
-static void net_slirp_timer_mod(void *timer, int64_t expire_timer)
+static void net_slirp_timer_mod(void *timer, int64_t expire_timer,
+                                void *opaque)
 {
     timer_mod(timer, expire_timer);
 }
 
-static void net_slirp_register_poll_fd(int fd)
+static void net_slirp_register_poll_fd(int fd, void *opaque)
 {
     qemu_fd_register(fd);
 }
 
-static void net_slirp_unregister_poll_fd(int fd)
+static void net_slirp_unregister_poll_fd(int fd, void *opaque)
 {
     /* no qemu_fd_unregister */
+}
+
+static void net_slirp_notify(void *opaque)
+{
+    qemu_notify_event();
 }
 
 static const SlirpCb slirp_cb = {
@@ -208,7 +215,7 @@ static const SlirpCb slirp_cb = {
     .timer_mod = net_slirp_timer_mod,
     .register_poll_fd = net_slirp_register_poll_fd,
     .unregister_poll_fd = net_slirp_unregister_poll_fd,
-    .notify = qemu_notify_event,
+    .notify = net_slirp_notify,
 };
 
 static int slirp_poll_to_gio(int events)

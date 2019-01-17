@@ -14,7 +14,8 @@ static void ra_timer_handler(void *opaque)
     Slirp *slirp = opaque;
 
     slirp->cb->timer_mod(slirp->ra_timer,
-                         slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
+        slirp->cb->clock_get_ns(slirp->opaque) / SCALE_MS + NDP_Interval,
+        slirp->opaque);
     ndp_send_ra(slirp);
 }
 
@@ -24,9 +25,10 @@ void icmp6_init(Slirp *slirp)
         return;
     }
 
-    slirp->ra_timer = slirp->cb->timer_new(ra_timer_handler, slirp);
+    slirp->ra_timer = slirp->cb->timer_new(ra_timer_handler, slirp, slirp->opaque);
     slirp->cb->timer_mod(slirp->ra_timer,
-                         slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
+        slirp->cb->clock_get_ns(slirp->opaque) / SCALE_MS + NDP_Interval,
+        slirp->opaque);
 }
 
 void icmp6_cleanup(Slirp *slirp)
@@ -35,7 +37,7 @@ void icmp6_cleanup(Slirp *slirp)
         return;
     }
 
-    slirp->cb->timer_free(slirp->ra_timer);
+    slirp->cb->timer_free(slirp->ra_timer, slirp->opaque);
 }
 
 static void icmp6_send_echoreply(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
@@ -334,7 +336,8 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
 
     case ICMP6_NDP_RA:
         DEBUG_CALL(" type = Router Advertisement");
-        slirp->cb->guest_error("Warning: guest sent NDP RA, but shouldn't");
+        slirp->cb->guest_error("Warning: guest sent NDP RA, but shouldn't",
+                               slirp->opaque);
         break;
 
     case ICMP6_NDP_NS:
@@ -368,7 +371,7 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
     case ICMP6_NDP_REDIRECT:
         DEBUG_CALL(" type = Redirect");
         slirp->cb->guest_error(
-            "Warning: guest sent NDP REDIRECT, but shouldn't");
+            "Warning: guest sent NDP REDIRECT, but shouldn't", slirp->opaque);
         break;
     }
 }

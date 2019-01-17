@@ -222,7 +222,7 @@ fork_exec(struct socket *so, const char *ex)
     opt = 1;
     slirp_setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
     slirp_set_nonblock(so->s);
-    so->slirp->cb->register_poll_fd(so->s);
+    so->slirp->cb->register_poll_fd(so->s, so->slirp->opaque);
     return 1;
 }
 

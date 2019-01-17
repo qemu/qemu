@@ -930,6 +930,6 @@ void sotranslate_accept(struct socket *so)
 void sodrop(struct socket *s, int num)
 {
     if (sbdrop(&s->so_snd, num)) {
-        s->slirp->cb->notify();
+        s->slirp->cb->notify(s->slirp->opaque);
     }
 }

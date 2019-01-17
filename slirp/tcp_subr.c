@@ -336,7 +336,7 @@ tcp_close(struct tcpcb *tp)
 	/* clobber input socket cache if we're closing the cached connection */
 	if (so == slirp->tcp_last_so)
 		slirp->tcp_last_so = &slirp->tcb;
-	so->slirp->cb->unregister_poll_fd(so->s);
+	so->slirp->cb->unregister_poll_fd(so->s, so->slirp->opaque);
 	slirp_closesocket(so->s);
 	sbfree(&so->so_rcv);
 	sbfree(&so->so_snd);
@@ -413,7 +413,7 @@ int tcp_fconnect(struct socket *so, unsigned short af)
     struct sockaddr_storage addr;
 
     slirp_set_nonblock(s);
-    so->slirp->cb->register_poll_fd(so->s);
+    so->slirp->cb->register_poll_fd(so->s, so->slirp->opaque);
     slirp_socket_set_fast_reuse(s);
     opt = 1;
     slirp_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(opt));
@@ -486,7 +486,7 @@ void tcp_connect(struct socket *inso)
         return;
     }
     slirp_set_nonblock(s);
-    so->slirp->cb->register_poll_fd(so->s);
+    so->slirp->cb->register_poll_fd(so->s, so->slirp->opaque);
     slirp_socket_set_fast_reuse(s);
     opt = 1;
     slirp_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
@@ -498,7 +498,7 @@ void tcp_connect(struct socket *inso)
     /* Close the accept() socket, set right state */
     if (inso->so_state & SS_FACCEPTONCE) {
         /* If we only accept once, close the accept() socket */
-        so->slirp->cb->unregister_poll_fd(so->s);
+        so->slirp->cb->unregister_poll_fd(so->s, so->slirp->opaque);
         slirp_closesocket(so->s);
 
         /* Don't select it yet, even though we have an FD */

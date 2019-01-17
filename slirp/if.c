@@ -146,7 +146,7 @@ diddit:
  */
 void if_start(Slirp *slirp)
 {
-    uint64_t now = slirp->cb->clock_get_ns();
+    uint64_t now = slirp->cb->clock_get_ns(slirp->opaque);
     bool from_batchq = false;
     struct mbuf *ifm, *ifm_next, *ifqt;
 
