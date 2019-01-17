@@ -23,7 +23,6 @@
  */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "migration/register.h"
 #include "slirp.h"

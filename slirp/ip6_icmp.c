@@ -6,7 +6,6 @@
 #include "qemu/osdep.h"
 #include "slirp.h"
 #include "ip6_icmp.h"
-#include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 

@@ -48,6 +48,8 @@
 # define SLIRP_PACKED __attribute__((packed))
 #endif
 
+#define SCALE_MS 1000000
+
 #ifdef _WIN32
 int slirp_closesocket(int fd);
 int slirp_ioctlsocket(int fd, int req, void *val);
