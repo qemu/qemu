@@ -330,15 +330,14 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
 }
 
 
-/* Returns -1 if NBD_OPT_GO proves the export @wantname cannot be
+/* Returns -1 if NBD_OPT_GO proves the export @info->name cannot be
  * used, 0 if NBD_OPT_GO is unsupported (fall back to NBD_OPT_LIST and
  * NBD_OPT_EXPORT_NAME in that case), and > 0 if the export is good to
- * go (with @info populated). */
-static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
-                      NBDExportInfo *info, Error **errp)
+ * go (with the rest of @info populated). */
+static int nbd_opt_go(QIOChannel *ioc, NBDExportInfo *info, Error **errp)
 {
     NBDOptionReply reply;
-    uint32_t len = strlen(wantname);
+    uint32_t len = strlen(info->name);
     uint16_t type;
     int error;
     char *buf;
@@ -348,10 +347,10 @@ static int nbd_opt_go(QIOChannel *ioc, const char *wantname,
      * flags still 0 is a witness of a broken server. */
     info->flags = 0;
 
-    trace_nbd_opt_go_start(wantname);
+    trace_nbd_opt_go_start(info->name);
     buf = g_malloc(4 + len + 2 + 2 * info->request_sizes + 1);
     stl_be_p(buf, len);
-    memcpy(buf + 4, wantname, len);
+    memcpy(buf + 4, info->name, len);
     /* At most one request, everything else up to server */
     stw_be_p(buf + 4 + len, info->request_sizes);
     if (info->request_sizes) {
@@ -753,10 +752,9 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
     return 0;
 }
 
-int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
-                          QCryptoTLSCreds *tlscreds, const char *hostname,
-                          QIOChannel **outioc, NBDExportInfo *info,
-                          Error **errp)
+int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
+                          const char *hostname, QIOChannel **outioc,
+                          NBDExportInfo *info, Error **errp)
 {
     uint64_t magic;
     int rc;
@@ -766,6 +764,8 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
 
     trace_nbd_receive_negotiate(tlscreds, hostname ? hostname : "<null>");
 
+    assert(info->name);
+    trace_nbd_receive_negotiate_name(info->name);
     info->structured_reply = false;
     info->base_allocation = false;
     rc = -EINVAL;
@@ -834,10 +834,6 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
                 goto fail;
             }
         }
-        if (!name) {
-            trace_nbd_receive_negotiate_default_name();
-            name = "";
-        }
         if (fixedNewStyle) {
             int result;
 
@@ -853,7 +849,8 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
 
             if (info->structured_reply && base_allocation) {
                 result = nbd_negotiate_simple_meta_context(
-                        ioc, name, info->x_dirty_bitmap ?: "base:allocation",
+                        ioc, info->name,
+                        info->x_dirty_bitmap ?: "base:allocation",
                         &info->meta_base_allocation_id, errp);
                 if (result < 0) {
                     goto fail;
@@ -866,7 +863,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
              * TLS).  If it is not available, fall back to
              * NBD_OPT_LIST for nicer error messages about a missing
              * export, then use NBD_OPT_EXPORT_NAME.  */
-            result = nbd_opt_go(ioc, name, info, errp);
+            result = nbd_opt_go(ioc, info, errp);
             if (result < 0) {
                 goto fail;
             }
@@ -879,12 +876,12 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
              * query gives us better error reporting if the
              * export name is not available.
              */
-            if (nbd_receive_query_exports(ioc, name, errp) < 0) {
+            if (nbd_receive_query_exports(ioc, info->name, errp) < 0) {
                 goto fail;
             }
         }
         /* write the export name request */
-        if (nbd_send_option_request(ioc, NBD_OPT_EXPORT_NAME, -1, name,
+        if (nbd_send_option_request(ioc, NBD_OPT_EXPORT_NAME, -1, info->name,
                                     errp) < 0) {
             goto fail;
         }
@@ -904,8 +901,8 @@ int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
     } else if (magic == NBD_CLIENT_MAGIC) {
         uint32_t oldflags;
 
-        if (name) {
-            error_setg(errp, "Server does not support export names");
+        if (*info->name) {
+            error_setg(errp, "Server does not support non-empty export names");
             goto fail;
         }
         if (tlscreds) {

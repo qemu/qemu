@@ -999,10 +999,11 @@ int nbd_client_init(BlockDriverState *bs,
     client->info.structured_reply = true;
     client->info.base_allocation = true;
     client->info.x_dirty_bitmap = g_strdup(x_dirty_bitmap);
-    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
-                                tlscreds, hostname,
+    client->info.name = g_strdup(export ?: "");
+    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), tlscreds, hostname,
                                 &client->ioc, &client->info, errp);
     g_free(client->info.x_dirty_bitmap);
+    g_free(client->info.name);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         return ret;

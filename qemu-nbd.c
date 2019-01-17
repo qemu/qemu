@@ -264,7 +264,7 @@ static void *show_parts(void *arg)
 static void *nbd_client_thread(void *arg)
 {
     char *device = arg;
-    NBDExportInfo info = { .request_sizes = false, };
+    NBDExportInfo info = { .request_sizes = false, .name = g_strdup("") };
     QIOChannelSocket *sioc;
     int fd;
     int ret;
@@ -279,7 +279,7 @@ static void *nbd_client_thread(void *arg)
         goto out;
     }
 
-    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), NULL,
+    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc),
                                 NULL, NULL, NULL, &info, &local_error);
     if (ret < 0) {
         if (local_error) {
@@ -318,6 +318,7 @@ static void *nbd_client_thread(void *arg)
     }
     close(fd);
     object_unref(OBJECT(sioc));
+    g_free(info.name);
     kill(getpid(), SIGTERM);
     return (void *) EXIT_SUCCESS;
 
@@ -326,6 +327,7 @@ out_fd:
 out_socket:
     object_unref(OBJECT(sioc));
 out:
+    g_free(info.name);
     kill(getpid(), SIGTERM);
     return (void *) EXIT_FAILURE;
 }
