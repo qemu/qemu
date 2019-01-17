@@ -50,6 +50,16 @@
 
 #define SCALE_MS 1000000
 
+#define ETH_ALEN    6
+#define ETH_HLEN    14
+#define ETH_P_IP                  (0x0800)      /* Internet Protocol packet  */
+#define ETH_P_ARP                 (0x0806)      /* Address Resolution packet */
+#define ETH_P_IPV6                (0x86dd)
+#define ETH_P_VLAN                (0x8100)
+#define ETH_P_DVLAN               (0x88a8)
+#define ETH_P_NCSI                (0x88f8)
+#define ETH_P_UNKNOWN             (0xffff)
+
 #ifdef _WIN32
 int slirp_closesocket(int fd);
 int slirp_ioctlsocket(int fd, int req, void *val);
