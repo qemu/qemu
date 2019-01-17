@@ -1015,7 +1015,8 @@ int slirp_remove_hostfwd(Slirp *slirp, int is_udp, struct in_addr host_addr,
             getsockname(so->s, (struct sockaddr *)&addr, &addr_len) == 0 &&
             addr.sin_addr.s_addr == host_addr.s_addr &&
             addr.sin_port == port) {
-            close(so->s);
+            so->slirp->cb->unregister_poll_fd(so->s);
+            slirp_closesocket(so->s);
             sofree(so);
             return 0;
         }

@@ -114,6 +114,7 @@ static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
 
 void icmp_detach(struct socket *so)
 {
+    so->slirp->cb->unregister_poll_fd(so->s);
     slirp_closesocket(so->s);
     sofree(so);
 }

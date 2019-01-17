@@ -191,6 +191,11 @@ static void net_slirp_register_poll_fd(int fd)
     qemu_fd_register(fd);
 }
 
+static void net_slirp_unregister_poll_fd(int fd)
+{
+    /* no qemu_fd_unregister */
+}
+
 static const SlirpCb slirp_cb = {
     .output = net_slirp_output,
     .guest_error = net_slirp_guest_error,
@@ -199,6 +204,7 @@ static const SlirpCb slirp_cb = {
     .timer_free = net_slirp_timer_free,
     .timer_mod = net_slirp_timer_mod,
     .register_poll_fd = net_slirp_register_poll_fd,
+    .unregister_poll_fd = net_slirp_unregister_poll_fd,
 };
 
 static int net_slirp_init(NetClientState *peer, const char *model,

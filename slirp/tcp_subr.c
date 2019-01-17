@@ -337,6 +337,7 @@ tcp_close(struct tcpcb *tp)
 	/* clobber input socket cache if we're closing the cached connection */
 	if (so == slirp->tcp_last_so)
 		slirp->tcp_last_so = &slirp->tcb;
+	so->slirp->cb->unregister_poll_fd(so->s);
 	slirp_closesocket(so->s);
 	sbfree(&so->so_rcv);
 	sbfree(&so->so_snd);
@@ -498,6 +499,7 @@ void tcp_connect(struct socket *inso)
     /* Close the accept() socket, set right state */
     if (inso->so_state & SS_FACCEPTONCE) {
         /* If we only accept once, close the accept() socket */
+        so->slirp->cb->unregister_poll_fd(so->s);
         slirp_closesocket(so->s);
 
         /* Don't select it yet, even though we have an FD */
