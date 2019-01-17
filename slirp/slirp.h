@@ -269,4 +269,6 @@ struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
 struct socket *
 slirp_find_ctl_socket(Slirp *slirp, struct in_addr guest_addr, int guest_port);
 
+void slirp_send_packet_all(Slirp *slirp, const void *buf, size_t len);
+
 #endif

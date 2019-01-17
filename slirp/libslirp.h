@@ -15,7 +15,7 @@
 
 typedef struct Slirp Slirp;
 
-typedef int (*SlirpWriteCb)(const void *buf, size_t len, void *opaque);
+typedef ssize_t (*SlirpWriteCb)(const void *buf, size_t len, void *opaque);
 typedef void (*SlirpTimerCb)(void *opaque);
 
 /*
@@ -23,10 +23,13 @@ typedef void (*SlirpTimerCb)(void *opaque);
  */
 typedef struct SlirpCb {
     /*
-     * Send an ethernet frame to the guest network. The opaque parameter
-     * is the one given to slirp_init().
+     * Send an ethernet frame to the guest network. The opaque
+     * parameter is the one given to slirp_init(). The function
+     * doesn't need to send all the data and may return <len (no
+     * buffering is done on libslirp side, so the data will be dropped
+     * in this case). <0 reports an IO error.
      */
-    void (*output)(void *opaque, const uint8_t *pkt, int pkt_len);
+    SlirpWriteCb send_packet;
     /* Print a message for an error due to guest misbehavior.  */
     void (*guest_error)(const char *msg);
     /* Return the virtual clock value in nanoseconds */

@@ -800,7 +800,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             rah->ar_sip = ah->ar_tip;
             memcpy(rah->ar_tha, ah->ar_sha, ETH_ALEN);
             rah->ar_tip = ah->ar_sip;
-            slirp->cb->output(slirp->opaque, arp_reply, sizeof(arp_reply));
+            slirp_send_packet_all(slirp, arp_reply, sizeof(arp_reply));
         }
         break;
     case ARPOP_REPLY:
@@ -900,7 +900,7 @@ static int if_encap4(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
             /* target IP */
             rah->ar_tip = iph->ip_dst.s_addr;
             slirp->client_ipaddr = iph->ip_dst;
-            slirp->cb->output(slirp->opaque, arp_req, sizeof(arp_req));
+            slirp_send_packet_all(slirp, arp_req, sizeof(arp_req));
             ifm->resolution_requested = true;
 
             /* Expire request and drop outgoing packet after 1 second */
@@ -985,7 +985,7 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
               eh->h_dest[0], eh->h_dest[1], eh->h_dest[2],
               eh->h_dest[3], eh->h_dest[4], eh->h_dest[5]);
     memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
-    slirp->cb->output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
+    slirp_send_packet_all(slirp, buf, ifm->m_len + ETH_HLEN);
     return 1;
 }
 
@@ -1151,4 +1151,16 @@ void slirp_socket_recv(Slirp *slirp, struct in_addr guest_addr, int guest_port,
 
     if (ret > 0)
         tcp_output(sototcpcb(so));
+}
+
+void slirp_send_packet_all(Slirp *slirp, const void *buf, size_t len)
+{
+    ssize_t ret = slirp->cb->send_packet(buf, len, slirp->opaque);
+
+    if (ret < 0) {
+        g_critical("Failed to send packet, ret: %ld", (long) ret);
+    } else if (ret < len) {
+        DEBUG_ERROR("send_packet() didn't send all data: %ld < %lu",
+                (long) ret, (unsigned long) len);
+    }
 }

@@ -108,11 +108,12 @@ static void slirp_smb_cleanup(SlirpState *s);
 static inline void slirp_smb_cleanup(SlirpState *s) { }
 #endif
 
-static void net_slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
+static ssize_t net_slirp_send_packet(const void *pkt, size_t pkt_len,
+                                     void *opaque)
 {
     SlirpState *s = opaque;
 
-    qemu_send_packet(&s->nc, pkt, pkt_len);
+    return qemu_send_packet(&s->nc, pkt, pkt_len);
 }
 
 static ssize_t net_slirp_receive(NetClientState *nc, const uint8_t *buf, size_t size)
@@ -197,7 +198,7 @@ static void net_slirp_unregister_poll_fd(int fd)
 }
 
 static const SlirpCb slirp_cb = {
-    .output = net_slirp_output,
+    .send_packet = net_slirp_send_packet,
     .guest_error = net_slirp_guest_error,
     .clock_get_ns = net_slirp_clock_get_ns,
     .timer_new = net_slirp_timer_new,
@@ -780,7 +781,7 @@ static void guestfwd_read(void *opaque, const uint8_t *buf, int size)
     slirp_socket_recv(fwd->slirp, fwd->server, fwd->port, buf, size);
 }
 
-static int guestfwd_write(const void *buf, size_t len, void *chr)
+static ssize_t guestfwd_write(const void *buf, size_t len, void *chr)
 {
     return qemu_chr_fe_write_all(chr, buf, len);
 }
