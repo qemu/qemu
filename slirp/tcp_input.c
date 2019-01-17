@@ -506,7 +506,7 @@ findso:
 				    SEQ_GT(ti->ti_ack, tp->t_rtseq))
 					tcp_xmit_timer(tp, tp->t_rtt);
 				acked = ti->ti_ack - tp->snd_una;
-				sbdrop(&so->so_snd, acked);
+				sodrop(so, acked);
 				tp->snd_una = ti->ti_ack;
 				m_free(m);
 
@@ -1118,10 +1118,10 @@ trimthenstep6:
 		}
 		if (acked > so->so_snd.sb_cc) {
 			tp->snd_wnd -= so->so_snd.sb_cc;
-			sbdrop(&so->so_snd, (int )so->so_snd.sb_cc);
+			sodrop(so, (int)so->so_snd.sb_cc);
 			ourfinisacked = 1;
 		} else {
-			sbdrop(&so->so_snd, acked);
+			sodrop(so, acked);
 			tp->snd_wnd -= acked;
 			ourfinisacked = 0;
 		}

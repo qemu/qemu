@@ -31,6 +31,8 @@ typedef struct SlirpCb {
     void (*register_poll_fd)(int fd);
     /* Unregister a fd */
     void (*unregister_poll_fd)(int fd);
+    /* Kick the io-thread, to signal that new events may be processed */
+    void (*notify)(void);
 } SlirpCb;
 
 

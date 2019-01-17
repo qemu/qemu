@@ -928,3 +928,10 @@ void sotranslate_accept(struct socket *so)
         break;
     }
 }
+
+void sodrop(struct socket *s, int num)
+{
+    if (sbdrop(&s->so_snd, num)) {
+        s->slirp->cb->notify();
+    }
+}

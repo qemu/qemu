@@ -205,6 +205,7 @@ static const SlirpCb slirp_cb = {
     .timer_mod = net_slirp_timer_mod,
     .register_poll_fd = net_slirp_register_poll_fd,
     .unregister_poll_fd = net_slirp_unregister_poll_fd,
+    .notify = qemu_notify_event,
 };
 
 static int net_slirp_init(NetClientState *peer, const char *model,

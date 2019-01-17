@@ -156,6 +156,7 @@ int soreadbuf(struct socket *so, const char *buf, int size);
 void sotranslate_out(struct socket *, struct sockaddr_storage *);
 void sotranslate_in(struct socket *, struct sockaddr_storage *);
 void sotranslate_accept(struct socket *);
+void sodrop(struct socket *, int num);
 
 
 #endif /* SLIRP_SOCKET_H */
