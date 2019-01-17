@@ -46,8 +46,7 @@ typedef char *caddr_t;
 
 #include "debug.h"
 #include "util.h"
-
-#include "qemu/queue.h"
+#include "qtailq.h"
 
 #include "libslirp.h"
 #include "ip.h"
