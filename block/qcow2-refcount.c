@@ -1157,7 +1157,7 @@ void qcow2_free_any_clusters(BlockDriverState *bs, uint64_t l2_entry,
 {
     BDRVQcow2State *s = bs->opaque;
 
-    switch (qcow2_get_cluster_type(l2_entry)) {
+    switch (qcow2_get_cluster_type(bs, l2_entry)) {
     case QCOW2_CLUSTER_COMPRESSED:
         {
             int nb_csectors;
@@ -1300,7 +1300,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                     entry &= ~QCOW_OFLAG_COPIED;
                     offset = entry & L2E_OFFSET_MASK;
 
-                    switch (qcow2_get_cluster_type(entry)) {
+                    switch (qcow2_get_cluster_type(bs, entry)) {
                     case QCOW2_CLUSTER_COMPRESSED:
                         nb_csectors = ((entry >> s->csize_shift) &
                                        s->csize_mask) + 1;
@@ -1582,7 +1582,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
     for(i = 0; i < s->l2_size; i++) {
         l2_entry = be64_to_cpu(l2_table[i]);
 
-        switch (qcow2_get_cluster_type(l2_entry)) {
+        switch (qcow2_get_cluster_type(bs, l2_entry)) {
         case QCOW2_CLUSTER_COMPRESSED:
             /* Compressed clusters don't have QCOW_OFLAG_COPIED */
             if (l2_entry & QCOW_OFLAG_COPIED) {
@@ -1633,7 +1633,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 
             /* Correct offsets are cluster aligned */
             if (offset_into_cluster(s, offset)) {
-                if (qcow2_get_cluster_type(l2_entry) ==
+                if (qcow2_get_cluster_type(bs, l2_entry) ==
                     QCOW2_CLUSTER_ZERO_ALLOC)
                 {
                     fprintf(stderr, "%s offset=%" PRIx64 ": Preallocated zero "
@@ -1868,7 +1868,7 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
         for (j = 0; j < s->l2_size; j++) {
             uint64_t l2_entry = be64_to_cpu(l2_table[j]);
             uint64_t data_offset = l2_entry & L2E_OFFSET_MASK;
-            QCow2ClusterType cluster_type = qcow2_get_cluster_type(l2_entry);
+            QCow2ClusterType cluster_type = qcow2_get_cluster_type(bs, l2_entry);
 
             if (cluster_type == QCOW2_CLUSTER_NORMAL ||
                 cluster_type == QCOW2_CLUSTER_ZERO_ALLOC) {
