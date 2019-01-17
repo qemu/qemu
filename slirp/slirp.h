@@ -12,8 +12,6 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-typedef char *caddr_t;
-
 # include <winsock2.h>
 # include <windows.h>
 # include <ws2tcpip.h>
@@ -124,8 +122,8 @@ bool ndp_table_search(Slirp *slirp, struct in6_addr ip_addr,
 
 struct Slirp {
     QTAILQ_ENTRY(Slirp) entry;
-    u_int time_fasttimo;
-    u_int last_slowtimo;
+    unsigned time_fasttimo;
+    unsigned last_slowtimo;
     bool do_slowtimo;
 
     bool in_enabled, in6_enabled;
@@ -245,7 +243,7 @@ int ip6_output(struct socket *, struct mbuf *, int fast);
 
 /* tcp_input.c */
 void tcp_input(register struct mbuf *, int, struct socket *, unsigned short af);
-int tcp_mss(register struct tcpcb *, u_int);
+int tcp_mss(register struct tcpcb *, unsigned);
 
 /* tcp_output.c */
 int tcp_output(register struct tcpcb *);

@@ -47,9 +47,9 @@ struct tcpcb {
 	short	t_rxtshift;		/* log(2) of rexmt exp. backoff */
 	short	t_rxtcur;		/* current retransmit value */
 	short	t_dupacks;		/* consecutive dup acks recd */
-	u_short	t_maxseg;		/* maximum segment size */
+	uint16_t	t_maxseg;		/* maximum segment size */
 	uint8_t t_force;		/* 1 if forcing out a byte */
-	u_short	t_flags;
+	uint16_t	t_flags;
 #define	TF_ACKNOW	0x0001		/* ack peer immediately */
 #define	TF_DELACK	0x0002		/* ack, but try to delay it */
 #define	TF_NODELAY	0x0004		/* don't delay packets to coalesce */
@@ -105,7 +105,7 @@ struct tcpcb {
 	tcp_seq	t_rtseq;		/* sequence number being timed */
 	short	t_srtt;			/* smoothed round-trip time */
 	short	t_rttvar;		/* variance in round-trip time */
-	u_short	t_rttmin;		/* minimum rtt allowed */
+	uint16_t	t_rttmin;		/* minimum rtt allowed */
 	uint32_t max_sndwnd;		/* largest window peer has offered */
 
 /* out-of-band data */
@@ -116,10 +116,10 @@ struct tcpcb {
 	short	t_softerror;		/* possible error not yet reported */
 
 /* RFC 1323 variables */
-	u_char	snd_scale;		/* window scaling for send window */
-	u_char	rcv_scale;		/* window scaling for recv window */
-	u_char	request_r_scale;	/* pending window scaling */
-	u_char	requested_s_scale;
+	uint8_t	snd_scale;		/* window scaling for send window */
+	uint8_t	rcv_scale;		/* window scaling for recv window */
+	uint8_t	request_r_scale;	/* pending window scaling */
+	uint8_t	requested_s_scale;
 	uint32_t	ts_recent;		/* timestamp echo data */
 	uint32_t	ts_recent_age;		/* when last updated */
 	tcp_seq	last_ack_sent;

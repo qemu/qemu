@@ -61,7 +61,7 @@ struct socket {
   int32_t       so_state;       /* internal state flags SS_*, below */
 
   struct 	tcpcb *so_tcpcb;	/* pointer to TCP protocol control block */
-  u_int	so_expire;		/* When the socket will expire */
+  unsigned	so_expire;		/* When the socket will expire */
 
   int	so_queued;		/* Number of packets queued from this socket */
   int	so_nqueued;		/* Number of packets queued in a row
@@ -144,7 +144,7 @@ int sosendoob(struct socket *);
 int sowrite(struct socket *);
 void sorecvfrom(struct socket *);
 int sosendto(struct socket *, struct mbuf *);
-struct socket * tcp_listen(Slirp *, uint32_t, u_int, uint32_t, u_int,
+struct socket * tcp_listen(Slirp *, uint32_t, unsigned, uint32_t, unsigned,
                                int);
 void soisfconnecting(register struct socket *);
 void soisfconnected(register struct socket *);

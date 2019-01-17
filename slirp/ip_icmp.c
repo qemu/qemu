@@ -240,7 +240,7 @@ end_error:
 
 #define ICMP_MAXDATALEN (IP_MSS-28)
 void
-icmp_send_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
+icmp_send_error(struct mbuf *msrc, uint8_t type, uint8_t code, int minsize,
            const char *message)
 {
   unsigned hlen, shlen, s_ip_len;
@@ -388,7 +388,7 @@ icmp_reflect(struct mbuf *m)
      * Strip out original options by copying rest of first
      * mbuf's data back, and adjust the IP length.
      */
-    memmove((caddr_t)(ip + 1), (caddr_t)ip + hlen,
+    memmove((char *)(ip + 1), (char *)ip + hlen,
 	    (unsigned )(m->m_len - hlen));
     hlen -= optlen;
     ip->ip_hl = hlen >> 2;
@@ -412,7 +412,7 @@ void icmp_receive(struct socket *so)
     struct mbuf *m = so->so_m;
     struct ip *ip = mtod(m, struct ip *);
     int hlen = ip->ip_hl << 2;
-    u_char error_code;
+    uint8_t error_code;
     struct icmp *icp;
     int id, len;
 

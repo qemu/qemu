@@ -8,7 +8,7 @@
 #ifndef SLIRP_MAIN_H
 #define SLIRP_MAIN_H
 
-extern u_int curtime;
+extern unsigned curtime;
 extern struct in_addr loopback_addr;
 extern unsigned long loopback_mask;
 

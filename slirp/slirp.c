@@ -46,7 +46,7 @@ static const uint8_t special_ethaddr[ETH_ALEN] = {
     0x52, 0x55, 0x00, 0x00, 0x00, 0x00
 };
 
-u_int curtime;
+unsigned curtime;
 
 static QTAILQ_HEAD(, Slirp) slirp_instances =
     QTAILQ_HEAD_INITIALIZER(slirp_instances);
@@ -55,9 +55,9 @@ static struct in_addr dns_addr;
 #ifndef _WIN32
 static struct in6_addr dns6_addr;
 #endif
-static u_int dns_addr_time;
+static unsigned dns_addr_time;
 #ifndef _WIN32
-static u_int dns6_addr_time;
+static unsigned dns6_addr_time;
 #endif
 
 #define TIMEOUT_FAST 2  /* milliseconds */
@@ -92,7 +92,7 @@ int get_dns_addr(struct in_addr *pdns_addr)
     }
 
     if ((ret = GetNetworkParams(FixedInfo, &BufLen)) != ERROR_SUCCESS) {
-        printf("GetNetworkParams failed. ret = %08x\n", (u_int)ret );
+        printf("GetNetworkParams failed. ret = %08x\n", (unsigned)ret );
         if (FixedInfo) {
             GlobalFree(FixedInfo);
             FixedInfo = NULL;
@@ -126,7 +126,7 @@ static void winsock_cleanup(void)
 
 static int get_dns_addr_cached(void *pdns_addr, void *cached_addr,
                                socklen_t addrlen,
-                               struct stat *cached_stat, u_int *cached_time)
+                               struct stat *cached_stat, unsigned *cached_time)
 {
     struct stat old_stat;
     if (curtime - *cached_time < TIMEOUT_DEFAULT) {
@@ -149,7 +149,7 @@ static int get_dns_addr_cached(void *pdns_addr, void *cached_addr,
 
 static int get_dns_addr_resolv_conf(int af, void *pdns_addr, void *cached_addr,
                                     socklen_t addrlen, uint32_t *scope_id,
-                                    u_int *cached_time)
+                                    unsigned *cached_time)
 {
     char buff[512];
     char buff2[257];

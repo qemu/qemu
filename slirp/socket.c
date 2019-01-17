@@ -506,7 +506,7 @@ sorecvfrom(struct socket *so)
 	  /* XXX Check if reply is "correct"? */
 
 	  if(len == -1 || len == 0) {
-	    u_char code=ICMP_UNREACH_PORT;
+	    uint8_t code=ICMP_UNREACH_PORT;
 
 	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
 	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
@@ -676,8 +676,8 @@ sosendto(struct socket *so, struct mbuf *m)
  * Listen for incoming TCP connections
  */
 struct socket *
-tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
-           u_int lport, int flags)
+tcp_listen(Slirp *slirp, uint32_t haddr, unsigned hport, uint32_t laddr,
+           unsigned lport, int flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
