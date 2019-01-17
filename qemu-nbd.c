@@ -1013,12 +1013,32 @@ int main(int argc, char **argv)
     fd_size -= dev_offset;
 
     if (partition != -1) {
-        ret = find_partition(blk, partition, &dev_offset, &fd_size);
+        off_t limit;
+
+        if (dev_offset) {
+            error_report("Cannot request partition and offset together");
+            exit(EXIT_FAILURE);
+        }
+        ret = find_partition(blk, partition, &dev_offset, &limit);
         if (ret < 0) {
             error_report("Could not find partition %d: %s", partition,
                          strerror(-ret));
             exit(EXIT_FAILURE);
         }
+        /*
+         * MBR partition limits are (32-bit << 9); this assert lets
+         * the compiler know that we have two positive values that
+         * can't overflow 64 bits.
+         */
+        assert(dev_offset >= 0 && dev_offset + limit >= dev_offset);
+        if (dev_offset + limit > fd_size) {
+            error_report("Discovered partition %d at offset %lld size %lld, "
+                         "but size exceeds file length %lld", partition,
+                         (long long int) dev_offset, (long long int) limit,
+                         (long long int) fd_size);
+            exit(EXIT_FAILURE);
+        }
+        fd_size = limit;
     }
 
     export = nbd_export_new(bs, dev_offset, fd_size, export_name,
