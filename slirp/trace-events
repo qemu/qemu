@@ -1,5 +1,0 @@
-# See docs/devel/tracing.txt for syntax documentation.
-
-# slirp/tftp.c
-slirp_tftp_rrq(const char *file) "file: %s"
-slirp_tftp_error(const char *file) "msg: %s"

@@ -26,7 +26,6 @@
 #include "slirp.h"
 #include "qemu-common.h"
 #include "qemu/cutils.h"
-#include "trace.h"
 
 static inline int tftp_session_in_use(struct tftp_session *spt)
 {
@@ -205,7 +204,8 @@ static void tftp_send_error(struct tftp_session *spt,
   struct mbuf *m;
   struct tftp_t *tp;
 
-  trace_slirp_tftp_error(msg);
+  DEBUG_TFTP("tftp error msg: %s", msg);
+
   m = m_get(spt->slirp);
 
   if (!m) {
@@ -325,7 +325,8 @@ static void tftp_handle_rrq(Slirp *slirp, struct sockaddr_storage *srcsas,
       break;
     }
   }
-  trace_slirp_tftp_rrq(req_fname);
+
+  DEBUG_TFTP("tftp rrq file: %s", req_fname);
 
   /* check mode */
   if ((pktlen - k) < 6) {
