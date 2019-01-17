@@ -96,7 +96,7 @@
 
 #define MIN_RMA_SLOF            128UL
 
-#define PHANDLE_XICP            0x00001111
+#define PHANDLE_INTC            0x00001111
 
 /* These two functions implement the VCPU id numbering: one to compute them
  * all and one to identify thread 0 of a VCORE. Any change to the first one
@@ -1274,7 +1274,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr)
 
     /* /interrupt controller */
     spapr->irq->dt_populate(spapr, spapr_max_server_number(spapr), fdt,
-                          PHANDLE_XICP);
+                          PHANDLE_INTC);
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
@@ -1294,7 +1294,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr)
     }
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt,
+        ret = spapr_populate_pci_dt(phb, PHANDLE_INTC, fdt,
                                     spapr->irq->nr_msis);
         if (ret < 0) {
             error_report("couldn't setup PCI devices in fdt");

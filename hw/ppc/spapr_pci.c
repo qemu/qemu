@@ -2063,7 +2063,7 @@ static void spapr_phb_pci_enumerate(sPAPRPHBState *phb)
 
 }
 
-int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t xics_phandle, void *fdt,
+int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t intc_phandle, void *fdt,
                           uint32_t nr_msis)
 {
     int bus_off, i, j, ret;
@@ -2161,8 +2161,8 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t xics_phandle, void *fdt,
             irqmap[1] = 0;
             irqmap[2] = 0;
             irqmap[3] = cpu_to_be32(j+1);
-            irqmap[4] = cpu_to_be32(xics_phandle);
-            spapr_dt_xics_irq(&irqmap[5], phb->lsi_table[lsi_num].irq, true);
+            irqmap[4] = cpu_to_be32(intc_phandle);
+            spapr_dt_irq(&irqmap[5], phb->lsi_table[lsi_num].irq, true);
         }
     }
     /* Write interrupt map */

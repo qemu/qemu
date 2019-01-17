@@ -126,7 +126,7 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
     if (dev->irq) {
         uint32_t ints_prop[2];
 
-        spapr_dt_xics_irq(ints_prop, dev->irq, false);
+        spapr_dt_irq(ints_prop, dev->irq, false);
         ret = fdt_setprop(fdt, node_off, "interrupts", ints_prop,
                           sizeof(ints_prop));
         if (ret < 0) {

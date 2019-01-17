@@ -282,7 +282,7 @@ void spapr_dt_events(sPAPRMachineState *spapr, void *fdt)
             continue;
         }
 
-        spapr_dt_xics_irq(interrupts, source->irq, false);
+        spapr_dt_irq(interrupts, source->irq, false);
 
         _FDT(node_offset = fdt_add_subnode(fdt, event_sources, source_name));
         _FDT(fdt_setprop(fdt, node_offset, "interrupts", interrupts,
