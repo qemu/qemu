@@ -48,9 +48,6 @@ static const uint8_t special_ethaddr[ETH_ALEN] = {
 
 unsigned curtime;
 
-static QTAILQ_HEAD(, Slirp) slirp_instances =
-    QTAILQ_HEAD_INITIALIZER(slirp_instances);
-
 static struct in_addr dns_addr;
 #ifndef _WIN32
 static struct in6_addr dns6_addr;
@@ -333,7 +330,6 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
 #ifdef WITH_QEMU
     slirp_state_register(slirp);
 #endif
-    QTAILQ_INSERT_TAIL(&slirp_instances, slirp, entry);
 
     return slirp;
 }
@@ -348,7 +344,6 @@ void slirp_cleanup(Slirp *slirp)
         g_free(e);
     }
 
-    QTAILQ_REMOVE(&slirp_instances, slirp, entry);
 #ifdef WITH_QEMU
     slirp_state_unregister(slirp);
 #endif
