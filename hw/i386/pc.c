@@ -76,6 +76,7 @@
 #include "hw/usb.h"
 #include "hw/i386/intel_iommu.h"
 #include "hw/net/ne2000-isa.h"
+#include "standard-headers/asm-x86/bootparam.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -1058,13 +1059,6 @@ static long get_file_size(FILE *f)
 
     return size;
 }
-
-/* setup_data types */
-#define SETUP_NONE     0
-#define SETUP_E820_EXT 1
-#define SETUP_DTB      2
-#define SETUP_PCI      3
-#define SETUP_EFI      4
 
 struct setup_data {
     uint64_t next;

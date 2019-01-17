@@ -120,6 +120,12 @@ for arch in $ARCHLIST; do
         cp "$tmpdir/include/asm/unistd_x32.h" "$output/linux-headers/asm-x86/"
         cp "$tmpdir/include/asm/unistd_64.h" "$output/linux-headers/asm-x86/"
         cp_portable "$tmpdir/include/asm/kvm_para.h" "$output/include/standard-headers/asm-$arch"
+        # Remove everything except the macros from bootparam.h avoiding the
+        # unnecessary import of several video/ist/etc headers
+        sed -e '/__ASSEMBLY__/,/__ASSEMBLY__/d' \
+               "$tmpdir/include/asm/bootparam.h" > "$tmpdir/bootparam.h"
+        cp_portable "$tmpdir/bootparam.h" \
+                    "$output/include/standard-headers/asm-$arch"
     fi
 done
 
