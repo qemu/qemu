@@ -1639,7 +1639,7 @@ F: include/hw/display/edid.h
 F: qemu-edid.c
 
 Firmware configuration (fw_cfg)
-M: Philippe Mathieu-DaudÃ© <philmd@redhat.com>
+M: Philippe Mathieu-Daudé <philmd@redhat.com>
 R: Laszlo Ersek <lersek@redhat.com>
 R: Gerd Hoffmann <kraxel@redhat.com>
 S: Supported
