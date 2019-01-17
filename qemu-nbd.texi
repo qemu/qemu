@@ -2,6 +2,8 @@
 @c man begin SYNOPSIS
 @command{qemu-nbd} [OPTION]... @var{filename}
 
+@command{qemu-nbd} @option{-L} [OPTION]...
+
 @command{qemu-nbd} @option{-d} @var{dev}
 @c man end
 @end example
@@ -14,6 +16,8 @@ Other uses:
 @itemize
 @item
 Bind a /dev/nbdX block device to a QEMU server (on Linux).
+@item
+As a client to query exports of a remote NBD server.
 @end itemize
 
 @c man end
@@ -31,13 +35,15 @@ See the @code{qemu(1)} manual page for full details of the properties
 supported. The common object types that it makes sense to define are the
 @code{secret} object, which is used to supply passwords and/or encryption
 keys, and the @code{tls-creds} object, which is used to supply TLS
-credentials for the qemu-nbd server.
+credentials for the qemu-nbd server or client.
 @item -p, --port=@var{port}
-The TCP port to listen on (default @samp{10809}).
+The TCP port to listen on as a server, or connect to as a client
+(default @samp{10809}).
 @item -o, --offset=@var{offset}
 The offset into the image.
 @item -b, --bind=@var{iface}
-The interface to bind to (default @samp{0.0.0.0}).
+The interface to bind to as a server, or connect to as a client
+(default @samp{0.0.0.0}).
 @item -k, --socket=@var{path}
 Use a unix socket with path @var{path}.
 @item --image-opts
@@ -97,10 +103,16 @@ Set the NBD volume export name (default of a zero-length string).
 @item -D, --description=@var{description}
 Set the NBD volume export description, as a human-readable
 string.
+@item -L, --list
+Connect as a client and list all details about the exports exposed by
+a remote NBD server.  This enables list mode, and is incompatible
+with options that change behavior related to a specific export (such as
+@option{--export-name}, @option{--offset}, ...).
 @item --tls-creds=ID
 Enable mandatory TLS encryption for the server by setting the ID
 of the TLS credentials object previously created with the --object
-option.
+option; or provide the credentials needed for connecting as a client
+in list mode.
 @item --fork
 Fork off the server process and exit the parent once the server is running.
 @item -v, --verbose
@@ -160,6 +172,15 @@ kernel bugs in partition probing or file system mounting.
 @example
 qemu-nbd -c /dev/nbd0 -f qcow2 file.qcow2
 qemu-nbd -d /dev/nbd0
+@end example
+
+Query a remote server to see details about what export(s) it is
+serving on port 10809, and authenticating via PSK:
+
+@example
+qemu-nbd \
+  --object tls-creds-psk,id=tls0,dir=/tmp/keys,username=eblake,endpoint=client \
+  --tls-creds tls0 -L -b remote.example.com
 @end example
 
 @c man end
