@@ -773,7 +773,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
 
     snprintf(buf, sizeof(buf), "guestfwd.tcp.%d", port);
 
-    if ((strlen(p) > 4) && !strncmp(p, "cmd:", 4)) {
+    if (g_str_has_prefix(p, "cmd:")) {
         if (slirp_add_exec(s->slirp, &p[4], &server, port) < 0) {
             error_setg(errp, "Conflicting/invalid host:port in guest "
                        "forwarding rule '%s'", config_str);
