@@ -330,11 +330,16 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
 }
 
 
-/* Returns -1 if NBD_OPT_GO proves the export @info->name cannot be
- * used, 0 if NBD_OPT_GO is unsupported (fall back to NBD_OPT_LIST and
+/*
+ * nbd_opt_info_or_go:
+ * Send option for NBD_OPT_INFO or NBD_OPT_GO and parse the reply.
+ * Returns -1 if the option proves the export @info->name cannot be
+ * used, 0 if the option is unsupported (fall back to NBD_OPT_LIST and
  * NBD_OPT_EXPORT_NAME in that case), and > 0 if the export is good to
- * go (with the rest of @info populated). */
-static int nbd_opt_go(QIOChannel *ioc, NBDExportInfo *info, Error **errp)
+ * go (with the rest of @info populated).
+ */
+static int nbd_opt_info_or_go(QIOChannel *ioc, uint32_t opt,
+                              NBDExportInfo *info, Error **errp)
 {
     NBDOptionReply reply;
     uint32_t len = strlen(info->name);
@@ -347,7 +352,8 @@ static int nbd_opt_go(QIOChannel *ioc, NBDExportInfo *info, Error **errp)
      * flags still 0 is a witness of a broken server. */
     info->flags = 0;
 
-    trace_nbd_opt_go_start(info->name);
+    assert(opt == NBD_OPT_GO || opt == NBD_OPT_INFO);
+    trace_nbd_opt_info_go_start(nbd_opt_lookup(opt), info->name);
     buf = g_malloc(4 + len + 2 + 2 * info->request_sizes + 1);
     stl_be_p(buf, len);
     memcpy(buf + 4, info->name, len);
@@ -356,7 +362,7 @@ static int nbd_opt_go(QIOChannel *ioc, NBDExportInfo *info, Error **errp)
     if (info->request_sizes) {
         stw_be_p(buf + 4 + len + 2, NBD_INFO_BLOCK_SIZE);
     }
-    error = nbd_send_option_request(ioc, NBD_OPT_GO,
+    error = nbd_send_option_request(ioc, opt,
                                     4 + len + 2 + 2 * info->request_sizes,
                                     buf, errp);
     g_free(buf);
@@ -365,7 +371,7 @@ static int nbd_opt_go(QIOChannel *ioc, NBDExportInfo *info, Error **errp)
     }
 
     while (1) {
-        if (nbd_receive_option_reply(ioc, NBD_OPT_GO, &reply, errp) < 0) {
+        if (nbd_receive_option_reply(ioc, opt, &reply, errp) < 0) {
             return -1;
         }
         error = nbd_handle_reply_err(ioc, &reply, errp);
@@ -375,8 +381,10 @@ static int nbd_opt_go(QIOChannel *ioc, NBDExportInfo *info, Error **errp)
         len = reply.length;
 
         if (reply.type == NBD_REP_ACK) {
-            /* Server is done sending info and moved into transmission
-               phase, but make sure it sent flags */
+            /*
+             * Server is done sending info, and moved into transmission
+             * phase for NBD_OPT_GO, but make sure it sent flags
+             */
             if (len) {
                 error_setg(errp, "server sent invalid NBD_REP_ACK");
                 return -1;
@@ -385,7 +393,7 @@ static int nbd_opt_go(QIOChannel *ioc, NBDExportInfo *info, Error **errp)
                 error_setg(errp, "broken server omitted NBD_INFO_EXPORT");
                 return -1;
             }
-            trace_nbd_opt_go_success();
+            trace_nbd_opt_info_go_success(nbd_opt_lookup(opt));
             return 1;
         }
         if (reply.type != NBD_REP_INFO) {
@@ -479,12 +487,12 @@ static int nbd_opt_go(QIOChannel *ioc, NBDExportInfo *info, Error **errp)
                 nbd_send_opt_abort(ioc);
                 return -1;
             }
-            trace_nbd_opt_go_info_block_size(info->min_block, info->opt_block,
-                                             info->max_block);
+            trace_nbd_opt_info_block_size(info->min_block, info->opt_block,
+                                          info->max_block);
             break;
 
         default:
-            trace_nbd_opt_go_info_unknown(type, nbd_info_lookup(type));
+            trace_nbd_opt_info_unknown(type, nbd_info_lookup(type));
             if (nbd_drop(ioc, len, errp) < 0) {
                 error_prepend(errp, "Failed to read info payload: ");
                 nbd_send_opt_abort(ioc);
@@ -993,7 +1001,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
          * TLS).  If it is not available, fall back to
          * NBD_OPT_LIST for nicer error messages about a missing
          * export, then use NBD_OPT_EXPORT_NAME.  */
-        result = nbd_opt_go(ioc, info, errp);
+        result = nbd_opt_info_or_go(ioc, NBD_OPT_GO, info, errp);
         if (result < 0) {
             return -EINVAL;
         }

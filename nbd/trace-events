@@ -4,10 +4,10 @@ nbd_receive_option_reply(uint32_t option, const char *optname, uint32_t type, co
 nbd_server_error_msg(uint32_t err, const char *type, const char *msg) "server reported error 0x%" PRIx32 " (%s) with additional message: %s"
 nbd_reply_err_unsup(uint32_t option, const char *name) "server doesn't understand request %" PRIu32 " (%s), attempting fallback"
 nbd_receive_list(const char *name, const char *desc) "export list includes '%s', description '%s'"
-nbd_opt_go_start(const char *name) "Attempting NBD_OPT_GO for export '%s'"
-nbd_opt_go_success(void) "Export is good to go"
-nbd_opt_go_info_unknown(int info, const char *name) "Ignoring unknown info %d (%s)"
-nbd_opt_go_info_block_size(uint32_t minimum, uint32_t preferred, uint32_t maximum) "Block sizes are 0x%" PRIx32 ", 0x%" PRIx32 ", 0x%" PRIx32
+nbd_opt_info_go_start(const char *opt, const char *name) "Attempting %s for export '%s'"
+nbd_opt_info_go_success(const char *opt) "Export is ready after %s request"
+nbd_opt_info_unknown(int info, const char *name) "Ignoring unknown info %d (%s)"
+nbd_opt_info_block_size(uint32_t minimum, uint32_t preferred, uint32_t maximum) "Block sizes are 0x%" PRIx32 ", 0x%" PRIx32 ", 0x%" PRIx32
 nbd_receive_query_exports_start(const char *wantname) "Querying export list for '%s'"
 nbd_receive_query_exports_success(const char *wantname) "Found desired export name '%s'"
 nbd_receive_starttls_new_client(void) "Setting up TLS"
