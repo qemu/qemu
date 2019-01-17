@@ -284,6 +284,8 @@ struct NBDExportInfo {
 
     /* Set by server results during nbd_receive_export_list() */
     char *description;
+    int n_contexts;
+    char **contexts;
 };
 typedef struct NBDExportInfo NBDExportInfo;
 

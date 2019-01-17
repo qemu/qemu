@@ -818,6 +818,36 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
 }
 
 /*
+ * nbd_list_meta_contexts:
+ * Request the server to list all meta contexts for export @info->name.
+ * return 0 if list is complete (even if empty),
+ *        -1 with errp set for any error
+ */
+static int nbd_list_meta_contexts(QIOChannel *ioc,
+                                  NBDExportInfo *info,
+                                  Error **errp)
+{
+    int ret;
+
+    if (nbd_send_meta_query(ioc, NBD_OPT_LIST_META_CONTEXT,
+                            info->name, NULL, errp) < 0) {
+        return -1;
+    }
+
+    while (1) {
+        char *context;
+
+        ret = nbd_receive_one_meta_context(ioc, NBD_OPT_LIST_META_CONTEXT,
+                                           &context, NULL, errp);
+        if (ret <= 0) {
+            return ret;
+        }
+        info->contexts = g_renew(char *, info->contexts, ++info->n_contexts);
+        info->contexts[info->n_contexts - 1] = context;
+    }
+}
+
+/*
  * nbd_start_negotiate:
  * Start the handshake to the server.  After a positive return, the server
  * is ready to accept additional NBD_OPT requests.
@@ -1066,7 +1096,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
 /* Clean up result of nbd_receive_export_list */
 void nbd_free_export_list(NBDExportInfo *info, int count)
 {
-    int i;
+    int i, j;
 
     if (!info) {
         return;
@@ -1075,6 +1105,10 @@ void nbd_free_export_list(NBDExportInfo *info, int count)
     for (i = 0; i < count; i++) {
         g_free(info[i].name);
         g_free(info[i].description);
+        for (j = 0; j < info[i].n_contexts; j++) {
+            g_free(info[i].contexts[j]);
+        }
+        g_free(info[i].contexts);
     }
     g_free(info);
 }
@@ -1144,7 +1178,10 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
                 break;
             }
 
-            /* TODO: Grab meta contexts */
+            if (result == 3 &&
+                nbd_list_meta_contexts(ioc, &array[i], errp) < 0) {
+                goto out;
+            }
         }
 
         /* Send NBD_OPT_ABORT as a courtesy before hanging up */
