@@ -45,6 +45,7 @@ typedef char *caddr_t;
 #define quehead slirp_quehead
 
 #include "debug.h"
+#include "util.h"
 
 #include "qemu/queue.h"
 #include "qemu/sockets.h"
@@ -93,7 +94,7 @@ struct slirp_arphdr {
     uint32_t      ar_sip;           /* sender IP address       */
     unsigned char ar_tha[ETH_ALEN]; /* target hardware address */
     uint32_t      ar_tip;           /* target IP address       */
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 #define ARP_TABLE_SIZE 16
 
@@ -110,7 +111,7 @@ bool arp_table_search(Slirp *slirp, uint32_t ip_addr,
 struct ndpentry {
     unsigned char   eth_addr[ETH_ALEN];     /* sender hardware address */
     struct in6_addr ip_addr;                /* sender IP address       */
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 #define NDP_TABLE_SIZE 16
 

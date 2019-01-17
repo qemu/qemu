@@ -144,16 +144,16 @@ struct ndpopt {
             uint32_t    pref_lt;                /* Preferred Lifetime */
             uint32_t    reserved2;
             struct in6_addr prefix;
-        } QEMU_PACKED prefixinfo;
+        } SLIRP_PACKED prefixinfo;
 #define ndpopt_prefixinfo ndpopt_body.prefixinfo
         struct rdnss {
             uint16_t reserved;
             uint32_t lifetime;
             struct in6_addr addr;
-        } QEMU_PACKED rdnss;
+        } SLIRP_PACKED rdnss;
 #define ndpopt_rdnss ndpopt_body.rdnss
     } ndpopt_body;
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 /* NDP options type */
 #define NDPOPT_LINKLAYER_SOURCE     1   /* Source Link-Layer Address */
