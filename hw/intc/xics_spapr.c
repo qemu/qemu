@@ -31,6 +31,7 @@
 #include "trace.h"
 #include "qemu/timer.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xics_spapr.h"
 #include "hw/ppc/fdt.h"
@@ -45,7 +46,7 @@ static target_ulong h_cppr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 {
     target_ulong cppr = args[0];
 
-    icp_set_cppr(cpu->icp, cppr);
+    icp_set_cppr(spapr_cpu_state(cpu)->icp, cppr);
     return H_SUCCESS;
 }
 
@@ -66,7 +67,7 @@ static target_ulong h_ipi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_xirr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
-    uint32_t xirr = icp_accept(cpu->icp);
+    uint32_t xirr = icp_accept(spapr_cpu_state(cpu)->icp);
 
     args[0] = xirr;
     return H_SUCCESS;
@@ -75,7 +76,7 @@ static target_ulong h_xirr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 static target_ulong h_xirr_x(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                              target_ulong opcode, target_ulong *args)
 {
-    uint32_t xirr = icp_accept(cpu->icp);
+    uint32_t xirr = icp_accept(spapr_cpu_state(cpu)->icp);
 
     args[0] = xirr;
     args[1] = cpu_get_host_ticks();
@@ -87,7 +88,7 @@ static target_ulong h_eoi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 {
     target_ulong xirr = args[0];
 
-    icp_eoi(cpu->icp, xirr);
+    icp_eoi(spapr_cpu_state(cpu)->icp, xirr);
     return H_SUCCESS;
 }
 
@@ -95,7 +96,7 @@ static target_ulong h_ipoll(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                             target_ulong opcode, target_ulong *args)
 {
     uint32_t mfrr;
-    uint32_t xirr = icp_ipoll(cpu->icp, &mfrr);
+    uint32_t xirr = icp_ipoll(spapr_cpu_state(cpu)->icp, &mfrr);
 
     args[0] = xirr;
     args[1] = mfrr;

@@ -16,6 +16,7 @@
 #include "monitor/monitor.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive_regs.h"
@@ -394,7 +395,7 @@ static XiveTCTX *spapr_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-    return cpu->tctx;
+    return spapr_cpu_state(cpu)->tctx;
 }
 
 static const VMStateDescription vmstate_spapr_xive_end = {

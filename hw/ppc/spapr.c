@@ -3902,7 +3902,7 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
 {
     PowerPCCPU *cpu = spapr_find_cpu(vcpu_id);
 
-    return cpu ? cpu->icp : NULL;
+    return cpu ? spapr_cpu_state(cpu)->icp : NULL;
 }
 
 static void spapr_pic_print_info(InterruptStatsProvider *obj,

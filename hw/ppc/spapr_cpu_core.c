@@ -194,11 +194,11 @@ static void spapr_unrealize_vcpu(PowerPCCPU *cpu, sPAPRCPUCore *sc)
         vmstate_unregister(NULL, &vmstate_spapr_cpu_state, cpu->machine_data);
     }
     qemu_unregister_reset(spapr_cpu_reset, cpu);
-    if (cpu->icp) {
-        object_unparent(OBJECT(cpu->icp));
+    if (spapr_cpu_state(cpu)->icp) {
+        object_unparent(OBJECT(spapr_cpu_state(cpu)->icp));
     }
-    if (cpu->tctx) {
-        object_unparent(OBJECT(cpu->tctx));
+    if (spapr_cpu_state(cpu)->tctx) {
+        object_unparent(OBJECT(spapr_cpu_state(cpu)->tctx));
     }
     cpu_remove_sync(CPU(cpu));
     object_unparent(OBJECT(cpu));
