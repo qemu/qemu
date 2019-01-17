@@ -163,7 +163,8 @@ fork_exec(struct socket *so, const char *ex)
     slirp_socket_set_fast_reuse(so->s);
     opt = 1;
     slirp_setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
-    qemu_set_nonblock(so->s);
+    slirp_set_nonblock(so->s);
+    so->slirp->cb->register_poll_fd(so->s);
     return 1;
 }
 

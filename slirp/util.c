@@ -43,6 +43,20 @@ int inet_aton(const char *cp, struct in_addr *ia)
 }
 #endif
 
+void slirp_set_nonblock(int fd)
+{
+#ifndef _WIN32
+    int f;
+    f = fcntl(fd, F_GETFL);
+    assert(f != -1);
+    f = fcntl(fd, F_SETFL, f | O_NONBLOCK);
+    assert(f != -1);
+#else
+    unsigned long opt = 1;
+    ioctlsocket(fd, FIONBIO, &opt);
+#endif
+}
+
 static void slirp_set_cloexec(int fd)
 {
 #ifndef _WIN32

@@ -68,6 +68,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #endif
 
 int slirp_socket(int domain, int type, int protocol);
+void slirp_set_nonblock(int fd);
 
 static inline int slirp_socket_set_nodelay(int fd)
 {

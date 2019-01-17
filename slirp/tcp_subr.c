@@ -412,7 +412,8 @@ int tcp_fconnect(struct socket *so, unsigned short af)
     int opt, s=so->s;
     struct sockaddr_storage addr;
 
-    qemu_set_nonblock(s);
+    slirp_set_nonblock(s);
+    so->slirp->cb->register_poll_fd(so->s);
     slirp_socket_set_fast_reuse(s);
     opt = 1;
     slirp_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(opt));
@@ -484,7 +485,8 @@ void tcp_connect(struct socket *inso)
         tcp_close(sototcpcb(so)); /* This will sofree() as well */
         return;
     }
-    qemu_set_nonblock(s);
+    slirp_set_nonblock(s);
+    so->slirp->cb->register_poll_fd(so->s);
     slirp_socket_set_fast_reuse(s);
     opt = 1;
     slirp_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));

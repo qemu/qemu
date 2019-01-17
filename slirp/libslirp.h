@@ -27,6 +27,8 @@ typedef struct SlirpCb {
     void (*timer_free)(void *timer);
     /* Modify a timer to expire at @expire_time */
     void (*timer_mod)(void *timer, int64_t expire_time);
+    /* Register a fd for future polling */
+    void (*register_poll_fd)(int fd);
 } SlirpCb;
 
 
