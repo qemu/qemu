@@ -86,6 +86,7 @@ typedef struct SlirpState {
     NetClientState nc;
     QTAILQ_ENTRY(SlirpState) entry;
     Slirp *slirp;
+    Notifier poll_notifier;
     Notifier exit_notifier;
 #ifndef _WIN32
     gchar *smb_dir;
@@ -144,6 +145,7 @@ static void net_slirp_cleanup(NetClientState *nc)
     SlirpState *s = DO_UPCAST(SlirpState, nc, nc);
 
     g_slist_free_full(s->fwd, slirp_free_fwd);
+    main_loop_poll_remove_notifier(&s->poll_notifier);
     slirp_cleanup(s->slirp);
     if (s->exit_notifier.notify) {
         qemu_remove_exit_notifier(&s->exit_notifier);
@@ -208,6 +210,25 @@ static const SlirpCb slirp_cb = {
     .unregister_poll_fd = net_slirp_unregister_poll_fd,
     .notify = qemu_notify_event,
 };
+
+static void net_slirp_poll_notify(Notifier *notifier, void *data)
+{
+    MainLoopPoll *poll = data;
+    SlirpState *s = container_of(notifier, SlirpState, poll_notifier);
+
+    switch (poll->state) {
+    case MAIN_LOOP_POLL_FILL:
+        slirp_pollfds_fill(s->slirp, poll->pollfds, &poll->timeout);
+        break;
+    case MAIN_LOOP_POLL_OK:
+    case MAIN_LOOP_POLL_ERR:
+        slirp_pollfds_poll(s->slirp, poll->pollfds,
+                           poll->state == MAIN_LOOP_POLL_ERR);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
 
 static int net_slirp_init(NetClientState *peer, const char *model,
                           const char *name, int restricted,
@@ -428,6 +449,9 @@ static int net_slirp_init(NetClientState *peer, const char *model,
                           dns, ip6_dns, dnssearch, vdomainname,
                           &slirp_cb, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
+
+    s->poll_notifier.notify = net_slirp_poll_notify;
+    main_loop_poll_add_notifier(&s->poll_notifier);
 
     for (config = slirp_configs; config; config = config->next) {
         if (config->flags & SLIRP_CFG_HOSTFWD) {

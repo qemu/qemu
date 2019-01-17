@@ -469,25 +469,42 @@ static int os_host_main_loop_wait(int64_t timeout)
 }
 #endif
 
+static NotifierList main_loop_poll_notifiers =
+    NOTIFIER_LIST_INITIALIZER(main_loop_poll_notifiers);
+
+void main_loop_poll_add_notifier(Notifier *notify)
+{
+    notifier_list_add(&main_loop_poll_notifiers, notify);
+}
+
+void main_loop_poll_remove_notifier(Notifier *notify)
+{
+    notifier_remove(notify);
+}
+
 void main_loop_wait(int nonblocking)
 {
+    MainLoopPoll mlpoll = {
+        .state = MAIN_LOOP_POLL_FILL,
+        .timeout = UINT32_MAX,
+        .pollfds = gpollfds,
+    };
     int ret;
-    uint32_t timeout = UINT32_MAX;
     int64_t timeout_ns;
 
     if (nonblocking) {
-        timeout = 0;
+        mlpoll.timeout = 0;
     }
 
     /* poll any events */
     g_array_set_size(gpollfds, 0); /* reset for new iteration */
     /* XXX: separate device handlers from system ones */
-    slirp_pollfds_fill(gpollfds, &timeout);
+    notifier_list_notify(&main_loop_poll_notifiers, &mlpoll);
 
-    if (timeout == UINT32_MAX) {
+    if (mlpoll.timeout == UINT32_MAX) {
         timeout_ns = -1;
     } else {
-        timeout_ns = (uint64_t)timeout * (int64_t)(SCALE_MS);
+        timeout_ns = (uint64_t)mlpoll.timeout * (int64_t)(SCALE_MS);
     }
 
     timeout_ns = qemu_soonest_timeout(timeout_ns,
@@ -495,7 +512,8 @@ void main_loop_wait(int nonblocking)
                                           &main_loop_tlg));
 
     ret = os_host_main_loop_wait(timeout_ns);
-    slirp_pollfds_poll(gpollfds, (ret < 0));
+    mlpoll.state = ret < 0 ? MAIN_LOOP_POLL_ERR : MAIN_LOOP_POLL_OK;
+    notifier_list_notify(&main_loop_poll_notifiers, &mlpoll);
 
     /* CPU thread can infinitely wait for event after
        missing the warp */

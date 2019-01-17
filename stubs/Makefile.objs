@@ -26,7 +26,6 @@ stub-obj-y += qtest.o
 stub-obj-y += replay.o
 stub-obj-y += runstate-check.o
 stub-obj-y += set-fd-handler.o
-stub-obj-y += slirp.o
 stub-obj-y += sysbus.o
 stub-obj-y += tpm.o
 stub-obj-y += trace-control.o

@@ -63,9 +63,9 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
                   void *opaque);
 void slirp_cleanup(Slirp *slirp);
 
-void slirp_pollfds_fill(GArray *pollfds, uint32_t *timeout);
+void slirp_pollfds_fill(Slirp *slirp, GArray *pollfds, uint32_t *timeout);
 
-void slirp_pollfds_poll(GArray *pollfds, int select_error);
+void slirp_pollfds_poll(Slirp *slirp, GArray *pollfds, int select_error);
 
 void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len);
 
