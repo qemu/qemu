@@ -12,6 +12,10 @@
 #include <arpa/inet.h>
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct Slirp Slirp;
 
 enum {
@@ -96,5 +100,8 @@ void slirp_socket_recv(Slirp *slirp, struct in_addr guest_addr,
                        int guest_port, const uint8_t *buf, int size);
 size_t slirp_socket_can_recv(Slirp *slirp, struct in_addr guest_addr,
                              int guest_port);
-
+#ifdef __cplusplus
+} /* extern "C" */
 #endif
+
+#endif /* LIBSLIRP_H */
