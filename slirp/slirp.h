@@ -3,10 +3,19 @@
 
 #ifdef _WIN32
 
+/* as defined in sdkddkver.h */
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0600 /* Vista */
+#endif
+/* reduces the number of implicitly included headers */
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 typedef char *caddr_t;
 
-# include <windows.h>
 # include <winsock2.h>
+# include <windows.h>
 # include <ws2tcpip.h>
 # include <sys/timeb.h>
 # include <iphlpapi.h>
@@ -19,19 +28,10 @@ typedef char *caddr_t;
 
 #ifndef _WIN32
 #include <sys/uio.h>
-#endif
-
-#ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#endif
-
-#ifndef _WIN32
 #include <sys/socket.h>
-#endif
-
-#ifndef _WIN32
-# include <sys/ioctl.h>
+#include <sys/ioctl.h>
 #endif
 
 #ifdef __APPLE__
