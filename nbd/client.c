@@ -814,7 +814,7 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
  * Start the handshake to the server.  After a positive return, the server
  * is ready to accept additional NBD_OPT requests.
  * Returns: negative errno: failure talking to server
- *          0: server is oldstyle, client must still parse export size
+ *          0: server is oldstyle, must call nbd_negotiate_finish_oldstyle
  *          1: server is newstyle, but can only accept EXPORT_NAME
  *          2: server is newstyle, but lacks structured replies
  *          3: server is newstyle and set up for structured replies
@@ -921,6 +921,36 @@ static int nbd_start_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
 }
 
 /*
+ * nbd_negotiate_finish_oldstyle:
+ * Populate @info with the size and export flags from an oldstyle server,
+ * but does not consume 124 bytes of reserved zero padding.
+ * Returns 0 on success, -1 with @errp set on failure
+ */
+static int nbd_negotiate_finish_oldstyle(QIOChannel *ioc, NBDExportInfo *info,
+                                         Error **errp)
+{
+    uint32_t oldflags;
+
+    if (nbd_read(ioc, &info->size, sizeof(info->size), errp) < 0) {
+        error_prepend(errp, "Failed to read export length: ");
+        return -EINVAL;
+    }
+    info->size = be64_to_cpu(info->size);
+
+    if (nbd_read(ioc, &oldflags, sizeof(oldflags), errp) < 0) {
+        error_prepend(errp, "Failed to read export flags: ");
+        return -EINVAL;
+    }
+    oldflags = be32_to_cpu(oldflags);
+    if (oldflags & ~0xffff) {
+        error_setg(errp, "Unexpected export flags %0x" PRIx32, oldflags);
+        return -EINVAL;
+    }
+    info->flags = oldflags;
+    return 0;
+}
+
+/*
  * nbd_receive_negotiate:
  * Connect to server, complete negotiation, and move into transmission phase.
  * Returns: negative errno: failure talking to server
@@ -933,7 +963,6 @@ int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     int result;
     bool zeroes;
     bool base_allocation = info->base_allocation;
-    uint32_t oldflags;
 
     assert(info->name);
     trace_nbd_receive_negotiate_name(info->name);
@@ -1006,23 +1035,9 @@ int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
             error_setg(errp, "Server does not support non-empty export names");
             return -EINVAL;
         }
-
-        if (nbd_read(ioc, &info->size, sizeof(info->size), errp) < 0) {
-            error_prepend(errp, "Failed to read export length: ");
+        if (nbd_negotiate_finish_oldstyle(ioc, info, errp) < 0) {
             return -EINVAL;
         }
-        info->size = be64_to_cpu(info->size);
-
-        if (nbd_read(ioc, &oldflags, sizeof(oldflags), errp) < 0) {
-            error_prepend(errp, "Failed to read export flags: ");
-            return -EINVAL;
-        }
-        oldflags = be32_to_cpu(oldflags);
-        if (oldflags & ~0xffff) {
-            error_setg(errp, "Unexpected export flags %0x" PRIx32, oldflags);
-            return -EINVAL;
-        }
-        info->flags = oldflags;
         break;
     default:
         return result;
