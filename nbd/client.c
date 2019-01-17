@@ -630,26 +630,30 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
 }
 
 /* nbd_negotiate_simple_meta_context:
- * Set one meta context. Simple means that reply must contain zero (not
- * negotiated) or one (negotiated) contexts. More contexts would be considered
- * as a protocol error. It's also implied that meta-data query equals queried
- * context name, so, if server replies with something different than @context,
- * it is considered an error too.
- * return 1 for successful negotiation, context_id is set
+ * Request the server to set the meta context for export @info->name
+ * using @info->x_dirty_bitmap with a fallback to "base:allocation",
+ * setting @info->context_id to the resulting id. Fail if the server
+ * responds with more than one context or with a context different
+ * than the query.
+ * return 1 for successful negotiation,
  *        0 if operation is unsupported,
  *        -1 with errp set for any other error
  */
 static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
-                                             const char *export,
-                                             const char *context,
-                                             uint32_t *context_id,
+                                             NBDExportInfo *info,
                                              Error **errp)
 {
+    /*
+     * TODO: Removing the x_dirty_bitmap hack will mean refactoring
+     * this function to request and store ids for multiple contexts
+     * (both base:allocation and a dirty bitmap), at which point this
+     * function should lose the term _simple.
+     */
     int ret;
     NBDOptionReply reply;
-    uint32_t received_id = 0;
+    const char *context = info->x_dirty_bitmap ?: "base:allocation";
     bool received = false;
-    uint32_t export_len = strlen(export);
+    uint32_t export_len = strlen(info->name);
     uint32_t context_len = strlen(context);
     uint32_t data_len = sizeof(export_len) + export_len +
                         sizeof(uint32_t) + /* number of queries */
@@ -657,9 +661,9 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
     char *data = g_malloc(data_len);
     char *p = data;
 
-    trace_nbd_opt_meta_request(context, export);
+    trace_nbd_opt_meta_request(context, info->name);
     stl_be_p(p, export_len);
-    memcpy(p += sizeof(export_len), export, export_len);
+    memcpy(p += sizeof(export_len), info->name, export_len);
     stl_be_p(p += export_len, 1);
     stl_be_p(p += sizeof(uint32_t), context_len);
     memcpy(p += sizeof(context_len), context, context_len);
@@ -685,7 +689,7 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
     if (reply.type == NBD_REP_META_CONTEXT) {
         char *name;
 
-        if (reply.length != sizeof(received_id) + context_len) {
+        if (reply.length != sizeof(info->context_id) + context_len) {
             error_setg(errp, "Failed to negotiate meta context '%s', server "
                        "answered with unexpected length %" PRIu32, context,
                        reply.length);
@@ -693,12 +697,13 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
             return -1;
         }
 
-        if (nbd_read(ioc, &received_id, sizeof(received_id), errp) < 0) {
+        if (nbd_read(ioc, &info->context_id, sizeof(info->context_id),
+                     errp) < 0) {
             return -1;
         }
-        received_id = be32_to_cpu(received_id);
+        info->context_id = be32_to_cpu(info->context_id);
 
-        reply.length -= sizeof(received_id);
+        reply.length -= sizeof(info->context_id);
         name = g_malloc(reply.length + 1);
         if (nbd_read(ioc, name, reply.length, errp) < 0) {
             g_free(name);
@@ -715,7 +720,7 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
         }
         g_free(name);
 
-        trace_nbd_opt_meta_reply(context, received_id);
+        trace_nbd_opt_meta_reply(context, info->context_id);
         received = true;
 
         /* receive NBD_REP_ACK */
@@ -744,12 +749,7 @@ static int nbd_negotiate_simple_meta_context(QIOChannel *ioc,
         return -1;
     }
 
-    if (received) {
-        *context_id = received_id;
-        return 1;
-    }
-
-    return 0;
+    return received;
 }
 
 int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
@@ -848,10 +848,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
             }
 
             if (info->structured_reply && base_allocation) {
-                result = nbd_negotiate_simple_meta_context(
-                        ioc, info->name,
-                        info->x_dirty_bitmap ?: "base:allocation",
-                        &info->meta_base_allocation_id, errp);
+                result = nbd_negotiate_simple_meta_context(ioc, info, errp);
                 if (result < 0) {
                     goto fail;
                 }

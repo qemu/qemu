@@ -276,7 +276,7 @@ struct NBDExportInfo {
     uint32_t opt_block;
     uint32_t max_block;
 
-    uint32_t meta_base_allocation_id;
+    uint32_t context_id;
 };
 typedef struct NBDExportInfo NBDExportInfo;
 
