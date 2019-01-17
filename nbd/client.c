@@ -234,18 +234,24 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
     return result;
 }
 
-/* Process another portion of the NBD_OPT_LIST reply.  Set *@match if
- * the current reply matches @want or if the server does not support
- * NBD_OPT_LIST, otherwise leave @match alone.  Return 0 if iteration
- * is complete, positive if more replies are expected, or negative
- * with @errp set if an unrecoverable error occurred. */
-static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
+/* nbd_receive_list:
+ * Process another portion of the NBD_OPT_LIST reply, populating any
+ * name received into *@name. If @description is non-NULL, and the
+ * server provided a description, that is also populated. The caller
+ * must eventually call g_free() on success.
+ * Returns 1 if name and description were set and iteration must continue,
+ *         0 if iteration is complete (including if OPT_LIST unsupported),
+ *         -1 with @errp set if an unrecoverable error occurred.
+ */
+static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
                             Error **errp)
 {
+    int ret = -1;
     NBDOptionReply reply;
     uint32_t len;
     uint32_t namelen;
-    char name[NBD_MAX_NAME_SIZE + 1];
+    char *local_name = NULL;
+    char *local_desc = NULL;
     int error;
 
     if (nbd_receive_option_reply(ioc, NBD_OPT_LIST, &reply, errp) < 0) {
@@ -253,9 +259,6 @@ static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
     }
     error = nbd_handle_reply_err(ioc, &reply, errp);
     if (error <= 0) {
-        /* The server did not support NBD_OPT_LIST, so set *match on
-         * the assumption that any name will be accepted.  */
-        *match = true;
         return error;
     }
     len = reply.length;
@@ -292,33 +295,38 @@ static int nbd_receive_list(QIOChannel *ioc, const char *want, bool *match,
         nbd_send_opt_abort(ioc);
         return -1;
     }
-    if (namelen != strlen(want)) {
-        if (nbd_drop(ioc, len, errp) < 0) {
-            error_prepend(errp,
-                          "failed to skip export name with wrong length: ");
-            nbd_send_opt_abort(ioc);
-            return -1;
-        }
-        return 1;
-    }
 
-    assert(namelen < sizeof(name));
-    if (nbd_read(ioc, name, namelen, errp) < 0) {
+    local_name = g_malloc(namelen + 1);
+    if (nbd_read(ioc, local_name, namelen, errp) < 0) {
         error_prepend(errp, "failed to read export name: ");
         nbd_send_opt_abort(ioc);
-        return -1;
+        goto out;
     }
-    name[namelen] = '\0';
+    local_name[namelen] = '\0';
     len -= namelen;
-    if (nbd_drop(ioc, len, errp) < 0) {
-        error_prepend(errp, "failed to read export description: ");
-        nbd_send_opt_abort(ioc);
-        return -1;
+    if (len) {
+        local_desc = g_malloc(len + 1);
+        if (nbd_read(ioc, local_desc, len, errp) < 0) {
+            error_prepend(errp, "failed to read export description: ");
+            nbd_send_opt_abort(ioc);
+            goto out;
+        }
+        local_desc[len] = '\0';
     }
-    if (!strcmp(name, want)) {
-        *match = true;
+
+    trace_nbd_receive_list(local_name, local_desc ?: "");
+    *name = local_name;
+    local_name = NULL;
+    if (description) {
+        *description = local_desc;
+        local_desc = NULL;
     }
-    return 1;
+    ret = 1;
+
+ out:
+    g_free(local_name);
+    g_free(local_desc);
+    return ret;
 }
 
 
@@ -493,7 +501,8 @@ static int nbd_receive_query_exports(QIOChannel *ioc,
                                      const char *wantname,
                                      Error **errp)
 {
-    bool foundExport = false;
+    bool list_empty = true;
+    bool found_export = false;
 
     trace_nbd_receive_query_exports_start(wantname);
     if (nbd_send_option_request(ioc, NBD_OPT_LIST, 0, NULL, errp) < 0) {
@@ -501,14 +510,25 @@ static int nbd_receive_query_exports(QIOChannel *ioc,
     }
 
     while (1) {
-        int ret = nbd_receive_list(ioc, wantname, &foundExport, errp);
+        char *name;
+        int ret = nbd_receive_list(ioc, &name, NULL, errp);
 
         if (ret < 0) {
             /* Server gave unexpected reply */
             return -1;
         } else if (ret == 0) {
             /* Done iterating. */
-            if (!foundExport) {
+            if (list_empty) {
+                /*
+                 * We don't have enough context to tell a server that
+                 * sent an empty list apart from a server that does
+                 * not support the list command; but as this function
+                 * is just used to trigger a nicer error message
+                 * before trying NBD_OPT_EXPORT_NAME, assume the
+                 * export is available.
+                 */
+                return 0;
+            } else if (!found_export) {
                 error_setg(errp, "No export with name '%s' available",
                            wantname);
                 nbd_send_opt_abort(ioc);
@@ -517,6 +537,11 @@ static int nbd_receive_query_exports(QIOChannel *ioc,
             trace_nbd_receive_query_exports_success(wantname);
             return 0;
         }
+        list_empty = false;
+        if (!strcmp(name, wantname)) {
+            found_export = true;
+        }
+        g_free(name);
     }
 }
 
