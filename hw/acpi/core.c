@@ -35,14 +35,18 @@
 struct acpi_table_header {
     uint16_t _length;         /* our length, not actual part of the hdr */
                               /* allows easier parsing for fw_cfg clients */
-    char sig[4];              /* ACPI signature (4 ASCII characters) */
+    char sig[4]
+             QEMU_NONSTRING;  /* ACPI signature (4 ASCII characters) */
     uint32_t length;          /* Length of table, in bytes, including header */
     uint8_t revision;         /* ACPI Specification minor version # */
     uint8_t checksum;         /* To make sum of entire table == 0 */
-    char oem_id[6];           /* OEM identification */
-    char oem_table_id[8];     /* OEM table identification */
+    char oem_id[6]
+             QEMU_NONSTRING;  /* OEM identification */
+    char oem_table_id[8]
+             QEMU_NONSTRING;  /* OEM table identification */
     uint32_t oem_revision;    /* OEM revision number */
-    char asl_compiler_id[4];  /* ASL compiler vendor ID */
+    char asl_compiler_id[4]
+             QEMU_NONSTRING;  /* ASL compiler vendor ID */
     uint32_t asl_compiler_revision; /* ASL compiler revision number */
 } QEMU_PACKED;
 

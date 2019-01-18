@@ -121,12 +121,13 @@ static void vhost_user_scsi_unrealize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserSCSI *s = VHOST_USER_SCSI(dev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
+    struct vhost_virtqueue *vqs = vsc->dev.vqs;
 
     /* This will stop the vhost backend. */
     vhost_user_scsi_set_status(vdev, 0);
 
     vhost_dev_cleanup(&vsc->dev);
-    g_free(vsc->dev.vqs);
+    g_free(vqs);
 
     virtio_scsi_common_unrealize(dev, errp);
 

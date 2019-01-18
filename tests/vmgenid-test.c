@@ -23,26 +23,13 @@
                                   */
 #define RSDP_ADDR_INVALID 0x100000 /* RSDP must be below this address */
 
-typedef struct {
-    AcpiTableHeader header;
-    gchar name_op;
-    gchar vgia[4];
-    gchar val_op;
-    uint32_t vgia_val;
-} QEMU_PACKED VgidTable;
-
 static uint32_t acpi_find_vgia(QTestState *qts)
 {
     uint32_t rsdp_offset;
     uint32_t guid_offset = 0;
     uint8_t rsdp_table[36 /* ACPI 2.0+ RSDP size */];
-    uint32_t rsdt, rsdt_table_length;
-    AcpiRsdtDescriptorRev1 rsdt_table;
-    size_t tables_nr;
-    uint32_t *tables;
-    AcpiTableHeader ssdt_table;
-    VgidTable vgid_table;
-    int i;
+    uint32_t rsdt_len, table_length;
+    uint8_t *rsdt, *ent;
 
     /* Wait for guest firmware to finish and start the payload. */
     boot_sector_test(qts);
@@ -52,48 +39,37 @@ static uint32_t acpi_find_vgia(QTestState *qts)
 
     g_assert_cmphex(rsdp_offset, <, RSDP_ADDR_INVALID);
 
+
     acpi_parse_rsdp_table(qts, rsdp_offset, rsdp_table);
+    acpi_fetch_table(qts, &rsdt, &rsdt_len, &rsdp_table[16 /* RsdtAddress */],
+                     "RSDT", true);
 
-    rsdt = acpi_get_rsdt_address(rsdp_table);
-    g_assert(rsdt);
+    ACPI_FOREACH_RSDT_ENTRY(rsdt, rsdt_len, ent, 4 /* Entry size */) {
+        uint8_t *table_aml;
 
-    /* read the header */
-    ACPI_READ_TABLE_HEADER(qts, &rsdt_table, rsdt);
-    ACPI_ASSERT_CMP(rsdt_table.signature, "RSDT");
-    rsdt_table_length = le32_to_cpu(rsdt_table.length);
-
-    /* compute the table entries in rsdt */
-    g_assert_cmpint(rsdt_table_length, >, sizeof(AcpiRsdtDescriptorRev1));
-    tables_nr = (rsdt_table_length - sizeof(AcpiRsdtDescriptorRev1)) /
-                sizeof(uint32_t);
-
-    /* get the addresses of the tables pointed by rsdt */
-    tables = g_new0(uint32_t, tables_nr);
-    ACPI_READ_ARRAY_PTR(qts, tables, tables_nr, rsdt);
-
-    for (i = 0; i < tables_nr; i++) {
-        uint32_t addr = le32_to_cpu(tables[i]);
-        ACPI_READ_TABLE_HEADER(qts, &ssdt_table, addr);
-        if (!strncmp((char *)ssdt_table.oem_table_id, "VMGENID", 7)) {
+        acpi_fetch_table(qts, &table_aml, &table_length, ent, NULL, true);
+        if (!memcmp(table_aml + 16 /* OEM Table ID */, "VMGENID", 7)) {
+            uint32_t vgia_val;
+            uint8_t *aml = &table_aml[36 /* AML byte-code start */];
             /* the first entry in the table should be VGIA
              * That's all we need
              */
-            ACPI_READ_FIELD(qts, vgid_table.name_op, addr);
-            g_assert(vgid_table.name_op == 0x08);  /* name */
-            ACPI_READ_ARRAY(qts, vgid_table.vgia, addr);
-            g_assert(memcmp(vgid_table.vgia, "VGIA", 4) == 0);
-            ACPI_READ_FIELD(qts, vgid_table.val_op, addr);
-            g_assert(vgid_table.val_op == 0x0C);  /* dword */
-            ACPI_READ_FIELD(qts, vgid_table.vgia_val, addr);
+            g_assert(aml[0 /* name_op*/] == 0x08);
+            g_assert(memcmp(&aml[1 /* name */], "VGIA", 4) == 0);
+            g_assert(aml[5 /* value op */] == 0x0C /* dword */);
+            memcpy(&vgia_val, &aml[6 /* value */], 4);
+
             /* The GUID is written at a fixed offset into the fw_cfg file
              * in order to implement the "OVMF SDT Header probe suppressor"
              * see docs/specs/vmgenid.txt for more details
              */
-            guid_offset = le32_to_cpu(vgid_table.vgia_val) + VMGENID_GUID_OFFSET;
+            guid_offset = le32_to_cpu(vgia_val) + VMGENID_GUID_OFFSET;
+            g_free(table_aml);
             break;
         }
+        g_free(table_aml);
     }
-    g_free(tables);
+    g_free(rsdt);
     return guid_offset;
 }
 

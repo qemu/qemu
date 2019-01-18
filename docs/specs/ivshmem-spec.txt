@@ -17,12 +17,16 @@ get interrupted by its peers.
 
 There are two basic configurations:
 
-- Just shared memory: -device ivshmem-plain,memdev=HMB,...
+- Just shared memory:
+
+      -device ivshmem-plain,memdev=HMB,...
 
   This uses host memory backend HMB.  It should have option "share"
   set.
 
-- Shared memory plus interrupts: -device ivshmem,chardev=CHR,vectors=N,...
+- Shared memory plus interrupts:
+
+      -device ivshmem-doorbell,chardev=CHR,vectors=N,...
 
   An ivshmem server must already be running on the host.  The device
   connects to the server's UNIX domain socket via character device

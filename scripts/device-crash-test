@@ -83,7 +83,6 @@ ERROR_WHITELIST = [
     {'device':'isa-ipmi-bt', 'expected':True},             # IPMI device requires a bmc attribute to be set
     {'device':'isa-ipmi-kcs', 'expected':True},            # IPMI device requires a bmc attribute to be set
     {'device':'isa-parallel', 'expected':True},            # Can't create serial device, empty char device
-    {'device':'ivshmem', 'expected':True},                 # You must specify either 'shm' or 'chardev'
     {'device':'ivshmem-doorbell', 'expected':True},        # You must specify a 'chardev'
     {'device':'ivshmem-plain', 'expected':True},           # You must specify a 'memdev'
     {'device':'loader', 'expected':True},                  # please include valid arguments

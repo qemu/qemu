@@ -31,6 +31,7 @@
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
 #include "tpm_util.h"
+#include "tpm_ppi.h"
 #include "trace.h"
 
 #define TPM_TIS_NUM_LOCALITIES      5     /* per spec */
@@ -81,6 +82,9 @@ typedef struct TPMState {
     TPMVersion be_tpm_version;
 
     size_t be_buffer_size;
+
+    bool ppi_enabled;
+    TPMPPI ppi;
 } TPMState;
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
@@ -868,6 +872,9 @@ static void tpm_tis_reset(DeviceState *dev)
     s->be_buffer_size = MIN(tpm_backend_get_buffer_size(s->be_driver),
                             TPM_TIS_BUFFER_MAX);
 
+    if (s->ppi_enabled) {
+        tpm_ppi_reset(&s->ppi);
+    }
     tpm_backend_reset(s->be_driver);
 
     s->active_locty = TPM_TIS_NO_LOCALITY;
@@ -954,6 +961,7 @@ static const VMStateDescription vmstate_tpm_tis = {
 static Property tpm_tis_properties[] = {
     DEFINE_PROP_UINT32("irq", TPMState, irq_num, TPM_TIS_IRQ),
     DEFINE_PROP_TPMBE("tpmdev", TPMState, be_driver),
+    DEFINE_PROP_BOOL("ppi", TPMState, ppi_enabled, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -980,6 +988,11 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
 
     memory_region_add_subregion(isa_address_space(ISA_DEVICE(dev)),
                                 TPM_TIS_ADDR_BASE, &s->mmio);
+
+    if (s->ppi_enabled) {
+        tpm_ppi_init(&s->ppi, isa_address_space(ISA_DEVICE(dev)),
+                     TPM_PPI_ADDR_BASE, OBJECT(s));
+    }
 }
 
 static void tpm_tis_initfn(Object *obj)

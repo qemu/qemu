@@ -28,12 +28,6 @@ typedef struct {
     const char *variant;
     uint32_t rsdp_addr;
     uint8_t rsdp_table[36 /* ACPI 2.0+ RSDP size */];
-    AcpiRsdtDescriptorRev1 rsdt_table;
-    uint32_t dsdt_addr;
-    uint32_t facs_addr;
-    AcpiFacsDescriptorRev1 facs_table;
-    uint32_t *rsdt_tables_addr;
-    int rsdt_tables_nr;
     GArray *tables;
     uint32_t smbios_ep_addr;
     struct smbios_21_entry_point smbios_ep_table;
@@ -50,28 +44,34 @@ static const char *iasl = stringify(CONFIG_IASL);
 static const char *iasl;
 #endif
 
+static bool compare_signature(const AcpiSdtTable *sdt, const char *signature)
+{
+   return !memcmp(sdt->aml, signature, 4);
+}
+
+static void cleanup_table_descriptor(AcpiSdtTable *table)
+{
+    g_free(table->aml);
+    if (table->aml_file &&
+        !table->tmp_files_retain &&
+        g_strstr_len(table->aml_file, -1, "aml-")) {
+        unlink(table->aml_file);
+    }
+    g_free(table->aml_file);
+    g_free(table->asl);
+    if (table->asl_file &&
+        !table->tmp_files_retain) {
+        unlink(table->asl_file);
+    }
+    g_free(table->asl_file);
+}
+
 static void free_test_data(test_data *data)
 {
-    AcpiSdtTable *temp;
     int i;
 
-    g_free(data->rsdt_tables_addr);
-
     for (i = 0; i < data->tables->len; ++i) {
-        temp = &g_array_index(data->tables, AcpiSdtTable, i);
-        g_free(temp->aml);
-        if (temp->aml_file &&
-            !temp->tmp_files_retain &&
-            g_strstr_len(temp->aml_file, -1, "aml-")) {
-            unlink(temp->aml_file);
-        }
-        g_free(temp->aml_file);
-        g_free(temp->asl);
-        if (temp->asl_file &&
-            !temp->tmp_files_retain) {
-            unlink(temp->asl_file);
-        }
-        g_free(temp->asl_file);
+        cleanup_table_descriptor(&g_array_index(data->tables, AcpiSdtTable, i));
     }
 
     g_array_free(data->tables, true);
@@ -109,154 +109,53 @@ static void test_acpi_rsdp_table(test_data *data)
 
 static void test_acpi_rsdt_table(test_data *data)
 {
-    AcpiRsdtDescriptorRev1 *rsdt_table = &data->rsdt_table;
-    uint32_t addr = acpi_get_rsdt_address(data->rsdp_table);
-    uint32_t *tables;
-    int tables_nr;
-    uint8_t checksum;
-    uint32_t rsdt_table_length;
+    AcpiSdtTable rsdt = {};
+    uint8_t *ent;
 
-    /* read the header */
-    ACPI_READ_TABLE_HEADER(data->qts, rsdt_table, addr);
-    ACPI_ASSERT_CMP(rsdt_table->signature, "RSDT");
+    /* read RSDT table */
+    acpi_fetch_table(data->qts, &rsdt.aml, &rsdt.aml_len,
+                     &data->rsdp_table[16 /* RsdtAddress */], "RSDT", true);
 
-    rsdt_table_length = le32_to_cpu(rsdt_table->length);
+    /* Load all tables and add to test list directly RSDT referenced tables */
+    ACPI_FOREACH_RSDT_ENTRY(rsdt.aml, rsdt.aml_len, ent, 4 /* Entry size */) {
+        AcpiSdtTable ssdt_table = {};
 
-    /* compute the table entries in rsdt */
-    tables_nr = (rsdt_table_length - sizeof(AcpiRsdtDescriptorRev1)) /
-                sizeof(uint32_t);
-    g_assert(tables_nr > 0);
-
-    /* get the addresses of the tables pointed by rsdt */
-    tables = g_new0(uint32_t, tables_nr);
-    ACPI_READ_ARRAY_PTR(data->qts, tables, tables_nr, addr);
-
-    checksum = acpi_calc_checksum((uint8_t *)rsdt_table, rsdt_table_length) +
-               acpi_calc_checksum((uint8_t *)tables,
-                                  tables_nr * sizeof(uint32_t));
-    g_assert(!checksum);
-
-   /* SSDT tables after FADT */
-    data->rsdt_tables_addr = tables;
-    data->rsdt_tables_nr = tables_nr;
-}
-
-static void fadt_fetch_facs_and_dsdt_ptrs(test_data *data)
-{
-    uint32_t addr;
-    AcpiTableHeader hdr;
-
-    /* FADT table comes first */
-    addr = le32_to_cpu(data->rsdt_tables_addr[0]);
-    ACPI_READ_TABLE_HEADER(data->qts, &hdr, addr);
-    ACPI_ASSERT_CMP(hdr.signature, "FACP");
-
-    ACPI_READ_FIELD(data->qts, data->facs_addr, addr);
-    ACPI_READ_FIELD(data->qts, data->dsdt_addr, addr);
-}
-
-static void sanitize_fadt_ptrs(test_data *data)
-{
-    /* fixup pointers in FADT */
-    int i;
-
-    for (i = 0; i < data->tables->len; i++) {
-        AcpiSdtTable *sdt = &g_array_index(data->tables, AcpiSdtTable, i);
-
-        if (memcmp(&sdt->header.signature, "FACP", 4)) {
-            continue;
-        }
-
-        /* check original FADT checksum before sanitizing table */
-        g_assert(!(uint8_t)(
-            acpi_calc_checksum((uint8_t *)sdt, sizeof(AcpiTableHeader)) +
-            acpi_calc_checksum((uint8_t *)sdt->aml, sdt->aml_len)
-        ));
-
-        /* sdt->aml field offset := spec offset - header size */
-        memset(sdt->aml + 0, 0, 4); /* sanitize FIRMWARE_CTRL(36) ptr */
-        memset(sdt->aml + 4, 0, 4); /* sanitize DSDT(40) ptr */
-        if (sdt->header.revision >= 3) {
-            memset(sdt->aml + 96, 0, 8); /* sanitize X_FIRMWARE_CTRL(132) ptr */
-            memset(sdt->aml + 104, 0, 8); /* sanitize X_DSDT(140) ptr */
-        }
-
-        /* update checksum */
-        sdt->header.checksum = 0;
-        sdt->header.checksum -=
-            acpi_calc_checksum((uint8_t *)sdt, sizeof(AcpiTableHeader)) +
-            acpi_calc_checksum((uint8_t *)sdt->aml, sdt->aml_len);
-        break;
-    }
-}
-
-static void test_acpi_facs_table(test_data *data)
-{
-    AcpiFacsDescriptorRev1 *facs_table = &data->facs_table;
-    uint32_t addr = le32_to_cpu(data->facs_addr);
-
-    ACPI_READ_FIELD(data->qts, facs_table->signature, addr);
-    ACPI_READ_FIELD(data->qts, facs_table->length, addr);
-    ACPI_READ_FIELD(data->qts, facs_table->hardware_signature, addr);
-    ACPI_READ_FIELD(data->qts, facs_table->firmware_waking_vector, addr);
-    ACPI_READ_FIELD(data->qts, facs_table->global_lock, addr);
-    ACPI_READ_FIELD(data->qts, facs_table->flags, addr);
-    ACPI_READ_ARRAY(data->qts, facs_table->resverved3, addr);
-
-    ACPI_ASSERT_CMP(facs_table->signature, "FACS");
-}
-
-/** fetch_table
- *   load ACPI table at @addr into table descriptor @sdt_table
- *   and check that header checksum matches actual one.
- */
-static void fetch_table(QTestState *qts, AcpiSdtTable *sdt_table, uint32_t addr)
-{
-    uint8_t checksum;
-
-    memset(sdt_table, 0, sizeof(*sdt_table));
-    ACPI_READ_TABLE_HEADER(qts, &sdt_table->header, addr);
-
-    sdt_table->aml_len = le32_to_cpu(sdt_table->header.length)
-                         - sizeof(AcpiTableHeader);
-    sdt_table->aml = g_malloc0(sdt_table->aml_len);
-    ACPI_READ_ARRAY_PTR(qts, sdt_table->aml, sdt_table->aml_len, addr);
-
-    checksum = acpi_calc_checksum((uint8_t *)sdt_table,
-                                  sizeof(AcpiTableHeader)) +
-               acpi_calc_checksum((uint8_t *)sdt_table->aml,
-                                  sdt_table->aml_len);
-    g_assert(!checksum);
-}
-
-static void test_acpi_dsdt_table(test_data *data)
-{
-    AcpiSdtTable dsdt_table;
-    uint32_t addr = le32_to_cpu(data->dsdt_addr);
-
-    fetch_table(data->qts, &dsdt_table, addr);
-    ACPI_ASSERT_CMP(dsdt_table.header.signature, "DSDT");
-
-    /* Since DSDT isn't in RSDT, add DSDT to ASL test tables list manually */
-    g_array_append_val(data->tables, dsdt_table);
-}
-
-/* Load all tables and add to test list directly RSDT referenced tables */
-static void fetch_rsdt_referenced_tables(test_data *data)
-{
-    int tables_nr = data->rsdt_tables_nr;
-    int i;
-
-    for (i = 0; i < tables_nr; i++) {
-        AcpiSdtTable ssdt_table;
-        uint32_t addr;
-
-        addr = le32_to_cpu(data->rsdt_tables_addr[i]);
-        fetch_table(data->qts, &ssdt_table, addr);
-
+        acpi_fetch_table(data->qts, &ssdt_table.aml, &ssdt_table.aml_len, ent,
+                         NULL, true);
         /* Add table to ASL test tables list */
         g_array_append_val(data->tables, ssdt_table);
     }
+    cleanup_table_descriptor(&rsdt);
+}
+
+static void test_acpi_fadt_table(test_data *data)
+{
+    /* FADT table is 1st */
+    AcpiSdtTable table = g_array_index(data->tables, typeof(table), 0);
+    uint8_t *fadt_aml = table.aml;
+    uint32_t fadt_len = table.aml_len;
+
+    g_assert(compare_signature(&table, "FACP"));
+
+    /* Since DSDT/FACS isn't in RSDT, add them to ASL test list manually */
+    acpi_fetch_table(data->qts, &table.aml, &table.aml_len,
+                     fadt_aml + 36 /* FIRMWARE_CTRL */, "FACS", false);
+    g_array_append_val(data->tables, table);
+
+    acpi_fetch_table(data->qts, &table.aml, &table.aml_len,
+                     fadt_aml + 40 /* DSDT */, "DSDT", true);
+    g_array_append_val(data->tables, table);
+
+    memset(fadt_aml + 36, 0, 4); /* sanitize FIRMWARE_CTRL ptr */
+    memset(fadt_aml + 40, 0, 4); /* sanitize DSDT ptr */
+    if (fadt_aml[8 /* FADT Major Version */] >= 3) {
+        memset(fadt_aml + 132, 0, 8); /* sanitize X_FIRMWARE_CTRL ptr */
+        memset(fadt_aml + 140, 0, 8); /* sanitize X_DSDT ptr */
+    }
+
+    /* update checksum */
+    fadt_aml[9 /* Checksum */] = 0;
+    fadt_aml[9 /* Checksum */] -= acpi_calc_checksum(fadt_aml, fadt_len);
 }
 
 static void dump_aml_files(test_data *data, bool rebuild)
@@ -275,7 +174,7 @@ static void dump_aml_files(test_data *data, bool rebuild)
 
         if (rebuild) {
             aml_file = g_strdup_printf("%s/%s/%.4s%s", data_dir, data->machine,
-                                       (gchar *)&sdt->header.signature, ext);
+                                       sdt->aml, ext);
             fd = g_open(aml_file, O_WRONLY|O_TRUNC|O_CREAT,
                         S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
         } else {
@@ -284,8 +183,6 @@ static void dump_aml_files(test_data *data, bool rebuild)
         }
         g_assert(fd >= 0);
 
-        ret = qemu_write_full(fd, sdt, sizeof(AcpiTableHeader));
-        g_assert(ret == sizeof(AcpiTableHeader));
         ret = qemu_write_full(fd, sdt->aml, sdt->aml_len);
         g_assert(ret == sdt->aml_len);
 
@@ -293,11 +190,6 @@ static void dump_aml_files(test_data *data, bool rebuild)
 
         g_free(aml_file);
     }
-}
-
-static bool compare_signature(AcpiSdtTable *sdt, const char *signature)
-{
-   return !memcmp(&sdt->header.signature, signature, 4);
 }
 
 static bool load_asl(GArray *sdts, AcpiSdtTable *sdt)
@@ -382,6 +274,7 @@ static GArray *load_expected_aml(test_data *data)
     AcpiSdtTable *sdt;
     GError *error = NULL;
     gboolean ret;
+    gsize aml_len;
 
     GArray *exp_tables = g_array_new(false, true, sizeof(AcpiSdtTable));
     if (getenv("V")) {
@@ -395,11 +288,10 @@ static GArray *load_expected_aml(test_data *data)
         sdt = &g_array_index(data->tables, AcpiSdtTable, i);
 
         memset(&exp_sdt, 0, sizeof(exp_sdt));
-        exp_sdt.header.signature = sdt->header.signature;
 
 try_again:
         aml_file = g_strdup_printf("%s/%s/%.4s%s", data_dir, data->machine,
-                                   (gchar *)&sdt->header.signature, ext);
+                                   sdt->aml, ext);
         if (getenv("V")) {
             fprintf(stderr, "Looking for expected file '%s'\n", aml_file);
         }
@@ -415,8 +307,9 @@ try_again:
         if (getenv("V")) {
             fprintf(stderr, "Using expected file '%s'\n", aml_file);
         }
-        ret = g_file_get_contents(aml_file, &exp_sdt.aml,
-                                  &exp_sdt.aml_len, &error);
+        ret = g_file_get_contents(aml_file, (gchar **)&exp_sdt.aml,
+                                  &aml_len, &error);
+        exp_sdt.aml_len = aml_len;
         g_assert(ret);
         g_assert_no_error(error);
         g_assert(exp_sdt.aml);
@@ -459,14 +352,12 @@ static void test_acpi_asl(test_data *data)
                 fprintf(stderr,
                         "Warning! iasl couldn't parse the expected aml\n");
             } else {
-                uint32_t signature = cpu_to_le32(exp_sdt->header.signature);
                 sdt->tmp_files_retain = true;
                 exp_sdt->tmp_files_retain = true;
                 fprintf(stderr,
                         "acpi-test: Warning! %.4s mismatch. "
                         "Actual [asl:%s, aml:%s], Expected [asl:%s, aml:%s].\n",
-                        (gchar *)&signature,
-                        sdt->asl_file, sdt->aml_file,
+                        exp_sdt->aml, sdt->asl_file, sdt->aml_file,
                         exp_sdt->asl_file, exp_sdt->aml_file);
                 if (getenv("V")) {
                     const char *diff_cmd = getenv("DIFF");
@@ -498,32 +389,19 @@ static bool smbios_ep_table_ok(test_data *data)
     struct smbios_21_entry_point *ep_table = &data->smbios_ep_table;
     uint32_t addr = data->smbios_ep_addr;
 
-    ACPI_READ_ARRAY(data->qts, ep_table->anchor_string, addr);
+    qtest_memread(data->qts, addr, ep_table, sizeof(*ep_table));
     if (memcmp(ep_table->anchor_string, "_SM_", 4)) {
         return false;
     }
-    ACPI_READ_FIELD(data->qts, ep_table->checksum, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->length, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->smbios_major_version, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->smbios_minor_version, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->max_structure_size, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->entry_point_revision, addr);
-    ACPI_READ_ARRAY(data->qts, ep_table->formatted_area, addr);
-    ACPI_READ_ARRAY(data->qts, ep_table->intermediate_anchor_string, addr);
     if (memcmp(ep_table->intermediate_anchor_string, "_DMI_", 5)) {
         return false;
     }
-    ACPI_READ_FIELD(data->qts, ep_table->intermediate_checksum, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->structure_table_length, addr);
     if (ep_table->structure_table_length == 0) {
         return false;
     }
-    ACPI_READ_FIELD(data->qts, ep_table->structure_table_address, addr);
-    ACPI_READ_FIELD(data->qts, ep_table->number_of_structures, addr);
     if (ep_table->number_of_structures == 0) {
         return false;
     }
-    ACPI_READ_FIELD(data->qts, ep_table->smbios_bcd_revision, addr);
     if (acpi_calc_checksum((uint8_t *)ep_table, sizeof *ep_table) ||
         acpi_calc_checksum((uint8_t *)ep_table + 0x10,
                            sizeof *ep_table - 0x10)) {
@@ -644,12 +522,7 @@ static void test_acpi_one(const char *params, test_data *data)
     test_acpi_rsdp_address(data);
     test_acpi_rsdp_table(data);
     test_acpi_rsdt_table(data);
-    fadt_fetch_facs_and_dsdt_ptrs(data);
-    test_acpi_facs_table(data);
-    test_acpi_dsdt_table(data);
-    fetch_rsdt_referenced_tables(data);
-
-    sanitize_fadt_ptrs(data);
+    test_acpi_fadt_table(data);
 
     if (iasl) {
         if (getenv(ACPI_REBUILD_EXPECTED_AML)) {

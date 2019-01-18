@@ -215,6 +215,7 @@ static void vhost_scsi_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(dev);
+    struct vhost_virtqueue *vqs = vsc->dev.vqs;
 
     migrate_del_blocker(vsc->migration_blocker);
     error_free(vsc->migration_blocker);
@@ -223,7 +224,7 @@ static void vhost_scsi_unrealize(DeviceState *dev, Error **errp)
     vhost_scsi_set_status(vdev, 0);
 
     vhost_dev_cleanup(&vsc->dev);
-    g_free(vsc->dev.vqs);
+    g_free(vqs);
 
     virtio_scsi_common_unrealize(dev, errp);
 }

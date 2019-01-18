@@ -309,7 +309,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     CharBackend *chr = &s->chr;
     VhostUserMsg msg;
     uint8_t *p = (uint8_t *) &msg;
-    int fd;
+    int fd = -1;
 
     if (s->test_fail) {
         qemu_chr_fe_disconnect(chr);

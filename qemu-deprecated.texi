@@ -126,11 +126,6 @@ documentation of ``query-hotpluggable-cpus'' for additional details.
 
 @section System emulator devices
 
-@subsection ivshmem (since 2.6.0)
-
-The ``ivshmem'' device type is replaced by either the ``ivshmem-plain''
-or ``ivshmem-doorbell`` device types.
-
 @subsection bluetooth (since 3.1)
 
 The bluetooth subsystem is unmaintained since many years and likely bitrotten

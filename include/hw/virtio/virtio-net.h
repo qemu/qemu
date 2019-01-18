@@ -44,6 +44,83 @@ typedef struct virtio_net_conf
     uint8_t duplex;
 } virtio_net_conf;
 
+/* Coalesced packets type & status */
+typedef enum {
+    RSC_COALESCE,           /* Data been coalesced */
+    RSC_FINAL,              /* Will terminate current connection */
+    RSC_NO_MATCH,           /* No matched in the buffer pool */
+    RSC_BYPASS,             /* Packet to be bypass, not tcp, tcp ctrl, etc */
+    RSC_CANDIDATE                /* Data want to be coalesced */
+} CoalesceStatus;
+
+typedef struct VirtioNetRscStat {
+    uint32_t received;
+    uint32_t coalesced;
+    uint32_t over_size;
+    uint32_t cache;
+    uint32_t empty_cache;
+    uint32_t no_match_cache;
+    uint32_t win_update;
+    uint32_t no_match;
+    uint32_t tcp_syn;
+    uint32_t tcp_ctrl_drain;
+    uint32_t dup_ack;
+    uint32_t dup_ack1;
+    uint32_t dup_ack2;
+    uint32_t pure_ack;
+    uint32_t ack_out_of_win;
+    uint32_t data_out_of_win;
+    uint32_t data_out_of_order;
+    uint32_t data_after_pure_ack;
+    uint32_t bypass_not_tcp;
+    uint32_t tcp_option;
+    uint32_t tcp_all_opt;
+    uint32_t ip_frag;
+    uint32_t ip_ecn;
+    uint32_t ip_hacked;
+    uint32_t ip_option;
+    uint32_t purge_failed;
+    uint32_t drain_failed;
+    uint32_t final_failed;
+    int64_t  timer;
+} VirtioNetRscStat;
+
+/* Rsc unit general info used to checking if can coalescing */
+typedef struct VirtioNetRscUnit {
+    void *ip;   /* ip header */
+    uint16_t *ip_plen;      /* data len pointer in ip header field */
+    struct tcp_header *tcp; /* tcp header */
+    uint16_t tcp_hdrlen;    /* tcp header len */
+    uint16_t payload;       /* pure payload without virtio/eth/ip/tcp */
+} VirtioNetRscUnit;
+
+/* Coalesced segmant */
+typedef struct VirtioNetRscSeg {
+    QTAILQ_ENTRY(VirtioNetRscSeg) next;
+    void *buf;
+    size_t size;
+    uint16_t packets;
+    uint16_t dup_ack;
+    bool is_coalesced;      /* need recal ipv4 header checksum, mark here */
+    VirtioNetRscUnit unit;
+    NetClientState *nc;
+} VirtioNetRscSeg;
+
+struct VirtIONet;
+typedef struct VirtIONet VirtIONet;
+
+/* Chain is divided by protocol(ipv4/v6) and NetClientInfo */
+typedef struct VirtioNetRscChain {
+    QTAILQ_ENTRY(VirtioNetRscChain) next;
+    VirtIONet *n;                            /* VirtIONet */
+    uint16_t proto;
+    uint8_t  gso_type;
+    uint16_t max_payload;
+    QEMUTimer *drain_timer;
+    QTAILQ_HEAD(, VirtioNetRscSeg) buffers;
+    VirtioNetRscStat stat;
+} VirtioNetRscChain;
+
 /* Maximum packet size we can receive from tap device: header + 64k */
 #define VIRTIO_NET_MAX_BUFSIZE (sizeof(struct virtio_net_hdr) + (64 * KiB))
 
@@ -66,12 +143,18 @@ typedef struct VirtIONet {
     VirtIONetQueue *vqs;
     VirtQueue *ctrl_vq;
     NICState *nic;
+    /* RSC Chains - temporary storage of coalesced data,
+       all these data are lost in case of migration */
+    QTAILQ_HEAD(, VirtioNetRscChain) rsc_chains;
     uint32_t tx_timeout;
     int32_t tx_burst;
     uint32_t has_vnet_hdr;
     size_t host_hdr_len;
     size_t guest_hdr_len;
     uint64_t host_features;
+    uint32_t rsc_timeout;
+    uint8_t rsc4_enabled;
+    uint8_t rsc6_enabled;
     uint8_t has_ufo;
     uint32_t mergeable_rx_bufs;
     uint8_t promisc;

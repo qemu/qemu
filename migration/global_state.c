@@ -42,6 +42,7 @@ int global_state_store(void)
 void global_state_store_running(void)
 {
     const char *state = RunState_str(RUN_STATE_RUNNING);
+    assert(strlen(state) < sizeof(global_state.runstate));
     strncpy((char *)global_state.runstate,
            state, sizeof(global_state.runstate));
 }
@@ -88,6 +89,17 @@ static int global_state_post_load(void *opaque, int version_id)
     s->received = true;
     trace_migrate_global_state_post_load(runstate);
 
+    if (strnlen((char *)s->runstate,
+                sizeof(s->runstate)) == sizeof(s->runstate)) {
+        /*
+         * This condition should never happen during migration, because
+         * all runstate names are shorter than 100 bytes (the size of
+         * s->runstate). However, a malicious stream could overflow
+         * the qapi_enum_parse() call, so we force the last character
+         * to a NUL byte.
+         */
+        s->runstate[sizeof(s->runstate) - 1] = '\0';
+    }
     r = qapi_enum_parse(&RunState_lookup, runstate, -1, &local_err);
 
     if (r == -1) {
@@ -106,7 +118,8 @@ static int global_state_pre_save(void *opaque)
     GlobalState *s = opaque;
 
     trace_migrate_global_state_pre_save((char *)s->runstate);
-    s->size = strlen((char *)s->runstate) + 1;
+    s->size = strnlen((char *)s->runstate, sizeof(s->runstate)) + 1;
+    assert(s->size <= sizeof(s->runstate));
 
     return 0;
 }

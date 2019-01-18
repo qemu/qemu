@@ -345,7 +345,7 @@ int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
     char *name;
     uint32_t bar_size = 4096;
     uint32_t bar_pba_offset = bar_size / 2;
-    uint32_t bar_pba_size = (nentries / 8 + 1) * 8;
+    uint32_t bar_pba_size = QEMU_ALIGN_UP(nentries, 64) / 8;
 
     /*
      * Migration compatibility dictates that this remains a 4k
