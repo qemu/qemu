@@ -46,6 +46,7 @@ struct pvh_e820_table {
 struct pvh_e820_table pvh_e820 asm("pvh_e820") __attribute__ ((aligned));
 
 static struct hvm_start_info start_info;
+static struct hvm_modlist_entry ramdisk_mod;
 static uint8_t cmdline_buffer[CMDLINE_BUFSIZE];
 
 
@@ -71,8 +72,8 @@ extern void pvh_load_kernel(void) asm("pvh_load_kernel");
 void pvh_load_kernel(void)
 {
     void *cmdline_addr = &cmdline_buffer;
-    void *kernel_entry;
-    uint32_t cmdline_size, fw_cfg_version = bios_cfg_version();
+    void *kernel_entry, *initrd_addr;
+    uint32_t cmdline_size, initrd_size, fw_cfg_version = bios_cfg_version();
 
     start_info.magic = XEN_HVM_START_MAGIC_VALUE;
     start_info.version = 1;
@@ -109,6 +110,22 @@ void pvh_load_kernel(void)
     bios_cfg_read_entry(cmdline_addr, FW_CFG_CMDLINE_DATA, cmdline_size,
                         fw_cfg_version);
     start_info.cmdline_paddr = (uintptr_t)cmdline_addr;
+
+    /* Check if we have the initrd to load */
+    bios_cfg_read_entry(&initrd_size, FW_CFG_INITRD_SIZE, 4, fw_cfg_version);
+    if (initrd_size) {
+        bios_cfg_read_entry(&initrd_addr, FW_CFG_INITRD_ADDR, 4,
+                            fw_cfg_version);
+        bios_cfg_read_entry(initrd_addr, FW_CFG_INITRD_DATA, initrd_size,
+                            fw_cfg_version);
+
+        ramdisk_mod.paddr = (uintptr_t)initrd_addr;
+        ramdisk_mod.size = initrd_size;
+
+        /* The first module is always ramdisk. */
+        start_info.modlist_paddr = (uintptr_t)&ramdisk_mod;
+        start_info.nr_modules = 1;
+    }
 
     bios_cfg_read_entry(&kernel_entry, FW_CFG_KERNEL_ENTRY, 4, fw_cfg_version);
 
