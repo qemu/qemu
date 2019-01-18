@@ -103,6 +103,10 @@
 /pc-bios/optionrom/linuxboot_dma.bin
 /pc-bios/optionrom/linuxboot_dma.raw
 /pc-bios/optionrom/linuxboot_dma.img
+/pc-bios/optionrom/pvh.asm
+/pc-bios/optionrom/pvh.bin
+/pc-bios/optionrom/pvh.raw
+/pc-bios/optionrom/pvh.img
 /pc-bios/optionrom/multiboot.asm
 /pc-bios/optionrom/multiboot.bin
 /pc-bios/optionrom/multiboot.raw
