@@ -389,12 +389,12 @@ static int count_contiguous_clusters(BlockDriverState *bs, int nb_clusters,
     uint64_t first_entry = be64_to_cpu(l2_slice[0]);
     uint64_t offset = first_entry & mask;
 
-    if (!offset) {
+    first_cluster_type = qcow2_get_cluster_type(bs, first_entry);
+    if (first_cluster_type == QCOW2_CLUSTER_UNALLOCATED) {
         return 0;
     }
 
     /* must be allocated */
-    first_cluster_type = qcow2_get_cluster_type(bs, first_entry);
     assert(first_cluster_type == QCOW2_CLUSTER_NORMAL ||
            first_cluster_type == QCOW2_CLUSTER_ZERO_ALLOC);
 
