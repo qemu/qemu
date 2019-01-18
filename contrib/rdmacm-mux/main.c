@@ -350,7 +350,7 @@ static int get_fd(const char *mad, int *fd, __be64 *gid_ifid)
 static void *umad_recv_thread_func(void *args)
 {
     int rc;
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg = {};
     int fd = -2;
 
     msg.hdr.msg_type = RDMACM_MUX_MSG_TYPE_REQ;
@@ -387,7 +387,7 @@ static void *umad_recv_thread_func(void *args)
 static int read_and_process(int fd)
 {
     int rc;
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg = {};
     struct umad_hdr *hdr;
     uint32_t *comm_id = 0;
     uint16_t attr_id;
@@ -744,7 +744,7 @@ static void signal_handler(int sig, siginfo_t *siginfo, void *context)
 static int init(void)
 {
     int rc;
-    struct sigaction sig = {0};
+    struct sigaction sig = {};
 
     rc = init_listener();
     if (rc) {
