@@ -114,7 +114,7 @@ static int command(BlockBackend *blk, const cmdinfo_t *ct, int argc,
         }
     }
 
-    optind = 0;
+    qemu_reset_optind();
     return ct->cfunc(blk, argc, argv);
 }
 
