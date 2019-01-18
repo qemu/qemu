@@ -58,12 +58,6 @@ asm(
 "   jmp load_kernel\n"
 );
 
-/* QEMU_CFG_DMA_CONTROL bits */
-#define BIOS_CFG_DMA_CTL_ERROR   0x01
-#define BIOS_CFG_DMA_CTL_READ    0x02
-#define BIOS_CFG_DMA_CTL_SKIP    0x04
-#define BIOS_CFG_DMA_CTL_SELECT  0x08
-
 #define BIOS_CFG_DMA_ADDR_HIGH 0x514
 #define BIOS_CFG_DMA_ADDR_LOW  0x518
 
@@ -74,12 +68,6 @@ asm(
 #include "../../include/standard-headers/linux/qemu_fw_cfg.h"
 
 #define barrier() asm("" : : : "memory")
-
-typedef struct FWCfgDmaAccess {
-    uint32_t control;
-    uint32_t length;
-    uint64_t address;
-} __attribute__((packed)) FWCfgDmaAccess;
 
 static inline void outl(uint32_t value, uint16_t port)
 {
@@ -153,9 +141,9 @@ static inline uint32_t be32_to_cpu(uint32_t x)
 static __attribute__((__noinline__))
 void bios_cfg_read_entry(void *buf, uint16_t entry, uint32_t len)
 {
-    FWCfgDmaAccess access;
-    uint32_t control = (entry << 16) | BIOS_CFG_DMA_CTL_SELECT
-                        | BIOS_CFG_DMA_CTL_READ;
+    struct fw_cfg_dma_access access;
+    uint32_t control = (entry << 16) | FW_CFG_DMA_CTL_SELECT
+                        | FW_CFG_DMA_CTL_READ;
 
     access.address = cpu_to_be64((uint64_t)(uint32_t)buf);
     access.length = cpu_to_be32(len);
@@ -165,7 +153,7 @@ void bios_cfg_read_entry(void *buf, uint16_t entry, uint32_t len)
 
     outl(cpu_to_be32((uint32_t)&access), BIOS_CFG_DMA_ADDR_LOW);
 
-    while (be32_to_cpu(access.control) & ~BIOS_CFG_DMA_CTL_ERROR) {
+    while (be32_to_cpu(access.control) & ~FW_CFG_DMA_CTL_ERROR) {
         barrier();
     }
 }
