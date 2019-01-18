@@ -660,7 +660,7 @@ void s390_pci_iommu_enable(S390PCIIOMMU *iommu)
     char *name = g_strdup_printf("iommu-s390-%04x", iommu->pbdev->uid);
     memory_region_init_iommu(&iommu->iommu_mr, sizeof(iommu->iommu_mr),
                              TYPE_S390_IOMMU_MEMORY_REGION, OBJECT(&iommu->mr),
-                             name, iommu->pal + 1);
+                             name, iommu->pal - iommu->pba + 1);
     iommu->enabled = true;
     memory_region_add_subregion(&iommu->mr, 0, MEMORY_REGION(&iommu->iommu_mr));
     g_free(name);
@@ -818,27 +818,42 @@ static bool s390_pci_alloc_idx(S390pciState *s, S390PCIBusDevice *pbdev)
     }
 
     pbdev->idx = idx;
-    s->next_idx = (idx + 1) & FH_MASK_INDEX;
-
     return true;
 }
 
-static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                              Error **errp)
+static void s390_pcihost_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                   Error **errp)
 {
-    PCIDevice *pdev = NULL;
-    S390PCIBusDevice *pbdev = NULL;
-    S390pciState *s = s390_get_phb();
+    S390pciState *s = S390_PCI_HOST_BRIDGE(hotplug_dev);
 
-    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
-        BusState *bus;
-        PCIBridge *pb = PCI_BRIDGE(dev);
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         PCIDevice *pdev = PCI_DEVICE(dev);
 
         if (pdev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION) {
             error_setg(errp, "multifunction not supported in s390");
             return;
         }
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
+        S390PCIBusDevice *pbdev = S390_PCI_DEVICE(dev);
+
+        if (!s390_pci_alloc_idx(s, pbdev)) {
+            error_setg(errp, "no slot for plugging zpci device");
+            return;
+        }
+    }
+}
+
+static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                              Error **errp)
+{
+    S390pciState *s = S390_PCI_HOST_BRIDGE(hotplug_dev);
+    PCIDevice *pdev = NULL;
+    S390PCIBusDevice *pbdev = NULL;
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
+        BusState *bus;
+        PCIBridge *pb = PCI_BRIDGE(dev);
+        PCIDevice *pdev = PCI_DEVICE(dev);
 
         pci_bridge_map_irq(pb, dev->id, s390_pci_map_irq);
         pci_setup_iommu(&pb->sec_bus, s390_pci_dma_iommu, s);
@@ -858,11 +873,6 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
         pdev = PCI_DEVICE(dev);
-
-        if (pdev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION) {
-            error_setg(errp, "multifunction not supported in s390");
-            return;
-        }
 
         if (!dev->id) {
             /* In the case the PCI device does not define an id */
@@ -899,19 +909,19 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         }
 
         if (dev->hotplugged) {
-            s390_pci_generate_plug_event(HP_EVENT_RESERVED_TO_STANDBY,
+            s390_pci_generate_plug_event(HP_EVENT_TO_CONFIGURED ,
                                          pbdev->fh, pbdev->fid);
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
         pbdev = S390_PCI_DEVICE(dev);
 
-        if (!s390_pci_alloc_idx(s, pbdev)) {
-            error_setg(errp, "no slot for plugging zpci device");
-            return;
-        }
+        /* the allocated idx is actually getting used */
+        s->next_idx = (pbdev->idx + 1) & FH_MASK_INDEX;
         pbdev->fh = pbdev->idx;
         QTAILQ_INSERT_TAIL(&s->zpci_devs, pbdev, link);
         g_hash_table_insert(s->zpci_table, &pbdev->idx, pbdev);
+    } else {
+        g_assert_not_reached();
     }
 }
 
@@ -935,11 +945,11 @@ static void s390_pcihost_timer_cb(void *opaque)
 static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
+    S390pciState *s = S390_PCI_HOST_BRIDGE(hotplug_dev);
     PCIDevice *pci_dev = NULL;
     PCIBus *bus;
     int32_t devfn;
     S390PCIBusDevice *pbdev = NULL;
-    S390pciState *s = s390_get_phb();
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
         error_setg(errp, "PCI bridge hot unplug currently not supported");
@@ -956,6 +966,8 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
         pbdev = S390_PCI_DEVICE(dev);
         pci_dev = pbdev->pdev;
+    } else {
+        g_assert_not_reached();
     }
 
     switch (pbdev->state) {
@@ -964,6 +976,9 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     case ZPCI_FS_STANDBY:
         break;
     default:
+        if (pbdev->release_timer) {
+            return;
+        }
         s390_pci_generate_plug_event(HP_EVENT_DECONFIGURE_REQUEST,
                                      pbdev->fh, pbdev->fid);
         pbdev->release_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
@@ -974,7 +989,7 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    if (pbdev->release_timer && timer_pending(pbdev->release_timer)) {
+    if (pbdev->release_timer) {
         timer_del(pbdev->release_timer);
         timer_free(pbdev->release_timer);
         pbdev->release_timer = NULL;
@@ -985,6 +1000,7 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     bus = pci_get_bus(pci_dev);
     devfn = pci_dev->devfn;
     object_unparent(OBJECT(pci_dev));
+    fmb_timer_free(pbdev);
     s390_pci_msix_free(pbdev);
     s390_pci_iommu_free(s, bus, devfn);
     pbdev->pdev = NULL;
@@ -1041,6 +1057,7 @@ static void s390_pcihost_class_init(ObjectClass *klass, void *data)
 
     dc->reset = s390_pcihost_reset;
     dc->realize = s390_pcihost_realize;
+    hc->pre_plug = s390_pcihost_pre_plug;
     hc->plug = s390_pcihost_plug;
     hc->unplug = s390_pcihost_unplug;
     msi_nonbroken = true;
@@ -1132,6 +1149,7 @@ static void s390_pci_device_realize(DeviceState *dev, Error **errp)
     }
 
     zpci->state = ZPCI_FS_RESERVED;
+    zpci->fmb.format = ZPCI_FMB_FORMAT;
 }
 
 static void s390_pci_device_reset(DeviceState *dev)
@@ -1156,7 +1174,7 @@ static void s390_pci_device_reset(DeviceState *dev)
         pci_dereg_ioat(pbdev->iommu);
     }
 
-    pbdev->fmb_addr = 0;
+    fmb_timer_free(pbdev);
 }
 
 static void s390_pci_get_fid(Object *obj, Visitor *v, const char *name,

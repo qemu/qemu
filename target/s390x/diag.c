@@ -130,7 +130,7 @@ out:
         }
         return;
     default:
-        hw_error("Unhandled diag308 subcode %" PRIx64, subcode);
+        s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, ra);
         break;
     }
 }
