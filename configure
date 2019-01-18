@@ -1797,6 +1797,9 @@ if ! $python -c 'import sys; sys.exit(sys.version_info < (2,7))'; then
       "Use --python=/path/to/python to specify a supported Python."
 fi
 
+# Preserve python version since some functionality is dependent on it
+python_version=$($python -V 2>&1 | sed -e 's/Python\ //')
+
 # Suppress writing compiled files
 python="$python -B"
 
@@ -6010,7 +6013,7 @@ echo "LDFLAGS           $LDFLAGS"
 echo "QEMU_LDFLAGS      $QEMU_LDFLAGS"
 echo "make              $make"
 echo "install           $install"
-echo "python            $python"
+echo "python            $python ($python_version)"
 if test "$slirp" = "yes" ; then
     echo "smbd              $smbd"
 fi
@@ -6959,6 +6962,7 @@ echo "INSTALL_DATA=$install -c -m 0644" >> $config_host_mak
 echo "INSTALL_PROG=$install -c -m 0755" >> $config_host_mak
 echo "INSTALL_LIB=$install -c -m 0644" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
+echo "PYTHON_VERSION=$python_version" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 if $iasl -h > /dev/null 2>&1; then
   echo "IASL=$iasl" >> $config_host_mak

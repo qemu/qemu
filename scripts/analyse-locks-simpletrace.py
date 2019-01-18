@@ -7,7 +7,6 @@
 #
 
 from __future__ import print_function
-import os
 import simpletrace
 import argparse
 import numpy as np

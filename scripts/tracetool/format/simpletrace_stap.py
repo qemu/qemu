@@ -14,7 +14,7 @@ __email__      = "stefanha@redhat.com"
 
 
 from tracetool import out
-from tracetool.backend.dtrace import binary, probeprefix
+from tracetool.backend.dtrace import probeprefix
 from tracetool.backend.simple import is_string
 from tracetool.format.stap import stap_escape
 
