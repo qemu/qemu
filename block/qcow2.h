@@ -463,6 +463,8 @@ typedef enum QCow2MetadataOverlap {
 
 #define REFT_OFFSET_MASK 0xfffffffffffffe00ULL
 
+#define INV_OFFSET (-1ULL)
+
 static inline bool has_data_file(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;

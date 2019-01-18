@@ -1109,9 +1109,9 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
 
 /*
  * Checks how many already allocated clusters that don't require a copy on
- * write there are at the given guest_offset (up to *bytes). If
- * *host_offset is not zero, only physically contiguous clusters beginning at
- * this host offset are counted.
+ * write there are at the given guest_offset (up to *bytes). If *host_offset is
+ * not INV_OFFSET, only physically contiguous clusters beginning at this host
+ * offset are counted.
  *
  * Note that guest_offset may not be cluster aligned. In this case, the
  * returned *host_offset points to exact byte referenced by guest_offset and
@@ -1143,8 +1143,8 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
     trace_qcow2_handle_copied(qemu_coroutine_self(), guest_offset, *host_offset,
                               *bytes);
 
-    assert(*host_offset == 0 ||    offset_into_cluster(s, guest_offset)
-                                == offset_into_cluster(s, *host_offset));
+    assert(*host_offset == INV_OFFSET || offset_into_cluster(s, guest_offset)
+                                      == offset_into_cluster(s, *host_offset));
 
     /*
      * Calculate the number of clusters to look for. We stop at L2 slice
@@ -1182,7 +1182,7 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
             goto out;
         }
 
-        if (*host_offset != 0 && !offset_matches) {
+        if (*host_offset != INV_OFFSET && !offset_matches) {
             *bytes = 0;
             ret = 0;
             goto out;
@@ -1225,10 +1225,10 @@ out:
  * contain the number of clusters that have been allocated and are contiguous
  * in the image file.
  *
- * If *host_offset is non-zero, it specifies the offset in the image file at
- * which the new clusters must start. *nb_clusters can be 0 on return in this
- * case if the cluster at host_offset is already in use. If *host_offset is
- * zero, the clusters can be allocated anywhere in the image file.
+ * If *host_offset is not INV_OFFSET, it specifies the offset in the image file
+ * at which the new clusters must start. *nb_clusters can be 0 on return in
+ * this case if the cluster at host_offset is already in use. If *host_offset
+ * is INV_OFFSET, the clusters can be allocated anywhere in the image file.
  *
  * *host_offset is updated to contain the offset into the image file at which
  * the first allocated cluster starts.
@@ -1247,7 +1247,7 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
 
     /* Allocate new clusters */
     trace_qcow2_cluster_alloc_phys(qemu_coroutine_self());
-    if (*host_offset == 0) {
+    if (*host_offset == INV_OFFSET) {
         int64_t cluster_offset =
             qcow2_alloc_clusters(bs, *nb_clusters * s->cluster_size);
         if (cluster_offset < 0) {
@@ -1267,8 +1267,8 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
 
 /*
  * Allocates new clusters for an area that either is yet unallocated or needs a
- * copy on write. If *host_offset is non-zero, clusters are only allocated if
- * the new allocation can match the specified host offset.
+ * copy on write. If *host_offset is not INV_OFFSET, clusters are only
+ * allocated if the new allocation can match the specified host offset.
  *
  * Note that guest_offset may not be cluster aligned. In this case, the
  * returned *host_offset points to exact byte referenced by guest_offset and
@@ -1296,7 +1296,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     int ret;
     bool keep_old_clusters = false;
 
-    uint64_t alloc_cluster_offset = 0;
+    uint64_t alloc_cluster_offset = INV_OFFSET;
 
     trace_qcow2_handle_alloc(qemu_coroutine_self(), guest_offset, *host_offset,
                              *bytes);
@@ -1335,7 +1335,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
 
     if (qcow2_get_cluster_type(bs, entry) == QCOW2_CLUSTER_ZERO_ALLOC &&
         (entry & QCOW_OFLAG_COPIED) &&
-        (!*host_offset ||
+        (*host_offset == INV_OFFSET ||
          start_of_cluster(s, *host_offset) == (entry & L2E_OFFSET_MASK)))
     {
         int preallocated_nb_clusters;
@@ -1367,9 +1367,10 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
 
     qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
 
-    if (!alloc_cluster_offset) {
+    if (alloc_cluster_offset == INV_OFFSET) {
         /* Allocate, if necessary at a given offset in the image file */
-        alloc_cluster_offset = start_of_cluster(s, *host_offset);
+        alloc_cluster_offset = *host_offset == INV_OFFSET ? INV_OFFSET :
+                               start_of_cluster(s, *host_offset);
         ret = do_alloc_cluster_offset(bs, guest_offset, &alloc_cluster_offset,
                                       &nb_clusters);
         if (ret < 0) {
@@ -1382,16 +1383,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
             return 0;
         }
 
-        /* !*host_offset would overwrite the image header and is reserved for
-         * "no host offset preferred". If 0 was a valid host offset, it'd
-         * trigger the following overlap check; do that now to avoid having an
-         * invalid value in *host_offset. */
-        if (!alloc_cluster_offset) {
-            ret = qcow2_pre_write_overlap_check(bs, 0, alloc_cluster_offset,
-                                                nb_clusters * s->cluster_size);
-            assert(ret < 0);
-            goto fail;
-        }
+        assert(alloc_cluster_offset != INV_OFFSET);
     }
 
     /*
@@ -1483,14 +1475,14 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
 again:
     start = offset;
     remaining = *bytes;
-    cluster_offset = 0;
-    *host_offset = 0;
+    cluster_offset = INV_OFFSET;
+    *host_offset = INV_OFFSET;
     cur_bytes = 0;
     *m = NULL;
 
     while (true) {
 
-        if (!*host_offset) {
+        if (*host_offset == INV_OFFSET && cluster_offset != INV_OFFSET) {
             *host_offset = start_of_cluster(s, cluster_offset);
         }
 
@@ -1498,7 +1490,10 @@ again:
 
         start           += cur_bytes;
         remaining       -= cur_bytes;
-        cluster_offset  += cur_bytes;
+
+        if (cluster_offset != INV_OFFSET) {
+            cluster_offset += cur_bytes;
+        }
 
         if (remaining == 0) {
             break;
@@ -1570,7 +1565,7 @@ again:
 
     *bytes -= remaining;
     assert(*bytes > 0);
-    assert(*host_offset != 0);
+    assert(*host_offset != INV_OFFSET);
 
     return 0;
 }
