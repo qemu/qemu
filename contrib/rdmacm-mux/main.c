@@ -42,6 +42,8 @@
 
 /* The below can be override by command line parameter */
 #define UNIX_SOCKET_PATH "/var/run/rdmacm-mux"
+/* Has format %s-%s-%d" <path>-<rdma-dev--name>-<port> */
+#define SOCKET_PATH_MAX (PATH_MAX - NAME_MAX - sizeof(int) - 2)
 #define RDMA_PORT_NUM 1
 
 typedef struct RdmaCmServerArgs {
@@ -95,7 +97,7 @@ static void help(const char *progname)
 static void parse_args(int argc, char *argv[])
 {
     int c;
-    char unix_socket_path[PATH_MAX];
+    char unix_socket_path[SOCKET_PATH_MAX];
 
     strcpy(server.args.rdma_dev_name, "");
     strcpy(unix_socket_path, UNIX_SOCKET_PATH);
@@ -113,7 +115,7 @@ static void parse_args(int argc, char *argv[])
 
         case 's':
             /* This is temporary, final name will build below */
-            strncpy(unix_socket_path, optarg, PATH_MAX);
+            strncpy(unix_socket_path, optarg, SOCKET_PATH_MAX);
             break;
 
         case 'p':
