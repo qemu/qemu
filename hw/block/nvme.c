@@ -1208,6 +1208,11 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     int64_t bs_size;
     uint8_t *pci_conf;
 
+    if (!n->num_queues) {
+        error_setg(errp, "num_queues can't be zero");
+        return;
+    }
+
     if (!n->conf.blk) {
         error_setg(errp, "drive property not set");
         return;
