@@ -38,6 +38,15 @@ static uint64_t pauth_addpac(CPUARMState *env, uint64_t ptr, uint64_t modifier,
     g_assert_not_reached(); /* FIXME */
 }
 
+static uint64_t pauth_original_ptr(uint64_t ptr, ARMVAParameters param)
+{
+    uint64_t extfield = -param.select;
+    int bot_pac_bit = 64 - param.tsz;
+    int top_pac_bit = 64 - 8 * param.tbi;
+
+    return deposit64(ptr, bot_pac_bit, top_pac_bit - bot_pac_bit, extfield);
+}
+
 static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
                            ARMPACKey *key, bool data, int keynumber)
 {
@@ -46,7 +55,10 @@ static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
 
 static uint64_t pauth_strip(CPUARMState *env, uint64_t ptr, bool data)
 {
-    g_assert_not_reached(); /* FIXME */
+    ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
+    ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx, data);
+
+    return pauth_original_ptr(ptr, param);
 }
 
 static void QEMU_NORETURN pauth_trap(CPUARMState *env, int target_el,
