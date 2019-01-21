@@ -1982,6 +1982,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
 {
     unsigned int opc, op2, op3, rn, op4;
     TCGv_i64 dst;
+    TCGv_i64 modifier;
 
     opc = extract32(insn, 21, 4);
     op2 = extract32(insn, 16, 5);
@@ -1999,10 +2000,42 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
     case 2: /* RET */
         switch (op3) {
         case 0:
+            /* BR, BLR, RET */
             if (op4 != 0) {
                 goto do_unallocated;
             }
             dst = cpu_reg(s, rn);
+            break;
+
+        case 2:
+        case 3:
+            if (!dc_isar_feature(aa64_pauth, s)) {
+                goto do_unallocated;
+            }
+            if (opc == 2) {
+                /* RETAA, RETAB */
+                if (rn != 0x1f || op4 != 0x1f) {
+                    goto do_unallocated;
+                }
+                rn = 30;
+                modifier = cpu_X[31];
+            } else {
+                /* BRAAZ, BRABZ, BLRAAZ, BLRABZ */
+                if (op4 != 0x1f) {
+                    goto do_unallocated;
+                }
+                modifier = new_tmp_a64_zero(s);
+            }
+            if (s->pauth_active) {
+                dst = new_tmp_a64(s);
+                if (op3 == 2) {
+                    gen_helper_autia(dst, cpu_env, cpu_reg(s, rn), modifier);
+                } else {
+                    gen_helper_autib(dst, cpu_env, cpu_reg(s, rn), modifier);
+                }
+            } else {
+                dst = cpu_reg(s, rn);
+            }
             break;
 
         default:
@@ -2016,18 +2049,65 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         }
         break;
 
+    case 8: /* BRAA */
+    case 9: /* BLRAA */
+        if (!dc_isar_feature(aa64_pauth, s)) {
+            goto do_unallocated;
+        }
+        if (op3 != 2 || op3 != 3) {
+            goto do_unallocated;
+        }
+        if (s->pauth_active) {
+            dst = new_tmp_a64(s);
+            modifier = cpu_reg_sp(s, op4);
+            if (op3 == 2) {
+                gen_helper_autia(dst, cpu_env, cpu_reg(s, rn), modifier);
+            } else {
+                gen_helper_autib(dst, cpu_env, cpu_reg(s, rn), modifier);
+            }
+        } else {
+            dst = cpu_reg(s, rn);
+        }
+        gen_a64_set_pc(s, dst);
+        /* BLRAA also needs to load return address */
+        if (opc == 9) {
+            tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
+        }
+        break;
+
     case 4: /* ERET */
         if (s->current_el == 0) {
             goto do_unallocated;
         }
         switch (op3) {
-        case 0:
+        case 0: /* ERET */
             if (op4 != 0) {
                 goto do_unallocated;
             }
             dst = tcg_temp_new_i64();
             tcg_gen_ld_i64(dst, cpu_env,
                            offsetof(CPUARMState, elr_el[s->current_el]));
+            break;
+
+        case 2: /* ERETAA */
+        case 3: /* ERETAB */
+            if (!dc_isar_feature(aa64_pauth, s)) {
+                goto do_unallocated;
+            }
+            if (rn != 0x1f || op4 != 0x1f) {
+                goto do_unallocated;
+            }
+            dst = tcg_temp_new_i64();
+            tcg_gen_ld_i64(dst, cpu_env,
+                           offsetof(CPUARMState, elr_el[s->current_el]));
+            if (s->pauth_active) {
+                modifier = cpu_X[31];
+                if (op3 == 2) {
+                    gen_helper_autia(dst, cpu_env, dst, modifier);
+                } else {
+                    gen_helper_autib(dst, cpu_env, dst, modifier);
+                }
+            }
             break;
 
         default:
