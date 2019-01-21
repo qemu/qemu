@@ -3146,6 +3146,64 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
        s->be_data | size | MO_ALIGN);
 }
 
+/*
+ * PAC memory operations
+ *
+ *  31  30      27  26    24    22  21       12  11  10    5     0
+ * +------+-------+---+-----+-----+---+--------+---+---+----+-----+
+ * | size | 1 1 1 | V | 0 0 | M S | 1 |  imm9  | W | 1 | Rn |  Rt |
+ * +------+-------+---+-----+-----+---+--------+---+---+----+-----+
+ *
+ * Rt: the result register
+ * Rn: base address or SP
+ * V: vector flag (always 0 as of v8.3)
+ * M: clear for key DA, set for key DB
+ * W: pre-indexing flag
+ * S: sign for imm9.
+ */
+static void disas_ldst_pac(DisasContext *s, uint32_t insn,
+                           int size, int rt, bool is_vector)
+{
+    int rn = extract32(insn, 5, 5);
+    bool is_wback = extract32(insn, 11, 1);
+    bool use_key_a = !extract32(insn, 23, 1);
+    int offset;
+    TCGv_i64 tcg_addr, tcg_rt;
+
+    if (size != 3 || is_vector || !dc_isar_feature(aa64_pauth, s)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (rn == 31) {
+        gen_check_sp_alignment(s);
+    }
+    tcg_addr = read_cpu_reg_sp(s, rn, 1);
+
+    if (s->pauth_active) {
+        if (use_key_a) {
+            gen_helper_autda(tcg_addr, cpu_env, tcg_addr, cpu_X[31]);
+        } else {
+            gen_helper_autdb(tcg_addr, cpu_env, tcg_addr, cpu_X[31]);
+        }
+    }
+
+    /* Form the 10-bit signed, scaled offset.  */
+    offset = (extract32(insn, 22, 1) << 9) | extract32(insn, 12, 9);
+    offset = sextract32(offset << size, 0, 10 + size);
+    tcg_gen_addi_i64(tcg_addr, tcg_addr, offset);
+
+    tcg_rt = cpu_reg(s, rt);
+
+    do_gpr_ld(s, tcg_rt, tcg_addr, size, /* is_signed */ false,
+              /* extend */ false, /* iss_valid */ !is_wback,
+              /* iss_srt */ rt, /* iss_sf */ true, /* iss_ar */ false);
+
+    if (is_wback) {
+        tcg_gen_mov_i64(cpu_reg_sp(s, rn), tcg_addr);
+    }
+}
+
 /* Load/store register (all forms) */
 static void disas_ldst_reg(DisasContext *s, uint32_t insn)
 {
@@ -3170,6 +3228,9 @@ static void disas_ldst_reg(DisasContext *s, uint32_t insn)
             return;
         case 2:
             disas_ldst_reg_roffset(s, insn, opc, size, rt, is_vector);
+            return;
+        default:
+            disas_ldst_pac(s, insn, size, rt, is_vector);
             return;
         }
         break;
