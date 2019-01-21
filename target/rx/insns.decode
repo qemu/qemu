@@ -1,0 +1,621 @@
+#
+# Renesas RX instruction decode definitions.
+#
+# Copyright (c) 2019 Richard Henderson <richard.henderson@linaro.org>
+# Copyright (c) 2019 Yoshinori Sato <ysato@users.sourceforge.jp>
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+#
+
+&bcnd		cd dsp sz
+&jdsp		dsp sz
+&jreg		rs
+&rr		rd rs
+&ri		rd imm
+&rrr		rd rs rs2
+&rri		rd imm rs2
+&rm		rd rs ld mi
+&mi		rs ld mi imm
+&mr		rs ld mi rs2
+&mcnd		ld sz rd cd
+########
+%b1_bdsp	24:3 !function=bdsp_s
+
+@b1_bcnd_s	.... cd:1 ...			&bcnd dsp=%b1_bdsp sz=1
+@b1_bra_s	.... ....			&jdsp dsp=%b1_bdsp sz=1
+
+%b2_r_0		16:4
+%b2_li_2	18:2 !function=li
+%b2_li_8	24:2 !function=li
+%b2_dsp5_3	23:4 19:1
+
+@b2_rds		.... .... .... rd:4		&rr rs=%b2_r_0
+@b2_rds_li	.... .... .... rd:4		&rri rs2=%b2_r_0 imm=%b2_li_8
+@b2_rds_uimm4	.... .... imm:4 rd:4		&rri rs2=%b2_r_0
+@b2_rs2_uimm4	.... .... imm:4 rs2:4		&rri rd=0
+@b2_rds_imm5	.... ... imm:5 rd:4		&rri rs2=%b2_r_0
+@b2_rd_rs_li	.... .... rs2:4 rd:4		&rri imm=%b2_li_8
+@b2_rd_ld_ub	.... .. ld:2 rs:4 rd:4		&rm mi=4
+@b2_ld_imm3	.... .. ld:2 rs:4 . imm:3	&mi mi=4
+@b2_bcnd_b	.... cd:4 dsp:s8		&bcnd sz=2
+@b2_bra_b	.... .... dsp:s8		&jdsp sz=2
+
+########
+
+%b3_r_0		8:4
+%b3_li_10	18:2 !function=li
+%b3_dsp5_8	23:1 16:4
+%b3_bdsp	8:s8 16:8
+
+@b3_rd_rs	.... .... .... .... rs:4 rd:4		&rr
+@b3_rs_rd	.... .... .... .... rd:4 rs:4		&rr
+@b3_rd_li	.... .... .... .... .... rd:4 \
+		&rri rs2=%b3_r_0 imm=%b3_li_10
+@b3_rd_ld	.... .... mi:2 .... ld:2 rs:4 rd:4	&rm
+@b3_rd_ld_ub	.... .... .... .. ld:2 rs:4 rd:4	&rm mi=4
+@b3_rd_ld_ul	.... .... .... .. ld:2 rs:4 rd:4	&rm mi=2
+@b3_rd_rs_rs2	.... .... .... rd:4 rs:4 rs2:4		&rrr
+@b3_rds_imm5	.... .... ....... imm:5 rd:4		&rri rs2=%b3_r_0
+@b3_rd_rs_imm5	.... .... ... imm:5 rs2:4 rd:4		&rri
+@b3_bcnd_w	.... ... cd:1 .... .... .... ....	&bcnd dsp=%b3_bdsp sz=3
+@b3_bra_w	.... .... .... .... .... ....		&jdsp dsp=%b3_bdsp sz=3
+@b3_ld_rd_rs	.... .... .... .. ld:2 rs:4 rd:4	&rm mi=0
+@b3_sz_ld_rd_cd	.... .... .... sz:2 ld:2 rd:4 cd:4	&mcnd
+
+########
+
+%b4_li_18	18:2 !function=li
+%b4_dsp_16	0:s8 8:8
+%b4_bdsp	0:s8 8:8 16:8
+
+@b4_rd_ldmi	.... .... mi:2 .... ld:2 .... .... rs:4 rd:4	&rm
+@b4_bra_a	.... .... .... .... .... .... .... ....	\
+		&jdsp dsp=%b4_bdsp sz=4
+########
+# ABS rd
+ABS_rr		0111 1110 0010 ....			@b2_rds
+# ABS rs, rd
+ABS_rr		1111 1100 0000 1111 .... ....		@b3_rd_rs
+
+# ADC #imm, rd
+ADC_ir		1111 1101 0111 ..00 0010 ....		@b3_rd_li
+# ADC rs, rd
+ADC_rr		1111 1100 0000 1011 .... ....		@b3_rd_rs
+# ADC dsp[rs].l, rd
+# Note only mi==2 allowed.
+ADC_mr		0000 0110 ..10 00.. 0000 0010 .... ....	@b4_rd_ldmi
+
+# ADD #uimm4, rd
+ADD_irr		0110 0010 .... ....			@b2_rds_uimm4
+# ADD #imm, rs, rd
+ADD_irr		0111 00.. .... ....			@b2_rd_rs_li
+# ADD dsp[rs].ub, rd
+# ADD rs, rd
+ADD_mr		0100 10.. .... ....			@b2_rd_ld_ub
+# ADD dsp[rs], rd
+ADD_mr		0000 0110 ..00 10.. .... ....		@b3_rd_ld
+# ADD rs, rs2, rd
+ADD_rrr		1111 1111 0010 .... .... ....		@b3_rd_rs_rs2
+
+# AND #uimm4, rd
+AND_ir		0110 0100 .... ....			@b2_rds_uimm4
+# AND #imm, rd
+AND_ir		0111 01.. 0010 ....			@b2_rds_li
+# AND dsp[rs].ub, rd
+# AND rs, rd
+AND_mr		0101 00.. .... ....			@b2_rd_ld_ub
+# AND dsp[rs], rd
+AND_mr		0000 0110 ..01 00.. .... ....		@b3_rd_ld
+# AND rs, rs2, rd
+AND_rrr		1111 1111 0100 .... .... ....		@b3_rd_rs_rs2
+
+# BCLR #imm, dsp[rd]
+BCLR_im		1111 00.. .... 1...			@b2_ld_imm3
+# BCLR #imm, rs
+BCLR_ir		0111 101. .... ....			@b2_rds_imm5
+# BCLR rs, rd
+# BCLR rs, dsp[rd]
+{
+  BCLR_rr	1111 1100 0110 0111 .... ....		@b3_rs_rd
+  BCLR_rm	1111 1100 0110 01.. .... ....		@b3_rd_ld_ub
+}
+
+# BCnd.s dsp
+BCnd		0001 ....				@b1_bcnd_s
+# BRA.b dsp
+# BCnd.b dsp
+{
+  BRA		0010 1110 .... ....			@b2_bra_b
+  BCnd		0010 .... .... ....			@b2_bcnd_b
+}
+
+# BCnd.w dsp
+BCnd		0011 101 . .... .... .... ....		@b3_bcnd_w
+
+# BNOT #imm, dsp[rd]
+# BMCnd #imm, dsp[rd]
+{
+  BNOT_im	1111 1100 111 imm:3 ld:2 rs:4 1111
+  BMCnd_im	1111 1100 111 imm:3 ld:2 rd:4 cd:4
+}
+
+# BNOT #imm, rd
+# BMCnd #imm, rd
+{
+  BNOT_ir	1111 1101 111 imm:5 1111 rd:4
+  BMCnd_ir	1111 1101 111 imm:5 cd:4 rd:4
+}
+
+# BNOT rs, rd
+# BNOT rs, dsp[rd]
+{
+  BNOT_rr	1111 1100 0110 1111 .... ....		@b3_rs_rd
+  BNOT_rm	1111 1100 0110 11.. .... ....		@b3_rd_ld_ub
+}
+
+# BRA.s dsp
+BRA		0000 1 ...				@b1_bra_s
+# BRA.w dsp
+BRA		0011 1000 .... .... .... ....		@b3_bra_w
+# BRA.a dsp
+BRA		0000 0100 .... .... .... .... .... ....		@b4_bra_a
+# BRA.l rs
+BRA_l		0111 1111 0100 rd:4
+
+BRK		0000 0000
+
+# BSET #imm, dsp[rd]
+BSET_im		1111 00.. .... 0...			@b2_ld_imm3
+# BSET #imm, rd
+BSET_ir		0111 100. .... ....			@b2_rds_imm5
+# BSET rs, rd
+# BSET rs, dsp[rd]
+{
+  BSET_rr	1111 1100 0110 0011 .... ....		@b3_rs_rd
+  BSET_rm	1111 1100 0110 00.. .... ....		@b3_rd_ld_ub
+}
+
+# BSR.w dsp
+BSR		0011 1001 .... .... .... ....		@b3_bra_w
+# BSR.a dsp
+BSR		0000 0101 .... .... .... .... .... ....		@b4_bra_a
+# BSR.l rs
+BSR_l		0111 1111 0101 rd:4
+
+# BSET #imm, dsp[rd]
+BTST_im		1111 01.. .... 0...			@b2_ld_imm3
+# BSET #imm, rd
+BTST_ir		0111 110. .... ....			@b2_rds_imm5
+# BSET rs, rd
+# BSET rs, dsp[rd]
+{
+  BTST_rr	1111 1100 0110 1011 .... ....		@b3_rs_rd
+  BTST_rm	1111 1100 0110 10.. .... ....		@b3_rd_ld_ub
+}
+
+# CLRSPW psw
+CLRPSW		0111 1111 1011 cb:4
+
+# CMP #uimm4, rs2
+CMP_ir		0110 0001 .... ....			@b2_rs2_uimm4
+# CMP #uimm8, rs2
+CMP_ir		0111 0101 0101 rs2:4 imm:8		&rri rd=0
+# CMP #imm, rs2
+CMP_ir		0111 01.. 0000 rs2:4			&rri imm=%b2_li_8 rd=0
+# CMP dsp[rs].ub, rs2
+# CMP rs, rs2
+CMP_mr		0100 01.. .... ....			@b2_rd_ld_ub
+# CMP dsp[rs], rs2
+CMP_mr		0000 0110 ..00 01.. .... ....		@b3_rd_ld
+
+# DIV #imm, rd
+DIV_ir		1111 1101 0111 ..00 1000 ....		@b3_rd_li
+# DIV dsp[rs].ub, rd
+# DIV rs, rd
+DIV_mr		1111 1100 0010 00.. .... ....		@b3_rd_ld_ub
+# DIV dsp[rs], rd
+DIV_mr		0000 0110 ..10 00.. 0000 1000 .... ....	@b4_rd_ldmi
+
+# DIVU #imm, rd
+DIVU_ir		1111 1101 0111 ..00 1001 ....		@b3_rd_li
+# DIVU dsp[rs].ub, rd
+# DIVU rs, rd
+DIVU_mr		1111 1100 0010 01.. .... ....		@b3_rd_ld_ub
+# DIVU dsp[rs], rd
+DIVU_mr		0000 0110 ..10 00.. 0000 1001 .... ....	@b4_rd_ldmi
+
+# EMUL #imm, rd
+EMUL_ir		1111 1101 0111 ..00 0110 ....		@b3_rd_li
+# EMUL dsp[rs].ub, rd
+# EMUL rs, rd
+EMUL_mr		1111 1100 0001 10.. .... ....		@b3_rd_ld_ub
+# EMUL dsp[rs], rd
+EMUL_mr		0000 0110 ..10 00.. 0000 0110 .... ....	@b4_rd_ldmi
+
+# EMULU #imm, rd
+EMULU_ir	1111 1101 0111 ..00 0111 ....		@b3_rd_li
+# EMULU dsp[rs].ub, rd
+# EMULU rs, rd
+EMULU_mr	1111 1100 0001 11.. .... ....		@b3_rd_ld_ub
+# EMULU dsp[rs], rd
+EMULU_mr	0000 0110 ..10 00.. 0000 0111 .... ....	@b4_rd_ldmi
+
+# FADD #imm, rd
+FADD_ir		1111 1101 0111 0010 0010 rd:4
+# FADD rs, rd
+# FADD dsp[rs], rd
+FADD_mr		1111 1100 1000 10.. .... ....		@b3_rd_ld_ul
+
+# FCMP #imm, rd
+FCMP_ir		1111 1101 0111 0010 0001 rd:4
+# FCMP rs, rd
+# FCMP dsp[rs], rd
+FCMP_mr		1111 1100 1000 01.. .... ....		@b3_rd_ld_ul
+
+# FDIV #imm, rd
+FDIV_ir		1111 1101 0111 0010 0100 rd:4
+# FDIV rs, rd
+# FDIV dsp[rs], rd
+FDIV_mr		1111 1100 1001 00.. .... ....		@b3_rd_ld_ul
+
+# FMUL #imm, rd
+FMUL_ir		1111 1101 0111 0010 0011 rd:4
+# FMUL rs, rd
+# FMUL dsp[rs], rd
+FMUL_mr		1111 1100 1000 11.. .... ....		@b3_rd_ld_ul
+
+# FSUB #imm, rd
+FSUB_ir		1111 1101 0111 0010 0000 rd:4
+# FSUB rs, rd
+# FSUB dsp[rs], rd
+FSUB_mr		1111 1100 1000 00.. .... ....		@b3_rd_ld_ul
+
+# FTOI rs, rd
+# FTOI dsp[rs], rd
+FTOI		1111 1100 1001 01.. .... ....		@b3_rd_ld_ul
+
+# INT #uimm8
+INT		0111 0101 0110 0000 imm:8
+
+# ITOF dsp[rs].ub, rd
+# ITOF rs, rd
+ITOF		1111 1100 0100 01.. .... ....		@b3_rd_ld_ub
+# ITOF dsp[rs], rd
+ITOF		0000 0110 ..10 00.. 0001 0001 .... ....	@b4_rd_ldmi
+
+# JMP rs
+JMP		0111 1111 0000 rs:4			&jreg
+# JSR rs
+JSR		0111 1111 0001 rs:4			&jreg
+
+# MACHI rs, rs2
+MACHI		1111 1101 0000 0100 rs:4 rs2:4
+# MACLO rs, rs2
+MACLO		1111 1101 0000 0101 rs:4 rs2:4
+
+# MAX #imm, rd
+MAX_ir		1111 1101 0111 ..00 0100 ....		@b3_rd_li
+# MAX dsp[rs].ub, rd
+# MAX rs, rd
+MAX_mr		1111 1100 0001 00.. .... ....		@b3_rd_ld_ub
+# MAX dsp[rs], rd
+MAX_mr		0000 0110 ..10 00.. 0000 0100 .... ....	@b4_rd_ldmi
+
+# MIN #imm, rd
+MIN_ir		1111 1101 0111 ..00 0101 ....		@b3_rd_li
+# MIN dsp[rs].ub, rd
+# MIN rs, rd
+MIN_mr		1111 1100 0001 01.. .... ....		@b3_rd_ld_ub
+# MIN dsp[rs], rd
+MIN_mr		0000 0110 ..10 00.. 0000 0101 .... ....	@b4_rd_ldmi
+
+# MOV.b rs, dsp5[rd]
+MOV_rm		1000 0 .... rd:3 . rs:3			dsp=%b2_dsp5_3 sz=0
+# MOV.w rs, dsp5[rd]
+MOV_rm		1001 0 .... rd:3 . rs:3			dsp=%b2_dsp5_3 sz=1
+# MOV.l rs, dsp5[rd]
+MOV_rm		1010 0 .... rd:3 . rs:3			dsp=%b2_dsp5_3 sz=2
+# MOV.b dsp5[rs], rd
+MOV_mr		1000 1 .... rs:3 . rd:3			dsp=%b2_dsp5_3 sz=0
+# MOV.w dsp5[rs], rd
+MOV_mr		1001 1 .... rs:3 . rd:3			dsp=%b2_dsp5_3 sz=1
+# MOV.l dsp5[rs], rd
+MOV_mr		1010 1 .... rs:3 . rd:3			dsp=%b2_dsp5_3 sz=2
+# MOV.l #uimm4, rd
+MOV_ir		0110 0110 imm:4 rd:4
+# MOV.b #imm8, dsp5[rd]
+MOV_im		0011 1100 . rd:3 .... imm:8		sz=0 dsp=%b3_dsp5_8
+# MOV.w #imm8, dsp5[rd]
+MOV_im		0011 1101 . rd:3 .... imm:8		sz=1 dsp=%b3_dsp5_8
+# MOV.l #imm8, dsp5[rd]
+MOV_im		0011 1110 . rd:3 .... imm:8		sz=2 dsp=%b3_dsp5_8
+# MOV.l #imm8, rd
+MOV_ir		0111 0101 0100 rd:4 imm:8
+# MOV.l #mm8, rd
+MOV_ir		1111 1011 rd:4 .. 10			imm=%b2_li_2
+# MOV.<bwl> #imm, [rd]
+MOV_im		1111 1000 rd:4 .. sz:2			dsp=0 imm=%b2_li_2
+# MOV.<bwl> #imm, dsp8[rd]
+MOV_im		1111 1001 rd:4 .. sz:2 dsp:8		imm=%b3_li_10
+# MOV.<bwl> #imm, dsp16[rd]
+MOV_im		1111 1010 rd:4 .. sz:2 .... .... .... .... \
+		imm=%b4_li_18 dsp=%b4_dsp_16
+# MOV.<bwl> [ri,rb], rd
+MOV_ar		1111 1110 01 sz:2 ri:4 rb:4 rd:4
+# MOV.<bwl> rs, [ri,rb]
+MOV_ra		1111 1110 00 sz:2 ri:4 rb:4 rs:4
+# Note ldd=3 and lds=3 indicate register src or dst
+# MOV.b rs, rd
+# MOV.b rs, dsp[rd]
+# MOV.b dsp[rs], rd
+# MOV.b dsp[rs], dsp[rd]
+MOV_mm		1100 ldd:2 lds:2 rs:4 rd:4		sz=0
+# MOV.w rs, rd
+# MOV.w rs, dsp[rd]
+# MOV.w dsp[rs], rd
+# MOV.w dsp[rs], dsp[rd]
+MOV_mm		1101 ldd:2 lds:2 rs:4 rd:4		sz=1
+# MOV.l rs, rd
+# MOV.l rs, dsp[rd]
+# MOV.l dsp[rs], rd
+# MOV.l dsp[rs], dsp[rd]
+MOV_mm		1110 ldd:2 lds:2 rs:4 rd:4		sz=2
+# MOV.l rs, [rd+]
+# MOV.l rs, [-rd]
+MOV_rp		1111 1101 0010 0 ad:1 sz:2 rd:4 rs:4
+# MOV.l [rs+], rd
+# MOV.l [-rs], rd
+MOV_pr		1111 1101 0010 1 ad:1 sz:2 rd:4 rs:4
+
+# MOVU.<bw> dsp5[rs], rd
+MOVU_mr		1011 sz:1 ... . rs:3 . rd:3		dsp=%b2_dsp5_3
+# MOVU.<bw> [rs], rd
+MOVU_mr		0101 1 sz:1 00 rs:4 rd:4		dsp=0
+# MOVU.<bw> dsp8[rs], rd
+MOVU_mr		0101 1 sz:1 01 rs:4 rd:4 dsp:8
+# MOVU.<bw> dsp16[rs], rd
+MOVU_mr		0101 1 sz:1 10 rs:4 rd:4 .... .... .... .... dsp=%b4_dsp_16
+# MOVU.<bw> rs, rd
+MOVU_rr		0101 1 sz:1 11 rs:4 rd:4
+# MOVU.<bw> [ri, rb], rd
+MOVU_ar		1111 1110 110 sz:1 ri:4 rb:4 rd:4
+# MOVU.<bw> [rs+], rd
+MOVU_pr		1111 1101 0011 1 ad:1 0 sz:1 rd:4 rs:4
+
+# MUL #uimm4, rd
+MUL_ir		0110 0011 .... ....			@b2_rds_uimm4
+# MUL #imm4, rd
+MUL_ir		0111 01.. 0001 ....			@b2_rds_li
+# MUL dsp[rs].ub, rd
+# MUL rs, rd
+MUL_mr		0100 11.. .... ....			@b2_rd_ld_ub
+# MUL dsp[rs], rd
+MUL_mr		0000 0110 ..00 11.. .... ....		@b3_rd_ld
+# MOV rs, rs2, rd
+MUL_rrr		1111 1111 0011 .... .... ....		@b3_rd_rs_rs2
+
+# MULHI rs, rs2
+MULHI		1111 1101 0000 0000 rs:4 rs2:4
+# MULLO rs, rs2
+MULLO		1111 1101 0000 0001 rs:4 rs2:4
+
+# MVFACHI rd
+MVFACHI		1111 1101 0001 1111 0000 rd:4
+# MVFACMI rd
+MVFACMI		1111 1101 0001 1111 0010 rd:4
+
+# MVFC cr, rd
+MVFC		1111 1101 0110 1010 cr:4 rd:4
+
+# MVTACHI rs
+MVTACHI		1111 1101 0001 0111 0000 rs:4
+# MVTACLO rs
+MVTACLO		1111 1101 0001 0111 0001 rs:4
+
+# MVTC #imm, cr
+MVTC_i		1111 1101 0111 ..11 0000 cr:4		imm=%b3_li_10
+# MVTC rs, cr
+MVTC_r		1111 1101 0110 1000 rs:4 cr:4
+
+# MVTIPL #imm
+MVTIPL		0111 0101 0111 0000 0000 imm:4
+
+# NEG rd
+NEG_rr		0111 1110 0001 ....			@b2_rds
+# NEG rs, rd
+NEG_rr		1111 1100 0000 0111 .... ....		@b3_rd_rs
+
+NOP		0000 0011
+
+# NOT rd
+NOT_rr		0111 1110 0000 ....			@b2_rds
+# NOT rs, rd
+NOT_rr		1111 1100 0011 1011 .... ....		@b3_rd_rs
+
+# OR #uimm4, rd
+OR_ir		0110 0101 .... ....			@b2_rds_uimm4
+# OR #imm, rd
+OR_ir		0111 01.. 0011 ....			@b2_rds_li
+# OR dsp[rs].ub, rd
+# OR rs, rd
+OR_mr		0101 01.. .... ....			@b2_rd_ld_ub
+# OR dsp[rs], rd
+OR_mr		0000 0110 .. 0101 .. .... ....		@b3_rd_ld
+# OR rs, rs2, rd
+OR_rrr		1111 1111 0101 .... .... ....		@b3_rd_rs_rs2
+
+# POP cr
+POPC		0111 1110 1110 cr:4
+# POP rd-rd2
+POPM		0110 1111 rd:4 rd2:4
+
+# POP rd
+# PUSH.<bwl> rs
+{
+  POP		0111 1110 1011 rd:4
+  PUSH_r	0111 1110 10 sz:2 rs:4
+}
+# PUSH.<bwl> dsp[rs]
+PUSH_m		1111 01 ld:2 rs:4 10 sz:2
+# PUSH cr
+PUSHC		0111 1110 1100 cr:4
+# PUSHM rs-rs2
+PUSHM		0110 1110 rs:4 rs2:4
+
+# RACW #imm
+RACW		1111 1101 0001 1000 000 imm:1 0000
+
+# REVL rs,rd
+REVL		1111 1101 0110 0111 .... ....		@b3_rd_rs
+# REVW rs,rd
+REVW		1111 1101 0110 0101 .... ....		@b3_rd_rs
+
+# SMOVF
+# RPMA.<bwl>
+{
+  SMOVF		0111 1111 1000 1111
+  RMPA		0111 1111 1000 11 sz:2
+}
+
+# ROLC rd
+ROLC		0111 1110 0101 ....			@b2_rds
+# RORC rd
+RORC		0111 1110 0100 ....			@b2_rds
+
+# ROTL #imm, rd
+ROTL_ir		1111 1101 0110 111. .... ....		@b3_rds_imm5
+# ROTL rs, rd
+ROTL_rr		1111 1101 0110 0110 .... ....		@b3_rd_rs
+
+# ROTR #imm, rd
+ROTR_ir		1111 1101 0110 110. .... ....		@b3_rds_imm5
+# ROTR #imm, rd
+ROTR_rr		1111 1101 0110 0100 .... ....		@b3_rd_rs
+
+# ROUND rs,rd
+# ROUND dsp[rs],rd
+ROUND		1111 1100 1001 10 .. .... ....		@b3_ld_rd_rs
+
+RTE		0111 1111 1001 0101
+
+RTFI		0111 1111 1001 0100
+
+RTS		0000 0010
+
+# RTSD #imm
+RTSD_i		0110 0111 imm:8
+# RTSD #imm, rd-rd2
+RTSD_irr	0011 1111 rd:4 rd2:4 imm:8
+
+# SAT rd
+SAT		0111 1110 0011 ....			@b2_rds
+# SATR
+SATR		0111 1111 1001 0011
+
+# SBB rs, rd
+SBB_rr		1111 1100 0000 0011 .... ....		@b3_rd_rs
+# SBB dsp[rs].l, rd
+# Note only mi==2 allowed.
+SBB_mr		0000 0110 ..10 00.. 0000 0000 .... ....	@b4_rd_ldmi
+
+# SCCnd dsp[rd]
+# SCCnd rd
+SCCnd		1111 1100 1101 .... .... ....		@b3_sz_ld_rd_cd
+
+# SETPSW psw
+SETPSW		0111 1111 1010 cb:4
+
+# SHAR #imm, rd
+SHAR_irr	0110 101. .... ....			@b2_rds_imm5
+# SHAR #imm, rs, rd
+SHAR_irr	1111 1101 101. .... .... ....		@b3_rd_rs_imm5
+# SHAR rs, rd
+SHAR_rr		1111 1101 0110 0001 .... ....		@b3_rd_rs
+
+# SHLL #imm, rd
+SHLL_irr	0110 110. .... ....			@b2_rds_imm5
+# SHLL #imm, rs, rd
+SHLL_irr	1111 1101 110. .... .... ....		@b3_rd_rs_imm5
+# SHLL rs, rd
+SHLL_rr		1111 1101 0110 0010 .... ....		@b3_rd_rs
+
+# SHLR #imm, rd
+SHLR_irr	0110 100. .... ....			@b2_rds_imm5
+# SHLR #imm, rs, rd
+SHLR_irr	1111 1101 100. .... .... ....		@b3_rd_rs_imm5
+# SHLR rs, rd
+SHLR_rr		1111 1101 0110 0000 .... ....		@b3_rd_rs
+
+# SMOVB
+# SSTR.<bwl>
+{
+  SMOVB		0111 1111 1000 1011
+  SSTR		0111 1111 1000 10 sz:2
+}
+
+# STNZ #imm, rd
+STNZ		1111 1101 0111 ..00 1111 ....		@b3_rd_li
+# STZ #imm, rd
+STZ		1111 1101 0111 ..00 1110 ....		@b3_rd_li
+
+# SUB #uimm4, rd
+SUB_ir		0110 0000 .... ....			@b2_rds_uimm4
+# SUB dsp[rs].ub, rd
+# SUB rs, rd
+SUB_mr		0100 00.. .... ....			@b2_rd_ld_ub
+# SUB dsp[rs], rd
+SUB_mr		0000 0110 ..00 00.. .... ....		@b3_rd_ld
+# SUB rs, rs2, rd
+SUB_rrr		1111 1111 0000 .... .... ....		@b3_rd_rs_rs2
+
+# SCMPU
+# SUNTIL.<bwl>
+{
+  SCMPU		0111 1111 1000 0011
+  SUNTIL	0111 1111 1000 00 sz:2
+}
+
+# SMOVU
+# SWHILE.<bwl>
+{
+  SMOVU		0111 1111 1000 0111
+  SWHILE	0111 1111 1000 01 sz:2
+}
+
+# TST #imm, rd
+TST_ir		1111 1101 0111 ..00 1100 ....		@b3_rd_li
+# TST dsp[rs].ub, rd
+# TST rs, rd
+TST_mr		1111 1100 0011 00.. .... ....		@b3_rd_ld_ub
+# TST dsp[rs], rd
+TST_mr		0000 0110 ..10 00.. 0000 1100 .... .... @b4_rd_ldmi
+
+WAIT		0111 1111 1001 0110
+
+# XCHG rs, rd
+# XCHG dsp[rs].ub, rd
+{
+  XCHG_rr		1111 1100 0100 0011 .... ....		@b3_rd_rs
+  XCHG_mr		1111 1100 0100 00.. .... ....		@b3_rd_ld_ub
+}
+# XCHG dsp[rs], rd
+XCHG_mr		0000 0110 ..10 00.. 0001 0000 .... ....	@b4_rd_ldmi
+
+# XOR #imm, rd
+XOR_ir		1111 1101 0111 ..00 1101 ....		@b3_rd_li
+# XOR dsp[rs].ub, rd
+# XOR rs, rd
+XOR_mr		1111 1100 0011 01.. .... ....		@b3_rd_ld_ub
+# XOR dsp[rs], rd
+XOR_mr		0000 0110 ..10 00.. 0000 1101 .... ....	@b4_rd_ldmi
