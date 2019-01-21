@@ -56,6 +56,7 @@ static struct arch2cpu cpus_map[] = {
     { "hppa", "hppa" },
     { "riscv64", "rv64gcsu-v1.10.0" },
     { "riscv32", "rv32gcsu-v1.9.1" },
+    { "rx", "rx62n" },
 };
 
 static const char *get_cpu_model_by_arch(const char *arch)
