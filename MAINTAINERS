@@ -1975,6 +1975,12 @@ F: hw/char/sh_serial.c
 F: hw/timer/sh_timer.c
 F: include/hw/sh4/sh.h
 
+Renesas RX peripherals
+M: Yoshinori Sato <ysato@users.sourceforge.jp>
+S: Maintained
+F: hw/intc/rx_icu.c
+F: include/hw/intc/rx_icu.h
+
 Subsystems
 ----------
 Audio
