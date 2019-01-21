@@ -201,11 +201,16 @@ typedef struct ARMVectorReg {
     uint64_t d[2 * ARM_MAX_VQ] QEMU_ALIGNED(16);
 } ARMVectorReg;
 
-/* In AArch32 mode, predicate registers do not exist at all.  */
 #ifdef TARGET_AARCH64
+/* In AArch32 mode, predicate registers do not exist at all.  */
 typedef struct ARMPredicateReg {
     uint64_t p[2 * ARM_MAX_VQ / 8] QEMU_ALIGNED(16);
 } ARMPredicateReg;
+
+/* In AArch32 mode, PAC keys do not exist at all.  */
+typedef struct ARMPACKey {
+    uint64_t lo, hi;
+} ARMPACKey;
 #endif
 
 
@@ -604,6 +609,14 @@ typedef struct CPUARMState {
 
         uint32_t cregs[16];
     } iwmmxt;
+
+#ifdef TARGET_AARCH64
+    ARMPACKey apia_key;
+    ARMPACKey apib_key;
+    ARMPACKey apda_key;
+    ARMPACKey apdb_key;
+    ARMPACKey apga_key;
+#endif
 
 #if defined(CONFIG_USER_ONLY)
     /* For usermode syscall translation.  */
@@ -3262,6 +3275,21 @@ static inline bool isar_feature_aa64_dp(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_fcma(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, FCMA) != 0;
+}
+
+static inline bool isar_feature_aa64_pauth(const ARMISARegisters *id)
+{
+    /*
+     * Note that while QEMU will only implement the architected algorithm
+     * QARMA, and thus APA+GPA, the host cpu for kvm may use implementation
+     * defined algorithms, and thus API+GPI, and this predicate controls
+     * migration of the 128-bit keys.
+     */
+    return (id->id_aa64isar1 &
+            (FIELD_DP64(0, ID_AA64ISAR1, APA, 0xf) |
+             FIELD_DP64(0, ID_AA64ISAR1, API, 0xf) |
+             FIELD_DP64(0, ID_AA64ISAR1, GPA, 0xf) |
+             FIELD_DP64(0, ID_AA64ISAR1, GPI, 0xf))) != 0;
 }
 
 static inline bool isar_feature_aa64_fp16(const ARMISARegisters *id)
