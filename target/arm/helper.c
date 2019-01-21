@@ -7117,7 +7117,7 @@ static bool v7m_push_callee_stack(ARMCPU *cpu, uint32_t lr, bool dotailchain,
             limit = env->v7m.msplim[M_REG_S];
         }
     } else {
-        mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
+        mmu_idx = arm_mmu_idx(env);
         frame_sp_p = &env->regs[13];
         limit = v7m_sp_limit(env);
     }
@@ -7298,7 +7298,7 @@ static bool v7m_push_stack(ARMCPU *cpu)
     CPUARMState *env = &cpu->env;
     uint32_t xpsr = xpsr_read(env);
     uint32_t frameptr = env->regs[13];
-    ARMMMUIdx mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
+    ARMMMUIdx mmu_idx = arm_mmu_idx(env);
 
     /* Align stack pointer if the guest wants that */
     if ((frameptr & 4) &&
@@ -11073,7 +11073,7 @@ hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
     int prot;
     bool ret;
     ARMMMUFaultInfo fi = {};
-    ARMMMUIdx mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
+    ARMMMUIdx mmu_idx = arm_mmu_idx(env);
 
     *attrs = (MemTxAttrs) {};
 
@@ -12977,26 +12977,31 @@ ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate)
     return arm_v7m_mmu_idx_for_secstate_and_priv(env, secstate, priv);
 }
 
-int cpu_mmu_index(CPUARMState *env, bool ifetch)
+ARMMMUIdx arm_mmu_idx(CPUARMState *env)
 {
-    int el = arm_current_el(env);
+    int el;
 
     if (arm_feature(env, ARM_FEATURE_M)) {
-        ARMMMUIdx mmu_idx = arm_v7m_mmu_idx_for_secstate(env, env->v7m.secure);
-
-        return arm_to_core_mmu_idx(mmu_idx);
+        return arm_v7m_mmu_idx_for_secstate(env, env->v7m.secure);
     }
 
+    el = arm_current_el(env);
     if (el < 2 && arm_is_secure_below_el3(env)) {
-        return arm_to_core_mmu_idx(ARMMMUIdx_S1SE0 + el);
+        return ARMMMUIdx_S1SE0 + el;
+    } else {
+        return ARMMMUIdx_S12NSE0 + el;
     }
-    return el;
+}
+
+int cpu_mmu_index(CPUARMState *env, bool ifetch)
+{
+    return arm_to_core_mmu_idx(arm_mmu_idx(env));
 }
 
 void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                           target_ulong *cs_base, uint32_t *pflags)
 {
-    ARMMMUIdx mmu_idx = core_to_arm_mmu_idx(env, cpu_mmu_index(env, false));
+    ARMMMUIdx mmu_idx = arm_mmu_idx(env);
     int current_el = arm_current_el(env);
     int fp_el = fp_exception_el(env, current_el);
     uint32_t flags = 0;

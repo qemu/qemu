@@ -919,4 +919,12 @@ void arm_cpu_update_virq(ARMCPU *cpu);
  */
 void arm_cpu_update_vfiq(ARMCPU *cpu);
 
+/**
+ * arm_mmu_idx:
+ * @env: The cpu environment
+ *
+ * Return the full ARMMMUIdx for the current translation regime.
+ */
+ARMMMUIdx arm_mmu_idx(CPUARMState *env);
+
 #endif
