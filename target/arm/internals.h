@@ -104,6 +104,13 @@ void QEMU_NORETURN raise_exception(CPUARMState *env, uint32_t excp,
                                    uint32_t syndrome, uint32_t target_el);
 
 /*
+ * Similarly, but also use unwinding to restore cpu state.
+ */
+void QEMU_NORETURN raise_exception_ra(CPUARMState *env, uint32_t excp,
+                                      uint32_t syndrome, uint32_t target_el,
+                                      uintptr_t ra);
+
+/*
  * For AArch64, map a given EL to an index in the banked_spsr array.
  * Note that this mapping and the AArch32 mapping defined in bank_number()
  * must agree such that the AArch64<->AArch32 SPSRs have the architecturally
