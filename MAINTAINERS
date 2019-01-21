@@ -1983,7 +1983,9 @@ Renesas RX peripherals
 M: Yoshinori Sato <ysato@users.sourceforge.jp>
 S: Maintained
 F: hw/intc/rx_icu.c
+F: hw/rx/
 F: include/hw/intc/rx_icu.h
+F: include/hw/rx/
 
 Subsystems
 ----------

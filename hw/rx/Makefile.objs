@@ -1,0 +1,1 @@
+obj-$(CONFIG_RX62N_MCU) += rx62n.o
