@@ -61,6 +61,7 @@ struct mips_def_t {
     target_ulong CP0_EBaseWG_rw_bitmask;
     uint64_t insn_flags;
     enum mips_mmu_types mmu_type;
+    int32_t SAARP;
 };
 
 extern const struct mips_def_t mips_defs[];

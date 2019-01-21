@@ -55,8 +55,16 @@ typedef enum ITCView {
     ITCVIEW_EF_SYNC = 2,
     ITCVIEW_EF_TRY  = 3,
     ITCVIEW_PV_SYNC = 4,
-    ITCVIEW_PV_TRY  = 5
+    ITCVIEW_PV_TRY  = 5,
+    ITCVIEW_PV_ICR0 = 15,
 } ITCView;
+
+#define ITC_ICR0_CELL_NUM        16
+#define ITC_ICR0_BLK_GRAIN       8
+#define ITC_ICR0_BLK_GRAIN_MASK  0x7
+#define ITC_ICR0_ERR_AXI         2
+#define ITC_ICR0_ERR_PARITY      1
+#define ITC_ICR0_ERR_EXEC        0
 
 MemoryRegion *mips_itu_get_tag_region(MIPSITUState *itu)
 {
@@ -76,13 +84,19 @@ static uint64_t itc_tag_read(void *opaque, hwaddr addr, unsigned size)
     return tag->ITCAddressMap[index];
 }
 
-static void itc_reconfigure(MIPSITUState *tag)
+void itc_reconfigure(MIPSITUState *tag)
 {
     uint64_t *am = &tag->ITCAddressMap[0];
     MemoryRegion *mr = &tag->storage_io;
     hwaddr address = am[0] & ITC_AM0_BASE_ADDRESS_MASK;
     uint64_t size = (1 * KiB) + (am[1] & ITC_AM1_ADDR_MASK_MASK);
     bool is_enabled = (am[0] & ITC_AM0_EN_MASK) != 0;
+
+    if (tag->saar_present) {
+        address = ((*(uint64_t *) tag->saar) & 0xFFFFFFFFE000ULL) << 4;
+        size = 1 << ((*(uint64_t *) tag->saar >> 1) & 0x1f);
+        is_enabled = *(uint64_t *) tag->saar & 1;
+    }
 
     memory_region_transaction_begin();
     if (!(size & (size - 1))) {
@@ -142,7 +156,12 @@ static inline ITCView get_itc_view(hwaddr addr)
 static inline int get_cell_stride_shift(const MIPSITUState *s)
 {
     /* Minimum interval (for EntryGain = 0) is 128 B */
-    return 7 + (s->ITCAddressMap[1] & ITC_AM1_ENTRY_GRAIN_MASK);
+    if (s->saar_present) {
+        return 7 + ((s->icr0 >> ITC_ICR0_BLK_GRAIN) &
+                    ITC_ICR0_BLK_GRAIN_MASK);
+    } else {
+        return 7 + (s->ITCAddressMap[1] & ITC_AM1_ENTRY_GRAIN_MASK);
+    }
 }
 
 static inline ITCStorageCell *get_cell(MIPSITUState *s,
@@ -356,12 +375,26 @@ static void view_pv_try_write(ITCStorageCell *c)
     view_pv_common_write(c);
 }
 
+static void raise_exception(int excp)
+{
+    current_cpu->exception_index = excp;
+    cpu_loop_exit(current_cpu);
+}
+
 static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
 {
     MIPSITUState *s = (MIPSITUState *)opaque;
     ITCStorageCell *cell = get_cell(s, addr);
     ITCView view = get_itc_view(addr);
     uint64_t ret = -1;
+
+    switch (size) {
+    case 1:
+    case 2:
+        s->icr0 |= 1 << ITC_ICR0_ERR_AXI;
+        raise_exception(EXCP_DBE);
+        return 0;
+    }
 
     switch (view) {
     case ITCVIEW_BYPASS:
@@ -382,6 +415,9 @@ static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
     case ITCVIEW_PV_TRY:
         ret = view_pv_try_read(cell);
         break;
+    case ITCVIEW_PV_ICR0:
+        ret = s->icr0;
+        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "itc_storage_read: Bad ITC View %d\n", (int)view);
@@ -397,6 +433,14 @@ static void itc_storage_write(void *opaque, hwaddr addr, uint64_t data,
     MIPSITUState *s = (MIPSITUState *)opaque;
     ITCStorageCell *cell = get_cell(s, addr);
     ITCView view = get_itc_view(addr);
+
+    switch (size) {
+    case 1:
+    case 2:
+        s->icr0 |= 1 << ITC_ICR0_ERR_AXI;
+        raise_exception(EXCP_DBE);
+        return;
+    }
 
     switch (view) {
     case ITCVIEW_BYPASS:
@@ -416,6 +460,15 @@ static void itc_storage_write(void *opaque, hwaddr addr, uint64_t data,
         break;
     case ITCVIEW_PV_TRY:
         view_pv_try_write(cell);
+        break;
+    case ITCVIEW_PV_ICR0:
+        if (data & 0x7) {
+            /* clear ERROR bits */
+            s->icr0 &= ~(data & 0x7);
+        }
+        /* set BLK_GRAIN */
+        s->icr0 &= ~0x700;
+        s->icr0 |= data & 0x700;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -479,10 +532,15 @@ static void mips_itu_reset(DeviceState *dev)
 {
     MIPSITUState *s = MIPS_ITU(dev);
 
-    s->ITCAddressMap[0] = 0;
-    s->ITCAddressMap[1] =
-        ((ITC_STORAGE_ADDRSPACE_SZ - 1) & ITC_AM1_ADDR_MASK_MASK) |
-        (get_num_cells(s) << ITC_AM1_NUMENTRIES_OFS);
+    if (s->saar_present) {
+        *(uint64_t *) s->saar = 0x11 << 1;
+        s->icr0 = get_num_cells(s) << ITC_ICR0_CELL_NUM;
+    } else {
+        s->ITCAddressMap[0] = 0;
+        s->ITCAddressMap[1] =
+            ((ITC_STORAGE_ADDRSPACE_SZ - 1) & ITC_AM1_ADDR_MASK_MASK) |
+            (get_num_cells(s) << ITC_AM1_NUMENTRIES_OFS);
+    }
     itc_reconfigure(s);
 
     itc_reset_cells(s);
@@ -493,6 +551,7 @@ static Property mips_itu_properties[] = {
                       ITC_FIFO_NUM_MAX),
     DEFINE_PROP_INT32("num-semaphores", MIPSITUState, num_semaphores,
                       ITC_SEMAPH_NUM_MAX),
+    DEFINE_PROP_BOOL("saar-present", MIPSITUState, saar_present, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
