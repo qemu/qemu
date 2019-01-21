@@ -201,11 +201,16 @@ typedef struct ARMVectorReg {
     uint64_t d[2 * ARM_MAX_VQ] QEMU_ALIGNED(16);
 } ARMVectorReg;
 
-/* In AArch32 mode, predicate registers do not exist at all.  */
 #ifdef TARGET_AARCH64
+/* In AArch32 mode, predicate registers do not exist at all.  */
 typedef struct ARMPredicateReg {
     uint64_t p[2 * ARM_MAX_VQ / 8] QEMU_ALIGNED(16);
 } ARMPredicateReg;
+
+/* In AArch32 mode, PAC keys do not exist at all.  */
+typedef struct ARMPACKey {
+    uint64_t lo, hi;
+} ARMPACKey;
 #endif
 
 
@@ -468,10 +473,23 @@ typedef struct CPUARMState {
         uint64_t oslsr_el1; /* OS Lock Status */
         uint64_t mdcr_el2;
         uint64_t mdcr_el3;
-        /* If the counter is enabled, this stores the last time the counter
-         * was reset. Otherwise it stores the counter value
+        /* Stores the architectural value of the counter *the last time it was
+         * updated* by pmccntr_op_start. Accesses should always be surrounded
+         * by pmccntr_op_start/pmccntr_op_finish to guarantee the latest
+         * architecturally-correct value is being read/set.
          */
         uint64_t c15_ccnt;
+        /* Stores the delta between the architectural value and the underlying
+         * cycle count during normal operation. It is used to update c15_ccnt
+         * to be the correct architectural value before accesses. During
+         * accesses, c15_ccnt_delta contains the underlying count being used
+         * for the access, after which it reverts to the delta value in
+         * pmccntr_op_finish.
+         */
+        uint64_t c15_ccnt_delta;
+        uint64_t c14_pmevcntr[31];
+        uint64_t c14_pmevcntr_delta[31];
+        uint64_t c14_pmevtyper[31];
         uint64_t pmccfiltr_el0; /* Performance Monitor Filter Register */
         uint64_t vpidr_el2; /* Virtualization Processor ID Register */
         uint64_t vmpidr_el2; /* Virtualization Multiprocessor ID Register */
@@ -604,6 +622,14 @@ typedef struct CPUARMState {
 
         uint32_t cregs[16];
     } iwmmxt;
+
+#ifdef TARGET_AARCH64
+    ARMPACKey apia_key;
+    ARMPACKey apib_key;
+    ARMPACKey apda_key;
+    ARMPACKey apdb_key;
+    ARMPACKey apga_key;
+#endif
 
 #if defined(CONFIG_USER_ONLY)
     /* For usermode syscall translation.  */
@@ -829,8 +855,8 @@ struct ARMCPU {
     uint32_t id_pfr0;
     uint32_t id_pfr1;
     uint32_t id_dfr0;
-    uint32_t pmceid0;
-    uint32_t pmceid1;
+    uint64_t pmceid0;
+    uint64_t pmceid1;
     uint32_t id_afr0;
     uint32_t id_mmfr0;
     uint32_t id_mmfr1;
@@ -958,15 +984,42 @@ int cpu_arm_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
 /**
- * pmccntr_sync
+ * pmccntr_op_start/finish
  * @env: CPUARMState
  *
- * Synchronises the counter in the PMCCNTR. This must always be called twice,
- * once before any action that might affect the timer and again afterwards.
- * The function is used to swap the state of the register if required.
- * This only happens when not in user mode (!CONFIG_USER_ONLY)
+ * Convert the counter in the PMCCNTR between its delta form (the typical mode
+ * when it's enabled) and the guest-visible value. These two calls must always
+ * surround any action which might affect the counter.
  */
-void pmccntr_sync(CPUARMState *env);
+void pmccntr_op_start(CPUARMState *env);
+void pmccntr_op_finish(CPUARMState *env);
+
+/**
+ * pmu_op_start/finish
+ * @env: CPUARMState
+ *
+ * Convert all PMU counters between their delta form (the typical mode when
+ * they are enabled) and the guest-visible values. These two calls must
+ * surround any action which might affect the counters.
+ */
+void pmu_op_start(CPUARMState *env);
+void pmu_op_finish(CPUARMState *env);
+
+/**
+ * Functions to register as EL change hooks for PMU mode filtering
+ */
+void pmu_pre_el_change(ARMCPU *cpu, void *ignored);
+void pmu_post_el_change(ARMCPU *cpu, void *ignored);
+
+/*
+ * get_pmceid
+ * @env: CPUARMState
+ * @which: which PMCEID register to return (0 or 1)
+ *
+ * Return the PMCEID[01]_EL0 register values corresponding to the counters
+ * which are supported given the current configuration
+ */
+uint64_t get_pmceid(CPUARMState *env, unsigned which);
 
 /* SCTLR bit meanings. Several bits have been reused in newer
  * versions of the architecture; in that case we define constants
@@ -978,12 +1031,15 @@ void pmccntr_sync(CPUARMState *env);
 #define SCTLR_A       (1U << 1)
 #define SCTLR_C       (1U << 2)
 #define SCTLR_W       (1U << 3) /* up to v6; RAO in v7 */
-#define SCTLR_SA      (1U << 3)
+#define SCTLR_nTLSMD_32 (1U << 3) /* v8.2-LSMAOC, AArch32 only */
+#define SCTLR_SA      (1U << 3) /* AArch64 only */
 #define SCTLR_P       (1U << 4) /* up to v5; RAO in v6 and v7 */
+#define SCTLR_LSMAOE_32 (1U << 4) /* v8.2-LSMAOC, AArch32 only */
 #define SCTLR_SA0     (1U << 4) /* v8 onward, AArch64 only */
 #define SCTLR_D       (1U << 5) /* up to v5; RAO in v6 */
 #define SCTLR_CP15BEN (1U << 5) /* v7 onward */
 #define SCTLR_L       (1U << 6) /* up to v5; RAO in v6 and v7; RAZ in v8 */
+#define SCTLR_nAA     (1U << 6) /* when v8.4-LSE is implemented */
 #define SCTLR_B       (1U << 7) /* up to v6; RAZ in v7 */
 #define SCTLR_ITD     (1U << 7) /* v8 onward */
 #define SCTLR_S       (1U << 8) /* up to v6; RAZ in v7 */
@@ -991,35 +1047,53 @@ void pmccntr_sync(CPUARMState *env);
 #define SCTLR_R       (1U << 9) /* up to v6; RAZ in v7 */
 #define SCTLR_UMA     (1U << 9) /* v8 onward, AArch64 only */
 #define SCTLR_F       (1U << 10) /* up to v6 */
-#define SCTLR_SW      (1U << 10) /* v7 onward */
-#define SCTLR_Z       (1U << 11)
+#define SCTLR_SW      (1U << 10) /* v7, RES0 in v8 */
+#define SCTLR_Z       (1U << 11) /* in v7, RES1 in v8 */
+#define SCTLR_EOS     (1U << 11) /* v8.5-ExS */
 #define SCTLR_I       (1U << 12)
-#define SCTLR_V       (1U << 13)
+#define SCTLR_V       (1U << 13) /* AArch32 only */
+#define SCTLR_EnDB    (1U << 13) /* v8.3, AArch64 only */
 #define SCTLR_RR      (1U << 14) /* up to v7 */
 #define SCTLR_DZE     (1U << 14) /* v8 onward, AArch64 only */
 #define SCTLR_L4      (1U << 15) /* up to v6; RAZ in v7 */
 #define SCTLR_UCT     (1U << 15) /* v8 onward, AArch64 only */
 #define SCTLR_DT      (1U << 16) /* up to ??, RAO in v6 and v7 */
 #define SCTLR_nTWI    (1U << 16) /* v8 onward */
-#define SCTLR_HA      (1U << 17)
+#define SCTLR_HA      (1U << 17) /* up to v7, RES0 in v8 */
 #define SCTLR_BR      (1U << 17) /* PMSA only */
 #define SCTLR_IT      (1U << 18) /* up to ??, RAO in v6 and v7 */
 #define SCTLR_nTWE    (1U << 18) /* v8 onward */
 #define SCTLR_WXN     (1U << 19)
 #define SCTLR_ST      (1U << 20) /* up to ??, RAZ in v6 */
-#define SCTLR_UWXN    (1U << 20) /* v7 onward */
-#define SCTLR_FI      (1U << 21)
-#define SCTLR_U       (1U << 22)
+#define SCTLR_UWXN    (1U << 20) /* v7 onward, AArch32 only */
+#define SCTLR_FI      (1U << 21) /* up to v7, v8 RES0 */
+#define SCTLR_IESB    (1U << 21) /* v8.2-IESB, AArch64 only */
+#define SCTLR_U       (1U << 22) /* up to v6, RAO in v7 */
+#define SCTLR_EIS     (1U << 22) /* v8.5-ExS */
 #define SCTLR_XP      (1U << 23) /* up to v6; v7 onward RAO */
+#define SCTLR_SPAN    (1U << 23) /* v8.1-PAN */
 #define SCTLR_VE      (1U << 24) /* up to v7 */
 #define SCTLR_E0E     (1U << 24) /* v8 onward, AArch64 only */
 #define SCTLR_EE      (1U << 25)
 #define SCTLR_L2      (1U << 26) /* up to v6, RAZ in v7 */
 #define SCTLR_UCI     (1U << 26) /* v8 onward, AArch64 only */
-#define SCTLR_NMFI    (1U << 27)
-#define SCTLR_TRE     (1U << 28)
-#define SCTLR_AFE     (1U << 29)
-#define SCTLR_TE      (1U << 30)
+#define SCTLR_NMFI    (1U << 27) /* up to v7, RAZ in v7VE and v8 */
+#define SCTLR_EnDA    (1U << 27) /* v8.3, AArch64 only */
+#define SCTLR_TRE     (1U << 28) /* AArch32 only */
+#define SCTLR_nTLSMD_64 (1U << 28) /* v8.2-LSMAOC, AArch64 only */
+#define SCTLR_AFE     (1U << 29) /* AArch32 only */
+#define SCTLR_LSMAOE_64 (1U << 29) /* v8.2-LSMAOC, AArch64 only */
+#define SCTLR_TE      (1U << 30) /* AArch32 only */
+#define SCTLR_EnIB    (1U << 30) /* v8.3, AArch64 only */
+#define SCTLR_EnIA    (1U << 31) /* v8.3, AArch64 only */
+#define SCTLR_BT0     (1ULL << 35) /* v8.5-BTI */
+#define SCTLR_BT1     (1ULL << 36) /* v8.5-BTI */
+#define SCTLR_ITFSB   (1ULL << 37) /* v8.5-MemTag */
+#define SCTLR_TCF0    (3ULL << 38) /* v8.5-MemTag */
+#define SCTLR_TCF     (3ULL << 40) /* v8.5-MemTag */
+#define SCTLR_ATA0    (1ULL << 42) /* v8.5-MemTag */
+#define SCTLR_ATA     (1ULL << 43) /* v8.5-MemTag */
+#define SCTLR_DSSBS   (1ULL << 44) /* v8.5 */
 
 #define CPTR_TCPAC    (1U << 31)
 #define CPTR_TTA      (1U << 20)
@@ -1029,7 +1103,8 @@ void pmccntr_sync(CPUARMState *env);
 
 #define MDCR_EPMAD    (1U << 21)
 #define MDCR_EDAD     (1U << 20)
-#define MDCR_SPME     (1U << 17)
+#define MDCR_SPME     (1U << 17)  /* MDCR_EL3 */
+#define MDCR_HPMD     (1U << 17)  /* MDCR_EL2 */
 #define MDCR_SDD      (1U << 16)
 #define MDCR_SPD      (3U << 14)
 #define MDCR_TDRA     (1U << 11)
@@ -1039,6 +1114,7 @@ void pmccntr_sync(CPUARMState *env);
 #define MDCR_HPME     (1U << 7)
 #define MDCR_TPM      (1U << 6)
 #define MDCR_TPMCR    (1U << 5)
+#define MDCR_HPMN     (0x1fU)
 
 /* Not all of the MDCR_EL3 bits are present in the 32-bit SDCR */
 #define SDCR_VALID_MASK (MDCR_EPMAD | MDCR_EDAD | MDCR_SPME | MDCR_SPD)
@@ -1617,6 +1693,15 @@ FIELD(ID_AA64MMFR1, LO, 16, 4)
 FIELD(ID_AA64MMFR1, PAN, 20, 4)
 FIELD(ID_AA64MMFR1, SPECSEI, 24, 4)
 FIELD(ID_AA64MMFR1, XNX, 28, 4)
+
+FIELD(ID_DFR0, COPDBG, 0, 4)
+FIELD(ID_DFR0, COPSDBG, 4, 4)
+FIELD(ID_DFR0, MMAPDBG, 8, 4)
+FIELD(ID_DFR0, COPTRC, 12, 4)
+FIELD(ID_DFR0, MMAPTRC, 16, 4)
+FIELD(ID_DFR0, MPROFDBG, 20, 4)
+FIELD(ID_DFR0, PERFMON, 24, 4)
+FIELD(ID_DFR0, TRACEFILT, 28, 4)
 
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(((ARMCPU *)0)->ccsidr) <= R_V7M_CSSELR_INDEX_MASK);
 
@@ -2707,54 +2792,23 @@ static inline int arm_mmu_idx_to_el(ARMMMUIdx mmu_idx)
 }
 
 /* Return the MMU index for a v7M CPU in the specified security and
- * privilege state
+ * privilege state.
  */
-static inline ARMMMUIdx arm_v7m_mmu_idx_for_secstate_and_priv(CPUARMState *env,
-                                                              bool secstate,
-                                                              bool priv)
-{
-    ARMMMUIdx mmu_idx = ARM_MMU_IDX_M;
-
-    if (priv) {
-        mmu_idx |= ARM_MMU_IDX_M_PRIV;
-    }
-
-    if (armv7m_nvic_neg_prio_requested(env->nvic, secstate)) {
-        mmu_idx |= ARM_MMU_IDX_M_NEGPRI;
-    }
-
-    if (secstate) {
-        mmu_idx |= ARM_MMU_IDX_M_S;
-    }
-
-    return mmu_idx;
-}
+ARMMMUIdx arm_v7m_mmu_idx_for_secstate_and_priv(CPUARMState *env,
+                                                bool secstate, bool priv);
 
 /* Return the MMU index for a v7M CPU in the specified security state */
-static inline ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env,
-                                                     bool secstate)
-{
-    bool priv = arm_current_el(env) != 0;
+ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate);
 
-    return arm_v7m_mmu_idx_for_secstate_and_priv(env, secstate, priv);
-}
-
-/* Determine the current mmu_idx to use for normal loads/stores */
-static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
-{
-    int el = arm_current_el(env);
-
-    if (arm_feature(env, ARM_FEATURE_M)) {
-        ARMMMUIdx mmu_idx = arm_v7m_mmu_idx_for_secstate(env, env->v7m.secure);
-
-        return arm_to_core_mmu_idx(mmu_idx);
-    }
-
-    if (el < 2 && arm_is_secure_below_el3(env)) {
-        return arm_to_core_mmu_idx(ARMMMUIdx_S1SE0 + el);
-    }
-    return el;
-}
+/**
+ * cpu_mmu_index:
+ * @env: The cpu environment
+ * @ifetch: True for code access, false for data access.
+ *
+ * Return the core mmu index for the current translation regime.
+ * This function is used by generic TCG code paths.
+ */
+int cpu_mmu_index(CPUARMState *env, bool ifetch);
 
 /* Indexes used when registering address spaces with cpu_address_space_init */
 typedef enum ARMASIdx {
@@ -2976,10 +3030,10 @@ FIELD(TBFLAG_A32, HANDLER, 21, 1)
 FIELD(TBFLAG_A32, STACKCHECK, 22, 1)
 
 /* Bit usage when in AArch64 state */
-FIELD(TBFLAG_A64, TBI0, 0, 1)
-FIELD(TBFLAG_A64, TBI1, 1, 1)
+FIELD(TBFLAG_A64, TBII, 0, 2)
 FIELD(TBFLAG_A64, SVEEXC_EL, 2, 2)
 FIELD(TBFLAG_A64, ZCR_LEN, 4, 4)
+FIELD(TBFLAG_A64, PAUTH_ACTIVE, 8, 1)
 
 static inline bool bswap_code(bool sctlr_b)
 {
@@ -3009,41 +3063,6 @@ static inline bool arm_cpu_bswap_data(CPUARMState *env)
        1 ^
 #endif
        arm_cpu_data_is_big_endian(env);
-}
-#endif
-
-#ifndef CONFIG_USER_ONLY
-/**
- * arm_regime_tbi0:
- * @env: CPUARMState
- * @mmu_idx: MMU index indicating required translation regime
- *
- * Extracts the TBI0 value from the appropriate TCR for the current EL
- *
- * Returns: the TBI0 value.
- */
-uint32_t arm_regime_tbi0(CPUARMState *env, ARMMMUIdx mmu_idx);
-
-/**
- * arm_regime_tbi1:
- * @env: CPUARMState
- * @mmu_idx: MMU index indicating required translation regime
- *
- * Extracts the TBI1 value from the appropriate TCR for the current EL
- *
- * Returns: the TBI1 value.
- */
-uint32_t arm_regime_tbi1(CPUARMState *env, ARMMMUIdx mmu_idx);
-#else
-/* We can't handle tagged addresses properly in user-only mode */
-static inline uint32_t arm_regime_tbi0(CPUARMState *env, ARMMMUIdx mmu_idx)
-{
-    return 0;
-}
-
-static inline uint32_t arm_regime_tbi1(CPUARMState *env, ARMMMUIdx mmu_idx)
-{
-    return 0;
 }
 #endif
 
@@ -3262,6 +3281,21 @@ static inline bool isar_feature_aa64_dp(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_fcma(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, FCMA) != 0;
+}
+
+static inline bool isar_feature_aa64_pauth(const ARMISARegisters *id)
+{
+    /*
+     * Note that while QEMU will only implement the architected algorithm
+     * QARMA, and thus APA+GPA, the host cpu for kvm may use implementation
+     * defined algorithms, and thus API+GPI, and this predicate controls
+     * migration of the 128-bit keys.
+     */
+    return (id->id_aa64isar1 &
+            (FIELD_DP64(0, ID_AA64ISAR1, APA, 0xf) |
+             FIELD_DP64(0, ID_AA64ISAR1, API, 0xf) |
+             FIELD_DP64(0, ID_AA64ISAR1, GPA, 0xf) |
+             FIELD_DP64(0, ID_AA64ISAR1, GPI, 0xf))) != 0;
 }
 
 static inline bool isar_feature_aa64_fp16(const ARMISARegisters *id)

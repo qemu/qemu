@@ -138,8 +138,6 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->isar.id_isar6 = 0;
     cpu->isar.id_aa64pfr0 = 0x00002222;
     cpu->id_aa64dfr0 = 0x10305106;
-    cpu->pmceid0 = 0x00000000;
-    cpu->pmceid1 = 0x00000000;
     cpu->isar.id_aa64isar0 = 0x00011120;
     cpu->isar.id_aa64mmfr0 = 0x00001124;
     cpu->dbgdidr = 0x3516d000;
@@ -246,8 +244,6 @@ static void aarch64_a72_initfn(Object *obj)
     cpu->isar.id_isar5 = 0x00011121;
     cpu->isar.id_aa64pfr0 = 0x00002222;
     cpu->id_aa64dfr0 = 0x10305106;
-    cpu->pmceid0 = 0x00000000;
-    cpu->pmceid1 = 0x00000000;
     cpu->isar.id_aa64isar0 = 0x00011120;
     cpu->isar.id_aa64mmfr0 = 0x00001124;
     cpu->dbgdidr = 0x3516d000;
@@ -285,6 +281,38 @@ static void cpu_max_set_sve_vq(Object *obj, Visitor *v, const char *name,
     error_propagate(errp, err);
 }
 
+#ifdef CONFIG_USER_ONLY
+static void cpu_max_get_packey(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    const uint64_t *bit = opaque;
+    bool enabled = (cpu->env.cp15.sctlr_el[1] & *bit) != 0;
+
+    visit_type_bool(v, name, &enabled, errp);
+}
+
+static void cpu_max_set_packey(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    Error *err = NULL;
+    const uint64_t *bit = opaque;
+    bool enabled;
+
+    visit_type_bool(v, name, &enabled, errp);
+
+    if (!err) {
+        if (enabled) {
+            cpu->env.cp15.sctlr_el[1] |= *bit;
+        } else {
+            cpu->env.cp15.sctlr_el[1] &= ~*bit;
+        }
+    }
+    error_propagate(errp, err);
+}
+#endif
+
 /* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);
  * otherwise, a CPU with as many features enabled as our emulation supports.
  * The version of '-cpu max' for qemu-system-arm is defined in cpu.c;
@@ -316,6 +344,10 @@ static void aarch64_max_initfn(Object *obj)
 
         t = cpu->isar.id_aa64isar1;
         t = FIELD_DP64(t, ID_AA64ISAR1, FCMA, 1);
+        t = FIELD_DP64(t, ID_AA64ISAR1, APA, 1); /* PAuth, architected only */
+        t = FIELD_DP64(t, ID_AA64ISAR1, API, 0);
+        t = FIELD_DP64(t, ID_AA64ISAR1, GPA, 1);
+        t = FIELD_DP64(t, ID_AA64ISAR1, GPI, 0);
         cpu->isar.id_aa64isar1 = t;
 
         t = cpu->isar.id_aa64pfr0;
@@ -356,6 +388,34 @@ static void aarch64_max_initfn(Object *obj)
          */
         cpu->ctr = 0x80038003; /* 32 byte I and D cacheline size, VIPT icache */
         cpu->dcz_blocksize = 7; /*  512 bytes */
+
+        /*
+         * Note that Linux will enable enable all of the keys at once.
+         * But doing it this way will allow experimentation beyond that.
+         */
+        {
+            static const uint64_t apia_bit = SCTLR_EnIA;
+            static const uint64_t apib_bit = SCTLR_EnIB;
+            static const uint64_t apda_bit = SCTLR_EnDA;
+            static const uint64_t apdb_bit = SCTLR_EnDB;
+
+            object_property_add(obj, "apia", "bool", cpu_max_get_packey,
+                                cpu_max_set_packey, NULL,
+                                (void *)&apia_bit, &error_fatal);
+            object_property_add(obj, "apib", "bool", cpu_max_get_packey,
+                                cpu_max_set_packey, NULL,
+                                (void *)&apib_bit, &error_fatal);
+            object_property_add(obj, "apda", "bool", cpu_max_get_packey,
+                                cpu_max_set_packey, NULL,
+                                (void *)&apda_bit, &error_fatal);
+            object_property_add(obj, "apdb", "bool", cpu_max_get_packey,
+                                cpu_max_set_packey, NULL,
+                                (void *)&apdb_bit, &error_fatal);
+
+            /* Enable all PAC keys by default.  */
+            cpu->env.cp15.sctlr_el[1] |= SCTLR_EnIA | SCTLR_EnIB;
+            cpu->env.cp15.sctlr_el[1] |= SCTLR_EnDA | SCTLR_EnDB;
+        }
 #endif
 
         cpu->sve_max_vq = ARM_MAX_VQ;
