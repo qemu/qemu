@@ -50,7 +50,26 @@ static uint64_t pauth_original_ptr(uint64_t ptr, ARMVAParameters param)
 static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
                            ARMPACKey *key, bool data, int keynumber)
 {
-    g_assert_not_reached(); /* FIXME */
+    ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
+    ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx, data);
+    int bot_bit, top_bit;
+    uint64_t pac, orig_ptr, test;
+
+    orig_ptr = pauth_original_ptr(ptr, param);
+    pac = pauth_computepac(orig_ptr, modifier, *key);
+    bot_bit = 64 - param.tsz;
+    top_bit = 64 - 8 * param.tbi;
+
+    test = (pac ^ ptr) & ~MAKE_64BIT_MASK(55, 1);
+    if (unlikely(extract64(test, bot_bit, top_bit - bot_bit))) {
+        int error_code = (keynumber << 1) | (keynumber ^ 1);
+        if (param.tbi) {
+            return deposit64(ptr, 53, 2, error_code);
+        } else {
+            return deposit64(ptr, 61, 2, error_code);
+        }
+    }
+    return orig_ptr;
 }
 
 static uint64_t pauth_strip(CPUARMState *env, uint64_t ptr, bool data)
