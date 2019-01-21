@@ -68,6 +68,8 @@ typedef struct DisasContext {
     bool is_ldex;
     /* True if a single-step exception will be taken to the current EL */
     bool ss_same_el;
+    /* True if v8.3-PAuth is active.  */
+    bool pauth_active;
     /* Bottom two bits of XScale c15_cpar coprocessor access control reg */
     int c15_cpar;
     /* TCG op of the current insn_start.  */
