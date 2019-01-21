@@ -12998,6 +12998,13 @@ int cpu_mmu_index(CPUARMState *env, bool ifetch)
     return arm_to_core_mmu_idx(arm_mmu_idx(env));
 }
 
+#ifndef CONFIG_USER_ONLY
+ARMMMUIdx arm_stage1_mmu_idx(CPUARMState *env)
+{
+    return stage_1_mmu_idx(arm_mmu_idx(env));
+}
+#endif
+
 void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                           target_ulong *cs_base, uint32_t *pflags)
 {
