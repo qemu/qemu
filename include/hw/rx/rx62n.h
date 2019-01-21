@@ -37,6 +37,10 @@
 #define TYPE_R5F562N7_MCU "r5f562n7-mcu"
 #define TYPE_R5F562N8_MCU "r5f562n8-mcu"
 
+#define EXT_CS_BASE         0x01000000
+#define VECTOR_TABLE_BASE   0xffffff80
+#define RX62N_CFLASH_BASE   0xfff80000
+
 #define RX62N_NR_TMR    2
 #define RX62N_NR_CMT    2
 #define RX62N_NR_SCI    6
