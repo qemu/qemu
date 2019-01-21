@@ -42,6 +42,8 @@
 
 /* The below can be override by command line parameter */
 #define UNIX_SOCKET_PATH "/var/run/rdmacm-mux"
+/* Has format %s-%s-%d" <path>-<rdma-dev--name>-<port> */
+#define SOCKET_PATH_MAX (PATH_MAX - NAME_MAX - sizeof(int) - 2)
 #define RDMA_PORT_NUM 1
 
 typedef struct RdmaCmServerArgs {
@@ -95,7 +97,7 @@ static void help(const char *progname)
 static void parse_args(int argc, char *argv[])
 {
     int c;
-    char unix_socket_path[PATH_MAX];
+    char unix_socket_path[SOCKET_PATH_MAX];
 
     strcpy(server.args.rdma_dev_name, "");
     strcpy(unix_socket_path, UNIX_SOCKET_PATH);
@@ -113,7 +115,7 @@ static void parse_args(int argc, char *argv[])
 
         case 's':
             /* This is temporary, final name will build below */
-            strncpy(unix_socket_path, optarg, PATH_MAX);
+            strncpy(unix_socket_path, optarg, SOCKET_PATH_MAX);
             break;
 
         case 'p':
@@ -348,7 +350,7 @@ static int get_fd(const char *mad, int *fd, __be64 *gid_ifid)
 static void *umad_recv_thread_func(void *args)
 {
     int rc;
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg = {};
     int fd = -2;
 
     msg.hdr.msg_type = RDMACM_MUX_MSG_TYPE_REQ;
@@ -385,7 +387,7 @@ static void *umad_recv_thread_func(void *args)
 static int read_and_process(int fd)
 {
     int rc;
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg = {};
     struct umad_hdr *hdr;
     uint32_t *comm_id = 0;
     uint16_t attr_id;
@@ -742,7 +744,7 @@ static void signal_handler(int sig, siginfo_t *siginfo, void *context)
 static int init(void)
 {
     int rc;
-    struct sigaction sig = {0};
+    struct sigaction sig = {};
 
     rc = init_listener();
     if (rc) {

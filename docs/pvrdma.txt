@@ -99,6 +99,9 @@ MAD layer to send and receive RDMA-CM MAD packets.
 To build rdmacm-mux run
 # make rdmacm-mux
 
+Before running the rdmacm-mux make sure that both ib_cm and rdma_cm kernel
+modules aren't loaded, otherwise the rdmacm-mux service will fail to start.
+
 The application accepts 3 command line arguments and exposes a UNIX socket
 to pass control and data to it.
 -d rdma-device-name  Name of RDMA device to register with
@@ -153,7 +156,6 @@ Ethernet function can be used for other Ethernet purposes such as IP.
   specify the port to use. If not set 1 will be used.
 - dev-caps-max-mr-size: The maximum size of MR.
 - dev-caps-max-qp:      Maximum number of QPs.
-- dev-caps-max-sge:     Maximum number of SGE elements in WR.
 - dev-caps-max-cq:      Maximum number of CQs.
 - dev-caps-max-mr:      Maximum number of MRs.
 - dev-caps-max-pd:      Maximum number of PDs.

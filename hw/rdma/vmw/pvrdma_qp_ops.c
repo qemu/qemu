@@ -121,6 +121,16 @@ static void pvrdma_qp_ops_comp_handler(void *ctx, struct ibv_wc *wc)
     g_free(ctx);
 }
 
+static void complete_with_error(uint32_t vendor_err, void *ctx)
+{
+    struct ibv_wc wc = {0};
+
+    wc.status = IBV_WC_GENERAL_ERR;
+    wc.vendor_err = vendor_err;
+
+    pvrdma_qp_ops_comp_handler(ctx, &wc);
+}
+
 void pvrdma_qp_ops_fini(void)
 {
     rdma_backend_unregister_comp_handler();
@@ -133,7 +143,7 @@ int pvrdma_qp_ops_init(void)
     return 0;
 }
 
-int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
+void pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
 {
     RdmaRmQP *qp;
     PvrdmaSqWqe *wqe;
@@ -145,7 +155,8 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
 
     qp = rdma_rm_get_qp(&dev->rdma_dev_res, qp_handle);
     if (unlikely(!qp)) {
-        return -EINVAL;
+        pr_dbg("Invalid qpn\n");
+        return;
     }
 
     ring = (PvrdmaRing *)qp->opaque;
@@ -168,7 +179,8 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
         sgid = rdma_rm_get_gid(&dev->rdma_dev_res, wqe->hdr.wr.ud.av.gid_index);
         if (!sgid) {
             pr_dbg("Fail to get gid for idx %d\n", wqe->hdr.wr.ud.av.gid_index);
-            return -EIO;
+            complete_with_error(VENDOR_ERR_INV_GID_IDX, comp_ctx);
+            continue;
         }
         pr_dbg("sgid_id=%d, sgid=0x%llx\n", wqe->hdr.wr.ud.av.gid_index,
                sgid->global.interface_id);
@@ -179,7 +191,15 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
         if (sgid_idx <= 0) {
             pr_dbg("Fail to get bk sgid_idx for sgid_idx %d\n",
                    wqe->hdr.wr.ud.av.gid_index);
-            return -EIO;
+            complete_with_error(VENDOR_ERR_INV_GID_IDX, comp_ctx);
+            continue;
+        }
+
+        if (wqe->hdr.num_sge > dev->dev_attr.max_sge) {
+            pr_dbg("Invalid num_sge=%d (max %d)\n", wqe->hdr.num_sge,
+                   dev->dev_attr.max_sge);
+            complete_with_error(VENDOR_ERR_INV_NUM_SGE, comp_ctx);
+            continue;
         }
 
         rdma_backend_post_send(&dev->backend_dev, &qp->backend_qp, qp->qp_type,
@@ -193,11 +213,9 @@ int pvrdma_qp_send(PVRDMADev *dev, uint32_t qp_handle)
 
         wqe = pvrdma_ring_next_elem_read(ring);
     }
-
-    return 0;
 }
 
-int pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
+void pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
 {
     RdmaRmQP *qp;
     PvrdmaRqWqe *wqe;
@@ -207,7 +225,8 @@ int pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
 
     qp = rdma_rm_get_qp(&dev->rdma_dev_res, qp_handle);
     if (unlikely(!qp)) {
-        return -EINVAL;
+        pr_dbg("Invalid qpn\n");
+        return;
     }
 
     ring = &((PvrdmaRing *)qp->opaque)[1];
@@ -227,6 +246,13 @@ int pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
         comp_ctx->cqe.qp = qp_handle;
         comp_ctx->cqe.opcode = IBV_WC_RECV;
 
+        if (wqe->hdr.num_sge > dev->dev_attr.max_sge) {
+            pr_dbg("Invalid num_sge=%d (max %d)\n", wqe->hdr.num_sge,
+                   dev->dev_attr.max_sge);
+            complete_with_error(VENDOR_ERR_INV_NUM_SGE, comp_ctx);
+            continue;
+        }
+
         rdma_backend_post_recv(&dev->backend_dev, &dev->rdma_dev_res,
                                &qp->backend_qp, qp->qp_type,
                                (struct ibv_sge *)&wqe->sge[0], wqe->hdr.num_sge,
@@ -236,8 +262,6 @@ int pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
 
         wqe = pvrdma_ring_next_elem_read(ring);
     }
-
-    return 0;
 }
 
 void pvrdma_cq_poll(RdmaDeviceResources *dev_res, uint32_t cq_handle)

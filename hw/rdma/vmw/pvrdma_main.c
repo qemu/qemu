@@ -43,7 +43,6 @@ static Property pvrdma_dev_properties[] = {
     DEFINE_PROP_UINT64("dev-caps-max-mr-size", PVRDMADev, dev_attr.max_mr_size,
                        MAX_MR_SIZE),
     DEFINE_PROP_INT32("dev-caps-max-qp", PVRDMADev, dev_attr.max_qp, MAX_QP),
-    DEFINE_PROP_INT32("dev-caps-max-sge", PVRDMADev, dev_attr.max_sge, MAX_SGE),
     DEFINE_PROP_INT32("dev-caps-max-cq", PVRDMADev, dev_attr.max_cq, MAX_CQ),
     DEFINE_PROP_INT32("dev-caps-max-mr", PVRDMADev, dev_attr.max_mr, MAX_MR),
     DEFINE_PROP_INT32("dev-caps-max-pd", PVRDMADev, dev_attr.max_pd, MAX_PD),
@@ -549,8 +548,9 @@ static void init_dev_caps(PVRDMADev *dev)
                        sizeof(struct pvrdma_rq_wqe_hdr));
 
     dev->dev_attr.max_qp_wr = pg_tbl_bytes /
-                              (wr_sz + sizeof(struct pvrdma_sge) * MAX_SGE) -
-                              TARGET_PAGE_SIZE; /* First page is ring state */
+                              (wr_sz + sizeof(struct pvrdma_sge) *
+                              dev->dev_attr.max_sge) - TARGET_PAGE_SIZE;
+                              /* First page is ring state  ^^^^ */
     pr_dbg("max_qp_wr=%d\n", dev->dev_attr.max_qp_wr);
 
     dev->dev_attr.max_cqe = pg_tbl_bytes / sizeof(struct pvrdma_cqe) -
@@ -626,8 +626,6 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 
     init_regs(pdev);
 
-    init_dev_caps(dev);
-
     rc = init_msix(pdev, errp);
     if (rc) {
         goto out;
@@ -639,6 +637,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     if (rc) {
         goto out;
     }
+
+    init_dev_caps(dev);
 
     rc = rdma_rm_init(&dev->rdma_dev_res, &dev->dev_attr, errp);
     if (rc) {

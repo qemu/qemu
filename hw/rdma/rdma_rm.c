@@ -41,6 +41,9 @@ static inline void res_tbl_init(const char *name, RdmaRmResTbl *tbl,
 
 static inline void res_tbl_free(RdmaRmResTbl *tbl)
 {
+    if (!tbl->bitmap) {
+        return;
+    }
     qemu_mutex_destroy(&tbl->lock);
     g_free(tbl->tbl);
     g_free(tbl->bitmap);
@@ -576,7 +579,7 @@ int rdma_rm_del_gid(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
 int rdma_rm_get_backend_gid_index(RdmaDeviceResources *dev_res,
                                   RdmaBackendDev *backend_dev, int sgid_idx)
 {
-    if (unlikely(sgid_idx < 0 || sgid_idx > MAX_PORT_GIDS)) {
+    if (unlikely(sgid_idx < 0 || sgid_idx >= MAX_PORT_GIDS)) {
         pr_dbg("Got invalid sgid_idx %d\n", sgid_idx);
         return -EINVAL;
     }
@@ -655,5 +658,7 @@ void rdma_rm_fini(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
     res_tbl_free(&dev_res->cq_tbl);
     res_tbl_free(&dev_res->pd_tbl);
 
-    g_hash_table_destroy(dev_res->qp_hash);
+    if (dev_res->qp_hash) {
+        g_hash_table_destroy(dev_res->qp_hash);
+    }
 }

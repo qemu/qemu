@@ -22,6 +22,18 @@
 #include "rdma_rm_defs.h"
 #include "rdma_backend_defs.h"
 
+/* Vendor Errors */
+#define VENDOR_ERR_FAIL_BACKEND     0x201
+#define VENDOR_ERR_TOO_MANY_SGES    0x202
+#define VENDOR_ERR_NOMEM            0x203
+#define VENDOR_ERR_QP0              0x204
+#define VENDOR_ERR_INV_NUM_SGE      0x205
+#define VENDOR_ERR_MAD_SEND         0x206
+#define VENDOR_ERR_INVLKEY          0x207
+#define VENDOR_ERR_MR_SMALL         0x208
+#define VENDOR_ERR_INV_MAD_BUFF     0x209
+#define VENDOR_ERR_INV_GID_IDX      0x210
+
 /* Add definition for QP0 and QP1 as there is no userspace enums for them */
 enum ibv_special_qp_type {
     IBV_QPT_SMI = 0,

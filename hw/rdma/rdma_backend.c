@@ -32,17 +32,6 @@
 #include "rdma_rm.h"
 #include "rdma_backend.h"
 
-/* Vendor Errors */
-#define VENDOR_ERR_FAIL_BACKEND     0x201
-#define VENDOR_ERR_TOO_MANY_SGES    0x202
-#define VENDOR_ERR_NOMEM            0x203
-#define VENDOR_ERR_QP0              0x204
-#define VENDOR_ERR_INV_NUM_SGE      0x205
-#define VENDOR_ERR_MAD_SEND         0x206
-#define VENDOR_ERR_INVLKEY          0x207
-#define VENDOR_ERR_MR_SMALL         0x208
-#define VENDOR_ERR_INV_MAD_BUFF     0x209
-
 #define THR_NAME_LEN 16
 #define THR_POLL_TO  5000
 
@@ -190,7 +179,7 @@ static inline int rdmacm_mux_can_process_async(RdmaBackendDev *backend_dev)
 
 static int check_mux_op_status(CharBackend *mad_chr_be)
 {
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg = {};
     int ret;
 
     pr_dbg("Reading response\n");
@@ -387,7 +376,7 @@ static int build_host_sge_array(RdmaDeviceResources *rdma_dev_res,
 static int mad_send(RdmaBackendDev *backend_dev, uint8_t sgid_idx,
                     union ibv_gid *sgid, struct ibv_sge *sge, uint32_t num_sge)
 {
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg = {};
     char *hdr, *data;
     int ret;
 
@@ -475,11 +464,6 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
     }
 
     pr_dbg("num_sge=%d\n", num_sge);
-    if (!num_sge || num_sge > MAX_SGE) {
-        pr_dbg("invalid num_sge=%d\n", num_sge);
-        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_INV_NUM_SGE, ctx);
-        return;
-    }
 
     bctx = g_malloc0(sizeof(*bctx));
     bctx->up_ctx = ctx;
@@ -602,11 +586,6 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     }
 
     pr_dbg("num_sge=%d\n", num_sge);
-    if (!num_sge || num_sge > MAX_SGE) {
-        pr_dbg("invalid num_sge=%d\n", num_sge);
-        complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_INV_NUM_SGE, ctx);
-        return;
-    }
 
     bctx = g_malloc0(sizeof(*bctx));
     bctx->up_ctx = ctx;
@@ -938,21 +917,25 @@ void rdma_backend_destroy_qp(RdmaBackendQP *qp)
 static int init_device_caps(RdmaBackendDev *backend_dev,
                             struct ibv_device_attr *dev_attr)
 {
-    if (ibv_query_device(backend_dev->context, &backend_dev->dev_attr)) {
+    struct ibv_device_attr bk_dev_attr;
+
+    if (ibv_query_device(backend_dev->context, &bk_dev_attr)) {
         return -EIO;
     }
 
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_mr_size, "%" PRId64);
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_sge, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp_wr, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_cq, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_cqe, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_mr, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_pd, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp_rd_atom, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_qp_init_rd_atom, "%d");
-    CHK_ATTR(dev_attr, backend_dev->dev_attr, max_ah, "%d");
+    dev_attr->max_sge = MAX_SGE;
+
+    CHK_ATTR(dev_attr, bk_dev_attr, max_mr_size, "%" PRId64);
+    CHK_ATTR(dev_attr, bk_dev_attr, max_qp, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_sge, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_qp_wr, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_cq, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_cqe, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_mr, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_pd, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_qp_rd_atom, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_qp_init_rd_atom, "%d");
+    CHK_ATTR(dev_attr, bk_dev_attr, max_ah, "%d");
 
     return 0;
 }
@@ -1083,8 +1066,10 @@ static void mad_fini(RdmaBackendDev *backend_dev)
     pr_dbg("Stopping MAD\n");
     disable_rdmacm_mux_async(backend_dev);
     qemu_chr_fe_disconnect(backend_dev->rdmacm_mux.chr_be);
-    qlist_destroy_obj(QOBJECT(backend_dev->recv_mads_list.list));
-    qemu_mutex_destroy(&backend_dev->recv_mads_list.lock);
+    if (backend_dev->recv_mads_list.list) {
+        qlist_destroy_obj(QOBJECT(backend_dev->recv_mads_list.list));
+        qemu_mutex_destroy(&backend_dev->recv_mads_list.lock);
+    }
 }
 
 int rdma_backend_get_gid_index(RdmaBackendDev *backend_dev,
@@ -1112,7 +1097,7 @@ int rdma_backend_get_gid_index(RdmaBackendDev *backend_dev,
 int rdma_backend_add_gid(RdmaBackendDev *backend_dev, const char *ifname,
                          union ibv_gid *gid)
 {
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg = {};
     int ret;
 
     pr_dbg("0x%llx, 0x%llx\n",
@@ -1138,7 +1123,7 @@ int rdma_backend_add_gid(RdmaBackendDev *backend_dev, const char *ifname,
 int rdma_backend_del_gid(RdmaBackendDev *backend_dev, const char *ifname,
                          union ibv_gid *gid)
 {
-    RdmaCmMuxMsg msg = {0};
+    RdmaCmMuxMsg msg = {};
     int ret;
 
     pr_dbg("0x%llx, 0x%llx\n",
