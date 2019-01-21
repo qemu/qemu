@@ -1981,6 +1981,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
 static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
 {
     unsigned int opc, op2, op3, rn, op4;
+    TCGv_i64 dst;
 
     opc = extract32(insn, 21, 4);
     op2 = extract32(insn, 16, 5);
@@ -2011,7 +2012,11 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
             gen_io_start();
         }
-        gen_helper_exception_return(cpu_env);
+        dst = tcg_temp_new_i64();
+        tcg_gen_ld_i64(dst, cpu_env,
+                       offsetof(CPUARMState, elr_el[s->current_el]));
+        gen_helper_exception_return(cpu_env, dst);
+        tcg_temp_free_i64(dst);
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
             gen_io_end();
         }

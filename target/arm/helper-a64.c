@@ -925,7 +925,7 @@ static int el_from_spsr(uint32_t spsr)
     }
 }
 
-void HELPER(exception_return)(CPUARMState *env)
+void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
 {
     int cur_el = arm_current_el(env);
     unsigned int spsr_idx = aarch64_banked_spsr_index(cur_el);
@@ -991,9 +991,9 @@ void HELPER(exception_return)(CPUARMState *env)
         aarch64_sync_64_to_32(env);
 
         if (spsr & CPSR_T) {
-            env->regs[15] = env->elr_el[cur_el] & ~0x1;
+            env->regs[15] = new_pc & ~0x1;
         } else {
-            env->regs[15] = env->elr_el[cur_el] & ~0x3;
+            env->regs[15] = new_pc & ~0x3;
         }
         qemu_log_mask(CPU_LOG_INT, "Exception return from AArch64 EL%d to "
                       "AArch32 EL%d PC 0x%" PRIx32 "\n",
@@ -1005,7 +1005,7 @@ void HELPER(exception_return)(CPUARMState *env)
             env->pstate &= ~PSTATE_SS;
         }
         aarch64_restore_sp(env, new_el);
-        env->pc = env->elr_el[cur_el];
+        env->pc = new_pc;
         qemu_log_mask(CPU_LOG_INT, "Exception return from AArch64 EL%d to "
                       "AArch64 EL%d PC 0x%" PRIx64 "\n",
                       cur_el, new_el, env->pc);
@@ -1031,7 +1031,7 @@ illegal_return:
      * no change to exception level, execution state or stack pointer
      */
     env->pstate |= PSTATE_IL;
-    env->pc = env->elr_el[cur_el];
+    env->pc = new_pc;
     spsr &= PSTATE_NZCV | PSTATE_DAIF;
     spsr |= pstate_read(env) & ~(PSTATE_NZCV | PSTATE_DAIF);
     pstate_write(env, spsr);
