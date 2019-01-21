@@ -4563,38 +4563,51 @@ static void handle_rev16(DisasContext *s, unsigned int sf,
  */
 static void disas_data_proc_1src(DisasContext *s, uint32_t insn)
 {
-    unsigned int sf, opcode, rn, rd;
+    unsigned int sf, opcode, opcode2, rn, rd;
 
-    if (extract32(insn, 29, 1) || extract32(insn, 16, 5)) {
+    if (extract32(insn, 29, 1)) {
         unallocated_encoding(s);
         return;
     }
 
     sf = extract32(insn, 31, 1);
     opcode = extract32(insn, 10, 6);
+    opcode2 = extract32(insn, 16, 5);
     rn = extract32(insn, 5, 5);
     rd = extract32(insn, 0, 5);
 
-    switch (opcode) {
-    case 0: /* RBIT */
+#define MAP(SF, O2, O1) ((SF) | (O1 << 1) | (O2 << 7))
+
+    switch (MAP(sf, opcode2, opcode)) {
+    case MAP(0, 0x00, 0x00): /* RBIT */
+    case MAP(1, 0x00, 0x00):
         handle_rbit(s, sf, rn, rd);
         break;
-    case 1: /* REV16 */
+    case MAP(0, 0x00, 0x01): /* REV16 */
+    case MAP(1, 0x00, 0x01):
         handle_rev16(s, sf, rn, rd);
         break;
-    case 2: /* REV32 */
+    case MAP(0, 0x00, 0x02): /* REV/REV32 */
+    case MAP(1, 0x00, 0x02):
         handle_rev32(s, sf, rn, rd);
         break;
-    case 3: /* REV64 */
+    case MAP(1, 0x00, 0x03): /* REV64 */
         handle_rev64(s, sf, rn, rd);
         break;
-    case 4: /* CLZ */
+    case MAP(0, 0x00, 0x04): /* CLZ */
+    case MAP(1, 0x00, 0x04):
         handle_clz(s, sf, rn, rd);
         break;
-    case 5: /* CLS */
+    case MAP(0, 0x00, 0x05): /* CLS */
+    case MAP(1, 0x00, 0x05):
         handle_cls(s, sf, rn, rd);
         break;
+    default:
+        unallocated_encoding(s);
+        break;
     }
+
+#undef MAP
 }
 
 static void handle_div(DisasContext *s, bool is_signed, unsigned int sf,
