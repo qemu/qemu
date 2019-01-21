@@ -35,7 +35,47 @@ static uint64_t pauth_computepac(uint64_t data, uint64_t modifier,
 static uint64_t pauth_addpac(CPUARMState *env, uint64_t ptr, uint64_t modifier,
                              ARMPACKey *key, bool data)
 {
-    g_assert_not_reached(); /* FIXME */
+    ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
+    ARMVAParameters param = aa64_va_parameters(env, ptr, mmu_idx, data);
+    uint64_t pac, ext_ptr, ext, test;
+    int bot_bit, top_bit;
+
+    /* If tagged pointers are in use, use ptr<55>, otherwise ptr<63>.  */
+    if (param.tbi) {
+        ext = sextract64(ptr, 55, 1);
+    } else {
+        ext = sextract64(ptr, 63, 1);
+    }
+
+    /* Build a pointer with known good extension bits.  */
+    top_bit = 64 - 8 * param.tbi;
+    bot_bit = 64 - param.tsz;
+    ext_ptr = deposit64(ptr, bot_bit, top_bit - bot_bit, ext);
+
+    pac = pauth_computepac(ext_ptr, modifier, *key);
+
+    /*
+     * Check if the ptr has good extension bits and corrupt the
+     * pointer authentication code if not.
+     */
+    test = sextract64(ptr, bot_bit, top_bit - bot_bit);
+    if (test != 0 && test != -1) {
+        pac ^= MAKE_64BIT_MASK(top_bit - 1, 1);
+    }
+
+    /*
+     * Preserve the determination between upper and lower at bit 55,
+     * and insert pointer authentication code.
+     */
+    if (param.tbi) {
+        ptr &= ~MAKE_64BIT_MASK(bot_bit, 55 - bot_bit + 1);
+        pac &= MAKE_64BIT_MASK(bot_bit, 54 - bot_bit + 1);
+    } else {
+        ptr &= MAKE_64BIT_MASK(0, bot_bit);
+        pac &= ~(MAKE_64BIT_MASK(55, 1) | MAKE_64BIT_MASK(0, bot_bit));
+    }
+    ext &= MAKE_64BIT_MASK(55, 1);
+    return pac | ext | ptr;
 }
 
 static uint64_t pauth_original_ptr(uint64_t ptr, ARMVAParameters param)
