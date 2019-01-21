@@ -4884,6 +4884,13 @@ static void disas_data_proc_2src(DisasContext *s, uint32_t insn)
     case 11: /* RORV */
         handle_shift_reg(s, A64_SHIFT_TYPE_ROR, sf, rm, rn, rd);
         break;
+    case 12: /* PACGA */
+        if (sf == 0 || !dc_isar_feature(aa64_pauth, s)) {
+            goto do_unallocated;
+        }
+        gen_helper_pacga(cpu_reg(s, rd), cpu_env,
+                         cpu_reg(s, rn), cpu_reg_sp(s, rm));
+        break;
     case 16:
     case 17:
     case 18:
@@ -4899,6 +4906,7 @@ static void disas_data_proc_2src(DisasContext *s, uint32_t insn)
         break;
     }
     default:
+    do_unallocated:
         unallocated_encoding(s);
         break;
     }
