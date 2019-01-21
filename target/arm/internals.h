@@ -942,4 +942,18 @@ static inline ARMMMUIdx arm_stage1_mmu_idx(CPUARMState *env)
 ARMMMUIdx arm_stage1_mmu_idx(CPUARMState *env);
 #endif
 
+/*
+ * Parameters of a given virtual address, as extracted from the
+ * translation control register (TCR) for a given regime.
+ */
+typedef struct ARMVAParameters {
+    unsigned tsz    : 8;
+    unsigned select : 1;
+    bool tbi        : 1;
+    bool epd        : 1;
+    bool hpd        : 1;
+    bool using16k   : 1;
+    bool using64k   : 1;
+} ARMVAParameters;
+
 #endif
