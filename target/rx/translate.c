@@ -41,10 +41,17 @@ typedef struct DisasCompare {
     TCGCond cond;
 } DisasCompare;
 
-const char rx_crname[][6] = {
-    "psw", "pc", "usp", "fpsw", "", "", "", "",
-    "bpsw", "bpc", "isp", "fintv", "intb", "", "", "",
-};
+const char *rx_crname(uint8_t cr)
+{
+    static const char *cr_names[] = {
+        "psw", "pc", "usp", "fpsw", "", "", "", "",
+        "bpsw", "bpc", "isp", "fintv", "intb", "", "", ""
+    };
+    if (cr >= ARRAY_SIZE(cr_names)) {
+        return "illegal";
+    }
+    return cr_names[cr];
+}
 
 /* Target-specific values for dc->base.is_jmp.  */
 #define DISAS_JUMP    DISAS_TARGET_0
@@ -365,7 +372,7 @@ static void move_to_cr(DisasContext *ctx, TCGv val, int cr)
     if (cr >= 8 && !is_privileged(ctx, 0)) {
         /* Some control registers can only be written in privileged mode. */
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "disallow control register write %s", rx_crname[cr]);
+                      "disallow control register write %s", rx_crname(cr));
         return;
     }
     z = tcg_const_i32(0);
