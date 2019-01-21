@@ -9749,7 +9749,7 @@ ARMVAParameters aa64_va_parameters_both(CPUARMState *env, uint64_t va,
 {
     uint64_t tcr = regime_tcr(env, mmu_idx)->raw_tcr;
     uint32_t el = regime_el(env, mmu_idx);
-    bool tbi, epd, hpd, using16k, using64k;
+    bool tbi, tbid, epd, hpd, using16k, using64k;
     int select, tsz;
 
     /*
@@ -9764,10 +9764,11 @@ ARMVAParameters aa64_va_parameters_both(CPUARMState *env, uint64_t va,
         using16k = extract32(tcr, 15, 1);
         if (mmu_idx == ARMMMUIdx_S2NS) {
             /* VTCR_EL2 */
-            tbi = hpd = false;
+            tbi = tbid = hpd = false;
         } else {
             tbi = extract32(tcr, 20, 1);
             hpd = extract32(tcr, 24, 1);
+            tbid = extract32(tcr, 29, 1);
         }
         epd = false;
     } else if (!select) {
@@ -9777,6 +9778,7 @@ ARMVAParameters aa64_va_parameters_both(CPUARMState *env, uint64_t va,
         using16k = extract32(tcr, 15, 1);
         tbi = extract64(tcr, 37, 1);
         hpd = extract64(tcr, 41, 1);
+        tbid = extract64(tcr, 51, 1);
     } else {
         int tg = extract32(tcr, 30, 2);
         using16k = tg == 1;
@@ -9785,6 +9787,7 @@ ARMVAParameters aa64_va_parameters_both(CPUARMState *env, uint64_t va,
         epd = extract32(tcr, 23, 1);
         tbi = extract64(tcr, 38, 1);
         hpd = extract64(tcr, 42, 1);
+        tbid = extract64(tcr, 52, 1);
     }
     tsz = MIN(tsz, 39);  /* TODO: ARMv8.4-TTST */
     tsz = MAX(tsz, 16);  /* TODO: ARMv8.2-LVA  */
@@ -9793,6 +9796,7 @@ ARMVAParameters aa64_va_parameters_both(CPUARMState *env, uint64_t va,
         .tsz = tsz,
         .select = select,
         .tbi = tbi,
+        .tbid = tbid,
         .epd = epd,
         .hpd = hpd,
         .using16k = using16k,
@@ -9803,7 +9807,11 @@ ARMVAParameters aa64_va_parameters_both(CPUARMState *env, uint64_t va,
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
                                    ARMMMUIdx mmu_idx, bool data)
 {
-    return aa64_va_parameters_both(env, va, mmu_idx);
+    ARMVAParameters ret = aa64_va_parameters_both(env, va, mmu_idx);
+
+    /* Present TBI as a composite with TBID.  */
+    ret.tbi &= (data || !ret.tbid);
+    return ret;
 }
 
 static ARMVAParameters aa32_va_parameters(CPUARMState *env, uint32_t va,
