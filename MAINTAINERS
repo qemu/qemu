@@ -1971,9 +1971,11 @@ Renesas peripherals
 M: Yoshinori Sato <ysato@users.sourceforge.jp>
 R: Magnus Damm <magnus.damm@gmail.com>
 S: Maintained
+F: hw/char/renesas_sci.c
 F: hw/char/sh_serial.c
 F: hw/timer/renesas_*.c
 F: hw/timer/sh_timer.c
+F: include/hw/char/renesas_sci.h
 F: include/hw/sh4/sh.h
 F: include/hw/timer/renesas_*.h
 
