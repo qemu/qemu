@@ -1471,33 +1471,102 @@ static void handle_hint(DisasContext *s, uint32_t insn,
     }
 
     switch (selector) {
-    case 0: /* NOP */
-        return;
-    case 3: /* WFI */
+    case 0b00000: /* NOP */
+        break;
+    case 0b00011: /* WFI */
         s->base.is_jmp = DISAS_WFI;
-        return;
+        break;
+    case 0b00001: /* YIELD */
         /* When running in MTTCG we don't generate jumps to the yield and
          * WFE helpers as it won't affect the scheduling of other vCPUs.
          * If we wanted to more completely model WFE/SEV so we don't busy
          * spin unnecessarily we would need to do something more involved.
          */
-    case 1: /* YIELD */
         if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
             s->base.is_jmp = DISAS_YIELD;
         }
-        return;
-    case 2: /* WFE */
+        break;
+    case 0b00010: /* WFE */
         if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
             s->base.is_jmp = DISAS_WFE;
         }
-        return;
-    case 4: /* SEV */
-    case 5: /* SEVL */
+        break;
+    case 0b00100: /* SEV */
+    case 0b00101: /* SEVL */
         /* we treat all as NOP at least for now */
-        return;
+        break;
+    case 0b00111: /* XPACLRI */
+        if (s->pauth_active) {
+            gen_helper_xpaci(cpu_X[30], cpu_env, cpu_X[30]);
+        }
+        break;
+    case 0b01000: /* PACIA1716 */
+        if (s->pauth_active) {
+            gen_helper_pacia(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
+        }
+        break;
+    case 0b01010: /* PACIB1716 */
+        if (s->pauth_active) {
+            gen_helper_pacib(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
+        }
+        break;
+    case 0b01100: /* AUTIA1716 */
+        if (s->pauth_active) {
+            gen_helper_autia(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
+        }
+        break;
+    case 0b01110: /* AUTIB1716 */
+        if (s->pauth_active) {
+            gen_helper_autib(cpu_X[17], cpu_env, cpu_X[17], cpu_X[16]);
+        }
+        break;
+    case 0b11000: /* PACIAZ */
+        if (s->pauth_active) {
+            gen_helper_pacia(cpu_X[30], cpu_env, cpu_X[30],
+                                new_tmp_a64_zero(s));
+        }
+        break;
+    case 0b11001: /* PACIASP */
+        if (s->pauth_active) {
+            gen_helper_pacia(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
+        }
+        break;
+    case 0b11010: /* PACIBZ */
+        if (s->pauth_active) {
+            gen_helper_pacib(cpu_X[30], cpu_env, cpu_X[30],
+                                new_tmp_a64_zero(s));
+        }
+        break;
+    case 0b11011: /* PACIBSP */
+        if (s->pauth_active) {
+            gen_helper_pacib(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
+        }
+        break;
+    case 0b11100: /* AUTIAZ */
+        if (s->pauth_active) {
+            gen_helper_autia(cpu_X[30], cpu_env, cpu_X[30],
+                              new_tmp_a64_zero(s));
+        }
+        break;
+    case 0b11101: /* AUTIASP */
+        if (s->pauth_active) {
+            gen_helper_autia(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
+        }
+        break;
+    case 0b11110: /* AUTIBZ */
+        if (s->pauth_active) {
+            gen_helper_autib(cpu_X[30], cpu_env, cpu_X[30],
+                              new_tmp_a64_zero(s));
+        }
+        break;
+    case 0b11111: /* AUTIBSP */
+        if (s->pauth_active) {
+            gen_helper_autib(cpu_X[30], cpu_env, cpu_X[30], cpu_X[31]);
+        }
+        break;
     default:
         /* default specified as NOP equivalent */
-        return;
+        break;
     }
 }
 
