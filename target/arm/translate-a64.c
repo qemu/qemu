@@ -1989,32 +1989,54 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
     rn = extract32(insn, 5, 5);
     op4 = extract32(insn, 0, 5);
 
-    if (op4 != 0x0 || op3 != 0x0 || op2 != 0x1f) {
-        unallocated_encoding(s);
-        return;
+    if (op2 != 0x1f) {
+        goto do_unallocated;
     }
 
     switch (opc) {
     case 0: /* BR */
     case 1: /* BLR */
     case 2: /* RET */
-        gen_a64_set_pc(s, cpu_reg(s, rn));
+        switch (op3) {
+        case 0:
+            if (op4 != 0) {
+                goto do_unallocated;
+            }
+            dst = cpu_reg(s, rn);
+            break;
+
+        default:
+            goto do_unallocated;
+        }
+
+        gen_a64_set_pc(s, dst);
         /* BLR also needs to load return address */
         if (opc == 1) {
             tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
         }
         break;
+
     case 4: /* ERET */
         if (s->current_el == 0) {
-            unallocated_encoding(s);
-            return;
+            goto do_unallocated;
+        }
+        switch (op3) {
+        case 0:
+            if (op4 != 0) {
+                goto do_unallocated;
+            }
+            dst = tcg_temp_new_i64();
+            tcg_gen_ld_i64(dst, cpu_env,
+                           offsetof(CPUARMState, elr_el[s->current_el]));
+            break;
+
+        default:
+            goto do_unallocated;
         }
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
             gen_io_start();
         }
-        dst = tcg_temp_new_i64();
-        tcg_gen_ld_i64(dst, cpu_env,
-                       offsetof(CPUARMState, elr_el[s->current_el]));
+
         gen_helper_exception_return(cpu_env, dst);
         tcg_temp_free_i64(dst);
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
@@ -2023,14 +2045,17 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         /* Must exit loop to check un-masked IRQs */
         s->base.is_jmp = DISAS_EXIT;
         return;
+
     case 5: /* DRPS */
-        if (rn != 0x1f) {
-            unallocated_encoding(s);
+        if (op3 != 0 || op4 != 0 || rn != 0x1f) {
+            goto do_unallocated;
         } else {
             unsupported_encoding(s, insn);
         }
         return;
+
     default:
+    do_unallocated:
         unallocated_encoding(s);
         return;
     }
