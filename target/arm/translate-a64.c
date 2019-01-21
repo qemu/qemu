@@ -276,13 +276,15 @@ void gen_a64_set_pc_im(uint64_t val)
  */
 static void gen_a64_set_pc(DisasContext *s, TCGv_i64 src)
 {
+    /* Note that TBII is TBI1:TBI0.  */
+    int tbi = s->tbii;
 
     if (s->current_el <= 1) {
         /* Test if NEITHER or BOTH TBI values are set.  If so, no need to
          * examine bit 55 of address, can just generate code.
          * If mixed, then test via generated code
          */
-        if (s->tbi0 && s->tbi1) {
+        if (tbi == 3) {
             TCGv_i64 tmp_reg = tcg_temp_new_i64();
             /* Both bits set, sign extension from bit 55 into [63:56] will
              * cover both cases
@@ -290,7 +292,7 @@ static void gen_a64_set_pc(DisasContext *s, TCGv_i64 src)
             tcg_gen_shli_i64(tmp_reg, src, 8);
             tcg_gen_sari_i64(cpu_pc, tmp_reg, 8);
             tcg_temp_free_i64(tmp_reg);
-        } else if (!s->tbi0 && !s->tbi1) {
+        } else if (tbi == 0) {
             /* Neither bit set, just load it as-is */
             tcg_gen_mov_i64(cpu_pc, src);
         } else {
@@ -300,7 +302,7 @@ static void gen_a64_set_pc(DisasContext *s, TCGv_i64 src)
 
             tcg_gen_andi_i64(tcg_bit55, src, (1ull << 55));
 
-            if (s->tbi0) {
+            if (tbi == 1) {
                 /* tbi0==1, tbi1==0, so 0-fill upper byte if bit 55 = 0 */
                 tcg_gen_andi_i64(tcg_tmpval, src,
                                  0x00FFFFFFFFFFFFFFull);
@@ -318,7 +320,7 @@ static void gen_a64_set_pc(DisasContext *s, TCGv_i64 src)
             tcg_temp_free_i64(tcg_tmpval);
         }
     } else {  /* EL > 1 */
-        if (s->tbi0) {
+        if (tbi != 0) {
             /* Force tag byte to all zero */
             tcg_gen_andi_i64(cpu_pc, src, 0x00FFFFFFFFFFFFFFull);
         } else {
@@ -13807,8 +13809,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->condexec_cond = 0;
     core_mmu_idx = FIELD_EX32(tb_flags, TBFLAG_ANY, MMUIDX);
     dc->mmu_idx = core_to_arm_mmu_idx(env, core_mmu_idx);
-    dc->tbi0 = FIELD_EX32(tb_flags, TBFLAG_A64, TBI0);
-    dc->tbi1 = FIELD_EX32(tb_flags, TBFLAG_A64, TBI1);
+    dc->tbii = FIELD_EX32(tb_flags, TBFLAG_A64, TBII);
     dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (dc->current_el == 0);

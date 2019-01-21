@@ -13041,10 +13041,9 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
         *pc = env->pc;
         flags = FIELD_DP32(flags, TBFLAG_ANY, AARCH64_STATE, 1);
         /* Get control bits for tagged addresses */
-        flags = FIELD_DP32(flags, TBFLAG_A64, TBI0,
+        flags = FIELD_DP32(flags, TBFLAG_A64, TBII,
+                           (arm_regime_tbi1(env, mmu_idx) << 1) |
                            arm_regime_tbi0(env, mmu_idx));
-        flags = FIELD_DP32(flags, TBFLAG_A64, TBI1,
-                           arm_regime_tbi1(env, mmu_idx));
 
         if (cpu_isar_feature(aa64_sve, cpu)) {
             int sve_el = sve_exception_el(env, current_el);
