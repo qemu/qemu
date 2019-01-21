@@ -8957,48 +8957,6 @@ static inline ARMMMUIdx stage_1_mmu_idx(ARMMMUIdx mmu_idx)
     return mmu_idx;
 }
 
-/* Returns TBI0 value for current regime el */
-uint32_t arm_regime_tbi0(CPUARMState *env, ARMMMUIdx mmu_idx)
-{
-    TCR *tcr;
-    uint32_t el;
-
-    /* For EL0 and EL1, TBI is controlled by stage 1's TCR, so convert
-     * a stage 1+2 mmu index into the appropriate stage 1 mmu index.
-     */
-    mmu_idx = stage_1_mmu_idx(mmu_idx);
-
-    tcr = regime_tcr(env, mmu_idx);
-    el = regime_el(env, mmu_idx);
-
-    if (el > 1) {
-        return extract64(tcr->raw_tcr, 20, 1);
-    } else {
-        return extract64(tcr->raw_tcr, 37, 1);
-    }
-}
-
-/* Returns TBI1 value for current regime el */
-uint32_t arm_regime_tbi1(CPUARMState *env, ARMMMUIdx mmu_idx)
-{
-    TCR *tcr;
-    uint32_t el;
-
-    /* For EL0 and EL1, TBI is controlled by stage 1's TCR, so convert
-     * a stage 1+2 mmu index into the appropriate stage 1 mmu index.
-     */
-    mmu_idx = stage_1_mmu_idx(mmu_idx);
-
-    tcr = regime_tcr(env, mmu_idx);
-    el = regime_el(env, mmu_idx);
-
-    if (el > 1) {
-        return 0;
-    } else {
-        return extract64(tcr->raw_tcr, 38, 1);
-    }
-}
-
 /* Return the TTBR associated with this translation regime */
 static inline uint64_t regime_ttbr(CPUARMState *env, ARMMMUIdx mmu_idx,
                                    int ttbrn)
@@ -13054,10 +13012,30 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
 
         *pc = env->pc;
         flags = FIELD_DP32(flags, TBFLAG_ANY, AARCH64_STATE, 1);
-        /* Get control bits for tagged addresses */
-        flags = FIELD_DP32(flags, TBFLAG_A64, TBII,
-                           (arm_regime_tbi1(env, mmu_idx) << 1) |
-                           arm_regime_tbi0(env, mmu_idx));
+
+#ifndef CONFIG_USER_ONLY
+        /*
+         * Get control bits for tagged addresses.  Note that the
+         * translator only uses this for instruction addresses.
+         */
+        {
+            ARMMMUIdx stage1 = stage_1_mmu_idx(mmu_idx);
+            ARMVAParameters p0 = aa64_va_parameters_both(env, 0, stage1);
+            int tbii, tbid;
+
+            /* FIXME: ARMv8.1-VHE S2 translation regime.  */
+            if (regime_el(env, stage1) < 2) {
+                ARMVAParameters p1 = aa64_va_parameters_both(env, -1, stage1);
+                tbid = (p1.tbi << 1) | p0.tbi;
+                tbii = tbid & ~((p1.tbid << 1) | p0.tbid);
+            } else {
+                tbid = p0.tbi;
+                tbii = tbid & !p0.tbid;
+            }
+
+            flags = FIELD_DP32(flags, TBFLAG_A64, TBII, tbii);
+        }
+#endif
 
         if (cpu_isar_feature(aa64_sve, cpu)) {
             int sve_el = sve_exception_el(env, current_el);
