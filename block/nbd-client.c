@@ -249,11 +249,11 @@ static int nbd_parse_blockstatus_payload(NBDClientSession *client,
     }
 
     context_id = payload_advance32(&payload);
-    if (client->info.meta_base_allocation_id != context_id) {
+    if (client->info.context_id != context_id) {
         error_setg(errp, "Protocol error: unexpected context id %d for "
                          "NBD_REPLY_TYPE_BLOCK_STATUS, when negotiated context "
                          "id is %d", context_id,
-                         client->info.meta_base_allocation_id);
+                         client->info.context_id);
         return -EINVAL;
     }
 
@@ -999,10 +999,11 @@ int nbd_client_init(BlockDriverState *bs,
     client->info.structured_reply = true;
     client->info.base_allocation = true;
     client->info.x_dirty_bitmap = g_strdup(x_dirty_bitmap);
-    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), export,
-                                tlscreds, hostname,
+    client->info.name = g_strdup(export ?: "");
+    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), tlscreds, hostname,
                                 &client->ioc, &client->info, errp);
     g_free(client->info.x_dirty_bitmap);
+    g_free(client->info.name);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         return ret;

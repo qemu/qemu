@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2017 Red Hat, Inc.
+ *  Copyright (C) 2016-2019 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -263,26 +263,39 @@ struct NBDExportInfo {
     bool request_sizes;
     char *x_dirty_bitmap;
 
+    /* Set by client before nbd_receive_negotiate(), or by server results
+     * during nbd_receive_export_list() */
+    char *name; /* must be non-NULL */
+
     /* In-out fields, set by client before nbd_receive_negotiate() and
      * updated by server results during nbd_receive_negotiate() */
     bool structured_reply;
     bool base_allocation; /* base:allocation context for NBD_CMD_BLOCK_STATUS */
 
-    /* Set by server results during nbd_receive_negotiate() */
+    /* Set by server results during nbd_receive_negotiate() and
+     * nbd_receive_export_list() */
     uint64_t size;
     uint16_t flags;
     uint32_t min_block;
     uint32_t opt_block;
     uint32_t max_block;
 
-    uint32_t meta_base_allocation_id;
+    uint32_t context_id;
+
+    /* Set by server results during nbd_receive_export_list() */
+    char *description;
+    int n_contexts;
+    char **contexts;
 };
 typedef struct NBDExportInfo NBDExportInfo;
 
-int nbd_receive_negotiate(QIOChannel *ioc, const char *name,
-                          QCryptoTLSCreds *tlscreds, const char *hostname,
-                          QIOChannel **outioc, NBDExportInfo *info,
-                          Error **errp);
+int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
+                          const char *hostname, QIOChannel **outioc,
+                          NBDExportInfo *info, Error **errp);
+void nbd_free_export_list(NBDExportInfo *info, int count);
+int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
+                            const char *hostname, NBDExportInfo **info,
+                            Error **errp);
 int nbd_init(int fd, QIOChannelSocket *sioc, NBDExportInfo *info,
              Error **errp);
 int nbd_send_request(QIOChannel *ioc, NBDRequest *request);
@@ -294,8 +307,8 @@ int nbd_errno_to_system_errno(int err);
 typedef struct NBDExport NBDExport;
 typedef struct NBDClient NBDClient;
 
-NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset, off_t size,
-                          const char *name, const char *description,
+NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
+                          uint64_t size, const char *name, const char *desc,
                           const char *bitmap, uint16_t nbdflags,
                           void (*close)(NBDExport *), bool writethrough,
                           BlockBackend *on_eject_blk, Error **errp);

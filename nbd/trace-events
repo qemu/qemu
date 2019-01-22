@@ -3,20 +3,21 @@ nbd_send_option_request(uint32_t opt, const char *name, uint32_t len) "Sending o
 nbd_receive_option_reply(uint32_t option, const char *optname, uint32_t type, const char *typename, uint32_t length) "Received option reply %" PRIu32" (%s), type %" PRIu32" (%s), len %" PRIu32
 nbd_server_error_msg(uint32_t err, const char *type, const char *msg) "server reported error 0x%" PRIx32 " (%s) with additional message: %s"
 nbd_reply_err_unsup(uint32_t option, const char *name) "server doesn't understand request %" PRIu32 " (%s), attempting fallback"
-nbd_opt_go_start(const char *name) "Attempting NBD_OPT_GO for export '%s'"
-nbd_opt_go_success(void) "Export is good to go"
-nbd_opt_go_info_unknown(int info, const char *name) "Ignoring unknown info %d (%s)"
-nbd_opt_go_info_block_size(uint32_t minimum, uint32_t preferred, uint32_t maximum) "Block sizes are 0x%" PRIx32 ", 0x%" PRIx32 ", 0x%" PRIx32
+nbd_receive_list(const char *name, const char *desc) "export list includes '%s', description '%s'"
+nbd_opt_info_go_start(const char *opt, const char *name) "Attempting %s for export '%s'"
+nbd_opt_info_go_success(const char *opt) "Export is ready after %s request"
+nbd_opt_info_unknown(int info, const char *name) "Ignoring unknown info %d (%s)"
+nbd_opt_info_block_size(uint32_t minimum, uint32_t preferred, uint32_t maximum) "Block sizes are 0x%" PRIx32 ", 0x%" PRIx32 ", 0x%" PRIx32
 nbd_receive_query_exports_start(const char *wantname) "Querying export list for '%s'"
 nbd_receive_query_exports_success(const char *wantname) "Found desired export name '%s'"
 nbd_receive_starttls_new_client(void) "Setting up TLS"
 nbd_receive_starttls_tls_handshake(void) "Starting TLS handshake"
-nbd_opt_meta_request(const char *context, const char *export) "Requesting to set meta context %s for export %s"
-nbd_opt_meta_reply(const char *context, uint32_t id) "Received mapping of context %s to id %" PRIu32
-nbd_receive_negotiate(void *tlscreds, const char *hostname) "Receiving negotiation tlscreds=%p hostname=%s"
+nbd_opt_meta_request(const char *optname, const char *context, const char *export) "Requesting %s %s for export %s"
+nbd_opt_meta_reply(const char *optname, const char *context, uint32_t id) "Received %s mapping of %s to id %" PRIu32
+nbd_start_negotiate(void *tlscreds, const char *hostname) "Receiving negotiation tlscreds=%p hostname=%s"
 nbd_receive_negotiate_magic(uint64_t magic) "Magic is 0x%" PRIx64
 nbd_receive_negotiate_server_flags(uint32_t globalflags) "Global flags are 0x%" PRIx32
-nbd_receive_negotiate_default_name(void) "Using default NBD export name \"\""
+nbd_receive_negotiate_name(const char *name) "Requesting NBD export name '%s'"
 nbd_receive_negotiate_size_flags(uint64_t size, uint16_t flags) "Size is %" PRIu64 ", export flags 0x%" PRIx16
 nbd_init_set_socket(void) "Setting NBD socket"
 nbd_init_set_block_size(unsigned long block_size) "Setting block size to %lu"

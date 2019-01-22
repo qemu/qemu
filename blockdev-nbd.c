@@ -146,6 +146,7 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
     BlockDriverState *bs = NULL;
     BlockBackend *on_eject_blk;
     NBDExport *exp;
+    int64_t len;
 
     if (!nbd_server) {
         error_setg(errp, "NBD server not running");
@@ -168,6 +169,13 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
         return;
     }
 
+    len = bdrv_getlength(bs);
+    if (len < 0) {
+        error_setg_errno(errp, -len,
+                         "Failed to determine the NBD export's length");
+        return;
+    }
+
     if (!has_writable) {
         writable = false;
     }
@@ -175,7 +183,7 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
         writable = false;
     }
 
-    exp = nbd_export_new(bs, 0, -1, name, NULL, bitmap,
+    exp = nbd_export_new(bs, 0, len, name, NULL, bitmap,
                          writable ? 0 : NBD_FLAG_READ_ONLY,
                          NULL, false, on_eject_blk, errp);
     if (!exp) {

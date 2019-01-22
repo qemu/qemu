@@ -127,6 +127,7 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
   "arguments":{"addr":{"type":"unix",
     "data":{"path":"'"$TEST_DIR/nbd"1'"}}}}' "error" # Attempt second server
+$QEMU_NBD_PROG -L -k "$TEST_DIR/nbd"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"n", "bitmap":"b"}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
@@ -142,6 +143,7 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"n", "name":"n2", "writable":true,
   "bitmap":"b2"}}' "return"
+$QEMU_NBD_PROG -L -k "$TEST_DIR/nbd"
 
 echo
 echo "=== Contrast normal status to large granularity dirty-bitmap ==="
