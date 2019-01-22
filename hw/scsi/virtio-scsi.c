@@ -791,7 +791,14 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     SCSIDevice *sd = SCSI_DEVICE(dev);
 
     if (s->ctx && !s->dataplane_fenced) {
+        AioContext *ctx;
         if (blk_op_is_blocked(sd->conf.blk, BLOCK_OP_TYPE_DATAPLANE, errp)) {
+            return;
+        }
+        ctx = blk_get_aio_context(sd->conf.blk);
+        if (ctx != s->ctx && ctx != qemu_get_aio_context()) {
+            error_setg(errp, "Cannot attach a blockdev that is using "
+                       "a different iothread");
             return;
         }
         virtio_scsi_acquire(s);
