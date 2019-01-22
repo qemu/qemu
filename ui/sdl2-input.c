@@ -32,22 +32,6 @@
 
 static uint8_t modifiers_state[SDL_NUM_SCANCODES];
 
-void sdl2_reset_keys(struct sdl2_console *scon)
-{
-    QemuConsole *con = scon ? scon->dcl.con : NULL;
-    int i;
-
-    for (i = 0 ;
-         i < SDL_NUM_SCANCODES && i < qemu_input_map_usb_to_qcode_len ;
-         i++) {
-        if (modifiers_state[i]) {
-            int qcode = qemu_input_map_usb_to_qcode[i];
-            qemu_input_event_send_key_qcode(con, qcode, false);
-            modifiers_state[i] = 0;
-        }
-    }
-}
-
 void sdl2_process_key(struct sdl2_console *scon,
                       SDL_KeyboardEvent *ev)
 {
