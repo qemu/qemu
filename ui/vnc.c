@@ -1973,9 +1973,6 @@ static const char *code2name(int keycode)
 
 static void key_event(VncState *vs, int down, uint32_t sym)
 {
-    bool shift = qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_SHIFT);
-    bool altgr = qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_ALTGR);
-    bool ctrl  = qkbd_state_modifier_get(vs->vd->kbd, QKBD_MOD_CTRL);
     int keycode;
     int lsym = sym;
 
@@ -1984,7 +1981,7 @@ static void key_event(VncState *vs, int down, uint32_t sym)
     }
 
     keycode = keysym2scancode(vs->vd->kbd_layout, lsym & 0xFFFF,
-                              shift, altgr, ctrl) & SCANCODE_KEYMASK;
+                              vs->vd->kbd) & SCANCODE_KEYMASK;
     trace_vnc_key_event_map(down, sym, keycode, code2name(keycode));
     do_key_event(vs, down, keycode, sym);
 }
