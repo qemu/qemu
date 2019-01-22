@@ -34,20 +34,19 @@ void sdl2_process_key(struct sdl2_console *scon,
                       SDL_KeyboardEvent *ev)
 {
     int qcode;
-    QemuConsole *con = scon ? scon->dcl.con : NULL;
+    QemuConsole *con = scon->dcl.con;
 
     if (ev->keysym.scancode >= qemu_input_map_usb_to_qcode_len) {
         return;
     }
-
     qcode = qemu_input_map_usb_to_qcode[ev->keysym.scancode];
     qkbd_state_key_event(scon->kbd, qcode, ev->type == SDL_KEYDOWN);
 
     if (!qemu_console_is_graphic(con)) {
         bool ctrl = qkbd_state_modifier_get(scon->kbd, QKBD_MOD_CTRL);
         if (ev->type == SDL_KEYDOWN) {
-            switch (ev->keysym.scancode) {
-            case SDL_SCANCODE_RETURN:
+            switch (qcode) {
+            case Q_KEY_CODE_RET:
                 kbd_put_keysym_console(con, '\n');
                 break;
             default:
