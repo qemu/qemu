@@ -1438,13 +1438,19 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     bs->read_only = !(bs->open_flags & BDRV_O_RDWR);
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, bs->read_only)) {
-        error_setg(errp,
-                   !bs->read_only && bdrv_is_whitelisted(drv, true)
-                        ? "Driver '%s' can only be used for read-only devices"
-                        : "Driver '%s' is not whitelisted",
-                   drv->format_name);
-        ret = -ENOTSUP;
-        goto fail_opts;
+        if (!bs->read_only && bdrv_is_whitelisted(drv, true)) {
+            ret = bdrv_apply_auto_read_only(bs, NULL, NULL);
+        } else {
+            ret = -ENOTSUP;
+        }
+        if (ret < 0) {
+            error_setg(errp,
+                       !bs->read_only && bdrv_is_whitelisted(drv, true)
+                       ? "Driver '%s' can only be used for read-only devices"
+                       : "Driver '%s' is not whitelisted",
+                       drv->format_name);
+            goto fail_opts;
+        }
     }
 
     /* bdrv_new() and bdrv_close() make it so */
