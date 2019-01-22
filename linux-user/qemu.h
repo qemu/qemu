@@ -474,17 +474,13 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
  *   functions than host-endian unaligned load/store plus tswapN.
  * - The pragmas are necessary only to silence a clang false-positive
  *   warning: see https://bugs.llvm.org/show_bug.cgi?id=39113 .
- * - We have to disable -Wpragmas warnings to avoid a complaint about
- *   an unknown warning type from older compilers that don't know about
- *   -Waddress-of-packed-member.
  * - gcc has bugs in its _Pragma() support in some versions, eg
  *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83256 -- so we only
  *   include the warning-suppression pragmas for clang
  */
-#ifdef __clang__
+#if defined(__clang__) && __has_warning("-Waddress-of-packed-member")
 #define PRAGMA_DISABLE_PACKED_WARNING                                   \
     _Pragma("GCC diagnostic push");                                     \
-    _Pragma("GCC diagnostic ignored \"-Wpragmas\"");                    \
     _Pragma("GCC diagnostic ignored \"-Waddress-of-packed-member\"")
 
 #define PRAGMA_REENABLE_PACKED_WARNING          \

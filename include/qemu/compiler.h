@@ -113,6 +113,10 @@
 #define GCC_FMT_ATTR(n, m)
 #endif
 
+#ifndef __has_warning
+#define __has_warning(x) 0 /* compatibility with non-clang compilers */
+#endif
+
 #ifndef __has_feature
 #define __has_feature(x) 0 /* compatibility with non-clang compilers */
 #endif

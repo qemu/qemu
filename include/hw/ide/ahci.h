@@ -73,13 +73,13 @@ typedef struct SysbusAHCIState {
 #define ALLWINNER_AHCI_MMIO_OFF  0x80
 #define ALLWINNER_AHCI_MMIO_SIZE 0x80
 
-struct AllwinnerAHCIState {
+typedef struct AllwinnerAHCIState {
     /*< private >*/
     SysbusAHCIState parent_obj;
     /*< public >*/
 
     MemoryRegion mmio;
     uint32_t regs[ALLWINNER_AHCI_MMIO_SIZE/4];
-};
+} AllwinnerAHCIState;
 
 #endif /* HW_IDE_AHCI_H */

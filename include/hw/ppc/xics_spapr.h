@@ -1,7 +1,9 @@
 /*
- * QEMU PS/2 keyboard/mouse emulation
+ * QEMU PowerPC pSeries Logical Partition (aka sPAPR) hardware System Emulator
  *
- * Copyright (C) 2003 Fabrice Bellard
+ * PAPR Virtualized Interrupt System, aka ICS/ICP aka xics
+ *
+ * Copyright (c) 2010, 2011 David Gibson, IBM Corporation.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,30 +24,14 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_PS2_H
-#define HW_PS2_H
+#ifndef XICS_SPAPR_H
+#define XICS_SPAPR_H
 
-#define PS2_MOUSE_BUTTON_LEFT   0x01
-#define PS2_MOUSE_BUTTON_RIGHT  0x02
-#define PS2_MOUSE_BUTTON_MIDDLE 0x04
-#define PS2_MOUSE_BUTTON_SIDE   0x08
-#define PS2_MOUSE_BUTTON_EXTRA  0x10
+#include "hw/ppc/spapr.h"
 
-typedef struct PS2State PS2State;
+void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
+                   uint32_t phandle);
+int xics_kvm_init(sPAPRMachineState *spapr, Error **errp);
+void xics_spapr_init(sPAPRMachineState *spapr);
 
-/* ps2.c */
-void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
-void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg);
-void ps2_write_mouse(void *, int val);
-void ps2_write_keyboard(void *, int val);
-uint32_t ps2_read_data(PS2State *s);
-void ps2_queue_noirq(PS2State *s, int b);
-void ps2_raise_irq(PS2State *s);
-void ps2_queue(PS2State *s, int b);
-void ps2_queue_2(PS2State *s, int b1, int b2);
-void ps2_queue_3(PS2State *s, int b1, int b2, int b3);
-void ps2_queue_4(PS2State *s, int b1, int b2, int b3, int b4);
-void ps2_keyboard_set_translation(void *opaque, int mode);
-void ps2_mouse_fake_event(void *opaque);
-
-#endif /* HW_PS2_H */
+#endif /* XICS_SPAPR_H */

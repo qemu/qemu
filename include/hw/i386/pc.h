@@ -96,7 +96,7 @@ struct PCMachineState {
  *                  way we can use 1GByte pages in the host.
  *
  */
-struct PCMachineClass {
+typedef struct PCMachineClass {
     /*< private >*/
     MachineClass parent_class;
 
@@ -133,7 +133,7 @@ struct PCMachineClass {
 
     /* use DMA capable linuxboot option rom */
     bool linuxboot_dma_enabled;
-};
+} PCMachineClass;
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
 #define PC_MACHINE(obj) \

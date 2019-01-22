@@ -35,6 +35,8 @@
 #define SMBUS_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(SMBusDeviceClass, (obj), TYPE_SMBUS_DEVICE)
 
+typedef struct SMBusDevice SMBusDevice;
+
 typedef struct SMBusDeviceClass
 {
     I2CSlaveClass parent_class;

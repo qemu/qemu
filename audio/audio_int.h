@@ -191,7 +191,7 @@ struct SWVoiceCap {
     QLIST_ENTRY (SWVoiceCap) entries;
 };
 
-struct AudioState {
+typedef struct AudioState {
     struct audio_driver *drv;
     void *drv_opaque;
 
@@ -203,7 +203,7 @@ struct AudioState {
     int nb_hw_voices_out;
     int nb_hw_voices_in;
     int vm_running;
-};
+} AudioState;
 
 extern const struct mixeng_volume nominal_volume;
 

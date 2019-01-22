@@ -106,7 +106,6 @@ typedef struct VirtioNetRscSeg {
     NetClientState *nc;
 } VirtioNetRscSeg;
 
-struct VirtIONet;
 typedef struct VirtIONet VirtIONet;
 
 /* Chain is divided by protocol(ipv4/v6) and NetClientInfo */
@@ -136,7 +135,7 @@ typedef struct VirtIONetQueue {
     struct VirtIONet *n;
 } VirtIONetQueue;
 
-typedef struct VirtIONet {
+struct VirtIONet {
     VirtIODevice parent_obj;
     uint8_t mac[ETH_ALEN];
     uint16_t status;
@@ -186,7 +185,7 @@ typedef struct VirtIONet {
     int announce_counter;
     bool needs_vnet_hdr_swap;
     bool mtu_bypass_backend;
-} VirtIONet;
+};
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);

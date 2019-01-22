@@ -34,6 +34,7 @@
 #include "sysemu/kvm.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/xics_spapr.h"
 #include "kvm_ppc.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"

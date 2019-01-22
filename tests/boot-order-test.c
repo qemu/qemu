@@ -17,7 +17,7 @@
 #include "standard-headers/linux/qemu_fw_cfg.h"
 
 /* TODO actually test the results and get rid of this */
-#define qmp_discard_response(...) qobject_unref(qmp(__VA_ARGS__))
+#define qmp_discard_response(qs, ...) qobject_unref(qtest_qmp(qs, __VA_ARGS__))
 
 typedef struct {
     const char *args;
@@ -27,31 +27,30 @@ typedef struct {
 
 static void test_a_boot_order(const char *machine,
                               const char *test_args,
-                              uint64_t (*read_boot_order)(void),
+                              uint64_t (*read_boot_order)(QTestState *),
                               uint64_t expected_boot,
                               uint64_t expected_reboot)
 {
     uint64_t actual;
+    QTestState *qts;
 
-    global_qtest = qtest_initf("-nodefaults%s%s %s",
-                               machine ? " -M " : "",
-                               machine ?: "",
-                               test_args);
-    actual = read_boot_order();
+    qts = qtest_initf("-nodefaults%s%s %s", machine ? " -M " : "",
+                      machine ?: "", test_args);
+    actual = read_boot_order(qts);
     g_assert_cmphex(actual, ==, expected_boot);
-    qmp_discard_response("{ 'execute': 'system_reset' }");
+    qmp_discard_response(qts, "{ 'execute': 'system_reset' }");
     /*
      * system_reset only requests reset.  We get a RESET event after
      * the actual reset completes.  Need to wait for that.
      */
-    qmp_eventwait("RESET");
-    actual = read_boot_order();
+    qtest_qmp_eventwait(qts, "RESET");
+    actual = read_boot_order(qts);
     g_assert_cmphex(actual, ==, expected_reboot);
-    qtest_quit(global_qtest);
+    qtest_quit(qts);
 }
 
 static void test_boot_orders(const char *machine,
-                             uint64_t (*read_boot_order)(void),
+                             uint64_t (*read_boot_order)(QTestState *),
                              const boot_order_test *tests)
 {
     int i;
@@ -64,16 +63,16 @@ static void test_boot_orders(const char *machine,
     }
 }
 
-static uint8_t read_mc146818(uint16_t port, uint8_t reg)
+static uint8_t read_mc146818(QTestState *qts, uint16_t port, uint8_t reg)
 {
-    outb(port, reg);
-    return inb(port + 1);
+    qtest_outb(qts, port, reg);
+    return qtest_inb(qts, port + 1);
 }
 
-static uint64_t read_boot_order_pc(void)
+static uint64_t read_boot_order_pc(QTestState *qts)
 {
-    uint8_t b1 = read_mc146818(0x70, 0x38);
-    uint8_t b2 = read_mc146818(0x70, 0x3d);
+    uint8_t b1 = read_mc146818(qts, 0x70, 0x38);
+    uint8_t b2 = read_mc146818(qts, 0x70, 0x3d);
 
     return b1 | (b2 << 8);
 }
@@ -109,16 +108,16 @@ static void test_pc_boot_order(void)
     test_boot_orders(NULL, read_boot_order_pc, test_cases_pc);
 }
 
-static uint8_t read_m48t59(uint64_t addr, uint16_t reg)
+static uint8_t read_m48t59(QTestState *qts, uint64_t addr, uint16_t reg)
 {
-    writeb(addr, reg & 0xff);
-    writeb(addr + 1, reg >> 8);
-    return readb(addr + 3);
+    qtest_writeb(qts, addr, reg & 0xff);
+    qtest_writeb(qts, addr + 1, reg >> 8);
+    return qtest_readb(qts, addr + 3);
 }
 
-static uint64_t read_boot_order_prep(void)
+static uint64_t read_boot_order_prep(QTestState *qts)
 {
-    return read_m48t59(0x80000000 + 0x74, 0x34);
+    return read_m48t59(qts, 0x80000000 + 0x74, 0x34);
 }
 
 static const boot_order_test test_cases_prep[] = {
@@ -133,9 +132,9 @@ static void test_prep_boot_order(void)
     test_boot_orders("prep", read_boot_order_prep, test_cases_prep);
 }
 
-static uint64_t read_boot_order_pmac(void)
+static uint64_t read_boot_order_pmac(QTestState *qts)
 {
-    QFWCFG *fw_cfg = mm_fw_cfg_init(global_qtest, 0xf0000510);
+    QFWCFG *fw_cfg = mm_fw_cfg_init(qts, 0xf0000510);
 
     return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
 }
@@ -158,9 +157,9 @@ static void test_pmac_newworld_boot_order(void)
     test_boot_orders("mac99", read_boot_order_pmac, test_cases_fw_cfg);
 }
 
-static uint64_t read_boot_order_sun4m(void)
+static uint64_t read_boot_order_sun4m(QTestState *qts)
 {
-    QFWCFG *fw_cfg = mm_fw_cfg_init(global_qtest, 0xd00000510ULL);
+    QFWCFG *fw_cfg = mm_fw_cfg_init(qts, 0xd00000510ULL);
 
     return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
 }
@@ -170,9 +169,9 @@ static void test_sun4m_boot_order(void)
     test_boot_orders("SS-5", read_boot_order_sun4m, test_cases_fw_cfg);
 }
 
-static uint64_t read_boot_order_sun4u(void)
+static uint64_t read_boot_order_sun4u(QTestState *qts)
 {
-    QFWCFG *fw_cfg = io_fw_cfg_init(global_qtest, 0x510);
+    QFWCFG *fw_cfg = io_fw_cfg_init(qts, 0x510);
 
     return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
 }

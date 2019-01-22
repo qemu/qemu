@@ -14,6 +14,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/xics_spapr.h"
 #include "sysemu/kvm.h"
 
 #include "trace.h"

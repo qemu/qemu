@@ -41,7 +41,8 @@ struct QemuSeccompSyscall {
 };
 
 const struct scmp_arg_cmp sched_setscheduler_arg[] = {
-    SCMP_A1(SCMP_CMP_NE, SCHED_IDLE)
+    /* was SCMP_A1(SCMP_CMP_NE, SCHED_IDLE), but expanded due to GCC 4.x bug */
+    { .arg = 1, .op = SCMP_CMP_NE, .datum_a = SCHED_IDLE }
 };
 
 static const struct QemuSeccompSyscall blacklist[] = {
