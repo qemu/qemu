@@ -61,6 +61,7 @@ typedef struct XtfpgaBoardDesc {
 
 typedef struct XtfpgaFpgaState {
     MemoryRegion iomem;
+    uint32_t freq;
     uint32_t leds;
     uint32_t switches;
 } XtfpgaFpgaState;
@@ -83,7 +84,7 @@ static uint64_t xtfpga_fpga_read(void *opaque, hwaddr addr,
         return 0x09272011;
 
     case 0x4: /*processor clock frequency, Hz*/
-        return 10000000;
+        return s->freq;
 
     case 0x8: /*LEDs (off = 0, on = 1)*/
         return s->leds;
@@ -119,13 +120,14 @@ static const MemoryRegionOps xtfpga_fpga_ops = {
 };
 
 static XtfpgaFpgaState *xtfpga_fpga_init(MemoryRegion *address_space,
-        hwaddr base)
+                                         hwaddr base, uint32_t freq)
 {
     XtfpgaFpgaState *s = g_malloc(sizeof(XtfpgaFpgaState));
 
     memory_region_init_io(&s->iomem, NULL, &xtfpga_fpga_ops, s,
-            "xtfpga.fpga", 0x10000);
+                          "xtfpga.fpga", 0x10000);
     memory_region_add_subregion(address_space, base, &s->iomem);
+    s->freq = freq;
     xtfpga_fpga_reset(s);
     qemu_register_reset(xtfpga_fpga_reset, s);
     return s;
@@ -231,6 +233,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     const char *dtb_filename = qemu_opt_get(machine_opts, "dtb");
     const char *initrd_filename = qemu_opt_get(machine_opts, "initrd");
     const unsigned system_io_size = 224 * MiB;
+    uint32_t freq = 10000000;
     int n;
 
     for (n = 0; n < smp_cpus; n++) {
@@ -240,6 +243,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
         cenv = &cpu->env;
         if (!env) {
             env = cenv;
+            freq = env->config->clock_freq_khz * 1000;
         }
 
         cenv->sregs[PRID] = n;
@@ -277,7 +281,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
                                  system_io, 0, system_io_size);
         memory_region_add_subregion(system_memory, board->io[1], io);
     }
-    xtfpga_fpga_init(system_io, 0x0d020000);
+    xtfpga_fpga_init(system_io, 0x0d020000, freq);
     if (nd_table[0].used) {
         xtfpga_net_init(system_io, 0x0d030000, 0x0d030400, 0x0d800000,
                 xtensa_get_extint(env, 1), nd_table);
