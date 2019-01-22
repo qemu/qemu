@@ -15,4 +15,20 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
+
+=== Attach two SCSI disks using the same block device and the same iothread ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
 *** done
