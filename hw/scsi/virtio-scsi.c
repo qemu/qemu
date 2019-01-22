@@ -824,6 +824,12 @@ static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         virtio_scsi_release(s);
     }
 
+    if (s->ctx) {
+        virtio_scsi_acquire(s);
+        blk_set_aio_context(sd->conf.blk, qemu_get_aio_context());
+        virtio_scsi_release(s);
+    }
+
     qdev_simple_device_unplug_cb(hotplug_dev, dev, errp);
 }
 

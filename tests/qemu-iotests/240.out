@@ -1,0 +1,18 @@
+QA output created by 240
+
+=== Unplug a SCSI disk and then plug it again ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+*** done
