@@ -48,12 +48,16 @@ struct ndp_ra {     /* Router Advertisement Message */
     uint16_t lifetime;      /* Router Lifetime */
     uint32_t reach_time;    /* Reachable Time */
     uint32_t retrans_time;  /* Retrans Timer */
-} QEMU_PACKED;
+};
+
+QEMU_BUILD_BUG_ON(sizeof(struct ndp_ra) != 12);
 
 struct ndp_ns {     /* Neighbor Solicitation Message */
     uint32_t reserved;
     struct in6_addr target; /* Target Address */
-} QEMU_PACKED;
+};
+
+QEMU_BUILD_BUG_ON(sizeof(struct ndp_ns) != 20);
 
 struct ndp_na {     /* Neighbor Advertisement Message */
 #if G_BYTE_ORDER == G_BIG_ENDIAN
@@ -72,13 +76,17 @@ struct ndp_na {     /* Neighbor Advertisement Message */
         reserved_lo:24;
 #endif
     struct in6_addr target; /* Target Address */
-} QEMU_PACKED;
+};
+
+QEMU_BUILD_BUG_ON(sizeof(struct ndp_na) != 20);
 
 struct ndp_redirect {
     uint32_t reserved;
     struct in6_addr target; /* Target Address */
     struct in6_addr dest;   /* Destination Address */
-} QEMU_PACKED;
+};
+
+QEMU_BUILD_BUG_ON(sizeof(struct ndp_redirect) != 36);
 
 /*
  * Structure of an icmpv6 header.
@@ -103,7 +111,9 @@ struct icmp6 {
 #define icmp6_nns icmp6_body.ndp_ns
 #define icmp6_nna icmp6_body.ndp_na
 #define icmp6_redirect icmp6_body.ndp_redirect
-} QEMU_PACKED;
+};
+
+QEMU_BUILD_BUG_ON(sizeof(struct icmp6) != 40);
 
 #define ICMP6_MINLEN    4
 #define ICMP6_ERROR_MINLEN  8

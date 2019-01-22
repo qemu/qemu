@@ -133,7 +133,7 @@ struct ip6 {
     uint8_t     ip_nh;               /* next header */
     uint8_t     ip_hl;               /* hop limit */
     struct in6_addr ip_src, ip_dst;  /* source and dest address */
-} QEMU_PACKED;
+};
 
 /*
  * IPv6 pseudo-header used by upper-layer protocols
@@ -145,7 +145,15 @@ struct ip6_pseudohdr {
     uint16_t    ih_zero_hi;       /* zero */
     uint8_t     ih_zero_lo;       /* zero */
     uint8_t     ih_nh;            /* next header */
-} QEMU_PACKED;
+};
 
+/*
+ * We don't want to mark these ip6 structs as packed as they are naturally
+ * correctly aligned; instead assert that there is no stray padding.
+ * If we marked the struct as packed then we would be unable to take
+ * the address of any of the fields in it.
+ */
+QEMU_BUILD_BUG_ON(sizeof(struct ip6) != 40);
+QEMU_BUILD_BUG_ON(sizeof(struct ip6_pseudohdr) != 40);
 
 #endif
