@@ -4,9 +4,11 @@ config ARM_VIRT
 
 config DIGIC
     bool
+    select PTIMER
 
 config EXYNOS4
     bool
+    select PTIMER
 
 config HIGHBANK
     bool
@@ -19,6 +21,7 @@ config MAINSTONE
 
 config MUSICPAL
     bool
+    select PTIMER
 
 config NETDUINO2
     bool
@@ -94,6 +97,7 @@ config NRF51_SOC
 
 config MSF2
     bool
+    select PTIMER
 
 config ZAURUS
     bool

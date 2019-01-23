@@ -9,3 +9,4 @@ config SH7750
 
 config SH4
     bool
+    select PTIMER

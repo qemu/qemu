@@ -3,3 +3,4 @@ config AXIS
 
 config ETRAXFS
    bool
+   select PTIMER

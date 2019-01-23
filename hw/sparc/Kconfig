@@ -6,6 +6,8 @@ config LEON3
 
 config GRLIB
     bool
+    select PTIMER
 
 config SLAVIO
     bool
+    select PTIMER

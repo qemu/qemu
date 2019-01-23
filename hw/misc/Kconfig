@@ -68,6 +68,7 @@ config ECCMEMCTL
 
 config IMX
     bool
+    select PTIMER
 
 config STM32F2XX_SYSCFG
     bool

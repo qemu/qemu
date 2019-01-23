@@ -1,5 +1,7 @@
 config LM32
     bool
+    select PTIMER
 
 config MILKYMIST
     bool
+    select PTIMER

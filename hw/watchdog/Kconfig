@@ -1,5 +1,6 @@
 config CMSDK_APB_WATCHDOG
     bool
+    select PTIMER
 
 config WDT_IB6300ESB
     bool

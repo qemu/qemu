@@ -15,6 +15,7 @@ config FULONG
 
 config MIPS_CPS
     bool
+    select PTIMER
 
 config MIPS_BOSTON
     bool

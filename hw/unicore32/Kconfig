@@ -1,2 +1,3 @@
 config PUV3
     bool
+    select PTIMER
