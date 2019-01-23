@@ -1,0 +1,94 @@
+config APPLESMC
+    bool
+
+config MAX111X
+    bool
+
+config TMP105
+    bool
+
+config TMP421
+    bool
+
+config ISA_DEBUG
+    bool
+
+config SGA
+    bool
+
+config ISA_TESTDEV
+    bool
+
+config PCI_TESTDEV
+    bool
+
+config EDU
+    bool
+
+config PCA9552
+    bool
+
+config PL310
+    bool
+
+config INTEGRATOR_DEBUG
+    bool
+
+config A9SCU
+    bool
+
+config ARM11SCU
+    bool
+
+config MOS6522
+    bool
+
+config MACIO
+    bool
+
+config IVSHMEM_DEVICE
+    bool
+
+config ECCMEMCTL
+    bool
+
+config IMX
+    bool
+
+config STM32F2XX_SYSCFG
+    bool
+
+config MIPS_ITU
+    bool
+
+config MPS2_FPGAIO
+    bool
+
+config MPS2_SCC
+    bool
+
+config TZ_MPC
+    bool
+
+config TZ_MSC
+    bool
+
+config TZ_PPC
+    bool
+
+config IOTKIT_SECCTL
+    bool
+
+config IOTKIT_SYSCTL
+    bool
+
+config IOTKIT_SYSINFO
+    bool
+
+config PVPANIC
+    bool
+
+config AUX
+    bool
+
+source macio/Kconfig

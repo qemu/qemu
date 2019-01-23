@@ -1,0 +1,8 @@
+config PETALOGIX_S3ADSP1800
+    bool
+
+config PETALOGIX_ML605
+    bool
+
+config XLNX_ZYNQMP_PMU
+    bool

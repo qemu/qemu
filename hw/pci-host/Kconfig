@@ -1,0 +1,35 @@
+config PAM
+    bool
+
+config PREP_PCI
+    bool
+
+config GRACKLE_PCI
+    bool
+
+config UNIN_PCI
+    bool
+
+config PPCE500_PCI
+    bool
+
+config VERSATILE_PCI
+    bool
+
+config PCI_SABRE
+    bool
+
+config PCI_PIIX
+    bool
+
+config PCI_EXPRESS_Q35
+    bool
+
+config PCI_EXPRESS_GENERIC_BRIDGE
+    bool
+
+config PCI_EXPRESS_XILINX
+    bool
+
+config PCI_EXPRESS_DESIGNWARE
+    bool

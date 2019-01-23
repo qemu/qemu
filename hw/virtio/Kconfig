@@ -1,0 +1,17 @@
+config VIRTIO
+    bool
+
+config VIRTIO_RNG
+    bool
+
+config VIRTIO_PCI
+    bool
+
+config VIRTIO_MMIO
+    bool
+
+config VIRTIO_BALLOON
+    bool
+
+config VIRTIO_CRYPTO
+    bool

@@ -1,0 +1,20 @@
+config HTIF
+    bool
+
+config HART
+    bool
+
+config SIFIVE
+    bool
+
+config SIFIVE_E
+    bool
+
+config SIFIVE_U
+    bool
+
+config SPIKE
+    bool
+
+config RISCV_VIRT
+    bool

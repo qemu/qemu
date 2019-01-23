@@ -1,0 +1,23 @@
+config SEV
+    bool
+
+config I440FX
+    bool
+
+config ISAPC
+    bool
+
+config Q35
+    bool
+
+config VTD
+    bool
+
+config AMD_IOMMU
+    bool
+
+config VMPORT
+    bool
+
+config VMMOUSE
+    bool

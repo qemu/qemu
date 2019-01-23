@@ -1,0 +1,5 @@
+config NIOS2_10M50
+    bool
+
+config NIOS2
+    bool

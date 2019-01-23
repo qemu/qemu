@@ -1,0 +1,11 @@
+config SUN4M
+    bool
+
+config LEON3
+    bool
+
+config GRLIB
+    bool
+
+config SLAVIO
+    bool

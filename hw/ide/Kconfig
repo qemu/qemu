@@ -1,0 +1,35 @@
+config IDE_CORE
+    bool
+
+config IDE_QDEV
+    bool
+
+config IDE_PCI
+    bool
+
+config IDE_ISA
+    bool
+
+config IDE_PIIX
+    bool
+
+config IDE_CMD646
+    bool
+
+config IDE_MACIO
+    bool
+
+config IDE_MMIO
+    bool
+
+config IDE_VIA
+    bool
+
+config MICRODRIVE
+    bool
+
+config AHCI
+    bool
+
+config IDE_SII3112
+    bool

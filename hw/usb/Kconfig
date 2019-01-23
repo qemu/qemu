@@ -1,0 +1,53 @@
+config USB
+    bool
+
+config USB_UHCI
+    bool
+
+config USB_OHCI
+    bool
+
+config USB_EHCI
+    bool
+
+config USB_EHCI_SYSBUS
+    bool
+
+config USB_XHCI
+    bool
+
+config USB_XHCI_NEC
+    bool
+
+config USB_MUSB
+    bool
+
+config TUSB6010
+    bool
+
+config USB_TABLET_WACOM
+    bool
+
+config USB_STORAGE_BOT
+    bool
+
+config USB_STORAGE_UAS
+    bool
+
+config USB_AUDIO
+    bool
+
+config USB_SERIAL
+    bool
+
+config USB_NETWORK
+    bool
+
+config USB_BLUETOOTH
+    bool
+
+config USB_SMARTCARD
+    bool
+
+config USB_STORAGE_MTP
+    bool

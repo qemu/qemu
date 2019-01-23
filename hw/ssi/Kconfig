@@ -1,0 +1,14 @@
+config PL022
+    bool
+
+config SSI
+    bool
+
+config XILINX_SPI
+    bool
+
+config XILINX_SPIPS
+    bool
+
+config STM32F2XX_SPI
+    bool

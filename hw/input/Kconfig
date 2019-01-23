@@ -1,0 +1,23 @@
+config ADB
+    bool
+
+config LM832X
+    bool
+
+config PCKBD
+    bool
+
+config PL050
+    bool
+
+config STELLARIS_INPUT
+    bool
+
+config TSC2005
+    bool
+
+config VIRTIO_INPUT
+    bool
+
+config TSC210X
+    bool

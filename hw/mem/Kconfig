@@ -1,0 +1,8 @@
+config DIMM
+    bool
+
+config MEM_DEVICE
+    bool
+
+config NVDIMM
+    bool

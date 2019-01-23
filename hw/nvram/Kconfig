@@ -1,0 +1,8 @@
+config DS1225Y
+    bool
+
+config AT24C
+    bool
+
+config MAC_NVRAM
+    bool

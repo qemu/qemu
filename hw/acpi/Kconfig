@@ -1,0 +1,20 @@
+config ACPI
+    bool
+
+config ACPI_X86
+    bool
+
+config ACPI_X86_ICH
+    bool
+
+config ACPI_CPU_HOTPLUG
+    bool
+
+config ACPI_MEMORY_HOTPLUG
+    bool
+
+config ACPI_NVDIMM
+    bool
+
+config ACPI_VMGENID
+    bool

@@ -13,6 +13,7 @@
 from __future__ import print_function
 import os
 import sys
+import re
 
 __all__ = [ 'KconfigDataError', 'KconfigParserError',
             'KconfigData', 'KconfigParser' ]
@@ -350,6 +351,12 @@ class KconfigParser:
         self.get_token()
         self.parse_config()
 
+    def do_assignment(self, var, val):
+        if not var.startswith("CONFIG_"):
+            raise Error('assigned variable should start with CONFIG_')
+        var = self.data.do_var(var[7:])
+        self.data.do_assignment(var, val)
+
     # file management -----
 
     def error_path(self):
@@ -645,6 +652,28 @@ class KconfigParser:
         return None
 
 if __name__ == '__main__':
-    fname = len(sys.argv) > 1 and sys.argv[1] or 'Kconfig.test'
-    data = KconfigParser.parse(open(fname, 'r'))
-    print data.compute_config()
+    argv = sys.argv
+    if len(argv) == 1:
+        print ("%s: at least one argument is required" % argv[0], file=sys.stderr)
+        sys.exit(1)
+
+    data = KconfigData()
+    parser = KconfigParser(data)
+    for arg in argv[3:]:
+        m = re.match(r'^(CONFIG_[A-Z0-9_]+)=([yn]?)$', arg)
+        if m is not None:
+            name, value = m.groups()
+            parser.do_assignment(name, value == 'y')
+        else:
+            fp = open(arg, 'r')
+            parser.parse_file(fp)
+            fp.close()
+
+    config = data.compute_config()
+    for key in sorted(config.keys()):
+        print ('CONFIG_%s=%s' % (key, ('y' if config[key] else 'n')))
+
+    deps = open(argv[2], 'w')
+    for fname in data.previously_included:
+        print ('%s: %s' % (argv[1], fname), file=deps)
+    deps.close()

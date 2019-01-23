@@ -1,0 +1,5 @@
+config AXIS
+    bool
+
+config ETRAXFS
+   bool

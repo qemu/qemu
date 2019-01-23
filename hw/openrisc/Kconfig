@@ -1,0 +1,2 @@
+config OR1K_SIM
+    bool

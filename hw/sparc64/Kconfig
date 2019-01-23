@@ -1,0 +1,5 @@
+config SUN4U
+    bool
+
+config NIAGARA
+    bool

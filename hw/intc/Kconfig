@@ -1,0 +1,47 @@
+config HEATHROW_PIC
+    bool
+
+config I8259
+    bool
+
+config PL190
+    bool
+
+config IOAPIC
+    bool
+
+config ARM_GIC
+    bool
+
+config OPENPIC
+    bool
+
+config APIC
+    bool
+
+config ARM_GIC_KVM
+    bool
+
+config OPENPIC_KVM
+    bool
+
+config XICS
+    bool
+
+config XICS_SPAPR
+    bool
+
+config XICS_KVM
+    bool
+
+config ALLWINNER_A10_PIC
+    bool
+
+config S390_FLIC
+    bool
+
+config S390_FLIC_KVM
+    bool
+
+config OMPIC
+    bool

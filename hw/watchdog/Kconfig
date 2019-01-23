@@ -1,0 +1,11 @@
+config CMSDK_APB_WATCHDOG
+    bool
+
+config WDT_IB6300ESB
+    bool
+
+config WDT_IB700
+    bool
+
+config WDT_DIAG288
+    bool

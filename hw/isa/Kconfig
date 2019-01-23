@@ -1,0 +1,23 @@
+config ISA_BUS
+    bool
+
+config APM
+    bool
+
+config I82378
+    bool
+
+config PC87312
+    bool
+
+config PIIX4
+    bool
+
+config VT82C686
+    bool
+
+config SMC37C669
+    bool
+
+config LPC_ICH9
+    bool

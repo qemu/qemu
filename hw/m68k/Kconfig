@@ -1,0 +1,8 @@
+config AN5206
+    bool
+
+config MCF5206
+    bool
+
+config MCF5208
+    bool

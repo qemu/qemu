@@ -1,0 +1,11 @@
+config PL181
+    bool
+
+config SSI_SD
+    bool
+
+config SD
+    bool
+
+config SDHCI
+    bool

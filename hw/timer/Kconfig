@@ -1,0 +1,53 @@
+config ARM_TIMER
+    bool
+
+config ARM_MPTIMER
+    bool
+
+config A9_GTIMER
+    bool
+
+config DS1338
+    bool
+
+config HPET
+    bool
+
+config I8254
+    bool
+
+config M41T80
+    bool
+
+config M48T59
+    bool
+
+config PL031
+    bool
+
+config TWL92230
+    bool
+
+config XLNX_ZYNQMP
+    bool
+
+config ALTERA_TIMER
+    bool
+
+config MC146818RTC
+    bool
+
+config ALLWINNER_A10_PIT
+    bool
+
+config STM32F2XX_TIMER
+    bool
+
+config SUN4V_RTC
+    bool
+
+config CMSDK_APB_TIMER
+    bool
+
+config CMSDK_APB_DUALTIMER
+    bool

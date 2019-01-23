@@ -1,0 +1,44 @@
+config PSERIES
+    bool
+
+config SPAPR_RNG
+    bool
+
+config POWERNV
+    bool
+
+config PPC405
+    bool
+
+config PPC440
+    bool
+
+config PPC4XX
+    bool
+
+config SAM460EX
+    bool
+
+config PREP
+    bool
+
+config RS6000_MC
+    bool
+
+config MAC_OLDWORLD
+    bool
+
+config MAC_NEWWORLD
+    bool
+
+config E500
+    bool
+
+config VIRTEX
+    bool
+
+config XIVE
+    bool
+
+config XIVE_SPAPR
+    bool

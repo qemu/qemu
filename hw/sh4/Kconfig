@@ -1,0 +1,11 @@
+config R2D
+    bool
+
+config SHIX
+    bool
+
+config SH7750
+    bool
+
+config SH4
+    bool

@@ -1,0 +1,14 @@
+config IPMI
+    bool
+
+config IPMI_LOCAL
+    bool
+
+config IPMI_EXTERN
+    bool
+
+config ISA_IPMI_KCS
+    bool
+
+config ISA_IPMI_BT
+    bool

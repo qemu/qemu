@@ -1,0 +1,8 @@
+config MAX7310
+    bool
+
+config PL061
+    bool
+
+config GPIO_KEY
+    bool

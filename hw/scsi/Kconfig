@@ -1,0 +1,26 @@
+config SCSI
+    bool
+
+config LSI_SCSI_PCI
+    bool
+
+config MPTSAS_SCSI_PCI
+    bool
+
+config MEGASAS_SCSI_PCI
+    bool
+
+config VMW_PVSCSI_SCSI_PCI
+    bool
+
+config ESP
+    bool
+
+config ESP_PCI
+    bool
+
+config VIRTIO_SCSI
+    bool
+
+config VHOST_USER_SCSI
+    bool

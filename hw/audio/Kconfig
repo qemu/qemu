@@ -1,0 +1,35 @@
+config SB16
+    bool
+
+config ES1370
+    bool
+
+config AC97
+    bool
+
+config ADLIB
+    bool
+
+config GUS
+    bool
+
+config CS4231A
+    bool
+
+config HDA
+    bool
+
+config PCSPK
+    bool
+
+config WM8750
+    bool
+
+config PL041
+    bool
+
+config CS4231
+    bool
+
+config MARVELL_88W8618
+    bool

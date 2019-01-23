@@ -1,0 +1,14 @@
+config TPM
+    bool
+
+config TPM_TIS
+    bool
+
+config TPM_CRB
+    bool
+
+config TPM_PASSTHROUGH
+    bool
+
+config TPM_EMULATOR
+    bool

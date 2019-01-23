@@ -1,0 +1,5 @@
+config HYPERV
+    bool
+
+config HYPERV_TESTDEV
+    bool

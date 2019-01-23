@@ -1,0 +1,2 @@
+config VIRTIO_9P
+    bool

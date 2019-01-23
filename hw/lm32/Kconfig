@@ -1,0 +1,5 @@
+config LM32
+    bool
+
+config MILKYMIST
+    bool

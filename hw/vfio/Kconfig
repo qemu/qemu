@@ -1,0 +1,20 @@
+config VFIO
+    bool
+
+config VFIO_PCI
+    bool
+
+config VFIO_CCW
+    bool
+
+config VFIO_PLATFORM
+    bool
+
+config VFIO_XGMAC
+    bool
+
+config VFIO_AMD_XGBE
+    bool
+
+config VFIO_AP
+    bool

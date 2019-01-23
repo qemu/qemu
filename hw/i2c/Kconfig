@@ -1,0 +1,20 @@
+config I2C
+    bool
+
+config SMBUS_EEPROM
+    bool
+
+config DDC
+    bool
+
+config VERSATILE_I2C
+    bool
+
+config ACPI_SMBUS
+    bool
+
+config BITBANG_I2C
+    bool
+
+config IMX_I2C
+    bool

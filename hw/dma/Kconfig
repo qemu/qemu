@@ -1,0 +1,20 @@
+config RC4030
+    bool
+
+config PL080
+    bool
+
+config PL330
+    bool
+
+config I82374
+    bool
+
+config I8257
+    bool
+
+config ZYNQ_DEVCFG
+    bool
+
+config STP2000
+    bool
