@@ -14,7 +14,8 @@ from __future__ import print_function
 import os
 import sys
 
-__all__ = [ 'KconfigParserError', 'KconfigData', 'KconfigParser' ]
+__all__ = [ 'KconfigDataError', 'KconfigParserError',
+            'KconfigData', 'KconfigParser' ]
 
 def debug_print(*args):
     #print('# ' + (' '.join(str(x) for x in args)))
@@ -30,6 +31,13 @@ def debug_print(*args):
 # just its name).
 # -------------------------------------------
 
+class KconfigDataError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return self.msg
+
 class KconfigData:
     class Expr:
         def __and__(self, rhs):
@@ -39,12 +47,24 @@ class KconfigData:
         def __invert__(self):
             return KconfigData.NOT(self)
 
+        # Abstract methods
+        def add_edges_to(self, var):
+            pass
+        def evaluate(self):
+            assert False
+
     class AND(Expr):
         def __init__(self, lhs, rhs):
             self.lhs = lhs
             self.rhs = rhs
         def __str__(self):
             return "(%s && %s)" % (self.lhs, self.rhs)
+
+        def add_edges_to(self, var):
+            self.lhs.add_edges_to(var)
+            self.rhs.add_edges_to(var)
+        def evaluate(self):
+            return self.lhs.evaluate() and self.rhs.evaluate()
 
     class OR(Expr):
         def __init__(self, lhs, rhs):
@@ -53,35 +73,85 @@ class KconfigData:
         def __str__(self):
             return "(%s || %s)" % (self.lhs, self.rhs)
 
+        def add_edges_to(self, var):
+            self.lhs.add_edges_to(var)
+            self.rhs.add_edges_to(var)
+        def evaluate(self):
+            return self.lhs.evaluate() or self.rhs.evaluate()
+
     class NOT(Expr):
         def __init__(self, lhs):
             self.lhs = lhs
         def __str__(self):
             return "!%s" % (self.lhs)
 
+        def add_edges_to(self, var):
+            self.lhs.add_edges_to(var)
+        def evaluate(self):
+            return not self.lhs.evaluate()
+
     class Var(Expr):
         def __init__(self, name):
             self.name = name
             self.value = None
+            self.outgoing = set()
+            self.clauses_for_var = list()
         def __str__(self):
             return self.name
+
+        def has_value(self):
+            return not (self.value is None)
+        def set_value(self, val, clause):
+            self.clauses_for_var.append(clause)
+            if self.has_value() and self.value != val:
+                print("The following clauses were found for " + self.name)
+                for i in self.clauses_for_var:
+                    print("    " + str(i), file=sys.stderr)
+                raise KconfigDataError('contradiction between clauses when setting %s' % self)
+            debug_print("=> %s is now %s" % (self.name, val))
+            self.value = val
+
+        # depth first search of the dependency graph
+        def dfs(self, visited, f):
+            if self in visited:
+                return
+            visited.add(self)
+            for v in self.outgoing:
+                v.dfs(visited, f)
+            f(self)
+
+        def add_edges_to(self, var):
+            self.outgoing.add(var)
+        def evaluate(self):
+            if not self.has_value():
+                raise KconfigDataError('cycle found including %s' % self)
+            return self.value
 
     class Clause:
         def __init__(self, dest):
             self.dest = dest
+        def priority(self):
+            return 0
+        def process(self):
+            pass
 
     class AssignmentClause(Clause):
         def __init__(self, dest, value):
             KconfigData.Clause.__init__(self, dest)
             self.value = value
         def __str__(self):
-            return "%s=%s" % (self.dest, 'y' if self.value else 'n')
+            return "CONFIG_%s=%s" % (self.dest, 'y' if self.value else 'n')
+
+        def process(self):
+            self.dest.set_value(self.value, self)
 
     class DefaultClause(Clause):
         def __init__(self, dest, value, cond=None):
             KconfigData.Clause.__init__(self, dest)
             self.value = value
             self.cond = cond
+            if not (self.cond is None):
+                self.cond.add_edges_to(self.dest)
         def __str__(self):
             value = 'y' if self.value else 'n'
             if self.cond is None:
@@ -89,19 +159,37 @@ class KconfigData:
             else:
                 return "config %s default %s if %s" % (self.dest, value, self.cond)
 
+        def priority(self):
+            # Defaults are processed just before leaving the variable
+            return -1
+        def process(self):
+            if not self.dest.has_value() and \
+                    (self.cond is None or self.cond.evaluate()):
+                self.dest.set_value(self.value, self)
+
     class DependsOnClause(Clause):
         def __init__(self, dest, expr):
             KconfigData.Clause.__init__(self, dest)
             self.expr = expr
+            self.expr.add_edges_to(self.dest)
         def __str__(self):
             return "config %s depends on %s" % (self.dest, self.expr)
+
+        def process(self):
+            if not self.expr.evaluate():
+                self.dest.set_value(False, self)
 
     class SelectClause(Clause):
         def __init__(self, dest, cond):
             KconfigData.Clause.__init__(self, dest)
             self.cond = cond
+            self.cond.add_edges_to(self.dest)
         def __str__(self):
             return "select %s if %s" % (self.dest, self.cond)
+
+        def process(self):
+            if self.cond.evaluate():
+                self.dest.set_value(True, self)
 
     def __init__(self):
         self.previously_included = []
@@ -120,11 +208,54 @@ class KconfigData:
                 undef = True
         return undef
 
+    def compute_config(self):
+        if self.check_undefined():
+            raise KconfigDataError("there were undefined symbols")
+            return None
+
+        debug_print("Input:")
+        for clause in self.clauses:
+            debug_print(clause)
+
+        debug_print("\nDependency graph:")
+        for i in self.referenced_vars:
+            debug_print(i, "->", [str(x) for x in self.referenced_vars[i].outgoing])
+
+        # The reverse of the depth-first order is the topological sort
+        dfo = dict()
+        visited = set()
+        debug_print("\n")
+        def visit_fn(var):
+            debug_print(var, "has DFS number", len(dfo))
+            dfo[var] = len(dfo)
+
+        for name, v in self.referenced_vars.items():
+            self.do_default(v, False)
+            v.dfs(visited, visit_fn)
+
+        # Put higher DFS numbers and higher priorities first.  This
+        # places the clauses in topological order and places defaults
+        # after assignments and dependencies.
+        self.clauses.sort(key=lambda x: (-dfo[x.dest], -x.priority()))
+
+        debug_print("\nSorted clauses:")
+        for clause in self.clauses:
+            debug_print(clause)
+            clause.process()
+
+        debug_print("")
+        values = dict()
+        for name, v in self.referenced_vars.items():
+            debug_print("Evaluating", name)
+            values[name] = v.evaluate()
+
+        return values
+
     # semantic actions -------------
 
     def do_declaration(self, var):
         if (var in self.defined_vars):
-            raise Exception('variable "' + var + '" defined twice')
+            raise KconfigDataError('variable "' + var + '" defined twice')
 
         self.defined_vars.add(var.name)
 
@@ -201,9 +332,6 @@ class KconfigParser:
         data = KconfigData()
         parser = KconfigParser(data)
         parser.parse_file(fp)
-        if data.check_undefined():
-            raise KconfigParserError(parser, "there were undefined symbols")
-
         return data
 
     def __init__(self, data):
@@ -392,7 +520,6 @@ class KconfigParser:
               self.tok == TOK_SELECT or self.tok == TOK_BOOL or \
               self.tok == TOK_IMPLY:
             self.parse_property(var)
-        self.data.do_default(var, False)
 
         # for nicer error message
         if self.tok != TOK_SOURCE and self.tok != TOK_CONFIG and \
@@ -520,5 +647,4 @@ class KconfigParser:
 if __name__ == '__main__':
     fname = len(sys.argv) > 1 and sys.argv[1] or 'Kconfig.test'
     data = KconfigParser.parse(open(fname, 'r'))
-    for i in data.clauses:
-        print i
+    print data.compute_config()
