@@ -28,8 +28,11 @@ config NVME_PCI
 
 config VIRTIO_BLK
     bool
+    default y
+    depends on VIRTIO
 
 config VHOST_USER_BLK
     bool
-    default y
-    depends on VHOST_USER && LINUX
+    # Only PCI devices are provided for now
+    default y if VIRTIO_PCI
+    depends on VIRTIO && VHOST_USER && LINUX

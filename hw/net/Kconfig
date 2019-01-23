@@ -95,6 +95,8 @@ config XILINX_ETHLITE
 
 config VIRTIO_NET
     bool
+    default y
+    depends on VIRTIO
 
 config ETSEC
     bool
