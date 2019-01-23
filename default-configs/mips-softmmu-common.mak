@@ -1,7 +1,7 @@
 # Common mips*-softmmu CONFIG defines
 
-include sound.mak
 include usb.mak
+CONFIG_ISA_BUS=y
 CONFIG_PCI=y
 CONFIG_PCI_DEVICES=y
 CONFIG_ESP=y
