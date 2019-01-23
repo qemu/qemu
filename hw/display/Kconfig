@@ -9,6 +9,9 @@ config ADS7846
 
 config VGA_CIRRUS
     bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VGA
 
 config G364FB
     bool
@@ -30,6 +33,9 @@ config SSD0323
 
 config VGA_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VGA
 
 config VGA_ISA
     bool
@@ -39,9 +45,15 @@ config VGA_ISA_MM
 
 config VMWARE_VGA
     bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VGA
 
 config BOCHS_DISPLAY
     bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VGA
 
 config BLIZZARD
     bool
@@ -69,12 +81,16 @@ config VGA
 config QXL
     bool
     depends on SPICE && PCI
+    select VGA
 
 config VIRTIO_GPU
     bool
 
 config VIRTIO_VGA
     bool
+    default y if PCI_DEVICES
+    depends on VIRTIO_PCI
+    select VGA
 
 config DPCD
     bool

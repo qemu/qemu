@@ -3,21 +3,32 @@ config SCSI
 
 config LSI_SCSI_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config MPTSAS_SCSI_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config MEGASAS_SCSI_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config VMW_PVSCSI_SCSI_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config ESP
     bool
 
 config ESP_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select ESP
 
 config SPAPR_VSCSI
     bool

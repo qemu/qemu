@@ -21,9 +21,13 @@ config ISA_TESTDEV
 
 config PCI_TESTDEV
     bool
+    default y if TEST_DEVICES
+    depends on PCI
 
 config EDU
     bool
+    default y if TEST_DEVICES
+    depends on PCI
 
 config PCA9552
     bool
@@ -48,7 +52,7 @@ config MACIO
 
 config IVSHMEM_DEVICE
     bool
-    default y
+    default y if PCI_DEVICES
     depends on PCI && LINUX && IVSHMEM
 
 config ECCMEMCTL

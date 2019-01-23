@@ -7,6 +7,7 @@ config IDE_QDEV
 
 config IDE_PCI
     bool
+    depends on PCI
     select IDE_CORE
 
 config IDE_ISA
@@ -42,6 +43,8 @@ config MICRODRIVE
 
 config AHCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
     select IDE_QDEV
 
 config IDE_SII3112

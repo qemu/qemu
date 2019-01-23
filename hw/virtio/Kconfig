@@ -6,6 +6,9 @@ config VIRTIO_RNG
 
 config VIRTIO_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VIRTIO
 
 config VIRTIO_MMIO
     bool

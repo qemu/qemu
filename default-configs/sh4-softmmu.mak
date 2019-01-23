@@ -1,7 +1,8 @@
 # Default configuration for sh4-softmmu
 
-include pci.mak
 include usb.mak
+CONFIG_PCI=y
+CONFIG_PCI_DEVICES=y
 CONFIG_SERIAL=y
 CONFIG_SERIAL_ISA=y
 CONFIG_PTIMER=y

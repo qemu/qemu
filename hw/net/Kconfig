@@ -3,27 +3,42 @@ config DP8393X
 
 config NE2000_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config EEPRO100_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config PCNET_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select PCNET_COMMON
 
 config PCNET_COMMON
     bool
 
 config E1000_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config E1000E_PCI_EXPRESS
     bool
+    default y if PCI_DEVICES
+    depends on PCI_EXPRESS
 
 config RTL8139_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config VMXNET3_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config SMC91C111
     bool
@@ -81,12 +96,20 @@ config ETSEC
 
 config ROCKER
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config CAN_BUS
     bool
 
 config CAN_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select CAN_BUS
 
 config CAN_SJA1000
     bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select CAN_BUS

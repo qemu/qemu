@@ -1,8 +1,8 @@
 # Default configuration for riscv-softmmu
 
-include pci.mak
 include usb.mak
-
+CONFIG_PCI=y
+CONFIG_PCI_DEVICES=y
 CONFIG_SERIAL=y
 CONFIG_VIRTIO_MMIO=y
 

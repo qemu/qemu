@@ -1,7 +1,8 @@
 # Default configuration for arm-softmmu
 
-include pci.mak
 include usb.mak
+CONFIG_PCI=y
+CONFIG_PCI_DEVICES=y
 CONFIG_VGA=y
 CONFIG_NAND=y
 CONFIG_ECC=y
@@ -163,3 +164,7 @@ CONFIG_PCI_EXPRESS_DESIGNWARE=y
 CONFIG_STRONGARM=y
 CONFIG_HIGHBANK=y
 CONFIG_MUSICPAL=y
+
+# for realview and versatilepb
+CONFIG_SCSI=y
+CONFIG_LSI_SCSI_PCI=y

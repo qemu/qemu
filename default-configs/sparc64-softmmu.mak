@@ -1,7 +1,8 @@
 # Default configuration for sparc64-softmmu
 
-include pci.mak
 include usb.mak
+CONFIG_PCI=y
+CONFIG_PCI_DEVICES=y
 CONFIG_M48T59=y
 CONFIG_PTIMER=y
 CONFIG_SERIAL=y

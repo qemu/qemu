@@ -21,6 +21,8 @@ config ONENAND
 
 config NVME_PCI
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config VIRTIO_BLK
     bool

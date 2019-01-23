@@ -1,8 +1,9 @@
 # Default configuration for ppc-softmmu
 
-include pci.mak
 include sound.mak
 include usb.mak
+CONFIG_PCI=y
+CONFIG_PCI_DEVICES=y
 CONFIG_TEST_DEVICES=y
 
 # For embedded PPCs:

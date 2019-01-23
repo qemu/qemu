@@ -3,6 +3,8 @@ config CMSDK_APB_WATCHDOG
 
 config WDT_IB6300ESB
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config WDT_IB700
     bool

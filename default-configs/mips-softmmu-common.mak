@@ -1,8 +1,9 @@
 # Common mips*-softmmu CONFIG defines
 
-include pci.mak
 include sound.mak
 include usb.mak
+CONFIG_PCI=y
+CONFIG_PCI_DEVICES=y
 CONFIG_ESP=y
 CONFIG_SCSI=y
 CONFIG_VGA_ISA=y

@@ -417,7 +417,6 @@ into each QEMU system and userspace emulator targets. They merely
 contain a long list of config variable definitions. For example,
 default-configs/x86_64-softmmu.mak has:
 
-  include pci.mak
   include sound.mak
   include usb.mak
   CONFIG_QXL=$(CONFIG_SPICE)

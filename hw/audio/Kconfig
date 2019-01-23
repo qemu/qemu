@@ -3,9 +3,13 @@ config SB16
 
 config ES1370
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config AC97
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config ADLIB
     bool
@@ -18,6 +22,8 @@ config CS4231A
 
 config HDA
     bool
+    default y if PCI_DEVICES
+    depends on PCI
 
 config PCSPK
     bool
