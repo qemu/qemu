@@ -1763,10 +1763,16 @@ async_common:
         qxl_set_mode(d, val, 0);
         break;
     case QXL_IO_LOG:
-        trace_qxl_io_log(d->id, d->ram->log_buf);
-        if (d->guestdebug) {
-            fprintf(stderr, "qxl/guest-%d: %" PRId64 ": %s", d->id,
-                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), d->ram->log_buf);
+        if (TRACE_QXL_IO_LOG_ENABLED || d->guestdebug) {
+            /* We cannot trust the guest to NUL terminate d->ram->log_buf */
+            char *log_buf = g_strndup((const char *)d->ram->log_buf,
+                                      sizeof(d->ram->log_buf));
+            trace_qxl_io_log(d->id, log_buf);
+            if (d->guestdebug) {
+                fprintf(stderr, "qxl/guest-%d: %" PRId64 ": %s", d->id,
+                        qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), log_buf);
+            }
+            g_free(log_buf);
         }
         break;
     case QXL_IO_RESET:
