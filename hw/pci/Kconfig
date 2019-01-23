@@ -1,2 +1,6 @@
 config PCI
     bool
+
+config PCI_EXPRESS
+    bool
+    select PCI
