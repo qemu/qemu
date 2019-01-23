@@ -3,7 +3,7 @@ config TPM
 
 config TPM_TIS
     bool
-    depends on TPM
+    depends on TPM && ISA_BUS
 
 config TPM_CRB
     bool

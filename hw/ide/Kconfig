@@ -12,6 +12,7 @@ config IDE_PCI
 
 config IDE_ISA
     bool
+    depends on ISA_BUS
     select IDE_QDEV
 
 config IDE_PIIX

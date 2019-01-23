@@ -48,6 +48,10 @@ config LAN9118
 
 config NE2000_ISA
     bool
+    default y
+    depends on ISA_BUS
+    depends on PCI # for NE2000State
+    select NE2000_PCI
 
 config OPENCORES_ETH
     bool

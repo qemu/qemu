@@ -9,6 +9,8 @@ config IPMI_EXTERN
 
 config ISA_IPMI_KCS
     bool
+    depends on ISA_BUS
 
 config ISA_IPMI_BT
     bool
+    depends on ISA_BUS

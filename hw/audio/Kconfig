@@ -35,6 +35,8 @@ config HDA
 
 config PCSPK
     bool
+    default y
+    depends on I8254
 
 config WM8750
     bool

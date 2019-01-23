@@ -6,18 +6,25 @@ config APM
 
 config I82378
     bool
+    select ISA_BUS
 
 config PC87312
     bool
+    select ISA_BUS
 
 config PIIX4
     bool
+    select ISA_BUS
 
 config VT82C686
     bool
+    select ISA_BUS
 
 config SMC37C669
     bool
+    select ISA_BUS
 
 config LPC_ICH9
     bool
+    select ISA_BUS
+    select ACPI_X86_ICH

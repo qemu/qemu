@@ -1,5 +1,7 @@
 config FDC
     bool
+    default y
+    depends on ISA_BUS
 
 config SSI_M25P80
     bool

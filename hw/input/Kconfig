@@ -6,6 +6,8 @@ config LM832X
 
 config PCKBD
     bool
+    default y
+    depends on ISA_BUS
 
 config PL050
     bool

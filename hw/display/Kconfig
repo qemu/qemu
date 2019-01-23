@@ -39,9 +39,12 @@ config VGA_PCI
 
 config VGA_ISA
     bool
+    depends on ISA_BUS
+    select VGA
 
 config VGA_ISA_MM
     bool
+    select VGA
 
 config VMWARE_VGA
     bool

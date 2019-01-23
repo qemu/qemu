@@ -9,6 +9,7 @@ config PL330
 
 config I82374
     bool
+    select I8257
 
 config I8257
     bool
