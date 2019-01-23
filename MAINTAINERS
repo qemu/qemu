@@ -2017,6 +2017,7 @@ F: trace-events
 F: qemu-option-trace.texi
 F: scripts/tracetool.py
 F: scripts/tracetool/
+F: scripts/qemu-trace-stap*
 F: docs/devel/tracing.txt
 T: git https://github.com/stefanha/qemu.git tracing
 

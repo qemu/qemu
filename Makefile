@@ -305,6 +305,9 @@ DOCS+=docs/qemu-cpu-models.7
 ifdef CONFIG_VIRTFS
 DOCS+=fsdev/virtfs-proxy-helper.1
 endif
+ifdef CONFIG_TRACE_SYSTEMTAP
+DOCS+=scripts/qemu-trace-stap.1
+endif
 else
 DOCS=
 endif
@@ -699,6 +702,9 @@ ifneq ($(TOOLS),)
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
 	$(INSTALL_DATA) qemu-nbd.8 "$(DESTDIR)$(mandir)/man8"
 endif
+ifdef CONFIG_TRACE_SYSTEMTAP
+	$(INSTALL_DATA) scripts/qemu-trace-stap.1 "$(DESTDIR)$(mandir)/man1"
+endif
 ifneq (,$(findstring qemu-ga,$(TOOLS)))
 	$(INSTALL_DATA) qemu-ga.8 "$(DESTDIR)$(mandir)/man8"
 	$(INSTALL_DATA) docs/interop/qemu-ga-ref.html "$(DESTDIR)$(qemu_docdir)"
@@ -737,6 +743,9 @@ ifneq ($(CONFIG_MODULES),)
 endif
 ifneq ($(HELPERS-y),)
 	$(call install-prog,$(HELPERS-y),$(DESTDIR)$(libexecdir))
+endif
+ifdef CONFIG_TRACE_SYSTEMTAP
+	$(INSTALL_PROG) "scripts/qemu-trace-stap" $(DESTDIR)$(bindir)
 endif
 ifneq ($(BLOBS),)
 	set -e; for x in $(BLOBS); do \
@@ -852,6 +861,7 @@ qemu-nbd.8: qemu-nbd.texi qemu-option-trace.texi
 qemu-ga.8: qemu-ga.texi
 docs/qemu-block-drivers.7: docs/qemu-block-drivers.texi
 docs/qemu-cpu-models.7: docs/qemu-cpu-models.texi
+scripts/qemu-trace-stap.1: scripts/qemu-trace-stap.texi
 
 html: qemu-doc.html docs/interop/qemu-qmp-ref.html docs/interop/qemu-ga-ref.html
 info: qemu-doc.info docs/interop/qemu-qmp-ref.info docs/interop/qemu-ga-ref.info
