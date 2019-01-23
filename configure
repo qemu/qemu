@@ -466,7 +466,7 @@ gcrypt_hmac="no"
 auth_pam=""
 vte=""
 virglrenderer=""
-tpm="yes"
+tpm=""
 libssh2=""
 live_block_migration="yes"
 numa=""
@@ -3877,20 +3877,20 @@ EOF
 fi
 
 ##########################################
-# TPM passthrough is only on x86 Linux
+# TPM emulation is only on POSIX
 
-if test "$targetos" = Linux && { test "$cpu" = i386 || test "$cpu" = x86_64; }; then
-  tpm_passthrough=$tpm
-else
-  tpm_passthrough=no
+if test "$tpm" = ""; then
+  if test "$mingw32" = "yes"; then
+    tpm=no
+  else
+    tpm=yes
+  fi
+elif test "$tpm" = "yes"; then
+  if test "$mingw32" = "yes" ; then
+    error_exit "TPM emulation only available on POSIX systems"
+  fi
 fi
 
-# TPM emulator is for all posix systems
-if test "$mingw32" != "yes"; then
-  tpm_emulator=$tpm
-else
-  tpm_emulator=no
-fi
 ##########################################
 # attr probe
 
