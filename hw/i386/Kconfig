@@ -4,6 +4,7 @@ config SEV
 
 config PC
     bool
+    imply HYPERV
     imply QXL
     imply SEV
     imply TPM_CRB
