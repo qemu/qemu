@@ -164,5 +164,4 @@ CONFIG_HIGHBANK=y
 CONFIG_MUSICPAL=y
 
 # for realview and versatilepb
-CONFIG_SCSI=y
 CONFIG_LSI_SCSI_PCI=y

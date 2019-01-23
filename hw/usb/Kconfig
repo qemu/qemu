@@ -52,11 +52,13 @@ config USB_STORAGE_BOT
     bool
     default y
     depends on USB
+    select SCSI
 
 config USB_STORAGE_UAS
     bool
     default y
     depends on USB
+    select SCSI
 
 config USB_AUDIO
     bool

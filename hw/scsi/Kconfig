@@ -5,24 +5,29 @@ config LSI_SCSI_PCI
     bool
     default y if PCI_DEVICES
     depends on PCI
+    select SCSI
 
 config MPTSAS_SCSI_PCI
     bool
     default y if PCI_DEVICES
     depends on PCI
+    select SCSI
 
 config MEGASAS_SCSI_PCI
     bool
     default y if PCI_DEVICES
     depends on PCI
+    select SCSI
 
 config VMW_PVSCSI_SCSI_PCI
     bool
     default y if PCI_DEVICES
     depends on PCI
+    select SCSI
 
 config ESP
     bool
+    select SCSI
 
 config ESP_PCI
     bool
@@ -34,11 +39,14 @@ config SPAPR_VSCSI
     bool
     default y
     depends on PSERIES
+    select SCSI
 
 config VIRTIO_SCSI
     bool
+    select SCSI
 
 config VHOST_USER_SCSI
     bool
-    default y
+    # Only PCI devices are provided for now
+    default y if VIRTIO_PCI
     depends on VHOST_USER && LINUX
