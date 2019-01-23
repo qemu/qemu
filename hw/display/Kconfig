@@ -24,9 +24,11 @@ config PL110
 
 config SII9022
     bool
+    depends on I2C
 
 config SSD0303
     bool
+    depends on I2C
 
 config SSD0323
     bool
@@ -71,6 +73,7 @@ config MILKYMIST_TMU2
 
 config SM501
     bool
+    select I2C
 
 config TCX
     bool

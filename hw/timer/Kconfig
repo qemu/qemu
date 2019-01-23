@@ -9,6 +9,7 @@ config A9_GTIMER
 
 config DS1338
     bool
+    depends on I2C
 
 config HPET
     bool
@@ -18,6 +19,7 @@ config I8254
 
 config M41T80
     bool
+    depends on I2C
 
 config M48T59
     bool
@@ -27,6 +29,7 @@ config PL031
 
 config TWL92230
     bool
+    depends on I2C
 
 config XLNX_ZYNQMP
     bool

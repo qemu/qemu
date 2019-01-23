@@ -19,6 +19,7 @@ config PIIX4
 config VT82C686
     bool
     select ISA_BUS
+    select ACPI_SMBUS
 
 config SMC37C669
     bool

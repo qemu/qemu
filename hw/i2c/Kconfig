@@ -3,18 +3,24 @@ config I2C
 
 config SMBUS_EEPROM
     bool
+    depends on I2C
 
 config DDC
     bool
+    depends on I2C
 
 config VERSATILE_I2C
     bool
+    select I2C
 
 config ACPI_SMBUS
     bool
+    select I2C
 
 config BITBANG_I2C
     bool
+    select I2C
 
 config IMX_I2C
     bool
+    select I2C

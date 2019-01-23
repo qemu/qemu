@@ -3,6 +3,7 @@ config ADB
 
 config LM832X
     bool
+    depends on I2C
 
 config PCKBD
     bool

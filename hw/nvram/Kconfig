@@ -3,6 +3,7 @@ config DS1225Y
 
 config AT24C
     bool
+    depends on I2C
 
 config MAC_NVRAM
     bool

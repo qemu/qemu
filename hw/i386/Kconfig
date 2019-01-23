@@ -28,6 +28,7 @@ config PC_ACPI
     select ACPI_X86
     select ACPI_CPU_HOTPLUG
     select ACPI_MEMORY_HOTPLUG
+    select SMBUS_EEPROM
     depends on ACPI_SMBUS
 
 config I440FX
