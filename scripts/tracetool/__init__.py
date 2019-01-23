@@ -350,6 +350,8 @@ def read_events(fobj, fname):
 
     events = []
     for lineno, line in enumerate(fobj, 1):
+        if line[-1] != '\n':
+            raise ValueError("%s does not end with a new line" % fname)
         if not line.strip():
             continue
         if line.lstrip().startswith('#'):
