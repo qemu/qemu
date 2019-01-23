@@ -345,6 +345,7 @@ endif
 
 # This has to be kept in sync with Kconfig.host.
 MINIKCONF_ARGS = \
+    $(CONFIG_MINIKCONF_MODE) \
     $@ $*-config.devices.mak.d $< $(MINIKCONF_INPUTS) \
     CONFIG_KVM=$(CONFIG_KVM) \
     CONFIG_SPICE=$(CONFIG_SPICE) \

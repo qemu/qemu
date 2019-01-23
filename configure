@@ -487,7 +487,7 @@ libxml2=""
 docker="no"
 debug_mutex="no"
 libpmem=""
-libudev="no"
+default_devices="yes"
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
 cross_cc_aarch64="aarch64-linux-gnu-gcc"
@@ -995,6 +995,10 @@ for opt do
   --enable-trace-backend=*) trace_backends="$optarg"
   ;;
   --with-trace-file=*) trace_file="$optarg"
+  ;;
+  --with-default-devices) default_devices="yes"
+  ;;
+  --without-default-devices) default_devices="no"
   ;;
   --enable-gprof) gprof="yes"
   ;;
@@ -6261,6 +6265,7 @@ echo "capstone          $capstone"
 echo "docker            $docker"
 echo "libpmem support   $libpmem"
 echo "libudev           $libudev"
+echo "default devices   $default_devices"
 
 if test "$supported_cpu" = "no"; then
     echo
@@ -6322,6 +6327,11 @@ echo "GIT_UPDATE=$git_update" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 
+if test "$default_devices" = "yes" ; then
+  echo "CONFIG_MINIKCONF_MODE=--defconfig" >> $config_host_mak
+else
+  echo "CONFIG_MINIKCONF_MODE=--allnoconfig" >> $config_host_mak
+fi
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
 fi
