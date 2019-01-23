@@ -7,7 +7,7 @@ config TPM_TIS
 
 config TPM_CRB
     bool
-    depends on TPM
+    depends on TPM && PC
 
 config TPM_PASSTHROUGH
     bool

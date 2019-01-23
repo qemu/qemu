@@ -3,15 +3,18 @@ config ACPI
 
 config ACPI_X86
     bool
+    select ACPI
 
 config ACPI_X86_ICH
     bool
+    select ACPI_X86
 
 config ACPI_CPU_HOTPLUG
     bool
 
 config ACPI_MEMORY_HOTPLUG
     bool
+    select MEM_DEVICE
 
 config ACPI_NVDIMM
     bool

@@ -27,4 +27,5 @@ config SMC37C669
 config LPC_ICH9
     bool
     select ISA_BUS
+    select ACPI_SMBUS
     select ACPI_X86_ICH

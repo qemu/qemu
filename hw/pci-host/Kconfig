@@ -27,10 +27,14 @@ config PCI_SABRE
 
 config PCI_PIIX
     bool
+    select PCI
+    select PAM
+    select ISA_BUS
 
 config PCI_EXPRESS_Q35
     bool
     select PCI_EXPRESS
+    select PAM
 
 config PCI_EXPRESS_GENERIC_BRIDGE
     bool
