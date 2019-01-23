@@ -67,10 +67,8 @@ typedef uint64_t target_ulong;
 #define CPU_TLB_ENTRY_BITS 5
 #endif
 
-#if TCG_TARGET_IMPLEMENTS_DYN_TLB
 #define CPU_TLB_DYN_MIN_BITS 6
 #define CPU_TLB_DYN_DEFAULT_BITS 8
-
 
 # if HOST_LONG_BITS == 32
 /* Make sure we do not require a double-word shift for the TLB load */
@@ -86,41 +84,6 @@ typedef uint64_t target_ulong;
 #  define CPU_TLB_DYN_MAX_BITS                                  \
     MIN(22, TARGET_VIRT_ADDR_SPACE_BITS - TARGET_PAGE_BITS)
 # endif
-
-#else /* !TCG_TARGET_IMPLEMENTS_DYN_TLB */
-
-/* TCG_TARGET_TLB_DISPLACEMENT_BITS is used in CPU_TLB_BITS to ensure that
- * the TLB is not unnecessarily small, but still small enough for the
- * TLB lookup instruction sequence used by the TCG target.
- *
- * TCG will have to generate an operand as large as the distance between
- * env and the tlb_table[NB_MMU_MODES - 1][0].addend.  For simplicity,
- * the TCG targets just round everything up to the next power of two, and
- * count bits.  This works because: 1) the size of each TLB is a largish
- * power of two, 2) and because the limit of the displacement is really close
- * to a power of two, 3) the offset of tlb_table[0][0] inside env is smaller
- * than the size of a TLB.
- *
- * For example, the maximum displacement 0xFFF0 on PPC and MIPS, but TCG
- * just says "the displacement is 16 bits".  TCG_TARGET_TLB_DISPLACEMENT_BITS
- * then ensures that tlb_table at least 0x8000 bytes large ("not unnecessarily
- * small": 2^15).  The operand then will come up smaller than 0xFFF0 without
- * any particular care, because the TLB for a single MMU mode is larger than
- * 0x10000-0xFFF0=16 bytes.  In the end, the maximum value of the operand
- * could be something like 0xC000 (the offset of the last TLB table) plus
- * 0x18 (the offset of the addend field in each TLB entry) plus the offset
- * of tlb_table inside env (which is non-trivial but not huge).
- */
-#define CPU_TLB_BITS                                             \
-    MIN(8,                                                       \
-        TCG_TARGET_TLB_DISPLACEMENT_BITS - CPU_TLB_ENTRY_BITS -  \
-        (NB_MMU_MODES <= 1 ? 0 :                                 \
-         NB_MMU_MODES <= 2 ? 1 :                                 \
-         NB_MMU_MODES <= 4 ? 2 :                                 \
-         NB_MMU_MODES <= 8 ? 3 : 4))
-
-#define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
-#endif /* TCG_TARGET_IMPLEMENTS_DYN_TLB */
 
 typedef struct CPUTLBEntry {
     /* bit TARGET_LONG_BITS to TARGET_PAGE_BITS : virtual address
@@ -187,10 +150,8 @@ typedef struct CPUTLBDesc {
     target_ulong large_page_mask;
     /* The next index to use in the tlb victim table.  */
     size_t vindex;
-#if TCG_TARGET_IMPLEMENTS_DYN_TLB
     CPUTLBWindow window;
     size_t n_used_entries;
-#endif
 } CPUTLBDesc;
 
 /*
@@ -215,19 +176,12 @@ typedef struct CPUTLBCommon {
     size_t elide_flush_count;
 } CPUTLBCommon;
 
-#if TCG_TARGET_IMPLEMENTS_DYN_TLB
 # define CPU_TLB                                                        \
     /* tlb_mask[i] contains (n_entries - 1) << CPU_TLB_ENTRY_BITS */    \
     uintptr_t tlb_mask[NB_MMU_MODES];                                   \
     CPUTLBEntry *tlb_table[NB_MMU_MODES];
 # define CPU_IOTLB                              \
     CPUIOTLBEntry *iotlb[NB_MMU_MODES];
-#else
-# define CPU_TLB                                        \
-    CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];
-# define CPU_IOTLB                                      \
-    CPUIOTLBEntry iotlb[NB_MMU_MODES][CPU_TLB_SIZE];
-#endif
 
 /*
  * The meaning of each of the MMU modes is defined in the target code.

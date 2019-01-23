@@ -74,7 +74,6 @@ QEMU_BUILD_BUG_ON(sizeof(target_ulong) > sizeof(run_on_cpu_data));
 QEMU_BUILD_BUG_ON(NB_MMU_MODES > 16);
 #define ALL_MMUIDX_BITS ((1 << NB_MMU_MODES) - 1)
 
-#if TCG_TARGET_IMPLEMENTS_DYN_TLB
 static inline size_t sizeof_tlb(CPUArchState *env, uintptr_t mmu_idx)
 {
     return env->tlb_mask[mmu_idx] + (1 << CPU_TLB_ENTRY_BITS);
@@ -234,26 +233,6 @@ static inline void tlb_n_used_entries_dec(CPUArchState *env, uintptr_t mmu_idx)
 {
     env->tlb_d[mmu_idx].n_used_entries--;
 }
-
-#else /* !TCG_TARGET_IMPLEMENTS_DYN_TLB */
-
-static inline void tlb_dyn_init(CPUArchState *env)
-{
-}
-
-static inline void tlb_table_flush_by_mmuidx(CPUArchState *env, int mmu_idx)
-{
-    memset(env->tlb_table[mmu_idx], -1, sizeof(env->tlb_table[0]));
-}
-
-static inline void tlb_n_used_entries_inc(CPUArchState *env, uintptr_t mmu_idx)
-{
-}
-
-static inline void tlb_n_used_entries_dec(CPUArchState *env, uintptr_t mmu_idx)
-{
-}
-#endif /* TCG_TARGET_IMPLEMENTS_DYN_TLB */
 
 void tlb_init(CPUState *cpu)
 {
