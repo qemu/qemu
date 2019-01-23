@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Name=QEMU
+Icon=qemu
+Type=Application
+Terminal=false
+Keywords=Emulators;Virtualization;KVM;
+NoDisplay=true

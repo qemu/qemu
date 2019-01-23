@@ -762,9 +762,9 @@ static void sdl2_display_early_init(DisplayOptions *o)
 static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
 {
     uint8_t data = 0;
-    char *filename;
     int i;
     SDL_SysWMinfo info;
+    SDL_Surface *icon = NULL;
 
     assert(o->type == DISPLAY_TYPE_SDL);
 
@@ -836,16 +836,18 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
 #endif
     }
 
+#ifdef CONFIG_SDL_IMAGE
+    icon = IMG_Load(CONFIG_QEMU_ICONDIR "/hicolor/128x128/apps/qemu.png");
+#else
     /* Load a 32x32x4 image. White pixels are transparent. */
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "qemu-icon.bmp");
-    if (filename) {
-        SDL_Surface *image = SDL_LoadBMP(filename);
-        if (image) {
-            uint32_t colorkey = SDL_MapRGB(image->format, 255, 255, 255);
-            SDL_SetColorKey(image, SDL_TRUE, colorkey);
-            SDL_SetWindowIcon(sdl2_console[0].real_window, image);
-        }
-        g_free(filename);
+    icon = SDL_LoadBMP(CONFIG_QEMU_ICONDIR "/hicolor/32x32/apps/qemu.bmp");
+    if (icon) {
+        uint32_t colorkey = SDL_MapRGB(icon->format, 255, 255, 255);
+        SDL_SetColorKey(icon, SDL_TRUE, colorkey);
+    }
+#endif
+    if (icon) {
+        SDL_SetWindowIcon(sdl2_console[0].real_window, icon);
     }
 
     gui_grab = 0;

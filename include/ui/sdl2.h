@@ -6,6 +6,9 @@
 
 #include <SDL.h>
 #include <SDL_syswm.h>
+#ifdef CONFIG_SDL_IMAGE
+# include <SDL_image.h>
+#endif
 
 #ifdef CONFIG_OPENGL
 # include "ui/egl-helpers.h"
