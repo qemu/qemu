@@ -19,8 +19,15 @@ config ESP
 config ESP_PCI
     bool
 
+config SPAPR_VSCSI
+    bool
+    default y
+    depends on PSERIES
+
 config VIRTIO_SCSI
     bool
 
 config VHOST_USER_SCSI
     bool
+    default y
+    depends on VHOST_USER && LINUX

@@ -4,8 +4,11 @@ BUILD_DIR?=$(CURDIR)/..
 
 include ../config-host.mak
 include config-target.mak
-include config-devices.mak
 include $(SRC_PATH)/rules.mak
+
+ifdef CONFIG_SOFTMMU
+include config-devices.mak
+endif
 
 $(call set-vpath, $(SRC_PATH):$(BUILD_DIR))
 ifdef CONFIG_LINUX
@@ -201,7 +204,9 @@ all-obj-$(CONFIG_SOFTMMU) += $(crypto-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(io-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(slirp-obj-y)
 
+ifdef CONFIG_SOFTMMU
 $(QEMU_PROG_BUILD): config-devices.mak
+endif
 
 COMMON_LDADDS = ../libqemuutil.a
 

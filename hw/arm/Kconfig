@@ -1,5 +1,6 @@
 config ARM_VIRT
     bool
+    imply VFIO_PLATFORM
 
 config DIGIC
     bool

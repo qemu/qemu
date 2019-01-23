@@ -39,6 +39,10 @@ config VIRTEX
 
 config XIVE
     bool
+    default y
+    depends on PSERIES
 
 config XIVE_SPAPR
     bool
+    default y
+    depends on PSERIES

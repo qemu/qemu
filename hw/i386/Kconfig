@@ -1,5 +1,13 @@
 config SEV
     bool
+    depends on KVM
+
+config PC
+    bool
+    imply QXL
+    imply SEV
+    imply TPM_CRB
+    imply TPM_TIS
 
 config I440FX
     bool

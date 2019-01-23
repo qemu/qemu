@@ -48,6 +48,8 @@ config MACIO
 
 config IVSHMEM_DEVICE
     bool
+    default y
+    depends on PCI && LINUX && IVSHMEM
 
 config ECCMEMCTL
     bool

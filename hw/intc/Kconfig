@@ -21,18 +21,28 @@ config APIC
 
 config ARM_GIC_KVM
     bool
+    default y
+    depends on ARM_GIC && KVM
 
 config OPENPIC_KVM
     bool
+    default y
+    depends on OPENPIC && KVM
 
 config XICS
     bool
+    default y
+    depends on PSERIES
 
 config XICS_SPAPR
     bool
+    default y
+    depends on PSERIES
 
 config XICS_KVM
     bool
+    default y
+    depends on XICS && KVM
 
 config ALLWINNER_A10_PIC
     bool
@@ -42,6 +52,8 @@ config S390_FLIC
 
 config S390_FLIC_KVM
     bool
+    default y
+    depends on S390_FLIC && KVM
 
 config OMPIC
     bool

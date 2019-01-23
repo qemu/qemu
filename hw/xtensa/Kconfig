@@ -1,5 +1,5 @@
 config XTENSA_SIM
     bool
 
-config XTENSA_FPGA
+config XTENSA_XTFPGA
     bool

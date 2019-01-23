@@ -1,5 +1,6 @@
 # These are "proxy" symbols used to pass config-host.mak values
-# down to Kconfig.
+# down to Kconfig.  See also MINIKCONF_ARGS in the Makefile:
+# these two need to be kept in sync.
 
 config KVM
     bool
@@ -10,7 +11,13 @@ config LINUX
 config OPENGL
     bool
 
+config X11
+    bool
+
 config SPICE
+    bool
+
+config IVSHMEM
     bool
 
 config TPM

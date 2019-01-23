@@ -19,5 +19,10 @@ config TSC2005
 config VIRTIO_INPUT
     bool
 
+config VIRTIO_INPUT_HOST
+    bool
+    default y
+    depends on LINUX
+
 config TSC210X
     bool

@@ -51,6 +51,8 @@ config FRAMEBUFFER
 
 config MILKYMIST_TMU2
     bool
+    default y
+    depends on OPENGL && X11
 
 config SM501
     bool
@@ -66,6 +68,7 @@ config VGA
 
 config QXL
     bool
+    depends on SPICE && PCI
 
 config VIRTIO_GPU
     bool
