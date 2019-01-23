@@ -15,6 +15,7 @@ config DS1338
 
 config HPET
     bool
+    default y if PC
 
 config I8254
     bool

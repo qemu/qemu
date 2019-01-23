@@ -4,6 +4,9 @@ config ACPI
 config ACPI_X86
     bool
     select ACPI
+    select ACPI_NVDIMM
+    select ACPI_CPU_HOTPLUG
+    select ACPI_MEMORY_HOTPLUG
 
 config ACPI_X86_ICH
     bool
@@ -18,6 +21,9 @@ config ACPI_MEMORY_HOTPLUG
 
 config ACPI_NVDIMM
     bool
+    depends on ACPI
 
 config ACPI_VMGENID
     bool
+    default y
+    depends on PC
