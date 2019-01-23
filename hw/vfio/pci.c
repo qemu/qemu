@@ -2581,7 +2581,7 @@ static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
     if (ret) {
         /* This can fail for an old kernel or legacy PCI dev */
-        trace_vfio_populate_device_get_irq_info_failure();
+        trace_vfio_populate_device_get_irq_info_failure(strerror(errno));
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
     } else {
