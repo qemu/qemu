@@ -202,7 +202,11 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
                         (cpu->cfg.use_barrel ? PVR2_USE_BARREL_MASK : 0) |
                         (cpu->cfg.use_div ? PVR2_USE_DIV_MASK : 0) |
                         (cpu->cfg.use_msr_instr ? PVR2_USE_MSR_INSTR : 0) |
-                        (cpu->cfg.use_pcmp_instr ? PVR2_USE_PCMP_INSTR : 0);
+                        (cpu->cfg.use_pcmp_instr ? PVR2_USE_PCMP_INSTR : 0) |
+                        (cpu->cfg.dopb_bus_exception ?
+                                                 PVR2_DOPB_BUS_EXC_MASK : 0) |
+                        (cpu->cfg.iopb_bus_exception ?
+                                                 PVR2_IOPB_BUS_EXC_MASK : 0);
 
     env->pvr.regs[5] |= cpu->cfg.dcache_writeback ?
                                         PVR5_DCACHE_WRITEBACK_MASK : 0;
@@ -265,6 +269,12 @@ static Property mb_properties[] = {
     DEFINE_PROP_BOOL("dcache-writeback", MicroBlazeCPU, cfg.dcache_writeback,
                      false),
     DEFINE_PROP_BOOL("endianness", MicroBlazeCPU, cfg.endi, false),
+    /* Enables bus exceptions on failed data accesses (load/stores).  */
+    DEFINE_PROP_BOOL("dopb-bus-exception", MicroBlazeCPU,
+                     cfg.dopb_bus_exception, false),
+    /* Enables bus exceptions on failed instruction fetches.  */
+    DEFINE_PROP_BOOL("iopb-bus-exception", MicroBlazeCPU,
+                     cfg.iopb_bus_exception, false),
     DEFINE_PROP_STRING("version", MicroBlazeCPU, cfg.version),
     DEFINE_PROP_UINT8("pvr", MicroBlazeCPU, cfg.pvr, C_PVR_FULL),
     DEFINE_PROP_END_OF_LIST(),
@@ -297,7 +307,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
 #ifdef CONFIG_USER_ONLY
     cc->handle_mmu_fault = mb_cpu_handle_mmu_fault;
 #else
-    cc->do_unassigned_access = mb_cpu_unassigned_access;
+    cc->do_transaction_failed = mb_cpu_transaction_failed;
     cc->get_phys_page_debug = mb_cpu_get_phys_page_debug;
 #endif
     dc->vmsd = &vmstate_mb_cpu;
