@@ -12,6 +12,8 @@
 #include "sysemu/sysemu.h"
 #include "ui/input.h"
 #include "qom/object_interfaces.h"
+#include "sysemu/iothread.h"
+#include "block/aio.h"
 
 #include <sys/ioctl.h>
 #include "standard-headers/linux/input.h"
@@ -63,6 +65,8 @@ struct InputLinux {
     struct input_event event;
     int         read_offset;
 
+    enum GrabToggleKeys grab_toggle;
+
     QTAILQ_ENTRY(InputLinux) next;
 };
 
@@ -98,6 +102,44 @@ static void input_linux_toggle_grab(InputLinux *il)
     }
 }
 
+static bool input_linux_check_toggle(InputLinux *il)
+{
+    switch (il->grab_toggle) {
+    case GRAB_TOGGLE_KEYS_CTRL_CTRL:
+        return il->keydown[KEY_LEFTCTRL] &&
+            il->keydown[KEY_RIGHTCTRL];
+
+    case GRAB_TOGGLE_KEYS_ALT_ALT:
+        return il->keydown[KEY_LEFTALT] &&
+            il->keydown[KEY_RIGHTALT];
+
+    case GRAB_TOGGLE_KEYS_META_META:
+        return il->keydown[KEY_LEFTMETA] &&
+            il->keydown[KEY_RIGHTMETA];
+
+    case GRAB_TOGGLE_KEYS_SCROLLLOCK:
+        return il->keydown[KEY_SCROLLLOCK];
+
+    case GRAB_TOGGLE_KEYS_CTRL_SCROLLLOCK:
+        return (il->keydown[KEY_LEFTCTRL] ||
+                il->keydown[KEY_RIGHTCTRL]) &&
+            il->keydown[KEY_SCROLLLOCK];
+
+    case GRAB_TOGGLE_KEYS__MAX:
+        /* avoid gcc error */
+        break;
+    }
+    return false;
+}
+
+static bool input_linux_should_skip(InputLinux *il,
+                                    struct input_event *event)
+{
+    return (il->grab_toggle == GRAB_TOGGLE_KEYS_SCROLLLOCK ||
+            il->grab_toggle == GRAB_TOGGLE_KEYS_CTRL_SCROLLLOCK) &&
+            event->code == KEY_SCROLLLOCK;
+}
+
 static void input_linux_handle_keyboard(InputLinux *il,
                                         struct input_event *event)
 {
@@ -128,14 +170,13 @@ static void input_linux_handle_keyboard(InputLinux *il,
         }
 
         /* send event to guest when grab is active */
-        if (il->grab_active) {
+        if (il->grab_active && !input_linux_should_skip(il, event)) {
             int qcode = qemu_input_linux_to_qcode(event->code);
             qemu_input_event_send_key_qcode(NULL, qcode, event->value);
         }
 
         /* hotkey -> record switch request ... */
-        if (il->keydown[KEY_LEFTCTRL] &&
-            il->keydown[KEY_RIGHTCTRL]) {
+        if (input_linux_check_toggle(il)) {
             il->grab_request = true;
         }
 
@@ -410,6 +451,21 @@ static void input_linux_set_repeat(Object *obj, bool value,
     il->repeat = value;
 }
 
+static int input_linux_get_grab_toggle(Object *obj, Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    return il->grab_toggle;
+}
+
+static void input_linux_set_grab_toggle(Object *obj, int value,
+                                       Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    il->grab_toggle = value;
+}
+
 static void input_linux_instance_init(Object *obj)
 {
     object_property_add_str(obj, "evdev",
@@ -421,6 +477,10 @@ static void input_linux_instance_init(Object *obj)
     object_property_add_bool(obj, "repeat",
                              input_linux_get_repeat,
                              input_linux_set_repeat, NULL);
+    object_property_add_enum(obj, "grab-toggle", "GrabToggleKeys",
+                             &GrabToggleKeys_lookup,
+                             input_linux_get_grab_toggle,
+                             input_linux_set_grab_toggle, NULL);
 }
 
 static void input_linux_class_init(ObjectClass *oc, void *data)
