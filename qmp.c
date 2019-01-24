@@ -156,6 +156,9 @@ void qmp_cont(Error **errp)
         return;
     } else if (runstate_check(RUN_STATE_SUSPENDED)) {
         return;
+    } else if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {
+        error_setg(errp, "Migration is not finalized yet");
+        return;
     }
 
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
