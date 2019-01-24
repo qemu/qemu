@@ -3342,39 +3342,26 @@ fi
 ##########################################
 # Sound support libraries probe
 
-audio_drv_probe()
-{
-    drv=$1
-    hdr=$2
-    lib=$3
-    exp=$4
-    cfl=$5
-        cat > $TMPC << EOF
-#include <$hdr>
-int main(void) { $exp }
-EOF
-    if compile_prog "$cfl" "$lib" ; then
-        :
-    else
-        error_exit "$drv check failed" \
-            "Make sure to have the $drv libs and headers installed."
-    fi
-}
-
 audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/,/ /g')
 for drv in $audio_drv_list; do
     case $drv in
     alsa)
-    audio_drv_probe $drv alsa/asoundlib.h -lasound \
-        "return snd_pcm_close((snd_pcm_t *)0);"
-    alsa_libs="-lasound"
+    if $pkg_config alsa --exists; then
+        alsa_libs=$($pkg_config alsa --libs)
+    else
+        error_exit "$drv check failed" \
+            "Make sure to have the $drv libs and headers installed."
+    fi
     ;;
 
     pa)
-    audio_drv_probe $drv pulse/pulseaudio.h "-lpulse" \
-        "pa_context_set_source_output_volume(NULL, 0, NULL, NULL, NULL); return 0;"
-    pulse_libs="-lpulse"
-    audio_pt_int="yes"
+    if $pkg_config libpulse --exists; then
+        pulse_libs=$($pkg_config libpulse --libs)
+        audio_pt_int="yes"
+    else
+        error_exit "$drv check failed" \
+            "Make sure to have the $drv libs and headers installed."
+    fi
     ;;
 
     sdl)
