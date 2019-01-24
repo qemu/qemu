@@ -102,12 +102,17 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
             event = self.vm_a.event_wait('MIGRATION')
             if event['data']['status'] == 'completed':
                 break
+        while True:
+            result = self.vm_a.qmp('query-status')
+            if (result['return']['status'] == 'postmigrate'):
+                break
 
         # test that bitmap is still here
         removed = (not migrate_bitmaps) and persistent
         self.check_bitmap(self.vm_a, False if removed else sha256)
 
-        self.vm_a.qmp('cont')
+        result = self.vm_a.qmp('cont')
+        self.assert_qmp(result, 'return', {})
 
         # test that bitmap is still here after invalidation
         self.check_bitmap(self.vm_a, sha256)
