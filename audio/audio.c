@@ -1762,7 +1762,7 @@ void AUD_help (void)
         );
 }
 
-static int audio_driver_init (AudioState *s, struct audio_driver *drv)
+static int audio_driver_init(AudioState *s, struct audio_driver *drv, bool msg)
 {
     if (drv->options) {
         audio_process_options (drv->name, drv->options);
@@ -1776,7 +1776,9 @@ static int audio_driver_init (AudioState *s, struct audio_driver *drv)
         return 0;
     }
     else {
-        dolog ("Could not init `%s' audio driver\n", drv->name);
+        if (msg) {
+            dolog("Could not init `%s' audio driver\n", drv->name);
+        }
         return -1;
     }
 }
@@ -1901,7 +1903,7 @@ static void audio_init (void)
     if (drvname) {
         driver = audio_driver_lookup(drvname);
         if (driver) {
-            done = !audio_driver_init(s, driver);
+            done = !audio_driver_init(s, driver, true);
         } else {
             dolog ("Unknown audio driver `%s'\n", drvname);
             dolog ("Run with -audio-help to list available drivers\n");
@@ -1912,14 +1914,14 @@ static void audio_init (void)
         for (i = 0; !done && i < ARRAY_SIZE(audio_prio_list); i++) {
             driver = audio_driver_lookup(audio_prio_list[i]);
             if (driver && driver->can_be_default) {
-                done = !audio_driver_init(s, driver);
+                done = !audio_driver_init(s, driver, false);
             }
         }
     }
 
     if (!done) {
         driver = audio_driver_lookup("none");
-        done = !audio_driver_init(s, driver);
+        done = !audio_driver_init(s, driver, false);
         assert(done);
         dolog("warning: Using timer based audio emulation\n");
     }
