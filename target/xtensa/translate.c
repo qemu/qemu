@@ -646,20 +646,12 @@ static void gen_check_interrupts(DisasContext *dc)
 
 static void gen_wsr_intset(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
-    tcg_gen_andi_i32(cpu_SR[sr], v,
-            dc->config->inttype_mask[INTTYPE_SOFTWARE]);
+    gen_helper_intset(cpu_env, v);
 }
 
 static void gen_wsr_intclear(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
-    TCGv_i32 tmp = tcg_temp_new_i32();
-
-    tcg_gen_andi_i32(tmp, v,
-            dc->config->inttype_mask[INTTYPE_EDGE] |
-            dc->config->inttype_mask[INTTYPE_NMI] |
-            dc->config->inttype_mask[INTTYPE_SOFTWARE]);
-    tcg_gen_andc_i32(cpu_SR[INTSET], cpu_SR[INTSET], tmp);
-    tcg_temp_free(tmp);
+    gen_helper_intclear(cpu_env, v);
 }
 
 static void gen_wsr_intenable(DisasContext *dc, uint32_t sr, TCGv_i32 v)
@@ -706,12 +698,10 @@ static void gen_wsr_icountlevel(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 static void gen_wsr_ccompare(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     uint32_t id = sr - CCOMPARE;
-    uint32_t int_bit = 1 << dc->config->timerint[id];
     TCGv_i32 tmp = tcg_const_i32(id);
 
     assert(id < dc->config->nccompare);
     tcg_gen_mov_i32(cpu_SR[sr], v);
-    tcg_gen_andi_i32(cpu_SR[INTSET], cpu_SR[INTSET], ~int_bit);
     if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
     }
