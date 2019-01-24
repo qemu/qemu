@@ -143,15 +143,20 @@ static void update_random_ops(int n_ops, enum precision prec)
     for (i = 0; i < n_ops; i++) {
         uint64_t r = random_ops[i];
 
-        if (prec == PREC_SINGLE || PREC_FLOAT32) {
+        switch (prec) {
+        case PREC_SINGLE:
+        case PREC_FLOAT32:
             do {
                 r = xorshift64star(r);
             } while (!float32_is_normal(r));
-        } else if (prec == PREC_DOUBLE || PREC_FLOAT64) {
+            break;
+        case PREC_DOUBLE:
+        case PREC_FLOAT64:
             do {
                 r = xorshift64star(r);
             } while (!float64_is_normal(r));
-        } else {
+            break;
+        default:
             g_assert_not_reached();
         }
         random_ops[i] = r;
@@ -171,8 +176,6 @@ static void fill_random(union fp *ops, int n_ops, enum precision prec,
             if (no_neg && float32_is_neg(ops[i].f32)) {
                 ops[i].f32 = float32_chs(ops[i].f32);
             }
-            /* raise the exponent to limit the frequency of denormal results */
-            ops[i].f32 |= 0x40000000;
             break;
         case PREC_DOUBLE:
         case PREC_FLOAT64:
@@ -180,8 +183,6 @@ static void fill_random(union fp *ops, int n_ops, enum precision prec,
             if (no_neg && float64_is_neg(ops[i].f64)) {
                 ops[i].f64 = float64_chs(ops[i].f64);
             }
-            /* raise the exponent to limit the frequency of denormal results */
-            ops[i].f64 |= LIT64(0x4000000000000000);
             break;
         default:
             g_assert_not_reached();
