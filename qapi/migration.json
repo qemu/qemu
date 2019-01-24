@@ -41,6 +41,9 @@
 #
 # @multifd-bytes: The number of bytes sent through multifd (since 3.0)
 #
+# @pages-per-second: the number of memory pages transferred per second
+#        (Since 4.0)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationStats',
@@ -49,7 +52,7 @@
            'normal-bytes': 'int', 'dirty-pages-rate' : 'int',
            'mbps' : 'number', 'dirty-sync-count' : 'int',
            'postcopy-requests' : 'int', 'page-size' : 'int',
-           'multifd-bytes' : 'uint64' } }
+           'multifd-bytes' : 'uint64', 'pages-per-second' : 'uint64' } }
 
 ##
 # @XBZRLECacheStats:

@@ -72,7 +72,7 @@ int register_savevm_live(DeviceState *dev,
                          const char *idstr,
                          int instance_id,
                          int version_id,
-                         SaveVMHandlers *ops,
+                         const SaveVMHandlers *ops,
                          void *opaque);
 
 void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque);

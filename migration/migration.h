@@ -126,7 +126,13 @@ struct MigrationState
      */
     QemuSemaphore rate_limit_sem;
 
-    /* bytes already send at the beggining of current interation */
+    /* pages already send at the beginning of current iteration */
+    uint64_t iteration_initial_pages;
+
+    /* pages transferred per second */
+    double pages_per_second;
+
+    /* bytes already send at the beginning of current iteration */
     uint64_t iteration_initial_bytes;
     /* time at the start of current iteration */
     int64_t iteration_start_time;
@@ -229,7 +235,7 @@ struct MigrationState
 void migrate_set_state(int *state, int old_state, int new_state);
 
 void migration_fd_process_incoming(QEMUFile *f);
-void migration_ioc_process_incoming(QIOChannel *ioc);
+void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp);
 void migration_incoming_process(void);
 
 bool  migration_has_all_channels(void);
@@ -270,6 +276,8 @@ bool migrate_use_block(void);
 bool migrate_use_block_incremental(void);
 int migrate_max_cpu_throttle(void);
 bool migrate_use_return_path(void);
+
+uint64_t ram_get_total_transferred_pages(void);
 
 bool migrate_use_compression(void);
 int migrate_compress_level(void);

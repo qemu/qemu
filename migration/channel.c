@@ -30,6 +30,7 @@
 void migration_channel_process_incoming(QIOChannel *ioc)
 {
     MigrationState *s = migrate_get_current();
+    Error *local_err = NULL;
 
     trace_migration_set_incoming_channel(
         ioc, object_get_typename(OBJECT(ioc)));
@@ -38,13 +39,13 @@ void migration_channel_process_incoming(QIOChannel *ioc)
         *s->parameters.tls_creds &&
         !object_dynamic_cast(OBJECT(ioc),
                              TYPE_QIO_CHANNEL_TLS)) {
-        Error *local_err = NULL;
         migration_tls_channel_process_incoming(s, ioc, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-        }
     } else {
-        migration_ioc_process_incoming(ioc);
+        migration_ioc_process_incoming(ioc, &local_err);
+    }
+
+    if (local_err) {
+        error_report_err(local_err);
     }
 }
 

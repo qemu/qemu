@@ -284,6 +284,55 @@ static void test_simple_primitive(void)
     FIELD_EQUAL(i64_2);
 }
 
+typedef struct TestSimpleArray {
+    uint16_t u16_1[3];
+} TestSimpleArray;
+
+/* Object instantiation, we are going to use it in more than one test */
+
+TestSimpleArray obj_simple_arr = {
+    .u16_1 = { 0x42, 0x43, 0x44 },
+};
+
+/* Description of the values.  If you add a primitive type
+   you are expected to add a test here */
+
+static const VMStateDescription vmstate_simple_arr = {
+    .name = "simple/array",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT16_ARRAY(u16_1, TestSimpleArray, 3),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+uint8_t wire_simple_arr[] = {
+    /* u16_1 */ 0x00, 0x42,
+    /* u16_1 */ 0x00, 0x43,
+    /* u16_1 */ 0x00, 0x44,
+    QEMU_VM_EOF, /* just to ensure we won't get EOF reported prematurely */
+};
+
+static void obj_simple_arr_copy(void *target, void *source)
+{
+    memcpy(target, source, sizeof(TestSimpleArray));
+}
+
+static void test_simple_array(void)
+{
+    TestSimpleArray obj, obj_clone;
+
+    memset(&obj, 0, sizeof(obj));
+    save_vmstate(&vmstate_simple_arr, &obj_simple_arr);
+
+    compare_vmstate(wire_simple_arr, sizeof(wire_simple_arr));
+
+    SUCCESS(load_vmstate(&vmstate_simple_arr, &obj, &obj_clone,
+                         obj_simple_arr_copy, 1, wire_simple_arr,
+                         sizeof(wire_simple_arr)));
+}
+
 typedef struct TestStruct {
     uint32_t a, b, c, e;
     uint64_t d, f;
@@ -863,6 +912,7 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/vmstate/simple/primitive", test_simple_primitive);
+    g_test_add_func("/vmstate/simple/array", test_simple_array);
     g_test_add_func("/vmstate/versioned/load/v1", test_load_v1);
     g_test_add_func("/vmstate/versioned/load/v2", test_load_v2);
     g_test_add_func("/vmstate/field_exists/load/noskip", test_load_noskip);

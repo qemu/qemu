@@ -917,13 +917,12 @@ static void multifd_send_terminate_threads(Error *err)
     }
 }
 
-int multifd_save_cleanup(Error **errp)
+void multifd_save_cleanup(void)
 {
     int i;
-    int ret = 0;
 
     if (!migrate_use_multifd()) {
-        return 0;
+        return;
     }
     multifd_send_terminate_threads(NULL);
     for (i = 0; i < migrate_multifd_channels(); i++) {
@@ -953,7 +952,6 @@ int multifd_save_cleanup(Error **errp)
     multifd_send_state->pages = NULL;
     g_free(multifd_send_state);
     multifd_send_state = NULL;
-    return ret;
 }
 
 static void multifd_send_sync_main(void)
@@ -1071,9 +1069,8 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
     Error *local_err = NULL;
 
     if (qio_task_propagate_error(task, &local_err)) {
-        if (multifd_save_cleanup(&local_err) != 0) {
-            migrate_set_error(migrate_get_current(), local_err);
-        }
+        migrate_set_error(migrate_get_current(), local_err);
+        multifd_save_cleanup();
     } else {
         p->c = QIO_CHANNEL(sioc);
         qio_channel_set_delay(p->c, false);
@@ -1322,8 +1319,13 @@ bool multifd_recv_all_channels_created(void)
     return thread_count == atomic_read(&multifd_recv_state->count);
 }
 
-/* Return true if multifd is ready for the migration, otherwise false */
-bool multifd_recv_new_channel(QIOChannel *ioc)
+/*
+ * Try to receive all multifd channels to get ready for the migration.
+ * - Return true and do not set @errp when correctly receving all channels;
+ * - Return false and do not set @errp when correctly receiving the current one;
+ * - Return false and set @errp when failing to receive the current channel.
+ */
+bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
 {
     MultiFDRecvParams *p;
     Error *local_err = NULL;
@@ -1332,6 +1334,10 @@ bool multifd_recv_new_channel(QIOChannel *ioc)
     id = multifd_recv_initial_packet(ioc, &local_err);
     if (id < 0) {
         multifd_recv_terminate_threads(local_err);
+        error_propagate_prepend(errp, local_err,
+                                "failed to receive packet"
+                                " via multifd channel %d: ",
+                                atomic_read(&multifd_recv_state->count));
         return false;
     }
 
@@ -1340,6 +1346,7 @@ bool multifd_recv_new_channel(QIOChannel *ioc)
         error_setg(&local_err, "multifd: received id '%d' already setup'",
                    id);
         multifd_recv_terminate_threads(local_err);
+        error_propagate(errp, local_err);
         return false;
     }
     p->c = ioc;
@@ -1351,7 +1358,8 @@ bool multifd_recv_new_channel(QIOChannel *ioc)
     qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
                        QEMU_THREAD_JOINABLE);
     atomic_inc(&multifd_recv_state->count);
-    return multifd_recv_state->count == migrate_multifd_channels();
+    return atomic_read(&multifd_recv_state->count) ==
+           migrate_multifd_channels();
 }
 
 /**
@@ -1591,6 +1599,12 @@ uint64_t ram_pagesize_summary(void)
     }
 
     return summary;
+}
+
+uint64_t ram_get_total_transferred_pages(void)
+{
+    return  ram_counters.normal + ram_counters.duplicate +
+                compression_counters.pages + xbzrle_counters.pages;
 }
 
 static void migration_update_rates(RAMState *rs, int64_t end_time)

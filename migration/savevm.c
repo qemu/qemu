@@ -303,7 +303,7 @@ typedef struct SaveStateEntry {
     int section_id;
     /* section id read from the stream */
     int load_section_id;
-    SaveVMHandlers *ops;
+    const SaveVMHandlers *ops;
     const VMStateDescription *vmsd;
     void *opaque;
     CompatEntry *compat;
@@ -614,7 +614,7 @@ int register_savevm_live(DeviceState *dev,
                          const char *idstr,
                          int instance_id,
                          int version_id,
-                         SaveVMHandlers *ops,
+                         const SaveVMHandlers *ops,
                          void *opaque)
 {
     SaveStateEntry *se;
@@ -1729,6 +1729,7 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
      */
     if (migrate_postcopy_ram()) {
         if (postcopy_ram_enable_notify(mis)) {
+            postcopy_ram_incoming_cleanup(mis);
             return -1;
         }
     }
