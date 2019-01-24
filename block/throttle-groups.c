@@ -415,6 +415,9 @@ static void coroutine_fn throttle_group_restart_queue_entry(void *opaque)
     }
 
     g_free(data);
+
+    atomic_dec(&tgm->restart_pending);
+    aio_wait_kick();
 }
 
 static void throttle_group_restart_queue(ThrottleGroupMember *tgm, bool is_write)
@@ -429,6 +432,8 @@ static void throttle_group_restart_queue(ThrottleGroupMember *tgm, bool is_write
      * throttle_group_restart_tgm() is called. Either way, there can
      * be no timer pending on this tgm at this point */
     assert(!timer_pending(tgm->throttle_timers.timers[is_write]));
+
+    atomic_inc(&tgm->restart_pending);
 
     co = qemu_coroutine_create(throttle_group_restart_queue_entry, rd);
     aio_co_enter(tgm->aio_context, co);
@@ -538,6 +543,7 @@ void throttle_group_register_tgm(ThrottleGroupMember *tgm,
 
     tgm->throttle_state = ts;
     tgm->aio_context = ctx;
+    atomic_set(&tgm->restart_pending, 0);
 
     qemu_mutex_lock(&tg->lock);
     /* If the ThrottleGroup is new set this ThrottleGroupMember as the token */
@@ -583,6 +589,9 @@ void throttle_group_unregister_tgm(ThrottleGroupMember *tgm)
         /* Discard already unregistered tgm */
         return;
     }
+
+    /* Wait for throttle_group_restart_queue_entry() coroutines to finish */
+    AIO_WAIT_WHILE(tgm->aio_context, atomic_read(&tgm->restart_pending) > 0);
 
     qemu_mutex_lock(&tg->lock);
     for (i = 0; i < 2; i++) {
