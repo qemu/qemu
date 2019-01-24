@@ -3345,28 +3345,50 @@ fi
 audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/,/ /g')
 for drv in $audio_drv_list; do
     case $drv in
-    alsa)
+    alsa | try-alsa)
     if $pkg_config alsa --exists; then
         alsa_libs=$($pkg_config alsa --libs)
+        if test "$drv" = "try-alsa"; then
+            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-alsa/alsa/')
+        fi
     else
-        error_exit "$drv check failed" \
-            "Make sure to have the $drv libs and headers installed."
+        if test "$drv" = "try-alsa"; then
+            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-alsa//')
+        else
+            error_exit "$drv check failed" \
+                "Make sure to have the $drv libs and headers installed."
+        fi
     fi
     ;;
 
-    pa)
+    pa | try-pa)
     if $pkg_config libpulse --exists; then
         pulse_libs=$($pkg_config libpulse --libs)
         audio_pt_int="yes"
+        if test "$drv" = "try-pa"; then
+            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-pa/pa/')
+        fi
     else
-        error_exit "$drv check failed" \
-            "Make sure to have the $drv libs and headers installed."
+        if test "$drv" = "try-pa"; then
+            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-pa//')
+        else
+            error_exit "$drv check failed" \
+                "Make sure to have the $drv libs and headers installed."
+        fi
     fi
     ;;
 
     sdl)
     if test "$sdl" = "no"; then
         error_exit "sdl not found or disabled, can not use sdl audio driver"
+    fi
+    ;;
+
+    try-sdl)
+    if test "$sdl" = "no"; then
+        audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-sdl//')
+    else
+        audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-sdl/sdl/')
     fi
     ;;
 
