@@ -32,6 +32,15 @@
 #include "hw/ide/pci.h"
 #include "trace.h"
 
+static const struct {
+    int iobase;
+    int iobase2;
+    int isairq;
+} port_info[] = {
+    {0x1f0, 0x3f6, 14},
+    {0x170, 0x376, 15},
+};
+
 static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
@@ -143,16 +152,21 @@ static void via_reset(void *opaque)
     pci_set_long(pci_conf + 0xc0, 0x00020001);
 }
 
-static void vt82c686b_init_ports(PCIIDEState *d) {
-    static const struct {
-        int iobase;
-        int iobase2;
-        int isairq;
-    } port_info[] = {
-        {0x1f0, 0x3f6, 14},
-        {0x170, 0x376, 15},
-    };
+/* via ide func */
+static void vt82c686b_ide_realize(PCIDevice *dev, Error **errp)
+{
+    PCIIDEState *d = PCI_IDE(dev);
+    uint8_t *pci_conf = dev->config;
     int i;
+
+    pci_config_set_prog_interface(pci_conf, 0x8a); /* legacy ATA mode */
+    pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
+
+    qemu_register_reset(via_reset, d);
+    bmdma_setup_bar(d);
+    pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
+
+    vmstate_register(DEVICE(dev), 0, &vmstate_ide_pci, d);
 
     for (i = 0; i < 2; i++) {
         ide_bus_new(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
@@ -164,24 +178,6 @@ static void vt82c686b_init_ports(PCIIDEState *d) {
         d->bmdma[i].bus = &d->bus[i];
         ide_register_restart_cb(&d->bus[i]);
     }
-}
-
-/* via ide func */
-static void vt82c686b_ide_realize(PCIDevice *dev, Error **errp)
-{
-    PCIIDEState *d = PCI_IDE(dev);
-    uint8_t *pci_conf = dev->config;
-
-    pci_config_set_prog_interface(pci_conf, 0x8a); /* legacy ATA mode */
-    pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
-
-    qemu_register_reset(via_reset, d);
-    bmdma_setup_bar(d);
-    pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
-
-    vmstate_register(DEVICE(dev), 0, &vmstate_ide_pci, d);
-
-    vt82c686b_init_ports(d);
 }
 
 static void vt82c686b_ide_exitfn(PCIDevice *dev)
