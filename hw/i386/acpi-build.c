@@ -2141,8 +2141,16 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
 
             if (TPM_IS_TIS(tpm)) {
-                dev = aml_device("ISA.TPM");
-                aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C31")));
+                if (misc->tpm_version == TPM_VERSION_2_0) {
+                    dev = aml_device("TPM");
+                    aml_append(dev, aml_name_decl("_HID",
+                                                  aml_string("MSFT0101")));
+                } else {
+                    dev = aml_device("ISA.TPM");
+                    aml_append(dev, aml_name_decl("_HID",
+                                                  aml_eisaid("PNP0C31")));
+                }
+
                 aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
                 crs = aml_resource_template();
                 aml_append(crs, aml_memory32_fixed(TPM_TIS_ADDR_BASE,
