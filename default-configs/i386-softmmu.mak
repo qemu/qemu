@@ -4,6 +4,7 @@ include pci.mak
 include sound.mak
 include usb.mak
 include hyperv.mak
+CONFIG_TEST_DEVICES=y
 CONFIG_VGA_ISA=y
 CONFIG_VGA_CIRRUS=y
 CONFIG_VMWARE_VGA=y

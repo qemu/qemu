@@ -3,6 +3,7 @@
 include pci.mak
 include sound.mak
 include usb.mak
+CONFIG_TEST_DEVICES=y
 
 # For embedded PPCs:
 CONFIG_PPC4XX=y
