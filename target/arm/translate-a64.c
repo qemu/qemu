@@ -2036,7 +2036,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         if (!dc_isar_feature(aa64_pauth, s)) {
             goto do_unallocated;
         }
-        if (op3 != 2 || op3 != 3) {
+        if ((op3 & ~1) != 2) {
             goto do_unallocated;
         }
         if (s->pauth_active) {
