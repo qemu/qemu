@@ -123,7 +123,6 @@ static void setup_cmd646_bar(PCIIDEState *d, int bus_num)
     CMD646BAR *bar = &d->cmd646_bar[bus_num];
 
     bar->bus = bus;
-    bar->pci_dev = d;
     memory_region_init_io(&bar->cmd, OBJECT(d), &cmd646_cmd_ops, bar,
                           "cmd646-cmd", 4);
     memory_region_init_io(&bar->data, OBJECT(d), &cmd646_data_ops, bar,

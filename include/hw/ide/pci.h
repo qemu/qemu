@@ -41,7 +41,6 @@ typedef struct CMD646BAR {
     MemoryRegion cmd;
     MemoryRegion data;
     IDEBus *bus;
-    struct PCIIDEState *pci_dev;
 } CMD646BAR;
 
 #define TYPE_PCI_IDE "pci-ide"
