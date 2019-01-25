@@ -204,7 +204,7 @@ def output(*args):
         output_fd.write(a)
 
 
-if sys.version_info >= (3, 0):
+if sys.version_info >= (3, 4):
     re_fullmatch = re.fullmatch
 else:
     def re_fullmatch(pat, str):
