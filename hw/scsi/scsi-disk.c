@@ -652,12 +652,14 @@ static int scsi_disk_emulate_vpd_page(SCSIRequest *req, uint8_t *outbuf)
         DPRINTF("Inquiry EVPD[Device identification] "
                 "buffer size %zd\n", req->cmd.xfer);
 
-        outbuf[buflen++] = 0x2; /* ASCII */
-        outbuf[buflen++] = 0;   /* not officially assigned */
-        outbuf[buflen++] = 0;   /* reserved */
-        outbuf[buflen++] = id_len; /* length of data following */
-        memcpy(outbuf + buflen, str, id_len);
-        buflen += id_len;
+        if (id_len) {
+            outbuf[buflen++] = 0x2; /* ASCII */
+            outbuf[buflen++] = 0;   /* not officially assigned */
+            outbuf[buflen++] = 0;   /* reserved */
+            outbuf[buflen++] = id_len; /* length of data following */
+            memcpy(outbuf + buflen, str, id_len);
+            buflen += id_len;
+        }
 
         if (s->qdev.wwn) {
             outbuf[buflen++] = 0x1; /* Binary */
