@@ -50,81 +50,14 @@
 
 static void cmd646_update_irq(PCIDevice *pd);
 
-static uint64_t cmd646_cmd_read(void *opaque, hwaddr addr,
-                                unsigned size)
-{
-    IDEBus *bus = opaque;
-
-    if (addr != 2 || size != 1) {
-        return ((uint64_t)1 << (size * 8)) - 1;
-    }
-    return ide_status_read(bus, addr + 2);
-}
-
-static void cmd646_cmd_write(void *opaque, hwaddr addr,
-                             uint64_t data, unsigned size)
-{
-    IDEBus *bus = opaque;
-
-    if (addr != 2 || size != 1) {
-        return;
-    }
-    ide_cmd_write(bus, addr + 2, data);
-}
-
-static const MemoryRegionOps cmd646_cmd_ops = {
-    .read = cmd646_cmd_read,
-    .write = cmd646_cmd_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static uint64_t cmd646_data_read(void *opaque, hwaddr addr,
-                                 unsigned size)
-{
-    IDEBus *bus = opaque;
-
-    if (size == 1) {
-        return ide_ioport_read(bus, addr);
-    } else if (addr == 0) {
-        if (size == 2) {
-            return ide_data_readw(bus, addr);
-        } else {
-            return ide_data_readl(bus, addr);
-        }
-    }
-    return ((uint64_t)1 << (size * 8)) - 1;
-}
-
-static void cmd646_data_write(void *opaque, hwaddr addr,
-                             uint64_t data, unsigned size)
-{
-    IDEBus *bus = opaque;
-
-    if (size == 1) {
-        ide_ioport_write(bus, addr, data);
-    } else if (addr == 0) {
-        if (size == 2) {
-            ide_data_writew(bus, addr, data);
-        } else {
-            ide_data_writel(bus, addr, data);
-        }
-    }
-}
-
-static const MemoryRegionOps cmd646_data_ops = {
-    .read = cmd646_data_read,
-    .write = cmd646_data_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
 static void setup_cmd646_bar(PCIIDEState *d, int bus_num)
 {
     IDEBus *bus = &d->bus[bus_num];
     CMD646BAR *bar = &d->cmd646_bar[bus_num];
 
-    memory_region_init_io(&bar->cmd, OBJECT(d), &cmd646_cmd_ops, bus,
+    memory_region_init_io(&bar->cmd, OBJECT(d), &pci_ide_cmd_le_ops, bus,
                           "cmd646-cmd", 4);
-    memory_region_init_io(&bar->data, OBJECT(d), &cmd646_data_ops, bus,
+    memory_region_init_io(&bar->data, OBJECT(d), &pci_ide_data_le_ops, bus,
                           "cmd646-data", 8);
 }
 
