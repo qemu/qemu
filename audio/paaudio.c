@@ -814,6 +814,21 @@ static PAConf glob_conf = {
 
 static void *qpa_audio_init (void)
 {
+    if (glob_conf.server == NULL) {
+        char pidfile[64];
+        char *runtime;
+        struct stat st;
+
+        runtime = getenv("XDG_RUNTIME_DIR");
+        if (!runtime) {
+            return NULL;
+        }
+        snprintf(pidfile, sizeof(pidfile), "%s/pulse/pid", runtime);
+        if (stat(pidfile, &st) != 0) {
+            return NULL;
+        }
+    }
+
     paaudio *g = g_malloc(sizeof(paaudio));
     g->conf = glob_conf;
     g->mainloop = NULL;

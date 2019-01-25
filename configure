@@ -794,13 +794,13 @@ MINGW32*)
 ;;
 GNU/kFreeBSD)
   bsd="yes"
-  audio_drv_list="oss"
+  audio_drv_list="oss try-sdl"
   audio_possible_drivers="oss sdl pa"
 ;;
 FreeBSD)
   bsd="yes"
   make="${MAKE-gmake}"
-  audio_drv_list="oss"
+  audio_drv_list="oss try-sdl"
   audio_possible_drivers="oss sdl pa"
   # needed for kinfo_getvmmap(3) in libutil.h
   LIBS="-lutil $LIBS"
@@ -813,14 +813,14 @@ FreeBSD)
 DragonFly)
   bsd="yes"
   make="${MAKE-gmake}"
-  audio_drv_list="oss"
+  audio_drv_list="oss try-sdl"
   audio_possible_drivers="oss sdl pa"
   HOST_VARIANT_DIR="dragonfly"
 ;;
 NetBSD)
   bsd="yes"
   make="${MAKE-gmake}"
-  audio_drv_list="oss"
+  audio_drv_list="oss try-sdl"
   audio_possible_drivers="oss sdl"
   oss_lib="-lossaudio"
   HOST_VARIANT_DIR="netbsd"
@@ -829,7 +829,7 @@ NetBSD)
 OpenBSD)
   bsd="yes"
   make="${MAKE-gmake}"
-  audio_drv_list="sdl"
+  audio_drv_list="try-sdl"
   audio_possible_drivers="sdl"
   HOST_VARIANT_DIR="openbsd"
   supported_os="yes"
@@ -845,7 +845,7 @@ Darwin)
     LDFLAGS="-arch x86_64 $LDFLAGS"
   fi
   cocoa="yes"
-  audio_drv_list="coreaudio"
+  audio_drv_list="coreaudio try-sdl"
   audio_possible_drivers="coreaudio sdl"
   LDFLAGS="-framework CoreFoundation -framework IOKit $LDFLAGS"
   libs_softmmu="-F/System/Library/Frameworks -framework Cocoa -framework IOKit $libs_softmmu"
@@ -861,7 +861,7 @@ SunOS)
   install="${INSTALL-ginstall}"
   smbd="${SMBD-/usr/sfw/sbin/smbd}"
   if test -f /usr/include/sys/soundcard.h ; then
-    audio_drv_list="oss"
+    audio_drv_list="oss try-sdl"
   fi
   audio_possible_drivers="oss sdl"
 # needed for CMSG_ macros in sys/socket.h
@@ -879,7 +879,7 @@ Haiku)
   LIBS="-lposix_error_mapper -lnetwork $LIBS"
 ;;
 Linux)
-  audio_drv_list="oss"
+  audio_drv_list="try-pa try-alsa try-sdl oss"
   audio_possible_drivers="oss alsa sdl pa"
   linux="yes"
   linux_user="yes"
@@ -3342,44 +3342,53 @@ fi
 ##########################################
 # Sound support libraries probe
 
-audio_drv_probe()
-{
-    drv=$1
-    hdr=$2
-    lib=$3
-    exp=$4
-    cfl=$5
-        cat > $TMPC << EOF
-#include <$hdr>
-int main(void) { $exp }
-EOF
-    if compile_prog "$cfl" "$lib" ; then
-        :
-    else
-        error_exit "$drv check failed" \
-            "Make sure to have the $drv libs and headers installed."
-    fi
-}
-
 audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/,/ /g')
 for drv in $audio_drv_list; do
     case $drv in
-    alsa)
-    audio_drv_probe $drv alsa/asoundlib.h -lasound \
-        "return snd_pcm_close((snd_pcm_t *)0);"
-    alsa_libs="-lasound"
+    alsa | try-alsa)
+    if $pkg_config alsa --exists; then
+        alsa_libs=$($pkg_config alsa --libs)
+        if test "$drv" = "try-alsa"; then
+            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-alsa/alsa/')
+        fi
+    else
+        if test "$drv" = "try-alsa"; then
+            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-alsa//')
+        else
+            error_exit "$drv check failed" \
+                "Make sure to have the $drv libs and headers installed."
+        fi
+    fi
     ;;
 
-    pa)
-    audio_drv_probe $drv pulse/pulseaudio.h "-lpulse" \
-        "pa_context_set_source_output_volume(NULL, 0, NULL, NULL, NULL); return 0;"
-    pulse_libs="-lpulse"
-    audio_pt_int="yes"
+    pa | try-pa)
+    if $pkg_config libpulse --exists; then
+        pulse_libs=$($pkg_config libpulse --libs)
+        audio_pt_int="yes"
+        if test "$drv" = "try-pa"; then
+            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-pa/pa/')
+        fi
+    else
+        if test "$drv" = "try-pa"; then
+            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-pa//')
+        else
+            error_exit "$drv check failed" \
+                "Make sure to have the $drv libs and headers installed."
+        fi
+    fi
     ;;
 
     sdl)
     if test "$sdl" = "no"; then
         error_exit "sdl not found or disabled, can not use sdl audio driver"
+    fi
+    ;;
+
+    try-sdl)
+    if test "$sdl" = "no"; then
+        audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-sdl//')
+    else
+        audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-sdl/sdl/')
     fi
     ;;
 
