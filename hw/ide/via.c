@@ -110,7 +110,7 @@ static void bmdma_setup_bar(PCIIDEState *d)
     }
 }
 
-static void via_reset(void *opaque)
+static void via_ide_reset(void *opaque)
 {
     PCIIDEState *d = opaque;
     PCIDevice *pd = PCI_DEVICE(d);
@@ -152,8 +152,7 @@ static void via_reset(void *opaque)
     pci_set_long(pci_conf + 0xc0, 0x00020001);
 }
 
-/* via ide func */
-static void vt82c686b_ide_realize(PCIDevice *dev, Error **errp)
+static void via_ide_realize(PCIDevice *dev, Error **errp)
 {
     PCIIDEState *d = PCI_IDE(dev);
     uint8_t *pci_conf = dev->config;
@@ -162,7 +161,7 @@ static void vt82c686b_ide_realize(PCIDevice *dev, Error **errp)
     pci_config_set_prog_interface(pci_conf, 0x8a); /* legacy ATA mode */
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
 
-    qemu_register_reset(via_reset, d);
+    qemu_register_reset(via_ide_reset, d);
     bmdma_setup_bar(d);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
@@ -180,7 +179,7 @@ static void vt82c686b_ide_realize(PCIDevice *dev, Error **errp)
     }
 }
 
-static void vt82c686b_ide_exitfn(PCIDevice *dev)
+static void via_ide_exitfn(PCIDevice *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
     unsigned i;
@@ -191,7 +190,7 @@ static void vt82c686b_ide_exitfn(PCIDevice *dev)
     }
 }
 
-void vt82c686b_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
+void via_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 {
     PCIDevice *dev;
 
@@ -204,8 +203,8 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = vt82c686b_ide_realize;
-    k->exit = vt82c686b_ide_exitfn;
+    k->realize = via_ide_realize;
+    k->exit = via_ide_exitfn;
     k->vendor_id = PCI_VENDOR_ID_VIA;
     k->device_id = PCI_DEVICE_ID_VIA_IDE;
     k->revision = 0x06;
