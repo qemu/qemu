@@ -94,7 +94,7 @@ typedef struct VirtioNetRscUnit {
     uint16_t payload;       /* pure payload without virtio/eth/ip/tcp */
 } VirtioNetRscUnit;
 
-/* Coalesced segmant */
+/* Coalesced segment */
 typedef struct VirtioNetRscSeg {
     QTAILQ_ENTRY(VirtioNetRscSeg) next;
     void *buf;

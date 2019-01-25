@@ -2285,7 +2285,7 @@ static void pc_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static HotplugHandler *pc_get_hotpug_handler(MachineState *machine,
+static HotplugHandler *pc_get_hotplug_handler(MachineState *machine,
                                              DeviceState *dev)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) ||
@@ -2615,7 +2615,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->save_tsc_khz = true;
     pcmc->linuxboot_dma_enabled = true;
     assert(!mc->get_hotplug_handler);
-    mc->get_hotplug_handler = pc_get_hotpug_handler;
+    mc->get_hotplug_handler = pc_get_hotplug_handler;
     mc->cpu_index_to_instance_props = pc_cpu_index_to_props;
     mc->get_default_cpu_node_id = pc_get_default_cpu_node_id;
     mc->possible_cpu_arch_ids = pc_possible_cpu_arch_ids;
