@@ -22,4 +22,6 @@ struct target_pt_regs {
 #define TARGET_PR_SVE_SET_VL  50
 #define TARGET_PR_SVE_GET_VL  51
 
+void arm_init_pauth_key(ARMPACKey *key);
+
 #endif /* AARCH64_TARGET_SYSCALL_H */

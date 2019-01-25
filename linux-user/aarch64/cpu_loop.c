@@ -147,10 +147,29 @@ void cpu_loop(CPUARMState *env)
     }
 }
 
+static uint64_t arm_rand64(void)
+{
+    int shift = 64 - clz64(RAND_MAX);
+    int i, n = 64 / shift + (64 % shift != 0);
+    uint64_t ret = 0;
+
+    for (i = 0; i < n; i++) {
+        ret = (ret << shift) | rand();
+    }
+    return ret;
+}
+
+void arm_init_pauth_key(ARMPACKey *key)
+{
+    key->lo = arm_rand64();
+    key->hi = arm_rand64();
+}
+
 void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-    TaskState *ts = cpu->opaque;
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+    TaskState *ts = cs->opaque;
     struct image_info *info = ts->info;
     int i;
 
@@ -171,6 +190,14 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
         env->cp15.sctlr_el[i] |= SCTLR_EE;
     }
 #endif
+
+    if (cpu_isar_feature(aa64_pauth, cpu)) {
+        arm_init_pauth_key(&env->apia_key);
+        arm_init_pauth_key(&env->apib_key);
+        arm_init_pauth_key(&env->apda_key);
+        arm_init_pauth_key(&env->apdb_key);
+        arm_init_pauth_key(&env->apga_key);
+    }
 
     ts->stack_base = info->start_stack;
     ts->heap_base = info->brk;
