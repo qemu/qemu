@@ -7,26 +7,47 @@ config APM
 config I82378
     bool
     select ISA_BUS
+    select I8259
+    select I8254
+    select I82374
+    select MC146818RTC
 
 config PC87312
     bool
     select ISA_BUS
+    select I8259
+    select I8254
+    select I8257
+    select MC146818RTC
+    select SERIAL_ISA
+    select PARALLEL
+    select FDC
+    select IDE_ISA
 
 config PIIX4
     bool
+    # For historical reasons, SuperIO devices are created in the board
+    # for PIIX4.
     select ISA_BUS
 
 config VT82C686
     bool
     select ISA_BUS
     select ACPI_SMBUS
+    select SERIAL_ISA
+    select FDC
 
 config SMC37C669
     bool
     select ISA_BUS
+    select SERIAL_ISA
+    select PARALLEL
+    select FDC
 
 config LPC_ICH9
     bool
+    # For historical reasons, SuperIO devices are created in the board
+    # for ICH9.
     select ISA_BUS
     select ACPI_SMBUS
     select ACPI_X86_ICH
