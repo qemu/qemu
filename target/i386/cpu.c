@@ -1089,7 +1089,6 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .reg = R_EDX,
         },
         .tcg_features = TCG_7_0_EDX_FEATURES,
-        .unmigratable_flags = CPUID_7_0_EDX_ARCH_CAPABILITIES,
     },
     [FEAT_8000_0007_EDX] = {
         .type = CPUID_FEATURE_WORD,
