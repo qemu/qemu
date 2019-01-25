@@ -50,17 +50,6 @@
 
 static void cmd646_update_irq(PCIDevice *pd);
 
-static void setup_cmd646_bar(PCIIDEState *d, int bus_num)
-{
-    IDEBus *bus = &d->bus[bus_num];
-    CMD646BAR *bar = &d->cmd646_bar[bus_num];
-
-    memory_region_init_io(&bar->cmd, OBJECT(d), &pci_ide_cmd_le_ops, bus,
-                          "cmd646-cmd", 4);
-    memory_region_init_io(&bar->data, OBJECT(d), &pci_ide_data_le_ops, bus,
-                          "cmd646-data", 8);
-}
-
 static void cmd646_update_dma_interrupts(PCIDevice *pd)
 {
     /* Sync DMA interrupt status from UDMA interrupt status */
@@ -277,12 +266,22 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
     dev->wmask[MRDMODE] = 0x0;
     dev->w1cmask[MRDMODE] = MRDMODE_INTR_CH0 | MRDMODE_INTR_CH1;
 
-    setup_cmd646_bar(d, 0);
-    setup_cmd646_bar(d, 1);
-    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd646_bar[0].data);
-    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd646_bar[0].cmd);
-    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd646_bar[1].data);
-    pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd646_bar[1].cmd);
+    memory_region_init_io(&d->data_bar[0], OBJECT(d), &pci_ide_data_le_ops,
+                          &d->bus[0], "cmd646-data0", 8);
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->data_bar[0]);
+
+    memory_region_init_io(&d->cmd_bar[0], OBJECT(d), &pci_ide_cmd_le_ops,
+                          &d->bus[0], "cmd646-cmd0", 4);
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd_bar[0]);
+
+    memory_region_init_io(&d->data_bar[1], OBJECT(d), &pci_ide_data_le_ops,
+                          &d->bus[1], "cmd646-data1", 8);
+    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, &d->data_bar[1]);
+
+    memory_region_init_io(&d->cmd_bar[1], OBJECT(d), &pci_ide_cmd_le_ops,
+                          &d->bus[1], "cmd646-cmd1", 4);
+    pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd_bar[1]);
+
     bmdma_setup_bar(d);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
