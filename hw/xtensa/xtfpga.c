@@ -45,6 +45,7 @@
 #include "qemu/option.h"
 #include "bootparam.h"
 #include "xtensa_memory.h"
+#include "hw/xtensa/mx_pic.h"
 
 typedef struct XtfpgaFlashDesc {
     hwaddr base;
@@ -225,6 +226,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
     MemoryRegion *system_io;
+    XtensaMxPic *mx_pic = NULL;
     qemu_irq *extints;
     DriveInfo *dinfo;
     pflash_t *flash = NULL;
@@ -237,6 +239,10 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     uint32_t freq = 10000000;
     int n;
 
+    if (smp_cpus > 1) {
+        mx_pic = xtensa_mx_pic_init(31);
+        qemu_register_reset(xtensa_mx_pic_reset, mx_pic);
+    }
     for (n = 0; n < smp_cpus; n++) {
         CPUXtensaState *cenv = NULL;
 
@@ -247,14 +253,28 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
             freq = env->config->clock_freq_khz * 1000;
         }
 
+        if (mx_pic) {
+            MemoryRegion *mx_eri;
+
+            mx_eri = xtensa_mx_pic_register_cpu(mx_pic,
+                                                xtensa_get_extints(cenv),
+                                                xtensa_get_runstall(cenv));
+            memory_region_add_subregion(xtensa_get_er_region(cenv),
+                                        0, mx_eri);
+        }
         cenv->sregs[PRID] = n;
+        xtensa_select_static_vectors(cenv, n != 0);
         qemu_register_reset(xtfpga_reset, cpu);
         /* Need MMU initialized prior to ELF loading,
          * so that ELF gets loaded into virtual addresses
          */
         cpu_reset(CPU(cpu));
     }
-    extints = xtensa_get_extints(env);
+    if (smp_cpus > 1) {
+        extints = xtensa_mx_pic_get_extints(mx_pic);
+    } else {
+        extints = xtensa_get_extints(env);
+    }
 
     if (env) {
         XtensaMemory sysram = env->config->sysram;
