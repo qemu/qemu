@@ -483,7 +483,8 @@ typedef struct CPUXtensaState {
     AddressSpace *address_space_er;
     MemoryRegion *system_er;
     int pending_irq_level; /* level of last raised IRQ */
-    void **irq_inputs;
+    qemu_irq *irq_inputs;
+    qemu_irq ext_irq_inputs[MAX_NINTERRUPT];
     XtensaCcompareTimer ccompare[MAX_NCCOMPARE];
     uint64_t time_base;
     uint64_t ccount_time;
@@ -569,7 +570,7 @@ void xtensa_register_core(XtensaConfigList *node);
 void xtensa_sim_open_console(Chardev *chr);
 void check_interrupts(CPUXtensaState *s);
 void xtensa_irq_init(CPUXtensaState *env);
-void *xtensa_get_extint(CPUXtensaState *env, unsigned extint);
+qemu_irq *xtensa_get_extints(CPUXtensaState *env);
 int cpu_xtensa_signal_handler(int host_signum, void *pinfo, void *puc);
 void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void xtensa_sync_window_from_phys(CPUXtensaState *env);

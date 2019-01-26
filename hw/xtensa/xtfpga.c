@@ -225,6 +225,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
     MemoryRegion *system_io;
+    qemu_irq *extints;
     DriveInfo *dinfo;
     pflash_t *flash = NULL;
     QemuOpts *machine_opts = qemu_get_machine_opts();
@@ -253,6 +254,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
          */
         cpu_reset(CPU(cpu));
     }
+    extints = xtensa_get_extints(env);
 
     if (env) {
         XtensaMemory sysram = env->config->sysram;
@@ -284,11 +286,11 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     xtfpga_fpga_init(system_io, 0x0d020000, freq);
     if (nd_table[0].used) {
         xtfpga_net_init(system_io, 0x0d030000, 0x0d030400, 0x0d800000,
-                xtensa_get_extint(env, 1), nd_table);
+                        extints[1], nd_table);
     }
 
-    serial_mm_init(system_io, 0x0d050020, 2, xtensa_get_extint(env, 0),
-            115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
+    serial_mm_init(system_io, 0x0d050020, 2, extints[0],
+                   115200, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (dinfo) {
