@@ -6476,7 +6476,12 @@ static void gen_mbar(DisasContext *ctx)
 /* msync replaces sync on 440 */
 static void gen_msync_4xx(DisasContext *ctx)
 {
-    /* interpreted as no-op */
+    /* Only e500 seems to treat reserved bits as invalid */
+    if ((ctx->insns_flags2 & PPC2_BOOKE206) &&
+        (ctx->opcode & 0x03FFF801)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+    }
+    /* otherwise interpreted as no-op */
 }
 
 /* icbt */
@@ -7054,11 +7059,11 @@ GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000E7C01, PPC_WRTEE),
 GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC),
 GEN_HANDLER_E(mbar, 0x1F, 0x16, 0x1a, 0x001FF801,
               PPC_BOOKE, PPC2_BOOKE206),
-GEN_HANDLER(msync_4xx, 0x1F, 0x16, 0x12, 0x03FFF801, PPC_BOOKE),
+GEN_HANDLER(msync_4xx, 0x1F, 0x16, 0x12, 0x039FF801, PPC_BOOKE),
 GEN_HANDLER2_E(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001,
                PPC_BOOKE, PPC2_BOOKE206),
 GEN_HANDLER2(icbt_440, "icbt", 0x1F, 0x06, 0x08, 0x03E00001,
-               PPC_440_SPEC),
+             PPC_440_SPEC),
 GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC),
