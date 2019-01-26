@@ -77,18 +77,13 @@ static void xtensa_set_irq(void *opaque, int irq, int active)
     }
 }
 
-void xtensa_timer_irq(CPUXtensaState *env, uint32_t id, uint32_t active)
-{
-    qemu_set_irq(env->irq_inputs[env->config->timerint[id]], active);
-}
-
 static void xtensa_ccompare_cb(void *opaque)
 {
     XtensaCcompareTimer *ccompare = opaque;
     CPUXtensaState *env = ccompare->env;
     unsigned i = ccompare - env->ccompare;
 
-    xtensa_timer_irq(env, i, 1);
+    qemu_set_irq(env->irq_inputs[env->config->timerint[i]], 1);
 }
 
 void xtensa_irq_init(CPUXtensaState *env)
