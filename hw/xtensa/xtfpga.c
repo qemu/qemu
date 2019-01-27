@@ -599,7 +599,7 @@ static void xtfpga_lx60_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "lx60 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtfpga_lx60_init;
-    mc->max_cpus = 4;
+    mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
     mc->default_ram_size = 64 * MiB;
 }
@@ -616,7 +616,7 @@ static void xtfpga_lx60_nommu_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "lx60 noMMU EVB (" XTENSA_DEFAULT_CPU_NOMMU_MODEL ")";
     mc->init = xtfpga_lx60_nommu_init;
-    mc->max_cpus = 4;
+    mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
     mc->default_ram_size = 64 * MiB;
 }
@@ -633,7 +633,7 @@ static void xtfpga_lx200_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "lx200 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtfpga_lx200_init;
-    mc->max_cpus = 4;
+    mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
     mc->default_ram_size = 96 * MiB;
 }
@@ -650,7 +650,7 @@ static void xtfpga_lx200_nommu_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "lx200 noMMU EVB (" XTENSA_DEFAULT_CPU_NOMMU_MODEL ")";
     mc->init = xtfpga_lx200_nommu_init;
-    mc->max_cpus = 4;
+    mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
     mc->default_ram_size = 96 * MiB;
 }
@@ -667,7 +667,7 @@ static void xtfpga_ml605_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "ml605 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtfpga_ml605_init;
-    mc->max_cpus = 4;
+    mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
     mc->default_ram_size = 512 * MiB - XTFPGA_MMU_RESERVED_MEMORY_SIZE;
 }
@@ -684,7 +684,7 @@ static void xtfpga_ml605_nommu_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "ml605 noMMU EVB (" XTENSA_DEFAULT_CPU_NOMMU_MODEL ")";
     mc->init = xtfpga_ml605_nommu_init;
-    mc->max_cpus = 4;
+    mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
     mc->default_ram_size = 256 * MiB;
 }
@@ -701,7 +701,7 @@ static void xtfpga_kc705_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "kc705 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtfpga_kc705_init;
-    mc->max_cpus = 4;
+    mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
     mc->default_ram_size = 1 * GiB - XTFPGA_MMU_RESERVED_MEMORY_SIZE;
 }
@@ -718,7 +718,7 @@ static void xtfpga_kc705_nommu_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "kc705 noMMU EVB (" XTENSA_DEFAULT_CPU_NOMMU_MODEL ")";
     mc->init = xtfpga_kc705_nommu_init;
-    mc->max_cpus = 4;
+    mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_NOMMU_TYPE;
     mc->default_ram_size = 256 * MiB;
 }
