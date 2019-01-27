@@ -152,7 +152,7 @@ struct ip6_pseudohdr {
  * If we marked the struct as packed then we would be unable to take
  * the address of any of the fields in it.
  */
-QEMU_BUILD_BUG_ON(sizeof(struct ip6) != 40);
-QEMU_BUILD_BUG_ON(sizeof(struct ip6_pseudohdr) != 40);
+G_STATIC_ASSERT(sizeof(struct ip6) == 40);
+G_STATIC_ASSERT(sizeof(struct ip6_pseudohdr) == 40);
 
 #endif

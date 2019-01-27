@@ -229,8 +229,8 @@ struct	ipasfrag {
 	struct ip ipf_ip;
 };
 
-QEMU_BUILD_BUG_ON(offsetof(struct ipq, frag_link) !=
-                  offsetof(struct ipasfrag, ipf_link));
+G_STATIC_ASSERT(offsetof(struct ipq, frag_link) ==
+                offsetof(struct ipasfrag, ipf_link));
 
 #define ipf_off      ipf_ip.ip_off
 #define ipf_tos      ipf_ip.ip_tos
