@@ -1571,6 +1571,11 @@ static void xhci_stall_ep(XHCITransfer *xfer)
     uint32_t err;
     XHCIStreamContext *sctx;
 
+    if (epctx->type == ET_ISO_IN || epctx->type == ET_ISO_OUT) {
+        /* never halt isoch endpoints, 4.10.2 */
+        return;
+    }
+
     if (epctx->nr_pstreams) {
         sctx = xhci_find_stream(epctx, xfer->streamid, &err);
         if (sctx == NULL) {
