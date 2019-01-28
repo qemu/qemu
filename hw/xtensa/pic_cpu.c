@@ -86,6 +86,12 @@ static void xtensa_ccompare_cb(void *opaque)
     qemu_set_irq(env->irq_inputs[env->config->timerint[i]], 1);
 }
 
+static void xtensa_set_runstall(void *opaque, int irq, int active)
+{
+    CPUXtensaState *env = opaque;
+    xtensa_runstall(env, active);
+}
+
 void xtensa_irq_init(CPUXtensaState *env)
 {
     unsigned i;
@@ -106,9 +112,15 @@ void xtensa_irq_init(CPUXtensaState *env)
 
         env->ext_irq_inputs[i] = env->irq_inputs[irq];
     }
+    env->runstall_irq = qemu_allocate_irq(xtensa_set_runstall, env, 0);
 }
 
 qemu_irq *xtensa_get_extints(CPUXtensaState *env)
 {
     return env->ext_irq_inputs;
+}
+
+qemu_irq xtensa_get_runstall(CPUXtensaState *env)
+{
+    return env->runstall_irq;
 }
