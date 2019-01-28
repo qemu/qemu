@@ -512,6 +512,39 @@ void HELPER(gvec_orc)(void *d, void *a, void *b, uint32_t desc)
     clear_high(d, oprsz, desc);
 }
 
+void HELPER(gvec_nand)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(vec64)) {
+        *(vec64 *)(d + i) = ~(*(vec64 *)(a + i) & *(vec64 *)(b + i));
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_nor)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(vec64)) {
+        *(vec64 *)(d + i) = ~(*(vec64 *)(a + i) | *(vec64 *)(b + i));
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_eqv)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(vec64)) {
+        *(vec64 *)(d + i) = ~(*(vec64 *)(a + i) ^ *(vec64 *)(b + i));
+    }
+    clear_high(d, oprsz, desc);
+}
+
 void HELPER(gvec_ands)(void *d, void *a, uint64_t b, uint32_t desc)
 {
     intptr_t oprsz = simd_oprsz(desc);
@@ -992,6 +1025,230 @@ void HELPER(gvec_ussub64)(void *d, void *a, void *b, uint32_t desc)
             di = 0;
         }
         *(uint64_t *)(d + i) = di;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_smin8)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int8_t)) {
+        int8_t aa = *(int8_t *)(a + i);
+        int8_t bb = *(int8_t *)(b + i);
+        int8_t dd = aa < bb ? aa : bb;
+        *(int8_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_smin16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int16_t aa = *(int16_t *)(a + i);
+        int16_t bb = *(int16_t *)(b + i);
+        int16_t dd = aa < bb ? aa : bb;
+        *(int16_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_smin32)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int32_t)) {
+        int32_t aa = *(int32_t *)(a + i);
+        int32_t bb = *(int32_t *)(b + i);
+        int32_t dd = aa < bb ? aa : bb;
+        *(int32_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_smin64)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int64_t)) {
+        int64_t aa = *(int64_t *)(a + i);
+        int64_t bb = *(int64_t *)(b + i);
+        int64_t dd = aa < bb ? aa : bb;
+        *(int64_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_smax8)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int8_t)) {
+        int8_t aa = *(int8_t *)(a + i);
+        int8_t bb = *(int8_t *)(b + i);
+        int8_t dd = aa > bb ? aa : bb;
+        *(int8_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_smax16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int16_t aa = *(int16_t *)(a + i);
+        int16_t bb = *(int16_t *)(b + i);
+        int16_t dd = aa > bb ? aa : bb;
+        *(int16_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_smax32)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int32_t)) {
+        int32_t aa = *(int32_t *)(a + i);
+        int32_t bb = *(int32_t *)(b + i);
+        int32_t dd = aa > bb ? aa : bb;
+        *(int32_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_smax64)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int64_t)) {
+        int64_t aa = *(int64_t *)(a + i);
+        int64_t bb = *(int64_t *)(b + i);
+        int64_t dd = aa > bb ? aa : bb;
+        *(int64_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_umin8)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint8_t)) {
+        uint8_t aa = *(uint8_t *)(a + i);
+        uint8_t bb = *(uint8_t *)(b + i);
+        uint8_t dd = aa < bb ? aa : bb;
+        *(uint8_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_umin16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint16_t)) {
+        uint16_t aa = *(uint16_t *)(a + i);
+        uint16_t bb = *(uint16_t *)(b + i);
+        uint16_t dd = aa < bb ? aa : bb;
+        *(uint16_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_umin32)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint32_t)) {
+        uint32_t aa = *(uint32_t *)(a + i);
+        uint32_t bb = *(uint32_t *)(b + i);
+        uint32_t dd = aa < bb ? aa : bb;
+        *(uint32_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_umin64)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint64_t)) {
+        uint64_t aa = *(uint64_t *)(a + i);
+        uint64_t bb = *(uint64_t *)(b + i);
+        uint64_t dd = aa < bb ? aa : bb;
+        *(uint64_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_umax8)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint8_t)) {
+        uint8_t aa = *(uint8_t *)(a + i);
+        uint8_t bb = *(uint8_t *)(b + i);
+        uint8_t dd = aa > bb ? aa : bb;
+        *(uint8_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_umax16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint16_t)) {
+        uint16_t aa = *(uint16_t *)(a + i);
+        uint16_t bb = *(uint16_t *)(b + i);
+        uint16_t dd = aa > bb ? aa : bb;
+        *(uint16_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_umax32)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint32_t)) {
+        uint32_t aa = *(uint32_t *)(a + i);
+        uint32_t bb = *(uint32_t *)(b + i);
+        uint32_t dd = aa > bb ? aa : bb;
+        *(uint32_t *)(d + i) = dd;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_umax64)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint64_t)) {
+        uint64_t aa = *(uint64_t *)(a + i);
+        uint64_t bb = *(uint64_t *)(b + i);
+        uint64_t dd = aa > bb ? aa : bb;
+        *(uint64_t *)(d + i) = dd;
     }
     clear_high(d, oprsz, desc);
 }

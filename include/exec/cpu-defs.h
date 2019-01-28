@@ -67,37 +67,23 @@ typedef uint64_t target_ulong;
 #define CPU_TLB_ENTRY_BITS 5
 #endif
 
-/* TCG_TARGET_TLB_DISPLACEMENT_BITS is used in CPU_TLB_BITS to ensure that
- * the TLB is not unnecessarily small, but still small enough for the
- * TLB lookup instruction sequence used by the TCG target.
- *
- * TCG will have to generate an operand as large as the distance between
- * env and the tlb_table[NB_MMU_MODES - 1][0].addend.  For simplicity,
- * the TCG targets just round everything up to the next power of two, and
- * count bits.  This works because: 1) the size of each TLB is a largish
- * power of two, 2) and because the limit of the displacement is really close
- * to a power of two, 3) the offset of tlb_table[0][0] inside env is smaller
- * than the size of a TLB.
- *
- * For example, the maximum displacement 0xFFF0 on PPC and MIPS, but TCG
- * just says "the displacement is 16 bits".  TCG_TARGET_TLB_DISPLACEMENT_BITS
- * then ensures that tlb_table at least 0x8000 bytes large ("not unnecessarily
- * small": 2^15).  The operand then will come up smaller than 0xFFF0 without
- * any particular care, because the TLB for a single MMU mode is larger than
- * 0x10000-0xFFF0=16 bytes.  In the end, the maximum value of the operand
- * could be something like 0xC000 (the offset of the last TLB table) plus
- * 0x18 (the offset of the addend field in each TLB entry) plus the offset
- * of tlb_table inside env (which is non-trivial but not huge).
- */
-#define CPU_TLB_BITS                                             \
-    MIN(8,                                                       \
-        TCG_TARGET_TLB_DISPLACEMENT_BITS - CPU_TLB_ENTRY_BITS -  \
-        (NB_MMU_MODES <= 1 ? 0 :                                 \
-         NB_MMU_MODES <= 2 ? 1 :                                 \
-         NB_MMU_MODES <= 4 ? 2 :                                 \
-         NB_MMU_MODES <= 8 ? 3 : 4))
+#define CPU_TLB_DYN_MIN_BITS 6
+#define CPU_TLB_DYN_DEFAULT_BITS 8
 
-#define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
+# if HOST_LONG_BITS == 32
+/* Make sure we do not require a double-word shift for the TLB load */
+#  define CPU_TLB_DYN_MAX_BITS (32 - TARGET_PAGE_BITS)
+# else /* HOST_LONG_BITS == 64 */
+/*
+ * Assuming TARGET_PAGE_BITS==12, with 2**22 entries we can cover 2**(22+12) ==
+ * 2**34 == 16G of address space. This is roughly what one would expect a
+ * TLB to cover in a modern (as of 2018) x86_64 CPU. For instance, Intel
+ * Skylake's Level-2 STLB has 16 1G entries.
+ * Also, make sure we do not size the TLB past the guest's address space.
+ */
+#  define CPU_TLB_DYN_MAX_BITS                                  \
+    MIN(22, TARGET_VIRT_ADDR_SPACE_BITS - TARGET_PAGE_BITS)
+# endif
 
 typedef struct CPUTLBEntry {
     /* bit TARGET_LONG_BITS to TARGET_PAGE_BITS : virtual address
@@ -141,6 +127,18 @@ typedef struct CPUIOTLBEntry {
     MemTxAttrs attrs;
 } CPUIOTLBEntry;
 
+/**
+ * struct CPUTLBWindow
+ * @begin_ns: host time (in ns) at the beginning of the time window
+ * @max_entries: maximum number of entries observed in the window
+ *
+ * See also: tlb_mmu_resize_locked()
+ */
+typedef struct CPUTLBWindow {
+    int64_t begin_ns;
+    size_t max_entries;
+} CPUTLBWindow;
+
 typedef struct CPUTLBDesc {
     /*
      * Describe a region covering all of the large pages allocated
@@ -152,6 +150,8 @@ typedef struct CPUTLBDesc {
     target_ulong large_page_mask;
     /* The next index to use in the tlb victim table.  */
     size_t vindex;
+    CPUTLBWindow window;
+    size_t n_used_entries;
 } CPUTLBDesc;
 
 /*
@@ -176,6 +176,13 @@ typedef struct CPUTLBCommon {
     size_t elide_flush_count;
 } CPUTLBCommon;
 
+# define CPU_TLB                                                        \
+    /* tlb_mask[i] contains (n_entries - 1) << CPU_TLB_ENTRY_BITS */    \
+    uintptr_t tlb_mask[NB_MMU_MODES];                                   \
+    CPUTLBEntry *tlb_table[NB_MMU_MODES];
+# define CPU_IOTLB                              \
+    CPUIOTLBEntry *iotlb[NB_MMU_MODES];
+
 /*
  * The meaning of each of the MMU modes is defined in the target code.
  * Note that NB_MMU_MODES is not yet defined; we can only reference it
@@ -184,9 +191,9 @@ typedef struct CPUTLBCommon {
 #define CPU_COMMON_TLB \
     CPUTLBCommon tlb_c;                                                 \
     CPUTLBDesc tlb_d[NB_MMU_MODES];                                     \
-    CPUTLBEntry tlb_table[NB_MMU_MODES][CPU_TLB_SIZE];                  \
+    CPU_TLB                                                             \
     CPUTLBEntry tlb_v_table[NB_MMU_MODES][CPU_VTLB_SIZE];               \
-    CPUIOTLBEntry iotlb[NB_MMU_MODES][CPU_TLB_SIZE];                    \
+    CPU_IOTLB                                                           \
     CPUIOTLBEntry iotlb_v[NB_MMU_MODES][CPU_VTLB_SIZE];
 
 #else

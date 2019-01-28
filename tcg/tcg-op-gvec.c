@@ -665,7 +665,7 @@ static void expand_3_i32(uint32_t dofs, uint32_t aofs,
 
 /* Expand OPSZ bytes worth of three-operand operations using i32 elements.  */
 static void expand_4_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
-                         uint32_t cofs, uint32_t oprsz,
+                         uint32_t cofs, uint32_t oprsz, bool write_aofs,
                          void (*fni)(TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32))
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
@@ -680,6 +680,9 @@ static void expand_4_i32(uint32_t dofs, uint32_t aofs, uint32_t bofs,
         tcg_gen_ld_i32(t3, cpu_env, cofs + i);
         fni(t0, t1, t2, t3);
         tcg_gen_st_i32(t0, cpu_env, dofs + i);
+        if (write_aofs) {
+            tcg_gen_st_i32(t1, cpu_env, aofs + i);
+        }
     }
     tcg_temp_free_i32(t3);
     tcg_temp_free_i32(t2);
@@ -769,7 +772,7 @@ static void expand_3_i64(uint32_t dofs, uint32_t aofs,
 
 /* Expand OPSZ bytes worth of three-operand operations using i64 elements.  */
 static void expand_4_i64(uint32_t dofs, uint32_t aofs, uint32_t bofs,
-                         uint32_t cofs, uint32_t oprsz,
+                         uint32_t cofs, uint32_t oprsz, bool write_aofs,
                          void (*fni)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
@@ -784,6 +787,9 @@ static void expand_4_i64(uint32_t dofs, uint32_t aofs, uint32_t bofs,
         tcg_gen_ld_i64(t3, cpu_env, cofs + i);
         fni(t0, t1, t2, t3);
         tcg_gen_st_i64(t0, cpu_env, dofs + i);
+        if (write_aofs) {
+            tcg_gen_st_i64(t1, cpu_env, aofs + i);
+        }
     }
     tcg_temp_free_i64(t3);
     tcg_temp_free_i64(t2);
@@ -880,7 +886,7 @@ static void expand_3_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
 /* Expand OPSZ bytes worth of four-operand operations using host vectors.  */
 static void expand_4_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
                          uint32_t bofs, uint32_t cofs, uint32_t oprsz,
-                         uint32_t tysz, TCGType type,
+                         uint32_t tysz, TCGType type, bool write_aofs,
                          void (*fni)(unsigned, TCGv_vec, TCGv_vec,
                                      TCGv_vec, TCGv_vec))
 {
@@ -896,6 +902,9 @@ static void expand_4_vec(unsigned vece, uint32_t dofs, uint32_t aofs,
         tcg_gen_ld_vec(t3, cpu_env, cofs + i);
         fni(vece, t0, t1, t2, t3);
         tcg_gen_st_vec(t0, cpu_env, dofs + i);
+        if (write_aofs) {
+            tcg_gen_st_vec(t1, cpu_env, aofs + i);
+        }
     }
     tcg_temp_free_vec(t3);
     tcg_temp_free_vec(t2);
@@ -1187,7 +1196,7 @@ void tcg_gen_gvec_4(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
          */
         some = QEMU_ALIGN_DOWN(oprsz, 32);
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, some,
-                     32, TCG_TYPE_V256, g->fniv);
+                     32, TCG_TYPE_V256, g->write_aofs, g->fniv);
         if (some == oprsz) {
             break;
         }
@@ -1200,18 +1209,20 @@ void tcg_gen_gvec_4(uint32_t dofs, uint32_t aofs, uint32_t bofs, uint32_t cofs,
         /* fallthru */
     case TCG_TYPE_V128:
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, oprsz,
-                     16, TCG_TYPE_V128, g->fniv);
+                     16, TCG_TYPE_V128, g->write_aofs, g->fniv);
         break;
     case TCG_TYPE_V64:
         expand_4_vec(g->vece, dofs, aofs, bofs, cofs, oprsz,
-                     8, TCG_TYPE_V64, g->fniv);
+                     8, TCG_TYPE_V64, g->write_aofs, g->fniv);
         break;
 
     case 0:
         if (g->fni8 && check_size_impl(oprsz, 8)) {
-            expand_4_i64(dofs, aofs, bofs, cofs, oprsz, g->fni8);
+            expand_4_i64(dofs, aofs, bofs, cofs, oprsz,
+                         g->write_aofs, g->fni8);
         } else if (g->fni4 && check_size_impl(oprsz, 4)) {
-            expand_4_i32(dofs, aofs, bofs, cofs, oprsz, g->fni4);
+            expand_4_i32(dofs, aofs, bofs, cofs, oprsz,
+                         g->write_aofs, g->fni4);
         } else {
             assert(g->fno != NULL);
             tcg_gen_gvec_4_ool(dofs, aofs, bofs, cofs,
@@ -1667,10 +1678,22 @@ void tcg_gen_gvec_ssadd(unsigned vece, uint32_t dofs, uint32_t aofs,
                         uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
 {
     static const GVecGen3 g[4] = {
-        { .fno = gen_helper_gvec_ssadd8, .vece = MO_8 },
-        { .fno = gen_helper_gvec_ssadd16, .vece = MO_16 },
-        { .fno = gen_helper_gvec_ssadd32, .vece = MO_32 },
-        { .fno = gen_helper_gvec_ssadd64, .vece = MO_64 }
+        { .fniv = tcg_gen_ssadd_vec,
+          .fno = gen_helper_gvec_ssadd8,
+          .opc = INDEX_op_ssadd_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_ssadd_vec,
+          .fno = gen_helper_gvec_ssadd16,
+          .opc = INDEX_op_ssadd_vec,
+          .vece = MO_16 },
+        { .fniv = tcg_gen_ssadd_vec,
+          .fno = gen_helper_gvec_ssadd32,
+          .opc = INDEX_op_ssadd_vec,
+          .vece = MO_32 },
+        { .fniv = tcg_gen_ssadd_vec,
+          .fno = gen_helper_gvec_ssadd64,
+          .opc = INDEX_op_ssadd_vec,
+          .vece = MO_64 },
     };
     tcg_debug_assert(vece <= MO_64);
     tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
@@ -1680,16 +1703,28 @@ void tcg_gen_gvec_sssub(unsigned vece, uint32_t dofs, uint32_t aofs,
                         uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
 {
     static const GVecGen3 g[4] = {
-        { .fno = gen_helper_gvec_sssub8, .vece = MO_8 },
-        { .fno = gen_helper_gvec_sssub16, .vece = MO_16 },
-        { .fno = gen_helper_gvec_sssub32, .vece = MO_32 },
-        { .fno = gen_helper_gvec_sssub64, .vece = MO_64 }
+        { .fniv = tcg_gen_sssub_vec,
+          .fno = gen_helper_gvec_sssub8,
+          .opc = INDEX_op_sssub_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_sssub_vec,
+          .fno = gen_helper_gvec_sssub16,
+          .opc = INDEX_op_sssub_vec,
+          .vece = MO_16 },
+        { .fniv = tcg_gen_sssub_vec,
+          .fno = gen_helper_gvec_sssub32,
+          .opc = INDEX_op_sssub_vec,
+          .vece = MO_32 },
+        { .fniv = tcg_gen_sssub_vec,
+          .fno = gen_helper_gvec_sssub64,
+          .opc = INDEX_op_sssub_vec,
+          .vece = MO_64 },
     };
     tcg_debug_assert(vece <= MO_64);
     tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
 }
 
-static void tcg_gen_vec_usadd32_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+static void tcg_gen_usadd_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
     TCGv_i32 max = tcg_const_i32(-1);
     tcg_gen_add_i32(d, a, b);
@@ -1697,7 +1732,7 @@ static void tcg_gen_vec_usadd32_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
     tcg_temp_free_i32(max);
 }
 
-static void tcg_gen_vec_usadd32_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+static void tcg_gen_usadd_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
 {
     TCGv_i64 max = tcg_const_i64(-1);
     tcg_gen_add_i64(d, a, b);
@@ -1709,20 +1744,30 @@ void tcg_gen_gvec_usadd(unsigned vece, uint32_t dofs, uint32_t aofs,
                         uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
 {
     static const GVecGen3 g[4] = {
-        { .fno = gen_helper_gvec_usadd8, .vece = MO_8 },
-        { .fno = gen_helper_gvec_usadd16, .vece = MO_16 },
-        { .fni4 = tcg_gen_vec_usadd32_i32,
+        { .fniv = tcg_gen_usadd_vec,
+          .fno = gen_helper_gvec_usadd8,
+          .opc = INDEX_op_usadd_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_usadd_vec,
+          .fno = gen_helper_gvec_usadd16,
+          .opc = INDEX_op_usadd_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_usadd_i32,
+          .fniv = tcg_gen_usadd_vec,
           .fno = gen_helper_gvec_usadd32,
+          .opc = INDEX_op_usadd_vec,
           .vece = MO_32 },
-        { .fni8 = tcg_gen_vec_usadd32_i64,
+        { .fni8 = tcg_gen_usadd_i64,
+          .fniv = tcg_gen_usadd_vec,
           .fno = gen_helper_gvec_usadd64,
+          .opc = INDEX_op_usadd_vec,
           .vece = MO_64 }
     };
     tcg_debug_assert(vece <= MO_64);
     tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
 }
 
-static void tcg_gen_vec_ussub32_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+static void tcg_gen_ussub_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
     TCGv_i32 min = tcg_const_i32(0);
     tcg_gen_sub_i32(d, a, b);
@@ -1730,7 +1775,7 @@ static void tcg_gen_vec_ussub32_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
     tcg_temp_free_i32(min);
 }
 
-static void tcg_gen_vec_ussub32_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+static void tcg_gen_ussub_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
 {
     TCGv_i64 min = tcg_const_i64(0);
     tcg_gen_sub_i64(d, a, b);
@@ -1742,13 +1787,131 @@ void tcg_gen_gvec_ussub(unsigned vece, uint32_t dofs, uint32_t aofs,
                         uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
 {
     static const GVecGen3 g[4] = {
-        { .fno = gen_helper_gvec_ussub8, .vece = MO_8 },
-        { .fno = gen_helper_gvec_ussub16, .vece = MO_16 },
-        { .fni4 = tcg_gen_vec_ussub32_i32,
+        { .fniv = tcg_gen_ussub_vec,
+          .fno = gen_helper_gvec_ussub8,
+          .opc = INDEX_op_ussub_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_ussub_vec,
+          .fno = gen_helper_gvec_ussub16,
+          .opc = INDEX_op_ussub_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_ussub_i32,
+          .fniv = tcg_gen_ussub_vec,
           .fno = gen_helper_gvec_ussub32,
+          .opc = INDEX_op_ussub_vec,
           .vece = MO_32 },
-        { .fni8 = tcg_gen_vec_ussub32_i64,
+        { .fni8 = tcg_gen_ussub_i64,
+          .fniv = tcg_gen_ussub_vec,
           .fno = gen_helper_gvec_ussub64,
+          .opc = INDEX_op_ussub_vec,
+          .vece = MO_64 }
+    };
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+void tcg_gen_gvec_smin(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_smin_vec,
+          .fno = gen_helper_gvec_smin8,
+          .opc = INDEX_op_smin_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_smin_vec,
+          .fno = gen_helper_gvec_smin16,
+          .opc = INDEX_op_smin_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_smin_i32,
+          .fniv = tcg_gen_smin_vec,
+          .fno = gen_helper_gvec_smin32,
+          .opc = INDEX_op_smin_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_smin_i64,
+          .fniv = tcg_gen_smin_vec,
+          .fno = gen_helper_gvec_smin64,
+          .opc = INDEX_op_smin_vec,
+          .vece = MO_64 }
+    };
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+void tcg_gen_gvec_umin(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_umin_vec,
+          .fno = gen_helper_gvec_umin8,
+          .opc = INDEX_op_umin_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_umin_vec,
+          .fno = gen_helper_gvec_umin16,
+          .opc = INDEX_op_umin_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_umin_i32,
+          .fniv = tcg_gen_umin_vec,
+          .fno = gen_helper_gvec_umin32,
+          .opc = INDEX_op_umin_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_umin_i64,
+          .fniv = tcg_gen_umin_vec,
+          .fno = gen_helper_gvec_umin64,
+          .opc = INDEX_op_umin_vec,
+          .vece = MO_64 }
+    };
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+void tcg_gen_gvec_smax(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_smax_vec,
+          .fno = gen_helper_gvec_smax8,
+          .opc = INDEX_op_smax_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_smax_vec,
+          .fno = gen_helper_gvec_smax16,
+          .opc = INDEX_op_smax_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_smax_i32,
+          .fniv = tcg_gen_smax_vec,
+          .fno = gen_helper_gvec_smax32,
+          .opc = INDEX_op_smax_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_smax_i64,
+          .fniv = tcg_gen_smax_vec,
+          .fno = gen_helper_gvec_smax64,
+          .opc = INDEX_op_smax_vec,
+          .vece = MO_64 }
+    };
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
+void tcg_gen_gvec_umax(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[4] = {
+        { .fniv = tcg_gen_umax_vec,
+          .fno = gen_helper_gvec_umax8,
+          .opc = INDEX_op_umax_vec,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_umax_vec,
+          .fno = gen_helper_gvec_umax16,
+          .opc = INDEX_op_umax_vec,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_umax_i32,
+          .fniv = tcg_gen_umax_vec,
+          .fno = gen_helper_gvec_umax32,
+          .opc = INDEX_op_umax_vec,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_umax_i64,
+          .fniv = tcg_gen_umax_vec,
+          .fno = gen_helper_gvec_umax64,
+          .opc = INDEX_op_umax_vec,
           .vece = MO_64 }
     };
     tcg_debug_assert(vece <= MO_64);
@@ -1840,7 +2003,12 @@ void tcg_gen_gvec_and(unsigned vece, uint32_t dofs, uint32_t aofs,
         .opc = INDEX_op_and_vec,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_mov(vece, dofs, aofs, oprsz, maxsz);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
 }
 
 void tcg_gen_gvec_or(unsigned vece, uint32_t dofs, uint32_t aofs,
@@ -1853,7 +2021,12 @@ void tcg_gen_gvec_or(unsigned vece, uint32_t dofs, uint32_t aofs,
         .opc = INDEX_op_or_vec,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_mov(vece, dofs, aofs, oprsz, maxsz);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
 }
 
 void tcg_gen_gvec_xor(unsigned vece, uint32_t dofs, uint32_t aofs,
@@ -1866,7 +2039,12 @@ void tcg_gen_gvec_xor(unsigned vece, uint32_t dofs, uint32_t aofs,
         .opc = INDEX_op_xor_vec,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_dup8i(dofs, oprsz, maxsz, 0);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
 }
 
 void tcg_gen_gvec_andc(unsigned vece, uint32_t dofs, uint32_t aofs,
@@ -1879,7 +2057,12 @@ void tcg_gen_gvec_andc(unsigned vece, uint32_t dofs, uint32_t aofs,
         .opc = INDEX_op_andc_vec,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_dup8i(dofs, oprsz, maxsz, 0);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
 }
 
 void tcg_gen_gvec_orc(unsigned vece, uint32_t dofs, uint32_t aofs,
@@ -1892,7 +2075,63 @@ void tcg_gen_gvec_orc(unsigned vece, uint32_t dofs, uint32_t aofs,
         .opc = INDEX_op_orc_vec,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
-    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_dup8i(dofs, oprsz, maxsz, -1);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
+}
+
+void tcg_gen_gvec_nand(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g = {
+        .fni8 = tcg_gen_nand_i64,
+        .fniv = tcg_gen_nand_vec,
+        .fno = gen_helper_gvec_nand,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+    };
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_not(vece, dofs, aofs, oprsz, maxsz);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
+}
+
+void tcg_gen_gvec_nor(unsigned vece, uint32_t dofs, uint32_t aofs,
+                      uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g = {
+        .fni8 = tcg_gen_nor_i64,
+        .fniv = tcg_gen_nor_vec,
+        .fno = gen_helper_gvec_nor,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+    };
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_not(vece, dofs, aofs, oprsz, maxsz);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
+}
+
+void tcg_gen_gvec_eqv(unsigned vece, uint32_t dofs, uint32_t aofs,
+                      uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g = {
+        .fni8 = tcg_gen_eqv_i64,
+        .fniv = tcg_gen_eqv_vec,
+        .fno = gen_helper_gvec_eqv,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+    };
+
+    if (aofs == bofs) {
+        tcg_gen_gvec_dup8i(dofs, oprsz, maxsz, -1);
+    } else {
+        tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g);
+    }
 }
 
 static const GVecGen2s gop_ands = {

@@ -554,6 +554,25 @@ E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
 
   Similarly, v0 = -v1.
 
+* smin_vec:
+* umin_vec:
+
+  Similarly, v0 = MIN(v1, v2), for signed and unsigned element types.
+
+* smax_vec:
+* umax_vec:
+
+  Similarly, v0 = MAX(v1, v2), for signed and unsigned element types.
+
+* ssadd_vec:
+* sssub_vec:
+* usadd_vec:
+* ussub_vec:
+
+  Signed and unsigned saturating addition and subtraction.  If the true
+  result is not representable within the element type, the element is
+  set to the minimum or maximum value for the type.
+
 * and_vec   v0, v1, v2
 * or_vec    v0, v1, v2
 * xor_vec   v0, v1, v2
