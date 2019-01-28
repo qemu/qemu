@@ -31,7 +31,7 @@ int nbd_drop(QIOChannel *ioc, size_t size, Error **errp)
     buffer = sizeof(small) >= size ? small : g_malloc(MIN(65536, size));
     while (size > 0) {
         ssize_t count = MIN(65536, size);
-        ret = nbd_read(ioc, buffer, MIN(65536, size), errp);
+        ret = nbd_read(ioc, buffer, MIN(65536, size), NULL, errp);
 
         if (ret < 0) {
             goto cleanup;

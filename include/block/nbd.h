@@ -23,6 +23,7 @@
 #include "qapi/qapi-types-block.h"
 #include "io/channel-socket.h"
 #include "crypto/tlscreds.h"
+#include "qapi/error.h"
 
 /* Handshake phase structs - this struct is passed on the wire */
 
@@ -336,10 +337,37 @@ void nbd_server_start(SocketAddress *addr, const char *tls_creds,
  * Reads @size bytes from @ioc. Returns 0 on success.
  */
 static inline int nbd_read(QIOChannel *ioc, void *buffer, size_t size,
-                           Error **errp)
+                           const char *desc, Error **errp)
 {
-    return qio_channel_read_all(ioc, buffer, size, errp) < 0 ? -EIO : 0;
+    int ret = qio_channel_read_all(ioc, buffer, size, errp) < 0 ? -EIO : 0;
+
+    if (ret < 0) {
+        if (desc) {
+            error_prepend(errp, "Failed to read %s: ", desc);
+        }
+        return -1;
+    }
+
+    return 0;
 }
+
+#define DEF_NBD_READ_N(bits)                                            \
+static inline int nbd_read##bits(QIOChannel *ioc,                       \
+                                 uint##bits##_t *val,                   \
+                                 const char *desc, Error **errp)        \
+{                                                                       \
+    if (nbd_read(ioc, val, sizeof(*val), desc, errp) < 0) {             \
+        return -1;                                                      \
+    }                                                                   \
+    *val = be##bits##_to_cpu(*val);                                     \
+    return 0;                                                           \
+}
+
+DEF_NBD_READ_N(16) /* Defines nbd_read16(). */
+DEF_NBD_READ_N(32) /* Defines nbd_read32(). */
+DEF_NBD_READ_N(64) /* Defines nbd_read64(). */
+
+#undef DEF_NBD_READ_N
 
 static inline bool nbd_reply_is_simple(NBDReply *reply)
 {

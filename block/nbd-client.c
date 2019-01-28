@@ -338,10 +338,9 @@ static int nbd_co_receive_offset_data_payload(NBDClientSession *s,
         return -EINVAL;
     }
 
-    if (nbd_read(s->ioc, &offset, sizeof(offset), errp) < 0) {
+    if (nbd_read64(s->ioc, &offset, "OFFSET_DATA offset", errp) < 0) {
         return -EIO;
     }
-    be64_to_cpus(&offset);
 
     data_size = chunk->length - sizeof(offset);
     assert(data_size);
@@ -388,7 +387,7 @@ static coroutine_fn int nbd_co_receive_structured_payload(
     }
 
     *payload = g_new(char, len);
-    ret = nbd_read(s->ioc, *payload, len, errp);
+    ret = nbd_read(s->ioc, *payload, len, "structured payload", errp);
     if (ret < 0) {
         g_free(*payload);
         *payload = NULL;
