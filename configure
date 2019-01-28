@@ -4934,7 +4934,7 @@ int main(void) {
 EOF
   if compile_prog "" "" ; then
     guest_agent_ntddscsi=yes
-    libs_qga="-lsetupapi $libs_qga"
+    libs_qga="-lsetupapi -lcfgmgr32 $libs_qga"
   fi
 fi
 
