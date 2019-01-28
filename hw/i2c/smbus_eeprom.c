@@ -180,6 +180,8 @@ void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
 {
     int i;
      /* XXX: make this persistent */
+
+    assert(nb_eeprom <= 8);
     uint8_t *eeprom_buf = g_malloc0(8 * SMBUS_EEPROM_SIZE);
     if (eeprom_spd_size > 0) {
         memcpy(eeprom_buf, eeprom_spd, eeprom_spd_size);
