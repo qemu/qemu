@@ -1178,9 +1178,6 @@ do {                                            \
 typedef struct PPCVirtualHypervisor PPCVirtualHypervisor;
 typedef struct PPCVirtualHypervisorClass PPCVirtualHypervisorClass;
 
-struct XiveTCTX;
-struct ICPState;
-
 /**
  * PowerPCCPU:
  * @env: #CPUPPCState
@@ -1198,8 +1195,6 @@ struct PowerPCCPU {
     int vcpu_id;
     uint32_t compat_pvr;
     PPCVirtualHypervisor *vhyp;
-    struct ICPState *icp;
-    struct XiveTCTX *tctx;
     void *machine_data;
     int32_t node_id; /* NUMA node this CPU belongs to */
     PPCHash64Options *hash64_opts;
