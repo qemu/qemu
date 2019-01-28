@@ -36,6 +36,71 @@
         (IDE_RETRY_DMA | IDE_RETRY_PIO | \
         IDE_RETRY_READ | IDE_RETRY_FLUSH)
 
+static uint64_t pci_ide_cmd_read(void *opaque, hwaddr addr, unsigned size)
+{
+    IDEBus *bus = opaque;
+
+    if (addr != 2 || size != 1) {
+        return ((uint64_t)1 << (size * 8)) - 1;
+    }
+    return ide_status_read(bus, addr + 2);
+}
+
+static void pci_ide_cmd_write(void *opaque, hwaddr addr,
+                              uint64_t data, unsigned size)
+{
+    IDEBus *bus = opaque;
+
+    if (addr != 2 || size != 1) {
+        return;
+    }
+    ide_cmd_write(bus, addr + 2, data);
+}
+
+const MemoryRegionOps pci_ide_cmd_le_ops = {
+    .read = pci_ide_cmd_read,
+    .write = pci_ide_cmd_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static uint64_t pci_ide_data_read(void *opaque, hwaddr addr, unsigned size)
+{
+    IDEBus *bus = opaque;
+
+    if (size == 1) {
+        return ide_ioport_read(bus, addr);
+    } else if (addr == 0) {
+        if (size == 2) {
+            return ide_data_readw(bus, addr);
+        } else {
+            return ide_data_readl(bus, addr);
+        }
+    }
+    return ((uint64_t)1 << (size * 8)) - 1;
+}
+
+static void pci_ide_data_write(void *opaque, hwaddr addr,
+                               uint64_t data, unsigned size)
+{
+    IDEBus *bus = opaque;
+
+    if (size == 1) {
+        ide_ioport_write(bus, addr, data);
+    } else if (addr == 0) {
+        if (size == 2) {
+            ide_data_writew(bus, addr, data);
+        } else {
+            ide_data_writel(bus, addr, data);
+        }
+    }
+}
+
+const MemoryRegionOps pci_ide_data_le_ops = {
+    .read = pci_ide_data_read,
+    .write = pci_ide_data_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 static void bmdma_start_dma(IDEDMA *dma, IDEState *s,
                             BlockCompletionFunc *dma_cb)
 {

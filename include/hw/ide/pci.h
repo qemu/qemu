@@ -37,13 +37,6 @@ typedef struct BMDMAState {
     struct PCIIDEState *pci_dev;
 } BMDMAState;
 
-typedef struct CMD646BAR {
-    MemoryRegion cmd;
-    MemoryRegion data;
-    IDEBus *bus;
-    struct PCIIDEState *pci_dev;
-} CMD646BAR;
-
 #define TYPE_PCI_IDE "pci-ide"
 #define PCI_IDE(obj) OBJECT_CHECK(PCIIDEState, (obj), TYPE_PCI_IDE)
 
@@ -56,9 +49,9 @@ typedef struct PCIIDEState {
     BMDMAState bmdma[2];
     uint32_t secondary; /* used only for cmd646 */
     MemoryRegion bmdma_bar;
-    CMD646BAR cmd646_bar[2]; /* used only for cmd646 */
+    MemoryRegion cmd_bar[2];
+    MemoryRegion data_bar[2];
 } PCIIDEState;
-
 
 static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
 {
@@ -66,11 +59,12 @@ static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
     return bmdma->bus->ifs + bmdma->bus->retry_unit;
 }
 
-
 void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d);
 void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val);
 extern MemoryRegionOps bmdma_addr_ioport_ops;
 void pci_ide_create_devs(PCIDevice *dev, DriveInfo **hd_table);
 
 extern const VMStateDescription vmstate_ide_pci;
+extern const MemoryRegionOps pci_ide_cmd_le_ops;
+extern const MemoryRegionOps pci_ide_data_le_ops;
 #endif
