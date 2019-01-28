@@ -1949,6 +1949,16 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
     while (1) {
         length = xhci_ring_chain_length(xhci, ring);
         if (length <= 0) {
+            if (epctx->type == ET_ISO_OUT || epctx->type == ET_ISO_IN) {
+                /* 4.10.3.1 */
+                XHCIEvent ev = { ER_TRANSFER };
+                ev.ccode  = epctx->type == ET_ISO_IN ?
+                    CC_RING_OVERRUN : CC_RING_UNDERRUN;
+                ev.slotid = epctx->slotid;
+                ev.epid   = epctx->epid;
+                ev.ptr    = epctx->ring.dequeue;
+                xhci_event(xhci, &ev, xhci->slots[epctx->slotid-1].intr);
+            }
             break;
         }
         xfer = xhci_ep_alloc_xfer(epctx, length);
@@ -2028,6 +2038,7 @@ static TRBCCode xhci_disable_slot(XHCIState *xhci, unsigned int slotid)
     xhci->slots[slotid-1].enabled = 0;
     xhci->slots[slotid-1].addressed = 0;
     xhci->slots[slotid-1].uport = NULL;
+    xhci->slots[slotid-1].intr = 0;
     return CC_SUCCESS;
 }
 
@@ -2127,6 +2138,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     slot = &xhci->slots[slotid-1];
     slot->uport = uport;
     slot->ctx = octx;
+    slot->intr = get_field(slot_ctx[2], TRB_INTR);
 
     /* Make sure device is in USB_STATE_DEFAULT state */
     usb_device_reset(dev);
@@ -2300,8 +2312,9 @@ static TRBCCode xhci_evaluate_slot(XHCIState *xhci, unsigned int slotid,
 
         slot_ctx[1] &= ~0xFFFF; /* max exit latency */
         slot_ctx[1] |= islot_ctx[1] & 0xFFFF;
-        slot_ctx[2] &= ~0xFF00000; /* interrupter target */
-        slot_ctx[2] |= islot_ctx[2] & 0xFF000000;
+        /* update interrupter target field */
+        xhci->slots[slotid-1].intr = get_field(islot_ctx[2], TRB_INTR);
+        set_field(&slot_ctx[2], xhci->slots[slotid-1].intr, TRB_INTR);
 
         DPRINTF("xhci: output slot context: %08x %08x %08x %08x\n",
                 slot_ctx[0], slot_ctx[1], slot_ctx[2], slot_ctx[3]);
