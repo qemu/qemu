@@ -1415,10 +1415,6 @@ static int get_physical_address_wtlb(
     bool real_mode = (access_type == ACCESS_CODE && msr_ir == 0)
         || (access_type != ACCESS_CODE && msr_dr == 0);
 
-#if 0
-    qemu_log("%s\n", __func__);
-#endif
-
     switch (env->mmu_model) {
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
@@ -1468,10 +1464,6 @@ static int get_physical_address_wtlb(
         cpu_abort(CPU(cpu), "Unknown or invalid MMU model\n");
         return -1;
     }
-#if 0
-    qemu_log("%s address " TARGET_FMT_lx " => %d " TARGET_FMT_plx "\n",
-             __func__, eaddr, ret, ctx->raddr);
-#endif
 
     return ret;
 }
@@ -1805,10 +1797,6 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                 break;
             }
         }
-#if 0
-        printf("%s: set exception to %d %02x\n", __func__,
-               cs->exception, env->error_code);
-#endif
         ret = 1;
     }
 
