@@ -3,6 +3,7 @@ config PL181
 
 config SSI_SD
     bool
+    depends on SSI
 
 config SD
     bool
