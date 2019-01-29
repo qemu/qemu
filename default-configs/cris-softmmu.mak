@@ -1,6 +1,5 @@
 # Default configuration for cris-softmmu
 
-CONFIG_ETRAXFS=y
-CONFIG_NAND=y
-CONFIG_PFLASH_CFI02=y
+# Boards:
+#
 CONFIG_AXIS=y

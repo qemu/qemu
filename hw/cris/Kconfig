@@ -1,5 +1,8 @@
 config AXIS
     bool
+    select ETRAXFS
+    select PFLASH_CFI02
+    select NAND
 
 config ETRAXFS
    bool
