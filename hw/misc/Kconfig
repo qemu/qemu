@@ -71,6 +71,7 @@ config IVSHMEM_DEVICE
 
 config ECCMEMCTL
     bool
+    select ECC
 
 config IMX
     bool
