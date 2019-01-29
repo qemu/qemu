@@ -521,7 +521,15 @@ static inline QCow2ClusterType qcow2_get_cluster_type(BlockDriverState *bs,
         }
         return QCOW2_CLUSTER_ZERO_PLAIN;
     } else if (!(l2_entry & L2E_OFFSET_MASK)) {
-        return QCOW2_CLUSTER_UNALLOCATED;
+        /* Offset 0 generally means unallocated, but it is ambiguous with
+         * external data files because 0 is a valid offset there. However, all
+         * clusters in external data files always have refcount 1, so we can
+         * rely on QCOW_OFLAG_COPIED to disambiguate. */
+        if (has_data_file(bs) && (l2_entry & QCOW_OFLAG_COPIED)) {
+            return QCOW2_CLUSTER_NORMAL;
+        } else {
+            return QCOW2_CLUSTER_UNALLOCATED;
+        }
     } else {
         return QCOW2_CLUSTER_NORMAL;
     }
