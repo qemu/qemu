@@ -670,7 +670,7 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
-        return 0;
+        return -1;
     }
 }
 
