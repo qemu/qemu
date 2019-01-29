@@ -1,9 +1,11 @@
 config PL181
     bool
+    select SD
 
 config SSI_SD
     bool
     depends on SSI
+    select SD
 
 config SD
     bool
