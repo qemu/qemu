@@ -1,8 +1,19 @@
 config R2D
     bool
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select I82378 if TEST_DEVICES
+    select IDE_MMIO
+    select PFLASH_CFI02
+    select USB_OHCI
+    select PCI
+    select SM501
+    select SH4
 
 config SHIX
     bool
+    select SH7750
+    select SH4
 
 config SH7750
     bool
