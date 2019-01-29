@@ -91,6 +91,7 @@
 
 #define DEFAULT_CLUSTER_SIZE 65536
 
+#define QCOW2_OPT_DATA_FILE "data-file"
 #define QCOW2_OPT_LAZY_REFCOUNTS "lazy-refcounts"
 #define QCOW2_OPT_DISCARD_REQUEST "pass-discard-request"
 #define QCOW2_OPT_DISCARD_SNAPSHOT "pass-discard-snapshot"
@@ -205,7 +206,8 @@ enum {
     QCOW2_INCOMPAT_DATA_FILE        = 1 << QCOW2_INCOMPAT_DATA_FILE_BITNR,
 
     QCOW2_INCOMPAT_MASK             = QCOW2_INCOMPAT_DIRTY
-                                    | QCOW2_INCOMPAT_CORRUPT,
+                                    | QCOW2_INCOMPAT_CORRUPT
+                                    | QCOW2_INCOMPAT_DATA_FILE,
 };
 
 /* Compatible feature bits */

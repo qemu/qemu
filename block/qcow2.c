@@ -1453,8 +1453,31 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         goto fail;
     }
 
-    /* TODO Open external data file */
-    s->data_file = bs->file;
+    /* Open external data file */
+    s->data_file = bdrv_open_child(NULL, options, "data-file", bs, &child_file,
+                                   true, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    if (s->incompatible_features & QCOW2_INCOMPAT_DATA_FILE) {
+        if (!s->data_file) {
+            error_setg(errp, "'data-file' is required for this image");
+            ret = -EINVAL;
+            goto fail;
+        }
+    } else {
+        if (s->data_file) {
+            error_setg(errp, "'data-file' can only be set for images with an "
+                             "external data file");
+            ret = -EINVAL;
+            goto fail;
+        } else {
+            s->data_file = bs->file;
+        }
+    }
 
     /* qcow2_read_extension may have set up the crypto context
      * if the crypt method needs a header region, some methods
@@ -1627,6 +1650,9 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     return ret;
 
  fail:
+    if (has_data_file(bs)) {
+        bdrv_unref_child(bs, s->data_file);
+    }
     g_free(s->unknown_header_fields);
     cleanup_unknown_header_ext(bs);
     qcow2_free_snapshots(bs);
@@ -2245,6 +2271,10 @@ static void qcow2_close(BlockDriverState *bs)
 
     g_free(s->image_backing_file);
     g_free(s->image_backing_format);
+
+    if (has_data_file(bs)) {
+        bdrv_unref_child(bs, s->data_file);
+    }
 
     qcow2_refcount_close(bs);
     qcow2_free_snapshots(bs);

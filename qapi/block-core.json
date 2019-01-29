@@ -3080,6 +3080,10 @@
 #                         encrypted images, except when doing a metadata-only
 #                         probe of the image. (since 2.10)
 #
+# @data-file:             reference to or definition of the external data file.
+#                         This may only be specified for images that require an
+#                         external data file. (since 4.0)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsQcow2',
@@ -3094,7 +3098,8 @@
             '*l2-cache-entry-size': 'int',
             '*refcount-cache-size': 'int',
             '*cache-clean-interval': 'int',
-            '*encrypt': 'BlockdevQcow2Encryption' } }
+            '*encrypt': 'BlockdevQcow2Encryption',
+            '*data-file': 'BlockdevRef' } }
 
 ##
 # @SshHostKeyCheckMode:
