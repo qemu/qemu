@@ -145,7 +145,7 @@ tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 
 %/trace.h: %/trace.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-%/trace.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y)
+%/trace.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=$(call trace-group-name,$@) \
 		--format=h \
@@ -154,7 +154,7 @@ tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 
 %/trace.c: %/trace.c-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-%/trace.c-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y)
+%/trace.c-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=$(call trace-group-name,$@) \
 		--format=c \
@@ -163,7 +163,7 @@ tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 
 %/trace-ust.h: %/trace-ust.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-%/trace-ust.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y)
+%/trace-ust.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=$(call trace-group-name,$@) \
 		--format=ust-events-h \
@@ -187,7 +187,7 @@ tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 
 trace-root.h: trace-root.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
+trace-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=root \
 		--format=h \
@@ -196,7 +196,7 @@ trace-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
 
 trace-root.c: trace-root.c-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-root.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
+trace-root.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=root \
 		--format=c \
@@ -205,7 +205,7 @@ trace-root.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
 
 trace-ust-root.h: trace-ust-root.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-ust-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
+trace-ust-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=root \
 		--format=ust-events-h \
@@ -214,7 +214,7 @@ trace-ust-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
 
 trace-ust-all.h: trace-ust-all.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-ust-all.h-timestamp: $(trace-events-files) $(tracetool-y)
+trace-ust-all.h-timestamp: $(trace-events-files) $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=all \
 		--format=ust-events-h \
@@ -223,7 +223,7 @@ trace-ust-all.h-timestamp: $(trace-events-files) $(tracetool-y)
 
 trace-ust-all.c: trace-ust-all.c-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-ust-all.c-timestamp: $(trace-events-files) $(tracetool-y)
+trace-ust-all.c-timestamp: $(trace-events-files) $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=all \
 		--format=ust-events-c \
