@@ -3,3 +3,6 @@ config XTENSA_SIM
 
 config XTENSA_XTFPGA
     bool
+    select OPENCORES_ETH
+    select PFLASH_CFI01
+    select SERIAL
