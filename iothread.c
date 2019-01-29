@@ -63,7 +63,11 @@ static void *iothread_run(void *opaque)
     while (iothread->running) {
         aio_poll(iothread->ctx, true);
 
-        if (atomic_read(&iothread->worker_context)) {
+        /*
+         * We must check the running state again in case it was
+         * changed in previous aio_poll()
+         */
+        if (iothread->running && atomic_read(&iothread->worker_context)) {
             GMainLoop *loop;
 
             g_main_context_push_thread_default(iothread->worker_context);
