@@ -21,6 +21,49 @@
 #include "hw/arm/nrf51.h"
 #include "hw/gpio/nrf51_gpio.h"
 #include "hw/timer/nrf51_timer.h"
+#include "hw/i2c/microbit_i2c.h"
+
+/* Read a byte from I2C device at @addr from register @reg */
+static uint32_t i2c_read_byte(uint32_t addr, uint32_t reg)
+{
+    uint32_t val;
+
+    writel(NRF51_TWI_BASE + NRF51_TWI_REG_ADDRESS, addr);
+    writel(NRF51_TWI_BASE + NRF51_TWI_TASK_STARTTX, 1);
+    writel(NRF51_TWI_BASE + NRF51_TWI_REG_TXD, reg);
+    val = readl(NRF51_TWI_BASE + NRF51_TWI_EVENT_TXDSENT);
+    g_assert_cmpuint(val, ==, 1);
+    writel(NRF51_TWI_BASE + NRF51_TWI_TASK_STOP, 1);
+
+    writel(NRF51_TWI_BASE + NRF51_TWI_TASK_STARTRX, 1);
+    val = readl(NRF51_TWI_BASE + NRF51_TWI_EVENT_RXDREADY);
+    g_assert_cmpuint(val, ==, 1);
+    val = readl(NRF51_TWI_BASE + NRF51_TWI_REG_RXD);
+    writel(NRF51_TWI_BASE + NRF51_TWI_TASK_STOP, 1);
+
+    return val;
+}
+
+static void test_microbit_i2c(void)
+{
+    uint32_t val;
+
+    /* We don't program pins/irqs but at least enable the device */
+    writel(NRF51_TWI_BASE + NRF51_TWI_REG_ENABLE, 5);
+
+    /* MMA8653 magnetometer detection */
+    val = i2c_read_byte(0x3A, 0x0D);
+    g_assert_cmpuint(val, ==, 0x5A);
+
+    val = i2c_read_byte(0x3A, 0x0D);
+    g_assert_cmpuint(val, ==, 0x5A);
+
+    /* LSM303 accelerometer detection */
+    val = i2c_read_byte(0x3C, 0x4F);
+    g_assert_cmpuint(val, ==, 0x40);
+
+    writel(NRF51_TWI_BASE + NRF51_TWI_REG_ENABLE, 0);
+}
 
 static void test_nrf51_gpio(void)
 {
@@ -247,6 +290,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/microbit/nrf51/gpio", test_nrf51_gpio);
     qtest_add_func("/microbit/nrf51/timer", test_nrf51_timer);
+    qtest_add_func("/microbit/microbit/i2c", test_microbit_i2c);
 
     ret = g_test_run();
 
