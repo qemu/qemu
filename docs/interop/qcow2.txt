@@ -97,7 +97,19 @@ in the description of a field.
                                 be written to (unless for regaining
                                 consistency).
 
-                    Bits 2-63:  Reserved (set to 0)
+                    Bit 2:      External data file bit.  If this bit is set, an
+                                external data file is used. Guest clusters are
+                                then stored in the external data file. For such
+                                images, clusters in the external data file are
+                                not refcounted. The offset field in the
+                                Standard Cluster Descriptor must match the
+                                guest offset and neither compressed clusters
+                                nor internal snapshots are supported.
+
+                                An External Data File Name header extension may
+                                be present if this bit is set.
+
+                    Bits 3-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
                     Bitmask of compatible features. An implementation can
@@ -126,7 +138,21 @@ in the description of a field.
                                 bit is unset, the bitmaps extension data must be
                                 considered inconsistent.
 
-                    Bits 1-63:  Reserved (set to 0)
+                    Bit 1:      If this bit is set, the external data file can
+                                be read as a consistent standalone raw image
+                                without looking at the qcow2 metadata.
+
+                                Setting this bit has a performance impact for
+                                some operations on the image (e.g. writing
+                                zeros requires writing to the data file instead
+                                of only setting the zero flag in the L2 table
+                                entry) and conflicts with backing files.
+
+                                This bit may only be set if the External Data
+                                File bit (incompatible feature bit 1) is also
+                                set.
+
+                    Bits 2-63:  Reserved (set to 0)
 
          96 -  99:  refcount_order
                     Describes the width of a reference count block entry (width
@@ -148,6 +174,7 @@ be stored. Each extension has a structure like the following:
                         0x6803f857 - Feature name table
                         0x23852875 - Bitmaps extension
                         0x0537be77 - Full disk encryption header pointer
+                        0x44415441 - External data file name
                         other      - Unknown header extension, can be safely
                                      ignored
 
@@ -437,6 +464,11 @@ L2 table entry:
                     This information is only accurate in L2 tables
                     that are reachable from the active L1 table.
 
+                    With external data files, all guest clusters have an
+                    implicit refcount of 1 (because of the fixed host = guest
+                    mapping for guest cluster offsets), so this bit should be 1
+                    for all allocated clusters.
+
 Standard Cluster Descriptor:
 
     Bit       0:    If set to 1, the cluster reads as all zeros. The host
@@ -450,8 +482,10 @@ Standard Cluster Descriptor:
          1 -  8:    Reserved (set to 0)
 
          9 - 55:    Bits 9-55 of host cluster offset. Must be aligned to a
-                    cluster boundary. If the offset is 0, the cluster is
-                    unallocated.
+                    cluster boundary. If the offset is 0 and bit 63 is clear,
+                    the cluster is unallocated. The offset may only be 0 with
+                    bit 63 set (indicating a host cluster offset of 0) when an
+                    external data file is used.
 
         56 - 61:    Reserved (set to 0)
 
