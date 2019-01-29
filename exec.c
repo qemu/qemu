@@ -3162,6 +3162,19 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
     cpu_physical_memory_set_dirty_range(addr, length, dirty_log_mask);
 }
 
+void memory_region_flush_rom_device(MemoryRegion *mr, hwaddr addr, hwaddr size)
+{
+    /*
+     * In principle this function would work on other memory region types too,
+     * but the ROM device use case is the only one where this operation is
+     * necessary.  Other memory regions should use the
+     * address_space_read/write() APIs.
+     */
+    assert(memory_region_is_romd(mr));
+
+    invalidate_and_set_dirty(mr, addr, size);
+}
+
 static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
 {
     unsigned access_size_max = mr->ops->valid.max_access_size;
