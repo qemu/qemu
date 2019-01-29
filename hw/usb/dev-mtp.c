@@ -1632,24 +1632,16 @@ static char *utf16_to_str(uint8_t len, uint16_t *arr)
 /* Wrapper around write, returns 0 on failure */
 static uint64_t write_retry(int fd, void *buf, uint64_t size, off_t offset)
 {
-        uint64_t bytes_left = size, ret;
+        uint64_t ret = 0;
 
         if (lseek(fd, offset, SEEK_SET) < 0) {
             goto done;
         }
 
-        while (bytes_left > 0) {
-                ret = write(fd, buf, bytes_left);
-                if ((ret == -1) && (errno != EINTR || errno != EAGAIN ||
-                                    errno != EWOULDBLOCK)) {
-                        break;
-                }
-                bytes_left -= ret;
-                buf += ret;
-        }
+        ret = qemu_write_full(fd, buf, size);
 
 done:
-        return size - bytes_left;
+        return ret;
 }
 
 static void usb_mtp_update_object(MTPObject *parent, char *name)
