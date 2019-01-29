@@ -34,11 +34,35 @@
  * Arm big.LITTLE system) they should be in different clusters. If the CPUs do
  * not have the same view of memory (for example the main CPU and a management
  * controller processor) they should be in different clusters.
+ *
+ * A cluster is created by creating an object of TYPE_CPU_CLUSTER, and then
+ * adding the CPUs to it as QOM child objects (e.g. using the
+ * object_initialize_child() or object_property_add_child() functions).
+ * The CPUs may be either direct children of the cluster object, or indirect
+ * children (e.g. children of children of the cluster object).
+ *
+ * All CPUs must be added as children before the cluster is realized.
+ * (Regrettably QOM provides no way to prevent adding children to a realized
+ * object and no way for the parent to be notified when a new child is added
+ * to it, so this restriction is not checked for, but the system will not
+ * behave correctly if it is not adhered to. The cluster will assert that
+ * it contains at least one CPU, which should catch most inadvertent
+ * violations of this constraint.)
+ *
+ * A CPU which is not put into any cluster will be considered implicitly
+ * to be in a cluster with all the other "loose" CPUs, so all CPUs that are
+ * not assigned to clusters must be identical.
  */
 
 #define TYPE_CPU_CLUSTER "cpu-cluster"
 #define CPU_CLUSTER(obj) \
     OBJECT_CHECK(CPUClusterState, (obj), TYPE_CPU_CLUSTER)
+
+/*
+ * This limit is imposed by TCG, which puts the cluster ID into an
+ * 8 bit field (and uses all-1s for the default "not in any cluster").
+ */
+#define MAX_CLUSTERS 255
 
 /**
  * CPUClusterState:

@@ -1345,6 +1345,24 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
                                hwaddr size, unsigned client);
 
 /**
+ * memory_region_flush_rom_device: Mark a range of pages dirty and invalidate
+ *                                 TBs (for self-modifying code).
+ *
+ * The MemoryRegionOps->write() callback of a ROM device must use this function
+ * to mark byte ranges that have been modified internally, such as by directly
+ * accessing the memory returned by memory_region_get_ram_ptr().
+ *
+ * This function marks the range dirty and invalidates TBs so that TCG can
+ * detect self-modifying code.
+ *
+ * @mr: the region being flushed.
+ * @addr: the start, relative to the start of the region, of the range being
+ *        flushed.
+ * @size: the size, in bytes, of the range being flushed.
+ */
+void memory_region_flush_rom_device(MemoryRegion *mr, hwaddr addr, hwaddr size);
+
+/**
  * memory_region_set_readonly: Turn a memory region read-only (or read-write)
  *
  * Allows a memory region to be marked as read-only (turning it into a ROM).

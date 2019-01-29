@@ -1039,8 +1039,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         unset_feature(env, ARM_FEATURE_PMU);
     }
     if (arm_feature(env, ARM_FEATURE_PMU)) {
-        cpu->pmceid0 = get_pmceid(&cpu->env, 0);
-        cpu->pmceid1 = get_pmceid(&cpu->env, 1);
+        pmu_init(cpu);
 
         if (!kvm_enabled()) {
             arm_register_pre_el_change_hook(cpu, &pmu_pre_el_change, 0);

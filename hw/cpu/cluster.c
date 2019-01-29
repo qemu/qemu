@@ -20,19 +20,65 @@
 
 #include "qemu/osdep.h"
 #include "hw/cpu/cluster.h"
+#include "qom/cpu.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qemu/cutils.h"
 
 static Property cpu_cluster_properties[] = {
     DEFINE_PROP_UINT32("cluster-id", CPUClusterState, cluster_id, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
+typedef struct CallbackData {
+    CPUClusterState *cluster;
+    int cpu_count;
+} CallbackData;
+
+static int add_cpu_to_cluster(Object *obj, void *opaque)
+{
+    CallbackData *cbdata = opaque;
+    CPUState *cpu = (CPUState *)object_dynamic_cast(obj, TYPE_CPU);
+
+    if (cpu) {
+        cpu->cluster_index = cbdata->cluster->cluster_id;
+        cbdata->cpu_count++;
+    }
+    return 0;
+}
+
+static void cpu_cluster_realize(DeviceState *dev, Error **errp)
+{
+    /* Iterate through all our CPU children and set their cluster_index */
+    CPUClusterState *cluster = CPU_CLUSTER(dev);
+    Object *cluster_obj = OBJECT(dev);
+    CallbackData cbdata = {
+        .cluster = cluster,
+        .cpu_count = 0,
+    };
+
+    if (cluster->cluster_id >= MAX_CLUSTERS) {
+        error_setg(errp, "cluster-id must be less than %d", MAX_CLUSTERS);
+        return;
+    }
+
+    object_child_foreach_recursive(cluster_obj, add_cpu_to_cluster, &cbdata);
+
+    /*
+     * A cluster with no CPUs is a bug in the board/SoC code that created it;
+     * if you hit this during development of new code, check that you have
+     * created the CPUs and parented them into the cluster object before
+     * realizing the cluster object.
+     */
+    assert(cbdata.cpu_count > 0);
+}
+
 static void cpu_cluster_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->props = cpu_cluster_properties;
+    dc->realize = cpu_cluster_realize;
 }
 
 static const TypeInfo cpu_cluster_type_info = {

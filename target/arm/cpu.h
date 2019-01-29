@@ -1012,14 +1012,13 @@ void pmu_pre_el_change(ARMCPU *cpu, void *ignored);
 void pmu_post_el_change(ARMCPU *cpu, void *ignored);
 
 /*
- * get_pmceid
- * @env: CPUARMState
- * @which: which PMCEID register to return (0 or 1)
+ * pmu_init
+ * @cpu: ARMCPU
  *
- * Return the PMCEID[01]_EL0 register values corresponding to the counters
- * which are supported given the current configuration
+ * Initialize the CPU's PMCEID[01]_EL0 registers and associated internal state
+ * for the current configuration
  */
-uint64_t get_pmceid(CPUARMState *env, unsigned which);
+void pmu_init(ARMCPU *cpu);
 
 /* SCTLR bit meanings. Several bits have been reused in newer
  * versions of the architecture; in that case we define constants

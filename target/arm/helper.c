@@ -1090,22 +1090,24 @@ static const pm_event pm_events[] = {
 static uint16_t supported_event_map[MAX_EVENT_ID + 1];
 
 /*
- * Called upon initialization to build PMCEID0_EL0 or PMCEID1_EL0 (indicated by
- * 'which'). We also use it to build a map of ARM event numbers to indices in
- * our pm_events array.
+ * Called upon CPU initialization to initialize PMCEID[01]_EL0 and build a map
+ * of ARM event numbers to indices in our pm_events array.
  *
  * Note: Events in the 0x40XX range are not currently supported.
  */
-uint64_t get_pmceid(CPUARMState *env, unsigned which)
+void pmu_init(ARMCPU *cpu)
 {
-    uint64_t pmceid = 0;
     unsigned int i;
 
-    assert(which <= 1);
-
+    /*
+     * Empty supported_event_map and cpu->pmceid[01] before adding supported
+     * events to them
+     */
     for (i = 0; i < ARRAY_SIZE(supported_event_map); i++) {
         supported_event_map[i] = UNSUPPORTED_EVENT;
     }
+    cpu->pmceid0 = 0;
+    cpu->pmceid1 = 0;
 
     for (i = 0; i < ARRAY_SIZE(pm_events); i++) {
         const pm_event *cnt = &pm_events[i];
@@ -1113,13 +1115,16 @@ uint64_t get_pmceid(CPUARMState *env, unsigned which)
         /* We do not currently support events in the 0x40xx range */
         assert(cnt->number <= 0x3f);
 
-        if ((cnt->number & 0x20) == (which << 6) &&
-                cnt->supported(env)) {
-            pmceid |= (1 << (cnt->number & 0x1f));
+        if (cnt->supported(&cpu->env)) {
             supported_event_map[cnt->number] = i;
+            uint64_t event_mask = 1 << (cnt->number & 0x1f);
+            if (cnt->number & 0x20) {
+                cpu->pmceid1 |= event_mask;
+            } else {
+                cpu->pmceid0 |= event_mask;
+            }
         }
     }
-    return pmceid;
 }
 
 /*
@@ -10447,7 +10452,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     uint64_t ttbr;
     hwaddr descaddr, indexmask, indexmask_grainsize;
     uint32_t tableattrs;
-    target_ulong page_size, top_bits;
+    target_ulong page_size;
     uint32_t attrs;
     int32_t stride;
     int addrsize, inputsize;
@@ -10487,12 +10492,19 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      * We determined the region when collecting the parameters, but we
      * have not yet validated that the address is valid for the region.
      * Extract the top bits and verify that they all match select.
+     *
+     * For aa32, if inputsize == addrsize, then we have selected the
+     * region by exclusion in aa32_va_parameters and there is no more
+     * validation to do here.
      */
-    top_bits = sextract64(address, inputsize, addrsize - inputsize);
-    if (-top_bits != param.select || (param.select && !ttbr1_valid)) {
-        /* In the gap between the two regions, this is a Translation fault */
-        fault_type = ARMFault_Translation;
-        goto do_fault;
+    if (inputsize < addrsize) {
+        target_ulong top_bits = sextract64(address, inputsize,
+                                           addrsize - inputsize);
+        if (-top_bits != param.select || (param.select && !ttbr1_valid)) {
+            /* The gap between the two regions is a Translation fault */
+            fault_type = ARMFault_Translation;
+            goto do_fault;
+        }
     }
 
     if (param.using64k) {
@@ -11071,17 +11083,18 @@ static void v8m_security_lookup(CPUARMState *env, uint32_t address,
                 }
             }
         }
-
-        /* The IDAU will override the SAU lookup results if it specifies
-         * higher security than the SAU does.
-         */
-        if (!idau_ns) {
-            if (sattrs->ns || (!idau_nsc && sattrs->nsc)) {
-                sattrs->ns = false;
-                sattrs->nsc = idau_nsc;
-            }
-        }
         break;
+    }
+
+    /*
+     * The IDAU will override the SAU lookup results if it specifies
+     * higher security than the SAU does.
+     */
+    if (!idau_ns) {
+        if (sattrs->ns || (!idau_nsc && sattrs->nsc)) {
+            sattrs->ns = false;
+            sattrs->nsc = idau_nsc;
+        }
     }
 }
 
