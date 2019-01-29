@@ -1,2 +1,12 @@
 config DP264
     bool
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select I82374
+    select I8254
+    select I8259
+    select IDE_CMD646
+    select MC146818RTC
+    select PCI
+    select PCKBD
+    select SMC37C669
