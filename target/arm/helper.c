@@ -10447,7 +10447,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     uint64_t ttbr;
     hwaddr descaddr, indexmask, indexmask_grainsize;
     uint32_t tableattrs;
-    target_ulong page_size, top_bits;
+    target_ulong page_size;
     uint32_t attrs;
     int32_t stride;
     int addrsize, inputsize;
@@ -10487,12 +10487,19 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      * We determined the region when collecting the parameters, but we
      * have not yet validated that the address is valid for the region.
      * Extract the top bits and verify that they all match select.
+     *
+     * For aa32, if inputsize == addrsize, then we have selected the
+     * region by exclusion in aa32_va_parameters and there is no more
+     * validation to do here.
      */
-    top_bits = sextract64(address, inputsize, addrsize - inputsize);
-    if (-top_bits != param.select || (param.select && !ttbr1_valid)) {
-        /* In the gap between the two regions, this is a Translation fault */
-        fault_type = ARMFault_Translation;
-        goto do_fault;
+    if (inputsize < addrsize) {
+        target_ulong top_bits = sextract64(address, inputsize,
+                                           addrsize - inputsize);
+        if (-top_bits != param.select || (param.select && !ttbr1_valid)) {
+            /* The gap between the two regions is a Translation fault */
+            fault_type = ARMFault_Translation;
+            goto do_fault;
+        }
     }
 
     if (param.using64k) {
