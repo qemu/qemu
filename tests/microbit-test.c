@@ -19,9 +19,97 @@
 #include "libqtest.h"
 
 #include "hw/arm/nrf51.h"
+#include "hw/char/nrf51_uart.h"
 #include "hw/gpio/nrf51_gpio.h"
 #include "hw/timer/nrf51_timer.h"
 #include "hw/i2c/microbit_i2c.h"
+
+static bool uart_wait_for_event(QTestState *qts, uint32_t event_addr)
+{
+    time_t now, start = time(NULL);
+
+    while (true) {
+        if (qtest_readl(qts, event_addr) == 1) {
+            qtest_writel(qts, event_addr, 0x00);
+            return true;
+        }
+
+        /* Wait at most 10 minutes */
+        now = time(NULL);
+        if (now - start > 600) {
+            break;
+        }
+        g_usleep(10000);
+    }
+
+    return false;
+}
+
+static void uart_rw_to_rxd(QTestState *qts, int sock_fd, const char *in,
+                           char *out)
+{
+    int i, in_len = strlen(in);
+
+    g_assert_true(write(sock_fd, in, in_len) == in_len);
+    for (i = 0; i < in_len; i++) {
+        g_assert_true(uart_wait_for_event(qts, NRF51_UART_BASE +
+                                               A_UART_RXDRDY));
+        out[i] = qtest_readl(qts, NRF51_UART_BASE + A_UART_RXD);
+    }
+    out[i] = '\0';
+}
+
+static void uart_w_to_txd(QTestState *qts, const char *in)
+{
+    int i, in_len = strlen(in);
+
+    for (i = 0; i < in_len; i++) {
+        qtest_writel(qts, NRF51_UART_BASE + A_UART_TXD, in[i]);
+        g_assert_true(uart_wait_for_event(qts, NRF51_UART_BASE +
+                                               A_UART_TXDRDY));
+    }
+}
+
+static void test_nrf51_uart(void)
+{
+    int sock_fd;
+    char s[10];
+    QTestState *qts = qtest_init_with_serial("-M microbit", &sock_fd);
+
+    g_assert_true(write(sock_fd, "c", 1) == 1);
+    g_assert_cmphex(qtest_readl(qts, NRF51_UART_BASE + A_UART_RXD), ==, 0x00);
+
+    qtest_writel(qts, NRF51_UART_BASE + A_UART_ENABLE, 0x04);
+    qtest_writel(qts, NRF51_UART_BASE + A_UART_STARTRX, 0x01);
+
+    g_assert_true(uart_wait_for_event(qts, NRF51_UART_BASE + A_UART_RXDRDY));
+    qtest_writel(qts, NRF51_UART_BASE + A_UART_RXDRDY, 0x00);
+    g_assert_cmphex(qtest_readl(qts, NRF51_UART_BASE + A_UART_RXD), ==, 'c');
+
+    qtest_writel(qts, NRF51_UART_BASE + A_UART_INTENSET, 0x04);
+    g_assert_cmphex(qtest_readl(qts, NRF51_UART_BASE + A_UART_INTEN), ==, 0x04);
+    qtest_writel(qts, NRF51_UART_BASE + A_UART_INTENCLR, 0x04);
+    g_assert_cmphex(qtest_readl(qts, NRF51_UART_BASE + A_UART_INTEN), ==, 0x00);
+
+    uart_rw_to_rxd(qts, sock_fd, "hello", s);
+    g_assert_true(memcmp(s, "hello", 5) == 0);
+
+    qtest_writel(qts, NRF51_UART_BASE + A_UART_STARTTX, 0x01);
+    uart_w_to_txd(qts, "d");
+    g_assert_true(read(sock_fd, s, 10) == 1);
+    g_assert_cmphex(s[0], ==, 'd');
+
+    qtest_writel(qts, NRF51_UART_BASE + A_UART_SUSPEND, 0x01);
+    qtest_writel(qts, NRF51_UART_BASE + A_UART_TXD, 'h');
+    qtest_writel(qts, NRF51_UART_BASE + A_UART_STARTTX, 0x01);
+    uart_w_to_txd(qts, "world");
+    g_assert_true(read(sock_fd, s, 10) == 5);
+    g_assert_true(memcmp(s, "world", 5) == 0);
+
+    close(sock_fd);
+
+    qtest_quit(qts);
+}
 
 /* Read a byte from I2C device at @addr from register @reg */
 static uint32_t i2c_read_byte(QTestState *qts, uint32_t addr, uint32_t reg)
@@ -302,6 +390,7 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
+    qtest_add_func("/microbit/nrf51/uart", test_nrf51_uart);
     qtest_add_func("/microbit/nrf51/gpio", test_nrf51_gpio);
     qtest_add_func("/microbit/nrf51/timer", test_nrf51_timer);
     qtest_add_func("/microbit/microbit/i2c", test_microbit_i2c);
