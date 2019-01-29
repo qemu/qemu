@@ -756,35 +756,6 @@ static CPUState *gdb_next_cpu_in_process(const GDBState *s, CPUState *cpu)
     return cpu;
 }
 
-static CPUState *gdb_get_cpu(const GDBState *s, uint32_t pid, uint32_t tid)
-{
-    GDBProcess *process;
-    CPUState *cpu;
-
-    if (!tid) {
-        /* 0 means any thread, we take the first one */
-        tid = 1;
-    }
-
-    cpu = find_cpu(tid);
-
-    if (cpu == NULL) {
-        return NULL;
-    }
-
-    process = gdb_get_cpu_process(s, cpu);
-
-    if (process->pid != pid) {
-        return NULL;
-    }
-
-    if (!process->attached) {
-        return NULL;
-    }
-
-    return cpu;
-}
-
 /* Return the cpu following @cpu, while ignoring unattached processes. */
 static CPUState *gdb_next_attached_cpu(const GDBState *s, CPUState *cpu)
 {
@@ -812,6 +783,49 @@ static CPUState *gdb_first_attached_cpu(const GDBState *s)
     }
 
     return cpu;
+}
+
+static CPUState *gdb_get_cpu(const GDBState *s, uint32_t pid, uint32_t tid)
+{
+    GDBProcess *process;
+    CPUState *cpu;
+
+    if (!pid && !tid) {
+        /* 0 means any process/thread, we take the first attached one */
+        return gdb_first_attached_cpu(s);
+    } else if (pid && !tid) {
+        /* any thread in a specific process */
+        process = gdb_get_process(s, pid);
+
+        if (process == NULL) {
+            return NULL;
+        }
+
+        if (!process->attached) {
+            return NULL;
+        }
+
+        return get_first_cpu_in_process(s, process);
+    } else {
+        /* a specific thread */
+        cpu = find_cpu(tid);
+
+        if (cpu == NULL) {
+            return NULL;
+        }
+
+        process = gdb_get_cpu_process(s, cpu);
+
+        if (pid && process->pid != pid) {
+            return NULL;
+        }
+
+        if (!process->attached) {
+            return NULL;
+        }
+
+        return cpu;
+    }
 }
 
 static const char *get_feature_xml(const GDBState *s, const char *p,
