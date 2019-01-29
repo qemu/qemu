@@ -479,28 +479,66 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
 #elif defined(__aarch64__)
 
+#ifndef ESR_MAGIC
+/* Pre-3.16 kernel headers don't have these, so provide fallback definitions */
+#define ESR_MAGIC 0x45535201
+struct esr_context {
+    struct _aarch64_ctx head;
+    uint64_t esr;
+};
+#endif
+
+static inline struct _aarch64_ctx *first_ctx(ucontext_t *uc)
+{
+    return (struct _aarch64_ctx *)&uc->uc_mcontext.__reserved;
+}
+
+static inline struct _aarch64_ctx *next_ctx(struct _aarch64_ctx *hdr)
+{
+    return (struct _aarch64_ctx *)((char *)hdr + hdr->size);
+}
+
 int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
 {
     siginfo_t *info = pinfo;
     ucontext_t *uc = puc;
     uintptr_t pc = uc->uc_mcontext.pc;
-    uint32_t insn = *(uint32_t *)pc;
     bool is_write;
+    struct _aarch64_ctx *hdr;
+    struct esr_context const *esrctx = NULL;
 
-    /* XXX: need kernel patch to get write flag faster.  */
-    is_write = (   (insn & 0xbfff0000) == 0x0c000000   /* C3.3.1 */
-                || (insn & 0xbfe00000) == 0x0c800000   /* C3.3.2 */
-                || (insn & 0xbfdf0000) == 0x0d000000   /* C3.3.3 */
-                || (insn & 0xbfc00000) == 0x0d800000   /* C3.3.4 */
-                || (insn & 0x3f400000) == 0x08000000   /* C3.3.6 */
-                || (insn & 0x3bc00000) == 0x39000000   /* C3.3.13 */
-                || (insn & 0x3fc00000) == 0x3d800000   /* ... 128bit */
-                /* Ingore bits 10, 11 & 21, controlling indexing.  */
-                || (insn & 0x3bc00000) == 0x38000000   /* C3.3.8-12 */
-                || (insn & 0x3fe00000) == 0x3c800000   /* ... 128bit */
-                /* Ignore bits 23 & 24, controlling indexing.  */
-                || (insn & 0x3a400000) == 0x28000000); /* C3.3.7,14-16 */
+    /* Find the esr_context, which has the WnR bit in it */
+    for (hdr = first_ctx(uc); hdr->magic; hdr = next_ctx(hdr)) {
+        if (hdr->magic == ESR_MAGIC) {
+            esrctx = (struct esr_context const *)hdr;
+            break;
+        }
+    }
 
+    if (esrctx) {
+        /* For data aborts ESR.EC is 0b10010x: then bit 6 is the WnR bit */
+        uint64_t esr = esrctx->esr;
+        is_write = extract32(esr, 27, 5) == 0x12 && extract32(esr, 6, 1) == 1;
+    } else {
+        /*
+         * Fall back to parsing instructions; will only be needed
+         * for really ancient (pre-3.16) kernels.
+         */
+        uint32_t insn = *(uint32_t *)pc;
+
+        is_write = ((insn & 0xbfff0000) == 0x0c000000   /* C3.3.1 */
+                    || (insn & 0xbfe00000) == 0x0c800000   /* C3.3.2 */
+                    || (insn & 0xbfdf0000) == 0x0d000000   /* C3.3.3 */
+                    || (insn & 0xbfc00000) == 0x0d800000   /* C3.3.4 */
+                    || (insn & 0x3f400000) == 0x08000000   /* C3.3.6 */
+                    || (insn & 0x3bc00000) == 0x39000000   /* C3.3.13 */
+                    || (insn & 0x3fc00000) == 0x3d800000   /* ... 128bit */
+                    /* Ignore bits 10, 11 & 21, controlling indexing.  */
+                    || (insn & 0x3bc00000) == 0x38000000   /* C3.3.8-12 */
+                    || (insn & 0x3fe00000) == 0x3c800000   /* ... 128bit */
+                    /* Ignore bits 23 & 24, controlling indexing.  */
+                    || (insn & 0x3a400000) == 0x28000000); /* C3.3.7,14-16 */
+    }
     return handle_cpu_signal(pc, info, is_write, &uc->uc_sigmask);
 }
 
