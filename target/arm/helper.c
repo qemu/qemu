@@ -1090,22 +1090,24 @@ static const pm_event pm_events[] = {
 static uint16_t supported_event_map[MAX_EVENT_ID + 1];
 
 /*
- * Called upon initialization to build PMCEID0_EL0 or PMCEID1_EL0 (indicated by
- * 'which'). We also use it to build a map of ARM event numbers to indices in
- * our pm_events array.
+ * Called upon CPU initialization to initialize PMCEID[01]_EL0 and build a map
+ * of ARM event numbers to indices in our pm_events array.
  *
  * Note: Events in the 0x40XX range are not currently supported.
  */
-uint64_t get_pmceid(CPUARMState *env, unsigned which)
+void pmu_init(ARMCPU *cpu)
 {
-    uint64_t pmceid = 0;
     unsigned int i;
 
-    assert(which <= 1);
-
+    /*
+     * Empty supported_event_map and cpu->pmceid[01] before adding supported
+     * events to them
+     */
     for (i = 0; i < ARRAY_SIZE(supported_event_map); i++) {
         supported_event_map[i] = UNSUPPORTED_EVENT;
     }
+    cpu->pmceid0 = 0;
+    cpu->pmceid1 = 0;
 
     for (i = 0; i < ARRAY_SIZE(pm_events); i++) {
         const pm_event *cnt = &pm_events[i];
@@ -1113,13 +1115,16 @@ uint64_t get_pmceid(CPUARMState *env, unsigned which)
         /* We do not currently support events in the 0x40xx range */
         assert(cnt->number <= 0x3f);
 
-        if ((cnt->number & 0x20) == (which << 6) &&
-                cnt->supported(env)) {
-            pmceid |= (1 << (cnt->number & 0x1f));
+        if (cnt->supported(&cpu->env)) {
             supported_event_map[cnt->number] = i;
+            uint64_t event_mask = 1 << (cnt->number & 0x1f);
+            if (cnt->number & 0x20) {
+                cpu->pmceid1 |= event_mask;
+            } else {
+                cpu->pmceid0 |= event_mask;
+            }
         }
     }
-    return pmceid;
 }
 
 /*
