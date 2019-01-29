@@ -98,6 +98,9 @@ typedef struct AspeedSMCState {
     uint8_t conf_enable_w0;
 
     AspeedSMCFlash *flashes;
+
+    uint8_t snoop_index;
+    uint8_t snoop_dummies;
 } AspeedSMCState;
 
 #endif /* ASPEED_SMC_H */
