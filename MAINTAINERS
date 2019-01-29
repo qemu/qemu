@@ -829,9 +829,11 @@ M: Joel Stanley <joel@jms.id.au>
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
-F: hw/arm/nrf51_soc.c
-F: hw/arm/microbit.c
-F: include/hw/arm/nrf51_soc.h
+F: hw/*/nrf51*.c
+F: hw/*/microbit*.c
+F: include/hw/*/nrf51*.h
+F: include/hw/*/microbit*.h
+F: tests/microbit-test.c
 
 CRIS Machines
 -------------
